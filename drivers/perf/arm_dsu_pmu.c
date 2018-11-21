@@ -536,7 +536,7 @@ static bool dsu_pmu_validate_group(struct perf_event *event)
 	memset(fake_hw.used_mask, 0, sizeof(fake_hw.used_mask));
 	if (!dsu_pmu_validate_event(event->pmu, &fake_hw, leader))
 		return false;
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	for_each_sibling_event(sibling, leader) {
 		if (!dsu_pmu_validate_event(event->pmu, &fake_hw, sibling))
 			return false;
 	}

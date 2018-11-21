@@ -31,7 +31,6 @@
 #include "efuse.h"
 #include <linux/interrupt.h>
 #include <linux/export.h>
-#include <linux/kmemleak.h>
 #include <linux/module.h>
 
 MODULE_AUTHOR("lizhaoming	<chaoming_li@realsil.com.cn>");

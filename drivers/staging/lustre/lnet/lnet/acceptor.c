@@ -240,7 +240,7 @@ lnet_accept(struct socket *sock, __u32 magic)
 			return -EPROTO;
 		}
 
-		if (magic == le32_to_cpu(LNET_PROTO_TCP_MAGIC))
+		if (lnet_accept_magic(magic, LNET_PROTO_TCP_MAGIC))
 			str = "'old' socknal/tcpnal";
 		else
 			str = "unrecognised";
@@ -335,8 +335,6 @@ lnet_acceptor(void *arg)
 
 	LASSERT(!lnet_acceptor_state.pta_sock);
 
-	cfs_block_allsigs();
-
 	rc = lnet_sock_listen(&lnet_acceptor_state.pta_sock, 0, accept_port,
 			      accept_backlog);
 	if (rc) {
@@ -365,7 +363,7 @@ lnet_acceptor(void *arg)
 			if (rc != -EAGAIN) {
 				CWARN("Accept error %d: pausing...\n", rc);
 				set_current_state(TASK_UNINTERRUPTIBLE);
-				schedule_timeout(cfs_time_seconds(1));
+				schedule_timeout(HZ);
 			}
 			continue;
 		}

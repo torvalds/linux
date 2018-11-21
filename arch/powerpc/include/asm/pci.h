@@ -76,10 +76,11 @@ extern int pci_proc_domain(struct pci_bus *bus);
 
 struct vm_area_struct;
 
-/* Tell drivers/pci/proc.c that we have pci_mmap_page_range() and it does WC */
-#define HAVE_PCI_MMAP		1
-#define arch_can_pci_mmap_io()	1
-#define arch_can_pci_mmap_wc()	1
+/* Tell PCI code what kind of PCI resource mappings we support */
+#define HAVE_PCI_MMAP			1
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
+#define arch_can_pci_mmap_io()		1
+#define arch_can_pci_mmap_wc()		1
 
 extern int pci_legacy_read(struct pci_bus *bus, loff_t port, u32 *val,
 			   size_t count);

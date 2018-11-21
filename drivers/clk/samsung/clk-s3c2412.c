@@ -27,11 +27,6 @@
 #define CLKSRC		0x1c
 #define SWRST		0x30
 
-/* list of PLLs to be registered */
-enum s3c2412_plls {
-	mpll, upll,
-};
-
 static void __iomem *reg_base;
 
 #ifdef CONFIG_PM_SLEEP
@@ -98,7 +93,7 @@ static struct clk_div_table divxti_d[] = {
 	{ /* sentinel */ },
 };
 
-struct samsung_div_clock s3c2412_dividers[] __initdata = {
+static struct samsung_div_clock s3c2412_dividers[] __initdata = {
 	DIV_T(0, "div_xti", "xti", CLKSRC, 0, 3, divxti_d),
 	DIV(0, "div_cam", "mux_cam", CLKDIVN, 16, 4),
 	DIV(0, "div_i2s", "mux_i2s", CLKDIVN, 12, 4),
@@ -110,7 +105,7 @@ struct samsung_div_clock s3c2412_dividers[] __initdata = {
 	DIV(HCLK, "hclk", "armdiv", CLKDIVN, 0, 2),
 };
 
-struct samsung_fixed_factor_clock s3c2412_ffactor[] __initdata = {
+static struct samsung_fixed_factor_clock s3c2412_ffactor[] __initdata = {
 	FFACTOR(0, "ff_hclk", "hclk", 2, 1, CLK_SET_RATE_PARENT),
 };
 
@@ -130,7 +125,7 @@ PNAME(msysclk_p) = { "mdivclk", "mpll" };
 PNAME(mdivclk_p) = { "xti", "div_xti" };
 PNAME(armclk_p) = { "armdiv", "hclk" };
 
-struct samsung_mux_clock s3c2412_muxes[] __initdata = {
+static struct samsung_mux_clock s3c2412_muxes[] __initdata = {
 	MUX(0, "erefclk", erefclk_p, CLKSRC, 14, 2),
 	MUX(0, "urefclk", urefclk_p, CLKSRC, 12, 2),
 	MUX(0, "mux_cam", camclk_p, CLKSRC, 11, 1),
@@ -144,13 +139,11 @@ struct samsung_mux_clock s3c2412_muxes[] __initdata = {
 };
 
 static struct samsung_pll_clock s3c2412_plls[] __initdata = {
-	[mpll] = PLL(pll_s3c2440_mpll, MPLL, "mpll", "xti",
-						LOCKTIME, MPLLCON, NULL),
-	[upll] = PLL(pll_s3c2410_upll, UPLL, "upll", "urefclk",
-						LOCKTIME, UPLLCON, NULL),
+	PLL(pll_s3c2440_mpll, MPLL, "mpll", "xti", LOCKTIME, MPLLCON, NULL),
+	PLL(pll_s3c2410_upll, UPLL, "upll", "urefclk", LOCKTIME, UPLLCON, NULL),
 };
 
-struct samsung_gate_clock s3c2412_gates[] __initdata = {
+static struct samsung_gate_clock s3c2412_gates[] __initdata = {
 	GATE(PCLK_WDT, "wdt", "pclk", CLKCON, 28, 0, 0),
 	GATE(PCLK_SPI, "spi", "pclk", CLKCON, 27, 0, 0),
 	GATE(PCLK_I2S, "i2s", "pclk", CLKCON, 26, 0, 0),
@@ -181,7 +174,7 @@ struct samsung_gate_clock s3c2412_gates[] __initdata = {
 	GATE(HCLK_DMA0, "dma0", "hclk", CLKCON, 0, CLK_IGNORE_UNUSED, 0),
 };
 
-struct samsung_clock_alias s3c2412_aliases[] __initdata = {
+static struct samsung_clock_alias s3c2412_aliases[] __initdata = {
 	ALIAS(PCLK_UART0, "s3c2412-uart.0", "uart"),
 	ALIAS(PCLK_UART1, "s3c2412-uart.1", "uart"),
 	ALIAS(PCLK_UART2, "s3c2412-uart.2", "uart"),
@@ -231,7 +224,7 @@ static struct notifier_block s3c2412_restart_handler = {
  * Only necessary until the devicetree-move is complete
  */
 #define XTI	1
-struct samsung_fixed_rate_clock s3c2412_common_frate_clks[] __initdata = {
+static struct samsung_fixed_rate_clock s3c2412_common_frate_clks[] __initdata = {
 	FRATE(XTI, "xti", NULL, 0, 0),
 	FRATE(0, "ext", NULL, 0, 0),
 };
@@ -296,6 +289,6 @@ void __init s3c2412_common_clk_init(struct device_node *np, unsigned long xti_f,
 
 static void __init s3c2412_clk_init(struct device_node *np)
 {
-	s3c2412_common_clk_init(np, 0, 0, 0);
+	s3c2412_common_clk_init(np, 0, 0, NULL);
 }
 CLK_OF_DECLARE(s3c2412_clk, "samsung,s3c2412-clock", s3c2412_clk_init);

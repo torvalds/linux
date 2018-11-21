@@ -215,7 +215,7 @@
 	};
 
 	hdmiddc: i2c@7000c700 {
-		clock-frequency = <100000>;
+		clock-frequency = <10000>;
 	};
 
 	/*
@@ -363,7 +363,6 @@
 
 			stmpe_touchscreen {
 				compatible = "st,stmpe-ts";
-				reg = <0>;
 				/* 3.25 MHz ADC clock speed */
 				st,adc-freq = <1>;
 				/* 8 sample average control */

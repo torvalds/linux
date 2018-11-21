@@ -224,10 +224,11 @@ static int ni_isapnp_find_board(struct pnp_dev **dev)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(ni_boards); i++) {
-		isapnp_dev = pnp_find_dev(NULL,
-					  ISAPNP_VENDOR('N', 'I', 'C'),
-					  ISAPNP_FUNCTION(ni_boards[i].
-							  isapnp_id), NULL);
+		isapnp_dev =
+			pnp_find_dev(NULL,
+				     ISAPNP_VENDOR('N', 'I', 'C'),
+				     ISAPNP_FUNCTION(ni_boards[i].isapnp_id),
+				     NULL);
 
 		if (!isapnp_dev || !isapnp_dev->card)
 			continue;

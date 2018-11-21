@@ -1,7 +1,7 @@
- /*******************************************************************
+/*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1998,8 +1998,14 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			ndlp->nlp_type |= NLP_NVME_TARGET;
 			if (bf_get_be32(prli_disc, nvpr))
 				ndlp->nlp_type |= NLP_NVME_DISCOVERY;
+
+			/*
+			 * If prli_fba is set, the Target supports FirstBurst.
+			 * If prli_fb_sz is 0, the FirstBurst size is unlimited,
+			 * otherwise it defines the actual size supported by
+			 * the NVME Target.
+			 */
 			if ((bf_get_be32(prli_fba, nvpr) == 1) &&
-			    (bf_get_be32(prli_fb_sz, nvpr) > 0) &&
 			    (phba->cfg_nvme_enable_fb) &&
 			    (!phba->nvmet_support)) {
 				/* Both sides support FB. The target's first
@@ -2008,11 +2014,15 @@ lpfc_cmpl_prli_prli_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 				ndlp->nlp_flag |= NLP_FIRSTBURST;
 				ndlp->nvme_fb_size = bf_get_be32(prli_fb_sz,
 								 nvpr);
+
+				/* Expressed in units of 512 bytes */
+				if (ndlp->nvme_fb_size)
+					ndlp->nvme_fb_size <<=
+						LPFC_NVME_FB_SHIFT;
+				else
+					ndlp->nvme_fb_size = LPFC_NVME_MAX_FB;
 			}
 		}
-
-		if (bf_get_be32(prli_recov, nvpr))
-			ndlp->nlp_fcp_info |= NLP_FCP_2_DEVICE;
 
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 				 "6029 NVME PRLI Cmpl w1 x%08x "

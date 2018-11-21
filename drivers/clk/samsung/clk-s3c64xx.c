@@ -56,11 +56,6 @@
 #define GATE_ON(_id, cname, pname, o, b) \
 		GATE(_id, cname, pname, o, b, CLK_IGNORE_UNUSED, 0)
 
-/* list of PLLs to be registered */
-enum s3c64xx_plls {
-	apll, mpll, epll,
-};
-
 static void __iomem *reg_base;
 static bool is_s3c6400;
 
@@ -364,12 +359,12 @@ GATE_CLOCKS(s3c6410_gate_clks) __initdata = {
 
 /* List of PLL clocks. */
 static struct samsung_pll_clock s3c64xx_pll_clks[] __initdata = {
-	[apll] = PLL(pll_6552, FOUT_APLL, "fout_apll", "fin_pll",
-						APLL_LOCK, APLL_CON, NULL),
-	[mpll] = PLL(pll_6552, FOUT_MPLL, "fout_mpll", "fin_pll",
-						MPLL_LOCK, MPLL_CON, NULL),
-	[epll] = PLL(pll_6553, FOUT_EPLL, "fout_epll", "fin_pll",
-						EPLL_LOCK, EPLL_CON0, NULL),
+	PLL(pll_6552, FOUT_APLL, "fout_apll", "fin_pll",
+					APLL_LOCK, APLL_CON, NULL),
+	PLL(pll_6552, FOUT_MPLL, "fout_mpll", "fin_pll",
+					MPLL_LOCK, MPLL_CON, NULL),
+	PLL(pll_6553, FOUT_EPLL, "fout_epll", "fin_pll",
+					EPLL_LOCK, EPLL_CON0, NULL),
 };
 
 /* Aliases for common s3c64xx clocks. */

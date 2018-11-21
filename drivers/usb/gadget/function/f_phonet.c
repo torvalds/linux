@@ -221,7 +221,7 @@ static void pn_tx_complete(struct usb_ep *ep, struct usb_request *req)
 	netif_wake_queue(dev);
 }
 
-static int pn_net_xmit(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t pn_net_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct phonet_port *port = netdev_priv(dev);
 	struct f_phonet *fp;

@@ -58,7 +58,6 @@ static bool ixgbe_cache_ring_dcb_sriov(struct ixgbe_adapter *adapter)
 		return false;
 
 	/* start at VMDq register offset for SR-IOV enabled setups */
-	pool = 0;
 	reg_idx = vmdq->offset * __ALIGN_MASK(1, ~vmdq->mask);
 	for (i = 0, pool = 0; i < adapter->num_rx_queues; i++, reg_idx++) {
 		/* If we are greater than indices move to next pool */

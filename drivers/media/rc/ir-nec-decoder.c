@@ -49,8 +49,8 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		return 0;
 	}
 
-	IR_dprintk(2, "NEC decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "NEC decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	switch (data->state) {
 
@@ -99,13 +99,11 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 			break;
 
 		if (data->necx_repeat && data->count == NECX_REPEAT_BITS &&
-			geq_margin(ev.duration,
-			NEC_TRAILER_SPACE, NEC_UNIT / 2)) {
-				IR_dprintk(1, "Repeat last key\n");
-				rc_repeat(dev);
-				data->state = STATE_INACTIVE;
-				return 0;
-
+		    geq_margin(ev.duration, NEC_TRAILER_SPACE, NEC_UNIT / 2)) {
+			dev_dbg(&dev->dev, "Repeat last key\n");
+			rc_repeat(dev);
+			data->state = STATE_INACTIVE;
+			return 0;
 		} else if (data->count > NECX_REPEAT_BITS)
 			data->necx_repeat = false;
 
@@ -164,8 +162,8 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		return 0;
 	}
 
-	IR_dprintk(1, "NEC decode failed at count %d state %d (%uus %s)\n",
-		   data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "NEC decode failed at count %d state %d (%uus %s)\n",
+		data->count, data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }

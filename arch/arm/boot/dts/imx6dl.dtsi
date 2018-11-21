@@ -80,11 +80,6 @@
 				reg = <0x020f4000 0x4000>;
 				interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
 			};
-
-			lcdif: lcdif@20f8000 {
-				reg = <0x020f8000 0x4000>;
-				interrupts = <0 39 IRQ_TYPE_LEVEL_HIGH>;
-			};
 		};
 
 		aips2: aips-bus@2100000 {
@@ -108,11 +103,6 @@
 	display-subsystem {
 		compatible = "fsl,imx-display-subsystem";
 		ports = <&ipu1_di0>, <&ipu1_di1>;
-	};
-
-	gpu-subsystem {
-		compatible = "fsl,imx-gpu-subsystem";
-		cores = <&gpu_2d>, <&gpu_3d>;
 	};
 };
 

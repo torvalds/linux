@@ -53,7 +53,7 @@ struct iio_buffer_access_funcs {
 	int (*request_update)(struct iio_buffer *buffer);
 
 	int (*set_bytes_per_datum)(struct iio_buffer *buffer, size_t bpd);
-	int (*set_length)(struct iio_buffer *buffer, int length);
+	int (*set_length)(struct iio_buffer *buffer, unsigned int length);
 
 	int (*enable)(struct iio_buffer *buffer, struct iio_dev *indio_dev);
 	int (*disable)(struct iio_buffer *buffer, struct iio_dev *indio_dev);
@@ -72,10 +72,10 @@ struct iio_buffer_access_funcs {
  */
 struct iio_buffer {
 	/** @length: Number of datums in buffer. */
-	int length;
+	unsigned int length;
 
 	/**  @bytes_per_datum: Size of individual datum including timestamp. */
-	int bytes_per_datum;
+	size_t bytes_per_datum;
 
 	/**
 	 * @access: Buffer access functions associated with the

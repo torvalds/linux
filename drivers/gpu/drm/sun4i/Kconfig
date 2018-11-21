@@ -1,6 +1,6 @@
 config DRM_SUN4I
 	tristate "DRM Support for Allwinner A10 Display Engine"
-	depends on DRM && ARM && COMMON_CLK
+	depends on DRM && (ARM || ARM64) && COMMON_CLK
 	depends on ARCH_SUNXI || COMPILE_TEST
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_HELPER
@@ -39,6 +39,15 @@ config DRM_SUN4I_BACKEND
 	  original Allwinner Display Engine, which has a backend to
 	  do some alpha blending and feed graphics to TCON. If M is
 	  selected the module will be called sun4i-backend.
+
+config DRM_SUN8I_DW_HDMI
+	tristate "Support for Allwinner version of DesignWare HDMI"
+	depends on DRM_SUN4I
+	select DRM_DW_HDMI
+	help
+	  Choose this option if you have an Allwinner SoC with the
+	  DesignWare HDMI controller with custom HDMI PHY. If M is
+	  selected the module will be called sun8i_dw_hdmi.
 
 config DRM_SUN8I_MIXER
 	tristate "Support for Allwinner Display Engine 2.0 Mixer"

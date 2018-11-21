@@ -60,6 +60,8 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_wake) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_queue_dropped) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xmit_more) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_cqe_err) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_recover) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_wqe_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_mpwqe_filler) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_buff_alloc_err) },
@@ -153,6 +155,8 @@ static void mlx5e_grp_sw_update_stats(struct mlx5e_priv *priv)
 			s->tx_queue_stopped	+= sq_stats->stopped;
 			s->tx_queue_wake	+= sq_stats->wake;
 			s->tx_queue_dropped	+= sq_stats->dropped;
+			s->tx_cqe_err		+= sq_stats->cqe_err;
+			s->tx_recover		+= sq_stats->recover;
 			s->tx_xmit_more		+= sq_stats->xmit_more;
 			s->tx_csum_partial_inner += sq_stats->csum_partial_inner;
 			s->tx_csum_none		+= sq_stats->csum_none;
@@ -170,11 +174,24 @@ static const struct counter_desc q_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_out_of_buffer) },
 };
 
+static const struct counter_desc drop_rq_stats_desc[] = {
+	{ MLX5E_DECLARE_STAT(struct mlx5e_qcounter_stats, rx_if_down_packets) },
+};
+
 #define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
+#define NUM_DROP_RQ_COUNTERS		ARRAY_SIZE(drop_rq_stats_desc)
 
 static int mlx5e_grp_q_get_num_stats(struct mlx5e_priv *priv)
 {
-	return priv->q_counter ? NUM_Q_COUNTERS : 0;
+	int num_stats = 0;
+
+	if (priv->q_counter)
+		num_stats += NUM_Q_COUNTERS;
+
+	if (priv->drop_rq_q_counter)
+		num_stats += NUM_DROP_RQ_COUNTERS;
+
+	return num_stats;
 }
 
 static int mlx5e_grp_q_fill_strings(struct mlx5e_priv *priv, u8 *data, int idx)
@@ -182,7 +199,13 @@ static int mlx5e_grp_q_fill_strings(struct mlx5e_priv *priv, u8 *data, int idx)
 	int i;
 
 	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
-		strcpy(data + (idx++) * ETH_GSTRING_LEN, q_stats_desc[i].format);
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       q_stats_desc[i].format);
+
+	for (i = 0; i < NUM_DROP_RQ_COUNTERS && priv->drop_rq_q_counter; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       drop_rq_stats_desc[i].format);
+
 	return idx;
 }
 
@@ -191,7 +214,11 @@ static int mlx5e_grp_q_fill_stats(struct mlx5e_priv *priv, u64 *data, int idx)
 	int i;
 
 	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
-		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt, q_stats_desc, i);
+		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
+						   q_stats_desc, i);
+	for (i = 0; i < NUM_DROP_RQ_COUNTERS && priv->drop_rq_q_counter; i++)
+		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
+						   drop_rq_stats_desc, i);
 	return idx;
 }
 
@@ -199,16 +226,76 @@ static void mlx5e_grp_q_update_stats(struct mlx5e_priv *priv)
 {
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
 	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)];
-	int err;
 
-	if (!priv->q_counter)
+	if (priv->q_counter &&
+	    !mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out,
+				       sizeof(out)))
+		qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
+						  out, out_of_buffer);
+	if (priv->drop_rq_q_counter &&
+	    !mlx5_core_query_q_counter(priv->mdev, priv->drop_rq_q_counter, 0,
+				       out, sizeof(out)))
+		qcnt->rx_if_down_packets = MLX5_GET(query_q_counter_out, out,
+						    out_of_buffer);
+}
+
+#define VNIC_ENV_OFF(c) MLX5_BYTE_OFF(query_vnic_env_out, c)
+static const struct counter_desc vnic_env_stats_desc[] = {
+	{ "rx_steer_missed_packets",
+		VNIC_ENV_OFF(vport_env.nic_receive_steering_discard) },
+};
+
+#define NUM_VNIC_ENV_COUNTERS		ARRAY_SIZE(vnic_env_stats_desc)
+
+static int mlx5e_grp_vnic_env_get_num_stats(struct mlx5e_priv *priv)
+{
+	return MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard) ?
+		NUM_VNIC_ENV_COUNTERS : 0;
+}
+
+static int mlx5e_grp_vnic_env_fill_strings(struct mlx5e_priv *priv, u8 *data,
+					   int idx)
+{
+	int i;
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
+		return idx;
+
+	for (i = 0; i < NUM_VNIC_ENV_COUNTERS; i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       vnic_env_stats_desc[i].format);
+	return idx;
+}
+
+static int mlx5e_grp_vnic_env_fill_stats(struct mlx5e_priv *priv, u64 *data,
+					 int idx)
+{
+	int i;
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
+		return idx;
+
+	for (i = 0; i < NUM_VNIC_ENV_COUNTERS; i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(priv->stats.vnic.query_vnic_env_out,
+						  vnic_env_stats_desc, i);
+	return idx;
+}
+
+static void mlx5e_grp_vnic_env_update_stats(struct mlx5e_priv *priv)
+{
+	u32 *out = (u32 *)priv->stats.vnic.query_vnic_env_out;
+	int outlen = MLX5_ST_SZ_BYTES(query_vnic_env_out);
+	u32 in[MLX5_ST_SZ_DW(query_vnic_env_in)] = {0};
+	struct mlx5_core_dev *mdev = priv->mdev;
+
+	if (!MLX5_CAP_GEN(priv->mdev, nic_receive_steering_discard))
 		return;
 
-	err = mlx5_core_query_q_counter(priv->mdev, priv->q_counter, 0, out, sizeof(out));
-	if (err)
-		return;
-
-	qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
+	MLX5_SET(query_vnic_env_in, in, opcode,
+		 MLX5_CMD_OP_QUERY_VNIC_ENV);
+	MLX5_SET(query_vnic_env_in, in, op_mod, 0);
+	MLX5_SET(query_vnic_env_in, in, other_vport, 0);
+	mlx5_cmd_exec(mdev, in, sizeof(in), out, outlen);
 }
 
 #define VPORT_COUNTER_OFF(c) MLX5_BYTE_OFF(query_vport_counter_out, c)
@@ -754,7 +841,15 @@ static const struct counter_desc pport_per_prio_pfc_stats_desc[] = {
 	{ "rx_%s_pause_transition", PPORT_PER_PRIO_OFF(rx_pause_transition) },
 };
 
+static const struct counter_desc pport_pfc_stall_stats_desc[] = {
+	{ "tx_pause_storm_warning_events ", PPORT_PER_PRIO_OFF(device_stall_minor_watermark_cnt) },
+	{ "tx_pause_storm_error_events", PPORT_PER_PRIO_OFF(device_stall_critical_watermark_cnt) },
+};
+
 #define NUM_PPORT_PER_PRIO_PFC_COUNTERS		ARRAY_SIZE(pport_per_prio_pfc_stats_desc)
+#define NUM_PPORT_PFC_STALL_COUNTERS(priv)	(ARRAY_SIZE(pport_pfc_stall_stats_desc) * \
+						 MLX5_CAP_PCAM_FEATURE((priv)->mdev, pfcc_mask) * \
+						 MLX5_CAP_DEBUG((priv)->mdev, stall_detect))
 
 static unsigned long mlx5e_query_pfc_combined(struct mlx5e_priv *priv)
 {
@@ -790,7 +885,8 @@ static int mlx5e_grp_per_prio_pfc_get_num_stats(struct mlx5e_priv *priv)
 {
 	return (mlx5e_query_global_pause_combined(priv) +
 		hweight8(mlx5e_query_pfc_combined(priv))) *
-		NUM_PPORT_PER_PRIO_PFC_COUNTERS;
+		NUM_PPORT_PER_PRIO_PFC_COUNTERS +
+		NUM_PPORT_PFC_STALL_COUNTERS(priv);
 }
 
 static int mlx5e_grp_per_prio_pfc_fill_strings(struct mlx5e_priv *priv,
@@ -818,6 +914,10 @@ static int mlx5e_grp_per_prio_pfc_fill_strings(struct mlx5e_priv *priv,
 		}
 	}
 
+	for (i = 0; i < NUM_PPORT_PFC_STALL_COUNTERS(priv); i++)
+		strcpy(data + (idx++) * ETH_GSTRING_LEN,
+		       pport_pfc_stall_stats_desc[i].format);
+
 	return idx;
 }
 
@@ -844,6 +944,10 @@ static int mlx5e_grp_per_prio_pfc_fill_stats(struct mlx5e_priv *priv,
 						    pport_per_prio_pfc_stats_desc, i);
 		}
 	}
+
+	for (i = 0; i < NUM_PPORT_PFC_STALL_COUNTERS(priv); i++)
+		data[idx++] = MLX5E_READ_CTR64_BE(&priv->stats.pport.per_prio_counters[0],
+						  pport_pfc_stall_stats_desc, i);
 
 	return idx;
 }
@@ -1003,6 +1107,8 @@ static const struct counter_desc sq_stats_desc[] = {
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, wake) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, dropped) },
 	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, xmit_more) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, cqe_err) },
+	{ MLX5E_DECLARE_TX_STAT(struct mlx5e_sq_stats, recover) },
 };
 
 static const struct counter_desc ch_stats_desc[] = {
@@ -1093,6 +1199,12 @@ const struct mlx5e_stats_grp mlx5e_stats_grps[] = {
 		.fill_stats = mlx5e_grp_q_fill_stats,
 		.update_stats_mask = MLX5E_NDO_UPDATE_STATS,
 		.update_stats = mlx5e_grp_q_update_stats,
+	},
+	{
+		.get_num_stats = mlx5e_grp_vnic_env_get_num_stats,
+		.fill_strings = mlx5e_grp_vnic_env_fill_strings,
+		.fill_stats = mlx5e_grp_vnic_env_fill_stats,
+		.update_stats = mlx5e_grp_vnic_env_update_stats,
 	},
 	{
 		.get_num_stats = mlx5e_grp_vport_get_num_stats,

@@ -470,6 +470,7 @@ static void setup_dtsec(struct mac_device *mac_dev)
 	mac_dev->set_tx_pause		= dtsec_set_tx_pause_frames;
 	mac_dev->set_rx_pause		= dtsec_accept_rx_pause_frames;
 	mac_dev->set_exception		= dtsec_set_exception;
+	mac_dev->set_allmulti		= dtsec_set_allmulti;
 	mac_dev->set_multi		= set_multi;
 	mac_dev->start			= start;
 	mac_dev->stop			= stop;
@@ -488,6 +489,7 @@ static void setup_tgec(struct mac_device *mac_dev)
 	mac_dev->set_tx_pause		= tgec_set_tx_pause_frames;
 	mac_dev->set_rx_pause		= tgec_accept_rx_pause_frames;
 	mac_dev->set_exception		= tgec_set_exception;
+	mac_dev->set_allmulti		= tgec_set_allmulti;
 	mac_dev->set_multi		= set_multi;
 	mac_dev->start			= start;
 	mac_dev->stop			= stop;
@@ -506,6 +508,7 @@ static void setup_memac(struct mac_device *mac_dev)
 	mac_dev->set_tx_pause		= memac_set_tx_pause_frames;
 	mac_dev->set_rx_pause		= memac_accept_rx_pause_frames;
 	mac_dev->set_exception		= memac_set_exception;
+	mac_dev->set_allmulti		= memac_set_allmulti;
 	mac_dev->set_multi		= set_multi;
 	mac_dev->start			= start;
 	mac_dev->stop			= stop;
@@ -564,7 +567,6 @@ static struct platform_device *dpaa_eth_add_device(int fman_id,
 	}
 
 	pdev->dev.parent = priv->dev;
-	set_dma_ops(&pdev->dev, get_dma_ops(priv->dev));
 
 	ret = platform_device_add_data(pdev, &data, sizeof(data));
 	if (ret)

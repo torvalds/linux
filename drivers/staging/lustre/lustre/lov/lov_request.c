@@ -99,8 +99,7 @@ static int lov_check_set(struct lov_obd *lov, int idx)
  */
 static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 {
-	wait_queue_head_t waitq;
-	struct l_wait_info lwi;
+	int cnt = 0;
 	struct lov_tgt_desc *tgt;
 	int rc = 0;
 
@@ -125,11 +124,10 @@ static int lov_check_and_wait_active(struct lov_obd *lov, int ost_idx)
 
 	mutex_unlock(&lov->lov_lock);
 
-	init_waitqueue_head(&waitq);
-	lwi = LWI_TIMEOUT_INTERVAL(cfs_time_seconds(obd_timeout),
-				   cfs_time_seconds(1), NULL, NULL);
-
-	rc = l_wait_event(waitq, lov_check_set(lov, ost_idx), &lwi);
+	while (cnt < obd_timeout && !lov_check_set(lov, ost_idx)) {
+		schedule_timeout_uninterruptible(HZ);
+		cnt++;
+	}
 	if (tgt->ltd_active)
 		return 1;
 

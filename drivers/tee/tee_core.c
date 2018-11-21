@@ -238,6 +238,17 @@ static int params_from_user(struct tee_context *ctx, struct tee_param *params,
 			if (IS_ERR(shm))
 				return PTR_ERR(shm);
 
+			/*
+			 * Ensure offset + size does not overflow offset
+			 * and does not overflow the size of the referred
+			 * shared memory object.
+			 */
+			if ((ip.a + ip.b) < ip.a ||
+			    (ip.a + ip.b) > shm->size) {
+				tee_shm_put(shm);
+				return -EINVAL;
+			}
+
 			params[n].u.memref.shm_offs = ip.a;
 			params[n].u.memref.size = ip.b;
 			params[n].u.memref.shm = shm;
@@ -693,7 +704,7 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 {
 	struct tee_device *teedev;
 	void *ret;
-	int rc;
+	int rc, max_id;
 	int offs = 0;
 
 	if (!teedesc || !teedesc->name || !teedesc->ops ||
@@ -707,16 +718,20 @@ struct tee_device *tee_device_alloc(const struct tee_desc *teedesc,
 		goto err;
 	}
 
-	if (teedesc->flags & TEE_DESC_PRIVILEGED)
+	max_id = TEE_NUM_DEVICES / 2;
+
+	if (teedesc->flags & TEE_DESC_PRIVILEGED) {
 		offs = TEE_NUM_DEVICES / 2;
+		max_id = TEE_NUM_DEVICES;
+	}
 
 	spin_lock(&driver_lock);
-	teedev->id = find_next_zero_bit(dev_mask, TEE_NUM_DEVICES, offs);
-	if (teedev->id < TEE_NUM_DEVICES)
+	teedev->id = find_next_zero_bit(dev_mask, max_id, offs);
+	if (teedev->id < max_id)
 		set_bit(teedev->id, dev_mask);
 	spin_unlock(&driver_lock);
 
-	if (teedev->id >= TEE_NUM_DEVICES) {
+	if (teedev->id >= max_id) {
 		ret = ERR_PTR(-ENOMEM);
 		goto err;
 	}

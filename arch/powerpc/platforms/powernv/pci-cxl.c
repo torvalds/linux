@@ -16,14 +16,6 @@
 
 #include "pci.h"
 
-struct device_node *pnv_pci_get_phb_node(struct pci_dev *dev)
-{
-	struct pci_controller *hose = pci_bus_to_host(dev->bus);
-
-	return of_node_get(hose->dn);
-}
-EXPORT_SYMBOL(pnv_pci_get_phb_node);
-
 int pnv_phb_to_cxl_mode(struct pci_dev *dev, uint64_t mode)
 {
 	struct pci_controller *hose = pci_bus_to_host(dev->bus);

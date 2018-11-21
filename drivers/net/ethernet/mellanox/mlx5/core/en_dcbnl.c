@@ -1007,11 +1007,13 @@ static void mlx5e_trust_update_sq_inline_mode(struct mlx5e_priv *priv)
 
 	mutex_lock(&priv->state_lock);
 
-	if (!test_bit(MLX5E_STATE_OPENED, &priv->state))
-		goto out;
-
 	new_channels.params = priv->channels.params;
 	mlx5e_trust_update_tx_min_inline_mode(priv, &new_channels.params);
+
+	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
+		priv->channels.params = new_channels.params;
+		goto out;
+	}
 
 	/* Skip if tx_min_inline is the same */
 	if (new_channels.params.tx_min_inline_mode ==

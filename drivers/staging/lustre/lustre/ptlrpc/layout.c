@@ -1555,7 +1555,7 @@ struct req_format RQF_OST_GET_INFO_FIEMAP =
 EXPORT_SYMBOL(RQF_OST_GET_INFO_FIEMAP);
 
 /* Convenience macro */
-#define FMT_FIELD(fmt, i, j) (fmt)->rf_fields[(i)].d[(j)]
+#define FMT_FIELD(fmt, i, j) ((fmt)->rf_fields[(i)].d[(j)])
 
 /**
  * Initializes the capsule abstraction by computing and setting the \a rf_idx

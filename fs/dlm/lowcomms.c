@@ -482,7 +482,6 @@ static void lowcomms_error_report(struct sock *sk)
 {
 	struct connection *con;
 	struct sockaddr_storage saddr;
-	int buflen;
 	void (*orig_report)(struct sock *) = NULL;
 
 	read_lock_bh(&sk->sk_callback_lock);
@@ -492,7 +491,7 @@ static void lowcomms_error_report(struct sock *sk)
 
 	orig_report = listen_sock.sk_error_report;
 	if (con->sock == NULL ||
-	    kernel_getpeername(con->sock, (struct sockaddr *)&saddr, &buflen)) {
+	    kernel_getpeername(con->sock, (struct sockaddr *)&saddr) < 0) {
 		printk_ratelimited(KERN_ERR "dlm: node %d: socket error "
 				   "sending to node %d, port %d, "
 				   "sk_err=%d/%d\n", dlm_our_nodeid(),
@@ -757,8 +756,8 @@ static int tcp_accept_from_sock(struct connection *con)
 
 	/* Get the connected socket's peer */
 	memset(&peeraddr, 0, sizeof(peeraddr));
-	if (newsock->ops->getname(newsock, (struct sockaddr *)&peeraddr,
-				  &len, 2)) {
+	len = newsock->ops->getname(newsock, (struct sockaddr *)&peeraddr, 2);
+	if (len < 0) {
 		result = -ECONNABORTED;
 		goto accept_err;
 	}

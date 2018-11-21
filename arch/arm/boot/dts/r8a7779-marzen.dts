@@ -42,6 +42,19 @@
 		regulator-always-on;
 	};
 
+	vccq_sdhi0: regulator-vccq-sdhi0 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1
+			  1800000 0>;
+	};
+
 	ethernet@18000000 {
 		compatible = "smsc,lan9220", "smsc,lan9115";
 		reg = <0x18000000 0x100>;
@@ -243,6 +256,7 @@
 	pinctrl-names = "default";
 
 	vmmc-supply = <&fixedregulator3v3>;
+	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
 	status = "okay";
 };

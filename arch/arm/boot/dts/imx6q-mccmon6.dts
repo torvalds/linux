@@ -19,7 +19,7 @@
 	model = "Liebherr (LWN) monitor6 i.MX6 Quad Board";
 	compatible = "lwn,mccmon6", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x80000000>;
 	};
 

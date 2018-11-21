@@ -15,6 +15,7 @@
 #include "mds_client.h"
 #include "cache.h"
 #include <linux/ceph/osd_client.h>
+#include <linux/ceph/striper.h>
 
 /*
  * Ceph address space ops.
@@ -438,7 +439,7 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	struct ceph_file_info *ci = file->private_data;
+	struct ceph_file_info *fi = file->private_data;
 	struct ceph_rw_context *rw_ctx;
 	int rc = 0;
 	int max = 0;
@@ -452,7 +453,7 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	if (rc == 0)
 		goto out;
 
-	rw_ctx = ceph_find_rw_context(ci);
+	rw_ctx = ceph_find_rw_context(fi);
 	max = fsc->mount_options->rsize >> PAGE_SHIFT;
 	dout("readpages %p file %p ctx %p nr_pages %d max %d\n",
 	     inode, file, rw_ctx, nr_pages, max);
@@ -800,7 +801,7 @@ static int ceph_writepages_start(struct address_space *mapping,
 	struct ceph_osd_request *req = NULL;
 	struct ceph_writeback_ctl ceph_wbc;
 	bool should_loop, range_whole = false;
-	bool stop, done = false;
+	bool done = false;
 
 	dout("writepages_start %p (mode=%s)\n", inode,
 	     wbc->sync_mode == WB_SYNC_NONE ? "NONE" :
@@ -856,7 +857,7 @@ retry:
 		 * in that range can be associated with newer snapc.
 		 * They are not writeable until we write all dirty pages
 		 * associated with 'snapc' get written */
-		if (index > 0 || wbc->sync_mode != WB_SYNC_NONE)
+		if (index > 0)
 			should_loop = true;
 		dout(" non-head snapc, range whole\n");
 	}
@@ -864,8 +865,7 @@ retry:
 	ceph_put_snap_context(last_snapc);
 	last_snapc = snapc;
 
-	stop = false;
-	while (!stop && index <= end) {
+	while (!done && index <= end) {
 		int num_ops = 0, op_idx;
 		unsigned i, pvec_pages, max_pages, locked_pages = 0;
 		struct page **pages = NULL, **data_pages;
@@ -898,16 +898,30 @@ get_more_pages:
 				unlock_page(page);
 				continue;
 			}
-			if (strip_unit_end && (page->index > strip_unit_end)) {
-				dout("end of strip unit %p\n", page);
+			/* only if matching snap context */
+			pgsnapc = page_snap_context(page);
+			if (pgsnapc != snapc) {
+				dout("page snapc %p %lld != oldest %p %lld\n",
+				     pgsnapc, pgsnapc->seq, snapc, snapc->seq);
+				if (!should_loop &&
+				    !ceph_wbc.head_snapc &&
+				    wbc->sync_mode != WB_SYNC_NONE)
+					should_loop = true;
 				unlock_page(page);
-				break;
+				continue;
 			}
 			if (page_offset(page) >= ceph_wbc.i_size) {
 				dout("%p page eof %llu\n",
 				     page, ceph_wbc.i_size);
-				/* not done if range_cyclic */
-				stop = true;
+				if (ceph_wbc.size_stable ||
+				    page_offset(page) >= i_size_read(inode))
+					mapping->a_ops->invalidatepage(page,
+								0, PAGE_SIZE);
+				unlock_page(page);
+				continue;
+			}
+			if (strip_unit_end && (page->index > strip_unit_end)) {
+				dout("end of strip unit %p\n", page);
 				unlock_page(page);
 				break;
 			}
@@ -919,15 +933,6 @@ get_more_pages:
 				}
 				dout("waiting on writeback %p\n", page);
 				wait_on_page_writeback(page);
-			}
-
-			/* only if matching snap context */
-			pgsnapc = page_snap_context(page);
-			if (pgsnapc != snapc) {
-				dout("page snapc %p %lld != oldest %p %lld\n",
-				     pgsnapc, pgsnapc->seq, snapc, snapc->seq);
-				unlock_page(page);
-				continue;
 			}
 
 			if (!clear_page_dirty_for_io(page)) {
@@ -945,19 +950,15 @@ get_more_pages:
 			if (locked_pages == 0) {
 				u64 objnum;
 				u64 objoff;
+				u32 xlen;
 
 				/* prepare async write request */
 				offset = (u64)page_offset(page);
-				len = wsize;
-
-				rc = ceph_calc_file_object_mapping(&ci->i_layout,
-								offset, len,
-								&objnum, &objoff,
-								&len);
-				if (rc < 0) {
-					unlock_page(page);
-					break;
-				}
+				ceph_calc_file_object_mapping(&ci->i_layout,
+							      offset, wsize,
+							      &objnum, &objoff,
+							      &xlen);
+				len = xlen;
 
 				num_ops = 1;
 				strip_unit_end = page->index +
@@ -1146,7 +1147,7 @@ new_request:
 		 * we tagged for writeback prior to entering this loop.
 		 */
 		if (wbc->nr_to_write <= 0 && wbc->sync_mode == WB_SYNC_NONE)
-			done = stop = true;
+			done = true;
 
 release_pvec_pages:
 		dout("pagevec_release on %d pages (%p)\n", (int)pvec.nr,

@@ -253,6 +253,7 @@ bool dal_i2caux_submit_aux_command(
 			break;
 		}
 
+		cmd->payloads->length = request.payload.length;
 		++index_of_payload;
 	}
 

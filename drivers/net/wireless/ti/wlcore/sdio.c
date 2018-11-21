@@ -469,7 +469,7 @@ static void __exit wl1271_exit(void)
 module_init(wl1271_init);
 module_exit(wl1271_exit);
 
-module_param(dump, bool, S_IRUSR | S_IWUSR);
+module_param(dump, bool, 0600);
 MODULE_PARM_DESC(dump, "Enable sdio read/write dumps.");
 
 MODULE_LICENSE("GPL");

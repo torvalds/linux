@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 
@@ -71,9 +72,15 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	uint32_t ctrl = jz4740_timer_get_ctrl(pwm->hwpwm);
 
+	/* Disable PWM output.
+	 * In TCU2 mode (channel 1/2 on JZ4750+), this must be done before the
+	 * counter is stopped, while in TCU1 mode the order does not matter.
+	 */
 	ctrl &= ~JZ_TIMER_CTRL_PWM_ENABLE;
-	jz4740_timer_disable(pwm->hwpwm);
 	jz4740_timer_set_ctrl(pwm->hwpwm, ctrl);
+
+	/* Stop counter */
+	jz4740_timer_disable(pwm->hwpwm);
 }
 
 static int jz4740_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -124,10 +131,29 @@ static int jz4740_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	return 0;
 }
 
+static int jz4740_pwm_set_polarity(struct pwm_chip *chip,
+		struct pwm_device *pwm, enum pwm_polarity polarity)
+{
+	uint32_t ctrl = jz4740_timer_get_ctrl(pwm->pwm);
+
+	switch (polarity) {
+	case PWM_POLARITY_NORMAL:
+		ctrl &= ~JZ_TIMER_CTRL_PWM_ACTIVE_LOW;
+		break;
+	case PWM_POLARITY_INVERSED:
+		ctrl |= JZ_TIMER_CTRL_PWM_ACTIVE_LOW;
+		break;
+	}
+
+	jz4740_timer_set_ctrl(pwm->hwpwm, ctrl);
+	return 0;
+}
+
 static const struct pwm_ops jz4740_pwm_ops = {
 	.request = jz4740_pwm_request,
 	.free = jz4740_pwm_free,
 	.config = jz4740_pwm_config,
+	.set_polarity = jz4740_pwm_set_polarity,
 	.enable = jz4740_pwm_enable,
 	.disable = jz4740_pwm_disable,
 	.owner = THIS_MODULE,
@@ -149,6 +175,8 @@ static int jz4740_pwm_probe(struct platform_device *pdev)
 	jz4740->chip.ops = &jz4740_pwm_ops;
 	jz4740->chip.npwm = NUM_PWM;
 	jz4740->chip.base = -1;
+	jz4740->chip.of_xlate = of_pwm_xlate_with_flags;
+	jz4740->chip.of_pwm_n_cells = 3;
 
 	platform_set_drvdata(pdev, jz4740);
 
@@ -162,9 +190,20 @@ static int jz4740_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&jz4740->chip);
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id jz4740_pwm_dt_ids[] = {
+	{ .compatible = "ingenic,jz4740-pwm", },
+	{ .compatible = "ingenic,jz4770-pwm", },
+	{ .compatible = "ingenic,jz4780-pwm", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, jz4740_pwm_dt_ids);
+#endif
+
 static struct platform_driver jz4740_pwm_driver = {
 	.driver = {
 		.name = "jz4740-pwm",
+		.of_match_table = of_match_ptr(jz4740_pwm_dt_ids),
 	},
 	.probe = jz4740_pwm_probe,
 	.remove = jz4740_pwm_remove,

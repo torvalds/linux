@@ -14,36 +14,36 @@
 	compatible = "st,stih418-b2199", "st,stih418";
 
 	chosen {
-		bootargs = "console=ttyAS0,115200 clk_ignore_unused";
-		linux,stdout-path = &sbc_serial0;
+		bootargs = "clk_ignore_unused";
+		stdout-path = &sbc_serial0;
 	};
 
-	memory {
+	memory@40000000 {
 		device_type = "memory";
 		reg = <0x40000000 0xc0000000>;
 	};
 
 	aliases {
-		ttyAS0 = &sbc_serial0;
+		serial0 = &sbc_serial0;
 		ethernet0 = &ethernet0;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		red {
+			label = "Front Panel LED";
+			gpios = <&pio4 1 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+		green {
+			gpios = <&pio1 3 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
 	};
 
 	soc {
 		sbc_serial0: serial@9530000 {
 			status = "okay";
-		};
-
-		leds {
-			compatible = "gpio-leds";
-			red {
-				label = "Front Panel LED";
-				gpios = <&pio4 1 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "heartbeat";
-			};
-			green {
-				gpios = <&pio1 3 GPIO_ACTIVE_HIGH>;
-				default-state = "off";
-			};
 		};
 
 		i2c@9842000 {
@@ -88,7 +88,7 @@
 			non-removable;
 		};
 
-		miphy28lp_phy: miphy28lp@9b22000 {
+		miphy28lp_phy: miphy28lp@0 {
 
 			phy_port0: port@9b22000 {
 				st,osc-rdy;

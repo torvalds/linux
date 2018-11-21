@@ -180,7 +180,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	struct drm_mm *mm = hole_node->mm;
 	struct rb_node **link, *rb;
 	struct drm_mm_node *parent;
-	bool leftmost = true;
+	bool leftmost;
 
 	node->__subtree_last = LAST(node);
 
@@ -201,6 +201,7 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 	} else {
 		rb = NULL;
 		link = &mm->interval_tree.rb_root.rb_node;
+		leftmost = true;
 	}
 
 	while (*link) {
@@ -208,11 +209,11 @@ static void drm_mm_interval_tree_add_node(struct drm_mm_node *hole_node,
 		parent = rb_entry(rb, struct drm_mm_node, rb);
 		if (parent->__subtree_last < node->__subtree_last)
 			parent->__subtree_last = node->__subtree_last;
-		if (node->start < parent->start)
+		if (node->start < parent->start) {
 			link = &parent->rb.rb_left;
-		else {
+		} else {
 			link = &parent->rb.rb_right;
-			leftmost = true;
+			leftmost = false;
 		}
 	}
 

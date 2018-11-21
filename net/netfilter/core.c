@@ -585,7 +585,8 @@ void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
 
-static void __net_init __netfilter_net_init(struct nf_hook_entries **e, int max)
+static void __net_init
+__netfilter_net_init(struct nf_hook_entries __rcu **e, int max)
 {
 	int h;
 

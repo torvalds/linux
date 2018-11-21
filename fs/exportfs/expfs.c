@@ -435,6 +435,15 @@ struct dentry *exportfs_decode_fh(struct vfsmount *mnt, struct fid *fid,
 	if (IS_ERR_OR_NULL(result))
 		return ERR_PTR(-ESTALE);
 
+	/*
+	 * If no acceptance criteria was specified by caller, a disconnected
+	 * dentry is also accepatable. Callers may use this mode to query if
+	 * file handle is stale or to get a reference to an inode without
+	 * risking the high overhead caused by directory reconnect.
+	 */
+	if (!acceptable)
+		return result;
+
 	if (d_is_dir(result)) {
 		/*
 		 * This request is for a directory.

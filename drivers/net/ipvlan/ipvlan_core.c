@@ -35,6 +35,7 @@ void ipvlan_count_rx(const struct ipvl_dev *ipvlan,
 }
 EXPORT_SYMBOL_GPL(ipvlan_count_rx);
 
+#if IS_ENABLED(CONFIG_IPV6)
 static u8 ipvlan_get_v6_hash(const void *iaddr)
 {
 	const struct in6_addr *ip6_addr = iaddr;
@@ -42,6 +43,12 @@ static u8 ipvlan_get_v6_hash(const void *iaddr)
 	return __ipv6_addr_jhash(ip6_addr, ipvlan_jhash_secret) &
 	       IPVLAN_HASH_MASK;
 }
+#else
+static u8 ipvlan_get_v6_hash(const void *iaddr)
+{
+	return 0;
+}
+#endif
 
 static u8 ipvlan_get_v4_hash(const void *iaddr)
 {
@@ -49,6 +56,23 @@ static u8 ipvlan_get_v4_hash(const void *iaddr)
 
 	return jhash_1word(ip4_addr->s_addr, ipvlan_jhash_secret) &
 	       IPVLAN_HASH_MASK;
+}
+
+static bool addr_equal(bool is_v6, struct ipvl_addr *addr, const void *iaddr)
+{
+	if (!is_v6 && addr->atype == IPVL_IPV4) {
+		struct in_addr *i4addr = (struct in_addr *)iaddr;
+
+		return addr->ip4addr.s_addr == i4addr->s_addr;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (is_v6 && addr->atype == IPVL_IPV6) {
+		struct in6_addr *i6addr = (struct in6_addr *)iaddr;
+
+		return ipv6_addr_equal(&addr->ip6addr, i6addr);
+#endif
+	}
+
+	return false;
 }
 
 static struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
@@ -59,15 +83,9 @@ static struct ipvl_addr *ipvlan_ht_addr_lookup(const struct ipvl_port *port,
 
 	hash = is_v6 ? ipvlan_get_v6_hash(iaddr) :
 	       ipvlan_get_v4_hash(iaddr);
-	hlist_for_each_entry_rcu(addr, &port->hlhead[hash], hlnode) {
-		if (is_v6 && addr->atype == IPVL_IPV6 &&
-		    ipv6_addr_equal(&addr->ip6addr, iaddr))
+	hlist_for_each_entry_rcu(addr, &port->hlhead[hash], hlnode)
+		if (addr_equal(is_v6, addr, iaddr))
 			return addr;
-		else if (!is_v6 && addr->atype == IPVL_IPV4 &&
-			 addr->ip4addr.s_addr ==
-				((struct in_addr *)iaddr)->s_addr)
-			return addr;
-	}
 	return NULL;
 }
 
@@ -91,29 +109,33 @@ void ipvlan_ht_addr_del(struct ipvl_addr *addr)
 struct ipvl_addr *ipvlan_find_addr(const struct ipvl_dev *ipvlan,
 				   const void *iaddr, bool is_v6)
 {
-	struct ipvl_addr *addr;
+	struct ipvl_addr *addr, *ret = NULL;
 
-	list_for_each_entry(addr, &ipvlan->addrs, anode) {
-		if ((is_v6 && addr->atype == IPVL_IPV6 &&
-		    ipv6_addr_equal(&addr->ip6addr, iaddr)) ||
-		    (!is_v6 && addr->atype == IPVL_IPV4 &&
-		    addr->ip4addr.s_addr == ((struct in_addr *)iaddr)->s_addr))
-			return addr;
+	rcu_read_lock();
+	list_for_each_entry_rcu(addr, &ipvlan->addrs, anode) {
+		if (addr_equal(is_v6, addr, iaddr)) {
+			ret = addr;
+			break;
+		}
 	}
-	return NULL;
+	rcu_read_unlock();
+	return ret;
 }
 
 bool ipvlan_addr_busy(struct ipvl_port *port, void *iaddr, bool is_v6)
 {
 	struct ipvl_dev *ipvlan;
+	bool ret = false;
 
-	ASSERT_RTNL();
-
-	list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
-		if (ipvlan_find_addr(ipvlan, iaddr, is_v6))
-			return true;
+	rcu_read_lock();
+	list_for_each_entry_rcu(ipvlan, &port->ipvlans, pnode) {
+		if (ipvlan_find_addr(ipvlan, iaddr, is_v6)) {
+			ret = true;
+			break;
+		}
 	}
-	return false;
+	rcu_read_unlock();
+	return ret;
 }
 
 static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int *type)
@@ -150,6 +172,7 @@ static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int 
 		lyr3h = ip4h;
 		break;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
 	case htons(ETH_P_IPV6): {
 		struct ipv6hdr *ip6h;
 
@@ -188,6 +211,7 @@ static void *ipvlan_get_L3_hdr(struct ipvl_port *port, struct sk_buff *skb, int 
 		}
 		break;
 	}
+#endif
 	default:
 		return NULL;
 	}
@@ -337,14 +361,18 @@ static struct ipvl_addr *ipvlan_addr_lookup(struct ipvl_port *port,
 {
 	struct ipvl_addr *addr = NULL;
 
-	if (addr_type == IPVL_IPV6) {
+	switch (addr_type) {
+#if IS_ENABLED(CONFIG_IPV6)
+	case IPVL_IPV6: {
 		struct ipv6hdr *ip6h;
 		struct in6_addr *i6addr;
 
 		ip6h = (struct ipv6hdr *)lyr3h;
 		i6addr = use_dest ? &ip6h->daddr : &ip6h->saddr;
 		addr = ipvlan_ht_addr_lookup(port, i6addr, true);
-	} else if (addr_type == IPVL_ICMPV6) {
+		break;
+	}
+	case IPVL_ICMPV6: {
 		struct nd_msg *ndmh;
 		struct in6_addr *i6addr;
 
@@ -356,14 +384,19 @@ static struct ipvl_addr *ipvlan_addr_lookup(struct ipvl_port *port,
 			i6addr = &ndmh->target;
 			addr = ipvlan_ht_addr_lookup(port, i6addr, true);
 		}
-	} else if (addr_type == IPVL_IPV4) {
+		break;
+	}
+#endif
+	case IPVL_IPV4: {
 		struct iphdr *ip4h;
 		__be32 *i4addr;
 
 		ip4h = (struct iphdr *)lyr3h;
 		i4addr = use_dest ? &ip4h->daddr : &ip4h->saddr;
 		addr = ipvlan_ht_addr_lookup(port, i4addr, false);
-	} else if (addr_type == IPVL_ARP) {
+		break;
+	}
+	case IPVL_ARP: {
 		struct arphdr *arph;
 		unsigned char *arp_ptr;
 		__be32 dip;
@@ -377,6 +410,8 @@ static struct ipvl_addr *ipvlan_addr_lookup(struct ipvl_port *port,
 
 		memcpy(&dip, arp_ptr, 4);
 		addr = ipvlan_ht_addr_lookup(port, &dip, false);
+		break;
+	}
 	}
 
 	return addr;
@@ -420,6 +455,7 @@ out:
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static int ipvlan_process_v6_outbound(struct sk_buff *skb)
 {
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -456,6 +492,12 @@ err:
 out:
 	return ret;
 }
+#else
+static int ipvlan_process_v6_outbound(struct sk_buff *skb)
+{
+	return NET_XMIT_DROP;
+}
+#endif
 
 static int ipvlan_process_outbound(struct sk_buff *skb)
 {
@@ -464,8 +506,8 @@ static int ipvlan_process_outbound(struct sk_buff *skb)
 
 	/* In this mode we dont care about multicast and broadcast traffic */
 	if (is_multicast_ether_addr(ethh->h_dest)) {
-		pr_warn_ratelimited("Dropped {multi|broad}cast of type= [%x]\n",
-				    ntohs(skb->protocol));
+		pr_debug_ratelimited("Dropped {multi|broad}cast of type=[%x]\n",
+				     ntohs(skb->protocol));
 		kfree_skb(skb);
 		goto out;
 	}
@@ -759,6 +801,7 @@ struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
 			goto out;
 		break;
 	}
+#if IS_ENABLED(CONFIG_IPV6)
 	case AF_INET6:
 	{
 		struct dst_entry *dst;
@@ -774,10 +817,12 @@ struct sk_buff *ipvlan_l3_rcv(struct net_device *dev, struct sk_buff *skb,
 		};
 
 		skb_dst_drop(skb);
-		dst = ip6_route_input_lookup(dev_net(sdev), sdev, &fl6, flags);
+		dst = ip6_route_input_lookup(dev_net(sdev), sdev, &fl6,
+					     skb, flags);
 		skb_dst_set(skb, dst);
 		break;
 	}
+#endif
 	default:
 		break;
 	}

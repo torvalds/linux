@@ -69,8 +69,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_e708_q1>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
-	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
-	cd-inverted;
+	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
 	status = "okay";
 };
 

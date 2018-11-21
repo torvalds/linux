@@ -838,7 +838,6 @@ static int mdc_getpage(struct obd_export *exp, const struct lu_fid *fid,
 	struct ptlrpc_bulk_desc *desc;
 	struct ptlrpc_request *req;
 	wait_queue_head_t waitq;
-	struct l_wait_info lwi;
 	int resends = 0;
 	int rc;
 	int i;
@@ -888,9 +887,7 @@ restart_bulk:
 			       exp->exp_obd->obd_name, -EIO);
 			return -EIO;
 		}
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends), NULL, NULL,
-				       NULL);
-		l_wait_event(waitq, 0, &lwi);
+		wait_event_idle_timeout(waitq, 0, resends * HZ);
 
 		goto restart_bulk;
 	}
@@ -937,14 +934,14 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
 	struct page *page;
 	int found;
 
-	spin_lock_irq(&mapping->tree_lock);
-	found = radix_tree_gang_lookup(&mapping->page_tree,
+	xa_lock_irq(&mapping->i_pages);
+	found = radix_tree_gang_lookup(&mapping->i_pages,
 				       (void **)&page, offset, 1);
 	if (found > 0 && !radix_tree_exceptional_entry(page)) {
 		struct lu_dirpage *dp;
 
 		get_page(page);
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		/*
 		 * In contrast to find_lock_page() we are sure that directory
 		 * page cannot be truncated (while DLM lock is held) and,
@@ -992,7 +989,7 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
 			page = ERR_PTR(-EIO);
 		}
 	} else {
-		spin_unlock_irq(&mapping->tree_lock);
+		xa_unlock_irq(&mapping->i_pages);
 		page = NULL;
 	}
 	return page;
@@ -1058,13 +1055,14 @@ static void mdc_adjust_dirpages(struct page **pages, int cfs_pgs, int lu_pgs)
 		__u64 hash_end = le64_to_cpu(dp->ldp_hash_end);
 		__u32 flags = le32_to_cpu(dp->ldp_flags);
 		struct lu_dirpage *first = dp;
-		struct lu_dirent *end_dirent = NULL;
-		struct lu_dirent *ent;
 
 		while (--lu_pgs > 0) {
-			ent = lu_dirent_start(dp);
-			for (end_dirent = ent; ent;
-			     end_dirent = ent, ent = lu_dirent_next(ent));
+			struct lu_dirent *end_dirent = NULL;
+			struct lu_dirent *ent;
+
+			for (ent = lu_dirent_start(dp); ent;
+			     ent = lu_dirent_next(ent))
+				end_dirent = ent;
 
 			/* Advance dp to next lu_dirpage. */
 			dp = (struct lu_dirpage *)((char *)dp + LU_PAGE_SIZE);

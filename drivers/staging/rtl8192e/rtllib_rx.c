@@ -2644,8 +2644,8 @@ static inline void rtllib_process_probe_response(
 	   (network->ssid_len ? 1 : 0))) {
 		update_network(ieee, &ieee->current_network, network);
 		if ((ieee->current_network.mode == IEEE_N_24G ||
-		     ieee->current_network.mode == IEEE_G)
-		     && ieee->current_network.berp_info_valid) {
+		     ieee->current_network.mode == IEEE_G) &&
+		    ieee->current_network.berp_info_valid) {
 			if (ieee->current_network.erp_value & ERP_UseProtection)
 				ieee->current_network.buseprotection = true;
 			else

@@ -35,7 +35,7 @@
 		pinctrl-names = "default";
 
 		eject {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
 			label = "Eject Button";

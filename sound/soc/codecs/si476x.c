@@ -140,14 +140,14 @@ static int si476x_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	si476x_core_lock(core);
 
-	err = snd_soc_update_bits(codec_dai->codec, SI476X_DIGITAL_IO_OUTPUT_FORMAT,
+	err = snd_soc_component_update_bits(codec_dai->component, SI476X_DIGITAL_IO_OUTPUT_FORMAT,
 				  SI476X_DIGITAL_IO_OUTPUT_FORMAT_MASK,
 				  format);
 
 	si476x_core_unlock(core);
 
 	if (err < 0) {
-		dev_err(codec_dai->codec->dev, "Failed to set output format\n");
+		dev_err(codec_dai->component->dev, "Failed to set output format\n");
 		return err;
 	}
 
@@ -163,7 +163,7 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 
 	rate = params_rate(params);
 	if (rate < 32000 || rate > 48000) {
-		dev_err(dai->codec->dev, "Rate: %d is not supported\n", rate);
+		dev_err(dai->component->dev, "Rate: %d is not supported\n", rate);
 		return -EINVAL;
 	}
 
@@ -186,19 +186,19 @@ static int si476x_codec_hw_params(struct snd_pcm_substream *substream,
 
 	si476x_core_lock(core);
 
-	err = snd_soc_write(dai->codec, SI476X_DIGITAL_IO_OUTPUT_SAMPLE_RATE,
+	err = snd_soc_component_write(dai->component, SI476X_DIGITAL_IO_OUTPUT_SAMPLE_RATE,
 			    rate);
 	if (err < 0) {
-		dev_err(dai->codec->dev, "Failed to set sample rate\n");
+		dev_err(dai->component->dev, "Failed to set sample rate\n");
 		goto out;
 	}
 
-	err = snd_soc_update_bits(dai->codec, SI476X_DIGITAL_IO_OUTPUT_FORMAT,
+	err = snd_soc_component_update_bits(dai->component, SI476X_DIGITAL_IO_OUTPUT_FORMAT,
 				  SI476X_DIGITAL_IO_OUTPUT_WIDTH_MASK,
 				  (width << SI476X_DIGITAL_IO_SLOT_SIZE_SHIFT) |
 				  (width << SI476X_DIGITAL_IO_SAMPLE_SIZE_SHIFT));
 	if (err < 0) {
-		dev_err(dai->codec->dev, "Failed to set output width\n");
+		dev_err(dai->component->dev, "Failed to set output width\n");
 		goto out;
 	}
 
@@ -239,26 +239,23 @@ static int si476x_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_si476x = {
-	.component_driver = {
-		.probe			= si476x_probe,
-		.dapm_widgets		= si476x_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(si476x_dapm_widgets),
-		.dapm_routes		= si476x_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(si476x_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_si476x = {
+	.probe			= si476x_probe,
+	.dapm_widgets		= si476x_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(si476x_dapm_widgets),
+	.dapm_routes		= si476x_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(si476x_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int si476x_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_si476x,
+	return devm_snd_soc_register_component(&pdev->dev,
+				      &soc_component_dev_si476x,
 				      &si476x_dai, 1);
-}
-
-static int si476x_platform_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
 }
 
 MODULE_ALIAS("platform:si476x-codec");
@@ -268,7 +265,6 @@ static struct platform_driver si476x_platform_driver = {
 		.name	= "si476x-codec",
 	},
 	.probe		= si476x_platform_probe,
-	.remove		= si476x_platform_remove,
 };
 module_platform_driver(si476x_platform_driver);
 

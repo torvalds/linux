@@ -191,7 +191,19 @@ static void __scsi_queue_insert(struct scsi_cmnd *cmd, int reason, bool unbusy)
 	 */
 	cmd->result = 0;
 	if (q->mq_ops) {
-		scsi_mq_requeue_cmd(cmd);
+		/*
+		 * Before a SCSI command is dispatched,
+		 * get_device(&sdev->sdev_gendev) is called and the host,
+		 * target and device busy counters are increased. Since
+		 * requeuing a request causes these actions to be repeated and
+		 * since scsi_device_unbusy() has already been called,
+		 * put_device(&device->sdev_gendev) must still be called. Call
+		 * put_device() after blk_mq_requeue_request() to avoid that
+		 * removal of the SCSI device can start before requeueing has
+		 * happened.
+		 */
+		blk_mq_requeue_request(cmd->request, true);
+		put_device(&device->sdev_gendev);
 		return;
 	}
 	spin_lock_irqsave(q->queue_lock, flags);
@@ -711,18 +723,25 @@ static bool scsi_end_request(struct request *req, blk_status_t error,
 }
 
 /**
- * __scsi_error_from_host_byte - translate SCSI error code into errno
- * @cmd:	SCSI command (unused)
+ * scsi_result_to_blk_status - translate a SCSI result code into blk_status_t
+ * @cmd:	SCSI command
  * @result:	scsi error code
  *
- * Translate SCSI error code into block errors.
+ * Translate a SCSI result code into a blk_status_t value. May reset the host
+ * byte of @cmd->result.
  */
-static blk_status_t __scsi_error_from_host_byte(struct scsi_cmnd *cmd,
-		int result)
+static blk_status_t scsi_result_to_blk_status(struct scsi_cmnd *cmd, int result)
 {
 	switch (host_byte(result)) {
 	case DID_OK:
-		return BLK_STS_OK;
+		/*
+		 * Also check the other bytes than the status byte in result
+		 * to handle the case when a SCSI LLD sets result to
+		 * DRIVER_SENSE << 24 without setting SAM_STAT_CHECK_CONDITION.
+		 */
+		if (scsi_status_is_good(result) && (result & ~0xff) == 0)
+			return BLK_STS_OK;
+		return BLK_STS_IOERR;
 	case DID_TRANSPORT_FAILFAST:
 		return BLK_STS_TRANSPORT;
 	case DID_TARGET_FAILURE:
@@ -800,10 +819,10 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 					    SCSI_SENSE_BUFFERSIZE);
 			}
 			if (!sense_deferred)
-				error = __scsi_error_from_host_byte(cmd, result);
+				error = scsi_result_to_blk_status(cmd, result);
 		}
 		/*
-		 * __scsi_error_from_host_byte may have reset the host_byte
+		 * scsi_result_to_blk_status may have reset the host_byte
 		 */
 		scsi_req(req)->result = cmd->result;
 		scsi_req(req)->resid_len = scsi_get_resid(cmd);
@@ -825,7 +844,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		 * good_bytes != blk_rq_bytes(req) as the signal for an error.
 		 * This sets the error explicitly for the problem case.
 		 */
-		error = __scsi_error_from_host_byte(cmd, result);
+		error = scsi_result_to_blk_status(cmd, result);
 	}
 
 	/* no bidi support for !blk_rq_is_passthrough yet */
@@ -858,6 +877,17 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 		/* for passthrough error may be set */
 		error = BLK_STS_OK;
 	}
+	/*
+	 * Another corner case: the SCSI status byte is non-zero but 'good'.
+	 * Example: PRE-FETCH command returns SAM_STAT_CONDITION_MET when
+	 * it is able to fit nominated LBs in its cache (and SAM_STAT_GOOD
+	 * if it can't fit). Treat SAM_STAT_CONDITION_MET and the related
+	 * intermediate statuses (both obsolete in SAM-4) as good.
+	 */
+	if (status_byte(result) && scsi_status_is_good(result)) {
+		result = 0;
+		error = BLK_STS_OK;
+	}
 
 	/*
 	 * special case: failed zero length commands always need to
@@ -884,7 +914,7 @@ void scsi_io_completion(struct scsi_cmnd *cmd, unsigned int good_bytes)
 	if (result == 0)
 		goto requeue;
 
-	error = __scsi_error_from_host_byte(cmd, result);
+	error = scsi_result_to_blk_status(cmd, result);
 
 	if (host_byte(result) == DID_RESET) {
 		/* Third party bus reset or reset for error recovery
@@ -2144,8 +2174,6 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 {
 	struct device *dev = shost->dma_dev;
 
-	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
-
 	/*
 	 * this limit is imposed by hardware restrictions
 	 */
@@ -2227,7 +2255,7 @@ struct request_queue *scsi_old_alloc_queue(struct scsi_device *sdev)
 	struct Scsi_Host *shost = sdev->host;
 	struct request_queue *q;
 
-	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE);
+	q = blk_alloc_queue_node(GFP_KERNEL, NUMA_NO_NODE, NULL);
 	if (!q)
 		return NULL;
 	q->cmd_size = sizeof(struct scsi_cmnd) + shost->hostt->cmd_size;
@@ -2243,6 +2271,7 @@ struct request_queue *scsi_old_alloc_queue(struct scsi_device *sdev)
 	}
 
 	__scsi_init_queue(shost, q);
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	blk_queue_prep_rq(q, scsi_prep_fn);
 	blk_queue_unprep_rq(q, scsi_unprep_fn);
 	blk_queue_softirq_done(q, scsi_softirq_done);
@@ -2274,6 +2303,7 @@ struct request_queue *scsi_mq_alloc_queue(struct scsi_device *sdev)
 
 	sdev->request_queue->queuedata = sdev;
 	__scsi_init_queue(sdev->host, sdev->request_queue);
+	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, sdev->request_queue);
 	return sdev->request_queue;
 }
 
@@ -2611,7 +2641,7 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	/* try to eat the UNIT_ATTENTION if there are enough retries */
 	do {
 		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
-					  timeout, retries, NULL);
+					  timeout, 1, NULL);
 		if (sdev->removable && scsi_sense_valid(sshdr) &&
 		    sshdr->sense_key == UNIT_ATTENTION)
 			sdev->changed = 1;

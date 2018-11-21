@@ -234,14 +234,17 @@ int usbip_export_device(struct usbip_exported_device *edev, int sockfd)
 		switch (edev->status) {
 		case SDEV_ST_ERROR:
 			dbg("status SDEV_ST_ERROR");
+			ret = ST_DEV_ERR;
 			break;
 		case SDEV_ST_USED:
 			dbg("status SDEV_ST_USED");
+			ret = ST_DEV_BUSY;
 			break;
 		default:
 			dbg("status unknown: 0x%x", edev->status);
+			ret = -1;
 		}
-		return -1;
+		return ret;
 	}
 
 	/* only the first interface is true */

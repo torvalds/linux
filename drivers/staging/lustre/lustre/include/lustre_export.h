@@ -87,6 +87,8 @@ struct obd_export {
 	struct obd_uuid	   exp_client_uuid;
 	/** To link all exports on an obd device */
 	struct list_head		exp_obd_chain;
+	/** work_struct for destruction of export */
+	struct work_struct	exp_zombie_work;
 	struct hlist_node	  exp_uuid_hash; /** uuid-export hash*/
 	/** Obd device of this export */
 	struct obd_device	*exp_obd;

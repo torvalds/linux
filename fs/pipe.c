@@ -841,7 +841,7 @@ int do_pipe_flags(int *fd, int flags)
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
+static int do_pipe2(int __user *fildes, int flags)
 {
 	struct file *files[2];
 	int fd[2];
@@ -863,9 +863,14 @@ SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
 	return error;
 }
 
+SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
+{
+	return do_pipe2(fildes, flags);
+}
+
 SYSCALL_DEFINE1(pipe, int __user *, fildes)
 {
-	return sys_pipe2(fildes, 0);
+	return do_pipe2(fildes, 0);
 }
 
 static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)

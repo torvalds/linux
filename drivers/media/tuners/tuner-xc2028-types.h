@@ -5,7 +5,7 @@
  * This file includes internal tipes to be used inside tuner-xc2028.
  * Shouldn't be included outside tuner-xc2028
  *
- * Copyright (c) 2007-2008 Mauro Carvalho Chehab (mchehab@infradead.org)
+ * Copyright (c) 2007-2008 Mauro Carvalho Chehab <mchehab@kernel.org>
  */
 
 /* xc3028 firmware types */

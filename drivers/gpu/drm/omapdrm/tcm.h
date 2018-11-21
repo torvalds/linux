@@ -65,7 +65,7 @@ struct tcm {
 
 	/* function table */
 	s32 (*reserve_2d)(struct tcm *tcm, u16 height, u16 width, u16 align,
-			  int16_t offset, uint16_t slot_bytes,
+			  s16 offset, u16 slot_bytes,
 			  struct tcm_area *area);
 	s32 (*reserve_1d)(struct tcm *tcm, u32 slots, struct tcm_area *area);
 	s32 (*free)(struct tcm *tcm, struct tcm_area *area);
@@ -129,7 +129,7 @@ static inline void tcm_deinit(struct tcm *tcm)
  *	    allocation.
  */
 static inline s32 tcm_reserve_2d(struct tcm *tcm, u16 width, u16 height,
-				u16 align, int16_t offset, uint16_t slot_bytes,
+				u16 align, s16 offset, u16 slot_bytes,
 				struct tcm_area *area)
 {
 	/* perform rudimentary error checking */

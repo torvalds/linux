@@ -32,14 +32,9 @@ enum {
 	ENDIANNESS_MAX
 };
 
-struct gdm_endian {
-	u8 dev_ed;
-};
-
-void gdm_set_endian(struct gdm_endian *ed, u8 dev_endian);
-__dev16 gdm_cpu_to_dev16(struct gdm_endian *ed, u16 x);
-u16 gdm_dev16_to_cpu(struct gdm_endian *ed, __dev16 x);
-__dev32 gdm_cpu_to_dev32(struct gdm_endian *ed, u32 x);
-u32 gdm_dev32_to_cpu(struct gdm_endian *ed, __dev32 x);
+__dev16 gdm_cpu_to_dev16(u8 dev_ed, u16 x);
+u16 gdm_dev16_to_cpu(u8 dev_ed, __dev16 x);
+__dev32 gdm_cpu_to_dev32(u8 dev_ed, u32 x);
+u32 gdm_dev32_to_cpu(u8 dev_ed, __dev32 x);
 
 #endif /*__GDM_ENDIAN_H__*/

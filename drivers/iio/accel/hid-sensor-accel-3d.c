@@ -155,7 +155,7 @@ static int accel_3d_read_raw(struct iio_dev *indio_dev,
 	*val = 0;
 	*val2 = 0;
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		hid_sensor_power_state(&accel_state->common_attributes, true);
 		report_id = accel_state->accel[chan->scan_index].report_id;
 		address = accel_3d_addresses[chan->scan_index];

@@ -44,7 +44,7 @@
 
 #include "bios_parser_common.h"
 #define LAST_RECORD_TYPE 0xff
-
+#define SMU9_SYSPLL0_ID  0
 
 struct i2c_id_config_access {
 	uint8_t bfI2C_LineMux:4;
@@ -67,6 +67,10 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	struct bp_encoder_cap_info *info);
 
 static enum bp_result get_firmware_info_v3_1(
+	struct bios_parser *bp,
+	struct dc_firmware_info *info);
+
+static enum bp_result get_firmware_info_v3_2(
 	struct bios_parser *bp,
 	struct dc_firmware_info *info);
 
@@ -1220,7 +1224,7 @@ static unsigned int bios_parser_get_smu_clock_info(
 	if (!bp->cmd_tbl.get_smu_clock_info)
 		return BP_RESULT_FAILURE;
 
-	return bp->cmd_tbl.get_smu_clock_info(bp);
+	return bp->cmd_tbl.get_smu_clock_info(bp, 0);
 }
 
 static enum bp_result bios_parser_program_crtc_timing(
@@ -1280,6 +1284,12 @@ static bool bios_parser_is_accelerated_mode(
 	return bios_is_accelerated_mode(dcb);
 }
 
+static uint32_t bios_parser_get_vga_enabled_displays(
+	struct dc_bios *bios)
+{
+	return bios_get_vga_enabled_displays(bios);
+}
+
 
 /**
  * bios_parser_set_scratch_critical_state
@@ -1316,6 +1326,9 @@ static enum bp_result bios_parser_get_firmware_info(
 			switch (revision.minor) {
 			case 1:
 				result = get_firmware_info_v3_1(bp, info);
+				break;
+			case 2:
+				result = get_firmware_info_v3_2(bp, info);
 				break;
 			default:
 				break;
@@ -1370,7 +1383,85 @@ static enum bp_result get_firmware_info_v3_1(
 	if (bp->cmd_tbl.get_smu_clock_info != NULL) {
 		/* VBIOS gives in 10KHz */
 		info->smu_gpu_pll_output_freq =
-				bp->cmd_tbl.get_smu_clock_info(bp) * 10;
+				bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
+	}
+
+	return BP_RESULT_OK;
+}
+
+static enum bp_result get_firmware_info_v3_2(
+	struct bios_parser *bp,
+	struct dc_firmware_info *info)
+{
+	struct atom_firmware_info_v3_2 *firmware_info;
+	struct atom_display_controller_info_v4_1 *dce_info = NULL;
+	struct atom_common_table_header *header;
+	struct atom_data_revision revision;
+	struct atom_smu_info_v3_2 *smu_info_v3_2 = NULL;
+	struct atom_smu_info_v3_3 *smu_info_v3_3 = NULL;
+
+	if (!info)
+		return BP_RESULT_BADINPUT;
+
+	firmware_info = GET_IMAGE(struct atom_firmware_info_v3_2,
+			DATA_TABLES(firmwareinfo));
+
+	dce_info = GET_IMAGE(struct atom_display_controller_info_v4_1,
+			DATA_TABLES(dce_info));
+
+	if (!firmware_info || !dce_info)
+		return BP_RESULT_BADBIOSTABLE;
+
+	memset(info, 0, sizeof(*info));
+
+	header = GET_IMAGE(struct atom_common_table_header,
+					DATA_TABLES(smu_info));
+	get_atom_data_table_revision(header, &revision);
+
+	if (revision.minor == 2) {
+		/* Vega12 */
+		smu_info_v3_2 = GET_IMAGE(struct atom_smu_info_v3_2,
+							DATA_TABLES(smu_info));
+
+		if (!smu_info_v3_2)
+			return BP_RESULT_BADBIOSTABLE;
+
+		info->default_engine_clk = smu_info_v3_2->bootup_dcefclk_10khz * 10;
+	} else if (revision.minor == 3) {
+		/* Vega20 */
+		smu_info_v3_3 = GET_IMAGE(struct atom_smu_info_v3_3,
+							DATA_TABLES(smu_info));
+
+		if (!smu_info_v3_3)
+			return BP_RESULT_BADBIOSTABLE;
+
+		info->default_engine_clk = smu_info_v3_3->bootup_dcefclk_10khz * 10;
+	}
+
+	 // We need to convert from 10KHz units into KHz units.
+	info->default_memory_clk = firmware_info->bootup_mclk_in10khz * 10;
+
+	 /* 27MHz for Vega10 & Vega12; 100MHz for Vega20 */
+	info->pll_info.crystal_frequency = dce_info->dce_refclk_10khz * 10;
+	/* Hardcode frequency if BIOS gives no DCE Ref Clk */
+	if (info->pll_info.crystal_frequency == 0) {
+		if (revision.minor == 2)
+			info->pll_info.crystal_frequency = 27000;
+		else if (revision.minor == 3)
+			info->pll_info.crystal_frequency = 100000;
+	}
+	/*dp_phy_ref_clk is not correct for atom_display_controller_info_v4_2, but we don't use it*/
+	info->dp_phy_ref_clk     = dce_info->dpphy_refclk_10khz * 10;
+	info->i2c_engine_ref_clk = dce_info->i2c_engine_refclk_10khz * 10;
+
+	/* Get GPU PLL VCO Clock */
+	if (bp->cmd_tbl.get_smu_clock_info != NULL) {
+		if (revision.minor == 2)
+			info->smu_gpu_pll_output_freq =
+					bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
+		else if (revision.minor == 3)
+			info->smu_gpu_pll_output_freq =
+					bp->cmd_tbl.get_smu_clock_info(bp, SMU11_SYSPLL3_0_ID) * 10;
 	}
 
 	return BP_RESULT_OK;
@@ -1800,6 +1891,7 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 
 	.is_accelerated_mode = bios_parser_is_accelerated_mode,
+	.get_vga_enabled_displays = bios_parser_get_vga_enabled_displays,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 

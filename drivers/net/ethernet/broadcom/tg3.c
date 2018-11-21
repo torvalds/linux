@@ -8733,14 +8733,15 @@ static void tg3_free_consistent(struct tg3 *tp)
 	tg3_mem_rx_release(tp);
 	tg3_mem_tx_release(tp);
 
-	/* Protect tg3_get_stats64() from reading freed tp->hw_stats. */
-	tg3_full_lock(tp, 0);
+	/* tp->hw_stats can be referenced safely:
+	 *     1. under rtnl_lock
+	 *     2. or under tp->lock if TG3_FLAG_INIT_COMPLETE is set.
+	 */
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
 				  tp->hw_stats, tp->stats_mapping);
 		tp->hw_stats = NULL;
 	}
-	tg3_full_unlock(tp);
 }
 
 /*
@@ -10799,11 +10800,11 @@ static ssize_t tg3_show_temp(struct device *dev,
 }
 
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_input, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_SENSOR_OFFSET);
-static SENSOR_DEVICE_ATTR(temp1_crit, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_crit, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_CAUTION_OFFSET);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IRUGO, tg3_show_temp, NULL,
+static SENSOR_DEVICE_ATTR(temp1_max, 0444, tg3_show_temp, NULL,
 			  TG3_TEMP_MAX_OFFSET);
 
 static struct attribute *tg3_attrs[] = {
@@ -14178,7 +14179,7 @@ static void tg3_get_stats64(struct net_device *dev,
 	struct tg3 *tp = netdev_priv(dev);
 
 	spin_lock_bh(&tp->lock);
-	if (!tp->hw_stats) {
+	if (!tp->hw_stats || !tg3_flag(tp, INIT_COMPLETE)) {
 		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
 		return;

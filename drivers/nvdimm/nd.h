@@ -29,7 +29,6 @@ enum {
 	 * BTT instance
 	 */
 	ND_MAX_LANES = 256,
-	SECTOR_SHIFT = 9,
 	INT_LBASIZE_ALIGNMENT = 64,
 	NVDIMM_IO_ATOMIC = 1,
 };
@@ -341,7 +340,6 @@ static inline struct device *nd_dax_create(struct nd_region *nd_region)
 }
 #endif
 
-struct nd_region *to_nd_region(struct device *dev);
 int nd_region_to_nstype(struct nd_region *nd_region);
 int nd_region_register_namespaces(struct nd_region *nd_region, int *err);
 u64 nd_region_interleave_set_cookie(struct nd_region *nd_region,

@@ -92,7 +92,7 @@ static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 	 * according to the data sheet. make sure they are valid.
 	 */
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int r9701_set_datetime(struct device *dev, struct rtc_time *dt)

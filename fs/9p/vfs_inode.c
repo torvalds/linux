@@ -579,6 +579,24 @@ static int v9fs_at_to_dotl_flags(int flags)
 }
 
 /**
+ * v9fs_dec_count - helper functon to drop i_nlink.
+ *
+ * If a directory had nlink <= 2 (including . and ..), then we should not drop
+ * the link count, which indicates the underlying exported fs doesn't maintain
+ * nlink accurately. e.g.
+ * - overlayfs sets nlink to 1 for merged dir
+ * - ext4 (with dir_nlink feature enabled) sets nlink to 1 if a dir has more
+ *   than EXT4_LINK_MAX (65000) links.
+ *
+ * @inode: inode whose nlink is being dropped
+ */
+static void v9fs_dec_count(struct inode *inode)
+{
+	if (!S_ISDIR(inode->i_mode) || inode->i_nlink > 2)
+		drop_nlink(inode);
+}
+
+/**
  * v9fs_remove - helper function to remove files and directories
  * @dir: directory inode that is being deleted
  * @dentry:  dentry that is being deleted
@@ -621,9 +639,9 @@ static int v9fs_remove(struct inode *dir, struct dentry *dentry, int flags)
 		 */
 		if (flags & AT_REMOVEDIR) {
 			clear_nlink(inode);
-			drop_nlink(dir);
+			v9fs_dec_count(dir);
 		} else
-			drop_nlink(inode);
+			v9fs_dec_count(inode);
 
 		v9fs_invalidate_inode_attr(inode);
 		v9fs_invalidate_inode_attr(dir);
@@ -1024,12 +1042,12 @@ clunk_newdir:
 			if (S_ISDIR(new_inode->i_mode))
 				clear_nlink(new_inode);
 			else
-				drop_nlink(new_inode);
+				v9fs_dec_count(new_inode);
 		}
 		if (S_ISDIR(old_inode->i_mode)) {
 			if (!new_inode)
 				inc_nlink(new_dir);
-			drop_nlink(old_dir);
+			v9fs_dec_count(old_dir);
 		}
 		v9fs_invalidate_inode_attr(old_inode);
 		v9fs_invalidate_inode_attr(old_dir);

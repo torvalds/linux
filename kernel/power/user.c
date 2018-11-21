@@ -224,7 +224,7 @@ static long snapshot_ioctl(struct file *filp, unsigned int cmd,
 			break;
 
 		printk("Syncing filesystems ... ");
-		sys_sync();
+		ksys_sync();
 		printk("done.\n");
 
 		error = freeze_processes();

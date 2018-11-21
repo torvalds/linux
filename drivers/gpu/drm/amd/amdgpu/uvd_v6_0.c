@@ -964,32 +964,6 @@ static void uvd_v6_0_enc_ring_emit_fence(struct amdgpu_ring *ring, u64 addr,
 }
 
 /**
- * uvd_v6_0_ring_emit_hdp_flush - emit an hdp flush
- *
- * @ring: amdgpu_ring pointer
- *
- * Emits an hdp flush.
- */
-static void uvd_v6_0_ring_emit_hdp_flush(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, PACKET0(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0));
-	amdgpu_ring_write(ring, 0);
-}
-
-/**
- * uvd_v6_0_ring_hdp_invalidate - emit an hdp invalidate
- *
- * @ring: amdgpu_ring pointer
- *
- * Emits an hdp invalidate.
- */
-static void uvd_v6_0_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, PACKET0(mmHDP_DEBUG0, 0));
-	amdgpu_ring_write(ring, 1);
-}
-
-/**
  * uvd_v6_0_ring_test_ring - register write test
  *
  * @ring: amdgpu_ring pointer
@@ -1072,29 +1046,21 @@ static void uvd_v6_0_enc_ring_emit_ib(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, ib->length_dw);
 }
 
-static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
-					 unsigned vmid, uint64_t pd_addr)
+static void uvd_v6_0_ring_emit_wreg(struct amdgpu_ring *ring,
+				    uint32_t reg, uint32_t val)
 {
-	uint32_t reg;
-
-	if (vmid < 8)
-		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid;
-	else
-		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
-
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, reg << 2);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
-	amdgpu_ring_write(ring, pd_addr >> 12);
+	amdgpu_ring_write(ring, val);
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
 	amdgpu_ring_write(ring, 0x8);
+}
 
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
-	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA1, 0));
-	amdgpu_ring_write(ring, 1 << vmid);
-	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_CMD, 0));
-	amdgpu_ring_write(ring, 0x8);
+static void uvd_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
+					unsigned vmid, uint64_t pd_addr)
+{
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	amdgpu_ring_write(ring, PACKET0(mmUVD_GPCOM_VCPU_DATA0, 0));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
@@ -1140,7 +1106,7 @@ static void uvd_v6_0_enc_ring_insert_end(struct amdgpu_ring *ring)
 }
 
 static void uvd_v6_0_enc_ring_emit_vm_flush(struct amdgpu_ring *ring,
-        unsigned int vmid, uint64_t pd_addr)
+					    unsigned int vmid, uint64_t pd_addr)
 {
 	amdgpu_ring_write(ring, HEVC_ENC_CMD_UPDATE_PTB);
 	amdgpu_ring_write(ring, vmid);
@@ -1562,21 +1528,19 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_phys_funcs = {
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.parse_cs = amdgpu_uvd_ring_parse_cs,
 	.emit_frame_size =
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		6 + 6 + /* hdp flush / invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
 		14, /* uvd_v6_0_ring_emit_fence x1 no user fence */
 	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
-	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.emit_wreg = uvd_v6_0_ring_emit_wreg,
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
@@ -1588,24 +1552,22 @@ static const struct amdgpu_ring_funcs uvd_v6_0_ring_vm_funcs = {
 	.get_wptr = uvd_v6_0_ring_get_wptr,
 	.set_wptr = uvd_v6_0_ring_set_wptr,
 	.emit_frame_size =
-		2 + /* uvd_v6_0_ring_emit_hdp_flush */
-		2 + /* uvd_v6_0_ring_emit_hdp_invalidate */
+		6 + 6 + /* hdp flush / invalidate */
 		10 + /* uvd_v6_0_ring_emit_pipeline_sync */
-		20 + /* uvd_v6_0_ring_emit_vm_flush */
+		VI_FLUSH_GPU_TLB_NUM_WREG * 6 + 8 + /* uvd_v6_0_ring_emit_vm_flush */
 		14 + 14, /* uvd_v6_0_ring_emit_fence x2 vm fence */
 	.emit_ib_size = 8, /* uvd_v6_0_ring_emit_ib */
 	.emit_ib = uvd_v6_0_ring_emit_ib,
 	.emit_fence = uvd_v6_0_ring_emit_fence,
 	.emit_vm_flush = uvd_v6_0_ring_emit_vm_flush,
 	.emit_pipeline_sync = uvd_v6_0_ring_emit_pipeline_sync,
-	.emit_hdp_flush = uvd_v6_0_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = uvd_v6_0_ring_emit_hdp_invalidate,
 	.test_ring = uvd_v6_0_ring_test_ring,
 	.test_ib = amdgpu_uvd_ring_test_ib,
 	.insert_nop = amdgpu_ring_insert_nop,
 	.pad_ib = amdgpu_ring_generic_pad_ib,
 	.begin_use = amdgpu_uvd_ring_begin_use,
 	.end_use = amdgpu_uvd_ring_end_use,
+	.emit_wreg = uvd_v6_0_ring_emit_wreg,
 };
 
 static const struct amdgpu_ring_funcs uvd_v6_0_enc_ring_vm_funcs = {

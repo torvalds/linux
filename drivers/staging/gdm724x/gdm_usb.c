@@ -72,8 +72,8 @@ static int request_mac_address(struct lte_udev *udev)
 	int actual;
 	int ret = -1;
 
-	hci->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_GET_INFORMATION);
-	hci->len = gdm_cpu_to_dev16(&udev->gdm_ed, 1);
+	hci->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_GET_INFORMATION);
+	hci->len = gdm_cpu_to_dev16(udev->gdm_ed, 1);
 	hci->data[0] = MAC_ADDRESS;
 
 	ret = usb_bulk_msg(usbdev, usb_sndbulkpipe(usbdev, 2), buf, 5,
@@ -410,7 +410,7 @@ static void do_rx(struct work_struct *work)
 		phy_dev = r->cb_data;
 		udev = phy_dev->priv_dev;
 		hci = (struct hci_packet *)r->buf;
-		cmd_evt = gdm_dev16_to_cpu(&udev->gdm_ed, hci->cmd_evt);
+		cmd_evt = gdm_dev16_to_cpu(udev->gdm_ed, hci->cmd_evt);
 
 		switch (cmd_evt) {
 		case LTE_GET_INFORMATION_RESULT:
@@ -604,7 +604,7 @@ static u32 packet_aggregation(struct lte_udev *udev, u8 *send_buf)
 	u16 num_packet = 0;
 	unsigned long flags;
 
-	multi_sdu->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_TX_MULTI_SDU);
+	multi_sdu->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_TX_MULTI_SDU);
 
 	while (num_packet < MAX_PACKET_IN_MULTI_SDU) {
 		spin_lock_irqsave(&tx->lock, flags);
@@ -635,8 +635,8 @@ static u32 packet_aggregation(struct lte_udev *udev, u8 *send_buf)
 		spin_unlock_irqrestore(&tx->lock, flags);
 	}
 
-	multi_sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);
-	multi_sdu->num_packet = gdm_cpu_to_dev16(&udev->gdm_ed, num_packet);
+	multi_sdu->len = gdm_cpu_to_dev16(udev->gdm_ed, send_len);
+	multi_sdu->num_packet = gdm_cpu_to_dev16(udev->gdm_ed, num_packet);
 
 	return send_len + offsetof(struct multi_sdu, data);
 }
@@ -735,7 +735,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	}
 
 	sdu = (struct sdu *)t_sdu->buf;
-	sdu->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_TX_SDU);
+	sdu->cmd_evt = gdm_cpu_to_dev16(udev->gdm_ed, LTE_TX_SDU);
 	if (nic_type == NIC_TYPE_ARP) {
 		send_len = len + SDU_PARAM_LEN;
 		memcpy(sdu->data, data, len);
@@ -745,10 +745,10 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 		memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
 	}
 
-	sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);
-	sdu->dft_eps_ID = gdm_cpu_to_dev32(&udev->gdm_ed, dft_eps_ID);
-	sdu->bearer_ID = gdm_cpu_to_dev32(&udev->gdm_ed, eps_ID);
-	sdu->nic_type = gdm_cpu_to_dev32(&udev->gdm_ed, nic_type);
+	sdu->len = gdm_cpu_to_dev16(udev->gdm_ed, send_len);
+	sdu->dft_eps_ID = gdm_cpu_to_dev32(udev->gdm_ed, dft_eps_ID);
+	sdu->bearer_ID = gdm_cpu_to_dev32(udev->gdm_ed, eps_ID);
+	sdu->nic_type = gdm_cpu_to_dev32(udev->gdm_ed, nic_type);
 
 	t_sdu->len = send_len + HCI_HEADER_SIZE;
 	t_sdu->callback = cb;
@@ -799,11 +799,11 @@ static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
 	return 0;
 }
 
-static struct gdm_endian *gdm_usb_get_endian(void *priv_dev)
+static u8 gdm_usb_get_endian(void *priv_dev)
 {
 	struct lte_udev *udev = priv_dev;
 
-	return &udev->gdm_ed;
+	return udev->gdm_ed;
 }
 
 static int gdm_usb_probe(struct usb_interface *intf,
@@ -859,9 +859,9 @@ static int gdm_usb_probe(struct usb_interface *intf,
 	 * defaults to little endian
 	 */
 	if (idProduct == PID_GDM7243)
-		gdm_set_endian(&udev->gdm_ed, ENDIANNESS_BIG);
+		udev->gdm_ed = ENDIANNESS_BIG;
 	else
-		gdm_set_endian(&udev->gdm_ed, ENDIANNESS_LITTLE);
+		udev->gdm_ed = ENDIANNESS_LITTLE;
 
 	ret = request_mac_address(udev);
 	if (ret < 0) {

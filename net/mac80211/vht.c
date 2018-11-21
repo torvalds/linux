@@ -358,6 +358,36 @@ enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta)
 	return NL80211_CHAN_WIDTH_80;
 }
 
+enum nl80211_chan_width
+ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta)
+{
+	enum ieee80211_sta_rx_bandwidth cur_bw = sta->sta.bandwidth;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.vht_cap;
+	u32 cap_width;
+
+	switch (cur_bw) {
+	case IEEE80211_STA_RX_BW_20:
+		if (!sta->sta.ht_cap.ht_supported)
+			return NL80211_CHAN_WIDTH_20_NOHT;
+		else
+			return NL80211_CHAN_WIDTH_20;
+	case IEEE80211_STA_RX_BW_40:
+		return NL80211_CHAN_WIDTH_40;
+	case IEEE80211_STA_RX_BW_80:
+		return NL80211_CHAN_WIDTH_80;
+	case IEEE80211_STA_RX_BW_160:
+		cap_width =
+			vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
+
+		if (cap_width == IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ)
+			return NL80211_CHAN_WIDTH_160;
+
+		return NL80211_CHAN_WIDTH_80P80;
+	default:
+		return NL80211_CHAN_WIDTH_20;
+	}
+}
+
 enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 {
@@ -447,6 +477,7 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				  enum nl80211_band band)
 {
 	enum ieee80211_sta_rx_bandwidth new_bw;
+	struct sta_opmode_info sta_opmode = {};
 	u32 changed = 0;
 	u8 nss;
 
@@ -460,7 +491,9 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	if (sta->sta.rx_nss != nss) {
 		sta->sta.rx_nss = nss;
+		sta_opmode.rx_nss = nss;
 		changed |= IEEE80211_RC_NSS_CHANGED;
+		sta_opmode.changed |= STA_OPMODE_N_SS_CHANGED;
 	}
 
 	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
@@ -481,8 +514,14 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	new_bw = ieee80211_sta_cur_vht_bw(sta);
 	if (new_bw != sta->sta.bandwidth) {
 		sta->sta.bandwidth = new_bw;
+		sta_opmode.bw = ieee80211_sta_rx_bw_to_chan_width(sta);
 		changed |= IEEE80211_RC_BW_CHANGED;
+		sta_opmode.changed |= STA_OPMODE_MAX_BW_CHANGED;
 	}
+
+	if (sta_opmode.changed)
+		cfg80211_sta_opmode_change_notify(sdata->dev, sta->addr,
+						  &sta_opmode, GFP_KERNEL);
 
 	return changed;
 }

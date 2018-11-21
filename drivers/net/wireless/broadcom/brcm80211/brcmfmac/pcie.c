@@ -46,36 +46,36 @@ enum brcmf_pcie_state {
 	BRCMFMAC_PCIE_STATE_UP
 };
 
-BRCMF_FW_NVRAM_DEF(43602, "brcmfmac43602-pcie.bin", "brcmfmac43602-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4350, "brcmfmac4350-pcie.bin", "brcmfmac4350-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4350C, "brcmfmac4350c2-pcie.bin", "brcmfmac4350c2-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4356, "brcmfmac4356-pcie.bin", "brcmfmac4356-pcie.txt");
-BRCMF_FW_NVRAM_DEF(43570, "brcmfmac43570-pcie.bin", "brcmfmac43570-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4358, "brcmfmac4358-pcie.bin", "brcmfmac4358-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4359, "brcmfmac4359-pcie.bin", "brcmfmac4359-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4365B, "brcmfmac4365b-pcie.bin", "brcmfmac4365b-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4365C, "brcmfmac4365c-pcie.bin", "brcmfmac4365c-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4366B, "brcmfmac4366b-pcie.bin", "brcmfmac4366b-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4366C, "brcmfmac4366c-pcie.bin", "brcmfmac4366c-pcie.txt");
-BRCMF_FW_NVRAM_DEF(4371, "brcmfmac4371-pcie.bin", "brcmfmac4371-pcie.txt");
+BRCMF_FW_DEF(43602, "brcmfmac43602-pcie");
+BRCMF_FW_DEF(4350, "brcmfmac4350-pcie");
+BRCMF_FW_DEF(4350C, "brcmfmac4350c2-pcie");
+BRCMF_FW_DEF(4356, "brcmfmac4356-pcie");
+BRCMF_FW_DEF(43570, "brcmfmac43570-pcie");
+BRCMF_FW_DEF(4358, "brcmfmac4358-pcie");
+BRCMF_FW_DEF(4359, "brcmfmac4359-pcie");
+BRCMF_FW_DEF(4365B, "brcmfmac4365b-pcie");
+BRCMF_FW_DEF(4365C, "brcmfmac4365c-pcie");
+BRCMF_FW_DEF(4366B, "brcmfmac4366b-pcie");
+BRCMF_FW_DEF(4366C, "brcmfmac4366c-pcie");
+BRCMF_FW_DEF(4371, "brcmfmac4371-pcie");
 
 static struct brcmf_firmware_mapping brcmf_pcie_fwnames[] = {
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43602_CHIP_ID, 0xFFFFFFFF, 43602),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43465_CHIP_ID, 0xFFFFFFF0, 4366C),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4350_CHIP_ID, 0x000000FF, 4350C),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4350_CHIP_ID, 0xFFFFFF00, 4350),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43525_CHIP_ID, 0xFFFFFFF0, 4365C),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4356_CHIP_ID, 0xFFFFFFFF, 4356),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43567_CHIP_ID, 0xFFFFFFFF, 43570),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43569_CHIP_ID, 0xFFFFFFFF, 43570),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_43570_CHIP_ID, 0xFFFFFFFF, 43570),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4358_CHIP_ID, 0xFFFFFFFF, 4358),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4359_CHIP_ID, 0xFFFFFFFF, 4359),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4365_CHIP_ID, 0x0000000F, 4365B),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4365_CHIP_ID, 0xFFFFFFF0, 4365C),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4366_CHIP_ID, 0x0000000F, 4366B),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4366_CHIP_ID, 0xFFFFFFF0, 4366C),
-	BRCMF_FW_NVRAM_ENTRY(BRCM_CC_4371_CHIP_ID, 0xFFFFFFFF, 4371),
+	BRCMF_FW_ENTRY(BRCM_CC_43602_CHIP_ID, 0xFFFFFFFF, 43602),
+	BRCMF_FW_ENTRY(BRCM_CC_43465_CHIP_ID, 0xFFFFFFF0, 4366C),
+	BRCMF_FW_ENTRY(BRCM_CC_4350_CHIP_ID, 0x000000FF, 4350C),
+	BRCMF_FW_ENTRY(BRCM_CC_4350_CHIP_ID, 0xFFFFFF00, 4350),
+	BRCMF_FW_ENTRY(BRCM_CC_43525_CHIP_ID, 0xFFFFFFF0, 4365C),
+	BRCMF_FW_ENTRY(BRCM_CC_4356_CHIP_ID, 0xFFFFFFFF, 4356),
+	BRCMF_FW_ENTRY(BRCM_CC_43567_CHIP_ID, 0xFFFFFFFF, 43570),
+	BRCMF_FW_ENTRY(BRCM_CC_43569_CHIP_ID, 0xFFFFFFFF, 43570),
+	BRCMF_FW_ENTRY(BRCM_CC_43570_CHIP_ID, 0xFFFFFFFF, 43570),
+	BRCMF_FW_ENTRY(BRCM_CC_4358_CHIP_ID, 0xFFFFFFFF, 4358),
+	BRCMF_FW_ENTRY(BRCM_CC_4359_CHIP_ID, 0xFFFFFFFF, 4359),
+	BRCMF_FW_ENTRY(BRCM_CC_4365_CHIP_ID, 0x0000000F, 4365B),
+	BRCMF_FW_ENTRY(BRCM_CC_4365_CHIP_ID, 0xFFFFFFF0, 4365C),
+	BRCMF_FW_ENTRY(BRCM_CC_4366_CHIP_ID, 0x0000000F, 4366B),
+	BRCMF_FW_ENTRY(BRCM_CC_4366_CHIP_ID, 0xFFFFFFF0, 4366C),
+	BRCMF_FW_ENTRY(BRCM_CC_4371_CHIP_ID, 0xFFFFFFFF, 4371),
 };
 
 #define BRCMF_PCIE_FW_UP_TIMEOUT		2000 /* msec */
@@ -1350,23 +1350,24 @@ static int brcmf_pcie_get_memdump(struct device *dev, void *data, size_t len)
 	return 0;
 }
 
-static int brcmf_pcie_get_fwname(struct device *dev, u32 chip, u32 chiprev,
-				 u8 *fw_name)
+static
+int brcmf_pcie_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 {
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
-	struct brcmf_pciedev *buspub = bus_if->bus_priv.pcie;
-	struct brcmf_pciedev_info *devinfo = buspub->devinfo;
-	int ret = 0;
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ext, fw_name },
+	};
 
-	if (devinfo->fw_name[0] != '\0')
-		strlcpy(fw_name, devinfo->fw_name, BRCMF_FW_NAME_LEN);
-	else
-		ret = brcmf_fw_map_chip_to_name(chip, chiprev,
-						brcmf_pcie_fwnames,
-						ARRAY_SIZE(brcmf_pcie_fwnames),
-						fw_name, NULL);
+	fwreq = brcmf_fw_alloc_request(bus_if->chip, bus_if->chiprev,
+				       brcmf_pcie_fwnames,
+				       ARRAY_SIZE(brcmf_pcie_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return -ENOMEM;
 
-	return ret;
+	kfree(fwreq);
+	return 0;
 }
 
 static const struct brcmf_bus_ops brcmf_pcie_bus_ops = {
@@ -1581,24 +1582,6 @@ static void brcmf_pcie_release_resource(struct brcmf_pciedev_info *devinfo)
 }
 
 
-static int brcmf_pcie_attach_bus(struct brcmf_pciedev_info *devinfo)
-{
-	int ret;
-
-	/* Attach to the common driver interface */
-	ret = brcmf_attach(&devinfo->pdev->dev, devinfo->settings);
-	if (ret) {
-		brcmf_err("brcmf_attach failed\n");
-	} else {
-		ret = brcmf_bus_started(&devinfo->pdev->dev);
-		if (ret)
-			brcmf_err("dongle is not responding\n");
-	}
-
-	return ret;
-}
-
-
 static u32 brcmf_pcie_buscore_prep_addr(const struct pci_dev *pdev, u32 addr)
 {
 	u32 ret_addr;
@@ -1669,15 +1652,19 @@ static const struct brcmf_buscore_ops brcmf_pcie_buscore_ops = {
 	.write32 = brcmf_pcie_buscore_write32,
 };
 
+#define BRCMF_PCIE_FW_CODE	0
+#define BRCMF_PCIE_FW_NVRAM	1
+
 static void brcmf_pcie_setup(struct device *dev, int ret,
-			     const struct firmware *fw,
-			     void *nvram, u32 nvram_len)
+			     struct brcmf_fw_request *fwreq)
 {
+	const struct firmware *fw;
+	void *nvram;
 	struct brcmf_bus *bus;
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_commonring **flowrings;
-	u32 i;
+	u32 i, nvram_len;
 
 	/* check firmware loading result */
 	if (ret)
@@ -1687,6 +1674,11 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	pcie_bus_dev = bus->bus_priv.pcie;
 	devinfo = pcie_bus_dev->devinfo;
 	brcmf_pcie_attach(devinfo);
+
+	fw = fwreq->items[BRCMF_PCIE_FW_CODE].binary;
+	nvram = fwreq->items[BRCMF_PCIE_FW_NVRAM].nv_data.data;
+	nvram_len = fwreq->items[BRCMF_PCIE_FW_NVRAM].nv_data.len;
+	kfree(fwreq);
 
 	/* Some of the firmwares have the size of the memory of the device
 	 * defined inside the firmware. This is because part of the memory in
@@ -1735,7 +1727,7 @@ static void brcmf_pcie_setup(struct device *dev, int ret,
 	init_waitqueue_head(&devinfo->mbdata_resp_wait);
 
 	brcmf_pcie_intr_enable(devinfo);
-	if (brcmf_pcie_attach_bus(devinfo) == 0)
+	if (brcmf_attach(&devinfo->pdev->dev, devinfo->settings) == 0)
 		return;
 
 	brcmf_pcie_bus_console_read(devinfo);
@@ -1744,20 +1736,41 @@ fail:
 	device_release_driver(dev);
 }
 
+static struct brcmf_fw_request *
+brcmf_pcie_prepare_fw_request(struct brcmf_pciedev_info *devinfo)
+{
+	struct brcmf_fw_request *fwreq;
+	struct brcmf_fw_name fwnames[] = {
+		{ ".bin", devinfo->fw_name },
+		{ ".txt", devinfo->nvram_name },
+	};
+
+	fwreq = brcmf_fw_alloc_request(devinfo->ci->chip, devinfo->ci->chiprev,
+				       brcmf_pcie_fwnames,
+				       ARRAY_SIZE(brcmf_pcie_fwnames),
+				       fwnames, ARRAY_SIZE(fwnames));
+	if (!fwreq)
+		return NULL;
+
+	fwreq->items[BRCMF_PCIE_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+	fwreq->items[BRCMF_PCIE_FW_NVRAM].flags = BRCMF_FW_REQF_OPTIONAL;
+	fwreq->domain_nr = pci_domain_nr(devinfo->pdev->bus);
+	fwreq->bus_nr = devinfo->pdev->bus->number;
+
+	return fwreq;
+}
+
 static int
 brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int ret;
+	struct brcmf_fw_request *fwreq;
 	struct brcmf_pciedev_info *devinfo;
 	struct brcmf_pciedev *pcie_bus_dev;
 	struct brcmf_bus *bus;
-	u16 domain_nr;
-	u16 bus_nr;
 
-	domain_nr = pci_domain_nr(pdev->bus) + 1;
-	bus_nr = pdev->bus->number;
-	brcmf_dbg(PCIE, "Enter %x:%x (%d/%d)\n", pdev->vendor, pdev->device,
-		  domain_nr, bus_nr);
+	brcmf_dbg(PCIE, "Enter %x:%x\n", pdev->vendor, pdev->device);
 
 	ret = -ENOMEM;
 	devinfo = kzalloc(sizeof(*devinfo), GFP_KERNEL);
@@ -1811,19 +1824,19 @@ brcmf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	bus->wowl_supported = pci_pme_capable(pdev, PCI_D3hot);
 	dev_set_drvdata(&pdev->dev, bus);
 
-	ret = brcmf_fw_map_chip_to_name(devinfo->ci->chip, devinfo->ci->chiprev,
-					brcmf_pcie_fwnames,
-					ARRAY_SIZE(brcmf_pcie_fwnames),
-					devinfo->fw_name, devinfo->nvram_name);
-	if (ret)
+	fwreq = brcmf_pcie_prepare_fw_request(devinfo);
+	if (!fwreq) {
+		ret = -ENOMEM;
 		goto fail_bus;
+	}
 
-	ret = brcmf_fw_get_firmwares_pcie(bus->dev, BRCMF_FW_REQUEST_NVRAM |
-						    BRCMF_FW_REQ_NV_OPTIONAL,
-					  devinfo->fw_name, devinfo->nvram_name,
-					  brcmf_pcie_setup, domain_nr, bus_nr);
-	if (ret == 0)
-		return 0;
+	ret = brcmf_fw_get_firmwares(bus->dev, fwreq, brcmf_pcie_setup);
+	if (ret < 0) {
+		kfree(fwreq);
+		goto fail_bus;
+	}
+	return 0;
+
 fail_bus:
 	kfree(bus->msgbuf);
 	kfree(bus);

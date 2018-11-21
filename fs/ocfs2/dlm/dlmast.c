@@ -224,14 +224,12 @@ void dlm_do_local_ast(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 		      struct dlm_lock *lock)
 {
 	dlm_astlockfunc_t *fn;
-	struct dlm_lockstatus *lksb;
 
 	mlog(0, "%s: res %.*s, lock %u:%llu, Local AST\n", dlm->name,
 	     res->lockname.len, res->lockname.name,
 	     dlm_get_lock_cookie_node(be64_to_cpu(lock->ml.cookie)),
 	     dlm_get_lock_cookie_seq(be64_to_cpu(lock->ml.cookie)));
 
-	lksb = lock->lksb;
 	fn = lock->ast;
 	BUG_ON(lock->ml.node != dlm->node_num);
 

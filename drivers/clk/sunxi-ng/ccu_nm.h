@@ -37,6 +37,7 @@ struct ccu_nm {
 	struct ccu_sdm_internal		sdm;
 
 	unsigned int		fixed_post_div;
+	unsigned int		min_rate;
 
 	struct ccu_common	common;
 };
@@ -78,6 +79,32 @@ struct ccu_nm {
 		.frac		= _SUNXI_CCU_FRAC(_frac_en, _frac_sel,	\
 						  _frac_rate_0,		\
 						  _frac_rate_1),	\
+		.common		= {					\
+			.reg		= _reg,				\
+			.features	= CCU_FEATURE_FRACTIONAL,	\
+			.hw.init	= CLK_HW_INIT(_name,		\
+						      _parent,		\
+						      &ccu_nm_ops,	\
+						      _flags),		\
+		},							\
+	}
+
+#define SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN(_struct, _name, _parent,	\
+					     _reg, _min_rate,		\
+					     _nshift, _nwidth,		\
+					     _mshift, _mwidth,		\
+					     _frac_en, _frac_sel,	\
+					     _frac_rate_0, _frac_rate_1,\
+					     _gate, _lock, _flags)	\
+	struct ccu_nm _struct = {					\
+		.enable		= _gate,				\
+		.lock		= _lock,				\
+		.n		= _SUNXI_CCU_MULT(_nshift, _nwidth),	\
+		.m		= _SUNXI_CCU_DIV(_mshift, _mwidth),	\
+		.frac		= _SUNXI_CCU_FRAC(_frac_en, _frac_sel,	\
+						  _frac_rate_0,		\
+						  _frac_rate_1),	\
+		.min_rate	= _min_rate,				\
 		.common		= {					\
 			.reg		= _reg,				\
 			.features	= CCU_FEATURE_FRACTIONAL,	\

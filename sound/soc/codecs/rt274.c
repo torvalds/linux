@@ -38,7 +38,7 @@ struct rt274_priv {
 	struct reg_default *index_cache;
 	int index_cache_size;
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct i2c_client *i2c;
 	struct snd_soc_jack *jack;
 	struct delayed_work jack_detect_work;
@@ -338,13 +338,13 @@ static bool rt274_readable_register(struct device *dev, unsigned int reg)
 }
 
 #ifdef CONFIG_PM
-static void rt274_index_sync(struct snd_soc_codec *codec)
+static void rt274_index_sync(struct snd_soc_component *component)
 {
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 	int i;
 
 	for (i = 0; i < INDEX_CACHE_SIZE; i++) {
-		snd_soc_write(codec, rt274->index_cache[i].reg,
+		snd_soc_component_write(component, rt274->index_cache[i].reg,
 				  rt274->index_cache[i].def);
 	}
 }
@@ -357,7 +357,7 @@ static int rt274_jack_detect(struct rt274_priv *rt274, bool *hp, bool *mic)
 	*hp = false;
 	*mic = false;
 
-	if (!rt274->codec)
+	if (!rt274->component)
 		return -EINVAL;
 
 	regmap_read(rt274->regmap, RT274_GET_HP_SENSE, &buf);
@@ -393,10 +393,10 @@ static void rt274_jack_detect_work(struct work_struct *work)
 
 static irqreturn_t rt274_irq(int irq, void *data);
 
-static int rt274_mic_detect(struct snd_soc_codec *codec,
+static int rt274_mic_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack,  void *data)
 {
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	if (jack == NULL) {
 		/* Disable jack detection */
@@ -609,8 +609,8 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 	unsigned int val = 0;
 	int d_len_code = 0, c_len_code = 0;
 
@@ -620,7 +620,7 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 	case 48000:
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported sample rate %d\n",
+		dev_err(component->dev, "Unsupported sample rate %d\n",
 					params_rate(params));
 		return -EINVAL;
 	}
@@ -628,7 +628,7 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 	case 12288000:
 	case 24576000:
 		if (params_rate(params) != 48000) {
-			dev_err(codec->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
 					params_rate(params), rt274->sys_clk);
 			return -EINVAL;
 		}
@@ -636,7 +636,7 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 	case 11289600:
 	case 22579200:
 		if (params_rate(params) != 44100) {
-			dev_err(codec->dev, "Sys_clk is not matched (%d %d)\n",
+			dev_err(component->dev, "Sys_clk is not matched (%d %d)\n",
 					params_rate(params), rt274->sys_clk);
 			return -EINVAL;
 		}
@@ -647,7 +647,7 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 		/* bit 3:0 Number of Channel */
 		val |= (params_channels(params) - 1);
 	} else {
-		dev_err(codec->dev, "Unsupported channels %d\n",
+		dev_err(component->dev, "Unsupported channels %d\n",
 					params_channels(params));
 		return -EINVAL;
 	}
@@ -685,29 +685,29 @@ static int rt274_hw_params(struct snd_pcm_substream *substream,
 	if (rt274->master)
 		c_len_code = 0x3;
 
-	snd_soc_update_bits(codec,
+	snd_soc_component_update_bits(component,
 		RT274_I2S_CTRL1, 0xc018, d_len_code << 3 | c_len_code << 14);
-	dev_dbg(codec->dev, "format val = 0x%x\n", val);
+	dev_dbg(component->dev, "format val = 0x%x\n", val);
 
-	snd_soc_update_bits(codec, RT274_DAC_FORMAT, 0x407f, val);
-	snd_soc_update_bits(codec, RT274_ADC_FORMAT, 0x407f, val);
+	snd_soc_component_update_bits(component, RT274_DAC_FORMAT, 0x407f, val);
+	snd_soc_component_update_bits(component, RT274_ADC_FORMAT, 0x407f, val);
 
 	return 0;
 }
 
 static int rt274_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, RT274_I2S_MODE_MASK, RT274_I2S_MODE_M);
 		rt274->master = true;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFS:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, RT274_I2S_MODE_MASK, RT274_I2S_MODE_S);
 		rt274->master = false;
 		break;
@@ -717,27 +717,27 @@ static int rt274_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:
-		snd_soc_update_bits(codec, RT274_I2S_CTRL1,
+		snd_soc_component_update_bits(component, RT274_I2S_CTRL1,
 					RT274_I2S_FMT_MASK, RT274_I2S_FMT_I2S);
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		snd_soc_update_bits(codec, RT274_I2S_CTRL1,
+		snd_soc_component_update_bits(component, RT274_I2S_CTRL1,
 					RT274_I2S_FMT_MASK, RT274_I2S_FMT_LJ);
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
-		snd_soc_update_bits(codec, RT274_I2S_CTRL1,
+		snd_soc_component_update_bits(component, RT274_I2S_CTRL1,
 					RT274_I2S_FMT_MASK, RT274_I2S_FMT_PCMA);
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		snd_soc_update_bits(codec, RT274_I2S_CTRL1,
+		snd_soc_component_update_bits(component, RT274_I2S_CTRL1,
 					RT274_I2S_FMT_MASK, RT274_I2S_FMT_PCMB);
 		break;
 	default:
 		return -EINVAL;
 	}
 	/* bit 15 Stream Type 0:PCM 1:Non-PCM */
-	snd_soc_update_bits(codec, RT274_DAC_FORMAT, 0x8000, 0);
-	snd_soc_update_bits(codec, RT274_ADC_FORMAT, 0x8000, 0);
+	snd_soc_component_update_bits(component, RT274_DAC_FORMAT, 0x8000, 0);
+	snd_soc_component_update_bits(component, RT274_ADC_FORMAT, 0x8000, 0);
 
 	return 0;
 }
@@ -745,47 +745,47 @@ static int rt274_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 static int rt274_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 			unsigned int freq_in, unsigned int freq_out)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	switch (source) {
 	case RT274_PLL2_S_MCLK:
-		snd_soc_update_bits(codec, RT274_PLL2_CTRL,
+		snd_soc_component_update_bits(component, RT274_PLL2_CTRL,
 				RT274_PLL2_SRC_MASK, RT274_PLL2_SRC_MCLK);
 		break;
 	default:
-		dev_warn(codec->dev, "invalid pll source, use BCLK\n");
+		dev_warn(component->dev, "invalid pll source, use BCLK\n");
 	case RT274_PLL2_S_BCLK:
-		snd_soc_update_bits(codec, RT274_PLL2_CTRL,
+		snd_soc_component_update_bits(component, RT274_PLL2_CTRL,
 				RT274_PLL2_SRC_MASK, RT274_PLL2_SRC_BCLK);
 		break;
 	}
 
 	if (source == RT274_PLL2_S_BCLK) {
-		snd_soc_update_bits(codec, RT274_MCLK_CTRL,
+		snd_soc_component_update_bits(component, RT274_MCLK_CTRL,
 				(0x3 << 12), (0x3 << 12));
 		switch (rt274->fs) {
 		case 50:
-			snd_soc_write(codec, 0x7a, 0xaab6);
-			snd_soc_write(codec, 0x7b, 0x0301);
-			snd_soc_write(codec, 0x7c, 0x04fe);
+			snd_soc_component_write(component, 0x7a, 0xaab6);
+			snd_soc_component_write(component, 0x7b, 0x0301);
+			snd_soc_component_write(component, 0x7c, 0x04fe);
 			break;
 		case 64:
-			snd_soc_write(codec, 0x7a, 0xaa96);
-			snd_soc_write(codec, 0x7b, 0x8003);
-			snd_soc_write(codec, 0x7c, 0x081e);
+			snd_soc_component_write(component, 0x7a, 0xaa96);
+			snd_soc_component_write(component, 0x7b, 0x8003);
+			snd_soc_component_write(component, 0x7c, 0x081e);
 			break;
 		case 128:
-			snd_soc_write(codec, 0x7a, 0xaa96);
-			snd_soc_write(codec, 0x7b, 0x8003);
-			snd_soc_write(codec, 0x7c, 0x080e);
+			snd_soc_component_write(component, 0x7a, 0xaa96);
+			snd_soc_component_write(component, 0x7b, 0x8003);
+			snd_soc_component_write(component, 0x7c, 0x080e);
 			break;
 		default:
-			dev_warn(codec->dev, "invalid freq_in, assume 4.8M\n");
+			dev_warn(component->dev, "invalid freq_in, assume 4.8M\n");
 		case 100:
-			snd_soc_write(codec, 0x7a, 0xaab6);
-			snd_soc_write(codec, 0x7b, 0x0301);
-			snd_soc_write(codec, 0x7c, 0x047e);
+			snd_soc_component_write(component, 0x7a, 0xaab6);
+			snd_soc_component_write(component, 0x7b, 0x0301);
+			snd_soc_component_write(component, 0x7c, 0x047e);
 			break;
 		}
 	}
@@ -796,11 +796,11 @@ static int rt274_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt274_set_dai_sysclk(struct snd_soc_dai *dai,
 				int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 	unsigned int clk_src, mclk_en;
 
-	dev_dbg(codec->dev, "%s freq=%d\n", __func__, freq);
+	dev_dbg(component->dev, "%s freq=%d\n", __func__, freq);
 
 	switch (clk_id) {
 	case RT274_SCLK_S_MCLK:
@@ -818,43 +818,43 @@ static int rt274_set_dai_sysclk(struct snd_soc_dai *dai,
 	default:
 		mclk_en = RT274_MCLK_MODE_DIS;
 		clk_src = RT274_CLK_SRC_MCLK;
-		dev_warn(codec->dev, "invalid sysclk source, use PLL1\n");
+		dev_warn(component->dev, "invalid sysclk source, use PLL1\n");
 		break;
 	}
-	snd_soc_update_bits(codec, RT274_MCLK_CTRL,
+	snd_soc_component_update_bits(component, RT274_MCLK_CTRL,
 			RT274_MCLK_MODE_MASK, mclk_en);
-	snd_soc_update_bits(codec, RT274_CLK_CTRL,
+	snd_soc_component_update_bits(component, RT274_CLK_CTRL,
 			RT274_CLK_SRC_MASK, clk_src);
 
 	switch (freq) {
 	case 19200000:
 		if (clk_id == RT274_SCLK_S_MCLK) {
-			dev_err(codec->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should not use MCLK\n");
 			return -EINVAL;
 		}
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL2, 0x40, 0x40);
 		break;
 	case 24000000:
 		if (clk_id == RT274_SCLK_S_MCLK) {
-			dev_err(codec->dev, "Should not use MCLK\n");
+			dev_err(component->dev, "Should not use MCLK\n");
 			return -EINVAL;
 		}
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL2, 0x40, 0x0);
 		break;
 	case 12288000:
 	case 11289600:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_MCLK_CTRL, 0x1fcf, 0x0008);
 		break;
 	case 24576000:
 	case 22579200:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_MCLK_CTRL, 0x1fcf, 0x1543);
 		break;
 	default:
-		dev_err(codec->dev, "Unsupported system clock\n");
+		dev_err(component->dev, "Unsupported system clock\n");
 		return -EINVAL;
 	}
 
@@ -866,16 +866,16 @@ static int rt274_set_dai_sysclk(struct snd_soc_dai *dai,
 
 static int rt274_set_bclk_ratio(struct snd_soc_dai *dai, unsigned int ratio)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s ratio=%d\n", __func__, ratio);
+	dev_dbg(component->dev, "%s ratio=%d\n", __func__, ratio);
 	rt274->fs = ratio;
 	if ((ratio / 50) == 0)
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, 0x1000, 0x1000);
 	else
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, 0x1000, 0x0);
 
 
@@ -886,28 +886,28 @@ static int rt274_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			unsigned int rx_mask, int slots, int slot_width)
 
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	if (rx_mask || tx_mask) {
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, RT274_TDM_EN, RT274_TDM_EN);
 	} else {
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, RT274_TDM_EN, RT274_TDM_DIS);
 		return 0;
 	}
 
 	switch (slots) {
 	case 4:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, RT274_TDM_CH_NUM, RT274_TDM_4CH);
 		break;
 	case 2:
-		snd_soc_update_bits(codec,
+		snd_soc_component_update_bits(component,
 			RT274_I2S_CTRL1, RT274_TDM_CH_NUM, RT274_TDM_2CH);
 		break;
 	default:
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"Support 2 or 4 slots TDM only\n");
 		return -EINVAL;
 	}
@@ -915,20 +915,20 @@ static int rt274_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 	return 0;
 }
 
-static int rt274_set_bias_level(struct snd_soc_codec *codec,
+static int rt274_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY ==
-			snd_soc_codec_get_bias_level(codec)) {
-			snd_soc_write(codec,
+			snd_soc_component_get_bias_level(component)) {
+			snd_soc_component_write(component,
 				RT274_SET_AUDIO_POWER, AC_PWRST_D0);
 		}
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_write(codec,
+		snd_soc_component_write(component,
 			RT274_SET_AUDIO_POWER, AC_PWRST_D3);
 		break;
 
@@ -968,11 +968,11 @@ static irqreturn_t rt274_irq(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int rt274_probe(struct snd_soc_codec *codec)
+static int rt274_probe(struct snd_soc_component *component)
 {
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
-	rt274->codec = codec;
+	rt274->component = component;
 
 	if (rt274->i2c->irq) {
 		INIT_DELAYED_WORK(&rt274->jack_detect_work,
@@ -984,19 +984,17 @@ static int rt274_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt274_remove(struct snd_soc_codec *codec)
+static void rt274_remove(struct snd_soc_component *component)
 {
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt274->jack_detect_work);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
-static int rt274_suspend(struct snd_soc_codec *codec)
+static int rt274_suspend(struct snd_soc_component *component)
 {
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt274->regmap, true);
 	regcache_mark_dirty(rt274->regmap);
@@ -1004,12 +1002,12 @@ static int rt274_suspend(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int rt274_resume(struct snd_soc_codec *codec)
+static int rt274_resume(struct snd_soc_component *component)
 {
-	struct rt274_priv *rt274 = snd_soc_codec_get_drvdata(codec);
+	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	regcache_cache_only(rt274->regmap, false);
-	rt274_index_sync(codec);
+	rt274_index_sync(component);
 	regcache_sync(rt274->regmap);
 
 	return 0;
@@ -1055,22 +1053,22 @@ static struct snd_soc_dai_driver rt274_dai[] = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_rt274 = {
-	.probe = rt274_probe,
-	.remove = rt274_remove,
-	.suspend = rt274_suspend,
-	.resume = rt274_resume,
-	.set_bias_level = rt274_set_bias_level,
-	.idle_bias_off = true,
-	.component_driver = {
-		.controls		= rt274_snd_controls,
-		.num_controls		= ARRAY_SIZE(rt274_snd_controls),
-		.dapm_widgets		= rt274_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(rt274_dapm_widgets),
-		.dapm_routes		= rt274_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(rt274_dapm_routes),
-	},
-	.set_jack = rt274_mic_detect,
+static const struct snd_soc_component_driver soc_component_dev_rt274 = {
+	.probe			= rt274_probe,
+	.remove			= rt274_remove,
+	.suspend		= rt274_suspend,
+	.resume			= rt274_resume,
+	.set_bias_level		= rt274_set_bias_level,
+	.set_jack		= rt274_mic_detect,
+	.controls		= rt274_snd_controls,
+	.num_controls		= ARRAY_SIZE(rt274_snd_controls),
+	.dapm_widgets		= rt274_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(rt274_dapm_widgets),
+	.dapm_routes		= rt274_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(rt274_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt274_regmap = {
@@ -1191,7 +1189,8 @@ static int rt274_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_rt274,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				     &soc_component_dev_rt274,
 				     rt274_dai, ARRAY_SIZE(rt274_dai));
 
 	return ret;
@@ -1203,7 +1202,6 @@ static int rt274_i2c_remove(struct i2c_client *i2c)
 
 	if (i2c->irq)
 		free_irq(i2c->irq, rt274);
-	snd_soc_unregister_codec(&i2c->dev);
 
 	return 0;
 }

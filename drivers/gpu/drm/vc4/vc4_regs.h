@@ -122,38 +122,9 @@
 #define V3D_VPMBASE  0x00504
 #define V3D_PCTRC    0x00670
 #define V3D_PCTRE    0x00674
-#define V3D_PCTR0    0x00680
-#define V3D_PCTRS0   0x00684
-#define V3D_PCTR1    0x00688
-#define V3D_PCTRS1   0x0068c
-#define V3D_PCTR2    0x00690
-#define V3D_PCTRS2   0x00694
-#define V3D_PCTR3    0x00698
-#define V3D_PCTRS3   0x0069c
-#define V3D_PCTR4    0x006a0
-#define V3D_PCTRS4   0x006a4
-#define V3D_PCTR5    0x006a8
-#define V3D_PCTRS5   0x006ac
-#define V3D_PCTR6    0x006b0
-#define V3D_PCTRS6   0x006b4
-#define V3D_PCTR7    0x006b8
-#define V3D_PCTRS7   0x006bc
-#define V3D_PCTR8    0x006c0
-#define V3D_PCTRS8   0x006c4
-#define V3D_PCTR9    0x006c8
-#define V3D_PCTRS9   0x006cc
-#define V3D_PCTR10   0x006d0
-#define V3D_PCTRS10  0x006d4
-#define V3D_PCTR11   0x006d8
-#define V3D_PCTRS11  0x006dc
-#define V3D_PCTR12   0x006e0
-#define V3D_PCTRS12  0x006e4
-#define V3D_PCTR13   0x006e8
-#define V3D_PCTRS13  0x006ec
-#define V3D_PCTR14   0x006f0
-#define V3D_PCTRS14  0x006f4
-#define V3D_PCTR15   0x006f8
-#define V3D_PCTRS15  0x006fc
+# define V3D_PCTRE_EN	BIT(31)
+#define V3D_PCTR(x)  (0x00680 + ((x) * 8))
+#define V3D_PCTRS(x) (0x00684 + ((x) * 8))
 #define V3D_DBGE     0x00f00
 #define V3D_FDBGO    0x00f04
 #define V3D_FDBGB    0x00f08
@@ -877,6 +848,7 @@ enum hvs_pixel_format {
 #define SCALER_POS2_ALPHA_MODE_FIXED		1
 #define SCALER_POS2_ALPHA_MODE_FIXED_NONZERO	2
 #define SCALER_POS2_ALPHA_MODE_FIXED_OVER_0x07	3
+#define SCALER_POS2_ALPHA_PREMULT		BIT(29)
 
 #define SCALER_POS2_HEIGHT_MASK			VC4_MASK(27, 16)
 #define SCALER_POS2_HEIGHT_SHIFT		16

@@ -221,7 +221,7 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 }
 
 static int
-nfp_bpf_change_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
+nfp_bpf_check_mtu(struct nfp_app *app, struct net_device *netdev, int new_mtu)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	unsigned int max_mtu;
@@ -284,6 +284,12 @@ nfp_bpf_parse_cap_func(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
 	case BPF_FUNC_map_lookup_elem:
 		bpf->helpers.map_lookup = readl(&cap->func_addr);
 		break;
+	case BPF_FUNC_map_update_elem:
+		bpf->helpers.map_update = readl(&cap->func_addr);
+		break;
+	case BPF_FUNC_map_delete_elem:
+		bpf->helpers.map_delete = readl(&cap->func_addr);
+		break;
 	}
 
 	return 0;
@@ -309,6 +315,14 @@ nfp_bpf_parse_cap_maps(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
 	return 0;
 }
 
+static int
+nfp_bpf_parse_cap_random(struct nfp_app_bpf *bpf, void __iomem *value,
+			 u32 length)
+{
+	bpf->pseudo_random = true;
+	return 0;
+}
+
 static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 {
 	struct nfp_cpp *cpp = app->pf->cpp;
@@ -321,7 +335,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 		return PTR_ERR(mem) == -ENOENT ? 0 : PTR_ERR(mem);
 
 	start = mem;
-	while (mem - start + 8 < nfp_cpp_area_size(area)) {
+	while (mem - start + 8 <= nfp_cpp_area_size(area)) {
 		u8 __iomem *value;
 		u32 type, length;
 
@@ -345,6 +359,10 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 			break;
 		case NFP_BPF_CAP_TYPE_MAPS:
 			if (nfp_bpf_parse_cap_maps(app->priv, value, length))
+				goto err_release_free;
+			break;
+		case NFP_BPF_CAP_TYPE_RANDOM:
+			if (nfp_bpf_parse_cap_random(app->priv, value, length))
 				goto err_release_free;
 			break;
 		default:
@@ -413,7 +431,7 @@ const struct nfp_app_type app_bpf = {
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
 
-	.change_mtu	= nfp_bpf_change_mtu,
+	.check_mtu	= nfp_bpf_check_mtu,
 
 	.extra_cap	= nfp_bpf_extra_cap,
 

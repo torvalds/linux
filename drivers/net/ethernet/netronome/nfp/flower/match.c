@@ -146,13 +146,71 @@ nfp_flower_compile_tport(struct nfp_flower_tp_ports *frame,
 }
 
 static void
+nfp_flower_compile_ip_ext(struct nfp_flower_ip_ext *frame,
+			  struct tc_cls_flower_offload *flow,
+			  bool mask_version)
+{
+	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
+		struct flow_dissector_key_basic *basic;
+
+		basic = skb_flow_dissector_target(flow->dissector,
+						  FLOW_DISSECTOR_KEY_BASIC,
+						  target);
+		frame->proto = basic->ip_proto;
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_dissector_key_ip *flow_ip;
+
+		flow_ip = skb_flow_dissector_target(flow->dissector,
+						    FLOW_DISSECTOR_KEY_IP,
+						    target);
+		frame->tos = flow_ip->tos;
+		frame->ttl = flow_ip->ttl;
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_TCP)) {
+		struct flow_dissector_key_tcp *tcp;
+		u32 tcp_flags;
+
+		tcp = skb_flow_dissector_target(flow->dissector,
+						FLOW_DISSECTOR_KEY_TCP, target);
+		tcp_flags = be16_to_cpu(tcp->flags);
+
+		if (tcp_flags & TCPHDR_FIN)
+			frame->flags |= NFP_FL_TCP_FLAG_FIN;
+		if (tcp_flags & TCPHDR_SYN)
+			frame->flags |= NFP_FL_TCP_FLAG_SYN;
+		if (tcp_flags & TCPHDR_RST)
+			frame->flags |= NFP_FL_TCP_FLAG_RST;
+		if (tcp_flags & TCPHDR_PSH)
+			frame->flags |= NFP_FL_TCP_FLAG_PSH;
+		if (tcp_flags & TCPHDR_URG)
+			frame->flags |= NFP_FL_TCP_FLAG_URG;
+	}
+
+	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_CONTROL)) {
+		struct flow_dissector_key_control *key;
+
+		key = skb_flow_dissector_target(flow->dissector,
+						FLOW_DISSECTOR_KEY_CONTROL,
+						target);
+		if (key->flags & FLOW_DIS_IS_FRAGMENT)
+			frame->flags |= NFP_FL_IP_FRAGMENTED;
+		if (key->flags & FLOW_DIS_FIRST_FRAG)
+			frame->flags |= NFP_FL_IP_FRAG_FIRST;
+	}
+}
+
+static void
 nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 			struct tc_cls_flower_offload *flow,
 			bool mask_version)
 {
 	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
 	struct flow_dissector_key_ipv4_addrs *addr;
-	struct flow_dissector_key_basic *basic;
 
 	memset(frame, 0, sizeof(struct nfp_flower_ipv4));
 
@@ -165,22 +223,7 @@ nfp_flower_compile_ipv4(struct nfp_flower_ipv4 *frame,
 		frame->ipv4_dst = addr->dst;
 	}
 
-	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		basic = skb_flow_dissector_target(flow->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  target);
-		frame->proto = basic->ip_proto;
-	}
-
-	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
-		struct flow_dissector_key_ip *flow_ip;
-
-		flow_ip = skb_flow_dissector_target(flow->dissector,
-						    FLOW_DISSECTOR_KEY_IP,
-						    target);
-		frame->tos = flow_ip->tos;
-		frame->ttl = flow_ip->ttl;
-	}
+	nfp_flower_compile_ip_ext(&frame->ip_ext, flow, mask_version);
 }
 
 static void
@@ -190,7 +233,6 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 {
 	struct fl_flow_key *target = mask_version ? flow->mask : flow->key;
 	struct flow_dissector_key_ipv6_addrs *addr;
-	struct flow_dissector_key_basic *basic;
 
 	memset(frame, 0, sizeof(struct nfp_flower_ipv6));
 
@@ -203,22 +245,7 @@ nfp_flower_compile_ipv6(struct nfp_flower_ipv6 *frame,
 		frame->ipv6_dst = addr->dst;
 	}
 
-	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_BASIC)) {
-		basic = skb_flow_dissector_target(flow->dissector,
-						  FLOW_DISSECTOR_KEY_BASIC,
-						  target);
-		frame->proto = basic->ip_proto;
-	}
-
-	if (dissector_uses_key(flow->dissector, FLOW_DISSECTOR_KEY_IP)) {
-		struct flow_dissector_key_ip *flow_ip;
-
-		flow_ip = skb_flow_dissector_target(flow->dissector,
-						    FLOW_DISSECTOR_KEY_IP,
-						    target);
-		frame->tos = flow_ip->tos;
-		frame->ttl = flow_ip->ttl;
-	}
+	nfp_flower_compile_ip_ext(&frame->ip_ext, flow, mask_version);
 }
 
 static void

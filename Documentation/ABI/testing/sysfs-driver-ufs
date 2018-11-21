@@ -1,0 +1,885 @@
+What:		/sys/bus/*/drivers/ufshcd/*/auto_hibern8
+Date:		March 2018
+Contact:	linux-scsi@vger.kernel.org
+Description:
+		This file contains the auto-hibernate idle timer setting of a
+		UFS host controller. A value of '0' means auto-hibernate is not
+		enabled. Otherwise the value is the number of microseconds of
+		idle time before the UFS host controller will autonomously put
+		the link into hibernate state. That will save power at the
+		expense of increased latency. Note that the hardware supports
+		10-bit values with a power-of-ten multiplier which allows a
+		maximum value of 102300000. Refer to the UFS Host Controller
+		Interface specification for more details.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_type
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the device type. This is one of the UFS
+		device descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_class
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the device class. This is one of the UFS
+		device descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_sub_class
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the UFS storage subclass. This is one of
+		the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/protocol
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the protocol supported by an UFS device.
+		This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_luns
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows number of logical units. This is one of
+		the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_wluns
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows number of well known logical units.
+		This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/boot_enable
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows value that indicates whether the device is
+		enabled for boot. This is one of the UFS device descriptor
+		parameters. The full information about the descriptor could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/descriptor_access_enable
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows value that indicates whether the device
+		descriptor could be read after partial initialization phase
+		of the boot sequence. This is one of the UFS device descriptor
+		parameters. The full information about the descriptor could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/initial_power_mode
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows value that defines the power mode after
+		device initialization or hardware reset. This is one of
+		the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/high_priority_lun
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the high priority lun. This is one of
+		the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/secure_removal_type
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the secure removal type. This is one of
+		the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/support_security_lun
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether the security lun is supported.
+		This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/bkops_termination_latency
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the background operations termination
+		latency. This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/initial_active_icc_level
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the initial active ICC level. This is one
+		of the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/specification_version
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the specification version. This is one
+		of the UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/manufacturing_date
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the manufacturing date in BCD format.
+		This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/manufacturer_id
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the manufacturee ID. This is one of the
+		UFS device descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/rtt_capability
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum number of outstanding RTTs
+		supported by the device. This is one of the UFS device
+		descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/rtc_update
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the frequency and method of the realtime
+		clock update. This is one of the UFS device descriptor
+		parameters. The full information about the descriptor
+		could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/ufs_features
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows which features are supported by the device.
+		This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be
+		found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/ffu_timeout
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the FFU timeout. This is one of the
+		UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/queue_depth
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the device queue depth. This is one of the
+		UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/device_version
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the device version. This is one of the
+		UFS device descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/number_of_secure_wpa
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows number of secure write protect areas
+		supported by the device. This is one of the UFS device
+		descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/psa_max_data_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum amount of data that may be
+		written during the pre-soldering phase of the PSA flow.
+		This is one of the UFS device descriptor parameters.
+		The full information about the descriptor could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/device_descriptor/psa_state_timeout
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the command maximum timeout for a change
+		in PSA state. This is one of the UFS device descriptor
+		parameters. The full information about the descriptor could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/interconnect_descriptor/unipro_version
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the MIPI UniPro version number in BCD format.
+		This is one of the UFS interconnect descriptor parameters.
+		The full information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/interconnect_descriptor/mphy_version
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the MIPI M-PHY version number in BCD format.
+		This is one of the UFS interconnect descriptor parameters.
+		The full information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/raw_device_capacity
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the total memory quantity available to
+		the user to configure the device logical units. This is one
+		of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_number_of_luns
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum number of logical units
+		supported by the UFS device. This is one of the UFS
+		geometry descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/segment_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the segment size. This is one of the UFS
+		geometry descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/allocation_unit_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the allocation unit size. This is one of
+		the UFS geometry descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/min_addressable_block_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the minimum addressable block size. This
+		is one of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at UFS
+		specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/optimal_read_block_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the optimal read block size. This is one
+		of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at UFS
+		specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/optimal_write_block_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the optimal write block size. This is one
+		of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at UFS
+		specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_in_buffer_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum data-in buffer size. This
+		is one of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at UFS
+		specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_out_buffer_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum data-out buffer size. This
+		is one of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at UFS
+		specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/rpmb_rw_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum number of RPMB frames allowed
+		in Security Protocol In/Out. This is one of the UFS geometry
+		descriptor parameters. The full information about the
+		descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/dyn_capacity_resource_policy
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the dynamic capacity resource policy. This
+		is one of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/data_ordering
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows support for out-of-order data transfer.
+		This is one of the UFS geometry descriptor parameters.
+		The full information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/max_number_of_contexts
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows maximum available number of contexts which
+		are supported by the device. This is one of the UFS geometry
+		descriptor parameters. The full information about the
+		descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/sys_data_tag_unit_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows system data tag unit size. This is one of
+		the UFS geometry descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/sys_data_tag_resource_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows maximum storage area size allocated by
+		the device to handle system data by the tagging mechanism.
+		This is one of the UFS geometry descriptor parameters.
+		The full information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/secure_removal_types
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows supported secure removal types. This is
+		one of the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/memory_types
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows supported memory types. This is one of
+		the UFS geometry descriptor parameters. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/*_memory_max_alloc_units
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum number of allocation units for
+		different memory types (system code, non persistent,
+		enhanced type 1-4). This is one of the UFS geometry
+		descriptor parameters. The full information about the
+		descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/geometry_descriptor/*_memory_capacity_adjustment_factor
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the memory capacity adjustment factor for
+		different memory types (system code, non persistent,
+		enhanced type 1-4). This is one of the UFS geometry
+		descriptor parameters. The full information about the
+		descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/health_descriptor/eol_info
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows preend of life information. This is one
+		of the UFS health descriptor parameters. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/health_descriptor/life_time_estimation_a
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows indication of the device life time
+		(method a). This is one of the UFS health descriptor
+		parameters. The full information about the descriptor
+		could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/health_descriptor/life_time_estimation_b
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows indication of the device life time
+		(method b). This is one of the UFS health descriptor
+		parameters. The full information about the descriptor
+		could be found at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/power_descriptor/active_icc_levels_vcc*
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows maximum VCC, VCCQ and VCCQ2 value for
+		active ICC levels from 0 to 15. This is one of the UFS
+		power descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/manufacturer_name
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file contains a device manufactureer name string.
+		The full information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/product_name
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file contains a product name string. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/oem_id
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file contains a OEM ID string. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/serial_number
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file contains a device serial number string. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/string_descriptors/product_revision
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file contains a product revision string. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/boot_lun_id
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows boot LUN information. This is one of
+		the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/lun_write_protect
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows LUN write protection status. This is one of
+		the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/lun_queue_depth
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows LUN queue depth. This is one of the UFS
+		unit descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/psa_sensitive
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows PSA sensitivity. This is one of the UFS
+		unit descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/lun_memory_type
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows LUN memory type. This is one of the UFS
+		unit descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/data_reliability
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file defines the device behavior when a power failure
+		occurs during a write operation. This is one of the UFS
+		unit descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/logical_block_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the size of addressable logical blocks
+		(calculated as an exponent with base 2). This is one of
+		the UFS unit descriptor parameters. The full information about
+		the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/logical_block_count
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows total number of addressable logical blocks.
+		This is one of the UFS unit descriptor parameters. The full
+		information about the descriptor could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/erase_block_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the erase block size. This is one of
+		the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/provisioning_type
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the thin provisioning type. This is one of
+		the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/physical_memory_resourse_count
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the total physical memory resources. This is
+		one of the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/context_capabilities
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the context capabilities. This is one of
+		the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/class/scsi_device/*/device/unit_descriptor/large_unit_granularity
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the granularity of the LUN. This is one of
+		the UFS unit descriptor parameters. The full information
+		about the descriptor could be found at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/device_init
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the device init status. The full information
+		about the flag could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/permanent_wpe
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether permanent write protection is enabled.
+		The full information about the flag could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/power_on_wpe
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether write protection is enabled on all
+		logical units configured as power on write protected. The
+		full information about the flag could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/bkops_enable
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether the device background operations are
+		enabled. The full information about the flag could be
+		found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/life_span_mode_enable
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether the device life span mode is enabled.
+		The full information about the flag could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/phy_resource_removal
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether physical resource removal is enable.
+		The full information about the flag could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/busy_rtc
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether the device is executing internal
+		operation related to real time clock. The full information
+		about the flag could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/flags/disable_fw_update
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether the device FW update is permanently
+		disabled. The full information about the flag could be found
+		at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/boot_lun_enabled
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the boot lun enabled UFS device attribute.
+		The full information about the attribute could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/current_power_mode
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the current power mode UFS device attribute.
+		The full information about the attribute could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/active_icc_level
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the active icc level UFS device attribute.
+		The full information about the attribute could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/ooo_data_enabled
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the out of order data transfer enabled UFS
+		device attribute. The full information about the attribute
+		could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/bkops_status
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the background operations status UFS device
+		attribute. The full information about the attribute could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/purge_status
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the purge operation status UFS device
+		attribute. The full information about the attribute could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/max_data_in_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum data size in a DATA IN
+		UPIU. The full information about the attribute could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/max_data_out_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the maximum number of bytes that can be
+		requested with a READY TO TRANSFER UPIU. The full information
+		about the attribute could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/reference_clock_frequency
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the reference clock frequency UFS device
+		attribute. The full information about the attribute could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/configuration_descriptor_lock
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows whether the configuration descriptor is locked.
+		The full information about the attribute could be found at
+		UFS specifications 2.1. The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/max_number_of_rtt
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the maximum current number of
+		outstanding RTTs in device that is allowed. The full
+		information about the attribute could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/exception_event_control
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the exception event control UFS device
+		attribute. The full information about the attribute could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/exception_event_status
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the exception event status UFS device
+		attribute. The full information about the attribute could
+		be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/ffu_status
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file provides the ffu status UFS device attribute.
+		The full information about the attribute could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/psa_state
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file show the PSA feature status. The full information
+		about the attribute could be found at UFS specifications 2.1.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/attributes/psa_data_size
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the amount of data that the host plans to
+		load to all logical units in pre-soldering state.
+		The full information about the attribute could be found at
+		UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/class/scsi_device/*/device/dyn_cap_needed
+Date:		February 2018
+Contact:	Stanislav Nijnikov <stanislav.nijnikov@wdc.com>
+Description:	This file shows the The amount of physical memory needed
+		to be removed from the physical memory resources pool of
+		the particular logical unit. The full information about
+		the attribute could be found at UFS specifications 2.1.
+		The file is read only.
+
+
+What:		/sys/bus/platform/drivers/ufshcd/*/rpm_lvl
+Date:		September 2014
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry could be used to set or show the UFS device
+		runtime power management level. The current driver
+		implementation supports 6 levels with next target states:
+		0 - an UFS device will stay active, an UIC link will
+		stay active
+		1 - an UFS device will stay active, an UIC link will
+		hibernate
+		2 - an UFS device will moved to sleep, an UIC link will
+		stay active
+		3 - an UFS device will moved to sleep, an UIC link will
+		hibernate
+		4 - an UFS device will be powered off, an UIC link will
+		hibernate
+		5 - an UFS device will be powered off, an UIC link will
+		be powered off
+
+What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_dev_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target power mode of an UFS device
+		for the chosen runtime power management level.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/rpm_target_link_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target state of an UFS UIC link
+		for the chosen runtime power management level.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/spm_lvl
+Date:		September 2014
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry could be used to set or show the UFS device
+		system power management level. The current driver
+		implementation supports 6 levels with next target states:
+		0 - an UFS device will stay active, an UIC link will
+		stay active
+		1 - an UFS device will stay active, an UIC link will
+		hibernate
+		2 - an UFS device will moved to sleep, an UIC link will
+		stay active
+		3 - an UFS device will moved to sleep, an UIC link will
+		hibernate
+		4 - an UFS device will be powered off, an UIC link will
+		hibernate
+		5 - an UFS device will be powered off, an UIC link will
+		be powered off
+
+What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_dev_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target power mode of an UFS device
+		for the chosen system power management level.
+		The file is read only.
+
+What:		/sys/bus/platform/drivers/ufshcd/*/spm_target_link_state
+Date:		February 2018
+Contact:	Subhash Jadavani <subhashj@codeaurora.org>
+Description:	This entry shows the target state of an UFS UIC link
+		for the chosen system power management level.
+		The file is read only.

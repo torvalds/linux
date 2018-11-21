@@ -11,6 +11,7 @@ Required properties:
   * allwinner,sun8i-a33-usb-phy
   * allwinner,sun8i-a83t-usb-phy
   * allwinner,sun8i-h3-usb-phy
+  * allwinner,sun8i-r40-usb-phy
   * allwinner,sun8i-v3s-usb-phy
   * allwinner,sun50i-a64-usb-phy
 - reg : a list of offset + length pairs

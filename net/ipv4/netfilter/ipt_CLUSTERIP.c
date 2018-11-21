@@ -250,7 +250,7 @@ clusterip_config_init(struct net *net, const struct ipt_clusterip_tgt_info *i,
 
 		/* create proc dir entry */
 		sprintf(buffer, "%pI4", &ip);
-		c->pde = proc_create_data(buffer, S_IWUSR|S_IRUSR,
+		c->pde = proc_create_data(buffer, 0600,
 					  cn->procdir,
 					  &clusterip_proc_fops, c);
 		if (!c->pde) {

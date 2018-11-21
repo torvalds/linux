@@ -321,7 +321,7 @@ static int qed_pglub_rbc_attn_cb(struct qed_hwfn *p_hwfn)
 	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
 		     PGLUE_B_REG_TX_ERR_WR_DETAILS_ICPL);
 	if (tmp & PGLUE_ATTENTION_ICPL_VALID)
-		DP_INFO(p_hwfn, "ICPL eror - %08x\n", tmp);
+		DP_INFO(p_hwfn, "ICPL error - %08x\n", tmp);
 
 	tmp = qed_rd(p_hwfn, p_hwfn->p_dpc_ptt,
 		     PGLUE_B_REG_MASTER_ZLR_ERR_DETAILS);

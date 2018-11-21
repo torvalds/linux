@@ -1,4 +1,4 @@
-/* Generic task switch macro wrapper, based on MN10300 definitions.
+/* Generic task switch macro wrapper.
  *
  * It should be possible to use these on really simple architectures,
  * but it serves more as a starting point for new ports.

@@ -20,126 +20,111 @@
 
 #include "setup.h"
 
-#ifdef CONFIG_PPC_BOOK3S
+#ifndef CONFIG_SMP
+#define boot_cpuid 0
+#endif
+
+static void *__init alloc_paca_data(unsigned long size, unsigned long align,
+				unsigned long limit, int cpu)
+{
+	unsigned long pa;
+	int nid;
+
+	/*
+	 * boot_cpuid paca is allocated very early before cpu_to_node is up.
+	 * Set bottom-up mode, because the boot CPU should be on node-0,
+	 * which will put its paca in the right place.
+	 */
+	if (cpu == boot_cpuid) {
+		nid = -1;
+		memblock_set_bottom_up(true);
+	} else {
+		nid = early_cpu_to_node(cpu);
+	}
+
+	pa = memblock_alloc_base_nid(size, align, limit, nid, MEMBLOCK_NONE);
+	if (!pa) {
+		pa = memblock_alloc_base(size, align, limit);
+		if (!pa)
+			panic("cannot allocate paca data");
+	}
+
+	if (cpu == boot_cpuid)
+		memblock_set_bottom_up(false);
+
+	return __va(pa);
+}
+
+#ifdef CONFIG_PPC_PSERIES
 
 /*
- * The structure which the hypervisor knows about - this structure
- * should not cross a page boundary.  The vpa_init/register_vpa call
- * is now known to fail if the lppaca structure crosses a page
- * boundary.  The lppaca is also used on POWER5 pSeries boxes.
- * The lppaca is 640 bytes long, and cannot readily
- * change since the hypervisor knows its layout, so a 1kB alignment
- * will suffice to ensure that it doesn't cross a page boundary.
+ * See asm/lppaca.h for more detail.
+ *
+ * lppaca structures must must be 1kB in size, L1 cache line aligned,
+ * and not cross 4kB boundary. A 1kB size and 1kB alignment will satisfy
+ * these requirements.
  */
-struct lppaca lppaca[] = {
-	[0 ... (NR_LPPACAS-1)] = {
+static inline void init_lppaca(struct lppaca *lppaca)
+{
+	BUILD_BUG_ON(sizeof(struct lppaca) != 640);
+
+	*lppaca = (struct lppaca) {
 		.desc = cpu_to_be32(0xd397d781),	/* "LpPa" */
-		.size = cpu_to_be16(sizeof(struct lppaca)),
+		.size = cpu_to_be16(0x400),
 		.fpregs_in_use = 1,
 		.slb_count = cpu_to_be16(64),
 		.vmxregs_in_use = 0,
-		.page_ins = 0,
-	},
+		.page_ins = 0, };
 };
 
-static struct lppaca *extra_lppacas;
-static long __initdata lppaca_size;
-
-static void __init allocate_lppacas(int nr_cpus, unsigned long limit)
-{
-	if (nr_cpus <= NR_LPPACAS)
-		return;
-
-	lppaca_size = PAGE_ALIGN(sizeof(struct lppaca) *
-				 (nr_cpus - NR_LPPACAS));
-	extra_lppacas = __va(memblock_alloc_base(lppaca_size,
-						 PAGE_SIZE, limit));
-}
-
-static struct lppaca * __init new_lppaca(int cpu)
+static struct lppaca * __init new_lppaca(int cpu, unsigned long limit)
 {
 	struct lppaca *lp;
+	size_t size = 0x400;
 
-	if (cpu < NR_LPPACAS)
-		return &lppaca[cpu];
+	BUILD_BUG_ON(size < sizeof(struct lppaca));
 
-	lp = extra_lppacas + (cpu - NR_LPPACAS);
-	*lp = lppaca[0];
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		return NULL;
+
+	lp = alloc_paca_data(size, 0x400, limit, cpu);
+	init_lppaca(lp);
 
 	return lp;
 }
-
-static void __init free_lppacas(void)
-{
-	long new_size = 0, nr;
-
-	if (!lppaca_size)
-		return;
-	nr = num_possible_cpus() - NR_LPPACAS;
-	if (nr > 0)
-		new_size = PAGE_ALIGN(nr * sizeof(struct lppaca));
-	if (new_size >= lppaca_size)
-		return;
-
-	memblock_free(__pa(extra_lppacas) + new_size, lppaca_size - new_size);
-	lppaca_size = new_size;
-}
-
-#else
-
-static inline void allocate_lppacas(int nr_cpus, unsigned long limit) { }
-static inline void free_lppacas(void) { }
-
 #endif /* CONFIG_PPC_BOOK3S */
 
 #ifdef CONFIG_PPC_BOOK3S_64
 
 /*
- * 3 persistent SLBs are registered here.  The buffer will be zero
+ * 3 persistent SLBs are allocated here.  The buffer will be zero
  * initially, hence will all be invaild until we actually write them.
  *
  * If you make the number of persistent SLB entries dynamic, please also
  * update PR KVM to flush and restore them accordingly.
  */
-static struct slb_shadow * __initdata slb_shadow;
-
-static void __init allocate_slb_shadows(int nr_cpus, int limit)
-{
-	int size = PAGE_ALIGN(sizeof(struct slb_shadow) * nr_cpus);
-
-	if (early_radix_enabled())
-		return;
-
-	slb_shadow = __va(memblock_alloc_base(size, PAGE_SIZE, limit));
-	memset(slb_shadow, 0, size);
-}
-
-static struct slb_shadow * __init init_slb_shadow(int cpu)
+static struct slb_shadow * __init new_slb_shadow(int cpu, unsigned long limit)
 {
 	struct slb_shadow *s;
 
-	if (early_radix_enabled())
-		return NULL;
+	if (cpu != boot_cpuid) {
+		/*
+		 * Boot CPU comes here before early_radix_enabled
+		 * is parsed (e.g., for disable_radix). So allocate
+		 * always and this will be fixed up in free_unused_pacas.
+		 */
+		if (early_radix_enabled())
+			return NULL;
+	}
 
-	s = &slb_shadow[cpu];
-
-	/*
-	 * When we come through here to initialise boot_paca, the slb_shadow
-	 * buffers are not allocated yet. That's OK, we'll get one later in
-	 * boot, but make sure we don't corrupt memory at 0.
-	 */
-	if (!slb_shadow)
-		return NULL;
+	s = alloc_paca_data(sizeof(*s), L1_CACHE_BYTES, limit, cpu);
+	memset(s, 0, sizeof(*s));
 
 	s->persistent = cpu_to_be32(SLB_NUM_BOLTED);
 	s->buffer_length = cpu_to_be32(sizeof(*s));
 
 	return s;
 }
-
-#else /* !CONFIG_PPC_BOOK3S_64 */
-
-static void __init allocate_slb_shadows(int nr_cpus, int limit) { }
 
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
@@ -152,14 +137,15 @@ static void __init allocate_slb_shadows(int nr_cpus, int limit) { }
  * processors.  The processor VPD array needs one entry per physical
  * processor (not thread).
  */
-struct paca_struct *paca;
-EXPORT_SYMBOL(paca);
+struct paca_struct **paca_ptrs __read_mostly;
+EXPORT_SYMBOL(paca_ptrs);
 
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
-#ifdef CONFIG_PPC_BOOK3S
-	new_paca->lppaca_ptr = new_lppaca(cpu);
-#else
+#ifdef CONFIG_PPC_PSERIES
+	new_paca->lppaca_ptr = NULL;
+#endif
+#ifdef CONFIG_PPC_BOOK3E
 	new_paca->kernel_pgd = swapper_pg_dir;
 #endif
 	new_paca->lock_token = 0x8000;
@@ -173,7 +159,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 	new_paca->__current = &init_task;
 	new_paca->data_offset = 0xfeeeeeeeeeeeeeeeULL;
 #ifdef CONFIG_PPC_BOOK3S_64
-	new_paca->slb_shadow_ptr = init_slb_shadow(cpu);
+	new_paca->slb_shadow_ptr = NULL;
 #endif
 
 #ifdef CONFIG_PPC_BOOK3E
@@ -203,12 +189,25 @@ void setup_paca(struct paca_struct *new_paca)
 
 }
 
-static int __initdata paca_size;
+static int __initdata paca_nr_cpu_ids;
+static int __initdata paca_ptrs_size;
+static int __initdata paca_struct_size;
 
-void __init allocate_pacas(void)
+void __init allocate_paca_ptrs(void)
+{
+	paca_nr_cpu_ids = nr_cpu_ids;
+
+	paca_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
+	paca_ptrs = __va(memblock_alloc(paca_ptrs_size, 0));
+	memset(paca_ptrs, 0x88, paca_ptrs_size);
+}
+
+void __init allocate_paca(int cpu)
 {
 	u64 limit;
-	int cpu;
+	struct paca_struct *paca;
+
+	BUG_ON(cpu >= paca_nr_cpu_ids);
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	/*
@@ -220,40 +219,44 @@ void __init allocate_pacas(void)
 	limit = ppc64_rma_size;
 #endif
 
-	paca_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
+	paca = alloc_paca_data(sizeof(struct paca_struct), L1_CACHE_BYTES,
+				limit, cpu);
+	paca_ptrs[cpu] = paca;
+	memset(paca, 0, sizeof(struct paca_struct));
 
-	paca = __va(memblock_alloc_base(paca_size, PAGE_SIZE, limit));
-	memset(paca, 0, paca_size);
-
-	printk(KERN_DEBUG "Allocated %u bytes for %u pacas at %p\n",
-		paca_size, nr_cpu_ids, paca);
-
-	allocate_lppacas(nr_cpu_ids, limit);
-
-	allocate_slb_shadows(nr_cpu_ids, limit);
-
-	/* Can't use for_each_*_cpu, as they aren't functional yet */
-	for (cpu = 0; cpu < nr_cpu_ids; cpu++)
-		initialise_paca(&paca[cpu], cpu);
+	initialise_paca(paca, cpu);
+#ifdef CONFIG_PPC_PSERIES
+	paca->lppaca_ptr = new_lppaca(cpu, limit);
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	paca->slb_shadow_ptr = new_slb_shadow(cpu, limit);
+#endif
+	paca_struct_size += sizeof(struct paca_struct);
 }
 
 void __init free_unused_pacas(void)
 {
-	int new_size;
+	int new_ptrs_size;
 
-	new_size = PAGE_ALIGN(sizeof(struct paca_struct) * nr_cpu_ids);
+	new_ptrs_size = sizeof(struct paca_struct *) * nr_cpu_ids;
+	if (new_ptrs_size < paca_ptrs_size)
+		memblock_free(__pa(paca_ptrs) + new_ptrs_size,
+					paca_ptrs_size - new_ptrs_size);
 
-	if (new_size >= paca_size)
-		return;
+	paca_nr_cpu_ids = nr_cpu_ids;
+	paca_ptrs_size = new_ptrs_size;
 
-	memblock_free(__pa(paca) + new_size, paca_size - new_size);
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (early_radix_enabled()) {
+		/* Ugly fixup, see new_slb_shadow() */
+		memblock_free(__pa(paca_ptrs[boot_cpuid]->slb_shadow_ptr),
+				sizeof(struct slb_shadow));
+		paca_ptrs[boot_cpuid]->slb_shadow_ptr = NULL;
+	}
+#endif
 
-	printk(KERN_DEBUG "Freed %u bytes for unused pacas\n",
-		paca_size - new_size);
-
-	paca_size = new_size;
-
-	free_lppacas();
+	printk(KERN_DEBUG "Allocated %u bytes for %u pacas\n",
+			paca_ptrs_size + paca_struct_size, nr_cpu_ids);
 }
 
 void copy_mm_to_paca(struct mm_struct *mm)
@@ -265,7 +268,8 @@ void copy_mm_to_paca(struct mm_struct *mm)
 #ifdef CONFIG_PPC_MM_SLICES
 	VM_BUG_ON(!mm->context.slb_addr_limit);
 	get_paca()->mm_ctx_slb_addr_limit = mm->context.slb_addr_limit;
-	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
+	memcpy(&get_paca()->mm_ctx_low_slices_psize,
+	       &context->low_slices_psize, sizeof(context->low_slices_psize));
 	memcpy(&get_paca()->mm_ctx_high_slices_psize,
 	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
 #else /* CONFIG_PPC_MM_SLICES */

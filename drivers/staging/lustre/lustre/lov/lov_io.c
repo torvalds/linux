@@ -243,7 +243,7 @@ static int lov_io_subio_init(const struct lu_env *env, struct lov_io *lio,
 	 * when writing a page. -jay
 	 */
 	lio->lis_subs =
-		libcfs_kvzalloc(lsm->lsm_stripe_count *
+		kvzalloc(lsm->lsm_stripe_count *
 				sizeof(lio->lis_subs[0]),
 				GFP_NOFS);
 	if (lio->lis_subs) {
@@ -483,7 +483,7 @@ lov_io_data_version_end(const struct lu_env *env, const struct cl_io_slice *ios)
 	struct lov_io_sub *sub;
 
 	list_for_each_entry(sub, &lio->lis_active, sub_linkage) {
-		lov_io_end_wrapper(env, sub->sub_io);
+		lov_io_end_wrapper(sub->sub_env, sub->sub_io);
 
 		parent->u.ci_data_version.dv_data_version +=
 			sub->sub_io->u.ci_data_version.dv_data_version;

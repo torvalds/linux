@@ -110,7 +110,7 @@
 #define FPNTBL_BYTES(binary) \
 	(sizeof(char) * (binary)->in_frame_info.res.height * \
 	 (binary)->in_frame_info.padded_width)
-	 
+
 #ifndef ISP2401
 
 #define SCTBL_BYTES(binary) \
@@ -1741,7 +1741,7 @@ ia_css_process_zoom_and_motion(
 				out_infos[0] = &args->out_frame[0]->info;
 			info = &stage->firmware->info.isp;
 			ia_css_binary_fill_info(info, false, false,
-				IA_CSS_STREAM_FORMAT_RAW_10,
+				ATOMISP_INPUT_FORMAT_RAW_10,
 				args->in_frame  ? &args->in_frame->info  : NULL,
 				NULL,
 				out_infos,
@@ -2891,8 +2891,8 @@ ia_css_metadata_free_multiple(unsigned int num_bufs, struct ia_css_metadata **bu
 	}
 }
 
-unsigned g_param_buffer_dequeue_count = 0;
-unsigned g_param_buffer_enqueue_count = 0;
+static unsigned g_param_buffer_dequeue_count = 0;
+static unsigned g_param_buffer_enqueue_count = 0;
 
 enum ia_css_err
 ia_css_stream_isp_parameters_init(struct ia_css_stream *stream)
@@ -3805,7 +3805,6 @@ sh_css_param_update_isp_params(struct ia_css_pipe *curr_pipe,
 
 		enum sh_css_queue_id queue_id;
 
-		(void)stage;
 		pipe = curr_pipe->stream->pipes[i];
 		pipeline = ia_css_pipe_get_pipeline(pipe);
 		pipe_num = ia_css_pipe_get_pipe_num(pipe);

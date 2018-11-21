@@ -23,15 +23,13 @@
 #include <linux/if_vlan.h>
 #include <linux/cpu.h>
 #include "qedf.h"
+#include "qedf_dbg.h"
 #include <uapi/linux/pci_regs.h>
 
 const struct qed_fcoe_ops *qed_ops;
 
 static int qedf_probe(struct pci_dev *pdev, const struct pci_device_id *id);
 static void qedf_remove(struct pci_dev *pdev);
-
-extern struct qedf_debugfs_ops qedf_debugfs_ops;
-extern struct file_operations qedf_dbg_fops;
 
 /*
  * Driver module parameters.
@@ -3155,8 +3153,8 @@ static int __qedf_probe(struct pci_dev *pdev, int mode)
 	}
 
 #ifdef CONFIG_DEBUG_FS
-	qedf_dbg_host_init(&(qedf->dbg_ctx), &qedf_debugfs_ops,
-			    &qedf_dbg_fops);
+	qedf_dbg_host_init(&(qedf->dbg_ctx), qedf_debugfs_ops,
+			    qedf_dbg_fops);
 #endif
 
 	/* Start LL2 */

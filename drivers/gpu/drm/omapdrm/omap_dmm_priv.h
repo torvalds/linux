@@ -102,10 +102,10 @@ struct pat_ctrl {
 };
 
 struct pat {
-	uint32_t next_pa;
+	u32 next_pa;
 	struct pat_area area;
 	struct pat_ctrl ctrl;
-	uint32_t data_pa;
+	u32 data_pa;
 };
 
 #define DMM_FIXED_RETRY_COUNT 1000
@@ -129,7 +129,7 @@ struct dmm_txn {
 	void *engine_handle;
 	struct tcm *tcm;
 
-	uint8_t *current_va;
+	u8 *current_va;
 	dma_addr_t current_pa;
 
 	struct pat *last_pat;
@@ -140,7 +140,7 @@ struct refill_engine {
 	struct dmm *dmm;
 	struct tcm *tcm;
 
-	uint8_t *refill_va;
+	u8 *refill_va;
 	dma_addr_t refill_pa;
 
 	/* only one trans per engine for now */
@@ -154,7 +154,7 @@ struct refill_engine {
 };
 
 struct dmm_platform_data {
-	uint32_t cpu_cache_flags;
+	u32 cpu_cache_flags;
 };
 
 struct dmm {

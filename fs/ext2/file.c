@@ -88,11 +88,11 @@ out_unlock:
  * The default page_lock and i_size verification done by non-DAX fault paths
  * is sufficient because ext2 doesn't support hole punching.
  */
-static int ext2_dax_fault(struct vm_fault *vmf)
+static vm_fault_t ext2_dax_fault(struct vm_fault *vmf)
 {
 	struct inode *inode = file_inode(vmf->vma->vm_file);
 	struct ext2_inode_info *ei = EXT2_I(inode);
-	int ret;
+	vm_fault_t ret;
 
 	if (vmf->flags & FAULT_FLAG_WRITE) {
 		sb_start_pagefault(inode->i_sb);

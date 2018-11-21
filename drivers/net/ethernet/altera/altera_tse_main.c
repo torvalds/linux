@@ -56,7 +56,7 @@
 static atomic_t instance_count = ATOMIC_INIT(~0);
 /* Module parameters */
 static int debug = -1;
-module_param(debug, int, S_IRUGO | S_IWUSR);
+module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Message Level (-1: default, 0: no output, 16: all)");
 
 static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -65,12 +65,12 @@ static const u32 default_msg_level = (NETIF_MSG_DRV | NETIF_MSG_PROBE |
 
 #define RX_DESCRIPTORS 64
 static int dma_rx_num = RX_DESCRIPTORS;
-module_param(dma_rx_num, int, S_IRUGO | S_IWUSR);
+module_param(dma_rx_num, int, 0644);
 MODULE_PARM_DESC(dma_rx_num, "Number of descriptors in the RX list");
 
 #define TX_DESCRIPTORS 64
 static int dma_tx_num = TX_DESCRIPTORS;
-module_param(dma_tx_num, int, S_IRUGO | S_IWUSR);
+module_param(dma_tx_num, int, 0644);
 MODULE_PARM_DESC(dma_tx_num, "Number of descriptors in the TX list");
 
 

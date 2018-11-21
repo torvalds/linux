@@ -541,11 +541,10 @@ static const struct rtc_class_ops cmos_rtc_ops = {
 
 #define NVRAM_OFFSET	(RTC_REG_D + 1)
 
-static ssize_t
-cmos_nvram_read(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
+static int cmos_nvram_read(void *priv, unsigned int off, void *val,
+			   size_t count)
 {
+	unsigned char *buf = val;
 	int	retval;
 
 	off += NVRAM_OFFSET;
@@ -563,15 +562,12 @@ cmos_nvram_read(struct file *filp, struct kobject *kobj,
 	return retval;
 }
 
-static ssize_t
-cmos_nvram_write(struct file *filp, struct kobject *kobj,
-		struct bin_attribute *attr,
-		char *buf, loff_t off, size_t count)
+static int cmos_nvram_write(void *priv, unsigned int off, void *val,
+			    size_t count)
 {
-	struct cmos_rtc	*cmos;
+	struct cmos_rtc	*cmos = priv;
+	unsigned char	*buf = val;
 	int		retval;
-
-	cmos = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
 	/* NOTE:  on at least PCs and Ataris, the boot firmware uses a
 	 * checksum on part of the NVRAM data.  That's currently ignored
@@ -597,17 +593,6 @@ cmos_nvram_write(struct file *filp, struct kobject *kobj,
 
 	return retval;
 }
-
-static struct bin_attribute nvram = {
-	.attr = {
-		.name	= "nvram",
-		.mode	= S_IRUGO | S_IWUSR,
-	},
-
-	.read	= cmos_nvram_read,
-	.write	= cmos_nvram_write,
-	/* size gets set up later */
-};
 
 /*----------------------------------------------------------------*/
 
@@ -675,6 +660,14 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	unsigned char			rtc_control;
 	unsigned			address_space;
 	u32				flags = 0;
+	struct nvmem_config nvmem_cfg = {
+		.name = "cmos_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.reg_read = cmos_nvram_read,
+		.reg_write = cmos_nvram_write,
+		.priv = &cmos_rtc,
+	};
 
 	/* there can be only one ... */
 	if (cmos_rtc.dev)
@@ -711,7 +704,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	address_space = 64;
 #elif defined(__i386__) || defined(__x86_64__) || defined(__arm__) \
 			|| defined(__sparc__) || defined(__mips__) \
-			|| defined(__powerpc__) || defined(CONFIG_MN10300)
+			|| defined(__powerpc__)
 	address_space = 128;
 #else
 #warning Assuming 128 bytes of RTC+NVRAM address space, not 64 bytes.
@@ -751,8 +744,7 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 	cmos_rtc.dev = dev;
 	dev_set_drvdata(dev, &cmos_rtc);
 
-	cmos_rtc.rtc = rtc_device_register(driver_name, dev,
-				&cmos_rtc_ops, THIS_MODULE);
+	cmos_rtc.rtc = devm_rtc_allocate_device(dev);
 	if (IS_ERR(cmos_rtc.rtc)) {
 		retval = PTR_ERR(cmos_rtc.rtc);
 		goto cleanup0;
@@ -814,22 +806,25 @@ cmos_do_probe(struct device *dev, struct resource *ports, int rtc_irq)
 		}
 	}
 
-	/* export at least the first block of NVRAM */
-	nvram.size = address_space - NVRAM_OFFSET;
-	retval = sysfs_create_bin_file(&dev->kobj, &nvram);
-	if (retval < 0) {
-		dev_dbg(dev, "can't create nvram file? %d\n", retval);
+	cmos_rtc.rtc->ops = &cmos_rtc_ops;
+	cmos_rtc.rtc->nvram_old_abi = true;
+	retval = rtc_register_device(cmos_rtc.rtc);
+	if (retval)
 		goto cleanup2;
-	}
 
-	dev_info(dev, "%s%s, %zd bytes nvram%s\n",
-		!is_valid_irq(rtc_irq) ? "no alarms" :
-			cmos_rtc.mon_alrm ? "alarms up to one year" :
-			cmos_rtc.day_alrm ? "alarms up to one month" :
-			"alarms up to one day",
-		cmos_rtc.century ? ", y3k" : "",
-		nvram.size,
-		is_hpet_enabled() ? ", hpet irqs" : "");
+	/* export at least the first block of NVRAM */
+	nvmem_cfg.size = address_space - NVRAM_OFFSET;
+	if (rtc_nvmem_register(cmos_rtc.rtc, &nvmem_cfg))
+		dev_err(dev, "nvmem registration failed\n");
+
+	dev_info(dev, "%s%s, %d bytes nvram%s\n",
+		 !is_valid_irq(rtc_irq) ? "no alarms" :
+		 cmos_rtc.mon_alrm ? "alarms up to one year" :
+		 cmos_rtc.day_alrm ? "alarms up to one month" :
+		 "alarms up to one day",
+		 cmos_rtc.century ? ", y3k" : "",
+		 nvmem_cfg.size,
+		 is_hpet_enabled() ? ", hpet irqs" : "");
 
 	return 0;
 
@@ -838,7 +833,6 @@ cleanup2:
 		free_irq(rtc_irq, cmos_rtc.rtc);
 cleanup1:
 	cmos_rtc.dev = NULL;
-	rtc_device_unregister(cmos_rtc.rtc);
 cleanup0:
 	if (RTC_IOMAPPED)
 		release_region(ports->start, resource_size(ports));
@@ -862,14 +856,11 @@ static void cmos_do_remove(struct device *dev)
 
 	cmos_do_shutdown(cmos->irq);
 
-	sysfs_remove_bin_file(&dev->kobj, &nvram);
-
 	if (is_valid_irq(cmos->irq)) {
 		free_irq(cmos->irq, cmos->rtc);
 		hpet_unregister_irq_handler(cmos_interrupt);
 	}
 
-	rtc_device_unregister(cmos->rtc);
 	cmos->rtc = NULL;
 
 	ports = cmos->iomem;
@@ -1271,8 +1262,6 @@ MODULE_DEVICE_TABLE(of, of_cmos_match);
 static __init void cmos_of_init(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct rtc_time time;
-	int ret;
 	const __be32 *val;
 
 	if (!node)
@@ -1285,16 +1274,6 @@ static __init void cmos_of_init(struct platform_device *pdev)
 	val = of_get_property(node, "freq-reg", NULL);
 	if (val)
 		CMOS_WRITE(be32_to_cpup(val), RTC_FREQ_SELECT);
-
-	cmos_read_time(&pdev->dev, &time);
-	ret = rtc_valid_tm(&time);
-	if (ret) {
-		struct rtc_time def_time = {
-			.tm_year = 1,
-			.tm_mday = 1,
-		};
-		cmos_set_time(&pdev->dev, &def_time);
-	}
 }
 #else
 static inline void cmos_of_init(struct platform_device *pdev) {}

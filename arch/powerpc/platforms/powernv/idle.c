@@ -24,6 +24,7 @@
 #include <asm/code-patching.h>
 #include <asm/smp.h>
 #include <asm/runlatch.h>
+#include <asm/dbell.h>
 
 #include "powernv.h"
 #include "subcore.h"
@@ -80,7 +81,7 @@ static int pnv_save_sprs_for_deep_states(void)
 
 	for_each_possible_cpu(cpu) {
 		uint64_t pir = get_hard_smp_processor_id(cpu);
-		uint64_t hsprg0_val = (uint64_t)&paca[cpu];
+		uint64_t hsprg0_val = (uint64_t)paca_ptrs[cpu];
 
 		rc = opal_slw_set_reg(pir, SPRN_HSPRG0, hsprg0_val);
 		if (rc != 0)
@@ -173,12 +174,12 @@ static void pnv_alloc_idle_core_states(void)
 		for (j = 0; j < threads_per_core; j++) {
 			int cpu = first_cpu + j;
 
-			paca[cpu].core_idle_state_ptr = core_idle_state;
-			paca[cpu].thread_idle_state = PNV_THREAD_RUNNING;
-			paca[cpu].thread_mask = 1 << j;
+			paca_ptrs[cpu]->core_idle_state_ptr = core_idle_state;
+			paca_ptrs[cpu]->thread_idle_state = PNV_THREAD_RUNNING;
+			paca_ptrs[cpu]->thread_mask = 1 << j;
 			if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
 				continue;
-			paca[cpu].thread_sibling_pacas =
+			paca_ptrs[cpu]->thread_sibling_pacas =
 				kmalloc_node(paca_ptr_array_size,
 					     GFP_KERNEL, node);
 		}
@@ -387,6 +388,78 @@ void power9_idle(void)
 	power9_idle_type(pnv_default_stop_val, pnv_default_stop_mask);
 }
 
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+/*
+ * This is used in working around bugs in thread reconfiguration
+ * on POWER9 (at least up to Nimbus DD2.2) relating to transactional
+ * memory and the way that XER[SO] is checkpointed.
+ * This function forces the core into SMT4 in order by asking
+ * all other threads not to stop, and sending a message to any
+ * that are in a stop state.
+ * Must be called with preemption disabled.
+ */
+void pnv_power9_force_smt4_catch(void)
+{
+	int cpu, cpu0, thr;
+	int awake_threads = 1;		/* this thread is awake */
+	int poke_threads = 0;
+	int need_awake = threads_per_core;
+
+	cpu = smp_processor_id();
+	cpu0 = cpu & ~(threads_per_core - 1);
+	for (thr = 0; thr < threads_per_core; ++thr) {
+		if (cpu != cpu0 + thr)
+			atomic_inc(&paca_ptrs[cpu0+thr]->dont_stop);
+	}
+	/* order setting dont_stop vs testing requested_psscr */
+	mb();
+	for (thr = 0; thr < threads_per_core; ++thr) {
+		if (!paca_ptrs[cpu0+thr]->requested_psscr)
+			++awake_threads;
+		else
+			poke_threads |= (1 << thr);
+	}
+
+	/* If at least 3 threads are awake, the core is in SMT4 already */
+	if (awake_threads < need_awake) {
+		/* We have to wake some threads; we'll use msgsnd */
+		for (thr = 0; thr < threads_per_core; ++thr) {
+			if (poke_threads & (1 << thr)) {
+				ppc_msgsnd_sync();
+				ppc_msgsnd(PPC_DBELL_MSGTYPE, 0,
+					   paca_ptrs[cpu0+thr]->hw_cpu_id);
+			}
+		}
+		/* now spin until at least 3 threads are awake */
+		do {
+			for (thr = 0; thr < threads_per_core; ++thr) {
+				if ((poke_threads & (1 << thr)) &&
+				    !paca_ptrs[cpu0+thr]->requested_psscr) {
+					++awake_threads;
+					poke_threads &= ~(1 << thr);
+				}
+			}
+		} while (awake_threads < need_awake);
+	}
+}
+EXPORT_SYMBOL_GPL(pnv_power9_force_smt4_catch);
+
+void pnv_power9_force_smt4_release(void)
+{
+	int cpu, cpu0, thr;
+
+	cpu = smp_processor_id();
+	cpu0 = cpu & ~(threads_per_core - 1);
+
+	/* clear all the dont_stop flags */
+	for (thr = 0; thr < threads_per_core; ++thr) {
+		if (cpu != cpu0 + thr)
+			atomic_dec(&paca_ptrs[cpu0+thr]->dont_stop);
+	}
+}
+EXPORT_SYMBOL_GPL(pnv_power9_force_smt4_release);
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
+
 #ifdef CONFIG_HOTPLUG_CPU
 static void pnv_program_cpu_hotplug_lpcr(unsigned int cpu, u64 lpcr_val)
 {
@@ -434,7 +507,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 		psscr = mfspr(SPRN_PSSCR);
 		psscr = (psscr & ~pnv_deepest_stop_psscr_mask) |
 						pnv_deepest_stop_psscr_val;
-		srr1 = power9_idle_stop(psscr);
+		srr1 = power9_offline_stop(psscr);
 
 	} else if ((idle_states & OPAL_PM_WINKLE_ENABLED) &&
 		   (idle_states & OPAL_PM_LOSE_FULL_CONTEXT)) {
@@ -749,7 +822,8 @@ static int __init pnv_init_idle_states(void)
 			for (i = 0; i < threads_per_core; i++) {
 				int j = base_cpu + i;
 
-				paca[j].thread_sibling_pacas[idx] = &paca[cpu];
+				paca_ptrs[j]->thread_sibling_pacas[idx] =
+					paca_ptrs[cpu];
 			}
 		}
 	}

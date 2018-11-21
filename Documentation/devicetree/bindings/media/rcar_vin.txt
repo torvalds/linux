@@ -56,7 +56,7 @@ Board setup example (vin1 composite video input)
 ------------------------------------------------
 
 &i2c2   {
-        status = "ok";
+        status = "okay";
         pinctrl-0 = <&i2c2_pins>;
         pinctrl-names = "default";
 
@@ -79,7 +79,7 @@ Board setup example (vin1 composite video input)
         pinctrl-0 = <&vin1_pins>;
         pinctrl-names = "default";
 
-        status = "ok";
+        status = "okay";
 
         port {
                 #address-cells = <1>;

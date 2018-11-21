@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	drivers/pci/bus.c
- *
  * From setup-res.c, by:
  *	Dave Rusling (david.rusling@reo.mts.dec.com)
  *	David Mosberger (davidm@cs.arizona.edu)

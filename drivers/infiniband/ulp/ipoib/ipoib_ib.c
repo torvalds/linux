@@ -1085,7 +1085,7 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 
 	netif_addr_unlock_bh(priv->dev);
 
-	err = ib_find_gid(priv->ca, &search_gid, priv->dev, &port, &index);
+	err = ib_find_gid(priv->ca, &search_gid, &port, &index);
 
 	netif_addr_lock_bh(priv->dev);
 

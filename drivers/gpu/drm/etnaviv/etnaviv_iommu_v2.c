@@ -40,6 +40,9 @@
 
 struct etnaviv_iommuv2_domain {
 	struct etnaviv_iommu_domain base;
+	/* P(age) T(able) A(rray) */
+	u64 *pta_cpu;
+	dma_addr_t pta_dma;
 	/* M(aster) TLB aka first level pagetable */
 	u32 *mtlb_cpu;
 	dma_addr_t mtlb_dma;
@@ -114,6 +117,15 @@ static int etnaviv_iommuv2_init(struct etnaviv_iommuv2_domain *etnaviv_domain)
 	for (i = 0; i < SZ_4K / 4; i++)
 		*p++ = 0xdead55aa;
 
+	etnaviv_domain->pta_cpu = dma_alloc_coherent(etnaviv_domain->base.dev,
+						     SZ_4K,
+						     &etnaviv_domain->pta_dma,
+						     GFP_KERNEL);
+	if (!etnaviv_domain->pta_cpu) {
+		ret = -ENOMEM;
+		goto fail_mem;
+	}
+
 	etnaviv_domain->mtlb_cpu = dma_alloc_coherent(etnaviv_domain->base.dev,
 						  SZ_4K,
 						  &etnaviv_domain->mtlb_dma,
@@ -150,6 +162,11 @@ fail_mem:
 				  etnaviv_domain->base.bad_page_cpu,
 				  etnaviv_domain->base.bad_page_dma);
 
+	if (etnaviv_domain->pta_cpu)
+		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
+				  etnaviv_domain->pta_cpu,
+				  etnaviv_domain->pta_dma);
+
 	if (etnaviv_domain->mtlb_cpu)
 		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
 				  etnaviv_domain->mtlb_cpu,
@@ -174,6 +191,10 @@ static void etnaviv_iommuv2_domain_free(struct etnaviv_iommu_domain *domain)
 	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
 			  etnaviv_domain->base.bad_page_cpu,
 			  etnaviv_domain->base.bad_page_dma);
+
+	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
+			  etnaviv_domain->pta_cpu,
+			  etnaviv_domain->pta_dma);
 
 	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
 			  etnaviv_domain->mtlb_cpu,
@@ -216,7 +237,7 @@ static void etnaviv_iommuv2_dump(struct etnaviv_iommu_domain *domain, void *buf)
 			memcpy(buf, etnaviv_domain->stlb_cpu[i], SZ_4K);
 }
 
-void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu)
+static void etnaviv_iommuv2_restore_nonsec(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_iommuv2_domain *etnaviv_domain =
 			to_etnaviv_domain(gpu->mmu->domain);
@@ -236,7 +257,60 @@ void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu)
 	gpu_write(gpu, VIVS_MMUv2_CONTROL, VIVS_MMUv2_CONTROL_ENABLE);
 }
 
-const struct etnaviv_iommu_domain_ops etnaviv_iommuv2_ops = {
+static void etnaviv_iommuv2_restore_sec(struct etnaviv_gpu *gpu)
+{
+	struct etnaviv_iommuv2_domain *etnaviv_domain =
+				to_etnaviv_domain(gpu->mmu->domain);
+	u16 prefetch;
+
+	/* If the MMU is already enabled the state is still there. */
+	if (gpu_read(gpu, VIVS_MMUv2_SEC_CONTROL) & VIVS_MMUv2_SEC_CONTROL_ENABLE)
+		return;
+
+	gpu_write(gpu, VIVS_MMUv2_PTA_ADDRESS_LOW,
+		  lower_32_bits(etnaviv_domain->pta_dma));
+	gpu_write(gpu, VIVS_MMUv2_PTA_ADDRESS_HIGH,
+		  upper_32_bits(etnaviv_domain->pta_dma));
+	gpu_write(gpu, VIVS_MMUv2_PTA_CONTROL, VIVS_MMUv2_PTA_CONTROL_ENABLE);
+
+	gpu_write(gpu, VIVS_MMUv2_NONSEC_SAFE_ADDR_LOW,
+		  lower_32_bits(etnaviv_domain->base.bad_page_dma));
+	gpu_write(gpu, VIVS_MMUv2_SEC_SAFE_ADDR_LOW,
+		  lower_32_bits(etnaviv_domain->base.bad_page_dma));
+	gpu_write(gpu, VIVS_MMUv2_SAFE_ADDRESS_CONFIG,
+		  VIVS_MMUv2_SAFE_ADDRESS_CONFIG_NON_SEC_SAFE_ADDR_HIGH(
+		  upper_32_bits(etnaviv_domain->base.bad_page_dma)) |
+		  VIVS_MMUv2_SAFE_ADDRESS_CONFIG_SEC_SAFE_ADDR_HIGH(
+		  upper_32_bits(etnaviv_domain->base.bad_page_dma)));
+
+	etnaviv_domain->pta_cpu[0] = etnaviv_domain->mtlb_dma |
+				     VIVS_MMUv2_CONFIGURATION_MODE_MODE4_K;
+
+	/* trigger a PTA load through the FE */
+	prefetch = etnaviv_buffer_config_pta(gpu);
+	etnaviv_gpu_start_fe(gpu, (u32)etnaviv_cmdbuf_get_pa(&gpu->buffer),
+			     prefetch);
+	etnaviv_gpu_wait_idle(gpu, 100);
+
+	gpu_write(gpu, VIVS_MMUv2_SEC_CONTROL, VIVS_MMUv2_SEC_CONTROL_ENABLE);
+}
+
+void etnaviv_iommuv2_restore(struct etnaviv_gpu *gpu)
+{
+	switch (gpu->sec_mode) {
+	case ETNA_SEC_NONE:
+		etnaviv_iommuv2_restore_nonsec(gpu);
+		break;
+	case ETNA_SEC_KERNEL:
+		etnaviv_iommuv2_restore_sec(gpu);
+		break;
+	default:
+		WARN(1, "unhandled GPU security mode\n");
+		break;
+	}
+}
+
+static const struct etnaviv_iommu_domain_ops etnaviv_iommuv2_ops = {
 	.free = etnaviv_iommuv2_domain_free,
 	.map = etnaviv_iommuv2_map,
 	.unmap = etnaviv_iommuv2_unmap,

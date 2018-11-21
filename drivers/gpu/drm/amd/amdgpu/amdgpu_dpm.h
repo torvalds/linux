@@ -265,9 +265,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_read_sensor(adev, idx, value, size) \
 		((adev)->powerplay.pp_funcs->read_sensor((adev)->powerplay.pp_handle, (idx), (value), (size)))
 
-#define amdgpu_dpm_get_temperature(adev) \
-		((adev)->powerplay.pp_funcs->get_temperature((adev)->powerplay.pp_handle))
-
 #define amdgpu_dpm_set_fan_control_mode(adev, m) \
 		((adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)))
 
@@ -328,8 +325,8 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_set_mclk_od(adev, value) \
 		((adev)->powerplay.pp_funcs->set_mclk_od((adev)->powerplay.pp_handle, value))
 
-#define amdgpu_dpm_dispatch_task(adev, task_id, input, output)		\
-		((adev)->powerplay.pp_funcs->dispatch_tasks)((adev)->powerplay.pp_handle, (task_id), (input), (output))
+#define amdgpu_dpm_dispatch_task(adev, task_id, user_state)		\
+		((adev)->powerplay.pp_funcs->dispatch_tasks)((adev)->powerplay.pp_handle, (task_id), (user_state))
 
 #define amdgpu_dpm_check_state_equal(adev, cps, rps, equal) \
 		((adev)->powerplay.pp_funcs->check_state_equal((adev)->powerplay.pp_handle, (cps), (rps), (equal)))
@@ -344,17 +341,9 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->reset_power_profile_state(\
 			(adev)->powerplay.pp_handle, request))
 
-#define amdgpu_dpm_get_power_profile_state(adev, query) \
-		((adev)->powerplay.pp_funcs->get_power_profile_state(\
-			(adev)->powerplay.pp_handle, query))
-
-#define amdgpu_dpm_set_power_profile_state(adev, request) \
-		((adev)->powerplay.pp_funcs->set_power_profile_state(\
-			(adev)->powerplay.pp_handle, request))
-
-#define amdgpu_dpm_switch_power_profile(adev, type) \
+#define amdgpu_dpm_switch_power_profile(adev, type, en) \
 		((adev)->powerplay.pp_funcs->switch_power_profile(\
-			(adev)->powerplay.pp_handle, type))
+			(adev)->powerplay.pp_handle, type, en))
 
 #define amdgpu_dpm_set_clockgating_by_smu(adev, msg_id) \
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
@@ -365,6 +354,22 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->notify_smu_memory_info)( \
 			(adev)->powerplay.pp_handle, virtual_addr_low, \
 			virtual_addr_hi, mc_addr_low, mc_addr_hi, size)
+
+#define amdgpu_dpm_get_power_profile_mode(adev, buf) \
+		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
+			(adev)->powerplay.pp_handle, buf))
+
+#define amdgpu_dpm_set_power_profile_mode(adev, parameter, size) \
+		((adev)->powerplay.pp_funcs->set_power_profile_mode(\
+			(adev)->powerplay.pp_handle, parameter, size))
+
+#define amdgpu_dpm_odn_edit_dpm_table(adev, type, parameter, size) \
+		((adev)->powerplay.pp_funcs->odn_edit_dpm_table(\
+			(adev)->powerplay.pp_handle, type, parameter, size))
+
+#define amdgpu_dpm_set_mmhub_powergating_by_smu(adev) \
+		((adev)->powerplay.pp_funcs->set_mmhub_powergating_by_smu( \
+		(adev)->powerplay.pp_handle))
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;

@@ -2155,7 +2155,7 @@ static int atmel_aes_authenc_setkey(struct crypto_aead *tfm, const u8 *key,
 
 badkey:
 	crypto_aead_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-	memzero_explicit(&key, sizeof(keys));
+	memzero_explicit(&keys, sizeof(keys));
 	return -EINVAL;
 }
 
@@ -2602,16 +2602,13 @@ static struct crypto_platform_data *atmel_aes_of_init(struct platform_device *pd
 	}
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(&pdev->dev, "could not allocate memory for pdata\n");
+	if (!pdata)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	pdata->dma_slave = devm_kzalloc(&pdev->dev,
 					sizeof(*(pdata->dma_slave)),
 					GFP_KERNEL);
 	if (!pdata->dma_slave) {
-		dev_err(&pdev->dev, "could not allocate memory for dma_slave\n");
 		devm_kfree(&pdev->dev, pdata);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -2649,7 +2646,6 @@ static int atmel_aes_probe(struct platform_device *pdev)
 
 	aes_dd = devm_kzalloc(&pdev->dev, sizeof(*aes_dd), GFP_KERNEL);
 	if (aes_dd == NULL) {
-		dev_err(dev, "unable to alloc data struct.\n");
 		err = -ENOMEM;
 		goto aes_dd_err;
 	}

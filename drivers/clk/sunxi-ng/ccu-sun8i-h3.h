@@ -26,7 +26,9 @@
 #define CLK_PLL_AUDIO_2X	3
 #define CLK_PLL_AUDIO_4X	4
 #define CLK_PLL_AUDIO_8X	5
-#define CLK_PLL_VIDEO		6
+
+/* PLL_VIDEO is exported */
+
 #define CLK_PLL_VE		7
 #define CLK_PLL_DDR		8
 

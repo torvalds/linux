@@ -144,44 +144,6 @@ _GLOBAL_TOC(flush_dcache_range)
 	blr
 EXPORT_SYMBOL(flush_dcache_range)
 
-/*
- * Like above, but works on non-mapped physical addresses.
- * Use only for non-LPAR setups ! It also assumes real mode
- * is cacheable. Used for flushing out the DART before using
- * it as uncacheable memory 
- *
- * flush_dcache_phys_range(unsigned long start, unsigned long stop)
- *
- *    flush all bytes from start to stop-1 inclusive
- */
-_GLOBAL(flush_dcache_phys_range)
- 	ld	r10,PPC64_CACHES@toc(r2)
-	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */
-	addi	r5,r7,-1
-	andc	r6,r3,r5		/* round low to line bdy */
-	subf	r8,r6,r4		/* compute length */
-	add	r8,r8,r5		/* ensure we get enough */
-	lwz	r9,DCACHEL1LOGBLOCKSIZE(r10)	/* Get log-2 of dcache block size */
-	srw.	r8,r8,r9		/* compute line count */
-	beqlr				/* nothing to do? */
-	mfmsr	r5			/* Disable MMU Data Relocation */
-	ori	r0,r5,MSR_DR
-	xori	r0,r0,MSR_DR
-	sync
-	mtmsr	r0
-	sync
-	isync
-	mtctr	r8
-0:	dcbst	0,r6
-	add	r6,r6,r7
-	bdnz	0b
-	sync
-	isync
-	mtmsr	r5			/* Re-enable MMU Data Relocation */
-	sync
-	isync
-	blr
-
 _GLOBAL(flush_inval_dcache_range)
  	ld	r10,PPC64_CACHES@toc(r2)
 	lwz	r7,DCACHEL1BLOCKSIZE(r10)	/* Get dcache block size */

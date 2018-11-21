@@ -1051,6 +1051,24 @@ static int fsl_qspi_probe(struct platform_device *pdev)
 		spi_nor_set_flash_node(nor, np);
 		nor->priv = q;
 
+		if (q->nor_num > 1 && !mtd->name) {
+			int spiflash_idx;
+
+			ret = of_property_read_u32(np, "reg", &spiflash_idx);
+			if (!ret) {
+				mtd->name = devm_kasprintf(dev, GFP_KERNEL,
+							   "%s-%d",
+							   dev_name(dev),
+							   spiflash_idx);
+				if (!mtd->name) {
+					ret = -ENOMEM;
+					goto mutex_failed;
+				}
+			} else {
+				dev_warn(dev, "reg property is missing\n");
+			}
+		}
+
 		/* fill the hooks */
 		nor->read_reg = fsl_qspi_read_reg;
 		nor->write_reg = fsl_qspi_write_reg;
@@ -1174,7 +1192,6 @@ static int fsl_qspi_resume(struct platform_device *pdev)
 static struct platform_driver fsl_qspi_driver = {
 	.driver = {
 		.name	= "fsl-quadspi",
-		.bus	= &platform_bus_type,
 		.of_match_table = fsl_qspi_dt_ids,
 	},
 	.probe          = fsl_qspi_probe,

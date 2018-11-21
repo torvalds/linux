@@ -55,6 +55,29 @@ static void clk_memmap_writel(u32 val, const struct clk_omap_reg *reg)
 		writel_relaxed(val, io->mem + reg->offset);
 }
 
+static void _clk_rmw(u32 val, u32 mask, void __iomem *ptr)
+{
+	u32 v;
+
+	v = readl_relaxed(ptr);
+	v &= ~mask;
+	v |= val;
+	writel_relaxed(v, ptr);
+}
+
+static void clk_memmap_rmw(u32 val, u32 mask, const struct clk_omap_reg *reg)
+{
+	struct clk_iomap *io = clk_memmaps[reg->index];
+
+	if (reg->ptr) {
+		_clk_rmw(val, mask, reg->ptr);
+	} else if (io->regmap) {
+		regmap_update_bits(io->regmap, reg->offset, mask, val);
+	} else {
+		_clk_rmw(val, mask, io->mem + reg->offset);
+	}
+}
+
 static u32 clk_memmap_readl(const struct clk_omap_reg *reg)
 {
 	u32 val;
@@ -89,6 +112,7 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
 	ti_clk_ll_ops = ops;
 	ops->clk_readl = clk_memmap_readl;
 	ops->clk_writel = clk_memmap_writel;
+	ops->clk_rmw = clk_memmap_rmw;
 
 	return 0;
 }
@@ -249,6 +273,20 @@ int ti_clk_get_reg_addr(struct device_node *node, int index,
 	reg->ptr = NULL;
 
 	return 0;
+}
+
+void ti_clk_latch(struct clk_omap_reg *reg, s8 shift)
+{
+	u32 latch;
+
+	if (shift < 0)
+		return;
+
+	latch = 1 << shift;
+
+	ti_clk_ll_ops->clk_rmw(latch, latch, reg);
+	ti_clk_ll_ops->clk_rmw(0, latch, reg);
+	ti_clk_ll_ops->clk_readl(reg); /* OCP barrier */
 }
 
 /**

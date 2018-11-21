@@ -45,12 +45,6 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 #ifdef CONFIG_PPC_BOOK3S
 	/* mtdec lowers the interrupt line when positive. */
 	kvmppc_core_dequeue_dec(vcpu);
-
-	/* POWER4+ triggers a dec interrupt if the value is < 0 */
-	if (vcpu->arch.dec & 0x80000000) {
-		kvmppc_core_queue_dec(vcpu);
-		return;
-	}
 #endif
 
 #ifdef CONFIG_BOOKE

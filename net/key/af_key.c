@@ -437,6 +437,24 @@ static int verify_address_len(const void *p)
 	return 0;
 }
 
+static inline int sadb_key_len(const struct sadb_key *key)
+{
+	int key_bytes = DIV_ROUND_UP(key->sadb_key_bits, 8);
+
+	return DIV_ROUND_UP(sizeof(struct sadb_key) + key_bytes,
+			    sizeof(uint64_t));
+}
+
+static int verify_key_len(const void *p)
+{
+	const struct sadb_key *key = p;
+
+	if (sadb_key_len(key) > key->sadb_key_len)
+		return -EINVAL;
+
+	return 0;
+}
+
 static inline int pfkey_sec_ctx_len(const struct sadb_x_sec_ctx *sec_ctx)
 {
 	return DIV_ROUND_UP(sizeof(struct sadb_x_sec_ctx) +
@@ -533,16 +551,25 @@ static int parse_exthdrs(struct sk_buff *skb, const struct sadb_msg *hdr, void *
 				return -EINVAL;
 			if (ext_hdrs[ext_type-1] != NULL)
 				return -EINVAL;
-			if (ext_type == SADB_EXT_ADDRESS_SRC ||
-			    ext_type == SADB_EXT_ADDRESS_DST ||
-			    ext_type == SADB_EXT_ADDRESS_PROXY ||
-			    ext_type == SADB_X_EXT_NAT_T_OA) {
+			switch (ext_type) {
+			case SADB_EXT_ADDRESS_SRC:
+			case SADB_EXT_ADDRESS_DST:
+			case SADB_EXT_ADDRESS_PROXY:
+			case SADB_X_EXT_NAT_T_OA:
 				if (verify_address_len(p))
 					return -EINVAL;
-			}
-			if (ext_type == SADB_X_EXT_SEC_CTX) {
+				break;
+			case SADB_X_EXT_SEC_CTX:
 				if (verify_sec_ctx_len(p))
 					return -EINVAL;
+				break;
+			case SADB_EXT_KEY_AUTH:
+			case SADB_EXT_KEY_ENCRYPT:
+				if (verify_key_len(p))
+					return -EINVAL;
+				break;
+			default:
+				break;
 			}
 			ext_hdrs[ext_type-1] = (void *) p;
 		}
@@ -1104,14 +1131,12 @@ static struct xfrm_state * pfkey_msg2xfrm_state(struct net *net,
 	key = ext_hdrs[SADB_EXT_KEY_AUTH - 1];
 	if (key != NULL &&
 	    sa->sadb_sa_auth != SADB_X_AALG_NULL &&
-	    ((key->sadb_key_bits+7) / 8 == 0 ||
-	     (key->sadb_key_bits+7) / 8 > key->sadb_key_len * sizeof(uint64_t)))
+	    key->sadb_key_bits == 0)
 		return ERR_PTR(-EINVAL);
 	key = ext_hdrs[SADB_EXT_KEY_ENCRYPT-1];
 	if (key != NULL &&
 	    sa->sadb_sa_encrypt != SADB_EALG_NULL &&
-	    ((key->sadb_key_bits+7) / 8 == 0 ||
-	     (key->sadb_key_bits+7) / 8 > key->sadb_key_len * sizeof(uint64_t)))
+	    key->sadb_key_bits == 0)
 		return ERR_PTR(-EINVAL);
 
 	x = xfrm_state_alloc(net);

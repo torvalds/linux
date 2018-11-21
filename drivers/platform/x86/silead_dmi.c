@@ -446,6 +446,23 @@ static const struct dmi_system_id silead_ts_dmi_table[] = {
 			DMI_MATCH(DMI_BOARD_NAME, "X3 Plus"),
 		},
 	},
+	{
+		/* I.T.Works TW701 */
+		.driver_data = (void *)&surftab_wintron70_st70416_6_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Insyde"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "i71c"),
+			DMI_MATCH(DMI_BIOS_VERSION, "itWORKS.G.WI71C.JGBMRB"),
+		},
+	},
+	{
+		/* Yours Y8W81, same case and touchscreen as Chuwi Vi8 */
+		.driver_data = (void *)&chuwi_vi8_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "YOURS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Y8W81"),
+		},
+	},
 	{ },
 };
 

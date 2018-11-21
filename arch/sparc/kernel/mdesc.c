@@ -22,6 +22,7 @@
 #include <linux/uaccess.h>
 #include <asm/oplib.h>
 #include <asm/smp.h>
+#include <asm/adi.h>
 
 /* Unlike the OBP device tree, the machine description is a full-on
  * DAG.  An arbitrary number of ARCs are possible from one
@@ -1345,5 +1346,6 @@ void __init sun4v_mdesc_init(void)
 
 	cur_mdesc = hp;
 
+	mdesc_adi_init();
 	report_platform_properties();
 }

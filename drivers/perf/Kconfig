@@ -5,6 +5,39 @@
 menu "Performance monitor support"
 	depends on PERF_EVENTS
 
+config ARM_CCI_PMU
+	bool
+	select ARM_CCI
+
+config ARM_CCI400_PMU
+	bool "ARM CCI400 PMU support"
+	depends on (ARM && CPU_V7) || ARM64
+	select ARM_CCI400_COMMON
+	select ARM_CCI_PMU
+	help
+	  Support for PMU events monitoring on the ARM CCI-400 (cache coherent
+	  interconnect). CCI-400 supports counting events related to the
+	  connected slave/master interfaces.
+
+config ARM_CCI5xx_PMU
+	bool "ARM CCI-500/CCI-550 PMU support"
+	depends on (ARM && CPU_V7) || ARM64
+	select ARM_CCI_PMU
+	help
+	  Support for PMU events monitoring on the ARM CCI-500/CCI-550 cache
+	  coherent interconnects. Both of them provide 8 independent event counters,
+	  which can count events pertaining to the slave/master interfaces as well
+	  as the internal events to the CCI.
+
+	  If unsure, say Y
+
+config ARM_CCN
+	tristate "ARM CCN driver support"
+	depends on ARM || ARM64
+	help
+	  PMU (perf) driver supporting the ARM CCN (Cache Coherent Network)
+	  interconnect.
+
 config ARM_PMU
 	depends on ARM || ARM64
 	bool "ARM PMU framework"

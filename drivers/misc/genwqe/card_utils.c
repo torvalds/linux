@@ -453,7 +453,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
 		s += 8;		/* continue 8 elements further */
 	}
  fixup:
-	if (j == 1) {		/* combining happend on last entry! */
+	if (j == 1) {		/* combining happened on last entry! */
 		s -= 8;		/* full shift needed on previous sgl block */
 		j =  7;		/* shift all elements */
 	}
@@ -471,7 +471,7 @@ int genwqe_setup_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl,
  * genwqe_free_sync_sgl() - Free memory for sgl and overlapping pages
  *
  * After the DMA transfer has been completed we free the memory for
- * the sgl and the cached pages. Data is being transfered from cached
+ * the sgl and the cached pages. Data is being transferred from cached
  * pages into user-space buffers.
  */
 int genwqe_free_sync_sgl(struct genwqe_dev *cd, struct genwqe_sgl *sgl)

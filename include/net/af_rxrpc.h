@@ -31,6 +31,11 @@ enum rxrpc_call_completion {
 	NR__RXRPC_CALL_COMPLETIONS
 };
 
+/*
+ * Debug ID counter for tracing.
+ */
+extern atomic_t rxrpc_debug_id;
+
 typedef void (*rxrpc_notify_rx_t)(struct sock *, struct rxrpc_call *,
 				  unsigned long);
 typedef void (*rxrpc_notify_end_tx_t)(struct sock *, struct rxrpc_call *,
@@ -50,7 +55,8 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *,
 					   s64,
 					   gfp_t,
 					   rxrpc_notify_rx_t,
-					   bool);
+					   bool,
+					   unsigned int);
 int rxrpc_kernel_send_data(struct socket *, struct rxrpc_call *,
 			   struct msghdr *, size_t,
 			   rxrpc_notify_end_tx_t);
@@ -63,7 +69,8 @@ void rxrpc_kernel_get_peer(struct socket *, struct rxrpc_call *,
 			   struct sockaddr_rxrpc *);
 u64 rxrpc_kernel_get_rtt(struct socket *, struct rxrpc_call *);
 int rxrpc_kernel_charge_accept(struct socket *, rxrpc_notify_rx_t,
-			       rxrpc_user_attach_call_t, unsigned long, gfp_t);
+			       rxrpc_user_attach_call_t, unsigned long, gfp_t,
+			       unsigned int);
 void rxrpc_kernel_set_tx_length(struct socket *, struct rxrpc_call *, s64);
 int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
 			    struct sockaddr_rxrpc *, struct key *);

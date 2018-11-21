@@ -138,6 +138,8 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	if (!(features & NETIF_F_HW_ESP) || !x->xso.offload_handle ||
 	    (x->xso.dev != skb->dev))
 		esp_features = features & ~(NETIF_F_SG | NETIF_F_CSUM_MASK);
+	else if (!(features & NETIF_F_HW_ESP_TX_CSUM))
+		esp_features = features & ~NETIF_F_CSUM_MASK;
 
 	xo->flags |= XFRM_GSO_SEGMENT;
 

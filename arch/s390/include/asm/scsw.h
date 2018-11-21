@@ -390,10 +390,10 @@ static inline int scsw_cmd_is_valid_key(union scsw *scsw)
 }
 
 /**
- * scsw_cmd_is_valid_sctl - check fctl field validity
+ * scsw_cmd_is_valid_sctl - check sctl field validity
  * @scsw: pointer to scsw
  *
- * Return non-zero if the fctl field of the specified command mode scsw is
+ * Return non-zero if the sctl field of the specified command mode scsw is
  * valid, zero otherwise.
  */
 static inline int scsw_cmd_is_valid_sctl(union scsw *scsw)

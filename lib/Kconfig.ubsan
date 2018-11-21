@@ -46,3 +46,10 @@ config UBSAN_NULL
 	help
 	  This option enables detection of memory accesses via a
 	  null pointer.
+
+config TEST_UBSAN
+	tristate "Module for testing for undefined behavior detection"
+	depends on m && UBSAN
+	help
+	  This is a test module for UBSAN.
+	  It triggers various undefined behavior, and detect it.

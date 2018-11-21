@@ -70,7 +70,7 @@ static int lpc32xx_rtc_read_time(struct device *dev, struct rtc_time *time)
 	elapsed_sec = rtc_readl(rtc, LPC32XX_RTC_UCOUNT);
 	rtc_time_to_tm(elapsed_sec, time);
 
-	return rtc_valid_tm(time);
+	return 0;
 }
 
 static int lpc32xx_rtc_set_mmss(struct device *dev, unsigned long secs)

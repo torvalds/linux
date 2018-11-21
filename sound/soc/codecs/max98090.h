@@ -1519,7 +1519,7 @@ struct max98090_cdata {
 
 struct max98090_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	enum max98090_type devtype;
 	struct max98090_pdata *pdata;
 	struct clk *mclk;
@@ -1546,7 +1546,7 @@ struct max98090_priv {
 	bool shdn_pending;
 };
 
-int max98090_mic_detect(struct snd_soc_codec *codec,
+int max98090_mic_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *jack);
 
 #endif

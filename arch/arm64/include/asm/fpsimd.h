@@ -22,32 +22,8 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/cache.h>
+#include <linux/init.h>
 #include <linux/stddef.h>
-
-/*
- * FP/SIMD storage area has:
- *  - FPSR and FPCR
- *  - 32 128-bit data registers
- *
- * Note that user_fpsimd forms a prefix of this structure, which is
- * relied upon in the ptrace FP/SIMD accessors.
- */
-struct fpsimd_state {
-	union {
-		struct user_fpsimd_state user_fpsimd;
-		struct {
-			__uint128_t vregs[32];
-			u32 fpsr;
-			u32 fpcr;
-			/*
-			 * For ptrace compatibility, pad to next 128-bit
-			 * boundary here if extending this struct.
-			 */
-		};
-	};
-	/* the id of the last cpu to have restored this state */
-	unsigned int cpu;
-};
 
 #if defined(__KERNEL__) && defined(CONFIG_COMPAT)
 /* Masks for extracting the FPSR and FPCR from the FPSCR */
@@ -62,8 +38,8 @@ struct fpsimd_state {
 
 struct task_struct;
 
-extern void fpsimd_save_state(struct fpsimd_state *state);
-extern void fpsimd_load_state(struct fpsimd_state *state);
+extern void fpsimd_save_state(struct user_fpsimd_state *state);
+extern void fpsimd_load_state(struct user_fpsimd_state *state);
 
 extern void fpsimd_thread_switch(struct task_struct *next);
 extern void fpsimd_flush_thread(void);
@@ -83,7 +59,9 @@ extern void sve_save_state(void *state, u32 *pfpsr);
 extern void sve_load_state(void const *state, u32 const *pfpsr,
 			   unsigned long vq_minus_1);
 extern unsigned int sve_get_vl(void);
-extern int sve_kernel_enable(void *);
+
+struct arm64_cpu_capabilities;
+extern void sve_kernel_enable(const struct arm64_cpu_capabilities *__unused);
 
 extern int __ro_after_init sve_max_vl;
 

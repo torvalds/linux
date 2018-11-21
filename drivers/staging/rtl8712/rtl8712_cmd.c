@@ -320,7 +320,7 @@ int r8712_cmd_thread(void *context)
 	struct tx_desc *pdesc;
 	void (*pcmd_callback)(struct _adapter *dev, struct cmd_obj *pcmd);
 	struct _adapter *padapter = context;
-	struct	cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
+	struct	cmd_priv *pcmdpriv = &padapter->cmdpriv;
 	struct completion *cmd_queue_comp =
 		&pcmdpriv->cmd_queue_comp;
 	struct mutex *pwctrl_lock = &padapter->pwrctrlpriv.mutex_lock;
@@ -334,7 +334,7 @@ int r8712_cmd_thread(void *context)
 		if (r8712_register_cmd_alive(padapter) != _SUCCESS)
 			continue;
 _next:
-		pcmd = r8712_dequeue_cmd(&(pcmdpriv->cmd_queue));
+		pcmd = r8712_dequeue_cmd(&pcmdpriv->cmd_queue);
 		if (!(pcmd)) {
 			r8712_unregister_cmd_alive(padapter);
 			continue;
@@ -419,7 +419,7 @@ _next:
 	}
 	/* free all cmd_obj resources */
 	do {
-		pcmd = r8712_dequeue_cmd(&(pcmdpriv->cmd_queue));
+		pcmd = r8712_dequeue_cmd(&pcmdpriv->cmd_queue);
 		if (!pcmd)
 			break;
 		r8712_free_cmd_obj(pcmd);
@@ -433,7 +433,7 @@ void r8712_event_handle(struct _adapter *padapter, __le32 *peventbuf)
 	u8 evt_code, evt_seq;
 	u16 evt_sz;
 	void (*event_callback)(struct _adapter *dev, u8 *pbuf);
-	struct	evt_priv *pevt_priv = &(padapter->evtpriv);
+	struct	evt_priv *pevt_priv = &padapter->evtpriv;
 
 	if (!peventbuf)
 		goto _abort_event_;

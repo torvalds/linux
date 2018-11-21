@@ -924,6 +924,24 @@ static int __init parse_memmap_one(char *p)
 	} else if (*p == '!') {
 		start_at = memparse(p+1, &p);
 		e820__range_add(start_at, mem_size, E820_TYPE_PRAM);
+	} else if (*p == '%') {
+		enum e820_type from = 0, to = 0;
+
+		start_at = memparse(p + 1, &p);
+		if (*p == '-')
+			from = simple_strtoull(p + 1, &p, 0);
+		if (*p == '+')
+			to = simple_strtoull(p + 1, &p, 0);
+		if (*p != '\0')
+			return -EINVAL;
+		if (from && to)
+			e820__range_update(start_at, mem_size, from, to);
+		else if (to)
+			e820__range_add(start_at, mem_size, to);
+		else if (from)
+			e820__range_remove(start_at, mem_size, from, 1);
+		else
+			e820__range_remove(start_at, mem_size, 0, 0);
 	} else {
 		e820__range_remove(mem_size, ULLONG_MAX - mem_size, E820_TYPE_RAM, 1);
 	}

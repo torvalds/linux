@@ -32,7 +32,9 @@ int inet_shutdown(struct socket *sock, int how);
 int inet_listen(struct socket *sock, int backlog);
 void inet_sock_destruct(struct sock *sk);
 int inet_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
-int inet_getname(struct socket *sock, struct sockaddr *uaddr, int *uaddr_len,
+int __inet_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+		bool force_bind_address_no_port, bool with_lock);
+int inet_getname(struct socket *sock, struct sockaddr *uaddr,
 		 int peer);
 int inet_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg);
 int inet_ctl_sock_create(struct sock **sk, unsigned short family,

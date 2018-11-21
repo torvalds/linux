@@ -35,4 +35,10 @@ struct tracepoint {
 	struct tracepoint_func __rcu *funcs;
 };
 
+struct bpf_raw_event_map {
+	struct tracepoint	*tp;
+	void			*bpf_func;
+	u32			num_args;
+} __aligned(32);
+
 #endif

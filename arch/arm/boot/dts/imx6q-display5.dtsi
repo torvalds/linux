@@ -47,7 +47,7 @@
 	model = "Liebherr (LWN) display5 i.MX6 Quad Board";
 	compatible = "lwn,display5", "fsl,imx6q";
 
-	memory {
+	memory@10000000 {
 		reg = <0x10000000 0x40000000>;
 	};
 

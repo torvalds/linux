@@ -240,6 +240,8 @@ void sctp_stream_update(struct sctp_stream *stream, struct sctp_stream *new)
 
 	new->out = NULL;
 	new->in  = NULL;
+	new->outcnt = 0;
+	new->incnt  = 0;
 }
 
 static int sctp_send_reconf(struct sctp_association *asoc,

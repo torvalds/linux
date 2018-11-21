@@ -895,8 +895,9 @@ static int longhaul_cpu_init(struct cpufreq_policy *policy)
 		longhaul_setup_voltagescaling();
 
 	policy->transition_delay_us = 200000;	/* usec */
+	policy->freq_table = longhaul_table;
 
-	return cpufreq_table_validate_and_show(policy, longhaul_table);
+	return 0;
 }
 
 static struct cpufreq_driver longhaul_driver = {

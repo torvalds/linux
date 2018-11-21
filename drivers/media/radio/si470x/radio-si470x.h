@@ -79,6 +79,8 @@
 #define SYSCONFIG1_BLNDADJ	0x00c0	/* bits 07..06: Stereo/Mono Blend Level Adjustment */
 #define SYSCONFIG1_GPIO3	0x0030	/* bits 05..04: General Purpose I/O 3 */
 #define SYSCONFIG1_GPIO2	0x000c	/* bits 03..02: General Purpose I/O 2 */
+#define SYSCONFIG1_GPIO2_DIS	0x0000	/* Disable GPIO 2 interrupt */
+#define SYSCONFIG1_GPIO2_INT	0x0004	/* Enable STC/RDS interrupt */
 #define SYSCONFIG1_GPIO1	0x0003	/* bits 01..00: General Purpose I/O 1 */
 
 #define SYSCONFIG2		5	/* System Configuration 2 */

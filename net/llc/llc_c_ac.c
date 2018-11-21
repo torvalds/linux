@@ -1099,14 +1099,7 @@ int llc_conn_ac_inc_tx_win_size(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_stop_all_timers(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_sock *llc = llc_sk(sk);
-
-	del_timer(&llc->pf_cycle_timer.timer);
-	del_timer(&llc->ack_timer.timer);
-	del_timer(&llc->rej_sent_timer.timer);
-	del_timer(&llc->busy_state_timer.timer);
-	llc->ack_must_be_send = 0;
-	llc->ack_pf = 0;
+	llc_sk_stop_all_timers(sk, false);
 	return 0;
 }
 

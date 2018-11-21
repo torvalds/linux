@@ -18,3 +18,13 @@ config NET_DSA_MV88E6XXX_GLOBAL2
 
 	  It is required on most chips. If the chip you compile the support for
 	  doesn't have such registers set, say N here. In doubt, say Y.
+
+config NET_DSA_MV88E6XXX_PTP
+	bool "PTP support for Marvell 88E6xxx"
+	default n
+	depends on NET_DSA_MV88E6XXX_GLOBAL2
+	imply NETWORK_PHY_TIMESTAMPING
+	imply PTP_1588_CLOCK
+	help
+	  Say Y to enable PTP hardware timestamping on Marvell 88E6xxx switch
+	  chips that support it.

@@ -258,6 +258,15 @@ bool dm_helpers_dp_mst_write_payload_allocation_table(
 	return true;
 }
 
+
+/*
+ * Clear payload allocation table before enable MST DP link.
+ */
+void dm_helpers_dp_mst_clear_payload_allocation_table(
+	struct dc_context *ctx,
+	const struct dc_link *link)
+{}
+
 /*
  * Polls for ACT (allocation change trigger) handled and sends
  * ALLOCATE_PAYLOAD message.
@@ -495,4 +504,9 @@ enum dc_edid_status dm_helpers_read_local_edid(
 				aconnector->base.name);
 
 	return edid_status;
+}
+
+void dm_set_dcn_clocks(struct dc_context *ctx, struct dc_clocks *clks)
+{
+	/* TODO: something */
 }

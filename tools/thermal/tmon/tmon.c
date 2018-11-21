@@ -336,7 +336,6 @@ int main(int argc, char **argv)
 			show_data_w();
 			show_cooling_device();
 		}
-		cur_thermal_record++;
 		time_elapsed += ticktime;
 		controller_handler(trec[0].temp[target_tz_index] / 1000,
 				&yk);

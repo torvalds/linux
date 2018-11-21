@@ -83,6 +83,30 @@ static inline bool is_vlan_dev(const struct net_device *dev)
 #define skb_vlan_tag_get_id(__skb)	((__skb)->vlan_tci & VLAN_VID_MASK)
 #define skb_vlan_tag_get_prio(__skb)	((__skb)->vlan_tci & VLAN_PRIO_MASK)
 
+static inline int vlan_get_rx_ctag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return notifier_to_errno(call_netdevice_notifiers(NETDEV_CVLAN_FILTER_PUSH_INFO, dev));
+}
+
+static inline void vlan_drop_rx_ctag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_CVLAN_FILTER_DROP_INFO, dev);
+}
+
+static inline int vlan_get_rx_stag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	return notifier_to_errno(call_netdevice_notifiers(NETDEV_SVLAN_FILTER_PUSH_INFO, dev));
+}
+
+static inline void vlan_drop_rx_stag_filter_info(struct net_device *dev)
+{
+	ASSERT_RTNL();
+	call_netdevice_notifiers(NETDEV_SVLAN_FILTER_DROP_INFO, dev);
+}
+
 /**
  *	struct vlan_pcpu_stats - VLAN percpu rx/tx stats
  *	@rx_packets: number of received packets
@@ -639,7 +663,7 @@ static inline bool skb_vlan_tagged(const struct sk_buff *skb)
  * Returns true if the skb is tagged with multiple vlan headers, regardless
  * of whether it is hardware accelerated or not.
  */
-static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
+static inline bool skb_vlan_tagged_multi(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
 
@@ -647,6 +671,9 @@ static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
 		struct vlan_ethhdr *veh;
 
 		if (likely(!eth_type_vlan(protocol)))
+			return false;
+
+		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
 			return false;
 
 		veh = (struct vlan_ethhdr *)skb->data;
@@ -666,7 +693,7 @@ static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
  *
  * Returns features without unsafe ones if the skb has multiple tags.
  */
-static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
+static inline netdev_features_t vlan_features_check(struct sk_buff *skb,
 						    netdev_features_t features)
 {
 	if (skb_vlan_tagged_multi(skb)) {

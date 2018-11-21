@@ -9,8 +9,6 @@
 #include <stddef.h>
 #include <stdbool.h>
 
-#include <sys/resource.h>
-
 #include <linux/unistd.h>
 #include <linux/filter.h>
 #include <linux/bpf_perf_event.h>
@@ -19,6 +17,7 @@
 #include <bpf/bpf.h>
 
 #include "../../../include/linux/filter.h"
+#include "bpf_rlimit.h"
 
 #ifndef ARRAY_SIZE
 # define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
@@ -702,9 +701,6 @@ static int do_test(unsigned int from, unsigned int to)
 int main(int argc, char **argv)
 {
 	unsigned int from = 0, to = ARRAY_SIZE(tests);
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
-
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
 
 	if (argc == 3) {
 		unsigned int l = atoi(argv[argc - 2]);

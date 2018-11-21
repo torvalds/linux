@@ -550,6 +550,8 @@ static inline void msg_set_nameupper(struct tipc_msg *m, u32 n)
  */
 #define DSC_REQ_MSG		0
 #define DSC_RESP_MSG		1
+#define DSC_TRIAL_MSG		2
+#define DSC_TRIAL_FAIL_MSG	3
 
 /*
  * Group protocol message types
@@ -626,7 +628,6 @@ static inline void msg_set_bcgap_to(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 2, 0, 0xffff, n);
 }
-
 
 /*
  * Word 4
@@ -923,6 +924,26 @@ static inline bool msg_peer_node_is_up(struct tipc_msg *m)
 static inline bool msg_is_reset(struct tipc_msg *hdr)
 {
 	return (msg_user(hdr) == LINK_PROTOCOL) && (msg_type(hdr) == RESET_MSG);
+}
+
+static inline u32 msg_sugg_node_addr(struct tipc_msg *m)
+{
+	return msg_word(m, 14);
+}
+
+static inline void msg_set_sugg_node_addr(struct tipc_msg *m, u32 n)
+{
+	msg_set_word(m, 14, n);
+}
+
+static inline void msg_set_node_id(struct tipc_msg *hdr, u8 *id)
+{
+	memcpy(msg_data(hdr), id, 16);
+}
+
+static inline u8 *msg_node_id(struct tipc_msg *hdr)
+{
+	return (u8 *)msg_data(hdr);
 }
 
 struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp);

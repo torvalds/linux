@@ -540,9 +540,9 @@ void rds_for_each_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_iterator *iter,
 			  struct rds_info_lengths *lens,
 			  int (*visitor)(struct rds_connection *, void *),
+			  u64 *buffer,
 			  size_t item_len)
 {
-	uint64_t buffer[(item_len + 7) / 8];
 	struct hlist_head *head;
 	struct rds_connection *conn;
 	size_t i;
@@ -578,9 +578,9 @@ static void rds_walk_conn_path_info(struct socket *sock, unsigned int len,
 				    struct rds_info_iterator *iter,
 				    struct rds_info_lengths *lens,
 				    int (*visitor)(struct rds_conn_path *, void *),
+				    u64 *buffer,
 				    size_t item_len)
 {
-	u64  buffer[(item_len + 7) / 8];
 	struct hlist_head *head;
 	struct rds_connection *conn;
 	size_t i;
@@ -649,8 +649,11 @@ static void rds_conn_info(struct socket *sock, unsigned int len,
 			  struct rds_info_iterator *iter,
 			  struct rds_info_lengths *lens)
 {
+	u64 buffer[(sizeof(struct rds_info_connection) + 7) / 8];
+
 	rds_walk_conn_path_info(sock, len, iter, lens,
 				rds_conn_info_visitor,
+				buffer,
 				sizeof(struct rds_info_connection));
 }
 

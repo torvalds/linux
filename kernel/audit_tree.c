@@ -709,7 +709,7 @@ static int prune_tree_thread(void *unused)
 			schedule();
 		}
 
-		mutex_lock(&audit_cmd_mutex);
+		audit_ctl_lock();
 		mutex_lock(&audit_filter_mutex);
 
 		while (!list_empty(&prune_list)) {
@@ -727,7 +727,7 @@ static int prune_tree_thread(void *unused)
 		}
 
 		mutex_unlock(&audit_filter_mutex);
-		mutex_unlock(&audit_cmd_mutex);
+		audit_ctl_unlock();
 	}
 	return 0;
 }
@@ -924,7 +924,7 @@ static void audit_schedule_prune(void)
  */
 void audit_kill_trees(struct list_head *list)
 {
-	mutex_lock(&audit_cmd_mutex);
+	audit_ctl_lock();
 	mutex_lock(&audit_filter_mutex);
 
 	while (!list_empty(list)) {
@@ -942,7 +942,7 @@ void audit_kill_trees(struct list_head *list)
 	}
 
 	mutex_unlock(&audit_filter_mutex);
-	mutex_unlock(&audit_cmd_mutex);
+	audit_ctl_unlock();
 }
 
 /*

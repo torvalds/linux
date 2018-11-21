@@ -58,12 +58,11 @@ static int pci6208_ao_insn_write(struct comedi_device *dev,
 				 unsigned int *data)
 {
 	unsigned int chan = CR_CHAN(insn->chanspec);
-	unsigned int val = s->readback[chan];
 	int ret;
 	int i;
 
 	for (i = 0; i < insn->n; i++) {
-		val = data[i];
+		unsigned int val = data[i];
 
 		/* D/A transfer rate is 2.2us */
 		ret = comedi_timeout(dev, s, insn, pci6208_ao_eoc, 0);

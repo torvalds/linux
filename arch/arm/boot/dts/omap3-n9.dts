@@ -39,6 +39,13 @@
 	};
 };
 
+&i2c3 {
+	ak8975@0f {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0f>;
+	};
+};
+
 &isp {
 	vdd-csiphy1-supply = <&vaux2>;
 	vdd-csiphy2-supply = <&vaux2>;

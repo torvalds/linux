@@ -534,7 +534,7 @@ static void handle_bar_read(unsigned int index, struct mdev_state *mdev_state,
 
 		/* Interrupt priority 2: Fifo trigger level reached */
 		if ((ier & UART_IER_RDI) &&
-		    (mdev_state->s[index].rxtx.count ==
+		    (mdev_state->s[index].rxtx.count >=
 		      mdev_state->s[index].intr_trigger_level))
 			*buf |= UART_IIR_RDI;
 

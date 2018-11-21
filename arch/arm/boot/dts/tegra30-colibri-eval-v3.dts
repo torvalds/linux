@@ -56,11 +56,11 @@
 	 */
 	i2c@7000c000 {
 		status = "okay";
-		clock-frequency = <100000>;
+		clock-frequency = <400000>;
 
 		/* M41T0M6 real time clock on carrier board */
 		rtc@68 {
-			compatible = "st,m41t00";
+			compatible = "st,m41t0";
 			reg = <0x68>;
 		};
 	};
@@ -79,7 +79,7 @@
 			reg = <0>;
 			clocks = <&clk16m>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(S, 0) GPIO_ACTIVE_LOW>;
+			interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_EDGE_RISING>;
 			spi-max-frequency = <10000000>;
 		};
 		spidev0: spi@1 {

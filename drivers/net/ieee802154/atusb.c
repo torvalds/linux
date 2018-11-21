@@ -1045,7 +1045,7 @@ static int atusb_probe(struct usb_interface *interface,
 	atusb->tx_dr.bRequest = ATUSB_TX;
 	atusb->tx_dr.wValue = cpu_to_le16(0);
 
-	atusb->tx_urb = usb_alloc_urb(0, GFP_ATOMIC);
+	atusb->tx_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!atusb->tx_urb)
 		goto fail;
 

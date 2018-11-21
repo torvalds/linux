@@ -105,14 +105,14 @@ config ACPI_PROCFS_POWER
           deprecated power /proc/acpi/ directories to exist, even when
           they have been replaced by functions in /sys.
           The deprecated directories (and their replacements) include:
-	  /proc/acpi/battery/* (/sys/class/power_supply/*)
-	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*)
+	  /proc/acpi/battery/* (/sys/class/power_supply/*) and
+	  /proc/acpi/ac_adapter/* (sys/class/power_supply/*).
 	  This option has no effect on /proc/acpi/ directories
-	  and functions, which do not yet exist in /sys
+	  and functions which do not yet exist in /sys.
 	  This option, together with the proc directories, will be
 	  deleted in the future.
 
-	  Say N to delete power /proc/acpi/ directories that have moved to /sys/
+	  Say N to delete power /proc/acpi/ directories that have moved to /sys.
 
 config ACPI_REV_OVERRIDE_POSSIBLE
 	bool "Allow supported ACPI revision to be overridden"
@@ -216,6 +216,19 @@ config ACPI_FAN
 
 	  To compile this driver as a module, choose M here:
 	  the module will be called fan.
+
+config ACPI_TAD
+	tristate "ACPI Time and Alarm (TAD) Device Support"
+	depends on SYSFS && PM_SLEEP
+	help
+	  The ACPI Time and Alarm (TAD) device is an alternative to the Real
+	  Time Clock (RTC).  Its wake timers allow the system to transition from
+	  the S3 (or optionally S4/S5) state to S0 state after a time period
+	  elapses.  In comparison with the RTC Alarm, the TAD provides a larger
+	  scale of flexibility in the wake timers.  The time capabilities of the
+	  TAD maintain the time of day information across platform power
+	  transitions, and keep track of time even when the platform is turned
+	  off.
 
 config ACPI_DOCK
 	bool "Dock"

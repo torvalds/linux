@@ -2094,7 +2094,7 @@ static struct pernet_operations ip_set_net_ops = {
 	.init	= ip_set_net_init,
 	.exit   = ip_set_net_exit,
 	.id	= &ip_set_net_id,
-	.size	= sizeof(struct ip_set_net)
+	.size	= sizeof(struct ip_set_net),
 };
 
 static int __init

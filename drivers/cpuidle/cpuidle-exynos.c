@@ -117,7 +117,8 @@ static int exynos_cpuidle_probe(struct platform_device *pdev)
 	int ret;
 
 	if (IS_ENABLED(CONFIG_SMP) &&
-	    of_machine_is_compatible("samsung,exynos4210")) {
+	    (of_machine_is_compatible("samsung,exynos4210") ||
+	     of_machine_is_compatible("samsung,exynos3250"))) {
 		exynos_cpuidle_pdata = pdev->dev.platform_data;
 
 		ret = cpuidle_register(&exynos_coupled_idle_driver,

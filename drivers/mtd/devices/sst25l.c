@@ -195,7 +195,6 @@ static int sst25l_erase(struct mtd_info *mtd, struct erase_info *instr)
 		err = sst25l_erase_sector(flash, addr);
 		if (err) {
 			mutex_unlock(&flash->lock);
-			instr->state = MTD_ERASE_FAILED;
 			dev_err(&flash->spi->dev, "Erase failed\n");
 			return err;
 		}
@@ -205,8 +204,6 @@ static int sst25l_erase(struct mtd_info *mtd, struct erase_info *instr)
 
 	mutex_unlock(&flash->lock);
 
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
 	return 0;
 }
 

@@ -308,7 +308,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	}
 
 	ip->i_inode.i_ctime = current_time(&ip->i_inode);
-	__mark_inode_dirty(&ip->i_inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 	gfs2_trans_end(sdp);
 
@@ -768,7 +768,7 @@ static int ea_alloc_skeleton(struct gfs2_inode *ip, struct gfs2_ea_request *er,
 		goto out_end_trans;
 
 	ip->i_inode.i_ctime = current_time(&ip->i_inode);
-	__mark_inode_dirty(&ip->i_inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 out_end_trans:
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
@@ -896,7 +896,7 @@ static int ea_set_simple_noalloc(struct gfs2_inode *ip, struct buffer_head *bh,
 		ea_set_remove_stuffed(ip, es->es_el);
 
 	ip->i_inode.i_ctime = current_time(&ip->i_inode);
-	__mark_inode_dirty(&ip->i_inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
 	return error;
@@ -1114,7 +1114,7 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 	}
 
 	ip->i_inode.i_ctime = current_time(&ip->i_inode);
-	__mark_inode_dirty(&ip->i_inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+	__mark_inode_dirty(&ip->i_inode, I_DIRTY_DATASYNC);
 
 	gfs2_trans_end(GFS2_SB(&ip->i_inode));
 

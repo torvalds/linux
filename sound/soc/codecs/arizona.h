@@ -273,7 +273,7 @@ int arizona_lhpf_coeff_put(struct snd_kcontrol *kcontrol,
 
 int arizona_clk_ev(struct snd_soc_dapm_widget *w, struct snd_kcontrol *kcontrol,
 		   int event);
-int arizona_set_sysclk(struct snd_soc_codec *codec, int clk_id, int source,
+int arizona_set_sysclk(struct snd_soc_component *component, int clk_id, int source,
 		       unsigned int freq, int dir);
 
 extern const struct snd_soc_dai_ops arizona_dai_ops;
@@ -297,8 +297,8 @@ struct arizona_fll {
 	char clock_ok_name[ARIZONA_FLL_NAME_LEN];
 };
 
-int arizona_dvfs_up(struct snd_soc_codec *codec, unsigned int flags);
-int arizona_dvfs_down(struct snd_soc_codec *codec, unsigned int flags);
+int arizona_dvfs_up(struct snd_soc_component *component, unsigned int flags);
+int arizona_dvfs_down(struct snd_soc_component *component, unsigned int flags);
 int arizona_dvfs_sysclk_ev(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event);
 void arizona_init_dvfs(struct arizona_priv *priv);
@@ -310,9 +310,9 @@ int arizona_set_fll_refclk(struct arizona_fll *fll, int source,
 int arizona_set_fll(struct arizona_fll *fll, int source,
 		    unsigned int Fref, unsigned int Fout);
 
-int arizona_init_spk(struct snd_soc_codec *codec);
-int arizona_init_gpio(struct snd_soc_codec *codec);
-int arizona_init_mono(struct snd_soc_codec *codec);
+int arizona_init_spk(struct snd_soc_component *component);
+int arizona_init_gpio(struct snd_soc_component *component);
+int arizona_init_mono(struct snd_soc_component *component);
 
 int arizona_init_common(struct arizona *arizona);
 int arizona_init_vol_limit(struct arizona *arizona);
@@ -322,20 +322,20 @@ int arizona_free_spk_irqs(struct arizona *arizona);
 
 int arizona_init_dai(struct arizona_priv *priv, int dai);
 
-int arizona_set_output_mode(struct snd_soc_codec *codec, int output,
+int arizona_set_output_mode(struct snd_soc_component *component, int output,
 			    bool diff);
 
-bool arizona_input_analog(struct snd_soc_codec *codec, int shift);
+bool arizona_input_analog(struct snd_soc_component *component, int shift);
 
 const char *arizona_sample_rate_val_to_name(unsigned int rate_val);
 
-static inline int arizona_register_notifier(struct snd_soc_codec *codec,
+static inline int arizona_register_notifier(struct snd_soc_component *component,
 					    struct notifier_block *nb,
 					    int (*notify)
 					    (struct notifier_block *nb,
 					    unsigned long action, void *data))
 {
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
 
 	nb->notifier_call = notify;
@@ -343,10 +343,10 @@ static inline int arizona_register_notifier(struct snd_soc_codec *codec,
 	return blocking_notifier_chain_register(&arizona->notifier, nb);
 }
 
-static inline int arizona_unregister_notifier(struct snd_soc_codec *codec,
+static inline int arizona_unregister_notifier(struct snd_soc_component *component,
 					      struct notifier_block *nb)
 {
-	struct arizona_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct arizona_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->arizona;
 
 	return blocking_notifier_chain_unregister(&arizona->notifier, nb);

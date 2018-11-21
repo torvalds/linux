@@ -42,23 +42,6 @@ cifs_dump_mem(char *label, void *data, int length)
 		       data, length, true);
 }
 
-#ifdef CONFIG_CIFS_DEBUG
-void cifs_vfs_err(const char *fmt, ...)
-{
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	pr_err_ratelimited("CIFS VFS: %pV", &vaf);
-
-	va_end(args);
-}
-#endif
-
 void cifs_dump_detail(void *buf)
 {
 #ifdef CONFIG_CIFS_DEBUG2

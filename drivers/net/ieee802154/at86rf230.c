@@ -1661,7 +1661,7 @@ static int at86rf230_debugfs_init(struct at86rf230_local *lp)
 	if (!at86rf230_debugfs_root)
 		return -ENOMEM;
 
-	stats = debugfs_create_file("trac_stats", S_IRUGO,
+	stats = debugfs_create_file("trac_stats", 0444,
 				    at86rf230_debugfs_root, lp,
 				    &at86rf230_stats_fops);
 	if (!stats)

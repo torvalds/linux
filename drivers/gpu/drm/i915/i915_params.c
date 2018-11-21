@@ -155,7 +155,8 @@ i915_param_named_unsafe(enable_guc, int, 0400,
 	"(-1=auto, 0=disable [default], 1=GuC submission, 2=HuC load)");
 
 i915_param_named(guc_log_level, int, 0400,
-	"GuC firmware logging level (-1:disabled (default), 0-3:enabled)");
+	"GuC firmware logging level. Requires GuC to be loaded. "
+	"(-1=auto [default], 0=disable, 1..4=enable with verbosity min..max)");
 
 i915_param_named_unsafe(guc_firmware_path, charp, 0400,
 	"GuC firmware path to use instead of the default one");
@@ -166,8 +167,10 @@ i915_param_named_unsafe(huc_firmware_path, charp, 0400,
 i915_param_named_unsafe(enable_dp_mst, bool, 0600,
 	"Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)");
 
+#if IS_ENABLED(CONFIG_DRM_I915_DEBUG)
 i915_param_named_unsafe(inject_load_failure, uint, 0400,
 	"Force an error after a number of failure check points (0:disabled (default), N:force failure at the Nth failure check point)");
+#endif
 
 i915_param_named(enable_dpcd_backlight, bool, 0600,
 	"Enable support for DPCD backlight control (default:false)");

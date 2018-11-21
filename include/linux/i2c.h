@@ -47,6 +47,7 @@ struct i2c_algorithm;
 struct i2c_adapter;
 struct i2c_client;
 struct i2c_driver;
+struct i2c_device_identity;
 union i2c_smbus_data;
 struct i2c_board_info;
 enum i2c_slave_event;
@@ -186,7 +187,36 @@ extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 extern s32
 i2c_smbus_read_i2c_block_data_or_emulated(const struct i2c_client *client,
 					  u8 command, u8 length, u8 *values);
+int i2c_get_device_id(const struct i2c_client *client,
+		      struct i2c_device_identity *id);
 #endif /* I2C */
+
+/**
+ * struct i2c_device_identity - i2c client device identification
+ * @manufacturer_id: 0 - 4095, database maintained by NXP
+ * @part_id: 0 - 511, according to manufacturer
+ * @die_revision: 0 - 7, according to manufacturer
+ */
+struct i2c_device_identity {
+	u16 manufacturer_id;
+#define I2C_DEVICE_ID_NXP_SEMICONDUCTORS                0
+#define I2C_DEVICE_ID_NXP_SEMICONDUCTORS_1              1
+#define I2C_DEVICE_ID_NXP_SEMICONDUCTORS_2              2
+#define I2C_DEVICE_ID_NXP_SEMICONDUCTORS_3              3
+#define I2C_DEVICE_ID_RAMTRON_INTERNATIONAL             4
+#define I2C_DEVICE_ID_ANALOG_DEVICES                    5
+#define I2C_DEVICE_ID_STMICROELECTRONICS                6
+#define I2C_DEVICE_ID_ON_SEMICONDUCTOR                  7
+#define I2C_DEVICE_ID_SPRINTEK_CORPORATION              8
+#define I2C_DEVICE_ID_ESPROS_PHOTONICS_AG               9
+#define I2C_DEVICE_ID_FUJITSU_SEMICONDUCTOR            10
+#define I2C_DEVICE_ID_FLIR                             11
+#define I2C_DEVICE_ID_O2MICRO                          12
+#define I2C_DEVICE_ID_ATMEL                            13
+#define I2C_DEVICE_ID_NONE                         0xffff
+	u16 part_id;
+	u8 die_revision;
+};
 
 enum i2c_alert_protocol {
 	I2C_PROTOCOL_SMBUS_ALERT,

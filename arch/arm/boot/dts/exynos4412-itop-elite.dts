@@ -116,19 +116,19 @@
 		compatible = "pwm-beeper";
 		pwms = <&pwm 0 4000000 PWM_POLARITY_INVERTED>;
 	};
-
-	camera: camera {
-		pinctrl-0 = <&cam_port_a_clk_active>;
-		pinctrl-names = "default";
-		status = "okay";
-		assigned-clocks = <&clock CLK_MOUT_CAM0>;
-		assigned-clock-parents = <&clock CLK_XUSBXTI>;
-	};
 };
 
 &adc {
 	vdd-supply = <&ldo3_reg>;
 	status = "okay";
+};
+
+&camera {
+	pinctrl-0 = <&cam_port_a_clk_active>;
+	pinctrl-names = "default";
+	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_CAM0>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>;
 };
 
 &clock_audss {

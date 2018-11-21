@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BTRFS_SYSFS_H_
-#define _BTRFS_SYSFS_H_
+
+#ifndef BTRFS_SYSFS_H
+#define BTRFS_SYSFS_H
 
 /*
  * Data exported through sysfs
@@ -90,4 +91,4 @@ void btrfs_sysfs_remove_fsid(struct btrfs_fs_devices *fs_devs);
 void btrfs_sysfs_feature_update(struct btrfs_fs_info *fs_info,
 		u64 bit, enum btrfs_feature_set set);
 
-#endif /* _BTRFS_SYSFS_H_ */
+#endif

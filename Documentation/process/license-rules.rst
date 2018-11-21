@@ -4,15 +4,17 @@ Linux kernel licensing rules
 ============================
 
 The Linux Kernel is provided under the terms of the GNU General Public
-License version 2 only (GPL-2.0), as published by the Free Software
-Foundation, and provided in the COPYING file.  This documentation file is
-not meant to replace the COPYING file, but provides a description of how
-each source file should be annotated to make the licensing it is governed
-under clear and unambiguous.
+License version 2 only (GPL-2.0), as provided in LICENSES/preferred/GPL-2.0,
+with an explicit syscall exception described in
+LICENSES/exceptions/Linux-syscall-note, as described in the COPYING file.
 
-The license in the COPYING file applies to the kernel source as a whole,
-though individual source files can have a different license which is
-required to be compatible with the GPL-2.0::
+This documentation file provides a description of how each source file
+should be annotated to make its license clear and unambiguous.
+It doesn't replace the Kernel's license.
+
+The license described in the COPYING file applies to the kernel source
+as a whole, though individual source files can have a different license
+which is required to be compatible with the GPL-2.0::
 
     GPL-1.0+  :  GNU General Public License v1.0 or later
     GPL-2.0+  :  GNU General Public License v2.0 or later

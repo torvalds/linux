@@ -1195,7 +1195,7 @@ static struct s5h1411_config kworld_s5h1411_config = {
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
 	.mpeg_timing   =
-		S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+		S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 

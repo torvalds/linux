@@ -77,6 +77,9 @@ struct kvm_arch {
 	/* Interrupt controller */
 	struct vgic_dist	vgic;
 	int max_vcpus;
+
+	/* Mandated version of PSCI */
+	u32 psci_version;
 };
 
 #define KVM_NR_MEM_OBJS     40
@@ -154,9 +157,6 @@ struct kvm_vcpu_arch {
 
 	/* HYP trapping configuration */
 	u32 hcr;
-
-	/* Interrupt related fields */
-	u32 irq_lines;		/* IRQ and FIQ levels */
 
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
@@ -314,5 +314,8 @@ static inline bool kvm_arm_harden_branch_predictor(void)
 	/* No way to detect it yet, pretend it is not there. */
 	return false;
 }
+
+static inline void kvm_vcpu_load_sysregs(struct kvm_vcpu *vcpu) {}
+static inline void kvm_vcpu_put_sysregs(struct kvm_vcpu *vcpu) {}
 
 #endif /* __ARM_KVM_HOST_H__ */

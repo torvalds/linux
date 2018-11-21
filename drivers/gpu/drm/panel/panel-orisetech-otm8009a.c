@@ -1,16 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2017
  *
  * Authors: Philippe Cornu <philippe.cornu@st.com>
  *          Yannick Fertre <yannick.fertre@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
+
 #include <drm/drmP.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 #include <linux/backlight.h>
 #include <linux/gpio/consumer.h>
+#include <linux/regulator/consumer.h>
 #include <video/mipi_display.h>
 
 #define DRV_NAME "orisetech_otm8009a"
@@ -62,6 +63,7 @@ struct otm8009a {
 	struct drm_panel panel;
 	struct backlight_device *bl_dev;
 	struct gpio_desc *reset_gpio;
+	struct regulator *supply;
 	bool prepared;
 	bool enabled;
 };
@@ -279,6 +281,8 @@ static int otm8009a_unprepare(struct drm_panel *panel)
 		msleep(20);
 	}
 
+	regulator_disable(ctx->supply);
+
 	ctx->prepared = false;
 
 	return 0;
@@ -291,6 +295,12 @@ static int otm8009a_prepare(struct drm_panel *panel)
 
 	if (ctx->prepared)
 		return 0;
+
+	ret = regulator_enable(ctx->supply);
+	if (ret < 0) {
+		DRM_ERROR("failed to enable supply: %d\n", ret);
+		return ret;
+	}
 
 	if (ctx->reset_gpio) {
 		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
@@ -412,6 +422,13 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->reset_gpio)) {
 		dev_err(dev, "cannot get reset-gpio\n");
 		return PTR_ERR(ctx->reset_gpio);
+	}
+
+	ctx->supply = devm_regulator_get(dev, "power");
+	if (IS_ERR(ctx->supply)) {
+		ret = PTR_ERR(ctx->supply);
+		dev_err(dev, "failed to request regulator: %d\n", ret);
+		return ret;
 	}
 
 	mipi_dsi_set_drvdata(dsi, ctx);

@@ -101,12 +101,14 @@ void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
  *
  * This function parses the regulatory channel data received as a
  * MCC_UPDATE_CMD command. It returns a newly allocation regulatory domain,
- * to be fed into the regulatory core. An ERR_PTR is returned on error.
+ * to be fed into the regulatory core. In case the geo_info is set handle
+ * accordingly. An ERR_PTR is returned on error.
  * If not given to the regulatory core, the user is responsible for freeing
  * the regdomain returned here with kfree.
  */
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
-		       int num_of_ch, __le32 *channels, u16 fw_mcc);
+		       int num_of_ch, __le32 *channels, u16 fw_mcc,
+		       u16 geo_info);
 
 #endif /* __iwl_nvm_parse_h__ */

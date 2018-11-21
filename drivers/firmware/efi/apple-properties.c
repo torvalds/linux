@@ -19,6 +19,7 @@
 
 #include <linux/bootmem.h>
 #include <linux/efi.h>
+#include <linux/io.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/property.h>
 #include <linux/slab.h>
@@ -51,8 +52,6 @@ struct properties_header {
 	u32 dev_count;
 	struct dev_header dev_header[0];
 };
-
-static u8 one __initdata = 1;
 
 static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
 					     struct device *dev, void *ptr,
@@ -95,14 +94,9 @@ static void __init unmarshal_key_value_pairs(struct dev_header *dev_header,
 			     key_len - sizeof(key_len));
 
 		entry[i].name = key;
-		entry[i].is_array = true;
 		entry[i].length = val_len - sizeof(val_len);
+		entry[i].is_array = !!entry[i].length;
 		entry[i].pointer.raw_data = ptr + key_len + sizeof(val_len);
-		if (!entry[i].length) {
-			/* driver core doesn't accept empty properties */
-			entry[i].length = 1;
-			entry[i].pointer.raw_data = &one;
-		}
 
 		if (dump_properties) {
 			dev_info(dev, "property: %s\n", entry[i].name);
@@ -196,7 +190,7 @@ static int __init map_properties(void)
 
 	pa_data = boot_params.hdr.setup_data;
 	while (pa_data) {
-		data = ioremap(pa_data, sizeof(*data));
+		data = memremap(pa_data, sizeof(*data), MEMREMAP_WB);
 		if (!data) {
 			pr_err("cannot map setup_data header\n");
 			return -ENOMEM;
@@ -204,14 +198,14 @@ static int __init map_properties(void)
 
 		if (data->type != SETUP_APPLE_PROPERTIES) {
 			pa_data = data->next;
-			iounmap(data);
+			memunmap(data);
 			continue;
 		}
 
 		data_len = data->len;
-		iounmap(data);
+		memunmap(data);
 
-		data = ioremap(pa_data, sizeof(*data) + data_len);
+		data = memremap(pa_data, sizeof(*data) + data_len, MEMREMAP_WB);
 		if (!data) {
 			pr_err("cannot map setup_data payload\n");
 			return -ENOMEM;
@@ -236,7 +230,7 @@ static int __init map_properties(void)
 		 * to avoid breaking the chain of ->next pointers.
 		 */
 		data->len = 0;
-		iounmap(data);
+		memunmap(data);
 		free_bootmem_late(pa_data + sizeof(*data), data_len);
 
 		return ret;

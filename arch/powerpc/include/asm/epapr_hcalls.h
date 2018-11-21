@@ -466,17 +466,17 @@ static inline unsigned long epapr_hypercall(unsigned long *in,
 			    unsigned long *out,
 			    unsigned long nr)
 {
-	unsigned long register r0 asm("r0");
-	unsigned long register r3 asm("r3") = in[0];
-	unsigned long register r4 asm("r4") = in[1];
-	unsigned long register r5 asm("r5") = in[2];
-	unsigned long register r6 asm("r6") = in[3];
-	unsigned long register r7 asm("r7") = in[4];
-	unsigned long register r8 asm("r8") = in[5];
-	unsigned long register r9 asm("r9") = in[6];
-	unsigned long register r10 asm("r10") = in[7];
-	unsigned long register r11 asm("r11") = nr;
-	unsigned long register r12 asm("r12");
+	register unsigned long r0 asm("r0");
+	register unsigned long r3 asm("r3") = in[0];
+	register unsigned long r4 asm("r4") = in[1];
+	register unsigned long r5 asm("r5") = in[2];
+	register unsigned long r6 asm("r6") = in[3];
+	register unsigned long r7 asm("r7") = in[4];
+	register unsigned long r8 asm("r8") = in[5];
+	register unsigned long r9 asm("r9") = in[6];
+	register unsigned long r10 asm("r10") = in[7];
+	register unsigned long r11 asm("r11") = nr;
+	register unsigned long r12 asm("r12");
 
 	asm volatile("bl	epapr_hypercall_start"
 		     : "=r"(r0), "=r"(r3), "=r"(r4), "=r"(r5), "=r"(r6),

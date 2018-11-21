@@ -177,7 +177,7 @@ static int vdic_get_ipu_resources(struct vdic_priv *priv)
 		priv->vdi_in_ch = ch;
 
 		ch = ipu_idmac_get(priv->ipu, IPUV3_CHANNEL_MEM_VDI_NEXT);
-		if (IS_ERR(priv->vdi_in_ch_n)) {
+		if (IS_ERR(ch)) {
 			err_chan = IPUV3_CHANNEL_MEM_VDI_NEXT;
 			ret = PTR_ERR(ch);
 			goto out_err_chan;
@@ -909,6 +909,7 @@ static void vdic_unregistered(struct v4l2_subdev *sd)
 }
 
 static const struct v4l2_subdev_pad_ops vdic_pad_ops = {
+	.init_cfg = imx_media_init_cfg,
 	.enum_mbus_code = vdic_enum_mbus_code,
 	.get_fmt = vdic_get_fmt,
 	.set_fmt = vdic_set_fmt,

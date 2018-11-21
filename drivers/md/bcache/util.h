@@ -567,12 +567,6 @@ static inline sector_t bdev_sectors(struct block_device *bdev)
 	return bdev->bd_inode->i_size >> 9;
 }
 
-#define closure_bio_submit(bio, cl)					\
-do {									\
-	closure_get(cl);						\
-	generic_make_request(bio);					\
-} while (0)
-
 uint64_t bch_crc64_update(uint64_t, const void *, size_t);
 uint64_t bch_crc64(const void *, size_t);
 

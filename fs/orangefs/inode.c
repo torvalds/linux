@@ -138,7 +138,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 }
 
 /** ORANGEFS2 implementation of address space operations */
-const struct address_space_operations orangefs_address_operations = {
+static const struct address_space_operations orangefs_address_operations = {
 	.readpage = orangefs_readpage,
 	.readpages = orangefs_readpages,
 	.invalidatepage = orangefs_invalidatepage,
@@ -307,7 +307,7 @@ int orangefs_update_time(struct inode *inode, struct timespec *time, int flags)
 }
 
 /* ORANGEDS2 implementation of VFS inode operations for files */
-const struct inode_operations orangefs_file_inode_operations = {
+static const struct inode_operations orangefs_file_inode_operations = {
 	.get_acl = orangefs_get_acl,
 	.set_acl = orangefs_set_acl,
 	.setattr = orangefs_setattr,

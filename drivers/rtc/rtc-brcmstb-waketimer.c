@@ -60,6 +60,9 @@ static void brcmstb_waketmr_set_alarm(struct brcmstb_waketmr *timer,
 {
 	brcmstb_waketmr_clear_alarm(timer);
 
+	/* Make sure we are actually counting in seconds */
+	writel_relaxed(timer->rate, timer->base + BRCMSTB_WKTMR_PRESCALER);
+
 	writel_relaxed(secs + 1, timer->base + BRCMSTB_WKTMR_ALARM);
 }
 

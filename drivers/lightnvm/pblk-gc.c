@@ -88,7 +88,7 @@ static void pblk_gc_line_ws(struct work_struct *work)
 
 	up(&gc->gc_sem);
 
-	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->sec_size);
+	gc_rq->data = vmalloc(gc_rq->nr_secs * geo->csecs);
 	if (!gc_rq->data) {
 		pr_err("pblk: could not GC line:%d (%d/%d)\n",
 					line->id, *line->vsc, gc_rq->nr_secs);
@@ -147,10 +147,8 @@ static void pblk_gc_line_prepare_ws(struct work_struct *work)
 	int ret;
 
 	invalid_bitmap = kmalloc(lm->sec_bitmap_len, GFP_KERNEL);
-	if (!invalid_bitmap) {
-		pr_err("pblk: could not allocate GC invalid bitmap\n");
+	if (!invalid_bitmap)
 		goto fail_free_ws;
-	}
 
 	emeta_buf = pblk_malloc(lm->emeta_len[0], l_mg->emeta_alloc_type,
 								GFP_KERNEL);
@@ -666,12 +664,10 @@ void pblk_gc_exit(struct pblk *pblk)
 		kthread_stop(gc->gc_reader_ts);
 
 	flush_workqueue(gc->gc_reader_wq);
-	if (gc->gc_reader_wq)
-		destroy_workqueue(gc->gc_reader_wq);
+	destroy_workqueue(gc->gc_reader_wq);
 
 	flush_workqueue(gc->gc_line_reader_wq);
-	if (gc->gc_line_reader_wq)
-		destroy_workqueue(gc->gc_line_reader_wq);
+	destroy_workqueue(gc->gc_line_reader_wq);
 
 	if (gc->gc_writer_ts)
 		kthread_stop(gc->gc_writer_ts);

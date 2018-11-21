@@ -269,6 +269,13 @@ struct device;
 	.reg = SND_SOC_NOPM, .shift = wdelay, .event = dapm_regulator_event, \
 	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD, \
 	.on_val = wflags}
+#define SND_SOC_DAPM_PINCTRL(wname, active, sleep) \
+{	.id = snd_soc_dapm_pinctrl, .name = wname, \
+	.priv = (&(struct snd_soc_dapm_pinctrl_priv) \
+		{ .active_state = active, .sleep_state = sleep,}), \
+	.reg = SND_SOC_NOPM, .event = dapm_pinctrl_event, \
+	.event_flags = SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD }
+
 
 
 /* dapm kcontrol types */
@@ -373,6 +380,8 @@ enum snd_soc_dapm_direction;
 int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
 int dapm_clock_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *kcontrol, int event);
+int dapm_pinctrl_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event);
 
 /* dapm controls */
@@ -500,6 +509,7 @@ enum snd_soc_dapm_type {
 	snd_soc_dapm_pre,			/* machine specific pre widget - exec first */
 	snd_soc_dapm_post,			/* machine specific post widget - exec last */
 	snd_soc_dapm_supply,		/* power/clock supply */
+	snd_soc_dapm_pinctrl,		/* pinctrl */
 	snd_soc_dapm_regulator_supply,	/* external regulator */
 	snd_soc_dapm_clock_supply,	/* external clock */
 	snd_soc_dapm_aif_in,		/* audio interface input */
@@ -581,6 +591,7 @@ struct snd_soc_dapm_widget {
 
 	void *priv;				/* widget specific data */
 	struct regulator *regulator;		/* attached regulator */
+	struct pinctrl *pinctrl;		/* attached pinctrl */
 	const struct snd_soc_pcm_stream *params; /* params for dai links */
 	unsigned int num_params; /* number of params for dai links */
 	unsigned int params_select; /* currently selected param for dai link */
@@ -681,6 +692,11 @@ struct snd_soc_dapm_stats {
 	int power_checks;
 	int path_checks;
 	int neighbour_checks;
+};
+
+struct snd_soc_dapm_pinctrl_priv {
+	const char *active_state;
+	const char *sleep_state;
 };
 
 /**

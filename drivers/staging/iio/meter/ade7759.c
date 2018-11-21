@@ -72,8 +72,8 @@ struct ade7759_state {
 };
 
 static int ade7759_spi_write_reg_8(struct device *dev,
-		u8 reg_address,
-		u8 val)
+				   u8 reg_address,
+				   u8 val)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -91,8 +91,8 @@ static int ade7759_spi_write_reg_8(struct device *dev,
 
 /*Unlocked version of ade7759_spi_write_reg_16 function */
 static int __ade7759_spi_write_reg_16(struct device *dev,
-		u8 reg_address,
-		u16 value)
+				      u8 reg_address,
+				      u16 value)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7759_state *st = iio_priv(indio_dev);
@@ -104,8 +104,8 @@ static int __ade7759_spi_write_reg_16(struct device *dev,
 }
 
 static int ade7759_spi_write_reg_16(struct device *dev,
-		u8 reg_address,
-		u16 value)
+				    u8 reg_address,
+				    u16 value)
 {
 	int ret;
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
@@ -119,8 +119,8 @@ static int ade7759_spi_write_reg_16(struct device *dev,
 }
 
 static int ade7759_spi_read_reg_8(struct device *dev,
-		u8 reg_address,
-		u8 *val)
+				  u8 reg_address,
+				  u8 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7759_state *st = iio_priv(indio_dev);
@@ -128,8 +128,9 @@ static int ade7759_spi_read_reg_8(struct device *dev,
 
 	ret = spi_w8r8(st->us, ADE7759_READ_REG(reg_address));
 	if (ret < 0) {
-		dev_err(&st->us->dev, "problem when reading 8 bit register 0x%02X",
-				reg_address);
+		dev_err(&st->us->dev,
+			"problem when reading 8 bit register 0x%02X",
+			reg_address);
 		return ret;
 	}
 	*val = ret;
@@ -138,8 +139,8 @@ static int ade7759_spi_read_reg_8(struct device *dev,
 }
 
 static int ade7759_spi_read_reg_16(struct device *dev,
-		u8 reg_address,
-		u16 *val)
+				   u8 reg_address,
+				   u16 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7759_state *st = iio_priv(indio_dev);
@@ -158,8 +159,8 @@ static int ade7759_spi_read_reg_16(struct device *dev,
 }
 
 static int ade7759_spi_read_reg_40(struct device *dev,
-		u8 reg_address,
-		u64 *val)
+				   u8 reg_address,
+				   u64 *val)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7759_state *st = iio_priv(indio_dev);
@@ -179,8 +180,9 @@ static int ade7759_spi_read_reg_40(struct device *dev,
 
 	ret = spi_sync_transfer(st->us, xfers, ARRAY_SIZE(xfers));
 	if (ret) {
-		dev_err(&st->us->dev, "problem when reading 40 bit register 0x%02X",
-				reg_address);
+		dev_err(&st->us->dev,
+			"problem when reading 40 bit register 0x%02X",
+			reg_address);
 		goto error_ret;
 	}
 	*val = ((u64)st->rx[1] << 32) | ((u64)st->rx[2] << 24) |
@@ -192,8 +194,8 @@ error_ret:
 }
 
 static ssize_t ade7759_read_8bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				 struct device_attribute *attr,
+				 char *buf)
 {
 	int ret;
 	u8 val = 0;
@@ -207,8 +209,8 @@ static ssize_t ade7759_read_8bit(struct device *dev,
 }
 
 static ssize_t ade7759_read_16bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u16 val = 0;
@@ -222,8 +224,8 @@ static ssize_t ade7759_read_16bit(struct device *dev,
 }
 
 static ssize_t ade7759_read_40bit(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	int ret;
 	u64 val = 0;
@@ -237,9 +239,9 @@ static ssize_t ade7759_read_40bit(struct device *dev,
 }
 
 static ssize_t ade7759_write_8bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				  struct device_attribute *attr,
+				  const char *buf,
+				  size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
@@ -255,9 +257,9 @@ error_ret:
 }
 
 static ssize_t ade7759_write_16bit(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				   struct device_attribute *attr,
+				   const char *buf,
+				   size_t len)
 {
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int ret;
@@ -277,9 +279,7 @@ static int ade7759_reset(struct device *dev)
 	int ret;
 	u16 val;
 
-	ret = ade7759_spi_read_reg_16(dev,
-			ADE7759_MODE,
-			&val);
+	ret = ade7759_spi_read_reg_16(dev, ADE7759_MODE, &val);
 	if (ret < 0)
 		return ret;
 
@@ -328,14 +328,16 @@ static IIO_DEV_ATTR_ACTIVE_POWER_GAIN(0644,
 		ade7759_read_16bit,
 		ade7759_write_16bit,
 		ADE7759_APGAIN);
-static IIO_DEV_ATTR_CH_OFF(1, 0644,
-		ade7759_read_8bit,
-		ade7759_write_8bit,
-		ADE7759_CH1OS);
-static IIO_DEV_ATTR_CH_OFF(2, 0644,
-		ade7759_read_8bit,
-		ade7759_write_8bit,
-		ADE7759_CH2OS);
+
+static IIO_DEVICE_ATTR(choff_1, 0644,
+			ade7759_read_8bit,
+			ade7759_write_8bit,
+			ADE7759_CH1OS);
+
+static IIO_DEVICE_ATTR(choff_2, 0644,
+			ade7759_read_8bit,
+			ade7759_write_8bit,
+			ADE7759_CH2OS);
 
 static int ade7759_set_irq(struct device *dev, bool enable)
 {
@@ -365,9 +367,7 @@ static int ade7759_stop_device(struct device *dev)
 	int ret;
 	u16 val;
 
-	ret = ade7759_spi_read_reg_16(dev,
-			ADE7759_MODE,
-			&val);
+	ret = ade7759_spi_read_reg_16(dev, ADE7759_MODE, &val);
 	if (ret < 0) {
 		dev_err(dev, "unable to power down the device, error: %d\n",
 			ret);
@@ -404,16 +404,14 @@ err_ret:
 }
 
 static ssize_t ade7759_read_frequency(struct device *dev,
-		struct device_attribute *attr,
-		char *buf)
+				      struct device_attribute *attr,
+				      char *buf)
 {
 	int ret;
 	u16 t;
 	int sps;
 
-	ret = ade7759_spi_read_reg_16(dev,
-			ADE7759_MODE,
-			&t);
+	ret = ade7759_spi_read_reg_16(dev, ADE7759_MODE, &t);
 	if (ret)
 		return ret;
 
@@ -424,9 +422,9 @@ static ssize_t ade7759_read_frequency(struct device *dev,
 }
 
 static ssize_t ade7759_write_frequency(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf,
-		size_t len)
+				       struct device_attribute *attr,
+				       const char *buf,
+				       size_t len)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ade7759_state *st = iio_priv(indio_dev);

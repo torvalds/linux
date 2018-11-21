@@ -106,4 +106,9 @@ bool cm_helper_translate_curve_to_hw_format(
 		const struct dc_transfer_func *output_tf,
 		struct pwl_params *lut_params, bool fixpoint);
 
+bool cm_helper_translate_curve_to_degamma_hw_format(
+				const struct dc_transfer_func *output_tf,
+				struct pwl_params *lut_params);
+
+
 #endif

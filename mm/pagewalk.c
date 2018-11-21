@@ -258,6 +258,9 @@ static int __walk_page_range(unsigned long start, unsigned long end,
 
 /**
  * walk_page_range - walk page table with caller specific callbacks
+ * @start: start address of the virtual address range
+ * @end: end address of the virtual address range
+ * @walk: mm_walk structure defining the callbacks and the target address space
  *
  * Recursively walk the page table tree of the process represented by @walk->mm
  * within the virtual address range [@start, @end). During walking, we can do

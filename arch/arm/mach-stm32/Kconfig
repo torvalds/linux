@@ -1,8 +1,10 @@
-config ARCH_STM32
-	bool "STMicrolectronics STM32"
-	depends on ARM_SINGLE_ARMV7M
+menuconfig ARCH_STM32
+	bool "STMicroelectronics STM32 family" if ARM_SINGLE_ARMV7M || ARCH_MULTI_V7
+	select ARMV7M_SYSTICK if ARM_SINGLE_ARMV7M
+	select HAVE_ARM_ARCH_TIMER if ARCH_MULTI_V7
+	select ARM_GIC if ARCH_MULTI_V7
+	select ARM_PSCI if ARCH_MULTI_V7
 	select ARCH_HAS_RESET_CONTROLLER
-	select ARMV7M_SYSTICK
 	select CLKSRC_STM32
 	select PINCTRL
 	select RESET_CONTROLLER
@@ -10,22 +12,42 @@ config ARCH_STM32
 	help
 	  Support for STMicroelectronics STM32 processors.
 
+if ARCH_STM32
+
+if ARM_SINGLE_ARMV7M
+
 config MACH_STM32F429
-	bool "STMicrolectronics STM32F429"
-	depends on ARCH_STM32
+	bool "STMicroelectronics STM32F429"
+	select ARM_AMBA
 	default y
 
 config MACH_STM32F469
-	bool "STMicrolectronics STM32F469"
-	depends on ARCH_STM32
+	bool "STMicroelectronics STM32F469"
+	select ARM_AMBA
 	default y
 
 config MACH_STM32F746
-	bool "STMicrolectronics STM32F746"
-	depends on ARCH_STM32
+	bool "STMicroelectronics STM32F746"
+	select ARM_AMBA
+	default y
+
+config MACH_STM32F769
+	bool "STMicroelectronics STM32F769"
+	select ARM_AMBA
 	default y
 
 config MACH_STM32H743
-	bool "STMicrolectronics STM32H743"
-	depends on ARCH_STM32
+	bool "STMicroelectronics STM32H743"
 	default y
+
+endif # ARMv7-M
+
+if ARCH_MULTI_V7
+
+config MACH_STM32MP157
+	bool "STMicroelectronics STM32MP157"
+	default y
+
+endif # ARMv7-A
+
+endif

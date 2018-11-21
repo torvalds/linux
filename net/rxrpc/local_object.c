@@ -95,6 +95,7 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 		local->debug_id = atomic_inc_return(&rxrpc_debug_id);
 		memcpy(&local->srx, srx, sizeof(*srx));
 		local->srx.srx_service = 0;
+		trace_rxrpc_local(local, rxrpc_local_new, 1, NULL);
 	}
 
 	_leave(" = %p", local);
@@ -133,22 +134,49 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 		}
 	}
 
-	/* we want to receive ICMP errors */
-	opt = 1;
-	ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
-				(char *) &opt, sizeof(opt));
-	if (ret < 0) {
-		_debug("setsockopt failed");
-		goto error;
-	}
+	switch (local->srx.transport.family) {
+	case AF_INET:
+		/* we want to receive ICMP errors */
+		opt = 1;
+		ret = kernel_setsockopt(local->socket, SOL_IP, IP_RECVERR,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
 
-	/* we want to set the don't fragment bit */
-	opt = IP_PMTUDISC_DO;
-	ret = kernel_setsockopt(local->socket, SOL_IP, IP_MTU_DISCOVER,
-				(char *) &opt, sizeof(opt));
-	if (ret < 0) {
-		_debug("setsockopt failed");
-		goto error;
+		/* we want to set the don't fragment bit */
+		opt = IP_PMTUDISC_DO;
+		ret = kernel_setsockopt(local->socket, SOL_IP, IP_MTU_DISCOVER,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+		break;
+
+	case AF_INET6:
+		/* we want to receive ICMP errors */
+		opt = 1;
+		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_RECVERR,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+
+		/* we want to set the don't fragment bit */
+		opt = IPV6_PMTUDISC_DO;
+		ret = kernel_setsockopt(local->socket, SOL_IPV6, IPV6_MTU_DISCOVER,
+					(char *) &opt, sizeof(opt));
+		if (ret < 0) {
+			_debug("setsockopt failed");
+			goto error;
+		}
+		break;
+
+	default:
+		BUG();
 	}
 
 	/* set the socket up */
@@ -257,12 +285,71 @@ addr_in_use:
 }
 
 /*
+ * Get a ref on a local endpoint.
+ */
+struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	n = atomic_inc_return(&local->usage);
+	trace_rxrpc_local(local, rxrpc_local_got, n, here);
+	return local;
+}
+
+/*
+ * Get a ref on a local endpoint unless its usage has already reached 0.
+ */
+struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
+{
+	const void *here = __builtin_return_address(0);
+
+	if (local) {
+		int n = __atomic_add_unless(&local->usage, 1, 0);
+		if (n > 0)
+			trace_rxrpc_local(local, rxrpc_local_got, n + 1, here);
+		else
+			local = NULL;
+	}
+	return local;
+}
+
+/*
+ * Queue a local endpoint.
+ */
+void rxrpc_queue_local(struct rxrpc_local *local)
+{
+	const void *here = __builtin_return_address(0);
+
+	if (rxrpc_queue_work(&local->processor))
+		trace_rxrpc_local(local, rxrpc_local_queued,
+				  atomic_read(&local->usage), here);
+}
+
+/*
  * A local endpoint reached its end of life.
  */
-void __rxrpc_put_local(struct rxrpc_local *local)
+static void __rxrpc_put_local(struct rxrpc_local *local)
 {
 	_enter("%d", local->debug_id);
 	rxrpc_queue_work(&local->processor);
+}
+
+/*
+ * Drop a ref on a local endpoint.
+ */
+void rxrpc_put_local(struct rxrpc_local *local)
+{
+	const void *here = __builtin_return_address(0);
+	int n;
+
+	if (local) {
+		n = atomic_dec_return(&local->usage);
+		trace_rxrpc_local(local, rxrpc_local_put, n, here);
+
+		if (n == 0)
+			__rxrpc_put_local(local);
+	}
 }
 
 /*
@@ -322,7 +409,8 @@ static void rxrpc_local_processor(struct work_struct *work)
 		container_of(work, struct rxrpc_local, processor);
 	bool again;
 
-	_enter("%d", local->debug_id);
+	trace_rxrpc_local(local, rxrpc_local_processing,
+			  atomic_read(&local->usage), NULL);
 
 	do {
 		again = false;

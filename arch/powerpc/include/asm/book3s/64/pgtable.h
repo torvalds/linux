@@ -60,25 +60,6 @@
 /* Max physical address bit as per radix table */
 #define _RPAGE_PA_MAX		57
 
-#ifdef CONFIG_PPC_MEM_KEYS
-#ifdef CONFIG_PPC_64K_PAGES
-#define H_PTE_PKEY_BIT0	_RPAGE_RSV1
-#define H_PTE_PKEY_BIT1	_RPAGE_RSV2
-#else /* CONFIG_PPC_64K_PAGES */
-#define H_PTE_PKEY_BIT0	0 /* _RPAGE_RSV1 is not available */
-#define H_PTE_PKEY_BIT1	0 /* _RPAGE_RSV2 is not available */
-#endif /* CONFIG_PPC_64K_PAGES */
-#define H_PTE_PKEY_BIT2	_RPAGE_RSV3
-#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
-#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
-#else /*  CONFIG_PPC_MEM_KEYS */
-#define H_PTE_PKEY_BIT0	0
-#define H_PTE_PKEY_BIT1	0
-#define H_PTE_PKEY_BIT2	0
-#define H_PTE_PKEY_BIT3	0
-#define H_PTE_PKEY_BIT4	0
-#endif /*  CONFIG_PPC_MEM_KEYS */
-
 /*
  * Max physical address bit we will use for now.
  *

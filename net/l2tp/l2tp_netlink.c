@@ -236,12 +236,6 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	if (info->attrs[L2TP_ATTR_DEBUG])
 		cfg.debug = nla_get_u32(info->attrs[L2TP_ATTR_DEBUG]);
 
-	tunnel = l2tp_tunnel_find(net, tunnel_id);
-	if (tunnel != NULL) {
-		ret = -EEXIST;
-		goto out;
-	}
-
 	ret = -EINVAL;
 	switch (cfg.encap) {
 	case L2TP_ENCAPTYPE_UDP:
@@ -251,9 +245,19 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 		break;
 	}
 
-	if (ret >= 0)
-		ret = l2tp_tunnel_notify(&l2tp_nl_family, info,
-					 tunnel, L2TP_CMD_TUNNEL_CREATE);
+	if (ret < 0)
+		goto out;
+
+	l2tp_tunnel_inc_refcount(tunnel);
+	ret = l2tp_tunnel_register(tunnel, net, &cfg);
+	if (ret < 0) {
+		kfree(tunnel);
+		goto out;
+	}
+	ret = l2tp_tunnel_notify(&l2tp_nl_family, info, tunnel,
+				 L2TP_CMD_TUNNEL_CREATE);
+	l2tp_tunnel_dec_refcount(tunnel);
+
 out:
 	return ret;
 }
@@ -483,14 +487,17 @@ static int l2tp_nl_cmd_tunnel_dump(struct sk_buff *skb, struct netlink_callback 
 	struct net *net = sock_net(skb->sk);
 
 	for (;;) {
-		tunnel = l2tp_tunnel_find_nth(net, ti);
+		tunnel = l2tp_tunnel_get_nth(net, ti);
 		if (tunnel == NULL)
 			goto out;
 
 		if (l2tp_nl_tunnel_send(skb, NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq, NLM_F_MULTI,
-					tunnel, L2TP_CMD_TUNNEL_GET) < 0)
+					tunnel, L2TP_CMD_TUNNEL_GET) < 0) {
+			l2tp_tunnel_dec_refcount(tunnel);
 			goto out;
+		}
+		l2tp_tunnel_dec_refcount(tunnel);
 
 		ti++;
 	}
@@ -844,7 +851,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 
 	for (;;) {
 		if (tunnel == NULL) {
-			tunnel = l2tp_tunnel_find_nth(net, ti);
+			tunnel = l2tp_tunnel_get_nth(net, ti);
 			if (tunnel == NULL)
 				goto out;
 		}
@@ -852,6 +859,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 		session = l2tp_session_get_nth(tunnel, si);
 		if (session == NULL) {
 			ti++;
+			l2tp_tunnel_dec_refcount(tunnel);
 			tunnel = NULL;
 			si = 0;
 			continue;
@@ -861,6 +869,7 @@ static int l2tp_nl_cmd_session_dump(struct sk_buff *skb, struct netlink_callback
 					 cb->nlh->nlmsg_seq, NLM_F_MULTI,
 					 session, L2TP_CMD_SESSION_GET) < 0) {
 			l2tp_session_dec_refcount(session);
+			l2tp_tunnel_dec_refcount(tunnel);
 			break;
 		}
 		l2tp_session_dec_refcount(session);

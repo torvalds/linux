@@ -885,7 +885,7 @@ static int msp34xxg_modus(struct i2c_client *client)
 }
 
 static void msp34xxg_set_source(struct i2c_client *client, u16 reg, int in)
- {
+{
 	struct msp_state *state = to_state(i2c_get_clientdata(client));
 	int source, matrix;
 

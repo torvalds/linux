@@ -28,6 +28,7 @@
 
 #include "dml_common_defs.h"
 #include "../calcs/dcn_calc_math.h"
+#include "dml_logger.h"
 
 static inline double dml_min(double a, double b)
 {

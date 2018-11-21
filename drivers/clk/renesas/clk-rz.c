@@ -75,9 +75,9 @@ rz_cpg_register_clock(struct device_node *np, struct rz_cpg *cpg, const char *na
 	 * let them run at fixed current speed and implement the details later.
 	 */
 	if (strcmp(name, "i") == 0)
-		val = (clk_readl(cpg->reg + CPG_FRQCR) >> 8) & 3;
+		val = (readl(cpg->reg + CPG_FRQCR) >> 8) & 3;
 	else if (strcmp(name, "g") == 0)
-		val = clk_readl(cpg->reg + CPG_FRQCR2) & 3;
+		val = readl(cpg->reg + CPG_FRQCR2) & 3;
 	else
 		return ERR_PTR(-EINVAL);
 

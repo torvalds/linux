@@ -665,6 +665,7 @@ static unsigned long bch_mca_scan(struct shrinker *shrink,
 	struct btree *b, *t;
 	unsigned long i, nr = sc->nr_to_scan;
 	unsigned long freed = 0;
+	unsigned int btree_cache_used;
 
 	if (c->shrinker_disabled)
 		return SHRINK_STOP;
@@ -689,9 +690,10 @@ static unsigned long bch_mca_scan(struct shrinker *shrink,
 	nr = min_t(unsigned long, nr, mca_can_free(c));
 
 	i = 0;
+	btree_cache_used = c->btree_cache_used;
 	list_for_each_entry_safe(b, t, &c->btree_cache_freeable, list) {
-		if (freed >= nr)
-			break;
+		if (nr <= 0)
+			goto out;
 
 		if (++i > 3 &&
 		    !mca_reap(b, 0, false)) {
@@ -699,9 +701,10 @@ static unsigned long bch_mca_scan(struct shrinker *shrink,
 			rw_unlock(true, b);
 			freed++;
 		}
+		nr--;
 	}
 
-	for (i = 0; (nr--) && i < c->btree_cache_used; i++) {
+	for (;  (nr--) && i < btree_cache_used; i++) {
 		if (list_empty(&c->btree_cache))
 			goto out;
 
@@ -719,7 +722,7 @@ static unsigned long bch_mca_scan(struct shrinker *shrink,
 	}
 out:
 	mutex_unlock(&c->bucket_lock);
-	return freed;
+	return freed * c->btree_pages;
 }
 
 static unsigned long bch_mca_count(struct shrinker *shrink,
@@ -959,7 +962,7 @@ err:
 	return b;
 }
 
-/**
+/*
  * bch_btree_node_get - find a btree node in the cache and lock it, reading it
  * in from disk if necessary.
  *
@@ -1744,6 +1747,7 @@ static void bch_btree_gc(struct cache_set *c)
 
 	btree_gc_start(c);
 
+	/* if CACHE_SET_IO_DISABLE set, gc thread should stop too */
 	do {
 		ret = btree_root(gc_root, c, &op, &writes, &stats);
 		closure_sync(&writes);
@@ -1751,7 +1755,7 @@ static void bch_btree_gc(struct cache_set *c)
 
 		if (ret && ret != -EAGAIN)
 			pr_warn("gc failed!");
-	} while (ret);
+	} while (ret && !test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
 	bch_btree_gc_finish(c);
 	wake_up_allocators(c);
@@ -1789,15 +1793,19 @@ static int bch_gc_thread(void *arg)
 
 	while (1) {
 		wait_event_interruptible(c->gc_wait,
-			   kthread_should_stop() || gc_should_run(c));
+			   kthread_should_stop() ||
+			   test_bit(CACHE_SET_IO_DISABLE, &c->flags) ||
+			   gc_should_run(c));
 
-		if (kthread_should_stop())
+		if (kthread_should_stop() ||
+		    test_bit(CACHE_SET_IO_DISABLE, &c->flags))
 			break;
 
 		set_gc_sectors(c);
 		bch_btree_gc(c);
 	}
 
+	wait_for_kthread_stop();
 	return 0;
 }
 
@@ -2170,7 +2178,7 @@ int bch_btree_insert_check_key(struct btree *b, struct btree_op *op,
 
 		if (b->key.ptr[0] != btree_ptr ||
                    b->seq != seq + 1) {
-                       op->lock = b->level;
+			op->lock = b->level;
 			goto out;
                }
 	}

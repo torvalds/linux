@@ -40,14 +40,12 @@ static const struct videomode tvc_pal_vm = {
 			  DISPLAY_FLAGS_VSYNC_LOW,
 };
 
-static const struct of_device_id tvc_of_match[];
-
 #define to_panel_data(x) container_of(x, struct panel_drv_data, dssdev)
 
 static int tvc_connect(struct omap_dss_device *dssdev)
 {
 	struct panel_drv_data *ddata = to_panel_data(dssdev);
-	struct omap_dss_device *in = ddata->in;
+	struct omap_dss_device *in;
 	int r;
 
 	dev_dbg(ddata->dev, "connect\n");
@@ -55,10 +53,19 @@ static int tvc_connect(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_connected(dssdev))
 		return 0;
 
-	r = in->ops.atv->connect(in, dssdev);
-	if (r)
-		return r;
+	in = omapdss_of_find_source_for_first_ep(ddata->dev->of_node);
+	if (IS_ERR(in)) {
+		dev_err(ddata->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
 
+	r = in->ops.atv->connect(in, dssdev);
+	if (r) {
+		omap_dss_put_device(in);
+		return r;
+	}
+
+	ddata->in = in;
 	return 0;
 }
 
@@ -73,6 +80,9 @@ static void tvc_disconnect(struct omap_dss_device *dssdev)
 		return;
 
 	in->ops.atv->disconnect(in, dssdev);
+
+	omap_dss_put_device(in);
+	ddata->in = NULL;
 }
 
 static int tvc_enable(struct omap_dss_device *dssdev)
@@ -175,31 +185,11 @@ static struct omap_dss_driver tvc_driver = {
 	.set_wss		= tvc_set_wss,
 };
 
-static int tvc_probe_of(struct platform_device *pdev)
-{
-	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
-	struct device_node *node = pdev->dev.of_node;
-	struct omap_dss_device *in;
-
-	in = omapdss_of_find_source_for_first_ep(node);
-	if (IS_ERR(in)) {
-		dev_err(&pdev->dev, "failed to find video source\n");
-		return PTR_ERR(in);
-	}
-
-	ddata->in = in;
-
-	return 0;
-}
-
 static int tvc_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
 	struct omap_dss_device *dssdev;
 	int r;
-
-	if (!pdev->dev.of_node)
-		return -ENODEV;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -207,10 +197,6 @@ static int tvc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ddata);
 	ddata->dev = &pdev->dev;
-
-	r = tvc_probe_of(pdev);
-	if (r)
-		return r;
 
 	ddata->vm = tvc_pal_vm;
 
@@ -224,27 +210,21 @@ static int tvc_probe(struct platform_device *pdev)
 	r = omapdss_register_display(dssdev);
 	if (r) {
 		dev_err(&pdev->dev, "Failed to register panel\n");
-		goto err_reg;
+		return r;
 	}
 
 	return 0;
-err_reg:
-	omap_dss_put_device(ddata->in);
-	return r;
 }
 
 static int __exit tvc_remove(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
 	struct omap_dss_device *dssdev = &ddata->dssdev;
-	struct omap_dss_device *in = ddata->in;
 
 	omapdss_unregister_display(&ddata->dssdev);
 
 	tvc_disable(dssdev);
 	tvc_disconnect(dssdev);
-
-	omap_dss_put_device(in);
 
 	return 0;
 }

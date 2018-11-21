@@ -121,15 +121,9 @@ struct ia_css_frame_info {
 };
 
 #define IA_CSS_BINARY_DEFAULT_FRAME_INFO \
-{ \
-	{0,                      /* width */ \
-	 0},                     /* height */ \
-	0,                       /* padded_width */ \
-	IA_CSS_FRAME_FORMAT_NUM, /* format */ \
-	0,                       /* raw_bit_depth */ \
-	IA_CSS_BAYER_ORDER_NUM,  /* raw_bayer_order */ \
-	{0,                       /*start col */ \
-	 0},                       /*start line */ \
+(struct ia_css_frame_info) { \
+	.format			= IA_CSS_FRAME_FORMAT_NUM,  \
+	.raw_bayer_order	= IA_CSS_BAYER_ORDER_NUM, \
 }
 
 /**
@@ -190,18 +184,11 @@ struct ia_css_frame {
 };
 
 #define DEFAULT_FRAME \
-{ \
-	IA_CSS_BINARY_DEFAULT_FRAME_INFO,	/* info */ \
-	0,					/* data */ \
-	0,					/* data_bytes */ \
-	SH_CSS_INVALID_QUEUE_ID,		/* dynamic_data_index */ \
-	IA_CSS_BUFFER_TYPE_INVALID,			/* buf_type */ \
-	IA_CSS_FRAME_FLASH_STATE_NONE,		/* flash_state */ \
-	0,					/* exp_id */ \
-	0,					/* isp_config_id */ \
-	false,					/* valid */ \
-	false,					/* contiguous  */ \
-	{ 0 }					/* planes */ \
+(struct ia_css_frame) { \
+	.info			= IA_CSS_BINARY_DEFAULT_FRAME_INFO, \
+	.dynamic_queue_id	= SH_CSS_INVALID_QUEUE_ID, \
+	.buf_type		= IA_CSS_BUFFER_TYPE_INVALID, \
+	.flash_state		= IA_CSS_FRAME_FLASH_STATE_NONE, \
 }
 
 /* @brief Fill a frame with zeros

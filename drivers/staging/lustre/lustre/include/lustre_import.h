@@ -162,8 +162,8 @@ struct obd_import {
 	struct ptlrpc_client     *imp_client;
 	/** List element for linking into pinger chain */
 	struct list_head		imp_pinger_chain;
-	/** List element for linking into chain for destruction */
-	struct list_head		imp_zombie_chain;
+	/** work struct for destruction of import */
+	struct work_struct		imp_zombie_work;
 
 	/**
 	 * Lists of requests that are retained for replay, waiting for a reply,

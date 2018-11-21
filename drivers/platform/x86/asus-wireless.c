@@ -178,8 +178,10 @@ static int asus_wireless_remove(struct acpi_device *adev)
 {
 	struct asus_wireless_data *data = acpi_driver_data(adev);
 
-	if (data->wq)
+	if (data->wq) {
+		devm_led_classdev_unregister(&adev->dev, &data->led);
 		destroy_workqueue(data->wq);
+	}
 	return 0;
 }
 

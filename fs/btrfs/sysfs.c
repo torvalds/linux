@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/sched.h>
@@ -272,7 +259,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 {
 	struct btrfs_space_info *sinfo = to_space_info(kobj->parent);
 	struct btrfs_block_group_cache *block_group;
-	int index = to_raid_kobj(kobj)->raid_type;
+	int index = btrfs_bg_flags_to_raid_index(to_raid_kobj(kobj)->flags);
 	u64 val = 0;
 
 	down_read(&sinfo->groups_sem);
@@ -923,7 +910,7 @@ out1:
 	return ret;
 }
 
-void btrfs_exit_sysfs(void)
+void __cold btrfs_exit_sysfs(void)
 {
 	sysfs_remove_group(&btrfs_kset->kobj, &btrfs_feature_attr_group);
 	kset_unregister(btrfs_kset);

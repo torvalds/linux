@@ -225,7 +225,9 @@ void afs_activate_volume(struct afs_volume *volume)
 #ifdef CONFIG_AFS_FSCACHE
 	volume->cache = fscache_acquire_cookie(volume->cell->cache,
 					       &afs_volume_cache_index_def,
-					       volume, true);
+					       &volume->vid, sizeof(volume->vid),
+					       NULL, 0,
+					       volume, 0, true);
 #endif
 
 	write_lock(&volume->cell->proc_lock);
@@ -245,7 +247,7 @@ void afs_deactivate_volume(struct afs_volume *volume)
 	write_unlock(&volume->cell->proc_lock);
 
 #ifdef CONFIG_AFS_FSCACHE
-	fscache_relinquish_cookie(volume->cache,
+	fscache_relinquish_cookie(volume->cache, NULL,
 				  test_bit(AFS_VOLUME_DELETED, &volume->flags));
 	volume->cache = NULL;
 #endif

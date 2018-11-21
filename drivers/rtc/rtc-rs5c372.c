@@ -207,8 +207,9 @@ static unsigned rs5c_hr2reg(struct rs5c372 *rs5c, unsigned hour)
 	return bin2bcd(hour);
 }
 
-static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rs5c372_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rs5c372	*rs5c = i2c_get_clientdata(client);
 	int		status = rs5c_get_regs(rs5c);
 
@@ -234,12 +235,12 @@ static int rs5c372_get_datetime(struct i2c_client *client, struct rtc_time *tm)
 		tm->tm_sec, tm->tm_min, tm->tm_hour,
 		tm->tm_mday, tm->tm_mon, tm->tm_year, tm->tm_wday);
 
-	/* rtc might need initialization */
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
-static int rs5c372_set_datetime(struct i2c_client *client, struct rtc_time *tm)
+static int rs5c372_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct rs5c372	*rs5c = i2c_get_clientdata(client);
 	unsigned char	buf[7];
 	int		addr;
@@ -304,17 +305,6 @@ static int rs5c372_get_trim(struct i2c_client *client, int *osc, int *trim)
 	return 0;
 }
 #endif
-
-static int rs5c372_rtc_read_time(struct device *dev, struct rtc_time *tm)
-{
-	return rs5c372_get_datetime(to_i2c_client(dev), tm);
-}
-
-static int rs5c372_rtc_set_time(struct device *dev, struct rtc_time *tm)
-{
-	return rs5c372_set_datetime(to_i2c_client(dev), tm);
-}
-
 
 static int rs5c_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
@@ -581,7 +571,6 @@ static int rs5c372_probe(struct i2c_client *client,
 	int err = 0;
 	int smbus_mode = 0;
 	struct rs5c372 *rs5c372;
-	struct rtc_time tm;
 
 	dev_dbg(&client->dev, "%s\n", __func__);
 
@@ -661,9 +650,6 @@ static int rs5c372_probe(struct i2c_client *client,
 		dev_err(&client->dev, "setup error\n");
 		goto exit;
 	}
-
-	if (rs5c372_get_datetime(client, &tm) < 0)
-		dev_warn(&client->dev, "clock needs to be set\n");
 
 	dev_info(&client->dev, "%s found, %s\n",
 			({ char *s; switch (rs5c372->type) {

@@ -9,9 +9,6 @@
 extern void do_gettimeofday(struct timeval *tv);
 unsigned long get_seconds(void);
 
-/* does not take xtime_lock */
-struct timespec __current_kernel_time(void);
-
 static inline struct timespec current_kernel_time(void)
 {
 	struct timespec64 now = current_kernel_time64();

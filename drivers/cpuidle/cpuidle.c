@@ -131,6 +131,10 @@ int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
 static void enter_s2idle_proper(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {
+	ktime_t time_start, time_end;
+
+	time_start = ns_to_ktime(local_clock());
+
 	/*
 	 * trace_suspend_resume() called by tick_freeze() for the last CPU
 	 * executing it contains RCU usage regarded as invalid in the idle
@@ -152,6 +156,11 @@ static void enter_s2idle_proper(struct cpuidle_driver *drv,
 	 */
 	RCU_NONIDLE(tick_unfreeze());
 	start_critical_timings();
+
+	time_end = ns_to_ktime(local_clock());
+
+	dev->states_usage[index].s2idle_time += ktime_us_delta(time_end, time_start);
+	dev->states_usage[index].s2idle_usage++;
 }
 
 /**
@@ -263,12 +272,18 @@ int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
  *
  * @drv: the cpuidle driver
  * @dev: the cpuidle device
+ * @stop_tick: indication on whether or not to stop the tick
  *
  * Returns the index of the idle state.  The return value must not be negative.
+ *
+ * The memory location pointed to by @stop_tick is expected to be written the
+ * 'false' boolean value if the scheduler tick should not be stopped before
+ * entering the returned state.
  */
-int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
+int cpuidle_select(struct cpuidle_driver *drv, struct cpuidle_device *dev,
+		   bool *stop_tick)
 {
-	return cpuidle_curr_governor->select(drv, dev);
+	return cpuidle_curr_governor->select(drv, dev, stop_tick);
 }
 
 /**

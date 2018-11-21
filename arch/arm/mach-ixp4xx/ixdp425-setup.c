@@ -124,7 +124,7 @@ static struct platform_device ixdp425_flash_nand = {
 #endif	/* CONFIG_MTD_NAND_PLATFORM */
 
 static struct gpiod_lookup_table ixdp425_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio",
+	.dev_id		= "i2c-gpio.0",
 	.table		= {
 		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", IXDP425_SDA_PIN,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),

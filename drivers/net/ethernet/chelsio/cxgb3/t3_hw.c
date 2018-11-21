@@ -681,18 +681,18 @@ int t3_seeprom_wp(struct adapter *adapter, int enable)
 	return t3_seeprom_write(adapter, EEPROM_STAT_ADDR, enable ? 0xc : 0);
 }
 
-static int vpdstrtouint(char *s, int len, unsigned int base, unsigned int *val)
+static int vpdstrtouint(char *s, u8 len, unsigned int base, unsigned int *val)
 {
-	char tok[len + 1];
+	char tok[256];
 
 	memcpy(tok, s, len);
 	tok[len] = 0;
 	return kstrtouint(strim(tok), base, val);
 }
 
-static int vpdstrtou16(char *s, int len, unsigned int base, u16 *val)
+static int vpdstrtou16(char *s, u8 len, unsigned int base, u16 *val)
 {
-	char tok[len + 1];
+	char tok[256];
 
 	memcpy(tok, s, len);
 	tok[len] = 0;

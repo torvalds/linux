@@ -391,6 +391,9 @@ static int finish_mem_reg(struct c4iw_mr *mhp, u32 stag)
 	mhp->attr.stag = stag;
 	mmid = stag >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
+	mhp->ibmr.length = mhp->attr.len;
+	mhp->ibmr.iova = mhp->attr.va_fbo;
+	mhp->ibmr.page_size = 1U << (mhp->attr.page_size + 12);
 	pr_debug("mmid 0x%x mhp %p\n", mmid, mhp);
 	return insert_handle(mhp->rhp, &mhp->rhp->mmidr, mhp, mmid);
 }
@@ -486,10 +489,10 @@ struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc)
 err_dereg_mem:
 	dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
 		  mhp->attr.pbl_addr, mhp->dereg_skb, mhp->wr_waitp);
-err_free_wr_wait:
-	c4iw_put_wr_wait(mhp->wr_waitp);
 err_free_skb:
 	kfree_skb(mhp->dereg_skb);
+err_free_wr_wait:
+	c4iw_put_wr_wait(mhp->wr_waitp);
 err_free_mhp:
 	kfree(mhp);
 	return ERR_PTR(ret);

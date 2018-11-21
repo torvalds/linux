@@ -299,7 +299,7 @@ static int __init wd_probe1(struct net_device *dev, int ioaddr)
 
 			outb_p(0x00, nic_addr+EN0_IMR);	/* Mask all intrs. again. */
 
-			if (netif_msg_drv(ei_local))
+			if (wd_msg_enable & NETIF_MSG_PROBE)
 				pr_cont(" autoirq is %d", dev->irq);
 			if (dev->irq < 2)
 				dev->irq = word16 ? 10 : 5;
@@ -507,7 +507,7 @@ module_param_hw_array(io, int, ioport, NULL, 0);
 module_param_hw_array(irq, int, irq, NULL, 0);
 module_param_hw_array(mem, int, iomem, NULL, 0);
 module_param_hw_array(mem_end, int, iomem, NULL, 0);
-module_param_named(msg_enable, wd_msg_enable, uint, (S_IRUSR|S_IRGRP|S_IROTH));
+module_param_named(msg_enable, wd_msg_enable, uint, 0444);
 MODULE_PARM_DESC(io, "I/O base address(es)");
 MODULE_PARM_DESC(irq, "IRQ number(s) (ignored for PureData boards)");
 MODULE_PARM_DESC(mem, "memory base address(es)(ignored for PureData boards)");

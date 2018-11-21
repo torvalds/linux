@@ -31,7 +31,7 @@ of the video device exits.
 The default :c:func:`video_device_release` callback currently
 just calls ``kfree`` to free the allocated memory.
 
-There is also a ::c:func:`video_device_release_empty` function that does
+There is also a :c:func:`video_device_release_empty` function that does
 nothing (is empty) and should be used if the struct is embedded and there
 is nothing to do when it is released.
 

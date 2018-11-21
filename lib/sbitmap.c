@@ -100,7 +100,7 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 			return -1;
 		}
 
-		if (!test_and_set_bit(nr, word))
+		if (!test_and_set_bit_lock(nr, word))
 			break;
 
 		hint = nr + 1;
@@ -434,9 +434,9 @@ static void sbq_wake_up(struct sbitmap_queue *sbq)
 	/*
 	 * Pairs with the memory barrier in set_current_state() to ensure the
 	 * proper ordering of clear_bit()/waitqueue_active() in the waker and
-	 * test_and_set_bit()/prepare_to_wait()/finish_wait() in the waiter. See
-	 * the comment on waitqueue_active(). This is __after_atomic because we
-	 * just did clear_bit() in the caller.
+	 * test_and_set_bit_lock()/prepare_to_wait()/finish_wait() in the
+	 * waiter. See the comment on waitqueue_active(). This is __after_atomic
+	 * because we just did clear_bit_unlock() in the caller.
 	 */
 	smp_mb__after_atomic();
 
@@ -469,7 +469,7 @@ static void sbq_wake_up(struct sbitmap_queue *sbq)
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 			 unsigned int cpu)
 {
-	sbitmap_clear_bit(&sbq->sb, nr);
+	sbitmap_clear_bit_unlock(&sbq->sb, nr);
 	sbq_wake_up(sbq);
 	if (likely(!sbq->round_robin && nr < sbq->sb.depth))
 		*per_cpu_ptr(sbq->alloc_hint, cpu) = nr;

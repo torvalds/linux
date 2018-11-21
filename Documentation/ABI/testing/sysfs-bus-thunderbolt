@@ -1,3 +1,26 @@
+What: /sys/bus/thunderbolt/devices/.../domainX/boot_acl
+Date:		Jun 2018
+KernelVersion:	4.17
+Contact:	thunderbolt-software@lists.01.org
+Description:	Holds a comma separated list of device unique_ids that
+		are allowed to be connected automatically during system
+		startup (e.g boot devices). The list always contains
+		maximum supported number of unique_ids where unused
+		entries are empty. This allows the userspace software
+		to determine how many entries the controller supports.
+		If there are multiple controllers, each controller has
+		its own ACL list and size may be different between the
+		controllers.
+
+		System BIOS may have an option "Preboot ACL" or similar
+		that needs to be selected before this list is taken into
+		consideration.
+
+		Software always updates a full list in each write.
+
+		If a device is authorized automatically during boot its
+		boot attribute is set to 1.
+
 What: /sys/bus/thunderbolt/devices/.../domainX/security
 Date:		Sep 2017
 KernelVersion:	4.13
@@ -12,6 +35,9 @@ Description:	This attribute holds current Thunderbolt security level
 			minimum. User needs to authorize each device.
 		dponly: Automatically tunnel Display port (and USB). No
 			PCIe tunnels are created.
+		usbonly: Automatically tunnel USB controller of the
+			 connected Thunderbolt dock (and Display Port). All
+			 PCIe links downstream of the dock are removed.
 
 What: /sys/bus/thunderbolt/devices/.../authorized
 Date:		Sep 2017
@@ -37,6 +63,13 @@ Description:	This attribute is used to authorize Thunderbolt devices
 		   authorized. In case of failure errno will be ENOKEY if
 		   the device did not contain a key at all, and
 		   EKEYREJECTED if the challenge response did not match.
+
+What: /sys/bus/thunderbolt/devices/.../boot
+Date:		Jun 2018
+KernelVersion:	4.17
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute contains 1 if Thunderbolt device was already
+		authorized on boot and 0 otherwise.
 
 What: /sys/bus/thunderbolt/devices/.../key
 Date:		Sep 2017

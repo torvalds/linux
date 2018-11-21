@@ -508,7 +508,7 @@ struct cs43130_dai {
 };
 
 struct	cs43130_private {
-	struct snd_soc_codec		*codec;
+	struct snd_soc_component	*component;
 	struct regmap			*regmap;
 	struct regulator_bulk_data	supplies[CS43130_NUM_SUPPLIES];
 	struct gpio_desc		*reset_gpio;

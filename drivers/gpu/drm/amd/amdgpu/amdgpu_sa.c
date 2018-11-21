@@ -63,20 +63,26 @@ int amdgpu_sa_bo_manager_init(struct amdgpu_device *adev,
 	for (i = 0; i < AMDGPU_SA_NUM_FENCE_LISTS; ++i)
 		INIT_LIST_HEAD(&sa_manager->flist[i]);
 
-	r = amdgpu_bo_create(adev, size, align, true, domain,
-			     0, NULL, NULL, 0, &sa_manager->bo);
+	r = amdgpu_bo_create_kernel(adev, size, align, domain, &sa_manager->bo,
+				&sa_manager->gpu_addr, &sa_manager->cpu_ptr);
 	if (r) {
 		dev_err(adev->dev, "(%d) failed to allocate bo for manager\n", r);
 		return r;
 	}
 
+	memset(sa_manager->cpu_ptr, 0, sa_manager->size);
 	return r;
 }
 
 void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
-			       struct amdgpu_sa_manager *sa_manager)
+                              struct amdgpu_sa_manager *sa_manager)
 {
 	struct amdgpu_sa_bo *sa_bo, *tmp;
+
+	if (sa_manager->bo == NULL) {
+		dev_err(adev->dev, "no bo for sa manager\n");
+		return;
+	}
 
 	if (!list_empty(&sa_manager->olist)) {
 		sa_manager->hole = &sa_manager->olist,
@@ -88,55 +94,9 @@ void amdgpu_sa_bo_manager_fini(struct amdgpu_device *adev,
 	list_for_each_entry_safe(sa_bo, tmp, &sa_manager->olist, olist) {
 		amdgpu_sa_bo_remove_locked(sa_bo);
 	}
-	amdgpu_bo_unref(&sa_manager->bo);
+
+	amdgpu_bo_free_kernel(&sa_manager->bo, &sa_manager->gpu_addr, &sa_manager->cpu_ptr);
 	sa_manager->size = 0;
-}
-
-int amdgpu_sa_bo_manager_start(struct amdgpu_device *adev,
-			       struct amdgpu_sa_manager *sa_manager)
-{
-	int r;
-
-	if (sa_manager->bo == NULL) {
-		dev_err(adev->dev, "no bo for sa manager\n");
-		return -EINVAL;
-	}
-
-	/* map the buffer */
-	r = amdgpu_bo_reserve(sa_manager->bo, false);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to reserve manager bo\n", r);
-		return r;
-	}
-	r = amdgpu_bo_pin(sa_manager->bo, sa_manager->domain, &sa_manager->gpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(sa_manager->bo);
-		dev_err(adev->dev, "(%d) failed to pin manager bo\n", r);
-		return r;
-	}
-	r = amdgpu_bo_kmap(sa_manager->bo, &sa_manager->cpu_ptr);
-	memset(sa_manager->cpu_ptr, 0, sa_manager->size);
-	amdgpu_bo_unreserve(sa_manager->bo);
-	return r;
-}
-
-int amdgpu_sa_bo_manager_suspend(struct amdgpu_device *adev,
-				 struct amdgpu_sa_manager *sa_manager)
-{
-	int r;
-
-	if (sa_manager->bo == NULL) {
-		dev_err(adev->dev, "no bo for sa manager\n");
-		return -EINVAL;
-	}
-
-	r = amdgpu_bo_reserve(sa_manager->bo, true);
-	if (!r) {
-		amdgpu_bo_kunmap(sa_manager->bo);
-		amdgpu_bo_unpin(sa_manager->bo);
-		amdgpu_bo_unreserve(sa_manager->bo);
-	}
-	return r;
 }
 
 static void amdgpu_sa_bo_remove_locked(struct amdgpu_sa_bo *sa_bo)

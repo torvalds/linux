@@ -467,14 +467,30 @@ again:
 
 	vc4_flush_caches(dev);
 
+	/* Only start the perfmon if it was not already started by a previous
+	 * job.
+	 */
+	if (exec->perfmon && vc4->active_perfmon != exec->perfmon)
+		vc4_perfmon_start(vc4, exec->perfmon);
+
 	/* Either put the job in the binner if it uses the binner, or
 	 * immediately move it to the to-be-rendered queue.
 	 */
 	if (exec->ct0ca != exec->ct0ea) {
 		submit_cl(dev, 0, exec->ct0ca, exec->ct0ea);
 	} else {
+		struct vc4_exec_info *next;
+
 		vc4_move_job_to_render(dev, exec);
-		goto again;
+		next = vc4_first_bin_job(vc4);
+
+		/* We can't start the next bin job if the previous job had a
+		 * different perfmon instance attached to it. The same goes
+		 * if one of them had a perfmon attached to it and the other
+		 * one doesn't.
+		 */
+		if (next && next->perfmon == exec->perfmon)
+			goto again;
 	}
 }
 
@@ -642,6 +658,7 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 		 struct ww_acquire_ctx *acquire_ctx)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_exec_info *renderjob;
 	uint64_t seqno;
 	unsigned long irqflags;
 	struct vc4_fence *fence;
@@ -667,11 +684,14 @@ vc4_queue_submit(struct drm_device *dev, struct vc4_exec_info *exec,
 
 	list_add_tail(&exec->head, &vc4->bin_job_list);
 
-	/* If no job was executing, kick ours off.  Otherwise, it'll
-	 * get started when the previous job's flush done interrupt
-	 * occurs.
+	/* If no bin job was executing and if the render job (if any) has the
+	 * same perfmon as our job attached to it (or if both jobs don't have
+	 * perfmon activated), then kick ours off.  Otherwise, it'll get
+	 * started when the previous job's flush/render done interrupt occurs.
 	 */
-	if (vc4_first_bin_job(vc4) == exec) {
+	renderjob = vc4_first_render_job(vc4);
+	if (vc4_first_bin_job(vc4) == exec &&
+	    (!renderjob || renderjob->perfmon == exec->perfmon)) {
 		vc4_submit_next_bin_job(dev);
 		vc4_queue_hangcheck(dev);
 	}
@@ -936,6 +956,9 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 	vc4->bin_alloc_used &= ~exec->bin_slots;
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
 
+	/* Release the reference we had on the perf monitor. */
+	vc4_perfmon_put(exec->perfmon);
+
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0) {
 		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
@@ -1088,6 +1111,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 		    struct drm_file *file_priv)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct vc4_file *vc4file = file_priv->driver_priv;
 	struct drm_vc4_submit_cl *args = data;
 	struct vc4_exec_info *exec;
 	struct ww_acquire_ctx acquire_ctx;
@@ -1098,6 +1122,11 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X |
 			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y)) != 0) {
 		DRM_DEBUG("Unknown flags: 0x%02x\n", args->flags);
+		return -EINVAL;
+	}
+
+	if (args->pad2 != 0) {
+		DRM_DEBUG("->pad2 must be set to zero\n");
 		return -EINVAL;
 	}
 
@@ -1125,6 +1154,15 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	ret = vc4_cl_lookup_bos(dev, file_priv, exec);
 	if (ret)
 		goto fail;
+
+	if (args->perfmonid) {
+		exec->perfmon = vc4_perfmon_find(vc4file,
+						 args->perfmonid);
+		if (!exec->perfmon) {
+			ret = -ENOENT;
+			goto fail;
+		}
+	}
 
 	if (exec->args->bin_cl_size != 0) {
 		ret = vc4_get_bcl(dev, exec);

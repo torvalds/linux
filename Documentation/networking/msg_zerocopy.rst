@@ -72,11 +72,6 @@ this flag, a process must first signal intent by setting a socket option:
 	if (setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, &one, sizeof(one)))
 		error(1, errno, "setsockopt zerocopy");
 
-Setting the socket option only works when the socket is in its initial
-(TCP_CLOSED) state.  Trying to set the option for a socket returned by accept(),
-for example, will lead to an EBUSY error. In this case, the option should be set
-to the listening socket and it will be inherited by the accepted sockets.
-
 Transmission
 ------------
 

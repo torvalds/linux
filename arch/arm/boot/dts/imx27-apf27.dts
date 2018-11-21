@@ -19,7 +19,7 @@
 	model = "Armadeus Systems APF27 module";
 	compatible = "armadeus,imx27-apf27", "fsl,imx27";
 
-	memory {
+	memory@a0000000 {
 		reg = <0xa0000000 0x04000000>;
 	};
 

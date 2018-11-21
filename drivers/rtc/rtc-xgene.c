@@ -60,7 +60,7 @@ static int xgene_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	struct xgene_rtc_dev *pdata = dev_get_drvdata(dev);
 
 	rtc_time_to_tm(readl(pdata->csr_base + RTC_CCVR), tm);
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int xgene_rtc_set_mmss(struct device *dev, unsigned long secs)

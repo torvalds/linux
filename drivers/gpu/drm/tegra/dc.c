@@ -383,6 +383,12 @@ static const u32 tegra20_primary_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
+static const u64 tegra20_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_NVIDIA_TEGRA_TILED,
+	DRM_FORMAT_MOD_INVALID
+};
+
 static const u32 tegra114_primary_formats[] = {
 	DRM_FORMAT_ARGB4444,
 	DRM_FORMAT_ARGB1555,
@@ -428,6 +434,17 @@ static const u32 tegra124_primary_formats[] = {
 	/* new on Tegra124 */
 	DRM_FORMAT_RGBX8888,
 	DRM_FORMAT_BGRX8888,
+};
+
+static const u64 tegra124_modifiers[] = {
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(0),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(1),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(2),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(3),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(4),
+	DRM_FORMAT_MOD_NVIDIA_16BX2_BLOCK(5),
+	DRM_FORMAT_MOD_INVALID
 };
 
 static int tegra_plane_atomic_check(struct drm_plane *plane,
@@ -596,6 +613,7 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 	enum drm_plane_type type = DRM_PLANE_TYPE_PRIMARY;
 	struct tegra_plane *plane;
 	unsigned int num_formats;
+	const u64 *modifiers;
 	const u32 *formats;
 	int err;
 
@@ -610,10 +628,11 @@ static struct drm_plane *tegra_primary_plane_create(struct drm_device *drm,
 
 	num_formats = dc->soc->num_primary_formats;
 	formats = dc->soc->primary_formats;
+	modifiers = dc->soc->modifiers;
 
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
-				       num_formats, NULL, type, NULL);
+				       num_formats, modifiers, type, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -864,11 +883,13 @@ static const u32 tegra124_overlay_formats[] = {
 
 static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 						       struct tegra_dc *dc,
-						       unsigned int index)
+						       unsigned int index,
+						       bool cursor)
 {
 	unsigned long possible_crtcs = tegra_plane_get_possible_crtcs(drm);
 	struct tegra_plane *plane;
 	unsigned int num_formats;
+	enum drm_plane_type type;
 	const u32 *formats;
 	int err;
 
@@ -883,10 +904,14 @@ static struct drm_plane *tegra_dc_overlay_plane_create(struct drm_device *drm,
 	num_formats = dc->soc->num_overlay_formats;
 	formats = dc->soc->overlay_formats;
 
+	if (!cursor)
+		type = DRM_PLANE_TYPE_OVERLAY;
+	else
+		type = DRM_PLANE_TYPE_CURSOR;
+
 	err = drm_universal_plane_init(drm, &plane->base, possible_crtcs,
 				       &tegra_plane_funcs, formats,
-				       num_formats, NULL,
-				       DRM_PLANE_TYPE_OVERLAY, NULL);
+				       num_formats, NULL, type, NULL);
 	if (err < 0) {
 		kfree(plane);
 		return ERR_PTR(err);
@@ -938,6 +963,7 @@ static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
 					     struct tegra_dc *dc)
 {
 	struct drm_plane *planes[2], *primary;
+	unsigned int planes_num;
 	unsigned int i;
 	int err;
 
@@ -945,8 +971,14 @@ static struct drm_plane *tegra_dc_add_planes(struct drm_device *drm,
 	if (IS_ERR(primary))
 		return primary;
 
-	for (i = 0; i < 2; i++) {
-		planes[i] = tegra_dc_overlay_plane_create(drm, dc, 1 + i);
+	if (dc->soc->supports_cursor)
+		planes_num = 2;
+	else
+		planes_num = 1;
+
+	for (i = 0; i < planes_num; i++) {
+		planes[i] = tegra_dc_overlay_plane_create(drm, dc, 1 + i,
+							  false);
 		if (IS_ERR(planes[i])) {
 			err = PTR_ERR(planes[i]);
 
@@ -1359,7 +1391,7 @@ static u32 tegra_dc_get_vblank_counter(struct drm_crtc *crtc)
 		return host1x_syncpt_read(dc->syncpt);
 
 	/* fallback to software emulated VBLANK counter */
-	return drm_crtc_vblank_count(&dc->base);
+	return (u32)drm_crtc_vblank_count(&dc->base);
 }
 
 static int tegra_dc_enable_vblank(struct drm_crtc *crtc)
@@ -1704,31 +1736,6 @@ static void tegra_crtc_atomic_enable(struct drm_crtc *crtc,
 	drm_crtc_vblank_on(crtc);
 }
 
-static int tegra_crtc_atomic_check(struct drm_crtc *crtc,
-				   struct drm_crtc_state *state)
-{
-	struct tegra_atomic_state *s = to_tegra_atomic_state(state->state);
-	struct tegra_dc_state *tegra = to_dc_state(state);
-
-	/*
-	 * The display hub display clock needs to be fed by the display clock
-	 * with the highest frequency to ensure proper functioning of all the
-	 * displays.
-	 *
-	 * Note that this isn't used before Tegra186, but it doesn't hurt and
-	 * conditionalizing it would make the code less clean.
-	 */
-	if (state->active) {
-		if (!s->clk_disp || tegra->pclk > s->rate) {
-			s->dc = to_tegra_dc(crtc);
-			s->clk_disp = s->dc->clk;
-			s->rate = tegra->pclk;
-		}
-	}
-
-	return 0;
-}
-
 static void tegra_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_crtc_state)
 {
@@ -1765,7 +1772,6 @@ static void tegra_crtc_atomic_flush(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs tegra_crtc_helper_funcs = {
-	.atomic_check = tegra_crtc_atomic_check,
 	.atomic_begin = tegra_crtc_atomic_begin,
 	.atomic_flush = tegra_crtc_atomic_flush,
 	.atomic_enable = tegra_crtc_atomic_enable,
@@ -1860,6 +1866,13 @@ static int tegra_dc_init(struct host1x_client *client)
 
 	if (dc->soc->supports_cursor) {
 		cursor = tegra_dc_cursor_plane_create(drm, dc);
+		if (IS_ERR(cursor)) {
+			err = PTR_ERR(cursor);
+			goto cleanup;
+		}
+	} else {
+		/* dedicate one overlay to mouse cursor */
+		cursor = tegra_dc_overlay_plane_create(drm, dc, 2, true);
 		if (IS_ERR(cursor)) {
 			err = PTR_ERR(cursor);
 			goto cleanup;
@@ -1964,6 +1977,7 @@ static const struct tegra_dc_soc_info tegra20_dc_soc_info = {
 	.primary_formats = tegra20_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
 	.overlay_formats = tegra20_overlay_formats,
+	.modifiers = tegra20_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
@@ -1980,6 +1994,7 @@ static const struct tegra_dc_soc_info tegra30_dc_soc_info = {
 	.primary_formats = tegra20_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra20_overlay_formats),
 	.overlay_formats = tegra20_overlay_formats,
+	.modifiers = tegra20_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
@@ -1996,6 +2011,7 @@ static const struct tegra_dc_soc_info tegra114_dc_soc_info = {
 	.primary_formats = tegra114_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
+	.modifiers = tegra20_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
@@ -2012,6 +2028,7 @@ static const struct tegra_dc_soc_info tegra124_dc_soc_info = {
 	.primary_formats = tegra124_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra124_overlay_formats),
 	.overlay_formats = tegra124_overlay_formats,
+	.modifiers = tegra124_modifiers,
 };
 
 static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
@@ -2028,6 +2045,7 @@ static const struct tegra_dc_soc_info tegra210_dc_soc_info = {
 	.primary_formats = tegra114_primary_formats,
 	.num_overlay_formats = ARRAY_SIZE(tegra114_overlay_formats),
 	.overlay_formats = tegra114_overlay_formats,
+	.modifiers = tegra124_modifiers,
 };
 
 static const struct tegra_windowgroup_soc tegra186_dc_wgrps[] = {

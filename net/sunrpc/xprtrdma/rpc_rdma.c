@@ -365,7 +365,7 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						   false, &mr);
 		if (IS_ERR(seg))
-			return PTR_ERR(seg);
+			goto out_maperr;
 		rpcrdma_mr_push(mr, &req->rl_registered);
 
 		if (encode_read_segment(xdr, mr, pos) < 0)
@@ -377,6 +377,11 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	} while (nsegs);
 
 	return 0;
+
+out_maperr:
+	if (PTR_ERR(seg) == -EAGAIN)
+		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
+	return PTR_ERR(seg);
 }
 
 /* Register and XDR encode the Write list. Supports encoding a list
@@ -423,7 +428,7 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						   true, &mr);
 		if (IS_ERR(seg))
-			return PTR_ERR(seg);
+			goto out_maperr;
 		rpcrdma_mr_push(mr, &req->rl_registered);
 
 		if (encode_rdma_segment(xdr, mr) < 0)
@@ -440,6 +445,11 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	*segcount = cpu_to_be32(nchunks);
 
 	return 0;
+
+out_maperr:
+	if (PTR_ERR(seg) == -EAGAIN)
+		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
+	return PTR_ERR(seg);
 }
 
 /* Register and XDR encode the Reply chunk. Supports encoding an array
@@ -481,7 +491,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 		seg = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						   true, &mr);
 		if (IS_ERR(seg))
-			return PTR_ERR(seg);
+			goto out_maperr;
 		rpcrdma_mr_push(mr, &req->rl_registered);
 
 		if (encode_rdma_segment(xdr, mr) < 0)
@@ -498,6 +508,11 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	*segcount = cpu_to_be32(nchunks);
 
 	return 0;
+
+out_maperr:
+	if (PTR_ERR(seg) == -EAGAIN)
+		xprt_wait_for_buffer_space(rqst->rq_task, NULL);
+	return PTR_ERR(seg);
 }
 
 /**
@@ -724,8 +739,8 @@ rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
  * Returns:
  *	%0 if the RPC was sent successfully,
  *	%-ENOTCONN if the connection was lost,
- *	%-EAGAIN if not enough pages are available for on-demand reply buffer,
- *	%-ENOBUFS if no MRs are available to register chunks,
+ *	%-EAGAIN if the caller should call again with the same arguments,
+ *	%-ENOBUFS if the caller should call again after a delay,
  *	%-EMSGSIZE if the transport header is too small,
  *	%-EIO if a permanent problem occurred while marshaling.
  */
@@ -868,10 +883,7 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	return 0;
 
 out_err:
-	if (ret != -ENOBUFS) {
-		pr_err("rpcrdma: header marshaling failed (%d)\n", ret);
-		r_xprt->rx_stats.failed_marshal_count++;
-	}
+	r_xprt->rx_stats.failed_marshal_count++;
 	return ret;
 }
 
@@ -1366,7 +1378,7 @@ void rpcrdma_reply_handler(struct rpcrdma_rep *rep)
 
 	trace_xprtrdma_reply(rqst->rq_task, rep, req, credits);
 
-	queue_work_on(req->rl_cpu, rpcrdma_receive_wq, &rep->rr_work);
+	queue_work(rpcrdma_receive_wq, &rep->rr_work);
 	return;
 
 out_badstatus:

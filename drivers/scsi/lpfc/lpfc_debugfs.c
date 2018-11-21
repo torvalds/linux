@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2007-2015 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -3944,10 +3944,15 @@ lpfc_idiag_drbacc_read_reg(struct lpfc_hba *phba, char *pbuffer,
 		return 0;
 
 	switch (drbregid) {
-	case LPFC_DRB_EQCQ:
-		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
-				"EQCQ-DRB-REG: 0x%08x\n",
-				readl(phba->sli4_hba.EQCQDBregaddr));
+	case LPFC_DRB_EQ:
+		len += snprintf(pbuffer + len, LPFC_DRB_ACC_BUF_SIZE-len,
+				"EQ-DRB-REG: 0x%08x\n",
+				readl(phba->sli4_hba.EQDBregaddr));
+		break;
+	case LPFC_DRB_CQ:
+		len += snprintf(pbuffer + len, LPFC_DRB_ACC_BUF_SIZE - len,
+				"CQ-DRB-REG: 0x%08x\n",
+				readl(phba->sli4_hba.CQDBregaddr));
 		break;
 	case LPFC_DRB_MQ:
 		len += snprintf(pbuffer+len, LPFC_DRB_ACC_BUF_SIZE-len,
@@ -4086,8 +4091,11 @@ lpfc_idiag_drbacc_write(struct file *file, const char __user *buf,
 	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_ST ||
 	    idiag.cmd.opcode == LPFC_IDIAG_CMD_DRBACC_CL) {
 		switch (drb_reg_id) {
-		case LPFC_DRB_EQCQ:
-			drb_reg = phba->sli4_hba.EQCQDBregaddr;
+		case LPFC_DRB_EQ:
+			drb_reg = phba->sli4_hba.EQDBregaddr;
+			break;
+		case LPFC_DRB_CQ:
+			drb_reg = phba->sli4_hba.CQDBregaddr;
 			break;
 		case LPFC_DRB_MQ:
 			drb_reg = phba->sli4_hba.MQDBregaddr;

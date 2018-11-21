@@ -567,7 +567,15 @@ static noinline void __init kmem_cache_invalid_free(void)
 		return;
 	}
 
+	/* Trigger invalid free, the object doesn't get freed */
 	kmem_cache_free(cache, p + 1);
+
+	/*
+	 * Properly free the object to prevent the "Objects remaining in
+	 * test_cache on __kmem_cache_shutdown" BUG failure.
+	 */
+	kmem_cache_free(cache, p);
+
 	kmem_cache_destroy(cache);
 }
 

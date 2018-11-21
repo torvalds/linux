@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	drivers/pci/setup-irq.c
+ * Support routines for initializing a PCI subsystem
  *
  * Extruded from code written by
  *      Dave Rusling (david.rusling@reo.mts.dec.com)
  *      David Mosberger (davidm@cs.arizona.edu)
  *	David Miller (davem@redhat.com)
- *
- * Support routines for initializing a PCI subsystem.
  */
 
 

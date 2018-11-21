@@ -137,21 +137,21 @@ static unsigned int ecc_ded_period = 600;
 
 #ifdef CONFIG_AMD_XGBE_HAVE_ECC
 /* Only expose the ECC parameters if supported */
-module_param(ecc_sec_info_threshold, uint, S_IWUSR | S_IRUGO);
+module_param(ecc_sec_info_threshold, uint, 0644);
 MODULE_PARM_DESC(ecc_sec_info_threshold,
 		 " ECC corrected error informational threshold setting");
 
-module_param(ecc_sec_warn_threshold, uint, S_IWUSR | S_IRUGO);
+module_param(ecc_sec_warn_threshold, uint, 0644);
 MODULE_PARM_DESC(ecc_sec_warn_threshold,
 		 " ECC corrected error warning threshold setting");
 
-module_param(ecc_sec_period, uint, S_IWUSR | S_IRUGO);
+module_param(ecc_sec_period, uint, 0644);
 MODULE_PARM_DESC(ecc_sec_period, " ECC corrected error period (in seconds)");
 
-module_param(ecc_ded_threshold, uint, S_IWUSR | S_IRUGO);
+module_param(ecc_ded_threshold, uint, 0644);
 MODULE_PARM_DESC(ecc_ded_threshold, " ECC detected error threshold setting");
 
-module_param(ecc_ded_period, uint, S_IWUSR | S_IRUGO);
+module_param(ecc_ded_period, uint, 0644);
 MODULE_PARM_DESC(ecc_ded_period, " ECC detected error period (in seconds)");
 #endif
 

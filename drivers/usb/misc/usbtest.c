@@ -2028,9 +2028,12 @@ test_queue(struct usbtest_dev *dev, struct usbtest_param_32 *param,
 	unsigned		i;
 	unsigned long		packets = 0;
 	int			status = 0;
-	struct urb		*urbs[param->sglen];
+	struct urb		*urbs[MAX_SGLEN];
 
 	if (!param->sglen || param->iterations > UINT_MAX / param->sglen)
+		return -EINVAL;
+
+	if (param->sglen > MAX_SGLEN)
 		return -EINVAL;
 
 	memset(&context, 0, sizeof(context));

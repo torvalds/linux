@@ -1,0 +1,45 @@
+C IRIW+mbonceonces+OnceOnce
+
+(*
+ * Result: Never
+ *
+ * Test of independent reads from independent writes with smp_mb()
+ * between each pairs of reads.  In other words, is smp_mb() sufficient to
+ * cause two different reading processes to agree on the order of a pair
+ * of writes, where each write is to a different variable by a different
+ * process?
+ *)
+
+{}
+
+P0(int *x)
+{
+	WRITE_ONCE(*x, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r0;
+	int r1;
+
+	r0 = READ_ONCE(*x);
+	smp_mb();
+	r1 = READ_ONCE(*y);
+}
+
+P2(int *y)
+{
+	WRITE_ONCE(*y, 1);
+}
+
+P3(int *x, int *y)
+{
+	int r0;
+	int r1;
+
+	r0 = READ_ONCE(*y);
+	smp_mb();
+	r1 = READ_ONCE(*x);
+}
+
+exists (1:r0=1 /\ 1:r1=0 /\ 3:r0=1 /\ 3:r1=0)

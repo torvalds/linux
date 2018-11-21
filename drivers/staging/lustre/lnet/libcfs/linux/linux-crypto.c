@@ -42,7 +42,7 @@ static int cfs_crypto_hash_speeds[CFS_HASH_ALG_MAX];
 /**
  * Initialize the state descriptor for the specified hash algorithm.
  *
- * An internal routine to allocate the hash-specific state in \a hdesc for
+ * An internal routine to allocate the hash-specific state in \a req for
  * use with cfs_crypto_hash_digest() to compute the hash of a single message,
  * though possibly in multiple chunks.  The descriptor internal state should
  * be freed with cfs_crypto_hash_final().
@@ -50,7 +50,7 @@ static int cfs_crypto_hash_speeds[CFS_HASH_ALG_MAX];
  * \param[in]	  hash_alg	hash algorithm id (CFS_HASH_ALG_*)
  * \param[out]	  type		pointer to the hash description in hash_types[]
  *				array
- * \param[in,out] hdesc		hash state descriptor to be initialized
+ * \param[in,out] req		hash state descriptor to be initialized
  * \param[in]	  key		initial hash value/state, NULL to use default
  *				value
  * \param[in]	  key_len	length of \a key
@@ -194,7 +194,7 @@ EXPORT_SYMBOL(cfs_crypto_hash_digest);
  * \retval		pointer to descriptor of hash instance
  * \retval		ERR_PTR(errno) in case of error
  */
-struct cfs_crypto_hash_desc *
+struct ahash_request *
 cfs_crypto_hash_init(enum cfs_crypto_hash_alg hash_alg,
 		     unsigned char *key, unsigned int key_len)
 {
@@ -206,14 +206,14 @@ cfs_crypto_hash_init(enum cfs_crypto_hash_alg hash_alg,
 
 	if (err)
 		return ERR_PTR(err);
-	return (struct cfs_crypto_hash_desc *)req;
+	return req;
 }
 EXPORT_SYMBOL(cfs_crypto_hash_init);
 
 /**
  * Update hash digest computed on data within the given \a page
  *
- * \param[in] hdesc	hash state descriptor
+ * \param[in] hreq	hash state descriptor
  * \param[in] page	data page on which to compute the hash
  * \param[in] offset	offset within \a page at which to start hash
  * \param[in] len	length of data on which to compute hash
@@ -221,11 +221,10 @@ EXPORT_SYMBOL(cfs_crypto_hash_init);
  * \retval		0 for success
  * \retval		negative errno on failure
  */
-int cfs_crypto_hash_update_page(struct cfs_crypto_hash_desc *hdesc,
+int cfs_crypto_hash_update_page(struct ahash_request *req,
 				struct page *page, unsigned int offset,
 				unsigned int len)
 {
-	struct ahash_request *req = (void *)hdesc;
 	struct scatterlist sl;
 
 	sg_init_table(&sl, 1);
@@ -239,17 +238,16 @@ EXPORT_SYMBOL(cfs_crypto_hash_update_page);
 /**
  * Update hash digest computed on the specified data
  *
- * \param[in] hdesc	hash state descriptor
+ * \param[in] req	hash state descriptor
  * \param[in] buf	data buffer on which to compute the hash
  * \param[in] buf_len	length of \buf on which to compute hash
  *
  * \retval		0 for success
  * \retval		negative errno on failure
  */
-int cfs_crypto_hash_update(struct cfs_crypto_hash_desc *hdesc,
+int cfs_crypto_hash_update(struct ahash_request *req,
 			   const void *buf, unsigned int buf_len)
 {
-	struct ahash_request *req = (void *)hdesc;
 	struct scatterlist sl;
 
 	sg_init_one(&sl, buf, buf_len);
@@ -262,20 +260,19 @@ EXPORT_SYMBOL(cfs_crypto_hash_update);
 /**
  * Finish hash calculation, copy hash digest to buffer, clean up hash descriptor
  *
- * \param[in]	  hdesc		hash descriptor
+ * \param[in]	  req		hash descriptor
  * \param[out]	  hash		pointer to hash buffer to store hash digest
- * \param[in,out] hash_len	pointer to hash buffer size, if \a hdesc = NULL
- *				only free \a hdesc instead of computing the hash
+ * \param[in,out] hash_len	pointer to hash buffer size, if \a req = NULL
+ *				only free \a req instead of computing the hash
  *
  * \retval	0 for success
  * \retval	-EOVERFLOW if hash_len is too small for the hash digest
  * \retval	negative errno for other errors from lower layers
  */
-int cfs_crypto_hash_final(struct cfs_crypto_hash_desc *hdesc,
+int cfs_crypto_hash_final(struct ahash_request *req,
 			  unsigned char *hash, unsigned int *hash_len)
 {
 	int err;
-	struct ahash_request *req = (void *)hdesc;
 	int size = crypto_ahash_digestsize(crypto_ahash_reqtfm(req));
 
 	if (!hash || !hash_len) {
@@ -331,7 +328,7 @@ static void cfs_crypto_performance_test(enum cfs_crypto_hash_alg hash_alg)
 
 	for (start = jiffies, end = start + msecs_to_jiffies(MSEC_PER_SEC),
 	     bcount = 0; time_before(jiffies, end); bcount++) {
-		struct cfs_crypto_hash_desc *hdesc;
+		struct ahash_request *hdesc;
 		int i;
 
 		hdesc = cfs_crypto_hash_init(hash_alg, NULL, 0);

@@ -394,9 +394,7 @@ static int eeh_phb_check_failure(struct eeh_pe *pe)
 	/* Check PHB state */
 	ret = eeh_ops->get_state(phb_pe, NULL);
 	if ((ret < 0) ||
-	    (ret == EEH_STATE_NOT_SUPPORT) ||
-	    (ret & (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) ==
-	    (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE)) {
+	    (ret == EEH_STATE_NOT_SUPPORT) || eeh_state_active(ret)) {
 		ret = 0;
 		goto out;
 	}
@@ -433,7 +431,6 @@ out:
 int eeh_dev_check_failure(struct eeh_dev *edev)
 {
 	int ret;
-	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	unsigned long flags;
 	struct device_node *dn;
 	struct pci_dev *dev;
@@ -525,8 +522,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 	 * state, PE is in good state.
 	 */
 	if ((ret < 0) ||
-	    (ret == EEH_STATE_NOT_SUPPORT) ||
-	    ((ret & active_flags) == active_flags)) {
+	    (ret == EEH_STATE_NOT_SUPPORT) || eeh_state_active(ret)) {
 		eeh_stats.false_positives++;
 		pe->false_positives++;
 		rc = 0;
@@ -546,8 +542,7 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 
 		/* Frozen parent PE ? */
 		ret = eeh_ops->get_state(parent_pe, NULL);
-		if (ret > 0 &&
-		    (ret & active_flags) != active_flags)
+		if (ret > 0 && !eeh_state_active(ret))
 			pe = parent_pe;
 
 		/* Next parent level */
@@ -888,7 +883,6 @@ static void *eeh_set_dev_freset(void *data, void *flag)
  */
 int eeh_pe_reset_full(struct eeh_pe *pe)
 {
-	int active_flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	int reset_state = (EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
 	int type = EEH_RESET_HOT;
 	unsigned int freset = 0;
@@ -919,7 +913,7 @@ int eeh_pe_reset_full(struct eeh_pe *pe)
 
 		/* Wait until the PE is in a functioning state */
 		state = eeh_ops->wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
-		if ((state & active_flags) == active_flags)
+		if (eeh_state_active(state))
 			break;
 
 		if (state < 0) {
@@ -1352,16 +1346,15 @@ static int eeh_pe_change_owner(struct eeh_pe *pe)
 	struct eeh_dev *edev, *tmp;
 	struct pci_dev *pdev;
 	struct pci_device_id *id;
-	int flags, ret;
+	int ret;
 
 	/* Check PE state */
-	flags = (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 	ret = eeh_ops->get_state(pe, NULL);
 	if (ret < 0 || ret == EEH_STATE_NOT_SUPPORT)
 		return 0;
 
 	/* Unfrozen PE, nothing to do */
-	if ((ret & flags) == flags)
+	if (eeh_state_active(ret))
 		return 0;
 
 	/* Frozen PE, check if it needs PE level reset */

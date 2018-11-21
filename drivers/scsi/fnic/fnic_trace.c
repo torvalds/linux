@@ -296,7 +296,7 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 		  "Number of Abort FW Timeouts: %lld\n"
 		  "Number of Abort IO NOT Found: %lld\n"
 
-		  "Abord issued times: \n"
+		  "Abort issued times: \n"
 		  "            < 6 sec : %lld\n"
 		  "     6 sec - 20 sec : %lld\n"
 		  "    20 sec - 30 sec : %lld\n"

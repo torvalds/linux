@@ -48,7 +48,7 @@
 	model = "Technexion Pico i.MX7D Board";
 	compatible = "technexion,imx7d-pico", "fsl,imx7d";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x80000000>;
 	};
 

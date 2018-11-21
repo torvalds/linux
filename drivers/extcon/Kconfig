@@ -30,7 +30,8 @@ config EXTCON_ARIZONA
 
 config EXTCON_AXP288
 	tristate "X-Power AXP288 EXTCON support"
-	depends on MFD_AXP20X && USB_PHY
+	depends on MFD_AXP20X && USB_SUPPORT && X86
+	select USB_ROLE_SWITCH
 	help
 	  Say Y here to enable support for USB peripheral detection
 	  and USB MUX switching by X-Power AXP288 PMIC.

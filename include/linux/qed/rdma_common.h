@@ -51,6 +51,8 @@
 #define RDMA_MAX_CQS			(64 * 1024)
 #define RDMA_MAX_TIDS			(128 * 1024 - 1)
 #define RDMA_MAX_PDS			(64 * 1024)
+#define RDMA_MAX_XRC_SRQS                       (1024)
+#define RDMA_MAX_SRQS                           (32 * 1024)
 
 #define RDMA_NUM_STATISTIC_COUNTERS	MAX_NUM_VPORTS
 #define RDMA_NUM_STATISTIC_COUNTERS_K2	MAX_NUM_VPORTS_K2

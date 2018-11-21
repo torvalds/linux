@@ -42,4 +42,8 @@ u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
 					struct audioformat *fp,
 					unsigned int sample_bytes);
 
+void snd_usb_audioformat_attributes_quirk(struct snd_usb_audio *chip,
+					  struct audioformat *fp,
+					  int stream);
+
 #endif /* __USBAUDIO_QUIRKS_H */

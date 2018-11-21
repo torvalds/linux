@@ -42,6 +42,8 @@
 #define MSR_IA32_SPEC_CTRL		0x00000048 /* Speculation Control */
 #define SPEC_CTRL_IBRS			(1 << 0)   /* Indirect Branch Restricted Speculation */
 #define SPEC_CTRL_STIBP			(1 << 1)   /* Single Thread Indirect Branch Predictors */
+#define SPEC_CTRL_SSBD_SHIFT		2	   /* Speculative Store Bypass Disable bit */
+#define SPEC_CTRL_SSBD			(1 << SPEC_CTRL_SSBD_SHIFT)   /* Speculative Store Bypass Disable */
 
 #define MSR_IA32_PRED_CMD		0x00000049 /* Prediction Command */
 #define PRED_CMD_IBPB			(1 << 0)   /* Indirect Branch Prediction Barrier */
@@ -68,6 +70,11 @@
 #define MSR_IA32_ARCH_CAPABILITIES	0x0000010a
 #define ARCH_CAP_RDCL_NO		(1 << 0)   /* Not susceptible to Meltdown */
 #define ARCH_CAP_IBRS_ALL		(1 << 1)   /* Enhanced IBRS support */
+#define ARCH_CAP_SSB_NO			(1 << 4)   /*
+						    * Not susceptible to Speculative Store Bypass
+						    * attack, so no Speculative Store Bypass
+						    * control required.
+						    */
 
 #define MSR_IA32_BBL_CR_CTL		0x00000119
 #define MSR_IA32_BBL_CR_CTL3		0x0000011e
@@ -340,6 +347,8 @@
 #define MSR_AMD64_SEV_ENABLED_BIT	0
 #define MSR_AMD64_SEV_ENABLED		BIT_ULL(MSR_AMD64_SEV_ENABLED_BIT)
 
+#define MSR_AMD64_VIRT_SPEC_CTRL	0xc001011f
+
 /* Fam 17h MSRs */
 #define MSR_F17H_IRPERF			0xc00000e9
 
@@ -353,7 +362,21 @@
 
 /* Fam 15h MSRs */
 #define MSR_F15H_PERF_CTL		0xc0010200
+#define MSR_F15H_PERF_CTL0		MSR_F15H_PERF_CTL
+#define MSR_F15H_PERF_CTL1		(MSR_F15H_PERF_CTL + 2)
+#define MSR_F15H_PERF_CTL2		(MSR_F15H_PERF_CTL + 4)
+#define MSR_F15H_PERF_CTL3		(MSR_F15H_PERF_CTL + 6)
+#define MSR_F15H_PERF_CTL4		(MSR_F15H_PERF_CTL + 8)
+#define MSR_F15H_PERF_CTL5		(MSR_F15H_PERF_CTL + 10)
+
 #define MSR_F15H_PERF_CTR		0xc0010201
+#define MSR_F15H_PERF_CTR0		MSR_F15H_PERF_CTR
+#define MSR_F15H_PERF_CTR1		(MSR_F15H_PERF_CTR + 2)
+#define MSR_F15H_PERF_CTR2		(MSR_F15H_PERF_CTR + 4)
+#define MSR_F15H_PERF_CTR3		(MSR_F15H_PERF_CTR + 6)
+#define MSR_F15H_PERF_CTR4		(MSR_F15H_PERF_CTR + 8)
+#define MSR_F15H_PERF_CTR5		(MSR_F15H_PERF_CTR + 10)
+
 #define MSR_F15H_NB_PERF_CTL		0xc0010240
 #define MSR_F15H_NB_PERF_CTR		0xc0010241
 #define MSR_F15H_PTSC			0xc0010280

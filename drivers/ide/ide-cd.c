@@ -712,7 +712,7 @@ static ide_startstop_t cdrom_start_rw(ide_drive_t *drive, struct request *rq)
 	struct request_queue *q = drive->queue;
 	int write = rq_data_dir(rq) == WRITE;
 	unsigned short sectors_per_frame =
-		queue_logical_block_size(q) >> SECTOR_BITS;
+		queue_logical_block_size(q) >> SECTOR_SHIFT;
 
 	ide_debug_log(IDE_DBG_RQ, "rq->cmd[0]: 0x%x, rq->cmd_flags: 0x%x, "
 				  "secs_per_frame: %u",
@@ -919,7 +919,7 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	 * end up being bogus.
 	 */
 	blocklen = be32_to_cpu(capbuf.blocklen);
-	blocklen = (blocklen >> SECTOR_BITS) << SECTOR_BITS;
+	blocklen = (blocklen >> SECTOR_SHIFT) << SECTOR_SHIFT;
 	switch (blocklen) {
 	case 512:
 	case 1024:
@@ -935,7 +935,7 @@ static int cdrom_read_capacity(ide_drive_t *drive, unsigned long *capacity,
 	}
 
 	*capacity = 1 + be32_to_cpu(capbuf.lba);
-	*sectors_per_frame = blocklen >> SECTOR_BITS;
+	*sectors_per_frame = blocklen >> SECTOR_SHIFT;
 
 	ide_debug_log(IDE_DBG_PROBE, "cap: %lu, sectors_per_frame: %lu",
 				     *capacity, *sectors_per_frame);
@@ -1012,7 +1012,7 @@ int ide_cd_read_toc(ide_drive_t *drive, struct request_sense *sense)
 	drive->probed_capacity = toc->capacity * sectors_per_frame;
 
 	blk_queue_logical_block_size(drive->queue,
-				     sectors_per_frame << SECTOR_BITS);
+				     sectors_per_frame << SECTOR_SHIFT);
 
 	/* first read just the header, so we know how long the TOC is */
 	stat = cdrom_read_tocentry(drive, 0, 1, 0, (char *) &toc->hdr,
@@ -1612,6 +1612,8 @@ static int idecd_open(struct block_device *bdev, fmode_t mode)
 {
 	struct cdrom_info *info;
 	int rc = -ENXIO;
+
+	check_disk_change(bdev);
 
 	mutex_lock(&ide_cd_mutex);
 	info = ide_cd_get(bdev->bd_disk);

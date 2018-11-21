@@ -93,11 +93,11 @@ struct rx_cxt {
 
 struct lte_udev {
 	struct usb_device *usbdev;
-	struct gdm_endian gdm_ed;
 	struct tx_cxt tx;
 	struct rx_cxt rx;
 	struct delayed_work work_tx;
 	struct delayed_work work_rx;
+	u8 gdm_ed;
 	u8 send_complete;
 	u8 tx_stop;
 	struct usb_interface *intf;

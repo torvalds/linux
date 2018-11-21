@@ -84,8 +84,8 @@ static const struct reg_default wm8997_sysclk_reva_patch[] = {
 static int wm8997_sysclk_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct arizona *arizona = dev_get_drvdata(component->dev->parent);
 	struct regmap *regmap = arizona->regmap;
 	const struct reg_default *patch = NULL;
 	int i, patch_size;
@@ -118,7 +118,7 @@ static int wm8997_sysclk_ev(struct snd_soc_dapm_widget *w,
 	return arizona_dvfs_sysclk_ev(w, kcontrol, event);
 }
 
-static const char *wm8997_osr_text[] = {
+static const char * const wm8997_osr_text[] = {
 	"Low power", "Normal", "High performance",
 };
 
@@ -609,8 +609,7 @@ SND_SOC_DAPM_AIF_IN("SLIMRX8", NULL, 0,
 		    ARIZONA_SLIMRX8_ENA_SHIFT, 0),
 
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
-		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
-		       &wm8997_aec_loopback_mux),
+		 ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0, &wm8997_aec_loopback_mux),
 
 SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
 		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
@@ -927,10 +926,10 @@ static const struct snd_soc_dapm_route wm8997_dapm_routes[] = {
 	{ "MICSUPP", NULL, "SYSCLK" },
 };
 
-static int wm8997_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
-			  unsigned int Fref, unsigned int Fout)
+static int wm8997_set_fll(struct snd_soc_component *component, int fll_id,
+			  int source, unsigned int Fref, unsigned int Fout)
 {
-	struct wm8997_priv *wm8997 = snd_soc_codec_get_drvdata(codec);
+	struct wm8997_priv *wm8997 = snd_soc_component_get_drvdata(component);
 
 	switch (fll_id) {
 	case WM8997_FLL1:
@@ -1057,17 +1056,16 @@ static struct snd_soc_dai_driver wm8997_dai[] = {
 	},
 };
 
-static int wm8997_codec_probe(struct snd_soc_codec *codec)
+static int wm8997_component_probe(struct snd_soc_component *component)
 {
-	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
-	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
+	struct wm8997_priv *priv = snd_soc_component_get_drvdata(component);
 	struct arizona *arizona = priv->core.arizona;
 	int ret;
 
-	snd_soc_codec_init_regmap(codec, arizona->regmap);
+	snd_soc_component_init_regmap(component, arizona->regmap);
 
-	ret = arizona_init_spk(codec);
+	ret = arizona_init_spk(component);
 	if (ret < 0)
 		return ret;
 
@@ -1078,13 +1076,11 @@ static int wm8997_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int wm8997_codec_remove(struct snd_soc_codec *codec)
+static void wm8997_component_remove(struct snd_soc_component *component)
 {
-	struct wm8997_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct wm8997_priv *priv = snd_soc_component_get_drvdata(component);
 
 	priv->core.arizona->dapm = NULL;
-
-	return 0;
 }
 
 #define WM8997_DIG_VU 0x0200
@@ -1098,23 +1094,20 @@ static unsigned int wm8997_digital_vu[] = {
 	ARIZONA_DAC_DIGITAL_VOLUME_5R,
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8997 = {
-	.probe = wm8997_codec_probe,
-	.remove = wm8997_codec_remove,
-
-	.idle_bias_off = true,
-
-	.set_sysclk = arizona_set_sysclk,
-	.set_pll = wm8997_set_fll,
-
-	.component_driver = {
-		.controls		= wm8997_snd_controls,
-		.num_controls		= ARRAY_SIZE(wm8997_snd_controls),
-		.dapm_widgets		= wm8997_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8997_dapm_widgets),
-		.dapm_routes		= wm8997_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wm8997_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8997 = {
+	.probe			= wm8997_component_probe,
+	.remove			= wm8997_component_remove,
+	.set_sysclk		= arizona_set_sysclk,
+	.set_pll		= wm8997_set_fll,
+	.controls		= wm8997_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8997_snd_controls),
+	.dapm_widgets		= wm8997_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8997_dapm_widgets),
+	.dapm_routes		= wm8997_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wm8997_dapm_routes),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int wm8997_probe(struct platform_device *pdev)
@@ -1178,10 +1171,12 @@ static int wm8997_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm8997,
-				     wm8997_dai, ARRAY_SIZE(wm8997_dai));
+	ret = devm_snd_soc_register_component(&pdev->dev,
+					      &soc_component_dev_wm8997,
+					      wm8997_dai,
+					      ARRAY_SIZE(wm8997_dai));
 	if (ret < 0) {
-		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 		goto err_spk_irqs;
 	}
 
@@ -1196,7 +1191,6 @@ static int wm8997_remove(struct platform_device *pdev)
 	struct wm8997_priv *wm8997 = platform_get_drvdata(pdev);
 	struct arizona *arizona = wm8997->core.arizona;
 
-	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	arizona_free_spk_irqs(arizona);

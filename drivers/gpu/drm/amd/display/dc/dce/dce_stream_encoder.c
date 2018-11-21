@@ -26,7 +26,8 @@
 #include "dc_bios_types.h"
 #include "dce_stream_encoder.h"
 #include "reg_helper.h"
-
+#define DC_LOGGER \
+		enc110->base.ctx->logger
 enum DP_PIXEL_ENCODING {
 DP_PIXEL_ENCODING_RGB444                 = 0x00000000,
 DP_PIXEL_ENCODING_YCBCR422               = 0x00000001,
@@ -197,7 +198,6 @@ static void dce110_update_hdmi_info_packet(
 	uint32_t packet_index,
 	const struct encoder_info_packet *info_packet)
 {
-	struct dc_context *ctx = enc110->base.ctx;
 	uint32_t cont, send, line;
 
 	if (info_packet->valid) {
@@ -277,8 +277,7 @@ static void dce110_update_hdmi_info_packet(
 #endif
 	default:
 		/* invalid HW packet index */
-		dm_logger_write(
-			ctx->logger, LOG_WARNING,
+		DC_LOG_WARNING(
 			"Invalid HW packet index: %s()\n",
 			__func__);
 		return;
@@ -736,6 +735,8 @@ static void dce110_stream_encoder_update_hdmi_info_packets(
 		if (info_frame->avi.valid) {
 			const uint32_t *content =
 				(const uint32_t *) &info_frame->avi.sb[0];
+			/*we need turn on clock before programming AFMT block*/
+			REG_UPDATE(AFMT_CNTL, AFMT_AUDIO_CLOCK_EN, 1);
 
 			REG_WRITE(AFMT_AVI_INFO0, content[0]);
 
@@ -920,6 +921,7 @@ static void dce110_stream_encoder_dp_blank(
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
 	uint32_t retries = 0;
+	uint32_t  reg1 = 0;
 	uint32_t max_retries = DP_BLANK_MAX_RETRY * 10;
 
 	/* Note: For CZ, we are changing driver default to disable
@@ -928,7 +930,10 @@ static void dce110_stream_encoder_dp_blank(
 	 * handful of panels that cannot handle disable stream at
 	 * HBLANK and will result in a white line flash across the
 	 * screen on stream disable. */
-
+	REG_GET(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, &reg1);
+	if ((reg1 & 0x1) == 0)
+		/*stream not enabled*/
+		return;
 	/* Specify the video stream disable point
 	 * (2 = start of the next vertical blank) */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, 2);
@@ -1382,7 +1387,7 @@ static void dce110_se_setup_hdmi_audio(
 			     crtc_info->requested_pixel_clock,
 			     crtc_info->calculated_pixel_clock,
 			     &audio_clock_info);
-	dm_logger_write(enc->ctx->logger, LOG_HW_AUDIO,
+	DC_LOG_HW_AUDIO(
 			"\n%s:Input::requested_pixel_clock = %d"	\
 			"calculated_pixel_clock = %d \n", __func__,	\
 			crtc_info->requested_pixel_clock,		\

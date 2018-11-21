@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/ats.c
- *
- * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
- * Copyright (C) 2011 Advanced Micro Devices,
- *
- * PCI Express I/O Virtualization (IOV) support.
+ * PCI Express I/O Virtualization (IOV) support
  *   Address Translation Service 1.0
  *   Page Request Interface added by Joerg Roedel <joerg.roedel@amd.com>
  *   PASID support added by Joerg Roedel <joerg.roedel@amd.com>
+ *
+ * Copyright (C) 2009 Intel Corporation, Yu Zhao <yu.zhao@intel.com>
+ * Copyright (C) 2011 Advanced Micro Devices,
  */
 
 #include <linux/export.h>

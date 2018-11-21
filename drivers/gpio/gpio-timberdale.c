@@ -238,11 +238,10 @@ static int timbgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	tgpio = devm_kzalloc(dev, sizeof(struct timbgpio), GFP_KERNEL);
-	if (!tgpio) {
-		dev_err(dev, "Memory alloc failed\n");
+	tgpio = devm_kzalloc(dev, sizeof(*tgpio), GFP_KERNEL);
+	if (!tgpio)
 		return -EINVAL;
-	}
+
 	tgpio->irq_base = pdata->irq_base;
 
 	spin_lock_init(&tgpio->lock);

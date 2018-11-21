@@ -291,6 +291,27 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		goto out;
 	}
 
+	while (cl->tx_cb_queued >= dev->tx_queue_limit) {
+		if (file->f_flags & O_NONBLOCK) {
+			rets = -EAGAIN;
+			goto out;
+		}
+		mutex_unlock(&dev->device_lock);
+		rets = wait_event_interruptible(cl->tx_wait,
+				cl->writing_state == MEI_WRITE_COMPLETE ||
+				(!mei_cl_is_connected(cl)));
+		mutex_lock(&dev->device_lock);
+		if (rets) {
+			if (signal_pending(current))
+				rets = -EINTR;
+			goto out;
+		}
+		if (!mei_cl_is_connected(cl)) {
+			rets = -ENODEV;
+			goto out;
+		}
+	}
+
 	*offset = 0;
 	cb = mei_cl_alloc_cb(cl, length, MEI_FOP_WRITE, file);
 	if (!cb) {
@@ -507,7 +528,6 @@ static long mei_ioctl(struct file *file, unsigned int cmd, unsigned long data)
 		break;
 
 	default:
-		dev_err(dev->dev, ": unsupported ioctl %d.\n", cmd);
 		rets = -ENOIOCTLCMD;
 	}
 
@@ -578,6 +598,12 @@ static __poll_t mei_poll(struct file *file, poll_table *wait)
 			mask |= EPOLLIN | EPOLLRDNORM;
 		else
 			mei_cl_read_start(cl, mei_cl_mtu(cl), file);
+	}
+
+	if (req_events & (POLLOUT | POLLWRNORM)) {
+		poll_wait(file, &cl->tx_wait, wait);
+		if (cl->tx_cb_queued < dev->tx_queue_limit)
+			mask |= POLLOUT | POLLWRNORM;
 	}
 
 out:
@@ -749,10 +775,48 @@ static ssize_t hbm_ver_drv_show(struct device *device,
 }
 static DEVICE_ATTR_RO(hbm_ver_drv);
 
+static ssize_t tx_queue_limit_show(struct device *device,
+				   struct device_attribute *attr, char *buf)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	u8 size = 0;
+
+	mutex_lock(&dev->device_lock);
+	size = dev->tx_queue_limit;
+	mutex_unlock(&dev->device_lock);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", size);
+}
+
+static ssize_t tx_queue_limit_store(struct device *device,
+				    struct device_attribute *attr,
+				    const char *buf, size_t count)
+{
+	struct mei_device *dev = dev_get_drvdata(device);
+	u8 limit;
+	unsigned int inp;
+	int err;
+
+	err = kstrtouint(buf, 10, &inp);
+	if (err)
+		return err;
+	if (inp > MEI_TX_QUEUE_LIMIT_MAX || inp < MEI_TX_QUEUE_LIMIT_MIN)
+		return -EINVAL;
+	limit = inp;
+
+	mutex_lock(&dev->device_lock);
+	dev->tx_queue_limit = limit;
+	mutex_unlock(&dev->device_lock);
+
+	return count;
+}
+static DEVICE_ATTR_RW(tx_queue_limit);
+
 static struct attribute *mei_attrs[] = {
 	&dev_attr_fw_status.attr,
 	&dev_attr_hbm_ver.attr,
 	&dev_attr_hbm_ver_drv.attr,
+	&dev_attr_tx_queue_limit.attr,
 	NULL
 };
 ATTRIBUTE_GROUPS(mei);

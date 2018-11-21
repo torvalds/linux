@@ -96,12 +96,12 @@ static ssize_t show_link_rate(struct device *cdev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", link_rate);
 }
 
-static DEVICE_ATTR(address, S_IRUGO, show_address, NULL);
-static DEVICE_ATTR(atmaddress, S_IRUGO, show_atmaddress, NULL);
-static DEVICE_ATTR(atmindex, S_IRUGO, show_atmindex, NULL);
-static DEVICE_ATTR(carrier, S_IRUGO, show_carrier, NULL);
-static DEVICE_ATTR(type, S_IRUGO, show_type, NULL);
-static DEVICE_ATTR(link_rate, S_IRUGO, show_link_rate, NULL);
+static DEVICE_ATTR(address, 0444, show_address, NULL);
+static DEVICE_ATTR(atmaddress, 0444, show_atmaddress, NULL);
+static DEVICE_ATTR(atmindex, 0444, show_atmindex, NULL);
+static DEVICE_ATTR(carrier, 0444, show_carrier, NULL);
+static DEVICE_ATTR(type, 0444, show_type, NULL);
+static DEVICE_ATTR(link_rate, 0444, show_link_rate, NULL);
 
 static struct device_attribute *atm_attrs[] = {
 	&dev_attr_atmaddress,

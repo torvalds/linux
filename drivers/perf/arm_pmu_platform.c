@@ -122,7 +122,7 @@ static int pmu_parse_irqs(struct arm_pmu *pmu)
 			return pmu_parse_percpu_irq(pmu, irq);
 	}
 
-	if (!pmu_has_irq_affinity(pdev->dev.of_node)) {
+	if (nr_cpu_ids != 1 && !pmu_has_irq_affinity(pdev->dev.of_node)) {
 		pr_warn("no interrupt-affinity property for %pOF, guessing.\n",
 			pdev->dev.of_node);
 	}

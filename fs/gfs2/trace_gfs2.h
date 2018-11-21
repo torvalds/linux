@@ -515,6 +515,7 @@ TRACE_EVENT(gfs2_iomap_end,
 		__field(	u64,	inum			)
 		__field(	loff_t, offset			)
 		__field(	ssize_t, length			)
+		__field(	sector_t, pblock		)
 		__field(	u16,	flags			)
 		__field(	u16,	type			)
 		__field(	int,	ret			)
@@ -525,16 +526,20 @@ TRACE_EVENT(gfs2_iomap_end,
 		__entry->inum		= ip->i_no_addr;
 		__entry->offset		= iomap->offset;
 		__entry->length		= iomap->length;
+		__entry->pblock		= iomap->addr == IOMAP_NULL_ADDR ? 0 :
+					 (iomap->addr >> ip->i_inode.i_blkbits);
 		__entry->flags		= iomap->flags;
 		__entry->type		= iomap->type;
 		__entry->ret		= ret;
 	),
 
-	TP_printk("%u,%u bmap %llu iomap end %llu/%lu ty:%d flags:%08x rc:%d",
+	TP_printk("%u,%u bmap %llu iomap end %llu/%lu to %llu ty:%d flags:%08x rc:%d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  (unsigned long long)__entry->inum,
 		  (unsigned long long)__entry->offset,
-		  (unsigned long)__entry->length, (u16)__entry->type,
+		  (unsigned long)__entry->length,
+		  (long long)__entry->pblock,
+		  (u16)__entry->type,
 		  (u16)__entry->flags, __entry->ret)
 );
 

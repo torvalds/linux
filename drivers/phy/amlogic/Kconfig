@@ -18,10 +18,21 @@ config PHY_MESON_GXL_USB2
 	default ARCH_MESON
 	depends on OF && (ARCH_MESON || COMPILE_TEST)
 	depends on USB_SUPPORT
-	select USB_COMMON
 	select GENERIC_PHY
 	select REGMAP_MMIO
 	help
 	  Enable this to support the Meson USB2 PHYs found in Meson
 	  GXL and GXM SoCs.
+	  If unsure, say N.
+
+config PHY_MESON_GXL_USB3
+	tristate "Meson GXL and GXM USB3 PHY drivers"
+	default ARCH_MESON
+	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on USB_SUPPORT
+	select GENERIC_PHY
+	select REGMAP_MMIO
+	help
+	  Enable this to support the Meson USB3 PHY and OTG detection
+	  IP block found in Meson GXL and GXM SoCs.
 	  If unsure, say N.

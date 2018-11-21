@@ -41,13 +41,20 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
 			  int key_size, int inner_map_fd, int max_entries,
 			  __u32 map_flags);
 
+struct bpf_load_program_attr {
+	enum bpf_prog_type prog_type;
+	enum bpf_attach_type expected_attach_type;
+	const char *name;
+	const struct bpf_insn *insns;
+	size_t insns_cnt;
+	const char *license;
+	__u32 kern_version;
+};
+
 /* Recommend log buffer size */
 #define BPF_LOG_BUF_SIZE (256 * 1024)
-int bpf_load_program_name(enum bpf_prog_type type, const char *name,
-			  const struct bpf_insn *insns,
-			  size_t insns_cnt, const char *license,
-			  __u32 kern_version, char *log_buf,
-			  size_t log_buf_sz);
+int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
+			   char *log_buf, size_t log_buf_sz);
 int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		     size_t insns_cnt, const char *license,
 		     __u32 kern_version, char *log_buf,
@@ -79,4 +86,5 @@ int bpf_map_get_fd_by_id(__u32 id);
 int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
 int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
 		   __u32 *attach_flags, __u32 *prog_ids, __u32 *prog_cnt);
+int bpf_raw_tracepoint_open(const char *name, int prog_fd);
 #endif

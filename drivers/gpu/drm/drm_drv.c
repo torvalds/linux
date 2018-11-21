@@ -99,7 +99,7 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
 	case DRM_MINOR_CONTROL:
 		return &dev->control;
 	default:
-		return NULL;
+		BUG();
 	}
 }
 
@@ -716,7 +716,7 @@ static void remove_compat_control_link(struct drm_device *dev)
 	if (!minor)
 		return;
 
-	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index);
+	name = kasprintf(GFP_KERNEL, "controlD%d", minor->index + 64);
 	if (!name)
 		return;
 

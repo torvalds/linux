@@ -34,7 +34,7 @@ asmlinkage long sys_mmap(unsigned long addr, unsigned long len,
 	if (offset_in_page(off) != 0)
 		return -EINVAL;
 
-	return sys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd, off >> PAGE_SHIFT);
 }
 
 SYSCALL_DEFINE1(arm64_personality, unsigned int, personality)

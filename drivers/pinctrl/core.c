@@ -1416,6 +1416,7 @@ int pinctrl_register_mappings(const struct pinctrl_map *maps,
 {
 	return pinctrl_register_map(maps, num_maps, true);
 }
+EXPORT_SYMBOL_GPL(pinctrl_register_mappings);
 
 void pinctrl_unregister_map(const struct pinctrl_map *map)
 {
@@ -1586,6 +1587,7 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinctrl_pins);
 
 static int pinctrl_groups_show(struct seq_file *s, void *what)
 {
@@ -1631,6 +1633,7 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinctrl_groups);
 
 static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 {
@@ -1664,6 +1667,7 @@ static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinctrl_gpioranges);
 
 static int pinctrl_devices_show(struct seq_file *s, void *what)
 {
@@ -1690,6 +1694,7 @@ static int pinctrl_devices_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinctrl_devices);
 
 static inline const char *map_type(enum pinctrl_map_type type)
 {
@@ -1743,6 +1748,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinctrl_maps);
 
 static int pinctrl_show(struct seq_file *s, void *what)
 {
@@ -1788,87 +1794,30 @@ static int pinctrl_show(struct seq_file *s, void *what)
 
 	return 0;
 }
-
-static int pinctrl_pins_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_pins_show, inode->i_private);
-}
-
-static int pinctrl_groups_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_groups_show, inode->i_private);
-}
-
-static int pinctrl_gpioranges_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_gpioranges_show, inode->i_private);
-}
-
-static int pinctrl_devices_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_devices_show, NULL);
-}
-
-static int pinctrl_maps_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_maps_show, NULL);
-}
-
-static int pinctrl_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pinctrl_show, NULL);
-}
-
-static const struct file_operations pinctrl_pins_ops = {
-	.open		= pinctrl_pins_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinctrl_groups_ops = {
-	.open		= pinctrl_groups_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinctrl_gpioranges_ops = {
-	.open		= pinctrl_gpioranges_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinctrl_devices_ops = {
-	.open		= pinctrl_devices_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinctrl_maps_ops = {
-	.open		= pinctrl_maps_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static const struct file_operations pinctrl_ops = {
-	.open		= pinctrl_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pinctrl);
 
 static struct dentry *debugfs_root;
 
 static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 {
 	struct dentry *device_root;
+	const char *debugfs_name;
 
-	device_root = debugfs_create_dir(dev_name(pctldev->dev),
-					 debugfs_root);
+	if (pctldev->desc->name &&
+			strcmp(dev_name(pctldev->dev), pctldev->desc->name)) {
+		debugfs_name = devm_kasprintf(pctldev->dev, GFP_KERNEL,
+				"%s-%s", dev_name(pctldev->dev),
+				pctldev->desc->name);
+		if (!debugfs_name) {
+			pr_warn("failed to determine debugfs dir name for %s\n",
+				dev_name(pctldev->dev));
+			return;
+		}
+	} else {
+		debugfs_name = dev_name(pctldev->dev);
+	}
+
+	device_root = debugfs_create_dir(debugfs_name, debugfs_root);
 	pctldev->device_root = device_root;
 
 	if (IS_ERR(device_root) || !device_root) {
@@ -1877,11 +1826,11 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 		return;
 	}
 	debugfs_create_file("pins", S_IFREG | S_IRUGO,
-			    device_root, pctldev, &pinctrl_pins_ops);
+			    device_root, pctldev, &pinctrl_pins_fops);
 	debugfs_create_file("pingroups", S_IFREG | S_IRUGO,
-			    device_root, pctldev, &pinctrl_groups_ops);
+			    device_root, pctldev, &pinctrl_groups_fops);
 	debugfs_create_file("gpio-ranges", S_IFREG | S_IRUGO,
-			    device_root, pctldev, &pinctrl_gpioranges_ops);
+			    device_root, pctldev, &pinctrl_gpioranges_fops);
 	if (pctldev->desc->pmxops)
 		pinmux_init_device_debugfs(device_root, pctldev);
 	if (pctldev->desc->confops)
@@ -1903,11 +1852,11 @@ static void pinctrl_init_debugfs(void)
 	}
 
 	debugfs_create_file("pinctrl-devices", S_IFREG | S_IRUGO,
-			    debugfs_root, NULL, &pinctrl_devices_ops);
+			    debugfs_root, NULL, &pinctrl_devices_fops);
 	debugfs_create_file("pinctrl-maps", S_IFREG | S_IRUGO,
-			    debugfs_root, NULL, &pinctrl_maps_ops);
+			    debugfs_root, NULL, &pinctrl_maps_fops);
 	debugfs_create_file("pinctrl-handles", S_IFREG | S_IRUGO,
-			    debugfs_root, NULL, &pinctrl_ops);
+			    debugfs_root, NULL, &pinctrl_fops);
 }
 
 #else /* CONFIG_DEBUG_FS */

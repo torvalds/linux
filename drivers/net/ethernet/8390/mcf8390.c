@@ -38,7 +38,6 @@ static const char version[] =
 
 #define NESM_START_PG	0x40	/* First page of TX buffer */
 #define NESM_STOP_PG	0x80	/* Last page +1 of RX ring */
-static u32 mcf8390_msg_enable;
 
 #ifdef NE2000_ODDOFFSET
 /*
@@ -407,7 +406,6 @@ static int mcf8390_init(struct net_device *dev)
 static int mcf8390_probe(struct platform_device *pdev)
 {
 	struct net_device *dev;
-	struct ei_device *ei_local;
 	struct resource *mem, *irq;
 	resource_size_t msize;
 	int ret;
@@ -435,8 +433,6 @@ static int mcf8390_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	platform_set_drvdata(pdev, dev);
-	ei_local = netdev_priv(dev);
-	ei_local->msg_enable = mcf8390_msg_enable;
 
 	dev->irq = irq->start;
 	dev->base_addr = mem->start;

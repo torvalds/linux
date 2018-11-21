@@ -22,6 +22,7 @@
 #define V4L2_FH_H
 
 #include <linux/fs.h>
+#include <linux/kconfig.h>
 #include <linux/list.h>
 #include <linux/videodev2.h>
 

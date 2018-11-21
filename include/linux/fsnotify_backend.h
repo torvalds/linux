@@ -217,12 +217,10 @@ struct fsnotify_mark_connector {
 	union {	/* Object pointer [lock] */
 		struct inode *inode;
 		struct vfsmount *mnt;
-	};
-	union {
-		struct hlist_head list;
 		/* Used listing heads to free after srcu period expires */
 		struct fsnotify_mark_connector *destroy_next;
 	};
+	struct hlist_head list;
 };
 
 /*
@@ -248,7 +246,7 @@ struct fsnotify_mark {
 	/* Group this mark is for. Set on mark creation, stable until last ref
 	 * is dropped */
 	struct fsnotify_group *group;
-	/* List of marks by group->i_fsnotify_marks. Also reused for queueing
+	/* List of marks by group->marks_list. Also reused for queueing
 	 * mark into destroy_list when it's waiting for the end of SRCU period
 	 * before it can be freed. [group->mark_mutex] */
 	struct list_head g_list;
@@ -331,6 +329,12 @@ extern int fsnotify_add_event(struct fsnotify_group *group,
 			      struct fsnotify_event *event,
 			      int (*merge)(struct list_head *,
 					   struct fsnotify_event *));
+/* Queue overflow event to a notification group */
+static inline void fsnotify_queue_overflow(struct fsnotify_group *group)
+{
+	fsnotify_add_event(group, group->overflow_event, NULL);
+}
+
 /* true if the group notification queue is empty */
 extern bool fsnotify_notify_queue_is_empty(struct fsnotify_group *group);
 /* return, but do not dequeue the first event on the notification queue */

@@ -104,7 +104,7 @@ static unsigned int check_hlist(struct net *net,
 	struct nf_conn *found_ct;
 	unsigned int length = 0;
 
-	*addit = true;
+	*addit = tuple ? true : false;
 
 	/* check the saved connections */
 	hlist_for_each_entry_safe(conn, n, head, node) {
@@ -117,7 +117,7 @@ static unsigned int check_hlist(struct net *net,
 
 		found_ct = nf_ct_tuplehash_to_ctrack(found);
 
-		if (nf_ct_tuple_equal(&conn->tuple, tuple)) {
+		if (tuple && nf_ct_tuple_equal(&conn->tuple, tuple)) {
 			/*
 			 * Just to be sure we have it only once in the list.
 			 * We should not see tuples twice unless someone hooks
@@ -158,7 +158,6 @@ static void tree_nodes_free(struct rb_root *root,
 static unsigned int
 count_tree(struct net *net, struct rb_root *root,
 	   const u32 *key, u8 keylen,
-	   u8 family,
 	   const struct nf_conntrack_tuple *tuple,
 	   const struct nf_conntrack_zone *zone)
 {
@@ -221,6 +220,9 @@ count_tree(struct net *net, struct rb_root *root,
 		goto restart;
 	}
 
+	if (!tuple)
+		return 0;
+
 	/* no match, need to insert new node */
 	rbconn = kmem_cache_alloc(conncount_rb_cachep, GFP_ATOMIC);
 	if (rbconn == NULL)
@@ -243,10 +245,12 @@ count_tree(struct net *net, struct rb_root *root,
 	return 1;
 }
 
+/* Count and return number of conntrack entries in 'net' with particular 'key'.
+ * If 'tuple' is not null, insert it into the accounting data structure.
+ */
 unsigned int nf_conncount_count(struct net *net,
 				struct nf_conncount_data *data,
 				const u32 *key,
-				unsigned int family,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_zone *zone)
 {
@@ -259,7 +263,7 @@ unsigned int nf_conncount_count(struct net *net,
 
 	spin_lock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);
 
-	count = count_tree(net, root, key, data->keylen, family, tuple, zone);
+	count = count_tree(net, root, key, data->keylen, tuple, zone);
 
 	spin_unlock_bh(&nf_conncount_locks[hash % CONNCOUNT_LOCK_SLOTS]);
 

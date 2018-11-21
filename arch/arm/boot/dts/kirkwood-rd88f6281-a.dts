@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Marvell RD88F6181 A Board descrition
  *
  * Andrew Lunn <andrew@lunn.ch>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * This file contains the definitions for the board with the A0 or
  * higher stepping of the SoC. The ethernet switch does not have a

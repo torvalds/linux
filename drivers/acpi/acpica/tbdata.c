@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: tbdata - Table manager data structure functions
  *
- *****************************************************************************/
-
-/*
  * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
+ *****************************************************************************/
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -966,12 +932,18 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 
 	status = acpi_ns_load_table(table_index, parent_node);
 
-	/* Execute any module-level code that was found in the table */
-
-	if (!acpi_gbl_parse_table_as_term_list
-	    && acpi_gbl_group_module_level_code) {
-		acpi_ns_exec_module_code_list();
-	}
+	/*
+	 * This case handles the legacy option that groups all module-level
+	 * code blocks together and defers execution until all of the tables
+	 * are loaded. Execute all of these blocks at this time.
+	 * Execute any module-level code that was detected during the table
+	 * load phase.
+	 *
+	 * Note: this option is deprecated and will be eliminated in the
+	 * future. Use of this option can cause problems with AML code that
+	 * depends upon in-order immediate execution of module-level code.
+	 */
+	acpi_ns_exec_module_code_list();
 
 	/*
 	 * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is

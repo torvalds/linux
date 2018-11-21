@@ -23,6 +23,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/vmalloc.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-subdev.h>
 #include <media/tpg/v4l2-tpg.h>
 
@@ -284,11 +285,18 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+static struct v4l2_subdev_core_ops vimc_sen_core_ops = {
+	.log_status = v4l2_ctrl_subdev_log_status,
+	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
+	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
+};
+
 static const struct v4l2_subdev_video_ops vimc_sen_video_ops = {
 	.s_stream = vimc_sen_s_stream,
 };
 
 static const struct v4l2_subdev_ops vimc_sen_ops = {
+	.core = &vimc_sen_core_ops,
 	.pad = &vimc_sen_pad_ops,
 	.video = &vimc_sen_video_ops,
 };
@@ -378,7 +386,7 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 	/* Initialize ved and sd */
 	ret = vimc_ent_sd_register(&vsen->ved, &vsen->sd, v4l2_dev,
 				   pdata->entity_name,
-				   MEDIA_ENT_F_ATV_DECODER, 1,
+				   MEDIA_ENT_F_CAM_SENSOR, 1,
 				   (const unsigned long[1]) {MEDIA_PAD_FL_SOURCE},
 				   &vimc_sen_ops);
 	if (ret)

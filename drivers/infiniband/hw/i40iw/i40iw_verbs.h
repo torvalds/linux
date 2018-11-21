@@ -78,6 +78,7 @@ struct i40iw_pbl {
 	};
 
 	bool pbl_allocated;
+	bool on_list;
 	u64 user_base;
 	struct i40iw_pble_alloc pble_alloc;
 	struct i40iw_mr *iwmr;

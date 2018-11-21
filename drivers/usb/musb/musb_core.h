@@ -414,19 +414,6 @@ struct musb {
 	struct usb_gadget_driver *gadget_driver;	/* its driver */
 	struct usb_hcd		*hcd;			/* the usb hcd */
 
-	/*
-	 * FIXME: Remove this flag.
-	 *
-	 * This is only added to allow Blackfin to work
-	 * with current driver. For some unknown reason
-	 * Blackfin doesn't work with double buffering
-	 * and that's enabled by default.
-	 *
-	 * We added this flag to forcefully disable double
-	 * buffering until we get it working.
-	 */
-	unsigned                double_buffer_not_ok:1;
-
 	const struct musb_hdrc_config *config;
 
 	int			xceiv_old_state;
@@ -467,34 +454,6 @@ static inline char *musb_ep_xfertype_string(u8 type)
 	return s;
 }
 
-#ifdef CONFIG_BLACKFIN
-static inline int musb_read_fifosize(struct musb *musb,
-		struct musb_hw_ep *hw_ep, u8 epnum)
-{
-	musb->nr_endpoints++;
-	musb->epmask |= (1 << epnum);
-
-	if (epnum < 5) {
-		hw_ep->max_packet_sz_tx = 128;
-		hw_ep->max_packet_sz_rx = 128;
-	} else {
-		hw_ep->max_packet_sz_tx = 1024;
-		hw_ep->max_packet_sz_rx = 1024;
-	}
-	hw_ep->is_shared_fifo = false;
-
-	return 0;
-}
-
-static inline void musb_configure_ep0(struct musb *musb)
-{
-	musb->endpoints[0].max_packet_sz_tx = MUSB_EP0_FIFOSIZE;
-	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
-	musb->endpoints[0].is_shared_fifo = true;
-}
-
-#else
-
 static inline int musb_read_fifosize(struct musb *musb,
 		struct musb_hw_ep *hw_ep, u8 epnum)
 {
@@ -531,8 +490,6 @@ static inline void musb_configure_ep0(struct musb *musb)
 	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
 	musb->endpoints[0].is_shared_fifo = true;
 }
-#endif /* CONFIG_BLACKFIN */
-
 
 /***************************** Glue it together *****************************/
 

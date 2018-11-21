@@ -315,12 +315,17 @@ static void gpiod_set_array_single_value_cansleep(unsigned int ndescs,
 						  struct gpio_desc **desc,
 						  int value)
 {
-	int i, values[ndescs];
+	int i, *values;
+
+	values = kmalloc_array(ndescs, sizeof(*values), GFP_KERNEL);
+	if (!values)
+		return;
 
 	for (i = 0; i < ndescs; i++)
 		values[i] = value;
 
 	gpiod_set_array_value_cansleep(ndescs, desc, values);
+	kfree(values);
 }
 
 static struct gpio_descs *devm_gpiod_get_array_optional_count(

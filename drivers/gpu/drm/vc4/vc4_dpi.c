@@ -96,7 +96,6 @@ struct vc4_dpi {
 	struct platform_device *pdev;
 
 	struct drm_encoder *encoder;
-	struct drm_connector *connector;
 
 	void __iomem *regs;
 
@@ -164,14 +163,31 @@ static void vc4_dpi_encoder_disable(struct drm_encoder *encoder)
 
 static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 {
+	struct drm_device *dev = encoder->dev;
 	struct drm_display_mode *mode = &encoder->crtc->mode;
 	struct vc4_dpi_encoder *vc4_encoder = to_vc4_dpi_encoder(encoder);
 	struct vc4_dpi *dpi = vc4_encoder->dpi;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector = NULL, *connector_scan;
 	u32 dpi_c = DPI_ENABLE | DPI_OUTPUT_ENABLE_MODE;
 	int ret;
 
-	if (dpi->connector->display_info.num_bus_formats) {
-		u32 bus_format = dpi->connector->display_info.bus_formats[0];
+	/* Look up the connector attached to DPI so we can get the
+	 * bus_format.  Ideally the bridge would tell us the
+	 * bus_format we want, but it doesn't yet, so assume that it's
+	 * uniform throughout the bridge chain.
+	 */
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector_scan, &conn_iter) {
+		if (connector_scan->encoder == encoder) {
+			connector = connector_scan;
+			break;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	if (connector && connector->display_info.num_bus_formats) {
+		u32 bus_format = connector->display_info.bus_formats[0];
 
 		switch (bus_format) {
 		case MEDIA_BUS_FMT_RGB888_1X24:
@@ -199,6 +215,9 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 			DRM_ERROR("Unknown media bus format %d\n", bus_format);
 			break;
 		}
+	} else {
+		/* Default to 24bit if no connector found. */
+		dpi_c |= VC4_SET_FIELD(DPI_FORMAT_24BIT_888_RGB, DPI_FORMAT);
 	}
 
 	if (mode->flags & DRM_MODE_FLAG_NHSYNC)

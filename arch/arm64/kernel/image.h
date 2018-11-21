@@ -103,6 +103,7 @@ __efistub_strlen		= KALLSYMS_HIDE(__pi_strlen);
 __efistub_strnlen		= KALLSYMS_HIDE(__pi_strnlen);
 __efistub_strcmp		= KALLSYMS_HIDE(__pi_strcmp);
 __efistub_strncmp		= KALLSYMS_HIDE(__pi_strncmp);
+__efistub_strrchr		= KALLSYMS_HIDE(__pi_strrchr);
 __efistub___flush_dcache_area	= KALLSYMS_HIDE(__pi___flush_dcache_area);
 
 #ifdef CONFIG_KASAN

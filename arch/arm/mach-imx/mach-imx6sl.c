@@ -18,6 +18,7 @@
 
 #include "common.h"
 #include "cpuidle.h"
+#include "hardware.h"
 
 static void __init imx6sl_fec_init(void)
 {
@@ -54,7 +55,8 @@ static void __init imx6sl_init_machine(void)
 
 	of_platform_default_populate(NULL, NULL, parent);
 
-	imx6sl_fec_init();
+	if (cpu_is_imx6sl())
+		imx6sl_fec_init();
 	imx_anatop_init();
 	imx6sl_pm_init();
 }
@@ -66,11 +68,15 @@ static void __init imx6sl_init_irq(void)
 	imx_init_l2cache();
 	imx_src_init();
 	irqchip_init();
-	imx6_pm_ccm_init("fsl,imx6sl-ccm");
+	if (cpu_is_imx6sl())
+		imx6_pm_ccm_init("fsl,imx6sl-ccm");
+	else
+		imx6_pm_ccm_init("fsl,imx6sll-ccm");
 }
 
 static const char * const imx6sl_dt_compat[] __initconst = {
 	"fsl,imx6sl",
+	"fsl,imx6sll",
 	NULL,
 };
 

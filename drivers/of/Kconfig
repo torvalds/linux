@@ -92,6 +92,7 @@ config OF_RESOLVE
 config OF_OVERLAY
 	bool "Device Tree overlays"
 	select OF_DYNAMIC
+	select OF_FLATTREE
 	select OF_RESOLVE
 	help
 	  Overlays are a method to dynamically modify part of the kernel's

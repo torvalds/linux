@@ -106,6 +106,12 @@
 #define HCLGE_MAC_MIN_FRAME		64
 #define HCLGE_MAC_MAX_FRAME		9728
 
+#define HCLGE_SUPPORT_1G_BIT		BIT(0)
+#define HCLGE_SUPPORT_10G_BIT		BIT(1)
+#define HCLGE_SUPPORT_25G_BIT		BIT(2)
+#define HCLGE_SUPPORT_50G_BIT		BIT(3)
+#define HCLGE_SUPPORT_100G_BIT		BIT(4)
+
 enum HCLGE_DEV_STATE {
 	HCLGE_STATE_REINITING,
 	HCLGE_STATE_DOWN,
@@ -170,6 +176,8 @@ struct hclge_mac {
 	struct phy_device *phydev;
 	struct mii_bus *mdio_bus;
 	phy_interface_t phy_if;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
 };
 
 struct hclge_hw {
@@ -236,6 +244,7 @@ struct hclge_cfg {
 	u8 mac_addr[ETH_ALEN];
 	u8 default_speed;
 	u32 numa_node_map;
+	u8 speed_ability;
 };
 
 struct hclge_tm_info {
@@ -573,12 +582,27 @@ struct hclge_rx_vtag_cfg {
 	bool vlan2_vlan_prionly;/* Outer VLAN Tag up to descriptor Enable */
 };
 
+struct hclge_rss_tuple_cfg {
+	u8 ipv4_tcp_en;
+	u8 ipv4_udp_en;
+	u8 ipv4_sctp_en;
+	u8 ipv4_fragment_en;
+	u8 ipv6_tcp_en;
+	u8 ipv6_udp_en;
+	u8 ipv6_sctp_en;
+	u8 ipv6_fragment_en;
+};
+
 struct hclge_vport {
 	u16 alloc_tqps;	/* Allocated Tx/Rx queues */
 
 	u8  rss_hash_key[HCLGE_RSS_KEY_SIZE]; /* User configured hash keys */
 	/* User configured lookup table entries */
 	u8  rss_indirection_tbl[HCLGE_RSS_IND_TBL_SIZE];
+	int rss_algo;		/* User configured hash algorithm */
+	/* User configured rss tuple sets */
+	struct hclge_rss_tuple_cfg rss_tuple_sets;
+
 	u16 alloc_rss_size;
 
 	u16 qs_offset;
@@ -627,8 +651,11 @@ int hclge_set_vf_vlan_common(struct hclge_dev *vport, int vfid,
 
 int hclge_buffer_alloc(struct hclge_dev *hdev);
 int hclge_rss_init_hw(struct hclge_dev *hdev);
+void hclge_rss_indir_init_cfg(struct hclge_dev *hdev);
 
 void hclge_mbx_handler(struct hclge_dev *hdev);
 void hclge_reset_tqp(struct hnae3_handle *handle, u16 queue_id);
+void hclge_reset_vf_queue(struct hclge_vport *vport, u16 queue_id);
 int hclge_cfg_flowctrl(struct hclge_dev *hdev);
+int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
 #endif

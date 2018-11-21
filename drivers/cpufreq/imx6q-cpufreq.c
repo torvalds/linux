@@ -52,6 +52,7 @@ static struct clk_bulk_data clks[] = {
 static struct device *cpu_dev;
 static bool free_opp;
 static struct cpufreq_frequency_table *freq_table;
+static unsigned int max_freq;
 static unsigned int transition_latency;
 
 static u32 *imx6_soc_volt;
@@ -196,7 +197,7 @@ static int imx6q_cpufreq_init(struct cpufreq_policy *policy)
 
 	policy->clk = clks[ARM].clk;
 	ret = cpufreq_generic_init(policy, freq_table, transition_latency);
-	policy->suspend_freq = policy->max;
+	policy->suspend_freq = max_freq;
 
 	return ret;
 }
@@ -437,12 +438,12 @@ soc_opp_out:
 	 * freq_table initialised from OPP is therefore sorted in the
 	 * same order.
 	 */
+	max_freq = freq_table[--num].frequency;
 	opp = dev_pm_opp_find_freq_exact(cpu_dev,
 				  freq_table[0].frequency * 1000, true);
 	min_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
-	opp = dev_pm_opp_find_freq_exact(cpu_dev,
-				  freq_table[--num].frequency * 1000, true);
+	opp = dev_pm_opp_find_freq_exact(cpu_dev, max_freq * 1000, true);
 	max_volt = dev_pm_opp_get_voltage(opp);
 	dev_pm_opp_put(opp);
 

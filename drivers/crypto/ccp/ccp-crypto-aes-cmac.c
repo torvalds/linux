@@ -46,7 +46,7 @@ static int ccp_aes_cmac_complete(struct crypto_async_request *async_req,
 	}
 
 	/* Update result area if supplied */
-	if (req->result)
+	if (req->result && rctx->final)
 		memcpy(req->result, rctx->iv, digest_size);
 
 e_free:

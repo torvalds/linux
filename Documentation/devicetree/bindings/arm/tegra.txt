@@ -9,6 +9,12 @@ following compatible values:
 
   nvidia,tegra20
   nvidia,tegra30
+  nvidia,tegra114
+  nvidia,tegra124
+  nvidia,tegra132
+  nvidia,tegra210
+  nvidia,tegra186
+  nvidia,tegra194
 
 Boards
 -------------------------------------------
@@ -26,8 +32,18 @@ board-specific compatible values:
   nvidia,cardhu
   nvidia,cardhu-a02
   nvidia,cardhu-a04
+  nvidia,dalmore
   nvidia,harmony
+  nvidia,jetson-tk1
+  nvidia,norrin
+  nvidia,p2371-0000
+  nvidia,p2371-2180
+  nvidia,p2571
+  nvidia,p2771-0000
+  nvidia,p2972-0000
+  nvidia,roth
   nvidia,seaboard
+  nvidia,tn7
   nvidia,ventana
   toradex,apalis_t30
   toradex,apalis_t30-eval

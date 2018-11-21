@@ -27,15 +27,6 @@ sys32_execveat:
 #endif
 
 	.align	32
-sys_sparc_pipe:
-	ba,pt	%xcc, sys_sparc_pipe_real
-	 add	%sp, PTREGS_OFF, %o0
-sys_nis_syscall:
-	ba,pt	%xcc, c_sys_nis_syscall
-	 add	%sp, PTREGS_OFF, %o0
-sys_memory_ordering:
-	ba,pt	%xcc, sparc_memory_ordering
-	 add	%sp, PTREGS_OFF, %o1
 #ifdef CONFIG_COMPAT
 sys32_sigstack:
 	ba,pt	%xcc, do_sys32_sigstack

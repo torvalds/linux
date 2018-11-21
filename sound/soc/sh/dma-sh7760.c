@@ -320,14 +320,15 @@ static int camelot_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static const struct snd_soc_platform_driver sh7760_soc_platform = {
+static const struct snd_soc_component_driver sh7760_soc_component = {
 	.ops		= &camelot_pcm_ops,
 	.pcm_new	= camelot_pcm_new,
 };
 
 static int sh7760_soc_platform_probe(struct platform_device *pdev)
 {
-	return devm_snd_soc_register_platform(&pdev->dev, &sh7760_soc_platform);
+	return devm_snd_soc_register_component(&pdev->dev, &sh7760_soc_component,
+					       NULL, 0);
 }
 
 static struct platform_driver sh7760_pcm_driver = {

@@ -50,7 +50,7 @@
 	model = "Engicam GEAM6UL Starter Kit";
 	compatible = "engicam,imx6ul-geam", "fsl,imx6ul";
 
-	memory {
+	memory@80000000 {
 		reg = <0x80000000 0x08000000>;
 	};
 
@@ -181,6 +181,7 @@
 	sgtl5000: codec@a {
 		compatible = "fsl,sgtl5000";
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
 		clocks = <&clks IMX6UL_CLK_OSC>;
 		clock-names = "mclk";
 		VDDA-supply = <&reg_3p3v>;

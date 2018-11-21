@@ -160,12 +160,12 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 		       sta->cparams.ecn ? "yes" : "no");
 	p += scnprintf(p,
 		       bufsz+buf-p,
-		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets\n");
+		       "tid ac backlog-bytes backlog-packets new-flows drops marks overlimit collisions tx-bytes tx-packets flags\n");
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++) {
 		txqi = to_txq_info(sta->sta.txq[i]);
 		p += scnprintf(p, bufsz+buf-p,
-			       "%d %d %u %u %u %u %u %u %u %u %u\n",
+			       "%d %d %u %u %u %u %u %u %u %u %u 0x%lx(%s%s%s)\n",
 			       txqi->txq.tid,
 			       txqi->txq.ac,
 			       txqi->tin.backlog_bytes,
@@ -176,7 +176,11 @@ static ssize_t sta_aqm_read(struct file *file, char __user *userbuf,
 			       txqi->tin.overlimit,
 			       txqi->tin.collisions,
 			       txqi->tin.tx_bytes,
-			       txqi->tin.tx_packets);
+			       txqi->tin.tx_packets,
+			       txqi->flags,
+			       txqi->flags & (1<<IEEE80211_TXQ_STOP) ? "STOP" : "RUN",
+			       txqi->flags & (1<<IEEE80211_TXQ_AMPDU) ? " AMPDU" : "",
+			       txqi->flags & (1<<IEEE80211_TXQ_NO_AMSDU) ? " NO-AMSDU" : "");
 	}
 
 	rcu_read_unlock();

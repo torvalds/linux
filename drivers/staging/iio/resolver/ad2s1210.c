@@ -35,8 +35,6 @@
 #define AD2S1210_SET_RES1		0x02
 #define AD2S1210_SET_RES0		0x01
 
-#define AD2S1210_SET_ENRESOLUTION	(AD2S1210_SET_ENRES1 |	\
-					 AD2S1210_SET_ENRES0)
 #define AD2S1210_SET_RESOLUTION		(AD2S1210_SET_RES1 | AD2S1210_SET_RES0)
 
 #define AD2S1210_REG_POSITION		0x80
@@ -53,10 +51,6 @@
 #define AD2S1210_REG_SOFT_RESET		0xF0
 #define AD2S1210_REG_FAULT		0xFF
 
-/* pin SAMPLE, A0, A1, RES0, RES1, is controlled by driver */
-#define AD2S1210_SAA		3
-#define AD2S1210_PN		(AD2S1210_SAA + AD2S1210_RES)
-
 #define AD2S1210_MIN_CLKIN	6144000
 #define AD2S1210_MAX_CLKIN	10240000
 #define AD2S1210_MIN_EXCIT	2000
@@ -64,10 +58,6 @@
 #define AD2S1210_MIN_FCW	0x4
 #define AD2S1210_MAX_FCW	0x50
 
-/* default input clock on serial interface */
-#define AD2S1210_DEF_CLKIN	8192000
-/* clock period in nano second */
-#define AD2S1210_DEF_TCK	(1000000000 / AD2S1210_DEF_CLKIN)
 #define AD2S1210_DEF_EXCIT	10000
 
 enum ad2s1210_mode {
@@ -86,7 +76,6 @@ struct ad2s1210_state {
 	unsigned int fclkin;
 	unsigned int fexcit;
 	bool hysteresis;
-	bool old_data;
 	u8 resolution;
 	enum ad2s1210_mode mode;
 	u8 rx[2] ____cacheline_aligned;
@@ -117,7 +106,6 @@ static int ad2s1210_config_write(struct ad2s1210_state *st, u8 data)
 	ret = spi_write(st->sdev, st->tx, 1);
 	if (ret < 0)
 		return ret;
-	st->old_data = true;
 
 	return 0;
 }
@@ -139,7 +127,6 @@ static int ad2s1210_config_read(struct ad2s1210_state *st,
 	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret < 0)
 		return ret;
-	st->old_data = true;
 
 	return st->rx[1];
 }
@@ -165,9 +152,10 @@ int ad2s1210_update_frequency_control_word(struct ad2s1210_state *st)
 
 static unsigned char ad2s1210_read_resolution_pin(struct ad2s1210_state *st)
 {
-	return ad2s1210_resolution_value[
-		(gpio_get_value(st->pdata->res[0]) << 1) |
-		gpio_get_value(st->pdata->res[1])];
+	int resolution = (gpio_get_value(st->pdata->res[0]) << 1) |
+			  gpio_get_value(st->pdata->res[1]);
+
+	return ad2s1210_resolution_value[resolution];
 }
 
 static const int ad2s1210_res_pins[4][2] = {

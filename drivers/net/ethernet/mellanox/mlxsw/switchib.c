@@ -510,7 +510,6 @@ static const struct mlxsw_config_profile mlxsw_sib_config_profile = {
 			.type		= MLXSW_PORT_SWID_TYPE_IB,
 		}
 	},
-	.resource_query_enable		= 0,
 };
 
 static struct mlxsw_driver mlxsw_sib_driver = {

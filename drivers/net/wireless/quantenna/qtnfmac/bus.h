@@ -59,8 +59,9 @@ struct qtnf_bus {
 	char fwname[32];
 	struct napi_struct mux_napi;
 	struct net_device mux_dev;
-	struct completion request_firmware_complete;
+	struct completion firmware_init_complete;
 	struct workqueue_struct *workqueue;
+	struct work_struct fw_work;
 	struct work_struct event_work;
 	struct mutex bus_lock; /* lock during command/event processing */
 	struct dentry *dbg_dir;

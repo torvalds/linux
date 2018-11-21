@@ -710,20 +710,20 @@ u8 rtl_mrate_idx_to_arfr_id(
 			ret = RATEID_IDX_BGN_40M_1SS;
 		else
 			ret = RATEID_IDX_BGN_40M_2SS;
-		; break;
+		break;
 	case RATR_INX_WIRELESS_N:
 	case RATR_INX_WIRELESS_NG:
 		if (rtlphy->rf_type == RF_1T1R)
 			ret = RATEID_IDX_GN_N1SS;
 		else
 			ret = RATEID_IDX_GN_N2SS;
-		; break;
+		break;
 	case RATR_INX_WIRELESS_NB:
 		if (rtlphy->rf_type == RF_1T1R)
 			ret = RATEID_IDX_BGN_20M_1SS_BN;
 		else
 			ret = RATEID_IDX_BGN_20M_2SS_BN;
-		; break;
+		break;
 	case RATR_INX_WIRELESS_GB:
 		ret = RATEID_IDX_BG;
 		break;

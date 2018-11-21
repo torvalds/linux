@@ -25,7 +25,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
-#include "kfd_priv.h"
+#include "kfd_crat.h"
 
 #define KFD_TOPOLOGY_PUBLIC_NAME_SIZE 128
 
@@ -71,6 +71,7 @@ struct kfd_node_properties {
 	uint32_t location_id;
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
+	int32_t  drm_render_minor;
 	uint16_t marketing_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 
@@ -182,9 +183,5 @@ struct kfd_system_properties {
 struct kfd_topology_device *kfd_create_topology_device(
 		struct list_head *device_list);
 void kfd_release_topology_device_list(struct list_head *device_list);
-
-extern bool amd_iommu_pc_supported(void);
-extern u8 amd_iommu_pc_get_max_banks(u16 devid);
-extern u8 amd_iommu_pc_get_max_counters(u16 devid);
 
 #endif /* __KFD_TOPOLOGY_H__ */

@@ -28,12 +28,11 @@
 
 #include "omapdss.h"
 
-void omapdss_default_get_timings(struct omap_dss_device *dssdev,
-				 struct videomode *vm)
+static void omapdss_default_get_timings(struct omap_dss_device *dssdev,
+					struct videomode *vm)
 {
 	*vm = dssdev->panel.vm;
 }
-EXPORT_SYMBOL(omapdss_default_get_timings);
 
 static LIST_HEAD(panel_list);
 static DEFINE_MUTEX(panel_list_mutex);

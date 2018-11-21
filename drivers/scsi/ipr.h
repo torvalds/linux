@@ -1454,7 +1454,7 @@ struct ipr_sglist {
 	u32 num_sg;
 	u32 num_dma_sg;
 	u32 buffer_len;
-	struct scatterlist scatterlist[1];
+	struct scatterlist *scatterlist;
 };
 
 enum ipr_sdt_state {

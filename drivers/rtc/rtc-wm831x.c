@@ -156,7 +156,7 @@ static int wm831x_rtc_readtime(struct device *dev, struct rtc_time *tm)
 			u32 time = (time1[0] << 16) | time1[1];
 
 			rtc_time_to_tm(time, tm);
-			return rtc_valid_tm(tm);
+			return 0;
 		}
 
 	} while (++count < WM831X_GET_TIME_RETRIES);

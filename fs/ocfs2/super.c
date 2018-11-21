@@ -423,10 +423,10 @@ static int ocfs2_sync_fs(struct super_block *sb, int wait)
 		ocfs2_schedule_truncate_log_flush(osb, 0);
 	}
 
-	if (jbd2_journal_start_commit(OCFS2_SB(sb)->journal->j_journal,
+	if (jbd2_journal_start_commit(osb->journal->j_journal,
 				      &target)) {
 		if (wait)
-			jbd2_log_wait_commit(OCFS2_SB(sb)->journal->j_journal,
+			jbd2_log_wait_commit(osb->journal->j_journal,
 					     target);
 	}
 	return 0;
@@ -1161,6 +1161,23 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	ocfs2_complete_mount_recovery(osb);
 
+	osb->osb_dev_kset = kset_create_and_add(sb->s_id, NULL,
+						&ocfs2_kset->kobj);
+	if (!osb->osb_dev_kset) {
+		status = -ENOMEM;
+		mlog(ML_ERROR, "Unable to create device kset %s.\n", sb->s_id);
+		goto read_super_error;
+	}
+
+	/* Create filecheck sysfs related directories/files at
+	 * /sys/fs/ocfs2/<devname>/filecheck */
+	if (ocfs2_filecheck_create_sysfs(osb)) {
+		status = -ENOMEM;
+		mlog(ML_ERROR, "Unable to create filecheck sysfs directory at "
+			"/sys/fs/ocfs2/%s/filecheck.\n", sb->s_id);
+		goto read_super_error;
+	}
+
 	if (ocfs2_mount_local(osb))
 		snprintf(nodestr, sizeof(nodestr), "local");
 	else
@@ -1198,9 +1215,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* Start this when the mount is almost sure of being successful */
 	ocfs2_orphan_scan_start(osb);
-
-	/* Create filecheck sysfile /sys/fs/ocfs2/<devname>/filecheck */
-	ocfs2_filecheck_create_sysfs(sb);
 
 	return status;
 
@@ -1653,7 +1667,6 @@ static void ocfs2_put_super(struct super_block *sb)
 
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
-	ocfs2_filecheck_remove_sysfs(sb);
 }
 
 static int ocfs2_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -1768,12 +1781,9 @@ static int ocfs2_initialize_mem_caches(void)
 					NULL);
 	if (!ocfs2_inode_cachep || !ocfs2_dquot_cachep ||
 	    !ocfs2_qf_chunk_cachep) {
-		if (ocfs2_inode_cachep)
-			kmem_cache_destroy(ocfs2_inode_cachep);
-		if (ocfs2_dquot_cachep)
-			kmem_cache_destroy(ocfs2_dquot_cachep);
-		if (ocfs2_qf_chunk_cachep)
-			kmem_cache_destroy(ocfs2_qf_chunk_cachep);
+		kmem_cache_destroy(ocfs2_inode_cachep);
+		kmem_cache_destroy(ocfs2_dquot_cachep);
+		kmem_cache_destroy(ocfs2_qf_chunk_cachep);
 		return -ENOMEM;
 	}
 
@@ -1787,16 +1797,13 @@ static void ocfs2_free_mem_caches(void)
 	 * destroy cache.
 	 */
 	rcu_barrier();
-	if (ocfs2_inode_cachep)
-		kmem_cache_destroy(ocfs2_inode_cachep);
+	kmem_cache_destroy(ocfs2_inode_cachep);
 	ocfs2_inode_cachep = NULL;
 
-	if (ocfs2_dquot_cachep)
-		kmem_cache_destroy(ocfs2_dquot_cachep);
+	kmem_cache_destroy(ocfs2_dquot_cachep);
 	ocfs2_dquot_cachep = NULL;
 
-	if (ocfs2_qf_chunk_cachep)
-		kmem_cache_destroy(ocfs2_qf_chunk_cachep);
+	kmem_cache_destroy(ocfs2_qf_chunk_cachep);
 	ocfs2_qf_chunk_cachep = NULL;
 }
 
@@ -1898,6 +1905,12 @@ static void ocfs2_dismount_volume(struct super_block *sb, int mnt_err)
 	BUG_ON(!sb);
 	osb = OCFS2_SB(sb);
 	BUG_ON(!osb);
+
+	/* Remove file check sysfs related directores/files,
+	 * and wait for the pending file check operations */
+	ocfs2_filecheck_remove_sysfs(osb);
+
+	kset_unregister(osb->osb_dev_kset);
 
 	debugfs_remove(osb->osb_ctxt);
 

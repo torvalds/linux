@@ -23,7 +23,6 @@
 
 #include "vega10_thermal.h"
 #include "vega10_hwmgr.h"
-#include "vega10_smumgr.h"
 #include "vega10_ppsmc.h"
 #include "vega10_inc.h"
 #include "pp_soc15.h"
@@ -31,14 +30,8 @@
 
 static int vega10_get_current_rpm(struct pp_hwmgr *hwmgr, uint32_t *current_rpm)
 {
-	PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc(hwmgr,
-				PPSMC_MSG_GetCurrentRpm),
-			"Attempt to get current RPM from SMC Failed!",
-			return -1);
-	PP_ASSERT_WITH_CODE(!vega10_read_arg_from_smc(hwmgr,
-			current_rpm),
-			"Attempt to read current RPM from SMC Failed!",
-			return -1);
+	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_GetCurrentRpm);
+	*current_rpm = smum_get_argument(hwmgr);
 	return 0;
 }
 
@@ -96,7 +89,7 @@ int vega10_fan_ctrl_get_fan_speed_percent(struct pp_hwmgr *hwmgr,
 
 int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t tach_period;
 	uint32_t crystal_clock_freq;
 	int result = 0;
@@ -117,7 +110,7 @@ int vega10_fan_ctrl_get_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t *speed)
 		if (tach_period == 0)
 			return -EINVAL;
 
-		crystal_clock_freq = smu7_get_xclk(hwmgr);
+		crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 		*speed = 60 * crystal_clock_freq * 10000 / tach_period;
 	}
@@ -195,7 +188,7 @@ int vega10_fan_ctrl_set_default_mode(struct pp_hwmgr *hwmgr)
  */
 static int vega10_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(
@@ -212,7 +205,7 @@ static int vega10_enable_fan_control_feature(struct pp_hwmgr *hwmgr)
 
 static int vega10_disable_fan_control_feature(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (data->smu_features[GNLD_FAN_CONTROL].supported) {
 		PP_ASSERT_WITH_CODE(!vega10_enable_smc_features(
@@ -242,7 +235,7 @@ int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr)
 
 int vega10_fan_ctrl_stop_smc_fan_control(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 
 	if (hwmgr->thermal_controller.fanInfo.bNoFan)
 		return -1;
@@ -338,7 +331,7 @@ int vega10_fan_ctrl_set_fan_speed_rpm(struct pp_hwmgr *hwmgr, uint32_t speed)
 		result = vega10_fan_ctrl_stop_smc_fan_control(hwmgr);
 
 	if (!result) {
-		crystal_clock_freq = smu7_get_xclk(hwmgr);
+		crystal_clock_freq = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 		tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
 		reg = soc15_get_register_offset(THM_HWID, 0,
 				mmCG_TACH_STATUS_BASE_IDX, mmCG_TACH_STATUS);
@@ -386,9 +379,9 @@ int vega10_thermal_get_temperature(struct pp_hwmgr *hwmgr)
 static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 		struct PP_TemperatureRange *range)
 {
-	uint32_t low = VEGA10_THERMAL_MINIMUM_ALERT_TEMP *
+	int low = VEGA10_THERMAL_MINIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	uint32_t high = VEGA10_THERMAL_MAXIMUM_ALERT_TEMP *
+	int high = VEGA10_THERMAL_MAXIMUM_ALERT_TEMP *
 			PP_TEMPERATURE_UNITS_PER_CENTIGRADES;
 	uint32_t val, reg;
 
@@ -409,7 +402,9 @@ static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, (high / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, (low / PP_TEMPERATURE_UNITS_PER_CENTIGRADES));
-	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+	val &= (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK) &
+			(~THM_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK) &
+			(~THM_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK);
 
 	cgs_write_register(hwmgr->device, reg, val);
 
@@ -450,7 +445,7 @@ static int vega10_thermal_initialize(struct pp_hwmgr *hwmgr)
 */
 static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t val = 0;
 	uint32_t reg;
 
@@ -482,7 +477,7 @@ static int vega10_thermal_enable_alert(struct pp_hwmgr *hwmgr)
 */
 int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr)
 {
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	uint32_t reg;
 
 	if (data->smu_features[GNLD_FW_CTF].supported) {
@@ -531,7 +526,7 @@ int vega10_thermal_stop_thermal_controller(struct pp_hwmgr *hwmgr)
 int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 {
 	int ret;
-	struct vega10_hwmgr *data = (struct vega10_hwmgr *)(hwmgr->backend);
+	struct vega10_hwmgr *data = hwmgr->backend;
 	PPTable_t *table = &(data->smc_state_table.pp_table);
 
 	if (!data->smu_features[GNLD_FAN_CONTROL].supported)
@@ -575,8 +570,9 @@ int vega10_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 	table->FanStartTemp = hwmgr->thermal_controller.
 			advanceFanControlParameters.usZeroRPMStartTemperature;
 
-	ret = vega10_copy_table_to_smc(hwmgr,
-			(uint8_t *)(&(data->smc_state_table.pp_table)), PPTABLE);
+	ret = smum_smc_table_manager(hwmgr,
+				(uint8_t *)(&(data->smc_state_table.pp_table)),
+				PPTABLE, false);
 	if (ret)
 		pr_info("Failed to update Fan Control Table in PPTable!");
 

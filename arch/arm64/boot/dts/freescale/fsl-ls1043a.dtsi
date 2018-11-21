@@ -81,6 +81,7 @@
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
 			#cooling-cells = <2>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu1: cpu@1 {
@@ -89,6 +90,7 @@
 			reg = <0x1>;
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu2: cpu@2 {
@@ -97,6 +99,7 @@
 			reg = <0x2>;
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		cpu3: cpu@3 {
@@ -105,10 +108,28 @@
 			reg = <0x3>;
 			clocks = <&clockgen 1 0>;
 			next-level-cache = <&l2>;
+			cpu-idle-states = <&CPU_PH20>;
 		};
 
 		l2: l2-cache {
 			compatible = "cache";
+		};
+	};
+
+	idle-states {
+		/*
+		 * PSCI node is not added default, U-boot will add missing
+		 * parts if it determines to use PSCI.
+		 */
+		entry-method = "arm,psci";
+
+		CPU_PH20: cpu-ph20 {
+			compatible = "arm,idle-state";
+			idle-state-name = "PH20";
+			arm,psci-suspend-param = <0x0>;
+			entry-latency-us = <1000>;
+			exit-latency-us = <1000>;
+			min-residency-us = <3000>;
 		};
 	};
 
@@ -157,6 +178,37 @@
 		regmap = <&dcfg>;
 		offset = <0xb0>;
 		mask = <0x02>;
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <1000>;
+			polling-delay = <5000>;
+
+			thermal-sensors = <&tmu 3>;
+
+			trips {
+				cpu_alert: cpu-alert {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu_crit: cpu-crit {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device =
+						<&cpu0 THERMAL_NO_LIMIT
+						THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 
 	timer {
@@ -340,37 +392,6 @@
 					       0x00030002 0x0000003c
 					       0x00030003 0x0000004e>;
 			#thermal-sensor-cells = <1>;
-		};
-
-		thermal-zones {
-			cpu_thermal: cpu-thermal {
-				polling-delay-passive = <1000>;
-				polling-delay = <5000>;
-
-				thermal-sensors = <&tmu 3>;
-
-				trips {
-					cpu_alert: cpu-alert {
-						temperature = <85000>;
-						hysteresis = <2000>;
-						type = "passive";
-					};
-					cpu_crit: cpu-crit {
-						temperature = <95000>;
-						hysteresis = <2000>;
-						type = "critical";
-					};
-				};
-
-				cooling-maps {
-					map0 {
-						trip = <&cpu_alert>;
-						cooling-device =
-							<&cpu0 THERMAL_NO_LIMIT
-							THERMAL_NO_LIMIT>;
-					};
-				};
-			};
 		};
 
 		qman: qman@1880000 {

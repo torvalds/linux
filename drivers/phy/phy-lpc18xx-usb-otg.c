@@ -60,8 +60,14 @@ static int lpc18xx_usb_otg_phy_power_on(struct phy *phy)
 		return ret;
 
 	/* The bit in CREG is cleared to enable the PHY */
-	return regmap_update_bits(lpc->reg, LPC18XX_CREG_CREG0,
+	ret = regmap_update_bits(lpc->reg, LPC18XX_CREG_CREG0,
 				  LPC18XX_CREG_CREG0_USB0PHY, 0);
+	if (ret) {
+		clk_disable(lpc->clk);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int lpc18xx_usb_otg_phy_power_off(struct phy *phy)

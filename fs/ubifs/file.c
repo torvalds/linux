@@ -1256,7 +1256,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 		 * Inode length changed, so we have to make sure
 		 * @I_DIRTY_DATASYNC is set.
 		 */
-		 __mark_inode_dirty(inode, I_DIRTY_SYNC | I_DIRTY_DATASYNC);
+		 __mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	else
 		mark_inode_dirty_sync(inode);
 	mutex_unlock(&ui->ui_mutex);

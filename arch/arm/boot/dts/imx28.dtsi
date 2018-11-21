@@ -24,7 +24,7 @@
 	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; reg = <0 0>; };
+	memory { device_type = "memory"; };
 
 	aliases {
 		ethernet0 = &mac0;
@@ -283,7 +283,8 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				gpmi_status_cfg: gpmi-status-cfg {
+				gpmi_status_cfg: gpmi-status-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_RDN__GPMI_RDN
 						MX28_PAD_GPMI_WRN__GPMI_WRN
@@ -527,14 +528,16 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc0_cd_cfg: mmc0-cd-cfg {
+				mmc0_cd_cfg: mmc0-cd-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_DETECT__SSP0_CARD_DETECT
 					>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				mmc0_sck_cfg: mmc0-sck-cfg {
+				mmc0_sck_cfg: mmc0-sck-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_SSP0_SCK__SSP0_SCK
 					>;
@@ -558,14 +561,16 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc1_cd_cfg: mmc1-cd-cfg {
+				mmc1_cd_cfg: mmc1-cd-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_RDY0__SSP1_CARD_DETECT
 					>;
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				mmc1_sck_cfg: mmc1-sck-cfg {
+				mmc1_sck_cfg: mmc1-sck-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_GPMI_WRN__SSP1_SCK
 					>;
@@ -606,7 +611,8 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc2_cd_cfg: mmc2-cd-cfg {
+				mmc2_cd_cfg: mmc2-cd-cfg@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX28_PAD_AUART1_RX__SSP2_CARD_DETECT
 					>;

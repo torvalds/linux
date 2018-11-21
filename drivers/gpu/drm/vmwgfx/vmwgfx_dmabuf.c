@@ -323,3 +323,54 @@ void vmw_bo_pin_reserved(struct vmw_dma_buffer *vbo, bool pin)
 
 	BUG_ON(ret != 0 || bo->mem.mem_type != old_mem_type);
 }
+
+
+/*
+ * vmw_dma_buffer_unmap - Tear down a cached buffer object map.
+ *
+ * @vbo: The buffer object whose map we are tearing down.
+ *
+ * This function tears down a cached map set up using
+ * vmw_dma_buffer_map_and_cache().
+ */
+void vmw_dma_buffer_unmap(struct vmw_dma_buffer *vbo)
+{
+	if (vbo->map.bo == NULL)
+		return;
+
+	ttm_bo_kunmap(&vbo->map);
+}
+
+
+/*
+ * vmw_dma_buffer_map_and_cache - Map a buffer object and cache the map
+ *
+ * @vbo: The buffer object to map
+ * Return: A kernel virtual address or NULL if mapping failed.
+ *
+ * This function maps a buffer object into the kernel address space, or
+ * returns the virtual kernel address of an already existing map. The virtual
+ * address remains valid as long as the buffer object is pinned or reserved.
+ * The cached map is torn down on either
+ * 1) Buffer object move
+ * 2) Buffer object swapout
+ * 3) Buffer object destruction
+ *
+ */
+void *vmw_dma_buffer_map_and_cache(struct vmw_dma_buffer *vbo)
+{
+	struct ttm_buffer_object *bo = &vbo->base;
+	bool not_used;
+	void *virtual;
+	int ret;
+
+	virtual = ttm_kmap_obj_virtual(&vbo->map, &not_used);
+	if (virtual)
+		return virtual;
+
+	ret = ttm_bo_kmap(bo, 0, bo->num_pages, &vbo->map);
+	if (ret)
+		DRM_ERROR("Buffer object map failed: %d.\n", ret);
+
+	return ttm_kmap_obj_virtual(&vbo->map, &not_used);
+}

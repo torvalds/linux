@@ -2677,7 +2677,7 @@ static void dib8000_viterbi_state(struct dib8000_state *state, u8 onoff)
 static void dib8000_set_dds(struct dib8000_state *state, s32 offset_khz)
 {
 	s16 unit_khz_dds_val;
-	u32 abs_offset_khz = ABS(offset_khz);
+	u32 abs_offset_khz = abs(offset_khz);
 	u32 dds = state->cfg.pll->ifreq & 0x1ffffff;
 	u8 invert = !!(state->cfg.pll->ifreq & (1 << 25));
 	u8 ratio;

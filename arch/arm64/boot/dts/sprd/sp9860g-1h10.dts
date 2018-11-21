@@ -9,6 +9,7 @@
 /dts-v1/;
 
 #include "sc9860.dtsi"
+#include "sc2731.dtsi"
 
 / {
 	model = "Spreadtrum SP9860G 3GFHD Board";
@@ -20,6 +21,7 @@
 		serial1 = &uart1; /* UART console */
 		serial2 = &uart2; /* Reserved */
 		serial3 = &uart3; /* for GPS */
+		spi0 = &adi_bus;
 	};
 
 	memory{

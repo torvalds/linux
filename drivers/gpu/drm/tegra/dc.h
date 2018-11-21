@@ -66,6 +66,7 @@ struct tegra_dc_soc_info {
 	unsigned int num_primary_formats;
 	const u32 *overlay_formats;
 	unsigned int num_overlay_formats;
+	const u64 *modifiers;
 };
 
 struct tegra_dc {

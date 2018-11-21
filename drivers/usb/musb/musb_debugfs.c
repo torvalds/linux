@@ -70,7 +70,6 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "DMA_CNTLch7",	0x274,	16 },
 	{ "DMA_ADDRch7",	0x278,	32 },
 	{ "DMA_COUNTch7",	0x27C,	32 },
-#ifndef CONFIG_BLACKFIN
 	{ "ConfigData",	MUSB_CONFIGDATA,8 },
 	{ "BabbleCtl",	MUSB_BABBLE_CTL,8 },
 	{ "TxFIFOsz",	MUSB_TXFIFOSZ,	8 },
@@ -79,7 +78,6 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "RxFIFOadd",	MUSB_RXFIFOADD,	16 },
 	{ "EPInfo",	MUSB_EPINFO,	8 },
 	{ "RAMInfo",	MUSB_RAMINFO,	8 },
-#endif
 	{  }	/* Terminating Entry */
 };
 
@@ -112,11 +110,7 @@ static int musb_regdump_show(struct seq_file *s, void *unused)
 	pm_runtime_put_autosuspend(musb->controller);
 	return 0;
 }
-
-static int musb_regdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, musb_regdump_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(musb_regdump);
 
 static int musb_test_mode_show(struct seq_file *s, void *unused)
 {
@@ -160,13 +154,6 @@ static int musb_test_mode_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static const struct file_operations musb_regdump_fops = {
-	.open			= musb_regdump_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
 
 static int musb_test_mode_open(struct inode *inode, struct file *file)
 {

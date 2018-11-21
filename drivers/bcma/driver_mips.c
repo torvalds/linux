@@ -184,7 +184,7 @@ static void bcma_core_mips_print_irq(struct bcma_device *dev, unsigned int irq)
 {
 	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	char interrupts[20];
+	char interrupts[25];
 	char *ints = interrupts;
 
 	for (i = 0; i < ARRAY_SIZE(irq_name); i++)

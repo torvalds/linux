@@ -349,6 +349,7 @@ static const struct rtc_class_ops at91_rtc_ops = {
 };
 
 static const struct regmap_config gpbr_regmap_config = {
+	.name = "gpbr",
 	.reg_bits = 32,
 	.val_bits = 32,
 	.reg_stride = 4,

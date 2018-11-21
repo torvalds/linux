@@ -148,7 +148,7 @@ ssize_t nd_namespace_store(struct device *dev,
 	char *name;
 
 	if (dev->driver) {
-		dev_dbg(dev, "%s: -EBUSY\n", __func__);
+		dev_dbg(dev, "namespace already active\n");
 		return -EBUSY;
 	}
 

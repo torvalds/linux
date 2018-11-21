@@ -196,6 +196,26 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	case NFT_CT_PROTO_DST:
 		nft_reg_store16(dest, (__force u16)tuple->dst.u.all);
 		return;
+	case NFT_CT_SRC_IP:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV4)
+			goto err;
+		*dest = tuple->src.u3.ip;
+		return;
+	case NFT_CT_DST_IP:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV4)
+			goto err;
+		*dest = tuple->dst.u3.ip;
+		return;
+	case NFT_CT_SRC_IP6:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV6)
+			goto err;
+		memcpy(dest, tuple->src.u3.ip6, sizeof(struct in6_addr));
+		return;
+	case NFT_CT_DST_IP6:
+		if (nf_ct_l3num(ct) != NFPROTO_IPV6)
+			goto err;
+		memcpy(dest, tuple->dst.u3.ip6, sizeof(struct in6_addr));
+		return;
 	default:
 		break;
 	}
@@ -419,6 +439,20 @@ static int nft_ct_get_init(const struct nft_ctx *ctx,
 			return -EAFNOSUPPORT;
 		}
 		break;
+	case NFT_CT_SRC_IP:
+	case NFT_CT_DST_IP:
+		if (tb[NFTA_CT_DIRECTION] == NULL)
+			return -EINVAL;
+
+		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u3.ip);
+		break;
+	case NFT_CT_SRC_IP6:
+	case NFT_CT_DST_IP6:
+		if (tb[NFTA_CT_DIRECTION] == NULL)
+			return -EINVAL;
+
+		len = FIELD_SIZEOF(struct nf_conntrack_tuple, src.u3.ip6);
+		break;
 	case NFT_CT_PROTO_SRC:
 	case NFT_CT_PROTO_DST:
 		if (tb[NFTA_CT_DIRECTION] == NULL)
@@ -588,6 +622,10 @@ static int nft_ct_get_dump(struct sk_buff *skb, const struct nft_expr *expr)
 	switch (priv->key) {
 	case NFT_CT_SRC:
 	case NFT_CT_DST:
+	case NFT_CT_SRC_IP:
+	case NFT_CT_DST_IP:
+	case NFT_CT_SRC_IP6:
+	case NFT_CT_DST_IP6:
 	case NFT_CT_PROTO_SRC:
 	case NFT_CT_PROTO_DST:
 		if (nla_put_u8(skb, NFTA_CT_DIRECTION, priv->dir))
@@ -842,21 +880,25 @@ static int nft_ct_helper_obj_dump(struct sk_buff *skb,
 				  struct nft_object *obj, bool reset)
 {
 	const struct nft_ct_helper_obj *priv = nft_obj_data(obj);
-	const struct nf_conntrack_helper *helper = priv->helper4;
+	const struct nf_conntrack_helper *helper;
 	u16 family;
+
+	if (priv->helper4 && priv->helper6) {
+		family = NFPROTO_INET;
+		helper = priv->helper4;
+	} else if (priv->helper6) {
+		family = NFPROTO_IPV6;
+		helper = priv->helper6;
+	} else {
+		family = NFPROTO_IPV4;
+		helper = priv->helper4;
+	}
 
 	if (nla_put_string(skb, NFTA_CT_HELPER_NAME, helper->name))
 		return -1;
 
 	if (nla_put_u8(skb, NFTA_CT_HELPER_L4PROTO, priv->l4proto))
 		return -1;
-
-	if (priv->helper4 && priv->helper6)
-		family = NFPROTO_INET;
-	else if (priv->helper6)
-		family = NFPROTO_IPV6;
-	else
-		family = NFPROTO_IPV4;
 
 	if (nla_put_be16(skb, NFTA_CT_HELPER_L3PROTO, htons(family)))
 		return -1;

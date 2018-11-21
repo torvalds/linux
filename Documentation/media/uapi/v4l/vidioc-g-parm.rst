@@ -66,7 +66,7 @@ union holding separate parameters for input and output devices.
       -
       - The buffer (stream) type, same as struct
 	:c:type:`v4l2_format` ``type``, set by the
-	application. See :c:type:`v4l2_buf_type`
+	application. See :c:type:`v4l2_buf_type`.
     * - union
       - ``parm``
       -
@@ -75,12 +75,13 @@ union holding separate parameters for input and output devices.
       - struct :c:type:`v4l2_captureparm`
       - ``capture``
       - Parameters for capture devices, used when ``type`` is
-	``V4L2_BUF_TYPE_VIDEO_CAPTURE``.
+	``V4L2_BUF_TYPE_VIDEO_CAPTURE`` or
+	``V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE``.
     * -
       - struct :c:type:`v4l2_outputparm`
       - ``output``
       - Parameters for output devices, used when ``type`` is
-	``V4L2_BUF_TYPE_VIDEO_OUTPUT``.
+	``V4L2_BUF_TYPE_VIDEO_OUTPUT`` or ``V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE``.
     * -
       - __u8
       - ``raw_data``\ [200]

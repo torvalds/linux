@@ -19,7 +19,7 @@
 
 #ifdef PROC_DEBUG
 
-static struct proc_dir_entry *rtw_proc = NULL;
+static struct proc_dir_entry *rtw_proc;
 
 #define RTW_PROC_NAME "rtl8723bs"
 
@@ -142,7 +142,7 @@ int rtw_drv_proc_init(void)
 		goto exit;
 	}
 
-	for (i = 0;i<drv_proc_hdls_num;i++) {
+	for (i = 0; i < drv_proc_hdls_num; i++) {
 		entry = rtw_proc_create_entry(drv_proc_hdls[i].name, rtw_proc, &rtw_drv_proc_fops, (void *)i);
 		if (!entry) {
 			rtw_warn_on(1);
@@ -163,7 +163,7 @@ void rtw_drv_proc_deinit(void)
 	if (rtw_proc == NULL)
 		return;
 
-	for (i = 0;i<drv_proc_hdls_num;i++)
+	for (i = 0; i < drv_proc_hdls_num; i++)
 		remove_proc_entry(drv_proc_hdls[i].name, rtw_proc);
 
 	remove_proc_entry(RTW_PROC_NAME, get_proc_net);
@@ -341,7 +341,7 @@ static int proc_get_cam_cache(struct seq_file *m, void *v)
 		/*  "MK", "GK", "MFB", "valid" */
 	);
 
-	for (i = 0;i<32;i++) {
+	for (i = 0; i < 32; i++) {
 		if (dvobj->cam_cache[i].ctrl != 0)
 			DBG_871X_SEL_NL(m, "%2u 0x%04x "MAC_FMT" "KEY_FMT" %3u %-7s"
 				/*  %2u %2u 0x%02x %5u" */
@@ -663,7 +663,7 @@ static struct proc_dir_entry *rtw_odm_proc_init(struct net_device *dev)
 
 	adapter->dir_odm = dir_odm;
 
-	for (i = 0;i<odm_proc_hdls_num;i++) {
+	for (i = 0; i < odm_proc_hdls_num; i++) {
 		entry = rtw_proc_create_entry(odm_proc_hdls[i].name, dir_odm, &rtw_odm_proc_fops, (void *)i);
 		if (!entry) {
 			rtw_warn_on(1);
@@ -687,7 +687,7 @@ static void rtw_odm_proc_deinit(struct adapter	*adapter)
 		return;
 	}
 
-	for (i = 0;i<odm_proc_hdls_num;i++)
+	for (i = 0; i < odm_proc_hdls_num; i++)
 		remove_proc_entry(odm_proc_hdls[i].name, dir_odm);
 
 	remove_proc_entry("odm", adapter->dir_dev);
@@ -721,7 +721,7 @@ struct proc_dir_entry *rtw_adapter_proc_init(struct net_device *dev)
 
 	adapter->dir_dev = dir_dev;
 
-	for (i = 0;i<adapter_proc_hdls_num;i++) {
+	for (i = 0; i < adapter_proc_hdls_num; i++) {
 		entry = rtw_proc_create_entry(adapter_proc_hdls[i].name, dir_dev, &rtw_adapter_proc_fops, (void *)i);
 		if (!entry) {
 			rtw_warn_on(1);
@@ -749,7 +749,7 @@ void rtw_adapter_proc_deinit(struct net_device *dev)
 		return;
 	}
 
-	for (i = 0;i<adapter_proc_hdls_num;i++)
+	for (i = 0; i < adapter_proc_hdls_num; i++)
 		remove_proc_entry(adapter_proc_hdls[i].name, dir_dev);
 
 	rtw_odm_proc_deinit(adapter);
@@ -773,7 +773,7 @@ void rtw_adapter_proc_replace(struct net_device *dev)
 		return;
 	}
 
-	for (i = 0;i<adapter_proc_hdls_num;i++)
+	for (i = 0; i < adapter_proc_hdls_num; i++)
 		remove_proc_entry(adapter_proc_hdls[i].name, dir_dev);
 
 	rtw_odm_proc_deinit(adapter);

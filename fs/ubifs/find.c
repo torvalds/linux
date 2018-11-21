@@ -632,7 +632,7 @@ static int scan_for_idx_cb(struct ubifs_info *c,
  */
 static const struct ubifs_lprops *scan_for_leb_for_idx(struct ubifs_info *c)
 {
-	struct ubifs_lprops *lprops;
+	const struct ubifs_lprops *lprops;
 	struct scan_data data;
 	int err;
 

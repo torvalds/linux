@@ -179,18 +179,6 @@ static const u8 filter_cr_horiz_tap4[] = {
 	70,	59,	48,	37,	27,	19,	11,	5,
 };
 
-static inline bool is_alpha_format(unsigned int pixel_format)
-{
-	switch (pixel_format) {
-	case DRM_FORMAT_ARGB8888:
-	case DRM_FORMAT_ARGB1555:
-	case DRM_FORMAT_ARGB4444:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static inline u32 vp_reg_read(struct mixer_context *ctx, u32 reg_id)
 {
 	return readl(ctx->vp_regs + reg_id);
@@ -485,7 +473,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 			chroma_addr[1] = chroma_addr[0] + 0x40;
 		} else {
 			luma_addr[1] = luma_addr[0] + fb->pitches[0];
-			chroma_addr[1] = chroma_addr[0] + fb->pitches[0];
+			chroma_addr[1] = chroma_addr[0] + fb->pitches[1];
 		}
 	} else {
 		luma_addr[1] = 0;
@@ -494,6 +482,7 @@ static void vp_video_buffer(struct mixer_context *ctx,
 
 	spin_lock_irqsave(&ctx->reg_slock, flags);
 
+	vp_reg_write(ctx, VP_SHADOW_UPDATE, 1);
 	/* interlace or progressive scan mode */
 	val = (test_bit(MXR_BIT_INTERLACE, &ctx->flags) ? ~0 : 0);
 	vp_reg_writemask(ctx, VP_MODE, val, VP_MODE_LINE_SKIP);
@@ -507,21 +496,23 @@ static void vp_video_buffer(struct mixer_context *ctx,
 	vp_reg_write(ctx, VP_IMG_SIZE_Y, VP_IMG_HSIZE(fb->pitches[0]) |
 		VP_IMG_VSIZE(fb->height));
 	/* chroma plane for NV12/NV21 is half the height of the luma plane */
-	vp_reg_write(ctx, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[0]) |
+	vp_reg_write(ctx, VP_IMG_SIZE_C, VP_IMG_HSIZE(fb->pitches[1]) |
 		VP_IMG_VSIZE(fb->height / 2));
 
 	vp_reg_write(ctx, VP_SRC_WIDTH, state->src.w);
-	vp_reg_write(ctx, VP_SRC_HEIGHT, state->src.h);
 	vp_reg_write(ctx, VP_SRC_H_POSITION,
 			VP_SRC_H_POSITION_VAL(state->src.x));
-	vp_reg_write(ctx, VP_SRC_V_POSITION, state->src.y);
-
 	vp_reg_write(ctx, VP_DST_WIDTH, state->crtc.w);
 	vp_reg_write(ctx, VP_DST_H_POSITION, state->crtc.x);
+
 	if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
+		vp_reg_write(ctx, VP_SRC_HEIGHT, state->src.h / 2);
+		vp_reg_write(ctx, VP_SRC_V_POSITION, state->src.y / 2);
 		vp_reg_write(ctx, VP_DST_HEIGHT, state->crtc.h / 2);
 		vp_reg_write(ctx, VP_DST_V_POSITION, state->crtc.y / 2);
 	} else {
+		vp_reg_write(ctx, VP_SRC_HEIGHT, state->src.h);
+		vp_reg_write(ctx, VP_SRC_V_POSITION, state->src.y);
 		vp_reg_write(ctx, VP_DST_HEIGHT, state->crtc.h);
 		vp_reg_write(ctx, VP_DST_V_POSITION, state->crtc.y);
 	}
@@ -625,7 +616,7 @@ static void mixer_graph_buffer(struct mixer_context *ctx,
 	mixer_reg_write(ctx, MXR_GRAPHIC_BASE(win), dma_addr);
 
 	mixer_cfg_layer(ctx, win, priority, true);
-	mixer_cfg_gfx_blend(ctx, win, is_alpha_format(fb->format->format));
+	mixer_cfg_gfx_blend(ctx, win, fb->format->has_alpha);
 
 	/* layer update mandatory for mixer 16.0.33.0 */
 	if (ctx->mxr_ver == MXR_VER_16_0_33_0 ||
@@ -711,6 +702,15 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 
 		/* interlace scan need to check shadow register */
 		if (test_bit(MXR_BIT_INTERLACE, &ctx->flags)) {
+			if (test_bit(MXR_BIT_VP_ENABLED, &ctx->flags) &&
+			    vp_reg_read(ctx, VP_SHADOW_UPDATE))
+				goto out;
+
+			base = mixer_reg_read(ctx, MXR_CFG);
+			shadow = mixer_reg_read(ctx, MXR_CFG_S);
+			if (base != shadow)
+				goto out;
+
 			base = mixer_reg_read(ctx, MXR_GRAPHIC_BASE(0));
 			shadow = mixer_reg_read(ctx, MXR_GRAPHIC_BASE_S(0));
 			if (base != shadow)

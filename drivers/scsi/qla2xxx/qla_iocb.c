@@ -14,7 +14,7 @@
 
 /**
  * qla2x00_get_cmd_direction() - Determine control_flag data direction.
- * @cmd: SCSI command
+ * @sp: SCSI command
  *
  * Returns the proper CF_* direction based on CDB.
  */
@@ -86,7 +86,7 @@ qla2x00_calc_iocbs_64(uint16_t dsds)
 
 /**
  * qla2x00_prep_cont_type0_iocb() - Initialize a Continuation Type 0 IOCB.
- * @ha: HA context
+ * @vha: HA context
  *
  * Returns a pointer to the Continuation Type 0 IOCB packet.
  */
@@ -114,7 +114,8 @@ qla2x00_prep_cont_type0_iocb(struct scsi_qla_host *vha)
 
 /**
  * qla2x00_prep_cont_type1_iocb() - Initialize a Continuation Type 1 IOCB.
- * @ha: HA context
+ * @vha: HA context
+ * @req: request queue
  *
  * Returns a pointer to the continuation type 1 IOCB packet.
  */
@@ -445,6 +446,8 @@ queuing_error:
 
 /**
  * qla2x00_start_iocbs() - Execute the IOCB command
+ * @vha: HA context
+ * @req: request queue
  */
 void
 qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
@@ -486,7 +489,9 @@ qla2x00_start_iocbs(struct scsi_qla_host *vha, struct req_que *req)
 
 /**
  * qla2x00_marker() - Send a marker IOCB to the firmware.
- * @ha: HA context
+ * @vha: HA context
+ * @req: request queue
+ * @rsp: response queue
  * @loop_id: loop ID
  * @lun: LUN
  * @type: marker modifier
@@ -1190,6 +1195,8 @@ qla24xx_walk_and_build_prot_sglist(struct qla_hw_data *ha, srb_t *sp,
  * @sp: SRB command to process
  * @cmd_pkt: Command type 3 IOCB
  * @tot_dsds: Total number of segments to transfer
+ * @tot_prot_dsds:
+ * @fw_prot_opts:
  */
 inline int
 qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
@@ -1203,7 +1210,6 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 	uint32_t		dif_bytes;
 	uint8_t			bundling = 1;
 	uint16_t		blk_size;
-	uint8_t			*clr_ptr;
 	struct crc_context	*crc_ctx_pkt = NULL;
 	struct qla_hw_data	*ha;
 	uint8_t			additional_fcpcdb_len;
@@ -1245,14 +1251,10 @@ qla24xx_build_scsi_crc_2_iocbs(srb_t *sp, struct cmd_type_crc_2 *cmd_pkt,
 
 	/* Allocate CRC context from global pool */
 	crc_ctx_pkt = sp->u.scmd.ctx =
-	    dma_pool_alloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
+	    dma_pool_zalloc(ha->dl_dma_pool, GFP_ATOMIC, &crc_ctx_dma);
 
 	if (!crc_ctx_pkt)
 		goto crc_queuing_error;
-
-	/* Zero out CTX area. */
-	clr_ptr = (uint8_t *)crc_ctx_pkt;
-	memset(clr_ptr, 0, sizeof(*crc_ctx_pkt));
 
 	crc_ctx_pkt->crc_ctx_dma = crc_ctx_dma;
 
@@ -2458,8 +2460,8 @@ qla24xx_els_dcmd_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->type = SRB_ELS_DCMD;
 	sp->name = "ELS_DCMD";
 	sp->fcport = fcport;
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
 	elsio->timeout = qla2x00_els_dcmd_iocb_timeout;
+	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
 	sp->done = qla2x00_els_dcmd_sp_done;
 	sp->free = qla2x00_els_dcmd_sp_free;
 
@@ -2656,8 +2658,11 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	sp->type = SRB_ELS_DCMD;
 	sp->name = "ELS_DCMD";
 	sp->fcport = fcport;
-	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+
 	elsio->timeout = qla2x00_els_dcmd2_iocb_timeout;
+	init_completion(&elsio->u.els_plogi.comp);
+	qla2x00_init_timer(sp, ELS_DCMD_TIMEOUT);
+
 	sp->done = qla2x00_els_dcmd2_sp_done;
 	sp->free = qla2x00_els_dcmd2_sp_free;
 
@@ -2694,7 +2699,6 @@ qla24xx_els_dcmd2_iocb(scsi_qla_host_t *vha, int els_opcode,
 	ql_dump_buffer(ql_dbg_io + ql_dbg_buffer, vha, 0x0109,
 	    (uint8_t *)elsio->u.els_plogi.els_plogi_pyld, 0x70);
 
-	init_completion(&elsio->u.els_plogi.comp);
 	rval = qla2x00_start_sp(sp);
 	if (rval != QLA_SUCCESS) {
 		rval = QLA_FUNCTION_FAILED;
@@ -3067,7 +3071,7 @@ sufficient_dsds:
 		}
 
 		memset(ctx, 0, sizeof(struct ct6_dsd));
-		ctx->fcp_cmnd = dma_pool_alloc(ha->fcp_cmnd_dma_pool,
+		ctx->fcp_cmnd = dma_pool_zalloc(ha->fcp_cmnd_dma_pool,
 			GFP_ATOMIC, &ctx->fcp_cmnd_dma);
 		if (!ctx->fcp_cmnd) {
 			ql_log(ql_log_fatal, vha, 0x3011,
@@ -3120,7 +3124,6 @@ sufficient_dsds:
 		host_to_fcp_swap((uint8_t *)&cmd_pkt->lun, sizeof(cmd_pkt->lun));
 
 		/* build FCP_CMND IU */
-		memset(ctx->fcp_cmnd, 0, sizeof(struct fcp_cmnd));
 		int_to_scsilun(cmd->device->lun, &ctx->fcp_cmnd->lun);
 		ctx->fcp_cmnd->additional_cdb_len = additional_cdb_len;
 

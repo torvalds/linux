@@ -326,10 +326,11 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 				 u8 tos, int oif, struct net_device *dev,
 				 int rpf, struct in_device *idev, u32 *itag)
 {
+	struct net *net = dev_net(dev);
+	struct flow_keys flkeys;
 	int ret, no_addr;
 	struct fib_result res;
 	struct flowi4 fl4;
-	struct net *net = dev_net(dev);
 	bool dev_match;
 
 	fl4.flowi4_oif = 0;
@@ -347,6 +348,11 @@ static int __fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 	no_addr = idev->ifa_list == NULL;
 
 	fl4.flowi4_mark = IN_DEV_SRC_VMARK(idev) ? skb->mark : 0;
+	if (!fib4_rules_early_flow_dissect(net, skb, &fl4, &flkeys)) {
+		fl4.flowi4_proto = 0;
+		fl4.fl4_sport = 0;
+		fl4.fl4_dport = 0;
+	}
 
 	trace_fib_validate_source(dev, &fl4);
 
@@ -643,6 +649,7 @@ const struct nla_policy rtm_ipv4_policy[RTA_MAX + 1] = {
 	[RTA_ENCAP]		= { .type = NLA_NESTED },
 	[RTA_UID]		= { .type = NLA_U32 },
 	[RTA_MARK]		= { .type = NLA_U32 },
+	[RTA_TABLE]		= { .type = NLA_U32 },
 };
 
 static int rtm_to_fib_config(struct net *net, struct sk_buff *skb,

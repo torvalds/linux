@@ -1,11 +1,11 @@
 /*
  * generic helper functions for handling video4linux capture buffers
  *
- * (c) 2007 Mauro Carvalho Chehab, <mchehab@infradead.org>
+ * (c) 2007 Mauro Carvalho Chehab, <mchehab@kernel.org>
  *
  * Highly based on video-buf written originally by:
  * (c) 2001,02 Gerd Knorr <kraxel@bytesex.org>
- * (c) 2006 Mauro Carvalho Chehab, <mchehab@infradead.org>
+ * (c) 2006 Mauro Carvalho Chehab, <mchehab@kernel.org>
  * (c) 2006 Ted Walther and John Sokol
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@ static int debug;
 module_param(debug, int, 0644);
 
 MODULE_DESCRIPTION("helper module to manage video4linux buffers");
-MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@infradead.org>");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@kernel.org>");
 MODULE_LICENSE("GPL");
 
 #define dprintk(level, fmt, arg...)					\

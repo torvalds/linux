@@ -56,7 +56,8 @@
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
-#include "soc15ip.h"
+#include "soc15_hw_ip.h"
+#include "vega10_ip_offset.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "reg_helper.h"
 
@@ -830,6 +831,7 @@ static bool construct(
 
 	/* TODO: Fill more data from GreenlandAsicCapability.cpp */
 	pool->base.pipe_count = res_cap.num_timing_generator;
+	pool->base.timing_generator_count = pool->base.res_cap->num_timing_generator;
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
 	dc->caps.max_downscale_ratio = 200;

@@ -86,7 +86,7 @@ static int afs_set_lock(struct afs_vnode *vnode, struct key *key,
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		while (afs_select_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_set_lock(&fc, type);
 		}
 
@@ -117,7 +117,7 @@ static int afs_extend_lock(struct afs_vnode *vnode, struct key *key)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		while (afs_select_current_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_extend_lock(&fc);
 		}
 
@@ -148,7 +148,7 @@ static int afs_release_lock(struct afs_vnode *vnode, struct key *key)
 	ret = -ERESTARTSYS;
 	if (afs_begin_vnode_operation(&fc, vnode, key)) {
 		while (afs_select_current_fileserver(&fc)) {
-			fc.cb_break = vnode->cb_break + vnode->cb_s_break;
+			fc.cb_break = afs_calc_vnode_cb_break(vnode);
 			afs_fs_release_lock(&fc);
 		}
 
@@ -613,7 +613,7 @@ static int afs_do_getlk(struct file *file, struct file_lock *fl)
 	posix_test_lock(file, fl);
 	if (fl->fl_type == F_UNLCK) {
 		/* no local locks; consult the server */
-		ret = afs_fetch_status(vnode, key);
+		ret = afs_fetch_status(vnode, key, false);
 		if (ret < 0)
 			goto error;
 

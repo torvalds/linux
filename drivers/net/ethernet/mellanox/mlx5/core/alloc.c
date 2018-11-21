@@ -71,19 +71,24 @@ static void *mlx5_dma_zalloc_coherent_node(struct mlx5_core_dev *dev,
 }
 
 int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
-			struct mlx5_buf *buf, int node)
+			struct mlx5_frag_buf *buf, int node)
 {
 	dma_addr_t t;
 
 	buf->size = size;
 	buf->npages       = 1;
 	buf->page_shift   = (u8)get_order(size) + PAGE_SHIFT;
-	buf->direct.buf   = mlx5_dma_zalloc_coherent_node(dev, size,
-							  &t, node);
-	if (!buf->direct.buf)
+
+	buf->frags = kzalloc(sizeof(*buf->frags), GFP_KERNEL);
+	if (!buf->frags)
 		return -ENOMEM;
 
-	buf->direct.map = t;
+	buf->frags->buf   = mlx5_dma_zalloc_coherent_node(dev, size,
+							  &t, node);
+	if (!buf->frags->buf)
+		goto err_out;
+
+	buf->frags->map = t;
 
 	while (t & ((1 << buf->page_shift) - 1)) {
 		--buf->page_shift;
@@ -91,18 +96,24 @@ int mlx5_buf_alloc_node(struct mlx5_core_dev *dev, int size,
 	}
 
 	return 0;
+err_out:
+	kfree(buf->frags);
+	return -ENOMEM;
 }
 
-int mlx5_buf_alloc(struct mlx5_core_dev *dev, int size, struct mlx5_buf *buf)
+int mlx5_buf_alloc(struct mlx5_core_dev *dev,
+		   int size, struct mlx5_frag_buf *buf)
 {
 	return mlx5_buf_alloc_node(dev, size, buf, dev->priv.numa_node);
 }
-EXPORT_SYMBOL_GPL(mlx5_buf_alloc);
+EXPORT_SYMBOL(mlx5_buf_alloc);
 
-void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_buf *buf)
+void mlx5_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 {
-	dma_free_coherent(&dev->pdev->dev, buf->size, buf->direct.buf,
-			  buf->direct.map);
+	dma_free_coherent(&dev->pdev->dev, buf->size, buf->frags->buf,
+			  buf->frags->map);
+
+	kfree(buf->frags);
 }
 EXPORT_SYMBOL_GPL(mlx5_buf_free);
 
@@ -147,6 +158,7 @@ err_free_buf:
 err_out:
 	return -ENOMEM;
 }
+EXPORT_SYMBOL_GPL(mlx5_frag_buf_alloc_node);
 
 void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 {
@@ -162,6 +174,7 @@ void mlx5_frag_buf_free(struct mlx5_core_dev *dev, struct mlx5_frag_buf *buf)
 	}
 	kfree(buf->frags);
 }
+EXPORT_SYMBOL_GPL(mlx5_frag_buf_free);
 
 static struct mlx5_db_pgdir *mlx5_alloc_db_pgdir(struct mlx5_core_dev *dev,
 						 int node)
@@ -275,13 +288,13 @@ void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db)
 }
 EXPORT_SYMBOL_GPL(mlx5_db_free);
 
-void mlx5_fill_page_array(struct mlx5_buf *buf, __be64 *pas)
+void mlx5_fill_page_array(struct mlx5_frag_buf *buf, __be64 *pas)
 {
 	u64 addr;
 	int i;
 
 	for (i = 0; i < buf->npages; i++) {
-		addr = buf->direct.map + (i << buf->page_shift);
+		addr = buf->frags->map + (i << buf->page_shift);
 
 		pas[i] = cpu_to_be64(addr);
 	}

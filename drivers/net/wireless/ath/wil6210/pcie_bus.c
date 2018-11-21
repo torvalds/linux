@@ -137,6 +137,20 @@ void wil_enable_irq(struct wil6210_priv *wil)
 	enable_irq(wil->pdev->irq);
 }
 
+static void wil_remove_all_additional_vifs(struct wil6210_priv *wil)
+{
+	struct wil6210_vif *vif;
+	int i;
+
+	for (i = 1; i < wil->max_vifs; i++) {
+		vif = wil->vifs[i];
+		if (vif) {
+			wil_vif_prepare_stop(vif);
+			wil_vif_remove(wil, vif->mid);
+		}
+	}
+}
+
 /* Bus ops */
 static int wil_if_pcie_enable(struct wil6210_priv *wil)
 {
@@ -148,10 +162,8 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	 */
 	int msi_only = pdev->msi_enabled;
 	bool _use_msi = use_msi;
-	bool wmi_only = test_bit(WMI_FW_CAPABILITY_WMI_ONLY,
-				 wil->fw_capabilities);
 
-	wil_dbg_misc(wil, "if_pcie_enable, wmi_only %d\n", wmi_only);
+	wil_dbg_misc(wil, "if_pcie_enable\n");
 
 	pci_set_master(pdev);
 
@@ -172,11 +184,9 @@ static int wil_if_pcie_enable(struct wil6210_priv *wil)
 	if (rc)
 		goto stop_master;
 
-	/* need reset here to obtain MAC or in case of WMI-only FW, full reset
-	 * and fw loading takes place
-	 */
+	/* need reset here to obtain MAC */
 	mutex_lock(&wil->mutex);
-	rc = wil_reset(wil, wmi_only);
+	rc = wil_reset(wil, false);
 	mutex_unlock(&wil->mutex);
 	if (rc)
 		goto release_irq;
@@ -356,6 +366,18 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bus_disable;
 	}
 
+	/* in case of WMI-only FW, perform full reset and FW loading */
+	if (test_bit(WMI_FW_CAPABILITY_WMI_ONLY, wil->fw_capabilities)) {
+		wil_dbg_misc(wil, "Loading WMI only FW\n");
+		mutex_lock(&wil->mutex);
+		rc = wil_reset(wil, true);
+		mutex_unlock(&wil->mutex);
+		if (rc) {
+			wil_err(wil, "failed to load WMI only FW\n");
+			goto if_remove;
+		}
+	}
+
 	if (IS_ENABLED(CONFIG_PM))
 		wil->pm_notify.notifier_call = wil6210_pm_notify;
 
@@ -372,6 +394,8 @@ static int wil_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	return 0;
 
+if_remove:
+	wil_if_remove(wil);
 bus_disable:
 	wil_if_pcie_disable(wil);
 err_iounmap:
@@ -402,6 +426,7 @@ static void wil_pcie_remove(struct pci_dev *pdev)
 	wil6210_debugfs_remove(wil);
 	rtnl_lock();
 	wil_p2p_wdev_free(wil);
+	wil_remove_all_additional_vifs(wil);
 	rtnl_unlock();
 	wil_if_remove(wil);
 	wil_if_pcie_disable(wil);
@@ -425,11 +450,14 @@ static int wil6210_suspend(struct device *dev, bool is_runtime)
 	int rc = 0;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct wil6210_priv *wil = pci_get_drvdata(pdev);
-	struct net_device *ndev = wil_to_ndev(wil);
-	bool keep_radio_on = ndev->flags & IFF_UP &&
-			     wil->keep_radio_on_during_sleep;
+	bool keep_radio_on, active_ifaces;
 
 	wil_dbg_pm(wil, "suspend: %s\n", is_runtime ? "runtime" : "system");
+
+	mutex_lock(&wil->vif_mutex);
+	active_ifaces = wil_has_active_ifaces(wil, true, false);
+	mutex_unlock(&wil->vif_mutex);
+	keep_radio_on = active_ifaces && wil->keep_radio_on_during_sleep;
 
 	rc = wil_can_suspend(wil, is_runtime);
 	if (rc)
@@ -457,11 +485,14 @@ static int wil6210_resume(struct device *dev, bool is_runtime)
 	int rc = 0;
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct wil6210_priv *wil = pci_get_drvdata(pdev);
-	struct net_device *ndev = wil_to_ndev(wil);
-	bool keep_radio_on = ndev->flags & IFF_UP &&
-			     wil->keep_radio_on_during_sleep;
+	bool keep_radio_on, active_ifaces;
 
 	wil_dbg_pm(wil, "resume: %s\n", is_runtime ? "runtime" : "system");
+
+	mutex_lock(&wil->vif_mutex);
+	active_ifaces = wil_has_active_ifaces(wil, true, false);
+	mutex_unlock(&wil->vif_mutex);
+	keep_radio_on = active_ifaces && wil->keep_radio_on_during_sleep;
 
 	/* In case radio stays on, platform device will control
 	 * PCIe master

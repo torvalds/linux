@@ -130,8 +130,7 @@
 	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_wobo_i5>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 1 3 GPIO_ACTIVE_HIGH>; /* PB3 */
-	cd-inverted;
+	cd-gpios = <&pio 1 3 GPIO_ACTIVE_LOW>; /* PB3 */
 	status = "okay";
 };
 

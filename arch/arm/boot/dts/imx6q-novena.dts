@@ -55,6 +55,11 @@
 	model = "Kosagi Novena Dual/Quad";
 	compatible = "kosagi,imx6q-novena", "fsl,imx6q";
 
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
+
 	chosen {
 		stdout-path = &uart2;
 	};

@@ -32,11 +32,11 @@
  *                 mmlist_lock (in mmput, drain_mmlist and others)
  *                 mapping->private_lock (in __set_page_dirty_buffers)
  *                   mem_cgroup_{begin,end}_page_stat (memcg->move_lock)
- *                     mapping->tree_lock (widely used)
+ *                     i_pages lock (widely used)
  *                 inode->i_lock (in set_page_dirty's __mark_inode_dirty)
  *                 bdi.wb->list_lock (in set_page_dirty's __mark_inode_dirty)
  *                   sb_lock (within inode_lock in fs/fs-writeback.c)
- *                   mapping->tree_lock (widely used, in set_page_dirty,
+ *                   i_pages lock (widely used, in set_page_dirty,
  *                             in arch-dependent flush_dcache_mmap_lock,
  *                             within bdi.wb->list_lock in __sync_single_inode)
  *
@@ -1171,6 +1171,7 @@ void page_add_new_anon_rmap(struct page *page,
 /**
  * page_add_file_rmap - add pte mapping to a file page
  * @page: the page to add the mapping to
+ * @compound: charge the page as compound or small page
  *
  * The caller needs to hold the pte lock.
  */
@@ -1373,9 +1374,6 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		if (!pvmw.pte && (flags & TTU_MIGRATION)) {
 			VM_BUG_ON_PAGE(PageHuge(page) || !PageTransCompound(page), page);
 
-			if (!PageAnon(page))
-				continue;
-
 			set_pmd_migration_entry(&pvmw, page);
 			continue;
 		}
@@ -1497,6 +1495,14 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 				(flags & (TTU_MIGRATION|TTU_SPLIT_FREEZE))) {
 			swp_entry_t entry;
 			pte_t swp_pte;
+
+			if (arch_unmap_one(mm, vma, address, pteval) < 0) {
+				set_pte_at(mm, address, pvmw.pte, pteval);
+				ret = false;
+				page_vma_mapped_walk_done(&pvmw);
+				break;
+			}
+
 			/*
 			 * Store the pfn of the page in a special migration
 			 * pte. do_swap_page() will wait until the migration
@@ -1551,6 +1557,12 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 			}
 
 			if (swap_duplicate(entry) < 0) {
+				set_pte_at(mm, address, pvmw.pte, pteval);
+				ret = false;
+				page_vma_mapped_walk_done(&pvmw);
+				break;
+			}
+			if (arch_unmap_one(mm, vma, address, pteval) < 0) {
 				set_pte_at(mm, address, pvmw.pte, pteval);
 				ret = false;
 				page_vma_mapped_walk_done(&pvmw);

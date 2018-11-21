@@ -431,8 +431,8 @@ xfs_trans_brelse(
 	 * If the fs has shutdown and we dropped the last reference, it may fall
 	 * on us to release a (possibly dirty) bli if it never made it to the
 	 * AIL (e.g., the aborted unpin already happened and didn't release it
-	 * due to our reference). Since we're already shutdown and need xa_lock,
-	 * just force remove from the AIL and release the bli here.
+	 * due to our reference). Since we're already shutdown and need
+	 * ail_lock, just force remove from the AIL and release the bli here.
 	 */
 	if (XFS_FORCED_SHUTDOWN(tp->t_mountp) && freed) {
 		xfs_trans_ail_remove(&bip->bli_item, SHUTDOWN_LOG_IO_ERROR);

@@ -24,24 +24,6 @@ __printf(1, 2) void vbg_debug(const char *fmt, ...);
 #define vbg_debug pr_debug
 #endif
 
-/**
- * Allocate memory for generic request and initialize the request header.
- *
- * Return: the allocated memory
- * @len:		Size of memory block required for the request.
- * @req_type:		The generic request type.
- */
-void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type);
-
-/**
- * Perform a generic request.
- *
- * Return: VBox status code
- * @gdev:		The Guest extension device.
- * @req:		Pointer to the request structure.
- */
-int vbg_req_perform(struct vbg_dev *gdev, void *req);
-
 int vbg_hgcm_connect(struct vbg_dev *gdev,
 		     struct vmmdev_hgcm_service_location *loc,
 		     u32 *client_id, int *vbox_status);
@@ -51,11 +33,6 @@ int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 client_id, int *vbox_status);
 int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
 		  u32 timeout_ms, struct vmmdev_hgcm_function_parameter *parms,
 		  u32 parm_count, int *vbox_status);
-
-int vbg_hgcm_call32(
-	struct vbg_dev *gdev, u32 client_id, u32 function, u32 timeout_ms,
-	struct vmmdev_hgcm_function_parameter32 *parm32, u32 parm_count,
-	int *vbox_status);
 
 /**
  * Convert a VirtualBox status code to a standard Linux kernel return value.

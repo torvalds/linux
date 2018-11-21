@@ -4010,18 +4010,18 @@ static void rs_drv_add_sta_debugfs(void *mvm, void *priv_sta,
 	if (!mvmsta->vif)
 		return;
 
-	debugfs_create_file("rate_scale_table", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_file("rate_scale_table", 0600, dir,
 			    lq_sta, &rs_sta_dbgfs_scale_table_ops);
-	debugfs_create_file("rate_stats_table", S_IRUSR, dir,
+	debugfs_create_file("rate_stats_table", 0400, dir,
 			    lq_sta, &rs_sta_dbgfs_stats_table_ops);
-	debugfs_create_file("drv_tx_stats", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_file("drv_tx_stats", 0600, dir,
 			    lq_sta, &rs_sta_dbgfs_drv_tx_stats_ops);
-	debugfs_create_u8("tx_agg_tid_enable", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_u8("tx_agg_tid_enable", 0600, dir,
 			  &lq_sta->tx_agg_tid_en);
-	debugfs_create_u8("reduced_tpc", S_IRUSR | S_IWUSR, dir,
+	debugfs_create_u8("reduced_tpc", 0600, dir,
 			  &lq_sta->pers.dbg_fixed_txp_reduction);
 
-	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, S_IRUSR | S_IWUSR);
+	MVM_DEBUGFS_ADD_FILE_RS(ss_force, dir, 0600);
 	return;
 err:
 	IWL_ERR((struct iwl_mvm *)mvm, "Can't create debugfs entity\n");

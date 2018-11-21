@@ -17,6 +17,17 @@
 #ifndef __RSI_HAL_H__
 #define __RSI_HAL_H__
 
+/* Device Operating modes */
+#define DEV_OPMODE_WIFI_ALONE		1
+#define DEV_OPMODE_BT_ALONE		4
+#define DEV_OPMODE_BT_LE_ALONE		8
+#define DEV_OPMODE_BT_DUAL		12
+#define DEV_OPMODE_STA_BT		5
+#define DEV_OPMODE_STA_BT_LE		9
+#define DEV_OPMODE_STA_BT_DUAL		13
+#define DEV_OPMODE_AP_BT		6
+#define DEV_OPMODE_AP_BT_DUAL		14
+
 #define FLASH_WRITE_CHUNK_SIZE		(4 * 1024)
 #define FLASH_SECTOR_SIZE		(4 * 1024)
 
@@ -103,6 +114,7 @@
 
 #define FW_FLASH_OFFSET			0x820
 #define LMAC_VER_OFFSET			(FW_FLASH_OFFSET + 0x200)
+#define MAX_DWORD_ALIGN_BYTES		64
 
 struct bl_header {
 	__le32 flags;
@@ -145,8 +157,18 @@ struct rsi_data_desc {
 	u8 sta_id;
 } __packed;
 
+struct rsi_bt_desc {
+	__le16 len_qno;
+	__le16 reserved1;
+	__le32 reserved2;
+	__le32 reserved3;
+	__le16 reserved4;
+	__le16 bt_pkt_type;
+} __packed;
+
 int rsi_hal_device_init(struct rsi_hw *adapter);
 int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb);
 int rsi_send_pkt_to_bus(struct rsi_common *common, struct sk_buff *skb);
+int rsi_send_bt_pkt(struct rsi_common *common, struct sk_buff *skb);
 
 #endif

@@ -217,21 +217,6 @@ int __cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-int cfg80211_join_mesh(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev,
-		       struct mesh_setup *setup,
-		       const struct mesh_config *conf)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	wdev_lock(wdev);
-	err = __cfg80211_join_mesh(rdev, dev, setup, conf);
-	wdev_unlock(wdev);
-
-	return err;
-}
-
 int cfg80211_set_mesh_channel(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev,
 			      struct cfg80211_chan_def *chandef)
@@ -286,6 +271,7 @@ int __cfg80211_leave_mesh(struct cfg80211_registered_device *rdev,
 
 	err = rdev_leave_mesh(rdev, dev);
 	if (!err) {
+		wdev->conn_owner_nlportid = 0;
 		wdev->mesh_id_len = 0;
 		wdev->beacon_interval = 0;
 		memset(&wdev->chandef, 0, sizeof(wdev->chandef));

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * ipmi_si_pci.c
  *
@@ -17,16 +18,12 @@ module_param_named(trypci, si_trypci, bool, 0);
 MODULE_PARM_DESC(trypci, "Setting this to zero will disable the"
 		 " default scan of the interfaces identified via pci");
 
-#define PCI_ERMC_CLASSCODE		0x0C0700
-#define PCI_ERMC_CLASSCODE_MASK		0xffffff00
-#define PCI_ERMC_CLASSCODE_TYPE_MASK	0xff
-#define PCI_ERMC_CLASSCODE_TYPE_SMIC	0x00
-#define PCI_ERMC_CLASSCODE_TYPE_KCS	0x01
-#define PCI_ERMC_CLASSCODE_TYPE_BT	0x02
+#define PCI_CLASS_SERIAL_IPMI		0x0c07
+#define PCI_CLASS_SERIAL_IPMI_SMIC	0x0c0700
+#define PCI_CLASS_SERIAL_IPMI_KCS	0x0c0701
+#define PCI_CLASS_SERIAL_IPMI_BT	0x0c0702
 
-#define PCI_HP_VENDOR_ID    0x103C
-#define PCI_MMC_DEVICE_ID   0x121A
-#define PCI_MMC_ADDR_CW     0x10
+#define PCI_DEVICE_ID_HP_MMC 0x121A
 
 static void ipmi_pci_cleanup(struct si_sm_io *io)
 {
@@ -65,32 +62,43 @@ static int ipmi_pci_probe_regspacing(struct si_sm_io *io)
 	return DEFAULT_REGSPACING;
 }
 
+static struct pci_device_id ipmi_pci_blacklist[] = {
+	/*
+	 * This is a "Virtual IPMI device", whatever that is.  It appears
+	 * as a KCS device by the class, but it is not one.
+	 */
+	{ PCI_VDEVICE(REALTEK, 0x816c) },
+	{ 0, }
+};
+
 static int ipmi_pci_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *ent)
 {
 	int rv;
-	int class_type = pdev->class & PCI_ERMC_CLASSCODE_TYPE_MASK;
 	struct si_sm_io io;
+
+	if (pci_match_id(ipmi_pci_blacklist, pdev))
+		return -ENODEV;
 
 	memset(&io, 0, sizeof(io));
 	io.addr_source = SI_PCI;
 	dev_info(&pdev->dev, "probing via PCI");
 
-	switch (class_type) {
-	case PCI_ERMC_CLASSCODE_TYPE_SMIC:
+	switch (pdev->class) {
+	case PCI_CLASS_SERIAL_IPMI_SMIC:
 		io.si_type = SI_SMIC;
 		break;
 
-	case PCI_ERMC_CLASSCODE_TYPE_KCS:
+	case PCI_CLASS_SERIAL_IPMI_KCS:
 		io.si_type = SI_KCS;
 		break;
 
-	case PCI_ERMC_CLASSCODE_TYPE_BT:
+	case PCI_CLASS_SERIAL_IPMI_BT:
 		io.si_type = SI_BT;
 		break;
 
 	default:
-		dev_info(&pdev->dev, "Unknown IPMI type: %d\n", class_type);
+		dev_info(&pdev->dev, "Unknown IPMI class: %x\n", pdev->class);
 		return -ENOMEM;
 	}
 
@@ -138,8 +146,10 @@ static void ipmi_pci_remove(struct pci_dev *pdev)
 }
 
 static const struct pci_device_id ipmi_pci_devices[] = {
-	{ PCI_DEVICE(PCI_HP_VENDOR_ID, PCI_MMC_DEVICE_ID) },
-	{ PCI_DEVICE_CLASS(PCI_ERMC_CLASSCODE, PCI_ERMC_CLASSCODE_MASK) },
+	{ PCI_VDEVICE(HP, PCI_DEVICE_ID_HP_MMC) },
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_IPMI_SMIC, ~0) },
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_IPMI_KCS, ~0) },
+	{ PCI_DEVICE_CLASS(PCI_CLASS_SERIAL_IPMI_BT, ~0) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ipmi_pci_devices);

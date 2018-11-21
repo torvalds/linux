@@ -43,8 +43,6 @@ struct fiji_smumgr {
 	struct SMU73_Discrete_Ulv            ulv_setting;
 	struct SMU73_Discrete_PmFuses  power_tune_table;
 	const struct fiji_pt_defaults  *power_tune_defaults;
-	uint32_t        activity_target[SMU73_MAX_LEVELS_GRAPHICS];
-
 };
 
 #endif

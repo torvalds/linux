@@ -80,6 +80,7 @@ struct aq_nic_s {
 
 	struct pci_dev *pdev;
 	unsigned int msix_entry_mask;
+	u32 irqvecs;
 };
 
 static inline struct device *aq_nic_get_dev(struct aq_nic_s *self)

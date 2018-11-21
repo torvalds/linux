@@ -51,6 +51,8 @@ void dp_enable_link_phy(
 	const struct dc_link_settings *link_settings);
 
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
+bool edp_receiver_ready_T9(struct dc_link *link);
+bool edp_receiver_ready_T7(struct dc_link *link);
 
 void dp_disable_link_phy(struct dc_link *link, enum signal_type signal);
 

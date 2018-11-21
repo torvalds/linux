@@ -43,6 +43,23 @@
 #include <linux/uaccess.h>
 #include "util.h"
 
+/* one msq_queue structure for each present queue on the system */
+struct msg_queue {
+	struct kern_ipc_perm q_perm;
+	time64_t q_stime;		/* last msgsnd time */
+	time64_t q_rtime;		/* last msgrcv time */
+	time64_t q_ctime;		/* last change time */
+	unsigned long q_cbytes;		/* current number of bytes on queue */
+	unsigned long q_qnum;		/* number of messages in queue */
+	unsigned long q_qbytes;		/* max number of bytes on queue */
+	struct pid *q_lspid;		/* pid of last msgsnd */
+	struct pid *q_lrpid;		/* last receive pid */
+
+	struct list_head q_messages;
+	struct list_head q_receivers;
+	struct list_head q_senders;
+} __randomize_layout;
+
 /* one msg_receiver structure for each sleeping receiver */
 struct msg_receiver {
 	struct list_head	r_list;
@@ -101,7 +118,7 @@ static void msg_rcu_free(struct rcu_head *head)
 	struct kern_ipc_perm *p = container_of(head, struct kern_ipc_perm, rcu);
 	struct msg_queue *msq = container_of(p, struct msg_queue, q_perm);
 
-	security_msg_queue_free(msq);
+	security_msg_queue_free(&msq->q_perm);
 	kvfree(msq);
 }
 
@@ -127,7 +144,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_perm.key = key;
 
 	msq->q_perm.security = NULL;
-	retval = security_msg_queue_alloc(msq);
+	retval = security_msg_queue_alloc(&msq->q_perm);
 	if (retval) {
 		kvfree(msq);
 		return retval;
@@ -137,7 +154,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	msq->q_ctime = ktime_get_real_seconds();
 	msq->q_cbytes = msq->q_qnum = 0;
 	msq->q_qbytes = ns->msg_ctlmnb;
-	msq->q_lspid = msq->q_lrpid = 0;
+	msq->q_lspid = msq->q_lrpid = NULL;
 	INIT_LIST_HEAD(&msq->q_messages);
 	INIT_LIST_HEAD(&msq->q_receivers);
 	INIT_LIST_HEAD(&msq->q_senders);
@@ -250,25 +267,17 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 		free_msg(msg);
 	}
 	atomic_sub(msq->q_cbytes, &ns->msg_bytes);
+	ipc_update_pid(&msq->q_lspid, NULL);
+	ipc_update_pid(&msq->q_lrpid, NULL);
 	ipc_rcu_putref(&msq->q_perm, msg_rcu_free);
 }
 
-/*
- * Called with msg_ids.rwsem and ipcp locked.
- */
-static inline int msg_security(struct kern_ipc_perm *ipcp, int msgflg)
-{
-	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
-
-	return security_msg_queue_associate(msq, msgflg);
-}
-
-SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
+long ksys_msgget(key_t key, int msgflg)
 {
 	struct ipc_namespace *ns;
 	static const struct ipc_ops msg_ops = {
 		.getnew = newque,
-		.associate = msg_security,
+		.associate = security_msg_queue_associate,
 	};
 	struct ipc_params msg_params;
 
@@ -278,6 +287,11 @@ SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
 	msg_params.flg = msgflg;
 
 	return ipcget(ns, &msg_ids(ns), &msg_ops, &msg_params);
+}
+
+SYSCALL_DEFINE2(msgget, key_t, key, int, msgflg)
+{
+	return ksys_msgget(key, msgflg);
 }
 
 static inline unsigned long
@@ -380,7 +394,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 
 	msq = container_of(ipcp, struct msg_queue, q_perm);
 
-	err = security_msg_queue_msgctl(msq, cmd);
+	err = security_msg_queue_msgctl(&msq->q_perm, cmd);
 	if (err)
 		goto out_unlock1;
 
@@ -483,14 +497,14 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 	memset(p, 0, sizeof(*p));
 
 	rcu_read_lock();
-	if (cmd == MSG_STAT) {
+	if (cmd == MSG_STAT || cmd == MSG_STAT_ANY) {
 		msq = msq_obtain_object(ns, msqid);
 		if (IS_ERR(msq)) {
 			err = PTR_ERR(msq);
 			goto out_unlock;
 		}
 		id = msq->q_perm.id;
-	} else {
+	} else { /* IPC_STAT */
 		msq = msq_obtain_object_check(ns, msqid);
 		if (IS_ERR(msq)) {
 			err = PTR_ERR(msq);
@@ -498,11 +512,16 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 		}
 	}
 
-	err = -EACCES;
-	if (ipcperms(ns, &msq->q_perm, S_IRUGO))
-		goto out_unlock;
+	/* see comment for SHM_STAT_ANY */
+	if (cmd == MSG_STAT_ANY)
+		audit_ipc_obj(&msq->q_perm);
+	else {
+		err = -EACCES;
+		if (ipcperms(ns, &msq->q_perm, S_IRUGO))
+			goto out_unlock;
+	}
 
-	err = security_msg_queue_msgctl(msq, cmd);
+	err = security_msg_queue_msgctl(&msq->q_perm, cmd);
 	if (err)
 		goto out_unlock;
 
@@ -521,8 +540,8 @@ static int msgctl_stat(struct ipc_namespace *ns, int msqid,
 	p->msg_cbytes = msq->q_cbytes;
 	p->msg_qnum   = msq->q_qnum;
 	p->msg_qbytes = msq->q_qbytes;
-	p->msg_lspid  = msq->q_lspid;
-	p->msg_lrpid  = msq->q_lrpid;
+	p->msg_lspid  = pid_vnr(msq->q_lspid);
+	p->msg_lrpid  = pid_vnr(msq->q_lrpid);
 
 	ipc_unlock_object(&msq->q_perm);
 	rcu_read_unlock();
@@ -533,7 +552,7 @@ out_unlock:
 	return err;
 }
 
-SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
+long ksys_msgctl(int msqid, int cmd, struct msqid_ds __user *buf)
 {
 	int version;
 	struct ipc_namespace *ns;
@@ -558,6 +577,7 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 		return err;
 	}
 	case MSG_STAT:	/* msqid is an index rather than a msg queue id */
+	case MSG_STAT_ANY:
 	case IPC_STAT:
 		err = msgctl_stat(ns, msqid, cmd, &msqid64);
 		if (err < 0)
@@ -574,6 +594,11 @@ SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
 	default:
 		return  -EINVAL;
 	}
+}
+
+SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, struct msqid_ds __user *, buf)
+{
+	return ksys_msgctl(msqid, cmd, buf);
 }
 
 #ifdef CONFIG_COMPAT
@@ -646,7 +671,7 @@ static int copy_compat_msqid_to_user(void __user *buf, struct msqid64_ds *in,
 	}
 }
 
-COMPAT_SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, void __user *, uptr)
+long compat_ksys_msgctl(int msqid, int cmd, void __user *uptr)
 {
 	struct ipc_namespace *ns;
 	int err;
@@ -671,6 +696,7 @@ COMPAT_SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, void __user *, uptr)
 	}
 	case IPC_STAT:
 	case MSG_STAT:
+	case MSG_STAT_ANY:
 		err = msgctl_stat(ns, msqid, cmd, &msqid64);
 		if (err < 0)
 			return err;
@@ -686,6 +712,11 @@ COMPAT_SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, void __user *, uptr)
 	default:
 		return -EINVAL;
 	}
+}
+
+COMPAT_SYSCALL_DEFINE3(msgctl, int, msqid, int, cmd, void __user *, uptr)
+{
+	return compat_ksys_msgctl(msqid, cmd, uptr);
 }
 #endif
 
@@ -718,7 +749,7 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 
 	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
 		if (testmsg(msg, msr->r_msgtype, msr->r_mode) &&
-		    !security_msg_queue_msgrcv(msq, msg, msr->r_tsk,
+		    !security_msg_queue_msgrcv(&msq->q_perm, msg, msr->r_tsk,
 					       msr->r_msgtype, msr->r_mode)) {
 
 			list_del(&msr->r_list);
@@ -726,7 +757,7 @@ static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg,
 				wake_q_add(wake_q, msr->r_tsk);
 				WRITE_ONCE(msr->r_msg, ERR_PTR(-E2BIG));
 			} else {
-				msq->q_lrpid = task_pid_vnr(msr->r_tsk);
+				ipc_update_pid(&msq->q_lrpid, task_pid(msr->r_tsk));
 				msq->q_rtime = get_seconds();
 
 				wake_q_add(wake_q, msr->r_tsk);
@@ -784,7 +815,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 			goto out_unlock0;
 		}
 
-		err = security_msg_queue_msgsnd(msq, msg, msgflg);
+		err = security_msg_queue_msgsnd(&msq->q_perm, msg, msgflg);
 		if (err)
 			goto out_unlock0;
 
@@ -827,7 +858,7 @@ static long do_msgsnd(int msqid, long mtype, void __user *mtext,
 
 	}
 
-	msq->q_lspid = task_tgid_vnr(current);
+	ipc_update_pid(&msq->q_lspid, task_tgid(current));
 	msq->q_stime = get_seconds();
 
 	if (!pipelined_send(msq, msg, &wake_q)) {
@@ -852,14 +883,20 @@ out_unlock1:
 	return err;
 }
 
-SYSCALL_DEFINE4(msgsnd, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
-		int, msgflg)
+long ksys_msgsnd(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 int msgflg)
 {
 	long mtype;
 
 	if (get_user(mtype, &msgp->mtype))
 		return -EFAULT;
 	return do_msgsnd(msqid, mtype, msgp->mtext, msgsz, msgflg);
+}
+
+SYSCALL_DEFINE4(msgsnd, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
+		int, msgflg)
+{
+	return ksys_msgsnd(msqid, msgp, msgsz, msgflg);
 }
 
 #ifdef CONFIG_COMPAT
@@ -869,8 +906,8 @@ struct compat_msgbuf {
 	char mtext[1];
 };
 
-COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
-		       compat_ssize_t, msgsz, int, msgflg)
+long compat_ksys_msgsnd(int msqid, compat_uptr_t msgp,
+		       compat_ssize_t msgsz, int msgflg)
 {
 	struct compat_msgbuf __user *up = compat_ptr(msgp);
 	compat_long_t mtype;
@@ -878,6 +915,12 @@ COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
 	if (get_user(mtype, &up->mtype))
 		return -EFAULT;
 	return do_msgsnd(msqid, mtype, up->mtext, (ssize_t)msgsz, msgflg);
+}
+
+COMPAT_SYSCALL_DEFINE4(msgsnd, int, msqid, compat_uptr_t, msgp,
+		       compat_ssize_t, msgsz, int, msgflg)
+{
+	return compat_ksys_msgsnd(msqid, msgp, msgsz, msgflg);
 }
 #endif
 
@@ -960,7 +1003,7 @@ static struct msg_msg *find_msg(struct msg_queue *msq, long *msgtyp, int mode)
 
 	list_for_each_entry(msg, &msq->q_messages, m_list) {
 		if (testmsg(msg, *msgtyp, mode) &&
-		    !security_msg_queue_msgrcv(msq, msg, current,
+		    !security_msg_queue_msgrcv(&msq->q_perm, msg, current,
 					       *msgtyp, mode)) {
 			if (mode == SEARCH_LESSEQUAL && msg->m_type != 1) {
 				*msgtyp = msg->m_type - 1;
@@ -1045,7 +1088,7 @@ static long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp, in
 			list_del(&msg->m_list);
 			msq->q_qnum--;
 			msq->q_rtime = get_seconds();
-			msq->q_lrpid = task_tgid_vnr(current);
+			ipc_update_pid(&msq->q_lrpid, task_tgid(current));
 			msq->q_cbytes -= msg->m_ts;
 			atomic_sub(msg->m_ts, &ns->msg_bytes);
 			atomic_dec(&ns->msg_hdrs);
@@ -1135,10 +1178,16 @@ out_unlock1:
 	return bufsz;
 }
 
+long ksys_msgrcv(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 long msgtyp, int msgflg)
+{
+	return do_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg, do_msg_fill);
+}
+
 SYSCALL_DEFINE5(msgrcv, int, msqid, struct msgbuf __user *, msgp, size_t, msgsz,
 		long, msgtyp, int, msgflg)
 {
-	return do_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg, do_msg_fill);
+	return ksys_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1156,11 +1205,18 @@ static long compat_do_msg_fill(void __user *dest, struct msg_msg *msg, size_t bu
 	return msgsz;
 }
 
-COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
-		       compat_ssize_t, msgsz, compat_long_t, msgtyp, int, msgflg)
+long compat_ksys_msgrcv(int msqid, compat_uptr_t msgp, compat_ssize_t msgsz,
+			compat_long_t msgtyp, int msgflg)
 {
 	return do_msgrcv(msqid, compat_ptr(msgp), (ssize_t)msgsz, (long)msgtyp,
 			 msgflg, compat_do_msg_fill);
+}
+
+COMPAT_SYSCALL_DEFINE5(msgrcv, int, msqid, compat_uptr_t, msgp,
+		       compat_ssize_t, msgsz, compat_long_t, msgtyp,
+		       int, msgflg)
+{
+	return compat_ksys_msgrcv(msqid, msgp, msgsz, msgtyp, msgflg);
 }
 #endif
 
@@ -1187,6 +1243,7 @@ void msg_exit_ns(struct ipc_namespace *ns)
 #ifdef CONFIG_PROC_FS
 static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 {
+	struct pid_namespace *pid_ns = ipc_seq_pid_ns(s);
 	struct user_namespace *user_ns = seq_user_ns(s);
 	struct kern_ipc_perm *ipcp = it;
 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
@@ -1198,8 +1255,8 @@ static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 		   msq->q_perm.mode,
 		   msq->q_cbytes,
 		   msq->q_qnum,
-		   msq->q_lspid,
-		   msq->q_lrpid,
+		   pid_nr_ns(msq->q_lspid, pid_ns),
+		   pid_nr_ns(msq->q_lrpid, pid_ns),
 		   from_kuid_munged(user_ns, msq->q_perm.uid),
 		   from_kgid_munged(user_ns, msq->q_perm.gid),
 		   from_kuid_munged(user_ns, msq->q_perm.cuid),

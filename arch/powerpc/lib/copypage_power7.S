@@ -42,8 +42,6 @@ _GLOBAL(copypage_power7)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	/* setup read stream 0  */
 	dcbt	0,r4,0b01000  	/* addr from */
 	dcbt	0,r7,0b01010   /* length and depth from */
@@ -52,7 +50,6 @@ _GLOBAL(copypage_power7)
 	dcbtst	0,r10,0b01010  /* length and depth to */
 	eieio
 	dcbt	0,r8,0b01010	/* all streams GO */
-.machine pop
 
 #ifdef CONFIG_ALTIVEC
 	mflr	r0

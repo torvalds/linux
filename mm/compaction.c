@@ -576,6 +576,7 @@ isolate_fail:
 
 /**
  * isolate_freepages_range() - isolate free pages.
+ * @cc:        Compaction control structure.
  * @start_pfn: The first PFN to start isolating.
  * @end_pfn:   The one-past-last PFN.
  *
@@ -1165,8 +1166,7 @@ static void isolate_freepages(struct compact_control *cc)
  * from the isolated freelists in the block we are migrating to.
  */
 static struct page *compaction_alloc(struct page *migratepage,
-					unsigned long data,
-					int **result)
+					unsigned long data)
 {
 	struct compact_control *cc = (struct compact_control *)data;
 	struct page *freepage;
@@ -1987,6 +1987,14 @@ static void kcompactd_do_work(pg_data_t *pgdat)
 		if (status == COMPACT_SUCCESS) {
 			compaction_defer_reset(zone, cc.order, false);
 		} else if (status == COMPACT_PARTIAL_SKIPPED || status == COMPACT_COMPLETE) {
+			/*
+			 * Buddy pages may become stranded on pcps that could
+			 * otherwise coalesce on the zone's free area for
+			 * order >= cc.order.  This is ratelimited by the
+			 * upcoming deferral.
+			 */
+			drain_all_pages(zone);
+
 			/*
 			 * We use sync migration mode here, so we defer like
 			 * sync direct compaction does.

@@ -518,7 +518,6 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 		/* preparing the command for flash */
 		ret = spear_smi_erase_sector(dev, bank, command, 4);
 		if (ret) {
-			e_info->state = MTD_ERASE_FAILED;
 			mutex_unlock(&flash->lock);
 			return ret;
 		}
@@ -527,8 +526,6 @@ static int spear_mtd_erase(struct mtd_info *mtd, struct erase_info *e_info)
 	}
 
 	mutex_unlock(&flash->lock);
-	e_info->state = MTD_ERASE_DONE;
-	mtd_erase_callback(e_info);
 
 	return 0;
 }

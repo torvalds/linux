@@ -61,6 +61,30 @@
 		};
 	};
 
+	i2s0-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "Haikou,I2S-codec";
+		simple-audio-card,mclk-fs = <512>;
+
+		simple-audio-card,codec {
+			clocks = <&sgtl5000_clk>;
+			sound-dai = <&sgtl5000>;
+		};
+
+		simple-audio-card,cpu {
+			bitclock-master;
+			frame-master;
+			sound-dai = <&i2s0>;
+		};
+	};
+
+	sgtl5000_clk: sgtl5000-oscillator  {
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency  = <24576000>;
+	};
+
 	dc_12v: dc-12v {
 		compatible = "regulator-fixed";
 		regulator-name = "dc_12v";
@@ -80,6 +104,16 @@
 		vin-supply = <&dc_12v>;
 	};
 
+	vcc5v0_baseboard: vcc5v0-baseboard {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_baseboard";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&dc_12v>;
+	};
+
 	vcc5v0_otg: vcc5v0-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -88,6 +122,24 @@
 		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-name = "vcc5v0_otg";
 		regulator-always-on;
+	};
+
+	vdda_codec: vdda-codec {
+		compatible = "regulator-fixed";
+		regulator-name = "vdda_codec";
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc5v0_baseboard>;
+	};
+
+	vddd_codec: vddd-codec {
+		compatible = "regulator-fixed";
+		regulator-name = "vddd_codec";
+		regulator-boot-on;
+		regulator-min-microvolt = <1600000>;
+		regulator-max-microvolt = <1600000>;
+		vin-supply = <&vcc5v0_baseboard>;
 	};
 };
 
@@ -110,19 +162,22 @@
 &i2c4 {
 	status = "okay";
 	clock-frequency = <400000>;
+
+	sgtl5000: codec@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&sgtl5000_clk>;
+		#sound-dai-cells = <0>;
+		VDDA-supply = <&vdda_codec>;
+		VDDIO-supply = <&vdda_codec>;
+		VDDD-supply = <&vddd_codec>;
+		status = "okay";
+	};
 };
 
 &i2c6 {
 	status = "okay";
 	clock-frequency = <400000>;
-};
-
-&i2s0 {
-	status = "okay";
-	rockchip,playback-channels = <8>;
-	rockchip,capture-channels = <8>;
-	#sound-dai-cells = <0>;
-	status = "okay";
 };
 
 &pcie_phy {

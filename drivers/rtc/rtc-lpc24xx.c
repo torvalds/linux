@@ -110,7 +110,7 @@ static int lpc24xx_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_year = CT1_YEAR(ct1);
 	tm->tm_yday = CT2_DOY(ct2);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int lpc24xx_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)

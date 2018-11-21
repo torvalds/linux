@@ -1418,6 +1418,11 @@ static int brcmf_msgbuf_stats_read(struct seq_file *seq, void *data)
 }
 #endif
 
+static void brcmf_msgbuf_debugfs_create(struct brcmf_pub *drvr)
+{
+	brcmf_debugfs_add_entry(drvr, "msgbuf_stats", brcmf_msgbuf_stats_read);
+}
+
 int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 {
 	struct brcmf_bus_msgbuf *if_msgbuf;
@@ -1472,6 +1477,7 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	drvr->proto->delete_peer = brcmf_msgbuf_delete_peer;
 	drvr->proto->add_tdls_peer = brcmf_msgbuf_add_tdls_peer;
 	drvr->proto->rxreorder = brcmf_msgbuf_rxreorder;
+	drvr->proto->debugfs_create = brcmf_msgbuf_debugfs_create;
 	drvr->proto->pd = msgbuf;
 
 	init_waitqueue_head(&msgbuf->ioctl_resp_wait);
@@ -1524,8 +1530,6 @@ int brcmf_proto_msgbuf_attach(struct brcmf_pub *drvr)
 	INIT_WORK(&msgbuf->flowring_work, brcmf_msgbuf_flowring_worker);
 	spin_lock_init(&msgbuf->flowring_work_lock);
 	INIT_LIST_HEAD(&msgbuf->work_queue);
-
-	brcmf_debugfs_add_entry(drvr, "msgbuf_stats", brcmf_msgbuf_stats_read);
 
 	return 0;
 

@@ -5,3 +5,59 @@ shall have the following properties.
 
 Required root node properties:
     - compatible = "xlnx,zynq-7000";
+
+Additional compatible strings:
+
+- Xilinx internal board cc108
+  "xlnx,zynq-cc108"
+
+- Xilinx internal board zc770 with different FMC cards
+  "xlnx,zynq-zc770-xm010"
+  "xlnx,zynq-zc770-xm011"
+  "xlnx,zynq-zc770-xm012"
+  "xlnx,zynq-zc770-xm013"
+
+- Digilent Zybo Z7 board
+  "digilent,zynq-zybo-z7"
+
+---------------------------------------------------------------
+
+Xilinx Zynq UltraScale+ MPSoC Platforms Device Tree Bindings
+
+Boards with ZynqMP SOC based on an ARM Cortex A53 processor
+shall have the following properties.
+
+Required root node properties:
+    - compatible = "xlnx,zynqmp";
+
+
+Additional compatible strings:
+
+- Xilinx internal board zc1232
+  "xlnx,zynqmp-zc1232-revA", "xlnx,zynqmp-zc1232"
+
+- Xilinx internal board zc1254
+  "xlnx,zynqmp-zc1254-revA", "xlnx,zynqmp-zc1254"
+
+- Xilinx internal board zc1275
+  "xlnx,zynqmp-zc1275-revA", "xlnx,zynqmp-zc1275"
+
+- Xilinx internal board zc1751
+  "xlnx,zynqmp-zc1751"
+
+- Xilinx 96boards compatible board zcu100
+  "xlnx,zynqmp-zcu100-revC", "xlnx,zynqmp-zcu100"
+
+- Xilinx evaluation board zcu102
+  "xlnx,zynqmp-zcu102-revA", "xlnx,zynqmp-zcu102"
+  "xlnx,zynqmp-zcu102-revB", "xlnx,zynqmp-zcu102"
+  "xlnx,zynqmp-zcu102-rev1.0", "xlnx,zynqmp-zcu102"
+
+- Xilinx evaluation board zcu104
+  "xlnx,zynqmp-zcu104-revA", "xlnx,zynqmp-zcu104"
+
+- Xilinx evaluation board zcu106
+  "xlnx,zynqmp-zcu106-revA", "xlnx,zynqmp-zcu106"
+
+- Xilinx evaluation board zcu111
+  "xlnx,zynqmp-zcu111-revA", "xlnx,zynqmp-zcu111"

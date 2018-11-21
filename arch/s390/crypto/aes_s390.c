@@ -329,7 +329,7 @@ static void fallback_exit_blk(struct crypto_tfm *tfm)
 static struct crypto_alg ecb_aes_alg = {
 	.cra_name		=	"ecb(aes)",
 	.cra_driver_name	=	"ecb-aes-s390",
-	.cra_priority		=	400,	/* combo: aes + ecb */
+	.cra_priority		=	401,	/* combo: aes + ecb + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
 					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
@@ -426,7 +426,7 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg cbc_aes_alg = {
 	.cra_name		=	"cbc(aes)",
 	.cra_driver_name	=	"cbc-aes-s390",
-	.cra_priority		=	400,	/* combo: aes + cbc */
+	.cra_priority		=	402,	/* ecb-aes-s390 + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
 					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
@@ -633,7 +633,7 @@ static void xts_fallback_exit(struct crypto_tfm *tfm)
 static struct crypto_alg xts_aes_alg = {
 	.cra_name		=	"xts(aes)",
 	.cra_driver_name	=	"xts-aes-s390",
-	.cra_priority		=	400,	/* combo: aes + xts */
+	.cra_priority		=	402,	/* ecb-aes-s390 + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
 					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
@@ -763,7 +763,7 @@ static int ctr_aes_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg ctr_aes_alg = {
 	.cra_name		=	"ctr(aes)",
 	.cra_driver_name	=	"ctr-aes-s390",
-	.cra_priority		=	400,	/* combo: aes + ctr */
+	.cra_priority		=	402,	/* ecb-aes-s390 + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER |
 					CRYPTO_ALG_NEED_FALLBACK,
 	.cra_blocksize		=	1,
@@ -1047,6 +1047,7 @@ static struct aead_alg gcm_aes_aead = {
 
 static struct crypto_alg *aes_s390_algs_ptr[5];
 static int aes_s390_algs_num;
+static struct aead_alg *aes_s390_aead_alg;
 
 static int aes_s390_register_alg(struct crypto_alg *alg)
 {
@@ -1065,7 +1066,8 @@ static void aes_s390_fini(void)
 	if (ctrblk)
 		free_page((unsigned long) ctrblk);
 
-	crypto_unregister_aead(&gcm_aes_aead);
+	if (aes_s390_aead_alg)
+		crypto_unregister_aead(aes_s390_aead_alg);
 }
 
 static int __init aes_s390_init(void)
@@ -1123,6 +1125,7 @@ static int __init aes_s390_init(void)
 		ret = crypto_register_aead(&gcm_aes_aead);
 		if (ret)
 			goto out_err;
+		aes_s390_aead_alg = &gcm_aes_aead;
 	}
 
 	return 0;

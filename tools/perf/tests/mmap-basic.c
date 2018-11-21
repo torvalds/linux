@@ -38,6 +38,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		     expected_nr_events[nsyscalls], i, j;
 	struct perf_evsel *evsels[nsyscalls], *evsel;
 	char sbuf[STRERR_BUFSIZE];
+	struct perf_mmap *md;
 
 	threads = thread_map__new(-1, getpid(), UINT_MAX);
 	if (threads == NULL) {
@@ -74,7 +75,7 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 		snprintf(name, sizeof(name), "sys_enter_%s", syscall_names[i]);
 		evsels[i] = perf_evsel__newtp("syscalls", name);
 		if (IS_ERR(evsels[i])) {
-			pr_debug("perf_evsel__new\n");
+			pr_debug("perf_evsel__new(%s)\n", name);
 			goto out_delete_evlist;
 		}
 
@@ -106,7 +107,11 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			++foo;
 		}
 
-	while ((event = perf_evlist__mmap_read(evlist, 0)) != NULL) {
+	md = &evlist->mmap[0];
+	if (perf_mmap__read_init(md) < 0)
+		goto out_init;
+
+	while ((event = perf_mmap__read_event(md)) != NULL) {
 		struct perf_sample sample;
 
 		if (event->header.type != PERF_RECORD_SAMPLE) {
@@ -129,9 +134,11 @@ int test__basic_mmap(struct test *test __maybe_unused, int subtest __maybe_unuse
 			goto out_delete_evlist;
 		}
 		nr_events[evsel->idx]++;
-		perf_evlist__mmap_consume(evlist, 0);
+		perf_mmap__consume(md);
 	}
+	perf_mmap__read_done(md);
 
+out_init:
 	err = 0;
 	evlist__for_each_entry(evlist, evsel) {
 		if (nr_events[evsel->idx] != expected_nr_events[evsel->idx]) {

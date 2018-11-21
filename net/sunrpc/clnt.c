@@ -1231,7 +1231,7 @@ static const struct sockaddr_in6 rpc_in6addr_loopback = {
  * negative errno is returned.
  */
 static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
-			struct sockaddr *buf, int buflen)
+			struct sockaddr *buf)
 {
 	struct socket *sock;
 	int err;
@@ -1269,7 +1269,7 @@ static int rpc_sockname(struct net *net, struct sockaddr *sap, size_t salen,
 		goto out_release;
 	}
 
-	err = kernel_getsockname(sock, buf, &buflen);
+	err = kernel_getsockname(sock, buf);
 	if (err < 0) {
 		dprintk("RPC:       getsockname failed (%d)\n", err);
 		goto out_release;
@@ -1353,7 +1353,7 @@ int rpc_localaddr(struct rpc_clnt *clnt, struct sockaddr *buf, size_t buflen)
 	rcu_read_unlock();
 
 	rpc_set_port(sap, 0);
-	err = rpc_sockname(net, sap, salen, buf, buflen);
+	err = rpc_sockname(net, sap, salen, buf);
 	put_net(net);
 	if (err != 0)
 		/* Couldn't discover local address, return ANYADDR */
@@ -1887,7 +1887,7 @@ call_connect_status(struct rpc_task *task)
 
 	dprint_status(task);
 
-	trace_rpc_connect_status(task, status);
+	trace_rpc_connect_status(task);
 	task->tk_status = 0;
 	switch (status) {
 	case -ECONNREFUSED:
@@ -2014,6 +2014,9 @@ call_transmit_status(struct rpc_task *task)
 	case -EPERM:
 		if (RPC_IS_SOFTCONN(task)) {
 			xprt_end_transmit(task);
+			if (!task->tk_msg.rpc_proc->p_proc)
+				trace_xprt_ping(task->tk_xprt,
+						task->tk_status);
 			rpc_exit(task, task->tk_status);
 			break;
 		}
@@ -2111,6 +2114,9 @@ call_status(struct rpc_task *task)
 	struct rpc_clnt	*clnt = task->tk_client;
 	struct rpc_rqst	*req = task->tk_rqstp;
 	int		status;
+
+	if (!task->tk_msg.rpc_proc->p_proc)
+		trace_xprt_ping(task->tk_xprt, task->tk_status);
 
 	if (req->rq_reply_bytes_recvd > 0 && !req->rq_bytes_sent)
 		task->tk_status = req->rq_reply_bytes_recvd;

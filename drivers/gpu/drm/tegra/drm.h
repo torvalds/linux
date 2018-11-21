@@ -42,20 +42,6 @@ struct tegra_fbdev {
 };
 #endif
 
-struct tegra_atomic_state {
-	struct drm_atomic_state base;
-
-	struct clk *clk_disp;
-	struct tegra_dc *dc;
-	unsigned long rate;
-};
-
-static inline struct tegra_atomic_state *
-to_tegra_atomic_state(struct drm_atomic_state *state)
-{
-	return container_of(state, struct tegra_atomic_state, base);
-}
-
 struct tegra_drm {
 	struct drm_device *drm;
 

@@ -258,21 +258,32 @@ struct chcr_context {
 	struct __crypto_ctx crypto_ctx[0];
 };
 
-struct chcr_ahash_req_ctx {
-	u32 result;
-	u8 bfr1[CHCR_HASH_MAX_BLOCK_SIZE_128];
-	u8 bfr2[CHCR_HASH_MAX_BLOCK_SIZE_128];
-	u8 *reqbfr;
-	u8 *skbfr;
+struct chcr_hctx_per_wr {
+	struct scatterlist *srcsg;
+	struct sk_buff *skb;
 	dma_addr_t dma_addr;
 	u32 dma_len;
-	u8 reqlen;
-	u8 imm;
+	unsigned int src_ofst;
+	unsigned int processed;
+	u32 result;
 	u8 is_sg_map;
-	u8 partial_hash[CHCR_HASH_MAX_DIGEST_SIZE];
-	u64 data_len;  /* Data len till time */
+	u8 imm;
+	/*Final callback called. Driver cannot rely on nbytes to decide
+	 * final call
+	 */
+	u8 isfinal;
+};
+
+struct chcr_ahash_req_ctx {
+	struct chcr_hctx_per_wr hctx_wr;
+	u8 *reqbfr;
+	u8 *skbfr;
 	/* SKB which is being sent to the hardware for processing */
-	struct sk_buff *skb;
+	u64 data_len;  /* Data len till time */
+	u8 reqlen;
+	u8 partial_hash[CHCR_HASH_MAX_DIGEST_SIZE];
+	u8 bfr1[CHCR_HASH_MAX_BLOCK_SIZE_128];
+	u8 bfr2[CHCR_HASH_MAX_BLOCK_SIZE_128];
 };
 
 struct chcr_blkcipher_req_ctx {

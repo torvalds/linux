@@ -88,7 +88,8 @@ update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 		return;
 
 	page = pfn_to_page(pfn);
-	if (page_mapping(page) && test_bit(PG_dcache_dirty, &page->flags)) {
+	if (page_mapping_file(page) &&
+	    test_bit(PG_dcache_dirty, &page->flags)) {
 		flush_kernel_dcache_page_addr(pfn_va(pfn));
 		clear_bit(PG_dcache_dirty, &page->flags);
 	} else if (parisc_requires_coherency())
@@ -253,7 +254,7 @@ parisc_cache_init(void)
 	}
 }
 
-void disable_sr_hashing(void)
+void __init disable_sr_hashing(void)
 {
 	int srhash_type, retval;
 	unsigned long space_bits;
@@ -304,7 +305,7 @@ __flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 
 void flush_dcache_page(struct page *page)
 {
-	struct address_space *mapping = page_mapping(page);
+	struct address_space *mapping = page_mapping_file(page);
 	struct vm_area_struct *mpnt;
 	unsigned long offset;
 	unsigned long addr, old_addr = 0;

@@ -145,8 +145,8 @@ static int samx7_restart(struct notifier_block *this, unsigned long mode,
 
 static void __init at91_reset_status(struct platform_device *pdev)
 {
+	const char *reason;
 	u32 reg = readl(at91_rstc_base + AT91_RSTC_SR);
-	char *reason;
 
 	switch ((reg & AT91_RSTC_RSTTYP) >> 8) {
 	case RESET_TYPE_GENERAL:
@@ -169,7 +169,7 @@ static void __init at91_reset_status(struct platform_device *pdev)
 		break;
 	}
 
-	pr_info("AT91: Starting after %s\n", reason);
+	dev_info(&pdev->dev, "Starting after %s\n", reason);
 }
 
 static const struct of_device_id at91_ramc_of_match[] = {

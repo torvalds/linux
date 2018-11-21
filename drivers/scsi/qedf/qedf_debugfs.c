@@ -23,8 +23,8 @@ static struct dentry *qedf_dbg_root;
  **/
 void
 qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
-		    struct qedf_debugfs_ops *dops,
-		    struct file_operations *fops)
+		    const struct qedf_debugfs_ops *dops,
+		    const struct file_operations *fops)
 {
 	char host_dirname[32];
 	struct dentry *file_dentry = NULL;
@@ -99,7 +99,7 @@ qedf_dbg_exit(void)
 	qedf_dbg_root = NULL;
 }
 
-struct qedf_debugfs_ops qedf_debugfs_ops[] = {
+const struct qedf_debugfs_ops qedf_debugfs_ops[] = {
 	{ "fp_int", NULL },
 	{ "io_trace", NULL },
 	{ "debug", NULL },

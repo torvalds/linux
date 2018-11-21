@@ -1365,7 +1365,7 @@ u8 *hid_alloc_report_buf(struct hid_report *report, gfp_t flags)
 	 * of implement() working on 8 byte chunks
 	 */
 
-	int len = hid_report_len(report) + 7;
+	u32 len = hid_report_len(report) + 7;
 
 	return kmalloc(len, flags);
 }
@@ -1430,7 +1430,7 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 {
 	char *buf;
 	int ret;
-	int len;
+	u32 len;
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
@@ -1456,14 +1456,14 @@ out:
 }
 EXPORT_SYMBOL_GPL(__hid_request);
 
-int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, int size,
+int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 		int interrupt)
 {
 	struct hid_report_enum *report_enum = hid->report_enum + type;
 	struct hid_report *report;
 	struct hid_driver *hdrv;
 	unsigned int a;
-	int rsize, csize = size;
+	u32 rsize, csize = size;
 	u8 *cdata = data;
 	int ret = 0;
 
@@ -1521,7 +1521,7 @@ EXPORT_SYMBOL_GPL(hid_report_raw_event);
  *
  * This is data entry for lower layers.
  */
-int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int interrupt)
+int hid_input_report(struct hid_device *hid, int type, u8 *data, u32 size, int interrupt)
 {
 	struct hid_report_enum *report_enum;
 	struct hid_driver *hdrv;
@@ -1966,6 +1966,8 @@ static int hid_device_probe(struct device *dev)
 			}
 		}
 
+		/* reset the quirks that has been previously set */
+		hdev->quirks = hid_lookup_quirk(hdev);
 		hdev->driver = hdrv;
 		if (hdrv->probe) {
 			ret = hdrv->probe(hdev, id);
@@ -2197,31 +2199,40 @@ void hid_destroy_device(struct hid_device *hdev)
 EXPORT_SYMBOL_GPL(hid_destroy_device);
 
 
-static int __bus_add_driver(struct device_driver *drv, void *data)
+static int __hid_bus_reprobe_drivers(struct device *dev, void *data)
 {
-	struct hid_driver *added_hdrv = data;
+	struct hid_driver *hdrv = data;
+	struct hid_device *hdev = to_hid_device(dev);
+
+	if (hdev->driver == hdrv &&
+	    !hdrv->match(hdev, hid_ignore_special_drivers))
+		return device_reprobe(dev);
+
+	return 0;
+}
+
+static int __hid_bus_driver_added(struct device_driver *drv, void *data)
+{
 	struct hid_driver *hdrv = to_hid_driver(drv);
 
-	if (hdrv->bus_add_driver)
-		hdrv->bus_add_driver(added_hdrv);
+	if (hdrv->match) {
+		bus_for_each_dev(&hid_bus_type, NULL, hdrv,
+				 __hid_bus_reprobe_drivers);
+	}
 
 	return 0;
 }
 
 static int __bus_removed_driver(struct device_driver *drv, void *data)
 {
-	struct hid_driver *removed_hdrv = data;
-	struct hid_driver *hdrv = to_hid_driver(drv);
-
-	if (hdrv->bus_removed_driver)
-		hdrv->bus_removed_driver(removed_hdrv);
-
-	return 0;
+	return bus_rescan_devices(&hid_bus_type);
 }
 
 int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 		const char *mod_name)
 {
+	int ret;
+
 	hdrv->driver.name = hdrv->name;
 	hdrv->driver.bus = &hid_bus_type;
 	hdrv->driver.owner = owner;
@@ -2230,9 +2241,13 @@ int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 	INIT_LIST_HEAD(&hdrv->dyn_list);
 	spin_lock_init(&hdrv->dyn_lock);
 
-	bus_for_each_drv(&hid_bus_type, NULL, hdrv, __bus_add_driver);
+	ret = driver_register(&hdrv->driver);
 
-	return driver_register(&hdrv->driver);
+	if (ret == 0)
+		bus_for_each_drv(&hid_bus_type, NULL, NULL,
+				 __hid_bus_driver_added);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__hid_register_driver);
 

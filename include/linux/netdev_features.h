@@ -79,6 +79,7 @@ enum {
 	NETIF_F_RX_UDP_TUNNEL_PORT_BIT, /* Offload of RX port for UDP tunnels */
 
 	NETIF_F_GRO_HW_BIT,		/* Hardware Generic receive offload */
+	NETIF_F_HW_TLS_RECORD_BIT,	/* Offload TLS record */
 
 	/*
 	 * Add your fresh new feature above and remember to update
@@ -145,6 +146,7 @@ enum {
 #define NETIF_F_HW_ESP		__NETIF_F(HW_ESP)
 #define NETIF_F_HW_ESP_TX_CSUM	__NETIF_F(HW_ESP_TX_CSUM)
 #define	NETIF_F_RX_UDP_TUNNEL_PORT  __NETIF_F(RX_UDP_TUNNEL_PORT)
+#define NETIF_F_HW_TLS_RECORD	__NETIF_F(HW_TLS_RECORD)
 
 #define for_each_netdev_feature(mask_addr, bit)	\
 	for_each_set_bit(bit, (unsigned long *)mask_addr, NETDEV_FEATURE_COUNT)

@@ -574,5 +574,5 @@ void tipc_nlist_purge(struct tipc_nlist *nl)
 {
 	tipc_dest_list_purge(&nl->list);
 	nl->remote = 0;
-	nl->local = 0;
+	nl->local = false;
 }

@@ -77,8 +77,6 @@
 				 300000  937500
 				 200000  925000
 			>;
-			cooling-min-level = <15>;
-			cooling-max-level = <9>;
 			#cooling-cells = <2>; /* min followed by max */
 		};
 		cpu@1 {
@@ -500,6 +498,8 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s0_bus>;
 			power-domains = <&pd_mau>;
+			#clock-cells = <1>;
+			#sound-dai-cells = <1>;
 		};
 
 		i2s1: i2s@12d60000 {
@@ -514,6 +514,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s1_bus>;
 			power-domains = <&pd_mau>;
+			#sound-dai-cells = <1>;
 		};
 
 		i2s2: i2s@12d70000 {
@@ -528,6 +529,7 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2s2_bus>;
 			power-domains = <&pd_mau>;
+			#sound-dai-cells = <1>;
 		};
 
 		usb_dwc3 {
@@ -655,7 +657,7 @@
 			power-domains = <&pd_gsc>;
 			clocks = <&clock CLK_GSCL0>;
 			clock-names = "gscl";
-			iommu = <&sysmmu_gsc0>;
+			iommus = <&sysmmu_gsc0>;
 		};
 
 		gsc_1:  gsc@13e10000 {
@@ -665,7 +667,7 @@
 			power-domains = <&pd_gsc>;
 			clocks = <&clock CLK_GSCL1>;
 			clock-names = "gscl";
-			iommu = <&sysmmu_gsc1>;
+			iommus = <&sysmmu_gsc1>;
 		};
 
 		gsc_2:  gsc@13e20000 {
@@ -675,7 +677,7 @@
 			power-domains = <&pd_gsc>;
 			clocks = <&clock CLK_GSCL2>;
 			clock-names = "gscl";
-			iommu = <&sysmmu_gsc2>;
+			iommus = <&sysmmu_gsc2>;
 		};
 
 		gsc_3:  gsc@13e30000 {
@@ -685,7 +687,7 @@
 			power-domains = <&pd_gsc>;
 			clocks = <&clock CLK_GSCL3>;
 			clock-names = "gscl";
-			iommu = <&sysmmu_gsc3>;
+			iommus = <&sysmmu_gsc3>;
 		};
 
 		hdmi: hdmi@14530000 {
@@ -700,6 +702,7 @@
 					"sclk_hdmiphy", "mout_hdmi";
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			phy = <&hdmiphy>;
+			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
 

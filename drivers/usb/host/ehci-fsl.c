@@ -155,6 +155,8 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 			retval = -ENODEV;
 			goto err2;
 		}
+
+		hcd->skip_phy_initialization = 1;
 	}
 #endif
 	return retval;

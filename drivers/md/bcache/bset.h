@@ -531,14 +531,15 @@ int __bch_keylist_realloc(struct keylist *, unsigned);
 #ifdef CONFIG_BCACHE_DEBUG
 
 int __bch_count_data(struct btree_keys *);
-void __bch_check_keys(struct btree_keys *, const char *, ...);
+void __printf(2, 3) __bch_check_keys(struct btree_keys *, const char *, ...);
 void bch_dump_bset(struct btree_keys *, struct bset *, unsigned);
 void bch_dump_bucket(struct btree_keys *);
 
 #else
 
 static inline int __bch_count_data(struct btree_keys *b) { return -1; }
-static inline void __bch_check_keys(struct btree_keys *b, const char *fmt, ...) {}
+static inline void __printf(2, 3)
+	__bch_check_keys(struct btree_keys *b, const char *fmt, ...) {}
 static inline void bch_dump_bucket(struct btree_keys *b) {}
 void bch_dump_bset(struct btree_keys *, struct bset *, unsigned);
 

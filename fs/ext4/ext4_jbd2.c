@@ -166,13 +166,6 @@ int __ext4_journal_get_write_access(const char *where, unsigned int line,
 	might_sleep();
 
 	if (ext4_handle_valid(handle)) {
-		struct super_block *sb;
-
-		sb = handle->h_transaction->t_journal->j_private;
-		if (unlikely(ext4_forced_shutdown(EXT4_SB(sb)))) {
-			jbd2_journal_abort_handle(handle);
-			return -EIO;
-		}
 		err = jbd2_journal_get_write_access(handle, bh);
 		if (err)
 			ext4_journal_abort_handle(where, line, __func__, bh,

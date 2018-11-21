@@ -226,8 +226,7 @@
 	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
 	status = "okay";
 };
 
@@ -236,8 +235,7 @@
 	pinctrl-0 = <&mmc3_pins_a>, <&mmc3_cd_pin_olinuxinom>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 11 GPIO_ACTIVE_HIGH>; /* PH11 */
-	cd-inverted;
+	cd-gpios = <&pio 7 11 GPIO_ACTIVE_LOW>; /* PH11 */
 	status = "okay";
 };
 

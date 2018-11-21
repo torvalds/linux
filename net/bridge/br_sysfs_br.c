@@ -893,7 +893,7 @@ static ssize_t brforward_read(struct file *filp, struct kobject *kobj,
 
 static struct bin_attribute bridge_forward = {
 	.attr = { .name = SYSFS_BRIDGE_FDB,
-		  .mode = S_IRUGO, },
+		  .mode = 0444, },
 	.read = brforward_read,
 };
 

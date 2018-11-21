@@ -164,15 +164,6 @@ void liquidio_link_ctrl_cmd_completion(void *nctrl_ptr)
 		}
 		break;
 
-	case OCTNET_CMD_CHANGE_MTU:
-		/* If command is successful, change the MTU. */
-		netif_info(lio, probe, lio->netdev, "MTU Changed from %d to %d\n",
-			   netdev->mtu, nctrl->ncmd.s.param1);
-		netdev->mtu = nctrl->ncmd.s.param1;
-		queue_delayed_work(lio->link_status_wq.wq,
-				   &lio->link_status_wq.wk.work, 0);
-		break;
-
 	case OCTNET_CMD_GPIO_ACCESS:
 		netif_info(lio, probe, lio->netdev, "LED Flashing visual identification\n");
 
@@ -386,20 +377,12 @@ static void lio_update_txq_status(struct octeon_device *oct, int iq_num)
 		return;
 
 	lio = GET_LIO(netdev);
-	if (netif_is_multiqueue(netdev)) {
-		if (__netif_subqueue_stopped(netdev, iq->q_index) &&
-		    lio->linfo.link.s.link_up &&
-		    (!octnet_iq_is_full(oct, iq_num))) {
-			netif_wake_subqueue(netdev, iq->q_index);
-			INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
-						  tx_restart, 1);
-		}
-	} else if (netif_queue_stopped(netdev) &&
-		   lio->linfo.link.s.link_up &&
-		   (!octnet_iq_is_full(oct, lio->txq))) {
-		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, lio->txq,
+	if (__netif_subqueue_stopped(netdev, iq->q_index) &&
+	    lio->linfo.link.s.link_up &&
+	    (!octnet_iq_is_full(oct, iq_num))) {
+		netif_wake_subqueue(netdev, iq->q_index);
+		INCR_INSTRQUEUE_PKT_COUNT(lio->oct_dev, iq_num,
 					  tx_restart, 1);
-		netif_wake_queue(netdev);
 	}
 }
 
@@ -571,7 +554,8 @@ liquidio_push_packet(u32 octeon_id __attribute__((unused)),
 
 		napi_gro_receive(napi, skb);
 
-		droq->stats.rx_bytes_received += len;
+		droq->stats.rx_bytes_received += len -
+			rh->r_dh.len * BYTES_PER_DHLEN_UNIT;
 		droq->stats.rx_pkts_received++;
 	} else {
 		recv_buffer_free(skb);
@@ -635,9 +619,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 	iq_no = droq->q_no;
 
 	/* Handle Droq descriptors */
-	work_done = octeon_process_droq_poll_cmd(oct, droq->q_no,
-						 POLL_EVENT_PROCESS_PKTS,
-						 budget);
+	work_done = octeon_droq_process_poll_pkts(oct, droq, budget);
 
 	/* Flush the instruction queue */
 	iq = oct->instr_queue[iq_no];
@@ -668,8 +650,7 @@ static int liquidio_napi_poll(struct napi_struct *napi, int budget)
 		tx_done = 1;
 		napi_complete_done(napi, work_done);
 
-		octeon_process_droq_poll_cmd(droq->oct_dev, droq->q_no,
-					     POLL_EVENT_ENABLE_INTR, 0);
+		octeon_enable_irq(droq->oct_dev, droq->q_no);
 		return 0;
 	}
 
@@ -1079,4 +1060,112 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 		}
 	}
 	return 0;
+}
+
+static void liquidio_change_mtu_completion(struct octeon_device *oct,
+					   u32 status, void *buf)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
+	struct liquidio_if_cfg_context *ctx;
+
+	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
+
+	if (status) {
+		dev_err(&oct->pci_dev->dev, "MTU change failed. Status: %llx\n",
+			CVM_CAST64(status));
+		WRITE_ONCE(ctx->cond, LIO_CHANGE_MTU_FAIL);
+	} else {
+		WRITE_ONCE(ctx->cond, LIO_CHANGE_MTU_SUCCESS);
+	}
+
+	/* This barrier is required to be sure that the response has been
+	 * written fully before waking up the handler
+	 */
+	wmb();
+
+	wake_up_interruptible(&ctx->wc);
+}
+
+/**
+ * \brief Net device change_mtu
+ * @param netdev network device
+ */
+int liquidio_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct = lio->oct_dev;
+	struct liquidio_if_cfg_context *ctx;
+	struct octeon_soft_command *sc;
+	union octnet_cmd *ncmd;
+	int ctx_size;
+	int ret = 0;
+
+	ctx_size = sizeof(struct liquidio_if_cfg_context);
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE, 16, ctx_size);
+
+	ncmd = (union octnet_cmd *)sc->virtdptr;
+	ctx  = (struct liquidio_if_cfg_context *)sc->ctxptr;
+
+	WRITE_ONCE(ctx->cond, 0);
+	ctx->octeon_id = lio_get_device_id(oct);
+	init_waitqueue_head(&ctx->wc);
+
+	ncmd->u64 = 0;
+	ncmd->s.cmd = OCTNET_CMD_CHANGE_MTU;
+	ncmd->s.param1 = new_mtu;
+
+	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_CMD, 0, 0, 0);
+
+	sc->callback = liquidio_change_mtu_completion;
+	sc->callback_arg = sc;
+	sc->wait_time = 100;
+
+	ret = octeon_send_soft_command(oct, sc);
+	if (ret == IQ_SEND_FAILED) {
+		netif_info(lio, rx_err, lio->netdev, "Failed to change MTU\n");
+		return -EINVAL;
+	}
+	/* Sleep on a wait queue till the cond flag indicates that the
+	 * response arrived or timed-out.
+	 */
+	if (sleep_cond(&ctx->wc, &ctx->cond) == -EINTR ||
+	    ctx->cond == LIO_CHANGE_MTU_FAIL) {
+		octeon_free_soft_command(oct, sc);
+		return -EINVAL;
+	}
+
+	netdev->mtu = new_mtu;
+	lio->mtu = new_mtu;
+
+	octeon_free_soft_command(oct, sc);
+	return 0;
+}
+
+int lio_wait_for_clean_oq(struct octeon_device *oct)
+{
+	int retry = 100, pending_pkts = 0;
+	int idx;
+
+	do {
+		pending_pkts = 0;
+
+		for (idx = 0; idx < MAX_OCTEON_OUTPUT_QUEUES(oct); idx++) {
+			if (!(oct->io_qmask.oq & BIT_ULL(idx)))
+				continue;
+			pending_pkts +=
+				atomic_read(&oct->droq[idx]->pkts_pending);
+		}
+
+		if (pending_pkts > 0)
+			schedule_timeout_uninterruptible(1);
+
+	} while (retry-- && pending_pkts);
+
+	return pending_pkts;
 }

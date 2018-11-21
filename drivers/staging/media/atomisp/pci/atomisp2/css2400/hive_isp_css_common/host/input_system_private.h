@@ -63,7 +63,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C hrt_data receiver_reg_load(
 
 STORAGE_CLASS_INPUT_SYSTEM_C void receiver_port_reg_store(
 	const rx_ID_t				ID,
-	const mipi_port_ID_t			port_ID,
+	const enum mipi_port_id			port_ID,
 	const hrt_address			reg,
 	const hrt_data				value)
 {
@@ -77,7 +77,7 @@ STORAGE_CLASS_INPUT_SYSTEM_C void receiver_port_reg_store(
 
 STORAGE_CLASS_INPUT_SYSTEM_C hrt_data receiver_port_reg_load(
 	const rx_ID_t				ID,
-	const mipi_port_ID_t			port_ID,
+	const enum mipi_port_id			port_ID,
 	const hrt_address			reg)
 {
 	assert(ID < N_RX_ID);

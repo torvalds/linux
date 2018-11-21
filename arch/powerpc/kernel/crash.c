@@ -238,7 +238,7 @@ static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 		if (i == cpu)
 			continue;
 
-		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
+		while (paca_ptrs[i]->kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
 			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
 				break;

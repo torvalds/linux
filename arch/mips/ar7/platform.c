@@ -346,7 +346,7 @@ static struct platform_device ar7_udc = {
 /*****************************************************************************
  * LEDs
  ****************************************************************************/
-static struct gpio_led default_leds[] = {
+static const struct gpio_led default_leds[] = {
 	{
 		.name			= "status",
 		.gpio			= 8,
@@ -354,12 +354,12 @@ static struct gpio_led default_leds[] = {
 	},
 };
 
-static struct gpio_led titan_leds[] = {
+static const struct gpio_led titan_leds[] = {
 	{ .name = "status", .gpio = 8, .active_low = 1, },
 	{ .name = "wifi", .gpio = 13, .active_low = 1, },
 };
 
-static struct gpio_led dsl502t_leds[] = {
+static const struct gpio_led dsl502t_leds[] = {
 	{
 		.name			= "status",
 		.gpio			= 9,
@@ -377,7 +377,7 @@ static struct gpio_led dsl502t_leds[] = {
 	},
 };
 
-static struct gpio_led dg834g_leds[] = {
+static const struct gpio_led dg834g_leds[] = {
 	{
 		.name			= "ppp",
 		.gpio			= 6,
@@ -406,7 +406,7 @@ static struct gpio_led dg834g_leds[] = {
 	},
 };
 
-static struct gpio_led fb_sl_leds[] = {
+static const struct gpio_led fb_sl_leds[] = {
 	{
 		.name			= "1",
 		.gpio			= 7,
@@ -433,7 +433,7 @@ static struct gpio_led fb_sl_leds[] = {
 	},
 };
 
-static struct gpio_led fb_fon_leds[] = {
+static const struct gpio_led fb_fon_leds[] = {
 	{
 		.name			= "1",
 		.gpio			= 8,
@@ -459,7 +459,7 @@ static struct gpio_led fb_fon_leds[] = {
 	},
 };
 
-static struct gpio_led gt701_leds[] = {
+static const struct gpio_led gt701_leds[] = {
 	{
 		.name			= "inet:green",
 		.gpio			= 13,

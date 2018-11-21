@@ -16,6 +16,8 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/smp.h>
+#include <linux/sys_soc.h>
 #include <linux/watchdog.h>
 
 #define RWTCNT		0
@@ -49,6 +51,7 @@ struct rwdt_priv {
 	void __iomem *base;
 	struct watchdog_device wdev;
 	unsigned long clk_rate;
+	u16 time_left;
 	u8 cks;
 };
 
@@ -107,8 +110,19 @@ static unsigned int rwdt_get_timeleft(struct watchdog_device *wdev)
 	return DIV_BY_CLKS_PER_SEC(priv, 65536 - val);
 }
 
+static int rwdt_restart(struct watchdog_device *wdev, unsigned long action,
+			void *data)
+{
+	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
+
+	rwdt_start(wdev);
+	rwdt_write(priv, 0xffff, RWTCNT);
+	return 0;
+}
+
 static const struct watchdog_info rwdt_ident = {
-	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
+	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
+		WDIOF_CARDRESET,
 	.identity = "Renesas WDT Watchdog",
 };
 
@@ -118,7 +132,46 @@ static const struct watchdog_ops rwdt_ops = {
 	.stop = rwdt_stop,
 	.ping = rwdt_init_timeout,
 	.get_timeleft = rwdt_get_timeleft,
+	.restart = rwdt_restart,
 };
+
+#if defined(CONFIG_ARCH_RCAR_GEN2) && defined(CONFIG_SMP)
+/*
+ * Watchdog-reset integration is broken on early revisions of R-Car Gen2 SoCs
+ */
+static const struct soc_device_attribute rwdt_quirks_match[] = {
+	{
+		.soc_id = "r8a7790",
+		.revision = "ES1.*",
+		.data = (void *)1,	/* needs single CPU */
+	}, {
+		.soc_id = "r8a7791",
+		.revision = "ES[12].*",
+		.data = (void *)1,	/* needs single CPU */
+	}, {
+		.soc_id = "r8a7792",
+		.revision = "*",
+		.data = (void *)0,	/* needs SMP disabled */
+	},
+	{ /* sentinel */ }
+};
+
+static bool rwdt_blacklisted(struct device *dev)
+{
+	const struct soc_device_attribute *attr;
+
+	attr = soc_device_match(rwdt_quirks_match);
+	if (attr && setup_max_cpus > (uintptr_t)attr->data) {
+		dev_info(dev, "Watchdog blacklisted on %s %s\n", attr->soc_id,
+			 attr->revision);
+		return true;
+	}
+
+	return false;
+}
+#else /* !CONFIG_ARCH_RCAR_GEN2 || !CONFIG_SMP */
+static inline bool rwdt_blacklisted(struct device *dev) { return false; }
+#endif /* !CONFIG_ARCH_RCAR_GEN2 || !CONFIG_SMP */
 
 static int rwdt_probe(struct platform_device *pdev)
 {
@@ -127,6 +180,9 @@ static int rwdt_probe(struct platform_device *pdev)
 	struct clk *clk;
 	unsigned long clks_per_sec;
 	int ret, i;
+
+	if (rwdt_blacklisted(&pdev->dev))
+		return -ENODEV;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -142,9 +198,10 @@ static int rwdt_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	pm_runtime_enable(&pdev->dev);
-
 	pm_runtime_get_sync(&pdev->dev);
 	priv->clk_rate = clk_get_rate(clk);
+	priv->wdev.bootstatus = (readb_relaxed(priv->base + RWTCSRA) &
+				RWTCSRA_WOVF) ? WDIOF_CARDRESET : 0;
 	pm_runtime_put(&pdev->dev);
 
 	if (!priv->clk_rate) {
@@ -176,6 +233,7 @@ static int rwdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 	watchdog_set_drvdata(&priv->wdev, priv);
 	watchdog_set_nowayout(&priv->wdev, nowayout);
+	watchdog_set_restart_priority(&priv->wdev, 0);
 
 	/* This overrides the default timeout only if DT configuration was found */
 	ret = watchdog_init_timeout(&priv->wdev, 0, &pdev->dev);
@@ -203,12 +261,32 @@ static int rwdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/*
- * This driver does also fit for R-Car Gen2 (r8a779[0-4]) WDT. However, for SMP
- * to work there, one also needs a RESET (RST) driver which does not exist yet
- * due to HW issues. This needs to be solved before adding compatibles here.
- */
+static int __maybe_unused rwdt_suspend(struct device *dev)
+{
+	struct rwdt_priv *priv = dev_get_drvdata(dev);
+
+	if (watchdog_active(&priv->wdev)) {
+		priv->time_left = readw(priv->base + RWTCNT);
+		rwdt_stop(&priv->wdev);
+	}
+	return 0;
+}
+
+static int __maybe_unused rwdt_resume(struct device *dev)
+{
+	struct rwdt_priv *priv = dev_get_drvdata(dev);
+
+	if (watchdog_active(&priv->wdev)) {
+		rwdt_start(&priv->wdev);
+		rwdt_write(priv, priv->time_left, RWTCNT);
+	}
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(rwdt_pm_ops, rwdt_suspend, rwdt_resume);
+
 static const struct of_device_id rwdt_ids[] = {
+	{ .compatible = "renesas,rcar-gen2-wdt", },
 	{ .compatible = "renesas,rcar-gen3-wdt", },
 	{ /* sentinel */ }
 };
@@ -218,6 +296,7 @@ static struct platform_driver rwdt_driver = {
 	.driver = {
 		.name = "renesas_wdt",
 		.of_match_table = rwdt_ids,
+		.pm = &rwdt_pm_ops,
 	},
 	.probe = rwdt_probe,
 	.remove = rwdt_remove,

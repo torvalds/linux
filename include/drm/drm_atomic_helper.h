@@ -40,7 +40,6 @@ int drm_atomic_helper_check_modeset(struct drm_device *dev,
 				struct drm_atomic_state *state);
 int drm_atomic_helper_check_plane_state(struct drm_plane_state *plane_state,
 					const struct drm_crtc_state *crtc_state,
-					const struct drm_rect *clip,
 					int min_scale,
 					int max_scale,
 					bool can_position,

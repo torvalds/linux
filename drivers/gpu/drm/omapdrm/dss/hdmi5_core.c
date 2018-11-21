@@ -50,14 +50,14 @@ static void hdmi_core_ddc_init(struct hdmi_core_data *core)
 {
 	void __iomem *base = core->base;
 	const unsigned long long iclk = 266000000;	/* DSS L3 ICLK */
-	const unsigned ss_scl_high = 4600;		/* ns */
-	const unsigned ss_scl_low = 5400;		/* ns */
-	const unsigned fs_scl_high = 600;		/* ns */
-	const unsigned fs_scl_low = 1300;		/* ns */
-	const unsigned sda_hold = 1000;			/* ns */
-	const unsigned sfr_div = 10;
+	const unsigned int ss_scl_high = 4600;		/* ns */
+	const unsigned int ss_scl_low = 5400;		/* ns */
+	const unsigned int fs_scl_high = 600;		/* ns */
+	const unsigned int fs_scl_low = 1300;		/* ns */
+	const unsigned int sda_hold = 1000;		/* ns */
+	const unsigned int sfr_div = 10;
 	unsigned long long sfr;
-	unsigned v;
+	unsigned int v;
 
 	sfr = iclk / sfr_div;	/* SFR_DIV */
 	sfr /= 1000;		/* SFR clock in kHz */
@@ -430,11 +430,11 @@ static void hdmi_core_write_avi_infoframe(struct hdmi_core_data *core,
 	void __iomem *base = core->base;
 	u8 data[HDMI_INFOFRAME_SIZE(AVI)];
 	u8 *ptr;
-	unsigned y, a, b, s;
-	unsigned c, m, r;
-	unsigned itc, ec, q, sc;
-	unsigned vic;
-	unsigned yq, cn, pr;
+	unsigned int y, a, b, s;
+	unsigned int c, m, r;
+	unsigned int itc, ec, q, sc;
+	unsigned int vic;
+	unsigned int yq, cn, pr;
 
 	hdmi_avi_infoframe_pack(frame, data, sizeof(data));
 

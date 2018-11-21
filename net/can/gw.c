@@ -72,7 +72,7 @@ MODULE_ALIAS(CAN_GW_NAME);
 #define CGW_DEFAULT_HOPS 1
 
 static unsigned int max_hops __read_mostly = CGW_DEFAULT_HOPS;
-module_param(max_hops, uint, S_IRUGO);
+module_param(max_hops, uint, 0444);
 MODULE_PARM_DESC(max_hops,
 		 "maximum " CAN_GW_NAME " routing hops for CAN frames "
 		 "(valid values: " __stringify(CGW_MIN_HOPS) "-"

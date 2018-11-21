@@ -11,6 +11,8 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
 
+#include "uapi/drm/vc4_drm.h"
+
 /* Don't forget to update vc4_bo.c: bo_type_names[] when adding to
  * this.
  */
@@ -27,6 +29,36 @@ enum vc4_kernel_bo_type {
 	VC4_BO_TYPE_BCL,
 	VC4_BO_TYPE_KERNEL_CACHE,
 	VC4_BO_TYPE_COUNT
+};
+
+/* Performance monitor object. The perform lifetime is controlled by userspace
+ * using perfmon related ioctls. A perfmon can be attached to a submit_cl
+ * request, and when this is the case, HW perf counters will be activated just
+ * before the submit_cl is submitted to the GPU and disabled when the job is
+ * done. This way, only events related to a specific job will be counted.
+ */
+struct vc4_perfmon {
+	/* Tracks the number of users of the perfmon, when this counter reaches
+	 * zero the perfmon is destroyed.
+	 */
+	refcount_t refcnt;
+
+	/* Number of counters activated in this perfmon instance
+	 * (should be less than DRM_VC4_MAX_PERF_COUNTERS).
+	 */
+	u8 ncounters;
+
+	/* Events counted by the HW perf counters. */
+	u8 events[DRM_VC4_MAX_PERF_COUNTERS];
+
+	/* Storage for counter values. Counters are incremented by the HW
+	 * perf counter values every time the perfmon is attached to a GPU job.
+	 * This way, perfmon users don't have to retrieve the results after
+	 * each job if they want to track events covering several submissions.
+	 * Note that counter values can't be reset, but you can fake a reset by
+	 * destroying the perfmon and creating a new one.
+	 */
+	u64 counters[0];
 };
 
 struct vc4_dev {
@@ -120,6 +152,11 @@ struct vc4_dev {
 	spinlock_t job_lock;
 	wait_queue_head_t job_wait_queue;
 	struct work_struct job_done_work;
+
+	/* Used to track the active perfmon if any. Access to this field is
+	 * protected by job_lock.
+	 */
+	struct vc4_perfmon *active_perfmon;
 
 	/* List of struct vc4_seqno_cb for callbacks to be made from a
 	 * workqueue when the given seqno is passed.
@@ -273,6 +310,66 @@ to_vc4_plane(struct drm_plane *plane)
 	return (struct vc4_plane *)plane;
 }
 
+enum vc4_scaling_mode {
+	VC4_SCALING_NONE,
+	VC4_SCALING_TPZ,
+	VC4_SCALING_PPF,
+};
+
+struct vc4_plane_state {
+	struct drm_plane_state base;
+	/* System memory copy of the display list for this element, computed
+	 * at atomic_check time.
+	 */
+	u32 *dlist;
+	u32 dlist_size; /* Number of dwords allocated for the display list */
+	u32 dlist_count; /* Number of used dwords in the display list. */
+
+	/* Offset in the dlist to various words, for pageflip or
+	 * cursor updates.
+	 */
+	u32 pos0_offset;
+	u32 pos2_offset;
+	u32 ptr0_offset;
+
+	/* Offset where the plane's dlist was last stored in the
+	 * hardware at vc4_crtc_atomic_flush() time.
+	 */
+	u32 __iomem *hw_dlist;
+
+	/* Clipped coordinates of the plane on the display. */
+	int crtc_x, crtc_y, crtc_w, crtc_h;
+	/* Clipped area being scanned from in the FB. */
+	u32 src_x, src_y;
+
+	u32 src_w[2], src_h[2];
+
+	/* Scaling selection for the RGB/Y plane and the Cb/Cr planes. */
+	enum vc4_scaling_mode x_scaling[2], y_scaling[2];
+	bool is_unity;
+	bool is_yuv;
+
+	/* Offset to start scanning out from the start of the plane's
+	 * BO.
+	 */
+	u32 offsets[3];
+
+	/* Our allocation in LBM for temporary storage during scaling. */
+	struct drm_mm_node lbm;
+
+	/* Set when the plane has per-pixel alpha content or does not cover
+	 * the entire screen. This is a hint to the CRTC that it might need
+	 * to enable background color fill.
+	 */
+	bool needs_bg_fill;
+};
+
+static inline struct vc4_plane_state *
+to_vc4_plane_state(struct drm_plane_state *state)
+{
+	return (struct vc4_plane_state *)state;
+}
+
 enum vc4_encoder_type {
 	VC4_ENCODER_TYPE_NONE,
 	VC4_ENCODER_TYPE_HDMI,
@@ -406,6 +503,21 @@ struct vc4_exec_info {
 	void *uniforms_v;
 	uint32_t uniforms_p;
 	uint32_t uniforms_size;
+
+	/* Pointer to a performance monitor object if the user requested it,
+	 * NULL otherwise.
+	 */
+	struct vc4_perfmon *perfmon;
+};
+
+/* Per-open file private data. Any driver-specific resource that has to be
+ * released when the DRM file is closed should be placed here.
+ */
+struct vc4_file {
+	struct {
+		struct idr idr;
+		struct mutex lock;
+	} perfmon;
 };
 
 static inline struct vc4_exec_info *
@@ -646,3 +758,19 @@ bool vc4_check_tex_size(struct vc4_exec_info *exec,
 /* vc4_validate_shader.c */
 struct vc4_validated_shader_info *
 vc4_validate_shader(struct drm_gem_cma_object *shader_obj);
+
+/* vc4_perfmon.c */
+void vc4_perfmon_get(struct vc4_perfmon *perfmon);
+void vc4_perfmon_put(struct vc4_perfmon *perfmon);
+void vc4_perfmon_start(struct vc4_dev *vc4, struct vc4_perfmon *perfmon);
+void vc4_perfmon_stop(struct vc4_dev *vc4, struct vc4_perfmon *perfmon,
+		      bool capture);
+struct vc4_perfmon *vc4_perfmon_find(struct vc4_file *vc4file, int id);
+void vc4_perfmon_open_file(struct vc4_file *vc4file);
+void vc4_perfmon_close_file(struct vc4_file *vc4file);
+int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
+			     struct drm_file *file_priv);
+int vc4_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
+			      struct drm_file *file_priv);
+int vc4_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
+				 struct drm_file *file_priv);

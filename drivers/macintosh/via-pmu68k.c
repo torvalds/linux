@@ -109,6 +109,7 @@ static int pmu_autopoll(int devs);
 void pmu_poll(void);
 static int pmu_reset_bus(void);
 
+static int init_pmu(void);
 static void pmu_start(void);
 static void send_byte(int x);
 static void recv_byte(void);
@@ -119,13 +120,13 @@ static void pmu_enable_backlight(int on);
 static void pmu_set_brightness(int level);
 
 struct adb_driver via_pmu_driver = {
-	"68K PMU",
-	pmu_probe,
-	pmu_init,
-	pmu_send_request,
-	pmu_autopoll,
-	pmu_poll,
-	pmu_reset_bus
+	.name         = "68K PMU",
+	.probe        = pmu_probe,
+	.init         = pmu_init,
+	.send_request = pmu_send_request,
+	.autopoll     = pmu_autopoll,
+	.poll         = pmu_poll,
+	.reset_bus    = pmu_reset_bus,
 };
 
 /*
@@ -171,23 +172,76 @@ static s8 pmu_data_len[256][2] = {
 /*f8*/	{-1,-1},{-1,-1},{-1,-1},{-1,-1},{-1,-1},{-1,-1},{-1,-1},{-1,-1},
 };
 
-int pmu_probe(void)
+int __init find_via_pmu(void)
 {
-	if (macintosh_config->adb_type == MAC_ADB_PB1) {
+	switch (macintosh_config->adb_type) {
+	case MAC_ADB_PB1:
 		pmu_kind = PMU_68K_V1;
-	} else if (macintosh_config->adb_type == MAC_ADB_PB2) {
+		break;
+	case MAC_ADB_PB2:
 		pmu_kind = PMU_68K_V2;
-	} else {
+		break;
+	default:
+		pmu_kind = PMU_UNKNOWN;
 		return -ENODEV;
 	}
 
 	pmu_state = idle;
 
+	if (!init_pmu())
+		goto fail_init;
+
+	pr_info("adb: PMU 68K driver v0.5 for Unified ADB\n");
+
+	return 1;
+
+fail_init:
+	pmu_kind = PMU_UNKNOWN;
 	return 0;
 }
 
-static int 
-pmu_init(void)
+static int pmu_probe(void)
+{
+	if (pmu_kind == PMU_UNKNOWN)
+		return -ENODEV;
+	return 0;
+}
+
+static int pmu_init(void)
+{
+	if (pmu_kind == PMU_UNKNOWN)
+		return -ENODEV;
+	return 0;
+}
+
+static int __init via_pmu_start(void)
+{
+	if (pmu_kind == PMU_UNKNOWN)
+		return -ENODEV;
+
+	if (request_irq(IRQ_MAC_ADB_SR, pmu_interrupt, 0, "PMU_SR",
+			pmu_interrupt)) {
+		pr_err("%s: can't get SR irq\n", __func__);
+		return -ENODEV;
+	}
+	if (request_irq(IRQ_MAC_ADB_CL, pmu_interrupt, 0, "PMU_CL",
+			pmu_interrupt)) {
+		pr_err("%s: can't get CL irq\n", __func__);
+		free_irq(IRQ_MAC_ADB_SR, pmu_interrupt);
+		return -ENODEV;
+	}
+
+	pmu_fully_inited = 1;
+
+	/* Enable backlight */
+	pmu_enable_backlight(1);
+
+	return 0;
+}
+
+arch_initcall(via_pmu_start);
+
+static int __init init_pmu(void)
 {
 	int timeout;
 	volatile struct adb_request req;
@@ -238,28 +292,7 @@ pmu_init(void)
 	bright_req_2.complete = 1;
 	bright_req_3.complete = 1;
 
-	if (request_irq(IRQ_MAC_ADB_SR, pmu_interrupt, 0, "pmu-shift",
-			pmu_interrupt)) {
-		printk(KERN_ERR "pmu_init: can't get irq %d\n",
-			IRQ_MAC_ADB_SR);
-		return -EAGAIN;
-	}
-	if (request_irq(IRQ_MAC_ADB_CL, pmu_interrupt, 0, "pmu-clock",
-			pmu_interrupt)) {
-		printk(KERN_ERR "pmu_init: can't get irq %d\n",
-			IRQ_MAC_ADB_CL);
-		free_irq(IRQ_MAC_ADB_SR, pmu_interrupt);
-		return -EAGAIN;
-	}
-
-	pmu_fully_inited = 1;
-	
-	/* Enable backlight */
-	pmu_enable_backlight(1);
-
-	printk("adb: PMU 68K driver v0.5 for Unified ADB.\n");
-
-	return 0;
+	return 1;
 }
 
 int

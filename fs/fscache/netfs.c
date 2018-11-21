@@ -14,69 +14,51 @@
 #include <linux/slab.h>
 #include "internal.h"
 
-static LIST_HEAD(fscache_netfs_list);
-
 /*
  * register a network filesystem for caching
  */
 int __fscache_register_netfs(struct fscache_netfs *netfs)
 {
-	struct fscache_netfs *ptr;
-	struct fscache_cookie *cookie;
-	int ret;
+	struct fscache_cookie *candidate, *cookie;
 
 	_enter("{%s}", netfs->name);
 
-	INIT_LIST_HEAD(&netfs->link);
-
 	/* allocate a cookie for the primary index */
-	cookie = kmem_cache_zalloc(fscache_cookie_jar, GFP_KERNEL);
-
-	if (!cookie) {
+	candidate = fscache_alloc_cookie(&fscache_fsdef_index,
+					 &fscache_fsdef_netfs_def,
+					 netfs->name, strlen(netfs->name),
+					 &netfs->version, sizeof(netfs->version),
+					 netfs, 0);
+	if (!candidate) {
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
 
-	/* initialise the primary index cookie */
-	atomic_set(&cookie->usage, 1);
-	atomic_set(&cookie->n_children, 0);
-	atomic_set(&cookie->n_active, 1);
-
-	cookie->def		= &fscache_fsdef_netfs_def;
-	cookie->parent		= &fscache_fsdef_index;
-	cookie->netfs_data	= netfs;
-	cookie->flags		= 1 << FSCACHE_COOKIE_ENABLED;
-
-	spin_lock_init(&cookie->lock);
-	spin_lock_init(&cookie->stores_lock);
-	INIT_HLIST_HEAD(&cookie->backing_objects);
+	candidate->flags = 1 << FSCACHE_COOKIE_ENABLED;
 
 	/* check the netfs type is not already present */
-	down_write(&fscache_addremove_sem);
-
-	ret = -EEXIST;
-	list_for_each_entry(ptr, &fscache_netfs_list, link) {
-		if (strcmp(ptr->name, netfs->name) == 0)
-			goto already_registered;
+	cookie = fscache_hash_cookie(candidate);
+	if (!cookie)
+		goto already_registered;
+	if (cookie != candidate) {
+		trace_fscache_cookie(candidate, fscache_cookie_discard, 1);
+		fscache_free_cookie(candidate);
 	}
 
-	atomic_inc(&cookie->parent->usage);
+	fscache_cookie_get(cookie->parent, fscache_cookie_get_register_netfs);
 	atomic_inc(&cookie->parent->n_children);
 
 	netfs->primary_index = cookie;
-	list_add(&netfs->link, &fscache_netfs_list);
-	ret = 0;
 
 	pr_notice("Netfs '%s' registered for caching\n", netfs->name);
+	trace_fscache_netfs(netfs);
+	_leave(" = 0");
+	return 0;
 
 already_registered:
-	up_write(&fscache_addremove_sem);
-
-	if (ret < 0)
-		kmem_cache_free(fscache_cookie_jar, cookie);
-
-	_leave(" = %d", ret);
-	return ret;
+	fscache_cookie_put(candidate, fscache_cookie_put_dup_netfs);
+	_leave(" = -EEXIST");
+	return -EEXIST;
 }
 EXPORT_SYMBOL(__fscache_register_netfs);
 
@@ -88,15 +70,8 @@ void __fscache_unregister_netfs(struct fscache_netfs *netfs)
 {
 	_enter("{%s.%u}", netfs->name, netfs->version);
 
-	down_write(&fscache_addremove_sem);
-
-	list_del(&netfs->link);
-	fscache_relinquish_cookie(netfs->primary_index, 0);
-
-	up_write(&fscache_addremove_sem);
-
-	pr_notice("Netfs '%s' unregistered from caching\n",
-		  netfs->name);
+	fscache_relinquish_cookie(netfs->primary_index, NULL, false);
+	pr_notice("Netfs '%s' unregistered from caching\n", netfs->name);
 
 	_leave("");
 }

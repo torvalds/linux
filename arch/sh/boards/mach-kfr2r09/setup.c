@@ -375,8 +375,8 @@ static struct resource kfr2r09_sh_sdhi0_resources[] = {
 static struct tmio_mmc_data sh7724_sdhi0_data = {
 	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
-	.flags		= TMIO_MMC_WRPROTECT_DISABLE,
 	.capabilities	= MMC_CAP_SDIO_IRQ,
+	.capabilities2	= MMC_CAP2_NO_WRITE_PROTECT,
 };
 
 static struct platform_device kfr2r09_sh_sdhi0_device = {

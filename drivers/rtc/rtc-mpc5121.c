@@ -122,7 +122,7 @@ static int mpc5121_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	 */
 	mpc5121_rtc_update_smh(regs, tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int mpc5121_rtc_set_time(struct device *dev, struct rtc_time *tm)

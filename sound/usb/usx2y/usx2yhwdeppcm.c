@@ -652,7 +652,7 @@ static void snd_usX2Y_hwdep_pcm_vm_close(struct vm_area_struct *area)
 }
 
 
-static int snd_usX2Y_hwdep_pcm_vm_fault(struct vm_fault *vmf)
+static vm_fault_t snd_usX2Y_hwdep_pcm_vm_fault(struct vm_fault *vmf)
 {
 	unsigned long offset;
 	void *vaddr;

@@ -518,11 +518,10 @@ static int mmc_sdio_init_uhs_card(struct mmc_card *card)
 	if (!card->scr.sda_spec3)
 		return 0;
 
-	/*
-	 * Switch to wider bus (if supported).
-	 */
-	if (card->host->caps & MMC_CAP_4_BIT_DATA)
-		err = sdio_enable_4bit_bus(card);
+	/* Switch to wider bus */
+	err = sdio_enable_4bit_bus(card);
+	if (err)
+		goto out;
 
 	/* Set the driver strength for the card */
 	sdio_select_driver_type(card);

@@ -424,7 +424,7 @@ static int i2c_adapter_init(struct i2c_adapter *i2c_adap,
 				struct i2c_algorithm *algo, const char *name,
 				struct dibx000_i2c_master *mst)
 {
-	strncpy(i2c_adap->name, name, sizeof(i2c_adap->name));
+	strlcpy(i2c_adap->name, name, sizeof(i2c_adap->name));
 	i2c_adap->algo = algo;
 	i2c_adap->algo_data = NULL;
 	i2c_set_adapdata(i2c_adap, mst);

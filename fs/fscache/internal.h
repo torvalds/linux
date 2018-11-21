@@ -29,6 +29,7 @@
 #define pr_fmt(fmt) "FS-Cache: " fmt
 
 #include <linux/fscache-cache.h>
+#include <trace/events/fscache.h>
 #include <linux/sched.h>
 
 #define FSCACHE_MIN_THREADS	4
@@ -48,8 +49,16 @@ extern struct fscache_cache *fscache_select_cache_for_object(
  */
 extern struct kmem_cache *fscache_cookie_jar;
 
+extern void fscache_free_cookie(struct fscache_cookie *);
 extern void fscache_cookie_init_once(void *);
-extern void __fscache_cookie_put(struct fscache_cookie *);
+extern struct fscache_cookie *fscache_alloc_cookie(struct fscache_cookie *,
+						   const struct fscache_cookie_def *,
+						   const void *, size_t,
+						   const void *, size_t,
+						   void *, loff_t);
+extern struct fscache_cookie *fscache_hash_cookie(struct fscache_cookie *);
+extern void fscache_cookie_put(struct fscache_cookie *,
+			       enum fscache_cookie_trace);
 
 /*
  * fsdef.c
@@ -311,14 +320,12 @@ static inline void fscache_raise_event(struct fscache_object *object,
 		fscache_enqueue_object(object);
 }
 
-/*
- * drop a reference to a cookie
- */
-static inline void fscache_cookie_put(struct fscache_cookie *cookie)
+static inline void fscache_cookie_get(struct fscache_cookie *cookie,
+				      enum fscache_cookie_trace where)
 {
-	BUG_ON(atomic_read(&cookie->usage) <= 0);
-	if (atomic_dec_and_test(&cookie->usage))
-		__fscache_cookie_put(cookie);
+	int usage = atomic_inc_return(&cookie->usage);
+
+	trace_fscache_cookie(cookie, where, usage);
 }
 
 /*
@@ -340,6 +347,27 @@ void fscache_put_context(struct fscache_cookie *cookie, void *context)
 {
 	if (cookie->def->put_context)
 		cookie->def->put_context(cookie->netfs_data, context);
+}
+
+/*
+ * Update the auxiliary data on a cookie.
+ */
+static inline
+void fscache_update_aux(struct fscache_cookie *cookie, const void *aux_data)
+{
+	void *p;
+
+	if (!aux_data)
+		return;
+	if (cookie->aux_len <= sizeof(cookie->inline_aux))
+		p = cookie->inline_aux;
+	else
+		p = cookie->aux;
+
+	if (memcmp(p, aux_data, cookie->aux_len) != 0) {
+		memcpy(p, aux_data, cookie->aux_len);
+		set_bit(FSCACHE_COOKIE_AUX_UPDATED, &cookie->flags);
+	}
 }
 
 /*****************************************************************************/

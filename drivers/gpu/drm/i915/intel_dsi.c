@@ -1266,11 +1266,6 @@ intel_dsi_mode_valid(struct drm_connector *connector,
 
 	DRM_DEBUG_KMS("\n");
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
-		DRM_DEBUG_KMS("MODE_NO_DBLESCAN\n");
-		return MODE_NO_DBLESCAN;
-	}
-
 	if (fixed_mode) {
 		if (mode->hdisplay > fixed_mode->hdisplay)
 			return MODE_PANEL;

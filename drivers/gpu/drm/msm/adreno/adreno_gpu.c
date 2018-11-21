@@ -140,25 +140,45 @@ adreno_request_fw(struct adreno_gpu *adreno_gpu, const char *fwname)
 
 static int adreno_load_fw(struct adreno_gpu *adreno_gpu)
 {
-	const struct firmware *fw;
+	int i;
 
-	if (adreno_gpu->pm4)
-		return 0;
+	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++) {
+		const struct firmware *fw;
 
-	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->pm4fw);
-	if (IS_ERR(fw))
-		return PTR_ERR(fw);
-	adreno_gpu->pm4 = fw;
+		if (!adreno_gpu->info->fw[i])
+			continue;
 
-	fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->pfpfw);
-	if (IS_ERR(fw)) {
-		release_firmware(adreno_gpu->pm4);
-		adreno_gpu->pm4 = NULL;
-		return PTR_ERR(fw);
+		/* Skip if the firmware has already been loaded */
+		if (adreno_gpu->fw[i])
+			continue;
+
+		fw = adreno_request_fw(adreno_gpu, adreno_gpu->info->fw[i]);
+		if (IS_ERR(fw))
+			return PTR_ERR(fw);
+
+		adreno_gpu->fw[i] = fw;
 	}
-	adreno_gpu->pfp = fw;
 
 	return 0;
+}
+
+struct drm_gem_object *adreno_fw_create_bo(struct msm_gpu *gpu,
+		const struct firmware *fw, u64 *iova)
+{
+	struct drm_gem_object *bo;
+	void *ptr;
+
+	ptr = msm_gem_kernel_new_locked(gpu->dev, fw->size - 4,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace, &bo, iova);
+
+	if (IS_ERR(ptr))
+		return ERR_CAST(ptr);
+
+	memcpy(ptr, &fw->data[4], fw->size - 4);
+
+	msm_gem_put_vaddr(bo);
+
+	return bo;
 }
 
 int adreno_hw_init(struct msm_gpu *gpu)
@@ -293,25 +313,11 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		OUT_RING(ring, 0x00000000);
 	}
 
+	/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
 	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
-	OUT_RING(ring, CACHE_FLUSH_TS);
+	OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
 	OUT_RING(ring, rbmemptr(ring, fence));
 	OUT_RING(ring, submit->seqno);
-
-	/* we could maybe be clever and only CP_COND_EXEC the interrupt: */
-	OUT_PKT3(ring, CP_INTERRUPT, 1);
-	OUT_RING(ring, 0x80000000);
-
-	/* Workaround for missing irq issue on 8x16/a306.  Unsure if the
-	 * root cause is a platform issue or some a306 quirk, but this
-	 * keeps things humming along:
-	 */
-	if (adreno_is_a306(adreno_gpu)) {
-		OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
-		OUT_RING(ring, 0x00000000);
-		OUT_PKT3(ring, CP_INTERRUPT, 1);
-		OUT_RING(ring, 0x80000000);
-	}
 
 #if 0
 	if (adreno_is_a3xx(adreno_gpu)) {
@@ -569,8 +575,10 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
 {
-	release_firmware(adreno_gpu->pm4);
-	release_firmware(adreno_gpu->pfp);
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(adreno_gpu->info->fw); i++)
+		release_firmware(adreno_gpu->fw[i]);
 
 	msm_gpu_cleanup(&adreno_gpu->base);
 }

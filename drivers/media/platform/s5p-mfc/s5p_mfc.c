@@ -526,6 +526,8 @@ static void s5p_mfc_handle_seq_done(struct s5p_mfc_ctx *ctx,
 				dev);
 		ctx->mv_count = s5p_mfc_hw_call(dev->mfc_ops, get_mv_count,
 				dev);
+		ctx->scratch_buf_size = s5p_mfc_hw_call(dev->mfc_ops,
+						get_min_scratch_buf_size, dev);
 		if (ctx->img_width == 0 || ctx->img_height == 0)
 			ctx->state = MFCINST_ERROR;
 		else
@@ -1607,6 +1609,29 @@ static struct s5p_mfc_variant mfc_drvdata_v8_5433 = {
 	.num_clocks	= 3,
 };
 
+static struct s5p_mfc_buf_size_v6 mfc_buf_size_v10 = {
+	.dev_ctx        = MFC_CTX_BUF_SIZE_V10,
+	.h264_dec_ctx   = MFC_H264_DEC_CTX_BUF_SIZE_V10,
+	.other_dec_ctx  = MFC_OTHER_DEC_CTX_BUF_SIZE_V10,
+	.h264_enc_ctx   = MFC_H264_ENC_CTX_BUF_SIZE_V10,
+	.hevc_enc_ctx   = MFC_HEVC_ENC_CTX_BUF_SIZE_V10,
+	.other_enc_ctx  = MFC_OTHER_ENC_CTX_BUF_SIZE_V10,
+};
+
+static struct s5p_mfc_buf_size buf_size_v10 = {
+	.fw     = MAX_FW_SIZE_V10,
+	.cpb    = MAX_CPB_SIZE_V10,
+	.priv   = &mfc_buf_size_v10,
+};
+
+static struct s5p_mfc_variant mfc_drvdata_v10 = {
+	.version        = MFC_VERSION_V10,
+	.version_bit    = MFC_V10_BIT,
+	.port_num       = MFC_NUM_PORTS_V10,
+	.buf_size       = &buf_size_v10,
+	.fw_name[0]     = "s5p-mfc-v10.fw",
+};
+
 static const struct of_device_id exynos_mfc_match[] = {
 	{
 		.compatible = "samsung,mfc-v5",
@@ -1623,6 +1648,9 @@ static const struct of_device_id exynos_mfc_match[] = {
 	}, {
 		.compatible = "samsung,exynos5433-mfc",
 		.data = &mfc_drvdata_v8_5433,
+	}, {
+		.compatible = "samsung,mfc-v10",
+		.data = &mfc_drvdata_v10,
 	},
 	{},
 };

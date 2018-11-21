@@ -739,6 +739,7 @@ static u32 qdisc_alloc_handle(struct net_device *dev)
 void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 			       unsigned int len)
 {
+	bool qdisc_is_offloaded = sch->flags & TCQ_F_OFFLOADED;
 	const struct Qdisc_class_ops *cops;
 	unsigned long cl;
 	u32 parentid;
@@ -760,8 +761,12 @@ void qdisc_tree_reduce_backlog(struct Qdisc *sch, unsigned int n,
 		 * If child was empty even before update then backlog
 		 * counter is screwed and we skip notification because
 		 * parent class is already passive.
+		 *
+		 * If the original child was offloaded then it is allowed
+		 * to be seem as empty, so the parent is notified anyway.
 		 */
-		notify = !sch->q.qlen && !WARN_ON_ONCE(!n);
+		notify = !sch->q.qlen && !WARN_ON_ONCE(!n &&
+						       !qdisc_is_offloaded);
 		/* TODO: perform the search on a per txq basis */
 		sch = qdisc_lookup(qdisc_dev(sch), TC_H_MAJ(parentid));
 		if (sch == NULL) {

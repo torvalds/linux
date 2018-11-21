@@ -265,6 +265,115 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 	return 0;
 }
 
+int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
+	struct msm_dsi_phy_clk_request *clk_req)
+{
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
+	s32 ui, ui_x8, lpx;
+	s32 tmax, tmin;
+	s32 pcnt0 = 50;
+	s32 pcnt1 = 50;
+	s32 pcnt2 = 10;
+	s32 pcnt3 = 30;
+	s32 pcnt4 = 10;
+	s32 pcnt5 = 2;
+	s32 coeff = 1000; /* Precision, should avoid overflow */
+	s32 hb_en, hb_en_ckln;
+	s32 temp;
+
+	if (!bit_rate || !esc_rate)
+		return -EINVAL;
+
+	timing->hs_halfbyte_en = 0;
+	hb_en = 0;
+	timing->hs_halfbyte_en_ckln = 0;
+	hb_en_ckln = 0;
+
+	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
+	ui_x8 = ui << 3;
+	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
+
+	temp = S_DIV_ROUND_UP(38 * coeff, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (95 * coeff) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->clk_prepare = linear_inter(tmax, tmin, pcnt0, 0, false);
+
+	temp = 300 * coeff - (timing->clk_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = (tmin > 255) ? 511 : 255;
+	timing->clk_zero = linear_inter(tmax, tmin, pcnt5, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 3 * ui, ui_x8);
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp + 3 * ui) / ui_x8;
+	timing->clk_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = S_DIV_ROUND_UP(40 * coeff + 4 * ui, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (85 * coeff + 6 * ui) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->hs_prepare = linear_inter(tmax, tmin, pcnt1, 0, false);
+
+	temp = 145 * coeff + 10 * ui - (timing->hs_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_zero = linear_inter(tmax, tmin, pcnt4, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 4 * ui, ui_x8) - 1;
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp / ui_x8) - 1;
+	timing->hs_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = 50 * coeff + ((hb_en << 2) - 8) * ui;
+	timing->hs_rqst = S_DIV_ROUND_UP(temp, ui_x8);
+
+	tmin = DIV_ROUND_UP(100 * coeff, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_exit = linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 50 * coeff + ((hb_en_ckln << 2) - 8) * ui;
+	timing->hs_rqst_ckln = S_DIV_ROUND_UP(temp, ui_x8);
+
+	temp = 60 * coeff + 52 * ui - 43 * ui;
+	tmin = DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	timing->shared_timings.clk_post =
+		linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 8 * ui + (timing->clk_prepare << 3) * ui;
+	temp += (((timing->clk_zero + 3) << 3) + 11) * ui;
+	temp += hb_en_ckln ? (((timing->hs_rqst_ckln << 3) + 4) * ui) :
+		(((timing->hs_rqst_ckln << 3) + 8) * ui);
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	if (tmin > tmax) {
+		temp = linear_inter(tmax << 1, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre_inc_by_2 = 1;
+	} else {
+		timing->shared_timings.clk_pre =
+			linear_inter(tmax, tmin, pcnt2, 0, false);
+			timing->shared_timings.clk_pre_inc_by_2 = 0;
+	}
+
+	timing->ta_go = 3;
+	timing->ta_sure = 0;
+	timing->ta_get = 4;
+
+	DBG("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->shared_timings.clk_pre_inc_by_2, timing->clk_zero,
+		timing->clk_trail, timing->clk_prepare, timing->hs_exit,
+		timing->hs_zero, timing->hs_prepare, timing->hs_trail,
+		timing->hs_rqst, timing->hs_rqst_ckln, timing->hs_halfbyte_en,
+		timing->hs_halfbyte_en_ckln, timing->hs_prep_dly,
+		timing->hs_prep_dly_ckln);
+
+	return 0;
+}
+
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask)
 {
@@ -395,6 +504,10 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 	{ .compatible = "qcom,dsi-phy-14nm",
 	  .data = &dsi_phy_14nm_cfgs },
 #endif
+#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
+	{ .compatible = "qcom,dsi-phy-10nm",
+	  .data = &dsi_phy_10nm_cfgs },
+#endif
 	{}
 };
 
@@ -503,10 +616,10 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (!phy->pll)
+	if (IS_ERR_OR_NULL(phy->pll))
 		dev_info(dev,
-			"%s: pll init failed, need separate pll clk driver\n",
-			__func__);
+			"%s: pll init failed: %ld, need separate pll clk driver\n",
+			__func__, PTR_ERR(phy->pll));
 
 	dsi_phy_disable_resource(phy);
 

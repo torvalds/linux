@@ -851,9 +851,12 @@ static void r4k_dma_cache_wback_inv(unsigned long addr, unsigned long size)
 	/*
 	 * Either no secondary cache or the available caches don't have the
 	 * subset property so we have to flush the primary caches
-	 * explicitly
+	 * explicitly.
+	 * If we would need IPI to perform an INDEX-type operation, then
+	 * we have to use the HIT-type alternative as IPI cannot be used
+	 * here due to interrupts possibly being disabled.
 	 */
-	if (size >= dcache_size) {
+	if (!r4k_op_needs_ipi(R4K_INDEX) && size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;
@@ -890,7 +893,7 @@ static void r4k_dma_cache_inv(unsigned long addr, unsigned long size)
 		return;
 	}
 
-	if (size >= dcache_size) {
+	if (!r4k_op_needs_ipi(R4K_INDEX) && size >= dcache_size) {
 		r4k_blast_dcache();
 	} else {
 		R4600_HIT_CACHEOP_WAR_IMPL;

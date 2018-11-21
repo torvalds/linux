@@ -479,9 +479,9 @@ struct bgmac_rx_header {
 struct bgmac {
 	union {
 		struct {
-			void *base;
-			void *idm_base;
-			void *nicpm_base;
+			void __iomem *base;
+			void __iomem *idm_base;
+			void __iomem *nicpm_base;
 		} plat;
 		struct {
 			struct bcma_device *core;

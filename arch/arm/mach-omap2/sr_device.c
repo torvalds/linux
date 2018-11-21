@@ -89,18 +89,27 @@ static void __init sr_set_nvalues(struct omap_volt_data *volt_data,
 	sr_data->nvalue_count = j;
 }
 
+extern struct omap_sr_data omap_sr_pdata[];
+
 static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 {
-	struct omap_sr_data *sr_data;
-	struct platform_device *pdev;
+	struct omap_sr_data *sr_data = NULL;
 	struct omap_volt_data *volt_data;
 	struct omap_smartreflex_dev_attr *sr_dev_attr;
-	char *name = "smartreflex";
 	static int i;
 
-	sr_data = kzalloc(sizeof(*sr_data), GFP_KERNEL);
-	if (!sr_data)
-		return -ENOMEM;
+	if (!strncmp(oh->name, "smartreflex_mpu_iva", 20) ||
+	    !strncmp(oh->name, "smartreflex_mpu", 16))
+		sr_data = &omap_sr_pdata[OMAP_SR_MPU];
+	else if (!strncmp(oh->name, "smartreflex_core", 17))
+		sr_data = &omap_sr_pdata[OMAP_SR_CORE];
+	else if (!strncmp(oh->name, "smartreflex_iva", 16))
+		sr_data = &omap_sr_pdata[OMAP_SR_IVA];
+
+	if (!sr_data) {
+		pr_err("%s: Unknown instance %s\n", __func__, oh->name);
+		return -EINVAL;
+	}
 
 	sr_dev_attr = (struct omap_smartreflex_dev_attr *)oh->dev_attr;
 	if (!sr_dev_attr || !sr_dev_attr->sensor_voltdm_name) {
@@ -145,13 +154,9 @@ static int __init sr_dev_init(struct omap_hwmod *oh, void *user)
 
 	sr_data->enable_on_init = sr_enable_on_init;
 
-	pdev = omap_device_build(name, i, oh, sr_data, sizeof(*sr_data));
-	if (IS_ERR(pdev))
-		pr_warn("%s: Could not build omap_device for %s: %s\n",
-			__func__, name, oh->name);
 exit:
 	i++;
-	kfree(sr_data);
+
 	return 0;
 }
 

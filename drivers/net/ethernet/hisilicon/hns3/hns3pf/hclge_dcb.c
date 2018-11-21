@@ -144,6 +144,8 @@ static int hclge_map_update(struct hnae3_handle *h)
 	if (ret)
 		return ret;
 
+	hclge_rss_indir_init_cfg(hdev);
+
 	return hclge_rss_init_hw(hdev);
 }
 
@@ -203,9 +205,11 @@ static int hclge_ieee_setets(struct hnae3_handle *h, struct ieee_ets *ets)
 
 static int hclge_ieee_getpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 {
+	u64 requests[HNAE3_MAX_TC], indications[HNAE3_MAX_TC];
 	struct hclge_vport *vport = hclge_get_vport(h);
 	struct hclge_dev *hdev = vport->back;
 	u8 i, j, pfc_map, *prio_tc;
+	int ret;
 
 	memset(pfc, 0, sizeof(*pfc));
 	pfc->pfc_cap = hdev->pfc_max;
@@ -220,6 +224,18 @@ static int hclge_ieee_getpfc(struct hnae3_handle *h, struct ieee_pfc *pfc)
 		}
 	}
 
+	ret = hclge_pfc_tx_stats_get(hdev, requests);
+	if (ret)
+		return ret;
+
+	ret = hclge_pfc_rx_stats_get(hdev, indications);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
+		pfc->requests[i] = requests[i];
+		pfc->indications[i] = indications[i];
+	}
 	return 0;
 }
 

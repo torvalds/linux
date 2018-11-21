@@ -134,6 +134,20 @@ SECTIONS
 
 #ifdef CONFIG_PPC64
 	. = ALIGN(8);
+	__stf_entry_barrier_fixup : AT(ADDR(__stf_entry_barrier_fixup) - LOAD_OFFSET) {
+		__start___stf_entry_barrier_fixup = .;
+		*(__stf_entry_barrier_fixup)
+		__stop___stf_entry_barrier_fixup = .;
+	}
+
+	. = ALIGN(8);
+	__stf_exit_barrier_fixup : AT(ADDR(__stf_exit_barrier_fixup) - LOAD_OFFSET) {
+		__start___stf_exit_barrier_fixup = .;
+		*(__stf_exit_barrier_fixup)
+		__stop___stf_exit_barrier_fixup = .;
+	}
+
+	. = ALIGN(8);
 	__rfi_flush_fixup : AT(ADDR(__rfi_flush_fixup) - LOAD_OFFSET) {
 		__start___rfi_flush_fixup = .;
 		*(__rfi_flush_fixup)

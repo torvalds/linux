@@ -331,7 +331,7 @@ static bool create_input_system_channel(
 		break;
 	}
 
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	if (!acquire_sid(me->stream2mmio_id, &(me->stream2mmio_sid_id))) {
@@ -474,7 +474,7 @@ static bool calculate_input_system_channel_cfg(
 
 	rc = calculate_stream2mmio_cfg(isys_cfg, metadata,
 			&(channel_cfg->stream2mmio_cfg));
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	rc = calculate_ibuf_ctrl_cfg(
@@ -482,7 +482,7 @@ static bool calculate_input_system_channel_cfg(
 			input_port,
 			isys_cfg,
 			&(channel_cfg->ibuf_ctrl_cfg));
-	if (rc == false)
+	if (!rc)
 		return false;
 	if (metadata)
 		channel_cfg->ibuf_ctrl_cfg.stores_per_frame = isys_cfg->metadata.lines_per_frame;
@@ -491,7 +491,7 @@ static bool calculate_input_system_channel_cfg(
 			channel,
 			isys_cfg,
 			&(channel_cfg->dma_cfg));
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	rc = calculate_isys2401_dma_port_cfg(
@@ -499,7 +499,7 @@ static bool calculate_input_system_channel_cfg(
 			false,
 			metadata,
 			&(channel_cfg->dma_src_port_cfg));
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	rc = calculate_isys2401_dma_port_cfg(
@@ -507,7 +507,7 @@ static bool calculate_input_system_channel_cfg(
 			isys_cfg->raw_packed,
 			metadata,
 			&(channel_cfg->dma_dest_port_cfg));
-	if (rc == false)
+	if (!rc)
 		return false;
 
 	return true;

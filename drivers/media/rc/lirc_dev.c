@@ -60,12 +60,12 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		 * space with the maximum time value.
 		 */
 		sample = LIRC_SPACE(LIRC_VALUE_MASK);
-		IR_dprintk(2, "delivering reset sync space to lirc_dev\n");
+		dev_dbg(&dev->dev, "delivering reset sync space to lirc_dev\n");
 
 	/* Carrier reports */
 	} else if (ev.carrier_report) {
 		sample = LIRC_FREQUENCY(ev.carrier);
-		IR_dprintk(2, "carrier report (freq: %d)\n", sample);
+		dev_dbg(&dev->dev, "carrier report (freq: %d)\n", sample);
 
 	/* Packet end */
 	} else if (ev.timeout) {
@@ -77,7 +77,7 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		dev->gap_duration = ev.duration;
 
 		sample = LIRC_TIMEOUT(ev.duration / 1000);
-		IR_dprintk(2, "timeout report (duration: %d)\n", sample);
+		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
@@ -100,8 +100,8 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration / 1000) :
 					LIRC_SPACE(ev.duration / 1000);
-		IR_dprintk(2, "delivering %uus %s to lirc_dev\n",
-			   TO_US(ev.duration), TO_STR(ev.pulse));
+		dev_dbg(&dev->dev, "delivering %uus %s to lirc_dev\n",
+			TO_US(ev.duration), TO_STR(ev.pulse));
 	}
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
@@ -249,8 +249,6 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		goto out_unlock;
 	}
 
-	start = ktime_get();
-
 	if (!dev->tx_ir) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -342,6 +340,8 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 
 		duration += txbuf[i];
 	}
+
+	start = ktime_get();
 
 	ret = dev->tx_ir(dev, txbuf, count);
 	if (ret < 0)
@@ -570,7 +570,7 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 				ret = -EINVAL;
 			else if (dev->s_timeout)
 				ret = dev->s_timeout(dev, tmp);
-			else if (!ret)
+			else
 				dev->timeout = tmp;
 		}
 		break;
@@ -804,8 +804,8 @@ int __init lirc_dev_init(void)
 		return retval;
 	}
 
-	pr_info("IR Remote Control driver registered, major %d\n",
-						MAJOR(lirc_base_dev));
+	pr_debug("IR Remote Control driver registered, major %d\n",
+		 MAJOR(lirc_base_dev));
 
 	return 0;
 }

@@ -99,8 +99,14 @@ int inotify_handle_event(struct fsnotify_group *group,
 			      fsn_mark);
 
 	event = kmalloc(alloc_len, GFP_KERNEL);
-	if (unlikely(!event))
+	if (unlikely(!event)) {
+		/*
+		 * Treat lost event due to ENOMEM the same way as queue
+		 * overflow to let userspace know event was lost.
+		 */
+		fsnotify_queue_overflow(group);
 		return -ENOMEM;
+	}
 
 	fsn_event = &event->fse;
 	fsnotify_init_event(fsn_event, inode, mask);

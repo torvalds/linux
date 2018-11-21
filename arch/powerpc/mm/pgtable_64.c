@@ -57,11 +57,6 @@
 
 #include "mmu_decl.h"
 
-#ifdef CONFIG_PPC_BOOK3S_64
-#if TASK_SIZE_USER64 > (1UL << (ESID_BITS + SID_SHIFT))
-#error TASK_SIZE_USER64 exceeds user VSID range
-#endif
-#endif
 
 #ifdef CONFIG_PPC_BOOK3S_64
 /*

@@ -41,7 +41,7 @@ struct nfsd3_writeargs {
 	__u32			count;
 	int			stable;
 	__u32			len;
-	int			vlen;
+	struct kvec		first;
 };
 
 struct nfsd3_createargs {
@@ -90,6 +90,7 @@ struct nfsd3_symlinkargs {
 	char *			tname;
 	unsigned int		tlen;
 	struct iattr		attrs;
+	struct kvec		first;
 };
 
 struct nfsd3_readdirargs {

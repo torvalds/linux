@@ -45,7 +45,7 @@ data_start=$(($__data_loc - $base_offset))
 data_end=$(($_edata_loc - $base_offset))
 
 # Make sure data occupies the last part of the file.
-file_end=$(stat -c "%s" "$XIPIMAGE")
+file_end=$(${CONFIG_SHELL} "${srctree}/scripts/file-size.sh" "$XIPIMAGE")
 if [ "$file_end" != "$data_end" ]; then
 	printf "end of xipImage doesn't match with _edata_loc (%#x vs %#x)\n" \
 	       $(($file_end + $base_offset)) $_edata_loc 1>&2

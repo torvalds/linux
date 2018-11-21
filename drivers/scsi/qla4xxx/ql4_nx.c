@@ -45,6 +45,8 @@ qla4_8xxx_pci_base_offsetfset(struct scsi_qla_host *ha, unsigned long off)
 	return NULL;
 }
 
+static const int MD_MIU_TEST_AGT_RDDATA[] = { 0x410000A8,
+				0x410000AC, 0x410000B8, 0x410000BC };
 #define MAX_CRB_XFORM 60
 static unsigned long crb_addr_xform[MAX_CRB_XFORM];
 static int qla4_8xxx_crb_table_initialized;

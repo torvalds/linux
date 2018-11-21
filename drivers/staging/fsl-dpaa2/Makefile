@@ -3,3 +3,4 @@
 #
 
 obj-$(CONFIG_FSL_DPAA2_ETH)	+= ethernet/
+obj-$(CONFIG_FSL_DPAA2_ETHSW)	+= ethsw/

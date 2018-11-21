@@ -17,7 +17,7 @@
 	model = "Freescale i.MX53 Automotive Reference Design Board";
 	compatible = "fsl,imx53-ard", "fsl,imx53";
 
-	memory {
+	memory@70000000 {
 		reg = <0x70000000 0x40000000>;
 	};
 

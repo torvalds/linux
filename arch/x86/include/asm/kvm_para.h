@@ -88,6 +88,7 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 #ifdef CONFIG_KVM_GUEST
 bool kvm_para_available(void);
 unsigned int kvm_arch_para_features(void);
+unsigned int kvm_arch_para_hints(void);
 void kvm_async_pf_task_wait(u32 token, int interrupt_kernel);
 void kvm_async_pf_task_wake(u32 token);
 u32 kvm_read_and_reset_pf_reason(void);
@@ -111,6 +112,11 @@ static inline bool kvm_para_available(void)
 }
 
 static inline unsigned int kvm_arch_para_features(void)
+{
+	return 0;
+}
+
+static inline unsigned int kvm_arch_para_hints(void)
 {
 	return 0;
 }

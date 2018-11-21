@@ -222,6 +222,8 @@ xpa-cflags-y				:= $(mips-cflags)
 xpa-cflags-$(micromips-ase)		+= -mmicromips -Wa$(comma)-fatal-warnings
 toolchain-xpa				:= $(call cc-option-yn,$(xpa-cflags-y) -mxpa)
 cflags-$(toolchain-xpa)			+= -DTOOLCHAIN_SUPPORTS_XPA
+toolchain-crc				:= $(call cc-option-yn,$(mips-cflags) -Wa$(comma)-mcrc)
+cflags-$(toolchain-crc)			+= -DTOOLCHAIN_SUPPORTS_CRC
 
 #
 # Firmware support
@@ -249,20 +251,12 @@ ifdef CONFIG_PHYSICAL_START
 load-y					= $(CONFIG_PHYSICAL_START)
 endif
 
-entry-noisa-y				= 0x$(shell $(NM) vmlinux 2>/dev/null \
-					| grep "\bkernel_entry\b" | cut -f1 -d \ )
-ifdef CONFIG_CPU_MICROMIPS
-  #
-  # Set the ISA bit, since the kernel_entry symbol in the ELF will have it
-  # clear which would lead to images containing addresses which bootloaders may
-  # jump to as MIPS32 code.
-  #
-  entry-y = $(patsubst %0,%1,$(patsubst %2,%3,$(patsubst %4,%5, \
-              $(patsubst %6,%7,$(patsubst %8,%9,$(patsubst %a,%b, \
-              $(patsubst %c,%d,$(patsubst %e,%f,$(entry-noisa-y)))))))))
-else
-  entry-y = $(entry-noisa-y)
-endif
+# Sign-extend the entry point to 64 bits if retrieved as a 32-bit number.
+entry-y		= $(shell $(OBJDUMP) -f vmlinux 2>/dev/null \
+			| sed -n '/^start address / { \
+				s/^.* //; \
+				s/0x\([0-7].......\)$$/0x00000000\1/; \
+				s/0x\(........\)$$/0xffffffff\1/; p }')
 
 cflags-y			+= -I$(srctree)/arch/mips/include/asm/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/
@@ -330,6 +324,7 @@ libs-y			+= arch/mips/math-emu/
 # See arch/mips/Kbuild for content of core part of the kernel
 core-y += arch/mips/
 
+drivers-$(CONFIG_MIPS_CRC_SUPPORT) += arch/mips/crypto/
 drivers-$(CONFIG_OPROFILE)	+= arch/mips/oprofile/
 
 # suspend and hibernation support
@@ -473,6 +468,21 @@ define archhelp
 	echo
 	echo '  {micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
 	echo
+	echo '  Where BOARDS is some subset of the following:'
+	for board in $(sort $(BOARDS)); do echo "    $${board}"; done
+	echo
+	echo '  Specifically the following generic default configurations are'
+	echo '  supported:'
+	echo
+	$(foreach cfg,$(generic_defconfigs),
+	  printf "  %-24s - Build generic kernel for $(call describe_generic_defconfig,$(cfg))\n" $(cfg);)
+	echo
+	echo '  The following legacy default configurations have been converted to'
+	echo '  generic and can still be used:'
+	echo
+	$(foreach cfg,$(sort $(legacy_defconfigs)),
+	  printf "  %-24s - Build $($(cfg)-y)\n" $(cfg);)
+	echo
 	echo '  Otherwise, the following default configurations are available:'
 endef
 
@@ -506,6 +516,10 @@ endef
 
 $(eval $(call gen_generic_defconfigs,32 64,r1 r2 r6,eb el))
 $(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
+
+define describe_generic_defconfig
+$(subst 32r,MIPS32 r,$(subst 64r,MIPS64 r,$(subst el, little endian,$(patsubst %_defconfig,%,$(1)))))
+endef
 
 .PHONY: $(generic_defconfigs)
 $(generic_defconfigs):
@@ -543,14 +557,18 @@ generic_defconfig:
 # now that the boards have been converted to use the generic kernel they are
 # wrappers around the generic rules above.
 #
-.PHONY: sead3_defconfig
-sead3_defconfig:
-	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=sead-3
+legacy_defconfigs		+= ocelot_defconfig
+ocelot_defconfig-y		:= 32r2el_defconfig BOARDS=ocelot
 
-.PHONY: sead3micro_defconfig
-sead3micro_defconfig:
-	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3
+legacy_defconfigs		+= sead3_defconfig
+sead3_defconfig-y		:= 32r2el_defconfig BOARDS=sead-3
 
-.PHONY: xilfpga_defconfig
-xilfpga_defconfig:
-	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=xilfpga
+legacy_defconfigs		+= sead3micro_defconfig
+sead3micro_defconfig-y		:= micro32r2el_defconfig BOARDS=sead-3
+
+legacy_defconfigs		+= xilfpga_defconfig
+xilfpga_defconfig-y		:= 32r2el_defconfig BOARDS=xilfpga
+
+.PHONY: $(legacy_defconfigs)
+$(legacy_defconfigs):
+	$(Q)$(MAKE) -f $(srctree)/Makefile $($@-y)

@@ -208,7 +208,6 @@ struct nouveau_drm {
 	bool have_disp_power_ref;
 
 	struct dev_pm_domain vga_pm_domain;
-	struct pci_dev *hdmi_device;
 };
 
 static inline struct nouveau_drm *

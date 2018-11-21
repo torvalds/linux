@@ -254,21 +254,6 @@ TRACE_EVENT(kvm_exit,
 		)
 );
 
-TRACE_EVENT(kvm_unmap_hva,
-	TP_PROTO(unsigned long hva),
-	TP_ARGS(hva),
-
-	TP_STRUCT__entry(
-		__field(	unsigned long,	hva		)
-	),
-
-	TP_fast_assign(
-		__entry->hva		= hva;
-	),
-
-	TP_printk("unmap hva 0x%lx\n", __entry->hva)
-);
-
 #endif /* _TRACE_KVM_H */
 
 /* This part must be outside protection */

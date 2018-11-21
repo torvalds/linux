@@ -32,13 +32,13 @@
 	addi	s0, sp, 32
 	.endm
 
-	.macro STORE_ABI_STATE
+	.macro RESTORE_ABI_STATE
 	ld	ra, 8(sp)
 	ld	s0, 0(sp)
 	addi	sp, sp, 16
 	.endm
 
-	.macro STORE_RET_ABI_STATE
+	.macro RESTORE_RET_ABI_STATE
 	ld	ra, 24(sp)
 	ld	s0, 16(sp)
 	ld	a0, 8(sp)
@@ -46,6 +46,10 @@
 	.endm
 
 ENTRY(ftrace_stub)
+#ifdef CONFIG_DYNAMIC_FTRACE
+       .global _mcount
+       .set    _mcount, ftrace_stub
+#endif
 	ret
 ENDPROC(ftrace_stub)
 
@@ -66,15 +70,15 @@ ENTRY(return_to_handler)
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
 	mv	a0, t6
 #endif
-	la	t0, ftrace_return_to_handler
-	jalr	t0
+	call	ftrace_return_to_handler
 	mv	a1, a0
-	STORE_RET_ABI_STATE
+	RESTORE_RET_ABI_STATE
 	jalr	a1
 ENDPROC(return_to_handler)
 EXPORT_SYMBOL(return_to_handler)
 #endif
 
+#ifndef CONFIG_DYNAMIC_FTRACE
 ENTRY(_mcount)
 	la	t4, ftrace_stub
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -104,9 +108,8 @@ do_ftrace_graph_caller:
 	ld	a2, -16(s0)
 #endif
 	SAVE_ABI_STATE
-	la	t0, prepare_ftrace_return
-	jalr	t0
-	STORE_ABI_STATE
+	call	prepare_ftrace_return
+	RESTORE_ABI_STATE
 	ret
 #endif
 
@@ -120,7 +123,8 @@ do_trace:
 
 	SAVE_ABI_STATE
 	jalr	t5
-	STORE_ABI_STATE
+	RESTORE_ABI_STATE
 	ret
 ENDPROC(_mcount)
 EXPORT_SYMBOL(_mcount)
+#endif

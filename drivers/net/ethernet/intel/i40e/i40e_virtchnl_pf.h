@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
@@ -69,6 +70,19 @@ enum i40e_vf_capabilities {
 	I40E_VIRTCHNL_VF_CAP_IWARP,
 };
 
+/* In ADq, max 4 VSI's can be allocated per VF including primary VF VSI.
+ * These variables are used to store indices, id's and number of queues
+ * for each VSI including that of primary VF VSI. Each Traffic class is
+ * termed as channel and each channel can in-turn have 4 queues which
+ * means max 16 queues overall per VF.
+ */
+struct i40evf_channel {
+	u16 vsi_idx; /* index in PF struct for all channel VSIs */
+	u16 vsi_id; /* VSI ID used by firmware */
+	u16 num_qps; /* number of queue pairs requested by user */
+	u64 max_tx_rate; /* bandwidth rate allocation for VSIs */
+};
+
 /* VF information structure */
 struct i40e_vf {
 	struct i40e_pf *pf;
@@ -110,6 +124,13 @@ struct i40e_vf {
 	bool spoofchk;
 	u16 num_mac;
 	u16 num_vlan;
+
+	/* ADq related variables */
+	bool adq_enabled; /* flag to enable adq */
+	u8 num_tc;
+	struct i40evf_channel ch[I40E_MAX_VF_VSI];
+	struct hlist_head cloud_filter_list;
+	u16 num_cloud_filters;
 
 	/* RDMA Client */
 	struct virtchnl_iwarp_qvlist_info *qvlist_info;

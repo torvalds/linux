@@ -486,6 +486,8 @@ static int __init init_pstore_fs(void)
 {
 	int err;
 
+	pstore_choose_compression();
+
 	/* Create a convenient mount point for people to access pstore */
 	err = sysfs_create_mount_point(fs_kobj, "pstore");
 	if (err)

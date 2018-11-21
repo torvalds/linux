@@ -20,9 +20,9 @@ enum wm8350_jack {
 	WM8350_JDR = 2,
 };
 
-int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
+int wm8350_hp_jack_detect(struct snd_soc_component *component, enum wm8350_jack which,
 			  struct snd_soc_jack *jack, int report);
-int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
+int wm8350_mic_jack_detect(struct snd_soc_component *component,
 			   struct snd_soc_jack *jack,
 			   int detect_report, int short_report);
 

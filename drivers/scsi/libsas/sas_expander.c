@@ -1170,9 +1170,9 @@ static int sas_check_level_subtractive_boundary(struct domain_device *dev)
 	return 0;
 }
 /**
- * sas_ex_discover_devices -- discover devices attached to this expander
- * dev: pointer to the expander domain device
- * single: if you want to do a single phy, else set to -1;
+ * sas_ex_discover_devices - discover devices attached to this expander
+ * @dev: pointer to the expander domain device
+ * @single: if you want to do a single phy, else set to -1;
  *
  * Configure this expander for use with its devices and register the
  * devices of this expander.
@@ -1528,10 +1528,11 @@ static int sas_configure_phy(struct domain_device *dev, int phy_id,
 }
 
 /**
- * sas_configure_parent -- configure routing table of parent
- * parent: parent expander
- * child: child expander
- * sas_addr: SAS port identifier of device directly attached to child
+ * sas_configure_parent - configure routing table of parent
+ * @parent: parent expander
+ * @child: child expander
+ * @sas_addr: SAS port identifier of device directly attached to child
+ * @include: whether or not to include @child in the expander routing table
  */
 static int sas_configure_parent(struct domain_device *parent,
 				struct domain_device *child,
@@ -1570,9 +1571,9 @@ static int sas_configure_parent(struct domain_device *parent,
 }
 
 /**
- * sas_configure_routing -- configure routing
- * dev: expander device
- * sas_addr: port identifier of device directly attached to the expander device
+ * sas_configure_routing - configure routing
+ * @dev: expander device
+ * @sas_addr: port identifier of device directly attached to the expander device
  */
 static int sas_configure_routing(struct domain_device *dev, u8 *sas_addr)
 {
@@ -1589,8 +1590,8 @@ static int sas_disable_routing(struct domain_device *dev,  u8 *sas_addr)
 }
 
 /**
- * sas_discover_expander -- expander discovery
- * @ex: pointer to expander domain device
+ * sas_discover_expander - expander discovery
+ * @dev: pointer to expander domain device
  *
  * See comment in sas_discover_sata().
  */
@@ -2111,8 +2112,8 @@ static int sas_rediscover(struct domain_device *dev, const int phy_id)
 }
 
 /**
- * sas_revalidate_domain -- revalidate the domain
- * @port: port to the domain of interest
+ * sas_ex_revalidate_domain - revalidate the domain
+ * @port_dev: port domain device.
  *
  * NOTE: this process _must_ quit (return) as soon as any connection
  * errors are encountered.  Connection recovery is done elsewhere.

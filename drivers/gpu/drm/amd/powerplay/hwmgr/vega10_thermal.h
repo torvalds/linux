@@ -73,7 +73,7 @@ extern int vega10_thermal_disable_alert(struct pp_hwmgr *hwmgr);
 extern int vega10_fan_ctrl_start_smc_fan_control(struct pp_hwmgr *hwmgr);
 extern int vega10_start_thermal_controller(struct pp_hwmgr *hwmgr,
 				struct PP_TemperatureRange *range);
-extern uint32_t smu7_get_xclk(struct pp_hwmgr *hwmgr);
+
 
 #endif
 

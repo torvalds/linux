@@ -291,41 +291,19 @@ static struct ttm_backend_func qxl_backend_func = {
 	.destroy = &qxl_ttm_backend_destroy,
 };
 
-static int qxl_ttm_tt_populate(struct ttm_tt *ttm,
-			struct ttm_operation_ctx *ctx)
-{
-	int r;
-
-	if (ttm->state != tt_unpopulated)
-		return 0;
-
-	r = ttm_pool_populate(ttm, ctx);
-	if (r)
-		return r;
-
-	return 0;
-}
-
-static void qxl_ttm_tt_unpopulate(struct ttm_tt *ttm)
-{
-	ttm_pool_unpopulate(ttm);
-}
-
-static struct ttm_tt *qxl_ttm_tt_create(struct ttm_bo_device *bdev,
-					unsigned long size, uint32_t page_flags,
-					struct page *dummy_read_page)
+static struct ttm_tt *qxl_ttm_tt_create(struct ttm_buffer_object *bo,
+					uint32_t page_flags)
 {
 	struct qxl_device *qdev;
 	struct qxl_ttm_tt *gtt;
 
-	qdev = qxl_get_qdev(bdev);
+	qdev = qxl_get_qdev(bo->bdev);
 	gtt = kzalloc(sizeof(struct qxl_ttm_tt), GFP_KERNEL);
 	if (gtt == NULL)
 		return NULL;
 	gtt->ttm.ttm.func = &qxl_backend_func;
 	gtt->qdev = qdev;
-	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags,
-			    dummy_read_page)) {
+	if (ttm_dma_tt_init(&gtt->ttm, bo, page_flags)) {
 		kfree(gtt);
 		return NULL;
 	}
@@ -379,8 +357,6 @@ static void qxl_bo_move_notify(struct ttm_buffer_object *bo,
 
 static struct ttm_bo_driver qxl_bo_driver = {
 	.ttm_tt_create = &qxl_ttm_tt_create,
-	.ttm_tt_populate = &qxl_ttm_tt_populate,
-	.ttm_tt_unpopulate = &qxl_ttm_tt_unpopulate,
 	.invalidate_caches = &qxl_invalidate_caches,
 	.init_mem_type = &qxl_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,

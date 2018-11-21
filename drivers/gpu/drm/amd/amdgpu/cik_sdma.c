@@ -261,13 +261,6 @@ static void cik_sdma_ring_emit_hdp_flush(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
 }
 
-static void cik_sdma_ring_emit_hdp_invalidate(struct amdgpu_ring *ring)
-{
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmHDP_DEBUG0);
-	amdgpu_ring_write(ring, 1);
-}
-
 /**
  * cik_sdma_ring_emit_fence - emit a fence on the DMA ring
  *
@@ -317,7 +310,7 @@ static void cik_sdma_gfx_stop(struct amdgpu_device *adev)
 
 	if ((adev->mman.buffer_funcs_ring == sdma0) ||
 	    (adev->mman.buffer_funcs_ring == sdma1))
-		amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, false);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32(mmSDMA0_GFX_RB_CNTL + sdma_offsets[i]);
@@ -517,7 +510,7 @@ static int cik_sdma_gfx_resume(struct amdgpu_device *adev)
 		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_active_vram_size(adev, adev->mc.real_vram_size);
+			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return 0;
@@ -866,7 +859,7 @@ static void cik_sdma_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 	amdgpu_ring_write(ring, addr & 0xfffffffc);
 	amdgpu_ring_write(ring, upper_32_bits(addr) & 0xffffffff);
 	amdgpu_ring_write(ring, seq); /* reference */
-	amdgpu_ring_write(ring, 0xfffffff); /* mask */
+	amdgpu_ring_write(ring, 0xffffffff); /* mask */
 	amdgpu_ring_write(ring, (0xfff << 16) | 4); /* retry count, poll interval */
 }
 
@@ -885,18 +878,7 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
 
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	if (vmid < 8) {
-		amdgpu_ring_write(ring, (mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid));
-	} else {
-		amdgpu_ring_write(ring, (mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8));
-	}
-	amdgpu_ring_write(ring, pd_addr >> 12);
-
-	/* flush TLB */
-	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
-	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST);
-	amdgpu_ring_write(ring, 1 << vmid);
+	amdgpu_gmc_emit_flush_gpu_tlb(ring, vmid, pd_addr);
 
 	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_POLL_REG_MEM, 0, extra_bits));
 	amdgpu_ring_write(ring, mmVM_INVALIDATE_REQUEST << 2);
@@ -904,6 +886,14 @@ static void cik_sdma_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	amdgpu_ring_write(ring, 0); /* reference */
 	amdgpu_ring_write(ring, 0); /* mask */
 	amdgpu_ring_write(ring, (0xfff << 16) | 10); /* retry count, poll interval */
+}
+
+static void cik_sdma_ring_emit_wreg(struct amdgpu_ring *ring,
+				    uint32_t reg, uint32_t val)
+{
+	amdgpu_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
+	amdgpu_ring_write(ring, reg);
+	amdgpu_ring_write(ring, val);
 }
 
 static void cik_enable_sdma_mgcg(struct amdgpu_device *adev,
@@ -1279,9 +1269,9 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.set_wptr = cik_sdma_ring_set_wptr,
 	.emit_frame_size =
 		6 + /* cik_sdma_ring_emit_hdp_flush */
-		3 + /* cik_sdma_ring_emit_hdp_invalidate */
+		3 + /* hdp invalidate */
 		6 + /* cik_sdma_ring_emit_pipeline_sync */
-		12 + /* cik_sdma_ring_emit_vm_flush */
+		CIK_FLUSH_GPU_TLB_NUM_WREG * 3 + 6 + /* cik_sdma_ring_emit_vm_flush */
 		9 + 9 + 9, /* cik_sdma_ring_emit_fence x3 for user fence, vm fence */
 	.emit_ib_size = 7 + 4, /* cik_sdma_ring_emit_ib */
 	.emit_ib = cik_sdma_ring_emit_ib,
@@ -1289,11 +1279,11 @@ static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {
 	.emit_pipeline_sync = cik_sdma_ring_emit_pipeline_sync,
 	.emit_vm_flush = cik_sdma_ring_emit_vm_flush,
 	.emit_hdp_flush = cik_sdma_ring_emit_hdp_flush,
-	.emit_hdp_invalidate = cik_sdma_ring_emit_hdp_invalidate,
 	.test_ring = cik_sdma_ring_test_ring,
 	.test_ib = cik_sdma_ring_test_ib,
 	.insert_nop = cik_sdma_ring_insert_nop,
 	.pad_ib = cik_sdma_ring_pad_ib,
+	.emit_wreg = cik_sdma_ring_emit_wreg,
 };
 
 static void cik_sdma_set_ring_funcs(struct amdgpu_device *adev)
@@ -1391,9 +1381,6 @@ static const struct amdgpu_vm_pte_funcs cik_sdma_vm_pte_funcs = {
 	.copy_pte = cik_sdma_vm_copy_pte,
 
 	.write_pte = cik_sdma_vm_write_pte,
-
-	.set_max_nums_pte_pde = 0x1fffff >> 3,
-	.set_pte_pde_num_dw = 10,
 	.set_pte_pde = cik_sdma_vm_set_pte_pde,
 };
 

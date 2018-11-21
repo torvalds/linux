@@ -132,6 +132,14 @@
 		enable-active-high;
 	};
 
+	reg_tsiref: regulator-tsiref {
+		compatible = "regulator-fixed";
+		regulator-name = "tsiref";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-always-on;
+	};
+
 	pwm_bl: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm2 0 50000>;
@@ -294,6 +302,8 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <12 0x8>;
 		spi-max-frequency = <1000000>;
+		dlg,tsi-as-adc;
+		tsiref-supply = <&reg_tsiref>;
 
 		regulators {
 			buck1_reg: buck1 {
@@ -436,6 +446,7 @@
 			sgtl5000: codec@a {
 				compatible = "fsl,sgtl5000";
 				reg = <0xa>;
+				#sound-dai-cells = <0>;
 				VDDA-supply = <&reg_sgtl5k>;
 				VDDIO-supply = <&reg_sgtl5k>;
 				clocks = <&cko2_11M>;
@@ -525,6 +536,7 @@
 
 	touchscreen@4b {
 		compatible = "atmel,maxtouch";
+		reset-gpio = <&gpio5 19 GPIO_ACTIVE_HIGH>;
 		reg = <0x4b>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <4 0x8>;

@@ -38,10 +38,6 @@ static int handler_pre(struct kprobe *p, struct pt_regs *regs)
 	pr_info("<%s> pre_handler: p->addr = 0x%p, epc = 0x%lx, status = 0x%lx\n",
 		p->symbol_name, p->addr, regs->cp0_epc, regs->cp0_status);
 #endif
-#ifdef CONFIG_TILEGX
-	pr_info("<%s> pre_handler: p->addr = 0x%p, pc = 0x%lx, ex1 = 0x%lx\n",
-		p->symbol_name, p->addr, regs->pc, regs->ex1);
-#endif
 #ifdef CONFIG_ARM64
 	pr_info("<%s> pre_handler: p->addr = 0x%p, pc = 0x%lx,"
 			" pstate = 0x%lx\n",
@@ -71,10 +67,6 @@ static void handler_post(struct kprobe *p, struct pt_regs *regs,
 #ifdef CONFIG_MIPS
 	pr_info("<%s> post_handler: p->addr = 0x%p, status = 0x%lx\n",
 		p->symbol_name, p->addr, regs->cp0_status);
-#endif
-#ifdef CONFIG_TILEGX
-	pr_info("<%s> post_handler: p->addr = 0x%p, ex1 = 0x%lx\n",
-		p->symbol_name, p->addr, regs->ex1);
 #endif
 #ifdef CONFIG_ARM64
 	pr_info("<%s> post_handler: p->addr = 0x%p, pstate = 0x%lx\n",

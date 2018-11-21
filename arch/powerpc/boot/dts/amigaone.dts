@@ -168,6 +168,6 @@
 	};
 
 	chosen {
-		linux,stdout-path = "/pci@80000000/isa@7/serial@3f8";
+		stdout-path = "/pci@80000000/isa@7/serial@3f8";
 	};
 };

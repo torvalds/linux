@@ -46,4 +46,9 @@
 / {
 	model = "Technologic Systems i.MX6 Solo/DualLite TS-4900 (Default Device Tree)";
 	compatible = "technologic,imx6dl-ts4900", "fsl,imx6dl";
+
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
 };

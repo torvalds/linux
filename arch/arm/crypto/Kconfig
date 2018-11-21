@@ -121,4 +121,10 @@ config CRYPTO_CHACHA20_NEON
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_CHACHA20
 
+config CRYPTO_SPECK_NEON
+	tristate "NEON accelerated Speck cipher algorithms"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_SPECK
+
 endif

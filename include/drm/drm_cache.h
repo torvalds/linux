@@ -38,6 +38,8 @@
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);
 void drm_clflush_virt_range(void *addr, unsigned long length);
+u64 drm_get_max_iomem(void);
+
 
 static inline bool drm_arch_can_wc_memory(void)
 {

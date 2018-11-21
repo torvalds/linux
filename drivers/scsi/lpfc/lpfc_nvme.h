@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
+ * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -27,6 +27,8 @@
 
 #define LPFC_NVME_WAIT_TMO              10
 #define LPFC_NVME_EXPEDITE_XRICNT	8
+#define LPFC_NVME_FB_SHIFT		9
+#define LPFC_NVME_MAX_FB		(1 << 20)	/* 1M */
 
 struct lpfc_nvme_qhandle {
 	uint32_t index;		/* WQ index to use */

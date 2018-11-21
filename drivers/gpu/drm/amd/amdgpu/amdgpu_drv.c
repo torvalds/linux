@@ -73,9 +73,11 @@
  * - 3.21.0 - Add DRM_AMDGPU_FENCE_TO_HANDLE ioctl
  * - 3.22.0 - Add DRM_AMDGPU_SCHED ioctl
  * - 3.23.0 - Add query for VRAM lost counter
+ * - 3.24.0 - Add high priority compute support for gfx9
+ * - 3.25.0 - Add support for sensor query info (stable pstate sclk/mclk).
  */
 #define KMS_DRIVER_MAJOR	3
-#define KMS_DRIVER_MINOR	23
+#define KMS_DRIVER_MINOR	25
 #define KMS_DRIVER_PATCHLEVEL	0
 
 int amdgpu_vram_limit = 0;
@@ -119,7 +121,7 @@ uint amdgpu_pg_mask = 0xffffffff;
 uint amdgpu_sdma_phase_quantum = 32;
 char *amdgpu_disable_cu = NULL;
 char *amdgpu_virtual_display = NULL;
-uint amdgpu_pp_feature_mask = 0xffffffff;
+uint amdgpu_pp_feature_mask = 0xffffbfff;
 int amdgpu_ngg = 0;
 int amdgpu_prim_buf_per_se = 0;
 int amdgpu_pos_buf_per_se = 0;
@@ -129,6 +131,7 @@ int amdgpu_job_hang_limit = 0;
 int amdgpu_lbpw = -1;
 int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
+int amdgpu_emu_mode = 0;
 
 MODULE_PARM_DESC(vramlimit, "Restrict VRAM for testing, in megabytes");
 module_param_named(vramlimit, amdgpu_vram_limit, int, 0600);
@@ -281,8 +284,11 @@ module_param_named(lbpw, amdgpu_lbpw, int, 0444);
 MODULE_PARM_DESC(compute_multipipe, "Force compute queues to be spread across pipes (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(compute_multipipe, amdgpu_compute_multipipe, int, 0444);
 
-MODULE_PARM_DESC(gpu_recovery, "Enable GPU recovery mechanism, (1 = enable, 0 = disable, -1 = auto");
+MODULE_PARM_DESC(gpu_recovery, "Enable GPU recovery mechanism, (1 = enable, 0 = disable, -1 = auto)");
 module_param_named(gpu_recovery, amdgpu_gpu_recovery, int, 0444);
+
+MODULE_PARM_DESC(emu_mode, "Emulation mode, (1 = enable, 0 = disable)");
+module_param_named(emu_mode, amdgpu_emu_mode, int, 0444);
 
 #ifdef CONFIG_DRM_AMDGPU_SI
 
@@ -538,6 +544,12 @@ static const struct pci_device_id pciidlist[] = {
 	{0x1002, 0x6868, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
 	{0x1002, 0x686c, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
 	{0x1002, 0x687f, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA10},
+	/* Vega 12 */
+	{0x1002, 0x69A0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
+	{0x1002, 0x69A1, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
+	{0x1002, 0x69A2, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
+	{0x1002, 0x69A3, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
+	{0x1002, 0x69AF, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_VEGA12},
 	/* Raven */
 	{0x1002, 0x15dd, PCI_ANY_ID, PCI_ANY_ID, 0, 0, CHIP_RAVEN|AMD_IS_APU},
 
@@ -576,6 +588,11 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	struct drm_device *dev;
 	unsigned long flags = ent->driver_data;
 	int ret, retry = 0;
+	bool supports_atomic = false;
+
+	if (!amdgpu_virtual_display &&
+	    amdgpu_device_asic_has_dc_support(flags & AMD_ASIC_MASK))
+		supports_atomic = true;
 
 	if ((flags & AMD_EXP_HW_SUPPORT) && !amdgpu_exp_hw_support) {
 		DRM_INFO("This hardware requires experimental hardware support.\n"
@@ -595,6 +612,13 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 	ret = amdgpu_kick_out_firmware_fb(pdev);
 	if (ret)
 		return ret;
+
+	/* warn the user if they mix atomic and non-atomic capable GPUs */
+	if ((kms_driver.driver_features & DRIVER_ATOMIC) && !supports_atomic)
+		DRM_ERROR("Mixing atomic and non-atomic capable GPUs!\n");
+	/* support atomic early so the atomic debugfs stuff gets created */
+	if (supports_atomic)
+		kms_driver.driver_features |= DRIVER_ATOMIC;
 
 	dev = drm_dev_alloc(&kms_driver, &pdev->dev);
 	if (IS_ERR(dev))
@@ -720,7 +744,6 @@ static int amdgpu_pmops_runtime_suspend(struct device *dev)
 
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 	drm_kms_helper_poll_disable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_OFF);
 
 	ret = amdgpu_device_suspend(drm_dev, false, false);
 	pci_save_state(pdev);
@@ -757,7 +780,6 @@ static int amdgpu_pmops_runtime_resume(struct device *dev)
 
 	ret = amdgpu_device_resume(drm_dev, false, false);
 	drm_kms_helper_poll_enable(drm_dev);
-	vga_switcheroo_set_dynamic_switch(pdev, VGA_SWITCHEROO_ON);
 	drm_dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	return 0;
 }
@@ -835,8 +857,8 @@ amdgpu_get_crtc_scanout_position(struct drm_device *dev, unsigned int pipe,
 				 ktime_t *stime, ktime_t *etime,
 				 const struct drm_display_mode *mode)
 {
-	return amdgpu_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
-					  stime, etime, mode);
+	return amdgpu_display_get_crtc_scanoutpos(dev, pipe, 0, vpos, hpos,
+						  stime, etime, mode);
 }
 
 static struct drm_driver kms_driver = {
@@ -854,9 +876,6 @@ static struct drm_driver kms_driver = {
 	.disable_vblank = amdgpu_disable_vblank_kms,
 	.get_vblank_timestamp = drm_calc_vbltimestamp_from_scanoutpos,
 	.get_scanout_position = amdgpu_get_crtc_scanout_position,
-	.irq_preinstall = amdgpu_irq_preinstall,
-	.irq_postinstall = amdgpu_irq_postinstall,
-	.irq_uninstall = amdgpu_irq_uninstall,
 	.irq_handler = amdgpu_irq_handler,
 	.ioctls = amdgpu_ioctls_kms,
 	.gem_free_object_unlocked = amdgpu_gem_object_free,
@@ -869,9 +888,7 @@ static struct drm_driver kms_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = amdgpu_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_pin = amdgpu_gem_prime_pin,
-	.gem_prime_unpin = amdgpu_gem_prime_unpin,
+	.gem_prime_import = amdgpu_gem_prime_import,
 	.gem_prime_res_obj = amdgpu_gem_prime_res_obj,
 	.gem_prime_get_sg_table = amdgpu_gem_prime_get_sg_table,
 	.gem_prime_import_sg_table = amdgpu_gem_prime_import_sg_table,
@@ -905,6 +922,11 @@ static int __init amdgpu_init(void)
 {
 	int r;
 
+	if (vgacon_text_force()) {
+		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
+		return -EINVAL;
+	}
+
 	r = amdgpu_sync_init();
 	if (r)
 		goto error_sync;
@@ -913,10 +935,6 @@ static int __init amdgpu_init(void)
 	if (r)
 		goto error_fence;
 
-	if (vgacon_text_force()) {
-		DRM_ERROR("VGACON disables amdgpu kernel modesetting.\n");
-		return -EINVAL;
-	}
 	DRM_INFO("amdgpu kernel modesetting enabled.\n");
 	driver = &kms_driver;
 	pdriver = &amdgpu_kms_pci_driver;

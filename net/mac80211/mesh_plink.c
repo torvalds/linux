@@ -401,7 +401,7 @@ u32 mesh_plink_deactivate(struct sta_info *sta)
 
 static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 			       struct sta_info *sta,
-			       struct ieee802_11_elems *elems, bool insert)
+			       struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
@@ -447,7 +447,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 		sta->sta.bandwidth = IEEE80211_STA_RX_BW_20;
 	}
 
-	if (insert)
+	if (!test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		rate_control_rate_init(sta);
 	else
 		rate_control_rate_update(local, sband, sta, changed);
@@ -551,7 +551,7 @@ mesh_sta_info_get(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 	sta = sta_info_get(sdata, addr);
 	if (sta) {
-		mesh_sta_info_init(sdata, sta, elems, false);
+		mesh_sta_info_init(sdata, sta, elems);
 	} else {
 		rcu_read_unlock();
 		/* can't run atomic */
@@ -561,7 +561,7 @@ mesh_sta_info_get(struct ieee80211_sub_if_data *sdata,
 			return NULL;
 		}
 
-		mesh_sta_info_init(sdata, sta, elems, true);
+		mesh_sta_info_init(sdata, sta, elems);
 
 		if (sta_info_insert_rcu(sta))
 			return NULL;

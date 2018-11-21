@@ -452,6 +452,7 @@ static void chsc_process_sei_link_incident(struct chsc_sei_nt0_area *sei_area)
 
 static void chsc_process_sei_res_acc(struct chsc_sei_nt0_area *sei_area)
 {
+	struct channel_path *chp;
 	struct chp_link link;
 	struct chp_id chpid;
 	int status;
@@ -464,10 +465,17 @@ static void chsc_process_sei_res_acc(struct chsc_sei_nt0_area *sei_area)
 	chpid.id = sei_area->rsid;
 	/* allocate a new channel path structure, if needed */
 	status = chp_get_status(chpid);
-	if (status < 0)
-		chp_new(chpid);
-	else if (!status)
+	if (!status)
 		return;
+
+	if (status < 0) {
+		chp_new(chpid);
+	} else {
+		chp = chpid_to_chp(chpid);
+		mutex_lock(&chp->lock);
+		chp_update_desc(chp);
+		mutex_unlock(&chp->lock);
+	}
 	memset(&link, 0, sizeof(struct chp_link));
 	link.chpid = chpid;
 	if ((sei_area->vf & 0xc0) != 0) {
@@ -915,6 +923,8 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 		return -EINVAL;
 	if ((rfmt == 2) && !css_general_characteristics.cib)
 		return -EINVAL;
+	if ((rfmt == 3) && !css_general_characteristics.util_str)
+		return -EINVAL;
 
 	memset(page, 0, PAGE_SIZE);
 	scpd_area = page;
@@ -940,43 +950,30 @@ int chsc_determine_channel_path_desc(struct chp_id chpid, int fmt, int rfmt,
 }
 EXPORT_SYMBOL_GPL(chsc_determine_channel_path_desc);
 
-int chsc_determine_base_channel_path_desc(struct chp_id chpid,
-					  struct channel_path_desc *desc)
-{
-	struct chsc_scpd *scpd_area;
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&chsc_page_lock, flags);
-	scpd_area = chsc_page;
-	ret = chsc_determine_channel_path_desc(chpid, 0, 0, 0, 0, scpd_area);
-	if (ret)
-		goto out;
-
-	memcpy(desc, scpd_area->data, sizeof(*desc));
-out:
-	spin_unlock_irqrestore(&chsc_page_lock, flags);
-	return ret;
+#define chsc_det_chp_desc(FMT, c)					\
+int chsc_determine_fmt##FMT##_channel_path_desc(			\
+	struct chp_id chpid, struct channel_path_desc_fmt##FMT *desc)	\
+{									\
+	struct chsc_scpd *scpd_area;					\
+	unsigned long flags;						\
+	int ret;							\
+									\
+	spin_lock_irqsave(&chsc_page_lock, flags);			\
+	scpd_area = chsc_page;						\
+	ret = chsc_determine_channel_path_desc(chpid, 0, FMT, c, 0,	\
+					       scpd_area);		\
+	if (ret)							\
+		goto out;						\
+									\
+	memcpy(desc, scpd_area->data, sizeof(*desc));			\
+out:									\
+	spin_unlock_irqrestore(&chsc_page_lock, flags);			\
+	return ret;							\
 }
 
-int chsc_determine_fmt1_channel_path_desc(struct chp_id chpid,
-					  struct channel_path_desc_fmt1 *desc)
-{
-	struct chsc_scpd *scpd_area;
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&chsc_page_lock, flags);
-	scpd_area = chsc_page;
-	ret = chsc_determine_channel_path_desc(chpid, 0, 1, 1, 0, scpd_area);
-	if (ret)
-		goto out;
-
-	memcpy(desc, scpd_area->data, sizeof(*desc));
-out:
-	spin_unlock_irqrestore(&chsc_page_lock, flags);
-	return ret;
-}
+chsc_det_chp_desc(0, 0)
+chsc_det_chp_desc(1, 1)
+chsc_det_chp_desc(3, 0)
 
 static void
 chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,

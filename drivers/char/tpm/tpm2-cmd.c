@@ -31,10 +31,6 @@ struct tpm2_startup_in {
 	__be16	startup_type;
 } __packed;
 
-struct tpm2_self_test_in {
-	u8	full_test;
-} __packed;
-
 struct tpm2_get_tpm_pt_in {
 	__be32	cap_id;
 	__be32	property_id;
@@ -60,7 +56,6 @@ struct tpm2_get_random_out {
 
 union tpm2_cmd_params {
 	struct	tpm2_startup_in		startup_in;
-	struct	tpm2_self_test_in	selftest_in;
 	struct	tpm2_get_tpm_pt_in	get_tpm_pt_in;
 	struct	tpm2_get_tpm_pt_out	get_tpm_pt_out;
 	struct	tpm2_get_random_in	getrandom_in;
@@ -90,6 +85,8 @@ static struct tpm2_hash tpm2_hash_map[] = {
  * of time the chip could take to return the result. The values
  * of the SHORT, MEDIUM, and LONG durations are taken from the
  * PC Client Profile (PTP) specification.
+ * LONG_LONG is for commands that generates keys which empirically
+ * takes longer time on some systems.
  */
 static const u8 tpm2_ordinal_duration[TPM2_CC_LAST - TPM2_CC_FIRST + 1] = {
 	TPM_UNDEFINED,		/* 11F */
@@ -110,7 +107,7 @@ static const u8 tpm2_ordinal_duration[TPM2_CC_LAST - TPM2_CC_FIRST + 1] = {
 	TPM_UNDEFINED,		/* 12e */
 	TPM_UNDEFINED,		/* 12f */
 	TPM_UNDEFINED,		/* 130 */
-	TPM_UNDEFINED,		/* 131 */
+	TPM_LONG_LONG,		/* 131 */
 	TPM_UNDEFINED,		/* 132 */
 	TPM_UNDEFINED,		/* 133 */
 	TPM_UNDEFINED,		/* 134 */
@@ -144,7 +141,7 @@ static const u8 tpm2_ordinal_duration[TPM2_CC_LAST - TPM2_CC_FIRST + 1] = {
 	TPM_UNDEFINED,		/* 150 */
 	TPM_UNDEFINED,		/* 151 */
 	TPM_UNDEFINED,		/* 152 */
-	TPM_UNDEFINED,		/* 153 */
+	TPM_LONG_LONG,		/* 153 */
 	TPM_UNDEFINED,		/* 154 */
 	TPM_UNDEFINED,		/* 155 */
 	TPM_UNDEFINED,		/* 156 */
@@ -821,21 +818,11 @@ unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
 		duration = chip->duration[index];
 
 	if (duration <= 0)
-		duration = 2 * 60 * HZ;
+		duration = msecs_to_jiffies(TPM2_DURATION_DEFAULT);
 
 	return duration;
 }
 EXPORT_SYMBOL_GPL(tpm2_calc_ordinal_duration);
-
-#define TPM2_SELF_TEST_IN_SIZE \
-	(sizeof(struct tpm_input_header) + \
-	 sizeof(struct tpm2_self_test_in))
-
-static const struct tpm_input_header tpm2_selftest_header = {
-	.tag = cpu_to_be16(TPM2_ST_NO_SESSIONS),
-	.length = cpu_to_be32(TPM2_SELF_TEST_IN_SIZE),
-	.ordinal = cpu_to_be32(TPM2_CC_SELF_TEST)
-};
 
 /**
  * tpm2_do_selftest() - ensure that all self tests have passed
@@ -852,27 +839,24 @@ static const struct tpm_input_header tpm2_selftest_header = {
  */
 static int tpm2_do_selftest(struct tpm_chip *chip)
 {
+	struct tpm_buf buf;
+	int full;
 	int rc;
-	unsigned int delay_msec = 10;
-	long duration;
-	struct tpm2_cmd cmd;
 
-	duration = jiffies_to_msecs(
-		tpm2_calc_ordinal_duration(chip, TPM2_CC_SELF_TEST));
+	for (full = 0; full < 2; full++) {
+		rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_SELF_TEST);
+		if (rc)
+			return rc;
 
-	while (1) {
-		cmd.header.in = tpm2_selftest_header;
-		cmd.params.selftest_in.full_test = 0;
+		tpm_buf_append_u8(&buf, full);
+		rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, 0,
+				      "attempting the self test");
+		tpm_buf_destroy(&buf);
 
-		rc = tpm_transmit_cmd(chip, NULL, &cmd, TPM2_SELF_TEST_IN_SIZE,
-				      0, 0, "continue selftest");
-
-		if (rc != TPM2_RC_TESTING || delay_msec >= duration)
-			break;
-
-		/* wait longer than before */
-		delay_msec *= 2;
-		tpm_msleep(delay_msec);
+		if (rc == TPM2_RC_TESTING)
+			rc = TPM2_RC_SUCCESS;
+		if (rc == TPM2_RC_INITIALIZE || rc == TPM2_RC_SUCCESS)
+			return rc;
 	}
 
 	return rc;
@@ -1058,10 +1042,8 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		goto out;
 
 	rc = tpm2_do_selftest(chip);
-	if (rc != 0 && rc != TPM2_RC_INITIALIZE) {
-		dev_err(&chip->dev, "TPM self test failed\n");
+	if (rc && rc != TPM2_RC_INITIALIZE)
 		goto out;
-	}
 
 	if (rc == TPM2_RC_INITIALIZE) {
 		rc = tpm_startup(chip);
@@ -1069,10 +1051,8 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 			goto out;
 
 		rc = tpm2_do_selftest(chip);
-		if (rc) {
-			dev_err(&chip->dev, "TPM self test failed\n");
+		if (rc)
 			goto out;
-		}
 	}
 
 	rc = tpm2_get_pcr_allocation(chip);

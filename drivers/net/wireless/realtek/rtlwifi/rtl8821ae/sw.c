@@ -328,6 +328,7 @@ static const struct rtl_hal_cfg rtl8821ae_hal_cfg = {
 	.alt_fw_name = "rtlwifi/rtl8821aefw.bin",
 	.ops = &rtl8821ae_hal_ops,
 	.mod_params = &rtl8821ae_mod_params,
+	.spec_ver = RTL_SPEC_SUPPORT_VHT,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,
 	.maps[SYS_FUNC_EN] = REG_SYS_FUNC_EN,
 	.maps[SYS_CLK] = REG_SYS_CLKR,

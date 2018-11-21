@@ -49,6 +49,11 @@
 	model = "Auvidea H100";
 	compatible = "auvidea,h100", "fsl,imx6q";
 
+	/* Will be filled by the bootloader */
+	memory@10000000 {
+		reg = <0x10000000 0>;
+	};
+
 	aliases {
 		rtc0 = &rtc;
 		rtc1 = &snvs_rtc;
@@ -161,7 +166,7 @@
 	status = "okay";
 
 	eeprom: 24c02@51 {
-		compatible = "microchip,24c02", "at24";
+		compatible = "microchip,24c02", "atmel,24c02";
 		reg = <0x51>;
 	};
 

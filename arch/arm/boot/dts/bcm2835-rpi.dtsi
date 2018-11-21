@@ -18,7 +18,9 @@
 
 	soc {
 		firmware: firmware {
-			compatible = "raspberrypi,bcm2835-firmware";
+			compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
+			#address-cells = <0>;
+			#size-cells = <0>;
 			mboxes = <&mailbox>;
 		};
 
@@ -26,6 +28,12 @@
 			compatible = "raspberrypi,bcm2835-power";
 			firmware = <&firmware>;
 			#power-domain-cells = <1>;
+		};
+
+		mailbox@7e00b840 {
+			compatible = "brcm,bcm2835-vchiq";
+			reg = <0x7e00b840 0xf>;
+			interrupts = <0 2>;
 		};
 	};
 };

@@ -12,7 +12,6 @@
 #include <assert.h>
 
 #include <sys/socket.h>
-#include <sys/resource.h>
 
 #include <linux/filter.h>
 #include <linux/bpf.h>
@@ -21,6 +20,7 @@
 #include <bpf/bpf.h>
 
 #include "../../../include/linux/filter.h"
+#include "bpf_rlimit.h"
 
 static struct bpf_insn prog[BPF_MAXINSNS];
 
@@ -184,11 +184,9 @@ static void do_test(uint32_t *tests, int start_insns, int fd_map,
 
 int main(void)
 {
-	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
 	uint32_t tests = 0;
 	int i, fd_map;
 
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
 	fd_map = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int),
 				sizeof(int), 1, BPF_F_NO_PREALLOC);
 	assert(fd_map > 0);

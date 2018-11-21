@@ -323,7 +323,7 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_constraints *constrs =
 					&substream->runtime->hw_constraints;
 	unsigned int k;
-	unsigned int rstamps[constrs->rules_num];
+	unsigned int *rstamps;
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp;
 	struct snd_pcm_hw_rule *r;
@@ -331,7 +331,7 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	struct snd_mask old_mask;
 	struct snd_interval old_interval;
 	bool again;
-	int changed;
+	int changed, err = 0;
 
 	/*
 	 * Each application of rule has own sequence number.
@@ -339,8 +339,9 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	 * Each member of 'rstamps' array represents the sequence number of
 	 * recent application of corresponding rule.
 	 */
-	for (k = 0; k < constrs->rules_num; k++)
-		rstamps[k] = 0;
+	rstamps = kcalloc(constrs->rules_num, sizeof(unsigned int), GFP_KERNEL);
+	if (!rstamps)
+		return -ENOMEM;
 
 	/*
 	 * Each member of 'vstamps' array represents the sequence number of
@@ -398,8 +399,10 @@ retry:
 		}
 
 		changed = r->func(params, r);
-		if (changed < 0)
-			return changed;
+		if (changed < 0) {
+			err = changed;
+			goto out;
+		}
 
 		/*
 		 * When the parameter is changed, notify it to the caller
@@ -430,7 +433,9 @@ retry:
 	if (again)
 		goto retry;
 
-	return 0;
+ out:
+	kfree(rstamps);
+	return err;
 }
 
 static int fixup_unreferenced_params(struct snd_pcm_substream *substream,
@@ -612,7 +617,7 @@ static int snd_pcm_hw_params_choose(struct snd_pcm_substream *pcm,
 			changed = snd_pcm_hw_param_first(pcm, params, *v, NULL);
 		else
 			changed = snd_pcm_hw_param_last(pcm, params, *v, NULL);
-		if (snd_BUG_ON(changed < 0))
+		if (changed < 0)
 			return changed;
 		if (changed == 0)
 			continue;
@@ -2687,7 +2692,8 @@ static int snd_pcm_hwsync(struct snd_pcm_substream *substream)
 	return err;
 }
 		
-static snd_pcm_sframes_t snd_pcm_delay(struct snd_pcm_substream *substream)
+static int snd_pcm_delay(struct snd_pcm_substream *substream,
+			 snd_pcm_sframes_t *delay)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
@@ -2703,7 +2709,9 @@ static snd_pcm_sframes_t snd_pcm_delay(struct snd_pcm_substream *substream)
 		n += runtime->delay;
 	}
 	snd_pcm_stream_unlock_irq(substream);
-	return err < 0 ? err : n;
+	if (!err)
+		*delay = n;
+	return err;
 }
 		
 static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
@@ -2746,6 +2754,7 @@ static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
 	sync_ptr.s.status.hw_ptr = status->hw_ptr;
 	sync_ptr.s.status.tstamp = status->tstamp;
 	sync_ptr.s.status.suspended_state = status->suspended_state;
+	sync_ptr.s.status.audio_tstamp = status->audio_tstamp;
 	snd_pcm_stream_unlock_irq(substream);
 	if (copy_to_user(_sync_ptr, &sync_ptr, sizeof(sync_ptr)))
 		return -EFAULT;
@@ -2911,11 +2920,13 @@ static int snd_pcm_common_ioctl(struct file *file,
 		return snd_pcm_hwsync(substream);
 	case SNDRV_PCM_IOCTL_DELAY:
 	{
-		snd_pcm_sframes_t delay = snd_pcm_delay(substream);
+		snd_pcm_sframes_t delay;
 		snd_pcm_sframes_t __user *res = arg;
+		int err;
 
-		if (delay < 0)
-			return delay;
+		err = snd_pcm_delay(substream, &delay);
+		if (err)
+			return err;
 		if (put_user(delay, res))
 			return -EFAULT;
 		return 0;
@@ -3003,13 +3014,7 @@ int snd_pcm_kernel_ioctl(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_IOCTL_DROP:
 		return snd_pcm_drop(substream);
 	case SNDRV_PCM_IOCTL_DELAY:
-	{
-		result = snd_pcm_delay(substream);
-		if (result < 0)
-			return result;
-		*frames = result;
-		return 0;
-	}
+		return snd_pcm_delay(substream, frames);
 	default:
 		return -EINVAL;
 	}
@@ -3229,7 +3234,7 @@ static __poll_t snd_pcm_capture_poll(struct file *file, poll_table * wait)
 /*
  * mmap status record
  */
-static int snd_pcm_mmap_status_fault(struct vm_fault *vmf)
+static vm_fault_t snd_pcm_mmap_status_fault(struct vm_fault *vmf)
 {
 	struct snd_pcm_substream *substream = vmf->vma->vm_private_data;
 	struct snd_pcm_runtime *runtime;
@@ -3265,7 +3270,7 @@ static int snd_pcm_mmap_status(struct snd_pcm_substream *substream, struct file 
 /*
  * mmap control record
  */
-static int snd_pcm_mmap_control_fault(struct vm_fault *vmf)
+static vm_fault_t snd_pcm_mmap_control_fault(struct vm_fault *vmf)
 {
 	struct snd_pcm_substream *substream = vmf->vma->vm_private_data;
 	struct snd_pcm_runtime *runtime;
@@ -3354,7 +3359,7 @@ snd_pcm_default_page_ops(struct snd_pcm_substream *substream, unsigned long ofs)
 /*
  * fault callback for mmapping a RAM page
  */
-static int snd_pcm_mmap_data_fault(struct vm_fault *vmf)
+static vm_fault_t snd_pcm_mmap_data_fault(struct vm_fault *vmf)
 {
 	struct snd_pcm_substream *substream = vmf->vma->vm_private_data;
 	struct snd_pcm_runtime *runtime;

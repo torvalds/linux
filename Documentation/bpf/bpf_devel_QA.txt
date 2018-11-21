@@ -539,12 +539,32 @@ A: Although LLVM IR generation and optimization try to stay architecture
        The clang option "-fno-jump-tables" can be used to disable
        switch table generation.
 
+     - For clang -target bpf, it is guaranteed that pointer or long /
+       unsigned long types will always have a width of 64 bit, no matter
+       whether underlying clang binary or default target (or kernel) is
+       32 bit. However, when native clang target is used, then it will
+       compile these types based on the underlying architecture's conventions,
+       meaning in case of 32 bit architecture, pointer or long / unsigned
+       long types e.g. in BPF context structure will have width of 32 bit
+       while the BPF LLVM back end still operates in 64 bit. The native
+       target is mostly needed in tracing for the case of walking pt_regs
+       or other kernel structures where CPU's register width matters.
+       Otherwise, clang -target bpf is generally recommended.
+
    You should use default target when:
 
      - Your program includes a header file, e.g., ptrace.h, which eventually
        pulls in some header files containing file scope host assembly codes.
      - You can add "-fno-jump-tables" to work around the switch table issue.
 
-   Otherwise, you can use bpf target.
+   Otherwise, you can use bpf target. Additionally, you _must_ use bpf target
+   when:
+
+     - Your program uses data structures with pointer or long / unsigned long
+       types that interface with BPF helpers or context data structures. Access
+       into these structures is verified by the BPF verifier and may result
+       in verification failures if the native architecture is not aligned with
+       the BPF architecture, e.g. 64-bit. An example of this is
+       BPF_PROG_TYPE_SK_MSG require '-target bpf'
 
 Happy BPF hacking!

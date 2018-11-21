@@ -88,15 +88,6 @@ config CAN_AT91
 	  This is a driver for the SoC CAN controller in Atmel's AT91SAM9263
 	  and AT91SAM9X5 processors.
 
-config CAN_BFIN
-	depends on BF534 || BF536 || BF537 || BF538 || BF539 || BF54x
-	tristate "Analog Devices Blackfin on-chip CAN"
-	---help---
-	  Driver for the Analog Devices Blackfin on-chip CAN controllers
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_can.
-
 config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
 	depends on ARM || PPC

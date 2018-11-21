@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/pci/pcie/aer/aerdrv_core.c
- *
- * This file implements the core part of PCIe AER. When a PCIe
- * error is delivered, an error message will be collected and printed to
- * console, then, an error recovery procedure will be executed by following
- * the PCI error recovery rules.
+ * Implement the core part of PCIe AER. When a PCIe error is delivered, an
+ * error message will be collected and printed to console, then an error
+ * recovery procedure will be executed by following the PCI error recovery
+ * rules.
  *
  * Copyright (C) 2006 Intel Corp.
  *	Tom Long Nguyen (tom.l.nguyen@intel.com)
  *	Zhang Yanmin (yanmin.zhang@intel.com)
- *
  */
 
 #include <linux/module.h>

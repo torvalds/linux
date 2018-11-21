@@ -49,6 +49,9 @@
 
 #define LAST_RECORD_TYPE 0xff
 
+#define DC_LOGGER \
+	bp->base.ctx->logger
+
 /* GUID to validate external display connection info table (aka OPM module) */
 static const uint8_t ext_display_connection_guid[NUMBER_OF_UCHAR_FOR_GUID] = {
 	0x91, 0x6E, 0x57, 0x09,
@@ -3079,8 +3082,7 @@ static enum bp_result patch_bios_image_from_ext_display_connection_info(
 					    opm_object,
 					    &ext_display_connection_info_tbl) != BP_RESULT_OK) {
 
-		dm_logger_write(bp->base.ctx->logger, LOG_WARNING,
-				"%s: Failed to read Connection Info Table", __func__);
+		DC_LOG_WARNING("%s: Failed to read Connection Info Table", __func__);
 		return BP_RESULT_UNSUPPORTED;
 	}
 
@@ -3795,14 +3797,11 @@ static const struct dc_vbios_funcs vbios_funcs = {
 
 	.get_gpio_pin_info = bios_parser_get_gpio_pin_info,
 
-	.get_embedded_panel_info = bios_parser_get_embedded_panel_info,
-
-	.get_gpio_pin_info = bios_parser_get_gpio_pin_info,
-
 	.get_encoder_cap_info = bios_parser_get_encoder_cap_info,
 
 	/* bios scratch register communication */
 	.is_accelerated_mode = bios_is_accelerated_mode,
+	.get_vga_enabled_displays = bios_get_vga_enabled_displays,
 
 	.set_scratch_critical_state = bios_parser_set_scratch_critical_state,
 

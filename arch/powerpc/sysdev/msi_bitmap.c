@@ -10,6 +10,7 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/bitmap.h>
 #include <linux/bootmem.h>
 #include <asm/msi_bitmap.h>

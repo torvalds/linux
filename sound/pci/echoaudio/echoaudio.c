@@ -736,8 +736,7 @@ static int pcm_prepare(struct snd_pcm_substream *substream)
 static int pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct echoaudio *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct audiopipe *pipe = runtime->private_data;
+	struct audiopipe *pipe;
 	int i, err;
 	u32 channelmask = 0;
 	struct snd_pcm_substream *s;

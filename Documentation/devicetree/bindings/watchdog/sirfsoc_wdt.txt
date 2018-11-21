@@ -5,10 +5,14 @@ Required properties:
 - reg: Address range of tick timer/WDT register set
 - interrupts: interrupt number to the cpu
 
+Optional properties:
+- timeout-sec : Contains the watchdog timeout in seconds
+
 Example:
 
 timer@b0020000 {
 	compatible = "sirf,prima2-tick";
 	reg = <0xb0020000 0x1000>;
 	interrupts = <0>;
+	timeout-sec = <30>;
 };

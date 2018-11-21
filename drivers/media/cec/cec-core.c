@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cec-core.c - HDMI Consumer Electronics Control framework - Core
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/errno.h>
@@ -207,6 +195,55 @@ void cec_register_cec_notifier(struct cec_adapter *adap,
 EXPORT_SYMBOL_GPL(cec_register_cec_notifier);
 #endif
 
+#ifdef CONFIG_DEBUG_FS
+static ssize_t cec_error_inj_write(struct file *file,
+	const char __user *ubuf, size_t count, loff_t *ppos)
+{
+	struct seq_file *sf = file->private_data;
+	struct cec_adapter *adap = sf->private;
+	char *buf;
+	char *line;
+	char *p;
+
+	buf = memdup_user_nul(ubuf, min_t(size_t, PAGE_SIZE, count));
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	p = buf;
+	while (p && *p) {
+		p = skip_spaces(p);
+		line = strsep(&p, "\n");
+		if (!*line || *line == '#')
+			continue;
+		if (!adap->ops->error_inj_parse_line(adap, line)) {
+			kfree(buf);
+			return -EINVAL;
+		}
+	}
+	kfree(buf);
+	return count;
+}
+
+static int cec_error_inj_show(struct seq_file *sf, void *unused)
+{
+	struct cec_adapter *adap = sf->private;
+
+	return adap->ops->error_inj_show(adap, sf);
+}
+
+static int cec_error_inj_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, cec_error_inj_show, inode->i_private);
+}
+
+static const struct file_operations cec_error_inj_fops = {
+	.open = cec_error_inj_open,
+	.write = cec_error_inj_write,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+#endif
+
 struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 					 void *priv, const char *name, u32 caps,
 					 u8 available_las)
@@ -346,7 +383,16 @@ int cec_register_adapter(struct cec_adapter *adap,
 		pr_warn("cec-%s: Failed to create status file\n", adap->name);
 		debugfs_remove_recursive(adap->cec_dir);
 		adap->cec_dir = NULL;
+		return 0;
 	}
+	if (!adap->ops->error_inj_show || !adap->ops->error_inj_parse_line)
+		return 0;
+	adap->error_inj_file = debugfs_create_file("error-inj", 0644,
+						   adap->cec_dir, adap,
+						   &cec_error_inj_fops);
+	if (IS_ERR_OR_NULL(adap->error_inj_file))
+		pr_warn("cec-%s: Failed to create error-inj file\n",
+			adap->name);
 #endif
 	return 0;
 }

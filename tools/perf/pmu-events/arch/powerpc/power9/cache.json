@@ -20,11 +20,6 @@
     "BriefDescription": "Finish stall due to a scalar fixed point or CR instruction in the execution pipeline. These instructions get routed to the ALU, ALU2, and DIV pipes"
   },
   {,
-    "EventCode": "0x1D15C",
-    "EventName": "PM_MRK_DTLB_MISS_1G",
-    "BriefDescription": "Marked Data TLB reload (after a miss) page size 2M. Implies radix translation was used"
-  },
-  {,
     "EventCode": "0x4D12A",
     "EventName": "PM_MRK_DATA_FROM_RL4_CYC",
     "BriefDescription": "Duration in cycles to reload from another chip's L4 on the same Node or Group ( Remote) due to a marked load"
@@ -80,21 +75,6 @@
     "BriefDescription": "Threshold counter exceed a count of 4096"
   },
   {,
-    "EventCode": "0x3D156",
-    "EventName": "PM_MRK_DTLB_MISS_64K",
-    "BriefDescription": "Marked Data TLB Miss page size 64K"
-  },
-  {,
-    "EventCode": "0x4C15E",
-    "EventName": "PM_MRK_DTLB_MISS_16M",
-    "BriefDescription": "Marked Data TLB Miss page size 16M"
-  },
-  {,
-    "EventCode": "0x2D15E",
-    "EventName": "PM_MRK_DTLB_MISS_16G",
-    "BriefDescription": "Marked Data TLB Miss page size 16G"
-  },
-  {,
     "EventCode": "0x3F14A",
     "EventName": "PM_MRK_DPTEG_FROM_RMEM",
     "BriefDescription": "A Page Table Entry was loaded into the TLB from another chip's memory on the same Node or Group ( Remote) due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
@@ -123,10 +103,5 @@
     "EventCode": "0x1002A",
     "EventName": "PM_CMPLU_STALL_LARX",
     "BriefDescription": "Finish stall because the NTF instruction was a larx waiting to be satisfied"
-  },
-  {,
-    "EventCode": "0x1C058",
-    "EventName": "PM_DTLB_MISS_16G",
-    "BriefDescription": "Data TLB Miss page size 16G"
   }
 ]

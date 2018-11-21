@@ -117,6 +117,21 @@ static u32 tcp_v6_init_ts_off(const struct net *net, const struct sk_buff *skb)
 				   ipv6_hdr(skb)->saddr.s6_addr32);
 }
 
+static int tcp_v6_pre_connect(struct sock *sk, struct sockaddr *uaddr,
+			      int addr_len)
+{
+	/* This check is replicated from tcp_v6_connect() and intended to
+	 * prevent BPF program called below from accessing bytes that are out
+	 * of the bound specified by user in addr_len.
+	 */
+	if (addr_len < SIN6_LEN_RFC2133)
+		return -EINVAL;
+
+	sock_owned_by_me(sk);
+
+	return BPF_CGROUP_RUN_PROG_INET6_CONNECT(sk, uaddr);
+}
+
 static int tcp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 			  int addr_len)
 {
@@ -1451,6 +1466,7 @@ process:
 
 	if (sk->sk_state == TCP_NEW_SYN_RECV) {
 		struct request_sock *req = inet_reqsk(sk);
+		bool req_stolen = false;
 		struct sock *nsk;
 
 		sk = req->rsk_listener;
@@ -1470,10 +1486,20 @@ process:
 			th = (const struct tcphdr *)skb->data;
 			hdr = ipv6_hdr(skb);
 			tcp_v6_fill_cb(skb, hdr, th);
-			nsk = tcp_check_req(sk, skb, req, false);
+			nsk = tcp_check_req(sk, skb, req, false, &req_stolen);
 		}
 		if (!nsk) {
 			reqsk_put(req);
+			if (req_stolen) {
+				/* Another cpu got exclusive access to req
+				 * and created a full blown socket.
+				 * Try to feed this packet to this socket
+				 * instead of discarding it.
+				 */
+				tcp_v6_restore_cb(skb);
+				sock_put(sk);
+				goto lookup;
+			}
 			goto discard_and_relse;
 		}
 		if (nsk == sk) {
@@ -1914,6 +1940,7 @@ struct proto tcpv6_prot = {
 	.name			= "TCPv6",
 	.owner			= THIS_MODULE,
 	.close			= tcp_close,
+	.pre_connect		= tcp_v6_pre_connect,
 	.connect		= tcp_v6_connect,
 	.disconnect		= tcp_disconnect,
 	.accept			= inet_csk_accept,

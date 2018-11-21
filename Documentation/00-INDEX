@@ -66,8 +66,6 @@ backlight/
 	- directory with info on controlling backlights in flat panel displays
 bcache.txt
 	- Block-layer cache on fast SSDs to improve slow (raid) I/O performance.
-blackfin/
-	- directory with documentation for the Blackfin arch.
 block/
 	- info on the Block I/O (BIO) layer.
 blockdev/
@@ -114,8 +112,6 @@ cputopology.txt
 	- documentation on how CPU topology info is exported via sysfs.
 crc32.txt
 	- brief tutorial on CRC computation
-cris/
-	- directory with info about Linux on CRIS architecture.
 crypto/
 	- directory with info on the Crypto API.
 dcdbas.txt
@@ -172,8 +168,6 @@ fmc/
 	- information about the FMC bus abstraction
 fpga/
 	- FPGA Manager Core.
-frv/
-	- Fujitsu FR-V Linux documentation.
 futex-requeue-pi.txt
 	- info on requeueing of tasks from a non-PI futex to a PI futex
 gcc-plugins.txt
@@ -276,8 +270,6 @@ memory-hotplug.txt
 	- Hotpluggable memory support, how to use and current status.
 men-chameleon-bus.txt
 	- info on MEN chameleon bus.
-metag/
-	- directory with info about Linux on Meta architecture.
 mic/
 	- Intel Many Integrated Core (MIC) architecture device driver.
 mips/
@@ -286,8 +278,6 @@ misc-devices/
 	- directory with info about devices using the misc dev subsystem
 mmc/
 	- directory with info about the MMC subsystem
-mn10300/
-	- directory with info about the mn10300 architecture port
 mtd/
 	- directory with info about memory technology devices (flash)
 namespaces/

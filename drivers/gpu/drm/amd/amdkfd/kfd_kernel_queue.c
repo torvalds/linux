@@ -297,10 +297,15 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
 		kernel_queue_init_vi(&kq->ops_asic_specific);
 		break;
 
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		kernel_queue_init_cik(&kq->ops_asic_specific);
 		break;
 	default:

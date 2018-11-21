@@ -825,7 +825,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 		goto fail_rindex;
 	}
 	/*
-	 * i_mutex on quota files is special. Since this inode is hidden system
+	 * i_rwsem on quota files is special. Since this inode is hidden system
 	 * file, we are safe to define locking ourselves.
 	 */
 	lockdep_set_class(&sdp->sd_quota_inode->i_rwsem,

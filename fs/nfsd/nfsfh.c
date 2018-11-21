@@ -87,13 +87,23 @@ nfsd_mode_check(struct svc_rqst *rqstp, struct dentry *dentry,
 	return nfserr_inval;
 }
 
+static bool nfsd_originating_port_ok(struct svc_rqst *rqstp, int flags)
+{
+	if (flags & NFSEXP_INSECURE_PORT)
+		return true;
+	/* We don't require gss requests to use low ports: */
+	if (rqstp->rq_cred.cr_flavor >= RPC_AUTH_GSS)
+		return true;
+	return test_bit(RQ_SECURE, &rqstp->rq_flags);
+}
+
 static __be32 nfsd_setuser_and_check_port(struct svc_rqst *rqstp,
 					  struct svc_export *exp)
 {
 	int flags = nfsexp_flags(rqstp, exp);
 
 	/* Check if the request originated from a secure port. */
-	if (!test_bit(RQ_SECURE, &rqstp->rq_flags) && !(flags & NFSEXP_INSECURE_PORT)) {
+	if (!nfsd_originating_port_ok(rqstp, flags)) {
 		RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
 		dprintk("nfsd: request from insecure port %s!\n",
 		        svc_print_addr(rqstp, buf, sizeof(buf)));

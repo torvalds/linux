@@ -138,7 +138,7 @@ static int ttpci_eeprom_read_encodedMAC(struct i2c_adapter *adapter, u8 * encode
 
 int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 {
-	int ret, i;
+	int ret;
 	u8 encodedMAC[20];
 	u8 decodedMAC[6];
 
@@ -153,11 +153,8 @@ int ttpci_eeprom_parse_mac(struct i2c_adapter *adapter, u8 *proposed_mac)
 	ret = getmac_tt(decodedMAC, encodedMAC);
 	if( ret != 0 ) {
 		dprintk("adapter failed MAC signature check\n");
-		dprintk("encoded MAC from EEPROM was " );
-		for(i=0; i<19; i++) {
-			dprintk( "%.2x:", encodedMAC[i]);
-		}
-		dprintk("%.2x\n", encodedMAC[19]);
+		dprintk("encoded MAC from EEPROM was %*phC",
+			(int)sizeof(encodedMAC), &encodedMAC);
 		eth_zero_addr(proposed_mac);
 		return ret;
 	}

@@ -33,6 +33,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/processor.h>
 #include <asm/sstep.h>
+#include <asm/debug.h>
 #include <linux/uaccess.h>
 
 /*
@@ -171,6 +172,8 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp)
 	 * HW_BREAKPOINT_ALIGN by rounding off to the lower address, the
 	 * 'symbolsize' should satisfy the check below.
 	 */
+	if (!ppc_breakpoint_available())
+		return -ENODEV;
 	length_max = 8; /* DABR */
 	if (cpu_has_feature(CPU_FTR_DAWR)) {
 		length_max = 512 ; /* 64 doublewords */

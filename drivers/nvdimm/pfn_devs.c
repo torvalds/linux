@@ -27,7 +27,7 @@ static void nd_pfn_release(struct device *dev)
 	struct nd_region *nd_region = to_nd_region(dev->parent);
 	struct nd_pfn *nd_pfn = to_nd_pfn(dev);
 
-	dev_dbg(dev, "%s\n", __func__);
+	dev_dbg(dev, "trace\n");
 	nd_detach_ndns(&nd_pfn->dev, &nd_pfn->ndns);
 	ida_simple_remove(&nd_region->pfn_ida, nd_pfn->id);
 	kfree(nd_pfn->uuid);
@@ -94,8 +94,8 @@ static ssize_t mode_store(struct device *dev,
 		else
 			rc = -EINVAL;
 	}
-	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
-			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
+			buf[len - 1] == '\n' ? "" : "\n");
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
@@ -144,8 +144,8 @@ static ssize_t align_store(struct device *dev,
 	nvdimm_bus_lock(dev);
 	rc = nd_size_select_store(dev, buf, &nd_pfn->align,
 			nd_pfn_supported_alignments());
-	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
-			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
+			buf[len - 1] == '\n' ? "" : "\n");
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
@@ -171,8 +171,8 @@ static ssize_t uuid_store(struct device *dev,
 
 	device_lock(dev);
 	rc = nd_uuid_store(dev, &nd_pfn->uuid, buf, len);
-	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
-			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
+			buf[len - 1] == '\n' ? "" : "\n");
 	device_unlock(dev);
 
 	return rc ? rc : len;
@@ -201,8 +201,8 @@ static ssize_t namespace_store(struct device *dev,
 	device_lock(dev);
 	nvdimm_bus_lock(dev);
 	rc = nd_namespace_store(dev, &nd_pfn->ndns, buf, len);
-	dev_dbg(dev, "%s: result: %zd wrote: %s%s", __func__,
-			rc, buf, buf[len - 1] == '\n' ? "" : "\n");
+	dev_dbg(dev, "result: %zd wrote: %s%s", rc, buf,
+			buf[len - 1] == '\n' ? "" : "\n");
 	nvdimm_bus_unlock(dev);
 	device_unlock(dev);
 
@@ -314,8 +314,8 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
 	dev = &nd_pfn->dev;
 	device_initialize(&nd_pfn->dev);
 	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
-		dev_dbg(&ndns->dev, "%s failed, already claimed by %s\n",
-				__func__, dev_name(ndns->claim));
+		dev_dbg(&ndns->dev, "failed, already claimed by %s\n",
+				dev_name(ndns->claim));
 		put_device(dev);
 		return NULL;
 	}
@@ -510,8 +510,7 @@ int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns)
 	nd_pfn = to_nd_pfn(pfn_dev);
 	nd_pfn->pfn_sb = pfn_sb;
 	rc = nd_pfn_validate(nd_pfn, PFN_SIG);
-	dev_dbg(dev, "%s: pfn: %s\n", __func__,
-			rc == 0 ? dev_name(pfn_dev) : "<none>");
+	dev_dbg(dev, "pfn: %s\n", rc == 0 ? dev_name(pfn_dev) : "<none>");
 	if (rc < 0) {
 		nd_detach_ndns(pfn_dev, &nd_pfn->ndns);
 		put_device(pfn_dev);

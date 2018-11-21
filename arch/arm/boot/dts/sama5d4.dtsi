@@ -1379,7 +1379,7 @@
 			pinctrl@fc06a000 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "atmel,at91sam9x5-pinctrl", "atmel,at91rm9200-pinctrl", "simple-bus";
+				compatible = "atmel,sama5d3-pinctrl", "atmel,at91sam9x5-pinctrl", "simple-bus";
 				ranges = <0xfc068000 0xfc068000 0x100
 					  0xfc06a000 0xfc06a000 0x4000>;
 				/* WARNING: revisit as pin spec has changed */
@@ -1926,8 +1926,8 @@
 				uart0 {
 					pinctrl_uart0: uart0-0 {
 						atmel,pins =
-							<AT91_PIOE 29 AT91_PERIPH_B AT91_PINCTRL_NONE		/* RXD */
-							 AT91_PIOE 30 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* TXD */
+							<AT91_PIOE 29 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* RXD */
+							 AT91_PIOE 30 AT91_PERIPH_B AT91_PINCTRL_NONE		/* TXD */
 							>;
 					};
 				};
@@ -1935,8 +1935,8 @@
 				uart1 {
 					pinctrl_uart1: uart1-0 {
 						atmel,pins =
-							<AT91_PIOC 25 AT91_PERIPH_C AT91_PINCTRL_NONE		/* RXD */
-							 AT91_PIOC 26 AT91_PERIPH_C AT91_PINCTRL_PULL_UP	/* TXD */
+							<AT91_PIOC 25 AT91_PERIPH_C AT91_PINCTRL_PULL_UP	/* RXD */
+							 AT91_PIOC 26 AT91_PERIPH_C AT91_PINCTRL_NONE		/* TXD */
 							>;
 					};
 				};
@@ -1944,8 +1944,8 @@
 				usart0 {
 					pinctrl_usart0: usart0-0 {
 						atmel,pins =
-							<AT91_PIOD 12 AT91_PERIPH_A AT91_PINCTRL_NONE		/* RXD */
-							 AT91_PIOD 13 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* TXD */
+							<AT91_PIOD 12 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* RXD */
+							 AT91_PIOD 13 AT91_PERIPH_A AT91_PINCTRL_NONE		/* TXD */
 							>;
 					};
 					pinctrl_usart0_rts: usart0_rts-0 {
@@ -1959,8 +1959,8 @@
 				usart1 {
 					pinctrl_usart1: usart1-0 {
 						atmel,pins =
-							<AT91_PIOD 16 AT91_PERIPH_A AT91_PINCTRL_NONE		/* RXD */
-							 AT91_PIOD 17 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* TXD */
+							<AT91_PIOD 16 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* RXD */
+							 AT91_PIOD 17 AT91_PERIPH_A AT91_PINCTRL_NONE		/* TXD */
 							>;
 					};
 					pinctrl_usart1_rts: usart1_rts-0 {
@@ -1974,8 +1974,8 @@
 				usart2 {
 					pinctrl_usart2: usart2-0 {
 						atmel,pins =
-							<AT91_PIOB 4 AT91_PERIPH_B AT91_PINCTRL_NONE		/* RXD - conflicts with G0_CRS, ISI_HSYNC */
-							 AT91_PIOB 5 AT91_PERIPH_B AT91_PINCTRL_PULL_UP		/* TXD - conflicts with G0_COL, PCK2 */
+							<AT91_PIOB 4 AT91_PERIPH_B AT91_PINCTRL_PULL_UP		/* RXD - conflicts with G0_CRS, ISI_HSYNC */
+							 AT91_PIOB 5 AT91_PERIPH_B AT91_PINCTRL_NONE		/* TXD - conflicts with G0_COL, PCK2 */
 							>;
 					};
 					pinctrl_usart2_rts: usart2_rts-0 {
@@ -1989,8 +1989,8 @@
 				usart3 {
 					pinctrl_usart3: usart3-0 {
 						atmel,pins =
-							<AT91_PIOE 16 AT91_PERIPH_B AT91_PINCTRL_NONE		/* RXD */
-							 AT91_PIOE 17 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* TXD */
+							<AT91_PIOE 16 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* RXD */
+							 AT91_PIOE 17 AT91_PERIPH_B AT91_PINCTRL_NONE		/* TXD */
 							>;
 					};
 				};
@@ -1998,8 +1998,8 @@
 				usart4 {
 					pinctrl_usart4: usart4-0 {
 						atmel,pins =
-							<AT91_PIOE 26 AT91_PERIPH_B AT91_PINCTRL_NONE		/* RXD */
-							 AT91_PIOE 27 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* TXD */
+							<AT91_PIOE 26 AT91_PERIPH_B AT91_PINCTRL_PULL_UP	/* RXD */
+							 AT91_PIOE 27 AT91_PERIPH_B AT91_PINCTRL_NONE		/* TXD */
 							>;
 					};
 					pinctrl_usart4_rts: usart4_rts-0 {

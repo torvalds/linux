@@ -21,7 +21,7 @@ Required properties:
 - interrupts : identifier to the device interrupt
 - clocks : a list of phandle + clock-specifier pairs, one for each
 	   entry in clock names.
-- clocks-names :
+- clock-names :
    * "xtal" for external xtal clock identifier
    * "pclk" for the bus core clock, either the clk81 clock or the gate clock
    * "baud" for the source of the baudrate generator, can be either the xtal

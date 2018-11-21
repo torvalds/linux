@@ -18,7 +18,7 @@
 
 #include "nvmet.h"
 
-static struct nvmet_fabrics_ops *nvmet_transports[NVMF_TRTYPE_MAX];
+static const struct nvmet_fabrics_ops *nvmet_transports[NVMF_TRTYPE_MAX];
 static DEFINE_IDA(cntlid_ida);
 
 /*
@@ -137,7 +137,7 @@ static void nvmet_add_async_event(struct nvmet_ctrl *ctrl, u8 event_type,
 	schedule_work(&ctrl->async_event_work);
 }
 
-int nvmet_register_transport(struct nvmet_fabrics_ops *ops)
+int nvmet_register_transport(const struct nvmet_fabrics_ops *ops)
 {
 	int ret = 0;
 
@@ -152,7 +152,7 @@ int nvmet_register_transport(struct nvmet_fabrics_ops *ops)
 }
 EXPORT_SYMBOL_GPL(nvmet_register_transport);
 
-void nvmet_unregister_transport(struct nvmet_fabrics_ops *ops)
+void nvmet_unregister_transport(const struct nvmet_fabrics_ops *ops)
 {
 	down_write(&nvmet_config_sem);
 	nvmet_transports[ops->type] = NULL;
@@ -162,7 +162,7 @@ EXPORT_SYMBOL_GPL(nvmet_unregister_transport);
 
 int nvmet_enable_port(struct nvmet_port *port)
 {
-	struct nvmet_fabrics_ops *ops;
+	const struct nvmet_fabrics_ops *ops;
 	int ret;
 
 	lockdep_assert_held(&nvmet_config_sem);
@@ -195,7 +195,7 @@ int nvmet_enable_port(struct nvmet_port *port)
 
 void nvmet_disable_port(struct nvmet_port *port)
 {
-	struct nvmet_fabrics_ops *ops;
+	const struct nvmet_fabrics_ops *ops;
 
 	lockdep_assert_held(&nvmet_config_sem);
 
@@ -500,7 +500,7 @@ int nvmet_sq_init(struct nvmet_sq *sq)
 EXPORT_SYMBOL_GPL(nvmet_sq_init);
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
-		struct nvmet_sq *sq, struct nvmet_fabrics_ops *ops)
+		struct nvmet_sq *sq, const struct nvmet_fabrics_ops *ops)
 {
 	u8 flags = req->cmd->common.flags;
 	u16 status;
