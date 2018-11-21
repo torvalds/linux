@@ -226,54 +226,6 @@ core_initcall(rcu_set_runtime_mode);
 
 #endif /* #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU) */
 
-#ifdef CONFIG_PREEMPT_RCU
-
-/*
- * Preemptible RCU implementation for rcu_read_lock().
- * Just increment ->rcu_read_lock_nesting, shared state will be updated
- * if we block.
- */
-void __rcu_read_lock(void)
-{
-	current->rcu_read_lock_nesting++;
-	barrier();  /* critical section after entry code. */
-}
-EXPORT_SYMBOL_GPL(__rcu_read_lock);
-
-/*
- * Preemptible RCU implementation for rcu_read_unlock().
- * Decrement ->rcu_read_lock_nesting.  If the result is zero (outermost
- * rcu_read_unlock()) and ->rcu_read_unlock_special is non-zero, then
- * invoke rcu_read_unlock_special() to clean up after a context switch
- * in an RCU read-side critical section and other special cases.
- */
-void __rcu_read_unlock(void)
-{
-	struct task_struct *t = current;
-
-	if (t->rcu_read_lock_nesting != 1) {
-		--t->rcu_read_lock_nesting;
-	} else {
-		barrier();  /* critical section before exit code. */
-		t->rcu_read_lock_nesting = INT_MIN;
-		barrier();  /* assign before ->rcu_read_unlock_special load */
-		if (unlikely(READ_ONCE(t->rcu_read_unlock_special.s)))
-			rcu_read_unlock_special(t);
-		barrier();  /* ->rcu_read_unlock_special load before assign */
-		t->rcu_read_lock_nesting = 0;
-	}
-#ifdef CONFIG_PROVE_LOCKING
-	{
-		int rrln = READ_ONCE(t->rcu_read_lock_nesting);
-
-		WARN_ON_ONCE(rrln < 0 && rrln > INT_MIN / 2);
-	}
-#endif /* #ifdef CONFIG_PROVE_LOCKING */
-}
-EXPORT_SYMBOL_GPL(__rcu_read_unlock);
-
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
-
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
 struct lockdep_map rcu_lock_map =
@@ -624,7 +576,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks);
  * grace period has elapsed, in other words after all currently
  * executing rcu-tasks read-side critical sections have elapsed.  These
  * read-side critical sections are delimited by calls to schedule(),
- * cond_resched_rcu_qs(), idle execution, userspace execution, calls
+ * cond_resched_tasks_rcu_qs(), idle execution, userspace execution, calls
  * to synchronize_rcu_tasks(), and (in theory, anyway) cond_resched().
  *
  * This is a very specialized primitive, intended only for a few uses in

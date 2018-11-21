@@ -97,8 +97,8 @@ static int pktdev_major;
 static int write_congestion_on  = PKT_WRITE_CONGESTION_ON;
 static int write_congestion_off = PKT_WRITE_CONGESTION_OFF;
 static struct mutex ctl_mutex;	/* Serialize open/close/setup/teardown */
-static mempool_t *psd_pool;
-static struct bio_set *pkt_bio_set;
+static mempool_t psd_pool;
+static struct bio_set pkt_bio_set;
 
 static struct class	*class_pktcdvd = NULL;    /* /sys/class/pktcdvd */
 static struct dentry	*pkt_debugfs_root = NULL; /* /sys/kernel/debug/pktcdvd */
@@ -478,8 +478,8 @@ static void pkt_debugfs_dev_new(struct pktcdvd_device *pd)
 	if (!pd->dfs_d_root)
 		return;
 
-	pd->dfs_f_info = debugfs_create_file("info", S_IRUGO,
-				pd->dfs_d_root, pd, &debug_fops);
+	pd->dfs_f_info = debugfs_create_file("info", 0444,
+					     pd->dfs_d_root, pd, &debug_fops);
 }
 
 static void pkt_debugfs_dev_remove(struct pktcdvd_device *pd)
@@ -631,7 +631,7 @@ static inline struct pkt_rb_node *pkt_rbtree_next(struct pkt_rb_node *node)
 static void pkt_rbtree_erase(struct pktcdvd_device *pd, struct pkt_rb_node *node)
 {
 	rb_erase(&node->rb_node, &pd->bio_queue);
-	mempool_free(node, pd->rb_pool);
+	mempool_free(node, &pd->rb_pool);
 	pd->bio_queue_size--;
 	BUG_ON(pd->bio_queue_size < 0);
 }
@@ -704,13 +704,13 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 	int ret = 0;
 
 	rq = blk_get_request(q, (cgc->data_direction == CGC_DATA_WRITE) ?
-			     REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, __GFP_RECLAIM);
+			     REQ_OP_SCSI_OUT : REQ_OP_SCSI_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
 	if (cgc->buflen) {
 		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
-				      __GFP_RECLAIM);
+				      GFP_NOIO);
 		if (ret)
 			goto out;
 	}
@@ -1285,7 +1285,7 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 	 * Fill-in bvec with data from orig_bios.
 	 */
 	spin_lock(&pkt->lock);
-	bio_copy_data(pkt->w_bio, pkt->orig_bios.head);
+	bio_list_copy_data(pkt->w_bio, pkt->orig_bios.head);
 
 	pkt_set_state(pkt, PACKET_WRITE_WAIT_STATE);
 	spin_unlock(&pkt->lock);
@@ -2303,14 +2303,14 @@ static void pkt_end_io_read_cloned(struct bio *bio)
 	psd->bio->bi_status = bio->bi_status;
 	bio_put(bio);
 	bio_endio(psd->bio);
-	mempool_free(psd, psd_pool);
+	mempool_free(psd, &psd_pool);
 	pkt_bio_finished(pd);
 }
 
 static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 {
-	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, pkt_bio_set);
-	struct packet_stacked_data *psd = mempool_alloc(psd_pool, GFP_NOIO);
+	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, &pkt_bio_set);
+	struct packet_stacked_data *psd = mempool_alloc(&psd_pool, GFP_NOIO);
 
 	psd->pd = pd;
 	psd->bio = bio;
@@ -2381,7 +2381,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 	/*
 	 * No matching packet found. Store the bio in the work queue.
 	 */
-	node = mempool_alloc(pd->rb_pool, GFP_NOIO);
+	node = mempool_alloc(&pd->rb_pool, GFP_NOIO);
 	node->bio = bio;
 	spin_lock(&pd->lock);
 	BUG_ON(pd->bio_queue_size < 0);
@@ -2451,7 +2451,7 @@ static blk_qc_t pkt_make_request(struct request_queue *q, struct bio *bio)
 
 			split = bio_split(bio, last_zone -
 					  bio->bi_iter.bi_sector,
-					  GFP_NOIO, pkt_bio_set);
+					  GFP_NOIO, &pkt_bio_set);
 			bio_chain(split, bio);
 		} else {
 			split = bio;
@@ -2538,18 +2538,6 @@ static int pkt_seq_show(struct seq_file *m, void *p)
 	return 0;
 }
 
-static int pkt_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pkt_seq_show, PDE_DATA(inode));
-}
-
-static const struct file_operations pkt_proc_fops = {
-	.open	= pkt_seq_open,
-	.read	= seq_read,
-	.llseek	= seq_lseek,
-	.release = single_release
-};
-
 static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 {
 	int i;
@@ -2604,7 +2592,7 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 		goto out_mem;
 	}
 
-	proc_create_data(pd->name, 0, pkt_proc, &pkt_proc_fops, pd);
+	proc_create_single_data(pd->name, 0, pkt_proc, pkt_seq_show, pd);
 	pkt_dbg(1, pd, "writer mapped to %s\n", bdevname(bdev, b));
 	return 0;
 
@@ -2707,9 +2695,9 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	if (!pd)
 		goto out_mutex;
 
-	pd->rb_pool = mempool_create_kmalloc_pool(PKT_RB_POOL_SIZE,
-						  sizeof(struct pkt_rb_node));
-	if (!pd->rb_pool)
+	ret = mempool_init_kmalloc_pool(&pd->rb_pool, PKT_RB_POOL_SIZE,
+					sizeof(struct pkt_rb_node));
+	if (ret)
 		goto out_mem;
 
 	INIT_LIST_HEAD(&pd->cdrw.pkt_free_list);
@@ -2766,7 +2754,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 out_mem2:
 	put_disk(disk);
 out_mem:
-	mempool_destroy(pd->rb_pool);
+	mempool_exit(&pd->rb_pool);
 	kfree(pd);
 out_mutex:
 	mutex_unlock(&ctl_mutex);
@@ -2817,7 +2805,7 @@ static int pkt_remove_dev(dev_t pkt_dev)
 	blk_cleanup_queue(pd->disk->queue);
 	put_disk(pd->disk);
 
-	mempool_destroy(pd->rb_pool);
+	mempool_exit(&pd->rb_pool);
 	kfree(pd);
 
 	/* This is safe: open() is still holding a reference. */
@@ -2914,14 +2902,14 @@ static int __init pkt_init(void)
 
 	mutex_init(&ctl_mutex);
 
-	psd_pool = mempool_create_kmalloc_pool(PSD_POOL_SIZE,
-					sizeof(struct packet_stacked_data));
-	if (!psd_pool)
-		return -ENOMEM;
-	pkt_bio_set = bioset_create(BIO_POOL_SIZE, 0, 0);
-	if (!pkt_bio_set) {
-		mempool_destroy(psd_pool);
-		return -ENOMEM;
+	ret = mempool_init_kmalloc_pool(&psd_pool, PSD_POOL_SIZE,
+				    sizeof(struct packet_stacked_data));
+	if (ret)
+		return ret;
+	ret = bioset_init(&pkt_bio_set, BIO_POOL_SIZE, 0, 0);
+	if (ret) {
+		mempool_exit(&psd_pool);
+		return ret;
 	}
 
 	ret = register_blkdev(pktdev_major, DRIVER_NAME);
@@ -2954,8 +2942,8 @@ out_misc:
 out:
 	unregister_blkdev(pktdev_major, DRIVER_NAME);
 out2:
-	mempool_destroy(psd_pool);
-	bioset_free(pkt_bio_set);
+	mempool_exit(&psd_pool);
+	bioset_exit(&pkt_bio_set);
 	return ret;
 }
 
@@ -2968,8 +2956,8 @@ static void __exit pkt_exit(void)
 	pkt_sysfs_cleanup();
 
 	unregister_blkdev(pktdev_major, DRIVER_NAME);
-	mempool_destroy(psd_pool);
-	bioset_free(pkt_bio_set);
+	mempool_exit(&psd_pool);
+	bioset_exit(&pkt_bio_set);
 }
 
 MODULE_DESCRIPTION("Packet writing layer for CD/DVD drives");

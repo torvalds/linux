@@ -76,19 +76,15 @@ static ssize_t dut_mode_write(struct file *file, const char __user *user_buf,
 {
 	struct hci_dev *hdev = file->private_data;
 	struct sk_buff *skb;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
+	int err;
 
 	if (!test_bit(HCI_UP, &hdev->flags))
 		return -ENETDOWN;
 
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
-		return -EINVAL;
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
 
 	if (enable == hci_dev_test_flag(hdev, HCI_DUT_MODE))
 		return -EALREADY;
@@ -135,17 +131,12 @@ static ssize_t vendor_diag_write(struct file *file, const char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
 	int err;
 
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
-		return -EINVAL;
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
 
 	/* When the diagnostic flags are not persistent and the transport
 	 * is not active or in user channel operation, then there is no need
@@ -1290,7 +1281,7 @@ int hci_inquiry(void __user *arg)
 	/* cache_dump can't sleep. Therefore we allocate temp buffer and then
 	 * copy it to the user space.
 	 */
-	buf = kmalloc(sizeof(struct inquiry_info) * max_rsp, GFP_KERNEL);
+	buf = kmalloc_array(max_rsp, sizeof(struct inquiry_info), GFP_KERNEL);
 	if (!buf) {
 		err = -ENOMEM;
 		goto done;
@@ -3421,6 +3412,37 @@ int hci_send_cmd(struct hci_dev *hdev, __u16 opcode, __u32 plen,
 
 	return 0;
 }
+
+int __hci_cmd_send(struct hci_dev *hdev, u16 opcode, u32 plen,
+		   const void *param)
+{
+	struct sk_buff *skb;
+
+	if (hci_opcode_ogf(opcode) != 0x3f) {
+		/* A controller receiving a command shall respond with either
+		 * a Command Status Event or a Command Complete Event.
+		 * Therefore, all standard HCI commands must be sent via the
+		 * standard API, using hci_send_cmd or hci_cmd_sync helpers.
+		 * Some vendors do not comply with this rule for vendor-specific
+		 * commands and do not return any event. We want to support
+		 * unresponded commands for such cases only.
+		 */
+		bt_dev_err(hdev, "unresponded command not supported");
+		return -EINVAL;
+	}
+
+	skb = hci_prepare_cmd(hdev, opcode, plen, param);
+	if (!skb) {
+		bt_dev_err(hdev, "no memory for command (opcode 0x%4.4x)",
+			   opcode);
+		return -ENOMEM;
+	}
+
+	hci_send_frame(hdev, skb);
+
+	return 0;
+}
+EXPORT_SYMBOL(__hci_cmd_send);
 
 /* Get data from the previously sent command */
 void *hci_sent_cmd_data(struct hci_dev *hdev, __u16 opcode)

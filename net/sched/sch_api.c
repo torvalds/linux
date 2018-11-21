@@ -2092,23 +2092,11 @@ static int psched_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int psched_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, psched_show, NULL);
-}
-
-static const struct file_operations psched_fops = {
-	.open = psched_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static int __net_init psched_net_init(struct net *net)
 {
 	struct proc_dir_entry *e;
 
-	e = proc_create("psched", 0, net->proc_net, &psched_fops);
+	e = proc_create_single("psched", 0, net->proc_net, psched_show);
 	if (e == NULL)
 		return -ENOMEM;
 

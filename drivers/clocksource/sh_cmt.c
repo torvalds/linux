@@ -1000,7 +1000,7 @@ static int sh_cmt_setup(struct sh_cmt_device *cmt, struct platform_device *pdev)
 
 	/* Allocate and setup the channels. */
 	cmt->num_channels = hweight8(cmt->hw_channels);
-	cmt->channels = kzalloc(cmt->num_channels * sizeof(*cmt->channels),
+	cmt->channels = kcalloc(cmt->num_channels, sizeof(*cmt->channels),
 				GFP_KERNEL);
 	if (cmt->channels == NULL) {
 		ret = -ENOMEM;

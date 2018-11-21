@@ -1537,6 +1537,10 @@ static int chtls_rx_data(struct chtls_dev *cdev, struct sk_buff *skb)
 	struct sock *sk;
 
 	sk = lookup_tid(cdev->tids, hwtid);
+	if (unlikely(!sk)) {
+		pr_err("can't find conn. for hwtid %u.\n", hwtid);
+		return -EINVAL;
+	}
 	skb_dst_set(skb, NULL);
 	process_cpl_msg(chtls_recv_data, sk, skb);
 	return 0;
@@ -1585,6 +1589,10 @@ static int chtls_rx_pdu(struct chtls_dev *cdev, struct sk_buff *skb)
 	struct sock *sk;
 
 	sk = lookup_tid(cdev->tids, hwtid);
+	if (unlikely(!sk)) {
+		pr_err("can't find conn. for hwtid %u.\n", hwtid);
+		return -EINVAL;
+	}
 	skb_dst_set(skb, NULL);
 	process_cpl_msg(chtls_recv_pdu, sk, skb);
 	return 0;
@@ -1600,12 +1608,14 @@ static void chtls_set_hdrlen(struct sk_buff *skb, unsigned int nlen)
 
 static void chtls_rx_hdr(struct sock *sk, struct sk_buff *skb)
 {
-	struct cpl_rx_tls_cmp *cmp_cpl = cplhdr(skb);
+	struct tlsrx_cmp_hdr *tls_hdr_pkt;
+	struct cpl_rx_tls_cmp *cmp_cpl;
 	struct sk_buff *skb_rec;
 	struct chtls_sock *csk;
 	struct chtls_hws *tlsk;
 	struct tcp_sock *tp;
 
+	cmp_cpl = cplhdr(skb);
 	csk = rcu_dereference_sk_user_data(sk);
 	tlsk = &csk->tlshws;
 	tp = tcp_sk(sk);
@@ -1615,16 +1625,18 @@ static void chtls_rx_hdr(struct sock *sk, struct sk_buff *skb)
 
 	skb_reset_transport_header(skb);
 	__skb_pull(skb, sizeof(*cmp_cpl));
+	tls_hdr_pkt = (struct tlsrx_cmp_hdr *)skb->data;
+	if (tls_hdr_pkt->res_to_mac_error & TLSRX_HDR_PKT_ERROR_M)
+		tls_hdr_pkt->type = CONTENT_TYPE_ERROR;
 	if (!skb->data_len)
-		__skb_trim(skb, CPL_RX_TLS_CMP_LENGTH_G
-				(ntohl(cmp_cpl->pdulength_length)));
+		__skb_trim(skb, TLS_HEADER_LENGTH);
 
 	tp->rcv_nxt +=
 		CPL_RX_TLS_CMP_PDULENGTH_G(ntohl(cmp_cpl->pdulength_length));
 
+	ULP_SKB_CB(skb)->flags |= ULPCB_FLAG_TLS_HDR;
 	skb_rec = __skb_dequeue(&tlsk->sk_recv_queue);
 	if (!skb_rec) {
-		ULP_SKB_CB(skb)->flags |= ULPCB_FLAG_TLS_ND;
 		__skb_queue_tail(&sk->sk_receive_queue, skb);
 	} else {
 		chtls_set_hdrlen(skb, tlsk->pldlen);
@@ -1646,6 +1658,10 @@ static int chtls_rx_cmp(struct chtls_dev *cdev, struct sk_buff *skb)
 	struct sock *sk;
 
 	sk = lookup_tid(cdev->tids, hwtid);
+	if (unlikely(!sk)) {
+		pr_err("can't find conn. for hwtid %u.\n", hwtid);
+		return -EINVAL;
+	}
 	skb_dst_set(skb, NULL);
 	process_cpl_msg(chtls_rx_hdr, sk, skb);
 
@@ -2105,6 +2121,10 @@ static int chtls_wr_ack(struct chtls_dev *cdev, struct sk_buff *skb)
 	struct sock *sk;
 
 	sk = lookup_tid(cdev->tids, hwtid);
+	if (unlikely(!sk)) {
+		pr_err("can't find conn. for hwtid %u.\n", hwtid);
+		return -EINVAL;
+	}
 	process_cpl_msg(chtls_rx_ack, sk, skb);
 
 	return 0;

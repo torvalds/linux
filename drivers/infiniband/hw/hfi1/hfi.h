@@ -1,7 +1,7 @@
 #ifndef _HFI1_KERNEL_H
 #define _HFI1_KERNEL_H
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -231,20 +231,22 @@ struct hfi1_ctxtdata {
 	/* job key */
 	u16 jkey;
 	/* number of RcvArray groups for this context. */
-	u32 rcv_array_groups;
+	u16 rcv_array_groups;
 	/* index of first eager TID entry. */
-	u32 eager_base;
+	u16 eager_base;
 	/* number of expected TID entries */
-	u32 expected_count;
+	u16 expected_count;
 	/* index of first expected TID entry. */
-	u32 expected_base;
+	u16 expected_base;
+	/* array of tid_groups */
+	struct tid_group  *groups;
 
 	struct exp_tid_set tid_group_list;
 	struct exp_tid_set tid_used_list;
 	struct exp_tid_set tid_full_list;
 
-	/* lock protecting all Expected TID data */
-	struct mutex exp_lock;
+	/* lock protecting all Expected TID data of user contexts */
+	struct mutex exp_mutex;
 	/* per-context configuration flags */
 	unsigned long flags;
 	/* per-context event flags for fileops/intr communication */
@@ -282,7 +284,7 @@ struct hfi1_ctxtdata {
 	/* interrupt handling */
 	u64 imask;	/* clear interrupt mask */
 	int ireg;	/* clear interrupt register */
-	unsigned numa_id; /* numa node of this context */
+	int numa_id; /* numa node of this context */
 	/* verbs rx_stats per rcd */
 	struct hfi1_opcode_stats_perctx *opstats;
 
@@ -333,6 +335,7 @@ struct hfi1_packet {
 	struct rvt_qp *qp;
 	struct ib_other_headers *ohdr;
 	struct ib_grh *grh;
+	struct opa_16b_mgmt *mgmt;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
@@ -392,9 +395,16 @@ struct hfi1_packet {
  */
 #define OPA_16B_L4_9B		0x00
 #define OPA_16B_L2_TYPE		0x02
+#define OPA_16B_L4_FM		0x08
 #define OPA_16B_L4_IB_LOCAL	0x09
 #define OPA_16B_L4_IB_GLOBAL	0x0A
 #define OPA_16B_L4_ETHR		OPA_VNIC_L4_ETHR
+
+/*
+ * OPA 16B Management
+ */
+#define OPA_16B_L4_FM_PAD	3  /* fixed 3B pad */
+#define OPA_16B_L4_FM_HLEN	24 /* 16B(16) + L4_FM(8) */
 
 static inline u8 hfi1_16B_get_l4(struct hfi1_16b_header *hdr)
 {
@@ -470,6 +480,27 @@ static inline u8 hfi1_16B_bth_get_pad(struct ib_other_headers *ohdr)
 {
 	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_PAD_SHIFT) &
 		   OPA_16B_BTH_PAD_MASK);
+}
+
+/*
+ * 16B Management
+ */
+#define OPA_16B_MGMT_QPN_MASK	0xFFFFFF
+static inline u32 hfi1_16B_get_dest_qpn(struct opa_16b_mgmt *mgmt)
+{
+	return be32_to_cpu(mgmt->dest_qpn) & OPA_16B_MGMT_QPN_MASK;
+}
+
+static inline u32 hfi1_16B_get_src_qpn(struct opa_16b_mgmt *mgmt)
+{
+	return be32_to_cpu(mgmt->src_qpn) & OPA_16B_MGMT_QPN_MASK;
+}
+
+static inline void hfi1_16B_set_qpn(struct opa_16b_mgmt *mgmt,
+				    u32 dest_qp, u32 src_qp)
+{
+	mgmt->dest_qpn = cpu_to_be32(dest_qp & OPA_16B_MGMT_QPN_MASK);
+	mgmt->src_qpn = cpu_to_be32(src_qp & OPA_16B_MGMT_QPN_MASK);
 }
 
 struct rvt_sge_state;
@@ -880,9 +911,9 @@ typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 #define RHF_RCV_REPROCESS 2	/* stop. retain this packet */
 
 struct rcv_array_data {
-	u8 group_size;
 	u16 ngroups;
 	u16 nctxt_extra;
+	u8 group_size;
 };
 
 struct per_vl_data {
@@ -1263,6 +1294,9 @@ struct hfi1_devdata {
 
 	/* Save the enabled LCB error bits */
 	u64 lcb_err_en;
+	struct cpu_mask_set *comp_vect;
+	int *comp_vect_mappings;
+	u32 comp_vect_possible_cpus;
 
 	/*
 	 * Capability to have different send engines simply by changing a
@@ -1856,6 +1890,7 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_HAS_SDMA_TIMEOUT  0x8
 #define HFI1_HAS_SEND_DMA      0x10   /* Supports Send DMA */
 #define HFI1_FORCED_FREEZE     0x80   /* driver forced freeze mode */
+#define HFI1_SHUTDOWN          0x100  /* device is shutting down */
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
@@ -2048,7 +2083,9 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_IB_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_BAD_PKT_LEN_SMASK
+#ifndef CONFIG_FAULT_INJECTION
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK
+#endif
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_SMALL_BYPASS_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_SMALL_IB_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_RAW_IPV6_SMASK
@@ -2061,7 +2098,11 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
 	if (ctxt_type == SC_USER)
-		base_sc_integrity |= HFI1_PKT_USER_SC_INTEGRITY;
+		base_sc_integrity |=
+#ifndef CONFIG_FAULT_INJECTION
+			SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK |
+#endif
+			HFI1_PKT_USER_SC_INTEGRITY;
 	else
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 

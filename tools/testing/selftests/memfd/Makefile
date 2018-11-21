@@ -4,9 +4,9 @@ CFLAGS += -I../../../../include/uapi/
 CFLAGS += -I../../../../include/
 CFLAGS += -I../../../../usr/include/
 
-TEST_PROGS := run_tests.sh
-TEST_FILES := run_fuse_test.sh
-TEST_GEN_FILES := memfd_test fuse_mnt fuse_test
+TEST_GEN_PROGS := memfd_test
+TEST_PROGS := run_fuse_test.sh run_hugetlbfs_test.sh
+TEST_GEN_FILES := fuse_mnt fuse_test
 
 fuse_mnt.o: CFLAGS += $(shell pkg-config fuse --cflags)
 

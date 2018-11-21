@@ -1696,7 +1696,7 @@ static int au1200fb_drv_probe(struct platform_device *dev)
 				&fbdev->fb_phys, GFP_KERNEL,
 				DMA_ATTR_NON_CONSISTENT);
 		if (!fbdev->fb_mem) {
-			print_err("fail to allocate frambuffer (size: %dK))",
+			print_err("fail to allocate framebuffer (size: %dK))",
 				  fbdev->fb_len / 1024);
 			ret = -ENOMEM;
 			goto failed;

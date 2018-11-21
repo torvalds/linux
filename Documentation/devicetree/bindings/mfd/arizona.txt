@@ -50,7 +50,7 @@ Required properties:
 
 Optional properties:
 
-  - wlf,reset : GPIO specifier for the GPIO controlling /RESET
+  - reset-gpios : GPIO specifier for the GPIO controlling /RESET
 
   - clocks: Should reference the clocks supplied on MCLK1 and MCLK2
   - clock-names: Should contains two strings:
@@ -69,6 +69,10 @@ Optional properties:
     they are being externally supplied. As covered in
     Documentation/devicetree/bindings/regulator/regulator.txt
     (wm5102, wm5110, wm8280, wm8997, wm8998, wm1814)
+
+Deprecated properties:
+
+  - wlf,reset : GPIO specifier for the GPIO controlling /RESET
 
 Also see child specific device properties:
   Regulator - ../regulator/arizona-regulator.txt

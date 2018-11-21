@@ -230,10 +230,6 @@ typedef struct {
 	unsigned int	id;
 	unsigned int	active;
 	unsigned long	vdso_base;
-#ifdef CONFIG_PPC_64K_PAGES
-	/* for 4K PTE fragment support */
-	void *pte_frag;
-#endif
 } mm_context_t;
 
 /* Page size definitions, common between 32 and 64-bit
@@ -275,8 +271,6 @@ static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
  */
 #if defined(CONFIG_PPC_4K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_4K
-#elif defined(CONFIG_PPC_64K_PAGES)
-#define mmu_virtual_psize	MMU_PAGE_64K
 #else
 #error Unsupported page size
 #endif

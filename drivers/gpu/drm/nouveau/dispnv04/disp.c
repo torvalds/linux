@@ -55,6 +55,9 @@ nv04_display_create(struct drm_device *dev)
 	nouveau_display(dev)->init = nv04_display_init;
 	nouveau_display(dev)->fini = nv04_display_fini;
 
+	/* Pre-nv50 doesn't support atomic, so don't expose the ioctls */
+	dev->driver->driver_features &= ~DRIVER_ATOMIC;
+
 	nouveau_hw_save_vga_fonts(dev, 1);
 
 	nv04_crtc_create(dev, 0);

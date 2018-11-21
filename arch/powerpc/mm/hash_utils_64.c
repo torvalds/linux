@@ -64,6 +64,7 @@
 #include <asm/trace.h>
 #include <asm/ps3.h>
 #include <asm/pte-walk.h>
+#include <asm/asm-prototypes.h>
 
 #ifdef DEBUG
 #define DBG(fmt...) udbg_printf(fmt)
@@ -572,8 +573,10 @@ static void __init htab_scan_page_sizes(void)
 	}
 
 #ifdef CONFIG_HUGETLB_PAGE
-	/* Reserve 16G huge page memory sections for huge pages */
-	of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
+	if (!hugetlb_disabled) {
+		/* Reserve 16G huge page memory sections for huge pages */
+		of_scan_flat_dt(htab_dt_scan_hugepage_blocks, NULL);
+	}
 #endif /* CONFIG_HUGETLB_PAGE */
 }
 
@@ -1010,13 +1013,14 @@ void __init hash__early_init_mmu(void)
 	 */
 	__pte_frag_nr = H_PTE_FRAG_NR;
 	__pte_frag_size_shift = H_PTE_FRAG_SIZE_SHIFT;
+	__pmd_frag_nr = H_PMD_FRAG_NR;
+	__pmd_frag_size_shift = H_PMD_FRAG_SIZE_SHIFT;
 
 	__pte_index_size = H_PTE_INDEX_SIZE;
 	__pmd_index_size = H_PMD_INDEX_SIZE;
 	__pud_index_size = H_PUD_INDEX_SIZE;
 	__pgd_index_size = H_PGD_INDEX_SIZE;
 	__pud_cache_index = H_PUD_CACHE_INDEX;
-	__pmd_cache_index = H_PMD_CACHE_INDEX;
 	__pte_table_size = H_PTE_TABLE_SIZE;
 	__pmd_table_size = H_PMD_TABLE_SIZE;
 	__pud_table_size = H_PUD_TABLE_SIZE;

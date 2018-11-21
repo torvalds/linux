@@ -48,6 +48,9 @@ static bool intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	bool reduce_m_n = drm_dp_has_quirk(&intel_dp->desc,
 					   DP_DPCD_QUIRK_LIMITED_M_N);
 
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	pipe_config->has_pch_encoder = false;
 	bpp = 24;
 	if (intel_dp->compliance.test_data.bpc) {
@@ -180,9 +183,11 @@ static void intel_mst_post_disable_dp(struct intel_encoder *encoder,
 	intel_dp->active_mst_links--;
 
 	intel_mst->connector = NULL;
-	if (intel_dp->active_mst_links == 0)
+	if (intel_dp->active_mst_links == 0) {
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 		intel_dig_port->base.post_disable(&intel_dig_port->base,
 						  old_crtc_state, NULL);
+	}
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 }
@@ -223,7 +228,11 @@ static void intel_mst_pre_enable_dp(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
+	if (intel_dp->active_mst_links == 0)
+		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+
 	drm_dp_send_power_updown_phy(&intel_dp->mst_mgr, connector->port, true);
+
 	if (intel_dp->active_mst_links == 0)
 		intel_dig_port->base.pre_enable(&intel_dig_port->base,
 						pipe_config, NULL);
@@ -359,6 +368,9 @@ intel_dp_mst_mode_valid(struct drm_connector *connector,
 
 	if (!intel_dp)
 		return MODE_ERROR;
+
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
 
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);

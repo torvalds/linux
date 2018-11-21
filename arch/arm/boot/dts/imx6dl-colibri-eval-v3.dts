@@ -72,15 +72,12 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	clocks {
-		/* Fixed crystal dedicated to mcp251x */
-		clk16m: clk@1 {
-			compatible = "fixed-clock";
-			reg = <1>;
-			#clock-cells = <0>;
-			clock-frequency = <16000000>;
-			clock-output-names = "clk16m";
-		};
+	/* Fixed crystal dedicated to mcp251x */
+	clk16m: clock-16m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
+		clock-output-names = "clk16m";
 	};
 
 	gpio-keys {

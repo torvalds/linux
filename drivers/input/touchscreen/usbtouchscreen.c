@@ -440,6 +440,8 @@ static int panjit_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #define MTOUCHUSB_RESET                 7
 #define MTOUCHUSB_REQ_CTRLLR_ID         10
 
+#define MTOUCHUSB_REQ_CTRLLR_ID_LEN	16
+
 static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
 	if (hwcalib_xy) {
@@ -454,10 +456,92 @@ static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 	return 1;
 }
 
+struct mtouch_priv {
+	u8 fw_rev_major;
+	u8 fw_rev_minor;
+};
+
+static ssize_t mtouch_firmware_rev_show(struct device *dev,
+				struct device_attribute *attr, char *output)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usbtouch_usb *usbtouch = usb_get_intfdata(intf);
+	struct mtouch_priv *priv = usbtouch->priv;
+
+	return scnprintf(output, PAGE_SIZE, "%1x.%1x\n",
+			 priv->fw_rev_major, priv->fw_rev_minor);
+}
+static DEVICE_ATTR(firmware_rev, 0444, mtouch_firmware_rev_show, NULL);
+
+static struct attribute *mtouch_attrs[] = {
+	&dev_attr_firmware_rev.attr,
+	NULL
+};
+
+static const struct attribute_group mtouch_attr_group = {
+	.attrs = mtouch_attrs,
+};
+
+static int mtouch_get_fw_revision(struct usbtouch_usb *usbtouch)
+{
+	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
+	struct mtouch_priv *priv = usbtouch->priv;
+	u8 *buf;
+	int ret;
+
+	buf = kzalloc(MTOUCHUSB_REQ_CTRLLR_ID_LEN, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
+			      MTOUCHUSB_REQ_CTRLLR_ID,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, 0, buf, MTOUCHUSB_REQ_CTRLLR_ID_LEN,
+			      USB_CTRL_SET_TIMEOUT);
+	if (ret != MTOUCHUSB_REQ_CTRLLR_ID_LEN) {
+		dev_warn(&usbtouch->interface->dev,
+			 "Failed to read FW rev: %d\n", ret);
+		ret = ret < 0 ? ret : -EIO;
+		goto free;
+	}
+
+	priv->fw_rev_major = buf[3];
+	priv->fw_rev_minor = buf[4];
+
+	ret = 0;
+
+free:
+	kfree(buf);
+	return ret;
+}
+
+static int mtouch_alloc(struct usbtouch_usb *usbtouch)
+{
+	int ret;
+
+	usbtouch->priv = kmalloc(sizeof(struct mtouch_priv), GFP_KERNEL);
+	if (!usbtouch->priv)
+		return -ENOMEM;
+
+	ret = sysfs_create_group(&usbtouch->interface->dev.kobj,
+				 &mtouch_attr_group);
+	if (ret) {
+		kfree(usbtouch->priv);
+		usbtouch->priv = NULL;
+		return ret;
+	}
+
+	return 0;
+}
+
 static int mtouch_init(struct usbtouch_usb *usbtouch)
 {
 	int ret, i;
 	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
+
+	ret = mtouch_get_fw_revision(usbtouch);
+	if (ret)
+		return ret;
 
 	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 	                      MTOUCHUSB_RESET,
@@ -491,6 +575,14 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	}
 
 	return 0;
+}
+
+static void mtouch_exit(struct usbtouch_usb *usbtouch)
+{
+	struct mtouch_priv *priv = usbtouch->priv;
+
+	sysfs_remove_group(&usbtouch->interface->dev.kobj, &mtouch_attr_group);
+	kfree(priv);
 }
 #endif
 
@@ -1119,7 +1211,9 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.max_yc		= 0x4000,
 		.rept_size	= 11,
 		.read_data	= mtouch_read_data,
+		.alloc		= mtouch_alloc,
 		.init		= mtouch_init,
+		.exit		= mtouch_exit,
 	},
 #endif
 

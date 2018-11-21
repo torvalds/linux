@@ -402,8 +402,8 @@ static void ext4_getfsmap_free_fixed_metadata(struct list_head *meta_list)
 }
 
 /* Find all the fixed metadata in the filesystem. */
-int ext4_getfsmap_find_fixed_metadata(struct super_block *sb,
-				      struct list_head *meta_list)
+static int ext4_getfsmap_find_fixed_metadata(struct super_block *sb,
+					     struct list_head *meta_list)
 {
 	struct ext4_group_desc *gdp;
 	ext4_group_t agno;

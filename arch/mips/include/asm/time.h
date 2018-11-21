@@ -22,15 +22,6 @@
 extern spinlock_t rtc_lock;
 
 /*
- * RTC ops.  By default, they point to weak no-op RTC functions.
- *	rtc_mips_set_time - reverse the above translation and set time to RTC.
- *	rtc_mips_set_mmss - similar to rtc_set_time, but only min and sec need
- *			to be set.  Used by RTC sync-up.
- */
-extern int rtc_mips_set_time(unsigned long);
-extern int rtc_mips_set_mmss(unsigned long);
-
-/*
  * board specific routines required by time_init().
  */
 extern void plat_time_init(void);

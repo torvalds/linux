@@ -261,12 +261,3 @@ const struct dma_map_ops xtensa_dma_map_ops = {
 	.mapping_error = xtensa_dma_mapping_error,
 };
 EXPORT_SYMBOL(xtensa_dma_map_ops);
-
-#define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-
-static int __init xtensa_dma_init(void)
-{
-	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
-	return 0;
-}
-fs_initcall(xtensa_dma_init);

@@ -842,7 +842,7 @@ struct media_entity *media_entity_get(struct media_entity *entity);
  * a fwnode. This is useful for devices which use more complex
  * mappings of media pads.
  *
- * If the entity dose not implement the get_fwnode_pad() operation
+ * If the entity does not implement the get_fwnode_pad() operation
  * then this function searches the entity for the first pad that
  * matches the @direction_flags.
  *

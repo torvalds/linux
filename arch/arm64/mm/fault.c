@@ -235,8 +235,9 @@ static bool is_el1_instruction_abort(unsigned int esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_CUR;
 }
 
-static inline bool is_permission_fault(unsigned int esr, struct pt_regs *regs,
-				       unsigned long addr)
+static inline bool is_el1_permission_fault(unsigned int esr,
+					   struct pt_regs *regs,
+					   unsigned long addr)
 {
 	unsigned int ec       = ESR_ELx_EC(esr);
 	unsigned int fsc_type = esr & ESR_ELx_FSC_TYPE;
@@ -254,6 +255,22 @@ static inline bool is_permission_fault(unsigned int esr, struct pt_regs *regs,
 	return false;
 }
 
+static void die_kernel_fault(const char *msg, unsigned long addr,
+			     unsigned int esr, struct pt_regs *regs)
+{
+	bust_spinlocks(1);
+
+	pr_alert("Unable to handle kernel %s at virtual address %016lx\n", msg,
+		 addr);
+
+	mem_abort_decode(esr);
+
+	show_pte(addr);
+	die("Oops", regs, esr);
+	bust_spinlocks(0);
+	do_exit(SIGKILL);
+}
+
 static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 			      struct pt_regs *regs)
 {
@@ -266,9 +283,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
 		return;
 
-	bust_spinlocks(1);
-
-	if (is_permission_fault(esr, regs, addr)) {
+	if (is_el1_permission_fault(esr, regs, addr)) {
 		if (esr & ESR_ELx_WNR)
 			msg = "write to read-only memory";
 		else
@@ -279,15 +294,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 		msg = "paging request";
 	}
 
-	pr_alert("Unable to handle kernel %s at virtual address %08lx\n", msg,
-		 addr);
-
-	mem_abort_decode(esr);
-
-	show_pte(addr);
-	die("Oops", regs, esr);
-	bust_spinlocks(0);
-	do_exit(SIGKILL);
+	die_kernel_fault(msg, addr, esr, regs);
 }
 
 static void __do_user_fault(struct siginfo *info, unsigned int esr)
@@ -356,11 +363,12 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 	 */
 	if (user_mode(regs)) {
 		const struct fault_info *inf = esr_to_fault_info(esr);
-		struct siginfo si = {
-			.si_signo	= inf->sig,
-			.si_code	= inf->code,
-			.si_addr	= (void __user *)addr,
-		};
+		struct siginfo si;
+
+		clear_siginfo(&si);
+		si.si_signo	= inf->sig;
+		si.si_code	= inf->code;
+		si.si_addr	= (void __user *)addr;
 
 		__do_user_fault(&si, esr);
 	} else {
@@ -446,16 +454,19 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
 
-	if (addr < TASK_SIZE && is_permission_fault(esr, regs, addr)) {
+	if (addr < TASK_SIZE && is_el1_permission_fault(esr, regs, addr)) {
 		/* regs->orig_addr_limit may be 0 if we entered from EL0 */
 		if (regs->orig_addr_limit == KERNEL_DS)
-			die("Accessing user space memory with fs=KERNEL_DS", regs, esr);
+			die_kernel_fault("access to user memory with fs=KERNEL_DS",
+					 addr, esr, regs);
 
 		if (is_el1_instruction_abort(esr))
-			die("Attempting to execute userspace memory", regs, esr);
+			die_kernel_fault("execution of user memory",
+					 addr, esr, regs);
 
 		if (!search_exception_tables(regs->pc))
-			die("Accessing user space memory outside uaccess.h routines", regs, esr);
+			die_kernel_fault("access to user memory outside uaccess routines",
+					 addr, esr, regs);
 	}
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
@@ -634,6 +645,7 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 			nmi_exit();
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
@@ -738,6 +750,7 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 		show_pte(addr);
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
 	info.si_code  = inf->code;
@@ -780,6 +793,7 @@ asmlinkage void __exception do_sp_pc_abort(unsigned long addr,
 		local_irq_enable();
 	}
 
+	clear_siginfo(&info);
 	info.si_signo = SIGBUS;
 	info.si_errno = 0;
 	info.si_code  = BUS_ADRALN;
@@ -823,7 +837,6 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 					      struct pt_regs *regs)
 {
 	const struct fault_info *inf = debug_fault_info + DBG_ESR_EVT(esr);
-	struct siginfo info;
 	int rv;
 
 	/*
@@ -839,6 +852,9 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	if (!inf->fn(addr, esr, regs)) {
 		rv = 1;
 	} else {
+		struct siginfo info;
+
+		clear_siginfo(&info);
 		info.si_signo = inf->sig;
 		info.si_errno = 0;
 		info.si_code  = inf->code;

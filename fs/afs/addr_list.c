@@ -43,8 +43,7 @@ struct afs_addr_list *afs_alloc_addrlist(unsigned int nr,
 
 	_enter("%u,%u,%u", nr, service, port);
 
-	alist = kzalloc(sizeof(*alist) + sizeof(alist->addrs[0]) * nr,
-			GFP_KERNEL);
+	alist = kzalloc(struct_size(alist, addrs, nr), GFP_KERNEL);
 	if (!alist)
 		return NULL;
 
@@ -216,7 +215,7 @@ struct afs_addr_list *afs_dns_query(struct afs_cell *cell, time64_t *_expiry)
 	_enter("%s", cell->name);
 
 	ret = dns_query("afsdb", cell->name, cell->name_len,
-			"ipv4", &vllist, _expiry);
+			"", &vllist, _expiry);
 	if (ret < 0)
 		return ERR_PTR(ret);
 

@@ -9,7 +9,7 @@
     |       alpha: | TODO |
     |         arc: |  ..  |
     |         arm: |  ..  |
-    |       arm64: |  ..  |
+    |       arm64: |  ok  |
     |         c6x: |  ..  |
     |       h8300: |  ..  |
     |     hexagon: |  ..  |
@@ -17,11 +17,13 @@
     |        m68k: |  ..  |
     |  microblaze: |  ..  |
     |        mips: | TODO |
+    |       nds32: | TODO |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: |  ..  |
     |     powerpc: |  ok  |
-    |        s390: |  ..  |
+    |       riscv: | TODO |
+    |        s390: |  ok  |
     |          sh: |  ..  |
     |       sparc: | TODO |
     |          um: |  ..  |

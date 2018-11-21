@@ -218,6 +218,33 @@ config MSM_MMCC_8996
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
 
+config MSM_GCC_8998
+	tristate "MSM8998 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8998 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
+
+config SDM_GCC_845
+	tristate "SDM845 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SDM845 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2C, USB, UFS, SDDC, PCIe, etc.
+
+config SDM_VIDEOCC_845
+	tristate "SDM845 Video Clock Controller"
+	depends on COMMON_CLK_QCOM
+	select SDM_GCC_845
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SDM845 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
 	depends on (COMMON_CLK_QCOM && SPMI) || COMPILE_TEST

@@ -205,10 +205,10 @@ enum tps65218_regulator_id {
 	TPS65218_DCDC_4,
 	TPS65218_DCDC_5,
 	TPS65218_DCDC_6,
-	/* LS's */
-	TPS65218_LS_3,
 	/* LDOs */
 	TPS65218_LDO_1,
+	/* LS's */
+	TPS65218_LS_3,
 };
 
 #define TPS65218_MAX_REG_ID		TPS65218_LDO_1

@@ -223,7 +223,7 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
-static int cdv_hdmi_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status cdv_hdmi_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	if (mode->clock > 165000)

@@ -56,7 +56,7 @@
 static int elan_smbus_initialize(struct i2c_client *client)
 {
 	u8 check[ETP_SMBUS_HELLOPACKET_LEN] = { 0x55, 0x55, 0x55, 0x55, 0x55 };
-	u8 values[ETP_SMBUS_HELLOPACKET_LEN] = { 0, 0, 0, 0, 0 };
+	u8 values[I2C_SMBUS_BLOCK_MAX] = {0};
 	int len, error;
 
 	/* Get hello packet */
@@ -117,12 +117,16 @@ static int elan_smbus_calibrate(struct i2c_client *client)
 static int elan_smbus_calibrate_result(struct i2c_client *client, u8 *val)
 {
 	int error;
+	u8 buf[I2C_SMBUS_BLOCK_MAX] = {0};
+
+	BUILD_BUG_ON(ETP_CALIBRATE_MAX_LEN > sizeof(buf));
 
 	error = i2c_smbus_read_block_data(client,
-					  ETP_SMBUS_CALIBRATE_QUERY, val);
+					  ETP_SMBUS_CALIBRATE_QUERY, buf);
 	if (error < 0)
 		return error;
 
+	memcpy(val, buf, ETP_CALIBRATE_MAX_LEN);
 	return 0;
 }
 
@@ -471,6 +475,8 @@ static int elan_smbus_write_fw_block(struct i2c_client *client,
 static int elan_smbus_get_report(struct i2c_client *client, u8 *report)
 {
 	int len;
+
+	BUILD_BUG_ON(I2C_SMBUS_BLOCK_MAX > ETP_SMBUS_REPORT_LEN);
 
 	len = i2c_smbus_read_block_data(client,
 					ETP_SMBUS_PACKET_QUERY,

@@ -253,6 +253,13 @@ static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
 		return -EAGAIN;
 	}
 
+	/*
+	 * use it for IPMMU if needed
+	 * see
+	 *	rsnd_preallocate_pages()
+	 */
+	io->dmac_dev = chan->device->dev;
+
 	dma_release_channel(chan);
 
 	dmac->dmaen_num++;
@@ -695,7 +702,7 @@ static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 
 	rsnd_dma_of_path(mod, io, is_play, &mod_from, &mod_to);
 
-	/* for Gen2 */
+	/* for Gen2 or later */
 	if (mod_from && mod_to) {
 		ops	= &rsnd_dmapp_ops;
 		attach	= rsnd_dmapp_attach;
@@ -773,7 +780,7 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 		return 0;
 
 	/*
-	 * for Gen2
+	 * for Gen2 or later
 	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "audmapp");
 	dmac = devm_kzalloc(dev, sizeof(*dmac), GFP_KERNEL);

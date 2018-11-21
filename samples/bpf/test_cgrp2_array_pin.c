@@ -14,7 +14,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 
 static void usage(void)
 {

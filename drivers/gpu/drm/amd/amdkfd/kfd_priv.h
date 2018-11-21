@@ -39,11 +39,37 @@
 
 #include "amd_shared.h"
 
+#define KFD_MAX_RING_ENTRY_SIZE	8
+
 #define KFD_SYSFS_FILE_MODE 0444
 
-#define KFD_MMAP_DOORBELL_MASK 0x8000000000000ull
-#define KFD_MMAP_EVENTS_MASK 0x4000000000000ull
-#define KFD_MMAP_RESERVED_MEM_MASK 0x2000000000000ull
+/* GPU ID hash width in bits */
+#define KFD_GPU_ID_HASH_WIDTH 16
+
+/* Use upper bits of mmap offset to store KFD driver specific information.
+ * BITS[63:62] - Encode MMAP type
+ * BITS[61:46] - Encode gpu_id. To identify to which GPU the offset belongs to
+ * BITS[45:0]  - MMAP offset value
+ *
+ * NOTE: struct vm_area_struct.vm_pgoff uses offset in pages. Hence, these
+ *  defines are w.r.t to PAGE_SIZE
+ */
+#define KFD_MMAP_TYPE_SHIFT	(62 - PAGE_SHIFT)
+#define KFD_MMAP_TYPE_MASK	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_DOORBELL	(0x3ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_EVENTS	(0x2ULL << KFD_MMAP_TYPE_SHIFT)
+#define KFD_MMAP_TYPE_RESERVED_MEM	(0x1ULL << KFD_MMAP_TYPE_SHIFT)
+
+#define KFD_MMAP_GPU_ID_SHIFT (46 - PAGE_SHIFT)
+#define KFD_MMAP_GPU_ID_MASK (((1ULL << KFD_GPU_ID_HASH_WIDTH) - 1) \
+				<< KFD_MMAP_GPU_ID_SHIFT)
+#define KFD_MMAP_GPU_ID(gpu_id) ((((uint64_t)gpu_id) << KFD_MMAP_GPU_ID_SHIFT)\
+				& KFD_MMAP_GPU_ID_MASK)
+#define KFD_MMAP_GPU_ID_GET(offset)    ((offset & KFD_MMAP_GPU_ID_MASK) \
+				>> KFD_MMAP_GPU_ID_SHIFT)
+
+#define KFD_MMAP_OFFSET_VALUE_MASK	(0x3FFFFFFFFFFFULL >> PAGE_SHIFT)
+#define KFD_MMAP_OFFSET_VALUE_GET(offset) (offset & KFD_MMAP_OFFSET_VALUE_MASK)
 
 /*
  * When working with cp scheduler we should assign the HIQ manually or via
@@ -54,9 +80,6 @@
  */
 #define KFD_CIK_HIQ_PIPE 4
 #define KFD_CIK_HIQ_QUEUE 0
-
-/* GPU ID hash width in bits */
-#define KFD_GPU_ID_HASH_WIDTH 16
 
 /* Macro for allocating structures */
 #define kfd_alloc_struct(ptr_to_struct)	\
@@ -116,6 +139,11 @@ extern int debug_largebar;
  */
 extern int ignore_crat;
 
+/*
+ * Set sh_mem_config.retry_disable on Vega10
+ */
+extern int vega10_noretry;
+
 /**
  * enum kfd_sched_policy
  *
@@ -148,6 +176,8 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
+#define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
+
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry);
@@ -160,6 +190,7 @@ struct kfd_device_info {
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
 	unsigned int max_no_of_hqd;
+	unsigned int doorbell_size;
 	size_t ih_ring_entry_size;
 	uint8_t num_of_watch_points;
 	uint16_t mqd_size_aligned;
@@ -173,6 +204,7 @@ struct kfd_mem_obj {
 	uint32_t range_end;
 	uint64_t gpu_addr;
 	uint32_t *cpu_ptr;
+	void *gtt_mem;
 };
 
 struct kfd_vmid_info {
@@ -364,7 +396,7 @@ struct queue_properties {
 	uint32_t queue_percent;
 	uint32_t *read_ptr;
 	uint32_t *write_ptr;
-	uint32_t __iomem *doorbell_ptr;
+	void __iomem *doorbell_ptr;
 	uint32_t doorbell_off;
 	bool is_interop;
 	bool is_evicted;
@@ -427,6 +459,7 @@ struct queue {
 	uint32_t queue;
 
 	unsigned int sdma_id;
+	unsigned int doorbell_id;
 
 	struct kfd_process	*process;
 	struct kfd_dev		*device;
@@ -501,6 +534,9 @@ struct qcm_process_device {
 	/* IB memory */
 	uint64_t ib_base;
 	void *ib_kaddr;
+
+	/* doorbell resources per process per device */
+	unsigned long *doorbell_bitmap;
 };
 
 /* KFD Memory Eviction */
@@ -512,6 +548,8 @@ struct qcm_process_device {
 /* Approx. time before evicting the process again */
 #define PROCESS_ACTIVE_TIME_MS 10
 
+int kgd2kfd_quiesce_mm(struct mm_struct *mm);
+int kgd2kfd_resume_mm(struct mm_struct *mm);
 int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
 					       struct dma_fence *fence);
 
@@ -681,6 +719,8 @@ struct kfd_process *kfd_get_process(const struct task_struct *);
 struct kfd_process *kfd_lookup_process_by_pasid(unsigned int pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 void kfd_unref_process(struct kfd_process *p);
+int kfd_process_evict_queues(struct kfd_process *p);
+int kfd_process_restore_queues(struct kfd_process *p);
 void kfd_suspend_all_processes(void);
 int kfd_resume_all_processes(void);
 
@@ -693,7 +733,7 @@ struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p);
 
-int kfd_reserved_mem_mmap(struct kfd_process *process,
+int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma);
 
 /* KFD process API for creating and translating handles */
@@ -721,17 +761,20 @@ unsigned int kfd_pasid_alloc(void);
 void kfd_pasid_free(unsigned int pasid);
 
 /* Doorbells */
+size_t kfd_doorbell_process_slice(struct kfd_dev *kfd);
 int kfd_doorbell_init(struct kfd_dev *kfd);
 void kfd_doorbell_fini(struct kfd_dev *kfd);
-int kfd_doorbell_mmap(struct kfd_process *process, struct vm_area_struct *vma);
-u32 __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
+int kfd_doorbell_mmap(struct kfd_dev *dev, struct kfd_process *process,
+		      struct vm_area_struct *vma);
+void __iomem *kfd_get_kernel_doorbell(struct kfd_dev *kfd,
 					unsigned int *doorbell_off);
 void kfd_release_kernel_doorbell(struct kfd_dev *kfd, u32 __iomem *db_addr);
 u32 read_kernel_doorbell(u32 __iomem *db);
-void write_kernel_doorbell(u32 __iomem *db, u32 value);
-unsigned int kfd_queue_id_to_doorbell(struct kfd_dev *kfd,
+void write_kernel_doorbell(void __iomem *db, u32 value);
+void write_kernel_doorbell64(void __iomem *db, u64 value);
+unsigned int kfd_doorbell_id_to_offset(struct kfd_dev *kfd,
 					struct kfd_process *process,
-					unsigned int queue_id);
+					unsigned int doorbell_id);
 phys_addr_t kfd_get_process_doorbells(struct kfd_dev *dev,
 					struct kfd_process *process);
 int kfd_alloc_process_doorbells(struct kfd_process *process);
@@ -788,6 +831,8 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_vi_tonga(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
@@ -832,7 +877,41 @@ struct packet_manager {
 	bool allocated;
 	struct kfd_mem_obj *ib_buffer_obj;
 	unsigned int ib_size_bytes;
+
+	const struct packet_manager_funcs *pmf;
 };
+
+struct packet_manager_funcs {
+	/* Support ASIC-specific packet formats for PM4 packets */
+	int (*map_process)(struct packet_manager *pm, uint32_t *buffer,
+			struct qcm_process_device *qpd);
+	int (*runlist)(struct packet_manager *pm, uint32_t *buffer,
+			uint64_t ib, size_t ib_size_in_dwords, bool chain);
+	int (*set_resources)(struct packet_manager *pm, uint32_t *buffer,
+			struct scheduling_resources *res);
+	int (*map_queues)(struct packet_manager *pm, uint32_t *buffer,
+			struct queue *q, bool is_static);
+	int (*unmap_queues)(struct packet_manager *pm, uint32_t *buffer,
+			enum kfd_queue_type type,
+			enum kfd_unmap_queues_filter mode,
+			uint32_t filter_param, bool reset,
+			unsigned int sdma_engine);
+	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
+			uint64_t fence_address,	uint32_t fence_value);
+	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
+
+	/* Packet sizes */
+	int map_process_size;
+	int runlist_size;
+	int set_resources_size;
+	int map_queues_size;
+	int unmap_queues_size;
+	int query_status_size;
+	int release_mem_size;
+};
+
+extern const struct packet_manager_funcs kfd_vi_pm_funcs;
+extern const struct packet_manager_funcs kfd_v9_pm_funcs;
 
 int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm);
 void pm_uninit(struct packet_manager *pm);
@@ -849,12 +928,17 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 
 void pm_release_ib(struct packet_manager *pm);
 
-uint32_t pm_create_release_mem(uint64_t gpu_addr, uint32_t *buffer);
+/* Following PM funcs can be shared among VI and AI */
+unsigned int pm_build_pm4_header(unsigned int opcode, size_t packet_size);
+int pm_set_resources_vi(struct packet_manager *pm, uint32_t *buffer,
+				struct scheduling_resources *res);
 
 uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 
 /* Events */
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
+extern const struct kfd_event_interrupt_class event_interrupt_class_v9;
+
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
 void kfd_event_init_process(struct kfd_process *p);

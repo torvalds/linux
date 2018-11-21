@@ -212,7 +212,7 @@ static int usb_hcd_at91_probe(const struct hc_driver *driver,
 
 	ohci_at91->sfr_regmap = at91_dt_syscon_sfr();
 	if (!ohci_at91->sfr_regmap)
-		dev_warn(dev, "failed to find sfr node\n");
+		dev_dbg(dev, "failed to find sfr node\n");
 
 	board = hcd->self.controller->platform_data;
 	ohci = hcd_to_ohci(hcd);

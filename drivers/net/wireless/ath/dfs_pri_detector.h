@@ -62,8 +62,9 @@ struct pri_detector {
 	     (*add_pulse)(struct pri_detector *de, struct pulse_event *e);
 	void (*reset)    (struct pri_detector *de, u64 ts);
 
-/* private: internal use only */
 	const struct radar_detector_specs *rs;
+
+/* private: internal use only */
 	u64 last_ts;
 	struct list_head sequences;
 	struct list_head pulses;

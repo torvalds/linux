@@ -928,8 +928,7 @@ static int wmt_mci_remove(struct platform_device *pdev)
 static int wmt_mci_suspend(struct device *dev)
 {
 	u32 reg_tmp;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct wmt_mci_priv *priv;
 
 	if (!mmc)
@@ -953,8 +952,7 @@ static int wmt_mci_suspend(struct device *dev)
 static int wmt_mci_resume(struct device *dev)
 {
 	u32 reg_tmp;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct mmc_host *mmc = platform_get_drvdata(pdev);
+	struct mmc_host *mmc = dev_get_drvdata(dev);
 	struct wmt_mci_priv *priv;
 
 	if (mmc) {

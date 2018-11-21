@@ -1,3 +1,4 @@
+#include <asm/e820/types.h>
 #include <asm/processor.h>
 #include "pgtable.h"
 #include "../string.h"
@@ -31,27 +32,15 @@ static char trampoline_save[TRAMPOLINE_32BIT_SIZE];
  */
 unsigned long *trampoline_32bit __section(.data);
 
-struct paging_config paging_prepare(void)
-{
-	struct paging_config paging_config = {};
-	unsigned long bios_start, ebda_start;
+extern struct boot_params *boot_params;
+int cmdline_find_option_bool(const char *option);
 
-	/*
-	 * Check if LA57 is desired and supported.
-	 *
-	 * There are two parts to the check:
-	 *   - if the kernel supports 5-level paging: CONFIG_X86_5LEVEL=y
-	 *   - if the machine supports 5-level paging:
-	 *     + CPUID leaf 7 is supported
-	 *     + the leaf has the feature bit set
-	 *
-	 * That's substitute for boot_cpu_has() in early boot code.
-	 */
-	if (IS_ENABLED(CONFIG_X86_5LEVEL) &&
-			native_cpuid_eax(0) >= 7 &&
-			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31)))) {
-		paging_config.l5_required = 1;
-	}
+static unsigned long find_trampoline_placement(void)
+{
+	unsigned long bios_start, ebda_start;
+	unsigned long trampoline_start;
+	struct boot_e820_entry *entry;
+	int i;
 
 	/*
 	 * Find a suitable spot for the trampoline.
@@ -67,9 +56,65 @@ struct paging_config paging_prepare(void)
 	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
 		bios_start = ebda_start;
 
-	/* Place the trampoline just below the end of low memory, aligned to 4k */
-	paging_config.trampoline_start = bios_start - TRAMPOLINE_32BIT_SIZE;
-	paging_config.trampoline_start = round_down(paging_config.trampoline_start, PAGE_SIZE);
+	bios_start = round_down(bios_start, PAGE_SIZE);
+
+	/* Find the first usable memory region under bios_start. */
+	for (i = boot_params->e820_entries - 1; i >= 0; i--) {
+		entry = &boot_params->e820_table[i];
+
+		/* Skip all entries above bios_start. */
+		if (bios_start <= entry->addr)
+			continue;
+
+		/* Skip non-RAM entries. */
+		if (entry->type != E820_TYPE_RAM)
+			continue;
+
+		/* Adjust bios_start to the end of the entry if needed. */
+		if (bios_start > entry->addr + entry->size)
+			bios_start = entry->addr + entry->size;
+
+		/* Keep bios_start page-aligned. */
+		bios_start = round_down(bios_start, PAGE_SIZE);
+
+		/* Skip the entry if it's too small. */
+		if (bios_start - TRAMPOLINE_32BIT_SIZE < entry->addr)
+			continue;
+
+		break;
+	}
+
+	/* Place the trampoline just below the end of low memory */
+	return bios_start - TRAMPOLINE_32BIT_SIZE;
+}
+
+struct paging_config paging_prepare(void *rmode)
+{
+	struct paging_config paging_config = {};
+
+	/* Initialize boot_params. Required for cmdline_find_option_bool(). */
+	boot_params = rmode;
+
+	/*
+	 * Check if LA57 is desired and supported.
+	 *
+	 * There are several parts to the check:
+	 *   - if the kernel supports 5-level paging: CONFIG_X86_5LEVEL=y
+	 *   - if user asked to disable 5-level paging: no5lvl in cmdline
+	 *   - if the machine supports 5-level paging:
+	 *     + CPUID leaf 7 is supported
+	 *     + the leaf has the feature bit set
+	 *
+	 * That's substitute for boot_cpu_has() in early boot code.
+	 */
+	if (IS_ENABLED(CONFIG_X86_5LEVEL) &&
+			!cmdline_find_option_bool("no5lvl") &&
+			native_cpuid_eax(0) >= 7 &&
+			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31)))) {
+		paging_config.l5_required = 1;
+	}
+
+	paging_config.trampoline_start = find_trampoline_placement();
 
 	trampoline_32bit = (unsigned long *)paging_config.trampoline_start;
 
@@ -130,7 +175,7 @@ void cleanup_trampoline(void *pgtable)
 {
 	void *trampoline_pgtable;
 
-	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET;
+	trampoline_pgtable = trampoline_32bit + TRAMPOLINE_32BIT_PGTABLE_OFFSET / sizeof(unsigned long);
 
 	/*
 	 * Move the top level page table out of trampoline memory,

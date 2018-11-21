@@ -168,14 +168,14 @@ int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe)
 	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
 
 	if (is_probe)
-		dev_info(dev, "Cache params previous: 0x%08X\n", val);
+		dev_dbg(dev, "Cache params previous: 0x%08X\n", val);
 
 	cc_iowrite(drvdata, CC_REG(AXIM_CACHE_PARAMS), cache_params);
 	val = cc_ioread(drvdata, CC_REG(AXIM_CACHE_PARAMS));
 
 	if (is_probe)
-		dev_info(dev, "Cache params current: 0x%08X (expect: 0x%08X)\n",
-			 val, cache_params);
+		dev_dbg(dev, "Cache params current: 0x%08X (expect: 0x%08X)\n",
+			val, cache_params);
 
 	return 0;
 }
@@ -190,6 +190,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	u64 dma_mask;
 	const struct cc_hw_data *hw_rev;
 	const struct of_device_id *dev_id;
+	struct clk *clk;
 	int rc = 0;
 
 	new_drvdata = devm_kzalloc(dev, sizeof(*new_drvdata), GFP_KERNEL);
@@ -207,15 +208,36 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	if (hw_rev->rev >= CC_HW_REV_712) {
 		new_drvdata->hash_len_sz = HASH_LEN_SIZE_712;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP);
+		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_712);
+		new_drvdata->ver_offset = CC_REG(HOST_VERSION_712);
 	} else {
 		new_drvdata->hash_len_sz = HASH_LEN_SIZE_630;
 		new_drvdata->axim_mon_offset = CC_REG(AXIM_MON_COMP8);
+		new_drvdata->sig_offset = CC_REG(HOST_SIGNATURE_630);
+		new_drvdata->ver_offset = CC_REG(HOST_VERSION_630);
 	}
 
 	platform_set_drvdata(plat_dev, new_drvdata);
 	new_drvdata->plat_dev = plat_dev;
 
-	new_drvdata->clk = of_clk_get(np, 0);
+	clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(clk))
+		switch (PTR_ERR(clk)) {
+		/* Clock is optional so this might be fine */
+		case -ENOENT:
+			break;
+
+		/* Clock not available, let's try again soon */
+		case -EPROBE_DEFER:
+			return -EPROBE_DEFER;
+
+		default:
+			dev_err(dev, "Error getting clock: %ld\n",
+				PTR_ERR(clk));
+			return PTR_ERR(clk);
+		}
+	new_drvdata->clk = clk;
+
 	new_drvdata->coherent = of_dma_is_coherent(np);
 
 	/* Get device resources */
@@ -265,7 +287,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	if (rc) {
-		dev_err(dev, "Failed in dma_set_mask, mask=%pad\n", &dma_mask);
+		dev_err(dev, "Failed in dma_set_mask, mask=%llx\n", dma_mask);
 		return rc;
 	}
 
@@ -276,7 +298,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 	}
 
 	/* Verify correct mapping */
-	signature_val = cc_ioread(new_drvdata, CC_REG(HOST_SIGNATURE));
+	signature_val = cc_ioread(new_drvdata, new_drvdata->sig_offset);
 	if (signature_val != hw_rev->sig) {
 		dev_err(dev, "Invalid CC signature: SIGNATURE=0x%08X != expected=0x%08X\n",
 			signature_val, hw_rev->sig);
@@ -287,7 +309,7 @@ static int init_cc_resources(struct platform_device *plat_dev)
 
 	/* Display HW versions */
 	dev_info(dev, "ARM CryptoCell %s Driver: HW version 0x%08X, Driver version %s\n",
-		 hw_rev->name, cc_ioread(new_drvdata, CC_REG(HOST_VERSION)),
+		 hw_rev->name, cc_ioread(new_drvdata, new_drvdata->ver_offset),
 		 DRV_MODULE_VERSION);
 
 	rc = init_cc_regs(new_drvdata, true);

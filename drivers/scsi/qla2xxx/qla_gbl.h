@@ -116,7 +116,8 @@ extern int qla2x00_post_async_prlo_work(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 extern int qla2x00_post_async_prlo_done_work(struct scsi_qla_host *,
     fc_port_t *, uint16_t *);
-
+int qla_post_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
+void qla_do_iidma_work(struct scsi_qla_host *vha, fc_port_t *fcport);
 /*
  * Global Data in qla_os.c source file.
  */
@@ -213,6 +214,7 @@ void qla2x00_handle_login_done_event(struct scsi_qla_host *, fc_port_t *,
 int qla24xx_post_gnl_work(struct scsi_qla_host *, fc_port_t *);
 int qla24xx_async_abort_cmd(srb_t *);
 int qla24xx_post_relogin_work(struct scsi_qla_host *vha);
+void qla2x00_wait_for_sess_deletion(scsi_qla_host_t *);
 
 /*
  * Global Functions in qla_mid.c source file.

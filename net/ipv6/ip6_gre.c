@@ -848,7 +848,7 @@ static inline int ip6gre_xmit_ipv6(struct sk_buff *skb, struct net_device *dev)
 }
 
 /**
- * ip6_tnl_addr_conflict - compare packet addresses to tunnel's own
+ * ip6gre_tnl_addr_conflict - compare packet addresses to tunnel's own
  *   @t: the outgoing tunnel device
  *   @hdr: IPv6 header from the incoming packet
  *
@@ -927,7 +927,6 @@ tx_err:
 static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 					 struct net_device *dev)
 {
-	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device_stats *stats;
@@ -937,6 +936,8 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 	struct flowi6 fl6;
 	int err = -EINVAL;
 	__u32 mtu;
+	int nhoff;
+	int thoff;
 
 	if (!ip6_tnl_xmit_ctl(t, &t->parms.laddr, &t->parms.raddr))
 		goto tx_err;
@@ -948,6 +949,16 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 		pskb_trim(skb, dev->mtu + dev->hard_header_len);
 		truncate = true;
 	}
+
+	nhoff = skb_network_header(skb) - skb_mac_header(skb);
+	if (skb->protocol == htons(ETH_P_IP) &&
+	    (ntohs(ip_hdr(skb)->tot_len) > skb->len - nhoff))
+		truncate = true;
+
+	thoff = skb_transport_header(skb) - skb_mac_header(skb);
+	if (skb->protocol == htons(ETH_P_IPV6) &&
+	    (ntohs(ipv6_hdr(skb)->payload_len) > skb->len - thoff))
+		truncate = true;
 
 	if (skb_cow_head(skb, dev->needed_headroom ?: t->hlen))
 		goto tx_err;
@@ -998,6 +1009,8 @@ static netdev_tx_t ip6erspan_tunnel_xmit(struct sk_buff *skb,
 			goto tx_err;
 		}
 	} else {
+		struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+
 		switch (skb->protocol) {
 		case htons(ETH_P_IP):
 			memset(&(IPCB(skb)->opt), 0, sizeof(IPCB(skb)->opt));
@@ -1376,6 +1389,7 @@ static void ip6gre_dev_free(struct net_device *dev)
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 
+	gro_cells_destroy(&t->gro_cells);
 	dst_cache_destroy(&t->dst_cache);
 	free_percpu(dev->tstats);
 }
@@ -1443,11 +1457,12 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 		return -ENOMEM;
 
 	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
-	if (ret) {
-		free_percpu(dev->tstats);
-		dev->tstats = NULL;
-		return ret;
-	}
+	if (ret)
+		goto cleanup_alloc_pcpu_stats;
+
+	ret = gro_cells_init(&tunnel->gro_cells, dev);
+	if (ret)
+		goto cleanup_dst_cache_init;
 
 	t_hlen = ip6gre_calc_hlen(tunnel);
 	dev->mtu = ETH_DATA_LEN - t_hlen;
@@ -1463,6 +1478,13 @@ static int ip6gre_tunnel_init_common(struct net_device *dev)
 	ip6gre_tnl_init_features(dev);
 
 	return 0;
+
+cleanup_dst_cache_init:
+	dst_cache_destroy(&tunnel->dst_cache);
+cleanup_alloc_pcpu_stats:
+	free_percpu(dev->tstats);
+	dev->tstats = NULL;
+	return ret;
 }
 
 static int ip6gre_tunnel_init(struct net_device *dev)
@@ -1822,11 +1844,12 @@ static int ip6erspan_tap_init(struct net_device *dev)
 		return -ENOMEM;
 
 	ret = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
-	if (ret) {
-		free_percpu(dev->tstats);
-		dev->tstats = NULL;
-		return ret;
-	}
+	if (ret)
+		goto cleanup_alloc_pcpu_stats;
+
+	ret = gro_cells_init(&tunnel->gro_cells, dev);
+	if (ret)
+		goto cleanup_dst_cache_init;
 
 	t_hlen = ip6erspan_calc_hlen(tunnel);
 	dev->mtu = ETH_DATA_LEN - t_hlen;
@@ -1839,6 +1862,13 @@ static int ip6erspan_tap_init(struct net_device *dev)
 	ip6erspan_tnl_link_config(tunnel, 1);
 
 	return 0;
+
+cleanup_dst_cache_init:
+	dst_cache_destroy(&tunnel->dst_cache);
+cleanup_alloc_pcpu_stats:
+	free_percpu(dev->tstats);
+	dev->tstats = NULL;
+	return ret;
 }
 
 static const struct net_device_ops ip6erspan_netdev_ops = {

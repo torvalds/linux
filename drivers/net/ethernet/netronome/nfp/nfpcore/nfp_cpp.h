@@ -87,6 +87,11 @@ struct resource;
 
 #define NFP_CPP_TARGET_ID_MASK          0x1f
 
+#define NFP_CPP_ATOMIC_RD(target, island) \
+	NFP_CPP_ISLAND_ID((target), 3, 0, (island))
+#define NFP_CPP_ATOMIC_WR(target, island) \
+	NFP_CPP_ISLAND_ID((target), 4, 0, (island))
+
 /**
  * NFP_CPP_ID() - pack target, token, and action into a CPP ID.
  * @target:     NFP CPP target id
@@ -295,6 +300,8 @@ void nfp_cpp_mutex_free(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_unlock(struct nfp_cpp_mutex *mutex);
 int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex);
+int nfp_cpp_mutex_reclaim(struct nfp_cpp *cpp, int target,
+			  unsigned long long address);
 
 /**
  * nfp_cppcore_pcie_unit() - Get PCI Unit of a CPP handle

@@ -254,7 +254,7 @@ void flite_hw_set_dma_window(struct fimc_lite *dev, struct flite_frame *f)
 	/* Maximum output pixel size */
 	cfg = readl(dev->regs + FLITE_REG_CIOCAN);
 	cfg &= ~FLITE_REG_CIOCAN_MASK;
-	cfg = (f->f_height << 16) | f->f_width;
+	cfg |= (f->f_height << 16) | f->f_width;
 	writel(cfg, dev->regs + FLITE_REG_CIOCAN);
 
 	/* DMA offsets */

@@ -29,6 +29,7 @@ struct annotate_browser {
 	struct rb_node		   *curr_hot;
 	struct annotation_line	   *selection;
 	struct arch		   *arch;
+	struct annotation_options  *opts;
 	bool			    searching_backwards;
 	char			    search_bf[128];
 };
@@ -410,7 +411,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	notes = symbol__annotation(dl->ops.target.sym);
 	pthread_mutex_lock(&notes->lock);
 
-	if (notes->src == NULL && symbol__alloc_hist(dl->ops.target.sym) < 0) {
+	if (!symbol__hists(dl->ops.target.sym, evsel->evlist->nr_entries)) {
 		pthread_mutex_unlock(&notes->lock);
 		ui__warning("Not enough memory for annotating '%s' symbol!\n",
 			    dl->ops.target.sym->name);
@@ -418,7 +419,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	}
 
 	pthread_mutex_unlock(&notes->lock);
-	symbol__tui_annotate(dl->ops.target.sym, ms->map, evsel, hbt);
+	symbol__tui_annotate(dl->ops.target.sym, ms->map, evsel, hbt, browser->opts);
 	sym_title(ms->sym, ms->map, title, sizeof(title));
 	ui_browser__show_title(&browser->b, title);
 	return true;
@@ -695,6 +696,7 @@ static int annotate_browser__run(struct annotate_browser *browser,
 		"O             Bump offset level (jump targets -> +call -> all -> cycle thru)\n"
 		"s             Toggle source code view\n"
 		"t             Circulate percent, total period, samples view\n"
+		"c             Show min/max cycle\n"
 		"/             Search string\n"
 		"k             Toggle line numbers\n"
 		"P             Print to [symbol_name].annotation file.\n"
@@ -791,6 +793,13 @@ show_sup_ins:
 				notes->options->show_total_period = true;
 			annotation__update_column_widths(notes);
 			continue;
+		case 'c':
+			if (notes->options->show_minmax_cycle)
+				notes->options->show_minmax_cycle = false;
+			else
+				notes->options->show_minmax_cycle = true;
+			annotation__update_column_widths(notes);
+			continue;
 		case K_LEFT:
 		case K_ESC:
 		case 'q':
@@ -809,24 +818,27 @@ out:
 }
 
 int map_symbol__tui_annotate(struct map_symbol *ms, struct perf_evsel *evsel,
-			     struct hist_browser_timer *hbt)
+			     struct hist_browser_timer *hbt,
+			     struct annotation_options *opts)
 {
-	return symbol__tui_annotate(ms->sym, ms->map, evsel, hbt);
+	return symbol__tui_annotate(ms->sym, ms->map, evsel, hbt, opts);
 }
 
 int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
-			     struct hist_browser_timer *hbt)
+			     struct hist_browser_timer *hbt,
+			     struct annotation_options *opts)
 {
 	/* reset abort key so that it can get Ctrl-C as a key */
 	SLang_reset_tty();
 	SLang_init_tty(0, 0, 0);
 
-	return map_symbol__tui_annotate(&he->ms, evsel, hbt);
+	return map_symbol__tui_annotate(&he->ms, evsel, hbt, opts);
 }
 
 int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			 struct perf_evsel *evsel,
-			 struct hist_browser_timer *hbt)
+			 struct hist_browser_timer *hbt,
+			 struct annotation_options *opts)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct map_symbol ms = {
@@ -843,6 +855,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			.priv	 = &ms,
 			.use_navkeypressed = true,
 		},
+		.opts = opts,
 	};
 	int ret = -1, err;
 
@@ -852,7 +865,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	err = symbol__annotate2(sym, map, evsel, &annotation__default_options, &browser.arch);
+	err = symbol__annotate2(sym, map, evsel, opts, &browser.arch);
 	if (err) {
 		char msg[BUFSIZ];
 		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));

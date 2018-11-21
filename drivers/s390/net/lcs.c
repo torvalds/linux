@@ -1928,6 +1928,8 @@ lcs_portno_store (struct device *dev, struct device_attribute *attr, const char 
 		return -EINVAL;
         /* TODO: sanity checks */
         card->portno = value;
+	if (card->dev)
+		card->dev->dev_port = card->portno;
 
         return count;
 
@@ -2158,6 +2160,7 @@ lcs_new_device(struct ccwgroup_device *ccwgdev)
 	card->dev = dev;
 	card->dev->ml_priv = card;
 	card->dev->netdev_ops = &lcs_netdev_ops;
+	card->dev->dev_port = card->portno;
 	memcpy(card->dev->dev_addr, card->mac, LCS_MAC_LENGTH);
 #ifdef CONFIG_IP_MULTICAST
 	if (!lcs_check_multicast_support(card))

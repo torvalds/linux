@@ -1078,6 +1078,8 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 		struct wmi_notify_req_done_event evt;
 	} __packed reply;
 
+	memset(&reply, 0, sizeof(reply));
+
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		u32 status;
 
@@ -1200,8 +1202,12 @@ static const struct file_operations fops_freq = {
 static int wil_link_debugfs_show(struct seq_file *s, void *data)
 {
 	struct wil6210_priv *wil = s->private;
-	struct station_info sinfo;
-	int i, rc;
+	struct station_info *sinfo;
+	int i, rc = 0;
+
+	sinfo = kzalloc(sizeof(*sinfo), GFP_KERNEL);
+	if (!sinfo)
+		return -ENOMEM;
 
 	for (i = 0; i < ARRAY_SIZE(wil->sta); i++) {
 		struct wil_sta_info *p = &wil->sta[i];
@@ -1229,19 +1235,21 @@ static int wil_link_debugfs_show(struct seq_file *s, void *data)
 
 		vif = (mid < wil->max_vifs) ? wil->vifs[mid] : NULL;
 		if (vif) {
-			rc = wil_cid_fill_sinfo(vif, i, &sinfo);
+			rc = wil_cid_fill_sinfo(vif, i, sinfo);
 			if (rc)
-				return rc;
+				goto out;
 
-			seq_printf(s, "  Tx_mcs = %d\n", sinfo.txrate.mcs);
-			seq_printf(s, "  Rx_mcs = %d\n", sinfo.rxrate.mcs);
-			seq_printf(s, "  SQ     = %d\n", sinfo.signal);
+			seq_printf(s, "  Tx_mcs = %d\n", sinfo->txrate.mcs);
+			seq_printf(s, "  Rx_mcs = %d\n", sinfo->rxrate.mcs);
+			seq_printf(s, "  SQ     = %d\n", sinfo->signal);
 		} else {
 			seq_puts(s, "  INVALID MID\n");
 		}
 	}
 
-	return 0;
+out:
+	kfree(sinfo);
+	return rc;
 }
 
 static int wil_link_seq_open(struct inode *inode, struct file *file)
@@ -1377,8 +1385,7 @@ static void wil_print_rxtid(struct seq_file *s, struct wil_tid_ampdu_rx *r)
 	u16 index = ((r->head_seq_num - r->ssn) & 0xfff) % r->buf_size;
 	unsigned long long drop_dup = r->drop_dup, drop_old = r->drop_old;
 
-	seq_printf(s, "([%2d] %3d TU) 0x%03x [", r->buf_size, r->timeout,
-		   r->head_seq_num);
+	seq_printf(s, "([%2d]) 0x%03x [", r->buf_size, r->head_seq_num);
 	for (i = 0; i < r->buf_size; i++) {
 		if (i == index)
 			seq_printf(s, "%c", r->reorder_buf[i] ? 'O' : '|');

@@ -162,8 +162,9 @@ struct hotplug_params {
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
-bool pciehp_is_native(struct pci_dev *pdev);
-int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
+bool pciehp_is_native(struct pci_dev *bridge);
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge);
+bool shpchp_is_native(struct pci_dev *bridge);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
 int acpi_pci_detect_ejectable(acpi_handle handle);
 #else
@@ -172,6 +173,17 @@ static inline int pci_get_hp_params(struct pci_dev *dev,
 {
 	return -ENODEV;
 }
-static inline bool pciehp_is_native(struct pci_dev *pdev) { return true; }
+
+static inline int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge)
+{
+	return 0;
+}
+static inline bool pciehp_is_native(struct pci_dev *bridge) { return true; }
+static inline bool shpchp_is_native(struct pci_dev *bridge) { return true; }
 #endif
+
+static inline bool hotplug_is_native(struct pci_dev *bridge)
+{
+	return pciehp_is_native(bridge) || shpchp_is_native(bridge);
+}
 #endif

@@ -263,9 +263,8 @@ static size_t eeh_dump_dev_log(struct eeh_dev *edev, char *buf, size_t len)
 	return n;
 }
 
-static void *eeh_dump_pe_log(void *data, void *flag)
+static void *eeh_dump_pe_log(struct eeh_pe *pe, void *flag)
 {
-	struct eeh_pe *pe = data;
 	struct eeh_dev *edev, *tmp;
 	size_t *plen = flag;
 
@@ -542,8 +541,12 @@ int eeh_dev_check_failure(struct eeh_dev *edev)
 
 		/* Frozen parent PE ? */
 		ret = eeh_ops->get_state(parent_pe, NULL);
-		if (ret > 0 && !eeh_state_active(ret))
+		if (ret > 0 && !eeh_state_active(ret)) {
 			pe = parent_pe;
+			pr_err("EEH: Failure of PHB#%x-PE#%x will be handled at parent PHB#%x-PE#%x.\n",
+			       pe->phb->global_number, pe->addr,
+			       pe->phb->global_number, parent_pe->addr);
+		}
 
 		/* Next parent level */
 		parent_pe = parent_pe->parent;
@@ -686,9 +689,9 @@ int eeh_pci_enable(struct eeh_pe *pe, int function)
 	return rc;
 }
 
-static void *eeh_disable_and_save_dev_state(void *data, void *userdata)
+static void *eeh_disable_and_save_dev_state(struct eeh_dev *edev,
+					    void *userdata)
 {
-	struct eeh_dev *edev = data;
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
 
@@ -714,9 +717,8 @@ static void *eeh_disable_and_save_dev_state(void *data, void *userdata)
 	return NULL;
 }
 
-static void *eeh_restore_dev_state(void *data, void *userdata)
+static void *eeh_restore_dev_state(struct eeh_dev *edev, void *userdata)
 {
-	struct eeh_dev *edev = data;
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 	struct pci_dev *pdev = eeh_dev_to_pci_dev(edev);
 	struct pci_dev *dev = userdata;
@@ -856,11 +858,10 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
  * the indicated device and its children so that the bunch of the
  * devices could be reset properly.
  */
-static void *eeh_set_dev_freset(void *data, void *flag)
+static void *eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
 {
 	struct pci_dev *dev;
 	unsigned int *freset = (unsigned int *)flag;
-	struct eeh_dev *edev = (struct eeh_dev *)data;
 
 	dev = eeh_dev_to_pci_dev(edev);
 	if (dev)
@@ -1775,18 +1776,6 @@ static int proc_eeh_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_eeh_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_eeh_show, NULL);
-}
-
-static const struct file_operations proc_eeh_operations = {
-	.open      = proc_eeh_open,
-	.read      = seq_read,
-	.llseek    = seq_lseek,
-	.release   = single_release,
-};
-
 #ifdef CONFIG_DEBUG_FS
 static int eeh_enable_dbgfs_set(void *data, u64 val)
 {
@@ -1828,7 +1817,7 @@ DEFINE_SIMPLE_ATTRIBUTE(eeh_freeze_dbgfs_ops, eeh_freeze_dbgfs_get,
 static int __init eeh_init_proc(void)
 {
 	if (machine_is(pseries) || machine_is(powernv)) {
-		proc_create("powerpc/eeh", 0, NULL, &proc_eeh_operations);
+		proc_create_single("powerpc/eeh", 0, NULL, proc_eeh_show);
 #ifdef CONFIG_DEBUG_FS
 		debugfs_create_file("eeh_enable", 0600,
                                     powerpc_debugfs_root, NULL,

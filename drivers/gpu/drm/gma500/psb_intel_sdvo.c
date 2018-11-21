@@ -1157,7 +1157,7 @@ static void psb_intel_sdvo_dpms(struct drm_encoder *encoder, int mode)
 	return;
 }
 
-static int psb_intel_sdvo_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status psb_intel_sdvo_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
@@ -2281,7 +2281,7 @@ static bool psb_intel_sdvo_tv_create_property(struct psb_intel_sdvo *psb_intel_s
 
 	for (i = 0; i < psb_intel_sdvo_connector->format_supported_num; i++)
 		drm_property_add_enum(
-				psb_intel_sdvo_connector->tv_format, i,
+				psb_intel_sdvo_connector->tv_format,
 				i, tv_format_names[psb_intel_sdvo_connector->tv_format_supported[i]]);
 
 	psb_intel_sdvo->tv_format_index = psb_intel_sdvo_connector->tv_format_supported[0];

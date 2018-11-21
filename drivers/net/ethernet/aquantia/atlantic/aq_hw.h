@@ -98,6 +98,8 @@ struct aq_stats_s {
 #define AQ_HW_MEDIA_TYPE_TP    1U
 #define AQ_HW_MEDIA_TYPE_FIBRE 2U
 
+#define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -177,7 +179,7 @@ struct aq_hw_ops {
 				    unsigned int packet_filter);
 
 	int (*hw_multicast_list_set)(struct aq_hw_s *self,
-				     u8 ar_mac[AQ_CFG_MULTICAST_ADDRESS_MAX]
+				     u8 ar_mac[AQ_HW_MULTICAST_ADDRESS_MAX]
 				     [ETH_ALEN],
 				     u32 count);
 

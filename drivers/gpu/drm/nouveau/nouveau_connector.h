@@ -33,6 +33,7 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_dp_helper.h>
 #include "nouveau_crtc.h"
+#include "nouveau_encoder.h"
 
 struct nvkm_i2c_port;
 
@@ -60,19 +61,46 @@ static inline struct nouveau_connector *nouveau_connector(
 	return container_of(con, struct nouveau_connector, base);
 }
 
+static inline bool
+nouveau_connector_is_mst(struct drm_connector *connector)
+{
+	const struct nouveau_encoder *nv_encoder;
+	const struct drm_encoder *encoder;
+
+	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+		return false;
+
+	nv_encoder = find_encoder(connector, DCB_OUTPUT_ANY);
+	if (!nv_encoder)
+		return false;
+
+	encoder = &nv_encoder->base.base;
+	return encoder->encoder_type == DRM_MODE_ENCODER_DPMST;
+}
+
+#define nouveau_for_each_non_mst_connector_iter(connector, iter) \
+	drm_for_each_connector_iter(connector, iter) \
+		for_each_if(!nouveau_connector_is_mst(connector))
+
 static inline struct nouveau_connector *
 nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 {
 	struct drm_device *dev = nv_crtc->base.dev;
 	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct nouveau_connector *nv_connector = NULL;
 	struct drm_crtc *crtc = to_drm_crtc(nv_crtc);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder && connector->encoder->crtc == crtc)
-			return nouveau_connector(connector);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+		if (connector->encoder && connector->encoder->crtc == crtc) {
+			nv_connector = nouveau_connector(connector);
+			break;
+		}
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
-	return NULL;
+	return nv_connector;
 }
 
 struct drm_connector *

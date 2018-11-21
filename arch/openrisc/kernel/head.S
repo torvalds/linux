@@ -210,8 +210,7 @@
  *	 r4  - EEAR     exception EA
  *	 r10 - current	pointing to current_thread_info struct
  *	 r12 - syscall  0, since we didn't come from syscall
- *	 r13 - temp	it actually contains new SR, not needed anymore
- *	 r31 - handler	address of the handler we'll jump to
+ *	 r30 - handler	address of the handler we'll jump to
  *
  *	 handler has to save remaining registers to the exception
  *	 ksp frame *before* tainting them!
@@ -244,6 +243,7 @@
 	/* r1 is KSP, r30 is __pa(KSP) */			;\
 	tophys  (r30,r1)					;\
 	l.sw    PT_GPR12(r30),r12				;\
+	/* r4 use for tmp before EA */				;\
 	l.mfspr r12,r0,SPR_EPCR_BASE				;\
 	l.sw    PT_PC(r30),r12					;\
 	l.mfspr r12,r0,SPR_ESR_BASE				;\
@@ -263,7 +263,10 @@
 	/* r12 == 1 if we come from syscall */			;\
 	CLEAR_GPR(r12)						;\
 	/* ----- turn on MMU ----- */				;\
-	l.ori	r30,r0,(EXCEPTION_SR)				;\
+	/* Carry DSX into exception SR */			;\
+	l.mfspr r30,r0,SPR_SR					;\
+	l.andi	r30,r30,SPR_SR_DSX				;\
+	l.ori	r30,r30,(EXCEPTION_SR)				;\
 	l.mtspr	r0,r30,SPR_ESR_BASE				;\
 	/* r30:	EA address of handler */			;\
 	LOAD_SYMBOL_2_GPR(r30,handler)				;\

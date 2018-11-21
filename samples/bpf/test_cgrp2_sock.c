@@ -21,8 +21,9 @@
 #include <net/if.h>
 #include <inttypes.h>
 #include <linux/bpf.h>
+#include <bpf/bpf.h>
 
-#include "libbpf.h"
+#include "bpf_insn.h"
 
 char bpf_log_buf[BPF_LOG_BUF_SIZE];
 

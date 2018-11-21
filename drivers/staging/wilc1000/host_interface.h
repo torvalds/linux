@@ -49,7 +49,6 @@
 #define PMKID_LEN				16
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
-#define SCAN_EVENT_DONE_ABORTED
 #define NUM_CONCURRENT_IFC			2
 #define DRV_HANDLER_SIZE			5
 #define DRV_HANDLER_MASK			0x000000FF
@@ -272,7 +271,7 @@ struct host_if_drv {
 
 	u8 assoc_bssid[ETH_ALEN];
 	struct cfg_param_attr cfg_values;
-
+	/*lock to protect concurrent setting of cfg params*/
 	struct mutex cfg_values_lock;
 	struct completion comp_test_key_block;
 	struct completion comp_test_disconn_block;
@@ -304,7 +303,6 @@ struct add_sta_param {
 };
 
 struct wilc_vif;
-s32 wilc_remove_key(struct host_if_drv *hif_drv, const u8 *sta_addr);
 int wilc_remove_wep_key(struct wilc_vif *vif, u8 index);
 int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
 int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
@@ -315,7 +313,7 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
 		 u8 mode, u8 cipher_mode, u8 index);
 s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
-			   u32 *pu32InactiveTime);
+			   u32 *out_val);
 int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    u8 index, u32 key_rsc_len, const u8 *key_rsc,
 		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,

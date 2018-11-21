@@ -617,7 +617,6 @@ void __init radix__early_init_mmu(void)
 	__pud_index_size = RADIX_PUD_INDEX_SIZE;
 	__pgd_index_size = RADIX_PGD_INDEX_SIZE;
 	__pud_cache_index = RADIX_PUD_INDEX_SIZE;
-	__pmd_cache_index = RADIX_PMD_INDEX_SIZE;
 	__pte_table_size = RADIX_PTE_TABLE_SIZE;
 	__pmd_table_size = RADIX_PMD_TABLE_SIZE;
 	__pud_table_size = RADIX_PUD_TABLE_SIZE;
@@ -640,6 +639,8 @@ void __init radix__early_init_mmu(void)
 #endif
 	__pte_frag_nr = RADIX_PTE_FRAG_NR;
 	__pte_frag_size_shift = RADIX_PTE_FRAG_SIZE_SHIFT;
+	__pmd_frag_nr = RADIX_PMD_FRAG_NR;
+	__pmd_frag_size_shift = RADIX_PMD_FRAG_SIZE_SHIFT;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();
@@ -975,7 +976,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(!radix__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 #endif
 
 	old = radix__pte_update(mm, addr, (pte_t *)pmdp, clr, set, 1);
@@ -1083,3 +1084,36 @@ int radix__has_transparent_hugepage(void)
 	return 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+				  pte_t entry, unsigned long address, int psize)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
+					      _PAGE_RW | _PAGE_EXEC);
+	/*
+	 * To avoid NMMU hang while relaxing access, we need mark
+	 * the pte invalid in between.
+	 */
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1) ||
+	    atomic_read(&mm->context.copros) > 0) {
+		unsigned long old_pte, new_pte;
+
+		old_pte = __radix_pte_update(ptep, ~0, 0);
+		/*
+		 * new value of pte
+		 */
+		new_pte = old_pte | set;
+		radix__flush_tlb_page_psize(mm, address, psize);
+		__radix_pte_update(ptep, 0, new_pte);
+	} else {
+		__radix_pte_update(ptep, 0, set);
+		/*
+		 * Book3S does not require a TLB flush when relaxing access
+		 * restrictions when the address space is not attached to a
+		 * NMMU, because the core MMU will reload the pte after taking
+		 * an access fault, which is defined by the architectue.
+		 */
+	}
+	/* See ptesync comment in radix__set_pte_at */
+}

@@ -754,7 +754,7 @@ static int __init ehv_bc_init(void)
 	 * array, then you can use pointer math (e.g. "bc - bcs") to get its
 	 * tty index.
 	 */
-	bcs = kzalloc(count * sizeof(struct ehv_bc_data), GFP_KERNEL);
+	bcs = kcalloc(count, sizeof(struct ehv_bc_data), GFP_KERNEL);
 	if (!bcs)
 		return -ENOMEM;
 

@@ -35,6 +35,7 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/interrupt.h>
+#include <linux/reciprocal_div.h>
 
 #define MAX_PAGE_BUFFER_COUNT				32
 #define MAX_MULTIPAGE_BUFFER_COUNT			32 /* 128K */
@@ -120,6 +121,7 @@ struct hv_ring_buffer {
 struct hv_ring_buffer_info {
 	struct hv_ring_buffer *ring_buffer;
 	u32 ring_size;			/* Include the shared header */
+	struct reciprocal_value ring_size_div10_reciprocal;
 	spinlock_t ring_lock;
 
 	u32 ring_datasize;		/* < ring_size */
@@ -154,6 +156,16 @@ static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 	return write;
 }
 
+static inline u32 hv_get_avail_to_write_percent(
+		const struct hv_ring_buffer_info *rbi)
+{
+	u32 avail_write = hv_get_bytes_to_write(rbi);
+
+	return reciprocal_divide(
+			(avail_write  << 3) + (avail_write << 1),
+			rbi->ring_size_div10_reciprocal);
+}
+
 /*
  * VMBUS version is 32 bit entity broken up into
  * two 16 bit quantities: major_number. minor_number.
@@ -163,6 +175,7 @@ static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
  * 2 . 4  (Windows 8)
  * 3 . 0  (Windows 8 R2)
  * 4 . 0  (Windows 10)
+ * 5 . 0  (Newer Windows 10)
  */
 
 #define VERSION_WS2008  ((0 << 16) | (13))
@@ -170,10 +183,11 @@ static inline u32 hv_get_bytes_to_write(const struct hv_ring_buffer_info *rbi)
 #define VERSION_WIN8    ((2 << 16) | (4))
 #define VERSION_WIN8_1    ((3 << 16) | (0))
 #define VERSION_WIN10	((4 << 16) | (0))
+#define VERSION_WIN10_V5 ((5 << 16) | (0))
 
 #define VERSION_INVAL -1
 
-#define VERSION_CURRENT VERSION_WIN10
+#define VERSION_CURRENT VERSION_WIN10_V5
 
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
@@ -570,7 +584,14 @@ struct vmbus_channel_initiate_contact {
 	struct vmbus_channel_message_header header;
 	u32 vmbus_version_requested;
 	u32 target_vcpu; /* The VCPU the host should respond to */
-	u64 interrupt_page;
+	union {
+		u64 interrupt_page;
+		struct {
+			u8	msg_sint;
+			u8	padding1[3];
+			u32	padding2;
+		};
+	};
 	u64 monitor_page1;
 	u64 monitor_page2;
 } __packed;
@@ -585,6 +606,19 @@ struct vmbus_channel_tl_connect_request {
 struct vmbus_channel_version_response {
 	struct vmbus_channel_message_header header;
 	u8 version_supported;
+
+	u8 connection_state;
+	u16 padding;
+
+	/*
+	 * On new hosts that support VMBus protocol 5.0, we must use
+	 * VMBUS_MESSAGE_CONNECTION_ID_4 for the Initiate Contact Message,
+	 * and for subsequent messages, we must use the Message Connection ID
+	 * field in the host-returned Version Response Message.
+	 *
+	 * On old hosts, we should always use VMBUS_MESSAGE_CONNECTION_ID (1).
+	 */
+	u32 msg_conn_id;
 } __packed;
 
 enum vmbus_channel_state {

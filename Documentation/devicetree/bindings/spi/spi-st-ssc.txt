@@ -9,7 +9,7 @@ Required properties:
 - clocks	: Must contain an entry for each name in clock-names
 		    See ../clk/*
 - pinctrl-names	: Uses "default", can use "sleep" if provided
-		    See ../pinctrl/pinctrl-binding.txt
+		    See ../pinctrl/pinctrl-bindings.txt
 
 Optional properties:
 - cs-gpios	: List of GPIO chip selects

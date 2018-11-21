@@ -42,8 +42,8 @@ int dss_init_overlay_managers(void)
 
 	num_managers = dss_feat_get_num_mgrs();
 
-	managers = kzalloc(sizeof(struct omap_overlay_manager) * num_managers,
-			GFP_KERNEL);
+	managers = kcalloc(num_managers, sizeof(struct omap_overlay_manager),
+			   GFP_KERNEL);
 
 	BUG_ON(managers == NULL);
 

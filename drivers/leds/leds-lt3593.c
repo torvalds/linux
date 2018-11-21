@@ -128,8 +128,8 @@ static int lt3593_led_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -EBUSY;
 
-	leds_data = devm_kzalloc(&pdev->dev,
-			sizeof(struct lt3593_led_data) * pdata->num_leds,
+	leds_data = devm_kcalloc(&pdev->dev,
+			pdata->num_leds, sizeof(struct lt3593_led_data),
 			GFP_KERNEL);
 	if (!leds_data)
 		return -ENOMEM;

@@ -334,9 +334,10 @@ struct cfs_bandwidth {
 	u64			runtime;
 	s64			hierarchical_quota;
 	u64			runtime_expires;
+	int			expires_seq;
 
-	int			idle;
-	int			period_active;
+	short			idle;
+	short			period_active;
 	struct hrtimer		period_timer;
 	struct hrtimer		slack_timer;
 	struct list_head	throttled_cfs_rq;
@@ -551,6 +552,7 @@ struct cfs_rq {
 
 #ifdef CONFIG_CFS_BANDWIDTH
 	int			runtime_enabled;
+	int			expires_seq;
 	u64			runtime_expires;
 	s64			runtime_remaining;
 
@@ -608,6 +610,11 @@ struct rt_rq {
 	struct task_group	*tg;
 #endif
 };
+
+static inline bool rt_rq_is_runnable(struct rt_rq *rt_rq)
+{
+	return rt_rq->rt_queued && rt_rq->rt_nr_running;
+}
 
 /* Deadline class' related fields in a runqueue */
 struct dl_rq {
@@ -1069,6 +1076,12 @@ enum numa_faults_stats {
 extern void sched_setnuma(struct task_struct *p, int node);
 extern int migrate_task_to(struct task_struct *p, int cpu);
 extern int migrate_swap(struct task_struct *, struct task_struct *);
+extern void init_numa_balancing(unsigned long clone_flags, struct task_struct *p);
+#else
+static inline void
+init_numa_balancing(unsigned long clone_flags, struct task_struct *p)
+{
+}
 #endif /* CONFIG_NUMA_BALANCING */
 
 #ifdef CONFIG_SMP

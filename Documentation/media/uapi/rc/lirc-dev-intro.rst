@@ -18,7 +18,7 @@ Example dmesg output upon a driver registering w/LIRC:
 .. code-block:: none
 
     $ dmesg |grep lirc_dev
-    rc rc0: lirc_dev: driver mceusb registered at minor = 0
+    rc rc0: lirc_dev: driver mceusb registered at minor = 0, raw IR receiver, raw IR transmitter
 
 What you should see for a chardev:
 

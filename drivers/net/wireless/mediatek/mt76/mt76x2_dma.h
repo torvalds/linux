@@ -19,7 +19,7 @@
 
 #include "dma.h"
 
-#define MT_TXD_INFO_LEN			GENMASK(13, 0)
+#define MT_TXD_INFO_LEN			GENMASK(15, 0)
 #define MT_TXD_INFO_NEXT_VLD		BIT(16)
 #define MT_TXD_INFO_TX_BURST		BIT(17)
 #define MT_TXD_INFO_80211		BIT(19)
@@ -27,9 +27,8 @@
 #define MT_TXD_INFO_CSO			BIT(21)
 #define MT_TXD_INFO_WIV			BIT(24)
 #define MT_TXD_INFO_QSEL		GENMASK(26, 25)
-#define MT_TXD_INFO_TCO			BIT(29)
-#define MT_TXD_INFO_UCO			BIT(30)
-#define MT_TXD_INFO_ICO			BIT(31)
+#define MT_TXD_INFO_DPORT		GENMASK(29, 27)
+#define MT_TXD_INFO_TYPE		GENMASK(31, 30)
 
 #define MT_RX_FCE_INFO_LEN		GENMASK(13, 0)
 #define MT_RX_FCE_INFO_SELF_GEN		BIT(15)

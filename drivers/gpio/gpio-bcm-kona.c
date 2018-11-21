@@ -601,9 +601,10 @@ static int bcm_kona_gpio_probe(struct platform_device *pdev)
 			GPIO_MAX_BANK_NUM);
 		return -ENXIO;
 	}
-	kona_gpio->banks = devm_kzalloc(dev,
-					kona_gpio->num_bank *
-					sizeof(*kona_gpio->banks), GFP_KERNEL);
+	kona_gpio->banks = devm_kcalloc(dev,
+					kona_gpio->num_bank,
+					sizeof(*kona_gpio->banks),
+					GFP_KERNEL);
 	if (!kona_gpio->banks)
 		return -ENOMEM;
 

@@ -324,7 +324,7 @@ config DVB_SP8870
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 	  This driver needs external firmware. Please use the command
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp8870" to
+	  "<kerneldir>/scripts/get_dvb_firmware sp8870" to
 	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
@@ -336,7 +336,7 @@ config DVB_SP887X
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 	  This driver needs external firmware. Please use the command
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
+	  "<kerneldir>/scripts/get_dvb_firmware sp887x" to
 	  download/extract it, and then copy it to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
@@ -387,8 +387,8 @@ config DVB_TDA1004X
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 
 	  This driver needs external firmware. Please use the commands
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10045",
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware tda10046" to
+	  "<kerneldir>/scripts/get_dvb_firmware tda10045",
+	  "<kerneldir>/scripts/get_dvb_firmware tda10046" to
 	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
@@ -591,8 +591,8 @@ config DVB_NXT200X
 	  to support this frontend.
 
 	  This driver needs external firmware. Please use the commands
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2002" and
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware nxt2004" to
+	  "<kerneldir>/scripts/get_dvb_firmware nxt2002" and
+	  "<kerneldir>/scripts/get_dvb_firmware nxt2004" to
 	  download/extract them, and then copy them to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
@@ -604,7 +604,7 @@ config DVB_OR51211
 	  An ATSC 8VSB tuner module. Say Y when you want to support this frontend.
 
 	  This driver needs external firmware. Please use the command
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware or51211" to
+	  "<kerneldir>/scripts/get_dvb_firmware or51211" to
 	  download it, and then copy it to /usr/lib/hotplug/firmware
 	  or /lib/firmware (depending on configuration of firmware hotplug).
 
@@ -617,8 +617,8 @@ config DVB_OR51132
 	  to support this frontend.
 
 	  This driver needs external firmware. Please use the commands
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware or51132_vsb" and/or
-	  "<kerneldir>/Documentation/dvb/get_dvb_firmware or51132_qam" to
+	  "<kerneldir>/scripts/get_dvb_firmware or51132_vsb" and/or
+	  "<kerneldir>/scripts/get_dvb_firmware or51132_qam" to
 	  download firmwares for 8VSB and QAM64/256, respectively. Copy them to
 	  /usr/lib/hotplug/firmware or /lib/firmware (depending on
 	  configuration of firmware hotplug).
@@ -903,7 +903,7 @@ comment "Common Interface (EN50221) controller drivers"
 	depends on DVB_CORE
 
 config DVB_CXD2099
-	tristate "CXD2099AR Common Interface driver"
+	tristate "Sony CXD2099AR Common Interface driver"
 	depends on DVB_CORE && I2C
 	select REGMAP_I2C
 	default m if !MEDIA_SUBDRV_AUTOSELECT

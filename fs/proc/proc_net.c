@@ -38,20 +38,23 @@ static struct net *get_proc_net(const struct inode *inode)
 	return maybe_get_net(PDE_NET(PDE(inode)));
 }
 
-int seq_open_net(struct inode *ino, struct file *f,
-		 const struct seq_operations *ops, int size)
+static int seq_open_net(struct inode *inode, struct file *file)
 {
-	struct net *net;
+	unsigned int state_size = PDE(inode)->state_size;
 	struct seq_net_private *p;
+	struct net *net;
 
-	BUG_ON(size < sizeof(*p));
+	WARN_ON_ONCE(state_size < sizeof(*p));
 
-	net = get_proc_net(ino);
-	if (net == NULL)
+	if (file->f_mode & FMODE_WRITE && !PDE(inode)->write)
+		return -EACCES;
+
+	net = get_proc_net(inode);
+	if (!net)
 		return -ENXIO;
 
-	p = __seq_open_private(f, ops, size);
-	if (p == NULL) {
+	p = __seq_open_private(file, PDE(inode)->seq_ops, state_size);
+	if (!p) {
 		put_net(net);
 		return -ENOMEM;
 	}
@@ -60,51 +63,172 @@ int seq_open_net(struct inode *ino, struct file *f,
 #endif
 	return 0;
 }
-EXPORT_SYMBOL_GPL(seq_open_net);
 
-int single_open_net(struct inode *inode, struct file *file,
-		int (*show)(struct seq_file *, void *))
+static int seq_release_net(struct inode *ino, struct file *f)
 {
-	int err;
-	struct net *net;
-
-	err = -ENXIO;
-	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
-
-	err = single_open(file, show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
-	return err;
-}
-EXPORT_SYMBOL_GPL(single_open_net);
-
-int seq_release_net(struct inode *ino, struct file *f)
-{
-	struct seq_file *seq;
-
-	seq = f->private_data;
+	struct seq_file *seq = f->private_data;
 
 	put_net(seq_file_net(seq));
 	seq_release_private(ino, f);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(seq_release_net);
 
-int single_release_net(struct inode *ino, struct file *f)
+static const struct file_operations proc_net_seq_fops = {
+	.open		= seq_open_net,
+	.read		= seq_read,
+	.write		= proc_simple_write,
+	.llseek		= seq_lseek,
+	.release	= seq_release_net,
+};
+
+struct proc_dir_entry *proc_create_net_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, const struct seq_operations *ops,
+		unsigned int state_size, void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_net_seq_fops;
+	p->seq_ops = ops;
+	p->state_size = state_size;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL_GPL(proc_create_net_data);
+
+/**
+ * proc_create_net_data_write - Create a writable net_ns-specific proc file
+ * @name: The name of the file.
+ * @mode: The file's access mode.
+ * @parent: The parent directory in which to create.
+ * @ops: The seq_file ops with which to read the file.
+ * @write: The write method which which to 'modify' the file.
+ * @data: Data for retrieval by PDE_DATA().
+ *
+ * Create a network namespaced proc file in the @parent directory with the
+ * specified @name and @mode that allows reading of a file that displays a
+ * series of elements and also provides for the file accepting writes that have
+ * some arbitrary effect.
+ *
+ * The functions in the @ops table are used to iterate over items to be
+ * presented and extract the readable content using the seq_file interface.
+ *
+ * The @write function is called with the data copied into a kernel space
+ * scratch buffer and has a NUL appended for convenience.  The buffer may be
+ * modified by the @write function.  @write should return 0 on success.
+ *
+ * The @data value is accessible from the @show and @write functions by calling
+ * PDE_DATA() on the file inode.  The network namespace must be accessed by
+ * calling seq_file_net() on the seq_file struct.
+ */
+struct proc_dir_entry *proc_create_net_data_write(const char *name, umode_t mode,
+						  struct proc_dir_entry *parent,
+						  const struct seq_operations *ops,
+						  proc_write_t write,
+						  unsigned int state_size, void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_net_seq_fops;
+	p->seq_ops = ops;
+	p->state_size = state_size;
+	p->write = write;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL_GPL(proc_create_net_data_write);
+
+static int single_open_net(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+	struct net *net;
+	int err;
+
+	net = get_proc_net(inode);
+	if (!net)
+		return -ENXIO;
+
+	err = single_open(file, de->single_show, net);
+	if (err)
+		put_net(net);
+	return err;
+}
+
+static int single_release_net(struct inode *ino, struct file *f)
 {
 	struct seq_file *seq = f->private_data;
 	put_net(seq->private);
 	return single_release(ino, f);
 }
-EXPORT_SYMBOL_GPL(single_release_net);
+
+static const struct file_operations proc_net_single_fops = {
+	.open		= single_open_net,
+	.read		= seq_read,
+	.write		= proc_simple_write,
+	.llseek		= seq_lseek,
+	.release	= single_release_net,
+};
+
+struct proc_dir_entry *proc_create_net_single(const char *name, umode_t mode,
+		struct proc_dir_entry *parent,
+		int (*show)(struct seq_file *, void *), void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_net_single_fops;
+	p->single_show = show;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL_GPL(proc_create_net_single);
+
+/**
+ * proc_create_net_single_write - Create a writable net_ns-specific proc file
+ * @name: The name of the file.
+ * @mode: The file's access mode.
+ * @parent: The parent directory in which to create.
+ * @show: The seqfile show method with which to read the file.
+ * @write: The write method which which to 'modify' the file.
+ * @data: Data for retrieval by PDE_DATA().
+ *
+ * Create a network-namespaced proc file in the @parent directory with the
+ * specified @name and @mode that allows reading of a file that displays a
+ * single element rather than a series and also provides for the file accepting
+ * writes that have some arbitrary effect.
+ *
+ * The @show function is called to extract the readable content via the
+ * seq_file interface.
+ *
+ * The @write function is called with the data copied into a kernel space
+ * scratch buffer and has a NUL appended for convenience.  The buffer may be
+ * modified by the @write function.  @write should return 0 on success.
+ *
+ * The @data value is accessible from the @show and @write functions by calling
+ * PDE_DATA() on the file inode.  The network namespace must be accessed by
+ * calling seq_file_single_net() on the seq_file struct.
+ */
+struct proc_dir_entry *proc_create_net_single_write(const char *name, umode_t mode,
+						    struct proc_dir_entry *parent,
+						    int (*show)(struct seq_file *, void *),
+						    proc_write_t write,
+						    void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_net_single_fops;
+	p->single_show = show;
+	p->write = write;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL_GPL(proc_create_net_single_write);
 
 static struct net *get_proc_task_net(struct inode *dir)
 {

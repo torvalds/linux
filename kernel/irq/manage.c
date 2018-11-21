@@ -24,6 +24,7 @@
 
 #ifdef CONFIG_IRQ_FORCED_THREADING
 __read_mostly bool force_irqthreads;
+EXPORT_SYMBOL_GPL(force_irqthreads);
 
 static int __init setup_forced_irqthreads(char *arg)
 {
@@ -204,6 +205,39 @@ int irq_do_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	return ret;
 }
 
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+static inline int irq_set_affinity_pending(struct irq_data *data,
+					   const struct cpumask *dest)
+{
+	struct irq_desc *desc = irq_data_to_desc(data);
+
+	irqd_set_move_pending(data);
+	irq_copy_pending(desc, dest);
+	return 0;
+}
+#else
+static inline int irq_set_affinity_pending(struct irq_data *data,
+					   const struct cpumask *dest)
+{
+	return -EBUSY;
+}
+#endif
+
+static int irq_try_set_affinity(struct irq_data *data,
+				const struct cpumask *dest, bool force)
+{
+	int ret = irq_do_set_affinity(data, dest, force);
+
+	/*
+	 * In case that the underlying vector management is busy and the
+	 * architecture supports the generic pending mechanism then utilize
+	 * this to avoid returning an error to user space.
+	 */
+	if (ret == -EBUSY && !force)
+		ret = irq_set_affinity_pending(data, dest);
+	return ret;
+}
+
 int irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask,
 			    bool force)
 {
@@ -214,8 +248,8 @@ int irq_set_affinity_locked(struct irq_data *data, const struct cpumask *mask,
 	if (!chip || !chip->irq_set_affinity)
 		return -EINVAL;
 
-	if (irq_can_move_pcntxt(data)) {
-		ret = irq_do_set_affinity(data, mask, force);
+	if (irq_can_move_pcntxt(data) && !irqd_is_setaffinity_pending(data)) {
+		ret = irq_try_set_affinity(data, mask, force);
 	} else {
 		irqd_set_move_pending(data);
 		irq_copy_pending(desc, mask);
@@ -1034,6 +1068,13 @@ static int irq_setup_forced_threading(struct irqaction *new)
 	if (new->flags & (IRQF_NO_THREAD | IRQF_PERCPU | IRQF_ONESHOT))
 		return 0;
 
+	/*
+	 * No further action required for interrupts which are requested as
+	 * threaded interrupts already
+	 */
+	if (new->handler == irq_default_primary_handler)
+		return 0;
+
 	new->flags |= IRQF_ONESHOT;
 
 	/*
@@ -1041,7 +1082,7 @@ static int irq_setup_forced_threading(struct irqaction *new)
 	 * thread handler. We force thread them as well by creating a
 	 * secondary action.
 	 */
-	if (new->handler != irq_default_primary_handler && new->thread_fn) {
+	if (new->handler && new->thread_fn) {
 		/* Allocate the secondary action */
 		new->secondary = kzalloc(sizeof(struct irqaction), GFP_KERNEL);
 		if (!new->secondary)

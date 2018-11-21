@@ -48,7 +48,7 @@ void strp_pause(struct strparser *strp)
      Temporarily pause a stream parser. Message parsing is suspended
      and no new messages are delivered to the upper layer.
 
-void strp_pause(struct strparser *strp)
+void strp_unpause(struct strparser *strp)
 
      Unpause a paused stream parser.
 

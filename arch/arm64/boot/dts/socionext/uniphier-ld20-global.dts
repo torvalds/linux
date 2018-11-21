@@ -54,7 +54,7 @@
 	sound {
 		compatible = "audio-graph-card";
 		label = "UniPhier LD20";
-		widgets = "Headphone", "Headphone Jack";
+		widgets = "Headphone", "Headphones";
 		dais = <&i2s_port2
 			&i2s_port3
 			&i2s_port4

@@ -25,6 +25,8 @@
 #include <linux/ptrace.h>
 #include <linux/async.h>
 #include <linux/uaccess.h>
+#include <linux/shmem_fs.h>
+#include <linux/pipe_fs_i.h>
 
 #include <trace/events/module.h>
 
@@ -97,9 +99,14 @@ static int call_usermodehelper_exec_async(void *data)
 
 	commit_creds(new);
 
-	retval = do_execve(getname_kernel(sub_info->path),
-			   (const char __user *const __user *)sub_info->argv,
-			   (const char __user *const __user *)sub_info->envp);
+	sub_info->pid = task_pid_nr(current);
+	if (sub_info->file)
+		retval = do_execve_file(sub_info->file,
+					sub_info->argv, sub_info->envp);
+	else
+		retval = do_execve(getname_kernel(sub_info->path),
+				   (const char __user *const __user *)sub_info->argv,
+				   (const char __user *const __user *)sub_info->envp);
 out:
 	sub_info->retval = retval;
 	/*
@@ -392,6 +399,117 @@ struct subprocess_info *call_usermodehelper_setup(const char *path, char **argv,
 	return sub_info;
 }
 EXPORT_SYMBOL(call_usermodehelper_setup);
+
+struct subprocess_info *call_usermodehelper_setup_file(struct file *file,
+		int (*init)(struct subprocess_info *info, struct cred *new),
+		void (*cleanup)(struct subprocess_info *info), void *data)
+{
+	struct subprocess_info *sub_info;
+
+	sub_info = kzalloc(sizeof(struct subprocess_info), GFP_KERNEL);
+	if (!sub_info)
+		return NULL;
+
+	INIT_WORK(&sub_info->work, call_usermodehelper_exec_work);
+	sub_info->path = "none";
+	sub_info->file = file;
+	sub_info->init = init;
+	sub_info->cleanup = cleanup;
+	sub_info->data = data;
+	return sub_info;
+}
+
+static int umh_pipe_setup(struct subprocess_info *info, struct cred *new)
+{
+	struct umh_info *umh_info = info->data;
+	struct file *from_umh[2];
+	struct file *to_umh[2];
+	int err;
+
+	/* create pipe to send data to umh */
+	err = create_pipe_files(to_umh, 0);
+	if (err)
+		return err;
+	err = replace_fd(0, to_umh[0], 0);
+	fput(to_umh[0]);
+	if (err < 0) {
+		fput(to_umh[1]);
+		return err;
+	}
+
+	/* create pipe to receive data from umh */
+	err = create_pipe_files(from_umh, 0);
+	if (err) {
+		fput(to_umh[1]);
+		replace_fd(0, NULL, 0);
+		return err;
+	}
+	err = replace_fd(1, from_umh[1], 0);
+	fput(from_umh[1]);
+	if (err < 0) {
+		fput(to_umh[1]);
+		replace_fd(0, NULL, 0);
+		fput(from_umh[0]);
+		return err;
+	}
+
+	umh_info->pipe_to_umh = to_umh[1];
+	umh_info->pipe_from_umh = from_umh[0];
+	return 0;
+}
+
+static void umh_save_pid(struct subprocess_info *info)
+{
+	struct umh_info *umh_info = info->data;
+
+	umh_info->pid = info->pid;
+}
+
+/**
+ * fork_usermode_blob - fork a blob of bytes as a usermode process
+ * @data: a blob of bytes that can be do_execv-ed as a file
+ * @len: length of the blob
+ * @info: information about usermode process (shouldn't be NULL)
+ *
+ * Returns either negative error or zero which indicates success
+ * in executing a blob of bytes as a usermode process. In such
+ * case 'struct umh_info *info' is populated with two pipes
+ * and a pid of the process. The caller is responsible for health
+ * check of the user process, killing it via pid, and closing the
+ * pipes when user process is no longer needed.
+ */
+int fork_usermode_blob(void *data, size_t len, struct umh_info *info)
+{
+	struct subprocess_info *sub_info;
+	struct file *file;
+	ssize_t written;
+	loff_t pos = 0;
+	int err;
+
+	file = shmem_kernel_file_setup("", len, 0);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	written = kernel_write(file, data, len, &pos);
+	if (written != len) {
+		err = written;
+		if (err >= 0)
+			err = -ENOMEM;
+		goto out;
+	}
+
+	err = -ENOMEM;
+	sub_info = call_usermodehelper_setup_file(file, umh_pipe_setup,
+						  umh_save_pid, info);
+	if (!sub_info)
+		goto out;
+
+	err = call_usermodehelper_exec(sub_info, UMH_WAIT_EXEC);
+out:
+	fput(file);
+	return err;
+}
+EXPORT_SYMBOL_GPL(fork_usermode_blob);
 
 /**
  * call_usermodehelper_exec - start a usermode application

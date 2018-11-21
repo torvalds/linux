@@ -850,6 +850,9 @@ intel_tv_mode_valid(struct drm_connector *connector,
 	const struct tv_mode *tv_mode = intel_tv_mode_find(connector->state);
 	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	if (mode->clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
@@ -877,16 +880,21 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 			struct drm_connector_state *conn_state)
 {
 	const struct tv_mode *tv_mode = intel_tv_mode_find(conn_state);
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
 
 	if (!tv_mode)
 		return false;
 
-	pipe_config->base.adjusted_mode.crtc_clock = tv_mode->clock;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
+	adjusted_mode->crtc_clock = tv_mode->clock;
 	DRM_DEBUG_KMS("forcing bpc to 8 for TV\n");
 	pipe_config->pipe_bpp = 8*3;
 
 	/* TV has it's own notion of sync and other mode flags, so clear them. */
-	pipe_config->base.adjusted_mode.flags = 0;
+	adjusted_mode->flags = 0;
 
 	/*
 	 * FIXME: We don't check whether the input mode is actually what we want

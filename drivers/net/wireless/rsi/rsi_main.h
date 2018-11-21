@@ -190,12 +190,6 @@ struct cqm_info {
 	u32 rssi_hyst;
 };
 
-struct xtended_desc {
-	u8 confirm_frame_type;
-	u8 retry_cnt;
-	u16 reserved;
-};
-
 enum rsi_dfs_regions {
 	RSI_REGION_FCC = 0,
 	RSI_REGION_ETSI,
@@ -293,6 +287,7 @@ struct rsi_common {
 	struct timer_list roc_timer;
 	struct ieee80211_vif *roc_vif;
 
+	bool eapol4_confirm;
 	void *bt_adapter;
 };
 

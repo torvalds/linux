@@ -1157,7 +1157,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	ie = kzalloc(num_bands * iebufsz, GFP_KERNEL);
+	ie = kcalloc(iebufsz, num_bands, GFP_KERNEL);
 	if (!ie) {
 		ret = -ENOMEM;
 		goto out;

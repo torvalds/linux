@@ -665,18 +665,16 @@ iscsi_iser_session_create(struct iscsi_endpoint *ep,
 			goto free_host;
 	}
 
-	/*
-	 * FRs or FMRs can only map up to a (device) page per entry, but if the
-	 * first entry is misaligned we'll end up using using two entries
-	 * (head and tail) for a single page worth data, so we have to drop
-	 * one segment from the calculation.
-	 */
-	max_fr_sectors = ((shost->sg_tablesize - 1) * PAGE_SIZE) >> 9;
+	max_fr_sectors = (shost->sg_tablesize * PAGE_SIZE) >> 9;
 	shost->max_sectors = min(iser_max_sectors, max_fr_sectors);
 
 	iser_dbg("iser_conn %p, sg_tablesize %u, max_sectors %u\n",
 		 iser_conn, shost->sg_tablesize,
 		 shost->max_sectors);
+
+	if (shost->max_sectors < iser_max_sectors)
+		iser_warn("max_sectors was reduced from %u to %u\n",
+			  iser_max_sectors, shost->max_sectors);
 
 	if (cmds_max > max_cmds) {
 		iser_info("cmds_max changed from %u to %u\n",

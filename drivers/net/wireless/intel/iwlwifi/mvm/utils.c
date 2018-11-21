@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -278,8 +280,8 @@ u8 iwl_mvm_next_antenna(struct iwl_mvm *mvm, u8 valid, u8 last_idx)
 	u8 ind = last_idx;
 	int i;
 
-	for (i = 0; i < MAX_RS_ANT_NUM; i++) {
-		ind = (ind + 1) % MAX_RS_ANT_NUM;
+	for (i = 0; i < MAX_ANT_NUM; i++) {
+		ind = (ind + 1) % MAX_ANT_NUM;
 		if (valid & BIT(ind))
 			return ind;
 	}
@@ -520,15 +522,15 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u32 base)
 
 		/* set INIT_DONE flag */
 		iwl_set_bit(trans, CSR_GP_CNTRL,
-			    CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+			    BIT(trans->cfg->csr->flag_init_done));
 
 		/* and wait for clock stabilization */
 		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
 			udelay(2);
 
 		err = iwl_poll_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY,
+				   BIT(trans->cfg->csr->flag_mac_clock_ready),
+				   BIT(trans->cfg->csr->flag_mac_clock_ready),
 				   25000);
 		if (err < 0) {
 			IWL_DEBUG_INFO(trans,
@@ -728,12 +730,14 @@ int iwl_mvm_tvqm_enable_txq(struct iwl_mvm *mvm, int mac80211_queue,
 		.sta_id = sta_id,
 		.tid = tid,
 	};
-	int queue;
+	int queue, size = IWL_DEFAULT_QUEUE_SIZE;
 
-	if (cmd.tid == IWL_MAX_TID_COUNT)
+	if (cmd.tid == IWL_MAX_TID_COUNT) {
 		cmd.tid = IWL_MGMT_TID;
+		size = IWL_MGMT_QUEUE_SIZE;
+	}
 	queue = iwl_trans_txq_alloc(mvm->trans, (void *)&cmd,
-				    SCD_QUEUE_CFG, timeout);
+				    SCD_QUEUE_CFG, size, timeout);
 
 	if (queue < 0) {
 		IWL_DEBUG_TX_QUEUES(mvm,
@@ -1074,23 +1078,48 @@ int iwl_mvm_update_low_latency(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_power_update_mac(mvm);
 }
 
+struct iwl_mvm_low_latency_iter {
+	bool result;
+	bool result_per_band[NUM_NL80211_BANDS];
+};
+
 static void iwl_mvm_ll_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
 {
-	bool *result = _data;
+	struct iwl_mvm_low_latency_iter *result = _data;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	enum nl80211_band band;
 
-	if (iwl_mvm_vif_low_latency(iwl_mvm_vif_from_mac80211(vif)))
-		*result = true;
+	if (iwl_mvm_vif_low_latency(mvmvif)) {
+		result->result = true;
+
+		if (!mvmvif->phy_ctxt)
+			return;
+
+		band = mvmvif->phy_ctxt->channel->band;
+		result->result_per_band[band] = true;
+	}
 }
 
 bool iwl_mvm_low_latency(struct iwl_mvm *mvm)
 {
-	bool result = false;
+	struct iwl_mvm_low_latency_iter data = {};
 
 	ieee80211_iterate_active_interfaces_atomic(
 			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
-			iwl_mvm_ll_iter, &result);
+			iwl_mvm_ll_iter, &data);
 
-	return result;
+	return data.result;
+}
+
+bool iwl_mvm_low_latency_band(struct iwl_mvm *mvm, enum nl80211_band band)
+{
+	struct iwl_mvm_low_latency_iter data = {};
+
+	ieee80211_iterate_active_interfaces_atomic(
+			mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+			iwl_mvm_ll_iter, &data);
+
+	return data.result_per_band[band];
 }
 
 struct iwl_bss_iter_data {
@@ -1428,6 +1457,387 @@ void iwl_mvm_event_frame_timeout_callback(struct iwl_mvm *mvm,
 				"Frame from %pM timed out, tid %d",
 				sta->addr, tid);
 }
+
+u8 iwl_mvm_tcm_load_percentage(u32 airtime, u32 elapsed)
+{
+	if (!elapsed)
+		return 0;
+
+	return (100 * airtime / elapsed) / USEC_PER_MSEC;
+}
+
+static enum iwl_mvm_traffic_load
+iwl_mvm_tcm_load(struct iwl_mvm *mvm, u32 airtime, unsigned long elapsed)
+{
+	u8 load = iwl_mvm_tcm_load_percentage(airtime, elapsed);
+
+	if (load > IWL_MVM_TCM_LOAD_HIGH_THRESH)
+		return IWL_MVM_TRAFFIC_HIGH;
+	if (load > IWL_MVM_TCM_LOAD_MEDIUM_THRESH)
+		return IWL_MVM_TRAFFIC_MEDIUM;
+
+	return IWL_MVM_TRAFFIC_LOW;
+}
+
+struct iwl_mvm_tcm_iter_data {
+	struct iwl_mvm *mvm;
+	bool any_sent;
+};
+
+static void iwl_mvm_tcm_iter(void *_data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_tcm_iter_data *data = _data;
+	struct iwl_mvm *mvm = data->mvm;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool low_latency, prev = mvmvif->low_latency & LOW_LATENCY_TRAFFIC;
+
+	if (mvmvif->id >= NUM_MAC_INDEX_DRIVER)
+		return;
+
+	low_latency = mvm->tcm.result.low_latency[mvmvif->id];
+
+	if (!mvm->tcm.result.change[mvmvif->id] &&
+	    prev == low_latency) {
+		iwl_mvm_update_quotas(mvm, false, NULL);
+		return;
+	}
+
+	if (prev != low_latency) {
+		/* this sends traffic load and updates quota as well */
+		iwl_mvm_update_low_latency(mvm, vif, low_latency,
+					   LOW_LATENCY_TRAFFIC);
+	} else {
+		iwl_mvm_update_quotas(mvm, false, NULL);
+	}
+
+	data->any_sent = true;
+}
+
+static void iwl_mvm_tcm_results(struct iwl_mvm *mvm)
+{
+	struct iwl_mvm_tcm_iter_data data = {
+		.mvm = mvm,
+		.any_sent = false,
+	};
+
+	mutex_lock(&mvm->mutex);
+
+	ieee80211_iterate_active_interfaces(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_tcm_iter, &data);
+
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
+		iwl_mvm_config_scan(mvm);
+
+	mutex_unlock(&mvm->mutex);
+}
+
+static void iwl_mvm_tcm_uapsd_nonagg_detected_wk(struct work_struct *wk)
+{
+	struct iwl_mvm *mvm;
+	struct iwl_mvm_vif *mvmvif;
+	struct ieee80211_vif *vif;
+
+	mvmvif = container_of(wk, struct iwl_mvm_vif,
+			      uapsd_nonagg_detected_wk.work);
+	vif = container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
+	mvm = mvmvif->mvm;
+
+	if (mvm->tcm.data[mvmvif->id].opened_rx_ba_sessions)
+		return;
+
+	/* remember that this AP is broken */
+	memcpy(mvm->uapsd_noagg_bssids[mvm->uapsd_noagg_bssid_write_idx].addr,
+	       vif->bss_conf.bssid, ETH_ALEN);
+	mvm->uapsd_noagg_bssid_write_idx++;
+	if (mvm->uapsd_noagg_bssid_write_idx >= IWL_MVM_UAPSD_NOAGG_LIST_LEN)
+		mvm->uapsd_noagg_bssid_write_idx = 0;
+
+	iwl_mvm_connection_loss(mvm, vif,
+				"AP isn't using AMPDU with uAPSD enabled");
+}
+
+static void iwl_mvm_uapsd_agg_disconnect_iter(void *data, u8 *mac,
+					      struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	int *mac_id = data;
+
+	if (vif->type != NL80211_IFTYPE_STATION)
+		return;
+
+	if (mvmvif->id != *mac_id)
+		return;
+
+	if (!vif->bss_conf.assoc)
+		return;
+
+	if (!mvmvif->queue_params[IEEE80211_AC_VO].uapsd &&
+	    !mvmvif->queue_params[IEEE80211_AC_VI].uapsd &&
+	    !mvmvif->queue_params[IEEE80211_AC_BE].uapsd &&
+	    !mvmvif->queue_params[IEEE80211_AC_BK].uapsd)
+		return;
+
+	if (mvm->tcm.data[*mac_id].uapsd_nonagg_detect.detected)
+		return;
+
+	mvm->tcm.data[*mac_id].uapsd_nonagg_detect.detected = true;
+	IWL_INFO(mvm,
+		 "detected AP should do aggregation but isn't, likely due to U-APSD\n");
+	schedule_delayed_work(&mvmvif->uapsd_nonagg_detected_wk, 15 * HZ);
+}
+
+static void iwl_mvm_check_uapsd_agg_expected_tpt(struct iwl_mvm *mvm,
+						 unsigned int elapsed,
+						 int mac)
+{
+	u64 bytes = mvm->tcm.data[mac].uapsd_nonagg_detect.rx_bytes;
+	u64 tpt;
+	unsigned long rate;
+
+	rate = ewma_rate_read(&mvm->tcm.data[mac].uapsd_nonagg_detect.rate);
+
+	if (!rate || mvm->tcm.data[mac].opened_rx_ba_sessions ||
+	    mvm->tcm.data[mac].uapsd_nonagg_detect.detected)
+		return;
+
+	if (iwl_mvm_has_new_rx_api(mvm)) {
+		tpt = 8 * bytes; /* kbps */
+		do_div(tpt, elapsed);
+		rate *= 1000; /* kbps */
+		if (tpt < 22 * rate / 100)
+			return;
+	} else {
+		/*
+		 * the rate here is actually the threshold, in 100Kbps units,
+		 * so do the needed conversion from bytes to 100Kbps:
+		 * 100kb = bits / (100 * 1000),
+		 * 100kbps = 100kb / (msecs / 1000) ==
+		 *           (bits / (100 * 1000)) / (msecs / 1000) ==
+		 *           bits / (100 * msecs)
+		 */
+		tpt = (8 * bytes);
+		do_div(tpt, elapsed * 100);
+		if (tpt < rate)
+			return;
+	}
+
+	ieee80211_iterate_active_interfaces_atomic(
+		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,
+		iwl_mvm_uapsd_agg_disconnect_iter, &mac);
+}
+
+static void iwl_mvm_tcm_iterator(void *_data, u8 *mac,
+				 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 *band = _data;
+
+	if (!mvmvif->phy_ctxt)
+		return;
+
+	band[mvmvif->id] = mvmvif->phy_ctxt->channel->band;
+}
+
+static unsigned long iwl_mvm_calc_tcm_stats(struct iwl_mvm *mvm,
+					    unsigned long ts,
+					    bool handle_uapsd)
+{
+	unsigned int elapsed = jiffies_to_msecs(ts - mvm->tcm.ts);
+	unsigned int uapsd_elapsed =
+		jiffies_to_msecs(ts - mvm->tcm.uapsd_nonagg_ts);
+	u32 total_airtime = 0;
+	u32 band_airtime[NUM_NL80211_BANDS] = {0};
+	u32 band[NUM_MAC_INDEX_DRIVER] = {0};
+	int ac, mac, i;
+	bool low_latency = false;
+	enum iwl_mvm_traffic_load load, band_load;
+	bool handle_ll = time_after(ts, mvm->tcm.ll_ts + MVM_LL_PERIOD);
+
+	if (handle_ll)
+		mvm->tcm.ll_ts = ts;
+	if (handle_uapsd)
+		mvm->tcm.uapsd_nonagg_ts = ts;
+
+	mvm->tcm.result.elapsed = elapsed;
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						   IEEE80211_IFACE_ITER_NORMAL,
+						   iwl_mvm_tcm_iterator,
+						   &band);
+
+	for (mac = 0; mac < NUM_MAC_INDEX_DRIVER; mac++) {
+		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+		u32 vo_vi_pkts = 0;
+		u32 airtime = mdata->rx.airtime + mdata->tx.airtime;
+
+		total_airtime += airtime;
+		band_airtime[band[mac]] += airtime;
+
+		load = iwl_mvm_tcm_load(mvm, airtime, elapsed);
+		mvm->tcm.result.change[mac] = load != mvm->tcm.result.load[mac];
+		mvm->tcm.result.load[mac] = load;
+		mvm->tcm.result.airtime[mac] = airtime;
+
+		for (ac = IEEE80211_AC_VO; ac <= IEEE80211_AC_VI; ac++)
+			vo_vi_pkts += mdata->rx.pkts[ac] +
+				      mdata->tx.pkts[ac];
+
+		/* enable immediately with enough packets but defer disabling */
+		if (vo_vi_pkts > IWL_MVM_TCM_LOWLAT_ENABLE_THRESH)
+			mvm->tcm.result.low_latency[mac] = true;
+		else if (handle_ll)
+			mvm->tcm.result.low_latency[mac] = false;
+
+		if (handle_ll) {
+			/* clear old data */
+			memset(&mdata->rx.pkts, 0, sizeof(mdata->rx.pkts));
+			memset(&mdata->tx.pkts, 0, sizeof(mdata->tx.pkts));
+		}
+		low_latency |= mvm->tcm.result.low_latency[mac];
+
+		if (!mvm->tcm.result.low_latency[mac] && handle_uapsd)
+			iwl_mvm_check_uapsd_agg_expected_tpt(mvm, uapsd_elapsed,
+							     mac);
+		/* clear old data */
+		if (handle_uapsd)
+			mdata->uapsd_nonagg_detect.rx_bytes = 0;
+		memset(&mdata->rx.airtime, 0, sizeof(mdata->rx.airtime));
+		memset(&mdata->tx.airtime, 0, sizeof(mdata->tx.airtime));
+	}
+
+	load = iwl_mvm_tcm_load(mvm, total_airtime, elapsed);
+	mvm->tcm.result.global_change = load != mvm->tcm.result.global_load;
+	mvm->tcm.result.global_load = load;
+
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+		band_load = iwl_mvm_tcm_load(mvm, band_airtime[i], elapsed);
+		mvm->tcm.result.band_load[i] = band_load;
+	}
+
+	/*
+	 * If the current load isn't low we need to force re-evaluation
+	 * in the TCM period, so that we can return to low load if there
+	 * was no traffic at all (and thus iwl_mvm_recalc_tcm didn't get
+	 * triggered by traffic).
+	 */
+	if (load != IWL_MVM_TRAFFIC_LOW)
+		return MVM_TCM_PERIOD;
+	/*
+	 * If low-latency is active we need to force re-evaluation after
+	 * (the longer) MVM_LL_PERIOD, so that we can disable low-latency
+	 * when there's no traffic at all.
+	 */
+	if (low_latency)
+		return MVM_LL_PERIOD;
+	/*
+	 * Otherwise, we don't need to run the work struct because we're
+	 * in the default "idle" state - traffic indication is low (which
+	 * also covers the "no traffic" case) and low-latency is disabled
+	 * so there's no state that may need to be disabled when there's
+	 * no traffic at all.
+	 *
+	 * Note that this has no impact on the regular scheduling of the
+	 * updates triggered by traffic - those happen whenever one of the
+	 * two timeouts expire (if there's traffic at all.)
+	 */
+	return 0;
+}
+
+void iwl_mvm_recalc_tcm(struct iwl_mvm *mvm)
+{
+	unsigned long ts = jiffies;
+	bool handle_uapsd =
+		time_after(ts, mvm->tcm.uapsd_nonagg_ts +
+			       msecs_to_jiffies(IWL_MVM_UAPSD_NONAGG_PERIOD));
+
+	spin_lock(&mvm->tcm.lock);
+	if (mvm->tcm.paused || !time_after(ts, mvm->tcm.ts + MVM_TCM_PERIOD)) {
+		spin_unlock(&mvm->tcm.lock);
+		return;
+	}
+	spin_unlock(&mvm->tcm.lock);
+
+	if (handle_uapsd && iwl_mvm_has_new_rx_api(mvm)) {
+		mutex_lock(&mvm->mutex);
+		if (iwl_mvm_request_statistics(mvm, true))
+			handle_uapsd = false;
+		mutex_unlock(&mvm->mutex);
+	}
+
+	spin_lock(&mvm->tcm.lock);
+	/* re-check if somebody else won the recheck race */
+	if (!mvm->tcm.paused && time_after(ts, mvm->tcm.ts + MVM_TCM_PERIOD)) {
+		/* calculate statistics */
+		unsigned long work_delay = iwl_mvm_calc_tcm_stats(mvm, ts,
+								  handle_uapsd);
+
+		/* the memset needs to be visible before the timestamp */
+		smp_mb();
+		mvm->tcm.ts = ts;
+		if (work_delay)
+			schedule_delayed_work(&mvm->tcm.work, work_delay);
+	}
+	spin_unlock(&mvm->tcm.lock);
+
+	iwl_mvm_tcm_results(mvm);
+}
+
+void iwl_mvm_tcm_work(struct work_struct *work)
+{
+	struct delayed_work *delayed_work = to_delayed_work(work);
+	struct iwl_mvm *mvm = container_of(delayed_work, struct iwl_mvm,
+					   tcm.work);
+
+	iwl_mvm_recalc_tcm(mvm);
+}
+
+void iwl_mvm_pause_tcm(struct iwl_mvm *mvm, bool with_cancel)
+{
+	spin_lock_bh(&mvm->tcm.lock);
+	mvm->tcm.paused = true;
+	spin_unlock_bh(&mvm->tcm.lock);
+	if (with_cancel)
+		cancel_delayed_work_sync(&mvm->tcm.work);
+}
+
+void iwl_mvm_resume_tcm(struct iwl_mvm *mvm)
+{
+	int mac;
+
+	spin_lock_bh(&mvm->tcm.lock);
+	mvm->tcm.ts = jiffies;
+	mvm->tcm.ll_ts = jiffies;
+	for (mac = 0; mac < NUM_MAC_INDEX_DRIVER; mac++) {
+		struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+
+		memset(&mdata->rx.pkts, 0, sizeof(mdata->rx.pkts));
+		memset(&mdata->tx.pkts, 0, sizeof(mdata->tx.pkts));
+		memset(&mdata->rx.airtime, 0, sizeof(mdata->rx.airtime));
+		memset(&mdata->tx.airtime, 0, sizeof(mdata->tx.airtime));
+	}
+	/* The TCM data needs to be reset before "paused" flag changes */
+	smp_mb();
+	mvm->tcm.paused = false;
+	spin_unlock_bh(&mvm->tcm.lock);
+}
+
+void iwl_mvm_tcm_add_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	INIT_DELAYED_WORK(&mvmvif->uapsd_nonagg_detected_wk,
+			  iwl_mvm_tcm_uapsd_nonagg_detected_wk);
+}
+
+void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	cancel_delayed_work_sync(&mvmvif->uapsd_nonagg_detected_wk);
+}
+
 
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 {

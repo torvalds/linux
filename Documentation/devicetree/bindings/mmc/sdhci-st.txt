@@ -20,7 +20,7 @@ Required properties:
 
 - pinctrl-names:	A pinctrl state names "default" must be defined.
 - pinctrl-0:		Phandle referencing pin configuration of the sd/emmc controller.
-			See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+			See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 - reg:			This must provide the host controller base address and it can also
 			contain the FlashSS Top register for TX/RX delay used by the driver

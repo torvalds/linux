@@ -16,7 +16,7 @@
  * Read the NVM using the admin queue commands (0x0701)
  */
 static enum ice_status
-ice_aq_read_nvm(struct ice_hw *hw, u8 module_typeid, u32 offset, u16 length,
+ice_aq_read_nvm(struct ice_hw *hw, u16 module_typeid, u32 offset, u16 length,
 		void *data, bool last_command, struct ice_sq_cd *cd)
 {
 	struct ice_aq_desc desc;
@@ -33,8 +33,9 @@ ice_aq_read_nvm(struct ice_hw *hw, u8 module_typeid, u32 offset, u16 length,
 	/* If this is the last command in a series, set the proper flag. */
 	if (last_command)
 		cmd->cmd_flags |= ICE_AQC_NVM_LAST_CMD;
-	cmd->module_typeid = module_typeid;
-	cmd->offset = cpu_to_le32(offset);
+	cmd->module_typeid = cpu_to_le16(module_typeid);
+	cmd->offset_low = cpu_to_le16(offset & 0xFFFF);
+	cmd->offset_high = (offset >> 16) & 0xFF;
 	cmd->length = cpu_to_le16(length);
 
 	return ice_aq_send_cmd(hw, &desc, data, length, cd);

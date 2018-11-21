@@ -108,4 +108,17 @@ enum output_standard {
 	dm_std_uninitialized = 0, dm_std_cvtr2, dm_std_cvt
 };
 
+enum mpc_combine_affinity {
+	dm_mpc_always_when_possible,
+	dm_mpc_reduce_voltage,
+	dm_mpc_reduce_voltage_and_clocks
+};
+
+enum self_refresh_affinity {
+	dm_try_to_allow_self_refresh_and_mclk_switch,
+	dm_allow_self_refresh_and_mclk_switch,
+	dm_allow_self_refresh,
+	dm_neither_self_refresh_nor_mclk_switch
+};
+
 #endif

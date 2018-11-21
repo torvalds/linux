@@ -35,6 +35,13 @@
 
 #include <linux/mlx5/driver.h>
 
+enum mlx5_fpga_device_id {
+	MLX5_FPGA_DEVICE_UNKNOWN = 0,
+	MLX5_FPGA_DEVICE_KU040 = 1,
+	MLX5_FPGA_DEVICE_KU060 = 2,
+	MLX5_FPGA_DEVICE_KU060_2 = 3,
+};
+
 enum mlx5_fpga_image {
 	MLX5_FPGA_IMAGE_USER = 0,
 	MLX5_FPGA_IMAGE_FACTORY,

@@ -103,61 +103,6 @@
 	};
 };
 
-&uart_AO {
-	status = "okay";
-	pinctrl-0 = <&uart_ao_a_pins>;
-	pinctrl-names = "default";
-};
-
-&gpio_ao {
-	/*
-	 * WARNING: The USB Hub on the Odroid-C1/C1+ needs a reset signal
-	 * to be turned high in order to be detected by the USB Controller.
-	 * This signal should be handled by a USB specific power sequence
-	 * in order to reset the Hub when USB bus is powered down.
-	 */
-	usb-hub {
-		gpio-hog;
-		gpios = <GPIOAO_4 GPIO_ACTIVE_HIGH>;
-		output-high;
-		line-name = "usb-hub-reset";
-	};
-};
-
-&usb1_phy {
-	status = "okay";
-};
-
-&usb1 {
-	status = "okay";
-};
-
-&sdio {
-	status = "okay";
-
-	pinctrl-0 = <&sd_b_pins>;
-	pinctrl-names = "default";
-
-	/* SD card */
-	sd_card_slot: slot@1 {
-		compatible = "mmc-slot";
-		reg = <1>;
-		status = "okay";
-
-		bus-width = <4>;
-		no-sdio;
-		cap-mmc-highspeed;
-		cap-sd-highspeed;
-		disable-wp;
-
-		cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
-		cd-inverted;
-
-		vmmc-supply = <&tflash_vdd>;
-		vqmmc-supply = <&tf_io>;
-	};
-};
-
 &ethmac {
 	status = "okay";
 
@@ -186,4 +131,65 @@
 			interrupts = <17 IRQ_TYPE_LEVEL_LOW>;
 		};
 	};
+};
+
+&gpio_ao {
+	/*
+	 * WARNING: The USB Hub on the Odroid-C1/C1+ needs a reset signal
+	 * to be turned high in order to be detected by the USB Controller.
+	 * This signal should be handled by a USB specific power sequence
+	 * in order to reset the Hub when USB bus is powered down.
+	 */
+	usb-hub {
+		gpio-hog;
+		gpios = <GPIOAO_4 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb-hub-reset";
+	};
+};
+
+&ir_receiver {
+	status = "okay";
+	pinctrl-0 = <&ir_recv_pins>;
+	pinctrl-names = "default";
+};
+
+&sdio {
+	status = "okay";
+
+	pinctrl-0 = <&sd_b_pins>;
+	pinctrl-names = "default";
+
+	/* SD card */
+	sd_card_slot: slot@1 {
+		compatible = "mmc-slot";
+		reg = <1>;
+		status = "okay";
+
+		bus-width = <4>;
+		no-sdio;
+		cap-mmc-highspeed;
+		cap-sd-highspeed;
+		disable-wp;
+
+		cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
+		cd-inverted;
+
+		vmmc-supply = <&tflash_vdd>;
+		vqmmc-supply = <&tf_io>;
+	};
+};
+
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-names = "default";
+};
+
+&usb1_phy {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
 };

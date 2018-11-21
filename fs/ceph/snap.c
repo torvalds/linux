@@ -594,9 +594,9 @@ int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 
 	BUG_ON(capsnap->writing);
 	capsnap->size = inode->i_size;
-	capsnap->mtime = inode->i_mtime;
-	capsnap->atime = inode->i_atime;
-	capsnap->ctime = inode->i_ctime;
+	capsnap->mtime = timespec64_to_timespec(inode->i_mtime);
+	capsnap->atime = timespec64_to_timespec(inode->i_atime);
+	capsnap->ctime = timespec64_to_timespec(inode->i_ctime);
 	capsnap->time_warp_seq = ci->i_time_warp_seq;
 	capsnap->truncate_size = ci->i_truncate_size;
 	capsnap->truncate_seq = ci->i_truncate_seq;

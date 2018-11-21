@@ -11,7 +11,7 @@ config OVERLAY_FS
 	  For more information see Documentation/filesystems/overlayfs.txt
 
 config OVERLAY_FS_REDIRECT_DIR
-	bool "Overlayfs: turn on redirect dir feature by default"
+	bool "Overlayfs: turn on redirect directory feature by default"
 	depends on OVERLAY_FS
 	help
 	  If this config option is enabled then overlay filesystems will use
@@ -46,7 +46,7 @@ config OVERLAY_FS_INDEX
 	depends on OVERLAY_FS
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  the inodes index dir to map lower inodes to upper inodes by default.
+	  the index directory to map lower inodes to upper inodes by default.
 	  In this case it is still possible to turn off index globally with the
 	  "index=off" module option or on a filesystem instance basis with the
 	  "index=off" mount option.
@@ -66,7 +66,7 @@ config OVERLAY_FS_NFS_EXPORT
 	depends on OVERLAY_FS_INDEX
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  the inodes index dir to decode overlay NFS file handles by default.
+	  the index directory to decode overlay NFS file handles by default.
 	  In this case, it is still possible to turn off NFS export support
 	  globally with the "nfs_export=off" module option or on a filesystem
 	  instance basis with the "nfs_export=off" mount option.

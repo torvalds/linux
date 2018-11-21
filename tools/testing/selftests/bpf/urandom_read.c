@@ -6,15 +6,21 @@
 #include <stdlib.h>
 
 #define BUF_SIZE 256
-int main(void)
+
+int main(int argc, char *argv[])
 {
 	int fd = open("/dev/urandom", O_RDONLY);
 	int i;
 	char buf[BUF_SIZE];
+	int count = 4;
 
 	if (fd < 0)
 		return 1;
-	for (i = 0; i < 4; ++i)
+
+	if (argc == 2)
+		count = atoi(argv[1]);
+
+	for (i = 0; i < count; ++i)
 		read(fd, buf, BUF_SIZE);
 
 	close(fd);

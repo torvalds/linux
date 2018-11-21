@@ -29,6 +29,162 @@
 /* OOM task polling interval */
 #define LIO_OOM_POLL_INTERVAL_MS 250
 
+#define OCTNIC_MAX_SG  MAX_SKB_FRAGS
+
+/**
+ * \brief Callback for getting interface configuration
+ * @param status status of request
+ * @param buf pointer to resp structure
+ */
+void lio_if_cfg_callback(struct octeon_device *oct,
+			 u32 status __attribute__((unused)), void *buf)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)buf;
+	struct liquidio_if_cfg_context *ctx;
+	struct liquidio_if_cfg_resp *resp;
+
+	resp = (struct liquidio_if_cfg_resp *)sc->virtrptr;
+	ctx = (struct liquidio_if_cfg_context *)sc->ctxptr;
+
+	oct = lio_get_device(ctx->octeon_id);
+	if (resp->status)
+		dev_err(&oct->pci_dev->dev, "nic if cfg instruction failed. Status: %llx\n",
+			CVM_CAST64(resp->status));
+	WRITE_ONCE(ctx->cond, 1);
+
+	snprintf(oct->fw_info.liquidio_firmware_version, 32, "%s",
+		 resp->cfg_info.liquidio_firmware_version);
+
+	/* This barrier is required to be sure that the response has been
+	 * written fully before waking up the handler
+	 */
+	wmb();
+
+	wake_up_interruptible(&ctx->wc);
+}
+
+/**
+ * \brief Delete gather lists
+ * @param lio per-network private data
+ */
+void lio_delete_glists(struct lio *lio)
+{
+	struct octnic_gather *g;
+	int i;
+
+	kfree(lio->glist_lock);
+	lio->glist_lock = NULL;
+
+	if (!lio->glist)
+		return;
+
+	for (i = 0; i < lio->oct_dev->num_iqs; i++) {
+		do {
+			g = (struct octnic_gather *)
+			    lio_list_delete_head(&lio->glist[i]);
+			kfree(g);
+		} while (g);
+
+		if (lio->glists_virt_base && lio->glists_virt_base[i] &&
+		    lio->glists_dma_base && lio->glists_dma_base[i]) {
+			lio_dma_free(lio->oct_dev,
+				     lio->glist_entry_size * lio->tx_qsize,
+				     lio->glists_virt_base[i],
+				     lio->glists_dma_base[i]);
+		}
+	}
+
+	kfree(lio->glists_virt_base);
+	lio->glists_virt_base = NULL;
+
+	kfree(lio->glists_dma_base);
+	lio->glists_dma_base = NULL;
+
+	kfree(lio->glist);
+	lio->glist = NULL;
+}
+
+/**
+ * \brief Setup gather lists
+ * @param lio per-network private data
+ */
+int lio_setup_glists(struct octeon_device *oct, struct lio *lio, int num_iqs)
+{
+	struct octnic_gather *g;
+	int i, j;
+
+	lio->glist_lock =
+	    kcalloc(num_iqs, sizeof(*lio->glist_lock), GFP_KERNEL);
+	if (!lio->glist_lock)
+		return -ENOMEM;
+
+	lio->glist =
+	    kcalloc(num_iqs, sizeof(*lio->glist), GFP_KERNEL);
+	if (!lio->glist) {
+		kfree(lio->glist_lock);
+		lio->glist_lock = NULL;
+		return -ENOMEM;
+	}
+
+	lio->glist_entry_size =
+		ROUNDUP8((ROUNDUP4(OCTNIC_MAX_SG) >> 2) * OCT_SG_ENTRY_SIZE);
+
+	/* allocate memory to store virtual and dma base address of
+	 * per glist consistent memory
+	 */
+	lio->glists_virt_base = kcalloc(num_iqs, sizeof(*lio->glists_virt_base),
+					GFP_KERNEL);
+	lio->glists_dma_base = kcalloc(num_iqs, sizeof(*lio->glists_dma_base),
+				       GFP_KERNEL);
+
+	if (!lio->glists_virt_base || !lio->glists_dma_base) {
+		lio_delete_glists(lio);
+		return -ENOMEM;
+	}
+
+	for (i = 0; i < num_iqs; i++) {
+		int numa_node = dev_to_node(&oct->pci_dev->dev);
+
+		spin_lock_init(&lio->glist_lock[i]);
+
+		INIT_LIST_HEAD(&lio->glist[i]);
+
+		lio->glists_virt_base[i] =
+			lio_dma_alloc(oct,
+				      lio->glist_entry_size * lio->tx_qsize,
+				      &lio->glists_dma_base[i]);
+
+		if (!lio->glists_virt_base[i]) {
+			lio_delete_glists(lio);
+			return -ENOMEM;
+		}
+
+		for (j = 0; j < lio->tx_qsize; j++) {
+			g = kzalloc_node(sizeof(*g), GFP_KERNEL,
+					 numa_node);
+			if (!g)
+				g = kzalloc(sizeof(*g), GFP_KERNEL);
+			if (!g)
+				break;
+
+			g->sg = lio->glists_virt_base[i] +
+				(j * lio->glist_entry_size);
+
+			g->sg_dma_ptr = lio->glists_dma_base[i] +
+					(j * lio->glist_entry_size);
+
+			list_add_tail(&g->list, &lio->glist[i]);
+		}
+
+		if (j != lio->tx_qsize) {
+			lio_delete_glists(lio);
+			return -ENOMEM;
+		}
+	}
+
+	return 0;
+}
+
 int liquidio_set_feature(struct net_device *netdev, int cmd, u16 param1)
 {
 	struct lio *lio = GET_LIO(netdev);
@@ -880,8 +1036,8 @@ int octeon_setup_interrupt(struct octeon_device *oct, u32 num_ioqs)
 	int num_ioq_vectors;
 	int irqret, err;
 
-	oct->num_msix_irqs = num_ioqs;
 	if (oct->msix_on) {
+		oct->num_msix_irqs = num_ioqs;
 		if (OCTEON_CN23XX_PF(oct)) {
 			num_interrupts = MAX_IOQ_INTERRUPTS_PER_PF + 1;
 
@@ -1168,4 +1324,356 @@ int lio_wait_for_clean_oq(struct octeon_device *oct)
 	} while (retry-- && pending_pkts);
 
 	return pending_pkts;
+}
+
+static void
+octnet_nic_stats_callback(struct octeon_device *oct_dev,
+			  u32 status, void *ptr)
+{
+	struct octeon_soft_command *sc = (struct octeon_soft_command *)ptr;
+	struct oct_nic_stats_resp *resp =
+	    (struct oct_nic_stats_resp *)sc->virtrptr;
+	struct oct_nic_stats_ctrl *ctrl =
+	    (struct oct_nic_stats_ctrl *)sc->ctxptr;
+	struct nic_rx_stats *rsp_rstats = &resp->stats.fromwire;
+	struct nic_tx_stats *rsp_tstats = &resp->stats.fromhost;
+	struct nic_rx_stats *rstats = &oct_dev->link_stats.fromwire;
+	struct nic_tx_stats *tstats = &oct_dev->link_stats.fromhost;
+
+	if (status != OCTEON_REQUEST_TIMEOUT && !resp->status) {
+		octeon_swap_8B_data((u64 *)&resp->stats,
+				    (sizeof(struct oct_link_stats)) >> 3);
+
+		/* RX link-level stats */
+		rstats->total_rcvd = rsp_rstats->total_rcvd;
+		rstats->bytes_rcvd = rsp_rstats->bytes_rcvd;
+		rstats->total_bcst = rsp_rstats->total_bcst;
+		rstats->total_mcst = rsp_rstats->total_mcst;
+		rstats->runts      = rsp_rstats->runts;
+		rstats->ctl_rcvd   = rsp_rstats->ctl_rcvd;
+		/* Accounts for over/under-run of buffers */
+		rstats->fifo_err  = rsp_rstats->fifo_err;
+		rstats->dmac_drop = rsp_rstats->dmac_drop;
+		rstats->fcs_err   = rsp_rstats->fcs_err;
+		rstats->jabber_err = rsp_rstats->jabber_err;
+		rstats->l2_err    = rsp_rstats->l2_err;
+		rstats->frame_err = rsp_rstats->frame_err;
+		rstats->red_drops = rsp_rstats->red_drops;
+
+		/* RX firmware stats */
+		rstats->fw_total_rcvd = rsp_rstats->fw_total_rcvd;
+		rstats->fw_total_fwd = rsp_rstats->fw_total_fwd;
+		rstats->fw_total_mcast = rsp_rstats->fw_total_mcast;
+		rstats->fw_total_bcast = rsp_rstats->fw_total_bcast;
+		rstats->fw_err_pko = rsp_rstats->fw_err_pko;
+		rstats->fw_err_link = rsp_rstats->fw_err_link;
+		rstats->fw_err_drop = rsp_rstats->fw_err_drop;
+		rstats->fw_rx_vxlan = rsp_rstats->fw_rx_vxlan;
+		rstats->fw_rx_vxlan_err = rsp_rstats->fw_rx_vxlan_err;
+
+		/* Number of packets that are LROed      */
+		rstats->fw_lro_pkts = rsp_rstats->fw_lro_pkts;
+		/* Number of octets that are LROed       */
+		rstats->fw_lro_octs = rsp_rstats->fw_lro_octs;
+		/* Number of LRO packets formed          */
+		rstats->fw_total_lro = rsp_rstats->fw_total_lro;
+		/* Number of times lRO of packet aborted */
+		rstats->fw_lro_aborts = rsp_rstats->fw_lro_aborts;
+		rstats->fw_lro_aborts_port = rsp_rstats->fw_lro_aborts_port;
+		rstats->fw_lro_aborts_seq = rsp_rstats->fw_lro_aborts_seq;
+		rstats->fw_lro_aborts_tsval = rsp_rstats->fw_lro_aborts_tsval;
+		rstats->fw_lro_aborts_timer = rsp_rstats->fw_lro_aborts_timer;
+		/* intrmod: packet forward rate */
+		rstats->fwd_rate = rsp_rstats->fwd_rate;
+
+		/* TX link-level stats */
+		tstats->total_pkts_sent = rsp_tstats->total_pkts_sent;
+		tstats->total_bytes_sent = rsp_tstats->total_bytes_sent;
+		tstats->mcast_pkts_sent = rsp_tstats->mcast_pkts_sent;
+		tstats->bcast_pkts_sent = rsp_tstats->bcast_pkts_sent;
+		tstats->ctl_sent = rsp_tstats->ctl_sent;
+		/* Packets sent after one collision*/
+		tstats->one_collision_sent = rsp_tstats->one_collision_sent;
+		/* Packets sent after multiple collision*/
+		tstats->multi_collision_sent = rsp_tstats->multi_collision_sent;
+		/* Packets not sent due to max collisions */
+		tstats->max_collision_fail = rsp_tstats->max_collision_fail;
+		/* Packets not sent due to max deferrals */
+		tstats->max_deferral_fail = rsp_tstats->max_deferral_fail;
+		/* Accounts for over/under-run of buffers */
+		tstats->fifo_err = rsp_tstats->fifo_err;
+		tstats->runts = rsp_tstats->runts;
+		/* Total number of collisions detected */
+		tstats->total_collisions = rsp_tstats->total_collisions;
+
+		/* firmware stats */
+		tstats->fw_total_sent = rsp_tstats->fw_total_sent;
+		tstats->fw_total_fwd = rsp_tstats->fw_total_fwd;
+		tstats->fw_total_mcast_sent = rsp_tstats->fw_total_mcast_sent;
+		tstats->fw_total_bcast_sent = rsp_tstats->fw_total_bcast_sent;
+		tstats->fw_err_pko = rsp_tstats->fw_err_pko;
+		tstats->fw_err_pki = rsp_tstats->fw_err_pki;
+		tstats->fw_err_link = rsp_tstats->fw_err_link;
+		tstats->fw_err_drop = rsp_tstats->fw_err_drop;
+		tstats->fw_tso = rsp_tstats->fw_tso;
+		tstats->fw_tso_fwd = rsp_tstats->fw_tso_fwd;
+		tstats->fw_err_tso = rsp_tstats->fw_err_tso;
+		tstats->fw_tx_vxlan = rsp_tstats->fw_tx_vxlan;
+
+		resp->status = 1;
+	} else {
+		resp->status = -1;
+	}
+	complete(&ctrl->complete);
+}
+
+int octnet_get_link_stats(struct net_device *netdev)
+{
+	struct lio *lio = GET_LIO(netdev);
+	struct octeon_device *oct_dev = lio->oct_dev;
+	struct octeon_soft_command *sc;
+	struct oct_nic_stats_ctrl *ctrl;
+	struct oct_nic_stats_resp *resp;
+	int retval;
+
+	/* Alloc soft command */
+	sc = (struct octeon_soft_command *)
+		octeon_alloc_soft_command(oct_dev,
+					  0,
+					  sizeof(struct oct_nic_stats_resp),
+					  sizeof(struct octnic_ctrl_pkt));
+
+	if (!sc)
+		return -ENOMEM;
+
+	resp = (struct oct_nic_stats_resp *)sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_nic_stats_resp));
+
+	ctrl = (struct oct_nic_stats_ctrl *)sc->ctxptr;
+	memset(ctrl, 0, sizeof(struct oct_nic_stats_ctrl));
+	ctrl->netdev = netdev;
+	init_completion(&ctrl->complete);
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct_dev, sc, OPCODE_NIC,
+				    OPCODE_NIC_PORT_STATS, 0, 0, 0);
+
+	sc->callback = octnet_nic_stats_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 500;	/*in milli seconds*/
+
+	retval = octeon_send_soft_command(oct_dev, sc);
+	if (retval == IQ_SEND_FAILED) {
+		octeon_free_soft_command(oct_dev, sc);
+		return -EINVAL;
+	}
+
+	wait_for_completion_timeout(&ctrl->complete, msecs_to_jiffies(1000));
+
+	if (resp->status != 1) {
+		octeon_free_soft_command(oct_dev, sc);
+
+		return -EINVAL;
+	}
+
+	octeon_free_soft_command(oct_dev, sc);
+
+	return 0;
+}
+
+static void liquidio_nic_seapi_ctl_callback(struct octeon_device *oct,
+					    u32 status,
+					    void *buf)
+{
+	struct liquidio_nic_seapi_ctl_context *ctx;
+	struct octeon_soft_command *sc = buf;
+
+	ctx = sc->ctxptr;
+
+	oct = lio_get_device(ctx->octeon_id);
+	if (status) {
+		dev_err(&oct->pci_dev->dev, "%s: instruction failed. Status: %llx\n",
+			__func__,
+			CVM_CAST64(status));
+	}
+	ctx->status = status;
+	complete(&ctx->complete);
+}
+
+int liquidio_set_speed(struct lio *lio, int speed)
+{
+	struct liquidio_nic_seapi_ctl_context *ctx;
+	struct octeon_device *oct = lio->oct_dev;
+	struct oct_nic_seapi_resp *resp;
+	struct octeon_soft_command *sc;
+	union octnet_cmd *ncmd;
+	u32 ctx_size;
+	int retval;
+	u32 var;
+
+	if (oct->speed_setting == speed)
+		return 0;
+
+	if (!OCTEON_CN23XX_PF(oct)) {
+		dev_err(&oct->pci_dev->dev, "%s: SET SPEED only for PF\n",
+			__func__);
+		return -EOPNOTSUPP;
+	}
+
+	ctx_size = sizeof(struct liquidio_nic_seapi_ctl_context);
+	sc = octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
+				       sizeof(struct oct_nic_seapi_resp),
+				       ctx_size);
+	if (!sc)
+		return -ENOMEM;
+
+	ncmd = sc->virtdptr;
+	ctx  = sc->ctxptr;
+	resp = sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_nic_seapi_resp));
+
+	ctx->octeon_id = lio_get_device_id(oct);
+	ctx->status = 0;
+	init_completion(&ctx->complete);
+
+	ncmd->u64 = 0;
+	ncmd->s.cmd = SEAPI_CMD_SPEED_SET;
+	ncmd->s.param1 = speed;
+
+	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
+
+	sc->callback = liquidio_nic_seapi_ctl_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 5000;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		dev_info(&oct->pci_dev->dev, "Failed to send soft command\n");
+		retval = -EBUSY;
+	} else {
+		/* Wait for response or timeout */
+		if (wait_for_completion_timeout(&ctx->complete,
+						msecs_to_jiffies(10000)) == 0) {
+			dev_err(&oct->pci_dev->dev, "%s: sc timeout\n",
+				__func__);
+			octeon_free_soft_command(oct, sc);
+			return -EINTR;
+		}
+
+		retval = resp->status;
+
+		if (retval) {
+			dev_err(&oct->pci_dev->dev, "%s failed, retval=%d\n",
+				__func__, retval);
+			octeon_free_soft_command(oct, sc);
+			return -EIO;
+		}
+
+		var = be32_to_cpu((__force __be32)resp->speed);
+		if (var != speed) {
+			dev_err(&oct->pci_dev->dev,
+				"%s: setting failed speed= %x, expect %x\n",
+				__func__, var, speed);
+		}
+
+		oct->speed_setting = var;
+	}
+
+	octeon_free_soft_command(oct, sc);
+
+	return retval;
+}
+
+int liquidio_get_speed(struct lio *lio)
+{
+	struct liquidio_nic_seapi_ctl_context *ctx;
+	struct octeon_device *oct = lio->oct_dev;
+	struct oct_nic_seapi_resp *resp;
+	struct octeon_soft_command *sc;
+	union octnet_cmd *ncmd;
+	u32 ctx_size;
+	int retval;
+
+	ctx_size = sizeof(struct liquidio_nic_seapi_ctl_context);
+	sc = octeon_alloc_soft_command(oct, OCTNET_CMD_SIZE,
+				       sizeof(struct oct_nic_seapi_resp),
+				       ctx_size);
+	if (!sc)
+		return -ENOMEM;
+
+	ncmd = sc->virtdptr;
+	ctx  = sc->ctxptr;
+	resp = sc->virtrptr;
+	memset(resp, 0, sizeof(struct oct_nic_seapi_resp));
+
+	ctx->octeon_id = lio_get_device_id(oct);
+	ctx->status = 0;
+	init_completion(&ctx->complete);
+
+	ncmd->u64 = 0;
+	ncmd->s.cmd = SEAPI_CMD_SPEED_GET;
+
+	octeon_swap_8B_data((u64 *)ncmd, (OCTNET_CMD_SIZE >> 3));
+
+	sc->iq_no = lio->linfo.txpciq[0].s.q_no;
+
+	octeon_prepare_soft_command(oct, sc, OPCODE_NIC,
+				    OPCODE_NIC_UBOOT_CTL, 0, 0, 0);
+
+	sc->callback = liquidio_nic_seapi_ctl_callback;
+	sc->callback_arg = sc;
+	sc->wait_time = 5000;
+
+	retval = octeon_send_soft_command(oct, sc);
+	if (retval == IQ_SEND_FAILED) {
+		dev_info(&oct->pci_dev->dev, "Failed to send soft command\n");
+		oct->no_speed_setting = 1;
+		oct->speed_setting = 25;
+
+		retval = -EBUSY;
+	} else {
+		if (wait_for_completion_timeout(&ctx->complete,
+						msecs_to_jiffies(10000)) == 0) {
+			dev_err(&oct->pci_dev->dev, "%s: sc timeout\n",
+				__func__);
+
+			oct->speed_setting = 25;
+			oct->no_speed_setting = 1;
+
+			octeon_free_soft_command(oct, sc);
+
+			return -EINTR;
+		}
+		retval = resp->status;
+		if (retval) {
+			dev_err(&oct->pci_dev->dev,
+				"%s failed retval=%d\n", __func__, retval);
+			oct->no_speed_setting = 1;
+			oct->speed_setting = 25;
+			octeon_free_soft_command(oct, sc);
+			retval = -EIO;
+		} else {
+			u32 var;
+
+			var = be32_to_cpu((__force __be32)resp->speed);
+			oct->speed_setting = var;
+			if (var == 0xffff) {
+				oct->no_speed_setting = 1;
+				/* unable to access boot variables
+				 * get the default value based on the NIC type
+				 */
+				oct->speed_setting = 25;
+			}
+		}
+	}
+
+	octeon_free_soft_command(oct, sc);
+
+	return retval;
 }

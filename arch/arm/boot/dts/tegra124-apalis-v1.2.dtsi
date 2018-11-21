@@ -1536,15 +1536,15 @@
 	};
 
 	serial@70006040 {
-		compatible = "nvidia,tegra124-hsuart";
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
 	};
 
 	serial@70006200 {
-		compatible = "nvidia,tegra124-hsuart";
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
 	};
 
 	serial@70006300 {
-		compatible = "nvidia,tegra124-hsuart";
+		compatible = "nvidia,tegra124-hsuart", "nvidia,tegra30-hsuart";
 	};
 
 	hdmi_ddc: i2c@7000c700 {

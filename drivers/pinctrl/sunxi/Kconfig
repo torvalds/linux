@@ -81,4 +81,8 @@ config PINCTRL_SUN50I_H6
 	def_bool ARM64 && ARCH_SUNXI
 	select PINCTRL_SUNXI
 
+config PINCTRL_SUN50I_H6_R
+	def_bool ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
 endif

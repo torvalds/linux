@@ -962,6 +962,10 @@ void brcm_usb_init_xhci(struct brcm_usb_init_params *params)
 {
 	void __iomem *ctrl = params->ctrl_regs;
 
+	USB_CTRL_UNSET(ctrl, USB30_PCTL, PHY3_IDDQ_OVERRIDE);
+	/* 1 millisecond - for USB clocks to settle down */
+	usleep_range(1000, 2000);
+
 	if (BRCM_ID(params->family_id) == 0x7366) {
 		/*
 		 * The PHY3_SOFT_RESETB bits default to the wrong state.

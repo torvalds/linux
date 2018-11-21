@@ -1,0 +1,5 @@
+* Convert all uses of the old GPIO API from <linux/gpio.h> to the
+  GPIO descriptor API in <linux/gpio/consumer.h> and look up GPIO
+  lines from device tree or ACPI.
+* Convert the GPIO driver to use the GPIO irqchip library
+  GPIOLIB_IRQCHIP instead of reimplementing the same.

@@ -267,14 +267,13 @@ static int aq_pci_probe(struct pci_dev *pdev,
 	numvecs = min(numvecs, num_online_cpus());
 	/*enable interrupts */
 #if !AQ_CFG_FORCE_LEGACY_INT
-	numvecs = pci_alloc_irq_vectors(self->pdev, 1, numvecs,
-					PCI_IRQ_MSIX | PCI_IRQ_MSI |
-					PCI_IRQ_LEGACY);
+	err = pci_alloc_irq_vectors(self->pdev, 1, numvecs,
+				    PCI_IRQ_MSIX | PCI_IRQ_MSI |
+				    PCI_IRQ_LEGACY);
 
-	if (numvecs < 0) {
-		err = numvecs;
+	if (err < 0)
 		goto err_hwinit;
-	}
+	numvecs = err;
 #endif
 	self->irqvecs = numvecs;
 

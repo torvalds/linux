@@ -630,8 +630,6 @@ static const char * const vfio_driver_whitelist[] = { "pci-stub" };
 
 static bool vfio_dev_whitelisted(struct device *dev, struct device_driver *drv)
 {
-	int i;
-
 	if (dev_is_pci(dev)) {
 		struct pci_dev *pdev = to_pci_dev(dev);
 
@@ -639,12 +637,9 @@ static bool vfio_dev_whitelisted(struct device *dev, struct device_driver *drv)
 			return true;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(vfio_driver_whitelist); i++) {
-		if (!strcmp(drv->name, vfio_driver_whitelist[i]))
-			return true;
-	}
-
-	return false;
+	return match_string(vfio_driver_whitelist,
+			    ARRAY_SIZE(vfio_driver_whitelist),
+			    drv->name) >= 0;
 }
 
 /*

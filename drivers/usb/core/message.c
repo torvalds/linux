@@ -390,7 +390,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	}
 
 	/* initialize all the urbs we'll use */
-	io->urbs = kmalloc(io->entries * sizeof(*io->urbs), mem_flags);
+	io->urbs = kmalloc_array(io->entries, sizeof(*io->urbs), mem_flags);
 	if (!io->urbs)
 		goto nomem;
 
@@ -940,7 +940,7 @@ int usb_set_isoch_delay(struct usb_device *dev)
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_ISOCH_DELAY,
 			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-			cpu_to_le16(dev->hub_delay), 0, NULL, 0,
+			dev->hub_delay, 0, NULL, 0,
 			USB_CTRL_SET_TIMEOUT);
 }
 
@@ -1824,8 +1824,8 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	n = nintf = 0;
 	if (cp) {
 		nintf = cp->desc.bNumInterfaces;
-		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
-				GFP_NOIO);
+		new_interfaces = kmalloc_array(nintf, sizeof(*new_interfaces),
+					       GFP_NOIO);
 		if (!new_interfaces)
 			return -ENOMEM;
 

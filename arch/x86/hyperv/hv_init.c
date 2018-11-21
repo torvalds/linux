@@ -91,12 +91,19 @@ EXPORT_SYMBOL_GPL(hv_vp_index);
 struct hv_vp_assist_page **hv_vp_assist_page;
 EXPORT_SYMBOL_GPL(hv_vp_assist_page);
 
+void  __percpu **hyperv_pcpu_input_arg;
+EXPORT_SYMBOL_GPL(hyperv_pcpu_input_arg);
+
 u32 hv_max_vp_index;
 
 static int hv_cpu_init(unsigned int cpu)
 {
 	u64 msr_vp_index;
 	struct hv_vp_assist_page **hvp = &hv_vp_assist_page[smp_processor_id()];
+	void **input_arg;
+
+	input_arg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
+	*input_arg = page_address(alloc_page(GFP_KERNEL));
 
 	hv_get_vp_index(msr_vp_index);
 
@@ -217,6 +224,16 @@ static int hv_cpu_die(unsigned int cpu)
 {
 	struct hv_reenlightenment_control re_ctrl;
 	unsigned int new_cpu;
+	unsigned long flags;
+	void **input_arg;
+	void *input_pg = NULL;
+
+	local_irq_save(flags);
+	input_arg = (void **)this_cpu_ptr(hyperv_pcpu_input_arg);
+	input_pg = *input_arg;
+	*input_arg = NULL;
+	local_irq_restore(flags);
+	free_page((unsigned long)input_pg);
 
 	if (hv_vp_assist_page && hv_vp_assist_page[cpu])
 		wrmsrl(HV_X64_MSR_VP_ASSIST_PAGE, 0);
@@ -242,12 +259,13 @@ static int hv_cpu_die(unsigned int cpu)
  *
  * 1. Setup the hypercall page.
  * 2. Register Hyper-V specific clocksource.
+ * 3. Setup Hyper-V specific APIC entry points.
  */
-void hyperv_init(void)
+void __init hyperv_init(void)
 {
 	u64 guest_id, required_msrs;
 	union hv_x64_msr_hypercall_contents hypercall_msr;
-	int cpuhp;
+	int cpuhp, i;
 
 	if (x86_hyper_type != X86_HYPER_MS_HYPERV)
 		return;
@@ -259,11 +277,24 @@ void hyperv_init(void)
 	if ((ms_hyperv.features & required_msrs) != required_msrs)
 		return;
 
+	/*
+	 * Allocate the per-CPU state for the hypercall input arg.
+	 * If this allocation fails, we will not be able to setup
+	 * (per-CPU) hypercall input page and thus this failure is
+	 * fatal on Hyper-V.
+	 */
+	hyperv_pcpu_input_arg = alloc_percpu(void  *);
+
+	BUG_ON(hyperv_pcpu_input_arg == NULL);
+
 	/* Allocate percpu VP index */
 	hv_vp_index = kmalloc_array(num_possible_cpus(), sizeof(*hv_vp_index),
 				    GFP_KERNEL);
 	if (!hv_vp_index)
 		return;
+
+	for (i = 0; i < num_possible_cpus(); i++)
+		hv_vp_index[i] = VP_INVAL;
 
 	hv_vp_assist_page = kcalloc(num_possible_cpus(),
 				    sizeof(*hv_vp_assist_page), GFP_KERNEL);
@@ -296,7 +327,7 @@ void hyperv_init(void)
 	hypercall_msr.guest_physical_address = vmalloc_to_pfn(hv_hypercall_pg);
 	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
-	hyper_alloc_mmu();
+	hv_apic_init();
 
 	/*
 	 * Register Hyper-V specific clocksource.

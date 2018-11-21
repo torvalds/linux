@@ -1358,6 +1358,12 @@ int security_socket_post_create(struct socket *sock, int family,
 						protocol, kern);
 }
 
+int security_socket_socketpair(struct socket *socka, struct socket *sockb)
+{
+	return call_int_hook(socket_socketpair, 0, socka, sockb);
+}
+EXPORT_SYMBOL(security_socket_socketpair);
+
 int security_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen)
 {
 	return call_int_hook(socket_bind, 0, sock, address, addrlen);

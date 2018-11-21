@@ -198,8 +198,6 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 				pr_info("Could not find request transport: %s\n",
 					s);
 				ret = -EINVAL;
-				kfree(s);
-				goto free_and_return;
 			}
 			kfree(s);
 			break;
@@ -214,13 +212,12 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 					 "problem allocating copy of version arg\n");
 				goto free_and_return;
 			}
-			ret = get_protocol_version(s);
-			if (ret == -EINVAL) {
-				kfree(s);
-				goto free_and_return;
-			}
+			r = get_protocol_version(s);
+			if (r < 0)
+				ret = r;
+			else
+				clnt->proto_version = r;
 			kfree(s);
-			clnt->proto_version = ret;
 			break;
 		default:
 			continue;
@@ -228,7 +225,8 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	}
 
 free_and_return:
-	v9fs_put_trans(clnt->trans_mod);
+	if (ret)
+		v9fs_put_trans(clnt->trans_mod);
 	kfree(tmp_options);
 	return ret;
 }

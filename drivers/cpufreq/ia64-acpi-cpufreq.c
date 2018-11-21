@@ -241,8 +241,8 @@ acpi_cpufreq_cpu_init (
 	}
 
 	/* alloc freq_table */
-	freq_table = kzalloc(sizeof(*freq_table) *
-	                           (data->acpi_data.state_count + 1),
+	freq_table = kcalloc(data->acpi_data.state_count + 1,
+	                           sizeof(*freq_table),
 	                           GFP_KERNEL);
 	if (!freq_table) {
 		result = -ENOMEM;

@@ -6,8 +6,6 @@
 # error Virtio userspace code does not support CONFIG_HAS_DMA
 #endif
 
-#define PCI_DMA_BUS_IS_PHYS 1
-
 enum dma_data_direction {
 	DMA_BIDIRECTIONAL = 0,
 	DMA_TO_DEVICE = 1,

@@ -109,7 +109,8 @@ int vlan_dev_change_flags(const struct net_device *dev, u32 flag, u32 mask);
 void vlan_dev_get_realdev_name(const struct net_device *dev, char *result);
 
 int vlan_check_real_dev(struct net_device *real_dev,
-			__be16 protocol, u16 vlan_id);
+			__be16 protocol, u16 vlan_id,
+			struct netlink_ext_ack *extack);
 void vlan_setup(struct net_device *dev);
 int register_vlan_dev(struct net_device *dev, struct netlink_ext_ack *extack);
 void unregister_vlan_dev(struct net_device *dev, struct list_head *head);

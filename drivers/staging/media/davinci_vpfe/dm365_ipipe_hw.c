@@ -430,9 +430,6 @@ ipipe_set_lutdpc_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 	regw_ip(base_addr, LUT_DPC_START_ADDR, DPC_LUT_ADR);
 	regw_ip(base_addr, dpc->dpc_size, DPC_LUT_SIZ & LUT_DPC_SIZE_MASK);
 
-	if (dpc->table == NULL)
-		return;
-
 	for (count = 0; count < dpc->dpc_size; count++) {
 		if (count >= max_tbl_size)
 			lut_start_addr = DPC_TB1_START_ADDR;
@@ -760,13 +757,13 @@ ipipe_set_gamma_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 
 	table_size = gamma->tbl_size;
 
-	if (!gamma->bypass_r && gamma->table_r != NULL)
+	if (!gamma->bypass_r)
 		ipipe_update_gamma_tbl(isp5_base_addr, gamma->table_r,
 			table_size, GAMMA_R_START_ADDR);
-	if (!gamma->bypass_b && gamma->table_b != NULL)
+	if (!gamma->bypass_b)
 		ipipe_update_gamma_tbl(isp5_base_addr, gamma->table_b,
 			table_size, GAMMA_B_START_ADDR);
-	if (!gamma->bypass_g && gamma->table_g != NULL)
+	if (!gamma->bypass_g)
 		ipipe_update_gamma_tbl(isp5_base_addr, gamma->table_g,
 			table_size, GAMMA_G_START_ADDR);
 }
@@ -785,10 +782,6 @@ ipipe_set_3d_lut_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 	regw_ip(base_addr, lut_3d->en, D3LUT_EN);
 
 	if (!lut_3d->en)
-		return;
-
-	/* lut_3d enabled */
-	if (!lut_3d->table)
 		return;
 
 	/* valied table */
@@ -900,9 +893,6 @@ ipipe_set_gbce_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 
 	regw_ip(base_addr, gbce->type, GBCE_TYP);
 
-	if (!gbce->table)
-		return;
-
 	for (count = 0; count < VPFE_IPIPE_MAX_SIZE_GBCE_LUT; count += 2)
 		w_ip_table(isp5_base_addr, ((gbce->table[count + 1] & mask) <<
 		GBCE_ENTRY_SHIFT) | (gbce->table[count] & mask),
@@ -942,9 +932,6 @@ ipipe_set_ee_regs(void __iomem *base_addr, void __iomem *isp5_base_addr,
 	regw_ip(base_addr, ee->es_thr2 & YEE_THR_MASK, YEE_E_THR2);
 	regw_ip(base_addr, ee->es_gain_grad & YEE_THR_MASK, YEE_G_GAN);
 	regw_ip(base_addr, ee->es_ofst_grad & YEE_THR_MASK, YEE_G_OFT);
-
-	if (ee->table == NULL)
-		return;
 
 	for (count = 0; count < VPFE_IPIPE_MAX_SIZE_YEE_LUT; count += 2)
 		w_ip_table(isp5_base_addr, ((ee->table[count + 1] &

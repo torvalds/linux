@@ -147,6 +147,7 @@
 #define AUDIT_INTEGRITY_HASH	    1803 /* Integrity HASH type */
 #define AUDIT_INTEGRITY_PCR	    1804 /* PCR invalidation msgs */
 #define AUDIT_INTEGRITY_RULE	    1805 /* policy rule */
+#define AUDIT_INTEGRITY_EVM_XATTR   1806 /* New EVM-covered xattr */
 
 #define AUDIT_KERNEL		2000	/* Asynchronous audit record. NOT A REQUEST. */
 
@@ -465,6 +466,7 @@ struct audit_tty_status {
 };
 
 #define AUDIT_UID_UNSET (unsigned int)-1
+#define AUDIT_SID_UNSET ((unsigned int)-1)
 
 /* audit_rule_data supports filter rules with both integer and string
  * fields.  It corresponds with AUDIT_ADD_RULE, AUDIT_DEL_RULE and

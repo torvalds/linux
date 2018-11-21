@@ -147,13 +147,13 @@ static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 		int len = 0, i;
 
 		len += snprintf(buf + len, PAGE_SIZE - len,
-						"cold file extenstion:\n");
+						"cold file extension:\n");
 		for (i = 0; i < cold_count; i++)
 			len += snprintf(buf + len, PAGE_SIZE - len, "%s\n",
 								extlist[i]);
 
 		len += snprintf(buf + len, PAGE_SIZE - len,
-						"hot file extenstion:\n");
+						"hot file extension:\n");
 		for (i = cold_count; i < cold_count + hot_count; i++)
 			len += snprintf(buf + len, PAGE_SIZE - len, "%s\n",
 								extlist[i]);
@@ -165,7 +165,7 @@ static ssize_t f2fs_sbi_show(struct f2fs_attr *a,
 	return snprintf(buf, PAGE_SIZE, "%u\n", *ui);
 }
 
-static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
+static ssize_t __sbi_store(struct f2fs_attr *a,
 			struct f2fs_sb_info *sbi,
 			const char *buf, size_t count)
 {
@@ -201,13 +201,13 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 
 		down_write(&sbi->sb_lock);
 
-		ret = update_extension_list(sbi, name, hot, set);
+		ret = f2fs_update_extension_list(sbi, name, hot, set);
 		if (ret)
 			goto out;
 
 		ret = f2fs_commit_super(sbi, false);
 		if (ret)
-			update_extension_list(sbi, name, hot, !set);
+			f2fs_update_extension_list(sbi, name, hot, !set);
 out:
 		up_write(&sbi->sb_lock);
 		return ret ? ret : count;
@@ -245,17 +245,54 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "trim_sections"))
+		return -EINVAL;
+
+	if (!strcmp(a->attr.name, "gc_urgent")) {
+		if (t >= 1) {
+			sbi->gc_mode = GC_URGENT;
+			if (sbi->gc_thread) {
+				wake_up_interruptible_all(
+					&sbi->gc_thread->gc_wait_queue_head);
+				wake_up_discard_thread(sbi, true);
+			}
+		} else {
+			sbi->gc_mode = GC_NORMAL;
+		}
+		return count;
+	}
+	if (!strcmp(a->attr.name, "gc_idle")) {
+		if (t == GC_IDLE_CB)
+			sbi->gc_mode = GC_IDLE_CB;
+		else if (t == GC_IDLE_GREEDY)
+			sbi->gc_mode = GC_IDLE_GREEDY;
+		else
+			sbi->gc_mode = GC_NORMAL;
+		return count;
+	}
+
 	*ui = t;
 
 	if (!strcmp(a->attr.name, "iostat_enable") && *ui == 0)
 		f2fs_reset_iostat(sbi);
-	if (!strcmp(a->attr.name, "gc_urgent") && t == 1 && sbi->gc_thread) {
-		sbi->gc_thread->gc_wake = 1;
-		wake_up_interruptible_all(&sbi->gc_thread->gc_wait_queue_head);
-		wake_up_discard_thread(sbi, true);
-	}
-
 	return count;
+}
+
+static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
+			struct f2fs_sb_info *sbi,
+			const char *buf, size_t count)
+{
+	ssize_t ret;
+	bool gc_entry = (!strcmp(a->attr.name, "gc_urgent") ||
+					a->struct_type == GC_THREAD);
+
+	if (gc_entry)
+		down_read(&sbi->sb->s_umount);
+	ret = __sbi_store(a, sbi, buf, count);
+	if (gc_entry)
+		up_read(&sbi->sb->s_umount);
+
+	return ret;
 }
 
 static ssize_t f2fs_attr_show(struct kobject *kobj,
@@ -346,8 +383,8 @@ F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_urgent_sleep_time,
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_min_sleep_time, min_sleep_time);
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_max_sleep_time, max_sleep_time);
 F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_no_gc_sleep_time, no_gc_sleep_time);
-F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_idle, gc_idle);
-F2FS_RW_ATTR(GC_THREAD, f2fs_gc_kthread, gc_urgent, gc_urgent);
+F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, gc_idle, gc_mode);
+F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, gc_urgent, gc_mode);
 F2FS_RW_ATTR(SM_INFO, f2fs_sm_info, reclaim_segments, rec_prefree_segments);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, max_small_discards, max_discards);
 F2FS_RW_ATTR(DCC_INFO, discard_cmd_control, discard_granularity, discard_granularity);
@@ -572,23 +609,6 @@ static int iostat_info_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
-#define F2FS_PROC_FILE_DEF(_name)					\
-static int _name##_open_fs(struct inode *inode, struct file *file)	\
-{									\
-	return single_open(file, _name##_seq_show, PDE_DATA(inode));	\
-}									\
-									\
-static const struct file_operations f2fs_seq_##_name##_fops = {		\
-	.open = _name##_open_fs,					\
-	.read = seq_read,						\
-	.llseek = seq_lseek,						\
-	.release = single_release,					\
-};
-
-F2FS_PROC_FILE_DEF(segment_info);
-F2FS_PROC_FILE_DEF(segment_bits);
-F2FS_PROC_FILE_DEF(iostat_info);
-
 int __init f2fs_init_sysfs(void)
 {
 	int ret;
@@ -632,12 +652,12 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 		sbi->s_proc = proc_mkdir(sb->s_id, f2fs_proc_root);
 
 	if (sbi->s_proc) {
-		proc_create_data("segment_info", S_IRUGO, sbi->s_proc,
-				 &f2fs_seq_segment_info_fops, sb);
-		proc_create_data("segment_bits", S_IRUGO, sbi->s_proc,
-				 &f2fs_seq_segment_bits_fops, sb);
-		proc_create_data("iostat_info", S_IRUGO, sbi->s_proc,
-				&f2fs_seq_iostat_info_fops, sb);
+		proc_create_single_data("segment_info", S_IRUGO, sbi->s_proc,
+				segment_info_seq_show, sb);
+		proc_create_single_data("segment_bits", S_IRUGO, sbi->s_proc,
+				segment_bits_seq_show, sb);
+		proc_create_single_data("iostat_info", S_IRUGO, sbi->s_proc,
+				iostat_info_seq_show, sb);
 	}
 	return 0;
 }

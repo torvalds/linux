@@ -96,6 +96,8 @@ source "sound/x86/Kconfig"
 
 source "sound/synth/Kconfig"
 
+source "sound/xen/Kconfig"
+
 endif # SND
 
 endif # !UML

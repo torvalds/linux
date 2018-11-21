@@ -1,0 +1,27 @@
+* Samsung Exynos Image Scaler
+
+Required properties:
+  - compatible : value should be one of the following:
+	(a) "samsung,exynos5420-scaler" for Scaler IP in Exynos5420
+	(b) "samsung,exynos5433-scaler" for Scaler IP in Exynos5433
+
+  - reg : Physical base address of the IP registers and length of memory
+	  mapped region.
+
+  - interrupts : Interrupt specifier for scaler interrupt, according to format
+		 specific to interrupt parent.
+
+  - clocks : Clock specifier for scaler clock, according to generic clock
+	     bindings. (See Documentation/devicetree/bindings/clock/exynos*.txt)
+
+  - clock-names : Names of clocks. For exynos scaler, it should be "mscl"
+		  on 5420 and "pclk", "aclk" and "aclk_xiu" on 5433.
+
+Example:
+	scaler@12800000 {
+		compatible = "samsung,exynos5420-scaler";
+		reg = <0x12800000 0x1294>;
+		interrupts = <0 220 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&clock CLK_MSCL0>;
+		clock-names = "mscl";
+	};

@@ -340,17 +340,20 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 	struct mdp5_kms *mdp5_kms = get_kms(smp);
 	struct mdp5_hw_pipe_state *hwpstate;
 	struct mdp5_smp_state *state;
+	struct mdp5_global_state *global_state;
 	int total = 0, i, j;
 
 	drm_printf(p, "name\tinuse\tplane\n");
 	drm_printf(p, "----\t-----\t-----\n");
 
 	if (drm_can_sleep())
-		drm_modeset_lock(&mdp5_kms->state_lock, NULL);
+		drm_modeset_lock(&mdp5_kms->glob_state_lock, NULL);
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
 
 	/* grab these *after* we hold the state_lock */
-	hwpstate = &mdp5_kms->state->hwpipe;
-	state = &mdp5_kms->state->smp;
+	hwpstate = &global_state->hwpipe;
+	state = &global_state->smp;
 
 	for (i = 0; i < mdp5_kms->num_hwpipes; i++) {
 		struct mdp5_hw_pipe *hwpipe = mdp5_kms->hwpipes[i];
@@ -374,7 +377,7 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 			bitmap_weight(state->state, smp->blk_cnt));
 
 	if (drm_can_sleep())
-		drm_modeset_unlock(&mdp5_kms->state_lock);
+		drm_modeset_unlock(&mdp5_kms->glob_state_lock);
 }
 
 void mdp5_smp_destroy(struct mdp5_smp *smp)
@@ -384,7 +387,8 @@ void mdp5_smp_destroy(struct mdp5_smp *smp)
 
 struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_block *cfg)
 {
-	struct mdp5_smp_state *state = &mdp5_kms->state->smp;
+	struct mdp5_smp_state *state;
+	struct mdp5_global_state *global_state;
 	struct mdp5_smp *smp = NULL;
 	int ret;
 
@@ -397,6 +401,9 @@ struct mdp5_smp *mdp5_smp_init(struct mdp5_kms *mdp5_kms, const struct mdp5_smp_
 	smp->dev = mdp5_kms->dev;
 	smp->blk_cnt = cfg->mmb_count;
 	smp->blk_size = cfg->mmb_size;
+
+	global_state = mdp5_get_existing_global_state(mdp5_kms);
+	state = &global_state->smp;
 
 	/* statically tied MMBs cannot be re-allocated: */
 	bitmap_copy(state->state, cfg->reserved_state, smp->blk_cnt);

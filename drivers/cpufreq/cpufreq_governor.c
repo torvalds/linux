@@ -165,7 +165,7 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			 * calls, so the previous load value can be used then.
 			 */
 			load = j_cdbs->prev_load;
-		} else if (unlikely(time_elapsed > 2 * sampling_rate &&
+		} else if (unlikely((int)idle_time > 2 * sampling_rate &&
 				    j_cdbs->prev_load)) {
 			/*
 			 * If the CPU had gone completely idle and a task has
@@ -185,10 +185,8 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			 * clear prev_load to guarantee that the load will be
 			 * computed again next time.
 			 *
-			 * Detecting this situation is easy: the governor's
-			 * utilization update handler would not have run during
-			 * CPU-idle periods.  Hence, an unusually large
-			 * 'time_elapsed' (as compared to the sampling rate)
+			 * Detecting this situation is easy: an unusually large
+			 * 'idle_time' (as compared to the sampling rate)
 			 * indicates this scenario.
 			 */
 			load = j_cdbs->prev_load;
@@ -217,8 +215,8 @@ unsigned int dbs_update(struct cpufreq_policy *policy)
 			j_cdbs->prev_load = load;
 		}
 
-		if (time_elapsed > 2 * sampling_rate) {
-			unsigned int periods = time_elapsed / sampling_rate;
+		if (unlikely((int)idle_time > 2 * sampling_rate)) {
+			unsigned int periods = idle_time / sampling_rate;
 
 			if (periods < idle_periods)
 				idle_periods = periods;
@@ -278,7 +276,7 @@ static void dbs_update_util_handler(struct update_util_data *data, u64 time,
 	struct policy_dbs_info *policy_dbs = cdbs->policy_dbs;
 	u64 delta_ns, lst;
 
-	if (!cpufreq_can_do_remote_dvfs(policy_dbs->policy))
+	if (!cpufreq_this_cpu_can_update(policy_dbs->policy))
 		return;
 
 	/*

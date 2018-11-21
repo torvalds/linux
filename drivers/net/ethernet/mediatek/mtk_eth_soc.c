@@ -2503,7 +2503,6 @@ static int mtk_probe(struct platform_device *pdev)
 {
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device_node *mac_np;
-	const struct of_device_id *match;
 	struct mtk_eth *eth;
 	int err;
 	int i;
@@ -2512,8 +2511,7 @@ static int mtk_probe(struct platform_device *pdev)
 	if (!eth)
 		return -ENOMEM;
 
-	match = of_match_device(of_mtk_match, &pdev->dev);
-	eth->soc = (struct mtk_soc_data *)match->data;
+	eth->soc = of_device_get_match_data(&pdev->dev);
 
 	eth->dev = &pdev->dev;
 	eth->base = devm_ioremap_resource(&pdev->dev, res);

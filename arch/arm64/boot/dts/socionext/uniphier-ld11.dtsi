@@ -549,10 +549,13 @@
 			status = "disabled";
 			reg = <0x65000000 0x8500>;
 			interrupts = <0 66 4>;
+			clock-names = "ether";
 			clocks = <&sys_clk 6>;
+			reset-names = "ether";
 			resets = <&sys_rst 6>;
-			phy-mode = "rmii";
+			phy-mode = "internal";
 			local-mac-address = [00 00 00 00 00 00];
+			socionext,syscon-phy-mode = <&soc_glue 0>;
 
 			mdio: mdio {
 				#address-cells = <1>;

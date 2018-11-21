@@ -278,7 +278,8 @@ struct bcm_rsb {
 #define  GIB_GTX_CLK_EXT_CLK		(0 << GIB_GTX_CLK_SEL_SHIFT)
 #define  GIB_GTX_CLK_125MHZ		(1 << GIB_GTX_CLK_SEL_SHIFT)
 #define  GIB_GTX_CLK_250MHZ		(2 << GIB_GTX_CLK_SEL_SHIFT)
-#define  GIB_FCS_STRIP			(1 << 6)
+#define  GIB_FCS_STRIP_SHIFT		6
+#define  GIB_FCS_STRIP			(1 << GIB_FCS_STRIP_SHIFT)
 #define  GIB_LCL_LOOP_EN		(1 << 7)
 #define  GIB_LCL_LOOP_TXEN		(1 << 8)
 #define  GIB_RMT_LOOP_EN		(1 << 9)

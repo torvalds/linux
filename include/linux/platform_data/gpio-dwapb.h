@@ -19,7 +19,8 @@ struct dwapb_port_property {
 	unsigned int	idx;
 	unsigned int	ngpio;
 	unsigned int	gpio_base;
-	unsigned int	irq;
+	int		irq[32];
+	bool		has_irq;
 	bool		irq_shared;
 };
 

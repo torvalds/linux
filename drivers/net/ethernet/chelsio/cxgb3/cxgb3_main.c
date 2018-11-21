@@ -51,6 +51,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <linux/nospec.h>
 
 #include "common.h"
 #include "cxgb3_ioctl.h"
@@ -2268,6 +2269,7 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 
 		if (t.qset_idx >= nqsets)
 			return -EINVAL;
+		t.qset_idx = array_index_nospec(t.qset_idx, nqsets);
 
 		q = &adapter->params.sge.qset[q1 + t.qset_idx];
 		t.rspq_size = q->rspq_size;
@@ -3362,9 +3364,16 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = sysfs_create_group(&adapter->port[0]->dev.kobj,
 				 &cxgb3_attr_group);
+	if (err) {
+		dev_err(&pdev->dev, "cannot create sysfs group\n");
+		goto out_close_led;
+	}
 
 	print_port_info(adapter, ai);
 	return 0;
+
+out_close_led:
+	t3_set_reg_field(adapter, A_T3DBG_GPIO_EN, F_GPIO0_OUT_VAL, 0);
 
 out_free_dev:
 	iounmap(adapter->regs);

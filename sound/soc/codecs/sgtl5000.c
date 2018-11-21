@@ -1,12 +1,8 @@
-/*
- * sgtl5000.c  --  SGTL5000 ALSA SoC Audio driver
- *
- * Copyright 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// sgtl5000.c  --  SGTL5000 ALSA SoC Audio driver
+//
+// Copyright 2010-2011 Freescale Semiconductor, Inc. All Rights Reserved.
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -457,7 +453,7 @@ static int dac_put_volsw(struct snd_kcontrol *kcontrol,
  * avc_put_threshold function: register_value = 10^(dB/20) * 0.636 * 2^15 ==>
  * dB = ( fls(register_value) - 14.347 ) * 6.02
  *
- * As this calculation is expensive and the threshold dB values may not exeed
+ * As this calculation is expensive and the threshold dB values may not exceed
  * 0 to 96 we use pre-calculated values.
  */
 static int avc_get_threshold(struct snd_kcontrol *kcontrol,
@@ -490,7 +486,7 @@ static int avc_get_threshold(struct snd_kcontrol *kcontrol,
  *
  * The register value is calculated by following formula:
  *                                    register_value = 10^(dB/20) * 0.636 * 2^15
- * As this calculation is expensive and the threshold dB values may not exeed
+ * As this calculation is expensive and the threshold dB values may not exceed
  * 0 to 96 we use pre-calculated values.
  */
 static int avc_put_threshold(struct snd_kcontrol *kcontrol,

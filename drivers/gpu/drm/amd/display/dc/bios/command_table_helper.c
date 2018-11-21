@@ -51,6 +51,7 @@ bool dal_bios_parser_init_cmd_tbl_helper(
 		return true;
 
 	case DCE_VERSION_11_2:
+	case DCE_VERSION_11_22:
 		*h = dal_cmd_tbl_helper_dce112_get_table();
 		return true;
 

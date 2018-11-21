@@ -64,8 +64,6 @@ auxdisplay/
 	- misc. LCD driver documentation (cfag12864b, ks0108).
 backlight/
 	- directory with info on controlling backlights in flat panel displays
-bcache.txt
-	- Block-layer cache on fast SSDs to improve slow (raid) I/O performance.
 block/
 	- info on the Block I/O (BIO) layer.
 blockdev/
@@ -78,18 +76,10 @@ bus-devices/
 	- directory with info on TI GPMC (General Purpose Memory Controller)
 bus-virt-phys-mapping.txt
 	- how to access I/O mapped memory from within device drivers.
-cachetlb.txt
-	- describes the cache/TLB flushing interfaces Linux uses.
 cdrom/
 	- directory with information on the CD-ROM drivers that Linux has.
 cgroup-v1/
 	- cgroups v1 features, including cpusets and memory controller.
-cgroup-v2.txt
-	- cgroups v2 features, including cpusets and memory controller.
-circular-buffers.txt
-	- how to make use of the existing circular buffer infrastructure
-clk.txt
-	- info on the common clock framework
 cma/
 	- Continuous Memory Area (CMA) debugfs interface.
 conf.py

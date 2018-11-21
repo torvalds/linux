@@ -34,26 +34,17 @@
 		stdout-path = &serial_2;
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		mmc_reg: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "VMEM_VDD_2.8V";
-			regulator-min-microvolt = <2800000>;
-			regulator-max-microvolt = <2800000>;
-			gpio = <&gpx1 1 GPIO_ACTIVE_HIGH>;
-			enable-active-high;
-		};
+	mmc_reg: voltage-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "VMEM_VDD_2.8V";
+		regulator-min-microvolt = <2800000>;
+		regulator-max-microvolt = <2800000>;
+		gpio = <&gpx1 1 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		up {
 			label = "Up";
@@ -131,9 +122,20 @@
 	cpu0-supply = <&buck1_reg>;
 };
 
+&exynos_usbphy {
+	status = "okay";
+};
+
 &fimd {
 	pinctrl-0 = <&lcd_en &lcd_clk &lcd_data24 &pwm0_out>;
 	pinctrl-names = "default";
+	status = "okay";
+};
+
+&hsotg {
+	vusb_d-supply = <&ldo3_reg>;
+	vusb_a-supply = <&ldo8_reg>;
+	dr_mode = "peripheral";
 	status = "okay";
 };
 

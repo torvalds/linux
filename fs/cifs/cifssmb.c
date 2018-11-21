@@ -106,6 +106,12 @@ cifs_mark_open_files_invalid(struct cifs_tcon *tcon)
 		open_file->oplock_break_cancelled = true;
 	}
 	spin_unlock(&tcon->open_file_lock);
+
+	mutex_lock(&tcon->crfid.fid_mutex);
+	tcon->crfid.is_valid = false;
+	memset(tcon->crfid.fid, 0, sizeof(struct cifs_fid));
+	mutex_unlock(&tcon->crfid.fid_mutex);
+
 	/*
 	 * BB Add call to invalidate_inodes(sb) for all superblocks mounted
 	 * to this tcon.
@@ -151,8 +157,14 @@ cifs_reconnect_tcon(struct cifs_tcon *tcon, int smb_command)
 	 * greater than cifs socket timeout which is 7 seconds
 	 */
 	while (server->tcpStatus == CifsNeedReconnect) {
-		wait_event_interruptible_timeout(server->response_q,
-			(server->tcpStatus != CifsNeedReconnect), 10 * HZ);
+		rc = wait_event_interruptible_timeout(server->response_q,
+						      (server->tcpStatus != CifsNeedReconnect),
+						      10 * HZ);
+		if (rc < 0) {
+			cifs_dbg(FYI, "%s: aborting reconnect due to a received"
+				 " signal by the process\n", __func__);
+			return -ERESTARTSYS;
+		}
 
 		/* are we still trying to reconnect? */
 		if (server->tcpStatus != CifsNeedReconnect)
@@ -1946,6 +1958,7 @@ cifs_writedata_release(struct kref *refcount)
 	if (wdata->cfile)
 		cifsFileInfo_put(wdata->cfile);
 
+	kvfree(wdata->pages);
 	kfree(wdata);
 }
 
@@ -2069,12 +2082,22 @@ cifs_writev_complete(struct work_struct *work)
 struct cifs_writedata *
 cifs_writedata_alloc(unsigned int nr_pages, work_func_t complete)
 {
+	struct page **pages =
+		kcalloc(nr_pages, sizeof(struct page *), GFP_NOFS);
+	if (pages)
+		return cifs_writedata_direct_alloc(pages, complete);
+
+	return NULL;
+}
+
+struct cifs_writedata *
+cifs_writedata_direct_alloc(struct page **pages, work_func_t complete)
+{
 	struct cifs_writedata *wdata;
 
-	/* writedata + number of page pointers */
-	wdata = kzalloc(sizeof(*wdata) +
-			sizeof(struct page *) * nr_pages, GFP_NOFS);
+	wdata = kzalloc(sizeof(*wdata), GFP_NOFS);
 	if (wdata != NULL) {
+		wdata->pages = pages;
 		kref_init(&wdata->refcount);
 		INIT_LIST_HEAD(&wdata->list);
 		init_completion(&wdata->done);

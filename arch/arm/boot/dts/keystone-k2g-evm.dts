@@ -114,6 +114,20 @@
 			K2G_CORE_IOPAD(0x11f0) (BUFFER_CLASS_B | PIN_PULLDOWN | MUX_MODE0)      /* uart2_txd.uart2_txd */
 		>;
 	};
+
+	dcan0_pins: pinmux_dcan0_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x11fc) (BUFFER_CLASS_B | PULL_DISABLE  | MUX_MODE0)	/* dcan0tx.dcan0tx */
+			K2G_CORE_IOPAD(0x1200) (BUFFER_CLASS_B | PIN_PULLDOWN  | MUX_MODE0)	/* dcan0rx.dcan0rx */
+		>;
+	};
+
+	dcan1_pins: pinmux_dcan1_pins {
+		pinctrl-single,pins = <
+			K2G_CORE_IOPAD(0x1224) (BUFFER_CLASS_B | PULL_DISABLE  | MUX_MODE1)	/* qspicsn2.dcan1tx */
+			K2G_CORE_IOPAD(0x1228) (BUFFER_CLASS_B | PIN_PULLDOWN  | MUX_MODE1)	/* qspicsn3.dcan1rx */
+		>;
+	};
 };
 
 &uart0 {
@@ -266,5 +280,17 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
+	status = "okay";
+};
+
+&dcan0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan0_pins>;
+	status = "okay";
+};
+
+&dcan1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dcan1_pins>;
 	status = "okay";
 };

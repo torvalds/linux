@@ -193,7 +193,7 @@ static __init void reserve_regions(void)
 	 * uses its own memory map instead.
 	 */
 	memblock_dump_all();
-	memblock_remove(0, (phys_addr_t)ULLONG_MAX);
+	memblock_remove(0, PHYS_ADDR_MAX);
 
 	for_each_efi_memory_desc(md) {
 		paddr = md->phys_addr;

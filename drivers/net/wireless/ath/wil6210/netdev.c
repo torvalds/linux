@@ -457,15 +457,15 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 		return;
 	}
 
+	mutex_lock(&wil->mutex);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
+	mutex_unlock(&wil->mutex);
+
 	ndev = vif_to_ndev(vif);
 	/* during unregister_netdevice cfg80211_leave may perform operations
 	 * such as stop AP, disconnect, so we only clear the VIF afterwards
 	 */
 	unregister_netdevice(ndev);
-
-	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
-	mutex_unlock(&wil->mutex);
 
 	if (any_active && vif->mid != 0)
 		wmi_port_delete(wil, vif->mid);

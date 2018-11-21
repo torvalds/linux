@@ -89,6 +89,11 @@ struct hclge_pg_shapping_cmd {
 	__le32 pg_shapping_para;
 };
 
+#define HCLGE_BP_GRP_NUM		32
+#define HCLGE_BP_SUB_GRP_ID_S		0
+#define HCLGE_BP_SUB_GRP_ID_M		GENMASK(4, 0)
+#define HCLGE_BP_GRP_ID_S		5
+#define HCLGE_BP_GRP_ID_M		GENMASK(9, 5)
 struct hclge_bp_to_qs_map_cmd {
 	u8 tc_id;
 	u8 rsvd[2];

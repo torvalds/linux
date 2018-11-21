@@ -24,10 +24,10 @@ enum lowpan_lltypes.
 
 Example to evaluate the private usually you can do:
 
-static inline sturct lowpan_priv_foobar *
+static inline struct lowpan_priv_foobar *
 lowpan_foobar_priv(struct net_device *dev)
 {
-	return (sturct lowpan_priv_foobar *)lowpan_priv(dev)->priv;
+	return (struct lowpan_priv_foobar *)lowpan_priv(dev)->priv;
 }
 
 switch (dev->type) {

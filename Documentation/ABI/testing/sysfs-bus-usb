@@ -189,6 +189,28 @@ Description:
 		The file will read "hotplug", "wired" and "not used" if the
 		information is available, and "unknown" otherwise.
 
+What:		/sys/bus/usb/devices/.../(hub interface)/portX/quirks
+Date:		May 2018
+Contact:	Nicolas Boichat <drinkcat@chromium.org>
+Description:
+		In some cases, we care about time-to-active for devices
+		connected on a specific port (e.g. non-standard USB port like
+		pogo pins), where the device to be connected is known in
+		advance, and behaves well according to the specification.
+		This attribute is a bit-field that controls the behavior of
+		a specific port:
+		 - Bit 0 of this field selects the "old" enumeration scheme,
+		   as it is considerably faster (it only causes one USB reset
+		   instead of 2).
+		   The old enumeration scheme can also be selected globally
+		   using /sys/module/usbcore/parameters/old_scheme_first, but
+		   it is often not desirable as the new scheme was introduced to
+		   increase compatibility with more devices.
+		 - Bit 1 reduces TRSTRCY to the 10 ms that are required by the
+		   USB 2.0 specification, instead of the 50 ms that are normally
+		   used to help make enumeration work better on some high speed
+		   devices.
+
 What:		/sys/bus/usb/devices/.../(hub interface)/portX/over_current_count
 Date:		February 2018
 Contact:	Richard Leitner <richard.leitner@skidata.com>
@@ -236,3 +258,21 @@ Description:
 		Supported values are 0 - 15.
 		More information on how besl values map to microseconds can be found in
 		USB 2.0 ECN Errata for Link Power Management, section 4.10)
+
+What:		/sys/bus/usb/devices/.../rx_lanes
+Date:		March 2018
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		Number of rx lanes the device is using.
+		USB 3.2 adds Dual-lane support, 2 rx and 2 tx lanes over Type-C.
+		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
+		direction. Devices before USB 3.2 are single lane (rx_lanes = 1)
+
+What:		/sys/bus/usb/devices/.../tx_lanes
+Date:		March 2018
+Contact:	Mathias Nyman <mathias.nyman@linux.intel.com>
+Description:
+		Number of tx lanes the device is using.
+		USB 3.2 adds Dual-lane support, 2 rx and 2 tx -lanes over Type-C.
+		Inter-Chip SSIC devices support asymmetric lanes up to 4 lanes per
+		direction. Devices before USB 3.2 are single lane (tx_lanes = 1)

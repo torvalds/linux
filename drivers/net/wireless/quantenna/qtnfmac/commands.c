@@ -55,6 +55,28 @@ static int qtnf_cmd_check_reply_header(const struct qlink_resp *resp,
 	return 0;
 }
 
+static int qtnf_cmd_resp_result_decode(enum qlink_cmd_result qcode)
+{
+	switch (qcode) {
+	case QLINK_CMD_RESULT_OK:
+		return 0;
+	case QLINK_CMD_RESULT_INVALID:
+		return -EINVAL;
+	case QLINK_CMD_RESULT_ENOTSUPP:
+		return -ENOTSUPP;
+	case QLINK_CMD_RESULT_ENOTFOUND:
+		return -ENOENT;
+	case QLINK_CMD_RESULT_EALREADY:
+		return -EALREADY;
+	case QLINK_CMD_RESULT_EADDRINUSE:
+		return -EADDRINUSE;
+	case QLINK_CMD_RESULT_EADDRNOTAVAIL:
+		return -EADDRNOTAVAIL;
+	default:
+		return -EFAULT;
+	}
+}
+
 static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 				    struct sk_buff *cmd_skb,
 				    struct sk_buff **response_skb,
@@ -80,6 +102,7 @@ static int qtnf_cmd_send_with_reply(struct qtnf_bus *bus,
 		pr_warn("VIF%u.%u: drop cmd 0x%.4X in fw state %d\n",
 			mac_id, vif_id, le16_to_cpu(cmd->cmd_id),
 			bus->fw_state);
+		dev_kfree_skb(cmd_skb);
 		return -ENODEV;
 	}
 
@@ -810,10 +833,10 @@ static int qtnf_cmd_send_add_change_intf(struct qtnf_vif *vif,
 	if (unlikely(ret))
 		goto out;
 
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
+	ret = qtnf_cmd_resp_result_decode(res_code);
+	if (ret) {
 		pr_err("VIF%u.%u: CMD %d failed: %u\n", vif->mac->macid,
 		       vif->vifid, cmd_type, res_code);
-		ret = -EFAULT;
 		goto out;
 	}
 
@@ -1193,7 +1216,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 				return -EINVAL;
 			}
 
-			limits = kzalloc(sizeof(*limits) * rec->n_limits,
+			limits = kcalloc(rec->n_limits, sizeof(*limits),
 					 GFP_KERNEL);
 			if (!limits)
 				return -ENOMEM;
@@ -2316,13 +2339,11 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	else
 		eth_zero_addr(cmd->prev_bssid);
 
-	if ((sme->bg_scan_period > 0) &&
-	    (sme->bg_scan_period <= QTNF_MAX_BG_SCAN_PERIOD))
+	if ((sme->bg_scan_period >= 0) &&
+	    (sme->bg_scan_period <= SHRT_MAX))
 		cmd->bg_scan_period = cpu_to_le16(sme->bg_scan_period);
-	else if (sme->bg_scan_period == -1)
-		cmd->bg_scan_period = cpu_to_le16(QTNF_DEFAULT_BG_SCAN_PERIOD);
 	else
-		cmd->bg_scan_period = 0; /* disabled */
+		cmd->bg_scan_period = cpu_to_le16(-1); /* use default value */
 
 	if (sme->flags & ASSOC_REQ_DISABLE_HT)
 		connect_flags |= QLINK_STA_CONNECT_DISABLE_HT;

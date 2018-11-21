@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -72,7 +72,7 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	int middle = 0;
 
 	ps->s_txreq = get_txreq(ps->dev, qp);
-	if (IS_ERR(ps->s_txreq))
+	if (!ps->s_txreq)
 		goto bail_no_tx;
 
 	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_SEND_OK)) {
@@ -397,7 +397,7 @@ send_first:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			qp->r_sge = qp->s_rdma_read_sge;
 		} else {
-			ret = hfi1_rvt_get_rwqe(qp, 0);
+			ret = rvt_get_rwqe(qp, false);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)
@@ -542,7 +542,7 @@ rdma_last_imm:
 		if (test_and_clear_bit(RVT_R_REWIND_SGE, &qp->r_aflags)) {
 			rvt_put_ss(&qp->s_rdma_read_sge);
 		} else {
-			ret = hfi1_rvt_get_rwqe(qp, 1);
+			ret = rvt_get_rwqe(qp, true);
 			if (ret < 0)
 				goto op_err;
 			if (!ret)

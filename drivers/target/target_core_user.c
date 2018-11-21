@@ -42,7 +42,11 @@
 
 #include <linux/target_core_user.h>
 
-/*
+/**
+ * DOC: Userspace I/O
+ * Userspace I/O
+ * -------------
+ *
  * Define a shared-memory interface for LIO to pass SCSI commands and
  * data to userspace for processing. This is to allow backends that
  * are too complex for in-kernel support to be possible.
@@ -53,7 +57,7 @@
  * See the .h file for how the ring is laid out. Note that while the
  * command ring is defined, the particulars of the data area are
  * not. Offset values in the command entry point to other locations
- * internal to the mmap()ed area. There is separate space outside the
+ * internal to the mmap-ed area. There is separate space outside the
  * command ring for data buffers. This leaves maximum flexibility for
  * moving buffer allocations, or even page flipping or other
  * allocation techniques, without altering the command ring layout.
@@ -652,7 +656,7 @@ static void scatter_data_area(struct tcmu_dev *udev,
 }
 
 static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
-			     bool bidi)
+			     bool bidi, uint32_t read_len)
 {
 	struct se_cmd *se_cmd = cmd->se_cmd;
 	int i, dbi;
@@ -685,7 +689,7 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 	for_each_sg(data_sg, sg, data_nents, i) {
 		int sg_remaining = sg->length;
 		to = kmap_atomic(sg_page(sg)) + sg->offset;
-		while (sg_remaining > 0) {
+		while (sg_remaining > 0 && read_len > 0) {
 			if (block_remaining == 0) {
 				if (from)
 					kunmap_atomic(from);
@@ -697,6 +701,8 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 			}
 			copy_bytes = min_t(size_t, sg_remaining,
 					block_remaining);
+			if (read_len < copy_bytes)
+				copy_bytes = read_len;
 			offset = DATA_BLOCK_SIZE - block_remaining;
 			tcmu_flush_dcache_range(from, copy_bytes);
 			memcpy(to + sg->length - sg_remaining, from + offset,
@@ -704,8 +710,11 @@ static void gather_data_area(struct tcmu_dev *udev, struct tcmu_cmd *cmd,
 
 			sg_remaining -= copy_bytes;
 			block_remaining -= copy_bytes;
+			read_len -= copy_bytes;
 		}
 		kunmap_atomic(to - sg->offset);
+		if (read_len == 0)
+			break;
 	}
 	if (from)
 		kunmap_atomic(from);
@@ -1038,6 +1047,8 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 {
 	struct se_cmd *se_cmd = cmd->se_cmd;
 	struct tcmu_dev *udev = cmd->tcmu_dev;
+	bool read_len_valid = false;
+	uint32_t read_len = se_cmd->data_length;
 
 	/*
 	 * cmd has been completed already from timeout, just reclaim
@@ -1052,13 +1063,28 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 		pr_warn("TCMU: Userspace set UNKNOWN_OP flag on se_cmd %p\n",
 			cmd->se_cmd);
 		entry->rsp.scsi_status = SAM_STAT_CHECK_CONDITION;
-	} else if (entry->rsp.scsi_status == SAM_STAT_CHECK_CONDITION) {
+		goto done;
+	}
+
+	if (se_cmd->data_direction == DMA_FROM_DEVICE &&
+	    (entry->hdr.uflags & TCMU_UFLAG_READ_LEN) && entry->rsp.read_len) {
+		read_len_valid = true;
+		if (entry->rsp.read_len < read_len)
+			read_len = entry->rsp.read_len;
+	}
+
+	if (entry->rsp.scsi_status == SAM_STAT_CHECK_CONDITION) {
 		transport_copy_sense_to_cmd(se_cmd, entry->rsp.sense_buffer);
-	} else if (se_cmd->se_cmd_flags & SCF_BIDI) {
+		if (!read_len_valid )
+			goto done;
+		else
+			se_cmd->se_cmd_flags |= SCF_TREAT_READ_AS_NORMAL;
+	}
+	if (se_cmd->se_cmd_flags & SCF_BIDI) {
 		/* Get Data-In buffer before clean up */
-		gather_data_area(udev, cmd, true);
+		gather_data_area(udev, cmd, true, read_len);
 	} else if (se_cmd->data_direction == DMA_FROM_DEVICE) {
-		gather_data_area(udev, cmd, false);
+		gather_data_area(udev, cmd, false, read_len);
 	} else if (se_cmd->data_direction == DMA_TO_DEVICE) {
 		/* TODO: */
 	} else if (se_cmd->data_direction != DMA_NONE) {
@@ -1066,7 +1092,13 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 			se_cmd->data_direction);
 	}
 
-	target_complete_cmd(cmd->se_cmd, entry->rsp.scsi_status);
+done:
+	if (read_len_valid) {
+		pr_debug("read_len = %d\n", read_len);
+		target_complete_cmd_with_length(cmd->se_cmd,
+					entry->rsp.scsi_status, read_len);
+	} else
+		target_complete_cmd(cmd->se_cmd, entry->rsp.scsi_status);
 
 out:
 	cmd->se_cmd = NULL;
@@ -1382,7 +1414,7 @@ static struct page *tcmu_try_get_block_page(struct tcmu_dev *udev, uint32_t dbi)
 	return page;
 }
 
-static int tcmu_vma_fault(struct vm_fault *vmf)
+static vm_fault_t tcmu_vma_fault(struct vm_fault *vmf)
 {
 	struct tcmu_dev *udev = vmf->vma->vm_private_data;
 	struct uio_info *info = &udev->uio_info;
@@ -1586,8 +1618,9 @@ static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
 	return ret;
 }
 
-static int tcmu_netlink_event(struct tcmu_dev *udev, enum tcmu_genl_cmd cmd,
-			      int reconfig_attr, const void *reconfig_data)
+static int tcmu_netlink_event_init(struct tcmu_dev *udev,
+				   enum tcmu_genl_cmd cmd,
+				   struct sk_buff **buf, void **hdr)
 {
 	struct sk_buff *skb;
 	void *msg_header;
@@ -1613,44 +1646,64 @@ static int tcmu_netlink_event(struct tcmu_dev *udev, enum tcmu_genl_cmd cmd,
 	if (ret < 0)
 		goto free_skb;
 
-	if (cmd == TCMU_CMD_RECONFIG_DEVICE) {
-		switch (reconfig_attr) {
-		case TCMU_ATTR_DEV_CFG:
-			ret = nla_put_string(skb, reconfig_attr, reconfig_data);
-			break;
-		case TCMU_ATTR_DEV_SIZE:
-			ret = nla_put_u64_64bit(skb, reconfig_attr,
-						*((u64 *)reconfig_data),
-						TCMU_ATTR_PAD);
-			break;
-		case TCMU_ATTR_WRITECACHE:
-			ret = nla_put_u8(skb, reconfig_attr,
-					  *((u8 *)reconfig_data));
-			break;
-		default:
-			BUG();
-		}
+	*buf = skb;
+	*hdr = msg_header;
+	return ret;
 
-		if (ret < 0)
-			goto free_skb;
-	}
+free_skb:
+	nlmsg_free(skb);
+	return ret;
+}
+
+static int tcmu_netlink_event_send(struct tcmu_dev *udev,
+				   enum tcmu_genl_cmd cmd,
+				   struct sk_buff **buf, void **hdr)
+{
+	int ret = 0;
+	struct sk_buff *skb = *buf;
+	void *msg_header = *hdr;
 
 	genlmsg_end(skb, msg_header);
 
 	tcmu_init_genl_cmd_reply(udev, cmd);
 
 	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
-				TCMU_MCGRP_CONFIG, GFP_KERNEL);
-	/* We don't care if no one is listening */
+				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
+       /* We don't care if no one is listening */
 	if (ret == -ESRCH)
 		ret = 0;
 	if (!ret)
 		ret = tcmu_wait_genl_cmd_reply(udev);
+	return ret;
+}
 
-	return ret;
-free_skb:
-	nlmsg_free(skb);
-	return ret;
+static int tcmu_send_dev_add_event(struct tcmu_dev *udev)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_ADDED_DEVICE, &skb,
+				      &msg_header);
+	if (ret < 0)
+		return ret;
+	return tcmu_netlink_event_send(udev, TCMU_CMD_ADDED_DEVICE, &skb,
+				       &msg_header);
+
+}
+
+static int tcmu_send_dev_remove_event(struct tcmu_dev *udev)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_REMOVED_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	return tcmu_netlink_event_send(udev, TCMU_CMD_REMOVED_DEVICE,
+				       &skb, &msg_header);
 }
 
 static int tcmu_update_uio_info(struct tcmu_dev *udev)
@@ -1692,8 +1745,9 @@ static int tcmu_configure_device(struct se_device *dev)
 
 	info = &udev->uio_info;
 
-	udev->data_bitmap = kzalloc(BITS_TO_LONGS(udev->max_blocks) *
-				    sizeof(unsigned long), GFP_KERNEL);
+	udev->data_bitmap = kcalloc(BITS_TO_LONGS(udev->max_blocks),
+				    sizeof(unsigned long),
+				    GFP_KERNEL);
 	if (!udev->data_bitmap) {
 		ret = -ENOMEM;
 		goto err_bitmap_alloc;
@@ -1714,7 +1768,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	/* Initialise the mailbox of the ring buffer */
 	mb = udev->mb_addr;
 	mb->version = TCMU_MAILBOX_VERSION;
-	mb->flags = TCMU_MAILBOX_FLAG_CAP_OOOC;
+	mb->flags = TCMU_MAILBOX_FLAG_CAP_OOOC | TCMU_MAILBOX_FLAG_CAP_READ_LEN;
 	mb->cmdr_off = CMDR_OFF;
 	mb->cmdr_size = udev->cmdr_size;
 
@@ -1762,7 +1816,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	 */
 	kref_get(&udev->kref);
 
-	ret = tcmu_netlink_event(udev, TCMU_CMD_ADDED_DEVICE, 0, NULL);
+	ret = tcmu_send_dev_add_event(udev);
 	if (ret)
 		goto err_netlink;
 
@@ -1812,7 +1866,7 @@ static void tcmu_destroy_device(struct se_device *dev)
 	list_del(&udev->node);
 	mutex_unlock(&root_udev_mutex);
 
-	tcmu_netlink_event(udev, TCMU_CMD_REMOVED_DEVICE, 0, NULL);
+	tcmu_send_dev_remove_event(udev);
 
 	uio_unregister_device(&udev->uio_info);
 
@@ -2151,6 +2205,27 @@ static ssize_t tcmu_dev_config_show(struct config_item *item, char *page)
 	return snprintf(page, PAGE_SIZE, "%s\n", udev->dev_config);
 }
 
+static int tcmu_send_dev_config_event(struct tcmu_dev *udev,
+				      const char *reconfig_data)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_string(skb, TCMU_ATTR_DEV_CFG, reconfig_data);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
+
 static ssize_t tcmu_dev_config_store(struct config_item *item, const char *page,
 				     size_t count)
 {
@@ -2165,8 +2240,7 @@ static ssize_t tcmu_dev_config_store(struct config_item *item, const char *page,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_DEV_CFG, page);
+		ret = tcmu_send_dev_config_event(udev, page);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
@@ -2193,6 +2267,26 @@ static ssize_t tcmu_dev_size_show(struct config_item *item, char *page)
 	return snprintf(page, PAGE_SIZE, "%zu\n", udev->dev_size);
 }
 
+static int tcmu_send_dev_size_event(struct tcmu_dev *udev, u64 size)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_u64_64bit(skb, TCMU_ATTR_DEV_SIZE,
+				size, TCMU_ATTR_PAD);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
 static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 				   size_t count)
 {
@@ -2208,8 +2302,7 @@ static ssize_t tcmu_dev_size_store(struct config_item *item, const char *page,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_DEV_SIZE, &val);
+		ret = tcmu_send_dev_size_event(udev, val);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;
@@ -2257,6 +2350,25 @@ static ssize_t tcmu_emulate_write_cache_show(struct config_item *item,
 	return snprintf(page, PAGE_SIZE, "%i\n", da->emulate_write_cache);
 }
 
+static int tcmu_send_emulate_write_cache(struct tcmu_dev *udev, u8 val)
+{
+	struct sk_buff *skb = NULL;
+	void *msg_header = NULL;
+	int ret = 0;
+
+	ret = tcmu_netlink_event_init(udev, TCMU_CMD_RECONFIG_DEVICE,
+				      &skb, &msg_header);
+	if (ret < 0)
+		return ret;
+	ret = nla_put_u8(skb, TCMU_ATTR_WRITECACHE, val);
+	if (ret < 0) {
+		nlmsg_free(skb);
+		return ret;
+	}
+	return tcmu_netlink_event_send(udev, TCMU_CMD_RECONFIG_DEVICE,
+				       &skb, &msg_header);
+}
+
 static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 					      const char *page, size_t count)
 {
@@ -2272,8 +2384,7 @@ static ssize_t tcmu_emulate_write_cache_store(struct config_item *item,
 
 	/* Check if device has been configured before */
 	if (tcmu_dev_configured(udev)) {
-		ret = tcmu_netlink_event(udev, TCMU_CMD_RECONFIG_DEVICE,
-					 TCMU_ATTR_WRITECACHE, &val);
+		ret = tcmu_send_emulate_write_cache(udev, val);
 		if (ret) {
 			pr_err("Unable to reconfigure device\n");
 			return ret;

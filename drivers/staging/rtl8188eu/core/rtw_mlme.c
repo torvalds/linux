@@ -53,7 +53,7 @@ int rtw_init_mlme_priv(struct adapter *padapter)
 
 	memset(&pmlmepriv->assoc_ssid, 0, sizeof(struct ndis_802_11_ssid));
 
-	pbuf = vzalloc(MAX_BSS_CNT * (sizeof(struct wlan_network)));
+	pbuf = vzalloc(array_size(MAX_BSS_CNT, sizeof(struct wlan_network)));
 
 	if (!pbuf) {
 		res = _FAIL;
@@ -270,7 +270,7 @@ u16 rtw_get_capability(struct wlan_bssid_ex *bss)
 {
 	__le16	val;
 
-	memcpy((u8 *)&val, rtw_get_capability_from_ie(bss->IEs), 2);
+	memcpy((u8 *)&val, rtw_get_capability_from_ie(bss->ies), 2);
 
 	return le16_to_cpu(val);
 }
@@ -318,8 +318,8 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 	 u16 s_cap, d_cap;
 	__le16 le_scap, le_dcap;
 
-	memcpy((u8 *)&le_scap, rtw_get_capability_from_ie(src->IEs), 2);
-	memcpy((u8 *)&le_dcap, rtw_get_capability_from_ie(dst->IEs), 2);
+	memcpy((u8 *)&le_scap, rtw_get_capability_from_ie(src->ies), 2);
+	memcpy((u8 *)&le_dcap, rtw_get_capability_from_ie(dst->ies), 2);
 
 	s_cap = le16_to_cpu(le_scap);
 	d_cap = le16_to_cpu(le_dcap);
@@ -399,8 +399,8 @@ static void update_current_network(struct adapter *adapter, struct wlan_bssid_ex
 	if ((check_fwstate(pmlmepriv, _FW_LINKED) == true) &&
 	    (is_same_network(&(pmlmepriv->cur_network.network), pnetwork))) {
 		update_network(&(pmlmepriv->cur_network.network), pnetwork, adapter, true);
-		rtw_update_protection(adapter, (pmlmepriv->cur_network.network.IEs) + sizeof(struct ndis_802_11_fixed_ie),
-				      pmlmepriv->cur_network.network.IELength);
+		rtw_update_protection(adapter, (pmlmepriv->cur_network.network.ies) + sizeof(struct ndis_802_11_fixed_ie),
+				      pmlmepriv->cur_network.network.ie_length);
 	}
 }
 
@@ -483,7 +483,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 		pnetwork->last_scanned = jiffies;
 
 		/* target.Reserved[0]== 1, means that scanned network is a bcn frame. */
-		if ((pnetwork->network.IELength > target->IELength) && (target->Reserved[0] == 1))
+		if ((pnetwork->network.ie_length > target->ie_length) && (target->Reserved[0] == 1))
 			update_ie = false;
 
 		update_network(&(pnetwork->network), target, adapter, update_ie);
@@ -524,7 +524,7 @@ static int rtw_is_desired_network(struct adapter *adapter, struct wlan_network *
 	privacy = pnetwork->network.Privacy;
 
 	if (check_fwstate(pmlmepriv, WIFI_UNDER_WPS)) {
-		if (rtw_get_wps_ie(pnetwork->network.IEs+_FIXED_IE_LENGTH_, pnetwork->network.IELength-_FIXED_IE_LENGTH_, NULL, &wps_ielen))
+		if (rtw_get_wps_ie(pnetwork->network.ies+_FIXED_IE_LENGTH_, pnetwork->network.ie_length-_FIXED_IE_LENGTH_, NULL, &wps_ielen))
 			return true;
 		else
 			return false;
@@ -576,11 +576,11 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 		if (!memcmp(&(pmlmepriv->cur_network.network.MacAddress), pnetwork->MacAddress, ETH_ALEN)) {
 			struct wlan_network *ibss_wlan = NULL;
 
-			memcpy(pmlmepriv->cur_network.network.IEs, pnetwork->IEs, 8);
+			memcpy(pmlmepriv->cur_network.network.ies, pnetwork->ies, 8);
 			spin_lock_bh(&(pmlmepriv->scanned_queue.lock));
 			ibss_wlan = rtw_find_network(&pmlmepriv->scanned_queue,  pnetwork->MacAddress);
 			if (ibss_wlan) {
-				memcpy(ibss_wlan->network.IEs, pnetwork->IEs, 8);
+				memcpy(ibss_wlan->network.ies, pnetwork->ies, 8);
 				spin_unlock_bh(&pmlmepriv->scanned_queue.lock);
 				goto exit;
 			}
@@ -947,9 +947,9 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 
 	/*  why not use ptarget_wlan?? */
 	memcpy(&cur_network->network, &pnetwork->network, pnetwork->network.Length);
-	/*  some IEs in pnetwork is wrong, so we should use ptarget_wlan IEs */
-	cur_network->network.IELength = ptarget_wlan->network.IELength;
-	memcpy(&cur_network->network.IEs[0], &ptarget_wlan->network.IEs[0], MAX_IE_SZ);
+	/*  some ies in pnetwork is wrong, so we should use ptarget_wlan ies */
+	cur_network->network.ie_length = ptarget_wlan->network.ie_length;
+	memcpy(&cur_network->network.ies[0], &ptarget_wlan->network.ies[0], MAX_IE_SZ);
 
 	cur_network->aid = pnetwork->join_res;
 
@@ -977,10 +977,10 @@ static void rtw_joinbss_update_network(struct adapter *padapter, struct wlan_net
 		break;
 	}
 
-	rtw_update_protection(padapter, (cur_network->network.IEs) +
+	rtw_update_protection(padapter, (cur_network->network.ies) +
 			      sizeof(struct ndis_802_11_fixed_ie),
-			      (cur_network->network.IELength));
-	rtw_update_ht_cap(padapter, cur_network->network.IEs, cur_network->network.IELength);
+			      (cur_network->network.ie_length));
+	rtw_update_ht_cap(padapter, cur_network->network.ies, cur_network->network.ie_length);
 }
 
 /* Notes: the function could be > passive_level (the same context as Rx tasklet) */
@@ -1665,7 +1665,7 @@ err_free_cmd:
 	return res;
 }
 
-/* adjust IEs for rtw_joinbss_cmd in WMM */
+/* adjust ies for rtw_joinbss_cmd in WMM */
 int rtw_restruct_wmm_ie(struct adapter *adapter, u8 *in_ie, u8 *out_ie, uint in_len, uint initial_out_len)
 {
 	unsigned	int ielength = 0;
@@ -1861,11 +1861,11 @@ void rtw_update_registrypriv_dev_network(struct adapter *adapter)
 	/*  2. IE */
 
 	sz = rtw_generate_ie(pregistrypriv);
-	pdev_network->IELength = sz;
+	pdev_network->ie_length = sz;
 	pdev_network->Length = get_wlan_bssid_ex_sz((struct wlan_bssid_ex  *)pdev_network);
 
-	/* notes: translate IELength & Length after assign the Length to cmdsz in createbss_cmd(); */
-	/* pdev_network->IELength = cpu_to_le32(sz); */
+	/* notes: translate ie_length & Length after assign the Length to cmdsz in createbss_cmd(); */
+	/* pdev_network->ie_length = cpu_to_le32(sz); */
 }
 
 void rtw_get_encrypt_decrypt_from_registrypriv(struct adapter *adapter)

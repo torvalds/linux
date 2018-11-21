@@ -466,6 +466,17 @@ static int mwifiex_sdio_suspend(struct device *dev)
 	return ret;
 }
 
+static void mwifiex_sdio_coredump(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct sdio_mmc_card *card;
+
+	card = sdio_get_drvdata(func);
+	if (!test_and_set_bit(MWIFIEX_IFACE_WORK_DEVICE_DUMP,
+			      &card->work_flags))
+		schedule_work(&card->work);
+}
+
 /* Device ID for SD8786 */
 #define SDIO_DEVICE_ID_MARVELL_8786   (0x9116)
 /* Device ID for SD8787 */
@@ -515,6 +526,7 @@ static struct sdio_driver mwifiex_sdio = {
 	.remove = mwifiex_sdio_remove,
 	.drv = {
 		.owner = THIS_MODULE,
+		.coredump = mwifiex_sdio_coredump,
 		.pm = &mwifiex_sdio_pm_ops,
 	}
 };
@@ -2094,15 +2106,16 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 		return -ENOMEM;
 
 	/* Allocate skb pointer buffers */
-	card->mpa_rx.skb_arr = kzalloc((sizeof(void *)) *
-				       card->mp_agg_pkt_limit, GFP_KERNEL);
+	card->mpa_rx.skb_arr = kcalloc(card->mp_agg_pkt_limit, sizeof(void *),
+				       GFP_KERNEL);
 	if (!card->mpa_rx.skb_arr) {
 		kfree(card->mp_regs);
 		return -ENOMEM;
 	}
 
-	card->mpa_rx.len_arr = kzalloc(sizeof(*card->mpa_rx.len_arr) *
-				       card->mp_agg_pkt_limit, GFP_KERNEL);
+	card->mpa_rx.len_arr = kcalloc(card->mp_agg_pkt_limit,
+				       sizeof(*card->mpa_rx.len_arr),
+				       GFP_KERNEL);
 	if (!card->mpa_rx.len_arr) {
 		kfree(card->mp_regs);
 		kfree(card->mpa_rx.skb_arr);

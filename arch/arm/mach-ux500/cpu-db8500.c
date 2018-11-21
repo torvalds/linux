@@ -111,11 +111,6 @@ static void ux500_restart(enum reboot_mode mode, const char *cmd)
 	prcmu_system_reset(0);
 }
 
-static struct of_dev_auxdata u8540_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu", NULL),
-	{},
-};
-
 static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
@@ -129,20 +124,13 @@ static void __init u8500_init_machine(void)
 	/* Initialize ux500 power domains */
 	ux500_pm_domains_init();
 
-	/* automatically probe child nodes of dbx5x0 devices */
-	if (of_machine_is_compatible("st-ericsson,u8540"))
-		of_platform_populate(NULL, u8500_local_bus_nodes,
-				     u8540_auxdata_lookup, NULL);
-	else
-		of_platform_populate(NULL, u8500_local_bus_nodes,
-				     NULL, NULL);
+	of_platform_populate(NULL, u8500_local_bus_nodes,
+			     NULL, NULL);
 }
 
 static const char * stericsson_dt_platform_compat[] = {
 	"st-ericsson,u8500",
-	"st-ericsson,u8540",
 	"st-ericsson,u9500",
-	"st-ericsson,u9540",
 	NULL,
 };
 

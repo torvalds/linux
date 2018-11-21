@@ -288,6 +288,7 @@ struct pci_sriov {
 
 /* pci_dev priv_flags */
 #define PCI_DEV_DISCONNECTED 0
+#define PCI_DEV_ADDED 1
 
 static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 {
@@ -298,6 +299,16 @@ static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 static inline bool pci_dev_is_disconnected(const struct pci_dev *dev)
 {
 	return test_bit(PCI_DEV_DISCONNECTED, &dev->priv_flags);
+}
+
+static inline void pci_dev_assign_added(struct pci_dev *dev, bool added)
+{
+	assign_bit(PCI_DEV_ADDED, &dev->priv_flags, added);
+}
+
+static inline bool pci_dev_is_added(const struct pci_dev *dev)
+{
+	return test_bit(PCI_DEV_ADDED, &dev->priv_flags);
 }
 
 #ifdef CONFIG_PCI_ATS
@@ -311,6 +322,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
+void pci_iov_remove(struct pci_dev *dev);
 void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
@@ -323,6 +335,9 @@ static inline int pci_iov_init(struct pci_dev *dev)
 }
 static inline void pci_iov_release(struct pci_dev *dev)
 
+{
+}
+static inline void pci_iov_remove(struct pci_dev *dev)
 {
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)
@@ -353,6 +368,11 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 
 void pci_enable_acs(struct pci_dev *dev);
 
+/* PCI error reporting and recovery */
+void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service);
+void pcie_do_nonfatal_recovery(struct pci_dev *dev);
+
+bool pcie_wait_for_link(struct pci_dev *pdev, bool active);
 #ifdef CONFIG_PCIEASPM
 void pcie_aspm_init_link_state(struct pci_dev *pdev);
 void pcie_aspm_exit_link_state(struct pci_dev *pdev);
@@ -406,5 +426,45 @@ static inline u64 pci_rebar_size_to_bytes(int size)
 {
 	return 1ULL << (size + 20);
 }
+
+struct device_node;
+
+#ifdef CONFIG_OF
+int of_pci_parse_bus_range(struct device_node *node, struct resource *res);
+int of_get_pci_domain_nr(struct device_node *node);
+int of_pci_get_max_link_speed(struct device_node *node);
+
+#else
+static inline int
+of_pci_parse_bus_range(struct device_node *node, struct resource *res)
+{
+	return -EINVAL;
+}
+
+static inline int
+of_get_pci_domain_nr(struct device_node *node)
+{
+	return -1;
+}
+
+static inline int
+of_pci_get_max_link_speed(struct device_node *node)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_OF */
+
+#if defined(CONFIG_OF_ADDRESS)
+int devm_of_pci_get_host_bridge_resources(struct device *dev,
+			unsigned char busno, unsigned char bus_max,
+			struct list_head *resources, resource_size_t *io_base);
+#else
+static inline int devm_of_pci_get_host_bridge_resources(struct device *dev,
+			unsigned char busno, unsigned char bus_max,
+			struct list_head *resources, resource_size_t *io_base)
+{
+	return -EINVAL;
+}
+#endif
 
 #endif /* DRIVERS_PCI_H */

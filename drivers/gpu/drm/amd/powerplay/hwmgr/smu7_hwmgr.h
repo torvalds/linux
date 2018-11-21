@@ -184,6 +184,8 @@ struct smu7_odn_dpm_table {
 	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_sclk;
 	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_mclk;
 	uint32_t					odn_mclk_min_limit;
+	uint32_t min_vddc;
+	uint32_t max_vddc;
 };
 
 struct profile_mode_setting {

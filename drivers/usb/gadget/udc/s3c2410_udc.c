@@ -1871,13 +1871,9 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 	if (retval)
 		goto err_add_udc;
 
-	if (s3c2410_udc_debugfs_root) {
-		udc->regs_info = debugfs_create_file("registers", S_IRUGO,
-				s3c2410_udc_debugfs_root,
-				udc, &s3c2410_udc_debugfs_fops);
-		if (!udc->regs_info)
-			dev_warn(dev, "debugfs file creation failed\n");
-	}
+	udc->regs_info = debugfs_create_file("registers", S_IRUGO,
+					     s3c2410_udc_debugfs_root, udc,
+					     &s3c2410_udc_debugfs_fops);
 
 	dev_dbg(dev, "probe ok\n");
 
@@ -1994,11 +1990,6 @@ static int __init udc_init(void)
 	dprintk(DEBUG_NORMAL, "%s\n", gadget_name);
 
 	s3c2410_udc_debugfs_root = debugfs_create_dir(gadget_name, NULL);
-	if (IS_ERR(s3c2410_udc_debugfs_root)) {
-		pr_err("%s: debugfs dir creation failed %ld\n",
-			gadget_name, PTR_ERR(s3c2410_udc_debugfs_root));
-		s3c2410_udc_debugfs_root = NULL;
-	}
 
 	retval = platform_driver_register(&udc_driver_24x0);
 	if (retval)
@@ -2014,7 +2005,7 @@ err:
 static void __exit udc_exit(void)
 {
 	platform_driver_unregister(&udc_driver_24x0);
-	debugfs_remove(s3c2410_udc_debugfs_root);
+	debugfs_remove_recursive(s3c2410_udc_debugfs_root);
 }
 
 module_init(udc_init);

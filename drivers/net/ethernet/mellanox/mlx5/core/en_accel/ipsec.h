@@ -45,9 +45,6 @@
 #define MLX5E_IPSEC_SADB_RX_BITS 10
 #define MLX5E_IPSEC_ESN_SCOPE_MID 0x80000000L
 
-#define MLX5E_METADATA_ETHER_TYPE (0x8CE4)
-#define MLX5E_METADATA_ETHER_LEN 8
-
 struct mlx5e_priv;
 
 struct mlx5e_ipsec_sw_stats {

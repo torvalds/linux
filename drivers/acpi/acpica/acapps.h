@@ -143,6 +143,8 @@ acpi_status
 fl_split_input_pathname(char *input_path,
 			char **out_directory_path, char **out_filename);
 
+char *fl_get_file_basename(char *file_pathname);
+
 char *ad_generate_filename(char *prefix, char *table_id);
 
 void

@@ -345,7 +345,6 @@ extern void user_single_step_siginfo(struct task_struct *tsk,
 static inline void user_single_step_siginfo(struct task_struct *tsk,
 				struct pt_regs *regs, siginfo_t *info)
 {
-	memset(info, 0, sizeof(*info));
 	info->si_signo = SIGTRAP;
 }
 #endif

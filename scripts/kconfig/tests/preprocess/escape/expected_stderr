@@ -1,0 +1,10 @@
+Kconfig:9: hello, world
+Kconfig:13:   ' " '"   ' ''' "'"
+Kconfig:17: $
+Kconfig:18: $$
+Kconfig:20: 1
+Kconfig:25: $(X)
+Kconfig:30: (
+Kconfig:35: $(X)
+Kconfig:39: $(X)
+Kconfig:44: $(

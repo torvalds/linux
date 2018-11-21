@@ -559,10 +559,4 @@ static inline int monitor_index(const struct echoaudio *chip, int out, int in)
 	return out * num_busses_in(chip) + in;
 }
 
-
-#ifndef pci_device
-#define pci_device(chip) (&chip->pci->dev)
-#endif
-
-
 #endif /* _ECHOAUDIO_H_ */

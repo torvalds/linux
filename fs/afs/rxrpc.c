@@ -46,7 +46,7 @@ int afs_open_socket(struct afs_net *net)
 
 	_enter("");
 
-	ret = sock_create_kern(&init_net, AF_RXRPC, SOCK_DGRAM, PF_INET6, &socket);
+	ret = sock_create_kern(net->net, AF_RXRPC, SOCK_DGRAM, PF_INET6, &socket);
 	if (ret < 0)
 		goto error_1;
 

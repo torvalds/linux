@@ -33,6 +33,7 @@ enum {
 	IFA_CACHEINFO,
 	IFA_MULTICAST,
 	IFA_FLAGS,
+	IFA_RT_PRIORITY,  /* u32, priority/metric for prefix route */
 	__IFA_MAX,
 };
 

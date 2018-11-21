@@ -127,13 +127,13 @@ void ath9k_hw_read_array(struct ath_hw *ah, u32 array[][2], int size)
 	u32 *tmp_reg_list, *tmp_data;
 	int i;
 
-	tmp_reg_list = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	tmp_reg_list = kmalloc_array(size, sizeof(u32), GFP_KERNEL);
 	if (!tmp_reg_list) {
 		dev_err(ah->dev, "%s: tmp_reg_list: alloc filed\n", __func__);
 		return;
 	}
 
-	tmp_data = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	tmp_data = kmalloc_array(size, sizeof(u32), GFP_KERNEL);
 	if (!tmp_data) {
 		dev_err(ah->dev, "%s tmp_data: alloc filed\n", __func__);
 		goto error_tmp_data;

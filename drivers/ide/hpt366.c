@@ -1455,7 +1455,7 @@ static int hpt366_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	if (info == &hpt36x || info == &hpt374)
 		dev2 = pci_get_slot(dev->bus, dev->devfn + 1);
 
-	dyn_info = kzalloc(sizeof(*dyn_info) * (dev2 ? 2 : 1), GFP_KERNEL);
+	dyn_info = kcalloc(dev2 ? 2 : 1, sizeof(*dyn_info), GFP_KERNEL);
 	if (dyn_info == NULL) {
 		printk(KERN_ERR "%s %s: out of memory!\n",
 			d.name, pci_name(dev));

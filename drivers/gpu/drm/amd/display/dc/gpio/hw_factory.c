@@ -75,6 +75,7 @@ bool dal_hw_factory_init(
 		return true;
 	case DCE_VERSION_11_0:
 	case DCE_VERSION_11_2:
+	case DCE_VERSION_11_22:
 		dal_hw_factory_dce110_init(factory);
 		return true;
 	case DCE_VERSION_12_0:

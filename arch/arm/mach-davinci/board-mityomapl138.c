@@ -400,6 +400,7 @@ static struct mtd_partition mityomapl138_nandflash_partition[] = {
 };
 
 static struct davinci_nand_pdata mityomapl138_nandflash_data = {
+	.core_chipsel	= 1,
 	.parts		= mityomapl138_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(mityomapl138_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,

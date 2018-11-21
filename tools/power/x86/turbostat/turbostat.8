@@ -54,15 +54,20 @@ name as necessary to disambiguate it from others is necessary.  Note that option
 .PP
 \fB--cpu cpu-set\fP limit output to system summary plus the specified cpu-set.  If cpu-set is the string "core", then the system summary plus the first CPU in each core are printed -- eg. subsequent HT siblings are not printed.  Or if cpu-set is the string "package", then the system summary plus the first CPU in each package is printed.  Otherwise, the system summary plus the specified set of CPUs are printed.  The cpu-set is ordered from low to high, comma delimited with ".." and "-" permitted to denote a range. eg. 1,2,8,14..17,21-44
 .PP
-\fB--hide column\fP do not show the specified columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--hide sysfs" to hide the sysfs statistics columns as a group.
+\fB--hide column\fP do not show the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--hide sysfs" to hide the sysfs statistics columns as a group.
 .PP
-\fB--show column\fP show only the specified columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--show sysfs" to show the sysfs statistics columns as a group.
+\fB--enable column\fP show the specified built-in columns, which are otherwise disabled, by default.  Currently the only built-in counters disabled by default are "usec", "Time_Of_Day_Seconds", "APIC" and "X2APIC".
+The column name "all" can be used to enable all disabled-by-default built-in counters.
+.PP
+\fB--show column\fP show only the specified built-in columns.  May be invoked multiple times, or with a comma-separated list of column names.  Use "--show sysfs" to show the sysfs statistics columns as a group.
 .PP
 \fB--Dump\fP displays the raw counter values.
 .PP
 \fB--quiet\fP Do not decode and print the system configuration header information.
 .PP
 \fB--interval seconds\fP overrides the default 5.0 second measurement interval.
+.PP
+\fB--num_iterations num\fP number of the measurement iterations.
 .PP
 \fB--out output_file\fP turbostat output is written to the specified output_file.
 The file is truncated if it already exists, and it is created if it does not exist.
@@ -86,6 +91,8 @@ displays the statistics gathered since it was forked.
 The system configuration dump (if --quiet is not used) is followed by statistics.  The first row of the statistics labels the content of each column (below).  The second row of statistics is the system summary line.  The system summary line has a '-' in the columns for the Package, Core, and CPU.  The contents of the system summary line depends on the type of column.  Columns that count items (eg. IRQ) show the sum across all CPUs in the system.  Columns that show a percentage show the average across all CPUs in the system.  Columns that dump raw MSR values simply show 0 in the summary.  After the system summary row, each row describes a specific Package/Core/CPU.  Note that if the --cpu parameter is used to limit which specific CPUs are displayed, turbostat will still collect statistics for all CPUs in the system and will still show the system summary for all CPUs in the system.
 .SH COLUMN DESCRIPTIONS
 .nf
+\fBusec\fP For each CPU, the number of microseconds elapsed during counter collection, including thread migration -- if any.  This counter is disabled by default, and is enabled with "--enable usec", or --debug.  On the summary row, usec refers to the total elapsed time to collect the counters on all cpus.
+\fBTime_Of_Day_Seconds\fP For each CPU, the gettimeofday(2) value (seconds.subsec since Epoch) when the counters ending the measurement interval were collected.  This column is disabled by default, and can be enabled with "--enable Time_Of_Day_Seconds" or "--debug".  On the summary row, Time_Of_Day_Seconds refers to the timestamp following collection of counters on the last CPU.
 \fBCore\fP processor core number.  Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading Technology (HT).
 \fBCPU\fP Linux CPU (logical processor) number.  Yes, it is okay that on many systems the CPUs are not listed in numerical order -- for efficiency reasons, turbostat runs in topology order, so HT siblings appear together.
 \fBPackage\fP processor package number -- not present on systems with a single processor package.
@@ -99,7 +106,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBC1%, C2%, C3%\fP The residency percentage that Linux requested C1, C2, C3....  The system summary is the average of all CPUs in the system.  Note that these are software, reflecting what was requested.  The hardware counters reflect what was actually achieved.
 \fBCPU%c1, CPU%c3, CPU%c6, CPU%c7\fP show the percentage residency in hardware core idle states.  These numbers are from hardware residency counters.
 \fBCoreTmp\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
-\fBPkgTtmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
+\fBPkgTmp\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
 \fBGFX%rc6\fP The percentage of time the GPU is in the "render C6" state, rc6, during the measurement interval. From /sys/class/drm/card0/power/rc6_residency_ms.
 \fBGFXMHz\fP Instantaneous snapshot of what sysfs presents at the end of the measurement interval. From /sys/class/graphics/fb0/device/drm/card0/gt_cur_freq_mhz.
 \fBPkg%pc2, Pkg%pc3, Pkg%pc6, Pkg%pc7\fP percentage residency in hardware package idle states.  These numbers are from hardware residency counters.
@@ -107,7 +114,7 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 \fBCorWatt\fP Watts consumed by the core part of the package.
 \fBGFXWatt\fP Watts consumed by the Graphics part of the package -- available only on client processors.
 \fBRAMWatt\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
-\fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.
+\fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.  Note that the system summary is the sum of the package throttling time, and thus may be higher than 100% on a multi-package system.  Note that the meaning of this field is model specific.  For example, some hardware increments this counter when RAPL responds to thermal limits, but does not increment this counter when RAPL responds to power limits.  Comparing PkgWatt and PkgTmp to system limits is necessary.
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
 .SH TOO MUCH INFORMATION EXAMPLE
@@ -262,6 +269,21 @@ CPU	  PRF_CTRL
 
 .fi
 
+.SH INPUT
+
+For interval-mode, turbostat will immediately end the current interval
+when it sees a newline on standard input.
+turbostat will then start the next interval.
+Control-C will be send a SIGINT to turbostat,
+which will immediately abort the program with no further processing.
+.SH SIGNALS
+
+SIGINT will interrupt interval-mode.
+The end-of-interval data will be collected and displayed before turbostat exits.
+
+SIGUSR1 will end current interval,
+end-of-interval data will be collected and displayed before turbostat
+starts a new interval.
 .SH NOTES
 
 .B "turbostat "

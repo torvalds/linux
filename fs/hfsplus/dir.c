@@ -122,8 +122,7 @@ again:
 	if (S_ISREG(inode->i_mode))
 		HFSPLUS_I(inode)->linkid = linkid;
 out:
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 fail:
 	hfs_find_exit(&fd);
 	return ERR_PTR(err);

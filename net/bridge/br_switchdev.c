@@ -102,13 +102,15 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 
 static void
 br_switchdev_fdb_call_notifiers(bool adding, const unsigned char *mac,
-				u16 vid, struct net_device *dev)
+				u16 vid, struct net_device *dev,
+				bool added_by_user)
 {
 	struct switchdev_notifier_fdb_info info;
 	unsigned long notifier_type;
 
 	info.addr = mac;
 	info.vid = vid;
+	info.added_by_user = added_by_user;
 	notifier_type = adding ? SWITCHDEV_FDB_ADD_TO_DEVICE : SWITCHDEV_FDB_DEL_TO_DEVICE;
 	call_switchdev_notifiers(notifier_type, dev, &info.info);
 }
@@ -116,19 +118,46 @@ br_switchdev_fdb_call_notifiers(bool adding, const unsigned char *mac,
 void
 br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb, int type)
 {
-	if (!fdb->added_by_user || !fdb->dst)
+	if (!fdb->dst)
 		return;
 
 	switch (type) {
 	case RTM_DELNEIGH:
 		br_switchdev_fdb_call_notifiers(false, fdb->key.addr.addr,
 						fdb->key.vlan_id,
-						fdb->dst->dev);
+						fdb->dst->dev,
+						fdb->added_by_user);
 		break;
 	case RTM_NEWNEIGH:
 		br_switchdev_fdb_call_notifiers(true, fdb->key.addr.addr,
 						fdb->key.vlan_id,
-						fdb->dst->dev);
+						fdb->dst->dev,
+						fdb->added_by_user);
 		break;
 	}
+}
+
+int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags)
+{
+	struct switchdev_obj_port_vlan v = {
+		.obj.orig_dev = dev,
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.flags = flags,
+		.vid_begin = vid,
+		.vid_end = vid,
+	};
+
+	return switchdev_port_obj_add(dev, &v.obj);
+}
+
+int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid)
+{
+	struct switchdev_obj_port_vlan v = {
+		.obj.orig_dev = dev,
+		.obj.id = SWITCHDEV_OBJ_ID_PORT_VLAN,
+		.vid_begin = vid,
+		.vid_end = vid,
+	};
+
+	return switchdev_port_obj_del(dev, &v.obj);
 }

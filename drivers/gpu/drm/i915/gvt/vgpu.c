@@ -121,7 +121,7 @@ int intel_gvt_init_vgpu_types(struct intel_gvt *gvt)
 	high_avail = gvt_hidden_sz(gvt) - HOST_HIGH_GM_SIZE;
 	num_types = sizeof(vgpu_types) / sizeof(vgpu_types[0]);
 
-	gvt->types = kzalloc(num_types * sizeof(struct intel_vgpu_type),
+	gvt->types = kcalloc(num_types, sizeof(struct intel_vgpu_type),
 			     GFP_KERNEL);
 	if (!gvt->types)
 		return -ENOMEM;

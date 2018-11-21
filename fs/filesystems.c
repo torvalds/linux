@@ -238,21 +238,9 @@ static int filesystems_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int filesystems_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, filesystems_proc_show, NULL);
-}
-
-static const struct file_operations filesystems_proc_fops = {
-	.open		= filesystems_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int __init proc_filesystems_init(void)
 {
-	proc_create("filesystems", 0, NULL, &filesystems_proc_fops);
+	proc_create_single("filesystems", 0, NULL, filesystems_proc_show);
 	return 0;
 }
 module_init(proc_filesystems_init);

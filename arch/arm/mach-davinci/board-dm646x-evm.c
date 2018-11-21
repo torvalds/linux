@@ -84,6 +84,7 @@ static struct davinci_aemif_timing dm6467tevm_nandflash_timing = {
 };
 
 static struct davinci_nand_pdata davinci_nand_data = {
+	.core_chipsel		= 0,
 	.mask_cle 		= 0x80000,
 	.mask_ale 		= 0x40000,
 	.parts			= davinci_nand_partitions,

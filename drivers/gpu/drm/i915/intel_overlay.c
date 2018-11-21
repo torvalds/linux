@@ -807,6 +807,7 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		ret = PTR_ERR(vma);
 		goto out_pin_section;
 	}
+	intel_fb_obj_flush(new_bo, ORIGIN_DIRTYFB);
 
 	ret = i915_vma_put_fence(vma);
 	if (ret)

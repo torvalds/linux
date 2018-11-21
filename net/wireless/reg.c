@@ -1656,7 +1656,7 @@ const char *reg_initiator_name(enum nl80211_reg_initiator initiator)
 	case NL80211_REGDOM_SET_BY_DRIVER:
 		return "driver";
 	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
-		return "country IE";
+		return "country element";
 	default:
 		WARN_ON(1);
 		return "bug";
@@ -2240,7 +2240,9 @@ static void wiphy_update_regulatory(struct wiphy *wiphy,
 		 * as some drivers used this to restore its orig_* reg domain.
 		 */
 		if (initiator == NL80211_REGDOM_SET_BY_CORE &&
-		    wiphy->regulatory_flags & REGULATORY_CUSTOM_REG)
+		    wiphy->regulatory_flags & REGULATORY_CUSTOM_REG &&
+		    !(wiphy->regulatory_flags &
+		      REGULATORY_WIPHY_SELF_MANAGED))
 			reg_call_notifier(wiphy, lr);
 		return;
 	}
@@ -2622,7 +2624,7 @@ reg_process_hint_country_ie(struct wiphy *wiphy,
 		 * This doesn't happen yet, not sure we
 		 * ever want to support it for this case.
 		 */
-		WARN_ONCE(1, "Unexpected intersection for country IEs");
+		WARN_ONCE(1, "Unexpected intersection for country elements");
 		return REG_REQ_IGNORE;
 	}
 
@@ -2772,24 +2774,19 @@ out_free:
 	reg_free_request(reg_request);
 }
 
-static bool reg_only_self_managed_wiphys(void)
+static void notify_self_managed_wiphys(struct regulatory_request *request)
 {
 	struct cfg80211_registered_device *rdev;
 	struct wiphy *wiphy;
-	bool self_managed_found = false;
-
-	ASSERT_RTNL();
 
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
 		wiphy = &rdev->wiphy;
-		if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
-			self_managed_found = true;
-		else
-			return false;
+		if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED &&
+		    request->initiator == NL80211_REGDOM_SET_BY_USER &&
+		    request->user_reg_hint_type ==
+				NL80211_USER_REG_HINT_CELL_BASE)
+			reg_call_notifier(wiphy, request);
 	}
-
-	/* make sure at least one self-managed wiphy exists */
-	return self_managed_found;
 }
 
 /*
@@ -2823,10 +2820,7 @@ static void reg_process_pending_hints(void)
 
 	spin_unlock(&reg_requests_lock);
 
-	if (reg_only_self_managed_wiphys()) {
-		reg_free_request(reg_request);
-		return;
-	}
+	notify_self_managed_wiphys(reg_request);
 
 	reg_process_hint(reg_request);
 
@@ -3387,7 +3381,7 @@ bool reg_supported_dfs_region(enum nl80211_dfs_regions dfs_region)
 	case NL80211_DFS_JP:
 		return true;
 	default:
-		pr_debug("Ignoring uknown DFS master region: %d\n", dfs_region);
+		pr_debug("Ignoring unknown DFS master region: %d\n", dfs_region);
 		return false;
 	}
 }
@@ -3702,17 +3696,26 @@ EXPORT_SYMBOL(regulatory_set_wiphy_regd_sync_rtnl);
 
 void wiphy_regulatory_register(struct wiphy *wiphy)
 {
-	struct regulatory_request *lr;
+	struct regulatory_request *lr = get_last_request();
 
-	/* self-managed devices ignore external hints */
-	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+	/* self-managed devices ignore beacon hints and country IE */
+	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED) {
 		wiphy->regulatory_flags |= REGULATORY_DISABLE_BEACON_HINTS |
 					   REGULATORY_COUNTRY_IE_IGNORE;
+
+		/*
+		 * The last request may have been received before this
+		 * registration call. Call the driver notifier if
+		 * initiator is USER and user type is CELL_BASE.
+		 */
+		if (lr->initiator == NL80211_REGDOM_SET_BY_USER &&
+		    lr->user_reg_hint_type == NL80211_USER_REG_HINT_CELL_BASE)
+			reg_call_notifier(wiphy, lr);
+	}
 
 	if (!reg_dev_ignore_cell_hint(wiphy))
 		reg_num_devs_support_basehint++;
 
-	lr = get_last_request();
 	wiphy_update_regulatory(wiphy, lr->initiator);
 	wiphy_all_share_dfs_chan_state(wiphy);
 }

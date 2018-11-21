@@ -97,7 +97,7 @@ static void __init rz_cpg_clocks_init(struct device_node *np)
 		return;
 
 	cpg = kzalloc(sizeof(*cpg), GFP_KERNEL);
-	clks = kzalloc(num_clks * sizeof(*clks), GFP_KERNEL);
+	clks = kcalloc(num_clks, sizeof(*clks), GFP_KERNEL);
 	BUG_ON(!cpg || !clks);
 
 	cpg->data.clks = clks;

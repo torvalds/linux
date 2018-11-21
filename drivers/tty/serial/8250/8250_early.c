@@ -122,7 +122,7 @@ static void __init init_port(struct earlycon_device *device)
 	serial8250_early_out(port, UART_FCR, 0);	/* no fifo */
 	serial8250_early_out(port, UART_MCR, 0x3);	/* DTR + RTS */
 
-	if (port->uartclk && device->baud) {
+	if (port->uartclk) {
 		divisor = DIV_ROUND_CLOSEST(port->uartclk, 16 * device->baud);
 		c = serial8250_early_in(port, UART_LCR);
 		serial8250_early_out(port, UART_LCR, c | UART_LCR_DLAB);

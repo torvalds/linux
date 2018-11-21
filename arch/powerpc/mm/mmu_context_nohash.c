@@ -54,16 +54,44 @@
 
 #include "mmu_decl.h"
 
-static unsigned int first_context, last_context;
+/*
+ * The MPC8xx has only 16 contexts. We rotate through them on each task switch.
+ * A better way would be to keep track of tasks that own contexts, and implement
+ * an LRU usage. That way very active tasks don't always have to pay the TLB
+ * reload overhead. The kernel pages are mapped shared, so the kernel can run on
+ * behalf of any task that makes a kernel entry. Shared does not mean they are
+ * not protected, just that the ASID comparison is not performed. -- Dan
+ *
+ * The IBM4xx has 256 contexts, so we can just rotate through these as a way of
+ * "switching" contexts. If the TID of the TLB is zero, the PID/TID comparison
+ * is disabled, so we can use a TID of zero to represent all kernel pages as
+ * shared among all contexts. -- Dan
+ *
+ * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We should
+ * normally never have to steal though the facility is present if needed.
+ * -- BenH
+ */
+#define FIRST_CONTEXT 1
+#ifdef DEBUG_CLAMP_LAST_CONTEXT
+#define LAST_CONTEXT DEBUG_CLAMP_LAST_CONTEXT
+#elif defined(CONFIG_PPC_8xx)
+#define LAST_CONTEXT 16
+#elif defined(CONFIG_PPC_47x)
+#define LAST_CONTEXT 65535
+#else
+#define LAST_CONTEXT 255
+#endif
+
 static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
+#ifdef CONFIG_SMP
 static unsigned long *stale_map[NR_CPUS];
+#endif
 static struct mm_struct **context_mm;
 static DEFINE_RAW_SPINLOCK(context_lock);
-static bool no_selective_tlbil;
 
 #define CTX_MAP_SIZE	\
-	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
+	(sizeof(unsigned long) * (LAST_CONTEXT / BITS_PER_LONG + 1))
 
 
 /* Steal a context from a task that has one at the moment.
@@ -87,7 +115,7 @@ static unsigned int steal_context_smp(unsigned int id)
 	struct mm_struct *mm;
 	unsigned int cpu, max, i;
 
-	max = last_context - first_context;
+	max = LAST_CONTEXT - FIRST_CONTEXT;
 
 	/* Attempt to free next_context first and then loop until we manage */
 	while (max--) {
@@ -99,8 +127,8 @@ static unsigned int steal_context_smp(unsigned int id)
 		 */
 		if (mm->context.active) {
 			id++;
-			if (id > last_context)
-				id = first_context;
+			if (id > LAST_CONTEXT)
+				id = FIRST_CONTEXT;
 			continue;
 		}
 		pr_hardcont(" | steal %d from 0x%p", id, mm);
@@ -139,10 +167,12 @@ static unsigned int steal_context_smp(unsigned int id)
 static unsigned int steal_all_contexts(void)
 {
 	struct mm_struct *mm;
+#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
+#endif
 	unsigned int id;
 
-	for (id = first_context; id <= last_context; id++) {
+	for (id = FIRST_CONTEXT; id <= LAST_CONTEXT; id++) {
 		/* Pick up the victim mm */
 		mm = context_mm[id];
 
@@ -150,22 +180,24 @@ static unsigned int steal_all_contexts(void)
 
 		/* Mark this mm as having no context anymore */
 		mm->context.id = MMU_NO_CONTEXT;
-		if (id != first_context) {
+		if (id != FIRST_CONTEXT) {
 			context_mm[id] = NULL;
 			__clear_bit(id, context_map);
 #ifdef DEBUG_MAP_CONSISTENCY
 			mm->context.active = 0;
 #endif
 		}
+#ifdef CONFIG_SMP
 		__clear_bit(id, stale_map[cpu]);
+#endif
 	}
 
 	/* Flush the TLB for all contexts (not to be used on SMP) */
 	_tlbil_all();
 
-	nr_free_contexts = last_context - first_context;
+	nr_free_contexts = LAST_CONTEXT - FIRST_CONTEXT;
 
-	return first_context;
+	return FIRST_CONTEXT;
 }
 
 /* Note that this will also be called on SMP if all other CPUs are
@@ -176,7 +208,9 @@ static unsigned int steal_all_contexts(void)
 static unsigned int steal_context_up(unsigned int id)
 {
 	struct mm_struct *mm;
+#ifdef CONFIG_SMP
 	int cpu = smp_processor_id();
+#endif
 
 	/* Pick up the victim mm */
 	mm = context_mm[id];
@@ -190,7 +224,9 @@ static unsigned int steal_context_up(unsigned int id)
 	mm->context.id = MMU_NO_CONTEXT;
 
 	/* XXX This clear should ultimately be part of local_flush_tlb_mm */
+#ifdef CONFIG_SMP
 	__clear_bit(id, stale_map[cpu]);
+#endif
 
 	return id;
 }
@@ -201,7 +237,7 @@ static void context_check_map(void)
 	unsigned int id, nrf, nact;
 
 	nrf = nact = 0;
-	for (id = first_context; id <= last_context; id++) {
+	for (id = FIRST_CONTEXT; id <= LAST_CONTEXT; id++) {
 		int used = test_bit(id, context_map);
 		if (!used)
 			nrf++;
@@ -219,7 +255,7 @@ static void context_check_map(void)
 	if (nact > num_online_cpus())
 		pr_err("MMU: More active contexts than CPUs ! (%d vs %d)\n",
 		       nact, num_online_cpus());
-	if (first_context > 0 && !test_bit(0, context_map))
+	if (FIRST_CONTEXT > 0 && !test_bit(0, context_map))
 		pr_err("MMU: Context 0 has been freed !!!\n");
 }
 #else
@@ -229,7 +265,10 @@ static void context_check_map(void) { }
 void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
-	unsigned int i, id, cpu = smp_processor_id();
+	unsigned int id;
+#ifdef CONFIG_SMP
+	unsigned int i, cpu = smp_processor_id();
+#endif
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
@@ -263,8 +302,8 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 
 	/* We really don't have a context, let's try to acquire one */
 	id = next_context;
-	if (id > last_context)
-		id = first_context;
+	if (id > LAST_CONTEXT)
+		id = FIRST_CONTEXT;
 	map = context_map;
 
 	/* No more free contexts, let's try to steal one */
@@ -277,7 +316,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 			goto stolen;
 		}
 #endif /* CONFIG_SMP */
-		if (no_selective_tlbil)
+		if (IS_ENABLED(CONFIG_PPC_8xx))
 			id = steal_all_contexts();
 		else
 			id = steal_context_up(id);
@@ -287,9 +326,9 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 
 	/* We know there's at least one free context, try to find it */
 	while (__test_and_set_bit(id, map)) {
-		id = find_next_zero_bit(map, last_context+1, id);
-		if (id > last_context)
-			id = first_context;
+		id = find_next_zero_bit(map, LAST_CONTEXT+1, id);
+		if (id > LAST_CONTEXT)
+			id = FIRST_CONTEXT;
 	}
  stolen:
 	next_context = id + 1;
@@ -303,6 +342,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 	/* If that context got marked stale on this CPU, then flush the
 	 * local TLB for it and unmark it before we use it
 	 */
+#ifdef CONFIG_SMP
 	if (test_bit(id, stale_map[cpu])) {
 		pr_hardcont(" | stale flush %d [%d..%d]",
 			    id, cpu_first_thread_sibling(cpu),
@@ -317,6 +357,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
 				__clear_bit(id, stale_map[i]);
 		}
 	}
+#endif
 
 	/* Flick the MMU and release lock */
 	pr_hardcont(" -> %d\n", id);
@@ -418,51 +459,11 @@ void __init mmu_context_init(void)
 	init_mm.context.active = NR_CPUS;
 
 	/*
-	 *   The MPC8xx has only 16 contexts.  We rotate through them on each
-	 * task switch.  A better way would be to keep track of tasks that
-	 * own contexts, and implement an LRU usage.  That way very active
-	 * tasks don't always have to pay the TLB reload overhead.  The
-	 * kernel pages are mapped shared, so the kernel can run on behalf
-	 * of any task that makes a kernel entry.  Shared does not mean they
-	 * are not protected, just that the ASID comparison is not performed.
-	 *      -- Dan
-	 *
-	 * The IBM4xx has 256 contexts, so we can just rotate through these
-	 * as a way of "switching" contexts.  If the TID of the TLB is zero,
-	 * the PID/TID comparison is disabled, so we can use a TID of zero
-	 * to represent all kernel pages as shared among all contexts.
-	 * 	-- Dan
-	 *
-	 * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We
-	 * should normally never have to steal though the facility is
-	 * present if needed.
-	 *      -- BenH
-	 */
-	if (mmu_has_feature(MMU_FTR_TYPE_8xx)) {
-		first_context = 1;
-		last_context = 16;
-		no_selective_tlbil = true;
-	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
-		first_context = 1;
-		last_context = 65535;
-		no_selective_tlbil = false;
-	} else {
-		first_context = 1;
-		last_context = 255;
-		no_selective_tlbil = false;
-	}
-
-#ifdef DEBUG_CLAMP_LAST_CONTEXT
-	last_context = DEBUG_CLAMP_LAST_CONTEXT;
-#endif
-	/*
 	 * Allocate the maps used by context management
 	 */
 	context_map = memblock_virt_alloc(CTX_MAP_SIZE, 0);
-	context_mm = memblock_virt_alloc(sizeof(void *) * (last_context + 1), 0);
-#ifndef CONFIG_SMP
-	stale_map[0] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
-#else
+	context_mm = memblock_virt_alloc(sizeof(void *) * (LAST_CONTEXT + 1), 0);
+#ifdef CONFIG_SMP
 	stale_map[boot_cpuid] = memblock_virt_alloc(CTX_MAP_SIZE, 0);
 
 	cpuhp_setup_state_nocalls(CPUHP_POWERPC_MMU_CTX_PREPARE,
@@ -472,17 +473,17 @@ void __init mmu_context_init(void)
 
 	printk(KERN_INFO
 	       "MMU: Allocated %zu bytes of context maps for %d contexts\n",
-	       2 * CTX_MAP_SIZE + (sizeof(void *) * (last_context + 1)),
-	       last_context - first_context + 1);
+	       2 * CTX_MAP_SIZE + (sizeof(void *) * (LAST_CONTEXT + 1)),
+	       LAST_CONTEXT - FIRST_CONTEXT + 1);
 
 	/*
 	 * Some processors have too few contexts to reserve one for
 	 * init_mm, and require using context 0 for a normal task.
 	 * Other processors reserve the use of context zero for the kernel.
-	 * This code assumes first_context < 32.
+	 * This code assumes FIRST_CONTEXT < 32.
 	 */
-	context_map[0] = (1 << first_context) - 1;
-	next_context = first_context;
-	nr_free_contexts = last_context - first_context + 1;
+	context_map[0] = (1 << FIRST_CONTEXT) - 1;
+	next_context = FIRST_CONTEXT;
+	nr_free_contexts = LAST_CONTEXT - FIRST_CONTEXT + 1;
 }
 

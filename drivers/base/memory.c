@@ -649,13 +649,19 @@ static const struct attribute_group *memory_memblk_attr_groups[] = {
 static
 int register_memory(struct memory_block *memory)
 {
+	int ret;
+
 	memory->dev.bus = &memory_subsys;
 	memory->dev.id = memory->start_section_nr / sections_per_block;
 	memory->dev.release = memory_block_release;
 	memory->dev.groups = memory_memblk_attr_groups;
 	memory->dev.offline = memory->state == MEM_OFFLINE;
 
-	return device_register(&memory->dev);
+	ret = device_register(&memory->dev);
+	if (ret)
+		put_device(&memory->dev);
+
+	return ret;
 }
 
 static int init_memory_block(struct memory_block **memory,

@@ -1892,11 +1892,11 @@ static int savage_init_hw(struct savagefb_par *par)
 	vga_out8(0x3d4, 0x66, par);
 	cr66 = vga_in8(0x3d5, par);
 	vga_out8(0x3d5, cr66 | 0x02, par);
-	mdelay(10);
+	usleep_range(10000, 11000);
 
 	vga_out8(0x3d4, 0x66, par);
 	vga_out8(0x3d5, cr66 & ~0x02, par);	/* clear reset flag */
-	mdelay(10);
+	usleep_range(10000, 11000);
 
 
 	/*
@@ -1906,11 +1906,11 @@ static int savage_init_hw(struct savagefb_par *par)
 	vga_out8(0x3d4, 0x3f, par);
 	cr3f = vga_in8(0x3d5, par);
 	vga_out8(0x3d5, cr3f | 0x08, par);
-	mdelay(10);
+	usleep_range(10000, 11000);
 
 	vga_out8(0x3d4, 0x3f, par);
 	vga_out8(0x3d5, cr3f & ~0x08, par);	/* clear reset flags */
-	mdelay(10);
+	usleep_range(10000, 11000);
 
 	/* Savage ramdac speeds */
 	par->numClocks = 4;

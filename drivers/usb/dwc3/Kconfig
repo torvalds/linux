@@ -106,4 +106,16 @@ config USB_DWC3_ST
 	  inside (i.e. STiH407).
 	  Say 'Y' or 'M' if you have one such device.
 
+config USB_DWC3_QCOM
+	tristate "Qualcomm Platform"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on OF
+	default USB_DWC3
+	help
+	  Some Qualcomm SoCs use DesignWare Core IP for USB2/3
+	  functionality.
+	  This driver also handles Qscratch wrapper which is needed
+	  for peripheral mode support.
+	  Say 'Y' or 'M' if you have one such device.
+
 endif

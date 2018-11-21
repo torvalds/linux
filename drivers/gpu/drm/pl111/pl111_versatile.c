@@ -1,12 +1,14 @@
 #include <linux/amba/clcd-regs.h>
 #include <linux/device.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <linux/bitops.h>
 #include <linux/module.h>
 #include <drm/drmP.h>
 #include "pl111_versatile.h"
+#include "pl111_vexpress.h"
 #include "pl111_drm.h"
 
 static struct regmap *versatile_syscon_map;
@@ -22,6 +24,7 @@ enum versatile_clcd {
 	REALVIEW_CLCD_PB11MP,
 	REALVIEW_CLCD_PBA8,
 	REALVIEW_CLCD_PBX,
+	VEXPRESS_CLCD_V2M,
 };
 
 static const struct of_device_id versatile_clcd_of_match[] = {
@@ -52,6 +55,10 @@ static const struct of_device_id versatile_clcd_of_match[] = {
 	{
 		.compatible = "arm,realview-pbx-syscon",
 		.data = (void *)REALVIEW_CLCD_PBX,
+	},
+	{
+		.compatible = "arm,vexpress-muxfpga",
+		.data = (void *)VEXPRESS_CLCD_V2M,
 	},
 	{},
 };
@@ -286,12 +293,26 @@ static const struct pl111_variant_data pl111_realview = {
 	.fb_bpp = 16,
 };
 
+/*
+ * Versatile Express PL111 variant, again we just push the maximum
+ * BPP to 16 to be able to get 1024x768 without saturating the memory
+ * bus. The clockdivider also seems broken on the Versatile Express.
+ */
+static const struct pl111_variant_data pl111_vexpress = {
+	.name = "PL111 Versatile Express",
+	.formats = pl111_realview_pixel_formats,
+	.nformats = ARRAY_SIZE(pl111_realview_pixel_formats),
+	.fb_bpp = 16,
+	.broken_clockdivider = true,
+};
+
 int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 {
 	const struct of_device_id *clcd_id;
 	enum versatile_clcd versatile_clcd_type;
 	struct device_node *np;
 	struct regmap *map;
+	int ret;
 
 	np = of_find_matching_node_and_match(NULL, versatile_clcd_of_match,
 					     &clcd_id);
@@ -301,7 +322,33 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 	}
 	versatile_clcd_type = (enum versatile_clcd)clcd_id->data;
 
-	map = syscon_node_to_regmap(np);
+	/* Versatile Express special handling */
+	if (versatile_clcd_type == VEXPRESS_CLCD_V2M) {
+		struct platform_device *pdev;
+
+		/* Registers a driver for the muxfpga */
+		ret = vexpress_muxfpga_init();
+		if (ret) {
+			dev_err(dev, "unable to initialize muxfpga driver\n");
+			return ret;
+		}
+
+		/* Call into deep Vexpress configuration API */
+		pdev = of_find_device_by_node(np);
+		if (!pdev) {
+			dev_err(dev, "can't find the sysreg device, deferring\n");
+			return -EPROBE_DEFER;
+		}
+		map = dev_get_drvdata(&pdev->dev);
+		if (!map) {
+			dev_err(dev, "sysreg has not yet probed\n");
+			platform_device_put(pdev);
+			return -EPROBE_DEFER;
+		}
+	} else {
+		map = syscon_node_to_regmap(np);
+	}
+
 	if (IS_ERR(map)) {
 		dev_err(dev, "no Versatile syscon regmap\n");
 		return PTR_ERR(map);
@@ -339,6 +386,13 @@ int pl111_versatile_init(struct device *dev, struct pl111_drm_dev_private *priv)
 		priv->variant_display_enable = pl111_realview_clcd_enable;
 		priv->variant_display_disable = pl111_realview_clcd_disable;
 		dev_info(dev, "set up callbacks for RealView PL111\n");
+		break;
+	case VEXPRESS_CLCD_V2M:
+		priv->variant = &pl111_vexpress;
+		dev_info(dev, "initializing Versatile Express PL111\n");
+		ret = pl111_vexpress_clcd_init(dev, priv, map);
+		if (ret)
+			return ret;
 		break;
 	default:
 		dev_info(dev, "unknown Versatile system controller\n");

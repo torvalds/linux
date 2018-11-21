@@ -411,11 +411,30 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	if ((ieee80211_is_mgmt(wh->frame_control)) ||
 	    (ieee80211_is_ctl(wh->frame_control)) ||
 	    (ieee80211_is_qos_nullfunc(wh->frame_control))) {
+		if (ieee80211_is_assoc_req(wh->frame_control) ||
+		    ieee80211_is_reassoc_req(wh->frame_control)) {
+			struct ieee80211_bss_conf *bss = &vif->bss_conf;
+
+			common->eapol4_confirm = false;
+			rsi_hal_send_sta_notify_frame(common,
+						      RSI_IFTYPE_STATION,
+						      STA_CONNECTED, bss->bssid,
+						      bss->qos, bss->aid, 0,
+						      vif);
+		}
+
 		q_num = MGMT_SOFT_Q;
 		skb->priority = q_num;
+
+		if (rsi_prepare_mgmt_desc(common, skb)) {
+			rsi_dbg(ERR_ZONE, "Failed to prepare desc\n");
+			goto xmit_fail;
+		}
 	} else {
 		if (ieee80211_is_data_qos(wh->frame_control)) {
-			tid = (skb->data[24] & IEEE80211_QOS_TID);
+			u8 *qos = ieee80211_get_qos_ctl(wh);
+
+			tid = *qos & IEEE80211_QOS_CTL_TID_MASK;
 			skb->priority = TID_TO_WME_AC(tid);
 		} else {
 			tid = IEEE80211_NONQOS_TID;
@@ -433,6 +452,8 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 			if (!rsta)
 				goto xmit_fail;
 			tx_params->sta_id = rsta->sta_id;
+		} else {
+			tx_params->sta_id = 0;
 		}
 
 		if (rsta) {
@@ -442,6 +463,14 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 				ieee80211_start_tx_ba_session(rsta->sta,
 							      tid, 0);
 			}
+		}
+		if (skb->protocol == cpu_to_be16(ETH_P_PAE)) {
+			q_num = MGMT_SOFT_Q;
+			skb->priority = q_num;
+		}
+		if (rsi_prepare_data_desc(common, skb)) {
+			rsi_dbg(ERR_ZONE, "Failed to prepare data desc\n");
+			goto xmit_fail;
 		}
 	}
 
@@ -456,7 +485,7 @@ void rsi_core_xmit(struct rsi_common *common, struct sk_buff *skb)
 	}
 
 	rsi_core_queue_pkt(common, skb);
-	rsi_dbg(DATA_TX_ZONE, "%s: ===> Scheduling TX thead <===\n", __func__);
+	rsi_dbg(DATA_TX_ZONE, "%s: ===> Scheduling TX thread <===\n", __func__);
 	rsi_set_event(&common->tx_thread.event);
 
 	return;

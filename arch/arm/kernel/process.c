@@ -39,7 +39,7 @@
 #include <asm/tls.h>
 #include <asm/vdso.h>
 
-#ifdef CONFIG_CC_STACKPROTECTOR
+#ifdef CONFIG_STACKPROTECTOR
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
@@ -338,6 +338,7 @@ static struct vm_area_struct gate_vma = {
 
 static int __init gate_vma_init(void)
 {
+	vma_init(&gate_vma, NULL);
 	gate_vma.vm_page_prot = PAGE_READONLY_EXEC;
 	return 0;
 }

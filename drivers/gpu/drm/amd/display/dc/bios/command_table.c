@@ -24,7 +24,7 @@
  */
 
 #include "dm_services.h"
-
+#include "amdgpu.h"
 #include "atom.h"
 
 #include "include/bios_parser_interface.h"
@@ -35,16 +35,16 @@
 #include "bios_parser_types_internal.h"
 
 #define EXEC_BIOS_CMD_TABLE(command, params)\
-	(cgs_atom_exec_cmd_table(bp->base.ctx->cgs_device, \
+	(amdgpu_atom_execute_table(((struct amdgpu_device *)bp->base.ctx->driver_context)->mode_info.atom_context, \
 		GetIndexIntoMasterTable(COMMAND, command), \
-		&params) == 0)
+		(uint32_t *)&params) == 0)
 
 #define BIOS_CMD_TABLE_REVISION(command, frev, crev)\
-	cgs_atom_get_cmd_table_revs(bp->base.ctx->cgs_device, \
+	amdgpu_atom_parse_cmd_header(((struct amdgpu_device *)bp->base.ctx->driver_context)->mode_info.atom_context, \
 		GetIndexIntoMasterTable(COMMAND, command), &frev, &crev)
 
 #define BIOS_CMD_TABLE_PARA_REVISION(command)\
-	bios_cmd_table_para_revision(bp->base.ctx->cgs_device, \
+	bios_cmd_table_para_revision(bp->base.ctx->driver_context, \
 		GetIndexIntoMasterTable(COMMAND, command))
 
 static void init_dig_encoder_control(struct bios_parser *bp);
@@ -82,16 +82,18 @@ void dal_bios_parser_init_cmd_tbl(struct bios_parser *bp)
 	init_set_dce_clock(bp);
 }
 
-static uint32_t bios_cmd_table_para_revision(void *cgs_device,
+static uint32_t bios_cmd_table_para_revision(void *dev,
 					     uint32_t index)
 {
+	struct amdgpu_device *adev = dev;
 	uint8_t frev, crev;
 
-	if (cgs_atom_get_cmd_table_revs(cgs_device,
+	if (amdgpu_atom_parse_cmd_header(adev->mode_info.atom_context,
 					index,
-					&frev, &crev) != 0)
+					&frev, &crev))
+		return crev;
+	else
 		return 0;
-	return crev;
 }
 
 /*******************************************************************************
@@ -368,7 +370,7 @@ static void init_transmitter_control(struct bios_parser *bp)
 	uint8_t crev;
 
 	if (BIOS_CMD_TABLE_REVISION(UNIPHYTransmitterControl,
-			frev, crev) != 0)
+			frev, crev) == false)
 		BREAK_TO_DEBUGGER();
 	switch (crev) {
 	case 2:

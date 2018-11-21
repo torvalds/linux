@@ -40,6 +40,7 @@ static struct imc_pmu *core_imc_pmu;
 /* Thread IMC data structures and variables */
 
 static DEFINE_PER_CPU(u64 *, thread_imc_mem);
+static struct imc_pmu *thread_imc_pmu;
 static int thread_imc_mem_size;
 
 struct imc_pmu *imc_event_to_pmu(struct perf_event *event)
@@ -1146,14 +1147,14 @@ static int init_nest_pmu_ref(void)
 
 static void cleanup_all_core_imc_memory(void)
 {
-	int i, nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
+	int i, nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
 	struct imc_mem_info *ptr = core_imc_pmu->mem_info;
 	int size = core_imc_pmu->counter_mem_size;
 
 	/* mem_info will never be NULL */
 	for (i = 0; i < nr_cores; i++) {
 		if (ptr[i].vbase)
-			free_pages((u64)ptr->vbase, get_order(size));
+			free_pages((u64)ptr[i].vbase, get_order(size));
 	}
 
 	kfree(ptr);
@@ -1191,7 +1192,6 @@ static void imc_common_mem_free(struct imc_pmu *pmu_ptr)
 	if (pmu_ptr->attr_groups[IMC_EVENT_ATTR])
 		kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]->attrs);
 	kfree(pmu_ptr->attr_groups[IMC_EVENT_ATTR]);
-	kfree(pmu_ptr);
 }
 
 /*
@@ -1208,6 +1208,7 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 			cpuhp_remove_state(CPUHP_AP_PERF_POWERPC_NEST_IMC_ONLINE);
 			kfree(nest_imc_refc);
 			kfree(per_nest_pmu_arr);
+			per_nest_pmu_arr = NULL;
 		}
 
 		if (nest_pmus > 0)
@@ -1228,6 +1229,16 @@ static void imc_common_cpuhp_mem_free(struct imc_pmu *pmu_ptr)
 	}
 }
 
+/*
+ * Function to unregister thread-imc if core-imc
+ * is not registered.
+ */
+void unregister_thread_imc(void)
+{
+	imc_common_cpuhp_mem_free(thread_imc_pmu);
+	imc_common_mem_free(thread_imc_pmu);
+	perf_pmu_unregister(&thread_imc_pmu->pmu);
+}
 
 /*
  * imc_mem_init : Function to support memory allocation for core imc.
@@ -1236,7 +1247,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 								int pmu_index)
 {
 	const char *s;
-	int nr_cores, cpu, res;
+	int nr_cores, cpu, res = -ENOMEM;
 
 	if (of_property_read_string(parent, "name", &s))
 		return -ENODEV;
@@ -1246,7 +1257,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Update the pmu name */
 		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s_imc", "nest_", s);
 		if (!pmu_ptr->pmu.name)
-			return -ENOMEM;
+			goto err;
 
 		/* Needed for hotplug/migration */
 		if (!per_nest_pmu_arr) {
@@ -1254,7 +1265,7 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 						sizeof(struct imc_pmu *),
 						GFP_KERNEL);
 			if (!per_nest_pmu_arr)
-				return -ENOMEM;
+				goto err;
 		}
 		per_nest_pmu_arr[pmu_index] = pmu_ptr;
 		break;
@@ -1262,21 +1273,21 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Update the pmu name */
 		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s", s, "_imc");
 		if (!pmu_ptr->pmu.name)
-			return -ENOMEM;
+			goto err;
 
-		nr_cores = DIV_ROUND_UP(num_present_cpus(), threads_per_core);
+		nr_cores = DIV_ROUND_UP(num_possible_cpus(), threads_per_core);
 		pmu_ptr->mem_info = kcalloc(nr_cores, sizeof(struct imc_mem_info),
 								GFP_KERNEL);
 
 		if (!pmu_ptr->mem_info)
-			return -ENOMEM;
+			goto err;
 
 		core_imc_refc = kcalloc(nr_cores, sizeof(struct imc_pmu_ref),
 								GFP_KERNEL);
 
 		if (!core_imc_refc) {
 			kfree(pmu_ptr->mem_info);
-			return -ENOMEM;
+			goto err;
 		}
 
 		core_imc_pmu = pmu_ptr;
@@ -1285,23 +1296,26 @@ static int imc_mem_init(struct imc_pmu *pmu_ptr, struct device_node *parent,
 		/* Update the pmu name */
 		pmu_ptr->pmu.name = kasprintf(GFP_KERNEL, "%s%s", s, "_imc");
 		if (!pmu_ptr->pmu.name)
-			return -ENOMEM;
+			goto err;
 
 		thread_imc_mem_size = pmu_ptr->counter_mem_size;
 		for_each_online_cpu(cpu) {
 			res = thread_imc_mem_alloc(cpu, pmu_ptr->counter_mem_size);
 			if (res) {
 				cleanup_all_thread_imc_memory();
-				return res;
+				goto err;
 			}
 		}
 
+		thread_imc_pmu = pmu_ptr;
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	return 0;
+err:
+	return res;
 }
 
 /*
@@ -1319,10 +1333,8 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 	int ret;
 
 	ret = imc_mem_init(pmu_ptr, parent, pmu_idx);
-	if (ret) {
-		imc_common_mem_free(pmu_ptr);
-		return ret;
-	}
+	if (ret)
+		goto err_free_mem;
 
 	switch (pmu_ptr->domain) {
 	case IMC_DOMAIN_NEST:
@@ -1337,7 +1349,9 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 			ret = init_nest_pmu_ref();
 			if (ret) {
 				mutex_unlock(&nest_init_lock);
-				goto err_free;
+				kfree(per_nest_pmu_arr);
+				per_nest_pmu_arr = NULL;
+				goto err_free_mem;
 			}
 			/* Register for cpu hotplug notification. */
 			ret = nest_pmu_cpumask_init();
@@ -1345,7 +1359,8 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 				mutex_unlock(&nest_init_lock);
 				kfree(nest_imc_refc);
 				kfree(per_nest_pmu_arr);
-				goto err_free;
+				per_nest_pmu_arr = NULL;
+				goto err_free_mem;
 			}
 		}
 		nest_pmus++;
@@ -1355,7 +1370,7 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 		ret = core_imc_pmu_cpumask_init();
 		if (ret) {
 			cleanup_all_core_imc_memory();
-			return ret;
+			goto err_free_mem;
 		}
 
 		break;
@@ -1363,33 +1378,34 @@ int init_imc_pmu(struct device_node *parent, struct imc_pmu *pmu_ptr, int pmu_id
 		ret = thread_imc_cpu_init();
 		if (ret) {
 			cleanup_all_thread_imc_memory();
-			return ret;
+			goto err_free_mem;
 		}
 
 		break;
 	default:
-		return  -1;	/* Unknown domain */
+		return  -EINVAL;	/* Unknown domain */
 	}
 
 	ret = update_events_in_group(parent, pmu_ptr);
 	if (ret)
-		goto err_free;
+		goto err_free_cpuhp_mem;
 
 	ret = update_pmu_ops(pmu_ptr);
 	if (ret)
-		goto err_free;
+		goto err_free_cpuhp_mem;
 
 	ret = perf_pmu_register(&pmu_ptr->pmu, pmu_ptr->pmu.name, -1);
 	if (ret)
-		goto err_free;
+		goto err_free_cpuhp_mem;
 
 	pr_info("%s performance monitor hardware support registered\n",
 							pmu_ptr->pmu.name);
 
 	return 0;
 
-err_free:
-	imc_common_mem_free(pmu_ptr);
+err_free_cpuhp_mem:
 	imc_common_cpuhp_mem_free(pmu_ptr);
+err_free_mem:
+	imc_common_mem_free(pmu_ptr);
 	return ret;
 }

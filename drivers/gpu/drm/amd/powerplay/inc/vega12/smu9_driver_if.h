@@ -499,7 +499,10 @@ typedef struct {
 	uint8_t      AcgGfxclkSpreadPercent;
 	uint16_t     AcgGfxclkSpreadFreq;
 
-	uint32_t     BoardReserved[10];
+  uint8_t      Vr2_I2C_address;
+  uint8_t      padding_vr2[3];
+
+  uint32_t     BoardReserved[9];
 
 
   uint32_t     MmHubPadding[7];

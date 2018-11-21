@@ -2018,10 +2018,10 @@ static int dib7000pc_detection(struct i2c_adapter *i2c_adap)
 	};
 	int ret = 0;
 
-	tx = kzalloc(2*sizeof(u8), GFP_KERNEL);
+	tx = kzalloc(2, GFP_KERNEL);
 	if (!tx)
 		return -ENOMEM;
-	rx = kzalloc(2*sizeof(u8), GFP_KERNEL);
+	rx = kzalloc(2, GFP_KERNEL);
 	if (!rx) {
 		ret = -ENOMEM;
 		goto rx_memory_error;

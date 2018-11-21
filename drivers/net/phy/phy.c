@@ -514,7 +514,7 @@ static int phy_start_aneg_priv(struct phy_device *phydev, bool sync)
 	 * negotiation may already be done and aneg interrupt may not be
 	 * generated.
 	 */
-	if (phy_interrupt_is_valid(phydev) && (phydev->state == PHY_AN)) {
+	if (phydev->irq != PHY_POLL && phydev->state == PHY_AN) {
 		err = phy_aneg_done(phydev);
 		if (err > 0) {
 			trigger = true;
@@ -894,7 +894,7 @@ void phy_state_machine(struct work_struct *work)
 			needs_aneg = true;
 		break;
 	case PHY_NOLINK:
-		if (phy_interrupt_is_valid(phydev))
+		if (phydev->irq != PHY_POLL)
 			break;
 
 		err = phy_read_status(phydev);

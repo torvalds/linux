@@ -401,7 +401,7 @@ config PWM_STI
 
 config PWM_STM32
 	tristate "STMicroelectronics STM32 PWM"
-	depends on MFD_STM32_TIMERS || COMPILE_TEST
+	depends on MFD_STM32_TIMERS
 	help
 	  Generic PWM framework driver for STM32 SoCs.
 

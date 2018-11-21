@@ -33,8 +33,9 @@
 
 #define CTX \
 	aud->base.ctx
-#define DC_LOGGER \
-	aud->base.ctx->logger
+
+#define DC_LOGGER_INIT()
+
 #define REG(reg)\
 	(aud->regs->reg)
 
@@ -348,8 +349,8 @@ static void set_audio_latency(
 
 void dce_aud_az_enable(struct audio *audio)
 {
-	struct dce_audio *aud = DCE_AUD(audio);
 	uint32_t value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	DC_LOGGER_INIT();
 
 	set_reg_field_value(value, 1,
 			    AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
@@ -371,7 +372,7 @@ void dce_aud_az_enable(struct audio *audio)
 void dce_aud_az_disable(struct audio *audio)
 {
 	uint32_t value;
-	struct dce_audio *aud = DCE_AUD(audio);
+	DC_LOGGER_INIT();
 
 	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
 	set_reg_field_value(value, 1,

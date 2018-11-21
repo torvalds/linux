@@ -128,6 +128,7 @@ struct most_channel_config {
 	u16 extra_len;
 	u16 subbuffer_size;
 	u16 packets_per_xact;
+	u16 dbr_size;
 };
 
 /*
@@ -229,11 +230,14 @@ struct mbo {
  */
 struct most_interface {
 	struct device dev;
+	struct device *driver_dev;
 	struct module *mod;
 	enum most_interface_type interface;
 	const char *description;
 	unsigned int num_channels;
 	struct most_channel_capability *channel_vector;
+	void *(*dma_alloc)(struct mbo *mbo, u32 size);
+	void (*dma_free)(struct mbo *mbo, u32 size);
 	int (*configure)(struct most_interface *iface, int channel_idx,
 			 struct most_channel_config *channel_config);
 	int (*enqueue)(struct most_interface *iface, int channel_idx,

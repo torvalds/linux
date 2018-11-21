@@ -147,6 +147,12 @@ enum drm_mode_status {
 
 #define DRM_MODE_FLAG_3D_MAX	DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF
 
+#define DRM_MODE_MATCH_TIMINGS (1 << 0)
+#define DRM_MODE_MATCH_CLOCK (1 << 1)
+#define DRM_MODE_MATCH_FLAGS (1 << 2)
+#define DRM_MODE_MATCH_3D_FLAGS (1 << 3)
+#define DRM_MODE_MATCH_ASPECT_RATIO (1 << 4)
+
 /**
  * struct drm_display_mode - DRM kernel-internal display mode structure
  * @hdisplay: horizontal display size
@@ -405,6 +411,19 @@ struct drm_display_mode {
 	 * Field for setting the HDMI picture aspect ratio of a mode.
 	 */
 	enum hdmi_picture_aspect picture_aspect_ratio;
+
+	/**
+	 * @export_head:
+	 *
+	 * struct list_head for modes to be exposed to the userspace.
+	 * This is to maintain a list of exposed modes while preparing
+	 * user-mode's list in drm_mode_getconnector ioctl. The purpose of this
+	 * list_head only lies in the ioctl function, and is not expected to be
+	 * used outside the function.
+	 * Once used, the stale pointers are not reset, but left as it is, to
+	 * avoid overhead of protecting it by mode_config.mutex.
+	 */
+	struct list_head export_head;
 };
 
 /**
@@ -490,6 +509,9 @@ void drm_mode_copy(struct drm_display_mode *dst,
 		   const struct drm_display_mode *src);
 struct drm_display_mode *drm_mode_duplicate(struct drm_device *dev,
 					    const struct drm_display_mode *mode);
+bool drm_mode_match(const struct drm_display_mode *mode1,
+		    const struct drm_display_mode *mode2,
+		    unsigned int match_flags);
 bool drm_mode_equal(const struct drm_display_mode *mode1,
 		    const struct drm_display_mode *mode2);
 bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1,

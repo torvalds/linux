@@ -753,6 +753,11 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_STOP : 0));
 	int ret;
+	bool ulps_currently_enabled = (DSI_PORT_READ(PHY_AFEC0) &
+				       DSI_PORT_BIT(PHY_AFEC0_LATCH_ULPS));
+
+	if (ulps == ulps_currently_enabled)
+		return;
 
 	DSI_PORT_WRITE(STAT, stat_ulps);
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) | phyc_ulps);

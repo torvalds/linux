@@ -80,7 +80,7 @@ static const char *lvds_sels[]	= {
 	"arm", "pll1_sys", "dummy", "dummy", "dummy", "dummy", "dummy", "pll5_video_div",
 	"dummy", "dummy", "pcie_ref_125m", "dummy", "usbphy1", "usbphy2",
 };
-static const char *pll_bypass_src_sels[] = { "osc", "lvds1_in", };
+static const char *pll_bypass_src_sels[] = { "osc", "lvds1_in", "lvds2_in", "dummy", };
 static const char *pll1_bypass_sels[] = { "pll1", "pll1_bypass_src", };
 static const char *pll2_bypass_sels[] = { "pll2", "pll2_bypass_src", };
 static const char *pll3_bypass_sels[] = { "pll3", "pll3_bypass_src", };
@@ -97,12 +97,7 @@ static int const clks_init_on[] __initconst = {
 	IMX6SX_CLK_IPMUX1, IMX6SX_CLK_IPMUX2, IMX6SX_CLK_IPMUX3,
 	IMX6SX_CLK_WAKEUP, IMX6SX_CLK_MMDC_P0_FAST, IMX6SX_CLK_MMDC_P0_IPG,
 	IMX6SX_CLK_ROM, IMX6SX_CLK_ARM, IMX6SX_CLK_IPG, IMX6SX_CLK_OCRAM,
-	IMX6SX_CLK_PER2_MAIN, IMX6SX_CLK_PERCLK, IMX6SX_CLK_M4,
-	IMX6SX_CLK_QSPI1, IMX6SX_CLK_QSPI2, IMX6SX_CLK_UART_IPG,
-	IMX6SX_CLK_UART_SERIAL, IMX6SX_CLK_I2C3, IMX6SX_CLK_ECSPI5,
-	IMX6SX_CLK_CAN1_IPG, IMX6SX_CLK_CAN1_SERIAL, IMX6SX_CLK_CAN2_IPG,
-	IMX6SX_CLK_CAN2_SERIAL, IMX6SX_CLK_CANFD, IMX6SX_CLK_EPIT1,
-	IMX6SX_CLK_EPIT2,
+	IMX6SX_CLK_PER2_MAIN, IMX6SX_CLK_PERCLK, IMX6SX_CLK_TZASC1,
 };
 
 static const struct clk_div_table clk_enet_ref_table[] = {
@@ -158,8 +153,9 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SX_CLK_IPP_DI0] = of_clk_get_by_name(ccm_node, "ipp_di0");
 	clks[IMX6SX_CLK_IPP_DI1] = of_clk_get_by_name(ccm_node, "ipp_di1");
 
-	/* Clock source from external clock via CLK1 PAD */
-	clks[IMX6SX_CLK_ANACLK1] = imx_obtain_fixed_clock("anaclk1", 0);
+	/* Clock source from external clock via CLK1/2 PAD */
+	clks[IMX6SX_CLK_ANACLK1] = of_clk_get_by_name(ccm_node, "anaclk1");
+	clks[IMX6SX_CLK_ANACLK2] = of_clk_get_by_name(ccm_node, "anaclk2");
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sx-anatop");
 	base = of_iomap(np, 0);
@@ -228,7 +224,9 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 	clks[IMX6SX_CLK_PCIE_REF_125M] = imx_clk_gate("pcie_ref_125m", "pcie_ref", base + 0xe0, 19);
 
 	clks[IMX6SX_CLK_LVDS1_OUT] = imx_clk_gate_exclusive("lvds1_out", "lvds1_sel", base + 0x160, 10, BIT(12));
+	clks[IMX6SX_CLK_LVDS2_OUT] = imx_clk_gate_exclusive("lvds2_out", "lvds2_sel", base + 0x160, 11, BIT(13));
 	clks[IMX6SX_CLK_LVDS1_IN]  = imx_clk_gate_exclusive("lvds1_in",  "anaclk1",   base + 0x160, 12, BIT(10));
+	clks[IMX6SX_CLK_LVDS2_IN]  = imx_clk_gate_exclusive("lvds2_in",  "anaclk2",   base + 0x160, 13, BIT(11));
 
 	clks[IMX6SX_CLK_ENET_REF] = clk_register_divider_table(NULL, "enet_ref", "pll6_enet", 0,
 			base + 0xe0, 0, 2, 0, clk_enet_ref_table,
@@ -270,6 +268,7 @@ static void __init imx6sx_clocks_init(struct device_node *ccm_node)
 
 	/*                                                name                reg           shift   width   parent_names       num_parents */
 	clks[IMX6SX_CLK_LVDS1_SEL]          = imx_clk_mux("lvds1_sel",        base + 0x160, 0,      5,      lvds_sels,         ARRAY_SIZE(lvds_sels));
+	clks[IMX6SX_CLK_LVDS2_SEL]          = imx_clk_mux("lvds2_sel",        base + 0x160, 5,      5,      lvds_sels,         ARRAY_SIZE(lvds_sels));
 
 	np = ccm_node;
 	base = of_iomap(np, 0);

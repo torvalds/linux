@@ -24,11 +24,12 @@
 #include "nv50.h"
 #include "head.h"
 #include "ior.h"
+#include "channv50.h"
 #include "rootnv50.h"
 
 #include <core/client.h>
 #include <core/enum.h>
-#include <core/gpuobj.h>
+#include <core/ramht.h>
 #include <subdev/bios.h>
 #include <subdev/bios/disp.h>
 #include <subdev/bios/init.h>
@@ -49,29 +50,115 @@ nv50_disp_intr_(struct nvkm_disp *base)
 	disp->func->intr(disp);
 }
 
+static void
+nv50_disp_fini_(struct nvkm_disp *base)
+{
+	struct nv50_disp *disp = nv50_disp(base);
+	disp->func->fini(disp);
+}
+
+static int
+nv50_disp_init_(struct nvkm_disp *base)
+{
+	struct nv50_disp *disp = nv50_disp(base);
+	return disp->func->init(disp);
+}
+
 static void *
 nv50_disp_dtor_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
+
+	nvkm_ramht_del(&disp->ramht);
+	nvkm_gpuobj_del(&disp->inst);
+
 	nvkm_event_fini(&disp->uevent);
 	if (disp->wq)
 		destroy_workqueue(disp->wq);
+
 	return disp;
+}
+
+static int
+nv50_disp_oneinit_(struct nvkm_disp *base)
+{
+	struct nv50_disp *disp = nv50_disp(base);
+	const struct nv50_disp_func *func = disp->func;
+	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	int ret, i;
+
+	if (func->wndw.cnt) {
+		disp->wndw.nr = func->wndw.cnt(&disp->base, &disp->wndw.mask);
+		nvkm_debug(subdev, "Window(s): %d (%08lx)\n",
+			   disp->wndw.nr, disp->wndw.mask);
+	}
+
+	disp->head.nr = func->head.cnt(&disp->base, &disp->head.mask);
+	nvkm_debug(subdev, "  Head(s): %d (%02lx)\n",
+		   disp->head.nr, disp->head.mask);
+	for_each_set_bit(i, &disp->head.mask, disp->head.nr) {
+		ret = func->head.new(&disp->base, i);
+		if (ret)
+			return ret;
+	}
+
+	if (func->dac.cnt) {
+		disp->dac.nr = func->dac.cnt(&disp->base, &disp->dac.mask);
+		nvkm_debug(subdev, "   DAC(s): %d (%02lx)\n",
+			   disp->dac.nr, disp->dac.mask);
+		for_each_set_bit(i, &disp->dac.mask, disp->dac.nr) {
+			ret = func->dac.new(&disp->base, i);
+			if (ret)
+				return ret;
+		}
+	}
+
+	if (func->pior.cnt) {
+		disp->pior.nr = func->pior.cnt(&disp->base, &disp->pior.mask);
+		nvkm_debug(subdev, "  PIOR(s): %d (%02lx)\n",
+			   disp->pior.nr, disp->pior.mask);
+		for_each_set_bit(i, &disp->pior.mask, disp->pior.nr) {
+			ret = func->pior.new(&disp->base, i);
+			if (ret)
+				return ret;
+		}
+	}
+
+	disp->sor.nr = func->sor.cnt(&disp->base, &disp->sor.mask);
+	nvkm_debug(subdev, "   SOR(s): %d (%02lx)\n",
+		   disp->sor.nr, disp->sor.mask);
+	for_each_set_bit(i, &disp->sor.mask, disp->sor.nr) {
+		ret = func->sor.new(&disp->base, i);
+		if (ret)
+			return ret;
+	}
+
+	ret = nvkm_gpuobj_new(device, 0x10000, 0x10000, false, NULL,
+			      &disp->inst);
+	if (ret)
+		return ret;
+
+	return nvkm_ramht_new(device, func->ramht_size ? func->ramht_size :
+			      0x1000, 0, disp->inst, &disp->ramht);
 }
 
 static const struct nvkm_disp_func
 nv50_disp_ = {
 	.dtor = nv50_disp_dtor_,
+	.oneinit = nv50_disp_oneinit_,
+	.init = nv50_disp_init_,
+	.fini = nv50_disp_fini_,
 	.intr = nv50_disp_intr_,
 	.root = nv50_disp_root_,
 };
 
 int
 nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
-	       int index, int heads, struct nvkm_disp **pdisp)
+	       int index, struct nvkm_disp **pdisp)
 {
 	struct nv50_disp *disp;
-	int ret, i;
+	int ret;
 
 	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
 		return -ENOMEM;
@@ -85,33 +172,11 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	disp->wq = create_singlethread_workqueue("nvkm-disp");
 	if (!disp->wq)
 		return -ENOMEM;
+
 	INIT_WORK(&disp->supervisor, func->super);
 
-	for (i = 0; func->head.new && i < heads; i++) {
-		ret = func->head.new(&disp->base, i);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; func->dac.new && i < func->dac.nr; i++) {
-		ret = func->dac.new(&disp->base, i);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; func->pior.new && i < func->pior.nr; i++) {
-		ret = func->pior.new(&disp->base, i);
-		if (ret)
-			return ret;
-	}
-
-	for (i = 0; func->sor.new && i < func->sor.nr; i++) {
-		ret = func->sor.new(&disp->base, i);
-		if (ret)
-			return ret;
-	}
-
-	return nvkm_event_init(func->uevent, 1, 1 + (heads * 4), &disp->uevent);
+	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan),
+			       &disp->uevent);
 }
 
 static u32
@@ -613,20 +678,96 @@ nv50_disp_intr(struct nv50_disp *disp)
 	}
 }
 
+void
+nv50_disp_fini(struct nv50_disp *disp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	/* disable all interrupts */
+	nvkm_wr32(device, 0x610024, 0x00000000);
+	nvkm_wr32(device, 0x610020, 0x00000000);
+}
+
+int
+nv50_disp_init(struct nv50_disp *disp)
+{
+	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_head *head;
+	u32 tmp;
+	int i;
+
+	/* The below segments of code copying values from one register to
+	 * another appear to inform EVO of the display capabilities or
+	 * something similar.  NFI what the 0x614004 caps are for..
+	 */
+	tmp = nvkm_rd32(device, 0x614004);
+	nvkm_wr32(device, 0x610184, tmp);
+
+	/* ... CRTC caps */
+	list_for_each_entry(head, &disp->base.head, head) {
+		tmp = nvkm_rd32(device, 0x616100 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610190 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x616104 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610194 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x616108 + (head->id * 0x800));
+		nvkm_wr32(device, 0x610198 + (head->id * 0x10), tmp);
+		tmp = nvkm_rd32(device, 0x61610c + (head->id * 0x800));
+		nvkm_wr32(device, 0x61019c + (head->id * 0x10), tmp);
+	}
+
+	/* ... DAC caps */
+	for (i = 0; i < disp->dac.nr; i++) {
+		tmp = nvkm_rd32(device, 0x61a000 + (i * 0x800));
+		nvkm_wr32(device, 0x6101d0 + (i * 0x04), tmp);
+	}
+
+	/* ... SOR caps */
+	for (i = 0; i < disp->sor.nr; i++) {
+		tmp = nvkm_rd32(device, 0x61c000 + (i * 0x800));
+		nvkm_wr32(device, 0x6101e0 + (i * 0x04), tmp);
+	}
+
+	/* ... PIOR caps */
+	for (i = 0; i < disp->pior.nr; i++) {
+		tmp = nvkm_rd32(device, 0x61e000 + (i * 0x800));
+		nvkm_wr32(device, 0x6101f0 + (i * 0x04), tmp);
+	}
+
+	/* steal display away from vbios, or something like that */
+	if (nvkm_rd32(device, 0x610024) & 0x00000100) {
+		nvkm_wr32(device, 0x610024, 0x00000100);
+		nvkm_mask(device, 0x6194e8, 0x00000001, 0x00000000);
+		if (nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x6194e8) & 0x00000002))
+				break;
+		) < 0)
+			return -EBUSY;
+	}
+
+	/* point at display engine memory area (hash table, objects) */
+	nvkm_wr32(device, 0x610010, (disp->inst->addr >> 8) | 9);
+
+	/* enable supervisor interrupts, disable everything else */
+	nvkm_wr32(device, 0x61002c, 0x00000370);
+	nvkm_wr32(device, 0x610028, 0x00000000);
+	return 0;
+}
+
 static const struct nv50_disp_func
 nv50_disp = {
+	.init = nv50_disp_init,
+	.fini = nv50_disp_fini,
 	.intr = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,
-	.head.new = nv50_head_new,
-	.dac = { .nr = 3, .new = nv50_dac_new },
-	.sor = { .nr = 2, .new = nv50_sor_new },
-	.pior = { .nr = 3, .new = nv50_pior_new },
+	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
+	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
+	.sor = { .cnt = nv50_sor_cnt, .new = nv50_sor_new },
+	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 };
 
 int
 nv50_disp_new(struct nvkm_device *device, int index, struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&nv50_disp, device, index, 2, pdisp);
+	return nv50_disp_new_(&nv50_disp, device, index, pdisp);
 }

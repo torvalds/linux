@@ -6,6 +6,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk/davinci.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
 #include <linux/init.h>
@@ -65,15 +66,28 @@ static const struct davinci_lpsc_clk_info dm365_psc_info[] = {
 	LPSC(31, 0, arm,         pll2_sysclk2, NULL,               LPSC_ALWAYS_ENABLED),
 	LPSC(38, 0, spi3,        pll1_sysclk4, spi3_clkdev,        0),
 	LPSC(39, 0, spi4,        pll1_auxclk,  spi4_clkdev,        0),
-	LPSC(40, 0, emac,        pll2_sysclk4, emac_clkdev,        0),
-	LPSC(44, 1, voice_codec, pll1_sysclk3, voice_codec_clkdev, 0),
-	LPSC(46, 1, vpss_dac,    pll1_sysclk3, vpss_dac_clkdev,    0),
+	LPSC(40, 0, emac,        pll1_sysclk4, emac_clkdev,        0),
+	/*
+	 * The TRM (ARM Subsystem User's Guide) shows two clocks input into
+	 * voice codec module (PLL2 SYSCLK4 with a DIV2 and PLL1 SYSCLK4). Its
+	 * not fully clear from documentation which clock should be considered
+	 * as parent for PSC. The clock chosen here is to maintain
+	 * compatibility with existing code in arch/arm/mach-davinci/dm365.c
+	 */
+	LPSC(44, 0, voice_codec, pll2_sysclk4, voice_codec_clkdev, 0),
+	/*
+	 * Its not fully clear from TRM (ARM Subsystem User's Guide) as to what
+	 * the parent of VPSS DAC LPSC should actually be. PLL1 SYSCLK3 feeds
+	 * into HDVICP and MJCP. The clock chosen here is to remain compatible
+	 * with code existing in arch/arm/mach-davinci/dm365.c
+	 */
+	LPSC(46, 0, vpss_dac,    pll1_sysclk3, vpss_dac_clkdev,    0),
 	LPSC(47, 0, vpss_master, pll1_sysclk5, vpss_master_clkdev, 0),
 	LPSC(50, 0, mjcp,        pll1_sysclk3, NULL,               0),
 	{ }
 };
 
-static int dm365_psc_init(struct device *dev, void __iomem *base)
+int dm365_psc_init(struct device *dev, void __iomem *base)
 {
 	return davinci_psc_register_clocks(dev, dm365_psc_info, 52, base);
 }

@@ -2010,7 +2010,7 @@ void __init boot_cpu_init(void)
 /*
  * Must be called _AFTER_ setting up the per_cpu areas
  */
-void __init boot_cpu_state_init(void)
+void __init boot_cpu_hotplug_init(void)
 {
 	per_cpu_ptr(&cpuhp_state, smp_processor_id())->state = CPUHP_ONLINE;
 }

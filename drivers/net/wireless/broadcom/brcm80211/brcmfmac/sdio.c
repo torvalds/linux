@@ -619,7 +619,7 @@ BRCMF_FW_DEF(4354, "brcmfmac4354-sdio");
 BRCMF_FW_DEF(4356, "brcmfmac4356-sdio");
 BRCMF_FW_DEF(4373, "brcmfmac4373-sdio");
 
-static struct brcmf_firmware_mapping brcmf_sdio_fwnames[] = {
+static const struct brcmf_firmware_mapping brcmf_sdio_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, 43143),
 	BRCMF_FW_ENTRY(BRCM_CC_43241_CHIP_ID, 0x0000001F, 43241B0),
 	BRCMF_FW_ENTRY(BRCM_CC_43241_CHIP_ID, 0x00000020, 43241B4),
@@ -1072,8 +1072,10 @@ static u32 brcmf_sdio_hostmail(struct brcmf_sdio *bus)
 	bus->sdcnt.f1regdata += 2;
 
 	/* dongle indicates the firmware has halted/crashed */
-	if (hmb_data & HMB_DATA_FWHALT)
+	if (hmb_data & HMB_DATA_FWHALT) {
 		brcmf_err("mailbox indicates firmware halted\n");
+		brcmf_dev_coredump(&sdiod->func1->dev);
+	}
 
 	/* Dongle recomposed rx frames, accept them again */
 	if (hmb_data & HMB_DATA_NAKHANDLED) {
@@ -4294,6 +4296,13 @@ void brcmf_sdio_remove(struct brcmf_sdio *bus)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (bus) {
+		/* Stop watchdog task */
+		if (bus->watchdog_tsk) {
+			send_sig(SIGTERM, bus->watchdog_tsk, 1);
+			kthread_stop(bus->watchdog_tsk);
+			bus->watchdog_tsk = NULL;
+		}
+
 		/* De-register interrupt handler */
 		brcmf_sdiod_intr_unregister(bus->sdiodev);
 

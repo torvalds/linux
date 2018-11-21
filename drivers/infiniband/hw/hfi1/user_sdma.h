@@ -1,7 +1,7 @@
 #ifndef _HFI1_USER_SDMA_H
 #define _HFI1_USER_SDMA_H
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -121,8 +121,6 @@ static inline int ahg_header_set(u32 *arr, int idx, size_t array_size,
 	hfi1_cdbg(SDMA, "[%u:%u:%u:%u] " fmt, (req)->pq->dd->unit, \
 		 (req)->pq->ctxt, (req)->pq->subctxt, (req)->info.comp_idx, \
 		 ##__VA_ARGS__)
-
-extern uint extended_psn;
 
 struct hfi1_user_sdma_pkt_q {
 	u16 ctxt;

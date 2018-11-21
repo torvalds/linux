@@ -230,17 +230,14 @@ DECLARE_EVENT_CLASS(dwc3_log_trb,
 	TP_fast_assign(
 		__assign_str(name, dep->name);
 		__entry->trb = trb;
-		__entry->allocated = dep->allocated_requests;
-		__entry->queued = dep->queued_requests;
 		__entry->bpl = trb->bpl;
 		__entry->bph = trb->bph;
 		__entry->size = trb->size;
 		__entry->ctrl = trb->ctrl;
 		__entry->type = usb_endpoint_type(dep->endpoint.desc);
 	),
-	TP_printk("%s: %d/%d trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
-		__get_str(name), __entry->queued, __entry->allocated,
-		__entry->trb, __entry->bph, __entry->bpl,
+	TP_printk("%s: trb %p buf %08x%08x size %s%d ctrl %08x (%c%c%c%c:%c%c:%s)",
+		__get_str(name), __entry->trb, __entry->bph, __entry->bpl,
 		({char *s;
 		int pcm = ((__entry->size >> 24) & 3) + 1;
 		switch (__entry->type) {
@@ -306,7 +303,7 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 		__entry->trb_enqueue = dep->trb_enqueue;
 		__entry->trb_dequeue = dep->trb_dequeue;
 	),
-	TP_printk("%s: mps %d/%d streams %d burst %d ring %d/%d flags %c:%c%c%c%c%c:%c:%c",
+	TP_printk("%s: mps %d/%d streams %d burst %d ring %d/%d flags %c:%c%c%c%c:%c:%c",
 		__get_str(name), __entry->maxpacket,
 		__entry->maxpacket_limit, __entry->max_streams,
 		__entry->maxburst, __entry->trb_enqueue,
@@ -314,9 +311,8 @@ DECLARE_EVENT_CLASS(dwc3_log_ep,
 		__entry->flags & DWC3_EP_ENABLED ? 'E' : 'e',
 		__entry->flags & DWC3_EP_STALL ? 'S' : 's',
 		__entry->flags & DWC3_EP_WEDGE ? 'W' : 'w',
-		__entry->flags & DWC3_EP_BUSY ? 'B' : 'b',
+		__entry->flags & DWC3_EP_TRANSFER_STARTED ? 'B' : 'b',
 		__entry->flags & DWC3_EP_PENDING_REQUEST ? 'P' : 'p',
-		__entry->flags & DWC3_EP_MISSED_ISOC ? 'M' : 'm',
 		__entry->flags & DWC3_EP_END_TRANSFER_PENDING ? 'E' : 'e',
 		__entry->direction ? '<' : '>'
 	)

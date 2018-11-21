@@ -121,7 +121,7 @@ three options to deal with this:
 
 - checksum neutral mapping
 		When an address is translated the difference can be offset
-		elsewhere in a part of the packet that is covered by the
+		elsewhere in a part of the packet that is covered by
 		the checksum. The low order sixteen bits of the identifier
 		are used. This method is preferred since it doesn't require
 		parsing a packet beyond the IP header and in most cases the

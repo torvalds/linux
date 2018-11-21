@@ -374,7 +374,7 @@ static int lp855x_parse_dt(struct lp855x *lp)
 		struct device_node *child;
 		int i = 0;
 
-		rom = devm_kzalloc(dev, sizeof(*rom) * rom_length, GFP_KERNEL);
+		rom = devm_kcalloc(dev, rom_length, sizeof(*rom), GFP_KERNEL);
 		if (!rom)
 			return -ENOMEM;
 

@@ -814,15 +814,10 @@ static int xenon_add_phy(struct device_node *np, struct sdhci_host *host,
 {
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct xenon_priv *priv = sdhci_pltfm_priv(pltfm_host);
-	int i, ret;
+	int ret;
 
-	for (i = 0; i < NR_PHY_TYPES; i++) {
-		if (!strcmp(phy_name, phy_types[i])) {
-			priv->phy_type = i;
-			break;
-		}
-	}
-	if (i == NR_PHY_TYPES) {
+	priv->phy_type = match_string(phy_types, NR_PHY_TYPES, phy_name);
+	if (priv->phy_type < 0) {
 		dev_err(mmc_dev(host->mmc),
 			"Unable to determine PHY name %s. Use default eMMC 5.1 PHY\n",
 			phy_name);

@@ -77,10 +77,21 @@ int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table)
 {
 	struct dentry *pdentry = opp_table->dentry;
 	struct dentry *d;
+	unsigned long id;
 	char name[25];	/* 20 chars for 64 bit value + 5 (opp:\0) */
 
-	/* Rate is unique to each OPP, use it to give opp-name */
-	snprintf(name, sizeof(name), "opp:%lu", opp->rate);
+	/*
+	 * Get directory name for OPP.
+	 *
+	 * - Normally rate is unique to each OPP, use it to get unique opp-name.
+	 * - For some devices rate isn't available, use index instead.
+	 */
+	if (likely(opp->rate))
+		id = opp->rate;
+	else
+		id = _get_opp_count(opp_table);
+
+	snprintf(name, sizeof(name), "opp:%lu", id);
 
 	/* Create per-opp directory */
 	d = debugfs_create_dir(name, pdentry);

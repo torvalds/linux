@@ -398,13 +398,83 @@
                 255
             ]
         ],
-        "cmdUnderTest": "for i in `seq 1 32`; do cmd=\"action csum tcp continue index $i \"; args=\"$args$cmd\"; done && $TC actions add $args",
-        "expExitCode": "255",
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
+        "expExitCode": "0",
         "verifyCmd": "$TC actions ls action csum",
         "matchPattern": "^[ \t]+index [0-9]* ref",
         "matchCount": "32",
         "teardown": [
             "$TC actions flush action csum"
         ]
+    },
+    {
+        "id": "b4e9",
+        "name": "Delete batch of 32 csum actions",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ],
+            "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\""
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions del \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action csum",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "0015",
+        "name": "Add batch of 32 csum tcp actions with large cookies",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i cookie aaabbbcccdddeee \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions ls action csum",
+        "matchPattern": "^[ \t]+index [0-9]* ref",
+        "matchCount": "32",
+        "teardown": [
+            "$TC actions flush action csum"
+        ]
+    },
+    {
+        "id": "989e",
+        "name": "Delete batch of 32 csum actions with large cookies",
+        "category": [
+            "actions",
+            "csum"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action csum",
+                0,
+                1,
+                255
+            ],
+            "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum tcp continue index \\$i cookie aaabbbcccdddeee \\\"; args=\"\\$args\\$cmd\"; done && $TC actions add \\$args\""
+        ],
+        "cmdUnderTest": "bash -c \"for i in \\`seq 1 32\\`; do cmd=\\\"action csum index \\$i \\\"; args=\"\\$args\\$cmd\"; done && $TC actions del \\$args\"",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action csum",
+        "matchPattern": "^[ \t]+index [0-9]+ ref",
+        "matchCount": "0",
+        "teardown": []
     }
 ]

@@ -577,7 +577,7 @@ int ext4_ext_precache(struct inode *inode)
 	down_read(&ei->i_data_sem);
 	depth = ext_depth(inode);
 
-	path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
+	path = kcalloc(depth + 1, sizeof(struct ext4_ext_path),
 		       GFP_NOFS);
 	if (path == NULL) {
 		up_read(&ei->i_data_sem);
@@ -869,6 +869,12 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 
 	eh = ext_inode_hdr(inode);
 	depth = ext_depth(inode);
+	if (depth < 0 || depth > EXT4_MAX_EXTENT_DEPTH) {
+		EXT4_ERROR_INODE(inode, "inode has invalid extent depth: %d",
+				 depth);
+		ret = -EFSCORRUPTED;
+		goto err;
+	}
 
 	if (path) {
 		ext4_ext_drop_refs(path);
@@ -879,7 +885,7 @@ ext4_find_extent(struct inode *inode, ext4_lblk_t block,
 	}
 	if (!path) {
 		/* account possible depth increase */
-		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 2),
+		path = kcalloc(depth + 2, sizeof(struct ext4_ext_path),
 				GFP_NOFS);
 		if (unlikely(!path))
 			return ERR_PTR(-ENOMEM);
@@ -1063,7 +1069,7 @@ static int ext4_ext_split(handle_t *handle, struct inode *inode,
 	 * We need this to handle errors and free blocks
 	 * upon them.
 	 */
-	ablocks = kzalloc(sizeof(ext4_fsblk_t) * depth, GFP_NOFS);
+	ablocks = kcalloc(depth, sizeof(ext4_fsblk_t), GFP_NOFS);
 	if (!ablocks)
 		return -ENOMEM;
 
@@ -2921,7 +2927,7 @@ again:
 			path[k].p_block =
 				le16_to_cpu(path[k].p_hdr->eh_entries)+1;
 	} else {
-		path = kzalloc(sizeof(struct ext4_ext_path) * (depth + 1),
+		path = kcalloc(depth + 1, sizeof(struct ext4_ext_path),
 			       GFP_NOFS);
 		if (path == NULL) {
 			ext4_journal_stop(handle);

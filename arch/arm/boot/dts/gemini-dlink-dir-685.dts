@@ -13,22 +13,22 @@
 	#address-cells = <1>;
 	#size-cells = <1>;
 
-	memory {
+	memory@0 {
 		/* 128 MB SDRAM in 2 x Hynix HY5DU121622DTP-D43 */
 		device_type = "memory";
 		reg = <0x00000000 0x8000000>;
 	};
 
 	chosen {
-		stdout-path = "uart0:115200n8";
+		bootargs = "console=ttyS0,19200n8 root=/dev/sda1 rw rootwait";
+		stdout-path = "uart0:19200n8";
 	};
 
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
+
 		button-esc {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_ESC>;
 			label = "reset";
@@ -36,7 +36,7 @@
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
 		};
 		button-eject {
-			debounce_interval = <50>;
+			debounce-interval = <50>;
 			wakeup-source;
 			linux,code = <KEY_EJECTCD>;
 			label = "unmount";
@@ -98,7 +98,7 @@
 		/*
 		 * These two LEDs are on the side of the device.
 		 * For electrical reasons, both LEDs cannot be active
-		 * at the same time so only blue or orange can on at
+		 * at the same time so only blue or orange can be on at
 		 * one time. Enabling both makes the LED go dark.
 		 * The LEDs both sit inside the unmount button and the
 		 * label on the case says "unmount".
@@ -108,12 +108,14 @@
 			/* Collides with LPC_SERIRQ, UART DTR, SSP FSC pins */
 			gpios = <&gpio0 11 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
+			linux,default-trigger = "disk-read";
 		};
 		led-orange-hd {
 			label = "dir685:orange:HD";
 			/* Collides with LPC_LAD[2], UART DSR, SSP ECLK pins */
 			gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
+			linux,default-trigger = "disk-write";
 		};
 	};
 

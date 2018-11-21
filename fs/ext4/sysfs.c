@@ -346,39 +346,9 @@ static struct kobject *ext4_root;
 
 static struct kobject *ext4_feat;
 
-#define PROC_FILE_SHOW_DEFN(name) \
-static int name##_open(struct inode *inode, struct file *file) \
-{ \
-	return single_open(file, ext4_seq_##name##_show, PDE_DATA(inode)); \
-} \
-\
-static const struct file_operations ext4_seq_##name##_fops = { \
-	.open		= name##_open, \
-	.read		= seq_read, \
-	.llseek		= seq_lseek, \
-	.release	= single_release, \
-}
-
-#define PROC_FILE_LIST(name) \
-	{ __stringify(name), &ext4_seq_##name##_fops }
-
-PROC_FILE_SHOW_DEFN(es_shrinker_info);
-PROC_FILE_SHOW_DEFN(options);
-
-static const struct ext4_proc_files {
-	const char *name;
-	const struct file_operations *fops;
-} proc_files[] = {
-	PROC_FILE_LIST(options),
-	PROC_FILE_LIST(es_shrinker_info),
-	PROC_FILE_LIST(mb_groups),
-	{ NULL, NULL },
-};
-
 int ext4_register_sysfs(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	const struct ext4_proc_files *p;
 	int err;
 
 	init_completion(&sbi->s_kobj_unregister);
@@ -392,11 +362,14 @@ int ext4_register_sysfs(struct super_block *sb)
 
 	if (ext4_proc_root)
 		sbi->s_proc = proc_mkdir(sb->s_id, ext4_proc_root);
-
 	if (sbi->s_proc) {
-		for (p = proc_files; p->name; p++)
-			proc_create_data(p->name, S_IRUGO, sbi->s_proc,
-					 p->fops, sb);
+		proc_create_single_data("options", S_IRUGO, sbi->s_proc,
+				ext4_seq_options_show, sb);
+		proc_create_single_data("es_shrinker_info", S_IRUGO,
+				sbi->s_proc, ext4_seq_es_shrinker_info_show,
+				sb);
+		proc_create_seq_data("mb_groups", S_IRUGO, sbi->s_proc,
+				&ext4_mb_seq_groups_ops, sb);
 	}
 	return 0;
 }
@@ -404,13 +377,9 @@ int ext4_register_sysfs(struct super_block *sb)
 void ext4_unregister_sysfs(struct super_block *sb)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	const struct ext4_proc_files *p;
 
-	if (sbi->s_proc) {
-		for (p = proc_files; p->name; p++)
-			remove_proc_entry(p->name, sbi->s_proc);
-		remove_proc_entry(sb->s_id, ext4_proc_root);
-	}
+	if (sbi->s_proc)
+		remove_proc_subtree(sb->s_id, ext4_proc_root);
 	kobject_del(&sbi->s_kobj);
 }
 

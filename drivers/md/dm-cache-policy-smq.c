@@ -69,7 +69,7 @@ static int space_init(struct entry_space *es, unsigned nr_entries)
 		return 0;
 	}
 
-	es->begin = vzalloc(sizeof(struct entry) * nr_entries);
+	es->begin = vzalloc(array_size(nr_entries, sizeof(struct entry)));
 	if (!es->begin)
 		return -ENOMEM;
 
@@ -588,7 +588,7 @@ static int h_init(struct smq_hash_table *ht, struct entry_space *es, unsigned nr
 	nr_buckets = roundup_pow_of_two(max(nr_entries / 4u, 16u));
 	ht->hash_bits = __ffs(nr_buckets);
 
-	ht->buckets = vmalloc(sizeof(*ht->buckets) * nr_buckets);
+	ht->buckets = vmalloc(array_size(nr_buckets, sizeof(*ht->buckets)));
 	if (!ht->buckets)
 		return -ENOMEM;
 

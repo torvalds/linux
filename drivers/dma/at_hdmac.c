@@ -2041,8 +2041,7 @@ static void at_dma_shutdown(struct platform_device *pdev)
 
 static int at_dma_prepare(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
@@ -2076,8 +2075,7 @@ static void atc_suspend_cyclic(struct at_dma_chan *atchan)
 
 static int at_dma_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* preserve data */
@@ -2118,8 +2116,7 @@ static void atc_resume_cyclic(struct at_dma_chan *atchan)
 
 static int at_dma_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct at_dma *atdma = platform_get_drvdata(pdev);
+	struct at_dma *atdma = dev_get_drvdata(dev);
 	struct dma_chan *chan, *_chan;
 
 	/* bring back DMA controller */

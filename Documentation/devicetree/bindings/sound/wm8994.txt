@@ -59,7 +59,7 @@ Optional properties:
 
 Example:
 
-codec: wm8994@1a {
+wm8994: codec@1a {
 	compatible = "wlf,wm8994";
 	reg = <0x1a>;
 

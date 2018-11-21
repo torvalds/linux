@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2014 Christian Gmeiner <christian.gmeiner@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2014-2018 Etnaviv Project
  */
 
 #include <linux/platform_device.h>
@@ -47,11 +36,10 @@ static int __etnaviv_iommu_init(struct etnaviv_iommuv1_domain *etnaviv_domain)
 	u32 *p;
 	int i;
 
-	etnaviv_domain->base.bad_page_cpu = dma_alloc_coherent(
-						etnaviv_domain->base.dev,
-						SZ_4K,
-						&etnaviv_domain->base.bad_page_dma,
-						GFP_KERNEL);
+	etnaviv_domain->base.bad_page_cpu =
+			dma_alloc_wc(etnaviv_domain->base.dev, SZ_4K,
+				     &etnaviv_domain->base.bad_page_dma,
+				     GFP_KERNEL);
 	if (!etnaviv_domain->base.bad_page_cpu)
 		return -ENOMEM;
 
@@ -59,14 +47,14 @@ static int __etnaviv_iommu_init(struct etnaviv_iommuv1_domain *etnaviv_domain)
 	for (i = 0; i < SZ_4K / 4; i++)
 		*p++ = 0xdead55aa;
 
-	etnaviv_domain->pgtable_cpu =
-			dma_alloc_coherent(etnaviv_domain->base.dev, PT_SIZE,
-					   &etnaviv_domain->pgtable_dma,
-					   GFP_KERNEL);
+	etnaviv_domain->pgtable_cpu = dma_alloc_wc(etnaviv_domain->base.dev,
+						   PT_SIZE,
+						   &etnaviv_domain->pgtable_dma,
+						   GFP_KERNEL);
 	if (!etnaviv_domain->pgtable_cpu) {
-		dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-				  etnaviv_domain->base.bad_page_cpu,
-				  etnaviv_domain->base.bad_page_dma);
+		dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+			    etnaviv_domain->base.bad_page_cpu,
+			    etnaviv_domain->base.bad_page_dma);
 		return -ENOMEM;
 	}
 
@@ -81,13 +69,12 @@ static void etnaviv_iommuv1_domain_free(struct etnaviv_iommu_domain *domain)
 	struct etnaviv_iommuv1_domain *etnaviv_domain =
 			to_etnaviv_domain(domain);
 
-	dma_free_coherent(etnaviv_domain->base.dev, PT_SIZE,
-			  etnaviv_domain->pgtable_cpu,
-			  etnaviv_domain->pgtable_dma);
+	dma_free_wc(etnaviv_domain->base.dev, PT_SIZE,
+		    etnaviv_domain->pgtable_cpu, etnaviv_domain->pgtable_dma);
 
-	dma_free_coherent(etnaviv_domain->base.dev, SZ_4K,
-			  etnaviv_domain->base.bad_page_cpu,
-			  etnaviv_domain->base.bad_page_dma);
+	dma_free_wc(etnaviv_domain->base.dev, SZ_4K,
+		    etnaviv_domain->base.bad_page_cpu,
+		    etnaviv_domain->base.bad_page_dma);
 
 	kfree(etnaviv_domain);
 }

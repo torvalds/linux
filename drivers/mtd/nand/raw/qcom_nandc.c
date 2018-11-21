@@ -2510,8 +2510,8 @@ static int qcom_nandc_alloc(struct qcom_nand_controller *nandc)
 	if (!nandc->regs)
 		return -ENOMEM;
 
-	nandc->reg_read_buf = devm_kzalloc(nandc->dev,
-				MAX_REG_RD * sizeof(*nandc->reg_read_buf),
+	nandc->reg_read_buf = devm_kcalloc(nandc->dev,
+				MAX_REG_RD, sizeof(*nandc->reg_read_buf),
 				GFP_KERNEL);
 	if (!nandc->reg_read_buf)
 		return -ENOMEM;

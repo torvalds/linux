@@ -915,67 +915,6 @@ void __init pcibios_resource_survey(void)
 	pci_assign_unassigned_resources();
 }
 
-/* This is used by the PCI hotplug driver to allocate resource
- * of newly plugged busses. We can try to consolidate with the
- * rest of the code later, for now, keep it as-is as our main
- * resource allocation function doesn't deal with sub-trees yet.
- */
-void pcibios_claim_one_bus(struct pci_bus *bus)
-{
-	struct pci_dev *dev;
-	struct pci_bus *child_bus;
-
-	list_for_each_entry(dev, &bus->devices, bus_list) {
-		int i;
-
-		for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-			struct resource *r = &dev->resource[i];
-
-			if (r->parent || !r->start || !r->flags)
-				continue;
-
-			pr_debug("PCI: Claiming %s: ", pci_name(dev));
-			pr_debug("Resource %d: %016llx..%016llx [%x]\n",
-				 i, (unsigned long long)r->start,
-				 (unsigned long long)r->end,
-				 (unsigned int)r->flags);
-
-			if (pci_claim_resource(dev, i) == 0)
-				continue;
-
-			pci_claim_bridge_resource(dev, i);
-		}
-	}
-
-	list_for_each_entry(child_bus, &bus->children, node)
-		pcibios_claim_one_bus(child_bus);
-}
-EXPORT_SYMBOL_GPL(pcibios_claim_one_bus);
-
-
-/* pcibios_finish_adding_to_bus
- *
- * This is to be called by the hotplug code after devices have been
- * added to a bus, this include calling it for a PHB that is just
- * being added
- */
-void pcibios_finish_adding_to_bus(struct pci_bus *bus)
-{
-	pr_debug("PCI: Finishing adding to hotplug bus %04x:%02x\n",
-		 pci_domain_nr(bus), bus->number);
-
-	/* Allocate bus and devices resources */
-	pcibios_allocate_bus_resources(bus);
-	pcibios_claim_one_bus(bus);
-
-	/* Add new devices to global lists.  Register in proc, sysfs. */
-	pci_bus_add_devices(bus);
-
-	/* Fixup EEH */
-	/* eeh_add_device_tree_late(bus); */
-}
-EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
-
 static void pcibios_setup_phb_resources(struct pci_controller *hose,
 					struct list_head *resources)
 {

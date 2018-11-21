@@ -84,7 +84,7 @@
  *
  * 1. First argument is passed using the arm 32bit registers and rest of the
  * arguments are passed on stack scratch space.
- * 2. First callee-saved arugument is mapped to arm 32 bit registers and rest
+ * 2. First callee-saved argument is mapped to arm 32 bit registers and rest
  * arguments are mapped to scratch space on stack.
  * 3. We need two 64 bit temp registers to do complex operations on eBPF
  * registers.
@@ -234,18 +234,11 @@ static void jit_fill_hole(void *area, unsigned int size)
 #define SCRATCH_SIZE 80
 
 /* total stack size used in JITed code */
-#define _STACK_SIZE \
-	(ctx->prog->aux->stack_depth + \
-	 + SCRATCH_SIZE + \
-	 + 4 /* extra for skb_copy_bits buffer */)
-
-#define STACK_SIZE ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
+#define _STACK_SIZE	(ctx->prog->aux->stack_depth + SCRATCH_SIZE)
+#define STACK_SIZE	ALIGN(_STACK_SIZE, STACK_ALIGNMENT)
 
 /* Get the offset of eBPF REGISTERs stored on scratch space. */
-#define STACK_VAR(off) (STACK_SIZE-off-4)
-
-/* Offset of skb_copy_bits buffer */
-#define SKB_BUFFER STACK_VAR(SCRATCH_SIZE)
+#define STACK_VAR(off) (STACK_SIZE - off)
 
 #if __LINUX_ARM_ARCH__ < 7
 
@@ -708,7 +701,7 @@ static inline void emit_a32_arsh_r64(const u8 dst[], const u8 src[], bool dstk,
 }
 
 /* dst = dst >> src */
-static inline void emit_a32_lsr_r64(const u8 dst[], const u8 src[], bool dstk,
+static inline void emit_a32_rsh_r64(const u8 dst[], const u8 src[], bool dstk,
 				     bool sstk, struct jit_ctx *ctx) {
 	const u8 *tmp = bpf2a32[TMP_REG_1];
 	const u8 *tmp2 = bpf2a32[TMP_REG_2];
@@ -724,7 +717,7 @@ static inline void emit_a32_lsr_r64(const u8 dst[], const u8 src[], bool dstk,
 		emit(ARM_LDR_I(rm, ARM_SP, STACK_VAR(dst_hi)), ctx);
 	}
 
-	/* Do LSH operation */
+	/* Do RSH operation */
 	emit(ARM_RSB_I(ARM_IP, rt, 32), ctx);
 	emit(ARM_SUBS_I(tmp2[0], rt, 32), ctx);
 	emit(ARM_MOV_SR(ARM_LR, rd, SRTYPE_LSR, rt), ctx);
@@ -774,7 +767,7 @@ static inline void emit_a32_lsh_i64(const u8 dst[], bool dstk,
 }
 
 /* dst = dst >> val */
-static inline void emit_a32_lsr_i64(const u8 dst[], bool dstk,
+static inline void emit_a32_rsh_i64(const u8 dst[], bool dstk,
 				    const u32 val, struct jit_ctx *ctx) {
 	const u8 *tmp = bpf2a32[TMP_REG_1];
 	const u8 *tmp2 = bpf2a32[TMP_REG_2];
@@ -1199,8 +1192,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	s32 jmp_offset;
 
 #define check_imm(bits, imm) do {				\
-	if ((((imm) > 0) && ((imm) >> (bits))) ||		\
-	    (((imm) < 0) && (~(imm) >> (bits)))) {		\
+	if ((imm) >= (1 << ((bits) - 1)) ||			\
+	    (imm) < -(1 << ((bits) - 1))) {			\
 		pr_info("[%2d] imm=%d(0x%x) out of range\n",	\
 			i, imm, imm);				\
 		return -EINVAL;					\
@@ -1330,7 +1323,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	case BPF_ALU64 | BPF_RSH | BPF_K:
 		if (unlikely(imm > 63))
 			return -EINVAL;
-		emit_a32_lsr_i64(dst, dstk, imm, ctx);
+		emit_a32_rsh_i64(dst, dstk, imm, ctx);
 		break;
 	/* dst = dst << src */
 	case BPF_ALU64 | BPF_LSH | BPF_X:
@@ -1338,7 +1331,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx)
 		break;
 	/* dst = dst >> src */
 	case BPF_ALU64 | BPF_RSH | BPF_X:
-		emit_a32_lsr_r64(dst, src, dstk, sstk, ctx);
+		emit_a32_rsh_r64(dst, src, dstk, sstk, ctx);
 		break;
 	/* dst = dst >> src (signed) */
 	case BPF_ALU64 | BPF_ARSH | BPF_X:
@@ -1452,83 +1445,6 @@ exit:
 			emit(ARM_LDR_I(rn, ARM_SP, STACK_VAR(src_lo)), ctx);
 		emit_ldx_r(dst, rn, dstk, off, ctx, BPF_SIZE(code));
 		break;
-	/* R0 = ntohx(*(size *)(((struct sk_buff *)R6)->data + imm)) */
-	case BPF_LD | BPF_ABS | BPF_W:
-	case BPF_LD | BPF_ABS | BPF_H:
-	case BPF_LD | BPF_ABS | BPF_B:
-	/* R0 = ntohx(*(size *)(((struct sk_buff *)R6)->data + src + imm)) */
-	case BPF_LD | BPF_IND | BPF_W:
-	case BPF_LD | BPF_IND | BPF_H:
-	case BPF_LD | BPF_IND | BPF_B:
-	{
-		const u8 r4 = bpf2a32[BPF_REG_6][1]; /* r4 = ptr to sk_buff */
-		const u8 r0 = bpf2a32[BPF_REG_0][1]; /*r0: struct sk_buff *skb*/
-						     /* rtn value */
-		const u8 r1 = bpf2a32[BPF_REG_0][0]; /* r1: int k */
-		const u8 r2 = bpf2a32[BPF_REG_1][1]; /* r2: unsigned int size */
-		const u8 r3 = bpf2a32[BPF_REG_1][0]; /* r3: void *buffer */
-		const u8 r6 = bpf2a32[TMP_REG_1][1]; /* r6: void *(*func)(..) */
-		int size;
-
-		/* Setting up first argument */
-		emit(ARM_MOV_R(r0, r4), ctx);
-
-		/* Setting up second argument */
-		emit_a32_mov_i(r1, imm, false, ctx);
-		if (BPF_MODE(code) == BPF_IND)
-			emit_a32_alu_r(r1, src_lo, false, sstk, ctx,
-				       false, false, BPF_ADD);
-
-		/* Setting up third argument */
-		switch (BPF_SIZE(code)) {
-		case BPF_W:
-			size = 4;
-			break;
-		case BPF_H:
-			size = 2;
-			break;
-		case BPF_B:
-			size = 1;
-			break;
-		default:
-			return -EINVAL;
-		}
-		emit_a32_mov_i(r2, size, false, ctx);
-
-		/* Setting up fourth argument */
-		emit(ARM_ADD_I(r3, ARM_SP, imm8m(SKB_BUFFER)), ctx);
-
-		/* Setting up function pointer to call */
-		emit_a32_mov_i(r6, (unsigned int)bpf_load_pointer, false, ctx);
-		emit_blx_r(r6, ctx);
-
-		emit(ARM_EOR_R(r1, r1, r1), ctx);
-		/* Check if return address is NULL or not.
-		 * if NULL then jump to epilogue
-		 * else continue to load the value from retn address
-		 */
-		emit(ARM_CMP_I(r0, 0), ctx);
-		jmp_offset = epilogue_offset(ctx);
-		check_imm24(jmp_offset);
-		_emit(ARM_COND_EQ, ARM_B(jmp_offset), ctx);
-
-		/* Load value from the address */
-		switch (BPF_SIZE(code)) {
-		case BPF_W:
-			emit(ARM_LDR_I(r0, r0, 0), ctx);
-			emit_rev32(r0, r0, ctx);
-			break;
-		case BPF_H:
-			emit(ARM_LDRH_I(r0, r0, 0), ctx);
-			emit_rev16(r0, r0, ctx);
-			break;
-		case BPF_B:
-			emit(ARM_LDRB_I(r0, r0, 0), ctx);
-			/* No need to reverse */
-			break;
-		}
-		break;
-	}
 	/* ST: *(size *)(dst + off) = imm */
 	case BPF_ST | BPF_MEM | BPF_W:
 	case BPF_ST | BPF_MEM | BPF_H:
@@ -1928,7 +1844,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		/* there are 2 passes here */
 		bpf_jit_dump(prog->len, image_size, 2, ctx.target);
 
-	set_memory_ro((unsigned long)header, header->pages);
+	bpf_jit_binary_lock_ro(header);
 	prog->bpf_func = (void *)ctx.target;
 	prog->jited = 1;
 	prog->jited_len = image_size;

@@ -1383,7 +1383,7 @@ static int __ocfs2_recovery_thread(void *arg)
 		goto bail;
 	}
 
-	rm_quota = kzalloc(osb->max_slots * sizeof(int), GFP_NOFS);
+	rm_quota = kcalloc(osb->max_slots, sizeof(int), GFP_NOFS);
 	if (!rm_quota) {
 		status = -ENOMEM;
 		goto bail;

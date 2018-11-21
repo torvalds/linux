@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SIRF hardware spinlock driver
  *
  * Copyright (c) 2015 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2.
  */
 
 #include <linux/kernel.h>
@@ -62,8 +61,10 @@ static int sirf_hwspinlock_probe(struct platform_device *pdev)
 	if (!pdev->dev.of_node)
 		return -ENODEV;
 
-	hwspin = devm_kzalloc(&pdev->dev, sizeof(*hwspin) +
-			sizeof(*hwlock) * HW_SPINLOCK_NUMBER, GFP_KERNEL);
+	hwspin = devm_kzalloc(&pdev->dev,
+			      struct_size(hwspin, bank.lock,
+					  HW_SPINLOCK_NUMBER),
+			      GFP_KERNEL);
 	if (!hwspin)
 		return -ENOMEM;
 

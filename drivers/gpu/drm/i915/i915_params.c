@@ -164,6 +164,9 @@ i915_param_named_unsafe(guc_firmware_path, charp, 0400,
 i915_param_named_unsafe(huc_firmware_path, charp, 0400,
 	"HuC firmware path to use instead of the default one");
 
+i915_param_named_unsafe(dmc_firmware_path, charp, 0400,
+	"DMC firmware path to use instead of the default one");
+
 i915_param_named_unsafe(enable_dp_mst, bool, 0600,
 	"Enable multi-stream transport (MST) for new DisplayPort sinks. (default: true)");
 

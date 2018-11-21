@@ -31,7 +31,6 @@ enum a21_wdt_gpios {
 
 struct a21_wdt_drv {
 	struct watchdog_device wdt;
-	struct mutex lock;
 	unsigned gpios[NUM_GPIOS];
 };
 
@@ -55,11 +54,7 @@ static int a21_wdt_start(struct watchdog_device *wdt)
 {
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
-	mutex_lock(&drv->lock);
-
 	gpio_set_value(drv->gpios[GPIO_WD_ENAB], 1);
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -68,11 +63,7 @@ static int a21_wdt_stop(struct watchdog_device *wdt)
 {
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
-	mutex_lock(&drv->lock);
-
 	gpio_set_value(drv->gpios[GPIO_WD_ENAB], 0);
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -81,13 +72,9 @@ static int a21_wdt_ping(struct watchdog_device *wdt)
 {
 	struct a21_wdt_drv *drv = watchdog_get_drvdata(wdt);
 
-	mutex_lock(&drv->lock);
-
 	gpio_set_value(drv->gpios[GPIO_WD_TRIG], 0);
 	ndelay(10);
 	gpio_set_value(drv->gpios[GPIO_WD_TRIG], 1);
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -108,16 +95,12 @@ static int a21_wdt_set_timeout(struct watchdog_device *wdt,
 		return -EINVAL;
 	}
 
-	mutex_lock(&drv->lock);
-
 	if (timeout == 1)
 		gpio_set_value(drv->gpios[GPIO_WD_FAST], 1);
 	else
 		gpio_set_value(drv->gpios[GPIO_WD_FAST], 0);
 
 	wdt->timeout = timeout;
-
-	mutex_unlock(&drv->lock);
 
 	return 0;
 }
@@ -191,7 +174,6 @@ static int a21_wdt_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	mutex_init(&drv->lock);
 	watchdog_init_timeout(&a21_wdt, 30, &pdev->dev);
 	watchdog_set_nowayout(&a21_wdt, nowayout);
 	watchdog_set_drvdata(&a21_wdt, drv);

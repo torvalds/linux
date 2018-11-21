@@ -72,8 +72,6 @@ static struct drm_driver drv_driver = {
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
 	.gem_prime_vunmap = drm_gem_cma_prime_vunmap,
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
-	.enable_vblank = ltdc_crtc_enable_vblank,
-	.disable_vblank = ltdc_crtc_disable_vblank,
 };
 
 static int drv_load(struct drm_device *ddev)

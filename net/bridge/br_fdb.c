@@ -40,7 +40,7 @@ static struct kmem_cache *br_fdb_cache __read_mostly;
 static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		      const unsigned char *addr, u16 vid);
 static void fdb_notify(struct net_bridge *br,
-		       const struct net_bridge_fdb_entry *, int);
+		       const struct net_bridge_fdb_entry *, int, bool);
 
 int __init br_fdb_init(void)
 {
@@ -121,6 +121,30 @@ static struct net_bridge_fdb_entry *br_fdb_find(struct net_bridge *br,
 	return fdb;
 }
 
+struct net_device *br_fdb_find_port(const struct net_device *br_dev,
+				    const unsigned char *addr,
+				    __u16 vid)
+{
+	struct net_bridge_fdb_entry *f;
+	struct net_device *dev = NULL;
+	struct net_bridge *br;
+
+	ASSERT_RTNL();
+
+	if (!netif_is_bridge_master(br_dev))
+		return NULL;
+
+	br = netdev_priv(br_dev);
+	rcu_read_lock();
+	f = br_fdb_find_rcu(br, addr, vid);
+	if (f && f->dst)
+		dev = f->dst->dev;
+	rcu_read_unlock();
+
+	return dev;
+}
+EXPORT_SYMBOL_GPL(br_fdb_find_port);
+
 struct net_bridge_fdb_entry *br_fdb_find_rcu(struct net_bridge *br,
 					     const unsigned char *addr,
 					     __u16 vid)
@@ -173,7 +197,8 @@ static void fdb_del_hw_addr(struct net_bridge *br, const unsigned char *addr)
 	}
 }
 
-static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
+static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f,
+		       bool swdev_notify)
 {
 	trace_fdb_delete(br, f);
 
@@ -183,7 +208,7 @@ static void fdb_delete(struct net_bridge *br, struct net_bridge_fdb_entry *f)
 	hlist_del_init_rcu(&f->fdb_node);
 	rhashtable_remove_fast(&br->fdb_hash_tbl, &f->rhnode,
 			       br_fdb_rht_params);
-	fdb_notify(br, f, RTM_DELNEIGH);
+	fdb_notify(br, f, RTM_DELNEIGH, swdev_notify);
 	call_rcu(&f->rcu, fdb_rcu_free);
 }
 
@@ -219,7 +244,7 @@ static void fdb_delete_local(struct net_bridge *br,
 		return;
 	}
 
-	fdb_delete(br, f);
+	fdb_delete(br, f, true);
 }
 
 void br_fdb_find_delete_local(struct net_bridge *br,
@@ -334,7 +359,7 @@ void br_fdb_cleanup(struct work_struct *work)
 		} else {
 			spin_lock_bh(&br->hash_lock);
 			if (!hlist_unhashed(&f->fdb_node))
-				fdb_delete(br, f);
+				fdb_delete(br, f, true);
 			spin_unlock_bh(&br->hash_lock);
 		}
 	}
@@ -354,7 +379,7 @@ void br_fdb_flush(struct net_bridge *br)
 	spin_lock_bh(&br->hash_lock);
 	hlist_for_each_entry_safe(f, tmp, &br->fdb_list, fdb_node) {
 		if (!f->is_static)
-			fdb_delete(br, f);
+			fdb_delete(br, f, true);
 	}
 	spin_unlock_bh(&br->hash_lock);
 }
@@ -383,7 +408,7 @@ void br_fdb_delete_by_port(struct net_bridge *br,
 		if (f->is_local)
 			fdb_delete_local(br, p, f);
 		else
-			fdb_delete(br, f);
+			fdb_delete(br, f, true);
 	}
 	spin_unlock_bh(&br->hash_lock);
 }
@@ -509,7 +534,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 			return 0;
 		br_warn(br, "adding interface %s with same address as a received packet (addr:%pM, vlan:%u)\n",
 		       source ? source->dev->name : br->dev->name, addr, vid);
-		fdb_delete(br, fdb);
+		fdb_delete(br, fdb, true);
 	}
 
 	fdb = fdb_create(br, source, addr, vid, 1, 1);
@@ -517,7 +542,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 		return -ENOMEM;
 
 	fdb_add_hw_addr(br, addr);
-	fdb_notify(br, fdb, RTM_NEWNEIGH);
+	fdb_notify(br, fdb, RTM_NEWNEIGH, true);
 	return 0;
 }
 
@@ -572,7 +597,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb->added_by_user = 1;
 			if (unlikely(fdb_modified)) {
 				trace_br_fdb_update(br, source, addr, vid, added_by_user);
-				fdb_notify(br, fdb, RTM_NEWNEIGH);
+				fdb_notify(br, fdb, RTM_NEWNEIGH, true);
 			}
 		}
 	} else {
@@ -583,7 +608,7 @@ void br_fdb_update(struct net_bridge *br, struct net_bridge_port *source,
 				fdb->added_by_user = 1;
 			trace_br_fdb_update(br, source, addr, vid,
 					    added_by_user);
-			fdb_notify(br, fdb, RTM_NEWNEIGH);
+			fdb_notify(br, fdb, RTM_NEWNEIGH, true);
 		}
 		/* else  we lose race and someone else inserts
 		 * it first, don't bother updating
@@ -665,13 +690,15 @@ static inline size_t fdb_nlmsg_size(void)
 }
 
 static void fdb_notify(struct net_bridge *br,
-		       const struct net_bridge_fdb_entry *fdb, int type)
+		       const struct net_bridge_fdb_entry *fdb, int type,
+		       bool swdev_notify)
 {
 	struct net *net = dev_net(br->dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
-	br_switchdev_fdb_notify(fdb, type);
+	if (swdev_notify)
+		br_switchdev_fdb_notify(fdb, type);
 
 	skb = nlmsg_new(fdb_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)
@@ -810,7 +837,7 @@ static int fdb_add_entry(struct net_bridge *br, struct net_bridge_port *source,
 	fdb->used = jiffies;
 	if (modified) {
 		fdb->updated = jiffies;
-		fdb_notify(br, fdb, RTM_NEWNEIGH);
+		fdb_notify(br, fdb, RTM_NEWNEIGH, true);
 	}
 
 	return 0;
@@ -834,7 +861,7 @@ static int __br_fdb_add(struct ndmsg *ndm, struct net_bridge *br,
 		rcu_read_unlock();
 		local_bh_enable();
 	} else if (ndm->ndm_flags & NTF_EXT_LEARNED) {
-		err = br_fdb_external_learn_add(br, p, addr, vid);
+		err = br_fdb_external_learn_add(br, p, addr, vid, true);
 	} else {
 		spin_lock_bh(&br->hash_lock);
 		err = fdb_add_entry(br, p, addr, ndm->ndm_state,
@@ -923,7 +950,7 @@ static int fdb_delete_by_addr_and_port(struct net_bridge *br,
 	if (!fdb || fdb->dst != p)
 		return -ENOENT;
 
-	fdb_delete(br, fdb);
+	fdb_delete(br, fdb, true);
 
 	return 0;
 }
@@ -1043,7 +1070,8 @@ void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p)
 }
 
 int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
-			      const unsigned char *addr, u16 vid)
+			      const unsigned char *addr, u16 vid,
+			      bool swdev_notify)
 {
 	struct net_bridge_fdb_entry *fdb;
 	bool modified = false;
@@ -1061,7 +1089,7 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 			goto err_unlock;
 		}
 		fdb->added_by_external_learn = 1;
-		fdb_notify(br, fdb, RTM_NEWNEIGH);
+		fdb_notify(br, fdb, RTM_NEWNEIGH, swdev_notify);
 	} else {
 		fdb->updated = jiffies;
 
@@ -1080,7 +1108,7 @@ int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
 		}
 
 		if (modified)
-			fdb_notify(br, fdb, RTM_NEWNEIGH);
+			fdb_notify(br, fdb, RTM_NEWNEIGH, swdev_notify);
 	}
 
 err_unlock:
@@ -1090,7 +1118,8 @@ err_unlock:
 }
 
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
-			      const unsigned char *addr, u16 vid)
+			      const unsigned char *addr, u16 vid,
+			      bool swdev_notify)
 {
 	struct net_bridge_fdb_entry *fdb;
 	int err = 0;
@@ -1099,7 +1128,7 @@ int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
 
 	fdb = br_fdb_find(br, addr, vid);
 	if (fdb && fdb->added_by_external_learn)
-		fdb_delete(br, fdb);
+		fdb_delete(br, fdb, swdev_notify);
 	else
 		err = -ENOENT;
 

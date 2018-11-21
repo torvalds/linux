@@ -54,12 +54,19 @@
  * charge of setting up it's own stack, GDT and IDT.
  */
 
+#define PVH_GDT_ENTRY_CS	1
+#define PVH_GDT_ENTRY_DS	2
+#define PVH_GDT_ENTRY_CANARY	3
+#define PVH_CS_SEL		(PVH_GDT_ENTRY_CS * 8)
+#define PVH_DS_SEL		(PVH_GDT_ENTRY_DS * 8)
+#define PVH_CANARY_SEL		(PVH_GDT_ENTRY_CANARY * 8)
+
 ENTRY(pvh_start_xen)
 	cld
 
 	lgdt (_pa(gdt))
 
-	mov $(__BOOT_DS),%eax
+	mov $PVH_DS_SEL,%eax
 	mov %eax,%ds
 	mov %eax,%es
 	mov %eax,%ss
@@ -93,11 +100,17 @@ ENTRY(pvh_start_xen)
 	mov %eax, %cr0
 
 	/* Jump to 64-bit mode. */
-	ljmp $__KERNEL_CS, $_pa(1f)
+	ljmp $PVH_CS_SEL, $_pa(1f)
 
 	/* 64-bit entry point. */
 	.code64
 1:
+	/* Set base address in stack canary descriptor. */
+	mov $MSR_GS_BASE,%ecx
+	mov $_pa(canary), %eax
+	xor %edx, %edx
+	wrmsr
+
 	call xen_prepare_pvh
 
 	/* startup_64 expects boot_params in %rsi. */
@@ -106,6 +119,17 @@ ENTRY(pvh_start_xen)
 	jmp *%rax
 
 #else /* CONFIG_X86_64 */
+
+	/* Set base address in stack canary descriptor. */
+	movl $_pa(gdt_start),%eax
+	movl $_pa(canary),%ecx
+	movw %cx, (PVH_GDT_ENTRY_CANARY * 8) + 2(%eax)
+	shrl $16, %ecx
+	movb %cl, (PVH_GDT_ENTRY_CANARY * 8) + 4(%eax)
+	movb %ch, (PVH_GDT_ENTRY_CANARY * 8) + 7(%eax)
+
+	mov $PVH_CANARY_SEL,%eax
+	mov %eax,%gs
 
 	call mk_early_pgtbl_32
 
@@ -116,13 +140,13 @@ ENTRY(pvh_start_xen)
 	or $(X86_CR0_PG | X86_CR0_PE), %eax
 	mov %eax, %cr0
 
-	ljmp $__BOOT_CS, $1f
+	ljmp $PVH_CS_SEL, $1f
 1:
 	call xen_prepare_pvh
 	mov $_pa(pvh_bootparams), %esi
 
 	/* startup_32 doesn't expect paging and PAE to be on. */
-	ljmp $__BOOT_CS, $_pa(2f)
+	ljmp $PVH_CS_SEL, $_pa(2f)
 2:
 	mov %cr0, %eax
 	and $~X86_CR0_PG, %eax
@@ -131,7 +155,7 @@ ENTRY(pvh_start_xen)
 	and $~X86_CR4_PAE, %eax
 	mov %eax, %cr4
 
-	ljmp $__BOOT_CS, $_pa(startup_32)
+	ljmp $PVH_CS_SEL, $_pa(startup_32)
 #endif
 END(pvh_start_xen)
 
@@ -143,16 +167,19 @@ gdt:
 	.word 0
 gdt_start:
 	.quad 0x0000000000000000            /* NULL descriptor */
-	.quad 0x0000000000000000            /* reserved */
 #ifdef CONFIG_X86_64
-	.quad GDT_ENTRY(0xa09a, 0, 0xfffff) /* __KERNEL_CS */
+	.quad GDT_ENTRY(0xa09a, 0, 0xfffff) /* PVH_CS_SEL */
 #else
-	.quad GDT_ENTRY(0xc09a, 0, 0xfffff) /* __KERNEL_CS */
+	.quad GDT_ENTRY(0xc09a, 0, 0xfffff) /* PVH_CS_SEL */
 #endif
-	.quad GDT_ENTRY(0xc092, 0, 0xfffff) /* __KERNEL_DS */
+	.quad GDT_ENTRY(0xc092, 0, 0xfffff) /* PVH_DS_SEL */
+	.quad GDT_ENTRY(0x4090, 0, 0x18)    /* PVH_CANARY_SEL */
 gdt_end:
 
-	.balign 4
+	.balign 16
+canary:
+	.fill 48, 1, 0
+
 early_stack:
 	.fill 256, 1, 0
 early_stack_end:

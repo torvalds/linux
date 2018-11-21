@@ -143,8 +143,8 @@ int zip_inflate(struct zip_operation *zip_ops, struct zip_state *s,
 	/* Decompression requests submitted stats update */
 	atomic64_inc(&zip_dev->stats.decomp_req_submit);
 
-	while (!result_ptr->s.compcode)
-		continue;
+	/* Wait for completion or error */
+	zip_poll_result(result_ptr);
 
 	/* Decompression requests completed stats update */
 	atomic64_inc(&zip_dev->stats.decomp_req_complete);

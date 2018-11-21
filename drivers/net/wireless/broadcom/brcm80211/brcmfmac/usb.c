@@ -52,7 +52,7 @@ BRCMF_FW_DEF(43242A, "brcmfmac43242a");
 BRCMF_FW_DEF(43569, "brcmfmac43569");
 BRCMF_FW_DEF(4373, "brcmfmac4373");
 
-static struct brcmf_firmware_mapping brcmf_usb_fwnames[] = {
+static const struct brcmf_firmware_mapping brcmf_usb_fwnames[] = {
 	BRCMF_FW_ENTRY(BRCM_CC_43143_CHIP_ID, 0xFFFFFFFF, 43143),
 	BRCMF_FW_ENTRY(BRCM_CC_43235_CHIP_ID, 0x00000008, 43236B),
 	BRCMF_FW_ENTRY(BRCM_CC_43236_CHIP_ID, 0x00000008, 43236B),

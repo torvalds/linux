@@ -31,8 +31,9 @@ static int inv_mpu_i2c_disable(struct iio_dev *indio_dev)
 	if (ret)
 		return ret;
 
-	ret = regmap_write(st->map, INV_MPU6050_REG_USER_CTRL,
-			   INV_MPU6050_BIT_I2C_IF_DIS);
+	st->chip_config.user_ctrl |= INV_MPU6050_BIT_I2C_IF_DIS;
+	ret = regmap_write(st->map, st->reg->user_ctrl,
+			   st->chip_config.user_ctrl);
 	if (ret) {
 		inv_mpu6050_set_power_itg(st, false);
 		return ret;
@@ -69,11 +70,6 @@ static int inv_mpu_probe(struct spi_device *spi)
 				  inv_mpu_i2c_disable, chip_type);
 }
 
-static int inv_mpu_remove(struct spi_device *spi)
-{
-	return inv_mpu_core_remove(&spi->dev);
-}
-
 /*
  * device id table is used to identify what device can be
  * supported by this driver
@@ -83,6 +79,7 @@ static const struct spi_device_id inv_mpu_id[] = {
 	{"mpu6500", INV_MPU6500},
 	{"mpu9150", INV_MPU9150},
 	{"mpu9250", INV_MPU9250},
+	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
 	{}
 };
@@ -97,7 +94,6 @@ MODULE_DEVICE_TABLE(acpi, inv_acpi_match);
 
 static struct spi_driver inv_mpu_driver = {
 	.probe		=	inv_mpu_probe,
-	.remove		=	inv_mpu_remove,
 	.id_table	=	inv_mpu_id,
 	.driver = {
 		.acpi_match_table = ACPI_PTR(inv_acpi_match),

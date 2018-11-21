@@ -62,8 +62,8 @@
 #define NHM_C3_AUTO_DEMOTE		(1UL << 25)
 #define NHM_C1_AUTO_DEMOTE		(1UL << 26)
 #define ATM_LNC_C6_AUTO_DEMOTE		(1UL << 25)
-#define SNB_C1_AUTO_UNDEMOTE		(1UL << 27)
-#define SNB_C3_AUTO_UNDEMOTE		(1UL << 28)
+#define SNB_C3_AUTO_UNDEMOTE		(1UL << 27)
+#define SNB_C1_AUTO_UNDEMOTE		(1UL << 28)
 
 #define MSR_MTRRcap			0x000000fe
 

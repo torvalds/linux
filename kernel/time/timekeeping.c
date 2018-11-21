@@ -705,17 +705,18 @@ static void timekeeping_forward_now(struct timekeeper *tk)
 }
 
 /**
- * __getnstimeofday64 - Returns the time of day in a timespec64.
+ * ktime_get_real_ts64 - Returns the time of day in a timespec64.
  * @ts:		pointer to the timespec to be set
  *
- * Updates the time of day in the timespec.
- * Returns 0 on success, or -ve when suspended (timespec will be undefined).
+ * Returns the time of day in a timespec64 (WARN if suspended).
  */
-int __getnstimeofday64(struct timespec64 *ts)
+void ktime_get_real_ts64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long seq;
 	u64 nsecs;
+
+	WARN_ON(timekeeping_suspended);
 
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
@@ -727,28 +728,8 @@ int __getnstimeofday64(struct timespec64 *ts)
 
 	ts->tv_nsec = 0;
 	timespec64_add_ns(ts, nsecs);
-
-	/*
-	 * Do not bail out early, in case there were callers still using
-	 * the value, even in the face of the WARN_ON.
-	 */
-	if (unlikely(timekeeping_suspended))
-		return -EAGAIN;
-	return 0;
 }
-EXPORT_SYMBOL(__getnstimeofday64);
-
-/**
- * getnstimeofday64 - Returns the time of day in a timespec64.
- * @ts:		pointer to the timespec64 to be set
- *
- * Returns the time of day in a timespec64 (WARN if suspended).
- */
-void getnstimeofday64(struct timespec64 *ts)
-{
-	WARN_ON(__getnstimeofday64(ts));
-}
-EXPORT_SYMBOL(getnstimeofday64);
+EXPORT_SYMBOL(ktime_get_real_ts64);
 
 ktime_t ktime_get(void)
 {
@@ -813,6 +794,25 @@ ktime_t ktime_get_with_offset(enum tk_offsets offs)
 
 }
 EXPORT_SYMBOL_GPL(ktime_get_with_offset);
+
+ktime_t ktime_get_coarse_with_offset(enum tk_offsets offs)
+{
+	struct timekeeper *tk = &tk_core.timekeeper;
+	unsigned int seq;
+	ktime_t base, *offset = offsets[offs];
+
+	WARN_ON(timekeeping_suspended);
+
+	do {
+		seq = read_seqcount_begin(&tk_core.seq);
+		base = ktime_add(tk->tkr_mono.base, *offset);
+
+	} while (read_seqcount_retry(&tk_core.seq, seq));
+
+	return base;
+
+}
+EXPORT_SYMBOL_GPL(ktime_get_coarse_with_offset);
 
 /**
  * ktime_mono_to_any() - convert mononotic time to any other time
@@ -1410,12 +1410,12 @@ int timekeeping_notify(struct clocksource *clock)
 }
 
 /**
- * getrawmonotonic64 - Returns the raw monotonic time in a timespec
+ * ktime_get_raw_ts64 - Returns the raw monotonic time in a timespec
  * @ts:		pointer to the timespec64 to be set
  *
  * Returns the raw monotonic time (completely un-modified by ntp)
  */
-void getrawmonotonic64(struct timespec64 *ts)
+void ktime_get_raw_ts64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	unsigned long seq;
@@ -1431,7 +1431,7 @@ void getrawmonotonic64(struct timespec64 *ts)
 	ts->tv_nsec = 0;
 	timespec64_add_ns(ts, nsecs);
 }
-EXPORT_SYMBOL(getrawmonotonic64);
+EXPORT_SYMBOL(ktime_get_raw_ts64);
 
 
 /**
@@ -2133,23 +2133,20 @@ unsigned long get_seconds(void)
 }
 EXPORT_SYMBOL(get_seconds);
 
-struct timespec64 current_kernel_time64(void)
+void ktime_get_coarse_real_ts64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
-	struct timespec64 now;
 	unsigned long seq;
 
 	do {
 		seq = read_seqcount_begin(&tk_core.seq);
 
-		now = tk_xtime(tk);
+		*ts = tk_xtime(tk);
 	} while (read_seqcount_retry(&tk_core.seq, seq));
-
-	return now;
 }
-EXPORT_SYMBOL(current_kernel_time64);
+EXPORT_SYMBOL(ktime_get_coarse_real_ts64);
 
-struct timespec64 get_monotonic_coarse64(void)
+void ktime_get_coarse_ts64(struct timespec64 *ts)
 {
 	struct timekeeper *tk = &tk_core.timekeeper;
 	struct timespec64 now, mono;
@@ -2162,12 +2159,10 @@ struct timespec64 get_monotonic_coarse64(void)
 		mono = tk->wall_to_monotonic;
 	} while (read_seqcount_retry(&tk_core.seq, seq));
 
-	set_normalized_timespec64(&now, now.tv_sec + mono.tv_sec,
+	set_normalized_timespec64(ts, now.tv_sec + mono.tv_sec,
 				now.tv_nsec + mono.tv_nsec);
-
-	return now;
 }
-EXPORT_SYMBOL(get_monotonic_coarse64);
+EXPORT_SYMBOL(ktime_get_coarse_ts64);
 
 /*
  * Must hold jiffies_lock

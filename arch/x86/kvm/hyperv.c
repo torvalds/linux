@@ -1242,6 +1242,121 @@ int kvm_hv_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		return kvm_hv_get_msr(vcpu, msr, pdata);
 }
 
+static __always_inline int get_sparse_bank_no(u64 valid_bank_mask, int bank_no)
+{
+	int i = 0, j;
+
+	if (!(valid_bank_mask & BIT_ULL(bank_no)))
+		return -1;
+
+	for (j = 0; j < bank_no; j++)
+		if (valid_bank_mask & BIT_ULL(j))
+			i++;
+
+	return i;
+}
+
+static u64 kvm_hv_flush_tlb(struct kvm_vcpu *current_vcpu, u64 ingpa,
+			    u16 rep_cnt, bool ex)
+{
+	struct kvm *kvm = current_vcpu->kvm;
+	struct kvm_vcpu_hv *hv_current = &current_vcpu->arch.hyperv;
+	struct hv_tlb_flush_ex flush_ex;
+	struct hv_tlb_flush flush;
+	struct kvm_vcpu *vcpu;
+	unsigned long vcpu_bitmap[BITS_TO_LONGS(KVM_MAX_VCPUS)] = {0};
+	unsigned long valid_bank_mask = 0;
+	u64 sparse_banks[64];
+	int sparse_banks_len, i;
+	bool all_cpus;
+
+	if (!ex) {
+		if (unlikely(kvm_read_guest(kvm, ingpa, &flush, sizeof(flush))))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
+		trace_kvm_hv_flush_tlb(flush.processor_mask,
+				       flush.address_space, flush.flags);
+
+		sparse_banks[0] = flush.processor_mask;
+		all_cpus = flush.flags & HV_FLUSH_ALL_PROCESSORS;
+	} else {
+		if (unlikely(kvm_read_guest(kvm, ingpa, &flush_ex,
+					    sizeof(flush_ex))))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
+
+		trace_kvm_hv_flush_tlb_ex(flush_ex.hv_vp_set.valid_bank_mask,
+					  flush_ex.hv_vp_set.format,
+					  flush_ex.address_space,
+					  flush_ex.flags);
+
+		valid_bank_mask = flush_ex.hv_vp_set.valid_bank_mask;
+		all_cpus = flush_ex.hv_vp_set.format !=
+			HV_GENERIC_SET_SPARSE_4K;
+
+		sparse_banks_len = bitmap_weight(&valid_bank_mask, 64) *
+			sizeof(sparse_banks[0]);
+
+		if (!sparse_banks_len && !all_cpus)
+			goto ret_success;
+
+		if (!all_cpus &&
+		    kvm_read_guest(kvm,
+				   ingpa + offsetof(struct hv_tlb_flush_ex,
+						    hv_vp_set.bank_contents),
+				   sparse_banks,
+				   sparse_banks_len))
+			return HV_STATUS_INVALID_HYPERCALL_INPUT;
+	}
+
+	cpumask_clear(&hv_current->tlb_lush);
+
+	kvm_for_each_vcpu(i, vcpu, kvm) {
+		struct kvm_vcpu_hv *hv = &vcpu->arch.hyperv;
+		int bank = hv->vp_index / 64, sbank = 0;
+
+		if (!all_cpus) {
+			/* Banks >64 can't be represented */
+			if (bank >= 64)
+				continue;
+
+			/* Non-ex hypercalls can only address first 64 vCPUs */
+			if (!ex && bank)
+				continue;
+
+			if (ex) {
+				/*
+				 * Check is the bank of this vCPU is in sparse
+				 * set and get the sparse bank number.
+				 */
+				sbank = get_sparse_bank_no(valid_bank_mask,
+							   bank);
+
+				if (sbank < 0)
+					continue;
+			}
+
+			if (!(sparse_banks[sbank] & BIT_ULL(hv->vp_index % 64)))
+				continue;
+		}
+
+		/*
+		 * vcpu->arch.cr3 may not be up-to-date for running vCPUs so we
+		 * can't analyze it here, flush TLB regardless of the specified
+		 * address space.
+		 */
+		__set_bit(i, vcpu_bitmap);
+	}
+
+	kvm_make_vcpus_request_mask(kvm,
+				    KVM_REQ_TLB_FLUSH | KVM_REQUEST_NO_WAKEUP,
+				    vcpu_bitmap, &hv_current->tlb_lush);
+
+ret_success:
+	/* We always do full TLB flush, set rep_done = rep_cnt. */
+	return (u64)HV_STATUS_SUCCESS |
+		((u64)rep_cnt << HV_HYPERCALL_REP_COMP_OFFSET);
+}
+
 bool kvm_hv_hypercall_enabled(struct kvm *kvm)
 {
 	return READ_ONCE(kvm->arch.hyperv.hv_hypercall) & HV_X64_MSR_HYPERCALL_ENABLE;
@@ -1315,7 +1430,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 {
 	u64 param, ingpa, outgpa, ret = HV_STATUS_SUCCESS;
 	uint16_t code, rep_idx, rep_cnt;
-	bool fast, longmode;
+	bool fast, longmode, rep;
 
 	/*
 	 * hypercall generates UD from non zero cpl and real mode
@@ -1345,31 +1460,34 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 #endif
 
 	code = param & 0xffff;
-	fast = (param >> 16) & 0x1;
-	rep_cnt = (param >> 32) & 0xfff;
-	rep_idx = (param >> 48) & 0xfff;
+	fast = !!(param & HV_HYPERCALL_FAST_BIT);
+	rep_cnt = (param >> HV_HYPERCALL_REP_COMP_OFFSET) & 0xfff;
+	rep_idx = (param >> HV_HYPERCALL_REP_START_OFFSET) & 0xfff;
+	rep = !!(rep_cnt || rep_idx);
 
 	trace_kvm_hv_hypercall(code, fast, rep_cnt, rep_idx, ingpa, outgpa);
 
-	/* Hypercall continuation is not supported yet */
-	if (rep_cnt || rep_idx) {
-		ret = HV_STATUS_INVALID_HYPERCALL_CODE;
-		goto out;
-	}
-
 	switch (code) {
 	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
+		if (unlikely(rep)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
 		kvm_vcpu_on_spin(vcpu, true);
 		break;
 	case HVCALL_SIGNAL_EVENT:
+		if (unlikely(rep)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
 		ret = kvm_hvcall_signal_event(vcpu, fast, ingpa);
 		if (ret != HV_STATUS_INVALID_PORT_ID)
 			break;
 		/* maybe userspace knows this conn_id: fall through */
 	case HVCALL_POST_MESSAGE:
 		/* don't bother userspace if it has no way to handle it */
-		if (!vcpu_to_synic(vcpu)->active) {
-			ret = HV_STATUS_INVALID_HYPERCALL_CODE;
+		if (unlikely(rep || !vcpu_to_synic(vcpu)->active)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
 		}
 		vcpu->run->exit_reason = KVM_EXIT_HYPERV;
@@ -1380,12 +1498,39 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 		vcpu->arch.complete_userspace_io =
 				kvm_hv_hypercall_complete_userspace;
 		return 0;
+	case HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST:
+		if (unlikely(fast || !rep_cnt || rep_idx)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
+		ret = kvm_hv_flush_tlb(vcpu, ingpa, rep_cnt, false);
+		break;
+	case HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE:
+		if (unlikely(fast || rep)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
+		ret = kvm_hv_flush_tlb(vcpu, ingpa, rep_cnt, false);
+		break;
+	case HVCALL_FLUSH_VIRTUAL_ADDRESS_LIST_EX:
+		if (unlikely(fast || !rep_cnt || rep_idx)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
+		ret = kvm_hv_flush_tlb(vcpu, ingpa, rep_cnt, true);
+		break;
+	case HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX:
+		if (unlikely(fast || rep)) {
+			ret = HV_STATUS_INVALID_HYPERCALL_INPUT;
+			break;
+		}
+		ret = kvm_hv_flush_tlb(vcpu, ingpa, rep_cnt, true);
+		break;
 	default:
 		ret = HV_STATUS_INVALID_HYPERCALL_CODE;
 		break;
 	}
 
-out:
 	return kvm_hv_hypercall_complete(vcpu, ret);
 }
 

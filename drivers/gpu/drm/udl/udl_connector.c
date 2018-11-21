@@ -105,7 +105,7 @@ static int udl_get_modes(struct drm_connector *connector)
 	return 0;
 }
 
-static int udl_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status udl_mode_valid(struct drm_connector *connector,
 			  struct drm_display_mode *mode)
 {
 	struct udl_device *udl = connector->dev->dev_private;

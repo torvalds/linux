@@ -50,16 +50,6 @@ struct safexcel_ahash_req {
 	u8 cache_next[SHA256_BLOCK_SIZE] __aligned(sizeof(u32));
 };
 
-struct safexcel_ahash_export_state {
-	u64 len;
-	u64 processed;
-
-	u32 digest;
-
-	u32 state[SHA256_DIGEST_SIZE / sizeof(u32)];
-	u8 cache[SHA256_BLOCK_SIZE];
-};
-
 static void safexcel_hash_token(struct safexcel_command_desc *cdesc,
 				u32 input_length, u32 result_length)
 {
@@ -146,11 +136,8 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv, int rin
 		dev_err(priv->dev,
 			"hash: result: could not retrieve the result descriptor\n");
 		*ret = PTR_ERR(rdesc);
-	} else if (rdesc->result_data.error_code) {
-		dev_err(priv->dev,
-			"hash: result: result descriptor error (%d)\n",
-			rdesc->result_data.error_code);
-		*ret = -EINVAL;
+	} else {
+		*ret = safexcel_rdesc_check_errors(priv, rdesc);
 	}
 
 	safexcel_complete(priv, ring);
@@ -480,7 +467,7 @@ static int safexcel_ahash_exit_inv(struct crypto_tfm *tfm)
 {
 	struct safexcel_ahash_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	AHASH_REQUEST_ON_STACK(req, __crypto_ahash_cast(tfm));
+	EIP197_REQUEST_ON_STACK(req, ahash, EIP197_AHASH_REQ_SIZE);
 	struct safexcel_ahash_req *rctx = ahash_request_ctx(req);
 	struct safexcel_inv_result result = {};
 	int ring = ctx->base.ring;
@@ -912,8 +899,8 @@ static int safexcel_hmac_init_iv(struct ahash_request *areq,
 	return crypto_ahash_export(areq, state);
 }
 
-static int safexcel_hmac_setkey(const char *alg, const u8 *key,
-				unsigned int keylen, void *istate, void *ostate)
+int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
+			 void *istate, void *ostate)
 {
 	struct ahash_request *areq;
 	struct crypto_ahash *tfm;
@@ -935,7 +922,7 @@ static int safexcel_hmac_setkey(const char *alg, const u8 *key,
 	crypto_ahash_clear_flags(tfm, ~0);
 	blocksize = crypto_tfm_alg_blocksize(crypto_ahash_tfm(tfm));
 
-	ipad = kzalloc(2 * blocksize, GFP_KERNEL);
+	ipad = kcalloc(2, blocksize, GFP_KERNEL);
 	if (!ipad) {
 		ret = -ENOMEM;
 		goto free_request;

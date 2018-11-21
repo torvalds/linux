@@ -34,7 +34,7 @@ gp10b_mc_init(struct nvkm_mc *mc)
 static const struct nvkm_mc_func
 gp10b_mc = {
 	.init = gp10b_mc_init,
-	.intr = gk104_mc_intr,
+	.intr = gp100_mc_intr,
 	.intr_unarm = gp100_mc_intr_unarm,
 	.intr_rearm = gp100_mc_intr_rearm,
 	.intr_mask = gp100_mc_intr_mask,

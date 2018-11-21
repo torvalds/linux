@@ -93,7 +93,7 @@ void __init add_memory_region(phys_addr_t start, phys_addr_t size, long type)
 	 * If the region reaches the top of the physical address space, adjust
 	 * the size slightly so that (start + size) doesn't overflow
 	 */
-	if (start + size - 1 == (phys_addr_t)ULLONG_MAX)
+	if (start + size - 1 == PHYS_ADDR_MAX)
 		--size;
 
 	/* Sanity check */
@@ -376,7 +376,7 @@ static void __init bootmem_init(void)
 	unsigned long reserved_end;
 	unsigned long mapstart = ~0UL;
 	unsigned long bootmap_size;
-	phys_addr_t ramstart = (phys_addr_t)ULLONG_MAX;
+	phys_addr_t ramstart = PHYS_ADDR_MAX;
 	bool bootmap_valid = false;
 	int i;
 

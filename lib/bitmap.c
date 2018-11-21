@@ -64,11 +64,8 @@ EXPORT_SYMBOL(__bitmap_equal);
 
 void __bitmap_complement(unsigned long *dst, const unsigned long *src, unsigned int bits)
 {
-	unsigned int k, lim = bits/BITS_PER_LONG;
+	unsigned int k, lim = BITS_TO_LONGS(bits);
 	for (k = 0; k < lim; ++k)
-		dst[k] = ~src[k];
-
-	if (bits % BITS_PER_LONG)
 		dst[k] = ~src[k];
 }
 EXPORT_SYMBOL(__bitmap_complement);

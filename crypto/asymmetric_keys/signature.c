@@ -1,6 +1,6 @@
 /* Signature verification with an asymmetric key
  *
- * See Documentation/security/asymmetric-keys.txt
+ * See Documentation/crypto/asymmetric-keys.txt
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)

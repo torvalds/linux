@@ -2,6 +2,8 @@
 #ifndef _NET_NF_TABLES_CORE_H
 #define _NET_NF_TABLES_CORE_H
 
+#include <net/netfilter/nf_tables.h>
+
 extern struct nft_expr_type nft_imm_type;
 extern struct nft_expr_type nft_cmp_type;
 extern struct nft_expr_type nft_lookup_type;
@@ -10,6 +12,9 @@ extern struct nft_expr_type nft_byteorder_type;
 extern struct nft_expr_type nft_payload_type;
 extern struct nft_expr_type nft_dynset_type;
 extern struct nft_expr_type nft_range_type;
+extern struct nft_expr_type nft_meta_type;
+extern struct nft_expr_type nft_rt_type;
+extern struct nft_expr_type nft_exthdr_type;
 
 int nf_tables_core_module_init(void);
 void nf_tables_core_module_exit(void);
@@ -18,6 +23,12 @@ struct nft_cmp_fast_expr {
 	u32			data;
 	enum nft_registers	sreg:8;
 	u8			len;
+};
+
+struct nft_immediate_expr {
+	struct nft_data		data;
+	enum nft_registers	dreg:8;
+	u8			dlen;
 };
 
 /* Calculate the mask for the nft_cmp_fast expression. On big endian the
@@ -53,5 +64,11 @@ extern const struct nft_expr_ops nft_payload_fast_ops;
 
 extern struct static_key_false nft_counters_enabled;
 extern struct static_key_false nft_trace_enabled;
+
+extern struct nft_set_type nft_set_rhash_type;
+extern struct nft_set_type nft_set_hash_type;
+extern struct nft_set_type nft_set_hash_fast_type;
+extern struct nft_set_type nft_set_rbtree_type;
+extern struct nft_set_type nft_set_bitmap_type;
 
 #endif /* _NET_NF_TABLES_CORE_H */

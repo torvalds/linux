@@ -1385,8 +1385,8 @@ hfsc_schedule_watchdog(struct Qdisc *sch)
 		if (next_time == 0 || next_time > q->root.cl_cfmin)
 			next_time = q->root.cl_cfmin;
 	}
-	WARN_ON(next_time == 0);
-	qdisc_watchdog_schedule(&q->watchdog, next_time);
+	if (next_time)
+		qdisc_watchdog_schedule(&q->watchdog, next_time);
 }
 
 static int

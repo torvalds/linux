@@ -160,6 +160,7 @@ enum {
 	CFG_ALPHAM_GRA		= 0x1 << 16,
 	CFG_ALPHAM_CFG		= 0x2 << 16,
 	CFG_ALPHA_MASK		= 0xff << 8,
+#define CFG_ALPHA(x)		((x) << 8)
 	CFG_PIXCMD_MASK		= 0xff,
 };
 

@@ -298,8 +298,8 @@ static int acpi_fan_get_fps(struct acpi_device *device)
 	}
 
 	fan->fps_count = obj->package.count - 1; /* minus revision field */
-	fan->fps = devm_kzalloc(&device->dev,
-				fan->fps_count * sizeof(struct acpi_fan_fps),
+	fan->fps = devm_kcalloc(&device->dev,
+				fan->fps_count, sizeof(struct acpi_fan_fps),
 				GFP_KERNEL);
 	if (!fan->fps) {
 		dev_err(&device->dev, "Not enough memory\n");

@@ -100,7 +100,7 @@ static int mlx5e_test_link_speed(struct mlx5e_priv *priv)
 
 #ifdef CONFIG_INET
 /* loopback test */
-#define MLX5E_TEST_PKT_SIZE (MLX5_MPWRQ_SMALL_PACKET_THRESHOLD - NET_IP_ALIGN)
+#define MLX5E_TEST_PKT_SIZE (MLX5E_RX_MAX_HEAD - NET_IP_ALIGN)
 static const char mlx5e_test_text[ETH_GSTRING_LEN] = "MLX5E SELF TEST";
 #define MLX5E_TEST_MAGIC 0x5AEED15C001ULL
 

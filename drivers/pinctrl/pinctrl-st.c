@@ -823,8 +823,8 @@ static int st_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	}
 
 	map_num = grp->npins + 1;
-	new_map = devm_kzalloc(pctldev->dev,
-				sizeof(*new_map) * map_num, GFP_KERNEL);
+	new_map = devm_kcalloc(pctldev->dev,
+				map_num, sizeof(*new_map), GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -1191,9 +1191,9 @@ static int st_pctl_dt_parse_groups(struct device_node *np,
 
 	grp->npins = npins;
 	grp->name = np->name;
-	grp->pins = devm_kzalloc(info->dev, npins * sizeof(u32), GFP_KERNEL);
-	grp->pin_conf = devm_kzalloc(info->dev,
-					npins * sizeof(*conf), GFP_KERNEL);
+	grp->pins = devm_kcalloc(info->dev, npins, sizeof(u32), GFP_KERNEL);
+	grp->pin_conf = devm_kcalloc(info->dev,
+					npins, sizeof(*conf), GFP_KERNEL);
 
 	if (!grp->pins || !grp->pin_conf)
 		return -ENOMEM;
@@ -1249,8 +1249,8 @@ static int st_pctl_parse_functions(struct device_node *np,
 		dev_err(info->dev, "No groups defined\n");
 		return -EINVAL;
 	}
-	func->groups = devm_kzalloc(info->dev,
-			func->ngroups * sizeof(char *), GFP_KERNEL);
+	func->groups = devm_kcalloc(info->dev,
+			func->ngroups, sizeof(char *), GFP_KERNEL);
 	if (!func->groups)
 		return -ENOMEM;
 
@@ -1573,14 +1573,15 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	dev_info(&pdev->dev, "nfunctions = %d\n", info->nfunctions);
 	dev_info(&pdev->dev, "ngroups = %d\n", info->ngroups);
 
-	info->functions = devm_kzalloc(&pdev->dev,
-		info->nfunctions * sizeof(*info->functions), GFP_KERNEL);
+	info->functions = devm_kcalloc(&pdev->dev,
+		info->nfunctions, sizeof(*info->functions), GFP_KERNEL);
 
-	info->groups = devm_kzalloc(&pdev->dev,
-			info->ngroups * sizeof(*info->groups) ,	GFP_KERNEL);
+	info->groups = devm_kcalloc(&pdev->dev,
+			info->ngroups, sizeof(*info->groups),
+			GFP_KERNEL);
 
-	info->banks = devm_kzalloc(&pdev->dev,
-			info->nbanks * sizeof(*info->banks), GFP_KERNEL);
+	info->banks = devm_kcalloc(&pdev->dev,
+			info->nbanks, sizeof(*info->banks), GFP_KERNEL);
 
 	if (!info->functions || !info->groups || !info->banks)
 		return -ENOMEM;
@@ -1608,8 +1609,8 @@ static int st_pctl_probe_dt(struct platform_device *pdev,
 	}
 
 	pctl_desc->npins = info->nbanks * ST_GPIO_PINS_PER_BANK;
-	pdesc =	devm_kzalloc(&pdev->dev,
-			sizeof(*pdesc) * pctl_desc->npins, GFP_KERNEL);
+	pdesc =	devm_kcalloc(&pdev->dev,
+			pctl_desc->npins, sizeof(*pdesc), GFP_KERNEL);
 	if (!pdesc)
 		return -ENOMEM;
 

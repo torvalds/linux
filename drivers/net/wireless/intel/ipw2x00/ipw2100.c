@@ -3445,8 +3445,9 @@ static int ipw2100_msg_allocate(struct ipw2100_priv *priv)
 	dma_addr_t p;
 
 	priv->msg_buffers =
-	    kmalloc(IPW_COMMAND_POOL_SIZE * sizeof(struct ipw2100_tx_packet),
-		    GFP_KERNEL);
+	    kmalloc_array(IPW_COMMAND_POOL_SIZE,
+			  sizeof(struct ipw2100_tx_packet),
+			  GFP_KERNEL);
 	if (!priv->msg_buffers)
 		return -ENOMEM;
 
@@ -3732,7 +3733,7 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(ASSOCIATED_AP_PTR,
 				"0 if not associated, else pointer to AP table entry"),
 	    IPW2100_ORD(AVAILABLE_AP_CNT,
-				"AP's decsribed in the AP table"),
+				"AP's described in the AP table"),
 	    IPW2100_ORD(AP_LIST_PTR, "Ptr to list of available APs"),
 	    IPW2100_ORD(STAT_AP_ASSNS, "associations"),
 	    IPW2100_ORD(STAT_ASSN_FAIL, "association failures"),
@@ -4587,9 +4588,9 @@ static int ipw2100_rx_allocate(struct ipw2100_priv *priv)
 	/*
 	 * allocate packets
 	 */
-	priv->rx_buffers = kmalloc(RX_QUEUE_LENGTH *
-				   sizeof(struct ipw2100_rx_packet),
-				   GFP_KERNEL);
+	priv->rx_buffers = kmalloc_array(RX_QUEUE_LENGTH,
+					 sizeof(struct ipw2100_rx_packet),
+					 GFP_KERNEL);
 	if (!priv->rx_buffers) {
 		IPW_DEBUG_INFO("can't allocate rx packet buffer table\n");
 

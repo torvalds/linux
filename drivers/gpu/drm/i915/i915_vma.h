@@ -119,6 +119,8 @@ struct i915_vma {
 	/** This vma's place in the eviction list */
 	struct list_head evict_link;
 
+	struct list_head closed_link;
+
 	/**
 	 * Used for performing relocations during execbuffer insertion.
 	 */
@@ -285,6 +287,8 @@ void i915_vma_revoke_mmap(struct i915_vma *vma);
 int __must_check i915_vma_unbind(struct i915_vma *vma);
 void i915_vma_unlink_ctx(struct i915_vma *vma);
 void i915_vma_close(struct i915_vma *vma);
+void i915_vma_reopen(struct i915_vma *vma);
+void i915_vma_destroy(struct i915_vma *vma);
 
 int __i915_vma_do_pin(struct i915_vma *vma,
 		      u64 size, u64 alignment, u64 flags);
@@ -407,6 +411,8 @@ i915_vma_unpin_fence(struct i915_vma *vma)
 	if (vma->fence)
 		__i915_vma_unpin_fence(vma);
 }
+
+void i915_vma_parked(struct drm_i915_private *i915);
 
 #define for_each_until(cond) if (cond) break; else
 

@@ -517,7 +517,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
 
-	ls->ls_rsbtbl = vmalloc(sizeof(struct dlm_rsbtable) * size);
+	ls->ls_rsbtbl = vmalloc(array_size(size, sizeof(struct dlm_rsbtable)));
 	if (!ls->ls_rsbtbl)
 		goto out_lsfree;
 	for (i = 0; i < size; i++) {

@@ -21,7 +21,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #define TEST_BIT(t) (1U << (t))

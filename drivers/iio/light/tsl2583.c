@@ -600,7 +600,7 @@ done:
 
 static IIO_CONST_ATTR(in_illuminance_calibscale_available, "1 8 16 111");
 static IIO_CONST_ATTR(in_illuminance_integration_time_available,
-		      "0.000050 0.000100 0.000150 0.000200 0.000250 0.000300 0.000350 0.000400 0.000450 0.000500 0.000550 0.000600 0.000650");
+		      "0.050 0.100 0.150 0.200 0.250 0.300 0.350 0.400 0.450 0.500 0.550 0.600 0.650");
 static IIO_DEVICE_ATTR_RW(in_illuminance_input_target, 0);
 static IIO_DEVICE_ATTR_WO(in_illuminance_calibrate, 0);
 static IIO_DEVICE_ATTR_RW(in_illuminance_lux_table, 0);

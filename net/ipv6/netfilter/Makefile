@@ -18,14 +18,15 @@ nf_conntrack_ipv6-y  :=  nf_conntrack_l3proto_ipv6.o nf_conntrack_proto_icmpv6.o
 obj-$(CONFIG_NF_CONNTRACK_IPV6) += nf_conntrack_ipv6.o
 
 nf_nat_ipv6-y		:= nf_nat_l3proto_ipv6.o nf_nat_proto_icmpv6.o
+nf_nat_ipv6-$(CONFIG_NF_NAT_MASQUERADE_IPV6) += nf_nat_masquerade_ipv6.o
 obj-$(CONFIG_NF_NAT_IPV6) += nf_nat_ipv6.o
-obj-$(CONFIG_NF_NAT_MASQUERADE_IPV6) += nf_nat_masquerade_ipv6.o
 
 # defrag
 nf_defrag_ipv6-y := nf_defrag_ipv6_hooks.o nf_conntrack_reasm.o
 obj-$(CONFIG_NF_DEFRAG_IPV6) += nf_defrag_ipv6.o
 
 obj-$(CONFIG_NF_SOCKET_IPV6) += nf_socket_ipv6.o
+obj-$(CONFIG_NF_TPROXY_IPV6) += nf_tproxy_ipv6.o
 
 # logging
 obj-$(CONFIG_NF_LOG_IPV6) += nf_log_ipv6.o

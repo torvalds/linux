@@ -20,7 +20,7 @@
  */
 
 #include <linux/i2c.h>
-#include <linux/i2c-omap.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <mach/mux.h>
 #include "soc.h"
 

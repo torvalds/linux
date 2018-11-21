@@ -107,7 +107,7 @@ pmu_load(struct nv50_devinit *init, u8 type, bool post,
 	return pmu_exec(init, pmu.init_addr_pmu), 0;
 }
 
-static int
+int
 gm200_devinit_post(struct nvkm_devinit *base, bool post)
 {
 	struct nv50_devinit *init = nv50_devinit(base);

@@ -144,6 +144,7 @@ struct pcs_soc_data {
  * struct pcs_device - pinctrl device instance
  * @res:	resources
  * @base:	virtual address of the controller
+ * @saved_vals: saved values for the controller
  * @size:	size of the ioremapped area
  * @dev:	device entry
  * @np:		device tree node
@@ -172,11 +173,13 @@ struct pcs_soc_data {
 struct pcs_device {
 	struct resource *res;
 	void __iomem *base;
+	void *saved_vals;
 	unsigned size;
 	struct device *dev;
 	struct device_node *np;
 	struct pinctrl_dev *pctl;
 	unsigned flags;
+#define PCS_CONTEXT_LOSS_OFF	(1 << 3)
 #define PCS_QUIRK_SHARED_IRQ	(1 << 2)
 #define PCS_FEAT_IRQ		(1 << 1)
 #define PCS_FEAT_PINCONF	(1 << 0)
@@ -709,8 +712,8 @@ static int pcs_allocate_pin_table(struct pcs_device *pcs)
 	}
 
 	dev_dbg(pcs->dev, "allocating %i pins\n", nr_pins);
-	pcs->pins.pa = devm_kzalloc(pcs->dev,
-				sizeof(*pcs->pins.pa) * nr_pins,
+	pcs->pins.pa = devm_kcalloc(pcs->dev,
+				nr_pins, sizeof(*pcs->pins.pa),
 				GFP_KERNEL);
 	if (!pcs->pins.pa)
 		return -ENOMEM;
@@ -921,15 +924,15 @@ static int pcs_parse_pinconf(struct pcs_device *pcs, struct device_node *np,
 	if (!nconfs)
 		return 0;
 
-	func->conf = devm_kzalloc(pcs->dev,
-				  sizeof(struct pcs_conf_vals) * nconfs,
+	func->conf = devm_kcalloc(pcs->dev,
+				  nconfs, sizeof(struct pcs_conf_vals),
 				  GFP_KERNEL);
 	if (!func->conf)
 		return -ENOMEM;
 	func->nconfs = nconfs;
 	conf = &(func->conf[0]);
 	m++;
-	settings = devm_kzalloc(pcs->dev, sizeof(unsigned long) * nconfs,
+	settings = devm_kcalloc(pcs->dev, nconfs, sizeof(unsigned long),
 				GFP_KERNEL);
 	if (!settings)
 		return -ENOMEM;
@@ -985,11 +988,11 @@ static int pcs_parse_one_pinctrl_entry(struct pcs_device *pcs,
 		return -EINVAL;
 	}
 
-	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows, GFP_KERNEL);
+	vals = devm_kcalloc(pcs->dev, rows, sizeof(*vals), GFP_KERNEL);
 	if (!vals)
 		return -ENOMEM;
 
-	pins = devm_kzalloc(pcs->dev, sizeof(*pins) * rows, GFP_KERNEL);
+	pins = devm_kcalloc(pcs->dev, rows, sizeof(*pins), GFP_KERNEL);
 	if (!pins)
 		goto free_vals;
 
@@ -1086,13 +1089,15 @@ static int pcs_parse_bits_in_pinctrl_entry(struct pcs_device *pcs,
 
 	npins_in_row = pcs->width / pcs->bits_per_pin;
 
-	vals = devm_kzalloc(pcs->dev, sizeof(*vals) * rows * npins_in_row,
-			GFP_KERNEL);
+	vals = devm_kzalloc(pcs->dev,
+			    array3_size(rows, npins_in_row, sizeof(*vals)),
+			    GFP_KERNEL);
 	if (!vals)
 		return -ENOMEM;
 
-	pins = devm_kzalloc(pcs->dev, sizeof(*pins) * rows * npins_in_row,
-			GFP_KERNEL);
+	pins = devm_kzalloc(pcs->dev,
+			    array3_size(rows, npins_in_row, sizeof(*pins)),
+			    GFP_KERNEL);
 	if (!pins)
 		goto free_vals;
 
@@ -1214,7 +1219,7 @@ static int pcs_dt_node_to_map(struct pinctrl_dev *pctldev,
 	pcs = pinctrl_dev_get_drvdata(pctldev);
 
 	/* create 2 maps. One is for pinmux, and the other is for pinconf. */
-	*map = devm_kzalloc(pcs->dev, sizeof(**map) * 2, GFP_KERNEL);
+	*map = devm_kcalloc(pcs->dev, 2, sizeof(**map), GFP_KERNEL);
 	if (!*map)
 		return -ENOMEM;
 
@@ -1576,6 +1581,70 @@ static int pcs_irq_init_chained_handler(struct pcs_device *pcs,
 }
 
 #ifdef CONFIG_PM
+static int pcs_save_context(struct pcs_device *pcs)
+{
+	int i, mux_bytes;
+	u64 *regsl;
+	u32 *regsw;
+	u16 *regshw;
+
+	mux_bytes = pcs->width / BITS_PER_BYTE;
+
+	if (!pcs->saved_vals) {
+		pcs->saved_vals = devm_kzalloc(pcs->dev, pcs->size, GFP_ATOMIC);
+		if (!pcs->saved_vals)
+			return -ENOMEM;
+	}
+
+	switch (pcs->width) {
+	case 64:
+		regsl = (u64 *)pcs->saved_vals;
+		for (i = 0; i < pcs->size / mux_bytes; i++)
+			regsl[i] = pcs->read(pcs->base + i * mux_bytes);
+		break;
+	case 32:
+		regsw = (u32 *)pcs->saved_vals;
+		for (i = 0; i < pcs->size / mux_bytes; i++)
+			regsw[i] = pcs->read(pcs->base + i * mux_bytes);
+		break;
+	case 16:
+		regshw = (u16 *)pcs->saved_vals;
+		for (i = 0; i < pcs->size / mux_bytes; i++)
+			regshw[i] = pcs->read(pcs->base + i * mux_bytes);
+		break;
+	}
+
+	return 0;
+}
+
+static void pcs_restore_context(struct pcs_device *pcs)
+{
+	int i, mux_bytes;
+	u64 *regsl;
+	u32 *regsw;
+	u16 *regshw;
+
+	mux_bytes = pcs->width / BITS_PER_BYTE;
+
+	switch (pcs->width) {
+	case 64:
+		regsl = (u64 *)pcs->saved_vals;
+		for (i = 0; i < pcs->size / mux_bytes; i++)
+			pcs->write(regsl[i], pcs->base + i * mux_bytes);
+		break;
+	case 32:
+		regsw = (u32 *)pcs->saved_vals;
+		for (i = 0; i < pcs->size / mux_bytes; i++)
+			pcs->write(regsw[i], pcs->base + i * mux_bytes);
+		break;
+	case 16:
+		regshw = (u16 *)pcs->saved_vals;
+		for (i = 0; i < pcs->size / mux_bytes; i++)
+			pcs->write(regshw[i], pcs->base + i * mux_bytes);
+		break;
+	}
+}
+
 static int pinctrl_single_suspend(struct platform_device *pdev,
 					pm_message_t state)
 {
@@ -1584,6 +1653,14 @@ static int pinctrl_single_suspend(struct platform_device *pdev,
 	pcs = platform_get_drvdata(pdev);
 	if (!pcs)
 		return -EINVAL;
+
+	if (pcs->flags & PCS_CONTEXT_LOSS_OFF) {
+		int ret;
+
+		ret = pcs_save_context(pcs);
+		if (ret < 0)
+			return ret;
+	}
 
 	return pinctrl_force_sleep(pcs->pctl);
 }
@@ -1595,6 +1672,9 @@ static int pinctrl_single_resume(struct platform_device *pdev)
 	pcs = platform_get_drvdata(pdev);
 	if (!pcs)
 		return -EINVAL;
+
+	if (pcs->flags & PCS_CONTEXT_LOSS_OFF)
+		pcs_restore_context(pcs);
 
 	return pinctrl_force_default(pcs->pctl);
 }
@@ -1824,7 +1904,7 @@ static const struct pcs_soc_data pinctrl_single_dra7 = {
 };
 
 static const struct pcs_soc_data pinctrl_single_am437x = {
-	.flags = PCS_QUIRK_SHARED_IRQ,
+	.flags = PCS_QUIRK_SHARED_IRQ | PCS_CONTEXT_LOSS_OFF,
 	.irq_enable_mask = (1 << 29),   /* OMAP_WAKEUP_EN */
 	.irq_status_mask = (1 << 30),   /* OMAP_WAKEUP_EVENT */
 };

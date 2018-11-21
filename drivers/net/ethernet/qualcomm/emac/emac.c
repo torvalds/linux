@@ -253,7 +253,7 @@ static int emac_open(struct net_device *netdev)
 		return ret;
 	}
 
-	ret = adpt->phy.open(adpt);
+	ret = emac_sgmii_open(adpt);
 	if (ret) {
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
@@ -264,7 +264,7 @@ static int emac_open(struct net_device *netdev)
 	if (ret) {
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
-		adpt->phy.close(adpt);
+		emac_sgmii_close(adpt);
 		return ret;
 	}
 
@@ -278,7 +278,7 @@ static int emac_close(struct net_device *netdev)
 
 	mutex_lock(&adpt->reset_lock);
 
-	adpt->phy.close(adpt);
+	emac_sgmii_close(adpt);
 	emac_mac_down(adpt);
 	emac_mac_rx_tx_rings_free_all(adpt);
 
@@ -761,11 +761,10 @@ static void emac_shutdown(struct platform_device *pdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
 	struct emac_adapter *adpt = netdev_priv(netdev);
-	struct emac_sgmii *sgmii = &adpt->phy;
 
 	if (netdev->flags & IFF_UP) {
 		/* Closing the SGMII turns off its interrupts */
-		sgmii->close(adpt);
+		emac_sgmii_close(adpt);
 
 		/* Resetting the MAC turns off all DMA and its interrupts */
 		emac_mac_reset(adpt);

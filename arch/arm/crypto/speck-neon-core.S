@@ -272,9 +272,11 @@
 	 * Allocate stack space to store 128 bytes worth of tweaks.  For
 	 * performance, this space is aligned to a 16-byte boundary so that we
 	 * can use the load/store instructions that declare 16-byte alignment.
+	 * For Thumb2 compatibility, don't do the 'bic' directly on 'sp'.
 	 */
-	sub		sp, #128
-	bic		sp, #0xf
+	sub		r12, sp, #128
+	bic		r12, #0xf
+	mov		sp, r12
 
 .if \n == 64
 	// Load first tweak

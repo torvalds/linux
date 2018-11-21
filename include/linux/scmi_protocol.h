@@ -85,8 +85,8 @@ struct scmi_clk_ops {
  * @level_set: sets the performance level of a domain
  * @level_get: gets the performance level of a domain
  * @device_domain_id: gets the scmi domain id for a given device
- * @get_transition_latency: gets the DVFS transition latency for a given device
- * @add_opps_to_device: adds all the OPPs for a given device
+ * @transition_latency_get: gets the DVFS transition latency for a given device
+ * @device_opps_add: adds all the OPPs for a given device
  * @freq_set: sets the frequency for a given device using sustained frequency
  *	to sustained performance level mapping
  * @freq_get: gets the frequency for a given device using sustained frequency
@@ -102,10 +102,10 @@ struct scmi_perf_ops {
 	int (*level_get)(const struct scmi_handle *handle, u32 domain,
 			 u32 *level, bool poll);
 	int (*device_domain_id)(struct device *dev);
-	int (*get_transition_latency)(const struct scmi_handle *handle,
+	int (*transition_latency_get)(const struct scmi_handle *handle,
 				      struct device *dev);
-	int (*add_opps_to_device)(const struct scmi_handle *handle,
-				  struct device *dev);
+	int (*device_opps_add)(const struct scmi_handle *handle,
+			       struct device *dev);
 	int (*freq_set)(const struct scmi_handle *handle, u32 domain,
 			unsigned long rate, bool poll);
 	int (*freq_get)(const struct scmi_handle *handle, u32 domain,
@@ -189,6 +189,14 @@ struct scmi_sensor_ops {
  * @perf_ops: pointer to set of performance protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
+ * @perf_priv: pointer to private data structure specific to performance
+ *	protocol(for internal use only)
+ * @clk_priv: pointer to private data structure specific to clock
+ *	protocol(for internal use only)
+ * @power_priv: pointer to private data structure specific to power
+ *	protocol(for internal use only)
+ * @sensor_priv: pointer to private data structure specific to sensors
+ *	protocol(for internal use only)
  */
 struct scmi_handle {
 	struct device *dev;

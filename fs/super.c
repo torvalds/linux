@@ -947,7 +947,7 @@ void emergency_remount(void)
 static void do_thaw_all_callback(struct super_block *sb)
 {
 	down_write(&sb->s_umount);
-	if (sb->s_root && sb->s_flags & MS_BORN) {
+	if (sb->s_root && sb->s_flags & SB_BORN) {
 		emergency_thaw_bdev(sb);
 		thaw_super_locked(sb);
 	} else {

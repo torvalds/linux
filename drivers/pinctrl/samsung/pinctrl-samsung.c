@@ -279,6 +279,32 @@ static int samsung_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
+/* Forward declaration which can be used by samsung_pin_dbg_show */
+static int samsung_pinconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
+					unsigned long *config);
+static const char * const reg_names[] = {"CON", "DAT", "PUD", "DRV", "CON_PDN",
+					 "PUD_PDN"};
+
+static void samsung_pin_dbg_show(struct pinctrl_dev *pctldev,
+				struct seq_file *s, unsigned int pin)
+{
+	enum pincfg_type cfg_type;
+	unsigned long config;
+	int ret;
+
+	for (cfg_type = 0; cfg_type < PINCFG_TYPE_NUM; cfg_type++) {
+		config = PINCFG_PACK(cfg_type, 0);
+		ret = samsung_pinconf_get(pctldev, pin, &config);
+		if (ret < 0)
+			continue;
+
+		seq_printf(s, " %s(0x%lx)", reg_names[cfg_type],
+			   PINCFG_UNPACK_VALUE(config));
+	}
+}
+#endif
+
 /* list of pinctrl callbacks for the pinctrl core */
 static const struct pinctrl_ops samsung_pctrl_ops = {
 	.get_groups_count	= samsung_get_group_count,
@@ -286,6 +312,9 @@ static const struct pinctrl_ops samsung_pctrl_ops = {
 	.get_group_pins		= samsung_get_group_pins,
 	.dt_node_to_map		= samsung_dt_node_to_map,
 	.dt_free_map		= samsung_dt_free_map,
+#ifdef CONFIG_DEBUG_FS
+	.pin_dbg_show		= samsung_pin_dbg_show,
+#endif
 };
 
 /* check if the selector is a valid pin function selector */
@@ -645,7 +674,7 @@ static struct samsung_pin_group *samsung_pinctrl_create_groups(
 	const struct pinctrl_pin_desc *pdesc;
 	int i;
 
-	groups = devm_kzalloc(dev, ctrldesc->npins * sizeof(*groups),
+	groups = devm_kcalloc(dev, ctrldesc->npins, sizeof(*groups),
 				GFP_KERNEL);
 	if (!groups)
 		return ERR_PTR(-EINVAL);
@@ -682,7 +711,7 @@ static int samsung_pinctrl_create_function(struct device *dev,
 
 	func->name = func_np->full_name;
 
-	func->groups = devm_kzalloc(dev, npins * sizeof(char *), GFP_KERNEL);
+	func->groups = devm_kcalloc(dev, npins, sizeof(char *), GFP_KERNEL);
 	if (!func->groups)
 		return -ENOMEM;
 
@@ -739,7 +768,7 @@ static struct samsung_pmx_func *samsung_pinctrl_create_functions(
 		}
 	}
 
-	functions = devm_kzalloc(dev, func_cnt * sizeof(*functions),
+	functions = devm_kcalloc(dev, func_cnt, sizeof(*functions),
 					GFP_KERNEL);
 	if (!functions)
 		return ERR_PTR(-ENOMEM);
@@ -831,8 +860,9 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	ctrldesc->pmxops = &samsung_pinmux_ops;
 	ctrldesc->confops = &samsung_pinconf_ops;
 
-	pindesc = devm_kzalloc(&pdev->dev, sizeof(*pindesc) *
-			drvdata->nr_pins, GFP_KERNEL);
+	pindesc = devm_kcalloc(&pdev->dev,
+			       drvdata->nr_pins, sizeof(*pindesc),
+			       GFP_KERNEL);
 	if (!pindesc)
 		return -ENOMEM;
 	ctrldesc->pins = pindesc;
@@ -846,8 +876,10 @@ static int samsung_pinctrl_register(struct platform_device *pdev,
 	 * allocate space for storing the dynamically generated names for all
 	 * the pins which belong to this pin-controller.
 	 */
-	pin_names = devm_kzalloc(&pdev->dev, sizeof(char) * PIN_NAME_LENGTH *
-					drvdata->nr_pins, GFP_KERNEL);
+	pin_names = devm_kzalloc(&pdev->dev,
+				 array3_size(sizeof(char), PIN_NAME_LENGTH,
+					     drvdata->nr_pins),
+				 GFP_KERNEL);
 	if (!pin_names)
 		return -ENOMEM;
 

@@ -132,10 +132,6 @@
 			reg = <0x100440A0 0x20>;
 			#power-domain-cells = <0>;
 			label = "DISP1";
-			clocks = <&clock CLK_FIN_PLL>,
-				 <&clock CLK_MOUT_ACLK200_DISP1_SUB>,
-				 <&clock CLK_MOUT_ACLK300_DISP1_SUB>;
-			clock-names = "oscclk", "clk0", "clk1";
 		};
 
 		pd_mau: power-domain@100440c0 {
@@ -882,7 +878,7 @@
 			#iommu-cells = <0>;
 		};
 
-		sysmmu_fimc_dis1: sysmmu@132E0000{
+		sysmmu_fimc_dis1: sysmmu@132e0000 {
 			compatible = "samsung,exynos-sysmmu";
 			reg = <0x132E0000 0x1000>;
 			interrupt-parent = <&combiner>;
@@ -1117,3 +1113,4 @@
 };
 
 #include "exynos5250-pinctrl.dtsi"
+#include "exynos-syscon-restart.dtsi"

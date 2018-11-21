@@ -7,6 +7,7 @@
  * 2 of the License, or (at your option) any later version.
 **/
 
+#include <linux/compat_time.h>
 #include <linux/oprofile.h>
 #include <linux/sched.h>
 #include <asm/processor.h>

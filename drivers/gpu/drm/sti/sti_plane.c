@@ -40,6 +40,7 @@ void sti_plane_update_fps(struct sti_plane *plane,
 			  bool new_frame,
 			  bool new_field)
 {
+	struct drm_plane_state *state = plane->drm_plane.state;
 	ktime_t now;
 	struct sti_fps_info *fps;
 	int fpks, fipks, ms_since_last, num_frames, num_fields;
@@ -66,14 +67,14 @@ void sti_plane_update_fps(struct sti_plane *plane,
 	fps->last_timestamp = now;
 	fps->last_frame_counter = fps->curr_frame_counter;
 
-	if (plane->drm_plane.fb) {
+	if (state->fb) {
 		fpks = (num_frames * 1000000) / ms_since_last;
 		snprintf(plane->fps_info.fps_str, FPS_LENGTH,
 			 "%-8s %4dx%-4d %.4s @ %3d.%-3.3d fps (%s)",
 			 plane->drm_plane.name,
-			 plane->drm_plane.fb->width,
-			 plane->drm_plane.fb->height,
-			 (char *)&plane->drm_plane.fb->format->format,
+			 state->fb->width,
+			 state->fb->height,
+			 (char *)&state->fb->format->format,
 			 fpks / 1000, fpks % 1000,
 			 sti_plane_to_str(plane));
 	}

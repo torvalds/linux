@@ -97,10 +97,7 @@ struct rsvp_filter {
 
 	u32				handle;
 	struct rsvp_session		*sess;
-	union {
-		struct work_struct		work;
-		struct rcu_head			rcu;
-	};
+	struct rcu_work			rwork;
 };
 
 static inline unsigned int hash_dst(__be32 *dst, u8 protocol, u8 tunnelid)
@@ -294,19 +291,12 @@ static void __rsvp_delete_filter(struct rsvp_filter *f)
 
 static void rsvp_delete_filter_work(struct work_struct *work)
 {
-	struct rsvp_filter *f = container_of(work, struct rsvp_filter, work);
-
+	struct rsvp_filter *f = container_of(to_rcu_work(work),
+					     struct rsvp_filter,
+					     rwork);
 	rtnl_lock();
 	__rsvp_delete_filter(f);
 	rtnl_unlock();
-}
-
-static void rsvp_delete_filter_rcu(struct rcu_head *head)
-{
-	struct rsvp_filter *f = container_of(head, struct rsvp_filter, rcu);
-
-	INIT_WORK(&f->work, rsvp_delete_filter_work);
-	tcf_queue_work(&f->work);
 }
 
 static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
@@ -317,7 +307,7 @@ static void rsvp_delete_filter(struct tcf_proto *tp, struct rsvp_filter *f)
 	 * in cleanup() callback
 	 */
 	if (tcf_exts_get_net(&f->exts))
-		call_rcu(&f->rcu, rsvp_delete_filter_rcu);
+		tcf_queue_work(&f->rwork, rsvp_delete_filter_work);
 	else
 		__rsvp_delete_filter(f);
 }

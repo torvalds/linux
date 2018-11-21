@@ -189,4 +189,10 @@ static inline int complain_error(int error)
 	return error;
 }
 
+void aa_audit_rule_free(void *vrule);
+int aa_audit_rule_init(u32 field, u32 op, char *rulestr, void **vrule);
+int aa_audit_rule_known(struct audit_krule *rule);
+int aa_audit_rule_match(u32 sid, u32 field, u32 op, void *vrule,
+			struct audit_context *actx);
+
 #endif /* __AA_AUDIT_H */

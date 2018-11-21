@@ -114,7 +114,7 @@ gen_build_id(struct buildid_note *note,
 
 	fd = open("/dev/urandom", O_RDONLY);
 	if (fd == -1)
-		err(1, "cannot access /dev/urandom for builid");
+		err(1, "cannot access /dev/urandom for buildid");
 
 	sret = read(fd, note->build_id, sz);
 

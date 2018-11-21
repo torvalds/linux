@@ -100,6 +100,8 @@ nfp_rtsym_lookup(struct nfp_rtsym_table *rtbl, const char *name);
 
 u64 nfp_rtsym_read_le(struct nfp_rtsym_table *rtbl, const char *name,
 		      int *error);
+int nfp_rtsym_write_le(struct nfp_rtsym_table *rtbl, const char *name,
+		       u64 value);
 u8 __iomem *
 nfp_rtsym_map(struct nfp_rtsym_table *rtbl, const char *name, const char *id,
 	      unsigned int min_size, struct nfp_cpp_area **area);

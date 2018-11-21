@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Freescale MXS I2C bus driver
  *
@@ -7,12 +8,6 @@
  * based on a (non-working) driver which was:
  *
  * Copyright (C) 2009-2010 Freescale Semiconductor, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/slab.h>
@@ -180,9 +175,10 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 	struct dma_async_tx_descriptor *desc;
 	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
 
+	i2c->addr_data = i2c_8bit_addr_from_msg(msg);
+
 	if (msg->flags & I2C_M_RD) {
 		i2c->dma_read = true;
-		i2c->addr_data = (msg->addr << 1) | I2C_SMBUS_READ;
 
 		/*
 		 * SELECT command.
@@ -240,7 +236,6 @@ static int mxs_i2c_dma_setup_xfer(struct i2c_adapter *adap,
 		}
 	} else {
 		i2c->dma_read = false;
-		i2c->addr_data = (msg->addr << 1) | I2C_SMBUS_WRITE;
 
 		/*
 		 * WRITE command.
@@ -371,7 +366,7 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msg, uint32_t flags)
 {
 	struct mxs_i2c_dev *i2c = i2c_get_adapdata(adap);
-	uint32_t addr_data = msg->addr << 1;
+	uint32_t addr_data = i2c_8bit_addr_from_msg(msg);
 	uint32_t data = 0;
 	int i, ret, xlen = 0, xmit = 0;
 	uint32_t start;
@@ -411,8 +406,6 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		 */
 		BUG_ON(msg->len > 4);
 
-		addr_data |= I2C_SMBUS_READ;
-
 		/* SELECT command. */
 		mxs_i2c_pio_trigger_write_cmd(i2c, MXS_CMD_I2C_SELECT,
 					      addr_data);
@@ -450,7 +443,6 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		 * fast enough. It is possible to transfer arbitrary amount
 		 * of data using PIO write.
 		 */
-		addr_data |= I2C_SMBUS_WRITE;
 
 		/*
 		 * The LSB of data buffer is the first byte blasted across

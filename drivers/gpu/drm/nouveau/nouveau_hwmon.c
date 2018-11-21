@@ -327,7 +327,7 @@ nouveau_temp_is_visible(const void *data, u32 attr, int channel)
 	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
-	if (therm && therm->attr_get && nvkm_therm_temp_get(therm) < 0)
+	if (!therm || !therm->attr_get || nvkm_therm_temp_get(therm) < 0)
 		return 0;
 
 	switch (attr) {
@@ -351,8 +351,8 @@ nouveau_pwm_is_visible(const void *data, u32 attr, int channel)
 	struct nouveau_drm *drm = nouveau_drm((struct drm_device *)data);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
 
-	if (therm && therm->attr_get && therm->fan_get &&
-				therm->fan_get(therm) < 0)
+	if (!therm || !therm->attr_get || !therm->fan_get ||
+	    therm->fan_get(therm) < 0)
 		return 0;
 
 	switch (attr) {
@@ -707,12 +707,19 @@ nouveau_hwmon_init(struct drm_device *dev)
 {
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct nvkm_iccsense *iccsense = nvxx_iccsense(&drm->client.device);
 	struct nvkm_therm *therm = nvxx_therm(&drm->client.device);
+	struct nvkm_volt *volt = nvxx_volt(&drm->client.device);
 	const struct attribute_group *special_groups[N_ATTR_GROUPS];
 	struct nouveau_hwmon *hwmon;
 	struct device *hwmon_dev;
 	int ret = 0;
 	int i = 0;
+
+	if (!iccsense && !therm && !volt) {
+		NV_DEBUG(drm, "Skipping hwmon registration\n");
+		return 0;
+	}
 
 	hwmon = drm->hwmon = kzalloc(sizeof(*hwmon), GFP_KERNEL);
 	if (!hwmon)
@@ -748,6 +755,9 @@ nouveau_hwmon_fini(struct drm_device *dev)
 {
 #if defined(CONFIG_HWMON) || (defined(MODULE) && defined(CONFIG_HWMON_MODULE))
 	struct nouveau_hwmon *hwmon = nouveau_hwmon(dev);
+
+	if (!hwmon)
+		return;
 
 	if (hwmon->hwmon)
 		hwmon_device_unregister(hwmon->hwmon);

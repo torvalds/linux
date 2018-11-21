@@ -389,7 +389,7 @@ Version 0.4 (2001-10-28)
 	(fs/nls/Config.in)
 
 * Added Configure.help entries for CONFIG_BEFS_FS and CONFIG_DEBUG_BEFS
-	(Documentation/Configure.help)
+	(currently at fs/befs/Kconfig)
 
 2001-08-??
 ==========

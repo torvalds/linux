@@ -298,7 +298,7 @@ static int virtblk_get_id(struct gendisk *disk, char *id_str)
 	struct request *req;
 	int err;
 
-	req = blk_get_request(q, REQ_OP_DRV_IN, GFP_KERNEL);
+	req = blk_get_request(q, REQ_OP_DRV_IN, 0);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -371,7 +371,7 @@ static ssize_t virtblk_serial_show(struct device *dev,
 	return err;
 }
 
-static DEVICE_ATTR(serial, S_IRUGO, virtblk_serial_show, NULL);
+static DEVICE_ATTR(serial, 0444, virtblk_serial_show, NULL);
 
 /* The queue's logical block size must be set before calling this */
 static void virtblk_update_capacity(struct virtio_blk *vblk, bool resize)
@@ -576,10 +576,10 @@ virtblk_cache_type_show(struct device *dev, struct device_attribute *attr,
 }
 
 static const struct device_attribute dev_attr_cache_type_ro =
-	__ATTR(cache_type, S_IRUGO,
+	__ATTR(cache_type, 0444,
 	       virtblk_cache_type_show, NULL);
 static const struct device_attribute dev_attr_cache_type_rw =
-	__ATTR(cache_type, S_IRUGO|S_IWUSR,
+	__ATTR(cache_type, 0644,
 	       virtblk_cache_type_show, virtblk_cache_type_store);
 
 static int virtblk_init_request(struct blk_mq_tag_set *set, struct request *rq,

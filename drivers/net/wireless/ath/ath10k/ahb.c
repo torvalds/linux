@@ -180,14 +180,11 @@ static void ath10k_ahb_clock_disable(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 
-	if (!IS_ERR_OR_NULL(ar_ahb->cmd_clk))
-		clk_disable_unprepare(ar_ahb->cmd_clk);
+	clk_disable_unprepare(ar_ahb->cmd_clk);
 
-	if (!IS_ERR_OR_NULL(ar_ahb->ref_clk))
-		clk_disable_unprepare(ar_ahb->ref_clk);
+	clk_disable_unprepare(ar_ahb->ref_clk);
 
-	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
-		clk_disable_unprepare(ar_ahb->rtc_clk);
+	clk_disable_unprepare(ar_ahb->rtc_clk);
 }
 
 static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)

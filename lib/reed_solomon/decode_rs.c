@@ -1,22 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * lib/reed_solomon/decode_rs.c
- *
- * Overview:
- *   Generic Reed Solomon encoder / decoder library
+ * Generic Reed Solomon encoder / decoder library
  *
  * Copyright 2002, Phil Karn, KA9Q
  * May be used under the terms of the GNU General Public License (GPL)
  *
  * Adaption to the kernel by Thomas Gleixner (tglx@linutronix.de)
  *
- * $Id: decode_rs.c,v 1.7 2005/11/07 11:14:59 gleixner Exp $
- *
- */
-
-/* Generic data width independent code which is included by the
- * wrappers.
+ * Generic data width independent code which is included by the wrappers.
  */
 {
+	struct rs_codec *rs = rsc->codec;
 	int deg_lambda, el, deg_omega;
 	int i, j, r, k, pad;
 	int nn = rs->nn;
@@ -27,15 +21,21 @@
 	uint16_t *alpha_to = rs->alpha_to;
 	uint16_t *index_of = rs->index_of;
 	uint16_t u, q, tmp, num1, num2, den, discr_r, syn_error;
-	/* Err+Eras Locator poly and syndrome poly The maximum value
-	 * of nroots is 8. So the necessary stack size will be about
-	 * 220 bytes max.
-	 */
-	uint16_t lambda[nroots + 1], syn[nroots];
-	uint16_t b[nroots + 1], t[nroots + 1], omega[nroots + 1];
-	uint16_t root[nroots], reg[nroots + 1], loc[nroots];
 	int count = 0;
 	uint16_t msk = (uint16_t) rs->nn;
+
+	/*
+	 * The decoder buffers are in the rs control struct. They are
+	 * arrays sized [nroots + 1]
+	 */
+	uint16_t *lambda = rsc->buffers + RS_DECODE_LAMBDA * (nroots + 1);
+	uint16_t *syn = rsc->buffers + RS_DECODE_SYN * (nroots + 1);
+	uint16_t *b = rsc->buffers + RS_DECODE_B * (nroots + 1);
+	uint16_t *t = rsc->buffers + RS_DECODE_T * (nroots + 1);
+	uint16_t *omega = rsc->buffers + RS_DECODE_OMEGA * (nroots + 1);
+	uint16_t *root = rsc->buffers + RS_DECODE_ROOT * (nroots + 1);
+	uint16_t *reg = rsc->buffers + RS_DECODE_REG * (nroots + 1);
+	uint16_t *loc = rsc->buffers + RS_DECODE_LOC * (nroots + 1);
 
 	/* Check length parameter for validity */
 	pad = nn - nroots - len;

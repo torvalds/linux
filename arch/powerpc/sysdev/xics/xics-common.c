@@ -446,10 +446,11 @@ static void __init xics_get_server_size(void)
 	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xics");
 	if (!np)
 		return;
+
 	isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
-	if (!isize)
-		return;
-	xics_interrupt_server_size = be32_to_cpu(*isize);
+	if (isize)
+		xics_interrupt_server_size = be32_to_cpu(*isize);
+
 	of_node_put(np);
 }
 

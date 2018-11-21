@@ -40,7 +40,7 @@
 
 static int ci_tsfix = 1;
 module_param(ci_tsfix, int, 0444);
-MODULE_PARM_DESC(ci_tsfix, "Detect and fix TS buffer offset shifs in conjunction with CI expansions (default: 1/enabled)");
+MODULE_PARM_DESC(ci_tsfix, "Detect and fix TS buffer offset shifts in conjunction with CI expansions (default: 1/enabled)");
 
 /****************************************************************************/
 /* COMMAND API interface ****************************************************/

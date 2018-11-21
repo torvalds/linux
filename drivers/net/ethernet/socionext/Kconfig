@@ -14,6 +14,8 @@ if NET_VENDOR_SOCIONEXT
 config SNI_AVE
 	tristate "Socionext AVE ethernet support"
 	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	depends on HAS_IOMEM
+	select MFD_SYSCON
 	select PHYLIB
 	---help---
 	  Driver for gigabit ethernet MACs, called AVE, in the

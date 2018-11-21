@@ -254,6 +254,11 @@ enum {
 #define RTPROT_DHCP	16      /* DHCP client */
 #define RTPROT_MROUTED	17      /* Multicast daemon */
 #define RTPROT_BABEL	42      /* Babel daemon */
+#define RTPROT_BGP	186     /* BGP Routes */
+#define RTPROT_ISIS	187     /* ISIS Routes */
+#define RTPROT_OSPF	188     /* OSPF Routes */
+#define RTPROT_RIP	189     /* RIP Routes */
+#define RTPROT_EIGRP	192     /* EIGRP Routes */
 
 /* rtm_scope
 
@@ -327,6 +332,9 @@ enum rtattr_type_t {
 	RTA_PAD,
 	RTA_UID,
 	RTA_TTL_PROPAGATE,
+	RTA_IP_PROTO,
+	RTA_SPORT,
+	RTA_DPORT,
 	__RTA_MAX
 };
 

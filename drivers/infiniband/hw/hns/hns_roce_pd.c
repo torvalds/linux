@@ -107,13 +107,15 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 	int ret = 0;
 
 	/* Using bitmap to manager UAR index */
-	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->index);
+	ret = hns_roce_bitmap_alloc(&hr_dev->uar_table.bitmap, &uar->logic_idx);
 	if (ret == -1)
 		return -ENOMEM;
 
-	if (uar->index > 0)
-		uar->index = (uar->index - 1) %
+	if (uar->logic_idx > 0 && hr_dev->caps.phy_num_uars > 1)
+		uar->index = (uar->logic_idx - 1) %
 			     (hr_dev->caps.phy_num_uars - 1) + 1;
+	else
+		uar->index = 0;
 
 	if (!dev_is_pci(hr_dev->dev)) {
 		res = platform_get_resource(hr_dev->pdev, IORESOURCE_MEM, 0);
@@ -132,7 +134,7 @@ int hns_roce_uar_alloc(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 
 void hns_roce_uar_free(struct hns_roce_dev *hr_dev, struct hns_roce_uar *uar)
 {
-	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->index,
+	hns_roce_bitmap_free(&hr_dev->uar_table.bitmap, uar->logic_idx,
 			     BITMAP_NO_RR);
 }
 

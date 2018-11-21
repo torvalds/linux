@@ -95,14 +95,6 @@ struct dma_buf_attachment;
 struct pci_dev;
 struct pci_controller;
 
-/***********************************************************************/
-/** \name DRM template customization defaults */
-/*@{*/
-
-/***********************************************************************/
-/** \name Internal types and structures */
-/*@{*/
-
 #define DRM_IF_VERSION(maj, min) (maj << 16 | min)
 
 /**
@@ -123,27 +115,13 @@ static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
 #define DRM_SWITCH_POWER_CHANGING 2
 #define DRM_SWITCH_POWER_DYNAMIC_OFF 3
 
-static __inline__ int drm_core_check_feature(struct drm_device *dev,
-					     int feature)
+static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
 {
-	return ((dev->driver->driver_features & feature) ? 1 : 0);
+	return dev->driver->driver_features & feature;
 }
 
-/******************************************************************/
-/** \name Internal function definitions */
-/*@{*/
-
-				/* Driver support (drm_drv.h) */
-
-/*
- * These are exported to drivers so that they can implement fencing using
- * DMA quiscent + idle. DMA quiescent usually requires the hardware lock.
- */
-
-/*@}*/
-
 /* returns true if currently okay to sleep */
-static __inline__ bool drm_can_sleep(void)
+static inline bool drm_can_sleep(void)
 {
 	if (in_atomic() || in_dbg_master() || irqs_disabled())
 		return false;

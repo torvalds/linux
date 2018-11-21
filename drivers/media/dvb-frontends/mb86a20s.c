@@ -2055,7 +2055,7 @@ static void mb86a20s_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
-static int mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo mb86a20s_get_frontend_algo(struct dvb_frontend *fe)
 {
 	return DVBFE_ALGO_HW;
 }

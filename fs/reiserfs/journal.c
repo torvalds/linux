@@ -350,7 +350,8 @@ static struct reiserfs_journal_cnode *allocate_cnodes(int num_cnodes)
 	if (num_cnodes <= 0) {
 		return NULL;
 	}
-	head = vzalloc(num_cnodes * sizeof(struct reiserfs_journal_cnode));
+	head = vzalloc(array_size(num_cnodes,
+				  sizeof(struct reiserfs_journal_cnode)));
 	if (!head) {
 		return NULL;
 	}
@@ -2192,10 +2193,12 @@ static int journal_read_transaction(struct super_block *sb,
 	 * now we know we've got a good transaction, and it was
 	 * inside the valid time ranges
 	 */
-	log_blocks = kmalloc(get_desc_trans_len(desc) *
-			     sizeof(struct buffer_head *), GFP_NOFS);
-	real_blocks = kmalloc(get_desc_trans_len(desc) *
-			      sizeof(struct buffer_head *), GFP_NOFS);
+	log_blocks = kmalloc_array(get_desc_trans_len(desc),
+				   sizeof(struct buffer_head *),
+				   GFP_NOFS);
+	real_blocks = kmalloc_array(get_desc_trans_len(desc),
+				    sizeof(struct buffer_head *),
+				    GFP_NOFS);
 	if (!log_blocks || !real_blocks) {
 		brelse(c_bh);
 		brelse(d_bh);

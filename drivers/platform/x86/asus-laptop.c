@@ -1593,8 +1593,7 @@ static umode_t asus_sysfs_is_visible(struct kobject *kobj,
 				    int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
-	struct platform_device *pdev = to_platform_device(dev);
-	struct asus_laptop *asus = platform_get_drvdata(pdev);
+	struct asus_laptop *asus = dev_get_drvdata(dev);
 	acpi_handle handle = asus->handle;
 	bool supported;
 

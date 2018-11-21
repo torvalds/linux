@@ -129,8 +129,8 @@
 					wakeup-source;
 				};
 
-				atmel_mxt_ts@4c {
-					compatible = "atmel,atmel_mxt_ts";
+				touchscreen@4c {
+					compatible = "atmel,maxtouch";
 					reg = <0x4c>;
 					interrupt-parent = <&pioE>;
 					interrupts = <24 0x0>;

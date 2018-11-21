@@ -1097,8 +1097,9 @@ static struct dp83640_clock *dp83640_clock_get_bus(struct mii_bus *bus)
 	if (!clock)
 		goto out;
 
-	clock->caps.pin_config = kzalloc(sizeof(struct ptp_pin_desc) *
-					 DP83640_N_PINS, GFP_KERNEL);
+	clock->caps.pin_config = kcalloc(DP83640_N_PINS,
+					 sizeof(struct ptp_pin_desc),
+					 GFP_KERNEL);
 	if (!clock->caps.pin_config) {
 		kfree(clock);
 		clock = NULL;

@@ -38,17 +38,27 @@ static void smc_diag_msg_common_fill(struct smc_diag_msg *r, struct sock *sk)
 {
 	struct smc_sock *smc = smc_sk(sk);
 
-	r->diag_family = sk->sk_family;
 	if (!smc->clcsock)
 		return;
 	r->id.idiag_sport = htons(smc->clcsock->sk->sk_num);
 	r->id.idiag_dport = smc->clcsock->sk->sk_dport;
 	r->id.idiag_if = smc->clcsock->sk->sk_bound_dev_if;
 	sock_diag_save_cookie(sk, r->id.idiag_cookie);
-	memset(&r->id.idiag_src, 0, sizeof(r->id.idiag_src));
-	memset(&r->id.idiag_dst, 0, sizeof(r->id.idiag_dst));
-	r->id.idiag_src[0] = smc->clcsock->sk->sk_rcv_saddr;
-	r->id.idiag_dst[0] = smc->clcsock->sk->sk_daddr;
+	if (sk->sk_protocol == SMCPROTO_SMC) {
+		r->diag_family = PF_INET;
+		memset(&r->id.idiag_src, 0, sizeof(r->id.idiag_src));
+		memset(&r->id.idiag_dst, 0, sizeof(r->id.idiag_dst));
+		r->id.idiag_src[0] = smc->clcsock->sk->sk_rcv_saddr;
+		r->id.idiag_dst[0] = smc->clcsock->sk->sk_daddr;
+#if IS_ENABLED(CONFIG_IPV6)
+	} else if (sk->sk_protocol == SMCPROTO_SMC6) {
+		r->diag_family = PF_INET6;
+		memcpy(&r->id.idiag_src, &smc->clcsock->sk->sk_v6_rcv_saddr,
+		       sizeof(smc->clcsock->sk->sk_v6_rcv_saddr));
+		memcpy(&r->id.idiag_dst, &smc->clcsock->sk->sk_v6_daddr,
+		       sizeof(smc->clcsock->sk->sk_v6_daddr));
+#endif
+	}
 }
 
 static int smc_diag_msg_attrs_fill(struct sock *sk, struct sk_buff *skb,
@@ -91,8 +101,9 @@ static int __smc_diag_dump(struct sock *sk, struct sk_buff *skb,
 		struct smc_connection *conn = &smc->conn;
 		struct smc_diag_conninfo cinfo = {
 			.token = conn->alert_token_local,
-			.sndbuf_size = conn->sndbuf_size,
-			.rmbe_size = conn->rmbe_size,
+			.sndbuf_size = conn->sndbuf_desc ?
+				conn->sndbuf_desc->len : 0,
+			.rmbe_size = conn->rmb_desc ? conn->rmb_desc->len : 0,
 			.peer_rmbe_size = conn->peer_rmbe_size,
 
 			.rx_prod.wrap = conn->local_rx_ctrl.prod.wrap,
@@ -153,7 +164,8 @@ errout:
 	return -EMSGSIZE;
 }
 
-static int smc_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
+static int smc_diag_dump_proto(struct proto *prot, struct sk_buff *skb,
+			       struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct nlattr *bc = NULL;
@@ -161,8 +173,8 @@ static int smc_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct sock *sk;
 	int rc = 0;
 
-	read_lock(&smc_proto.h.smc_hash->lock);
-	head = &smc_proto.h.smc_hash->ht;
+	read_lock(&prot->h.smc_hash->lock);
+	head = &prot->h.smc_hash->ht;
 	if (hlist_empty(head))
 		goto out;
 
@@ -175,7 +187,17 @@ static int smc_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	}
 
 out:
-	read_unlock(&smc_proto.h.smc_hash->lock);
+	read_unlock(&prot->h.smc_hash->lock);
+	return rc;
+}
+
+static int smc_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
+{
+	int rc = 0;
+
+	rc = smc_diag_dump_proto(&smc_proto, skb, cb);
+	if (!rc)
+		rc = smc_diag_dump_proto(&smc_proto6, skb, cb);
 	return rc;
 }
 

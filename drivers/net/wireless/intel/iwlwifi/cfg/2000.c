@@ -1,6 +1,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -115,7 +116,8 @@ static const struct iwl_eeprom_params iwl20x0_eeprom_params = {
 	.base_params = &iwl2000_base_params,			\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
+	.csr = &iwl_csr_v1
 
 
 const struct iwl_cfg iwl2000_2bgn_cfg = {
@@ -142,7 +144,8 @@ const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.base_params = &iwl2030_base_params,			\
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
+	.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
@@ -163,7 +166,8 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
+	.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl105_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
@@ -190,7 +194,8 @@ const struct iwl_cfg iwl105_bgn_d_cfg = {
 	.eeprom_params = &iwl20x0_eeprom_params,		\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true,				\
-	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K
+	.max_ht_ampdu_exponent = IEEE80211_HT_MAX_AMPDU_64K,	\
+	.csr = &iwl_csr_v1
 
 const struct iwl_cfg iwl135_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",

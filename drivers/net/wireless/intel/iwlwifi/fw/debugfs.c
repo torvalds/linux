@@ -64,6 +64,7 @@
  *****************************************************************************/
 #include "api/commands.h"
 #include "debugfs.h"
+#include "dbg.h"
 
 #define FWRT_DEBUGFS_READ_FILE_OPS(name)				\
 static ssize_t iwl_dbgfs_##name##_read(struct iwl_fw_runtime *fwrt,	\

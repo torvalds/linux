@@ -81,8 +81,6 @@ static int sctp_process_param(struct sctp_association *asoc,
 			      gfp_t gfp);
 static void *sctp_addto_param(struct sctp_chunk *chunk, int len,
 			      const void *data);
-static void  *sctp_addto_chunk_fixed(struct sctp_chunk *, int len,
-				     const void *data);
 
 /* Control chunk destructor */
 static void sctp_control_release_owner(struct sk_buff *skb)
@@ -154,12 +152,11 @@ static const struct sctp_paramhdr prsctp_param = {
 	cpu_to_be16(sizeof(struct sctp_paramhdr)),
 };
 
-/* A helper to initialize an op error inside a
- * provided chunk, as most cause codes will be embedded inside an
- * abort chunk.
+/* A helper to initialize an op error inside a provided chunk, as most
+ * cause codes will be embedded inside an abort chunk.
  */
-void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
-		     size_t paylen)
+int sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
+		    size_t paylen)
 {
 	struct sctp_errhdr err;
 	__u16 len;
@@ -167,33 +164,16 @@ void sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 	/* Cause code constants are now defined in network order.  */
 	err.cause = cause_code;
 	len = sizeof(err) + paylen;
-	err.length  = htons(len);
-	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(err), &err);
-}
-
-/* A helper to initialize an op error inside a
- * provided chunk, as most cause codes will be embedded inside an
- * abort chunk.  Differs from sctp_init_cause in that it won't oops
- * if there isn't enough space in the op error chunk
- */
-static int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
-				 size_t paylen)
-{
-	struct sctp_errhdr err;
-	__u16 len;
-
-	/* Cause code constants are now defined in network order.  */
-	err.cause = cause_code;
-	len = sizeof(err) + paylen;
-	err.length  = htons(len);
+	err.length = htons(len);
 
 	if (skb_tailroom(chunk->skb) < len)
 		return -ENOSPC;
 
-	chunk->subh.err_hdr = sctp_addto_chunk_fixed(chunk, sizeof(err), &err);
+	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(err), &err);
 
 	return 0;
 }
+
 /* 3.3.2 Initiation (INIT) (1)
  *
  * This chunk is used to initiate a SCTP association between two
@@ -779,10 +759,9 @@ struct sctp_chunk *sctp_make_datafrag_empty(const struct sctp_association *asoc,
  * association.  This reports on which TSN's we've seen to date,
  * including duplicates and gaps.
  */
-struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
+struct sctp_chunk *sctp_make_sack(struct sctp_association *asoc)
 {
 	struct sctp_tsnmap *map = (struct sctp_tsnmap *)&asoc->peer.tsn_map;
-	struct sctp_association *aptr = (struct sctp_association *)asoc;
 	struct sctp_gap_ack_block gabs[SCTP_MAX_GABS];
 	__u16 num_gabs, num_dup_tsns;
 	struct sctp_transport *trans;
@@ -857,7 +836,7 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 
 	/* Add the duplicate TSN information.  */
 	if (num_dup_tsns) {
-		aptr->stats.idupchunks += num_dup_tsns;
+		asoc->stats.idupchunks += num_dup_tsns;
 		sctp_addto_chunk(retval, sizeof(__u32) * num_dup_tsns,
 				 sctp_tsnmap_get_dups(map));
 	}
@@ -869,11 +848,11 @@ struct sctp_chunk *sctp_make_sack(const struct sctp_association *asoc)
 	 * association so no transport will match after a wrap event like this,
 	 * Until the next sack
 	 */
-	if (++aptr->peer.sack_generation == 0) {
+	if (++asoc->peer.sack_generation == 0) {
 		list_for_each_entry(trans, &asoc->peer.transport_addr_list,
 				    transports)
 			trans->sack_generation = 0;
-		aptr->peer.sack_generation = 1;
+		asoc->peer.sack_generation = 1;
 	}
 nodata:
 	return retval;
@@ -1258,20 +1237,26 @@ nodata:
 	return retval;
 }
 
-/* Create an Operation Error chunk of a fixed size,
- * specifically, max(asoc->pathmtu, SCTP_DEFAULT_MAXSEGMENT)
- * This is a helper function to allocate an error chunk for
- * for those invalid parameter codes in which we may not want
- * to report all the errors, if the incoming chunk is large
+/* Create an Operation Error chunk of a fixed size, specifically,
+ * min(asoc->pathmtu, SCTP_DEFAULT_MAXSEGMENT) - overheads.
+ * This is a helper function to allocate an error chunk for for those
+ * invalid parameter codes in which we may not want to report all the
+ * errors, if the incoming chunk is large. If it can't fit in a single
+ * packet, we ignore it.
  */
-static inline struct sctp_chunk *sctp_make_op_error_fixed(
+static inline struct sctp_chunk *sctp_make_op_error_limited(
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *chunk)
 {
-	size_t size = asoc ? asoc->pathmtu : 0;
+	size_t size = SCTP_DEFAULT_MAXSEGMENT;
+	struct sctp_sock *sp = NULL;
 
-	if (!size)
-		size = SCTP_DEFAULT_MAXSEGMENT;
+	if (asoc) {
+		size = min_t(size_t, size, asoc->pathmtu);
+		sp = sctp_sk(asoc->base.sk);
+	}
+
+	size = sctp_mtu_payload(sp, size, sizeof(struct sctp_errhdr));
 
 	return sctp_make_op_error_space(asoc, chunk, size);
 }
@@ -1521,18 +1506,6 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 	chunk->chunk_end = skb_tail_pointer(chunk->skb);
 
 	return target;
-}
-
-/* Append bytes to the end of a chunk. Returns NULL if there isn't sufficient
- * space in the chunk
- */
-static void *sctp_addto_chunk_fixed(struct sctp_chunk *chunk,
-				    int len, const void *data)
-{
-	if (skb_tailroom(chunk->skb) >= len)
-		return sctp_addto_chunk(chunk, len, data);
-	else
-		return NULL;
 }
 
 /* Append bytes from user space to the end of a chunk.  Will panic if
@@ -1829,6 +1802,9 @@ no_hmac:
 		kt = ktime_get_real();
 
 	if (!asoc && ktime_before(bear_cookie->expiration, kt)) {
+		suseconds_t usecs = ktime_to_us(ktime_sub(kt, bear_cookie->expiration));
+		__be32 n = htonl(usecs);
+
 		/*
 		 * Section 3.3.10.3 Stale Cookie Error (3)
 		 *
@@ -1837,17 +1813,12 @@ no_hmac:
 		 * Stale Cookie Error:  Indicates the receipt of a valid State
 		 * Cookie that has expired.
 		 */
-		len = ntohs(chunk->chunk_hdr->length);
-		*errp = sctp_make_op_error_space(asoc, chunk, len);
-		if (*errp) {
-			suseconds_t usecs = ktime_to_us(ktime_sub(kt, bear_cookie->expiration));
-			__be32 n = htonl(usecs);
-
-			sctp_init_cause(*errp, SCTP_ERROR_STALE_COOKIE,
-					sizeof(n));
-			sctp_addto_chunk(*errp, sizeof(n), &n);
+		*errp = sctp_make_op_error(asoc, chunk,
+					   SCTP_ERROR_STALE_COOKIE, &n,
+					   sizeof(n), 0);
+		if (*errp)
 			*error = -SCTP_IERROR_STALE_COOKIE;
-		} else
+		else
 			*error = -SCTP_IERROR_NOMEM;
 
 		goto fail;
@@ -1998,12 +1969,8 @@ static int sctp_process_hn_param(const struct sctp_association *asoc,
 	if (*errp)
 		sctp_chunk_free(*errp);
 
-	*errp = sctp_make_op_error_space(asoc, chunk, len);
-
-	if (*errp) {
-		sctp_init_cause(*errp, SCTP_ERROR_DNS_FAILED, len);
-		sctp_addto_chunk(*errp, len, param.v);
-	}
+	*errp = sctp_make_op_error(asoc, chunk, SCTP_ERROR_DNS_FAILED,
+				   param.v, len, 0);
 
 	/* Stop processing this chunk. */
 	return 0;
@@ -2128,23 +2095,23 @@ static enum sctp_ierror sctp_process_unk_param(
 		/* Make an ERROR chunk, preparing enough room for
 		 * returning multiple unknown parameters.
 		 */
-		if (NULL == *errp)
-			*errp = sctp_make_op_error_fixed(asoc, chunk);
-
-		if (*errp) {
-			if (!sctp_init_cause_fixed(*errp, SCTP_ERROR_UNKNOWN_PARAM,
-					SCTP_PAD4(ntohs(param.p->length))))
-				sctp_addto_chunk_fixed(*errp,
-						SCTP_PAD4(ntohs(param.p->length)),
-						param.v);
-		} else {
-			/* If there is no memory for generating the ERROR
-			 * report as specified, an ABORT will be triggered
-			 * to the peer and the association won't be
-			 * established.
-			 */
-			retval = SCTP_IERROR_NOMEM;
+		if (!*errp) {
+			*errp = sctp_make_op_error_limited(asoc, chunk);
+			if (!*errp) {
+				/* If there is no memory for generating the
+				 * ERROR report as specified, an ABORT will be
+				 * triggered to the peer and the association
+				 * won't be established.
+				 */
+				retval = SCTP_IERROR_NOMEM;
+				break;
+			}
 		}
+
+		if (!sctp_init_cause(*errp, SCTP_ERROR_UNKNOWN_PARAM,
+				     ntohs(param.p->length)))
+			sctp_addto_chunk(*errp, ntohs(param.p->length),
+					 param.v);
 		break;
 	default:
 		break;
@@ -2220,10 +2187,10 @@ static enum sctp_ierror sctp_verify_param(struct net *net,
 		 * MUST be aborted.  The ABORT chunk SHOULD contain the error
 		 * cause 'Protocol Violation'.
 		 */
-		if (SCTP_AUTH_RANDOM_LENGTH !=
-			ntohs(param.p->length) - sizeof(struct sctp_paramhdr)) {
+		if (SCTP_AUTH_RANDOM_LENGTH != ntohs(param.p->length) -
+					       sizeof(struct sctp_paramhdr)) {
 			sctp_process_inv_paramlength(asoc, param.p,
-							chunk, err_chunk);
+						     chunk, err_chunk);
 			retval = SCTP_IERROR_ABORT;
 		}
 		break;

@@ -28,7 +28,6 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
-#include "dc.h"
 
 /*
  * This file contains the definition for amdgpu_display_manager
@@ -53,6 +52,7 @@
 struct amdgpu_device;
 struct drm_device;
 struct amdgpu_dm_irq_handler_data;
+struct dc;
 
 struct amdgpu_dm_prev_state {
 	struct drm_framebuffer *fb;
@@ -220,6 +220,7 @@ struct dm_connector_state {
 	uint8_t underscan_hborder;
 	bool underscan_enable;
 	struct mod_freesync_user_enable user_enable;
+	bool freesync_capable;
 };
 
 #define to_dm_connector_state(x)\
@@ -246,7 +247,7 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 				     struct dc_link *link,
 				     int link_index);
 
-int amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
+enum drm_mode_status amdgpu_dm_connector_mode_valid(struct drm_connector *connector,
 				   struct drm_display_mode *mode);
 
 void dm_restore_drm_connector_state(struct drm_device *dev,

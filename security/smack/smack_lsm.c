@@ -1545,9 +1545,9 @@ static int smack_inode_listsecurity(struct inode *inode, char *buffer,
  */
 static void smack_inode_getsecid(struct inode *inode, u32 *secid)
 {
-	struct inode_smack *isp = inode->i_security;
+	struct smack_known *skp = smk_of_inode(inode);
 
-	*secid = isp->smk_inode->smk_secid;
+	*secid = skp->smk_secid;
 }
 
 /*
@@ -2296,6 +2296,7 @@ static void smack_task_to_inode(struct task_struct *p, struct inode *inode)
 	struct smack_known *skp = smk_of_task_struct(p);
 
 	isp->smk_inode = skp;
+	isp->smk_flags |= SMK_INODE_INSTANT;
 }
 
 /*
@@ -2840,6 +2841,27 @@ static int smack_socket_post_create(struct socket *sock, int family,
 	 * Set the outbound netlbl.
 	 */
 	return smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
+}
+
+/**
+ * smack_socket_socketpair - create socket pair
+ * @socka: one socket
+ * @sockb: another socket
+ *
+ * Cross reference the peer labels for SO_PEERSEC
+ *
+ * Returns 0 on success, and error code otherwise
+ */
+static int smack_socket_socketpair(struct socket *socka,
+		                   struct socket *sockb)
+{
+	struct socket_smack *asp = socka->sk->sk_security;
+	struct socket_smack *bsp = sockb->sk->sk_security;
+
+	asp->smk_packet = bsp->smk_out;
+	bsp->smk_packet = asp->smk_out;
+
+	return 0;
 }
 
 #ifdef SMACK_IPV6_PORT_LABELING
@@ -4538,12 +4560,10 @@ static int smack_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 
 static int smack_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 {
-	int len = 0;
-	len = smack_inode_getsecurity(inode, XATTR_SMACK_SUFFIX, ctx, true);
+	struct smack_known *skp = smk_of_inode(inode);
 
-	if (len < 0)
-		return len;
-	*ctxlen = len;
+	*ctx = skp->smk_known;
+	*ctxlen = strlen(skp->smk_known);
 	return 0;
 }
 
@@ -4724,6 +4744,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(unix_may_send, smack_unix_may_send),
 
 	LSM_HOOK_INIT(socket_post_create, smack_socket_post_create),
+	LSM_HOOK_INIT(socket_socketpair, smack_socket_socketpair),
 #ifdef SMACK_IPV6_PORT_LABELING
 	LSM_HOOK_INIT(socket_bind, smack_socket_bind),
 #endif

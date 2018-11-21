@@ -94,6 +94,8 @@ int nfp_nsp_read_sensors(struct nfp_nsp *state, unsigned int sensor_mask,
 /* MAC Statistics Accumulator */
 #define NFP_RESOURCE_MAC_STATISTICS	"mac.stat"
 
+int nfp_resource_table_init(struct nfp_cpp *cpp);
+
 struct nfp_resource *
 nfp_resource_acquire(struct nfp_cpp *cpp, const char *name);
 

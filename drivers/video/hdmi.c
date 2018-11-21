@@ -93,6 +93,9 @@ ssize_t hdmi_avi_infoframe_pack(struct hdmi_avi_infoframe *frame, void *buffer,
 	if (size < length)
 		return -ENOSPC;
 
+	if (frame->picture_aspect > HDMI_PICTURE_ASPECT_16_9)
+		return -EINVAL;
+
 	memset(buffer, 0, size);
 
 	ptr[0] = frame->type;

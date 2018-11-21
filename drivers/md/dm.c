@@ -148,8 +148,8 @@ static int dm_numa_node = DM_NUMA_NODE;
  * For mempools pre-allocation at the table loading time.
  */
 struct dm_md_mempools {
-	struct bio_set *bs;
-	struct bio_set *io_bs;
+	struct bio_set bs;
+	struct bio_set io_bs;
 };
 
 struct table_device {
@@ -537,7 +537,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_bioset(GFP_NOIO, 0, md->io_bs);
+	clone = bio_alloc_bioset(GFP_NOIO, 0, &md->io_bs);
 	if (!clone)
 		return NULL;
 
@@ -572,7 +572,7 @@ static struct dm_target_io *alloc_tio(struct clone_info *ci, struct dm_target *t
 		/* the dm_target_io embedded in ci->io is available */
 		tio = &ci->io->tio;
 	} else {
-		struct bio *clone = bio_alloc_bioset(gfp_mask, 0, ci->io->md->bs);
+		struct bio *clone = bio_alloc_bioset(gfp_mask, 0, &ci->io->md->bs);
 		if (!clone)
 			return NULL;
 
@@ -1056,8 +1056,7 @@ static long dm_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 	if (len < 1)
 		goto out;
 	nr_pages = min(len, nr_pages);
-	if (ti->type->direct_access)
-		ret = ti->type->direct_access(ti, pgoff, nr_pages, kaddr, pfn);
+	ret = ti->type->direct_access(ti, pgoff, nr_pages, kaddr, pfn);
 
  out:
 	dm_put_live_table(md, srcu_idx);
@@ -1083,6 +1082,30 @@ static size_t dm_dax_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
 		goto out;
 	}
 	ret = ti->type->dax_copy_from_iter(ti, pgoff, addr, bytes, i);
+ out:
+	dm_put_live_table(md, srcu_idx);
+
+	return ret;
+}
+
+static size_t dm_dax_copy_to_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	struct mapped_device *md = dax_get_private(dax_dev);
+	sector_t sector = pgoff * PAGE_SECTORS;
+	struct dm_target *ti;
+	long ret = 0;
+	int srcu_idx;
+
+	ti = dm_dax_get_live_target(md, sector, &srcu_idx);
+
+	if (!ti)
+		goto out;
+	if (!ti->type->dax_copy_to_iter) {
+		ret = copy_to_iter(addr, bytes, i);
+		goto out;
+	}
+	ret = ti->type->dax_copy_to_iter(ti, pgoff, addr, bytes, i);
  out:
 	dm_put_live_table(md, srcu_idx);
 
@@ -1582,10 +1605,9 @@ static blk_qc_t __split_and_process_bio(struct mapped_device *md,
 				 * the usage of io->orig_bio in dm_remap_zone_report()
 				 * won't be affected by this reassignment.
 				 */
-				struct bio *b = bio_clone_bioset(bio, GFP_NOIO,
-								 md->queue->bio_split);
+				struct bio *b = bio_split(bio, bio_sectors(bio) - ci.sector_count,
+							  GFP_NOIO, &md->queue->bio_split);
 				ci.io->orig_bio = b;
-				bio_advance(bio, (bio_sectors(bio) - ci.sector_count) << 9);
 				bio_chain(b, bio);
 				ret = generic_make_request(bio);
 				break;
@@ -1785,10 +1807,8 @@ static void cleanup_mapped_device(struct mapped_device *md)
 		destroy_workqueue(md->wq);
 	if (md->kworker_task)
 		kthread_stop(md->kworker_task);
-	if (md->bs)
-		bioset_free(md->bs);
-	if (md->io_bs)
-		bioset_free(md->io_bs);
+	bioset_exit(&md->bs);
+	bioset_exit(&md->io_bs);
 
 	if (md->dax_dev) {
 		kill_dax(md->dax_dev);
@@ -1955,9 +1975,10 @@ static void free_dev(struct mapped_device *md)
 	kvfree(md);
 }
 
-static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
+static int __bind_mempools(struct mapped_device *md, struct dm_table *t)
 {
 	struct dm_md_mempools *p = dm_table_get_md_mempools(t);
+	int ret = 0;
 
 	if (dm_table_bio_based(t)) {
 		/*
@@ -1965,16 +1986,10 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		 * If so, reload bioset because front_pad may have changed
 		 * because a different table was loaded.
 		 */
-		if (md->bs) {
-			bioset_free(md->bs);
-			md->bs = NULL;
-		}
-		if (md->io_bs) {
-			bioset_free(md->io_bs);
-			md->io_bs = NULL;
-		}
+		bioset_exit(&md->bs);
+		bioset_exit(&md->io_bs);
 
-	} else if (md->bs) {
+	} else if (bioset_initialized(&md->bs)) {
 		/*
 		 * There's no need to reload with request-based dm
 		 * because the size of front_pad doesn't change.
@@ -1986,15 +2001,20 @@ static void __bind_mempools(struct mapped_device *md, struct dm_table *t)
 		goto out;
 	}
 
-	BUG_ON(!p || md->bs || md->io_bs);
+	BUG_ON(!p ||
+	       bioset_initialized(&md->bs) ||
+	       bioset_initialized(&md->io_bs));
 
-	md->bs = p->bs;
-	p->bs = NULL;
-	md->io_bs = p->io_bs;
-	p->io_bs = NULL;
+	ret = bioset_init_from_src(&md->bs, &p->bs);
+	if (ret)
+		goto out;
+	ret = bioset_init_from_src(&md->io_bs, &p->io_bs);
+	if (ret)
+		bioset_exit(&md->bs);
 out:
 	/* mempool bind completed, no longer need any mempools in the table */
 	dm_table_free_md_mempools(t);
+	return ret;
 }
 
 /*
@@ -2039,6 +2059,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	struct request_queue *q = md->queue;
 	bool request_based = dm_table_request_based(t);
 	sector_t size;
+	int ret;
 
 	lockdep_assert_held(&md->suspend_lock);
 
@@ -2074,7 +2095,11 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 		md->immutable_target = dm_table_get_immutable_target(t);
 	}
 
-	__bind_mempools(md, t);
+	ret = __bind_mempools(md, t);
+	if (ret) {
+		old_map = ERR_PTR(ret);
+		goto out;
+	}
 
 	old_map = rcu_dereference_protected(md->map, lockdep_is_held(&md->suspend_lock));
 	rcu_assign_pointer(md->map, (void *)t);
@@ -2084,6 +2109,7 @@ static struct dm_table *__bind(struct mapped_device *md, struct dm_table *t,
 	if (old_map)
 		dm_sync_table(md);
 
+out:
 	return old_map;
 }
 
@@ -2905,6 +2931,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
 	unsigned int pool_size = 0;
 	unsigned int front_pad, io_front_pad;
+	int ret;
 
 	if (!pools)
 		return NULL;
@@ -2916,10 +2943,10 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 		pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
 		front_pad = roundup(per_io_data_size, __alignof__(struct dm_target_io)) + offsetof(struct dm_target_io, clone);
 		io_front_pad = roundup(front_pad,  __alignof__(struct dm_io)) + offsetof(struct dm_io, tio);
-		pools->io_bs = bioset_create(pool_size, io_front_pad, 0);
-		if (!pools->io_bs)
+		ret = bioset_init(&pools->io_bs, pool_size, io_front_pad, 0);
+		if (ret)
 			goto out;
-		if (integrity && bioset_integrity_create(pools->io_bs, pool_size))
+		if (integrity && bioset_integrity_create(&pools->io_bs, pool_size))
 			goto out;
 		break;
 	case DM_TYPE_REQUEST_BASED:
@@ -2932,11 +2959,11 @@ struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_qu
 		BUG();
 	}
 
-	pools->bs = bioset_create(pool_size, front_pad, 0);
-	if (!pools->bs)
+	ret = bioset_init(&pools->bs, pool_size, front_pad, 0);
+	if (ret)
 		goto out;
 
-	if (integrity && bioset_integrity_create(pools->bs, pool_size))
+	if (integrity && bioset_integrity_create(&pools->bs, pool_size))
 		goto out;
 
 	return pools;
@@ -2952,10 +2979,8 @@ void dm_free_md_mempools(struct dm_md_mempools *pools)
 	if (!pools)
 		return;
 
-	if (pools->bs)
-		bioset_free(pools->bs);
-	if (pools->io_bs)
-		bioset_free(pools->io_bs);
+	bioset_exit(&pools->bs);
+	bioset_exit(&pools->io_bs);
 
 	kfree(pools);
 }
@@ -3134,6 +3159,7 @@ static const struct block_device_operations dm_blk_dops = {
 static const struct dax_operations dm_dax_ops = {
 	.direct_access = dm_dax_direct_access,
 	.copy_from_iter = dm_dax_copy_from_iter,
+	.copy_to_iter = dm_dax_copy_to_iter,
 };
 
 /*

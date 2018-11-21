@@ -17,6 +17,7 @@
 #define __DMA_IOMMU_H
 
 #ifdef __KERNEL__
+#include <linux/types.h>
 #include <asm/errno.h>
 
 #ifdef CONFIG_IOMMU_DMA

@@ -1,29 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_TYPE_H_
 #define _I40E_TYPE_H_
@@ -1257,7 +1233,8 @@ struct i40e_hw_port_stats {
 
 /* Checksum and Shadow RAM pointers */
 #define I40E_SR_NVM_CONTROL_WORD		0x00
-#define I40E_SR_EMP_MODULE_PTR			0x0F
+#define I40E_EMP_MODULE_PTR			0x0F
+#define I40E_SR_EMP_MODULE_PTR			0x48
 #define I40E_NVM_OEM_VER_OFF			0x83
 #define I40E_SR_NVM_DEV_STARTER_VERSION		0x18
 #define I40E_SR_NVM_WAKE_ON_LAN			0x19
@@ -1273,6 +1250,9 @@ struct i40e_hw_port_stats {
 #define I40E_SR_PCIE_ALT_MODULE_MAX_SIZE	1024
 #define I40E_SR_CONTROL_WORD_1_SHIFT		0x06
 #define I40E_SR_CONTROL_WORD_1_MASK	(0x03 << I40E_SR_CONTROL_WORD_1_SHIFT)
+#define I40E_SR_CONTROL_WORD_1_NVM_BANK_VALID	BIT(5)
+#define I40E_SR_NVM_MAP_STRUCTURE_TYPE		BIT(12)
+#define I40E_PTR_TYPE				BIT(15)
 
 /* Shadow RAM related */
 #define I40E_SR_SECTOR_SIZE_IN_WORDS	0x800
@@ -1385,6 +1365,10 @@ enum i40e_reset_type {
 	I40E_RESET_GLOBR	= 2,
 	I40E_RESET_EMPR		= 3,
 };
+
+/* IEEE 802.1AB LLDP Agent Variables from NVM */
+#define I40E_NVM_LLDP_CFG_PTR	0x06
+#define I40E_SR_LLDP_CFG_PTR	0x31
 
 /* RSS Hash Table Size */
 #define I40E_PFQF_CTL_0_HASHLUTSIZE_512	0x00010000

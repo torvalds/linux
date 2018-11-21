@@ -383,11 +383,16 @@ found:
 		int i = end - next->ip_defrag_offset; /* overlap is 'i' bytes */
 
 		if (i < next->len) {
+			int delta = -next->truesize;
+
 			/* Eat head of the next overlapped fragment
 			 * and leave the loop. The next ones cannot overlap.
 			 */
 			if (!pskb_pull(next, i))
 				goto err;
+			delta += next->truesize;
+			if (delta)
+				add_frag_mem_limit(qp->q.net, delta);
 			next->ip_defrag_offset += i;
 			qp->q.meat -= i;
 			if (next->ip_summed != CHECKSUM_UNNECESSARY)

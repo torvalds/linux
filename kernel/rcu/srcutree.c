@@ -366,24 +366,28 @@ static unsigned long srcu_get_delay(struct srcu_struct *sp)
 	return SRCU_INTERVAL;
 }
 
-/**
- * cleanup_srcu_struct - deconstruct a sleep-RCU structure
- * @sp: structure to clean up.
- *
- * Must invoke this after you are finished using a given srcu_struct that
- * was initialized via init_srcu_struct(), else you leak memory.
- */
-void cleanup_srcu_struct(struct srcu_struct *sp)
+/* Helper for cleanup_srcu_struct() and cleanup_srcu_struct_quiesced(). */
+void _cleanup_srcu_struct(struct srcu_struct *sp, bool quiesced)
 {
 	int cpu;
 
 	if (WARN_ON(!srcu_get_delay(sp)))
-		return; /* Leakage unless caller handles error. */
+		return; /* Just leak it! */
 	if (WARN_ON(srcu_readers_active(sp)))
-		return; /* Leakage unless caller handles error. */
-	flush_delayed_work(&sp->work);
+		return; /* Just leak it! */
+	if (quiesced) {
+		if (WARN_ON(delayed_work_pending(&sp->work)))
+			return; /* Just leak it! */
+	} else {
+		flush_delayed_work(&sp->work);
+	}
 	for_each_possible_cpu(cpu)
-		flush_delayed_work(&per_cpu_ptr(sp->sda, cpu)->work);
+		if (quiesced) {
+			if (WARN_ON(delayed_work_pending(&per_cpu_ptr(sp->sda, cpu)->work)))
+				return; /* Just leak it! */
+		} else {
+			flush_delayed_work(&per_cpu_ptr(sp->sda, cpu)->work);
+		}
 	if (WARN_ON(rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)) != SRCU_STATE_IDLE) ||
 	    WARN_ON(srcu_readers_active(sp))) {
 		pr_info("%s: Active srcu_struct %p state: %d\n", __func__, sp, rcu_seq_state(READ_ONCE(sp->srcu_gp_seq)));
@@ -392,7 +396,7 @@ void cleanup_srcu_struct(struct srcu_struct *sp)
 	free_percpu(sp->sda);
 	sp->sda = NULL;
 }
-EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
+EXPORT_SYMBOL_GPL(_cleanup_srcu_struct);
 
 /*
  * Counts the new reader in the appropriate per-CPU element of the

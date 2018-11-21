@@ -24,6 +24,7 @@
 #include "octeon_device.h"
 #include "octeon_main.h"
 #include "octeon_mailbox.h"
+#include "cn23xx_pf_device.h"
 
 /**
  * octeon_mbox_read:
@@ -205,6 +206,26 @@ int octeon_mbox_write(struct octeon_device *oct,
 	return ret;
 }
 
+static void get_vf_stats(struct octeon_device *oct,
+			 struct oct_vf_stats *stats)
+{
+	int i;
+
+	for (i = 0; i < oct->num_iqs; i++) {
+		if (!oct->instr_queue[i])
+			continue;
+		stats->tx_packets += oct->instr_queue[i]->stats.tx_done;
+		stats->tx_bytes += oct->instr_queue[i]->stats.tx_tot_bytes;
+	}
+
+	for (i = 0; i < oct->num_oqs; i++) {
+		if (!oct->droq[i])
+			continue;
+		stats->rx_packets += oct->droq[i]->stats.rx_pkts_received;
+		stats->rx_bytes += oct->droq[i]->stats.rx_bytes_received;
+	}
+}
+
 /**
  * octeon_mbox_process_cmd:
  * @mbox: Pointer mailbox
@@ -250,6 +271,15 @@ static int octeon_mbox_process_cmd(struct octeon_mbox *mbox,
 						     mbox_cmd->msg.s.params);
 		break;
 
+	case OCTEON_GET_VF_STATS:
+		dev_dbg(&oct->pci_dev->dev, "Got VF stats request. Sending data back\n");
+		mbox_cmd->msg.s.type = OCTEON_MBOX_RESPONSE;
+		mbox_cmd->msg.s.resp_needed = 1;
+		mbox_cmd->msg.s.len = 1 +
+			sizeof(struct oct_vf_stats) / sizeof(u64);
+		get_vf_stats(oct, (struct oct_vf_stats *)mbox_cmd->data);
+		octeon_mbox_write(oct, mbox_cmd);
+		break;
 	default:
 		break;
 	}
@@ -319,6 +349,28 @@ int octeon_mbox_process_message(struct octeon_mbox *mbox)
 
 	spin_unlock_irqrestore(&mbox->lock, flags);
 	WARN_ON(1);
+
+	return 0;
+}
+
+int octeon_mbox_cancel(struct octeon_device *oct, int q_no)
+{
+	struct octeon_mbox *mbox = oct->mbox[q_no];
+	struct octeon_mbox_cmd *mbox_cmd;
+	unsigned long flags = 0;
+
+	spin_lock_irqsave(&mbox->lock, flags);
+	mbox_cmd = &mbox->mbox_resp;
+
+	if (!(mbox->state & OCTEON_MBOX_STATE_RESPONSE_PENDING)) {
+		spin_unlock_irqrestore(&mbox->lock, flags);
+		return 1;
+	}
+
+	mbox->state = OCTEON_MBOX_STATE_IDLE;
+	memset(mbox_cmd, 0, sizeof(*mbox_cmd));
+	writeq(OCTEON_PFVFSIG, mbox->mbox_read_reg);
+	spin_unlock_irqrestore(&mbox->lock, flags);
 
 	return 0;
 }

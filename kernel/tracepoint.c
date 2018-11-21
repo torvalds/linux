@@ -257,7 +257,7 @@ static int tracepoint_remove_func(struct tracepoint *tp,
 }
 
 /**
- * tracepoint_probe_register -  Connect a probe to a tracepoint
+ * tracepoint_probe_register_prio -  Connect a probe to a tracepoint with priority
  * @tp: tracepoint
  * @probe: probe handler
  * @data: tracepoint data
@@ -290,7 +290,6 @@ EXPORT_SYMBOL_GPL(tracepoint_probe_register_prio);
  * @tp: tracepoint
  * @probe: probe handler
  * @data: tracepoint data
- * @prio: priority of this function over other registered functions
  *
  * Returns 0 if ok, error value on error.
  * Note: if @tp is within a module, the caller is responsible for

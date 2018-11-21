@@ -2544,7 +2544,8 @@ static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 }
 
 static void ath9k_mgd_prepare_tx(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif)
+				 struct ieee80211_vif *vif,
+				 u16 duration)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);

@@ -575,7 +575,6 @@ static struct mt352_config digitv_alps_tded4_config = {
 };
 
 static struct lgdt330x_config tdvs_tua6034_config = {
-	.demod_address    = 0x0e,
 	.demod_chip       = LGDT3303,
 	.serial_mpeg      = 0x40, /* TPSERIAL for 3303 in TOP_CONTROL */
 };
@@ -614,7 +613,8 @@ static void frontend_init(struct dvb_bt8xx_card *card, u32 type)
 
 	case BTTV_BOARD_DVICO_FUSIONHDTV_5_LITE:
 		lgdt330x_reset(card);
-		card->fe = dvb_attach(lgdt330x_attach, &tdvs_tua6034_config, card->i2c_adapter);
+		card->fe = dvb_attach(lgdt330x_attach, &tdvs_tua6034_config,
+				      0x0e, card->i2c_adapter);
 		if (card->fe != NULL) {
 			dvb_attach(simple_tuner_attach, card->fe,
 				   card->i2c_adapter, 0x61,

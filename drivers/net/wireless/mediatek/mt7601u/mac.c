@@ -453,7 +453,7 @@ mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 {
 	dev->bcn_freq_off = rxwi->freq_off;
 	dev->bcn_phy_mode = FIELD_GET(MT_RXWI_RATE_PHY, rate);
-	dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+	ewma_rssi_add(&dev->avg_rssi, -rssi);
 }
 
 static int
@@ -503,7 +503,7 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if (mt7601u_rx_is_our_beacon(dev, data))
 		mt7601u_rx_monitor_beacon(dev, rxwi, rate, rssi);
 	else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M))
-		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+		ewma_rssi_add(&dev->avg_rssi, -rssi);
 	spin_unlock_bh(&dev->con_mon_lock);
 
 	return len;

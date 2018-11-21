@@ -245,6 +245,7 @@ extern long sysctl_tcp_mem[3];
 
 #define TCP_RACK_LOSS_DETECTION  0x1 /* Use RACK to detect losses */
 #define TCP_RACK_STATIC_REO_WND  0x2 /* Use static RACK reo wnd */
+#define TCP_RACK_NO_DUPTHRESH    0x4 /* Do not use DUPACK threshold in RACK */
 
 extern atomic_long_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -333,8 +334,7 @@ void tcp_write_timer_handler(struct sock *sk);
 void tcp_delack_timer_handler(struct sock *sk);
 int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg);
 int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb);
-void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
-			 const struct tcphdr *th);
+void tcp_rcv_established(struct sock *sk, struct sk_buff *skb);
 void tcp_rcv_space_adjust(struct sock *sk);
 int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp);
 void tcp_twsk_destructor(struct sock *sk);
@@ -342,6 +342,7 @@ ssize_t tcp_splice_read(struct socket *sk, loff_t *ppos,
 			struct pipe_inode_info *pipe, size_t len,
 			unsigned int flags);
 
+void tcp_enter_quickack_mode(struct sock *sk, unsigned int max_quickacks);
 static inline void tcp_dec_quickack_mode(struct sock *sk,
 					 const unsigned int pkts)
 {
@@ -402,6 +403,10 @@ void tcp_set_keepalive(struct sock *sk, int val);
 void tcp_syn_ack_timeout(const struct request_sock *req);
 int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 		int flags, int *addr_len);
+int tcp_set_rcvlowat(struct sock *sk, int val);
+void tcp_data_ready(struct sock *sk);
+int tcp_mmap(struct file *file, struct socket *sock,
+	     struct vm_area_struct *vma);
 void tcp_parse_options(const struct net *net, const struct sk_buff *skb,
 		       struct tcp_options_received *opt_rx,
 		       int estab, struct tcp_fastopen_cookie *foc);
@@ -535,6 +540,7 @@ void tcp_send_fin(struct sock *sk);
 void tcp_send_active_reset(struct sock *sk, gfp_t priority);
 int tcp_send_synack(struct sock *);
 void tcp_push_one(struct sock *, unsigned int mss_now);
+void __tcp_send_ack(struct sock *sk, u32 rcv_nxt);
 void tcp_send_ack(struct sock *sk);
 void tcp_send_delayed_ack(struct sock *sk);
 void tcp_send_loss_probe(struct sock *sk);
@@ -553,7 +559,12 @@ void tcp_fin(struct sock *sk);
 void tcp_init_xmit_timers(struct sock *);
 static inline void tcp_clear_xmit_timers(struct sock *sk)
 {
-	hrtimer_cancel(&tcp_sk(sk)->pacing_timer);
+	if (hrtimer_try_to_cancel(&tcp_sk(sk)->pacing_timer) == 1)
+		__sock_put(sk);
+
+	if (hrtimer_try_to_cancel(&tcp_sk(sk)->compressed_ack_timer) == 1)
+		__sock_put(sk);
+
 	inet_csk_clear_xmit_timers(sk);
 }
 
@@ -810,9 +821,8 @@ struct tcp_skb_cb {
 #endif
 		} header;	/* For incoming skbs */
 		struct {
-			__u32 key;
 			__u32 flags;
-			struct bpf_map *map;
+			struct sock *sk_redir;
 			void *data_end;
 		} bpf;
 	};
@@ -820,12 +830,21 @@ struct tcp_skb_cb {
 
 #define TCP_SKB_CB(__skb)	((struct tcp_skb_cb *)&((__skb)->cb[0]))
 
+static inline void bpf_compute_data_end_sk_skb(struct sk_buff *skb)
+{
+	TCP_SKB_CB(skb)->bpf.data_end = skb->data + skb_headlen(skb);
+}
 
 #if IS_ENABLED(CONFIG_IPV6)
 /* This is the variant of inet6_iif() that must be used by TCP,
  * as TCP moves IP6CB into a different location in skb->cb[]
  */
 static inline int tcp_v6_iif(const struct sk_buff *skb)
+{
+	return TCP_SKB_CB(skb)->header.h6.iif;
+}
+
+static inline int tcp_v6_iif_l3_slave(const struct sk_buff *skb)
 {
 	bool l3_slave = ipv6_l3mdev_skb(TCP_SKB_CB(skb)->header.h6.flags);
 
@@ -900,8 +919,6 @@ enum tcp_ca_event {
 	CA_EVENT_LOSS,		/* loss timeout */
 	CA_EVENT_ECN_NO_CE,	/* ECT set, but not CE marked */
 	CA_EVENT_ECN_IS_CE,	/* received CE marked IP packet */
-	CA_EVENT_DELAYED_ACK,	/* Delayed ack is sent */
-	CA_EVENT_NON_DELAYED_ACK,
 };
 
 /* Information about inbound ACK, passed to cong_ops->in_ack_event() */
@@ -1747,26 +1764,21 @@ enum tcp_seq_states {
 	TCP_SEQ_STATE_ESTABLISHED,
 };
 
-int tcp_seq_open(struct inode *inode, struct file *file);
+void *tcp_seq_start(struct seq_file *seq, loff_t *pos);
+void *tcp_seq_next(struct seq_file *seq, void *v, loff_t *pos);
+void tcp_seq_stop(struct seq_file *seq, void *v);
 
 struct tcp_seq_afinfo {
-	char				*name;
 	sa_family_t			family;
-	const struct file_operations	*seq_fops;
-	struct seq_operations		seq_ops;
 };
 
 struct tcp_iter_state {
 	struct seq_net_private	p;
-	sa_family_t		family;
 	enum tcp_seq_states	state;
 	struct sock		*syn_wait_sk;
 	int			bucket, offset, sbucket, num;
 	loff_t			last_pos;
 };
-
-int tcp_proc_register(struct net *net, struct tcp_seq_afinfo *afinfo);
-void tcp_proc_unregister(struct net *net, struct tcp_seq_afinfo *afinfo);
 
 extern struct request_sock_ops tcp_request_sock_ops;
 extern struct request_sock_ops tcp6_request_sock_ops;
@@ -1871,6 +1883,10 @@ void tcp_v4_init(void);
 void tcp_init(void);
 
 /* tcp_recovery.c */
+void tcp_mark_skb_lost(struct sock *sk, struct sk_buff *skb);
+void tcp_newreno_mark_lost(struct sock *sk, bool snd_una_advanced);
+extern s32 tcp_rack_skb_timeout(struct tcp_sock *tp, struct sk_buff *skb,
+				u32 reo_wnd);
 extern void tcp_rack_mark_lost(struct sock *sk);
 extern void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 			     u64 xmit_time);
@@ -2101,4 +2117,12 @@ static inline bool tcp_bpf_ca_needs_ecn(struct sock *sk)
 #if IS_ENABLED(CONFIG_SMC)
 extern struct static_key_false tcp_have_smc;
 #endif
+
+#if IS_ENABLED(CONFIG_TLS_DEVICE)
+void clean_acked_data_enable(struct inet_connection_sock *icsk,
+			     void (*cad)(struct sock *sk, u32 ack_seq));
+void clean_acked_data_disable(struct inet_connection_sock *icsk);
+
+#endif
+
 #endif	/* _TCP_H */

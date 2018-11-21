@@ -3450,7 +3450,7 @@ static int resp_comp_write(struct scsi_cmnd *scp,
 		return check_condition_result;
 	}
 	dnum = 2 * num;
-	arr = kzalloc(dnum * lb_size, GFP_ATOMIC);
+	arr = kcalloc(lb_size, dnum, GFP_ATOMIC);
 	if (NULL == arr) {
 		mk_sense_buffer(scp, ILLEGAL_REQUEST, INSUFF_RES_ASC,
 				INSUFF_RES_ASCQ);
@@ -5439,7 +5439,8 @@ static int __init scsi_debug_init(void)
 		}
 
 		map_size = lba_to_map_index(sdebug_store_sectors - 1) + 1;
-		map_storep = vmalloc(BITS_TO_LONGS(map_size) * sizeof(long));
+		map_storep = vmalloc(array_size(sizeof(long),
+						BITS_TO_LONGS(map_size)));
 
 		pr_info("%lu provisioning blocks\n", map_size);
 
@@ -5506,9 +5507,9 @@ static void __exit scsi_debug_exit(void)
 	int k = sdebug_add_host;
 
 	stop_all_queued();
-	free_all_queued();
 	for (; k; k--)
 		sdebug_remove_adapter();
+	free_all_queued();
 	driver_unregister(&sdebug_driverfs_driver);
 	bus_unregister(&pseudo_lld_bus);
 	root_device_unregister(pseudo_primary);

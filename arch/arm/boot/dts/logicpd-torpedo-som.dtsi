@@ -30,6 +30,13 @@
 			linux,default-trigger = "none";
 		};
 	};
+
+	/* fixed 26MHz oscillator */
+	hfclk_26m: oscillator {
+		#clock-cells = <0>;
+		compatible = "fixed-clock";
+		clock-frequency = <26000000>;
+	};
 };
 
 &gpmc {
@@ -74,6 +81,9 @@
 		reg = <0x48>;
 		interrupts = <7>; /* SYS_NIRQ cascaded to intc */
 		interrupt-parent = <&intc>;
+		clocks = <&hfclk_26m>;
+		clock-names = "fck";
+
 		twl_audio: audio {
 			compatible = "ti,twl4030-audio";
 			codec {

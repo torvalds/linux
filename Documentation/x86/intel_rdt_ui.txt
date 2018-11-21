@@ -17,12 +17,14 @@ MBA (Memory Bandwidth Allocation) - "mba"
 
 To use the feature mount the file system:
 
- # mount -t resctrl resctrl [-o cdp[,cdpl2]] /sys/fs/resctrl
+ # mount -t resctrl resctrl [-o cdp[,cdpl2][,mba_MBps]] /sys/fs/resctrl
 
 mount options are:
 
 "cdp": Enable code/data prioritization in L3 cache allocations.
 "cdpl2": Enable code/data prioritization in L2 cache allocations.
+"mba_MBps": Enable the MBA Software Controller(mba_sc) to specify MBA
+ bandwidth in MBps
 
 L2 and L3 CDP are controlled seperately.
 
@@ -270,10 +272,11 @@ and 0xA are not.  On a system with a 20-bit mask each bit represents 5%
 of the capacity of the cache. You could partition the cache into four
 equal parts with masks: 0x1f, 0x3e0, 0x7c00, 0xf8000.
 
-Memory bandwidth(b/w) percentage
---------------------------------
-For Memory b/w resource, user controls the resource by indicating the
-percentage of total memory b/w.
+Memory bandwidth Allocation and monitoring
+------------------------------------------
+
+For Memory bandwidth resource, by default the user controls the resource
+by indicating the percentage of total memory bandwidth.
 
 The minimum bandwidth percentage value for each cpu model is predefined
 and can be looked up through "info/MB/min_bandwidth". The bandwidth
@@ -285,7 +288,47 @@ to the next control step available on the hardware.
 The bandwidth throttling is a core specific mechanism on some of Intel
 SKUs. Using a high bandwidth and a low bandwidth setting on two threads
 sharing a core will result in both threads being throttled to use the
-low bandwidth.
+low bandwidth. The fact that Memory bandwidth allocation(MBA) is a core
+specific mechanism where as memory bandwidth monitoring(MBM) is done at
+the package level may lead to confusion when users try to apply control
+via the MBA and then monitor the bandwidth to see if the controls are
+effective. Below are such scenarios:
+
+1. User may *not* see increase in actual bandwidth when percentage
+   values are increased:
+
+This can occur when aggregate L2 external bandwidth is more than L3
+external bandwidth. Consider an SKL SKU with 24 cores on a package and
+where L2 external  is 10GBps (hence aggregate L2 external bandwidth is
+240GBps) and L3 external bandwidth is 100GBps. Now a workload with '20
+threads, having 50% bandwidth, each consuming 5GBps' consumes the max L3
+bandwidth of 100GBps although the percentage value specified is only 50%
+<< 100%. Hence increasing the bandwidth percentage will not yeild any
+more bandwidth. This is because although the L2 external bandwidth still
+has capacity, the L3 external bandwidth is fully used. Also note that
+this would be dependent on number of cores the benchmark is run on.
+
+2. Same bandwidth percentage may mean different actual bandwidth
+   depending on # of threads:
+
+For the same SKU in #1, a 'single thread, with 10% bandwidth' and '4
+thread, with 10% bandwidth' can consume upto 10GBps and 40GBps although
+they have same percentage bandwidth of 10%. This is simply because as
+threads start using more cores in an rdtgroup, the actual bandwidth may
+increase or vary although user specified bandwidth percentage is same.
+
+In order to mitigate this and make the interface more user friendly,
+resctrl added support for specifying the bandwidth in MBps as well.  The
+kernel underneath would use a software feedback mechanism or a "Software
+Controller(mba_sc)" which reads the actual bandwidth using MBM counters
+and adjust the memowy bandwidth percentages to ensure
+
+	"actual bandwidth < user specified bandwidth".
+
+By default, the schemata would take the bandwidth percentage values
+where as user can switch to the "MBA software controller" mode using
+a mount option 'mba_MBps'. The schemata format is specified in the below
+sections.
 
 L3 schemata file details (code and data prioritization disabled)
 ----------------------------------------------------------------
@@ -308,12 +351,19 @@ schemata format is always:
 
 	L2:<cache_id0>=<cbm>;<cache_id1>=<cbm>;...
 
-Memory b/w Allocation details
------------------------------
+Memory bandwidth Allocation (default mode)
+------------------------------------------
 
 Memory b/w domain is L3 cache.
 
 	MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;...
+
+Memory bandwidth Allocation specified in MBps
+---------------------------------------------
+
+Memory bandwidth domain is L3 cache.
+
+	MB:<cache_id0>=bw_MBps0;<cache_id1>=bw_MBps1;...
 
 Reading/writing the schemata file
 ---------------------------------
@@ -357,6 +407,15 @@ Note that unlike cache masks, memory b/w cannot specify whether these
 allocations can overlap or not. The allocations specifies the maximum
 b/w that the group may be able to use and the system admin can configure
 the b/w accordingly.
+
+If the MBA is specified in MB(megabytes) then user can enter the max b/w in MB
+rather than the percentage values.
+
+# echo "L3:0=3;1=c\nMB:0=1024;1=500" > /sys/fs/resctrl/p0/schemata
+# echo "L3:0=3;1=3\nMB:0=1024;1=500" > /sys/fs/resctrl/p1/schemata
+
+In the above example the tasks in "p1" and "p0" on socket 0 would use a max b/w
+of 1024MB where as on socket 1 they would use 500MB.
 
 Example 2
 ---------

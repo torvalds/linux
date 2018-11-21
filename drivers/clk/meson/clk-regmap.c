@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-// Copyright (c) 2018 BayLibre, SAS.
-// Author: Jerome Brunet <jbrunet@baylibre.com>
+/*
+ * Copyright (c) 2018 BayLibre, SAS.
+ * Author: Jerome Brunet <jbrunet@baylibre.com>
+ */
 
 #include "clk-regmap.h"
 

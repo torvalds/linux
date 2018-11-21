@@ -191,6 +191,8 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 	unsigned int max_fence = vgpu_fence_sz(vgpu);
 
 	if (fence_num >= max_fence) {
+		gvt_vgpu_err("access oob fence reg %d/%d\n",
+			     fence_num, max_fence);
 
 		/* When guest access oob fence regs without access
 		 * pv_info first, we treat guest not supporting GVT,
@@ -200,11 +202,6 @@ static int sanitize_fence_mmio_access(struct intel_vgpu *vgpu,
 			enter_failsafe_mode(vgpu,
 					GVT_FAILSAFE_UNSUPPORTED_GUEST);
 
-		if (!vgpu->mmio.disable_warn_untrack) {
-			gvt_vgpu_err("found oob fence register access\n");
-			gvt_vgpu_err("total fence %d, access fence %d\n",
-				     max_fence, fence_num);
-		}
 		memset(p_data, 0, bytes);
 		return -EINVAL;
 	}
@@ -477,22 +474,28 @@ static int force_nonpriv_write(struct intel_vgpu *vgpu,
 	unsigned int offset, void *p_data, unsigned int bytes)
 {
 	u32 reg_nonpriv = *(u32 *)p_data;
+	int ring_id = intel_gvt_render_mmio_to_ring_id(vgpu->gvt, offset);
+	u32 ring_base;
+	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int ret = -EINVAL;
 
-	if ((bytes != 4) || ((offset & (bytes - 1)) != 0)) {
-		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV offset %x(%dB)\n",
-			vgpu->id, offset, bytes);
+	if ((bytes != 4) || ((offset & (bytes - 1)) != 0) || ring_id < 0) {
+		gvt_err("vgpu(%d) ring %d Invalid FORCE_NONPRIV offset %x(%dB)\n",
+			vgpu->id, ring_id, offset, bytes);
 		return ret;
 	}
 
-	if (in_whitelist(reg_nonpriv)) {
+	ring_base = dev_priv->engine[ring_id]->mmio_base;
+
+	if (in_whitelist(reg_nonpriv) ||
+		reg_nonpriv == i915_mmio_reg_offset(RING_NOPID(ring_base))) {
 		ret = intel_vgpu_default_mmio_write(vgpu, offset, p_data,
 			bytes);
-	} else {
-		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x\n",
-			vgpu->id, reg_nonpriv);
-	}
-	return ret;
+	} else
+		gvt_err("vgpu(%d) Invalid FORCE_NONPRIV write %x at offset %x\n",
+			vgpu->id, reg_nonpriv, offset);
+
+	return 0;
 }
 
 static int ddi_buf_ctl_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
@@ -900,11 +903,14 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 		}
 
 		/*
-		 * Write request format: (command + address) occupies
-		 * 3 bytes, followed by (len + 1) bytes of data.
+		 * Write request format: Headr (command + address + size) occupies
+		 * 4 bytes, followed by (len + 1) bytes of data. See details at
+		 * intel_dp_aux_transfer().
 		 */
-		if (WARN_ON((len + 4) > AUX_BURST_SIZE))
+		if ((len + 1 + 4) > AUX_BURST_SIZE) {
+			gvt_vgpu_err("dp_aux_header: len %d is too large\n", len);
 			return -EINVAL;
+		}
 
 		/* unpack data from vreg to buf */
 		for (t = 0; t < 4; t++) {
@@ -968,8 +974,10 @@ static int dp_aux_ch_ctl_mmio_write(struct intel_vgpu *vgpu,
 		/*
 		 * Read reply format: ACK (1 byte) plus (len + 1) bytes of data.
 		 */
-		if (WARN_ON((len + 2) > AUX_BURST_SIZE))
+		if ((len + 2) > AUX_BURST_SIZE) {
+			gvt_vgpu_err("dp_aux_header: len %d is too large\n", len);
 			return -EINVAL;
+		}
 
 		/* read from virtual DPCD to vreg */
 		/* first 4 bytes: [ACK][addr][addr+1][addr+2] */
@@ -3038,6 +3046,30 @@ int intel_vgpu_default_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
 }
 
 /**
+ * intel_vgpu_mask_mmio_write - write mask register
+ * @vgpu: a vGPU
+ * @offset: access offset
+ * @p_data: write data buffer
+ * @bytes: access data length
+ *
+ * Returns:
+ * Zero on success, negative error code if failed.
+ */
+int intel_vgpu_mask_mmio_write(struct intel_vgpu *vgpu, unsigned int offset,
+		void *p_data, unsigned int bytes)
+{
+	u32 mask, old_vreg;
+
+	old_vreg = vgpu_vreg(vgpu, offset);
+	write_vreg(vgpu, offset, p_data, bytes);
+	mask = vgpu_vreg(vgpu, offset) >> 16;
+	vgpu_vreg(vgpu, offset) = (old_vreg & ~mask) |
+				(vgpu_vreg(vgpu, offset) & mask);
+
+	return 0;
+}
+
+/**
  * intel_gvt_in_force_nonpriv_whitelist - if a mmio is in whitelist to be
  * force-nopriv register
  *
@@ -3092,9 +3124,7 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 	 */
 	mmio_info = find_mmio_info(gvt, offset);
 	if (!mmio_info) {
-		if (!vgpu->mmio.disable_warn_untrack)
-			gvt_vgpu_err("untracked MMIO %08x len %d\n",
-				     offset, bytes);
+		gvt_dbg_mmio("untracked MMIO %08x len %d\n", offset, bytes);
 		goto default_rw;
 	}
 

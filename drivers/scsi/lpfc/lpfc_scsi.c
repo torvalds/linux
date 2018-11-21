@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -1021,7 +1021,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		if (lpfc_test_rrq_active(phba, ndlp,
 					 lpfc_cmd->cur_iocbq.sli4_lxritag))
 			continue;
-		list_del(&lpfc_cmd->list);
+		list_del_init(&lpfc_cmd->list);
 		found = 1;
 		break;
 	}
@@ -1036,7 +1036,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 			if (lpfc_test_rrq_active(
 				phba, ndlp, lpfc_cmd->cur_iocbq.sli4_lxritag))
 				continue;
-			list_del(&lpfc_cmd->list);
+			list_del_init(&lpfc_cmd->list);
 			found = 1;
 			break;
 		}
@@ -3983,9 +3983,6 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	}
 #endif
 
-	if (pnode && NLP_CHK_NODE_ACT(pnode))
-		atomic_dec(&pnode->cmd_pending);
-
 	if (lpfc_cmd->status) {
 		if (lpfc_cmd->status == IOSTAT_LOCAL_REJECT &&
 		    (lpfc_cmd->result & IOERR_DRVR_MASK))
@@ -4125,6 +4122,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		msecs_to_jiffies(vport->cfg_max_scsicmpl_time))) {
 		spin_lock_irqsave(shost->host_lock, flags);
 		if (pnode && NLP_CHK_NODE_ACT(pnode)) {
+			atomic_dec(&pnode->cmd_pending);
 			if (pnode->cmd_qdepth >
 				atomic_read(&pnode->cmd_pending) &&
 				(atomic_read(&pnode->cmd_pending) >
@@ -4138,16 +4136,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		}
 		spin_unlock_irqrestore(shost->host_lock, flags);
 	} else if (pnode && NLP_CHK_NODE_ACT(pnode)) {
-		if ((pnode->cmd_qdepth != vport->cfg_tgt_queue_depth) &&
-		    time_after(jiffies, pnode->last_change_time +
-			      msecs_to_jiffies(LPFC_TGTQ_INTERVAL))) {
-			spin_lock_irqsave(shost->host_lock, flags);
-			pnode->cmd_qdepth = vport->cfg_tgt_queue_depth;
-			pnode->last_change_time = jiffies;
-			spin_unlock_irqrestore(shost->host_lock, flags);
-		}
+		atomic_dec(&pnode->cmd_pending);
 	}
-
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 
 	spin_lock_irqsave(&phba->hbalock, flags);
@@ -4591,6 +4581,8 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 				 ndlp->nlp_portname.u.wwn[7]);
 		goto out_tgt_busy;
 	}
+	atomic_inc(&ndlp->cmd_pending);
+
 	lpfc_cmd = lpfc_get_scsi_buf(phba, ndlp);
 	if (lpfc_cmd == NULL) {
 		lpfc_rampdown_queue_depth(phba);
@@ -4643,11 +4635,9 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 
 	lpfc_scsi_prep_cmnd(vport, lpfc_cmd, ndlp);
 
-	atomic_inc(&ndlp->cmd_pending);
 	err = lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
 				  &lpfc_cmd->cur_iocbq, SLI_IOCB_RET_IOCB);
 	if (err) {
-		atomic_dec(&ndlp->cmd_pending);
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_FCP,
 				 "3376 FCP could not issue IOCB err %x"
 				 "FCP cmd x%x <%d/%llu> "
@@ -4691,6 +4681,7 @@ lpfc_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *cmnd)
 	lpfc_scsi_unprep_dma_buf(phba, lpfc_cmd);
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
  out_host_busy:
+	atomic_dec(&ndlp->cmd_pending);
 	return SCSI_MLQUEUE_HOST_BUSY;
 
  out_tgt_busy:
@@ -4725,7 +4716,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	int ret = SUCCESS, status = 0;
 	struct lpfc_sli_ring *pring_s4;
 	int ret_val;
-	unsigned long flags, iflags;
+	unsigned long flags;
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waitq);
 
 	status = fc_block_scsi_eh(cmnd);
@@ -4825,16 +4816,16 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 	abtsiocb->iocb_cmpl = lpfc_sli_abort_fcp_cmpl;
 	abtsiocb->vport = vport;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
-		pring_s4 = lpfc_sli4_calc_ring(phba, iocb);
+		pring_s4 = lpfc_sli4_calc_ring(phba, abtsiocb);
 		if (pring_s4 == NULL) {
 			ret = FAILED;
 			goto out_unlock;
 		}
 		/* Note: both hbalock and ring_lock must be set here */
-		spin_lock_irqsave(&pring_s4->ring_lock, iflags);
+		spin_lock(&pring_s4->ring_lock);
 		ret_val = __lpfc_sli_issue_iocb(phba, pring_s4->ringno,
 						abtsiocb, 0);
-		spin_unlock_irqrestore(&pring_s4->ring_lock, iflags);
+		spin_unlock(&pring_s4->ring_lock);
 	} else {
 		ret_val = __lpfc_sli_issue_iocb(phba, LPFC_FCP_RING,
 						abtsiocb, 0);

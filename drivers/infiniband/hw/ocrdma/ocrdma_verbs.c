@@ -843,8 +843,8 @@ static int ocrdma_build_pbl_tbl(struct ocrdma_dev *dev, struct ocrdma_hw_mr *mr)
 	void *va;
 	dma_addr_t pa;
 
-	mr->pbl_table = kzalloc(sizeof(struct ocrdma_pbl) *
-				mr->num_pbls, GFP_KERNEL);
+	mr->pbl_table = kcalloc(mr->num_pbls, sizeof(struct ocrdma_pbl),
+				GFP_KERNEL);
 
 	if (!mr->pbl_table)
 		return -ENOMEM;
@@ -1323,12 +1323,12 @@ static void ocrdma_set_qp_db(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 static int ocrdma_alloc_wr_id_tbl(struct ocrdma_qp *qp)
 {
 	qp->wqe_wr_id_tbl =
-	    kzalloc(sizeof(*(qp->wqe_wr_id_tbl)) * qp->sq.max_cnt,
+	    kcalloc(qp->sq.max_cnt, sizeof(*(qp->wqe_wr_id_tbl)),
 		    GFP_KERNEL);
 	if (qp->wqe_wr_id_tbl == NULL)
 		return -ENOMEM;
 	qp->rqe_wr_id_tbl =
-	    kzalloc(sizeof(u64) * qp->rq.max_cnt, GFP_KERNEL);
+	    kcalloc(qp->rq.max_cnt, sizeof(u64), GFP_KERNEL);
 	if (qp->rqe_wr_id_tbl == NULL)
 		return -ENOMEM;
 
@@ -1865,15 +1865,16 @@ struct ib_srq *ocrdma_create_srq(struct ib_pd *ibpd,
 
 	if (udata == NULL) {
 		status = -ENOMEM;
-		srq->rqe_wr_id_tbl = kzalloc(sizeof(u64) * srq->rq.max_cnt,
-			    GFP_KERNEL);
+		srq->rqe_wr_id_tbl = kcalloc(srq->rq.max_cnt, sizeof(u64),
+					     GFP_KERNEL);
 		if (srq->rqe_wr_id_tbl == NULL)
 			goto arm_err;
 
 		srq->bit_fields_len = (srq->rq.max_cnt / 32) +
 		    (srq->rq.max_cnt % 32 ? 1 : 0);
 		srq->idx_bit_fields =
-		    kmalloc(srq->bit_fields_len * sizeof(u32), GFP_KERNEL);
+		    kmalloc_array(srq->bit_fields_len, sizeof(u32),
+				  GFP_KERNEL);
 		if (srq->idx_bit_fields == NULL)
 			goto arm_err;
 		memset(srq->idx_bit_fields, 0xff,

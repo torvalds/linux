@@ -45,7 +45,16 @@ static inline int hugepd_ok(hugepd_t hpd)
 {
 	return 0;
 }
+
 #define is_hugepd(pdep)			0
+
+/*
+ * This should never get called
+ */
+static inline int get_hugepd_cache_index(int index)
+{
+	BUG();
+}
 
 #else /* !CONFIG_HUGETLB_PAGE */
 static inline int pmd_huge(pmd_t pmd) { return 0; }

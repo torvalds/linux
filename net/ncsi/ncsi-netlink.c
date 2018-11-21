@@ -58,10 +58,9 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 				   struct ncsi_dev_priv *ndp,
 				   struct ncsi_channel *nc)
 {
-	struct nlattr *vid_nest;
-	struct ncsi_channel_filter *ncf;
+	struct ncsi_channel_vlan_filter *ncf;
 	struct ncsi_channel_mode *m;
-	u32 *data;
+	struct nlattr *vid_nest;
 	int i;
 
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_ID, nc->id);
@@ -79,18 +78,13 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 	vid_nest = nla_nest_start(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
 	if (!vid_nest)
 		return -ENOMEM;
-	ncf = nc->filters[NCSI_FILTER_VLAN];
+	ncf = &nc->vlan_filter;
 	i = -1;
-	if (ncf) {
-		while ((i = find_next_bit((void *)&ncf->bitmap, ncf->total,
-					  i + 1)) < ncf->total) {
-			data = ncsi_get_filter(nc, NCSI_FILTER_VLAN, i);
-			/* Uninitialised channels will have 'zero' vlan ids */
-			if (!data || !*data)
-				continue;
+	while ((i = find_next_bit((void *)&ncf->bitmap, ncf->n_vids,
+				  i + 1)) < ncf->n_vids) {
+		if (ncf->vids[i])
 			nla_put_u16(skb, NCSI_CHANNEL_ATTR_VLAN_ID,
-				    *(u16 *)data);
-		}
+				    ncf->vids[i]);
 	}
 	nla_nest_end(skb, vid_nest);
 
@@ -207,7 +201,6 @@ static int ncsi_pkg_info_nl(struct sk_buff *msg, struct genl_info *info)
 	return genlmsg_reply(skb, info);
 
 err:
-	genlmsg_cancel(skb, hdr);
 	kfree_skb(skb);
 	return rc;
 }

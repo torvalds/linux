@@ -19,42 +19,32 @@
 #define KCRC_ALIGN 4
 #endif
 
-#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
-#define KSYM(name) _##name
-#else
-#define KSYM(name) name
-#endif
-
 /*
  * note on .section use: @progbits vs %progbits nastiness doesn't matter,
  * since we immediately emit into those sections anyway.
  */
 .macro ___EXPORT_SYMBOL name,val,sec
 #ifdef CONFIG_MODULES
-	.globl KSYM(__ksymtab_\name)
+	.globl __ksymtab_\name
 	.section ___ksymtab\sec+\name,"a"
 	.balign KSYM_ALIGN
-KSYM(__ksymtab_\name):
-	__put \val, KSYM(__kstrtab_\name)
+__ksymtab_\name:
+	__put \val, __kstrtab_\name
 	.previous
 	.section __ksymtab_strings,"a"
-KSYM(__kstrtab_\name):
-#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
-	.asciz "_\name"
-#else
+__kstrtab_\name:
 	.asciz "\name"
-#endif
 	.previous
 #ifdef CONFIG_MODVERSIONS
 	.section ___kcrctab\sec+\name,"a"
 	.balign KCRC_ALIGN
-KSYM(__kcrctab_\name):
+__kcrctab_\name:
 #if defined(CONFIG_MODULE_REL_CRCS)
-	.long KSYM(__crc_\name) - .
+	.long __crc_\name - .
 #else
-	.long KSYM(__crc_\name)
+	.long __crc_\name
 #endif
-	.weak KSYM(__crc_\name)
+	.weak __crc_\name
 	.previous
 #endif
 #endif
@@ -84,12 +74,12 @@ KSYM(__kcrctab_\name):
 #endif
 
 #define EXPORT_SYMBOL(name)					\
-	__EXPORT_SYMBOL(name, KSYM_FUNC(KSYM(name)),)
+	__EXPORT_SYMBOL(name, KSYM_FUNC(name),)
 #define EXPORT_SYMBOL_GPL(name) 				\
-	__EXPORT_SYMBOL(name, KSYM_FUNC(KSYM(name)), _gpl)
+	__EXPORT_SYMBOL(name, KSYM_FUNC(name), _gpl)
 #define EXPORT_DATA_SYMBOL(name)				\
-	__EXPORT_SYMBOL(name, KSYM(name),)
+	__EXPORT_SYMBOL(name, name,)
 #define EXPORT_DATA_SYMBOL_GPL(name)				\
-	__EXPORT_SYMBOL(name, KSYM(name),_gpl)
+	__EXPORT_SYMBOL(name, name,_gpl)
 
 #endif

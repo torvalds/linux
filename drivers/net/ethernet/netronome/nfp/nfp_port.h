@@ -77,10 +77,13 @@ enum nfp_port_flags {
  * @app:	backpointer to the app structure
  * @dl_port:	devlink port structure
  * @eth_id:	for %NFP_PORT_PHYS_PORT port ID in NFP enumeration scheme
+ * @eth_forced:	for %NFP_PORT_PHYS_PORT port is forced UP or DOWN, don't change
  * @eth_port:	for %NFP_PORT_PHYS_PORT translated ETH Table port entry
  * @eth_stats:	for %NFP_PORT_PHYS_PORT MAC stats if available
  * @pf_id:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT ID of the PCI PF (0-3)
  * @vf_id:	for %NFP_PORT_VF_PORT ID of the PCI VF within @pf_id
+ * @pf_split:	for %NFP_PORT_PF_PORT %true if PCI PF has more than one vNIC
+ * @pf_split_id:for %NFP_PORT_PF_PORT ID of PCI PF vNIC (valid if @pf_split)
  * @vnic:	for %NFP_PORT_PF_PORT, %NFP_PORT_VF_PORT vNIC ctrl memory
  * @port_list:	entry on pf's list of ports
  */
@@ -99,6 +102,7 @@ struct nfp_port {
 		/* NFP_PORT_PHYS_PORT */
 		struct {
 			unsigned int eth_id;
+			bool eth_forced;
 			struct nfp_eth_table_port *eth_port;
 			u8 __iomem *eth_stats;
 		};
@@ -106,6 +110,8 @@ struct nfp_port {
 		struct {
 			unsigned int pf_id;
 			unsigned int vf_id;
+			bool pf_split;
+			unsigned int pf_split_id;
 			u8 __iomem *vnic;
 		};
 	};
@@ -115,6 +121,8 @@ struct nfp_port {
 
 extern const struct ethtool_ops nfp_port_ethtool_ops;
 extern const struct switchdev_ops nfp_port_switchdev_ops;
+
+__printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...);
 
 int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 		      void *type_data);

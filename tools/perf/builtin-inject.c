@@ -440,9 +440,7 @@ static int perf_event__inject_buildid(struct perf_tool *tool,
 		goto repipe;
 	}
 
-	thread__find_addr_map(thread, sample->cpumode, MAP__FUNCTION, sample->ip, &al);
-
-	if (al.map != NULL) {
+	if (thread__find_map(thread, sample->cpumode, sample->ip, &al)) {
 		if (!al.map->dso->hit) {
 			al.map->dso->hit = 1;
 			if (map__load(al.map) >= 0) {

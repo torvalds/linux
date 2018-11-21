@@ -48,6 +48,7 @@ obj-$(CONFIG_INFINIBAND_ISER) 	+= libiscsi.o
 obj-$(CONFIG_ISCSI_BOOT_SYSFS)	+= iscsi_boot_sysfs.o
 obj-$(CONFIG_SCSI_A4000T)	+= 53c700.o	a4000t.o
 obj-$(CONFIG_SCSI_ZORRO7XX)	+= 53c700.o	zorro7xx.o
+obj-$(CONFIG_SCSI_ZORRO_ESP)	+= esp_scsi.o	zorro_esp.o
 obj-$(CONFIG_A3000_SCSI)	+= a3000.o	wd33c93.o
 obj-$(CONFIG_A2091_SCSI)	+= a2091.o	wd33c93.o
 obj-$(CONFIG_GVP11_SCSI)	+= gvp11.o	wd33c93.o
@@ -189,7 +190,7 @@ $(obj)/53c700.o $(MODVERDIR)/$(obj)/53c700.ver: $(obj)/53c700_d.h
 $(obj)/scsi_sysfs.o: $(obj)/scsi_devinfo_tbl.c
 
 quiet_cmd_bflags = GEN     $@
-	cmd_bflags = sed -n 's/.*BLIST_\([A-Z0-9_]*\) *.*/BLIST_FLAG_NAME(\1),/p' $< > $@
+	cmd_bflags = sed -n 's/.*define *BLIST_\([A-Z0-9_]*\) *.*/BLIST_FLAG_NAME(\1),/p' $< > $@
 
 $(obj)/scsi_devinfo_tbl.c: include/scsi/scsi_devinfo.h
 	$(call if_changed,bflags)

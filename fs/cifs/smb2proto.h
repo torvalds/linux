@@ -36,8 +36,9 @@ struct smb_rqst;
 extern int map_smb2_to_linux_error(char *buf, bool log_err);
 extern int smb2_check_message(char *buf, unsigned int length,
 			      struct TCP_Server_Info *server);
-extern unsigned int smb2_calc_size(void *buf);
-extern char *smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *hdr);
+extern unsigned int smb2_calc_size(void *buf, struct TCP_Server_Info *server);
+extern char *smb2_get_data_area_len(int *off, int *len,
+				    struct smb2_sync_hdr *shdr);
 extern __le16 *cifs_convert_path_to_utf16(const char *from,
 					  struct cifs_sb_info *cifs_sb);
 
@@ -65,6 +66,8 @@ extern struct cifs_ses *smb2_find_smb_ses(struct TCP_Server_Info *server,
 extern int smb3_handle_read_data(struct TCP_Server_Info *server,
 				 struct mid_q_entry *mid);
 
+extern int open_shroot(unsigned int xid, struct cifs_tcon *tcon,
+			struct cifs_fid *pfid);
 extern void move_smb2_info_to_cifs(FILE_ALL_INFO *dst,
 				   struct smb2_file_all_info *src);
 extern int smb2_query_path_info(const unsigned int xid, struct cifs_tcon *tcon,
@@ -76,6 +79,10 @@ extern int smb2_set_path_size(const unsigned int xid, struct cifs_tcon *tcon,
 			      struct cifs_sb_info *cifs_sb, bool set_alloc);
 extern int smb2_set_file_info(struct inode *inode, const char *full_path,
 			      FILE_BASIC_INFO *buf, const unsigned int xid);
+extern int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
+			       umode_t mode, struct cifs_tcon *tcon,
+			       const char *full_path,
+			       struct cifs_sb_info *cifs_sb);
 extern int smb2_mkdir(const unsigned int xid, struct cifs_tcon *tcon,
 		      const char *name, struct cifs_sb_info *cifs_sb);
 extern void smb2_mkdir_setinfo(struct inode *inode, const char *full_path,
@@ -106,6 +113,8 @@ extern int smb2_unlock_range(struct cifsFileInfo *cfile,
 extern int smb2_push_mandatory_locks(struct cifsFileInfo *cfile);
 extern void smb2_reconnect_server(struct work_struct *work);
 extern int smb3_crypto_aead_allocate(struct TCP_Server_Info *server);
+extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
+				  struct smb_rqst *rqst);
 
 /*
  * SMB2 Worker functions - most of protocol specific implementation details
@@ -122,13 +131,15 @@ extern int SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon);
 extern int SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms,
 		     __le16 *path, __u8 *oplock,
 		     struct smb2_file_all_info *buf,
-		     struct kvec *err_iov);
+		     struct kvec *err_iov, int *resp_buftype);
 extern int SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon,
 		     u64 persistent_fid, u64 volatile_fid, u32 opcode,
 		     bool is_fsctl, char *in_data, u32 indatalen,
 		     char **out_data, u32 *plen /* returned data len */);
 extern int SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
+extern int SMB2_close_flags(const unsigned int xid, struct cifs_tcon *tcon,
+			    u64 persistent_fid, u64 volatile_fid, int flags);
 extern int SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon,
 		      u64 persistent_file_id, u64 volatile_file_id);
 extern int SMB2_query_eas(const unsigned int xid, struct cifs_tcon *tcon,

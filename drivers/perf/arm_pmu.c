@@ -339,7 +339,7 @@ static irqreturn_t armpmu_dispatch_irq(int irq, void *dev)
 		return IRQ_NONE;
 
 	start_clock = sched_clock();
-	ret = armpmu->handle_irq(irq, armpmu);
+	ret = armpmu->handle_irq(armpmu);
 	finish_clock = sched_clock();
 
 	perf_sample_event_took(finish_clock - start_clock);

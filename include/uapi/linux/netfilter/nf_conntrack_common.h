@@ -112,7 +112,7 @@ enum ip_conntrack_status {
 				 IPS_EXPECTED | IPS_CONFIRMED | IPS_DYING |
 				 IPS_SEQ_ADJUST | IPS_TEMPLATE | IPS_OFFLOAD),
 
-	__IPS_MAX_BIT = 14,
+	__IPS_MAX_BIT = 15,
 };
 
 /* Connection tracking event types */

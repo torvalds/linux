@@ -12,8 +12,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
+#include <bpf/bpf.h>
+
+#include "bpf_insn.h"
 #include "bpf_load.h"
-#include "libbpf.h"
 #include "sock_example.h"
 
 #define BPF_F_PIN	(1 << 0)

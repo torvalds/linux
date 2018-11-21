@@ -28,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/vgaarb.h>
+#include <linux/nospec.h>
 
 #include "vfio_pci_private.h"
 
@@ -727,6 +728,9 @@ static long vfio_pci_ioctl(void *device_data,
 			if (info.index >=
 			    VFIO_PCI_NUM_REGIONS + vdev->num_regions)
 				return -EINVAL;
+			info.index = array_index_nospec(info.index,
+							VFIO_PCI_NUM_REGIONS +
+							vdev->num_regions);
 
 			i = info.index - VFIO_PCI_NUM_REGIONS;
 

@@ -21,7 +21,6 @@
 #define EXYNOS5250_SOC_ID	0x43520000
 #define EXYNOS5410_SOC_ID	0xE5410000
 #define EXYNOS5420_SOC_ID	0xE5420000
-#define EXYNOS5440_SOC_ID	0xE5440000
 #define EXYNOS5800_SOC_ID	0xE5422000
 #define EXYNOS5_SOC_MASK	0xFFFFF000
 
@@ -39,7 +38,6 @@ IS_SAMSUNG_CPU(exynos4412, EXYNOS4412_CPU_ID, EXYNOS4_CPU_MASK)
 IS_SAMSUNG_CPU(exynos5250, EXYNOS5250_SOC_ID, EXYNOS5_SOC_MASK)
 IS_SAMSUNG_CPU(exynos5410, EXYNOS5410_SOC_ID, EXYNOS5_SOC_MASK)
 IS_SAMSUNG_CPU(exynos5420, EXYNOS5420_SOC_ID, EXYNOS5_SOC_MASK)
-IS_SAMSUNG_CPU(exynos5440, EXYNOS5440_SOC_ID, EXYNOS5_SOC_MASK)
 IS_SAMSUNG_CPU(exynos5800, EXYNOS5800_SOC_ID, EXYNOS5_SOC_MASK)
 
 #if defined(CONFIG_SOC_EXYNOS3250)
@@ -82,21 +80,11 @@ IS_SAMSUNG_CPU(exynos5800, EXYNOS5800_SOC_ID, EXYNOS5_SOC_MASK)
 # define soc_is_exynos5420()	0
 #endif
 
-#if defined(CONFIG_SOC_EXYNOS5440)
-# define soc_is_exynos5440()	is_samsung_exynos5440()
-#else
-# define soc_is_exynos5440()	0
-#endif
-
 #if defined(CONFIG_SOC_EXYNOS5800)
 # define soc_is_exynos5800()	is_samsung_exynos5800()
 #else
 # define soc_is_exynos5800()	0
 #endif
-
-#define soc_is_exynos4() (soc_is_exynos4210() || soc_is_exynos4412())
-#define soc_is_exynos5() (soc_is_exynos5250() || soc_is_exynos5410() || \
-			  soc_is_exynos5420() || soc_is_exynos5800())
 
 extern u32 cp15_save_diag;
 extern u32 cp15_save_power;
@@ -149,6 +137,11 @@ extern void exynos_cpu_restore_register(void);
 extern void exynos_pm_central_suspend(void);
 extern int exynos_pm_central_resume(void);
 extern void exynos_enter_aftr(void);
+#ifdef CONFIG_SMP
+extern void exynos_scu_enable(void);
+#else
+static inline void exynos_scu_enable(void) { }
+#endif
 
 extern struct cpuidle_exynos_data cpuidle_coupled_exynos_data;
 

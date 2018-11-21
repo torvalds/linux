@@ -319,6 +319,9 @@ static int omap_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_width = 8192;
 	dev->mode_config.max_height = 8192;
 
+	/* We want the zpos to be normalized */
+	dev->mode_config.normalize_zpos = true;
+
 	dev->mode_config.funcs = &omap_mode_config_funcs;
 	dev->mode_config.helper_private = &omap_mode_config_helper_funcs;
 

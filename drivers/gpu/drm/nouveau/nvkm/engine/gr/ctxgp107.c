@@ -31,7 +31,7 @@
 
 const struct gf100_grctx_func
 gp107_grctx = {
-	.main = gp100_grctx_generate_main,
+	.main = gf100_grctx_generate_main,
 	.unkn = gk104_grctx_generate_unkn,
 	.bundle = gm107_grctx_generate_bundle,
 	.bundle_size = 0x3000,
@@ -44,4 +44,13 @@ gp107_grctx = {
 	.attrib_nr = 0x540,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
+	.gfxp_nr = 0xe94,
+	.sm_id = gm107_grctx_generate_sm_id,
+	.rop_mapping = gf117_grctx_generate_rop_mapping,
+	.dist_skip_table = gm200_grctx_generate_dist_skip_table,
+	.r406500 = gm200_grctx_generate_r406500,
+	.gpc_tpc_nr = gk104_grctx_generate_gpc_tpc_nr,
+	.tpc_mask = gm200_grctx_generate_tpc_mask,
+	.smid_config = gp100_grctx_generate_smid_config,
+	.r419a3c = gm200_grctx_generate_r419a3c,
 };

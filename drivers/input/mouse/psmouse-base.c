@@ -192,8 +192,8 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 			else
 				input_report_rel(dev, REL_WHEEL, -wheel);
 
-			input_report_key(dev, BTN_SIDE,  BIT(4));
-			input_report_key(dev, BTN_EXTRA, BIT(5));
+			input_report_key(dev, BTN_SIDE,  packet[3] & BIT(4));
+			input_report_key(dev, BTN_EXTRA, packet[3] & BIT(5));
 			break;
 		}
 		break;
@@ -203,13 +203,13 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 		input_report_rel(dev, REL_WHEEL, -(s8) packet[3]);
 
 		/* Extra buttons on Genius NewNet 3D */
-		input_report_key(dev, BTN_SIDE,  BIT(6));
-		input_report_key(dev, BTN_EXTRA, BIT(7));
+		input_report_key(dev, BTN_SIDE,  packet[0] & BIT(6));
+		input_report_key(dev, BTN_EXTRA, packet[0] & BIT(7));
 		break;
 
 	case PSMOUSE_THINKPS:
 		/* Extra button on ThinkingMouse */
-		input_report_key(dev, BTN_EXTRA, BIT(3));
+		input_report_key(dev, BTN_EXTRA, packet[0] & BIT(3));
 
 		/*
 		 * Without this bit of weirdness moving up gives wildly
@@ -223,7 +223,7 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 		 * Cortron PS2 Trackball reports SIDE button in the
 		 * 4th bit of the first byte.
 		 */
-		input_report_key(dev, BTN_SIDE, BIT(3));
+		input_report_key(dev, BTN_SIDE, packet[0] & BIT(3));
 		packet[0] |= BIT(3);
 		break;
 
@@ -856,7 +856,17 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "ETPS/2",
 		.alias		= "elantech",
 		.detect		= elantech_detect,
-		.init		= elantech_init,
+		.init		= elantech_init_ps2,
+	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_ELANTECH_SMBUS
+	{
+		.type		= PSMOUSE_ELANTECH_SMBUS,
+		.name		= "ETSMBus",
+		.alias		= "elantech-smbus",
+		.detect		= elantech_detect,
+		.init		= elantech_init_smbus,
+		.smbus_companion = true,
 	},
 #endif
 #ifdef CONFIG_MOUSE_PS2_SENTELIC
@@ -1158,8 +1168,13 @@ static int psmouse_extensions(struct psmouse *psmouse,
 	/* Try Elantech touchpad */
 	if (max_proto > PSMOUSE_IMEX &&
 	    psmouse_try_protocol(psmouse, PSMOUSE_ELANTECH,
-				 &max_proto, set_properties, true)) {
-		return PSMOUSE_ELANTECH;
+				 &max_proto, set_properties, false)) {
+		if (!set_properties)
+			return PSMOUSE_ELANTECH;
+
+		ret = elantech_init(psmouse);
+		if (ret >= 0)
+			return ret;
 	}
 
 	if (max_proto > PSMOUSE_IMEX) {

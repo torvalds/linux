@@ -28,8 +28,6 @@
 #include <asm/irq_remapping.h>
 #include <asm/early_ioremap.h>
 
-#define dev_err(msg)  pr_err("pci 0000:%02x:%02x.%d: %s", bus, slot, func, msg)
-
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
 	u32 htcfg;
@@ -617,7 +615,8 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 		pmcsr = read_pci_config_16(bus, slot, func, BCM4331_PM_CAP + PCI_PM_CTRL);
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_D0) {
-			dev_err("Cannot power up Apple AirPort card\n");
+			pr_err("pci 0000:%02x:%02x.%d: Cannot power up Apple AirPort card\n",
+			       bus, slot, func);
 			return;
 		}
 	}
@@ -628,7 +627,8 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 	mmio = early_ioremap(addr, BCM4331_MMIO_SIZE);
 	if (!mmio) {
-		dev_err("Cannot iomap Apple AirPort card\n");
+		pr_err("pci 0000:%02x:%02x.%d: Cannot iomap Apple AirPort card\n",
+		       bus, slot, func);
 		return;
 	}
 

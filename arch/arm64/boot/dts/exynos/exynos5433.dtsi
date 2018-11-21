@@ -18,8 +18,8 @@
 
 / {
 	compatible = "samsung,exynos5433";
-	#address-cells = <2>;
-	#size-cells = <2>;
+	#address-cells = <1>;
+	#size-cells = <1>;
 
 	interrupt-parent = <&gic>;
 
@@ -231,18 +231,11 @@
 		cpu_on = <0xC4000003>;
 	};
 
-	reboot: syscon-reboot {
-		compatible = "syscon-reboot";
-		regmap = <&pmu_system_controller>;
-		offset = <0x400>; /* SWRESET */
-		mask = <0x1>;
-	};
-
 	soc: soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0x0 0x0 0x0 0x18000000>;
+		ranges;
 
 		arm_a53_pmu {
 			compatible = "arm,cortex-a53-pmu", "arm,armv8-pmuv3";
@@ -799,6 +792,13 @@
 			#clock-cells = <1>;
 			clock-names = "clkout16";
 			clocks = <&xxti>;
+
+			reboot: syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&pmu_system_controller>;
+				offset = <0x400>; /* SWRESET */
+				mask = <0x1>;
+			};
 		};
 
 		gic: interrupt-controller@11001000 {
@@ -829,11 +829,16 @@
 				<&cmu_disp CLK_ACLK_SMMU_DECON0X>,
 				<&cmu_disp CLK_ACLK_XIU_DECON0X>,
 				<&cmu_disp CLK_PCLK_SMMU_DECON0X>,
+				<&cmu_disp CLK_ACLK_SMMU_DECON1X>,
+				<&cmu_disp CLK_ACLK_XIU_DECON1X>,
+				<&cmu_disp CLK_PCLK_SMMU_DECON1X>,
 				<&cmu_disp CLK_SCLK_DECON_VCLK>,
 				<&cmu_disp CLK_SCLK_DECON_ECLK>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
 				"aclk_xiu_decon0x", "pclk_smmu_decon0x",
-				"sclk_decon_vclk", "sclk_decon_eclk";
+				"aclk_smmu_decon1x", "aclk_xiu_decon1x",
+				"pclk_smmu_decon1x", "sclk_decon_vclk",
+				"sclk_decon_eclk";
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
 			interrupts = <GIC_SPI 201 IRQ_TYPE_LEVEL_HIGH>,
@@ -866,11 +871,16 @@
 				 <&cmu_disp CLK_ACLK_SMMU_TV0X>,
 				 <&cmu_disp CLK_ACLK_XIU_TV0X>,
 				 <&cmu_disp CLK_PCLK_SMMU_TV0X>,
+				 <&cmu_disp CLK_ACLK_SMMU_TV1X>,
+				 <&cmu_disp CLK_ACLK_XIU_TV1X>,
+				 <&cmu_disp CLK_PCLK_SMMU_TV1X>,
 				 <&cmu_disp CLK_SCLK_DECON_TV_VCLK>,
 				 <&cmu_disp CLK_SCLK_DECON_TV_ECLK>;
 			clock-names = "pclk", "aclk_decon", "aclk_smmu_decon0x",
 				      "aclk_xiu_decon0x", "pclk_smmu_decon0x",
-				      "sclk_decon_vclk", "sclk_decon_eclk";
+				      "aclk_smmu_decon1x", "aclk_xiu_decon1x",
+				      "pclk_smmu_decon1x", "sclk_decon_vclk",
+				      "sclk_decon_eclk";
 			samsung,disp-sysreg = <&syscon_disp>;
 			power-domains = <&pd_disp>;
 			interrupt-names = "fifo", "vsync", "lcd_sys";
@@ -1034,6 +1044,30 @@
 			power-domains = <&pd_gscl>;
 		};
 
+		scaler_0: scaler@15000000 {
+			compatible = "samsung,exynos5433-scaler";
+			reg = <0x15000000 0x1294>;
+			interrupts = <0 402 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk", "aclk_xiu";
+			clocks = <&cmu_mscl CLK_PCLK_M2MSCALER0>,
+				 <&cmu_mscl CLK_ACLK_M2MSCALER0>,
+				 <&cmu_mscl CLK_ACLK_XIU_MSCLX>;
+			iommus = <&sysmmu_scaler_0>;
+			power-domains = <&pd_mscl>;
+		};
+
+		scaler_1: scaler@15010000 {
+			compatible = "samsung,exynos5433-scaler";
+			reg = <0x15010000 0x1294>;
+			interrupts = <0 403 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk", "aclk_xiu";
+			clocks = <&cmu_mscl CLK_PCLK_M2MSCALER1>,
+				 <&cmu_mscl CLK_ACLK_M2MSCALER1>,
+				 <&cmu_mscl CLK_ACLK_XIU_MSCLX>;
+			iommus = <&sysmmu_scaler_1>;
+			power-domains = <&pd_mscl>;
+		};
+
 		jpeg: codec@15020000 {
 			compatible = "samsung,exynos5433-jpeg";
 			reg = <0x15020000 0x10000>;
@@ -1135,6 +1169,28 @@
 				 <&cmu_gscl CLK_PCLK_SMMU_GSCL2>;
 			#iommu-cells = <0>;
 			power-domains = <&pd_gscl>;
+		};
+
+		sysmmu_scaler_0: sysmmu@0x15040000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x15040000 0x1000>;
+			interrupts = <GIC_SPI 404 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk";
+			clocks = <&cmu_mscl CLK_PCLK_SMMU_M2MSCALER0>,
+				 <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER0>;
+			#iommu-cells = <0>;
+			power-domains = <&pd_mscl>;
+		};
+
+		sysmmu_scaler_1: sysmmu@0x15050000 {
+			compatible = "samsung,exynos-sysmmu";
+			reg = <0x15050000 0x1000>;
+			interrupts = <GIC_SPI 406 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "pclk", "aclk";
+			clocks = <&cmu_mscl CLK_PCLK_SMMU_M2MSCALER1>,
+				 <&cmu_mscl CLK_ACLK_SMMU_M2MSCALER1>;
+			#iommu-cells = <0>;
+			power-domains = <&pd_mscl>;
 		};
 
 		sysmmu_jpeg: sysmmu@15060000 {

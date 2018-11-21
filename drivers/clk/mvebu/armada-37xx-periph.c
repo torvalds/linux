@@ -35,6 +35,7 @@
 #define CLK_SEL		0x10
 #define CLK_DIS		0x14
 
+#define  ARMADA_37XX_DVFS_LOAD_1 1
 #define LOAD_LEVEL_NR	4
 
 #define ARMADA_37XX_NB_L0L1	0x18
@@ -507,6 +508,40 @@ static long clk_pm_cpu_round_rate(struct clk_hw *hw, unsigned long rate,
 	return -EINVAL;
 }
 
+/*
+ * Switching the CPU from the L2 or L3 frequencies (300 and 200 Mhz
+ * respectively) to L0 frequency (1.2 Ghz) requires a significant
+ * amount of time to let VDD stabilize to the appropriate
+ * voltage. This amount of time is large enough that it cannot be
+ * covered by the hardware countdown register. Due to this, the CPU
+ * might start operating at L0 before the voltage is stabilized,
+ * leading to CPU stalls.
+ *
+ * To work around this problem, we prevent switching directly from the
+ * L2/L3 frequencies to the L0 frequency, and instead switch to the L1
+ * frequency in-between. The sequence therefore becomes:
+ * 1. First switch from L2/L3(200/300MHz) to L1(600MHZ)
+ * 2. Sleep 20ms for stabling VDD voltage
+ * 3. Then switch from L1(600MHZ) to L0(1200Mhz).
+ */
+static void clk_pm_cpu_set_rate_wa(unsigned long rate, struct regmap *base)
+{
+	unsigned int cur_level;
+
+	if (rate != 1200 * 1000 * 1000)
+		return;
+
+	regmap_read(base, ARMADA_37XX_NB_CPU_LOAD, &cur_level);
+	cur_level &= ARMADA_37XX_NB_CPU_LOAD_MASK;
+	if (cur_level <= ARMADA_37XX_DVFS_LOAD_1)
+		return;
+
+	regmap_update_bits(base, ARMADA_37XX_NB_CPU_LOAD,
+			   ARMADA_37XX_NB_CPU_LOAD_MASK,
+			   ARMADA_37XX_DVFS_LOAD_1);
+	msleep(20);
+}
+
 static int clk_pm_cpu_set_rate(struct clk_hw *hw, unsigned long rate,
 			       unsigned long parent_rate)
 {
@@ -537,6 +572,9 @@ static int clk_pm_cpu_set_rate(struct clk_hw *hw, unsigned long rate,
 			 */
 			reg = ARMADA_37XX_NB_CPU_LOAD;
 			mask = ARMADA_37XX_NB_CPU_LOAD_MASK;
+
+			clk_pm_cpu_set_rate_wa(rate, base);
+
 			regmap_update_bits(base, reg, mask, load_level);
 
 			return rate;
@@ -667,9 +705,10 @@ static int armada_3700_periph_clock_probe(struct platform_device *pdev)
 	if (!driver_data)
 		return -ENOMEM;
 
-	driver_data->hw_data = devm_kzalloc(dev, sizeof(*driver_data->hw_data) +
-			    sizeof(*driver_data->hw_data->hws) * num_periph,
-			    GFP_KERNEL);
+	driver_data->hw_data = devm_kzalloc(dev,
+					    struct_size(driver_data->hw_data,
+							hws, num_periph),
+					    GFP_KERNEL);
 	if (!driver_data->hw_data)
 		return -ENOMEM;
 	driver_data->hw_data->num = num_periph;

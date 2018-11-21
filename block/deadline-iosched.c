@@ -512,8 +512,7 @@ STORE_FUNCTION(deadline_fifo_batch_store, &dd->fifo_batch, 0, INT_MAX, 0);
 #undef STORE_FUNCTION
 
 #define DD_ATTR(name) \
-	__ATTR(name, S_IRUGO|S_IWUSR, deadline_##name##_show, \
-				      deadline_##name##_store)
+	__ATTR(name, 0644, deadline_##name##_show, deadline_##name##_store)
 
 static struct elv_fs_entry deadline_attrs[] = {
 	DD_ATTR(read_expire),

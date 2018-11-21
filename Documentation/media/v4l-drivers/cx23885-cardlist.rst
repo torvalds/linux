@@ -186,7 +186,7 @@ cx23885 cards list
 
    * - 43
      - Hauppauge ImpactVCB-e
-     - 0070:7133
+     - 0070:7133, 0070:7137
 
    * - 44
      - DViCO FusionHDTV DVB-T Dual Express2
@@ -243,3 +243,19 @@ cx23885 cards list
    * - 57
      - Hauppauge WinTV-QuadHD-ATSC
      - 0070:6a18, 0070:6b18
+
+   * - 58
+     - Hauppauge WinTV-HVR-1265(161111)
+     - 0070:2a18
+
+   * - 59
+     - Hauppauge WinTV-Starburst2
+     - 0070:f02a
+
+   * - 60
+     - Hauppauge WinTV-QuadHD-DVB(885)
+     -
+
+   * - 61
+     - Hauppauge WinTV-QuadHD-ATSC(885)
+     -

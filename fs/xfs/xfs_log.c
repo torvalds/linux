@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -1047,6 +1035,7 @@ xfs_log_item_init(
 	INIT_LIST_HEAD(&item->li_ail);
 	INIT_LIST_HEAD(&item->li_cil);
 	INIT_LIST_HEAD(&item->li_bio_list);
+	INIT_LIST_HEAD(&item->li_trans);
 }
 
 /*
@@ -1640,8 +1629,8 @@ xlog_grant_push_ail(
 	 * log, and 256 blocks.
 	 */
 	free_threshold = BTOBB(need_bytes);
-	free_threshold = MAX(free_threshold, (log->l_logBBsize >> 2));
-	free_threshold = MAX(free_threshold, 256);
+	free_threshold = max(free_threshold, (log->l_logBBsize >> 2));
+	free_threshold = max(free_threshold, 256);
 	if (free_blocks >= free_threshold)
 		return;
 
@@ -2110,10 +2099,10 @@ xlog_print_tic_res(
  */
 void
 xlog_print_trans(
-	struct xfs_trans		*tp)
+	struct xfs_trans	*tp)
 {
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_log_item_desc	*lidp;
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_log_item	*lip;
 
 	/* dump core transaction and ticket info */
 	xfs_warn(mp, "transaction summary:");
@@ -2124,15 +2113,14 @@ xlog_print_trans(
 	xlog_print_tic_res(mp, tp->t_ticket);
 
 	/* dump each log item */
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item	*lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec	*lv = lip->li_lv;
 		struct xfs_log_iovec	*vec;
 		int			i;
 
 		xfs_warn(mp, "log item: ");
 		xfs_warn(mp, "  type	= 0x%x", lip->li_type);
-		xfs_warn(mp, "  flags	= 0x%x", lip->li_flags);
+		xfs_warn(mp, "  flags	= 0x%lx", lip->li_flags);
 		if (!lv)
 			continue;
 		xfs_warn(mp, "  niovecs	= %d", lv->lv_niovecs);

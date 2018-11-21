@@ -542,8 +542,14 @@ static const char *htc_service_name(enum ath10k_htc_svc_id id)
 		return "NMI Data";
 	case ATH10K_HTC_SVC_ID_HTT_DATA_MSG:
 		return "HTT Data";
+	case ATH10K_HTC_SVC_ID_HTT_DATA2_MSG:
+		return "HTT Data";
+	case ATH10K_HTC_SVC_ID_HTT_DATA3_MSG:
+		return "HTT Data";
 	case ATH10K_HTC_SVC_ID_TEST_RAW_STREAMS:
 		return "RAW";
+	case ATH10K_HTC_SVC_ID_HTT_LOG_MSG:
+		return "PKTLOG";
 	}
 
 	return "Unknown";

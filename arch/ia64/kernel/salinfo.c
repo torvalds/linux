@@ -54,8 +54,6 @@ MODULE_AUTHOR("Jesse Barnes <jbarnes@sgi.com>");
 MODULE_DESCRIPTION("/proc interface to IA-64 SAL features");
 MODULE_LICENSE("GPL");
 
-static const struct file_operations proc_salinfo_fops;
-
 typedef struct {
 	const char		*name;		/* name of the proc entry */
 	unsigned long           feature;        /* feature bit */
@@ -578,6 +576,17 @@ static int salinfo_cpu_pre_down(unsigned int cpu)
 	return 0;
 }
 
+/*
+ * 'data' contains an integer that corresponds to the feature we're
+ * testing
+ */
+static int proc_salinfo_show(struct seq_file *m, void *v)
+{
+	unsigned long data = (unsigned long)v;
+	seq_puts(m, (sal_platform_features & data) ? "1\n" : "0\n");
+	return 0;
+}
+
 static int __init
 salinfo_init(void)
 {
@@ -593,9 +602,9 @@ salinfo_init(void)
 
 	for (i=0; i < NR_SALINFO_ENTRIES; i++) {
 		/* pass the feature bit in question as misc data */
-		*sdir++ = proc_create_data(salinfo_entries[i].name, 0, salinfo_dir,
-					   &proc_salinfo_fops,
-					   (void *)salinfo_entries[i].feature);
+		*sdir++ = proc_create_single_data(salinfo_entries[i].name, 0,
+				salinfo_dir, proc_salinfo_show,
+				(void *)salinfo_entries[i].feature);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(salinfo_log_name); i++) {
@@ -632,28 +641,5 @@ salinfo_init(void)
 	WARN_ON(i < 0);
 	return 0;
 }
-
-/*
- * 'data' contains an integer that corresponds to the feature we're
- * testing
- */
-static int proc_salinfo_show(struct seq_file *m, void *v)
-{
-	unsigned long data = (unsigned long)v;
-	seq_puts(m, (sal_platform_features & data) ? "1\n" : "0\n");
-	return 0;
-}
-
-static int proc_salinfo_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_salinfo_show, PDE_DATA(inode));
-}
-
-static const struct file_operations proc_salinfo_fops = {
-	.open		= proc_salinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 
 module_init(salinfo_init);

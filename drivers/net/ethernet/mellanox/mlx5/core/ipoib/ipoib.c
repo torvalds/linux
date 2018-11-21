@@ -76,6 +76,7 @@ void mlx5i_init(struct mlx5_core_dev *mdev,
 		void *ppriv)
 {
 	struct mlx5e_priv *priv  = mlx5i_epriv(netdev);
+	u16 max_mtu;
 
 	/* priv init */
 	priv->mdev        = mdev;
@@ -83,6 +84,9 @@ void mlx5i_init(struct mlx5_core_dev *mdev,
 	priv->profile     = profile;
 	priv->ppriv       = ppriv;
 	mutex_init(&priv->state_lock);
+
+	mlx5_query_port_max_mtu(mdev, &max_mtu, 1);
+	netdev->mtu = max_mtu;
 
 	mlx5e_build_nic_params(mdev, &priv->channels.params,
 			       profile->max_nch(mdev), netdev->mtu);

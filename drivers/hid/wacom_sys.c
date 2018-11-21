@@ -395,6 +395,14 @@ static void wacom_usage_mapping(struct hid_device *hdev,
 		}
 	}
 
+	/* 2nd-generation Intuos Pro Large has incorrect Y maximum */
+	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
+	    hdev->product == 0x0358 &&
+	    WACOM_PEN_FIELD(field) &&
+	    wacom_equivalent_usage(usage->hid) == HID_GD_Y) {
+		field->logical_maximum = 43200;
+	}
+
 	switch (usage->hid) {
 	case HID_GD_X:
 		features->x_max = field->logical_maximum;
@@ -1363,7 +1371,7 @@ static int wacom_led_groups_alloc_and_register_one(struct device *dev,
 	if (!devres_open_group(dev, &wacom->led.groups[group_id], GFP_KERNEL))
 		return -ENOMEM;
 
-	leds = devm_kzalloc(dev, sizeof(struct wacom_led) * count, GFP_KERNEL);
+	leds = devm_kcalloc(dev, count, sizeof(struct wacom_led), GFP_KERNEL);
 	if (!leds) {
 		error = -ENOMEM;
 		goto err;
@@ -1463,7 +1471,7 @@ static int wacom_led_groups_allocate(struct wacom *wacom, int count)
 	struct wacom_group_leds *groups;
 	int error;
 
-	groups = devm_kzalloc(dev, sizeof(struct wacom_group_leds) * count,
+	groups = devm_kcalloc(dev, count, sizeof(struct wacom_group_leds),
 			      GFP_KERNEL);
 	if (!groups)
 		return -ENOMEM;

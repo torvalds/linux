@@ -156,11 +156,6 @@ void panic_if_irq_remap(const char *msg)
 		panic(msg);
 }
 
-void ir_ack_apic_edge(struct irq_data *data)
-{
-	ack_APIC_irq();
-}
-
 /**
  * irq_remapping_get_ir_irq_domain - Get the irqdomain associated with the IOMMU
  *				     device serving request @info

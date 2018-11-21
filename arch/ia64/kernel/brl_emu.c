@@ -62,6 +62,7 @@ ia64_emulate_brl (struct pt_regs *regs, unsigned long ar_ec)
 	struct illegal_op_return rv;
 	long tmp_taken, unimplemented_address;
 
+	clear_siginfo(&siginfo);
 	rv.fkt = (unsigned long) -1;
 
 	/*

@@ -36,7 +36,7 @@
  *	Start addresses are inclusive and end addresses are exclusive; start
  *	addresses should be rounded down, end addresses up.
  *
- *	See Documentation/cachetlb.txt for more information. Please note that
+ *	See Documentation/core-api/cachetlb.rst for more information. Please note that
  *	the implementation assumes non-aliasing VIPT D-cache and (aliasing)
  *	VIPT I-cache.
  *

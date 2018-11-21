@@ -139,6 +139,7 @@ struct in_ifaddr {
 	__be32			ifa_local;
 	__be32			ifa_address;
 	__be32			ifa_mask;
+	__u32			ifa_rt_priority;
 	__be32			ifa_broadcast;
 	unsigned char		ifa_scope;
 	unsigned char		ifa_prefixlen;

@@ -14,7 +14,7 @@ config USB_HID
 
 	  You can't use this driver and the HIDBP (Boot Protocol) keyboard
 	  and mouse drivers at the same time. More information is available:
-	  <file:Documentation/input/input.txt>.
+	  <file:Documentation/input/input.rst>.
 
 	  If unsure, say Y.
 

@@ -762,7 +762,7 @@ static int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
 
 	hw_atl_rpfl2promiscuous_mode_en_set(self, IS_FILTER_ENABLED(IFF_PROMISC));
 	hw_atl_rpfl2multicast_flr_en_set(self,
-					 IS_FILTER_ENABLED(IFF_MULTICAST), 0);
+					 IS_FILTER_ENABLED(IFF_ALLMULTI), 0);
 
 	hw_atl_rpfl2_accept_all_mc_packets_set(self,
 					       IS_FILTER_ENABLED(IFF_ALLMULTI));
@@ -784,7 +784,7 @@ static int hw_atl_b0_hw_packet_filter_set(struct aq_hw_s *self,
 
 static int hw_atl_b0_hw_multicast_list_set(struct aq_hw_s *self,
 					   u8 ar_mac
-					   [AQ_CFG_MULTICAST_ADDRESS_MAX]
+					   [AQ_HW_MULTICAST_ADDRESS_MAX]
 					   [ETH_ALEN],
 					   u32 count)
 {
@@ -812,7 +812,7 @@ static int hw_atl_b0_hw_multicast_list_set(struct aq_hw_s *self,
 
 		hw_atl_rpfl2_uc_flr_en_set(self,
 					   (self->aq_nic_cfg->is_mc_list_enabled),
-				    HW_ATL_B0_MAC_MIN + i);
+					   HW_ATL_B0_MAC_MIN + i);
 	}
 
 	err = aq_hw_err_from_flags(self);

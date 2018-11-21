@@ -5505,8 +5505,8 @@ static int __init exynos5433_cmu_probe(struct platform_device *pdev)
 
 	info = of_device_get_match_data(dev);
 
-	data = devm_kzalloc(dev, sizeof(*data) +
-			    sizeof(*data->ctx.clk_data.hws) * info->nr_clk_ids,
+	data = devm_kzalloc(dev,
+			    struct_size(data, ctx.clk_data.hws, info->nr_clk_ids),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;

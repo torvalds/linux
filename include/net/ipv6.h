@@ -298,6 +298,7 @@ struct ipcm6_cookie {
 	__s16 tclass;
 	__s8  dontfrag;
 	struct ipv6_txoptions *opt;
+	__u16 gso_size;
 };
 
 static inline struct ipv6_txoptions *txopt_get(const struct ipv6_pinfo *np)
@@ -354,14 +355,7 @@ struct ipv6_txoptions *ipv6_dup_options(struct sock *sk,
 struct ipv6_txoptions *ipv6_renew_options(struct sock *sk,
 					  struct ipv6_txoptions *opt,
 					  int newtype,
-					  struct ipv6_opt_hdr __user *newopt,
-					  int newoptlen);
-struct ipv6_txoptions *
-ipv6_renew_options_kern(struct sock *sk,
-			struct ipv6_txoptions *opt,
-			int newtype,
-			struct ipv6_opt_hdr *newopt,
-			int newoptlen);
+					  struct ipv6_opt_hdr *newopt);
 struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 					  struct ipv6_txoptions *opt);
 
@@ -829,7 +823,7 @@ static inline __be32 ip6_make_flowlabel(struct net *net, struct sk_buff *skb,
 	 * to minimize possbility that any useful information to an
 	 * attacker is leaked. Only lower 20 bits are relevant.
 	 */
-	rol32(hash, 16);
+	hash = rol32(hash, 16);
 
 	flowlabel = (__force __be32)hash & IPV6_FLOWLABEL_MASK;
 
@@ -906,6 +900,11 @@ static inline __be32 ip6_make_flowinfo(unsigned int tclass, __be32 flowlabel)
 	return htonl(tclass << IPV6_TCLASS_SHIFT) | flowlabel;
 }
 
+static inline __be32 flowi6_get_flowlabel(const struct flowi6 *fl6)
+{
+	return fl6->flowlabel & IPV6_FLOWLABEL_MASK;
+}
+
 /*
  *	Prototypes exported by ipv6
  */
@@ -950,6 +949,7 @@ struct sk_buff *ip6_make_skb(struct sock *sk,
 			     void *from, int length, int transhdrlen,
 			     struct ipcm6_cookie *ipc6, struct flowi6 *fl6,
 			     struct rt6_info *rt, unsigned int flags,
+			     struct inet_cork_full *cork,
 			     const struct sockcm_cookie *sockc);
 
 static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
@@ -957,8 +957,6 @@ static inline struct sk_buff *ip6_finish_skb(struct sock *sk)
 	return __ip6_make_skb(sk, &sk->sk_write_queue, &inet_sk(sk)->cork,
 			      &inet6_sk(sk)->cork);
 }
-
-unsigned int ip6_dst_mtu_forward(const struct dst_entry *dst);
 
 int ip6_dst_lookup(struct net *net, struct sock *sk, struct dst_entry **dst,
 		   struct flowi6 *fl6);
@@ -1044,8 +1042,6 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi6 *fl6, u32 info);
 void ipv6_local_rxpmtu(struct sock *sk, struct flowi6 *fl6, u32 mtu);
 
 int inet6_release(struct socket *sock);
-int __inet6_bind(struct sock *sock, struct sockaddr *uaddr, int addr_len,
-		 bool force_bind_address_no_port, bool with_lock);
 int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len);
 int inet6_getname(struct socket *sock, struct sockaddr *uaddr,
 		  int peer);
@@ -1104,6 +1100,8 @@ void ipv6_sysctl_unregister(void);
 
 int ipv6_sock_mc_join(struct sock *sk, int ifindex,
 		      const struct in6_addr *addr);
+int ipv6_sock_mc_join_ssm(struct sock *sk, int ifindex,
+			  const struct in6_addr *addr, unsigned int mode);
 int ipv6_sock_mc_drop(struct sock *sk, int ifindex,
 		      const struct in6_addr *addr);
 #endif /* _NET_IPV6_H */

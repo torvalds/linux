@@ -11,6 +11,7 @@
  */
 
 /dts-v1/;
+#include <dt-bindings/input/input.h>
 #include "imx53.dtsi"
 
 / {
@@ -68,34 +69,34 @@
 		home {
 			label = "Home";
 			gpios = <&gpio5 10 0>;
-			linux,code = <102>; /* KEY_HOME */
+			linux,code = <KEY_HOME>;
 			wakeup-source;
 		};
 
 		back {
 			label = "Back";
 			gpios = <&gpio5 11 0>;
-			linux,code = <158>; /* KEY_BACK */
+			linux,code = <KEY_BACK>;
 			wakeup-source;
 		};
 
 		program {
 			label = "Program";
 			gpios = <&gpio5 12 0>;
-			linux,code = <362>; /* KEY_PROGRAM */
+			linux,code = <KEY_PROGRAM >;
 			wakeup-source;
 		};
 
 		volume-up {
 			label = "Volume Up";
 			gpios = <&gpio5 13 0>;
-			linux,code = <115>; /* KEY_VOLUMEUP */
+			linux,code = <KEY_VOLUMEUP>;
 		};
 
 		volume-down {
 			label = "Volume Down";
 			gpios = <&gpio4 0 0>;
-			linux,code = <114>; /* KEY_VOLUMEDOWN */
+			linux,code = <KEY_VOLUMEDOWN>;
 		};
 	};
 };

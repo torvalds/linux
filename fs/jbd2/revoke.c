@@ -180,14 +180,10 @@ static struct jbd2_revoke_record_s *find_revoke_record(journal_t *journal,
 
 void jbd2_journal_destroy_revoke_caches(void)
 {
-	if (jbd2_revoke_record_cache) {
-		kmem_cache_destroy(jbd2_revoke_record_cache);
-		jbd2_revoke_record_cache = NULL;
-	}
-	if (jbd2_revoke_table_cache) {
-		kmem_cache_destroy(jbd2_revoke_table_cache);
-		jbd2_revoke_table_cache = NULL;
-	}
+	kmem_cache_destroy(jbd2_revoke_record_cache);
+	jbd2_revoke_record_cache = NULL;
+	kmem_cache_destroy(jbd2_revoke_table_cache);
+	jbd2_revoke_table_cache = NULL;
 }
 
 int __init jbd2_journal_init_revoke_caches(void)
@@ -227,7 +223,7 @@ static struct jbd2_revoke_table_s *jbd2_journal_init_revoke_table(int hash_size)
 	table->hash_size = hash_size;
 	table->hash_shift = shift;
 	table->hash_table =
-		kmalloc(hash_size * sizeof(struct list_head), GFP_KERNEL);
+		kmalloc_array(hash_size, sizeof(struct list_head), GFP_KERNEL);
 	if (!table->hash_table) {
 		kmem_cache_free(jbd2_revoke_table_cache, table);
 		table = NULL;

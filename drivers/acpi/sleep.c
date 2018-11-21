@@ -989,6 +989,13 @@ static void acpi_s2idle_wake(void)
 	    !irqd_is_wakeup_armed(irq_get_irq_data(acpi_sci_irq))) {
 		pm_system_cancel_wakeup();
 		s2idle_wakeup = true;
+		/*
+		 * On some platforms with the LPS0 _DSM device noirq resume
+		 * takes too much time for EC wakeup events to survive, so look
+		 * for them now.
+		 */
+		if (lps0_device_handle)
+			acpi_ec_dispatch_gpe();
 	}
 }
 

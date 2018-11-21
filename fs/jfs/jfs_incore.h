@@ -87,6 +87,7 @@ struct jfs_inode_info {
 		struct {
 			unchar _unused[16];	/* 16: */
 			dxd_t _dxd;		/* 16: */
+			/* _inline may overflow into _inline_ea when needed */
 			unchar _inline[128];	/* 128: inline symlink */
 			/* _inline_ea may overlay the last part of
 			 * file._xtroot if maxentry = XTROOTINITSLOT

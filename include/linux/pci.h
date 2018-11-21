@@ -217,6 +217,7 @@ enum pci_bus_flags {
 	PCI_BUS_FLAGS_NO_MSI	= (__force pci_bus_flags_t) 1,
 	PCI_BUS_FLAGS_NO_MMRBC	= (__force pci_bus_flags_t) 2,
 	PCI_BUS_FLAGS_NO_AERSID	= (__force pci_bus_flags_t) 4,
+	PCI_BUS_FLAGS_NO_EXTCFG	= (__force pci_bus_flags_t) 8,
 };
 
 /* Values from Link Status register, PCIe r3.1, sec 7.8.8 */
@@ -367,7 +368,6 @@ struct pci_dev {
 	unsigned int	transparent:1;		/* Subtractive decode bridge */
 	unsigned int	multifunction:1;	/* Multi-function device */
 
-	unsigned int	is_added:1;
 	unsigned int	is_busmaster:1;		/* Is busmaster */
 	unsigned int	no_msi:1;		/* May not use MSI */
 	unsigned int	no_64bit_msi:1; 	/* May only use 32-bit MSIs */
@@ -406,6 +406,9 @@ struct pci_dev {
 	struct bin_attribute *res_attr[DEVICE_COUNT_RESOURCE]; /* sysfs file for resources */
 	struct bin_attribute *res_attr_wc[DEVICE_COUNT_RESOURCE]; /* sysfs file for WC mapping of resources */
 
+#ifdef CONFIG_HOTPLUG_PCI_PCIE
+	unsigned int	broken_cmd_compl:1;	/* No compl for some cmds */
+#endif
 #ifdef CONFIG_PCIE_PTM
 	unsigned int	ptm_root:1;
 	unsigned int	ptm_enabled:1;
@@ -471,8 +474,10 @@ struct pci_host_bridge {
 	unsigned int	ignore_reset_delay:1;	/* For entire hierarchy */
 	unsigned int	no_ext_tags:1;		/* No Extended Tags */
 	unsigned int	native_aer:1;		/* OS may use PCIe AER */
-	unsigned int	native_hotplug:1;	/* OS may use PCIe hotplug */
+	unsigned int	native_pcie_hotplug:1;	/* OS may use PCIe hotplug */
+	unsigned int	native_shpc_hotplug:1;	/* OS may use SHPC hotplug */
 	unsigned int	native_pme:1;		/* OS may use PCIe PME */
+	unsigned int	native_ltr:1;		/* OS may use PCIe LTR */
 	/* Resource alignment requirements */
 	resource_size_t (*align_resource)(struct pci_dev *dev,
 			const struct resource *res,
@@ -670,7 +675,7 @@ int raw_pci_read(unsigned int domain, unsigned int bus, unsigned int devfn,
 int raw_pci_write(unsigned int domain, unsigned int bus, unsigned int devfn,
 		  int reg, int len, u32 val);
 
-#ifdef CONFIG_PCI_BUS_ADDR_T_64BIT
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 typedef u64 pci_bus_addr_t;
 #else
 typedef u32 pci_bus_addr_t;
@@ -1079,8 +1084,6 @@ int pcie_get_readrq(struct pci_dev *dev);
 int pcie_set_readrq(struct pci_dev *dev, int rq);
 int pcie_get_mps(struct pci_dev *dev);
 int pcie_set_mps(struct pci_dev *dev, int mps);
-int pcie_get_minimum_link(struct pci_dev *dev, enum pci_bus_speed *speed,
-			  enum pcie_link_width *width);
 u32 pcie_bandwidth_available(struct pci_dev *dev, struct pci_dev **limiting_dev,
 			     enum pci_bus_speed *speed,
 			     enum pcie_link_width *width);
@@ -1236,6 +1239,8 @@ int pci_register_io_range(struct fwnode_handle *fwnode, phys_addr_t addr,
 unsigned long pci_address_to_pio(phys_addr_t addr);
 phys_addr_t pci_pio_to_address(unsigned long pio);
 int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr);
+int devm_pci_remap_iospace(struct device *dev, const struct resource *res,
+			   phys_addr_t phys_addr);
 void pci_unmap_iospace(struct resource *res);
 void __iomem *devm_pci_remap_cfgspace(struct device *dev,
 				      resource_size_t offset,
@@ -1451,8 +1456,10 @@ static inline int pci_irqd_intx_xlate(struct irq_domain *d,
 
 #ifdef CONFIG_PCIEPORTBUS
 extern bool pcie_ports_disabled;
+extern bool pcie_ports_native;
 #else
 #define pcie_ports_disabled	true
+#define pcie_ports_native	false
 #endif
 
 #ifdef CONFIG_PCIEASPM
@@ -1478,6 +1485,8 @@ void pcie_ecrc_get_policy(char *str);
 static inline void pcie_set_ecrc_checking(struct pci_dev *dev) { }
 static inline void pcie_ecrc_get_policy(char *str) { }
 #endif
+
+bool pci_ats_disabled(void);
 
 #ifdef CONFIG_PCI_ATS
 /* Address Translation Service */
@@ -1510,12 +1519,10 @@ void pci_cfg_access_unlock(struct pci_dev *dev);
  */
 #ifdef CONFIG_PCI_DOMAINS
 extern int pci_domains_supported;
-int pci_get_new_domain_nr(void);
 #else
 enum { pci_domains_supported = 0 };
 static inline int pci_domain_nr(struct pci_bus *bus) { return 0; }
 static inline int pci_proc_domain(struct pci_bus *bus) { return 0; }
-static inline int pci_get_new_domain_nr(void) { return -ENOSYS; }
 #endif /* CONFIG_PCI_DOMAINS */
 
 /*
@@ -1670,7 +1677,6 @@ static inline struct pci_dev *pci_get_domain_bus_and_slot(int domain,
 
 static inline int pci_domain_nr(struct pci_bus *bus) { return 0; }
 static inline struct pci_dev *pci_dev_get(struct pci_dev *dev) { return NULL; }
-static inline int pci_get_new_domain_nr(void) { return -ENOSYS; }
 
 #define dev_is_pci(d) (false)
 #define dev_is_pf(d) (false)
@@ -1954,6 +1960,7 @@ int pci_num_vf(struct pci_dev *dev);
 int pci_vfs_assigned(struct pci_dev *dev);
 int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs);
 int pci_sriov_get_totalvfs(struct pci_dev *dev);
+int pci_sriov_configure_simple(struct pci_dev *dev, int nr_virtfn);
 resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resno);
 void pci_vf_drivers_autoprobe(struct pci_dev *dev, bool probe);
 
@@ -1986,6 +1993,7 @@ static inline int pci_sriov_set_totalvfs(struct pci_dev *dev, u16 numvfs)
 { return 0; }
 static inline int pci_sriov_get_totalvfs(struct pci_dev *dev)
 { return 0; }
+#define pci_sriov_configure_simple	NULL
 static inline resource_size_t pci_iov_resource_size(struct pci_dev *dev, int resno)
 { return 0; }
 static inline void pci_vf_drivers_autoprobe(struct pci_dev *dev, bool probe) { }
@@ -2284,7 +2292,7 @@ static inline bool pci_is_thunderbolt_attached(struct pci_dev *pdev)
 	return false;
 }
 
-#if defined(CONFIG_PCIEAER) || defined(CONFIG_EEH)
+#if defined(CONFIG_PCIEPORTBUS) || defined(CONFIG_EEH)
 void pci_uevent_ers(struct pci_dev *pdev, enum  pci_ers_result err_type);
 #endif
 

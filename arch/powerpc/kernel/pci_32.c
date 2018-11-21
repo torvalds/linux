@@ -11,11 +11,13 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/bootmem.h>
+#include <linux/syscalls.h>
 #include <linux/irq.h>
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/syscalls.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -283,7 +285,8 @@ pci_bus_to_hose(int bus)
  * Note that the returned IO or memory base is a physical address
  */
 
-long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
+SYSCALL_DEFINE3(pciconfig_iobase, long, which,
+		unsigned long, bus, unsigned long, devfn)
 {
 	struct pci_controller* hose;
 	long result = -EOPNOTSUPP;
@@ -307,5 +310,3 @@ long sys_pciconfig_iobase(long which, unsigned long bus, unsigned long devfn)
 
 	return result;
 }
-
-

@@ -779,16 +779,27 @@ static int coda_s_fmt_vid_cap(struct file *file, void *priv,
 	r.width = q_data_src->width;
 	r.height = q_data_src->height;
 
-	return coda_s_fmt(ctx, f, &r);
+	ret = coda_s_fmt(ctx, f, &r);
+	if (ret)
+		return ret;
+
+	if (ctx->inst_type != CODA_INST_ENCODER)
+		return 0;
+
+	ctx->colorspace = f->fmt.pix.colorspace;
+	ctx->xfer_func = f->fmt.pix.xfer_func;
+	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
+	ctx->quantization = f->fmt.pix.quantization;
+
+	return 0;
 }
 
 static int coda_s_fmt_vid_out(struct file *file, void *priv,
 			      struct v4l2_format *f)
 {
 	struct coda_ctx *ctx = fh_to_ctx(priv);
-	struct coda_q_data *q_data_src;
 	struct v4l2_format f_cap;
-	struct v4l2_rect r;
+	struct vb2_queue *dst_vq;
 	int ret;
 
 	ret = coda_try_fmt_vid_out(file, priv, f);
@@ -799,10 +810,26 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	if (ret)
 		return ret;
 
+	if (ctx->inst_type != CODA_INST_DECODER)
+		return 0;
+
 	ctx->colorspace = f->fmt.pix.colorspace;
 	ctx->xfer_func = f->fmt.pix.xfer_func;
 	ctx->ycbcr_enc = f->fmt.pix.ycbcr_enc;
 	ctx->quantization = f->fmt.pix.quantization;
+
+	dst_vq = v4l2_m2m_get_vq(ctx->fh.m2m_ctx, V4L2_BUF_TYPE_VIDEO_CAPTURE);
+	if (!dst_vq)
+		return -EINVAL;
+
+	/*
+	 * Setting the capture queue format is not possible while the capture
+	 * queue is still busy. This is not an error, but the user will have to
+	 * make sure themselves that the capture format is set correctly before
+	 * starting the output queue again.
+	 */
+	if (vb2_is_busy(dst_vq))
+		return 0;
 
 	memset(&f_cap, 0, sizeof(f_cap));
 	f_cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
@@ -810,17 +837,7 @@ static int coda_s_fmt_vid_out(struct file *file, void *priv,
 	f_cap.fmt.pix.width = f->fmt.pix.width;
 	f_cap.fmt.pix.height = f->fmt.pix.height;
 
-	ret = coda_try_fmt_vid_cap(file, priv, &f_cap);
-	if (ret)
-		return ret;
-
-	q_data_src = get_q_data(ctx, V4L2_BUF_TYPE_VIDEO_OUTPUT);
-	r.left = 0;
-	r.top = 0;
-	r.width = q_data_src->width;
-	r.height = q_data_src->height;
-
-	return coda_s_fmt(ctx, &f_cap, &r);
+	return coda_s_fmt_vid_cap(file, priv, &f_cap);
 }
 
 static int coda_reqbufs(struct file *file, void *priv,

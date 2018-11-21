@@ -32,7 +32,7 @@ Pins on the device (for linking into audio routes) for I2C:
 
 Example:
 
-codec: rt5514@57 {
+rt5514: codec@57 {
 	compatible = "realtek,rt5514";
 	reg = <0x57>;
 };

@@ -448,7 +448,7 @@ void snd_ac97_proc_init(struct snd_ac97 * ac97)
 	if ((entry = snd_info_create_card_entry(ac97->bus->card, name, ac97->bus->proc)) != NULL) {
 		snd_info_set_text_ops(entry, ac97, snd_ac97_proc_regs_read);
 #ifdef CONFIG_SND_DEBUG
-		entry->mode |= S_IWUSR;
+		entry->mode |= 0200;
 		entry->c.text.write = snd_ac97_proc_regs_write;
 #endif
 		if (snd_info_register(entry) < 0) {
@@ -474,7 +474,7 @@ void snd_ac97_bus_proc_init(struct snd_ac97_bus * bus)
 
 	sprintf(name, "codec97#%d", bus->num);
 	if ((entry = snd_info_create_card_entry(bus->card, name, bus->card->proc_root)) != NULL) {
-		entry->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+		entry->mode = S_IFDIR | 0555;
 		if (snd_info_register(entry) < 0) {
 			snd_info_free_entry(entry);
 			entry = NULL;

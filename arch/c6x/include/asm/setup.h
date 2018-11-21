@@ -28,5 +28,7 @@ extern unsigned char c6x_fuse_mac[6];
 extern void machine_init(unsigned long dt_ptr);
 extern void time_init(void);
 
+extern void coherent_mem_init(u32 start, u32 size);
+
 #endif /* !__ASSEMBLY__ */
 #endif /* _ASM_C6X_SETUP_H */

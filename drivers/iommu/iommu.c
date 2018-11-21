@@ -116,9 +116,11 @@ static void __iommu_detach_group(struct iommu_domain *domain,
 static int __init iommu_set_def_domain_type(char *str)
 {
 	bool pt;
+	int ret;
 
-	if (!str || strtobool(str, &pt))
-		return -EINVAL;
+	ret = kstrtobool(str, &pt);
+	if (ret)
+		return ret;
 
 	iommu_def_domain_type = pt ? IOMMU_DOMAIN_IDENTITY : IOMMU_DOMAIN_DMA;
 	return 0;
@@ -322,7 +324,6 @@ static struct kobj_type iommu_group_ktype = {
 
 /**
  * iommu_group_alloc - Allocate a new group
- * @name: Optional name to associate with group, visible in sysfs
  *
  * This function is called by an iommu driver to allocate a new iommu
  * group.  The iommu group represents the minimum granularity of the iommu.

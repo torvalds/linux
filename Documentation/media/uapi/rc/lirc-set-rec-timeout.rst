@@ -1,18 +1,22 @@
 .. -*- coding: utf-8; mode: rst -*-
 
 .. _lirc_set_rec_timeout:
+.. _lirc_get_rec_timeout:
 
-**************************
-ioctl LIRC_SET_REC_TIMEOUT
-**************************
+***************************************************
+ioctl LIRC_GET_REC_TIMEOUT and LIRC_SET_REC_TIMEOUT
+***************************************************
 
 Name
 ====
 
-LIRC_SET_REC_TIMEOUT - sets the integer value for IR inactivity timeout.
+LIRC_GET_REC_TIMEOUT/LIRC_SET_REC_TIMEOUT - Get/set the integer value for IR inactivity timeout.
 
 Synopsis
 ========
+
+.. c:function:: int ioctl( int fd, LIRC_GET_REC_TIMEOUT, __u32 *timeout )
+    :name: LIRC_GET_REC_TIMEOUT
 
 .. c:function:: int ioctl( int fd, LIRC_SET_REC_TIMEOUT, __u32 *timeout )
     :name: LIRC_SET_REC_TIMEOUT
@@ -30,7 +34,7 @@ Arguments
 Description
 ===========
 
-Sets the integer value for IR inactivity timeout.
+Get and set the integer value for IR inactivity timeout.
 
 If supported by the hardware, setting it to 0  disables all hardware timeouts
 and data should be reported as soon as possible. If the exact value

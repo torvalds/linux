@@ -427,25 +427,35 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 }
 EXPORT_SYMBOL(snd_timer_close);
 
+static unsigned long snd_timer_hw_resolution(struct snd_timer *timer)
+{
+	if (timer->hw.c_resolution)
+		return timer->hw.c_resolution(timer);
+	else
+		return timer->hw.resolution;
+}
+
 unsigned long snd_timer_resolution(struct snd_timer_instance *timeri)
 {
 	struct snd_timer * timer;
+	unsigned long ret = 0;
+	unsigned long flags;
 
 	if (timeri == NULL)
 		return 0;
 	timer = timeri->timer;
 	if (timer) {
-		if (timer->hw.c_resolution)
-			return timer->hw.c_resolution(timer);
-		return timer->hw.resolution;
+		spin_lock_irqsave(&timer->lock, flags);
+		ret = snd_timer_hw_resolution(timer);
+		spin_unlock_irqrestore(&timer->lock, flags);
 	}
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(snd_timer_resolution);
 
 static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 {
-	struct snd_timer *timer;
+	struct snd_timer *timer = ti->timer;
 	unsigned long resolution = 0;
 	struct snd_timer_instance *ts;
 	struct timespec tstamp;
@@ -457,14 +467,14 @@ static void snd_timer_notify1(struct snd_timer_instance *ti, int event)
 	if (snd_BUG_ON(event < SNDRV_TIMER_EVENT_START ||
 		       event > SNDRV_TIMER_EVENT_PAUSE))
 		return;
-	if (event == SNDRV_TIMER_EVENT_START ||
-	    event == SNDRV_TIMER_EVENT_CONTINUE)
-		resolution = snd_timer_resolution(ti);
+	if (timer &&
+	    (event == SNDRV_TIMER_EVENT_START ||
+	     event == SNDRV_TIMER_EVENT_CONTINUE))
+		resolution = snd_timer_hw_resolution(timer);
 	if (ti->ccallback)
 		ti->ccallback(ti, event, &tstamp, resolution);
 	if (ti->flags & SNDRV_TIMER_IFLG_SLAVE)
 		return;
-	timer = ti->timer;
 	if (timer == NULL)
 		return;
 	if (timer->hw.flags & SNDRV_TIMER_HW_SLAVE)
@@ -771,10 +781,7 @@ void snd_timer_interrupt(struct snd_timer * timer, unsigned long ticks_left)
 	spin_lock_irqsave(&timer->lock, flags);
 
 	/* remember the current resolution */
-	if (timer->hw.c_resolution)
-		resolution = timer->hw.c_resolution(timer);
-	else
-		resolution = timer->hw.resolution;
+	resolution = snd_timer_hw_resolution(timer);
 
 	/* loop for all active instances
 	 * Here we cannot use list_for_each_entry because the active_list of a
@@ -1014,12 +1021,8 @@ void snd_timer_notify(struct snd_timer *timer, int event, struct timespec *tstam
 	spin_lock_irqsave(&timer->lock, flags);
 	if (event == SNDRV_TIMER_EVENT_MSTART ||
 	    event == SNDRV_TIMER_EVENT_MCONTINUE ||
-	    event == SNDRV_TIMER_EVENT_MRESUME) {
-		if (timer->hw.c_resolution)
-			resolution = timer->hw.c_resolution(timer);
-		else
-			resolution = timer->hw.resolution;
-	}
+	    event == SNDRV_TIMER_EVENT_MRESUME)
+		resolution = snd_timer_hw_resolution(timer);
 	list_for_each_entry(ti, &timer->active_list_head, active_list) {
 		if (ti->ccallback)
 			ti->ccallback(ti, event, tstamp, resolution);
@@ -1517,7 +1520,7 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 				} else {
 					if (id.subdevice < 0)
 						id.subdevice = 0;
-					else
+					else if (id.subdevice < INT_MAX)
 						id.subdevice++;
 				}
 			}
@@ -1656,10 +1659,8 @@ static int snd_timer_user_gstatus(struct file *file,
 	mutex_lock(&register_mutex);
 	t = snd_timer_find(&tid);
 	if (t != NULL) {
-		if (t->hw.c_resolution)
-			gstatus.resolution = t->hw.c_resolution(t);
-		else
-			gstatus.resolution = t->hw.resolution;
+		spin_lock_irq(&t->lock);
+		gstatus.resolution = snd_timer_hw_resolution(t);
 		if (t->hw.precise_resolution) {
 			t->hw.precise_resolution(t, &gstatus.resolution_num,
 						 &gstatus.resolution_den);
@@ -1667,6 +1668,7 @@ static int snd_timer_user_gstatus(struct file *file,
 			gstatus.resolution_num = gstatus.resolution;
 			gstatus.resolution_den = 1000000000uL;
 		}
+		spin_unlock_irq(&t->lock);
 	} else {
 		err = -ENODEV;
 	}

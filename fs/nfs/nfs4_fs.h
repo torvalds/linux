@@ -212,6 +212,31 @@ struct nfs4_state_recovery_ops {
 		struct rpc_cred *);
 };
 
+struct nfs4_opendata {
+	struct kref kref;
+	struct nfs_openargs o_arg;
+	struct nfs_openres o_res;
+	struct nfs_open_confirmargs c_arg;
+	struct nfs_open_confirmres c_res;
+	struct nfs4_string owner_name;
+	struct nfs4_string group_name;
+	struct nfs4_label *a_label;
+	struct nfs_fattr f_attr;
+	struct nfs4_label *f_label;
+	struct dentry *dir;
+	struct dentry *dentry;
+	struct nfs4_state_owner *owner;
+	struct nfs4_state *state;
+	struct iattr attrs;
+	struct nfs4_layoutget *lgp;
+	unsigned long timestamp;
+	bool rpc_done;
+	bool file_created;
+	bool is_recover;
+	bool cancelled;
+	int rpc_status;
+};
+
 struct nfs4_add_xprt_data {
 	struct nfs_client	*clp;
 	struct rpc_cred		*cred;
@@ -251,7 +276,7 @@ extern int nfs4_handle_exception(struct nfs_server *, int, struct nfs4_exception
 extern int nfs4_call_sync(struct rpc_clnt *, struct nfs_server *,
 			  struct rpc_message *, struct nfs4_sequence_args *,
 			  struct nfs4_sequence_res *, int);
-extern void nfs4_init_sequence(struct nfs4_sequence_args *, struct nfs4_sequence_res *, int);
+extern void nfs4_init_sequence(struct nfs4_sequence_args *, struct nfs4_sequence_res *, int, int);
 extern int nfs4_proc_setclientid(struct nfs_client *, u32, unsigned short, struct rpc_cred *, struct nfs4_setclientid_res *);
 extern int nfs4_proc_setclientid_confirm(struct nfs_client *, struct nfs4_setclientid_res *arg, struct rpc_cred *);
 extern int nfs4_proc_get_rootfh(struct nfs_server *, struct nfs_fh *, struct nfs_fsinfo *, bool);

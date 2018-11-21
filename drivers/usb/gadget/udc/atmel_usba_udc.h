@@ -287,9 +287,6 @@ struct usba_ep {
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	u32					last_dma_status;
 	struct dentry				*debugfs_dir;
-	struct dentry				*debugfs_queue;
-	struct dentry				*debugfs_dma_status;
-	struct dentry				*debugfs_state;
 #endif
 };
 
@@ -326,7 +323,6 @@ struct usba_udc {
 	const struct usba_udc_errata *errata;
 	int irq;
 	struct gpio_desc *vbus_pin;
-	int vbus_pin_inverted;
 	int num_ep;
 	int configured_ep;
 	struct usba_fifo_cfg *fifo_cfg;
@@ -345,7 +341,6 @@ struct usba_udc {
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry *debugfs_root;
-	struct dentry *debugfs_regs;
 #endif
 
 	struct regmap *pmc;

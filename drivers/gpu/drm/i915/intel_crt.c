@@ -304,6 +304,9 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	int max_dotclk = dev_priv->max_dotclk_freq;
 	int max_clock;
 
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return MODE_NO_DBLESCAN;
+
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 
@@ -337,6 +340,12 @@ static bool intel_crt_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_state *pipe_config,
 				     struct drm_connector_state *conn_state)
 {
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	return true;
 }
 
@@ -344,6 +353,12 @@ static bool pch_crt_compute_config(struct intel_encoder *encoder,
 				   struct intel_crtc_state *pipe_config,
 				   struct drm_connector_state *conn_state)
 {
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
+
 	pipe_config->has_pch_encoder = true;
 
 	return true;
@@ -354,6 +369,11 @@ static bool hsw_crt_compute_config(struct intel_encoder *encoder,
 				   struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct drm_display_mode *adjusted_mode =
+		&pipe_config->base.adjusted_mode;
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN)
+		return false;
 
 	pipe_config->has_pch_encoder = true;
 
@@ -748,6 +768,11 @@ intel_crt_detect(struct drm_connector *connector,
 		      connector->base.id, connector->name,
 		      force);
 
+	if (i915_modparams.load_detect_test) {
+		intel_display_power_get(dev_priv, intel_encoder->power_domain);
+		goto load_detect;
+	}
+
 	/* Skip machines without VGA that falsely report hotplug events */
 	if (dmi_check_system(intel_spurious_crt_detect))
 		return connector_status_disconnected;
@@ -776,11 +801,12 @@ intel_crt_detect(struct drm_connector *connector,
 	 * broken monitor (without edid) to work behind a broken kvm (that fails
 	 * to have the right resistors for HP detection) needs to fix this up.
 	 * For now just bail out. */
-	if (I915_HAS_HOTPLUG(dev_priv) && !i915_modparams.load_detect_test) {
+	if (I915_HAS_HOTPLUG(dev_priv)) {
 		status = connector_status_disconnected;
 		goto out;
 	}
 
+load_detect:
 	if (!force) {
 		status = connector->status;
 		goto out;

@@ -899,8 +899,8 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 				 EEPROM_SKU_CAP);
 	data->sku_cap_11n_enable = sku & EEPROM_SKU_CAP_11N_ENABLE;
 	data->sku_cap_amt_enable = sku & EEPROM_SKU_CAP_AMT_ENABLE;
-	data->sku_cap_band_24GHz_enable = sku & EEPROM_SKU_CAP_BAND_24GHZ;
-	data->sku_cap_band_52GHz_enable = sku & EEPROM_SKU_CAP_BAND_52GHZ;
+	data->sku_cap_band_24ghz_enable = sku & EEPROM_SKU_CAP_BAND_24GHZ;
+	data->sku_cap_band_52ghz_enable = sku & EEPROM_SKU_CAP_BAND_52GHZ;
 	data->sku_cap_ipan_enable = sku & EEPROM_SKU_CAP_IPAN_ENABLE;
 	if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		data->sku_cap_11n_enable = false;

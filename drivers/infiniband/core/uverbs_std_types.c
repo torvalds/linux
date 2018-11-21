@@ -302,7 +302,8 @@ static DECLARE_UVERBS_OBJECT_TREE(uverbs_default_objects,
 				  &UVERBS_OBJECT(UVERBS_OBJECT_RWQ_IND_TBL),
 				  &UVERBS_OBJECT(UVERBS_OBJECT_XRCD),
 				  &UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION),
-				  &UVERBS_OBJECT(UVERBS_OBJECT_DM));
+				  &UVERBS_OBJECT(UVERBS_OBJECT_DM),
+				  &UVERBS_OBJECT(UVERBS_OBJECT_COUNTERS));
 
 const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
 {

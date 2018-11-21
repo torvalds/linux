@@ -223,8 +223,8 @@ static int ctr_encrypt(struct skcipher_request *req)
 		kernel_neon_begin();
 		aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				(u8 *)ctx->key_enc, rounds, blocks, walk.iv);
-		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 		kernel_neon_end();
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	if (walk.nbytes) {
 		u8 __aligned(8) tail[AES_BLOCK_SIZE];

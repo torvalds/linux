@@ -26,7 +26,7 @@
 #include "dce_abm.h"
 #include "dm_services.h"
 #include "reg_helper.h"
-#include "fixed32_32.h"
+#include "fixed31_32.h"
 #include "dc.h"
 
 #include "atom.h"

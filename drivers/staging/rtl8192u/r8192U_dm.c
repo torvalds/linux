@@ -539,13 +539,13 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 		rtStatus = SendTxCommandPacket(dev, &tx_cmd, 12);
 		if (rtStatus == RT_STATUS_FAILURE)
 			RT_TRACE(COMP_POWER_TRACKING, "Set configuration with tx cmd queue fail!\n");
-		mdelay(1);
+		usleep_range(1000, 2000);
 		/*DbgPrint("hi, vivi, strange\n");*/
 		for (i = 0; i <= 30; i++) {
 			read_nic_byte(dev, 0x1ba, &Pwr_Flag);
 
 			if (Pwr_Flag == 0) {
-				mdelay(1);
+				usleep_range(1000, 2000);
 				continue;
 			}
 			read_nic_word(dev, 0x13c, &Avg_TSSI_Meas);

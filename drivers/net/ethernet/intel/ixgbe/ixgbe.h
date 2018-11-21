@@ -1,31 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/*******************************************************************************
-
-  Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2016 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  Linux NICS <linux.nics@intel.com>
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 #ifndef _IXGBE_H_
 #define _IXGBE_H_
@@ -241,8 +215,7 @@ struct ixgbe_tx_buffer {
 	unsigned long time_stamp;
 	union {
 		struct sk_buff *skb;
-		/* XDP uses address ptr on irq_clean */
-		void *data;
+		struct xdp_frame *xdpf;
 	};
 	unsigned int bytecount;
 	unsigned short gso_segs;
@@ -306,7 +279,6 @@ enum ixgbe_ring_state_t {
 struct ixgbe_fwd_adapter {
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	struct net_device *netdev;
-	struct ixgbe_adapter *real_adapter;
 	unsigned int tx_base_queue;
 	unsigned int rx_base_queue;
 	int pool;
@@ -788,9 +760,9 @@ struct ixgbe_adapter {
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
 
-#ifdef CONFIG_XFRM
+#ifdef CONFIG_XFRM_OFFLOAD
 	struct ixgbe_ipsec *ipsec;
-#endif /* CONFIG_XFRM */
+#endif /* CONFIG_XFRM_OFFLOAD */
 };
 
 static inline u8 ixgbe_max_rss_indices(struct ixgbe_adapter *adapter)

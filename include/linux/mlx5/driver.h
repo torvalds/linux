@@ -124,6 +124,8 @@ enum {
 	MLX5_REG_PAOS		 = 0x5006,
 	MLX5_REG_PFCC            = 0x5007,
 	MLX5_REG_PPCNT		 = 0x5008,
+	MLX5_REG_PPTB            = 0x500b,
+	MLX5_REG_PBMC            = 0x500c,
 	MLX5_REG_PMAOS		 = 0x5012,
 	MLX5_REG_PUDE		 = 0x5009,
 	MLX5_REG_PMPE		 = 0x5010,
@@ -356,6 +358,7 @@ struct mlx5_frag_buf_ctrl {
 	struct mlx5_frag_buf	frag_buf;
 	u32			sz_m1;
 	u32			frag_sz_m1;
+	u32			strides_offset;
 	u8			log_sz;
 	u8			log_stride;
 	u8			log_frag_strides;
@@ -981,20 +984,39 @@ static inline u32 mlx5_base_mkey(const u32 key)
 	return key & 0xffffff00u;
 }
 
-static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
-					      void *cqc)
+static inline void mlx5_fill_fbc_offset(u8 log_stride, u8 log_sz,
+					u32 strides_offset,
+					struct mlx5_frag_buf_ctrl *fbc)
 {
-	fbc->log_stride	= 6 + MLX5_GET(cqc, cqc, cqe_sz);
-	fbc->log_sz	= MLX5_GET(cqc, cqc, log_cq_size);
+	fbc->log_stride = log_stride;
+	fbc->log_sz     = log_sz;
 	fbc->sz_m1	= (1 << fbc->log_sz) - 1;
 	fbc->log_frag_strides = PAGE_SHIFT - fbc->log_stride;
 	fbc->frag_sz_m1	= (1 << fbc->log_frag_strides) - 1;
+	fbc->strides_offset = strides_offset;
+}
+
+static inline void mlx5_fill_fbc(u8 log_stride, u8 log_sz,
+				 struct mlx5_frag_buf_ctrl *fbc)
+{
+	mlx5_fill_fbc_offset(log_stride, log_sz, 0, fbc);
+}
+
+static inline void mlx5_core_init_cq_frag_buf(struct mlx5_frag_buf_ctrl *fbc,
+					      void *cqc)
+{
+	mlx5_fill_fbc(6 + MLX5_GET(cqc, cqc, cqe_sz),
+		      MLX5_GET(cqc, cqc, log_cq_size),
+		      fbc);
 }
 
 static inline void *mlx5_frag_buf_get_wqe(struct mlx5_frag_buf_ctrl *fbc,
 					  u32 ix)
 {
-	unsigned int frag = (ix >> fbc->log_frag_strides);
+	unsigned int frag;
+
+	ix  += fbc->strides_offset;
+	frag = ix >> fbc->log_frag_strides;
 
 	return fbc->frag_buf.frags[frag].buf +
 		((fbc->frag_sz_m1 & ix) << fbc->log_stride);

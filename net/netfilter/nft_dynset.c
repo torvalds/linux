@@ -36,7 +36,7 @@ static void *nft_dynset_new(struct nft_set *set, const struct nft_expr *expr,
 	u64 timeout;
 	void *elem;
 
-	if (set->size && !atomic_add_unless(&set->nelems, 1, set->size))
+	if (!atomic_add_unless(&set->nelems, 1, set->size))
 		return NULL;
 
 	timeout = priv->timeout ? : set->timeout;
@@ -81,7 +81,7 @@ static void nft_dynset_eval(const struct nft_expr *expr,
 		if (priv->op == NFT_DYNSET_OP_UPDATE &&
 		    nft_set_ext_exists(ext, NFT_SET_EXT_EXPIRATION)) {
 			timeout = priv->timeout ? : set->timeout;
-			*nft_set_ext_expiration(ext) = jiffies + timeout;
+			*nft_set_ext_expiration(ext) = get_jiffies_64() + timeout;
 		}
 
 		if (sexpr != NULL)
@@ -195,8 +195,15 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 		err = -EOPNOTSUPP;
 		if (!(priv->expr->ops->type->flags & NFT_EXPR_STATEFUL))
 			goto err1;
-	} else if (set->flags & NFT_SET_EVAL)
-		return -EINVAL;
+
+		if (priv->expr->ops->type->flags & NFT_EXPR_GC) {
+			if (set->flags & NFT_SET_TIMEOUT)
+				goto err1;
+			if (!set->ops->gc_init)
+				goto err1;
+			set->ops->gc_init(set);
+		}
+	}
 
 	nft_set_ext_prepare(&priv->tmpl);
 	nft_set_ext_add_length(&priv->tmpl, NFT_SET_EXT_KEY, set->klen);
@@ -215,6 +222,9 @@ static int nft_dynset_init(const struct nft_ctx *ctx,
 	err = nf_tables_bind_set(ctx, set, &priv->binding);
 	if (err < 0)
 		goto err1;
+
+	if (set->size == 0)
+		set->size = 0xffff;
 
 	priv->set = set;
 	return 0;

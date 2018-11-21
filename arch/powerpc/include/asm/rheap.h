@@ -83,6 +83,9 @@ extern int rh_get_stats(rh_info_t * info, int what, int max_stats,
 /* Simple dump of remote heap info */
 extern void rh_dump(rh_info_t * info);
 
+/* Simple dump of remote info block */
+void rh_dump_blk(rh_info_t *info, rh_block_t *blk);
+
 /* Set owner of taken block */
 extern int rh_set_owner(rh_info_t * info, unsigned long start, const char *owner);
 

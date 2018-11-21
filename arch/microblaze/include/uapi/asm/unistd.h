@@ -415,5 +415,7 @@
 #define __NR_pkey_alloc		396
 #define __NR_pkey_free		397
 #define __NR_statx		398
+#define __NR_io_pgetevents	399
+#define __NR_rseq		400
 
 #endif /* _UAPI_ASM_MICROBLAZE_UNISTD_H */

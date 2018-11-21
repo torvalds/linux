@@ -177,6 +177,11 @@
 &cp0_eth0 {
 	status = "okay";
 	phy-mode = "10gbase-kr";
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
 };
 
 &cp0_eth2 {
@@ -303,6 +308,11 @@
 &cp1_eth0 {
 	status = "okay";
 	phy-mode = "10gbase-kr";
+
+	fixed-link {
+		speed = <10000>;
+		full-duplex;
+	};
 };
 
 &cp1_eth1 {

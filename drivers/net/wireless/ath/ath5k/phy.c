@@ -890,7 +890,8 @@ ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 	 * ah->ah_rf_banks based on ah->ah_rf_banks_size
 	 * we set above */
 	if (ah->ah_rf_banks == NULL) {
-		ah->ah_rf_banks = kmalloc(sizeof(u32) * ah->ah_rf_banks_size,
+		ah->ah_rf_banks = kmalloc_array(ah->ah_rf_banks_size,
+								sizeof(u32),
 								GFP_KERNEL);
 		if (ah->ah_rf_banks == NULL) {
 			ATH5K_ERR(ah, "out of memory\n");

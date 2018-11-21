@@ -53,7 +53,7 @@ static inline int current_is_kswapd(void)
 
 /*
  * Unaddressable device memory support. See include/linux/hmm.h and
- * Documentation/vm/hmm.txt. Short description is we need struct pages for
+ * Documentation/vm/hmm.rst. Short description is we need struct pages for
  * device memory that is unaddressable (inaccessible) by CPU, so that we can
  * migrate part of a process memory to device memory.
  *

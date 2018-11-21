@@ -1,5 +1,5 @@
 /*
- * cxd2099.h: Driver for the CXD2099AR Common Interface Controller
+ * cxd2099.h: Driver for the Sony CXD2099AR Common Interface Controller
  *
  * Copyright (C) 2010-2011 Digital Devices GmbH
  *

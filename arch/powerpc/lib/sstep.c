@@ -1065,9 +1065,10 @@ static nokprobe_inline void do_popcnt(const struct pt_regs *regs,
 {
 	unsigned long long out = v1;
 
-	out -= (out >> 1) & 0x5555555555555555;
-	out = (0x3333333333333333 & out) + (0x3333333333333333 & (out >> 2));
-	out = (out + (out >> 4)) & 0x0f0f0f0f0f0f0f0f;
+	out -= (out >> 1) & 0x5555555555555555ULL;
+	out = (0x3333333333333333ULL & out) +
+	      (0x3333333333333333ULL & (out >> 2));
+	out = (out + (out >> 4)) & 0x0f0f0f0f0f0f0f0fULL;
 
 	if (size == 8) {	/* popcntb */
 		op->val = out;
@@ -1076,7 +1077,7 @@ static nokprobe_inline void do_popcnt(const struct pt_regs *regs,
 	out += out >> 8;
 	out += out >> 16;
 	if (size == 32) {	/* popcntw */
-		op->val = out & 0x0000003f0000003f;
+		op->val = out & 0x0000003f0000003fULL;
 		return;
 	}
 
@@ -1114,7 +1115,7 @@ static nokprobe_inline void do_prty(const struct pt_regs *regs,
 
 	res ^= res >> 16;
 	if (size == 32) {		/* prtyw */
-		op->val = res & 0x0000000100000001;
+		op->val = res & 0x0000000100000001ULL;
 		return;
 	}
 
@@ -2544,6 +2545,15 @@ int analyse_instr(struct instruction_op *op, const struct pt_regs *regs,
 #endif /* __powerpc64__ */
 
 	}
+
+#ifdef CONFIG_VSX
+	if ((GETTYPE(op->type) == LOAD_VSX ||
+	     GETTYPE(op->type) == STORE_VSX) &&
+	    !cpu_has_feature(CPU_FTR_VSX)) {
+		return -1;
+	}
+#endif /* CONFIG_VSX */
+
 	return 0;
 
  logical_done:
@@ -2641,7 +2651,7 @@ void emulate_update_regs(struct pt_regs *regs, struct instruction_op *op)
 	unsigned long next_pc;
 
 	next_pc = truncate_if_32bit(regs->msr, regs->nip + 4);
-	switch (op->type & INSTR_TYPE_MASK) {
+	switch (GETTYPE(op->type)) {
 	case COMPUTE:
 		if (op->type & SETREG)
 			regs->gpr[op->reg] = op->val;
@@ -2739,7 +2749,7 @@ int emulate_loadstore(struct pt_regs *regs, struct instruction_op *op)
 
 	err = 0;
 	size = GETSIZE(op->type);
-	type = op->type & INSTR_TYPE_MASK;
+	type = GETTYPE(op->type);
 	cross_endian = (regs->msr & MSR_LE) != (MSR_KERNEL & MSR_LE);
 	ea = truncate_if_32bit(regs->msr, op->ea);
 
@@ -3001,7 +3011,7 @@ int emulate_step(struct pt_regs *regs, unsigned int instr)
 	}
 
 	err = 0;
-	type = op.type & INSTR_TYPE_MASK;
+	type = GETTYPE(op.type);
 
 	if (OP_IS_LOAD_STORE(type)) {
 		err = emulate_loadstore(regs, &op);

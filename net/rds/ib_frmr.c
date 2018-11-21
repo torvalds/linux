@@ -344,6 +344,11 @@ struct rds_ib_mr *rds_ib_reg_frmr(struct rds_ib_device *rds_ibdev,
 	struct rds_ib_frmr *frmr;
 	int ret;
 
+	if (!ic) {
+		/* TODO: Add FRWR support for RDS_GET_MR using proxy qp*/
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+
 	do {
 		if (ibmr)
 			rds_ib_free_frmr(ibmr, true);

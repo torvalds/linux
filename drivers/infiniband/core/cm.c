@@ -452,6 +452,32 @@ static void cm_set_private_data(struct cm_id_private *cm_id_priv,
 	cm_id_priv->private_data_len = private_data_len;
 }
 
+static int cm_init_av_for_lap(struct cm_port *port, struct ib_wc *wc,
+			      struct ib_grh *grh, struct cm_av *av)
+{
+	struct rdma_ah_attr new_ah_attr;
+	int ret;
+
+	av->port = port;
+	av->pkey_index = wc->pkey_index;
+
+	/*
+	 * av->ah_attr might be initialized based on past wc during incoming
+	 * connect request or while sending out connect request. So initialize
+	 * a new ah_attr on stack. If initialization fails, old ah_attr is
+	 * used for sending any responses. If initialization is successful,
+	 * than new ah_attr is used by overwriting old one.
+	 */
+	ret = ib_init_ah_attr_from_wc(port->cm_dev->ib_device,
+				      port->port_num, wc,
+				      grh, &new_ah_attr);
+	if (ret)
+		return ret;
+
+	memcpy(&av->ah_attr, &new_ah_attr, sizeof(new_ah_attr));
+	return 0;
+}
+
 static int cm_init_av_for_response(struct cm_port *port, struct ib_wc *wc,
 				   struct ib_grh *grh, struct cm_av *av)
 {
@@ -509,6 +535,7 @@ static struct cm_port *get_cm_port_from_path(struct sa_path_rec *path)
 static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 			      struct cm_id_private *cm_id_priv)
 {
+	struct rdma_ah_attr new_ah_attr;
 	struct cm_device *cm_dev;
 	struct cm_port *port;
 	int ret;
@@ -524,15 +551,26 @@ static int cm_init_av_by_path(struct sa_path_rec *path, struct cm_av *av,
 		return ret;
 
 	av->port = port;
+
+	/*
+	 * av->ah_attr might be initialized based on wc or during
+	 * request processing time. So initialize a new ah_attr on stack.
+	 * If initialization fails, old ah_attr is used for sending any
+	 * responses. If initialization is successful, than new ah_attr
+	 * is used by overwriting the old one.
+	 */
 	ret = ib_init_ah_attr_from_path(cm_dev->ib_device, port->port_num, path,
-					&av->ah_attr);
+					&new_ah_attr);
 	if (ret)
 		return ret;
 
 	av->timeout = path->packet_life_time + 1;
 
 	ret = add_cm_id_to_port_list(cm_id_priv, av, port);
-	return ret;
+	if (ret)
+		return ret;
+	memcpy(&av->ah_attr, &new_ah_attr, sizeof(new_ah_attr));
+	return 0;
 }
 
 static int cm_alloc_id(struct cm_id_private *cm_id_priv)
@@ -1669,7 +1707,9 @@ static void cm_process_work(struct cm_id_private *cm_id_priv,
 		spin_lock_irq(&cm_id_priv->lock);
 		work = cm_dequeue_work(cm_id_priv);
 		spin_unlock_irq(&cm_id_priv->lock);
-		BUG_ON(!work);
+		if (!work)
+			return;
+
 		ret = cm_id_priv->id.cm_handler(&cm_id_priv->id,
 						&work->cm_event);
 		cm_free_work(work);
@@ -3189,12 +3229,6 @@ static int cm_lap_handler(struct cm_work *work)
 	if (!cm_id_priv)
 		return -EINVAL;
 
-	ret = cm_init_av_for_response(work->port, work->mad_recv_wc->wc,
-				      work->mad_recv_wc->recv_buf.grh,
-				      &cm_id_priv->av);
-	if (ret)
-		goto deref;
-
 	param = &work->cm_event.param.lap_rcvd;
 	memset(&work->path[0], 0, sizeof(work->path[1]));
 	cm_path_set_rec_type(work->port->cm_dev->ib_device,
@@ -3239,10 +3273,16 @@ static int cm_lap_handler(struct cm_work *work)
 		goto unlock;
 	}
 
-	cm_id_priv->id.lap_state = IB_CM_LAP_RCVD;
-	cm_id_priv->tid = lap_msg->hdr.tid;
+	ret = cm_init_av_for_lap(work->port, work->mad_recv_wc->wc,
+				 work->mad_recv_wc->recv_buf.grh,
+				 &cm_id_priv->av);
+	if (ret)
+		goto unlock;
+
 	cm_init_av_by_path(param->alternate_path, &cm_id_priv->alt_av,
 			   cm_id_priv);
+	cm_id_priv->id.lap_state = IB_CM_LAP_RCVD;
+	cm_id_priv->tid = lap_msg->hdr.tid;
 	ret = atomic_inc_and_test(&cm_id_priv->work_count);
 	if (!ret)
 		list_add_tail(&work->list, &cm_id_priv->work_list);
@@ -4298,8 +4338,8 @@ static void cm_add_one(struct ib_device *ib_device)
 	int count = 0;
 	u8 i;
 
-	cm_dev = kzalloc(sizeof(*cm_dev) + sizeof(*port) *
-			 ib_device->phys_port_cnt, GFP_KERNEL);
+	cm_dev = kzalloc(struct_size(cm_dev, port, ib_device->phys_port_cnt),
+			 GFP_KERNEL);
 	if (!cm_dev)
 		return;
 

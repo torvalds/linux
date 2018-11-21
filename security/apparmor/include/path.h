@@ -43,10 +43,11 @@ struct aa_buffers {
 
 DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 
-#define ASSIGN(FN, X, N) ((X) = FN(N))
-#define EVAL1(FN, X) ASSIGN(FN, X, 0) /*X = FN(0)*/
-#define EVAL2(FN, X, Y...) do { ASSIGN(FN, X, 1);  EVAL1(FN, Y); } while (0)
-#define EVAL(FN, X...) CONCATENATE(EVAL, COUNT_ARGS(X))(FN, X)
+#define ASSIGN(FN, A, X, N) ((X) = FN(A, N))
+#define EVAL1(FN, A, X) ASSIGN(FN, A, X, 0) /*X = FN(0)*/
+#define EVAL2(FN, A, X, Y...)	\
+	do { ASSIGN(FN, A, X, 1);  EVAL1(FN, A, Y); } while (0)
+#define EVAL(FN, A, X...) CONCATENATE(EVAL, COUNT_ARGS(X))(FN, A, X)
 
 #define for_each_cpu_buffer(I) for ((I) = 0; (I) < MAX_PATH_BUFFERS; (I)++)
 
@@ -56,26 +57,24 @@ DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 #define AA_BUG_PREEMPT_ENABLED(X) /* nop */
 #endif
 
-#define __get_buffer(N) ({					\
-	struct aa_buffers *__cpu_var; \
+#define __get_buffer(C, N) ({						\
 	AA_BUG_PREEMPT_ENABLED("__get_buffer without preempt disabled");  \
-	__cpu_var = this_cpu_ptr(&aa_buffers);			\
-	__cpu_var->buf[(N)]; })
+	(C)->buf[(N)]; })
 
-#define __get_buffers(X...)    EVAL(__get_buffer, X)
+#define __get_buffers(C, X...)    EVAL(__get_buffer, C, X)
 
 #define __put_buffers(X, Y...) ((void)&(X))
 
-#define get_buffers(X...)	\
-do {				\
-	preempt_disable();	\
-	__get_buffers(X);	\
+#define get_buffers(X...)						\
+do {									\
+	struct aa_buffers *__cpu_var = get_cpu_ptr(&aa_buffers);	\
+	__get_buffers(__cpu_var, X);					\
 } while (0)
 
-#define put_buffers(X, Y...)	\
-do {				\
-	__put_buffers(X, Y);	\
-	preempt_enable();	\
+#define put_buffers(X, Y...)		\
+do {					\
+	__put_buffers(X, Y);		\
+	put_cpu_ptr(&aa_buffers);	\
 } while (0)
 
 #endif /* __AA_PATH_H */

@@ -147,6 +147,7 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 #include <linux/mmu_notifier.h>
+#include <linux/mm_types.h>
 #include "gru.h"
 #include "grulib.h"
 #include "gruhandles.h"
@@ -665,7 +666,7 @@ extern unsigned long gru_reserve_cb_resources(struct gru_state *gru,
 		int cbr_au_count, char *cbmap);
 extern unsigned long gru_reserve_ds_resources(struct gru_state *gru,
 		int dsr_au_count, char *dsmap);
-extern int gru_fault(struct vm_fault *vmf);
+extern vm_fault_t gru_fault(struct vm_fault *vmf);
 extern struct gru_mm_struct *gru_register_mmu_notifier(void);
 extern void gru_drop_mmu_notifier(struct gru_mm_struct *gms);
 

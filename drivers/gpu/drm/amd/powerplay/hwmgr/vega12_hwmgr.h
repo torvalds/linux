@@ -33,7 +33,7 @@
 #define WaterMarksExist  1
 #define WaterMarksLoaded 2
 
-#define VG12_PSUEDO_NUM_GFXCLK_DPM_LEVELS   8
+#define VG12_PSUEDO_NUM_GFXCLK_DPM_LEVELS   16
 #define VG12_PSUEDO_NUM_SOCCLK_DPM_LEVELS   8
 #define VG12_PSUEDO_NUM_DCEFCLK_DPM_LEVELS  8
 #define VG12_PSUEDO_NUM_UCLK_DPM_LEVELS     4
@@ -167,6 +167,9 @@ struct vega12_vbios_boot_state {
 	uint32_t    mem_clock;
 	uint32_t    soc_clock;
 	uint32_t    dcef_clock;
+	uint32_t    eclock;
+	uint32_t    dclock;
+	uint32_t    vclock;
 };
 
 #define DPMTABLE_OD_UPDATE_SCLK     0x00000001

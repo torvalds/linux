@@ -26,6 +26,8 @@
 #ifndef __DAL_IRQ_TYPES_H__
 #define __DAL_IRQ_TYPES_H__
 
+#include "os_types.h"
+
 struct dc_context;
 
 typedef void (*interrupt_handler)(void *);
@@ -134,6 +136,13 @@ enum dc_irq_source {
 	DC_IRQ_SOURCE_VBLANK4,
 	DC_IRQ_SOURCE_VBLANK5,
 	DC_IRQ_SOURCE_VBLANK6,
+
+	DC_IRQ_SOURCE_DC1_VLINE0,
+	DC_IRQ_SOURCE_DC2_VLINE0,
+	DC_IRQ_SOURCE_DC3_VLINE0,
+	DC_IRQ_SOURCE_DC4_VLINE0,
+	DC_IRQ_SOURCE_DC5_VLINE0,
+	DC_IRQ_SOURCE_DC6_VLINE0,
 
 	DAL_IRQ_SOURCES_NUMBER
 };

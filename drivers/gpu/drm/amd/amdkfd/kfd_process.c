@@ -332,6 +332,7 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 			free_pages((unsigned long)pdd->qpd.cwsr_kaddr,
 				get_order(KFD_CWSR_TBA_TMA_SIZE));
 
+		kfree(pdd->qpd.doorbell_bitmap);
 		idr_destroy(&pdd->alloc_idr);
 
 		kfree(pdd);
@@ -451,7 +452,8 @@ static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep)
 		if (!dev->cwsr_enabled || qpd->cwsr_kaddr || qpd->cwsr_base)
 			continue;
 
-		offset = (dev->id | KFD_MMAP_RESERVED_MEM_MASK) << PAGE_SHIFT;
+		offset = (KFD_MMAP_TYPE_RESERVED_MEM | KFD_MMAP_GPU_ID(dev->id))
+			<< PAGE_SHIFT;
 		qpd->tba_addr = (int64_t)vm_mmap(filep, 0,
 			KFD_CWSR_TBA_TMA_SIZE, PROT_READ | PROT_EXEC,
 			MAP_SHARED, offset);
@@ -585,6 +587,31 @@ err_alloc_process:
 	return ERR_PTR(err);
 }
 
+static int init_doorbell_bitmap(struct qcm_process_device *qpd,
+			struct kfd_dev *dev)
+{
+	unsigned int i;
+
+	if (!KFD_IS_SOC15(dev->device_info->asic_family))
+		return 0;
+
+	qpd->doorbell_bitmap =
+		kzalloc(DIV_ROUND_UP(KFD_MAX_NUM_OF_QUEUES_PER_PROCESS,
+				     BITS_PER_BYTE), GFP_KERNEL);
+	if (!qpd->doorbell_bitmap)
+		return -ENOMEM;
+
+	/* Mask out any reserved doorbells */
+	for (i = 0; i < KFD_MAX_NUM_OF_QUEUES_PER_PROCESS; i++)
+		if ((dev->shared_resources.reserved_doorbell_mask & i) ==
+		    dev->shared_resources.reserved_doorbell_val) {
+			set_bit(i, qpd->doorbell_bitmap);
+			pr_debug("reserved doorbell 0x%03x\n", i);
+		}
+
+	return 0;
+}
+
 struct kfd_process_device *kfd_get_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p)
 {
@@ -605,6 +632,12 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd = kzalloc(sizeof(*pdd), GFP_KERNEL);
 	if (!pdd)
 		return NULL;
+
+	if (init_doorbell_bitmap(&pdd->qpd, dev)) {
+		pr_err("Failed to init doorbell for process\n");
+		kfree(pdd);
+		return NULL;
+	}
 
 	pdd->dev = dev;
 	INIT_LIST_HEAD(&pdd->qpd.queues_list);
@@ -808,7 +841,7 @@ struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm)
  * Eviction is reference-counted per process-device. This means multiple
  * evictions from different sources can be nested safely.
  */
-static int process_evict_queues(struct kfd_process *p)
+int kfd_process_evict_queues(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
 	int r = 0;
@@ -844,7 +877,7 @@ fail:
 }
 
 /* process_restore_queues - Restore all user queues of a process */
-static  int process_restore_queues(struct kfd_process *p)
+int kfd_process_restore_queues(struct kfd_process *p)
 {
 	struct kfd_process_device *pdd;
 	int r, ret = 0;
@@ -886,7 +919,7 @@ static void evict_process_worker(struct work_struct *work)
 	flush_delayed_work(&p->restore_work);
 
 	pr_debug("Started evicting pasid %d\n", p->pasid);
-	ret = process_evict_queues(p);
+	ret = kfd_process_evict_queues(p);
 	if (!ret) {
 		dma_fence_signal(p->ef);
 		dma_fence_put(p->ef);
@@ -946,7 +979,7 @@ static void restore_process_worker(struct work_struct *work)
 		return;
 	}
 
-	ret = process_restore_queues(p);
+	ret = kfd_process_restore_queues(p);
 	if (!ret)
 		pr_debug("Finished restoring pasid %d\n", p->pasid);
 	else
@@ -963,7 +996,7 @@ void kfd_suspend_all_processes(void)
 		cancel_delayed_work_sync(&p->eviction_work);
 		cancel_delayed_work_sync(&p->restore_work);
 
-		if (process_evict_queues(p))
+		if (kfd_process_evict_queues(p))
 			pr_err("Failed to suspend process %d\n", p->pasid);
 		dma_fence_signal(p->ef);
 		dma_fence_put(p->ef);
@@ -989,15 +1022,12 @@ int kfd_resume_all_processes(void)
 	return ret;
 }
 
-int kfd_reserved_mem_mmap(struct kfd_process *process,
+int kfd_reserved_mem_mmap(struct kfd_dev *dev, struct kfd_process *process,
 			  struct vm_area_struct *vma)
 {
-	struct kfd_dev *dev = kfd_device_by_id(vma->vm_pgoff);
 	struct kfd_process_device *pdd;
 	struct qcm_process_device *qpd;
 
-	if (!dev)
-		return -EINVAL;
 	if ((vma->vm_end - vma->vm_start) != KFD_CWSR_TBA_TMA_SIZE) {
 		pr_err("Incorrect CWSR mapping size.\n");
 		return -EINVAL;

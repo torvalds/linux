@@ -66,17 +66,17 @@ ipipeif_get_pack_mode(u32 in_pix_fmt)
 	}
 }
 
-static inline u32 ipipeif_read(void *addr, u32 offset)
+static inline u32 ipipeif_read(void __iomem *addr, u32 offset)
 {
 	return readl(addr + offset);
 }
 
-static inline void ipipeif_write(u32 val, void *addr, u32 offset)
+static inline void ipipeif_write(u32 val, void __iomem *addr, u32 offset)
 {
 	writel(val, addr + offset);
 }
 
-static void ipipeif_config_dpc(void *addr, struct ipipeif_dpc *dpc)
+static void ipipeif_config_dpc(void __iomem *addr, struct ipipeif_dpc *dpc)
 {
 	u32 val = 0;
 
@@ -191,7 +191,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 	struct ipipeif_params params = ipipeif->config;
 	enum ipipeif_input_source ipipeif_source;
 	u32 isif_port_if;
-	void *ipipeif_base_addr;
+	void __iomem *ipipeif_base_addr;
 	unsigned int val;
 	int data_shift;
 	int pack_mode;
@@ -418,7 +418,7 @@ ipipeif_set_config(struct v4l2_subdev *sd, struct ipipeif_params *config)
 }
 
 static int
-ipipeif_get_config(struct v4l2_subdev *sd, void __user *arg)
+ipipeif_get_config(struct v4l2_subdev *sd, void *arg)
 {
 	struct vpfe_ipipeif_device *ipipeif = v4l2_get_subdevdata(sd);
 	struct ipipeif_params *config = arg;
@@ -507,7 +507,7 @@ static int ipipeif_s_ctrl(struct v4l2_ctrl *ctrl)
 void vpfe_ipipeif_enable(struct vpfe_device *vpfe_dev)
 {
 	struct vpfe_ipipeif_device *ipipeif = &vpfe_dev->vpfe_ipipeif;
-	void *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
+	void __iomem *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
 	unsigned char val;
 
 	if (ipipeif->input != IPIPEIF_INPUT_MEMORY)
@@ -794,7 +794,7 @@ static int
 ipipeif_video_in_queue(struct vpfe_device *vpfe_dev, unsigned long addr)
 {
 	struct vpfe_ipipeif_device *ipipeif = &vpfe_dev->vpfe_ipipeif;
-	void *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
+	void __iomem *ipipeif_base_addr = ipipeif->ipipeif_base_addr;
 	unsigned int adofs;
 	u32 val;
 

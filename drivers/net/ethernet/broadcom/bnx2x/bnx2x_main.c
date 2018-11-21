@@ -10279,6 +10279,12 @@ static void bnx2x_sp_rtnl_task(struct work_struct *work)
 		bp->sp_rtnl_state = 0;
 		smp_mb();
 
+		/* Immediately indicate link as down */
+		bp->link_vars.link_up = 0;
+		bp->force_link_down = true;
+		netif_carrier_off(bp->dev);
+		BNX2X_ERR("Indicating link is down due to Tx-timeout\n");
+
 		bnx2x_nic_unload(bp, UNLOAD_NORMAL, true);
 		/* When ret value shows failure of allocation failure,
 		 * the nic is rebooted again. If open still fails, a error
@@ -13922,8 +13928,6 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 {
 	struct net_device *dev = NULL;
 	struct bnx2x *bp;
-	enum pcie_link_width pcie_width;
-	enum pci_bus_speed pcie_speed;
 	int rc, max_non_def_sbs;
 	int rx_count, tx_count, rss_count, doorbell_size;
 	int max_cos_est;
@@ -14091,21 +14095,12 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 		dev_addr_add(bp->dev, bp->fip_mac, NETDEV_HW_ADDR_T_SAN);
 		rtnl_unlock();
 	}
-	if (pcie_get_minimum_link(bp->pdev, &pcie_speed, &pcie_width) ||
-	    pcie_speed == PCI_SPEED_UNKNOWN ||
-	    pcie_width == PCIE_LNK_WIDTH_UNKNOWN)
-		BNX2X_DEV_INFO("Failed to determine PCI Express Bandwidth\n");
-	else
-		BNX2X_DEV_INFO(
-		       "%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
-		       board_info[ent->driver_data].name,
-		       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
-		       pcie_width,
-		       pcie_speed == PCIE_SPEED_2_5GT ? "2.5GHz" :
-		       pcie_speed == PCIE_SPEED_5_0GT ? "5.0GHz" :
-		       pcie_speed == PCIE_SPEED_8_0GT ? "8.0GHz" :
-		       "Unknown",
-		       dev->base_addr, bp->pdev->irq, dev->dev_addr);
+	BNX2X_DEV_INFO(
+	       "%s (%c%d) PCI-E found at mem %lx, IRQ %d, node addr %pM\n",
+	       board_info[ent->driver_data].name,
+	       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
+	       dev->base_addr, bp->pdev->irq, dev->dev_addr);
+	pcie_print_link_status(bp->pdev);
 
 	bnx2x_register_phc(bp);
 

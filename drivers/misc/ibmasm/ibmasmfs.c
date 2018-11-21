@@ -507,35 +507,14 @@ static int remote_settings_file_close(struct inode *inode, struct file *file)
 static ssize_t remote_settings_file_read(struct file *file, char __user *buf, size_t count, loff_t *offset)
 {
 	void __iomem *address = (void __iomem *)file->private_data;
-	unsigned char *page;
-	int retval;
 	int len = 0;
 	unsigned int value;
-
-	if (*offset < 0)
-		return -EINVAL;
-	if (count == 0 || count > 1024)
-		return 0;
-	if (*offset != 0)
-		return 0;
-
-	page = (unsigned char *)__get_free_page(GFP_KERNEL);
-	if (!page)
-		return -ENOMEM;
+	char lbuf[20];
 
 	value = readl(address);
-	len = sprintf(page, "%d\n", value);
+	len = snprintf(lbuf, sizeof(lbuf), "%d\n", value);
 
-	if (copy_to_user(buf, page, len)) {
-		retval = -EFAULT;
-		goto exit;
-	}
-	*offset += len;
-	retval = len;
-
-exit:
-	free_page((unsigned long)page);
-	return retval;
+	return simple_read_from_buffer(buf, count, offset, lbuf, len);
 }
 
 static ssize_t remote_settings_file_write(struct file *file, const char __user *ubuff, size_t count, loff_t *offset)

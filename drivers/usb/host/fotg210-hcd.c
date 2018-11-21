@@ -844,28 +844,16 @@ static int debug_registers_open(struct inode *inode, struct file *file)
 static inline void create_debug_files(struct fotg210_hcd *fotg210)
 {
 	struct usb_bus *bus = &fotg210_to_hcd(fotg210)->self;
+	struct dentry *root;
 
-	fotg210->debug_dir = debugfs_create_dir(bus->bus_name,
-			fotg210_debug_root);
-	if (!fotg210->debug_dir)
-		return;
+	root = debugfs_create_dir(bus->bus_name, fotg210_debug_root);
+	fotg210->debug_dir = root;
 
-	if (!debugfs_create_file("async", S_IRUGO, fotg210->debug_dir, bus,
-			&debug_async_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("periodic", S_IRUGO, fotg210->debug_dir, bus,
-			&debug_periodic_fops))
-		goto file_error;
-
-	if (!debugfs_create_file("registers", S_IRUGO, fotg210->debug_dir, bus,
-			&debug_registers_fops))
-		goto file_error;
-
-	return;
-
-file_error:
-	debugfs_remove_recursive(fotg210->debug_dir);
+	debugfs_create_file("async", S_IRUGO, root, bus, &debug_async_fops);
+	debugfs_create_file("periodic", S_IRUGO, root, bus,
+			    &debug_periodic_fops);
+	debugfs_create_file("registers", S_IRUGO, root, bus,
+			    &debug_registers_fops);
 }
 
 static inline void remove_debug_files(struct fotg210_hcd *fotg210)
@@ -5686,10 +5674,6 @@ static int __init fotg210_hcd_init(void)
 			sizeof(struct fotg210_itd));
 
 	fotg210_debug_root = debugfs_create_dir("fotg210", usb_debug_root);
-	if (!fotg210_debug_root) {
-		retval = -ENOENT;
-		goto err_debug;
-	}
 
 	retval = platform_driver_register(&fotg210_hcd_driver);
 	if (retval < 0)
@@ -5699,7 +5683,7 @@ static int __init fotg210_hcd_init(void)
 clean:
 	debugfs_remove(fotg210_debug_root);
 	fotg210_debug_root = NULL;
-err_debug:
+
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;
 }

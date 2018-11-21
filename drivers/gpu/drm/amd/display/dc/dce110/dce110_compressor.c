@@ -121,10 +121,10 @@ static void reset_lb_on_vblank(struct dc_context *ctx)
 		frame_count = dm_read_reg(ctx, mmCRTC_STATUS_FRAME_COUNT);
 
 
-		for (retry = 100; retry > 0; retry--) {
+		for (retry = 10000; retry > 0; retry--) {
 			if (frame_count != dm_read_reg(ctx, mmCRTC_STATUS_FRAME_COUNT))
 				break;
-			msleep(1);
+			udelay(10);
 		}
 		if (!retry)
 			dm_error("Frame count did not increase for 100ms.\n");
@@ -147,14 +147,14 @@ static void wait_for_fbc_state_changed(
 	uint32_t addr = mmFBC_STATUS;
 	uint32_t value;
 
-	while (counter < 10) {
+	while (counter < 1000) {
 		value = dm_read_reg(cp110->base.ctx, addr);
 		if (get_reg_field_value(
 			value,
 			FBC_STATUS,
 			FBC_ENABLE_STATUS) == enabled)
 			break;
-		msleep(10);
+		udelay(100);
 		counter++;
 	}
 

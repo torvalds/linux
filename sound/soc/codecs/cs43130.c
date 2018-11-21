@@ -1733,10 +1733,10 @@ static ssize_t cs43130_show_ac_r(struct device *dev,
 	return cs43130_show_ac(dev, buf, HP_RIGHT);
 }
 
-static DEVICE_ATTR(hpload_dc_l, S_IRUGO, cs43130_show_dc_l, NULL);
-static DEVICE_ATTR(hpload_dc_r, S_IRUGO, cs43130_show_dc_r, NULL);
-static DEVICE_ATTR(hpload_ac_l, S_IRUGO, cs43130_show_ac_l, NULL);
-static DEVICE_ATTR(hpload_ac_r, S_IRUGO, cs43130_show_ac_r, NULL);
+static DEVICE_ATTR(hpload_dc_l, 0444, cs43130_show_dc_l, NULL);
+static DEVICE_ATTR(hpload_dc_r, 0444, cs43130_show_dc_r, NULL);
+static DEVICE_ATTR(hpload_ac_l, 0444, cs43130_show_ac_l, NULL);
+static DEVICE_ATTR(hpload_ac_r, 0444, cs43130_show_ac_r, NULL);
 
 static struct reg_sequence hp_en_cal_seq[] = {
 	{CS43130_INT_MASK_4, CS43130_INT_MASK_ALL},

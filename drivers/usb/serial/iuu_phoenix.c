@@ -736,7 +736,7 @@ static int iuu_uart_on(struct usb_serial_port *port)
 	int status;
 	u8 *buf;
 
-	buf = kmalloc(sizeof(u8) * 4, GFP_KERNEL);
+	buf = kmalloc(4, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
@@ -790,7 +790,7 @@ static int iuu_uart_baud(struct usb_serial_port *port, u32 baud_base,
 	unsigned int T1FrekvensHZ = 0;
 
 	dev_dbg(&port->dev, "%s - enter baud_base=%d\n", __func__, baud_base);
-	dataout = kmalloc(sizeof(u8) * 5, GFP_KERNEL);
+	dataout = kmalloc(5, GFP_KERNEL);
 
 	if (!dataout)
 		return -ENOMEM;

@@ -493,12 +493,11 @@ static int modes_setup(struct mmpfb_info *fbi)
 		return 0;
 	}
 	/* put videomode list to info structure */
-	videomodes = kzalloc(sizeof(struct fb_videomode) * videomode_num,
-			GFP_KERNEL);
-	if (!videomodes) {
-		dev_err(fbi->dev, "can't malloc video modes\n");
+	videomodes = kcalloc(videomode_num, sizeof(struct fb_videomode),
+			     GFP_KERNEL);
+	if (!videomodes)
 		return -ENOMEM;
-	}
+
 	for (i = 0; i < videomode_num; i++)
 		mmpmode_to_fbmode(&videomodes[i], &mmp_modes[i]);
 	fb_videomode_to_modelist(videomodes, videomode_num, &info->modelist);

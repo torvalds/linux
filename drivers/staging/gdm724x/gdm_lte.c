@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -408,7 +398,7 @@ static s32 gdm_lte_tx_nic_type(struct net_device *dev, struct sk_buff *skb)
 	return nic_type;
 }
 
-static int gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t gdm_lte_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct nic *nic = netdev_priv(dev);
 	u32 nic_type;

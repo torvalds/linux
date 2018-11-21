@@ -759,8 +759,7 @@ static int uniphier_pinctrl_add_reg_region(struct device *dev,
 
 	nregs = DIV_ROUND_UP(count * width, 32);
 
-	region = devm_kzalloc(dev,
-			      sizeof(*region) + sizeof(region->vals[0]) * nregs,
+	region = devm_kzalloc(dev, struct_size(region, vals, nregs),
 			      GFP_KERNEL);
 	if (!region)
 		return -ENOMEM;

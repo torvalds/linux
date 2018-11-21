@@ -19,7 +19,7 @@ static const char *__doc__ =
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
-#define MAX_CPUS 12 /* WARNING - sync with _kern.c */
+#define MAX_CPUS 64 /* WARNING - sync with _kern.c */
 
 /* How many xdp_progs are defined in _kern.c */
 #define MAX_PROG 5
@@ -28,7 +28,7 @@ static const char *__doc__ =
  * use bpf/libbpf.h), but cannot as (currently) needed for XDP
  * attaching to a device via bpf_set_link_xdp_fd()
  */
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #include "bpf_util.h"
@@ -527,7 +527,7 @@ static void stress_cpumap(void)
 	 * procedure.
 	 */
 	create_cpu_entry(1,  1024, 0, false);
-	create_cpu_entry(1,   128, 0, false);
+	create_cpu_entry(1,     8, 0, false);
 	create_cpu_entry(1, 16000, 0, false);
 }
 

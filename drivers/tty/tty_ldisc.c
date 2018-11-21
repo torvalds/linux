@@ -229,24 +229,11 @@ static int tty_ldiscs_seq_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static const struct seq_operations tty_ldiscs_seq_ops = {
+const struct seq_operations tty_ldiscs_seq_ops = {
 	.start	= tty_ldiscs_seq_start,
 	.next	= tty_ldiscs_seq_next,
 	.stop	= tty_ldiscs_seq_stop,
 	.show	= tty_ldiscs_seq_show,
-};
-
-static int proc_tty_ldiscs_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &tty_ldiscs_seq_ops);
-}
-
-const struct file_operations tty_ldiscs_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_tty_ldiscs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 /**

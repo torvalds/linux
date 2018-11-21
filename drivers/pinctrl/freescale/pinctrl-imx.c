@@ -1,16 +1,11 @@
-/*
- * Core driver for the imx pin controller
- *
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
- * Copyright (C) 2012 Linaro Ltd.
- *
- * Author: Dong Aisheng <dong.aisheng@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Core driver for the imx pin controller
+//
+// Copyright (C) 2012 Freescale Semiconductor, Inc.
+// Copyright (C) 2012 Linaro Ltd.
+//
+// Author: Dong Aisheng <dong.aisheng@linaro.org>
 
 #include <linux/err.h>
 #include <linux/init.h>
@@ -86,7 +81,8 @@ static int imx_dt_node_to_map(struct pinctrl_dev *pctldev,
 			map_num++;
 	}
 
-	new_map = kmalloc(sizeof(struct pinctrl_map) * map_num, GFP_KERNEL);
+	new_map = kmalloc_array(map_num, sizeof(struct pinctrl_map),
+				GFP_KERNEL);
 	if (!new_map)
 		return -ENOMEM;
 
@@ -371,7 +367,7 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 	unsigned long config;
 
 	if (!pin_reg || pin_reg->conf_reg == -1) {
-		seq_printf(s, "N/A");
+		seq_puts(s, "N/A");
 		return;
 	}
 
@@ -390,7 +386,7 @@ static void imx_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	if (group > pctldev->num_groups)
 		return;
 
-	seq_printf(s, "\n");
+	seq_puts(s, "\n");
 	grp = pinctrl_generic_get_group(pctldev, group);
 	if (!grp)
 		return;
@@ -414,11 +410,18 @@ static const struct pinconf_ops imx_pinconf_ops = {
 };
 
 /*
- * Each pin represented in fsl,pins consists of 5 u32 PIN_FUNC_ID and
- * 1 u32 CONFIG, so 24 types in total for each pin.
+ * Each pin represented in fsl,pins consists of a number of u32 PIN_FUNC_ID
+ * and 1 u32 CONFIG, the total size is PIN_FUNC_ID + CONFIG for each pin.
+ * For generic_pinconf case, there's no extra u32 CONFIG.
+ *
+ * PIN_FUNC_ID format:
+ * Default:
+ *     <mux_reg conf_reg input_reg mux_mode input_val>
+ * SHARE_MUX_CONF_REG:
+ *     <mux_conf_reg input_reg mux_mode input_val>
  */
 #define FSL_PIN_SIZE 24
-#define SHARE_FSL_PIN_SIZE 20
+#define FSL_PIN_SHARE_SIZE 20
 
 static int imx_pinctrl_parse_groups(struct device_node *np,
 				    struct group_desc *grp,
@@ -434,7 +437,7 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	dev_dbg(ipctl->dev, "group(%d): %s\n", index, np->name);
 
 	if (info->flags & SHARE_MUX_CONF_REG)
-		pin_size = SHARE_FSL_PIN_SIZE;
+		pin_size = FSL_PIN_SHARE_SIZE;
 	else
 		pin_size = FSL_PIN_SIZE;
 
@@ -474,10 +477,12 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	config = imx_pinconf_parse_generic_config(np, ipctl);
 
 	grp->num_pins = size / pin_size;
-	grp->data = devm_kzalloc(ipctl->dev, grp->num_pins *
-				 sizeof(struct imx_pin), GFP_KERNEL);
-	grp->pins = devm_kzalloc(ipctl->dev, grp->num_pins *
-				 sizeof(unsigned int), GFP_KERNEL);
+	grp->data = devm_kcalloc(ipctl->dev,
+				 grp->num_pins, sizeof(struct imx_pin),
+				 GFP_KERNEL);
+	grp->pins = devm_kcalloc(ipctl->dev,
+				 grp->num_pins, sizeof(unsigned int),
+				 GFP_KERNEL);
 	if (!grp->pins || !grp->data)
 		return -ENOMEM;
 
@@ -617,7 +622,7 @@ static int imx_pinctrl_probe_dt(struct platform_device *pdev,
 		nfuncs = 1;
 	} else {
 		nfuncs = of_get_child_count(np);
-		if (nfuncs <= 0) {
+		if (nfuncs == 0) {
 			dev_err(&pdev->dev, "no functions defined\n");
 			return -EINVAL;
 		}
@@ -695,8 +700,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	if (!ipctl)
 		return -ENOMEM;
 
-	ipctl->pin_regs = devm_kmalloc(&pdev->dev, sizeof(*ipctl->pin_regs) *
-				      info->npins, GFP_KERNEL);
+	ipctl->pin_regs = devm_kmalloc_array(&pdev->dev,
+				       info->npins, sizeof(*ipctl->pin_regs),
+				       GFP_KERNEL);
 	if (!ipctl->pin_regs)
 		return -ENOMEM;
 

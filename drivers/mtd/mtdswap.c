@@ -1317,11 +1317,11 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 	for (i = 0; i < MTDSWAP_TREE_CNT; i++)
 		d->trees[i].root = RB_ROOT;
 
-	d->page_data = vmalloc(sizeof(int)*pages);
+	d->page_data = vmalloc(array_size(pages, sizeof(int)));
 	if (!d->page_data)
 		goto page_data_fail;
 
-	d->revmap = vmalloc(sizeof(int)*blocks);
+	d->revmap = vmalloc(array_size(blocks, sizeof(int)));
 	if (!d->revmap)
 		goto revmap_fail;
 
@@ -1340,7 +1340,7 @@ static int mtdswap_init(struct mtdswap_dev *d, unsigned int eblocks,
 	if (!d->page_buf)
 		goto page_buf_fail;
 
-	d->oob_buf = kmalloc(2 * mtd->oobavail, GFP_KERNEL);
+	d->oob_buf = kmalloc_array(2, mtd->oobavail, GFP_KERNEL);
 	if (!d->oob_buf)
 		goto oob_buf_fail;
 

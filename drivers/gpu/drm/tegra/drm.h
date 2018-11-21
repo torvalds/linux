@@ -29,16 +29,10 @@
 
 struct reset_control;
 
-struct tegra_fb {
-	struct drm_framebuffer base;
-	struct tegra_bo **planes;
-	unsigned int num_planes;
-};
-
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 struct tegra_fbdev {
 	struct drm_fb_helper base;
-	struct tegra_fb *fb;
+	struct drm_framebuffer *fb;
 };
 #endif
 
@@ -97,6 +91,7 @@ struct tegra_drm_client {
 	struct host1x_client base;
 	struct list_head list;
 
+	unsigned int version;
 	const struct tegra_drm_client_ops *ops;
 };
 
@@ -110,6 +105,10 @@ int tegra_drm_register_client(struct tegra_drm *tegra,
 			      struct tegra_drm_client *client);
 int tegra_drm_unregister_client(struct tegra_drm *tegra,
 				struct tegra_drm_client *client);
+struct iommu_group *host1x_client_iommu_attach(struct host1x_client *client,
+					       bool shared);
+void host1x_client_iommu_detach(struct host1x_client *client,
+				struct iommu_group *group);
 
 int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 int tegra_drm_exit(struct tegra_drm *tegra);

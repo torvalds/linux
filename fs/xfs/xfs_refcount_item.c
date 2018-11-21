@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -159,7 +145,7 @@ STATIC void
 xfs_cui_item_unlock(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags))
 		xfs_cui_release(CUI_ITEM(lip));
 }
 
@@ -310,7 +296,7 @@ xfs_cud_item_unlock(
 {
 	struct xfs_cud_log_item	*cudp = CUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
+	if (test_bit(XFS_LI_ABORTED, &lip->li_flags)) {
 		xfs_cui_release(cudp->cud_cuip);
 		kmem_zone_free(xfs_cud_zone, cudp);
 	}

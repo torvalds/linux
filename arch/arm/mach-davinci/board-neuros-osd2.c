@@ -87,6 +87,7 @@ static struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
 };
 
 static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
+	.core_chipsel	= 0,
 	.parts		= davinci_ntosd2_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(davinci_ntosd2_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
@@ -173,6 +174,8 @@ static __init void davinci_ntosd2_init(void)
 	int ret;
 	struct clk *aemif_clk;
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
+
+	dm644x_init_devices();
 
 	ret = dm644x_gpio_register();
 	if (ret)

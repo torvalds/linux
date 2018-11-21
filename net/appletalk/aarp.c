@@ -907,11 +907,6 @@ void aarp_device_down(struct net_device *dev)
 }
 
 #ifdef CONFIG_PROC_FS
-struct aarp_iter_state {
-	int bucket;
-	struct aarp_entry **table;
-};
-
 /*
  * Get the aarp entry that is in the chain described
  * by the iterator.
@@ -1033,24 +1028,11 @@ static int aarp_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations aarp_seq_ops = {
+const struct seq_operations aarp_seq_ops = {
 	.start  = aarp_seq_start,
 	.next   = aarp_seq_next,
 	.stop   = aarp_seq_stop,
 	.show   = aarp_seq_show,
-};
-
-static int aarp_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_private(file, &aarp_seq_ops,
-			sizeof(struct aarp_iter_state));
-}
-
-const struct file_operations atalk_seq_arp_fops = {
-	.open           = aarp_seq_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release	= seq_release_private,
 };
 #endif
 

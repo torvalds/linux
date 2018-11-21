@@ -77,6 +77,14 @@ const nfs4_stateid invalid_stateid = {
 	.type = NFS4_INVALID_STATEID_TYPE,
 };
 
+const nfs4_stateid current_stateid = {
+	{
+		/* Funky initialiser keeps older gcc versions happy */
+		.data = { 0x0, 0x0, 0x0, 0x1, 0 },
+	},
+	.type = NFS4_SPECIAL_STATEID_TYPE,
+};
+
 static DEFINE_MUTEX(nfs_clid_init_mutex);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)

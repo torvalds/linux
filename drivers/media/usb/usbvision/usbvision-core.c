@@ -1857,7 +1857,7 @@ int usbvision_stream_interrupt(struct usb_usbvision *usbvision)
 
 static int usbvision_set_compress_params(struct usb_usbvision *usbvision)
 {
-	static const char proc[] = "usbvision_set_compresion_params: ";
+	static const char proc[] = "usbvision_set_compression_params: ";
 	int rc;
 	unsigned char *value = usbvision->ctrl_urb_buffer;
 

@@ -55,6 +55,7 @@
 
 #include "nfpcore/nfp6000_pcie.h"
 
+#include "nfp_abi.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
 #include "nfp_net.h"
@@ -74,6 +75,122 @@ static const struct pci_device_id nfp_pci_device_ids[] = {
 	{ 0, } /* Required last entry. */
 };
 MODULE_DEVICE_TABLE(pci, nfp_pci_device_ids);
+
+int nfp_pf_rtsym_read_optional(struct nfp_pf *pf, const char *format,
+			       unsigned int default_val)
+{
+	char name[256];
+	int err = 0;
+	u64 val;
+
+	snprintf(name, sizeof(name), format, nfp_cppcore_pcie_unit(pf->cpp));
+
+	val = nfp_rtsym_read_le(pf->rtbl, name, &err);
+	if (err) {
+		if (err == -ENOENT)
+			return default_val;
+		nfp_err(pf->cpp, "Unable to read symbol %s\n", name);
+		return err;
+	}
+
+	return val;
+}
+
+u8 __iomem *
+nfp_pf_map_rtsym(struct nfp_pf *pf, const char *name, const char *sym_fmt,
+		 unsigned int min_size, struct nfp_cpp_area **area)
+{
+	char pf_symbol[256];
+
+	snprintf(pf_symbol, sizeof(pf_symbol), sym_fmt,
+		 nfp_cppcore_pcie_unit(pf->cpp));
+
+	return nfp_rtsym_map(pf->rtbl, pf_symbol, name, min_size, area);
+}
+
+/* Callers should hold the devlink instance lock */
+int nfp_mbox_cmd(struct nfp_pf *pf, u32 cmd, void *in_data, u64 in_length,
+		 void *out_data, u64 out_length)
+{
+	unsigned long long addr;
+	unsigned long err_at;
+	u64 max_data_sz;
+	u32 val = 0;
+	u32 cpp_id;
+	int n, err;
+
+	if (!pf->mbox)
+		return -EOPNOTSUPP;
+
+	cpp_id = NFP_CPP_ISLAND_ID(pf->mbox->target, NFP_CPP_ACTION_RW, 0,
+				   pf->mbox->domain);
+	addr = pf->mbox->addr;
+	max_data_sz = pf->mbox->size - NFP_MBOX_SYM_MIN_SIZE;
+
+	/* Check if cmd field is clear */
+	err = nfp_cpp_readl(pf->cpp, cpp_id, addr + NFP_MBOX_CMD, &val);
+	if (err || val) {
+		nfp_warn(pf->cpp, "failed to issue command (%u): %u, err: %d\n",
+			 cmd, val, err);
+		return err ?: -EBUSY;
+	}
+
+	in_length = min(in_length, max_data_sz);
+	n = nfp_cpp_write(pf->cpp, cpp_id, addr + NFP_MBOX_DATA,
+			  in_data, in_length);
+	if (n != in_length)
+		return -EIO;
+	/* Write data_len and wipe reserved */
+	err = nfp_cpp_writeq(pf->cpp, cpp_id, addr + NFP_MBOX_DATA_LEN,
+			     in_length);
+	if (err)
+		return err;
+
+	/* Read back for ordering */
+	err = nfp_cpp_readl(pf->cpp, cpp_id, addr + NFP_MBOX_DATA_LEN, &val);
+	if (err)
+		return err;
+
+	/* Write cmd and wipe return value */
+	err = nfp_cpp_writeq(pf->cpp, cpp_id, addr + NFP_MBOX_CMD, cmd);
+	if (err)
+		return err;
+
+	err_at = jiffies + 5 * HZ;
+	while (true) {
+		/* Wait for command to go to 0 (NFP_MBOX_NO_CMD) */
+		err = nfp_cpp_readl(pf->cpp, cpp_id, addr + NFP_MBOX_CMD, &val);
+		if (err)
+			return err;
+		if (!val)
+			break;
+
+		if (time_is_before_eq_jiffies(err_at))
+			return -ETIMEDOUT;
+
+		msleep(5);
+	}
+
+	/* Copy output if any (could be error info, do it before reading ret) */
+	err = nfp_cpp_readl(pf->cpp, cpp_id, addr + NFP_MBOX_DATA_LEN, &val);
+	if (err)
+		return err;
+
+	out_length = min_t(u32, val, min(out_length, max_data_sz));
+	n = nfp_cpp_read(pf->cpp, cpp_id, addr + NFP_MBOX_DATA,
+			 out_data, out_length);
+	if (n != out_length)
+		return -EIO;
+
+	/* Check if there is an error */
+	err = nfp_cpp_readl(pf->cpp, cpp_id, addr + NFP_MBOX_RET, &val);
+	if (err)
+		return err;
+	if (val)
+		return -val;
+
+	return out_length;
+}
 
 static bool nfp_board_ready(struct nfp_pf *pf)
 {
@@ -123,7 +240,6 @@ static int nfp_pcie_sriov_read_nfd_limit(struct nfp_pf *pf)
 		return pci_sriov_set_totalvfs(pf->pdev, pf->limit_vfs);
 
 	pf->limit_vfs = ~0;
-	pci_sriov_set_totalvfs(pf->pdev, 0); /* 0 is unset */
 	/* Allow any setting for backwards compatibility if symbol not found */
 	if (err == -ENOENT)
 		return 0;
@@ -436,6 +552,25 @@ static void nfp_fw_unload(struct nfp_pf *pf)
 	nfp_nsp_close(nsp);
 }
 
+static int nfp_pf_find_rtsyms(struct nfp_pf *pf)
+{
+	char pf_symbol[256];
+	unsigned int pf_id;
+
+	pf_id = nfp_cppcore_pcie_unit(pf->cpp);
+
+	/* Optional per-PCI PF mailbox */
+	snprintf(pf_symbol, sizeof(pf_symbol), NFP_MBOX_SYM_NAME, pf_id);
+	pf->mbox = nfp_rtsym_lookup(pf->rtbl, pf_symbol);
+	if (pf->mbox && pf->mbox->size < NFP_MBOX_SYM_MIN_SIZE) {
+		nfp_err(pf->cpp, "PF mailbox symbol too small: %llu < %d\n",
+			pf->mbox->size, NFP_MBOX_SYM_MIN_SIZE);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nfp_pci_probe(struct pci_dev *pdev,
 			 const struct pci_device_id *pci_id)
 {
@@ -486,6 +621,10 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 		goto err_disable_msix;
 	}
 
+	err = nfp_resource_table_init(pf->cpp);
+	if (err)
+		goto err_cpp_free;
+
 	pf->hwinfo = nfp_hwinfo_read(pf->cpp);
 
 	dev_info(&pdev->dev, "Assembly: %s%s%s-%s CPLD: %s\n",
@@ -506,6 +645,10 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 	pf->mip = nfp_mip_open(pf->cpp);
 	pf->rtbl = __nfp_rtsym_table_read(pf->cpp, pf->mip);
 
+	err = nfp_pf_find_rtsyms(pf);
+	if (err)
+		goto err_fw_unload;
+
 	pf->dump_flag = NFP_DUMP_NSP_DIAG;
 	pf->dumpspec = nfp_net_dump_load_dumpspec(pf->cpp, pf->rtbl);
 
@@ -524,7 +667,7 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 	err = nfp_net_pci_probe(pf);
 	if (err)
-		goto err_sriov_unlimit;
+		goto err_fw_unload;
 
 	err = nfp_hwmon_register(pf);
 	if (err) {
@@ -536,8 +679,6 @@ static int nfp_pci_probe(struct pci_dev *pdev,
 
 err_net_remove:
 	nfp_net_pci_remove(pf);
-err_sriov_unlimit:
-	pci_sriov_set_totalvfs(pf->pdev, 0);
 err_fw_unload:
 	kfree(pf->rtbl);
 	nfp_mip_close(pf->mip);
@@ -548,6 +689,7 @@ err_fw_unload:
 	vfree(pf->dumpspec);
 err_hwinfo_free:
 	kfree(pf->hwinfo);
+err_cpp_free:
 	nfp_cpp_free(pf->cpp);
 err_disable_msix:
 	destroy_workqueue(pf->wq);
@@ -570,7 +712,6 @@ static void nfp_pci_remove(struct pci_dev *pdev)
 	nfp_hwmon_unregister(pf);
 
 	nfp_pcie_sriov_disable(pdev);
-	pci_sriov_set_totalvfs(pf->pdev, 0);
 
 	nfp_net_pci_remove(pf);
 

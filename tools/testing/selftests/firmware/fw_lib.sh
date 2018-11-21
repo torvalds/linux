@@ -9,11 +9,14 @@ DIR=/sys/devices/virtual/misc/test_firmware
 PROC_CONFIG="/proc/config.gz"
 TEST_DIR=$(dirname $0)
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 print_reqs_exit()
 {
 	echo "You must have the following enabled in your kernel:" >&2
 	cat $TEST_DIR/config >&2
-	exit 1
+	exit $ksft_skip
 }
 
 test_modprobe()
@@ -88,7 +91,7 @@ verify_reqs()
 	if [ "$TEST_REQS_FW_SYSFS_FALLBACK" = "yes" ]; then
 		if [ ! "$HAS_FW_LOADER_USER_HELPER" = "yes" ]; then
 			echo "usermode helper disabled so ignoring test"
-			exit 0
+			exit $ksft_skip
 		fi
 	fi
 }

@@ -15,7 +15,16 @@
 
 #define MONITORS_MAX 20
 #define MONITOR_NAME_LEN 20
+
+/* CSTATE_NAME_LEN is limited by header field width defined
+ * in cpupower-monitor.c. Header field width is defined to be
+ * sum of percent width and two spaces for padding.
+ */
+#ifdef __powerpc__
+#define CSTATE_NAME_LEN 7
+#else
 #define CSTATE_NAME_LEN 5
+#endif
 #define CSTATE_DESC_LEN 60
 
 int cpu_count;

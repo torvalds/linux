@@ -173,7 +173,7 @@ static struct am33xx_pm_platform_data *am33xx_pm_get_pdata(void)
 		return NULL;
 }
 
-void __init amx3_common_pm_init(void)
+int __init amx3_common_pm_init(void)
 {
 	struct am33xx_pm_platform_data *pdata;
 	struct platform_device_info devinfo;
@@ -186,4 +186,6 @@ void __init amx3_common_pm_init(void)
 	devinfo.size_data = sizeof(*pdata);
 	devinfo.id = -1;
 	platform_device_register_full(&devinfo);
+
+	return 0;
 }

@@ -47,6 +47,7 @@
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
+#include "qed_rdma.h"
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
@@ -426,7 +427,7 @@ static void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
 	p_mgr->srq_count = num_srqs;
 }
 
-static u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
+u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
@@ -936,14 +937,13 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 		u32 size = min_t(u32, total_size, psz);
 		void **p_virt = &p_mngr->t2[i].p_virt;
 
-		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-					     size,
-					     &p_mngr->t2[i].p_phys, GFP_KERNEL);
+		*p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
+					      size, &p_mngr->t2[i].p_phys,
+					      GFP_KERNEL);
 		if (!p_mngr->t2[i].p_virt) {
 			rc = -ENOMEM;
 			goto t2_fail;
 		}
-		memset(*p_virt, 0, size);
 		p_mngr->t2[i].size = size;
 		total_size -= size;
 	}
@@ -2071,7 +2071,7 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 	u32 num_cons, num_qps, num_srqs;
 	enum protocol_type proto;
 
-	num_srqs = min_t(u32, 32 * 1024, p_params->num_srqs);
+	num_srqs = min_t(u32, QED_RDMA_MAX_SRQS, p_params->num_srqs);
 
 	if (p_hwfn->mcp_info->func_info.protocol == QED_PCI_ETH_RDMA) {
 		DP_NOTICE(p_hwfn,

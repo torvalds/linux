@@ -53,7 +53,7 @@
 #define __PHYSICAL_MASK_SHIFT	52
 
 #ifdef CONFIG_X86_5LEVEL
-#define __VIRTUAL_MASK_SHIFT	(pgtable_l5_enabled ? 56 : 47)
+#define __VIRTUAL_MASK_SHIFT	(pgtable_l5_enabled() ? 56 : 47)
 #else
 #define __VIRTUAL_MASK_SHIFT	47
 #endif

@@ -518,7 +518,7 @@ static int of_get_devfreq_events(struct device_node *np,
 	event_ops = exynos_bus_get_ops(np);
 
 	count = of_get_child_count(events_np);
-	desc = devm_kzalloc(dev, sizeof(*desc) * count, GFP_KERNEL);
+	desc = devm_kcalloc(dev, count, sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return -ENOMEM;
 	info->num_events = count;

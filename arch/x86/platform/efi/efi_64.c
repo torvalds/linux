@@ -166,14 +166,14 @@ void __init efi_call_phys_epilog(pgd_t *save_pgd)
 		pgd = pgd_offset_k(pgd_idx * PGDIR_SIZE);
 		set_pgd(pgd_offset_k(pgd_idx * PGDIR_SIZE), save_pgd[pgd_idx]);
 
-		if (!(pgd_val(*pgd) & _PAGE_PRESENT))
+		if (!pgd_present(*pgd))
 			continue;
 
 		for (i = 0; i < PTRS_PER_P4D; i++) {
 			p4d = p4d_offset(pgd,
 					 pgd_idx * PGDIR_SIZE + i * P4D_SIZE);
 
-			if (!(p4d_val(*p4d) & _PAGE_PRESENT))
+			if (!p4d_present(*p4d))
 				continue;
 
 			pud = (pud_t *)p4d_page_vaddr(*p4d);
@@ -225,7 +225,7 @@ int __init efi_alloc_page_tables(void)
 
 	pud = pud_alloc(&init_mm, p4d, EFI_VA_END);
 	if (!pud) {
-		if (pgtable_l5_enabled)
+		if (pgtable_l5_enabled())
 			free_page((unsigned long) pgd_page_vaddr(*pgd));
 		free_pages((unsigned long)efi_pgd, PGD_ALLOCATION_ORDER);
 		return -ENOMEM;
@@ -417,7 +417,7 @@ static void __init __map_region(efi_memory_desc_t *md, u64 va)
 	if (!(md->attribute & EFI_MEMORY_WB))
 		flags |= _PAGE_PCD;
 
-	if (sev_active())
+	if (sev_active() && md->type != EFI_MEMORY_MAPPED_IO)
 		flags |= _PAGE_ENC;
 
 	pfn = md->phys_addr >> PAGE_SHIFT;

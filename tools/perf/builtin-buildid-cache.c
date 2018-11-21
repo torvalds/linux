@@ -25,6 +25,7 @@
 #include "util/session.h"
 #include "util/symbol.h"
 #include "util/time-utils.h"
+#include "util/probe-file.h"
 
 static int build_id_cache__kcore_buildid(const char *proc_dir, char *sbuildid)
 {
@@ -239,6 +240,34 @@ out:
 	return err;
 }
 
+static int build_id_cache__purge_all(void)
+{
+	struct strlist *list;
+	struct str_node *pos;
+	int err = 0;
+	char *buf;
+
+	list = build_id_cache__list_all(false);
+	if (!list) {
+		pr_debug("Failed to get buildids: -%d\n", errno);
+		return -EINVAL;
+	}
+
+	strlist__for_each_entry(pos, list) {
+		buf = build_id_cache__origname(pos->s);
+		err = build_id_cache__remove_s(pos->s);
+		pr_debug("Removing %s (%s): %s\n", buf, pos->s,
+			 err ? "FAIL" : "Ok");
+		free(buf);
+		if (err)
+			break;
+	}
+	strlist__delete(list);
+
+	pr_debug("Purged all: %s\n", err ? "FAIL" : "Ok");
+	return err;
+}
+
 static bool dso__missing_buildid_cache(struct dso *dso, int parm __maybe_unused)
 {
 	char filename[PATH_MAX];
@@ -297,6 +326,26 @@ static int build_id_cache__update_file(const char *filename, struct nsinfo *nsi)
 	return err;
 }
 
+static int build_id_cache__show_all(void)
+{
+	struct strlist *bidlist;
+	struct str_node *nd;
+	char *buf;
+
+	bidlist = build_id_cache__list_all(true);
+	if (!bidlist) {
+		pr_debug("Failed to get buildids: -%d\n", errno);
+		return -1;
+	}
+	strlist__for_each_entry(nd, bidlist) {
+		buf = build_id_cache__origname(nd->s);
+		fprintf(stdout, "%s %s\n", nd->s, buf);
+		free(buf);
+	}
+	strlist__delete(bidlist);
+	return 0;
+}
+
 int cmd_buildid_cache(int argc, const char **argv)
 {
 	struct strlist *list;
@@ -304,6 +353,9 @@ int cmd_buildid_cache(int argc, const char **argv)
 	int ret = 0;
 	int ns_id = -1;
 	bool force = false;
+	bool list_files = false;
+	bool opts_flag = false;
+	bool purge_all = false;
 	char const *add_name_list_str = NULL,
 		   *remove_name_list_str = NULL,
 		   *purge_name_list_str = NULL,
@@ -327,6 +379,8 @@ int cmd_buildid_cache(int argc, const char **argv)
 		    "file(s) to remove"),
 	OPT_STRING('p', "purge", &purge_name_list_str, "file list",
 		    "file(s) to remove (remove old caches too)"),
+	OPT_BOOLEAN('P', "purge-all", &purge_all, "purge all cached files"),
+	OPT_BOOLEAN('l', "list", &list_files, "list all cached files"),
 	OPT_STRING('M', "missing", &missing_filename, "file",
 		   "to find missing build ids in the cache"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -344,10 +398,19 @@ int cmd_buildid_cache(int argc, const char **argv)
 	argc = parse_options(argc, argv, buildid_cache_options,
 			     buildid_cache_usage, 0);
 
-	if (argc || (!add_name_list_str && !kcore_filename &&
-		     !remove_name_list_str && !purge_name_list_str &&
-		     !missing_filename && !update_name_list_str))
+	opts_flag = add_name_list_str || kcore_filename ||
+		remove_name_list_str || purge_name_list_str ||
+		missing_filename || update_name_list_str ||
+		purge_all;
+
+	if (argc || !(list_files || opts_flag))
 		usage_with_options(buildid_cache_usage, buildid_cache_options);
+
+	/* -l is exclusive. It can not be used with other options. */
+	if (list_files && opts_flag) {
+		usage_with_options_msg(buildid_cache_usage,
+			buildid_cache_options, "-l is exclusive.\n");
+	}
 
 	if (ns_id > 0)
 		nsi = nsinfo__new(ns_id);
@@ -365,6 +428,11 @@ int cmd_buildid_cache(int argc, const char **argv)
 		goto out;
 
 	setup_pager();
+
+	if (list_files) {
+		ret = build_id_cache__show_all();
+		goto out;
+	}
 
 	if (add_name_list_str) {
 		list = strlist__new(add_name_list_str, NULL);
@@ -417,6 +485,13 @@ int cmd_buildid_cache(int argc, const char **argv)
 				}
 
 			strlist__delete(list);
+		}
+	}
+
+	if (purge_all) {
+		if (build_id_cache__purge_all()) {
+			pr_warning("Couldn't remove some caches. Error: %s.\n",
+				str_error_r(errno, sbuf, sizeof(sbuf)));
 		}
 	}
 

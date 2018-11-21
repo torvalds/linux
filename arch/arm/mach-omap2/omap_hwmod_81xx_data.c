@@ -954,6 +954,7 @@ static struct omap_hwmod_ocp_if dm816x_l4_hs__emac1 = {
 };
 
 static struct omap_hwmod_class_sysconfig dm81xx_sata_sysc = {
+	.rev_offs	= 0x00fc,
 	.sysc_offs	= 0x1100,
 	.sysc_flags	= SYSC_HAS_SIDLEMODE,
 	.idlemodes	= SIDLE_FORCE,

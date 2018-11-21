@@ -99,7 +99,8 @@ static const struct drm_mode_config_funcs mxsfb_mode_config_funcs = {
 };
 
 static void mxsfb_pipe_enable(struct drm_simple_display_pipe *pipe,
-			      struct drm_crtc_state *crtc_state)
+			      struct drm_crtc_state *crtc_state,
+			      struct drm_plane_state *plane_state)
 {
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 
@@ -123,12 +124,6 @@ static void mxsfb_pipe_update(struct drm_simple_display_pipe *pipe,
 	struct mxsfb_drm_private *mxsfb = drm_pipe_to_mxsfb_drm_private(pipe);
 
 	mxsfb_plane_atomic_update(mxsfb, plane_state);
-}
-
-static int mxsfb_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
-				 struct drm_plane_state *plane_state)
-{
-	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
 static int mxsfb_pipe_enable_vblank(struct drm_simple_display_pipe *pipe)
@@ -159,7 +154,7 @@ static struct drm_simple_display_pipe_funcs mxsfb_funcs = {
 	.enable		= mxsfb_pipe_enable,
 	.disable	= mxsfb_pipe_disable,
 	.update		= mxsfb_pipe_update,
-	.prepare_fb	= mxsfb_pipe_prepare_fb,
+	.prepare_fb	= drm_gem_fb_simple_display_pipe_prepare_fb,
 	.enable_vblank	= mxsfb_pipe_enable_vblank,
 	.disable_vblank	= mxsfb_pipe_disable_vblank,
 };

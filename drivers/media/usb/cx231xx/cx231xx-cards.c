@@ -715,7 +715,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.demod_addr = 0x0e,
+		.demod_addr = 0x64, /* 0xc8 >> 1 */
 		.norm = V4L2_STD_PAL,
 
 		.input = {{
@@ -754,7 +754,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.demod_addr = 0x0e,
+		.demod_addr = 0x64, /* 0xc8 >> 1 */
 		.norm = V4L2_STD_PAL,
 
 		.input = {{
@@ -793,7 +793,7 @@ struct cx231xx_board cx231xx_boards[] = {
 		.tuner_i2c_master = I2C_1_MUX_3,
 		.demod_i2c_master = I2C_1_MUX_3,
 		.has_dvb = 1,
-		.demod_addr = 0x0e,
+		.demod_addr = 0x59, /* 0xb2 >> 1 */
 		.norm = V4L2_STD_NTSC,
 
 		.input = {{
@@ -1024,6 +1024,9 @@ struct usb_device_id cx231xx_id_table[] = {
 	 .driver_info = CX231XX_BOARD_CNXT_RDE_250},
 	{USB_DEVICE(0x0572, 0x58A0),
 	 .driver_info = CX231XX_BOARD_CNXT_RDU_250},
+	/* AverMedia DVD EZMaker 7 */
+	{USB_DEVICE(0x07ca, 0xc039),
+	 .driver_info = CX231XX_BOARD_CNXT_VIDEO_GRABBER},
 	{USB_DEVICE(0x2040, 0xb110),
 	 .driver_info = CX231XX_BOARD_HAUPPAUGE_USB2_FM_PAL},
 	{USB_DEVICE(0x2040, 0xb111),

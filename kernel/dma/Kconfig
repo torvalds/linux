@@ -1,0 +1,50 @@
+
+config HAS_DMA
+	bool
+	depends on !NO_DMA
+	default y
+
+config NEED_SG_DMA_LENGTH
+	bool
+
+config NEED_DMA_MAP_STATE
+	bool
+
+config ARCH_DMA_ADDR_T_64BIT
+	def_bool 64BIT || PHYS_ADDR_T_64BIT
+
+config HAVE_GENERIC_DMA_COHERENT
+	bool
+
+config ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	bool
+
+config ARCH_HAS_SYNC_DMA_FOR_CPU
+	bool
+	select NEED_DMA_MAP_STATE
+
+config DMA_DIRECT_OPS
+	bool
+	depends on HAS_DMA
+
+config DMA_NONCOHERENT_OPS
+	bool
+	depends on HAS_DMA
+	select DMA_DIRECT_OPS
+
+config DMA_NONCOHERENT_MMAP
+	bool
+	depends on DMA_NONCOHERENT_OPS
+
+config DMA_NONCOHERENT_CACHE_SYNC
+	bool
+	depends on DMA_NONCOHERENT_OPS
+
+config DMA_VIRT_OPS
+	bool
+	depends on HAS_DMA
+
+config SWIOTLB
+	bool
+	select DMA_DIRECT_OPS
+	select NEED_DMA_MAP_STATE

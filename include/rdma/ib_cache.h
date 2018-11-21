@@ -149,4 +149,5 @@ int ib_get_cached_port_state(struct ib_device *device,
 			      u8                port_num,
 			      enum ib_port_state *port_active);
 
+bool rdma_is_zero_gid(const union ib_gid *gid);
 #endif /* _IB_CACHE_H */

@@ -443,9 +443,9 @@ matrix_keypad_parse_dt(struct device *dev)
 	of_property_read_u32(np, "col-scan-delay-us",
 						&pdata->col_scan_delay_us);
 
-	gpios = devm_kzalloc(dev,
-			     sizeof(unsigned int) *
-				(pdata->num_row_gpios + pdata->num_col_gpios),
+	gpios = devm_kcalloc(dev,
+			     pdata->num_row_gpios + pdata->num_col_gpios,
+			     sizeof(unsigned int),
 			     GFP_KERNEL);
 	if (!gpios) {
 		dev_err(dev, "could not allocate memory for gpios\n");

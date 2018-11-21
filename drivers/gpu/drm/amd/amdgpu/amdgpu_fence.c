@@ -131,7 +131,8 @@ static u32 amdgpu_fence_read(struct amdgpu_ring *ring)
  * Emits a fence command on the requested ring (all asics).
  * Returns 0 on success, -ENOMEM on failure.
  */
-int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f)
+int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
+		      unsigned flags)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_fence *fence;
@@ -149,7 +150,7 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f)
 		       adev->fence_context + ring->idx,
 		       seq);
 	amdgpu_ring_emit_fence(ring, ring->fence_drv.gpu_addr,
-			       seq, AMDGPU_FENCE_FLAG_INT);
+			       seq, flags | AMDGPU_FENCE_FLAG_INT);
 
 	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
 	/* This function can't be called concurrently anyway, otherwise
@@ -375,14 +376,14 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 	struct amdgpu_device *adev = ring->adev;
 	uint64_t index;
 
-	if (ring != &adev->uvd.ring) {
+	if (ring->funcs->type != AMDGPU_RING_TYPE_UVD) {
 		ring->fence_drv.cpu_addr = &adev->wb.wb[ring->fence_offs];
 		ring->fence_drv.gpu_addr = adev->wb.gpu_addr + (ring->fence_offs * 4);
 	} else {
 		/* put fence directly behind firmware */
 		index = ALIGN(adev->uvd.fw->size, 8);
-		ring->fence_drv.cpu_addr = adev->uvd.cpu_addr + index;
-		ring->fence_drv.gpu_addr = adev->uvd.gpu_addr + index;
+		ring->fence_drv.cpu_addr = adev->uvd.inst[ring->me].cpu_addr + index;
+		ring->fence_drv.gpu_addr = adev->uvd.inst[ring->me].gpu_addr + index;
 	}
 	amdgpu_fence_write(ring, atomic_read(&ring->fence_drv.last_seq));
 	amdgpu_irq_get(adev, irq_src, irq_type);

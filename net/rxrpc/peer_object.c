@@ -322,7 +322,7 @@ struct rxrpc_peer *rxrpc_lookup_incoming_peer(struct rxrpc_local *local,
 	if (!peer) {
 		peer = prealloc;
 		hash_add_rcu(rxnet->peer_hash, &peer->hash_link, hash_key);
-		hlist_add_head(&peer->keepalive_link, &rxnet->peer_keepalive_new);
+		list_add_tail(&peer->keepalive_link, &rxnet->peer_keepalive_new);
 	}
 
 	spin_unlock(&rxnet->peer_hash_lock);
@@ -367,8 +367,8 @@ struct rxrpc_peer *rxrpc_lookup_peer(struct rxrpc_local *local,
 		if (!peer) {
 			hash_add_rcu(rxnet->peer_hash,
 				     &candidate->hash_link, hash_key);
-			hlist_add_head(&candidate->keepalive_link,
-				       &rxnet->peer_keepalive_new);
+			list_add_tail(&candidate->keepalive_link,
+				      &rxnet->peer_keepalive_new);
 		}
 
 		spin_unlock_bh(&rxnet->peer_hash_lock);
@@ -441,7 +441,7 @@ static void __rxrpc_put_peer(struct rxrpc_peer *peer)
 
 	spin_lock_bh(&rxnet->peer_hash_lock);
 	hash_del_rcu(&peer->hash_link);
-	hlist_del_init(&peer->keepalive_link);
+	list_del_init(&peer->keepalive_link);
 	spin_unlock_bh(&rxnet->peer_hash_lock);
 
 	kfree_rcu(peer, rcu);

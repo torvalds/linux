@@ -103,6 +103,7 @@ struct regulator_state {
  * @ilim_uA: Maximum input current.
  * @system_load: Load that isn't captured by any consumer requests.
  *
+ * @max_spread: Max possible spread between coupled regulators
  * @valid_modes_mask: Mask of modes which may be configured by consumers.
  * @valid_ops_mask: Operations which may be performed by consumers.
  *
@@ -153,6 +154,9 @@ struct regulation_constraints {
 	int ilim_uA;
 
 	int system_load;
+
+	/* used for coupled regulators */
+	int max_spread;
 
 	/* valid regulator operating modes for this machine */
 	unsigned int valid_modes_mask;

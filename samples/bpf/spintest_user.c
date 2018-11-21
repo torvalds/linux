@@ -7,6 +7,7 @@
 #include <sys/resource.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "trace_helpers.h"
 
 int main(int ac, char **argv)
 {

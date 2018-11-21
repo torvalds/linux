@@ -916,8 +916,9 @@ int qlcnic_82xx_mq_intrpt(struct qlcnic_adapter *adapter, int op_type)
 	if (qlcnic_check_multi_tx(adapter) &&
 	    !ahw->diag_test &&
 	    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
-		ahw->intr_tbl = vzalloc(ahw->num_msix *
-					sizeof(struct qlcnic_intrpt_config));
+		ahw->intr_tbl =
+			vzalloc(array_size(sizeof(struct qlcnic_intrpt_config),
+					   ahw->num_msix));
 		if (!ahw->intr_tbl)
 			return -ENOMEM;
 
@@ -1025,15 +1026,17 @@ int qlcnic_init_pci_info(struct qlcnic_adapter *adapter)
 
 	act_pci_func = ahw->total_nic_func;
 
-	adapter->npars = kzalloc(sizeof(struct qlcnic_npar_info) *
-				 act_pci_func, GFP_KERNEL);
+	adapter->npars = kcalloc(act_pci_func,
+				 sizeof(struct qlcnic_npar_info),
+				 GFP_KERNEL);
 	if (!adapter->npars) {
 		ret = -ENOMEM;
 		goto err_pci_info;
 	}
 
-	adapter->eswitch = kzalloc(sizeof(struct qlcnic_eswitch) *
-				QLCNIC_NIU_MAX_XG_PORTS, GFP_KERNEL);
+	adapter->eswitch = kcalloc(QLCNIC_NIU_MAX_XG_PORTS,
+				   sizeof(struct qlcnic_eswitch),
+				   GFP_KERNEL);
 	if (!adapter->eswitch) {
 		ret = -ENOMEM;
 		goto err_npars;

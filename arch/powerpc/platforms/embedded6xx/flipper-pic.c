@@ -108,16 +108,8 @@ static int flipper_pic_map(struct irq_domain *h, unsigned int virq,
 	return 0;
 }
 
-static int flipper_pic_match(struct irq_domain *h, struct device_node *np,
-			     enum irq_domain_bus_token bus_token)
-{
-	return 1;
-}
-
-
 static const struct irq_domain_ops flipper_irq_domain_ops = {
 	.map = flipper_pic_map,
-	.match = flipper_pic_match,
 };
 
 /*

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/log2.h>
 #include <linux/iversion.h>
@@ -498,7 +486,7 @@ again:
 		if (!try_lock) {
 			for (j = (i - 1); j >= 0 && !try_lock; j--) {
 				lp = (xfs_log_item_t *)ips[j]->i_itemp;
-				if (lp && (lp->li_flags & XFS_LI_IN_AIL))
+				if (lp && test_bit(XFS_LI_IN_AIL, &lp->li_flags))
 					try_lock++;
 			}
 		}
@@ -598,7 +586,7 @@ xfs_lock_two_inodes(
 	 * and try again.
 	 */
 	lp = (xfs_log_item_t *)ip0->i_itemp;
-	if (lp && (lp->li_flags & XFS_LI_IN_AIL)) {
+	if (lp && test_bit(XFS_LI_IN_AIL, &lp->li_flags)) {
 		if (!xfs_ilock_nowait(ip1, xfs_lock_inumorder(ip1_mode, 1))) {
 			xfs_iunlock(ip0, ip0_mode);
 			if ((++attempts % 5) == 0)
@@ -773,7 +761,7 @@ xfs_ialloc(
 	xfs_inode_t	*ip;
 	uint		flags;
 	int		error;
-	struct timespec	tv;
+	struct timespec64 tv;
 	struct inode	*inode;
 
 	/*
@@ -789,6 +777,18 @@ xfs_ialloc(
 		return 0;
 	}
 	ASSERT(*ialloc_context == NULL);
+
+	/*
+	 * Protect against obviously corrupt allocation btree records. Later
+	 * xfs_iget checks will catch re-allocation of other active in-memory
+	 * and on-disk inodes. If we don't catch reallocating the parent inode
+	 * here we will deadlock in xfs_iget() so we have to do these checks
+	 * first.
+	 */
+	if ((pip && ino == pip->i_ino) || !xfs_verify_dir_ino(mp, ino)) {
+		xfs_alert(mp, "Allocated a known in-use inode 0x%llx!", ino);
+		return -EFSCORRUPTED;
+	}
 
 	/*
 	 * Get the in-core inode with the lock held exclusively.
@@ -1196,6 +1196,7 @@ xfs_create(
 	unlock_dp_on_error = true;
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 
 	/*
 	 * Reserve disk quota and the inode.
@@ -1411,11 +1412,11 @@ xfs_link(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(sip, 0);
+	error = xfs_qm_dqattach(sip);
 	if (error)
 		goto std_return;
 
-	error = xfs_qm_dqattach(tdp, 0);
+	error = xfs_qm_dqattach(tdp);
 	if (error)
 		goto std_return;
 
@@ -1451,6 +1452,7 @@ xfs_link(
 	}
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 
 	/*
 	 * Handle initial link state of O_TMPFILE inode
@@ -1534,11 +1536,12 @@ xfs_itruncate_clear_reflink_flags(
  * dirty on error so that transactions can be easily aborted if possible.
  */
 int
-xfs_itruncate_extents(
+xfs_itruncate_extents_flags(
 	struct xfs_trans	**tpp,
 	struct xfs_inode	*ip,
 	int			whichfork,
-	xfs_fsize_t		new_size)
+	xfs_fsize_t		new_size,
+	int			flags)
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp = *tpp;
@@ -1561,6 +1564,8 @@ xfs_itruncate_extents(
 
 	trace_xfs_itruncate_extents_start(ip, new_size);
 
+	flags |= xfs_bmapi_aflag(whichfork);
+
 	/*
 	 * Since it is possible for space to become allocated beyond
 	 * the end of the file (in a crash where the space is allocated
@@ -1579,12 +1584,9 @@ xfs_itruncate_extents(
 	unmap_len = last_block - first_unmap_block + 1;
 	while (!done) {
 		xfs_defer_init(&dfops, &first_block);
-		error = xfs_bunmapi(tp, ip,
-				    first_unmap_block, unmap_len,
-				    xfs_bmapi_aflag(whichfork),
-				    XFS_ITRUNC_MAX_EXTENTS,
-				    &first_block, &dfops,
-				    &done);
+		error = xfs_bunmapi(tp, ip, first_unmap_block, unmap_len, flags,
+				    XFS_ITRUNC_MAX_EXTENTS, &first_block,
+				    &dfops, &done);
 		if (error)
 			goto out_bmap_cancel;
 
@@ -1811,6 +1813,7 @@ xfs_inactive_ifree(
 	xfs_trans_ijoin(tp, ip, 0);
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 	error = xfs_ifree(tp, ip, &dfops);
 	if (error) {
 		/*
@@ -1911,7 +1914,7 @@ xfs_inactive(
 	     ip->i_d.di_nextents > 0 || ip->i_delayed_blks > 0))
 		truncate = 1;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return;
 
@@ -2075,10 +2078,15 @@ xfs_iunlink_remove(
 	 * list this inode will go on.
 	 */
 	agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
-	ASSERT(agino != 0);
+	if (!xfs_verify_agino(mp, agno, agino))
+		return -EFSCORRUPTED;
 	bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
-	ASSERT(agi->agi_unlinked[bucket_index] != cpu_to_be32(NULLAGINO));
-	ASSERT(agi->agi_unlinked[bucket_index]);
+	if (!xfs_verify_agino(mp, agno,
+			be32_to_cpu(agi->agi_unlinked[bucket_index]))) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				agi, sizeof(*agi));
+		return -EFSCORRUPTED;
+	}
 
 	if (be32_to_cpu(agi->agi_unlinked[bucket_index]) == agino) {
 		/*
@@ -2156,8 +2164,12 @@ xfs_iunlink_remove(
 
 			last_offset = imap.im_boffset;
 			next_agino = be32_to_cpu(last_dip->di_next_unlinked);
-			ASSERT(next_agino != NULLAGINO);
-			ASSERT(next_agino != 0);
+			if (!xfs_verify_agino(mp, agno, next_agino)) {
+				XFS_CORRUPTION_ERROR(__func__,
+						XFS_ERRLEVEL_LOW, mp,
+						last_dip, sizeof(*last_dip));
+				return -EFSCORRUPTED;
+			}
 		}
 
 		/*
@@ -2246,7 +2258,7 @@ xfs_ifree_cluster(
 		 */
 		ioffset = inum - xic->first_ino;
 		if ((xic->alloc & XFS_INOBT_MASK(ioffset)) == 0) {
-			ASSERT(do_mod(ioffset, inodes_per_cluster) == 0);
+			ASSERT(ioffset % inodes_per_cluster == 0);
 			continue;
 		}
 
@@ -2574,11 +2586,11 @@ xfs_remove(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(dp, 0);
+	error = xfs_qm_dqattach(dp);
 	if (error)
 		goto std_return;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		goto std_return;
 
@@ -2647,6 +2659,7 @@ xfs_remove(
 		goto out_trans_cancel;
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
 					&first_block, &dfops, resblks);
 	if (error) {
@@ -3014,6 +3027,7 @@ xfs_rename(
 	}
 
 	xfs_defer_init(&dfops, &first_block);
+	tp->t_agfl_dfops = &dfops;
 
 	/* RENAME_EXCHANGE is unique from here on. */
 	if (flags & RENAME_EXCHANGE)
@@ -3222,7 +3236,6 @@ xfs_iflush_cluster(
 	struct xfs_inode	*cip;
 	int			nr_found;
 	int			clcount = 0;
-	int			bufwasdelwri;
 	int			i;
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
@@ -3346,37 +3359,22 @@ cluster_corrupt_out:
 	 * inode buffer and shut down the filesystem.
 	 */
 	rcu_read_unlock();
-	/*
-	 * Clean up the buffer.  If it was delwri, just release it --
-	 * brelse can handle it with no problems.  If not, shut down the
-	 * filesystem before releasing the buffer.
-	 */
-	bufwasdelwri = (bp->b_flags & _XBF_DELWRI_Q);
-	if (bufwasdelwri)
-		xfs_buf_relse(bp);
-
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 
-	if (!bufwasdelwri) {
-		/*
-		 * Just like incore_relse: if we have b_iodone functions,
-		 * mark the buffer as an error and call them.  Otherwise
-		 * mark it as stale and brelse.
-		 */
-		if (bp->b_iodone) {
-			bp->b_flags &= ~XBF_DONE;
-			xfs_buf_stale(bp);
-			xfs_buf_ioerror(bp, -EIO);
-			xfs_buf_ioend(bp);
-		} else {
-			xfs_buf_stale(bp);
-			xfs_buf_relse(bp);
-		}
-	}
-
 	/*
-	 * Unlocks the flush lock
+	 * We'll always have an inode attached to the buffer for completion
+	 * process by the time we are called from xfs_iflush(). Hence we have
+	 * always need to do IO completion processing to abort the inodes
+	 * attached to the buffer.  handle them just like the shutdown case in
+	 * xfs_buf_submit().
 	 */
+	ASSERT(bp->b_iodone);
+	bp->b_flags &= ~XBF_DONE;
+	xfs_buf_stale(bp);
+	xfs_buf_ioerror(bp, -EIO);
+	xfs_buf_ioend(bp);
+
+	/* abort the corrupt inode, as it was not attached to the buffer */
 	xfs_iflush_abort(cip, false);
 	kmem_free(cilist);
 	xfs_perag_put(pag);
@@ -3472,12 +3470,17 @@ xfs_iflush(
 		xfs_log_force(mp, 0);
 
 	/*
-	 * inode clustering:
-	 * see if other inodes can be gathered into this write
+	 * inode clustering: try to gather other inodes into this write
+	 *
+	 * Note: Any error during clustering will result in the filesystem
+	 * being shut down and completion callbacks run on the cluster buffer.
+	 * As we have already flushed and attached this inode to the buffer,
+	 * it has already been aborted and released by xfs_iflush_cluster() and
+	 * so we have no further error handling to do here.
 	 */
 	error = xfs_iflush_cluster(ip, bp);
 	if (error)
-		goto cluster_corrupt_out;
+		return error;
 
 	*bpp = bp;
 	return 0;
@@ -3486,12 +3489,8 @@ corrupt_out:
 	if (bp)
 		xfs_buf_relse(bp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-cluster_corrupt_out:
-	error = -EFSCORRUPTED;
 abort_out:
-	/*
-	 * Unlocks the flush lock
-	 */
+	/* abort the corrupt inode, as it was not attached to the buffer */
 	xfs_iflush_abort(ip, false);
 	return error;
 }

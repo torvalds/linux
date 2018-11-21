@@ -678,9 +678,22 @@ bool dce100_validate_bandwidth(
 	struct dc  *dc,
 	struct dc_state *context)
 {
-	/* TODO implement when needed but for now hardcode max value*/
-	context->bw.dce.dispclk_khz = 681000;
-	context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER;
+	int i;
+	bool at_least_one_pipe = false;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream)
+			at_least_one_pipe = true;
+	}
+
+	if (at_least_one_pipe) {
+		/* TODO implement when needed but for now hardcode max value*/
+		context->bw.dce.dispclk_khz = 681000;
+		context->bw.dce.yclk_khz = 250000 * MEMORY_TYPE_MULTIPLIER;
+	} else {
+		context->bw.dce.dispclk_khz = 0;
+		context->bw.dce.yclk_khz = 0;
+	}
 
 	return true;
 }
@@ -733,38 +746,6 @@ enum dc_status dce100_add_stream_to_ctx(
 	return result;
 }
 
-enum dc_status dce100_validate_guaranteed(
-		struct dc  *dc,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *context)
-{
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-
-	context->streams[0] = dc_stream;
-	dc_stream_retain(context->streams[0]);
-	context->stream_count++;
-
-	result = resource_map_pool_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = resource_map_clock_resources(dc, context, dc_stream);
-
-	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, dc_stream);
-
-	if (result == DC_OK) {
-		validate_guaranteed_copy_streams(
-				context, dc->caps.max_streams);
-		result = resource_build_scaling_params_for_context(dc, context);
-	}
-
-	if (result == DC_OK)
-		if (!dce100_validate_bandwidth(dc, context))
-			result = DC_FAIL_BANDWIDTH_VALIDATE;
-
-	return result;
-}
-
 static void dce100_destroy_resource_pool(struct resource_pool **pool)
 {
 	struct dce110_resource_pool *dce110_pool = TO_DCE110_RES_POOL(*pool);
@@ -786,7 +767,6 @@ enum dc_status dce100_validate_plane(const struct dc_plane_state *plane_state, s
 static const struct resource_funcs dce100_res_pool_funcs = {
 	.destroy = dce100_destroy_resource_pool,
 	.link_enc_create = dce100_link_encoder_create,
-	.validate_guaranteed = dce100_validate_guaranteed,
 	.validate_bandwidth = dce100_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce100_add_stream_to_ctx,

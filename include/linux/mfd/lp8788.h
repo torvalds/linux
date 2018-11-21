@@ -182,20 +182,6 @@ struct lp8788_buck2_dvs {
 };
 
 /*
- * struct lp8788_ldo_enable_pin
- *
- *   Basically, all LDOs are enabled through the I2C commands.
- *   But ALDO 1 ~ 5, 7, DLDO 7, 9, 11 can be enabled by external gpio pins.
- *
- * @gpio         : gpio number which is used for enabling ldos
- * @init_state   : initial gpio state (ex. GPIOF_OUT_INIT_LOW)
- */
-struct lp8788_ldo_enable_pin {
-	int gpio;
-	int init_state;
-};
-
-/*
  * struct lp8788_chg_param
  * @addr         : charging control register address (range : 0x11 ~ 0x1C)
  * @val          : charging parameter value
@@ -288,7 +274,6 @@ struct lp8788_vib_platform_data {
  * @aldo_data    : regulator initial data for analog ldo
  * @buck1_dvs    : gpio configurations for buck1 dvs
  * @buck2_dvs    : gpio configurations for buck2 dvs
- * @ldo_pin      : gpio configurations for enabling LDOs
  * @chg_pdata    : platform data for charger driver
  * @alarm_sel    : rtc alarm selection (1 or 2)
  * @bl_pdata     : configurable data for backlight driver
@@ -306,7 +291,6 @@ struct lp8788_platform_data {
 	struct regulator_init_data *aldo_data[LP8788_NUM_ALDOS];
 	struct lp8788_buck1_dvs *buck1_dvs;
 	struct lp8788_buck2_dvs *buck2_dvs;
-	struct lp8788_ldo_enable_pin *ldo_pin[EN_LDOS_MAX];
 
 	/* charger */
 	struct lp8788_charger_platform_data *chg_pdata;

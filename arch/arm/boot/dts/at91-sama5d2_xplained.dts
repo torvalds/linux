@@ -232,7 +232,7 @@
 						pinctrl-names = "default";
 						pinctrl-0 = <&pinctrl_charger_chglev &pinctrl_charger_lbo &pinctrl_charger_irq>;
 						interrupt-parent = <&pioA>;
-						interrupts = <PIN_PB13 GPIO_ACTIVE_LOW>;
+						interrupts = <PIN_PB13 IRQ_TYPE_EDGE_RISING>;
 
 						active-semi,chglev-gpios = <&pioA PIN_PA12 GPIO_ACTIVE_HIGH>;
 						active-semi,lbo-gpios = <&pioA PIN_PC8 GPIO_ACTIVE_LOW>;

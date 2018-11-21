@@ -8,7 +8,7 @@ Event Tracing
 1. Introduction
 ===============
 
-Tracepoints (see Documentation/trace/tracepoints.txt) can be used
+Tracepoints (see Documentation/trace/tracepoints.rst) can be used
 without creating custom kernel modules to register probe functions
 using the event tracing infrastructure.
 
@@ -338,9 +338,13 @@ used for conditionally invoking triggers.
 
 The syntax for event triggers is roughly based on the syntax for
 set_ftrace_filter 'ftrace filter commands' (see the 'Filter commands'
-section of Documentation/trace/ftrace.txt), but there are major
+section of Documentation/trace/ftrace.rst), but there are major
 differences and the implementation isn't currently tied to it in any
 way, so beware about making generalizations between the two.
+
+Note: Writing into trace_marker (See Documentation/trace/ftrace.rst)
+     can also enable triggers that are written into
+     /sys/kernel/tracing/events/ftrace/print/trigger
 
 6.1 Expression syntax
 ---------------------

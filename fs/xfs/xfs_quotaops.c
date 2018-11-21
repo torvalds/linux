@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2008, Christoph Hellwig
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_format.h"
@@ -239,8 +227,7 @@ xfs_fs_get_dqblk(
 		return -ESRCH;
 
 	id = from_kqid(&init_user_ns, qid);
-	return xfs_qm_scall_getquota(mp, &id,
-				      xfs_quota_type(qid.type), qdq, 0);
+	return xfs_qm_scall_getquota(mp, id, xfs_quota_type(qid.type), qdq);
 }
 
 /* Return quota info for active quota >= this qid */
@@ -260,9 +247,8 @@ xfs_fs_get_nextdqblk(
 		return -ESRCH;
 
 	id = from_kqid(&init_user_ns, *qid);
-	ret = xfs_qm_scall_getquota(mp, &id,
-				    xfs_quota_type(qid->type), qdq,
-				    XFS_QMOPT_DQNEXT);
+	ret = xfs_qm_scall_getquota_next(mp, &id, xfs_quota_type(qid->type),
+			qdq);
 	if (ret)
 		return ret;
 

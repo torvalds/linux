@@ -140,6 +140,9 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 	if (fb->func->init)
 		fb->func->init(fb);
 
+	if (fb->func->init_remapper)
+		fb->func->init_remapper(fb);
+
 	if (fb->func->init_page) {
 		ret = fb->func->init_page(fb);
 		if (WARN_ON(ret))

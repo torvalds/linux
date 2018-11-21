@@ -241,8 +241,9 @@ out:
 /* allocate non-shared indicators and shared indicator */
 int __init tiqdio_allocate_memory(void)
 {
-	q_indicators = kzalloc(sizeof(struct indicator_t) * TIQDIO_NR_INDICATORS,
-			     GFP_KERNEL);
+	q_indicators = kcalloc(TIQDIO_NR_INDICATORS,
+			       sizeof(struct indicator_t),
+			       GFP_KERNEL);
 	if (!q_indicators)
 		return -ENOMEM;
 	return 0;

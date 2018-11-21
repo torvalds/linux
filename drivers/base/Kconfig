@@ -70,81 +70,25 @@ config STANDALONE
 	  If unsure, say Y.
 
 config PREVENT_FIRMWARE_BUILD
-	bool "Prevent firmware from being built"
+	bool "Disable drivers features which enable custom firmware building"
 	default y
 	help
-	  Say yes to avoid building firmware. Firmware is usually shipped
-	  with the driver and only when updating the firmware should a
-	  rebuild be made.
-	  If unsure, say Y here.
+	  Say yes to disable driver features which enable building a custom
+	  driver firmware at kernel build time. These drivers do not use the
+	  kernel firmware API to load firmware (CONFIG_FW_LOADER), instead they
+	  use their own custom loading mechanism. The required firmware is
+	  usually shipped with the driver, building the driver firmware
+	  should only be needed if you have an updated firmware source.
 
-config FW_LOADER
-	tristate "Userspace firmware loading support" if EXPERT
-	default y
-	---help---
-	  This option is provided for the case where none of the in-tree modules
-	  require userspace firmware loading support, but a module built
-	  out-of-tree does.
+	  Firmware should not be being built as part of kernel, these days
+	  you should always prevent this and say Y here. There are only two
+	  old drivers which enable building of its firmware at kernel build
+	  time:
 
-config EXTRA_FIRMWARE
-	string "External firmware blobs to build into the kernel binary"
-	depends on FW_LOADER
-	help
-	  Various drivers in the kernel source tree may require firmware,
-	  which is generally available in your distribution's linux-firmware
-	  package.
+	    o CONFIG_WANXL through CONFIG_WANXL_BUILD_FIRMWARE
+	    o CONFIG_SCSI_AIC79XX through CONFIG_AIC79XX_BUILD_FIRMWARE
 
-	  The linux-firmware package should install firmware into
-	  /lib/firmware/ on your system, so they can be loaded by userspace
-	  helpers on request.
-
-	  This option allows firmware to be built into the kernel for the case
-	  where the user either cannot or doesn't want to provide it from
-	  userspace at runtime (for example, when the firmware in question is
-	  required for accessing the boot device, and the user doesn't want to
-	  use an initrd).
-
-	  This option is a string and takes the (space-separated) names of the
-	  firmware files -- the same names that appear in MODULE_FIRMWARE()
-	  and request_firmware() in the source. These files should exist under
-	  the directory specified by the EXTRA_FIRMWARE_DIR option, which is
-	  /lib/firmware by default.
-
-	  For example, you might set CONFIG_EXTRA_FIRMWARE="usb8388.bin", copy
-	  the usb8388.bin file into /lib/firmware, and build the kernel. Then
-	  any request_firmware("usb8388.bin") will be satisfied internally
-	  without needing to call out to userspace.
-
-	  WARNING: If you include additional firmware files into your binary
-	  kernel image that are not available under the terms of the GPL,
-	  then it may be a violation of the GPL to distribute the resulting
-	  image since it combines both GPL and non-GPL work. You should
-	  consult a lawyer of your own before distributing such an image.
-
-config EXTRA_FIRMWARE_DIR
-	string "Firmware blobs root directory"
-	depends on EXTRA_FIRMWARE != ""
-	default "/lib/firmware"
-	help
-	  This option controls the directory in which the kernel build system
-	  looks for the firmware files listed in the EXTRA_FIRMWARE option.
-
-config FW_LOADER_USER_HELPER
-	bool
-
-config FW_LOADER_USER_HELPER_FALLBACK
-	bool "Fallback user-helper invocation for firmware loading"
-	depends on FW_LOADER
-	select FW_LOADER_USER_HELPER
-	help
-	  This option enables / disables the invocation of user-helper
-	  (e.g. udev) for loading firmware files as a fallback after the
-	  direct file loading in kernel fails.  The user-mode helper is
-	  no longer required unless you have a special firmware file that
-	  resides in a non-standard path. Moreover, the udev support has
-	  been deprecated upstream.
-
-	  If you are unsure about this, say N here.
+source "drivers/base/firmware_loader/Kconfig"
 
 config WANT_DEV_COREDUMP
 	bool

@@ -11,7 +11,7 @@ Optional properties:
   must have the RPM values in ascending order.
 - alarm-gpios: This pin going active indicates something is wrong with
   the fan, and a udev event will be fired.
-- cooling-cells: If used as a cooling device, must be <2>
+- #cooling-cells: If used as a cooling device, must be <2>
   Also see: Documentation/devicetree/bindings/thermal/thermal.txt
   min and max states are derived from the speed-map of the fan.
 

@@ -48,8 +48,8 @@
 	compatible = "boundary,imx6sx-nitrogen6sx", "fsl,imx6sx";
 
 	aliases {
-		fb_lcd = &lcdif1;
-		t_lcd = &t_lcd;
+		fb-lcd = &lcdif1;
+		t-lcd = &t_lcd;
 	};
 
 	memory@80000000 {

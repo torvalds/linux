@@ -2958,12 +2958,15 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 		rec.v2.flock_len = (__force __le32)
 			((ci->i_ceph_flags & CEPH_I_ERROR_FILELOCK) ? 0 : 1);
 	} else {
+		struct timespec ts;
 		rec.v1.cap_id = cpu_to_le64(cap->cap_id);
 		rec.v1.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
 		rec.v1.issued = cpu_to_le32(cap->issued);
 		rec.v1.size = cpu_to_le64(inode->i_size);
-		ceph_encode_timespec(&rec.v1.mtime, &inode->i_mtime);
-		ceph_encode_timespec(&rec.v1.atime, &inode->i_atime);
+		ts = timespec64_to_timespec(inode->i_mtime);
+		ceph_encode_timespec(&rec.v1.mtime, &ts);
+		ts = timespec64_to_timespec(inode->i_atime);
+		ceph_encode_timespec(&rec.v1.atime, &ts);
 		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
 		rec.v1.pathbase = cpu_to_le64(pathbase);
 	}
@@ -2992,8 +2995,9 @@ encode_again:
 			num_flock_locks = 0;
 		}
 		if (num_fcntl_locks + num_flock_locks > 0) {
-			flocks = kmalloc((num_fcntl_locks + num_flock_locks) *
-					 sizeof(struct ceph_filelock), GFP_NOFS);
+			flocks = kmalloc_array(num_fcntl_locks + num_flock_locks,
+					       sizeof(struct ceph_filelock),
+					       GFP_NOFS);
 			if (!flocks) {
 				err = -ENOMEM;
 				goto out_free;

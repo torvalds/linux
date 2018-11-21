@@ -224,6 +224,8 @@ void __init pas_pci_init(void)
 		return;
 	}
 
+	pci_set_flags(PCI_SCAN_ALL_PCIE_DEVS);
+
 	for (np = NULL; (np = of_get_next_child(root, np)) != NULL;)
 		if (np->name && !strcmp(np->name, "pxp") && !pas_add_bridge(np))
 			of_node_get(np);

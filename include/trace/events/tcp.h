@@ -10,6 +10,7 @@
 #include <linux/tracepoint.h>
 #include <net/ipv6.h>
 #include <net/tcp.h>
+#include <linux/sock_diag.h>
 
 #define TP_STORE_V4MAPPED(__entry, saddr, daddr)		\
 	do {							\
@@ -113,7 +114,7 @@ DEFINE_EVENT(tcp_event_sk_skb, tcp_send_reset,
  */
 DECLARE_EVENT_CLASS(tcp_event_sk,
 
-	TP_PROTO(const struct sock *sk),
+	TP_PROTO(struct sock *sk),
 
 	TP_ARGS(sk),
 
@@ -125,6 +126,7 @@ DECLARE_EVENT_CLASS(tcp_event_sk,
 		__array(__u8, daddr, 4)
 		__array(__u8, saddr_v6, 16)
 		__array(__u8, daddr_v6, 16)
+		__field(__u64, sock_cookie)
 	),
 
 	TP_fast_assign(
@@ -144,73 +146,36 @@ DECLARE_EVENT_CLASS(tcp_event_sk,
 
 		TP_STORE_ADDRS(__entry, inet->inet_saddr, inet->inet_daddr,
 			       sk->sk_v6_rcv_saddr, sk->sk_v6_daddr);
+
+		__entry->sock_cookie = sock_gen_cookie(sk);
 	),
 
-	TP_printk("sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c",
+	TP_printk("sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c sock_cookie=%llx",
 		  __entry->sport, __entry->dport,
 		  __entry->saddr, __entry->daddr,
-		  __entry->saddr_v6, __entry->daddr_v6)
+		  __entry->saddr_v6, __entry->daddr_v6,
+		  __entry->sock_cookie)
 );
 
 DEFINE_EVENT(tcp_event_sk, tcp_receive_reset,
 
-	TP_PROTO(const struct sock *sk),
+	TP_PROTO(struct sock *sk),
 
 	TP_ARGS(sk)
 );
 
 DEFINE_EVENT(tcp_event_sk, tcp_destroy_sock,
 
-	TP_PROTO(const struct sock *sk),
+	TP_PROTO(struct sock *sk),
 
 	TP_ARGS(sk)
 );
 
-TRACE_EVENT(tcp_set_state,
+DEFINE_EVENT(tcp_event_sk, tcp_rcv_space_adjust,
 
-	TP_PROTO(const struct sock *sk, const int oldstate, const int newstate),
+	TP_PROTO(struct sock *sk),
 
-	TP_ARGS(sk, oldstate, newstate),
-
-	TP_STRUCT__entry(
-		__field(const void *, skaddr)
-		__field(int, oldstate)
-		__field(int, newstate)
-		__field(__u16, sport)
-		__field(__u16, dport)
-		__array(__u8, saddr, 4)
-		__array(__u8, daddr, 4)
-		__array(__u8, saddr_v6, 16)
-		__array(__u8, daddr_v6, 16)
-	),
-
-	TP_fast_assign(
-		struct inet_sock *inet = inet_sk(sk);
-		__be32 *p32;
-
-		__entry->skaddr = sk;
-		__entry->oldstate = oldstate;
-		__entry->newstate = newstate;
-
-		__entry->sport = ntohs(inet->inet_sport);
-		__entry->dport = ntohs(inet->inet_dport);
-
-		p32 = (__be32 *) __entry->saddr;
-		*p32 = inet->inet_saddr;
-
-		p32 = (__be32 *) __entry->daddr;
-		*p32 =  inet->inet_daddr;
-
-		TP_STORE_ADDRS(__entry, inet->inet_saddr, inet->inet_daddr,
-			       sk->sk_v6_rcv_saddr, sk->sk_v6_daddr);
-	),
-
-	TP_printk("sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c oldstate=%s newstate=%s",
-		  __entry->sport, __entry->dport,
-		  __entry->saddr, __entry->daddr,
-		  __entry->saddr_v6, __entry->daddr_v6,
-		  show_tcp_state_name(__entry->oldstate),
-		  show_tcp_state_name(__entry->newstate))
+	TP_ARGS(sk)
 );
 
 TRACE_EVENT(tcp_retransmit_synack,
@@ -271,7 +236,7 @@ TRACE_EVENT(tcp_probe,
 		__field(__u16, sport)
 		__field(__u16, dport)
 		__field(__u32, mark)
-		__field(__u16, length)
+		__field(__u16, data_len)
 		__field(__u32, snd_nxt)
 		__field(__u32, snd_una)
 		__field(__u32, snd_cwnd)
@@ -279,11 +244,13 @@ TRACE_EVENT(tcp_probe,
 		__field(__u32, snd_wnd)
 		__field(__u32, srtt)
 		__field(__u32, rcv_wnd)
+		__field(__u64, sock_cookie)
 	),
 
 	TP_fast_assign(
-		const struct tcp_sock *tp = tcp_sk(sk);
+		const struct tcphdr *th = (const struct tcphdr *)skb->data;
 		const struct inet_sock *inet = inet_sk(sk);
+		const struct tcp_sock *tp = tcp_sk(sk);
 
 		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
 		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
@@ -295,7 +262,7 @@ TRACE_EVENT(tcp_probe,
 		__entry->dport = ntohs(inet->inet_dport);
 		__entry->mark = skb->mark;
 
-		__entry->length = skb->len;
+		__entry->data_len = skb->len - __tcp_hdrlen(th);
 		__entry->snd_nxt = tp->snd_nxt;
 		__entry->snd_una = tp->snd_una;
 		__entry->snd_cwnd = tp->snd_cwnd;
@@ -303,15 +270,14 @@ TRACE_EVENT(tcp_probe,
 		__entry->rcv_wnd = tp->rcv_wnd;
 		__entry->ssthresh = tcp_current_ssthresh(sk);
 		__entry->srtt = tp->srtt_us >> 3;
+		__entry->sock_cookie = sock_gen_cookie(sk);
 	),
 
-	TP_printk("src=%pISpc dest=%pISpc mark=%#x length=%d snd_nxt=%#x "
-		  "snd_una=%#x snd_cwnd=%u ssthresh=%u snd_wnd=%u srtt=%u "
-		  "rcv_wnd=%u",
+	TP_printk("src=%pISpc dest=%pISpc mark=%#x data_len=%d snd_nxt=%#x snd_una=%#x snd_cwnd=%u ssthresh=%u snd_wnd=%u srtt=%u rcv_wnd=%u sock_cookie=%llx",
 		  __entry->saddr, __entry->daddr, __entry->mark,
-		  __entry->length, __entry->snd_nxt, __entry->snd_una,
+		  __entry->data_len, __entry->snd_nxt, __entry->snd_una,
 		  __entry->snd_cwnd, __entry->ssthresh, __entry->snd_wnd,
-		  __entry->srtt, __entry->rcv_wnd)
+		  __entry->srtt, __entry->rcv_wnd, __entry->sock_cookie)
 );
 
 #endif /* _TRACE_TCP_H */

@@ -361,6 +361,8 @@ struct ct_arg {
 	dma_addr_t	rsp_dma;
 	u32		req_size;
 	u32		rsp_size;
+	u32		req_allocated_size;
+	u32		rsp_allocated_size;
 	void		*req;
 	void		*rsp;
 	port_id_t	id;
@@ -2279,8 +2281,6 @@ enum discovery_state {
 	DSC_LOGIN_PEND,
 	DSC_LOGIN_FAILED,
 	DSC_GPDB,
-	DSC_GFPN_ID,
-	DSC_GPSC,
 	DSC_UPD_FCPORT,
 	DSC_LOGIN_COMPLETE,
 	DSC_ADISC,
@@ -2346,6 +2346,7 @@ typedef struct fc_port {
 	unsigned int login_succ:1;
 	unsigned int query:1;
 	unsigned int id_changed:1;
+	unsigned int rscn_rcvd:1;
 
 	struct work_struct nvme_del_work;
 	struct completion nvme_del_done;
@@ -3226,6 +3227,7 @@ enum qla_work_type {
 	QLA_EVT_GNNID,
 	QLA_EVT_GFPNID,
 	QLA_EVT_SP_RETRY,
+	QLA_EVT_IIDMA,
 };
 
 

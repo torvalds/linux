@@ -7,6 +7,26 @@ Required properties:
  - compatible: must be "snps,dwc3"
  - reg : Address and length of the register set for the device
  - interrupts: Interrupts used by the dwc3 controller.
+ - clock-names: should contain "ref", "bus_early", "suspend"
+ - clocks: list of phandle and clock specifier pairs corresponding to
+           entries in the clock-names property.
+
+Exception for clocks:
+  clocks are optional if the parent node (i.e. glue-layer) is compatible to
+  one of the following:
+    "amlogic,meson-axg-dwc3"
+    "amlogic,meson-gxl-dwc3"
+    "cavium,octeon-7130-usb-uctl"
+    "qcom,dwc3"
+    "samsung,exynos5250-dwusb3"
+    "samsung,exynos7-dwusb3"
+    "sprd,sc9860-dwc3"
+    "st,stih407-dwc3"
+    "ti,am437x-dwc3"
+    "ti,dwc3"
+    "ti,keystone-dwc3"
+    "rockchip,rk3399-dwc3"
+    "xlnx,zynqmp-dwc3"
 
 Optional properties:
  - usb-phy : array of phandle for the PHY device.  The first element
@@ -15,6 +35,7 @@ Optional properties:
  - phys: from the *Generic PHY* bindings
  - phy-names: from the *Generic PHY* bindings; supported names are "usb2-phy"
 	or "usb3-phy".
+ - resets: a single pair of phandle and reset specifier
  - snps,usb3_lpm_capable: determines if platform is USB3 LPM capable
  - snps,disable_scramble_quirk: true when SW should disable data scrambling.
 	Only really useful for FPGA builds.

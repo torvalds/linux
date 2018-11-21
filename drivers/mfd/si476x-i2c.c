@@ -697,11 +697,9 @@ static int si476x_core_probe(struct i2c_client *client,
 	int              cell_num;
 
 	core = devm_kzalloc(&client->dev, sizeof(*core), GFP_KERNEL);
-	if (!core) {
-		dev_err(&client->dev,
-			"failed to allocate 'struct si476x_core'\n");
+	if (!core)
 		return -ENOMEM;
-	}
+
 	core->client = client;
 
 	core->regmap = devm_regmap_init_si476x(core);

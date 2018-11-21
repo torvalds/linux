@@ -1,16 +1,11 @@
-/*
- * imx6q pinctrl driver based on imx pinmux core
- *
- * Copyright (C) 2012 Freescale Semiconductor, Inc.
- * Copyright (C) 2012 Linaro, Inc.
- *
- * Author: Dong Aisheng <dong.aisheng@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// imx6q pinctrl driver based on imx pinmux core
+//
+// Copyright (C) 2012 Freescale Semiconductor, Inc.
+// Copyright (C) 2012 Linaro, Inc.
+//
+// Author: Dong Aisheng <dong.aisheng@linaro.org>
 
 #include <linux/err.h>
 #include <linux/init.h>

@@ -197,6 +197,8 @@
 		reg = <0x10118300 0x100>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "vop_mmu";
+		clocks = <&cru ACLK_LCDC>, <&cru HCLK_LCDC>;
+		clock-names = "aclk", "iface";
 		#iommu-cells = <0>;
 		status = "disabled";
 	};

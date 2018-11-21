@@ -255,8 +255,8 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 						       processed - as);
 		if (!areq->tsgl_entries)
 			areq->tsgl_entries = 1;
-		areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) *
-					      areq->tsgl_entries,
+		areq->tsgl = sock_kmalloc(sk, array_size(sizeof(*areq->tsgl),
+							 areq->tsgl_entries),
 					  GFP_KERNEL);
 		if (!areq->tsgl) {
 			err = -ENOMEM;

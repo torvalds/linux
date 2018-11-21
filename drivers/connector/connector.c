@@ -260,19 +260,6 @@ static int cn_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int cn_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, cn_proc_show, NULL);
-}
-
-static const struct file_operations cn_file_ops = {
-	.owner   = THIS_MODULE,
-	.open    = cn_proc_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release
-};
-
 static struct cn_dev cdev = {
 	.input   = cn_rx_skb,
 };
@@ -297,7 +284,7 @@ static int cn_init(void)
 
 	cn_already_initialized = 1;
 
-	proc_create("connector", S_IRUGO, init_net.proc_net, &cn_file_ops);
+	proc_create_single("connector", S_IRUGO, init_net.proc_net, cn_proc_show);
 
 	return 0;
 }

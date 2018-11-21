@@ -265,7 +265,6 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 {
 	struct net_device *netdev = pdata->netdev;
 	struct device *dev = pdata->dev;
-	unsigned int i;
 	int ret;
 
 	netdev->irq = pdata->dev_irq;
@@ -324,25 +323,8 @@ int xgbe_config_netdev(struct xgbe_prv_data *pdata)
 				pdata->tx_ring_count, pdata->rx_ring_count);
 	}
 
-	/* Set the number of queues */
-	ret = netif_set_real_num_tx_queues(netdev, pdata->tx_ring_count);
-	if (ret) {
-		dev_err(dev, "error setting real tx queue count\n");
-		return ret;
-	}
-
-	ret = netif_set_real_num_rx_queues(netdev, pdata->rx_ring_count);
-	if (ret) {
-		dev_err(dev, "error setting real rx queue count\n");
-		return ret;
-	}
-
-	/* Initialize RSS hash key and lookup table */
+	/* Initialize RSS hash key */
 	netdev_rss_key_fill(pdata->rss_key, sizeof(pdata->rss_key));
-
-	for (i = 0; i < XGBE_RSS_MAX_TABLE_SIZE; i++)
-		XGMAC_SET_BITS(pdata->rss_table[i], MAC_RSSDR, DMCH,
-			       i % pdata->rx_ring_count);
 
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, IP2TE, 1);
 	XGMAC_SET_BITS(pdata->rss_options, MAC_RSSCR, TCP4TE, 1);

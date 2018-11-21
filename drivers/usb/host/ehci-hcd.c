@@ -1311,10 +1311,6 @@ static int __init ehci_hcd_init(void)
 
 #ifdef CONFIG_DYNAMIC_DEBUG
 	ehci_debug_root = debugfs_create_dir("ehci", usb_debug_root);
-	if (!ehci_debug_root) {
-		retval = -ENOENT;
-		goto err_debug;
-	}
 #endif
 
 #ifdef PLATFORM_DRIVER
@@ -1361,7 +1357,6 @@ clean0:
 #ifdef CONFIG_DYNAMIC_DEBUG
 	debugfs_remove(ehci_debug_root);
 	ehci_debug_root = NULL;
-err_debug:
 #endif
 	clear_bit(USB_EHCI_LOADED, &usb_hcds_loaded);
 	return retval;

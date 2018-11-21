@@ -417,13 +417,10 @@ static int mlxsw_sx_port_get_phys_port_name(struct net_device *dev, char *name,
 					    size_t len)
 {
 	struct mlxsw_sx_port *mlxsw_sx_port = netdev_priv(dev);
-	int err;
 
-	err = snprintf(name, len, "p%d", mlxsw_sx_port->mapping.module + 1);
-	if (err >= len)
-		return -EINVAL;
-
-	return 0;
+	return mlxsw_core_port_get_phys_port_name(mlxsw_sx_port->mlxsw_sx->core,
+						  mlxsw_sx_port->local_port,
+						  name, len);
 }
 
 static const struct net_device_ops mlxsw_sx_port_netdev_ops = {
@@ -1149,7 +1146,7 @@ static int __mlxsw_sx_port_eth_create(struct mlxsw_sx *mlxsw_sx, u8 local_port,
 	}
 
 	mlxsw_core_port_eth_set(mlxsw_sx->core, mlxsw_sx_port->local_port,
-				mlxsw_sx_port, dev, false, 0);
+				mlxsw_sx_port, dev, module + 1, false, 0);
 	mlxsw_sx->ports[local_port] = mlxsw_sx_port;
 	return 0;
 

@@ -229,7 +229,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(vfs_setxattr);
 
-ssize_t
+static ssize_t
 xattr_getsecurity(struct inode *inode, const char *name, void *value,
 			size_t size)
 {
@@ -254,7 +254,6 @@ out:
 out_noalloc:
 	return len;
 }
-EXPORT_SYMBOL_GPL(xattr_getsecurity);
 
 /*
  * vfs_getxattr_alloc - allocate memory, if necessary, before calling getxattr
@@ -354,7 +353,6 @@ vfs_listxattr(struct dentry *dentry, char *list, size_t size)
 	if (error)
 		return error;
 	if (inode->i_op->listxattr && (inode->i_opflags & IOP_XATTR)) {
-		error = -EOPNOTSUPP;
 		error = inode->i_op->listxattr(dentry, list, size);
 	} else {
 		error = security_inode_listsecurity(inode, list, size);

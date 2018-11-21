@@ -1441,7 +1441,8 @@ static int hvcs_alloc_index_list(int n)
 {
 	int i;
 
-	hvcs_index_list = kmalloc(n * sizeof(hvcs_index_count),GFP_KERNEL);
+	hvcs_index_list = kmalloc_array(n, sizeof(hvcs_index_count),
+					GFP_KERNEL);
 	if (!hvcs_index_list)
 		return -ENOMEM;
 	hvcs_index_count = n;

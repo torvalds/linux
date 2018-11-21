@@ -222,6 +222,10 @@
 	status = "okay";
 };
 
+&tempsensor {
+	io-channels = <&adc0 16>;
+};
+
 &iomuxc {
 	pinctrl_adc0_ad5: adc0ad5grp {
 		fsl,pins = <

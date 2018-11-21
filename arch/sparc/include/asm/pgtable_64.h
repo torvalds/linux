@@ -117,9 +117,6 @@ bool kern_addr_valid(unsigned long addr);
 #define _PAGE_PMD_HUGE    _AC(0x0100000000000000,UL) /* Huge page            */
 #define _PAGE_PUD_HUGE    _PAGE_PMD_HUGE
 
-/* Advertise support for _PAGE_SPECIAL */
-#define __HAVE_ARCH_PTE_SPECIAL
-
 /* SUN4U pte bits... */
 #define _PAGE_SZ4MB_4U	  _AC(0x6000000000000000,UL) /* 4MB Page             */
 #define _PAGE_SZ512K_4U	  _AC(0x4000000000000000,UL) /* 512K Page            */

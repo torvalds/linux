@@ -632,6 +632,13 @@ typedef struct _COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_2
   ULONG ulReserved;
 }COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_2;
 
+typedef struct _COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3
+{
+  COMPUTE_MEMORY_ENGINE_PLL_PARAMETERS_V4 ulClock;
+  USHORT  usMclk_fcw_frac;                  //fractional divider of fcw = usSclk_fcw_frac/65536
+  USHORT  usMclk_fcw_int;                   //integer divider of fcwc
+}COMPUTE_MEMORY_CLOCK_PARAM_PARAMETERS_V2_3;
+
 //Input parameter of DynamicMemorySettingsTable
 //when ATOM_COMPUTE_CLOCK_FREQ.ulComputeClockFlag = COMPUTE_MEMORY_PLL_PARAM
 typedef struct _DYNAMICE_MEMORY_SETTINGS_PARAMETER

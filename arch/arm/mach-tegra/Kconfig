@@ -15,6 +15,5 @@ menuconfig ARCH_TEGRA
 	select RESET_CONTROLLER
 	select SOC_BUS
 	select ZONE_DMA if ARM_LPAE
-	select ARCH_DMA_ADDR_T_64BIT if ARM_LPAE
 	help
 	  This enables support for NVIDIA Tegra based systems.

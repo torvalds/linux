@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -2198,7 +2190,7 @@ static void halbtc8723b2ant_TdmaDurationAdjust(
 			BTC_MSG_ALGORITHM,
 			ALGO_TRACE_FW_DETAIL,
 			(
-				"[BTCoex], PsTdma type dismatch!!!, curPsTdma =%d, recordPsTdma =%d\n",
+				"[BTCoex], PsTdma type mismatch!!!, curPsTdma =%d, recordPsTdma =%d\n",
 				pCoexDm->curPsTdma,
 				pCoexDm->psTdmaDuAdjType
 			)

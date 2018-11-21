@@ -41,6 +41,7 @@ obj-y += printk/
 obj-y += irq/
 obj-y += rcu/
 obj-y += livepatch/
+obj-y += dma/
 
 obj-$(CONFIG_CHECKPOINT_RESTORE) += kcmp.o
 obj-$(CONFIG_FREEZER) += freezer.o
@@ -112,7 +113,9 @@ obj-$(CONFIG_JUMP_LABEL) += jump_label.o
 obj-$(CONFIG_CONTEXT_TRACKING) += context_tracking.o
 obj-$(CONFIG_TORTURE_TEST) += torture.o
 
-obj-$(CONFIG_HAS_IOMEM) += memremap.o
+obj-$(CONFIG_HAS_IOMEM) += iomem.o
+obj-$(CONFIG_ZONE_DEVICE) += memremap.o
+obj-$(CONFIG_RSEQ) += rseq.o
 
 $(obj)/configs.o: $(obj)/config_data.h
 

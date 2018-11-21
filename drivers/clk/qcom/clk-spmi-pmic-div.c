@@ -239,8 +239,7 @@ static int spmi_pmic_clkdiv_probe(struct platform_device *pdev)
 	if (!nclks)
 		return -EINVAL;
 
-	cc = devm_kzalloc(dev, sizeof(*cc) + sizeof(*cc->clks) * nclks,
-			  GFP_KERNEL);
+	cc = devm_kzalloc(dev, struct_size(cc, clks, nclks), GFP_KERNEL);
 	if (!cc)
 		return -ENOMEM;
 	cc->nclks = nclks;

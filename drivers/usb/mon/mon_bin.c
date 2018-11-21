@@ -1024,7 +1024,8 @@ static long mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 			return -EINVAL;
 
 		size = CHUNK_ALIGN(arg);
-		vec = kzalloc(sizeof(struct mon_pgmap) * (size / CHUNK_SIZE), GFP_KERNEL);
+		vec = kcalloc(size / CHUNK_SIZE, sizeof(struct mon_pgmap),
+			      GFP_KERNEL);
 		if (vec == NULL) {
 			ret = -ENOMEM;
 			break;
@@ -1227,7 +1228,7 @@ static void mon_bin_vma_close(struct vm_area_struct *vma)
 /*
  * Map ring pages to user space.
  */
-static int mon_bin_vma_fault(struct vm_fault *vmf)
+static vm_fault_t mon_bin_vma_fault(struct vm_fault *vmf)
 {
 	struct mon_reader_bin *rp = vmf->vma->vm_private_data;
 	unsigned long offset, chunk_idx;

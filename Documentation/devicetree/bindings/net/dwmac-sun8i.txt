@@ -7,6 +7,7 @@ Required properties:
 - compatible: must be one of the following string:
 		"allwinner,sun8i-a83t-emac"
 		"allwinner,sun8i-h3-emac"
+		"allwinner,sun8i-r40-gmac"
 		"allwinner,sun8i-v3s-emac"
 		"allwinner,sun50i-a64-emac"
 - reg: address and length of the register for the device.
@@ -20,18 +21,18 @@ Required properties:
 - phy-handle: See ethernet.txt
 - #address-cells: shall be 1
 - #size-cells: shall be 0
-- syscon: A phandle to the syscon of the SoC with one of the following
- compatible string:
-  - allwinner,sun8i-h3-system-controller
-  - allwinner,sun8i-v3s-system-controller
-  - allwinner,sun50i-a64-system-controller
-  - allwinner,sun8i-a83t-system-controller
+- syscon: A phandle to the device containing the EMAC or GMAC clock register
 
 Optional properties:
-- allwinner,tx-delay-ps: TX clock delay chain value in ps. Range value is 0-700. Default is 0)
-- allwinner,rx-delay-ps: RX clock delay chain value in ps. Range value is 0-3100. Default is 0)
-Both delay properties need to be a multiple of 100. They control the delay for
-external PHY.
+- allwinner,tx-delay-ps: TX clock delay chain value in ps.
+			 Range is 0-700. Default is 0.
+			 Unavailable for allwinner,sun8i-r40-gmac
+- allwinner,rx-delay-ps: RX clock delay chain value in ps.
+			 Range is 0-3100. Default is 0.
+			 Range is 0-700 for allwinner,sun8i-r40-gmac
+Both delay properties need to be a multiple of 100. They control the
+clock delay for external RGMII PHY. They do not apply to the internal
+PHY or external non-RGMII PHYs.
 
 Optional properties for the following compatibles:
   - "allwinner,sun8i-h3-emac",

@@ -183,10 +183,17 @@ struct drm_vc4_submit_cl {
 	/* ID of the perfmon to attach to this job. 0 means no perfmon. */
 	__u32 perfmonid;
 
-	/* Unused field to align this struct on 64 bits. Must be set to 0.
-	 * If one ever needs to add an u32 field to this struct, this field
-	 * can be used.
+	/* Syncobj handle to wait on. If set, processing of this render job
+	 * will not start until the syncobj is signaled. 0 means ignore.
 	 */
+	__u32 in_sync;
+
+	/* Syncobj handle to export fence to. If set, the fence in the syncobj
+	 * will be replaced with a fence that signals upon completion of this
+	 * render job. 0 means ignore.
+	 */
+	__u32 out_sync;
+
 	__u32 pad2;
 };
 

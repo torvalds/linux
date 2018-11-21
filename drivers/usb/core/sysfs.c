@@ -175,6 +175,26 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RO(speed);
 
+static ssize_t rx_lanes_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", udev->rx_lanes);
+}
+static DEVICE_ATTR_RO(rx_lanes);
+
+static ssize_t tx_lanes_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct usb_device *udev;
+
+	udev = to_usb_device(dev);
+	return sprintf(buf, "%d\n", udev->tx_lanes);
+}
+static DEVICE_ATTR_RO(tx_lanes);
+
 static ssize_t busnum_show(struct device *dev, struct device_attribute *attr,
 			   char *buf)
 {
@@ -790,6 +810,8 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_bNumConfigurations.attr,
 	&dev_attr_bMaxPacketSize0.attr,
 	&dev_attr_speed.attr,
+	&dev_attr_rx_lanes.attr,
+	&dev_attr_tx_lanes.attr,
 	&dev_attr_busnum.attr,
 	&dev_attr_devnum.attr,
 	&dev_attr_devpath.attr,

@@ -40,6 +40,7 @@ extern const struct pp_smumgr_func iceland_smu_funcs;
 extern const struct pp_smumgr_func tonga_smu_funcs;
 extern const struct pp_smumgr_func fiji_smu_funcs;
 extern const struct pp_smumgr_func polaris10_smu_funcs;
+extern const struct pp_smumgr_func vegam_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
 extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
@@ -76,7 +77,7 @@ static void hwmgr_init_workload_prority(struct pp_hwmgr *hwmgr)
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL)
+	if (!hwmgr)
 		return -EINVAL;
 
 	hwmgr->usec_timeout = AMD_MAX_USEC_TIMEOUT;
@@ -95,7 +96,8 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		hwmgr->smumgr_funcs = &ci_smu_funcs;
 		ci_set_asic_special_caps(hwmgr);
 		hwmgr->feature_mask &= ~(PP_VBI_TIME_SUPPORT_MASK |
-					PP_ENABLE_GFX_CG_THRU_SMU);
+					 PP_ENABLE_GFX_CG_THRU_SMU |
+					 PP_GFXOFF_MASK);
 		hwmgr->pp_table_version = PP_TABLE_V0;
 		hwmgr->od_enabled = false;
 		smu7_init_function_pointers(hwmgr);
@@ -103,9 +105,11 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	case AMDGPU_FAMILY_CZ:
 		hwmgr->od_enabled = false;
 		hwmgr->smumgr_funcs = &smu8_smu_funcs;
+		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		smu8_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_VI:
+		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_TOPAZ:
 			hwmgr->smumgr_funcs = &iceland_smu_funcs;
@@ -133,14 +137,21 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 			polaris_set_asic_special_caps(hwmgr);
 			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
 			break;
+		case CHIP_VEGAM:
+			hwmgr->smumgr_funcs = &vegam_smu_funcs;
+			polaris_set_asic_special_caps(hwmgr);
+			hwmgr->feature_mask &= ~(PP_UVD_HANDSHAKE_MASK);
+			break;
 		default:
 			return -EINVAL;
 		}
 		smu7_init_function_pointers(hwmgr);
 		break;
 	case AMDGPU_FAMILY_AI:
+		hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
+		case CHIP_VEGA20:
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
 			break;
@@ -170,21 +181,57 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
+int hwmgr_sw_init(struct pp_hwmgr *hwmgr)
+{
+	if (!hwmgr|| !hwmgr->smumgr_funcs || !hwmgr->smumgr_funcs->smu_init)
+		return -EINVAL;
+
+	phm_register_irq_handlers(hwmgr);
+
+	return hwmgr->smumgr_funcs->smu_init(hwmgr);
+}
+
+
+int hwmgr_sw_fini(struct pp_hwmgr *hwmgr)
+{
+	if (hwmgr && hwmgr->smumgr_funcs && hwmgr->smumgr_funcs->smu_fini)
+		hwmgr->smumgr_funcs->smu_fini(hwmgr);
+
+	return 0;
+}
+
 int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (hwmgr == NULL)
+	if (!hwmgr || !hwmgr->smumgr_funcs)
 		return -EINVAL;
 
-	if (hwmgr->pptable_func == NULL ||
-	    hwmgr->pptable_func->pptable_init == NULL ||
-	    hwmgr->hwmgr_func->backend_init == NULL)
-		return -EINVAL;
+	if (hwmgr->smumgr_funcs->start_smu) {
+		ret = hwmgr->smumgr_funcs->start_smu(hwmgr);
+		if (ret) {
+			pr_err("smc start failed\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!hwmgr->pm_en)
+		return 0;
+
+	if (!hwmgr->pptable_func ||
+	    !hwmgr->pptable_func->pptable_init ||
+	    !hwmgr->hwmgr_func->backend_init) {
+		hwmgr->pm_en = false;
+		pr_info("dpm not supported \n");
+		return 0;
+	}
 
 	ret = hwmgr->pptable_func->pptable_init(hwmgr);
 	if (ret)
 		goto err;
+
+	((struct amdgpu_device *)hwmgr->adev)->pm.no_fan =
+				hwmgr->thermal_controller.fanInfo.bNoFan;
 
 	ret = hwmgr->hwmgr_func->backend_init(hwmgr);
 	if (ret)
@@ -206,6 +253,8 @@ int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 	if (ret)
 		goto err2;
 
+	((struct amdgpu_device *)hwmgr->adev)->pm.dpm_enabled = true;
+
 	return 0;
 err2:
 	if (hwmgr->hwmgr_func->backend_fini)
@@ -214,14 +263,13 @@ err1:
 	if (hwmgr->pptable_func->pptable_fini)
 		hwmgr->pptable_func->pptable_fini(hwmgr);
 err:
-	pr_err("amdgpu: powerplay initialization failed\n");
 	return ret;
 }
 
 int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 {
-	if (hwmgr == NULL)
-		return -EINVAL;
+	if (!hwmgr || !hwmgr->pm_en)
+		return 0;
 
 	phm_stop_thermal_controller(hwmgr);
 	psm_set_boot_states(hwmgr);
@@ -236,12 +284,12 @@ int hwmgr_hw_fini(struct pp_hwmgr *hwmgr)
 	return psm_fini_power_state_table(hwmgr);
 }
 
-int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr)
+int hwmgr_suspend(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (hwmgr == NULL)
-		return -EINVAL;
+	if (!hwmgr || !hwmgr->pm_en)
+		return 0;
 
 	phm_disable_smc_firmware_ctf(hwmgr);
 	ret = psm_set_boot_states(hwmgr);
@@ -255,12 +303,22 @@ int hwmgr_hw_suspend(struct pp_hwmgr *hwmgr)
 	return ret;
 }
 
-int hwmgr_hw_resume(struct pp_hwmgr *hwmgr)
+int hwmgr_resume(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
 
-	if (hwmgr == NULL)
+	if (!hwmgr)
 		return -EINVAL;
+
+	if (hwmgr->smumgr_funcs && hwmgr->smumgr_funcs->start_smu) {
+		if (hwmgr->smumgr_funcs->start_smu(hwmgr)) {
+			pr_err("smc start failed\n");
+			return -EINVAL;
+		}
+	}
+
+	if (!hwmgr->pm_en)
+		return 0;
 
 	ret = phm_setup_asic(hwmgr);
 	if (ret)
@@ -270,9 +328,6 @@ int hwmgr_hw_resume(struct pp_hwmgr *hwmgr)
 	if (ret)
 		return ret;
 	ret = phm_start_thermal_controller(hwmgr);
-	if (ret)
-		return ret;
-
 	ret |= psm_set_performance_states(hwmgr);
 	if (ret)
 		return ret;

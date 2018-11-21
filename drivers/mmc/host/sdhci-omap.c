@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/sys_soc.h>
 
 #include "sdhci-pltfm.h"
 
@@ -35,6 +36,7 @@
 #define CON_DDR			BIT(19)
 #define CON_CLKEXTFREE		BIT(16)
 #define CON_PADEN		BIT(15)
+#define CON_CTPL		BIT(11)
 #define CON_INIT		BIT(1)
 #define CON_OD			BIT(0)
 
@@ -100,6 +102,7 @@ struct sdhci_omap_data {
 };
 
 struct sdhci_omap_host {
+	char			*version;
 	void __iomem		*base;
 	struct device		*dev;
 	struct	regulator	*pbias;
@@ -222,6 +225,23 @@ static void sdhci_omap_conf_bus_power(struct sdhci_omap_host *omap_host,
 			return;
 		usleep_range(5, 10);
 	}
+}
+
+static void sdhci_omap_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_omap_host *omap_host = sdhci_pltfm_priv(pltfm_host);
+	u32 reg;
+
+	reg = sdhci_omap_readl(omap_host, SDHCI_OMAP_CON);
+	if (enable)
+		reg |= (CON_CTPL | CON_CLKEXTFREE);
+	else
+		reg &= ~(CON_CTPL | CON_CLKEXTFREE);
+	sdhci_omap_writel(omap_host, SDHCI_OMAP_CON, reg);
+
+	sdhci_enable_sdio_irq(mmc, enable);
 }
 
 static inline void sdhci_omap_set_dll(struct sdhci_omap_host *omap_host,
@@ -713,8 +733,13 @@ static const struct sdhci_pltfm_data sdhci_omap_pdata = {
 		  SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC,
 	.quirks2 = SDHCI_QUIRK2_ACMD23_BROKEN |
 		   SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-		   SDHCI_QUIRK2_RSP_136_HAS_CRC,
+		   SDHCI_QUIRK2_RSP_136_HAS_CRC |
+		   SDHCI_QUIRK2_DISABLE_HW_TIMEOUT,
 	.ops = &sdhci_omap_ops,
+};
+
+static const struct sdhci_omap_data k2g_data = {
+	.offset = 0x200,
 };
 
 static const struct sdhci_omap_data dra7_data = {
@@ -724,6 +749,7 @@ static const struct sdhci_omap_data dra7_data = {
 
 static const struct of_device_id omap_sdhci_match[] = {
 	{ .compatible = "ti,dra7-sdhci", .data = &dra7_data },
+	{ .compatible = "ti,k2g-sdhci", .data = &k2g_data },
 	{},
 };
 MODULE_DEVICE_TABLE(of, omap_sdhci_match);
@@ -733,12 +759,21 @@ static struct pinctrl_state
 				  u32 *caps, u32 capmask)
 {
 	struct device *dev = omap_host->dev;
+	char *version = omap_host->version;
 	struct pinctrl_state *pinctrl_state = ERR_PTR(-ENODEV);
+	char str[20];
 
 	if (!(*caps & capmask))
 		goto ret;
 
-	pinctrl_state = pinctrl_lookup_state(omap_host->pinctrl, mode);
+	if (version) {
+		snprintf(str, 20, "%s-%s", mode, version);
+		pinctrl_state = pinctrl_lookup_state(omap_host->pinctrl, str);
+	}
+
+	if (IS_ERR(pinctrl_state))
+		pinctrl_state = pinctrl_lookup_state(omap_host->pinctrl, mode);
+
 	if (IS_ERR(pinctrl_state)) {
 		dev_err(dev, "no pinctrl state for %s mode", mode);
 		*caps &= ~capmask;
@@ -762,8 +797,10 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 	if (!(omap_host->flags & SDHCI_OMAP_REQUIRE_IODELAY))
 		return 0;
 
-	pinctrl_state = devm_kzalloc(dev, sizeof(*pinctrl_state) *
-				     (MMC_TIMING_MMC_HS200 + 1), GFP_KERNEL);
+	pinctrl_state = devm_kcalloc(dev,
+				     MMC_TIMING_MMC_HS200 + 1,
+				     sizeof(*pinctrl_state),
+				     GFP_KERNEL);
 	if (!pinctrl_state)
 		return -ENOMEM;
 
@@ -807,8 +844,15 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 
 	state = sdhci_omap_iodelay_pinctrl_state(omap_host, "ddr_1_8v", caps,
 						 MMC_CAP_1_8V_DDR);
-	if (!IS_ERR(state))
+	if (!IS_ERR(state)) {
 		pinctrl_state[MMC_TIMING_MMC_DDR52] = state;
+	} else {
+		state = sdhci_omap_iodelay_pinctrl_state(omap_host, "ddr_3_3v",
+							 caps,
+							 MMC_CAP_3_3V_DDR);
+		if (!IS_ERR(state))
+			pinctrl_state[MMC_TIMING_MMC_DDR52] = state;
+	}
 
 	state = sdhci_omap_iodelay_pinctrl_state(omap_host, "hs", caps,
 						 MMC_CAP_SD_HIGHSPEED);
@@ -830,6 +874,16 @@ static int sdhci_omap_config_iodelay_pinctrl_state(struct sdhci_omap_host
 	return 0;
 }
 
+static const struct soc_device_attribute sdhci_omap_soc_devices[] = {
+	{
+		.machine = "DRA7[45]*",
+		.revision = "ES1.[01]",
+	},
+	{
+		/* sentinel */
+	}
+};
+
 static int sdhci_omap_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -841,6 +895,7 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	struct mmc_host *mmc;
 	const struct of_device_id *match;
 	struct sdhci_omap_data *data;
+	const struct soc_device_attribute *soc;
 
 	match = of_match_device(omap_sdhci_match, dev);
 	if (!match)
@@ -871,9 +926,21 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 	host->ioaddr += offset;
 
 	mmc = host->mmc;
+	sdhci_get_of_property(pdev);
 	ret = mmc_of_parse(mmc);
 	if (ret)
 		goto err_pltfm_free;
+
+	soc = soc_device_match(sdhci_omap_soc_devices);
+	if (soc) {
+		omap_host->version = "rev11";
+		if (!strcmp(dev_name(dev), "4809c000.mmc"))
+			mmc->f_max = 96000000;
+		if (!strcmp(dev_name(dev), "480b4000.mmc"))
+			mmc->f_max = 48000000;
+		if (!strcmp(dev_name(dev), "480ad000.mmc"))
+			mmc->f_max = 48000000;
+	}
 
 	pltfm_host->clk = devm_clk_get(dev, "fck");
 	if (IS_ERR(pltfm_host->clk)) {
@@ -916,25 +983,30 @@ static int sdhci_omap_probe(struct platform_device *pdev)
 		goto err_put_sync;
 	}
 
-	ret = sdhci_omap_config_iodelay_pinctrl_state(omap_host);
-	if (ret)
-		goto err_put_sync;
-
 	host->mmc_host_ops.get_ro = mmc_gpio_get_ro;
 	host->mmc_host_ops.start_signal_voltage_switch =
 					sdhci_omap_start_signal_voltage_switch;
 	host->mmc_host_ops.set_ios = sdhci_omap_set_ios;
 	host->mmc_host_ops.card_busy = sdhci_omap_card_busy;
 	host->mmc_host_ops.execute_tuning = sdhci_omap_execute_tuning;
+	host->mmc_host_ops.enable_sdio_irq = sdhci_omap_enable_sdio_irq;
 
-	sdhci_read_caps(host);
-	host->caps |= SDHCI_CAN_DO_ADMA2;
-
-	ret = sdhci_add_host(host);
+	ret = sdhci_setup_host(host);
 	if (ret)
 		goto err_put_sync;
 
+	ret = sdhci_omap_config_iodelay_pinctrl_state(omap_host);
+	if (ret)
+		goto err_cleanup_host;
+
+	ret = __sdhci_add_host(host);
+	if (ret)
+		goto err_cleanup_host;
+
 	return 0;
+
+err_cleanup_host:
+	sdhci_cleanup_host(host);
 
 err_put_sync:
 	pm_runtime_put_sync(dev);

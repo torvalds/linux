@@ -14,11 +14,7 @@
 
 #include "drm.h"
 #include "gem.h"
-
-static inline struct tegra_fb *to_tegra_fb(struct drm_framebuffer *fb)
-{
-	return container_of(fb, struct tegra_fb, base);
-}
+#include <drm/drm_gem_framebuffer_helper.h>
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
@@ -30,19 +26,14 @@ static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,
 				    unsigned int index)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-
-	if (index >= framebuffer->format->num_planes)
-		return NULL;
-
-	return fb->planes[index];
+	return to_tegra_bo(drm_gem_fb_get_obj(framebuffer, index));
 }
 
 bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
+	struct tegra_bo *bo = tegra_fb_get_plane(framebuffer, 0);
 
-	if (fb->planes[0]->flags & TEGRA_BO_BOTTOM_UP)
+	if (bo->flags & TEGRA_BO_BOTTOM_UP)
 		return true;
 
 	return false;
@@ -51,8 +42,7 @@ bool tegra_fb_is_bottom_up(struct drm_framebuffer *framebuffer)
 int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 			struct tegra_bo_tiling *tiling)
 {
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-	uint64_t modifier = fb->base.modifier;
+	uint64_t modifier = framebuffer->modifier;
 
 	switch (modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
@@ -102,46 +92,17 @@ int tegra_fb_get_tiling(struct drm_framebuffer *framebuffer,
 	return 0;
 }
 
-static void tegra_fb_destroy(struct drm_framebuffer *framebuffer)
-{
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-	unsigned int i;
-
-	for (i = 0; i < fb->num_planes; i++) {
-		struct tegra_bo *bo = fb->planes[i];
-
-		if (bo) {
-			if (bo->pages)
-				vunmap(bo->vaddr);
-
-			drm_gem_object_put_unlocked(&bo->gem);
-		}
-	}
-
-	drm_framebuffer_cleanup(framebuffer);
-	kfree(fb->planes);
-	kfree(fb);
-}
-
-static int tegra_fb_create_handle(struct drm_framebuffer *framebuffer,
-				  struct drm_file *file, unsigned int *handle)
-{
-	struct tegra_fb *fb = to_tegra_fb(framebuffer);
-
-	return drm_gem_handle_create(file, &fb->planes[0]->gem, handle);
-}
-
 static const struct drm_framebuffer_funcs tegra_fb_funcs = {
-	.destroy = tegra_fb_destroy,
-	.create_handle = tegra_fb_create_handle,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
-static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
-				       const struct drm_mode_fb_cmd2 *mode_cmd,
-				       struct tegra_bo **planes,
-				       unsigned int num_planes)
+static struct drm_framebuffer *tegra_fb_alloc(struct drm_device *drm,
+					      const struct drm_mode_fb_cmd2 *mode_cmd,
+					      struct tegra_bo **planes,
+					      unsigned int num_planes)
 {
-	struct tegra_fb *fb;
+	struct drm_framebuffer *fb;
 	unsigned int i;
 	int err;
 
@@ -149,24 +110,15 @@ static struct tegra_fb *tegra_fb_alloc(struct drm_device *drm,
 	if (!fb)
 		return ERR_PTR(-ENOMEM);
 
-	fb->planes = kzalloc(num_planes * sizeof(*planes), GFP_KERNEL);
-	if (!fb->planes) {
-		kfree(fb);
-		return ERR_PTR(-ENOMEM);
-	}
+	drm_helper_mode_fill_fb_struct(drm, fb, mode_cmd);
 
-	fb->num_planes = num_planes;
+	for (i = 0; i < fb->format->num_planes; i++)
+		fb->obj[i] = &planes[i]->gem;
 
-	drm_helper_mode_fill_fb_struct(drm, &fb->base, mode_cmd);
-
-	for (i = 0; i < fb->num_planes; i++)
-		fb->planes[i] = planes[i];
-
-	err = drm_framebuffer_init(drm, &fb->base, &tegra_fb_funcs);
+	err = drm_framebuffer_init(drm, fb, &tegra_fb_funcs);
 	if (err < 0) {
 		dev_err(drm->dev, "failed to initialize framebuffer: %d\n",
 			err);
-		kfree(fb->planes);
 		kfree(fb);
 		return ERR_PTR(err);
 	}
@@ -181,7 +133,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 	unsigned int hsub, vsub, i;
 	struct tegra_bo *planes[4];
 	struct drm_gem_object *gem;
-	struct tegra_fb *fb;
+	struct drm_framebuffer *fb;
 	int err;
 
 	hsub = drm_format_horz_chroma_subsampling(cmd->pixel_format);
@@ -217,7 +169,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 		goto unreference;
 	}
 
-	return &fb->base;
+	return fb;
 
 unreference:
 	while (i--)
@@ -298,7 +250,7 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 		return PTR_ERR(fbdev->fb);
 	}
 
-	fb = &fbdev->fb->base;
+	fb = fbdev->fb;
 	helper->fb = fb;
 	helper->fbdev = info;
 
@@ -398,8 +350,17 @@ static void tegra_fbdev_exit(struct tegra_fbdev *fbdev)
 {
 	drm_fb_helper_unregister_fbi(&fbdev->base);
 
-	if (fbdev->fb)
-		drm_framebuffer_remove(&fbdev->fb->base);
+	if (fbdev->fb) {
+		struct tegra_bo *bo = tegra_fb_get_plane(fbdev->fb, 0);
+
+		/* Undo the special mapping we made in fbdev probe. */
+		if (bo && bo->pages) {
+			vunmap(bo->vaddr);
+			bo->vaddr = 0;
+		}
+
+		drm_framebuffer_remove(fbdev->fb);
+	}
 
 	drm_fb_helper_fini(&fbdev->base);
 	tegra_fbdev_free(fbdev);

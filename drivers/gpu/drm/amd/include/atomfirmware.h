@@ -1219,6 +1219,41 @@ struct  atom_gfx_info_v2_3 {
   uint32_t rm21_sram_vmin_value;
 };
 
+struct  atom_gfx_info_v2_4 {
+  struct  atom_common_table_header  table_header;
+  uint8_t gfxip_min_ver;
+  uint8_t gfxip_max_ver;
+  uint8_t gc_num_se;
+  uint8_t max_tile_pipes;
+  uint8_t gc_num_cu_per_sh;
+  uint8_t gc_num_sh_per_se;
+  uint8_t gc_num_rb_per_se;
+  uint8_t gc_num_tccs;
+  uint32_t regaddr_cp_dma_src_addr;
+  uint32_t regaddr_cp_dma_src_addr_hi;
+  uint32_t regaddr_cp_dma_dst_addr;
+  uint32_t regaddr_cp_dma_dst_addr_hi;
+  uint32_t regaddr_cp_dma_command;
+  uint32_t regaddr_cp_status;
+  uint32_t regaddr_rlc_gpu_clock_32;
+  uint32_t rlc_gpu_timer_refclk;
+  uint8_t active_cu_per_sh;
+  uint8_t active_rb_per_se;
+  uint16_t gcgoldenoffset;
+  uint16_t gc_num_gprs;
+  uint16_t gc_gsprim_buff_depth;
+  uint16_t gc_parameter_cache_depth;
+  uint16_t gc_wave_size;
+  uint16_t gc_max_waves_per_simd;
+  uint16_t gc_lds_size;
+  uint8_t gc_num_max_gs_thds;
+  uint8_t gc_gs_table_depth;
+  uint8_t gc_double_offchip_lds_buffer;
+  uint8_t gc_max_scratch_slots_per_cu;
+  uint32_t sram_rm_fuses_val;
+  uint32_t sram_custom_rm_fuses_val;
+};
+
 /* 
   ***************************************************************************
     Data Table smu_info  structure
@@ -1398,7 +1433,10 @@ struct atom_smc_dpm_info_v4_1
 	uint8_t  acggfxclkspreadpercent;
 	uint16_t acggfxclkspreadfreq;
 
-	uint32_t boardreserved[10];
+	uint8_t Vr2_I2C_address;
+	uint8_t padding_vr2[3];
+
+	uint32_t boardreserved[9];
 };
 
 /* 
@@ -1991,16 +2029,14 @@ enum atom_smu11_syspll_id {
   SMU11_SYSPLL3_1_ID          = 6,
 };
 
-
 enum atom_smu11_syspll0_clock_id {
-  SMU11_SYSPLL0_SOCCLK_ID   = 0,       //	SOCCLK
-  SMU11_SYSPLL0_MP0CLK_ID   = 1,       //	MP0CLK
-  SMU11_SYSPLL0_DCLK_ID     = 2,       //	DCLK
-  SMU11_SYSPLL0_VCLK_ID     = 3,       //	VCLK
-  SMU11_SYSPLL0_ECLK_ID     = 4,       //	ECLK
+  SMU11_SYSPLL0_ECLK_ID     = 0,       //	ECLK
+  SMU11_SYSPLL0_SOCCLK_ID   = 1,       //	SOCCLK
+  SMU11_SYSPLL0_MP0CLK_ID   = 2,       //	MP0CLK
+  SMU11_SYSPLL0_DCLK_ID     = 3,       //	DCLK
+  SMU11_SYSPLL0_VCLK_ID     = 4,       //	VCLK
   SMU11_SYSPLL0_DCEFCLK_ID  = 5,       //	DCEFCLK
 };
-
 
 enum atom_smu11_syspll1_0_clock_id {
   SMU11_SYSPLL1_0_UCLKA_ID   = 0,       // UCLK_a

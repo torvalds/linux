@@ -216,41 +216,55 @@ static void dpp1_cm_program_color_matrix(
 		struct dcn10_dpp *dpp,
 		const uint16_t *regval)
 {
-	uint32_t mode;
+	uint32_t ocsc_mode;
+	uint32_t cur_mode;
 	struct color_matrices_reg gam_regs;
-
-	REG_GET(CM_OCSC_CONTROL, CM_OCSC_MODE, &mode);
 
 	if (regval == NULL) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
-	mode = 4;
+
+	/* determine which CSC matrix (ocsc or comb) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	REG_SET(CM_TEST_DEBUG_INDEX, 0,
+			CM_TEST_DEBUG_INDEX, 9);
+
+	REG_GET(CM_TEST_DEBUG_DATA,
+			CM_TEST_DEBUG_DATA_ID9_OCSC_MODE, &cur_mode);
+
+	if (cur_mode != 4)
+		ocsc_mode = 4;
+	else
+		ocsc_mode = 5;
+
+
 	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_OCSC_C11;
 	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_OCSC_C11;
 	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_OCSC_C12;
 	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_OCSC_C12;
 
-	if (mode == 4) {
+	if (ocsc_mode == 4) {
 
 		gam_regs.csc_c11_c12 = REG(CM_OCSC_C11_C12);
 		gam_regs.csc_c33_c34 = REG(CM_OCSC_C33_C34);
-
-		cm_helper_program_color_matrices(
-				dpp->base.ctx,
-				regval,
-				&gam_regs);
 
 	} else {
 
 		gam_regs.csc_c11_c12 = REG(CM_COMB_C11_C12);
 		gam_regs.csc_c33_c34 = REG(CM_COMB_C33_C34);
 
-		cm_helper_program_color_matrices(
-				dpp->base.ctx,
-				regval,
-				&gam_regs);
 	}
+
+	cm_helper_program_color_matrices(
+			dpp->base.ctx,
+			regval,
+			&gam_regs);
+
+	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
+
 }
 
 void dpp1_cm_set_output_csc_default(
@@ -260,15 +274,14 @@ void dpp1_cm_set_output_csc_default(
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	const uint16_t *regval = NULL;
 	int arr_size;
-	uint32_t ocsc_mode = 4;
 
 	regval = find_color_matrix(colorspace, &arr_size);
 	if (regval == NULL) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+
 	dpp1_cm_program_color_matrix(dpp, regval);
-	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
 }
 
 static void dpp1_cm_get_reg_field(
@@ -329,9 +342,8 @@ void dpp1_cm_set_output_csc_adjustment(
 		const uint16_t *regval)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	uint32_t ocsc_mode = 4;
+
 	dpp1_cm_program_color_matrix(dpp, regval);
-	REG_SET(CM_OCSC_CONTROL, 0, CM_OCSC_MODE, ocsc_mode);
 }
 
 void dpp1_cm_power_on_regamma_lut(struct dpp *dpp_base,
@@ -437,17 +449,18 @@ void dpp1_cm_program_regamma_lutb_settings(
 void dpp1_program_input_csc(
 		struct dpp *dpp_base,
 		enum dc_color_space color_space,
-		enum dcn10_input_csc_select select,
+		enum dcn10_input_csc_select input_select,
 		const struct out_csc_color_matrix *tbl_entry)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 	int i;
 	int arr_size = sizeof(dcn10_input_csc_matrix)/sizeof(struct dcn10_input_csc_matrix);
 	const uint16_t *regval = NULL;
-	uint32_t selection = 1;
+	uint32_t cur_select = 0;
+	enum dcn10_input_csc_select select;
 	struct color_matrices_reg gam_regs;
 
-	if (select == INPUT_CSC_SELECT_BYPASS) {
+	if (input_select == INPUT_CSC_SELECT_BYPASS) {
 		REG_SET(CM_ICSC_CONTROL, 0, CM_ICSC_MODE, 0);
 		return;
 	}
@@ -467,36 +480,45 @@ void dpp1_program_input_csc(
 		regval = tbl_entry->regval;
 	}
 
-	if (select == INPUT_CSC_SELECT_COMA)
-		selection = 2;
-	REG_SET(CM_ICSC_CONTROL, 0,
-			CM_ICSC_MODE, selection);
+	/* determine which CSC matrix (icsc or coma) we are using
+	 * currently.  select the alternate set to double buffer
+	 * the CSC update so CSC is updated on frame boundary
+	 */
+	REG_SET(CM_TEST_DEBUG_INDEX, 0,
+			CM_TEST_DEBUG_INDEX, 9);
+
+	REG_GET(CM_TEST_DEBUG_DATA,
+			CM_TEST_DEBUG_DATA_ID9_ICSC_MODE, &cur_select);
+
+	if (cur_select != INPUT_CSC_SELECT_ICSC)
+		select = INPUT_CSC_SELECT_ICSC;
+	else
+		select = INPUT_CSC_SELECT_COMA;
 
 	gam_regs.shifts.csc_c11 = dpp->tf_shift->CM_ICSC_C11;
 	gam_regs.masks.csc_c11  = dpp->tf_mask->CM_ICSC_C11;
 	gam_regs.shifts.csc_c12 = dpp->tf_shift->CM_ICSC_C12;
 	gam_regs.masks.csc_c12 = dpp->tf_mask->CM_ICSC_C12;
 
-
 	if (select == INPUT_CSC_SELECT_ICSC) {
 
 		gam_regs.csc_c11_c12 = REG(CM_ICSC_C11_C12);
 		gam_regs.csc_c33_c34 = REG(CM_ICSC_C33_C34);
 
-		cm_helper_program_color_matrices(
-				dpp->base.ctx,
-				regval,
-				&gam_regs);
 	} else {
 
 		gam_regs.csc_c11_c12 = REG(CM_COMA_C11_C12);
 		gam_regs.csc_c33_c34 = REG(CM_COMA_C33_C34);
 
-		cm_helper_program_color_matrices(
-				dpp->base.ctx,
-				regval,
-				&gam_regs);
 	}
+
+	cm_helper_program_color_matrices(
+			dpp->base.ctx,
+			regval,
+			&gam_regs);
+
+	REG_SET(CM_ICSC_CONTROL, 0,
+				CM_ICSC_MODE, select);
 }
 
 //keep here for now, decide multi dce support later
@@ -789,13 +811,13 @@ void dpp1_program_input_lut(
 	REG_UPDATE(CM_IGAM_LUT_RW_INDEX, CM_IGAM_LUT_RW_INDEX, 0);
 	for (i = 0; i < gamma->num_entries; i++) {
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-				dal_fixed31_32_round(
+				dc_fixpt_round(
 					gamma->entries.red[i]));
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-				dal_fixed31_32_round(
+				dc_fixpt_round(
 					gamma->entries.green[i]));
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-				dal_fixed31_32_round(
+				dc_fixpt_round(
 					gamma->entries.blue[i]));
 	}
 	// Power off LUT memory

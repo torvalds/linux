@@ -103,6 +103,11 @@ static void rds_recv_rcvbuf_delta(struct rds_sock *rs, struct sock *sk,
 		rds_stats_add(s_recv_bytes_added_to_socket, delta);
 	else
 		rds_stats_add(s_recv_bytes_removed_from_socket, -delta);
+
+	/* loop transport doesn't send/recv congestion updates */
+	if (rs->rs_transport->t_type == RDS_TRANS_LOOP)
+		return;
+
 	now_congested = rs->rs_rcv_bytes > rds_sk_rcvbuf(rs);
 
 	rdsdebug("rs %p (%pI4:%u) recv bytes %d buf %d "

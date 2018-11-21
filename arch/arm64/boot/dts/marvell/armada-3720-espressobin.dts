@@ -63,6 +63,33 @@
 	status = "okay";
 };
 
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		reg = <0>;
+		compatible = "winbond,w25q32dw", "jedec,spi-flash";
+		spi-max-frequency = <104000000>;
+		m25p,fast-read;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0 0x180000>;
+			};
+
+			partition@180000 {
+				label = "ubootenv";
+				reg = <0x180000 0x10000>;
+			};
+		};
+	};
+};
+
 /* Exported on the micro USB connector J5 through an FTDI */
 &uart0 {
 	pinctrl-names = "default";

@@ -110,7 +110,7 @@ struct ndis_recv_scale_param { /* NDIS_RECEIVE_SCALE_PARAMETERS */
 	u16 hashkey_size;
 
 	/* The offset of the secret key from the beginning of this structure */
-	u32 kashkey_offset;
+	u32 hashkey_offset;
 
 	u32 processor_masks_offset;
 	u32 num_processor_masks;
@@ -189,7 +189,6 @@ struct netvsc_device;
 struct net_device_context;
 
 extern u32 netvsc_ring_bytes;
-extern struct reciprocal_value netvsc_ring_reciprocal;
 
 struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
@@ -211,7 +210,7 @@ int netvsc_recv_callback(struct net_device *net,
 void netvsc_channel_cb(void *context);
 int netvsc_poll(struct napi_struct *napi, int budget);
 
-void rndis_set_subchannel(struct work_struct *w);
+int rndis_set_subchannel(struct net_device *ndev, struct netvsc_device *nvdev);
 int rndis_filter_open(struct netvsc_device *nvdev);
 int rndis_filter_close(struct netvsc_device *nvdev);
 struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
@@ -237,6 +236,8 @@ void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 #define NVSP_PROTOCOL_VERSION_2		0x30002
 #define NVSP_PROTOCOL_VERSION_4		0x40000
 #define NVSP_PROTOCOL_VERSION_5		0x50000
+#define NVSP_PROTOCOL_VERSION_6		0x60000
+#define NVSP_PROTOCOL_VERSION_61	0x60001
 
 enum {
 	NVSP_MSG_TYPE_NONE = 0,
@@ -308,6 +309,12 @@ enum {
 	NVSP_MSG5_TYPE_SEND_INDIRECTION_TABLE,
 
 	NVSP_MSG5_MAX = NVSP_MSG5_TYPE_SEND_INDIRECTION_TABLE,
+
+	/* Version 6 messages */
+	NVSP_MSG6_TYPE_PD_API,
+	NVSP_MSG6_TYPE_PD_POST_BATCH,
+
+	NVSP_MSG6_MAX = NVSP_MSG6_TYPE_PD_POST_BATCH
 };
 
 enum {
@@ -619,12 +626,168 @@ union nvsp_5_message_uber {
 	struct nvsp_5_send_indirect_table send_table;
 } __packed;
 
+enum nvsp_6_pd_api_op {
+	PD_API_OP_CONFIG = 1,
+	PD_API_OP_SW_DATAPATH, /* Switch Datapath */
+	PD_API_OP_OPEN_PROVIDER,
+	PD_API_OP_CLOSE_PROVIDER,
+	PD_API_OP_CREATE_QUEUE,
+	PD_API_OP_FLUSH_QUEUE,
+	PD_API_OP_FREE_QUEUE,
+	PD_API_OP_ALLOC_COM_BUF, /* Allocate Common Buffer */
+	PD_API_OP_FREE_COM_BUF, /* Free Common Buffer */
+	PD_API_OP_MAX
+};
+
+struct grp_affinity {
+	u64 mask;
+	u16 grp;
+	u16 reserved[3];
+} __packed;
+
+struct nvsp_6_pd_api_req {
+	u32 op;
+
+	union {
+		/* MMIO information is sent from the VM to VSP */
+		struct __packed {
+			u64 mmio_pa; /* MMIO Physical Address */
+			u32 mmio_len;
+
+			/* Number of PD queues a VM can support */
+			u16 num_subchn;
+		} config;
+
+		/* Switch Datapath */
+		struct __packed {
+			/* Host Datapath Is PacketDirect */
+			u8 host_dpath_is_pd;
+
+			/* Guest PacketDirect Is Enabled */
+			u8 guest_pd_enabled;
+		} sw_dpath;
+
+		/* Open Provider*/
+		struct __packed {
+			u32 prov_id; /* Provider id */
+			u32 flag;
+		} open_prov;
+
+		/* Close Provider */
+		struct __packed {
+			u32 prov_id;
+		} cls_prov;
+
+		/* Create Queue*/
+		struct __packed {
+			u32 prov_id;
+			u16 q_id;
+			u16 q_size;
+			u8 is_recv_q;
+			u8 is_rss_q;
+			u32 recv_data_len;
+			struct grp_affinity affy;
+		} cr_q;
+
+		/* Delete Queue*/
+		struct __packed {
+			u32 prov_id;
+			u16 q_id;
+		} del_q;
+
+		/* Flush Queue */
+		struct __packed {
+			u32 prov_id;
+			u16 q_id;
+		} flush_q;
+
+		/* Allocate Common Buffer */
+		struct __packed {
+			u32 len;
+			u32 pf_node; /* Preferred Node */
+			u16 region_id;
+		} alloc_com_buf;
+
+		/* Free Common Buffer */
+		struct __packed {
+			u32 len;
+			u64 pa; /* Physical Address */
+			u32 pf_node; /* Preferred Node */
+			u16 region_id;
+			u8 cache_type;
+		} free_com_buf;
+	} __packed;
+} __packed;
+
+struct nvsp_6_pd_api_comp {
+	u32 op;
+	u32 status;
+
+	union {
+		struct __packed {
+			/* actual number of PD queues allocated to the VM */
+			u16 num_pd_q;
+
+			/* Num Receive Rss PD Queues */
+			u8 num_rss_q;
+
+			u8 is_supported; /* Is supported by VSP */
+			u8 is_enabled; /* Is enabled by VSP */
+		} config;
+
+		/* Open Provider */
+		struct __packed {
+			u32 prov_id;
+		} open_prov;
+
+		/* Create Queue */
+		struct __packed {
+			u32 prov_id;
+			u16 q_id;
+			u16 q_size;
+			u32 recv_data_len;
+			struct grp_affinity affy;
+		} cr_q;
+
+		/* Allocate Common Buffer */
+		struct __packed {
+			u64 pa; /* Physical Address */
+			u32 len;
+			u32 pf_node; /* Preferred Node */
+			u16 region_id;
+			u8 cache_type;
+		} alloc_com_buf;
+	} __packed;
+} __packed;
+
+struct nvsp_6_pd_buf {
+	u32 region_offset;
+	u16 region_id;
+	u16 is_partial:1;
+	u16 reserved:15;
+} __packed;
+
+struct nvsp_6_pd_batch_msg {
+	struct nvsp_message_header hdr;
+	u16 count;
+	u16 guest2host:1;
+	u16 is_recv:1;
+	u16 reserved:14;
+	struct nvsp_6_pd_buf pd_buf[0];
+} __packed;
+
+union nvsp_6_message_uber {
+	struct nvsp_6_pd_api_req pd_req;
+	struct nvsp_6_pd_api_comp pd_comp;
+} __packed;
+
 union nvsp_all_messages {
 	union nvsp_message_init_uber init_msg;
 	union nvsp_1_message_uber v1_msg;
 	union nvsp_2_message_uber v2_msg;
 	union nvsp_4_message_uber v4_msg;
 	union nvsp_5_message_uber v5_msg;
+	union nvsp_6_message_uber v6_msg;
 } __packed;
 
 /* ALL Messages */
@@ -738,6 +901,8 @@ struct net_device_context {
 	struct hv_device *device_ctx;
 	/* netvsc_device */
 	struct netvsc_device __rcu *nvdev;
+	/* list of netvsc net_devices */
+	struct list_head list;
 	/* reconfigure work */
 	struct delayed_work dwork;
 	/* last reconfig time */
@@ -1112,17 +1277,17 @@ struct ndis_lsov2_offload {
 
 struct ndis_ipsecv2_offload {
 	u32	encap;
-	u16	ip6;
-	u16	ip4opt;
-	u16	ip6ext;
-	u16	ah;
-	u16	esp;
-	u16	ah_esp;
-	u16	xport;
-	u16	tun;
-	u16	xport_tun;
-	u16	lso;
-	u16	extseq;
+	u8	ip6;
+	u8	ip4opt;
+	u8	ip6ext;
+	u8	ah;
+	u8	esp;
+	u8	ah_esp;
+	u8	xport;
+	u8	tun;
+	u8	xport_tun;
+	u8	lso;
+	u8	extseq;
 	u32	udp_esp;
 	u32	auth;
 	u32	crypto;
@@ -1130,8 +1295,8 @@ struct ndis_ipsecv2_offload {
 };
 
 struct ndis_rsc_offload {
-	u16	ip4;
-	u16	ip6;
+	u8	ip4;
+	u8	ip6;
 };
 
 struct ndis_encap_offload {

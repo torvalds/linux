@@ -411,8 +411,8 @@ u32 au1xxx_dbdma_ring_alloc(u32 chanid, int entries)
 	 * and if we try that first we are likely to not waste larger
 	 * slabs of memory.
 	 */
-	desc_base = (u32)kmalloc(entries * sizeof(au1x_ddma_desc_t),
-				 GFP_KERNEL|GFP_DMA);
+	desc_base = (u32)kmalloc_array(entries, sizeof(au1x_ddma_desc_t),
+				       GFP_KERNEL|GFP_DMA);
 	if (desc_base == 0)
 		return 0;
 
@@ -1050,7 +1050,7 @@ static int __init dbdma_setup(unsigned int irq, dbdev_tab_t *idtable)
 {
 	int ret;
 
-	dbdev_tab = kzalloc(sizeof(dbdev_tab_t) * DBDEV_TAB_SIZE, GFP_KERNEL);
+	dbdev_tab = kcalloc(DBDEV_TAB_SIZE, sizeof(dbdev_tab_t), GFP_KERNEL);
 	if (!dbdev_tab)
 		return -ENOMEM;
 

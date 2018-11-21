@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2017-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -53,6 +53,10 @@ struct gdsc {
 #define VOTABLE		BIT(0)
 #define CLAMP_IO	BIT(1)
 #define HW_CTRL		BIT(2)
+#define SW_RESET	BIT(3)
+#define AON_RESET	BIT(4)
+#define POLL_CFG_GDSCR	BIT(5)
+#define ALWAYS_ON	BIT(6)
 	struct reset_controller_dev	*rcdev;
 	unsigned int			*resets;
 	unsigned int			reset_count;

@@ -23,7 +23,6 @@ Controller:
 			dma-requests = <27>;
 			interrupts = <0 12 4>;
 			clocks = <&pclk>;
-			status = "disable";
 		};
 
 Client:

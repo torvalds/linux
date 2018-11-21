@@ -186,6 +186,23 @@ static const struct hisi_gate_clock hi3798cv200_gate_clks[] = {
 		CLK_SET_RATE_PARENT, 0xbc, 0, 0 },
 	{ HISTB_USB2_PHY2_REF_CLK, "clk_u2_phy2_ref", "24m",
 		CLK_SET_RATE_PARENT, 0xbc, 2, 0 },
+	/* USB3 */
+	{ HISTB_USB3_BUS_CLK, "clk_u3_bus", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 0, 0 },
+	{ HISTB_USB3_UTMI_CLK, "clk_u3_utmi", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 4, 0 },
+	{ HISTB_USB3_PIPE_CLK, "clk_u3_pipe", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 3, 0 },
+	{ HISTB_USB3_SUSPEND_CLK, "clk_u3_suspend", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 2, 0 },
+	{ HISTB_USB3_BUS_CLK1, "clk_u3_bus1", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 16, 0 },
+	{ HISTB_USB3_UTMI_CLK1, "clk_u3_utmi1", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 20, 0 },
+	{ HISTB_USB3_PIPE_CLK1, "clk_u3_pipe1", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 19, 0 },
+	{ HISTB_USB3_SUSPEND_CLK1, "clk_u3_suspend1", NULL,
+		CLK_SET_RATE_PARENT, 0xb0, 18, 0 },
 };
 
 static struct hisi_clock_data *hi3798cv200_clk_register(

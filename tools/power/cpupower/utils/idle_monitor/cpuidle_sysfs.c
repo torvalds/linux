@@ -126,6 +126,20 @@ void fix_up_intel_idle_driver_name(char *tmp, int num)
 	}
 }
 
+#ifdef __powerpc__
+void map_power_idle_state_name(char *tmp)
+{
+	if (!strncmp(tmp, "stop0_lite", CSTATE_NAME_LEN))
+		strcpy(tmp, "stop0L");
+	else if (!strncmp(tmp, "stop1_lite", CSTATE_NAME_LEN))
+		strcpy(tmp, "stop1L");
+	else if (!strncmp(tmp, "stop2_lite", CSTATE_NAME_LEN))
+		strcpy(tmp, "stop2L");
+}
+#else
+void map_power_idle_state_name(char *tmp) { }
+#endif
+
 static struct cpuidle_monitor *cpuidle_register(void)
 {
 	int num;
@@ -145,6 +159,7 @@ static struct cpuidle_monitor *cpuidle_register(void)
 		if (tmp == NULL)
 			continue;
 
+		map_power_idle_state_name(tmp);
 		fix_up_intel_idle_driver_name(tmp, num);
 		strncpy(cpuidle_cstates[num].name, tmp, CSTATE_NAME_LEN - 1);
 		free(tmp);

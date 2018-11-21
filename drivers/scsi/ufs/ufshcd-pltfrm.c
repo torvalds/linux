@@ -86,8 +86,8 @@ static int ufshcd_parse_clock_info(struct ufs_hba *hba)
 		goto out;
 	}
 
-	clkfreq = devm_kzalloc(dev, sz * sizeof(*clkfreq),
-			GFP_KERNEL);
+	clkfreq = devm_kcalloc(dev, sz, sizeof(*clkfreq),
+			       GFP_KERNEL);
 	if (!clkfreq) {
 		ret = -ENOMEM;
 		goto out;

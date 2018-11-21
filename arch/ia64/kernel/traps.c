@@ -104,6 +104,7 @@ __kprobes ia64_bad_break (unsigned long break_num, struct pt_regs *regs)
 	int sig, code;
 
 	/* SIGILL, SIGFPE, SIGSEGV, and SIGBUS want these field initialized: */
+	clear_siginfo(&siginfo);
 	siginfo.si_addr = (void __user *) (regs->cr_iip + ia64_psr(regs)->ri);
 	siginfo.si_imm = break_num;
 	siginfo.si_flags = 0;		/* clear __ISR_VALID */
@@ -293,7 +294,6 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 {
 	long exception, bundle[2];
 	unsigned long fault_ip;
-	struct siginfo siginfo;
 
 	fault_ip = regs->cr_iip;
 	if (!fp_fault && (ia64_psr(regs)->ri == 0))
@@ -344,13 +344,16 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			printk(KERN_ERR "handle_fpu_swa: fp_emulate() returned -1\n");
 			return -1;
 		} else {
+			struct siginfo siginfo;
+
 			/* is next instruction a trap? */
 			if (exception & 2) {
 				ia64_increment_ip(regs);
 			}
+			clear_siginfo(&siginfo);
 			siginfo.si_signo = SIGFPE;
 			siginfo.si_errno = 0;
-			siginfo.si_code = FPE_FIXME;	/* default code */
+			siginfo.si_code = FPE_FLTUNK;	/* default code */
 			siginfo.si_addr = (void __user *) (regs->cr_iip + ia64_psr(regs)->ri);
 			if (isr & 0x11) {
 				siginfo.si_code = FPE_FLTINV;
@@ -372,9 +375,12 @@ handle_fpu_swa (int fp_fault, struct pt_regs *regs, unsigned long isr)
 			return -1;
 		} else if (exception != 0) {
 			/* raise exception */
+			struct siginfo siginfo;
+
+			clear_siginfo(&siginfo);
 			siginfo.si_signo = SIGFPE;
 			siginfo.si_errno = 0;
-			siginfo.si_code = FPE_FIXME;	/* default code */
+			siginfo.si_code = FPE_FLTUNK;	/* default code */
 			siginfo.si_addr = (void __user *) (regs->cr_iip + ia64_psr(regs)->ri);
 			if (isr & 0x880) {
 				siginfo.si_code = FPE_FLTOVF;
@@ -420,7 +426,7 @@ ia64_illegal_op_fault (unsigned long ec, long arg1, long arg2, long arg3,
 	if (die_if_kernel(buf, &regs, 0))
 		return rv;
 
-	memset(&si, 0, sizeof(si));
+	clear_siginfo(&si);
 	si.si_signo = SIGILL;
 	si.si_code = ILL_ILLOPC;
 	si.si_addr = (void __user *) (regs.cr_iip + ia64_psr(&regs)->ri);
@@ -434,7 +440,6 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 	    long arg7, struct pt_regs regs)
 {
 	unsigned long code, error = isr, iip;
-	struct siginfo siginfo;
 	char buf[128];
 	int result, sig;
 	static const char *reason[] = {
@@ -485,6 +490,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 
 	      case 26: /* NaT Consumption */
 		if (user_mode(&regs)) {
+			struct siginfo siginfo;
 			void __user *addr;
 
 			if (((isr >> 4) & 0xf) == 2) {
@@ -499,6 +505,7 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 				addr = (void __user *) (regs.cr_iip
 							+ ia64_psr(&regs)->ri);
 			}
+			clear_siginfo(&siginfo);
 			siginfo.si_signo = sig;
 			siginfo.si_code = code;
 			siginfo.si_errno = 0;
@@ -515,6 +522,9 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 
 	      case 31: /* Unsupported Data Reference */
 		if (user_mode(&regs)) {
+			struct siginfo siginfo;
+
+			clear_siginfo(&siginfo);
 			siginfo.si_signo = SIGILL;
 			siginfo.si_code = ILL_ILLOPN;
 			siginfo.si_errno = 0;
@@ -531,6 +541,10 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 	      case 29: /* Debug */
 	      case 35: /* Taken Branch Trap */
 	      case 36: /* Single Step Trap */
+	      {
+		struct siginfo siginfo;
+
+		clear_siginfo(&siginfo);
 		if (fsys_mode(current, &regs)) {
 			extern char __kernel_syscall_via_break[];
 			/*
@@ -578,11 +592,15 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		siginfo.si_isr   = isr;
 		force_sig_info(SIGTRAP, &siginfo, current);
 		return;
+	      }
 
 	      case 32: /* fp fault */
 	      case 33: /* fp trap */
 		result = handle_fpu_swa((vector == 32) ? 1 : 0, &regs, isr);
 		if ((result < 0) || (current->thread.flags & IA64_THREAD_FPEMU_SIGFPE)) {
+			struct siginfo siginfo;
+
+			clear_siginfo(&siginfo);
 			siginfo.si_signo = SIGFPE;
 			siginfo.si_errno = 0;
 			siginfo.si_code = FPE_FLTINV;
@@ -616,6 +634,9 @@ ia64_fault (unsigned long vector, unsigned long isr, unsigned long ifa,
 		} else {
 			/* Unimplemented Instr. Address Trap */
 			if (user_mode(&regs)) {
+				struct siginfo siginfo;
+
+				clear_siginfo(&siginfo);
 				siginfo.si_signo = SIGILL;
 				siginfo.si_code = ILL_BADIADDR;
 				siginfo.si_errno = 0;

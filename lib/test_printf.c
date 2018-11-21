@@ -204,7 +204,7 @@ test_string(void)
 #if BITS_PER_LONG == 64
 
 #define PTR_WIDTH 16
-#define PTR ((void *)0xffff0123456789ab)
+#define PTR ((void *)0xffff0123456789abUL)
 #define PTR_STR "ffff0123456789ab"
 #define ZEROS "00000000"	/* hex 32 zero bits */
 

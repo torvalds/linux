@@ -642,7 +642,7 @@ static int daqp_ao_insn_write(struct comedi_device *dev,
 	/* Make sure D/A update mode is direct update */
 	outb(0, dev->iobase + DAQP_AUX_REG);
 
-	for (i = 0; i > insn->n; i++) {
+	for (i = 0; i < insn->n; i++) {
 		unsigned int val = data[i];
 		int ret;
 

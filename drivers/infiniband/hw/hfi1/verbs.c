@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2015 - 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -63,6 +63,8 @@
 #include "verbs_txreq.h"
 #include "debugfs.h"
 #include "vnic.h"
+#include "fault.h"
+#include "affinity.h"
 
 static unsigned int hfi1_lkey_table_size = 16;
 module_param_named(lkey_table_size, hfi1_lkey_table_size, uint,
@@ -615,17 +617,18 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 			wake_up(&mcast->wait);
 	} else {
 		/* Get the destination QP number. */
-		qp_num = ib_bth_get_qpn(packet->ohdr);
+		if (packet->etype == RHF_RCV_TYPE_BYPASS &&
+		    hfi1_16B_get_l4(packet->hdr) == OPA_16B_L4_FM)
+			qp_num = hfi1_16B_get_dest_qpn(packet->mgmt);
+		else
+			qp_num = ib_bth_get_qpn(packet->ohdr);
+
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp)
 			goto unlock_drop;
 
 		if (hfi1_do_pkey_check(packet))
-			goto unlock_drop;
-
-		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, packet->opcode,
-						   true)))
 			goto unlock_drop;
 
 		spin_lock_irqsave(&packet->qp->r_lock, flags);
@@ -934,8 +937,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			else
 				pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 
-			if (unlikely(hfi1_dbg_fault_opcode(qp, ps->opcode,
-							   false)))
+			if (unlikely(hfi1_dbg_should_fault_tx(qp, ps->opcode)))
 				pbc = hfi1_fault_tx(qp, ps->opcode, pbc);
 			pbc = create_pbc(ppd,
 					 pbc,
@@ -1088,7 +1090,8 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			pbc |= PBC_PACKET_BYPASS | PBC_INSERT_BYPASS_ICRC;
 		else
 			pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
-		if (unlikely(hfi1_dbg_fault_opcode(qp, ps->opcode, false)))
+
+		if (unlikely(hfi1_dbg_should_fault_tx(qp, ps->opcode)))
 			pbc = hfi1_fault_tx(qp, ps->opcode, pbc);
 		pbc = create_pbc(ppd, pbc, qp->srate_mbps, vl, plen);
 	}
@@ -1310,21 +1313,23 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct ib_other_headers *ohdr;
+	struct ib_other_headers *ohdr = NULL;
 	send_routine sr;
 	int ret;
 	u16 pkey;
 	u32 slid;
+	u8 l4 = 0;
 
 	/* locate the pkey within the headers */
 	if (ps->s_txreq->phdr.hdr.hdr_type) {
 		struct hfi1_16b_header *hdr = &ps->s_txreq->phdr.hdr.opah;
-		u8 l4 = hfi1_16B_get_l4(hdr);
 
-		if (l4 == OPA_16B_L4_IB_GLOBAL)
-			ohdr = &hdr->u.l.oth;
-		else
+		l4 = hfi1_16B_get_l4(hdr);
+		if (l4 == OPA_16B_L4_IB_LOCAL)
 			ohdr = &hdr->u.oth;
+		else if (l4 == OPA_16B_L4_IB_GLOBAL)
+			ohdr = &hdr->u.l.oth;
+
 		slid = hfi1_16B_get_slid(hdr);
 		pkey = hfi1_16B_get_pkey(hdr);
 	} else {
@@ -1339,7 +1344,11 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		pkey = ib_bth_get_pkey(ohdr);
 	}
 
-	ps->opcode = ib_bth_get_opcode(ohdr);
+	if (likely(l4 != OPA_16B_L4_FM))
+		ps->opcode = ib_bth_get_opcode(ohdr);
+	else
+		ps->opcode = IB_OPCODE_UD_SEND_ONLY;
+
 	sr = get_send_routine(qp, ps);
 	ret = egress_pkey_check(dd->pport, slid, pkey,
 				priv->s_sc, qp->s_pkey_index);
@@ -1937,11 +1946,11 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.driver_f.modify_qp = hfi1_modify_qp;
 	dd->verbs_dev.rdi.driver_f.notify_restart_rc = hfi1_restart_rc;
 	dd->verbs_dev.rdi.driver_f.check_send_wqe = hfi1_check_send_wqe;
+	dd->verbs_dev.rdi.driver_f.comp_vect_cpu_lookup =
+						hfi1_comp_vect_mappings_lookup;
 
 	/* completeion queue */
-	snprintf(dd->verbs_dev.rdi.dparms.cq_name,
-		 sizeof(dd->verbs_dev.rdi.dparms.cq_name),
-		 "hfi1_cq%d", dd->unit);
+	dd->verbs_dev.rdi.ibdev.num_comp_vectors = dd->comp_vect_possible_cpus;
 	dd->verbs_dev.rdi.dparms.node = dd->node;
 
 	/* misc settings */

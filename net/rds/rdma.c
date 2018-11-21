@@ -170,7 +170,8 @@ static int rds_pin_pages(unsigned long user_addr, unsigned int nr_pages,
 }
 
 static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
-				u64 *cookie_ret, struct rds_mr **mr_ret)
+			  u64 *cookie_ret, struct rds_mr **mr_ret,
+			  struct rds_conn_path *cp)
 {
 	struct rds_mr *mr = NULL, *found;
 	unsigned int nr_pages;
@@ -269,7 +270,8 @@ static int __rds_rdma_map(struct rds_sock *rs, struct rds_get_mr_args *args,
 	 * Note that dma_map() implies that pending writes are
 	 * flushed to RAM, so no dma_sync is needed here. */
 	trans_private = rs->rs_transport->get_mr(sg, nents, rs,
-						 &mr->r_key);
+						 &mr->r_key,
+						 cp ? cp->cp_conn : NULL);
 
 	if (IS_ERR(trans_private)) {
 		for (i = 0 ; i < nents; i++)
@@ -330,7 +332,7 @@ int rds_get_mr(struct rds_sock *rs, char __user *optval, int optlen)
 			   sizeof(struct rds_get_mr_args)))
 		return -EFAULT;
 
-	return __rds_rdma_map(rs, &args, NULL, NULL);
+	return __rds_rdma_map(rs, &args, NULL, NULL, NULL);
 }
 
 int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
@@ -354,7 +356,7 @@ int rds_get_mr_for_dest(struct rds_sock *rs, char __user *optval, int optlen)
 	new_args.cookie_addr = args.cookie_addr;
 	new_args.flags = args.flags;
 
-	return __rds_rdma_map(rs, &new_args, NULL, NULL);
+	return __rds_rdma_map(rs, &new_args, NULL, NULL, NULL);
 }
 
 /*
@@ -782,7 +784,8 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 	    rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
-	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.op_rdma_mr);
+	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie,
+			      &rm->rdma.op_rdma_mr, rm->m_conn_path);
 }
 
 /*

@@ -96,6 +96,13 @@
 /* we only support 64 kB translation table page size */
 #define KVM_ITS_L1E_ADDR_MASK		GENMASK_ULL(51, 16)
 
+#define KVM_VGIC_V3_RDIST_INDEX_MASK	GENMASK_ULL(11, 0)
+#define KVM_VGIC_V3_RDIST_FLAGS_MASK	GENMASK_ULL(15, 12)
+#define KVM_VGIC_V3_RDIST_FLAGS_SHIFT	12
+#define KVM_VGIC_V3_RDIST_BASE_MASK	GENMASK_ULL(51, 16)
+#define KVM_VGIC_V3_RDIST_COUNT_MASK	GENMASK_ULL(63, 52)
+#define KVM_VGIC_V3_RDIST_COUNT_SHIFT	52
+
 /* Requires the irq_lock to be held by the caller. */
 static inline bool irq_is_pending(struct vgic_irq *irq)
 {
@@ -215,7 +222,7 @@ int vgic_v3_probe(const struct gic_kvm_info *info);
 int vgic_v3_map_resources(struct kvm *kvm);
 int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq);
 int vgic_v3_save_pending_tables(struct kvm *kvm);
-int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr);
+int vgic_v3_set_redist_base(struct kvm *kvm, u32 index, u64 addr, u32 count);
 int vgic_register_redist_iodev(struct kvm_vcpu *vcpu);
 bool vgic_v3_check_base(struct kvm *kvm);
 
@@ -243,8 +250,8 @@ void vgic_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcr);
 int vgic_lazy_init(struct kvm *kvm);
 int vgic_init(struct kvm *kvm);
 
-int vgic_debug_init(struct kvm *kvm);
-int vgic_debug_destroy(struct kvm *kvm);
+void vgic_debug_init(struct kvm *kvm);
+void vgic_debug_destroy(struct kvm *kvm);
 
 bool lock_all_vcpus(struct kvm *kvm);
 void unlock_all_vcpus(struct kvm *kvm);
@@ -263,6 +270,39 @@ static inline int vgic_v3_max_apr_idx(struct kvm_vcpu *vcpu)
 	case 6: return 1;
 	default: return 0;
 	}
+}
+
+static inline bool
+vgic_v3_redist_region_full(struct vgic_redist_region *region)
+{
+	if (!region->count)
+		return false;
+
+	return (region->free_index >= region->count);
+}
+
+struct vgic_redist_region *vgic_v3_rdist_free_slot(struct list_head *rdregs);
+
+static inline size_t
+vgic_v3_rd_region_size(struct kvm *kvm, struct vgic_redist_region *rdreg)
+{
+	if (!rdreg->count)
+		return atomic_read(&kvm->online_vcpus) * KVM_VGIC_V3_REDIST_SIZE;
+	else
+		return rdreg->count * KVM_VGIC_V3_REDIST_SIZE;
+}
+
+struct vgic_redist_region *vgic_v3_rdist_region_from_index(struct kvm *kvm,
+							   u32 index);
+
+bool vgic_v3_rdist_overlap(struct kvm *kvm, gpa_t base, size_t size);
+
+static inline bool vgic_dist_overlap(struct kvm *kvm, gpa_t base, size_t size)
+{
+	struct vgic_dist *d = &kvm->arch.vgic;
+
+	return (base + size > d->vgic_dist_base) &&
+		(base < d->vgic_dist_base + KVM_VGIC_V3_DIST_SIZE);
 }
 
 int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,

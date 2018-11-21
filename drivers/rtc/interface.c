@@ -265,8 +265,10 @@ int __rtc_read_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 			return err;
 
 		/* full-function RTCs won't have such missing fields */
-		if (rtc_valid_tm(&alarm->time) == 0)
+		if (rtc_valid_tm(&alarm->time) == 0) {
+			rtc_add_offset(rtc, &alarm->time);
 			return 0;
+		}
 
 		/* get the "after" timestamp, to detect wrapped fields */
 		err = rtc_read_time(rtc, &now);
@@ -409,7 +411,6 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	if (err)
 		return err;
 
-	rtc_subtract_offset(rtc, &alarm->time);
 	scheduled = rtc_tm_to_time64(&alarm->time);
 
 	/* Make sure we're not setting alarms in the past */
@@ -426,6 +427,8 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 	 * over right here, before we set the alarm.
 	 */
 
+	rtc_subtract_offset(rtc, &alarm->time);
+
 	if (!rtc->ops)
 		err = -ENODEV;
 	else if (!rtc->ops->set_alarm)
@@ -440,6 +443,11 @@ static int __rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 {
 	int err;
+
+	if (!rtc->ops)
+		return -ENODEV;
+	else if (!rtc->ops->set_alarm)
+		return -EINVAL;
 
 	err = rtc_valid_tm(&alarm->time);
 	if (err != 0)
@@ -462,7 +470,6 @@ int rtc_set_alarm(struct rtc_device *rtc, struct rtc_wkalrm *alarm)
 
 	mutex_unlock(&rtc->ops_lock);
 
-	rtc_add_offset(rtc, &alarm->time);
 	return err;
 }
 EXPORT_SYMBOL_GPL(rtc_set_alarm);

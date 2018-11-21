@@ -437,7 +437,7 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
 }
 
-static __printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...)
+__printf(2, 3) u8 *nfp_pr_et(u8 *data, const char *fmt, ...)
 {
 	va_list args;
 
@@ -637,6 +637,7 @@ static void nfp_net_get_strings(struct net_device *netdev,
 						     nn->dp.num_tx_rings,
 						     false);
 		data = nfp_mac_get_stats_strings(netdev, data);
+		data = nfp_app_port_get_stats_strings(nn->port, data);
 		break;
 	}
 }
@@ -651,6 +652,7 @@ nfp_net_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
 	data = nfp_vnic_get_hw_stats(data, nn->dp.ctrl_bar,
 				     nn->dp.num_rx_rings, nn->dp.num_tx_rings);
 	data = nfp_mac_get_stats(netdev, data);
+	data = nfp_app_port_get_stats(nn->port, data);
 }
 
 static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
@@ -662,7 +664,8 @@ static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
 		return nfp_vnic_get_sw_stats_count(netdev) +
 		       nfp_vnic_get_hw_stats_count(nn->dp.num_rx_rings,
 						   nn->dp.num_tx_rings) +
-		       nfp_mac_get_stats_count(netdev);
+		       nfp_mac_get_stats_count(netdev) +
+		       nfp_app_port_get_stats_count(nn->port);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -679,6 +682,7 @@ static void nfp_port_get_strings(struct net_device *netdev,
 			data = nfp_vnic_get_hw_stats_strings(data, 0, 0, true);
 		else
 			data = nfp_mac_get_stats_strings(netdev, data);
+		data = nfp_app_port_get_stats_strings(port, data);
 		break;
 	}
 }
@@ -693,6 +697,7 @@ nfp_port_get_stats(struct net_device *netdev, struct ethtool_stats *stats,
 		data = nfp_vnic_get_hw_stats(data, port->vnic, 0, 0);
 	else
 		data = nfp_mac_get_stats(netdev, data);
+	data = nfp_app_port_get_stats(port, data);
 }
 
 static int nfp_port_get_sset_count(struct net_device *netdev, int sset)
@@ -706,6 +711,7 @@ static int nfp_port_get_sset_count(struct net_device *netdev, int sset)
 			count = nfp_vnic_get_hw_stats_count(0, 0);
 		else
 			count = nfp_mac_get_stats_count(netdev);
+		count += nfp_app_port_get_stats_count(port);
 		return count;
 	default:
 		return -EOPNOTSUPP;

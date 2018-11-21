@@ -1143,23 +1143,11 @@ static int rose_node_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations rose_node_seqops = {
+const struct seq_operations rose_node_seqops = {
 	.start = rose_node_start,
 	.next = rose_node_next,
 	.stop = rose_node_stop,
 	.show = rose_node_show,
-};
-
-static int rose_nodes_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rose_node_seqops);
-}
-
-const struct file_operations rose_nodes_fops = {
-	.open = rose_nodes_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
 };
 
 static void *rose_neigh_start(struct seq_file *seq, loff_t *pos)
@@ -1226,25 +1214,12 @@ static int rose_neigh_show(struct seq_file *seq, void *v)
 }
 
 
-static const struct seq_operations rose_neigh_seqops = {
+const struct seq_operations rose_neigh_seqops = {
 	.start = rose_neigh_start,
 	.next = rose_neigh_next,
 	.stop = rose_neigh_stop,
 	.show = rose_neigh_show,
 };
-
-static int rose_neigh_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rose_neigh_seqops);
-}
-
-const struct file_operations rose_neigh_fops = {
-	.open = rose_neigh_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 
 static void *rose_route_start(struct seq_file *seq, loff_t *pos)
 	__acquires(rose_route_list_lock)
@@ -1311,25 +1286,12 @@ static int rose_route_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct seq_operations rose_route_seqops = {
+struct seq_operations rose_route_seqops = {
 	.start = rose_route_start,
 	.next = rose_route_next,
 	.stop = rose_route_stop,
 	.show = rose_route_show,
 };
-
-static int rose_route_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &rose_route_seqops);
-}
-
-const struct file_operations rose_routes_fops = {
-	.open = rose_route_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = seq_release,
-};
-
 #endif /* CONFIG_PROC_FS */
 
 /*

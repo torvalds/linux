@@ -32,6 +32,8 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_nat.h>
 
+#include "nf_internals.h"
+
 static spinlock_t nf_nat_locks[CONNTRACK_LOCKS];
 
 static DEFINE_MUTEX(nf_nat_proto_mutex);
@@ -39,10 +41,26 @@ static const struct nf_nat_l3proto __rcu *nf_nat_l3protos[NFPROTO_NUMPROTO]
 						__read_mostly;
 static const struct nf_nat_l4proto __rcu **nf_nat_l4protos[NFPROTO_NUMPROTO]
 						__read_mostly;
+static unsigned int nat_net_id __read_mostly;
 
 static struct hlist_head *nf_nat_bysource __read_mostly;
 static unsigned int nf_nat_htable_size __read_mostly;
 static unsigned int nf_nat_hash_rnd __read_mostly;
+
+struct nf_nat_lookup_hook_priv {
+	struct nf_hook_entries __rcu *entries;
+
+	struct rcu_head rcu_head;
+};
+
+struct nf_nat_hooks_net {
+	struct nf_hook_ops *nat_hook_ops;
+	unsigned int users;
+};
+
+struct nat_net {
+	struct nf_nat_hooks_net nat_proto_net[NFPROTO_NUMPROTO];
+};
 
 inline const struct nf_nat_l3proto *
 __nf_nat_l3proto_find(u8 family)
@@ -157,7 +175,7 @@ EXPORT_SYMBOL(nf_nat_used_tuple);
 static int in_range(const struct nf_nat_l3proto *l3proto,
 		    const struct nf_nat_l4proto *l4proto,
 		    const struct nf_conntrack_tuple *tuple,
-		    const struct nf_nat_range *range)
+		    const struct nf_nat_range2 *range)
 {
 	/* If we are supposed to map IPs, then we must be in the
 	 * range specified, otherwise let this drag us onto a new src IP.
@@ -194,7 +212,7 @@ find_appropriate_src(struct net *net,
 		     const struct nf_nat_l4proto *l4proto,
 		     const struct nf_conntrack_tuple *tuple,
 		     struct nf_conntrack_tuple *result,
-		     const struct nf_nat_range *range)
+		     const struct nf_nat_range2 *range)
 {
 	unsigned int h = hash_by_src(net, tuple);
 	const struct nf_conn *ct;
@@ -224,7 +242,7 @@ find_appropriate_src(struct net *net,
 static void
 find_best_ips_proto(const struct nf_conntrack_zone *zone,
 		    struct nf_conntrack_tuple *tuple,
-		    const struct nf_nat_range *range,
+		    const struct nf_nat_range2 *range,
 		    const struct nf_conn *ct,
 		    enum nf_nat_manip_type maniptype)
 {
@@ -298,7 +316,7 @@ find_best_ips_proto(const struct nf_conntrack_zone *zone,
 static void
 get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 const struct nf_conntrack_tuple *orig_tuple,
-		 const struct nf_nat_range *range,
+		 const struct nf_nat_range2 *range,
 		 struct nf_conn *ct,
 		 enum nf_nat_manip_type maniptype)
 {
@@ -349,9 +367,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	/* Only bother mapping if it's not already in range and unique */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
-			if (l4proto->in_range(tuple, maniptype,
-					      &range->min_proto,
-					      &range->max_proto) &&
+			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
+			    l4proto->in_range(tuple, maniptype,
+			          &range->min_proto,
+			          &range->max_proto) &&
 			    (range->min_proto.all == range->max_proto.all ||
 			     !nf_nat_used_tuple(tuple, ct)))
 				goto out;
@@ -360,7 +379,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		}
 	}
 
-	/* Last change: get protocol to try to obtain unique tuple. */
+	/* Last chance: get protocol to try to obtain unique tuple. */
 	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
 out:
 	rcu_read_unlock();
@@ -381,7 +400,7 @@ EXPORT_SYMBOL_GPL(nf_ct_nat_ext_add);
 
 unsigned int
 nf_nat_setup_info(struct nf_conn *ct,
-		  const struct nf_nat_range *range,
+		  const struct nf_nat_range2 *range,
 		  enum nf_nat_manip_type maniptype)
 {
 	struct net *net = nf_ct_net(ct);
@@ -459,7 +478,7 @@ __nf_nat_alloc_null_binding(struct nf_conn *ct, enum nf_nat_manip_type manip)
 		(manip == NF_NAT_MANIP_SRC ?
 		ct->tuplehash[IP_CT_DIR_REPLY].tuple.dst.u3 :
 		ct->tuplehash[IP_CT_DIR_REPLY].tuple.src.u3);
-	struct nf_nat_range range = {
+	struct nf_nat_range2 range = {
 		.flags		= NF_NAT_RANGE_MAP_IPS,
 		.min_addr	= ip,
 		.max_addr	= ip,
@@ -474,17 +493,36 @@ nf_nat_alloc_null_binding(struct nf_conn *ct, unsigned int hooknum)
 }
 EXPORT_SYMBOL_GPL(nf_nat_alloc_null_binding);
 
+static unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
+				     enum nf_nat_manip_type mtype,
+				     enum ip_conntrack_dir dir)
+{
+	const struct nf_nat_l3proto *l3proto;
+	const struct nf_nat_l4proto *l4proto;
+	struct nf_conntrack_tuple target;
+
+	/* We are aiming to look like inverse of other direction. */
+	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
+
+	l3proto = __nf_nat_l3proto_find(target.src.l3num);
+	l4proto = __nf_nat_l4proto_find(target.src.l3num,
+					target.dst.protonum);
+	if (!l3proto->manip_pkt(skb, 0, l4proto, &target, mtype))
+		return NF_DROP;
+
+	return NF_ACCEPT;
+}
+
 /* Do packet manipulations according to nf_nat_setup_info. */
 unsigned int nf_nat_packet(struct nf_conn *ct,
 			   enum ip_conntrack_info ctinfo,
 			   unsigned int hooknum,
 			   struct sk_buff *skb)
 {
-	const struct nf_nat_l3proto *l3proto;
-	const struct nf_nat_l4proto *l4proto;
-	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
-	unsigned long statusbit;
 	enum nf_nat_manip_type mtype = HOOK2MANIP(hooknum);
+	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
+	unsigned int verdict = NF_ACCEPT;
+	unsigned long statusbit;
 
 	if (mtype == NF_NAT_MANIP_SRC)
 		statusbit = IPS_SRC_NAT;
@@ -496,21 +534,87 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 		statusbit ^= IPS_NAT_MASK;
 
 	/* Non-atomic: these bits don't change. */
-	if (ct->status & statusbit) {
-		struct nf_conntrack_tuple target;
+	if (ct->status & statusbit)
+		verdict = nf_nat_manip_pkt(skb, ct, mtype, dir);
 
-		/* We are aiming to look like inverse of other direction. */
-		nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-
-		l3proto = __nf_nat_l3proto_find(target.src.l3num);
-		l4proto = __nf_nat_l4proto_find(target.src.l3num,
-						target.dst.protonum);
-		if (!l3proto->manip_pkt(skb, 0, l4proto, &target, mtype))
-			return NF_DROP;
-	}
-	return NF_ACCEPT;
+	return verdict;
 }
 EXPORT_SYMBOL_GPL(nf_nat_packet);
+
+unsigned int
+nf_nat_inet_fn(void *priv, struct sk_buff *skb,
+	       const struct nf_hook_state *state)
+{
+	struct nf_conn *ct;
+	enum ip_conntrack_info ctinfo;
+	struct nf_conn_nat *nat;
+	/* maniptype == SRC for postrouting. */
+	enum nf_nat_manip_type maniptype = HOOK2MANIP(state->hook);
+
+	ct = nf_ct_get(skb, &ctinfo);
+	/* Can't track?  It's not due to stress, or conntrack would
+	 * have dropped it.  Hence it's the user's responsibilty to
+	 * packet filter it out, or implement conntrack/NAT for that
+	 * protocol. 8) --RR
+	 */
+	if (!ct)
+		return NF_ACCEPT;
+
+	nat = nfct_nat(ct);
+
+	switch (ctinfo) {
+	case IP_CT_RELATED:
+	case IP_CT_RELATED_REPLY:
+		/* Only ICMPs can be IP_CT_IS_REPLY.  Fallthrough */
+	case IP_CT_NEW:
+		/* Seen it before?  This can happen for loopback, retrans,
+		 * or local packets.
+		 */
+		if (!nf_nat_initialized(ct, maniptype)) {
+			struct nf_nat_lookup_hook_priv *lpriv = priv;
+			struct nf_hook_entries *e = rcu_dereference(lpriv->entries);
+			unsigned int ret;
+			int i;
+
+			if (!e)
+				goto null_bind;
+
+			for (i = 0; i < e->num_hook_entries; i++) {
+				ret = e->hooks[i].hook(e->hooks[i].priv, skb,
+						       state);
+				if (ret != NF_ACCEPT)
+					return ret;
+				if (nf_nat_initialized(ct, maniptype))
+					goto do_nat;
+			}
+null_bind:
+			ret = nf_nat_alloc_null_binding(ct, state->hook);
+			if (ret != NF_ACCEPT)
+				return ret;
+		} else {
+			pr_debug("Already setup manip %s for ct %p (status bits 0x%lx)\n",
+				 maniptype == NF_NAT_MANIP_SRC ? "SRC" : "DST",
+				 ct, ct->status);
+			if (nf_nat_oif_changed(state->hook, ctinfo, nat,
+					       state->out))
+				goto oif_changed;
+		}
+		break;
+	default:
+		/* ESTABLISHED */
+		WARN_ON(ctinfo != IP_CT_ESTABLISHED &&
+			ctinfo != IP_CT_ESTABLISHED_REPLY);
+		if (nf_nat_oif_changed(state->hook, ctinfo, nat, state->out))
+			goto oif_changed;
+	}
+do_nat:
+	return nf_nat_packet(ct, ctinfo, state->hook, skb);
+
+oif_changed:
+	nf_ct_kill_acct(ct, ctinfo, skb);
+	return NF_DROP;
+}
+EXPORT_SYMBOL_GPL(nf_nat_inet_fn);
 
 struct nf_nat_proto_clean {
 	u8	l3proto;
@@ -587,8 +691,9 @@ int nf_nat_l4proto_register(u8 l3proto, const struct nf_nat_l4proto *l4proto)
 
 	mutex_lock(&nf_nat_proto_mutex);
 	if (nf_nat_l4protos[l3proto] == NULL) {
-		l4protos = kmalloc(IPPROTO_MAX * sizeof(struct nf_nat_l4proto *),
-				   GFP_KERNEL);
+		l4protos = kmalloc_array(IPPROTO_MAX,
+					 sizeof(struct nf_nat_l4proto *),
+					 GFP_KERNEL);
 		if (l4protos == NULL) {
 			ret = -ENOMEM;
 			goto out;
@@ -702,7 +807,7 @@ static const struct nla_policy protonat_nla_policy[CTA_PROTONAT_MAX+1] = {
 
 static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 				     const struct nf_conn *ct,
-				     struct nf_nat_range *range)
+				     struct nf_nat_range2 *range)
 {
 	struct nlattr *tb[CTA_PROTONAT_MAX+1];
 	const struct nf_nat_l4proto *l4proto;
@@ -730,7 +835,7 @@ static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
 
 static int
 nfnetlink_parse_nat(const struct nlattr *nat,
-		    const struct nf_conn *ct, struct nf_nat_range *range,
+		    const struct nf_conn *ct, struct nf_nat_range2 *range,
 		    const struct nf_nat_l3proto *l3proto)
 {
 	struct nlattr *tb[CTA_NAT_MAX+1];
@@ -758,7 +863,7 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 			  enum nf_nat_manip_type manip,
 			  const struct nlattr *attr)
 {
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 	const struct nf_nat_l3proto *l3proto;
 	int err;
 
@@ -800,6 +905,146 @@ static struct nf_ct_helper_expectfn follow_master_nat = {
 	.expectfn	= nf_nat_follow_master,
 };
 
+int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
+		       const struct nf_hook_ops *orig_nat_ops, unsigned int ops_count)
+{
+	struct nat_net *nat_net = net_generic(net, nat_net_id);
+	struct nf_nat_hooks_net *nat_proto_net;
+	struct nf_nat_lookup_hook_priv *priv;
+	unsigned int hooknum = ops->hooknum;
+	struct nf_hook_ops *nat_ops;
+	int i, ret;
+
+	if (WARN_ON_ONCE(ops->pf >= ARRAY_SIZE(nat_net->nat_proto_net)))
+		return -EINVAL;
+
+	nat_proto_net = &nat_net->nat_proto_net[ops->pf];
+
+	for (i = 0; i < ops_count; i++) {
+		if (WARN_ON(orig_nat_ops[i].pf != ops->pf))
+			return -EINVAL;
+		if (orig_nat_ops[i].hooknum == hooknum) {
+			hooknum = i;
+			break;
+		}
+	}
+
+	if (WARN_ON_ONCE(i == ops_count))
+		return -EINVAL;
+
+	mutex_lock(&nf_nat_proto_mutex);
+	if (!nat_proto_net->nat_hook_ops) {
+		WARN_ON(nat_proto_net->users != 0);
+
+		nat_ops = kmemdup(orig_nat_ops, sizeof(*orig_nat_ops) * ops_count, GFP_KERNEL);
+		if (!nat_ops) {
+			mutex_unlock(&nf_nat_proto_mutex);
+			return -ENOMEM;
+		}
+
+		for (i = 0; i < ops_count; i++) {
+			priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+			if (priv) {
+				nat_ops[i].priv = priv;
+				continue;
+			}
+			mutex_unlock(&nf_nat_proto_mutex);
+			while (i)
+				kfree(nat_ops[--i].priv);
+			kfree(nat_ops);
+			return -ENOMEM;
+		}
+
+		ret = nf_register_net_hooks(net, nat_ops, ops_count);
+		if (ret < 0) {
+			mutex_unlock(&nf_nat_proto_mutex);
+			for (i = 0; i < ops_count; i++)
+				kfree(nat_ops[i].priv);
+			kfree(nat_ops);
+			return ret;
+		}
+
+		nat_proto_net->nat_hook_ops = nat_ops;
+	}
+
+	nat_ops = nat_proto_net->nat_hook_ops;
+	priv = nat_ops[hooknum].priv;
+	if (WARN_ON_ONCE(!priv)) {
+		mutex_unlock(&nf_nat_proto_mutex);
+		return -EOPNOTSUPP;
+	}
+
+	ret = nf_hook_entries_insert_raw(&priv->entries, ops);
+	if (ret == 0)
+		nat_proto_net->users++;
+
+	mutex_unlock(&nf_nat_proto_mutex);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(nf_nat_register_fn);
+
+void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
+		          unsigned int ops_count)
+{
+	struct nat_net *nat_net = net_generic(net, nat_net_id);
+	struct nf_nat_hooks_net *nat_proto_net;
+	struct nf_nat_lookup_hook_priv *priv;
+	struct nf_hook_ops *nat_ops;
+	int hooknum = ops->hooknum;
+	int i;
+
+	if (ops->pf >= ARRAY_SIZE(nat_net->nat_proto_net))
+		return;
+
+	nat_proto_net = &nat_net->nat_proto_net[ops->pf];
+
+	mutex_lock(&nf_nat_proto_mutex);
+	if (WARN_ON(nat_proto_net->users == 0))
+		goto unlock;
+
+	nat_proto_net->users--;
+
+	nat_ops = nat_proto_net->nat_hook_ops;
+	for (i = 0; i < ops_count; i++) {
+		if (nat_ops[i].hooknum == hooknum) {
+			hooknum = i;
+			break;
+		}
+	}
+	if (WARN_ON_ONCE(i == ops_count))
+		goto unlock;
+	priv = nat_ops[hooknum].priv;
+	nf_hook_entries_delete_raw(&priv->entries, ops);
+
+	if (nat_proto_net->users == 0) {
+		nf_unregister_net_hooks(net, nat_ops, ops_count);
+
+		for (i = 0; i < ops_count; i++) {
+			priv = nat_ops[i].priv;
+			kfree_rcu(priv, rcu_head);
+		}
+
+		nat_proto_net->nat_hook_ops = NULL;
+		kfree(nat_ops);
+	}
+unlock:
+	mutex_unlock(&nf_nat_proto_mutex);
+}
+EXPORT_SYMBOL_GPL(nf_nat_unregister_fn);
+
+static struct pernet_operations nat_net_ops = {
+	.id = &nat_net_id,
+	.size = sizeof(struct nat_net),
+};
+
+static struct nf_nat_hook nat_hook = {
+	.parse_nat_setup	= nfnetlink_parse_nat_setup,
+#ifdef CONFIG_XFRM
+	.decode_session		= __nf_nat_decode_session,
+#endif
+	.manip_pkt		= nf_nat_manip_pkt,
+};
+
 static int __init nf_nat_init(void)
 {
 	int ret, i;
@@ -823,15 +1068,17 @@ static int __init nf_nat_init(void)
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_nat_locks[i]);
 
+	ret = register_pernet_subsys(&nat_net_ops);
+	if (ret < 0) {
+		nf_ct_extend_unregister(&nat_extend);
+		return ret;
+	}
+
 	nf_ct_helper_expectfn_register(&follow_master_nat);
 
-	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
-	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook,
-			   nfnetlink_parse_nat_setup);
-#ifdef CONFIG_XFRM
-	BUG_ON(nf_nat_decode_session_hook != NULL);
-	RCU_INIT_POINTER(nf_nat_decode_session_hook, __nf_nat_decode_session);
-#endif
+	WARN_ON(nf_nat_hook != NULL);
+	RCU_INIT_POINTER(nf_nat_hook, &nat_hook);
+
 	return 0;
 }
 
@@ -844,16 +1091,15 @@ static void __exit nf_nat_cleanup(void)
 
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
-	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook, NULL);
-#ifdef CONFIG_XFRM
-	RCU_INIT_POINTER(nf_nat_decode_session_hook, NULL);
-#endif
+	RCU_INIT_POINTER(nf_nat_hook, NULL);
+
 	synchronize_rcu();
 
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		kfree(nf_nat_l4protos[i]);
 	synchronize_net();
 	nf_ct_free_hashtable(nf_nat_bysource, nf_nat_htable_size);
+	unregister_pernet_subsys(&nat_net_ops);
 }
 
 MODULE_LICENSE("GPL");

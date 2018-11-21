@@ -18,6 +18,9 @@ MODULE=0
 dev_makeswap=-1
 dev_mounted=-1
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 trap INT
 
 check_prereqs()
@@ -27,7 +30,7 @@ check_prereqs()
 
 	if [ $uid -ne 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 }
 

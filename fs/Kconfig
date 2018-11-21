@@ -38,6 +38,7 @@ config FS_DAX
 	bool "Direct Access (DAX) support"
 	depends on MMU
 	depends on !(ARM || MIPS || SPARC)
+	select DEV_PAGEMAP_OPS if (ZONE_DEVICE && !FS_DAX_LIMITED)
 	select FS_IOMAP
 	select DAX
 	help
@@ -108,7 +109,7 @@ source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
 
-source "fs/autofs4/Kconfig"
+source "fs/autofs/Kconfig"
 source "fs/fuse/Kconfig"
 source "fs/overlayfs/Kconfig"
 
@@ -196,12 +197,15 @@ config HUGETLBFS
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
-	  <file:Documentation/vm/hugetlbpage.txt> for details.
+	  <file:Documentation/admin-guide/mm/hugetlbpage.rst> for details.
 
 	  If unsure, say N.
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
+
+config MEMFD_CREATE
+	def_bool TMPFS || HUGETLBFS
 
 config ARCH_HAS_GIGANTIC_PAGE
 	bool

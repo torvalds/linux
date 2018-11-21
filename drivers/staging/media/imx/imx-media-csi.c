@@ -409,7 +409,8 @@ static int csi_idmac_setup_channel(struct csi_priv *priv)
 	case V4L2_PIX_FMT_SGBRG16:
 	case V4L2_PIX_FMT_SGRBG16:
 	case V4L2_PIX_FMT_SRGGB16:
-		burst_size = 4;
+	case V4L2_PIX_FMT_Y16:
+		burst_size = 8;
 		passthrough = true;
 		passthrough_bits = 16;
 		break;

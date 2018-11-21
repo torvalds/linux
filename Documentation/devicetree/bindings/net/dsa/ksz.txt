@@ -6,7 +6,7 @@ Required properties:
 - compatible: For external switch chips, compatible string must be exactly one
   of: "microchip,ksz9477"
 
-See Documentation/devicetree/bindings/dsa/dsa.txt for a list of additional
+See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required and optional properties.
 
 Examples:

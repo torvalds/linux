@@ -60,30 +60,35 @@
 			reg = <0x100 0x100>;
 		};
 
-		gpio@600 {
+		gpio: gpio@600 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			compatible = "mtk,mt7621-gpio";
+			compatible = "mediatek,mt7621-gpio";
 			reg = <0x600 0x100>;
+
+			interrupt-parent = <&gic>;
+			interrupts = <GIC_SHARED 12 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 
 			gpio0: bank@0 {
 				reg = <0>;
-				compatible = "mtk,mt7621-gpio-bank";
+				compatible = "mediatek,mt7621-gpio-bank";
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
 
 			gpio1: bank@1 {
 				reg = <1>;
-				compatible = "mtk,mt7621-gpio-bank";
+				compatible = "mediatek,mt7621-gpio-bank";
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
 
 			gpio2: bank@2 {
 				reg = <2>;
-				compatible = "mtk,mt7621-gpio-bank";
+				compatible = "mediatek,mt7621-gpio-bank";
 				gpio-controller;
 				#gpio-cells = <2>;
 			};
@@ -429,10 +434,11 @@
 			0x01000000 0 0x00000000 0x1e160000 0 0x00010000 /* io space */
 		>;
 
-		interrupt-parent = <&gic>;
-		interrupts = <GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH
-				GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH
-				GIC_SHARED 25 IRQ_TYPE_LEVEL_HIGH>;
+		#interrupt-cells = <1>;
+		interrupt-map-mask = <0xF0000 0 0 1>;
+		interrupt-map = <0x10000 0 0 1 &gic GIC_SHARED 4 IRQ_TYPE_LEVEL_HIGH>,
+				<0x20000 0 0 1 &gic GIC_SHARED 24 IRQ_TYPE_LEVEL_HIGH>,
+				<0x30000 0 0 1 &gic GIC_SHARED 25 IRQ_TYPE_LEVEL_HIGH>;
 
 		status = "disabled";
 

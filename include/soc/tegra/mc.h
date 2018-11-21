@@ -9,6 +9,7 @@
 #ifndef __SOC_TEGRA_MC_H__
 #define __SOC_TEGRA_MC_H__
 
+#include <linux/reset-controller.h>
 #include <linux/types.h>
 
 struct clk;
@@ -95,6 +96,30 @@ static inline void tegra_smmu_remove(struct tegra_smmu *smmu)
 }
 #endif
 
+struct tegra_mc_reset {
+	const char *name;
+	unsigned long id;
+	unsigned int control;
+	unsigned int status;
+	unsigned int reset;
+	unsigned int bit;
+};
+
+struct tegra_mc_reset_ops {
+	int (*hotreset_assert)(struct tegra_mc *mc,
+			       const struct tegra_mc_reset *rst);
+	int (*hotreset_deassert)(struct tegra_mc *mc,
+				 const struct tegra_mc_reset *rst);
+	int (*block_dma)(struct tegra_mc *mc,
+			 const struct tegra_mc_reset *rst);
+	bool (*dma_idling)(struct tegra_mc *mc,
+			   const struct tegra_mc_reset *rst);
+	int (*unblock_dma)(struct tegra_mc *mc,
+			   const struct tegra_mc_reset *rst);
+	int (*reset_status)(struct tegra_mc *mc,
+			    const struct tegra_mc_reset *rst);
+};
+
 struct tegra_mc_soc {
 	const struct tegra_mc_client *clients;
 	unsigned int num_clients;
@@ -108,12 +133,18 @@ struct tegra_mc_soc {
 	u8 client_id_mask;
 
 	const struct tegra_smmu_soc *smmu;
+
+	u32 intmask;
+
+	const struct tegra_mc_reset_ops *reset_ops;
+	const struct tegra_mc_reset *resets;
+	unsigned int num_resets;
 };
 
 struct tegra_mc {
 	struct device *dev;
 	struct tegra_smmu *smmu;
-	void __iomem *regs;
+	void __iomem *regs, *regs2;
 	struct clk *clk;
 	int irq;
 
@@ -122,6 +153,10 @@ struct tegra_mc {
 
 	struct tegra_mc_timing *timings;
 	unsigned int num_timings;
+
+	struct reset_controller_dev reset;
+
+	spinlock_t lock;
 };
 
 void tegra_mc_write_emem_configuration(struct tegra_mc *mc, unsigned long rate);

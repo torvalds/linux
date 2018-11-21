@@ -10,4 +10,5 @@ int gm107_ce_new(struct nvkm_device *, int, struct nvkm_engine **);
 int gm200_ce_new(struct nvkm_device *, int, struct nvkm_engine **);
 int gp100_ce_new(struct nvkm_device *, int, struct nvkm_engine **);
 int gp102_ce_new(struct nvkm_device *, int, struct nvkm_engine **);
+int gv100_ce_new(struct nvkm_device *, int, struct nvkm_engine **);
 #endif

@@ -1,6 +1,6 @@
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016-2017 Cavium Inc.
+ *  Copyright (c) 2016-2018 Cavium Inc.
  *
  *  This software is available under the terms of the GNU General Public License
  *  (GPL) Version 2, available from the file COPYING in the main directory of
@@ -23,12 +23,31 @@ static void qedf_cmd_timeout(struct work_struct *work)
 
 	struct qedf_ioreq *io_req =
 	    container_of(work, struct qedf_ioreq, timeout_work.work);
-	struct qedf_ctx *qedf = io_req->fcport->qedf;
-	struct qedf_rport *fcport = io_req->fcport;
+	struct qedf_ctx *qedf;
+	struct qedf_rport *fcport;
 	u8 op = 0;
+
+	if (io_req == NULL) {
+		QEDF_INFO(NULL, QEDF_LOG_IO, "io_req is NULL.\n");
+		return;
+	}
+
+	fcport = io_req->fcport;
+	if (io_req->fcport == NULL) {
+		QEDF_INFO(NULL, QEDF_LOG_IO,  "fcport is NULL.\n");
+		return;
+	}
+
+	qedf = fcport->qedf;
 
 	switch (io_req->cmd_type) {
 	case QEDF_ABTS:
+		if (qedf == NULL) {
+			QEDF_INFO(NULL, QEDF_LOG_IO, "qedf is NULL for xid=0x%x.\n",
+			    io_req->xid);
+			return;
+		}
+
 		QEDF_ERR((&qedf->dbg_ctx), "ABTS timeout, xid=0x%x.\n",
 		    io_req->xid);
 		/* Cleanup timed out ABTS */
@@ -931,6 +950,15 @@ qedf_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd)
 		return 0;
 	}
 
+	if (!qedf->pdev->msix_enabled) {
+		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
+		    "Completing sc_cmd=%p DID_NO_CONNECT as MSI-X is not enabled.\n",
+		    sc_cmd);
+		sc_cmd->result = DID_NO_CONNECT << 16;
+		sc_cmd->scsi_done(sc_cmd);
+		return 0;
+	}
+
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
 		sc_cmd->result = rval;
@@ -1200,6 +1228,12 @@ void qedf_scsi_completion(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 					fcport->retry_delay_timestamp =
 					    jiffies + (qualifier * HZ / 10);
 				}
+				/* Record stats */
+				if (io_req->cdb_status ==
+				    SAM_STAT_TASK_SET_FULL)
+					qedf->task_set_fulls++;
+				else
+					qedf->busy++;
 			}
 		}
 		if (io_req->fcp_resid)
@@ -1414,6 +1448,12 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 	if (!fcport)
 		return;
 
+	/* Check that fcport is still offloaded */
+	if (!test_bit(QEDF_RPORT_SESSION_READY, &fcport->flags)) {
+		QEDF_ERR(NULL, "fcport is no longer offloaded.\n");
+		return;
+	}
+
 	qedf = fcport->qedf;
 	cmd_mgr = qedf->cmd_mgr;
 
@@ -1430,8 +1470,8 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 			rc = kref_get_unless_zero(&io_req->refcount);
 			if (!rc) {
 				QEDF_ERR(&(qedf->dbg_ctx),
-				    "Could not get kref for io_req=0x%p.\n",
-				    io_req);
+				    "Could not get kref for ELS io_req=0x%p xid=0x%x.\n",
+				    io_req, io_req->xid);
 				continue;
 			}
 			qedf_flush_els_req(qedf, io_req);
@@ -1439,6 +1479,31 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 			 * Release the kref and go back to the top of the
 			 * loop.
 			 */
+			goto free_cmd;
+		}
+
+		if (io_req->cmd_type == QEDF_ABTS) {
+			rc = kref_get_unless_zero(&io_req->refcount);
+			if (!rc) {
+				QEDF_ERR(&(qedf->dbg_ctx),
+				    "Could not get kref for abort io_req=0x%p xid=0x%x.\n",
+				    io_req, io_req->xid);
+				continue;
+			}
+			QEDF_INFO(&qedf->dbg_ctx, QEDF_LOG_IO,
+			    "Flushing abort xid=0x%x.\n", io_req->xid);
+
+			clear_bit(QEDF_CMD_IN_ABORT, &io_req->flags);
+
+			if (io_req->sc_cmd) {
+				if (io_req->return_scsi_cmd_on_abts)
+					qedf_scsi_done(qedf, io_req, DID_ERROR);
+			}
+
+			/* Notify eh_abort handler that ABTS is complete */
+			complete(&io_req->abts_done);
+			kref_put(&io_req->refcount, qedf_release_cmd);
+
 			goto free_cmd;
 		}
 
@@ -1457,7 +1522,7 @@ void qedf_flush_active_ios(struct qedf_rport *fcport, int lun)
 		rc = kref_get_unless_zero(&io_req->refcount);
 		if (!rc) {
 			QEDF_ERR(&(qedf->dbg_ctx), "Could not get kref for "
-			    "io_req=0x%p\n", io_req);
+			    "io_req=0x%p xid=0x%x\n", io_req, io_req->xid);
 			continue;
 		}
 		QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_IO,
@@ -1519,6 +1584,21 @@ int qedf_initiate_abts(struct qedf_ioreq *io_req, bool return_scsi_cmd_on_abts)
 		goto abts_err;
 	}
 
+	if (test_bit(QEDF_RPORT_UPLOADING_CONNECTION, &fcport->flags)) {
+		QEDF_ERR(&qedf->dbg_ctx, "fcport is uploading.\n");
+		rc = 1;
+		goto out;
+	}
+
+	if (!test_bit(QEDF_CMD_OUTSTANDING, &io_req->flags) ||
+	    test_bit(QEDF_CMD_IN_CLEANUP, &io_req->flags) ||
+	    test_bit(QEDF_CMD_IN_ABORT, &io_req->flags)) {
+		QEDF_ERR(&(qedf->dbg_ctx), "io_req xid=0x%x already in "
+			  "cleanup or abort processing or already "
+			  "completed.\n", io_req->xid);
+		rc = 1;
+		goto out;
+	}
 
 	kref_get(&io_req->refcount);
 
@@ -1558,6 +1638,7 @@ abts_err:
 	 * task at the firmware.
 	 */
 	qedf_initiate_cleanup(io_req, return_scsi_cmd_on_abts);
+out:
 	return rc;
 }
 
@@ -1865,6 +1946,11 @@ static int qedf_execute_tmf(struct qedf_rport *fcport, struct scsi_cmnd *sc_cmd,
 		rc = -EAGAIN;
 		goto reset_tmf_err;
 	}
+
+	if (tm_flags == FCP_TMF_LUN_RESET)
+		qedf->lun_resets++;
+	else if (tm_flags == FCP_TMF_TGT_RESET)
+		qedf->target_resets++;
 
 	/* Initialize rest of io_req fields */
 	io_req->sc_cmd = sc_cmd;

@@ -97,6 +97,8 @@ enum instruction_type {
 #define SIZE(n)		((n) << 12)
 #define GETSIZE(w)	((w) >> 12)
 
+#define GETTYPE(t)	((t) & INSTR_TYPE_MASK)
+
 #define MKOP(t, f, s)	((t) | (f) | SIZE(s))
 
 struct instruction_op {

@@ -348,11 +348,11 @@ static void kernfs_vma_open(struct vm_area_struct *vma)
 	kernfs_put_active(of->kn);
 }
 
-static int kernfs_vma_fault(struct vm_fault *vmf)
+static vm_fault_t kernfs_vma_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct kernfs_open_file *of = kernfs_of(file);
-	int ret;
+	vm_fault_t ret;
 
 	if (!of->vm_ops)
 		return VM_FAULT_SIGBUS;
@@ -368,11 +368,11 @@ static int kernfs_vma_fault(struct vm_fault *vmf)
 	return ret;
 }
 
-static int kernfs_vma_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t kernfs_vma_page_mkwrite(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct kernfs_open_file *of = kernfs_of(file);
-	int ret;
+	vm_fault_t ret;
 
 	if (!of->vm_ops)
 		return VM_FAULT_SIGBUS;

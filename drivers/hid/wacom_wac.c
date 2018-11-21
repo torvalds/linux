@@ -2894,24 +2894,31 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 	struct wacom_features *features = &wacom->features;
 	struct input_dev *input = wacom->pen_input;
 	unsigned char *data = wacom->data;
-	int prox = 0, x = 0, y = 0, p = 0, d = 0, pen = 0, btn1 = 0, btn2 = 0;
+	int x = 0, y = 0, p = 0, d = 0;
+	bool pen = false, btn1 = false, btn2 = false;
+	bool range, prox, rdy;
 
 	if (data[0] != WACOM_REPORT_PENABLED)
 	    return 0;
 
-	prox = (data[1] & 0x20) == 0x20;
+	range = (data[1] & 0x80) == 0x80;
+	prox = (data[1] & 0x40) == 0x40;
+	rdy = (data[1] & 0x20) == 0x20;
 
-	/*
-	 * All reports shared between PEN and RUBBER tool must be
-	 * forced to a known starting value (zero) when transitioning to
-	 * out-of-prox.
-	 *
-	 * If not reset then, to userspace, it will look like lost events
-	 * if new tool comes in-prox with same values as previous tool sent.
-	 *
-	 * Hardware does report zero in most out-of-prox cases but not all.
-	 */
-	if (!wacom->shared->stylus_in_proximity) {
+	wacom->shared->stylus_in_proximity = range;
+	if (delay_pen_events(wacom))
+		return 0;
+
+	if (rdy) {
+		p = le16_to_cpup((__le16 *)&data[6]);
+		pen = data[1] & 0x01;
+		btn1 = data[1] & 0x02;
+		btn2 = data[1] & 0x04;
+	}
+	if (prox) {
+		x = le16_to_cpup((__le16 *)&data[2]);
+		y = le16_to_cpup((__le16 *)&data[4]);
+
 		if (data[1] & 0x08) {
 			wacom->tool[0] = BTN_TOOL_RUBBER;
 			wacom->id[0] = ERASER_DEVICE_ID;
@@ -2919,16 +2926,9 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 			wacom->tool[0] = BTN_TOOL_PEN;
 			wacom->id[0] = STYLUS_DEVICE_ID;
 		}
+		wacom->reporting_data = true;
 	}
-
-	wacom->shared->stylus_in_proximity = prox;
-	if (delay_pen_events(wacom))
-		return 0;
-
-	if (prox) {
-		x = le16_to_cpup((__le16 *)&data[2]);
-		y = le16_to_cpup((__le16 *)&data[4]);
-		p = le16_to_cpup((__le16 *)&data[6]);
+	if (range) {
 		/*
 		 * Convert distance from out prox to distance from tablet.
 		 * distance will be greater than distance_max once
@@ -2937,25 +2937,29 @@ static int wacom_bpt_pen(struct wacom_wac *wacom)
 		 */
 		if (data[8] <= features->distance_max)
 			d = features->distance_max - data[8];
-
-		pen = data[1] & 0x01;
-		btn1 = data[1] & 0x02;
-		btn2 = data[1] & 0x04;
 	} else {
 		wacom->id[0] = 0;
 	}
 
-	input_report_key(input, BTN_TOUCH, pen);
-	input_report_key(input, BTN_STYLUS, btn1);
-	input_report_key(input, BTN_STYLUS2, btn2);
+	if (wacom->reporting_data) {
+		input_report_key(input, BTN_TOUCH, pen);
+		input_report_key(input, BTN_STYLUS, btn1);
+		input_report_key(input, BTN_STYLUS2, btn2);
 
-	input_report_abs(input, ABS_X, x);
-	input_report_abs(input, ABS_Y, y);
-	input_report_abs(input, ABS_PRESSURE, p);
-	input_report_abs(input, ABS_DISTANCE, d);
+		if (prox || !range) {
+			input_report_abs(input, ABS_X, x);
+			input_report_abs(input, ABS_Y, y);
+		}
+		input_report_abs(input, ABS_PRESSURE, p);
+		input_report_abs(input, ABS_DISTANCE, d);
 
-	input_report_key(input, wacom->tool[0], prox); /* PEN or RUBBER */
-	input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
+		input_report_key(input, wacom->tool[0], range); /* PEN or RUBBER */
+		input_report_abs(input, ABS_MISC, wacom->id[0]); /* TOOL ID */
+	}
+
+	if (!range) {
+		wacom->reporting_data = false;
+	}
 
 	return 1;
 }
@@ -3361,8 +3365,14 @@ void wacom_setup_device_quirks(struct wacom *wacom)
 			if (features->type >= INTUOSHT && features->type <= BAMBOO_PT)
 				features->device_type |= WACOM_DEVICETYPE_PAD;
 
-			features->x_max = 4096;
-			features->y_max = 4096;
+			if (features->type == INTUOSHT2) {
+				features->x_max = features->x_max / 10;
+				features->y_max = features->y_max / 10;
+			}
+			else {
+				features->x_max = 4096;
+				features->y_max = 4096;
+			}
 		}
 		else if (features->pktlen == WACOM_PKGLEN_BBTOUCH) {
 			features->device_type |= WACOM_DEVICETYPE_PAD;

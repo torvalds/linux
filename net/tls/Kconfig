@@ -14,3 +14,13 @@ config TLS
 	encryption handling of the TLS protocol to be done in-kernel.
 
 	If unsure, say N.
+
+config TLS_DEVICE
+	bool "Transport Layer Security HW offload"
+	depends on TLS
+	select SOCK_VALIDATE_XMIT
+	default n
+	help
+	Enable kernel support for HW offload of the TLS protocol.
+
+	If unsure, say N.

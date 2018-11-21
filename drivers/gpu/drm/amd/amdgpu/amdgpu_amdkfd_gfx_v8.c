@@ -57,8 +57,6 @@ static void kgd_program_sh_mem_settings(struct kgd_dev *kgd, uint32_t vmid,
 		uint32_t sh_mem_bases);
 static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 		unsigned int vmid);
-static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
-		uint32_t hpd_size, uint64_t hpd_gpu_addr);
 static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id);
 static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
@@ -141,7 +139,6 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.free_pasid = amdgpu_pasid_free,
 	.program_sh_mem_settings = kgd_program_sh_mem_settings,
 	.set_pasid_vmid_mapping = kgd_set_pasid_vmid_mapping,
-	.init_pipeline = kgd_init_pipeline,
 	.init_interrupts = kgd_init_interrupts,
 	.hqd_load = kgd_hqd_load,
 	.hqd_sdma_load = kgd_hqd_sdma_load,
@@ -267,13 +264,6 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 	/* Mapping vmid to pasid also for IH block */
 	WREG32(mmIH_VMID_0_LUT + vmid, pasid_mapping);
 
-	return 0;
-}
-
-static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
-				uint32_t hpd_size, uint64_t hpd_gpu_addr)
-{
-	/* amdgpu owns the per-pipe state */
 	return 0;
 }
 
@@ -405,7 +395,7 @@ static int kgd_hqd_dump(struct kgd_dev *kgd,
 		(*dump)[i++][1] = RREG32(addr);		\
 	} while (0)
 
-	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
+	*dump = kmalloc_array(HQD_N_REGS * 2, sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
 		return -ENOMEM;
 
@@ -501,7 +491,7 @@ static int kgd_hqd_sdma_dump(struct kgd_dev *kgd,
 #undef HQD_N_REGS
 #define HQD_N_REGS (19+4+2+3+7)
 
-	*dump = kmalloc(HQD_N_REGS*2*sizeof(uint32_t), GFP_KERNEL);
+	*dump = kmalloc_array(HQD_N_REGS * 2, sizeof(uint32_t), GFP_KERNEL);
 	if (*dump == NULL)
 		return -ENOMEM;
 

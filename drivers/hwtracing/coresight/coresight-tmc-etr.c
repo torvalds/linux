@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright(C) 2016 Linaro Limited. All rights reserved.
  * Author: Mathieu Poirier <mathieu.poirier@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/coresight.h>
@@ -124,9 +113,8 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 	bool used = false;
 	unsigned long flags;
 	void __iomem *vaddr = NULL;
-	dma_addr_t paddr;
+	dma_addr_t paddr = 0;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
-
 
 	/*
 	 * If we don't have a buffer release the lock and allocate memory.
@@ -164,11 +152,11 @@ static int tmc_enable_etr_sink_sysfs(struct coresight_device *csdev)
 		goto out;
 
 	/*
-	 * If drvdata::buf == NULL, use the memory allocated above.
+	 * If drvdata::vaddr == NULL, use the memory allocated above.
 	 * Otherwise a buffer still exists from a previous session, so
 	 * simply use that.
 	 */
-	if (drvdata->buf == NULL) {
+	if (drvdata->vaddr == NULL) {
 		used = true;
 		drvdata->vaddr = vaddr;
 		drvdata->paddr = paddr;

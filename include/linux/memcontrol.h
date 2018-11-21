@@ -53,7 +53,16 @@ enum memcg_memory_event {
 	MEMCG_HIGH,
 	MEMCG_MAX,
 	MEMCG_OOM,
+	MEMCG_OOM_KILL,
+	MEMCG_SWAP_MAX,
+	MEMCG_SWAP_FAIL,
 	MEMCG_NR_MEMORY_EVENTS,
+};
+
+enum mem_cgroup_protection {
+	MEMCG_PROT_NONE,
+	MEMCG_PROT_LOW,
+	MEMCG_PROT_MIN,
 };
 
 struct mem_cgroup_reclaim_cookie {
@@ -158,6 +167,15 @@ enum memcg_kmem_state {
 	KMEM_ONLINE,
 };
 
+#if defined(CONFIG_SMP)
+struct memcg_padding {
+	char x[0];
+} ____cacheline_internodealigned_in_smp;
+#define MEMCG_PADDING(name)      struct memcg_padding name;
+#else
+#define MEMCG_PADDING(name)
+#endif
+
 /*
  * The memory controller data structure. The memory controller controls both
  * page cache and RSS per cgroup. We would eventually like to provide
@@ -179,8 +197,7 @@ struct mem_cgroup {
 	struct page_counter kmem;
 	struct page_counter tcpmem;
 
-	/* Normal memory consumption range */
-	unsigned long low;
+	/* Upper bound of normal memory consumption range */
 	unsigned long high;
 
 	/* Range enforcement for interrupt charges */
@@ -205,8 +222,10 @@ struct mem_cgroup {
 	int		oom_kill_disable;
 
 	/* memory.events */
-	atomic_long_t memory_events[MEMCG_NR_MEMORY_EVENTS];
 	struct cgroup_file events_file;
+
+	/* handle for "memory.swap.events" */
+	struct cgroup_file swap_events_file;
 
 	/* protect arrays of thresholds */
 	struct mutex thresholds_lock;
@@ -225,19 +244,26 @@ struct mem_cgroup {
 	 * mem_cgroup ? And what type of charges should we move ?
 	 */
 	unsigned long move_charge_at_immigrate;
+	/* taken only while moving_account > 0 */
+	spinlock_t		move_lock;
+	unsigned long		move_lock_flags;
+
+	MEMCG_PADDING(_pad1_);
+
 	/*
 	 * set > 0 if pages under this cgroup are moving to other cgroup.
 	 */
 	atomic_t		moving_account;
-	/* taken only while moving_account > 0 */
-	spinlock_t		move_lock;
 	struct task_struct	*move_lock_task;
-	unsigned long		move_lock_flags;
 
 	/* memory.stat */
 	struct mem_cgroup_stat_cpu __percpu *stat_cpu;
+
+	MEMCG_PADDING(_pad2_);
+
 	atomic_long_t		stat[MEMCG_NR_STAT];
 	atomic_long_t		events[NR_VM_EVENT_ITEMS];
+	atomic_long_t memory_events[MEMCG_NR_MEMORY_EVENTS];
 
 	unsigned long		socket_pressure;
 
@@ -285,7 +311,8 @@ static inline bool mem_cgroup_disabled(void)
 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
 }
 
-bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
+enum mem_cgroup_protection mem_cgroup_protected(struct mem_cgroup *root,
+						struct mem_cgroup *memcg);
 
 int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
 			  gfp_t gfp_mask, struct mem_cgroup **memcgp,
@@ -462,7 +489,7 @@ unsigned long mem_cgroup_get_zone_lru_size(struct lruvec *lruvec,
 
 void mem_cgroup_handle_over_high(void);
 
-unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg);
+unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg);
 
 void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
 				struct task_struct *p);
@@ -694,11 +721,8 @@ static inline void count_memcg_event_mm(struct mm_struct *mm,
 
 	rcu_read_lock();
 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-	if (likely(memcg)) {
+	if (likely(memcg))
 		count_memcg_events(memcg, idx, 1);
-		if (idx == OOM_KILL)
-			cgroup_file_notify(&memcg->events_file);
-	}
 	rcu_read_unlock();
 }
 
@@ -707,6 +731,21 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
 {
 	atomic_long_inc(&memcg->memory_events[event]);
 	cgroup_file_notify(&memcg->events_file);
+}
+
+static inline void memcg_memory_event_mm(struct mm_struct *mm,
+					 enum memcg_memory_event event)
+{
+	struct mem_cgroup *memcg;
+
+	if (mem_cgroup_disabled())
+		return;
+
+	rcu_read_lock();
+	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+	if (likely(memcg))
+		memcg_memory_event(memcg, event);
+	rcu_read_unlock();
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -730,10 +769,15 @@ static inline void memcg_memory_event(struct mem_cgroup *memcg,
 {
 }
 
-static inline bool mem_cgroup_low(struct mem_cgroup *root,
-				  struct mem_cgroup *memcg)
+static inline void memcg_memory_event_mm(struct mm_struct *mm,
+					 enum memcg_memory_event event)
 {
-	return false;
+}
+
+static inline enum mem_cgroup_protection mem_cgroup_protected(
+	struct mem_cgroup *root, struct mem_cgroup *memcg)
+{
+	return MEMCG_PROT_NONE;
 }
 
 static inline int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
@@ -853,7 +897,7 @@ mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
 	return 0;
 }
 
-static inline unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
+static inline unsigned long mem_cgroup_get_max(struct mem_cgroup *memcg)
 {
 	return 0;
 }
@@ -1093,7 +1137,6 @@ static inline void dec_lruvec_page_state(struct page *page,
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 
-struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg);
 struct wb_domain *mem_cgroup_wb_domain(struct bdi_writeback *wb);
 void mem_cgroup_wb_stats(struct bdi_writeback *wb, unsigned long *pfilepages,
 			 unsigned long *pheadroom, unsigned long *pdirty,

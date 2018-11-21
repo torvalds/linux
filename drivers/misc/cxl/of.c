@@ -302,7 +302,7 @@ static int read_adapter_irq_config(struct cxl *adapter, struct device_node *np)
 	if (nranges == 0 || (nranges * 2 * sizeof(int)) != len)
 		return -EINVAL;
 
-	adapter->guest->irq_avail = kzalloc(nranges * sizeof(struct irq_avail),
+	adapter->guest->irq_avail = kcalloc(nranges, sizeof(struct irq_avail),
 					    GFP_KERNEL);
 	if (adapter->guest->irq_avail == NULL)
 		return -ENOMEM;

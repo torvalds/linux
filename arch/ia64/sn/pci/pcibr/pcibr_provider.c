@@ -184,7 +184,7 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	/* Setup the PMU ATE map */
 	soft->pbi_int_ate_resource.lowest_free_index = 0;
 	soft->pbi_int_ate_resource.ate =
-	    kzalloc(soft->pbi_int_ate_size * sizeof(u64), GFP_KERNEL);
+	    kcalloc(soft->pbi_int_ate_size, sizeof(u64), GFP_KERNEL);
 
 	if (!soft->pbi_int_ate_resource.ate) {
 		kfree(soft);

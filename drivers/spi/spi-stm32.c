@@ -1129,7 +1129,7 @@ static int stm32_spi_probe(struct platform_device *pdev)
 	if (!spi->clk_rate) {
 		dev_err(&pdev->dev, "clk rate = 0\n");
 		ret = -EINVAL;
-		goto err_master_put;
+		goto err_clk_disable;
 	}
 
 	spi->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);

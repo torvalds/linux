@@ -573,6 +573,8 @@ enum {
 	SKB_GSO_ESP = 1 << 15,
 
 	SKB_GSO_UDP = 1 << 16,
+
+	SKB_GSO_UDP_L4 = 1 << 17,
 };
 
 #if BITS_PER_LONG > 32
@@ -628,6 +630,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@hash: the packet hash
  *	@queue_mapping: Queue mapping for multiqueue devices
  *	@xmit_more: More SKBs are pending for this queue
+ *	@pfmemalloc: skbuff was allocated from PFMEMALLOC reserves
  *	@ndisc_nodetype: router type (from link layer)
  *	@ooo_okay: allow the mapping of a socket to a queue to be changed
  *	@l4_hash: indicate hash is a canonical 4-tuple hash over transport
@@ -733,7 +736,7 @@ struct sk_buff {
 				peeked:1,
 				head_frag:1,
 				xmit_more:1,
-				__unused:1; /* one bit hole */
+				pfmemalloc:1;
 
 	/* fields enclosed in headers_start/headers_end are copied
 	 * using a single memcpy() in __copy_skb_header()
@@ -752,31 +755,30 @@ struct sk_buff {
 
 	__u8			__pkt_type_offset[0];
 	__u8			pkt_type:3;
-	__u8			pfmemalloc:1;
 	__u8			ignore_df:1;
-
 	__u8			nf_trace:1;
 	__u8			ip_summed:2;
 	__u8			ooo_okay:1;
+
 	__u8			l4_hash:1;
 	__u8			sw_hash:1;
 	__u8			wifi_acked_valid:1;
 	__u8			wifi_acked:1;
-
 	__u8			no_fcs:1;
 	/* Indicates the inner headers are valid in the skbuff. */
 	__u8			encapsulation:1;
 	__u8			encap_hdr_csum:1;
 	__u8			csum_valid:1;
+
 	__u8			csum_complete_sw:1;
 	__u8			csum_level:2;
 	__u8			csum_not_inet:1;
-
 	__u8			dst_pending_confirm:1;
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
 	__u8			ipvs_property:1;
+
 	__u8			inner_protocol_type:1;
 	__u8			remcsum_offload:1;
 #ifdef CONFIG_NET_SWITCHDEV
@@ -852,8 +854,6 @@ struct sk_buff {
 /*
  *	Handling routines are only of interest to the kernel
  */
-#include <linux/slab.h>
-
 
 #define SKB_ALLOC_FCLONE	0x01
 #define SKB_ALLOC_RX		0x02
@@ -1032,6 +1032,7 @@ static inline struct sk_buff *alloc_skb_fclone(unsigned int size,
 struct sk_buff *skb_morph(struct sk_buff *dst, struct sk_buff *src);
 int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask);
 struct sk_buff *skb_clone(struct sk_buff *skb, gfp_t priority);
+void skb_copy_header(struct sk_buff *new, const struct sk_buff *old);
 struct sk_buff *skb_copy(const struct sk_buff *skb, gfp_t priority);
 struct sk_buff *__pskb_copy_fclone(struct sk_buff *skb, int headroom,
 				   gfp_t gfp_mask, bool fclone);
@@ -1168,7 +1169,7 @@ void __skb_get_hash(struct sk_buff *skb);
 u32 __skb_get_hash_symmetric(const struct sk_buff *skb);
 u32 skb_get_poff(const struct sk_buff *skb);
 u32 __skb_get_poff(const struct sk_buff *skb, void *data,
-		   const struct flow_keys *keys, int hlen);
+		   const struct flow_keys_basic *keys, int hlen);
 __be32 __skb_flow_get_ports(const struct sk_buff *skb, int thoff, u8 ip_proto,
 			    void *data, int hlen_proto);
 
@@ -1205,13 +1206,14 @@ static inline bool skb_flow_dissect_flow_keys(const struct sk_buff *skb,
 				  NULL, 0, 0, 0, flags);
 }
 
-static inline bool skb_flow_dissect_flow_keys_buf(struct flow_keys *flow,
-						  void *data, __be16 proto,
-						  int nhoff, int hlen,
-						  unsigned int flags)
+static inline bool
+skb_flow_dissect_flow_keys_basic(const struct sk_buff *skb,
+				 struct flow_keys_basic *flow, void *data,
+				 __be16 proto, int nhoff, int hlen,
+				 unsigned int flags)
 {
 	memset(flow, 0, sizeof(*flow));
-	return __skb_flow_dissect(NULL, &flow_keys_buf_dissector, flow,
+	return __skb_flow_dissect(skb, &flow_keys_basic_dissector, flow,
 				  data, proto, nhoff, hlen, flags);
 }
 
@@ -2347,11 +2349,12 @@ static inline void skb_pop_mac_header(struct sk_buff *skb)
 static inline void skb_probe_transport_header(struct sk_buff *skb,
 					      const int offset_hint)
 {
-	struct flow_keys keys;
+	struct flow_keys_basic keys;
 
 	if (skb_transport_header_was_set(skb))
 		return;
-	else if (skb_flow_dissect_flow_keys(skb, &keys, 0))
+
+	if (skb_flow_dissect_flow_keys_basic(skb, &keys, 0, 0, 0, 0, 0))
 		skb_set_transport_header(skb, keys.control.thoff);
 	else
 		skb_set_transport_header(skb, offset_hint);
@@ -3131,6 +3134,7 @@ static inline void *skb_push_rcsum(struct sk_buff *skb, unsigned int len)
 	return skb->data;
 }
 
+int pskb_trim_rcsum_slow(struct sk_buff *skb, unsigned int len);
 /**
  *	pskb_trim_rcsum - trim received skb and update checksum
  *	@skb: buffer to trim
@@ -3144,9 +3148,7 @@ static inline int pskb_trim_rcsum(struct sk_buff *skb, unsigned int len)
 {
 	if (likely(len >= skb->len))
 		return 0;
-	if (skb->ip_summed == CHECKSUM_COMPLETE)
-		skb->ip_summed = CHECKSUM_NONE;
-	return __pskb_trim(skb, len);
+	return pskb_trim_rcsum_slow(skb, len);
 }
 
 static inline int __skb_trim_rcsum(struct sk_buff *skb, unsigned int len)

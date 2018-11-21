@@ -975,7 +975,7 @@ static int rio_mport_transfer_ioctl(struct file *filp, void __user *arg)
 	     priv->md->properties.transfer_mode) == 0)
 		return -ENODEV;
 
-	transfer = vmalloc(transaction.count * sizeof(*transfer));
+	transfer = vmalloc(array_size(sizeof(*transfer), transaction.count));
 	if (!transfer)
 		return -ENOMEM;
 

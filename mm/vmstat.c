@@ -1516,35 +1516,11 @@ static const struct seq_operations fragmentation_op = {
 	.show	= frag_show,
 };
 
-static int fragmentation_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &fragmentation_op);
-}
-
-static const struct file_operations buddyinfo_file_operations = {
-	.open		= fragmentation_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static const struct seq_operations pagetypeinfo_op = {
 	.start	= frag_start,
 	.next	= frag_next,
 	.stop	= frag_stop,
 	.show	= pagetypeinfo_show,
-};
-
-static int pagetypeinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &pagetypeinfo_op);
-}
-
-static const struct file_operations pagetypeinfo_file_operations = {
-	.open		= pagetypeinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
 };
 
 static bool is_zone_first_populated(pg_data_t *pgdat, struct zone *zone)
@@ -1663,18 +1639,6 @@ static const struct seq_operations zoneinfo_op = {
 	.show	= zoneinfo_show,
 };
 
-static int zoneinfo_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &zoneinfo_op);
-}
-
-static const struct file_operations zoneinfo_file_operations = {
-	.open		= zoneinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 enum writeback_stat_item {
 	NR_DIRTY_THRESHOLD,
 	NR_DIRTY_BG_THRESHOLD,
@@ -1762,18 +1726,6 @@ static const struct seq_operations vmstat_op = {
 	.stop	= vmstat_stop,
 	.show	= vmstat_show,
 };
-
-static int vmstat_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &vmstat_op);
-}
-
-static const struct file_operations vmstat_file_operations = {
-	.open		= vmstat_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
 #endif /* CONFIG_PROC_FS */
 
 #ifdef CONFIG_SMP
@@ -1844,11 +1796,9 @@ static void vmstat_update(struct work_struct *w)
 		 * to occur in the future. Keep on running the
 		 * update worker thread.
 		 */
-		preempt_disable();
 		queue_delayed_work_on(smp_processor_id(), mm_percpu_wq,
 				this_cpu_ptr(&vmstat_work),
 				round_jiffies_relative(sysctl_stat_interval));
-		preempt_enable();
 	}
 }
 
@@ -2020,10 +1970,10 @@ void __init init_mm_internals(void)
 	start_shepherd_timer();
 #endif
 #ifdef CONFIG_PROC_FS
-	proc_create("buddyinfo", 0444, NULL, &buddyinfo_file_operations);
-	proc_create("pagetypeinfo", 0444, NULL, &pagetypeinfo_file_operations);
-	proc_create("vmstat", 0444, NULL, &vmstat_file_operations);
-	proc_create("zoneinfo", 0444, NULL, &zoneinfo_file_operations);
+	proc_create_seq("buddyinfo", 0444, NULL, &fragmentation_op);
+	proc_create_seq("pagetypeinfo", 0444, NULL, &pagetypeinfo_op);
+	proc_create_seq("vmstat", 0444, NULL, &vmstat_op);
+	proc_create_seq("zoneinfo", 0444, NULL, &zoneinfo_op);
 #endif
 }
 

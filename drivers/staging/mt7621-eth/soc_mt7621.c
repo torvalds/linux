@@ -50,7 +50,6 @@
 #define GSW_REG_GDMA2_MAC_ADRL	0x1508
 #define GSW_REG_GDMA2_MAC_ADRH	0x150C
 
-
 #define MT7621_MTK_RST_GL	0x04
 #define MT7620_MTK_INT_STATUS2	0x08
 
@@ -108,13 +107,15 @@ static void mt7621_set_mac(struct mtk_mac *mac, unsigned char *hwaddr)
 
 	spin_lock_irqsave(&mac->hw->page_lock, flags);
 	if (mac->id == 0) {
-		mtk_w32(mac->hw, (hwaddr[0] << 8) | hwaddr[1], GSW_REG_GDMA1_MAC_ADRH);
+		mtk_w32(mac->hw, (hwaddr[0] << 8) | hwaddr[1],
+			GSW_REG_GDMA1_MAC_ADRH);
 		mtk_w32(mac->hw, (hwaddr[2] << 24) | (hwaddr[3] << 16) |
 			(hwaddr[4] << 8) | hwaddr[5],
 			GSW_REG_GDMA1_MAC_ADRL);
 	}
 	if (mac->id == 1) {
-		mtk_w32(mac->hw, (hwaddr[0] << 8) | hwaddr[1], GSW_REG_GDMA2_MAC_ADRH);
+		mtk_w32(mac->hw, (hwaddr[0] << 8) | hwaddr[1],
+			GSW_REG_GDMA2_MAC_ADRH);
 		mtk_w32(mac->hw, (hwaddr[2] << 24) | (hwaddr[3] << 16) |
 			(hwaddr[4] << 8) | hwaddr[5],
 			GSW_REG_GDMA2_MAC_ADRL);
