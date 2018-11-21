@@ -6,15 +6,18 @@
 #include <linux/kernfs.h>
 #include <linux/jump_label.h>
 
-#define IA32_L3_QOS_CFG		0xc81
-#define IA32_L2_QOS_CFG		0xc82
-#define IA32_L3_CBM_BASE	0xc90
-#define IA32_L2_CBM_BASE	0xd10
-#define IA32_MBA_THRTL_BASE	0xd50
+#define MSR_IA32_L3_QOS_CFG		0xc81
+#define MSR_IA32_L2_QOS_CFG		0xc82
+#define MSR_IA32_L3_CBM_BASE		0xc90
+#define MSR_IA32_L2_CBM_BASE		0xd10
+#define MSR_IA32_MBA_THRTL_BASE		0xd50
 
-#define L3_QOS_CDP_ENABLE	0x01ULL
+#define MSR_IA32_QM_CTR			0x0c8e
+#define MSR_IA32_QM_EVTSEL		0x0c8d
 
-#define L2_QOS_CDP_ENABLE	0x01ULL
+#define L3_QOS_CDP_ENABLE		0x01ULL
+
+#define L2_QOS_CDP_ENABLE		0x01ULL
 
 /*
  * Event IDs are used to program IA32_QM_EVTSEL before reading event
@@ -29,6 +32,8 @@
 #define MBM_CNTR_WIDTH			24
 #define MBM_OVERFLOW_INTERVAL		1000
 #define MAX_MBA_BW			100u
+#define MBA_IS_LINEAR			0x4
+#define MBA_MAX_MBPS			U32_MAX
 
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)

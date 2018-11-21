@@ -1722,14 +1722,14 @@ static void l3_qos_cfg_update(void *arg)
 {
 	bool *enable = arg;
 
-	wrmsrl(IA32_L3_QOS_CFG, *enable ? L3_QOS_CDP_ENABLE : 0ULL);
+	wrmsrl(MSR_IA32_L3_QOS_CFG, *enable ? L3_QOS_CDP_ENABLE : 0ULL);
 }
 
 static void l2_qos_cfg_update(void *arg)
 {
 	bool *enable = arg;
 
-	wrmsrl(IA32_L2_QOS_CFG, *enable ? L2_QOS_CDP_ENABLE : 0ULL);
+	wrmsrl(MSR_IA32_L2_QOS_CFG, *enable ? L2_QOS_CDP_ENABLE : 0ULL);
 }
 
 static inline bool is_mba_linear(void)

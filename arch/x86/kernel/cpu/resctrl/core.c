@@ -33,9 +33,6 @@
 #include <asm/resctrl_sched.h>
 #include "internal.h"
 
-#define MBA_IS_LINEAR	0x4
-#define MBA_MAX_MBPS	U32_MAX
-
 /* Mutex to protect rdtgroup access. */
 DEFINE_MUTEX(rdtgroup_mutex);
 
@@ -72,7 +69,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L3,
 		.name			= "L3",
 		.domains		= domain_init(RDT_RESOURCE_L3),
-		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
@@ -89,7 +86,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L3DATA,
 		.name			= "L3DATA",
 		.domains		= domain_init(RDT_RESOURCE_L3DATA),
-		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
@@ -106,7 +103,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L3CODE,
 		.name			= "L3CODE",
 		.domains		= domain_init(RDT_RESOURCE_L3CODE),
-		.msr_base		= IA32_L3_CBM_BASE,
+		.msr_base		= MSR_IA32_L3_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 3,
 		.cache = {
@@ -123,7 +120,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L2,
 		.name			= "L2",
 		.domains		= domain_init(RDT_RESOURCE_L2),
-		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
@@ -140,7 +137,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L2DATA,
 		.name			= "L2DATA",
 		.domains		= domain_init(RDT_RESOURCE_L2DATA),
-		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
@@ -157,7 +154,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_L2CODE,
 		.name			= "L2CODE",
 		.domains		= domain_init(RDT_RESOURCE_L2CODE),
-		.msr_base		= IA32_L2_CBM_BASE,
+		.msr_base		= MSR_IA32_L2_CBM_BASE,
 		.msr_update		= cat_wrmsr,
 		.cache_level		= 2,
 		.cache = {
@@ -174,7 +171,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.rid			= RDT_RESOURCE_MBA,
 		.name			= "MB",
 		.domains		= domain_init(RDT_RESOURCE_MBA),
-		.msr_base		= IA32_MBA_THRTL_BASE,
+		.msr_base		= MSR_IA32_MBA_THRTL_BASE,
 		.msr_update		= mba_wrmsr,
 		.cache_level		= 3,
 		.parse_ctrlval		= parse_bw,
@@ -211,9 +208,10 @@ static inline void cache_alloc_hsw_probe(void)
 	struct rdt_resource *r  = &rdt_resources_all[RDT_RESOURCE_L3];
 	u32 l, h, max_cbm = BIT_MASK(20) - 1;
 
-	if (wrmsr_safe(IA32_L3_CBM_BASE, max_cbm, 0))
+	if (wrmsr_safe(MSR_IA32_L3_CBM_BASE, max_cbm, 0))
 		return;
-	rdmsr(IA32_L3_CBM_BASE, l, h);
+
+	rdmsr(MSR_IA32_L3_CBM_BASE, l, h);
 
 	/* If all the bits were set in MSR, return success */
 	if (l != max_cbm)
