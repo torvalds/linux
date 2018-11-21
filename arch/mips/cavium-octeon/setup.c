@@ -36,6 +36,7 @@
 #include <asm/mipsregs.h>
 #include <asm/bootinfo.h>
 #include <asm/sections.h>
+#include <asm/fw/fw.h>
 #include <asm/setup.h>
 #include <asm/time.h>
 
