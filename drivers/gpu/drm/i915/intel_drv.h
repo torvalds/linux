@@ -2047,6 +2047,7 @@ void intel_psr_irq_handler(struct drm_i915_private *dev_priv, u32 psr_iir);
 void intel_psr_short_pulse(struct intel_dp *intel_dp);
 int intel_psr_wait_for_idle(const struct intel_crtc_state *new_crtc_state,
 			    u32 *out_value);
+bool intel_psr_enabled(struct intel_dp *intel_dp);
 
 /* intel_quirks.c */
 void intel_init_quirks(struct drm_i915_private *dev_priv);

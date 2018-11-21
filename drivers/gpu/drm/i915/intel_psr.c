@@ -1147,3 +1147,18 @@ void intel_psr_short_pulse(struct intel_dp *intel_dp)
 exit:
 	mutex_unlock(&psr->lock);
 }
+
+bool intel_psr_enabled(struct intel_dp *intel_dp)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	bool ret;
+
+	if (!CAN_PSR(dev_priv) || !intel_dp_is_edp(intel_dp))
+		return false;
+
+	mutex_lock(&dev_priv->psr.lock);
+	ret = (dev_priv->psr.dp == intel_dp && dev_priv->psr.enabled);
+	mutex_unlock(&dev_priv->psr.lock);
+
+	return ret;
+}

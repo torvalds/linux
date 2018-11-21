@@ -4383,6 +4383,17 @@ intel_dp_needs_link_retrain(struct intel_dp *intel_dp)
 	if (!intel_dp->link_trained)
 		return false;
 
+	/*
+	 * While PSR source HW is enabled, it will control main-link sending
+	 * frames, enabling and disabling it so trying to do a retrain will fail
+	 * as the link would or not be on or it could mix training patterns
+	 * and frame data at the same time causing retrain to fail.
+	 * Also when exiting PSR, HW will retrain the link anyways fixing
+	 * any link status error.
+	 */
+	if (intel_psr_enabled(intel_dp))
+		return false;
+
 	if (!intel_dp_get_link_status(intel_dp, link_status))
 		return false;
 
