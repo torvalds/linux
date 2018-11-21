@@ -818,7 +818,7 @@ static int __cvmx_helper_packet_hardware_enable(int interface)
  * Returns 0 on success
  *	   !0 on failure
  */
-int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
+static int __cvmx_helper_errata_fix_ipd_ptr_alignment(void)
 {
 #define FIX_IPD_FIRST_BUFF_PAYLOAD_BYTES \
      (CVMX_FPA_PACKET_POOL_SIZE-8-CVMX_HELPER_FIRST_MBUFF_SKIP)
