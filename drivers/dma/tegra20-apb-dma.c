@@ -186,7 +186,7 @@ typedef void (*dma_isr_handler)(struct tegra_dma_channel *tdc,
 /* tegra_dma_channel: Channel specific information */
 struct tegra_dma_channel {
 	struct dma_chan		dma_chan;
-	char			name[30];
+	char			name[12];
 	bool			config_init;
 	int			id;
 	int			irq;
