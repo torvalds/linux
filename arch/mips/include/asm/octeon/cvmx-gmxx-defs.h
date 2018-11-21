@@ -6902,30 +6902,4 @@ union cvmx_gmxx_tx_xaui_ctl {
 	struct cvmx_gmxx_tx_xaui_ctl_s cnf71xx;
 };
 
-union cvmx_gmxx_xaui_ext_loopback {
-	uint64_t u64;
-	struct cvmx_gmxx_xaui_ext_loopback_s {
-#ifdef __BIG_ENDIAN_BITFIELD
-		uint64_t reserved_5_63:59;
-		uint64_t en:1;
-		uint64_t thresh:4;
-#else
-		uint64_t thresh:4;
-		uint64_t en:1;
-		uint64_t reserved_5_63:59;
-#endif
-	} s;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn52xx;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn52xxp1;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn56xx;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn56xxp1;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn61xx;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn63xx;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn63xxp1;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn66xx;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn68xx;
-	struct cvmx_gmxx_xaui_ext_loopback_s cn68xxp1;
-	struct cvmx_gmxx_xaui_ext_loopback_s cnf71xx;
-};
-
 #endif

@@ -195,20 +195,4 @@ extern int cvmx_helper_link_set(int ipd_port,
 extern int cvmx_helper_interface_probe(int interface);
 extern int cvmx_helper_interface_enumerate(int interface);
 
-/**
- * Configure a port for internal and/or external loopback. Internal loopback
- * causes packets sent by the port to be received by Octeon. External loopback
- * causes packets received from the wire to sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-extern int cvmx_helper_configure_loopback(int ipd_port, int enable_internal,
-					  int enable_external);
-
 #endif /* __CVMX_HELPER_H__ */
