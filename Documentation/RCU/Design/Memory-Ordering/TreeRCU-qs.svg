@@ -797,7 +797,7 @@
          font-style="normal"
          y="-4418.6582"
          x="3745.7725"
-         xml:space="preserve">rcu_process_callbacks()</text>
+         xml:space="preserve">rcu_core()</text>
       <text
          style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"
          id="text202-7-5-3-27-0"
@@ -806,7 +806,7 @@
          font-style="normal"
          y="-4165.7954"
          x="3745.7725"
-         xml:space="preserve">rcu_check_quiescent_state())</text>
+         xml:space="preserve">rcu_check_quiescent_state()</text>
       <text
          style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier"
          id="text202-7-5-3-27-0-9"

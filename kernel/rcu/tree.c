@@ -2742,12 +2742,8 @@ void rcu_fwd_progress_check(unsigned long j)
 }
 EXPORT_SYMBOL_GPL(rcu_fwd_progress_check);
 
-/*
- * This does the RCU core processing work for the specified rcu_data
- * structures.  This may be called only from the CPU to whom the rdp
- * belongs.
- */
-static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused)
+/* Perform RCU core processing work for the current CPU.  */
+static __latent_entropy void rcu_core(struct softirq_action *unused)
 {
 	unsigned long flags;
 	struct rcu_data *rdp = raw_cpu_ptr(&rcu_data);
@@ -3856,7 +3852,7 @@ void __init rcu_init(void)
 	rcu_init_one();
 	if (dump_tree)
 		rcu_dump_rcu_node_tree();
-	open_softirq(RCU_SOFTIRQ, rcu_process_callbacks);
+	open_softirq(RCU_SOFTIRQ, rcu_core);
 
 	/*
 	 * We don't need protection against CPU-hotplug here because
