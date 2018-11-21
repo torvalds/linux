@@ -259,7 +259,7 @@ static inline bool rdt_get_mb_table(struct rdt_resource *r)
 	return false;
 }
 
-static bool rdt_get_mem_config(struct rdt_resource *r)
+static bool __get_mem_config(struct rdt_resource *r)
 {
 	union cpuid_0x10_3_eax eax;
 	union cpuid_0x10_x_edx edx;
@@ -794,6 +794,14 @@ static bool __init rdt_cpu_has(int flag)
 	return ret;
 }
 
+static __init bool get_mem_config(void)
+{
+	if (rdt_cpu_has(X86_FEATURE_MBA))
+		return __get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]);
+
+	return false;
+}
+
 static __init bool get_rdt_alloc_resources(void)
 {
 	bool ret = false;
@@ -818,10 +826,9 @@ static __init bool get_rdt_alloc_resources(void)
 		ret = true;
 	}
 
-	if (rdt_cpu_has(X86_FEATURE_MBA)) {
-		if (rdt_get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]))
-			ret = true;
-	}
+	if (get_mem_config())
+		ret = true;
+
 	return ret;
 }
 
@@ -840,7 +847,7 @@ static __init bool get_rdt_mon_resources(void)
 	return !rdt_get_mon_l3_config(&rdt_resources_all[RDT_RESOURCE_L3]);
 }
 
-static __init void rdt_quirks(void)
+static __init void __check_quirks_intel(void)
 {
 	switch (boot_cpu_data.x86_model) {
 	case INTEL_FAM6_HASWELL_X:
@@ -855,9 +862,14 @@ static __init void rdt_quirks(void)
 	}
 }
 
+static __init void check_quirks(void)
+{
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		__check_quirks_intel();
+}
+
 static __init bool get_rdt_resources(void)
 {
-	rdt_quirks();
 	rdt_alloc_capable = get_rdt_alloc_resources();
 	rdt_mon_capable = get_rdt_mon_resources();
 
@@ -870,6 +882,8 @@ static int __init resctrl_late_init(void)
 {
 	struct rdt_resource *r;
 	int state, ret;
+
+	check_quirks();
 
 	if (!get_rdt_resources())
 		return -ENODEV;
