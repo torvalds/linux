@@ -86,11 +86,6 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef unsigned int elf_fpreg_t;
 typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 
-#define ELF_CORE_COPY_REGS(_eregs, _pregs) 				\
-	xtensa_elf_core_copy_regs ((xtensa_gregset_t*)&(_eregs), _pregs);
-
-extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
-
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -114,6 +109,7 @@ extern void xtensa_elf_core_copy_regs (xtensa_gregset_t *, struct pt_regs *);
 #define ELF_ARCH	EM_XTENSA
 
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
+#define CORE_DUMP_USE_REGSET
 
 /*
  * This is the location that an ET_DYN program is loaded if exec'ed.  Typical
