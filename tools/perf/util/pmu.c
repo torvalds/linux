@@ -655,45 +655,6 @@ static int is_arm_pmu_core(const char *name)
 	return 0;
 }
 
-/*
- * Return the CPU id as a raw string.
- *
- * Each architecture should provide a more precise id string that
- * can be use to match the architecture's "mapfile".
- */
-char * __weak get_cpuid_str(struct perf_pmu *pmu __maybe_unused)
-{
-	return NULL;
-}
-
-/* Return zero when the cpuid from the mapfile.csv matches the
- * cpuid string generated on this platform.
- * Otherwise return non-zero.
- */
-int __weak strcmp_cpuid_str(const char *mapcpuid, const char *cpuid)
-{
-	regex_t re;
-	regmatch_t pmatch[1];
-	int match;
-
-	if (regcomp(&re, mapcpuid, REG_EXTENDED) != 0) {
-		/* Warn unable to generate match particular string. */
-		pr_info("Invalid regular expression %s\n", mapcpuid);
-		return 1;
-	}
-
-	match = !regexec(&re, cpuid, 1, pmatch, 0);
-	regfree(&re);
-	if (match) {
-		size_t match_len = (pmatch[0].rm_eo - pmatch[0].rm_so);
-
-		/* Verify the entire string matched. */
-		if (match_len == strlen(cpuid))
-			return 0;
-	}
-	return 1;
-}
-
 static char *perf_pmu__getcpuid(struct perf_pmu *pmu)
 {
 	char *cpuid;
