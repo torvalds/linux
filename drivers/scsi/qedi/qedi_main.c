@@ -796,7 +796,7 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	int rval = 0;
 
 
-	num_sq_pages = (MAX_OUTSTANDING_TASKS_PER_CON * 8) / PAGE_SIZE;
+	num_sq_pages = (MAX_OUTSTANDING_TASKS_PER_CON * 8) / QEDI_PAGE_SIZE;
 
 	qedi->num_queues = MIN_NUM_CPUS_MSIX(qedi);
 
@@ -834,7 +834,7 @@ static int qedi_set_iscsi_pf_param(struct qedi_ctx *qedi)
 	qedi->pf_params.iscsi_pf_params.max_fin_rt = 2;
 
 	for (log_page_size = 0 ; log_page_size < 32 ; log_page_size++) {
-		if ((1 << log_page_size) == PAGE_SIZE)
+		if ((1 << log_page_size) == QEDI_PAGE_SIZE)
 			break;
 	}
 	qedi->pf_params.iscsi_pf_params.log_page_size = log_page_size;
@@ -1376,7 +1376,7 @@ static void qedi_free_bdq(struct qedi_ctx *qedi)
 	int i;
 
 	if (qedi->bdq_pbl_list)
-		dma_free_coherent(&qedi->pdev->dev, PAGE_SIZE,
+		dma_free_coherent(&qedi->pdev->dev, QEDI_PAGE_SIZE,
 				  qedi->bdq_pbl_list, qedi->bdq_pbl_list_dma);
 
 	if (qedi->bdq_pbl)
@@ -1437,7 +1437,7 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 
 	/* Alloc dma memory for BDQ page buffer list */
 	qedi->bdq_pbl_mem_size = QEDI_BDQ_NUM * sizeof(struct scsi_bd);
-	qedi->bdq_pbl_mem_size = ALIGN(qedi->bdq_pbl_mem_size, PAGE_SIZE);
+	qedi->bdq_pbl_mem_size = ALIGN(qedi->bdq_pbl_mem_size, QEDI_PAGE_SIZE);
 	qedi->rq_num_entries = qedi->bdq_pbl_mem_size / sizeof(struct scsi_bd);
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_CONN, "rq_num_entries = %d.\n",
@@ -1472,7 +1472,8 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	}
 
 	/* Allocate list of PBL pages */
-	qedi->bdq_pbl_list = dma_zalloc_coherent(&qedi->pdev->dev, PAGE_SIZE,
+	qedi->bdq_pbl_list = dma_zalloc_coherent(&qedi->pdev->dev,
+						 QEDI_PAGE_SIZE,
 						 &qedi->bdq_pbl_list_dma,
 						 GFP_KERNEL);
 	if (!qedi->bdq_pbl_list) {
@@ -1485,13 +1486,14 @@ static int qedi_alloc_bdq(struct qedi_ctx *qedi)
 	 * Now populate PBL list with pages that contain pointers to the
 	 * individual buffers.
 	 */
-	qedi->bdq_pbl_list_num_entries = qedi->bdq_pbl_mem_size / PAGE_SIZE;
+	qedi->bdq_pbl_list_num_entries = qedi->bdq_pbl_mem_size /
+					 QEDI_PAGE_SIZE;
 	list = (u64 *)qedi->bdq_pbl_list;
 	page = qedi->bdq_pbl_list_dma;
 	for (i = 0; i < qedi->bdq_pbl_list_num_entries; i++) {
 		*list = qedi->bdq_pbl_dma;
 		list++;
-		page += PAGE_SIZE;
+		page += QEDI_PAGE_SIZE;
 	}
 
 	return 0;
