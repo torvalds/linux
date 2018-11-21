@@ -1784,6 +1784,7 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 	bool if_up = netif_running(nic->netdev);
 	struct bpf_prog *old_prog;
 	bool bpf_attached = false;
+	int ret = 0;
 
 	/* For now just support only the usual MTU sized frames */
 	if (prog && (dev->mtu > 1500)) {
@@ -1817,8 +1818,12 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 	if (nic->xdp_prog) {
 		/* Attach BPF program */
 		nic->xdp_prog = bpf_prog_add(nic->xdp_prog, nic->rx_queues - 1);
-		if (!IS_ERR(nic->xdp_prog))
+		if (!IS_ERR(nic->xdp_prog)) {
 			bpf_attached = true;
+		} else {
+			ret = PTR_ERR(nic->xdp_prog);
+			nic->xdp_prog = NULL;
+		}
 	}
 
 	/* Calculate Tx queues needed for XDP and network stack */
@@ -1830,7 +1835,7 @@ static int nicvf_xdp_setup(struct nicvf *nic, struct bpf_prog *prog)
 		netif_trans_update(nic->netdev);
 	}
 
-	return 0;
+	return ret;
 }
 
 static int nicvf_xdp(struct net_device *netdev, struct netdev_bpf *xdp)
