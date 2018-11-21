@@ -584,6 +584,8 @@ static struct resource dm355_gpio_resources[] = {
 };
 
 static struct davinci_gpio_platform_data dm355_gpio_platform_data = {
+	.no_auto_base	= true,
+	.base		= 0,
 	.ngpio		= 104,
 };
 
