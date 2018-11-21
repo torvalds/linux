@@ -1878,7 +1878,10 @@ static int parse_rdtgroupfs_options(char *data)
 			if (ret)
 				goto out;
 		} else if (!strcmp(token, "mba_MBps")) {
-			ret = set_mba_sc(true);
+			if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+				ret = set_mba_sc(true);
+			else
+				ret = -EINVAL;
 			if (ret)
 				goto out;
 		} else {
