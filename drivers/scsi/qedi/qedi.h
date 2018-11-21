@@ -63,7 +63,6 @@ struct qedi_endpoint;
 #define QEDI_LOCAL_PORT_INVALID	0xffff
 #define TX_RX_RING		16
 #define RX_RING			(TX_RX_RING - 1)
-#define LL2_SINGLE_BUF_SIZE	0x400
 #define QEDI_PAGE_ALIGN(addr)	ALIGN(addr, QEDI_PAGE_SIZE)
 #define QEDI_PAGE_MASK		(~((QEDI_PAGE_SIZE) - 1))
 

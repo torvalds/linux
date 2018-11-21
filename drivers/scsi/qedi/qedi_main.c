@@ -44,6 +44,11 @@ module_param(qedi_io_tracing, uint, 0644);
 MODULE_PARM_DESC(qedi_io_tracing,
 		 " Enable logging of SCSI requests/completions into trace buffer. (default off).");
 
+uint qedi_ll2_buf_size = 0x400;
+module_param(qedi_ll2_buf_size, uint, 0644);
+MODULE_PARM_DESC(qedi_ll2_buf_size,
+		 "parameter to set ping packet size, default - 0x400, Jumbo packets - 0x2400.");
+
 const struct qed_iscsi_ops *qedi_ops;
 static struct scsi_transport_template *qedi_scsi_transport;
 static struct pci_driver qedi_pci_driver;
@@ -228,7 +233,7 @@ static int __qedi_alloc_uio_rings(struct qedi_uio_dev *udev)
 	}
 
 	/* Allocating memory for Tx/Rx pkt buffer */
-	udev->ll2_buf_size = TX_RX_RING * LL2_SINGLE_BUF_SIZE;
+	udev->ll2_buf_size = TX_RX_RING * qedi_ll2_buf_size;
 	udev->ll2_buf_size = QEDI_PAGE_ALIGN(udev->ll2_buf_size);
 	udev->ll2_buf = (void *)__get_free_pages(GFP_KERNEL | __GFP_COMP |
 						 __GFP_ZERO, 2);
@@ -283,7 +288,7 @@ static int qedi_alloc_uio_rings(struct qedi_ctx *qedi)
 	qedi->udev = udev;
 
 	udev->tx_pkt = udev->ll2_buf;
-	udev->rx_pkt = udev->ll2_buf + LL2_SINGLE_BUF_SIZE;
+	udev->rx_pkt = udev->ll2_buf + qedi_ll2_buf_size;
 	return 0;
 
  err_uctrl:
@@ -752,8 +757,8 @@ static int qedi_ll2_process_skb(struct qedi_ctx *qedi, struct sk_buff *skb,
 
 	udev = qedi->udev;
 	uctrl = udev->uctrl;
-	pkt = udev->rx_pkt + (uctrl->hw_rx_prod * LL2_SINGLE_BUF_SIZE);
-	len = min_t(u32, skb->len, (u32)LL2_SINGLE_BUF_SIZE);
+	pkt = udev->rx_pkt + (uctrl->hw_rx_prod * qedi_ll2_buf_size);
+	len = min_t(u32, skb->len, (u32)qedi_ll2_buf_size);
 	memcpy(pkt, skb->data, len);
 
 	memset(&rxbd, 0, sizeof(rxbd));
