@@ -10,7 +10,7 @@
 #include <rtl8188e_hal.h>
 #include <usb_ops_linux.h>
 
-void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
+void sw_led_on(struct adapter *padapter, struct LED_871x *pLed)
 {
 	u8 led_cfg;
 

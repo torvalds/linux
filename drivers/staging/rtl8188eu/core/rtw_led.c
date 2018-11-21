@@ -94,7 +94,7 @@ static void SwLedBlink1(struct LED_871x *pLed)
 
 	/*  Change LED according to BlinkingLedState specified. */
 	if (pLed->BlinkingLedState == RTW_LED_ON) {
-		SwLedOn(padapter, pLed);
+		sw_led_on(padapter, pLed);
 		RT_TRACE(_module_rtl8712_led_c_, _drv_info_,
 			 ("Blinktimes (%d): turn on\n", pLed->BlinkTimes));
 	} else {
