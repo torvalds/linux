@@ -76,8 +76,6 @@
 };
 
 &i2c0 {
-	pinctrl-0 = <&i2c0_pins>;
-
 	axp209: pmic@34 {
 		reg = <0x34>;
 		interrupts = <0>;
@@ -85,8 +83,6 @@
 };
 
 &i2c1 {
-	pinctrl-0 = <&i2c1_pins>;
-
 	/*
 	 * The gsl1680 is rated at 400KHz and it will not work reliable at
 	 * 100KHz, this has been confirmed on multiple different q8 tablets.
@@ -148,10 +144,6 @@
 		function = "gpio_in";
 		bias-pull-up;
 	};
-};
-
-&pwm {
-	pinctrl-0 = <&pwm0_pin>;
 };
 
 &reg_dcdc2 {
