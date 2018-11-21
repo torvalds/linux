@@ -818,7 +818,7 @@ static inline int btree_iter_lock_root(struct btree_iter *iter,
 			 */
 			iter->level = depth_want;
 			iter->l[iter->level].b = NULL;
-			return 0;
+			return 1;
 		}
 
 		lock_type = __btree_lock_want(iter, iter->level);
@@ -1045,6 +1045,9 @@ int __must_check __bch2_btree_iter_traverse(struct btree_iter *iter)
 			? btree_iter_down(iter)
 			: btree_iter_lock_root(iter, depth_want);
 		if (unlikely(ret)) {
+			if (ret == 1)
+				return 0;
+
 			iter->level = depth_want;
 			iter->l[iter->level].b = BTREE_ITER_NOT_END;
 			return ret;
