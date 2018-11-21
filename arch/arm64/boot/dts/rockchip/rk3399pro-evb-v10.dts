@@ -829,6 +829,13 @@
 	vref-supply = <&vcc_1v8>;
 };
 
+&sdmmc {
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+};
+
 &spi1 {
 	status = "okay";
 	max-freq = <48000000>; /* spi internal clk, don't modify */
