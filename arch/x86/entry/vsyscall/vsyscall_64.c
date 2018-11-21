@@ -102,7 +102,7 @@ static bool write_ok_or_segv(unsigned long ptr, size_t size)
 	if (!access_ok(VERIFY_WRITE, (void __user *)ptr, size)) {
 		struct thread_struct *thread = &current->thread;
 
-		thread->error_code	= 6;  /* user fault, no page, write */
+		thread->error_code	= X86_PF_USER | X86_PF_WRITE;
 		thread->cr2		= ptr;
 		thread->trap_nr		= X86_TRAP_PF;
 
