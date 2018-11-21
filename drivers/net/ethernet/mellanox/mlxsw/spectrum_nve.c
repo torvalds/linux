@@ -803,7 +803,7 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 		return err;
 	}
 
-	err = mlxsw_sp_fid_vni_set(fid, params->vni);
+	err = mlxsw_sp_fid_vni_set(fid, params->vni, params->dev->ifindex);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to set VNI on FID");
 		goto err_fid_vni_set;

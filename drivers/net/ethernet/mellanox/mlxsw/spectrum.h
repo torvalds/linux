@@ -721,6 +721,7 @@ int mlxsw_sp_setup_tc_prio(struct mlxsw_sp_port *mlxsw_sp_port,
 			   struct tc_prio_qopt_offload *p);
 
 /* spectrum_fid.c */
+int mlxsw_sp_fid_nve_ifindex(const struct mlxsw_sp_fid *fid, int *nve_ifindex);
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_vni(struct mlxsw_sp *mlxsw_sp,
 						__be32 vni);
 int mlxsw_sp_fid_vni(const struct mlxsw_sp_fid *fid, __be32 *vni);
@@ -728,7 +729,7 @@ int mlxsw_sp_fid_nve_flood_index_set(struct mlxsw_sp_fid *fid,
 				     u32 nve_flood_index);
 void mlxsw_sp_fid_nve_flood_index_clear(struct mlxsw_sp_fid *fid);
 bool mlxsw_sp_fid_nve_flood_index_is_set(const struct mlxsw_sp_fid *fid);
-int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni);
+int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni, int nve_ifindex);
 void mlxsw_sp_fid_vni_clear(struct mlxsw_sp_fid *fid);
 bool mlxsw_sp_fid_vni_is_set(const struct mlxsw_sp_fid *fid);
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
