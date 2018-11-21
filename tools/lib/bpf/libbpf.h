@@ -16,6 +16,10 @@
 #include <sys/types.h>  // for size_t
 #include <linux/bpf.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
@@ -335,4 +339,9 @@ int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 			libbpf_dump_nlmsg_t dump_qdisc_nlmsg, void *cookie);
 int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
 			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 #endif /* __LIBBPF_LIBBPF_H */

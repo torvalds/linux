@@ -6,6 +6,10 @@
 
 #include <linux/types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef LIBBPF_API
 #define LIBBPF_API __attribute__((visibility("default")))
 #endif
@@ -79,5 +83,9 @@ int btf_ext__reloc_init(struct btf *btf, struct btf_ext *btf_ext,
 int btf_ext__reloc(struct btf *btf, struct btf_ext *btf_ext,
 		   const char *sec_name, __u32 insns_cnt, void **func_info,
 		   __u32 *func_info_len);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif /* __LIBBPF_BTF_H */
