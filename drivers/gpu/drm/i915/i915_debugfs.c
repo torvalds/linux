@@ -4592,6 +4592,13 @@ static int i915_hpd_storm_ctl_show(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = m->private;
 	struct i915_hotplug *hotplug = &dev_priv->hotplug;
 
+	/* Synchronize with everything first in case there's been an HPD
+	 * storm, but we haven't finished handling it in the kernel yet
+	 */
+	synchronize_irq(dev_priv->drm.irq);
+	flush_work(&dev_priv->hotplug.dig_port_work);
+	flush_work(&dev_priv->hotplug.hotplug_work);
+
 	seq_printf(m, "Threshold: %d\n", hotplug->hpd_storm_threshold);
 	seq_printf(m, "Detected: %s\n",
 		   yesno(delayed_work_pending(&hotplug->reenable_work)));
