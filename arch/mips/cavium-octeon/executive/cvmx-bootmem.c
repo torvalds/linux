@@ -155,42 +155,6 @@ void *cvmx_bootmem_alloc_address(uint64_t size, uint64_t address,
 					address + size);
 }
 
-void *cvmx_bootmem_alloc_named_range_once(uint64_t size, uint64_t min_addr,
-					  uint64_t max_addr, uint64_t align,
-					  char *name,
-					  void (*init) (void *))
-{
-	int64_t addr;
-	void *ptr;
-	uint64_t named_block_desc_addr;
-
-	named_block_desc_addr = (uint64_t)
-		cvmx_bootmem_phy_named_block_find(name,
-						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
-
-	if (named_block_desc_addr) {
-		addr = CVMX_BOOTMEM_NAMED_GET_FIELD(named_block_desc_addr,
-						    base_addr);
-		return cvmx_phys_to_ptr(addr);
-	}
-
-	addr = cvmx_bootmem_phy_named_block_alloc(size, min_addr, max_addr,
-						  align, name,
-						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
-
-	if (addr < 0)
-		return NULL;
-	ptr = cvmx_phys_to_ptr(addr);
-
-	if (init)
-		init(ptr);
-	else
-		memset(ptr, 0, size);
-
-	return ptr;
-}
-EXPORT_SYMBOL(cvmx_bootmem_alloc_named_range_once);
-
 void *cvmx_bootmem_alloc_named_range(uint64_t size, uint64_t min_addr,
 				     uint64_t max_addr, uint64_t align,
 				     char *name)
@@ -210,17 +174,6 @@ void *cvmx_bootmem_alloc_named(uint64_t size, uint64_t alignment, char *name)
     return cvmx_bootmem_alloc_named_range(size, 0, 0, alignment, name);
 }
 EXPORT_SYMBOL(cvmx_bootmem_alloc_named);
-
-int cvmx_bootmem_free_named(char *name)
-{
-	return cvmx_bootmem_phy_named_block_free(name, 0);
-}
-
-struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
-{
-	return cvmx_bootmem_phy_named_block_find(name, 0);
-}
-EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
 
 void cvmx_bootmem_lock(void)
 {
@@ -656,6 +609,48 @@ struct cvmx_bootmem_named_block_desc *
 	return NULL;
 }
 
+void *cvmx_bootmem_alloc_named_range_once(uint64_t size, uint64_t min_addr,
+					  uint64_t max_addr, uint64_t align,
+					  char *name,
+					  void (*init) (void *))
+{
+	int64_t addr;
+	void *ptr;
+	uint64_t named_block_desc_addr;
+
+	named_block_desc_addr = (uint64_t)
+		cvmx_bootmem_phy_named_block_find(name,
+						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
+
+	if (named_block_desc_addr) {
+		addr = CVMX_BOOTMEM_NAMED_GET_FIELD(named_block_desc_addr,
+						    base_addr);
+		return cvmx_phys_to_ptr(addr);
+	}
+
+	addr = cvmx_bootmem_phy_named_block_alloc(size, min_addr, max_addr,
+						  align, name,
+						  (uint32_t)CVMX_BOOTMEM_FLAG_NO_LOCKING);
+
+	if (addr < 0)
+		return NULL;
+	ptr = cvmx_phys_to_ptr(addr);
+
+	if (init)
+		init(ptr);
+	else
+		memset(ptr, 0, size);
+
+	return ptr;
+}
+EXPORT_SYMBOL(cvmx_bootmem_alloc_named_range_once);
+
+struct cvmx_bootmem_named_block_desc *cvmx_bootmem_find_named_block(char *name)
+{
+	return cvmx_bootmem_phy_named_block_find(name, 0);
+}
+EXPORT_SYMBOL(cvmx_bootmem_find_named_block);
+
 int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 {
 	struct cvmx_bootmem_named_block_desc *named_block_ptr;
@@ -698,6 +693,11 @@ int cvmx_bootmem_phy_named_block_free(char *name, uint32_t flags)
 
 	cvmx_bootmem_unlock();
 	return named_block_ptr != NULL; /* 0 on failure, 1 on success */
+}
+
+int cvmx_bootmem_free_named(char *name)
+{
+	return cvmx_bootmem_phy_named_block_free(name, 0);
 }
 
 int64_t cvmx_bootmem_phy_named_block_alloc(uint64_t size, uint64_t min_addr,
