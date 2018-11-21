@@ -17,7 +17,7 @@ void SwLedOn(struct adapter *padapter, struct LED_871x *pLed)
 	if (padapter->bSurpriseRemoved || padapter->bDriverStopped)
 		return;
 	LedCfg = usb_read8(padapter, REG_LEDCFG2);
-	usb_write8(padapter, REG_LEDCFG2, (LedCfg&0xf0) | BIT(5) | BIT(6));
+	usb_write8(padapter, REG_LEDCFG2, (LedCfg & 0xf0) | BIT(5) | BIT(6));
 	pLed->bLedOn = true;
 }
 
