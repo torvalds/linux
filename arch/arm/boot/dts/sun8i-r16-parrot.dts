@@ -158,7 +158,6 @@
 
 &mmc2_8bit_pins {
 	drive-strength = <40>;
-	bias-pull-up;
 };
 
 &ohci0 {

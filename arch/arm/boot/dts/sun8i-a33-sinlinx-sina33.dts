@@ -161,8 +161,6 @@
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
 	drive-strength = <40>;
-	/* eMMC is missing pull-ups */
-	bias-pull-up;
 };
 
 &ohci0 {

@@ -70,10 +70,6 @@
 	};
 };
 
-&mmc1_pins_a {
-	bias-pull-up;
-};
-
 &mmc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_a>;

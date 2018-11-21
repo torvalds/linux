@@ -82,10 +82,6 @@
 	};
 };
 
-&mmc1_pins_a {
-	bias-pull-up;
-};
-
 &r_pio {
 	wifi_pwrseq_pin_q8: wifi_pwrseq_pin@0 {
 		pins = "PL6", "PL7", "PL11";
