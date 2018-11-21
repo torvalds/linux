@@ -61,6 +61,9 @@ mba_wrmsr_intel(struct rdt_domain *d, struct msr_param *m,
 		struct rdt_resource *r);
 static void
 cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
+static void
+mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m,
+	      struct rdt_resource *r);
 
 #define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
 
@@ -255,7 +258,7 @@ static inline bool rdt_get_mb_table(struct rdt_resource *r)
 	return false;
 }
 
-static bool __get_mem_config(struct rdt_resource *r)
+static bool __get_mem_config_intel(struct rdt_resource *r)
 {
 	union cpuid_0x10_3_eax eax;
 	union cpuid_0x10_x_edx edx;
@@ -274,6 +277,30 @@ static bool __get_mem_config(struct rdt_resource *r)
 			return false;
 	}
 	r->data_width = 3;
+
+	r->alloc_capable = true;
+	r->alloc_enabled = true;
+
+	return true;
+}
+
+static bool __rdt_get_mem_config_amd(struct rdt_resource *r)
+{
+	union cpuid_0x10_3_eax eax;
+	union cpuid_0x10_x_edx edx;
+	u32 ebx, ecx;
+
+	cpuid_count(0x80000020, 1, &eax.full, &ebx, &ecx, &edx.full);
+	r->num_closid = edx.split.cos_max + 1;
+	r->default_ctrl = MAX_MBA_BW_AMD;
+
+	/* AMD does not use delay */
+	r->membw.delay_linear = false;
+
+	r->membw.min_bw = 0;
+	r->membw.bw_gran = 1;
+	/* Max value is 2048, Data width should be 4 in decimal */
+	r->data_width = 4;
 
 	r->alloc_capable = true;
 	r->alloc_enabled = true;
@@ -338,6 +365,15 @@ static int get_cache_id(int cpu, int level)
 	}
 
 	return -1;
+}
+
+static void
+mba_wrmsr_amd(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
+{
+	unsigned int i;
+
+	for (i = m->low; i < m->high; i++)
+		wrmsrl(r->msr_base + i, d->ctrl_val[i]);
 }
 
 /*
@@ -793,8 +829,13 @@ static bool __init rdt_cpu_has(int flag)
 
 static __init bool get_mem_config(void)
 {
-	if (rdt_cpu_has(X86_FEATURE_MBA))
-		return __get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]);
+	if (!rdt_cpu_has(X86_FEATURE_MBA))
+		return false;
+
+	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
+		return __get_mem_config_intel(&rdt_resources_all[RDT_RESOURCE_MBA]);
+	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		return __rdt_get_mem_config_amd(&rdt_resources_all[RDT_RESOURCE_MBA]);
 
 	return false;
 }
@@ -893,10 +934,32 @@ static __init void rdt_init_res_defs_intel(void)
 	}
 }
 
+static __init void rdt_init_res_defs_amd(void)
+{
+	struct rdt_resource *r;
+
+	for_each_rdt_resource(r) {
+		if (r->rid == RDT_RESOURCE_L3 ||
+		    r->rid == RDT_RESOURCE_L3DATA ||
+		    r->rid == RDT_RESOURCE_L3CODE ||
+		    r->rid == RDT_RESOURCE_L2 ||
+		    r->rid == RDT_RESOURCE_L2DATA ||
+		    r->rid == RDT_RESOURCE_L2CODE)
+			r->cbm_validate = cbm_validate_amd;
+		else if (r->rid == RDT_RESOURCE_MBA) {
+			r->msr_base = MSR_IA32_MBA_BW_BASE;
+			r->msr_update = mba_wrmsr_amd;
+			r->parse_ctrlval = parse_bw_amd;
+		}
+	}
+}
+
 static __init void rdt_init_res_defs(void)
 {
 	if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL)
 		rdt_init_res_defs_intel();
+	else if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD)
+		rdt_init_res_defs_amd();
 }
 
 static enum cpuhp_state rdt_online;

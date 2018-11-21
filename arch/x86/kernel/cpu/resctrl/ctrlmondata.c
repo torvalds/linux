@@ -30,6 +30,53 @@
 
 /*
  * Check whether MBA bandwidth percentage value is correct. The value is
+ * checked against the minimum and maximum bandwidth values specified by
+ * the hardware. The allocated bandwidth percentage is rounded to the next
+ * control step available on the hardware.
+ */
+static bool bw_validate_amd(char *buf, unsigned long *data,
+			    struct rdt_resource *r)
+{
+	unsigned long bw;
+	int ret;
+
+	ret = kstrtoul(buf, 10, &bw);
+	if (ret) {
+		rdt_last_cmd_printf("Non-decimal digit in MB value %s\n", buf);
+		return false;
+	}
+
+	if (bw < r->membw.min_bw || bw > r->default_ctrl) {
+		rdt_last_cmd_printf("MB value %ld out of range [%d,%d]\n", bw,
+				    r->membw.min_bw, r->default_ctrl);
+		return false;
+	}
+
+	*data = roundup(bw, (unsigned long)r->membw.bw_gran);
+	return true;
+}
+
+int parse_bw_amd(struct rdt_parse_data *data, struct rdt_resource *r,
+		 struct rdt_domain *d)
+{
+	unsigned long bw_val;
+
+	if (d->have_new_ctrl) {
+		rdt_last_cmd_printf("Duplicate domain %d\n", d->id);
+		return -EINVAL;
+	}
+
+	if (!bw_validate_amd(data->buf, &bw_val, r))
+		return -EINVAL;
+
+	d->new_ctrl = bw_val;
+	d->have_new_ctrl = true;
+
+	return 0;
+}
+
+/*
+ * Check whether MBA bandwidth percentage value is correct. The value is
  * checked against the minimum and max bandwidth values specified by the
  * hardware. The allocated bandwidth percentage is rounded to the next
  * control step available on the hardware.
@@ -116,6 +163,30 @@ bool cbm_validate_intel(char *buf, u32 *data, struct rdt_resource *r)
 	if ((zero_bit - first_bit) < r->cache.min_cbm_bits) {
 		rdt_last_cmd_printf("Need at least %d bits in the mask\n",
 				    r->cache.min_cbm_bits);
+		return false;
+	}
+
+	*data = val;
+	return true;
+}
+
+/*
+ * Check whether a cache bit mask is valid. AMD allows non-contiguous
+ * bitmasks
+ */
+bool cbm_validate_amd(char *buf, u32 *data, struct rdt_resource *r)
+{
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 16, &val);
+	if (ret) {
+		rdt_last_cmd_printf("Non-hex character in the mask %s\n", buf);
+		return false;
+	}
+
+	if (val > r->default_ctrl) {
+		rdt_last_cmd_puts("Mask out of range\n");
 		return false;
 	}
 
