@@ -124,21 +124,6 @@
 	status = "okay";
 };
 
-/* This is the i2c bus exposed on the DSI connector for the touch panel */
-&i2c0 {
-	status = "disabled";
-};
-
-/* This is the i2c bus exposed on the GPIO header */
-&i2c1 {
-	status = "disabled";
-};
-
-/* This is the i2c bus exposed on the CSI connector to control the sensor */
-&i2c2 {
-	status = "disabled";
-};
-
 &mmc0 {
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
