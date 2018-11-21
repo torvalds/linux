@@ -455,10 +455,6 @@ static void SwLedControlMode1(struct adapter *padapter, enum LED_CTL_MODE LedAct
 		 ("Led %d\n", pLed->CurrLedState));
 }
 
-/*  */
-/*	Description: */
-/*		Handler function of LED Blinking. */
-/*  */
 void blink_handler(struct LED_871x *pLed)
 {
 	struct adapter *padapter = pLed->padapter;
