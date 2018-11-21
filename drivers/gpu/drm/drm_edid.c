@@ -2740,7 +2740,7 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define TRADITIONAL_GAMMA_SDR          (0x1 << 0)
 #define TRADITIONAL_GAMMA_HDR          (0x1 << 1)
 #define SMPTE_ST2084                   (0x1 << 2)
-#define FUTURE_EOTF                    (0x1 << 3)
+#define HYBRID_LOG_GAMMA               (0x1 << 3)
 #define RESERVED_EOTF                  (0x3 << 4)
 
 #define STATIC_METADATA_TYPE1          (0x1 << 0)
@@ -3710,6 +3710,8 @@ static uint16_t eotf_supported(const u8 *edid_ext)
 		val |= TRADITIONAL_GAMMA_HDR;
 	if (edid_ext[2] & SMPTE_ST2084)
 		val |= SMPTE_ST2084;
+	if (edid_ext[2] & HYBRID_LOG_GAMMA)
+		val |= HYBRID_LOG_GAMMA;
 
 	return val;
 }
