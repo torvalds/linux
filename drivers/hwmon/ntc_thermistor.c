@@ -315,6 +315,23 @@ static const struct ntc_compensation b57891s0103[] = {
 	{ .temp_c	= 155.0, .ohm	= 168 },
 };
 
+struct ntc_type {
+	const struct ntc_compensation *comp;
+	int n_comp;
+};
+
+#define NTC_TYPE(ntc, compensation) \
+[(ntc)] = { .comp = (compensation), .n_comp = ARRAY_SIZE(compensation) }
+
+static const struct ntc_type ntc_type[] = {
+	NTC_TYPE(TYPE_B57330V2103, b57330v2103),
+	NTC_TYPE(TYPE_B57891S0103, b57891s0103),
+	NTC_TYPE(TYPE_NCPXXWB473,  ncpXXwb473),
+	NTC_TYPE(TYPE_NCPXXWF104,  ncpXXwf104),
+	NTC_TYPE(TYPE_NCPXXWL333,  ncpXXwl333),
+	NTC_TYPE(TYPE_NCPXXXH103,  ncpXXxh103),
+};
+
 struct ntc_data {
 	struct ntc_thermistor_platform_data *pdata;
 	const struct ntc_compensation *comp;
@@ -671,36 +688,14 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 
 	data->pdata = pdata;
 
-	switch (pdev_id->driver_data) {
-	case TYPE_NCPXXWB473:
-		data->comp = ncpXXwb473;
-		data->n_comp = ARRAY_SIZE(ncpXXwb473);
-		break;
-	case TYPE_NCPXXWL333:
-		data->comp = ncpXXwl333;
-		data->n_comp = ARRAY_SIZE(ncpXXwl333);
-		break;
-	case TYPE_B57330V2103:
-		data->comp = b57330v2103;
-		data->n_comp = ARRAY_SIZE(b57330v2103);
-		break;
-	case TYPE_NCPXXWF104:
-		data->comp = ncpXXwf104;
-		data->n_comp = ARRAY_SIZE(ncpXXwf104);
-		break;
-	case TYPE_NCPXXXH103:
-		data->comp = ncpXXxh103;
-		data->n_comp = ARRAY_SIZE(ncpXXxh103);
-		break;
-	case TYPE_B57891S0103:
-		data->comp = b57891s0103;
-		data->n_comp = ARRAY_SIZE(b57891s0103);
-		break;
-	default:
+	if (pdev_id->driver_data >= ARRAY_SIZE(ntc_type)) {
 		dev_err(dev, "Unknown device type: %lu(%s)\n",
 				pdev_id->driver_data, pdev_id->name);
 		return -EINVAL;
 	}
+
+	data->comp   = ntc_type[pdev_id->driver_data].comp;
+	data->n_comp = ntc_type[pdev_id->driver_data].n_comp;
 
 	hwmon_dev = devm_hwmon_device_register_with_groups(dev, pdev_id->name,
 							   data, ntc_groups);

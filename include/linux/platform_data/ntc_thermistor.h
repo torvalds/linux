@@ -24,12 +24,12 @@
 struct iio_channel;
 
 enum ntc_thermistor_type {
-	TYPE_NCPXXWB473,
-	TYPE_NCPXXWL333,
 	TYPE_B57330V2103,
-	TYPE_NCPXXWF104,
-	TYPE_NCPXXXH103,
 	TYPE_B57891S0103,
+	TYPE_NCPXXWB473,
+	TYPE_NCPXXWF104,
+	TYPE_NCPXXWL333,
+	TYPE_NCPXXXH103,
 };
 
 struct ntc_thermistor_platform_data {
