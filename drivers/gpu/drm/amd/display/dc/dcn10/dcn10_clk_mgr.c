@@ -218,6 +218,7 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 			bool safe_to_lower)
 {
 	struct dc *dc = clk_mgr->ctx->dc;
+	struct dc_debug_options *debug = &dc->debug;
 	struct dc_clocks *new_clocks = &context->bw.dcn.clk;
 	struct pp_smu_display_requirement_rv *smu_req_cur =
 			&dc->res_pool->pp_smu_req;
@@ -261,6 +262,9 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 	}
 
 	// F Clock
+	if (debug->force_fclk_khz != 0)
+		new_clocks->fclk_khz = debug->force_fclk_khz;
+
 	if (should_set_clock(safe_to_lower, new_clocks->fclk_khz, clk_mgr->clks.fclk_khz)) {
 		clk_mgr->clks.fclk_khz = new_clocks->fclk_khz;
 		smu_req.hard_min_fclk_mhz = new_clocks->fclk_khz / 1000;
