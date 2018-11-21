@@ -38,6 +38,9 @@
 
 #include "dmaengine.h"
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/tegra_apb_dma.h>
+
 #define TEGRA_APBDMA_GENERAL			0x0
 #define TEGRA_APBDMA_GENERAL_ENABLE		BIT(31)
 
@@ -672,6 +675,8 @@ static void tegra_dma_tasklet(unsigned long data)
 		dmaengine_desc_get_callback(&dma_desc->txd, &cb);
 		cb_count = dma_desc->cb_count;
 		dma_desc->cb_count = 0;
+		trace_tegra_dma_complete_cb(&tdc->dma_chan, cb_count,
+					    cb.callback);
 		spin_unlock_irqrestore(&tdc->lock, flags);
 		while (cb_count--)
 			dmaengine_desc_callback_invoke(&cb, NULL);
@@ -688,6 +693,7 @@ static irqreturn_t tegra_dma_isr(int irq, void *dev_id)
 
 	spin_lock_irqsave(&tdc->lock, flags);
 
+	trace_tegra_dma_isr(&tdc->dma_chan, irq);
 	status = tdc_read(tdc, TEGRA_APBDMA_CHAN_STATUS);
 	if (status & TEGRA_APBDMA_STATUS_ISE_EOC) {
 		tdc_write(tdc, TEGRA_APBDMA_CHAN_STATUS, status);
@@ -846,6 +852,7 @@ found:
 		dma_set_residue(txstate, residual);
 	}
 
+	trace_tegra_dma_tx_status(&tdc->dma_chan, cookie, txstate);
 	spin_unlock_irqrestore(&tdc->lock, flags);
 	return ret;
 }
