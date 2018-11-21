@@ -38,7 +38,6 @@
 #include "amd_shared.h"
 #include "amdgpu_dm_irq.h"
 #include "dm_helpers.h"
-#include "dm_services_types.h"
 #include "amdgpu_dm_mst_types.h"
 #if defined(CONFIG_DEBUG_FS)
 #include "amdgpu_dm_debugfs.h"
