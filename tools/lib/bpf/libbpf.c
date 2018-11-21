@@ -1439,7 +1439,8 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
 	load_attr.prog_type = prog->type;
 	load_attr.expected_attach_type = prog->expected_attach_type;
-	load_attr.name = prog->name;
+	if (prog->caps->name)
+		load_attr.name = prog->name;
 	load_attr.insns = insns;
 	load_attr.insns_cnt = insns_cnt;
 	load_attr.license = license;
