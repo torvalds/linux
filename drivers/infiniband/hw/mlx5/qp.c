@@ -2633,8 +2633,7 @@ static int to_mlx5_access_flags(struct mlx5_ib_qp *qp,
 
 	if (access_flags & IB_ACCESS_REMOTE_READ)
 		*hw_access_flags |= MLX5_QP_BIT_RRE;
-	if ((access_flags & IB_ACCESS_REMOTE_ATOMIC) &&
-	    qp->ibqp.qp_type == IB_QPT_RC) {
+	if (access_flags & IB_ACCESS_REMOTE_ATOMIC) {
 		int atomic_mode;
 
 		atomic_mode = get_atomic_mode(dev, qp->ibqp.qp_type);
