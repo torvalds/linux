@@ -57,6 +57,8 @@ struct cgx {
 	u8			cgx_id;
 	u8			lmac_count;
 	struct lmac		*lmac_idmap[MAX_LMAC_PER_CGX];
+	struct			work_struct cgx_cmd_work;
+	struct			workqueue_struct *cgx_cmd_workq;
 	struct list_head	cgx_list;
 };
 
@@ -67,6 +69,9 @@ static u32 cgx_speed_mbps[CGX_LINK_SPEED_MAX];
 
 /* Convert firmware lmac type encoding to string */
 static char *cgx_lmactype_string[LMAC_MODE_MAX];
+
+/* CGX PHY management internal APIs */
+static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool en);
 
 /* Supported devices */
 static const struct pci_device_id cgx_id_table[] = {
@@ -578,6 +583,19 @@ int cgx_lmac_evh_unregister(void *cgxd, int lmac_id)
 }
 EXPORT_SYMBOL(cgx_lmac_evh_unregister);
 
+static int cgx_fwi_link_change(struct cgx *cgx, int lmac_id, bool enable)
+{
+	u64 req = 0;
+	u64 resp;
+
+	if (enable)
+		req = FIELD_SET(CMDREG_ID, CGX_CMD_LINK_BRING_UP, req);
+	else
+		req = FIELD_SET(CMDREG_ID, CGX_CMD_LINK_BRING_DOWN, req);
+
+	return cgx_fwi_cmd_generic(req, &resp, cgx, lmac_id);
+}
+
 static inline int cgx_fwi_read_version(u64 *resp, struct cgx *cgx)
 {
 	u64 req = 0;
@@ -610,6 +628,34 @@ static int cgx_lmac_verify_fwi_version(struct cgx *cgx)
 	else
 		return 0;
 }
+
+static void cgx_lmac_linkup_work(struct work_struct *work)
+{
+	struct cgx *cgx = container_of(work, struct cgx, cgx_cmd_work);
+	struct device *dev = &cgx->pdev->dev;
+	int i, err;
+
+	/* Do Link up for all the lmacs */
+	for (i = 0; i < cgx->lmac_count; i++) {
+		err = cgx_fwi_link_change(cgx, i, true);
+		if (err)
+			dev_info(dev, "cgx port %d:%d Link up command failed\n",
+				 cgx->cgx_id, i);
+	}
+}
+
+int cgx_lmac_linkup_start(void *cgxd)
+{
+	struct cgx *cgx = cgxd;
+
+	if (!cgx)
+		return -ENODEV;
+
+	queue_work(cgx->cgx_cmd_workq, &cgx->cgx_cmd_work);
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_linkup_start);
 
 static int cgx_lmac_init(struct cgx *cgx)
 {
@@ -654,6 +700,12 @@ static int cgx_lmac_exit(struct cgx *cgx)
 {
 	struct lmac *lmac;
 	int i;
+
+	if (cgx->cgx_cmd_workq) {
+		flush_workqueue(cgx->cgx_cmd_workq);
+		destroy_workqueue(cgx->cgx_cmd_workq);
+		cgx->cgx_cmd_workq = NULL;
+	}
 
 	/* Free all lmac related resources */
 	for (i = 0; i < cgx->lmac_count; i++) {
@@ -712,6 +764,15 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	cgx->cgx_id = (pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM) >> 24)
 		& CGX_ID_MASK;
+
+	/* init wq for processing linkup requests */
+	INIT_WORK(&cgx->cgx_cmd_work, cgx_lmac_linkup_work);
+	cgx->cgx_cmd_workq = alloc_workqueue("cgx_cmd_workq", 0, 0);
+	if (!cgx->cgx_cmd_workq) {
+		dev_err(dev, "alloc workqueue failed for cgx cmd");
+		err = -ENOMEM;
+		goto err_release_regions;
+	}
 
 	list_add(&cgx->cgx_list, &cgx_list);
 

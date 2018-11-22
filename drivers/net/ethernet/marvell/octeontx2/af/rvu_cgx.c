@@ -238,6 +238,8 @@ static int cgx_lmac_event_handler_init(struct rvu *rvu)
 
 	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
 		cgxd = rvu_cgx_pdata(cgx, rvu);
+		if (!cgxd)
+			continue;
 		for (lmac = 0; lmac < cgx_get_lmac_cnt(cgxd); lmac++) {
 			err = cgx_lmac_evh_register(&cb, cgxd, lmac);
 			if (err)
@@ -262,6 +264,7 @@ static void rvu_cgx_wq_destroy(struct rvu *rvu)
 int rvu_cgx_init(struct rvu *rvu)
 {
 	int cgx, err;
+	void *cgxd;
 
 	/* CGX port id starts from 0 and are not necessarily contiguous
 	 * Hence we allocate resources based on the maximum port id value.
@@ -290,6 +293,23 @@ int rvu_cgx_init(struct rvu *rvu)
 	err = cgx_lmac_event_handler_init(rvu);
 	if (err)
 		return err;
+
+	/* Ensure event handler registration is completed, before
+	 * we turn on the links
+	 */
+	mb();
+
+	/* Do link up for all CGX ports */
+	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
+		cgxd = rvu_cgx_pdata(cgx, rvu);
+		if (!cgxd)
+			continue;
+		err = cgx_lmac_linkup_start(cgxd);
+		if (err)
+			dev_err(rvu->dev,
+				"Link up process failed to start on cgx %d\n",
+				cgx);
+	}
 
 	return 0;
 }
