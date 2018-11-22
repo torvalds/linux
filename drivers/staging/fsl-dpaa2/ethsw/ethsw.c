@@ -972,6 +972,11 @@ static int port_bridge_leave(struct net_device *netdev)
 	return err;
 }
 
+static bool ethsw_port_dev_check(const struct net_device *netdev)
+{
+	return netdev->netdev_ops == &ethsw_port_ops;
+}
+
 static int port_netdevice_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
@@ -980,7 +985,7 @@ static int port_netdevice_event(struct notifier_block *unused,
 	struct net_device *upper_dev;
 	int err = 0;
 
-	if (netdev->netdev_ops != &ethsw_port_ops)
+	if (!ethsw_port_dev_check(netdev))
 		return NOTIFY_DONE;
 
 	/* Handle just upper dev link/unlink for the moment */
