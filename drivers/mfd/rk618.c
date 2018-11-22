@@ -22,11 +22,14 @@
 
 static const struct mfd_cell rk618_devs[] = {
 	{
+		.name = "rk618-codec",
+		.of_compatible = "rockchip,rk618-codec",
+	}, {
 		.name = "rk618-cru",
 		.of_compatible = "rockchip,rk618-cru",
 	}, {
-		.name = "rk618-vif",
-		.of_compatible = "rockchip,rk618-vif",
+		.name = "rk618-dsi",
+		.of_compatible = "rockchip,rk618-dsi",
 	}, {
 		.name = "rk618-hdmi",
 		.of_compatible = "rockchip,rk618-inno-hdmi",
@@ -37,14 +40,11 @@ static const struct mfd_cell rk618_devs[] = {
 		.name = "rk618-rgb",
 		.of_compatible = "rockchip,rk618-rgb",
 	}, {
-		.name = "rk618-mipi-dphy",
-		.of_compatible = "rockchip,rk618-mipi-dphy",
+		.name = "rk618-scaler",
+		.of_compatible = "rockchip,rk618-scaler",
 	}, {
-		.name = "rk618-mipi-dsi",
-		.of_compatible = "rockchip,rk618-mipi-dsi",
-	}, {
-		.name = "rk618-codec",
-		.of_compatible = "rockchip,rk618-codec",
+		.name = "rk618-vif",
+		.of_compatible = "rockchip,rk618-vif",
 	},
 };
 

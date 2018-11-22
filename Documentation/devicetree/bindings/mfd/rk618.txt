@@ -20,9 +20,8 @@ Example:
 	rk618: rk618@50 {
 		compatible = "rockchip,rk618";
 		reg = <0x50>;
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&i2s_8ch_mclk &lcdc_lcdc &state_video_phy_ttl>;
-		pinctrl-1 = <&lcdc_gpio>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_mclk>;
 		clocks = <&cru SCLK_I2S_8CH_OUT>;
 		clock-names = "clkin";
 		reset-gpios = <&gpio3 14 GPIO_ACTIVE_LOW>;
