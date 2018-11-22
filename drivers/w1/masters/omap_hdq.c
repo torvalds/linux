@@ -785,6 +785,8 @@ static int omap_hdq_remove(struct platform_device *pdev)
 	/* remove module dependency */
 	pm_runtime_disable(&pdev->dev);
 
+	w1_remove_master_device(&omap_w1_master);
+
 	return 0;
 }
 
