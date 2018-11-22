@@ -2157,7 +2157,7 @@ await_fence_array(struct i915_execbuffer *eb,
 		if (!(flags & I915_EXEC_FENCE_WAIT))
 			continue;
 
-		drm_syncobj_search_fence(syncobj, 0, 0, &fence);
+		fence = drm_syncobj_fence_get(syncobj);
 		if (!fence)
 			return -EINVAL;
 

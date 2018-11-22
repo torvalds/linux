@@ -313,10 +313,8 @@ error:
 
 void qxl_device_fini(struct qxl_device *qdev)
 {
-	if (qdev->current_release_bo[0])
-		qxl_bo_unref(&qdev->current_release_bo[0]);
-	if (qdev->current_release_bo[1])
-		qxl_bo_unref(&qdev->current_release_bo[1]);
+	qxl_bo_unref(&qdev->current_release_bo[0]);
+	qxl_bo_unref(&qdev->current_release_bo[1]);
 	flush_work(&qdev->gc_work);
 	qxl_ring_free(qdev->command_ring);
 	qxl_ring_free(qdev->cursor_ring);

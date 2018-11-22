@@ -329,6 +329,21 @@ void meson_viu_init(struct meson_drm *priv)
 			    0xff << OSD_REPLACE_SHIFT,
 			    priv->io_base + _REG(VIU_OSD2_CTRL_STAT2));
 
+	/* Disable VD1 AFBC */
+	/* di_mif0_en=0 mif0_to_vpp_en=0 di_mad_en=0 */
+	writel_bits_relaxed(0x7 << 16, 0,
+			priv->io_base + _REG(VIU_MISC_CTRL0));
+	/* afbc vd1 set=0 */
+	writel_bits_relaxed(BIT(20), 0,
+			priv->io_base + _REG(VIU_MISC_CTRL0));
+	writel_relaxed(0, priv->io_base + _REG(AFBC_ENABLE));
+
+	writel_relaxed(0x00FF00C0,
+			priv->io_base + _REG(VD1_IF0_LUMA_FIFO_SIZE));
+	writel_relaxed(0x00FF00C0,
+			priv->io_base + _REG(VD2_IF0_LUMA_FIFO_SIZE));
+
+
 	priv->viu.osd1_enabled = false;
 	priv->viu.osd1_commit = false;
 	priv->viu.osd1_interlace = false;

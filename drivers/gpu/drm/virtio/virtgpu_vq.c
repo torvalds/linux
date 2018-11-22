@@ -896,9 +896,9 @@ void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
 			      struct virtio_gpu_object *obj)
 {
 	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
-	struct virtio_gpu_fence *fence;
 
 	if (use_dma_api && obj->mapped) {
+		struct virtio_gpu_fence *fence = virtio_gpu_fence_alloc(vgdev);
 		/* detach backing and wait for the host process it ... */
 		virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle, &fence);
 		dma_fence_wait(&fence->f, true);

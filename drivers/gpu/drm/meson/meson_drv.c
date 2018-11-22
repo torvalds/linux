@@ -41,6 +41,7 @@
 
 #include "meson_drv.h"
 #include "meson_plane.h"
+#include "meson_overlay.h"
 #include "meson_crtc.h"
 #include "meson_venc_cvbs.h"
 
@@ -208,24 +209,51 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 		goto free_drm;
 	}
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
-	if (!res) {
-		ret = -EINVAL;
-		goto free_drm;
-	}
-	/* Simply ioremap since it may be a shared register zone */
-	regs = devm_ioremap(dev, res->start, resource_size(res));
-	if (!regs) {
-		ret = -EADDRNOTAVAIL;
-		goto free_drm;
-	}
+	priv->canvas = meson_canvas_get(dev);
+	if (!IS_ERR(priv->canvas)) {
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_osd1);
+		if (ret)
+			goto free_drm;
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_0);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			goto free_drm;
+		}
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_1);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+			goto free_drm;
+		}
+		ret = meson_canvas_alloc(priv->canvas, &priv->canvas_id_vd1_2);
+		if (ret) {
+			meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+			meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+			goto free_drm;
+		}
+	} else {
+		priv->canvas = NULL;
 
-	priv->dmc = devm_regmap_init_mmio(dev, regs,
-					  &meson_regmap_config);
-	if (IS_ERR(priv->dmc)) {
-		dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
-		ret = PTR_ERR(priv->dmc);
-		goto free_drm;
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dmc");
+		if (!res) {
+			ret = -EINVAL;
+			goto free_drm;
+		}
+		/* Simply ioremap since it may be a shared register zone */
+		regs = devm_ioremap(dev, res->start, resource_size(res));
+		if (!regs) {
+			ret = -EADDRNOTAVAIL;
+			goto free_drm;
+		}
+
+		priv->dmc = devm_regmap_init_mmio(dev, regs,
+						  &meson_regmap_config);
+		if (IS_ERR(priv->dmc)) {
+			dev_err(&pdev->dev, "Couldn't create the DMC regmap\n");
+			ret = PTR_ERR(priv->dmc);
+			goto free_drm;
+		}
 	}
 
 	priv->vsync_irq = platform_get_irq(pdev, 0);
@@ -261,6 +289,10 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	}
 
 	ret = meson_plane_create(priv);
+	if (ret)
+		goto free_drm;
+
+	ret = meson_overlay_create(priv);
 	if (ret)
 		goto free_drm;
 
@@ -300,6 +332,14 @@ static int meson_drv_bind(struct device *dev)
 static void meson_drv_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
+	struct meson_drm *priv = drm->dev_private;
+
+	if (priv->canvas) {
+		meson_canvas_free(priv->canvas, priv->canvas_id_osd1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_0);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_1);
+		meson_canvas_free(priv->canvas, priv->canvas_id_vd1_2);
+	}
 
 	drm_dev_unregister(drm);
 	drm_kms_helper_poll_fini(drm);

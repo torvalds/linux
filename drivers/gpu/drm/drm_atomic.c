@@ -315,9 +315,11 @@ drm_atomic_get_crtc_state(struct drm_atomic_state *state,
 }
 EXPORT_SYMBOL(drm_atomic_get_crtc_state);
 
-static int drm_atomic_crtc_check(struct drm_crtc *crtc,
-		struct drm_crtc_state *state)
+static int drm_atomic_crtc_check(const struct drm_crtc_state *old_crtc_state,
+				 const struct drm_crtc_state *new_crtc_state)
 {
+	struct drm_crtc *crtc = new_crtc_state->crtc;
+
 	/* NOTE: we explicitly don't enforce constraints such as primary
 	 * layer covering entire screen, since that is something we want
 	 * to allow (on hw that supports it).  For hw that does not, it
@@ -326,7 +328,7 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * TODO: Add generic modeset state checks once we support those.
 	 */
 
-	if (state->active && !state->enable) {
+	if (new_crtc_state->active && !new_crtc_state->enable) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] active without enabled\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
@@ -336,14 +338,14 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * as this is a kernel-internal detail that userspace should never
 	 * be able to trigger. */
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
-	    WARN_ON(state->enable && !state->mode_blob)) {
+	    WARN_ON(new_crtc_state->enable && !new_crtc_state->mode_blob)) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] enabled without mode blob\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 
 	if (drm_core_check_feature(crtc->dev, DRIVER_ATOMIC) &&
-	    WARN_ON(!state->enable && state->mode_blob)) {
+	    WARN_ON(!new_crtc_state->enable && new_crtc_state->mode_blob)) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] disabled with mode blob\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
@@ -359,7 +361,8 @@ static int drm_atomic_crtc_check(struct drm_crtc *crtc,
 	 * and legacy page_flip IOCTL which also reject service on a disabled
 	 * pipe.
 	 */
-	if (state->event && !state->active && !crtc->state->active) {
+	if (new_crtc_state->event &&
+	    !new_crtc_state->active && !old_crtc_state->active) {
 		DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requesting event but off\n",
 				 crtc->base.id, crtc->name);
 		return -EINVAL;
@@ -489,14 +492,13 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_get_plane_state);
 
 static bool
-plane_switching_crtc(struct drm_atomic_state *state,
-		     struct drm_plane *plane,
-		     struct drm_plane_state *plane_state)
+plane_switching_crtc(const struct drm_plane_state *old_plane_state,
+		     const struct drm_plane_state *new_plane_state)
 {
-	if (!plane->state->crtc || !plane_state->crtc)
+	if (!old_plane_state->crtc || !new_plane_state->crtc)
 		return false;
 
-	if (plane->state->crtc == plane_state->crtc)
+	if (old_plane_state->crtc == new_plane_state->crtc)
 		return false;
 
 	/* This could be refined, but currently there's no helper or driver code
@@ -509,88 +511,95 @@ plane_switching_crtc(struct drm_atomic_state *state,
 
 /**
  * drm_atomic_plane_check - check plane state
- * @plane: plane to check
- * @state: plane state to check
+ * @old_plane_state: old plane state to check
+ * @new_plane_state: new plane state to check
  *
  * Provides core sanity checks for plane state.
  *
  * RETURNS:
  * Zero on success, error code on failure
  */
-static int drm_atomic_plane_check(struct drm_plane *plane,
-		struct drm_plane_state *state)
+static int drm_atomic_plane_check(const struct drm_plane_state *old_plane_state,
+				  const struct drm_plane_state *new_plane_state)
 {
+	struct drm_plane *plane = new_plane_state->plane;
+	struct drm_crtc *crtc = new_plane_state->crtc;
+	const struct drm_framebuffer *fb = new_plane_state->fb;
 	unsigned int fb_width, fb_height;
 	int ret;
 
 	/* either *both* CRTC and FB must be set, or neither */
-	if (state->crtc && !state->fb) {
+	if (crtc && !fb) {
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] CRTC set but no FB\n",
 				 plane->base.id, plane->name);
 		return -EINVAL;
-	} else if (state->fb && !state->crtc) {
+	} else if (fb && !crtc) {
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] FB set but no CRTC\n",
 				 plane->base.id, plane->name);
 		return -EINVAL;
 	}
 
 	/* if disabled, we don't care about the rest of the state: */
-	if (!state->crtc)
+	if (!crtc)
 		return 0;
 
 	/* Check whether this plane is usable on this CRTC */
-	if (!(plane->possible_crtcs & drm_crtc_mask(state->crtc))) {
+	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
 		DRM_DEBUG_ATOMIC("Invalid [CRTC:%d:%s] for [PLANE:%d:%s]\n",
-				 state->crtc->base.id, state->crtc->name,
+				 crtc->base.id, crtc->name,
 				 plane->base.id, plane->name);
 		return -EINVAL;
 	}
 
 	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, state->fb->format->format,
-					   state->fb->modifier);
+	ret = drm_plane_check_pixel_format(plane, fb->format->format,
+					   fb->modifier);
 	if (ret) {
 		struct drm_format_name_buf format_name;
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid pixel format %s, modifier 0x%llx\n",
 				 plane->base.id, plane->name,
-				 drm_get_format_name(state->fb->format->format,
+				 drm_get_format_name(fb->format->format,
 						     &format_name),
-				 state->fb->modifier);
+				 fb->modifier);
 		return ret;
 	}
 
 	/* Give drivers some help against integer overflows */
-	if (state->crtc_w > INT_MAX ||
-	    state->crtc_x > INT_MAX - (int32_t) state->crtc_w ||
-	    state->crtc_h > INT_MAX ||
-	    state->crtc_y > INT_MAX - (int32_t) state->crtc_h) {
+	if (new_plane_state->crtc_w > INT_MAX ||
+	    new_plane_state->crtc_x > INT_MAX - (int32_t) new_plane_state->crtc_w ||
+	    new_plane_state->crtc_h > INT_MAX ||
+	    new_plane_state->crtc_y > INT_MAX - (int32_t) new_plane_state->crtc_h) {
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid CRTC coordinates %ux%u+%d+%d\n",
 				 plane->base.id, plane->name,
-				 state->crtc_w, state->crtc_h,
-				 state->crtc_x, state->crtc_y);
+				 new_plane_state->crtc_w, new_plane_state->crtc_h,
+				 new_plane_state->crtc_x, new_plane_state->crtc_y);
 		return -ERANGE;
 	}
 
-	fb_width = state->fb->width << 16;
-	fb_height = state->fb->height << 16;
+	fb_width = fb->width << 16;
+	fb_height = fb->height << 16;
 
 	/* Make sure source coordinates are inside the fb. */
-	if (state->src_w > fb_width ||
-	    state->src_x > fb_width - state->src_w ||
-	    state->src_h > fb_height ||
-	    state->src_y > fb_height - state->src_h) {
+	if (new_plane_state->src_w > fb_width ||
+	    new_plane_state->src_x > fb_width - new_plane_state->src_w ||
+	    new_plane_state->src_h > fb_height ||
+	    new_plane_state->src_y > fb_height - new_plane_state->src_h) {
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] invalid source coordinates "
 				 "%u.%06ux%u.%06u+%u.%06u+%u.%06u (fb %ux%u)\n",
 				 plane->base.id, plane->name,
-				 state->src_w >> 16, ((state->src_w & 0xffff) * 15625) >> 10,
-				 state->src_h >> 16, ((state->src_h & 0xffff) * 15625) >> 10,
-				 state->src_x >> 16, ((state->src_x & 0xffff) * 15625) >> 10,
-				 state->src_y >> 16, ((state->src_y & 0xffff) * 15625) >> 10,
-				 state->fb->width, state->fb->height);
+				 new_plane_state->src_w >> 16,
+				 ((new_plane_state->src_w & 0xffff) * 15625) >> 10,
+				 new_plane_state->src_h >> 16,
+				 ((new_plane_state->src_h & 0xffff) * 15625) >> 10,
+				 new_plane_state->src_x >> 16,
+				 ((new_plane_state->src_x & 0xffff) * 15625) >> 10,
+				 new_plane_state->src_y >> 16,
+				 ((new_plane_state->src_y & 0xffff) * 15625) >> 10,
+				 fb->width, fb->height);
 		return -ENOSPC;
 	}
 
-	if (plane_switching_crtc(state->state, plane, state)) {
+	if (plane_switching_crtc(old_plane_state, new_plane_state)) {
 		DRM_DEBUG_ATOMIC("[PLANE:%d:%s] switching CRTC directly\n",
 				 plane->base.id, plane->name);
 		return -EINVAL;
@@ -927,6 +936,8 @@ int
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc)
 {
+	const struct drm_crtc_state *old_crtc_state =
+		drm_atomic_get_old_crtc_state(state, crtc);
 	struct drm_plane *plane;
 
 	WARN_ON(!drm_atomic_get_new_crtc_state(state, crtc));
@@ -934,7 +945,7 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 	DRM_DEBUG_ATOMIC("Adding all current planes for [CRTC:%d:%s] to %p\n",
 			 crtc->base.id, crtc->name, state);
 
-	drm_for_each_plane_mask(plane, state->dev, crtc->state->plane_mask) {
+	drm_for_each_plane_mask(plane, state->dev, old_crtc_state->plane_mask) {
 		struct drm_plane_state *plane_state =
 			drm_atomic_get_plane_state(state, plane);
 
@@ -961,17 +972,19 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_plane *plane;
-	struct drm_plane_state *plane_state;
+	struct drm_plane_state *old_plane_state;
+	struct drm_plane_state *new_plane_state;
 	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
+	struct drm_crtc_state *old_crtc_state;
+	struct drm_crtc_state *new_crtc_state;
 	struct drm_connector *conn;
 	struct drm_connector_state *conn_state;
 	int i, ret = 0;
 
 	DRM_DEBUG_ATOMIC("checking %p\n", state);
 
-	for_each_new_plane_in_state(state, plane, plane_state, i) {
-		ret = drm_atomic_plane_check(plane, plane_state);
+	for_each_oldnew_plane_in_state(state, plane, old_plane_state, new_plane_state, i) {
+		ret = drm_atomic_plane_check(old_plane_state, new_plane_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] atomic core check failed\n",
 					 plane->base.id, plane->name);
@@ -979,8 +992,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 		}
 	}
 
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		ret = drm_atomic_crtc_check(crtc, crtc_state);
+	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+		ret = drm_atomic_crtc_check(old_crtc_state, new_crtc_state);
 		if (ret) {
 			DRM_DEBUG_ATOMIC("[CRTC:%d:%s] atomic core check failed\n",
 					 crtc->base.id, crtc->name);
@@ -1008,8 +1021,8 @@ int drm_atomic_check_only(struct drm_atomic_state *state)
 	}
 
 	if (!state->allow_modeset) {
-		for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-			if (drm_atomic_crtc_needs_modeset(crtc_state)) {
+		for_each_new_crtc_in_state(state, crtc, new_crtc_state, i) {
+			if (drm_atomic_crtc_needs_modeset(new_crtc_state)) {
 				DRM_DEBUG_ATOMIC("[CRTC:%d:%s] requires full modeset\n",
 						 crtc->base.id, crtc->name);
 				return -EINVAL;
