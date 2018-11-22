@@ -497,7 +497,7 @@ struct mei_device {
 #endif /* CONFIG_PM */
 
 	unsigned char rd_msg_buf[MEI_RD_MSG_BUF_SIZE];
-	u32 rd_msg_hdr;
+	u32 rd_msg_hdr[MEI_MSG_HDR_MAX];
 
 	/* write buffer */
 	bool hbuf_is_ready;
@@ -598,6 +598,7 @@ int mei_dmam_ring_alloc(struct mei_device *dev);
 void mei_dmam_ring_free(struct mei_device *dev);
 bool mei_dma_ring_is_allocated(struct mei_device *dev);
 void mei_dma_ring_reset(struct mei_device *dev);
+void mei_dma_ring_read(struct mei_device *dev, unsigned char *buf, u32 len);
 
 /*
  *  MEI interrupt functions prototype

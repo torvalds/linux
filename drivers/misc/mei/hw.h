@@ -206,6 +206,7 @@ enum  mei_cl_disconnect_status {
  * @dma_ring: message is on dma ring
  * @internal: message is internal
  * @msg_complete: last packet of the message
+ * @extension: extension of the header
  */
 struct mei_msg_hdr {
 	u32 me_addr:8;
@@ -215,7 +216,10 @@ struct mei_msg_hdr {
 	u32 dma_ring:1;
 	u32 internal:1;
 	u32 msg_complete:1;
+	u32 extension[0];
 } __packed;
+
+#define MEI_MSG_HDR_MAX 2
 
 struct mei_bus_message {
 	u8 hbm_cmd;
