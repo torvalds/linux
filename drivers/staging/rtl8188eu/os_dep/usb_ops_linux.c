@@ -796,7 +796,6 @@ void rtl8188eu_recv_tasklet(void *priv)
 
 void rtl8188eu_xmit_tasklet(void *priv)
 {
-	int ret = false;
 	struct adapter *adapt = priv;
 	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
@@ -811,9 +810,7 @@ void rtl8188eu_xmit_tasklet(void *priv)
 			break;
 		}
 
-		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv);
-
-		if (!ret)
+		if (!rtl8188eu_xmitframe_complete(adapt, pxmitpriv))
 			break;
 	}
 }
