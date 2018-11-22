@@ -2107,8 +2107,10 @@ static int nix_calibrate_x2p(struct rvu *rvu, int blkaddr)
 
 	status = rvu_read64(rvu, blkaddr, NIX_AF_STATUS);
 	/* Check if CGX devices are ready */
-	for (idx = 0; idx < cgx_get_cgx_cnt(); idx++) {
-		if (status & (BIT_ULL(16 + idx)))
+	for (idx = 0; idx < rvu->cgx_cnt_max; idx++) {
+		/* Skip when cgx port is not available */
+		if (!rvu_cgx_pdata(idx, rvu) ||
+		    (status & (BIT_ULL(16 + idx))))
 			continue;
 		dev_err(rvu->dev,
 			"CGX%d didn't respond to NIX X2P calibration\n", idx);

@@ -92,17 +92,21 @@ static inline struct lmac *lmac_pdata(u8 lmac_id, struct cgx *cgx)
 	return cgx->lmac_idmap[lmac_id];
 }
 
-int cgx_get_cgx_cnt(void)
+int cgx_get_cgxcnt_max(void)
 {
 	struct cgx *cgx_dev;
-	int count = 0;
+	int idmax = -ENODEV;
 
 	list_for_each_entry(cgx_dev, &cgx_list, cgx_list)
-		count++;
+		if (cgx_dev->cgx_id > idmax)
+			idmax = cgx_dev->cgx_id;
 
-	return count;
+	if (idmax < 0)
+		return 0;
+
+	return idmax + 1;
 }
-EXPORT_SYMBOL(cgx_get_cgx_cnt);
+EXPORT_SYMBOL(cgx_get_cgxcnt_max);
 
 int cgx_get_lmac_cnt(void *cgxd)
 {
@@ -679,8 +683,10 @@ static int cgx_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_release_regions;
 	}
 
+	cgx->cgx_id = (pci_resource_start(pdev, PCI_CFG_REG_BAR_NUM) >> 24)
+		& CGX_ID_MASK;
+
 	list_add(&cgx->cgx_list, &cgx_list);
-	cgx->cgx_id = cgx_get_cgx_cnt() - 1;
 
 	cgx_link_usertable_init();
 
