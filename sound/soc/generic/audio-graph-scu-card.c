@@ -96,15 +96,16 @@ static int asoc_graph_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int asoc_graph_card_dai_link_of(struct device_node *ep,
+static int asoc_graph_card_dai_link_of(struct device_node *cpu_ep,
+				       struct device_node *codec_ep,
 				       struct graph_card_data *priv,
-				       unsigned int daifmt,
 				       int idx, int is_fe)
 {
 	struct device *dev = graph_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = graph_priv_to_link(priv, idx);
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, idx);
 	struct snd_soc_card *card = graph_priv_to_card(priv);
+	struct device_node *ep = is_fe ? cpu_ep : codec_ep;
 	struct device_node *node = of_graph_get_port_parent(ep);
 	int ret;
 
@@ -185,7 +186,11 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 	if (ret < 0)
 		return ret;
 
-	dai_link->dai_fmt		= daifmt;
+	ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
+					    NULL, &dai_link->dai_fmt);
+	if (ret < 0)
+		return ret;
+
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &asoc_graph_card_ops;
@@ -205,7 +210,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	struct device_node *codec_ep;
 	struct device_node *codec_port;
 	struct device_node *codec_port_old;
-	unsigned int daifmt = 0;
 	int dai_idx, ret;
 	int rc, codec;
 
@@ -228,26 +232,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	 * see asoc_graph_get_dais_count
 	 */
 
-	/* find 1st codec */
-	of_for_each_phandle(&it, rc, node, "dais", NULL, 0) {
-		cpu_port = it.node;
-		cpu_ep   = of_get_next_child(cpu_port, NULL);
-		codec_ep = of_graph_get_remote_endpoint(cpu_ep);
-
-		of_node_put(cpu_ep);
-		of_node_put(codec_ep);
-
-		if (!codec_ep)
-			continue;
-
-		ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
-							    NULL, &daifmt);
-		if (ret < 0) {
-			of_node_put(cpu_port);
-			goto parse_of_err;
-		}
-	}
-
 	dai_idx = 0;
 	codec_port_old = NULL;
 	for (codec = 0; codec < 2; codec++) {
@@ -264,28 +248,22 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 
 			of_node_put(cpu_ep);
 			of_node_put(codec_ep);
+			of_node_put(cpu_port);
 			of_node_put(codec_port);
+			it.node = NULL;
 
 			if (codec) {
 				if (codec_port_old == codec_port)
 					continue;
 
 				codec_port_old = codec_port;
-
-				/* Back-End (= Codec) */
-				ret = asoc_graph_card_dai_link_of(codec_ep, priv, daifmt, dai_idx++, 0);
-				if (ret < 0) {
-					of_node_put(cpu_port);
-					goto parse_of_err;
-				}
-			} else {
-				/* Front-End (= CPU) */
-				ret = asoc_graph_card_dai_link_of(cpu_ep, priv, daifmt, dai_idx++, 1);
-				if (ret < 0) {
-					of_node_put(cpu_port);
-					goto parse_of_err;
-				}
 			}
+
+			ret = asoc_graph_card_dai_link_of(cpu_ep, codec_ep,
+							  priv, dai_idx++,
+							  !codec);
+			if (ret < 0)
+				goto parse_of_err;
 		}
 	}
 
