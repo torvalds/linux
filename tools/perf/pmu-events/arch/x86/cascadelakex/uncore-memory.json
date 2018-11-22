@@ -1,0 +1,117 @@
+[
+    {
+        "BriefDescription": "read requests to memory controller. Derived from unc_m_cas_count.rd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_READ",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "write requests to memory controller. Derived from unc_m_cas_count.wr",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "LLC_MISSES.MEM_WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Memory controller clock ticks",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_M_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles where DRAM ranks are in power down (CKE) mode+C37",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x85",
+        "EventName": "UNC_M_POWER_CHANNEL_PPD",
+        "MetricExpr": "(UNC_M_POWER_CHANNEL_PPD / UNC_M_CLOCKTICKS) * 100.",
+        "MetricName": "power_channel_ppd %",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Cycles Memory is in self refresh power mode",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x43",
+        "EventName": "UNC_M_POWER_SELF_REFRESH",
+        "MetricExpr": "(UNC_M_POWER_SELF_REFRESH / UNC_M_CLOCKTICKS) * 100.",
+        "MetricName": "power_self_refresh %",
+        "PerPkg": "1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charges due to page misses",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.PAGE_MISS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charge for reads",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.RD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Pre-charge for writes",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_M_PRE_COUNT.WR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth read (MB/sec). Derived from unc_m_pmm_rpq_inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE3",
+        "EventName": "UNC_M_PMM_BANDWIDTH.READ",
+        "PerPkg": "1",
+        "ScaleUnit": "6.103515625E-5MB/sec",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth write (MB/sec). Derived from unc_m_pmm_wpq_inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE7",
+        "EventName": "UNC_M_PMM_BANDWIDTH.WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "6.103515625E-5MB/sec",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory bandwidth total (MB/sec). Derived from unc_m_pmm_rpq_inserts",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE3",
+        "EventName": "UNC_M_PMM_BANDWIDTH.TOTAL",
+        "MetricExpr": "UNC_M_PMM_RPQ_INSERTS + UNC_M_PMM_WPQ_INSERTS",
+        "MetricName": "UNC_M_PMM_BANDWIDTH.TOTAL",
+        "PerPkg": "1",
+        "ScaleUnit": "6.103515625E-5MB/sec",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "Intel Optane DC persistent memory read latency (ns). Derived from unc_m_pmm_rpq_occupancy.all",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xE0",
+        "EventName": "UNC_M_PMM_READ_LATENCY",
+        "MetricExpr": "UNC_M_PMM_RPQ_OCCUPANCY.ALL / UNC_M_PMM_RPQ_INSERTS / UNC_M_CLOCKTICKS",
+        "MetricName": "UNC_M_PMM_READ_LATENCY",
+        "PerPkg": "1",
+        "ScaleUnit": "6000000000ns",
+        "UMask": "0x1",
+        "Unit": "iMC"
+    }
+]

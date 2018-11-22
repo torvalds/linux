@@ -15,7 +15,8 @@
  */
 
 #include <stdio.h>
-#include <linux/socket.h>
+#include <unistd.h>
+#include <pid_filter.h>
 
 /* bpf-output associated map */
 struct bpf_map SEC("maps") __augmented_syscalls__ = {
@@ -46,6 +47,8 @@ struct augmented_filename {
 #define SYS_OPEN 2
 #define SYS_OPENAT 257
 
+pid_filter(pids_filtered);
+
 SEC("raw_syscalls:sys_enter")
 int sys_enter(struct syscall_enter_args *args)
 {
@@ -55,6 +58,9 @@ int sys_enter(struct syscall_enter_args *args)
 	} augmented_args;
 	unsigned int len = sizeof(augmented_args);
 	const void *filename_arg = NULL;
+
+	if (pid_filter__has(&pids_filtered, getpid()))
+		return 0;
 
 	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
 	/*
@@ -125,7 +131,7 @@ int sys_enter(struct syscall_enter_args *args)
 SEC("raw_syscalls:sys_exit")
 int sys_exit(struct syscall_exit_args *args)
 {
-	return 1; /* 0 as soon as we start copying data returned by the kernel, e.g. 'read' */
+	return !pid_filter__has(&pids_filtered, getpid());
 }
 
 license(GPL);
