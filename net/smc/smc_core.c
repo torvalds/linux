@@ -173,8 +173,11 @@ free:
 	spin_unlock_bh(&smc_lgr_list.lock);
 
 	if (!lgr->is_smcd && !lgr->terminating)	{
+		struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
+
 		/* try to send del link msg, on error free lgr immediately */
-		if (!smc_link_send_delete(&lgr->lnk[SMC_SINGLE_LINK])) {
+		if (lnk->state == SMC_LNK_ACTIVE &&
+		    !smc_link_send_delete(lnk)) {
 			/* reschedule in case we never receive a response */
 			smc_lgr_schedule_free_work(lgr);
 			return;
