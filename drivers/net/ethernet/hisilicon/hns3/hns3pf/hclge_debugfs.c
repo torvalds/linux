@@ -242,6 +242,29 @@ err_tm_cmd_send:
 		cmd, ret);
 }
 
+static void hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev)
+{
+	struct hclge_cfg_pause_param_cmd *pause_param;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_CFG_MAC_PARA, true);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret) {
+		dev_err(&hdev->pdev->dev, "dump checksum fail, status is %d.\n",
+			ret);
+		return;
+	}
+
+	pause_param = (struct hclge_cfg_pause_param_cmd *)desc.data;
+	dev_info(&hdev->pdev->dev, "dump qos pause cfg\n");
+	dev_info(&hdev->pdev->dev, "pause_trans_gap: 0x%x\n",
+		 pause_param->pause_trans_gap);
+	dev_info(&hdev->pdev->dev, "pause_trans_time: 0x%x\n",
+		 pause_param->pause_trans_time);
+}
+
 static void hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, u8 stage,
 				   bool sel_x, u32 loc)
 {
@@ -307,6 +330,8 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		hclge_dbg_dump_tc(hdev);
 	} else if (strncmp(cmd_buf, "dump tm", 7) == 0) {
 		hclge_dbg_dump_tm(hdev);
+	} else if (strncmp(cmd_buf, "dump qos pause cfg", 18) == 0) {
+		hclge_dbg_dump_qos_pause_cfg(hdev);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;
