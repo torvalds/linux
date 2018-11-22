@@ -5840,6 +5840,16 @@ static void rtl8169_tx_timeout(struct net_device *dev)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
+static __le32 rtl8169_get_txd_opts1(u32 opts0, u32 len, unsigned int entry)
+{
+	u32 status = opts0 | len;
+
+	if (entry == NUM_TX_DESC - 1)
+		status |= RingEnd;
+
+	return cpu_to_le32(status);
+}
+
 static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 			      u32 *opts)
 {
@@ -5852,7 +5862,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 	for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
 		const skb_frag_t *frag = info->frags + cur_frag;
 		dma_addr_t mapping;
-		u32 status, len;
+		u32 len;
 		void *addr;
 
 		entry = (entry + 1) % NUM_TX_DESC;
@@ -5868,11 +5878,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 			goto err_out;
 		}
 
-		status = opts[0] | len;
-		if (entry == NUM_TX_DESC - 1)
-			status |= RingEnd;
-
-		txd->opts1 = cpu_to_le32(status);
+		txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
 		txd->opts2 = cpu_to_le32(opts[1]);
 		txd->addr = cpu_to_le64(mapping);
 
@@ -6068,8 +6074,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	struct TxDesc *txd = tp->TxDescArray + entry;
 	struct device *d = tp_to_dev(tp);
 	dma_addr_t mapping;
-	u32 status, len;
-	u32 opts[2];
+	u32 opts[2], len;
 	int frags;
 
 	if (unlikely(!TX_FRAGS_READY_FOR(tp, skb_shinfo(skb)->nr_frags))) {
@@ -6118,9 +6123,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	/* Force memory writes to complete before releasing descriptor */
 	dma_wmb();
 
-	/* Anti gcc 2.95.3 bugware (sic) */
-	status = opts[0] | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
-	txd->opts1 = cpu_to_le32(status);
+	txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
 
 	/* Force all memory writes to complete before notifying device */
 	wmb();
