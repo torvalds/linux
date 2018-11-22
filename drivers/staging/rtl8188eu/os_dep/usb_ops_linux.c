@@ -155,13 +155,11 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			handle_txrpt_ccx_88e(adapt, precvframe->pkt->data);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		} else if (pattrib->pkt_rpt_type == TX_REPORT2) {
-			ODM_RA_TxRPT2Handle_8188E(
-						&haldata->odmpriv,
-						precvframe->pkt->data,
-						pattrib->pkt_len,
-						pattrib->MacIDValidEntry[0],
-						pattrib->MacIDValidEntry[1]
-						);
+			ODM_RA_TxRPT2Handle_8188E(&haldata->odmpriv,
+						  precvframe->pkt->data,
+						  pattrib->pkt_len,
+						  pattrib->MacIDValidEntry[0],
+						  pattrib->MacIDValidEntry[1]);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
 			interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->pkt->data);
