@@ -598,8 +598,6 @@ static int z_erofs_do_read_page(struct z_erofs_vle_frontend *fe,
 	unsigned int cur, end, spiltted, index;
 	int err = 0;
 
-	trace_erofs_readpage(page, false);
-
 	/* register locked file pages as online pages in pack */
 	z_erofs_onlinepage_init(page);
 
@@ -1287,6 +1285,8 @@ static int z_erofs_vle_normalaccess_readpage(struct file *file,
 	struct z_erofs_vle_frontend f = VLE_FRONTEND_INIT(inode);
 	int err;
 	LIST_HEAD(pagepool);
+
+	trace_erofs_readpage(page, false);
 
 #if (EROFS_FS_ZIP_CACHE_LVL >= 2)
 	f.cachedzone_la = (erofs_off_t)page->index << PAGE_SHIFT;
