@@ -216,7 +216,7 @@ static void cgx_evhandler_task(struct work_struct *work)
 	} while (1);
 }
 
-static void cgx_lmac_event_handler_init(struct rvu *rvu)
+static int cgx_lmac_event_handler_init(struct rvu *rvu)
 {
 	struct cgx_event_cb cb;
 	int cgx, lmac, err;
@@ -228,7 +228,7 @@ static void cgx_lmac_event_handler_init(struct rvu *rvu)
 	rvu->cgx_evh_wq = alloc_workqueue("rvu_evh_wq", 0, 0);
 	if (!rvu->cgx_evh_wq) {
 		dev_err(rvu->dev, "alloc workqueue failed");
-		return;
+		return -ENOMEM;
 	}
 
 	cb.notify_link_chg = cgx_lmac_postevent; /* link change call back */
@@ -244,9 +244,11 @@ static void cgx_lmac_event_handler_init(struct rvu *rvu)
 					cgx, lmac);
 		}
 	}
+
+	return 0;
 }
 
-void rvu_cgx_wq_destroy(struct rvu *rvu)
+static void rvu_cgx_wq_destroy(struct rvu *rvu)
 {
 	if (rvu->cgx_evh_wq) {
 		flush_workqueue(rvu->cgx_evh_wq);
@@ -255,9 +257,9 @@ void rvu_cgx_wq_destroy(struct rvu *rvu)
 	}
 }
 
-int rvu_cgx_probe(struct rvu *rvu)
+int rvu_cgx_init(struct rvu *rvu)
 {
-	int i, err;
+	int cgx, err;
 
 	/* find available cgx ports */
 	rvu->cgx_cnt = cgx_get_cgx_cnt();
@@ -272,8 +274,8 @@ int rvu_cgx_probe(struct rvu *rvu)
 		return -ENOMEM;
 
 	/* Initialize the cgxdata table */
-	for (i = 0; i < rvu->cgx_cnt; i++)
-		rvu->cgx_idmap[i] = cgx_get_pdata(i);
+	for (cgx = 0; cgx < rvu->cgx_cnt; cgx++)
+		rvu->cgx_idmap[cgx] = cgx_get_pdata(cgx);
 
 	/* Map CGX LMAC interfaces to RVU PFs */
 	err = rvu_map_cgx_lmac_pf(rvu);
@@ -281,7 +283,16 @@ int rvu_cgx_probe(struct rvu *rvu)
 		return err;
 
 	/* Register for CGX events */
-	cgx_lmac_event_handler_init(rvu);
+	err = cgx_lmac_event_handler_init(rvu);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+int rvu_cgx_exit(struct rvu *rvu)
+{
+	rvu_cgx_wq_destroy(rvu);
 	return 0;
 }
 

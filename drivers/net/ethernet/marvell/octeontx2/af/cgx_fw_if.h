@@ -78,8 +78,6 @@ enum cgx_cmd_id {
 	CGX_CMD_LINK_STATE_CHANGE,
 	CGX_CMD_MODE_CHANGE,		/* hot plug support */
 	CGX_CMD_INTF_SHUTDOWN,
-	CGX_CMD_IRQ_ENABLE,
-	CGX_CMD_IRQ_DISABLE,
 };
 
 /* async event ids */
