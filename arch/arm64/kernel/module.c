@@ -203,9 +203,7 @@ static int reloc_insn_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 {
 	u32 insn;
 
-	if (!IS_ENABLED(CONFIG_ARM64_ERRATUM_843419) ||
-	    !cpus_have_const_cap(ARM64_WORKAROUND_843419) ||
-	    ((u64)place & 0xfff) < 0xff8)
+	if (!is_forbidden_offset_for_adrp(place))
 		return reloc_insn_imm(RELOC_OP_PAGE, place, val, 12, 21,
 				      AARCH64_INSN_IMM_ADR);
 

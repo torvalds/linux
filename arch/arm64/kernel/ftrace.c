@@ -104,7 +104,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 		 * is added in the future, but for now, the pr_err() below
 		 * deals with a theoretical issue only.
 		 */
-		trampoline = get_plt_entry(addr);
+		trampoline = get_plt_entry(addr, mod->arch.ftrace_trampoline);
 		if (!plt_entries_equal(mod->arch.ftrace_trampoline,
 				       &trampoline)) {
 			if (!plt_entries_equal(mod->arch.ftrace_trampoline,

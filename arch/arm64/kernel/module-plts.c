@@ -11,6 +11,61 @@
 #include <linux/module.h>
 #include <linux/sort.h>
 
+static struct plt_entry __get_adrp_add_pair(u64 dst, u64 pc,
+					    enum aarch64_insn_register reg)
+{
+	u32 adrp, add;
+
+	adrp = aarch64_insn_gen_adr(pc, dst, reg, AARCH64_INSN_ADR_TYPE_ADRP);
+	add = aarch64_insn_gen_add_sub_imm(reg, reg, dst % SZ_4K,
+					   AARCH64_INSN_VARIANT_64BIT,
+					   AARCH64_INSN_ADSB_ADD);
+
+	return (struct plt_entry){ cpu_to_le32(adrp), cpu_to_le32(add) };
+}
+
+struct plt_entry get_plt_entry(u64 dst, void *pc)
+{
+	struct plt_entry plt;
+	static u32 br;
+
+	if (!br)
+		br = aarch64_insn_gen_branch_reg(AARCH64_INSN_REG_16,
+						 AARCH64_INSN_BRANCH_NOLINK);
+
+	plt = __get_adrp_add_pair(dst, (u64)pc, AARCH64_INSN_REG_16);
+	plt.br = cpu_to_le32(br);
+
+	return plt;
+}
+
+bool plt_entries_equal(const struct plt_entry *a, const struct plt_entry *b)
+{
+	u64 p, q;
+
+	/*
+	 * Check whether both entries refer to the same target:
+	 * do the cheapest checks first.
+	 * If the 'add' or 'br' opcodes are different, then the target
+	 * cannot be the same.
+	 */
+	if (a->add != b->add || a->br != b->br)
+		return false;
+
+	p = ALIGN_DOWN((u64)a, SZ_4K);
+	q = ALIGN_DOWN((u64)b, SZ_4K);
+
+	/*
+	 * If the 'adrp' opcodes are the same then we just need to check
+	 * that they refer to the same 4k region.
+	 */
+	if (a->adrp == b->adrp && p == q)
+		return true;
+
+	return (p + aarch64_insn_adrp_get_offset(le32_to_cpu(a->adrp))) ==
+	       (q + aarch64_insn_adrp_get_offset(le32_to_cpu(b->adrp)));
+}
+
 static bool in_init(const struct module *mod, void *loc)
 {
 	return (u64)loc - (u64)mod->init_layout.base < mod->init_layout.size;
@@ -24,19 +79,23 @@ u64 module_emit_plt_entry(struct module *mod, Elf64_Shdr *sechdrs,
 							  &mod->arch.init;
 	struct plt_entry *plt = (struct plt_entry *)sechdrs[pltsec->plt_shndx].sh_addr;
 	int i = pltsec->plt_num_entries;
+	int j = i - 1;
 	u64 val = sym->st_value + rela->r_addend;
 
-	plt[i] = get_plt_entry(val);
+	if (is_forbidden_offset_for_adrp(&plt[i].adrp))
+		i++;
+
+	plt[i] = get_plt_entry(val, &plt[i]);
 
 	/*
 	 * Check if the entry we just created is a duplicate. Given that the
 	 * relocations are sorted, this will be the last entry we allocated.
 	 * (if one exists).
 	 */
-	if (i > 0 && plt_entries_equal(plt + i, plt + i - 1))
-		return (u64)&plt[i - 1];
+	if (j >= 0 && plt_entries_equal(plt + i, plt + j))
+		return (u64)&plt[j];
 
-	pltsec->plt_num_entries++;
+	pltsec->plt_num_entries += i - j;
 	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
 		return 0;
 
@@ -51,35 +110,24 @@ u64 module_emit_veneer_for_adrp(struct module *mod, Elf64_Shdr *sechdrs,
 							  &mod->arch.init;
 	struct plt_entry *plt = (struct plt_entry *)sechdrs[pltsec->plt_shndx].sh_addr;
 	int i = pltsec->plt_num_entries++;
-	u32 mov0, mov1, mov2, br;
+	u32 br;
 	int rd;
 
 	if (WARN_ON(pltsec->plt_num_entries > pltsec->plt_max_entries))
 		return 0;
 
+	if (is_forbidden_offset_for_adrp(&plt[i].adrp))
+		i = pltsec->plt_num_entries++;
+
 	/* get the destination register of the ADRP instruction */
 	rd = aarch64_insn_decode_register(AARCH64_INSN_REGTYPE_RD,
 					  le32_to_cpup((__le32 *)loc));
 
-	/* generate the veneer instructions */
-	mov0 = aarch64_insn_gen_movewide(rd, (u16)~val, 0,
-					 AARCH64_INSN_VARIANT_64BIT,
-					 AARCH64_INSN_MOVEWIDE_INVERSE);
-	mov1 = aarch64_insn_gen_movewide(rd, (u16)(val >> 16), 16,
-					 AARCH64_INSN_VARIANT_64BIT,
-					 AARCH64_INSN_MOVEWIDE_KEEP);
-	mov2 = aarch64_insn_gen_movewide(rd, (u16)(val >> 32), 32,
-					 AARCH64_INSN_VARIANT_64BIT,
-					 AARCH64_INSN_MOVEWIDE_KEEP);
 	br = aarch64_insn_gen_branch_imm((u64)&plt[i].br, (u64)loc + 4,
 					 AARCH64_INSN_BRANCH_NOLINK);
 
-	plt[i] = (struct plt_entry){
-			cpu_to_le32(mov0),
-			cpu_to_le32(mov1),
-			cpu_to_le32(mov2),
-			cpu_to_le32(br)
-		};
+	plt[i] = __get_adrp_add_pair(val, (u64)&plt[i], rd);
+	plt[i].br = cpu_to_le32(br);
 
 	return (u64)&plt[i];
 }
@@ -195,6 +243,15 @@ static unsigned int count_plts(Elf64_Sym *syms, Elf64_Rela *rela, int num,
 			break;
 		}
 	}
+
+	if (IS_ENABLED(CONFIG_ARM64_ERRATUM_843419) &&
+	    cpus_have_const_cap(ARM64_WORKAROUND_843419))
+		/*
+		 * Add some slack so we can skip PLT slots that may trigger
+		 * the erratum due to the placement of the ADRP instruction.
+		 */
+		ret += DIV_ROUND_UP(ret, (SZ_4K / sizeof(struct plt_entry)));
+
 	return ret;
 }
 
