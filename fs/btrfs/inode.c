@@ -8017,9 +8017,7 @@ static void btrfs_endio_direct_read(struct bio *bio)
 
 	dio_bio->bi_status = err;
 	dio_end_io(dio_bio);
-
-	if (io_bio->end_io)
-		io_bio->end_io(io_bio, blk_status_to_errno(err));
+	btrfs_io_bio_free_csum(io_bio);
 	bio_put(bio);
 }
 
@@ -8372,8 +8370,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 	if (!ret)
 		return;
 
-	if (io_bio->end_io)
-		io_bio->end_io(io_bio, ret);
+	btrfs_io_bio_free_csum(io_bio);
 
 free_ordered:
 	/*

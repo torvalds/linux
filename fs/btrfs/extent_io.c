@@ -2623,8 +2623,7 @@ readpage_ok:
 	if (extent_len)
 		endio_readpage_release_extent(tree, extent_start, extent_len,
 					      uptodate);
-	if (io_bio->end_io)
-		io_bio->end_io(io_bio, blk_status_to_errno(bio->bi_status));
+	btrfs_io_bio_free_csum(io_bio);
 	bio_put(bio);
 }
 
