@@ -297,7 +297,11 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 	if (clc_sk->sk_err) {
 		reason_code = -clc_sk->sk_err;
-		smc->sk.sk_err = clc_sk->sk_err;
+		if (clc_sk->sk_err == EAGAIN &&
+		    expected_type == SMC_CLC_DECLINE)
+			clc_sk->sk_err = 0; /* reset for fallback usage */
+		else
+			smc->sk.sk_err = clc_sk->sk_err;
 		goto out;
 	}
 	if (!len) { /* peer has performed orderly shutdown */
@@ -306,7 +310,8 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 		goto out;
 	}
 	if (len < 0) {
-		smc->sk.sk_err = -len;
+		if (len != -EAGAIN || expected_type != SMC_CLC_DECLINE)
+			smc->sk.sk_err = -len;
 		reason_code = len;
 		goto out;
 	}
