@@ -651,7 +651,9 @@ int smc_llc_do_confirm_rkey(struct smc_link *link,
 	int rc;
 
 	reinit_completion(&link->llc_confirm_rkey);
-	smc_llc_send_confirm_rkey(link, rmb_desc);
+	rc = smc_llc_send_confirm_rkey(link, rmb_desc);
+	if (rc)
+		return rc;
 	/* receive CONFIRM RKEY response from server over RoCE fabric */
 	rc = wait_for_completion_interruptible_timeout(&link->llc_confirm_rkey,
 						       SMC_LLC_WAIT_TIME);
