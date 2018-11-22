@@ -20,7 +20,7 @@ config SND_AUDIO_GRAPH_CARD
 	depends on OF
 	select SND_SIMPLE_CARD_UTILS
 	help
-	  This option enables generic simple simple sound card support
+	  This option enables generic simple sound card support
 	  with OF-graph DT bindings.
 
 config SND_AUDIO_GRAPH_SCU_CARD
