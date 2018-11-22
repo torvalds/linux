@@ -14085,6 +14085,7 @@ F:	Documentation/devicetree/bindings/iio/proximity/vl53l0x.txt
 
 STABLE BRANCH
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+M:	Sasha Levin <sashal@kernel.org>
 L:	stable@vger.kernel.org
 S:	Supported
 F:	Documentation/process/stable-kernel-rules.rst

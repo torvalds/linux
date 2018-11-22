@@ -61,12 +61,6 @@
 #define SLIM_MSG_MC_NEXT_REMOVE_CHANNEL          0x58
 #define SLIM_MSG_MC_RECONFIGURE_NOW              0x5F
 
-/*
- * Clock pause flag to indicate that the reconfig message
- * corresponds to clock pause sequence
- */
-#define SLIM_MSG_CLK_PAUSE_SEQ_FLG		(1U << 8)
-
 /* Clock pause values per SLIMbus spec */
 #define SLIM_CLK_FAST				0
 #define SLIM_CLK_CONST_PHASE			1
