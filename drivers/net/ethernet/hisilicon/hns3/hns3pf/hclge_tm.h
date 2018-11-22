@@ -55,6 +55,12 @@ struct hclge_qs_weight_cmd {
 	u8 dwrr;
 };
 
+struct hclge_ets_tc_weight_cmd {
+	u8 tc_weight[HNAE3_MAX_TC];
+	u8 weight_offset;
+	u8 rsvd[15];
+};
+
 #define HCLGE_TM_SHAP_IR_B_MSK  GENMASK(7, 0)
 #define HCLGE_TM_SHAP_IR_B_LSH	0
 #define HCLGE_TM_SHAP_IR_U_MSK  GENMASK(11, 8)
