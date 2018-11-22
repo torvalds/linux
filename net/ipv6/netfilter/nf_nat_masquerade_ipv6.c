@@ -162,15 +162,17 @@ static struct notifier_block masq_inet6_notifier = {
 	.notifier_call	= masq_inet6_event,
 };
 
-static atomic_t masquerade_notifier_refcount = ATOMIC_INIT(0);
+static int masq_refcnt;
+static DEFINE_MUTEX(masq_mutex);
 
 int nf_nat_masquerade_ipv6_register_notifier(void)
 {
-	int ret;
+	int ret = 0;
 
+	mutex_lock(&masq_mutex);
 	/* check if the notifier is already set */
-	if (atomic_inc_return(&masquerade_notifier_refcount) > 1)
-		return 0;
+	if (++masq_refcnt > 1)
+		goto out_unlock;
 
 	ret = register_netdevice_notifier(&masq_dev_notifier);
 	if (ret)
@@ -180,22 +182,29 @@ int nf_nat_masquerade_ipv6_register_notifier(void)
 	if (ret)
 		goto err_unregister;
 
+	mutex_unlock(&masq_mutex);
 	return ret;
+
 err_unregister:
 	unregister_netdevice_notifier(&masq_dev_notifier);
 err_dec:
-	atomic_dec(&masquerade_notifier_refcount);
+	masq_refcnt--;
+out_unlock:
+	mutex_unlock(&masq_mutex);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6_register_notifier);
 
 void nf_nat_masquerade_ipv6_unregister_notifier(void)
 {
+	mutex_lock(&masq_mutex);
 	/* check if the notifier still has clients */
-	if (atomic_dec_return(&masquerade_notifier_refcount) > 0)
-		return;
+	if (--masq_refcnt > 0)
+		goto out_unlock;
 
 	unregister_inet6addr_notifier(&masq_inet6_notifier);
 	unregister_netdevice_notifier(&masq_dev_notifier);
+out_unlock:
+	mutex_unlock(&masq_mutex);
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6_unregister_notifier);
