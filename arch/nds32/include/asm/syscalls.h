@@ -7,6 +7,7 @@
 asmlinkage long sys_cacheflush(unsigned long addr, unsigned long len, unsigned int op);
 asmlinkage long sys_fadvise64_64_wrapper(int fd, int advice, loff_t offset, loff_t len);
 asmlinkage long sys_rt_sigreturn_wrapper(void);
+asmlinkage long sys_udftrap(int option);
 
 #include <asm-generic/syscalls.h>
 

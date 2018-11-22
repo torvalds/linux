@@ -28,6 +28,19 @@ config LAZY_FPU
 
 	  For nomal case, say Y.
 
+config SUPPORT_DENORMAL_ARITHMETIC
+	bool "Denormal arithmetic support"
+	depends on FPU
+	default n
+	help
+	  Say Y here to enable arithmetic of denormalized number. Enabling
+	  this feature can enhance the precision for tininess number.
+	  However, performance loss in float pointe calculations is
+	  possibly significant due to additional FPU exception.
+
+	  If the calculated tolerance for tininess number is not critical,
+	  say N to prevent performance loss.
+
 config HWZOL
 	bool "hardware zero overhead loop support"
 	depends on CPU_D10 || CPU_D15

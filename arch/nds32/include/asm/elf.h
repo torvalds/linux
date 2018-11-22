@@ -9,6 +9,7 @@
  */
 
 #include <asm/ptrace.h>
+#include <asm/fpu.h>
 
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];
@@ -159,8 +160,18 @@ struct elf32_hdr;
 
 #endif
 
+
+#if IS_ENABLED(CONFIG_FPU)
+#define FPU_AUX_ENT	NEW_AUX_ENT(AT_FPUCW, FPCSR_INIT)
+#else
+#define FPU_AUX_ENT	NEW_AUX_ENT(AT_IGNORE, 0)
+#endif
+
 #define ARCH_DLINFO						\
 do {								\
+	/* Optional FPU initialization */			\
+	FPU_AUX_ENT;						\
+								\
 	NEW_AUX_ENT(AT_SYSINFO_EHDR,				\
 		    (elf_addr_t)current->mm->context.vdso);	\
 } while (0)

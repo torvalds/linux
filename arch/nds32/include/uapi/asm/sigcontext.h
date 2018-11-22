@@ -12,6 +12,15 @@
 struct fpu_struct {
 	unsigned long long fd_regs[32];
 	unsigned long fpcsr;
+	/*
+	 * UDF_trap is used to recognize whether underflow trap is enabled
+	 * or not. When UDF_trap == 1, this process will be traped and then
+	 * get a SIGFPE signal when encountering an underflow exception.
+	 * UDF_trap is only modified through setfputrap syscall. Therefore,
+	 * UDF_trap needn't be saved or loaded to context in each context
+	 * switch.
+	 */
+	unsigned long UDF_trap;
 };
 
 struct zol_struct {

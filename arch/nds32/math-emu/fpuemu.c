@@ -304,7 +304,12 @@ static int fpu_emu(struct fpu_struct *fpu_reg, unsigned long insn)
 	/*
 	 * If an exception is required, generate a tidy SIGFPE exception.
 	 */
+#if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
+	if (((fpu_reg->fpcsr << 5) & fpu_reg->fpcsr & FPCSR_mskALLE_NO_UDFE) ||
+	    ((fpu_reg->fpcsr & FPCSR_mskUDF) && (fpu_reg->UDF_trap)))
+#else
 	if ((fpu_reg->fpcsr << 5) & fpu_reg->fpcsr & FPCSR_mskALLE)
+#endif
 		return SIGFPE;
 	return 0;
 }

@@ -28,7 +28,18 @@ extern int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu);
 #define sNAN64    0xFFFFFFFFFFFFFFFFULL
 #define sNAN32    0xFFFFFFFFUL
 
+#if IS_ENABLED(CONFIG_SUPPORT_DENORMAL_ARITHMETIC)
+/*
+ * Denormalized number is unsupported by nds32 FPU. Hence the operation
+ * is treated as underflow cases when the final result is a denormalized
+ * number. To enhance precision, underflow exception trap should be
+ * enabled by default and kerenl will re-execute it by fpu emulator
+ * when getting underflow exception.
+ */
+#define FPCSR_INIT  FPCSR_mskUDFE
+#else
 #define FPCSR_INIT  0x0UL
+#endif
 
 extern const struct fpu_struct init_fpuregs;
 
