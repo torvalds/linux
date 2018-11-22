@@ -4248,8 +4248,7 @@ static int mvneta_ethtool_set_eee(struct net_device *dev,
 
 	/* The Armada 37x documents do not give limits for this other than
 	 * it being an 8-bit register. */
-	if (eee->tx_lpi_enabled &&
-	    (eee->tx_lpi_timer < 0 || eee->tx_lpi_timer > 255))
+	if (eee->tx_lpi_enabled && eee->tx_lpi_timer > 255)
 		return -EINVAL;
 
 	lpi_ctl0 = mvreg_read(pp, MVNETA_LPI_CTRL_0);
