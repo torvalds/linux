@@ -56,6 +56,7 @@ MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_k_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -231,6 +232,15 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS12:
 		chip_name = "polaris12";
+		if (((adev->pdev->device == 0x6987) &&
+		     ((adev->pdev->revision == 0xc0) ||
+		      (adev->pdev->revision == 0xc3))) ||
+		    ((adev->pdev->device == 0x6981) &&
+		     ((adev->pdev->revision == 0x00) ||
+		      (adev->pdev->revision == 0x01) ||
+		      (adev->pdev->revision == 0x10)))) {
+			chip_name = "polaris12_k";
+		}
 		break;
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:
