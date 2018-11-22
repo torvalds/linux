@@ -36,6 +36,11 @@ struct graph_card_data {
 	struct gpio_desc *pa_gpio;
 };
 
+#define graph_priv_to_card(priv) (&(priv)->snd_card)
+#define graph_priv_to_props(priv, i) ((priv)->dai_props + (i))
+#define graph_priv_to_dev(priv) (graph_priv_to_card(priv)->dev)
+#define graph_priv_to_link(priv, i) (graph_priv_to_card(priv)->dai_link + (i))
+
 static int asoc_graph_card_outdrv_event(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *kcontrol,
 					int event)
@@ -62,11 +67,6 @@ static const struct snd_soc_dapm_widget asoc_graph_card_dapm_widgets[] = {
 			       0, 0, NULL, 0, asoc_graph_card_outdrv_event,
 			       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 };
-
-#define graph_priv_to_card(priv) (&(priv)->snd_card)
-#define graph_priv_to_props(priv, i) ((priv)->dai_props + (i))
-#define graph_priv_to_dev(priv) (graph_priv_to_card(priv)->dev)
-#define graph_priv_to_link(priv, i) (graph_priv_to_card(priv)->dai_link + (i))
 
 static int asoc_graph_card_startup(struct snd_pcm_substream *substream)
 {
