@@ -314,6 +314,12 @@
 	status = "okay";
 };
 
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog1>;
+	fsl,ext-reset-output;
+};
+
 &iomuxc {
 	pinctrl_reg_sd3_vmmc: sd3vmmcgrp {
 		fsl,pins = <
@@ -477,6 +483,12 @@
 	pinctrl_pwm1: pmw1grp {
 		fsl,pins = <
 			MX6SLL_PAD_PWM1__PWM1_OUT   0x110b0
+		>;
+	};
+
+	pinctrl_wdog1: wdog1grp	{
+		fsl,pins = <
+			MX6SLL_PAD_WDOG_B__WDOG1_B   0x170b0
 		>;
 	};
 };
