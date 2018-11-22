@@ -1383,6 +1383,7 @@ static void mlx5e_close_txqsq(struct mlx5e_txqsq *sq)
 	struct mlx5_core_dev *mdev = c->mdev;
 	struct mlx5_rate_limit rl = {0};
 
+	cancel_work_sync(&sq->dim.work);
 	mlx5e_destroy_sq(mdev, sq->sqn);
 	if (sq->rate_limit) {
 		rl.rate = sq->rate_limit;
