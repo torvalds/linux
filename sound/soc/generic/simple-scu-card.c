@@ -157,10 +157,17 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 		if (ret < 0)
 			return ret;
 
+		/* check "prefix" from top node */
 		snd_soc_of_parse_audio_prefix(card,
 					      &priv->codec_conf,
 					      dai_link->codecs->of_node,
 					      PREFIX "prefix");
+		/* check "prefix" from each node if top doesn't have */
+		if (!priv->codec_conf.of_node)
+			snd_soc_of_parse_node_prefix(np,
+						     &priv->codec_conf,
+						     dai_link->codecs->of_node,
+						     "prefix");
 	}
 
 	ret = asoc_simple_card_of_parse_tdm(np, &dai_props->dai);
