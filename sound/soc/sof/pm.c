@@ -187,6 +187,7 @@ static int sof_restore_pipelines(struct snd_sof_dev *sdev)
 static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
 {
 	struct sof_ipc_pm_ctx pm_ctx;
+	struct sof_ipc_reply reply;
 
 	memset(&pm_ctx, 0, sizeof(pm_ctx));
 
@@ -196,7 +197,7 @@ static int sof_send_pm_ipc(struct snd_sof_dev *sdev, int cmd)
 
 	/* send ctx save ipc to dsp */
 	return sof_ipc_tx_message(sdev->ipc, pm_ctx.hdr.cmd, &pm_ctx,
-				 sizeof(pm_ctx), &pm_ctx, sizeof(pm_ctx));
+				 sizeof(pm_ctx), &reply, sizeof(reply));
 }
 
 static void sof_suspend_streams(struct snd_sof_dev *sdev)
