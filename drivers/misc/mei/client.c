@@ -1558,10 +1558,13 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	struct mei_msg_hdr mei_hdr;
 	size_t hdr_len = sizeof(mei_hdr);
 	size_t len;
-	size_t hbuf_len;
+	size_t hbuf_len, dr_len;
 	int hbuf_slots;
+	u32 dr_slots;
+	u32 dma_len;
 	int rets;
 	bool first_chunk;
+	const void *data;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1582,6 +1585,7 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	len = buf->size - cb->buf_idx;
+	data = buf->data + cb->buf_idx;
 	hbuf_slots = mei_hbuf_empty_slots(dev);
 	if (hbuf_slots < 0) {
 		rets = -EOVERFLOW;
@@ -1589,6 +1593,8 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	}
 
 	hbuf_len = mei_slots2data(hbuf_slots);
+	dr_slots = mei_dma_ring_empty_slots(dev);
+	dr_len = mei_slots2data(dr_slots);
 
 	mei_msg_hdr_init(&mei_hdr, cb);
 
@@ -1599,23 +1605,33 @@ int mei_cl_irq_write(struct mei_cl *cl, struct mei_cl_cb *cb,
 	if (len + hdr_len <= hbuf_len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
+	} else if (dr_slots && hbuf_len >= hdr_len + sizeof(dma_len)) {
+		mei_hdr.dma_ring = 1;
+		if (len > dr_len)
+			len = dr_len;
+		else
+			mei_hdr.msg_complete = 1;
+
+		mei_hdr.length = sizeof(dma_len);
+		dma_len = len;
+		data = &dma_len;
 	} else if ((u32)hbuf_slots == mei_hbuf_depth(dev)) {
-		mei_hdr.length = hbuf_len - hdr_len;
+		len = hbuf_len - hdr_len;
+		mei_hdr.length = len;
 	} else {
 		return 0;
 	}
 
-	cl_dbg(dev, cl, "buf: size = %zu idx = %zu\n",
-			cb->buf.size, cb->buf_idx);
+	if (mei_hdr.dma_ring)
+		mei_dma_ring_write(dev, buf->data + cb->buf_idx, len);
 
-	rets = mei_write_message(dev, &mei_hdr, hdr_len,
-				 buf->data + cb->buf_idx, mei_hdr.length);
+	rets = mei_write_message(dev, &mei_hdr, hdr_len, data, mei_hdr.length);
 	if (rets)
 		goto err;
 
 	cl->status = 0;
 	cl->writing_state = MEI_WRITING;
-	cb->buf_idx += mei_hdr.length;
+	cb->buf_idx += len;
 
 	if (first_chunk) {
 		if (mei_cl_tx_flow_ctrl_creds_reduce(cl)) {
@@ -1650,11 +1666,13 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	struct mei_msg_data *buf;
 	struct mei_msg_hdr mei_hdr;
 	size_t hdr_len = sizeof(mei_hdr);
-	size_t len;
-	size_t hbuf_len;
+	size_t len, hbuf_len, dr_len;
 	int hbuf_slots;
+	u32 dr_slots;
+	u32 dma_len;
 	ssize_t rets;
 	bool blocking;
+	const void *data;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -1666,9 +1684,11 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 
 	buf = &cb->buf;
 	len = buf->size;
-	blocking = cb->blocking;
 
 	cl_dbg(dev, cl, "len=%zd\n", len);
+
+	blocking = cb->blocking;
+	data = buf->data;
 
 	rets = pm_runtime_get(dev->dev);
 	if (rets < 0 && rets != -EINPROGRESS) {
@@ -1706,16 +1726,32 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 	}
 
 	hbuf_len = mei_slots2data(hbuf_slots);
+	dr_slots = mei_dma_ring_empty_slots(dev);
+	dr_len =  mei_slots2data(dr_slots);
 
 	if (len + hdr_len <= hbuf_len) {
 		mei_hdr.length = len;
 		mei_hdr.msg_complete = 1;
+	} else if (dr_slots && hbuf_len >= hdr_len + sizeof(dma_len)) {
+		mei_hdr.dma_ring = 1;
+		if (len > dr_len)
+			len = dr_len;
+		else
+			mei_hdr.msg_complete = 1;
+
+		mei_hdr.length = sizeof(dma_len);
+		dma_len = len;
+		data = &dma_len;
 	} else {
-		mei_hdr.length = hbuf_len - hdr_len;
+		len = hbuf_len - hdr_len;
+		mei_hdr.length = len;
 	}
 
+	if (mei_hdr.dma_ring)
+		mei_dma_ring_write(dev, buf->data, len);
+
 	rets = mei_write_message(dev, &mei_hdr, hdr_len,
-				 buf->data, mei_hdr.length);
+				 data, mei_hdr.length);
 	if (rets)
 		goto err;
 
@@ -1724,7 +1760,9 @@ ssize_t mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb)
 		goto err;
 
 	cl->writing_state = MEI_WRITING;
-	cb->buf_idx = mei_hdr.length;
+	cb->buf_idx = len;
+	/* restore return value */
+	len = buf->size;
 
 out:
 	if (mei_hdr.msg_complete)

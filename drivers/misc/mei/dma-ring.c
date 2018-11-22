@@ -139,6 +139,26 @@ static size_t mei_dma_copy_from(struct mei_device *dev, unsigned char *buf,
 }
 
 /**
+ * mei_dma_copy_to() - copy to a buffer to the dma ring
+ * @dev: mei device
+ * @buf: data buffer
+ * @offset: offset in slots.
+ * @n: number of slots to copy.
+ */
+static size_t mei_dma_copy_to(struct mei_device *dev, unsigned char *buf,
+			      u32 offset, u32 n)
+{
+	unsigned char *hbuf = dev->dr_dscr[DMA_DSCR_HOST].vaddr;
+
+	size_t b_offset = offset << 2;
+	size_t b_n = n << 2;
+
+	memcpy(hbuf + b_offset, buf, b_n);
+
+	return b_n;
+}
+
+/**
  * mei_dma_ring_read() - read data from the ring
  * @dev: mei device
  * @buf: buffer to read into: may be NULL in case of droping the data.
@@ -177,4 +197,73 @@ void mei_dma_ring_read(struct mei_device *dev, unsigned char *buf, u32 len)
 	mei_dma_copy_from(dev, buf, rd_idx, rem);
 out:
 	WRITE_ONCE(ctrl->dbuf_rd_idx, ctrl->dbuf_rd_idx + slots);
+}
+
+static inline u32 mei_dma_ring_hbuf_depth(struct mei_device *dev)
+{
+	return dev->dr_dscr[DMA_DSCR_HOST].size >> 2;
+}
+
+/**
+ * mei_dma_ring_empty_slots() - calaculate number of empty slots in dma ring
+ * @dev: mei_device
+ *
+ * Return: number of empty slots
+ */
+u32 mei_dma_ring_empty_slots(struct mei_device *dev)
+{
+	struct hbm_dma_ring_ctrl *ctrl = mei_dma_ring_ctrl(dev);
+	u32 wr_idx, rd_idx, hbuf_depth, empty;
+
+	if (!mei_dma_ring_is_allocated(dev))
+		return 0;
+
+	if (WARN_ON(!ctrl))
+		return 0;
+
+	/* easier to work in slots */
+	hbuf_depth = mei_dma_ring_hbuf_depth(dev);
+	rd_idx = READ_ONCE(ctrl->hbuf_rd_idx);
+	wr_idx = READ_ONCE(ctrl->hbuf_wr_idx);
+
+	if (rd_idx > wr_idx)
+		empty = rd_idx - wr_idx;
+	else
+		empty = hbuf_depth - (wr_idx - rd_idx);
+
+	return empty;
+}
+
+/**
+ * mei_dma_ring_write - write data to dma ring host buffer
+ *
+ * @dev: mei_device
+ * @buf: data will be written
+ * @len: data length
+ */
+void mei_dma_ring_write(struct mei_device *dev, unsigned char *buf, u32 len)
+{
+	struct hbm_dma_ring_ctrl *ctrl = mei_dma_ring_ctrl(dev);
+	u32 hbuf_depth;
+	u32 wr_idx, rem, slots;
+
+	if (WARN_ON(!ctrl))
+		return;
+
+	dev_dbg(dev->dev, "writing to dma %u bytes\n", len);
+	hbuf_depth = mei_dma_ring_hbuf_depth(dev);
+	wr_idx = READ_ONCE(ctrl->hbuf_wr_idx) & (hbuf_depth - 1);
+	slots = mei_data2slots(len);
+
+	if (wr_idx + slots > hbuf_depth) {
+		buf += mei_dma_copy_to(dev, buf, wr_idx, hbuf_depth - wr_idx);
+		rem = slots - (hbuf_depth - wr_idx);
+		wr_idx = 0;
+	} else {
+		rem = slots;
+	}
+
+	mei_dma_copy_to(dev, buf, wr_idx, rem);
+
+	WRITE_ONCE(ctrl->hbuf_wr_idx, ctrl->hbuf_wr_idx + slots);
 }
