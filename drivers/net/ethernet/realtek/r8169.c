@@ -2116,18 +2116,13 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp)
 
 	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
 		dev_err(tp_to_dev(tp), "unknown chip XID %03x\n", reg & 0xfcf);
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_42) {
-		tp->mac_version = tp->supports_gmii ?
-				  RTL_GIGA_MAC_VER_42 :
-				  RTL_GIGA_MAC_VER_43;
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_45) {
-		tp->mac_version = tp->supports_gmii ?
-				  RTL_GIGA_MAC_VER_45 :
-				  RTL_GIGA_MAC_VER_47;
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_46) {
-		tp->mac_version = tp->supports_gmii ?
-				  RTL_GIGA_MAC_VER_46 :
-				  RTL_GIGA_MAC_VER_48;
+	} else if (!tp->supports_gmii) {
+		if (tp->mac_version == RTL_GIGA_MAC_VER_42)
+			tp->mac_version = RTL_GIGA_MAC_VER_43;
+		else if (tp->mac_version == RTL_GIGA_MAC_VER_45)
+			tp->mac_version = RTL_GIGA_MAC_VER_47;
+		else if (tp->mac_version == RTL_GIGA_MAC_VER_46)
+			tp->mac_version = RTL_GIGA_MAC_VER_48;
 	}
 }
 
