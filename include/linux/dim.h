@@ -37,6 +37,7 @@
 struct dim_cq_moder {
 	u16 usec;
 	u16 pkts;
+	u16 comps;
 	u8 cq_period_mode;
 };
 
@@ -54,6 +55,7 @@ struct dim_sample {
 	u32 pkt_ctr;
 	u32 byte_ctr;
 	u16 event_ctr;
+	u32 comp_ctr;
 };
 
 /**
@@ -65,9 +67,11 @@ struct dim_sample {
  * @epms: Events per msec
  */
 struct dim_stats {
-	int ppms;
-	int bpms;
-	int epms;
+	int ppms; /* packets per msec */
+	int bpms; /* bytes per msec */
+	int epms; /* events per msec */
+	int cpms; /* completions per msec */
+	int cpe_ratio; /* ratio of completions to events */
 };
 
 /**
@@ -89,6 +93,7 @@ struct dim {
 	u8 state;
 	struct dim_stats prev_stats;
 	struct dim_sample start_sample;
+	struct dim_sample measuring_sample;
 	struct work_struct work;
 	u8 profile_ix;
 	u8 mode;
@@ -244,6 +249,23 @@ dim_update_sample(u16 event_ctr, u64 packets, u64 bytes, struct dim_sample *s)
 	s->pkt_ctr   = packets;
 	s->byte_ctr  = bytes;
 	s->event_ctr = event_ctr;
+}
+
+/**
+ *	dim_update_sample_with_comps - set a sample's fields with given
+ *	values including the completion parameter
+ *	@event_ctr: number of events to set
+ *	@packets: number of packets to set
+ *	@bytes: number of bytes to set
+ *	@comps: number of completions to set
+ *	@s: DIM sample
+ */
+static inline void
+dim_update_sample_with_comps(u16 event_ctr, u64 packets, u64 bytes, u64 comps,
+			     struct dim_sample *s)
+{
+	dim_update_sample(event_ctr, packets, bytes, s);
+	s->comp_ctr = comps;
 }
 
 /* Net DIM */

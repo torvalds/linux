@@ -62,6 +62,8 @@ void dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
 	u32 npkts = BIT_GAP(BITS_PER_TYPE(u32), end->pkt_ctr, start->pkt_ctr);
 	u32 nbytes = BIT_GAP(BITS_PER_TYPE(u32), end->byte_ctr,
 			     start->byte_ctr);
+	u32 ncomps = BIT_GAP(BITS_PER_TYPE(u32), end->comp_ctr,
+			     start->comp_ctr);
 
 	if (!delta_us)
 		return;
@@ -70,5 +72,12 @@ void dim_calc_stats(struct dim_sample *start, struct dim_sample *end,
 	curr_stats->bpms = DIV_ROUND_UP(nbytes * USEC_PER_MSEC, delta_us);
 	curr_stats->epms = DIV_ROUND_UP(DIM_NEVENTS * USEC_PER_MSEC,
 					delta_us);
+	curr_stats->cpms = DIV_ROUND_UP(ncomps * USEC_PER_MSEC, delta_us);
+	if (curr_stats->epms != 0)
+		curr_stats->cpe_ratio =
+				(curr_stats->cpms * 100) / curr_stats->epms;
+	else
+		curr_stats->cpe_ratio = 0;
+
 }
 EXPORT_SYMBOL(dim_calc_stats);
