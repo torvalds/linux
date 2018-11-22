@@ -90,7 +90,6 @@ struct iwl_fwrt_shared_mem_cfg {
 
 enum iwl_fw_runtime_status {
 	IWL_FWRT_STATUS_DUMPING = 0,
-	IWL_FWRT_STATUS_WAIT_ALIVE,
 };
 
 /**
