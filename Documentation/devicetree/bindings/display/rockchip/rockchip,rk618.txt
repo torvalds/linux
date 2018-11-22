@@ -21,7 +21,9 @@ bindings specified in Documentation/devicetree/bindings/graph.txt.
 Example:
 
 &rk618 {
-	VIF: vif {
+	status = "okay";
+
+	vif {
 		compatible = "rockchip,rk618-vif";
 		clocks = <&CRU VIF0_CLK>, <&CRU VIF0_PRE_CLK>;
 		clock-names = "vif", "vif_pre";
@@ -34,23 +36,74 @@ Example:
 			port@0 {
 				reg = <0>;
 
-				vif_input_hdmi: endpoint {
-					remote-endpoint = <&hdmi_output_vif>;
+				bridge_input_rgb: endpoint {
+					remote-endpoint = <&rgb_out_bridge>;
 				};
 			};
 
 			port@1 {
 				reg = <1>;
 
-				vif_output_lvds: endpoint {
-					remote-endpoint = <&lvds_input_vif>;
+				vif_output_hdmi: endpoint {
+					remote-endpoint = <&hdmi_input_vif>;
 				};
 			};
 		};
 	};
 };
 
-LVDS Encoder
+SCALER Module
+----------
+
+Required properties:
+- compatible: value should be one of the following:
+   "rockchip,rk618-scaler"
+- clocks: must include clock specifiers corresponding to entries in the
+	  clock-names property.
+	  See ../clocks/clock-bindings.txt for details.
+- clock-names: list of clock names sorted in the same order as the clocks
+	       property. Must contain "scaler", "vif", "dither".
+
+Required nodes:
+
+The connections to the video ports are modeled using the OF graph
+bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+Example:
+
+&rk618 {
+	status = "okay";
+
+	scaler {
+		compatible = "rockchip,rk618-scaler";
+		clocks = <&CRU SCALER_CLK>, <&CRU DITHER_CLK>, <&CRU VIF0_CLK>;
+		clock-names = "scaler", "dither", "vif";
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				scaler_input_hdmi: endpoint {
+					remote-endpoint = <&hdmi_output_scaler>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				scaler_output_lvds: endpoint {
+					remote-endpoint = <&lvds_input_scaler>;
+				};
+			};
+		};
+	};
+};
+
+LVDS Connector
 ------------
 
 Required properties:
@@ -60,7 +113,10 @@ Required properties:
 	  clock-names property.
 	  See ../clocks/clock-bindings.txt for details.
 - clock-names: list of clock names sorted in the same order as the clocks
-	       property. Must contain "lvds", "dither", "vif", "scaler".
+	       property. Must contain "lvds".
+
+Optional properties:
+- dual-channel: boolean. if it exists, enable dual channel mode
 
 Required nodes:
 
@@ -74,9 +130,8 @@ Example:
 
 	lvds {
 		compatible = "rockchip,rk618-lvds";
-		clocks = <&CRU LVDS_CLK>, <&CRU DITHER_CLK>,
-			 <&CRU VIF0_CLK>, <&CRU SCALER_CLK>;
-		clock-names = "lvds", "dither", "vif", "scaler";
+		clocks = <&CRU LVDS_CLK>;
+		clock-names = "lvds";
 		status = "okay";
 
 		ports {
@@ -85,22 +140,9 @@ Example:
 
 			port@0 {
 				reg = <0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				lvds_input_vop: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vop_output_lvds>;
-				};
-
-				lvds_input_vif: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vif_output_lvds>;
-				};
-
-				lvds_input_hdmi: endpoint@2 {
-					reg = <2>;
-					remote-endpoint = <&hdmi_output_lvds>;
+				bridge_input_rgb: endpoint {
+					remote-endpoint = <&rgb_out_bridge>;
 				};
 			};
 
@@ -115,7 +157,7 @@ Example:
 	};
 };
 
-RGB Encoder
+RGB Connector
 ------------
 
 Required properties:
@@ -125,7 +167,7 @@ Required properties:
 	  clock-names property.
 	  See ../clocks/clock-bindings.txt for details.
 - clock-names: list of clock names sorted in the same order as the clocks
-	       property. Must contain "rgb", "dither", "vif", "scaler".
+	       property. Must contain "rgb".
 
 Required nodes:
 
@@ -139,9 +181,8 @@ Example:
 
 	rgb {
 		compatible = "rockchip,rk618-rgb";
-		clocks = <&CRU RGB_CLK>, <&CRU DITHER_CLK>,
-			 <&CRU VIF0_CLK>, <&CRU SCALER_CLK>;
-		clock-names = "rgb", "dither", "vif", "scaler";
+		clocks = <&CRU RGB_CLK>;
+		clock-names = "rgb";
 		status = "okay";
 
 		ports {
@@ -150,22 +191,9 @@ Example:
 
 			port@0 {
 				reg = <0>;
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				rgb_input_vop: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vop_output_rgb>;
-				};
-
-				rgb_input_vif: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&vif_output_rgb>;
-				};
-
-				rgb_input_hdmi: endpoint@2 {
-					reg = <2>;
-					remote-endpoint = <&hdmi_output_rgb>;
+				bridge_input_rgb: endpoint {
+					remote-endpoint = <&rgb_out_bridge>;
 				};
 			};
 
@@ -173,14 +201,10 @@ Example:
 				reg = <1>;
 				#address-cells = <1>;
 				#size-cells = <0>;
-				rgb_lcdc1_out_tve: endpoint@0 {
+
+				rgb_output_panel: endpoint@0 {
 					reg = <0>;
-					remote-endpoint = <&tve_in_rgb_lcdc1>;
-				};
-				rgb_out_tve: endpoint@1 {
-					status = "disabled";
-					reg = <1>;
-					remote-endpoint = <&tve_in_rgb>;
+					remote-endpoint = <&panel_input_rgb>;
 				};
 			};
 		};

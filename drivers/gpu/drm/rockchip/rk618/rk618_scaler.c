@@ -1,18 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2017 Rockchip Electronics Co. Ltd.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
-#include "rk618_output.h"
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/mfd/rk618.h>
+#include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/regmap.h>
+
+#include <drm/drm_of.h>
+#include <drm/drmP.h>
+#include <video/videomode.h>
 
 #define RK618_SCALER_REG0		0x0030
 #define SCL_VER_DOWN_MODE(x)		HIWORD_UPDATE(x, 8, 8)
@@ -47,17 +51,31 @@
 #define DSP_VBOR_END(x)			UPDATE(x, 27, 16)
 #define DSP_VBOR_ST(x)			UPDATE(x, 11, 0)
 
-void rk618_scaler_enable(struct rk618 *rk618)
-{
-	regmap_write(rk618->regmap, RK618_SCALER_REG0, SCL_ENABLE);
-}
-EXPORT_SYMBOL(rk618_scaler_enable);
+struct rk618_scaler {
+	struct drm_bridge base;
+	struct drm_bridge *bridge;
+	struct drm_display_mode mode;
+	struct device *dev;
+	struct regmap *regmap;
+	struct clk *vif_clk;
+	struct clk *dither_clk;
+	struct clk *scaler_clk;
+};
 
-void rk618_scaler_disable(struct rk618 *rk618)
+static inline struct rk618_scaler *bridge_to_scaler(struct drm_bridge *bridge)
 {
-	regmap_write(rk618->regmap, RK618_SCALER_REG0, SCL_DISABLE);
+	return container_of(bridge, struct rk618_scaler, base);
 }
-EXPORT_SYMBOL(rk618_scaler_disable);
+
+static void rk618_scaler_enable(struct rk618_scaler *scl)
+{
+	regmap_write(scl->regmap, RK618_SCALER_REG0, SCL_ENABLE);
+}
+
+static void rk618_scaler_disable(struct rk618_scaler *scl)
+{
+	regmap_write(scl->regmap, RK618_SCALER_REG0, SCL_DISABLE);
+}
 
 static void calc_dsp_frm_hst_vst(const struct videomode *src,
 				 const struct videomode *dst,
@@ -68,7 +86,7 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 	long long t_frm_st;
 	u64 t_bp_in, t_bp_out, t_delta, tin;
 	u32 src_pixclock, dst_pixclock;
-	u32 dsp_htotal, dsp_vtotal, src_htotal, src_vtotal;
+	u32 dsp_htotal, src_htotal, src_vtotal;
 
 	src_pixclock = div_u64(1000000000000llu, src->pixelclock);
 	dst_pixclock = div_u64(1000000000000llu, dst->pixelclock);
@@ -79,8 +97,6 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 		     src->vfront_porch;
 	dsp_htotal = dst->hsync_len + dst->hback_porch + dst->hactive +
 		     dst->hfront_porch;
-	dsp_vtotal = dst->vsync_len + dst->vback_porch + dst->vactive +
-		     dst->vfront_porch;
 
 	bp_in = (src->vback_porch + src->vsync_len) * src_htotal +
 		src->hsync_len + src->hback_porch;
@@ -107,29 +123,23 @@ static void calc_dsp_frm_hst_vst(const struct videomode *src,
 	*dsp_frame_vst = t_frm_st;
 }
 
-void rk618_scaler_configure(struct rk618 *rk618,
-			    const struct drm_display_mode *scale_mode,
-			    const struct drm_display_mode *panel_mode)
+static void rk618_scaler_init(struct rk618_scaler *scl,
+			      const struct drm_display_mode *s,
+			      const struct drm_display_mode *d)
 {
-	struct device *dev = rk618->dev;
 	struct videomode src, dst;
 	u32 dsp_frame_hst, dsp_frame_vst;
 	u32 scl_hor_mode, scl_ver_mode;
 	u32 scl_v_factor, scl_h_factor;
-	u32 src_htotal, src_vtotal;
 	u32 dsp_htotal, dsp_hs_end, dsp_hact_st, dsp_hact_end;
 	u32 dsp_vtotal, dsp_vs_end, dsp_vact_st, dsp_vact_end;
 	u32 dsp_hbor_end, dsp_hbor_st, dsp_vbor_end, dsp_vbor_st;
 	u16 bor_right = 0, bor_left = 0, bor_up = 0, bor_down = 0;
 	u8 hor_down_mode = 0, ver_down_mode = 0;
 
-	drm_display_mode_to_videomode(scale_mode, &src);
-	drm_display_mode_to_videomode(panel_mode, &dst);
+	drm_display_mode_to_videomode(s, &src);
+	drm_display_mode_to_videomode(d, &dst);
 
-	src_htotal = src.hsync_len + src.hback_porch + src.hactive +
-		     src.hfront_porch;
-	src_vtotal = src.vsync_len + src.vback_porch + src.vactive +
-		     src.vfront_porch;
 	dsp_htotal = dst.hsync_len + dst.hback_porch + dst.hactive +
 		     dst.hfront_porch;
 	dsp_vtotal = dst.vsync_len + dst.vback_porch + dst.vactive +
@@ -146,7 +156,7 @@ void rk618_scaler_configure(struct rk618 *rk618,
 	dsp_vact_end = dsp_vbor_end - bor_down;
 
 	calc_dsp_frm_hst_vst(&src, &dst, &dsp_frame_hst, &dsp_frame_vst);
-	dev_dbg(dev, "dsp_frame_vst=%d, dsp_frame_hst=%d\n",
+	dev_dbg(scl->dev, "dsp_frame_vst=%d, dsp_frame_hst=%d\n",
 		dsp_frame_vst, dsp_frame_hst);
 
 	if (src.hactive > dst.hactive) {
@@ -164,17 +174,17 @@ void rk618_scaler_configure(struct rk618 *rk618,
 				       (src.hactive - 1);
 		}
 
-		dev_dbg(rk618->dev, "horizontal scale down\n");
+		dev_dbg(scl->dev, "horizontal scale down\n");
 	} else if (src.hactive == dst.hactive) {
 		scl_hor_mode = 0;
 		scl_h_factor = 0;
 
-		dev_dbg(rk618->dev, "horizontal no scale\n");
+		dev_dbg(scl->dev, "horizontal no scale\n");
 	} else {
 		scl_hor_mode = 1;
 		scl_h_factor = ((src.hactive - 1) << 16) / (dst.hactive - 1);
 
-		dev_dbg(rk618->dev, "horizontal scale up\n");
+		dev_dbg(scl->dev, "horizontal scale up\n");
 	}
 
 	if (src.vactive > dst.vactive) {
@@ -192,37 +202,223 @@ void rk618_scaler_configure(struct rk618 *rk618,
 				       (src.vactive - 1);
 		}
 
-		dev_dbg(rk618->dev, "vertical scale down\n");
+		dev_dbg(scl->dev, "vertical scale down\n");
 	} else if (src.vactive == dst.vactive) {
 		scl_ver_mode = 0;
 		scl_v_factor = 0;
 
-		dev_dbg(rk618->dev, "vertical no scale\n");
+		dev_dbg(scl->dev, "vertical no scale\n");
 	} else {
 		scl_ver_mode = 1;
 		scl_v_factor = ((src.vactive - 1) << 16) / (dst.vactive - 1);
 
-		dev_dbg(rk618->dev, "vertical scale up\n");
+		dev_dbg(scl->dev, "vertical scale up\n");
 	}
 
-	regmap_write(rk618->regmap, RK618_SCALER_REG0,
+	regmap_write(scl->regmap, RK618_SCALER_REG0,
 		     SCL_VER_MODE(scl_ver_mode) | SCL_HOR_MODE(scl_hor_mode));
-	regmap_write(rk618->regmap, RK618_SCALER_REG1,
+	regmap_write(scl->regmap, RK618_SCALER_REG1,
 		     SCL_V_FACTOR(scl_v_factor) | SCL_H_FACTOR(scl_h_factor));
-	regmap_write(rk618->regmap, RK618_SCALER_REG2,
+	regmap_write(scl->regmap, RK618_SCALER_REG2,
 		     DSP_FRAME_VST(dsp_frame_vst) |
 		     DSP_FRAME_HST(dsp_frame_hst));
-	regmap_write(rk618->regmap, RK618_SCALER_REG3,
+	regmap_write(scl->regmap, RK618_SCALER_REG3,
 		     DSP_HS_END(dsp_hs_end) | DSP_HTOTAL(dsp_htotal));
-	regmap_write(rk618->regmap, RK618_SCALER_REG4,
+	regmap_write(scl->regmap, RK618_SCALER_REG4,
 		     DSP_HACT_END(dsp_hact_end) | DSP_HACT_ST(dsp_hact_st));
-	regmap_write(rk618->regmap, RK618_SCALER_REG5,
+	regmap_write(scl->regmap, RK618_SCALER_REG5,
 		     DSP_VS_END(dsp_vs_end) | DSP_VTOTAL(dsp_vtotal));
-	regmap_write(rk618->regmap, RK618_SCALER_REG6,
+	regmap_write(scl->regmap, RK618_SCALER_REG6,
 		     DSP_VACT_END(dsp_vact_end) | DSP_VACT_ST(dsp_vact_st));
-	regmap_write(rk618->regmap, RK618_SCALER_REG7,
+	regmap_write(scl->regmap, RK618_SCALER_REG7,
 		     DSP_HBOR_END(dsp_hbor_end) | DSP_HBOR_ST(dsp_hbor_st));
-	regmap_write(rk618->regmap, RK618_SCALER_REG8,
+	regmap_write(scl->regmap, RK618_SCALER_REG8,
 		     DSP_VBOR_END(dsp_vbor_end) | DSP_VBOR_ST(dsp_vbor_st));
 }
-EXPORT_SYMBOL(rk618_scaler_configure);
+
+static void rk618_scaler_bridge_enable(struct drm_bridge *bridge)
+{
+	struct rk618_scaler *scl = bridge_to_scaler(bridge);
+	struct drm_connector *connector;
+	const struct drm_display_mode *src = &scl->mode;
+	const struct drm_display_mode *mode;
+	struct drm_display_mode dst;
+	unsigned long dclk_rate = src->clock * 1000;
+	u64 sclk_rate;
+	long rate;
+
+	memset(&dst, 0, sizeof(dst));
+
+	drm_for_each_connector(connector, bridge->dev) {
+		if (connector->connector_type == DRM_MODE_CONNECTOR_HDMIA)
+			continue;
+
+		if (connector->encoder_ids[0] != bridge->encoder->base.id)
+			continue;
+
+		list_for_each_entry(mode, &connector->modes, head) {
+			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
+				drm_mode_copy(&dst, mode);
+				break;
+			}
+		}
+	}
+
+	sclk_rate = (u64)dclk_rate * dst.vdisplay * dst.htotal;
+	do_div(sclk_rate, src->vdisplay * src->htotal);
+
+	dev_info(scl->dev, "src=%s, dst=%s\n", src->name, dst.name);
+	dev_info(scl->dev, "dclk rate: %ld, sclk rate: %lld\n",
+		 dclk_rate, sclk_rate);
+
+	clk_set_parent(scl->dither_clk, scl->scaler_clk);
+
+	rate = clk_round_rate(scl->scaler_clk, sclk_rate);
+	clk_set_rate(scl->scaler_clk, rate);
+	dst.clock = rate / 1000;
+	clk_prepare_enable(scl->scaler_clk);
+
+	rk618_scaler_init(scl, src, &dst);
+	rk618_scaler_enable(scl);
+}
+
+static void rk618_scaler_bridge_disable(struct drm_bridge *bridge)
+{
+	struct rk618_scaler *scl = bridge_to_scaler(bridge);
+
+	rk618_scaler_disable(scl);
+	clk_disable_unprepare(scl->scaler_clk);
+	clk_set_parent(scl->dither_clk, scl->vif_clk);
+}
+
+static void rk618_scaler_bridge_mode_set(struct drm_bridge *bridge,
+				      struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted)
+{
+	struct rk618_scaler *scl = bridge_to_scaler(bridge);
+
+	drm_mode_copy(&scl->mode, adjusted);
+}
+
+static int rk618_scaler_bridge_attach(struct drm_bridge *bridge)
+{
+	struct rk618_scaler *scl = bridge_to_scaler(bridge);
+	struct device *dev = scl->dev;
+	struct device_node *endpoint;
+	int ret;
+
+	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 1, -1);
+	if (endpoint && of_device_is_available(endpoint)) {
+		struct device_node *remote;
+
+		remote = of_graph_get_remote_port_parent(endpoint);
+		of_node_put(endpoint);
+		if (!remote || !of_device_is_available(remote))
+			return -ENODEV;
+
+		scl->bridge = of_drm_find_bridge(remote);
+		of_node_put(remote);
+		if (!scl->bridge)
+			return -EPROBE_DEFER;
+
+		scl->bridge->encoder = bridge->encoder;
+
+		ret = drm_bridge_attach(bridge->dev, scl->bridge);
+		if (ret) {
+			dev_err(dev, "failed to attach bridge\n");
+			return ret;
+		}
+
+		bridge->next = scl->bridge;
+	}
+
+	return 0;
+}
+
+static const struct drm_bridge_funcs rk618_scaler_bridge_funcs = {
+	.enable = rk618_scaler_bridge_enable,
+	.disable = rk618_scaler_bridge_disable,
+	.mode_set = rk618_scaler_bridge_mode_set,
+	.attach = rk618_scaler_bridge_attach,
+};
+
+static int rk618_scaler_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct rk618_scaler *scl;
+	int ret;
+
+	if (!of_device_is_available(dev->of_node))
+		return -ENODEV;
+
+	scl = devm_kzalloc(dev, sizeof(*scl), GFP_KERNEL);
+	if (!scl)
+		return -ENOMEM;
+
+	scl->dev = dev;
+	platform_set_drvdata(pdev, scl);
+
+	scl->regmap = dev_get_regmap(dev->parent, NULL);
+	if (!scl->regmap)
+		return -ENODEV;
+
+	scl->vif_clk = devm_clk_get(dev, "vif");
+	if (IS_ERR(scl->vif_clk)) {
+		ret = PTR_ERR(scl->vif_clk);
+		dev_err(dev, "failed to get vif clock: %d\n", ret);
+		return ret;
+	}
+
+	scl->dither_clk = devm_clk_get(dev, "dither");
+	if (IS_ERR(scl->dither_clk)) {
+		ret = PTR_ERR(scl->dither_clk);
+		dev_err(dev, "failed to get dither clock: %d\n", ret);
+		return ret;
+	}
+
+	scl->scaler_clk = devm_clk_get(dev, "scaler");
+	if (IS_ERR(scl->scaler_clk)) {
+		ret = PTR_ERR(scl->scaler_clk);
+		dev_err(dev, "failed to get scaler clock: %d\n", ret);
+		return ret;
+	}
+
+	scl->base.funcs = &rk618_scaler_bridge_funcs;
+	scl->base.of_node = dev->of_node;
+	ret = drm_bridge_add(&scl->base);
+	if (ret) {
+		dev_err(dev, "failed to add bridge\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int rk618_scaler_remove(struct platform_device *pdev)
+{
+	struct rk618_scaler *scl = platform_get_drvdata(pdev);
+
+	drm_bridge_remove(&scl->base);
+
+	return 0;
+}
+
+static const struct of_device_id rk618_scaler_of_match[] = {
+	{ .compatible = "rockchip,rk618-scaler", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rk618_scaler_of_match);
+
+static struct platform_driver rk618_scaler_driver = {
+	.driver = {
+		.name = "rk618-scaler",
+		.of_match_table = of_match_ptr(rk618_scaler_of_match),
+	},
+	.probe = rk618_scaler_probe,
+	.remove = rk618_scaler_remove,
+};
+module_platform_driver(rk618_scaler_driver);
+
+MODULE_AUTHOR("Wyon Bi <bivvy.bi@rock-chips.com>");
+MODULE_DESCRIPTION("Rockchip RK618 SCALER driver");
+MODULE_LICENSE("GPL v2");

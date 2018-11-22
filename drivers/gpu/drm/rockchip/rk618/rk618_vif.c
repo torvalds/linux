@@ -1,18 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2017 Rockchip Electronics Co. Ltd.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * Author: Wyon Bi <bivvy.bi@rock-chips.com>
  */
 
-#include "rk618_output.h"
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/err.h>
+#include <linux/mfd/rk618.h>
+#include <linux/mfd/syscon.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/regmap.h>
+
+#include <drm/drm_of.h>
+#include <drm/drmP.h>
+#include <video/videomode.h>
 
 #define RK618_VIF0_REG0			0x0000
 #define VIF_ENABLE			HIWORD_UPDATE(1, 0, 0)
@@ -64,8 +68,8 @@ static void rk618_vif_disable(struct rk618_vif *vif)
 	regmap_write(vif->regmap, RK618_VIF0_REG0, VIF_DISABLE);
 }
 
-static void rk618_vif_configure(struct rk618_vif *vif,
-				const struct drm_display_mode *mode)
+static void rk618_vif_init(struct rk618_vif *vif,
+			   const struct drm_display_mode *mode)
 {
 	struct videomode vm;
 	u32 vif_frame_vst, vif_frame_hst;
@@ -74,9 +78,22 @@ static void rk618_vif_configure(struct rk618_vif *vif,
 
 	drm_display_mode_to_videomode(mode, &vm);
 
-	/* XXX */
-	vif_frame_vst = 1;
-	vif_frame_hst = 207;
+	if (!strcmp(mode->name, "1920x1080")) {
+		vif_frame_vst = 0x001;
+		vif_frame_hst = 0x0cb;
+	} else if (!strcmp(mode->name, "1600x900")) {
+		vif_frame_vst = 0x001;
+		vif_frame_hst = 0x327;
+	} else if (!strcmp(mode->name, "1280x720")) {
+		vif_frame_vst = 0x001;
+		vif_frame_hst = 0x0cf;
+	} else {
+		vif_frame_vst = 0x001;
+		vif_frame_hst = 0x001;
+	}
+
+	dev_dbg(vif->dev, "vif_frame_vst=%d, vif_frame_hst=%d\n",
+		vif_frame_vst, vif_frame_hst);
 
 	vif_hs_end = vm.hsync_len;
 	vif_htotal = vm.hsync_len + vm.hback_porch + vm.hfront_porch +
@@ -104,7 +121,7 @@ static void rk618_vif_configure(struct rk618_vif *vif,
 		     VIF0_SYNC_MODE_ENABLE);
 }
 
-static void rk618_vif_bridge_pre_enable(struct drm_bridge *bridge)
+static void rk618_vif_bridge_enable(struct drm_bridge *bridge)
 {
 	struct rk618_vif *vif = bridge_to_vif(bridge);
 	const struct drm_display_mode *mode = &vif->mode;
@@ -114,16 +131,10 @@ static void rk618_vif_bridge_pre_enable(struct drm_bridge *bridge)
 
 	rate = clk_round_rate(vif->vif_clk, mode->clock * 1000);
 	clk_set_rate(vif->vif_clk, rate);
-
-	rk618_vif_configure(vif, mode);
-}
-
-static void rk618_vif_bridge_enable(struct drm_bridge *bridge)
-{
-	struct rk618_vif *vif = bridge_to_vif(bridge);
-
-	rk618_vif_enable(vif);
 	clk_prepare_enable(vif->vif_clk);
+
+	rk618_vif_init(vif, mode);
+	rk618_vif_enable(vif);
 }
 
 static void rk618_vif_bridge_disable(struct drm_bridge *bridge)
@@ -131,12 +142,6 @@ static void rk618_vif_bridge_disable(struct drm_bridge *bridge)
 	struct rk618_vif *vif = bridge_to_vif(bridge);
 
 	rk618_vif_disable(vif);
-}
-
-static void rk618_vif_bridge_post_disable(struct drm_bridge *bridge)
-{
-	struct rk618_vif *vif = bridge_to_vif(bridge);
-
 	clk_disable_unprepare(vif->vif_clk);
 }
 
@@ -185,10 +190,8 @@ static int rk618_vif_bridge_attach(struct drm_bridge *bridge)
 }
 
 static const struct drm_bridge_funcs rk618_vif_bridge_funcs = {
-	.pre_enable = rk618_vif_bridge_pre_enable,
 	.enable = rk618_vif_bridge_enable,
 	.disable = rk618_vif_bridge_disable,
-	.post_disable = rk618_vif_bridge_post_disable,
 	.mode_set = rk618_vif_bridge_mode_set,
 	.attach = rk618_vif_bridge_attach,
 };
@@ -209,7 +212,7 @@ static int rk618_vif_probe(struct platform_device *pdev)
 	vif->dev = dev;
 	platform_set_drvdata(pdev, vif);
 
-	vif->regmap = dev_get_regmap(pdev->dev.parent, NULL);
+	vif->regmap = dev_get_regmap(dev->parent, NULL);
 	if (!vif->regmap)
 		return -ENODEV;
 
