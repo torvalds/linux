@@ -2573,7 +2573,7 @@ static int do_test_file(unsigned int test_num)
 	}
 
 	func_info = malloc(info.func_info_cnt * rec_size);
-	if (CHECK(!func_info, "out of memeory")) {
+	if (CHECK(!func_info, "out of memory")) {
 		err = -1;
 		goto done;
 	}
@@ -3299,7 +3299,7 @@ static int do_test_func_type(int test_num)
 	}
 
 	func_info = malloc(info.func_info_cnt * rec_size);
-	if (CHECK(!func_info, "out of memeory")) {
+	if (CHECK(!func_info, "out of memory")) {
 		err = -1;
 		goto done;
 	}
