@@ -323,6 +323,8 @@ static int mei_hbm_dma_setup_req(struct mei_device *dev)
 		req.dma_dscr[i].size = dev->dr_dscr[i].size;
 	}
 
+	mei_dma_ring_reset(dev);
+
 	ret = mei_hbm_write_message(dev, &mei_hdr, &req);
 	if (ret) {
 		dev_err(dev->dev, "dma setup request write failed: ret = %d.\n",

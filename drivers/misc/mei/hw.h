@@ -512,4 +512,27 @@ struct hbm_dma_setup_response {
 	u8 reserved[2];
 } __packed;
 
+/**
+ * struct mei_dma_ring_ctrl - dma ring control block
+ *
+ * @hbuf_wr_idx: host circular buffer write index in slots
+ * @reserved1: reserved for alignment
+ * @hbuf_rd_idx: host circular buffer read index in slots
+ * @reserved2: reserved for alignment
+ * @dbuf_wr_idx: device circular buffer write index in slots
+ * @reserved3: reserved for alignment
+ * @dbuf_rd_idx: device circular buffer read index in slots
+ * @reserved4: reserved for alignment
+ */
+struct hbm_dma_ring_ctrl {
+	u32 hbuf_wr_idx;
+	u32 reserved1;
+	u32 hbuf_rd_idx;
+	u32 reserved2;
+	u32 dbuf_wr_idx;
+	u32 reserved3;
+	u32 dbuf_rd_idx;
+	u32 reserved4;
+} __packed;
+
 #endif

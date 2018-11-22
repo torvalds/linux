@@ -97,3 +97,23 @@ bool mei_dma_ring_is_allocated(struct mei_device *dev)
 {
 	return !!dev->dr_dscr[DMA_DSCR_HOST].vaddr;
 }
+
+static inline
+struct hbm_dma_ring_ctrl *mei_dma_ring_ctrl(struct mei_device *dev)
+{
+	return (struct hbm_dma_ring_ctrl *)dev->dr_dscr[DMA_DSCR_CTRL].vaddr;
+}
+
+/**
+ * mei_dma_ring_reset() - reset the dma control block
+ * @dev: mei device
+ */
+void mei_dma_ring_reset(struct mei_device *dev)
+{
+	struct hbm_dma_ring_ctrl *ctrl = mei_dma_ring_ctrl(dev);
+
+	if (!ctrl)
+		return;
+
+	memset(ctrl, 0, sizeof(*ctrl));
+}
