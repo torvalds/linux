@@ -30,10 +30,16 @@ static int adt7316_i2c_read(void *client, u8 reg, u8 *data)
 	}
 
 	ret = i2c_smbus_read_byte(client);
+
+	if (!ret)
+		return -EIO;
+
 	if (ret < 0) {
 		dev_err(&cl->dev, "I2C read error\n");
 		return ret;
 	}
+
+	*data = ret;
 
 	return 0;
 }
