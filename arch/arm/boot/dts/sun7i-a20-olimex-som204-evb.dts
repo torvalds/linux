@@ -203,8 +203,8 @@
 };
 
 &pio {
-	bt_uart_pins: bt_uart_pins@0 {
-		pins = "PG6", "PG7", "PG8";
+	uart3_rts_pin: uart3-rts-pin {
+		pins = "PG8";
 		function = "uart3";
 	};
 };
@@ -296,7 +296,7 @@
 /* Used for RTL8723BS bluetooth */
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&bt_uart_pins>;
+	pinctrl-0 = <&uart3_pg_pins>, <&uart3_rts_pin>;
 	status = "okay";
 };
 
