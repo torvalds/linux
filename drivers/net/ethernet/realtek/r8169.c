@@ -56,13 +56,6 @@
 #define R8169_MSG_DEFAULT \
 	(NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN)
 
-#define TX_SLOTS_AVAIL(tp) \
-	(tp->dirty_tx + NUM_TX_DESC - tp->cur_tx)
-
-/* A skbuff with nr_frags needs nr_frags+1 entries in the tx queue */
-#define TX_FRAGS_READY_FOR(tp,nr_frags) \
-	(TX_SLOTS_AVAIL(tp) >= (nr_frags + 1))
-
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
@@ -6058,6 +6051,15 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 	return true;
 }
 
+static bool rtl_tx_slots_avail(struct rtl8169_private *tp,
+			       unsigned int nr_frags)
+{
+	unsigned int slots_avail = tp->dirty_tx + NUM_TX_DESC - tp->cur_tx;
+
+	/* A skbuff with nr_frags needs nr_frags+1 entries in the tx queue */
+	return slots_avail > nr_frags;
+}
+
 static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
@@ -6069,7 +6071,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	u32 opts[2], len;
 	int frags;
 
-	if (unlikely(!TX_FRAGS_READY_FOR(tp, skb_shinfo(skb)->nr_frags))) {
+	if (unlikely(!rtl_tx_slots_avail(tp, skb_shinfo(skb)->nr_frags))) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
@@ -6126,7 +6128,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	mmiowb();
 
-	if (!TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS)) {
+	if (!rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
 		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
 		 * not miss a ring update when it notices a stopped queue.
 		 */
@@ -6140,7 +6142,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 		 * can't.
 		 */
 		smp_mb();
-		if (TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS))
+		if (rtl_tx_slots_avail(tp, MAX_SKB_FRAGS))
 			netif_wake_queue(dev);
 	}
 
@@ -6258,7 +6260,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
 		 */
 		smp_mb();
 		if (netif_queue_stopped(dev) &&
-		    TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS)) {
+		    rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
 			netif_wake_queue(dev);
 		}
 		/*
