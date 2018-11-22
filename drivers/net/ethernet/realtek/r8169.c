@@ -6204,7 +6204,8 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
-static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
+static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
+		   int budget)
 {
 	unsigned int dirty_tx, tx_left, bytes_compl = 0, pkts_compl = 0;
 
@@ -6232,7 +6233,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
 		if (status & LastFrag) {
 			pkts_compl++;
 			bytes_compl += tx_skb->skb->len;
-			dev_consume_skb_any(tx_skb->skb);
+			napi_consume_skb(tx_skb->skb, budget);
 			tx_skb->skb = NULL;
 		}
 		dirty_tx++;
@@ -6475,7 +6476,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 
 	work_done = rtl_rx(dev, tp, (u32) budget);
 
-	rtl_tx(dev, tp);
+	rtl_tx(dev, tp, budget);
 
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
