@@ -74,6 +74,8 @@ static const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_CGROUP_STORAGE]	= "cgroup_storage",
 	[BPF_MAP_TYPE_REUSEPORT_SOCKARRAY] = "reuseport_sockarray",
 	[BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE]	= "percpu_cgroup_storage",
+	[BPF_MAP_TYPE_QUEUE] = "queue",
+	[BPF_MAP_TYPE_STACK] = "stack",
 };
 
 static bool map_is_per_cpu(__u32 type)
