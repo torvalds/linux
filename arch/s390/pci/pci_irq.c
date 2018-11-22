@@ -188,11 +188,13 @@ static void zpci_handle_fallback_irq(void)
 
 static void zpci_directed_irq_handler(struct airq_struct *airq, bool floating)
 {
-	inc_irq_stat(IRQIO_PCI);
-	if (floating)
+	if (floating) {
+		inc_irq_stat(IRQIO_PCF);
 		zpci_handle_fallback_irq();
-	else
+	} else {
+		inc_irq_stat(IRQIO_PCD);
 		zpci_handle_cpu_local_irq(true);
+	}
 }
 
 static void zpci_floating_irq_handler(struct airq_struct *airq, bool floating)
@@ -201,7 +203,7 @@ static void zpci_floating_irq_handler(struct airq_struct *airq, bool floating)
 	struct airq_iv *aibv;
 	int irqs_on = 0;
 
-	inc_irq_stat(IRQIO_PCI);
+	inc_irq_stat(IRQIO_PCF);
 	for (si = 0;;) {
 		/* Scan adapter summary indicator bit vector */
 		si = airq_iv_scan(zpci_sbv, si, airq_iv_end(zpci_sbv));
