@@ -378,7 +378,7 @@ struct marvell_nfc_caps {
  * @dev:		Parent device (used to print error messages)
  * @regs:		NAND controller registers
  * @core_clk:		Core clock
- * @reg_clk:		Regiters clock
+ * @reg_clk:		Registers clock
  * @complete:		Completion object to wait for NAND controller events
  * @assigned_cs:	Bitmask describing already assigned CS lines
  * @chips:		List containing all the NAND chips attached to
