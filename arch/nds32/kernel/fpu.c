@@ -183,10 +183,10 @@ inline void fill_sigfpe_signo(unsigned int fpcsr, int *signo)
 {
 	if (fpcsr & FPCSR_mskOVFT)
 		*signo = FPE_FLTOVF;
-	else if (fpcsr & FPCSR_mskUDFT)
-		*signo = FPE_FLTUND;
 	else if (fpcsr & FPCSR_mskIVOT)
 		*signo = FPE_FLTINV;
+	else if (fpcsr & FPCSR_mskUDFT)
+		*signo = FPE_FLTUND;
 	else if (fpcsr & FPCSR_mskDBZT)
 		*signo = FPE_FLTDIV;
 	else if (fpcsr & FPCSR_mskIEXT)
@@ -201,16 +201,37 @@ inline void handle_fpu_exception(struct pt_regs *regs)
 	lose_fpu();
 	fpcsr = current->thread.fpu.fpcsr;
 
-	if (fpcsr & FPCSR_mskRIT) {
+	if (fpcsr & FPCSR_mskDNIT) {
+		si_signo = do_fpuemu(regs, &current->thread.fpu);
+		fpcsr = current->thread.fpu.fpcsr;
+		if (!si_signo)
+			goto done;
+	} else if (fpcsr & FPCSR_mskRIT) {
 		if (!user_mode(regs))
 			do_exit(SIGILL);
 		si_signo = SIGILL;
+	}
+
+
+	switch (si_signo) {
+	case SIGFPE:
+		fill_sigfpe_signo(fpcsr, &si_code);
+		break;
+	case SIGILL:
 		show_regs(regs);
 		si_code = ILL_COPROC;
-	} else
-		fill_sigfpe_signo(fpcsr, &si_code);
+		break;
+	case SIGBUS:
+		si_code = BUS_ADRERR;
+		break;
+	default:
+		break;
+	}
+
 	force_sig_fault(si_signo, si_code,
 			(void __user *)instruction_pointer(regs), current);
+done:
+	own_fpu();
 }
 
 bool do_fpu_exception(unsigned int subtype, struct pt_regs *regs)

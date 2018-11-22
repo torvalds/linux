@@ -15,6 +15,7 @@ extern bool has_fpu;
 extern void save_fpu(struct task_struct *__tsk);
 extern void load_fpu(const struct fpu_struct *fpregs);
 extern bool do_fpu_exception(unsigned int subtype, struct pt_regs *regs);
+extern int do_fpuemu(struct pt_regs *regs, struct fpu_struct *fpu);
 
 #define test_tsk_fpu(regs)	(regs->fucop_ctl & FUCOP_CTL_mskCP0EN)
 

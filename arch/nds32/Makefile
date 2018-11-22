@@ -30,6 +30,7 @@ export	TEXTADDR
 
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/nds32/kernel/ arch/nds32/mm/
+core-$(CONFIG_FPU)              += arch/nds32/math-emu/
 libs-y				+= arch/nds32/lib/
 
 ifneq '$(CONFIG_NDS32_BUILTIN_DTB)' '""'
