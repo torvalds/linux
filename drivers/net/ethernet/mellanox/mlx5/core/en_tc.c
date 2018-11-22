@@ -2513,7 +2513,6 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				encap = true;
 			else
 				return -EOPNOTSUPP;
-			attr->split_count = attr->out_count;
 			continue;
 		}
 
