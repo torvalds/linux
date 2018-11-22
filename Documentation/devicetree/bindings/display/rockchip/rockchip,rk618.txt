@@ -257,3 +257,56 @@ Example:
 		};
 	};
 };
+
+DSI Connector
+------------
+
+Required properties:
+- compatible: value should be one of the following:
+   "rockchip,rk618-dsi"
+- clocks: must include clock specifiers corresponding to entries in the
+	  clock-names property.
+	  See ../clocks/clock-bindings.txt for details.
+- clock-names: list of clock names sorted in the same order as the clocks
+	       property. Must contain "dsi".
+- #address-cells, #size-cells: should be set respectively to <1> and <0>.
+
+Optional properties:
+- rockchip,lane-rate: specifies the lane data rate [Mbps]
+
+Child nodes:
+  Should contain DSI peripheral nodes
+  (see Documentation/devicetree/bindings/display/mipi-dsi-bus.txt).
+
+Required nodes:
+
+The connections to the video ports are modeled using the OF graph
+bindings specified in Documentation/devicetree/bindings/graph.txt.
+
+Example:
+
+&rk618 {
+	status = "okay";
+
+	dsi {
+		compatible = "rockchip,rk618-dsi";
+		clocks = <&CRU MIPI_CLK>;
+		clock-names = "dsi";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				bridge_input_rgb: endpoint {
+					remote-endpoint = <&rgb_out_bridge>;
+				};
+			};
+		};
+	};
+};
