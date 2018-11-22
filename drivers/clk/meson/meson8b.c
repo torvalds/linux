@@ -560,11 +560,11 @@ static struct clk_regmap meson8b_cpu_in_sel = {
 	},
 };
 
-static struct clk_fixed_factor meson8b_cpu_div2 = {
+static struct clk_fixed_factor meson8b_cpu_in_div2 = {
 	.mult = 1,
 	.div = 2,
 	.hw.init = &(struct clk_init_data){
-		.name = "cpu_div2",
+		.name = "cpu_in_div2",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "cpu_in_sel" },
 		.num_parents = 1,
@@ -572,11 +572,11 @@ static struct clk_fixed_factor meson8b_cpu_div2 = {
 	},
 };
 
-static struct clk_fixed_factor meson8b_cpu_div3 = {
+static struct clk_fixed_factor meson8b_cpu_in_div3 = {
 	.mult = 1,
 	.div = 3,
 	.hw.init = &(struct clk_init_data){
-		.name = "cpu_div3",
+		.name = "cpu_in_div3",
 		.ops = &clk_fixed_factor_ops,
 		.parent_names = (const char *[]){ "cpu_in_sel" },
 		.num_parents = 1,
@@ -626,12 +626,12 @@ static struct clk_regmap meson8b_cpu_scale_out_sel = {
 		.ops = &clk_regmap_mux_ops,
 		/*
 		 * NOTE: We are skipping the parent with value 0x2 (which is
-		 * "cpu_div3") because it results in a duty cycle of 33% which
-		 * makes the system unstable and can result in a lockup of the
-		 * whole system.
+		 * "cpu_in_div3") because it results in a duty cycle of 33%
+		 * which makes the system unstable and can result in a lockup
+		 * of the whole system.
 		 */
 		.parent_names = (const char *[]) { "cpu_in_sel",
-						   "cpu_div2",
+						   "cpu_in_div2",
 						   "cpu_scale_div" },
 		.num_parents = 3,
 		.flags = CLK_SET_RATE_PARENT,
@@ -889,8 +889,8 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_MPLL1_DIV]	    = &meson8b_mpll1_div.hw,
 		[CLKID_MPLL2_DIV]	    = &meson8b_mpll2_div.hw,
 		[CLKID_CPU_IN_SEL]	    = &meson8b_cpu_in_sel.hw,
-		[CLKID_CPU_DIV2]	    = &meson8b_cpu_div2.hw,
-		[CLKID_CPU_DIV3]	    = &meson8b_cpu_div3.hw,
+		[CLKID_CPU_IN_DIV2]	    = &meson8b_cpu_in_div2.hw,
+		[CLKID_CPU_IN_DIV3]	    = &meson8b_cpu_in_div3.hw,
 		[CLKID_CPU_SCALE_DIV]	    = &meson8b_cpu_scale_div.hw,
 		[CLKID_CPU_SCALE_OUT_SEL]   = &meson8b_cpu_scale_out_sel.hw,
 		[CLKID_MPLL_PREDIV]	    = &meson8b_mpll_prediv.hw,
