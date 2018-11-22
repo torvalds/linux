@@ -210,6 +210,18 @@ void switchdev_port_fwd_mark_set(struct net_device *dev,
 bool switchdev_port_same_parent_id(struct net_device *a,
 				   struct net_device *b);
 
+int switchdev_handle_port_obj_add(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*add_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj,
+				      struct switchdev_trans *trans));
+int switchdev_handle_port_obj_del(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*del_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj));
+
 #define SWITCHDEV_SET_OPS(netdev, ops) ((netdev)->switchdev_ops = (ops))
 #else
 
@@ -282,6 +294,27 @@ static inline bool switchdev_port_same_parent_id(struct net_device *a,
 						 struct net_device *b)
 {
 	return false;
+}
+
+static inline int
+switchdev_handle_port_obj_add(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*add_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj,
+				      struct switchdev_trans *trans))
+{
+	return 0;
+}
+
+static inline int
+switchdev_handle_port_obj_del(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*del_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj))
+{
+	return 0;
 }
 
 #define SWITCHDEV_SET_OPS(netdev, ops) do {} while (0)

@@ -621,3 +621,103 @@ bool switchdev_port_same_parent_id(struct net_device *a,
 	return netdev_phys_item_id_same(&a_attr.u.ppid, &b_attr.u.ppid);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_same_parent_id);
+
+static int __switchdev_handle_port_obj_add(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*add_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj,
+				      struct switchdev_trans *trans))
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int err = -EOPNOTSUPP;
+
+	if (check_cb(dev)) {
+		/* This flag is only checked if the return value is success. */
+		port_obj_info->handled = true;
+		return add_cb(dev, port_obj_info->obj, port_obj_info->trans);
+	}
+
+	/* Switch ports might be stacked under e.g. a LAG. Ignore the
+	 * unsupported devices, another driver might be able to handle them. But
+	 * propagate to the callers any hard errors.
+	 *
+	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * necessary to go through this helper.
+	 */
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = __switchdev_handle_port_obj_add(lower_dev, port_obj_info,
+						      check_cb, add_cb);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+	}
+
+	return err;
+}
+
+int switchdev_handle_port_obj_add(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*add_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj,
+				      struct switchdev_trans *trans))
+{
+	int err;
+
+	err = __switchdev_handle_port_obj_add(dev, port_obj_info, check_cb,
+					      add_cb);
+	if (err == -EOPNOTSUPP)
+		err = 0;
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_add);
+
+static int __switchdev_handle_port_obj_del(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*del_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj))
+{
+	struct net_device *lower_dev;
+	struct list_head *iter;
+	int err = -EOPNOTSUPP;
+
+	if (check_cb(dev)) {
+		/* This flag is only checked if the return value is success. */
+		port_obj_info->handled = true;
+		return del_cb(dev, port_obj_info->obj);
+	}
+
+	/* Switch ports might be stacked under e.g. a LAG. Ignore the
+	 * unsupported devices, another driver might be able to handle them. But
+	 * propagate to the callers any hard errors.
+	 *
+	 * If the driver does its own bookkeeping of stacked ports, it's not
+	 * necessary to go through this helper.
+	 */
+	netdev_for_each_lower_dev(dev, lower_dev, iter) {
+		err = __switchdev_handle_port_obj_del(lower_dev, port_obj_info,
+						      check_cb, del_cb);
+		if (err && err != -EOPNOTSUPP)
+			return err;
+	}
+
+	return err;
+}
+
+int switchdev_handle_port_obj_del(struct net_device *dev,
+			struct switchdev_notifier_port_obj_info *port_obj_info,
+			bool (*check_cb)(const struct net_device *dev),
+			int (*del_cb)(struct net_device *dev,
+				      const struct switchdev_obj *obj))
+{
+	int err;
+
+	err = __switchdev_handle_port_obj_del(dev, port_obj_info, check_cb,
+					      del_cb);
+	if (err == -EOPNOTSUPP)
+		err = 0;
+	return err;
+}
+EXPORT_SYMBOL_GPL(switchdev_handle_port_obj_del);
