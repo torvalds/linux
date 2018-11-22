@@ -479,7 +479,7 @@ static void vbox_cursor_cleanup_fb(struct drm_plane *plane,
 	vbox_bo_unpin(bo);
 }
 
-static const uint32_t vbox_cursor_plane_formats[] = {
+static const u32 vbox_cursor_plane_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
@@ -500,7 +500,7 @@ static const struct drm_plane_funcs vbox_cursor_plane_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
 };
 
-static const uint32_t vbox_primary_plane_formats[] = {
+static const u32 vbox_primary_plane_formats[] = {
 	DRM_FORMAT_XRGB8888,
 	DRM_FORMAT_ARGB8888,
 };
@@ -529,7 +529,7 @@ static struct drm_plane *vbox_create_plane(struct vbox_private *vbox,
 	const struct drm_plane_helper_funcs *helper_funcs = NULL;
 	const struct drm_plane_funcs *funcs;
 	struct drm_plane *plane;
-	const uint32_t *formats;
+	const u32 *formats;
 	int num_formats;
 	int err;
 
