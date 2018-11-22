@@ -1013,6 +1013,31 @@
 		};
 	};
 
+	sdmmc {
+		sdmmc_bus1: sdmmc-bus1 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_10ma>;
+		};
+
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins =
+				<4 8 RK_FUNC_1 &pcfg_pull_up_10ma>,
+				<4 9 RK_FUNC_1 &pcfg_pull_up_10ma>,
+				<4 10 RK_FUNC_1 &pcfg_pull_up_10ma>,
+				<4 11 RK_FUNC_1 &pcfg_pull_up_10ma>;
+		};
+
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins =
+				<4 12 RK_FUNC_1 &pcfg_pull_none_10ma>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins =
+				<4 13 RK_FUNC_1 &pcfg_pull_up_10ma>;
+		};
+	};
+
 	tp_irq {
 		tp_irq_gpio: tp-irq-gpio {
 			rockchip,pins =
