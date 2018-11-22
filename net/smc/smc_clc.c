@@ -374,10 +374,8 @@ int smc_clc_send_decline(struct smc_sock *smc, u32 peer_diag_info)
 	len = kernel_sendmsg(smc->clcsock, &msg, &vec, 1,
 			     sizeof(struct smc_clc_msg_decline));
 	if (len < sizeof(struct smc_clc_msg_decline))
-		smc->sk.sk_err = EPROTO;
-	if (len < 0)
-		smc->sk.sk_err = -len;
-	return sock_error(&smc->sk);
+		len = -EPROTO;
+	return len > 0 ? 0 : len;
 }
 
 /* send CLC PROPOSAL message across internal TCP socket */
@@ -536,7 +534,6 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 	struct smc_link *link;
 	struct msghdr msg;
 	struct kvec vec;
-	int rc = 0;
 	int len;
 
 	memset(&aclc, 0, sizeof(aclc));
@@ -589,13 +586,8 @@ int smc_clc_send_accept(struct smc_sock *new_smc, int srv_first_contact)
 	vec.iov_len = ntohs(aclc.hdr.length);
 	len = kernel_sendmsg(new_smc->clcsock, &msg, &vec, 1,
 			     ntohs(aclc.hdr.length));
-	if (len < ntohs(aclc.hdr.length)) {
-		if (len >= 0)
-			new_smc->sk.sk_err = EPROTO;
-		else
-			new_smc->sk.sk_err = new_smc->clcsock->sk->sk_err;
-		rc = sock_error(&new_smc->sk);
-	}
+	if (len < ntohs(aclc.hdr.length))
+		len = len >= 0 ? -EPROTO : -new_smc->clcsock->sk->sk_err;
 
-	return rc;
+	return len > 0 ? 0 : len;
 }
