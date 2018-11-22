@@ -31,6 +31,7 @@
  * @resp:		command response
  * @link_info:		link related information
  * @event_cb:		callback for linkchange events
+ * @event_cb_lock:	lock for serializing callback with unregister
  * @cmd_pend:		flag set before new command is started
  *			flag cleared after command response is received
  * @cgx:		parent cgx port
@@ -43,6 +44,7 @@ struct lmac {
 	u64 resp;
 	struct cgx_link_user_info link_info;
 	struct cgx_event_cb event_cb;
+	spinlock_t event_cb_lock;
 	bool cmd_pend;
 	struct cgx *cgx;
 	u8 lmac_id;
@@ -449,6 +451,9 @@ static inline void cgx_link_change_handler(u64 lstat,
 	lmac->link_info = event.link_uinfo;
 	linfo = &lmac->link_info;
 
+	/* Ensure callback doesn't get unregistered until we finish it */
+	spin_lock(&lmac->event_cb_lock);
+
 	if (!lmac->event_cb.notify_link_chg) {
 		dev_dbg(dev, "cgx port %d:%d Link change handler null",
 			cgx->cgx_id, lmac->lmac_id);
@@ -459,11 +464,13 @@ static inline void cgx_link_change_handler(u64 lstat,
 		dev_info(dev, "cgx port %d:%d Link is %s %d Mbps\n",
 			 cgx->cgx_id, lmac->lmac_id,
 			 linfo->link_up ? "UP" : "DOWN", linfo->speed);
-		return;
+		goto err;
 	}
 
 	if (lmac->event_cb.notify_link_chg(&event, lmac->event_cb.data))
 		dev_err(dev, "event notification failure\n");
+err:
+	spin_unlock(&lmac->event_cb_lock);
 }
 
 static inline bool cgx_cmdresp_is_linkevent(u64 event)
@@ -552,6 +559,25 @@ int cgx_lmac_evh_register(struct cgx_event_cb *cb, void *cgxd, int lmac_id)
 }
 EXPORT_SYMBOL(cgx_lmac_evh_register);
 
+int cgx_lmac_evh_unregister(void *cgxd, int lmac_id)
+{
+	struct lmac *lmac;
+	unsigned long flags;
+	struct cgx *cgx = cgxd;
+
+	lmac = lmac_pdata(lmac_id, cgx);
+	if (!lmac)
+		return -ENODEV;
+
+	spin_lock_irqsave(&lmac->event_cb_lock, flags);
+	lmac->event_cb.notify_link_chg = NULL;
+	lmac->event_cb.data = NULL;
+	spin_unlock_irqrestore(&lmac->event_cb_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_lmac_evh_unregister);
+
 static inline int cgx_fwi_read_version(u64 *resp, struct cgx *cgx)
 {
 	u64 req = 0;
@@ -606,6 +632,7 @@ static int cgx_lmac_init(struct cgx *cgx)
 		lmac->cgx = cgx;
 		init_waitqueue_head(&lmac->wq_cmd_cmplt);
 		mutex_init(&lmac->cmd_lock);
+		spin_lock_init(&lmac->event_cb_lock);
 		err = request_irq(pci_irq_vector(cgx->pdev,
 						 CGX_LMAC_FWI + i * 9),
 				   cgx_fwi_event_handler, 0, lmac->name, lmac);

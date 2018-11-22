@@ -296,6 +296,20 @@ int rvu_cgx_init(struct rvu *rvu)
 
 int rvu_cgx_exit(struct rvu *rvu)
 {
+	int cgx, lmac;
+	void *cgxd;
+
+	for (cgx = 0; cgx <= rvu->cgx_cnt_max; cgx++) {
+		cgxd = rvu_cgx_pdata(cgx, rvu);
+		if (!cgxd)
+			continue;
+		for (lmac = 0; lmac < cgx_get_lmac_cnt(cgxd); lmac++)
+			cgx_lmac_evh_unregister(cgxd, lmac);
+	}
+
+	/* Ensure event handler unregister is completed */
+	mb();
+
 	rvu_cgx_wq_destroy(rvu);
 	return 0;
 }
