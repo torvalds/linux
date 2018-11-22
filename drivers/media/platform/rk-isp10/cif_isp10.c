@@ -6818,6 +6818,7 @@ int cif_isp10_s_ctrl(
 	case CIF_ISP10_CID_AUTO_FPS:
 	case CIF_ISP10_CID_HFLIP:
 	case CIF_ISP10_CID_VFLIP:
+	case CIF_ISP10_CID_TEST_PATTERN:
 		return cif_isp10_img_src_s_ctrl(dev->img_src,
 			id, val);
 	case CIF_ISP10_CID_FOCUS_ABSOLUTE:

@@ -284,6 +284,8 @@ static int cif_isp10_v4l2_cid2cif_isp10_cid(u32 v4l2_cid)
 		return CIF_ISP10_CID_AUTO_FPS;
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
 		return CIF_ISP10_CID_MIN_BUFFER_FOR_CAPTURE;
+	case V4L2_CID_TEST_PATTERN:
+		return CIF_ISP10_CID_TEST_PATTERN;
 	default:
 		cif_isp10_pltfrm_pr_err(NULL,
 			"unknown/unsupported V4L2 CID 0x%x\n",

@@ -162,6 +162,7 @@ enum cif_isp10_cid {
 	CIF_ISP10_CID_VBLANKING                   = 17,
 	CIF_ISP10_CID_ISO_SENSITIVITY             = 18,
 	CIF_ISP10_CID_MIN_BUFFER_FOR_CAPTURE      = 19,
+	CIF_ISP10_CID_TEST_PATTERN                = 20,
 
 };
 
