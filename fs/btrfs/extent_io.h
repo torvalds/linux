@@ -101,7 +101,6 @@ struct extent_io_ops {
 	int (*readpage_end_io_hook)(struct btrfs_io_bio *io_bio, u64 phy_offset,
 				    struct page *page, u64 start, u64 end,
 				    int mirror);
-	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 };
 
 struct extent_io_tree {

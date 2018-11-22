@@ -2333,13 +2333,11 @@ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
 }
 
 /*
- * this is a generic handler for readpage errors (default
- * readpage_io_failed_hook). if other copies exist, read those and write back
- * good data to the failed position. does not investigate in remapping the
- * failed extent elsewhere, hoping the device will be smart enough to do this as
- * needed
+ * This is a generic handler for readpage errors. If other copies exist, read
+ * those and write back good data to the failed position. Does not investigate
+ * in remapping the failed extent elsewhere, hoping the device will be smart
+ * enough to do this as needed
  */
-
 static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
 			      struct page *page, u64 start, u64 end,
 			      int failed_mirror)
@@ -2501,6 +2499,8 @@ static void end_bio_extent_readpage(struct bio *bio)
 		struct page *page = bvec->bv_page;
 		struct inode *inode = page->mapping->host;
 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+		bool data_inode = btrfs_ino(BTRFS_I(inode))
+			!= BTRFS_BTREE_INODE_OBJECTID;
 
 		btrfs_debug(fs_info,
 			"end_bio_extent_readpage: bi_sector=%llu, err=%d, mirror=%u",
@@ -2530,7 +2530,7 @@ static void end_bio_extent_readpage(struct bio *bio)
 		len = bvec->bv_len;
 
 		mirror = io_bio->mirror_num;
-		if (likely(uptodate && tree->ops)) {
+		if (likely(uptodate)) {
 			ret = tree->ops->readpage_end_io_hook(io_bio, offset,
 							      page, start, end,
 							      mirror);
@@ -2546,38 +2546,37 @@ static void end_bio_extent_readpage(struct bio *bio)
 		if (likely(uptodate))
 			goto readpage_ok;
 
-		if (tree->ops) {
-			ret = tree->ops->readpage_io_failed_hook(page, mirror);
-			if (ret == -EAGAIN) {
-				/*
-				 * Data inode's readpage_io_failed_hook() always
-				 * returns -EAGAIN.
-				 *
-				 * The generic bio_readpage_error handles errors
-				 * the following way: If possible, new read
-				 * requests are created and submitted and will
-				 * end up in end_bio_extent_readpage as well (if
-				 * we're lucky, not in the !uptodate case). In
-				 * that case it returns 0 and we just go on with
-				 * the next page in our bio. If it can't handle
-				 * the error it will return -EIO and we remain
-				 * responsible for that page.
-				 */
-				ret = bio_readpage_error(bio, offset, page,
-							 start, end, mirror);
-				if (ret == 0) {
-					uptodate = !bio->bi_status;
-					offset += len;
-					continue;
-				}
-			}
+		if (data_inode) {
 
 			/*
-			 * metadata's readpage_io_failed_hook() always returns
-			 * -EIO and fixes nothing.  -EIO is also returned if
-			 * data inode error could not be fixed.
+			 * The generic bio_readpage_error handles errors the
+			 * following way: If possible, new read requests are
+			 * created and submitted and will end up in
+			 * end_bio_extent_readpage as well (if we're lucky,
+			 * not in the !uptodate case). In that case it returns
+			 * 0 and we just go on with the next page in our bio.
+			 * If it can't handle the error it will return -EIO and
+			 * we remain responsible for that page.
 			 */
-			ASSERT(ret == -EIO);
+			ret = bio_readpage_error(bio, offset, page, start, end,
+						 mirror);
+			if (ret == 0) {
+				uptodate = !bio->bi_status;
+				offset += len;
+				continue;
+			}
+		} else {
+			struct extent_buffer *eb;
+
+			eb = (struct extent_buffer *)page->private;
+			set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
+			eb->read_mirror = mirror;
+			atomic_dec(&eb->io_pages);
+			if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD,
+					       &eb->bflags))
+				btree_readahead_hook(eb, -EIO);
+
+			ret = -EIO;
 		}
 readpage_ok:
 		if (likely(uptodate)) {

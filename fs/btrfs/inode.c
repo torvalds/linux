@@ -10409,12 +10409,6 @@ out:
 	return ret;
 }
 
-__attribute__((const))
-static int btrfs_readpage_io_failed_hook(struct page *page, int failed_mirror)
-{
-	return -EAGAIN;
-}
-
 void btrfs_set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 {
 	struct inode *inode = tree->private_data;
@@ -10810,7 +10804,6 @@ static const struct extent_io_ops btrfs_extent_io_ops = {
 	/* mandatory callbacks */
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
-	.readpage_io_failed_hook = btrfs_readpage_io_failed_hook,
 };
 
 /*
