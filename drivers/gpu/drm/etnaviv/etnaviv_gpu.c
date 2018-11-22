@@ -997,7 +997,6 @@ void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
 	spin_unlock(&gpu->event_spinlock);
 
 	etnaviv_gpu_hw_init(gpu);
-	gpu->lastctx = NULL;
 	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);
@@ -1546,7 +1545,6 @@ static int etnaviv_gpu_hw_resume(struct etnaviv_gpu *gpu)
 	etnaviv_gpu_update_clock(gpu);
 	etnaviv_gpu_hw_init(gpu);
 
-	gpu->lastctx = NULL;
 	gpu->exec_state = -1;
 
 	mutex_unlock(&gpu->lock);

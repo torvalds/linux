@@ -72,14 +72,8 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
 
-		if (gpu) {
-			mutex_lock(&gpu->lock);
-			if (gpu->lastctx == ctx)
-				gpu->lastctx = NULL;
-			mutex_unlock(&gpu->lock);
-
+		if (gpu)
 			drm_sched_entity_destroy(&ctx->sched_entity[i]);
-		}
 	}
 
 	kfree(ctx);

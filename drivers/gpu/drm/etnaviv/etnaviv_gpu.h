@@ -97,7 +97,6 @@ struct etnaviv_gpu {
 	struct mutex lock;
 	struct etnaviv_chip_identity identity;
 	enum etnaviv_sec_mode sec_mode;
-	struct etnaviv_file_private *lastctx;
 	struct workqueue_struct *wq;
 	struct drm_gpu_scheduler sched;
 
