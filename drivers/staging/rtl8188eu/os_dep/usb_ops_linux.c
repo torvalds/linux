@@ -31,18 +31,18 @@ static void interrupt_handler_8188eu(struct adapter *adapt, u16 pkt_len, u8 *pbu
 
 static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 {
-	u8	*pbuf;
-	u8	shift_sz = 0;
-	u16	pkt_cnt;
-	u32	pkt_offset, skb_len, alloc_sz;
-	s32	transfer_len;
-	struct recv_stat	*prxstat;
-	struct phy_stat	*pphy_status = NULL;
+	u8 *pbuf;
+	u8 shift_sz = 0;
+	u16 pkt_cnt;
+	u32 pkt_offset, skb_len, alloc_sz;
+	s32 transfer_len;
+	struct recv_stat *prxstat;
+	struct phy_stat *pphy_status = NULL;
 	struct sk_buff *pkt_copy = NULL;
-	struct recv_frame	*precvframe = NULL;
-	struct rx_pkt_attrib	*pattrib = NULL;
+	struct recv_frame *precvframe = NULL;
+	struct rx_pkt_attrib *pattrib = NULL;
 	struct hal_data_8188e *haldata = adapt->HalData;
-	struct recv_priv	*precvpriv = &adapt->recvpriv;
+	struct recv_priv *precvpriv = &adapt->recvpriv;
 	struct __queue *pfree_recv_queue = &precvpriv->free_recv_queue;
 
 	transfer_len = (s32)pskb->len;
@@ -201,7 +201,7 @@ unsigned int ffaddr2pipehdl(struct dvobj_priv *pdvobj, u32 addr)
 
 static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 index, void *pdata, u16 len, u8 requesttype)
 {
-	struct dvobj_priv  *dvobjpriv = adapter_to_dvobj(adapt);
+	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
 	unsigned int pipe;
 	int status = 0;
@@ -349,8 +349,8 @@ u32 usb_read32(struct adapter *adapter, u32 addr)
 
 static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 {
-	struct recv_buf	*precvbuf = (struct recv_buf *)purb->context;
-	struct adapter	*adapt = (struct adapter *)precvbuf->adapter;
+	struct recv_buf *precvbuf = (struct recv_buf *)purb->context;
+	struct adapter *adapt = (struct adapter *)precvbuf->adapter;
 	struct recv_priv *precvpriv = &adapt->recvpriv;
 
 	RT_TRACE(_module_hci_ops_os_c_, _drv_err_, ("%s!!!\n", __func__));
@@ -426,9 +426,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 u32 usb_read_port(struct adapter *adapter, u32 addr, struct recv_buf *precvbuf)
 {
 	struct urb *purb = NULL;
-	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
-	struct recv_priv	*precvpriv = &adapter->recvpriv;
-	struct usb_device	*pusbd = pdvobj->pusbdev;
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(adapter);
+	struct recv_priv *precvpriv = &adapter->recvpriv;
+	struct usb_device *pusbd = pdvobj->pusbdev;
 	int err;
 	unsigned int pipe;
 	u32 ret = _SUCCESS;
@@ -573,8 +573,8 @@ int usb_write32(struct adapter *adapter, u32 addr, u32 val)
 static void usb_write_port_complete(struct urb *purb, struct pt_regs *regs)
 {
 	struct xmit_buf *pxmitbuf = (struct xmit_buf *)purb->context;
-	struct adapter	*padapter = pxmitbuf->padapter;
-	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
+	struct adapter *padapter = pxmitbuf->padapter;
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 
 	switch (pxmitbuf->flags) {
 	case VO_QUEUE_INX:
@@ -662,8 +662,8 @@ u32 usb_write_port(struct adapter *padapter, u32 addr, u32 cnt, struct xmit_buf 
 	int status;
 	u32 ret = _FAIL;
 	struct urb *purb = NULL;
-	struct dvobj_priv	*pdvobj = adapter_to_dvobj(padapter);
-	struct xmit_priv	*pxmitpriv = &padapter->xmitpriv;
+	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
+	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	struct xmit_frame *pxmitframe = (struct xmit_frame *)xmitbuf->priv_data;
 	struct usb_device *pusbd = pdvobj->pusbdev;
 
