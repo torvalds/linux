@@ -1239,6 +1239,35 @@ u32 aarch64_insn_gen_logical_shifted_reg(enum aarch64_insn_register dst,
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_6, insn, shift);
 }
 
+u32 aarch64_insn_gen_adr(unsigned long pc, unsigned long addr,
+			 enum aarch64_insn_register reg,
+			 enum aarch64_insn_adr_type type)
+{
+	u32 insn;
+	s32 offset;
+
+	switch (type) {
+	case AARCH64_INSN_ADR_TYPE_ADR:
+		insn = aarch64_insn_get_adr_value();
+		offset = addr - pc;
+		break;
+	case AARCH64_INSN_ADR_TYPE_ADRP:
+		insn = aarch64_insn_get_adrp_value();
+		offset = (addr - ALIGN_DOWN(pc, SZ_4K)) >> 12;
+		break;
+	default:
+		pr_err("%s: unknown adr encoding %d\n", __func__, type);
+		return AARCH64_BREAK_FAULT;
+	}
+
+	if (offset < -SZ_1M || offset >= SZ_1M)
+		return AARCH64_BREAK_FAULT;
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RD, insn, reg);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_ADR, insn, offset);
+}
+
 /*
  * Decode the imm field of a branch, and return the byte offset as a
  * signed value (so it can be used when computing a new branch
