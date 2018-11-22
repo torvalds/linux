@@ -146,6 +146,9 @@ enum switchdev_notifier_type {
 	SWITCHDEV_FDB_DEL_TO_DEVICE,
 	SWITCHDEV_FDB_OFFLOADED,
 
+	SWITCHDEV_PORT_OBJ_ADD, /* Blocking. */
+	SWITCHDEV_PORT_OBJ_DEL, /* Blocking. */
+
 	SWITCHDEV_VXLAN_FDB_ADD_TO_BRIDGE,
 	SWITCHDEV_VXLAN_FDB_DEL_TO_BRIDGE,
 	SWITCHDEV_VXLAN_FDB_ADD_TO_DEVICE,
@@ -163,6 +166,13 @@ struct switchdev_notifier_fdb_info {
 	u16 vid;
 	u8 added_by_user:1,
 	   offloaded:1;
+};
+
+struct switchdev_notifier_port_obj_info {
+	struct switchdev_notifier_info info; /* must be first */
+	const struct switchdev_obj *obj;
+	struct switchdev_trans *trans;
+	bool handled;
 };
 
 static inline struct net_device *
