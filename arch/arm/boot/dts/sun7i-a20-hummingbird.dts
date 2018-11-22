@@ -215,13 +215,13 @@
 
 &uart2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart2_pi_pins>;
+	pinctrl-0 = <&uart2_pi_pins>, <&uart2_cts_rts_pi_pins>;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pg_pins>;
+	pinctrl-0 = <&uart3_pg_pins>, <&uart3_cts_rts_pg_pins>;
 	status = "okay";
 };
 
