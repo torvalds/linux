@@ -149,6 +149,8 @@ static int smc_link_send_delete(struct smc_link *lnk)
 	return -ENOTCONN;
 }
 
+static void smc_lgr_free(struct smc_link_group *lgr);
+
 static void smc_lgr_free_work(struct work_struct *work)
 {
 	struct smc_link_group *lgr = container_of(to_delayed_work(work),
@@ -408,7 +410,7 @@ static void smc_lgr_free_bufs(struct smc_link_group *lgr)
 }
 
 /* remove a link group */
-void smc_lgr_free(struct smc_link_group *lgr)
+static void smc_lgr_free(struct smc_link_group *lgr)
 {
 	smc_lgr_free_bufs(lgr);
 	if (lgr->is_smcd)
