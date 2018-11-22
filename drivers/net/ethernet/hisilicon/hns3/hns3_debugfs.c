@@ -11,6 +11,120 @@
 
 static struct dentry *hns3_dbgfs_root;
 
+static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
+{
+	struct hns3_nic_priv *priv = h->priv;
+	struct hns3_nic_ring_data *ring_data;
+	struct hns3_enet_ring *ring;
+	u32 base_add_l, base_add_h;
+	u32 queue_num, queue_max;
+	u32 value, i = 0;
+	int cnt;
+
+	if (!priv->ring_data) {
+		dev_err(&h->pdev->dev, "ring_data is NULL\n");
+		return -EFAULT;
+	}
+
+	queue_max = h->kinfo.num_tqps;
+	cnt = kstrtouint(&cmd_buf[11], 0, &queue_num);
+	if (cnt)
+		queue_num = 0;
+	else
+		queue_max = queue_num + 1;
+
+	dev_info(&h->pdev->dev, "queue info\n");
+
+	if (queue_num >= h->kinfo.num_tqps) {
+		dev_err(&h->pdev->dev,
+			"Queue number(%u) is out of range(%u)\n", queue_num,
+			h->kinfo.num_tqps - 1);
+		return -EINVAL;
+	}
+
+	ring_data = priv->ring_data;
+	for (i = queue_num; i < queue_max; i++) {
+		/* Each cycle needs to determine whether the instance is reset,
+		 * to prevent reference to invalid memory. And need to ensure
+		 * that the following code is executed within 100ms.
+		 */
+		if (test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
+		    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
+			return -EPERM;
+
+		ring = ring_data[i + h->kinfo.num_tqps].ring;
+		base_add_h = readl_relaxed(ring->tqp->io_base +
+					   HNS3_RING_RX_RING_BASEADDR_H_REG);
+		base_add_l = readl_relaxed(ring->tqp->io_base +
+					   HNS3_RING_RX_RING_BASEADDR_L_REG);
+		dev_info(&h->pdev->dev, "RX(%d) BASE ADD: 0x%08x%08x\n", i,
+			 base_add_h, base_add_l);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_RX_RING_BD_NUM_REG);
+		dev_info(&h->pdev->dev, "RX(%d) RING BD NUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_RX_RING_BD_LEN_REG);
+		dev_info(&h->pdev->dev, "RX(%d) RING BD LEN: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_RX_RING_TAIL_REG);
+		dev_info(&h->pdev->dev, "RX(%d) RING TAIL: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_RX_RING_HEAD_REG);
+		dev_info(&h->pdev->dev, "RX(%d) RING HEAD: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_RX_RING_FBDNUM_REG);
+		dev_info(&h->pdev->dev, "RX(%d) RING FBDNUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_RX_RING_PKTNUM_RECORD_REG);
+		dev_info(&h->pdev->dev, "RX(%d) RING PKTNUM: %u\n", i, value);
+
+		ring = ring_data[i].ring;
+		base_add_h = readl_relaxed(ring->tqp->io_base +
+					   HNS3_RING_TX_RING_BASEADDR_H_REG);
+		base_add_l = readl_relaxed(ring->tqp->io_base +
+					   HNS3_RING_TX_RING_BASEADDR_L_REG);
+		dev_info(&h->pdev->dev, "TX(%d) BASE ADD: 0x%08x%08x\n", i,
+			 base_add_h, base_add_l);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_BD_NUM_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING BD NUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_TC_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING TC: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_TAIL_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING TAIL: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_HEAD_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING HEAD: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_FBDNUM_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING FBDNUM: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_OFFSET_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING OFFSET: %u\n", i, value);
+
+		value = readl_relaxed(ring->tqp->io_base +
+				      HNS3_RING_TX_RING_PKTNUM_RECORD_REG);
+		dev_info(&h->pdev->dev, "TX(%d) RING PKTNUM: %u\n\n", i,
+			 value);
+	}
+
+	return 0;
+}
+
 static void hns3_dbg_help(struct hnae3_handle *h)
 {
 	dev_info(&h->pdev->dev, "available commands\n");
@@ -51,11 +165,17 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 				  size_t count, loff_t *ppos)
 {
 	struct hnae3_handle *handle = filp->private_data;
+	struct hns3_nic_priv *priv  = handle->priv;
 	char *cmd_buf, *cmd_buf_tmp;
 	int uncopied_bytes;
 	int ret = 0;
 
 	if (*ppos != 0)
+		return 0;
+
+	/* Judge if the instance is being reset. */
+	if (test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
+	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 		return 0;
 
 	cmd_buf = kzalloc(count + 1, GFP_KERNEL);
@@ -78,6 +198,8 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 
 	if (strncmp(cmd_buf, "help", 4) == 0)
 		hns3_dbg_help(handle);
+	else if (strncmp(cmd_buf, "queue info", 10) == 0)
+		ret = hns3_dbg_queue_info(handle, cmd_buf);
 
 	if (ret)
 		hns3_dbg_help(handle);
