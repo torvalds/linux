@@ -1842,7 +1842,7 @@ enum dc_status resource_map_pool_resources(
 			&context->res_ctx, pool, stream);
 
 	if (!pipe_ctx->stream_res.stream_enc)
-		return DC_NO_STREAM_ENG_RESOURCE;
+		return DC_NO_STREAM_ENC_RESOURCE;
 
 	update_stream_engine_usage(
 		&context->res_ctx, pool,
