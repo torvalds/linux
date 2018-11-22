@@ -130,7 +130,7 @@ struct smc_buf_desc {
 	struct page		*pages;
 	int			len;		/* length of buffer */
 	u32			used;		/* currently used / unused */
-	u8			reused	: 1;	/* new created / reused */
+	u8			wr_reg	: 1;	/* mem region registered */
 	u8			regerr	: 1;	/* err during registration */
 	union {
 		struct { /* SMC-R */

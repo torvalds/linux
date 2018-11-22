@@ -299,14 +299,17 @@ static void smc_copy_sock_settings_to_smc(struct smc_sock *smc)
 	smc_copy_sock_settings(&smc->sk, smc->clcsock->sk, SK_FLAGS_CLC_TO_SMC);
 }
 
-/* register a new rmb, optionally send confirm_rkey msg to register with peer */
+/* register a new rmb, send confirm_rkey msg to register with peer */
 static int smc_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc,
 		       bool conf_rkey)
 {
-	/* register memory region for new rmb */
-	if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK])) {
-		rmb_desc->regerr = 1;
-		return -EFAULT;
+	if (!rmb_desc->wr_reg) {
+		/* register memory region for new rmb */
+		if (smc_wr_reg_send(link, rmb_desc->mr_rx[SMC_SINGLE_LINK])) {
+			rmb_desc->regerr = 1;
+			return -EFAULT;
+		}
+		rmb_desc->wr_reg = 1;
 	}
 	if (!conf_rkey)
 		return 0;
@@ -581,8 +584,7 @@ static int smc_connect_rdma(struct smc_sock *smc,
 			return smc_connect_abort(smc, SMC_CLC_DECL_ERR_RDYLNK,
 						 local_contact);
 	} else {
-		if (!smc->conn.rmb_desc->reused &&
-		    smc_reg_rmb(link, smc->conn.rmb_desc, true))
+		if (smc_reg_rmb(link, smc->conn.rmb_desc, true))
 			return smc_connect_abort(smc, SMC_CLC_DECL_ERR_REGRMB,
 						 local_contact);
 	}
@@ -1143,10 +1145,8 @@ static int smc_listen_rdma_reg(struct smc_sock *new_smc, int local_contact)
 	struct smc_link *link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
 	if (local_contact != SMC_FIRST_CONTACT) {
-		if (!new_smc->conn.rmb_desc->reused) {
-			if (smc_reg_rmb(link, new_smc->conn.rmb_desc, true))
-				return SMC_CLC_DECL_ERR_REGRMB;
-		}
+		if (smc_reg_rmb(link, new_smc->conn.rmb_desc, true))
+			return SMC_CLC_DECL_ERR_REGRMB;
 	}
 	smc_rmb_sync_sg_for_device(&new_smc->conn);
 
