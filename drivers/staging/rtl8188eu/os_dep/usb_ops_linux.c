@@ -259,11 +259,10 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 				len, status, *(u32 *)pdata, vendorreq_times);
 
 			if (status < 0) {
-				if (status == (-ESHUTDOWN) || status == -ENODEV) {
+				if (status == (-ESHUTDOWN) || status == -ENODEV)
 					adapt->bSurpriseRemoved = true;
-				} else {
+				else
 					adapt->HalData->srestpriv.Wifi_Error_Status = USB_VEN_REQ_CMD_FAIL;
-				}
 			} else { /*  status != len && status >= 0 */
 				if (status > 0) {
 					if (requesttype == 0x01) {
