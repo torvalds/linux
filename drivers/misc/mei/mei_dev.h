@@ -122,6 +122,19 @@ struct mei_msg_data {
 	unsigned char *data;
 };
 
+/**
+ * struct mei_dma_dscr - dma address descriptor
+ *
+ * @vaddr: dma buffer virtual address
+ * @daddr: dma buffer physical address
+ * @size : dma buffer size
+ */
+struct mei_dma_dscr {
+	void *vaddr;
+	dma_addr_t daddr;
+	size_t size;
+};
+
 /* Maximum number of processed FW status registers */
 #define MEI_FW_STATUS_MAX 6
 /* Minimal  buffer for FW status string (8 bytes in dw + space or '\0') */
@@ -409,6 +422,7 @@ struct mei_fw_version {
  * @rd_msg_hdr  : read message header storage
  *
  * @hbuf_is_ready : query if the host host/write buffer is ready
+ * @dr_dscr: DMA ring descriptors: TX, RX, and CTRL
  *
  * @version     : HBM protocol version in use
  * @hbm_f_pg_supported  : hbm feature pgi protocol
@@ -487,6 +501,8 @@ struct mei_device {
 
 	/* write buffer */
 	bool hbuf_is_ready;
+
+	struct mei_dma_dscr dr_dscr[DMA_DSCR_NUM];
 
 	struct hbm_version version;
 	unsigned int hbm_f_pg_supported:1;
@@ -577,6 +593,10 @@ int mei_start(struct mei_device *dev);
 int mei_restart(struct mei_device *dev);
 void mei_stop(struct mei_device *dev);
 void mei_cancel_work(struct mei_device *dev);
+
+int mei_dmam_ring_alloc(struct mei_device *dev);
+void mei_dmam_ring_free(struct mei_device *dev);
+bool mei_dma_ring_is_allocated(struct mei_device *dev);
 
 /*
  *  MEI interrupt functions prototype
