@@ -16,7 +16,9 @@
 
 #define PLLCON_OFFSET(x)	(x * 4)
 
-#define PLL_BYPASS			BIT(15)
+#define PLL_BYPASS(x)			HIWORD_UPDATE(x, 15, 15)
+#define PLL_BYPASS_MASK			BIT(15)
+#define PLL_BYPASS_SHIFT		15
 #define PLL_POSTDIV1(x)			HIWORD_UPDATE(x, 14, 12)
 #define PLL_POSTDIV1_MASK		GENMASK(14, 12)
 #define PLL_POSTDIV1_SHIFT		12
@@ -67,7 +69,7 @@ static unsigned long
 clk_regmap_pll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 {
 	struct clk_regmap_pll *pll = to_clk_regmap_pll(hw);
-	unsigned int postdiv1, fbdiv, dsmpd, postdiv2, refdiv, frac;
+	unsigned int postdiv1, fbdiv, dsmpd, postdiv2, refdiv, frac, bypass;
 	unsigned int con0, con1, con2;
 	u64 foutvco, foutpostdiv;
 
@@ -75,12 +77,16 @@ clk_regmap_pll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	regmap_read(pll->regmap, pll->reg + PLLCON_OFFSET(1), &con1);
 	regmap_read(pll->regmap, pll->reg + PLLCON_OFFSET(2), &con2);
 
+	bypass = (con0 & PLL_BYPASS_MASK) >> PLL_BYPASS_SHIFT;
 	postdiv1 = (con0 & PLL_POSTDIV1_MASK) >> PLL_POSTDIV1_SHIFT;
 	fbdiv = (con0 & PLL_FBDIV_MASK) >> PLL_FBDIV_SHIFT;
 	dsmpd = (con1 & PLL_DSMPD_MASK) >> PLL_DSMPD_SHIFT;
 	postdiv2 = (con1 & PLL_POSTDIV2_MASK) >> PLL_POSTDIV2_SHIFT;
 	refdiv = (con1 & PLL_REFDIV_MASK) >> PLL_REFDIV_SHIFT;
 	frac = (con2 & PLL_FRAC_MASK) >> PLL_FRAC_SHIFT;
+
+	if (bypass)
+		return prate;
 
 	foutvco = prate * fbdiv;
 	do_div(foutvco, refdiv);
@@ -99,11 +105,10 @@ clk_regmap_pll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	return foutpostdiv;
 }
 
-static unsigned long clk_pll_round_rate(unsigned long fin,
-					unsigned long fout,
-					u8 *refdiv, u16 *fbdiv,
-					u8 *postdiv1, u8 *postdiv2,
-					u32 *frac, u8 *dsmpd)
+static long clk_pll_round_rate(unsigned long fin, unsigned long fout,
+			       u8 *refdiv, u16 *fbdiv,
+			       u8 *postdiv1, u8 *postdiv2,
+			       u32 *frac, u8 *dsmpd, u8 *bypass)
 {
 	u8 min_refdiv, max_refdiv, postdiv;
 	u8 _dsmpd = 1, _postdiv1 = 0, _postdiv2 = 0, _refdiv = 0;
@@ -122,6 +127,12 @@ static unsigned long clk_pll_round_rate(unsigned long fin,
 
 	if (fout < MIN_FOUTPOSTDIV_RATE || fout > MAX_FOUTPOSTDIV_RATE)
 		return -EINVAL;
+
+	if (fin == fout) {
+		if (bypass)
+			*bypass = true;
+		return fin;
+	}
 
 	min_refdiv = DIV_ROUND_UP(fin, MAX_FREFDIV_RATE);
 	max_refdiv = fin / MIN_FREFDIV_RATE;
@@ -212,6 +223,8 @@ static unsigned long clk_pll_round_rate(unsigned long fin,
 		*frac = _frac;
 	if (dsmpd)
 		*dsmpd = _dsmpd;
+	if (bypass)
+		*bypass = false;
 
 	return (unsigned long)foutpostdiv;
 }
@@ -223,8 +236,8 @@ clk_regmap_pll_round_rate(struct clk_hw *hw, unsigned long drate,
 	struct clk_regmap_pll *pll = to_clk_regmap_pll(hw);
 	long rate;
 
-	rate = clk_pll_round_rate(*prate, drate, NULL, NULL, NULL, NULL,
-					NULL, NULL);
+	rate = clk_pll_round_rate(*prate, drate, NULL, NULL, NULL, NULL, NULL,
+				  NULL, NULL);
 
 	dev_dbg(pll->dev, "%s: prate=%ld, drate=%ld, rate=%ld\n",
 		clk_hw_get_name(hw), *prate, drate, rate);
@@ -237,34 +250,37 @@ clk_regmap_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 			unsigned long prate)
 {
 	struct clk_regmap_pll *pll = to_clk_regmap_pll(hw);
-	u8 refdiv, postdiv1, postdiv2, dsmpd;
+	u8 refdiv, postdiv1, postdiv2, dsmpd, bypass;
 	u16 fbdiv;
 	u32 frac;
-	u32 v;
-	int ret;
+	long rate;
 
-	ret = clk_pll_round_rate(prate, drate, &refdiv, &fbdiv, &postdiv1,
-				       &postdiv2, &frac, &dsmpd);
-	if (ret < 0)
-		return ret;
+	rate = clk_pll_round_rate(prate, drate, &refdiv, &fbdiv, &postdiv1,
+				  &postdiv2, &frac, &dsmpd, &bypass);
+	if (rate < 0)
+		return rate;
 
-	/* When changing PLL setting, we must force PLL into power down mode. */
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1), PLL_POWER_DOWN);
+	dev_dbg(pll->dev, "%s: rate=%ld, bypass=%d\n",
+		clk_hw_get_name(hw), drate, bypass);
 
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(0),
-		     PLL_POSTDIV1(postdiv1) | PLL_FBDIV(fbdiv));
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1),
-		     PLL_DSMPD(dsmpd) | PLL_POSTDIV2(postdiv2) |
-		     PLL_REFDIV(refdiv));
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(2), PLL_FRAC(frac));
+	if (bypass) {
+		regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(0),
+			     PLL_BYPASS(1));
+	} else {
+		regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(0),
+			     PLL_BYPASS(0) | PLL_POSTDIV1(postdiv1) |
+			     PLL_FBDIV(fbdiv));
+		regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1),
+			     PLL_DSMPD(dsmpd) | PLL_POSTDIV2(postdiv2) |
+			     PLL_REFDIV(refdiv));
+		regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(2),
+			     PLL_FRAC(frac));
 
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1), PLL_POWER_UP);
-
-	ret = regmap_read_poll_timeout(pll->regmap,
-				       pll->reg + PLLCON_OFFSET(1),
-				       v, v & PLL_LOCK, 50, 50000);
-	if (ret)
-		dev_err(pll->dev, "PLL is not lock\n");
+		dev_dbg(pll->dev, "refdiv=%d, fbdiv=%d, frac=%d\n",
+			refdiv, fbdiv, frac);
+		dev_dbg(pll->dev, "postdiv1=%d, postdiv2=%d\n",
+			postdiv1, postdiv2);
+	}
 
 	return 0;
 }
@@ -281,7 +297,7 @@ static int clk_regmap_pll_prepare(struct clk_hw *hw)
 				       pll->reg + PLLCON_OFFSET(1),
 				       v, v & PLL_LOCK, 50, 50000);
 	if (ret)
-		dev_err(pll->dev, "PLL is not lock\n");
+		dev_err(pll->dev, "%s is not lock\n", clk_hw_get_name(hw));
 
 	return 0;
 }
@@ -303,6 +319,13 @@ static int clk_regmap_pll_is_prepared(struct clk_hw *hw)
 	return !(con1 & PLL_POWER_DOWN);
 }
 
+static void clk_regmap_pll_init(struct clk_hw *hw)
+{
+	struct clk_regmap_pll *pll = to_clk_regmap_pll(hw);
+
+	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(0), PLL_BYPASS(1));
+}
+
 static const struct clk_ops clk_regmap_pll_ops = {
 	.recalc_rate = clk_regmap_pll_recalc_rate,
 	.round_rate = clk_regmap_pll_round_rate,
@@ -310,6 +333,7 @@ static const struct clk_ops clk_regmap_pll_ops = {
 	.prepare = clk_regmap_pll_prepare,
 	.unprepare = clk_regmap_pll_unprepare,
 	.is_prepared = clk_regmap_pll_is_prepared,
+	.init = clk_regmap_pll_init,
 };
 
 struct clk *
