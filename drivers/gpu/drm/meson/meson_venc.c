@@ -71,6 +71,7 @@
  */
 
 /* HHI Registers */
+#define HHI_GCLK_MPEG2		0x148 /* 0x52 offset in data sheet */
 #define HHI_VDAC_CNTL0		0x2F4 /* 0xbd offset in data sheet */
 #define HHI_VDAC_CNTL1		0x2F8 /* 0xbe offset in data sheet */
 #define HHI_HDMI_PHY_CNTL0	0x3a0 /* 0xe8 offset in data sheet */
@@ -1529,10 +1530,12 @@ unsigned int meson_venci_get_field(struct meson_drm *priv)
 void meson_venc_enable_vsync(struct meson_drm *priv)
 {
 	writel_relaxed(2, priv->io_base + _REG(VENC_INTCTRL));
+	regmap_update_bits(priv->hhi, HHI_GCLK_MPEG2, BIT(25), BIT(25));
 }
 
 void meson_venc_disable_vsync(struct meson_drm *priv)
 {
+	regmap_update_bits(priv->hhi, HHI_GCLK_MPEG2, BIT(25), 0);
 	writel_relaxed(0, priv->io_base + _REG(VENC_INTCTRL));
 }
 
