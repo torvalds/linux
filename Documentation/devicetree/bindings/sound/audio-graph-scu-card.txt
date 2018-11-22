@@ -77,7 +77,6 @@ Example 2. 2 CPU 1 Codec (Mixing)
 		compatible = "audio-graph-scu-card";
 
 		label = "sound-card";
-		prefix = "codec";
 		routing = "codec Playback", "DAI0 Playback",
 			  "codec Playback", "DAI1 Playback",
 			  "DAI0 Capture",   "codec Capture";
@@ -90,6 +89,7 @@ Example 2. 2 CPU 1 Codec (Mixing)
 	audio-codec {
 		...
 
+		audio-graph-card,prefix = "codec";
 		port {
 			codec_endpoint0: endpoint {
 				remote-endpoint = <&cpu_endpoint0>;
