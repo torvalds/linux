@@ -265,7 +265,7 @@ out:
  * clcsock error, -EINTR, -ECONNRESET, -EPROTO otherwise.
  */
 int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
-		     u8 expected_type)
+		     u8 expected_type, unsigned long timeout)
 {
 	long rcvtimeo = smc->clcsock->sk->sk_rcvtimeo;
 	struct sock *clc_sk = smc->clcsock->sk;
@@ -285,7 +285,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	 * sizeof(struct smc_clc_msg_hdr)
 	 */
 	krflags = MSG_PEEK | MSG_WAITALL;
-	smc->clcsock->sk->sk_rcvtimeo = CLC_WAIT_TIME;
+	clc_sk->sk_rcvtimeo = timeout;
 	iov_iter_kvec(&msg.msg_iter, READ, &vec, 1,
 			sizeof(struct smc_clc_msg_hdr));
 	len = sock_recvmsg(smc->clcsock, &msg, krflags);
@@ -351,7 +351,7 @@ int smc_clc_wait_msg(struct smc_sock *smc, void *buf, int buflen,
 	}
 
 out:
-	smc->clcsock->sk->sk_rcvtimeo = rcvtimeo;
+	clc_sk->sk_rcvtimeo = rcvtimeo;
 	return reason_code;
 }
 
