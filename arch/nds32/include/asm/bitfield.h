@@ -251,6 +251,11 @@
 #define ITYPE_mskSTYPE		( 0xF  << ITYPE_offSTYPE )
 #define ITYPE_mskCPID		( 0x3  << ITYPE_offCPID )
 
+/* Additional definitions of ITYPE register for FPU */
+#define FPU_DISABLE_EXCEPTION	(0x1  << ITYPE_offSTYPE)
+#define FPU_EXCEPTION		(0x2  << ITYPE_offSTYPE)
+#define FPU_CPID		0	/* FPU Co-Processor ID is 0 */
+
 #define NDS32_VECTOR_mskNONEXCEPTION	0x78
 #define NDS32_VECTOR_offEXCEPTION	8
 #define NDS32_VECTOR_offINTERRUPT	9
@@ -926,6 +931,7 @@
 #define FPCSR_mskDNIT           ( 0x1  << FPCSR_offDNIT )
 #define FPCSR_mskRIT		( 0x1  << FPCSR_offRIT )
 #define FPCSR_mskALL		(FPCSR_mskIVO | FPCSR_mskDBZ | FPCSR_mskOVF | FPCSR_mskUDF | FPCSR_mskIEX)
+#define FPCSR_mskALLE_NO_UDFE	(FPCSR_mskIVOE | FPCSR_mskDBZE | FPCSR_mskOVFE | FPCSR_mskIEXE)
 #define FPCSR_mskALLE		(FPCSR_mskIVOE | FPCSR_mskDBZE | FPCSR_mskOVFE | FPCSR_mskUDFE | FPCSR_mskIEXE)
 #define FPCSR_mskALLT           (FPCSR_mskIVOT | FPCSR_mskDBZT | FPCSR_mskOVFT | FPCSR_mskUDFT | FPCSR_mskIEXT |FPCSR_mskDNIT | FPCSR_mskRIT)
 
@@ -945,6 +951,15 @@
 #define FPCFG_mskFMA		( 0x1  << FPCFG_offFMA )
 #define FPCFG_mskIMVER		( 0x1F  << FPCFG_offIMVER )
 #define FPCFG_mskAVER		( 0x1F  << FPCFG_offAVER )
+
+/* 8 Single precision or 4 double precision registers are available */
+#define SP8_DP4_reg		0
+/* 16 Single precision or 8 double precision registers are available */
+#define SP16_DP8_reg		1
+/* 32 Single precision or 16 double precision registers are available */
+#define SP32_DP16_reg		2
+/* 32 Single precision or 32 double precision registers are available */
+#define SP32_DP32_reg		3
 
 /******************************************************************************
  * fucpr: FUCOP_CTL (FPU and Coprocessor Enable Control Register)

@@ -7,6 +7,27 @@ config CPU_LITTLE_ENDIAN
 	bool "Little endian"
 	default y
 
+config FPU
+	bool "FPU support"
+	default n
+	help
+	  If FPU ISA is used in user space, this configuration shall be Y to
+          enable required support in kerenl such as fpu context switch and
+          fpu exception handler.
+
+	  If no FPU ISA is used in user space, say N.
+
+config LAZY_FPU
+	bool "lazy FPU support"
+	depends on FPU
+	default y
+	help
+	  Say Y here to enable the lazy FPU scheme. The lazy FPU scheme can
+          enhance system performance by reducing the context switch
+	  frequency of the FPU register.
+
+	  For nomal case, say Y.
+
 config HWZOL
 	bool "hardware zero overhead loop support"
 	depends on CPU_D10 || CPU_D15

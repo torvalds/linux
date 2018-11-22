@@ -9,6 +9,10 @@
  * before the signal handler was invoked.  Note: only add new entries
  * to the end of the structure.
  */
+struct fpu_struct {
+	unsigned long long fd_regs[32];
+	unsigned long fpcsr;
+};
 
 struct zol_struct {
 	unsigned long nds32_lc;	/* $LC */
@@ -54,6 +58,7 @@ struct sigcontext {
 	unsigned long fault_address;
 	unsigned long used_math_flag;
 	/* FPU Registers */
+	struct fpu_struct fpu;
 	struct zol_struct zol;
 };
 

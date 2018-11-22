@@ -5,9 +5,13 @@ KBUILD_DEFCONFIG := defconfig
 
 comma = ,
 
+
 ifdef CONFIG_FUNCTION_TRACER
 arch-y += -malways-save-lp -mno-relax
 endif
+
+# Avoid generating FPU instructions
+arch-y  += -mno-ext-fpu-sp -mno-ext-fpu-dp -mfloat-abi=soft
 
 KBUILD_CFLAGS	+= $(call cc-option, -mno-sched-prolog-epilog)
 KBUILD_CFLAGS	+= -mcmodel=large
