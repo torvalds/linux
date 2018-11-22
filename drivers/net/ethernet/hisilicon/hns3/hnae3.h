@@ -566,6 +566,7 @@ struct hnae3_handle {
 	u32 numa_node_mask;	/* for multi-chip support */
 
 	u8 netdev_flags;
+	struct dentry *hnae3_dbgfs;
 };
 
 #define hnae3_set_field(origin, mask, shift, val) \
