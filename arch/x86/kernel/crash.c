@@ -37,6 +37,7 @@
 #include <asm/reboot.h>
 #include <asm/virtext.h>
 #include <asm/intel_pt.h>
+#include <asm/crash.h>
 
 /* Used while preparing memory map entries for second kernel */
 struct crash_memmap_data {

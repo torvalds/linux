@@ -420,6 +420,9 @@ enum {
 };
 
 void arch_ftrace_update_code(int command);
+void arch_ftrace_update_trampoline(struct ftrace_ops *ops);
+void *arch_ftrace_trampoline_func(struct ftrace_ops *ops, struct dyn_ftrace *rec);
+void arch_ftrace_trampoline_free(struct ftrace_ops *ops);
 
 struct ftrace_rec_iter;
 
