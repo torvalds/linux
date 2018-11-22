@@ -2011,8 +2011,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
-static void rtl8169_get_mac_version(struct rtl8169_private *tp,
-				    u8 default_version)
+static void rtl8169_get_mac_version(struct rtl8169_private *tp)
 {
 	/*
 	 * The driver currently handles the 8168Bf and the 8168Be identically
@@ -2116,9 +2115,7 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	tp->mac_version = p->mac_version;
 
 	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
-		dev_notice(tp_to_dev(tp),
-			   "unknown MAC, using family default\n");
-		tp->mac_version = default_version;
+		dev_err(tp_to_dev(tp), "unknown chip XID %03x\n", reg & 0xfcf);
 	} else if (tp->mac_version == RTL_GIGA_MAC_VER_42) {
 		tp->mac_version = tp->supports_gmii ?
 				  RTL_GIGA_MAC_VER_42 :
@@ -6976,27 +6973,23 @@ static const struct rtl_cfg_info {
 	u16 irq_mask;
 	unsigned int has_gmii:1;
 	const struct rtl_coalesce_info *coalesce_info;
-	u8 default_ver;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
 		.irq_mask	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8169,
-		.default_ver	= RTL_GIGA_MAC_VER_01,
 	},
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
 		.irq_mask	= LinkChg | RxOverflow,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
-		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
 		.irq_mask	= LinkChg | RxOverflow | RxFIFOOver,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
-		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
 };
 
@@ -7259,7 +7252,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
 	/* Identify chip attached to board */
-	rtl8169_get_mac_version(tp, cfg->default_ver);
+	rtl8169_get_mac_version(tp);
+	if (tp->mac_version == RTL_GIGA_MAC_NONE)
+		return -ENODEV;
 
 	if (rtl_tbi_enabled(tp)) {
 		dev_err(&pdev->dev, "TBI fiber mode not supported\n");
