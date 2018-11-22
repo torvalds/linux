@@ -215,6 +215,9 @@ bool dc_link_detect_sink(struct dc_link *link, enum dc_connection_type *type)
 		return true;
 	}
 
+	if (link->connector_signal == SIGNAL_TYPE_EDP)
+		link->dc->hwss.edp_wait_for_hpd_ready(link, true);
+
 	/* todo: may need to lock gpio access */
 	hpd_pin = get_hpd_gpio(link->ctx->dc_bios, link->link_id, link->ctx->gpio_service);
 	if (hpd_pin == NULL)
