@@ -358,7 +358,7 @@ struct async_extent {
 
 struct async_cow {
 	struct inode *inode;
-	struct btrfs_root *root;
+	struct btrfs_fs_info *fs_info;
 	struct page *locked_page;
 	u64 start;
 	u64 end;
@@ -1144,13 +1144,11 @@ static noinline void async_cow_submit(struct btrfs_work *work)
 {
 	struct btrfs_fs_info *fs_info;
 	struct async_cow *async_cow;
-	struct btrfs_root *root;
 	unsigned long nr_pages;
 
 	async_cow = container_of(work, struct async_cow, work);
 
-	root = async_cow->root;
-	fs_info = root->fs_info;
+	fs_info = async_cow->fs_info;
 	nr_pages = (async_cow->end - async_cow->start + PAGE_SIZE) >>
 		PAGE_SHIFT;
 
@@ -1179,7 +1177,6 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct async_cow *async_cow;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	unsigned long nr_pages;
 	u64 cur_end;
 
@@ -1189,7 +1186,7 @@ static int cow_file_range_async(struct inode *inode, struct page *locked_page,
 		async_cow = kmalloc(sizeof(*async_cow), GFP_NOFS);
 		BUG_ON(!async_cow); /* -ENOMEM */
 		async_cow->inode = igrab(inode);
-		async_cow->root = root;
+		async_cow->fs_info = fs_info;
 		async_cow->locked_page = locked_page;
 		async_cow->start = start;
 		async_cow->write_flags = write_flags;
