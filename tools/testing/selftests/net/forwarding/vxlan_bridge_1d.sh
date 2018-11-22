@@ -76,6 +76,7 @@ export VXPORT
 	ping_ipv4
 	test_flood
 	test_unicast
+	test_learning
     "}
 
 NUM_NETIFS=6
@@ -661,6 +662,113 @@ test_ecn_decap()
 	__test_ecn_decap 01 03 0x03
 	__test_ecn_decap 02 03 0x03
 	test_ecn_decap_error
+}
+
+test_learning()
+{
+	local mac=de:ad:be:ef:13:37
+	local dst=192.0.2.100
+
+	# Enable learning on the VxLAN device and set ageing time to 10 seconds
+	ip link set dev br1 type bridge ageing_time 1000
+	ip link set dev vx1 type vxlan ageing 10
+	ip link set dev vx1 type vxlan learning
+	reapply_config
+
+	# Check that flooding works
+	RET=0
+
+	vxlan_flood_test $mac $dst 10 10 10
+
+	log_test "VXLAN: flood before learning"
+
+	# Send a packet with source mac set to $mac from host w2 and check that
+	# a corresponding entry is created in VxLAN device vx1
+	RET=0
+
+	in_ns ns1 $MZ w2 -c 1 -p 64 -a $mac -b ff:ff:ff:ff:ff:ff -B $dst \
+		-t icmp -q
+	sleep 1
+
+	bridge fdb show brport vx1 | grep $mac | grep -q self
+	check_err $?
+	bridge fdb show brport vx1 | grep $mac | grep -q -v self
+	check_err $?
+
+	log_test "VXLAN: show learned FDB entry"
+
+	# Repeat first test and check that packets only reach host w2 in ns1
+	RET=0
+
+	vxlan_flood_test $mac $dst 0 10 0
+
+	log_test "VXLAN: learned FDB entry"
+
+	# Delete the learned FDB entry from the VxLAN and bridge devices and
+	# check that packets are flooded
+	RET=0
+
+	bridge fdb del dev vx1 $mac master self
+	sleep 1
+
+	vxlan_flood_test $mac $dst 10 10 10
+
+	log_test "VXLAN: deletion of learned FDB entry"
+
+	# Re-learn the first FDB entry and check that it is correctly aged-out
+	RET=0
+
+	in_ns ns1 $MZ w2 -c 1 -p 64 -a $mac -b ff:ff:ff:ff:ff:ff -B $dst \
+		-t icmp -q
+	sleep 1
+
+	bridge fdb show brport vx1 | grep $mac | grep -q self
+	check_err $?
+	bridge fdb show brport vx1 | grep $mac | grep -q -v self
+	check_err $?
+
+	vxlan_flood_test $mac $dst 0 10 0
+
+	sleep 20
+
+	bridge fdb show brport vx1 | grep $mac | grep -q self
+	check_fail $?
+	bridge fdb show brport vx1 | grep $mac | grep -q -v self
+	check_fail $?
+
+	vxlan_flood_test $mac $dst 10 10 10
+
+	log_test "VXLAN: Ageing of learned FDB entry"
+
+	# Toggle learning on the bridge port and check that the bridge's FDB
+	# is populated only when it should
+	RET=0
+
+	ip link set dev vx1 type bridge_slave learning off
+
+	in_ns ns1 $MZ w2 -c 1 -p 64 -a $mac -b ff:ff:ff:ff:ff:ff -B $dst \
+		-t icmp -q
+	sleep 1
+
+	bridge fdb show brport vx1 | grep $mac | grep -q -v self
+	check_fail $?
+
+	ip link set dev vx1 type bridge_slave learning on
+
+	in_ns ns1 $MZ w2 -c 1 -p 64 -a $mac -b ff:ff:ff:ff:ff:ff -B $dst \
+		-t icmp -q
+	sleep 1
+
+	bridge fdb show brport vx1 | grep $mac | grep -q -v self
+	check_err $?
+
+	log_test "VXLAN: learning toggling on bridge port"
+
+	# Restore previous settings
+	ip link set dev vx1 type vxlan nolearning
+	ip link set dev vx1 type vxlan ageing 300
+	ip link set dev br1 type bridge ageing_time 30000
+	reapply_config
 }
 
 test_all()

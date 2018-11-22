@@ -174,6 +174,20 @@ mlxsw_sp_nve_mc_record_ops_arr[] = {
 	[MLXSW_SP_L3_PROTO_IPV6] = &mlxsw_sp_nve_mc_record_ipv6_ops,
 };
 
+int mlxsw_sp_nve_learned_ip_resolve(struct mlxsw_sp *mlxsw_sp, u32 uip,
+				    enum mlxsw_sp_l3proto proto,
+				    union mlxsw_sp_l3addr *addr)
+{
+	switch (proto) {
+	case MLXSW_SP_L3_PROTO_IPV4:
+		addr->addr4 = cpu_to_be32(uip);
+		return 0;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+}
+
 static struct mlxsw_sp_nve_mc_list *
 mlxsw_sp_nve_mc_list_find(struct mlxsw_sp *mlxsw_sp,
 			  const struct mlxsw_sp_nve_mc_list_key *key)
@@ -803,7 +817,7 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 		return err;
 	}
 
-	err = mlxsw_sp_fid_vni_set(fid, params->vni);
+	err = mlxsw_sp_fid_vni_set(fid, params->vni, params->dev->ifindex);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed to set VNI on FID");
 		goto err_fid_vni_set;

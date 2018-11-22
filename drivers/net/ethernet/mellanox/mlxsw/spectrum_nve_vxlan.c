@@ -17,7 +17,8 @@
 #define MLXSW_SP_NVE_VXLAN_PARSING_DEPTH 128
 #define MLXSW_SP_NVE_DEFAULT_PARSING_DEPTH 96
 
-#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	VXLAN_F_UDP_ZERO_CSUM_TX
+#define MLXSW_SP_NVE_VXLAN_SUPPORTED_FLAGS	(VXLAN_F_UDP_ZERO_CSUM_TX | \
+						 VXLAN_F_LEARN)
 
 static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 					    const struct net_device *dev,
@@ -58,11 +59,6 @@ static bool mlxsw_sp1_nve_vxlan_can_offload(const struct mlxsw_sp_nve *nve,
 
 	if (cfg->flags & VXLAN_F_TTL_INHERIT) {
 		NL_SET_ERR_MSG_MOD(extack, "VxLAN: TTL must not be configured to inherit");
-		return false;
-	}
-
-	if (cfg->flags & VXLAN_F_LEARN) {
-		NL_SET_ERR_MSG_MOD(extack, "VxLAN: Learning is not supported");
 		return false;
 	}
 
