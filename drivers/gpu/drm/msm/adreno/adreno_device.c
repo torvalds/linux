@@ -27,6 +27,39 @@ module_param_named(hang_debug, hang_debug, bool, 0600);
 
 static const struct adreno_info gpulist[] = {
 	{
+		.rev   = ADRENO_REV(2, 0, 0, 0),
+		.revn  = 200,
+		.name  = "A200",
+		.fw = {
+			[ADRENO_FW_PM4] = "yamato_pm4.fw",
+			[ADRENO_FW_PFP] = "yamato_pfp.fw",
+		},
+		.gmem  = SZ_256K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a2xx_gpu_init,
+	}, { /* a200 on i.mx51 has only 128kib gmem */
+		.rev   = ADRENO_REV(2, 0, 0, 1),
+		.revn  = 201,
+		.name  = "A200",
+		.fw = {
+			[ADRENO_FW_PM4] = "yamato_pm4.fw",
+			[ADRENO_FW_PFP] = "yamato_pfp.fw",
+		},
+		.gmem  = SZ_128K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a2xx_gpu_init,
+	}, {
+		.rev   = ADRENO_REV(2, 2, 0, ANY_ID),
+		.revn  = 220,
+		.name  = "A220",
+		.fw = {
+			[ADRENO_FW_PM4] = "leia_pm4_470.fw",
+			[ADRENO_FW_PFP] = "leia_pfp_470.fw",
+		},
+		.gmem  = SZ_512K,
+		.inactive_period = DRM_MSM_INACTIVE_PERIOD,
+		.init  = a2xx_gpu_init,
+	}, {
 		.rev   = ADRENO_REV(3, 0, 5, ANY_ID),
 		.revn  = 305,
 		.name  = "A305",

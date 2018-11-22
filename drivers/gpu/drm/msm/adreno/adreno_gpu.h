@@ -155,6 +155,20 @@ struct adreno_platform_config {
 	__ret;                                             \
 })
 
+static inline bool adreno_is_a2xx(struct adreno_gpu *gpu)
+{
+	return (gpu->revn < 300);
+}
+
+static inline bool adreno_is_a20x(struct adreno_gpu *gpu)
+{
+	return (gpu->revn < 210);
+}
+
+static inline bool adreno_is_a225(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 225;
+}
 
 static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
 {
@@ -335,6 +349,7 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 		gpu_write(&gpu->base, reg - 1, data);
 }
 
+struct msm_gpu *a2xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);

@@ -311,16 +311,27 @@ void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		 */
 		OUT_PKT3(ring, CP_EVENT_WRITE, 1);
 		OUT_RING(ring, HLSQ_FLUSH);
-
-		OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
-		OUT_RING(ring, 0x00000000);
 	}
 
-	/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
-	OUT_PKT3(ring, CP_EVENT_WRITE, 3);
-	OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
-	OUT_RING(ring, rbmemptr(ring, fence));
-	OUT_RING(ring, submit->seqno);
+	/* wait for idle before cache flush/interrupt */
+	OUT_PKT3(ring, CP_WAIT_FOR_IDLE, 1);
+	OUT_RING(ring, 0x00000000);
+
+	if (!adreno_is_a2xx(adreno_gpu)) {
+		/* BIT(31) of CACHE_FLUSH_TS triggers CACHE_FLUSH_TS IRQ from GPU */
+		OUT_PKT3(ring, CP_EVENT_WRITE, 3);
+		OUT_RING(ring, CACHE_FLUSH_TS | BIT(31));
+		OUT_RING(ring, rbmemptr(ring, fence));
+		OUT_RING(ring, submit->seqno);
+	} else {
+		/* BIT(31) means something else on a2xx */
+		OUT_PKT3(ring, CP_EVENT_WRITE, 3);
+		OUT_RING(ring, CACHE_FLUSH_TS);
+		OUT_RING(ring, rbmemptr(ring, fence));
+		OUT_RING(ring, submit->seqno);
+		OUT_PKT3(ring, CP_INTERRUPT, 1);
+		OUT_RING(ring, 0x80000000);
+	}
 
 #if 0
 	if (adreno_is_a3xx(adreno_gpu)) {
