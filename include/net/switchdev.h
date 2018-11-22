@@ -95,8 +95,8 @@ struct switchdev_obj_port_vlan {
 	u16 vid_end;
 };
 
-#define SWITCHDEV_OBJ_PORT_VLAN(obj) \
-	container_of(obj, struct switchdev_obj_port_vlan, obj)
+#define SWITCHDEV_OBJ_PORT_VLAN(OBJ) \
+	container_of((OBJ), struct switchdev_obj_port_vlan, obj)
 
 /* SWITCHDEV_OBJ_ID_PORT_MDB */
 struct switchdev_obj_port_mdb {
@@ -105,8 +105,8 @@ struct switchdev_obj_port_mdb {
 	u16 vid;
 };
 
-#define SWITCHDEV_OBJ_PORT_MDB(obj) \
-	container_of(obj, struct switchdev_obj_port_mdb, obj)
+#define SWITCHDEV_OBJ_PORT_MDB(OBJ) \
+	container_of((OBJ), struct switchdev_obj_port_mdb, obj)
 
 void switchdev_trans_item_enqueue(struct switchdev_trans *trans,
 				  void *data, void (*destructor)(void const *),
