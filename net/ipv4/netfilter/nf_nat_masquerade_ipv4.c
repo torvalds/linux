@@ -133,16 +133,29 @@ static struct notifier_block masq_inet_notifier = {
 
 static atomic_t masquerade_notifier_refcount = ATOMIC_INIT(0);
 
-void nf_nat_masquerade_ipv4_register_notifier(void)
+int nf_nat_masquerade_ipv4_register_notifier(void)
 {
+	int ret;
+
 	/* check if the notifier was already set */
 	if (atomic_inc_return(&masquerade_notifier_refcount) > 1)
-		return;
+		return 0;
 
 	/* Register for device down reports */
-	register_netdevice_notifier(&masq_dev_notifier);
+	ret = register_netdevice_notifier(&masq_dev_notifier);
+	if (ret)
+		goto err_dec;
 	/* Register IP address change reports */
-	register_inetaddr_notifier(&masq_inet_notifier);
+	ret = register_inetaddr_notifier(&masq_inet_notifier);
+	if (ret)
+		goto err_unregister;
+
+	return ret;
+err_unregister:
+	unregister_netdevice_notifier(&masq_dev_notifier);
+err_dec:
+	atomic_dec(&masquerade_notifier_refcount);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv4_register_notifier);
 

@@ -120,8 +120,8 @@ static void iterate_cleanup_work(struct work_struct *work)
  * of ipv6 addresses being deleted), we also need to add an upper
  * limit to the number of queued work items.
  */
-static int masq_inet_event(struct notifier_block *this,
-			   unsigned long event, void *ptr)
+static int masq_inet6_event(struct notifier_block *this,
+			    unsigned long event, void *ptr)
 {
 	struct inet6_ifaddr *ifa = ptr;
 	const struct net_device *dev;
@@ -158,20 +158,34 @@ static int masq_inet_event(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block masq_inet_notifier = {
-	.notifier_call	= masq_inet_event,
+static struct notifier_block masq_inet6_notifier = {
+	.notifier_call	= masq_inet6_event,
 };
 
 static atomic_t masquerade_notifier_refcount = ATOMIC_INIT(0);
 
-void nf_nat_masquerade_ipv6_register_notifier(void)
+int nf_nat_masquerade_ipv6_register_notifier(void)
 {
+	int ret;
+
 	/* check if the notifier is already set */
 	if (atomic_inc_return(&masquerade_notifier_refcount) > 1)
-		return;
+		return 0;
 
-	register_netdevice_notifier(&masq_dev_notifier);
-	register_inet6addr_notifier(&masq_inet_notifier);
+	ret = register_netdevice_notifier(&masq_dev_notifier);
+	if (ret)
+		goto err_dec;
+
+	ret = register_inet6addr_notifier(&masq_inet6_notifier);
+	if (ret)
+		goto err_unregister;
+
+	return ret;
+err_unregister:
+	unregister_netdevice_notifier(&masq_dev_notifier);
+err_dec:
+	atomic_dec(&masquerade_notifier_refcount);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6_register_notifier);
 
@@ -181,7 +195,7 @@ void nf_nat_masquerade_ipv6_unregister_notifier(void)
 	if (atomic_dec_return(&masquerade_notifier_refcount) > 0)
 		return;
 
-	unregister_inet6addr_notifier(&masq_inet_notifier);
+	unregister_inet6addr_notifier(&masq_inet6_notifier);
 	unregister_netdevice_notifier(&masq_dev_notifier);
 }
 EXPORT_SYMBOL_GPL(nf_nat_masquerade_ipv6_unregister_notifier);
