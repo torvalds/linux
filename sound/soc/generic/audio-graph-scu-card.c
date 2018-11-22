@@ -39,6 +39,8 @@ struct graph_card_data {
 #define graph_priv_to_dev(priv) (graph_priv_to_card(priv)->dev)
 #define graph_priv_to_link(priv, i) (graph_priv_to_card(priv)->dai_link + (i))
 
+#define PREFIX	"audio-graph-card,"
+
 static int asoc_graph_card_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
@@ -98,6 +100,7 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 	struct snd_soc_dai_link *dai_link = graph_priv_to_link(priv, idx);
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, idx);
 	struct snd_soc_card *card = graph_priv_to_card(priv);
+	struct device_node *node = of_graph_get_port_parent(ep);
 	int ret;
 
 	if (is_fe) {
@@ -154,10 +157,17 @@ static int asoc_graph_card_dai_link_of(struct device_node *ep,
 		if (ret < 0)
 			return ret;
 
+		/* check "prefix" from top node */
 		snd_soc_of_parse_audio_prefix(card,
 					      &priv->codec_conf,
 					      dai_link->codecs->of_node,
 					      "prefix");
+		/* check "prefix" from each node if top doesn't have */
+		if (!priv->codec_conf.of_node)
+			snd_soc_of_parse_node_prefix(node,
+						     &priv->codec_conf,
+						     dai_link->codecs->of_node,
+						     PREFIX "prefix");
 	}
 
 	ret = asoc_simple_card_of_parse_tdm(ep, &dai_props->dai);
