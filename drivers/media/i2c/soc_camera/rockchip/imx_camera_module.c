@@ -778,6 +778,7 @@ int imx_camera_module_s_ext_ctrls(
 	int i;
 	int ctrl_cnt = 0;
 	struct imx_camera_module *cam_mod =  to_imx_camera_module(sd);
+	struct imx_camera_module_ext_ctrls imx_ctrls;
 	int ret = 0;
 
 	pltfrm_camera_module_pr_debug(&cam_mod->sd, "\n");
@@ -899,6 +900,24 @@ int imx_camera_module_s_ext_ctrls(
 			else
 				cam_mod->vflip = false;
 			cam_mod->flip_flg = true;
+			break;
+		case V4L2_CID_TEST_PATTERN:
+			imx_ctrls.ctrls =
+				kmalloc_array(ctrls->count,
+					sizeof(*imx_ctrls.ctrls),
+					GFP_KERNEL);
+			if (imx_ctrls.ctrls) {
+				for (i = 0; i < ctrls->count; i++) {
+					imx_ctrls.ctrls[i].id =
+						ctrls->controls[i].id;
+					imx_ctrls.ctrls[i].value =
+						ctrls->controls[i].value;
+				}
+				imx_ctrls.count = ctrls->count;
+				ret = cam_mod->custom.s_ext_ctrls(cam_mod,
+								  &imx_ctrls);
+			}
+			kfree(imx_ctrls.ctrls);
 			break;
 		default:
 			pltfrm_camera_module_pr_warn(&cam_mod->sd,

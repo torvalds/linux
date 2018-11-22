@@ -818,6 +818,7 @@ int tc_camera_module_s_ext_ctrls(
 	int i;
 	int ctrl_cnt = 0;
 	struct tc_camera_module *cam_mod =  to_tc_camera_module(sd);
+	struct tc_camera_module_ext_ctrls tc_ctrls;
 	int ret = 0;
 
 	pltfrm_camera_module_pr_debug(&cam_mod->sd, "\n");
@@ -948,6 +949,24 @@ int tc_camera_module_s_ext_ctrls(
 			else
 				cam_mod->vflip = false;
 			cam_mod->flip_flg = true;
+			break;
+		case V4L2_CID_TEST_PATTERN:
+			tc_ctrls.ctrls =
+				kmalloc_array(ctrls->count,
+					sizeof(*tc_ctrls.ctrls),
+					GFP_KERNEL);
+			if (tc_ctrls.ctrls) {
+				for (i = 0; i < ctrls->count; i++) {
+					tc_ctrls.ctrls[i].id =
+						ctrls->controls[i].id;
+					tc_ctrls.ctrls[i].value =
+						ctrls->controls[i].value;
+				}
+				tc_ctrls.count = ctrls->count;
+				ret = cam_mod->custom.s_ext_ctrls(cam_mod,
+								  &tc_ctrls);
+			}
+			kfree(tc_ctrls.ctrls);
 			break;
 		default:
 			pltfrm_camera_module_pr_warn(

@@ -93,6 +93,10 @@ bool is_R1A_module;
 #define BG_RATIO_TYPICAL  0x129
 #define RG_RATIO_TYPICAL  0x11f
 
+#define OV8858_REG_TEST_PATTERN     0x5e00
+#define OV8858_TEST_PATTERN_ENABLE  0x80
+#define OV8858_TEST_PATTERN_DISABLE 0x0
+
 struct ov8858_otp_struct {
 	int otp_en;
 	int flag;
@@ -1589,6 +1593,20 @@ static int ov8858_s_ctrl(struct ov_camera_module *cam_mod, u32 ctrl_id)
 
 /*--------------------------------------------------------------------------*/
 
+static int ov8858_enable_test_pattern(struct ov_camera_module *cam_mod,
+				      u32 pattern)
+{
+	u32 val;
+
+	if (pattern)
+		val = (pattern - 1) | OV8858_TEST_PATTERN_ENABLE;
+	else
+		val = OV8858_TEST_PATTERN_DISABLE;
+
+	return ov_camera_module_write_reg(cam_mod,
+					  OV8858_REG_TEST_PATTERN, val);
+}
+
 static int ov8858_s_ext_ctrls(struct ov_camera_module *cam_mod,
 				 struct ov_camera_module_ext_ctrls *ctrls)
 {
@@ -1599,6 +1617,10 @@ static int ov8858_s_ext_ctrls(struct ov_camera_module *cam_mod,
 		ret = ov8858_write_aec(cam_mod);
 	else
 		ret = -EINVAL;
+
+	if (ctrls->ctrls[0].id == V4L2_CID_TEST_PATTERN)
+		ret = ov8858_enable_test_pattern(cam_mod,
+						 ctrls->ctrls[0].value);
 
 	if (IS_ERR_VALUE(ret))
 		ov_camera_module_pr_debug(cam_mod,
