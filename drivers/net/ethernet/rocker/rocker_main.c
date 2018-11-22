@@ -1632,9 +1632,6 @@ rocker_world_port_obj_vlan_add(struct rocker_port *rocker_port,
 {
 	struct rocker_world_ops *wops = rocker_port->rocker->wops;
 
-	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
-
 	if (!wops->port_obj_vlan_add)
 		return -EOPNOTSUPP;
 

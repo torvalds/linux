@@ -719,9 +719,6 @@ static int port_vlans_add(struct net_device *netdev,
 	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
 	int vid, err = 0;
 
-	if (netif_is_bridge_master(vlan->obj.orig_dev))
-		return -EOPNOTSUPP;
-
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
 
