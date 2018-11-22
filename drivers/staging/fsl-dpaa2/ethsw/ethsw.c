@@ -930,8 +930,6 @@ static int swdev_port_obj_del(struct net_device *netdev,
 static const struct switchdev_ops ethsw_port_switchdev_ops = {
 	.switchdev_port_attr_get	= swdev_port_attr_get,
 	.switchdev_port_attr_set	= swdev_port_attr_set,
-	.switchdev_port_obj_add		= swdev_port_obj_add,
-	.switchdev_port_obj_del		= swdev_port_obj_del,
 };
 
 /* For the moment, only flood setting needs to be updated */

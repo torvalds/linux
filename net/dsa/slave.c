@@ -1050,8 +1050,6 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
 	.switchdev_port_attr_get	= dsa_slave_port_attr_get,
 	.switchdev_port_attr_set	= dsa_slave_port_attr_set,
-	.switchdev_port_obj_add		= dsa_slave_port_obj_add,
-	.switchdev_port_obj_del		= dsa_slave_port_obj_del,
 };
 
 static struct device_type dsa_type = {

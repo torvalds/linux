@@ -2145,8 +2145,6 @@ static int rocker_port_obj_del(struct net_device *dev,
 static const struct switchdev_ops rocker_port_switchdev_ops = {
 	.switchdev_port_attr_get	= rocker_port_attr_get,
 	.switchdev_port_attr_set	= rocker_port_attr_set,
-	.switchdev_port_obj_add		= rocker_port_obj_add,
-	.switchdev_port_obj_del		= rocker_port_obj_del,
 };
 
 struct rocker_fib_event_work {

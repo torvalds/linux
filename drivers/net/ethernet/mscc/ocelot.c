@@ -1337,8 +1337,6 @@ static int ocelot_port_obj_del(struct net_device *dev,
 static const struct switchdev_ops ocelot_port_switchdev_ops = {
 	.switchdev_port_attr_get	= ocelot_port_attr_get,
 	.switchdev_port_attr_set	= ocelot_port_attr_set,
-	.switchdev_port_obj_add		= ocelot_port_obj_add,
-	.switchdev_port_obj_del		= ocelot_port_obj_del,
 };
 
 static int ocelot_port_bridge_join(struct ocelot_port *ocelot_port,
