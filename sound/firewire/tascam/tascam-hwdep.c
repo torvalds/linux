@@ -123,6 +123,14 @@ static int hwdep_unlock(struct snd_tscm *tscm)
 	return err;
 }
 
+static int tscm_hwdep_state(struct snd_tscm *tscm, void __user *arg)
+{
+	if (copy_to_user(arg, tscm->state, sizeof(tscm->state)))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int hwdep_release(struct snd_hwdep *hwdep, struct file *file)
 {
 	struct snd_tscm *tscm = hwdep->private_data;
@@ -147,6 +155,8 @@ static int hwdep_ioctl(struct snd_hwdep *hwdep, struct file *file,
 		return hwdep_lock(tscm);
 	case SNDRV_FIREWIRE_IOCTL_UNLOCK:
 		return hwdep_unlock(tscm);
+	case SNDRV_FIREWIRE_IOCTL_TASCAM_STATE:
+		return tscm_hwdep_state(tscm, (void __user *)arg);
 	default:
 		return -ENOIOCTLCMD;
 	}
