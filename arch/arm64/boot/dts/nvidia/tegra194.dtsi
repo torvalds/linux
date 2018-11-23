@@ -5,6 +5,7 @@
 #include <dt-bindings/mailbox/tegra186-hsp.h>
 #include <dt-bindings/reset/tegra194-reset.h>
 #include <dt-bindings/power/tegra194-powergate.h>
+#include <dt-bindings/thermal/tegra194-bpmp-thermal.h>
 
 / {
 	compatible = "nvidia,tegra194";
@@ -876,6 +877,44 @@
 		compatible = "arm,psci-1.0";
 		status = "okay";
 		method = "smc";
+	};
+
+	thermal-zones {
+		cpu {
+			thermal-sensors = <&{/bpmp/thermal}
+					   TEGRA194_BPMP_THERMAL_ZONE_CPU>;
+			status = "disabled";
+		};
+
+		gpu {
+			thermal-sensors = <&{/bpmp/thermal}
+					   TEGRA194_BPMP_THERMAL_ZONE_GPU>;
+			status = "disabled";
+		};
+
+		aux {
+			thermal-sensors = <&{/bpmp/thermal}
+					   TEGRA194_BPMP_THERMAL_ZONE_AUX>;
+			status = "disabled";
+		};
+
+		pllx {
+			thermal-sensors = <&{/bpmp/thermal}
+					   TEGRA194_BPMP_THERMAL_ZONE_PLLX>;
+			status = "disabled";
+		};
+
+		ao {
+			thermal-sensors = <&{/bpmp/thermal}
+					   TEGRA194_BPMP_THERMAL_ZONE_AO>;
+			status = "disabled";
+		};
+
+		tj {
+			thermal-sensors = <&{/bpmp/thermal}
+					   TEGRA194_BPMP_THERMAL_ZONE_TJ_MAX>;
+			status = "disabled";
+		};
 	};
 
 	timer {
