@@ -381,6 +381,13 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_BONDING_ENABLED,
 
+	/**
+	 * @BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED: whether the bridge loop
+	 *  avoidance feature is enabled. This feature detects and avoids loops
+	 *  between the mesh and devices bridged with the soft interface
+	 */
+	BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
