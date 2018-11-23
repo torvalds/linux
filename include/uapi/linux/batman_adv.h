@@ -140,6 +140,20 @@ enum batadv_mcast_flags_priv {
 };
 
 /**
+ * enum batadv_gw_modes - gateway mode of node
+ */
+enum batadv_gw_modes {
+	/** @BATADV_GW_MODE_OFF: gw mode disabled */
+	BATADV_GW_MODE_OFF,
+
+	/** @BATADV_GW_MODE_CLIENT: send DHCP requests to gw servers */
+	BATADV_GW_MODE_CLIENT,
+
+	/** @BATADV_GW_MODE_SERVER: announce itself as gatway server */
+	BATADV_GW_MODE_SERVER,
+};
+
+/**
  * enum batadv_nl_attrs - batman-adv netlink attributes
  */
 enum batadv_nl_attrs {
@@ -402,6 +416,32 @@ enum batadv_nl_attrs {
 	 *  packet size exceeds the outgoing interface MTU.
 	 */
 	BATADV_ATTR_FRAGMENTATION_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_GW_BANDWIDTH_DOWN: defines the download bandwidth which
+	 *  is propagated by this node if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
+	 *  to 'server'.
+	 */
+	BATADV_ATTR_GW_BANDWIDTH_DOWN,
+
+	/**
+	 * @BATADV_ATTR_GW_BANDWIDTH_UP: defines the upload bandwidth which
+	 *  is propagated by this node if %BATADV_ATTR_GW_BANDWIDTH_MODE was set
+	 *  to 'server'.
+	 */
+	BATADV_ATTR_GW_BANDWIDTH_UP,
+
+	/**
+	 * @BATADV_ATTR_GW_MODE: defines the state of the gateway features.
+	 * Possible values are specified in enum batadv_gw_modes
+	 */
+	BATADV_ATTR_GW_MODE,
+
+	/**
+	 * @BATADV_ATTR_GW_SEL_CLASS: defines the selection criteria this node
+	 *  will use to choose a gateway if gw_mode was set to 'client'.
+	 */
+	BATADV_ATTR_GW_SEL_CLASS,
 
 	/* add attributes above here, update the policy in netlink.c */
 

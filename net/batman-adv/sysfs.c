@@ -40,6 +40,7 @@
 #include <linux/stringify.h>
 #include <linux/workqueue.h>
 #include <uapi/linux/batadv_packet.h>
+#include <uapi/linux/batman_adv.h>
 
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"

@@ -25,12 +25,6 @@
 
 struct net_device;
 
-enum batadv_gw_modes {
-	BATADV_GW_MODE_OFF,
-	BATADV_GW_MODE_CLIENT,
-	BATADV_GW_MODE_SERVER,
-};
-
 /**
  * enum batadv_bandwidth_units - bandwidth unit types
  */

@@ -51,6 +51,7 @@
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
 #include "gateway_client.h"
+#include "gateway_common.h"
 #include "hard-interface.h"
 #include "multicast.h"
 #include "originator.h"
@@ -147,6 +148,10 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_FRAGMENTATION_ENABLED]	= { .type = NLA_U8 },
+	[BATADV_ATTR_GW_BANDWIDTH_DOWN]		= { .type = NLA_U32 },
+	[BATADV_ATTR_GW_BANDWIDTH_UP]		= { .type = NLA_U32 },
+	[BATADV_ATTR_GW_MODE]			= { .type = NLA_U8 },
+	[BATADV_ATTR_GW_SEL_CLASS]		= { .type = NLA_U32 },
 };
 
 /**
@@ -303,6 +308,28 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		       !!atomic_read(&bat_priv->fragmentation)))
 		goto nla_put_failure;
 
+	if (nla_put_u32(msg, BATADV_ATTR_GW_BANDWIDTH_DOWN,
+			atomic_read(&bat_priv->gw.bandwidth_down)))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, BATADV_ATTR_GW_BANDWIDTH_UP,
+			atomic_read(&bat_priv->gw.bandwidth_up)))
+		goto nla_put_failure;
+
+	if (nla_put_u8(msg, BATADV_ATTR_GW_MODE,
+		       atomic_read(&bat_priv->gw.mode)))
+		goto nla_put_failure;
+
+	if (bat_priv->algo_ops->gw.get_best_gw_node &&
+	    bat_priv->algo_ops->gw.is_eligible) {
+		/* GW selection class is not available if the routing algorithm
+		 * in use does not implement the GW API
+		 */
+		if (nla_put_u32(msg, BATADV_ATTR_GW_SEL_CLASS,
+				atomic_read(&bat_priv->gw.sel_class)))
+			goto nla_put_failure;
+	}
+
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 
@@ -442,6 +469,71 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 
 		atomic_set(&bat_priv->fragmentation, !!nla_get_u8(attr));
 		batadv_update_min_mtu(bat_priv->soft_iface);
+	}
+
+	if (info->attrs[BATADV_ATTR_GW_BANDWIDTH_DOWN]) {
+		attr = info->attrs[BATADV_ATTR_GW_BANDWIDTH_DOWN];
+
+		atomic_set(&bat_priv->gw.bandwidth_down, nla_get_u32(attr));
+		batadv_gw_tvlv_container_update(bat_priv);
+	}
+
+	if (info->attrs[BATADV_ATTR_GW_BANDWIDTH_UP]) {
+		attr = info->attrs[BATADV_ATTR_GW_BANDWIDTH_UP];
+
+		atomic_set(&bat_priv->gw.bandwidth_up, nla_get_u32(attr));
+		batadv_gw_tvlv_container_update(bat_priv);
+	}
+
+	if (info->attrs[BATADV_ATTR_GW_MODE]) {
+		u8 gw_mode;
+
+		attr = info->attrs[BATADV_ATTR_GW_MODE];
+		gw_mode = nla_get_u8(attr);
+
+		if (gw_mode <= BATADV_GW_MODE_SERVER) {
+			/* Invoking batadv_gw_reselect() is not enough to really
+			 * de-select the current GW. It will only instruct the
+			 * gateway client code to perform a re-election the next
+			 * time that this is needed.
+			 *
+			 * When gw client mode is being switched off the current
+			 * GW must be de-selected explicitly otherwise no GW_ADD
+			 * uevent is thrown on client mode re-activation. This
+			 * is operation is performed in
+			 * batadv_gw_check_client_stop().
+			 */
+			batadv_gw_reselect(bat_priv);
+
+			/* always call batadv_gw_check_client_stop() before
+			 * changing the gateway state
+			 */
+			batadv_gw_check_client_stop(bat_priv);
+			atomic_set(&bat_priv->gw.mode, gw_mode);
+			batadv_gw_tvlv_container_update(bat_priv);
+		}
+	}
+
+	if (info->attrs[BATADV_ATTR_GW_SEL_CLASS] &&
+	    bat_priv->algo_ops->gw.get_best_gw_node &&
+	    bat_priv->algo_ops->gw.is_eligible) {
+		/* setting the GW selection class is allowed only if the routing
+		 * algorithm in use implements the GW API
+		 */
+
+		u32 sel_class_max = 0xffffffffu;
+		u32 sel_class;
+
+		attr = info->attrs[BATADV_ATTR_GW_SEL_CLASS];
+		sel_class = nla_get_u32(attr);
+
+		if (!bat_priv->algo_ops->gw.store_sel_class)
+			sel_class_max = BATADV_TQ_MAX_VALUE;
+
+		if (sel_class >= 1 && sel_class <= sel_class_max) {
+			atomic_set(&bat_priv->gw.sel_class, sel_class);
+			batadv_gw_reselect(bat_priv);
+		}
 	}
 
 	batadv_netlink_notify_mesh(bat_priv);
