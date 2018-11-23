@@ -35,6 +35,20 @@ static const struct rcar_hdmi_phy_params rcar_hdmi_phy_params[] = {
 	{ ~0UL,      0x0000, 0x0000, 0x0000 },
 };
 
+static enum drm_mode_status
+rcar_hdmi_mode_valid(struct drm_connector *connector,
+		     const struct drm_display_mode *mode)
+{
+	/*
+	 * The maximum supported clock frequency is 297 MHz, as shown in the PHY
+	 * parameters table.
+	 */
+	if (mode->clock > 297000)
+		return MODE_CLOCK_HIGH;
+
+	return MODE_OK;
+}
+
 static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
 				   const struct dw_hdmi_plat_data *pdata,
 				   unsigned long mpixelclock)
@@ -59,6 +73,7 @@ static int rcar_hdmi_phy_configure(struct dw_hdmi *hdmi,
 }
 
 static const struct dw_hdmi_plat_data rcar_dw_hdmi_plat_data = {
+	.mode_valid = rcar_hdmi_mode_valid,
 	.configure_phy	= rcar_hdmi_phy_configure,
 };
 
