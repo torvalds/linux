@@ -623,7 +623,9 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		esdhc_clock_enable(host, true);
 
 		temp = sdhci_readl(host, ESDHC_DLLCFG0);
-		temp |= ESDHC_DLL_ENABLE | ESDHC_DLL_FREQ_SEL;
+		temp |= ESDHC_DLL_ENABLE;
+		if (host->mmc->actual_clock == MMC_HS200_MAX_DTR)
+			temp |= ESDHC_DLL_FREQ_SEL;
 		sdhci_writel(host, temp, ESDHC_DLLCFG0);
 		temp = sdhci_readl(host, ESDHC_TBCTL);
 		sdhci_writel(host, temp | ESDHC_HS400_WNDW_ADJUST, ESDHC_TBCTL);
