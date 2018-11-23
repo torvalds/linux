@@ -45,6 +45,7 @@
 #define SP_VDEV_NAME DRIVER_NAME   "_selfpath"
 #define MP_VDEV_NAME DRIVER_NAME   "_mainpath"
 #define DMA_VDEV_NAME DRIVER_NAME  "_dmapath"
+#define RAW_VDEV_NAME DRIVER_NAME  "_rawpath"
 
 #define GRP_ID_SENSOR			BIT(0)
 #define GRP_ID_MIPIPHY			BIT(1)

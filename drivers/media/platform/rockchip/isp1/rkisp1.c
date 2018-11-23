@@ -411,6 +411,8 @@ static int rkisp1_config_mipi(struct rkisp1_device *dev)
 
 		/* interrupts */
 		writel(CIF_ISP_CSI0_IMASK_FRAME_END(0x3F) |
+		       CIF_ISP_CSI0_IMASK_RAW0_OUT_V_END |
+		       CIF_ISP_CSI0_IMASK_RAW1_OUT_V_END |
 		       CIF_ISP_CSI0_IMASK_LINECNT,
 		       base + CIF_ISP_CSI0_MASK3);
 

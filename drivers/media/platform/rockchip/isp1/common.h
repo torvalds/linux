@@ -45,15 +45,17 @@
 #define RKISP1_DEFAULT_WIDTH		800
 #define RKISP1_DEFAULT_HEIGHT		600
 
-#define RKISP1_MAX_STREAM		2
+#define RKISP1_MAX_STREAM		3
 #define RKISP1_STREAM_MP		0
 #define RKISP1_STREAM_SP		1
+#define RKISP1_STREAM_RAW		2
 
 #define RKISP1_PLANE_Y			0
 #define RKISP1_PLANE_CB			1
 #define RKISP1_PLANE_CR			2
 
 #define RKISP1_EMDDATA_FIFO_MAX		4
+#define RKISP1_DMATX_CHECK              0xA5A5A5A5
 
 enum rkisp1_sd_type {
 	RKISP1_SD_SENSOR,

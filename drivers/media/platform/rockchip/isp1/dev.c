@@ -355,6 +355,17 @@ static int rkisp1_create_links(struct rkisp1_device *dev)
 	if (ret < 0)
 		return ret;
 
+	if (dev->isp_ver == ISP_V12 ||
+		dev->isp_ver == ISP_V13) {
+		/* MIPI RAW links */
+		source = &dev->isp_sdev.sd.entity;
+		sink = &dev->stream[RKISP1_STREAM_RAW].vnode.vdev.entity;
+		ret = media_entity_create_link(source,
+			RKISP1_ISP_PAD_SOURCE_PATH, sink, 0, flags);
+		if (ret < 0)
+			return ret;
+	}
+
 	/* 3A stats links */
 	source = &dev->isp_sdev.sd.entity;
 	sink = &dev->stats_vdev.vnode.vdev.entity;
@@ -653,6 +664,8 @@ static irqreturn_t rkisp1_mipi_irq_hdl(int irq, void *ctx)
 		err2 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR2);
 		err3 = readl(rkisp1_dev->base_addr + CIF_ISP_CSI0_ERR3);
 
+		if (err3 & 0x1)
+			rkisp1_mipi_dmatx0_end(err3, rkisp1_dev);
 		if (err1 || err2 || err3)
 			rkisp1_mipi_v13_isr(err1, err2, err3, rkisp1_dev);
 	} else {
@@ -697,7 +710,7 @@ static const char * const rk3399_isp_clks[] = {
 
 /* isp clock adjustment table (MHz) */
 static const unsigned int rk1808_isp_clk_rate[] = {
-	400, 500, 600
+	300, 400, 500, 600
 };
 
 /* isp clock adjustment table (MHz) */
@@ -1004,6 +1017,7 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 
 	rkisp1_stream_init(isp_dev, RKISP1_STREAM_SP);
 	rkisp1_stream_init(isp_dev, RKISP1_STREAM_MP);
+	rkisp1_stream_init(isp_dev, RKISP1_STREAM_RAW);
 
 	strlcpy(isp_dev->media_dev.model, "rkisp1",
 		sizeof(isp_dev->media_dev.model));

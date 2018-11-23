@@ -79,6 +79,10 @@ struct rkisp1_stream_mp {
 	bool raw_enable;
 };
 
+struct rkisp1_stream_raw {
+	u8 pre_stop;
+};
+
 /* Different config between selfpath and mainpath */
 struct stream_config {
 	const struct capture_fmt *fmts;
@@ -143,6 +147,7 @@ struct streams_ops {
 	void (*disable_mi)(struct rkisp1_stream *stream);
 	void (*set_data_path)(void __iomem *base);
 	bool (*is_stream_stopped)(void __iomem *base);
+	void (*update_mi)(struct rkisp1_stream *stream);
 };
 
 /*
@@ -161,7 +166,7 @@ struct streams_ops {
  * @next_buf: the buffer used for next frame
  */
 struct rkisp1_stream {
-	unsigned id:1;
+	unsigned id:2;
 	struct rkisp1_device *ispdev;
 	struct rkisp1_vdev_node vnode;
 	struct capture_fmt out_isp_fmt;
@@ -181,6 +186,7 @@ struct rkisp1_stream {
 	union {
 		struct rkisp1_stream_sp sp;
 		struct rkisp1_stream_mp mp;
+		struct rkisp1_stream_raw raw;
 	} u;
 };
 
@@ -190,5 +196,6 @@ void rkisp1_mi_isr(u32 mis_val, struct rkisp1_device *dev);
 void rkisp1_stream_init(struct rkisp1_device *dev, u32 id);
 void rkisp1_set_stream_def_fmt(struct rkisp1_device *dev, u32 id,
 			       u32 width, u32 height, u32 pixelformat);
+void rkisp1_mipi_dmatx0_end(u32 status, struct rkisp1_device *dev);
 
 #endif /* _RKISP1_PATH_VIDEO_H */
