@@ -140,6 +140,9 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_MCAST_FLAGS_PRIV]		= { .type = NLA_U32 },
 	[BATADV_ATTR_VLANID]			= { .type = NLA_U16 },
 	[BATADV_ATTR_AGGREGATED_OGMS_ENABLED]	= { .type = NLA_U8 },
+	[BATADV_ATTR_AP_ISOLATION_ENABLED]	= { .type = NLA_U8 },
+	[BATADV_ATTR_ISOLATION_MARK]		= { .type = NLA_U32 },
+	[BATADV_ATTR_ISOLATION_MASK]		= { .type = NLA_U32 },
 };
 
 /**
@@ -155,6 +158,52 @@ batadv_netlink_get_ifindex(const struct nlmsghdr *nlh, int attrtype)
 	struct nlattr *attr = nlmsg_find_attr(nlh, GENL_HDRLEN, attrtype);
 
 	return attr ? nla_get_u32(attr) : 0;
+}
+
+/**
+ * batadv_netlink_mesh_fill_ap_isolation() - Add ap_isolation softif attribute
+ * @msg: Netlink message to dump into
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+static int batadv_netlink_mesh_fill_ap_isolation(struct sk_buff *msg,
+						 struct batadv_priv *bat_priv)
+{
+	struct batadv_softif_vlan *vlan;
+	u8 ap_isolation;
+
+	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	if (!vlan)
+		return 0;
+
+	ap_isolation = atomic_read(&vlan->ap_isolation);
+	batadv_softif_vlan_put(vlan);
+
+	return nla_put_u8(msg, BATADV_ATTR_AP_ISOLATION_ENABLED,
+			  !!ap_isolation);
+}
+
+/**
+ * batadv_option_set_ap_isolation() - Set ap_isolation from genl msg
+ * @attr: parsed BATADV_ATTR_AP_ISOLATION_ENABLED attribute
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+static int batadv_netlink_set_mesh_ap_isolation(struct nlattr *attr,
+						struct batadv_priv *bat_priv)
+{
+	struct batadv_softif_vlan *vlan;
+
+	vlan = batadv_softif_vlan_get(bat_priv, BATADV_NO_FLAGS);
+	if (!vlan)
+		return -ENOENT;
+
+	atomic_set(&vlan->ap_isolation, !!nla_get_u8(attr));
+	batadv_softif_vlan_put(vlan);
+
+	return 0;
 }
 
 /**
@@ -217,6 +266,17 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 
 	if (nla_put_u8(msg, BATADV_ATTR_AGGREGATED_OGMS_ENABLED,
 		       !!atomic_read(&bat_priv->aggregated_ogms)))
+		goto nla_put_failure;
+
+	if (batadv_netlink_mesh_fill_ap_isolation(msg, bat_priv))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, BATADV_ATTR_ISOLATION_MARK,
+			bat_priv->isolation_mark))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, BATADV_ATTR_ISOLATION_MASK,
+			bat_priv->isolation_mark_mask))
 		goto nla_put_failure;
 
 	if (primary_if)
@@ -307,6 +367,24 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		attr = info->attrs[BATADV_ATTR_AGGREGATED_OGMS_ENABLED];
 
 		atomic_set(&bat_priv->aggregated_ogms, !!nla_get_u8(attr));
+	}
+
+	if (info->attrs[BATADV_ATTR_AP_ISOLATION_ENABLED]) {
+		attr = info->attrs[BATADV_ATTR_AP_ISOLATION_ENABLED];
+
+		batadv_netlink_set_mesh_ap_isolation(attr, bat_priv);
+	}
+
+	if (info->attrs[BATADV_ATTR_ISOLATION_MARK]) {
+		attr = info->attrs[BATADV_ATTR_ISOLATION_MARK];
+
+		bat_priv->isolation_mark = nla_get_u32(attr);
+	}
+
+	if (info->attrs[BATADV_ATTR_ISOLATION_MASK]) {
+		attr = info->attrs[BATADV_ATTR_ISOLATION_MASK];
+
+		bat_priv->isolation_mark_mask = nla_get_u32(attr);
 	}
 
 	batadv_netlink_notify_mesh(bat_priv);
@@ -705,6 +783,10 @@ static int batadv_netlink_vlan_fill(struct sk_buff *msg,
 	if (nla_put_u32(msg, BATADV_ATTR_VLANID, vlan->vid & VLAN_VID_MASK))
 		goto nla_put_failure;
 
+	if (nla_put_u8(msg, BATADV_ATTR_AP_ISOLATION_ENABLED,
+		       !!atomic_read(&vlan->ap_isolation)))
+		goto nla_put_failure;
+
 	genlmsg_end(msg, hdr);
 	return 0;
 
@@ -785,6 +867,13 @@ static int batadv_netlink_set_vlan(struct sk_buff *skb, struct genl_info *info)
 {
 	struct batadv_softif_vlan *vlan = info->user_ptr[1];
 	struct batadv_priv *bat_priv = info->user_ptr[0];
+	struct nlattr *attr;
+
+	if (info->attrs[BATADV_ATTR_AP_ISOLATION_ENABLED]) {
+		attr = info->attrs[BATADV_ATTR_AP_ISOLATION_ENABLED];
+
+		atomic_set(&vlan->ap_isolation, !!nla_get_u8(attr));
+	}
 
 	batadv_netlink_notify_vlan(bat_priv, vlan);
 

@@ -356,6 +356,25 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_AGGREGATED_OGMS_ENABLED,
 
+	/**
+	 * @BATADV_ATTR_AP_ISOLATION_ENABLED: whether the data traffic going
+	 *  from a wireless client to another wireless client will be silently
+	 *  dropped.
+	 */
+	BATADV_ATTR_AP_ISOLATION_ENABLED,
+
+	/**
+	 * @BATADV_ATTR_ISOLATION_MARK: the isolation mark which is used to
+	 *  classify clients as "isolated" by the Extended Isolation feature.
+	 */
+	BATADV_ATTR_ISOLATION_MARK,
+
+	/**
+	 * @BATADV_ATTR_ISOLATION_MASK: the isolation (bit)mask which is used to
+	 *  classify clients as "isolated" by the Extended Isolation feature.
+	 */
+	BATADV_ATTR_ISOLATION_MASK,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
