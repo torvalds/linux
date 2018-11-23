@@ -190,7 +190,7 @@ static unsigned int ratetbl2rateset(struct adapter *padapter, unsigned char *rat
 		default:
 			rate = ratetbl_val_2wifirate(rate);
 
-			if (is_basicrate(padapter, rate) == true)
+			if (is_basicrate(padapter, rate))
 				rate |= IEEE80211_BASIC_RATE_MASK;
 
 			rateset[len] = rate;

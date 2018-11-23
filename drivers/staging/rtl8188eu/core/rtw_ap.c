@@ -629,7 +629,7 @@ static void start_bss_network(struct adapter *padapter, u8 *pbuf)
 	}
 
 	/* setting only at  first time */
-	if (pmlmepriv->cur_network.join_res != true) {
+	if (!pmlmepriv->cur_network.join_res) {
 		/* WEP Key will be set before this function, do not
 		 * clear CAM.
 		 */
@@ -756,7 +756,7 @@ int rtw_check_beacon_data(struct adapter *padapter, u8 *pbuf,  int len)
 
 	DBG_88E("%s, len =%d\n", __func__, len);
 
-	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) != true)
+	if (!check_fwstate(pmlmepriv, WIFI_AP_STATE))
 		return _FAIL;
 
 	if (len < 0 || len > MAX_IE_SZ)
