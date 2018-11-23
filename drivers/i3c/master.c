@@ -475,7 +475,7 @@ static ssize_t mode_show(struct device *dev,
 
 	i3c_bus_normaluse_lock(i3cbus);
 	if (i3cbus->mode < 0 ||
-	    i3cbus->mode > ARRAY_SIZE(i3c_bus_mode_strings) ||
+	    i3cbus->mode >= ARRAY_SIZE(i3c_bus_mode_strings) ||
 	    !i3c_bus_mode_strings[i3cbus->mode])
 		ret = sprintf(buf, "unknown\n");
 	else
