@@ -464,6 +464,13 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED,
 
+	/**
+	 * @BATADV_ATTR_NETWORK_CODING_ENABLED: whether Network Coding (using
+	 *  some magic to send fewer wifi packets but still the same content) is
+	 *  enabled or not.
+	 */
+	BATADV_ATTR_NETWORK_CODING_ENABLED,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
