@@ -6305,6 +6305,7 @@ F:	tools/testing/selftests/gpio/
 
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
+M:	Bartosz Golaszewski <bgolaszewski@baylibre.com>
 L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
@@ -7442,6 +7443,20 @@ S:	Maintained
 F:	Documentation/fb/intelfb.txt
 F:	drivers/video/fbdev/intelfb/
 
+INTEL GPIO DRIVERS
+M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-gpio-intel.git
+F:	drivers/gpio/gpio-ich.c
+F:	drivers/gpio/gpio-intel-mid.c
+F:	drivers/gpio/gpio-lynxpoint.c
+F:	drivers/gpio/gpio-merrifield.c
+F:	drivers/gpio/gpio-ml-ioh.c
+F:	drivers/gpio/gpio-pch.c
+F:	drivers/gpio/gpio-sch.c
+F:	drivers/gpio/gpio-sodaville.c
+
 INTEL GVT-g DRIVERS (Intel GPU Virtualization)
 M:	Zhenyu Wang <zhenyuw@linux.intel.com>
 M:	Zhi Wang <zhi.a.wang@intel.com>
@@ -7451,12 +7466,6 @@ W:	https://01.org/igvt-g
 T:	git https://github.com/intel/gvt-linux.git
 S:	Supported
 F:	drivers/gpu/drm/i915/gvt/
-
-INTEL PMIC GPIO DRIVER
-R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-S:	Maintained
-F:	drivers/gpio/gpio-*cove.c
-F:	drivers/gpio/gpio-msic.c
 
 INTEL HID EVENT DRIVER
 M:	Alex Hung <alex.hung@canonical.com>
@@ -7545,12 +7554,6 @@ W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/platform/x86/intel_menlow.c
 
-INTEL MERRIFIELD GPIO DRIVER
-M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	drivers/gpio/gpio-merrifield.c
-
 INTEL MIC DRIVERS (mic)
 M:	Sudeep Dutt <sudeep.dutt@intel.com>
 M:	Ashutosh Dixit <ashutosh.dixit@intel.com>
@@ -7582,6 +7585,13 @@ F:	drivers/platform/x86/intel_pmc_ipc.c
 F:	drivers/platform/x86/intel_punit_ipc.c
 F:	arch/x86/include/asm/intel_pmc_ipc.h
 F:	arch/x86/include/asm/intel_punit_ipc.h
+
+INTEL PMIC GPIO DRIVERS
+M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-gpio-intel.git
+F:	drivers/gpio/gpio-*cove.c
+F:	drivers/gpio/gpio-msic.c
 
 INTEL MULTIFUNCTION PMIC DEVICE DRIVERS
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
