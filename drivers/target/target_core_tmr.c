@@ -163,7 +163,7 @@ void core_tmr_abort_task(
 			continue;
 
 		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
-			se_cmd->se_tfo->get_fabric_name(), ref_tag);
+			se_cmd->se_tfo->fabric_name, ref_tag);
 
 		if (!__target_check_io_state(se_cmd, se_sess, 0))
 			continue;
@@ -398,7 +398,7 @@ int core_tmr_lun_reset(
 		if (tmr_nacl && tmr_tpg) {
 			pr_debug("LUN_RESET: TMR caller fabric: %s"
 				" initiator port %s\n",
-				tmr_tpg->se_tpg_tfo->get_fabric_name(),
+				tmr_tpg->se_tpg_tfo->fabric_name,
 				tmr_nacl->initiatorname);
 		}
 	}

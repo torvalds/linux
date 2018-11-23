@@ -9,6 +9,11 @@
 struct target_core_fabric_ops {
 	struct module *module;
 	const char *name;
+	/*
+	 * fabric_name is used for the ALUA state path and is stored on disk
+	 * with PR state.
+	 */
+	const char *fabric_name;
 	size_t node_acl_size;
 	/*
 	 * Limits number of scatterlist entries per SCF_SCSI_DATA_CDB payload.
@@ -23,7 +28,6 @@ struct target_core_fabric_ops {
 	 * XXX: Currently assumes single PAGE_SIZE per scatterlist entry
 	 */
 	u32 max_data_sg_nents;
-	char *(*get_fabric_name)(void);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
 	u16 (*tpg_get_tag)(struct se_portal_group *);
 	u32 (*tpg_get_default_depth)(struct se_portal_group *);

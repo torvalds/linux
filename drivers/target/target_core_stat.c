@@ -612,7 +612,7 @@ static ssize_t target_stat_tgt_port_name_show(struct config_item *item,
 	dev = rcu_dereference(lun->lun_se_dev);
 	if (dev)
 		ret = snprintf(page, PAGE_SIZE, "%sPort#%u\n",
-			tpg->se_tpg_tfo->get_fabric_name(),
+			tpg->se_tpg_tfo->fabric_name,
 			lun->lun_rtpi);
 	rcu_read_unlock();
 	return ret;
@@ -767,7 +767,7 @@ static ssize_t target_stat_transport_device_show(struct config_item *item,
 	if (dev) {
 		/* scsiTransportType */
 		ret = snprintf(page, PAGE_SIZE, "scsiTransport%s\n",
-			       tpg->se_tpg_tfo->get_fabric_name());
+			       tpg->se_tpg_tfo->fabric_name);
 	}
 	rcu_read_unlock();
 	return ret;
