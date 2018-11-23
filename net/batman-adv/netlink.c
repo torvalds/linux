@@ -145,6 +145,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_ISOLATION_MASK]		= { .type = NLA_U32 },
 	[BATADV_ATTR_BONDING_ENABLED]		= { .type = NLA_U8 },
 	[BATADV_ATTR_BRIDGE_LOOP_AVOIDANCE_ENABLED]	= { .type = NLA_U8 },
+	[BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED]	= { .type = NLA_U8 },
 };
 
 /**
@@ -291,6 +292,12 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_BLA */
 
+#ifdef CONFIG_BATMAN_ADV_DAT
+	if (nla_put_u8(msg, BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED,
+		       !!atomic_read(&bat_priv->distributed_arp_table)))
+		goto nla_put_failure;
+#endif /* CONFIG_BATMAN_ADV_DAT */
+
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 
@@ -414,6 +421,16 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		batadv_bla_status_update(bat_priv->soft_iface);
 	}
 #endif /* CONFIG_BATMAN_ADV_BLA */
+
+#ifdef CONFIG_BATMAN_ADV_DAT
+	if (info->attrs[BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED]) {
+		attr = info->attrs[BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED];
+
+		atomic_set(&bat_priv->distributed_arp_table,
+			   !!nla_get_u8(attr));
+		batadv_dat_status_update(bat_priv->soft_iface);
+	}
+#endif /* CONFIG_BATMAN_ADV_DAT */
 
 	batadv_netlink_notify_mesh(bat_priv);
 
