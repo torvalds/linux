@@ -477,6 +477,23 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 	return false;
 }
 
+static bool sun4i_backend_plane_is_supported(struct drm_plane_state *state,
+					     bool *uses_frontend)
+{
+	if (sun4i_backend_plane_uses_frontend(state)) {
+		*uses_frontend = true;
+		return true;
+	}
+
+	*uses_frontend = false;
+
+	/* Scaling is not supported without the frontend. */
+	if (sun4i_backend_plane_uses_scaler(state))
+		return false;
+
+	return true;
+}
+
 static void sun4i_backend_atomic_begin(struct sunxi_engine *engine,
 				       struct drm_crtc_state *old_state)
 {
@@ -517,14 +534,14 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 		struct drm_framebuffer *fb = plane_state->fb;
 		struct drm_format_name_buf format_name;
 
-		if (sun4i_backend_plane_uses_frontend(plane_state)) {
+		if (!sun4i_backend_plane_is_supported(plane_state,
+						      &layer_state->uses_frontend))
+			return -EINVAL;
+
+		if (layer_state->uses_frontend) {
 			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
 					 plane->index);
-
-			layer_state->uses_frontend = true;
 			num_frontend_planes++;
-		} else {
-			layer_state->uses_frontend = false;
 		}
 
 		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
