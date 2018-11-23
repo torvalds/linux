@@ -195,5 +195,7 @@ int snd_tscm_create_hwdep_device(struct snd_tscm *tscm)
 	hwdep->private_data = tscm;
 	hwdep->exclusive = true;
 
+	tscm->hwdep = hwdep;
+
 	return err;
 }

@@ -53,6 +53,12 @@ struct snd_firewire_event_motu_notification {
 	__u32 message;	/* MOTU-specific bits. */
 };
 
+struct snd_firewire_tascam_change {
+	unsigned int index;
+	__be32 before;
+	__be32 after;
+};
+
 union snd_firewire_event {
 	struct snd_firewire_event_common            common;
 	struct snd_firewire_event_lock_status       lock_status;
