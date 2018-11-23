@@ -738,6 +738,11 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	if (sdev->hda)
 		chip = sdev->hda->desc;
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	/* codec removal, invoke bus_device_remove */
+	snd_hdac_ext_bus_device_remove(bus);
+#endif
+
 	if (sdev->hda && (!IS_ERR(sdev->hda->dmic_dev)))
 		platform_device_unregister(sdev->hda->dmic_dev);
 
@@ -762,10 +767,16 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	pci_free_irq_vectors(pci);
 
 	hda_dsp_stream_free(sdev);
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	snd_hdac_link_free_all(bus);
+#endif
 
 	iounmap(sdev->bar[HDA_DSP_BAR]);
 	iounmap(bus->remap_addr);
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+	snd_hdac_ext_bus_exit(bus);
+#endif
 	hda_codec_i915_exit(sdev);
 
 	return 0;
