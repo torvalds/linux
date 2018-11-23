@@ -483,6 +483,14 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_ELP_INTERVAL,
 
+	/**
+	 * @BATADV_ATTR_THROUGHPUT_OVERRIDE: defines the throughput value to be
+	 *  used by B.A.T.M.A.N. V when estimating the link throughput using
+	 *  this interface. If the value is set to 0 then batman-adv will try to
+	 *  estimate the throughput by itself.
+	 */
+	BATADV_ATTR_THROUGHPUT_OVERRIDE,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**

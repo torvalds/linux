@@ -160,6 +160,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_NETWORK_CODING_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_ORIG_INTERVAL]		= { .type = NLA_U32 },
 	[BATADV_ATTR_ELP_INTERVAL]		= { .type = NLA_U32 },
+	[BATADV_ATTR_THROUGHPUT_OVERRIDE]	= { .type = NLA_U32 },
 };
 
 /**
@@ -830,6 +831,10 @@ static int batadv_netlink_hardif_fill(struct sk_buff *msg,
 	if (nla_put_u32(msg, BATADV_ATTR_ELP_INTERVAL,
 			atomic_read(&hard_iface->bat_v.elp_interval)))
 		goto nla_put_failure;
+
+	if (nla_put_u32(msg, BATADV_ATTR_THROUGHPUT_OVERRIDE,
+			atomic_read(&hard_iface->bat_v.throughput_override)))
+		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_BATMAN_V */
 
 	genlmsg_end(msg, hdr);
@@ -924,6 +929,13 @@ static int batadv_netlink_set_hardif(struct sk_buff *skb,
 		attr = info->attrs[BATADV_ATTR_ELP_INTERVAL];
 
 		atomic_set(&hard_iface->bat_v.elp_interval, nla_get_u32(attr));
+	}
+
+	if (info->attrs[BATADV_ATTR_THROUGHPUT_OVERRIDE]) {
+		attr = info->attrs[BATADV_ATTR_THROUGHPUT_OVERRIDE];
+
+		atomic_set(&hard_iface->bat_v.throughput_override,
+			   nla_get_u32(attr));
 	}
 #endif /* CONFIG_BATMAN_ADV_BATMAN_V */
 
