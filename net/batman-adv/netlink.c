@@ -143,6 +143,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_AP_ISOLATION_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_ISOLATION_MARK]		= { .type = NLA_U32 },
 	[BATADV_ATTR_ISOLATION_MASK]		= { .type = NLA_U32 },
+	[BATADV_ATTR_BONDING_ENABLED]		= { .type = NLA_U8 },
 };
 
 /**
@@ -279,6 +280,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 			bat_priv->isolation_mark_mask))
 		goto nla_put_failure;
 
+	if (nla_put_u8(msg, BATADV_ATTR_BONDING_ENABLED,
+		       !!atomic_read(&bat_priv->bonding)))
+		goto nla_put_failure;
+
 	if (primary_if)
 		batadv_hardif_put(primary_if);
 
@@ -385,6 +390,12 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		attr = info->attrs[BATADV_ATTR_ISOLATION_MASK];
 
 		bat_priv->isolation_mark_mask = nla_get_u32(attr);
+	}
+
+	if (info->attrs[BATADV_ATTR_BONDING_ENABLED]) {
+		attr = info->attrs[BATADV_ATTR_BONDING_ENABLED];
+
+		atomic_set(&bat_priv->bonding, !!nla_get_u8(attr));
 	}
 
 	batadv_netlink_notify_mesh(bat_priv);
