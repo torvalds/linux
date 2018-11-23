@@ -300,9 +300,6 @@ struct btrfs_bio_stripe {
 	u64 length; /* only used for discard mappings */
 };
 
-struct btrfs_bio;
-typedef void (btrfs_bio_end_io_t) (struct btrfs_bio *bio, int err);
-
 struct btrfs_bio {
 	refcount_t refs;
 	atomic_t stripes_pending;
