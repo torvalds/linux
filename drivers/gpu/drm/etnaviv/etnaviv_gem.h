@@ -95,6 +95,7 @@ struct etnaviv_gem_submit_bo {
 struct etnaviv_gem_submit {
 	struct drm_sched_job sched_job;
 	struct kref refcount;
+	struct etnaviv_file_private *ctx;
 	struct etnaviv_gpu *gpu;
 	struct dma_fence *out_fence, *in_fence;
 	int out_fence_id;
