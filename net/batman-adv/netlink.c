@@ -30,6 +30,7 @@
 #include <linux/genetlink.h>
 #include <linux/gfp.h>
 #include <linux/if_ether.h>
+#include <linux/if_vlan.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -84,6 +85,13 @@ enum batadv_genl_ops_flags {
 	 *  saved in info->user_ptr[1]
 	 */
 	BATADV_FLAG_NEED_HARDIF = BIT(1),
+
+	/**
+	 * @BATADV_FLAG_NEED_VLAN: request requires valid vlan in
+	 *  attribute BATADV_ATTR_VLANID and expects a pointer to it to be
+	 *  saved in info->user_ptr[1]
+	 */
+	BATADV_FLAG_NEED_VLAN = BIT(2),
 };
 
 static const struct genl_multicast_group batadv_netlink_mcgrps[] = {
@@ -130,6 +138,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_DAT_CACHE_VID]		= { .type = NLA_U16 },
 	[BATADV_ATTR_MCAST_FLAGS]		= { .type = NLA_U32 },
 	[BATADV_ATTR_MCAST_FLAGS_PRIV]		= { .type = NLA_U32 },
+	[BATADV_ATTR_VLANID]			= { .type = NLA_U16 },
 };
 
 /**
@@ -654,6 +663,123 @@ batadv_netlink_dump_hardif(struct sk_buff *msg, struct netlink_callback *cb)
 }
 
 /**
+ * batadv_netlink_vlan_fill() - Fill message with vlan attributes
+ * @msg: Netlink message to dump into
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vlan: vlan which was modified
+ * @cmd: type of message to generate
+ * @portid: Port making netlink request
+ * @seq: sequence number for message
+ * @flags: Additional flags for message
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+static int batadv_netlink_vlan_fill(struct sk_buff *msg,
+				    struct batadv_priv *bat_priv,
+				    struct batadv_softif_vlan *vlan,
+				    enum batadv_nl_commands cmd,
+				    u32 portid, u32 seq, int flags)
+{
+	void *hdr;
+
+	hdr = genlmsg_put(msg, portid, seq, &batadv_netlink_family, flags, cmd);
+	if (!hdr)
+		return -ENOBUFS;
+
+	if (nla_put_u32(msg, BATADV_ATTR_MESH_IFINDEX,
+			bat_priv->soft_iface->ifindex))
+		goto nla_put_failure;
+
+	if (nla_put_u32(msg, BATADV_ATTR_VLANID, vlan->vid & VLAN_VID_MASK))
+		goto nla_put_failure;
+
+	genlmsg_end(msg, hdr);
+	return 0;
+
+nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	return -EMSGSIZE;
+}
+
+/**
+ * batadv_netlink_notify_vlan() - send vlan attributes to listener
+ * @bat_priv: the bat priv with all the soft interface information
+ * @vlan: vlan which was modified
+ *
+ * Return: 0 on success, < 0 on error
+ */
+static int batadv_netlink_notify_vlan(struct batadv_priv *bat_priv,
+				      struct batadv_softif_vlan *vlan)
+{
+	struct sk_buff *msg;
+	int ret;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	ret = batadv_netlink_vlan_fill(msg, bat_priv, vlan,
+				       BATADV_CMD_SET_VLAN, 0, 0, 0);
+	if (ret < 0) {
+		nlmsg_free(msg);
+		return ret;
+	}
+
+	genlmsg_multicast_netns(&batadv_netlink_family,
+				dev_net(bat_priv->soft_iface), msg, 0,
+				BATADV_NL_MCGRP_CONFIG, GFP_KERNEL);
+
+	return 0;
+}
+
+/**
+ * batadv_netlink_get_vlan() - Get vlan attributes
+ * @skb: Netlink message with request data
+ * @info: receiver information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+static int batadv_netlink_get_vlan(struct sk_buff *skb, struct genl_info *info)
+{
+	struct batadv_softif_vlan *vlan = info->user_ptr[1];
+	struct batadv_priv *bat_priv = info->user_ptr[0];
+	struct sk_buff *msg;
+	int ret;
+
+	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
+	ret = batadv_netlink_vlan_fill(msg, bat_priv, vlan, BATADV_CMD_GET_VLAN,
+				       info->snd_portid, info->snd_seq, 0);
+	if (ret < 0) {
+		nlmsg_free(msg);
+		return ret;
+	}
+
+	ret = genlmsg_reply(msg, info);
+
+	return ret;
+}
+
+/**
+ * batadv_netlink_set_vlan() - Get vlan attributes
+ * @skb: Netlink message with request data
+ * @info: receiver information
+ *
+ * Return: 0 on success or negative error number in case of failure
+ */
+static int batadv_netlink_set_vlan(struct sk_buff *skb, struct genl_info *info)
+{
+	struct batadv_softif_vlan *vlan = info->user_ptr[1];
+	struct batadv_priv *bat_priv = info->user_ptr[0];
+
+	batadv_netlink_notify_vlan(bat_priv, vlan);
+
+	return 0;
+}
+
+/**
  * batadv_get_softif_from_info() - Retrieve soft interface from genl attributes
  * @net: the applicable net namespace
  * @info: receiver information
@@ -734,6 +860,34 @@ err_put_harddev:
 }
 
 /**
+ * batadv_get_vlan_from_info() - Retrieve vlan from genl attributes
+ * @bat_priv: the bat priv with all the soft interface information
+ * @net: the applicable net namespace
+ * @info: receiver information
+ *
+ * Return: Pointer to vlan on success (with increased refcnt), error pointer
+ *  on error
+ */
+static struct batadv_softif_vlan *
+batadv_get_vlan_from_info(struct batadv_priv *bat_priv, struct net *net,
+			  struct genl_info *info)
+{
+	struct batadv_softif_vlan *vlan;
+	u16 vid;
+
+	if (!info->attrs[BATADV_ATTR_VLANID])
+		return ERR_PTR(-EINVAL);
+
+	vid = nla_get_u16(info->attrs[BATADV_ATTR_VLANID]);
+
+	vlan = batadv_softif_vlan_get(bat_priv, vid | BATADV_VLAN_HAS_TAG);
+	if (!vlan)
+		return ERR_PTR(-ENOENT);
+
+	return vlan;
+}
+
+/**
  * batadv_pre_doit() - Prepare batman-adv genl doit request
  * @ops: requested netlink operation
  * @skb: Netlink message with request data
@@ -747,16 +901,17 @@ static int batadv_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 	struct net *net = genl_info_net(info);
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_priv *bat_priv = NULL;
+	struct batadv_softif_vlan *vlan;
 	struct net_device *soft_iface;
 	u8 user_ptr1_flags;
 	u8 mesh_dep_flags;
 	int ret;
 
-	user_ptr1_flags = BATADV_FLAG_NEED_HARDIF;
+	user_ptr1_flags = BATADV_FLAG_NEED_HARDIF | BATADV_FLAG_NEED_VLAN;
 	if (WARN_ON(hweight8(ops->internal_flags & user_ptr1_flags) > 1))
 		return -EINVAL;
 
-	mesh_dep_flags = BATADV_FLAG_NEED_HARDIF;
+	mesh_dep_flags = BATADV_FLAG_NEED_HARDIF | BATADV_FLAG_NEED_VLAN;
 	if (WARN_ON((ops->internal_flags & mesh_dep_flags) &&
 		    (~ops->internal_flags & BATADV_FLAG_NEED_MESH)))
 		return -EINVAL;
@@ -780,6 +935,16 @@ static int batadv_pre_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		info->user_ptr[1] = hard_iface;
 	}
 
+	if (ops->internal_flags & BATADV_FLAG_NEED_VLAN) {
+		vlan = batadv_get_vlan_from_info(bat_priv, net, info);
+		if (IS_ERR(vlan)) {
+			ret = PTR_ERR(vlan);
+			goto err_put_softif;
+		}
+
+		info->user_ptr[1] = vlan;
+	}
+
 	return 0;
 
 err_put_softif:
@@ -799,6 +964,7 @@ static void batadv_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 			     struct genl_info *info)
 {
 	struct batadv_hard_iface *hard_iface;
+	struct batadv_softif_vlan *vlan;
 	struct batadv_priv *bat_priv;
 
 	if (ops->internal_flags & BATADV_FLAG_NEED_HARDIF &&
@@ -806,6 +972,11 @@ static void batadv_post_doit(const struct genl_ops *ops, struct sk_buff *skb,
 		hard_iface = info->user_ptr[1];
 
 		batadv_hardif_put(hard_iface);
+	}
+
+	if (ops->internal_flags & BATADV_FLAG_NEED_VLAN && info->user_ptr[1]) {
+		vlan = info->user_ptr[1];
+		batadv_softif_vlan_put(vlan);
 	}
 
 	if (ops->internal_flags & BATADV_FLAG_NEED_MESH && info->user_ptr[0]) {
@@ -919,6 +1090,22 @@ static const struct genl_ops batadv_netlink_ops[] = {
 		.doit = batadv_netlink_set_hardif,
 		.internal_flags = BATADV_FLAG_NEED_MESH |
 				  BATADV_FLAG_NEED_HARDIF,
+	},
+	{
+		.cmd = BATADV_CMD_GET_VLAN,
+		/* can be retrieved by unprivileged users */
+		.policy = batadv_netlink_policy,
+		.doit = batadv_netlink_get_vlan,
+		.internal_flags = BATADV_FLAG_NEED_MESH |
+				  BATADV_FLAG_NEED_VLAN,
+	},
+	{
+		.cmd = BATADV_CMD_SET_VLAN,
+		.flags = GENL_ADMIN_PERM,
+		.policy = batadv_netlink_policy,
+		.doit = batadv_netlink_set_vlan,
+		.internal_flags = BATADV_FLAG_NEED_MESH |
+				  BATADV_FLAG_NEED_VLAN,
 	},
 };
 

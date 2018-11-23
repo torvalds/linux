@@ -345,6 +345,11 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_MCAST_FLAGS_PRIV,
 
+	/**
+	 * @BATADV_ATTR_VLANID: VLAN id on top of soft interface
+	 */
+	BATADV_ATTR_VLANID,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
@@ -464,6 +469,18 @@ enum batadv_nl_commands {
 	 *  current softif
 	 */
 	BATADV_CMD_SET_HARDIF,
+
+	/**
+	 * @BATADV_CMD_GET_VLAN: Get attributes from a VLAN of the
+	 *  current softif
+	 */
+	BATADV_CMD_GET_VLAN,
+
+	/**
+	 * @BATADV_CMD_SET_VLAN: Set attributes for VLAN of the
+	 *  current softif
+	 */
+	BATADV_CMD_SET_VLAN,
 
 	/* add new commands above here */
 
