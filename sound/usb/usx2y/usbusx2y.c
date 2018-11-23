@@ -437,7 +437,8 @@ static void snd_usX2Y_card_private_free(struct snd_card *card)
 	kfree(usX2Y(card)->In04Buf);
 	usb_free_urb(usX2Y(card)->In04urb);
 	if (usX2Y(card)->us428ctls_sharedmem)
-		snd_free_pages(usX2Y(card)->us428ctls_sharedmem, sizeof(*usX2Y(card)->us428ctls_sharedmem));
+		free_pages_exact(usX2Y(card)->us428ctls_sharedmem,
+				 sizeof(*usX2Y(card)->us428ctls_sharedmem));
 	if (usX2Y(card)->card_index >= 0  &&  usX2Y(card)->card_index < SNDRV_CARDS)
 		snd_usX2Y_card_used[usX2Y(card)->card_index] = 0;
 }
