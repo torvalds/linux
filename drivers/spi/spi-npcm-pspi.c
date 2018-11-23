@@ -381,7 +381,7 @@ static int npcm_pspi_probe(struct platform_device *pdev)
 		syscon_regmap_lookup_by_compatible("nuvoton,npcm750-rst");
 	if (IS_ERR(priv->rst_regmap)) {
 		dev_err(&pdev->dev, "failed to find nuvoton,npcm750-rst\n");
-		return IS_ERR(priv->rst_regmap);
+		return PTR_ERR(priv->rst_regmap);
 	}
 
 	/* reset SPI-HW block */
