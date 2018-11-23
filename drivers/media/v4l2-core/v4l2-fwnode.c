@@ -613,7 +613,7 @@ v4l2_async_notifier_fwnode_parse_endpoint(struct device *dev,
 	asd->match.fwnode =
 		fwnode_graph_get_remote_port_parent(endpoint);
 	if (!asd->match.fwnode) {
-		dev_warn(dev, "bad remote port parent\n");
+		dev_dbg(dev, "no remote endpoint found\n");
 		ret = -ENOTCONN;
 		goto out_err;
 	}
