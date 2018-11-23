@@ -362,6 +362,13 @@
 		compatible = "arm,cortex-a9-scu";
 		reg = <0x0 0x100>;
 	};
+
+	timer@600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0x600 0x20>;
+		interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
+		clocks = <&clkc CLKID_PERIPH>;
+	};
 };
 
 &pwm_ab {
