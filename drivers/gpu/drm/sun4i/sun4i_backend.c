@@ -426,6 +426,11 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 	if (IS_ERR(backend->frontend))
 		return false;
 
+	/*
+	 * TODO: The backend alone allows 2x and 4x integer scaling, including
+	 * support for an alpha component (which the frontend doesn't support).
+	 * Use the backend directly instead of the frontend in this case.
+	 */
 	return sun4i_backend_plane_uses_scaler(state);
 }
 
