@@ -625,6 +625,7 @@ static void vivid_dev_release(struct v4l2_device *v4l2_dev)
 	vfree(dev->bitmap_out);
 	tpg_free(&dev->tpg);
 	kfree(dev->query_dv_timings_qmenu);
+	kfree(dev->query_dv_timings_qmenu_strings);
 	kfree(dev);
 }
 
@@ -876,20 +877,31 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (!dev->edid)
 		goto free_dev;
 
-	/* create a string array containing the names of all the preset timings */
 	while (v4l2_dv_timings_presets[dev->query_dv_timings_size].bt.width)
 		dev->query_dv_timings_size++;
+
+	/*
+	 * Create a char pointer array that points to the names of all the
+	 * preset timings
+	 */
 	dev->query_dv_timings_qmenu = kmalloc_array(dev->query_dv_timings_size,
-						    (sizeof(void *) + 32),
-						    GFP_KERNEL);
-	if (dev->query_dv_timings_qmenu == NULL)
+						    sizeof(char *), GFP_KERNEL);
+	/*
+	 * Create a string array containing the names of all the preset
+	 * timings. Each name is max 31 chars long (+ terminating 0).
+	 */
+	dev->query_dv_timings_qmenu_strings =
+		kmalloc_array(dev->query_dv_timings_size, 32, GFP_KERNEL);
+
+	if (!dev->query_dv_timings_qmenu ||
+	    !dev->query_dv_timings_qmenu_strings)
 		goto free_dev;
+
 	for (i = 0; i < dev->query_dv_timings_size; i++) {
 		const struct v4l2_bt_timings *bt = &v4l2_dv_timings_presets[i].bt;
-		char *p = (char *)&dev->query_dv_timings_qmenu[dev->query_dv_timings_size];
+		char *p = dev->query_dv_timings_qmenu_strings + i * 32;
 		u32 htot, vtot;
 
-		p += i * 32;
 		dev->query_dv_timings_qmenu[i] = p;
 
 		htot = V4L2_DV_BT_FRAME_WIDTH(bt);

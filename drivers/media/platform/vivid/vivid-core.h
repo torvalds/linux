@@ -305,6 +305,7 @@ struct vivid_dev {
 
 	enum vivid_signal_mode		dv_timings_signal_mode;
 	char				**query_dv_timings_qmenu;
+	char				*query_dv_timings_qmenu_strings;
 	unsigned			query_dv_timings_size;
 	unsigned			query_dv_timings_last;
 	unsigned			query_dv_timings;
