@@ -13,8 +13,34 @@
 			status = "okay";
 		};
 
+		ddc: i2c@31c0000 {
+			status = "okay";
+		};
+
 		pwm@c340000 {
 			status = "okay";
+		};
+
+		host1x@13e00000 {
+			display-hub@15200000 {
+				status = "okay";
+			};
+
+			dpaux@155e0000 {
+				status = "okay";
+			};
+
+			sor@15b80000 {
+				status = "okay";
+
+				avdd-io-supply = <&vdd_1v0>;
+				vdd-pll-supply = <&vdd_1v8hs>;
+				hdmi-supply = <&vdd_hdmi>;
+
+				nvidia,ddc-i2c-bus = <&ddc>;
+				nvidia,hpd-gpio = <&gpio TEGRA194_MAIN_GPIO(M, 2)
+							 GPIO_ACTIVE_LOW>;
+			};
 		};
 	};
 
