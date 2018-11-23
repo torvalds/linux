@@ -610,9 +610,6 @@ static int dvb_pll_configure(struct dvb_frontend *fe, u8 *buf,
 	u32 div;
 	int i;
 
-	if (frequency && (frequency < desc->min || frequency > desc->max))
-		return -EINVAL;
-
 	for (i = 0; i < desc->count; i++) {
 		if (frequency > desc->entries[i].limit)
 			continue;
