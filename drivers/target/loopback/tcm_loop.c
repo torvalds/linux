@@ -1144,7 +1144,6 @@ static struct configfs_attribute *tcm_loop_wwn_attrs[] = {
 
 static const struct target_core_fabric_ops loop_ops = {
 	.module				= THIS_MODULE,
-	.name				= "loopback",
 	.fabric_name			= "loopback",
 	.tpg_get_wwn			= tcm_loop_get_endpoint_wwn,
 	.tpg_get_tag			= tcm_loop_get_tag,

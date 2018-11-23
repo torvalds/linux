@@ -1910,7 +1910,6 @@ static struct configfs_attribute *tcm_qla2xxx_wwn_attrs[] = {
 
 static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 	.module				= THIS_MODULE,
-	.name				= "qla2xxx",
 	.fabric_name			= "qla2xxx",
 	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
 	/*
@@ -1959,7 +1958,6 @@ static const struct target_core_fabric_ops tcm_qla2xxx_ops = {
 
 static const struct target_core_fabric_ops tcm_qla2xxx_npiv_ops = {
 	.module				= THIS_MODULE,
-	.name				= "qla2xxx_npiv",
 	.fabric_name			= "qla2xxx_npiv",
 	.node_acl_size			= sizeof(struct tcm_qla2xxx_nacl),
 	.tpg_get_wwn			= tcm_qla2xxx_get_fabric_wwn,

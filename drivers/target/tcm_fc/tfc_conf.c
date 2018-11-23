@@ -422,7 +422,6 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 
 static const struct target_core_fabric_ops ft_fabric_ops = {
 	.module =			THIS_MODULE,
-	.name =				"fc",
 	.fabric_name =			"fc",
 	.node_acl_size =		sizeof(struct ft_node_acl),
 	.tpg_get_wwn =			ft_get_fabric_wwn,

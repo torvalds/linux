@@ -2284,7 +2284,6 @@ static struct configfs_attribute *vhost_scsi_wwn_attrs[] = {
 
 static const struct target_core_fabric_ops vhost_scsi_ops = {
 	.module				= THIS_MODULE,
-	.name				= "vhost",
 	.fabric_name			= "vhost",
 	.tpg_get_wwn			= vhost_scsi_get_fabric_wwn,
 	.tpg_get_tag			= vhost_scsi_get_tpgt,

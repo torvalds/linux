@@ -1713,7 +1713,6 @@ static int usbg_check_stop_free(struct se_cmd *se_cmd)
 
 static const struct target_core_fabric_ops usbg_ops = {
 	.module				= THIS_MODULE,
-	.name				= "usb_gadget",
 	.fabric_name			= "usb_gadget",
 	.tpg_get_wwn			= usbg_get_fabric_wwn,
 	.tpg_get_tag			= usbg_get_tag,

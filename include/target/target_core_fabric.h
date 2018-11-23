@@ -8,10 +8,16 @@
 
 struct target_core_fabric_ops {
 	struct module *module;
-	const char *name;
 	/*
-	 * fabric_name is used for the ALUA state path and is stored on disk
-	 * with PR state.
+	 * XXX: Special case for iscsi/iSCSI...
+	 * If non-null, fabric_alias is used for matching target/$fabric
+	 * ConfigFS paths. If null, fabric_name is used for this (see below).
+	 */
+	const char *fabric_alias;
+	/*
+	 * fabric_name is used for matching target/$fabric ConfigFS paths
+	 * without a fabric_alias (see above). It's also used for the ALUA state
+	 * path and is stored on disk with PR state.
 	 */
 	const char *fabric_name;
 	size_t node_acl_size;

@@ -2318,7 +2318,6 @@ static struct configfs_attribute *sbp_tpg_attrib_attrs[] = {
 
 static const struct target_core_fabric_ops sbp_ops = {
 	.module				= THIS_MODULE,
-	.name				= "sbp",
 	.fabric_name			= "sbp",
 	.tpg_get_wwn			= sbp_get_fabric_wwn,
 	.tpg_get_tag			= sbp_get_tag,

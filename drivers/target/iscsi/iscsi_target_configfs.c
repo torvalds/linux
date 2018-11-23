@@ -1544,7 +1544,7 @@ static void lio_release_cmd(struct se_cmd *se_cmd)
 
 const struct target_core_fabric_ops iscsi_ops = {
 	.module				= THIS_MODULE,
-	.name				= "iscsi",
+	.fabric_alias			= "iscsi",
 	.fabric_name			= "iSCSI",
 	.node_acl_size			= sizeof(struct iscsi_node_acl),
 	.tpg_get_wwn			= lio_tpg_get_endpoint_wwn,

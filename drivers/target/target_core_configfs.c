@@ -172,7 +172,10 @@ static struct target_fabric_configfs *target_core_get_fabric(
 
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(tf, &g_tf_list, tf_list) {
-		if (!strcmp(tf->tf_ops->name, name)) {
+		const char *cmp_name = tf->tf_ops->fabric_alias;
+		if (!cmp_name)
+			cmp_name = tf->tf_ops->fabric_name;
+		if (!strcmp(cmp_name, name)) {
 			atomic_inc(&tf->tf_access_cnt);
 			mutex_unlock(&g_tf_lock);
 			return tf;
@@ -249,7 +252,7 @@ static struct config_group *target_core_register_fabric(
 		return ERR_PTR(-EINVAL);
 	}
 	pr_debug("Target_Core_ConfigFS: REGISTER -> Located fabric:"
-			" %s\n", tf->tf_ops->name);
+			" %s\n", tf->tf_ops->fabric_name);
 	/*
 	 * On a successful target_core_get_fabric() look, the returned
 	 * struct target_fabric_configfs *tf will contain a usage reference.
@@ -282,7 +285,7 @@ static void target_core_deregister_fabric(
 		" tf list\n", config_item_name(item));
 
 	pr_debug("Target_Core_ConfigFS: DEREGISTER -> located fabric:"
-			" %s\n", tf->tf_ops->name);
+			" %s\n", tf->tf_ops->fabric_name);
 	atomic_dec(&tf->tf_access_cnt);
 
 	pr_debug("Target_Core_ConfigFS: DEREGISTER -> Releasing ci"
@@ -342,17 +345,20 @@ EXPORT_SYMBOL(target_undepend_item);
 
 static int target_fabric_tf_ops_check(const struct target_core_fabric_ops *tfo)
 {
-	if (!tfo->name) {
-		pr_err("Missing tfo->name\n");
-		return -EINVAL;
-	}
-	if (strlen(tfo->name) >= TARGET_FABRIC_NAME_SIZE) {
-		pr_err("Passed name: %s exceeds TARGET_FABRIC"
-			"_NAME_SIZE\n", tfo->name);
-		return -EINVAL;
+	if (tfo->fabric_alias) {
+		if (strlen(tfo->fabric_alias) >= TARGET_FABRIC_NAME_SIZE) {
+			pr_err("Passed alias: %s exceeds "
+				"TARGET_FABRIC_NAME_SIZE\n", tfo->fabric_alias);
+			return -EINVAL;
+		}
 	}
 	if (!tfo->fabric_name) {
 		pr_err("Missing tfo->fabric_name\n");
+		return -EINVAL;
+	}
+	if (strlen(tfo->fabric_name) >= TARGET_FABRIC_NAME_SIZE) {
+		pr_err("Passed name: %s exceeds "
+			"TARGET_FABRIC_NAME_SIZE\n", tfo->fabric_name);
 		return -EINVAL;
 	}
 	if (!tfo->tpg_get_wwn) {
@@ -486,7 +492,7 @@ void target_unregister_template(const struct target_core_fabric_ops *fo)
 
 	mutex_lock(&g_tf_lock);
 	list_for_each_entry(t, &g_tf_list, tf_list) {
-		if (!strcmp(t->tf_ops->name, fo->name)) {
+		if (!strcmp(t->tf_ops->fabric_name, fo->fabric_name)) {
 			BUG_ON(atomic_read(&t->tf_access_cnt));
 			list_del(&t->tf_list);
 			mutex_unlock(&g_tf_lock);
