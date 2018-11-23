@@ -838,7 +838,7 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 	if (IS_ERR(rule))
 		return rule;
 
-	if (attr->mirror_count) {
+	if (attr->split_count) {
 		flow->rule[1] = mlx5_eswitch_add_fwd_rule(esw, spec, attr);
 		if (IS_ERR(flow->rule[1])) {
 			mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
@@ -857,7 +857,7 @@ mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 {
 	flow->flags &= ~MLX5E_TC_FLOW_OFFLOADED;
 
-	if (attr->mirror_count)
+	if (attr->split_count)
 		mlx5_eswitch_del_fwd_rule(esw, flow->rule[1], attr);
 
 	mlx5_eswitch_del_offloaded_rule(esw, flow->rule[0], attr);
@@ -873,7 +873,7 @@ mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 
 	memcpy(slow_attr, flow->esw_attr, sizeof(*slow_attr));
 	slow_attr->action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST,
-	slow_attr->mirror_count = 0,
+	slow_attr->split_count = 0,
 	slow_attr->dest_chain = FDB_SLOW_PATH_CHAIN,
 
 	rule = mlx5e_tc_offload_fdb_rules(esw, flow, spec, slow_attr);
@@ -2427,7 +2427,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				return err;
 
 			action |= MLX5_FLOW_CONTEXT_ACTION_MOD_HDR;
-			attr->mirror_count = attr->out_count;
+			attr->split_count = attr->out_count;
 			continue;
 		}
 
@@ -2501,7 +2501,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				encap = true;
 			else
 				return -EOPNOTSUPP;
-			attr->mirror_count = attr->out_count;
+			attr->split_count = attr->out_count;
 			continue;
 		}
 
@@ -2511,7 +2511,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 			if (err)
 				return err;
 
-			attr->mirror_count = attr->out_count;
+			attr->split_count = attr->out_count;
 			continue;
 		}
 
@@ -2546,7 +2546,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	if (!actions_match_supported(priv, exts, parse_attr, flow, extack))
 		return -EOPNOTSUPP;
 
-	if (attr->mirror_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
+	if (attr->split_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "current firmware doesn't support split rule for port mirroring");
 		netdev_warn_once(priv->netdev, "current firmware doesn't support split rule for port mirroring\n");

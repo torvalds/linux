@@ -81,7 +81,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 {
 	struct mlx5_flow_destination dest[MLX5_MAX_FLOW_FWD_VPORTS + 1] = {};
 	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND, };
-	bool mirror = !!(attr->mirror_count);
+	bool split = !!(attr->split_count);
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_table *fdb;
 	int j, i = 0;
@@ -120,7 +120,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 			dest[i].ft = ft;
 			i++;
 		} else {
-			for (j = attr->mirror_count; j < attr->out_count; j++) {
+			for (j = attr->split_count; j < attr->out_count; j++) {
 				dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 				dest[i].vport.num = attr->out_rep[j]->vport;
 				dest[i].vport.vhca_id =
@@ -167,7 +167,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
 		flow_act.reformat_id = attr->encap_id;
 
-	fdb = esw_get_prio_table(esw, attr->chain, attr->prio, !!mirror);
+	fdb = esw_get_prio_table(esw, attr->chain, attr->prio, !!split);
 	if (IS_ERR(fdb)) {
 		rule = ERR_CAST(fdb);
 		goto err_esw_get;
@@ -182,7 +182,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	return rule;
 
 err_add_rule:
-	esw_put_prio_table(esw, attr->chain, attr->prio, !!mirror);
+	esw_put_prio_table(esw, attr->chain, attr->prio, !!split);
 err_esw_get:
 	if (attr->dest_chain)
 		esw_put_prio_table(esw, attr->dest_chain, 1, 0);
@@ -216,7 +216,7 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	for (i = 0; i < attr->mirror_count; i++) {
+	for (i = 0; i < attr->split_count; i++) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 		dest[i].vport.num = attr->out_rep[i]->vport;
 		dest[i].vport.vhca_id =
@@ -270,7 +270,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 			struct mlx5_esw_flow_attr *attr,
 			bool fwd_rule)
 {
-	bool mirror = (attr->mirror_count > 0);
+	bool split = (attr->split_count > 0);
 
 	mlx5_del_flow_rules(rule);
 	esw->offloads.num_flows--;
@@ -279,7 +279,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 		esw_put_prio_table(esw, attr->chain, attr->prio, 1);
 		esw_put_prio_table(esw, attr->chain, attr->prio, 0);
 	} else {
-		esw_put_prio_table(esw, attr->chain, attr->prio, !!mirror);
+		esw_put_prio_table(esw, attr->chain, attr->prio, !!split);
 		if (attr->dest_chain)
 			esw_put_prio_table(esw, attr->dest_chain, 1, 0);
 	}
