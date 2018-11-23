@@ -943,30 +943,30 @@ static int i915_gem_fence_regs_info(struct seq_file *m, void *data)
 static ssize_t gpu_state_read(struct file *file, char __user *ubuf,
 			      size_t count, loff_t *pos)
 {
-	struct i915_gpu_state *error = file->private_data;
-	struct drm_i915_error_state_buf str;
+	struct i915_gpu_state *error;
 	ssize_t ret;
-	loff_t tmp;
+	void *buf;
 
+	error = file->private_data;
 	if (!error)
 		return 0;
 
-	ret = i915_error_state_buf_init(&str, error->i915, count, *pos);
-	if (ret)
-		return ret;
+	/* Bounce buffer required because of kernfs __user API convenience. */
+	buf = kmalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
-	ret = i915_error_state_to_str(&str, error);
-	if (ret)
+	ret = i915_gpu_state_copy_to_buffer(error, buf, *pos, count);
+	if (ret <= 0)
 		goto out;
 
-	tmp = 0;
-	ret = simple_read_from_buffer(ubuf, count, &tmp, str.buf, str.bytes);
-	if (ret < 0)
-		goto out;
+	if (!copy_to_user(ubuf, buf, ret))
+		*pos += ret;
+	else
+		ret = -EFAULT;
 
-	*pos = str.start + ret;
 out:
-	i915_error_state_buf_release(&str);
+	kfree(buf);
 	return ret;
 }
 
