@@ -542,6 +542,11 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 			DRM_DEBUG_DRIVER("Using the frontend for plane %d\n",
 					 plane->index);
 			num_frontend_planes++;
+		} else {
+			if (fb->format->is_yuv) {
+				DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
+				num_yuv_planes++;
+			}
 		}
 
 		DRM_DEBUG_DRIVER("Plane FB format is %s\n",
@@ -549,11 +554,6 @@ static int sun4i_backend_atomic_check(struct sunxi_engine *engine,
 						     &format_name));
 		if (fb->format->has_alpha || (plane_state->alpha != DRM_BLEND_ALPHA_OPAQUE))
 			num_alpha_planes++;
-
-		if (fb->format->is_yuv) {
-			DRM_DEBUG_DRIVER("Plane FB format is YUV\n");
-			num_yuv_planes++;
-		}
 
 		DRM_DEBUG_DRIVER("Plane zpos is %d\n",
 				 plane_state->normalized_zpos);
