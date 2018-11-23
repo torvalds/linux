@@ -333,7 +333,7 @@ bpf_program__init(void *data, size_t size, char *section_name, int idx,
 	prog->idx = idx;
 	prog->instances.fds = NULL;
 	prog->instances.nr = -1;
-	prog->type = BPF_PROG_TYPE_KPROBE;
+	prog->type = BPF_PROG_TYPE_UNSPEC;
 	prog->btf_fd = -1;
 
 	return 0;
@@ -1649,12 +1649,12 @@ static bool bpf_prog_type__needs_kver(enum bpf_prog_type type)
 	case BPF_PROG_TYPE_LIRC_MODE2:
 	case BPF_PROG_TYPE_SK_REUSEPORT:
 	case BPF_PROG_TYPE_FLOW_DISSECTOR:
-		return false;
 	case BPF_PROG_TYPE_UNSPEC:
-	case BPF_PROG_TYPE_KPROBE:
 	case BPF_PROG_TYPE_TRACEPOINT:
-	case BPF_PROG_TYPE_PERF_EVENT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
+	case BPF_PROG_TYPE_PERF_EVENT:
+		return false;
+	case BPF_PROG_TYPE_KPROBE:
 	default:
 		return true;
 	}
