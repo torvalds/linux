@@ -152,6 +152,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_GW_BANDWIDTH_UP]		= { .type = NLA_U32 },
 	[BATADV_ATTR_GW_MODE]			= { .type = NLA_U8 },
 	[BATADV_ATTR_GW_SEL_CLASS]		= { .type = NLA_U32 },
+	[BATADV_ATTR_HOP_PENALTY]		= { .type = NLA_U8 },
 };
 
 /**
@@ -329,6 +330,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 				atomic_read(&bat_priv->gw.sel_class)))
 			goto nla_put_failure;
 	}
+
+	if (nla_put_u8(msg, BATADV_ATTR_HOP_PENALTY,
+		       atomic_read(&bat_priv->hop_penalty)))
+		goto nla_put_failure;
 
 	if (primary_if)
 		batadv_hardif_put(primary_if);
@@ -534,6 +539,12 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 			atomic_set(&bat_priv->gw.sel_class, sel_class);
 			batadv_gw_reselect(bat_priv);
 		}
+	}
+
+	if (info->attrs[BATADV_ATTR_HOP_PENALTY]) {
+		attr = info->attrs[BATADV_ATTR_HOP_PENALTY];
+
+		atomic_set(&bat_priv->hop_penalty, nla_get_u8(attr));
 	}
 
 	batadv_netlink_notify_mesh(bat_priv);
