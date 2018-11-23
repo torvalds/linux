@@ -2338,7 +2338,7 @@ EXPORT_SYMBOL_GPL(genpd_dev_pm_attach);
 struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 					 unsigned int index)
 {
-	struct device *genpd_dev;
+	struct device *virt_dev;
 	int num_domains;
 	int ret;
 
@@ -2352,31 +2352,31 @@ struct device *genpd_dev_pm_attach_by_id(struct device *dev,
 		return NULL;
 
 	/* Allocate and register device on the genpd bus. */
-	genpd_dev = kzalloc(sizeof(*genpd_dev), GFP_KERNEL);
-	if (!genpd_dev)
+	virt_dev = kzalloc(sizeof(*virt_dev), GFP_KERNEL);
+	if (!virt_dev)
 		return ERR_PTR(-ENOMEM);
 
-	dev_set_name(genpd_dev, "genpd:%u:%s", index, dev_name(dev));
-	genpd_dev->bus = &genpd_bus_type;
-	genpd_dev->release = genpd_release_dev;
+	dev_set_name(virt_dev, "genpd:%u:%s", index, dev_name(dev));
+	virt_dev->bus = &genpd_bus_type;
+	virt_dev->release = genpd_release_dev;
 
-	ret = device_register(genpd_dev);
+	ret = device_register(virt_dev);
 	if (ret) {
-		kfree(genpd_dev);
+		kfree(virt_dev);
 		return ERR_PTR(ret);
 	}
 
 	/* Try to attach the device to the PM domain at the specified index. */
-	ret = __genpd_dev_pm_attach(genpd_dev, dev->of_node, index, false);
+	ret = __genpd_dev_pm_attach(virt_dev, dev->of_node, index, false);
 	if (ret < 1) {
-		device_unregister(genpd_dev);
+		device_unregister(virt_dev);
 		return ret ? ERR_PTR(ret) : NULL;
 	}
 
-	pm_runtime_enable(genpd_dev);
-	genpd_queue_power_off_work(dev_to_genpd(genpd_dev));
+	pm_runtime_enable(virt_dev);
+	genpd_queue_power_off_work(dev_to_genpd(virt_dev));
 
-	return genpd_dev;
+	return virt_dev;
 }
 EXPORT_SYMBOL_GPL(genpd_dev_pm_attach_by_id);
 
@@ -2521,52 +2521,36 @@ int of_genpd_parse_idle_states(struct device_node *dn,
 EXPORT_SYMBOL_GPL(of_genpd_parse_idle_states);
 
 /**
- * of_genpd_opp_to_performance_state- Gets performance state of device's
- * power domain corresponding to a DT node's "required-opps" property.
+ * pm_genpd_opp_to_performance_state - Gets performance state of the genpd from its OPP node.
  *
- * @dev: Device for which the performance-state needs to be found.
- * @np: DT node where the "required-opps" property is present. This can be
- *	the device node itself (if it doesn't have an OPP table) or a node
- *	within the OPP table of a device (if device has an OPP table).
+ * @genpd_dev: Genpd's device for which the performance-state needs to be found.
+ * @opp: struct dev_pm_opp of the OPP for which we need to find performance
+ *	state.
  *
- * Returns performance state corresponding to the "required-opps" property of
- * a DT node. This calls platform specific genpd->opp_to_performance_state()
- * callback to translate power domain OPP to performance state.
+ * Returns performance state encoded in the OPP of the genpd. This calls
+ * platform specific genpd->opp_to_performance_state() callback to translate
+ * power domain OPP to performance state.
  *
  * Returns performance state on success and 0 on failure.
  */
-unsigned int of_genpd_opp_to_performance_state(struct device *dev,
-					       struct device_node *np)
+unsigned int pm_genpd_opp_to_performance_state(struct device *genpd_dev,
+					       struct dev_pm_opp *opp)
 {
-	struct generic_pm_domain *genpd;
-	struct dev_pm_opp *opp;
-	int state = 0;
+	struct generic_pm_domain *genpd = NULL;
+	int state;
 
-	genpd = dev_to_genpd(dev);
-	if (IS_ERR(genpd))
-		return 0;
+	genpd = container_of(genpd_dev, struct generic_pm_domain, dev);
 
-	if (unlikely(!genpd->set_performance_state))
+	if (unlikely(!genpd->opp_to_performance_state))
 		return 0;
 
 	genpd_lock(genpd);
-
-	opp = of_dev_pm_opp_find_required_opp(&genpd->dev, np);
-	if (IS_ERR(opp)) {
-		dev_err(dev, "Failed to find required OPP: %ld\n",
-			PTR_ERR(opp));
-		goto unlock;
-	}
-
 	state = genpd->opp_to_performance_state(genpd, opp);
-	dev_pm_opp_put(opp);
-
-unlock:
 	genpd_unlock(genpd);
 
 	return state;
 }
-EXPORT_SYMBOL_GPL(of_genpd_opp_to_performance_state);
+EXPORT_SYMBOL_GPL(pm_genpd_opp_to_performance_state);
 
 static int __init genpd_bus_init(void)
 {
