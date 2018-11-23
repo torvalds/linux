@@ -27,6 +27,7 @@
 
 #define BATADV_NL_NAME "batadv"
 
+#define BATADV_NL_MCAST_GROUP_CONFIG	"config"
 #define BATADV_NL_MCAST_GROUP_TPMETER	"tpmeter"
 
 /**
@@ -372,10 +373,14 @@ enum batadv_nl_commands {
 	BATADV_CMD_UNSPEC,
 
 	/**
-	 * @BATADV_CMD_GET_MESH_INFO: Query basic information about batman-adv
-	 * device
+	 * @BATADV_CMD_GET_MESH: Get attributes from softif/mesh
 	 */
-	BATADV_CMD_GET_MESH_INFO,
+	BATADV_CMD_GET_MESH,
+
+	/**
+	 * @BATADV_CMD_GET_MESH_INFO: Alias for @BATADV_CMD_GET_MESH
+	 */
+	BATADV_CMD_GET_MESH_INFO = BATADV_CMD_GET_MESH,
 
 	/**
 	 * @BATADV_CMD_TP_METER: Start a tp meter session
@@ -442,6 +447,11 @@ enum batadv_nl_commands {
 	 * @BATADV_CMD_GET_MCAST_FLAGS: Query list of multicast flags
 	 */
 	BATADV_CMD_GET_MCAST_FLAGS,
+
+	/**
+	 * @BATADV_CMD_SET_MESH: Set attributes for softif/mesh
+	 */
+	BATADV_CMD_SET_MESH,
 
 	/* add new commands above here */
 
