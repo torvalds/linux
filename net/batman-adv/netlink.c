@@ -159,6 +159,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_NETWORK_CODING_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_ORIG_INTERVAL]		= { .type = NLA_U32 },
+	[BATADV_ATTR_ELP_INTERVAL]		= { .type = NLA_U32 },
 };
 
 /**
@@ -825,6 +826,12 @@ static int batadv_netlink_hardif_fill(struct sk_buff *msg,
 			goto nla_put_failure;
 	}
 
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	if (nla_put_u32(msg, BATADV_ATTR_ELP_INTERVAL,
+			atomic_read(&hard_iface->bat_v.elp_interval)))
+		goto nla_put_failure;
+#endif /* CONFIG_BATMAN_ADV_BATMAN_V */
+
 	genlmsg_end(msg, hdr);
 	return 0;
 
@@ -909,6 +916,16 @@ static int batadv_netlink_set_hardif(struct sk_buff *skb,
 {
 	struct batadv_hard_iface *hard_iface = info->user_ptr[1];
 	struct batadv_priv *bat_priv = info->user_ptr[0];
+
+#ifdef CONFIG_BATMAN_ADV_BATMAN_V
+	struct nlattr *attr;
+
+	if (info->attrs[BATADV_ATTR_ELP_INTERVAL]) {
+		attr = info->attrs[BATADV_ATTR_ELP_INTERVAL];
+
+		atomic_set(&hard_iface->bat_v.elp_interval, nla_get_u32(attr));
+	}
+#endif /* CONFIG_BATMAN_ADV_BATMAN_V */
 
 	batadv_netlink_notify_hardif(bat_priv, hard_iface);
 

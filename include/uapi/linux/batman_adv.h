@@ -477,6 +477,12 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_ORIG_INTERVAL,
 
+	/**
+	 * @BATADV_ATTR_ELP_INTERVAL: defines the interval in milliseconds in
+	 *  which batman emits probing packets for neighbor sensing (ELP).
+	 */
+	BATADV_ATTR_ELP_INTERVAL,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
