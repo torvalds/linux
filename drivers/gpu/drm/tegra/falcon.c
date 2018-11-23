@@ -141,9 +141,9 @@ int falcon_load_firmware(struct falcon *falcon)
 	/* allocate iova space for the firmware */
 	falcon->firmware.vaddr = falcon->ops->alloc(falcon, firmware->size,
 						    &falcon->firmware.paddr);
-	if (!falcon->firmware.vaddr) {
-		dev_err(falcon->dev, "dma memory mapping failed\n");
-		return -ENOMEM;
+	if (IS_ERR(falcon->firmware.vaddr)) {
+		dev_err(falcon->dev, "DMA memory mapping failed\n");
+		return PTR_ERR(falcon->firmware.vaddr);
 	}
 
 	/* copy firmware image into local area. this also ensures endianness */
