@@ -15,7 +15,8 @@ Required properties:
 - compatible:
     Array of strings.
     One of:
-    - "nvidia,tegra186-bpmp-thermal".
+    - "nvidia,tegra186-bpmp-thermal"
+    - "nvidia,tegra194-bpmp-thermal"
 - #thermal-sensor-cells: Cell for sensor index.
     Single-cell integer.
     Must be <1>.
