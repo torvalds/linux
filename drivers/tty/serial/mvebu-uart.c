@@ -73,6 +73,7 @@
 
 #define UART_OSAMP		0x14
 #define  OSAMP_DEFAULT_DIVISOR	16
+#define  OSAMP_DIVISORS_MASK	0x3F3F3F3F
 
 #define MVEBU_NR_UARTS		2
 
@@ -446,7 +447,7 @@ static int mvebu_uart_baud_rate_set(struct uart_port *port, unsigned int baud)
 {
 	struct mvebu_uart *mvuart = to_mvuart(port);
 	unsigned int d_divisor, m_divisor;
-	u32 brdv;
+	u32 brdv, osamp;
 
 	if (IS_ERR(mvuart->clk))
 		return -PTR_ERR(mvuart->clk);
@@ -468,6 +469,10 @@ static int mvebu_uart_baud_rate_set(struct uart_port *port, unsigned int baud)
 	brdv &= ~BRDV_BAUD_MASK;
 	brdv |= d_divisor;
 	writel(brdv, port->membase + UART_BRDV);
+
+	osamp = readl(port->membase + UART_OSAMP);
+	osamp &= ~OSAMP_DIVISORS_MASK;
+	writel(osamp, port->membase + UART_OSAMP);
 
 	return 0;
 }
