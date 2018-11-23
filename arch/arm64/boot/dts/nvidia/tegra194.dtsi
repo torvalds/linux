@@ -521,6 +521,18 @@
 				};
 			};
 
+			vic@15340000 {
+				compatible = "nvidia,tegra194-vic";
+				reg = <0x15340000 0x00040000>;
+				interrupts = <GIC_SPI 206 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&bpmp TEGRA194_CLK_VIC>;
+				clock-names = "vic";
+				resets = <&bpmp TEGRA194_RESET_VIC>;
+				reset-names = "vic";
+
+				power-domains = <&bpmp TEGRA194_POWER_DOMAIN_VIC>;
+			};
+
 			dpaux0: dpaux@155c0000 {
 				compatible = "nvidia,tegra194-dpaux";
 				reg = <0x155c0000 0x10000>;
