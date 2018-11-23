@@ -12,6 +12,7 @@
 #define SNDRV_FIREWIRE_EVENT_EFW_RESPONSE	0x4e617475
 #define SNDRV_FIREWIRE_EVENT_DIGI00X_MESSAGE	0x746e736c
 #define SNDRV_FIREWIRE_EVENT_MOTU_NOTIFICATION	0x64776479
+#define SNDRV_FIREWIRE_EVENT_TASCAM_CONTROL	0x7473636d
 
 struct snd_firewire_event_common {
 	unsigned int type; /* SNDRV_FIREWIRE_EVENT_xxx */
@@ -59,12 +60,18 @@ struct snd_firewire_tascam_change {
 	__be32 after;
 };
 
+struct snd_firewire_event_tascam_control {
+	unsigned int type;
+	struct snd_firewire_tascam_change changes[0];
+};
+
 union snd_firewire_event {
 	struct snd_firewire_event_common            common;
 	struct snd_firewire_event_lock_status       lock_status;
 	struct snd_firewire_event_dice_notification dice_notification;
 	struct snd_firewire_event_efw_response      efw_response;
 	struct snd_firewire_event_digi00x_message   digi00x_message;
+	struct snd_firewire_event_tascam_control    tascam_control;
 	struct snd_firewire_event_motu_notification motu_notification;
 };
 

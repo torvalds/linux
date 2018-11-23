@@ -156,6 +156,8 @@ static void read_status_messages(struct amdtp_stream *s,
 				if (++tscm->push_pos >= SND_TSCM_QUEUE_COUNT)
 					tscm->push_pos = 0;
 				spin_unlock_irq(&tscm->lock);
+
+				wake_up(&tscm->hwdep_wait);
 			}
 		}
 
