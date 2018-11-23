@@ -283,13 +283,13 @@ static int max9867_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	/* Set the prescaler based on the master clock frequency*/
 	if (freq >= 10000000 && freq <= 20000000) {
 		value |= MAX9867_PSCLK_10_20;
-		max9867->pclk =  freq;
+		max9867->pclk = freq;
 	} else if (freq >= 20000000 && freq <= 40000000) {
 		value |= MAX9867_PSCLK_20_40;
-		max9867->pclk =  freq/2;
+		max9867->pclk = freq / 2;
 	} else if (freq >= 40000000 && freq <= 60000000) {
 		value |= MAX9867_PSCLK_40_60;
-		max9867->pclk =  freq/4;
+		max9867->pclk = freq / 4;
 	} else {
 		dev_err(component->dev,
 			"Invalid clock frequency %uHz (required 10-60MHz)\n",
@@ -478,8 +478,7 @@ static int max9867_i2c_probe(struct i2c_client *i2c,
 	struct max9867_priv *max9867;
 	int ret = 0, reg;
 
-	max9867 = devm_kzalloc(&i2c->dev,
-			sizeof(*max9867), GFP_KERNEL);
+	max9867 = devm_kzalloc(&i2c->dev, sizeof(*max9867), GFP_KERNEL);
 	if (!max9867)
 		return -ENOMEM;
 
@@ -490,8 +489,7 @@ static int max9867_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev, "Failed to allocate regmap: %d\n", ret);
 		return ret;
 	}
-	ret = regmap_read(max9867->regmap,
-			MAX9867_REVISION, &reg);
+	ret = regmap_read(max9867->regmap, MAX9867_REVISION, &reg);
 	if (ret < 0) {
 		dev_err(&i2c->dev, "Failed to read: %d\n", ret);
 		return ret;
