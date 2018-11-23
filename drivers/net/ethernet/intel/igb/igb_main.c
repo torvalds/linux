@@ -1850,13 +1850,12 @@ static void igb_config_tx_modes(struct igb_adapter *adapter, int queue)
 	 * configuration' in respect to these parameters.
 	 */
 
-	netdev_dbg(netdev, "Qav Tx mode: cbs %s, launchtime %s, queue %d \
-			    idleslope %d sendslope %d hiCredit %d \
-			    locredit %d\n",
-		   (ring->cbs_enable) ? "enabled" : "disabled",
-		   (ring->launchtime_enable) ? "enabled" : "disabled", queue,
-		   ring->idleslope, ring->sendslope, ring->hicredit,
-		   ring->locredit);
+	netdev_dbg(netdev, "Qav Tx mode: cbs %s, launchtime %s, queue %d idleslope %d sendslope %d hiCredit %d locredit %d\n",
+		   ring->cbs_enable ? "enabled" : "disabled",
+		   ring->launchtime_enable ? "enabled" : "disabled",
+		   queue,
+		   ring->idleslope, ring->sendslope,
+		   ring->hicredit, ring->locredit);
 }
 
 static int igb_save_txtime_params(struct igb_adapter *adapter, int queue,
@@ -7753,11 +7752,13 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* If not enough Rx work done, exit the polling mode */
-	napi_complete_done(napi, work_done);
-	igb_ring_irq_enable(q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		igb_ring_irq_enable(q_vector);
 
-	return 0;
+	return min(work_done, budget - 1);
 }
 
 /**

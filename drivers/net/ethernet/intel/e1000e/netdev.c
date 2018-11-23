@@ -2651,9 +2651,9 @@ err:
 /**
  * e1000e_poll - NAPI Rx polling callback
  * @napi: struct associated with this polling callback
- * @weight: number of packets driver is allowed to process this poll
+ * @budget: number of packets driver is allowed to process this poll
  **/
-static int e1000e_poll(struct napi_struct *napi, int weight)
+static int e1000e_poll(struct napi_struct *napi, int budget)
 {
 	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter,
 						     napi);
@@ -2667,16 +2667,17 @@ static int e1000e_poll(struct napi_struct *napi, int weight)
 	    (adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))
 		tx_cleaned = e1000_clean_tx_irq(adapter->tx_ring);
 
-	adapter->clean_rx(adapter->rx_ring, &work_done, weight);
+	adapter->clean_rx(adapter->rx_ring, &work_done, budget);
 
-	if (!tx_cleaned)
-		work_done = weight;
+	if (!tx_cleaned || work_done == budget)
+		return budget;
 
-	/* If weight not fully consumed, exit the polling mode */
-	if (work_done < weight) {
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done))) {
 		if (adapter->itr_setting & 3)
 			e1000_set_itr(adapter);
-		napi_complete_done(napi, work_done);
 		if (!test_bit(__E1000_DOWN, &adapter->state)) {
 			if (adapter->msix_entries)
 				ew32(IMS, adapter->rx_ring->ims_val);

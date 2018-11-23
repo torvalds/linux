@@ -11,8 +11,6 @@
 #include <linux/ethtool.h>
 #include <linux/sctp.h>
 
-#define IGC_ERR(args...) pr_err("igc: " args)
-
 #include "igc_hw.h"
 
 /* main */

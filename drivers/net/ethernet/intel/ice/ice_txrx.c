@@ -1103,10 +1103,12 @@ int ice_napi_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete_done(napi, work_done);
-	if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
-		ice_irq_dynamic_ena(&vsi->back->hw, vsi, q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		if (test_bit(ICE_FLAG_MSIX_ENA, pf->flags))
+			ice_irq_dynamic_ena(&vsi->back->hw, vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }

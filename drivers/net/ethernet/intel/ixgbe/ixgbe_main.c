@@ -6077,9 +6077,9 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	/* Disable Rx */
 	ixgbe_disable_rx(adapter);
 
-	/* synchronize_sched() needed for pending XDP buffers to drain */
+	/* synchronize_rcu() needed for pending XDP buffers to drain */
 	if (adapter->xdp_ring[0])
-		synchronize_sched();
+		synchronize_rcu();
 
 	ixgbe_irq_disable(adapter);
 
@@ -10476,7 +10476,7 @@ void ixgbe_txrx_ring_disable(struct ixgbe_adapter *adapter, int ring)
 	ixgbe_disable_rxr_hw(adapter, rx_ring);
 
 	if (xdp_ring)
-		synchronize_sched();
+		synchronize_rcu();
 
 	/* Rx/Tx/XDP Tx share the same napi context. */
 	napi_disable(&rx_ring->q_vector->napi);

@@ -1761,10 +1761,11 @@ tx_only:
 	if (vsi->back->flags & IAVF_TXR_FLAGS_WB_ON_ITR)
 		q_vector->arm_wb_state = false;
 
-	/* Work is done so exit the polling mode and re-enable the interrupt */
-	napi_complete_done(napi, work_done);
-
-	iavf_update_enable_itr(vsi, q_vector);
+	/* Exit the polling mode, but don't re-enable interrupts if stack might
+	 * poll us due to busy-polling
+	 */
+	if (likely(napi_complete_done(napi, work_done)))
+		iavf_update_enable_itr(vsi, q_vector);
 
 	return min(work_done, budget - 1);
 }
