@@ -158,6 +158,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_LOG_LEVEL]			= { .type = NLA_U32 },
 	[BATADV_ATTR_MULTICAST_FORCEFLOOD_ENABLED]	= { .type = NLA_U8 },
 	[BATADV_ATTR_NETWORK_CODING_ENABLED]	= { .type = NLA_U8 },
+	[BATADV_ATTR_ORIG_INTERVAL]		= { .type = NLA_U32 },
 };
 
 /**
@@ -357,6 +358,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 		       !!atomic_read(&bat_priv->network_coding)))
 		goto nla_put_failure;
 #endif /* CONFIG_BATMAN_ADV_NC */
+
+	if (nla_put_u32(msg, BATADV_ATTR_ORIG_INTERVAL,
+			atomic_read(&bat_priv->orig_interval)))
+		goto nla_put_failure;
 
 	if (primary_if)
 		batadv_hardif_put(primary_if);
@@ -595,6 +600,18 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 		batadv_nc_status_update(bat_priv->soft_iface);
 	}
 #endif /* CONFIG_BATMAN_ADV_NC */
+
+	if (info->attrs[BATADV_ATTR_ORIG_INTERVAL]) {
+		u32 orig_interval;
+
+		attr = info->attrs[BATADV_ATTR_ORIG_INTERVAL];
+		orig_interval = nla_get_u32(attr);
+
+		orig_interval = min_t(u32, orig_interval, INT_MAX);
+		orig_interval = max_t(u32, orig_interval, 2 * BATADV_JITTER);
+
+		atomic_set(&bat_priv->orig_interval, orig_interval);
+	}
 
 	batadv_netlink_notify_mesh(bat_priv);
 
