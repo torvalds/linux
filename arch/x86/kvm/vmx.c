@@ -174,6 +174,7 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
  * refer SDM volume 3b section 21.6.13 & 22.1.3.
  */
 static unsigned int ple_gap = KVM_DEFAULT_PLE_GAP;
+module_param(ple_gap, uint, 0444);
 
 static unsigned int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, uint, 0444);
