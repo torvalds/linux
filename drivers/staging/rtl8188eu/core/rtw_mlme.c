@@ -324,7 +324,7 @@ int is_same_network(struct wlan_bssid_ex *src, struct wlan_bssid_ex *dst)
 		(d_cap & WLAN_CAPABILITY_ESS)));
 }
 
-struct	wlan_network	*rtw_get_oldest_wlan_network(struct __queue *scanned_queue)
+struct wlan_network *rtw_get_oldest_wlan_network(struct __queue *scanned_queue)
 {
 	struct list_head *plist, *phead;
 	struct wlan_network *pwlan = NULL;
@@ -413,7 +413,7 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 	plist = phead->next;
 
 	while (phead != plist) {
-		pnetwork	= container_of(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 
 		if (is_same_network(&pnetwork->network, target))
 			break;
@@ -451,7 +451,8 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 			pnetwork = rtw_alloc_network(pmlmepriv); /*  will update scan_time */
 
 			if (!pnetwork) {
-				RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_, ("\n\n\nsomething wrong here\n\n\n"));
+				RT_TRACE(_module_rtl871x_mlme_c_, _drv_err_,
+					 ("\n\n\nsomething wrong here\n\n\n"));
 				goto exit;
 			}
 
@@ -469,9 +470,9 @@ void rtw_update_scanned_network(struct adapter *adapter, struct wlan_bssid_ex *t
 			list_add_tail(&pnetwork->list, &queue->queue);
 		}
 	} else {
-		/* we have an entry and we are going to update it. But this entry may
-		 * be already expired. In this case we do the same as we found a new
-		 * net and call the new_net handler
+		/* we have an entry and we are going to update it. But this
+		 * entry may be already expired. In this case we do the same
+		 * as we found a new net and call the new_net handler
 		 */
 		bool update_ie = true;
 
