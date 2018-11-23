@@ -197,10 +197,18 @@ void falcon_exit(struct falcon *falcon)
 int falcon_boot(struct falcon *falcon)
 {
 	unsigned long offset;
+	u32 value;
 	int err;
 
 	if (!falcon->firmware.vaddr)
 		return -EINVAL;
+
+	err = readl_poll_timeout(falcon->regs + FALCON_DMACTL, value,
+				 (value & (FALCON_DMACTL_IMEM_SCRUBBING |
+					   FALCON_DMACTL_DMEM_SCRUBBING)) == 0,
+				 10, 10000);
+	if (err < 0)
+		return err;
 
 	falcon_writel(falcon, 0, FALCON_DMACTL);
 
