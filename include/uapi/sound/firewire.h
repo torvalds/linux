@@ -88,4 +88,6 @@ struct snd_firewire_get_info {
  * Returns -EBUSY if the driver is already streaming.
  */
 
+#define SNDRV_FIREWIRE_TASCAM_STATE_COUNT	64
+
 #endif /* _UAPI_SOUND_FIREWIRE_H_INCLUDED */
