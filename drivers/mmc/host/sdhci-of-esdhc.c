@@ -79,6 +79,7 @@ struct sdhci_esdhc {
 	u8 spec_ver;
 	bool quirk_incorrect_hostver;
 	bool quirk_limited_clk_division;
+	bool quirk_unreliable_pulse_detection;
 	bool quirk_fixup_tuning;
 	unsigned int peripheral_clock;
 	const struct esdhc_clk_fixup *clk_fixup;
@@ -676,6 +677,8 @@ static void esdhc_pltfm_set_bus_width(struct sdhci_host *host, int width)
 
 static void esdhc_reset(struct sdhci_host *host, u8 mask)
 {
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	u32 val;
 
 	sdhci_reset(host, mask);
@@ -687,6 +690,12 @@ static void esdhc_reset(struct sdhci_host *host, u8 mask)
 		val = sdhci_readl(host, ESDHC_TBCTL);
 		val &= ~ESDHC_TB_EN;
 		sdhci_writel(host, val, ESDHC_TBCTL);
+
+		if (esdhc->quirk_unreliable_pulse_detection) {
+			val = sdhci_readl(host, ESDHC_DLLCFG1);
+			val &= ~ESDHC_DLL_PD_PULSE_STRETCH_SEL;
+			sdhci_writel(host, val, ESDHC_DLLCFG1);
+		}
 	}
 }
 
@@ -941,6 +950,11 @@ static struct soc_device_attribute soc_fixup_sdhc_clkdivs[] = {
 	{ },
 };
 
+static struct soc_device_attribute soc_unreliable_pulse_detection[] = {
+	{ .family = "QorIQ LX2160A", .revision = "1.0", },
+	{ },
+};
+
 static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 {
 	const struct of_device_id *match;
@@ -967,6 +981,11 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		esdhc->quirk_limited_clk_division = true;
 	else
 		esdhc->quirk_limited_clk_division = false;
+
+	if (soc_device_match(soc_unreliable_pulse_detection))
+		esdhc->quirk_unreliable_pulse_detection = true;
+	else
+		esdhc->quirk_unreliable_pulse_detection = false;
 
 	match = of_match_node(sdhci_esdhc_of_match, pdev->dev.of_node);
 	if (match)
