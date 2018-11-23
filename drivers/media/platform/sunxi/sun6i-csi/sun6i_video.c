@@ -86,7 +86,8 @@ sun6i_video_remote_subdev(struct sun6i_video *video, u32 *pad)
 }
 
 static int sun6i_video_queue_setup(struct vb2_queue *vq,
-				   unsigned int *nbuffers, unsigned int *nplanes,
+				   unsigned int *nbuffers,
+				   unsigned int *nplanes,
 				   unsigned int sizes[],
 				   struct device *alloc_devs[])
 {

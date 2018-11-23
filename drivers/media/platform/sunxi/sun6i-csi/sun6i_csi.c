@@ -57,7 +57,7 @@ bool sun6i_csi_is_format_supported(struct sun6i_csi *csi,
 	 * Identify the media bus format from device tree.
 	 */
 	if ((sdev->csi.v4l2_ep.bus_type == V4L2_MBUS_PARALLEL
-	      || sdev->csi.v4l2_ep.bus_type == V4L2_MBUS_BT656)
+	     || sdev->csi.v4l2_ep.bus_type == V4L2_MBUS_BT656)
 	     && sdev->csi.v4l2_ep.bus.parallel.bus_width == 16) {
 		switch (pixformat) {
 		case V4L2_PIX_FMT_HM12:
@@ -726,9 +726,10 @@ static int sun6i_csi_v4l2_init(struct sun6i_csi *csi)
 	if (ret)
 		goto unreg_v4l2;
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints(
-		csi->dev, &csi->notifier, sizeof(struct v4l2_async_subdev),
-		sun6i_csi_fwnode_parse);
+	ret = v4l2_async_notifier_parse_fwnode_endpoints(csi->dev,
+							 &csi->notifier,
+							 sizeof(struct v4l2_async_subdev),
+							 sun6i_csi_fwnode_parse);
 	if (ret)
 		goto clean_video;
 
