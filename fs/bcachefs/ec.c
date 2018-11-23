@@ -16,9 +16,79 @@
 #include "super-io.h"
 #include "util.h"
 
+#include <linux/sort.h>
+
+#ifdef __KERNEL__
+
 #include <linux/raid/pq.h>
 #include <linux/raid/xor.h>
-#include <linux/sort.h>
+
+static void raid5_recov(unsigned disks, unsigned failed_idx,
+			size_t size, void **data)
+{
+	unsigned i = 2, nr;
+
+	BUG_ON(failed_idx >= disks);
+
+	swap(data[0], data[failed_idx]);
+	memcpy(data[0], data[1], size);
+
+	while (i < disks) {
+		nr = min_t(unsigned, disks - i, MAX_XOR_BLOCKS);
+		xor_blocks(nr, size, data[0], data + i);
+		i += nr;
+	}
+
+	swap(data[0], data[failed_idx]);
+}
+
+static void raid_gen(int nd, int np, size_t size, void **v)
+{
+	if (np >= 1)
+		raid5_recov(nd + np, nd, size, v);
+	if (np >= 2)
+		raid6_call.gen_syndrome(nd + np, size, v);
+	BUG_ON(np > 2);
+}
+
+static void raid_rec(int nr, int *ir, int nd, int np, size_t size, void **v)
+{
+	switch (nr) {
+	case 0:
+		break;
+	case 1:
+		if (ir[0] < nd + 1)
+			raid5_recov(nd + 1, ir[0], size, v);
+		else
+			raid6_call.gen_syndrome(nd + np, size, v);
+		break;
+	case 2:
+		if (ir[1] < nd) {
+			/* data+data failure. */
+			raid6_2data_recov(nd + np, size, ir[0], ir[1], v);
+		} else if (ir[0] < nd) {
+			/* data + p/q failure */
+
+			if (ir[1] == nd) /* data + p failure */
+				raid6_datap_recov(nd + np, size, ir[0], v);
+			else { /* data + q failure */
+				raid5_recov(nd + 1, ir[0], size, v);
+				raid6_call.gen_syndrome(nd + np, size, v);
+			}
+		} else {
+			raid_gen(nd, np, size, v);
+		}
+		break;
+	default:
+		BUG();
+	}
+}
+
+#else
+
+#include <raid/raid.h>
+
+#endif
 
 struct ec_bio {
 	struct bch_dev		*ca;
@@ -251,41 +321,13 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 
 /* Erasure coding: */
 
-static void raid5_recov(unsigned disks, unsigned bytes,
-			unsigned failed, void **data)
-{
-	unsigned i = 2, nr;
-
-	BUG_ON(failed >= disks);
-
-	swap(data[0], data[failed]);
-	memcpy(data[0], data[1], bytes);
-
-	while (i < disks) {
-		nr = min_t(unsigned, disks - i, MAX_XOR_BLOCKS);
-		xor_blocks(nr, bytes, data[0], data + i);
-		i += nr;
-	}
-
-	swap(data[0], data[failed]);
-}
-
 static void ec_generate_ec(struct ec_stripe_buf *buf)
 {
 	struct bch_stripe *v = &buf->key.v;
 	unsigned nr_data = v->nr_blocks - v->nr_redundant;
 	unsigned bytes = le16_to_cpu(v->sectors) << 9;
 
-	switch (v->nr_redundant) {
-	case 2:
-		raid6_call.gen_syndrome(v->nr_blocks, bytes, buf->data);
-		fallthrough;
-	case 1:
-		raid5_recov(v->nr_blocks, bytes, nr_data, buf->data);
-		break;
-	default:
-		BUG();
-	}
+	raid_gen(nr_data, v->nr_redundant, bytes, buf->data);
 }
 
 static unsigned __ec_nr_failed(struct ec_stripe_buf *buf, unsigned nr)
@@ -315,30 +357,7 @@ static int ec_do_recov(struct bch_fs *c, struct ec_stripe_buf *buf)
 		if (!test_bit(i, buf->valid))
 			failed[nr_failed++] = i;
 
-	switch (nr_failed) {
-	case 0:
-		break;
-	case 1:
-		if (test_bit(nr_data, buf->valid))
-			raid5_recov(nr_data + 1, bytes, failed[0], buf->data);
-		else
-			raid6_datap_recov(v->nr_blocks, bytes, failed[0], buf->data);
-		break;
-	case 2:
-		/* data+data failure. */
-		raid6_2data_recov(v->nr_blocks, bytes, failed[0], failed[1], buf->data);
-		break;
-
-	default:
-		BUG();
-	}
-
-	for (i = nr_data; i < v->nr_blocks; i++)
-		if (!test_bit(i, buf->valid)) {
-			ec_generate_ec(buf);
-			break;
-		}
-
+	raid_rec(nr_failed, failed, nr_data, v->nr_redundant, bytes, buf->data);
 	return 0;
 }
 
