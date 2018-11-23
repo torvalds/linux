@@ -127,6 +127,18 @@ struct dc_stream_state {
 	/* Computed state bits */
 	bool mode_changed : 1;
 
+	/* Output from DC when stream state is committed or altered
+	 * DC may only access these values during:
+	 * dc_commit_state, dc_commit_state_no_check, dc_commit_streams
+	 * values may not change outside of those calls
+	 */
+	struct {
+		// For interrupt management, some hardware instance
+		// offsets need to be exposed to DM
+		uint8_t otg_offset;
+	} out;
+
+	uint32_t stream_id;
 };
 
 struct dc_stream_update {
