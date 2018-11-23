@@ -78,6 +78,7 @@ struct sdhci_esdhc {
 	u8 vendor_ver;
 	u8 spec_ver;
 	bool quirk_incorrect_hostver;
+	bool quirk_limited_clk_division;
 	bool quirk_fixup_tuning;
 	unsigned int peripheral_clock;
 	const struct esdhc_clk_fixup *clk_fixup;
@@ -544,6 +545,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	int pre_div = 1;
 	int div = 1;
+	int division;
 	ktime_t timeout;
 	long fixup = 0;
 	u32 temp;
@@ -578,6 +580,26 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	while (host->max_clk / pre_div / div > clock && div < 16)
 		div++;
+
+	if (esdhc->quirk_limited_clk_division &&
+	    clock == MMC_HS200_MAX_DTR &&
+	    (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 ||
+	     host->flags & SDHCI_HS400_TUNING)) {
+		division = pre_div * div;
+		if (division <= 4) {
+			pre_div = 4;
+			div = 1;
+		} else if (division <= 8) {
+			pre_div = 4;
+			div = 2;
+		} else if (division <= 12) {
+			pre_div = 4;
+			div = 3;
+		} else {
+			pr_warn("%s: using upsupported clock division.\n",
+				mmc_hostname(host->mmc));
+		}
+	}
 
 	dev_dbg(mmc_dev(host->mmc), "desired SD clock: %d, actual: %d\n",
 		clock, host->max_clk / pre_div / div);
@@ -778,6 +800,10 @@ static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	u32 val;
 	int ret;
 
+	if (esdhc->quirk_limited_clk_division &&
+	    host->flags & SDHCI_HS400_TUNING)
+		esdhc_of_set_clock(host, host->clock);
+
 	esdhc_tuning_block_enable(host, true);
 
 	hs400_tuning = host->flags & SDHCI_HS400_TUNING;
@@ -908,6 +934,11 @@ static struct soc_device_attribute soc_incorrect_hostver[] = {
 	{ },
 };
 
+static struct soc_device_attribute soc_fixup_sdhc_clkdivs[] = {
+	{ .family = "QorIQ LX2160A", .revision = "1.0", },
+	{ },
+};
+
 static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 {
 	const struct of_device_id *match;
@@ -929,6 +960,11 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		esdhc->quirk_incorrect_hostver = true;
 	else
 		esdhc->quirk_incorrect_hostver = false;
+
+	if (soc_device_match(soc_fixup_sdhc_clkdivs))
+		esdhc->quirk_limited_clk_division = true;
+	else
+		esdhc->quirk_limited_clk_division = false;
 
 	match = of_match_node(sdhci_esdhc_of_match, pdev->dev.of_node);
 	if (match)
