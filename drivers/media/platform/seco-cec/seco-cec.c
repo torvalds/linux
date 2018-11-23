@@ -335,7 +335,7 @@ rxerr:
 	smb_wr16(SECOCEC_STATUS, status_val);
 }
 
-struct cec_adap_ops secocec_cec_adap_ops = {
+static const struct cec_adap_ops secocec_cec_adap_ops = {
 	/* Low-level callbacks */
 	.adap_enable = secocec_adap_enable,
 	.adap_log_addr = secocec_adap_log_addr,
