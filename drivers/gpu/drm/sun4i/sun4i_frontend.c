@@ -128,6 +128,22 @@ static int sun4i_frontend_drm_format_to_output_fmt(uint32_t fmt, u32 *val)
 	}
 }
 
+static const uint32_t sun4i_frontend_formats[] = {
+	DRM_FORMAT_XRGB8888,
+};
+
+bool sun4i_frontend_format_is_supported(uint32_t fmt)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(sun4i_frontend_formats); i++)
+		if (sun4i_frontend_formats[i] == fmt)
+			return true;
+
+	return false;
+}
+EXPORT_SYMBOL(sun4i_frontend_format_is_supported);
+
 int sun4i_frontend_update_formats(struct sun4i_frontend *frontend,
 				  struct drm_plane *plane, uint32_t out_fmt)
 {
