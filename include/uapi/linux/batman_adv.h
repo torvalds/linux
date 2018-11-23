@@ -449,6 +449,12 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_HOP_PENALTY,
 
+	/**
+	 * @BATADV_ATTR_LOG_LEVEL: bitmask with to define which debug messages
+	 *  should be send to the debug log/trace ring buffer
+	 */
+	BATADV_ATTR_LOG_LEVEL,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**

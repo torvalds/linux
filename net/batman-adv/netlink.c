@@ -53,6 +53,7 @@
 #include "gateway_client.h"
 #include "gateway_common.h"
 #include "hard-interface.h"
+#include "log.h"
 #include "multicast.h"
 #include "originator.h"
 #include "soft-interface.h"
@@ -153,6 +154,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_GW_MODE]			= { .type = NLA_U8 },
 	[BATADV_ATTR_GW_SEL_CLASS]		= { .type = NLA_U32 },
 	[BATADV_ATTR_HOP_PENALTY]		= { .type = NLA_U8 },
+	[BATADV_ATTR_LOG_LEVEL]			= { .type = NLA_U32 },
 };
 
 /**
@@ -334,6 +336,12 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 	if (nla_put_u8(msg, BATADV_ATTR_HOP_PENALTY,
 		       atomic_read(&bat_priv->hop_penalty)))
 		goto nla_put_failure;
+
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+	if (nla_put_u32(msg, BATADV_ATTR_LOG_LEVEL,
+			atomic_read(&bat_priv->log_level)))
+		goto nla_put_failure;
+#endif /* CONFIG_BATMAN_ADV_DEBUG */
 
 	if (primary_if)
 		batadv_hardif_put(primary_if);
@@ -546,6 +554,15 @@ static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 
 		atomic_set(&bat_priv->hop_penalty, nla_get_u8(attr));
 	}
+
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+	if (info->attrs[BATADV_ATTR_LOG_LEVEL]) {
+		attr = info->attrs[BATADV_ATTR_LOG_LEVEL];
+
+		atomic_set(&bat_priv->log_level,
+			   nla_get_u32(attr) & BATADV_DBG_ALL);
+	}
+#endif /* CONFIG_BATMAN_ADV_DEBUG */
 
 	batadv_netlink_notify_mesh(bat_priv);
 
