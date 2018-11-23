@@ -118,14 +118,12 @@ static int sun4i_frontend_drm_format_to_input_fmt(uint32_t fmt, u32 *val)
 
 static int sun4i_frontend_drm_format_to_input_mode(uint32_t fmt, u32 *val)
 {
-	switch (fmt) {
-	case DRM_FORMAT_XRGB8888:
+	if (drm_format_num_planes(fmt) == 1)
 		*val = SUN4I_FRONTEND_INPUT_FMT_DATA_MOD_PACKED;
-		return 0;
-
-	default:
+	else
 		return -EINVAL;
-	}
+
+	return 0;
 }
 
 static int sun4i_frontend_drm_format_to_input_sequence(uint32_t fmt, u32 *val)
