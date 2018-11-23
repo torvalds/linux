@@ -350,6 +350,19 @@
 		reg = <0x0 0x100>;
 	};
 
+	timer@200 {
+		compatible = "arm,cortex-a5-global-timer";
+		reg = <0x200 0x20>;
+		interrupts = <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_EDGE_RISING)>;
+		clocks = <&clkc CLKID_PERIPH>;
+
+		/*
+		 * the arm_global_timer driver currently does not handle clock
+		 * rate changes. Keep it disabled for now.
+		 */
+		status = "disabled";
+	};
+
 	timer@600 {
 		compatible = "arm,cortex-a5-twd-timer";
 		reg = <0x600 0x20>;
