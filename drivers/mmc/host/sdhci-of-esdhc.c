@@ -592,6 +592,26 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		| (pre_div << ESDHC_PREDIV_SHIFT));
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 
+	if (host->mmc->ios.timing == MMC_TIMING_MMC_HS400 &&
+	    clock == MMC_HS200_MAX_DTR) {
+		temp = sdhci_readl(host, ESDHC_TBCTL);
+		sdhci_writel(host, temp | ESDHC_HS400_MODE, ESDHC_TBCTL);
+		temp = sdhci_readl(host, ESDHC_SDCLKCTL);
+		sdhci_writel(host, temp | ESDHC_CMD_CLK_CTL, ESDHC_SDCLKCTL);
+		esdhc_clock_enable(host, true);
+
+		temp = sdhci_readl(host, ESDHC_DLLCFG0);
+		temp |= ESDHC_DLL_ENABLE | ESDHC_DLL_FREQ_SEL;
+		sdhci_writel(host, temp, ESDHC_DLLCFG0);
+		temp = sdhci_readl(host, ESDHC_TBCTL);
+		sdhci_writel(host, temp | ESDHC_HS400_WNDW_ADJUST, ESDHC_TBCTL);
+
+		esdhc_clock_enable(host, false);
+		temp = sdhci_readl(host, ESDHC_DMA_SYSCTL);
+		temp |= ESDHC_FLUSH_ASYNC_FIFO;
+		sdhci_writel(host, temp, ESDHC_DMA_SYSCTL);
+	}
+
 	/* Wait max 20 ms */
 	timeout = ktime_add_ms(ktime_get(), 20);
 	while (!(sdhci_readl(host, ESDHC_PRSSTAT) & ESDHC_CLOCK_STABLE)) {
@@ -603,6 +623,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 		udelay(10);
 	}
 
+	temp = sdhci_readl(host, ESDHC_SYSTEM_CONTROL);
 	temp |= ESDHC_CLOCK_SDCLKEN;
 	sdhci_writel(host, temp, ESDHC_SYSTEM_CONTROL);
 }
@@ -728,25 +749,46 @@ static struct soc_device_attribute soc_fixup_tuning[] = {
 	{ },
 };
 
-static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+static void esdhc_tuning_block_enable(struct sdhci_host *host, bool enable)
 {
-	struct sdhci_host *host = mmc_priv(mmc);
-	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	u32 val;
 
-	/* Use tuning block for tuning procedure */
 	esdhc_clock_enable(host, false);
+
 	val = sdhci_readl(host, ESDHC_DMA_SYSCTL);
 	val |= ESDHC_FLUSH_ASYNC_FIFO;
 	sdhci_writel(host, val, ESDHC_DMA_SYSCTL);
 
 	val = sdhci_readl(host, ESDHC_TBCTL);
-	val |= ESDHC_TB_EN;
+	if (enable)
+		val |= ESDHC_TB_EN;
+	else
+		val &= ~ESDHC_TB_EN;
 	sdhci_writel(host, val, ESDHC_TBCTL);
-	esdhc_clock_enable(host, true);
 
-	sdhci_execute_tuning(mmc, opcode);
+	esdhc_clock_enable(host, true);
+}
+
+static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
+{
+	struct sdhci_host *host = mmc_priv(mmc);
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
+	bool hs400_tuning;
+	u32 val;
+	int ret;
+
+	esdhc_tuning_block_enable(host, true);
+
+	hs400_tuning = host->flags & SDHCI_HS400_TUNING;
+	ret = sdhci_execute_tuning(mmc, opcode);
+
+	if (hs400_tuning) {
+		val = sdhci_readl(host, ESDHC_SDTIMNGCTL);
+		val |= ESDHC_FLW_CTL_BG;
+		sdhci_writel(host, val, ESDHC_SDTIMNGCTL);
+	}
+
 	if (host->tuning_err == -EAGAIN && esdhc->quirk_fixup_tuning) {
 
 		/* program TBPTR[TB_WNDW_END_PTR] = 3*DIV_RATIO and
@@ -765,7 +807,16 @@ static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 		sdhci_writel(host, val, ESDHC_TBCTL);
 		sdhci_execute_tuning(mmc, opcode);
 	}
-	return 0;
+	return ret;
+}
+
+static void esdhc_set_uhs_signaling(struct sdhci_host *host,
+				   unsigned int timing)
+{
+	if (timing == MMC_TIMING_MMC_HS400)
+		esdhc_tuning_block_enable(host, true);
+	else
+		sdhci_set_uhs_signaling(host, timing);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -814,7 +865,7 @@ static const struct sdhci_ops sdhci_esdhc_be_ops = {
 	.adma_workaround = esdhc_of_adma_workaround,
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = esdhc_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.set_uhs_signaling = esdhc_set_uhs_signaling,
 };
 
 static const struct sdhci_ops sdhci_esdhc_le_ops = {
@@ -831,7 +882,7 @@ static const struct sdhci_ops sdhci_esdhc_le_ops = {
 	.adma_workaround = esdhc_of_adma_workaround,
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = esdhc_reset,
-	.set_uhs_signaling = sdhci_set_uhs_signaling,
+	.set_uhs_signaling = esdhc_set_uhs_signaling,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_be_pdata = {
@@ -909,6 +960,12 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 	}
 }
 
+static int esdhc_hs400_prepare_ddr(struct mmc_host *mmc)
+{
+	esdhc_tuning_block_enable(mmc_priv(mmc), false);
+	return 0;
+}
+
 static int sdhci_esdhc_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
@@ -932,6 +989,7 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	host->mmc_host_ops.start_signal_voltage_switch =
 		esdhc_signal_voltage_switch;
 	host->mmc_host_ops.execute_tuning = esdhc_execute_tuning;
+	host->mmc_host_ops.hs400_prepare_ddr = esdhc_hs400_prepare_ddr;
 	host->tuning_delay = 1;
 
 	esdhc_init(pdev, host);
