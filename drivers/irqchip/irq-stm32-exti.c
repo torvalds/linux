@@ -678,8 +678,8 @@ static int __init stm32_exti_init(const struct stm32_exti_drv_data *drv_data,
 	domain = irq_domain_add_linear(node, drv_data->bank_nr * IRQS_PER_BANK,
 				       &irq_exti_domain_ops, NULL);
 	if (!domain) {
-		pr_err("%s: Could not register interrupt domain.\n",
-		       node->name);
+		pr_err("%pOFn: Could not register interrupt domain.\n",
+		       node);
 		ret = -ENOMEM;
 		goto out_unmap;
 	}
@@ -768,7 +768,7 @@ __init stm32_exti_hierarchy_init(const struct stm32_exti_drv_data *drv_data,
 					  host_data);
 
 	if (!domain) {
-		pr_err("%s: Could not register exti domain.\n", node->name);
+		pr_err("%pOFn: Could not register exti domain.\n", node);
 		ret = -ENOMEM;
 		goto out_unmap;
 	}
