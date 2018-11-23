@@ -398,9 +398,15 @@ enum batadv_nl_commands {
 	BATADV_CMD_GET_ROUTING_ALGOS,
 
 	/**
-	 * @BATADV_CMD_GET_HARDIFS: Query list of hard interfaces
+	 * @BATADV_CMD_GET_HARDIF: Get attributes from a hardif of the
+	 *  current softif
 	 */
-	BATADV_CMD_GET_HARDIFS,
+	BATADV_CMD_GET_HARDIF,
+
+	/**
+	 * @BATADV_CMD_GET_HARDIFS: Alias for @BATADV_CMD_GET_HARDIF
+	 */
+	BATADV_CMD_GET_HARDIFS = BATADV_CMD_GET_HARDIF,
 
 	/**
 	 * @BATADV_CMD_GET_TRANSTABLE_LOCAL: Query list of local translations
@@ -452,6 +458,12 @@ enum batadv_nl_commands {
 	 * @BATADV_CMD_SET_MESH: Set attributes for softif/mesh
 	 */
 	BATADV_CMD_SET_MESH,
+
+	/**
+	 * @BATADV_CMD_SET_HARDIF: Set attributes for hardif of the
+	 *  current softif
+	 */
+	BATADV_CMD_SET_HARDIF,
 
 	/* add new commands above here */
 
