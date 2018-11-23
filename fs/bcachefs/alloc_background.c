@@ -84,7 +84,8 @@ const char *bch2_alloc_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	case BCH_ALLOC: {
 		struct bkey_s_c_alloc a = bkey_s_c_to_alloc(k);
 
-		if (bch_alloc_val_u64s(a.v) != bkey_val_u64s(a.k))
+		/* allow for unknown fields */
+		if (bkey_val_u64s(a.k) < bch_alloc_val_u64s(a.v))
 			return "incorrect value size";
 		break;
 	}
