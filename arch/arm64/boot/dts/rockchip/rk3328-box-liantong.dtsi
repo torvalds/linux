@@ -495,6 +495,12 @@
 &rockchip_suspend {
 	status = "okay";
 	rockchip,virtual-poweroff = <1>;
+	rockchip,sleep-mode-config = <
+		(0
+		|RKPM_SLP_CTR_VOL_PWM0
+		|RKPM_SLP_CTR_VOL_PWM1
+		)
+	>;
 };
 
 &uart0 {
