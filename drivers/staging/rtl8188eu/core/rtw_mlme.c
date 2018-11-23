@@ -592,9 +592,7 @@ void rtw_survey_event_callback(struct adapter	*adapter, u8 *pbuf)
 	}
 
 exit:
-
 	spin_unlock_bh(&pmlmepriv->lock);
-	return;
 }
 
 void rtw_surveydone_event_callback(struct adapter	*adapter, u8 *pbuf)
