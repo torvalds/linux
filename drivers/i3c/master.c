@@ -1823,10 +1823,8 @@ int i3c_master_add_i3c_dev_locked(struct i3c_master_controller *master,
 		return PTR_ERR(newdev);
 
 	ret = i3c_master_attach_i3c_dev(master, newdev);
-	if (ret) {
-		ret = PTR_ERR(newdev);
+	if (ret)
 		goto err_free_dev;
-	}
 
 	ret = i3c_master_retrieve_dev_info(newdev);
 	if (ret)
