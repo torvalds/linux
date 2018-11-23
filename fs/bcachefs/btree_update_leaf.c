@@ -187,7 +187,6 @@ bch2_insert_fixup_key(struct btree_insert *trans,
 				       insert->k))
 		bch2_btree_journal_key(trans, iter, insert->k);
 
-	trans->did_work = true;
 	return BTREE_INSERT_OK;
 }
 
@@ -338,6 +337,7 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_insert_entry *i;
+	struct btree_iter *linked;
 	unsigned u64s;
 	int ret;
 
@@ -410,12 +410,25 @@ static inline int do_btree_insert_at(struct btree_insert *trans,
 				i->k->k.version = MAX_VERSION;
 	}
 
+	if (trans->flags & BTREE_INSERT_NOUNLOCK) {
+		/*
+		 * linked iterators that weren't being updated may or may not
+		 * have been traversed/locked, depending on what the caller was
+		 * doing:
+		 */
+		for_each_btree_iter(trans->entries[0].iter, linked)
+			if (linked->uptodate < BTREE_ITER_NEED_RELOCK)
+				linked->flags |= BTREE_ITER_NOUNLOCK;
+	}
+	trans->did_work = true;
+
 	trans_for_each_entry(trans, i) {
 		switch (btree_insert_key_leaf(trans, i)) {
 		case BTREE_INSERT_OK:
 			break;
 		case BTREE_INSERT_NEED_TRAVERSE:
-			BUG_ON((trans->flags & BTREE_INSERT_ATOMIC));
+			BUG_ON((trans->flags &
+				(BTREE_INSERT_ATOMIC|BTREE_INSERT_NOUNLOCK)));
 			ret = -EINTR;
 			goto out;
 		default:
@@ -461,8 +474,7 @@ int __bch2_btree_insert_at(struct btree_insert *trans)
 
 	BUG_ON(!trans->nr);
 
-	for_each_btree_iter(trans->entries[0].iter, linked)
-		bch2_btree_iter_verify_locks(linked);
+	bch2_btree_iter_verify_locks(trans->entries[0].iter);
 
 	/* for the sake of sanity: */
 	BUG_ON(trans->nr > 1 && !(trans->flags & BTREE_INSERT_ATOMIC));
@@ -504,15 +516,11 @@ retry:
 out:
 	percpu_ref_put(&c->writes);
 
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
-		/* make sure we didn't drop or screw up locks: */
-		for_each_btree_iter(trans->entries[0].iter, linked) {
-			bch2_btree_iter_verify_locks(linked);
-			BUG_ON((trans->flags & BTREE_INSERT_NOUNLOCK) &&
-			       trans->did_work &&
-			       !btree_node_locked(linked, 0));
-		}
-	}
+	/* make sure we didn't drop or screw up locks: */
+	bch2_btree_iter_verify_locks(trans->entries[0].iter);
+
+	for_each_btree_iter(trans->entries[0].iter, linked)
+		linked->flags &= ~BTREE_ITER_NOUNLOCK;
 
 	BUG_ON(!(trans->flags & BTREE_INSERT_ATOMIC) && ret == -EINTR);
 

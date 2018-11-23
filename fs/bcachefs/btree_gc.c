@@ -1113,7 +1113,6 @@ next:
 	/* Free the old nodes and update our sliding window */
 	for (i = 0; i < nr_old_nodes; i++) {
 		bch2_btree_node_free_inmem(c, old_nodes[i], iter);
-		six_unlock_intent(&old_nodes[i]->lock);
 
 		/*
 		 * the index update might have triggered a split, in which case

@@ -257,6 +257,11 @@ void bch2_btree_node_free_never_inserted(struct bch_fs *c, struct btree *b)
 void bch2_btree_node_free_inmem(struct bch_fs *c, struct btree *b,
 				struct btree_iter *iter)
 {
+	struct btree_iter *linked;
+
+	for_each_btree_iter(iter, linked)
+		BUG_ON(linked->l[b->level].b == b);
+
 	/*
 	 * Is this a node that isn't reachable on disk yet?
 	 *
@@ -268,11 +273,10 @@ void bch2_btree_node_free_inmem(struct bch_fs *c, struct btree *b,
 	 */
 	btree_update_drop_new_node(c, b);
 
-	__bch2_btree_node_lock_write(b, iter);
+	six_lock_write(&b->lock, NULL, NULL);
 	__btree_node_free(c, b);
 	six_unlock_write(&b->lock);
-
-	bch2_btree_iter_node_drop(iter, b);
+	six_unlock_intent(&b->lock);
 }
 
 static void bch2_btree_node_free_ondisk(struct bch_fs *c,
@@ -1421,24 +1425,18 @@ static void btree_split(struct btree_update *as, struct btree *b,
 	if (n3)
 		bch2_open_buckets_put(c, &n3->ob);
 
-	/*
-	 * Note - at this point other linked iterators could still have @b read
-	 * locked; we're depending on the bch2_btree_iter_node_replace() calls
-	 * below removing all references to @b so we don't return with other
-	 * iterators pointing to a node they have locked that's been freed.
-	 *
-	 * We have to free the node first because the bch2_iter_node_replace()
-	 * calls will drop _our_ iterator's reference - and intent lock - to @b.
-	 */
-	bch2_btree_node_free_inmem(c, b, iter);
-
 	/* Successful split, update the iterator to point to the new nodes: */
 
+	bch2_btree_iter_node_drop(iter, b);
 	if (n3)
 		bch2_btree_iter_node_replace(iter, n3);
 	if (n2)
 		bch2_btree_iter_node_replace(iter, n2);
 	bch2_btree_iter_node_replace(iter, n1);
+
+	bch2_btree_node_free_inmem(c, b, iter);
+
+	bch2_btree_iter_verify_locks(iter);
 
 	bch2_time_stats_update(&c->times[BCH_TIME_btree_split], start_time);
 }
@@ -1735,17 +1733,21 @@ retry:
 	bch2_btree_insert_node(as, parent, iter, &as->parent_keys, flags);
 
 	bch2_open_buckets_put(c, &n->ob);
-	bch2_btree_node_free_inmem(c, b, iter);
-	bch2_btree_node_free_inmem(c, m, iter);
+
+	bch2_btree_iter_node_drop(iter, b);
 	bch2_btree_iter_node_replace(iter, n);
 
 	bch2_btree_iter_verify(iter, n);
 
+	bch2_btree_node_free_inmem(c, b, iter);
+	bch2_btree_node_free_inmem(c, m, iter);
+
 	bch2_btree_update_done(as);
 
-	six_unlock_intent(&m->lock);
 	up_read(&c->gc_lock);
 out:
+	bch2_btree_iter_verify_locks(iter);
+
 	/*
 	 * Don't downgrade locks here: we're called after successful insert,
 	 * and the caller will downgrade locks after a successful insert
@@ -1828,9 +1830,9 @@ static int __btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 
 	bch2_open_buckets_put(c, &n->ob);
 
-	bch2_btree_node_free_inmem(c, b, iter);
-
+	bch2_btree_iter_node_drop(iter, b);
 	bch2_btree_iter_node_replace(iter, n);
+	bch2_btree_node_free_inmem(c, b, iter);
 
 	bch2_btree_update_done(as);
 	return 0;

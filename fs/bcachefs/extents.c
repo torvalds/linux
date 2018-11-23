@@ -1214,7 +1214,6 @@ static void extent_insert_committed(struct extent_insert_state *s)
 	bch2_cut_front(s->committed, insert);
 
 	insert->k.needs_whiteout	= false;
-	s->trans->did_work		= true;
 }
 
 void bch2_extent_trim_atomic(struct bkey_i *k, struct btree_iter *iter)
