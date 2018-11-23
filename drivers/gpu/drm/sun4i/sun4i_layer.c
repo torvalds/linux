@@ -100,9 +100,9 @@ static void sun4i_backend_layer_atomic_update(struct drm_plane *plane,
 		sun4i_frontend_update_coord(frontend, plane);
 		sun4i_frontend_update_buffer(frontend, plane);
 		sun4i_frontend_update_formats(frontend, plane,
-					      DRM_FORMAT_ARGB8888);
+					      DRM_FORMAT_XRGB8888);
 		sun4i_backend_update_layer_frontend(backend, layer->id,
-						    DRM_FORMAT_ARGB8888);
+						    DRM_FORMAT_XRGB8888);
 		sun4i_frontend_enable(frontend);
 	} else {
 		sun4i_backend_update_layer_formats(backend, layer->id, plane);
