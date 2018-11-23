@@ -279,7 +279,6 @@ static enum csi_output_fmt get_csi_output_format(struct sun6i_csi_dev *sdev,
 static enum csi_input_seq get_csi_input_seq(struct sun6i_csi_dev *sdev,
 					    u32 mbus_code, u32 pixformat)
 {
-
 	switch (pixformat) {
 	case V4L2_PIX_FMT_HM12:
 	case V4L2_PIX_FMT_NV12:
@@ -543,7 +542,7 @@ int sun6i_csi_update_config(struct sun6i_csi *csi,
 {
 	struct sun6i_csi_dev *sdev = sun6i_csi_to_dev(csi);
 
-	if (config == NULL)
+	if (!config)
 		return -EINVAL;
 
 	memcpy(&csi->config, config, sizeof(csi->config));
@@ -644,7 +643,7 @@ static int sun6i_subdev_notify_complete(struct v4l2_async_notifier *notifier)
 	dev_dbg(csi->dev, "notify complete, all subdevs registered\n");
 
 	sd = list_first_entry(&v4l2_dev->subdevs, struct v4l2_subdev, list);
-	if (sd == NULL)
+	if (!sd)
 		return -EINVAL;
 
 	ret = sun6i_csi_link_entity(csi, &sd->entity, sd->fwnode);
@@ -810,7 +809,7 @@ static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
 		return PTR_ERR(io_base);
 
 	sdev->regmap = devm_regmap_init_mmio_clk(&pdev->dev, "bus", io_base,
-					    &sun6i_csi_regmap_config);
+						 &sun6i_csi_regmap_config);
 	if (IS_ERR(sdev->regmap)) {
 		dev_err(&pdev->dev, "Failed to init register map\n");
 		return PTR_ERR(sdev->regmap);
@@ -853,7 +852,7 @@ static int sun6i_csi_resource_request(struct sun6i_csi_dev *sdev,
 
 /*
  * PHYS_OFFSET isn't available on all architectures. In order to
- * accomodate for COMPILE_TEST, let's define it to something dumb.
+ * accommodate for COMPILE_TEST, let's define it to something dumb.
  */
 #if defined(CONFIG_COMPILE_TEST) && !defined(PHYS_OFFSET)
 #define PHYS_OFFSET 0

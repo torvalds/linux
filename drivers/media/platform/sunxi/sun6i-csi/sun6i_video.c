@@ -86,9 +86,9 @@ sun6i_video_remote_subdev(struct sun6i_video *video, u32 *pad)
 }
 
 static int sun6i_video_queue_setup(struct vb2_queue *vq,
-				 unsigned int *nbuffers, unsigned int *nplanes,
-				 unsigned int sizes[],
-				 struct device *alloc_devs[])
+				   unsigned int *nbuffers, unsigned int *nplanes,
+				   unsigned int sizes[],
+				   struct device *alloc_devs[])
 {
 	struct sun6i_video *video = vb2_get_drv_priv(vq);
 	unsigned int size = video->fmt.fmt.pix.sizeimage;
@@ -308,7 +308,7 @@ static const struct vb2_ops sun6i_csi_vb2_ops = {
 };
 
 static int vidioc_querycap(struct file *file, void *priv,
-				struct v4l2_capability *cap)
+			   struct v4l2_capability *cap)
 {
 	struct sun6i_video *video = video_drvdata(file);
 
@@ -403,7 +403,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 }
 
 static int vidioc_enum_input(struct file *file, void *fh,
-			 struct v4l2_input *inp)
+			     struct v4l2_input *inp)
 {
 	if (inp->index != 0)
 		return -EINVAL;

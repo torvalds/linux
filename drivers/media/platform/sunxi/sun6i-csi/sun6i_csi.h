@@ -55,7 +55,7 @@ struct sun6i_csi {
  * @mbus_code:	media bus format code (MEDIA_BUS_FMT_*)
  */
 bool sun6i_csi_is_format_supported(struct sun6i_csi *csi, u32 pixformat,
-				 u32 mbus_code);
+				   u32 mbus_code);
 
 /**
  * sun6i_csi_set_power() - power on/off the csi
