@@ -163,9 +163,12 @@ static const uint32_t sun4i_frontend_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-bool sun4i_frontend_format_is_supported(uint32_t fmt)
+bool sun4i_frontend_format_is_supported(uint32_t fmt, uint64_t modifier)
 {
 	unsigned int i;
+
+	if (modifier != DRM_FORMAT_MOD_LINEAR)
+		return false;
 
 	for (i = 0; i < ARRAY_SIZE(sun4i_frontend_formats); i++)
 		if (sun4i_frontend_formats[i] == fmt)

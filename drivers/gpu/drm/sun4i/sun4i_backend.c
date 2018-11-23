@@ -175,9 +175,12 @@ static const uint32_t sun4i_backend_formats[] = {
 	DRM_FORMAT_YVYU,
 };
 
-bool sun4i_backend_format_is_supported(uint32_t fmt)
+bool sun4i_backend_format_is_supported(uint32_t fmt, uint64_t modifier)
 {
 	unsigned int i;
+
+	if (modifier != DRM_FORMAT_MOD_LINEAR)
+		return false;
 
 	for (i = 0; i < ARRAY_SIZE(sun4i_backend_formats); i++)
 		if (sun4i_backend_formats[i] == fmt)
@@ -454,14 +457,15 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 	struct sun4i_layer *layer = plane_to_sun4i_layer(state->plane);
 	struct sun4i_backend *backend = layer->backend;
 	uint32_t format = state->fb->format->format;
+	uint64_t modifier = state->fb->modifier;
 
 	if (IS_ERR(backend->frontend))
 		return false;
 
-	if (!sun4i_frontend_format_is_supported(format))
+	if (!sun4i_frontend_format_is_supported(format, modifier))
 		return false;
 
-	if (!sun4i_backend_format_is_supported(format))
+	if (!sun4i_backend_format_is_supported(format, modifier))
 		return true;
 
 	/*
