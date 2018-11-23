@@ -2496,12 +2496,6 @@ int main(int argc, char **argv)
 	if (files_source)
 		read_symbols_from_files(files_source);
 
-	for (mod = modules; mod; mod = mod->next) {
-		if (mod->skip)
-			continue;
-		check_exports(mod);
-	}
-
 	err = 0;
 
 	for (mod = modules; mod; mod = mod->next) {
@@ -2513,6 +2507,7 @@ int main(int argc, char **argv)
 		buf.pos = 0;
 
 		err |= check_modname_len(mod);
+		check_exports(mod);
 		add_header(&buf, mod);
 		add_intree_flag(&buf, !external_module);
 		add_retpoline(&buf);
