@@ -160,12 +160,7 @@ static void bch2_btree_node_free_index(struct btree_update *as, struct btree *b,
 {
 	struct bch_fs *c = as->c;
 	struct pending_btree_node_free *d;
-
-	/*
-	 * btree_update lock is only needed here to avoid racing with
-	 * gc:
-	 */
-	mutex_lock(&c->btree_interior_update_lock);
+	struct gc_pos pos = { 0 };
 
 	for (d = as->pending; d < as->pending + as->nr_pending; d++)
 		if (!bkey_cmp(k.k->p, d->key.k.p) &&
@@ -201,20 +196,11 @@ found:
 	if (gc_pos_cmp(c->gc_pos, b
 		       ? gc_pos_btree_node(b)
 		       : gc_pos_btree_root(as->btree_id)) >= 0 &&
-	    gc_pos_cmp(c->gc_pos, gc_phase(GC_PHASE_PENDING_DELETE)) < 0) {
-		struct gc_pos pos = { 0 };
-
-		bch2_mark_key(c, BKEY_TYPE_BTREE,
+	    gc_pos_cmp(c->gc_pos, gc_phase(GC_PHASE_PENDING_DELETE)) < 0)
+		bch2_mark_key_locked(c, BKEY_TYPE_BTREE,
 			      bkey_i_to_s_c(&d->key),
 			      false, 0, pos,
 			      NULL, 0, BCH_BUCKET_MARK_GC);
-		/*
-		 * Don't apply tmp - pending deletes aren't tracked in
-		 * bch_alloc_stats:
-		 */
-	}
-
-	mutex_unlock(&c->btree_interior_update_lock);
 }
 
 static void __btree_node_free(struct bch_fs *c, struct btree *b)
@@ -1083,7 +1069,10 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 
 	__bch2_btree_set_root_inmem(c, b);
 
-	bch2_mark_key(c, BKEY_TYPE_BTREE,
+	mutex_lock(&c->btree_interior_update_lock);
+	percpu_down_read(&c->usage_lock);
+
+	bch2_mark_key_locked(c, BKEY_TYPE_BTREE,
 		      bkey_i_to_s_c(&b->key),
 		      true, 0,
 		      gc_pos_btree_root(b->btree_id),
@@ -1095,6 +1084,9 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 					   &stats);
 	bch2_fs_usage_apply(c, &stats, &as->reserve->disk_res,
 			    gc_pos_btree_root(b->btree_id));
+
+	percpu_up_read(&c->usage_lock);
+	mutex_unlock(&c->btree_interior_update_lock);
 }
 
 static void bch2_btree_set_root_ondisk(struct bch_fs *c, struct btree *b, int rw)
@@ -1171,8 +1163,11 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 
 	BUG_ON(insert->k.u64s > bch_btree_keys_u64s_remaining(c, b));
 
+	mutex_lock(&c->btree_interior_update_lock);
+	percpu_down_read(&c->usage_lock);
+
 	if (bkey_extent_is_data(&insert->k))
-		bch2_mark_key(c, BKEY_TYPE_BTREE,
+		bch2_mark_key_locked(c, BKEY_TYPE_BTREE,
 			      bkey_i_to_s_c(insert),
 			      true, 0,
 			      gc_pos_btree_node(b), &stats, 0, 0);
@@ -1192,6 +1187,9 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 
 	bch2_fs_usage_apply(c, &stats, &as->reserve->disk_res,
 			    gc_pos_btree_node(b));
+
+	percpu_up_read(&c->usage_lock);
+	mutex_unlock(&c->btree_interior_update_lock);
 
 	bch2_btree_bset_insert_key(iter, b, node_iter, insert);
 	set_btree_node_dirty(b);
@@ -1977,7 +1975,10 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 
 		bch2_btree_node_lock_write(b, iter);
 
-		bch2_mark_key(c, BKEY_TYPE_BTREE,
+		mutex_lock(&c->btree_interior_update_lock);
+		percpu_down_read(&c->usage_lock);
+
+		bch2_mark_key_locked(c, BKEY_TYPE_BTREE,
 			      bkey_i_to_s_c(&new_key->k_i),
 			      true, 0,
 			      gc_pos_btree_root(b->btree_id),
@@ -1987,6 +1988,9 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 					   &stats);
 		bch2_fs_usage_apply(c, &stats, &as->reserve->disk_res,
 				    gc_pos_btree_root(b->btree_id));
+
+		percpu_up_read(&c->usage_lock);
+		mutex_unlock(&c->btree_interior_update_lock);
 
 		if (PTR_HASH(&new_key->k_i) != PTR_HASH(&b->key)) {
 			mutex_lock(&c->btree_cache.lock);

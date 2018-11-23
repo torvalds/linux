@@ -112,18 +112,6 @@ static void btree_node_range_checks(struct bch_fs *c, struct btree *b,
 
 /* marking of btree keys/nodes: */
 
-static bool bkey_type_needs_gc(enum bkey_type type)
-{
-	switch (type) {
-	case BKEY_TYPE_BTREE:
-	case BKEY_TYPE_EXTENTS:
-	case BKEY_TYPE_EC:
-		return true;
-	default:
-		return false;
-	}
-}
-
 static void ptr_gen_recalc_oldest(struct bch_fs *c,
 				  const struct bch_extent_ptr *ptr,
 				  u8 *max_stale)

@@ -54,6 +54,18 @@ struct bkey_ops {
 	bool		is_extents;
 };
 
+static inline bool bkey_type_needs_gc(enum bkey_type type)
+{
+	switch (type) {
+	case BKEY_TYPE_BTREE:
+	case BKEY_TYPE_EXTENTS:
+	case BKEY_TYPE_EC:
+		return true;
+	default:
+		return false;
+	}
+}
+
 const char *bch2_bkey_val_invalid(struct bch_fs *, enum bkey_type,
 				  struct bkey_s_c);
 const char *__bch2_bkey_invalid(struct bch_fs *, enum bkey_type, struct bkey_s_c);
