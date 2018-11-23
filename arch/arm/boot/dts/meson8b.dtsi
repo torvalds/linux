@@ -112,11 +112,6 @@
 			no-map;
 		};
 	};
-
-	scu@c4300000 {
-		compatible = "arm,cortex-a5-scu";
-		reg = <0xc4300000 0x100>;
-	};
 }; /* end of / */
 
 &aobus {
@@ -347,6 +342,13 @@
 	prefetch-data = <1>;
 	prefetch-instr = <1>;
 	arm,shared-override;
+};
+
+&periph {
+	scu@0 {
+		compatible = "arm,cortex-a5-scu";
+		reg = <0x0 0x100>;
+	};
 };
 
 &pwm_ab {
