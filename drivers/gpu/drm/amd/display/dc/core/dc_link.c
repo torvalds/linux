@@ -706,12 +706,26 @@ bool dc_link_detect(struct dc_link *link, enum dc_detect_reason reason)
 				if (memcmp(&link->dpcd_caps, &prev_dpcd_caps, sizeof(struct dpcd_caps)))
 					same_dpcd = false;
 			}
-			/* Active dongle downstream unplug */
+			/* Active dongle plug in without display or downstream unplug*/
 			if (link->type == dc_connection_active_dongle
 					&& link->dpcd_caps.sink_count.
 					bits.SINK_COUNT == 0) {
-				if (prev_sink != NULL)
+				if (prev_sink != NULL) {
+					/* Downstream unplug */
 					dc_sink_release(prev_sink);
+				} else {
+					/* Empty dongle plug in */
+					for (i = 0; i < LINK_TRAINING_MAX_VERIFY_RETRY; i++) {
+						int fail_count = 0;
+
+						dp_verify_link_cap(link,
+								  &link->reported_link_cap,
+								  &fail_count);
+
+						if (fail_count == 0)
+							break;
+					}
+				}
 				return true;
 			}
 
