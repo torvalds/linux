@@ -449,16 +449,32 @@ static bool sun4i_backend_plane_uses_frontend(struct drm_plane_state *state)
 {
 	struct sun4i_layer *layer = plane_to_sun4i_layer(state->plane);
 	struct sun4i_backend *backend = layer->backend;
+	uint32_t format = state->fb->format->format;
 
 	if (IS_ERR(backend->frontend))
 		return false;
 
+	if (!sun4i_frontend_format_is_supported(format))
+		return false;
+
+	if (!sun4i_backend_format_is_supported(format))
+		return true;
+
 	/*
 	 * TODO: The backend alone allows 2x and 4x integer scaling, including
 	 * support for an alpha component (which the frontend doesn't support).
-	 * Use the backend directly instead of the frontend in this case.
+	 * Use the backend directly instead of the frontend in this case, with
+	 * another test to return false.
 	 */
-	return sun4i_backend_plane_uses_scaler(state);
+
+	if (sun4i_backend_plane_uses_scaler(state))
+		return true;
+
+	/*
+	 * Here the format is supported by both the frontend and the backend
+	 * and no frontend scaling is required, so use the backend directly.
+	 */
+	return false;
 }
 
 static void sun4i_backend_atomic_begin(struct sunxi_engine *engine,
