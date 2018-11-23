@@ -135,7 +135,7 @@ int hda_dsp_ipc_get_reply(struct snd_sof_dev *sdev,
 irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
-	u32 hipci, hipcie, hipct, hipcte, msg = 0, msg_ext = 0;
+	u32 hipci, hipcie, hipct, hipcte, hipcctl, msg = 0, msg_ext = 0;
 	irqreturn_t ret = IRQ_NONE;
 	int reply = -EINVAL;
 
@@ -147,9 +147,11 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 	hipcie = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 				  HDA_DSP_REG_HIPCIE);
 	hipct = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCT);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_REG_HIPCCTL);
 
 	/* is this a reply message from the DSP */
-	if (hipcie & HDA_DSP_REG_HIPCIE_DONE) {
+	if (hipcie & HDA_DSP_REG_HIPCIE_DONE &&
+	    hipcctl & HDA_DSP_REG_HIPCCTL_DONE) {
 
 		hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 HDA_DSP_REG_HIPCI);
@@ -183,7 +185,8 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 	}
 
 	/* is this a new message from DSP */
-	if (hipct & HDA_DSP_REG_HIPCT_BUSY) {
+	if (hipct & HDA_DSP_REG_HIPCT_BUSY &&
+	    hipcctl & HDA_DSP_REG_HIPCCTL_BUSY) {
 
 		hipcte = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					  HDA_DSP_REG_HIPCTE);
