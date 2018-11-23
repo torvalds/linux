@@ -139,6 +139,7 @@ static const struct nla_policy batadv_netlink_policy[NUM_BATADV_ATTR] = {
 	[BATADV_ATTR_MCAST_FLAGS]		= { .type = NLA_U32 },
 	[BATADV_ATTR_MCAST_FLAGS_PRIV]		= { .type = NLA_U32 },
 	[BATADV_ATTR_VLANID]			= { .type = NLA_U16 },
+	[BATADV_ATTR_AGGREGATED_OGMS_ENABLED]	= { .type = NLA_U8 },
 };
 
 /**
@@ -213,6 +214,10 @@ static int batadv_netlink_mesh_fill(struct sk_buff *msg,
 			    hard_iface->dev_addr))
 			goto nla_put_failure;
 	}
+
+	if (nla_put_u8(msg, BATADV_ATTR_AGGREGATED_OGMS_ENABLED,
+		       !!atomic_read(&bat_priv->aggregated_ogms)))
+		goto nla_put_failure;
 
 	if (primary_if)
 		batadv_hardif_put(primary_if);
@@ -296,6 +301,13 @@ static int batadv_netlink_get_mesh(struct sk_buff *skb, struct genl_info *info)
 static int batadv_netlink_set_mesh(struct sk_buff *skb, struct genl_info *info)
 {
 	struct batadv_priv *bat_priv = info->user_ptr[0];
+	struct nlattr *attr;
+
+	if (info->attrs[BATADV_ATTR_AGGREGATED_OGMS_ENABLED]) {
+		attr = info->attrs[BATADV_ATTR_AGGREGATED_OGMS_ENABLED];
+
+		atomic_set(&bat_priv->aggregated_ogms, !!nla_get_u8(attr));
+	}
 
 	batadv_netlink_notify_mesh(bat_priv);
 
