@@ -48,8 +48,12 @@ static const u32 sunxi_rgb2yuv_coef[12] = {
 /*
  * These coefficients are taken from the A33 BSP from Allwinner.
  *
- * The formula is for each component, each coefficient being multiplied by
- * 1024 and each constant being multiplied by 16:
+ * The first three values of each row are coded as 13-bit signed fixed-point
+ * numbers, with 10 bits for the fractional part. The fourth value is a
+ * constant coded as a 14-bit signed fixed-point number with 4 bits for the
+ * fractional part.
+ *
+ * The values in table order give the following colorspace translation:
  * G = 1.164 * Y - 0.391 * U - 0.813 * V + 135
  * R = 1.164 * Y + 1.596 * V - 222
  * B = 1.164 * Y + 2.018 * U + 276
