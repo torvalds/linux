@@ -396,6 +396,13 @@ enum batadv_nl_attrs {
 	 */
 	BATADV_ATTR_DISTRIBUTED_ARP_TABLE_ENABLED,
 
+	/**
+	 * @BATADV_ATTR_FRAGMENTATION_ENABLED: whether the data traffic going
+	 *  through the mesh will be fragmented or silently discarded if the
+	 *  packet size exceeds the outgoing interface MTU.
+	 */
+	BATADV_ATTR_FRAGMENTATION_ENABLED,
+
 	/* add attributes above here, update the policy in netlink.c */
 
 	/**
