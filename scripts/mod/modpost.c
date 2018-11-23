@@ -2241,15 +2241,15 @@ static int add_versions(struct buffer *b, struct module *mod)
 	return err;
 }
 
-static void add_depends(struct buffer *b, struct module *mod,
-			struct module *modules)
+static void add_depends(struct buffer *b, struct module *mod)
 {
 	struct symbol *s;
-	struct module *m;
 	int first = 1;
 
-	for (m = modules; m; m = m->next)
-		m->seen = is_vmlinux(m->name);
+	/* Clear ->seen flag of modules that own symbols needed by this. */
+	for (s = mod->unres; s; s = s->next)
+		if (s->module)
+			s->module->seen = is_vmlinux(s->module->name);
 
 	buf_printf(b, "\n");
 	buf_printf(b, "static const char __module_depends[]\n");
@@ -2518,7 +2518,7 @@ int main(int argc, char **argv)
 		add_retpoline(&buf);
 		add_staging_flag(&buf, mod->name);
 		err |= add_versions(&buf, mod);
-		add_depends(&buf, mod, modules);
+		add_depends(&buf, mod);
 		add_moddevtable(&buf, mod);
 		add_srcversion(&buf, mod);
 
