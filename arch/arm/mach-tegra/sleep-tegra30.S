@@ -29,7 +29,6 @@
 #define EMC_CFG				0xc
 #define EMC_ADR_CFG			0x10
 #define EMC_TIMING_CONTROL		0x28
-#define EMC_REFRESH			0x70
 #define EMC_NOP				0xdc
 #define EMC_SELF_REF			0xe0
 #define EMC_MRW				0xe8
@@ -459,7 +458,6 @@ emc_wait_auto_cal_onetime:
 	cmp	r10, #TEGRA30
 	streq	r1, [r0, #EMC_NOP]
 	streq	r1, [r0, #EMC_NOP]
-	streq	r1, [r0, #EMC_REFRESH]
 
 	emc_device_mask r1, r0
 
