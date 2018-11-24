@@ -226,7 +226,7 @@ struct rvu {
 	/* CGX */
 #define PF_CGXMAP_BASE		1 /* PF 0 is reserved for RVU PF */
 	u8			cgx_mapped_pfs;
-	u8			cgx_cnt; /* available cgx ports */
+	u8			cgx_cnt_max;	 /* CGX port count max */
 	u8			*pf2cgxlmac_map; /* pf to cgx_lmac map */
 	u16			*cgxlmac2pf_map; /* bitmap of mapped pfs for
 						  * every cgx lmac port
@@ -316,8 +316,8 @@ static inline void rvu_get_cgx_lmac_id(u8 map, u8 *cgx_id, u8 *lmac_id)
 	*lmac_id = (map & 0xF);
 }
 
-int rvu_cgx_probe(struct rvu *rvu);
-void rvu_cgx_wq_destroy(struct rvu *rvu);
+int rvu_cgx_init(struct rvu *rvu);
+int rvu_cgx_exit(struct rvu *rvu);
 void *rvu_cgx_pdata(u8 cgx_id, struct rvu *rvu);
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start);
 int rvu_mbox_handler_cgx_start_rxtx(struct rvu *rvu, struct msg_req *req,

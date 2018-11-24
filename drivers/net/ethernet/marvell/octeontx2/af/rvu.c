@@ -811,17 +811,26 @@ init:
 
 	err = rvu_npc_init(rvu);
 	if (err)
-		return err;
+		goto exit;
+
+	err = rvu_cgx_init(rvu);
+	if (err)
+		goto exit;
 
 	err = rvu_npa_init(rvu);
 	if (err)
-		return err;
+		goto cgx_err;
 
 	err = rvu_nix_init(rvu);
 	if (err)
-		return err;
+		goto cgx_err;
 
 	return 0;
+
+cgx_err:
+	rvu_cgx_exit(rvu);
+exit:
+	return err;
 }
 
 /* NPA and NIX admin queue APIs */
@@ -2419,13 +2428,9 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_hwsetup;
 
-	err = rvu_cgx_probe(rvu);
-	if (err)
-		goto err_mbox;
-
 	err = rvu_flr_init(rvu);
 	if (err)
-		goto err_cgx;
+		goto err_mbox;
 
 	err = rvu_register_interrupts(rvu);
 	if (err)
@@ -2441,11 +2446,10 @@ err_irq:
 	rvu_unregister_interrupts(rvu);
 err_flr:
 	rvu_flr_wq_destroy(rvu);
-err_cgx:
-	rvu_cgx_wq_destroy(rvu);
 err_mbox:
 	rvu_mbox_destroy(&rvu->afpf_wq_info);
 err_hwsetup:
+	rvu_cgx_exit(rvu);
 	rvu_reset_all_blocks(rvu);
 	rvu_free_hw_resources(rvu);
 err_release_regions:
@@ -2465,7 +2469,7 @@ static void rvu_remove(struct pci_dev *pdev)
 
 	rvu_unregister_interrupts(rvu);
 	rvu_flr_wq_destroy(rvu);
-	rvu_cgx_wq_destroy(rvu);
+	rvu_cgx_exit(rvu);
 	rvu_mbox_destroy(&rvu->afpf_wq_info);
 	rvu_disable_sriov(rvu);
 	rvu_reset_all_blocks(rvu);
