@@ -1968,8 +1968,6 @@ static struct mlxsw_sp_port *mlxsw_sp_lag_rep_port(struct mlxsw_sp *mlxsw_sp,
 static const struct switchdev_ops mlxsw_sp_port_switchdev_ops = {
 	.switchdev_port_attr_get	= mlxsw_sp_port_attr_get,
 	.switchdev_port_attr_set	= mlxsw_sp_port_attr_set,
-	.switchdev_port_obj_add		= mlxsw_sp_port_obj_add,
-	.switchdev_port_obj_del		= mlxsw_sp_port_obj_del,
 };
 
 static int
@@ -3118,6 +3116,32 @@ static struct notifier_block mlxsw_sp_switchdev_notifier = {
 	.notifier_call = mlxsw_sp_switchdev_event,
 };
 
+static int mlxsw_sp_switchdev_blocking_event(struct notifier_block *unused,
+					     unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	int err;
+
+	switch (event) {
+	case SWITCHDEV_PORT_OBJ_ADD:
+		err = switchdev_handle_port_obj_add(dev, ptr,
+						    mlxsw_sp_port_dev_check,
+						    mlxsw_sp_port_obj_add);
+		return notifier_from_errno(err);
+	case SWITCHDEV_PORT_OBJ_DEL:
+		err = switchdev_handle_port_obj_del(dev, ptr,
+						    mlxsw_sp_port_dev_check,
+						    mlxsw_sp_port_obj_del);
+		return notifier_from_errno(err);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block mlxsw_sp_switchdev_blocking_notifier = {
+	.notifier_call = mlxsw_sp_switchdev_blocking_event,
+};
+
 u8
 mlxsw_sp_bridge_port_stp_state(struct mlxsw_sp_bridge_port *bridge_port)
 {
@@ -3127,6 +3151,7 @@ mlxsw_sp_bridge_port_stp_state(struct mlxsw_sp_bridge_port *bridge_port)
 static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_bridge *bridge = mlxsw_sp->bridge;
+	struct notifier_block *nb;
 	int err;
 
 	err = mlxsw_sp_ageing_set(mlxsw_sp, MLXSW_SP_DEFAULT_AGEING_TIME);
@@ -3141,17 +3166,33 @@ static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 		return err;
 	}
 
+	nb = &mlxsw_sp_switchdev_blocking_notifier;
+	err = register_switchdev_blocking_notifier(nb);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to register switchdev blocking notifier\n");
+		goto err_register_switchdev_blocking_notifier;
+	}
+
 	INIT_DELAYED_WORK(&bridge->fdb_notify.dw, mlxsw_sp_fdb_notify_work);
 	bridge->fdb_notify.interval = MLXSW_SP_DEFAULT_LEARNING_INTERVAL;
 	mlxsw_sp_fdb_notify_work_schedule(mlxsw_sp);
 	return 0;
+
+err_register_switchdev_blocking_notifier:
+	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+	return err;
 }
 
 static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 {
-	cancel_delayed_work_sync(&mlxsw_sp->bridge->fdb_notify.dw);
-	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
+	struct notifier_block *nb;
 
+	cancel_delayed_work_sync(&mlxsw_sp->bridge->fdb_notify.dw);
+
+	nb = &mlxsw_sp_switchdev_blocking_notifier;
+	unregister_switchdev_blocking_notifier(nb);
+
+	unregister_switchdev_notifier(&mlxsw_sp_switchdev_notifier);
 }
 
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
