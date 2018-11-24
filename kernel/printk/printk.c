@@ -753,6 +753,19 @@ struct devkmsg_user {
 	char buf[CONSOLE_EXT_LOG_MAX];
 };
 
+static __printf(3, 4) __cold
+int devkmsg_emit(int facility, int level, const char *fmt, ...)
+{
+	va_list args;
+	int r;
+
+	va_start(args, fmt);
+	r = vprintk_emit(facility, level, NULL, 0, fmt, args);
+	va_end(args);
+
+	return r;
+}
+
 static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 {
 	char *buf, *line;
@@ -811,7 +824,7 @@ static ssize_t devkmsg_write(struct kiocb *iocb, struct iov_iter *from)
 		}
 	}
 
-	printk_emit(facility, level, NULL, 0, "%s", line);
+	devkmsg_emit(facility, level, "%s", line);
 	kfree(buf);
 	return ret;
 }
@@ -1935,21 +1948,6 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	return vprintk_func(fmt, args);
 }
 EXPORT_SYMBOL(vprintk);
-
-asmlinkage int printk_emit(int facility, int level,
-			   const char *dict, size_t dictlen,
-			   const char *fmt, ...)
-{
-	va_list args;
-	int r;
-
-	va_start(args, fmt);
-	r = vprintk_emit(facility, level, dict, dictlen, fmt, args);
-	va_end(args);
-
-	return r;
-}
-EXPORT_SYMBOL(printk_emit);
 
 int vprintk_default(const char *fmt, va_list args)
 {
