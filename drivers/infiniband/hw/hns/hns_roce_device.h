@@ -111,6 +111,9 @@
 #define PAGES_SHIFT_24				24
 #define PAGES_SHIFT_32				32
 
+#define HNS_ROCE_IDX_QUE_ENTRY_SZ		4
+#define SRQ_DB_REG				0x230
+
 enum {
 	HNS_ROCE_SUPPORT_RQ_RECORD_DB = 1 << 0,
 	HNS_ROCE_SUPPORT_SQ_RECORD_DB = 1 << 1,
@@ -436,9 +439,37 @@ struct hns_roce_cq {
 	struct completion		free;
 };
 
+struct hns_roce_idx_que {
+	struct hns_roce_buf		idx_buf;
+	int				entry_sz;
+	u32				buf_size;
+	struct ib_umem			*umem;
+	struct hns_roce_mtt		mtt;
+	u64				*bitmap;
+};
+
 struct hns_roce_srq {
 	struct ib_srq		ibsrq;
-	int			srqn;
+	void (*event)(struct hns_roce_srq *srq, enum hns_roce_event event);
+	unsigned long		srqn;
+	int			max;
+	int			max_gs;
+	int			wqe_shift;
+	void __iomem		*db_reg_l;
+
+	atomic_t		refcount;
+	struct completion	free;
+
+	struct hns_roce_buf	buf;
+	u64		       *wrid;
+	struct ib_umem	       *umem;
+	struct hns_roce_mtt	mtt;
+	struct hns_roce_idx_que idx_que;
+	spinlock_t		lock;
+	int			head;
+	int			tail;
+	u16			wqe_ctr;
+	struct mutex		mutex;
 };
 
 struct hns_roce_uar_table {
@@ -761,6 +792,12 @@ struct hns_roce_caps {
 	u32		cqe_ba_pg_sz;
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
+	u32		srqwqe_ba_pg_sz;
+	u32		srqwqe_buf_pg_sz;
+	u32		srqwqe_hop_num;
+	u32		idx_ba_pg_sz;
+	u32		idx_buf_pg_sz;
+	u32		idx_hop_num;
 	u32		eqe_ba_pg_sz;
 	u32		eqe_buf_pg_sz;
 	u32		eqe_hop_num;
@@ -829,6 +866,17 @@ struct hns_roce_hw {
 	int (*modify_cq)(struct ib_cq *cq, u16 cq_count, u16 cq_period);
 	int (*init_eq)(struct hns_roce_dev *hr_dev);
 	void (*cleanup_eq)(struct hns_roce_dev *hr_dev);
+	void (*write_srqc)(struct hns_roce_dev *hr_dev,
+			   struct hns_roce_srq *srq, u32 pdn, u16 xrcd, u32 cqn,
+			   void *mb_buf, u64 *mtts_wqe, u64 *mtts_idx,
+			   dma_addr_t dma_handle_wqe,
+			   dma_addr_t dma_handle_idx);
+	int (*modify_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
+		       enum ib_srq_attr_mask srq_attr_mask,
+		       struct ib_udata *udata);
+	int (*query_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
+	int (*post_srq_recv)(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+			     const struct ib_recv_wr **bad_wr);
 };
 
 struct hns_roce_dev {
@@ -1037,6 +1085,14 @@ int hns_roce_buf_alloc(struct hns_roce_dev *hr_dev, u32 size, u32 max_direct,
 
 int hns_roce_ib_umem_write_mtt(struct hns_roce_dev *hr_dev,
 			       struct hns_roce_mtt *mtt, struct ib_umem *umem);
+
+struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
+				   struct ib_srq_init_attr *srq_init_attr,
+				   struct ib_udata *udata);
+int hns_roce_modify_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr,
+			enum ib_srq_attr_mask srq_attr_mask,
+			struct ib_udata *udata);
+int hns_roce_destroy_srq(struct ib_srq *ibsrq);
 
 struct ib_qp *hns_roce_create_qp(struct ib_pd *ib_pd,
 				 struct ib_qp_init_attr *init_attr,

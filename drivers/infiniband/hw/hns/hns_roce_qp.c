@@ -280,7 +280,7 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 EXPORT_SYMBOL_GPL(hns_roce_release_range_qp);
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
-				struct ib_qp_cap *cap, int is_user, int has_srq,
+				struct ib_qp_cap *cap, int is_user, int has_rq,
 				struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = hr_dev->dev;
@@ -294,14 +294,12 @@ static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
 		return -EINVAL;
 	}
 
-	/* If srq exit, set zero for relative number of rq */
-	if (has_srq) {
-		if (cap->max_recv_wr) {
-			dev_dbg(dev, "srq no need config max_recv_wr\n");
-			return -EINVAL;
-		}
-
-		hr_qp->rq.wqe_cnt = hr_qp->rq.max_gs = 0;
+	/* If srq exist, set zero for relative number of rq */
+	if (!has_rq) {
+		hr_qp->rq.wqe_cnt = 0;
+		hr_qp->rq.max_gs = 0;
+		cap->max_recv_wr = 0;
+		cap->max_recv_sge = 0;
 	} else {
 		if (is_user && (!cap->max_recv_wr || !cap->max_recv_sge)) {
 			dev_err(dev, "user space no need config max_recv_wr max_recv_sge\n");
@@ -563,13 +561,14 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_REQ_WR);
 
 	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, !!ib_pd->uobject,
-				   !!init_attr->srq, hr_qp);
+				   hns_roce_qp_has_rq(init_attr), hr_qp);
 	if (ret) {
 		dev_err(dev, "hns_roce_set_rq_size failed\n");
 		goto err_out;
 	}
 
-	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) {
+	if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RQ_INLINE) &&
+	    hns_roce_qp_has_rq(init_attr)) {
 		/* allocate recv inline buf */
 		hr_qp->rq_inl_buf.wqe_list = kcalloc(hr_qp->rq.wqe_cnt,
 					       sizeof(struct hns_roce_rinl_wqe),

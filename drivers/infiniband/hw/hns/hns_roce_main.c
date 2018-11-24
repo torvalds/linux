@@ -546,6 +546,21 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 		ib_dev->map_mr_sg		= hns_roce_map_mr_sg;
 	}
 
+	/* SRQ */
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+		ib_dev->create_srq = hns_roce_create_srq;
+		ib_dev->modify_srq = hr_dev->hw->modify_srq;
+		ib_dev->query_srq = hr_dev->hw->query_srq;
+		ib_dev->destroy_srq = hns_roce_destroy_srq;
+		ib_dev->post_srq_recv = hr_dev->hw->post_srq_recv;
+		ib_dev->uverbs_cmd_mask |=
+				(1ULL << IB_USER_VERBS_CMD_CREATE_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_MODIFY_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_QUERY_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_DESTROY_SRQ) |
+				(1ULL << IB_USER_VERBS_CMD_POST_SRQ_RECV);
+	}
+
 	/* OTHERS */
 	ib_dev->get_port_immutable	= hns_roce_port_immutable;
 	ib_dev->disassociate_ucontext	= hns_roce_disassociate_ucontext;

@@ -46,7 +46,9 @@ bool hns_roce_check_whether_mhop(struct hns_roce_dev *hr_dev, u32 type)
 	    (hr_dev->caps.cqc_hop_num && type == HEM_TYPE_CQC) ||
 	    (hr_dev->caps.srqc_hop_num && type == HEM_TYPE_SRQC) ||
 	    (hr_dev->caps.cqe_hop_num && type == HEM_TYPE_CQE) ||
-	    (hr_dev->caps.mtt_hop_num && type == HEM_TYPE_MTT))
+	    (hr_dev->caps.mtt_hop_num && type == HEM_TYPE_MTT) ||
+	    (hr_dev->caps.srqwqe_hop_num && type == HEM_TYPE_SRQWQE) ||
+	    (hr_dev->caps.idx_hop_num && type == HEM_TYPE_IDX))
 		return true;
 
 	return false;
@@ -146,6 +148,22 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 					     + PAGE_SHIFT);
 		mhop->ba_l0_num = mhop->bt_chunk_size / 8;
 		mhop->hop_num = hr_dev->caps.cqe_hop_num;
+		break;
+	case HEM_TYPE_SRQWQE:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.srqwqe_buf_pg_sz
+					    + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz
+					    + PAGE_SHIFT);
+		mhop->ba_l0_num = mhop->bt_chunk_size / 8;
+		mhop->hop_num = hr_dev->caps.srqwqe_hop_num;
+		break;
+	case HEM_TYPE_IDX:
+		mhop->buf_chunk_size = 1 << (hr_dev->caps.idx_buf_pg_sz
+				       + PAGE_SHIFT);
+		mhop->bt_chunk_size = 1 << (hr_dev->caps.idx_ba_pg_sz
+				       + PAGE_SHIFT);
+		mhop->ba_l0_num = mhop->bt_chunk_size / 8;
+		mhop->hop_num = hr_dev->caps.idx_hop_num;
 		break;
 	default:
 		dev_err(dev, "Table %d not support multi-hop addressing!\n",
@@ -905,6 +923,18 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 					+ PAGE_SHIFT);
 			bt_chunk_size = buf_chunk_size;
 			hop_num = hr_dev->caps.cqe_hop_num;
+			break;
+		case HEM_TYPE_SRQWQE:
+			buf_chunk_size = 1 << (hr_dev->caps.srqwqe_ba_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = buf_chunk_size;
+			hop_num = hr_dev->caps.srqwqe_hop_num;
+			break;
+		case HEM_TYPE_IDX:
+			buf_chunk_size = 1 << (hr_dev->caps.idx_ba_pg_sz
+					+ PAGE_SHIFT);
+			bt_chunk_size = buf_chunk_size;
+			hop_num = hr_dev->caps.idx_hop_num;
 			break;
 		default:
 			dev_err(dev,
