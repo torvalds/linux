@@ -67,7 +67,7 @@ struct f2fs_fault_info {
 	unsigned int inject_type;
 };
 
-extern char *f2fs_fault_name[FAULT_MAX];
+extern const char *f2fs_fault_name[FAULT_MAX];
 #define IS_FAULT_SET(fi, type) ((fi)->inject_type & (1 << (type)))
 #endif
 
