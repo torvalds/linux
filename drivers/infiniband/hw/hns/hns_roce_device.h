@@ -205,6 +205,8 @@ enum {
 enum hns_roce_mtt_type {
 	MTT_TYPE_WQE,
 	MTT_TYPE_CQE,
+	MTT_TYPE_SRQWQE,
+	MTT_TYPE_IDX
 };
 
 enum {
@@ -340,6 +342,10 @@ struct hns_roce_mr_table {
 	struct hns_roce_hem_table	mtpt_table;
 	struct hns_roce_buddy		mtt_cqe_buddy;
 	struct hns_roce_hem_table	mtt_cqe_table;
+	struct hns_roce_buddy		mtt_srqwqe_buddy;
+	struct hns_roce_hem_table	mtt_srqwqe_table;
+	struct hns_roce_buddy		mtt_idx_buddy;
+	struct hns_roce_hem_table	mtt_idx_table;
 };
 
 struct hns_roce_wq {
@@ -451,6 +457,12 @@ struct hns_roce_cq_table {
 	struct hns_roce_bitmap		bitmap;
 	spinlock_t			lock;
 	struct radix_tree_root		tree;
+	struct hns_roce_hem_table	table;
+};
+
+struct hns_roce_srq_table {
+	struct hns_roce_bitmap		bitmap;
+	struct xarray			xa;
 	struct hns_roce_hem_table	table;
 };
 
@@ -680,6 +692,8 @@ struct hns_roce_caps {
 	u32		max_extend_sg;
 	int		num_qps;	/* 256k */
 	int             reserved_qps;
+	u32		max_srq_sg;
+	int		num_srqs;
 	u32		max_wqes;	/* 16k */
 	u32		max_srqs;
 	u32		max_srq_wrs;
@@ -694,12 +708,16 @@ struct hns_roce_caps {
 	int		min_cqes;
 	u32		min_wqes;
 	int		reserved_cqs;
+	int		reserved_srqs;
+	u32		max_srqwqes;
 	int		num_aeq_vectors;	/* 1 */
 	int		num_comp_vectors;
 	int		num_other_vectors;
 	int		num_mtpts;
 	u32		num_mtt_segs;
 	u32		num_cqe_segs;
+	u32		num_srqwqe_segs;
+	u32		num_idx_segs;
 	int		reserved_mrws;
 	int		reserved_uars;
 	int		num_pds;
@@ -713,6 +731,8 @@ struct hns_roce_caps {
 	int		irrl_entry_sz;
 	int		trrl_entry_sz;
 	int		cqc_entry_sz;
+	int		srqc_entry_sz;
+	int		idx_entry_sz;
 	u32		pbl_ba_pg_sz;
 	u32		pbl_buf_pg_sz;
 	u32		pbl_hop_num;
@@ -843,6 +863,7 @@ struct hns_roce_dev {
 	struct hns_roce_uar_table uar_table;
 	struct hns_roce_mr_table  mr_table;
 	struct hns_roce_cq_table  cq_table;
+	struct hns_roce_srq_table srq_table;
 	struct hns_roce_qp_table  qp_table;
 	struct hns_roce_eq_table  eq_table;
 
@@ -955,12 +976,14 @@ int hns_roce_init_mr_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_eq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_cq_table(struct hns_roce_dev *hr_dev);
 int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev);
+int hns_roce_init_srq_table(struct hns_roce_dev *hr_dev);
 
 void hns_roce_cleanup_pd_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_mr_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_eq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_cq_table(struct hns_roce_dev *hr_dev);
 void hns_roce_cleanup_qp_table(struct hns_roce_dev *hr_dev);
+void hns_roce_cleanup_srq_table(struct hns_roce_dev *hr_dev);
 
 int hns_roce_bitmap_alloc(struct hns_roce_bitmap *bitmap, unsigned long *obj);
 void hns_roce_bitmap_free(struct hns_roce_bitmap *bitmap, unsigned long obj,

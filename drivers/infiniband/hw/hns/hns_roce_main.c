@@ -651,7 +651,57 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		goto err_unmap_trrl;
 	}
 
+	if (hr_dev->caps.srqc_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev, &hr_dev->srq_table.table,
+					      HEM_TYPE_SRQC,
+					      hr_dev->caps.srqc_entry_sz,
+					      hr_dev->caps.num_srqs, 1);
+		if (ret) {
+			dev_err(dev,
+			      "Failed to init SRQ context memory, aborting.\n");
+			goto err_unmap_cq;
+		}
+	}
+
+	if (hr_dev->caps.num_srqwqe_segs) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					     &hr_dev->mr_table.mtt_srqwqe_table,
+					     HEM_TYPE_SRQWQE,
+					     hr_dev->caps.mtt_entry_sz,
+					     hr_dev->caps.num_srqwqe_segs, 1);
+		if (ret) {
+			dev_err(dev,
+				"Failed to init MTT srqwqe memory, aborting.\n");
+			goto err_unmap_srq;
+		}
+	}
+
+	if (hr_dev->caps.num_idx_segs) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->mr_table.mtt_idx_table,
+					      HEM_TYPE_IDX,
+					      hr_dev->caps.idx_entry_sz,
+					      hr_dev->caps.num_idx_segs, 1);
+		if (ret) {
+			dev_err(dev,
+				"Failed to init MTT idx memory, aborting.\n");
+			goto err_unmap_srqwqe;
+		}
+	}
+
 	return 0;
+
+err_unmap_srqwqe:
+	if (hr_dev->caps.num_srqwqe_segs)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_srqwqe_table);
+
+err_unmap_srq:
+	if (hr_dev->caps.srqc_entry_sz)
+		hns_roce_cleanup_hem_table(hr_dev, &hr_dev->srq_table.table);
+
+err_unmap_cq:
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->cq_table.table);
 
 err_unmap_trrl:
 	if (hr_dev->caps.trrl_entry_sz)
@@ -732,7 +782,20 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 		goto err_cq_table_free;
 	}
 
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ) {
+		ret = hns_roce_init_srq_table(hr_dev);
+		if (ret) {
+			dev_err(dev,
+				"Failed to init share receive queue table.\n");
+			goto err_qp_table_free;
+		}
+	}
+
 	return 0;
+
+err_qp_table_free:
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SRQ)
+		hns_roce_cleanup_qp_table(hr_dev);
 
 err_cq_table_free:
 	hns_roce_cleanup_cq_table(hr_dev);
