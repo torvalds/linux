@@ -5880,7 +5880,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 {
 	int i, ofst = idx * 4;
 	u32 data_reg, mask_reg, cfg;
-	u32 multitrc = TRCMULTIFILTER_F;
 
 	if (!enable) {
 		t4_write_reg(adap, MPS_TRC_FILTER_MATCH_CTL_A_A + ofst, 0);
@@ -5900,7 +5899,6 @@ int t4_set_trace_filter(struct adapter *adap, const struct trace_params *tp,
 		 * maximum packet capture size of 9600 bytes is recommended.
 		 * Also in this mode, only trace0 can be enabled and running.
 		 */
-		multitrc = 0;
 		if (tp->snap_len > 9600 || idx)
 			return -EINVAL;
 	}
@@ -8606,7 +8604,7 @@ int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
 {
 	unsigned int fw_caps = pi->adapter->params.fw_caps_support;
 	struct fw_port_cmd port_cmd;
-	unsigned int action, link_ok, speed, mtu;
+	unsigned int action, link_ok, mtu;
 	fw_port_cap32_t linkattr;
 	int ret;
 
@@ -8640,7 +8638,6 @@ int t4_get_link_params(struct port_info *pi, unsigned int *link_okp,
 		mtu = FW_PORT_CMD_MTU32_G(
 			be32_to_cpu(port_cmd.u.info32.auxlinfo32_mtu32));
 	}
-	speed = fwcap_to_speed(linkattr);
 
 	*link_okp = link_ok;
 	*speedp = fwcap_to_speed(linkattr);
