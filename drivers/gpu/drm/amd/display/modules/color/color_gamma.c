@@ -823,7 +823,7 @@ static bool build_freesync_hdr(struct pwl_float_data_ex *rgb_regamma,
 	bool is_clipped = false;
 	struct fixed31_32 sdr_white_level;
 
-	if (fs_params == NULL || fs_params->max_content == 0 ||
+	if (fs_params->max_content == 0 ||
 			fs_params->max_display == 0)
 		return false;
 
