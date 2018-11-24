@@ -736,9 +736,11 @@ static int video_i2c_probe(struct i2c_client *client,
 	video_set_drvdata(&data->vdev, data);
 	i2c_set_clientdata(client, data);
 
-	ret = data->chip->set_power(data, true);
-	if (ret)
-		goto error_unregister_device;
+	if (data->chip->set_power) {
+		ret = data->chip->set_power(data, true);
+		if (ret)
+			goto error_unregister_device;
+	}
 
 	pm_runtime_get_noresume(&client->dev);
 	pm_runtime_set_active(&client->dev);
@@ -767,7 +769,9 @@ error_pm_disable:
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
-	data->chip->set_power(data, false);
+
+	if (data->chip->set_power)
+		data->chip->set_power(data, false);
 
 error_unregister_device:
 	v4l2_device_unregister(v4l2_dev);
@@ -791,7 +795,9 @@ static int video_i2c_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
-	data->chip->set_power(data, false);
+
+	if (data->chip->set_power)
+		data->chip->set_power(data, false);
 
 	video_unregister_device(&data->vdev);
 
@@ -804,12 +810,18 @@ static int video_i2c_pm_runtime_suspend(struct device *dev)
 {
 	struct video_i2c_data *data = i2c_get_clientdata(to_i2c_client(dev));
 
+	if (!data->chip->set_power)
+		return 0;
+
 	return data->chip->set_power(data, false);
 }
 
 static int video_i2c_pm_runtime_resume(struct device *dev)
 {
 	struct video_i2c_data *data = i2c_get_clientdata(to_i2c_client(dev));
+
+	if (!data->chip->set_power)
+		return 0;
 
 	return data->chip->set_power(data, true);
 }
