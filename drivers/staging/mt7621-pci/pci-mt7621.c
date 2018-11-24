@@ -185,7 +185,6 @@ struct mt7621_pcie_port {
 /**
  * struct mt7621_pcie - PCIe host information
  * @base: IO Mapped Register Base
- * @sysctl: system control mapped register base
  * @io: IO resource
  * @mem: non-prefetchable memory resource
  * @busn: bus range
@@ -195,7 +194,6 @@ struct mt7621_pcie_port {
  */
 struct mt7621_pcie {
 	void __iomem *base;
-	void __iomem *sysctl;
 	struct device *dev;
 	struct resource io;
 	struct resource mem;
@@ -407,8 +405,7 @@ static void set_phy_for_ssc(struct mt7621_pcie_port *port)
 
 static void mt7621_enable_phy(struct mt7621_pcie_port *port)
 {
-	struct mt7621_pcie *pcie = port->pcie;
-	u32 chip_rev_id = ioread32(pcie->sysctl + MT7621_CHIP_REV_ID);
+	u32 chip_rev_id = rt_sysc_r32(MT7621_CHIP_REV_ID);
 
 	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
 		bypass_pipe_rst(port);
@@ -547,16 +544,6 @@ static int mt7621_pcie_parse_dt(struct mt7621_pcie *pcie)
 	pcie->base = devm_ioremap_resource(dev, &regs);
 	if (IS_ERR(pcie->base))
 		return PTR_ERR(pcie->base);
-
-	err = of_address_to_resource(node, 4, &regs);
-	if (err) {
-		dev_err(dev, "missing \"reg\" property\n");
-		return err;
-	}
-
-	pcie->sysctl = devm_ioremap_resource(dev, &regs);
-	if (IS_ERR(pcie->sysctl))
-		return PTR_ERR(pcie->sysctl);
 
 	for_each_available_child_of_node(node, child) {
 		int slot;
