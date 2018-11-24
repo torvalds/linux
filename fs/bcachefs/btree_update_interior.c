@@ -562,7 +562,6 @@ static void bch2_btree_update_free(struct btree_update *as)
 
 	closure_debug_destroy(&as->cl);
 	mempool_free(as, &c->btree_interior_update_pool);
-	percpu_ref_put(&c->writes);
 
 	closure_wake_up(&c->btree_interior_update_wait);
 	mutex_unlock(&c->btree_interior_update_lock);
@@ -1012,14 +1011,9 @@ bch2_btree_update_start(struct bch_fs *c, enum btree_id id,
 	struct btree_reserve *reserve;
 	struct btree_update *as;
 
-	if (unlikely(!percpu_ref_tryget(&c->writes)))
-		return ERR_PTR(-EROFS);
-
 	reserve = bch2_btree_reserve_get(c, nr_nodes, flags, cl);
-	if (IS_ERR(reserve)) {
-		percpu_ref_put(&c->writes);
+	if (IS_ERR(reserve))
 		return ERR_CAST(reserve);
-	}
 
 	as = mempool_alloc(&c->btree_interior_update_pool, GFP_NOIO);
 	memset(as, 0, sizeof(*as));
