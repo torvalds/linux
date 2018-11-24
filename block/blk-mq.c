@@ -1675,6 +1675,7 @@ void blk_mq_flush_plug_list(struct blk_plug *plug, bool from_schedule)
 	unsigned int depth;
 
 	list_splice_init(&plug->mq_list, &list);
+	plug->rq_count = 0;
 
 	list_sort(NULL, &list, plug_rq_cmp);
 
@@ -1871,7 +1872,6 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 	const int is_flush_fua = op_is_flush(bio->bi_opf);
 	struct blk_mq_alloc_data data = { .flags = 0, .cmd_flags = bio->bi_opf };
 	struct request *rq;
-	unsigned int request_count = 0;
 	struct blk_plug *plug;
 	struct request *same_queue_rq = NULL;
 	blk_qc_t cookie;
@@ -1884,7 +1884,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		return BLK_QC_T_NONE;
 
 	if (!is_flush_fua && !blk_queue_nomerges(q) &&
-	    blk_attempt_plug_merge(q, bio, &request_count, &same_queue_rq))
+	    blk_attempt_plug_merge(q, bio, &same_queue_rq))
 		return BLK_QC_T_NONE;
 
 	if (blk_mq_sched_bio_merge(q, bio))
@@ -1915,19 +1915,11 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		blk_insert_flush(rq);
 		blk_mq_run_hw_queue(data.hctx, true);
 	} else if (plug && q->nr_hw_queues == 1) {
+		unsigned int request_count = plug->rq_count;
 		struct request *last = NULL;
 
 		blk_mq_put_ctx(data.ctx);
 		blk_mq_bio_to_request(rq, bio);
-
-		/*
-		 * @request_count may become stale because of schedule
-		 * out, so check the list again.
-		 */
-		if (list_empty(&plug->mq_list))
-			request_count = 0;
-		else if (blk_queue_nomerges(q))
-			request_count = blk_plug_queued_count(q);
 
 		if (!request_count)
 			trace_block_plug(q);
@@ -1941,6 +1933,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		}
 
 		list_add_tail(&rq->queuelist, &plug->mq_list);
+		plug->rq_count++;
 	} else if (plug && !blk_queue_nomerges(q)) {
 		blk_mq_bio_to_request(rq, bio);
 
@@ -1956,6 +1949,7 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		if (same_queue_rq)
 			list_del_init(&same_queue_rq->queuelist);
 		list_add_tail(&rq->queuelist, &plug->mq_list);
+		plug->rq_count++;
 
 		blk_mq_put_ctx(data.ctx);
 

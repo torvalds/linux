@@ -1130,6 +1130,7 @@ extern void blk_set_queue_dying(struct request_queue *);
 struct blk_plug {
 	struct list_head mq_list; /* blk-mq requests */
 	struct list_head cb_list; /* md requires an unplug callback */
+	unsigned short rq_count;
 };
 #define BLK_MAX_REQUEST_COUNT 16
 #define BLK_PLUG_FLUSH_SIZE (128 * 1024)

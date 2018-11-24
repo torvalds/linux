@@ -736,7 +736,6 @@ no_merge:
  * Caller must ensure !blk_queue_nomerges(q) beforehand.
  */
 bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
-			    unsigned int *request_count,
 			    struct request **same_queue_rq)
 {
 	struct blk_plug *plug;
@@ -746,22 +745,19 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	plug = current->plug;
 	if (!plug)
 		return false;
-	*request_count = 0;
 
 	plug_list = &plug->mq_list;
 
 	list_for_each_entry_reverse(rq, plug_list, queuelist) {
 		bool merged = false;
 
-		if (rq->q == q) {
-			(*request_count)++;
+		if (rq->q == q && same_queue_rq) {
 			/*
 			 * Only blk-mq multiple hardware queues case checks the
 			 * rq in the same queue, there should be only one such
 			 * rq in a queue
 			 **/
-			if (same_queue_rq)
-				*same_queue_rq = rq;
+			*same_queue_rq = rq;
 		}
 
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
@@ -786,26 +782,6 @@ bool blk_attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	}
 
 	return false;
-}
-
-unsigned int blk_plug_queued_count(struct request_queue *q)
-{
-	struct blk_plug *plug;
-	struct request *rq;
-	struct list_head *plug_list;
-	unsigned int ret = 0;
-
-	plug = current->plug;
-	if (!plug)
-		goto out;
-
-	plug_list = &plug->mq_list;
-	list_for_each_entry(rq, plug_list, queuelist) {
-		if (rq->q == q)
-			ret++;
-	}
-out:
-	return ret;
 }
 
 void blk_init_request_from_bio(struct request *req, struct bio *bio)
@@ -1803,6 +1779,8 @@ void blk_start_plug(struct blk_plug *plug)
 
 	INIT_LIST_HEAD(&plug->mq_list);
 	INIT_LIST_HEAD(&plug->cb_list);
+	plug->rq_count = 0;
+
 	/*
 	 * Store ordering should not be needed here, since a potential
 	 * preempt will imply a full memory barrier
