@@ -147,6 +147,11 @@ BPF_IN    := $(OUTPUT)libbpf-in.o
 LIB_FILE := $(addprefix $(OUTPUT),$(LIB_FILE))
 VERSION_SCRIPT := libbpf.map
 
+GLOBAL_SYM_COUNT = $(shell readelf -s $(BPF_IN) | \
+			   awk '/GLOBAL/ && /DEFAULT/ && !/UND/ {s++} END{print s}')
+VERSIONED_SYM_COUNT = $(shell readelf -s $(OUTPUT)libbpf.so | \
+			      grep -Eo '[^ ]+@LIBBPF_' | cut -d@ -f1 | sort -u | wc -l)
+
 CMD_TARGETS = $(LIB_FILE)
 
 CXX_TEST_TARGET = $(OUTPUT)test_libbpf
@@ -159,7 +164,7 @@ TARGETS = $(CMD_TARGETS)
 
 all: fixdep all_cmd
 
-all_cmd: $(CMD_TARGETS)
+all_cmd: $(CMD_TARGETS) check
 
 $(BPF_IN): force elfdep bpfdep
 	@(test -f ../../include/uapi/linux/bpf.h -a -f ../../../include/uapi/linux/bpf.h && ( \
@@ -185,6 +190,18 @@ $(OUTPUT)libbpf.a: $(BPF_IN)
 
 $(OUTPUT)test_libbpf: test_libbpf.cpp $(OUTPUT)libbpf.a
 	$(QUIET_LINK)$(CXX) $^ -lelf -o $@
+
+check: check_abi
+
+check_abi: $(OUTPUT)libbpf.so
+	@if [ "$(GLOBAL_SYM_COUNT)" != "$(VERSIONED_SYM_COUNT)" ]; then	 \
+		echo "Warning: Num of global symbols in $(BPF_IN)"	 \
+		     "($(GLOBAL_SYM_COUNT)) does NOT match with num of"	 \
+		     "versioned symbols in $^ ($(VERSIONED_SYM_COUNT))." \
+		     "Please make sure all LIBBPF_API symbols are"	 \
+		     "versioned in $(VERSION_SCRIPT)." >&2;		 \
+		exit 1;							 \
+	fi
 
 define do_install
 	if [ ! -d '$(DESTDIR_SQ)$2' ]; then		\
