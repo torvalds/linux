@@ -77,7 +77,6 @@ static int ad2s90_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct ad2s90_state *st;
-	int ret;
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*st));
 	if (!indio_dev)
@@ -93,16 +92,6 @@ static int ad2s90_probe(struct spi_device *spi)
 	indio_dev->channels = &ad2s90_chan;
 	indio_dev->num_channels = 1;
 	indio_dev->name = spi_get_device_id(spi)->name;
-
-	/* need 600ns between CS and the first falling edge of SCLK */
-	spi->max_speed_hz = 830000;
-	spi->mode = SPI_MODE_3;
-	ret = spi_setup(spi);
-
-	if (ret < 0) {
-		dev_err(&spi->dev, "spi_setup failed!\n");
-		return ret;
-	}
 
 	return devm_iio_device_register(indio_dev->dev.parent, indio_dev);
 }
