@@ -814,4 +814,5 @@ int hclge_func_reset_cmd(struct hclge_dev *hdev, int func_id);
 int hclge_vport_start(struct hclge_vport *vport);
 void hclge_vport_stop(struct hclge_vport *vport);
 int hclge_set_vport_mtu(struct hclge_vport *vport, int new_mtu);
+int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf);
 #endif

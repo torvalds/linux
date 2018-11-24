@@ -453,6 +453,7 @@ struct hnae3_ae_ops {
 				struct ethtool_rxnfc *cmd, u32 *rule_locs);
 	int (*restore_fd_rules)(struct hnae3_handle *handle);
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
+	int (*dbg_run_cmd)(struct hnae3_handle *handle, char *cmd_buf);
 	pci_ers_result_t (*process_hw_error)(struct hnae3_ae_dev *ae_dev);
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
 	bool (*ae_dev_resetting)(struct hnae3_handle *handle);
@@ -566,6 +567,7 @@ struct hnae3_handle {
 	u32 numa_node_mask;	/* for multi-chip support */
 
 	u8 netdev_flags;
+	struct dentry *hnae3_dbgfs;
 };
 
 #define hnae3_set_field(origin, mask, shift, val) \
