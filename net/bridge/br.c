@@ -247,7 +247,7 @@ void br_boolopt_multi_get(const struct net_bridge *br,
 		optval |= (br_boolopt_get(br, opt_id) << opt_id);
 
 	bm->optval = optval;
-	bm->optmask = 0;
+	bm->optmask = GENMASK((BR_BOOLOPT_MAX - 1), 0);
 }
 
 /* private bridge options, controlled by the kernel */
