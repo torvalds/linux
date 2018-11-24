@@ -289,7 +289,7 @@ int rcar_du_set_dpad0_vsp1_routing(struct rcar_du_device *rcdu)
 
 int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 {
-	struct rcar_du_crtc *crtc0 = &rgrp->dev->crtcs[rgrp->index * 2];
+	struct rcar_du_device *rcdu = rgrp->dev;
 	u32 dorcr = rcar_du_group_read(rgrp, DORCR);
 
 	dorcr &= ~(DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_MASK);
@@ -299,7 +299,7 @@ int rcar_du_group_set_routing(struct rcar_du_group *rgrp)
 	 * CRTC 1 in all other cases to avoid cloning CRTC 0 to DPAD0 and DPAD1
 	 * by default.
 	 */
-	if (crtc0->outputs & BIT(RCAR_DU_OUTPUT_DPAD1))
+	if (rcdu->dpad1_source == rgrp->index * 2)
 		dorcr |= DORCR_PG2D_DS1;
 	else
 		dorcr |= DORCR_PG2T | DORCR_DK2S | DORCR_PG2D_DS2;

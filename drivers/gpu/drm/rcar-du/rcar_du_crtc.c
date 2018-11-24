@@ -22,6 +22,7 @@
 
 #include "rcar_du_crtc.h"
 #include "rcar_du_drv.h"
+#include "rcar_du_encoder.h"
 #include "rcar_du_kms.h"
 #include "rcar_du_plane.h"
 #include "rcar_du_regs.h"
@@ -314,26 +315,6 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 
 	rcar_du_crtc_write(rcrtc, DESR,  mode->htotal - mode->hsync_start - 1);
 	rcar_du_crtc_write(rcrtc, DEWR,  mode->hdisplay);
-}
-
-void rcar_du_crtc_route_output(struct drm_crtc *crtc,
-			       enum rcar_du_output output)
-{
-	struct rcar_du_crtc *rcrtc = to_rcar_crtc(crtc);
-	struct rcar_du_device *rcdu = rcrtc->group->dev;
-
-	/*
-	 * Store the route from the CRTC output to the DU output. The DU will be
-	 * configured when starting the CRTC.
-	 */
-	rcrtc->outputs |= BIT(output);
-
-	/*
-	 * Store RGB routing to DPAD0, the hardware will be configured when
-	 * starting the CRTC.
-	 */
-	if (output == RCAR_DU_OUTPUT_DPAD0)
-		rcdu->dpad0_source = rcrtc->index;
 }
 
 static unsigned int plane_zpos(struct rcar_du_plane *plane)
@@ -655,6 +636,24 @@ static void rcar_du_crtc_stop(struct rcar_du_crtc *rcrtc)
  * CRTC Functions
  */
 
+static int rcar_du_crtc_atomic_check(struct drm_crtc *crtc,
+				     struct drm_crtc_state *state)
+{
+	struct rcar_du_crtc_state *rstate = to_rcar_crtc_state(state);
+	struct drm_encoder *encoder;
+
+	/* Store the routes from the CRTC output to the DU outputs. */
+	rstate->outputs = 0;
+
+	drm_for_each_encoder_mask(encoder, crtc->dev, state->encoder_mask) {
+		struct rcar_du_encoder *renc = to_rcar_encoder(encoder);
+
+		rstate->outputs |= BIT(renc->output);
+	}
+
+	return 0;
+}
+
 static void rcar_du_crtc_atomic_enable(struct drm_crtc *crtc,
 				       struct drm_crtc_state *old_state)
 {
@@ -678,8 +677,6 @@ static void rcar_du_crtc_atomic_disable(struct drm_crtc *crtc,
 		crtc->state->event = NULL;
 	}
 	spin_unlock_irq(&crtc->dev->event_lock);
-
-	rcrtc->outputs = 0;
 }
 
 static void rcar_du_crtc_atomic_begin(struct drm_crtc *crtc,
@@ -755,6 +752,7 @@ enum drm_mode_status rcar_du_crtc_mode_valid(struct drm_crtc *crtc,
 }
 
 static const struct drm_crtc_helper_funcs crtc_helper_funcs = {
+	.atomic_check = rcar_du_crtc_atomic_check,
 	.atomic_begin = rcar_du_crtc_atomic_begin,
 	.atomic_flush = rcar_du_crtc_atomic_flush,
 	.atomic_enable = rcar_du_crtc_atomic_enable,
