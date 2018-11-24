@@ -56,13 +56,6 @@
 #define R8169_MSG_DEFAULT \
 	(NETIF_MSG_DRV | NETIF_MSG_PROBE | NETIF_MSG_IFUP | NETIF_MSG_IFDOWN)
 
-#define TX_SLOTS_AVAIL(tp) \
-	(tp->dirty_tx + NUM_TX_DESC - tp->cur_tx)
-
-/* A skbuff with nr_frags needs nr_frags+1 entries in the tx queue */
-#define TX_FRAGS_READY_FOR(tp,nr_frags) \
-	(TX_SLOTS_AVAIL(tp) >= (nr_frags + 1))
-
 /* Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
    The RTL chips use a 64 element hash table based on the Ethernet CRC. */
 static const int multicast_filter_limit = 32;
@@ -2011,8 +2004,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
 };
 
-static void rtl8169_get_mac_version(struct rtl8169_private *tp,
-				    u8 default_version)
+static void rtl8169_get_mac_version(struct rtl8169_private *tp)
 {
 	/*
 	 * The driver currently handles the 8168Bf and the 8168Be identically
@@ -2116,21 +2108,14 @@ static void rtl8169_get_mac_version(struct rtl8169_private *tp,
 	tp->mac_version = p->mac_version;
 
 	if (tp->mac_version == RTL_GIGA_MAC_NONE) {
-		dev_notice(tp_to_dev(tp),
-			   "unknown MAC, using family default\n");
-		tp->mac_version = default_version;
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_42) {
-		tp->mac_version = tp->supports_gmii ?
-				  RTL_GIGA_MAC_VER_42 :
-				  RTL_GIGA_MAC_VER_43;
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_45) {
-		tp->mac_version = tp->supports_gmii ?
-				  RTL_GIGA_MAC_VER_45 :
-				  RTL_GIGA_MAC_VER_47;
-	} else if (tp->mac_version == RTL_GIGA_MAC_VER_46) {
-		tp->mac_version = tp->supports_gmii ?
-				  RTL_GIGA_MAC_VER_46 :
-				  RTL_GIGA_MAC_VER_48;
+		dev_err(tp_to_dev(tp), "unknown chip XID %03x\n", reg & 0xfcf);
+	} else if (!tp->supports_gmii) {
+		if (tp->mac_version == RTL_GIGA_MAC_VER_42)
+			tp->mac_version = RTL_GIGA_MAC_VER_43;
+		else if (tp->mac_version == RTL_GIGA_MAC_VER_45)
+			tp->mac_version = RTL_GIGA_MAC_VER_47;
+		else if (tp->mac_version == RTL_GIGA_MAC_VER_46)
+			tp->mac_version = RTL_GIGA_MAC_VER_48;
 	}
 }
 
@@ -5840,6 +5825,16 @@ static void rtl8169_tx_timeout(struct net_device *dev)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
+static __le32 rtl8169_get_txd_opts1(u32 opts0, u32 len, unsigned int entry)
+{
+	u32 status = opts0 | len;
+
+	if (entry == NUM_TX_DESC - 1)
+		status |= RingEnd;
+
+	return cpu_to_le32(status);
+}
+
 static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 			      u32 *opts)
 {
@@ -5852,7 +5847,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 	for (cur_frag = 0; cur_frag < info->nr_frags; cur_frag++) {
 		const skb_frag_t *frag = info->frags + cur_frag;
 		dma_addr_t mapping;
-		u32 status, len;
+		u32 len;
 		void *addr;
 
 		entry = (entry + 1) % NUM_TX_DESC;
@@ -5868,11 +5863,7 @@ static int rtl8169_xmit_frags(struct rtl8169_private *tp, struct sk_buff *skb,
 			goto err_out;
 		}
 
-		status = opts[0] | len;
-		if (entry == NUM_TX_DESC - 1)
-			status |= RingEnd;
-
-		txd->opts1 = cpu_to_le32(status);
+		txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
 		txd->opts2 = cpu_to_le32(opts[1]);
 		txd->addr = cpu_to_le64(mapping);
 
@@ -6060,6 +6051,15 @@ static bool rtl8169_tso_csum_v2(struct rtl8169_private *tp,
 	return true;
 }
 
+static bool rtl_tx_slots_avail(struct rtl8169_private *tp,
+			       unsigned int nr_frags)
+{
+	unsigned int slots_avail = tp->dirty_tx + NUM_TX_DESC - tp->cur_tx;
+
+	/* A skbuff with nr_frags needs nr_frags+1 entries in the tx queue */
+	return slots_avail > nr_frags;
+}
+
 static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 				      struct net_device *dev)
 {
@@ -6068,11 +6068,10 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	struct TxDesc *txd = tp->TxDescArray + entry;
 	struct device *d = tp_to_dev(tp);
 	dma_addr_t mapping;
-	u32 status, len;
-	u32 opts[2];
+	u32 opts[2], len;
 	int frags;
 
-	if (unlikely(!TX_FRAGS_READY_FOR(tp, skb_shinfo(skb)->nr_frags))) {
+	if (unlikely(!rtl_tx_slots_avail(tp, skb_shinfo(skb)->nr_frags))) {
 		netif_err(tp, drv, dev, "BUG! Tx Ring full when queue awake!\n");
 		goto err_stop_0;
 	}
@@ -6118,9 +6117,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	/* Force memory writes to complete before releasing descriptor */
 	dma_wmb();
 
-	/* Anti gcc 2.95.3 bugware (sic) */
-	status = opts[0] | len | (RingEnd * !((entry + 1) % NUM_TX_DESC));
-	txd->opts1 = cpu_to_le32(status);
+	txd->opts1 = rtl8169_get_txd_opts1(opts[0], len, entry);
 
 	/* Force all memory writes to complete before notifying device */
 	wmb();
@@ -6131,7 +6128,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	mmiowb();
 
-	if (!TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS)) {
+	if (!rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
 		/* Avoid wrongly optimistic queue wake-up: rtl_tx thread must
 		 * not miss a ring update when it notices a stopped queue.
 		 */
@@ -6145,7 +6142,7 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 		 * can't.
 		 */
 		smp_mb();
-		if (TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS))
+		if (rtl_tx_slots_avail(tp, MAX_SKB_FRAGS))
 			netif_wake_queue(dev);
 	}
 
@@ -6209,7 +6206,8 @@ static void rtl8169_pcierr_interrupt(struct net_device *dev)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_RESET_PENDING);
 }
 
-static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
+static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp,
+		   int budget)
 {
 	unsigned int dirty_tx, tx_left, bytes_compl = 0, pkts_compl = 0;
 
@@ -6237,7 +6235,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
 		if (status & LastFrag) {
 			pkts_compl++;
 			bytes_compl += tx_skb->skb->len;
-			dev_consume_skb_any(tx_skb->skb);
+			napi_consume_skb(tx_skb->skb, budget);
 			tx_skb->skb = NULL;
 		}
 		dirty_tx++;
@@ -6262,7 +6260,7 @@ static void rtl_tx(struct net_device *dev, struct rtl8169_private *tp)
 		 */
 		smp_mb();
 		if (netif_queue_stopped(dev) &&
-		    TX_FRAGS_READY_FOR(tp, MAX_SKB_FRAGS)) {
+		    rtl_tx_slots_avail(tp, MAX_SKB_FRAGS)) {
 			netif_wake_queue(dev);
 		}
 		/*
@@ -6480,7 +6478,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 
 	work_done = rtl_rx(dev, tp, (u32) budget);
 
-	rtl_tx(dev, tp);
+	rtl_tx(dev, tp, budget);
 
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
@@ -6973,27 +6971,23 @@ static const struct rtl_cfg_info {
 	u16 irq_mask;
 	unsigned int has_gmii:1;
 	const struct rtl_coalesce_info *coalesce_info;
-	u8 default_ver;
 } rtl_cfg_infos [] = {
 	[RTL_CFG_0] = {
 		.hw_start	= rtl_hw_start_8169,
 		.irq_mask	= SYSErr | LinkChg | RxOverflow | RxFIFOOver,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8169,
-		.default_ver	= RTL_GIGA_MAC_VER_01,
 	},
 	[RTL_CFG_1] = {
 		.hw_start	= rtl_hw_start_8168,
 		.irq_mask	= LinkChg | RxOverflow,
 		.has_gmii	= 1,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
-		.default_ver	= RTL_GIGA_MAC_VER_11,
 	},
 	[RTL_CFG_2] = {
 		.hw_start	= rtl_hw_start_8101,
 		.irq_mask	= LinkChg | RxOverflow | RxFIFOOver,
 		.coalesce_info	= rtl_coalesce_info_8168_8136,
-		.default_ver	= RTL_GIGA_MAC_VER_13,
 	}
 };
 
@@ -7256,7 +7250,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->mmio_addr = pcim_iomap_table(pdev)[region];
 
 	/* Identify chip attached to board */
-	rtl8169_get_mac_version(tp, cfg->default_ver);
+	rtl8169_get_mac_version(tp);
+	if (tp->mac_version == RTL_GIGA_MAC_NONE)
+		return -ENODEV;
 
 	if (rtl_tbi_enabled(tp)) {
 		dev_err(&pdev->dev, "TBI fiber mode not supported\n");
