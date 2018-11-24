@@ -328,6 +328,7 @@ enum net_bridge_opts {
 	BROPT_NEIGH_SUPPRESS_ENABLED,
 	BROPT_MTU_SET_BY_USER,
 	BROPT_VLAN_STATS_PER_PORT,
+	BROPT_NO_LL_LEARN,
 };
 
 struct net_bridge {

@@ -294,10 +294,13 @@ struct br_mcast_stats {
 };
 
 /* bridge boolean options
+ * BR_BOOLOPT_NO_LL_LEARN - disable learning from link-local packets
+ *
  * IMPORTANT: if adding a new option do not forget to handle
  *            it in br_boolopt_toggle/get and bridge sysfs
  */
 enum br_boolopt_id {
+	BR_BOOLOPT_NO_LL_LEARN,
 	BR_BOOLOPT_MAX
 };
 

@@ -189,6 +189,9 @@ int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
 		      struct netlink_ext_ack *extack)
 {
 	switch (opt) {
+	case BR_BOOLOPT_NO_LL_LEARN:
+		br_opt_toggle(br, BROPT_NO_LL_LEARN, on);
+		break;
 	default:
 		/* shouldn't be called with unsupported options */
 		WARN_ON(1);
@@ -201,6 +204,8 @@ int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
 int br_boolopt_get(const struct net_bridge *br, enum br_boolopt_id opt)
 {
 	switch (opt) {
+	case BR_BOOLOPT_NO_LL_LEARN:
+		return br_opt_get(br, BROPT_NO_LL_LEARN);
 	default:
 		/* shouldn't be called with unsupported options */
 		WARN_ON(1);

@@ -328,6 +328,27 @@ static ssize_t flush_store(struct device *d,
 }
 static DEVICE_ATTR_WO(flush);
 
+static ssize_t no_linklocal_learn_show(struct device *d,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br_boolopt_get(br, BR_BOOLOPT_NO_LL_LEARN));
+}
+
+static int set_no_linklocal_learn(struct net_bridge *br, unsigned long val)
+{
+	return br_boolopt_toggle(br, BR_BOOLOPT_NO_LL_LEARN, !!val, NULL);
+}
+
+static ssize_t no_linklocal_learn_store(struct device *d,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_no_linklocal_learn);
+}
+static DEVICE_ATTR_RW(no_linklocal_learn);
+
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 static ssize_t multicast_router_show(struct device *d,
 				     struct device_attribute *attr, char *buf)
@@ -841,6 +862,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_gc_timer.attr,
 	&dev_attr_group_addr.attr,
 	&dev_attr_flush.attr,
+	&dev_attr_no_linklocal_learn.attr,
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	&dev_attr_multicast_router.attr,
 	&dev_attr_multicast_snooping.attr,
