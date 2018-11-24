@@ -16,7 +16,6 @@
  */
 
 #include <linux/bitops.h>
-#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
@@ -167,7 +166,6 @@
  * @pcie: pointer to PCIe host info
  * @phy_reg_offset: offset to related phy registers
  * @pcie_rst: pointer to port reset control
- * @pcie_clk: PCIe clock
  * @slot: port slot
  * @enabled: indicates if port is enabled
  */
@@ -177,7 +175,6 @@ struct mt7621_pcie_port {
 	struct mt7621_pcie *pcie;
 	u32 phy_reg_offset;
 	struct reset_control *pcie_rst;
-	struct clk *pcie_clk;
 	u32 slot;
 	bool enabled;
 };
@@ -531,12 +528,6 @@ static int mt7621_pcie_parse_port(struct mt7621_pcie *pcie,
 		return PTR_ERR(port->base);
 
 	snprintf(name, sizeof(name), "pcie%d", slot);
-	port->pcie_clk = devm_clk_get(dev, name);
-	if (IS_ERR(port->pcie_clk)) {
-		dev_err(dev, "failed to get pcie%d clock\n", slot);
-		return PTR_ERR(port->pcie_clk);
-	}
-
 	port->pcie_rst = devm_reset_control_get_exclusive(dev, name);
 	if (PTR_ERR(port->pcie_rst) == -EPROBE_DEFER) {
 		dev_err(dev, "failed to get pcie%d reset control\n", slot);
@@ -597,13 +588,6 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	struct device *dev = pcie->dev;
 	u32 slot = port->slot;
 	u32 val = 0;
-	int err;
-
-	err = clk_prepare_enable(port->pcie_clk);
-	if (err) {
-		dev_err(dev, "failed to enable pcie%d clock\n", slot);
-		return err;
-	}
 
 	mt7621_reset_port(port);
 
