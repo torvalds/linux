@@ -412,6 +412,33 @@ static void mt7621_enable_phy(struct mt7621_pcie_port *port)
 	set_phy_for_ssc(port);
 }
 
+static inline void mt7621_control_assert(struct mt7621_pcie_port *port)
+{
+	u32 chip_rev_id = rt_sysc_r32(MT7621_CHIP_REV_ID);
+
+	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
+		reset_control_assert(port->pcie_rst);
+	else
+		reset_control_deassert(port->pcie_rst);
+}
+
+static inline void mt7621_control_deassert(struct mt7621_pcie_port *port)
+{
+	u32 chip_rev_id = rt_sysc_r32(MT7621_CHIP_REV_ID);
+
+	if ((chip_rev_id & 0xFFFF) == CHIP_REV_MT7621_E2)
+		reset_control_deassert(port->pcie_rst);
+	else
+		reset_control_assert(port->pcie_rst);
+}
+
+static void mt7621_reset_port(struct mt7621_pcie_port *port)
+{
+	mt7621_control_assert(port);
+	msleep(100);
+	mt7621_control_deassert(port);
+}
+
 static void setup_cm_memory_region(struct mt7621_pcie *pcie)
 {
 	struct resource *mem_resource = &pcie->mem;
@@ -578,12 +605,14 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 		return err;
 	}
 
-	reset_control_assert(port->pcie_rst);
-	reset_control_deassert(port->pcie_rst);
+	mt7621_reset_port(port);
+
+	val = read_config(pcie, slot, PCIE_FTS_NUM);
+	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 
 	if ((pcie_port_read(port, RALINK_PCI_STATUS) & PCIE_PORT_LINKUP) == 0) {
 		dev_err(dev, "pcie%d no card, disable it (RST & CLK)\n", slot);
-		reset_control_assert(port->pcie_rst);
+		mt7621_control_assert(port);
 		rt_sysc_m32(PCIE_PORT_CLK_EN(slot), 0, RALINK_CLKCFG1);
 		port->enabled = false;
 	} else {
@@ -591,9 +620,6 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	}
 
 	mt7621_enable_phy(port);
-
-	val = read_config(pcie, slot, PCIE_FTS_NUM);
-	dev_info(dev, "Port %d N_FTS = %x\n", (unsigned int)val, slot);
 
 	return 0;
 }
