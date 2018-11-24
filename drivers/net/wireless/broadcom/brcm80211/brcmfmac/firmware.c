@@ -708,8 +708,9 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 	struct brcmf_fw_request *fwreq;
 	char chipname[12];
 	const char *mp_path;
+	size_t mp_path_len;
 	u32 i, j;
-	char end;
+	char end = '\0';
 	size_t reqsz;
 
 	for (i = 0; i < table_size; i++) {
@@ -734,7 +735,10 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 		   mapping_table[i].fw_base, chipname);
 
 	mp_path = brcmf_mp_global.firmware_path;
-	end = mp_path[strlen(mp_path) - 1];
+	mp_path_len = strnlen(mp_path, BRCMF_FW_ALTPATH_LEN);
+	if (mp_path_len)
+		end = mp_path[mp_path_len - 1];
+
 	fwreq->n_items = n_fwnames;
 
 	for (j = 0; j < n_fwnames; j++) {
