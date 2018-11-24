@@ -521,6 +521,8 @@ zcal_done:
 	ldr	r1, [r5, #0x0]		@ restore EMC_CFG
 	str	r1, [r0, #EMC_CFG]
 
+	emc_timing_update r1, r0
+
 	/* Tegra114 had dual EMC channel, now config the other one */
 	cmp	r10, #TEGRA114
 	bne	__no_dual_emc_chanl
