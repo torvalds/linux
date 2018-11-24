@@ -647,6 +647,12 @@ struct hns_roce_aeqe {
 		} qp_event;
 
 		struct {
+			__le32 srq;
+			u32 rsv0;
+			u32 rsv1;
+		} srq_event;
+
+		struct {
 			__le32 cq;
 			u32 rsv0;
 			u32 rsv1;
@@ -1135,6 +1141,7 @@ void hns_roce_free_db(struct hns_roce_dev *hr_dev, struct hns_roce_db *db);
 void hns_roce_cq_completion(struct hns_roce_dev *hr_dev, u32 cqn);
 void hns_roce_cq_event(struct hns_roce_dev *hr_dev, u32 cqn, int event_type);
 void hns_roce_qp_event(struct hns_roce_dev *hr_dev, u32 qpn, int event_type);
+void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type);
 int hns_get_gid_index(struct hns_roce_dev *hr_dev, u8 port, int gid_index);
 int hns_roce_init(struct hns_roce_dev *hr_dev);
 void hns_roce_exit(struct hns_roce_dev *hr_dev);

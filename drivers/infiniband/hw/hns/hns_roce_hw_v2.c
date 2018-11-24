@@ -4459,6 +4459,7 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 	int aeqe_found = 0;
 	int event_type;
 	int sub_type;
+	u32 srqn;
 	u32 qpn;
 	u32 cqn;
 
@@ -4481,6 +4482,9 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		cqn = roce_get_field(aeqe->event.cq_event.cq,
 				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
 				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
+		srqn = roce_get_field(aeqe->event.srq_event.srq,
+				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_M,
+				     HNS_ROCE_V2_AEQE_EVENT_QUEUE_NUM_S);
 
 		switch (event_type) {
 		case HNS_ROCE_EVENT_TYPE_PATH_MIG:
@@ -4488,13 +4492,14 @@ static int hns_roce_v2_aeq_int(struct hns_roce_dev *hr_dev,
 		case HNS_ROCE_EVENT_TYPE_COMM_EST:
 		case HNS_ROCE_EVENT_TYPE_SQ_DRAINED:
 		case HNS_ROCE_EVENT_TYPE_WQ_CATAS_ERROR:
+		case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
 		case HNS_ROCE_EVENT_TYPE_INV_REQ_LOCAL_WQ_ERROR:
 		case HNS_ROCE_EVENT_TYPE_LOCAL_WQ_ACCESS_ERROR:
 			hns_roce_qp_event(hr_dev, qpn, event_type);
 			break;
 		case HNS_ROCE_EVENT_TYPE_SRQ_LIMIT_REACH:
-		case HNS_ROCE_EVENT_TYPE_SRQ_LAST_WQE_REACH:
 		case HNS_ROCE_EVENT_TYPE_SRQ_CATAS_ERROR:
+			hns_roce_srq_event(hr_dev, srqn, event_type);
 			break;
 		case HNS_ROCE_EVENT_TYPE_CQ_ACCESS_ERROR:
 		case HNS_ROCE_EVENT_TYPE_CQ_OVERFLOW:

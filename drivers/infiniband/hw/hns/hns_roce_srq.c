@@ -9,6 +9,29 @@
 #include "hns_roce_cmd.h"
 #include "hns_roce_hem.h"
 
+void hns_roce_srq_event(struct hns_roce_dev *hr_dev, u32 srqn, int event_type)
+{
+	struct hns_roce_srq_table *srq_table = &hr_dev->srq_table;
+	struct hns_roce_srq *srq;
+
+	xa_lock(&srq_table->xa);
+	srq = xa_load(&srq_table->xa, srqn & (hr_dev->caps.num_srqs - 1));
+	if (srq)
+		atomic_inc(&srq->refcount);
+	xa_unlock(&srq_table->xa);
+
+	if (!srq) {
+		dev_warn(hr_dev->dev, "Async event for bogus SRQ %08x\n", srqn);
+		return;
+	}
+
+	srq->event(srq, event_type);
+
+	if (atomic_dec_and_test(&srq->refcount))
+		complete(&srq->free);
+}
+EXPORT_SYMBOL_GPL(hns_roce_srq_event);
+
 static void hns_roce_ib_srq_event(struct hns_roce_srq *srq,
 				  enum hns_roce_event event_type)
 {
