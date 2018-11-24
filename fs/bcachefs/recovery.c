@@ -305,6 +305,9 @@ int bch2_fs_initialize(struct bch_fs *c)
 
 	set_bit(BCH_FS_ALLOC_READ_DONE, &c->flags);
 
+	for (i = 0; i < BTREE_ID_NR; i++)
+		bch2_btree_root_alloc(c, i);
+
 	ret = bch2_initial_gc(c, &journal);
 	if (ret)
 		goto err;
@@ -315,9 +318,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 			percpu_ref_put(&ca->io_ref);
 			goto err;
 		}
-
-	for (i = 0; i < BTREE_ID_NR; i++)
-		bch2_btree_root_alloc(c, i);
 
 	/*
 	 * journal_res_get() will crash if called before this has

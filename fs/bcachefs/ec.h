@@ -93,13 +93,15 @@ void bch2_ec_stripe_head_put(struct ec_stripe_head *);
 struct ec_stripe_head *bch2_ec_stripe_head_get(struct bch_fs *, unsigned,
 					       unsigned, unsigned);
 
-void bch2_stripes_heap_update(struct bch_fs *, struct ec_stripe *, size_t);
-void bch2_stripes_heap_del(struct bch_fs *, struct ec_stripe *, size_t);
-void bch2_stripes_heap_insert(struct bch_fs *, struct ec_stripe *, size_t);
+void bch2_stripes_heap_update(struct bch_fs *, struct stripe *, size_t);
+void bch2_stripes_heap_del(struct bch_fs *, struct stripe *, size_t);
+void bch2_stripes_heap_insert(struct bch_fs *, struct stripe *, size_t);
 
 void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 
 void bch2_ec_flush_new_stripes(struct bch_fs *);
+
+int bch2_ec_mem_alloc(struct bch_fs *, bool);
 
 int bch2_fs_ec_start(struct bch_fs *);
 

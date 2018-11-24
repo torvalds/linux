@@ -208,8 +208,8 @@ static unsigned bch2_extent_ptr_durability(struct bch_fs *c,
 		durability = max_t(unsigned, durability, ca->mi.durability);
 
 	for (i = 0; i < p.ec_nr; i++) {
-		struct ec_stripe *s =
-			genradix_ptr(&c->ec_stripes, p.idx);
+		struct stripe *s =
+			genradix_ptr(&c->stripes[0], p.idx);
 
 		if (WARN_ON(!s))
 			continue;

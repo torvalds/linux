@@ -700,21 +700,18 @@ static int bch2_get_next_quota(struct super_block *sb, struct kqid *kqid,
 	struct bch_fs *c		= sb->s_fs_info;
 	struct bch_memquota_type *q	= &c->quotas[kqid->type];
 	qid_t qid			= from_kqid(&init_user_ns, *kqid);
-	struct genradix_iter iter	= genradix_iter_init(&q->table, qid);
+	struct genradix_iter iter;
 	struct bch_memquota *mq;
 	int ret = 0;
 
 	mutex_lock(&q->lock);
 
-	while ((mq = genradix_iter_peek(&iter, &q->table))) {
+	genradix_for_each_from(&q->table, iter, mq, qid)
 		if (memcmp(mq, page_address(ZERO_PAGE(0)), sizeof(*mq))) {
 			__bch2_quota_get(qdq, mq);
 			*kqid = make_kqid(current_user_ns(), kqid->type, iter.pos);
 			goto found;
 		}
-
-		genradix_iter_advance(&iter, &q->table);
-	}
 
 	ret = -ENOENT;
 found:

@@ -6,7 +6,7 @@
 
 #define EC_STRIPE_MAX	16
 
-struct ec_stripe {
+struct stripe {
 	size_t			heap_idx;
 
 	u16			sectors;
@@ -16,7 +16,6 @@ struct ec_stripe {
 	u8			nr_redundant;
 
 	u8			alive;
-	atomic_t		pin;
 	atomic_t		blocks_nonempty;
 	atomic_t		block_sectors[EC_STRIPE_MAX];
 };

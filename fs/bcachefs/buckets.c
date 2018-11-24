@@ -303,7 +303,7 @@ static inline int is_fragmented_bucket(struct bucket_mark m,
 static inline enum bch_data_type bucket_type(struct bucket_mark m)
 {
 	return m.cached_sectors && !m.dirty_sectors
-		?  BCH_DATA_CACHED
+		? BCH_DATA_CACHED
 		: m.data_type;
 }
 
@@ -375,14 +375,14 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	preempt_disable();
 	dev_usage = this_cpu_ptr(ca->usage[gc]);
 
-	if (bucket_type(old) != bucket_type(new)) {
-		if (bucket_type(old)) {
-			fs_usage->buckets[bucket_type(old)] -= ca->mi.bucket_size;
-			dev_usage->buckets[bucket_type(old)]--;
-		} else {
-			fs_usage->buckets[bucket_type(new)] += ca->mi.bucket_size;
-			dev_usage->buckets[bucket_type(new)]++;
-		}
+	if (bucket_type(old)) {
+		fs_usage->buckets[bucket_type(old)] -= ca->mi.bucket_size;
+		dev_usage->buckets[bucket_type(old)]--;
+	}
+
+	if (bucket_type(new)) {
+		fs_usage->buckets[bucket_type(new)] += ca->mi.bucket_size;
+		dev_usage->buckets[bucket_type(new)]++;
 	}
 
 	dev_usage->buckets_alloc +=
@@ -406,11 +406,11 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	bch2_dev_stats_verify(ca);
 }
 
-#define bucket_data_cmpxchg(c, ca, stats, g, new, expr)		\
+#define bucket_data_cmpxchg(c, ca, fs_usage, g, new, expr)		\
 ({								\
 	struct bucket_mark _old = bucket_cmpxchg(g, new, expr);	\
 								\
-	bch2_dev_usage_update(c, ca, stats, _old, new, gc);	\
+	bch2_dev_usage_update(c, ca, fs_usage, _old, new, gc);	\
 	_old;							\
 })
 
@@ -638,23 +638,25 @@ static void bch2_mark_pointer(struct bch_fs *c,
 	BUG_ON(!gc && bucket_became_unavailable(old, new));
 }
 
-static void bch2_mark_stripe_ptr(struct bch_fs *c,
-				 struct bch_extent_stripe_ptr p,
-				 s64 sectors, unsigned flags,
-				 s64 *adjusted_disk_sectors,
-				 unsigned *redundancy)
+static int bch2_mark_stripe_ptr(struct bch_fs *c,
+				struct bch_extent_stripe_ptr p,
+				s64 sectors, unsigned flags,
+				s64 *adjusted_disk_sectors,
+				unsigned *redundancy,
+				bool gc)
 {
-	struct ec_stripe *m;
+	struct stripe *m;
 	unsigned old, new, nr_data;
 	int blocks_nonempty_delta;
 	s64 parity_sectors;
 
-	m = genradix_ptr(&c->ec_stripes, p.idx);
-	if (WARN_ON(!m))
-		return;
+	m = genradix_ptr(&c->stripes[gc], p.idx);
 
-	if (WARN_ON(!m->alive))
-		return;
+	if (!m || !m->alive) {
+		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
+				    (u64) p.idx);
+		return -1;
+	}
 
 	nr_data = m->nr_blocks - m->nr_redundant;
 
@@ -672,20 +674,23 @@ static void bch2_mark_stripe_ptr(struct bch_fs *c,
 
 	blocks_nonempty_delta = (int) !!new - (int) !!old;
 	if (!blocks_nonempty_delta)
-		return;
+		return 0;
 
 	atomic_add(blocks_nonempty_delta, &m->blocks_nonempty);
 
 	BUG_ON(atomic_read(&m->blocks_nonempty) < 0);
 
-	bch2_stripes_heap_update(c, m, p.idx);
+	if (!gc)
+		bch2_stripes_heap_update(c, m, p.idx);
+
+	return 0;
 }
 
-static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
-			     s64 sectors, enum bch_data_type data_type,
-			     struct bch_fs_usage *stats,
-			     u64 journal_seq, unsigned flags,
-			     bool gc)
+static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
+			    s64 sectors, enum bch_data_type data_type,
+			    struct bch_fs_usage *stats,
+			    u64 journal_seq, unsigned flags,
+			    bool gc)
 {
 	BUG_ON(!sectors);
 
@@ -701,6 +706,7 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		unsigned replicas	= 0;
 		unsigned ec_redundancy	= 0;
 		unsigned i;
+		int ret;
 
 		extent_for_each_ptr_decode(e, p, entry) {
 			s64 disk_sectors = ptr_disk_sectors(e, p, sectors);
@@ -710,11 +716,14 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 					  stats, journal_seq, flags, gc);
 
 			if (!p.ptr.cached)
-				for (i = 0; i < p.ec_nr; i++)
-					bch2_mark_stripe_ptr(c, p.ec[i],
+				for (i = 0; i < p.ec_nr; i++) {
+					ret = bch2_mark_stripe_ptr(c, p.ec[i],
 							disk_sectors, flags,
 							&adjusted_disk_sectors,
-							&ec_redundancy);
+							&ec_redundancy, gc);
+					if (ret)
+						return ret;
+				}
 			if (!p.ptr.cached)
 				replicas++;
 
@@ -747,6 +756,8 @@ static void bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 		break;
 	}
 	}
+
+	return 0;
 }
 
 static void bucket_set_stripe(struct bch_fs *c,
@@ -767,7 +778,7 @@ static void bucket_set_stripe(struct bch_fs *c,
 
 		BUG_ON(ptr_stale(ca, ptr));
 
-		old = bucket_cmpxchg(g, new, ({
+		old = bucket_data_cmpxchg(c, ca, fs_usage, g, new, ({
 			new.stripe			= enabled;
 			if (journal_seq) {
 				new.journal_seq_valid	= 1;
@@ -776,26 +787,33 @@ static void bucket_set_stripe(struct bch_fs *c,
 		}));
 
 		BUG_ON(old.stripe == enabled);
-
-		bch2_dev_usage_update(c, ca, fs_usage, old, new, gc);
 	}
 }
 
-static void bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
-			     bool inserting,
-			     struct bch_fs_usage *fs_usage,
-			     u64 journal_seq, unsigned flags,
-			     bool gc)
+static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
+			    bool inserting,
+			    struct bch_fs_usage *fs_usage,
+			    u64 journal_seq, unsigned flags,
+			    bool gc)
 {
 	switch (k.k->type) {
 	case BCH_STRIPE: {
 		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
 		size_t idx = s.k->p.offset;
-		struct ec_stripe *m = genradix_ptr(&c->ec_stripes, idx);
+		struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
 		unsigned i;
 
-		BUG_ON(!m);
-		BUG_ON(m->alive == inserting);
+		if (!m || (!inserting && !m->alive)) {
+			bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
+					    idx);
+			return -1;
+		}
+
+		if (inserting && m->alive) {
+			bch_err_ratelimited(c, "error marking stripe %zu: already exists",
+					    idx);
+			return -1;
+		}
 
 		BUG_ON(atomic_read(&m->blocks_nonempty));
 
@@ -809,70 +827,88 @@ static void bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 			m->nr_redundant	= s.v->nr_redundant;
 		}
 
-		if (inserting)
-			bch2_stripes_heap_insert(c, m, idx);
-		else
-			bch2_stripes_heap_del(c, m, idx);
+		if (!gc) {
+			if (inserting)
+				bch2_stripes_heap_insert(c, m, idx);
+			else
+				bch2_stripes_heap_del(c, m, idx);
+		} else {
+			m->alive = inserting;
+		}
 
 		bucket_set_stripe(c, s.v, inserting, fs_usage, 0, gc);
 		break;
 	}
 	}
+
+	return 0;
 }
 
-static void __bch2_mark_key(struct bch_fs *c,
-			    enum bkey_type type, struct bkey_s_c k,
-			    bool inserting, s64 sectors,
-			    struct bch_fs_usage *stats,
-			    u64 journal_seq, unsigned flags,
-			    bool gc)
+static int __bch2_mark_key(struct bch_fs *c,
+			   enum bkey_type type, struct bkey_s_c k,
+			   bool inserting, s64 sectors,
+			   struct bch_fs_usage *stats,
+			   u64 journal_seq, unsigned flags,
+			   bool gc)
 {
+	int ret = 0;
+
 	switch (type) {
 	case BKEY_TYPE_BTREE:
-		bch2_mark_extent(c, k, inserting
-				 ?  c->opts.btree_node_size
-				 : -c->opts.btree_node_size,
-				 BCH_DATA_BTREE,
-				 stats, journal_seq, flags, gc);
+		ret = bch2_mark_extent(c, k, inserting
+				       ?  c->opts.btree_node_size
+				       : -c->opts.btree_node_size,
+				       BCH_DATA_BTREE,
+				       stats, journal_seq, flags, gc);
 		break;
 	case BKEY_TYPE_EXTENTS:
-		bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
-				 stats, journal_seq, flags, gc);
+		ret = bch2_mark_extent(c, k, sectors, BCH_DATA_USER,
+				       stats, journal_seq, flags, gc);
 		break;
 	case BKEY_TYPE_EC:
-		bch2_mark_stripe(c, k, inserting,
-				 stats, journal_seq, flags, gc);
+		ret = bch2_mark_stripe(c, k, inserting,
+				       stats, journal_seq, flags, gc);
 		break;
 	default:
 		break;
 	}
+
+	return ret;
 }
 
-void bch2_mark_key(struct bch_fs *c,
-		   enum bkey_type type, struct bkey_s_c k,
-		   bool inserting, s64 sectors,
-		   struct gc_pos pos,
-		   struct bch_fs_usage *stats,
-		   u64 journal_seq, unsigned flags)
+int bch2_mark_key(struct bch_fs *c,
+		  enum bkey_type type, struct bkey_s_c k,
+		  bool inserting, s64 sectors,
+		  struct gc_pos pos,
+		  struct bch_fs_usage *stats,
+		  u64 journal_seq, unsigned flags)
 {
+	int ret = 0;
+
 	percpu_down_read(&c->usage_lock);
 
 	if (!(flags & BCH_BUCKET_MARK_GC)) {
 		if (!stats)
 			stats = this_cpu_ptr(c->usage[0]);
 
-		__bch2_mark_key(c, type, k, inserting, sectors,
-				stats, journal_seq, flags, false);
+		ret = __bch2_mark_key(c, type, k, inserting, sectors,
+				      stats, journal_seq, flags, false);
+		if (ret)
+			goto out;
 	}
 
 	if ((flags & BCH_BUCKET_MARK_GC) ||
 	    gc_visited(c, pos)) {
-		__bch2_mark_key(c, type, k, inserting, sectors,
-				this_cpu_ptr(c->usage[1]),
-				journal_seq, flags, true);
+		ret = __bch2_mark_key(c, type, k, inserting, sectors,
+				      this_cpu_ptr(c->usage[1]),
+				      journal_seq, flags, true);
+		if (ret)
+			goto out;
 	}
-
+out:
 	percpu_up_read(&c->usage_lock);
+
+	return ret;
 }
 
 void bch2_mark_update(struct btree_insert *trans,

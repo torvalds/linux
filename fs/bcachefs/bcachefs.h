@@ -225,6 +225,8 @@
 	printk(KERN_WARNING bch2_fmt(c, fmt), ##__VA_ARGS__)
 #define bch_err(c, fmt, ...) \
 	printk(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
+#define bch_err_ratelimited(c, fmt, ...) \
+	printk_ratelimited(KERN_ERR bch2_fmt(c, fmt), ##__VA_ARGS__)
 
 #define bch_verbose(c, fmt, ...)					\
 do {									\
@@ -334,6 +336,7 @@ enum bch_time_stats {
 struct btree;
 
 enum gc_phase {
+	GC_PHASE_NOT_RUNNING,
 	GC_PHASE_START,
 	GC_PHASE_SB,
 
@@ -687,15 +690,16 @@ struct bch_fs {
 	/* REBALANCE */
 	struct bch_fs_rebalance	rebalance;
 
-	/* ERASURE CODING */
-	struct list_head	ec_new_stripe_list;
-	struct mutex		ec_new_stripe_lock;
-
-	GENRADIX(struct ec_stripe) ec_stripes;
-	struct mutex		ec_stripes_lock;
+	/* STRIPES: */
+	GENRADIX(struct stripe) stripes[2];
+	struct mutex		ec_stripe_create_lock;
 
 	ec_stripes_heap		ec_stripes_heap;
 	spinlock_t		ec_stripes_heap_lock;
+
+	/* ERASURE CODING */
+	struct list_head	ec_new_stripe_list;
+	struct mutex		ec_new_stripe_lock;
 
 	struct bio_set		ec_bioset;
 

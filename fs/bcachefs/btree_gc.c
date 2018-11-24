@@ -332,9 +332,6 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
 
-	if (!c->btree_roots[btree_id].b)
-		return 0;
-
 	/*
 	 * if expensive_debug_checks is on, run range_checks on all leaf nodes:
 	 *
@@ -582,6 +579,8 @@ static void bch2_gc_free(struct bch_fs *c)
 	struct bch_dev *ca;
 	unsigned i;
 
+	genradix_free(&c->stripes[1]);
+
 	for_each_member_device(ca, c, i) {
 		kvpfree(rcu_dereference_protected(ca->buckets[1], 1),
 			sizeof(struct bucket_array) +
@@ -601,6 +600,25 @@ static void bch2_gc_done_nocheck(struct bch_fs *c)
 	struct bch_dev *ca;
 	unsigned i;
 	int cpu;
+
+	{
+		struct genradix_iter dst_iter = genradix_iter_init(&c->stripes[0], 0);
+		struct genradix_iter src_iter = genradix_iter_init(&c->stripes[1], 0);
+		struct stripe *dst, *src;
+
+		c->ec_stripes_heap.used = 0;
+
+		while ((dst = genradix_iter_peek(&dst_iter, &c->stripes[0])) &&
+		       (src = genradix_iter_peek(&src_iter, &c->stripes[1]))) {
+			*dst = *src;
+
+			if (dst->alive)
+				bch2_stripes_heap_insert(c, dst, dst_iter.pos);
+
+			genradix_iter_advance(&dst_iter, &c->stripes[0]);
+			genradix_iter_advance(&src_iter, &c->stripes[1]);
+		}
+	}
 
 	for_each_member_device(ca, c, i) {
 		struct bucket_array *src = __bucket_array(ca, 1);
@@ -649,13 +667,21 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 
 #define copy_field(_f, _msg, ...)					\
 	if (dst._f != src._f) {						\
-		pr_info(_msg ": got %llu, should be %llu, fixing"	\
+		bch_err(c, _msg ": got %llu, should be %llu, fixing"\
 			, ##__VA_ARGS__, dst._f, src._f);		\
 		dst._f = src._f;					\
 	}
+#define copy_stripe_field(_f, _msg, ...)				\
+	if (dst->_f != src->_f) {					\
+		bch_err_ratelimited(c, "stripe %zu has wrong "_msg	\
+			": got %u, should be %u, fixing",		\
+			dst_iter.pos, ##__VA_ARGS__,			\
+			dst->_f, src->_f);				\
+		dst->_f = src->_f;					\
+	}
 #define copy_bucket_field(_f)						\
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
-		pr_info("dev %u bucket %zu has wrong " #_f		\
+		bch_err_ratelimited(c, "dev %u bucket %zu has wrong " #_f\
 			": got %u, should be %u, fixing",		\
 			i, b, dst->b[b].mark._f, src->b[b].mark._f);	\
 		dst->b[b]._mark._f = src->b[b].mark._f;			\
@@ -670,6 +696,36 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 	if (initial) {
 		bch2_gc_done_nocheck(c);
 		goto out;
+	}
+
+	{
+		struct genradix_iter dst_iter = genradix_iter_init(&c->stripes[0], 0);
+		struct genradix_iter src_iter = genradix_iter_init(&c->stripes[1], 0);
+		struct stripe *dst, *src;
+		unsigned i;
+
+		c->ec_stripes_heap.used = 0;
+
+		while ((dst = genradix_iter_peek(&dst_iter, &c->stripes[0])) &&
+		       (src = genradix_iter_peek(&src_iter, &c->stripes[1]))) {
+			copy_stripe_field(alive,	"alive");
+			copy_stripe_field(sectors,	"sectors");
+			copy_stripe_field(algorithm,	"algorithm");
+			copy_stripe_field(nr_blocks,	"nr_blocks");
+			copy_stripe_field(nr_redundant,	"nr_redundant");
+			copy_stripe_field(blocks_nonempty.counter,
+					  "blocks_nonempty");
+
+			for (i = 0; i < ARRAY_SIZE(dst->block_sectors); i++)
+				copy_stripe_field(block_sectors[i].counter,
+						  "block_sectors[%u]", i);
+
+			if (dst->alive)
+				bch2_stripes_heap_insert(c, dst, dst_iter.pos);
+
+			genradix_iter_advance(&dst_iter, &c->stripes[0]);
+			genradix_iter_advance(&src_iter, &c->stripes[1]);
+		}
 	}
 
 	for_each_member_device(ca, c, i) {
@@ -756,16 +812,23 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 out:
 	percpu_up_write(&c->usage_lock);
 
-#undef copy_field
 #undef copy_fs_field
 #undef copy_dev_field
 #undef copy_bucket_field
+#undef copy_stripe_field
+#undef copy_field
 }
 
 static int bch2_gc_start(struct bch_fs *c)
 {
 	struct bch_dev *ca;
 	unsigned i;
+
+	/*
+	 * indicate to stripe code that we need to allocate for the gc stripes
+	 * radix tree, too
+	 */
+	gc_pos_set(c, gc_phase(GC_PHASE_START));
 
 	BUG_ON(c->usage[1]);
 
@@ -808,7 +871,7 @@ static int bch2_gc_start(struct bch_fs *c)
 
 	percpu_up_write(&c->usage_lock);
 
-	return 0;
+	return bch2_ec_mem_alloc(c, true);
 }
 
 /**
@@ -873,7 +936,7 @@ out:
 		bch2_gc_done(c, initial);
 
 	/* Indicates that gc is no longer in progress: */
-	__gc_pos_set(c, gc_phase(GC_PHASE_START));
+	__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
 
 	bch2_gc_free(c);
 	up_write(&c->gc_lock);
