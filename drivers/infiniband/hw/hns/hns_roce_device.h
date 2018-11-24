@@ -196,6 +196,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_RQ_INLINE		= BIT(2),
 	HNS_ROCE_CAP_FLAG_RECORD_DB		= BIT(3),
 	HNS_ROCE_CAP_FLAG_SQ_RECORD_DB		= BIT(4),
+	HNS_ROCE_CAP_FLAG_SRQ			= BIT(5),
 	HNS_ROCE_CAP_FLAG_MW			= BIT(7),
 	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
@@ -680,6 +681,9 @@ struct hns_roce_caps {
 	int		num_qps;	/* 256k */
 	int             reserved_qps;
 	u32		max_wqes;	/* 16k */
+	u32		max_srqs;
+	u32		max_srq_wrs;
+	u32		max_srq_sges;
 	u32		max_sq_desc_sz;	/* 64 */
 	u32		max_rq_desc_sz;	/* 64 */
 	u32		max_srq_desc_sz;
