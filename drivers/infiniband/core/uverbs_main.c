@@ -697,7 +697,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 					  hdr.out_words * 4);
 	} else {
 		struct ib_udata ucore;
-		struct ib_udata uhw;
 
 		buf += sizeof(ex_hdr);
 
@@ -705,13 +704,13 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 					u64_to_user_ptr(ex_hdr.response),
 					hdr.in_words * 8, hdr.out_words * 8);
 
-		ib_uverbs_init_udata_buf_or_null(&uhw,
+		ib_uverbs_init_udata_buf_or_null(&bundle.driver_udata,
 					buf + ucore.inlen,
 					u64_to_user_ptr(ex_hdr.response) + ucore.outlen,
 					ex_hdr.provider_in_words * 8,
 					ex_hdr.provider_out_words * 8);
 
-		ret = method_elm->handler_ex(&bundle, &ucore, &uhw);
+		ret = method_elm->handler_ex(&bundle, &ucore);
 	}
 
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);

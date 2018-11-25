@@ -375,8 +375,7 @@ struct uapi_definition {
 				  const char __user *buf, int in_len,
 				  int out_len);
 		int (*func_write_ex)(struct uverbs_attr_bundle *attrs,
-				     struct ib_udata *ucore,
-				     struct ib_udata *uhw);
+				     struct ib_udata *ucore);
 		const struct uapi_definition *chain;
 		const struct uverbs_object_def *chain_obj_tree;
 		size_t needs_fn_offset;
@@ -643,6 +642,7 @@ struct uverbs_attr {
 };
 
 struct uverbs_attr_bundle {
+	struct ib_udata driver_udata;
 	struct ib_uverbs_file *ufile;
 	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
 	struct uverbs_attr attrs[];

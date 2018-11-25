@@ -15,7 +15,7 @@ static int ib_uverbs_notsupp(struct uverbs_attr_bundle *attrs,
 }
 
 static int ib_uverbs_ex_notsupp(struct uverbs_attr_bundle *attrs,
-				struct ib_udata *ucore, struct ib_udata *uhw)
+				struct ib_udata *ucore)
 {
 	return -EOPNOTSUPP;
 }
