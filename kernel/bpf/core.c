@@ -411,7 +411,8 @@ static void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 
 	/* prog->aux->name will be ignored if full btf name is available */
 	if (prog->aux->btf) {
-		type = btf_type_by_id(prog->aux->btf, prog->aux->type_id);
+		type = btf_type_by_id(prog->aux->btf,
+				      prog->aux->func_info[prog->aux->func_idx].type_id);
 		func_name = btf_name_by_offset(prog->aux->btf, type->name_off);
 		snprintf(sym, (size_t)(end - sym), "_%s", func_name);
 		return;
