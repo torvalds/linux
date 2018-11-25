@@ -2990,28 +2990,6 @@ void skb_append(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head 
 }
 EXPORT_SYMBOL(skb_append);
 
-/**
- *	skb_insert	-	insert a buffer
- *	@old: buffer to insert before
- *	@newsk: buffer to insert
- *	@list: list to use
- *
- *	Place a packet before a given packet in a list. The list locks are
- * 	taken and this function is atomic with respect to other list locked
- *	calls.
- *
- *	A buffer cannot be placed on two lists at the same time.
- */
-void skb_insert(struct sk_buff *old, struct sk_buff *newsk, struct sk_buff_head *list)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&list->lock, flags);
-	__skb_insert(newsk, old->prev, old, list);
-	spin_unlock_irqrestore(&list->lock, flags);
-}
-EXPORT_SYMBOL(skb_insert);
-
 static inline void skb_split_inside_header(struct sk_buff *skb,
 					   struct sk_buff* skb1,
 					   const u32 len, const int pos)
