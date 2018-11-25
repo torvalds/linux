@@ -102,63 +102,6 @@ struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index)
 }
 EXPORT_SYMBOL(pnv_pci_get_npu_dev);
 
-#define NPU_DMA_OP_UNSUPPORTED()					\
-	dev_err_once(dev, "%s operation unsupported for NVLink devices\n", \
-		__func__)
-
-static void *dma_npu_alloc(struct device *dev, size_t size,
-			   dma_addr_t *dma_handle, gfp_t flag,
-			   unsigned long attrs)
-{
-	NPU_DMA_OP_UNSUPPORTED();
-	return NULL;
-}
-
-static void dma_npu_free(struct device *dev, size_t size,
-			 void *vaddr, dma_addr_t dma_handle,
-			 unsigned long attrs)
-{
-	NPU_DMA_OP_UNSUPPORTED();
-}
-
-static dma_addr_t dma_npu_map_page(struct device *dev, struct page *page,
-				   unsigned long offset, size_t size,
-				   enum dma_data_direction direction,
-				   unsigned long attrs)
-{
-	NPU_DMA_OP_UNSUPPORTED();
-	return 0;
-}
-
-static int dma_npu_map_sg(struct device *dev, struct scatterlist *sglist,
-			  int nelems, enum dma_data_direction direction,
-			  unsigned long attrs)
-{
-	NPU_DMA_OP_UNSUPPORTED();
-	return 0;
-}
-
-static int dma_npu_dma_supported(struct device *dev, u64 mask)
-{
-	NPU_DMA_OP_UNSUPPORTED();
-	return 0;
-}
-
-static u64 dma_npu_get_required_mask(struct device *dev)
-{
-	NPU_DMA_OP_UNSUPPORTED();
-	return 0;
-}
-
-static const struct dma_map_ops dma_npu_ops = {
-	.map_page		= dma_npu_map_page,
-	.map_sg			= dma_npu_map_sg,
-	.alloc			= dma_npu_alloc,
-	.free			= dma_npu_free,
-	.dma_supported		= dma_npu_dma_supported,
-	.get_required_mask	= dma_npu_get_required_mask,
-};
-
 /*
  * Returns the PE assoicated with the PCI device of the given
  * NPU. Returns the linked pci device if pci_dev != NULL.
@@ -270,10 +213,11 @@ static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 	rc = pnv_npu_set_window(npe, 0, gpe->table_group.tables[0]);
 
 	/*
-	 * We don't initialise npu_pe->tce32_table as we always use
-	 * dma_npu_ops which are nops.
+	 * NVLink devices use the same TCE table configuration as
+	 * their parent device so drivers shouldn't be doing DMA
+	 * operations directly on these devices.
 	 */
-	set_dma_ops(&npe->pdev->dev, &dma_npu_ops);
+	set_dma_ops(&npe->pdev->dev, NULL);
 }
 
 /*
