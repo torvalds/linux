@@ -15,4 +15,6 @@ static __always_inline bool sched_smt_active(void)
 static inline bool sched_smt_active(void) { return false; }
 #endif
 
+void arch_smt_update(void);
+
 #endif
