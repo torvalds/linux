@@ -468,12 +468,6 @@ enum {
 #undef FM
 };
 
-#define PINMUX_IPSR_MSEL2(ipsr, fn, msel1, msel2) \
-	PINMUX_DATA(fn##_MARK, FN_##msel1, FN_##msel2, FN_##fn, FN_##ipsr)
-
-#define PINMUX_IPSR_PHYS(ipsr, fn, msel) \
-	PINMUX_DATA(fn##_MARK, FN_##msel)
-
 static const u16 pinmux_data[] = {
 	PINMUX_DATA_GP_ALL(),
 
