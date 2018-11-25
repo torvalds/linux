@@ -45,15 +45,15 @@
  */
 #define _uobj_check_id(_id) ((_id) * typecheck(u32, _id))
 
-#define uobj_get_type(_ufile, _object)                                         \
-	uapi_get_object((_ufile)->device->uapi, _object)
+#define uobj_get_type(_attrs, _object)                                         \
+	uapi_get_object((_attrs)->ufile->device->uapi, _object)
 
-#define uobj_get_read(_type, _id, _ufile)                                      \
-	rdma_lookup_get_uobject(uobj_get_type(_ufile, _type), _ufile,          \
+#define uobj_get_read(_type, _id, _attrs)                                      \
+	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
 				_uobj_check_id(_id), UVERBS_LOOKUP_READ)
 
-#define ufd_get_read(_type, _fdnum, _ufile)                                    \
-	rdma_lookup_get_uobject(uobj_get_type(_ufile, _type), _ufile,          \
+#define ufd_get_read(_type, _fdnum, _attrs)                                    \
+	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
 				(_fdnum)*typecheck(s32, _fdnum),               \
 				UVERBS_LOOKUP_READ)
 
@@ -63,26 +63,28 @@ static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 		return NULL;
 	return uobj->object;
 }
-#define uobj_get_obj_read(_object, _type, _id, _ufile)                         \
+#define uobj_get_obj_read(_object, _type, _id, _attrs)                         \
 	((struct ib_##_object *)_uobj_get_obj_read(                            \
-		uobj_get_read(_type, _id, _ufile)))
+		uobj_get_read(_type, _id, _attrs)))
 
-#define uobj_get_write(_type, _id, _ufile)                                     \
-	rdma_lookup_get_uobject(uobj_get_type(_ufile, _type), _ufile,          \
+#define uobj_get_write(_type, _id, _attrs)                                     \
+	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
 				_uobj_check_id(_id), UVERBS_LOOKUP_WRITE)
 
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   struct ib_uverbs_file *ufile, int success_res);
-#define uobj_perform_destroy(_type, _id, _ufile, _success_res)                 \
-	__uobj_perform_destroy(uobj_get_type(_ufile, _type),                   \
-			       _uobj_check_id(_id), _ufile, _success_res)
+			   const struct uverbs_attr_bundle *attrs,
+			   int success_res);
+#define uobj_perform_destroy(_type, _id, _attrs, _success_res)                 \
+	__uobj_perform_destroy(uobj_get_type(_attrs, _type),                   \
+			       _uobj_check_id(_id), _attrs, _success_res)
 
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
-				      u32 id, struct ib_uverbs_file *ufile);
+				      u32 id,
+				      const struct uverbs_attr_bundle *attrs);
 
-#define uobj_get_destroy(_type, _id, _ufile)                                   \
-	__uobj_get_destroy(uobj_get_type(_ufile, _type), _uobj_check_id(_id),  \
-			   _ufile)
+#define uobj_get_destroy(_type, _id, _attrs)                                   \
+	__uobj_get_destroy(uobj_get_type(_attrs, _type), _uobj_check_id(_id),  \
+			   _attrs)
 
 static inline void uobj_put_destroy(struct ib_uobject *uobj)
 {
@@ -118,18 +120,18 @@ static inline void uobj_alloc_abort(struct ib_uobject *uobj)
 }
 
 static inline struct ib_uobject *
-__uobj_alloc(const struct uverbs_api_object *obj, struct ib_uverbs_file *ufile,
-	     struct ib_device **ib_dev)
+__uobj_alloc(const struct uverbs_api_object *obj,
+	     struct uverbs_attr_bundle *attrs, struct ib_device **ib_dev)
 {
-	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, ufile);
+	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, attrs->ufile);
 
 	if (!IS_ERR(uobj))
 		*ib_dev = uobj->context->device;
 	return uobj;
 }
 
-#define uobj_alloc(_type, _ufile, _ib_dev)                                     \
-	__uobj_alloc(uobj_get_type(_ufile, _type), _ufile, _ib_dev)
+#define uobj_alloc(_type, _attrs, _ib_dev)                                     \
+	__uobj_alloc(uobj_get_type(_attrs, _type), _attrs, _ib_dev)
 
 static inline void uverbs_flow_action_fill_action(struct ib_flow_action *action,
 						  struct ib_uobject *uobj,

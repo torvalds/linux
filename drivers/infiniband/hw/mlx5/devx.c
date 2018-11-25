@@ -42,7 +42,7 @@ struct devx_umem_reg_cmd {
 
 static struct mlx5_ib_ucontext *devx_ufile2uctx(struct ib_uverbs_file *file)
 {
-	return to_mucontext(ib_uverbs_get_ucontext(file));
+	return to_mucontext(ib_uverbs_get_ucontext_file(file));
 }
 
 int mlx5_ib_devx_create(struct mlx5_ib_dev *dev)

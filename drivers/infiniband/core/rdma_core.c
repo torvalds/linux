@@ -224,12 +224,14 @@ out_unlock:
  * uverbs_put_destroy.
  */
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
-				      u32 id, struct ib_uverbs_file *ufile)
+				      u32 id,
+				      const struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 	int ret;
 
-	uobj = rdma_lookup_get_uobject(obj, ufile, id, UVERBS_LOOKUP_DESTROY);
+	uobj = rdma_lookup_get_uobject(obj, attrs->ufile, id,
+				       UVERBS_LOOKUP_DESTROY);
 	if (IS_ERR(uobj))
 		return uobj;
 
@@ -248,11 +250,12 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
  * the uobj.
  */
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   struct ib_uverbs_file *ufile, int success_res)
+			   const struct uverbs_attr_bundle *attrs,
+			   int success_res)
 {
 	struct ib_uobject *uobj;
 
-	uobj = __uobj_get_destroy(obj, id, ufile);
+	uobj = __uobj_get_destroy(obj, id, attrs);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
@@ -267,7 +270,7 @@ static struct ib_uobject *alloc_uobj(struct ib_uverbs_file *ufile,
 	struct ib_uobject *uobj;
 	struct ib_ucontext *ucontext;
 
-	ucontext = ib_uverbs_get_ucontext(ufile);
+	ucontext = ib_uverbs_get_ucontext_file(ufile);
 	if (IS_ERR(ucontext))
 		return ERR_CAST(ucontext);
 

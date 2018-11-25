@@ -81,7 +81,7 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data);
  * Must be called with the ufile->device->disassociate_srcu held, and the lock
  * must be held until use of the ucontext is finished.
  */
-struct ib_ucontext *ib_uverbs_get_ucontext(struct ib_uverbs_file *ufile)
+struct ib_ucontext *ib_uverbs_get_ucontext_file(struct ib_uverbs_file *ufile)
 {
 	/*
 	 * We do not hold the hw_destroy_rwsem lock for this flow, instead
@@ -99,7 +99,7 @@ struct ib_ucontext *ib_uverbs_get_ucontext(struct ib_uverbs_file *ufile)
 
 	return ucontext;
 }
-EXPORT_SYMBOL(ib_uverbs_get_ucontext);
+EXPORT_SYMBOL(ib_uverbs_get_ucontext_file);
 
 int uverbs_dealloc_mw(struct ib_mw *mw)
 {
@@ -632,6 +632,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	struct uverbs_api *uapi = file->device->uapi;
 	struct ib_uverbs_ex_cmd_hdr ex_hdr;
 	struct ib_uverbs_cmd_hdr hdr;
+	struct uverbs_attr_bundle bundle;
 	int srcu_key;
 	ssize_t ret;
 
@@ -666,8 +667,9 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	buf += sizeof(hdr);
 
+	bundle.ufile = file;
 	if (!method_elm->is_ex) {
-		ret = method_elm->handler(file, buf, hdr.in_words * 4,
+		ret = method_elm->handler(&bundle, buf, hdr.in_words * 4,
 					  hdr.out_words * 4);
 	} else {
 		struct ib_udata ucore;
@@ -685,7 +687,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 					ex_hdr.provider_in_words * 8,
 					ex_hdr.provider_out_words * 8);
 
-		ret = method_elm->handler_ex(file, &ucore, &uhw);
+		ret = method_elm->handler_ex(&bundle, &ucore, &uhw);
 		ret = (ret) ? : count;
 	}
 
@@ -701,7 +703,7 @@ static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 	int srcu_key;
 
 	srcu_key = srcu_read_lock(&file->device->disassociate_srcu);
-	ucontext = ib_uverbs_get_ucontext(file);
+	ucontext = ib_uverbs_get_ucontext_file(file);
 	if (IS_ERR(ucontext)) {
 		ret = PTR_ERR(ucontext);
 		goto out;

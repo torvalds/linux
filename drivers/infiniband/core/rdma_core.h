@@ -137,10 +137,10 @@ struct uverbs_api_ioctl_method {
 };
 
 struct uverbs_api_write_method {
-	ssize_t (*handler)(struct ib_uverbs_file *file, const char __user *buf,
-			   int in_len, int out_len);
-	int (*handler_ex)(struct ib_uverbs_file *file, struct ib_udata *ucore,
-			  struct ib_udata *uhw);
+	ssize_t (*handler)(struct uverbs_attr_bundle *attrs,
+			   const char __user *buf, int in_len, int out_len);
+	int (*handler_ex)(struct uverbs_attr_bundle *attrs,
+			  struct ib_udata *ucore, struct ib_udata *uhw);
 	u8 disabled:1;
 	u8 is_ex:1;
 };
