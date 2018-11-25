@@ -192,7 +192,7 @@ static int lp_preempt(void *handle)
  * Try to negotiate to a new mode; if unsuccessful negotiate to
  * compatibility mode.  Return the mode we ended up in.
  */
-static int lp_negotiate(struct parport * port, int mode)
+static int lp_negotiate(struct parport *port, int mode)
 {
 	if (parport_negotiate (port, mode) != 0) {
 		mode = IEEE1284_MODE_COMPAT;
@@ -294,7 +294,7 @@ static int lp_wait_ready(int minor, int nonblock)
 	return error;
 }
 
-static ssize_t lp_write(struct file * file, const char __user * buf,
+static ssize_t lp_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file_inode(file));
@@ -412,7 +412,7 @@ out_unlock:
 #ifdef CONFIG_PARPORT_1284
 
 /* Status readback conforming to ieee1284 */
-static ssize_t lp_read(struct file * file, char __user * buf,
+static ssize_t lp_read(struct file *file, char __user *buf,
 		       size_t count, loff_t *ppos)
 {
 	DEFINE_WAIT(wait);
@@ -491,7 +491,7 @@ static ssize_t lp_read(struct file * file, char __user * buf,
 
 #endif /* IEEE 1284 support */
 
-static int lp_open(struct inode * inode, struct file * file)
+static int lp_open(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 	int ret = 0;
@@ -561,7 +561,7 @@ out:
 	return ret;
 }
 
-static int lp_release(struct inode * inode, struct file * file)
+static int lp_release(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 
