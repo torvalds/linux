@@ -97,11 +97,6 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs,
 		goto err;
 	}
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
-
 	ret = ib_rdmacg_try_charge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);
 	if (ret)
 		goto err;
@@ -352,11 +347,6 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-                   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-                   out_len - sizeof(resp));
-
 	uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ib_dev);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
@@ -509,11 +499,6 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-                   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-                   out_len - sizeof(resp));
-
 	mutex_lock(&ibudev->xrcd_tree_mutex);
 
 	if (cmd.fd != -1) {
@@ -663,11 +648,6 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-                   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-                   out_len - sizeof(resp));
-
 	if ((cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK))
 		return -EINVAL;
 
@@ -752,11 +732,6 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs,
 
 	if (copy_from_user(&cmd, buf, sizeof(cmd)))
 		return -EFAULT;
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-                   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-                   out_len - sizeof(resp));
 
 	if (cmd.flags & ~IB_MR_REREG_SUPPORTED || !cmd.flags)
 		return -EINVAL;
@@ -862,11 +837,6 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs,
 		ret = -EINVAL;
 		goto err_free;
 	}
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
 
 	mw = pd->device->alloc_mw(pd, cmd.mw_type, &attrs->driver_udata);
 	if (IS_ERR(mw)) {
@@ -1070,11 +1040,6 @@ static int ib_uverbs_create_cq(struct uverbs_attr_bundle *attrs,
 	ib_uverbs_init_udata(&ucore, buf, u64_to_user_ptr(cmd.response),
 			     sizeof(cmd), sizeof(resp));
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
-
 	memset(&cmd_ex, 0, sizeof(cmd_ex));
 	cmd_ex.user_handle = cmd.user_handle;
 	cmd_ex.cqe = cmd.cqe;
@@ -1144,11 +1109,6 @@ static int ib_uverbs_resize_cq(struct uverbs_attr_bundle *attrs,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, attrs);
 	if (!cq)
@@ -1601,10 +1561,6 @@ static int ib_uverbs_create_qp(struct uverbs_attr_bundle *attrs,
 
 	ib_uverbs_init_udata(&ucore, buf, u64_to_user_ptr(cmd.response),
 		   sizeof(cmd), resp_size);
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + resp_size,
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - resp_size);
 
 	memset(&cmd_ex, 0, sizeof(cmd_ex));
 	cmd_ex.user_handle = cmd.user_handle;
@@ -1694,11 +1650,6 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
 
 	obj = (struct ib_uqp_object *)uobj_alloc(UVERBS_OBJECT_QP, attrs,
 						 &ib_dev);
@@ -2066,10 +2017,6 @@ static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs,
 	if (cmd.base.attr_mask &
 	    ~((IB_USER_LEGACY_LAST_QP_ATTR_MASK << 1) - 1))
 		return -EOPNOTSUPP;
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd.base), NULL,
-		   in_len - sizeof(cmd.base) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len);
 
 	return modify_qp(attrs, &cmd);
 }
@@ -2538,11 +2485,6 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
 
 	uobj = uobj_alloc(UVERBS_OBJECT_AH, attrs, &ib_dev);
 	if (IS_ERR(uobj))
@@ -3746,11 +3688,6 @@ static int ib_uverbs_create_srq(struct uverbs_attr_bundle *attrs,
 	xcmd.max_sge	 = cmd.max_sge;
 	xcmd.srq_limit	 = cmd.srq_limit;
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
-
 	return __uverbs_create_xsrq(attrs, &xcmd, &attrs->driver_udata);
 }
 
@@ -3767,11 +3704,6 @@ static int ib_uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
 
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof(cmd),
-		   u64_to_user_ptr(cmd.response) + sizeof(resp),
-		   in_len - sizeof(cmd) - sizeof(struct ib_uverbs_cmd_hdr),
-		   out_len - sizeof(resp));
-
 	return __uverbs_create_xsrq(attrs, &cmd, &attrs->driver_udata);
 }
 
@@ -3785,9 +3717,6 @@ static int ib_uverbs_modify_srq(struct uverbs_attr_bundle *attrs,
 
 	if (copy_from_user(&cmd, buf, sizeof cmd))
 		return -EFAULT;
-
-	ib_uverbs_init_udata(&attrs->driver_udata, buf + sizeof cmd, NULL,
-			     in_len - sizeof cmd, out_len);
 
 	srq = uobj_get_obj_read(srq, UVERBS_OBJECT_SRQ, cmd.srq_handle, attrs);
 	if (!srq)

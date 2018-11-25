@@ -693,8 +693,51 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 
 	bundle.ufile = file;
 	if (!method_elm->is_ex) {
-		ret = method_elm->handler(&bundle, buf, hdr.in_words * 4,
-					  hdr.out_words * 4);
+		size_t in_len = hdr.in_words * 4 - sizeof(hdr);
+		size_t out_len = hdr.out_words * 4;
+
+		if (method_elm->has_udata) {
+			bundle.driver_udata.inlen =
+				in_len - method_elm->req_size;
+			in_len = method_elm->req_size;
+			if (bundle.driver_udata.inlen)
+				bundle.driver_udata.inbuf = buf + in_len;
+			else
+				bundle.driver_udata.inbuf = NULL;
+		} else {
+			memset(&bundle.driver_udata, 0,
+			       sizeof(bundle.driver_udata));
+		}
+
+		if (method_elm->has_resp) {
+			u64 response;
+
+			/*
+			 * The macros check that if has_resp is set
+			 * then the command request structure starts
+			 * with a '__aligned u64 response' member.
+			 */
+			ret = get_user(response, (const u64 *)buf);
+			if (ret)
+				goto out_unlock;
+
+			if (method_elm->has_udata) {
+				bundle.driver_udata.outlen =
+					out_len - method_elm->resp_size;
+				out_len = method_elm->resp_size;
+				if (bundle.driver_udata.outlen)
+					bundle.driver_udata.outbuf =
+						u64_to_user_ptr(response +
+								out_len);
+				else
+					bundle.driver_udata.outbuf = NULL;
+			}
+		} else {
+			bundle.driver_udata.outlen = 0;
+			bundle.driver_udata.outbuf = NULL;
+		}
+
+		ret = method_elm->handler(&bundle, buf, in_len, out_len);
 	} else {
 		struct ib_udata ucore;
 
@@ -713,6 +756,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		ret = method_elm->handler_ex(&bundle, &ucore);
 	}
 
+out_unlock:
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
 	return (ret) ? : count;
 }
