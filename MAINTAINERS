@@ -13996,11 +13996,10 @@ F:	drivers/tty/serial/sunzilog.h
 F:	drivers/tty/vcc.c
 
 SPARSE CHECKER
-M:	"Christopher Li" <sparse@chrisli.org>
+M:	"Luc Van Oostenryck" <luc.vanoostenryck@gmail.com>
 L:	linux-sparse@vger.kernel.org
 W:	https://sparse.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/devel/sparse/sparse.git
-T:	git git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
 S:	Maintained
 F:	include/linux/compiler.h
 
