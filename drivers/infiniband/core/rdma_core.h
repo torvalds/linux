@@ -142,6 +142,10 @@ struct uverbs_api_write_method {
 			  struct ib_udata *ucore, struct ib_udata *uhw);
 	u8 disabled:1;
 	u8 is_ex:1;
+	u8 has_udata:1;
+	u8 has_resp:1;
+	u8 req_size;
+	u8 resp_size;
 };
 
 struct uverbs_api_attr {

@@ -360,8 +360,12 @@ struct uapi_definition {
 			u16 object_id;
 		} object_start;
 		struct {
-			u8 is_ex;
 			u16 command_num;
+			u8 is_ex:1;
+			u8 has_udata:1;
+			u8 has_resp:1;
+			u8 req_size;
+			u8 resp_size;
 		} write;
 	};
 
@@ -388,22 +392,24 @@ struct uapi_definition {
 		##__VA_ARGS__
 
 /* Use in a var_args of DECLARE_UVERBS_OBJECT */
-#define DECLARE_UVERBS_WRITE(_command_num, _func, ...)                         \
+#define DECLARE_UVERBS_WRITE(_command_num, _func, _cmd_desc, ...)              \
 	{                                                                      \
 		.kind = UAPI_DEF_WRITE,                                        \
 		.scope = UAPI_SCOPE_OBJECT,                                    \
 		.write = { .is_ex = 0, .command_num = _command_num },          \
 		.func_write = _func,                                           \
+		_cmd_desc,                                                     \
 	},                                                                     \
 		##__VA_ARGS__
 
 /* Use in a var_args of DECLARE_UVERBS_OBJECT */
-#define DECLARE_UVERBS_WRITE_EX(_command_num, _func, ...)                      \
+#define DECLARE_UVERBS_WRITE_EX(_command_num, _func, _cmd_desc, ...)           \
 	{                                                                      \
 		.kind = UAPI_DEF_WRITE,                                        \
 		.scope = UAPI_SCOPE_OBJECT,                                    \
 		.write = { .is_ex = 1, .command_num = _command_num },          \
 		.func_write_ex = _func,                                        \
+		_cmd_desc,                                                     \
 	},                                                                     \
 		##__VA_ARGS__
 

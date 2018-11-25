@@ -4052,186 +4052,379 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs,
 	return ret;
 }
 
+/*
+ * Describe the input structs for write(). Some write methods have an input
+ * only struct, most have an input and output. If the struct has an output then
+ * the 'response' u64 must be the first field in the request structure.
+ *
+ * If udata is present then both the request and response structs have a
+ * trailing driver_data flex array. In this case the size of the base struct
+ * cannot be changed.
+ */
+#define offsetof_after(_struct, _member)                                       \
+	(offsetof(_struct, _member) + sizeof(((_struct *)NULL)->_member))
+
+#define UAPI_DEF_WRITE_IO(req, resp)                                           \
+	.write.has_resp = 1 +                                                  \
+			  BUILD_BUG_ON_ZERO(offsetof(req, response) != 0) +    \
+			  BUILD_BUG_ON_ZERO(sizeof(((req *)0)->response) !=    \
+					    sizeof(u64)),                      \
+	.write.req_size = sizeof(req), .write.resp_size = sizeof(resp)
+
+#define UAPI_DEF_WRITE_I(req) .write.req_size = sizeof(req)
+
+#define UAPI_DEF_WRITE_UDATA_IO(req, resp)                                     \
+	UAPI_DEF_WRITE_IO(req, resp),                                          \
+		.write.has_udata =                                             \
+			1 +                                                    \
+			BUILD_BUG_ON_ZERO(offsetof(req, driver_data) !=        \
+					  sizeof(req)) +                       \
+			BUILD_BUG_ON_ZERO(offsetof(resp, driver_data) !=       \
+					  sizeof(resp))
+
+#define UAPI_DEF_WRITE_UDATA_I(req)                                            \
+	UAPI_DEF_WRITE_I(req),                                                 \
+		.write.has_udata =                                             \
+			1 + BUILD_BUG_ON_ZERO(offsetof(req, driver_data) !=    \
+					      sizeof(req))
+
+/*
+ * The _EX versions are for use with WRITE_EX and allow the last struct member
+ * to be specified. Buffers that do not include that member will be rejected.
+ */
+#define UAPI_DEF_WRITE_IO_EX(req, req_last_member, resp, resp_last_member)     \
+	.write.has_resp = 1,                                                   \
+	.write.req_size = offsetof_after(req, req_last_member),                \
+	.write.resp_size = offsetof_after(resp, resp_last_member)
+
+#define UAPI_DEF_WRITE_I_EX(req, req_last_member)                              \
+	.write.req_size = offsetof_after(req, req_last_member)
+
 const struct uapi_definition uverbs_def_write_intf[] = {
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_AH,
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_AH,
 				     ib_uverbs_create_ah,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_create_ah,
+					     struct ib_uverbs_create_ah_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(create_ah)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_AH,
-				     ib_uverbs_destroy_ah,
-				     UAPI_DEF_METHOD_NEEDS_FN(destroy_ah))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DESTROY_AH,
+			ib_uverbs_destroy_ah,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_destroy_ah),
+			UAPI_DEF_METHOD_NEEDS_FN(destroy_ah))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_COMP_CHANNEL,
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL,
-				     ib_uverbs_create_comp_channel)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL,
+			ib_uverbs_create_comp_channel,
+			UAPI_DEF_WRITE_IO(
+				struct ib_uverbs_create_comp_channel,
+				struct ib_uverbs_create_comp_channel_resp))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_CQ,
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_CQ,
 				     ib_uverbs_create_cq,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_create_cq,
+					     struct ib_uverbs_create_cq_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(create_cq)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_CQ,
-				     ib_uverbs_destroy_cq,
-				     UAPI_DEF_METHOD_NEEDS_FN(destroy_cq)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POLL_CQ,
-				     ib_uverbs_poll_cq,
-				     UAPI_DEF_METHOD_NEEDS_FN(poll_cq)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
-				     ib_uverbs_req_notify_cq,
-				     UAPI_DEF_METHOD_NEEDS_FN(req_notify_cq)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DESTROY_CQ,
+			ib_uverbs_destroy_cq,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_destroy_cq,
+					  struct ib_uverbs_destroy_cq_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(destroy_cq)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_POLL_CQ,
+			ib_uverbs_poll_cq,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_poll_cq,
+					  struct ib_uverbs_poll_cq_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(poll_cq)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_REQ_NOTIFY_CQ,
+			ib_uverbs_req_notify_cq,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_req_notify_cq),
+			UAPI_DEF_METHOD_NEEDS_FN(req_notify_cq)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_RESIZE_CQ,
 				     ib_uverbs_resize_cq,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_resize_cq,
+					     struct ib_uverbs_resize_cq_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(resize_cq)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_CQ,
-					ib_uverbs_ex_create_cq,
-					UAPI_DEF_METHOD_NEEDS_FN(create_cq)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_MODIFY_CQ,
-					ib_uverbs_ex_modify_cq,
-					UAPI_DEF_METHOD_NEEDS_FN(create_cq))),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_CREATE_CQ,
+			ib_uverbs_ex_create_cq,
+			UAPI_DEF_WRITE_IO_EX(struct ib_uverbs_ex_create_cq,
+					     reserved,
+					     struct ib_uverbs_ex_create_cq_resp,
+					     response_length),
+			UAPI_DEF_METHOD_NEEDS_FN(create_cq)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_MODIFY_CQ,
+			ib_uverbs_ex_modify_cq,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_ex_modify_cq),
+			UAPI_DEF_METHOD_NEEDS_FN(create_cq))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_DEVICE,
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_GET_CONTEXT,
-				     ib_uverbs_get_context),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_DEVICE,
-				     ib_uverbs_query_device),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_PORT,
-				     ib_uverbs_query_port,
-				     UAPI_DEF_METHOD_NEEDS_FN(query_port)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_QUERY_DEVICE,
-					ib_uverbs_ex_query_device,
-					UAPI_DEF_METHOD_NEEDS_FN(query_device)),
+				     ib_uverbs_get_context,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_get_context,
+					     struct ib_uverbs_get_context_resp)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_QUERY_DEVICE,
+			ib_uverbs_query_device,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_query_device,
+					  struct ib_uverbs_query_device_resp)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_QUERY_PORT,
+			ib_uverbs_query_port,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_query_port,
+					  struct ib_uverbs_query_port_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(query_port)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_QUERY_DEVICE,
+			ib_uverbs_ex_query_device,
+			UAPI_DEF_WRITE_IO_EX(
+				struct ib_uverbs_ex_query_device,
+				reserved,
+				struct ib_uverbs_ex_query_device_resp,
+				response_length),
+			UAPI_DEF_METHOD_NEEDS_FN(query_device)),
 		UAPI_DEF_OBJ_NEEDS_FN(alloc_ucontext),
 		UAPI_DEF_OBJ_NEEDS_FN(dealloc_ucontext)),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_FLOW,
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_FLOW,
-					ib_uverbs_ex_create_flow,
-					UAPI_DEF_METHOD_NEEDS_FN(create_flow)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
-					ib_uverbs_ex_destroy_flow,
-					UAPI_DEF_METHOD_NEEDS_FN(destroy_flow))),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_CREATE_FLOW,
+			ib_uverbs_ex_create_flow,
+			UAPI_DEF_WRITE_IO_EX(struct ib_uverbs_create_flow,
+					     flow_attr,
+					     struct ib_uverbs_create_flow_resp,
+					     flow_handle),
+			UAPI_DEF_METHOD_NEEDS_FN(create_flow)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_DESTROY_FLOW,
+			ib_uverbs_ex_destroy_flow,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_destroy_flow),
+			UAPI_DEF_METHOD_NEEDS_FN(destroy_flow))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_MR,
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DEREG_MR,
 				     ib_uverbs_dereg_mr,
+				     UAPI_DEF_WRITE_I(struct ib_uverbs_dereg_mr),
 				     UAPI_DEF_METHOD_NEEDS_FN(dereg_mr)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_REG_MR,
-				     ib_uverbs_reg_mr,
-				     UAPI_DEF_METHOD_NEEDS_FN(reg_user_mr)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_REREG_MR,
-				     ib_uverbs_rereg_mr,
-				     UAPI_DEF_METHOD_NEEDS_FN(rereg_user_mr))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_REG_MR,
+			ib_uverbs_reg_mr,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_reg_mr,
+						struct ib_uverbs_reg_mr_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(reg_user_mr)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_REREG_MR,
+			ib_uverbs_rereg_mr,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_rereg_mr,
+						struct ib_uverbs_rereg_mr_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(rereg_user_mr))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_MW,
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_ALLOC_MW,
-				     ib_uverbs_alloc_mw,
-				     UAPI_DEF_METHOD_NEEDS_FN(alloc_mw)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DEALLOC_MW,
-				     ib_uverbs_dealloc_mw,
-				     UAPI_DEF_METHOD_NEEDS_FN(dealloc_mw))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_ALLOC_MW,
+			ib_uverbs_alloc_mw,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_alloc_mw,
+						struct ib_uverbs_alloc_mw_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(alloc_mw)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DEALLOC_MW,
+			ib_uverbs_dealloc_mw,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_dealloc_mw),
+			UAPI_DEF_METHOD_NEEDS_FN(dealloc_mw))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_PD,
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_ALLOC_PD,
-				     ib_uverbs_alloc_pd,
-				     UAPI_DEF_METHOD_NEEDS_FN(alloc_pd)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DEALLOC_PD,
-				     ib_uverbs_dealloc_pd,
-				     UAPI_DEF_METHOD_NEEDS_FN(dealloc_pd))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_ALLOC_PD,
+			ib_uverbs_alloc_pd,
+			UAPI_DEF_WRITE_UDATA_IO(struct ib_uverbs_alloc_pd,
+						struct ib_uverbs_alloc_pd_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(alloc_pd)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DEALLOC_PD,
+			ib_uverbs_dealloc_pd,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_dealloc_pd),
+			UAPI_DEF_METHOD_NEEDS_FN(dealloc_pd))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_QP,
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_ATTACH_MCAST,
-				     ib_uverbs_attach_mcast,
-				     UAPI_DEF_METHOD_NEEDS_FN(attach_mcast),
-				     UAPI_DEF_METHOD_NEEDS_FN(detach_mcast)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_ATTACH_MCAST,
+			ib_uverbs_attach_mcast,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_attach_mcast),
+			UAPI_DEF_METHOD_NEEDS_FN(attach_mcast),
+			UAPI_DEF_METHOD_NEEDS_FN(detach_mcast)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_QP,
 				     ib_uverbs_create_qp,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_create_qp,
+					     struct ib_uverbs_create_qp_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(create_qp)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_QP,
-				     ib_uverbs_destroy_qp,
-				     UAPI_DEF_METHOD_NEEDS_FN(destroy_qp)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DETACH_MCAST,
-				     ib_uverbs_detach_mcast,
-				     UAPI_DEF_METHOD_NEEDS_FN(detach_mcast)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_MODIFY_QP,
-				     ib_uverbs_modify_qp,
-				     UAPI_DEF_METHOD_NEEDS_FN(modify_qp)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POST_RECV,
-				     ib_uverbs_post_recv,
-				     UAPI_DEF_METHOD_NEEDS_FN(post_recv)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POST_SEND,
-				     ib_uverbs_post_send,
-				     UAPI_DEF_METHOD_NEEDS_FN(post_send)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_QP,
-				     ib_uverbs_query_qp,
-				     UAPI_DEF_METHOD_NEEDS_FN(query_qp)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_QP,
-					ib_uverbs_ex_create_qp,
-					UAPI_DEF_METHOD_NEEDS_FN(create_qp)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_MODIFY_QP,
-					ib_uverbs_ex_modify_qp,
-					UAPI_DEF_METHOD_NEEDS_FN(modify_qp))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DESTROY_QP,
+			ib_uverbs_destroy_qp,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_destroy_qp,
+					  struct ib_uverbs_destroy_qp_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(destroy_qp)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DETACH_MCAST,
+			ib_uverbs_detach_mcast,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_detach_mcast),
+			UAPI_DEF_METHOD_NEEDS_FN(detach_mcast)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_MODIFY_QP,
+			ib_uverbs_modify_qp,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_modify_qp),
+			UAPI_DEF_METHOD_NEEDS_FN(modify_qp)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_POST_RECV,
+			ib_uverbs_post_recv,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_post_recv,
+					  struct ib_uverbs_post_recv_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(post_recv)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_POST_SEND,
+			ib_uverbs_post_send,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_post_send,
+					  struct ib_uverbs_post_send_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(post_send)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_QUERY_QP,
+			ib_uverbs_query_qp,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_query_qp,
+					  struct ib_uverbs_query_qp_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(query_qp)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_CREATE_QP,
+			ib_uverbs_ex_create_qp,
+			UAPI_DEF_WRITE_IO_EX(struct ib_uverbs_ex_create_qp,
+					     comp_mask,
+					     struct ib_uverbs_ex_create_qp_resp,
+					     response_length),
+			UAPI_DEF_METHOD_NEEDS_FN(create_qp)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_MODIFY_QP,
+			ib_uverbs_ex_modify_qp,
+			UAPI_DEF_WRITE_IO_EX(struct ib_uverbs_ex_modify_qp,
+					     base,
+					     struct ib_uverbs_ex_modify_qp_resp,
+					     response_length),
+			UAPI_DEF_METHOD_NEEDS_FN(modify_qp))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_RWQ_IND_TBL,
 		DECLARE_UVERBS_WRITE_EX(
 			IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL,
 			ib_uverbs_ex_create_rwq_ind_table,
+			UAPI_DEF_WRITE_IO_EX(
+				struct ib_uverbs_ex_create_rwq_ind_table,
+				log_ind_tbl_size,
+				struct ib_uverbs_ex_create_rwq_ind_table_resp,
+				ind_tbl_num),
 			UAPI_DEF_METHOD_NEEDS_FN(create_rwq_ind_table)),
 		DECLARE_UVERBS_WRITE_EX(
 			IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL,
 			ib_uverbs_ex_destroy_rwq_ind_table,
+			UAPI_DEF_WRITE_I(
+				struct ib_uverbs_ex_destroy_rwq_ind_table),
 			UAPI_DEF_METHOD_NEEDS_FN(destroy_rwq_ind_table))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_WQ,
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_CREATE_WQ,
-					ib_uverbs_ex_create_wq,
-					UAPI_DEF_METHOD_NEEDS_FN(create_wq)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_DESTROY_WQ,
-					ib_uverbs_ex_destroy_wq,
-					UAPI_DEF_METHOD_NEEDS_FN(destroy_wq)),
-		DECLARE_UVERBS_WRITE_EX(IB_USER_VERBS_EX_CMD_MODIFY_WQ,
-					ib_uverbs_ex_modify_wq,
-					UAPI_DEF_METHOD_NEEDS_FN(modify_wq))),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_CREATE_WQ,
+			ib_uverbs_ex_create_wq,
+			UAPI_DEF_WRITE_IO_EX(struct ib_uverbs_ex_create_wq,
+					     max_sge,
+					     struct ib_uverbs_ex_create_wq_resp,
+					     wqn),
+			UAPI_DEF_METHOD_NEEDS_FN(create_wq)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_DESTROY_WQ,
+			ib_uverbs_ex_destroy_wq,
+			UAPI_DEF_WRITE_IO_EX(struct ib_uverbs_ex_destroy_wq,
+					     wq_handle,
+					     struct ib_uverbs_ex_destroy_wq_resp,
+					     reserved),
+			UAPI_DEF_METHOD_NEEDS_FN(destroy_wq)),
+		DECLARE_UVERBS_WRITE_EX(
+			IB_USER_VERBS_EX_CMD_MODIFY_WQ,
+			ib_uverbs_ex_modify_wq,
+			UAPI_DEF_WRITE_I_EX(struct ib_uverbs_ex_modify_wq,
+					    curr_wq_state),
+			UAPI_DEF_METHOD_NEEDS_FN(modify_wq))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_SRQ,
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_SRQ,
 				     ib_uverbs_create_srq,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_create_srq,
+					     struct ib_uverbs_create_srq_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(create_srq)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CREATE_XSRQ,
 				     ib_uverbs_create_xsrq,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_create_xsrq,
+					     struct ib_uverbs_create_srq_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(create_srq)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_DESTROY_SRQ,
-				     ib_uverbs_destroy_srq,
-				     UAPI_DEF_METHOD_NEEDS_FN(destroy_srq)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_MODIFY_SRQ,
-				     ib_uverbs_modify_srq,
-				     UAPI_DEF_METHOD_NEEDS_FN(modify_srq)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_POST_SRQ_RECV,
-				     ib_uverbs_post_srq_recv,
-				     UAPI_DEF_METHOD_NEEDS_FN(post_srq_recv)),
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_QUERY_SRQ,
-				     ib_uverbs_query_srq,
-				     UAPI_DEF_METHOD_NEEDS_FN(query_srq))),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_DESTROY_SRQ,
+			ib_uverbs_destroy_srq,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_destroy_srq,
+					  struct ib_uverbs_destroy_srq_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(destroy_srq)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_MODIFY_SRQ,
+			ib_uverbs_modify_srq,
+			UAPI_DEF_WRITE_UDATA_I(struct ib_uverbs_modify_srq),
+			UAPI_DEF_METHOD_NEEDS_FN(modify_srq)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_POST_SRQ_RECV,
+			ib_uverbs_post_srq_recv,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_post_srq_recv,
+					  struct ib_uverbs_post_srq_recv_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(post_srq_recv)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_QUERY_SRQ,
+			ib_uverbs_query_srq,
+			UAPI_DEF_WRITE_IO(struct ib_uverbs_query_srq,
+					  struct ib_uverbs_query_srq_resp),
+			UAPI_DEF_METHOD_NEEDS_FN(query_srq))),
 
 	DECLARE_UVERBS_OBJECT(
 		UVERBS_OBJECT_XRCD,
-		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_CLOSE_XRCD,
-				     ib_uverbs_close_xrcd,
-				     UAPI_DEF_METHOD_NEEDS_FN(dealloc_xrcd)),
+		DECLARE_UVERBS_WRITE(
+			IB_USER_VERBS_CMD_CLOSE_XRCD,
+			ib_uverbs_close_xrcd,
+			UAPI_DEF_WRITE_I(struct ib_uverbs_close_xrcd),
+			UAPI_DEF_METHOD_NEEDS_FN(dealloc_xrcd)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_OPEN_QP,
-				     ib_uverbs_open_qp),
+				     ib_uverbs_open_qp,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_open_qp,
+					     struct ib_uverbs_create_qp_resp)),
 		DECLARE_UVERBS_WRITE(IB_USER_VERBS_CMD_OPEN_XRCD,
 				     ib_uverbs_open_xrcd,
+				     UAPI_DEF_WRITE_UDATA_IO(
+					     struct ib_uverbs_open_xrcd,
+					     struct ib_uverbs_open_xrcd_resp),
 				     UAPI_DEF_METHOD_NEEDS_FN(alloc_xrcd))),
 
 	{},

@@ -96,6 +96,13 @@ static int uapi_create_write(struct uverbs_api *uapi,
 					 BIT_ULL(def->write.command_num));
 	}
 
+	if (!def->write.is_ex && def->func_write) {
+		method_elm->has_udata = def->write.has_udata;
+		method_elm->has_resp = def->write.has_resp;
+		method_elm->req_size = def->write.req_size;
+		method_elm->resp_size = def->write.resp_size;
+	}
+
 	*cur_method_key = method_key;
 	return 0;
 }
