@@ -1456,10 +1456,11 @@ static u64 svm_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 		g_tsc_offset = svm->vmcb->control.tsc_offset -
 			       svm->nested.hsave->control.tsc_offset;
 		svm->nested.hsave->control.tsc_offset = offset;
-	} else
-		trace_kvm_write_tsc_offset(vcpu->vcpu_id,
-					   svm->vmcb->control.tsc_offset,
-					   offset);
+	}
+
+	trace_kvm_write_tsc_offset(vcpu->vcpu_id,
+				   svm->vmcb->control.tsc_offset - g_tsc_offset,
+				   offset);
 
 	svm->vmcb->control.tsc_offset = offset + g_tsc_offset;
 
