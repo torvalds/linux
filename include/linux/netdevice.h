@@ -3226,6 +3226,14 @@ static inline void netdev_sent_queue(struct net_device *dev, unsigned int bytes)
 	netdev_tx_sent_queue(netdev_get_tx_queue(dev, 0), bytes);
 }
 
+static inline bool __netdev_sent_queue(struct net_device *dev,
+				       unsigned int bytes,
+				       bool xmit_more)
+{
+	return __netdev_tx_sent_queue(netdev_get_tx_queue(dev, 0), bytes,
+				      xmit_more);
+}
+
 static inline void netdev_tx_completed_queue(struct netdev_queue *dev_queue,
 					     unsigned int pkts, unsigned int bytes)
 {
