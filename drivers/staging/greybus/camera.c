@@ -841,8 +841,8 @@ done:
 }
 
 static int gb_camera_op_capture(void *priv, u32 request_id,
-		unsigned int streams, unsigned int num_frames,
-		size_t settings_size, const void *settings)
+				unsigned int streams, unsigned int num_frames,
+				size_t settings_size, const void *settings)
 {
 	struct gb_camera *gcam = priv;
 
@@ -869,7 +869,7 @@ static const struct gb_camera_ops gb_cam_ops = {
  */
 
 static ssize_t gb_camera_debugfs_capabilities(struct gb_camera *gcam,
-		char *buf, size_t len)
+					      char *buf, size_t len)
 {
 	struct gb_camera_debugfs_buffer *buffer =
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_CAPABILITIES];
@@ -905,7 +905,7 @@ done:
 }
 
 static ssize_t gb_camera_debugfs_configure_streams(struct gb_camera *gcam,
-		char *buf, size_t len)
+						   char *buf, size_t len)
 {
 	struct gb_camera_debugfs_buffer *buffer =
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_STREAMS];
@@ -999,7 +999,7 @@ done:
 };
 
 static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
-		char *buf, size_t len)
+					 char *buf, size_t len)
 {
 	unsigned int request_id;
 	unsigned int streams_mask;
@@ -1040,7 +1040,7 @@ static ssize_t gb_camera_debugfs_capture(struct gb_camera *gcam,
 }
 
 static ssize_t gb_camera_debugfs_flush(struct gb_camera *gcam,
-		char *buf, size_t len)
+				       char *buf, size_t len)
 {
 	struct gb_camera_debugfs_buffer *buffer =
 		&gcam->debugfs.buffers[GB_CAMERA_DEBUGFS_BUFFER_FLUSH];

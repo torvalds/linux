@@ -26,7 +26,7 @@ static bool gb_connection_cport_in_use(struct gb_interface *intf, u16 cport_id)
 
 	list_for_each_entry(connection, &hd->connections, hd_links) {
 		if (connection->intf == intf &&
-				connection->intf_cport_id == cport_id)
+		    connection->intf_cport_id == cport_id)
 			return true;
 	}
 
@@ -74,7 +74,7 @@ found:
  * received on the bundle.
  */
 void greybus_data_rcvd(struct gb_host_device *hd, u16 cport_id,
-			u8 *data, size_t length)
+		       u8 *data, size_t length)
 {
 	struct gb_connection *connection;
 
@@ -114,7 +114,7 @@ static void gb_connection_init_name(struct gb_connection *connection)
 	}
 
 	snprintf(connection->name, sizeof(connection->name),
-			"%u/%u:%u", hd_cport_id, intf_id, cport_id);
+		 "%u/%u:%u", hd_cport_id, intf_id, cport_id);
 }
 
 /*
@@ -142,10 +142,10 @@ static void gb_connection_init_name(struct gb_connection *connection)
  */
 static struct gb_connection *
 _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
-				struct gb_interface *intf,
-				struct gb_bundle *bundle, int cport_id,
-				gb_request_handler_t handler,
-				unsigned long flags)
+		      struct gb_interface *intf,
+		      struct gb_bundle *bundle, int cport_id,
+		      gb_request_handler_t handler,
+		      unsigned long flags)
 {
 	struct gb_connection *connection;
 	int ret;
@@ -226,35 +226,35 @@ err_unlock:
 
 struct gb_connection *
 gb_connection_create_static(struct gb_host_device *hd, u16 hd_cport_id,
-					gb_request_handler_t handler)
+			    gb_request_handler_t handler)
 {
 	return _gb_connection_create(hd, hd_cport_id, NULL, NULL, 0, handler,
-					GB_CONNECTION_FLAG_HIGH_PRIO);
+				     GB_CONNECTION_FLAG_HIGH_PRIO);
 }
 
 struct gb_connection *
 gb_connection_create_control(struct gb_interface *intf)
 {
 	return _gb_connection_create(intf->hd, -1, intf, NULL, 0, NULL,
-					GB_CONNECTION_FLAG_CONTROL |
-					GB_CONNECTION_FLAG_HIGH_PRIO);
+				     GB_CONNECTION_FLAG_CONTROL |
+				     GB_CONNECTION_FLAG_HIGH_PRIO);
 }
 
 struct gb_connection *
 gb_connection_create(struct gb_bundle *bundle, u16 cport_id,
-					gb_request_handler_t handler)
+		     gb_request_handler_t handler)
 {
 	struct gb_interface *intf = bundle->intf;
 
 	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
-					handler, 0);
+				     handler, 0);
 }
 EXPORT_SYMBOL_GPL(gb_connection_create);
 
 struct gb_connection *
 gb_connection_create_flags(struct gb_bundle *bundle, u16 cport_id,
-					gb_request_handler_t handler,
-					unsigned long flags)
+			   gb_request_handler_t handler,
+			   unsigned long flags)
 {
 	struct gb_interface *intf = bundle->intf;
 
@@ -262,13 +262,13 @@ gb_connection_create_flags(struct gb_bundle *bundle, u16 cport_id,
 		flags &= ~GB_CONNECTION_FLAG_CORE_MASK;
 
 	return _gb_connection_create(intf->hd, -1, intf, bundle, cport_id,
-					handler, flags);
+				     handler, flags);
 }
 EXPORT_SYMBOL_GPL(gb_connection_create_flags);
 
 struct gb_connection *
 gb_connection_create_offloaded(struct gb_bundle *bundle, u16 cport_id,
-					unsigned long flags)
+			       unsigned long flags)
 {
 	flags |= GB_CONNECTION_FLAG_OFFLOADED;
 
@@ -285,10 +285,10 @@ static int gb_connection_hd_cport_enable(struct gb_connection *connection)
 		return 0;
 
 	ret = hd->driver->cport_enable(hd, connection->hd_cport_id,
-					connection->flags);
+				       connection->flags);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to enable host cport: %d\n",
-				connection->name, ret);
+			connection->name, ret);
 		return ret;
 	}
 
@@ -306,7 +306,7 @@ static void gb_connection_hd_cport_disable(struct gb_connection *connection)
 	ret = hd->driver->cport_disable(hd, connection->hd_cport_id);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to disable host cport: %d\n",
-				connection->name, ret);
+			connection->name, ret);
 	}
 }
 
@@ -321,7 +321,7 @@ static int gb_connection_hd_cport_connected(struct gb_connection *connection)
 	ret = hd->driver->cport_connected(hd, connection->hd_cport_id);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to set connected state: %d\n",
-				connection->name, ret);
+			connection->name, ret);
 		return ret;
 	}
 
@@ -339,7 +339,7 @@ static int gb_connection_hd_cport_flush(struct gb_connection *connection)
 	ret = hd->driver->cport_flush(hd, connection->hd_cport_id);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to flush host cport: %d\n",
-				connection->name, ret);
+			connection->name, ret);
 		return ret;
 	}
 
@@ -369,7 +369,7 @@ static int gb_connection_hd_cport_quiesce(struct gb_connection *connection)
 					GB_CONNECTION_CPORT_QUIESCE_TIMEOUT);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to quiesce host cport: %d\n",
-				connection->name, ret);
+			connection->name, ret);
 		return ret;
 	}
 
@@ -387,7 +387,7 @@ static int gb_connection_hd_cport_clear(struct gb_connection *connection)
 	ret = hd->driver->cport_clear(hd, connection->hd_cport_id);
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to clear host cport: %d\n",
-				connection->name, ret);
+			connection->name, ret);
 		return ret;
 	}
 
@@ -423,11 +423,11 @@ gb_connection_svc_connection_create(struct gb_connection *connection)
 	}
 
 	ret = gb_svc_connection_create(hd->svc,
-			hd->svc->ap_intf_id,
-			connection->hd_cport_id,
-			intf->interface_id,
-			connection->intf_cport_id,
-			cport_flags);
+				       hd->svc->ap_intf_id,
+				       connection->hd_cport_id,
+				       intf->interface_id,
+				       connection->intf_cport_id,
+				       cport_flags);
 	if (ret) {
 		dev_err(&connection->hd->dev,
 			"%s: failed to create svc connection: %d\n",
@@ -491,8 +491,8 @@ gb_connection_control_disconnecting(struct gb_connection *connection)
 	ret = gb_control_disconnecting_operation(control, cport_id);
 	if (ret) {
 		dev_err(&connection->hd->dev,
-				"%s: failed to send disconnecting: %d\n",
-				connection->name, ret);
+			"%s: failed to send disconnecting: %d\n",
+			connection->name, ret);
 	}
 }
 
@@ -531,16 +531,16 @@ gb_connection_control_disconnected(struct gb_connection *connection)
 }
 
 static int gb_connection_shutdown_operation(struct gb_connection *connection,
-						u8 phase)
+					    u8 phase)
 {
 	struct gb_cport_shutdown_request *req;
 	struct gb_operation *operation;
 	int ret;
 
 	operation = gb_operation_create_core(connection,
-						GB_REQUEST_TYPE_CPORT_SHUTDOWN,
-						sizeof(*req), 0, 0,
-						GFP_KERNEL);
+					     GB_REQUEST_TYPE_CPORT_SHUTDOWN,
+					     sizeof(*req), 0, 0,
+					     GFP_KERNEL);
 	if (!operation)
 		return -ENOMEM;
 
@@ -569,14 +569,14 @@ static int gb_connection_cport_shutdown(struct gb_connection *connection,
 			return 0;
 
 		ret = drv->cport_shutdown(hd, connection->hd_cport_id, phase,
-						GB_OPERATION_TIMEOUT_DEFAULT);
+					  GB_OPERATION_TIMEOUT_DEFAULT);
 	} else {
 		ret = gb_connection_shutdown_operation(connection, phase);
 	}
 
 	if (ret) {
 		dev_err(&hd->dev, "%s: failed to send cport shutdown (phase %d): %d\n",
-				connection->name, phase, ret);
+			connection->name, phase, ret);
 		return ret;
 	}
 
@@ -602,14 +602,14 @@ gb_connection_cport_shutdown_phase_2(struct gb_connection *connection)
  * DISCONNECTING.
  */
 static void gb_connection_cancel_operations(struct gb_connection *connection,
-						int errno)
+					    int errno)
 	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
 
 	while (!list_empty(&connection->operations)) {
 		operation = list_last_entry(&connection->operations,
-						struct gb_operation, links);
+					    struct gb_operation, links);
 		gb_operation_get(operation);
 		spin_unlock_irq(&connection->lock);
 
@@ -631,7 +631,7 @@ static void gb_connection_cancel_operations(struct gb_connection *connection,
  */
 static void
 gb_connection_flush_incoming_operations(struct gb_connection *connection,
-						int errno)
+					int errno)
 	__must_hold(&connection->lock)
 {
 	struct gb_operation *operation;
@@ -640,7 +640,7 @@ gb_connection_flush_incoming_operations(struct gb_connection *connection,
 	while (!list_empty(&connection->operations)) {
 		incoming = false;
 		list_for_each_entry(operation, &connection->operations,
-								links) {
+				    links) {
 			if (gb_operation_is_incoming(operation)) {
 				gb_operation_get(operation);
 				incoming = true;
