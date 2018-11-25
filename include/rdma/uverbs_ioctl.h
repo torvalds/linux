@@ -368,9 +368,9 @@ struct uapi_definition {
 
 	union {
 		bool (*func_is_supported)(struct ib_device *device);
-		ssize_t (*func_write)(struct uverbs_attr_bundle *attrs,
-				      const char __user *buf, int in_len,
-				      int out_len);
+		int (*func_write)(struct uverbs_attr_bundle *attrs,
+				  const char __user *buf, int in_len,
+				  int out_len);
 		int (*func_write_ex)(struct uverbs_attr_bundle *attrs,
 				     struct ib_udata *ucore,
 				     struct ib_udata *uhw);

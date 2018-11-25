@@ -72,11 +72,10 @@ static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 				_uobj_check_id(_id), UVERBS_LOOKUP_WRITE)
 
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   const struct uverbs_attr_bundle *attrs,
-			   int success_res);
-#define uobj_perform_destroy(_type, _id, _attrs, _success_res)                 \
+			   const struct uverbs_attr_bundle *attrs);
+#define uobj_perform_destroy(_type, _id, _attrs)                               \
 	__uobj_perform_destroy(uobj_get_type(_attrs, _type),                   \
-			       _uobj_check_id(_id), _attrs, _success_res)
+			       _uobj_check_id(_id), _attrs)
 
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 				      u32 id,
@@ -104,14 +103,13 @@ static inline void uobj_put_write(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
-static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj,
-						 int success_res)
+static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj)
 {
 	int ret = rdma_alloc_commit_uobject(uobj);
 
 	if (ret)
 		return ret;
-	return success_res;
+	return 0;
 }
 
 static inline void uobj_alloc_abort(struct ib_uobject *uobj)

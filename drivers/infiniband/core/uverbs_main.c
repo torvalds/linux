@@ -688,11 +688,10 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 					ex_hdr.provider_out_words * 8);
 
 		ret = method_elm->handler_ex(&bundle, &ucore, &uhw);
-		ret = (ret) ? : count;
 	}
 
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
-	return ret;
+	return (ret) ? : count;
 }
 
 static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)

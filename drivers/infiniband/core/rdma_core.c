@@ -245,13 +245,11 @@ struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
 }
 
 /*
- * Does both uobj_get_destroy() and uobj_put_destroy().  Returns success_res
- * on success (negative errno on failure). For use by callers that do not need
- * the uobj.
+ * Does both uobj_get_destroy() and uobj_put_destroy().  Returns 0 on success
+ * (negative errno on failure). For use by callers that do not need the uobj.
  */
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   const struct uverbs_attr_bundle *attrs,
-			   int success_res)
+			   const struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj;
 
@@ -260,7 +258,7 @@ int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
 		return PTR_ERR(uobj);
 
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
-	return success_res;
+	return 0;
 }
 
 /* alloc_uobj must be undone by uverbs_destroy_uobject() */

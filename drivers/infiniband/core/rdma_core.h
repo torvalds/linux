@@ -137,8 +137,8 @@ struct uverbs_api_ioctl_method {
 };
 
 struct uverbs_api_write_method {
-	ssize_t (*handler)(struct uverbs_attr_bundle *attrs,
-			   const char __user *buf, int in_len, int out_len);
+	int (*handler)(struct uverbs_attr_bundle *attrs, const char __user *buf,
+		       int in_len, int out_len);
 	int (*handler_ex)(struct uverbs_attr_bundle *attrs,
 			  struct ib_udata *ucore, struct ib_udata *uhw);
 	u8 disabled:1;

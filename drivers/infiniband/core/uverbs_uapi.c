@@ -8,9 +8,8 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
-static ssize_t ib_uverbs_notsupp(struct uverbs_attr_bundle *attrs,
-				 const char __user *buf, int in_len,
-				 int out_len)
+static int ib_uverbs_notsupp(struct uverbs_attr_bundle *attrs,
+			     const char __user *buf, int in_len, int out_len)
 {
 	return -EOPNOTSUPP;
 }
