@@ -7296,6 +7296,15 @@ static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_fid_ops = {
 	.fdb_del		= mlxsw_sp_rif_fid_fdb_del,
 };
 
+static const struct mlxsw_sp_rif_ops mlxsw_sp_rif_vlan_emu_ops = {
+	.type			= MLXSW_SP_RIF_TYPE_VLAN,
+	.rif_size		= sizeof(struct mlxsw_sp_rif),
+	.configure		= mlxsw_sp_rif_fid_configure,
+	.deconfigure		= mlxsw_sp_rif_fid_deconfigure,
+	.fid_get		= mlxsw_sp_rif_vlan_fid_get,
+	.fdb_del		= mlxsw_sp_rif_vlan_fdb_del,
+};
+
 static struct mlxsw_sp_rif_ipip_lb *
 mlxsw_sp_rif_ipip_lb_rif(struct mlxsw_sp_rif *rif)
 {
