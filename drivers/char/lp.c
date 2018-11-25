@@ -262,7 +262,7 @@ static int lp_check_status(int minor)
 		error = -EIO;
 	} else {
 		last = 0; /* Come here if LP_CAREFUL is set and no
-                             errors are reported. */
+			     errors are reported. */
 	}
 
 	lp_table[minor].last_error = last;
@@ -295,7 +295,7 @@ static int lp_wait_ready(int minor, int nonblock)
 }
 
 static ssize_t lp_write(struct file * file, const char __user * buf,
-		        size_t count, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	unsigned int minor = iminor(file_inode(file));
 	struct parport *port = lp_table[minor].dev->port;
@@ -325,8 +325,8 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
 		goto out_unlock;
 	}
 
- 	/* Claim Parport or sleep until it becomes available
- 	 */
+	/* Claim Parport or sleep until it becomes available
+	 */
 	lp_claim_parport_or_block (&lp_table[minor]);
 	/* Go to the proper mode. */
 	lp_table[minor].current_mode = lp_negotiate (port,
@@ -406,7 +406,7 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
 out_unlock:
 	mutex_unlock(&lp_table[minor].port_mutex);
 
- 	return retv;
+	return retv;
 }
 
 #ifdef CONFIG_PARPORT_1284
@@ -545,8 +545,8 @@ static int lp_open(struct inode * inode, struct file * file)
 	/* Determine if the peripheral supports ECP mode */
 	lp_claim_parport_or_block (&lp_table[minor]);
 	if ( (lp_table[minor].dev->port->modes & PARPORT_MODE_ECP) &&
-             !parport_negotiate (lp_table[minor].dev->port,
-                                 IEEE1284_MODE_ECP)) {
+	     !parport_negotiate (lp_table[minor].dev->port,
+				 IEEE1284_MODE_ECP)) {
 		printk (KERN_INFO "lp%d: ECP mode\n", minor);
 		lp_table[minor].best_mode = IEEE1284_MODE_ECP;
 	} else {
@@ -650,8 +650,8 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 						sizeof(struct lp_stats));
 			break;
 #endif
- 		case LPGETFLAGS:
- 			status = LP_F(minor);
+		case LPGETFLAGS:
+			status = LP_F(minor);
 			if (copy_to_user(argp, &status, sizeof(int)))
 				return -EFAULT;
 			break;
