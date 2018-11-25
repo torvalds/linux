@@ -381,6 +381,9 @@ uapi_finalize_ioctl_method(struct uverbs_api *uapi,
 		if (elm->spec.mandatory)
 			__set_bit(attr_bkey, method_elm->attr_mandatory);
 
+		if (elm->spec.is_udata)
+			method_elm->has_udata = true;
+
 		if (type == UVERBS_ATTR_TYPE_IDR ||
 		    type == UVERBS_ATTR_TYPE_FD) {
 			u8 access = elm->spec.u.obj.access;

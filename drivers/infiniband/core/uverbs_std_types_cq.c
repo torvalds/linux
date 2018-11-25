@@ -64,7 +64,6 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 		uverbs_attr_get_uobject(attrs, UVERBS_ATTR_CREATE_CQ_HANDLE),
 		typeof(*obj), uobject);
 	struct ib_device *ib_dev = obj->uobject.context->device;
-	struct ib_udata uhw;
 	int ret;
 	u64 user_handle;
 	struct ib_cq_init_attr attr = {};
@@ -111,10 +110,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	INIT_LIST_HEAD(&obj->comp_list);
 	INIT_LIST_HEAD(&obj->async_list);
 
-	/* Temporary, only until drivers get the new uverbs_attr_bundle */
-	create_udata(attrs, &uhw);
-
-	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context, &uhw);
+	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context,
+			       &attrs->driver_udata);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
 		goto err_event_file;

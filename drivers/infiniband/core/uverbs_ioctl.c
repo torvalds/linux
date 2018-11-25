@@ -435,6 +435,9 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 				    pbundle->method_elm->key_bitmap_len)))
 		return -EINVAL;
 
+	if (pbundle->method_elm->has_udata)
+		create_udata(&pbundle->bundle, &pbundle->bundle.driver_udata);
+
 	if (destroy_bkey != UVERBS_API_ATTR_BKEY_LEN) {
 		struct uverbs_obj_attr *destroy_attr =
 			&pbundle->bundle.attrs[destroy_bkey].obj_attr;
