@@ -112,6 +112,51 @@ static u32 uverbs_response_length(struct uverbs_attr_bundle *attrs,
 	return min_t(size_t, attrs->ucore.outlen, resp_len);
 }
 
+/*
+ * The iterator version of the request interface is for handlers that need to
+ * step over a flex array at the end of a command header.
+ */
+struct uverbs_req_iter {
+	const void __user *cur;
+	const void __user *end;
+};
+
+static int uverbs_request_start(struct uverbs_attr_bundle *attrs,
+				struct uverbs_req_iter *iter,
+				void *req,
+				size_t req_len)
+{
+	if (attrs->ucore.inlen < req_len)
+		return -ENOSPC;
+
+	if (copy_from_user(req, attrs->ucore.inbuf, req_len))
+		return -EFAULT;
+
+	iter->cur = attrs->ucore.inbuf + req_len;
+	iter->end = attrs->ucore.inbuf + attrs->ucore.inlen;
+	return 0;
+}
+
+static int uverbs_request_next(struct uverbs_req_iter *iter, void *val,
+			       size_t len)
+{
+	if (iter->cur + len > iter->end)
+		return -ENOSPC;
+
+	if (copy_from_user(val, iter->cur, len))
+		return -EFAULT;
+
+	iter->cur += len;
+	return 0;
+}
+
+static int uverbs_request_finish(struct uverbs_req_iter *iter)
+{
+	if (!ib_is_buffer_cleared(iter->cur, iter->end - iter->cur))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
 static struct ib_uverbs_completion_event_file *
 _ib_uverbs_lookup_comp_file(s32 fd, const struct uverbs_attr_bundle *attrs)
 {
@@ -3060,10 +3105,10 @@ static int ib_uverbs_ex_modify_wq(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 					     struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_create_rwq_ind_table	  cmd = {};
+	struct ib_uverbs_ex_create_rwq_ind_table cmd;
 	struct ib_uverbs_ex_create_rwq_ind_table_resp  resp = {};
 	struct ib_uobject		  *uobj;
-	int err = 0;
+	int err;
 	struct ib_rwq_ind_table_init_attr init_attr = {};
 	struct ib_rwq_ind_table *rwq_ind_tbl;
 	struct ib_wq	**wqs = NULL;
@@ -3071,26 +3116,12 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 	struct ib_wq	*wq = NULL;
 	int i, j, num_read_wqs;
 	u32 num_wq_handles;
-	u32 expected_in_size;
-	size_t required_cmd_sz_header;
-	size_t required_resp_len;
+	struct uverbs_req_iter iter;
 	struct ib_device *ib_dev;
 
-	required_cmd_sz_header = offsetof(typeof(cmd), log_ind_tbl_size) + sizeof(cmd.log_ind_tbl_size);
-	required_resp_len = offsetof(typeof(resp), ind_tbl_num) + sizeof(resp.ind_tbl_num);
-
-	if (ucore->inlen < required_cmd_sz_header)
-		return -EINVAL;
-
-	if (ucore->outlen < required_resp_len)
-		return -ENOSPC;
-
-	err = ib_copy_from_udata(&cmd, ucore, required_cmd_sz_header);
+	err = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
 	if (err)
 		return err;
-
-	ucore->inbuf += required_cmd_sz_header;
-	ucore->inlen -= required_cmd_sz_header;
 
 	if (cmd.comp_mask)
 		return -EOPNOTSUPP;
@@ -3099,26 +3130,17 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 		return -EINVAL;
 
 	num_wq_handles = 1 << cmd.log_ind_tbl_size;
-	expected_in_size = num_wq_handles * sizeof(__u32);
-	if (num_wq_handles == 1)
-		/* input size for wq handles is u64 aligned */
-		expected_in_size += sizeof(__u32);
-
-	if (ucore->inlen < expected_in_size)
-		return -EINVAL;
-
-	if (ucore->inlen > expected_in_size &&
-	    !ib_is_udata_cleared(ucore, expected_in_size,
-				 ucore->inlen - expected_in_size))
-		return -EOPNOTSUPP;
-
 	wqs_handles = kcalloc(num_wq_handles, sizeof(*wqs_handles),
 			      GFP_KERNEL);
 	if (!wqs_handles)
 		return -ENOMEM;
 
-	err = ib_copy_from_udata(wqs_handles, ucore,
-				 num_wq_handles * sizeof(__u32));
+	err = uverbs_request_next(&iter, wqs_handles,
+				  num_wq_handles * sizeof(__u32));
+	if (err)
+		goto err_free;
+
+	err = uverbs_request_finish(&iter);
 	if (err)
 		goto err_free;
 
@@ -3224,23 +3246,15 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 	struct ib_qp			  *qp;
 	struct ib_uflow_resources	  *uflow_res;
 	struct ib_uverbs_flow_spec_hdr	  *kern_spec;
-	int err = 0;
+	struct uverbs_req_iter iter;
+	int err;
 	void *ib_spec;
 	int i;
 	struct ib_device *ib_dev;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	if (ucore->outlen < sizeof(resp))
-		return -ENOSPC;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	err = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
 	if (err)
 		return err;
-
-	ucore->inbuf += sizeof(cmd);
-	ucore->inlen -= sizeof(cmd);
 
 	if (cmd.comp_mask)
 		return -EINVAL;
@@ -3259,8 +3273,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 	if (cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
 		return -EINVAL;
 
-	if (cmd.flow_attr.size > ucore->inlen ||
-	    cmd.flow_attr.size >
+	if (cmd.flow_attr.size >
 	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_uverbs_flow_spec)))
 		return -EINVAL;
 
@@ -3275,13 +3288,17 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 			return -ENOMEM;
 
 		*kern_flow_attr = cmd.flow_attr;
-		err = ib_copy_from_udata(&kern_flow_attr->flow_specs, ucore,
-					 cmd.flow_attr.size);
+		err = uverbs_request_next(&iter, &kern_flow_attr->flow_specs,
+					  cmd.flow_attr.size);
 		if (err)
 			goto err_free_attr;
 	} else {
 		kern_flow_attr = &cmd.flow_attr;
 	}
+
+	err = uverbs_request_finish(&iter);
+	if (err)
+		goto err_free_attr;
 
 	uobj = uobj_alloc(UVERBS_OBJECT_FLOW, attrs, &ib_dev);
 	if (IS_ERR(uobj)) {
