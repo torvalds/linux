@@ -607,7 +607,7 @@ mlxsw_sp_fid_8021d_compare(const struct mlxsw_sp_fid *fid, const void *arg)
 
 static u16 mlxsw_sp_fid_8021d_flood_index(const struct mlxsw_sp_fid *fid)
 {
-	return fid->fid_index - fid->fid_family->start_index;
+	return fid->fid_index - VLAN_N_VID;
 }
 
 static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
