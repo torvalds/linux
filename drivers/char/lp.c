@@ -184,7 +184,7 @@ static int lp_preempt(void *handle)
 {
 	struct lp_struct *this_lp = (struct lp_struct *)handle;
 	set_bit(LP_PREEMPT_REQUEST, &this_lp->bits);
-	return (1);
+	return 1;
 }
 
 
@@ -199,7 +199,7 @@ static int lp_negotiate(struct parport * port, int mode)
 		parport_negotiate (port, mode);
 	}
 
-	return (mode);
+	return mode;
 }
 
 static int lp_reset(int minor)
@@ -279,7 +279,7 @@ static int lp_wait_ready(int minor, int nonblock)
 
 	/* If we're not in compatibility mode, we're ready now! */
 	if (lp_table[minor].current_mode != IEEE1284_MODE_COMPAT) {
-	  return (0);
+		return 0;
 	}
 
 	do {
