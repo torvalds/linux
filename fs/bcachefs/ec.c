@@ -105,22 +105,32 @@ static unsigned stripe_csums_per_device(const struct bch_stripe *s)
 			    1 << s->csum_granularity_bits);
 }
 
+static unsigned stripe_csum_offset(const struct bch_stripe *s,
+				   unsigned dev, unsigned csum_idx)
+{
+	unsigned csum_bytes = bch_crc_bytes[s->csum_type];
+
+	return sizeof(struct bch_stripe) +
+		sizeof(struct bch_extent_ptr) * s->nr_blocks +
+		(dev * stripe_csums_per_device(s) + csum_idx) * csum_bytes;
+}
+
+static unsigned stripe_blockcount_offset(const struct bch_stripe *s,
+					 unsigned idx)
+{
+	return stripe_csum_offset(s, s->nr_blocks, 0) +
+		sizeof(16) * idx;
+}
+
 static unsigned stripe_val_u64s(const struct bch_stripe *s)
 {
-	unsigned bytes = sizeof(struct bch_stripe) +
-		sizeof(struct bch_extent_ptr) * s->nr_blocks +
-		bch_crc_bytes[s->csum_type] * s->nr_blocks * stripe_csums_per_device(s);
-	return DIV_ROUND_UP(bytes, sizeof(u64));
+	return DIV_ROUND_UP(stripe_blockcount_offset(s, s->nr_blocks),
+			    sizeof(u64));
 }
 
 static void *stripe_csum(struct bch_stripe *s, unsigned dev, unsigned csum_idx)
 {
-	unsigned csum_bytes = bch_crc_bytes[s->csum_type];
-	void *csums = s->ptrs + s->nr_blocks;
-
-	BUG_ON(!csum_bytes);
-
-	return csums + (dev * stripe_csums_per_device(s) + csum_idx) * csum_bytes;
+	return (void *) s + stripe_csum_offset(s, dev, csum_idx);
 }
 
 const char *bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k)
@@ -133,7 +143,8 @@ const char *bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k)
 	if (bkey_val_bytes(k.k) < sizeof(*s))
 		return "incorrect value size";
 
-	if (bkey_val_u64s(k.k) != stripe_val_u64s(s))
+	if (bkey_val_bytes(k.k) < sizeof(*s) ||
+	    bkey_val_u64s(k.k) < stripe_val_u64s(s))
 		return "incorrect value size";
 
 	return NULL;
