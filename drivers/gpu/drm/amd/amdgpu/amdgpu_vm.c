@@ -1656,9 +1656,11 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			if (!amdgpu_vm_pt_descendant(adev, &cursor))
 				return -ENOENT;
 			continue;
-		} else if (frag >= parent_shift) {
+		} else if (frag >= parent_shift &&
+			   cursor.level - 1 != adev->vm_manager.root_level) {
 			/* If the fragment size is even larger than the parent
-			 * shift we should go up one level and check it again.
+			 * shift we should go up one level and check it again
+			 * unless one level up is the root level.
 			 */
 			if (!amdgpu_vm_pt_ancestor(&cursor))
 				return -ENOENT;
