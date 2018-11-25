@@ -608,4 +608,16 @@ static inline __u32 sctp_dst_mtu(const struct dst_entry *dst)
 				 SCTP_DEFAULT_MINSEGMENT));
 }
 
+static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
+{
+	__u32 pmtu = sctp_dst_mtu(t->dst);
+
+	if (t->pathmtu == pmtu)
+		return true;
+
+	t->pathmtu = pmtu;
+
+	return false;
+}
+
 #endif /* __net_sctp_h__ */
