@@ -8,14 +8,7 @@
 #include "rdma_core.h"
 #include "uverbs.h"
 
-static int ib_uverbs_notsupp(struct uverbs_attr_bundle *attrs,
-			     const char __user *buf, int in_len, int out_len)
-{
-	return -EOPNOTSUPP;
-}
-
-static int ib_uverbs_ex_notsupp(struct uverbs_attr_bundle *attrs,
-				struct ib_udata *ucore)
+static int ib_uverbs_notsupp(struct uverbs_attr_bundle *attrs)
 {
 	return -EOPNOTSUPP;
 }
@@ -79,22 +72,17 @@ static int uapi_create_write(struct uverbs_api *uapi,
 	if (IS_ERR(method_elm))
 		return PTR_ERR(method_elm);
 
-	if (WARN_ON(exists && (def->write.is_ex != method_elm->is_ex ||
-			       method_elm->handler_ex || method_elm->handler)))
+	if (WARN_ON(exists && (def->write.is_ex != method_elm->is_ex)))
 		return -EINVAL;
 
 	method_elm->is_ex = def->write.is_ex;
-	if (def->write.is_ex) {
-		method_elm->handler_ex = def->func_write_ex;
-
+	method_elm->handler = def->func_write;
+	if (def->write.is_ex)
 		method_elm->disabled = !(ibdev->uverbs_ex_cmd_mask &
 					 BIT_ULL(def->write.command_num));
-	} else {
-		method_elm->handler = def->func_write;
-
+	else
 		method_elm->disabled = !(ibdev->uverbs_cmd_mask &
 					 BIT_ULL(def->write.command_num));
-	}
 
 	if (!def->write.is_ex && def->func_write) {
 		method_elm->has_udata = def->write.has_udata;
@@ -449,7 +437,6 @@ static int uapi_finalize(struct uverbs_api *uapi)
 	}
 
 	uapi->notsupp_method.handler = ib_uverbs_notsupp;
-	uapi->notsupp_method.handler_ex = ib_uverbs_ex_notsupp;
 	uapi->num_write = max_write + 1;
 	uapi->num_write_ex = max_write_ex + 1;
 	data = kmalloc_array(uapi->num_write + uapi->num_write_ex,

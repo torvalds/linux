@@ -739,8 +739,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		ib_uverbs_init_udata_buf_or_null(
 			&bundle.ucore, buf, u64_to_user_ptr(response),
 			in_len, out_len);
-
-		ret = method_elm->handler(&bundle, buf, in_len, out_len);
 	} else {
 		buf += sizeof(ex_hdr);
 
@@ -754,9 +752,9 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			ex_hdr.provider_in_words * 8,
 			ex_hdr.provider_out_words * 8);
 
-		ret = method_elm->handler_ex(&bundle, &bundle.ucore);
 	}
 
+	ret = method_elm->handler(&bundle);
 out_unlock:
 	srcu_read_unlock(&file->device->disassociate_srcu, srcu_key);
 	return (ret) ? : count;
