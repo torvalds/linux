@@ -166,7 +166,7 @@ static struct parport *console_registered;
 static void lp_claim_parport_or_block(struct lp_struct *this_lp)
 {
 	if (!test_and_set_bit(LP_PARPORT_CLAIMED, &this_lp->bits)) {
-		parport_claim_or_block (this_lp->dev);
+		parport_claim_or_block(this_lp->dev);
 	}
 }
 
@@ -174,7 +174,7 @@ static void lp_claim_parport_or_block(struct lp_struct *this_lp)
 static void lp_release_parport(struct lp_struct *this_lp)
 {
 	if (test_and_clear_bit(LP_PARPORT_CLAIMED, &this_lp->bits)) {
-		parport_release (this_lp->dev);
+		parport_release(this_lp->dev);
 	}
 }
 
@@ -194,9 +194,9 @@ static int lp_preempt(void *handle)
  */
 static int lp_negotiate(struct parport *port, int mode)
 {
-	if (parport_negotiate (port, mode) != 0) {
+	if (parport_negotiate(port, mode) != 0) {
 		mode = IEEE1284_MODE_COMPAT;
-		parport_negotiate (port, mode);
+		parport_negotiate(port, mode);
 	}
 
 	return mode;
@@ -205,16 +205,16 @@ static int lp_negotiate(struct parport *port, int mode)
 static int lp_reset(int minor)
 {
 	int retval;
-	lp_claim_parport_or_block (&lp_table[minor]);
+	lp_claim_parport_or_block(&lp_table[minor]);
 	w_ctr(minor, LP_PSELECP);
-	udelay (LP_DELAY);
+	udelay(LP_DELAY);
 	w_ctr(minor, LP_PSELECP | LP_PINITP);
 	retval = r_str(minor);
-	lp_release_parport (&lp_table[minor]);
+	lp_release_parport(&lp_table[minor]);
 	return retval;
 }
 
-static void lp_error (int minor)
+static void lp_error(int minor)
 {
 	DEFINE_WAIT(wait);
 	int polling;
@@ -224,14 +224,14 @@ static void lp_error (int minor)
 
 	polling = lp_table[minor].dev->port->irq == PARPORT_IRQ_NONE;
 	if (polling)
-		lp_release_parport (&lp_table[minor]);
+		lp_release_parport(&lp_table[minor]);
 	prepare_to_wait(&lp_table[minor].waitq, &wait, TASK_INTERRUPTIBLE);
 	schedule_timeout(LP_TIMEOUT_POLLED);
 	finish_wait(&lp_table[minor].waitq, &wait);
 	if (polling)
-		lp_claim_parport_or_block (&lp_table[minor]);
+		lp_claim_parport_or_block(&lp_table[minor]);
 	else
-		parport_yield_blocking (lp_table[minor].dev);
+		parport_yield_blocking(lp_table[minor].dev);
 }
 
 static int lp_check_status(int minor)
@@ -283,10 +283,10 @@ static int lp_wait_ready(int minor, int nonblock)
 	}
 
 	do {
-		error = lp_check_status (minor);
+		error = lp_check_status(minor);
 		if (error && (nonblock || (LP_F(minor) & LP_ABORT)))
 			break;
-		if (signal_pending (current)) {
+		if (signal_pending(current)) {
 			error = -EINTR;
 			break;
 		}
@@ -320,26 +320,26 @@ static ssize_t lp_write(struct file *file, const char __user *buf,
 	if (mutex_lock_interruptible(&lp_table[minor].port_mutex))
 		return -EINTR;
 
-	if (copy_from_user (kbuf, buf, copy_size)) {
+	if (copy_from_user(kbuf, buf, copy_size)) {
 		retv = -EFAULT;
 		goto out_unlock;
 	}
 
 	/* Claim Parport or sleep until it becomes available
 	 */
-	lp_claim_parport_or_block (&lp_table[minor]);
+	lp_claim_parport_or_block(&lp_table[minor]);
 	/* Go to the proper mode. */
-	lp_table[minor].current_mode = lp_negotiate (port,
-						     lp_table[minor].best_mode);
+	lp_table[minor].current_mode = lp_negotiate(port,
+						    lp_table[minor].best_mode);
 
-	parport_set_timeout (lp_table[minor].dev,
-			     (nonblock ? PARPORT_INACTIVITY_O_NONBLOCK
-			      : lp_table[minor].timeout));
+	parport_set_timeout(lp_table[minor].dev,
+			    (nonblock ? PARPORT_INACTIVITY_O_NONBLOCK
+			     : lp_table[minor].timeout));
 
-	if ((retv = lp_wait_ready (minor, nonblock)) == 0)
+	if ((retv = lp_wait_ready(minor, nonblock)) == 0)
 	do {
 		/* Write the data. */
-		written = parport_write (port, kbuf, copy_size);
+		written = parport_write(port, kbuf, copy_size);
 		if (written > 0) {
 			copy_size -= written;
 			count -= written;
@@ -347,7 +347,7 @@ static ssize_t lp_write(struct file *file, const char __user *buf,
 			retv += written;
 		}
 
-		if (signal_pending (current)) {
+		if (signal_pending(current)) {
 			if (retv == 0)
 				retv = -EINTR;
 
@@ -358,11 +358,11 @@ static ssize_t lp_write(struct file *file, const char __user *buf,
 			/* incomplete write -> check error ! */
 			int error;
 
-			parport_negotiate (lp_table[minor].dev->port,
-					   IEEE1284_MODE_COMPAT);
+			parport_negotiate(lp_table[minor].dev->port,
+					  IEEE1284_MODE_COMPAT);
 			lp_table[minor].current_mode = IEEE1284_MODE_COMPAT;
 
-			error = lp_wait_ready (minor, nonblock);
+			error = lp_wait_ready(minor, nonblock);
 
 			if (error) {
 				if (retv == 0)
@@ -374,13 +374,13 @@ static ssize_t lp_write(struct file *file, const char __user *buf,
 				break;
 			}
 
-			parport_yield_blocking (lp_table[minor].dev);
+			parport_yield_blocking(lp_table[minor].dev);
 			lp_table[minor].current_mode
-			  = lp_negotiate (port,
-					  lp_table[minor].best_mode);
+			  = lp_negotiate(port,
+					 lp_table[minor].best_mode);
 
 		} else if (need_resched())
-			schedule ();
+			schedule();
 
 		if (count) {
 			copy_size = count;
@@ -398,10 +398,10 @@ static ssize_t lp_write(struct file *file, const char __user *buf,
 	if (test_and_clear_bit(LP_PREEMPT_REQUEST,
 			       &lp_table[minor].bits)) {
 		printk(KERN_INFO "lp%d releasing parport\n", minor);
-		parport_negotiate (lp_table[minor].dev->port,
-				   IEEE1284_MODE_COMPAT);
+		parport_negotiate(lp_table[minor].dev->port,
+				  IEEE1284_MODE_COMPAT);
 		lp_table[minor].current_mode = IEEE1284_MODE_COMPAT;
-		lp_release_parport (&lp_table[minor]);
+		lp_release_parport(&lp_table[minor]);
 	}
 out_unlock:
 	mutex_unlock(&lp_table[minor].port_mutex);
@@ -429,21 +429,21 @@ static ssize_t lp_read(struct file *file, char __user *buf,
 	if (mutex_lock_interruptible(&lp_table[minor].port_mutex))
 		return -EINTR;
 
-	lp_claim_parport_or_block (&lp_table[minor]);
+	lp_claim_parport_or_block(&lp_table[minor]);
 
-	parport_set_timeout (lp_table[minor].dev,
-			     (nonblock ? PARPORT_INACTIVITY_O_NONBLOCK
-			      : lp_table[minor].timeout));
+	parport_set_timeout(lp_table[minor].dev,
+			    (nonblock ? PARPORT_INACTIVITY_O_NONBLOCK
+			     : lp_table[minor].timeout));
 
-	parport_negotiate (lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
-	if (parport_negotiate (lp_table[minor].dev->port,
-			       IEEE1284_MODE_NIBBLE)) {
+	parport_negotiate(lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
+	if (parport_negotiate(lp_table[minor].dev->port,
+			      IEEE1284_MODE_NIBBLE)) {
 		retval = -EIO;
 		goto out;
 	}
 
 	while (retval == 0) {
-		retval = parport_read (port, kbuf, count);
+		retval = parport_read(port, kbuf, count);
 
 		if (retval > 0)
 			break;
@@ -456,11 +456,11 @@ static ssize_t lp_read(struct file *file, char __user *buf,
 		/* Wait for data. */
 
 		if (lp_table[minor].dev->port->irq == PARPORT_IRQ_NONE) {
-			parport_negotiate (lp_table[minor].dev->port,
-					   IEEE1284_MODE_COMPAT);
-			lp_error (minor);
-			if (parport_negotiate (lp_table[minor].dev->port,
-					       IEEE1284_MODE_NIBBLE)) {
+			parport_negotiate(lp_table[minor].dev->port,
+					  IEEE1284_MODE_COMPAT);
+			lp_error(minor);
+			if (parport_negotiate(lp_table[minor].dev->port,
+					      IEEE1284_MODE_NIBBLE)) {
 				retval = -EIO;
 				goto out;
 			}
@@ -470,18 +470,18 @@ static ssize_t lp_read(struct file *file, char __user *buf,
 			finish_wait(&lp_table[minor].waitq, &wait);
 		}
 
-		if (signal_pending (current)) {
+		if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
 			break;
 		}
 
-		cond_resched ();
+		cond_resched();
 	}
-	parport_negotiate (lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
+	parport_negotiate(lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
  out:
-	lp_release_parport (&lp_table[minor]);
+	lp_release_parport(&lp_table[minor]);
 
-	if (retval > 0 && copy_to_user (buf, kbuf, retval))
+	if (retval > 0 && copy_to_user(buf, kbuf, retval))
 		retval = -EFAULT;
 
 	mutex_unlock(&lp_table[minor].port_mutex);
@@ -516,9 +516,9 @@ static int lp_open(struct inode *inode, struct file *file)
 	   should most likely only ever be used by the tunelp application. */
 	if ((LP_F(minor) & LP_ABORTOPEN) && !(file->f_flags & O_NONBLOCK)) {
 		int status;
-		lp_claim_parport_or_block (&lp_table[minor]);
+		lp_claim_parport_or_block(&lp_table[minor]);
 		status = r_str(minor);
-		lp_release_parport (&lp_table[minor]);
+		lp_release_parport(&lp_table[minor]);
 		if (status & LP_POUTPA) {
 			printk(KERN_INFO "lp%d out of paper\n", minor);
 			LP_F(minor) &= ~LP_BUSY;
@@ -543,18 +543,18 @@ static int lp_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 	/* Determine if the peripheral supports ECP mode */
-	lp_claim_parport_or_block (&lp_table[minor]);
+	lp_claim_parport_or_block(&lp_table[minor]);
 	if ( (lp_table[minor].dev->port->modes & PARPORT_MODE_ECP) &&
-	     !parport_negotiate (lp_table[minor].dev->port,
+	     !parport_negotiate(lp_table[minor].dev->port,
 				 IEEE1284_MODE_ECP)) {
-		printk (KERN_INFO "lp%d: ECP mode\n", minor);
+		printk(KERN_INFO "lp%d: ECP mode\n", minor);
 		lp_table[minor].best_mode = IEEE1284_MODE_ECP;
 	} else {
 		lp_table[minor].best_mode = IEEE1284_MODE_COMPAT;
 	}
 	/* Leave peripheral in compatibility mode */
-	parport_negotiate (lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
-	lp_release_parport (&lp_table[minor]);
+	parport_negotiate(lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
+	lp_release_parport(&lp_table[minor]);
 	lp_table[minor].current_mode = IEEE1284_MODE_COMPAT;
 out:
 	mutex_unlock(&lp_mutex);
@@ -565,10 +565,10 @@ static int lp_release(struct inode *inode, struct file *file)
 {
 	unsigned int minor = iminor(inode);
 
-	lp_claim_parport_or_block (&lp_table[minor]);
-	parport_negotiate (lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
+	lp_claim_parport_or_block(&lp_table[minor]);
+	parport_negotiate(lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
 	lp_table[minor].current_mode = IEEE1284_MODE_COMPAT;
-	lp_release_parport (&lp_table[minor]);
+	lp_release_parport(&lp_table[minor]);
 	kfree(lp_table[minor].lp_buffer);
 	lp_table[minor].lp_buffer = NULL;
 	LP_F(minor) &= ~LP_BUSY;
@@ -629,9 +629,9 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 		case LPGETSTATUS:
 			if (mutex_lock_interruptible(&lp_table[minor].port_mutex))
 				return -EINTR;
-			lp_claim_parport_or_block (&lp_table[minor]);
+			lp_claim_parport_or_block(&lp_table[minor]);
 			status = r_str(minor);
-			lp_release_parport (&lp_table[minor]);
+			lp_release_parport(&lp_table[minor]);
 			mutex_unlock(&lp_table[minor].port_mutex);
 
 			if (copy_to_user(argp, &status, sizeof(int)))
@@ -804,31 +804,31 @@ static const struct file_operations lp_fops = {
 
 /* The console must be locked when we get here. */
 
-static void lp_console_write (struct console *co, const char *s,
-			      unsigned count)
+static void lp_console_write(struct console *co, const char *s,
+			     unsigned count)
 {
 	struct pardevice *dev = lp_table[CONSOLE_LP].dev;
 	struct parport *port = dev->port;
 	ssize_t written;
 
-	if (parport_claim (dev))
+	if (parport_claim(dev))
 		/* Nothing we can do. */
 		return;
 
-	parport_set_timeout (dev, 0);
+	parport_set_timeout(dev, 0);
 
 	/* Go to compatibility mode. */
-	parport_negotiate (port, IEEE1284_MODE_COMPAT);
+	parport_negotiate(port, IEEE1284_MODE_COMPAT);
 
 	do {
 		/* Write the data, converting LF->CRLF as we go. */
 		ssize_t canwrite = count;
-		char *lf = memchr (s, '\n', count);
+		char *lf = memchr(s, '\n', count);
 		if (lf)
 			canwrite = lf - s;
 
 		if (canwrite > 0) {
-			written = parport_write (port, s, canwrite);
+			written = parport_write(port, s, canwrite);
 
 			if (written <= 0)
 				continue;
@@ -846,14 +846,14 @@ static void lp_console_write (struct console *co, const char *s,
 			s++;
 			count--;
 			do {
-				written = parport_write (port, crlf, i);
+				written = parport_write(port, crlf, i);
 				if (written > 0)
 					i -= written, crlf += written;
 			} while (i > 0 && (CONSOLE_LP_STRICT || written > 0));
 		}
 	} while (count > 0 && (CONSOLE_LP_STRICT || written > 0));
 
-	parport_release (dev);
+	parport_release(dev);
 }
 
 static struct console lpcons = {
@@ -874,7 +874,7 @@ module_param_array(parport, charp, NULL, 0);
 module_param(reset, bool, 0);
 
 #ifndef MODULE
-static int __init lp_setup (char *str)
+static int __init lp_setup(char *str)
 {
 	static int parport_ptr;
 	int x;
@@ -932,17 +932,17 @@ static int lp_register(int nr, struct parport *port)
 		if (port->modes & PARPORT_MODE_SAFEININT) {
 			register_console(&lpcons);
 			console_registered = port;
-			printk (KERN_INFO "lp%d: console ready\n", CONSOLE_LP);
+			printk(KERN_INFO "lp%d: console ready\n", CONSOLE_LP);
 		} else
-			printk (KERN_ERR "lp%d: cannot run console on %s\n",
-				CONSOLE_LP, port->name);
+			printk(KERN_ERR "lp%d: cannot run console on %s\n",
+			       CONSOLE_LP, port->name);
 	}
 #endif
 
 	return 0;
 }
 
-static void lp_attach (struct parport *port)
+static void lp_attach(struct parport *port)
 {
 	unsigned int i;
 
@@ -972,7 +972,7 @@ static void lp_attach (struct parport *port)
 	}
 }
 
-static void lp_detach (struct parport *port)
+static void lp_detach(struct parport *port)
 {
 	/* Write this some day. */
 #ifdef CONFIG_LP_CONSOLE
@@ -989,7 +989,7 @@ static struct parport_driver lp_driver = {
 	.detach = lp_detach,
 };
 
-static int __init lp_init (void)
+static int __init lp_init(void)
 {
 	int i, err = 0;
 
@@ -1006,17 +1006,17 @@ static int __init lp_init (void)
 #ifdef LP_STATS
 		lp_table[i].lastcall = 0;
 		lp_table[i].runchars = 0;
-		memset (&lp_table[i].stats, 0, sizeof (struct lp_stats));
+		memset(&lp_table[i].stats, 0, sizeof(struct lp_stats));
 #endif
 		lp_table[i].last_error = 0;
-		init_waitqueue_head (&lp_table[i].waitq);
-		init_waitqueue_head (&lp_table[i].dataq);
+		init_waitqueue_head(&lp_table[i].waitq);
+		init_waitqueue_head(&lp_table[i].dataq);
 		mutex_init(&lp_table[i].port_mutex);
 		lp_table[i].timeout = 10 * HZ;
 	}
 
-	if (register_chrdev (LP_MAJOR, "lp", &lp_fops)) {
-		printk (KERN_ERR "lp: unable to get major %d\n", LP_MAJOR);
+	if (register_chrdev(LP_MAJOR, "lp", &lp_fops)) {
+		printk(KERN_ERR "lp: unable to get major %d\n", LP_MAJOR);
 		return -EIO;
 	}
 
@@ -1026,17 +1026,17 @@ static int __init lp_init (void)
 		goto out_reg;
 	}
 
-	if (parport_register_driver (&lp_driver)) {
-		printk (KERN_ERR "lp: unable to register with parport\n");
+	if (parport_register_driver(&lp_driver)) {
+		printk(KERN_ERR "lp: unable to register with parport\n");
 		err = -EIO;
 		goto out_class;
 	}
 
 	if (!lp_count) {
-		printk (KERN_INFO "lp: driver loaded but no devices found\n");
+		printk(KERN_INFO "lp: driver loaded but no devices found\n");
 #ifndef CONFIG_PARPORT_1284
 		if (parport_nr[0] == LP_PARPORT_AUTO)
-			printk (KERN_INFO "lp: (is IEEE 1284 support enabled?)\n");
+			printk(KERN_INFO "lp: (is IEEE 1284 support enabled?)\n");
 #endif
 	}
 
@@ -1049,7 +1049,7 @@ out_reg:
 	return err;
 }
 
-static int __init lp_init_module (void)
+static int __init lp_init_module(void)
 {
 	if (parport[0]) {
 		/* The user gave some parameters.  Let's see what they were.  */
@@ -1077,14 +1077,14 @@ static int __init lp_init_module (void)
 	return lp_init();
 }
 
-static void lp_cleanup_module (void)
+static void lp_cleanup_module(void)
 {
 	unsigned int offset;
 
-	parport_unregister_driver (&lp_driver);
+	parport_unregister_driver(&lp_driver);
 
 #ifdef CONFIG_LP_CONSOLE
-	unregister_console (&lpcons);
+	unregister_console(&lpcons);
 #endif
 
 	unregister_chrdev(LP_MAJOR, "lp");
