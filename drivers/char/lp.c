@@ -46,8 +46,8 @@
  *	lp=auto				(assign lp devices to all ports that
  *				         have printers attached, as determined
  *					 by the IEEE-1284 autoprobe)
- * 
- *	lp=reset			(reset the printer during 
+ *
+ *	lp=reset			(reset the printer during
  *					 initialisation)
  *
  *	lp=off				(disable the printer driver entirely)
@@ -188,7 +188,7 @@ static int lp_preempt(void *handle)
 }
 
 
-/* 
+/*
  * Try to negotiate to a new mode; if unsuccessful negotiate to
  * compatibility mode.  Return the mode we ended up in.
  */
@@ -326,7 +326,7 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
  	 */
 	lp_claim_parport_or_block (&lp_table[minor]);
 	/* Go to the proper mode. */
-	lp_table[minor].current_mode = lp_negotiate (port, 
+	lp_table[minor].current_mode = lp_negotiate (port,
 						     lp_table[minor].best_mode);
 
 	parport_set_timeout (lp_table[minor].dev,
@@ -355,7 +355,7 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
 			/* incomplete write -> check error ! */
 			int error;
 
-			parport_negotiate (lp_table[minor].dev->port, 
+			parport_negotiate (lp_table[minor].dev->port,
 					   IEEE1284_MODE_COMPAT);
 			lp_table[minor].current_mode = IEEE1284_MODE_COMPAT;
 
@@ -372,8 +372,8 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
 			}
 
 			parport_yield_blocking (lp_table[minor].dev);
-			lp_table[minor].current_mode 
-			  = lp_negotiate (port, 
+			lp_table[minor].current_mode
+			  = lp_negotiate (port,
 					  lp_table[minor].best_mode);
 
 		} else if (need_resched())
@@ -389,13 +389,13 @@ static ssize_t lp_write(struct file * file, const char __user * buf,
 					retv = -EFAULT;
 				break;
 			}
-		}	
+		}
 	} while (count > 0);
 
-	if (test_and_clear_bit(LP_PREEMPT_REQUEST, 
+	if (test_and_clear_bit(LP_PREEMPT_REQUEST,
 			       &lp_table[minor].bits)) {
 		printk(KERN_INFO "lp%d releasing parport\n", minor);
-		parport_negotiate (lp_table[minor].dev->port, 
+		parport_negotiate (lp_table[minor].dev->port,
 				   IEEE1284_MODE_COMPAT);
 		lp_table[minor].current_mode = IEEE1284_MODE_COMPAT;
 		lp_release_parport (&lp_table[minor]);
@@ -542,7 +542,7 @@ static int lp_open(struct inode * inode, struct file * file)
 	/* Determine if the peripheral supports ECP mode */
 	lp_claim_parport_or_block (&lp_table[minor]);
 	if ( (lp_table[minor].dev->port->modes & PARPORT_MODE_ECP) &&
-             !parport_negotiate (lp_table[minor].dev->port, 
+             !parport_negotiate (lp_table[minor].dev->port,
                                  IEEE1284_MODE_ECP)) {
 		printk (KERN_INFO "lp%d: ECP mode\n", minor);
 		lp_table[minor].best_mode = IEEE1284_MODE_ECP;
@@ -615,7 +615,7 @@ static int lp_do_ioctl(unsigned int minor, unsigned int cmd,
 		case LPWAIT:
 			LP_WAIT(minor) = arg;
 			break;
-		case LPSETIRQ: 
+		case LPSETIRQ:
 			return -EINVAL;
 			break;
 		case LPGETIRQ:
@@ -908,7 +908,7 @@ static int __init lp_setup (char *str)
 
 static int lp_register(int nr, struct parport *port)
 {
-	lp_table[nr].dev = parport_register_device(port, "lp", 
+	lp_table[nr].dev = parport_register_device(port, "lp",
 						   lp_preempt, NULL, NULL, 0,
 						   (void *) &lp_table[nr]);
 	if (lp_table[nr].dev == NULL)
@@ -921,7 +921,7 @@ static int lp_register(int nr, struct parport *port)
 	device_create(lp_class, port->dev, MKDEV(LP_MAJOR, nr), NULL,
 		      "lp%d", nr);
 
-	printk(KERN_INFO "lp%d: using %s (%s).\n", nr, port->name, 
+	printk(KERN_INFO "lp%d: using %s (%s).\n", nr, port->name,
 	       (port->irq == PARPORT_IRQ_NONE)?"polling":"interrupt-driven");
 
 #ifdef CONFIG_LP_CONSOLE
@@ -1060,7 +1060,7 @@ static int __init lp_init_module (void)
 				else {
 					char *ep;
 					unsigned long r = simple_strtoul(parport[n], &ep, 0);
-					if (ep != parport[n]) 
+					if (ep != parport[n])
 						parport_nr[n] = r;
 					else {
 						printk(KERN_ERR "lp: bad port specifier `%s'\n", parport[n]);
