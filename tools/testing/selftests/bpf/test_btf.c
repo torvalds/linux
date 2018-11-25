@@ -29,7 +29,6 @@
 static uint32_t pass_cnt;
 static uint32_t error_cnt;
 static uint32_t skip_cnt;
-static bool jit_enabled;
 
 #define CHECK(condition, format...) ({					\
 	int __ret = !!(condition);					\
@@ -63,24 +62,6 @@ static int __base_pr(const char *format, ...)
 	err = vfprintf(stderr, format, args);
 	va_end(args);
 	return err;
-}
-
-static bool is_jit_enabled(void)
-{
-	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
-	bool enabled = false;
-	int sysctl_fd;
-
-	sysctl_fd = open(jit_sysctl, 0, O_RDONLY);
-	if (sysctl_fd != -1) {
-		char tmpc;
-
-		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
-			enabled = (tmpc != '0');
-		close(sysctl_fd);
-	}
-
-	return enabled;
 }
 
 #define BTF_INFO_ENC(kind, root, vlen)			\
@@ -2547,8 +2528,8 @@ static int do_test_file(unsigned int test_num)
 		  test->btf_kv_notfound))
 		goto done;
 
-	if (!jit_enabled || !has_btf_ext)
-		goto skip_jit;
+	if (!has_btf_ext)
+		goto skip;
 
 	/* get necessary program info */
 	info_len = sizeof(struct bpf_prog_info);
@@ -2636,7 +2617,7 @@ static int do_test_file(unsigned int test_num)
 		finfo = (void *)finfo + rec_size;
 	}
 
-skip_jit:
+skip:
 	fprintf(stderr, "OK");
 
 done:
@@ -3270,12 +3251,6 @@ static int do_test_func_type(int test_num)
 		err = -1;
 		goto done;
 	}
-	if (!jit_enabled) {
-		skip_cnt++;
-		fprintf(stderr, "SKIPPED, please enable sysctl bpf_jit_enable\n");
-		err = 0;
-		goto done;
-	}
 
 	/* get necessary lens */
 	info_len = sizeof(struct bpf_prog_info);
@@ -3451,8 +3426,6 @@ int main(int argc, char **argv)
 
 	if (args.always_log)
 		libbpf_set_print(__base_pr, __base_pr, __base_pr);
-
-	jit_enabled = is_jit_enabled();
 
 	if (args.raw_test)
 		err |= test_raw();
