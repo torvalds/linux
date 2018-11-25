@@ -801,6 +801,39 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.lag_vid_valid		= 1,
 };
 
+static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_emu_ops = {
+	.setup			= mlxsw_sp_fid_8021q_setup,
+	.configure		= mlxsw_sp_fid_8021d_configure,
+	.deconfigure		= mlxsw_sp_fid_8021d_deconfigure,
+	.index_alloc		= mlxsw_sp_fid_8021d_index_alloc,
+	.compare		= mlxsw_sp_fid_8021q_compare,
+	.flood_index		= mlxsw_sp_fid_8021d_flood_index,
+	.port_vid_map		= mlxsw_sp_fid_8021d_port_vid_map,
+	.port_vid_unmap		= mlxsw_sp_fid_8021d_port_vid_unmap,
+	.vni_set		= mlxsw_sp_fid_8021d_vni_set,
+	.vni_clear		= mlxsw_sp_fid_8021d_vni_clear,
+	.nve_flood_index_set	= mlxsw_sp_fid_8021d_nve_flood_index_set,
+	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
+};
+
+/* There are 4K-2 emulated 802.1Q FIDs, starting right after the 802.1D FIDs */
+#define MLXSW_SP_FID_8021Q_EMU_START	(VLAN_N_VID + MLXSW_SP_FID_8021D_MAX)
+#define MLXSW_SP_FID_8021Q_EMU_END	(MLXSW_SP_FID_8021Q_EMU_START + \
+					 VLAN_VID_MASK - 2)
+
+/* Range and flood configuration must match mlxsw_config_profile */
+static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
+	.type			= MLXSW_SP_FID_TYPE_8021Q,
+	.fid_size		= sizeof(struct mlxsw_sp_fid_8021q),
+	.start_index		= MLXSW_SP_FID_8021Q_EMU_START,
+	.end_index		= MLXSW_SP_FID_8021Q_EMU_END,
+	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
+	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
+	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
+	.lag_vid_valid		= 1,
+};
+
 static int mlxsw_sp_fid_rfid_configure(struct mlxsw_sp_fid *fid)
 {
 	/* rFIDs are allocated by the device during init */
