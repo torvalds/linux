@@ -1953,6 +1953,9 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
 	struct ib_uverbs_ex_modify_qp cmd;
+	struct ib_uverbs_ex_modify_qp_resp resp = {
+		.response_length = uverbs_response_length(attrs, sizeof(resp))
+	};
 	int ret;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
@@ -1969,7 +1972,11 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs,
 	    ~((IB_USER_LAST_QP_ATTR_MASK << 1) - 1))
 		return -EOPNOTSUPP;
 
-	return modify_qp(attrs, &cmd);
+	ret = modify_qp(attrs, &cmd);
+	if (ret)
+		return ret;
+
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
 static int ib_uverbs_destroy_qp(struct uverbs_attr_bundle *attrs,
