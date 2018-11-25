@@ -100,6 +100,18 @@ static int uverbs_request(struct uverbs_attr_bundle *attrs, void *req,
 	return 0;
 }
 
+/*
+ * Generate the value for the 'response_length' protocol used by write_ex.
+ * This is the number of bytes the kernel actually wrote. Userspace can use
+ * this to detect what structure members in the response the kernel
+ * understood.
+ */
+static u32 uverbs_response_length(struct uverbs_attr_bundle *attrs,
+				  size_t resp_len)
+{
+	return min_t(size_t, attrs->ucore.outlen, resp_len);
+}
+
 static struct ib_uverbs_completion_event_file *
 _ib_uverbs_lookup_comp_file(s32 fd, const struct uverbs_attr_bundle *attrs)
 {
@@ -1007,7 +1019,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	memset(&resp, 0, sizeof resp);
 	resp.base.cq_handle = obj->uobject.id;
 	resp.base.cqe       = cq->cqe;
-	resp.response_length = sizeof(resp);
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_add(&cq->res);
@@ -1061,27 +1073,19 @@ static int ib_uverbs_create_cq(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_create_cq(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_create_cq_resp resp;
 	struct ib_uverbs_ex_create_cq  cmd;
 	struct ib_ucq_object           *obj;
-	int err;
+	int ret;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
-	if (err)
-		return err;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	if (cmd.comp_mask)
 		return -EINVAL;
 
 	if (cmd.reserved)
 		return -EINVAL;
-
-	if (ucore->outlen < (offsetof(typeof(resp), response_length) +
-			     sizeof(resp.response_length)))
-		return -ENOSPC;
 
 	obj = create_cq(attrs, &cmd, min(ucore->inlen, sizeof(cmd)));
 	return PTR_ERR_OR_ZERO(obj);
@@ -1292,13 +1296,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 		attr.rwq_ind_tbl = ind_tbl;
 	}
 
-	if (cmd_sz > sizeof(*cmd) &&
-	    !ib_is_udata_cleared(&attrs->ucore, sizeof(*cmd),
-				 cmd_sz - sizeof(*cmd))) {
-		ret = -EOPNOTSUPP;
-		goto err_put;
-	}
-
 	if (ind_tbl && (cmd->max_recv_wr || cmd->max_recv_sge || cmd->is_srq)) {
 		ret = -EINVAL;
 		goto err_put;
@@ -1469,7 +1466,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	resp.base.max_recv_wr     = attr.cap.max_recv_wr;
 	resp.base.max_send_wr     = attr.cap.max_send_wr;
 	resp.base.max_inline_data = attr.cap.max_inline_data;
-	resp.response_length = sizeof(resp);
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
@@ -1548,27 +1545,18 @@ static int ib_uverbs_create_qp(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_create_qp(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_create_qp_resp resp;
-	struct ib_uverbs_ex_create_qp cmd = {0};
-	int err;
+	struct ib_uverbs_ex_create_qp cmd;
+	int ret;
 
-	if (ucore->inlen < (offsetof(typeof(cmd), comp_mask) +
-			    sizeof(cmd.comp_mask)))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
-	if (err)
-		return err;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	if (cmd.comp_mask & ~IB_UVERBS_CREATE_QP_SUP_COMP_MASK)
 		return -EINVAL;
 
 	if (cmd.reserved)
 		return -EINVAL;
-
-	if (ucore->outlen < (offsetof(typeof(resp), response_length) +
-			     sizeof(resp.response_length)))
-		return -ENOSPC;
 
 	return create_qp(attrs, &cmd, min(ucore->inlen, sizeof(cmd)));
 }
@@ -1947,7 +1935,7 @@ out:
 static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs,
 			       const char __user *buf, int in_len, int out_len)
 {
-	struct ib_uverbs_ex_modify_qp cmd = {};
+	struct ib_uverbs_ex_modify_qp cmd;
 	int ret;
 
 	ret = uverbs_request(attrs, &cmd.base, sizeof(cmd.base));
@@ -1964,8 +1952,12 @@ static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_modify_qp cmd = {};
+	struct ib_uverbs_ex_modify_qp cmd;
 	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	/*
 	 * Last bit is reserved for extending the attr_mask by
@@ -1973,26 +1965,11 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs,
 	 */
 	BUILD_BUG_ON(IB_USER_LAST_QP_ATTR_MASK == (1 << 31));
 
-	if (ucore->inlen < sizeof(cmd.base))
-		return -EINVAL;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
-	if (ret)
-		return ret;
-
 	if (cmd.base.attr_mask &
 	    ~((IB_USER_LAST_QP_ATTR_MASK << 1) - 1))
 		return -EOPNOTSUPP;
 
-	if (ucore->inlen > sizeof(cmd)) {
-		if (!ib_is_udata_cleared(ucore, sizeof(cmd),
-					 ucore->inlen - sizeof(cmd)))
-			return -EOPNOTSUPP;
-	}
-
-	ret = modify_qp(attrs, &cmd);
-
-	return ret;
+	return modify_qp(attrs, &cmd);
 }
 
 static int ib_uverbs_destroy_qp(struct uverbs_attr_bundle *attrs,
@@ -2921,7 +2898,7 @@ static int kern_spec_to_ib_spec(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_create_wq	  cmd = {};
+	struct ib_uverbs_ex_create_wq cmd;
 	struct ib_uverbs_ex_create_wq_resp resp = {};
 	struct ib_uwq_object           *obj;
 	int err = 0;
@@ -2929,25 +2906,9 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 	struct ib_pd *pd;
 	struct ib_wq *wq;
 	struct ib_wq_init_attr wq_init_attr = {};
-	size_t required_cmd_sz;
-	size_t required_resp_len;
 	struct ib_device *ib_dev;
 
-	required_cmd_sz = offsetof(typeof(cmd), max_sge) + sizeof(cmd.max_sge);
-	required_resp_len = offsetof(typeof(resp), wqn) + sizeof(resp.wqn);
-
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->outlen < required_resp_len)
-		return -ENOSPC;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	err = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	err = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (err)
 		return err;
 
@@ -2977,9 +2938,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 	wq_init_attr.wq_context = attrs->ufile;
 	wq_init_attr.wq_type = cmd.wq_type;
 	wq_init_attr.event_handler = ib_uverbs_wq_event_handler;
-	if (ucore->inlen >= (offsetof(typeof(cmd), create_flags) +
-			     sizeof(cmd.create_flags)))
-		wq_init_attr.create_flags = cmd.create_flags;
+	wq_init_attr.create_flags = cmd.create_flags;
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 
@@ -3007,7 +2966,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 	resp.max_sge = wq_init_attr.max_sge;
 	resp.max_wr = wq_init_attr.max_wr;
 	resp.wqn = wq->wq_num;
-	resp.response_length = required_resp_len;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 	err = uverbs_response(attrs, &resp, sizeof(resp));
 	if (err)
 		goto err_copy;
@@ -3031,36 +2990,20 @@ err_uobj:
 static int ib_uverbs_ex_destroy_wq(struct uverbs_attr_bundle *attrs,
 				   struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_destroy_wq	cmd = {};
+	struct ib_uverbs_ex_destroy_wq	cmd;
 	struct ib_uverbs_ex_destroy_wq_resp	resp = {};
 	struct ib_uobject		*uobj;
 	struct ib_uwq_object		*obj;
-	size_t required_cmd_sz;
-	size_t required_resp_len;
 	int				ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), wq_handle) + sizeof(cmd.wq_handle);
-	required_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
-
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->outlen < required_resp_len)
-		return -ENOSPC;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
 	if (cmd.comp_mask)
 		return -EOPNOTSUPP;
 
-	resp.response_length = required_resp_len;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 	uobj = uobj_get_destroy(UVERBS_OBJECT_WQ, cmd.wq_handle, attrs);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
@@ -3076,22 +3019,12 @@ static int ib_uverbs_ex_destroy_wq(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_modify_wq(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_modify_wq cmd = {};
+	struct ib_uverbs_ex_modify_wq cmd;
 	struct ib_wq *wq;
 	struct ib_wq_attr wq_attr = {};
-	size_t required_cmd_sz;
 	int ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), curr_wq_state) + sizeof(cmd.curr_wq_state);
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
@@ -3229,7 +3162,7 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 
 	resp.ind_tbl_handle = uobj->id;
 	resp.ind_tbl_num = rwq_ind_tbl->ind_tbl_num;
-	resp.response_length = required_resp_len;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
 	err = uverbs_response(attrs, &resp, sizeof(resp));
 	if (err)
@@ -3258,21 +3191,10 @@ err_free:
 static int ib_uverbs_ex_destroy_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 					      struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_destroy_rwq_ind_table	cmd = {};
-	int			ret;
-	size_t required_cmd_sz;
+	struct ib_uverbs_ex_destroy_rwq_ind_table cmd;
+	int ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), ind_tbl_handle) + sizeof(cmd.ind_tbl_handle);
-
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
@@ -3460,10 +3382,7 @@ static int ib_uverbs_ex_destroy_flow(struct uverbs_attr_bundle *attrs,
 	struct ib_uverbs_destroy_flow	cmd;
 	int				ret;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	ret = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
@@ -3856,23 +3775,11 @@ end:
 static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs,
 				  struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_modify_cq cmd = {};
+	struct ib_uverbs_ex_modify_cq cmd;
 	struct ib_cq *cq;
-	size_t required_cmd_sz;
 	int ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), reserved) +
-				sizeof(cmd.reserved);
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	/* sanity checks */
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
