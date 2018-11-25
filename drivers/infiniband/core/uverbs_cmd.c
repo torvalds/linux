@@ -3660,7 +3660,7 @@ static int ib_uverbs_destroy_srq(struct uverbs_attr_bundle *attrs,
 static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 				     struct ib_udata *ucore)
 {
-	struct ib_uverbs_ex_query_device_resp resp = { {0} };
+	struct ib_uverbs_ex_query_device_resp resp = {};
 	struct ib_uverbs_ex_query_device  cmd;
 	struct ib_device_attr attr = {0};
 	struct ib_ucontext *ucontext;
@@ -3672,10 +3672,7 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 		return PTR_ERR(ucontext);
 	ib_dev = ucontext->device;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	err = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (err)
 		return err;
 
@@ -3685,19 +3682,11 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 	if (cmd.reserved)
 		return -EINVAL;
 
-	resp.response_length = offsetof(typeof(resp), odp_caps);
-
-	if (ucore->outlen < resp.response_length)
-		return -ENOSPC;
-
 	err = ib_dev->query_device(ib_dev, &attr, &attrs->driver_udata);
 	if (err)
 		return err;
 
 	copy_query_dev_fields(ucontext, &resp.base, &attr);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.odp_caps))
-		goto end;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	resp.odp_caps.general_caps = attr.odp_caps.general_caps;
@@ -3708,74 +3697,29 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 	resp.odp_caps.per_transport_caps.ud_odp_caps =
 		attr.odp_caps.per_transport_caps.ud_odp_caps;
 #endif
-	resp.response_length += sizeof(resp.odp_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.timestamp_mask))
-		goto end;
 
 	resp.timestamp_mask = attr.timestamp_mask;
-	resp.response_length += sizeof(resp.timestamp_mask);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.hca_core_clock))
-		goto end;
-
 	resp.hca_core_clock = attr.hca_core_clock;
-	resp.response_length += sizeof(resp.hca_core_clock);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.device_cap_flags_ex))
-		goto end;
-
 	resp.device_cap_flags_ex = attr.device_cap_flags;
-	resp.response_length += sizeof(resp.device_cap_flags_ex);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.rss_caps))
-		goto end;
-
 	resp.rss_caps.supported_qpts = attr.rss_caps.supported_qpts;
 	resp.rss_caps.max_rwq_indirection_tables =
 		attr.rss_caps.max_rwq_indirection_tables;
 	resp.rss_caps.max_rwq_indirection_table_size =
 		attr.rss_caps.max_rwq_indirection_table_size;
-
-	resp.response_length += sizeof(resp.rss_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.max_wq_type_rq))
-		goto end;
-
 	resp.max_wq_type_rq = attr.max_wq_type_rq;
-	resp.response_length += sizeof(resp.max_wq_type_rq);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.raw_packet_caps))
-		goto end;
-
 	resp.raw_packet_caps = attr.raw_packet_caps;
-	resp.response_length += sizeof(resp.raw_packet_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.tm_caps))
-		goto end;
-
 	resp.tm_caps.max_rndv_hdr_size	= attr.tm_caps.max_rndv_hdr_size;
 	resp.tm_caps.max_num_tags	= attr.tm_caps.max_num_tags;
 	resp.tm_caps.max_ops		= attr.tm_caps.max_ops;
 	resp.tm_caps.max_sge		= attr.tm_caps.max_sge;
 	resp.tm_caps.flags		= attr.tm_caps.flags;
-	resp.response_length += sizeof(resp.tm_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.cq_moderation_caps))
-		goto end;
-
 	resp.cq_moderation_caps.max_cq_moderation_count  =
 		attr.cq_caps.max_cq_moderation_count;
 	resp.cq_moderation_caps.max_cq_moderation_period =
 		attr.cq_caps.max_cq_moderation_period;
-	resp.response_length += sizeof(resp.cq_moderation_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.max_dm_size))
-		goto end;
-
 	resp.max_dm_size = attr.max_dm_size;
-	resp.response_length += sizeof(resp.max_dm_size);
-end:
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
+
 	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
