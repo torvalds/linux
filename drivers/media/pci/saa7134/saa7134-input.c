@@ -448,17 +448,10 @@ static void saa7134_input_timer(struct timer_list *t)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static int __saa7134_ir_start(void *priv)
+int saa7134_ir_open(struct rc_dev *rc)
 {
-	struct saa7134_dev *dev = priv;
-	struct saa7134_card_ir *ir;
-
-	if (!dev || !dev->remote)
-		return -EINVAL;
-
-	ir  = dev->remote;
-	if (ir->running)
-		return 0;
+	struct saa7134_dev *dev = rc->priv;
+	struct saa7134_card_ir *ir = dev->remote;
 
 	/* Moved here from saa7134_input_init1() because the latter
 	 * is not called on device resume */
@@ -507,55 +500,15 @@ static int __saa7134_ir_start(void *priv)
 	return 0;
 }
 
-static void __saa7134_ir_stop(void *priv)
+void saa7134_ir_close(struct rc_dev *rc)
 {
-	struct saa7134_dev *dev = priv;
-	struct saa7134_card_ir *ir;
-
-	if (!dev || !dev->remote)
-		return;
-
-	ir  = dev->remote;
-	if (!ir->running)
-		return;
+	struct saa7134_dev *dev = rc->priv;
+	struct saa7134_card_ir *ir = dev->remote;
 
 	if (ir->polling)
 		del_timer_sync(&ir->timer);
 
 	ir->running = false;
-
-	return;
-}
-
-int saa7134_ir_start(struct saa7134_dev *dev)
-{
-	if (dev->remote->users)
-		return __saa7134_ir_start(dev);
-
-	return 0;
-}
-
-void saa7134_ir_stop(struct saa7134_dev *dev)
-{
-	if (dev->remote->users)
-		__saa7134_ir_stop(dev);
-}
-
-static int saa7134_ir_open(struct rc_dev *rc)
-{
-	struct saa7134_dev *dev = rc->priv;
-
-	dev->remote->users++;
-	return __saa7134_ir_start(dev);
-}
-
-static void saa7134_ir_close(struct rc_dev *rc)
-{
-	struct saa7134_dev *dev = rc->priv;
-
-	dev->remote->users--;
-	if (!dev->remote->users)
-		__saa7134_ir_stop(dev);
 }
 
 int saa7134_input_init1(struct saa7134_dev *dev)
@@ -624,7 +577,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
 		polling      = 50; // ms
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M135A:
 		ir_codes     = RC_MAP_AVERMEDIA_M135A;
@@ -646,14 +599,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; // ms
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
 		ir_codes     = RC_MAP_AVERMEDIA_A16D;
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; /* ms */
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
 		ir_codes     = RC_MAP_PIXELVIEW;
@@ -705,7 +658,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keycode = 0x0003CC;
 		mask_keydown = 0x000010;
 		polling	     = 5; /* ms */
-		/* GPIO stuff moved to __saa7134_ir_start() */
+		/* GPIO stuff moved to saa7134_ir_open() */
 		break;
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
@@ -890,7 +843,6 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 	if (NULL == dev->remote)
 		return;
 
-	saa7134_ir_stop(dev);
 	rc_unregister_device(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;

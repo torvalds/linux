@@ -124,7 +124,6 @@ struct saa7134_card_ir {
 	struct rc_dev		*dev;
 
 	char                    phys[32];
-	unsigned                users;
 
 	u32			polling;
 	u32			last_gpio;
@@ -922,13 +921,13 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
-int saa7134_ir_start(struct saa7134_dev *dev);
-void saa7134_ir_stop(struct saa7134_dev *dev);
+int saa7134_ir_open(struct rc_dev *dev);
+void saa7134_ir_close(struct rc_dev *dev);
 #else
 #define saa7134_input_init1(dev)	((void)0)
 #define saa7134_input_fini(dev)		((void)0)
 #define saa7134_input_irq(dev)		((void)0)
 #define saa7134_probe_i2c_ir(dev)	((void)0)
-#define saa7134_ir_start(dev)		((void)0)
-#define saa7134_ir_stop(dev)		((void)0)
+#define saa7134_ir_open(dev)		((void)0)
+#define saa7134_ir_close(dev)		((void)0)
 #endif
