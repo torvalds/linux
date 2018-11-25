@@ -4111,16 +4111,20 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 }
 
+/* Per-FID flood tables are used for both "true" 802.1D FIDs and emulated
+ * 802.1Q FIDs
+ */
+#define MLXSW_SP_FID_FLOOD_TABLE_SIZE	(MLXSW_SP_FID_8021D_MAX + \
+					 VLAN_VID_MASK - 1)
+
 static const struct mlxsw_config_profile mlxsw_sp1_config_profile = {
 	.used_max_mid			= 1,
 	.max_mid			= MLXSW_SP_MID_MAX,
 	.used_flood_tables		= 1,
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
-	.max_fid_offset_flood_tables	= 3,
-	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
 	.max_fid_flood_tables		= 3,
-	.fid_flood_table_size		= MLXSW_SP_FID_8021D_MAX,
+	.fid_flood_table_size		= MLXSW_SP_FID_FLOOD_TABLE_SIZE,
 	.used_max_ib_mc			= 1,
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
@@ -4143,10 +4147,8 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 	.used_flood_tables		= 1,
 	.used_flood_mode		= 1,
 	.flood_mode			= 3,
-	.max_fid_offset_flood_tables	= 3,
-	.fid_offset_flood_table_size	= VLAN_N_VID - 1,
 	.max_fid_flood_tables		= 3,
-	.fid_flood_table_size		= MLXSW_SP_FID_8021D_MAX,
+	.fid_flood_table_size		= MLXSW_SP_FID_FLOOD_TABLE_SIZE,
 	.used_max_ib_mc			= 1,
 	.max_ib_mc			= 0,
 	.used_max_pkey			= 1,
