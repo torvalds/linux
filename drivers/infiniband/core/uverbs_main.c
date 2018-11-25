@@ -695,6 +695,7 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 	if (!method_elm->is_ex) {
 		size_t in_len = hdr.in_words * 4 - sizeof(hdr);
 		size_t out_len = hdr.out_words * 4;
+		u64 response = 0;
 
 		if (method_elm->has_udata) {
 			bundle.driver_udata.inlen =
@@ -710,8 +711,6 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 		}
 
 		if (method_elm->has_resp) {
-			u64 response;
-
 			/*
 			 * The macros check that if has_resp is set
 			 * then the command request structure starts
@@ -737,23 +736,25 @@ static ssize_t ib_uverbs_write(struct file *filp, const char __user *buf,
 			bundle.driver_udata.outbuf = NULL;
 		}
 
+		ib_uverbs_init_udata_buf_or_null(
+			&bundle.ucore, buf, u64_to_user_ptr(response),
+			in_len, out_len);
+
 		ret = method_elm->handler(&bundle, buf, in_len, out_len);
 	} else {
-		struct ib_udata ucore;
-
 		buf += sizeof(ex_hdr);
 
-		ib_uverbs_init_udata_buf_or_null(&ucore, buf,
+		ib_uverbs_init_udata_buf_or_null(&bundle.ucore, buf,
 					u64_to_user_ptr(ex_hdr.response),
 					hdr.in_words * 8, hdr.out_words * 8);
 
-		ib_uverbs_init_udata_buf_or_null(&bundle.driver_udata,
-					buf + ucore.inlen,
-					u64_to_user_ptr(ex_hdr.response) + ucore.outlen,
-					ex_hdr.provider_in_words * 8,
-					ex_hdr.provider_out_words * 8);
+		ib_uverbs_init_udata_buf_or_null(
+			&bundle.driver_udata, buf + bundle.ucore.inlen,
+			u64_to_user_ptr(ex_hdr.response) + bundle.ucore.outlen,
+			ex_hdr.provider_in_words * 8,
+			ex_hdr.provider_out_words * 8);
 
-		ret = method_elm->handler_ex(&bundle, &ucore);
+		ret = method_elm->handler_ex(&bundle, &bundle.ucore);
 	}
 
 out_unlock:
