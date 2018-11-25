@@ -60,7 +60,7 @@ static const struct uverbs_attr_spec mlx5_ib_flow_type[] = {
 
 #define MLX5_IB_CREATE_FLOW_MAX_FLOW_ACTIONS 2
 static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct mlx5_flow_act flow_act = {.flow_tag = MLX5_FS_DEFAULT_FLOW_TAG};
 	struct mlx5_ib_flow_handler *flow_handler;
@@ -194,7 +194,7 @@ static int flow_matcher_cleanup(struct ib_uobject *uobject,
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_MATCHER_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, MLX5_IB_ATTR_FLOW_MATCHER_CREATE_HANDLE);
@@ -313,7 +313,6 @@ static bool mlx5_ib_modify_header_supported(struct mlx5_ib_dev *dev)
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
-	struct ib_uverbs_file *file,
 	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
@@ -435,7 +434,6 @@ static int mlx5_ib_flow_action_create_packet_reformat_ctx(
 }
 
 static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_PACKET_REFORMAT)(
-	struct ib_uverbs_file *file,
 	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(attrs,

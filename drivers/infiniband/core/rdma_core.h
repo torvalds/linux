@@ -125,8 +125,7 @@ struct uverbs_api_object {
 };
 
 struct uverbs_api_ioctl_method {
-	int (__rcu *handler)(struct ib_uverbs_file *ufile,
-			     struct uverbs_attr_bundle *ctx);
+	int(__rcu *handler)(struct uverbs_attr_bundle *attrs);
 	DECLARE_BITMAP(attr_mandatory, UVERBS_API_ATTR_BKEY_LEN);
 	u16 bundle_size;
 	u8 use_stack:1;

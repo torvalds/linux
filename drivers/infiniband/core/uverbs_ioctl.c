@@ -404,8 +404,7 @@ static int uverbs_set_attr(struct bundle_priv *pbundle,
 static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 				unsigned int num_attrs)
 {
-	int (*handler)(struct ib_uverbs_file *ufile,
-		       struct uverbs_attr_bundle *ctx);
+	int (*handler)(struct uverbs_attr_bundle *attrs);
 	size_t uattrs_size = array_size(sizeof(*pbundle->uattrs), num_attrs);
 	unsigned int destroy_bkey = pbundle->method_elm->destroy_bkey;
 	unsigned int i;
@@ -445,10 +444,10 @@ static int ib_uverbs_run_method(struct bundle_priv *pbundle,
 			return ret;
 		__clear_bit(destroy_bkey, pbundle->uobj_finalize);
 
-		ret = handler(pbundle->bundle.ufile, &pbundle->bundle);
+		ret = handler(&pbundle->bundle);
 		uobj_put_destroy(destroy_attr->uobject);
 	} else {
-		ret = handler(pbundle->bundle.ufile, &pbundle->bundle);
+		ret = handler(&pbundle->bundle);
 	}
 
 	/*

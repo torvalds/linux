@@ -223,7 +223,6 @@ struct ib_flow_action_esp_attr {
 
 #define ESP_LAST_SUPPORTED_FLAG		IB_UVERBS_FLOW_ACTION_ESP_FLAGS_ESN_NEW_WINDOW
 static int parse_flow_action_esp(struct ib_device *ib_dev,
-				 struct ib_uverbs_file *file,
 				 struct uverbs_attr_bundle *attrs,
 				 struct ib_flow_action_esp_attr *esp_attr,
 				 bool is_modify)
@@ -305,7 +304,7 @@ static int parse_flow_action_esp(struct ib_device *ib_dev,
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_FLOW_ACTION_ESP_HANDLE);
@@ -317,7 +316,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
 	if (!ib_dev->create_flow_action_esp)
 		return -EOPNOTSUPP;
 
-	ret = parse_flow_action_esp(ib_dev, file, attrs, &esp_attr, false);
+	ret = parse_flow_action_esp(ib_dev, attrs, &esp_attr, false);
 	if (ret)
 		return ret;
 
@@ -333,7 +332,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_MODIFY_FLOW_ACTION_ESP_HANDLE);
@@ -344,8 +343,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
 	if (!action->device->modify_flow_action_esp)
 		return -EOPNOTSUPP;
 
-	ret = parse_flow_action_esp(action->device, file, attrs, &esp_attr,
-				    true);
+	ret = parse_flow_action_esp(action->device, attrs, &esp_attr, true);
 	if (ret)
 		return ret;
 

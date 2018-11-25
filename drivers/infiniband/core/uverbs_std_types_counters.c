@@ -48,7 +48,7 @@ static int uverbs_free_counters(struct ib_uobject *uobject,
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_CREATE)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = uverbs_attr_get_uobject(
 		attrs, UVERBS_ATTR_CREATE_COUNTERS_HANDLE);
@@ -82,7 +82,7 @@ err_create_counters:
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_COUNTERS_READ)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_counters_read_attr read_attr = {};
 	const struct uverbs_attr *uattr;

@@ -46,9 +46,8 @@ static int uverbs_free_dm(struct ib_uobject *uobject,
 	return dm->device->dealloc_dm(dm);
 }
 
-static int
-UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(struct ib_uverbs_file *file,
-				       struct uverbs_attr_bundle *attrs)
+static int UVERBS_HANDLER(UVERBS_METHOD_DM_ALLOC)(
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_dm_alloc_attr attr = {};
 	struct ib_uobject *uobj =

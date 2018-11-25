@@ -327,8 +327,7 @@ struct uverbs_method_def {
 	u32				     flags;
 	size_t				     num_attrs;
 	const struct uverbs_attr_def * const (*attrs)[];
-	int (*handler)(struct ib_uverbs_file *ufile,
-		       struct uverbs_attr_bundle *ctx);
+	int (*handler)(struct uverbs_attr_bundle *attrs);
 };
 
 struct uverbs_object_def {

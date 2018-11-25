@@ -40,7 +40,7 @@ static int uverbs_free_mr(struct ib_uobject *uobject,
 }
 
 static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
-	struct ib_uverbs_file *file, struct uverbs_attr_bundle *attrs)
+	struct uverbs_attr_bundle *attrs)
 {
 	struct ib_dm_mr_attr attr = {};
 	struct ib_uobject *uobj =
