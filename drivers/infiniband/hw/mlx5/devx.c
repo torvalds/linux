@@ -47,24 +47,31 @@ devx_ufile2uctx(const struct uverbs_attr_bundle *attrs)
 	return to_mucontext(ib_uverbs_get_ucontext(attrs));
 }
 
-int mlx5_ib_devx_create(struct mlx5_ib_dev *dev)
+int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user)
 {
 	u32 in[MLX5_ST_SZ_DW(create_uctx_in)] = {0};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)] = {0};
 	u64 general_obj_types;
-	void *hdr;
+	void *hdr, *uctx;
 	int err;
 	u16 uid;
+	u32 cap = 0;
 
 	hdr = MLX5_ADDR_OF(create_uctx_in, in, hdr);
+	uctx = MLX5_ADDR_OF(create_uctx_in, in, uctx);
 
 	general_obj_types = MLX5_CAP_GEN_64(dev->mdev, general_obj_types);
 	if (!(general_obj_types & MLX5_GENERAL_OBJ_TYPES_CAP_UCTX) ||
 	    !(general_obj_types & MLX5_GENERAL_OBJ_TYPES_CAP_UMEM))
 		return -EINVAL;
 
+	if (is_user && capable(CAP_NET_RAW) &&
+	    (MLX5_CAP_GEN(dev->mdev, uctx_cap) & MLX5_UCTX_CAP_RAW_TX))
+		cap |= MLX5_UCTX_CAP_RAW_TX;
+
 	MLX5_SET(general_obj_in_cmd_hdr, hdr, opcode, MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
 	MLX5_SET(general_obj_in_cmd_hdr, hdr, obj_type, MLX5_OBJ_TYPE_UCTX);
+	MLX5_SET(uctx, uctx, cap, cap);
 
 	err = mlx5_cmd_exec(dev->mdev, in, sizeof(in), out, sizeof(out));
 	if (err)
@@ -672,9 +679,6 @@ static int devx_get_uid(struct mlx5_ib_ucontext *c, void *cmd_in)
 	if (!c->devx_uid)
 		return -EINVAL;
 
-	if (!capable(CAP_NET_RAW))
-		return -EPERM;
-
 	return c->devx_uid;
 }
 static bool devx_is_general_cmd(void *in)
@@ -1238,9 +1242,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_UMEM_REG)(
 
 	if (!c->devx_uid)
 		return -EINVAL;
-
-	if (!capable(CAP_NET_RAW))
-		return -EPERM;
 
 	obj = kzalloc(sizeof(struct devx_umem), GFP_KERNEL);
 	if (!obj)
