@@ -12,6 +12,7 @@
 
 #define AQ_ACCESS_MAC			0x01
 #define AQ_PHY_POWER			0x31
+#define AQ_PHY_OPS			0x61
 
 #define AQ_USB_PHY_SET_TIMEOUT		10000
 #define AQ_USB_SET_TIMEOUT		4000
@@ -101,6 +102,38 @@
 #define SFR_BULK_OUT_CTRL		0xB9
 	#define SFR_BULK_OUT_FLUSH_EN		0x01
 	#define SFR_BULK_OUT_EFF_EN		0x02
+
+#define AQ_FW_VER_MAJOR			0xDA
+#define AQ_FW_VER_MINOR			0xDB
+#define AQ_FW_VER_REV			0xDC
+
+/*PHY_OPS**********************************************************************/
+
+#define AQ_ADV_100M	BIT(0)
+#define AQ_ADV_1G	BIT(1)
+#define AQ_ADV_2G5	BIT(2)
+#define AQ_ADV_5G	BIT(3)
+
+#define AQ_PAUSE	BIT(16)
+#define AQ_ASYM_PAUSE	BIT(17)
+#define AQ_LOW_POWER	BIT(18)
+#define AQ_PHY_POWER_EN	BIT(19)
+#define AQ_WOL		BIT(20)
+#define AQ_DOWNSHIFT	BIT(21)
+
+#define AQ_DSH_RETRIES_SHIFT	0x18
+#define AQ_DSH_RETRIES_MASK	0xF000000
+
+/******************************************************************************/
+
+struct aqc111_data {
+	struct {
+		u8 major;
+		u8 minor;
+		u8 rev;
+	} fw_ver;
+	u32 phy_cfg;
+};
 
 static struct {
 	unsigned char ctrl;
