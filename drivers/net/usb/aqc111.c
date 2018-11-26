@@ -205,6 +205,48 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &aqc111_data->phy_cfg);
 }
 
+static int aqc111_change_mtu(struct net_device *net, int new_mtu)
+{
+	struct usbnet *dev = netdev_priv(net);
+	u16 reg16 = 0;
+	u8 buf[5];
+
+	net->mtu = new_mtu;
+	dev->hard_mtu = net->mtu + net->hard_header_len;
+
+	aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+			  2, &reg16);
+	if (net->mtu > 1500)
+		reg16 |= SFR_MEDIUM_JUMBO_EN;
+	else
+		reg16 &= ~SFR_MEDIUM_JUMBO_EN;
+
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+			   2, &reg16);
+
+	if (dev->net->mtu > 12500 && dev->net->mtu <= 16334) {
+		memcpy(buf, &AQC111_BULKIN_SIZE[2], 5);
+		/* RX bulk configuration */
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
+				 5, 5, buf);
+	}
+
+	/* Set high low water level */
+	if (dev->net->mtu <= 4500)
+		reg16 = 0x0810;
+	else if (dev->net->mtu <= 9500)
+		reg16 = 0x1020;
+	else if (dev->net->mtu <= 12500)
+		reg16 = 0x1420;
+	else if (dev->net->mtu <= 16334)
+		reg16 = 0x1A20;
+
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
+			   2, &reg16);
+
+	return 0;
+}
+
 static int aqc111_set_mac_addr(struct net_device *net, void *p)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -225,6 +267,7 @@ static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_get_stats64	= usbnet_get_stats64,
+	.ndo_change_mtu		= aqc111_change_mtu,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -300,6 +343,8 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Set TX needed headroom & tailroom */
 	dev->net->needed_headroom += sizeof(u64);
 	dev->net->needed_tailroom += sizeof(u64);
+
+	dev->net->max_mtu = 16334;
 
 	dev->net->netdev_ops = &aqc111_netdev_ops;
 
@@ -427,12 +472,22 @@ static void aqc111_configure_rx(struct usbnet *dev,
 		break;
 	}
 
+	if (dev->net->mtu > 12500 && dev->net->mtu <= 16334)
+		queue_num = 2; /* For Jumbo packet 16KB */
+
 	memcpy(buf, &AQC111_BULKIN_SIZE[queue_num], 5);
 	/* RX bulk configuration */
 	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL, 5, 5, buf);
 
 	/* Set high low water level */
-	reg16 = 0x0810;
+	if (dev->net->mtu <= 4500)
+		reg16 = 0x0810;
+	else if (dev->net->mtu <= 9500)
+		reg16 = 0x1020;
+	else if (dev->net->mtu <= 12500)
+		reg16 = 0x1420;
+	else if (dev->net->mtu <= 16334)
+		reg16 = 0x1A20;
 
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
 			   2, &reg16);
@@ -506,6 +561,9 @@ static int aqc111_link_reset(struct usbnet *dev)
 
 		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				  2, &reg16);
+
+		if (dev->net->mtu > 1500)
+			reg16 |= SFR_MEDIUM_JUMBO_EN;
 
 		reg16 |= SFR_MEDIUM_RECEIVE_EN | SFR_MEDIUM_RXFLOW_CTRLEN |
 			 SFR_MEDIUM_TXFLOW_CTRLEN;
