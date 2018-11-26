@@ -155,6 +155,7 @@ enum hclge_evt_cause {
 #define HCLGE_MPF_ENBALE 1
 
 enum HCLGE_MAC_SPEED {
+	HCLGE_MAC_SPEED_UNKNOWN = 0,		/* unknown */
 	HCLGE_MAC_SPEED_10M	= 10,		/* 10 Mbps */
 	HCLGE_MAC_SPEED_100M	= 100,		/* 100 Mbps */
 	HCLGE_MAC_SPEED_1G	= 1000,		/* 1000 Mbps   = 1 Gbps */
@@ -624,6 +625,7 @@ struct hclge_dev {
 	u8 hw_tc_map;
 	u8 tc_num_last_time;
 	enum hclge_fc_mode fc_mode_last_time;
+	u8 support_sfp_query;
 
 #define HCLGE_FLAG_TC_BASE_SCH_MODE		1
 #define HCLGE_FLAG_VNET_BASE_SCH_MODE		2

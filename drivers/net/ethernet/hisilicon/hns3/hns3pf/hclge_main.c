@@ -1896,37 +1896,6 @@ static int hclge_cfg_mac_speed_dup_h(struct hnae3_handle *handle, int speed,
 	return hclge_cfg_mac_speed_dup(hdev, speed, duplex);
 }
 
-static int hclge_query_mac_an_speed_dup(struct hclge_dev *hdev, int *speed,
-					u8 *duplex)
-{
-	struct hclge_query_an_speed_dup_cmd *req;
-	struct hclge_desc desc;
-	int speed_tmp;
-	int ret;
-
-	req = (struct hclge_query_an_speed_dup_cmd *)desc.data;
-
-	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_QUERY_AN_RESULT, true);
-	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"mac speed/autoneg/duplex query cmd failed %d\n",
-			ret);
-		return ret;
-	}
-
-	*duplex = hnae3_get_bit(req->an_syn_dup_speed, HCLGE_QUERY_DUPLEX_B);
-	speed_tmp = hnae3_get_field(req->an_syn_dup_speed, HCLGE_QUERY_SPEED_M,
-				    HCLGE_QUERY_SPEED_S);
-
-	ret = hclge_parse_speed(speed_tmp, speed);
-	if (ret)
-		dev_err(&hdev->pdev->dev,
-			"could not parse speed(=%d), %d\n", speed_tmp, ret);
-
-	return ret;
-}
-
 static int hclge_set_autoneg_en(struct hclge_dev *hdev, bool enable)
 {
 	struct hclge_config_auto_neg_cmd *req;
@@ -1973,6 +1942,7 @@ static int hclge_mac_init(struct hclge_dev *hdev)
 	struct hclge_mac *mac = &hdev->hw.mac;
 	int ret;
 
+	hdev->support_sfp_query = true;
 	hdev->hw.mac.duplex = HCLGE_MAC_FULL;
 	ret = hclge_cfg_mac_speed_dup_hw(hdev, hdev->hw.mac.speed,
 					 hdev->hw.mac.duplex);
@@ -2082,34 +2052,58 @@ static void hclge_update_link_status(struct hclge_dev *hdev)
 	}
 }
 
+static int hclge_get_sfp_speed(struct hclge_dev *hdev, u32 *speed)
+{
+	struct hclge_sfp_speed_cmd *resp = NULL;
+	struct hclge_desc desc;
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_OPC_SFP_GET_SPEED, true);
+	resp = (struct hclge_sfp_speed_cmd *)desc.data;
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret == -EOPNOTSUPP) {
+		dev_warn(&hdev->pdev->dev,
+			 "IMP do not support get SFP speed %d\n", ret);
+		return ret;
+	} else if (ret) {
+		dev_err(&hdev->pdev->dev, "get sfp speed failed %d\n", ret);
+		return ret;
+	}
+
+	*speed = resp->sfp_speed;
+
+	return 0;
+}
+
 static int hclge_update_speed_duplex(struct hclge_dev *hdev)
 {
 	struct hclge_mac mac = hdev->hw.mac;
-	u8 duplex;
 	int speed;
 	int ret;
 
-	/* get the speed and duplex as autoneg'result from mac cmd when phy
+	/* get the speed from SFP cmd when phy
 	 * doesn't exit.
 	 */
-	if (mac.phydev || !mac.autoneg)
+	if (mac.phydev)
 		return 0;
 
-	ret = hclge_query_mac_an_speed_dup(hdev, &speed, &duplex);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"mac autoneg/speed/duplex query failed %d\n", ret);
+	/* if IMP does not support get SFP/qSFP speed, return directly */
+	if (!hdev->support_sfp_query)
+		return 0;
+
+	ret = hclge_get_sfp_speed(hdev, &speed);
+	if (ret == -EOPNOTSUPP) {
+		hdev->support_sfp_query = false;
+		return ret;
+	} else if (ret) {
 		return ret;
 	}
 
-	ret = hclge_cfg_mac_speed_dup(hdev, speed, duplex);
-	if (ret) {
-		dev_err(&hdev->pdev->dev,
-			"mac speed/duplex config failed %d\n", ret);
-		return ret;
-	}
+	if (speed == HCLGE_MAC_SPEED_UNKNOWN)
+		return 0; /* do nothing if no SFP */
 
-	return 0;
+	/* must config full duplex for SFP */
+	return hclge_cfg_mac_speed_dup(hdev, speed, HCLGE_MAC_FULL);
 }
 
 static int hclge_update_speed_duplex_h(struct hnae3_handle *handle)

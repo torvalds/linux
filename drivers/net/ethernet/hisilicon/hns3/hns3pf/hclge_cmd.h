@@ -90,7 +90,6 @@ enum hclge_opcode_type {
 	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
 	HCLGE_OPC_CONFIG_AN_MODE	= 0x0304,
-	HCLGE_OPC_QUERY_AN_RESULT	= 0x0306,
 	HCLGE_OPC_QUERY_LINK_STATUS	= 0x0307,
 	HCLGE_OPC_CONFIG_MAX_FRM_SIZE	= 0x0308,
 	HCLGE_OPC_CONFIG_SPEED_DUP	= 0x0309,
@@ -211,6 +210,9 @@ enum hclge_opcode_type {
 
 	/* Led command */
 	HCLGE_OPC_LED_STATUS_CFG	= 0xB000,
+
+	/* SFP command */
+	HCLGE_OPC_SFP_GET_SPEED		= 0x7104,
 
 	/* Error INT commands */
 	HCLGE_TM_SCH_ECC_INT_EN		= 0x0829,
@@ -544,20 +546,6 @@ struct hclge_config_mac_speed_dup_cmd {
 	u8 rsv[22];
 };
 
-#define HCLGE_QUERY_SPEED_S		3
-#define HCLGE_QUERY_AN_B		0
-#define HCLGE_QUERY_DUPLEX_B		2
-
-#define HCLGE_QUERY_SPEED_M		GENMASK(4, 0)
-#define HCLGE_QUERY_AN_M		BIT(HCLGE_QUERY_AN_B)
-#define HCLGE_QUERY_DUPLEX_M		BIT(HCLGE_QUERY_DUPLEX_B)
-
-struct hclge_query_an_speed_dup_cmd {
-	u8 an_syn_dup_speed;
-	u8 pause;
-	u8 rsv[23];
-};
-
 #define HCLGE_RING_ID_MASK		GENMASK(9, 0)
 #define HCLGE_TQP_ENABLE_B		0
 
@@ -572,6 +560,11 @@ struct hclge_query_an_speed_dup_cmd {
 struct hclge_config_auto_neg_cmd {
 	__le32  cfg_an_cmd_flag;
 	u8      rsv[20];
+};
+
+struct hclge_sfp_speed_cmd {
+	__le32	sfp_speed;
+	u32	rsv[5];
 };
 
 #define HCLGE_MAC_UPLINK_PORT		0x100
