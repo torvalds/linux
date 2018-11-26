@@ -349,7 +349,7 @@ enum iwl_fw_ini_allocation_id {
  * @IWL_FW_INI_LOCATION_DRAM_PATH: DRAM location
  */
 enum iwl_fw_ini_buffer_location {
-	IWL_FW_INI_LOCATION_SRAM_INVALID,
+	IWL_FW_INI_LOCATION_INVALID,
 	IWL_FW_INI_LOCATION_SRAM_PATH,
 	IWL_FW_INI_LOCATION_DRAM_PATH,
 }; /* FW_INI_BUFFER_LOCATION_E_VER_1 */
