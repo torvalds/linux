@@ -1434,7 +1434,8 @@ void program_check_exception(struct pt_regs *regs)
 			goto bail;
 		} else {
 			printk(KERN_EMERG "Unexpected TM Bad Thing exception "
-			       "at %lx (msr 0x%lx)\n", regs->nip, regs->msr);
+			       "at %lx (msr 0x%lx) tm_scratch=%llx\n",
+			       regs->nip, regs->msr, get_paca()->tm_scratch);
 			die("Unrecoverable exception", regs, SIGABRT);
 		}
 	}
