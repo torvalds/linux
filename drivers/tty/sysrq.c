@@ -653,8 +653,7 @@ static void sysrq_do_reset(struct timer_list *t)
 
 	state->reset_requested = true;
 
-	ksys_sync();
-	kernel_restart(NULL);
+	orderly_reboot();
 }
 
 static void sysrq_handle_reset_request(struct sysrq_state *state)
