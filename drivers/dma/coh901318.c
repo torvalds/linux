@@ -1802,7 +1802,6 @@ static struct dma_chan *coh901318_xlate(struct of_phandle_args *dma_spec,
 static int coh901318_config(struct coh901318_chan *cohc,
 			    struct coh901318_params *param)
 {
-	unsigned long flags;
 	const struct coh901318_params *p;
 	int channel = cohc->id;
 	void __iomem *virtbase = cohc->base->virtbase;
