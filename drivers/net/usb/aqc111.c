@@ -281,6 +281,57 @@ static int aqc111_set_mac_addr(struct net_device *net, void *p)
 				ETH_ALEN, net->dev_addr);
 }
 
+static int aqc111_vlan_rx_kill_vid(struct net_device *net,
+				   __be16 proto, u16 vid)
+{
+	struct usbnet *dev = netdev_priv(net);
+	u8 vlan_ctrl = 0;
+	u16 reg16 = 0;
+	u8 reg8 = 0;
+
+	aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+	vlan_ctrl = reg8;
+
+	/* Address */
+	reg8 = (vid / 16);
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_ADDRESS, 1, 1, &reg8);
+	/* Data */
+	reg8 = vlan_ctrl | SFR_VLAN_CONTROL_RD;
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+	aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_DATA0, 2, &reg16);
+	reg16 &= ~(1 << (vid % 16));
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_DATA0, 2, &reg16);
+	reg8 = vlan_ctrl | SFR_VLAN_CONTROL_WE;
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+
+	return 0;
+}
+
+static int aqc111_vlan_rx_add_vid(struct net_device *net, __be16 proto, u16 vid)
+{
+	struct usbnet *dev = netdev_priv(net);
+	u8 vlan_ctrl = 0;
+	u16 reg16 = 0;
+	u8 reg8 = 0;
+
+	aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+	vlan_ctrl = reg8;
+
+	/* Address */
+	reg8 = (vid / 16);
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_ADDRESS, 1, 1, &reg8);
+	/* Data */
+	reg8 = vlan_ctrl | SFR_VLAN_CONTROL_RD;
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+	aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_DATA0, 2, &reg16);
+	reg16 |= (1 << (vid % 16));
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_DATA0, 2, &reg16);
+	reg8 = vlan_ctrl | SFR_VLAN_CONTROL_WE;
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+
+	return 0;
+}
+
 static void aqc111_set_rx_mode(struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
@@ -324,6 +375,7 @@ static int aqc111_set_features(struct net_device *net,
 	struct usbnet *dev = netdev_priv(net);
 	struct aqc111_data *aqc111_data = dev->driver_priv;
 	netdev_features_t changed = net->features ^ features;
+	u16 reg16 = 0;
 	u8 reg8 = 0;
 
 	if (changed & NETIF_F_IP_CSUM) {
@@ -355,6 +407,39 @@ static int aqc111_set_features(struct net_device *net,
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RXCOE_CTL,
 				 1, 1, &reg8);
 	}
+	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
+		if (features & NETIF_F_HW_VLAN_CTAG_FILTER) {
+			u16 i = 0;
+
+			for (i = 0; i < 256; i++) {
+				/* Address */
+				reg8 = i;
+				aqc111_write_cmd(dev, AQ_ACCESS_MAC,
+						 SFR_VLAN_ID_ADDRESS,
+						 1, 1, &reg8);
+				/* Data */
+				aqc111_write16_cmd(dev, AQ_ACCESS_MAC,
+						   SFR_VLAN_ID_DATA0,
+						   2, &reg16);
+				reg8 = SFR_VLAN_CONTROL_WE;
+				aqc111_write_cmd(dev, AQ_ACCESS_MAC,
+						 SFR_VLAN_ID_CONTROL,
+						 1, 1, &reg8);
+			}
+			aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL,
+					1, 1, &reg8);
+			reg8 |= SFR_VLAN_CONTROL_VFE;
+			aqc111_write_cmd(dev, AQ_ACCESS_MAC,
+					 SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+		} else {
+			aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL,
+					1, 1, &reg8);
+			reg8 &= ~SFR_VLAN_CONTROL_VFE;
+			aqc111_write_cmd(dev, AQ_ACCESS_MAC,
+					 SFR_VLAN_ID_CONTROL, 1, 1, &reg8);
+		}
+	}
+
 	return 0;
 }
 
@@ -367,6 +452,8 @@ static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_change_mtu		= aqc111_change_mtu,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_vlan_rx_add_vid	= aqc111_vlan_rx_add_vid,
+	.ndo_vlan_rx_kill_vid	= aqc111_vlan_rx_kill_vid,
 	.ndo_set_rx_mode	= aqc111_set_rx_mode,
 	.ndo_set_features	= aqc111_set_features,
 };
@@ -627,6 +714,8 @@ static int aqc111_link_reset(struct usbnet *dev)
 
 		/* Vlan Tag Filter */
 		reg8 = SFR_VLAN_CONTROL_VSO;
+		if (dev->net->features & NETIF_F_HW_VLAN_CTAG_FILTER)
+			reg8 |= SFR_VLAN_CONTROL_VFE;
 
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL,
 				 1, 1, &reg8);
