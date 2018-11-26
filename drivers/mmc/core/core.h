@@ -118,8 +118,6 @@ int mmc_erase_group_aligned(struct mmc_card *card, unsigned int from,
 unsigned int mmc_calc_max_discard(struct mmc_card *card);
 
 int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen);
-int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
-			bool is_rel_write);
 
 int __mmc_claim_host(struct mmc_host *host, struct mmc_ctx *ctx,
 		     atomic_t *abort);
