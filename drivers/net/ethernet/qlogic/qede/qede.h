@@ -168,6 +168,12 @@ struct qede_ptp;
 
 #define QEDE_RFS_MAX_FLTR	256
 
+enum qede_flags_bit {
+	QEDE_FLAGS_IS_VF = 0,
+	QEDE_FLAGS_PTP_TX_IN_PRORGESS,
+	QEDE_FLAGS_TX_TIMESTAMPING_EN
+};
+
 struct qede_dev {
 	struct qed_dev			*cdev;
 	struct net_device		*ndev;
@@ -177,10 +183,7 @@ struct qede_dev {
 	u8				dp_level;
 
 	unsigned long flags;
-#define QEDE_FLAG_IS_VF			BIT(0)
-#define IS_VF(edev)	(!!((edev)->flags & QEDE_FLAG_IS_VF))
-#define QEDE_TX_TIMESTAMPING_EN		BIT(1)
-#define QEDE_FLAGS_PTP_TX_IN_PRORGESS	BIT(2)
+#define IS_VF(edev)	(test_bit(QEDE_FLAGS_IS_VF, &(edev)->flags))
 
 	const struct qed_eth_ops	*ops;
 	struct qede_ptp			*ptp;

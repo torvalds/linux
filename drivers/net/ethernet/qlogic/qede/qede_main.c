@@ -1086,7 +1086,7 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 	}
 
 	if (is_vf)
-		edev->flags |= QEDE_FLAG_IS_VF;
+		set_bit(QEDE_FLAGS_IS_VF, &edev->flags);
 
 	qede_init_ndev(edev);
 
