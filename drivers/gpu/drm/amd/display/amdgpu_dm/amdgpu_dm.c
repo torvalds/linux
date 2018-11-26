@@ -71,6 +71,7 @@
 #endif
 
 #include "modules/inc/mod_freesync.h"
+#include "modules/power/power_helpers.h"
 
 #define FIRMWARE_RAVEN_DMCU		"amdgpu/raven_dmcu.bin"
 MODULE_FIRMWARE(FIRMWARE_RAVEN_DMCU);
@@ -641,6 +642,26 @@ static int detect_mst_link_for_all_connectors(struct drm_device *dev)
 static int dm_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	struct dmcu_iram_parameters params;
+	unsigned int linear_lut[16];
+	int i;
+	struct dmcu *dmcu = adev->dm.dc->res_pool->dmcu;
+	bool ret;
+
+	for (i = 0; i < 16; i++)
+		linear_lut[i] = 0xFFFF * i / 15;
+
+	params.set = 0;
+	params.backlight_ramping_start = 0xCCCC;
+	params.backlight_ramping_reduction = 0xCCCCCCCC;
+	params.backlight_lut_array_size = 16;
+	params.backlight_lut_array = linear_lut;
+
+	ret = dmcu_load_iram(dmcu, params);
+
+	if (!ret)
+		return -EINVAL;
 
 	return detect_mst_link_for_all_connectors(adev->ddev);
 }

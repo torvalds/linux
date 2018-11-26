@@ -1,4 +1,4 @@
-/* Copyright 2012-15 Advanced Micro Devices, Inc.
+/* Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,48 +22,26 @@
  *
  */
 
-#ifndef __DC_DMCU_H__
-#define __DC_DMCU_H__
+#ifndef MODULES_POWER_POWER_HELPERS_H_
+#define MODULES_POWER_POWER_HELPERS_H_
 
-#include "dm_services_types.h"
+#include "dc/inc/hw/dmcu.h"
 
-enum dmcu_state {
-	DMCU_NOT_INITIALIZED = 0,
-	DMCU_RUNNING = 1
+
+enum abm_defines {
+	abm_defines_max_level = 4,
+	abm_defines_max_config = 4,
 };
 
-struct dmcu_version {
-	unsigned int date;
-	unsigned int month;
-	unsigned int year;
-	unsigned int interface_version;
+struct dmcu_iram_parameters {
+	unsigned int *backlight_lut_array;
+	unsigned int backlight_lut_array_size;
+	unsigned int backlight_ramping_reduction;
+	unsigned int backlight_ramping_start;
+	unsigned int set;
 };
 
-struct dmcu {
-	struct dc_context *ctx;
-	const struct dmcu_funcs *funcs;
+bool dmcu_load_iram(struct dmcu *dmcu,
+		struct dmcu_iram_parameters params);
 
-	enum dmcu_state dmcu_state;
-	struct dmcu_version dmcu_version;
-	unsigned int cached_wait_loop_number;
-};
-
-struct dmcu_funcs {
-	bool (*dmcu_init)(struct dmcu *dmcu);
-	bool (*load_iram)(struct dmcu *dmcu,
-			unsigned int start_offset,
-			const char *src,
-			unsigned int bytes);
-	void (*set_psr_enable)(struct dmcu *dmcu, bool enable, bool wait);
-	bool (*setup_psr)(struct dmcu *dmcu,
-			struct dc_link *link,
-			struct psr_context *psr_context);
-	void (*get_psr_state)(struct dmcu *dmcu, uint32_t *psr_state);
-	void (*set_psr_wait_loop)(struct dmcu *dmcu,
-			unsigned int wait_loop_number);
-	void (*get_psr_wait_loop)(struct dmcu *dmcu,
-			unsigned int *psr_wait_loop_number);
-	bool (*is_dmcu_initialized)(struct dmcu *dmcu);
-};
-
-#endif
+#endif /* MODULES_POWER_POWER_HELPERS_H_ */
