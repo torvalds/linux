@@ -13,7 +13,8 @@
 #include <linux/iommu.h>
 #include <linux/net_tstamp.h>
 #include <linux/fsl/mc.h>
-
+#include <linux/bpf.h>
+#include <linux/bpf_trace.h>
 #include <net/sock.h>
 
 #include "dpaa2-eth.h"
@@ -199,6 +200,45 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 	return skb;
 }
 
+static u32 run_xdp(struct dpaa2_eth_priv *priv,
+		   struct dpaa2_eth_channel *ch,
+		   struct dpaa2_fd *fd, void *vaddr)
+{
+	struct bpf_prog *xdp_prog;
+	struct xdp_buff xdp;
+	u32 xdp_act = XDP_PASS;
+
+	rcu_read_lock();
+
+	xdp_prog = READ_ONCE(ch->xdp.prog);
+	if (!xdp_prog)
+		goto out;
+
+	xdp.data = vaddr + dpaa2_fd_get_offset(fd);
+	xdp.data_end = xdp.data + dpaa2_fd_get_len(fd);
+	xdp.data_hard_start = xdp.data;
+	xdp_set_data_meta_invalid(&xdp);
+
+	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+	switch (xdp_act) {
+	case XDP_PASS:
+		break;
+	default:
+		bpf_warn_invalid_xdp_action(xdp_act);
+	case XDP_ABORTED:
+		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
+	case XDP_DROP:
+		ch->buf_count--;
+		free_rx_fd(priv, fd, vaddr);
+		break;
+	}
+
+out:
+	rcu_read_unlock();
+	return xdp_act;
+}
+
 /* Main Rx frame processing routine */
 static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 			 struct dpaa2_eth_channel *ch,
@@ -215,6 +255,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	struct dpaa2_fas *fas;
 	void *buf_data;
 	u32 status = 0;
+	u32 xdp_act;
 
 	/* Tracing point */
 	trace_dpaa2_rx_fd(priv->net_dev, fd);
@@ -231,8 +272,17 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 
 	if (fd_format == dpaa2_fd_single) {
+		xdp_act = run_xdp(priv, ch, (struct dpaa2_fd *)fd, vaddr);
+		if (xdp_act != XDP_PASS) {
+			percpu_stats->rx_packets++;
+			percpu_stats->rx_bytes += dpaa2_fd_get_len(fd);
+			return;
+		}
+
 		skb = build_linear_skb(ch, fd, vaddr);
 	} else if (fd_format == dpaa2_fd_sg) {
+		WARN_ON(priv->xdp_prog);
+
 		skb = build_frag_skb(priv, ch, buf_data);
 		skb_free_frag(vaddr);
 		percpu_extras->rx_sg_frames++;
@@ -1427,6 +1477,141 @@ static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	return -EINVAL;
 }
 
+static bool xdp_mtu_valid(struct dpaa2_eth_priv *priv, int mtu)
+{
+	int mfl, linear_mfl;
+
+	mfl = DPAA2_ETH_L2_MAX_FRM(mtu);
+	linear_mfl = DPAA2_ETH_RX_BUF_SIZE - DPAA2_ETH_RX_HWA_SIZE -
+		     dpaa2_eth_rx_head_room(priv);
+
+	if (mfl > linear_mfl) {
+		netdev_warn(priv->net_dev, "Maximum MTU for XDP is %d\n",
+			    linear_mfl - VLAN_ETH_HLEN);
+		return false;
+	}
+
+	return true;
+}
+
+static int set_rx_mfl(struct dpaa2_eth_priv *priv, int mtu, bool has_xdp)
+{
+	int mfl, err;
+
+	/* We enforce a maximum Rx frame length based on MTU only if we have
+	 * an XDP program attached (in order to avoid Rx S/G frames).
+	 * Otherwise, we accept all incoming frames as long as they are not
+	 * larger than maximum size supported in hardware
+	 */
+	if (has_xdp)
+		mfl = DPAA2_ETH_L2_MAX_FRM(mtu);
+	else
+		mfl = DPAA2_ETH_MFL;
+
+	err = dpni_set_max_frame_length(priv->mc_io, 0, priv->mc_token, mfl);
+	if (err) {
+		netdev_err(priv->net_dev, "dpni_set_max_frame_length failed\n");
+		return err;
+	}
+
+	return 0;
+}
+
+static int dpaa2_eth_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	int err;
+
+	if (!priv->xdp_prog)
+		goto out;
+
+	if (!xdp_mtu_valid(priv, new_mtu))
+		return -EINVAL;
+
+	err = set_rx_mfl(priv, new_mtu, true);
+	if (err)
+		return err;
+
+out:
+	dev->mtu = new_mtu;
+	return 0;
+}
+
+static int setup_xdp(struct net_device *dev, struct bpf_prog *prog)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	struct dpaa2_eth_channel *ch;
+	struct bpf_prog *old;
+	bool up, need_update;
+	int i, err;
+
+	if (prog && !xdp_mtu_valid(priv, dev->mtu))
+		return -EINVAL;
+
+	if (prog) {
+		prog = bpf_prog_add(prog, priv->num_channels);
+		if (IS_ERR(prog))
+			return PTR_ERR(prog);
+	}
+
+	up = netif_running(dev);
+	need_update = (!!priv->xdp_prog != !!prog);
+
+	if (up)
+		dpaa2_eth_stop(dev);
+
+	/* While in xdp mode, enforce a maximum Rx frame size based on MTU */
+	if (need_update) {
+		err = set_rx_mfl(priv, dev->mtu, !!prog);
+		if (err)
+			goto out_err;
+	}
+
+	old = xchg(&priv->xdp_prog, prog);
+	if (old)
+		bpf_prog_put(old);
+
+	for (i = 0; i < priv->num_channels; i++) {
+		ch = priv->channel[i];
+		old = xchg(&ch->xdp.prog, prog);
+		if (old)
+			bpf_prog_put(old);
+	}
+
+	if (up) {
+		err = dpaa2_eth_open(dev);
+		if (err)
+			return err;
+	}
+
+	return 0;
+
+out_err:
+	if (prog)
+		bpf_prog_sub(prog, priv->num_channels);
+	if (up)
+		dpaa2_eth_open(dev);
+
+	return err;
+}
+
+static int dpaa2_eth_xdp(struct net_device *dev, struct netdev_bpf *xdp)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+
+	switch (xdp->command) {
+	case XDP_SETUP_PROG:
+		return setup_xdp(dev, xdp->prog);
+	case XDP_QUERY_PROG:
+		xdp->prog_id = priv->xdp_prog ? priv->xdp_prog->aux->id : 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_open = dpaa2_eth_open,
 	.ndo_start_xmit = dpaa2_eth_tx,
@@ -1436,6 +1621,8 @@ static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_set_rx_mode = dpaa2_eth_set_rx_mode,
 	.ndo_set_features = dpaa2_eth_set_features,
 	.ndo_do_ioctl = dpaa2_eth_ioctl,
+	.ndo_change_mtu = dpaa2_eth_change_mtu,
+	.ndo_bpf = dpaa2_eth_xdp,
 };
 
 static void cdan_cb(struct dpaa2_io_notification_ctx *ctx)

@@ -283,6 +283,10 @@ struct dpaa2_eth_fq {
 	struct dpaa2_eth_fq_stats stats;
 };
 
+struct dpaa2_eth_ch_xdp {
+	struct bpf_prog *prog;
+};
+
 struct dpaa2_eth_channel {
 	struct dpaa2_io_notification_ctx nctx;
 	struct fsl_mc_device *dpcon;
@@ -294,6 +298,7 @@ struct dpaa2_eth_channel {
 	struct dpaa2_eth_priv *priv;
 	int buf_count;
 	struct dpaa2_eth_ch_stats stats;
+	struct dpaa2_eth_ch_xdp xdp;
 };
 
 struct dpaa2_eth_dist_fields {
@@ -353,6 +358,7 @@ struct dpaa2_eth_priv {
 	u64 rx_hash_fields;
 	struct dpaa2_eth_cls_rule *cls_rules;
 	u8 rx_cls_enabled;
+	struct bpf_prog *xdp_prog;
 };
 
 #define DPAA2_RXH_SUPPORTED	(RXH_L2DA | RXH_VLAN | RXH_L3_PROTO \
