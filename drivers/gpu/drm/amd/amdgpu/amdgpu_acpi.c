@@ -41,28 +41,21 @@ struct amdgpu_atif_notification_cfg {
 };
 
 struct amdgpu_atif_notifications {
-	bool display_switch;
-	bool expansion_mode_change;
 	bool thermal_state;
 	bool forced_power_state;
 	bool system_power_state;
-	bool display_conf_change;
-	bool px_gfx_switch;
 	bool brightness_change;
 	bool dgpu_display_event;
+	bool gpu_package_power_limit;
 };
 
 struct amdgpu_atif_functions {
 	bool system_params;
 	bool sbios_requests;
-	bool select_active_disp;
-	bool lid_state;
-	bool get_tv_standard;
-	bool set_tv_standard;
-	bool get_panel_expansion_mode;
-	bool set_panel_expansion_mode;
 	bool temperature_change;
-	bool graphics_device_types;
+	bool query_backlight_transfer_characteristics;
+	bool ready_to_undock;
+	bool external_gpu_information;
 };
 
 struct amdgpu_atif {
@@ -137,15 +130,12 @@ static union acpi_object *amdgpu_atif_call(struct amdgpu_atif *atif,
  */
 static void amdgpu_atif_parse_notification(struct amdgpu_atif_notifications *n, u32 mask)
 {
-	n->display_switch = mask & ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED;
-	n->expansion_mode_change = mask & ATIF_EXPANSION_MODE_CHANGE_REQUEST_SUPPORTED;
 	n->thermal_state = mask & ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED;
 	n->forced_power_state = mask & ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED;
 	n->system_power_state = mask & ATIF_SYSTEM_POWER_SOURCE_CHANGE_REQUEST_SUPPORTED;
-	n->display_conf_change = mask & ATIF_DISPLAY_CONF_CHANGE_REQUEST_SUPPORTED;
-	n->px_gfx_switch = mask & ATIF_PX_GFX_SWITCH_REQUEST_SUPPORTED;
 	n->brightness_change = mask & ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST_SUPPORTED;
 	n->dgpu_display_event = mask & ATIF_DGPU_DISPLAY_EVENT_SUPPORTED;
+	n->gpu_package_power_limit = mask & ATIF_GPU_PACKAGE_POWER_LIMIT_REQUEST_SUPPORTED;
 }
 
 /**
@@ -162,14 +152,11 @@ static void amdgpu_atif_parse_functions(struct amdgpu_atif_functions *f, u32 mas
 {
 	f->system_params = mask & ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED;
 	f->sbios_requests = mask & ATIF_GET_SYSTEM_BIOS_REQUESTS_SUPPORTED;
-	f->select_active_disp = mask & ATIF_SELECT_ACTIVE_DISPLAYS_SUPPORTED;
-	f->lid_state = mask & ATIF_GET_LID_STATE_SUPPORTED;
-	f->get_tv_standard = mask & ATIF_GET_TV_STANDARD_FROM_CMOS_SUPPORTED;
-	f->set_tv_standard = mask & ATIF_SET_TV_STANDARD_IN_CMOS_SUPPORTED;
-	f->get_panel_expansion_mode = mask & ATIF_GET_PANEL_EXPANSION_MODE_FROM_CMOS_SUPPORTED;
-	f->set_panel_expansion_mode = mask & ATIF_SET_PANEL_EXPANSION_MODE_IN_CMOS_SUPPORTED;
 	f->temperature_change = mask & ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED;
-	f->graphics_device_types = mask & ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED;
+	f->query_backlight_transfer_characteristics =
+		mask & ATIF_QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS_SUPPORTED;
+	f->ready_to_undock = mask & ATIF_READY_TO_UNDOCK_NOTIFICATION_SUPPORTED;
+	f->external_gpu_information = mask & ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED;
 }
 
 /**

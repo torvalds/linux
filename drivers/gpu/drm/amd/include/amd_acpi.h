@@ -126,26 +126,18 @@ struct atcs_pref_req_output {
  * DWORD - supported functions bit vector
  */
 /* Notifications mask */
-#       define ATIF_DISPLAY_SWITCH_REQUEST_SUPPORTED               (1 << 0)
-#       define ATIF_EXPANSION_MODE_CHANGE_REQUEST_SUPPORTED        (1 << 1)
 #       define ATIF_THERMAL_STATE_CHANGE_REQUEST_SUPPORTED         (1 << 2)
 #       define ATIF_FORCED_POWER_STATE_CHANGE_REQUEST_SUPPORTED    (1 << 3)
 #       define ATIF_SYSTEM_POWER_SOURCE_CHANGE_REQUEST_SUPPORTED   (1 << 4)
-#       define ATIF_DISPLAY_CONF_CHANGE_REQUEST_SUPPORTED          (1 << 5)
-#       define ATIF_PX_GFX_SWITCH_REQUEST_SUPPORTED                (1 << 6)
 #       define ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST_SUPPORTED      (1 << 7)
 #       define ATIF_DGPU_DISPLAY_EVENT_SUPPORTED                   (1 << 8)
+#       define ATIF_GPU_PACKAGE_POWER_LIMIT_REQUEST_SUPPORTED      (1 << 12)
 /* supported functions vector */
 #       define ATIF_GET_SYSTEM_PARAMETERS_SUPPORTED               (1 << 0)
 #       define ATIF_GET_SYSTEM_BIOS_REQUESTS_SUPPORTED            (1 << 1)
-#       define ATIF_SELECT_ACTIVE_DISPLAYS_SUPPORTED              (1 << 2)
-#       define ATIF_GET_LID_STATE_SUPPORTED                       (1 << 3)
-#       define ATIF_GET_TV_STANDARD_FROM_CMOS_SUPPORTED           (1 << 4)
-#       define ATIF_SET_TV_STANDARD_IN_CMOS_SUPPORTED             (1 << 5)
-#       define ATIF_GET_PANEL_EXPANSION_MODE_FROM_CMOS_SUPPORTED  (1 << 6)
-#       define ATIF_SET_PANEL_EXPANSION_MODE_IN_CMOS_SUPPORTED    (1 << 7)
 #       define ATIF_TEMPERATURE_CHANGE_NOTIFICATION_SUPPORTED     (1 << 12)
-#       define ATIF_GET_GRAPHICS_DEVICE_TYPES_SUPPORTED           (1 << 14)
+#       define ATIF_QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS_SUPPORTED (1 << 15)
+#       define ATIF_READY_TO_UNDOCK_NOTIFICATION_SUPPORTED        (1 << 16)
 #       define ATIF_GET_EXTERNAL_GPU_INFORMATION_SUPPORTED        (1 << 20)
 #define ATIF_FUNCTION_GET_SYSTEM_PARAMETERS                        0x1
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_PARAMETERS
@@ -170,6 +162,10 @@ struct atcs_pref_req_output {
  * n (0xd0-0xd9) is specified in notify command code.
  * bit 2:
  * 1 - lid changes not reported though int10
+ * bit 3:
+ * 1 - system bios controls overclocking
+ * bit 4:
+ * 1 - enable overclocking
  */
 #define ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS                     0x2
 /* ARG0: ATIF_FUNCTION_GET_SYSTEM_BIOS_REQUESTS
@@ -177,28 +173,23 @@ struct atcs_pref_req_output {
  * OUTPUT:
  * WORD  - structure size in bytes (includes size field)
  * DWORD - pending sbios requests
- * BYTE  - panel expansion mode
+ * BYTE  - reserved (all zeroes)
  * BYTE  - thermal state: target gfx controller
  * BYTE  - thermal state: state id (0: exit state, non-0: state)
  * BYTE  - forced power state: target gfx controller
- * BYTE  - forced power state: state id
+ * BYTE  - forced power state: state id (0: forced state, non-0: state)
  * BYTE  - system power source
  * BYTE  - panel backlight level (0-255)
+ * BYTE  - GPU package power limit: target gfx controller
+ * DWORD - GPU package power limit: value (24:8 fractional format, Watts)
  */
 /* pending sbios requests */
-#       define ATIF_DISPLAY_SWITCH_REQUEST                         (1 << 0)
-#       define ATIF_EXPANSION_MODE_CHANGE_REQUEST                  (1 << 1)
 #       define ATIF_THERMAL_STATE_CHANGE_REQUEST                   (1 << 2)
 #       define ATIF_FORCED_POWER_STATE_CHANGE_REQUEST              (1 << 3)
 #       define ATIF_SYSTEM_POWER_SOURCE_CHANGE_REQUEST             (1 << 4)
-#       define ATIF_DISPLAY_CONF_CHANGE_REQUEST                    (1 << 5)
-#       define ATIF_PX_GFX_SWITCH_REQUEST                          (1 << 6)
 #       define ATIF_PANEL_BRIGHTNESS_CHANGE_REQUEST                (1 << 7)
 #       define ATIF_DGPU_DISPLAY_EVENT                             (1 << 8)
-/* panel expansion mode */
-#       define ATIF_PANEL_EXPANSION_DISABLE                        0
-#       define ATIF_PANEL_EXPANSION_FULL                           1
-#       define ATIF_PANEL_EXPANSION_ASPECT                         2
+#       define ATIF_GPU_PACKAGE_POWER_LIMIT_REQUEST                (1 << 12)
 /* target gfx controller */
 #       define ATIF_TARGET_GFX_SINGLE                              0
 #       define ATIF_TARGET_GFX_PX_IGPU                             1
@@ -208,76 +199,6 @@ struct atcs_pref_req_output {
 #       define ATIF_POWER_SOURCE_DC                                2
 #       define ATIF_POWER_SOURCE_RESTRICTED_AC_1                   3
 #       define ATIF_POWER_SOURCE_RESTRICTED_AC_2                   4
-#define ATIF_FUNCTION_SELECT_ACTIVE_DISPLAYS                       0x3
-/* ARG0: ATIF_FUNCTION_SELECT_ACTIVE_DISPLAYS
- * ARG1:
- * WORD  - structure size in bytes (includes size field)
- * WORD  - selected displays
- * WORD  - connected displays
- * OUTPUT:
- * WORD  - structure size in bytes (includes size field)
- * WORD  - selected displays
- */
-#       define ATIF_LCD1                                           (1 << 0)
-#       define ATIF_CRT1                                           (1 << 1)
-#       define ATIF_TV                                             (1 << 2)
-#       define ATIF_DFP1                                           (1 << 3)
-#       define ATIF_CRT2                                           (1 << 4)
-#       define ATIF_LCD2                                           (1 << 5)
-#       define ATIF_DFP2                                           (1 << 7)
-#       define ATIF_CV                                             (1 << 8)
-#       define ATIF_DFP3                                           (1 << 9)
-#       define ATIF_DFP4                                           (1 << 10)
-#       define ATIF_DFP5                                           (1 << 11)
-#       define ATIF_DFP6                                           (1 << 12)
-#define ATIF_FUNCTION_GET_LID_STATE                                0x4
-/* ARG0: ATIF_FUNCTION_GET_LID_STATE
- * ARG1: none
- * OUTPUT:
- * WORD  - structure size in bytes (includes size field)
- * BYTE  - lid state (0: open, 1: closed)
- *
- * GET_LID_STATE only works at boot and resume, for general lid
- * status, use the kernel provided status
- */
-#define ATIF_FUNCTION_GET_TV_STANDARD_FROM_CMOS                    0x5
-/* ARG0: ATIF_FUNCTION_GET_TV_STANDARD_FROM_CMOS
- * ARG1: none
- * OUTPUT:
- * WORD  - structure size in bytes (includes size field)
- * BYTE  - 0
- * BYTE  - TV standard
- */
-#       define ATIF_TV_STD_NTSC                                    0
-#       define ATIF_TV_STD_PAL                                     1
-#       define ATIF_TV_STD_PALM                                    2
-#       define ATIF_TV_STD_PAL60                                   3
-#       define ATIF_TV_STD_NTSCJ                                   4
-#       define ATIF_TV_STD_PALCN                                   5
-#       define ATIF_TV_STD_PALN                                    6
-#       define ATIF_TV_STD_SCART_RGB                               9
-#define ATIF_FUNCTION_SET_TV_STANDARD_IN_CMOS                      0x6
-/* ARG0: ATIF_FUNCTION_SET_TV_STANDARD_IN_CMOS
- * ARG1:
- * WORD  - structure size in bytes (includes size field)
- * BYTE  - 0
- * BYTE  - TV standard
- * OUTPUT: none
- */
-#define ATIF_FUNCTION_GET_PANEL_EXPANSION_MODE_FROM_CMOS           0x7
-/* ARG0: ATIF_FUNCTION_GET_PANEL_EXPANSION_MODE_FROM_CMOS
- * ARG1: none
- * OUTPUT:
- * WORD  - structure size in bytes (includes size field)
- * BYTE  - panel expansion mode
- */
-#define ATIF_FUNCTION_SET_PANEL_EXPANSION_MODE_IN_CMOS             0x8
-/* ARG0: ATIF_FUNCTION_SET_PANEL_EXPANSION_MODE_IN_CMOS
- * ARG1:
- * WORD  - structure size in bytes (includes size field)
- * BYTE  - panel expansion mode
- * OUTPUT: none
- */
 #define ATIF_FUNCTION_TEMPERATURE_CHANGE_NOTIFICATION              0xD
 /* ARG0: ATIF_FUNCTION_TEMPERATURE_CHANGE_NOTIFICATION
  * ARG1:
@@ -286,21 +207,43 @@ struct atcs_pref_req_output {
  * BYTE  - current temperature (degress Celsius)
  * OUTPUT: none
  */
-#define ATIF_FUNCTION_GET_GRAPHICS_DEVICE_TYPES                    0xF
-/* ARG0: ATIF_FUNCTION_GET_GRAPHICS_DEVICE_TYPES
- * ARG1: none
+#define ATIF_FUNCTION_QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS    0x10
+/* ARG0: ATIF_FUNCTION_QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS
+ * ARG1:
+ * WORD  - structure size in bytes (includes size field)
+ * BYTE  - requested display
  * OUTPUT:
- * WORD  - number of gfx devices
- * WORD  - device structure size in bytes (excludes device size field)
- * DWORD - flags         \
- * WORD  - bus number     } repeated structure
- * WORD  - device number /
+ * WORD  - structure size in bytes (includes size field)
+ * WORD  - flags (currently all 16 bits are reserved)
+ * BYTE  - error code (on failure, disregard all below fields)
+ * BYTE  - AC level (default brightness in percent when machine has full power)
+ * BYTE  - DC level (default brightness in percent when machine is on battery)
+ * BYTE  - min input signal, in range 0-255, corresponding to 0% backlight
+ * BYTE  - max input signal, in range 0-255, corresponding to 100% backlight
+ * BYTE  - number of reported data points
+ * BYTE  - luminance level in percent  \ repeated structure
+ * BYTE  - input signal in range 0-255 / does not have entries for 0% and 100%
  */
-/* flags */
-#       define ATIF_PX_REMOVABLE_GRAPHICS_DEVICE                   (1 << 0)
-#       define ATIF_XGP_PORT                                       (1 << 1)
-#       define ATIF_VGA_ENABLED_GRAPHICS_DEVICE                    (1 << 2)
-#       define ATIF_XGP_PORT_IN_DOCK                               (1 << 3)
+/* requested display */
+#       define ATIF_QBTC_REQUEST_LCD1                              0
+#       define ATIF_QBTC_REQUEST_CRT1                              1
+#       define ATIF_QBTC_REQUEST_DFP1                              3
+#       define ATIF_QBTC_REQUEST_CRT2                              4
+#       define ATIF_QBTC_REQUEST_LCD2                              5
+#       define ATIF_QBTC_REQUEST_DFP2                              7
+#       define ATIF_QBTC_REQUEST_DFP3                              9
+#       define ATIF_QBTC_REQUEST_DFP4                              10
+#       define ATIF_QBTC_REQUEST_DFP5                              11
+#       define ATIF_QBTC_REQUEST_DFP6                              12
+/* error code */
+#       define ATIF_QBTC_ERROR_CODE_SUCCESS                        0
+#       define ATIF_QBTC_ERROR_CODE_FAILURE                        1
+#       define ATIF_QBTC_ERROR_CODE_DEVICE_NOT_SUPPORTED           2
+#define ATIF_FUNCTION_READY_TO_UNDOCK_NOTIFICATION                 0x11
+/* ARG0: ATIF_FUNCTION_READY_TO_UNDOCK_NOTIFICATION
+ * ARG1: none
+ * OUTPUT: none
+ */
 #define ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION                 0x15
 /* ARG0: ATIF_FUNCTION_GET_EXTERNAL_GPU_INFORMATION
  * ARG1: none
