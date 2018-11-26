@@ -580,8 +580,13 @@ again:
 			if (obj_key == UVERBS_API_KEY_ERR)
 				continue;
 			tmp_obj = uapi_get_object(uapi, obj_key);
-			if (tmp_obj && !tmp_obj->disabled)
-				continue;
+			if (IS_ERR(tmp_obj)) {
+				if (PTR_ERR(tmp_obj) == -ENOMSG)
+					continue;
+			} else {
+				if (!tmp_obj->disabled)
+					continue;
+			}
 
 			starting_key = iter.index;
 			uapi_remove_method(
