@@ -294,6 +294,9 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	ether_addr_copy(dev->net->dev_addr, dev->net->perm_addr);
 
+	/* Set Rx urb size */
+	dev->rx_urb_size = URB_SIZE;
+
 	/* Set TX needed headroom & tailroom */
 	dev->net->needed_headroom += sizeof(u64);
 	dev->net->needed_tailroom += sizeof(u64);
@@ -519,6 +522,8 @@ static int aqc111_reset(struct usbnet *dev)
 	struct aqc111_data *aqc111_data = dev->driver_priv;
 	u8 reg8 = 0;
 
+	dev->rx_urb_size = URB_SIZE;
+
 	if (usb_device_no_sg_constraint(dev->udev))
 		dev->can_dma_sg = 1;
 
@@ -575,6 +580,102 @@ static int aqc111_stop(struct usbnet *dev)
 
 	netif_carrier_off(dev->net);
 
+	return 0;
+}
+
+static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+{
+	struct sk_buff *new_skb = NULL;
+	u32 pkt_total_offset = 0;
+	u64 *pkt_desc_ptr = NULL;
+	u32 start_of_descs = 0;
+	u32 desc_offset = 0; /*RX Header Offset*/
+	u16 pkt_count = 0;
+	u64 desc_hdr = 0;
+	u32 skb_len = 0;
+
+	if (!skb)
+		goto err;
+
+	if (skb->len == 0)
+		goto err;
+
+	skb_len = skb->len;
+	/* RX Descriptor Header */
+	skb_trim(skb, skb->len - sizeof(desc_hdr));
+	desc_hdr = le64_to_cpup((u64 *)skb_tail_pointer(skb));
+
+	/* Check these packets */
+	desc_offset = (desc_hdr & AQ_RX_DH_DESC_OFFSET_MASK) >>
+		      AQ_RX_DH_DESC_OFFSET_SHIFT;
+	pkt_count = desc_hdr & AQ_RX_DH_PKT_CNT_MASK;
+	start_of_descs = skb_len - ((pkt_count + 1) *  sizeof(desc_hdr));
+
+	/* self check descs position */
+	if (start_of_descs != desc_offset)
+		goto err;
+
+	/* self check desc_offset from header*/
+	if (desc_offset >= skb_len)
+		goto err;
+
+	if (pkt_count == 0)
+		goto err;
+
+	/* Get the first RX packet descriptor */
+	pkt_desc_ptr = (u64 *)(skb->data + desc_offset);
+
+	while (pkt_count--) {
+		u64 pkt_desc = le64_to_cpup(pkt_desc_ptr);
+		u32 pkt_len_with_padd = 0;
+		u32 pkt_len = 0;
+
+		pkt_len = (u32)((pkt_desc & AQ_RX_PD_LEN_MASK) >>
+			  AQ_RX_PD_LEN_SHIFT);
+		pkt_len_with_padd = ((pkt_len + 7) & 0x7FFF8);
+
+		pkt_total_offset += pkt_len_with_padd;
+		if (pkt_total_offset > desc_offset ||
+		    (pkt_count == 0 && pkt_total_offset != desc_offset)) {
+			goto err;
+		}
+
+		if (pkt_desc & AQ_RX_PD_DROP ||
+		    !(pkt_desc & AQ_RX_PD_RX_OK) ||
+		    pkt_len > (dev->hard_mtu + AQ_RX_HW_PAD)) {
+			skb_pull(skb, pkt_len_with_padd);
+			/* Next RX Packet Descriptor */
+			pkt_desc_ptr++;
+			continue;
+		}
+
+		/* Clone SKB */
+		new_skb = skb_clone(skb, GFP_ATOMIC);
+
+		if (!new_skb)
+			goto err;
+
+		new_skb->len = pkt_len;
+		skb_pull(new_skb, AQ_RX_HW_PAD);
+		skb_set_tail_pointer(new_skb, new_skb->len);
+
+		new_skb->truesize = SKB_TRUESIZE(new_skb->len);
+
+		usbnet_skb_return(dev, new_skb);
+		if (pkt_count == 0)
+			break;
+
+		skb_pull(skb, pkt_len_with_padd);
+
+		/* Next RX Packet Header */
+		pkt_desc_ptr++;
+
+		new_skb = NULL;
+	}
+
+	return 1;
+
+err:
 	return 0;
 }
 
@@ -637,6 +738,7 @@ static const struct driver_info aqc111_info = {
 	.stop		= aqc111_stop,
 	.flags		= FLAG_ETHER | FLAG_FRAMING_AX |
 			  FLAG_AVOID_UNLINK_URBS | FLAG_MULTI_PACKET,
+	.rx_fixup	= aqc111_rx_fixup,
 	.tx_fixup	= aqc111_tx_fixup,
 };
 

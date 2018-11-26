@@ -10,6 +10,8 @@
 #ifndef __LINUX_USBNET_AQC111_H
 #define __LINUX_USBNET_AQC111_H
 
+#define URB_SIZE	(1024 * 62)
+
 #define AQ_ACCESS_MAC			0x01
 #define AQ_FLASH_PARAMETERS		0x20
 #define AQ_PHY_POWER			0x31
@@ -156,6 +158,19 @@ struct aqc111_data {
 /* TX Descriptor */
 #define AQ_TX_DESC_LEN_MASK	0x1FFFFF
 #define AQ_TX_DESC_DROP_PADD	BIT(28)
+
+#define AQ_RX_HW_PAD			0x02
+
+/* RX Packet Descriptor */
+#define AQ_RX_PD_RX_OK		BIT(11)
+#define AQ_RX_PD_DROP		BIT(31)
+#define AQ_RX_PD_LEN_MASK	0x7FFF0000
+#define AQ_RX_PD_LEN_SHIFT	0x10
+
+/* RX Descriptor header */
+#define AQ_RX_DH_PKT_CNT_MASK		0x1FFF
+#define AQ_RX_DH_DESC_OFFSET_MASK	0xFFFFE000
+#define AQ_RX_DH_DESC_OFFSET_SHIFT	0x0D
 
 static struct {
 	unsigned char ctrl;
