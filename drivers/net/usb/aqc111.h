@@ -18,6 +18,7 @@
 #define AQ_ACCESS_MAC			0x01
 #define AQ_FLASH_PARAMETERS		0x20
 #define AQ_PHY_POWER			0x31
+#define AQ_WOL_CFG			0x60
 #define AQ_PHY_OPS			0x61
 
 #define AQ_USB_PHY_SET_TIMEOUT		10000
@@ -145,7 +146,17 @@
 #define AQ_DSH_RETRIES_SHIFT	0x18
 #define AQ_DSH_RETRIES_MASK	0xF000000
 
+#define AQ_WOL_FLAG_MP			0x2
+
 /******************************************************************************/
+
+struct aqc111_wol_cfg {
+	u8 hw_addr[6];
+	u8 flags;
+	u8 rsvd[283];
+} __packed;
+
+#define WOL_CFG_SIZE sizeof(struct aqc111_wol_cfg)
 
 struct aqc111_data {
 	u16 rxctl;
@@ -160,6 +171,7 @@ struct aqc111_data {
 		u8 rev;
 	} fw_ver;
 	u32 phy_cfg;
+	u8 wol_flags;
 };
 
 #define AQ_LS_MASK		0x8000
