@@ -80,13 +80,13 @@ struct skeleton {
 };
 
 struct skel_buffer {
-	struct vb2_buffer vb;
+	struct vb2_v4l2_buffer vb;
 	struct list_head list;
 };
 
-static inline struct skel_buffer *to_skel_buffer(struct vb2_buffer *vb2)
+static inline struct skel_buffer *to_skel_buffer(struct vb2_v4l2_buffer *vbuf)
 {
-	return container_of(vb2, struct skel_buffer, vb);
+	return container_of(vbuf, struct skel_buffer, vb);
 }
 
 static const struct pci_device_id skeleton_pci_tbl[] = {
@@ -212,8 +212,9 @@ static int buffer_prepare(struct vb2_buffer *vb)
  */
 static void buffer_queue(struct vb2_buffer *vb)
 {
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct skeleton *skel = vb2_get_drv_priv(vb->vb2_queue);
-	struct skel_buffer *buf = to_skel_buffer(vb);
+	struct skel_buffer *buf = to_skel_buffer(vbuf);
 	unsigned long flags;
 
 	spin_lock_irqsave(&skel->qlock, flags);
@@ -232,7 +233,7 @@ static void return_all_buffers(struct skeleton *skel,
 
 	spin_lock_irqsave(&skel->qlock, flags);
 	list_for_each_entry_safe(buf, node, &skel->buf_list, list) {
-		vb2_buffer_done(&buf->vb, state);
+		vb2_buffer_done(&buf->vb.vb2_buf, state);
 		list_del(&buf->list);
 	}
 	spin_unlock_irqrestore(&skel->qlock, flags);
