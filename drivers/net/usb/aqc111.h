@@ -113,6 +113,7 @@
 #define AQ_ADV_1G	BIT(1)
 #define AQ_ADV_2G5	BIT(2)
 #define AQ_ADV_5G	BIT(3)
+#define AQ_ADV_MASK	0x0F
 
 #define AQ_PAUSE	BIT(16)
 #define AQ_ASYM_PAUSE	BIT(17)
@@ -127,6 +128,10 @@
 /******************************************************************************/
 
 struct aqc111_data {
+	u8 link_speed;
+	u8 link;
+	u8 autoneg;
+	u32 advertised_speed;
 	struct {
 		u8 major;
 		u8 minor;
@@ -134,6 +139,14 @@ struct aqc111_data {
 	} fw_ver;
 	u32 phy_cfg;
 };
+
+#define AQ_LS_MASK		0x8000
+#define AQ_SPEED_MASK		0x7F00
+#define AQ_SPEED_SHIFT		0x0008
+#define AQ_INT_SPEED_5G		0x000F
+#define AQ_INT_SPEED_2_5G	0x0010
+#define AQ_INT_SPEED_1G		0x0011
+#define AQ_INT_SPEED_100M	0x0013
 
 static struct {
 	unsigned char ctrl;

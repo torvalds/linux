@@ -157,6 +157,53 @@ static int aqc111_write32_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return aqc111_write_cmd(dev, cmd, value, index, sizeof(tmp), &tmp);
 }
 
+static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
+{
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+
+	aqc111_data->phy_cfg &= ~AQ_ADV_MASK;
+	aqc111_data->phy_cfg |= AQ_PAUSE;
+	aqc111_data->phy_cfg |= AQ_ASYM_PAUSE;
+	aqc111_data->phy_cfg |= AQ_DOWNSHIFT;
+	aqc111_data->phy_cfg &= ~AQ_DSH_RETRIES_MASK;
+	aqc111_data->phy_cfg |= (3 << AQ_DSH_RETRIES_SHIFT) &
+				AQ_DSH_RETRIES_MASK;
+
+	if (autoneg == AUTONEG_ENABLE) {
+		switch (speed) {
+		case SPEED_5000:
+			aqc111_data->phy_cfg |= AQ_ADV_5G;
+			/* fall-through */
+		case SPEED_2500:
+			aqc111_data->phy_cfg |= AQ_ADV_2G5;
+			/* fall-through */
+		case SPEED_1000:
+			aqc111_data->phy_cfg |= AQ_ADV_1G;
+			/* fall-through */
+		case SPEED_100:
+			aqc111_data->phy_cfg |= AQ_ADV_100M;
+			/* fall-through */
+		}
+	} else {
+		switch (speed) {
+		case SPEED_5000:
+			aqc111_data->phy_cfg |= AQ_ADV_5G;
+			break;
+		case SPEED_2500:
+			aqc111_data->phy_cfg |= AQ_ADV_2G5;
+			break;
+		case SPEED_1000:
+			aqc111_data->phy_cfg |= AQ_ADV_1G;
+			break;
+		case SPEED_100:
+			aqc111_data->phy_cfg |= AQ_ADV_100M;
+			break;
+		}
+	}
+
+	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &aqc111_data->phy_cfg);
+}
+
 static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -179,6 +226,7 @@ static void aqc111_read_fw_version(struct usbnet *dev,
 static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 {
 	struct usb_device *udev = interface_to_usbdev(intf);
+	enum usb_device_speed usb_speed = udev->speed;
 	struct aqc111_data *aqc111_data;
 	int ret;
 
@@ -206,6 +254,9 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->netdev_ops = &aqc111_netdev_ops;
 
 	aqc111_read_fw_version(dev, aqc111_data);
+	aqc111_data->autoneg = AUTONEG_ENABLE;
+	aqc111_data->advertised_speed = (usb_speed == USB_SPEED_SUPER) ?
+					 SPEED_5000 : SPEED_1000;
 
 	return 0;
 }
@@ -224,12 +275,186 @@ static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
 				2, &reg16);
 
 	/* Power down ethernet PHY */
+	aqc111_data->phy_cfg &= ~AQ_ADV_MASK;
 	aqc111_data->phy_cfg |= AQ_LOW_POWER;
 	aqc111_data->phy_cfg &= ~AQ_PHY_POWER_EN;
 	aqc111_write32_cmd_nopm(dev, AQ_PHY_OPS, 0, 0,
 				&aqc111_data->phy_cfg);
 
 	kfree(aqc111_data);
+}
+
+static void aqc111_status(struct usbnet *dev, struct urb *urb)
+{
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+	u64 *event_data = NULL;
+	int link = 0;
+
+	if (urb->actual_length < sizeof(*event_data))
+		return;
+
+	event_data = urb->transfer_buffer;
+	le64_to_cpus(event_data);
+
+	if (*event_data & AQ_LS_MASK)
+		link = 1;
+	else
+		link = 0;
+
+	aqc111_data->link_speed = (*event_data & AQ_SPEED_MASK) >>
+				  AQ_SPEED_SHIFT;
+	aqc111_data->link = link;
+
+	if (netif_carrier_ok(dev->net) != link)
+		usbnet_defer_kevent(dev, EVENT_LINK_RESET);
+}
+
+static void aqc111_configure_rx(struct usbnet *dev,
+				struct aqc111_data *aqc111_data)
+{
+	enum usb_device_speed usb_speed = dev->udev->speed;
+	u16 link_speed = 0, usb_host = 0;
+	u8 buf[5] = { 0 };
+	u8 queue_num = 0;
+	u16 reg16 = 0;
+	u8 reg8 = 0;
+
+	buf[0] = 0x00;
+	buf[1] = 0xF8;
+	buf[2] = 0x07;
+	switch (aqc111_data->link_speed) {
+	case AQ_INT_SPEED_5G:
+		link_speed = 5000;
+		reg8 = 0x05;
+		reg16 = 0x001F;
+		break;
+	case AQ_INT_SPEED_2_5G:
+		link_speed = 2500;
+		reg16 = 0x003F;
+		break;
+	case AQ_INT_SPEED_1G:
+		link_speed = 1000;
+		reg16 = 0x009F;
+		break;
+	case AQ_INT_SPEED_100M:
+		link_speed = 100;
+		queue_num = 1;
+		reg16 = 0x063F;
+		buf[1] = 0xFB;
+		buf[2] = 0x4;
+		break;
+	}
+
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_INTER_PACKET_GAP_0,
+			 1, 1, &reg8);
+
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_TX_PAUSE_RESEND_T, 3, 3, buf);
+
+	switch (usb_speed) {
+	case USB_SPEED_SUPER:
+		usb_host = 3;
+		break;
+	case USB_SPEED_HIGH:
+		usb_host = 2;
+		break;
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+		usb_host = 1;
+		queue_num = 0;
+		break;
+	default:
+		usb_host = 0;
+		break;
+	}
+
+	memcpy(buf, &AQC111_BULKIN_SIZE[queue_num], 5);
+	/* RX bulk configuration */
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL, 5, 5, buf);
+
+	/* Set high low water level */
+	reg16 = 0x0810;
+
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
+			   2, &reg16);
+	netdev_info(dev->net, "Link Speed %d, USB %d", link_speed, usb_host);
+}
+
+static int aqc111_link_reset(struct usbnet *dev)
+{
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+	u16 reg16 = 0;
+	u8 reg8 = 0;
+
+	if (aqc111_data->link == 1) { /* Link up */
+		aqc111_configure_rx(dev, aqc111_data);
+
+		/* Vlan Tag Filter */
+		reg8 = SFR_VLAN_CONTROL_VSO;
+
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_VLAN_ID_CONTROL,
+				 1, 1, &reg8);
+
+		reg8 = 0x0;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BMRX_DMA_CONTROL,
+				 1, 1, &reg8);
+
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BMTX_DMA_CONTROL,
+				 1, 1, &reg8);
+
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_ARC_CTRL, 1, 1, &reg8);
+
+		reg16 = SFR_RX_CTL_IPE | SFR_RX_CTL_AB;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+
+		reg8 = SFR_RX_PATH_READY;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_ETH_MAC_PATH,
+				 1, 1, &reg8);
+
+		reg8 = SFR_BULK_OUT_EFF_EN;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BULK_OUT_CTRL,
+				 1, 1, &reg8);
+
+		reg16 = 0;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+				   2, &reg16);
+
+		reg16 = SFR_MEDIUM_XGMIIMODE | SFR_MEDIUM_FULL_DUPLEX;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+				   2, &reg16);
+
+		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+				  2, &reg16);
+
+		reg16 |= SFR_MEDIUM_RECEIVE_EN | SFR_MEDIUM_RXFLOW_CTRLEN |
+			 SFR_MEDIUM_TXFLOW_CTRLEN;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+				   2, &reg16);
+
+		reg16 = SFR_RX_CTL_IPE | SFR_RX_CTL_AB | SFR_RX_CTL_START;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+
+		netif_carrier_on(dev->net);
+	} else {
+		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+				  2, &reg16);
+		reg16 &= ~SFR_MEDIUM_RECEIVE_EN;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+				   2, &reg16);
+
+		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+		reg16 &= ~SFR_RX_CTL_START;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+
+		reg8 = SFR_BULK_OUT_FLUSH_EN | SFR_BULK_OUT_EFF_EN;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BULK_OUT_CTRL,
+				 1, 1, &reg8);
+		reg8 = SFR_BULK_OUT_EFF_EN;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BULK_OUT_CTRL,
+				 1, 1, &reg8);
+
+		netif_carrier_off(dev->net);
+	}
+	return 0;
 }
 
 static int aqc111_reset(struct usbnet *dev)
@@ -254,6 +479,12 @@ static int aqc111_reset(struct usbnet *dev)
 		  SFR_MONITOR_MODE_RW_FLAG);
 	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_MONITOR_MODE, 1, 1, &reg8);
 
+	netif_carrier_off(dev->net);
+
+	/* Phy advertise */
+	aqc111_set_phy_speed(dev, aqc111_data->autoneg,
+			     aqc111_data->advertised_speed);
+
 	return 0;
 }
 
@@ -275,6 +506,8 @@ static int aqc111_stop(struct usbnet *dev)
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
 			   &aqc111_data->phy_cfg);
 
+	netif_carrier_off(dev->net);
+
 	return 0;
 }
 
@@ -282,6 +515,8 @@ static const struct driver_info aqc111_info = {
 	.description	= "Aquantia AQtion USB to 5GbE Controller",
 	.bind		= aqc111_bind,
 	.unbind		= aqc111_unbind,
+	.status		= aqc111_status,
+	.link_reset	= aqc111_link_reset,
 	.reset		= aqc111_reset,
 	.stop		= aqc111_stop,
 };
