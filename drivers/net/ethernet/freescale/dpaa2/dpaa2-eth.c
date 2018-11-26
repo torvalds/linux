@@ -313,9 +313,11 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		if (err) {
 			xdp_release_buf(priv, ch, addr);
 			percpu_stats->tx_errors++;
+			ch->stats.xdp_tx_err++;
 		} else {
 			percpu_stats->tx_packets++;
 			percpu_stats->tx_bytes += dpaa2_fd_get_len(fd);
+			ch->stats.xdp_tx++;
 		}
 		break;
 	default:
@@ -324,6 +326,7 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
 	case XDP_DROP:
 		xdp_release_buf(priv, ch, addr);
+		ch->stats.xdp_drop++;
 		break;
 	}
 

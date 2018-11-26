@@ -45,6 +45,9 @@ static char dpaa2_ethtool_extras[][ETH_GSTRING_LEN] = {
 	"[drv] dequeue portal busy",
 	"[drv] channel pull errors",
 	"[drv] cdan",
+	"[drv] xdp drop",
+	"[drv] xdp tx",
+	"[drv] xdp tx errors",
 };
 
 #define DPAA2_ETH_NUM_EXTRA_STATS	ARRAY_SIZE(dpaa2_ethtool_extras)

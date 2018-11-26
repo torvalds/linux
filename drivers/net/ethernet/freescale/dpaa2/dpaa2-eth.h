@@ -249,6 +249,10 @@ struct dpaa2_eth_ch_stats {
 	__u64 pull_err;
 	/* Number of CDANs; useful to estimate avg NAPI len */
 	__u64 cdan;
+	/* XDP counters */
+	__u64 xdp_drop;
+	__u64 xdp_tx;
+	__u64 xdp_tx_err;
 };
 
 /* Maximum number of queues associated with a DPNI */
