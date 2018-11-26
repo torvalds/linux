@@ -1672,7 +1672,7 @@ static int lan743x_tx_napi_poll(struct napi_struct *napi, int weight)
 		netif_wake_queue(adapter->netdev);
 	}
 
-	if (!napi_complete_done(napi, weight))
+	if (!napi_complete(napi))
 		goto done;
 
 	/* enable isr */
@@ -1681,7 +1681,7 @@ static int lan743x_tx_napi_poll(struct napi_struct *napi, int weight)
 	lan743x_csr_read(adapter, INT_STS);
 
 done:
-	return weight;
+	return 0;
 }
 
 static void lan743x_tx_ring_cleanup(struct lan743x_tx *tx)
@@ -1870,9 +1870,9 @@ static int lan743x_tx_open(struct lan743x_tx *tx)
 	tx->vector_flags = lan743x_intr_get_vector_flags(adapter,
 							 INT_BIT_DMA_TX_
 							 (tx->channel_number));
-	netif_napi_add(adapter->netdev,
-		       &tx->napi, lan743x_tx_napi_poll,
-		       tx->ring_size - 1);
+	netif_tx_napi_add(adapter->netdev,
+			  &tx->napi, lan743x_tx_napi_poll,
+			  tx->ring_size - 1);
 	napi_enable(&tx->napi);
 
 	data = 0;
