@@ -454,9 +454,10 @@ module_param_named(cntl_sb_buf_per_se, amdgpu_cntl_sb_buf_per_se, int, 0444);
 
 /**
  * DOC: param_buf_per_se (int)
- * Override the size of Off-Chip Pramater Cache per Shader Engine in Byte. The default is 0 (depending on gfx).
+ * Override the size of Off-Chip Parameter Cache per Shader Engine in Byte.
+ * The default is 0 (depending on gfx).
  */
-MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Pramater Cache per Shader Engine (default depending on gfx)");
+MODULE_PARM_DESC(param_buf_per_se, "the size of Off-Chip Parameter Cache per Shader Engine (default depending on gfx)");
 module_param_named(param_buf_per_se, amdgpu_param_buf_per_se, int, 0444);
 
 /**
