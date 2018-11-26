@@ -571,17 +571,18 @@ static int geni_i2c_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "i2c fifo/se-dma mode. fifo depth:%d\n", tx_depth);
 
-	ret = i2c_add_adapter(&gi2c->adap);
-	if (ret) {
-		dev_err(&pdev->dev, "Error adding i2c adapter %d\n", ret);
-		return ret;
-	}
-
 	gi2c->suspended = 1;
 	pm_runtime_set_suspended(gi2c->se.dev);
 	pm_runtime_set_autosuspend_delay(gi2c->se.dev, I2C_AUTO_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(gi2c->se.dev);
 	pm_runtime_enable(gi2c->se.dev);
+
+	ret = i2c_add_adapter(&gi2c->adap);
+	if (ret) {
+		dev_err(&pdev->dev, "Error adding i2c adapter %d\n", ret);
+		pm_runtime_disable(gi2c->se.dev);
+		return ret;
+	}
 
 	return 0;
 }
@@ -590,8 +591,8 @@ static int geni_i2c_remove(struct platform_device *pdev)
 {
 	struct geni_i2c_dev *gi2c = platform_get_drvdata(pdev);
 
-	pm_runtime_disable(gi2c->se.dev);
 	i2c_del_adapter(&gi2c->adap);
+	pm_runtime_disable(gi2c->se.dev);
 	return 0;
 }
 

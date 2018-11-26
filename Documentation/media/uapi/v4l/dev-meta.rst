@@ -40,7 +40,7 @@ To use the :ref:`format` ioctls applications set the ``type`` field of the
 the desired operation. Both drivers and applications must set the remainder of
 the :c:type:`v4l2_format` structure to 0.
 
-.. _v4l2-meta-format:
+.. c:type:: v4l2_meta_format
 
 .. tabularcolumns:: |p{1.4cm}|p{2.2cm}|p{13.9cm}|
 

@@ -717,7 +717,8 @@ int netpoll_setup(struct netpoll *np)
 
 				read_lock_bh(&idev->lock);
 				list_for_each_entry(ifp, &idev->addr_list, if_list) {
-					if (ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL)
+					if (!!(ipv6_addr_type(&ifp->addr) & IPV6_ADDR_LINKLOCAL) !=
+					    !!(ipv6_addr_type(&np->remote_ip.in6) & IPV6_ADDR_LINKLOCAL))
 						continue;
 					np->local_ip.in6 = ifp->addr;
 					err = 0;

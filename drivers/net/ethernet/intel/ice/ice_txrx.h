@@ -22,8 +22,21 @@
 #define ICE_RX_BUF_WRITE	16	/* Must be power of 2 */
 #define ICE_MAX_TXQ_PER_TXQG	128
 
-/* Tx Descriptors needed, worst case */
-#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
+/* We are assuming that the cache line is always 64 Bytes here for ice.
+ * In order to make sure that is a correct assumption there is a check in probe
+ * to print a warning if the read from GLPCI_CNF2 tells us that the cache line
+ * size is 128 bytes. We do it this way because we do not want to read the
+ * GLPCI_CNF2 register or a variable containing the value on every pass through
+ * the Tx path.
+ */
+#define ICE_CACHE_LINE_BYTES		64
+#define ICE_DESCS_PER_CACHE_LINE	(ICE_CACHE_LINE_BYTES / \
+					 sizeof(struct ice_tx_desc))
+#define ICE_DESCS_FOR_CTX_DESC		1
+#define ICE_DESCS_FOR_SKB_DATA_PTR	1
+/* Tx descriptors needed, worst case */
+#define DESC_NEEDED (MAX_SKB_FRAGS + ICE_DESCS_FOR_CTX_DESC + \
+		     ICE_DESCS_PER_CACHE_LINE + ICE_DESCS_FOR_SKB_DATA_PTR)
 #define ICE_DESC_UNUSED(R)	\
 	((((R)->next_to_clean > (R)->next_to_use) ? 0 : (R)->count) + \
 	(R)->next_to_clean - (R)->next_to_use - 1)

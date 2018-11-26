@@ -1675,7 +1675,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_cp_ring_info *cpr,
 	} else {
 		if (rxcmp1->rx_cmp_cfa_code_errors_v2 & RX_CMP_L4_CS_ERR_BITS) {
 			if (dev->features & NETIF_F_RXCSUM)
-				cpr->rx_l4_csum_errors++;
+				bnapi->cp_ring.rx_l4_csum_errors++;
 		}
 	}
 
@@ -8714,6 +8714,26 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	return rc;
 }
 
+static int bnxt_dbg_hwrm_ring_info_get(struct bnxt *bp, u8 ring_type,
+				       u32 ring_id, u32 *prod, u32 *cons)
+{
+	struct hwrm_dbg_ring_info_get_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_dbg_ring_info_get_input req = {0};
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_DBG_RING_INFO_GET, -1, -1);
+	req.ring_type = ring_type;
+	req.fw_ring_id = cpu_to_le32(ring_id);
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		*prod = le32_to_cpu(resp->producer_index);
+		*cons = le32_to_cpu(resp->consumer_index);
+	}
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
 static void bnxt_dump_tx_sw_state(struct bnxt_napi *bnapi)
 {
 	struct bnxt_tx_ring_info *txr = bnapi->tx_ring;
@@ -8821,6 +8841,11 @@ static void bnxt_timer(struct timer_list *t)
 			bnxt_queue_sp_work(bp);
 		}
 	}
+
+	if ((bp->flags & BNXT_FLAG_CHIP_P5) && netif_carrier_ok(dev)) {
+		set_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event);
+		bnxt_queue_sp_work(bp);
+	}
 bnxt_restart_timer:
 	mod_timer(&bp->timer, jiffies + bp->current_interval);
 }
@@ -8849,6 +8874,44 @@ static void bnxt_reset(struct bnxt *bp, bool silent)
 	if (test_bit(BNXT_STATE_OPEN, &bp->state))
 		bnxt_reset_task(bp, silent);
 	bnxt_rtnl_unlock_sp(bp);
+}
+
+static void bnxt_chk_missed_irq(struct bnxt *bp)
+{
+	int i;
+
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+		return;
+
+	for (i = 0; i < bp->cp_nr_rings; i++) {
+		struct bnxt_napi *bnapi = bp->bnapi[i];
+		struct bnxt_cp_ring_info *cpr;
+		u32 fw_ring_id;
+		int j;
+
+		if (!bnapi)
+			continue;
+
+		cpr = &bnapi->cp_ring;
+		for (j = 0; j < 2; j++) {
+			struct bnxt_cp_ring_info *cpr2 = cpr->cp_ring_arr[j];
+			u32 val[2];
+
+			if (!cpr2 || cpr2->has_more_work ||
+			    !bnxt_has_work(bp, cpr2))
+				continue;
+
+			if (cpr2->cp_raw_cons != cpr2->last_cp_raw_cons) {
+				cpr2->last_cp_raw_cons = cpr2->cp_raw_cons;
+				continue;
+			}
+			fw_ring_id = cpr2->cp_ring_struct.fw_ring_id;
+			bnxt_dbg_hwrm_ring_info_get(bp,
+				DBG_RING_INFO_GET_REQ_RING_TYPE_L2_CMPL,
+				fw_ring_id, &val[0], &val[1]);
+			cpr->missed_irqs++;
+		}
+	}
 }
 
 static void bnxt_cfg_ntp_filters(struct bnxt *);
@@ -8929,6 +8992,9 @@ static void bnxt_sp_task(struct work_struct *work)
 
 	if (test_and_clear_bit(BNXT_FLOW_STATS_SP_EVENT, &bp->sp_event))
 		bnxt_tc_flow_stats_work(bp);
+
+	if (test_and_clear_bit(BNXT_RING_COAL_NOW_SP_EVENT, &bp->sp_event))
+		bnxt_chk_missed_irq(bp);
 
 	/* These functions below will clear BNXT_STATE_IN_SP_TASK.  They
 	 * must be the last functions to be called before exiting.
@@ -10087,6 +10153,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	bnxt_hwrm_func_qcfg(bp);
+	bnxt_hwrm_vnic_qcaps(bp);
 	bnxt_hwrm_port_led_qcaps(bp);
 	bnxt_ethtool_init(bp);
 	bnxt_dcb_init(bp);
@@ -10120,7 +10187,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 				    VNIC_RSS_CFG_REQ_HASH_TYPE_UDP_IPV6;
 	}
 
-	bnxt_hwrm_vnic_qcaps(bp);
 	if (bnxt_rfs_supported(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;
 		if (bnxt_rfs_capable(bp)) {
