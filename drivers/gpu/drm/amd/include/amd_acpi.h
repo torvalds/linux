@@ -52,6 +52,30 @@ struct atif_sbios_requests {
 	u8 backlight_level;	/* panel backlight level (0-255) */
 } __packed;
 
+struct atif_qbtc_arguments {
+	u16 size;		/* structure size in bytes (includes size field) */
+	u8 requested_display;	/* which display is requested */
+} __packed;
+
+#define ATIF_QBTC_MAX_DATA_POINTS 99
+
+struct atif_qbtc_data_point {
+	u8 luminance;		/* luminance in percent */
+	u8 ipnut_signal;	/* input signal in range 0-255 */
+} __packed;
+
+struct atif_qbtc_output {
+	u16 size;		/* structure size in bytes (includes size field) */
+	u16 flags;		/* all zeroes */
+	u8 error_code;		/* error code */
+	u8 ac_level;		/* default brightness on AC power */
+	u8 dc_level;		/* default brightness on DC power */
+	u8 min_input_signal;	/* max input signal in range 0-255 */
+	u8 max_input_signal;	/* min input signal in range 0-255 */
+	u8 number_of_points;	/* number of data points */
+	struct atif_qbtc_data_point data_points[ATIF_QBTC_MAX_DATA_POINTS];
+} __packed;
+
 #define ATIF_NOTIFY_MASK	0x3
 #define ATIF_NOTIFY_NONE	0
 #define ATIF_NOTIFY_81		1

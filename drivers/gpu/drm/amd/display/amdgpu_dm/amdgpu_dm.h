@@ -84,6 +84,18 @@ struct dm_comressor_info {
 };
 
 /**
+ * struct amdgpu_dm_backlight_caps - Usable range of backlight values from ACPI
+ * @min_input_signal: minimum possible input in range 0-255
+ * @max_input_signal: maximum possible input in range 0-255
+ * @caps_valid: true if these values are from the ACPI interface
+ */
+struct amdgpu_dm_backlight_caps {
+	int min_input_signal;
+	int max_input_signal;
+	bool caps_valid;
+};
+
+/**
  * struct amdgpu_display_manager - Central amdgpu display manager device
  *
  * @dc: Display Core control structure
@@ -158,6 +170,7 @@ struct amdgpu_display_manager {
 	struct backlight_device *backlight_dev;
 
 	const struct dc_link *backlight_link;
+	struct amdgpu_dm_backlight_caps backlight_caps;
 
 	struct mod_freesync *freesync_module;
 

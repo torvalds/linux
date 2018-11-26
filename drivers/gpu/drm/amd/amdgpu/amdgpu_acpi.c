@@ -65,6 +65,7 @@ struct amdgpu_atif {
 	struct amdgpu_atif_functions functions;
 	struct amdgpu_atif_notification_cfg notification_cfg;
 	struct amdgpu_encoder *encoder_for_bl;
+	struct amdgpu_dm_backlight_caps backlight_caps;
 };
 
 /* Call the ATIF method
@@ -293,6 +294,65 @@ out:
 	DRM_DEBUG_DRIVER("Notification %s, command code = %#x\n",
 			(n->enabled ? "enabled" : "disabled"),
 			n->command_code);
+	kfree(info);
+	return err;
+}
+
+/**
+ * amdgpu_atif_query_backlight_caps - get min and max backlight input signal
+ *
+ * @handle: acpi handle
+ *
+ * Execute the QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS ATIF function
+ * to determine the acceptable range of backlight values
+ *
+ * Backlight_caps.caps_valid will be set to true if the query is successful
+ *
+ * The input signals are in range 0-255
+ *
+ * This function assumes the display with backlight is the first LCD
+ *
+ * Returns 0 on success, error on failure.
+ */
+static int amdgpu_atif_query_backlight_caps(struct amdgpu_atif *atif)
+{
+	union acpi_object *info;
+	struct atif_qbtc_output characteristics;
+	struct atif_qbtc_arguments arguments;
+	struct acpi_buffer params;
+	size_t size;
+	int err = 0;
+
+	arguments.size = sizeof(arguments);
+	arguments.requested_display = ATIF_QBTC_REQUEST_LCD1;
+
+	params.length = sizeof(arguments);
+	params.pointer = (void *)&arguments;
+
+	info = amdgpu_atif_call(atif,
+		ATIF_FUNCTION_QUERY_BRIGHTNESS_TRANSFER_CHARACTERISTICS,
+		&params);
+	if (!info) {
+		err = -EIO;
+		goto out;
+	}
+
+	size = *(u16 *) info->buffer.pointer;
+	if (size < 10) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	memset(&characteristics, 0, sizeof(characteristics));
+	size = min(sizeof(characteristics), size);
+	memcpy(&characteristics, info->buffer.pointer, size);
+
+	atif->backlight_caps.caps_valid = true;
+	atif->backlight_caps.min_input_signal =
+			characteristics.min_input_signal;
+	atif->backlight_caps.max_input_signal =
+			characteristics.max_input_signal;
+out:
 	kfree(info);
 	return err;
 }
@@ -786,11 +846,34 @@ int amdgpu_acpi_init(struct amdgpu_device *adev)
 		}
 	}
 
+	if (atif->functions.query_backlight_transfer_characteristics) {
+		ret = amdgpu_atif_query_backlight_caps(atif);
+		if (ret) {
+			DRM_DEBUG_DRIVER("Call to QUERY_BACKLIGHT_TRANSFER_CHARACTERISTICS failed: %d\n",
+					ret);
+			atif->backlight_caps.caps_valid = false;
+		}
+	} else {
+		atif->backlight_caps.caps_valid = false;
+	}
+
 out:
 	adev->acpi_nb.notifier_call = amdgpu_acpi_event;
 	register_acpi_notifier(&adev->acpi_nb);
 
 	return ret;
+}
+
+void amdgpu_acpi_get_backlight_caps(struct amdgpu_device *adev,
+		struct amdgpu_dm_backlight_caps *caps)
+{
+	if (!adev->atif) {
+		caps->caps_valid = false;
+		return;
+	}
+	caps->caps_valid = adev->atif->backlight_caps.caps_valid;
+	caps->min_input_signal = adev->atif->backlight_caps.min_input_signal;
+	caps->max_input_signal = adev->atif->backlight_caps.max_input_signal;
 }
 
 /**

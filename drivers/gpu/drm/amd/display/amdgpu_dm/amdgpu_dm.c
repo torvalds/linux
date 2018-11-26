@@ -1589,27 +1589,60 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+#define AMDGPU_DM_DEFAULT_MIN_BACKLIGHT 12
+#define AMDGPU_DM_DEFAULT_MAX_BACKLIGHT 255
+
 #if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
 	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
+
+static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm)
+{
+#if defined(CONFIG_ACPI)
+	struct amdgpu_dm_backlight_caps caps;
+
+	if (dm->backlight_caps.caps_valid)
+		return;
+
+	amdgpu_acpi_get_backlight_caps(dm->adev, &caps);
+	if (caps.caps_valid) {
+		dm->backlight_caps.min_input_signal = caps.min_input_signal;
+		dm->backlight_caps.max_input_signal = caps.max_input_signal;
+		dm->backlight_caps.caps_valid = true;
+	} else {
+		dm->backlight_caps.min_input_signal =
+				AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+		dm->backlight_caps.max_input_signal =
+				AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+	}
+#else
+	dm->backlight_min_input_signal = AMDGPU_DM_DEFAULT_MIN_BACKLIGHT;
+	dm->backlight_max_input_signal = AMDGPU_DM_DEFAULT_MAX_BACKLIGHT;
+#endif
+}
 
 static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
+	struct amdgpu_dm_backlight_caps caps;
+	uint32_t brightness = bd->props.brightness;
 
-	/* backlight_pwm_u16_16 parameter is in unsigned 32 bit, 16 bit integer
-	 * and 16 bit fractional, where 1.0 is max backlight value.
-	 * bd->props.brightness is 8 bit format and needs to be converted by
-	 * scaling via copy lower byte to upper byte of 16 bit value.
-	 */
-	uint32_t brightness = bd->props.brightness * 0x101;
-
+	amdgpu_dm_update_backlight_caps(dm);
+	caps = dm->backlight_caps;
 	/*
-	 * PWM interperts 0 as 100% rather than 0% because of HW
-	 * limitation for level 0.  So limiting minimum brightness level
-	 * to 1.
+	 * The brightness input is in the range 0-255
+	 * It needs to be rescaled to be between the
+	 * requested min and max input signal
+	 *
+	 * It also needs to be scaled up by 0x101 to
+	 * match the DC interface which has a range of
+	 * 0 to 0xffff
 	 */
-	if (bd->props.brightness < 1)
-		brightness = 0x101;
+	brightness =
+		brightness
+		* 0x101
+		* (caps.max_input_signal - caps.min_input_signal)
+		/ AMDGPU_MAX_BL_LEVEL
+		+ caps.min_input_signal * 0x101;
 
 	if (dc_link_set_backlight_level(dm->backlight_link,
 			brightness, 0, 0))
@@ -1638,6 +1671,8 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 {
 	char bl_name[16];
 	struct backlight_properties props = { 0 };
+
+	amdgpu_dm_update_backlight_caps(dm);
 
 	props.max_brightness = AMDGPU_MAX_BL_LEVEL;
 	props.brightness = AMDGPU_MAX_BL_LEVEL;
