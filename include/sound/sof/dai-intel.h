@@ -140,6 +140,14 @@ struct sof_ipc_dai_dmic_pdm_ctrl {
  * The microphone clock needs to be usually about 50-80 times the used audio
  * sample rate. With highest sample rates above 48 kHz this can relaxed
  * somewhat.
+ *
+ * The parameter wake_up_time describes how long time the microphone needs
+ * for the data line to produce valid output from mic clock start. The driver
+ * will mute the captured audio for the given time. The min_clock_on_time
+ * parameter is used to prevent too short clock bursts to happen. The driver
+ * will keep the clock active after capture stop if this time is not yet
+ * met. The unit for both is microseconds (us). Exceed of 100 ms will be
+ * treated as an error.
  */
 struct sof_ipc_dai_dmic_params {
 	uint32_t driver_ipc_version;	/**< Version (1..N) */
@@ -157,8 +165,11 @@ struct sof_ipc_dai_dmic_params {
 
 	uint32_t num_pdm_active; /**< Number of active pdm controllers */
 
+	uint32_t wake_up_time;      /**< Time from clock start to data (us) */
+	uint32_t min_clock_on_time; /**< Min. time that clk is kept on (us) */
+
 	/* reserved for future use */
-	uint32_t reserved[8];
+	uint32_t reserved[6];
 
 	/**< pdm controller config */
 	struct sof_ipc_dai_dmic_pdm_ctrl pdm[SOF_DAI_INTEL_DMIC_MAX_PDM];
