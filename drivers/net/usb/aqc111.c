@@ -48,6 +48,17 @@ static int aqc111_read_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return ret;
 }
 
+static int aqc111_read16_cmd(struct usbnet *dev, u8 cmd, u16 value,
+			     u16 index, u16 *data)
+{
+	int ret = 0;
+
+	ret = aqc111_read_cmd(dev, cmd, value, index, sizeof(*data), data);
+	le16_to_cpus(data);
+
+	return ret;
+}
+
 static int __aqc111_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
 			      u16 value, u16 index, u16 size, const void *data)
 {
@@ -106,6 +117,26 @@ static int aqc111_write_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return ret;
 }
 
+static int aqc111_write16_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+				   u16 index, u16 *data)
+{
+	u16 tmp = *data;
+
+	cpu_to_le16s(&tmp);
+
+	return aqc111_write_cmd_nopm(dev, cmd, value, index, sizeof(tmp), &tmp);
+}
+
+static int aqc111_write16_cmd(struct usbnet *dev, u8 cmd, u16 value,
+			      u16 index, u16 *data)
+{
+	u16 tmp = *data;
+
+	cpu_to_le16s(&tmp);
+
+	return aqc111_write_cmd(dev, cmd, value, index, sizeof(tmp), &tmp);
+}
+
 static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -137,12 +168,57 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 
 static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
 {
+	u16 reg16;
+
+	/* Force bz */
+	reg16 = SFR_PHYPWR_RSTCTL_BZ;
+	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
+				2, &reg16);
+	reg16 = 0;
+	aqc111_write16_cmd_nopm(dev, AQ_ACCESS_MAC, SFR_PHYPWR_RSTCTL,
+				2, &reg16);
+}
+
+static int aqc111_reset(struct usbnet *dev)
+{
+	u8 reg8 = 0;
+
+	reg8 = 0xFF;
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BM_INT_MASK, 1, 1, &reg8);
+
+	reg8 = 0x0;
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_SWP_CTRL, 1, 1, &reg8);
+
+	aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_MONITOR_MODE, 1, 1, &reg8);
+	reg8 &= ~(SFR_MONITOR_MODE_EPHYRW | SFR_MONITOR_MODE_RWLC |
+		  SFR_MONITOR_MODE_RWMP | SFR_MONITOR_MODE_RWWF |
+		  SFR_MONITOR_MODE_RW_FLAG);
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_MONITOR_MODE, 1, 1, &reg8);
+
+	return 0;
+}
+
+static int aqc111_stop(struct usbnet *dev)
+{
+	u16 reg16 = 0;
+
+	aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+			  2, &reg16);
+	reg16 &= ~SFR_MEDIUM_RECEIVE_EN;
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
+			   2, &reg16);
+	reg16 = 0;
+	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+
+	return 0;
 }
 
 static const struct driver_info aqc111_info = {
 	.description	= "Aquantia AQtion USB to 5GbE Controller",
 	.bind		= aqc111_bind,
 	.unbind		= aqc111_unbind,
+	.reset		= aqc111_reset,
+	.stop		= aqc111_stop,
 };
 
 #define AQC111_USB_ETH_DEV(vid, pid, table) \
