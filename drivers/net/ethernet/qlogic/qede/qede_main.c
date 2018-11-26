@@ -2057,6 +2057,8 @@ static void qede_unload(struct qede_dev *edev, enum qede_unload_mode mode,
 	if (!is_locked)
 		__qede_lock(edev);
 
+	clear_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags);
+
 	edev->state = QEDE_STATE_CLOSED;
 
 	qede_rdma_dev_event_close(edev);
@@ -2163,6 +2165,8 @@ static int qede_load(struct qede_dev *edev, enum qede_load_mode mode,
 	/* Program un-configured VLANs */
 	qede_configure_vlan_filters(edev);
 
+	set_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags);
+
 	/* Ask for link-up using current configuration */
 	memset(&link_params, 0, sizeof(link_params));
 	link_params.link_up = true;
@@ -2258,8 +2262,8 @@ static void qede_link_update(void *dev, struct qed_link_output *link)
 {
 	struct qede_dev *edev = dev;
 
-	if (!netif_running(edev->ndev)) {
-		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not running\n");
+	if (!test_bit(QEDE_FLAGS_LINK_REQUESTED, &edev->flags)) {
+		DP_VERBOSE(edev, NETIF_MSG_LINK, "Interface is not ready\n");
 		return;
 	}
 
