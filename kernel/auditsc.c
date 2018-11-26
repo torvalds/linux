@@ -830,44 +830,6 @@ void audit_filter_inodes(struct task_struct *tsk, struct audit_context *ctx)
 	rcu_read_unlock();
 }
 
-/* Transfer the audit context pointer to the caller, clearing it in the tsk's struct */
-static inline struct audit_context *audit_take_context(struct task_struct *tsk,
-						      int return_valid,
-						      long return_code)
-{
-	struct audit_context *context = tsk->audit_context;
-
-	if (!context)
-		return NULL;
-	context->return_valid = return_valid;
-
-	/*
-	 * we need to fix up the return code in the audit logs if the actual
-	 * return codes are later going to be fixed up by the arch specific
-	 * signal handlers
-	 *
-	 * This is actually a test for:
-	 * (rc == ERESTARTSYS ) || (rc == ERESTARTNOINTR) ||
-	 * (rc == ERESTARTNOHAND) || (rc == ERESTART_RESTARTBLOCK)
-	 *
-	 * but is faster than a bunch of ||
-	 */
-	if (unlikely(return_code <= -ERESTARTSYS) &&
-	    (return_code >= -ERESTART_RESTARTBLOCK) &&
-	    (return_code != -ENOIOCTLCMD))
-		context->return_code = -EINTR;
-	else
-		context->return_code  = return_code;
-
-	if (context->in_syscall && !context->dummy) {
-		audit_filter_syscall(tsk, context, &audit_filter_list[AUDIT_FILTER_EXIT]);
-		audit_filter_inodes(tsk, context);
-	}
-
-	audit_set_context(tsk, NULL);
-	return context;
-}
-
 static inline void audit_proctitle_free(struct audit_context *context)
 {
 	kfree(context->proctitle.value);
@@ -1296,14 +1258,17 @@ static inline int audit_proctitle_rtrim(char *proctitle, int len)
 	return len;
 }
 
-static void audit_log_proctitle(struct task_struct *tsk,
-			 struct audit_context *context)
+static void audit_log_proctitle(void)
 {
 	int res;
 	char *buf;
 	char *msg = "(null)";
 	int len = strlen(msg);
+	struct audit_context *context = audit_context();
 	struct audit_buffer *ab;
+
+	if (!context || context->dummy)
+		return;
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PROCTITLE);
 	if (!ab)
@@ -1317,7 +1282,7 @@ static void audit_log_proctitle(struct task_struct *tsk,
 		if (!buf)
 			goto out;
 		/* Historically called this from procfs naming */
-		res = get_cmdline(tsk, buf, MAX_PROCTITLE_AUDIT_LEN);
+		res = get_cmdline(current, buf, MAX_PROCTITLE_AUDIT_LEN);
 		if (res == 0) {
 			kfree(buf);
 			goto out;
@@ -1337,15 +1302,15 @@ out:
 	audit_log_end(ab);
 }
 
-static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
+static void audit_log_exit(void)
 {
 	int i, call_panic = 0;
+	struct audit_context *context = audit_context();
 	struct audit_buffer *ab;
 	struct audit_aux_data *aux;
 	struct audit_names *n;
 
-	/* tsk == current */
-	context->personality = tsk->personality;
+	context->personality = current->personality;
 
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_SYSCALL);
 	if (!ab)
@@ -1367,7 +1332,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 			 context->argv[3],
 			 context->name_count);
 
-	audit_log_task_info(ab, tsk);
+	audit_log_task_info(ab);
 	audit_log_key(ab, context->filterkey);
 	audit_log_end(ab);
 
@@ -1456,7 +1421,7 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
 		audit_log_name(context, n, NULL, i++, &call_panic);
 	}
 
-	audit_log_proctitle(tsk, context);
+	audit_log_proctitle();
 
 	/* Send end of event record to help user space know we are finished */
 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_EOE);
@@ -1474,22 +1439,31 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
  */
 void __audit_free(struct task_struct *tsk)
 {
-	struct audit_context *context;
+	struct audit_context *context = tsk->audit_context;
 
-	context = audit_take_context(tsk, 0, 0);
 	if (!context)
 		return;
 
-	/* Check for system calls that do not go through the exit
-	 * function (e.g., exit_group), then free context block.
-	 * We use GFP_ATOMIC here because we might be doing this
-	 * in the context of the idle thread */
-	/* that can happen only if we are called from do_exit() */
-	if (context->in_syscall && context->current_state == AUDIT_RECORD_CONTEXT)
-		audit_log_exit(context, tsk);
+	/* We are called either by do_exit() or the fork() error handling code;
+	 * in the former case tsk == current and in the latter tsk is a
+	 * random task_struct that doesn't doesn't have any meaningful data we
+	 * need to log via audit_log_exit().
+	 */
+	if (tsk == current && !context->dummy && context->in_syscall) {
+		context->return_valid = 0;
+		context->return_code = 0;
+
+		audit_filter_syscall(tsk, context,
+				     &audit_filter_list[AUDIT_FILTER_EXIT]);
+		audit_filter_inodes(tsk, context);
+		if (context->current_state == AUDIT_RECORD_CONTEXT)
+			audit_log_exit();
+	}
+
 	if (!list_empty(&context->killed_trees))
 		audit_kill_trees(&context->killed_trees);
 
+	audit_set_context(tsk, NULL);
 	audit_free_context(context);
 }
 
@@ -1559,17 +1533,40 @@ void __audit_syscall_exit(int success, long return_code)
 {
 	struct audit_context *context;
 
-	if (success)
-		success = AUDITSC_SUCCESS;
-	else
-		success = AUDITSC_FAILURE;
-
-	context = audit_take_context(current, success, return_code);
+	context = audit_context();
 	if (!context)
 		return;
 
-	if (context->in_syscall && context->current_state == AUDIT_RECORD_CONTEXT)
-		audit_log_exit(context, current);
+	if (!context->dummy && context->in_syscall) {
+		if (success)
+			context->return_valid = AUDITSC_SUCCESS;
+		else
+			context->return_valid = AUDITSC_FAILURE;
+
+		/*
+		 * we need to fix up the return code in the audit logs if the
+		 * actual return codes are later going to be fixed up by the
+		 * arch specific signal handlers
+		 *
+		 * This is actually a test for:
+		 * (rc == ERESTARTSYS ) || (rc == ERESTARTNOINTR) ||
+		 * (rc == ERESTARTNOHAND) || (rc == ERESTART_RESTARTBLOCK)
+		 *
+		 * but is faster than a bunch of ||
+		 */
+		if (unlikely(return_code <= -ERESTARTSYS) &&
+		    (return_code >= -ERESTART_RESTARTBLOCK) &&
+		    (return_code != -ENOIOCTLCMD))
+			context->return_code = -EINTR;
+		else
+			context->return_code  = return_code;
+
+		audit_filter_syscall(current, context,
+				     &audit_filter_list[AUDIT_FILTER_EXIT]);
+		audit_filter_inodes(current, context);
+		if (context->current_state == AUDIT_RECORD_CONTEXT)
+			audit_log_exit();
+	}
 
 	context->in_syscall = 0;
 	context->prio = context->state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
@@ -1591,7 +1588,6 @@ void __audit_syscall_exit(int success, long return_code)
 		kfree(context->filterkey);
 		context->filterkey = NULL;
 	}
-	audit_set_context(current, context);
 }
 
 static inline void handle_one(const struct inode *inode)
@@ -2025,7 +2021,7 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
 	uid = from_kuid(&init_user_ns, task_uid(current));
 	oldloginuid = from_kuid(&init_user_ns, koldloginuid);
 	loginuid = from_kuid(&init_user_ns, kloginuid),
-	tty = audit_get_tty(current);
+	tty = audit_get_tty();
 
 	audit_log_format(ab, "pid=%d uid=%u", task_tgid_nr(current), uid);
 	audit_log_task_context(ab);
@@ -2046,7 +2042,6 @@ static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
  */
 int audit_set_loginuid(kuid_t loginuid)
 {
-	struct task_struct *task = current;
 	unsigned int oldsessionid, sessionid = AUDIT_SID_UNSET;
 	kuid_t oldloginuid;
 	int rc;
@@ -2065,8 +2060,8 @@ int audit_set_loginuid(kuid_t loginuid)
 			sessionid = (unsigned int)atomic_inc_return(&session_id);
 	}
 
-	task->sessionid = sessionid;
-	task->loginuid = loginuid;
+	current->sessionid = sessionid;
+	current->loginuid = loginuid;
 out:
 	audit_log_set_loginuid(oldloginuid, loginuid, oldsessionid, sessionid, rc);
 	return rc;

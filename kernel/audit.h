@@ -264,7 +264,7 @@ extern struct audit_entry *audit_dupe_rule(struct audit_krule *old);
 extern void audit_log_d_path_exe(struct audit_buffer *ab,
 				 struct mm_struct *mm);
 
-extern struct tty_struct *audit_get_tty(struct task_struct *tsk);
+extern struct tty_struct *audit_get_tty(void);
 extern void audit_put_tty(struct tty_struct *tty);
 
 /* audit watch functions */

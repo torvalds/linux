@@ -1096,10 +1096,11 @@ static void audit_log_feature_change(int which, u32 old_feature, u32 new_feature
 
 	if (audit_enabled == AUDIT_OFF)
 		return;
+
 	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_FEATURE_CHANGE);
 	if (!ab)
 		return;
-	audit_log_task_info(ab, current);
+	audit_log_task_info(ab);
 	audit_log_format(ab, " feature=%s old=%u new=%u old_lock=%u new_lock=%u res=%d",
 			 audit_feature_names[which], !!old_feature, !!new_feature,
 			 !!old_lock, !!new_lock, res);
@@ -2246,15 +2247,15 @@ out_null:
 	audit_log_format(ab, " exe=(null)");
 }
 
-struct tty_struct *audit_get_tty(struct task_struct *tsk)
+struct tty_struct *audit_get_tty(void)
 {
 	struct tty_struct *tty = NULL;
 	unsigned long flags;
 
-	spin_lock_irqsave(&tsk->sighand->siglock, flags);
-	if (tsk->signal)
-		tty = tty_kref_get(tsk->signal->tty);
-	spin_unlock_irqrestore(&tsk->sighand->siglock, flags);
+	spin_lock_irqsave(&current->sighand->siglock, flags);
+	if (current->signal)
+		tty = tty_kref_get(current->signal->tty);
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 	return tty;
 }
 
@@ -2263,25 +2264,24 @@ void audit_put_tty(struct tty_struct *tty)
 	tty_kref_put(tty);
 }
 
-void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
+void audit_log_task_info(struct audit_buffer *ab)
 {
 	const struct cred *cred;
-	char comm[sizeof(tsk->comm)];
+	char comm[sizeof(current->comm)];
 	struct tty_struct *tty;
 
 	if (!ab)
 		return;
 
-	/* tsk == current */
 	cred = current_cred();
-	tty = audit_get_tty(tsk);
+	tty = audit_get_tty();
 	audit_log_format(ab,
 			 " ppid=%d pid=%d auid=%u uid=%u gid=%u"
 			 " euid=%u suid=%u fsuid=%u"
 			 " egid=%u sgid=%u fsgid=%u tty=%s ses=%u",
-			 task_ppid_nr(tsk),
-			 task_tgid_nr(tsk),
-			 from_kuid(&init_user_ns, audit_get_loginuid(tsk)),
+			 task_ppid_nr(current),
+			 task_tgid_nr(current),
+			 from_kuid(&init_user_ns, audit_get_loginuid(current)),
 			 from_kuid(&init_user_ns, cred->uid),
 			 from_kgid(&init_user_ns, cred->gid),
 			 from_kuid(&init_user_ns, cred->euid),
@@ -2291,11 +2291,11 @@ void audit_log_task_info(struct audit_buffer *ab, struct task_struct *tsk)
 			 from_kgid(&init_user_ns, cred->sgid),
 			 from_kgid(&init_user_ns, cred->fsgid),
 			 tty ? tty_name(tty) : "(none)",
-			 audit_get_sessionid(tsk));
+			 audit_get_sessionid(current));
 	audit_put_tty(tty);
 	audit_log_format(ab, " comm=");
-	audit_log_untrustedstring(ab, get_task_comm(comm, tsk));
-	audit_log_d_path_exe(ab, tsk->mm);
+	audit_log_untrustedstring(ab, get_task_comm(comm, current));
+	audit_log_d_path_exe(ab, current->mm);
 	audit_log_task_context(ab);
 }
 EXPORT_SYMBOL(audit_log_task_info);
@@ -2316,7 +2316,7 @@ void audit_log_link_denied(const char *operation)
 	if (!ab)
 		return;
 	audit_log_format(ab, "op=%s", operation);
-	audit_log_task_info(ab, current);
+	audit_log_task_info(ab);
 	audit_log_format(ab, " res=0");
 	audit_log_end(ab);
 }
