@@ -155,20 +155,20 @@ struct iwl_fw_ini_region_cfg {
 	};
 	__le32 size;
 	__le32 start_addr[];
-} __packed; /* FW_INI_REGION_CONFIG_S */
+} __packed; /* FW_DEBUG_TLV_REGION_CONFIG_S */
 
 /**
  * struct iwl_fw_ini_region_tlv - (IWL_FW_INI_TLV_TYPE_REGION_CFG)
  * DUMP sections define IDs and triggers that use those IDs TLV
  * @header: header
  * @num_regions: how many different region section and IDs are coming next
- * @iwl_fw_ini_dump dump_config: list of dump configurations
+ * @region_config: list of dump configurations
  */
 struct iwl_fw_ini_region_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 num_regions;
 	struct iwl_fw_ini_region_cfg region_config[];
-} __packed; /* FW_INI_REGION_CFG_S */
+} __packed; /* FW_DEBUG_TLV_REGIONS_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_trigger - (IWL_FW_INI_TLV_TYPE_DUMP_CFG)
@@ -196,7 +196,7 @@ struct iwl_fw_ini_trigger {
 	__le32 trigger_data;
 	__le32 num_regions;
 	__le32 data[];
-} __packed; /* FW_INI_TRIGGER_CONFIG_S */
+} __packed; /* FW_TLV_DEBUG_TRIGGER_CONFIG_S */
 
 /**
  * struct iwl_fw_ini_trigger_tlv - (IWL_FW_INI_TLV_TYPE_TRIGGERS_CFG)
@@ -210,7 +210,7 @@ struct iwl_fw_ini_trigger_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 num_triggers;
 	struct iwl_fw_ini_trigger trigger_config[];
-} __packed; /* FW_INI_TRIGGER_CFG_S */
+} __packed; /* FW_TLV_DEBUG_TRIGGERS_S_VER_1 */
 
 /**
  * enum iwl_fw_ini_trigger_id
