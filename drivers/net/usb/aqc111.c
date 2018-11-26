@@ -439,6 +439,26 @@ static void aqc111_configure_rx(struct usbnet *dev,
 	netdev_info(dev->net, "Link Speed %d, USB %d", link_speed, usb_host);
 }
 
+static void aqc111_configure_csum_offload(struct usbnet *dev)
+{
+	u8 reg8 = 0;
+
+	if (dev->net->features & NETIF_F_RXCSUM) {
+		reg8 |= SFR_RXCOE_IP | SFR_RXCOE_TCP | SFR_RXCOE_UDP |
+			SFR_RXCOE_TCPV6 | SFR_RXCOE_UDPV6;
+	}
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RXCOE_CTL, 1, 1, &reg8);
+
+	reg8 = 0;
+	if (dev->net->features & NETIF_F_IP_CSUM)
+		reg8 |= SFR_TXCOE_IP | SFR_TXCOE_TCP | SFR_TXCOE_UDP;
+
+	if (dev->net->features & NETIF_F_IPV6_CSUM)
+		reg8 |= SFR_TXCOE_TCPV6 | SFR_TXCOE_UDPV6;
+
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_TXCOE_CTL, 1, 1, &reg8);
+}
+
 static int aqc111_link_reset(struct usbnet *dev)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
@@ -481,6 +501,8 @@ static int aqc111_link_reset(struct usbnet *dev)
 		reg16 = SFR_MEDIUM_XGMIIMODE | SFR_MEDIUM_FULL_DUPLEX;
 		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				   2, &reg16);
+
+		aqc111_configure_csum_offload(dev);
 
 		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				  2, &reg16);
@@ -583,6 +605,21 @@ static int aqc111_stop(struct usbnet *dev)
 	return 0;
 }
 
+static void aqc111_rx_checksum(struct sk_buff *skb, u64 pkt_desc)
+{
+	u32 pkt_type = 0;
+
+	skb->ip_summed = CHECKSUM_NONE;
+	/* checksum error bit is set */
+	if (pkt_desc & AQ_RX_PD_L4_ERR || pkt_desc & AQ_RX_PD_L3_ERR)
+		return;
+
+	pkt_type = pkt_desc & AQ_RX_PD_L4_TYPE_MASK;
+	/* It must be a TCP or UDP packet with a valid checksum */
+	if (pkt_type == AQ_RX_PD_L4_TCP || pkt_type == AQ_RX_PD_L4_UDP)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
 static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
 	struct sk_buff *new_skb = NULL;
@@ -660,6 +697,7 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		skb_set_tail_pointer(new_skb, new_skb->len);
 
 		new_skb->truesize = SKB_TRUESIZE(new_skb->len);
+		aqc111_rx_checksum(new_skb, pkt_desc);
 
 		usbnet_skb_return(dev, new_skb);
 		if (pkt_count == 0)

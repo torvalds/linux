@@ -21,8 +21,11 @@
 #define AQ_USB_SET_TIMEOUT		4000
 
 /* Feature. ********************************************/
-#define AQ_SUPPORT_FEATURE	(NETIF_F_SG)
-#define AQ_SUPPORT_HW_FEATURE	(NETIF_F_SG)
+#define AQ_SUPPORT_FEATURE	(NETIF_F_SG | NETIF_F_IP_CSUM |\
+				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM)
+
+#define AQ_SUPPORT_HW_FEATURE	(NETIF_F_SG | NETIF_F_IP_CSUM |\
+				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM)
 
 /* SFR Reg. ********************************************/
 
@@ -162,6 +165,15 @@ struct aqc111_data {
 #define AQ_RX_HW_PAD			0x02
 
 /* RX Packet Descriptor */
+#define AQ_RX_PD_L4_ERR		BIT(0)
+#define AQ_RX_PD_L3_ERR		BIT(1)
+#define AQ_RX_PD_L4_TYPE_MASK	0x1C
+#define AQ_RX_PD_L4_UDP		0x04
+#define AQ_RX_PD_L4_TCP		0x10
+#define AQ_RX_PD_L3_TYPE_MASK	0x60
+#define AQ_RX_PD_L3_IP		0x20
+#define AQ_RX_PD_L3_IP6		0x40
+
 #define AQ_RX_PD_RX_OK		BIT(11)
 #define AQ_RX_PD_DROP		BIT(31)
 #define AQ_RX_PD_LEN_MASK	0x7FFF0000
