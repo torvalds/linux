@@ -1789,7 +1789,7 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
 		if (curr_index == page->index) {
 			WARN_ON(tmp->num_pages != 1);
 			WARN_ON(!test_bit(FR_PENDING, &tmp->flags));
-			copy_highpage(tmp->pages[0], page);
+			swap(tmp->pages[0], new_req->pages[0]);
 			break;
 		}
 	}
