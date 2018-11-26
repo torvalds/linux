@@ -138,11 +138,13 @@ struct iwl_fw_ini_debug_flow_tlv {
  * @region_id: ID of this dump configuration
  * @region_type: &enum iwl_fw_ini_region_type
  * @num_regions: amount of regions in the address array.
- * @allocation_id: For DRAM type field substitutes for allocation_id.
  * @name_len: name length
  * @name: file name to use for this region
- * @size: size of the data, in bytes.(unused for IWL_FW_INI_REGION_DRAM_BUFFER)
- * @start_addr: array of addresses. (unused for IWL_FW_INI_REGION_DRAM_BUFFER)
+ * @num_of_range: the amount of ranges in the region.
+ * @allocation_id: For DRAM type field substitutes for allocation_id
+ * @range_data_size: size of the data to read per range, in bytes.
+ * @start_addr: array of addresses. for type IWL_FW_INI_REGION_DRAM_BUFFER,
+ *	1 entry. For any other case, num_of_ranges entries.
  */
 struct iwl_fw_ini_region_cfg {
 	__le32 region_id;
@@ -150,10 +152,10 @@ struct iwl_fw_ini_region_cfg {
 	__le32 name_len;
 	u8 name[IWL_FW_INI_MAX_NAME];
 	union {
-		__le32 num_regions;
+		__le32 num_of_ranges;
 		__le32 allocation_id;
 	};
-	__le32 size;
+	__le32 range_data_size;
 	__le32 start_addr[];
 } __packed; /* FW_DEBUG_TLV_REGION_CONFIG_S */
 

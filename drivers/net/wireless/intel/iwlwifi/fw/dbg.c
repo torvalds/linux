@@ -1065,7 +1065,7 @@ static void iwl_dump_prph_ini(struct iwl_trans *trans,
 {
 	struct iwl_fw_error_dump_prph *prph;
 	unsigned long flags;
-	u32 i, size = le32_to_cpu(reg->num_regions);
+	u32 i, size = le32_to_cpu(reg->num_of_ranges);
 
 	IWL_DEBUG_INFO(trans, "WRT PRPH dump\n");
 
@@ -1074,7 +1074,7 @@ static void iwl_dump_prph_ini(struct iwl_trans *trans,
 
 	for (i = 0; i < size; i++) {
 		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_PRPH);
-		(*data)->len = cpu_to_le32(le32_to_cpu(reg->size) +
+		(*data)->len = cpu_to_le32(le32_to_cpu(reg->range_data_size) +
 					   sizeof(*prph));
 		prph = (void *)(*data)->data;
 		prph->prph_start = reg->start_addr[i];
@@ -1089,8 +1089,8 @@ static void iwl_dump_csr_ini(struct iwl_trans *trans,
 			     struct iwl_fw_error_dump_data **data,
 			     struct iwl_fw_ini_region_cfg *reg)
 {
-	int i, num = le32_to_cpu(reg->num_regions);
-	u32 size = le32_to_cpu(reg->size);
+	int i, num = le32_to_cpu(reg->num_of_ranges);
+	u32 size = le32_to_cpu(reg->range_data_size);
 
 	IWL_DEBUG_INFO(trans, "WRT CSR dump\n");
 
@@ -1133,13 +1133,13 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 			continue;
 
 		type = le32_to_cpu(reg->region_type);
-		num_entries = le32_to_cpu(reg->num_regions);
+		num_entries = le32_to_cpu(reg->num_of_ranges);
 
 		switch (type) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
 			size += hdr_len +
 				sizeof(struct iwl_fw_error_dump_named_mem) +
-				le32_to_cpu(reg->size);
+				le32_to_cpu(reg->range_data_size);
 			break;
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
@@ -1165,7 +1165,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 			break;
 		case IWL_FW_INI_REGION_CSR:
 			size += num_entries *
-				(hdr_len + le32_to_cpu(reg->size));
+				(hdr_len + le32_to_cpu(reg->range_data_size));
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
 			/* Transport takes care of DRAM dumping */
@@ -1202,10 +1202,10 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		type = le32_to_cpu(reg->region_type);
 		switch (type) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
-			if (WARN_ON(le32_to_cpu(reg->num_regions) > 1))
+			if (WARN_ON(le32_to_cpu(reg->num_of_ranges) > 1))
 				continue;
 			iwl_fw_dump_named_mem(fwrt, data,
-					      le32_to_cpu(reg->size),
+					      le32_to_cpu(reg->range_data_size),
 					      le32_to_cpu(reg->start_addr[0]),
 					      reg->name,
 					      le32_to_cpu(reg->name_len));
@@ -1773,7 +1773,8 @@ static void iwl_fw_dbg_update_regions(struct iwl_fw_runtime *fwrt,
 
 		if (le32_to_cpu(reg->region_type) !=
 		    IWL_FW_INI_REGION_DRAM_BUFFER)
-			iter += le32_to_cpu(reg->num_regions) * sizeof(__le32);
+			iter += le32_to_cpu(reg->num_of_ranges) *
+				sizeof(__le32);
 
 		iter += sizeof(*reg);
 	}
