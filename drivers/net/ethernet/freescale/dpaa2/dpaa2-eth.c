@@ -87,7 +87,7 @@ static void free_rx_fd(struct dpaa2_eth_priv *priv,
 		addr = dpaa2_sg_get_addr(&sgt[i]);
 		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
+				 DMA_BIDIRECTIONAL);
 
 		skb_free_frag(sg_vaddr);
 		if (dpaa2_sg_is_final(&sgt[i]))
@@ -145,7 +145,7 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 		sg_addr = dpaa2_sg_get_addr(sge);
 		sg_vaddr = dpaa2_iova_to_virt(priv->iommu_domain, sg_addr);
 		dma_unmap_single(dev, sg_addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
+				 DMA_BIDIRECTIONAL);
 
 		sg_length = dpaa2_sg_get_len(sge);
 
@@ -212,7 +212,7 @@ static void free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array, int count)
 	for (i = 0; i < count; i++) {
 		vaddr = dpaa2_iova_to_virt(priv->iommu_domain, buf_array[i]);
 		dma_unmap_single(dev, buf_array[i], DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
+				 DMA_BIDIRECTIONAL);
 		skb_free_frag(vaddr);
 	}
 }
@@ -306,7 +306,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 
 	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
 	dma_sync_single_for_cpu(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				DMA_FROM_DEVICE);
+				DMA_BIDIRECTIONAL);
 
 	fas = dpaa2_get_fas(vaddr, false);
 	prefetch(fas);
@@ -325,13 +325,13 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 		}
 
 		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
+				 DMA_BIDIRECTIONAL);
 		skb = build_linear_skb(ch, fd, vaddr);
 	} else if (fd_format == dpaa2_fd_sg) {
 		WARN_ON(priv->xdp_prog);
 
 		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
+				 DMA_BIDIRECTIONAL);
 		skb = build_frag_skb(priv, ch, buf_data);
 		skb_free_frag(vaddr);
 		percpu_extras->rx_sg_frames++;
@@ -865,7 +865,7 @@ static int add_bufs(struct dpaa2_eth_priv *priv,
 		buf = PTR_ALIGN(buf, priv->rx_buf_align);
 
 		addr = dma_map_single(dev, buf, DPAA2_ETH_RX_BUF_SIZE,
-				      DMA_FROM_DEVICE);
+				      DMA_BIDIRECTIONAL);
 		if (unlikely(dma_mapping_error(dev, addr)))
 			goto err_map;
 
