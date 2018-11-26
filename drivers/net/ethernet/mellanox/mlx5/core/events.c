@@ -229,7 +229,10 @@ static int forward_event(struct notifier_block *nb, unsigned long event, void *d
 {
 	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
 	struct mlx5_events   *events   = event_nb->ctx;
+	struct mlx5_eqe      *eqe      = data;
 
+	mlx5_core_dbg(events->dev, "Async eqe type %s, subtype (%d) forward to interfaces\n",
+		      eqe_type_str(eqe->type), eqe->sub_type);
 	atomic_notifier_call_chain(&events->nh, event, data);
 	return NOTIFY_OK;
 }
