@@ -222,6 +222,9 @@ static int aqc111_set_mac_addr(struct net_device *net, void *p)
 static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };
@@ -290,7 +293,18 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 		goto out;
 
 	ether_addr_copy(dev->net->dev_addr, dev->net->perm_addr);
+
+	/* Set TX needed headroom & tailroom */
+	dev->net->needed_headroom += sizeof(u64);
+	dev->net->needed_tailroom += sizeof(u64);
+
 	dev->net->netdev_ops = &aqc111_netdev_ops;
+
+	if (usb_device_no_sg_constraint(dev->udev))
+		dev->can_dma_sg = 1;
+
+	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
+	dev->net->features |= AQ_SUPPORT_FEATURE;
 
 	aqc111_read_fw_version(dev, aqc111_data);
 	aqc111_data->autoneg = AUTONEG_ENABLE;
@@ -505,6 +519,12 @@ static int aqc111_reset(struct usbnet *dev)
 	struct aqc111_data *aqc111_data = dev->driver_priv;
 	u8 reg8 = 0;
 
+	if (usb_device_no_sg_constraint(dev->udev))
+		dev->can_dma_sg = 1;
+
+	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
+	dev->net->features |= AQ_SUPPORT_FEATURE;
+
 	/* Power up ethernet PHY */
 	aqc111_data->phy_cfg = AQ_PHY_POWER_EN;
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
@@ -558,6 +578,55 @@ static int aqc111_stop(struct usbnet *dev)
 	return 0;
 }
 
+static struct sk_buff *aqc111_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
+				       gfp_t flags)
+{
+	int frame_size = dev->maxpacket;
+	struct sk_buff *new_skb = NULL;
+	u64 *tx_desc_ptr = NULL;
+	int padding_size = 0;
+	int headroom = 0;
+	int tailroom = 0;
+	u64 tx_desc = 0;
+
+	/*Length of actual data*/
+	tx_desc |= skb->len & AQ_TX_DESC_LEN_MASK;
+
+	headroom = (skb->len + sizeof(tx_desc)) % 8;
+	if (headroom != 0)
+		padding_size = 8 - headroom;
+
+	if (((skb->len + sizeof(tx_desc) + padding_size) % frame_size) == 0) {
+		padding_size += 8;
+		tx_desc |= AQ_TX_DESC_DROP_PADD;
+	}
+
+	if (!dev->can_dma_sg && (dev->net->features & NETIF_F_SG) &&
+	    skb_linearize(skb))
+		return NULL;
+
+	headroom = skb_headroom(skb);
+	tailroom = skb_tailroom(skb);
+
+	if (!(headroom >= sizeof(tx_desc) && tailroom >= padding_size)) {
+		new_skb = skb_copy_expand(skb, sizeof(tx_desc),
+					  padding_size, flags);
+		dev_kfree_skb_any(skb);
+		skb = new_skb;
+		if (!skb)
+			return NULL;
+	}
+	if (padding_size != 0)
+		skb_put_zero(skb, padding_size);
+	/* Copy TX header */
+	tx_desc_ptr = skb_push(skb, sizeof(tx_desc));
+	*tx_desc_ptr = cpu_to_le64(tx_desc);
+
+	usbnet_set_skb_tx_stats(skb, 1, 0);
+
+	return skb;
+}
+
 static const struct driver_info aqc111_info = {
 	.description	= "Aquantia AQtion USB to 5GbE Controller",
 	.bind		= aqc111_bind,
@@ -566,6 +635,9 @@ static const struct driver_info aqc111_info = {
 	.link_reset	= aqc111_link_reset,
 	.reset		= aqc111_reset,
 	.stop		= aqc111_stop,
+	.flags		= FLAG_ETHER | FLAG_FRAMING_AX |
+			  FLAG_AVOID_UNLINK_URBS | FLAG_MULTI_PACKET,
+	.tx_fixup	= aqc111_tx_fixup,
 };
 
 #define AQC111_USB_ETH_DEV(vid, pid, table) \

@@ -18,6 +18,10 @@
 #define AQ_USB_PHY_SET_TIMEOUT		10000
 #define AQ_USB_SET_TIMEOUT		4000
 
+/* Feature. ********************************************/
+#define AQ_SUPPORT_FEATURE	(NETIF_F_SG)
+#define AQ_SUPPORT_HW_FEATURE	(NETIF_F_SG)
+
 /* SFR Reg. ********************************************/
 
 #define SFR_GENERAL_STATUS		0x03
@@ -148,6 +152,10 @@ struct aqc111_data {
 #define AQ_INT_SPEED_2_5G	0x0010
 #define AQ_INT_SPEED_1G		0x0011
 #define AQ_INT_SPEED_100M	0x0013
+
+/* TX Descriptor */
+#define AQ_TX_DESC_LEN_MASK	0x1FFFFF
+#define AQ_TX_DESC_DROP_PADD	BIT(28)
 
 static struct {
 	unsigned char ctrl;
