@@ -200,6 +200,23 @@ static struct sk_buff *build_frag_skb(struct dpaa2_eth_priv *priv,
 	return skb;
 }
 
+/* Free buffers acquired from the buffer pool or which were meant to
+ * be released in the pool
+ */
+static void free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array, int count)
+{
+	struct device *dev = priv->net_dev->dev.parent;
+	void *vaddr;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		vaddr = dpaa2_iova_to_virt(priv->iommu_domain, buf_array[i]);
+		dma_unmap_single(dev, buf_array[i], DPAA2_ETH_RX_BUF_SIZE,
+				 DMA_FROM_DEVICE);
+		skb_free_frag(vaddr);
+	}
+}
+
 static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		   struct dpaa2_eth_channel *ch,
 		   struct dpaa2_fd *fd, void *vaddr)
@@ -795,23 +812,6 @@ static int set_tx_csum(struct dpaa2_eth_priv *priv, bool enable)
 	}
 
 	return 0;
-}
-
-/* Free buffers acquired from the buffer pool or which were meant to
- * be released in the pool
- */
-static void free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array, int count)
-{
-	struct device *dev = priv->net_dev->dev.parent;
-	void *vaddr;
-	int i;
-
-	for (i = 0; i < count; i++) {
-		vaddr = dpaa2_iova_to_virt(priv->iommu_domain, buf_array[i]);
-		dma_unmap_single(dev, buf_array[i], DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_FROM_DEVICE);
-		skb_free_frag(vaddr);
-	}
 }
 
 /* Perform a single release command to add buffers
