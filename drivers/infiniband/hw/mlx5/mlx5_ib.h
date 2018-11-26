@@ -523,6 +523,7 @@ struct mlx5_ib_srq {
 	struct mlx5_core_srq	msrq;
 	struct mlx5_frag_buf	buf;
 	struct mlx5_db		db;
+	struct mlx5_frag_buf_ctrl fbc;
 	u64		       *wrid;
 	/* protect SRQ hanlding
 	 */

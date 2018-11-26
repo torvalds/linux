@@ -44,7 +44,7 @@ static int srq_signature;
 
 static void *get_wqe(struct mlx5_ib_srq *srq, int n)
 {
-	return mlx5_buf_offset(&srq->buf, n << srq->msrq.wqe_shift);
+	return mlx5_frag_buf_get_wqe(&srq->fbc, n);
 }
 
 static void mlx5_ib_srq_event(struct mlx5_core_srq *srq, enum mlx5_event type)
@@ -173,11 +173,15 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 		return err;
 	}
 
-	if (mlx5_buf_alloc(dev->mdev, buf_size, &srq->buf)) {
+	if (mlx5_frag_buf_alloc_node(dev->mdev, buf_size, &srq->buf,
+				     dev->mdev->priv.numa_node)) {
 		mlx5_ib_dbg(dev, "buf alloc failed\n");
 		err = -ENOMEM;
 		goto err_db;
 	}
+
+	mlx5_init_fbc(srq->buf.frags, srq->msrq.wqe_shift, ilog2(srq->msrq.max),
+		      &srq->fbc);
 
 	srq->head    = 0;
 	srq->tail    = srq->msrq.max - 1;
@@ -195,7 +199,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 		err = -ENOMEM;
 		goto err_buf;
 	}
-	mlx5_fill_page_array(&srq->buf, in->pas);
+	mlx5_fill_page_frag_array(&srq->buf, in->pas);
 
 	srq->wrid = kvmalloc_array(srq->msrq.max, sizeof(u64), GFP_KERNEL);
 	if (!srq->wrid) {
@@ -215,7 +219,7 @@ err_in:
 	kvfree(in->pas);
 
 err_buf:
-	mlx5_buf_free(dev->mdev, &srq->buf);
+	mlx5_frag_buf_free(dev->mdev, &srq->buf);
 
 err_db:
 	mlx5_db_free(dev->mdev, &srq->db);
@@ -232,7 +236,7 @@ static void destroy_srq_user(struct ib_pd *pd, struct mlx5_ib_srq *srq)
 static void destroy_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq)
 {
 	kvfree(srq->wrid);
-	mlx5_buf_free(dev->mdev, &srq->buf);
+	mlx5_frag_buf_free(dev->mdev, &srq->buf);
 	mlx5_db_free(dev->mdev, &srq->db);
 }
 
