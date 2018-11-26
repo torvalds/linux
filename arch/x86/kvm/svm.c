@@ -706,17 +706,17 @@ static u32 svm_msrpm_offset(u32 msr)
 
 static inline void clgi(void)
 {
-	asm volatile (__ex(SVM_CLGI));
+	asm volatile (__ex("clgi"));
 }
 
 static inline void stgi(void)
 {
-	asm volatile (__ex(SVM_STGI));
+	asm volatile (__ex("stgi"));
 }
 
 static inline void invlpga(unsigned long addr, u32 asid)
 {
-	asm volatile (__ex(SVM_INVLPGA) : : "a"(addr), "c"(asid));
+	asm volatile (__ex("invlpga %1, %0") : : "c"(asid), "a"(addr));
 }
 
 static int get_npt_level(struct kvm_vcpu *vcpu)
@@ -5652,9 +5652,9 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 		/* Enter guest mode */
 		"push %%" _ASM_AX " \n\t"
 		"mov %c[vmcb](%[svm]), %%" _ASM_AX " \n\t"
-		__ex(SVM_VMLOAD) "\n\t"
-		__ex(SVM_VMRUN) "\n\t"
-		__ex(SVM_VMSAVE) "\n\t"
+		__ex("vmload %%" _ASM_AX) "\n\t"
+		__ex("vmrun %%" _ASM_AX) "\n\t"
+		__ex("vmsave %%" _ASM_AX) "\n\t"
 		"pop %%" _ASM_AX " \n\t"
 
 		/* Save guest registers, load host registers */
