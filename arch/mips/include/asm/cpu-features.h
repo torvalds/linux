@@ -15,6 +15,7 @@
 #include <cpu-feature-overrides.h>
 
 #define __ase(ase)			(cpu_data[0].ases & (ase))
+#define __isa(isa)			(cpu_data[0].isa_level & (isa))
 #define __opt(opt)			(cpu_data[0].options & (opt))
 
 /*
@@ -51,6 +52,18 @@
  */
 #define __isa_lt_and_ase(isa, ase)	((MIPS_ISA_REV < (isa)) && __ase(ase))
 #define __isa_lt_and_opt(isa, opt)	((MIPS_ISA_REV < (isa)) && __opt(opt))
+
+/*
+ * Similarly allow for ISA level checks that take into account knowledge of the
+ * ISA targeted by the kernel build, provided by MIPS_ISA_REV.
+ */
+#define __isa_ge_and_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) && __isa(flag))
+#define __isa_ge_or_flag(isa, flag)	((MIPS_ISA_REV >= (isa)) || __isa(flag))
+#define __isa_lt_and_flag(isa, flag)	((MIPS_ISA_REV < (isa)) && __isa(flag))
+#define __isa_range(ge, lt) \
+	((MIPS_ISA_REV >= (ge)) && (MIPS_ISA_REV < (lt)))
+#define __isa_range_or_flag(ge, lt, flag) \
+	(__isa_range(ge, lt) || ((MIPS_ISA_REV < (lt)) && __isa(flag)))
 
 /*
  * SMP assumption: Options of CPU 0 are a superset of all processors.
@@ -254,37 +267,37 @@
 #endif
 
 #ifndef cpu_has_mips_1
-# define cpu_has_mips_1		(!cpu_has_mips_r6)
+# define cpu_has_mips_1		(MIPS_ISA_REV < 6)
 #endif
 #ifndef cpu_has_mips_2
-# define cpu_has_mips_2		(cpu_data[0].isa_level & MIPS_CPU_ISA_II)
+# define cpu_has_mips_2		__isa_lt_and_flag(6, MIPS_CPU_ISA_II)
 #endif
 #ifndef cpu_has_mips_3
-# define cpu_has_mips_3		(cpu_data[0].isa_level & MIPS_CPU_ISA_III)
+# define cpu_has_mips_3		__isa_lt_and_flag(6, MIPS_CPU_ISA_III)
 #endif
 #ifndef cpu_has_mips_4
-# define cpu_has_mips_4		(cpu_data[0].isa_level & MIPS_CPU_ISA_IV)
+# define cpu_has_mips_4		__isa_lt_and_flag(6, MIPS_CPU_ISA_IV)
 #endif
 #ifndef cpu_has_mips_5
-# define cpu_has_mips_5		(cpu_data[0].isa_level & MIPS_CPU_ISA_V)
+# define cpu_has_mips_5		__isa_lt_and_flag(6, MIPS_CPU_ISA_V)
 #endif
 #ifndef cpu_has_mips32r1
-# define cpu_has_mips32r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R1)
+# define cpu_has_mips32r1	__isa_range_or_flag(1, 6, MIPS_CPU_ISA_M32R1)
 #endif
 #ifndef cpu_has_mips32r2
-# define cpu_has_mips32r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R2)
+# define cpu_has_mips32r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M32R2)
 #endif
 #ifndef cpu_has_mips32r6
-# define cpu_has_mips32r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M32R6)
+# define cpu_has_mips32r6	__isa_ge_or_flag(6, MIPS_CPU_ISA_M32R6)
 #endif
 #ifndef cpu_has_mips64r1
-# define cpu_has_mips64r1	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R1)
+# define cpu_has_mips64r1	__isa_range_or_flag(1, 6, MIPS_CPU_ISA_M64R1)
 #endif
 #ifndef cpu_has_mips64r2
-# define cpu_has_mips64r2	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R2)
+# define cpu_has_mips64r2	__isa_range_or_flag(2, 6, MIPS_CPU_ISA_M64R2)
 #endif
 #ifndef cpu_has_mips64r6
-# define cpu_has_mips64r6	(cpu_data[0].isa_level & MIPS_CPU_ISA_M64R6)
+# define cpu_has_mips64r6	__isa_ge_and_flag(6, MIPS_CPU_ISA_M64R6)
 #endif
 
 /*
