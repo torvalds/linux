@@ -463,7 +463,8 @@ static bool convert_bpf_ld_abs(struct sock_filter *fp, struct bpf_insn **insnp)
 		bool ldx_off_ok = offset <= S16_MAX;
 
 		*insn++ = BPF_MOV64_REG(BPF_REG_TMP, BPF_REG_H);
-		*insn++ = BPF_ALU64_IMM(BPF_SUB, BPF_REG_TMP, offset);
+		if (offset)
+			*insn++ = BPF_ALU64_IMM(BPF_SUB, BPF_REG_TMP, offset);
 		*insn++ = BPF_JMP_IMM(BPF_JSLT, BPF_REG_TMP,
 				      size, 2 + endian + (!ldx_off_ok * 2));
 		if (ldx_off_ok) {
