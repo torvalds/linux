@@ -226,6 +226,10 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 			MLX5_CAP_GEN(attr->dests[i].mdev, vhca_id);
 		if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
+		if (attr->dests[i].flags & MLX5_ESW_DEST_ENCAP) {
+			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
+			dest[i].vport.reformat_id = attr->encap_id;
+		}
 	}
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[i].ft = fwd_fdb,
