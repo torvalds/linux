@@ -184,6 +184,7 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 		if (WARN_ON(obj_elm->type_attrs))
 			return -EINVAL;
 
+		obj_elm->id = obj->id;
 		obj_elm->type_attrs = obj->type_attrs;
 		obj_elm->type_class = obj->type_attrs->type_class;
 		/*

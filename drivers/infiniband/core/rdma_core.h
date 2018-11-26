@@ -118,11 +118,6 @@ void release_ufile_idr_uobject(struct ib_uverbs_file *ufile);
  * Depending on ID the slot pointer in the radix tree points at one of these
  * structs.
  */
-struct uverbs_api_object {
-	const struct uverbs_obj_type *type_attrs;
-	const struct uverbs_obj_type_class *type_class;
-	u8 disabled:1;
-};
 
 struct uverbs_api_ioctl_method {
 	int(__rcu *handler)(struct uverbs_attr_bundle *attrs);
