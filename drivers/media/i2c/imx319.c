@@ -1648,8 +1648,8 @@ static const struct imx319_reg mode_1280x720_regs[] = {
 
 static const char * const imx319_test_pattern_menu[] = {
 	"Disabled",
-	"100% color bars",
 	"Solid color",
+	"100% color bars",
 	"Fade to gray color bars",
 	"PN9"
 };
