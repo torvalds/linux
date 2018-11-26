@@ -39,6 +39,7 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 #include "lib/eq.h"
+#include "lib/mlx5.h"
 
 enum {
 	MLX5_HEALTH_POLL_INTERVAL	= 2 * HZ,
@@ -105,7 +106,7 @@ void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force)
 		mlx5_cmd_trigger_completions(dev);
 	}
 
-	mlx5_core_event(dev, MLX5_DEV_EVENT_SYS_ERROR, 1);
+	mlx5_notifier_call_chain(dev->priv.events, MLX5_DEV_EVENT_SYS_ERROR, (void *)1);
 	mlx5_core_err(dev, "end\n");
 
 unlock:

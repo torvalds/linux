@@ -1125,12 +1125,6 @@ out:
 	return err;
 }
 
-struct mlx5_core_event_handler {
-	void (*event)(struct mlx5_core_dev *dev,
-		      enum mlx5_dev_event event,
-		      void *data);
-};
-
 static const struct devlink_ops mlx5_devlink_ops = {
 #ifdef CONFIG_MLX5_ESWITCH
 	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
@@ -1164,16 +1158,12 @@ static int init_one(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, dev);
 
 	dev->pdev = pdev;
-	dev->event = mlx5_core_event;
 	dev->profile = &profile[prof_sel];
 
 	INIT_LIST_HEAD(&priv->ctx_list);
 	spin_lock_init(&priv->ctx_lock);
 	mutex_init(&dev->pci_status_mutex);
 	mutex_init(&dev->intf_state_mutex);
-
-	INIT_LIST_HEAD(&priv->waiting_events_list);
-	priv->is_accum_events = false;
 
 	mutex_init(&priv->bfregs.reg_head.lock);
 	mutex_init(&priv->bfregs.wc_head.lock);

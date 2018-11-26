@@ -178,8 +178,8 @@ static int port_change(struct notifier_block *nb,
 			       port, eqe->sub_type);
 	}
 
-	if (dev->event && dev_event_dispatch)
-		dev->event(dev, dev_event, dev_event_data);
+	if (dev_event_dispatch)
+		mlx5_notifier_call_chain(events, dev_event, (void *)dev_event_data);
 
 	return NOTIFY_OK;
 }
@@ -207,8 +207,8 @@ static int general_event(struct notifier_block *nb, unsigned long type, void *da
 			      eqe->sub_type);
 	}
 
-	if (dev->event && dev_event_dispatch)
-		dev->event(dev, dev_event, dev_event_data);
+	if (dev_event_dispatch)
+		mlx5_notifier_call_chain(events, dev_event, (void *)dev_event_data);
 
 	return NOTIFY_OK;
 }

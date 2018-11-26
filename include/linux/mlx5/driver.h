@@ -588,10 +588,7 @@ struct mlx5_priv {
 	struct list_head        dev_list;
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
-
-	struct list_head	waiting_events_list;
-	bool			is_accum_events;
-	struct mlx5_events     *events;
+	struct mlx5_events      *events;
 
 	struct mlx5_flow_steering *steering;
 	struct mlx5_mpfs        *mpfs;
@@ -696,9 +693,6 @@ struct mlx5_core_dev {
 	/* sync interface state */
 	struct mutex		intf_state_mutex;
 	unsigned long		intf_state;
-	void			(*event) (struct mlx5_core_dev *dev,
-					  enum mlx5_dev_event event,
-					  unsigned long param);
 	struct mlx5_priv	priv;
 	struct mlx5_profile	*profile;
 	atomic_t		num_qps;
@@ -1053,8 +1047,6 @@ struct mlx5_interface {
 	void			(*remove)(struct mlx5_core_dev *dev, void *context);
 	int			(*attach)(struct mlx5_core_dev *dev, void *context);
 	void			(*detach)(struct mlx5_core_dev *dev, void *context);
-	void			(*event)(struct mlx5_core_dev *dev, void *context,
-					 enum mlx5_dev_event event, unsigned long param);
 	void *                  (*get_dev)(void *context);
 	int			protocol;
 	struct list_head	list;
