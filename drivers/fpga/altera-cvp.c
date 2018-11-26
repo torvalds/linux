@@ -468,14 +468,6 @@ static int altera_cvp_probe(struct pci_dev *pdev,
 		goto err_unmap;
 	}
 
-	ret = driver_create_file(&altera_cvp_driver.driver,
-				 &driver_attr_chkcfg);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't create sysfs chkcfg file\n");
-		fpga_mgr_unregister(mgr);
-		goto err_unmap;
-	}
-
 	return 0;
 
 err_unmap:
@@ -493,7 +485,6 @@ static void altera_cvp_remove(struct pci_dev *pdev)
 	struct altera_cvp_conf *conf = mgr->priv;
 	u16 cmd;
 
-	driver_remove_file(&altera_cvp_driver.driver, &driver_attr_chkcfg);
 	fpga_mgr_unregister(mgr);
 	pci_iounmap(pdev, conf->map);
 	pci_release_region(pdev, CVP_BAR);
@@ -502,7 +493,30 @@ static void altera_cvp_remove(struct pci_dev *pdev)
 	pci_write_config_word(pdev, PCI_COMMAND, cmd);
 }
 
-module_pci_driver(altera_cvp_driver);
+static int __init altera_cvp_init(void)
+{
+	int ret;
+
+	ret = pci_register_driver(&altera_cvp_driver);
+	if (ret)
+		return ret;
+
+	ret = driver_create_file(&altera_cvp_driver.driver,
+				 &driver_attr_chkcfg);
+	if (ret)
+		pr_warn("Can't create sysfs chkcfg file\n");
+
+	return 0;
+}
+
+static void __exit altera_cvp_exit(void)
+{
+	driver_remove_file(&altera_cvp_driver.driver, &driver_attr_chkcfg);
+	pci_unregister_driver(&altera_cvp_driver);
+}
+
+module_init(altera_cvp_init);
+module_exit(altera_cvp_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Anatolij Gustschin <agust@denx.de>");
