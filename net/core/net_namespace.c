@@ -739,7 +739,7 @@ static int rtnl_net_get_size(void)
 }
 
 static int rtnl_net_fill(struct sk_buff *skb, u32 portid, u32 seq, int flags,
-			 int cmd, struct net *net, int nsid)
+			 int cmd, int nsid)
 {
 	struct nlmsghdr *nlh;
 	struct rtgenmsg *rth;
@@ -801,7 +801,7 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	id = peernet2id(net, peer);
 	err = rtnl_net_fill(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq, 0,
-			    RTM_NEWNSID, net, id);
+			    RTM_NEWNSID, id);
 	if (err < 0)
 		goto err_out;
 
@@ -816,7 +816,6 @@ out:
 }
 
 struct rtnl_net_dump_cb {
-	struct net *net;
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
 	int idx;
@@ -833,7 +832,7 @@ static int rtnl_net_dumpid_one(int id, void *peer, void *data)
 
 	ret = rtnl_net_fill(net_cb->skb, NETLINK_CB(net_cb->cb->skb).portid,
 			    net_cb->cb->nlh->nlmsg_seq, NLM_F_MULTI,
-			    RTM_NEWNSID, net_cb->net, id);
+			    RTM_NEWNSID, id);
 	if (ret < 0)
 		return ret;
 
@@ -846,7 +845,6 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct rtnl_net_dump_cb net_cb = {
-		.net = net,
 		.skb = skb,
 		.cb = cb,
 		.idx = 0,
@@ -876,7 +874,7 @@ static void rtnl_net_notifyid(struct net *net, int cmd, int id)
 	if (!msg)
 		goto out;
 
-	err = rtnl_net_fill(msg, 0, 0, 0, cmd, net, id);
+	err = rtnl_net_fill(msg, 0, 0, 0, cmd, id);
 	if (err < 0)
 		goto err_out;
 
