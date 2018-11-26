@@ -1489,7 +1489,7 @@ int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
 	if (WARN_ON(!fwrt->dump.active_trigs[id].active))
 		return -EINVAL;
 
-	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->ignore_consec);
+	delay = le32_to_cpu(fwrt->dump.active_trigs[id].conf->dump_delay);
 	occur = le32_to_cpu(fwrt->dump.active_trigs[id].conf->occurrences);
 	if (!occur)
 		return 0;
