@@ -2995,12 +2995,13 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 					      const u32 *smpt)
 {
 	struct spi_nor_erase_map *map = &nor->erase_map;
-	const struct spi_nor_erase_type *erase = map->erase_type;
+	struct spi_nor_erase_type *erase = map->erase_type;
 	struct spi_nor_erase_region *region;
 	u64 offset;
 	u32 region_count;
 	int i, j;
-	u8 erase_type, uniform_erase_type;
+	u8 uniform_erase_type, save_uniform_erase_type;
+	u8 erase_type, regions_erase_type;
 
 	region_count = SMPT_MAP_REGION_COUNT(*smpt);
 	/*
@@ -3014,6 +3015,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	map->regions = region;
 
 	uniform_erase_type = 0xff;
+	regions_erase_type = 0;
 	offset = 0;
 	/* Populate regions. */
 	for (i = 0; i < region_count; i++) {
@@ -3030,12 +3032,37 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 		 */
 		uniform_erase_type &= erase_type;
 
+		/*
+		 * regions_erase_type mask will indicate all the erase types
+		 * supported in this configuration map.
+		 */
+		regions_erase_type |= erase_type;
+
 		offset = (region[i].offset & ~SNOR_ERASE_FLAGS_MASK) +
 			 region[i].size;
 	}
 
+	save_uniform_erase_type = map->uniform_erase_type;
 	map->uniform_erase_type = spi_nor_sort_erase_mask(map,
 							  uniform_erase_type);
+
+	if (!regions_erase_type) {
+		/*
+		 * Roll back to the previous uniform_erase_type mask, SMPT is
+		 * broken.
+		 */
+		map->uniform_erase_type = save_uniform_erase_type;
+		return -EINVAL;
+	}
+
+	/*
+	 * BFPT advertises all the erase types supported by all the possible
+	 * map configurations. Mask out the erase types that are not supported
+	 * by the current map configuration.
+	 */
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
+		if (!(regions_erase_type & BIT(erase[i].idx)))
+			spi_nor_set_erase_type(&erase[i], 0, 0xFF);
 
 	spi_nor_region_mark_end(&region[i - 1]);
 
