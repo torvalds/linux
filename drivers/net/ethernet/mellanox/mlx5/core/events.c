@@ -24,12 +24,18 @@ static int general_event(struct notifier_block *, unsigned long, void *);
 static int temp_warn(struct notifier_block *, unsigned long, void *);
 static int port_module(struct notifier_block *, unsigned long, void *);
 
+/* handler which forwards the event to events->nh, driver notifiers */
+static int forward_event(struct notifier_block *, unsigned long, void *);
+
 static struct mlx5_nb events_nbs_ref[] = {
 	{.nb.notifier_call = any_notifier,  .event_type = MLX5_EVENT_TYPE_NOTIFY_ANY },
 	{.nb.notifier_call = port_change,   .event_type = MLX5_EVENT_TYPE_PORT_CHANGE },
 	{.nb.notifier_call = general_event, .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
 	{.nb.notifier_call = temp_warn,     .event_type = MLX5_EVENT_TYPE_TEMP_WARN_EVENT },
 	{.nb.notifier_call = port_module,   .event_type = MLX5_EVENT_TYPE_PORT_MODULE_EVENT },
+
+	/* Events to be forwarded (as is) to mlx5 core interfaces (mlx5e/mlx5_ib) */
+	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PORT_CHANGE },
 };
 
 struct mlx5_events {
@@ -292,6 +298,16 @@ static int port_module(struct notifier_block *nb, unsigned long type, void *data
 void mlx5_get_pme_stats(struct mlx5_core_dev *dev, struct mlx5_pme_stats *stats)
 {
 	*stats = dev->priv.events->pme_stats;
+}
+
+/* forward event as is to registered interfaces (mlx5e/mlx5_ib) */
+static int forward_event(struct notifier_block *nb, unsigned long event, void *data)
+{
+	struct mlx5_event_nb *event_nb = mlx5_nb_cof(nb, struct mlx5_event_nb, nb);
+	struct mlx5_events   *events   = event_nb->ctx;
+
+	atomic_notifier_call_chain(&events->nh, event, data);
+	return NOTIFY_OK;
 }
 
 int mlx5_events_init(struct mlx5_core_dev *dev)
