@@ -638,11 +638,12 @@ static void hctx_lock(struct blk_mq_hw_ctx *hctx, int *srcu_idx)
  *	Ends all I/O on a request. It does not handle partial completions.
  *	The actual completion happens out-of-order, through a IPI handler.
  **/
-void blk_mq_complete_request(struct request *rq)
+bool blk_mq_complete_request(struct request *rq)
 {
 	if (unlikely(blk_should_fake_timeout(rq->q)))
-		return;
+		return false;
 	__blk_mq_complete_request(rq);
+	return true;
 }
 EXPORT_SYMBOL(blk_mq_complete_request);
 
