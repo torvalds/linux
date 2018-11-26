@@ -180,24 +180,18 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
 	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_stimer *stimer;
-	int gsi, idx, stimers_pending;
+	int gsi, idx;
 
 	trace_kvm_hv_notify_acked_sint(vcpu->vcpu_id, sint);
 
 	/* Try to deliver pending Hyper-V SynIC timers messages */
-	stimers_pending = 0;
 	for (idx = 0; idx < ARRAY_SIZE(hv_vcpu->stimer); idx++) {
 		stimer = &hv_vcpu->stimer[idx];
 		if (stimer->msg_pending && stimer->config.enable &&
 		    !stimer->config.direct_mode &&
-		    stimer->config.sintx == sint) {
-			set_bit(stimer->index,
-				hv_vcpu->stimer_pending_bitmap);
-			stimers_pending++;
-		}
+		    stimer->config.sintx == sint)
+			stimer_mark_pending(stimer, false);
 	}
-	if (stimers_pending)
-		kvm_make_request(KVM_REQ_HV_STIMER, vcpu);
 
 	idx = srcu_read_lock(&kvm->irq_srcu);
 	gsi = atomic_read(&synic->sint_to_gsi[sint]);
