@@ -220,6 +220,68 @@ Defined in `RFC1213 tcpPassiveOpens`_
 It means the TCP layer receives a SYN, replies a SYN+ACK, come into
 the SYN-RCVD state.
 
+* TcpExtTCPRcvCoalesce
+When packets are received by the TCP layer and are not be read by the
+application, the TCP layer will try to merge them. This counter
+indicate how many packets are merged in such situation. If GRO is
+enabled, lots of packets would be merged by GRO, these packets
+wouldn't be counted to TcpExtTCPRcvCoalesce.
+
+* TcpExtTCPAutoCorking
+When sending packets, the TCP layer will try to merge small packets to
+a bigger one. This counter increase 1 for every packet merged in such
+situation. Please refer to the LWN article for more details:
+https://lwn.net/Articles/576263/
+
+* TcpExtTCPOrigDataSent
+This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
+explaination below::
+
+  TCPOrigDataSent: number of outgoing packets with original data (excluding
+  retransmission but including data-in-SYN). This counter is different from
+  TcpOutSegs because TcpOutSegs also tracks pure ACKs. TCPOrigDataSent is
+  more useful to track the TCP retransmission rate.
+
+* TCPSynRetrans
+This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
+explaination below::
+
+  TCPSynRetrans: number of SYN and SYN/ACK retransmits to break down
+  retransmissions into SYN, fast-retransmits, timeout retransmits, etc.
+
+* TCPFastOpenActiveFail
+This counter is explained by `kernel commit f19c29e3e391`_, I pasted the
+explaination below::
+
+  TCPFastOpenActiveFail: Fast Open attempts (SYN/data) failed because
+  the remote does not accept it or the attempts timed out.
+
+.. _kernel commit f19c29e3e391: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=f19c29e3e391a66a273e9afebaf01917245148cd
+
+* TcpExtListenOverflows and TcpExtListenDrops
+When kernel receives a SYN from a client, and if the TCP accept queue
+is full, kernel will drop the SYN and add 1 to TcpExtListenOverflows.
+At the same time kernel will also add 1 to TcpExtListenDrops. When a
+TCP socket is in LISTEN state, and kernel need to drop a packet,
+kernel would always add 1 to TcpExtListenDrops. So increase
+TcpExtListenOverflows would let TcpExtListenDrops increasing at the
+same time, but TcpExtListenDrops would also increase without
+TcpExtListenOverflows increasing, e.g. a memory allocation fail would
+also let TcpExtListenDrops increase.
+
+Note: The above explanation is based on kernel 4.10 or above version, on
+an old kernel, the TCP stack has different behavior when TCP accept
+queue is full. On the old kernel, TCP stack won't drop the SYN, it
+would complete the 3-way handshake. As the accept queue is full, TCP
+stack will keep the socket in the TCP half-open queue. As it is in the
+half open queue, TCP stack will send SYN+ACK on an exponential backoff
+timer, after client replies ACK, TCP stack checks whether the accept
+queue is still full, if it is not full, moves the socket to the accept
+queue, if it is full, keeps the socket in the half-open queue, at next
+time client replies ACK, this socket will get another chance to move
+to the accept queue.
+
+
 TCP Fast Open
 ============
 When kernel receives a TCP packet, it has two paths to handler the
@@ -330,6 +392,38 @@ satisfied. If an internal error occurs during this process,
 TcpExtTCPAbortFailed will be increased.
 
 .. _RFC2525 2.17 section: https://tools.ietf.org/html/rfc2525#page-50
+
+TCP Hybrid Slow Start
+====================
+The Hybrid Slow Start algorithm is an enhancement of the traditional
+TCP congestion window Slow Start algorithm. It uses two pieces of
+information to detect whether the max bandwidth of the TCP path is
+approached. The two pieces of information are ACK train length and
+increase in packet delay. For detail information, please refer the
+`Hybrid Slow Start paper`_. Either ACK train length or packet delay
+hits a specific threshold, the congestion control algorithm will come
+into the Congestion Avoidance state. Until v4.20, two congestion
+control algorithms are using Hybrid Slow Start, they are cubic (the
+default congestion control algorithm) and cdg. Four snmp counters
+relate with the Hybrid Slow Start algorithm.
+
+.. _Hybrid Slow Start paper: https://pdfs.semanticscholar.org/25e9/ef3f03315782c7f1cbcd31b587857adae7d1.pdf
+
+* TcpExtTCPHystartTrainDetect
+How many times the ACK train length threshold is detected
+
+* TcpExtTCPHystartTrainCwnd
+The sum of CWND detected by ACK train length. Dividing this value by
+TcpExtTCPHystartTrainDetect is the average CWND which detected by the
+ACK train length.
+
+* TcpExtTCPHystartDelayDetect
+How many times the packet delay threshold is detected.
+
+* TcpExtTCPHystartDelayCwnd
+The sum of CWND detected by packet delay. Dividing this value by
+TcpExtTCPHystartDelayDetect is the average CWND which detected by the
+packet delay.
 
 examples
 =======
@@ -743,3 +837,111 @@ After run client_linger.py, check the output of nstat::
 
   nstatuser@nstat-a:~$ nstat | grep -i abort
   TcpExtTCPAbortOnLinger          1                  0.0
+
+TcpExtTCPRcvCoalesce
+-------------------
+On the server, we run a program which listen on TCP port 9000, but
+doesn't read any data::
+
+  import socket
+  import time
+  port = 9000
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.bind(('0.0.0.0', port))
+  s.listen(1)
+  sock, addr = s.accept()
+  while True:
+      time.sleep(9999999)
+
+Save the above code as server_coalesce.py, and run::
+
+  python3 server_coalesce.py
+
+On the client, save below code as client_coalesce.py::
+
+  import socket
+  server = 'nstat-b'
+  port = 9000
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.connect((server, port))
+
+Run::
+
+  nstatuser@nstat-a:~$ python3 -i client_coalesce.py
+
+We use '-i' to come into the interactive mode, then a packet::
+
+  >>> s.send(b'foo')
+  3
+
+Send a packet again::
+
+  >>> s.send(b'bar')
+  3
+
+On the server, run nstat::
+
+  ubuntu@nstat-b:~$ nstat
+  #kernel
+  IpInReceives                    2                  0.0
+  IpInDelivers                    2                  0.0
+  IpOutRequests                   2                  0.0
+  TcpInSegs                       2                  0.0
+  TcpOutSegs                      2                  0.0
+  TcpExtTCPRcvCoalesce            1                  0.0
+  IpExtInOctets                   110                0.0
+  IpExtOutOctets                  104                0.0
+  IpExtInNoECTPkts                2                  0.0
+
+The client sent two packets, server didn't read any data. When
+the second packet arrived at server, the first packet was still in
+the receiving queue. So the TCP layer merged the two packets, and we
+could find the TcpExtTCPRcvCoalesce increased 1.
+
+TcpExtListenOverflows and TcpExtListenDrops
+----------------------------------------
+On server, run the nc command, listen on port 9000::
+
+  nstatuser@nstat-b:~$ nc -lkv 0.0.0.0 9000
+  Listening on [0.0.0.0] (family 0, port 9000)
+
+On client, run 3 nc commands in different terminals::
+
+  nstatuser@nstat-a:~$ nc -v nstat-b 9000
+  Connection to nstat-b 9000 port [tcp/*] succeeded!
+
+The nc command only accepts 1 connection, and the accept queue length
+is 1. On current linux implementation, set queue length to n means the
+actual queue length is n+1. Now we create 3 connections, 1 is accepted
+by nc, 2 in accepted queue, so the accept queue is full.
+
+Before running the 4th nc, we clean the nstat history on the server::
+
+  nstatuser@nstat-b:~$ nstat -n
+
+Run the 4th nc on the client::
+
+  nstatuser@nstat-a:~$ nc -v nstat-b 9000
+
+If the nc server is running on kernel 4.10 or higher version, you
+won't see the "Connection to ... succeeded!" string, because kernel
+will drop the SYN if the accept queue is full. If the nc client is running
+on an old kernel, you would see that the connection is succeeded,
+because kernel would complete the 3 way handshake and keep the socket
+on half open queue. I did the test on kernel 4.15. Below is the nstat
+on the server::
+
+  nstatuser@nstat-b:~$ nstat
+  #kernel
+  IpInReceives                    4                  0.0
+  IpInDelivers                    4                  0.0
+  TcpInSegs                       4                  0.0
+  TcpExtListenOverflows           4                  0.0
+  TcpExtListenDrops               4                  0.0
+  IpExtInOctets                   240                0.0
+  IpExtInNoECTPkts                4                  0.0
+
+Both TcpExtListenOverflows and TcpExtListenDrops were 4. If the time
+between the 4th nc and the nstat was longer, the value of
+TcpExtListenOverflows and TcpExtListenDrops would be larger, because
+the SYN of the 4th nc was dropped, the client was retrying.
