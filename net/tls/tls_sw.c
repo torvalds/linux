@@ -687,6 +687,7 @@ static int bpf_exec_tx_verdict(struct sk_msg *msg, struct sock *sk,
 	struct sock *sk_redir;
 	struct tls_rec *rec;
 	int err = 0, send;
+	u32 delta = 0;
 	bool enospc;
 
 	psock = sk_psock_get(sk);
@@ -694,8 +695,14 @@ static int bpf_exec_tx_verdict(struct sk_msg *msg, struct sock *sk,
 		return tls_push_record(sk, flags, record_type);
 more_data:
 	enospc = sk_msg_full(msg);
-	if (psock->eval == __SK_NONE)
+	if (psock->eval == __SK_NONE) {
+		delta = msg->sg.size;
 		psock->eval = sk_psock_msg_verdict(sk, psock, msg);
+		if (delta < msg->sg.size)
+			delta -= msg->sg.size;
+		else
+			delta = 0;
+	}
 	if (msg->cork_bytes && msg->cork_bytes > msg->sg.size &&
 	    !enospc && !full_record) {
 		err = -ENOSPC;
@@ -743,7 +750,7 @@ more_data:
 			msg->apply_bytes -= send;
 		if (msg->sg.size == 0)
 			tls_free_open_rec(sk);
-		*copied -= send;
+		*copied -= (send + delta);
 		err = -EACCES;
 	}
 
