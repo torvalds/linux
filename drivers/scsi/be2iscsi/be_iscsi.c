@@ -679,6 +679,7 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 	case ISCSI_PARAM_MAX_XMIT_DLENGTH:
 		if (conn->max_xmit_dlength > 65536)
 			conn->max_xmit_dlength = 65536;
+		/* fall through */
 	default:
 		return 0;
 	}
