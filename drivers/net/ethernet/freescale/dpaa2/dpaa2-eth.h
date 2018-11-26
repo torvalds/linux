@@ -285,6 +285,8 @@ struct dpaa2_eth_fq {
 
 struct dpaa2_eth_ch_xdp {
 	struct bpf_prog *prog;
+	u64 drop_bufs[DPAA2_ETH_BUFS_PER_CMD];
+	int drop_cnt;
 };
 
 struct dpaa2_eth_channel {

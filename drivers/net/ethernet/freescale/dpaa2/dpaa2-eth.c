@@ -217,10 +217,34 @@ static void free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array, int count)
 	}
 }
 
+static void xdp_release_buf(struct dpaa2_eth_priv *priv,
+			    struct dpaa2_eth_channel *ch,
+			    dma_addr_t addr)
+{
+	int err;
+
+	ch->xdp.drop_bufs[ch->xdp.drop_cnt++] = addr;
+	if (ch->xdp.drop_cnt < DPAA2_ETH_BUFS_PER_CMD)
+		return;
+
+	while ((err = dpaa2_io_service_release(ch->dpio, priv->bpid,
+					       ch->xdp.drop_bufs,
+					       ch->xdp.drop_cnt)) == -EBUSY)
+		cpu_relax();
+
+	if (err) {
+		free_bufs(priv, ch->xdp.drop_bufs, ch->xdp.drop_cnt);
+		ch->buf_count -= ch->xdp.drop_cnt;
+	}
+
+	ch->xdp.drop_cnt = 0;
+}
+
 static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		   struct dpaa2_eth_channel *ch,
 		   struct dpaa2_fd *fd, void *vaddr)
 {
+	dma_addr_t addr = dpaa2_fd_get_addr(fd);
 	struct bpf_prog *xdp_prog;
 	struct xdp_buff xdp;
 	u32 xdp_act = XDP_PASS;
@@ -250,8 +274,7 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);
 	case XDP_DROP:
-		ch->buf_count--;
-		free_rx_fd(priv, fd, vaddr);
+		xdp_release_buf(priv, ch, addr);
 		break;
 	}
 
@@ -282,7 +305,8 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	trace_dpaa2_rx_fd(priv->net_dev, fd);
 
 	vaddr = dpaa2_iova_to_virt(priv->iommu_domain, addr);
-	dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE, DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
+				DMA_FROM_DEVICE);
 
 	fas = dpaa2_get_fas(vaddr, false);
 	prefetch(fas);
@@ -300,10 +324,14 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 			return;
 		}
 
+		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
+				 DMA_FROM_DEVICE);
 		skb = build_linear_skb(ch, fd, vaddr);
 	} else if (fd_format == dpaa2_fd_sg) {
 		WARN_ON(priv->xdp_prog);
 
+		dma_unmap_single(dev, addr, DPAA2_ETH_RX_BUF_SIZE,
+				 DMA_FROM_DEVICE);
 		skb = build_frag_skb(priv, ch, buf_data);
 		skb_free_frag(vaddr);
 		percpu_extras->rx_sg_frames++;
