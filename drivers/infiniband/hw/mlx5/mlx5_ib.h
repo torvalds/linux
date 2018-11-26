@@ -543,7 +543,6 @@ struct mlx5_ib_srq {
 struct mlx5_ib_xrcd {
 	struct ib_xrcd		ibxrcd;
 	u32			xrcdn;
-	u16			uid;
 };
 
 enum mlx5_ib_mtt_access_flags {
