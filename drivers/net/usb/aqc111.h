@@ -26,9 +26,14 @@
 /* Feature. ********************************************/
 #define AQ_SUPPORT_FEATURE	(NETIF_F_SG | NETIF_F_IP_CSUM |\
 				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |\
-				 NETIF_F_TSO)
+				 NETIF_F_TSO | NETIF_F_HW_VLAN_CTAG_TX |\
+				 NETIF_F_HW_VLAN_CTAG_RX)
 
 #define AQ_SUPPORT_HW_FEATURE	(NETIF_F_SG | NETIF_F_IP_CSUM |\
+				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |\
+				 NETIF_F_TSO)
+
+#define AQ_SUPPORT_VLAN_FEATURE (NETIF_F_SG | NETIF_F_IP_CSUM |\
 				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |\
 				 NETIF_F_TSO)
 
@@ -168,8 +173,11 @@ struct aqc111_data {
 /* TX Descriptor */
 #define AQ_TX_DESC_LEN_MASK	0x1FFFFF
 #define AQ_TX_DESC_DROP_PADD	BIT(28)
+#define AQ_TX_DESC_VLAN		BIT(29)
 #define AQ_TX_DESC_MSS_MASK	0x7FFF
 #define AQ_TX_DESC_MSS_SHIFT	0x20
+#define AQ_TX_DESC_VLAN_MASK	0xFFFF
+#define AQ_TX_DESC_VLAN_SHIFT	0x30
 
 #define AQ_RX_HW_PAD			0x02
 
@@ -183,10 +191,12 @@ struct aqc111_data {
 #define AQ_RX_PD_L3_IP		0x20
 #define AQ_RX_PD_L3_IP6		0x40
 
+#define AQ_RX_PD_VLAN		BIT(10)
 #define AQ_RX_PD_RX_OK		BIT(11)
 #define AQ_RX_PD_DROP		BIT(31)
 #define AQ_RX_PD_LEN_MASK	0x7FFF0000
 #define AQ_RX_PD_LEN_SHIFT	0x10
+#define AQ_RX_PD_VLAN_SHIFT	0x20
 
 /* RX Descriptor header */
 #define AQ_RX_DH_PKT_CNT_MASK		0x1FFF

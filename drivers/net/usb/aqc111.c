@@ -452,6 +452,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
 	dev->net->features |= AQ_SUPPORT_FEATURE;
+	dev->net->vlan_features |= AQ_SUPPORT_VLAN_FEATURE;
 
 	netif_set_gso_max_size(dev->net, 65535);
 
@@ -714,6 +715,7 @@ static int aqc111_reset(struct usbnet *dev)
 
 	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
 	dev->net->features |= AQ_SUPPORT_FEATURE;
+	dev->net->vlan_features |= AQ_SUPPORT_VLAN_FEATURE;
 
 	/* Power up ethernet PHY */
 	aqc111_data->phy_cfg = AQ_PHY_POWER_EN;
@@ -793,6 +795,7 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u32 desc_offset = 0; /*RX Header Offset*/
 	u16 pkt_count = 0;
 	u64 desc_hdr = 0;
+	u16 vlan_tag = 0;
 	u32 skb_len = 0;
 
 	if (!skb)
@@ -864,6 +867,12 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		if (aqc111_data->rx_checksum)
 			aqc111_rx_checksum(new_skb, pkt_desc);
 
+		if (pkt_desc & AQ_RX_PD_VLAN) {
+			vlan_tag = pkt_desc >> AQ_RX_PD_VLAN_SHIFT;
+			__vlan_hwaccel_put_tag(new_skb, htons(ETH_P_8021Q),
+					       vlan_tag & VLAN_VID_MASK);
+		}
+
 		usbnet_skb_return(dev, new_skb);
 		if (pkt_count == 0)
 			break;
@@ -892,6 +901,7 @@ static struct sk_buff *aqc111_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	int headroom = 0;
 	int tailroom = 0;
 	u64 tx_desc = 0;
+	u16 tci = 0;
 
 	/*Length of actual data*/
 	tx_desc |= skb->len & AQ_TX_DESC_LEN_MASK;
@@ -907,6 +917,13 @@ static struct sk_buff *aqc111_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 	if (((skb->len + sizeof(tx_desc) + padding_size) % frame_size) == 0) {
 		padding_size += 8;
 		tx_desc |= AQ_TX_DESC_DROP_PADD;
+	}
+
+	/* Vlan Tag */
+	if (vlan_get_tag(skb, &tci) >= 0) {
+		tx_desc |= AQ_TX_DESC_VLAN;
+		tx_desc |= ((u64)tci & AQ_TX_DESC_VLAN_MASK) <<
+			   AQ_TX_DESC_VLAN_SHIFT;
 	}
 
 	if (!dev->can_dma_sg && (dev->net->features & NETIF_F_SG) &&
