@@ -4236,6 +4236,18 @@ static void delay_drop_handler(struct work_struct *work)
 	mutex_unlock(&delay_drop->lock);
 }
 
+static void handle_general_event(struct mlx5_ib_dev *ibdev, struct mlx5_eqe *eqe,
+				 struct ib_event *ibev)
+{
+	switch (eqe->sub_type) {
+	case MLX5_GENERAL_SUBTYPE_DELAY_DROP_TIMEOUT:
+		schedule_work(&ibdev->delay_drop.delay_drop_work);
+		break;
+	default: /* do nothing */
+		return;
+	}
+}
+
 static int handle_port_change(struct mlx5_ib_dev *ibdev, struct mlx5_eqe *eqe,
 			      struct ib_event *ibev)
 {
@@ -4308,9 +4320,9 @@ static void mlx5_ib_handle_event(struct work_struct *_work)
 		if (handle_port_change(ibdev, work->param, &ibev))
 			goto out;
 		break;
-	case MLX5_DEV_EVENT_DELAY_DROP_TIMEOUT:
-		schedule_work(&ibdev->delay_drop.delay_drop_work);
-		goto out;
+	case MLX5_EVENT_TYPE_GENERAL_EVENT:
+		handle_general_event(ibdev, work->param, &ibev);
+		/* fall through */
 	default:
 		goto out;
 	}
