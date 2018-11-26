@@ -754,7 +754,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 		}
 
 		if (c) {
-			percpu_down_read(&c->usage_lock);
+			percpu_down_read(&c->mark_lock);
 			spin_lock(&c->journal.lock);
 		} else {
 			preempt_disable();
@@ -782,7 +782,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 
 		if (c) {
 			spin_unlock(&c->journal.lock);
-			percpu_up_read(&c->usage_lock);
+			percpu_up_read(&c->mark_lock);
 		} else {
 			preempt_enable();
 		}

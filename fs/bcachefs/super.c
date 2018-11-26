@@ -374,7 +374,7 @@ static void bch2_fs_free(struct bch_fs *c)
 	bch2_io_clock_exit(&c->io_clock[WRITE]);
 	bch2_io_clock_exit(&c->io_clock[READ]);
 	bch2_fs_compress_exit(c);
-	percpu_free_rwsem(&c->usage_lock);
+	percpu_free_rwsem(&c->mark_lock);
 	free_percpu(c->usage[0]);
 	mempool_exit(&c->btree_iters_pool);
 	mempool_exit(&c->btree_bounce_pool);
@@ -608,7 +608,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			    offsetof(struct btree_write_bio, wbio.bio)),
 			BIOSET_NEED_BVECS) ||
 	    !(c->usage[0] = alloc_percpu(struct bch_fs_usage)) ||
-	    percpu_init_rwsem(&c->usage_lock) ||
+	    percpu_init_rwsem(&c->mark_lock) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,

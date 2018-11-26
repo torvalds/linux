@@ -218,9 +218,9 @@ static void bch2_alloc_read_key(struct bch_fs *c, struct bkey_s_c k)
 	if (a.k->p.offset >= ca->mi.nbuckets)
 		return;
 
-	percpu_down_read(&c->usage_lock);
+	percpu_down_read(&c->mark_lock);
 	__alloc_read_key(bucket(ca, a.k->p.offset), a.v);
-	percpu_up_read(&c->usage_lock);
+	percpu_up_read(&c->mark_lock);
 }
 
 int bch2_alloc_read(struct bch_fs *c, struct list_head *journal_replay_list)
@@ -288,12 +288,12 @@ static int __bch2_alloc_write_key(struct bch_fs *c, struct bch_dev *ca,
 
 	a->k.p = POS(ca->dev_idx, b);
 
-	percpu_down_read(&c->usage_lock);
+	percpu_down_read(&c->mark_lock);
 	g = bucket(ca, b);
 	m = bucket_cmpxchg(g, m, m.dirty = false);
 
 	__alloc_write_key(a, g, m);
-	percpu_up_read(&c->usage_lock);
+	percpu_up_read(&c->mark_lock);
 
 	bch2_btree_iter_cond_resched(iter);
 
@@ -804,7 +804,7 @@ static bool bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 {
 	struct bucket_mark m;
 
-	percpu_down_read(&c->usage_lock);
+	percpu_down_read(&c->mark_lock);
 	spin_lock(&c->freelist_lock);
 
 	bch2_invalidate_bucket(c, ca, bucket, &m);
@@ -817,7 +817,7 @@ static bool bch2_invalidate_one_bucket(struct bch_fs *c, struct bch_dev *ca,
 	bucket_io_clock_reset(c, ca, bucket, READ);
 	bucket_io_clock_reset(c, ca, bucket, WRITE);
 
-	percpu_up_read(&c->usage_lock);
+	percpu_up_read(&c->mark_lock);
 
 	if (m.journal_seq_valid) {
 		u64 journal_seq = atomic64_read(&c->journal.seq);
@@ -1345,7 +1345,7 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 		struct bucket_mark m;
 
 		down_read(&ca->bucket_lock);
-		percpu_down_read(&c->usage_lock);
+		percpu_down_read(&c->mark_lock);
 
 		buckets = bucket_array(ca);
 
@@ -1369,7 +1369,7 @@ static int __bch2_fs_allocator_start(struct bch_fs *c)
 			if (fifo_full(&ca->free[RESERVE_BTREE]))
 				break;
 		}
-		percpu_up_read(&c->usage_lock);
+		percpu_up_read(&c->mark_lock);
 		up_read(&ca->bucket_lock);
 	}
 

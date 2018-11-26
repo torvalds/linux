@@ -1062,7 +1062,7 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 	__bch2_btree_set_root_inmem(c, b);
 
 	mutex_lock(&c->btree_interior_update_lock);
-	percpu_down_read(&c->usage_lock);
+	percpu_down_read(&c->mark_lock);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(&b->key),
 		      true, 0,
@@ -1076,7 +1076,7 @@ static void bch2_btree_set_root_inmem(struct btree_update *as, struct btree *b)
 	bch2_fs_usage_apply(c, &stats, &as->reserve->disk_res,
 			    gc_pos_btree_root(b->btree_id));
 
-	percpu_up_read(&c->usage_lock);
+	percpu_up_read(&c->mark_lock);
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
@@ -1155,7 +1155,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	BUG_ON(insert->k.u64s > bch_btree_keys_u64s_remaining(c, b));
 
 	mutex_lock(&c->btree_interior_update_lock);
-	percpu_down_read(&c->usage_lock);
+	percpu_down_read(&c->mark_lock);
 
 	bch2_mark_key_locked(c, bkey_i_to_s_c(insert),
 			     true, 0,
@@ -1177,7 +1177,7 @@ static void bch2_insert_fixup_btree_ptr(struct btree_update *as, struct btree *b
 	bch2_fs_usage_apply(c, &stats, &as->reserve->disk_res,
 			    gc_pos_btree_node(b));
 
-	percpu_up_read(&c->usage_lock);
+	percpu_up_read(&c->mark_lock);
 	mutex_unlock(&c->btree_interior_update_lock);
 
 	bch2_btree_bset_insert_key(iter, b, node_iter, insert);
@@ -1965,7 +1965,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 		bch2_btree_node_lock_write(b, iter);
 
 		mutex_lock(&c->btree_interior_update_lock);
-		percpu_down_read(&c->usage_lock);
+		percpu_down_read(&c->mark_lock);
 
 		bch2_mark_key_locked(c, bkey_i_to_s_c(&new_key->k_i),
 			      true, 0,
@@ -1977,7 +1977,7 @@ static void __bch2_btree_node_update_key(struct bch_fs *c,
 		bch2_fs_usage_apply(c, &stats, &as->reserve->disk_res,
 				    gc_pos_btree_root(b->btree_id));
 
-		percpu_up_read(&c->usage_lock);
+		percpu_up_read(&c->mark_lock);
 		mutex_unlock(&c->btree_interior_update_lock);
 
 		if (PTR_HASH(&new_key->k_i) != PTR_HASH(&b->key)) {

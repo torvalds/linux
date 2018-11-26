@@ -390,7 +390,7 @@ struct bch_dev {
 
 	/*
 	 * Buckets:
-	 * Per-bucket arrays are protected by c->usage_lock, bucket_lock and
+	 * Per-bucket arrays are protected by c->mark_lock, bucket_lock and
 	 * gc_lock, for device resize - holding any is sufficient for access:
 	 * Or rcu_read_lock(), but only for ptr_stale():
 	 */
@@ -617,7 +617,7 @@ struct bch_fs {
 
 	struct bch_fs_usage __percpu *usage[2];
 
-	struct percpu_rw_semaphore usage_lock;
+	struct percpu_rw_semaphore mark_lock;
 
 	/*
 	 * When we invalidate buckets, we use both the priority and the amount
