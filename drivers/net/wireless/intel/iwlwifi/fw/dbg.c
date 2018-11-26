@@ -1697,8 +1697,10 @@ iwl_fw_dbg_buffer_allocation(struct iwl_fw_runtime *fwrt,
 	    IWL_FW_INI_LOCATION_DRAM_PATH)
 		return;
 
-	virtual_addr = dma_alloc_coherent(fwrt->trans->dev, size,
-					  &phys_addr, GFP_KERNEL);
+	virtual_addr =
+		dma_alloc_coherent(fwrt->trans->dev, size, &phys_addr,
+				   GFP_KERNEL | __GFP_NOWARN | __GFP_ZERO |
+				   __GFP_COMP);
 
 	/* TODO: alloc fragments if needed */
 	if (!virtual_addr)
