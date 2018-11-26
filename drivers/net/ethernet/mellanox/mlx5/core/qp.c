@@ -150,7 +150,7 @@ static int rsc_event_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 	}
 
-	table = mlx5_nb_cof(nb, struct mlx5_qp_table, nb);
+	table = container_of(nb, struct mlx5_qp_table, nb);
 	priv  = container_of(table, struct mlx5_priv, qp_table);
 	dev   = container_of(priv, struct mlx5_core_dev, priv);
 
@@ -523,15 +523,15 @@ void mlx5_init_qp_table(struct mlx5_core_dev *dev)
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 	mlx5_qp_debugfs_init(dev);
 
-	MLX5_NB_INIT(&table->nb, rsc_event_notifier, NOTIFY_ANY);
-	mlx5_eq_notifier_register(dev, &table->nb);
+	table->nb.notifier_call = rsc_event_notifier;
+	mlx5_notifier_register(dev, &table->nb);
 }
 
 void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_qp_table *table = &dev->priv.qp_table;
 
-	mlx5_eq_notifier_unregister(dev, &table->nb);
+	mlx5_notifier_unregister(dev, &table->nb);
 	mlx5_qp_debugfs_cleanup(dev);
 }
 

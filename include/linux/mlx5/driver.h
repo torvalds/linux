@@ -456,7 +456,7 @@ struct mlx5_core_health {
 };
 
 struct mlx5_qp_table {
-	struct mlx5_nb          nb;
+	struct notifier_block   nb;
 
 	/* protect radix tree
 	 */
