@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/netdevice.h>
+#include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/crc32.h>
@@ -17,6 +18,8 @@
 #include <linux/usb/usbnet.h>
 
 #include "aqc111.h"
+
+#define DRIVER_NAME "aqc111"
 
 static int aqc111_read_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
 				u16 index, u16 size, void *data)
@@ -178,6 +181,23 @@ static int aqc111_write16_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
 				      sizeof(tmp), &tmp);
 }
 
+static void aqc111_get_drvinfo(struct net_device *net,
+			       struct ethtool_drvinfo *info)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+
+	/* Inherit standard device info */
+	usbnet_get_drvinfo(net, info);
+	strlcpy(info->driver, DRIVER_NAME, sizeof(info->driver));
+	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u.%u",
+		 aqc111_data->fw_ver.major,
+		 aqc111_data->fw_ver.minor,
+		 aqc111_data->fw_ver.rev);
+	info->eedump_len = 0x00;
+	info->regdump_len = 0x00;
+}
+
 static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
@@ -224,6 +244,13 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &aqc111_data->phy_cfg);
 }
+
+static const struct ethtool_ops aqc111_ethtool_ops = {
+	.get_drvinfo = aqc111_get_drvinfo,
+	.get_msglevel = usbnet_get_msglevel,
+	.set_msglevel = usbnet_set_msglevel,
+	.get_link = ethtool_op_get_link,
+};
 
 static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 {
@@ -533,6 +560,7 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->max_mtu = 16334;
 
 	dev->net->netdev_ops = &aqc111_netdev_ops;
+	dev->net->ethtool_ops = &aqc111_ethtool_ops;
 
 	if (usb_device_no_sg_constraint(dev->udev))
 		dev->can_dma_sg = 1;
