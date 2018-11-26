@@ -1254,24 +1254,26 @@ TRACE_EVENT(kvm_hv_stimer_callback,
  * Tracepoint for stimer_expiration.
  */
 TRACE_EVENT(kvm_hv_stimer_expiration,
-	TP_PROTO(int vcpu_id, int timer_index, int msg_send_result),
-	TP_ARGS(vcpu_id, timer_index, msg_send_result),
+	TP_PROTO(int vcpu_id, int timer_index, int direct, int msg_send_result),
+	TP_ARGS(vcpu_id, timer_index, direct, msg_send_result),
 
 	TP_STRUCT__entry(
 		__field(int, vcpu_id)
 		__field(int, timer_index)
+		__field(int, direct)
 		__field(int, msg_send_result)
 	),
 
 	TP_fast_assign(
 		__entry->vcpu_id = vcpu_id;
 		__entry->timer_index = timer_index;
+		__entry->direct = direct;
 		__entry->msg_send_result = msg_send_result;
 	),
 
-	TP_printk("vcpu_id %d timer %d msg send result %d",
+	TP_printk("vcpu_id %d timer %d direct %d send result %d",
 		  __entry->vcpu_id, __entry->timer_index,
-		  __entry->msg_send_result)
+		  __entry->direct, __entry->msg_send_result)
 );
 
 /*

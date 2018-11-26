@@ -38,6 +38,9 @@
 
 #define KVM_HV_MAX_SPARSE_VCPU_SET_BITS DIV_ROUND_UP(KVM_MAX_VCPUS, 64)
 
+static void stimer_mark_pending(struct kvm_vcpu_hv_stimer *stimer,
+				bool vcpu_kick);
+
 static inline u64 synic_read_sint(struct kvm_vcpu_hv_synic *synic, int sint)
 {
 	return atomic64_read(&synic->sint[sint]);
@@ -53,7 +56,20 @@ static inline int synic_get_sint_vector(u64 sint_value)
 static bool synic_has_vector_connected(struct kvm_vcpu_hv_synic *synic,
 				      int vector)
 {
+	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	struct kvm_vcpu_hv_stimer *stimer;
 	int i;
+
+	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++) {
+		stimer = &hv_vcpu->stimer[i];
+		if (stimer->config.enable && stimer->config.direct_mode &&
+		    stimer->config.apic_vector == vector)
+			return true;
+	}
+
+	if (vector < HV_SYNIC_FIRST_VALID_VECTOR)
+		return false;
 
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++) {
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
@@ -80,13 +96,13 @@ static bool synic_has_vector_auto_eoi(struct kvm_vcpu_hv_synic *synic,
 static void synic_update_vector(struct kvm_vcpu_hv_synic *synic,
 				int vector)
 {
-	if (vector < HV_SYNIC_FIRST_VALID_VECTOR)
-		return;
-
 	if (synic_has_vector_connected(synic, vector))
 		__set_bit(vector, synic->vec_bitmap);
 	else
 		__clear_bit(vector, synic->vec_bitmap);
+
+	if (vector < HV_SYNIC_FIRST_VALID_VECTOR)
+		return;
 
 	if (synic_has_vector_auto_eoi(synic, vector))
 		__set_bit(vector, synic->auto_eoi_bitmap);
@@ -173,6 +189,7 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	for (idx = 0; idx < ARRAY_SIZE(hv_vcpu->stimer); idx++) {
 		stimer = &hv_vcpu->stimer[idx];
 		if (stimer->msg_pending && stimer->config.enable &&
+		    !stimer->config.direct_mode &&
 		    stimer->config.sintx == sint) {
 			set_bit(stimer->index,
 				hv_vcpu->stimer_pending_bitmap);
@@ -342,7 +359,9 @@ int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vpidx, u32 sint)
 
 void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 {
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
+	struct kvm_vcpu_hv_stimer *stimer;
 	int i;
 
 	trace_kvm_hv_synic_send_eoi(vcpu->vcpu_id, vector);
@@ -350,6 +369,14 @@ void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
 			kvm_hv_notify_acked_sint(vcpu, i);
+
+	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++) {
+		stimer = &hv_vcpu->stimer[i];
+		if (stimer->msg_pending && stimer->config.enable &&
+		    stimer->config.direct_mode &&
+		    stimer->config.apic_vector == vector)
+			stimer_mark_pending(stimer, false);
+	}
 }
 
 static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vpidx, u32 sint, int gsi)
@@ -516,15 +543,25 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 			     bool host)
 {
-	union hv_stimer_config new_config = {.as_uint64 = config};
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
+	union hv_stimer_config new_config = {.as_uint64 = config},
+		old_config = {.as_uint64 = stimer->config.as_uint64};
 
 	trace_kvm_hv_stimer_set_config(stimer_to_vcpu(stimer)->vcpu_id,
 				       stimer->index, config, host);
 
 	stimer_cleanup(stimer);
-	if (stimer->config.enable && new_config.sintx == 0)
+	if (old_config.enable &&
+	    !new_config.direct_mode && new_config.sintx == 0)
 		new_config.enable = 0;
 	stimer->config.as_uint64 = new_config.as_uint64;
+
+	if (old_config.direct_mode)
+		synic_update_vector(&hv_vcpu->synic, old_config.apic_vector);
+	if (new_config.direct_mode)
+		synic_update_vector(&hv_vcpu->synic, new_config.apic_vector);
+
 	stimer_mark_pending(stimer, false);
 	return 0;
 }
@@ -634,14 +671,28 @@ static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 				 no_retry);
 }
 
+static int stimer_notify_direct(struct kvm_vcpu_hv_stimer *stimer)
+{
+	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
+	struct kvm_lapic_irq irq = {
+		.delivery_mode = APIC_DM_FIXED,
+		.vector = stimer->config.apic_vector
+	};
+
+	return !kvm_apic_set_irq(vcpu, &irq, NULL);
+}
+
 static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 {
-	int r;
+	int r, direct = stimer->config.direct_mode;
 
 	stimer->msg_pending = true;
-	r = stimer_send_msg(stimer);
+	if (!direct)
+		r = stimer_send_msg(stimer);
+	else
+		r = stimer_notify_direct(stimer);
 	trace_kvm_hv_stimer_expiration(stimer_to_vcpu(stimer)->vcpu_id,
-				       stimer->index, r);
+				       stimer->index, direct, r);
 	if (!r) {
 		stimer->msg_pending = false;
 		if (!(stimer->config.periodic))
