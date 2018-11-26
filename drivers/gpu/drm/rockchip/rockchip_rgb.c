@@ -161,7 +161,7 @@ rockchip_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 		break;
 	}
 
-	s->output_type = DRM_MODE_CONNECTOR_LVDS;
+	s->output_type = DRM_MODE_CONNECTOR_DPI;
 
 	return 0;
 }
@@ -198,7 +198,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 							     dev->of_node);
 
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_rgb_encoder_funcs,
-			       DRM_MODE_ENCODER_NONE, NULL);
+			       DRM_MODE_ENCODER_DPI, NULL);
 	if (ret < 0) {
 		DRM_DEV_ERROR(dev, "failed to initialize encoder: %d\n", ret);
 		return ret;
@@ -210,7 +210,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		connector = &rgb->connector;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_rgb_connector_funcs,
-					 DRM_MODE_CONNECTOR_LVDS);
+					 DRM_MODE_CONNECTOR_DPI);
 		if (ret < 0) {
 			DRM_DEV_ERROR(dev,
 				      "failed to initialize connector: %d\n",
