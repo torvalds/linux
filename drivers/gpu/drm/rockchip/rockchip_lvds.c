@@ -407,7 +407,11 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_info *info = &connector->display_info;
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 
-	s->output_type = DRM_MODE_CONNECTOR_LVDS;
+	if (lvds->output == DISPLAY_OUTPUT_RGB)
+		s->output_type = DRM_MODE_CONNECTOR_DPI;
+	else
+		s->output_type = DRM_MODE_CONNECTOR_LVDS;
+
 	if (info->num_bus_formats)
 		s->bus_format = info->bus_formats[0];
 	else
@@ -589,7 +593,9 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 							     dev->of_node);
 
 	ret = drm_encoder_init(drm_dev, encoder, &rockchip_lvds_encoder_funcs,
-			       DRM_MODE_ENCODER_LVDS, NULL);
+			       (lvds->output == DISPLAY_OUTPUT_RGB) ?
+			       DRM_MODE_ENCODER_DPI : DRM_MODE_ENCODER_LVDS,
+			       NULL);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize encoder with drm\n");
 		goto err_put_remote;
@@ -602,6 +608,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		connector = &lvds->connector;
 		ret = drm_connector_init(drm_dev, connector,
 					 &rockchip_lvds_connector_funcs,
+					 (lvds->output == DISPLAY_OUTPUT_RGB) ?
+					 DRM_MODE_CONNECTOR_DPI :
 					 DRM_MODE_CONNECTOR_LVDS);
 		if (ret < 0) {
 			DRM_ERROR("failed to initialize connector with drm\n");
