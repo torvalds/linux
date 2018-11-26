@@ -1216,13 +1216,13 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			iwl_dump_prph_ini(fwrt->trans, data, reg);
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
-			*dump_mask |= IWL_FW_ERROR_DUMP_FW_MONITOR;
+			*dump_mask |= BIT(IWL_FW_ERROR_DUMP_FW_MONITOR);
 			break;
 		case IWL_FW_INI_REGION_PAGING:
 			if (iwl_fw_dbg_is_paging_enabled(fwrt))
 				iwl_dump_paging(fwrt, data);
 			else
-				*dump_mask |= IWL_FW_ERROR_DUMP_PAGING;
+				*dump_mask |= BIT(IWL_FW_ERROR_DUMP_PAGING);
 			break;
 		case IWL_FW_INI_REGION_TXF:
 			iwl_fw_dump_txf(fwrt, data);
