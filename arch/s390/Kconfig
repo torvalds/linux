@@ -828,9 +828,6 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-config PCMCIA
-	def_bool n
-
 config CCW
 	def_bool y
 
