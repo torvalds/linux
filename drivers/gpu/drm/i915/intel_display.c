@@ -2890,6 +2890,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
+	intel_state->base.rotation = plane_config->rotation;
 	intel_fill_fb_ggtt_view(&intel_state->view, fb,
 				intel_state->base.rotation);
 	intel_state->color_plane[0].stride =
@@ -4850,14 +4851,46 @@ static void cpt_verify_modeset(struct drm_device *dev, int pipe)
  * chroma samples for both of the luma samples, and thus we don't
  * actually get the expected MPEG2 chroma siting convention :(
  * The same behaviour is observed on pre-SKL platforms as well.
+ *
+ * Theory behind the formula (note that we ignore sub-pixel
+ * source coordinates):
+ * s = source sample position
+ * d = destination sample position
+ *
+ * Downscaling 4:1:
+ * -0.5
+ * | 0.0
+ * | |     1.5 (initial phase)
+ * | |     |
+ * v v     v
+ * | s | s | s | s |
+ * |       d       |
+ *
+ * Upscaling 1:4:
+ * -0.5
+ * | -0.375 (initial phase)
+ * | |     0.0
+ * | |     |
+ * v v     v
+ * |       s       |
+ * | d | d | d | d |
  */
-u16 skl_scaler_calc_phase(int sub, bool chroma_cosited)
+u16 skl_scaler_calc_phase(int sub, int scale, bool chroma_cosited)
 {
 	int phase = -0x8000;
 	u16 trip = 0;
 
 	if (chroma_cosited)
 		phase += (sub - 1) * 0x8000 / sub;
+
+	phase += scale / (2 * sub);
+
+	/*
+	 * Hardware initial phase limited to [-0.5:1.5].
+	 * Since the max hardware scale factor is 3.0, we
+	 * should never actually excdeed 1.0 here.
+	 */
+	WARN_ON(phase < -0x8000 || phase > 0x18000);
 
 	if (phase < 0)
 		phase = 0x10000 + phase;
@@ -5067,13 +5100,20 @@ static void skylake_pfit_enable(struct intel_crtc *crtc)
 
 	if (crtc->config->pch_pfit.enabled) {
 		u16 uv_rgb_hphase, uv_rgb_vphase;
+		int pfit_w, pfit_h, hscale, vscale;
 		int id;
 
 		if (WARN_ON(crtc->config->scaler_state.scaler_id < 0))
 			return;
 
-		uv_rgb_hphase = skl_scaler_calc_phase(1, false);
-		uv_rgb_vphase = skl_scaler_calc_phase(1, false);
+		pfit_w = (crtc->config->pch_pfit.size >> 16) & 0xFFFF;
+		pfit_h = crtc->config->pch_pfit.size & 0xFFFF;
+
+		hscale = (crtc->config->pipe_src_w << 16) / pfit_w;
+		vscale = (crtc->config->pipe_src_h << 16) / pfit_h;
+
+		uv_rgb_hphase = skl_scaler_calc_phase(1, hscale, false);
+		uv_rgb_vphase = skl_scaler_calc_phase(1, vscale, false);
 
 		id = scaler_state->scaler_id;
 		I915_WRITE(SKL_PS_CTRL(pipe, id), PS_SCALER_EN |
@@ -7843,7 +7883,14 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 			plane_config->tiling = I915_TILING_X;
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
 		}
+
+		if (val & DISPPLANE_ROTATE_180)
+			plane_config->rotation = DRM_MODE_ROTATE_180;
 	}
+
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B &&
+	    val & DISPPLANE_MIRROR)
+		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
@@ -8912,6 +8959,29 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		MISSING_CASE(tiling);
 		goto error;
 	}
+
+	/*
+	 * DRM_MODE_ROTATE_ is counter clockwise to stay compatible with Xrandr
+	 * while i915 HW rotation is clockwise, thats why this swapping.
+	 */
+	switch (val & PLANE_CTL_ROTATE_MASK) {
+	case PLANE_CTL_ROTATE_0:
+		plane_config->rotation = DRM_MODE_ROTATE_0;
+		break;
+	case PLANE_CTL_ROTATE_90:
+		plane_config->rotation = DRM_MODE_ROTATE_270;
+		break;
+	case PLANE_CTL_ROTATE_180:
+		plane_config->rotation = DRM_MODE_ROTATE_180;
+		break;
+	case PLANE_CTL_ROTATE_270:
+		plane_config->rotation = DRM_MODE_ROTATE_90;
+		break;
+	}
+
+	if (INTEL_GEN(dev_priv) >= 10 &&
+	    val & PLANE_CTL_FLIP_HORIZONTAL)
+		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
 	base = I915_READ(PLANE_SURF(pipe, plane_id)) & 0xfffff000;
 	plane_config->base = base;
@@ -12768,17 +12838,12 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 			intel_check_cpu_fifo_underruns(dev_priv);
 			intel_check_pch_fifo_underruns(dev_priv);
 
-			if (!new_crtc_state->active) {
-				/*
-				 * Make sure we don't call initial_watermarks
-				 * for ILK-style watermark updates.
-				 *
-				 * No clue what this is supposed to achieve.
-				 */
-				if (INTEL_GEN(dev_priv) >= 9)
-					dev_priv->display.initial_watermarks(intel_state,
-									     to_intel_crtc_state(new_crtc_state));
-			}
+			/* FIXME unify this for all platforms */
+			if (!new_crtc_state->active &&
+			    !HAS_GMCH_DISPLAY(dev_priv) &&
+			    dev_priv->display.initial_watermarks)
+				dev_priv->display.initial_watermarks(intel_state,
+								     to_intel_crtc_state(new_crtc_state));
 		}
 	}
 
@@ -14646,7 +14711,7 @@ static int intel_framebuffer_init(struct intel_framebuffer *intel_fb,
 	     fb->height < SKL_MIN_YUV_420_SRC_H ||
 	     (fb->width % 4) != 0 || (fb->height % 4) != 0)) {
 		DRM_DEBUG_KMS("src dimensions not correct for NV12\n");
-		return -EINVAL;
+		goto err;
 	}
 
 	for (i = 0; i < fb->format->num_planes; i++) {
@@ -15233,6 +15298,14 @@ retry:
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto out;
+
+			/*
+			 * FIXME hack to force a LUT update to avoid the
+			 * plane update forcing the pipe gamma on without
+			 * having a proper LUT loaded. Remove once we
+			 * have readout for pipe gamma enable.
+			 */
+			crtc_state->color_mgmt_changed = true;
 		}
 	}
 

@@ -97,9 +97,9 @@ EXPORT_SYMBOL(drm_mode_legacy_fb_format);
 
 /**
  * drm_driver_legacy_fb_format - compute drm fourcc code from legacy description
+ * @dev: DRM device
  * @bpp: bits per pixels
  * @depth: bit depth per pixel
- * @native: use host native byte order
  *
  * Computes a drm fourcc pixel format code for the given @bpp/@depth values.
  * Unlike drm_mode_legacy_fb_format() this looks at the drivers mode_config,

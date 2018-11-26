@@ -14,6 +14,7 @@
 
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_atomic_helper.h>
@@ -1474,12 +1475,12 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 {
 	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
 	struct drm_connector *connector = &dsi->connector;
+	struct drm_device *drm = encoder->dev;
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
-	ret = drm_connector_init(encoder->dev, connector,
-				 &exynos_dsi_connector_funcs,
+	ret = drm_connector_init(drm, connector, &exynos_dsi_connector_funcs,
 				 DRM_MODE_CONNECTOR_DSI);
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector with drm\n");
@@ -1489,7 +1490,12 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 	connector->status = connector_status_disconnected;
 	drm_connector_helper_add(connector, &exynos_dsi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, encoder);
+	if (!drm->registered)
+		return 0;
 
+	connector->funcs->reset(connector);
+	drm_fb_helper_add_one_connector(drm->fb_helper, connector);
+	drm_connector_register(connector);
 	return 0;
 }
 
@@ -1527,7 +1533,9 @@ static int exynos_dsi_host_attach(struct mipi_dsi_host *host,
 		}
 
 		dsi->panel = of_drm_find_panel(device->dev.of_node);
-		if (dsi->panel) {
+		if (IS_ERR(dsi->panel)) {
+			dsi->panel = NULL;
+		} else {
 			drm_panel_attach(dsi->panel, &dsi->connector);
 			dsi->connector.status = connector_status_connected;
 		}

@@ -105,7 +105,8 @@
 #define PPSMC_MSG_SetSystemVirtualDramAddrHigh   0x4B
 #define PPSMC_MSG_SetSystemVirtualDramAddrLow    0x4C
 #define PPSMC_MSG_WaflTest                       0x4D
-// Unused ID 0x4E to 0x50
+#define PPSMC_MSG_SetFclkGfxClkRatio             0x4E
+// Unused ID 0x4F to 0x50
 #define PPSMC_MSG_AllowGfxOff                    0x51
 #define PPSMC_MSG_DisallowGfxOff                 0x52
 #define PPSMC_MSG_GetPptLimit                    0x53
