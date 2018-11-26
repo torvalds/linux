@@ -27,6 +27,7 @@
 #include <linux/videodev2.h>
 #include <linux/workqueue.h>
 #include <linux/regmap.h>
+#include <linux/interrupt.h>
 
 #include <media/i2c/adv7604.h>
 #include <media/cec.h>
