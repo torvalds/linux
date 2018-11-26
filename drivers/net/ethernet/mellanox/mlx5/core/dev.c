@@ -32,6 +32,7 @@
 
 #include <linux/mlx5/driver.h>
 #include "mlx5_core.h"
+#include "lib/mlx5.h"
 
 static LIST_HEAD(intf_list);
 static LIST_HEAD(mlx5_dev_list);
@@ -425,6 +426,8 @@ void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
 			dev_ctx->intf->event(dev, dev_ctx->context, event, param);
 
 	spin_unlock_irqrestore(&priv->ctx_lock, flags);
+
+	mlx5_notifier_call_chain(dev->priv.events, event, (void *)param);
 }
 
 void mlx5_dev_list_lock(void)
