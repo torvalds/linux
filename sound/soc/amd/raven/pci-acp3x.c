@@ -97,10 +97,10 @@ static int snd_acp3x_probe(struct pci_dev *pci,
 		pdevinfo.size_data = sizeof(irqflags);
 
 		adata->pdev = platform_device_register_full(&pdevinfo);
-		if (!adata->pdev) {
+		if (IS_ERR(adata->pdev)) {
 			dev_err(&pci->dev, "cannot register %s device\n",
 				pdevinfo.name);
-			ret = -ENODEV;
+			ret = PTR_ERR(adata->pdev);
 			goto unmap_mmio;
 		}
 		break;
