@@ -314,6 +314,8 @@ static u64 devx_get_obj_id(const void *in)
 					MLX5_GET(query_dct_in, in, dctn));
 		break;
 	case MLX5_CMD_OP_QUERY_XRQ:
+	case MLX5_CMD_OP_QUERY_XRQ_DC_PARAMS_ENTRY:
+	case MLX5_CMD_OP_QUERY_XRQ_ERROR_PARAMS:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
 					MLX5_GET(query_xrq_in, in, xrqn));
 		break;
@@ -340,8 +342,15 @@ static u64 devx_get_obj_id(const void *in)
 					MLX5_GET(drain_dct_in, in, dctn));
 		break;
 	case MLX5_CMD_OP_ARM_XRQ:
+	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
 		obj_id = get_enc_obj_id(MLX5_CMD_OP_CREATE_XRQ,
 					MLX5_GET(arm_xrq_in, in, xrqn));
+		break;
+	case MLX5_CMD_OP_QUERY_PACKET_REFORMAT_CONTEXT:
+		obj_id = get_enc_obj_id
+				(MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT,
+				 MLX5_GET(query_packet_reformat_context_in,
+					  in, packet_reformat_id));
 		break;
 	default:
 		obj_id = 0;
@@ -601,6 +610,7 @@ static bool devx_is_obj_modify_cmd(const void *in)
 	case MLX5_CMD_OP_DRAIN_DCT:
 	case MLX5_CMD_OP_ARM_DCT_FOR_KEY_VIOLATION:
 	case MLX5_CMD_OP_ARM_XRQ:
+	case MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY:
 		return true;
 	case MLX5_CMD_OP_SET_FLOW_TABLE_ENTRY:
 	{
@@ -642,6 +652,9 @@ static bool devx_is_obj_query_cmd(const void *in)
 	case MLX5_CMD_OP_QUERY_XRC_SRQ:
 	case MLX5_CMD_OP_QUERY_DCT:
 	case MLX5_CMD_OP_QUERY_XRQ:
+	case MLX5_CMD_OP_QUERY_XRQ_DC_PARAMS_ENTRY:
+	case MLX5_CMD_OP_QUERY_XRQ_ERROR_PARAMS:
+	case MLX5_CMD_OP_QUERY_PACKET_REFORMAT_CONTEXT:
 		return true;
 	default:
 		return false;
@@ -684,6 +697,10 @@ static int devx_get_uid(struct mlx5_ib_ucontext *c, void *cmd_in)
 static bool devx_is_general_cmd(void *in)
 {
 	u16 opcode = MLX5_GET(general_obj_in_cmd_hdr, in, opcode);
+
+	if (opcode >= MLX5_CMD_OP_GENERAL_START &&
+	    opcode < MLX5_CMD_OP_GENERAL_END)
+		return true;
 
 	switch (opcode) {
 	case MLX5_CMD_OP_QUERY_HCA_CAP:
