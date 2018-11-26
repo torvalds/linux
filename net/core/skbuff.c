@@ -2635,6 +2635,7 @@ __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
 	__sum16 sum;
 
 	sum = csum_fold(skb_checksum(skb, 0, len, skb->csum));
+	/* See comments in __skb_checksum_complete(). */
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
 		    !skb->csum_complete_sw)
@@ -2646,6 +2647,15 @@ __sum16 __skb_checksum_complete_head(struct sk_buff *skb, int len)
 }
 EXPORT_SYMBOL(__skb_checksum_complete_head);
 
+/* This function assumes skb->csum already holds pseudo header's checksum,
+ * which has been changed from the hardware checksum, for example, by
+ * __skb_checksum_validate_complete(). And, the original skb->csum must
+ * have been validated unsuccessfully for CHECKSUM_COMPLETE case.
+ *
+ * It returns non-zero if the recomputed checksum is still invalid, otherwise
+ * zero. The new checksum is stored back into skb->csum unless the skb is
+ * shared.
+ */
 __sum16 __skb_checksum_complete(struct sk_buff *skb)
 {
 	__wsum csum;
@@ -2653,8 +2663,14 @@ __sum16 __skb_checksum_complete(struct sk_buff *skb)
 
 	csum = skb_checksum(skb, 0, skb->len, 0);
 
-	/* skb->csum holds pseudo checksum */
 	sum = csum_fold(csum_add(skb->csum, csum));
+	/* This check is inverted, because we already knew the hardware
+	 * checksum is invalid before calling this function. So, if the
+	 * re-computed checksum is valid instead, then we have a mismatch
+	 * between the original skb->csum and skb_checksum(). This means either
+	 * the original hardware checksum is incorrect or we screw up skb->csum
+	 * when moving skb->data around.
+	 */
 	if (likely(!sum)) {
 		if (unlikely(skb->ip_summed == CHECKSUM_COMPLETE) &&
 		    !skb->csum_complete_sw)
