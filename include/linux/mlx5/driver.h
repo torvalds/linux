@@ -465,8 +465,7 @@ struct mlx5_qp_table {
 };
 
 struct mlx5_srq_table {
-	struct mlx5_nb          catas_err_nb;
-	struct mlx5_nb          rq_limit_nb;
+	struct notifier_block   nb;
 	/* protect radix tree
 	 */
 	spinlock_t		lock;

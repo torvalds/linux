@@ -40,15 +40,21 @@
 #include "mlx5_core.h"
 #include "lib/eq.h"
 
-static int srq_event_notifier(struct mlx5_srq_table *table,
+static int srq_event_notifier(struct notifier_block *nb,
 			      unsigned long type, void *data)
 {
+	struct mlx5_srq_table *table;
 	struct mlx5_core_dev *dev;
 	struct mlx5_core_srq *srq;
 	struct mlx5_priv *priv;
 	struct mlx5_eqe *eqe;
 	u32 srqn;
 
+	if (type != MLX5_EVENT_TYPE_SRQ_CATAS_ERROR &&
+	    type != MLX5_EVENT_TYPE_SRQ_RQ_LIMIT)
+		return NOTIFY_DONE;
+
+	table = container_of(nb, struct mlx5_srq_table, nb);
 	priv  = container_of(table, struct mlx5_priv, srq_table);
 	dev   = container_of(priv, struct mlx5_core_dev, priv);
 
@@ -75,26 +81,6 @@ static int srq_event_notifier(struct mlx5_srq_table *table,
 		complete(&srq->free);
 
 	return NOTIFY_OK;
-}
-
-static int catas_err_notifier(struct notifier_block *nb,
-			      unsigned long type, void *data)
-{
-	struct mlx5_srq_table *table;
-
-	table = mlx5_nb_cof(nb, struct mlx5_srq_table, catas_err_nb);
-	/* type == MLX5_EVENT_TYPE_SRQ_CATAS_ERROR */
-	return srq_event_notifier(table, type, data);
-}
-
-static int rq_limit_notifier(struct notifier_block *nb,
-			     unsigned long type, void *data)
-{
-	struct mlx5_srq_table *table;
-
-	table = mlx5_nb_cof(nb, struct mlx5_srq_table, rq_limit_nb);
-	/* type == MLX5_EVENT_TYPE_SRQ_RQ_LIMIT */
-	return srq_event_notifier(table, type, data);
 }
 
 static int get_pas_size(struct mlx5_srq_attr *in)
@@ -743,17 +729,13 @@ void mlx5_init_srq_table(struct mlx5_core_dev *dev)
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 
-	MLX5_NB_INIT(&table->catas_err_nb, catas_err_notifier, SRQ_CATAS_ERROR);
-	mlx5_eq_notifier_register(dev, &table->catas_err_nb);
-
-	MLX5_NB_INIT(&table->rq_limit_nb, rq_limit_notifier, SRQ_RQ_LIMIT);
-	mlx5_eq_notifier_register(dev, &table->rq_limit_nb);
+	table->nb.notifier_call = srq_event_notifier;
+	mlx5_notifier_register(dev, &table->nb);
 }
 
 void mlx5_cleanup_srq_table(struct mlx5_core_dev *dev)
 {
 	struct mlx5_srq_table *table = &dev->priv.srq_table;
 
-	mlx5_eq_notifier_unregister(dev, &table->rq_limit_nb);
-	mlx5_eq_notifier_unregister(dev, &table->catas_err_nb);
+	mlx5_notifier_unregister(dev, &table->nb);
 }
