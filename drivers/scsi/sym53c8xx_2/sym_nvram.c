@@ -708,6 +708,7 @@ static int sym_read_Tekram_nvram (struct sym_device *np, Tekram_nvram *nvram)
 					  data, len);
 		if (!x)
 			break;
+		/* fall through */
 	default:
 		x = sym_read_T93C46_nvram(np, nvram);
 		break;
