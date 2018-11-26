@@ -174,8 +174,6 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	int j, k, err;
 	int num_cnt;
 	union dpni_statistics dpni_stats;
-	u64 cdan = 0;
-	u64 portal_busy = 0, pull_err = 0;
 	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
 	struct dpaa2_eth_drv_stats *extras;
 	struct dpaa2_eth_ch_stats *ch_stats;
@@ -212,16 +210,12 @@ static void dpaa2_eth_get_ethtool_stats(struct net_device *net_dev,
 	}
 	i += j;
 
-	for (j = 0; j < priv->num_channels; j++) {
-		ch_stats = &priv->channel[j]->stats;
-		cdan += ch_stats->cdan;
-		portal_busy += ch_stats->dequeue_portal_busy;
-		pull_err += ch_stats->pull_err;
+	/* Per-channel stats */
+	for (k = 0; k < priv->num_channels; k++) {
+		ch_stats = &priv->channel[k]->stats;
+		for (j = 0; j < sizeof(*ch_stats) / sizeof(__u64); j++)
+			*((__u64 *)data + i + j) += *((__u64 *)ch_stats + j);
 	}
-
-	*(data + i++) = portal_busy;
-	*(data + i++) = pull_err;
-	*(data + i++) = cdan;
 }
 
 static int prep_eth_rule(struct ethhdr *eth_value, struct ethhdr *eth_mask,

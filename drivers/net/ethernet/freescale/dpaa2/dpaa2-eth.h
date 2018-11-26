@@ -245,12 +245,10 @@ struct dpaa2_eth_fq_stats {
 struct dpaa2_eth_ch_stats {
 	/* Volatile dequeues retried due to portal busy */
 	__u64 dequeue_portal_busy;
-	/* Number of CDANs; useful to estimate avg NAPI len */
-	__u64 cdan;
-	/* Number of frames received on queues from this channel */
-	__u64 frames;
 	/* Pull errors */
 	__u64 pull_err;
+	/* Number of CDANs; useful to estimate avg NAPI len */
+	__u64 cdan;
 };
 
 /* Maximum number of queues associated with a DPNI */
