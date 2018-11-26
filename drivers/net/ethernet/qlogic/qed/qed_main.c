@@ -1939,21 +1939,30 @@ exit:
  * 0B  |                       0x3 [command index]                            |
  * 4B  | b'0: check_response?   | b'1-31  reserved                            |
  * 8B  | File-type |                   reserved                               |
+ * 12B |                    Image length in bytes                             |
  *     \----------------------------------------------------------------------/
  *     Start a new file of the provided type
  */
 static int qed_nvm_flash_image_file_start(struct qed_dev *cdev,
 					  const u8 **data, bool *check_resp)
 {
+	u32 file_type, file_size = 0;
 	int rc;
 
 	*data += 4;
 	*check_resp = !!(**data & BIT(0));
 	*data += 4;
+	file_type = **data;
 
 	DP_VERBOSE(cdev, NETIF_MSG_DRV,
-		   "About to start a new file of type %02x\n", **data);
-	rc = qed_mcp_nvm_put_file_begin(cdev, **data);
+		   "About to start a new file of type %02x\n", file_type);
+	if (file_type == DRV_MB_PARAM_NVM_PUT_FILE_BEGIN_MBI) {
+		*data += 4;
+		file_size = *((u32 *)(*data));
+	}
+
+	rc = qed_mcp_nvm_write(cdev, QED_PUT_FILE_BEGIN, file_type,
+			       (u8 *)(&file_size), 4);
 	*data += 4;
 
 	return rc;

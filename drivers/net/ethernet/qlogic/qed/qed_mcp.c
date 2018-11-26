@@ -2745,24 +2745,6 @@ int qed_mcp_nvm_resp(struct qed_dev *cdev, u8 *p_buf)
 	return 0;
 }
 
-int qed_mcp_nvm_put_file_begin(struct qed_dev *cdev, u32 addr)
-{
-	struct qed_hwfn *p_hwfn = QED_LEADING_HWFN(cdev);
-	struct qed_ptt *p_ptt;
-	u32 resp, param;
-	int rc;
-
-	p_ptt = qed_ptt_acquire(p_hwfn);
-	if (!p_ptt)
-		return -EBUSY;
-	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_NVM_PUT_FILE_BEGIN, addr,
-			 &resp, &param);
-	cdev->mcp_nvm_resp = resp;
-	qed_ptt_release(p_hwfn, p_ptt);
-
-	return rc;
-}
-
 int qed_mcp_nvm_write(struct qed_dev *cdev,
 		      u32 cmd, u32 addr, u8 *p_buf, u32 len)
 {
@@ -2776,6 +2758,9 @@ int qed_mcp_nvm_write(struct qed_dev *cdev,
 		return -EBUSY;
 
 	switch (cmd) {
+	case QED_PUT_FILE_BEGIN:
+		nvm_cmd = DRV_MSG_CODE_NVM_PUT_FILE_BEGIN;
+		break;
 	case QED_PUT_FILE_DATA:
 		nvm_cmd = DRV_MSG_CODE_NVM_PUT_FILE_DATA;
 		break;
@@ -2788,10 +2773,14 @@ int qed_mcp_nvm_write(struct qed_dev *cdev,
 		goto out;
 	}
 
+	buf_size = min_t(u32, (len - buf_idx), MCP_DRV_NVM_BUF_LEN);
 	while (buf_idx < len) {
-		buf_size = min_t(u32, (len - buf_idx), MCP_DRV_NVM_BUF_LEN);
-		nvm_offset = ((buf_size << DRV_MB_PARAM_NVM_LEN_OFFSET) |
-			      addr) + buf_idx;
+		if (cmd == QED_PUT_FILE_BEGIN)
+			nvm_offset = addr;
+		else
+			nvm_offset = ((buf_size <<
+				       DRV_MB_PARAM_NVM_LEN_OFFSET) | addr) +
+				       buf_idx;
 		rc = qed_mcp_nvm_wr_cmd(p_hwfn, p_ptt, nvm_cmd, nvm_offset,
 					&resp, &param, buf_size,
 					(u32 *)&p_buf[buf_idx]);
@@ -2816,7 +2805,19 @@ int qed_mcp_nvm_write(struct qed_dev *cdev,
 		if (buf_idx % 0x1000 > (buf_idx + buf_size) % 0x1000)
 			usleep_range(1000, 2000);
 
-		buf_idx += buf_size;
+		/* For MBI upgrade, MFW response includes the next buffer offset
+		 * to be delivered to MFW.
+		 */
+		if (param && cmd == QED_PUT_FILE_DATA) {
+			buf_idx = QED_MFW_GET_FIELD(param,
+					FW_MB_PARAM_NVM_PUT_FILE_REQ_OFFSET);
+			buf_size = QED_MFW_GET_FIELD(param,
+					 FW_MB_PARAM_NVM_PUT_FILE_REQ_SIZE);
+		} else {
+			buf_idx += buf_size;
+			buf_size = min_t(u32, (len - buf_idx),
+					 MCP_DRV_NVM_BUF_LEN);
+		}
 	}
 
 	cdev->mcp_nvm_resp = resp;
