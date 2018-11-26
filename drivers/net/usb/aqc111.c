@@ -395,6 +395,8 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->hw_features |= AQ_SUPPORT_HW_FEATURE;
 	dev->net->features |= AQ_SUPPORT_FEATURE;
 
+	netif_set_gso_max_size(dev->net, 65535);
+
 	aqc111_read_fw_version(dev, aqc111_data);
 	aqc111_data->autoneg = AUTONEG_ENABLE;
 	aqc111_data->advertised_speed = (usb_speed == USB_SPEED_SUPER) ?
@@ -831,6 +833,10 @@ static struct sk_buff *aqc111_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 
 	/*Length of actual data*/
 	tx_desc |= skb->len & AQ_TX_DESC_LEN_MASK;
+
+	/* TSO MSS */
+	tx_desc |= ((u64)(skb_shinfo(skb)->gso_size & AQ_TX_DESC_MSS_MASK)) <<
+		   AQ_TX_DESC_MSS_SHIFT;
 
 	headroom = (skb->len + sizeof(tx_desc)) % 8;
 	if (headroom != 0)

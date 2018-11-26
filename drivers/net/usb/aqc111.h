@@ -22,10 +22,12 @@
 
 /* Feature. ********************************************/
 #define AQ_SUPPORT_FEATURE	(NETIF_F_SG | NETIF_F_IP_CSUM |\
-				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM)
+				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |\
+				 NETIF_F_TSO)
 
 #define AQ_SUPPORT_HW_FEATURE	(NETIF_F_SG | NETIF_F_IP_CSUM |\
-				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM)
+				 NETIF_F_IPV6_CSUM | NETIF_F_RXCSUM |\
+				 NETIF_F_TSO)
 
 /* SFR Reg. ********************************************/
 
@@ -162,6 +164,8 @@ struct aqc111_data {
 /* TX Descriptor */
 #define AQ_TX_DESC_LEN_MASK	0x1FFFFF
 #define AQ_TX_DESC_DROP_PADD	BIT(28)
+#define AQ_TX_DESC_MSS_MASK	0x7FFF
+#define AQ_TX_DESC_MSS_SHIFT	0x20
 
 #define AQ_RX_HW_PAD			0x02
 
