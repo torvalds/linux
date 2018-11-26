@@ -50,6 +50,7 @@
 #include "regs.h"
 #include "rkisp1.h"
 #include "common.h"
+#include "version.h"
 
 struct isp_match_data {
 	const char * const *clks;
@@ -808,6 +809,11 @@ static int rkisp1_plat_probe(struct platform_device *pdev)
 
 	struct resource *res;
 	int i, ret, irq;
+
+	dev_info(dev, "rkisp1 driver version: v%x.%x.%x\n",
+		 RKISP1_DRIVER_VERSION >> 16,
+		 (RKISP1_DRIVER_VERSION & 0xff00) >> 8,
+		 RKISP1_DRIVER_VERSION & 0x00ff);
 
 	match = of_match_node(rkisp1_plat_of_match, node);
 	isp_dev = devm_kzalloc(dev, sizeof(*isp_dev), GFP_KERNEL);
