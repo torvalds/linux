@@ -35,7 +35,8 @@ static struct mlx5_nb events_nbs_ref[] = {
 struct mlx5_events {
 	struct mlx5_core_dev *dev;
 	struct mlx5_event_nb  notifiers[ARRAY_SIZE(events_nbs_ref)];
-
+	/* driver notifier chain */
+	struct atomic_notifier_head nh;
 	/* port module events stats */
 	struct mlx5_pme_stats pme_stats;
 };
@@ -300,6 +301,7 @@ int mlx5_events_init(struct mlx5_core_dev *dev)
 	if (!events)
 		return -ENOMEM;
 
+	ATOMIC_INIT_NOTIFIER_HEAD(&events->nh);
 	events->dev = dev;
 	dev->priv.events = events;
 	return 0;
@@ -329,4 +331,25 @@ void mlx5_events_stop(struct mlx5_core_dev *dev)
 
 	for (i = ARRAY_SIZE(events_nbs_ref) - 1; i >= 0 ; i--)
 		mlx5_eq_notifier_unregister(dev, &events->notifiers[i].nb);
+}
+
+int mlx5_notifier_register(struct mlx5_core_dev *dev, struct notifier_block *nb)
+{
+	struct mlx5_events *events = dev->priv.events;
+
+	return atomic_notifier_chain_register(&events->nh, nb);
+}
+EXPORT_SYMBOL(mlx5_notifier_register);
+
+int mlx5_notifier_unregister(struct mlx5_core_dev *dev, struct notifier_block *nb)
+{
+	struct mlx5_events *events = dev->priv.events;
+
+	return atomic_notifier_chain_unregister(&events->nh, nb);
+}
+EXPORT_SYMBOL(mlx5_notifier_unregister);
+
+int mlx5_notifier_call_chain(struct mlx5_events *events, unsigned int event, void *data)
+{
+	return atomic_notifier_call_chain(&events->nh, event, data);
 }
