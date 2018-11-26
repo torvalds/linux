@@ -33,16 +33,16 @@
  */
 
 #define SAVE_CP_REGS(x)							\
-	.align 4;							\
-	.Lsave_cp_regs_cp##x:						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.align 4;						\
+	.Lsave_cp_regs_cp##x:						\
 		xchal_cp##x##_store a2 a4 a5 a6 a7;			\
-	.endif;								\
-	jx	a0
+		jx	a0;						\
+	.endif
 
 #define SAVE_CP_REGS_TAB(x)						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
-		.long .Lsave_cp_regs_cp##x - .Lsave_cp_regs_jump_table;	\
+		.long .Lsave_cp_regs_cp##x;				\
 	.else;								\
 		.long 0;						\
 	.endif;								\
@@ -50,16 +50,16 @@
 
 
 #define LOAD_CP_REGS(x)							\
-	.align 4;							\
-	.Lload_cp_regs_cp##x:						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
+		.align 4;						\
+	.Lload_cp_regs_cp##x:						\
 		xchal_cp##x##_load a2 a4 a5 a6 a7;			\
-	.endif;								\
-	jx	a0
+		jx	a0;						\
+	.endif
 
 #define LOAD_CP_REGS_TAB(x)						\
 	.if XTENSA_HAVE_COPROCESSOR(x);					\
-		.long .Lload_cp_regs_cp##x - .Lload_cp_regs_jump_table; \
+		.long .Lload_cp_regs_cp##x;				\
 	.else;								\
 		.long 0;						\
 	.endif;								\
@@ -83,6 +83,7 @@
 	LOAD_CP_REGS(6)
 	LOAD_CP_REGS(7)
 
+	.section ".rodata", "a"
 	.align 4
 .Lsave_cp_regs_jump_table:
 	SAVE_CP_REGS_TAB(0)
@@ -103,6 +104,8 @@
 	LOAD_CP_REGS_TAB(5)
 	LOAD_CP_REGS_TAB(6)
 	LOAD_CP_REGS_TAB(7)
+
+	.previous
 
 /*
  * coprocessor_flush(struct thread_info*, index)
@@ -126,8 +129,7 @@ ENTRY(coprocessor_flush)
 	l32i	a3, a3, 0
 	add	a2, a2, a4
 	beqz	a3, 1f
-	add	a0, a0, a3
-	callx0	a0
+	callx0	a3
 1:	l32i	a0, a1, 0
 	retw
 
@@ -212,10 +214,9 @@ ENTRY(fast_coprocessor)
 	movi	a0, 2f			# a0: 'return' address
 	addx8	a3, a3, a5		# a3: coprocessor number
 	l32i	a2, a3, 4		# a2: xtregs offset
-	l32i	a3, a3, 0		# a3: jump offset
+	l32i	a3, a3, 0		# a3: jump address
 	add	a2, a2, a4
-	add	a4, a3, a5		# a4: address of save routine
-	jx	a4
+	jx	a3
 
 	/* Note that only a0 and a1 were preserved. */
 
@@ -235,10 +236,9 @@ ENTRY(fast_coprocessor)
 	movi	a0, 1f
 	addx8	a3, a3, a5
 	l32i	a2, a3, 4		# a2: xtregs offset
-	l32i	a3, a3, 0		# a3: jump offset
+	l32i	a3, a3, 0		# a3: jump address
 	add	a2, a2, a4
-	add	a4, a3, a5
-	jx	a4
+	jx	a3
 
 	/* Restore all registers and return from exception handler. */
 
