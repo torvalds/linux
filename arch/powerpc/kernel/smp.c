@@ -462,7 +462,8 @@ static void do_smp_send_nmi_ipi(int cpu, bool safe)
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   begin executing the handler, == 0 specifies indefinite delay.
  */
-int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us, bool safe)
+static int __smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *),
+				u64 delay_us, bool safe)
 {
 	unsigned long flags;
 	int me = raw_smp_processor_id();
