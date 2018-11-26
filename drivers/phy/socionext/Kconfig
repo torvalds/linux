@@ -26,7 +26,8 @@ config PHY_UNIPHIER_USB3
 
 config PHY_UNIPHIER_PCIE
 	tristate "Uniphier PHY driver for PCIe controller"
-	depends on (ARCH_UNIPHIER || COMPILE_TEST) && OF
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
 	default PCIE_UNIPHIER
 	select GENERIC_PHY
 	help
