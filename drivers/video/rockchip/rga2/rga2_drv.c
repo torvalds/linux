@@ -1535,7 +1535,8 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 			if (first_RGA2_proc == 0 && req.bitblt_mode == bitblt_mode && rga2_service.dev_mode == 1) {
 				memcpy(&req_first, &req, sizeof(struct rga2_req));
 				if ((req_first.src.act_w != req_first.dst.act_w)
-						|| (req_first.src.act_h != req_first.dst.act_h)) {
+						|| (req_first.src.act_h != req_first.dst.act_h)
+						|| rk3368) {
 					req_first.src.act_w = MIN(320, MIN(req_first.src.act_w, req_first.dst.act_w));
 					req_first.src.act_h = MIN(240, MIN(req_first.src.act_h, req_first.dst.act_h));
 					req_first.dst.act_w = req_first.src.act_w;
