@@ -327,7 +327,12 @@ SSI subnode properties:
 - no-busif			: BUSIF is not ussed when [mem -> SSI] via DMA case
 - dma				: Should contain Audio DMAC entry
 - dma-names			: SSI  case "rx"  (=playback), "tx"  (=capture)
+				  Deprecated: see SSIU subnode properties
 				  SSIU case "rxu" (=playback), "txu" (=capture)
+
+SSIU subnode properties:
+- dma				: Should contain Audio DMAC entry
+- dma-names			: "rx" (=playback), "tx" (=capture)
 
 SRC subnode properties:
 - dma				: Should contain Audio DMAC entry
