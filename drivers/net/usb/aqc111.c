@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
+#include <linux/crc32.h>
 #include <linux/if_vlan.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
@@ -158,6 +159,25 @@ static int aqc111_write32_cmd(struct usbnet *dev, u8 cmd, u16 value,
 	return aqc111_write_cmd(dev, cmd, value, index, sizeof(tmp), &tmp);
 }
 
+static int aqc111_write_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
+				  u16 index, u16 size, void *data)
+{
+	return usbnet_write_cmd_async(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR |
+				      USB_RECIP_DEVICE, value, index, data,
+				      size);
+}
+
+static int aqc111_write16_cmd_async(struct usbnet *dev, u8 cmd, u16 value,
+				    u16 index, u16 *data)
+{
+	u16 tmp = *data;
+
+	cpu_to_le16s(&tmp);
+
+	return aqc111_write_cmd_async(dev, cmd, value, index,
+				      sizeof(tmp), &tmp);
+}
+
 static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
@@ -261,6 +281,43 @@ static int aqc111_set_mac_addr(struct net_device *net, void *p)
 				ETH_ALEN, net->dev_addr);
 }
 
+static void aqc111_set_rx_mode(struct net_device *net)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+	int mc_count = 0;
+
+	mc_count = netdev_mc_count(net);
+
+	aqc111_data->rxctl &= ~(SFR_RX_CTL_PRO | SFR_RX_CTL_AMALL |
+				SFR_RX_CTL_AM);
+
+	if (net->flags & IFF_PROMISC) {
+		aqc111_data->rxctl |= SFR_RX_CTL_PRO;
+	} else if ((net->flags & IFF_ALLMULTI) || mc_count > AQ_MAX_MCAST) {
+		aqc111_data->rxctl |= SFR_RX_CTL_AMALL;
+	} else if (!netdev_mc_empty(net)) {
+		u8 m_filter[AQ_MCAST_FILTER_SIZE] = { 0 };
+		struct netdev_hw_addr *ha = NULL;
+		u32 crc_bits = 0;
+
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
+			m_filter[crc_bits >> 3] |= BIT(crc_bits & 7);
+		}
+
+		aqc111_write_cmd_async(dev, AQ_ACCESS_MAC,
+				       SFR_MULTI_FILTER_ARRY,
+				       AQ_MCAST_FILTER_SIZE,
+				       AQ_MCAST_FILTER_SIZE, m_filter);
+
+		aqc111_data->rxctl |= SFR_RX_CTL_AM;
+	}
+
+	aqc111_write16_cmd_async(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
+				 2, &aqc111_data->rxctl);
+}
+
 static int aqc111_set_features(struct net_device *net,
 			       netdev_features_t features)
 {
@@ -310,6 +367,7 @@ static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_change_mtu		= aqc111_change_mtu,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_rx_mode	= aqc111_set_rx_mode,
 	.ndo_set_features	= aqc111_set_features,
 };
 
@@ -582,6 +640,7 @@ static int aqc111_link_reset(struct usbnet *dev)
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_ARC_CTRL, 1, 1, &reg8);
 
 		reg16 = SFR_RX_CTL_IPE | SFR_RX_CTL_AB;
+		aqc111_data->rxctl = reg16;
 		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
 
 		reg8 = SFR_RX_PATH_READY;
@@ -602,6 +661,8 @@ static int aqc111_link_reset(struct usbnet *dev)
 
 		aqc111_configure_csum_offload(dev);
 
+		aqc111_set_rx_mode(dev->net);
+
 		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				  2, &reg16);
 
@@ -613,8 +674,9 @@ static int aqc111_link_reset(struct usbnet *dev)
 		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				   2, &reg16);
 
-		reg16 = SFR_RX_CTL_IPE | SFR_RX_CTL_AB | SFR_RX_CTL_START;
-		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+		aqc111_data->rxctl |= SFR_RX_CTL_START;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
+				   2, &aqc111_data->rxctl);
 
 		netif_carrier_on(dev->net);
 	} else {
@@ -624,9 +686,9 @@ static int aqc111_link_reset(struct usbnet *dev)
 		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 				   2, &reg16);
 
-		aqc111_read16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
-		reg16 &= ~SFR_RX_CTL_START;
-		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL, 2, &reg16);
+		aqc111_data->rxctl &= ~SFR_RX_CTL_START;
+		aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_RX_CTL,
+				   2, &aqc111_data->rxctl);
 
 		reg8 = SFR_BULK_OUT_FLUSH_EN | SFR_BULK_OUT_EFF_EN;
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BULK_OUT_CTRL,

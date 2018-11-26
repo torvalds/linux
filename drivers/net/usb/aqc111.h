@@ -12,6 +12,9 @@
 
 #define URB_SIZE	(1024 * 62)
 
+#define AQ_MCAST_FILTER_SIZE		8
+#define AQ_MAX_MCAST			64
+
 #define AQ_ACCESS_MAC			0x01
 #define AQ_FLASH_PARAMETERS		0x20
 #define AQ_PHY_POWER			0x31
@@ -140,6 +143,7 @@
 /******************************************************************************/
 
 struct aqc111_data {
+	u16 rxctl;
 	u8 rx_checksum;
 	u8 link_speed;
 	u8 link;
