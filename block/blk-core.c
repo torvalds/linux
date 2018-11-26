@@ -1273,10 +1273,19 @@ blk_qc_t submit_bio(struct bio *bio)
 }
 EXPORT_SYMBOL(submit_bio);
 
-bool blk_poll(struct request_queue *q, blk_qc_t cookie)
+/**
+ * blk_poll - poll for IO completions
+ * @q:  the queue
+ * @cookie: cookie passed back at IO submission time
+ *
+ * Description:
+ *    Poll for completions on the passed in queue. Returns number of
+ *    completed entries found.
+ */
+int blk_poll(struct request_queue *q, blk_qc_t cookie)
 {
 	if (!q->poll_fn || !blk_qc_t_valid(cookie))
-		return false;
+		return 0;
 
 	if (current->plug)
 		blk_flush_plug_list(current->plug, false);

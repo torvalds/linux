@@ -3285,15 +3285,12 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 		return false;
 
 	/*
-	 * poll_nsec can be:
+	 * If we get here, hybrid polling is enabled. Hence poll_nsec can be:
 	 *
-	 * -1:	don't ever hybrid sleep
 	 *  0:	use half of prev avg
 	 * >0:	use this specific value
 	 */
-	if (q->poll_nsec == -1)
-		return false;
-	else if (q->poll_nsec > 0)
+	if (q->poll_nsec > 0)
 		nsecs = q->poll_nsec;
 	else
 		nsecs = blk_mq_poll_nsecs(q, hctx, rq);
@@ -3330,10 +3327,40 @@ static bool blk_mq_poll_hybrid_sleep(struct request_queue *q,
 	return true;
 }
 
-static int __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
+static bool blk_mq_poll_hybrid(struct request_queue *q,
+			       struct blk_mq_hw_ctx *hctx, blk_qc_t cookie)
 {
-	struct request_queue *q = hctx->queue;
+	struct request *rq;
+
+	if (q->poll_nsec == -1)
+		return false;
+
+	if (!blk_qc_t_is_internal(cookie))
+		rq = blk_mq_tag_to_rq(hctx->tags, blk_qc_t_to_tag(cookie));
+	else {
+		rq = blk_mq_tag_to_rq(hctx->sched_tags, blk_qc_t_to_tag(cookie));
+		/*
+		 * With scheduling, if the request has completed, we'll
+		 * get a NULL return here, as we clear the sched tag when
+		 * that happens. The request still remains valid, like always,
+		 * so we should be safe with just the NULL check.
+		 */
+		if (!rq)
+			return false;
+	}
+
+	return blk_mq_poll_hybrid_sleep(q, hctx, rq);
+}
+
+static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
+{
+	struct blk_mq_hw_ctx *hctx;
 	long state;
+
+	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
+		return 0;
+
+	hctx = q->queue_hw_ctx[blk_qc_t_to_queue_num(cookie)];
 
 	/*
 	 * If we sleep, have the caller restart the poll loop to reset
@@ -3342,7 +3369,7 @@ static int __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 	 * the IO isn't complete, we'll get called again and will go
 	 * straight to the busy poll loop.
 	 */
-	if (blk_mq_poll_hybrid_sleep(q, hctx, rq))
+	if (blk_mq_poll_hybrid(q, hctx, cookie))
 		return 1;
 
 	hctx->poll_considered++;
@@ -3353,7 +3380,7 @@ static int __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 
 		hctx->poll_invoked++;
 
-		ret = q->mq_ops->poll(hctx, rq->tag);
+		ret = q->mq_ops->poll(hctx, -1U);
 		if (ret > 0) {
 			hctx->poll_success++;
 			__set_current_state(TASK_RUNNING);
@@ -3372,32 +3399,6 @@ static int __blk_mq_poll(struct blk_mq_hw_ctx *hctx, struct request *rq)
 
 	__set_current_state(TASK_RUNNING);
 	return 0;
-}
-
-static int blk_mq_poll(struct request_queue *q, blk_qc_t cookie)
-{
-	struct blk_mq_hw_ctx *hctx;
-	struct request *rq;
-
-	if (!test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		return 0;
-
-	hctx = q->queue_hw_ctx[blk_qc_t_to_queue_num(cookie)];
-	if (!blk_qc_t_is_internal(cookie))
-		rq = blk_mq_tag_to_rq(hctx->tags, blk_qc_t_to_tag(cookie));
-	else {
-		rq = blk_mq_tag_to_rq(hctx->sched_tags, blk_qc_t_to_tag(cookie));
-		/*
-		 * With scheduling, if the request has completed, we'll
-		 * get a NULL return here, as we clear the sched tag when
-		 * that happens. The request still remains valid, like always,
-		 * so we should be safe with just the NULL check.
-		 */
-		if (!rq)
-			return 0;
-	}
-
-	return __blk_mq_poll(hctx, rq);
 }
 
 unsigned int blk_mq_rq_cpu(struct request *rq)
