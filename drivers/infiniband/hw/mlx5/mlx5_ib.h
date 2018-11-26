@@ -775,6 +775,7 @@ enum mlx5_ib_stages {
 	MLX5_IB_STAGE_NON_DEFAULT_CB,
 	MLX5_IB_STAGE_ROCE,
 	MLX5_IB_STAGE_DEVICE_RESOURCES,
+	MLX5_IB_STAGE_DEVICE_NOTIFIER,
 	MLX5_IB_STAGE_ODP,
 	MLX5_IB_STAGE_COUNTERS,
 	MLX5_IB_STAGE_CONG_DEBUGFS,
@@ -806,6 +807,7 @@ struct mlx5_ib_multiport_info {
 	struct list_head list;
 	struct mlx5_ib_dev *ibdev;
 	struct mlx5_core_dev *mdev;
+	struct notifier_block mdev_events;
 	struct completion unref_comp;
 	u64 sys_image_guid;
 	u32 mdev_refcnt;
@@ -893,6 +895,7 @@ struct mlx5_ib_dev {
 	struct ib_device		ib_dev;
 	const struct uverbs_object_tree_def *driver_trees[7];
 	struct mlx5_core_dev		*mdev;
+	struct notifier_block		mdev_events;
 	struct mlx5_roce		roce[MLX5_MAX_PORTS];
 	int				num_ports;
 	/* serialize update of capability mask
