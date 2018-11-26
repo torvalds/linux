@@ -109,7 +109,7 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		if (inf) {
 			bfdf->arch_info = inf;
 		} else {
-			p_err("No libfd support for %s", arch);
+			p_err("No libbfd support for %s", arch);
 			return;
 		}
 	}
@@ -182,4 +182,10 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		jsonw_end_array(json_wtr);
 
 	bfd_close(bfdf);
+}
+
+int disasm_init(void)
+{
+	bfd_init();
+	return 0;
 }

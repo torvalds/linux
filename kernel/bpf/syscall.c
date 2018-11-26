@@ -1213,6 +1213,7 @@ static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 		/* bpf_prog_free_id() must be called first */
 		bpf_prog_free_id(prog, do_idr_lock);
 		bpf_prog_kallsyms_del_all(prog);
+		btf_put(prog->aux->btf);
 
 		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
 	}
@@ -1437,9 +1438,9 @@ bpf_prog_load_check_attach_type(enum bpf_prog_type prog_type,
 }
 
 /* last field in 'union bpf_attr' used by this command */
-#define	BPF_PROG_LOAD_LAST_FIELD expected_attach_type
+#define	BPF_PROG_LOAD_LAST_FIELD func_info_cnt
 
-static int bpf_prog_load(union bpf_attr *attr)
+static int bpf_prog_load(union bpf_attr *attr, union bpf_attr __user *uattr)
 {
 	enum bpf_prog_type type = attr->prog_type;
 	struct bpf_prog *prog;
@@ -1525,7 +1526,7 @@ static int bpf_prog_load(union bpf_attr *attr)
 		goto free_prog;
 
 	/* run eBPF verifier */
-	err = bpf_check(&prog, attr);
+	err = bpf_check(&prog, attr, uattr);
 	if (err < 0)
 		goto free_used_maps;
 
@@ -2079,6 +2080,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 		info.xlated_prog_len = 0;
 		info.nr_jited_ksyms = 0;
 		info.nr_jited_func_lens = 0;
+		info.func_info_cnt = 0;
 		goto done;
 	}
 
@@ -2214,6 +2216,55 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 		} else {
 			info.jited_func_lens = 0;
 		}
+	}
+
+	if (prog->aux->btf) {
+		u32 ucnt, urec_size;
+
+		info.btf_id = btf_id(prog->aux->btf);
+
+		ucnt = info.func_info_cnt;
+		info.func_info_cnt = prog->aux->func_cnt ? : 1;
+		urec_size = info.func_info_rec_size;
+		info.func_info_rec_size = sizeof(struct bpf_func_info);
+		if (ucnt) {
+			/* expect passed-in urec_size is what the kernel expects */
+			if (urec_size != info.func_info_rec_size)
+				return -EINVAL;
+
+			if (bpf_dump_raw_ok()) {
+				struct bpf_func_info kern_finfo;
+				char __user *user_finfo;
+				u32 i, insn_offset;
+
+				user_finfo = u64_to_user_ptr(info.func_info);
+				if (prog->aux->func_cnt) {
+					ucnt = min_t(u32, info.func_info_cnt, ucnt);
+					insn_offset = 0;
+					for (i = 0; i < ucnt; i++) {
+						kern_finfo.insn_offset = insn_offset;
+						kern_finfo.type_id = prog->aux->func[i]->aux->type_id;
+						if (copy_to_user(user_finfo, &kern_finfo,
+								 sizeof(kern_finfo)))
+							return -EFAULT;
+
+						/* func[i]->len holds the prog len */
+						insn_offset += prog->aux->func[i]->len;
+						user_finfo += urec_size;
+					}
+				} else {
+					kern_finfo.insn_offset = 0;
+					kern_finfo.type_id = prog->aux->type_id;
+					if (copy_to_user(user_finfo, &kern_finfo,
+							 sizeof(kern_finfo)))
+						return -EFAULT;
+				}
+			} else {
+				info.func_info_cnt = 0;
+			}
+		}
+	} else {
+		info.func_info_cnt = 0;
 	}
 
 done:
@@ -2501,7 +2552,7 @@ SYSCALL_DEFINE3(bpf, int, cmd, union bpf_attr __user *, uattr, unsigned int, siz
 		err = map_get_next_key(&attr);
 		break;
 	case BPF_PROG_LOAD:
-		err = bpf_prog_load(&attr);
+		err = bpf_prog_load(&attr, uattr);
 		break;
 	case BPF_OBJ_PIN:
 		err = bpf_obj_pin(&attr);

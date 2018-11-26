@@ -204,6 +204,7 @@ static inline bool bpf_verifier_log_needed(const struct bpf_verifier_log *log)
 struct bpf_subprog_info {
 	u32 start; /* insn idx of function entry point */
 	u16 stack_depth; /* max. stack depth used by this function */
+	u32 type_id; /* btf type_id for this subprog */
 };
 
 /* single container for all structs
@@ -245,7 +246,7 @@ static inline struct bpf_reg_state *cur_regs(struct bpf_verifier_env *env)
 	return cur_func(env)->regs;
 }
 
-int bpf_prog_offload_verifier_prep(struct bpf_verifier_env *env);
+int bpf_prog_offload_verifier_prep(struct bpf_prog *prog);
 int bpf_prog_offload_verify_insn(struct bpf_verifier_env *env,
 				 int insn_idx, int prev_insn_idx);
 int bpf_prog_offload_finalize(struct bpf_verifier_env *env);

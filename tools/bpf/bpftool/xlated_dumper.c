@@ -242,11 +242,15 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 		.cb_imm		= print_imm,
 		.private_data	= dd,
 	};
+	struct bpf_func_info *record;
 	struct bpf_insn *insn = buf;
+	struct btf *btf = dd->btf;
 	bool double_insn = false;
+	char func_sig[1024];
 	unsigned int i;
 
 	jsonw_start_array(json_wtr);
+	record = dd->func_info;
 	for (i = 0; i < len / sizeof(*insn); i++) {
 		if (double_insn) {
 			double_insn = false;
@@ -255,6 +259,20 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);
 
 		jsonw_start_object(json_wtr);
+
+		if (btf && record) {
+			if (record->insn_offset == i) {
+				btf_dumper_type_only(btf, record->type_id,
+						     func_sig,
+						     sizeof(func_sig));
+				if (func_sig[0] != '\0') {
+					jsonw_name(json_wtr, "proto");
+					jsonw_string(json_wtr, func_sig);
+				}
+				record = (void *)record + dd->finfo_rec_size;
+			}
+		}
+
 		jsonw_name(json_wtr, "disasm");
 		print_bpf_insn(&cbs, insn + i, true);
 
@@ -297,14 +315,29 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 		.cb_imm		= print_imm,
 		.private_data	= dd,
 	};
+	struct bpf_func_info *record;
 	struct bpf_insn *insn = buf;
+	struct btf *btf = dd->btf;
 	bool double_insn = false;
+	char func_sig[1024];
 	unsigned int i;
 
+	record = dd->func_info;
 	for (i = 0; i < len / sizeof(*insn); i++) {
 		if (double_insn) {
 			double_insn = false;
 			continue;
+		}
+
+		if (btf && record) {
+			if (record->insn_offset == i) {
+				btf_dumper_type_only(btf, record->type_id,
+						     func_sig,
+						     sizeof(func_sig));
+				if (func_sig[0] != '\0')
+					printf("%s:\n", func_sig);
+				record = (void *)record + dd->finfo_rec_size;
+			}
 		}
 
 		double_insn = insn[i].code == (BPF_LD | BPF_IMM | BPF_DW);

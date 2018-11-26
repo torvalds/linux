@@ -243,7 +243,7 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            if [[ $command != "load" ]]; then
+            if [[ $command != "load" && $command != "loadall" ]]; then
                 case $prev in
                     id)
                         _bpftool_get_prog_ids
@@ -299,7 +299,8 @@ _bpftool()
                     fi
 
                     if [[ ${#words[@]} == 6 ]]; then
-                        COMPREPLY=( $( compgen -W "msg_verdict skb_verdict skb_parse" -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W "msg_verdict skb_verdict \
+                            skb_parse flow_dissector" -- "$cur" ) )
                         return 0
                     fi
 
@@ -309,7 +310,7 @@ _bpftool()
                     fi
                     return 0
                     ;;
-                load)
+                load|loadall)
                     local obj
 
                     if [[ ${#words[@]} -lt 6 ]]; then
@@ -338,7 +339,16 @@ _bpftool()
 
                     case $prev in
                         type)
-                            COMPREPLY=( $( compgen -W "socket kprobe kretprobe classifier action tracepoint raw_tracepoint xdp perf_event cgroup/skb cgroup/sock cgroup/dev lwt_in lwt_out lwt_xmit lwt_seg6local sockops sk_skb sk_msg lirc_mode2 cgroup/bind4 cgroup/bind6 cgroup/connect4 cgroup/connect6 cgroup/sendmsg4 cgroup/sendmsg6 cgroup/post_bind4 cgroup/post_bind6" -- \
+                            COMPREPLY=( $( compgen -W "socket kprobe \
+                                kretprobe classifier flow_dissector \
+                                action tracepoint raw_tracepoint \
+                                xdp perf_event cgroup/skb cgroup/sock \
+                                cgroup/dev lwt_in lwt_out lwt_xmit \
+                                lwt_seg6local sockops sk_skb sk_msg \
+                                lirc_mode2 cgroup/bind4 cgroup/bind6 \
+                                cgroup/connect4 cgroup/connect6 \
+                                cgroup/sendmsg4 cgroup/sendmsg6 \
+                                cgroup/post_bind4 cgroup/post_bind6" -- \
                                                    "$cur" ) )
                             return 0
                             ;;
@@ -346,7 +356,7 @@ _bpftool()
                             _bpftool_get_map_ids
                             return 0
                             ;;
-                        pinned)
+                        pinned|pinmaps)
                             _filedir
                             return 0
                             ;;
@@ -358,6 +368,7 @@ _bpftool()
                             COMPREPLY=( $( compgen -W "map" -- "$cur" ) )
                             _bpftool_once_attr 'type'
                             _bpftool_once_attr 'dev'
+                            _bpftool_once_attr 'pinmaps'
                             return 0
                             ;;
                     esac

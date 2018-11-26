@@ -268,15 +268,18 @@ struct bpf_prog_offload_ops {
 	int (*insn_hook)(struct bpf_verifier_env *env,
 			 int insn_idx, int prev_insn_idx);
 	int (*finalize)(struct bpf_verifier_env *env);
+	int (*prepare)(struct bpf_prog *prog);
+	int (*translate)(struct bpf_prog *prog);
+	void (*destroy)(struct bpf_prog *prog);
 };
 
 struct bpf_prog_offload {
 	struct bpf_prog		*prog;
 	struct net_device	*netdev;
+	struct bpf_offload_dev	*offdev;
 	void			*dev_priv;
 	struct list_head	offloads;
 	bool			dev_state;
-	const struct bpf_prog_offload_ops *dev_ops;
 	void			*jited_image;
 	u32			jited_len;
 };
@@ -293,6 +296,7 @@ struct bpf_prog_aux {
 	atomic_t refcnt;
 	u32 used_map_cnt;
 	u32 max_ctx_offset;
+	u32 max_pkt_offset;
 	u32 stack_depth;
 	u32 id;
 	u32 func_cnt;
@@ -312,6 +316,8 @@ struct bpf_prog_aux {
 	void *security;
 #endif
 	struct bpf_prog_offload *offload;
+	struct btf *btf;
+	u32 type_id; /* type id for this prog/func */
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
@@ -523,7 +529,8 @@ static inline void bpf_long_memcpy(void *dst, const void *src, u32 size)
 }
 
 /* verify correctness of eBPF program */
-int bpf_check(struct bpf_prog **fp, union bpf_attr *attr);
+int bpf_check(struct bpf_prog **fp, union bpf_attr *attr,
+	      union bpf_attr __user *uattr);
 void bpf_patch_call_args(struct bpf_insn *insn, u32 stack_depth);
 
 /* Map specifics */
@@ -691,7 +698,8 @@ int bpf_map_offload_get_next_key(struct bpf_map *map,
 
 bool bpf_offload_prog_map_match(struct bpf_prog *prog, struct bpf_map *map);
 
-struct bpf_offload_dev *bpf_offload_dev_create(void);
+struct bpf_offload_dev *
+bpf_offload_dev_create(const struct bpf_prog_offload_ops *ops);
 void bpf_offload_dev_destroy(struct bpf_offload_dev *offdev);
 int bpf_offload_dev_netdev_register(struct bpf_offload_dev *offdev,
 				    struct net_device *netdev);

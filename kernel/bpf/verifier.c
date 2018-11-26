@@ -11,10 +11,12 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
  * General Public License for more details.
  */
+#include <uapi/linux/btf.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/bpf_verifier.h>
 #include <linux/filter.h>
 #include <net/netlink.h>
@@ -1455,6 +1457,17 @@ static int check_packet_access(struct bpf_verifier_env *env, u32 regno, int off,
 		verbose(env, "R%d offset is outside of the packet\n", regno);
 		return err;
 	}
+
+	/* __check_packet_access has made sure "off + size - 1" is within u16.
+	 * reg->umax_value can't be bigger than MAX_PACKET_OFF which is 0xffff,
+	 * otherwise find_good_pkt_pointers would have refused to set range info
+	 * that __check_packet_access would have rejected this pkt access.
+	 * Therefore, "off + reg->umax_value + size - 1" won't overflow u32.
+	 */
+	env->prog->aux->max_pkt_offset =
+		max_t(u32, env->prog->aux->max_pkt_offset,
+		      off + reg->umax_value + size - 1);
+
 	return err;
 }
 
@@ -4628,6 +4641,114 @@ err_free:
 	return ret;
 }
 
+/* The minimum supported BTF func info size */
+#define MIN_BPF_FUNCINFO_SIZE	8
+#define MAX_FUNCINFO_REC_SIZE	252
+
+static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
+			  union bpf_attr *attr, union bpf_attr __user *uattr)
+{
+	u32 i, nfuncs, urec_size, min_size, prev_offset;
+	u32 krec_size = sizeof(struct bpf_func_info);
+	struct bpf_func_info krecord = {};
+	const struct btf_type *type;
+	void __user *urecord;
+	struct btf *btf;
+	int ret = 0;
+
+	nfuncs = attr->func_info_cnt;
+	if (!nfuncs)
+		return 0;
+
+	if (nfuncs != env->subprog_cnt) {
+		verbose(env, "number of funcs in func_info doesn't match number of subprogs\n");
+		return -EINVAL;
+	}
+
+	urec_size = attr->func_info_rec_size;
+	if (urec_size < MIN_BPF_FUNCINFO_SIZE ||
+	    urec_size > MAX_FUNCINFO_REC_SIZE ||
+	    urec_size % sizeof(u32)) {
+		verbose(env, "invalid func info rec size %u\n", urec_size);
+		return -EINVAL;
+	}
+
+	btf = btf_get_by_fd(attr->prog_btf_fd);
+	if (IS_ERR(btf)) {
+		verbose(env, "unable to get btf from fd\n");
+		return PTR_ERR(btf);
+	}
+
+	urecord = u64_to_user_ptr(attr->func_info);
+	min_size = min_t(u32, krec_size, urec_size);
+
+	for (i = 0; i < nfuncs; i++) {
+		ret = bpf_check_uarg_tail_zero(urecord, krec_size, urec_size);
+		if (ret) {
+			if (ret == -E2BIG) {
+				verbose(env, "nonzero tailing record in func info");
+				/* set the size kernel expects so loader can zero
+				 * out the rest of the record.
+				 */
+				if (put_user(min_size, &uattr->func_info_rec_size))
+					ret = -EFAULT;
+			}
+			goto free_btf;
+		}
+
+		if (copy_from_user(&krecord, urecord, min_size)) {
+			ret = -EFAULT;
+			goto free_btf;
+		}
+
+		/* check insn_offset */
+		if (i == 0) {
+			if (krecord.insn_offset) {
+				verbose(env,
+					"nonzero insn_offset %u for the first func info record",
+					krecord.insn_offset);
+				ret = -EINVAL;
+				goto free_btf;
+			}
+		} else if (krecord.insn_offset <= prev_offset) {
+			verbose(env,
+				"same or smaller insn offset (%u) than previous func info record (%u)",
+				krecord.insn_offset, prev_offset);
+			ret = -EINVAL;
+			goto free_btf;
+		}
+
+		if (env->subprog_info[i].start != krecord.insn_offset) {
+			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
+			ret = -EINVAL;
+			goto free_btf;
+		}
+
+		/* check type_id */
+		type = btf_type_by_id(btf, krecord.type_id);
+		if (!type || BTF_INFO_KIND(type->info) != BTF_KIND_FUNC) {
+			verbose(env, "invalid type id %d in func info",
+				krecord.type_id);
+			ret = -EINVAL;
+			goto free_btf;
+		}
+
+		if (i == 0)
+			prog->aux->type_id = krecord.type_id;
+		env->subprog_info[i].type_id = krecord.type_id;
+
+		prev_offset = krecord.insn_offset;
+		urecord += urec_size;
+	}
+
+	prog->aux->btf = btf;
+	return 0;
+
+free_btf:
+	btf_put(btf);
+	return ret;
+}
+
 /* check %cur's range satisfies %old's */
 static bool range_within(struct bpf_reg_state *old,
 			 struct bpf_reg_state *cur)
@@ -5707,10 +5828,10 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 	int i, cnt, size, ctx_field_size, delta = 0;
 	const int insn_cnt = env->prog->len;
 	struct bpf_insn insn_buf[16], *insn;
+	u32 target_size, size_default, off;
 	struct bpf_prog *new_prog;
 	enum bpf_access_type type;
 	bool is_narrower_load;
-	u32 target_size;
 
 	if (ops->gen_prologue || env->seen_direct_write) {
 		if (!ops->gen_prologue) {
@@ -5803,9 +5924,9 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		 * we will apply proper mask to the result.
 		 */
 		is_narrower_load = size < ctx_field_size;
+		size_default = bpf_ctx_off_adjust_machine(ctx_field_size);
+		off = insn->off;
 		if (is_narrower_load) {
-			u32 size_default = bpf_ctx_off_adjust_machine(ctx_field_size);
-			u32 off = insn->off;
 			u8 size_code;
 
 			if (type == BPF_WRITE) {
@@ -5833,12 +5954,23 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 		}
 
 		if (is_narrower_load && size < target_size) {
-			if (ctx_field_size <= 4)
+			u8 shift = (off & (size_default - 1)) * 8;
+
+			if (ctx_field_size <= 4) {
+				if (shift)
+					insn_buf[cnt++] = BPF_ALU32_IMM(BPF_RSH,
+									insn->dst_reg,
+									shift);
 				insn_buf[cnt++] = BPF_ALU32_IMM(BPF_AND, insn->dst_reg,
 								(1 << size * 8) - 1);
-			else
+			} else {
+				if (shift)
+					insn_buf[cnt++] = BPF_ALU64_IMM(BPF_RSH,
+									insn->dst_reg,
+									shift);
 				insn_buf[cnt++] = BPF_ALU64_IMM(BPF_AND, insn->dst_reg,
 								(1 << size * 8) - 1);
+			}
 		}
 
 		new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
@@ -5917,6 +6049,9 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		func[i]->aux->name[0] = 'F';
 		func[i]->aux->stack_depth = env->subprog_info[i].stack_depth;
 		func[i]->jit_requested = 1;
+		/* the btf will be freed only at prog->aux */
+		func[i]->aux->btf = prog->aux->btf;
+		func[i]->aux->type_id = env->subprog_info[i].type_id;
 		func[i] = bpf_int_jit_compile(func[i]);
 		if (!func[i]->jited) {
 			err = -ENOTSUPP;
@@ -6138,6 +6273,7 @@ static int fixup_bpf_calls(struct bpf_verifier_env *env)
 			 */
 			prog->cb_access = 1;
 			env->prog->aux->stack_depth = MAX_BPF_STACK;
+			env->prog->aux->max_pkt_offset = MAX_PACKET_OFF;
 
 			/* mark bpf_tail_call as different opcode to avoid
 			 * conditional branch in the interpeter for every normal
@@ -6302,7 +6438,8 @@ static void free_states(struct bpf_verifier_env *env)
 	kfree(env->explored_states);
 }
 
-int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
+int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
+	      union bpf_attr __user *uattr)
 {
 	struct bpf_verifier_env *env;
 	struct bpf_verifier_log *log;
@@ -6356,7 +6493,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 		goto skip_full_check;
 
 	if (bpf_prog_is_dev_bound(env->prog->aux)) {
-		ret = bpf_prog_offload_verifier_prep(env);
+		ret = bpf_prog_offload_verifier_prep(env->prog);
 		if (ret)
 			goto skip_full_check;
 	}
@@ -6371,6 +6508,10 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr)
 	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
 	ret = check_cfg(env);
+	if (ret < 0)
+		goto skip_full_check;
+
+	ret = check_btf_func(env->prog, env, attr, uattr);
 	if (ret < 0)
 		goto skip_full_check;
 

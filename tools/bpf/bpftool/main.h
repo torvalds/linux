@@ -100,6 +100,8 @@ bool is_prefix(const char *pfx, const char *str);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __noreturn;
 
+void set_max_rlimit(void);
+
 struct pinned_obj_table {
 	DECLARE_HASHTABLE(table, 16);
 };
@@ -129,6 +131,7 @@ const char *get_fd_type_name(enum bpf_obj_type type);
 char *get_fdinfo(int fd, const char *key);
 int open_obj_pinned(char *path);
 int open_obj_pinned_any(char *path, enum bpf_obj_type exp_type);
+int mount_bpffs_for_pin(const char *name);
 int do_pin_any(int argc, char **argv, int (*get_fd_by_id)(__u32));
 int do_pin_fd(int fd, const char *name);
 
@@ -144,8 +147,22 @@ int prog_parse_fd(int *argc, char ***argv);
 int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
+#ifdef HAVE_LIBBFD_SUPPORT
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		       const char *arch, const char *disassembler_options);
+int disasm_init(void);
+#else
+static inline
+void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
+		       const char *arch, const char *disassembler_options)
+{
+}
+static inline int disasm_init(void)
+{
+	p_err("No libbfd support");
+	return -1;
+}
+#endif
 void print_data_json(uint8_t *data, size_t len);
 void print_hex_data_json(uint8_t *data, size_t len);
 
@@ -170,6 +187,8 @@ struct btf_dumper {
  */
 int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
 		    const void *data);
+void btf_dumper_type_only(const struct btf *btf, __u32 func_type_id,
+			  char *func_only, int size);
 
 struct nlattr;
 struct ifinfomsg;
