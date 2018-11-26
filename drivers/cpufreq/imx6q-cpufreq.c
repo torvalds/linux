@@ -405,9 +405,10 @@ static int imx6q_cpufreq_probe(struct platform_device *pdev)
 	if (of_machine_is_compatible("fsl,imx6ul") ||
 	    of_machine_is_compatible("fsl,imx6ull")) {
 		ret = imx6ul_opp_check_speed_grading(cpu_dev);
-		if (ret == -EPROBE_DEFER)
-			return ret;
 		if (ret) {
+			if (ret == -EPROBE_DEFER)
+				return ret;
+
 			dev_err(cpu_dev, "failed to read ocotp: %d\n",
 				ret);
 			return ret;
