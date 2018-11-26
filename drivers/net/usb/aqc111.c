@@ -14,8 +14,43 @@
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
 
+static const struct net_device_ops aqc111_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+};
+
+static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	int ret;
+
+	/* Check if vendor configuration */
+	if (udev->actconfig->desc.bConfigurationValue != 1) {
+		usb_driver_set_configuration(udev, 1);
+		return -ENODEV;
+	}
+
+	usb_reset_configuration(dev->udev);
+
+	ret = usbnet_get_endpoints(dev, intf);
+	if (ret < 0) {
+		netdev_dbg(dev->net, "usbnet_get_endpoints failed");
+		return ret;
+	}
+
+	dev->net->netdev_ops = &aqc111_netdev_ops;
+
+	return 0;
+}
+
+static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
+{
+}
+
 static const struct driver_info aqc111_info = {
 	.description	= "Aquantia AQtion USB to 5GbE Controller",
+	.bind		= aqc111_bind,
+	.unbind		= aqc111_unbind,
 };
 
 #define AQC111_USB_ETH_DEV(vid, pid, table) \
