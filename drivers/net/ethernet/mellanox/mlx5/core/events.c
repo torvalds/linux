@@ -36,6 +36,7 @@ static struct mlx5_nb events_nbs_ref[] = {
 
 	/* Events to be forwarded (as is) to mlx5 core interfaces (mlx5e/mlx5_ib) */
 	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_PORT_CHANGE },
+	{.nb.notifier_call = forward_event,   .event_type = MLX5_EVENT_TYPE_GENERAL_EVENT },
 };
 
 struct mlx5_events {
