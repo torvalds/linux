@@ -1999,6 +1999,7 @@ static int rk_drm_get_lcdc_type(void)
 		}
 	}
 	switch (lcdc_type) {
+	case DRM_MODE_CONNECTOR_DPI:
 	case DRM_MODE_CONNECTOR_LVDS:
 		lcdc_type = SCREEN_LVDS;
 		break;
