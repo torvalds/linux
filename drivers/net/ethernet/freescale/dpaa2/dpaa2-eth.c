@@ -240,14 +240,53 @@ static void xdp_release_buf(struct dpaa2_eth_priv *priv,
 	ch->xdp.drop_cnt = 0;
 }
 
+static int xdp_enqueue(struct dpaa2_eth_priv *priv, struct dpaa2_fd *fd,
+		       void *buf_start, u16 queue_id)
+{
+	struct dpaa2_eth_fq *fq;
+	struct dpaa2_faead *faead;
+	u32 ctrl, frc;
+	int i, err;
+
+	/* Mark the egress frame hardware annotation area as valid */
+	frc = dpaa2_fd_get_frc(fd);
+	dpaa2_fd_set_frc(fd, frc | DPAA2_FD_FRC_FAEADV);
+	dpaa2_fd_set_ctrl(fd, DPAA2_FD_CTRL_ASAL);
+
+	/* Instruct hardware to release the FD buffer directly into
+	 * the buffer pool once transmission is completed, instead of
+	 * sending a Tx confirmation frame to us
+	 */
+	ctrl = DPAA2_FAEAD_A4V | DPAA2_FAEAD_A2V | DPAA2_FAEAD_EBDDV;
+	faead = dpaa2_get_faead(buf_start, false);
+	faead->ctrl = cpu_to_le32(ctrl);
+	faead->conf_fqid = 0;
+
+	fq = &priv->fq[queue_id];
+	for (i = 0; i < DPAA2_ETH_ENQUEUE_RETRIES; i++) {
+		err = dpaa2_io_service_enqueue_qd(fq->channel->dpio,
+						  priv->tx_qdid, 0,
+						  fq->tx_qdbin, fd);
+		if (err != -EBUSY)
+			break;
+	}
+
+	return err;
+}
+
 static u32 run_xdp(struct dpaa2_eth_priv *priv,
 		   struct dpaa2_eth_channel *ch,
+		   struct dpaa2_eth_fq *rx_fq,
 		   struct dpaa2_fd *fd, void *vaddr)
 {
 	dma_addr_t addr = dpaa2_fd_get_addr(fd);
+	struct rtnl_link_stats64 *percpu_stats;
 	struct bpf_prog *xdp_prog;
 	struct xdp_buff xdp;
 	u32 xdp_act = XDP_PASS;
+	int err;
+
+	percpu_stats = this_cpu_ptr(priv->percpu_stats);
 
 	rcu_read_lock();
 
@@ -268,6 +307,16 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 
 	switch (xdp_act) {
 	case XDP_PASS:
+		break;
+	case XDP_TX:
+		err = xdp_enqueue(priv, fd, vaddr, rx_fq->flowid);
+		if (err) {
+			xdp_release_buf(priv, ch, addr);
+			percpu_stats->tx_errors++;
+		} else {
+			percpu_stats->tx_packets++;
+			percpu_stats->tx_bytes += dpaa2_fd_get_len(fd);
+		}
 		break;
 	default:
 		bpf_warn_invalid_xdp_action(xdp_act);
@@ -317,7 +366,7 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 	percpu_extras = this_cpu_ptr(priv->percpu_extras);
 
 	if (fd_format == dpaa2_fd_single) {
-		xdp_act = run_xdp(priv, ch, (struct dpaa2_fd *)fd, vaddr);
+		xdp_act = run_xdp(priv, ch, fq, (struct dpaa2_fd *)fd, vaddr);
 		if (xdp_act != XDP_PASS) {
 			percpu_stats->rx_packets++;
 			percpu_stats->rx_bytes += dpaa2_fd_get_len(fd);

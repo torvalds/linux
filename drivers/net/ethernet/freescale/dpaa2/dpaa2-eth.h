@@ -139,7 +139,9 @@ struct dpaa2_faead {
 };
 
 #define DPAA2_FAEAD_A2V			0x20000000
+#define DPAA2_FAEAD_A4V			0x08000000
 #define DPAA2_FAEAD_UPDV		0x00001000
+#define DPAA2_FAEAD_EBDDV		0x00002000
 #define DPAA2_FAEAD_UPD			0x00000010
 
 /* Accessors for the hardware annotation fields that we use */
