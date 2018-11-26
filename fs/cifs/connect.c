@@ -1828,7 +1828,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				vol->password = NULL;
 				break;
 			}
-			/* Yes it is. Drop down to Opt_pass below.*/
+			/* Fallthrough - to Opt_pass below.*/
 		case Opt_pass:
 			/* Obtain the value string */
 			value = strchr(data, '=');
