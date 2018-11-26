@@ -1140,11 +1140,11 @@ SYSCALL_DEFINE0(rt_sigreturn)
 {
 	struct rt_sigframe __user *rt_sf;
 	struct pt_regs *regs = current_pt_regs();
+	int tm_restore = 0;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	struct ucontext __user *uc_transact;
 	unsigned long msr_hi;
 	unsigned long tmp;
-	int tm_restore = 0;
 #endif
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -1192,11 +1192,19 @@ SYSCALL_DEFINE0(rt_sigreturn)
 				goto bad;
 		}
 	}
-	if (!tm_restore)
-		/* Fall through, for non-TM restore */
+	if (!tm_restore) {
+		/*
+		 * Unset regs->msr because ucontext MSR TS is not
+		 * set, and recheckpoint was not called. This avoid
+		 * hitting a TM Bad thing at RFID
+		 */
+		regs->msr &= ~MSR_TS_MASK;
+	}
+	/* Fall through, for non-TM restore */
 #endif
-	if (do_setcontext(&rt_sf->uc, regs, 1))
-		goto bad;
+	if (!tm_restore)
+		if (do_setcontext(&rt_sf->uc, regs, 1))
+			goto bad;
 
 	/*
 	 * It's not clear whether or why it is desirable to save the
