@@ -1619,7 +1619,7 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		qed_sp_pf_update_stag(p_hwfn);
 	}
 
-	DP_VERBOSE(p_hwfn, QED_MSG_SP, "ovlan  = %d hw_mode = 0x%x\n",
+	DP_VERBOSE(p_hwfn, QED_MSG_SP, "ovlan = %d hw_mode = 0x%x\n",
 		   p_hwfn->mcp_info->func_info.ovlan, p_hwfn->hw_info.hw_mode);
 
 	/* Acknowledge the MFW */
@@ -1641,7 +1641,9 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	val = (port_cfg & OEM_CFG_CHANNEL_TYPE_MASK) >>
 		OEM_CFG_CHANNEL_TYPE_OFFSET;
 	if (val != OEM_CFG_CHANNEL_TYPE_STAGGED)
-		DP_NOTICE(p_hwfn, "Incorrect UFP Channel type  %d\n", val);
+		DP_NOTICE(p_hwfn,
+			  "Incorrect UFP Channel type  %d port_id 0x%02x\n",
+			  val, MFW_PORT(p_hwfn));
 
 	val = (port_cfg & OEM_CFG_SCHED_TYPE_MASK) >> OEM_CFG_SCHED_TYPE_OFFSET;
 	if (val == OEM_CFG_SCHED_TYPE_ETS) {
@@ -1650,7 +1652,9 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		p_hwfn->ufp_info.mode = QED_UFP_MODE_VNIC_BW;
 	} else {
 		p_hwfn->ufp_info.mode = QED_UFP_MODE_UNKNOWN;
-		DP_NOTICE(p_hwfn, "Unknown UFP scheduling mode %d\n", val);
+		DP_NOTICE(p_hwfn,
+			  "Unknown UFP scheduling mode %d port_id 0x%02x\n",
+			  val, MFW_PORT(p_hwfn));
 	}
 
 	qed_mcp_get_shmem_func(p_hwfn, p_ptt, &shmem_info, MCP_PF_ID(p_hwfn));
@@ -1665,13 +1669,15 @@ void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_OS;
 	} else {
 		p_hwfn->ufp_info.pri_type = QED_UFP_PRI_UNKNOWN;
-		DP_NOTICE(p_hwfn, "Unknown Host priority control %d\n", val);
+		DP_NOTICE(p_hwfn,
+			  "Unknown Host priority control %d port_id 0x%02x\n",
+			  val, MFW_PORT(p_hwfn));
 	}
 
 	DP_NOTICE(p_hwfn,
-		  "UFP shmem config: mode = %d tc = %d pri_type = %d\n",
-		  p_hwfn->ufp_info.mode,
-		  p_hwfn->ufp_info.tc, p_hwfn->ufp_info.pri_type);
+		  "UFP shmem config: mode = %d tc = %d pri_type = %d port_id 0x%02x\n",
+		  p_hwfn->ufp_info.mode, p_hwfn->ufp_info.tc,
+		  p_hwfn->ufp_info.pri_type, MFW_PORT(p_hwfn));
 }
 
 static int
