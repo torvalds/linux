@@ -277,20 +277,6 @@ config SND_SOC_INTEL_BXT_WM8804_MACH
 
 endif
 
-if SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_APOLLOLAKE
-
-config SND_SOC_INTEL_BXT_TDF8532_MACH
-	tristate "ASoC Audio driver for BXT with TDF8532 in I2S mode"
-	depends on X86 && ACPI && I2C
-	select SND_SOC_TDF8532
-	select SND_SOC_COMPRESS
-	help
-	  This adds support for ASoC machine driver for Broxton IVI GP MRB platform
-	  Say Y if you have such a device.
-	  If unsure select "N".
-
-endif ##  SND_SOC_INTEL_SKYLAKE || SND_SOC_SOF_APOLLOLAKE
-
 if  SND_SOC_INTEL_SKYLAKE
 
 config SND_SOC_INTEL_KBL_RT5663_MAX98927_MACH
