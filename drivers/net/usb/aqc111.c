@@ -11,6 +11,7 @@
 #include <linux/netdevice.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
+#include <linux/if_vlan.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
 
@@ -204,10 +205,42 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &aqc111_data->phy_cfg);
 }
 
+static int aqc111_set_mac_addr(struct net_device *net, void *p)
+{
+	struct usbnet *dev = netdev_priv(net);
+	int ret = 0;
+
+	ret = eth_mac_addr(net, p);
+	if (ret < 0)
+		return ret;
+
+	/* Set the MAC address */
+	return aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_NODE_ID, ETH_ALEN,
+				ETH_ALEN, net->dev_addr);
+}
+
 static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
+	.ndo_set_mac_address	= aqc111_set_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
+
+static int aqc111_read_perm_mac(struct usbnet *dev)
+{
+	u8 buf[ETH_ALEN];
+	int ret;
+
+	ret = aqc111_read_cmd(dev, AQ_FLASH_PARAMETERS, 0, 0, ETH_ALEN, buf);
+	if (ret < 0)
+		goto out;
+
+	ether_addr_copy(dev->net->perm_addr, buf);
+
+	return 0;
+out:
+	return ret;
+}
 
 static void aqc111_read_fw_version(struct usbnet *dev,
 				   struct aqc111_data *aqc111_data)
@@ -251,6 +284,12 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* store aqc111_data pointer in device data field */
 	dev->driver_priv = aqc111_data;
 
+	/* Init the MAC address */
+	ret = aqc111_read_perm_mac(dev);
+	if (ret)
+		goto out;
+
+	ether_addr_copy(dev->net->dev_addr, dev->net->perm_addr);
 	dev->net->netdev_ops = &aqc111_netdev_ops;
 
 	aqc111_read_fw_version(dev, aqc111_data);
@@ -259,6 +298,10 @@ static int aqc111_bind(struct usbnet *dev, struct usb_interface *intf)
 					 SPEED_5000 : SPEED_1000;
 
 	return 0;
+
+out:
+	kfree(aqc111_data);
+	return ret;
 }
 
 static void aqc111_unbind(struct usbnet *dev, struct usb_interface *intf)
@@ -466,6 +509,10 @@ static int aqc111_reset(struct usbnet *dev)
 	aqc111_data->phy_cfg = AQ_PHY_POWER_EN;
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0,
 			   &aqc111_data->phy_cfg);
+
+	/* Set the MAC address */
+	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_NODE_ID, ETH_ALEN,
+			 ETH_ALEN, dev->net->dev_addr);
 
 	reg8 = 0xFF;
 	aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_BM_INT_MASK, 1, 1, &reg8);

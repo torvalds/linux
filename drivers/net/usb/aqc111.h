@@ -11,6 +11,7 @@
 #define __LINUX_USBNET_AQC111_H
 
 #define AQ_ACCESS_MAC			0x01
+#define AQ_FLASH_PARAMETERS		0x20
 #define AQ_PHY_POWER			0x31
 #define AQ_PHY_OPS			0x61
 
