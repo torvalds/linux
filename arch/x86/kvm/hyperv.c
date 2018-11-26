@@ -172,9 +172,8 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	stimers_pending = 0;
 	for (idx = 0; idx < ARRAY_SIZE(hv_vcpu->stimer); idx++) {
 		stimer = &hv_vcpu->stimer[idx];
-		if (stimer->msg_pending &&
-		    (stimer->config & HV_STIMER_ENABLE) &&
-		    HV_STIMER_SINT(stimer->config) == sint) {
+		if (stimer->msg_pending && stimer->config.enable &&
+		    stimer->config.sintx == sint) {
 			set_bit(stimer->index,
 				hv_vcpu->stimer_pending_bitmap);
 			stimers_pending++;
@@ -468,7 +467,7 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 	time_now = get_time_ref_counter(stimer_to_vcpu(stimer)->kvm);
 	ktime_now = ktime_get();
 
-	if (stimer->config & HV_STIMER_PERIODIC) {
+	if (stimer->config.periodic) {
 		if (stimer->exp_time) {
 			if (time_now >= stimer->exp_time) {
 				u64 remainder;
@@ -517,13 +516,15 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 			     bool host)
 {
+	union hv_stimer_config new_config = {.as_uint64 = config};
+
 	trace_kvm_hv_stimer_set_config(stimer_to_vcpu(stimer)->vcpu_id,
 				       stimer->index, config, host);
 
 	stimer_cleanup(stimer);
-	if ((stimer->config & HV_STIMER_ENABLE) && HV_STIMER_SINT(config) == 0)
-		config &= ~HV_STIMER_ENABLE;
-	stimer->config = config;
+	if (stimer->config.enable && new_config.sintx == 0)
+		new_config.enable = 0;
+	stimer->config.as_uint64 = new_config.as_uint64;
 	stimer_mark_pending(stimer, false);
 	return 0;
 }
@@ -537,16 +538,16 @@ static int stimer_set_count(struct kvm_vcpu_hv_stimer *stimer, u64 count,
 	stimer_cleanup(stimer);
 	stimer->count = count;
 	if (stimer->count == 0)
-		stimer->config &= ~HV_STIMER_ENABLE;
-	else if (stimer->config & HV_STIMER_AUTOENABLE)
-		stimer->config |= HV_STIMER_ENABLE;
+		stimer->config.enable = 0;
+	else if (stimer->config.auto_enable)
+		stimer->config.enable = 1;
 	stimer_mark_pending(stimer, false);
 	return 0;
 }
 
 static int stimer_get_config(struct kvm_vcpu_hv_stimer *stimer, u64 *pconfig)
 {
-	*pconfig = stimer->config;
+	*pconfig = stimer->config.as_uint64;
 	return 0;
 }
 
@@ -624,12 +625,12 @@ static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 	 * To avoid piling up periodic ticks, don't retry message
 	 * delivery for them (within "lazy" lost ticks policy).
 	 */
-	bool no_retry = stimer->config & HV_STIMER_PERIODIC;
+	bool no_retry = stimer->config.periodic;
 
 	payload->expiration_time = stimer->exp_time;
 	payload->delivery_time = get_time_ref_counter(vcpu->kvm);
 	return synic_deliver_msg(vcpu_to_synic(vcpu),
-				 HV_STIMER_SINT(stimer->config), msg,
+				 stimer->config.sintx, msg,
 				 no_retry);
 }
 
@@ -643,8 +644,8 @@ static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
 				       stimer->index, r);
 	if (!r) {
 		stimer->msg_pending = false;
-		if (!(stimer->config & HV_STIMER_PERIODIC))
-			stimer->config &= ~HV_STIMER_ENABLE;
+		if (!(stimer->config.periodic))
+			stimer->config.enable = 0;
 	}
 }
 
@@ -658,7 +659,7 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++)
 		if (test_and_clear_bit(i, hv_vcpu->stimer_pending_bitmap)) {
 			stimer = &hv_vcpu->stimer[i];
-			if (stimer->config & HV_STIMER_ENABLE) {
+			if (stimer->config.enable) {
 				exp_time = stimer->exp_time;
 
 				if (exp_time) {
@@ -668,7 +669,7 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 						stimer_expiration(stimer);
 				}
 
-				if ((stimer->config & HV_STIMER_ENABLE) &&
+				if ((stimer->config.enable) &&
 				    stimer->count) {
 					if (!stimer->msg_pending)
 						stimer_start(stimer);

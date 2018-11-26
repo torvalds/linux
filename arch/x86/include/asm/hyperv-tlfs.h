@@ -723,12 +723,6 @@ struct hv_enlightened_vmcs {
 
 #define HV_VMX_ENLIGHTENED_CLEAN_FIELD_ALL			0xFFFF
 
-#define HV_STIMER_ENABLE		(1ULL << 0)
-#define HV_STIMER_PERIODIC		(1ULL << 1)
-#define HV_STIMER_LAZY			(1ULL << 2)
-#define HV_STIMER_AUTOENABLE		(1ULL << 3)
-#define HV_STIMER_SINT(config)		(__u8)(((config) >> 16) & 0x0F)
-
 /* Define synthetic interrupt controller flag constants. */
 #define HV_EVENT_FLAGS_COUNT		(256 * 8)
 #define HV_EVENT_FLAGS_LONG_COUNT	(256 / sizeof(unsigned long))

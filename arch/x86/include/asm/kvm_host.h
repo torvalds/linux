@@ -497,7 +497,7 @@ struct kvm_mtrr {
 struct kvm_vcpu_hv_stimer {
 	struct hrtimer timer;
 	int index;
-	u64 config;
+	union hv_stimer_config config;
 	u64 count;
 	u64 exp_time;
 	struct hv_message msg;
