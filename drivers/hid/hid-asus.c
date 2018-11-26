@@ -241,6 +241,18 @@ static int asus_report_input(struct asus_drvdata *drvdat, u8 *data, int size)
 	return 1;
 }
 
+static int asus_event(struct hid_device *hdev, struct hid_field *field,
+		      struct hid_usage *usage, __s32 value)
+{
+	if ((usage->hid & HID_USAGE_PAGE) == 0xff310000 &&
+	    (usage->hid & HID_USAGE) != 0x00 && !usage->type) {
+		hid_warn(hdev, "Unmapped Asus vendor usagepage code 0x%02x\n",
+			 usage->hid & HID_USAGE);
+	}
+
+	return 0;
+}
+
 static int asus_raw_event(struct hid_device *hdev,
 		struct hid_report *report, u8 *data, int size)
 {
@@ -832,6 +844,7 @@ static struct hid_driver asus_driver = {
 #ifdef CONFIG_PM
 	.reset_resume           = asus_reset_resume,
 #endif
+	.event			= asus_event,
 	.raw_event		= asus_raw_event
 };
 module_hid_driver(asus_driver);
