@@ -261,6 +261,46 @@ static int aqc111_set_mac_addr(struct net_device *net, void *p)
 				ETH_ALEN, net->dev_addr);
 }
 
+static int aqc111_set_features(struct net_device *net,
+			       netdev_features_t features)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+	netdev_features_t changed = net->features ^ features;
+	u8 reg8 = 0;
+
+	if (changed & NETIF_F_IP_CSUM) {
+		aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_TXCOE_CTL, 1, 1, &reg8);
+		reg8 ^= SFR_TXCOE_TCP | SFR_TXCOE_UDP;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_TXCOE_CTL,
+				 1, 1, &reg8);
+	}
+
+	if (changed & NETIF_F_IPV6_CSUM) {
+		aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_TXCOE_CTL, 1, 1, &reg8);
+		reg8 ^= SFR_TXCOE_TCPV6 | SFR_TXCOE_UDPV6;
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_TXCOE_CTL,
+				 1, 1, &reg8);
+	}
+
+	if (changed & NETIF_F_RXCSUM) {
+		aqc111_read_cmd(dev, AQ_ACCESS_MAC, SFR_RXCOE_CTL, 1, 1, &reg8);
+		if (features & NETIF_F_RXCSUM) {
+			aqc111_data->rx_checksum = 1;
+			reg8 &= ~(SFR_RXCOE_IP | SFR_RXCOE_TCP | SFR_RXCOE_UDP |
+				  SFR_RXCOE_TCPV6 | SFR_RXCOE_UDPV6);
+		} else {
+			aqc111_data->rx_checksum = 0;
+			reg8 |= SFR_RXCOE_IP | SFR_RXCOE_TCP | SFR_RXCOE_UDP |
+				SFR_RXCOE_TCPV6 | SFR_RXCOE_UDPV6;
+		}
+
+		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RXCOE_CTL,
+				 1, 1, &reg8);
+	}
+	return 0;
+}
+
 static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
@@ -270,6 +310,7 @@ static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_change_mtu		= aqc111_change_mtu,
 	.ndo_set_mac_address	= aqc111_set_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
+	.ndo_set_features	= aqc111_set_features,
 };
 
 static int aqc111_read_perm_mac(struct usbnet *dev)
@@ -680,6 +721,7 @@ static void aqc111_rx_checksum(struct sk_buff *skb, u64 pkt_desc)
 
 static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 {
+	struct aqc111_data *aqc111_data = dev->driver_priv;
 	struct sk_buff *new_skb = NULL;
 	u32 pkt_total_offset = 0;
 	u64 *pkt_desc_ptr = NULL;
@@ -755,7 +797,8 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		skb_set_tail_pointer(new_skb, new_skb->len);
 
 		new_skb->truesize = SKB_TRUESIZE(new_skb->len);
-		aqc111_rx_checksum(new_skb, pkt_desc);
+		if (aqc111_data->rx_checksum)
+			aqc111_rx_checksum(new_skb, pkt_desc);
 
 		usbnet_skb_return(dev, new_skb);
 		if (pkt_count == 0)
