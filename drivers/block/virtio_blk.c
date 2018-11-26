@@ -214,6 +214,20 @@ static void virtblk_done(struct virtqueue *vq)
 	spin_unlock_irqrestore(&vblk->vqs[qid].lock, flags);
 }
 
+static void virtio_commit_rqs(struct blk_mq_hw_ctx *hctx)
+{
+	struct virtio_blk *vblk = hctx->queue->queuedata;
+	struct virtio_blk_vq *vq = &vblk->vqs[hctx->queue_num];
+	bool kick;
+
+	spin_lock_irq(&vq->lock);
+	kick = virtqueue_kick_prepare(vq->vq);
+	spin_unlock_irq(&vq->lock);
+
+	if (kick)
+		virtqueue_notify(vq->vq);
+}
+
 static blk_status_t virtio_queue_rq(struct blk_mq_hw_ctx *hctx,
 			   const struct blk_mq_queue_data *bd)
 {
@@ -638,6 +652,7 @@ static void virtblk_initialize_rq(struct request *req)
 
 static const struct blk_mq_ops virtio_mq_ops = {
 	.queue_rq	= virtio_queue_rq,
+	.commit_rqs	= virtio_commit_rqs,
 	.complete	= virtblk_request_done,
 	.init_request	= virtblk_init_request,
 #ifdef CONFIG_VIRTIO_BLK_SCSI
