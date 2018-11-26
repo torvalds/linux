@@ -58,6 +58,45 @@ static void of_gpio_flags_quirks(struct device_node *np,
 				 int index)
 {
 	/*
+	 * Handle MMC "cd-inverted" and "wp-inverted" semantics.
+	 */
+	if (IS_ENABLED(CONFIG_MMC)) {
+		if (of_property_read_bool(np, "cd-gpios")) {
+			if (of_property_read_bool(np, "cd-inverted")) {
+				if (*flags & OF_GPIO_ACTIVE_LOW) {
+					/* "cd-inverted" takes precedence */
+					*flags &= ~OF_GPIO_ACTIVE_LOW;
+					pr_warn("%s GPIO handle specifies CD active low - ignored\n",
+						of_node_full_name(np));
+				}
+			} else {
+				/*
+				 * Active low is the default according to the
+				 * SDHCI specification. If the GPIO handle
+				 * specifies the same thing - good.
+				 */
+				*flags |= OF_GPIO_ACTIVE_LOW;
+			}
+		}
+		if (of_property_read_bool(np, "wp-gpios")) {
+			if (of_property_read_bool(np, "wp-inverted")) {
+				/* "wp-inverted" takes precedence */
+				if (*flags & OF_GPIO_ACTIVE_LOW) {
+					*flags &= ~OF_GPIO_ACTIVE_LOW;
+					pr_warn("%s GPIO handle specifies WP active low - ignored\n",
+						of_node_full_name(np));
+				}
+			} else {
+				/*
+				 * Active low is the default according to the
+				 * SDHCI specification. If the GPIO handle
+				 * specifies the same thing - good.
+				 */
+				*flags |= OF_GPIO_ACTIVE_LOW;
+			}
+		}
+	}
+	/*
 	 * Some GPIO fixed regulator quirks.
 	 * Note that active low is the default.
 	 */
