@@ -20,9 +20,10 @@ struct stripe {
 	u8			nr_blocks;
 	u8			nr_redundant;
 
-	u8			alive;
-	atomic_t		blocks_nonempty;
-	atomic_t		block_sectors[EC_STRIPE_MAX];
+	unsigned		alive:1;
+	unsigned		dirty:1;
+	u8			blocks_nonempty;
+	u16			block_sectors[EC_STRIPE_MAX];
 
 	struct bch_replicas_padded r;
 };

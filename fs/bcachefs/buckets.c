@@ -605,9 +605,14 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 	int blocks_nonempty_delta;
 	s64 parity_sectors;
 
+	BUG_ON(!sectors);
+
 	m = genradix_ptr(&c->stripes[gc], p.idx);
 
+	spin_lock(&c->ec_stripes_heap_lock);
+
 	if (!m || !m->alive) {
+		spin_unlock(&c->ec_stripes_heap_lock);
 		bch_err_ratelimited(c, "pointer to nonexistent stripe %llu",
 				    (u64) p.idx);
 		return -1;
@@ -623,19 +628,21 @@ static int bch2_mark_stripe_ptr(struct bch_fs *c,
 		parity_sectors = -parity_sectors;
 	sectors += parity_sectors;
 
-	new = atomic_add_return(sectors, &m->block_sectors[p.block]);
-	old = new - sectors;
+	old = m->block_sectors[p.block];
+	m->block_sectors[p.block] += sectors;
+	new = m->block_sectors[p.block];
 
 	blocks_nonempty_delta = (int) !!new - (int) !!old;
-	if (!blocks_nonempty_delta)
-		return 0;
+	if (blocks_nonempty_delta) {
+		m->blocks_nonempty += blocks_nonempty_delta;
 
-	atomic_add(blocks_nonempty_delta, &m->blocks_nonempty);
+		if (!gc)
+			bch2_stripes_heap_update(c, m, p.idx);
+	}
 
-	BUG_ON(atomic_read(&m->blocks_nonempty) < 0);
+	m->dirty = true;
 
-	if (!gc)
-		bch2_stripes_heap_update(c, m, p.idx);
+	spin_unlock(&c->ec_stripes_heap_lock);
 
 	update_replicas(c, fs_usage, &m->r.e, sectors);
 
@@ -721,8 +728,6 @@ static void bucket_set_stripe(struct bch_fs *c,
 				new.journal_seq		= journal_seq;
 			}
 		}));
-
-		BUG_ON(old.stripe == enabled);
 	}
 }
 
@@ -737,22 +742,19 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 	struct stripe *m = genradix_ptr(&c->stripes[gc], idx);
 	unsigned i;
 
+	spin_lock(&c->ec_stripes_heap_lock);
+
 	if (!m || (!inserting && !m->alive)) {
+		spin_unlock(&c->ec_stripes_heap_lock);
 		bch_err_ratelimited(c, "error marking nonexistent stripe %zu",
 				    idx);
 		return -1;
 	}
 
-	if (inserting && m->alive) {
-		bch_err_ratelimited(c, "error marking stripe %zu: already exists",
-				    idx);
-		return -1;
-	}
+	if (m->alive)
+		bch2_stripes_heap_del(c, m, idx);
 
-	BUG_ON(atomic_read(&m->blocks_nonempty));
-
-	for (i = 0; i < EC_STRIPE_MAX; i++)
-		BUG_ON(atomic_read(&m->block_sectors[i]));
+	memset(m, 0, sizeof(*m));
 
 	if (inserting) {
 		m->sectors	= le16_to_cpu(s.v->sectors);
@@ -768,7 +770,6 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 
 		for (i = 0; i < s.v->nr_blocks; i++)
 			m->r.e.devs[i] = s.v->ptrs[i].dev;
-	}
 
 	/*
 	 * XXX: account for stripes somehow here
@@ -777,14 +778,22 @@ static int bch2_mark_stripe(struct bch_fs *c, struct bkey_s_c k,
 	update_replicas(c, fs_usage, &m->r.e, stripe_sectors);
 #endif
 
-	if (!gc) {
-		if (inserting)
+		/* gc recalculates these fields: */
+		if (!(flags & BCH_BUCKET_MARK_GC)) {
+			for (i = 0; i < s.v->nr_blocks; i++) {
+				m->block_sectors[i] =
+					stripe_blockcount_get(s.v, i);
+				m->blocks_nonempty += !!m->block_sectors[i];
+			}
+		}
+
+		if (!gc)
 			bch2_stripes_heap_insert(c, m, idx);
 		else
-			bch2_stripes_heap_del(c, m, idx);
-	} else {
-		m->alive = inserting;
+			m->alive = true;
 	}
+
+	spin_unlock(&c->ec_stripes_heap_lock);
 
 	bucket_set_stripe(c, s.v, inserting, fs_usage, 0, gc);
 	return 0;

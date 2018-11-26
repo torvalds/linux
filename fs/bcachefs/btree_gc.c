@@ -561,6 +561,7 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 			dst_iter.pos, ##__VA_ARGS__,			\
 			dst->_f, src->_f);				\
 		dst->_f = src->_f;					\
+		dst->dirty = true;					\
 	}
 #define copy_bucket_field(_f)						\
 	if (dst->b[b].mark._f != src->b[b].mark._f) {			\
@@ -591,16 +592,18 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 
 		while ((dst = genradix_iter_peek(&dst_iter, &c->stripes[0])) &&
 		       (src = genradix_iter_peek(&src_iter, &c->stripes[1]))) {
+			BUG_ON(src_iter.pos != dst_iter.pos);
+
 			copy_stripe_field(alive,	"alive");
 			copy_stripe_field(sectors,	"sectors");
 			copy_stripe_field(algorithm,	"algorithm");
 			copy_stripe_field(nr_blocks,	"nr_blocks");
 			copy_stripe_field(nr_redundant,	"nr_redundant");
-			copy_stripe_field(blocks_nonempty.counter,
+			copy_stripe_field(blocks_nonempty,
 					  "blocks_nonempty");
 
 			for (i = 0; i < ARRAY_SIZE(dst->block_sectors); i++)
-				copy_stripe_field(block_sectors[i].counter,
+				copy_stripe_field(block_sectors[i],
 						  "block_sectors[%u]", i);
 
 			if (dst->alive)

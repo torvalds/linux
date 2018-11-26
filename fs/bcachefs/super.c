@@ -198,6 +198,12 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 			break;
 		}
 
+		ret = bch2_stripes_write(c, &wrote);
+		if (ret) {
+			bch2_fs_inconsistent(c, "error writing out stripes");
+			break;
+		}
+
 		for_each_member_device(ca, c, i)
 			bch2_dev_allocator_quiesce(c, ca);
 

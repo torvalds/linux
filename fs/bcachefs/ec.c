@@ -12,6 +12,7 @@
 #include "ec.h"
 #include "error.h"
 #include "io.h"
+#include "journal_io.h"
 #include "keylist.h"
 #include "super-io.h"
 #include "util.h"
@@ -99,40 +100,6 @@ struct ec_bio {
 
 /* Stripes btree keys: */
 
-static unsigned stripe_csums_per_device(const struct bch_stripe *s)
-{
-	return DIV_ROUND_UP(le16_to_cpu(s->sectors),
-			    1 << s->csum_granularity_bits);
-}
-
-static unsigned stripe_csum_offset(const struct bch_stripe *s,
-				   unsigned dev, unsigned csum_idx)
-{
-	unsigned csum_bytes = bch_crc_bytes[s->csum_type];
-
-	return sizeof(struct bch_stripe) +
-		sizeof(struct bch_extent_ptr) * s->nr_blocks +
-		(dev * stripe_csums_per_device(s) + csum_idx) * csum_bytes;
-}
-
-static unsigned stripe_blockcount_offset(const struct bch_stripe *s,
-					 unsigned idx)
-{
-	return stripe_csum_offset(s, s->nr_blocks, 0) +
-		sizeof(16) * idx;
-}
-
-static unsigned stripe_val_u64s(const struct bch_stripe *s)
-{
-	return DIV_ROUND_UP(stripe_blockcount_offset(s, s->nr_blocks),
-			    sizeof(u64));
-}
-
-static void *stripe_csum(struct bch_stripe *s, unsigned dev, unsigned csum_idx)
-{
-	return (void *) s + stripe_csum_offset(s, dev, csum_idx);
-}
-
 const char *bch2_stripe_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
@@ -165,8 +132,9 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 	       1U << s->csum_granularity_bits);
 
 	for (i = 0; i < s->nr_blocks; i++)
-		pr_buf(out, " %u:%llu", s->ptrs[i].dev,
-		       (u64) s->ptrs[i].offset);
+		pr_buf(out, " %u:%llu:%u", s->ptrs[i].dev,
+		       (u64) s->ptrs[i].offset,
+		       stripe_blockcount_get(s, i));
 }
 
 static int ptr_matches_stripe(struct bch_fs *c,
@@ -610,29 +578,15 @@ static void heap_verify_backpointer(struct bch_fs *c, size_t idx)
 	BUG_ON(h->data[m->heap_idx].idx != idx);
 }
 
-static inline unsigned stripe_entry_blocks(struct stripe *m)
-{
-	return atomic_read(&m->blocks_nonempty);
-}
-
 void bch2_stripes_heap_update(struct bch_fs *c,
 			      struct stripe *m, size_t idx)
 {
 	ec_stripes_heap *h = &c->ec_stripes_heap;
-	bool queue_delete;
 	size_t i;
-
-	spin_lock(&c->ec_stripes_heap_lock);
-
-	if (!m->alive) {
-		spin_unlock(&c->ec_stripes_heap_lock);
-		return;
-	}
 
 	heap_verify_backpointer(c, idx);
 
-	h->data[m->heap_idx].blocks_nonempty =
-		stripe_entry_blocks(m);
+	h->data[m->heap_idx].blocks_nonempty = m->blocks_nonempty;
 
 	i = m->heap_idx;
 	heap_sift_up(h,	  i, ec_stripes_heap_cmp,
@@ -642,44 +596,35 @@ void bch2_stripes_heap_update(struct bch_fs *c,
 
 	heap_verify_backpointer(c, idx);
 
-	queue_delete = stripe_idx_to_delete(c) >= 0;
-	spin_unlock(&c->ec_stripes_heap_lock);
-
-	if (queue_delete)
+	if (stripe_idx_to_delete(c) >= 0)
 		schedule_work(&c->ec_stripe_delete_work);
 }
 
 void bch2_stripes_heap_del(struct bch_fs *c,
 			   struct stripe *m, size_t idx)
 {
-	spin_lock(&c->ec_stripes_heap_lock);
 	heap_verify_backpointer(c, idx);
 
 	m->alive = false;
 	heap_del(&c->ec_stripes_heap, m->heap_idx,
 		 ec_stripes_heap_cmp,
 		 ec_stripes_heap_set_backpointer);
-	spin_unlock(&c->ec_stripes_heap_lock);
 }
 
 void bch2_stripes_heap_insert(struct bch_fs *c,
 			      struct stripe *m, size_t idx)
 {
-	spin_lock(&c->ec_stripes_heap_lock);
-
 	BUG_ON(heap_full(&c->ec_stripes_heap));
 
 	heap_add(&c->ec_stripes_heap, ((struct ec_stripe_heap_entry) {
 			.idx = idx,
-			.blocks_nonempty = stripe_entry_blocks(m),
+			.blocks_nonempty = m->blocks_nonempty,
 		}),
 		 ec_stripes_heap_cmp,
 		 ec_stripes_heap_set_backpointer);
 	m->alive = true;
 
 	heap_verify_backpointer(c, idx);
-
-	spin_unlock(&c->ec_stripes_heap_lock);
 }
 
 /* stripe deletion */
@@ -1216,6 +1161,116 @@ unlock:
 			ec_stripe_new_put(s);
 	}
 	mutex_unlock(&c->ec_new_stripe_lock);
+}
+
+static int __bch2_stripe_write_key(struct bch_fs *c,
+				   struct btree_iter *iter,
+				   struct stripe *m,
+				   size_t idx,
+				   struct bkey_i_stripe *new_key,
+				   unsigned flags)
+{
+	struct bkey_s_c k;
+	unsigned i;
+	int ret;
+
+	bch2_btree_iter_set_pos(iter, POS(0, idx));
+
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = btree_iter_err(k);
+	if (ret)
+		return ret;
+
+	if (k.k->type != KEY_TYPE_stripe)
+		return -EIO;
+
+	bkey_reassemble(&new_key->k_i, k);
+
+	spin_lock(&c->ec_stripes_heap_lock);
+
+	for (i = 0; i < new_key->v.nr_blocks; i++)
+		stripe_blockcount_set(&new_key->v, i,
+				      m->block_sectors[i]);
+	m->dirty = false;
+
+	spin_unlock(&c->ec_stripes_heap_lock);
+
+	return bch2_btree_insert_at(c, NULL, NULL,
+				   BTREE_INSERT_NOFAIL|flags,
+				   BTREE_INSERT_ENTRY(iter, &new_key->k_i));
+}
+
+int bch2_stripes_write(struct bch_fs *c, bool *wrote)
+{
+	struct btree_iter iter;
+	struct genradix_iter giter;
+	struct bkey_i_stripe *new_key;
+	struct stripe *m;
+	int ret = 0;
+
+	new_key = kmalloc(255 * sizeof(u64), GFP_KERNEL);
+	BUG_ON(!new_key);
+
+	bch2_btree_iter_init(&iter, c, BTREE_ID_EC, POS_MIN,
+			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+
+	genradix_for_each(&c->stripes[0], giter, m) {
+		if (!m->dirty)
+			continue;
+
+		ret = __bch2_stripe_write_key(c, &iter, m, giter.pos,
+					new_key, BTREE_INSERT_NOCHECK_RW);
+		if (ret)
+			break;
+
+		*wrote = true;
+	}
+
+	bch2_btree_iter_unlock(&iter);
+
+	kfree(new_key);
+
+	return ret;
+}
+
+static void bch2_stripe_read_key(struct bch_fs *c, struct bkey_s_c k)
+{
+
+	struct gc_pos pos = { 0 };
+
+	bch2_mark_key(c, k, true, 0, pos, NULL, 0, 0);
+}
+
+int bch2_stripes_read(struct bch_fs *c, struct list_head *journal_replay_list)
+{
+	struct journal_replay *r;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	ret = bch2_fs_ec_start(c);
+	if (ret)
+		return ret;
+
+	for_each_btree_key(&iter, c, BTREE_ID_EC, POS_MIN, 0, k) {
+		bch2_stripe_read_key(c, k);
+		bch2_btree_iter_cond_resched(&iter);
+	}
+
+	ret = bch2_btree_iter_unlock(&iter);
+	if (ret)
+		return ret;
+
+	list_for_each_entry(r, journal_replay_list, list) {
+		struct bkey_i *k, *n;
+		struct jset_entry *entry;
+
+		for_each_jset_key(k, n, entry, &r->j)
+			if (entry->btree_id == BTREE_ID_EC)
+				bch2_stripe_read_key(c, bkey_i_to_s_c(k));
+	}
+
+	return 0;
 }
 
 int bch2_ec_mem_alloc(struct bch_fs *c, bool gc)

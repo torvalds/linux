@@ -14,6 +14,55 @@ void bch2_stripe_to_text(struct printbuf *, struct bch_fs *,
 	.val_to_text	= bch2_stripe_to_text,		\
 }
 
+static inline unsigned stripe_csums_per_device(const struct bch_stripe *s)
+{
+	return DIV_ROUND_UP(le16_to_cpu(s->sectors),
+			    1 << s->csum_granularity_bits);
+}
+
+static inline unsigned stripe_csum_offset(const struct bch_stripe *s,
+					  unsigned dev, unsigned csum_idx)
+{
+	unsigned csum_bytes = bch_crc_bytes[s->csum_type];
+
+	return sizeof(struct bch_stripe) +
+		sizeof(struct bch_extent_ptr) * s->nr_blocks +
+		(dev * stripe_csums_per_device(s) + csum_idx) * csum_bytes;
+}
+
+static inline unsigned stripe_blockcount_offset(const struct bch_stripe *s,
+						unsigned idx)
+{
+	return stripe_csum_offset(s, s->nr_blocks, 0) +
+		sizeof(u16) * idx;
+}
+
+static inline unsigned stripe_blockcount_get(const struct bch_stripe *s,
+					     unsigned idx)
+{
+	return le16_to_cpup((void *) s + stripe_blockcount_offset(s, idx));
+}
+
+static inline void stripe_blockcount_set(struct bch_stripe *s,
+					 unsigned idx, unsigned v)
+{
+	__le16 *p = (void *) s + stripe_blockcount_offset(s, idx);
+
+	*p = cpu_to_le16(v);
+}
+
+static inline unsigned stripe_val_u64s(const struct bch_stripe *s)
+{
+	return DIV_ROUND_UP(stripe_blockcount_offset(s, s->nr_blocks),
+			    sizeof(u64));
+}
+
+static inline void *stripe_csum(struct bch_stripe *s,
+				unsigned dev, unsigned csum_idx)
+{
+	return (void *) s + stripe_csum_offset(s, dev, csum_idx);
+}
+
 struct bch_read_bio;
 
 struct ec_stripe_buf {
@@ -100,6 +149,9 @@ void bch2_stripes_heap_insert(struct bch_fs *, struct stripe *, size_t);
 void bch2_ec_stop_dev(struct bch_fs *, struct bch_dev *);
 
 void bch2_ec_flush_new_stripes(struct bch_fs *);
+
+int bch2_stripes_read(struct bch_fs *, struct list_head *);
+int bch2_stripes_write(struct bch_fs *, bool *);
 
 int bch2_ec_mem_alloc(struct bch_fs *, bool);
 
