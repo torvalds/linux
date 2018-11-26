@@ -291,6 +291,10 @@ BEGIN_FTR_SECTION
 	HMT_MEDIUM_LOW
 END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	std	r8, PACATMSCRATCH(r13)
+#endif
+
 	ld	r13,GPR13(r1)	/* only restore r13 if returning to usermode */
 	ld	r2,GPR2(r1)
 	ld	r1,GPR1(r1)
