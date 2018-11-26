@@ -14,6 +14,98 @@
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
 
+#include "aqc111.h"
+
+static int aqc111_read_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+				u16 index, u16 size, void *data)
+{
+	int ret;
+
+	ret = usbnet_read_cmd_nopm(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR |
+				   USB_RECIP_DEVICE, value, index, data, size);
+
+	if (unlikely(ret < 0))
+		netdev_warn(dev->net,
+			    "Failed to read(0x%x) reg index 0x%04x: %d\n",
+			    cmd, index, ret);
+
+	return ret;
+}
+
+static int aqc111_read_cmd(struct usbnet *dev, u8 cmd, u16 value,
+			   u16 index, u16 size, void *data)
+{
+	int ret;
+
+	ret = usbnet_read_cmd(dev, cmd, USB_DIR_IN | USB_TYPE_VENDOR |
+			      USB_RECIP_DEVICE, value, index, data, size);
+
+	if (unlikely(ret < 0))
+		netdev_warn(dev->net,
+			    "Failed to read(0x%x) reg index 0x%04x: %d\n",
+			    cmd, index, ret);
+
+	return ret;
+}
+
+static int __aqc111_write_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,
+			      u16 value, u16 index, u16 size, const void *data)
+{
+	int err = -ENOMEM;
+	void *buf = NULL;
+
+	netdev_dbg(dev->net,
+		   "%s cmd=%#x reqtype=%#x value=%#x index=%#x size=%d\n",
+		   __func__, cmd, reqtype, value, index, size);
+
+	if (data) {
+		buf = kmemdup(data, size, GFP_KERNEL);
+		if (!buf)
+			goto out;
+	}
+
+	err = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
+			      cmd, reqtype, value, index, buf, size,
+			      (cmd == AQ_PHY_POWER) ? AQ_USB_PHY_SET_TIMEOUT :
+			      AQ_USB_SET_TIMEOUT);
+
+	if (unlikely(err < 0))
+		netdev_warn(dev->net,
+			    "Failed to write(0x%x) reg index 0x%04x: %d\n",
+			    cmd, index, err);
+	kfree(buf);
+
+out:
+	return err;
+}
+
+static int aqc111_write_cmd_nopm(struct usbnet *dev, u8 cmd, u16 value,
+				 u16 index, u16 size, void *data)
+{
+	int ret;
+
+	ret = __aqc111_write_cmd(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_DEVICE, value, index, size, data);
+
+	return ret;
+}
+
+static int aqc111_write_cmd(struct usbnet *dev, u8 cmd, u16 value,
+			    u16 index, u16 size, void *data)
+{
+	int ret;
+
+	if (usb_autopm_get_interface(dev->intf) < 0)
+		return -ENODEV;
+
+	ret = __aqc111_write_cmd(dev, cmd, USB_DIR_OUT | USB_TYPE_VENDOR |
+				 USB_RECIP_DEVICE, value, index, size, data);
+
+	usb_autopm_put_interface(dev->intf);
+
+	return ret;
+}
+
 static const struct net_device_ops aqc111_netdev_ops = {
 	.ndo_open		= usbnet_open,
 	.ndo_stop		= usbnet_stop,
