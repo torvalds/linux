@@ -1283,13 +1283,11 @@ static u16 rtl_get_events(struct rtl8169_private *tp)
 static void rtl_ack_events(struct rtl8169_private *tp, u16 bits)
 {
 	RTL_W16(tp, IntrStatus, bits);
-	mmiowb();
 }
 
 static void rtl_irq_disable(struct rtl8169_private *tp)
 {
 	RTL_W16(tp, IntrMask, 0);
-	mmiowb();
 }
 
 #define RTL_EVENT_NAPI_RX	(RxOK | RxErr)
@@ -6127,10 +6125,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 	if (unlikely(stop_queue))
 		netif_stop_queue(dev);
 
-	if (__netdev_sent_queue(dev, skb->len, skb->xmit_more)) {
+	if (__netdev_sent_queue(dev, skb->len, skb->xmit_more))
 		RTL_W8(tp, TxPoll, NPQ);
-		mmiowb();
-	}
 
 	if (unlikely(stop_queue)) {
 		/* Sync with rtl_tx:
@@ -6481,9 +6477,7 @@ static int rtl8169_poll(struct napi_struct *napi, int budget)
 
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
-
 		rtl_irq_enable(tp);
-		mmiowb();
 	}
 
 	return work_done;
