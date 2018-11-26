@@ -76,9 +76,6 @@ int kvm_arm_timer_has_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *attr);
 
 bool kvm_timer_is_pending(struct kvm_vcpu *vcpu);
 
-void kvm_timer_schedule(struct kvm_vcpu *vcpu);
-void kvm_timer_unschedule(struct kvm_vcpu *vcpu);
-
 u64 kvm_phys_timer_read(void);
 
 void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu);

@@ -349,21 +349,11 @@ out:
  * thread is removed from its waitqueue and made runnable when there's a timer
  * interrupt to handle.
  */
-void kvm_timer_schedule(struct kvm_vcpu *vcpu)
+static void kvm_timer_blocking(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
 	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 	struct arch_timer_context *ptimer = vcpu_ptimer(vcpu);
-
-	vtimer_save_state(vcpu);
-
-	/*
-	 * No need to schedule a background timer if any guest timer has
-	 * already expired, because kvm_vcpu_block will return before putting
-	 * the thread to sleep.
-	 */
-	if (kvm_timer_should_fire(vtimer) || kvm_timer_should_fire(ptimer))
-		return;
 
 	/*
 	 * If both timers are not capable of raising interrupts (disabled or
@@ -373,10 +363,17 @@ void kvm_timer_schedule(struct kvm_vcpu *vcpu)
 		return;
 
 	/*
-	 * The guest timers have not yet expired, schedule a background timer.
+	 * At least one guest time will expire. Schedule a background timer.
 	 * Set the earliest expiration time among the guest timers.
 	 */
 	soft_timer_start(&timer->bg_timer, kvm_timer_earliest_exp(vcpu));
+}
+
+static void kvm_timer_unblocking(struct kvm_vcpu *vcpu)
+{
+	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
+
+	soft_timer_cancel(&timer->bg_timer);
 }
 
 static void vtimer_restore_state(struct kvm_vcpu *vcpu)
@@ -399,15 +396,6 @@ static void vtimer_restore_state(struct kvm_vcpu *vcpu)
 	vtimer->loaded = true;
 out:
 	local_irq_restore(flags);
-}
-
-void kvm_timer_unschedule(struct kvm_vcpu *vcpu)
-{
-	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-
-	vtimer_restore_state(vcpu);
-
-	soft_timer_cancel(&timer->bg_timer);
 }
 
 static void set_cntvoff(u64 cntvoff)
@@ -485,6 +473,8 @@ void kvm_timer_vcpu_load(struct kvm_vcpu *vcpu)
 	/* Set the background timer for the physical timer emulation. */
 	phys_timer_emulate(vcpu);
 
+	kvm_timer_unblocking(vcpu);
+
 	/* If the timer fired while we weren't running, inject it now */
 	if (kvm_timer_should_fire(ptimer) != ptimer->irq.level)
 		kvm_timer_update_irq(vcpu, !ptimer->irq.level, ptimer);
@@ -526,6 +516,9 @@ void kvm_timer_vcpu_put(struct kvm_vcpu *vcpu)
 	 * coming back to the VCPU thread in kvm_timer_vcpu_load().
 	 */
 	soft_timer_cancel(&timer->phys_timer);
+
+	if (swait_active(kvm_arch_vcpu_wq(vcpu)))
+		kvm_timer_blocking(vcpu);
 
 	/*
 	 * The kernel may decide to run userspace after calling vcpu_put, so
