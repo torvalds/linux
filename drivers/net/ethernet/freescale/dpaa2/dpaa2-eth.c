@@ -216,10 +216,14 @@ static u32 run_xdp(struct dpaa2_eth_priv *priv,
 
 	xdp.data = vaddr + dpaa2_fd_get_offset(fd);
 	xdp.data_end = xdp.data + dpaa2_fd_get_len(fd);
-	xdp.data_hard_start = xdp.data;
+	xdp.data_hard_start = xdp.data - XDP_PACKET_HEADROOM;
 	xdp_set_data_meta_invalid(&xdp);
 
 	xdp_act = bpf_prog_run_xdp(xdp_prog, &xdp);
+
+	/* xdp.data pointer may have changed */
+	dpaa2_fd_set_offset(fd, xdp.data - vaddr);
+	dpaa2_fd_set_len(fd, xdp.data_end - xdp.data);
 
 	switch (xdp_act) {
 	case XDP_PASS:
@@ -1483,7 +1487,7 @@ static bool xdp_mtu_valid(struct dpaa2_eth_priv *priv, int mtu)
 
 	mfl = DPAA2_ETH_L2_MAX_FRM(mtu);
 	linear_mfl = DPAA2_ETH_RX_BUF_SIZE - DPAA2_ETH_RX_HWA_SIZE -
-		     dpaa2_eth_rx_head_room(priv);
+		     dpaa2_eth_rx_head_room(priv) - XDP_PACKET_HEADROOM;
 
 	if (mfl > linear_mfl) {
 		netdev_warn(priv->net_dev, "Maximum MTU for XDP is %d\n",
@@ -1537,6 +1541,32 @@ out:
 	return 0;
 }
 
+static int update_rx_buffer_headroom(struct dpaa2_eth_priv *priv, bool has_xdp)
+{
+	struct dpni_buffer_layout buf_layout = {0};
+	int err;
+
+	err = dpni_get_buffer_layout(priv->mc_io, 0, priv->mc_token,
+				     DPNI_QUEUE_RX, &buf_layout);
+	if (err) {
+		netdev_err(priv->net_dev, "dpni_get_buffer_layout failed\n");
+		return err;
+	}
+
+	/* Reserve extra headroom for XDP header size changes */
+	buf_layout.data_head_room = dpaa2_eth_rx_head_room(priv) +
+				    (has_xdp ? XDP_PACKET_HEADROOM : 0);
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_DATA_HEAD_ROOM;
+	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
+				     DPNI_QUEUE_RX, &buf_layout);
+	if (err) {
+		netdev_err(priv->net_dev, "dpni_set_buffer_layout failed\n");
+		return err;
+	}
+
+	return 0;
+}
+
 static int setup_xdp(struct net_device *dev, struct bpf_prog *prog)
 {
 	struct dpaa2_eth_priv *priv = netdev_priv(dev);
@@ -1560,9 +1590,16 @@ static int setup_xdp(struct net_device *dev, struct bpf_prog *prog)
 	if (up)
 		dpaa2_eth_stop(dev);
 
-	/* While in xdp mode, enforce a maximum Rx frame size based on MTU */
+	/* While in xdp mode, enforce a maximum Rx frame size based on MTU.
+	 * Also, when switching between xdp/non-xdp modes we need to reconfigure
+	 * our Rx buffer layout. Buffer pool was drained on dpaa2_eth_stop,
+	 * so we are sure no old format buffers will be used from now on.
+	 */
 	if (need_update) {
 		err = set_rx_mfl(priv, dev->mtu, !!prog);
+		if (err)
+			goto out_err;
+		err = update_rx_buffer_headroom(priv, !!prog);
 		if (err)
 			goto out_err;
 	}
