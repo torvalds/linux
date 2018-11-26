@@ -29,7 +29,6 @@
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/debugfs.h>
-#include <linux/dell-led.h>
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
@@ -2109,17 +2108,17 @@ static struct notifier_block dell_laptop_notifier = {
 	.notifier_call = dell_laptop_notifier_call,
 };
 
-int dell_micmute_led_set(int state)
+static int micmute_led_set(struct led_classdev *led_cdev,
+			   enum led_brightness brightness)
 {
 	struct calling_interface_buffer buffer;
 	struct calling_interface_token *token;
+	int state = brightness != LED_OFF;
 
 	if (state == 0)
 		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
-	else if (state == 1)
-		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 	else
-		return -EINVAL;
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
 
 	if (!token)
 		return -ENODEV;
@@ -2127,18 +2126,7 @@ int dell_micmute_led_set(int state)
 	dell_fill_request(&buffer, token->location, token->value, 0, 0);
 	dell_send_request(&buffer, CLASS_TOKEN_WRITE, SELECT_TOKEN_STD);
 
-	return state;
-}
-EXPORT_SYMBOL_GPL(dell_micmute_led_set);
-
-static int micmute_led_set(struct led_classdev *led_cdev,
-			   enum led_brightness brightness)
-{
-	int state = brightness != LED_OFF;
-	int err;
-
-	err = dell_micmute_led_set(state);
-	return err < 0 ? err : 0;
+	return 0;
 }
 
 static struct led_classdev micmute_led_cdev = {
