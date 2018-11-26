@@ -263,6 +263,8 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  * @IWL_UCODE_TLV_API_FRAG_EBS: This ucode supports fragmented EBS
  * @IWL_UCODE_TLV_API_REDUCE_TX_POWER: This ucode supports v5 of
  *	the REDUCE_TX_POWER_CMD.
+ * @IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF: This ucode supports the short
+ *	version of the beacon notification.
  *
  * @NUM_IWL_UCODE_TLV_API: number of bits used
  */
@@ -287,6 +289,7 @@ enum iwl_ucode_tlv_api {
 	IWL_UCODE_TLV_API_ADAPTIVE_DWELL_V2	= (__force iwl_ucode_tlv_api_t)42,
 	IWL_UCODE_TLV_API_FRAG_EBS		= (__force iwl_ucode_tlv_api_t)44,
 	IWL_UCODE_TLV_API_REDUCE_TX_POWER	= (__force iwl_ucode_tlv_api_t)45,
+	IWL_UCODE_TLV_API_SHORT_BEACON_NOTIF	= (__force iwl_ucode_tlv_api_t)46,
 
 	NUM_IWL_UCODE_TLV_API
 #ifdef __CHECKER__

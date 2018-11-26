@@ -847,18 +847,32 @@ struct iwl_beacon_notif {
 } __packed;
 
 /**
- * struct iwl_extended_beacon_notif - notifies about beacon transmission
+ * struct iwl_extended_beacon_notif_v5 - notifies about beacon transmission
  * @beacon_notify_hdr: tx response command associated with the beacon
  * @tsf: last beacon tsf
  * @ibss_mgr_status: whether IBSS is manager
  * @gp2: last beacon time in gp2
  */
-struct iwl_extended_beacon_notif {
+struct iwl_extended_beacon_notif_v5 {
 	struct iwl_mvm_tx_resp beacon_notify_hdr;
 	__le64 tsf;
 	__le32 ibss_mgr_status;
 	__le32 gp2;
 } __packed; /* BEACON_NTFY_API_S_VER_5 */
+
+/**
+ * struct iwl_extended_beacon_notif - notifies about beacon transmission
+ * @status: the status of the Tx response of the beacon
+ * @tsf: last beacon tsf
+ * @ibss_mgr_status: whether IBSS is manager
+ * @gp2: last beacon time in gp2
+ */
+struct iwl_extended_beacon_notif {
+	__le32 status;
+	__le64 tsf;
+	__le32 ibss_mgr_status;
+	__le32 gp2;
+} __packed; /* BEACON_NTFY_API_S_VER_6_ */
 
 /**
  * enum iwl_dump_control - dump (flush) control flags

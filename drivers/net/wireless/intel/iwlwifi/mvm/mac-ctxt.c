@@ -1330,7 +1330,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_extended_beacon_notif *beacon = (void *)pkt->data;
-	struct iwl_mvm_tx_resp *beacon_notify_hdr;
+	struct iwl_extended_beacon_notif_v5 *beacon_v5 = (void *)pkt->data;
 	struct ieee80211_vif *csa_vif;
 	struct ieee80211_vif *tx_blocked_vif;
 	struct agg_tx_status *agg_status;
@@ -1338,18 +1338,29 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
-	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
-	mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 
-	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
-	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
-	IWL_DEBUG_RX(mvm,
-		     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
-		     status, beacon_notify_hdr->failure_frame,
-		     le64_to_cpu(beacon->tsf),
-		     mvm->ap_last_beacon_gp2,
-		     le32_to_cpu(beacon_notify_hdr->initial_rate));
+	if (!iwl_mvm_is_short_beacon_notif_supported(mvm)) {
+		struct iwl_mvm_tx_resp *beacon_notify_hdr =
+			&beacon_v5->beacon_notify_hdr;
+
+		mvm->ibss_manager = beacon_v5->ibss_mgr_status != 0;
+		agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
+		status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
+		IWL_DEBUG_RX(mvm,
+			     "beacon status %#x retries:%d tsf:0x%016llX gp2:0x%X rate:%d\n",
+			     status, beacon_notify_hdr->failure_frame,
+			     le64_to_cpu(beacon->tsf),
+			     mvm->ap_last_beacon_gp2,
+			     le32_to_cpu(beacon_notify_hdr->initial_rate));
+	} else {
+		mvm->ibss_manager = beacon->ibss_mgr_status != 0;
+		status = le32_to_cpu(beacon->status) & TX_STATUS_MSK;
+		IWL_DEBUG_RX(mvm,
+			     "beacon status %#x tsf:0x%016llX gp2:0x%X\n",
+			     status, le64_to_cpu(beacon->tsf),
+			     mvm->ap_last_beacon_gp2);
+	}
 
 	csa_vif = rcu_dereference_protected(mvm->csa_vif,
 					    lockdep_is_held(&mvm->mutex));
