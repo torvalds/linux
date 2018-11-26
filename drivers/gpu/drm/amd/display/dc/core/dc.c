@@ -1686,6 +1686,15 @@ void dc_resume(struct dc *dc)
 		core_link_resume(dc->links[i]);
 }
 
+bool dc_is_dmcu_initialized(struct dc *dc)
+{
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+
+	if (dmcu)
+		return dmcu->funcs->is_dmcu_initialized(dmcu);
+	return false;
+}
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,

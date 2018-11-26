@@ -2948,6 +2948,7 @@ dm_crtc_duplicate_state(struct drm_crtc *crtc)
 	state->adjust = cur->adjust;
 	state->vrr_infopacket = cur->vrr_infopacket;
 	state->freesync_enabled = cur->freesync_enabled;
+	state->abm_level = cur->abm_level;
 
 	/* TODO Duplicate dc_stream after objects are stream object is flattened */
 
@@ -3065,6 +3066,9 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.max_bpc_property) {
 		dm_new_state->max_bpc = val;
 		ret = 0;
+	} else if (property == adev->mode_info.abm_level_property) {
+		dm_new_state->abm_level = val;
+		ret = 0;
 	}
 
 	return ret;
@@ -3110,7 +3114,11 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.max_bpc_property) {
 		*val = dm_state->max_bpc;
 		ret = 0;
+	} else if (property == adev->mode_info.abm_level_property) {
+		*val = dm_state->abm_level;
+		ret = 0;
 	}
+
 	return ret;
 }
 
@@ -3175,6 +3183,7 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 
 	new_state->freesync_capable = state->freesync_capable;
 	new_state->freesync_enable = state->freesync_enable;
+	new_state->abm_level = state->abm_level;
 
 	return &new_state->base;
 }
@@ -3924,6 +3933,11 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 				adev->mode_info.max_bpc_property,
 				0);
 
+	if (connector_type == DRM_MODE_CONNECTOR_eDP &&
+	    dc_is_dmcu_initialized(adev->dm.dc)) {
+		drm_object_attach_property(&aconnector->base.base,
+				adev->mode_info.abm_level_property, 0);
+	}
 }
 
 static int amdgpu_dm_i2c_xfer(struct i2c_adapter *i2c_adap,
@@ -4430,6 +4444,7 @@ static bool commit_planes_to_stream(
 	struct dc_stream_state *dc_stream = dm_new_crtc_state->stream;
 	struct dc_stream_update *stream_update =
 			kzalloc(sizeof(struct dc_stream_update), GFP_KERNEL);
+	unsigned int abm_level;
 
 	if (!stream_update) {
 		BREAK_TO_DEBUGGER();
@@ -4460,6 +4475,11 @@ static bool commit_planes_to_stream(
 	if (dm_new_crtc_state->freesync_enabled != dm_old_crtc_state->freesync_enabled) {
 		stream_update->vrr_infopacket = &dc_stream->vrr_infopacket;
 		stream_update->adjust = &dc_stream->adjust;
+	}
+
+	if (dm_new_crtc_state->abm_level != dm_old_crtc_state->abm_level) {
+		abm_level = dm_new_crtc_state->abm_level;
+		stream_update->abm_level = &abm_level;
 	}
 
 	for (i = 0; i < new_plane_count; i++) {
@@ -4599,6 +4619,7 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 
 		dc_stream_attach->adjust = acrtc_state->adjust;
 		dc_stream_attach->vrr_infopacket = acrtc_state->vrr_infopacket;
+		dc_stream_attach->abm_level = acrtc_state->abm_level;
 
 		if (false == commit_planes_to_stream(dm->dc,
 							plane_states_constructed,
@@ -4779,7 +4800,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
-	/* Handle scaling and underscan changes*/
+	/* Handle scaling, underscan, and abm changes*/
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
@@ -4795,11 +4816,14 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!acrtc || drm_atomic_crtc_needs_modeset(new_crtc_state))
 			continue;
 
-		/* Skip anything that is not scaling or underscan changes */
-		if (!is_scaling_state_different(dm_new_con_state, dm_old_con_state))
-			continue;
 
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
+		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
+
+		/* Skip anything that is not scaling or underscan changes */
+		if (!is_scaling_state_different(dm_new_con_state, dm_old_con_state) &&
+				(dm_new_crtc_state->abm_level == dm_old_crtc_state->abm_level))
+			continue;
 
 		update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
 				dm_new_con_state, (struct dc_stream_state *)dm_new_crtc_state->stream);
@@ -4813,6 +4837,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 
 		dm_new_crtc_state->stream->adjust = dm_new_crtc_state->adjust;
 		dm_new_crtc_state->stream->vrr_infopacket = dm_new_crtc_state->vrr_infopacket;
+		dm_new_crtc_state->stream->abm_level = dm_new_crtc_state->abm_level;
 
 		/*TODO How it works with MPO ?*/
 		if (!commit_planes_to_stream(
@@ -5150,6 +5175,8 @@ static int dm_update_crtcs_state(struct amdgpu_display_manager *dm,
 
 			set_freesync_on_stream(dm, dm_new_crtc_state,
 					       dm_new_conn_state, new_stream);
+
+			dm_new_crtc_state->abm_level = dm_new_conn_state->abm_level;
 
 			if (dc_is_stream_unchanged(new_stream, dm_old_crtc_state->stream) &&
 			    dc_is_stream_scaling_unchanged(new_stream, dm_old_crtc_state->stream)) {

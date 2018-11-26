@@ -234,6 +234,8 @@ struct dm_crtc_state {
 	bool freesync_enabled;
 	struct dc_crtc_timing_adjust adjust;
 	struct dc_info_packet vrr_infopacket;
+
+	int abm_level;
 };
 
 #define to_dm_crtc_state(x) container_of(x, struct dm_crtc_state, base)
@@ -256,6 +258,7 @@ struct dm_connector_state {
 	bool underscan_enable;
 	bool freesync_enable;
 	bool freesync_capable;
+	uint8_t abm_level;
 };
 
 #define to_dm_connector_state(x)\
