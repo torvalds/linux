@@ -554,6 +554,60 @@ static inline void *xa_cmpxchg(struct xarray *xa, unsigned long index,
 }
 
 /**
+ * xa_cmpxchg_bh() - Conditionally replace an entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @old: Old value to test against.
+ * @entry: New value to place in array.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_cmpxchg() except it disables softirqs
+ * while holding the array lock.
+ *
+ * Context: Any context.  Takes and releases the xa_lock while
+ * disabling softirqs.  May sleep if the @gfp flags permit.
+ * Return: The old value at this index or xa_err() if an error happened.
+ */
+static inline void *xa_cmpxchg_bh(struct xarray *xa, unsigned long index,
+			void *old, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_bh(xa);
+	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
+	xa_unlock_bh(xa);
+
+	return curr;
+}
+
+/**
+ * xa_cmpxchg_irq() - Conditionally replace an entry in the XArray.
+ * @xa: XArray.
+ * @index: Index into array.
+ * @old: Old value to test against.
+ * @entry: New value to place in array.
+ * @gfp: Memory allocation flags.
+ *
+ * This function is like calling xa_cmpxchg() except it disables interrupts
+ * while holding the array lock.
+ *
+ * Context: Process context.  Takes and releases the xa_lock while
+ * disabling interrupts.  May sleep if the @gfp flags permit.
+ * Return: The old value at this index or xa_err() if an error happened.
+ */
+static inline void *xa_cmpxchg_irq(struct xarray *xa, unsigned long index,
+			void *old, void *entry, gfp_t gfp)
+{
+	void *curr;
+
+	xa_lock_irq(xa);
+	curr = __xa_cmpxchg(xa, index, old, entry, gfp);
+	xa_unlock_irq(xa);
+
+	return curr;
+}
+
+/**
  * xa_insert() - Store this entry in the XArray unless another entry is
  *			already present.
  * @xa: XArray.
