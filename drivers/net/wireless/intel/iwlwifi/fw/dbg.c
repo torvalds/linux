@@ -1254,10 +1254,6 @@ _iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 
 	if (id == FW_DBG_TRIGGER_FW_ASSERT)
 		id = IWL_FW_TRIGGER_ID_FW_ASSERT;
-	else if (id == FW_DBG_TRIGGER_USER)
-		id = IWL_FW_TRIGGER_ID_USER_TRIGGER;
-	else if (id < FW_DBG_TRIGGER_MAX)
-		return NULL;
 
 	if (WARN_ON(id >= ARRAY_SIZE(fwrt->dump.active_trigs)))
 		return NULL;
