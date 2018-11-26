@@ -61,6 +61,9 @@ struct scsi_pointer {
 /* flags preserved across unprep / reprep */
 #define SCMD_PRESERVED_FLAGS	(SCMD_UNCHECKED_ISA_DMA | SCMD_INITIALIZED)
 
+/* for scmd->state */
+#define SCMD_STATE_COMPLETE	(1 << 0)
+
 struct scsi_cmnd {
 	struct scsi_request req;
 	struct scsi_device *device;
@@ -145,6 +148,7 @@ struct scsi_cmnd {
 
 	int result;		/* Status code from lower level driver */
 	int flags;		/* Command flags */
+	unsigned long state;	/* Command completion state */
 
 	unsigned char tag;	/* SCSI-II queued command tag */
 };
