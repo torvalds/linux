@@ -16,6 +16,7 @@
 #include <linux/if_vlan.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
+#include <linux/linkmode.h>
 
 #include "aqc111.h"
 
@@ -198,6 +199,84 @@ static void aqc111_get_drvinfo(struct net_device *net,
 	info->regdump_len = 0x00;
 }
 
+static void aqc111_speed_to_link_mode(u32 speed,
+				      struct ethtool_link_ksettings *elk)
+{
+	switch (speed) {
+	case SPEED_5000:
+		ethtool_link_ksettings_add_link_mode(elk, advertising,
+						     5000baseT_Full);
+		break;
+	case SPEED_2500:
+		ethtool_link_ksettings_add_link_mode(elk, advertising,
+						     2500baseT_Full);
+		break;
+	case SPEED_1000:
+		ethtool_link_ksettings_add_link_mode(elk, advertising,
+						     1000baseT_Full);
+		break;
+	case SPEED_100:
+		ethtool_link_ksettings_add_link_mode(elk, advertising,
+						     100baseT_Full);
+		break;
+	}
+}
+
+static int aqc111_get_link_ksettings(struct net_device *net,
+				     struct ethtool_link_ksettings *elk)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+	enum usb_device_speed usb_speed = dev->udev->speed;
+	u32 speed = SPEED_UNKNOWN;
+
+	ethtool_link_ksettings_zero_link_mode(elk, supported);
+	ethtool_link_ksettings_add_link_mode(elk, supported,
+					     100baseT_Full);
+	ethtool_link_ksettings_add_link_mode(elk, supported,
+					     1000baseT_Full);
+	if (usb_speed == USB_SPEED_SUPER) {
+		ethtool_link_ksettings_add_link_mode(elk, supported,
+						     2500baseT_Full);
+		ethtool_link_ksettings_add_link_mode(elk, supported,
+						     5000baseT_Full);
+	}
+	ethtool_link_ksettings_add_link_mode(elk, supported, TP);
+	ethtool_link_ksettings_add_link_mode(elk, supported, Autoneg);
+
+	elk->base.port = PORT_TP;
+	elk->base.transceiver = XCVR_INTERNAL;
+
+	elk->base.mdio_support = 0x00; /*Not supported*/
+
+	if (aqc111_data->autoneg)
+		linkmode_copy(elk->link_modes.advertising,
+			      elk->link_modes.supported);
+	else
+		aqc111_speed_to_link_mode(aqc111_data->advertised_speed, elk);
+
+	elk->base.autoneg = aqc111_data->autoneg;
+
+	switch (aqc111_data->link_speed) {
+	case AQ_INT_SPEED_5G:
+		speed = SPEED_5000;
+		break;
+	case AQ_INT_SPEED_2_5G:
+		speed = SPEED_2500;
+		break;
+	case AQ_INT_SPEED_1G:
+		speed = SPEED_1000;
+		break;
+	case AQ_INT_SPEED_100M:
+		speed = SPEED_100;
+		break;
+	}
+	elk->base.duplex = DUPLEX_FULL;
+	elk->base.speed = speed;
+
+	return 0;
+}
+
 static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 {
 	struct aqc111_data *aqc111_data = dev->driver_priv;
@@ -245,11 +324,56 @@ static void aqc111_set_phy_speed(struct usbnet *dev, u8 autoneg, u16 speed)
 	aqc111_write32_cmd(dev, AQ_PHY_OPS, 0, 0, &aqc111_data->phy_cfg);
 }
 
+static int aqc111_set_link_ksettings(struct net_device *net,
+				     const struct ethtool_link_ksettings *elk)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct aqc111_data *aqc111_data = dev->driver_priv;
+	enum usb_device_speed usb_speed = dev->udev->speed;
+	u8 autoneg = elk->base.autoneg;
+	u32 speed = elk->base.speed;
+
+	if (autoneg == AUTONEG_ENABLE) {
+		if (aqc111_data->autoneg != AUTONEG_ENABLE) {
+			aqc111_data->autoneg = AUTONEG_ENABLE;
+			aqc111_data->advertised_speed =
+					(usb_speed == USB_SPEED_SUPER) ?
+					 SPEED_5000 : SPEED_1000;
+			aqc111_set_phy_speed(dev, aqc111_data->autoneg,
+					     aqc111_data->advertised_speed);
+		}
+	} else {
+		if (speed != SPEED_100 &&
+		    speed != SPEED_1000 &&
+		    speed != SPEED_2500 &&
+		    speed != SPEED_5000 &&
+		    speed != SPEED_UNKNOWN)
+			return -EINVAL;
+
+		if (elk->base.duplex != DUPLEX_FULL)
+			return -EINVAL;
+
+		if (usb_speed != USB_SPEED_SUPER && speed > SPEED_1000)
+			return -EINVAL;
+
+		aqc111_data->autoneg = AUTONEG_DISABLE;
+		if (speed != SPEED_UNKNOWN)
+			aqc111_data->advertised_speed = speed;
+
+		aqc111_set_phy_speed(dev, aqc111_data->autoneg,
+				     aqc111_data->advertised_speed);
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops aqc111_ethtool_ops = {
 	.get_drvinfo = aqc111_get_drvinfo,
 	.get_msglevel = usbnet_get_msglevel,
 	.set_msglevel = usbnet_set_msglevel,
 	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = aqc111_get_link_ksettings,
+	.set_link_ksettings = aqc111_set_link_ksettings
 };
 
 static int aqc111_change_mtu(struct net_device *net, int new_mtu)
