@@ -158,10 +158,10 @@ static int pps_gpio_probe(struct platform_device *pdev)
 	if (data->capture_clear)
 		pps_default_params |= PPS_CAPTURECLEAR | PPS_OFFSETCLEAR;
 	data->pps = pps_register_source(&data->info, pps_default_params);
-	if (data->pps == NULL) {
+	if (IS_ERR(data->pps)) {
 		dev_err(&pdev->dev, "failed to register IRQ %d as PPS source\n",
 			data->irq);
-		return -EINVAL;
+		return PTR_ERR(data->pps);
 	}
 
 	/* register IRQ interrupt handler */
