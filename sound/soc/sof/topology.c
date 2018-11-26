@@ -302,6 +302,8 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	struct sof_ipc_ctrl_data *cdata;
 	struct snd_soc_tplg_bytes_control *control =
 		(struct snd_soc_tplg_bytes_control *)hdr;
+	const int max_size = SOF_IPC_MSG_MAX_SIZE -
+		sizeof(const struct sof_ipc_ctrl_data);
 
 	/* init the get/put bytes data */
 	scontrol->size = SOF_IPC_MSG_MAX_SIZE;
@@ -316,20 +318,35 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	dev_dbg(sdev->dev, "tplg: load kcontrol index %d chans %d\n",
 		scontrol->comp_id, scontrol->num_channels);
 
-	if (le32_to_cpu(control->priv.size) > SOF_IPC_MSG_MAX_SIZE) {
-		dev_warn(sdev->dev, "bytes priv data size %d too big\n",
-			 control->priv.size);
+	if (le32_to_cpu(control->priv.size) > max_size) {
+		dev_err(sdev->dev, "bytes priv data size %d exceeds max %d.\n",
+			control->priv.size, max_size);
 		return -EINVAL;
 	}
 
 	if (le32_to_cpu(control->priv.size) > 0) {
-		memcpy(cdata->data->data, control->priv.data,
+		memcpy(cdata->data, control->priv.data,
 		       le32_to_cpu(control->priv.size));
-		cdata->data->size = le32_to_cpu(control->priv.size);
-		cdata->data->magic = SOF_ABI_MAGIC;
-		cdata->data->abi = SOF_ABI_VERSION;
-	}
 
+		if (cdata->data->magic != SOF_ABI_MAGIC) {
+			dev_err(sdev->dev, "error: Wrong ABI magic 0x%08x.\n",
+				cdata->data->magic);
+			return -EINVAL;
+		}
+		if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION,
+						 cdata->data->abi)) {
+			dev_err(sdev->dev,
+				"error: Incompatible ABI version 0x%08x.\n",
+				cdata->data->abi);
+			return -EINVAL;
+		}
+		if (cdata->data->size + sizeof(const struct sof_abi_hdr) !=
+		    control->priv.size) {
+			dev_err(sdev->dev,
+				"error: Conflict in bytes vs. priv size.\n");
+			return -EINVAL;
+		}
+	}
 	return 0;
 }
 
