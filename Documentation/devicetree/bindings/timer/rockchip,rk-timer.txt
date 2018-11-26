@@ -2,6 +2,7 @@ Rockchip rk timer
 
 Required properties:
 - compatible: should be:
+  "rockchip,rv1108-timer", "rockchip,rk3288-timer": for Rockchip RV1108
   "rockchip,rk3036-timer", "rockchip,rk3288-timer": for Rockchip RK3036
   "rockchip,rk3066-timer", "rockchip,rk3288-timer": for Rockchip RK3066
   "rockchip,rk3188-timer", "rockchip,rk3288-timer": for Rockchip RK3188
