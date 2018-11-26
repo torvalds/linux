@@ -12836,11 +12836,15 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	nested_cache_shadow_vmcs12(vcpu, vmcs12);
 
 	/*
-	 * If we're entering a halted L2 vcpu and the L2 vcpu won't be woken
-	 * by event injection, halt vcpu.
+	 * If we're entering a halted L2 vcpu and the L2 vcpu won't be
+	 * awakened by event injection or by an NMI-window VM-exit or
+	 * by an interrupt-window VM-exit, halt the vcpu.
 	 */
 	if ((vmcs12->guest_activity_state == GUEST_ACTIVITY_HLT) &&
-	    !(vmcs12->vm_entry_intr_info_field & INTR_INFO_VALID_MASK)) {
+	    !(vmcs12->vm_entry_intr_info_field & INTR_INFO_VALID_MASK) &&
+	    !(vmcs12->cpu_based_vm_exec_control & CPU_BASED_VIRTUAL_NMI_PENDING) &&
+	    !((vmcs12->cpu_based_vm_exec_control & CPU_BASED_VIRTUAL_INTR_PENDING) &&
+	      (vmcs12->guest_rflags & X86_EFLAGS_IF))) {
 		vmx->nested.nested_run_pending = 0;
 		return kvm_vcpu_halt(vcpu);
 	}
