@@ -669,6 +669,7 @@ static const struct nla_policy rtnl_net_policy[NETNSA_MAX + 1] = {
 	[NETNSA_NSID]		= { .type = NLA_S32 },
 	[NETNSA_PID]		= { .type = NLA_U32 },
 	[NETNSA_FD]		= { .type = NLA_U32 },
+	[NETNSA_TARGET_NSID]	= { .type = NLA_S32 },
 };
 
 static int rtnl_net_newid(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -780,9 +781,10 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 		.seq = nlh->nlmsg_seq,
 		.cmd = RTM_NEWNSID,
 	};
+	struct net *peer, *target = net;
+	bool put_target = false;
 	struct nlattr *nla;
 	struct sk_buff *msg;
-	struct net *peer;
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
@@ -806,13 +808,27 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return PTR_ERR(peer);
 	}
 
+	if (tb[NETNSA_TARGET_NSID]) {
+		int id = nla_get_s32(tb[NETNSA_TARGET_NSID]);
+
+		target = rtnl_get_net_ns_capable(NETLINK_CB(skb).sk, id);
+		if (IS_ERR(target)) {
+			NL_SET_BAD_ATTR(extack, tb[NETNSA_TARGET_NSID]);
+			NL_SET_ERR_MSG(extack,
+				       "Target netns reference is invalid");
+			err = PTR_ERR(target);
+			goto out;
+		}
+		put_target = true;
+	}
+
 	msg = nlmsg_new(rtnl_net_get_size(), GFP_KERNEL);
 	if (!msg) {
 		err = -ENOMEM;
 		goto out;
 	}
 
-	fillargs.nsid = peernet2id(net, peer);
+	fillargs.nsid = peernet2id(target, peer);
 	err = rtnl_net_fill(msg, &fillargs);
 	if (err < 0)
 		goto err_out;
@@ -823,15 +839,19 @@ static int rtnl_net_getid(struct sk_buff *skb, struct nlmsghdr *nlh,
 err_out:
 	nlmsg_free(msg);
 out:
+	if (put_target)
+		put_net(target);
 	put_net(peer);
 	return err;
 }
 
 struct rtnl_net_dump_cb {
+	struct net *tgt_net;
 	struct sk_buff *skb;
 	struct net_fill_args fillargs;
 	int idx;
 	int s_idx;
+	bool put_tgt_net;
 };
 
 static int rtnl_net_dumpid_one(int id, void *peer, void *data)
@@ -852,10 +872,50 @@ cont:
 	return 0;
 }
 
+static int rtnl_valid_dump_net_req(const struct nlmsghdr *nlh, struct sock *sk,
+				   struct rtnl_net_dump_cb *net_cb,
+				   struct netlink_callback *cb)
+{
+	struct netlink_ext_ack *extack = cb->extack;
+	struct nlattr *tb[NETNSA_MAX + 1];
+	int err, i;
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct rtgenmsg), tb, NETNSA_MAX,
+				 rtnl_net_policy, extack);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i <= NETNSA_MAX; i++) {
+		if (!tb[i])
+			continue;
+
+		if (i == NETNSA_TARGET_NSID) {
+			struct net *net;
+
+			net = rtnl_get_net_ns_capable(sk, nla_get_s32(tb[i]));
+			if (IS_ERR(net)) {
+				NL_SET_BAD_ATTR(extack, tb[i]);
+				NL_SET_ERR_MSG(extack,
+					       "Invalid target network namespace id");
+				return PTR_ERR(net);
+			}
+			net_cb->tgt_net = net;
+			net_cb->put_tgt_net = true;
+		} else {
+			NL_SET_BAD_ATTR(extack, tb[i]);
+			NL_SET_ERR_MSG(extack,
+				       "Unsupported attribute in dump request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct net *net = sock_net(skb->sk);
 	struct rtnl_net_dump_cb net_cb = {
+		.tgt_net = sock_net(skb->sk),
 		.skb = skb,
 		.fillargs = {
 			.portid = NETLINK_CB(cb->skb).portid,
@@ -866,19 +926,23 @@ static int rtnl_net_dumpid(struct sk_buff *skb, struct netlink_callback *cb)
 		.idx = 0,
 		.s_idx = cb->args[0],
 	};
+	int err = 0;
 
-	if (cb->strict_check &&
-	    nlmsg_attrlen(cb->nlh, sizeof(struct rtgenmsg))) {
-			NL_SET_ERR_MSG(cb->extack, "Unknown data in network namespace id dump request");
-			return -EINVAL;
+	if (cb->strict_check) {
+		err = rtnl_valid_dump_net_req(cb->nlh, skb->sk, &net_cb, cb);
+		if (err < 0)
+			goto end;
 	}
 
-	spin_lock_bh(&net->nsid_lock);
-	idr_for_each(&net->netns_ids, rtnl_net_dumpid_one, &net_cb);
-	spin_unlock_bh(&net->nsid_lock);
+	spin_lock_bh(&net_cb.tgt_net->nsid_lock);
+	idr_for_each(&net_cb.tgt_net->netns_ids, rtnl_net_dumpid_one, &net_cb);
+	spin_unlock_bh(&net_cb.tgt_net->nsid_lock);
 
 	cb->args[0] = net_cb.idx;
-	return skb->len;
+end:
+	if (net_cb.put_tgt_net)
+		put_net(net_cb.tgt_net);
+	return err < 0 ? err : skb->len;
 }
 
 static void rtnl_net_notifyid(struct net *net, int cmd, int id)
