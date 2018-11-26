@@ -9203,17 +9203,58 @@ int tpacpi_led_set(int whichled, bool on)
 }
 EXPORT_SYMBOL_GPL(tpacpi_led_set);
 
+static int tpacpi_led_mute_set(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
+{
+	return tpacpi_led_set(TPACPI_LED_MUTE, brightness != LED_OFF);
+}
+
+static int tpacpi_led_micmute_set(struct led_classdev *led_cdev,
+				  enum led_brightness brightness)
+{
+	return tpacpi_led_set(TPACPI_LED_MICMUTE, brightness != LED_OFF);
+}
+
+static struct led_classdev mute_led_cdev[] = {
+	[TPACPI_LED_MUTE] = {
+		.name		= "platform::mute",
+		.max_brightness = 1,
+		.brightness_set_blocking = tpacpi_led_mute_set,
+		.default_trigger = "audio-mute",
+	},
+	[TPACPI_LED_MICMUTE] = {
+		.name		= "platform::micmute",
+		.max_brightness = 1,
+		.brightness_set_blocking = tpacpi_led_micmute_set,
+		.default_trigger = "audio-micmute",
+	},
+};
+
 static int mute_led_init(struct ibm_init_struct *iibm)
 {
+	static enum led_audio types[] = {
+		[TPACPI_LED_MUTE] = LED_AUDIO_MUTE,
+		[TPACPI_LED_MICMUTE] = LED_AUDIO_MICMUTE,
+	};
 	acpi_handle temp;
-	int i;
+	int i, err;
 
 	for (i = 0; i < TPACPI_LED_MAX; i++) {
 		struct tp_led_table *t = &led_tables[i];
-		if (ACPI_SUCCESS(acpi_get_handle(hkey_handle, t->name, &temp)))
-			mute_led_on_off(t, false);
-		else
+		if (ACPI_FAILURE(acpi_get_handle(hkey_handle, t->name, &temp))) {
 			t->state = -ENODEV;
+			continue;
+		}
+
+		mute_led_cdev[i].brightness = ledtrig_audio_get(types[i]);
+		err = led_classdev_register(&tpacpi_pdev->dev, &mute_led_cdev[i]);
+		if (err < 0) {
+			while (i--) {
+				if (led_tables[i].state >= 0)
+					led_classdev_unregister(&mute_led_cdev[i]);
+			}
+			return err;
+		}
 	}
 	return 0;
 }
@@ -9222,8 +9263,12 @@ static void mute_led_exit(void)
 {
 	int i;
 
-	for (i = 0; i < TPACPI_LED_MAX; i++)
-		tpacpi_led_set(i, false);
+	for (i = 0; i < TPACPI_LED_MAX; i++) {
+		if (led_tables[i].state >= 0) {
+			led_classdev_unregister(&mute_led_cdev[i]);
+			tpacpi_led_set(i, false);
+		}
+	}
 }
 
 static void mute_led_resume(void)
