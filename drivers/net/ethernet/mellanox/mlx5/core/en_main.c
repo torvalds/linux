@@ -2885,13 +2885,14 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 	mlx5e_deactivate_channels(&priv->channels);
 }
 
-void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
-				struct mlx5e_channels *new_chs,
-				mlx5e_fp_hw_modify hw_modify)
+static void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
+				       struct mlx5e_channels *new_chs,
+				       mlx5e_fp_hw_modify hw_modify)
 {
 	struct net_device *netdev = priv->netdev;
 	int new_num_txqs;
 	int carrier_ok;
+
 	new_num_txqs = new_chs->num * new_chs->params.num_tc;
 
 	carrier_ok = netif_carrier_ok(netdev);
@@ -2915,6 +2916,20 @@ void mlx5e_switch_priv_channels(struct mlx5e_priv *priv,
 	/* return carrier back if needed */
 	if (carrier_ok)
 		netif_carrier_on(netdev);
+}
+
+int mlx5e_safe_switch_channels(struct mlx5e_priv *priv,
+			       struct mlx5e_channels *new_chs,
+			       mlx5e_fp_hw_modify hw_modify)
+{
+	int err;
+
+	err = mlx5e_open_channels(priv, new_chs);
+	if (err)
+		return err;
+
+	mlx5e_switch_priv_channels(priv, new_chs, hw_modify);
+	return 0;
 }
 
 void mlx5e_timestamp_init(struct mlx5e_priv *priv)
@@ -3333,13 +3348,12 @@ static int mlx5e_setup_tc_mqprio(struct net_device *netdev,
 		goto out;
 	}
 
-	err = mlx5e_open_channels(priv, &new_channels);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, NULL);
 	if (err)
 		goto out;
 
 	priv->max_opened_tc = max_t(u8, priv->max_opened_tc,
 				    new_channels.params.num_tc);
-	mlx5e_switch_priv_channels(priv, &new_channels, NULL);
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
@@ -3549,11 +3563,7 @@ static int set_feature_lro(struct net_device *netdev, bool enable)
 		goto out;
 	}
 
-	err = mlx5e_open_channels(priv, &new_channels);
-	if (err)
-		goto out;
-
-	mlx5e_switch_priv_channels(priv, &new_channels, mlx5e_modify_tirs_lro);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, mlx5e_modify_tirs_lro);
 out:
 	mutex_unlock(&priv->state_lock);
 	return err;
@@ -3771,11 +3781,10 @@ int mlx5e_change_mtu(struct net_device *netdev, int new_mtu,
 		goto out;
 	}
 
-	err = mlx5e_open_channels(priv, &new_channels);
+	err = mlx5e_safe_switch_channels(priv, &new_channels, set_mtu_cb);
 	if (err)
 		goto out;
 
-	mlx5e_switch_priv_channels(priv, &new_channels, set_mtu_cb);
 	netdev->mtu = new_channels.params.sw_mtu;
 
 out:
