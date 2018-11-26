@@ -140,8 +140,8 @@ static int pvpanic_mmio_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	base = devm_ioremap_resource(&pdev->dev, mem);
-	if (base == NULL)
-		return -EFAULT;
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	atomic_notifier_chain_register(&panic_notifier_list,
 				       &pvpanic_panic_nb);
