@@ -175,6 +175,82 @@ static struct notifier_block br_switchdev_notifier = {
 	.notifier_call = br_switchdev_event,
 };
 
+/* br_boolopt_toggle - change user-controlled boolean option
+ *
+ * @br: bridge device
+ * @opt: id of the option to change
+ * @on: new option value
+ * @extack: extack for error messages
+ *
+ * Changes the value of the respective boolean option to @on taking care of
+ * any internal option value mapping and configuration.
+ */
+int br_boolopt_toggle(struct net_bridge *br, enum br_boolopt_id opt, bool on,
+		      struct netlink_ext_ack *extack)
+{
+	switch (opt) {
+	case BR_BOOLOPT_NO_LL_LEARN:
+		br_opt_toggle(br, BROPT_NO_LL_LEARN, on);
+		break;
+	default:
+		/* shouldn't be called with unsupported options */
+		WARN_ON(1);
+		break;
+	}
+
+	return 0;
+}
+
+int br_boolopt_get(const struct net_bridge *br, enum br_boolopt_id opt)
+{
+	switch (opt) {
+	case BR_BOOLOPT_NO_LL_LEARN:
+		return br_opt_get(br, BROPT_NO_LL_LEARN);
+	default:
+		/* shouldn't be called with unsupported options */
+		WARN_ON(1);
+		break;
+	}
+
+	return 0;
+}
+
+int br_boolopt_multi_toggle(struct net_bridge *br,
+			    struct br_boolopt_multi *bm,
+			    struct netlink_ext_ack *extack)
+{
+	unsigned long bitmap = bm->optmask;
+	int err = 0;
+	int opt_id;
+
+	for_each_set_bit(opt_id, &bitmap, BR_BOOLOPT_MAX) {
+		bool on = !!(bm->optval & BIT(opt_id));
+
+		err = br_boolopt_toggle(br, opt_id, on, extack);
+		if (err) {
+			br_debug(br, "boolopt multi-toggle error: option: %d current: %d new: %d error: %d\n",
+				 opt_id, br_boolopt_get(br, opt_id), on, err);
+			break;
+		}
+	}
+
+	return err;
+}
+
+void br_boolopt_multi_get(const struct net_bridge *br,
+			  struct br_boolopt_multi *bm)
+{
+	u32 optval = 0;
+	int opt_id;
+
+	for (opt_id = 0; opt_id < BR_BOOLOPT_MAX; opt_id++)
+		optval |= (br_boolopt_get(br, opt_id) << opt_id);
+
+	bm->optval = optval;
+	bm->optmask = GENMASK((BR_BOOLOPT_MAX - 1), 0);
+}
+
+/* private bridge options, controlled by the kernel */
 void br_opt_toggle(struct net_bridge *br, enum net_bridge_opts opt, bool on)
 {
 	bool cur = !!br_opt_get(br, opt);
