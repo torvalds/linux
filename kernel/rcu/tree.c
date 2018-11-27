@@ -3299,7 +3299,7 @@ int rcutree_prepare_cpu(unsigned int cpu)
 	trace_rcu_grace_period(rcu_state.name, rdp->gp_seq, TPS("cpuonl"));
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	rcu_prepare_kthreads(cpu);
-	rcu_spawn_all_nocb_kthreads(cpu);
+	rcu_spawn_cpu_nocb_kthread(cpu);
 
 	return 0;
 }

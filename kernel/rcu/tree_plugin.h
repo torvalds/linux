@@ -2517,9 +2517,9 @@ static void rcu_spawn_one_nocb_kthread(int cpu)
 
 /*
  * If the specified CPU is a no-CBs CPU that does not already have its
- * rcuo kthreads, spawn them.
+ * rcuo kthread, spawn it.
  */
-static void rcu_spawn_all_nocb_kthreads(int cpu)
+static void rcu_spawn_cpu_nocb_kthread(int cpu)
 {
 	if (rcu_scheduler_fully_active)
 		rcu_spawn_one_nocb_kthread(cpu);
@@ -2536,7 +2536,7 @@ static void __init rcu_spawn_nocb_kthreads(void)
 	int cpu;
 
 	for_each_online_cpu(cpu)
-		rcu_spawn_all_nocb_kthreads(cpu);
+		rcu_spawn_cpu_nocb_kthread(cpu);
 }
 
 /* How many follower CPU IDs per leader?  Default of -1 for sqrt(nr_cpu_ids). */
@@ -2670,7 +2670,7 @@ static void do_nocb_deferred_wakeup(struct rcu_data *rdp)
 {
 }
 
-static void rcu_spawn_all_nocb_kthreads(int cpu)
+static void rcu_spawn_cpu_nocb_kthread(int cpu)
 {
 }
 
