@@ -970,10 +970,13 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
  * We need to maintain these in the sk structure.
  */
 
+struct static_key tcp_md5_needed __read_mostly;
+EXPORT_SYMBOL(tcp_md5_needed);
+
 /* Find the Key structure for an address.  */
-struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
-					 const union tcp_md5_addr *addr,
-					 int family)
+struct tcp_md5sig_key *__tcp_md5_do_lookup(const struct sock *sk,
+					   const union tcp_md5_addr *addr,
+					   int family)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
@@ -1011,7 +1014,7 @@ struct tcp_md5sig_key *tcp_md5_do_lookup(const struct sock *sk,
 	}
 	return best_match;
 }
-EXPORT_SYMBOL(tcp_md5_do_lookup);
+EXPORT_SYMBOL(__tcp_md5_do_lookup);
 
 static struct tcp_md5sig_key *tcp_md5_do_lookup_exact(const struct sock *sk,
 						      const union tcp_md5_addr *addr,
