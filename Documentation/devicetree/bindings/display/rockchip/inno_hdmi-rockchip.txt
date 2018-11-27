@@ -5,14 +5,10 @@ Required properties:
 - compatible:
 	"rockchip,rk3036-inno-hdmi";
 	"rockchip,rk3128-inno-hdmi";
-	"rockchip,rk618-inno-hdmi";
 - reg:
 	Physical base address and length of the controller's registers.
 - clocks, clock-names:
-	For Rockchip RK3036:
 	Phandle to hdmi controller clock, name should be "aclk" and "pclk".
-	For Rockchip RK618:
-	handle to hdmi controller clock, name should be "hdmi".
 - interrupts:
 	HDMI interrupt number
 - ports:
@@ -22,8 +18,6 @@ Required properties:
 	Switch the iomux of HPD/CEC pins to HDMI function.
 
 Example:
-
-For Rockchip RK3036:
 hdmi: hdmi@20034000 {
 	compatible = "rockchip,rk3036-inno-hdmi";
 	reg = <0x20034000 0x4000>;
@@ -54,48 +48,4 @@ hdmi: hdmi@20034000 {
 		};
 	};
 
-};
-
-For Rockchip RK618:
-
-&rk618 {
-	HDMI: hdmi {
-		compatible = "rockchip,rk618-inno-hdmi";
-		clocks = <&CRU HDMI_CLK>;
-		clock-names = "hdmi";
-		interrupt-parent = <&gpio3>;
-		interrupts = <23 IRQ_TYPE_LEVEL_HIGH>;
-		status = "okay";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				hdmi_input_vop: endpoint {
-					remote-endpoint = <&vop_output_hdmi>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				#address-cells = <1>;
-				#size-cells = <0>;
-
-				hdmi_output_vif: endpoint@0 {
-					reg = <0>;
-					remote-endpoint = <&vif_input_hdmi>;
-					status = "disabled";
-				};
-
-				hdmi_output_lvds: endpoint@1 {
-					reg = <1>;
-					remote-endpoint = <&lvds_input_hdmi>;
-					status = "okay";
-				};
-			};
-		};
-	};
 };
