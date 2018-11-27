@@ -87,7 +87,8 @@ void coprocessor_release_all(struct thread_info *ti)
 	}
 
 	ti->cpenable = cpenable;
-	xtensa_set_sr(0, cpenable);
+	if (ti == current_thread_info())
+		xtensa_set_sr(0, cpenable);
 
 	preempt_enable();
 }
