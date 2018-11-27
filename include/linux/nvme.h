@@ -223,7 +223,11 @@ struct nvme_id_ctrl {
 	__le32			rtd3e;
 	__le32			oaes;
 	__le32			ctratt;
-	__u8			rsvd100[156];
+	__u8			rsvd100[28];
+	__le16			crdt1;
+	__le16			crdt2;
+	__le16			crdt3;
+	__u8			rsvd134[122];
 	__le16			oacs;
 	__u8			acl;
 	__u8			aerl;
@@ -756,6 +760,15 @@ enum {
 	NVME_HOST_MEM_RETURN	= (1 << 1),
 };
 
+struct nvme_feat_host_behavior {
+	__u8 acre;
+	__u8 resv1[511];
+};
+
+enum {
+	NVME_ENABLE_ACRE	= 1,
+};
+
 /* Admin commands */
 
 enum nvme_admin_opcode {
@@ -810,6 +823,7 @@ enum {
 	NVME_FEAT_RRL		= 0x12,
 	NVME_FEAT_PLM_CONFIG	= 0x13,
 	NVME_FEAT_PLM_WINDOW	= 0x14,
+	NVME_FEAT_HOST_BEHAVIOR	= 0x16,
 	NVME_FEAT_SW_PROGRESS	= 0x80,
 	NVME_FEAT_HOST_ID	= 0x81,
 	NVME_FEAT_RESV_MASK	= 0x82,
@@ -1265,6 +1279,7 @@ enum {
 	NVME_SC_ANA_TRANSITION		= 0x303,
 	NVME_SC_HOST_PATH_ERROR		= 0x370,
 
+	NVME_SC_CRD			= 0x1800,
 	NVME_SC_DNR			= 0x4000,
 };
 

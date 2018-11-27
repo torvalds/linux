@@ -244,6 +244,22 @@ static inline bool nvme_req_needs_retry(struct request *req)
 	return true;
 }
 
+static void nvme_retry_req(struct request *req)
+{
+	struct nvme_ns *ns = req->q->queuedata;
+	unsigned long delay = 0;
+	u16 crd;
+
+	/* The mask and shift result must be <= 3 */
+	crd = (nvme_req(req)->status & NVME_SC_CRD) >> 11;
+	if (ns && crd)
+		delay = ns->ctrl->crdt[crd - 1] * 100;
+
+	nvme_req(req)->retries++;
+	blk_mq_requeue_request(req, false);
+	blk_mq_delay_kick_requeue_list(req->q, delay);
+}
+
 void nvme_complete_rq(struct request *req)
 {
 	blk_status_t status = nvme_error_status(req);
@@ -261,8 +277,7 @@ void nvme_complete_rq(struct request *req)
 		}
 
 		if (!blk_queue_dying(req->q)) {
-			nvme_req(req)->retries++;
-			blk_mq_requeue_request(req, true);
+			nvme_retry_req(req);
 			return;
 		}
 	}
@@ -1883,6 +1898,26 @@ static int nvme_configure_timestamp(struct nvme_ctrl *ctrl)
 	return ret;
 }
 
+static int nvme_configure_acre(struct nvme_ctrl *ctrl)
+{
+	struct nvme_feat_host_behavior *host;
+	int ret;
+
+	/* Don't bother enabling the feature if retry delay is not reported */
+	if (!ctrl->crdt[0])
+		return 0;
+
+	host = kzalloc(sizeof(*host), GFP_KERNEL);
+	if (!host)
+		return 0;
+
+	host->acre = NVME_ENABLE_ACRE;
+	ret = nvme_set_features(ctrl, NVME_FEAT_HOST_BEHAVIOR, 0,
+				host, sizeof(*host), NULL);
+	kfree(host);
+	return ret;
+}
+
 static int nvme_configure_apst(struct nvme_ctrl *ctrl)
 {
 	/*
@@ -2404,6 +2439,10 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		ctrl->quirks &= ~NVME_QUIRK_NO_DEEPEST_PS;
 	}
 
+	ctrl->crdt[0] = le16_to_cpu(id->crdt1);
+	ctrl->crdt[1] = le16_to_cpu(id->crdt2);
+	ctrl->crdt[2] = le16_to_cpu(id->crdt3);
+
 	ctrl->oacs = le16_to_cpu(id->oacs);
 	ctrl->oncs = le16_to_cpup(&id->oncs);
 	ctrl->oaes = le32_to_cpu(id->oaes);
@@ -2501,6 +2540,10 @@ int nvme_init_identify(struct nvme_ctrl *ctrl)
 		return ret;
 
 	ret = nvme_configure_directives(ctrl);
+	if (ret < 0)
+		return ret;
+
+	ret = nvme_configure_acre(ctrl);
 	if (ret < 0)
 		return ret;
 

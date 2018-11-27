@@ -181,6 +181,7 @@ struct nvme_ctrl {
 	u32 page_size;
 	u32 max_hw_sectors;
 	u32 max_segments;
+	u16 crdt[3];
 	u16 oncs;
 	u16 oacs;
 	u16 nssa;
