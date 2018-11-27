@@ -11,7 +11,120 @@
 #include <drm/drm_dp_helper.h>
 
 /* VESA Display Stream Compression DSC 1.2 constants */
-#define DSC_NUM_BUF_RANGES	15
+#define DSC_NUM_BUF_RANGES			15
+#define DSC_MUX_WORD_SIZE_8_10_BPC		48
+#define DSC_MUX_WORD_SIZE_12_BPC		64
+#define DSC_RC_PIXELS_PER_GROUP			3
+#define DSC_SCALE_DECREMENT_INTERVAL_MAX	4095
+#define DSC_RANGE_BPG_OFFSET_MASK		0x3f
+
+/* Configuration for a single Rate Control model range */
+struct drm_dsc_rc_range_parameters {
+	/* Min Quantization Parameters allowed for this range */
+	u8 range_min_qp;
+	/* Max Quantization Parameters allowed for this range */
+	u8 range_max_qp;
+	/* Bits/group offset to apply to target for this group */
+	u8 range_bpg_offset;
+};
+
+struct drm_dsc_config {
+	/* Bits / component for previous reconstructed line buffer */
+	u8 line_buf_depth;
+	/* Bits per component to code (must be 8, 10, or 12) */
+	u8 bits_per_component;
+	/*
+	 * Flag indicating to do RGB - YCoCg conversion
+	 * and back (should be 1 for RGB input)
+	 */
+	bool convert_rgb;
+	u8 slice_count;
+	/* Slice Width */
+	u16 slice_width;
+	/* Slice Height */
+	u16 slice_height;
+	/*
+	 * 4:2:2 enable mode (from PPS, 4:2:2 conversion happens
+	 * outside of DSC encode/decode algorithm)
+	 */
+	bool enable422;
+	/* Picture Width */
+	u16 pic_width;
+	/* Picture Height */
+	u16 pic_height;
+	/* Offset to bits/group used by RC to determine QP adjustment */
+	u8 rc_tgt_offset_high;
+	/* Offset to bits/group used by RC to determine QP adjustment */
+	u8 rc_tgt_offset_low;
+	/* Bits/pixel target << 4 (ie., 4 fractional bits) */
+	u16 bits_per_pixel;
+	/*
+	 * Factor to determine if an edge is present based
+	 * on the bits produced
+	 */
+	u8 rc_edge_factor;
+	/* Slow down incrementing once the range reaches this value */
+	u8 rc_quant_incr_limit1;
+	/* Slow down incrementing once the range reaches this value */
+	u8 rc_quant_incr_limit0;
+	/* Number of pixels to delay the initial transmission */
+	u16 initial_xmit_delay;
+	/* Number of pixels to delay the VLD on the decoder,not including SSM */
+	u16  initial_dec_delay;
+	/* Block prediction enable */
+	bool block_pred_enable;
+	/* Bits/group offset to use for first line of the slice */
+	u8 first_line_bpg_offset;
+	/* Value to use for RC model offset at slice start */
+	u16 initial_offset;
+	/* Thresholds defining each of the buffer ranges */
+	u16 rc_buf_thresh[DSC_NUM_BUF_RANGES - 1];
+	/* Parameters for each of the RC ranges */
+	struct drm_dsc_rc_range_parameters rc_range_params[DSC_NUM_BUF_RANGES];
+	/* Total size of RC model */
+	u16 rc_model_size;
+	/* Minimum QP where flatness information is sent */
+	u8 flatness_min_qp;
+	/* Maximum QP where flatness information is sent */
+	u8 flatness_max_qp;
+	/* Initial value for scale factor */
+	u8 initial_scale_value;
+	/* Decrement scale factor every scale_decrement_interval groups */
+	u16 scale_decrement_interval;
+	/* Increment scale factor every scale_increment_interval groups */
+	u16 scale_increment_interval;
+	/* Non-first line BPG offset to use */
+	u16 nfl_bpg_offset;
+	/* BPG offset used to enforce slice bit */
+	u16 slice_bpg_offset;
+	/* Final RC linear transformation offset value */
+	u16 final_offset;
+	/* Enable on-off VBR (ie., disable stuffing bits) */
+	bool vbr_enable;
+	/* Mux word size (in bits) for SSM mode */
+	u8 mux_word_size;
+	/*
+	 * The (max) size in bytes of the "chunks" that are
+	 * used in slice multiplexing
+	 */
+	u16 slice_chunk_size;
+	/* Rate Control buffer siz in bits */
+	u16 rc_bits;
+	/* DSC Minor Version */
+	u8 dsc_version_minor;
+	/* DSC Major version */
+	u8 dsc_version_major;
+	/* Native 4:2:2 support */
+	bool native_422;
+	/* Native 4:2:0 support */
+	bool native_420;
+	/* Additional bits/grp for seconnd line of slice for native 4:2:0 */
+	u8 second_line_bpg_offset;
+	/* Num of bits deallocated for each grp that is not in second line of slice */
+	u16 nsl_bpg_offset;
+	/* Offset adj fr second line in Native 4:2:0 mode */
+	u16 second_line_offset_adj;
+};
 
 /**
  * struct picture_parameter_set - Represents 128 bytes of Picture Parameter Set
