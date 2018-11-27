@@ -987,18 +987,6 @@ int target_configure_device(struct se_device *dev)
 		goto out_destroy_device;
 
 	/*
-	 * Startup the struct se_device processing thread
-	 */
-	dev->tmr_wq = alloc_workqueue("tmr-%s", WQ_MEM_RECLAIM | WQ_UNBOUND, 1,
-				      dev->transport->name);
-	if (!dev->tmr_wq) {
-		pr_err("Unable to create tmr workqueue for %s\n",
-			dev->transport->name);
-		ret = -ENOMEM;
-		goto out_free_alua;
-	}
-
-	/*
 	 * Setup work_queue for QUEUE_FULL
 	 */
 	INIT_WORK(&dev->qf_work_queue, target_qf_do_work);
@@ -1026,8 +1014,6 @@ int target_configure_device(struct se_device *dev)
 
 	return 0;
 
-out_free_alua:
-	core_alua_free_lu_gp_mem(dev);
 out_destroy_device:
 	dev->transport->destroy_device(dev);
 out_free_index:
@@ -1046,8 +1032,6 @@ void target_free_device(struct se_device *dev)
 	WARN_ON(!list_empty(&dev->dev_sep_list));
 
 	if (target_dev_configured(dev)) {
-		destroy_workqueue(dev->tmr_wq);
-
 		dev->transport->destroy_device(dev);
 
 		mutex_lock(&device_mutex);

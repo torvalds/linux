@@ -796,7 +796,6 @@ struct se_device {
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	struct workqueue_struct *tmr_wq;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;

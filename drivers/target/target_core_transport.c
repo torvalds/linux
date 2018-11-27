@@ -3412,7 +3412,7 @@ int transport_generic_handle_tmr(
 	}
 
 	INIT_WORK(&cmd->work, target_tmr_work);
-	queue_work(cmd->se_dev->tmr_wq, &cmd->work);
+	schedule_work(&cmd->work);
 	return 0;
 }
 EXPORT_SYMBOL(transport_generic_handle_tmr);
