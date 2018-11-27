@@ -5,6 +5,7 @@
 #include <uapi/linux/types.h>
 #include <linux/seq_file.h>
 #include <linux/compiler.h>
+#include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
@@ -424,6 +425,30 @@ static bool btf_name_offset_valid(const struct btf *btf, u32 offset)
 {
 	return BTF_STR_OFFSET_VALID(offset) &&
 		offset < btf->hdr.str_len;
+}
+
+/* Only C-style identifier is permitted. This can be relaxed if
+ * necessary.
+ */
+static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
+{
+	/* offset must be valid */
+	const char *src = &btf->strings[offset];
+	const char *src_limit;
+
+	if (!isalpha(*src) && *src != '_')
+		return false;
+
+	/* set a limit on identifier length */
+	src_limit = src + KSYM_NAME_LEN;
+	src++;
+	while (*src && src < src_limit) {
+		if (!isalnum(*src) && *src != '_')
+			return false;
+		src++;
+	}
+
+	return !*src;
 }
 
 static const char *btf_name_by_offset(const struct btf *btf, u32 offset)
