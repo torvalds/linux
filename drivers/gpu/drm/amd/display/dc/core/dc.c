@@ -1071,7 +1071,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 			}
 		}
 
-		status = dc_stream_get_status(context->streams[i]);
+		status = dc_stream_get_status_from_state(context, context->streams[i]);
 		context->streams[i]->out.otg_offset = status->primary_otg_inst;
 
 		CONN_MSG_MODE(link, "{%dx%d, %dx%d@%dKhz}",

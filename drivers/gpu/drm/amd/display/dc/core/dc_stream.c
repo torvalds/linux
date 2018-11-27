@@ -160,18 +160,40 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	return stream;
 }
 
-struct dc_stream_status *dc_stream_get_status(
+/**
+ * dc_stream_get_status_from_state - Get stream status from given dc state
+ * @state: DC state to find the stream status in
+ * @stream: The stream to get the stream status for
+ *
+ * The given stream is expected to exist in the given dc state. Otherwise, NULL
+ * will be returned.
+ */
+struct dc_stream_status *dc_stream_get_status_from_state(
+	struct dc_state *state,
 	struct dc_stream_state *stream)
 {
 	uint8_t i;
-	struct dc  *dc = stream->ctx->dc;
 
-	for (i = 0; i < dc->current_state->stream_count; i++) {
-		if (stream == dc->current_state->streams[i])
-			return &dc->current_state->stream_status[i];
+	for (i = 0; i < state->stream_count; i++) {
+		if (stream == state->streams[i])
+			return &state->stream_status[i];
 	}
 
 	return NULL;
+}
+
+/**
+ * dc_stream_get_status() - Get current stream status of the given stream state
+ * @stream: The stream to get the stream status for.
+ *
+ * The given stream is expected to exist in dc->current_state. Otherwise, NULL
+ * will be returned.
+ */
+struct dc_stream_status *dc_stream_get_status(
+	struct dc_stream_state *stream)
+{
+	struct dc *dc = stream->ctx->dc;
+	return dc_stream_get_status_from_state(dc->current_state, stream);
 }
 
 /**

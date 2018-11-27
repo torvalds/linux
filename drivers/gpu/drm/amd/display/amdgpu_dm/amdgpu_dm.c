@@ -4458,20 +4458,6 @@ static void prepare_flip_isr(struct amdgpu_crtc *acrtc)
 						 acrtc->crtc_id);
 }
 
-struct dc_stream_status *dc_state_get_stream_status(
-	struct dc_state *state,
-	struct dc_stream_state *stream)
-{
-	uint8_t i;
-
-	for (i = 0; i < state->stream_count; i++) {
-		if (stream == state->streams[i])
-			return &state->stream_status[i];
-	}
-
-	return NULL;
-}
-
 static void update_freesync_state_on_stream(
 	struct amdgpu_display_manager *dm,
 	struct dm_crtc_state *new_crtc_state,
@@ -5079,8 +5065,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 					dc_stream_get_status(dm_new_crtc_state->stream);
 
 			if (!status)
-				status = dc_state_get_stream_status(dc_state,
-								    dm_new_crtc_state->stream);
+				status = dc_stream_get_status_from_state(dc_state,
+									 dm_new_crtc_state->stream);
 
 			if (!status)
 				DC_ERR("got no status for stream %p on acrtc%p\n", dm_new_crtc_state->stream, acrtc);
@@ -5844,8 +5830,8 @@ dm_determine_update_type_for_commit(struct dc *dc,
 					goto cleanup;
 				}
 
-				status = dc_state_get_stream_status(old_dm_state->context,
-								    new_dm_crtc_state->stream);
+				status = dc_stream_get_status_from_state(old_dm_state->context,
+									 new_dm_crtc_state->stream);
 
 				update_type = dc_check_update_surfaces_for_stream(dc, updates, num_plane,
 										  &stream_update, status);

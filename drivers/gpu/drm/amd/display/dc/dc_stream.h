@@ -278,6 +278,9 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 void dc_stream_retain(struct dc_stream_state *dc_stream);
 void dc_stream_release(struct dc_stream_state *dc_stream);
 
+struct dc_stream_status *dc_stream_get_status_from_state(
+	struct dc_state *state,
+	struct dc_stream_state *stream);
 struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *dc_stream);
 
