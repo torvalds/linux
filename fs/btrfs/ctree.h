@@ -1180,22 +1180,23 @@ struct btrfs_subvolume_writers {
 /*
  * The state of btrfs root
  */
-/*
- * btrfs_record_root_in_trans is a multi-step process,
- * and it can race with the balancing code.   But the
- * race is very small, and only the first time the root
- * is added to each transaction.  So IN_TRANS_SETUP
- * is used to tell us when more checks are required
- */
-#define BTRFS_ROOT_IN_TRANS_SETUP	0
-#define BTRFS_ROOT_REF_COWS		1
-#define BTRFS_ROOT_TRACK_DIRTY		2
-#define BTRFS_ROOT_IN_RADIX		3
-#define BTRFS_ROOT_ORPHAN_ITEM_INSERTED	4
-#define BTRFS_ROOT_DEFRAG_RUNNING	5
-#define BTRFS_ROOT_FORCE_COW		6
-#define BTRFS_ROOT_MULTI_LOG_TASKS	7
-#define BTRFS_ROOT_DIRTY		8
+enum {
+	/*
+	 * btrfs_record_root_in_trans is a multi-step process, and it can race
+	 * with the balancing code.   But the race is very small, and only the
+	 * first time the root is added to each transaction.  So IN_TRANS_SETUP
+	 * is used to tell us when more checks are required
+	 */
+	BTRFS_ROOT_IN_TRANS_SETUP,
+	BTRFS_ROOT_REF_COWS,
+	BTRFS_ROOT_TRACK_DIRTY,
+	BTRFS_ROOT_IN_RADIX,
+	BTRFS_ROOT_ORPHAN_ITEM_INSERTED,
+	BTRFS_ROOT_DEFRAG_RUNNING,
+	BTRFS_ROOT_FORCE_COW,
+	BTRFS_ROOT_MULTI_LOG_TASKS,
+	BTRFS_ROOT_DIRTY,
+};
 
 /*
  * in ram representation of the tree.  extent_root is used for all allocations
