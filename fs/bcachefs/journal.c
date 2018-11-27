@@ -461,7 +461,7 @@ u64 bch2_journal_last_unwritten_seq(struct journal *j)
 int bch2_journal_open_seq_async(struct journal *j, u64 seq, struct closure *cl)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
-	bool need_reclaim = false;
+	int ret;
 retry:
 	spin_lock(&j->lock);
 
@@ -489,14 +489,11 @@ retry:
 
 	BUG_ON(journal_cur_seq(j) < seq);
 
-	if (!journal_entry_open(j)) {
-		need_reclaim = true;
-		goto blocked;
+	ret = journal_entry_open(j);
+	if (ret) {
+		spin_unlock(&j->lock);
+		return ret < 0 ? ret : 0;
 	}
-
-	spin_unlock(&j->lock);
-
-	return 0;
 blocked:
 	if (!j->res_get_blocked_start)
 		j->res_get_blocked_start = local_clock() ?: 1;
@@ -504,8 +501,7 @@ blocked:
 	closure_wait(&j->async_wait, cl);
 	spin_unlock(&j->lock);
 
-	if (need_reclaim)
-		bch2_journal_reclaim_work(&j->reclaim_work.work);
+	bch2_journal_reclaim_work(&j->reclaim_work.work);
 	return -EAGAIN;
 }
 
