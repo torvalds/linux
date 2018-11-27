@@ -1619,12 +1619,14 @@ int tcp_v4_early_demux(struct sk_buff *skb)
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	u32 limit = sk->sk_rcvbuf + sk->sk_sndbuf;
-
-	/* Only socket owner can try to collapse/prune rx queues
-	 * to reduce memory overhead, so add a little headroom here.
-	 * Few sockets backlog are possibly concurrently non empty.
-	 */
-	limit += 64*1024;
+	struct skb_shared_info *shinfo;
+	const struct tcphdr *th;
+	struct tcphdr *thtail;
+	struct sk_buff *tail;
+	unsigned int hdrlen;
+	bool fragstolen;
+	u32 gso_segs;
+	int delta;
 
 	/* In case all data was pulled from skb frags (in __pskb_pull_tail()),
 	 * we can fix skb->truesize to its real value to avoid future drops.
@@ -1635,6 +1637,84 @@ bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb)
 	skb_condense(skb);
 
 	skb_dst_drop(skb);
+
+	if (unlikely(tcp_checksum_complete(skb))) {
+		bh_unlock_sock(sk);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_CSUMERRORS);
+		__TCP_INC_STATS(sock_net(sk), TCP_MIB_INERRS);
+		return true;
+	}
+
+	/* Attempt coalescing to last skb in backlog, even if we are
+	 * above the limits.
+	 * This is okay because skb capacity is limited to MAX_SKB_FRAGS.
+	 */
+	th = (const struct tcphdr *)skb->data;
+	hdrlen = th->doff * 4;
+	shinfo = skb_shinfo(skb);
+
+	if (!shinfo->gso_size)
+		shinfo->gso_size = skb->len - hdrlen;
+
+	if (!shinfo->gso_segs)
+		shinfo->gso_segs = 1;
+
+	tail = sk->sk_backlog.tail;
+	if (!tail)
+		goto no_coalesce;
+	thtail = (struct tcphdr *)tail->data;
+
+	if (TCP_SKB_CB(tail)->end_seq != TCP_SKB_CB(skb)->seq ||
+	    TCP_SKB_CB(tail)->ip_dsfield != TCP_SKB_CB(skb)->ip_dsfield ||
+	    ((TCP_SKB_CB(tail)->tcp_flags |
+	      TCP_SKB_CB(skb)->tcp_flags) & TCPHDR_URG) ||
+	    ((TCP_SKB_CB(tail)->tcp_flags ^
+	      TCP_SKB_CB(skb)->tcp_flags) & (TCPHDR_ECE | TCPHDR_CWR)) ||
+#ifdef CONFIG_TLS_DEVICE
+	    tail->decrypted != skb->decrypted ||
+#endif
+	    thtail->doff != th->doff ||
+	    memcmp(thtail + 1, th + 1, hdrlen - sizeof(*th)))
+		goto no_coalesce;
+
+	__skb_pull(skb, hdrlen);
+	if (skb_try_coalesce(tail, skb, &fragstolen, &delta)) {
+		thtail->window = th->window;
+
+		TCP_SKB_CB(tail)->end_seq = TCP_SKB_CB(skb)->end_seq;
+
+		if (after(TCP_SKB_CB(skb)->ack_seq, TCP_SKB_CB(tail)->ack_seq))
+			TCP_SKB_CB(tail)->ack_seq = TCP_SKB_CB(skb)->ack_seq;
+
+		TCP_SKB_CB(tail)->tcp_flags |= TCP_SKB_CB(skb)->tcp_flags;
+
+		if (TCP_SKB_CB(skb)->has_rxtstamp) {
+			TCP_SKB_CB(tail)->has_rxtstamp = true;
+			tail->tstamp = skb->tstamp;
+			skb_hwtstamps(tail)->hwtstamp = skb_hwtstamps(skb)->hwtstamp;
+		}
+
+		/* Not as strict as GRO. We only need to carry mss max value */
+		skb_shinfo(tail)->gso_size = max(shinfo->gso_size,
+						 skb_shinfo(tail)->gso_size);
+
+		gso_segs = skb_shinfo(tail)->gso_segs + shinfo->gso_segs;
+		skb_shinfo(tail)->gso_segs = min_t(u32, gso_segs, 0xFFFF);
+
+		sk->sk_backlog.len += delta;
+		__NET_INC_STATS(sock_net(sk),
+				LINUX_MIB_TCPBACKLOGCOALESCE);
+		kfree_skb_partial(skb, fragstolen);
+		return false;
+	}
+	__skb_push(skb, hdrlen);
+
+no_coalesce:
+	/* Only socket owner can try to collapse/prune rx queues
+	 * to reduce memory overhead, so add a little headroom here.
+	 * Few sockets backlog are possibly concurrently non empty.
+	 */
+	limit += 64*1024;
 
 	if (unlikely(sk_add_backlog(sk, skb, limit))) {
 		bh_unlock_sock(sk);
