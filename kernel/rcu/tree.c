@@ -725,7 +725,6 @@ static __always_inline void rcu_nmi_exit_common(bool irq)
 
 /**
  * rcu_nmi_exit - inform RCU of exit from NMI context
- * @irq: Is this call from rcu_irq_exit?
  *
  * If you add or remove a call to rcu_nmi_exit(), be sure to test
  * with CONFIG_RCU_EQS_DEBUG=y.
