@@ -215,7 +215,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	 */
 	if (rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP &&
 	    rdtgroup_pseudo_locked_in_hierarchy(d)) {
-		rdt_last_cmd_printf("Pseudo-locked region in hierarchy\n");
+		rdt_last_cmd_puts("Pseudo-locked region in hierarchy\n");
 		return -EINVAL;
 	}
 
@@ -225,7 +225,7 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	if ((rdtgrp->mode == RDT_MODE_EXCLUSIVE ||
 	     rdtgrp->mode == RDT_MODE_SHAREABLE) &&
 	    rdtgroup_cbm_overlaps_pseudo_locked(d, cbm_val)) {
-		rdt_last_cmd_printf("CBM overlaps with pseudo-locked region\n");
+		rdt_last_cmd_puts("CBM overlaps with pseudo-locked region\n");
 		return -EINVAL;
 	}
 
@@ -234,14 +234,14 @@ int parse_cbm(struct rdt_parse_data *data, struct rdt_resource *r,
 	 * either is exclusive.
 	 */
 	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, true)) {
-		rdt_last_cmd_printf("Overlaps with exclusive group\n");
+		rdt_last_cmd_puts("Overlaps with exclusive group\n");
 		return -EINVAL;
 	}
 
 	if (rdtgroup_cbm_overlaps(r, d, cbm_val, rdtgrp->closid, false)) {
 		if (rdtgrp->mode == RDT_MODE_EXCLUSIVE ||
 		    rdtgrp->mode == RDT_MODE_PSEUDO_LOCKSETUP) {
-			rdt_last_cmd_printf("0verlaps with other group\n");
+			rdt_last_cmd_puts("Overlaps with other group\n");
 			return -EINVAL;
 		}
 	}
