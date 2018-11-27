@@ -165,7 +165,8 @@ void core_tmr_abort_task(
 		printk("ABORT_TASK: Found referenced %s task_tag: %llu\n",
 			se_cmd->se_tfo->fabric_name, ref_tag);
 
-		if (!__target_check_io_state(se_cmd, se_sess, 0))
+		if (!__target_check_io_state(se_cmd, se_sess,
+					     dev->dev_attrib.emulate_tas))
 			continue;
 
 		spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
