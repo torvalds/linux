@@ -744,13 +744,18 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 		core_if = GET_CORE_IF(d->pcd);
 	}
 
+	if (is_on == pcd->pullups_connected)
+		return 0;
+
 	if (is_on) {
 		/* dwc_otg_pcd_pullup_enable(pcd); */
 		pcd->conn_en = 1;
 		pcd->conn_status = 0;
+		pcd->pullups_connected = true;
 	} else {
 		dwc_otg_pcd_pullup_disable(pcd);
 		pcd->conn_en = 0;
+		pcd->pullups_connected = false;
 	}
 
 	return 0;

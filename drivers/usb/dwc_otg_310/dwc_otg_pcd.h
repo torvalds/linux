@@ -251,6 +251,8 @@ struct dwc_otg_pcd {
 	struct cfiobject *cfi;
 #endif
 
+	/* true when pullup operation is set to on */
+	bool pullups_connected;
 	/** otg phy may be suspend in device mode, 1:suspend, 0:normal */
 	uint8_t phy_suspend;
 	/** vbus status in device mode */
