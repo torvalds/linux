@@ -306,14 +306,7 @@ int hda_dsp_cl_load_fw(struct snd_sof_dev *sdev, bool first_boot)
 
 	/* set code loading condition to true */
 	sdev->code_loading = 1;
-
-	switch (plat_data->type) {
-	case SOF_DEVICE_SPI:
-		fw_filename = plat_data->sof_machine->sof_fw_filename;
-		break;
-	default:
-		fw_filename = plat_data->machine->sof_fw_filename;
-	}
+	fw_filename = plat_data->machine->sof_fw_filename;
 
 	return request_firmware(&plat_data->fw, fw_filename, sdev->dev);
 }

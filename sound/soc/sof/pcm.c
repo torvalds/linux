@@ -690,14 +690,7 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 
 	/* load the default topology */
 	sdev->component = component;
-
-	switch (plat_data->type) {
-	case SOF_DEVICE_SPI:
-		tplg_filename = plat_data->sof_machine->sof_tplg_filename;
-		break;
-	default:
-		tplg_filename = plat_data->machine->sof_tplg_filename;
-	}
+	tplg_filename = plat_data->machine->sof_tplg_filename;
 
 	ret = snd_sof_load_topology(sdev, tplg_filename);
 	if (ret < 0) {
@@ -732,15 +725,8 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	const char *plat_name, *drv_name;
 
-	switch (plat_data->type) {
-	case SOF_DEVICE_SPI:
-		plat_name = plat_data->sof_machine->asoc_plat_name;
-		drv_name = plat_data->sof_machine->drv_name;
-		break;
-	default:
-		plat_name = plat_data->machine->asoc_plat_name;
-		drv_name = plat_data->machine->drv_name;
-	}
+	plat_name = plat_data->machine->asoc_plat_name;
+	drv_name = plat_data->machine->drv_name;
 
 	dev_dbg(sdev->dev, "using platform alias %s\n", plat_name);
 

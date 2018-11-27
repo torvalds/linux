@@ -32,15 +32,6 @@ enum sof_device_type {
 /*
  * SOF Platform data.
  */
-struct snd_sof_machine {
-	const u8 id[ACPI_ID_LEN];
-	const char *drv_name;
-	const char *sof_fw_filename;
-	const char *sof_tplg_filename;
-	const char *asoc_plat_name;
-	const struct snd_sof_dsp_ops *ops;
-};
-
 struct snd_sof_pdata {
 	u32 id;		/* PCI/ACPI ID */
 	const struct firmware *fw;
@@ -61,10 +52,7 @@ struct snd_sof_pdata {
 
 	/* machine */
 	struct platform_device *pdev_mach;
-	union {
-		const struct snd_soc_acpi_mach *machine;
-		const struct snd_sof_machine *sof_machine;
-	};
+	const struct snd_soc_acpi_mach *machine;
 };
 
 /*
@@ -73,10 +61,7 @@ struct snd_sof_pdata {
  */
 struct sof_dev_desc {
 	/* list of machines using this configuration */
-	union {
-		struct snd_soc_acpi_mach *machines;
-		struct snd_sof_machine *sof_machines;
-	};
+	struct snd_soc_acpi_mach *machines;
 
 	/* Platform resource indexes in BAR / ACPI resources. */
 	/* Must set to -1 if not used - add new items to end */

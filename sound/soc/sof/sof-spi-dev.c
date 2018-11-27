@@ -21,7 +21,7 @@
 #include "sof-priv.h"
 #include "hw-spi.h"
 
-static const struct dev_pm_ops sof_spi_pm = {
+static const struct dev_pm_ops spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
 			   NULL)
@@ -29,19 +29,18 @@ static const struct dev_pm_ops sof_spi_pm = {
 };
 
 /* FIXME: replace with some meaningful values */
-static struct snd_sof_machine sof_spi_machines[] = {
+static struct snd_soc_acpi_mach spi_machines[] = {
 	{
 		.id = "INT343A",
 		.drv_name = "bxt_alc298s_i2s",
 		.sof_fw_filename = "intel/sof-spi.ri",
 		.sof_tplg_filename = "intel/sof-spi.tplg",
 		.asoc_plat_name = "0000:00:0e.0",
-		.ops = &snd_sof_spi_ops,
 	},
 };
 
 static const struct sof_dev_desc spi_desc = {
-	.sof_machines		= sof_spi_machines,
+	.machines		= spi_machines,
 	.nocodec_fw_filename	= "intel/sof-spi.ri",
 	.nocodec_tplg_filename	= "intel/sof-spi.tplg",
 	.resindex_lpe_base = -1,
@@ -51,12 +50,27 @@ static const struct sof_dev_desc spi_desc = {
 	.resindex_dma_base = -1,
 };
 
+static const struct sof_ops_table spi_mach_ops[] = {
+	{&spi_desc, &snd_sof_spi_ops},
+};
+
+static struct snd_sof_dsp_ops *spi_get_ops(const struct sof_dev_desc *d)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(spi_mach_ops); i++)
+		if (d == spi_mach_ops[i].desc)
+			return spi_mach_ops[i].ops;
+
+	/* not found */
+	return NULL;
+}
+
 static int sof_spi_probe(struct spi_device *spi)
 {
 	struct device *dev = &spi->dev;
 	const struct sof_dev_desc *desc = of_device_get_match_data(dev);
-	struct snd_sof_machine *machines;
-	struct snd_sof_machine *mach;
+	struct snd_soc_acpi_mach *machines, *mach;
 	struct snd_sof_pdata *sof_pdata;
 	struct sof_platform_priv *priv;
 	const char *tplg, *fw;
@@ -66,7 +80,7 @@ static int sof_spi_probe(struct spi_device *spi)
 	if (!dev->of_node || !desc)
 		return -ENODEV;
 
-	machines = desc->sof_machines;
+	machines = desc->machines;
 	if (!machines)
 		return -ENODEV;
 
@@ -119,12 +133,16 @@ static int sof_spi_probe(struct spi_device *spi)
 	 */
 	mach->sof_fw_filename = desc->nocodec_fw_filename;
 	mach->sof_tplg_filename = desc->nocodec_tplg_filename;
-	mach->ops = machines[0].ops;
 	mach->asoc_plat_name = "sof-platform";
+	mach->pdata = spi_get_ops(desc);
+	if (!mach->pdata) {
+		dev_err(dev, "No matching SPI descriptor ops\n");
+		return -ENODEV;
+	}
 
 	sof_pdata->id = -1;
 	sof_pdata->name = dev_name(&spi->dev);
-	sof_pdata->sof_machine = mach;
+	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
 	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = dev;
