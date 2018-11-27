@@ -109,13 +109,26 @@ static inline unsigned long btrfs_chunk_item_size(int num_stripes)
 }
 
 /*
- * File system states
+ * Runtime (in-memory) states of filesystem
  */
-#define BTRFS_FS_STATE_ERROR		0
-#define BTRFS_FS_STATE_REMOUNTING	1
-#define BTRFS_FS_STATE_TRANS_ABORTED	2
-#define BTRFS_FS_STATE_DEV_REPLACING	3
-#define BTRFS_FS_STATE_DUMMY_FS_INFO	4
+enum {
+	/* Global indicator of serious filesystem errors */
+	BTRFS_FS_STATE_ERROR,
+	/*
+	 * Filesystem is being remounted, allow to skip some operations, like
+	 * defrag
+	 */
+	BTRFS_FS_STATE_REMOUNTING,
+	/* Track if a transaction abort has been reported on this filesystem */
+	BTRFS_FS_STATE_TRANS_ABORTED,
+	/*
+	 * Bio operations should be blocked on this filesystem because a source
+	 * or target device is being destroyed as part of a device replace
+	 */
+	BTRFS_FS_STATE_DEV_REPLACING,
+	/* The btrfs_fs_info created for self-tests */
+	BTRFS_FS_STATE_DUMMY_FS_INFO,
+};
 
 #define BTRFS_BACKREF_REV_MAX		256
 #define BTRFS_BACKREF_REV_SHIFT		56
