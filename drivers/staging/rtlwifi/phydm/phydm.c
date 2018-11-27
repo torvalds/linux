@@ -477,7 +477,7 @@ static void phydm_supportability_init(void *dm_void)
 
 	} else {
 		ODM_RT_TRACE(dm, ODM_COMP_INIT,
-			     "ODM adaptivity is set to disnabled!!!\n");
+			     "ODM adaptivity is set to disabled!!!\n");
 		/**/
 	}
 
