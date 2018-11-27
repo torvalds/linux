@@ -1949,7 +1949,7 @@ static int ip_set_byindex(struct net *net, struct sock *ctnl,
 	if (!nlh2)
 		goto nlmsg_failure;
 	if (nla_put_u8(skb2, IPSET_ATTR_PROTOCOL, protocol(attr)) ||
-	    nla_put_string(skb, IPSET_ATTR_SETNAME, set->name))
+	    nla_put_string(skb2, IPSET_ATTR_SETNAME, set->name))
 		goto nla_put_failure;
 	nlmsg_end(skb2, nlh2);
 
