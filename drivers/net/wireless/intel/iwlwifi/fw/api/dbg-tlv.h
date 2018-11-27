@@ -131,7 +131,7 @@ struct iwl_fw_ini_debug_flow_tlv {
 	__le32 debug_flow_cfg;
 } __packed; /* FW_INI_DEBUG_FLOW_TLV_S_VER_1 */
 
-#define IWL_FW_INI_MAX_REGION_ID	20
+#define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
 /**
  * struct iwl_fw_ini_region_cfg
