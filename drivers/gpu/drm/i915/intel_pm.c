@@ -4630,9 +4630,6 @@ skl_compute_plane_wm_params(const struct drm_i915_private *dev_priv,
 		to_intel_atomic_state(cstate->base.state);
 	bool apply_memory_bw_wa = skl_needs_memory_bw_wa(state);
 
-	if (!intel_wm_plane_visible(cstate, intel_pstate))
-		return 0;
-
 	/* only NV12 format has two planes */
 	if (plane_id == 1 && fb->format->format != DRM_FORMAT_NV12) {
 		DRM_DEBUG_KMS("Non NV12 format have single plane\n");
@@ -4745,9 +4742,6 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 	if (latency == 0)
 		return level == 0 ? -EINVAL : 0;
-
-	if (!intel_wm_plane_visible(cstate, intel_pstate))
-		return 0;
 
 	/* Display WA #1141: kbl,cfl */
 	if ((IS_KABYLAKE(dev_priv) || IS_COFFEELAKE(dev_priv) ||
@@ -4871,20 +4865,15 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 
 static int
 skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
-		      struct skl_ddb_allocation *ddb,
 		      const struct intel_crtc_state *cstate,
 		      const struct intel_plane_state *intel_pstate,
 		      uint16_t ddb_blocks,
 		      const struct skl_wm_params *wm_params,
-		      struct skl_plane_wm *wm,
 		      struct skl_wm_level *levels)
 {
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	struct skl_wm_level *result_prev = &levels[0];
 	int ret;
-
-	if (WARN_ON(!intel_pstate->base.fb))
-		return -EINVAL;
 
 	for (level = 0; level <= max_level; level++) {
 		struct skl_wm_level *result = &levels[level];
@@ -4902,9 +4891,6 @@ skl_compute_wm_levels(const struct drm_i915_private *dev_priv,
 
 		result_prev = result;
 	}
-
-	if (intel_pstate->base.fb->format->format == DRM_FORMAT_NV12)
-		wm->is_planar = true;
 
 	return 0;
 }
@@ -4942,9 +4928,6 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
 	uint16_t trans_min, trans_y_tile_min;
 	const uint16_t trans_amount = 10; /* This is configurable amount */
 	uint16_t wm0_sel_res_b, trans_offset_b, res_blocks;
-
-	if (!cstate->base.active)
-		return;
 
 	/* Transition WM are not recommended by HW team for GEN9 */
 	if (INTEL_GEN(dev_priv) <= 9)
@@ -4994,97 +4977,135 @@ static void skl_compute_transition_wm(const struct intel_crtc_state *cstate,
 	}
 }
 
-static int __skl_build_plane_wm_single(struct skl_ddb_allocation *ddb,
-				       struct skl_pipe_wm *pipe_wm,
-				       enum plane_id plane_id,
-				       const struct intel_crtc_state *cstate,
-				       const struct intel_plane_state *pstate,
-				       int color_plane)
-{
-	struct drm_i915_private *dev_priv = to_i915(pstate->base.plane->dev);
-	struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
-	enum pipe pipe = to_intel_plane(pstate->base.plane)->pipe;
-	struct skl_wm_params wm_params;
-	uint16_t ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][plane_id]);
-	int ret;
-
-	ret = skl_compute_plane_wm_params(dev_priv, cstate, pstate,
-					  &wm_params, color_plane);
-	if (ret)
-		return ret;
-
-	ret = skl_compute_wm_levels(dev_priv, ddb, cstate, pstate,
-				    ddb_blocks, &wm_params, wm, wm->wm);
-
-	if (ret)
-		return ret;
-
-	skl_compute_transition_wm(cstate, &wm_params, wm, ddb_blocks);
-
-	return 0;
-}
-
 static int skl_build_plane_wm_single(struct skl_ddb_allocation *ddb,
-				     struct skl_pipe_wm *pipe_wm,
-				     const struct intel_crtc_state *cstate,
-				     const struct intel_plane_state *pstate)
+				     struct intel_crtc_state *crtc_state,
+				     const struct intel_plane_state *plane_state,
+				     enum plane_id plane_id, int color_plane)
 {
-	enum plane_id plane_id = to_intel_plane(pstate->base.plane)->id;
-
-	return __skl_build_plane_wm_single(ddb, pipe_wm, plane_id, cstate, pstate, 0);
-}
-
-static int skl_build_plane_wm_planar(struct skl_ddb_allocation *ddb,
-				     struct skl_pipe_wm *pipe_wm,
-				     const struct intel_crtc_state *cstate,
-				     const struct intel_plane_state *pstate)
-{
-	struct intel_plane *plane = to_intel_plane(pstate->base.plane);
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
-	enum plane_id plane_id = plane->id;
-	struct skl_plane_wm *wm = &pipe_wm->planes[plane_id];
+	struct skl_plane_wm *wm = &crtc_state->wm.skl.optimal.planes[plane_id];
 	struct skl_wm_params wm_params;
 	enum pipe pipe = plane->pipe;
 	uint16_t ddb_blocks = skl_ddb_entry_size(&ddb->plane[pipe][plane_id]);
 	int ret;
 
-	ret = __skl_build_plane_wm_single(ddb, pipe_wm, plane_id, cstate, pstate, 0);
+	ret = skl_compute_plane_wm_params(dev_priv, crtc_state, plane_state,
+					  &wm_params, color_plane);
 	if (ret)
 		return ret;
 
-	/* uv plane watermarks must also be validated for NV12/Planar */
-	ddb_blocks = skl_ddb_entry_size(&ddb->uv_plane[pipe][plane_id]);
-
-	ret = skl_compute_plane_wm_params(dev_priv, cstate, pstate, &wm_params, 1);
+	ret = skl_compute_wm_levels(dev_priv, crtc_state, plane_state,
+				    ddb_blocks, &wm_params, wm->wm);
 	if (ret)
 		return ret;
 
-	return skl_compute_wm_levels(dev_priv, ddb, cstate, pstate,
-				     ddb_blocks, &wm_params, wm, wm->uv_wm);
+	skl_compute_transition_wm(crtc_state, &wm_params, wm, ddb_blocks);
+
+	return 0;
 }
 
-static int icl_build_plane_wm_planar(struct skl_ddb_allocation *ddb,
-				     struct skl_pipe_wm *pipe_wm,
-				     const struct intel_crtc_state *cstate,
-				     const struct intel_plane_state *pstate)
+static int skl_build_plane_wm_uv(struct skl_ddb_allocation *ddb,
+				 struct intel_crtc_state *crtc_state,
+				 const struct intel_plane_state *plane_state,
+				 enum plane_id plane_id)
 {
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct skl_plane_wm *wm = &crtc_state->wm.skl.optimal.planes[plane_id];
+	struct skl_wm_params wm_params;
+	enum pipe pipe = plane->pipe;
+	uint16_t ddb_blocks = skl_ddb_entry_size(&ddb->uv_plane[pipe][plane_id]);
 	int ret;
-	enum plane_id y_plane_id = pstate->linked_plane->id;
-	enum plane_id uv_plane_id = to_intel_plane(pstate->base.plane)->id;
 
-	ret = __skl_build_plane_wm_single(ddb, pipe_wm, y_plane_id,
-					  cstate, pstate, 0);
+	wm->is_planar = true;
+
+	/* uv plane watermarks must also be validated for NV12/Planar */
+	ret = skl_compute_plane_wm_params(dev_priv, crtc_state, plane_state,
+					  &wm_params, 1);
 	if (ret)
 		return ret;
 
-	return __skl_build_plane_wm_single(ddb, pipe_wm, uv_plane_id,
-					   cstate, pstate, 1);
+	ret = skl_compute_wm_levels(dev_priv, crtc_state, plane_state,
+				    ddb_blocks, &wm_params, wm->uv_wm);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int skl_build_plane_wm(struct skl_ddb_allocation *ddb,
+			      struct skl_pipe_wm *pipe_wm,
+			      struct intel_crtc_state *crtc_state,
+			      const struct intel_plane_state *plane_state)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	enum plane_id plane_id = plane->id;
+	int ret;
+
+	if (!intel_wm_plane_visible(crtc_state, plane_state))
+		return 0;
+
+	ret = skl_build_plane_wm_single(ddb, crtc_state, plane_state,
+					plane_id, 0);
+	if (ret)
+		return ret;
+
+	if (fb->format->is_yuv && fb->format->num_planes > 1) {
+		ret = skl_build_plane_wm_uv(ddb, crtc_state, plane_state,
+					    plane_id);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int icl_build_plane_wm(struct skl_ddb_allocation *ddb,
+			      struct skl_pipe_wm *pipe_wm,
+			      struct intel_crtc_state *crtc_state,
+			      const struct intel_plane_state *plane_state)
+{
+	enum plane_id plane_id = to_intel_plane(plane_state->base.plane)->id;
+	int ret;
+
+	/* Watermarks calculated in master */
+	if (plane_state->slave)
+		return 0;
+
+	if (plane_state->linked_plane) {
+		const struct drm_framebuffer *fb = plane_state->base.fb;
+		enum plane_id y_plane_id = plane_state->linked_plane->id;
+
+		WARN_ON(!intel_wm_plane_visible(crtc_state, plane_state));
+		WARN_ON(!fb->format->is_yuv ||
+			fb->format->num_planes == 1);
+
+		ret = skl_build_plane_wm_single(ddb, crtc_state, plane_state,
+						y_plane_id, 0);
+		if (ret)
+			return ret;
+
+		ret = skl_build_plane_wm_single(ddb, crtc_state, plane_state,
+						plane_id, 1);
+		if (ret)
+			return ret;
+	} else if (intel_wm_plane_visible(crtc_state, plane_state)) {
+		ret = skl_build_plane_wm_single(ddb, crtc_state, plane_state,
+						plane_id, 0);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 			     struct skl_ddb_allocation *ddb,
 			     struct skl_pipe_wm *pipe_wm)
 {
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
 	struct drm_crtc_state *crtc_state = &cstate->base;
 	struct drm_plane *plane;
 	const struct drm_plane_state *pstate;
@@ -5100,18 +5121,12 @@ static int skl_build_pipe_wm(struct intel_crtc_state *cstate,
 		const struct intel_plane_state *intel_pstate =
 						to_intel_plane_state(pstate);
 
-		/* Watermarks calculated in master */
-		if (intel_pstate->slave)
-			continue;
-
-		if (intel_pstate->linked_plane)
-			ret = icl_build_plane_wm_planar(ddb, pipe_wm, cstate, intel_pstate);
-		else if (intel_pstate->base.fb &&
-			 intel_pstate->base.fb->format->format == DRM_FORMAT_NV12)
-			ret = skl_build_plane_wm_planar(ddb, pipe_wm, cstate, intel_pstate);
+		if (INTEL_GEN(dev_priv) >= 11)
+			ret = icl_build_plane_wm(ddb, pipe_wm,
+						 cstate, intel_pstate);
 		else
-			ret = skl_build_plane_wm_single(ddb, pipe_wm, cstate, intel_pstate);
-
+			ret = skl_build_plane_wm(ddb, pipe_wm,
+						 cstate, intel_pstate);
 		if (ret)
 			return ret;
 	}
