@@ -866,6 +866,10 @@ void bpf_jit_binary_free(struct bpf_binary_header *hdr);
 
 void bpf_jit_free(struct bpf_prog *fp);
 
+int bpf_jit_get_func_addr(const struct bpf_prog *prog,
+			  const struct bpf_insn *insn, bool extra_pass,
+			  u64 *func_addr, bool *func_addr_fixed);
+
 struct bpf_prog *bpf_jit_blind_constants(struct bpf_prog *fp);
 void bpf_jit_prog_release_other(struct bpf_prog *fp, struct bpf_prog *fp_other);
 
