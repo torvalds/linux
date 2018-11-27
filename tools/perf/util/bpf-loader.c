@@ -1603,7 +1603,7 @@ struct perf_evsel *bpf__setup_output_event(struct perf_evlist *evlist, const cha
 
 			op = bpf_map__add_newop(map, NULL);
 			if (IS_ERR(op))
-				return ERR_PTR(PTR_ERR(op));
+				return ERR_CAST(op);
 			op->op_type = BPF_MAP_OP_SET_EVSEL;
 			op->v.evsel = evsel;
 		}
