@@ -9,8 +9,10 @@ Required Properties:
 - clocks: reference to the master clock.
 - clock-names: shall be "mclk".
 
-For further reading on port node refer to
-Documentation/devicetree/bindings/media/video-interfaces.txt.
+The device node must contain one 'port' child node with one 'endpoint' child
+sub-node for its digital output video port, in accordance with the video
+interface bindings defined in:
+Documentation/devicetree/bindings/media/video-interfaces.txt
 
 Example:
 
@@ -21,10 +23,8 @@ Example:
 			clocks = <&mclk>;
 			clock-names = "mclk";
 
-			remote = <&pxa_camera>;
 			port {
 				mt9m111_1: endpoint {
-					bus-width = <8>;
 					remote-endpoint = <&pxa_camera>;
 				};
 			};
