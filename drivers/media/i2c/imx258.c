@@ -499,10 +499,10 @@ static const struct imx258_reg mode_1048_780_regs[] = {
 
 static const char * const imx258_test_pattern_menu[] = {
 	"Disabled",
-	"Solid Color",
-	"Color Bars",
-	"Grey Color Bars",
-	"PN9"
+	"Solid Colour",
+	"Eight Vertical Colour Bars",
+	"Colour Bars With Fade to Grey",
+	"Pseudorandom Sequence (PN9)",
 };
 
 /* Configurations for supported link frequencies */
