@@ -10839,8 +10839,10 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 			continue;
 
 		plane_state->linked_plane = NULL;
-		if (plane_state->slave && !plane_state->base.visible)
+		if (plane_state->slave && !plane_state->base.visible) {
 			crtc_state->active_planes &= ~BIT(plane->id);
+			crtc_state->update_planes |= BIT(plane->id);
+		}
 
 		plane_state->slave = false;
 	}
@@ -10881,6 +10883,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 		linked_state->slave = true;
 		linked_state->linked_plane = plane;
 		crtc_state->active_planes |= BIT(linked->id);
+		crtc_state->update_planes |= BIT(linked->id);
 		DRM_DEBUG_KMS("Using %s as Y plane for %s\n", linked->base.name, plane->base.name);
 	}
 
