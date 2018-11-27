@@ -1144,12 +1144,15 @@ int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data)
 	if (val < 0)
 		return val;
 	data->advertised = mmd_eee_adv_to_ethtool_adv_t(val);
+	data->eee_enabled = !!data->advertised;
 
 	/* Get LP advertisement EEE */
 	val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE);
 	if (val < 0)
 		return val;
 	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(val);
+
+	data->eee_active = !!(data->advertised & data->lp_advertised);
 
 	return 0;
 }
@@ -1164,7 +1167,7 @@ EXPORT_SYMBOL(phy_ethtool_get_eee);
  */
 int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 {
-	int cap, old_adv, adv, ret;
+	int cap, old_adv, adv = 0, ret;
 
 	if (!phydev->drv)
 		return -EIO;
@@ -1178,10 +1181,12 @@ int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data)
 	if (old_adv < 0)
 		return old_adv;
 
-	adv = ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap;
-
-	/* Mask prohibited EEE modes */
-	adv &= ~phydev->eee_broken_modes;
+	if (data->eee_enabled) {
+		adv = !data->advertised ? cap :
+		      ethtool_adv_to_mmd_eee_adv_t(data->advertised) & cap;
+		/* Mask prohibited EEE modes */
+		adv &= ~phydev->eee_broken_modes;
+	}
 
 	if (old_adv != adv) {
 		ret = phy_write_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV, adv);
