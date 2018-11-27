@@ -129,6 +129,16 @@ static u64 vop_get_features(struct virtio_device *vdev)
 	return features;
 }
 
+static void vop_transport_features(struct virtio_device *vdev)
+{
+	/*
+	 * Packed ring isn't enabled on virtio_vop for now,
+	 * because virtio_vop uses vring_new_virtqueue() which
+	 * creates virtio rings on preallocated memory.
+	 */
+	__virtio_clear_bit(vdev, VIRTIO_F_RING_PACKED);
+}
+
 static int vop_finalize_features(struct virtio_device *vdev)
 {
 	unsigned int i, bits;
@@ -140,6 +150,9 @@ static int vop_finalize_features(struct virtio_device *vdev)
 
 	/* Give virtio_ring a chance to accept features. */
 	vring_transport_features(vdev);
+
+	/* Give virtio_vop a chance to accept features. */
+	vop_transport_features(vdev);
 
 	memset_io(out_features, 0, feature_len);
 	bits = min_t(unsigned, feature_len,
