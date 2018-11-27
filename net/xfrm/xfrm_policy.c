@@ -1303,15 +1303,16 @@ static void xfrm_hash_rebuild(struct work_struct *work)
 
 	/* re-insert all policies by order of creation */
 	list_for_each_entry_reverse(policy, &net->xfrm.policy_all, walk.all) {
-		if (policy->walk.dead ||
-		    xfrm_policy_id2dir(policy->index) >= XFRM_POLICY_MAX) {
+		if (policy->walk.dead)
+			continue;
+		dir = xfrm_policy_id2dir(policy->index);
+		if (dir >= XFRM_POLICY_MAX) {
 			/* skip socket policies */
 			continue;
 		}
 		newpos = NULL;
 		chain = policy_hash_bysel(net, &policy->selector,
-					  policy->family,
-					  xfrm_policy_id2dir(policy->index));
+					  policy->family, dir);
 		if (!chain) {
 			void *p = xfrm_policy_inexact_insert(policy, dir, 0);
 
