@@ -111,6 +111,13 @@ struct target_core_fabric_ops {
 	struct configfs_attribute **tfc_tpg_nacl_attrib_attrs;
 	struct configfs_attribute **tfc_tpg_nacl_auth_attrs;
 	struct configfs_attribute **tfc_tpg_nacl_param_attrs;
+
+	/*
+	 * Set this member variable to true if the SCSI transport protocol
+	 * (e.g. iSCSI) requires that the Data-Out buffer is transferred in
+	 * its entirety before a command is aborted.
+	 */
+	bool write_pending_must_be_called;
 };
 
 int target_register_template(const struct target_core_fabric_ops *fo);

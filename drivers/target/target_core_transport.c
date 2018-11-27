@@ -2584,7 +2584,8 @@ transport_generic_new_cmd(struct se_cmd *cmd)
 	 * Determine if frontend context caller is requesting the stopping of
 	 * this command for frontend exceptions.
 	 */
-	if (cmd->transport_state & CMD_T_STOP) {
+	if (cmd->transport_state & CMD_T_STOP &&
+	    !cmd->se_tfo->write_pending_must_be_called) {
 		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
 			 __func__, __LINE__, cmd->tag);
 
@@ -3297,25 +3298,6 @@ void transport_send_task_abort(struct se_cmd *cmd)
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	/*
-	 * If there are still expected incoming fabric WRITEs, we wait
-	 * until until they have completed before sending a TASK_ABORTED
-	 * response.  This response with TASK_ABORTED status will be
-	 * queued back to fabric module by transport_check_aborted_status().
-	 */
-	if (cmd->data_direction == DMA_TO_DEVICE) {
-		if (cmd->se_tfo->write_pending_status(cmd) != 0) {
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			if (cmd->se_cmd_flags & SCF_SEND_DELAYED_TAS) {
-				spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-				goto send_abort;
-			}
-			cmd->se_cmd_flags |= SCF_SEND_DELAYED_TAS;
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			return;
-		}
-	}
-send_abort:
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
 
 	transport_lun_remove_cmd(cmd);
