@@ -135,6 +135,7 @@ struct svc_rdma_recv_ctxt {
 	u32			rc_byte_len;
 	unsigned int		rc_page_count;
 	unsigned int		rc_hdr_count;
+	u32			rc_inv_rkey;
 	struct page		*rc_pages[RPCSVC_MAXPAGES];
 };
 
