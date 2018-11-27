@@ -365,7 +365,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		ret = PTR_ERR(info);
 		goto out_unlock;
 	}
-	info->skip_vt_switch = 1;
 
 	info->par = fbcon;
 

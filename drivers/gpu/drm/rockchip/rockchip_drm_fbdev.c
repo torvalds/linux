@@ -110,8 +110,6 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 		      rk_obj->kvaddr,
 		      offset, size);
 
-	fbi->skip_vt_switch = true;
-
 	return 0;
 
 out:
