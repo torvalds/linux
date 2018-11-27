@@ -98,6 +98,7 @@ struct mlxsw_sp_fid_family {
 	enum mlxsw_sp_rif_type rif_type;
 	const struct mlxsw_sp_fid_ops *ops;
 	struct mlxsw_sp *mlxsw_sp;
+	u8 lag_vid_valid:1;
 };
 
 static const int mlxsw_sp_sfgc_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
@@ -121,6 +122,11 @@ static const int *mlxsw_sp_packet_type_sfgc_types[] = {
 	[MLXSW_SP_FLOOD_TYPE_BC]	= mlxsw_sp_sfgc_bc_packet_types,
 	[MLXSW_SP_FLOOD_TYPE_MC]	= mlxsw_sp_sfgc_mc_packet_types,
 };
+
+bool mlxsw_sp_fid_lag_vid_valid(const struct mlxsw_sp_fid *fid)
+{
+	return fid->fid_family->lag_vid_valid;
+}
 
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
 						  u16 fid_index)
@@ -601,7 +607,7 @@ mlxsw_sp_fid_8021d_compare(const struct mlxsw_sp_fid *fid, const void *arg)
 
 static u16 mlxsw_sp_fid_8021d_flood_index(const struct mlxsw_sp_fid *fid)
 {
-	return fid->fid_index - fid->fid_family->start_index;
+	return fid->fid_index - VLAN_N_VID;
 }
 
 static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
@@ -792,6 +798,40 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
+	.lag_vid_valid		= 1,
+};
+
+static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_emu_ops = {
+	.setup			= mlxsw_sp_fid_8021q_setup,
+	.configure		= mlxsw_sp_fid_8021d_configure,
+	.deconfigure		= mlxsw_sp_fid_8021d_deconfigure,
+	.index_alloc		= mlxsw_sp_fid_8021d_index_alloc,
+	.compare		= mlxsw_sp_fid_8021q_compare,
+	.flood_index		= mlxsw_sp_fid_8021d_flood_index,
+	.port_vid_map		= mlxsw_sp_fid_8021d_port_vid_map,
+	.port_vid_unmap		= mlxsw_sp_fid_8021d_port_vid_unmap,
+	.vni_set		= mlxsw_sp_fid_8021d_vni_set,
+	.vni_clear		= mlxsw_sp_fid_8021d_vni_clear,
+	.nve_flood_index_set	= mlxsw_sp_fid_8021d_nve_flood_index_set,
+	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
+};
+
+/* There are 4K-2 emulated 802.1Q FIDs, starting right after the 802.1D FIDs */
+#define MLXSW_SP_FID_8021Q_EMU_START	(VLAN_N_VID + MLXSW_SP_FID_8021D_MAX)
+#define MLXSW_SP_FID_8021Q_EMU_END	(MLXSW_SP_FID_8021Q_EMU_START + \
+					 VLAN_VID_MASK - 2)
+
+/* Range and flood configuration must match mlxsw_config_profile */
+static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
+	.type			= MLXSW_SP_FID_TYPE_8021Q,
+	.fid_size		= sizeof(struct mlxsw_sp_fid_8021q),
+	.start_index		= MLXSW_SP_FID_8021Q_EMU_START,
+	.end_index		= MLXSW_SP_FID_8021Q_EMU_END,
+	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
+	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
+	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
+	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
+	.lag_vid_valid		= 1,
 };
 
 static int mlxsw_sp_fid_rfid_configure(struct mlxsw_sp_fid *fid)
@@ -921,7 +961,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_dummy_family = {
 };
 
 static const struct mlxsw_sp_fid_family *mlxsw_sp_fid_family_arr[] = {
-	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp_fid_8021q_family,
+	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp_fid_8021q_emu_family,
 	[MLXSW_SP_FID_TYPE_8021D]	= &mlxsw_sp_fid_8021d_family,
 	[MLXSW_SP_FID_TYPE_RFID]	= &mlxsw_sp_fid_rfid_family,
 	[MLXSW_SP_FID_TYPE_DUMMY]	= &mlxsw_sp_fid_dummy_family,
