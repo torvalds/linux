@@ -76,8 +76,11 @@ static int rkisp1_stats_querycap(struct file *file,
 				 void *priv, struct v4l2_capability *cap)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct rkisp1_isp_stats_vdev *stats_vdev = video_get_drvdata(vdev);
 
 	strcpy(cap->driver, DRIVER_NAME);
+	snprintf(cap->driver, sizeof(cap->driver),
+		 "%s_v%02d", DRIVER_NAME, stats_vdev->dev->isp_ver);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform: " DRIVER_NAME, sizeof(cap->bus_info));
 

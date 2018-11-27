@@ -1800,8 +1800,10 @@ static int rkisp1_params_querycap(struct file *file,
 				  void *priv, struct v4l2_capability *cap)
 {
 	struct video_device *vdev = video_devdata(file);
+	struct rkisp1_isp_params_vdev *params_vdev = video_get_drvdata(vdev);
 
-	strcpy(cap->driver, DRIVER_NAME);
+	snprintf(cap->driver, sizeof(cap->driver),
+		 "%s_v%02d", DRIVER_NAME, params_vdev->dev->isp_ver);
 	strlcpy(cap->card, vdev->name, sizeof(cap->card));
 	strlcpy(cap->bus_info, "platform: " DRIVER_NAME, sizeof(cap->bus_info));
 
