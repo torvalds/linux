@@ -29,7 +29,11 @@
 struct uvc_request_data
 {
 	__s32 length;
+#ifdef	CONFIG_USB_CONFIGFS_F_UVC_ROCKCHIP
+	__u8 data[4096];
+#else
 	__u8 data[60];
+#endif
 };
 
 struct uvc_event
@@ -97,8 +101,12 @@ extern unsigned int uvc_gadget_trace_param;
  */
 
 #define UVC_NUM_REQUESTS			4
-#define UVC_MAX_REQUEST_SIZE			64
 #define UVC_MAX_EVENTS				4
+#ifdef	CONFIG_USB_CONFIGFS_F_UVC_ROCKCHIP
+#define UVC_MAX_REQUEST_SIZE			4100
+#else
+#define UVC_MAX_REQUEST_SIZE			64
+#endif
 
 /* ------------------------------------------------------------------------
  * Structures
