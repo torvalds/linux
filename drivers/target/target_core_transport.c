@@ -707,32 +707,6 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 		percpu_ref_put(&lun->lun_ref);
 }
 
-int transport_cmd_finish_abort(struct se_cmd *cmd)
-{
-	bool send_tas = cmd->transport_state & CMD_T_TAS;
-	bool ack_kref = (cmd->se_cmd_flags & SCF_ACK_KREF);
-	int ret = 0;
-
-	if (send_tas)
-		transport_send_task_abort(cmd);
-
-	if (cmd->se_cmd_flags & SCF_SE_LUN_CMD)
-		transport_lun_remove_cmd(cmd);
-	/*
-	 * Allow the fabric driver to unmap any resources before
-	 * releasing the descriptor via TFO->release_cmd()
-	 */
-	if (!send_tas)
-		cmd->se_tfo->aborted_task(cmd);
-
-	if (transport_cmd_check_stop_to_fabric(cmd))
-		return 1;
-	if (!send_tas && ack_kref)
-		ret = target_put_sess_cmd(cmd);
-
-	return ret;
-}
-
 static void target_complete_failure_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
@@ -782,11 +756,87 @@ void transport_copy_sense_to_cmd(struct se_cmd *cmd, unsigned char *sense)
 }
 EXPORT_SYMBOL(transport_copy_sense_to_cmd);
 
+static void target_handle_abort(struct se_cmd *cmd)
+{
+	bool tas = cmd->transport_state & CMD_T_TAS;
+	bool ack_kref = cmd->se_cmd_flags & SCF_ACK_KREF;
+	int ret;
+
+	pr_debug("tag %#llx: send_abort_response = %d\n", cmd->tag, tas);
+
+	if (tas) {
+		if (!(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB)) {
+			cmd->scsi_status = SAM_STAT_TASK_ABORTED;
+			pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x, ITT: 0x%08llx\n",
+				 cmd->t_task_cdb[0], cmd->tag);
+			trace_target_cmd_complete(cmd);
+			ret = cmd->se_tfo->queue_status(cmd);
+			if (ret) {
+				transport_handle_queue_full(cmd, cmd->se_dev,
+							    ret, false);
+				return;
+			}
+		} else {
+			cmd->se_tmr_req->response = TMR_FUNCTION_REJECTED;
+			cmd->se_tfo->queue_tm_rsp(cmd);
+		}
+	} else {
+		/*
+		 * Allow the fabric driver to unmap any resources before
+		 * releasing the descriptor via TFO->release_cmd().
+		 */
+		cmd->se_tfo->aborted_task(cmd);
+		if (ack_kref)
+			WARN_ON_ONCE(target_put_sess_cmd(cmd) != 0);
+		/*
+		 * To do: establish a unit attention condition on the I_T
+		 * nexus associated with cmd. See also the paragraph "Aborting
+		 * commands" in SAM.
+		 */
+	}
+
+	WARN_ON_ONCE(kref_read(&cmd->cmd_kref) == 0);
+
+	transport_lun_remove_cmd(cmd);
+
+	transport_cmd_check_stop_to_fabric(cmd);
+}
+
+static void target_abort_work(struct work_struct *work)
+{
+	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
+
+	target_handle_abort(cmd);
+}
+
+static bool target_cmd_interrupted(struct se_cmd *cmd)
+{
+	int post_ret;
+
+	if (cmd->transport_state & CMD_T_ABORTED) {
+		if (cmd->transport_complete_callback)
+			cmd->transport_complete_callback(cmd, false, &post_ret);
+		INIT_WORK(&cmd->work, target_abort_work);
+		queue_work(target_completion_wq, &cmd->work);
+		return true;
+	} else if (cmd->transport_state & CMD_T_STOP) {
+		if (cmd->transport_complete_callback)
+			cmd->transport_complete_callback(cmd, false, &post_ret);
+		complete_all(&cmd->t_transport_stop_comp);
+		return true;
+	}
+
+	return false;
+}
+
+/* May be called from interrupt context so must not sleep. */
 void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 {
-	struct se_device *dev = cmd->se_dev;
 	int success;
 	unsigned long flags;
+
+	if (target_cmd_interrupted(cmd))
+		return;
 
 	cmd->scsi_status = scsi_status;
 
@@ -803,25 +853,7 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 		break;
 	}
 
-	/*
-	 * Check for case where an explicit ABORT_TASK has been received
-	 * and transport_wait_for_tasks() will be waiting for completion..
-	 */
-	if (cmd->transport_state & CMD_T_ABORTED ||
-	    cmd->transport_state & CMD_T_STOP) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		/*
-		 * If COMPARE_AND_WRITE was stopped by __transport_wait_for_tasks(),
-		 * release se_device->caw_sem obtained by sbc_compare_and_write()
-		 * since target_complete_ok_work() or target_complete_failure_work()
-		 * won't be called to invoke the normal CAW completion callbacks.
-		 */
-		if (cmd->se_cmd_flags & SCF_COMPARE_AND_WRITE) {
-			up(&dev->caw_sem);
-		}
-		complete_all(&cmd->t_transport_stop_comp);
-		return;
-	} else if (!success) {
+	if (!success) {
 		INIT_WORK(&cmd->work, target_complete_failure_work);
 	} else {
 		INIT_WORK(&cmd->work, target_complete_ok_work);
@@ -1805,8 +1837,11 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	if (cmd->transport_complete_callback)
 		cmd->transport_complete_callback(cmd, false, NULL);
 
-	if (cmd->transport_state & CMD_T_ABORTED)
+	if (cmd->transport_state & CMD_T_ABORTED) {
+		INIT_WORK(&cmd->work, target_abort_work);
+		queue_work(target_completion_wq, &cmd->work);
 		return;
+	}
 
 	switch (sense_reason) {
 	case TCM_NON_EXISTENT_LUN:
@@ -2020,20 +2055,10 @@ void target_execute_cmd(struct se_cmd *cmd)
 	 *
 	 * If the received CDB has already been aborted stop processing it here.
 	 */
+	if (target_cmd_interrupted(cmd))
+		return;
+
 	spin_lock_irq(&cmd->t_state_lock);
-	if (cmd->transport_state & CMD_T_ABORTED) {
-		spin_unlock_irq(&cmd->t_state_lock);
-		return;
-	}
-	if (cmd->transport_state & CMD_T_STOP) {
-		pr_debug("%s:%d CMD_T_STOP for ITT: 0x%08llx\n",
-			__func__, __LINE__, cmd->tag);
-
-		spin_unlock_irq(&cmd->t_state_lock);
-		complete_all(&cmd->t_transport_stop_comp);
-		return;
-	}
-
 	cmd->t_state = TRANSPORT_PROCESSING;
 	cmd->transport_state &= ~CMD_T_PRE_EXECUTE;
 	cmd->transport_state |= CMD_T_ACTIVE | CMD_T_SENT;
@@ -2647,13 +2672,29 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
 }
 
 /*
+ * Call target_put_sess_cmd() and wait until target_release_cmd_kref(@cmd) has
+ * finished.
+ */
+void target_put_cmd_and_wait(struct se_cmd *cmd)
+{
+	DECLARE_COMPLETION_ONSTACK(compl);
+
+	WARN_ON_ONCE(cmd->abrt_compl);
+	cmd->abrt_compl = &compl;
+	target_put_sess_cmd(cmd);
+	wait_for_completion(&compl);
+}
+
+/*
  * This function is called by frontend drivers after processing of a command
  * has finished.
  *
- * The protocol for ensuring that either the regular flow or the TMF
- * code drops one reference is as follows:
+ * The protocol for ensuring that either the regular frontend command
+ * processing flow or target_handle_abort() code drops one reference is as
+ * follows:
  * - Calling .queue_data_in(), .queue_status() or queue_tm_rsp() will cause
- *   the frontend driver to drop one reference, synchronously or asynchronously.
+ *   the frontend driver to call this function synchronously or asynchronously.
+ *   That will cause one reference to be dropped.
  * - During regular command processing the target core sets CMD_T_COMPLETE
  *   before invoking one of the .queue_*() functions.
  * - The code that aborts commands skips commands and TMFs for which
@@ -2665,7 +2706,7 @@ static void target_wait_free_cmd(struct se_cmd *cmd, bool *aborted, bool *tas)
  * - For aborted commands for which CMD_T_TAS has been set .queue_status() will
  *   be called and will drop a reference.
  * - For aborted commands for which CMD_T_TAS has not been set .aborted_task()
- *   will be called. transport_cmd_finish_abort() will drop the final reference.
+ *   will be called. target_handle_abort() will drop the final reference.
  */
 int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 {
@@ -2690,8 +2731,7 @@ int transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 	}
 	if (aborted)
 		cmd->free_compl = &compl;
-	if (!aborted || tas)
-		ret = target_put_sess_cmd(cmd);
+	ret = target_put_sess_cmd(cmd);
 	if (aborted) {
 		pr_debug("Detected CMD_T_ABORTED for ITT: %llu\n", cmd->tag);
 		wait_for_completion(&compl);
@@ -3219,6 +3259,8 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 {
 	unsigned long flags;
 
+	WARN_ON_ONCE(cmd->se_cmd_flags & SCF_SCSI_TMR_CDB);
+
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if (cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -3235,46 +3277,15 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 }
 EXPORT_SYMBOL(transport_send_check_condition_and_sense);
 
-void transport_send_task_abort(struct se_cmd *cmd)
-{
-	unsigned long flags;
-	int ret;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->se_cmd_flags & (SCF_SENT_CHECK_CONDITION)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
-
-	transport_lun_remove_cmd(cmd);
-
-	pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x, ITT: 0x%08llx\n",
-		 cmd->t_task_cdb[0], cmd->tag);
-
-	trace_target_cmd_complete(cmd);
-	ret = cmd->se_tfo->queue_status(cmd);
-	if (ret)
-		transport_handle_queue_full(cmd, cmd->se_dev, ret, false);
-}
-
 static void target_tmr_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
 	struct se_device *dev = cmd->se_dev;
 	struct se_tmr_req *tmr = cmd->se_tmr_req;
-	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->transport_state & CMD_T_ABORTED) {
-		tmr->response = TMR_FUNCTION_REJECTED;
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		goto check_stop;
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	if (cmd->transport_state & CMD_T_ABORTED)
+		goto aborted;
 
 	switch (tmr->function) {
 	case TMR_ABORT_TASK:
@@ -3308,18 +3319,16 @@ static void target_tmr_work(struct work_struct *work)
 		break;
 	}
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	if (cmd->transport_state & CMD_T_ABORTED) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		goto check_stop;
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	if (cmd->transport_state & CMD_T_ABORTED)
+		goto aborted;
 
 	cmd->se_tfo->queue_tm_rsp(cmd);
 
-check_stop:
-	transport_lun_remove_cmd(cmd);
 	transport_cmd_check_stop_to_fabric(cmd);
+	return;
+
+aborted:
+	target_handle_abort(cmd);
 }
 
 int transport_generic_handle_tmr(
@@ -3338,11 +3347,10 @@ int transport_generic_handle_tmr(
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	if (aborted) {
-		pr_warn_ratelimited("handle_tmr caught CMD_T_ABORTED TMR %d"
-			"ref_tag: %llu tag: %llu\n", cmd->se_tmr_req->function,
-			cmd->se_tmr_req->ref_task_tag, cmd->tag);
-		transport_lun_remove_cmd(cmd);
-		transport_cmd_check_stop_to_fabric(cmd);
+		pr_warn_ratelimited("handle_tmr caught CMD_T_ABORTED TMR %d ref_tag: %llu tag: %llu\n",
+				    cmd->se_tmr_req->function,
+				    cmd->se_tmr_req->ref_task_tag, cmd->tag);
+		target_handle_abort(cmd);
 		return 0;
 	}
 
