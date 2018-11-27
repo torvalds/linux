@@ -2153,7 +2153,11 @@ struct v4l2_event {
 		struct v4l2_event_frame_sync	frame_sync;
 		struct v4l2_event_src_change	src_change;
 		struct v4l2_event_motion_det	motion_det;
+#ifdef	CONFIG_USB_CONFIGFS_F_UVC_ROCKCHIP
+		__u8				data[4100];
+#else
 		__u8				data[64];
+#endif
 	} u;
 	__u32				pending;
 	__u32				sequence;
