@@ -125,12 +125,10 @@ static void ptr_gen_recalc_oldest(struct bch_fs *c,
 	*max_stale = max(*max_stale, ptr_stale(ca, ptr));
 }
 
-static u8 ptr_gens_recalc_oldest(struct bch_fs *c,
-				 enum bkey_type type,
-				 struct bkey_s_c k)
+static void ptr_gens_recalc_oldest(struct bch_fs *c, enum bkey_type type,
+				   struct bkey_s_c k, u8 *max_stale)
 {
 	const struct bch_extent_ptr *ptr;
-	u8 max_stale = 0;
 
 	switch (type) {
 	case BKEY_TYPE_BTREE:
@@ -141,7 +139,7 @@ static u8 ptr_gens_recalc_oldest(struct bch_fs *c,
 			struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
 
 			extent_for_each_ptr(e, ptr)
-				ptr_gen_recalc_oldest(c, ptr, &max_stale);
+				ptr_gen_recalc_oldest(c, ptr, max_stale);
 			break;
 		}
 		}
@@ -154,14 +152,12 @@ static u8 ptr_gens_recalc_oldest(struct bch_fs *c,
 			for (ptr = s.v->ptrs;
 			     ptr < s.v->ptrs + s.v->nr_blocks;
 			     ptr++)
-				ptr_gen_recalc_oldest(c, ptr, &max_stale);
+				ptr_gen_recalc_oldest(c, ptr, max_stale);
 		}
 		}
 	default:
 		break;
 	}
-
-	return max_stale;
 }
 
 static int ptr_gen_check(struct bch_fs *c,
@@ -244,7 +240,8 @@ static int ptr_gens_check(struct bch_fs *c, enum bkey_type type,
  * For runtime mark and sweep:
  */
 static int bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
-			    struct bkey_s_c k, bool initial)
+			    struct bkey_s_c k,
+			    u8 *max_stale, bool initial)
 {
 	struct gc_pos pos = { 0 };
 	unsigned flags =
@@ -276,20 +273,21 @@ static int bch2_gc_mark_key(struct bch_fs *c, enum bkey_type type,
 
 	bch2_mark_key(c, type, k, true, k.k->size, pos, NULL, 0, flags);
 
-	ret = ptr_gens_recalc_oldest(c, type, k);
+	ptr_gens_recalc_oldest(c, type, k, max_stale);
 fsck_err:
 	return ret;
 }
 
 static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
-			      bool initial)
+			      u8 *max_stale, bool initial)
 {
 	enum bkey_type type = btree_node_type(b);
 	struct btree_node_iter iter;
 	struct bkey unpacked;
 	struct bkey_s_c k;
-	u8 stale = 0;
-	int ret;
+	int ret = 0;
+
+	*max_stale = 0;
 
 	if (!bkey_type_needs_gc(type))
 		return 0;
@@ -298,14 +296,12 @@ static int btree_gc_mark_node(struct bch_fs *c, struct btree *b,
 				       &unpacked) {
 		bch2_bkey_debugcheck(c, b, k);
 
-		ret = bch2_gc_mark_key(c, type, k, initial);
-		if (ret < 0)
-			return ret;
-
-		stale = max_t(u8, stale, ret);
+		ret = bch2_gc_mark_key(c, type, k, max_stale, initial);
+		if (ret)
+			break;
 	}
 
-	return stale;
+	return ret;
 }
 
 static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
@@ -315,7 +311,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 	struct btree *b;
 	struct range_checks r;
 	unsigned depth = bkey_type_needs_gc(btree_id) ? 0 : 1;
-	unsigned max_stale;
+	u8 max_stale;
 	int ret = 0;
 
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
@@ -337,7 +333,9 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		bch2_verify_btree_nr_keys(b);
 
-		max_stale = btree_gc_mark_node(c, b, initial);
+		ret = btree_gc_mark_node(c, b, &max_stale, initial);
+		if (ret)
+			break;
 
 		gc_pos_set(c, gc_pos_btree_node(b));
 
@@ -358,7 +356,7 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 		bch2_btree_iter_cond_resched(&iter);
 	}
-	ret = bch2_btree_iter_unlock(&iter);
+	ret = bch2_btree_iter_unlock(&iter) ?: ret;
 	if (ret)
 		return ret;
 
@@ -366,8 +364,8 @@ static int bch2_gc_btree(struct bch_fs *c, enum btree_id btree_id,
 
 	b = c->btree_roots[btree_id].b;
 	if (!btree_node_fake(b))
-		bch2_gc_mark_key(c, BKEY_TYPE_BTREE,
-				 bkey_i_to_s_c(&b->key), initial);
+		bch2_gc_mark_key(c, BKEY_TYPE_BTREE, bkey_i_to_s_c(&b->key),
+				 &max_stale, initial);
 	gc_pos_set(c, gc_pos_btree_root(b->btree_id));
 
 	mutex_unlock(&c->btree_root_lock);
@@ -384,6 +382,7 @@ static int bch2_gc_btrees(struct bch_fs *c, struct list_head *journal,
 			  bool initial)
 {
 	enum btree_id ids[BTREE_ID_NR];
+	u8 max_stale;
 	unsigned i;
 
 	for (i = 0; i < BTREE_ID_NR; i++)
@@ -408,8 +407,9 @@ static int bch2_gc_btrees(struct bch_fs *c, struct list_head *journal,
 				for_each_jset_key(k, n, j, &r->j) {
 					if (type == bkey_type(j->level, j->btree_id)) {
 						ret = bch2_gc_mark_key(c, type,
-							bkey_i_to_s_c(k), initial);
-						if (ret < 0)
+							bkey_i_to_s_c(k),
+							&max_stale, initial);
+						if (ret)
 							return ret;
 					}
 				}
