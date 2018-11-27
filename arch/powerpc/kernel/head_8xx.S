@@ -166,6 +166,9 @@ instruction_counter:
 	li	r10,MSR_KERNEL & ~(MSR_IR|MSR_DR); /* can take exceptions */ \
 	mtmsr	r10;		\
 	stw	r0,GPR0(r11);	\
+	lis	r10, STACK_FRAME_REGS_MARKER@ha; /* exception frame marker */ \
+	addi	r10, r10, STACK_FRAME_REGS_MARKER@l; \
+	stw	r10, 8(r11);	\
 	SAVE_4GPRS(3, r11);	\
 	SAVE_2GPRS(7, r11)
 
