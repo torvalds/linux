@@ -894,7 +894,7 @@ static ssize_t cached_read(struct dso *dso, struct machine *machine,
 	return r;
 }
 
-static int data_file_size(struct dso *dso, struct machine *machine)
+int dso__data_file_size(struct dso *dso, struct machine *machine)
 {
 	int ret = 0;
 	struct stat st;
@@ -943,7 +943,7 @@ out:
  */
 off_t dso__data_size(struct dso *dso, struct machine *machine)
 {
-	if (data_file_size(dso, machine))
+	if (dso__data_file_size(dso, machine))
 		return -1;
 
 	/* For now just estimate dso data size is close to file size */
@@ -953,7 +953,7 @@ off_t dso__data_size(struct dso *dso, struct machine *machine)
 static ssize_t data_read_offset(struct dso *dso, struct machine *machine,
 				u64 offset, u8 *data, ssize_t size)
 {
-	if (data_file_size(dso, machine))
+	if (dso__data_file_size(dso, machine))
 		return -1;
 
 	/* Check the offset sanity. */
