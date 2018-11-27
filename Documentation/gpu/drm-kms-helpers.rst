@@ -223,6 +223,18 @@ MIPI DSI Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_mipi_dsi.c
    :export:
 
+Display Stream Compression Helper Functions Reference
+=====================================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_dsc.c
+   :doc: dsc helpers
+
+.. kernel-doc:: include/drm/drm_dsc.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_dsc.c
+   :export:
+
 Output Probing Helper Functions Reference
 =========================================
 
