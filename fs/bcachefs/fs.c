@@ -1423,16 +1423,14 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
 	struct bch_fs *c = sb->s_fs_info;
-	struct bch_fs_usage usage = bch2_fs_usage_read(c);
-	u64 hidden_metadata = usage.buckets[BCH_DATA_SB] +
-		usage.buckets[BCH_DATA_JOURNAL];
+	struct bch_fs_usage_short usage = bch2_fs_usage_read_short(c);
 	unsigned shift = sb->s_blocksize_bits - 9;
 	u64 fsid;
 
 	buf->f_type	= BCACHEFS_STATFS_MAGIC;
 	buf->f_bsize	= sb->s_blocksize;
-	buf->f_blocks	= (c->capacity - hidden_metadata) >> shift;
-	buf->f_bfree	= (c->capacity - bch2_fs_sectors_used(c, usage)) >> shift;
+	buf->f_blocks	= usage.capacity >> shift;
+	buf->f_bfree	= (usage.capacity - usage.used) >> shift;
 	buf->f_bavail	= buf->f_bfree;
 	buf->f_files	= usage.nr_inodes;
 	buf->f_ffree	= U64_MAX;

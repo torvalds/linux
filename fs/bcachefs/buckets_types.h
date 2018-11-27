@@ -73,18 +73,22 @@ struct bch_fs_usage {
 
 	u64			nr_inodes;
 
-	/* fields starting here aren't touched by gc: */
 	u64			online_reserved;
-	u64			available_cache;
+};
+
+struct bch_fs_usage_short {
+	u64			capacity;
+	u64			used;
+	u64			nr_inodes;
 };
 
 /*
  * A reservation for space on disk:
  */
 struct disk_reservation {
-	u64		sectors;
-	u32		gen;
-	unsigned	nr_replicas;
+	u64			sectors;
+	u32			gen;
+	unsigned		nr_replicas;
 };
 
 struct copygc_heap_entry {

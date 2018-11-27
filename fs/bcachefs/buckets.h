@@ -164,6 +164,20 @@ static inline bool bucket_unused(struct bucket_mark mark)
 		!bucket_sectors_used(mark);
 }
 
+static inline bool is_available_bucket(struct bucket_mark mark)
+{
+	return (!mark.owned_by_allocator &&
+		!mark.dirty_sectors &&
+		!mark.stripe);
+}
+
+static inline bool bucket_needs_journal_commit(struct bucket_mark m,
+					       u16 last_seq_ondisk)
+{
+	return m.journal_seq_valid &&
+		((s16) m.journal_seq - (s16) last_seq_ondisk > 0);
+}
+
 /* Device usage: */
 
 struct bch_dev_usage __bch2_dev_usage_read(struct bch_dev *, bool);
@@ -207,30 +221,20 @@ static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
 
 struct bch_fs_usage __bch2_fs_usage_read(struct bch_fs *, bool);
 struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *);
-void bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
-			 struct disk_reservation *, struct gc_pos);
 
 u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
 
-static inline u64 bch2_fs_sectors_free(struct bch_fs *c,
-				       struct bch_fs_usage stats)
+struct bch_fs_usage_short
+bch2_fs_usage_read_short(struct bch_fs *);
+
+static inline u64 bch2_fs_sectors_free(struct bch_fs *c)
 {
-	return c->capacity - bch2_fs_sectors_used(c, stats);
+	struct bch_fs_usage_short usage = bch2_fs_usage_read_short(c);
+
+	return usage.capacity - usage.used;
 }
 
-static inline bool is_available_bucket(struct bucket_mark mark)
-{
-	return (!mark.owned_by_allocator &&
-		!mark.dirty_sectors &&
-		!mark.stripe);
-}
-
-static inline bool bucket_needs_journal_commit(struct bucket_mark m,
-					       u16 last_seq_ondisk)
-{
-	return m.journal_seq_valid &&
-		((s16) m.journal_seq - (s16) last_seq_ondisk > 0);
-}
+/* key/bucket marking: */
 
 void bch2_bucket_seq_cleanup(struct bch_fs *);
 
@@ -252,6 +256,10 @@ int bch2_mark_key(struct bch_fs *, struct bkey_s_c,
 		  bool, s64, struct gc_pos,
 		  struct bch_fs_usage *, u64, unsigned);
 void bch2_mark_update(struct btree_insert *, struct btree_insert_entry *);
+void bch2_fs_usage_apply(struct bch_fs *, struct bch_fs_usage *,
+			 struct disk_reservation *, struct gc_pos);
+
+/* disk reservations: */
 
 void __bch2_disk_reservation_put(struct bch_fs *, struct disk_reservation *);
 
