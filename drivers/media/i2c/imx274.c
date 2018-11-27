@@ -1904,7 +1904,7 @@ static int imx274_probe(struct i2c_client *client,
 	imx274_reset(imx274, 1);
 
 	/* initialize controls */
-	ret = v4l2_ctrl_handler_init(&imx274->ctrls.handler, 2);
+	ret = v4l2_ctrl_handler_init(&imx274->ctrls.handler, 4);
 	if (ret < 0) {
 		dev_err(&client->dev,
 			"%s : ctrl handler init Failed\n", __func__);
