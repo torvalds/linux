@@ -194,6 +194,11 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 			 "ipc: firmware initiated, msg:0x%x, msg_ext:0x%x\n",
 			 msg, msg_ext);
 
+		/* mask BUSY interrupt */
+		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
+					HDA_DSP_REG_HIPCCTL,
+					HDA_DSP_REG_HIPCCTL_BUSY, 0);
+
 		/* handle messages from DSP */
 		if ((hipct & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			/* this is a PANIC message !! */
@@ -202,11 +207,6 @@ irqreturn_t hda_dsp_ipc_irq_thread(int irq, void *context)
 			/* normal message - process normally*/
 			snd_sof_ipc_msgs_rx(sdev);
 		}
-
-		/* mask BUSY interrupt */
-		snd_sof_dsp_update_bits(sdev, HDA_DSP_BAR,
-					HDA_DSP_REG_HIPCCTL,
-					HDA_DSP_REG_HIPCCTL_BUSY, 0);
 
 		ret = IRQ_HANDLED;
 	}
