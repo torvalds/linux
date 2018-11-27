@@ -253,7 +253,7 @@ static const struct v4l2_m2m_ops cedrus_m2m_ops = {
 
 static const struct media_device_ops cedrus_m2m_media_ops = {
 	.req_validate	= cedrus_request_validate,
-	.req_queue	= vb2_m2m_request_queue,
+	.req_queue	= v4l2_m2m_request_queue,
 };
 
 static int cedrus_probe(struct platform_device *pdev)

@@ -180,6 +180,7 @@ F:	drivers/net/hamradio/6pack.c
 
 8169 10/100/1000 GIGABIT ETHERNET DRIVER
 M:	Realtek linux nic maintainers <nic_swsd@realtek.com>
+M:	Heiner Kallweit <hkallweit1@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/realtek/r8169.c
@@ -717,7 +718,7 @@ F:	include/linux/mfd/altera-a10sr.h
 F:	include/dt-bindings/reset/altr,rst-mgr-a10sr.h
 
 ALTERA TRIPLE SPEED ETHERNET DRIVER
-M:	Vince Bridgers <vbridger@opensource.altera.com>
+M:	Thor Thayer <thor.thayer@linux.intel.com>
 L:	netdev@vger.kernel.org
 L:	nios2-dev@lists.rocketboards.org (moderated for non-subscribers)
 S:	Maintained
@@ -3276,6 +3277,12 @@ F:	include/uapi/linux/caif/
 F:	include/net/caif/
 F:	net/caif/
 
+CAKE QDISC
+M:	Toke Høiland-Jørgensen <toke@toke.dk>
+L:	cake@lists.bufferbloat.net (moderated for non-subscribers)
+S:	Maintained
+F:	net/sched/sch_cake.c
+
 CALGARY x86-64 IOMMU
 M:	Muli Ben-Yehuda <mulix@mulix.org>
 M:	Jon Mason <jdmason@kudzu.us>
@@ -5528,6 +5535,7 @@ F:	net/bridge/
 ETHERNET PHY LIBRARY
 M:	Andrew Lunn <andrew@lunn.ch>
 M:	Florian Fainelli <f.fainelli@gmail.com>
+M:	Heiner Kallweit <hkallweit1@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-bus-mdio
@@ -6299,6 +6307,7 @@ F:	tools/testing/selftests/gpio/
 
 GPIO SUBSYSTEM
 M:	Linus Walleij <linus.walleij@linaro.org>
+M:	Bartosz Golaszewski <bgolaszewski@baylibre.com>
 L:	linux-gpio@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-gpio.git
 S:	Maintained
@@ -7436,6 +7445,20 @@ S:	Maintained
 F:	Documentation/fb/intelfb.txt
 F:	drivers/video/fbdev/intelfb/
 
+INTEL GPIO DRIVERS
+M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+L:	linux-gpio@vger.kernel.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-gpio-intel.git
+F:	drivers/gpio/gpio-ich.c
+F:	drivers/gpio/gpio-intel-mid.c
+F:	drivers/gpio/gpio-lynxpoint.c
+F:	drivers/gpio/gpio-merrifield.c
+F:	drivers/gpio/gpio-ml-ioh.c
+F:	drivers/gpio/gpio-pch.c
+F:	drivers/gpio/gpio-sch.c
+F:	drivers/gpio/gpio-sodaville.c
+
 INTEL GVT-g DRIVERS (Intel GPU Virtualization)
 M:	Zhenyu Wang <zhenyuw@linux.intel.com>
 M:	Zhi Wang <zhi.a.wang@intel.com>
@@ -7445,12 +7468,6 @@ W:	https://01.org/igvt-g
 T:	git https://github.com/intel/gvt-linux.git
 S:	Supported
 F:	drivers/gpu/drm/i915/gvt/
-
-INTEL PMIC GPIO DRIVER
-R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-S:	Maintained
-F:	drivers/gpio/gpio-*cove.c
-F:	drivers/gpio/gpio-msic.c
 
 INTEL HID EVENT DRIVER
 M:	Alex Hung <alex.hung@canonical.com>
@@ -7539,12 +7556,6 @@ W:	https://01.org/linux-acpi
 S:	Supported
 F:	drivers/platform/x86/intel_menlow.c
 
-INTEL MERRIFIELD GPIO DRIVER
-M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-L:	linux-gpio@vger.kernel.org
-S:	Maintained
-F:	drivers/gpio/gpio-merrifield.c
-
 INTEL MIC DRIVERS (mic)
 M:	Sudeep Dutt <sudeep.dutt@intel.com>
 M:	Ashutosh Dixit <ashutosh.dixit@intel.com>
@@ -7576,6 +7587,13 @@ F:	drivers/platform/x86/intel_pmc_ipc.c
 F:	drivers/platform/x86/intel_punit_ipc.c
 F:	arch/x86/include/asm/intel_pmc_ipc.h
 F:	arch/x86/include/asm/intel_punit_ipc.h
+
+INTEL PMIC GPIO DRIVERS
+M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andy/linux-gpio-intel.git
+F:	drivers/gpio/gpio-*cove.c
+F:	drivers/gpio/gpio-msic.c
 
 INTEL MULTIFUNCTION PMIC DEVICE DRIVERS
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
@@ -10808,9 +10826,9 @@ F:	drivers/media/platform/omap3isp/
 F:	drivers/staging/media/omap4iss/
 
 OMAP MMC SUPPORT
-M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>
+M:	Aaro Koskinen <aaro.koskinen@iki.fi>
 L:	linux-omap@vger.kernel.org
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/mmc/host/omap.c
 
 OMAP POWER MANAGEMENT SUPPORT
@@ -11745,6 +11763,7 @@ F:	Documentation/devicetree/bindings/pinctrl/fsl,*
 PIN CONTROLLER - INTEL
 M:	Mika Westerberg <mika.westerberg@linux.intel.com>
 M:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pinctrl/intel.git
 S:	Maintained
 F:	drivers/pinctrl/intel/
 
@@ -13977,11 +13996,10 @@ F:	drivers/tty/serial/sunzilog.h
 F:	drivers/tty/vcc.c
 
 SPARSE CHECKER
-M:	"Christopher Li" <sparse@chrisli.org>
+M:	"Luc Van Oostenryck" <luc.vanoostenryck@gmail.com>
 L:	linux-sparse@vger.kernel.org
 W:	https://sparse.wiki.kernel.org/
 T:	git git://git.kernel.org/pub/scm/devel/sparse/sparse.git
-T:	git git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
 S:	Maintained
 F:	include/linux/compiler.h
 
@@ -14078,6 +14096,7 @@ F:	Documentation/devicetree/bindings/iio/proximity/vl53l0x.txt
 
 STABLE BRANCH
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+M:	Sasha Levin <sashal@kernel.org>
 L:	stable@vger.kernel.org
 S:	Supported
 F:	Documentation/process/stable-kernel-rules.rst

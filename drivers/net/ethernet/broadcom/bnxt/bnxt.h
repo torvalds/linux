@@ -798,6 +798,8 @@ struct bnxt_cp_ring_info {
 	u8			had_work_done:1;
 	u8			has_more_work:1;
 
+	u32			last_cp_raw_cons;
+
 	struct bnxt_coal	rx_ring_coal;
 	u64			rx_packets;
 	u64			rx_bytes;
@@ -816,6 +818,7 @@ struct bnxt_cp_ring_info {
 	dma_addr_t		hw_stats_map;
 	u32			hw_stats_ctx_id;
 	u64			rx_l4_csum_errors;
+	u64			missed_irqs;
 
 	struct bnxt_ring_struct	cp_ring_struct;
 
@@ -1527,6 +1530,7 @@ struct bnxt {
 #define BNXT_LINK_SPEED_CHNG_SP_EVENT	14
 #define BNXT_FLOW_STATS_SP_EVENT	15
 #define BNXT_UPDATE_PHY_SP_EVENT	16
+#define BNXT_RING_COAL_NOW_SP_EVENT	17
 
 	struct bnxt_hw_resc	hw_resc;
 	struct bnxt_pf_info	pf;

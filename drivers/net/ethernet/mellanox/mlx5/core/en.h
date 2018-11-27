@@ -569,6 +569,7 @@ struct mlx5e_rq {
 
 	unsigned long          state;
 	int                    ix;
+	unsigned int           hw_mtu;
 
 	struct net_dim         dim; /* Dynamic Interrupt Moderation */
 

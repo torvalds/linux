@@ -6867,7 +6867,7 @@ static void ath10k_flush(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	u32 bitmap;
 
 	if (drop) {
-		if (vif->type == NL80211_IFTYPE_STATION) {
+		if (vif && vif->type == NL80211_IFTYPE_STATION) {
 			bitmap = ~(1 << WMI_MGMT_TID);
 			list_for_each_entry(arvif, &ar->arvifs, list) {
 				if (arvif->vdev_type == WMI_VDEV_TYPE_STA)
