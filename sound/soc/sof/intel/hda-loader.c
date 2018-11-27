@@ -32,6 +32,8 @@
 #include "../ops.h"
 #include "hda.h"
 
+#define HDA_FW_BOOT_ATTEMPTS	3
+
 static int cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 			     unsigned int size, struct snd_dma_buffer *dmab,
 			     int direction)
@@ -312,55 +314,54 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *plat_data = dev_get_platdata(sdev->dev);
 	struct firmware stripped_firmware;
-	int ret, tag;
+	int ret, tag, i;
 
 	stripped_firmware.data = plat_data->fw->data;
 	stripped_firmware.size = plat_data->fw->size;
 
-	tag = cl_dsp_init(sdev, stripped_firmware.data,
-			  stripped_firmware.size);
+	/* init for booting wait */
+	init_waitqueue_head(&sdev->boot_wait);
+	sdev->boot_complete = false;
 
-	/* retry enabling core and ROM load. seemed to help */
-	if (tag < 0) {
+	/* try attempting fw boot a few times before giving up */
+	for (i = 0; i < HDA_FW_BOOT_ATTEMPTS; i++) {
 		tag = cl_dsp_init(sdev, stripped_firmware.data,
 				  stripped_firmware.size);
+
 		if (tag <= 0) {
 			dev_err(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 						 HDA_DSP_SRAM_REG_ROM_ERROR),
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 						 HDA_DSP_SRAM_REG_ROM_STATUS));
-			dev_err(sdev->dev, "Core En/ROM load fail:%d\n",
-				tag);
+			dev_err(sdev->dev, "iteration %d of Core En/ROM load fail:%d\n",
+				i, tag);
 			ret = tag;
-			goto irq_err;
+			continue;
 		}
+
+		/* at this point DSP ROM has been initialized and
+		 * should be ready for code loading and firmware boot
+		 */
+		ret = cl_copy_fw(sdev, tag);
+		if (ret < 0) {
+			dev_err(sdev->dev, "error: iteration %d of load fw failed err: %d\n",
+				i, ret);
+			continue;
+		}
+
+
+		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
+		return ret;
 	}
 
-	/* init for booting wait */
-	init_waitqueue_head(&sdev->boot_wait);
-	sdev->boot_complete = false;
-
-	/* at this point DSP ROM has been initialized and should be ready for
-	 * code loading and firmware boot
-	 */
-	ret = cl_copy_fw(sdev, tag);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: load fw failed err: %d\n", ret);
-		goto irq_err;
-	}
-
-	dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-
-	return ret;
-
-irq_err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
 
 	/* disable DSP */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
 				SOF_HDA_PPCTL_GPROCEN, 0);
-	dev_err(sdev->dev, "error: load fw failed err: %d\n", ret);
+	dev_err(sdev->dev, "error: load fw failed after %d attempts with err: %d\n",
+		HDA_FW_BOOT_ATTEMPTS, ret);
 	return ret;
 }
 
