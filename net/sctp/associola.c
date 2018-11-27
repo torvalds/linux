@@ -118,9 +118,6 @@ static struct sctp_association *sctp_association_init(
 	asoc->flowlabel = sp->flowlabel;
 	asoc->dscp = sp->dscp;
 
-	/* Initialize default path MTU. */
-	asoc->pathmtu = sp->pathmtu;
-
 	/* Set association default SACK delay */
 	asoc->sackdelay = msecs_to_jiffies(sp->sackdelay);
 	asoc->sackfreq = sp->sackfreq;
@@ -251,6 +248,10 @@ static struct sctp_association *sctp_association_init(
 	if (sctp_stream_init(&asoc->stream, asoc->c.sinit_num_ostreams,
 			     0, gfp))
 		goto fail_init;
+
+	/* Initialize default path MTU. */
+	asoc->pathmtu = sp->pathmtu;
+	sctp_assoc_update_frag_point(asoc);
 
 	/* Assume that peer would support both address types unless we are
 	 * told otherwise.
