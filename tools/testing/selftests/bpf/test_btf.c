@@ -431,11 +431,11 @@ static struct btf_raw_test raw_tests[] = {
 		/* const void* */	/* [3] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 2),
 		/* typedef const void * const_void_ptr */
-		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 3),
-		/* struct A { */	/* [4] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),	/* [4] */
+		/* struct A { */	/* [5] */
 		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), sizeof(void *)),
 		/* const_void_ptr m; */
-		BTF_MEMBER_ENC(NAME_TBD, 3, 0),
+		BTF_MEMBER_ENC(NAME_TBD, 4, 0),
 		/* } */
 		BTF_END_RAW,
 	},
@@ -493,10 +493,10 @@ static struct btf_raw_test raw_tests[] = {
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 0),
 		/* const void* */	/* [3] */
 		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 2),
-		/* typedef const void * const_void_ptr */	/* [4] */
-		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 3),
-		/* const_void_ptr[4] */	/* [5] */
-		BTF_TYPE_ARRAY_ENC(3, 1, 4),
+		/* typedef const void * const_void_ptr */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),	/* [4] */
+		/* const_void_ptr[4] */
+		BTF_TYPE_ARRAY_ENC(4, 1, 4),	/* [5] */
 		BTF_END_RAW,
 	},
 	.str_sec = "\0const_void_ptr",
