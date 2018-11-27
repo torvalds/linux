@@ -88,6 +88,7 @@ config MTD_PHYSMAP_GEMINI
 	bool "Cortina Gemini OF-based physical memory map handling"
 	depends on MTD_PHYSMAP_OF
 	depends on MFD_SYSCON
+	select MTD_COMPLEX_MAPPINGS
 	default ARCH_GEMINI
 	help
 	  This provides some extra DT physmap parsing for the Gemini
