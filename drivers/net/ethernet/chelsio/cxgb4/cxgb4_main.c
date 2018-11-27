@@ -2646,7 +2646,7 @@ static void cxgb4_mgmt_fill_vf_station_mac_addr(struct adapter *adap)
 
 	for (vf = 0, nvfs = pci_sriov_get_totalvfs(adap->pdev);
 		vf < nvfs; vf++) {
-		macaddr[5] = adap->pf * 16 + vf;
+		macaddr[5] = adap->pf * nvfs + vf;
 		ether_addr_copy(adap->vfinfo[vf].vf_mac_addr, macaddr);
 	}
 }
