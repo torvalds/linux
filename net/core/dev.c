@@ -4527,9 +4527,14 @@ static int netif_rx_internal(struct sk_buff *skb)
 
 int netif_rx(struct sk_buff *skb)
 {
+	int ret;
+
 	trace_netif_rx_entry(skb);
 
-	return netif_rx_internal(skb);
+	ret = netif_rx_internal(skb);
+	trace_netif_rx_exit(ret);
+
+	return ret;
 }
 EXPORT_SYMBOL(netif_rx);
 
@@ -4544,6 +4549,7 @@ int netif_rx_ni(struct sk_buff *skb)
 	if (local_softirq_pending())
 		do_softirq();
 	preempt_enable();
+	trace_netif_rx_ni_exit(err);
 
 	return err;
 }
@@ -5229,9 +5235,14 @@ static void netif_receive_skb_list_internal(struct list_head *head)
  */
 int netif_receive_skb(struct sk_buff *skb)
 {
+	int ret;
+
 	trace_netif_receive_skb_entry(skb);
 
-	return netif_receive_skb_internal(skb);
+	ret = netif_receive_skb_internal(skb);
+	trace_netif_receive_skb_exit(ret);
+
+	return ret;
 }
 EXPORT_SYMBOL(netif_receive_skb);
 
@@ -5251,9 +5262,12 @@ void netif_receive_skb_list(struct list_head *head)
 
 	if (list_empty(head))
 		return;
-	list_for_each_entry(skb, head, list)
-		trace_netif_receive_skb_list_entry(skb);
+	if (trace_netif_receive_skb_list_entry_enabled()) {
+		list_for_each_entry(skb, head, list)
+			trace_netif_receive_skb_list_entry(skb);
+	}
 	netif_receive_skb_list_internal(head);
+	trace_netif_receive_skb_list_exit(0);
 }
 EXPORT_SYMBOL(netif_receive_skb_list);
 
@@ -5645,12 +5659,17 @@ static gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 
 gro_result_t napi_gro_receive(struct napi_struct *napi, struct sk_buff *skb)
 {
+	gro_result_t ret;
+
 	skb_mark_napi_id(skb, napi);
 	trace_napi_gro_receive_entry(skb);
 
 	skb_gro_reset_offset(skb);
 
-	return napi_skb_finish(dev_gro_receive(napi, skb), skb);
+	ret = napi_skb_finish(dev_gro_receive(napi, skb), skb);
+	trace_napi_gro_receive_exit(ret);
+
+	return ret;
 }
 EXPORT_SYMBOL(napi_gro_receive);
 
@@ -5768,6 +5787,7 @@ static struct sk_buff *napi_frags_skb(struct napi_struct *napi)
 
 gro_result_t napi_gro_frags(struct napi_struct *napi)
 {
+	gro_result_t ret;
 	struct sk_buff *skb = napi_frags_skb(napi);
 
 	if (!skb)
@@ -5775,7 +5795,10 @@ gro_result_t napi_gro_frags(struct napi_struct *napi)
 
 	trace_napi_gro_frags_entry(skb);
 
-	return napi_frags_finish(napi, skb, dev_gro_receive(napi, skb));
+	ret = napi_frags_finish(napi, skb, dev_gro_receive(napi, skb));
+	trace_napi_gro_frags_exit(ret);
+
+	return ret;
 }
 EXPORT_SYMBOL(napi_gro_frags);
 
