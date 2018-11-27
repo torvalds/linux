@@ -542,6 +542,8 @@ skl_program_plane(struct intel_plane *plane,
 	if (fb->format->is_yuv && icl_is_hdr_plane(plane))
 		icl_program_input_csc_coeff(crtc_state, plane_state);
 
+	skl_write_plane_wm(plane, crtc_state);
+
 	I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
 	I915_WRITE_FW(PLANE_KEYMSK(pipe, plane_id), keymsk);
 	I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), keymax);
@@ -603,6 +605,8 @@ skl_disable_plane(struct intel_plane *plane,
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	skl_write_plane_wm(plane, crtc_state);
 
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
 	I915_WRITE_FW(PLANE_SURF(pipe, plane_id), 0);

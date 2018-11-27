@@ -3441,31 +3441,32 @@ static int i915_ddb_info(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
 	struct drm_device *dev = &dev_priv->drm;
-	struct skl_ddb_allocation *ddb;
 	struct skl_ddb_entry *entry;
-	enum pipe pipe;
-	int plane;
+	struct intel_crtc *crtc;
 
 	if (INTEL_GEN(dev_priv) < 9)
 		return -ENODEV;
 
 	drm_modeset_lock_all(dev);
 
-	ddb = &dev_priv->wm.skl_hw.ddb;
-
 	seq_printf(m, "%-15s%8s%8s%8s\n", "", "Start", "End", "Size");
 
-	for_each_pipe(dev_priv, pipe) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state =
+			to_intel_crtc_state(crtc->base.state);
+		enum pipe pipe = crtc->pipe;
+		enum plane_id plane_id;
+
 		seq_printf(m, "Pipe %c\n", pipe_name(pipe));
 
-		for_each_universal_plane(dev_priv, pipe, plane) {
-			entry = &ddb->plane[pipe][plane];
-			seq_printf(m, "  Plane%-8d%8u%8u%8u\n", plane + 1,
+		for_each_plane_id_on_crtc(crtc, plane_id) {
+			entry = &crtc_state->wm.skl.plane_ddb_y[plane_id];
+			seq_printf(m, "  Plane%-8d%8u%8u%8u\n", plane_id + 1,
 				   entry->start, entry->end,
 				   skl_ddb_entry_size(entry));
 		}
 
-		entry = &ddb->plane[pipe][PLANE_CURSOR];
+		entry = &crtc_state->wm.skl.plane_ddb_y[PLANE_CURSOR];
 		seq_printf(m, "  %-13s%8u%8u%8u\n", "Cursor", entry->start,
 			   entry->end, skl_ddb_entry_size(entry));
 	}

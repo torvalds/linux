@@ -1095,9 +1095,6 @@ static inline bool skl_ddb_entry_equal(const struct skl_ddb_entry *e1,
 }
 
 struct skl_ddb_allocation {
-	/* packed/y */
-	struct skl_ddb_entry plane[I915_MAX_PIPES][I915_MAX_PLANES];
-	struct skl_ddb_entry uv_plane[I915_MAX_PIPES][I915_MAX_PLANES];
 	u8 enabled_slices; /* GEN11 has configurable 2 slices */
 };
 

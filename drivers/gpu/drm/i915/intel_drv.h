@@ -706,6 +706,8 @@ struct intel_crtc_wm_state {
 			/* gen9+ only needs 1-step wm programming */
 			struct skl_pipe_wm optimal;
 			struct skl_ddb_entry ddb;
+			struct skl_ddb_entry plane_ddb_y[I915_MAX_PLANES];
+			struct skl_ddb_entry plane_ddb_uv[I915_MAX_PLANES];
 		} skl;
 
 		struct {
@@ -2185,6 +2187,9 @@ void g4x_wm_get_hw_state(struct drm_device *dev);
 void vlv_wm_get_hw_state(struct drm_device *dev);
 void ilk_wm_get_hw_state(struct drm_device *dev);
 void skl_wm_get_hw_state(struct drm_device *dev);
+void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
+			       struct skl_ddb_entry *ddb_y,
+			       struct skl_ddb_entry *ddb_uv);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
 void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
@@ -2199,6 +2204,10 @@ bool skl_wm_level_equals(const struct skl_wm_level *l1,
 bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 				 const struct skl_ddb_entry entries[],
 				 int num_entries, int ignore_idx);
+void skl_write_plane_wm(struct intel_plane *plane,
+			const struct intel_crtc_state *crtc_state);
+void skl_write_cursor_wm(struct intel_plane *plane,
+			 const struct intel_crtc_state *crtc_state);
 bool ilk_disable_lp_wm(struct drm_device *dev);
 int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
 				  struct intel_crtc_state *cstate);

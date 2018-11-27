@@ -10114,6 +10114,10 @@ static void i9xx_update_cursor(struct intel_plane *plane,
 	 * except when the plane is getting enabled at which time
 	 * the CURCNTR write arms the update.
 	 */
+
+	if (INTEL_GEN(dev_priv) >= 9)
+		skl_write_cursor_wm(plane, crtc_state);
+
 	if (plane->cursor.base != base ||
 	    plane->cursor.size != fbc_ctl ||
 	    plane->cursor.cntl != cntl) {
@@ -11903,6 +11907,8 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	struct skl_pipe_wm hw_wm, *sw_wm;
 	struct skl_plane_wm *hw_plane_wm, *sw_plane_wm;
 	struct skl_ddb_entry *hw_ddb_entry, *sw_ddb_entry;
+	struct skl_ddb_entry hw_ddb_y[I915_MAX_PLANES];
+	struct skl_ddb_entry hw_ddb_uv[I915_MAX_PLANES];
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	const enum pipe pipe = intel_crtc->pipe;
 	int plane, level, max_level = ilk_wm_max_level(dev_priv);
@@ -11912,6 +11918,8 @@ static void verify_wm_state(struct drm_crtc *crtc,
 
 	skl_pipe_wm_get_hw_state(crtc, &hw_wm);
 	sw_wm = &to_intel_crtc_state(new_state)->wm.skl.optimal;
+
+	skl_pipe_ddb_get_hw_state(intel_crtc, hw_ddb_y, hw_ddb_uv);
 
 	skl_ddb_get_hw_state(dev_priv, &hw_ddb);
 	sw_ddb = &dev_priv->wm.skl_hw.ddb;
@@ -11955,8 +11963,8 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		}
 
 		/* DDB */
-		hw_ddb_entry = &hw_ddb.plane[pipe][plane];
-		sw_ddb_entry = &sw_ddb->plane[pipe][plane];
+		hw_ddb_entry = &hw_ddb_y[plane];
+		sw_ddb_entry = &to_intel_crtc_state(new_state)->wm.skl.plane_ddb_y[plane];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			DRM_ERROR("mismatch in DDB state pipe %c plane %d (expected (%u,%u), found (%u,%u))\n",
@@ -12005,8 +12013,8 @@ static void verify_wm_state(struct drm_crtc *crtc,
 		}
 
 		/* DDB */
-		hw_ddb_entry = &hw_ddb.plane[pipe][PLANE_CURSOR];
-		sw_ddb_entry = &sw_ddb->plane[pipe][PLANE_CURSOR];
+		hw_ddb_entry = &hw_ddb_y[PLANE_CURSOR];
+		sw_ddb_entry = &to_intel_crtc_state(new_state)->wm.skl.plane_ddb_y[PLANE_CURSOR];
 
 		if (!skl_ddb_entry_equal(hw_ddb_entry, sw_ddb_entry)) {
 			DRM_ERROR("mismatch in DDB state pipe %c cursor (expected (%u,%u), found (%u,%u))\n",
