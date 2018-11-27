@@ -220,6 +220,7 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+	bool is_streaming;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
 #endif
@@ -910,6 +911,14 @@ static int mt9m111_enum_mbus_code(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int mt9m111_s_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+
+	mt9m111->is_streaming = !!enable;
+	return 0;
+}
+
 static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
@@ -923,6 +932,7 @@ static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.g_mbus_config	= mt9m111_g_mbus_config,
+	.s_stream	= mt9m111_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
