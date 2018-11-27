@@ -527,8 +527,10 @@ struct drm_driver {
 	 * @dumb_map_offset:
 	 *
 	 * Allocate an offset in the drm device node's address space to be able to
-	 * memory map a dumb buffer. GEM-based drivers must use
-	 * drm_gem_create_mmap_offset() to implement this.
+	 * memory map a dumb buffer.
+	 *
+	 * The default implementation is drm_gem_create_mmap_offset(). GEM based
+	 * drivers must not overwrite this.
 	 *
 	 * Called by the user via ioctl.
 	 *
@@ -547,6 +549,9 @@ struct drm_driver {
 	 * won't be immediately freed if a framebuffer modeset object still uses it.
 	 *
 	 * Called by the user via ioctl.
+	 *
+	 * The default implementation is drm_gem_dumb_destroy(). GEM based drivers
+	 * must not overwrite this.
 	 *
 	 * Returns:
 	 *

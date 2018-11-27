@@ -28,6 +28,17 @@ them, but also all the virtual ones used by KVM, so everyone qualifies).
 
 Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
 
+
+Remove custom dumb_map_offset implementations
+---------------------------------------------
+
+All GEM based drivers should be using drm_gem_create_mmap_offset() instead.
+Audit each individual driver, make sure it'll work with the generic
+implementation (there's lots of outdated locking leftovers in various
+implementations), and then remove it.
+
+Contact: Daniel Vetter, respective driver maintainers
+
 Convert existing KMS drivers to atomic modesetting
 --------------------------------------------------
 
