@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3308-voice-module-v11-aarch32.dtsi"
+
+/ {
+	model = "Rockchip RK3308 Voice Module Board V11 (AArch32)";
+	compatible = "rockchip,rk3308-voice-module-board-v11-aarch32", "rockchip,rk3308";
+
+	wireless-wlan {
+		compatible = "wlan-platdata";
+		rockchip,grf = <&grf>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_wake_host>;
+		wifi_chip_type = "rtl8189fs";
+		WIFI,host_wake_irq = <&gpio0 RK_PA0 GPIO_ACTIVE_LOW>;
+		status = "okay";
+	};
+};
+
+&acodec {
+	status = "okay";
+	rockchip,no-deep-low-power;
+	/* ADC5-6 for 2ch capture, loopback to ADC3-4 */
+	rockchip,adc-grps-route = <2 1 3 0>;
+	/* The grp2 (ADC5-6) keeps enabled always for VAD */
+	rockchip,en-always-grps = <2>;
+};
