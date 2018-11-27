@@ -1214,6 +1214,7 @@ static void __bpf_prog_put(struct bpf_prog *prog, bool do_idr_lock)
 		bpf_prog_free_id(prog, do_idr_lock);
 		bpf_prog_kallsyms_del_all(prog);
 		btf_put(prog->aux->btf);
+		kvfree(prog->aux->func_info);
 
 		call_rcu(&prog->aux->rcu, __bpf_prog_put_rcu);
 	}
@@ -2219,46 +2220,28 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	}
 
 	if (prog->aux->btf) {
+		u32 krec_size = sizeof(struct bpf_func_info);
 		u32 ucnt, urec_size;
 
 		info.btf_id = btf_id(prog->aux->btf);
 
 		ucnt = info.func_info_cnt;
-		info.func_info_cnt = prog->aux->func_cnt ? : 1;
+		info.func_info_cnt = prog->aux->func_info_cnt;
 		urec_size = info.func_info_rec_size;
-		info.func_info_rec_size = sizeof(struct bpf_func_info);
+		info.func_info_rec_size = krec_size;
 		if (ucnt) {
 			/* expect passed-in urec_size is what the kernel expects */
 			if (urec_size != info.func_info_rec_size)
 				return -EINVAL;
 
 			if (bpf_dump_raw_ok()) {
-				struct bpf_func_info kern_finfo;
 				char __user *user_finfo;
-				u32 i, insn_offset;
 
 				user_finfo = u64_to_user_ptr(info.func_info);
-				if (prog->aux->func_cnt) {
-					ucnt = min_t(u32, info.func_info_cnt, ucnt);
-					insn_offset = 0;
-					for (i = 0; i < ucnt; i++) {
-						kern_finfo.insn_offset = insn_offset;
-						kern_finfo.type_id = prog->aux->func[i]->aux->type_id;
-						if (copy_to_user(user_finfo, &kern_finfo,
-								 sizeof(kern_finfo)))
-							return -EFAULT;
-
-						/* func[i]->len holds the prog len */
-						insn_offset += prog->aux->func[i]->len;
-						user_finfo += urec_size;
-					}
-				} else {
-					kern_finfo.insn_offset = 0;
-					kern_finfo.type_id = prog->aux->type_id;
-					if (copy_to_user(user_finfo, &kern_finfo,
-							 sizeof(kern_finfo)))
-						return -EFAULT;
-				}
+				ucnt = min_t(u32, info.func_info_cnt, ucnt);
+				if (copy_to_user(user_finfo, prog->aux->func_info,
+						 krec_size * ucnt))
+					return -EFAULT;
 			} else {
 				info.func_info_cnt = 0;
 			}

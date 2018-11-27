@@ -4650,7 +4650,7 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
 {
 	u32 i, nfuncs, urec_size, min_size, prev_offset;
 	u32 krec_size = sizeof(struct bpf_func_info);
-	struct bpf_func_info krecord = {};
+	struct bpf_func_info *krecord = NULL;
 	const struct btf_type *type;
 	void __user *urecord;
 	struct btf *btf;
@@ -4682,6 +4682,12 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
 	urecord = u64_to_user_ptr(attr->func_info);
 	min_size = min_t(u32, krec_size, urec_size);
 
+	krecord = kvcalloc(nfuncs, krec_size, GFP_KERNEL | __GFP_NOWARN);
+	if (!krecord) {
+		ret = -ENOMEM;
+		goto free_btf;
+	}
+
 	for (i = 0; i < nfuncs; i++) {
 		ret = bpf_check_uarg_tail_zero(urecord, krec_size, urec_size);
 		if (ret) {
@@ -4696,57 +4702,67 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
 			goto free_btf;
 		}
 
-		if (copy_from_user(&krecord, urecord, min_size)) {
+		if (copy_from_user(&krecord[i], urecord, min_size)) {
 			ret = -EFAULT;
 			goto free_btf;
 		}
 
 		/* check insn_offset */
 		if (i == 0) {
-			if (krecord.insn_offset) {
+			if (krecord[i].insn_offset) {
 				verbose(env,
 					"nonzero insn_offset %u for the first func info record",
-					krecord.insn_offset);
+					krecord[i].insn_offset);
 				ret = -EINVAL;
 				goto free_btf;
 			}
-		} else if (krecord.insn_offset <= prev_offset) {
+		} else if (krecord[i].insn_offset <= prev_offset) {
 			verbose(env,
 				"same or smaller insn offset (%u) than previous func info record (%u)",
-				krecord.insn_offset, prev_offset);
+				krecord[i].insn_offset, prev_offset);
 			ret = -EINVAL;
 			goto free_btf;
 		}
 
-		if (env->subprog_info[i].start != krecord.insn_offset) {
+		if (env->subprog_info[i].start != krecord[i].insn_offset) {
 			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
 			ret = -EINVAL;
 			goto free_btf;
 		}
 
 		/* check type_id */
-		type = btf_type_by_id(btf, krecord.type_id);
+		type = btf_type_by_id(btf, krecord[i].type_id);
 		if (!type || BTF_INFO_KIND(type->info) != BTF_KIND_FUNC) {
 			verbose(env, "invalid type id %d in func info",
-				krecord.type_id);
+				krecord[i].type_id);
 			ret = -EINVAL;
 			goto free_btf;
 		}
 
-		if (i == 0)
-			prog->aux->type_id = krecord.type_id;
-		env->subprog_info[i].type_id = krecord.type_id;
-
-		prev_offset = krecord.insn_offset;
+		prev_offset = krecord[i].insn_offset;
 		urecord += urec_size;
 	}
 
 	prog->aux->btf = btf;
+	prog->aux->func_info = krecord;
+	prog->aux->func_info_cnt = nfuncs;
 	return 0;
 
 free_btf:
 	btf_put(btf);
+	kvfree(krecord);
 	return ret;
+}
+
+static void adjust_btf_func(struct bpf_verifier_env *env)
+{
+	int i;
+
+	if (!env->prog->aux->func_info)
+		return;
+
+	for (i = 0; i < env->subprog_cnt; i++)
+		env->prog->aux->func_info[i].insn_offset = env->subprog_info[i].start;
 }
 
 /* check %cur's range satisfies %old's */
@@ -6043,15 +6059,17 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		if (bpf_prog_calc_tag(func[i]))
 			goto out_free;
 		func[i]->is_func = 1;
+		func[i]->aux->func_idx = i;
+		/* the btf and func_info will be freed only at prog->aux */
+		func[i]->aux->btf = prog->aux->btf;
+		func[i]->aux->func_info = prog->aux->func_info;
+
 		/* Use bpf_prog_F_tag to indicate functions in stack traces.
 		 * Long term would need debug info to populate names
 		 */
 		func[i]->aux->name[0] = 'F';
 		func[i]->aux->stack_depth = env->subprog_info[i].stack_depth;
 		func[i]->jit_requested = 1;
-		/* the btf will be freed only at prog->aux */
-		func[i]->aux->btf = prog->aux->btf;
-		func[i]->aux->type_id = env->subprog_info[i].type_id;
 		func[i] = bpf_int_jit_compile(func[i]);
 		if (!func[i]->jited) {
 			err = -ENOTSUPP;
@@ -6571,6 +6589,9 @@ skip_full_check:
 		 */
 		convert_pseudo_ld_imm64(env);
 	}
+
+	if (ret == 0)
+		adjust_btf_func(env);
 
 err_release_maps:
 	if (!env->prog->aux->used_maps)

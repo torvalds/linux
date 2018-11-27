@@ -299,7 +299,8 @@ struct bpf_prog_aux {
 	u32 max_pkt_offset;
 	u32 stack_depth;
 	u32 id;
-	u32 func_cnt;
+	u32 func_cnt; /* used by non-func prog as the number of func progs */
+	u32 func_idx; /* 0 for non-func prog, the index in func array for func prog */
 	bool offload_requested;
 	struct bpf_prog **func;
 	void *jit_data; /* JIT specific data. arch dependent */
@@ -317,7 +318,8 @@ struct bpf_prog_aux {
 #endif
 	struct bpf_prog_offload *offload;
 	struct btf *btf;
-	u32 type_id; /* type id for this prog/func */
+	struct bpf_func_info *func_info;
+	u32 func_info_cnt;
 	union {
 		struct work_struct work;
 		struct rcu_head	rcu;
