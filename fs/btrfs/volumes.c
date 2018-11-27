@@ -6136,8 +6136,10 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 		*length = em->len - offset;
 	}
 
-	/* This is for when we're called from btrfs_merge_bio_hook() and all
-	   it cares about is the length */
+	/*
+	 * This is for when we're called from btrfs_bio_fits_in_stripe and all
+	 * it cares about is the length
+	 */
 	if (!bbio_ret)
 		goto out;
 

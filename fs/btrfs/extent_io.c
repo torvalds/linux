@@ -2759,8 +2759,8 @@ static int submit_extent_page(unsigned int opf, struct extent_io_tree *tree,
 		else
 			contig = bio_end_sector(bio) == sector;
 
-		if (tree->ops && btrfs_merge_bio_hook(page, offset, page_size,
-						      bio, bio_flags))
+		ASSERT(tree->ops);
+		if (btrfs_bio_fits_in_stripe(page, page_size, bio, bio_flags))
 			can_merge = false;
 
 		if (prev_bio_flags != bio_flags || !contig || !can_merge ||

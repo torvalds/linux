@@ -332,7 +332,8 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 		page = compressed_pages[pg_index];
 		page->mapping = inode->i_mapping;
 		if (bio->bi_iter.bi_size)
-			submit = btrfs_merge_bio_hook(page, 0, PAGE_SIZE, bio, 0);
+			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE, bio,
+							  0);
 
 		page->mapping = NULL;
 		if (submit || bio_add_page(bio, page, PAGE_SIZE, 0) <
@@ -610,8 +611,8 @@ blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 		page->index = em_start >> PAGE_SHIFT;
 
 		if (comp_bio->bi_iter.bi_size)
-			submit = btrfs_merge_bio_hook(page, 0, PAGE_SIZE,
-					comp_bio, 0);
+			submit = btrfs_bio_fits_in_stripe(page, PAGE_SIZE,
+							  comp_bio, 0);
 
 		page->mapping = NULL;
 		if (submit || bio_add_page(comp_bio, page, PAGE_SIZE, 0) <

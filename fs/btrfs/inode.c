@@ -1870,16 +1870,21 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 }
 
 /*
- * Merge bio hook, this must check the chunk tree to make sure we don't create
- * bios that span stripes or chunks
+ * btrfs_bio_fits_in_stripe - Checks whether the size of the given bio will fit
+ * in a chunk's stripe. This function ensures that bios do not span a
+ * stripe/chunk
  *
- * return 1 if page cannot be merged to bio
- * return 0 if page can be merged to bio
+ * @page - The page we are about to add to the bio
+ * @size - size we want to add to the bio
+ * @bio - bio we want to ensure is smaller than a stripe
+ * @bio_flags - flags of the bio
+ *
+ * return 1 if page cannot be added to the bio
+ * return 0 if page can be added to the bio
  * return error otherwise
  */
-int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
-			 size_t size, struct bio *bio,
-			 unsigned long bio_flags)
+int btrfs_bio_fits_in_stripe(struct page *page, size_t size, struct bio *bio,
+			     unsigned long bio_flags)
 {
 	struct inode *inode = page->mapping->host;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
