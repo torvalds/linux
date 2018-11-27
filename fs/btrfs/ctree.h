@@ -461,13 +461,18 @@ struct btrfs_space_info {
 	struct kobject *block_group_kobjs[BTRFS_NR_RAID_TYPES];
 };
 
-#define	BTRFS_BLOCK_RSV_GLOBAL		1
-#define	BTRFS_BLOCK_RSV_DELALLOC	2
-#define	BTRFS_BLOCK_RSV_TRANS		3
-#define	BTRFS_BLOCK_RSV_CHUNK		4
-#define	BTRFS_BLOCK_RSV_DELOPS		5
-#define	BTRFS_BLOCK_RSV_EMPTY		6
-#define	BTRFS_BLOCK_RSV_TEMP		7
+/*
+ * Types of block reserves
+ */
+enum {
+	BTRFS_BLOCK_RSV_GLOBAL,
+	BTRFS_BLOCK_RSV_DELALLOC,
+	BTRFS_BLOCK_RSV_TRANS,
+	BTRFS_BLOCK_RSV_CHUNK,
+	BTRFS_BLOCK_RSV_DELOPS,
+	BTRFS_BLOCK_RSV_EMPTY,
+	BTRFS_BLOCK_RSV_TEMP,
+};
 
 struct btrfs_block_rsv {
 	u64 size;
