@@ -479,13 +479,13 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 	err = nfp_flower_xmit_flow(netdev, flow_pay,
 				   NFP_FLOWER_CMSG_TYPE_FLOW_ADD);
 	if (err)
-		goto err_destroy_flow;
+		goto err_release_metadata;
 
 	flow_pay->tc_flower_cookie = flow->cookie;
 	err = rhashtable_insert_fast(&priv->flow_table, &flow_pay->fl_node,
 				     nfp_flower_table_params);
 	if (err)
-		goto err_destroy_flow;
+		goto err_release_metadata;
 
 	port->tc_offload_cnt++;
 
@@ -494,6 +494,8 @@ nfp_flower_add_offload(struct nfp_app *app, struct net_device *netdev,
 
 	return 0;
 
+err_release_metadata:
+	nfp_modify_flow_metadata(app, flow_pay);
 err_destroy_flow:
 	kfree(flow_pay->action_data);
 	kfree(flow_pay->mask_data);
