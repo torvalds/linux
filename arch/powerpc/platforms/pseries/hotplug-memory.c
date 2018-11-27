@@ -197,6 +197,7 @@ static int update_lmb_associativity_index(struct drmem_lmb *lmb)
 
 	found = find_aa_index(dr_node, ala_prop, lmb_assoc, &aa_index);
 
+	of_node_put(dr_node);
 	dlpar_free_cc_nodes(lmb_node);
 
 	if (!found) {
