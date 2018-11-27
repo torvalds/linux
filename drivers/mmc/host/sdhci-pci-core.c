@@ -710,11 +710,15 @@ static int intel_execute_tuning(struct mmc_host *mmc, u32 opcode)
 static void byt_probe_slot(struct sdhci_pci_slot *slot)
 {
 	struct mmc_host_ops *ops = &slot->host->mmc_host_ops;
+	struct device *dev = &slot->chip->pdev->dev;
+	struct mmc_host *mmc = slot->host->mmc;
 
 	byt_read_dsm(slot);
 
 	ops->execute_tuning = intel_execute_tuning;
 	ops->start_signal_voltage_switch = intel_start_signal_voltage_switch;
+
+	device_property_read_u32(dev, "max-frequency", &mmc->f_max);
 }
 
 static int byt_emmc_probe_slot(struct sdhci_pci_slot *slot)
