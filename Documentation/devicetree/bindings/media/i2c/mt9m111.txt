@@ -14,6 +14,10 @@ sub-node for its digital output video port, in accordance with the video
 interface bindings defined in:
 Documentation/devicetree/bindings/media/video-interfaces.txt
 
+Optional endpoint properties:
+- pclk-sample: For information see ../video-interfaces.txt. The value is set to
+  0 if it isn't specified.
+
 Example:
 
 	i2c_master {
@@ -26,6 +30,7 @@ Example:
 			port {
 				mt9m111_1: endpoint {
 					remote-endpoint = <&pxa_camera>;
+					pclk-sample = <1>;
 				};
 			};
 		};
