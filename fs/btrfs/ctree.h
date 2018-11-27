@@ -334,7 +334,7 @@ struct btrfs_node {
  * The slots array records the index of the item or block pointer
  * used while walking the tree.
  */
-enum { READA_NONE = 0, READA_BACK, READA_FORWARD };
+enum { READA_NONE, READA_BACK, READA_FORWARD };
 struct btrfs_path {
 	struct extent_buffer *nodes[BTRFS_MAX_LEVEL];
 	int slots[BTRFS_MAX_LEVEL];
@@ -532,18 +532,18 @@ struct btrfs_free_cluster {
 };
 
 enum btrfs_caching_type {
-	BTRFS_CACHE_NO		= 0,
-	BTRFS_CACHE_STARTED	= 1,
-	BTRFS_CACHE_FAST	= 2,
-	BTRFS_CACHE_FINISHED	= 3,
-	BTRFS_CACHE_ERROR	= 4,
+	BTRFS_CACHE_NO,
+	BTRFS_CACHE_STARTED,
+	BTRFS_CACHE_FAST,
+	BTRFS_CACHE_FINISHED,
+	BTRFS_CACHE_ERROR,
 };
 
 enum btrfs_disk_cache_state {
-	BTRFS_DC_WRITTEN	= 0,
-	BTRFS_DC_ERROR		= 1,
-	BTRFS_DC_CLEAR		= 2,
-	BTRFS_DC_SETUP		= 3,
+	BTRFS_DC_WRITTEN,
+	BTRFS_DC_ERROR,
+	BTRFS_DC_CLEAR,
+	BTRFS_DC_SETUP,
 };
 
 struct btrfs_caching_control {
@@ -2621,10 +2621,10 @@ static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 /* extent-tree.c */
 
 enum btrfs_inline_ref_type {
-	BTRFS_REF_TYPE_INVALID =	 0,
-	BTRFS_REF_TYPE_BLOCK =		 1,
-	BTRFS_REF_TYPE_DATA =		 2,
-	BTRFS_REF_TYPE_ANY =		 3,
+	BTRFS_REF_TYPE_INVALID,
+	BTRFS_REF_TYPE_BLOCK,
+	BTRFS_REF_TYPE_DATA,
+	BTRFS_REF_TYPE_ANY,
 };
 
 int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,

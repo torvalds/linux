@@ -70,7 +70,7 @@ struct btrfs_qgroup_extent_record {
  *	be converted into META_PERTRANS.
  */
 enum btrfs_qgroup_rsv_type {
-	BTRFS_QGROUP_RSV_DATA = 0,
+	BTRFS_QGROUP_RSV_DATA,
 	BTRFS_QGROUP_RSV_META_PERTRANS,
 	BTRFS_QGROUP_RSV_META_PREALLOC,
 	BTRFS_QGROUP_RSV_LAST,
