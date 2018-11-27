@@ -365,7 +365,7 @@ bool dax_lock_mapping_entry(struct page *page)
 		struct address_space *mapping = READ_ONCE(page->mapping);
 
 		locked = false;
-		if (!dax_mapping(mapping))
+		if (!mapping || !dax_mapping(mapping))
 			break;
 
 		/*
