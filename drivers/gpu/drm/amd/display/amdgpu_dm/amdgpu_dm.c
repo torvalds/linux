@@ -2848,7 +2848,7 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	bool native_mode_found = false;
 	bool scale = dm_state ? (dm_state->scaling != RMX_OFF) : false;
 	int mode_refresh;
-	int preferred_refresh;
+	int preferred_refresh = 0;
 
 	struct dc_sink *sink = NULL;
 	if (aconnector == NULL) {
@@ -2902,12 +2902,11 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 		decide_crtc_timing_for_drm_display_mode(
 				&mode, preferred_mode,
 				dm_state ? (dm_state->scaling != RMX_OFF) : false);
+		preferred_refresh = drm_mode_vrefresh(preferred_mode);
 	}
 
 	if (!dm_state)
 		drm_mode_set_crtcinfo(&mode, 0);
-
-	preferred_refresh = drm_mode_vrefresh(preferred_mode);
 
 	/*
 	* If scaling is enabled and refresh rate didn't change
