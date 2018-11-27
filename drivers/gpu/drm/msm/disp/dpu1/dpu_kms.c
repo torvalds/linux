@@ -788,6 +788,9 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	if (!domain)
 		return 0;
 
+	domain->geometry.aperture_start = 0x1000;
+	domain->geometry.aperture_end = 0xffffffff;
+
 	aspace = msm_gem_address_space_create(dpu_kms->dev->dev,
 			domain, "dpu1");
 	if (IS_ERR(aspace)) {
