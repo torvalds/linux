@@ -622,7 +622,7 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	if (info.btf_id && btf_get_from_id(info.btf_id, &btf)) {
+	if (info.btf_id && btf__get_from_id(info.btf_id, &btf)) {
 		p_err("failed to get btf");
 		goto err_free;
 	}
