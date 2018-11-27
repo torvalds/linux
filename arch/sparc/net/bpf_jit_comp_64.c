@@ -791,7 +791,7 @@ static int emit_compare_and_branch(const u8 code, const u8 dst, u8 src,
 }
 
 /* Just skip the save instruction and the ctx register move.  */
-#define BPF_TAILCALL_PROLOGUE_SKIP	16
+#define BPF_TAILCALL_PROLOGUE_SKIP	32
 #define BPF_TAILCALL_CNT_SP_OFF		(STACK_BIAS + 128)
 
 static void build_prologue(struct jit_ctx *ctx)
@@ -824,9 +824,15 @@ static void build_prologue(struct jit_ctx *ctx)
 		const u8 vfp = bpf2sparc[BPF_REG_FP];
 
 		emit(ADD | IMMED | RS1(FP) | S13(STACK_BIAS) | RD(vfp), ctx);
+	} else {
+		emit_nop(ctx);
 	}
 
 	emit_reg_move(I0, O0, ctx);
+	emit_reg_move(I1, O1, ctx);
+	emit_reg_move(I2, O2, ctx);
+	emit_reg_move(I3, O3, ctx);
+	emit_reg_move(I4, O4, ctx);
 	/* If you add anything here, adjust BPF_TAILCALL_PROLOGUE_SKIP above. */
 }
 
