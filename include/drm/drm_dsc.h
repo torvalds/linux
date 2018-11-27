@@ -18,6 +18,12 @@
 #define DSC_SCALE_DECREMENT_INTERVAL_MAX	4095
 #define DSC_RANGE_BPG_OFFSET_MASK		0x3f
 
+/* DSC Rate Control Constants */
+#define DSC_RC_MODEL_SIZE_CONST		    8192
+#define DSC_RC_EDGE_FACTOR_CONST	    6
+#define DSC_RC_TGT_OFFSET_HI_CONST	    3
+#define DSC_RC_TGT_OFFSET_LO_CONST	    3
+
 /* Configuration for a single Rate Control model range */
 struct drm_dsc_rc_range_parameters {
 	/* Min Quantization Parameters allowed for this range */
