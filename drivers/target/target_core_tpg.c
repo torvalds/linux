@@ -577,7 +577,6 @@ struct se_lun *core_tpg_alloc_lun(
 	}
 	lun->unpacked_lun = unpacked_lun;
 	atomic_set(&lun->lun_acl_count, 0);
-	init_completion(&lun->lun_ref_comp);
 	init_completion(&lun->lun_shutdown_comp);
 	INIT_LIST_HEAD(&lun->lun_deve_list);
 	INIT_LIST_HEAD(&lun->lun_dev_link);
