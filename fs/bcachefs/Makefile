@@ -7,6 +7,7 @@ bcachefs-y		:=	\
 	alloc_foreground.o	\
 	bkey.o			\
 	bkey_methods.o		\
+	bkey_sort.o		\
 	bset.o			\
 	btree_cache.o		\
 	btree_gc.o		\

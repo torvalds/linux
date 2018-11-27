@@ -10,6 +10,7 @@
 #include "bcachefs.h"
 #include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "bkey_sort.h"
 #include "btree_cache.h"
 #include "btree_gc.h"
 #include "btree_update_interior.h"

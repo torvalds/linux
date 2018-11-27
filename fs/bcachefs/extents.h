@@ -7,13 +7,8 @@
 #include "extents_types.h"
 
 struct bch_fs;
-struct journal_res;
-struct btree_node_iter;
-struct btree_node_iter_large;
 struct btree_insert;
 struct btree_insert_entry;
-struct bch_devs_mask;
-union bch_extent_crc;
 
 const char *bch2_btree_ptr_invalid(const struct bch_fs *, struct bkey_s_c);
 void bch2_btree_ptr_debugcheck(struct bch_fs *, struct btree *,
@@ -45,14 +40,6 @@ enum merge_result bch2_extent_merge(struct bch_fs *, struct btree *,
 	.key_merge	= bch2_extent_merge,			\
 	.is_extents	= true,					\
 }
-
-struct btree_nr_keys bch2_key_sort_fix_overlapping(struct bset *,
-						  struct btree *,
-						  struct btree_node_iter_large *);
-struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
-						     struct bset *,
-						     struct btree *,
-						     struct btree_node_iter_large *);
 
 void bch2_mark_io_failure(struct bch_io_failures *,
 			  struct extent_ptr_decoded *);
@@ -506,9 +493,33 @@ do {									\
 	}								\
 } while (0)
 
-bool bch2_cut_front(struct bpos, struct bkey_i *);
+bool __bch2_cut_front(struct bpos, struct bkey_s);
+
+static inline bool bch2_cut_front(struct bpos where, struct bkey_i *k)
+{
+	return __bch2_cut_front(where, bkey_i_to_s(k));
+}
+
 bool bch2_cut_back(struct bpos, struct bkey *);
 void bch2_key_resize(struct bkey *, unsigned);
+
+/*
+ * In extent_sort_fix_overlapping(), insert_fixup_extent(),
+ * extent_merge_inline() - we're modifying keys in place that are packed. To do
+ * that we have to unpack the key, modify the unpacked key - then this
+ * copies/repacks the unpacked to the original as necessary.
+ */
+static inline void extent_save(struct btree *b, struct bkey_packed *dst,
+			       struct bkey *src)
+{
+	struct bkey_format *f = &b->format;
+	struct bkey_i *dst_unpacked;
+
+	if ((dst_unpacked = packed_to_bkey(dst)))
+		dst_unpacked->k = *src;
+	else
+		BUG_ON(!bch2_bkey_pack_key(dst, src, f));
+}
 
 int bch2_check_range_allocated(struct bch_fs *, struct bpos, u64);
 

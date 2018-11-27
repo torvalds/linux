@@ -27,87 +27,6 @@
 #include "util.h"
 #include "xattr.h"
 
-static void sort_key_next(struct btree_node_iter_large *iter,
-			  struct btree *b,
-			  struct btree_node_iter_set *i)
-{
-	i->k += __btree_node_offset_to_key(b, i->k)->u64s;
-
-	if (i->k == i->end)
-		*i = iter->data[--iter->used];
-}
-
-/*
- * Returns true if l > r - unless l == r, in which case returns true if l is
- * older than r.
- *
- * Necessary for btree_sort_fixup() - if there are multiple keys that compare
- * equal in different sets, we have to process them newest to oldest.
- */
-#define key_sort_cmp(h, l, r)						\
-({									\
-	bkey_cmp_packed(b,						\
-			__btree_node_offset_to_key(b, (l).k),		\
-			__btree_node_offset_to_key(b, (r).k))		\
-									\
-	?: (l).k - (r).k;						\
-})
-
-static inline bool should_drop_next_key(struct btree_node_iter_large *iter,
-					struct btree *b)
-{
-	struct btree_node_iter_set *l = iter->data, *r = iter->data + 1;
-	struct bkey_packed *k = __btree_node_offset_to_key(b, l->k);
-
-	if (bkey_whiteout(k))
-		return true;
-
-	if (iter->used < 2)
-		return false;
-
-	if (iter->used > 2 &&
-	    key_sort_cmp(iter, r[0], r[1]) >= 0)
-		r++;
-
-	/*
-	 * key_sort_cmp() ensures that when keys compare equal the older key
-	 * comes first; so if l->k compares equal to r->k then l->k is older and
-	 * should be dropped.
-	 */
-	return !bkey_cmp_packed(b,
-				__btree_node_offset_to_key(b, l->k),
-				__btree_node_offset_to_key(b, r->k));
-}
-
-struct btree_nr_keys bch2_key_sort_fix_overlapping(struct bset *dst,
-					struct btree *b,
-					struct btree_node_iter_large *iter)
-{
-	struct bkey_packed *out = dst->start;
-	struct btree_nr_keys nr;
-
-	memset(&nr, 0, sizeof(nr));
-
-	heap_resort(iter, key_sort_cmp, NULL);
-
-	while (!bch2_btree_node_iter_large_end(iter)) {
-		if (!should_drop_next_key(iter, b)) {
-			struct bkey_packed *k =
-				__btree_node_offset_to_key(b, iter->data->k);
-
-			bkey_copy(out, k);
-			btree_keys_account_key_add(&nr, 0, out);
-			out = bkey_next(out);
-		}
-
-		sort_key_next(iter, b, iter->data);
-		heap_sift_down(iter, 0, key_sort_cmp, NULL);
-	}
-
-	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
-	return nr;
-}
-
 /* Common among btree and extent ptrs */
 
 const struct bch_extent_ptr *
@@ -777,7 +696,7 @@ int bch2_btree_pick_ptr(struct bch_fs *c, const struct btree *b,
 
 /* Extents */
 
-static bool __bch2_cut_front(struct bpos where, struct bkey_s k)
+bool __bch2_cut_front(struct bpos where, struct bkey_s k)
 {
 	u64 len = 0;
 
@@ -830,11 +749,6 @@ static bool __bch2_cut_front(struct bpos where, struct bkey_s k)
 	return true;
 }
 
-bool bch2_cut_front(struct bpos where, struct bkey_i *k)
-{
-	return __bch2_cut_front(where, bkey_i_to_s(k));
-}
-
 bool bch2_cut_back(struct bpos where, struct bkey *k)
 {
 	u64 len = 0;
@@ -870,24 +784,6 @@ void bch2_key_resize(struct bkey *k,
 	k->size = new_size;
 }
 
-/*
- * In extent_sort_fix_overlapping(), insert_fixup_extent(),
- * extent_merge_inline() - we're modifying keys in place that are packed. To do
- * that we have to unpack the key, modify the unpacked key - then this
- * copies/repacks the unpacked to the original as necessary.
- */
-static void extent_save(struct btree *b, struct bkey_packed *dst,
-			struct bkey *src)
-{
-	struct bkey_format *f = &b->format;
-	struct bkey_i *dst_unpacked;
-
-	if ((dst_unpacked = packed_to_bkey(dst)))
-		dst_unpacked->k = *src;
-	else
-		BUG_ON(!bch2_bkey_pack_key(dst, src, f));
-}
-
 static bool extent_i_save(struct btree *b, struct bkey_packed *dst,
 			  struct bkey_i *src)
 {
@@ -904,170 +800,6 @@ static bool extent_i_save(struct btree *b, struct bkey_packed *dst,
 
 	memcpy_u64s(bkeyp_val(f, dst), &src->v, bkey_val_u64s(&src->k));
 	return true;
-}
-
-/*
- * If keys compare equal, compare by pointer order:
- *
- * Necessary for sort_fix_overlapping() - if there are multiple keys that
- * compare equal in different sets, we have to process them newest to oldest.
- */
-#define extent_sort_cmp(h, l, r)					\
-({									\
-	struct bkey _ul = bkey_unpack_key(b,				\
-				__btree_node_offset_to_key(b, (l).k));	\
-	struct bkey _ur = bkey_unpack_key(b,				\
-				__btree_node_offset_to_key(b, (r).k));	\
-									\
-	bkey_cmp(bkey_start_pos(&_ul),					\
-		 bkey_start_pos(&_ur)) ?: (r).k - (l).k;		\
-})
-
-static inline void extent_sort_sift(struct btree_node_iter_large *iter,
-				    struct btree *b, size_t i)
-{
-	heap_sift_down(iter, i, extent_sort_cmp, NULL);
-}
-
-static inline void extent_sort_next(struct btree_node_iter_large *iter,
-				    struct btree *b,
-				    struct btree_node_iter_set *i)
-{
-	sort_key_next(iter, b, i);
-	heap_sift_down(iter, i - iter->data, extent_sort_cmp, NULL);
-}
-
-static void extent_sort_append(struct bch_fs *c,
-			       struct btree *b,
-			       struct btree_nr_keys *nr,
-			       struct bkey_packed *start,
-			       struct bkey_packed **prev,
-			       struct bkey_packed *k)
-{
-	struct bkey_format *f = &b->format;
-	BKEY_PADDED(k) tmp;
-
-	if (bkey_whiteout(k))
-		return;
-
-	bch2_bkey_unpack(b, &tmp.k, k);
-
-	if (*prev &&
-	    bch2_extent_merge(c, b, (void *) *prev, &tmp.k))
-		return;
-
-	if (*prev) {
-		bch2_bkey_pack(*prev, (void *) *prev, f);
-
-		btree_keys_account_key_add(nr, 0, *prev);
-		*prev = bkey_next(*prev);
-	} else {
-		*prev = start;
-	}
-
-	bkey_copy(*prev, &tmp.k);
-}
-
-struct btree_nr_keys bch2_extent_sort_fix_overlapping(struct bch_fs *c,
-					struct bset *dst,
-					struct btree *b,
-					struct btree_node_iter_large *iter)
-{
-	struct bkey_format *f = &b->format;
-	struct btree_node_iter_set *_l = iter->data, *_r;
-	struct bkey_packed *prev = NULL, *out, *lk, *rk;
-	struct bkey l_unpacked, r_unpacked;
-	struct bkey_s l, r;
-	struct btree_nr_keys nr;
-
-	memset(&nr, 0, sizeof(nr));
-
-	heap_resort(iter, extent_sort_cmp, NULL);
-
-	while (!bch2_btree_node_iter_large_end(iter)) {
-		lk = __btree_node_offset_to_key(b, _l->k);
-
-		if (iter->used == 1) {
-			extent_sort_append(c, b, &nr, dst->start, &prev, lk);
-			extent_sort_next(iter, b, _l);
-			continue;
-		}
-
-		_r = iter->data + 1;
-		if (iter->used > 2 &&
-		    extent_sort_cmp(iter, _r[0], _r[1]) >= 0)
-			_r++;
-
-		rk = __btree_node_offset_to_key(b, _r->k);
-
-		l = __bkey_disassemble(b, lk, &l_unpacked);
-		r = __bkey_disassemble(b, rk, &r_unpacked);
-
-		/* If current key and next key don't overlap, just append */
-		if (bkey_cmp(l.k->p, bkey_start_pos(r.k)) <= 0) {
-			extent_sort_append(c, b, &nr, dst->start, &prev, lk);
-			extent_sort_next(iter, b, _l);
-			continue;
-		}
-
-		/* Skip 0 size keys */
-		if (!r.k->size) {
-			extent_sort_next(iter, b, _r);
-			continue;
-		}
-
-		/*
-		 * overlap: keep the newer key and trim the older key so they
-		 * don't overlap. comparing pointers tells us which one is
-		 * newer, since the bsets are appended one after the other.
-		 */
-
-		/* can't happen because of comparison func */
-		BUG_ON(_l->k < _r->k &&
-		       !bkey_cmp(bkey_start_pos(l.k), bkey_start_pos(r.k)));
-
-		if (_l->k > _r->k) {
-			/* l wins, trim r */
-			if (bkey_cmp(l.k->p, r.k->p) >= 0) {
-				sort_key_next(iter, b, _r);
-			} else {
-				__bch2_cut_front(l.k->p, r);
-				extent_save(b, rk, r.k);
-			}
-
-			extent_sort_sift(iter, b, _r - iter->data);
-		} else if (bkey_cmp(l.k->p, r.k->p) > 0) {
-			BKEY_PADDED(k) tmp;
-
-			/*
-			 * r wins, but it overlaps in the middle of l - split l:
-			 */
-			bkey_reassemble(&tmp.k, l.s_c);
-			bch2_cut_back(bkey_start_pos(r.k), &tmp.k.k);
-
-			__bch2_cut_front(r.k->p, l);
-			extent_save(b, lk, l.k);
-
-			extent_sort_sift(iter, b, 0);
-
-			extent_sort_append(c, b, &nr, dst->start, &prev,
-					   bkey_to_packed(&tmp.k));
-		} else {
-			bch2_cut_back(bkey_start_pos(r.k), l.k);
-			extent_save(b, lk, l.k);
-		}
-	}
-
-	if (prev) {
-		bch2_bkey_pack(prev, (void *) prev, f);
-		btree_keys_account_key_add(&nr, 0, prev);
-		out = bkey_next(prev);
-	} else {
-		out = dst->start;
-	}
-
-	dst->u64s = cpu_to_le16((u64 *) out - dst->_data);
-	return nr;
 }
 
 struct extent_insert_state {
