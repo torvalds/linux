@@ -1428,17 +1428,19 @@ u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
 }
 EXPORT_SYMBOL(drm_dp_dsc_sink_line_buf_depth);
 
-u8 drm_dp_dsc_sink_max_color_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
+					 u8 dsc_bpc[3])
 {
+	int num_bpc = 0;
 	u8 color_depth = dsc_dpcd[DP_DSC_DEC_COLOR_DEPTH_CAP - DP_DSC_SUPPORT];
 
 	if (color_depth & DP_DSC_12_BPC)
-		return 12;
+		dsc_bpc[num_bpc++] = 12;
 	if (color_depth & DP_DSC_10_BPC)
-		return 10;
+		dsc_bpc[num_bpc++] = 10;
 	if (color_depth & DP_DSC_8_BPC)
-		return 8;
+		dsc_bpc[num_bpc++] = 8;
 
-	return 0;
+	return num_bpc;
 }
-EXPORT_SYMBOL(drm_dp_dsc_sink_max_color_depth);
+EXPORT_SYMBOL(drm_dp_dsc_sink_supported_input_bpcs);
