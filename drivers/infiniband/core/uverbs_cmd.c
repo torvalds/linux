@@ -1050,11 +1050,7 @@ static int ib_uverbs_create_cq(struct uverbs_attr_bundle *attrs,
 			offsetof(typeof(cmd_ex), comp_channel) +
 				sizeof(cmd.comp_channel),
 			ib_uverbs_create_cq_cb, NULL);
-
-	if (IS_ERR(obj))
-		return PTR_ERR(obj);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(obj);
 }
 
 static int ib_uverbs_ex_create_cq_cb(struct uverbs_attr_bundle *attrs,
