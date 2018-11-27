@@ -821,10 +821,25 @@ static void i915_enable_asle_pipestat(struct drm_i915_private *dev_priv)
 static u32 i915_get_vblank_counter(struct drm_device *dev, unsigned int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_vblank_crtc *vblank = &dev->vblank[pipe];
+	const struct drm_display_mode *mode = &vblank->hwmode;
 	i915_reg_t high_frame, low_frame;
 	u32 high1, high2, low, pixel, vbl_start, hsync_start, htotal;
-	const struct drm_display_mode *mode = &dev->vblank[pipe].hwmode;
 	unsigned long irqflags;
+
+	/*
+	 * On i965gm TV output the frame counter only works up to
+	 * the point when we enable the TV encoder. After that the
+	 * frame counter ceases to work and reads zero. We need a
+	 * vblank wait before enabling the TV encoder and so we
+	 * have to enable vblank interrupts while the frame counter
+	 * is still in a working state. However the core vblank code
+	 * does not like us returning non-zero frame counter values
+	 * when we've told it that we don't have a working frame
+	 * counter. Thus we must stop non-zero values leaking out.
+	 */
+	if (!vblank->max_vblank_count)
+		return 0;
 
 	htotal = mode->crtc_htotal;
 	hsync_start = mode->crtc_hsync_start;
@@ -4579,16 +4594,10 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) >= 8)
 		rps->pm_intrmsk_mbz |= GEN8_PMINTR_DISABLE_REDIRECT_TO_GUC;
 
-	if (IS_GEN(dev_priv, 2)) {
-		/* Gen2 doesn't have a hardware frame counter */
-		dev->max_vblank_count = 0;
-	} else if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
-		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
+	if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		dev->driver->get_vblank_counter = g4x_get_vblank_counter;
-	} else {
+	else if (INTEL_GEN(dev_priv) >= 3)
 		dev->driver->get_vblank_counter = i915_get_vblank_counter;
-		dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	}
 
 	/*
 	 * Opt out of the vblank disable timer on everything except gen2.
