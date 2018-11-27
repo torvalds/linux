@@ -514,9 +514,19 @@ static int physmap_flash_probe(struct platform_device *dev)
 			err = physmap_addr_gpios_map_init(&info->maps[i]);
 			if (err)
 				goto err_out;
-		} else {
-			simple_map_init(&info->maps[i]);
 		}
+
+#ifdef CONFIG_MTD_COMPLEX_MAPPINGS
+		/*
+		 * Only use the simple_map implementation if map hooks are not
+		 * implemented. Since map->read() is mandatory checking for its
+		 * presence is enough.
+		 */
+		if (!info->maps[i].read)
+			simple_map_init(&info->maps[i]);
+#else
+		simple_map_init(&info->maps[i]);
+#endif
 
 		if (info->probe_type) {
 			info->mtds[i] = do_map_probe(info->probe_type,
