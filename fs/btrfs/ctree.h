@@ -757,38 +757,37 @@ struct btrfs_swapfile_pin {
 
 bool btrfs_pinned_by_swapfile(struct btrfs_fs_info *fs_info, void *ptr);
 
-#define BTRFS_FS_BARRIER			1
-#define BTRFS_FS_CLOSING_START			2
-#define BTRFS_FS_CLOSING_DONE			3
-#define BTRFS_FS_LOG_RECOVERING			4
-#define BTRFS_FS_OPEN				5
-#define BTRFS_FS_QUOTA_ENABLED			6
-#define BTRFS_FS_UPDATE_UUID_TREE_GEN		9
-#define BTRFS_FS_CREATING_FREE_SPACE_TREE	10
-#define BTRFS_FS_BTREE_ERR			11
-#define BTRFS_FS_LOG1_ERR			12
-#define BTRFS_FS_LOG2_ERR			13
-#define BTRFS_FS_QUOTA_OVERRIDE			14
-/* Used to record internally whether fs has been frozen */
-#define BTRFS_FS_FROZEN				15
-
-/*
- * Indicate that a whole-filesystem exclusive operation is running
- * (device replace, resize, device add/delete, balance)
- */
-#define BTRFS_FS_EXCL_OP			16
-
-/*
- * To info transaction_kthread we need an immediate commit so it doesn't
- * need to wait for commit_interval
- */
-#define BTRFS_FS_NEED_ASYNC_COMMIT		17
-
-/*
- * Indicate that balance has been set up from the ioctl and is in the main
- * phase. The fs_info::balance_ctl is initialized.
- */
-#define BTRFS_FS_BALANCE_RUNNING		18
+enum {
+	BTRFS_FS_BARRIER,
+	BTRFS_FS_CLOSING_START,
+	BTRFS_FS_CLOSING_DONE,
+	BTRFS_FS_LOG_RECOVERING,
+	BTRFS_FS_OPEN,
+	BTRFS_FS_QUOTA_ENABLED,
+	BTRFS_FS_UPDATE_UUID_TREE_GEN,
+	BTRFS_FS_CREATING_FREE_SPACE_TREE,
+	BTRFS_FS_BTREE_ERR,
+	BTRFS_FS_LOG1_ERR,
+	BTRFS_FS_LOG2_ERR,
+	BTRFS_FS_QUOTA_OVERRIDE,
+	/* Used to record internally whether fs has been frozen */
+	BTRFS_FS_FROZEN,
+	/*
+	 * Indicate that a whole-filesystem exclusive operation is running
+	 * (device replace, resize, device add/delete, balance)
+	 */
+	BTRFS_FS_EXCL_OP,
+	/*
+	 * To info transaction_kthread we need an immediate commit so it
+	 * doesn't need to wait for commit_interval
+	 */
+	BTRFS_FS_NEED_ASYNC_COMMIT,
+	/*
+	 * Indicate that balance has been set up from the ioctl and is in the
+	 * main phase. The fs_info::balance_ctl is initialized.
+	 */
+	BTRFS_FS_BALANCE_RUNNING,
+};
 
 struct btrfs_fs_info {
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
