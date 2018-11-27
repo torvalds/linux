@@ -682,9 +682,11 @@ int usb_gadget_disconnect(struct usb_gadget *gadget)
 		goto out;
 	}
 
-	ret = gadget->ops->pullup(gadget, 0);
-	if (!ret)
-		gadget->connected = 0;
+	if (!gadget->uvc_enabled) {
+		ret = gadget->ops->pullup(gadget, 0);
+		if (!ret)
+			gadget->connected = 0;
+	}
 
 out:
 	trace_usb_gadget_disconnect(gadget, ret);

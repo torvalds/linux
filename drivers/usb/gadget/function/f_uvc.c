@@ -381,6 +381,7 @@ uvc_function_disable(struct usb_function *f)
 	v4l2_event_queue(&uvc->vdev, &v4l2_event);
 
 	uvc->state = UVC_STATE_DISCONNECTED;
+	f->config->cdev->gadget->uvc_enabled = false;
 
 	usb_ep_disable(uvc->video.ep);
 	usb_ep_disable(uvc->control_ep);
@@ -395,6 +396,8 @@ uvc_function_connect(struct uvc_device *uvc)
 {
 	struct usb_composite_dev *cdev = uvc->func.config->cdev;
 	int ret;
+
+	cdev->gadget->uvc_enabled = true;
 
 	if ((ret = usb_function_activate(&uvc->func)) < 0)
 		INFO(cdev, "UVC connect failed with %d\n", ret);
