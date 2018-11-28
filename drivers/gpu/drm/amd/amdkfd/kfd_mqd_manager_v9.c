@@ -67,6 +67,40 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		m->compute_static_thread_mgmt_se3);
 }
 
+static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+		struct queue_properties *q)
+{
+	int retval;
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
+
+	/* From V9,  for CWSR, the control stack is located on the next page
+	 * boundary after the mqd, we will use the gtt allocation function
+	 * instead of sub-allocation function.
+	 */
+	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
+		mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_NOIO);
+		if (!mqd_mem_obj)
+			return NULL;
+		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->kgd,
+			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
+				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
+			&(mqd_mem_obj->gtt_mem),
+			&(mqd_mem_obj->gpu_addr),
+			(void *)&(mqd_mem_obj->cpu_ptr), true);
+	} else {
+		retval = kfd_gtt_sa_allocate(kfd, sizeof(struct v9_mqd),
+				&mqd_mem_obj);
+	}
+
+	if (retval) {
+		kfree(mqd_mem_obj);
+		return NULL;
+	}
+
+	return mqd_mem_obj;
+
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
@@ -76,28 +110,9 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	struct v9_mqd *m;
 	struct kfd_dev *kfd = mm->dev;
 
-	*mqd_mem_obj = NULL;
-	/* From V9,  for CWSR, the control stack is located on the next page
-	 * boundary after the mqd, we will use the gtt allocation function
-	 * instead of sub-allocation function.
-	 */
-	if (kfd->cwsr_enabled && (q->type == KFD_QUEUE_TYPE_COMPUTE)) {
-		*mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
-		if (!*mqd_mem_obj)
-			return -ENOMEM;
-		retval = amdgpu_amdkfd_alloc_gtt_mem(kfd->kgd,
-			ALIGN(q->ctl_stack_size, PAGE_SIZE) +
-				ALIGN(sizeof(struct v9_mqd), PAGE_SIZE),
-			&((*mqd_mem_obj)->gtt_mem),
-			&((*mqd_mem_obj)->gpu_addr),
-			(void *)&((*mqd_mem_obj)->cpu_ptr), true);
-	} else
-		retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct v9_mqd),
-				mqd_mem_obj);
-	if (retval) {
-		kfree(*mqd_mem_obj);
+	*mqd_mem_obj = allocate_mqd(kfd, q);
+	if (!*mqd_mem_obj)
 		return -ENOMEM;
-	}
 
 	m = (struct v9_mqd *) (*mqd_mem_obj)->cpu_ptr;
 	addr = (*mqd_mem_obj)->gpu_addr;

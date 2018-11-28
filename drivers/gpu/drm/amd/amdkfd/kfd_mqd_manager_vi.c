@@ -68,6 +68,18 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 		m->compute_static_thread_mgmt_se3);
 }
 
+static struct kfd_mem_obj *allocate_mqd(struct kfd_dev *kfd,
+					struct queue_properties *q)
+{
+	struct kfd_mem_obj *mqd_mem_obj;
+
+	if (kfd_gtt_sa_allocate(kfd, sizeof(struct vi_mqd),
+			&mqd_mem_obj))
+		return NULL;
+
+	return mqd_mem_obj;
+}
+
 static int init_mqd(struct mqd_manager *mm, void **mqd,
 			struct kfd_mem_obj **mqd_mem_obj, uint64_t *gart_addr,
 			struct queue_properties *q)
@@ -75,10 +87,10 @@ static int init_mqd(struct mqd_manager *mm, void **mqd,
 	int retval;
 	uint64_t addr;
 	struct vi_mqd *m;
+	struct kfd_dev *kfd = mm->dev;
 
-	retval = kfd_gtt_sa_allocate(mm->dev, sizeof(struct vi_mqd),
-			mqd_mem_obj);
-	if (retval != 0)
+	*mqd_mem_obj = allocate_mqd(kfd, q);
+	if (!*mqd_mem_obj)
 		return -ENOMEM;
 
 	m = (struct vi_mqd *) (*mqd_mem_obj)->cpu_ptr;
