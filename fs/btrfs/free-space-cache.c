@@ -3166,8 +3166,8 @@ static int do_trimming(struct btrfs_block_group_cache *block_group,
 			space_info->bytes_readonly += reserved_bytes;
 		block_group->reserved -= reserved_bytes;
 		space_info->bytes_reserved -= reserved_bytes;
-		spin_unlock(&space_info->lock);
 		spin_unlock(&block_group->lock);
+		spin_unlock(&space_info->lock);
 	}
 
 	return ret;
