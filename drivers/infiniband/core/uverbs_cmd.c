@@ -259,6 +259,9 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 
 	fd_install(resp.async_fd, filp);
 
+	ucontext->res.type = RDMA_RESTRACK_CTX;
+	rdma_restrack_add(&ucontext->res);
+
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
 	 * only after all writes to setup the ucontext have completed

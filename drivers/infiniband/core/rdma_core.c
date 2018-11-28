@@ -820,6 +820,8 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 	ib_rdmacg_uncharge(&ucontext->cg_obj, ib_dev,
 			   RDMACG_RESOURCE_HCA_HANDLE);
 
+	rdma_restrack_del(&ucontext->res);
+
 	/*
 	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
 	 * the error return.
