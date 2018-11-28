@@ -409,6 +409,21 @@
 			status = "disabled";
 		};
 
+		gpio_aon: gpio@c2f0000 {
+			compatible = "nvidia,tegra194-gpio-aon";
+			reg-names = "security", "gpio";
+			reg = <0xc2f0000 0x1000>,
+			      <0xc2f1000 0x1000>;
+			interrupts = <GIC_SPI 56 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 57 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 58 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 59 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		pwm4: pwm@c340000 {
 			compatible = "nvidia,tegra194-pwm",
 				     "nvidia,tegra186-pwm";
