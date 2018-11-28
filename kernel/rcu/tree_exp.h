@@ -697,6 +697,7 @@ static void sync_rcu_exp_handler(void *unused)
 			WRITE_ONCE(t->rcu_read_unlock_special.b.exp_hint, true);
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+		return;
 	}
 
 	/*
