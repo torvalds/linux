@@ -90,6 +90,15 @@ int nfp_net_tlv_caps_parse(struct device *dev, u8 __iomem *ctrl_mem,
 				 FIELD_GET(NFP_NET_CFG_TLV_HEADER_TYPE, hdr),
 				 offset, length);
 			break;
+		case NFP_NET_CFG_TLV_TYPE_REPR_CAP:
+			if (length < 4) {
+				dev_err(dev, "REPR CAP TLV short %dB < 4B\n",
+					length);
+				return -EINVAL;
+			}
+
+			caps->repr_cap = readl(data);
+			break;
 		default:
 			if (!FIELD_GET(NFP_NET_CFG_TLV_HEADER_REQUIRED, hdr))
 				break;
