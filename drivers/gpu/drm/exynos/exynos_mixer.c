@@ -384,14 +384,9 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 {
 	u32 val;
 
-	switch (height) {
-	case 480:
-	case 576:
+	if (height < 720) {
 		val = MXR_CFG_RGB601_0_255;
-		break;
-	case 720:
-	case 1080:
-	default:
+	} else {
 		val = MXR_CFG_RGB709_16_235;
 		/* Configure the BT.709 CSC matrix for full range RGB. */
 		mixer_reg_write(ctx, MXR_CM_COEFF_Y,
@@ -401,7 +396,6 @@ static void mixer_cfg_rgb_fmt(struct mixer_context *ctx, unsigned int height)
 			MXR_CSC_CT(-0.102, -0.338,  0.440));
 		mixer_reg_write(ctx, MXR_CM_COEFF_CR,
 			MXR_CSC_CT( 0.440, -0.399, -0.040));
-		break;
 	}
 
 	mixer_reg_writemask(ctx, MXR_CFG, val, MXR_CFG_RGB_FMT_MASK);
