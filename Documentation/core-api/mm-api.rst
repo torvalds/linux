@@ -49,8 +49,14 @@ The Slab Cache
 .. kernel-doc:: mm/util.c
    :functions: kfree_const kvmalloc_node kvfree
 
-More Memory Management Functions
-================================
+Virtually Contiguous Mappings
+=============================
+
+.. kernel-doc:: mm/vmalloc.c
+   :export:
+
+File Mapping and Page Cache
+===========================
 
 .. kernel-doc:: mm/readahead.c
    :export:
@@ -58,23 +64,28 @@ More Memory Management Functions
 .. kernel-doc:: mm/filemap.c
    :export:
 
-.. kernel-doc:: mm/memory.c
-   :export:
-
-.. kernel-doc:: mm/vmalloc.c
-   :export:
-
-.. kernel-doc:: mm/page_alloc.c
-   :internal:
-
-.. kernel-doc:: mm/mempool.c
-   :export:
-
-.. kernel-doc:: mm/dmapool.c
-   :export:
-
 .. kernel-doc:: mm/page-writeback.c
    :export:
 
 .. kernel-doc:: mm/truncate.c
    :export:
+
+Memory pools
+============
+
+.. kernel-doc:: mm/mempool.c
+   :export:
+
+DMA pools
+=========
+
+.. kernel-doc:: mm/dmapool.c
+   :export:
+
+More Memory Management Functions
+================================
+
+.. kernel-doc:: mm/memory.c
+   :export:
+
+.. kernel-doc:: mm/page_alloc.c
