@@ -3042,6 +3042,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_enable = false;
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
+		state->max_bpc = 8;
 
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
@@ -3063,6 +3064,7 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 
 	new_state->freesync_capable = state->freesync_capable;
 	new_state->freesync_enable = state->freesync_enable;
+	new_state->max_bpc = state->max_bpc;
 
 	return &new_state->base;
 }
