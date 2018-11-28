@@ -357,8 +357,6 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 	mutex_unlock(&acpi_gpio_deferred_req_irqs_lock);
 
 	list_for_each_entry_safe_reverse(event, ep, &acpi_gpio->events, node) {
-		struct gpio_desc *desc;
-
 		if (event->irq_requested) {
 			if (event->irq_is_wake)
 				disable_irq_wake(event->irq);
@@ -366,11 +364,8 @@ void acpi_gpiochip_free_interrupts(struct gpio_chip *chip)
 			free_irq(event->irq, event);
 		}
 
-		desc = event->desc;
-		if (WARN_ON(IS_ERR(desc)))
-			continue;
 		gpiochip_unlock_as_irq(chip, event->pin);
-		gpiochip_free_own_desc(desc);
+		gpiochip_free_own_desc(event->desc);
 		list_del(&event->node);
 		kfree(event);
 	}
