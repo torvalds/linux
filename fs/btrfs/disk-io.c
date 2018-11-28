@@ -279,6 +279,12 @@ static int csum_tree_block(struct btrfs_fs_info *fs_info,
 
 	len = buf->len - offset;
 	while (len > 0) {
+		/*
+		 * Note: we don't need to check for the err == 1 case here, as
+		 * with the given combination of 'start = BTRFS_CSUM_SIZE (32)'
+		 * and 'min_len = 32' and the currently implemented mapping
+		 * algorithm we cannot cross a page boundary.
+		 */
 		err = map_private_extent_buffer(buf, offset, 32,
 					&kaddr, &map_start, &map_len);
 		if (err)
