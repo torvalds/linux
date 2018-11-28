@@ -495,6 +495,7 @@ struct i915_psr {
 	bool sink_support;
 	bool prepared, enabled;
 	struct intel_dp *dp;
+	enum pipe pipe;
 	bool active;
 	struct work_struct work;
 	unsigned busy_frontbuffer_bits;

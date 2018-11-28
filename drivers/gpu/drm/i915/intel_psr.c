@@ -719,6 +719,7 @@ void intel_psr_enable(struct intel_dp *intel_dp,
 	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 	dev_priv->psr.prepared = true;
+	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
 
 	if (psr_global_enabled(dev_priv->psr.debug))
 		intel_psr_enable_locked(dev_priv, crtc_state);
@@ -1026,9 +1027,6 @@ unlock:
 void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 			  unsigned frontbuffer_bits, enum fb_op_origin origin)
 {
-	struct drm_crtc *crtc;
-	enum pipe pipe;
-
 	if (!CAN_PSR(dev_priv))
 		return;
 
@@ -1041,10 +1039,7 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	crtc = dp_to_dig_port(dev_priv->psr.dp)->base.base.crtc;
-	pipe = to_intel_crtc(crtc)->pipe;
-
-	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(dev_priv->psr.pipe);
 	dev_priv->psr.busy_frontbuffer_bits |= frontbuffer_bits;
 
 	if (frontbuffer_bits)
@@ -1069,9 +1064,6 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 void intel_psr_flush(struct drm_i915_private *dev_priv,
 		     unsigned frontbuffer_bits, enum fb_op_origin origin)
 {
-	struct drm_crtc *crtc;
-	enum pipe pipe;
-
 	if (!CAN_PSR(dev_priv))
 		return;
 
@@ -1084,10 +1076,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 		return;
 	}
 
-	crtc = dp_to_dig_port(dev_priv->psr.dp)->base.base.crtc;
-	pipe = to_intel_crtc(crtc)->pipe;
-
-	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(pipe);
+	frontbuffer_bits &= INTEL_FRONTBUFFER_ALL_MASK(dev_priv->psr.pipe);
 	dev_priv->psr.busy_frontbuffer_bits &= ~frontbuffer_bits;
 
 	/* By definition flush = invalidate + flush */
@@ -1101,7 +1090,7 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 		 * but it makes more sense write to the current active
 		 * pipe.
 		 */
-		I915_WRITE(CURSURFLIVE(pipe), 0);
+		I915_WRITE(CURSURFLIVE(dev_priv->psr.pipe), 0);
 	}
 
 	if (!dev_priv->psr.active && !dev_priv->psr.busy_frontbuffer_bits)
