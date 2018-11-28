@@ -18,6 +18,7 @@
 #define IRQ_RESOURCE_TYPE	GENMASK(1, 0)
 #define IRQ_RESOURCE_NONE	0
 #define IRQ_RESOURCE_GPIO	1
+#define IRQ_RESOURCE_APIC	2
 
 struct i2c_inst_data {
 	const char *type;
@@ -101,6 +102,14 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 				dev_err(dev, "Error requesting irq at index %d: %d\n",
 					inst_data[i].irq_idx, ret);
 				goto error;
+			}
+			board_info.irq = ret;
+			break;
+		case IRQ_RESOURCE_APIC:
+			ret = platform_get_irq(pdev, inst_data[i].irq_idx);
+			if (ret < 0) {
+				dev_dbg(dev, "Error requesting irq at index %d: %d\n",
+					inst_data[i].irq_idx, ret);
 			}
 			board_info.irq = ret;
 			break;
