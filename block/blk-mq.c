@@ -1946,8 +1946,10 @@ static blk_qc_t blk_mq_make_request(struct request_queue *q, struct bio *bio)
 		 */
 		if (list_empty(&plug->mq_list))
 			same_queue_rq = NULL;
-		if (same_queue_rq)
+		if (same_queue_rq) {
 			list_del_init(&same_queue_rq->queuelist);
+			plug->rq_count--;
+		}
 		list_add_tail(&rq->queuelist, &plug->mq_list);
 		plug->rq_count++;
 
