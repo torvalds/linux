@@ -2894,6 +2894,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_enable = false;
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
+		state->max_bpc = 8;
 
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
@@ -2911,6 +2912,7 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 	if (new_state) {
 		__drm_atomic_helper_connector_duplicate_state(connector,
 							      &new_state->base);
+		new_state->max_bpc = state->max_bpc;
 		return &new_state->base;
 	}
 
