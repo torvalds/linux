@@ -340,6 +340,13 @@ int hfi1_setup_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe, bool *call_send)
 	default:
 		break;
 	}
+
+	/*
+	 * System latency between send and schedule is large enough that
+	 * forcing call_send to true for piothreshold packets is necessary.
+	 */
+	if (wqe->length <= piothreshold)
+		*call_send = true;
 	return 0;
 }
 
