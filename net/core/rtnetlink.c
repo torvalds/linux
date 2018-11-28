@@ -2974,17 +2974,22 @@ static int rtnl_group_changelink(const struct sk_buff *skb,
 static int rtnl_newlink(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
+	struct nlattr *slave_attr[RTNL_SLAVE_MAX_TYPE + 1];
+	unsigned char name_assign_type = NET_NAME_USER;
+	struct nlattr *linkinfo[IFLA_INFO_MAX + 1];
+	const struct rtnl_link_ops *m_ops = NULL;
+	struct nlattr *attr[RTNL_MAX_TYPE + 1];
+	struct net_device *master_dev = NULL;
 	struct net *net = sock_net(skb->sk);
 	const struct rtnl_link_ops *ops;
-	const struct rtnl_link_ops *m_ops = NULL;
-	struct net_device *dev;
-	struct net_device *master_dev = NULL;
-	struct ifinfomsg *ifm;
+	struct nlattr *tb[IFLA_MAX + 1];
+	struct net *dest_net, *link_net;
+	struct nlattr **slave_data;
 	char kind[MODULE_NAME_LEN];
+	struct net_device *dev;
+	struct ifinfomsg *ifm;
 	char ifname[IFNAMSIZ];
-	struct nlattr *tb[IFLA_MAX+1];
-	struct nlattr *linkinfo[IFLA_INFO_MAX+1];
-	unsigned char name_assign_type = NET_NAME_USER;
+	struct nlattr **data;
 	int err;
 
 #ifdef CONFIG_MODULES
@@ -3040,195 +3045,185 @@ replay:
 		ops = NULL;
 	}
 
-	if (1) {
-		struct nlattr *attr[RTNL_MAX_TYPE + 1];
-		struct nlattr *slave_attr[RTNL_SLAVE_MAX_TYPE + 1];
-		struct nlattr **data = NULL;
-		struct nlattr **slave_data = NULL;
-		struct net *dest_net, *link_net = NULL;
+	data = NULL;
+	if (ops) {
+		if (ops->maxtype > RTNL_MAX_TYPE)
+			return -EINVAL;
 
-		if (ops) {
-			if (ops->maxtype > RTNL_MAX_TYPE)
-				return -EINVAL;
-
-			if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
-				err = nla_parse_nested(attr, ops->maxtype,
-						       linkinfo[IFLA_INFO_DATA],
-						       ops->policy, extack);
-				if (err < 0)
-					return err;
-				data = attr;
-			}
-			if (ops->validate) {
-				err = ops->validate(tb, data, extack);
-				if (err < 0)
-					return err;
-			}
+		if (ops->maxtype && linkinfo[IFLA_INFO_DATA]) {
+			err = nla_parse_nested(attr, ops->maxtype,
+					       linkinfo[IFLA_INFO_DATA],
+					       ops->policy, extack);
+			if (err < 0)
+				return err;
+			data = attr;
 		}
-
-		if (m_ops) {
-			if (m_ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE)
-				return -EINVAL;
-
-			if (m_ops->slave_maxtype &&
-			    linkinfo[IFLA_INFO_SLAVE_DATA]) {
-				err = nla_parse_nested(slave_attr,
-						       m_ops->slave_maxtype,
-						       linkinfo[IFLA_INFO_SLAVE_DATA],
-						       m_ops->slave_policy,
-						       extack);
-				if (err < 0)
-					return err;
-				slave_data = slave_attr;
-			}
+		if (ops->validate) {
+			err = ops->validate(tb, data, extack);
+			if (err < 0)
+				return err;
 		}
+	}
 
-		if (dev) {
-			int status = 0;
+	slave_data = NULL;
+	if (m_ops) {
+		if (m_ops->slave_maxtype > RTNL_SLAVE_MAX_TYPE)
+			return -EINVAL;
 
-			if (nlh->nlmsg_flags & NLM_F_EXCL)
-				return -EEXIST;
-			if (nlh->nlmsg_flags & NLM_F_REPLACE)
+		if (m_ops->slave_maxtype &&
+		    linkinfo[IFLA_INFO_SLAVE_DATA]) {
+			err = nla_parse_nested(slave_attr, m_ops->slave_maxtype,
+					       linkinfo[IFLA_INFO_SLAVE_DATA],
+					       m_ops->slave_policy, extack);
+			if (err < 0)
+				return err;
+			slave_data = slave_attr;
+		}
+	}
+
+	if (dev) {
+		int status = 0;
+
+		if (nlh->nlmsg_flags & NLM_F_EXCL)
+			return -EEXIST;
+		if (nlh->nlmsg_flags & NLM_F_REPLACE)
+			return -EOPNOTSUPP;
+
+		if (linkinfo[IFLA_INFO_DATA]) {
+			if (!ops || ops != dev->rtnl_link_ops ||
+			    !ops->changelink)
 				return -EOPNOTSUPP;
 
-			if (linkinfo[IFLA_INFO_DATA]) {
-				if (!ops || ops != dev->rtnl_link_ops ||
-				    !ops->changelink)
-					return -EOPNOTSUPP;
-
-				err = ops->changelink(dev, tb, data, extack);
-				if (err < 0)
-					return err;
-				status |= DO_SETLINK_NOTIFY;
-			}
-
-			if (linkinfo[IFLA_INFO_SLAVE_DATA]) {
-				if (!m_ops || !m_ops->slave_changelink)
-					return -EOPNOTSUPP;
-
-				err = m_ops->slave_changelink(master_dev, dev,
-							      tb, slave_data,
-							      extack);
-				if (err < 0)
-					return err;
-				status |= DO_SETLINK_NOTIFY;
-			}
-
-			return do_setlink(skb, dev, ifm, extack, tb, ifname,
-					  status);
+			err = ops->changelink(dev, tb, data, extack);
+			if (err < 0)
+				return err;
+			status |= DO_SETLINK_NOTIFY;
 		}
 
-		if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
-			if (ifm->ifi_index == 0 && tb[IFLA_GROUP])
-				return rtnl_group_changelink(skb, net,
+		if (linkinfo[IFLA_INFO_SLAVE_DATA]) {
+			if (!m_ops || !m_ops->slave_changelink)
+				return -EOPNOTSUPP;
+
+			err = m_ops->slave_changelink(master_dev, dev, tb,
+						      slave_data, extack);
+			if (err < 0)
+				return err;
+			status |= DO_SETLINK_NOTIFY;
+		}
+
+		return do_setlink(skb, dev, ifm, extack, tb, ifname, status);
+	}
+
+	if (!(nlh->nlmsg_flags & NLM_F_CREATE)) {
+		if (ifm->ifi_index == 0 && tb[IFLA_GROUP])
+			return rtnl_group_changelink(skb, net,
 						nla_get_u32(tb[IFLA_GROUP]),
 						ifm, extack, tb);
-			return -ENODEV;
-		}
+		return -ENODEV;
+	}
 
-		if (tb[IFLA_MAP] || tb[IFLA_PROTINFO])
-			return -EOPNOTSUPP;
+	if (tb[IFLA_MAP] || tb[IFLA_PROTINFO])
+		return -EOPNOTSUPP;
 
-		if (!ops) {
+	if (!ops) {
 #ifdef CONFIG_MODULES
-			if (kind[0]) {
-				__rtnl_unlock();
-				request_module("rtnl-link-%s", kind);
-				rtnl_lock();
-				ops = rtnl_link_ops_get(kind);
-				if (ops)
-					goto replay;
-			}
+		if (kind[0]) {
+			__rtnl_unlock();
+			request_module("rtnl-link-%s", kind);
+			rtnl_lock();
+			ops = rtnl_link_ops_get(kind);
+			if (ops)
+				goto replay;
+		}
 #endif
-			NL_SET_ERR_MSG(extack, "Unknown device type");
-			return -EOPNOTSUPP;
-		}
+		NL_SET_ERR_MSG(extack, "Unknown device type");
+		return -EOPNOTSUPP;
+	}
 
-		if (!ops->setup)
-			return -EOPNOTSUPP;
+	if (!ops->setup)
+		return -EOPNOTSUPP;
 
-		if (!ifname[0]) {
-			snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
-			name_assign_type = NET_NAME_ENUM;
-		}
+	if (!ifname[0]) {
+		snprintf(ifname, IFNAMSIZ, "%s%%d", ops->kind);
+		name_assign_type = NET_NAME_ENUM;
+	}
 
-		dest_net = rtnl_link_get_net_capable(skb, net, tb, CAP_NET_ADMIN);
-		if (IS_ERR(dest_net))
-			return PTR_ERR(dest_net);
+	dest_net = rtnl_link_get_net_capable(skb, net, tb, CAP_NET_ADMIN);
+	if (IS_ERR(dest_net))
+		return PTR_ERR(dest_net);
 
-		if (tb[IFLA_LINK_NETNSID]) {
-			int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
+	if (tb[IFLA_LINK_NETNSID]) {
+		int id = nla_get_s32(tb[IFLA_LINK_NETNSID]);
 
-			link_net = get_net_ns_by_id(dest_net, id);
-			if (!link_net) {
-				NL_SET_ERR_MSG(extack, "Unknown network namespace id");
-				err =  -EINVAL;
-				goto out;
-			}
-			err = -EPERM;
-			if (!netlink_ns_capable(skb, link_net->user_ns, CAP_NET_ADMIN))
-				goto out;
-		}
-
-		dev = rtnl_create_link(link_net ? : dest_net, ifname,
-				       name_assign_type, ops, tb, extack);
-		if (IS_ERR(dev)) {
-			err = PTR_ERR(dev);
+		link_net = get_net_ns_by_id(dest_net, id);
+		if (!link_net) {
+			NL_SET_ERR_MSG(extack, "Unknown network namespace id");
+			err =  -EINVAL;
 			goto out;
 		}
+		err = -EPERM;
+		if (!netlink_ns_capable(skb, link_net->user_ns, CAP_NET_ADMIN))
+			goto out;
+	} else {
+		link_net = NULL;
+	}
 
-		dev->ifindex = ifm->ifi_index;
-
-		if (ops->newlink) {
-			err = ops->newlink(link_net ? : net, dev, tb, data,
-					   extack);
-			/* Drivers should call free_netdev() in ->destructor
-			 * and unregister it on failure after registration
-			 * so that device could be finally freed in rtnl_unlock.
-			 */
-			if (err < 0) {
-				/* If device is not registered at all, free it now */
-				if (dev->reg_state == NETREG_UNINITIALIZED)
-					free_netdev(dev);
-				goto out;
-			}
-		} else {
-			err = register_netdevice(dev);
-			if (err < 0) {
-				free_netdev(dev);
-				goto out;
-			}
-		}
-		err = rtnl_configure_link(dev, ifm);
-		if (err < 0)
-			goto out_unregister;
-		if (link_net) {
-			err = dev_change_net_namespace(dev, dest_net, ifname);
-			if (err < 0)
-				goto out_unregister;
-		}
-		if (tb[IFLA_MASTER]) {
-			err = do_set_master(dev, nla_get_u32(tb[IFLA_MASTER]),
-					    extack);
-			if (err)
-				goto out_unregister;
-		}
-out:
-		if (link_net)
-			put_net(link_net);
-		put_net(dest_net);
-		return err;
-out_unregister:
-		if (ops->newlink) {
-			LIST_HEAD(list_kill);
-
-			ops->dellink(dev, &list_kill);
-			unregister_netdevice_many(&list_kill);
-		} else {
-			unregister_netdevice(dev);
-		}
+	dev = rtnl_create_link(link_net ? : dest_net, ifname,
+			       name_assign_type, ops, tb, extack);
+	if (IS_ERR(dev)) {
+		err = PTR_ERR(dev);
 		goto out;
 	}
+
+	dev->ifindex = ifm->ifi_index;
+
+	if (ops->newlink) {
+		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
+		/* Drivers should call free_netdev() in ->destructor
+		 * and unregister it on failure after registration
+		 * so that device could be finally freed in rtnl_unlock.
+		 */
+		if (err < 0) {
+			/* If device is not registered at all, free it now */
+			if (dev->reg_state == NETREG_UNINITIALIZED)
+				free_netdev(dev);
+			goto out;
+		}
+	} else {
+		err = register_netdevice(dev);
+		if (err < 0) {
+			free_netdev(dev);
+			goto out;
+		}
+	}
+	err = rtnl_configure_link(dev, ifm);
+	if (err < 0)
+		goto out_unregister;
+	if (link_net) {
+		err = dev_change_net_namespace(dev, dest_net, ifname);
+		if (err < 0)
+			goto out_unregister;
+	}
+	if (tb[IFLA_MASTER]) {
+		err = do_set_master(dev, nla_get_u32(tb[IFLA_MASTER]), extack);
+		if (err)
+			goto out_unregister;
+	}
+out:
+	if (link_net)
+		put_net(link_net);
+	put_net(dest_net);
+	return err;
+out_unregister:
+	if (ops->newlink) {
+		LIST_HEAD(list_kill);
+
+		ops->dellink(dev, &list_kill);
+		unregister_netdevice_many(&list_kill);
+	} else {
+		unregister_netdevice(dev);
+	}
+	goto out;
 }
 
 static int rtnl_getlink(struct sk_buff *skb, struct nlmsghdr *nlh,
