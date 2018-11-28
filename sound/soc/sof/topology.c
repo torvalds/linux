@@ -1624,18 +1624,6 @@ static int sof_widget_load_effect(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
-/*
- * Generic widget loader.
- */
-
-static int sof_widget_load(struct snd_soc_component *scomp, int index,
-			   struct snd_soc_dapm_widget *w,
-			   struct snd_soc_tplg_dapm_widget *tw)
-{
-	/* nothing todo atm */
-	return 0;
-}
-
 /* external widget init - used for any driver specific init */
 static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 			    struct snd_soc_dapm_widget *w,
@@ -2501,13 +2489,6 @@ err:
 	return ret;
 }
 
-static int sof_route_unload(struct snd_soc_component *scomp,
-			    struct snd_soc_dobj *dobj)
-{
-	/* TODO: unload routes when topology is changed */
-	return 0;
-}
-
 int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
 			      struct snd_sof_widget *swidget)
 {
@@ -2580,10 +2561,13 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 
 	/* external kcontrol init - used for any driver specific init */
 	.dapm_route_load	= sof_route_load,
-	.dapm_route_unload	= sof_route_unload,
+	/*
+	 * .dapm_route_unload is not currently used, will be needed when
+	 * topology is changed
+	 */
 
 	/* external widget init - used for any driver specific init */
-	.widget_load	= sof_widget_load,
+	/* .widget_load is not currently used */
 	.widget_ready	= sof_widget_ready,
 	.widget_unload	= sof_widget_unload,
 
