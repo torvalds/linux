@@ -1802,6 +1802,9 @@ void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 int intel_dp_retrain_link(struct intel_encoder *encoder,
 			  struct drm_modeset_acquire_ctx *ctx);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
+void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state,
+					   bool enable);
 void intel_dp_encoder_reset(struct drm_encoder *encoder);
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);

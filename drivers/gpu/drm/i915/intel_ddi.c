@@ -3134,6 +3134,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_ddi_init_dp_buf_reg(encoder);
 	if (!is_mst)
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
+	intel_dp_sink_set_decompression_state(intel_dp, crtc_state,
+					      true);
 	intel_dp_start_link_train(intel_dp);
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
 		intel_dp_stop_link_train(intel_dp);
@@ -3491,6 +3493,9 @@ static void intel_disable_ddi_dp(struct intel_encoder *encoder,
 	intel_edp_drrs_disable(intel_dp, old_crtc_state);
 	intel_psr_disable(intel_dp, old_crtc_state);
 	intel_edp_backlight_off(old_conn_state);
+	/* Disable the decompression in DP Sink */
+	intel_dp_sink_set_decompression_state(intel_dp, old_crtc_state,
+					      false);
 }
 
 static void intel_disable_ddi_hdmi(struct intel_encoder *encoder,

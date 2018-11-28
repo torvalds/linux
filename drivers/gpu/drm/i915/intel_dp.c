@@ -2857,6 +2857,22 @@ static bool downstream_hpd_needs_d0(struct intel_dp *intel_dp)
 		intel_dp->downstream_ports[0] & DP_DS_PORT_HPD;
 }
 
+void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
+					   const struct intel_crtc_state *crtc_state,
+					   bool enable)
+{
+	int ret;
+
+	if (!crtc_state->dsc_params.compression_enable)
+		return;
+
+	ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_DSC_ENABLE,
+				 enable ? DP_DECOMPRESSION_EN : 0);
+	if (ret < 0)
+		DRM_DEBUG_KMS("Failed to %s sink decompression state\n",
+			      enable ? "enable" : "disable");
+}
+
 /* If the sink supports it, try to set the power state appropriately */
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode)
 {
