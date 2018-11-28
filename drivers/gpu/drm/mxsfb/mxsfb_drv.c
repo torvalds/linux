@@ -263,23 +263,12 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 
 	drm_kms_helper_poll_init(drm);
 
-	mxsfb->fbdev = drm_fbdev_cma_init(drm, 32,
-					  drm->mode_config.num_connector);
-	if (IS_ERR(mxsfb->fbdev)) {
-		ret = PTR_ERR(mxsfb->fbdev);
-		mxsfb->fbdev = NULL;
-		dev_err(drm->dev, "Failed to init FB CMA area\n");
-		goto err_cma;
-	}
-
 	platform_set_drvdata(pdev, drm);
 
 	drm_helper_hpd_irq_event(drm);
 
 	return 0;
 
-err_cma:
-	drm_irq_uninstall(drm);
 err_irq:
 	drm_panel_detach(mxsfb->panel);
 err_vblank:
@@ -290,11 +279,6 @@ err_vblank:
 
 static void mxsfb_unload(struct drm_device *drm)
 {
-	struct mxsfb_drm_private *mxsfb = drm->dev_private;
-
-	if (mxsfb->fbdev)
-		drm_fbdev_cma_fini(mxsfb->fbdev);
-
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
 
@@ -305,13 +289,6 @@ static void mxsfb_unload(struct drm_device *drm)
 	drm->dev_private = NULL;
 
 	pm_runtime_disable(drm->dev);
-}
-
-static void mxsfb_lastclose(struct drm_device *drm)
-{
-	struct mxsfb_drm_private *mxsfb = drm->dev_private;
-
-	drm_fbdev_cma_restore_mode(mxsfb->fbdev);
 }
 
 static void mxsfb_irq_preinstall(struct drm_device *drm)
@@ -347,7 +324,6 @@ static struct drm_driver mxsfb_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET |
 				  DRIVER_PRIME | DRIVER_ATOMIC |
 				  DRIVER_HAVE_IRQ,
-	.lastclose		= mxsfb_lastclose,
 	.irq_handler		= mxsfb_irq_handler,
 	.irq_preinstall		= mxsfb_irq_preinstall,
 	.irq_uninstall		= mxsfb_irq_preinstall,
@@ -411,6 +387,8 @@ static int mxsfb_probe(struct platform_device *pdev)
 	ret = drm_dev_register(drm, 0);
 	if (ret)
 		goto err_unload;
+
+	drm_fbdev_generic_setup(drm, 32);
 
 	return 0;
 
