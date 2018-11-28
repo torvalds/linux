@@ -1217,9 +1217,13 @@ void br_vlan_get_stats(const struct net_bridge_vlan *v,
 int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
 {
 	struct net_bridge_vlan_group *vg;
+	struct net_bridge_port *p;
 
 	ASSERT_RTNL();
-	if (netif_is_bridge_master(dev))
+	p = br_port_get_check_rtnl(dev);
+	if (p)
+		vg = nbp_vlan_group(p);
+	else if (netif_is_bridge_master(dev))
 		vg = br_vlan_group(netdev_priv(dev));
 	else
 		return -EINVAL;
