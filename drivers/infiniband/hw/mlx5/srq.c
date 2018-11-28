@@ -9,8 +9,8 @@
 #include <linux/slab.h>
 #include <rdma/ib_umem.h>
 #include <rdma/ib_user_verbs.h>
-
 #include "mlx5_ib.h"
+#include "srq.h"
 
 /* not supported currently */
 static int srq_signature;

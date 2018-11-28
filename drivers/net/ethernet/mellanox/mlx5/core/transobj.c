@@ -258,49 +258,6 @@ void mlx5_core_destroy_tis(struct mlx5_core_dev *dev, u32 tisn)
 }
 EXPORT_SYMBOL(mlx5_core_destroy_tis);
 
-int mlx5_core_create_rmp(struct mlx5_core_dev *dev, u32 *in, int inlen,
-			 u32 *rmpn)
-{
-	u32 out[MLX5_ST_SZ_DW(create_rmp_out)] = {0};
-	int err;
-
-	MLX5_SET(create_rmp_in, in, opcode, MLX5_CMD_OP_CREATE_RMP);
-	err = mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
-	if (!err)
-		*rmpn = MLX5_GET(create_rmp_out, out, rmpn);
-
-	return err;
-}
-
-int mlx5_core_modify_rmp(struct mlx5_core_dev *dev, u32 *in, int inlen)
-{
-	u32 out[MLX5_ST_SZ_DW(modify_rmp_out)] = {0};
-
-	MLX5_SET(modify_rmp_in, in, opcode, MLX5_CMD_OP_MODIFY_RMP);
-	return mlx5_cmd_exec(dev, in, inlen, out, sizeof(out));
-}
-
-int mlx5_core_destroy_rmp(struct mlx5_core_dev *dev, u32 rmpn)
-{
-	u32 in[MLX5_ST_SZ_DW(destroy_rmp_in)]   = {0};
-	u32 out[MLX5_ST_SZ_DW(destroy_rmp_out)] = {0};
-
-	MLX5_SET(destroy_rmp_in, in, opcode, MLX5_CMD_OP_DESTROY_RMP);
-	MLX5_SET(destroy_rmp_in, in, rmpn, rmpn);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out,
-					  sizeof(out));
-}
-
-int mlx5_core_query_rmp(struct mlx5_core_dev *dev, u32 rmpn, u32 *out)
-{
-	u32 in[MLX5_ST_SZ_DW(query_rmp_in)] = {0};
-	int outlen = MLX5_ST_SZ_BYTES(query_rmp_out);
-
-	MLX5_SET(query_rmp_in, in, opcode, MLX5_CMD_OP_QUERY_RMP);
-	MLX5_SET(query_rmp_in, in, rmpn,   rmpn);
-	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
-}
-
 int mlx5_core_create_rqt(struct mlx5_core_dev *dev, u32 *in, int inlen,
 			 u32 *rqtn)
 {
