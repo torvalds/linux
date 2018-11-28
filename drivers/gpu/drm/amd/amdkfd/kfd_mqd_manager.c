@@ -23,6 +23,55 @@
 
 #include "kfd_mqd_manager.h"
 #include "amdgpu_amdkfd.h"
+#include "kfd_device_queue_manager.h"
+
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev)
+{
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
+
+	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!mqd_mem_obj)
+		return NULL;
+
+	mqd_mem_obj->gtt_mem = dev->dqm->hiq_sdma_mqd.gtt_mem;
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr;
+	mqd_mem_obj->cpu_ptr = dev->dqm->hiq_sdma_mqd.cpu_ptr;
+
+	return mqd_mem_obj;
+}
+
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+					struct queue_properties *q)
+{
+	struct kfd_mem_obj *mqd_mem_obj = NULL;
+	uint64_t offset;
+
+	mqd_mem_obj = kzalloc(sizeof(struct kfd_mem_obj), GFP_KERNEL);
+	if (!mqd_mem_obj)
+		return NULL;
+
+	offset = (q->sdma_engine_id *
+		dev->device_info->num_sdma_queues_per_engine +
+		q->sdma_queue_id) *
+		dev->dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size;
+
+	offset += dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+
+	mqd_mem_obj->gtt_mem = (void *)((uint64_t)dev->dqm->hiq_sdma_mqd.gtt_mem
+				+ offset);
+	mqd_mem_obj->gpu_addr = dev->dqm->hiq_sdma_mqd.gpu_addr + offset;
+	mqd_mem_obj->cpu_ptr = (uint32_t *)((uint64_t)
+				dev->dqm->hiq_sdma_mqd.cpu_ptr + offset);
+
+	return mqd_mem_obj;
+}
+
+void uninit_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+			struct kfd_mem_obj *mqd_mem_obj)
+{
+	WARN_ON(!mqd_mem_obj->gtt_mem);
+	kfree(mqd_mem_obj);
+}
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,

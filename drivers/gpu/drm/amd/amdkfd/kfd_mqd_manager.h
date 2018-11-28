@@ -102,6 +102,13 @@ struct mqd_manager {
 	uint32_t mqd_size;
 };
 
+struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_dev *dev);
+
+struct kfd_mem_obj *allocate_sdma_mqd(struct kfd_dev *dev,
+					struct queue_properties *q);
+void uninit_mqd_hiq_sdma(struct mqd_manager *mm, void *mqd,
+				struct kfd_mem_obj *mqd_mem_obj);
+
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 		const uint32_t *cu_mask, uint32_t cu_mask_count,
 		uint32_t *se_mask);
