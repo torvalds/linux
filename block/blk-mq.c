@@ -1259,6 +1259,14 @@ bool blk_mq_dispatch_rq_list(struct request_queue *q, struct list_head *list,
 	if (!list_empty(list)) {
 		bool needs_restart;
 
+		/*
+		 * If we didn't flush the entire list, we could have told
+		 * the driver there was more coming, but that turned out to
+		 * be a lie.
+		 */
+		if (q->mq_ops->commit_rqs)
+			q->mq_ops->commit_rqs(hctx);
+
 		spin_lock(&hctx->lock);
 		list_splice_init(list, &hctx->dispatch);
 		spin_unlock(&hctx->lock);
@@ -1865,6 +1873,14 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 			blk_mq_end_request(rq, ret);
 		}
 	}
+
+	/*
+	 * If we didn't flush the entire list, we could have told
+	 * the driver there was more coming, but that turned out to
+	 * be a lie.
+	 */
+	if (!list_empty(list) && hctx->queue->mq_ops->commit_rqs)
+		hctx->queue->mq_ops->commit_rqs(hctx);
 }
 
 static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
