@@ -395,6 +395,16 @@
 		status = "disabled";
 	};
 
+	rtc: rtc@c2a0000 {
+		compatible = "nvidia,tegra186-rtc", "nvidia,tegra20-rtc";
+		reg = <0 0x0c2a0000 0 0x10000>;
+		interrupt-parent = <&pmc>;
+		interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_CLK_32K>;
+		clock-names = "rtc";
+		status = "disabled";
+	};
+
 	gpio_aon: gpio@c2f0000 {
 		compatible = "nvidia,tegra186-gpio-aon";
 		reg-names = "security", "gpio";
