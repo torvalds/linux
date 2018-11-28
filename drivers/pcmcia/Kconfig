@@ -211,6 +211,7 @@ config PCMCIA_PXA2XX
 		    || MACH_VPAC270 || MACH_BALLOON3 || MACH_COLIBRI \
 		    || MACH_COLIBRI320 || MACH_H4700)
 	select PCMCIA_SOC_COMMON
+	select PCMCIA_MAX1600 if MACH_MAINSTONE
 	help
 	  Say Y here to include support for the PXA2xx PCMCIA controller
 
