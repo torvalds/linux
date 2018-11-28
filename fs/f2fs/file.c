@@ -1966,6 +1966,13 @@ static int f2fs_ioc_shutdown(struct file *filp, unsigned long arg)
 		f2fs_stop_checkpoint(sbi, false);
 		set_sbi_flag(sbi, SBI_IS_SHUTDOWN);
 		break;
+	case F2FS_GOING_DOWN_NEED_FSCK:
+		set_sbi_flag(sbi, SBI_NEED_FSCK);
+		/* do checkpoint only */
+		ret = f2fs_sync_fs(sb, 1);
+		if (ret)
+			goto out;
+		break;
 	default:
 		ret = -EINVAL;
 		goto out;
