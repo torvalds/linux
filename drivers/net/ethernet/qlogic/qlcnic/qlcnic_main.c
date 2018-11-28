@@ -2993,10 +2993,8 @@ int qlcnic_check_temp(struct qlcnic_adapter *adapter)
 static inline void dump_tx_ring_desc(struct qlcnic_host_tx_ring *tx_ring)
 {
 	int i;
-	struct cmd_desc_type0 *tx_desc_info;
 
 	for (i = 0; i < tx_ring->num_desc; i++) {
-		tx_desc_info = &tx_ring->desc_head[i];
 		pr_info("TX Desc: %d\n", i);
 		print_hex_dump(KERN_INFO, "TX: ", DUMP_PREFIX_OFFSET, 16, 1,
 			       &tx_ring->desc_head[i],
@@ -4008,19 +4006,12 @@ int qlcnic_validate_rings(struct qlcnic_adapter *adapter, __u32 ring_cnt,
 			  int queue_type)
 {
 	struct net_device *netdev = adapter->netdev;
-	u8 max_hw_rings = 0;
 	char buf[8];
-	int cur_rings;
 
-	if (queue_type == QLCNIC_RX_QUEUE) {
-		max_hw_rings = adapter->max_sds_rings;
-		cur_rings = adapter->drv_sds_rings;
+	if (queue_type == QLCNIC_RX_QUEUE)
 		strcpy(buf, "SDS");
-	} else if (queue_type == QLCNIC_TX_QUEUE) {
-		max_hw_rings = adapter->max_tx_rings;
-		cur_rings = adapter->drv_tx_rings;
+	else
 		strcpy(buf, "Tx");
-	}
 
 	if (!is_power_of_2(ring_cnt)) {
 		netdev_err(netdev, "%s rings value should be a power of 2\n",
