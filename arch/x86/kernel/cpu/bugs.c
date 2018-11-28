@@ -700,14 +700,10 @@ static void ssb_select_mitigation(void)
 #undef pr_fmt
 #define pr_fmt(fmt)     "Speculation prctl: " fmt
 
-static void task_update_spec_tif(struct task_struct *tsk, int tifbit, bool on)
+static void task_update_spec_tif(struct task_struct *tsk)
 {
-	bool update;
-
-	if (on)
-		update = !test_and_set_tsk_thread_flag(tsk, tifbit);
-	else
-		update = test_and_clear_tsk_thread_flag(tsk, tifbit);
+	/* Force the update of the real TIF bits */
+	set_tsk_thread_flag(tsk, TIF_SPEC_FORCE_UPDATE);
 
 	/*
 	 * Immediately update the speculation control MSRs for the current
@@ -717,7 +713,7 @@ static void task_update_spec_tif(struct task_struct *tsk, int tifbit, bool on)
 	 * This can only happen for SECCOMP mitigation. For PRCTL it's
 	 * always the current task.
 	 */
-	if (tsk == current && update)
+	if (tsk == current)
 		speculation_ctrl_update_current();
 }
 
@@ -733,16 +729,16 @@ static int ssb_prctl_set(struct task_struct *task, unsigned long ctrl)
 		if (task_spec_ssb_force_disable(task))
 			return -EPERM;
 		task_clear_spec_ssb_disable(task);
-		task_update_spec_tif(task, TIF_SSBD, false);
+		task_update_spec_tif(task);
 		break;
 	case PR_SPEC_DISABLE:
 		task_set_spec_ssb_disable(task);
-		task_update_spec_tif(task, TIF_SSBD, true);
+		task_update_spec_tif(task);
 		break;
 	case PR_SPEC_FORCE_DISABLE:
 		task_set_spec_ssb_disable(task);
 		task_set_spec_ssb_force_disable(task);
-		task_update_spec_tif(task, TIF_SSBD, true);
+		task_update_spec_tif(task);
 		break;
 	default:
 		return -ERANGE;
