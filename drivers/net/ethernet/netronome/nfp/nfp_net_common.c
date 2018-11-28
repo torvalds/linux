@@ -940,14 +940,10 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 {
 	struct nfp_net_r_vector *r_vec = tx_ring->r_vec;
 	struct nfp_net_dp *dp = &r_vec->nfp_net->dp;
-	const struct skb_frag_struct *frag;
 	struct netdev_queue *nd_q;
 	u32 done_pkts = 0, done_bytes = 0;
-	struct sk_buff *skb;
-	int todo, nr_frags;
 	u32 qcp_rd_p;
-	int fidx;
-	int idx;
+	int todo;
 
 	if (tx_ring->wr_p == tx_ring->rd_p)
 		return;
@@ -961,26 +957,33 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 	todo = D_IDX(tx_ring, qcp_rd_p - tx_ring->qcp_rd_p);
 
 	while (todo--) {
-		idx = D_IDX(tx_ring, tx_ring->rd_p++);
+		const struct skb_frag_struct *frag;
+		struct nfp_net_tx_buf *tx_buf;
+		struct sk_buff *skb;
+		int fidx, nr_frags;
+		int idx;
 
-		skb = tx_ring->txbufs[idx].skb;
+		idx = D_IDX(tx_ring, tx_ring->rd_p++);
+		tx_buf = &tx_ring->txbufs[idx];
+
+		skb = tx_buf->skb;
 		if (!skb)
 			continue;
 
 		nr_frags = skb_shinfo(skb)->nr_frags;
-		fidx = tx_ring->txbufs[idx].fidx;
+		fidx = tx_buf->fidx;
 
 		if (fidx == -1) {
 			/* unmap head */
-			dma_unmap_single(dp->dev, tx_ring->txbufs[idx].dma_addr,
+			dma_unmap_single(dp->dev, tx_buf->dma_addr,
 					 skb_headlen(skb), DMA_TO_DEVICE);
 
-			done_pkts += tx_ring->txbufs[idx].pkt_cnt;
-			done_bytes += tx_ring->txbufs[idx].real_len;
+			done_pkts += tx_buf->pkt_cnt;
+			done_bytes += tx_buf->real_len;
 		} else {
 			/* unmap fragment */
 			frag = &skb_shinfo(skb)->frags[fidx];
-			dma_unmap_page(dp->dev, tx_ring->txbufs[idx].dma_addr,
+			dma_unmap_page(dp->dev, tx_buf->dma_addr,
 				       skb_frag_size(frag), DMA_TO_DEVICE);
 		}
 
@@ -988,9 +991,9 @@ static void nfp_net_tx_complete(struct nfp_net_tx_ring *tx_ring, int budget)
 		if (fidx == nr_frags - 1)
 			napi_consume_skb(skb, budget);
 
-		tx_ring->txbufs[idx].dma_addr = 0;
-		tx_ring->txbufs[idx].skb = NULL;
-		tx_ring->txbufs[idx].fidx = -2;
+		tx_buf->dma_addr = 0;
+		tx_buf->skb = NULL;
+		tx_buf->fidx = -2;
 	}
 
 	tx_ring->qcp_rd_p = qcp_rd_p;
