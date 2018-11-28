@@ -136,9 +136,25 @@ static struct pxa2xx_udc_mach_info udc_info __initdata = {
 	// no D+ pullup; lubbock can't connect/disconnect in software
 };
 
+/* GPIOs for SA1111 PCMCIA */
+static struct gpiod_lookup_table sa1111_pcmcia_gpio_table = {
+	.dev_id = "1800",
+	.table = {
+		{ "sa1111", 0, "a0vpp", GPIO_ACTIVE_HIGH },
+		{ "sa1111", 1, "a1vpp", GPIO_ACTIVE_HIGH },
+		{ "sa1111", 2, "a0vcc", GPIO_ACTIVE_HIGH },
+		{ "sa1111", 3, "a1vcc", GPIO_ACTIVE_HIGH },
+		{ "lubbock", 14, "b0vcc", GPIO_ACTIVE_HIGH },
+		{ "lubbock", 15, "b1vcc", GPIO_ACTIVE_HIGH },
+		{ },
+	},
+};
+
 static void lubbock_init_pcmcia(void)
 {
 	struct clk *clk;
+
+	gpiod_add_lookup_table(&sa1111_pcmcia_gpio_table);
 
 	/* Add an alias for the SA1111 PCMCIA clock */
 	clk = clk_get_sys("pxa2xx-pcmcia", NULL);
