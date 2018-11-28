@@ -1045,29 +1045,6 @@ static int denali_setup_data_interface(struct nand_chip *chip, int chipnr,
 	return 0;
 }
 
-static void denali_reset_banks(struct denali_nand_info *denali)
-{
-	u32 irq_status;
-	int i;
-
-	for (i = 0; i < denali->max_banks; i++) {
-		denali->active_bank = i;
-
-		denali_reset_irq(denali);
-
-		iowrite32(DEVICE_RESET__BANK(i),
-			  denali->reg + DEVICE_RESET);
-
-		irq_status = denali_wait_for_irq(denali,
-			INTR__RST_COMP | INTR__INT_ACT | INTR__TIME_OUT);
-		if (!(irq_status & INTR__INT_ACT))
-			break;
-	}
-
-	dev_dbg(denali->dev, "%d chips connected\n", i);
-	denali->max_banks = i;
-}
-
 static void denali_hw_init(struct denali_nand_info *denali)
 {
 	/*
@@ -1322,12 +1299,6 @@ int denali_init(struct denali_nand_info *denali)
 	}
 
 	denali_enable_irq(denali);
-	denali_reset_banks(denali);
-	if (!denali->max_banks) {
-		/* Error out earlier if no chip is found for some reasons. */
-		ret = -ENODEV;
-		goto disable_irq;
-	}
 
 	denali->active_bank = DENALI_INVALID_BANK;
 
