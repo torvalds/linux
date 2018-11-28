@@ -3284,7 +3284,10 @@ nfp_net_features_check(struct sk_buff *skb, struct net_device *dev,
 		hdrlen = skb_inner_transport_header(skb) - skb->data +
 			inner_tcp_hdrlen(skb);
 
-		if (unlikely(hdrlen > NFP_NET_LSO_MAX_HDR_SZ))
+		/* Assume worst case scenario of having longest possible
+		 * metadata prepend - 8B
+		 */
+		if (unlikely(hdrlen > NFP_NET_LSO_MAX_HDR_SZ - 8))
 			features &= ~NETIF_F_GSO_MASK;
 	}
 
