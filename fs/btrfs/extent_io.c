@@ -5380,7 +5380,7 @@ int map_private_extent_buffer(const struct extent_buffer *eb,
 			      char **map, unsigned long *map_start,
 			      unsigned long *map_len)
 {
-	size_t offset = start & (PAGE_SIZE - 1);
+	size_t offset;
 	char *kaddr;
 	struct page *p;
 	size_t start_offset = eb->start & ((u64)PAGE_SIZE - 1);
