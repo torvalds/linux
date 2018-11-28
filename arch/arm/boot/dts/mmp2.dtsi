@@ -346,6 +346,38 @@
 				resets = <&soc_clocks MMP2_CLK_RTC>;
 				status = "disabled";
 			};
+
+			ssp1: ssp@d4035000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4035000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP0>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+
+			ssp2: ssp@d4036000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4036000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP1>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+
+			ssp3: ssp@d4037000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4037000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP2>;
+				interrupts = <20>;
+				status = "disabled";
+			};
+
+			ssp4: ssp@d4039000 {
+				compatible = "marvell,mmp2-ssp";
+				reg = <0xd4039000 0x1000>;
+				clocks = <&soc_clocks MMP2_CLK_SSP3>;
+				interrupts = <21>;
+				status = "disabled";
+			};
 		};
 
 		soc_clocks: clocks{
