@@ -122,7 +122,7 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 
 	gc->gpio.parent = dev;
 
-	ret = gpiochip_add_data(&gc->gpio, gc);
+	ret = devm_gpiochip_add_data(dev, &gc->gpio, gc);
 	if (ret) {
 		dev_err(dev, "failed to add gpio chip\n");
 		clk_disable_unprepare(gc->clk);
@@ -136,7 +136,6 @@ static int lpc18xx_gpio_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_gpio_chip *gc = platform_get_drvdata(pdev);
 
-	gpiochip_remove(&gc->gpio);
 	clk_disable_unprepare(gc->clk);
 
 	return 0;
