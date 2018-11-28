@@ -2031,8 +2031,9 @@ static struct mlxsw_sp_fid *
 mlxsw_sp_bridge_8021q_fid_lookup(struct mlxsw_sp_bridge_device *bridge_device,
 				 u16 vid)
 {
-	WARN_ON(1);
-	return NULL;
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
+
+	return mlxsw_sp_fid_8021q_lookup(mlxsw_sp, vid);
 }
 
 static u16
