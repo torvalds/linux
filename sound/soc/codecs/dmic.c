@@ -34,6 +34,9 @@
 static int modeswitch_delay;
 module_param(modeswitch_delay, uint, 0644);
 
+static int wakeup_delay;
+module_param(wakeup_delay, uint, 0644);
+
 struct dmic {
 	struct gpio_desc *gpio_en;
 	int wakeup_delay;
@@ -115,6 +118,8 @@ static int dmic_component_probe(struct snd_soc_component *component)
 				 &dmic->wakeup_delay);
 	device_property_read_u32(component->dev, "modeswitch-delay-ms",
 				 &dmic->modeswitch_delay);
+	if (wakeup_delay)
+		dmic->wakeup_delay  = wakeup_delay;
 	if (modeswitch_delay)
 		dmic->modeswitch_delay  = modeswitch_delay;
 
