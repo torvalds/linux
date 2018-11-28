@@ -21,6 +21,7 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 
 #include "rcar_du_drv.h"
@@ -392,19 +393,11 @@ MODULE_DEVICE_TABLE(of, rcar_du_of_table);
  * DRM operations
  */
 
-static void rcar_du_lastclose(struct drm_device *dev)
-{
-	struct rcar_du_device *rcdu = dev->dev_private;
-
-	drm_fbdev_cma_restore_mode(rcdu->fbdev);
-}
-
 DEFINE_DRM_GEM_CMA_FOPS(rcar_du_fops);
 
 static struct drm_driver rcar_du_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME
 				| DRIVER_ATOMIC,
-	.lastclose		= rcar_du_lastclose,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
@@ -459,9 +452,6 @@ static int rcar_du_remove(struct platform_device *pdev)
 	struct drm_device *ddev = rcdu->ddev;
 
 	drm_dev_unregister(ddev);
-
-	if (rcdu->fbdev)
-		drm_fbdev_cma_fini(rcdu->fbdev);
 
 	drm_kms_helper_poll_fini(ddev);
 	drm_mode_config_cleanup(ddev);
@@ -521,6 +511,8 @@ static int rcar_du_probe(struct platform_device *pdev)
 		goto error;
 
 	DRM_INFO("Device %s probed\n", dev_name(&pdev->dev));
+
+	drm_fbdev_generic_setup(ddev, 32);
 
 	return 0;
 
