@@ -24,6 +24,8 @@ struct hda_jack_callback {
 	hda_nid_t nid;
 	hda_jack_callback_fn func;
 	unsigned int private_data;	/* arbitrary data */
+	unsigned int unsol_res;		/* unsolicited event bits */
+	struct hda_jack_tbl *jack;	/* associated jack entry */
 	struct hda_jack_callback *next;
 };
 

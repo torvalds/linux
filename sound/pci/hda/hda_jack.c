@@ -508,19 +508,25 @@ int snd_hda_jack_add_kctls(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_add_kctls);
 
-static void call_jack_callback(struct hda_codec *codec,
+static void call_jack_callback(struct hda_codec *codec, unsigned int res,
 			       struct hda_jack_tbl *jack)
 {
 	struct hda_jack_callback *cb;
 
-	for (cb = jack->callback; cb; cb = cb->next)
+	for (cb = jack->callback; cb; cb = cb->next) {
+		cb->jack = jack;
+		cb->unsol_res = res;
 		cb->func(codec, cb);
+	}
 	if (jack->gated_jack) {
 		struct hda_jack_tbl *gated =
 			snd_hda_jack_tbl_get(codec, jack->gated_jack);
 		if (gated) {
-			for (cb = gated->callback; cb; cb = cb->next)
+			for (cb = gated->callback; cb; cb = cb->next) {
+				cb->jack = gated;
+				cb->unsol_res = res;
 				cb->func(codec, cb);
+			}
 		}
 	}
 }
@@ -540,7 +546,7 @@ void snd_hda_jack_unsol_event(struct hda_codec *codec, unsigned int res)
 		return;
 	event->jack_dirty = 1;
 
-	call_jack_callback(codec, event);
+	call_jack_callback(codec, res, event);
 	snd_hda_jack_report_sync(codec);
 }
 EXPORT_SYMBOL_GPL(snd_hda_jack_unsol_event);
@@ -566,7 +572,7 @@ void snd_hda_jack_poll_all(struct hda_codec *codec)
 		if (old_sense == get_jack_plug_state(jack->pin_sense))
 			continue;
 		changes = 1;
-		call_jack_callback(codec, jack);
+		call_jack_callback(codec, 0, jack);
 	}
 	if (changes)
 		snd_hda_jack_report_sync(codec);
