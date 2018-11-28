@@ -50,7 +50,6 @@
 
 #include <linux/mlx5/device.h>
 #include <linux/mlx5/doorbell.h>
-#include <linux/mlx5/srq.h>
 #include <linux/mlx5/eq.h>
 #include <linux/timecounter.h>
 #include <linux/ptp_clock_kernel.h>
@@ -393,20 +392,6 @@ struct mlx5_core_rsc_common {
 	struct completion	free;
 };
 
-struct mlx5_core_srq {
-	struct mlx5_core_rsc_common	common; /* must be first */
-	u32		srqn;
-	int		max;
-	size_t		max_gs;
-	size_t		max_avail_gather;
-	int		wqe_shift;
-	void (*event)	(struct mlx5_core_srq *, enum mlx5_event);
-
-	atomic_t		refcount;
-	struct completion	free;
-	u16		uid;
-};
-
 struct mlx5_uars_page {
 	void __iomem	       *map;
 	bool			wc;
@@ -458,14 +443,6 @@ struct mlx5_core_health {
 struct mlx5_qp_table {
 	struct notifier_block   nb;
 
-	/* protect radix tree
-	 */
-	spinlock_t		lock;
-	struct radix_tree_root	tree;
-};
-
-struct mlx5_srq_table {
-	struct notifier_block   nb;
 	/* protect radix tree
 	 */
 	spinlock_t		lock;
@@ -546,8 +523,6 @@ struct mlx5_priv {
 	int			vfs_pages;
 
 	struct mlx5_core_health health;
-
-	struct mlx5_srq_table	srq_table;
 
 	/* start: qp staff */
 	struct mlx5_qp_table	qp_table;
