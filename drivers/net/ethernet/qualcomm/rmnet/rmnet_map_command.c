@@ -23,9 +23,6 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 	struct rmnet_map_control_command *cmd;
 	struct rmnet_endpoint *ep;
 	struct net_device *vnd;
-	u16 ip_family;
-	u16 fc_seq;
-	u32 qos_id;
 	u8 mux_id;
 	int r;
 
@@ -44,10 +41,6 @@ static u8 rmnet_map_do_flow_control(struct sk_buff *skb,
 	}
 
 	vnd = ep->egress_dev;
-
-	ip_family = cmd->flow_control.ip_family;
-	fc_seq = ntohs(cmd->flow_control.flow_control_seq_num);
-	qos_id = ntohl(cmd->flow_control.qos_id);
 
 	/* Ignore the ip family and pass the sequence number for both v4 and v6
 	 * sequence. User space does not support creating dedicated flows for
