@@ -12485,7 +12485,8 @@ static int init_cntrs(struct hfi1_devdata *dd)
 	}
 
 	/* allocate space for the counter values */
-	dd->cntrs = kcalloc(dd->ndevcntrs, sizeof(u64), GFP_KERNEL);
+	dd->cntrs = kcalloc(dd->ndevcntrs + num_driver_cntrs, sizeof(u64),
+			    GFP_KERNEL);
 	if (!dd->cntrs)
 		goto bail;
 
