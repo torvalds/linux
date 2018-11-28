@@ -399,6 +399,16 @@
 			status = "disabled";
 		};
 
+		rtc: rtc@c2a0000 {
+			compatible = "nvidia,tegra194-rtc", "nvidia,tegra20-rtc";
+			reg = <0x0c2a0000 0x10000>;
+			interrupt-parent = <&pmc>;
+			interrupts = <73 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&bpmp TEGRA194_CLK_CLK_32K>;
+			clock-names = "rtc";
+			status = "disabled";
+		};
+
 		pwm4: pwm@c340000 {
 			compatible = "nvidia,tegra194-pwm",
 				     "nvidia,tegra186-pwm";
