@@ -75,7 +75,7 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 		if (IS_ERR(multi->clients[i]))
 			ret = PTR_ERR(multi->clients[i]);
 		else if (!multi->clients[i])
-			ret = -ENODEV;
+			ret = -EPROBE_DEFER; /* Wait for i2c-adapter to load */
 		else
 			ret = 0;
 		if (ret) {
