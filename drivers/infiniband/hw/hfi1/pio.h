@@ -329,4 +329,7 @@ void seg_pio_copy_start(struct pio_buf *pbuf, u64 pbc,
 void seg_pio_copy_mid(struct pio_buf *pbuf, const void *from, size_t nbytes);
 void seg_pio_copy_end(struct pio_buf *pbuf);
 
+void seqfile_dump_sci(struct seq_file *s, u32 i,
+		      struct send_context_info *sci);
+
 #endif /* _PIO_H */
