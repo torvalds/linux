@@ -321,7 +321,7 @@ void hfi1_uc_rcv(struct hfi1_packet *packet)
 	if (hfi1_ruc_check_hdr(ibp, packet))
 		return;
 
-	process_ecn(qp, packet, true);
+	process_ecn(qp, packet);
 
 	psn = ib_bth_get_psn(ohdr);
 	/* Compare the PSN verses the expected PSN. */
