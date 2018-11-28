@@ -178,8 +178,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		struct mlx5_core_srq *msrq = NULL;
 
 		if (qp->ibqp.xrcd) {
-			msrq = mlx5_core_get_srq(dev->mdev,
-						 be32_to_cpu(cqe->srqn));
+			msrq = mlx5_cmd_get_srq(dev, be32_to_cpu(cqe->srqn));
 			srq = to_mibsrq(msrq);
 		} else {
 			srq = to_msrq(qp->ibqp.srq);
