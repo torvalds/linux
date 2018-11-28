@@ -3460,7 +3460,7 @@ try_smaller_buffer:
 			ti->error = "Recalculate is only valid with internal hash";
 			goto bad;
 		}
-		ic->recalc_wq = alloc_workqueue("dm-intergrity-recalc", WQ_MEM_RECLAIM, 1);
+		ic->recalc_wq = alloc_workqueue("dm-integrity-recalc", WQ_MEM_RECLAIM, 1);
 		if (!ic->recalc_wq ) {
 			ti->error = "Cannot allocate workqueue";
 			r = -ENOMEM;
