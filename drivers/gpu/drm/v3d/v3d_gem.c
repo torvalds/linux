@@ -219,8 +219,7 @@ v3d_attach_object_fences(struct v3d_bo **bos, int bo_count,
 }
 
 static void
-v3d_unlock_bo_reservations(struct drm_device *dev,
-			   struct v3d_bo **bos,
+v3d_unlock_bo_reservations(struct v3d_bo **bos,
 			   int bo_count,
 			   struct ww_acquire_ctx *acquire_ctx)
 {
@@ -240,8 +239,7 @@ v3d_unlock_bo_reservations(struct drm_device *dev,
  * to v3d, so we don't attach dma-buf fences to them.
  */
 static int
-v3d_lock_bo_reservations(struct drm_device *dev,
-			 struct v3d_bo **bos,
+v3d_lock_bo_reservations(struct v3d_bo **bos,
 			 int bo_count,
 			 struct ww_acquire_ctx *acquire_ctx)
 {
@@ -298,7 +296,7 @@ retry:
 	for (i = 0; i < bo_count; i++) {
 		ret = reservation_object_reserve_shared(bos[i]->resv, 1);
 		if (ret) {
-			v3d_unlock_bo_reservations(dev, bos, bo_count,
+			v3d_unlock_bo_reservations(bos, bo_count,
 						   acquire_ctx);
 			return ret;
 		}
@@ -566,7 +564,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto fail;
 
-	ret = v3d_lock_bo_reservations(dev, exec->bo, exec->bo_count,
+	ret = v3d_lock_bo_reservations(exec->bo, exec->bo_count,
 				       &acquire_ctx);
 	if (ret)
 		goto fail;
@@ -604,7 +602,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 	v3d_attach_object_fences(exec->bo, exec->bo_count,
 				 exec->render_done_fence);
 
-	v3d_unlock_bo_reservations(dev, exec->bo, exec->bo_count, &acquire_ctx);
+	v3d_unlock_bo_reservations(exec->bo, exec->bo_count, &acquire_ctx);
 
 	/* Update the return sync object for the */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
@@ -620,7 +618,7 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 fail_unreserve:
 	mutex_unlock(&v3d->sched_lock);
-	v3d_unlock_bo_reservations(dev, exec->bo, exec->bo_count, &acquire_ctx);
+	v3d_unlock_bo_reservations(exec->bo, exec->bo_count, &acquire_ctx);
 fail:
 	v3d_exec_put(exec);
 
@@ -691,7 +689,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	}
 	spin_unlock(&file_priv->table_lock);
 
-	ret = v3d_lock_bo_reservations(dev, job->bo, bo_count, &acquire_ctx);
+	ret = v3d_lock_bo_reservations(job->bo, bo_count, &acquire_ctx);
 	if (ret)
 		goto fail;
 
@@ -710,7 +708,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 	v3d_attach_object_fences(job->bo, bo_count, sched_done_fence);
 
-	v3d_unlock_bo_reservations(dev, job->bo, bo_count, &acquire_ctx);
+	v3d_unlock_bo_reservations(job->bo, bo_count, &acquire_ctx);
 
 	/* Update the return sync object */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
@@ -726,7 +724,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 
 fail_unreserve:
 	mutex_unlock(&v3d->sched_lock);
-	v3d_unlock_bo_reservations(dev, job->bo, bo_count, &acquire_ctx);
+	v3d_unlock_bo_reservations(job->bo, bo_count, &acquire_ctx);
 fail:
 	v3d_tfu_job_put(job);
 
