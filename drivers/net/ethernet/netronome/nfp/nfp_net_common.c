@@ -786,11 +786,11 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 	const struct skb_frag_struct *frag;
-	struct nfp_net_tx_desc *txd, txdg;
 	int f, nr_frags, wr_idx, md_bytes;
 	struct nfp_net_tx_ring *tx_ring;
 	struct nfp_net_r_vector *r_vec;
 	struct nfp_net_tx_buf *txbuf;
+	struct nfp_net_tx_desc *txd;
 	struct netdev_queue *nd_q;
 	struct nfp_net_dp *dp;
 	dma_addr_t dma_addr;
@@ -860,8 +860,10 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 
 	/* Gather DMA */
 	if (nr_frags > 0) {
+		__le64 second_half;
+
 		/* all descs must match except for in addr, length and eop */
-		txdg = *txd;
+		second_half = txd->vals8[1];
 
 		for (f = 0; f < nr_frags; f++) {
 			frag = &skb_shinfo(skb)->frags[f];
@@ -878,11 +880,11 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 			tx_ring->txbufs[wr_idx].fidx = f;
 
 			txd = &tx_ring->txds[wr_idx];
-			*txd = txdg;
 			txd->dma_len = cpu_to_le16(fsize);
 			nfp_desc_set_dma_addr(txd, dma_addr);
-			txd->offset_eop |=
-				(f == nr_frags - 1) ? PCIE_DESC_TX_EOP : 0;
+			txd->offset_eop = md_bytes |
+				((f == nr_frags - 1) ? PCIE_DESC_TX_EOP : 0);
+			txd->vals8[1] = second_half;
 		}
 
 		u64_stats_update_begin(&r_vec->tx_sync);

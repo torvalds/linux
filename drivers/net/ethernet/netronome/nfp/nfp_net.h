@@ -158,6 +158,7 @@ struct nfp_net_tx_desc {
 			__le16 data_len; /* Length of frame + meta data */
 		} __packed;
 		__le32 vals[4];
+		__le64 vals8[2];
 	};
 };
 
