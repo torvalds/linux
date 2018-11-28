@@ -138,3 +138,15 @@
 		spi-max-frequency = <66000000>;
 	};
 };
+
+&reg_can_en {
+	/* Transceiver EN/STBY is active high on RevA board */
+	gpio = <&gpio4 25 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+};
+
+&reg_can_stby {
+	gpio = <&gpio4 27 GPIO_ACTIVE_HIGH>;
+	enable-active-high;
+	vin-supply = <&reg_can_en>;
+};
