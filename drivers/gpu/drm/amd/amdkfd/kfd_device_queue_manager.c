@@ -1621,6 +1621,25 @@ out_free:
 
 	return -ENOMEM;
 }
+
+/* Allocate one hiq mqd (HWS) and all SDMA mqd in a continuous trunk*/
+static int allocate_hiq_sdma_mqd(struct device_queue_manager *dqm)
+{
+	int retval;
+	struct kfd_dev *dev = dqm->dev;
+	struct kfd_mem_obj *mem_obj = &dqm->hiq_sdma_mqd;
+	uint32_t size = dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA]->mqd_size *
+		dev->device_info->num_sdma_engines *
+		dev->device_info->num_sdma_queues_per_engine +
+		dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ]->mqd_size;
+
+	retval = amdgpu_amdkfd_alloc_gtt_mem(dev->kgd, size,
+		&(mem_obj->gtt_mem), &(mem_obj->gpu_addr),
+		(void *)&(mem_obj->cpu_ptr), true);
+
+	return retval;
+}
+
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 {
 	struct device_queue_manager *dqm;
@@ -1730,6 +1749,11 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 	if (init_mqd_managers(dqm))
 		goto out_free;
 
+	if (allocate_hiq_sdma_mqd(dqm)) {
+		pr_err("Failed to allocate hiq sdma mqd trunk buffer\n");
+		goto out_free;
+	}
+
 	if (!dqm->ops.initialize(dqm))
 		return dqm;
 
@@ -1738,9 +1762,17 @@ out_free:
 	return NULL;
 }
 
+void deallocate_hiq_sdma_mqd(struct kfd_dev *dev, struct kfd_mem_obj *mqd)
+{
+	WARN(!mqd, "No hiq sdma mqd trunk to free");
+
+	amdgpu_amdkfd_free_gtt_mem(dev->kgd, mqd->gtt_mem);
+}
+
 void device_queue_manager_uninit(struct device_queue_manager *dqm)
 {
 	dqm->ops.uninitialize(dqm);
+	deallocate_hiq_sdma_mqd(dqm->dev, &dqm->hiq_sdma_mqd);
 	kfree(dqm);
 }
 
