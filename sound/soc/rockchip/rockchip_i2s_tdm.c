@@ -308,7 +308,8 @@ static void rockchip_snd_txrxctrl(struct snd_pcm_substream *substream,
 				regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
 				retry--;
 				if (!retry) {
-					dev_info(i2s_tdm->dev, "fail to clear\n");
+					dev_info(i2s_tdm->dev, "reset txrx\n");
+					rockchip_snd_xfer_sync_reset(i2s_tdm);
 					break;
 				}
 			}
@@ -349,7 +350,10 @@ static void rockchip_snd_txctrl(struct rk_i2s_tdm_dev *i2s_tdm, int on)
 			regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
 			retry--;
 			if (!retry) {
-				dev_warn(i2s_tdm->dev, "fail to clear\n");
+				dev_warn(i2s_tdm->dev, "reset tx\n");
+				reset_control_assert(i2s_tdm->tx_reset);
+				udelay(1);
+				reset_control_deassert(i2s_tdm->tx_reset);
 				break;
 			}
 		}
@@ -388,7 +392,10 @@ static void rockchip_snd_rxctrl(struct rk_i2s_tdm_dev *i2s_tdm, int on)
 			regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
 			retry--;
 			if (!retry) {
-				dev_warn(i2s_tdm->dev, "fail to clear\n");
+				dev_warn(i2s_tdm->dev, "reset rx\n");
+				reset_control_assert(i2s_tdm->rx_reset);
+				udelay(1);
+				reset_control_deassert(i2s_tdm->rx_reset);
 				break;
 			}
 		}
@@ -568,7 +575,8 @@ static void rockchip_i2s_tdm_xfer_pause(struct snd_pcm_substream *substream,
 		regmap_read(i2s_tdm->regmap, I2S_CLR, &val);
 		retry--;
 		if (!retry) {
-			dev_info(i2s_tdm->dev, "fail to clear\n");
+			dev_info(i2s_tdm->dev, "reset txrx\n");
+			rockchip_snd_xfer_sync_reset(i2s_tdm);
 			break;
 		}
 	}
