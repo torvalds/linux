@@ -1000,10 +1000,32 @@ static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
 void intel_dsc_enable(struct intel_encoder *encoder,
 		      const struct intel_crtc_state *crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum pipe pipe = crtc->pipe;
+	i915_reg_t dss_ctl1_reg, dss_ctl2_reg;
+	u32 dss_ctl1_val = 0;
+	u32 dss_ctl2_val = 0;
+
 	if (!crtc_state->dsc_params.compression_enable)
 		return;
 
 	intel_configure_pps_for_dsc_encoder(encoder, crtc_state);
 
 	intel_dp_write_dsc_pps_sdp(encoder, crtc_state);
+
+	if (crtc_state->cpu_transcoder == TRANSCODER_EDP) {
+		dss_ctl1_reg = DSS_CTL1;
+		dss_ctl2_reg = DSS_CTL2;
+	} else {
+		dss_ctl1_reg = ICL_PIPE_DSS_CTL1(pipe);
+		dss_ctl2_reg = ICL_PIPE_DSS_CTL2(pipe);
+	}
+	dss_ctl2_val |= LEFT_BRANCH_VDSC_ENABLE;
+	if (crtc_state->dsc_params.dsc_split) {
+		dss_ctl2_val |= RIGHT_BRANCH_VDSC_ENABLE;
+		dss_ctl1_val |= JOINER_ENABLE;
+	}
+	I915_WRITE(dss_ctl1_reg, dss_ctl1_val);
+	I915_WRITE(dss_ctl2_reg, dss_ctl2_val);
 }
