@@ -10,9 +10,9 @@
 /* And here we include common definitions */
 
 #define _PAGE_KERNEL_RO		0
-#define _PAGE_KERNEL_ROX	0
+#define _PAGE_KERNEL_ROX	(_PAGE_EXEC)
 #define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW)
-#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW)
+#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_EXEC)
 
 #define _PAGE_HPTEFLAGS _PAGE_HASHPTE
 
@@ -66,11 +66,11 @@ static inline bool pte_user(pte_t pte)
  */
 #define PAGE_NONE	__pgprot(_PAGE_BASE)
 #define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
+#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
 #define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER)
+#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
 #define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER)
+#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
 
 /* Permission masks used for kernel mappings */
 #define PAGE_KERNEL	__pgprot(_PAGE_BASE | _PAGE_KERNEL_RW)
@@ -318,7 +318,7 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 					   int psize)
 {
 	unsigned long set = pte_val(entry) &
-		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW);
+		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
 
 	pte_update(ptep, 0, set);
 
@@ -371,7 +371,7 @@ static inline int pte_dirty(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_DIRTY);
 static inline int pte_young(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_ACCESSED); }
 static inline int pte_special(pte_t pte)	{ return !!(pte_val(pte) & _PAGE_SPECIAL); }
 static inline int pte_none(pte_t pte)		{ return (pte_val(pte) & ~_PTE_NONE_MASK) == 0; }
-static inline bool pte_exec(pte_t pte)		{ return true; }
+static inline bool pte_exec(pte_t pte)		{ return pte_val(pte) & _PAGE_EXEC; }
 
 static inline int pte_present(pte_t pte)
 {
@@ -438,7 +438,7 @@ static inline pte_t pte_wrprotect(pte_t pte)
 
 static inline pte_t pte_exprotect(pte_t pte)
 {
-	return pte;
+	return __pte(pte_val(pte) & ~_PAGE_EXEC);
 }
 
 static inline pte_t pte_mkclean(pte_t pte)
@@ -453,7 +453,7 @@ static inline pte_t pte_mkold(pte_t pte)
 
 static inline pte_t pte_mkexec(pte_t pte)
 {
-	return pte;
+	return __pte(pte_val(pte) | _PAGE_EXEC);
 }
 
 static inline pte_t pte_mkpte(pte_t pte)
