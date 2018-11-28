@@ -85,7 +85,7 @@ static struct clk_rcg2 gpu_cc_gmu_clk_src = {
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpu_cc_gmu_clk_src",
 		.parent_names = gpu_cc_parent_names_0,
-		.num_parents = 6,
+		.num_parents = 5,
 		.ops = &clk_rcg2_shared_ops,
 	},
 };
