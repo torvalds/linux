@@ -289,12 +289,23 @@ static int tcp_bpf_send_verdict(struct sock *sk, struct sk_psock *psock,
 {
 	bool cork = false, enospc = msg->sg.start == msg->sg.end;
 	struct sock *sk_redir;
-	u32 tosend;
+	u32 tosend, delta = 0;
 	int ret;
 
 more_data:
-	if (psock->eval == __SK_NONE)
+	if (psock->eval == __SK_NONE) {
+		/* Track delta in msg size to add/subtract it on SK_DROP from
+		 * returned to user copied size. This ensures user doesn't
+		 * get a positive return code with msg_cut_data and SK_DROP
+		 * verdict.
+		 */
+		delta = msg->sg.size;
 		psock->eval = sk_psock_msg_verdict(sk, psock, msg);
+		if (msg->sg.size < delta)
+			delta -= msg->sg.size;
+		else
+			delta = 0;
+	}
 
 	if (msg->cork_bytes &&
 	    msg->cork_bytes > msg->sg.size && !enospc) {
@@ -350,7 +361,7 @@ more_data:
 	default:
 		sk_msg_free_partial(sk, msg, tosend);
 		sk_msg_apply_bytes(psock, tosend);
-		*copied -= tosend;
+		*copied -= (tosend + delta);
 		return -EACCES;
 	}
 

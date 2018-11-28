@@ -113,6 +113,8 @@ static int (*bpf_msg_pull_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_pull_data;
 static int (*bpf_msg_push_data)(void *ctx, int start, int end, int flags) =
 	(void *) BPF_FUNC_msg_push_data;
+static int (*bpf_msg_pop_data)(void *ctx, int start, int cut, int flags) =
+	(void *) BPF_FUNC_msg_pop_data;
 static int (*bpf_bind)(void *ctx, void *addr, int addr_len) =
 	(void *) BPF_FUNC_bind;
 static int (*bpf_xdp_adjust_tail)(void *ctx, int offset) =
