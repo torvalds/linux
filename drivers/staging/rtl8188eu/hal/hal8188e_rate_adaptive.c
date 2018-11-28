@@ -554,7 +554,7 @@ int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 	u8 max_rate_idx = 0x13; /* MCS7 */
 
 	if (dm_odm->pWirelessMode)
-		WirelessMode = *(dm_odm->pWirelessMode);
+		WirelessMode = *dm_odm->pWirelessMode;
 
 	if (WirelessMode != 0xFF) {
 		if (WirelessMode & ODM_WM_N24G)
@@ -661,7 +661,7 @@ void ODM_RA_UpdateRateInfo_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rate
 		     ("macid =%d RateID = 0x%x RateMask = 0x%x SGIEnable =%d\n",
 		     macid, RateID, RateMask, SGIEnable));
 
-	pRaInfo = &(dm_odm->RAInfo[macid]);
+	pRaInfo = &dm_odm->RAInfo[macid];
 	pRaInfo->RateID = RateID;
 	pRaInfo->RateMask = RateMask;
 	pRaInfo->SGIEnable = SGIEnable;
@@ -677,7 +677,7 @@ void ODM_RA_SetRSSI_8188E(struct odm_dm_struct *dm_odm, u8 macid, u8 Rssi)
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 		     (" macid =%d Rssi =%d\n", macid, Rssi));
 
-	pRaInfo = &(dm_odm->RAInfo[macid]);
+	pRaInfo = &dm_odm->RAInfo[macid];
 	pRaInfo->RssiStaRA = Rssi;
 }
 
@@ -711,7 +711,7 @@ void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 
 		else
 			valid = (1 << MacId) & macid_entry0;
 
-		pRAInfo = &(dm_odm->RAInfo[MacId]);
+		pRAInfo = &dm_odm->RAInfo[MacId];
 		if (valid) {
 			pRAInfo->RTY[0] = (u16)GET_TX_REPORT_TYPE1_RERTY_0(pBuffer);
 			pRAInfo->RTY[1] = (u16)GET_TX_REPORT_TYPE1_RERTY_1(pBuffer);
