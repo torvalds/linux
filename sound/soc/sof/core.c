@@ -329,20 +329,15 @@ static int sof_probe(struct platform_device *pdev)
 		goto comp_err;
 	}
 
-	/* do we need to generate any machine plat data ? */
-	if (plat_data->machine->new_mach_data) {
-		plat_data->pdev_mach =
-			plat_data->machine->new_mach_data(plat_data);
-	} else {
-		drv_name = plat_data->machine->drv_name;
-		mach = (const void *)plat_data->machine;
-		size = sizeof(*plat_data->machine);
+	drv_name = plat_data->machine->drv_name;
+	mach = (const void *)plat_data->machine;
+	size = sizeof(*plat_data->machine);
 
-		/* register machine driver, pass machine info as pdata */
-		plat_data->pdev_mach =
-			platform_device_register_data(sdev->dev,
-						      drv_name, -1, mach, size);
-	}
+	/* register machine driver, pass machine info as pdata */
+	plat_data->pdev_mach =
+		platform_device_register_data(sdev->dev, drv_name,
+					      -1, mach, size);
+
 	if (IS_ERR(plat_data->pdev_mach)) {
 		ret = PTR_ERR(plat_data->pdev_mach);
 		goto comp_err;
