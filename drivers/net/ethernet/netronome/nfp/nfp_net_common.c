@@ -801,13 +801,13 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	qidx = skb_get_queue_mapping(skb);
 	tx_ring = &dp->tx_rings[qidx];
 	r_vec = tx_ring->r_vec;
-	nd_q = netdev_get_tx_queue(dp->netdev, qidx);
 
 	nr_frags = skb_shinfo(skb)->nr_frags;
 
 	if (unlikely(nfp_net_tx_full(tx_ring, nr_frags + 1))) {
 		nn_dp_warn(dp, "TX ring %d busy. wrp=%u rdp=%u\n",
 			   qidx, tx_ring->wr_p, tx_ring->rd_p);
+		nd_q = netdev_get_tx_queue(dp->netdev, qidx);
 		netif_tx_stop_queue(nd_q);
 		nfp_net_tx_xmit_more_flush(tx_ring);
 		u64_stats_update_begin(&r_vec->tx_sync);
@@ -893,6 +893,8 @@ static int nfp_net_tx(struct sk_buff *skb, struct net_device *netdev)
 	}
 
 	skb_tx_timestamp(skb);
+
+	nd_q = netdev_get_tx_queue(dp->netdev, tx_ring->idx);
 
 	tx_ring->wr_p += nr_frags + 1;
 	if (nfp_net_tx_ring_should_stop(tx_ring))
