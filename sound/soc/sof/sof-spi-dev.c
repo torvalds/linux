@@ -20,6 +20,7 @@
 #include <linux/gpio/consumer.h>
 #include "sof-priv.h"
 #include "hw-spi.h"
+#include "ops.h"
 
 static const struct dev_pm_ops spi_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
@@ -53,18 +54,6 @@ static const struct sof_dev_desc spi_desc = {
 static const struct sof_ops_table spi_mach_ops[] = {
 	{&spi_desc, &snd_sof_spi_ops},
 };
-
-static struct snd_sof_dsp_ops *spi_get_ops(const struct sof_dev_desc *d)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(spi_mach_ops); i++)
-		if (d == spi_mach_ops[i].desc)
-			return spi_mach_ops[i].ops;
-
-	/* not found */
-	return NULL;
-}
 
 static int sof_spi_probe(struct spi_device *spi)
 {
@@ -134,7 +123,7 @@ static int sof_spi_probe(struct spi_device *spi)
 	mach->sof_fw_filename = desc->nocodec_fw_filename;
 	mach->sof_tplg_filename = desc->nocodec_tplg_filename;
 	mach->asoc_plat_name = "sof-platform";
-	mach->pdata = spi_get_ops(desc);
+	mach->pdata = sof_get_ops(desc, spi_mach_ops, ARRAY_SIZE(spi_mach_ops));
 	if (!mach->pdata) {
 		dev_err(dev, "No matching SPI descriptor ops\n");
 		return -ENODEV;

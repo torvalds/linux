@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/acpi.h>
 #include "sof-priv.h"
+#include "ops.h"
 
 /* platform specific devices */
 #include "intel/shim.h"
@@ -136,7 +137,7 @@ static const struct dev_pm_ops sof_pci_pm = {
 
 };
 
-static const struct sof_ops_table mach_ops[] = {
+static const struct sof_ops_table pci_mach_ops[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{&bxt_desc, &sof_apl_ops},
 #endif
@@ -160,19 +161,6 @@ static const struct sof_ops_table mach_ops[] = {
 #endif
 };
 
-static struct snd_sof_dsp_ops *sof_pci_get_ops(const struct sof_dev_desc *d)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mach_ops); i++) {
-		if (d == mach_ops[i].desc)
-			return mach_ops[i].ops;
-	}
-
-	/* not found */
-	return NULL;
-}
-
 static int sof_pci_probe(struct pci_dev *pci,
 			 const struct pci_device_id *pci_id)
 {
@@ -188,7 +176,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	dev_dbg(&pci->dev, "PCI DSP detected");
 
 	/* get ops for platform */
-	ops = sof_pci_get_ops(desc);
+	ops = sof_get_ops(desc, pci_mach_ops, ARRAY_SIZE(pci_mach_ops));
 	if (!ops) {
 		dev_err(dev, "error: no matching PCI descriptor ops\n");
 		return -ENODEV;

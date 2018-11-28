@@ -312,6 +312,21 @@ snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,
 		return 0;
 }
 
+static inline struct snd_sof_dsp_ops
+*sof_get_ops(const struct sof_dev_desc *d,
+	     const struct sof_ops_table mach_ops[], int asize)
+{
+	int i;
+
+	for (i = 0; i < asize; i++) {
+		if (d == mach_ops[i].desc)
+			return mach_ops[i].ops;
+	}
+
+	/* not found */
+	return NULL;
+}
+
 int snd_sof_dsp_update_bits_unlocked(struct snd_sof_dev *sdev, u32 bar,
 				     u32 offset, u32 mask, u32 value);
 
