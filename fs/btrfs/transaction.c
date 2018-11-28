@@ -1840,7 +1840,6 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
-	DEFINE_WAIT(wait);
 
 	WARN_ON(refcount_read(&trans->use_count) > 1);
 
