@@ -4,8 +4,8 @@
 /**
  * DOC: Interrupt management for the V3D engine
  *
- * When we take a binning or rendering flush done interrupt, we need
- * to signal the fence for that job so that the scheduler can queue up
+ * When we take a bin, render, or TFU done interrupt, we need to
+ * signal the fence for that job so that the scheduler can queue up
  * the next one and unblock any waiters.
  *
  * When we take the binner out of memory interrupt, we need to
@@ -23,7 +23,8 @@
 
 #define V3D_HUB_IRQS ((u32)(V3D_HUB_INT_MMU_WRV |	\
 			    V3D_HUB_INT_MMU_PTI |	\
-			    V3D_HUB_INT_MMU_CAP))
+			    V3D_HUB_INT_MMU_CAP |	\
+			    V3D_HUB_INT_TFUC))
 
 static void
 v3d_overflow_mem_work(struct work_struct *work)
@@ -116,6 +117,11 @@ v3d_hub_irq(int irq, void *arg)
 
 	/* Acknowledge the interrupts we're handling here. */
 	V3D_WRITE(V3D_HUB_INT_CLR, intsts);
+
+	if (intsts & V3D_HUB_INT_TFUC) {
+		dma_fence_signal(v3d->tfu_job->done_fence);
+		status = IRQ_HANDLED;
+	}
 
 	if (intsts & (V3D_HUB_INT_MMU_WRV |
 		      V3D_HUB_INT_MMU_PTI |

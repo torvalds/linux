@@ -42,6 +42,26 @@ TRACE_EVENT(v3d_submit_cl,
 		      __entry->ctnqea)
 );
 
+TRACE_EVENT(v3d_submit_tfu,
+	    TP_PROTO(struct drm_device *dev,
+		     uint64_t seqno),
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu",
+		      __entry->dev,
+		      __entry->seqno)
+);
+
 TRACE_EVENT(v3d_reset_begin,
 	    TP_PROTO(struct drm_device *dev),
 	    TP_ARGS(dev),
