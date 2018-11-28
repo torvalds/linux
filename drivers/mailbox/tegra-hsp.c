@@ -721,7 +721,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = mbox_controller_register(&hsp->mbox_db);
+	err = devm_mbox_controller_register(&pdev->dev, &hsp->mbox_db);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register doorbell mailbox: %d\n",
 			err);
@@ -745,15 +745,15 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 		if (err < 0) {
 			dev_err(&pdev->dev, "failed to add mailboxes: %d\n",
 			        err);
-			goto unregister_mbox_db;
+			return err;
 		}
 	}
 
-	err = mbox_controller_register(&hsp->mbox_sm);
+	err = devm_mbox_controller_register(&pdev->dev, &hsp->mbox_sm);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register shared mailbox: %d\n",
 			err);
-		goto unregister_mbox_db;
+		return err;
 	}
 
 	platform_set_drvdata(pdev, hsp);
@@ -766,32 +766,15 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 			        "failed to request doorbell IRQ#%u: %d\n",
 				hsp->doorbell_irq, err);
-			goto unregister_mbox_sm;
+			return err;
 		}
 	}
 
 	if (hsp->shared_irqs) {
 		err = tegra_hsp_request_shared_irq(hsp);
 		if (err < 0)
-			goto unregister_mbox_sm;
+			return err;
 	}
-
-	return 0;
-
-unregister_mbox_sm:
-	mbox_controller_unregister(&hsp->mbox_sm);
-unregister_mbox_db:
-	mbox_controller_unregister(&hsp->mbox_db);
-
-	return err;
-}
-
-static int tegra_hsp_remove(struct platform_device *pdev)
-{
-	struct tegra_hsp *hsp = platform_get_drvdata(pdev);
-
-	mbox_controller_unregister(&hsp->mbox_sm);
-	mbox_controller_unregister(&hsp->mbox_db);
 
 	return 0;
 }
@@ -842,7 +825,6 @@ static struct platform_driver tegra_hsp_driver = {
 		.pm = &tegra_hsp_pm_ops,
 	},
 	.probe = tegra_hsp_probe,
-	.remove = tegra_hsp_remove,
 };
 
 static int __init tegra_hsp_init(void)
