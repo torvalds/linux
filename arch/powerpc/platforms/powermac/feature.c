@@ -1471,6 +1471,7 @@ static long g5_i2s_enable(struct device_node *node, long param, long value)
 	case 2:
 		if (macio->type == macio_shasta)
 			break;
+		/* fall through */
 	default:
 		return -ENODEV;
 	}
