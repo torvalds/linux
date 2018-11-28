@@ -1132,6 +1132,7 @@ void __init raw_proc_exit(void)
 {
 	unregister_pernet_subsys(&raw_net_ops);
 }
+#endif /* CONFIG_PROC_FS */
 
 static void raw_sysctl_init_net(struct net *net)
 {
@@ -1156,4 +1157,3 @@ void __init raw_init(void)
 	if (register_pernet_subsys(&raw_sysctl_ops))
 		panic("RAW: failed to init sysctl parameters.\n");
 }
-#endif /* CONFIG_PROC_FS */
