@@ -3133,6 +3133,22 @@ static void intel_ddi_enable_fec(struct intel_encoder *encoder,
 		DRM_ERROR("Timed out waiting for FEC Enable Status\n");
 }
 
+static void intel_ddi_disable_fec_state(struct intel_encoder *encoder,
+					const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	u32 val;
+
+	if (!crtc_state->fec_enable)
+		return;
+
+	val = I915_READ(DP_TP_CTL(port));
+	val &= ~DP_TP_CTL_FEC_ENABLE;
+	I915_WRITE(DP_TP_CTL(port), val);
+	POSTING_READ(DP_TP_CTL(port));
+}
+
 static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state,
 				    const struct drm_connector_state *conn_state)
@@ -3272,7 +3288,8 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 	}
 }
 
-static void intel_disable_ddi_buf(struct intel_encoder *encoder)
+static void intel_disable_ddi_buf(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum port port = encoder->port;
@@ -3290,6 +3307,9 @@ static void intel_disable_ddi_buf(struct intel_encoder *encoder)
 	val &= ~(DP_TP_CTL_ENABLE | DP_TP_CTL_LINK_TRAIN_MASK);
 	val |= DP_TP_CTL_LINK_TRAIN_PAT1;
 	I915_WRITE(DP_TP_CTL(port), val);
+
+	/* Disable FEC in DP Sink */
+	intel_ddi_disable_fec_state(encoder, crtc_state);
 
 	if (wait)
 		intel_wait_ddi_buf_idle(dev_priv, port);
@@ -3314,7 +3334,7 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_OFF);
 	}
 
-	intel_disable_ddi_buf(encoder);
+	intel_disable_ddi_buf(encoder, old_crtc_state);
 
 	intel_edp_panel_vdd_on(intel_dp);
 	intel_edp_panel_off(intel_dp);
@@ -3337,7 +3357,7 @@ static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
 
 	intel_ddi_disable_pipe_clock(old_crtc_state);
 
-	intel_disable_ddi_buf(encoder);
+	intel_disable_ddi_buf(encoder, old_crtc_state);
 
 	intel_display_power_put(dev_priv, dig_port->ddi_io_power_domain);
 
@@ -3388,7 +3408,7 @@ void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,
 	val &= ~FDI_RX_ENABLE;
 	I915_WRITE(FDI_RX_CTL(PIPE_A), val);
 
-	intel_disable_ddi_buf(encoder);
+	intel_disable_ddi_buf(encoder, old_crtc_state);
 	intel_ddi_clk_disable(encoder);
 
 	val = I915_READ(FDI_RX_MISC(PIPE_A));
