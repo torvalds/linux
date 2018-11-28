@@ -8,6 +8,7 @@
 #include <linux/netdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/bitops.h>
+#include <linux/if_bridge.h>
 #include <linux/if_vlan.h>
 #include <linux/list.h>
 #include <linux/dcbnl.h>
@@ -259,6 +260,26 @@ mlxsw_sp_bridge_vxlan_dev_find(struct net_device *br_dev)
 static inline bool mlxsw_sp_bridge_has_vxlan(struct net_device *br_dev)
 {
 	return !!mlxsw_sp_bridge_vxlan_dev_find(br_dev);
+}
+
+static inline int
+mlxsw_sp_vxlan_mapped_vid(const struct net_device *vxlan_dev, u16 *p_vid)
+{
+	struct bridge_vlan_info vinfo;
+	u16 vid = 0;
+	int err;
+
+	err = br_vlan_get_pvid(vxlan_dev, &vid);
+	if (err || !vid)
+		goto out;
+
+	err = br_vlan_get_info(vxlan_dev, vid, &vinfo);
+	if (err || !(vinfo.flags & BRIDGE_VLAN_INFO_UNTAGGED))
+		vid = 0;
+
+out:
+	*p_vid = vid;
+	return err;
 }
 
 static inline bool
