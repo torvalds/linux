@@ -281,7 +281,7 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
 	unsigned int offset;
 	unsigned long flags;
 
-	db = kzalloc(sizeof(*db), GFP_KERNEL);
+	db = devm_kzalloc(hsp->dev, sizeof(*db), GFP_KERNEL);
 	if (!db)
 		return ERR_PTR(-ENOMEM);
 
@@ -291,7 +291,7 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
 	db->channel.regs = hsp->regs + offset;
 	db->channel.hsp = hsp;
 
-	db->name = kstrdup_const(name, GFP_KERNEL);
+	db->name = devm_kstrdup_const(hsp->dev, name, GFP_KERNEL);
 	db->master = master;
 	db->index = index;
 
@@ -300,13 +300,6 @@ tegra_hsp_doorbell_create(struct tegra_hsp *hsp, const char *name,
 	spin_unlock_irqrestore(&hsp->lock, flags);
 
 	return &db->channel;
-}
-
-static void __tegra_hsp_doorbell_destroy(struct tegra_hsp_doorbell *db)
-{
-	list_del(&db->list);
-	kfree_const(db->name);
-	kfree(db);
 }
 
 static int tegra_hsp_doorbell_send_data(struct mbox_chan *chan, void *data)
@@ -567,19 +560,6 @@ static struct mbox_chan *tegra_hsp_sm_xlate(struct mbox_controller *mbox,
 	return mb->channel.chan;
 }
 
-static void tegra_hsp_remove_doorbells(struct tegra_hsp *hsp)
-{
-	struct tegra_hsp_doorbell *db, *tmp;
-	unsigned long flags;
-
-	spin_lock_irqsave(&hsp->lock, flags);
-
-	list_for_each_entry_safe(db, tmp, &hsp->doorbells, list)
-		__tegra_hsp_doorbell_destroy(db);
-
-	spin_unlock_irqrestore(&hsp->lock, flags);
-}
-
 static int tegra_hsp_add_doorbells(struct tegra_hsp *hsp)
 {
 	const struct tegra_hsp_db_map *map = hsp->soc->map;
@@ -588,10 +568,8 @@ static int tegra_hsp_add_doorbells(struct tegra_hsp *hsp)
 	while (map->name) {
 		channel = tegra_hsp_doorbell_create(hsp, map->name,
 						    map->master, map->index);
-		if (IS_ERR(channel)) {
-			tegra_hsp_remove_doorbells(hsp);
+		if (IS_ERR(channel))
 			return PTR_ERR(channel);
-		}
 
 		map++;
 	}
@@ -747,7 +725,7 @@ static int tegra_hsp_probe(struct platform_device *pdev)
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register doorbell mailbox: %d\n",
 			err);
-		goto remove_doorbells;
+		return err;
 	}
 
 	/* setup the shared mailbox controller */
@@ -804,9 +782,6 @@ unregister_mbox_sm:
 	mbox_controller_unregister(&hsp->mbox_sm);
 unregister_mbox_db:
 	mbox_controller_unregister(&hsp->mbox_db);
-remove_doorbells:
-	if (hsp->doorbell_irq)
-		tegra_hsp_remove_doorbells(hsp);
 
 	return err;
 }
@@ -817,9 +792,6 @@ static int tegra_hsp_remove(struct platform_device *pdev)
 
 	mbox_controller_unregister(&hsp->mbox_sm);
 	mbox_controller_unregister(&hsp->mbox_db);
-
-	if (hsp->doorbell_irq)
-		tegra_hsp_remove_doorbells(hsp);
 
 	return 0;
 }
