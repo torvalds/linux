@@ -118,6 +118,13 @@
 				mrvl,intc-nr-irqs = <2>;
 			};
 
+			usb_otg_phy0: usb-otg-phy@d4207000 {
+				compatible = "marvell,mmp2-usb-phy";
+				reg = <0xd4207000 0x40>;
+				#phy-cells = <0>;
+				status = "disabled";
+			};
+
 			mmc1: mmc@d4280000 {
 				compatible = "mrvl,pxav3-mmc";
 				reg = <0xd4280000 0x120>;
