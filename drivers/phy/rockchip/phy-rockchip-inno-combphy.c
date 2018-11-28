@@ -69,6 +69,8 @@ struct rockchip_combphy_cfg {
 	const struct rockchip_combphy_grfcfg grfcfg;
 	int (*combphy_u3_cp_test)(struct rockchip_combphy_priv *priv);
 	int (*combphy_cfg)(struct rockchip_combphy_priv *priv);
+	int (*combphy_low_power_ctrl)(struct rockchip_combphy_priv *priv,
+				      bool en);
 };
 
 struct rockchip_combphy_priv {
@@ -362,6 +364,9 @@ static int rockchip_combphy_power_on(struct phy *phy)
 	grfcfg = &priv->cfg->grfcfg;
 
 	if (priv->phy_type == PHY_TYPE_USB3) {
+		if (priv->cfg->combphy_low_power_ctrl)
+			priv->cfg->combphy_low_power_ctrl(priv, false);
+
 		/* Enable lane 0 squelch detection  */
 		param_write(priv->combphy_grf, &grfcfg->pipe_l0rxelec_set,
 			    false);
@@ -427,6 +432,9 @@ static int rockchip_combphy_power_off(struct phy *phy)
 		 */
 		param_write(priv->combphy_grf, &grfcfg->pipe_l0rxelec_set,
 			    true);
+
+		if (priv->cfg->combphy_low_power_ctrl)
+			priv->cfg->combphy_low_power_ctrl(priv, true);
 	}
 
 done:
@@ -702,8 +710,8 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		/* Lane 1 rx lock disable and tx bias disable */
 		writel(0x12, priv->mmio + 0x3150);
 
-		/* Lane 1 rx termination disable */
-		writel(0x00, priv->mmio + 0x3080);
+		/* Lane 1 rx termination disable, and tx_cmenb disable */
+		writel(0x04, priv->mmio + 0x3080);
 
 		/* Lane 1 tx termination disable */
 		writel(0x1d, priv->mmio + 0x3090);
@@ -711,6 +719,15 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		/* Lane 1 tx driver disable */
 		writel(0x50, priv->mmio + 0x21c4);
 		writel(0x10, priv->mmio + 0x2050);
+
+		/* Lane 1 txldo_refsel disable */
+		writel(0x81, priv->mmio + 0x31a8);
+
+		/* Lane 1 txdetrx_en disable */
+		writel(0x00, priv->mmio + 0x31e8);
+
+		/* Lane 1 rxcm_en disable */
+		writel(0x08, priv->mmio + 0x30c0);
 
 		/* Adjust Lane 0 Rx interface timing */
 		writel(0x20, priv->mmio + 0x20ac);
@@ -776,6 +793,65 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 	return 0;
 }
 
+static int rk1808_combphy_low_power_control(struct rockchip_combphy_priv *priv,
+					    bool en)
+{
+	if (priv->phy_type != PHY_TYPE_USB3)
+		return -EINVAL;
+
+	if (en) {
+		/* Lane 0 tx_biasen disable */
+		writel(0x36, priv->mmio + 0x2150);
+
+		/* Lane 0 txdetrx_en disable */
+		writel(0x02, priv->mmio + 0x21e8);
+
+		/* Lane 0 tx_cmenb disable */
+		writel(0x0c, priv->mmio + 0x2080);
+
+		/* Lane 0 rxcm_en disable */
+		writel(0x08, priv->mmio + 0x20c0);
+
+		/* Lane 0 and Lane 1 bg_pwrdn */
+		writel(0x10, priv->mmio + 0x2044);
+
+		/* Lane 0 and Lane 1 rcomp_osenseampen disable */
+		writel(0x08, priv->mmio + 0x2058);
+
+		/* Lane 0 txldo_refsel disable and LDO disable */
+		writel(0x91, priv->mmio + 0x21a8);
+
+		/* Lane 1 LDO disable */
+		writel(0x91, priv->mmio + 0x31a8);
+	} else {
+		/* Lane 0 tx_biasen enable */
+		writel(0x76, priv->mmio + 0x2150);
+
+		/* Lane 0 txdetrx_en enable */
+		writel(0x02, priv->mmio + 0x21e8);
+
+		/* Lane 0 tx_cmenb enable */
+		writel(0x08, priv->mmio + 0x2080);
+
+		/* Lane 0 rxcm_en enable */
+		writel(0x18, priv->mmio + 0x20c0);
+
+		/* Lane 0 and Lane 1 bg_pwrdn */
+		writel(0x00, priv->mmio + 0x2044);
+
+		/* Lane 0 and Lane 1 rcomp_osenseampen enable */
+		writel(0x28, priv->mmio + 0x2058);
+
+		/* Lane 0 txldo_refsel enable and LDO enable */
+		writel(0x01, priv->mmio + 0x21a8);
+
+		/* Lane 1 LDO enable */
+		writel(0x81, priv->mmio + 0x31a8);
+	}
+
+	return 0;
+}
+
 static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 	.grfcfg	= {
 		.pipe_l1_sel	= { 0x0000, 15, 11, 0x00, 0x1f },
@@ -805,6 +881,7 @@ static const struct rockchip_combphy_cfg rk1808_combphy_cfgs = {
 	},
 	.combphy_u3_cp_test	= rk1808_combphy_u3_cp_test,
 	.combphy_cfg		= rk1808_combphy_cfg,
+	.combphy_low_power_ctrl	= rk1808_combphy_low_power_control,
 };
 
 static const struct of_device_id rockchip_combphy_of_match[] = {
