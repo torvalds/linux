@@ -1401,18 +1401,6 @@ static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 
 	batch = emit_lri(batch, lri, ARRAY_SIZE(lri));
 
-	/* WaClearSlmSpaceAtContextSwitch:kbl */
-	/* Actual scratch location is at 128 bytes offset */
-	if (IS_KBL_REVID(engine->i915, 0, KBL_REVID_A0)) {
-		batch = gen8_emit_pipe_control(batch,
-					       PIPE_CONTROL_FLUSH_L3 |
-					       PIPE_CONTROL_GLOBAL_GTT_IVB |
-					       PIPE_CONTROL_CS_STALL |
-					       PIPE_CONTROL_QW_WRITE,
-					       i915_ggtt_offset(engine->scratch)
-					       + 2 * CACHELINE_BYTES);
-	}
-
 	/* WaMediaPoolStateCmdInWABB:bxt,glk */
 	if (HAS_POOLED_EU(engine->i915)) {
 		/*
