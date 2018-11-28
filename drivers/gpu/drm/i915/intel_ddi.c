@@ -3102,6 +3102,16 @@ static void icl_program_mg_dp_mode(struct intel_digital_port *intel_dig_port)
 	I915_WRITE(MG_DP_MODE(port, 1), ln1);
 }
 
+static void intel_dp_sink_set_fec_ready(struct intel_dp *intel_dp,
+					const struct intel_crtc_state *crtc_state)
+{
+	if (!crtc_state->fec_enable)
+		return;
+
+	if (drm_dp_dpcd_writeb(&intel_dp->aux, DP_FEC_CONFIGURATION, DP_FEC_READY) <= 0)
+		DRM_DEBUG_KMS("Failed to set FEC_READY in the sink\n");
+}
+
 static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state,
 				    const struct drm_connector_state *conn_state)
@@ -3142,6 +3152,7 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_sink_set_decompression_state(intel_dp, crtc_state,
 					      true);
+	intel_dp_sink_set_fec_ready(intel_dp, crtc_state);
 	intel_dp_start_link_train(intel_dp);
 	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
 		intel_dp_stop_link_train(intel_dp);
