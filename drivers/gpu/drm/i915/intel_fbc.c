@@ -84,7 +84,7 @@ static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
 	int lines;
 
 	intel_fbc_get_plane_source_size(cache, NULL, &lines);
-	if (INTEL_GEN(dev_priv) == 7)
+	if (IS_GEN7(dev_priv))
 		lines = min(lines, 2048);
 	else if (INTEL_GEN(dev_priv) >= 8)
 		lines = min(lines, 2560);
@@ -674,6 +674,8 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 	cache->plane.adjusted_y = plane_state->color_plane[0].y;
 	cache->plane.y = plane_state->base.src.y1 >> 16;
 
+	cache->plane.pixel_blend_mode = plane_state->base.pixel_blend_mode;
+
 	if (!cache->plane.visible)
 		return;
 
@@ -745,6 +747,12 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 
 	if (!pixel_format_is_valid(dev_priv, cache->fb.format->format)) {
 		fbc->no_fbc_reason = "pixel format is invalid";
+		return false;
+	}
+
+	if (cache->plane.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
+	    cache->fb.format->has_alpha) {
+		fbc->no_fbc_reason = "per-pixel alpha blending is incompatible with FBC";
 		return false;
 	}
 

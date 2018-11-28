@@ -81,14 +81,21 @@ struct intel_dsi {
 	u16 dcs_backlight_ports;
 	u16 dcs_cabc_ports;
 
+	/* RGB or BGR */
+	bool bgr_enabled;
+
 	u8 pixel_overlap;
 	u32 port_bits;
 	u32 bw_timer;
 	u32 dphy_reg;
+
+	/* data lanes dphy timing */
+	u32 dphy_data_lane_reg;
 	u32 video_frmt_cfg_bits;
 	u16 lp_byte_clk;
 
 	/* timeouts in byte clocks */
+	u16 hs_tx_timeout;
 	u16 lp_rx_timeout;
 	u16 turn_arnd_val;
 	u16 rst_timer_val;
@@ -129,9 +136,31 @@ static inline struct intel_dsi *enc_to_intel_dsi(struct drm_encoder *encoder)
 	return container_of(encoder, struct intel_dsi, base.base);
 }
 
+static inline bool is_vid_mode(struct intel_dsi *intel_dsi)
+{
+	return intel_dsi->operation_mode == INTEL_DSI_VIDEO_MODE;
+}
+
+static inline bool is_cmd_mode(struct intel_dsi *intel_dsi)
+{
+	return intel_dsi->operation_mode == INTEL_DSI_COMMAND_MODE;
+}
+
+/* intel_dsi.c */
+int intel_dsi_bitrate(const struct intel_dsi *intel_dsi);
+int intel_dsi_tlpx_ns(const struct intel_dsi *intel_dsi);
+enum drm_panel_orientation
+intel_dsi_get_panel_orientation(struct intel_connector *connector);
+
 /* vlv_dsi.c */
 void vlv_dsi_wait_for_fifo_empty(struct intel_dsi *intel_dsi, enum port port);
 enum mipi_dsi_pixel_format pixel_format_from_register_bits(u32 fmt);
+int intel_dsi_get_modes(struct drm_connector *connector);
+enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
+					  struct drm_display_mode *mode);
+struct intel_dsi_host *intel_dsi_host_init(struct intel_dsi *intel_dsi,
+					   const struct mipi_dsi_host_ops *funcs,
+					   enum port port);
 
 /* vlv_dsi_pll.c */
 int vlv_dsi_pll_compute(struct intel_encoder *encoder,
@@ -158,5 +187,6 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id);
 int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi);
 void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 				 enum mipi_seq seq_id);
+void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec);
 
 #endif /* _INTEL_DSI_H */

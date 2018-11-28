@@ -823,18 +823,21 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE));
 
 	/* WaInPlaceDecompressionHang:icl */
-	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA, I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
-					    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
+	I915_WRITE(GEN9_GAMT_ECO_REG_RW_IA,
+		   I915_READ(GEN9_GAMT_ECO_REG_RW_IA) |
+		   GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
 
 	/* WaPipelineFlushCoherentLines:icl */
-	I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
-				   GEN8_LQSC_FLUSH_COHERENT_LINES);
+	I915_WRITE(GEN8_L3SQCREG4,
+		   I915_READ(GEN8_L3SQCREG4) |
+		   GEN8_LQSC_FLUSH_COHERENT_LINES);
 
 	/* Wa_1405543622:icl
 	 * Formerly known as WaGAPZPriorityScheme
 	 */
-	I915_WRITE(GEN8_GARBCNTL, I915_READ(GEN8_GARBCNTL) |
-				  GEN11_ARBITRATION_PRIO_ORDER_MASK);
+	I915_WRITE(GEN8_GARBCNTL,
+		   I915_READ(GEN8_GARBCNTL) |
+		   GEN11_ARBITRATION_PRIO_ORDER_MASK);
 
 	/* Wa_1604223664:icl
 	 * Formerly known as WaL3BankAddressHashing
@@ -854,21 +857,24 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	/* Wa_1405733216:icl
 	 * Formerly known as WaDisableCleanEvicts
 	 */
-	I915_WRITE(GEN8_L3SQCREG4, I915_READ(GEN8_L3SQCREG4) |
-				   GEN11_LQSC_CLEAN_EVICT_DISABLE);
+	I915_WRITE(GEN8_L3SQCREG4,
+		   I915_READ(GEN8_L3SQCREG4) |
+		   GEN11_LQSC_CLEAN_EVICT_DISABLE);
 
 	/* Wa_1405766107:icl
 	 * Formerly known as WaCL2SFHalfMaxAlloc
 	 */
-	I915_WRITE(GEN11_LSN_UNSLCVC, I915_READ(GEN11_LSN_UNSLCVC) |
-				      GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC |
-				      GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC);
+	I915_WRITE(GEN11_LSN_UNSLCVC,
+		   I915_READ(GEN11_LSN_UNSLCVC) |
+		   GEN11_LSN_UNSLCVC_GAFS_HALF_SF_MAXALLOC |
+		   GEN11_LSN_UNSLCVC_GAFS_HALF_CL2_MAXALLOC);
 
 	/* Wa_220166154:icl
 	 * Formerly known as WaDisCtxReload
 	 */
-	I915_WRITE(GAMW_ECO_DEV_RW_IA_REG, I915_READ(GAMW_ECO_DEV_RW_IA_REG) |
-					   GAMW_ECO_DEV_CTX_RELOAD_DISABLE);
+	I915_WRITE(GEN8_GAMW_ECO_DEV_RW_IA,
+		   I915_READ(GEN8_GAMW_ECO_DEV_RW_IA) |
+		   GAMW_ECO_DEV_CTX_RELOAD_DISABLE);
 
 	/* Wa_1405779004:icl (pre-prod) */
 	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_A0))
@@ -905,6 +911,13 @@ static void icl_gt_workarounds_apply(struct drm_i915_private *dev_priv)
 	I915_WRITE(GAMT_CHKN_BIT_REG,
 		   I915_READ(GAMT_CHKN_BIT_REG) |
 		   GAMT_CHKN_DISABLE_L3_COH_PIPE);
+
+	/* Wa_1406609255:icl (pre-prod) */
+	if (IS_ICL_REVID(dev_priv, ICL_REVID_A0, ICL_REVID_B0))
+		I915_WRITE(GEN7_SARCHKMD,
+			   I915_READ(GEN7_SARCHKMD) |
+			   GEN7_DISABLE_DEMAND_PREFETCH |
+			   GEN7_DISABLE_SAMPLER_PREFETCH);
 }
 
 void intel_gt_workarounds_apply(struct drm_i915_private *dev_priv)
@@ -941,7 +954,7 @@ struct whitelist {
 
 static void whitelist_reg(struct whitelist *w, i915_reg_t reg)
 {
-	if (GEM_WARN_ON(w->count >= RING_MAX_NONPRIV_SLOTS))
+	if (GEM_DEBUG_WARN_ON(w->count >= RING_MAX_NONPRIV_SLOTS))
 		return;
 
 	w->reg[w->count++] = reg;
@@ -1009,6 +1022,11 @@ static void cnl_whitelist_build(struct whitelist *w)
 
 static void icl_whitelist_build(struct whitelist *w)
 {
+	/* WaAllowUMDToModifyHalfSliceChicken7:icl */
+	whitelist_reg(w, GEN9_HALF_SLICE_CHICKEN7);
+
+	/* WaAllowUMDToModifySamplerMode:icl */
+	whitelist_reg(w, GEN10_SAMPLER_MODE);
 }
 
 static struct whitelist *whitelist_build(struct intel_engine_cs *engine,

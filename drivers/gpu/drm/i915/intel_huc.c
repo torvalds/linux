@@ -108,13 +108,14 @@ fail:
  * This function reads status register to verify if HuC
  * firmware was successfully loaded.
  *
- * Returns positive value if HuC firmware is loaded and verified
- * and -ENODEV if HuC is not present.
+ * Returns: 1 if HuC firmware is loaded and verified,
+ * 0 if HuC firmware is not loaded and -ENODEV if HuC
+ * is not present on this platform.
  */
 int intel_huc_check_status(struct intel_huc *huc)
 {
 	struct drm_i915_private *dev_priv = huc_to_i915(huc);
-	u32 status;
+	bool status;
 
 	if (!HAS_HUC(dev_priv))
 		return -ENODEV;

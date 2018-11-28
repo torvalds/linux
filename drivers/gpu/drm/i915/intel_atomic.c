@@ -203,6 +203,72 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 	drm_atomic_helper_crtc_destroy_state(crtc, state);
 }
 
+static void intel_atomic_setup_scaler(struct intel_crtc_scaler_state *scaler_state,
+				      int num_scalers_need, struct intel_crtc *intel_crtc,
+				      const char *name, int idx,
+				      struct intel_plane_state *plane_state,
+				      int *scaler_id)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
+	int j;
+	u32 mode;
+
+	if (*scaler_id < 0) {
+		/* find a free scaler */
+		for (j = 0; j < intel_crtc->num_scalers; j++) {
+			if (scaler_state->scalers[j].in_use)
+				continue;
+
+			*scaler_id = j;
+			scaler_state->scalers[*scaler_id].in_use = 1;
+			break;
+		}
+	}
+
+	if (WARN(*scaler_id < 0, "Cannot find scaler for %s:%d\n", name, idx))
+		return;
+
+	/* set scaler mode */
+	if (plane_state && plane_state->base.fb &&
+	    plane_state->base.fb->format->is_yuv &&
+	    plane_state->base.fb->format->num_planes > 1) {
+		if (IS_GEN9(dev_priv) &&
+		    !IS_GEMINILAKE(dev_priv)) {
+			mode = SKL_PS_SCALER_MODE_NV12;
+		} else if (icl_is_hdr_plane(to_intel_plane(plane_state->base.plane))) {
+			/*
+			 * On gen11+'s HDR planes we only use the scaler for
+			 * scaling. They have a dedicated chroma upsampler, so
+			 * we don't need the scaler to upsample the UV plane.
+			 */
+			mode = PS_SCALER_MODE_NORMAL;
+		} else {
+			mode = PS_SCALER_MODE_PLANAR;
+
+			if (plane_state->linked_plane)
+				mode |= PS_PLANE_Y_SEL(plane_state->linked_plane->id);
+		}
+	} else if (INTEL_GEN(dev_priv) > 9 || IS_GEMINILAKE(dev_priv)) {
+		mode = PS_SCALER_MODE_NORMAL;
+	} else if (num_scalers_need == 1 && intel_crtc->num_scalers > 1) {
+		/*
+		 * when only 1 scaler is in use on a pipe with 2 scalers
+		 * scaler 0 operates in high quality (HQ) mode.
+		 * In this case use scaler 0 to take advantage of HQ mode
+		 */
+		scaler_state->scalers[*scaler_id].in_use = 0;
+		*scaler_id = 0;
+		scaler_state->scalers[0].in_use = 1;
+		mode = SKL_PS_SCALER_MODE_HQ;
+	} else {
+		mode = SKL_PS_SCALER_MODE_DYN;
+	}
+
+	DRM_DEBUG_KMS("Attached scaler id %u.%u to %s:%d\n",
+		      intel_crtc->pipe, *scaler_id, name, idx);
+	scaler_state->scalers[*scaler_id].mode = mode;
+}
+
 /**
  * intel_atomic_setup_scalers() - setup scalers for crtc per staged requests
  * @dev_priv: i915 device
@@ -232,7 +298,7 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 	struct drm_atomic_state *drm_state = crtc_state->base.state;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(drm_state);
 	int num_scalers_need;
-	int i, j;
+	int i;
 
 	num_scalers_need = hweight32(scaler_state->scaler_users);
 
@@ -304,59 +370,17 @@ int intel_atomic_setup_scalers(struct drm_i915_private *dev_priv,
 			idx = plane->base.id;
 
 			/* plane on different crtc cannot be a scaler user of this crtc */
-			if (WARN_ON(intel_plane->pipe != intel_crtc->pipe)) {
+			if (WARN_ON(intel_plane->pipe != intel_crtc->pipe))
 				continue;
-			}
 
 			plane_state = intel_atomic_get_new_plane_state(intel_state,
 								       intel_plane);
 			scaler_id = &plane_state->scaler_id;
 		}
 
-		if (*scaler_id < 0) {
-			/* find a free scaler */
-			for (j = 0; j < intel_crtc->num_scalers; j++) {
-				if (!scaler_state->scalers[j].in_use) {
-					scaler_state->scalers[j].in_use = 1;
-					*scaler_id = j;
-					DRM_DEBUG_KMS("Attached scaler id %u.%u to %s:%d\n",
-						intel_crtc->pipe, *scaler_id, name, idx);
-					break;
-				}
-			}
-		}
-
-		if (WARN_ON(*scaler_id < 0)) {
-			DRM_DEBUG_KMS("Cannot find scaler for %s:%d\n", name, idx);
-			continue;
-		}
-
-		/* set scaler mode */
-		if ((INTEL_GEN(dev_priv) >= 9) &&
-		    plane_state && plane_state->base.fb &&
-		    plane_state->base.fb->format->format ==
-		    DRM_FORMAT_NV12) {
-			if (INTEL_GEN(dev_priv) == 9 &&
-			    !IS_GEMINILAKE(dev_priv) &&
-			    !IS_SKYLAKE(dev_priv))
-				scaler_state->scalers[*scaler_id].mode =
-					SKL_PS_SCALER_MODE_NV12;
-			else
-				scaler_state->scalers[*scaler_id].mode =
-					PS_SCALER_MODE_PLANAR;
-		} else if (num_scalers_need == 1 && intel_crtc->pipe != PIPE_C) {
-			/*
-			 * when only 1 scaler is in use on either pipe A or B,
-			 * scaler 0 operates in high quality (HQ) mode.
-			 * In this case use scaler 0 to take advantage of HQ mode
-			 */
-			*scaler_id = 0;
-			scaler_state->scalers[0].in_use = 1;
-			scaler_state->scalers[0].mode = PS_SCALER_MODE_HQ;
-			scaler_state->scalers[1].in_use = 0;
-		} else {
-			scaler_state->scalers[*scaler_id].mode = PS_SCALER_MODE_DYN;
-		}
+		intel_atomic_setup_scaler(scaler_state, num_scalers_need,
+					  intel_crtc, name, idx,
+					  plane_state, scaler_id);
 	}
 
 	return 0;

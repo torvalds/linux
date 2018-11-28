@@ -1338,7 +1338,7 @@ err_put_bo:
 	return err;
 }
 
-void intel_setup_overlay(struct drm_i915_private *dev_priv)
+void intel_overlay_setup(struct drm_i915_private *dev_priv)
 {
 	struct intel_overlay *overlay;
 	int ret;
@@ -1387,7 +1387,7 @@ out_free:
 	kfree(overlay);
 }
 
-void intel_cleanup_overlay(struct drm_i915_private *dev_priv)
+void intel_overlay_cleanup(struct drm_i915_private *dev_priv)
 {
 	struct intel_overlay *overlay;
 

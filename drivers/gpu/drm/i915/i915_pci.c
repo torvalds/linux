@@ -33,19 +33,30 @@
 #define GEN(x) .gen = (x), .gen_mask = BIT((x) - 1)
 
 #define GEN_DEFAULT_PIPEOFFSETS \
-	.pipe_offsets = { PIPE_A_OFFSET, PIPE_B_OFFSET, \
-			  PIPE_C_OFFSET, PIPE_EDP_OFFSET }, \
-	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
-			   TRANSCODER_C_OFFSET, TRANSCODER_EDP_OFFSET }, \
-	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET }
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET,	\
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+		[TRANSCODER_C] = PIPE_C_OFFSET, \
+		[TRANSCODER_EDP] = PIPE_EDP_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
+		[TRANSCODER_EDP] = TRANSCODER_EDP_OFFSET, \
+	}
 
 #define GEN_CHV_PIPEOFFSETS \
-	.pipe_offsets = { PIPE_A_OFFSET, PIPE_B_OFFSET, \
-			  CHV_PIPE_C_OFFSET }, \
-	.trans_offsets = { TRANSCODER_A_OFFSET, TRANSCODER_B_OFFSET, \
-			   CHV_TRANSCODER_C_OFFSET, }, \
-	.palette_offsets = { PALETTE_A_OFFSET, PALETTE_B_OFFSET, \
-			     CHV_PALETTE_C_OFFSET }
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET, \
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+		[TRANSCODER_C] = CHV_PIPE_C_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+		[TRANSCODER_C] = CHV_TRANSCODER_C_OFFSET, \
+	}
 
 #define CURSOR_OFFSETS \
 	.cursor_offsets = { CURSOR_A_OFFSET, CURSOR_B_OFFSET, CHV_CURSOR_C_OFFSET }
@@ -252,7 +263,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
-	.has_aliasing_ppgtt = 1, \
+	.ppgtt = INTEL_PPGTT_ALIASING, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	CURSOR_OFFSETS
@@ -297,8 +308,7 @@ static const struct intel_device_info intel_sandybridge_m_gt2_info = {
 	.has_llc = 1, \
 	.has_rc6 = 1, \
 	.has_rc6p = 1, \
-	.has_aliasing_ppgtt = 1, \
-	.has_full_ppgtt = 1, \
+	.ppgtt = INTEL_PPGTT_FULL, \
 	GEN_DEFAULT_PIPEOFFSETS, \
 	GEN_DEFAULT_PAGE_SIZES, \
 	IVB_CURSOR_OFFSETS
@@ -351,8 +361,7 @@ static const struct intel_device_info intel_valleyview_info = {
 	.has_rc6 = 1,
 	.has_gmch_display = 1,
 	.has_hotplug = 1,
-	.has_aliasing_ppgtt = 1,
-	.has_full_ppgtt = 1,
+	.ppgtt = INTEL_PPGTT_FULL,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
 	.ring_mask = RENDER_RING | BSD_RING | BLT_RING,
@@ -399,7 +408,7 @@ static const struct intel_device_info intel_haswell_gt3_info = {
 	.page_sizes = I915_GTT_PAGE_SIZE_4K | \
 		      I915_GTT_PAGE_SIZE_2M, \
 	.has_logical_ring_contexts = 1, \
-	.has_full_48bit_ppgtt = 1, \
+	.ppgtt = INTEL_PPGTT_FULL_4LVL, \
 	.has_64bit_reloc = 1, \
 	.has_reset_engine = 1
 
@@ -443,8 +452,7 @@ static const struct intel_device_info intel_cherryview_info = {
 	.has_rc6 = 1,
 	.has_logical_ring_contexts = 1,
 	.has_gmch_display = 1,
-	.has_aliasing_ppgtt = 1,
-	.has_full_ppgtt = 1,
+	.ppgtt = INTEL_PPGTT_FULL,
 	.has_reset_engine = 1,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
@@ -472,6 +480,8 @@ static const struct intel_device_info intel_cherryview_info = {
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
+	/* Display WA #0477 WaDisableIPC: skl */ \
+	.has_ipc = 0, \
 	PLATFORM(INTEL_SKYLAKE)
 
 static const struct intel_device_info intel_skylake_gt1_info = {
@@ -518,9 +528,7 @@ static const struct intel_device_info intel_skylake_gt4_info = {
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_preemption = 1, \
 	.has_guc = 1, \
-	.has_aliasing_ppgtt = 1, \
-	.has_full_ppgtt = 1, \
-	.has_full_48bit_ppgtt = 1, \
+	.ppgtt = INTEL_PPGTT_FULL_4LVL, \
 	.has_reset_engine = 1, \
 	.has_snoop = true, \
 	.has_coherent_ggtt = false, \
@@ -598,6 +606,22 @@ static const struct intel_device_info intel_cannonlake_info = {
 
 #define GEN11_FEATURES \
 	GEN10_FEATURES, \
+	.pipe_offsets = { \
+		[TRANSCODER_A] = PIPE_A_OFFSET, \
+		[TRANSCODER_B] = PIPE_B_OFFSET, \
+		[TRANSCODER_C] = PIPE_C_OFFSET, \
+		[TRANSCODER_EDP] = PIPE_EDP_OFFSET, \
+		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
+		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
+	}, \
+	.trans_offsets = { \
+		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
+		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
+		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
+		[TRANSCODER_EDP] = TRANSCODER_EDP_OFFSET, \
+		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET, \
+		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET, \
+	}, \
 	GEN(11), \
 	.ddb_size = 2048, \
 	.has_logical_ring_elsq = 1
@@ -663,7 +687,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_KBL_GT2_IDS(&intel_kabylake_gt2_info),
 	INTEL_KBL_GT3_IDS(&intel_kabylake_gt3_info),
 	INTEL_KBL_GT4_IDS(&intel_kabylake_gt3_info),
-	INTEL_AML_GT2_IDS(&intel_kabylake_gt2_info),
+	INTEL_AML_KBL_GT2_IDS(&intel_kabylake_gt2_info),
 	INTEL_CFL_S_GT1_IDS(&intel_coffeelake_gt1_info),
 	INTEL_CFL_S_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_CFL_H_GT2_IDS(&intel_coffeelake_gt2_info),
@@ -671,6 +695,7 @@ static const struct pci_device_id pciidlist[] = {
 	INTEL_CFL_U_GT3_IDS(&intel_coffeelake_gt3_info),
 	INTEL_WHL_U_GT1_IDS(&intel_coffeelake_gt1_info),
 	INTEL_WHL_U_GT2_IDS(&intel_coffeelake_gt2_info),
+	INTEL_AML_CFL_GT2_IDS(&intel_coffeelake_gt2_info),
 	INTEL_WHL_U_GT3_IDS(&intel_coffeelake_gt3_info),
 	INTEL_CNL_IDS(&intel_cannonlake_info),
 	INTEL_ICL_11_IDS(&intel_icelake_11_info),

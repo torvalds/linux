@@ -744,27 +744,30 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 	if (INTEL_GEN(dev_priv) >= 10) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_scalers[pipe] = 2;
-	} else if (INTEL_GEN(dev_priv) == 9) {
+	} else if (IS_GEN9(dev_priv)) {
 		info->num_scalers[PIPE_A] = 2;
 		info->num_scalers[PIPE_B] = 2;
 		info->num_scalers[PIPE_C] = 1;
 	}
 
-	BUILD_BUG_ON(I915_NUM_ENGINES >
-		     sizeof(intel_ring_mask_t) * BITS_PER_BYTE);
+	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
 
-	/*
-	 * Skylake and Broxton currently don't expose the topmost plane as its
-	 * use is exclusive with the legacy cursor and we only want to expose
-	 * one of those, not both. Until we can safely expose the topmost plane
-	 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
-	 * we don't expose the topmost plane at all to prevent ABI breakage
-	 * down the line.
-	 */
-	if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
+	if (IS_GEN11(dev_priv))
+		for_each_pipe(dev_priv, pipe)
+			info->num_sprites[pipe] = 6;
+	else if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
+		/*
+		 * Skylake and Broxton currently don't expose the topmost plane as its
+		 * use is exclusive with the legacy cursor and we only want to expose
+		 * one of those, not both. Until we can safely expose the topmost plane
+		 * as a DRM_PLANE_TYPE_CURSOR with all the features exposed/supported,
+		 * we don't expose the topmost plane at all to prevent ABI breakage
+		 * down the line.
+		 */
+
 		info->num_sprites[PIPE_A] = 2;
 		info->num_sprites[PIPE_B] = 2;
 		info->num_sprites[PIPE_C] = 1;
@@ -844,12 +847,17 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
 		broadwell_sseu_info_init(dev_priv);
-	else if (INTEL_GEN(dev_priv) == 9)
+	else if (IS_GEN9(dev_priv))
 		gen9_sseu_info_init(dev_priv);
-	else if (INTEL_GEN(dev_priv) == 10)
+	else if (IS_GEN10(dev_priv))
 		gen10_sseu_info_init(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 11)
 		gen11_sseu_info_init(dev_priv);
+
+	if (IS_GEN6(dev_priv) && intel_vtd_active()) {
+		DRM_INFO("Disabling ppGTT for VT-d support\n");
+		info->ppgtt = INTEL_PPGTT_NONE;
+	}
 
 	/* Initialize command stream timestamp frequency */
 	info->cs_timestamp_frequency_khz = read_timestamp_frequency(dev_priv);
@@ -872,40 +880,37 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
-	u8 vdbox_disable, vebox_disable;
 	u32 media_fuse;
-	int i;
+	unsigned int i;
 
 	if (INTEL_GEN(dev_priv) < 11)
 		return;
 
-	media_fuse = I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
+	media_fuse = ~I915_READ(GEN11_GT_VEBOX_VDBOX_DISABLE);
 
-	vdbox_disable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
-	vebox_disable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
-			GEN11_GT_VEBOX_DISABLE_SHIFT;
+	info->vdbox_enable = media_fuse & GEN11_GT_VDBOX_DISABLE_MASK;
+	info->vebox_enable = (media_fuse & GEN11_GT_VEBOX_DISABLE_MASK) >>
+			     GEN11_GT_VEBOX_DISABLE_SHIFT;
 
-	DRM_DEBUG_DRIVER("vdbox disable: %04x\n", vdbox_disable);
+	DRM_DEBUG_DRIVER("vdbox enable: %04x\n", info->vdbox_enable);
 	for (i = 0; i < I915_MAX_VCS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VCS(i)))
 			continue;
 
-		if (!(BIT(i) & vdbox_disable))
-			continue;
-
-		info->ring_mask &= ~ENGINE_MASK(_VCS(i));
-		DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+		if (!(BIT(i) & info->vdbox_enable)) {
+			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
+			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+		}
 	}
 
-	DRM_DEBUG_DRIVER("vebox disable: %04x\n", vebox_disable);
+	DRM_DEBUG_DRIVER("vebox enable: %04x\n", info->vebox_enable);
 	for (i = 0; i < I915_MAX_VECS; i++) {
 		if (!HAS_ENGINE(dev_priv, _VECS(i)))
 			continue;
 
-		if (!(BIT(i) & vebox_disable))
-			continue;
-
-		info->ring_mask &= ~ENGINE_MASK(_VECS(i));
-		DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+		if (!(BIT(i) & info->vebox_enable)) {
+			info->ring_mask &= ~ENGINE_MASK(_VECS(i));
+			DRM_DEBUG_DRIVER("vecs%u fused off\n", i);
+		}
 	}
 }

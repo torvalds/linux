@@ -111,6 +111,7 @@ static inline enum port intel_dsi_seq_port_to_port(u8 port)
 static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 				       const u8 *data)
 {
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
 	struct mipi_dsi_device *dsi_device;
 	u8 type, flags, seq_port;
 	u16 len;
@@ -181,7 +182,8 @@ static const u8 *mipi_exec_send_packet(struct intel_dsi *intel_dsi,
 		break;
 	}
 
-	vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
+	if (!IS_ICELAKE(dev_priv))
+		vlv_dsi_wait_for_fifo_empty(intel_dsi, port);
 
 out:
 	data += len;
@@ -481,6 +483,17 @@ void intel_dsi_vbt_exec_sequence(struct intel_dsi *intel_dsi,
 	}
 }
 
+void intel_dsi_msleep(struct intel_dsi *intel_dsi, int msec)
+{
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+
+	/* For v3 VBTs in vid-mode the delays are part of the VBT sequences */
+	if (is_vid_mode(intel_dsi) && dev_priv->vbt.dsi.seq_version >= 3)
+		return;
+
+	msleep(msec);
+}
+
 int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
 {
 	struct intel_connector *connector = intel_dsi->attached_connector;
@@ -499,110 +512,125 @@ int intel_dsi_vbt_get_modes(struct intel_dsi *intel_dsi)
 	return 1;
 }
 
-bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+#define ICL_PREPARE_CNT_MAX	0x7
+#define ICL_CLK_ZERO_CNT_MAX	0xf
+#define ICL_TRAIL_CNT_MAX	0x7
+#define ICL_TCLK_PRE_CNT_MAX	0x3
+#define ICL_TCLK_POST_CNT_MAX	0x7
+#define ICL_HS_ZERO_CNT_MAX	0xf
+#define ICL_EXIT_ZERO_CNT_MAX	0x7
+
+static void icl_dphy_param_init(struct intel_dsi *intel_dsi)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
-	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
-	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
-	u32 bpp;
-	u32 tlpx_ns, extra_byte_count, bitrate, tlpx_ui;
+	u32 tlpx_ns;
+	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
+	u32 ths_prepare_ns, tclk_trail_ns;
+	u32 hs_zero_cnt;
+	u32 tclk_pre_cnt, tclk_post_cnt;
+
+	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
+
+	tclk_trail_ns = max(mipi_config->tclk_trail, mipi_config->ths_trail);
+	ths_prepare_ns = max(mipi_config->ths_prepare,
+			     mipi_config->tclk_prepare);
+
+	/*
+	 * prepare cnt in escape clocks
+	 * this field represents a hexadecimal value with a precision
+	 * of 1.2 – i.e. the most significant bit is the integer
+	 * and the least significant 2 bits are fraction bits.
+	 * so, the field can represent a range of 0.25 to 1.75
+	 */
+	prepare_cnt = DIV_ROUND_UP(ths_prepare_ns * 4, tlpx_ns);
+	if (prepare_cnt > ICL_PREPARE_CNT_MAX) {
+		DRM_DEBUG_KMS("prepare_cnt out of range (%d)\n", prepare_cnt);
+		prepare_cnt = ICL_PREPARE_CNT_MAX;
+	}
+
+	/* clk zero count in escape clocks */
+	clk_zero_cnt = DIV_ROUND_UP(mipi_config->tclk_prepare_clkzero -
+				    ths_prepare_ns, tlpx_ns);
+	if (clk_zero_cnt > ICL_CLK_ZERO_CNT_MAX) {
+		DRM_DEBUG_KMS("clk_zero_cnt out of range (%d)\n", clk_zero_cnt);
+		clk_zero_cnt = ICL_CLK_ZERO_CNT_MAX;
+	}
+
+	/* trail cnt in escape clocks*/
+	trail_cnt = DIV_ROUND_UP(tclk_trail_ns, tlpx_ns);
+	if (trail_cnt > ICL_TRAIL_CNT_MAX) {
+		DRM_DEBUG_KMS("trail_cnt out of range (%d)\n", trail_cnt);
+		trail_cnt = ICL_TRAIL_CNT_MAX;
+	}
+
+	/* tclk pre count in escape clocks */
+	tclk_pre_cnt = DIV_ROUND_UP(mipi_config->tclk_pre, tlpx_ns);
+	if (tclk_pre_cnt > ICL_TCLK_PRE_CNT_MAX) {
+		DRM_DEBUG_KMS("tclk_pre_cnt out of range (%d)\n", tclk_pre_cnt);
+		tclk_pre_cnt = ICL_TCLK_PRE_CNT_MAX;
+	}
+
+	/* tclk post count in escape clocks */
+	tclk_post_cnt = DIV_ROUND_UP(mipi_config->tclk_post, tlpx_ns);
+	if (tclk_post_cnt > ICL_TCLK_POST_CNT_MAX) {
+		DRM_DEBUG_KMS("tclk_post_cnt out of range (%d)\n", tclk_post_cnt);
+		tclk_post_cnt = ICL_TCLK_POST_CNT_MAX;
+	}
+
+	/* hs zero cnt in escape clocks */
+	hs_zero_cnt = DIV_ROUND_UP(mipi_config->ths_prepare_hszero -
+				   ths_prepare_ns, tlpx_ns);
+	if (hs_zero_cnt > ICL_HS_ZERO_CNT_MAX) {
+		DRM_DEBUG_KMS("hs_zero_cnt out of range (%d)\n", hs_zero_cnt);
+		hs_zero_cnt = ICL_HS_ZERO_CNT_MAX;
+	}
+
+	/* hs exit zero cnt in escape clocks */
+	exit_zero_cnt = DIV_ROUND_UP(mipi_config->ths_exit, tlpx_ns);
+	if (exit_zero_cnt > ICL_EXIT_ZERO_CNT_MAX) {
+		DRM_DEBUG_KMS("exit_zero_cnt out of range (%d)\n", exit_zero_cnt);
+		exit_zero_cnt = ICL_EXIT_ZERO_CNT_MAX;
+	}
+
+	/* clock lane dphy timings */
+	intel_dsi->dphy_reg = (CLK_PREPARE_OVERRIDE |
+			       CLK_PREPARE(prepare_cnt) |
+			       CLK_ZERO_OVERRIDE |
+			       CLK_ZERO(clk_zero_cnt) |
+			       CLK_PRE_OVERRIDE |
+			       CLK_PRE(tclk_pre_cnt) |
+			       CLK_POST_OVERRIDE |
+			       CLK_POST(tclk_post_cnt) |
+			       CLK_TRAIL_OVERRIDE |
+			       CLK_TRAIL(trail_cnt));
+
+	/* data lanes dphy timings */
+	intel_dsi->dphy_data_lane_reg = (HS_PREPARE_OVERRIDE |
+					 HS_PREPARE(prepare_cnt) |
+					 HS_ZERO_OVERRIDE |
+					 HS_ZERO(hs_zero_cnt) |
+					 HS_TRAIL_OVERRIDE |
+					 HS_TRAIL(trail_cnt) |
+					 HS_EXIT_OVERRIDE |
+					 HS_EXIT(exit_zero_cnt));
+}
+
+static void vlv_dphy_param_init(struct intel_dsi *intel_dsi)
+{
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	u32 tlpx_ns, extra_byte_count, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
 	u32 ths_prepare_ns, tclk_trail_ns;
 	u32 tclk_prepare_clkzero, ths_prepare_hszero;
 	u32 lp_to_hs_switch, hs_to_lp_switch;
-	u32 pclk, computed_ddr;
 	u32 mul;
-	u16 burst_mode_ratio;
-	enum port port;
 
-	DRM_DEBUG_KMS("\n");
-
-	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
-	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
-	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
-	intel_dsi->pixel_format =
-			pixel_format_from_register_bits(
-				mipi_config->videomode_color_format << 7);
-	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
-
-	intel_dsi->dual_link = mipi_config->dual_link;
-	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
-	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
-	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
-	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
-	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
-	intel_dsi->turn_arnd_val = mipi_config->turn_around_timeout;
-	intel_dsi->rst_timer_val = mipi_config->device_reset_timer;
-	intel_dsi->init_count = mipi_config->master_init_timer;
-	intel_dsi->bw_timer = mipi_config->dbi_bw_timer;
-	intel_dsi->video_frmt_cfg_bits =
-		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
-
-	pclk = mode->clock;
-
-	/* In dual link mode each port needs half of pixel clock */
-	if (intel_dsi->dual_link) {
-		pclk = pclk / 2;
-
-		/* we can enable pixel_overlap if needed by panel. In this
-		 * case we need to increase the pixelclock for extra pixels
-		 */
-		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
-			pclk += DIV_ROUND_UP(mode->vtotal *
-						intel_dsi->pixel_overlap *
-						60, 1000);
-		}
-	}
-
-	/* Burst Mode Ratio
-	 * Target ddr frequency from VBT / non burst ddr freq
-	 * multiply by 100 to preserve remainder
-	 */
-	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
-		if (mipi_config->target_burst_mode_freq) {
-			computed_ddr = (pclk * bpp) / intel_dsi->lane_count;
-
-			if (mipi_config->target_burst_mode_freq <
-								computed_ddr) {
-				DRM_ERROR("Burst mode freq is less than computed\n");
-				return false;
-			}
-
-			burst_mode_ratio = DIV_ROUND_UP(
-				mipi_config->target_burst_mode_freq * 100,
-				computed_ddr);
-
-			pclk = DIV_ROUND_UP(pclk * burst_mode_ratio, 100);
-		} else {
-			DRM_ERROR("Burst mode target is not set\n");
-			return false;
-		}
-	} else
-		burst_mode_ratio = 100;
-
-	intel_dsi->burst_mode_ratio = burst_mode_ratio;
-	intel_dsi->pclk = pclk;
-
-	bitrate = (pclk * bpp) / intel_dsi->lane_count;
-
-	switch (intel_dsi->escape_clk_div) {
-	case 0:
-		tlpx_ns = 50;
-		break;
-	case 1:
-		tlpx_ns = 100;
-		break;
-
-	case 2:
-		tlpx_ns = 200;
-		break;
-	default:
-		tlpx_ns = 50;
-		break;
-	}
+	tlpx_ns = intel_dsi_tlpx_ns(intel_dsi);
 
 	switch (intel_dsi->lane_count) {
 	case 1:
@@ -620,7 +648,7 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	/* in Kbps */
 	ui_num = NS_KHZ_RATIO;
-	ui_den = bitrate;
+	ui_den = intel_dsi_bitrate(intel_dsi);
 
 	tclk_prepare_clkzero = mipi_config->tclk_prepare_clkzero;
 	ths_prepare_hszero = mipi_config->ths_prepare_hszero;
@@ -746,6 +774,88 @@ bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
 		DIV_ROUND_UP(2 * tlpx_ui + trail_cnt * 2 + 8,
 			8);
 	intel_dsi->clk_hs_to_lp_count += extra_byte_count;
+}
+
+bool intel_dsi_vbt_init(struct intel_dsi *intel_dsi, u16 panel_id)
+{
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct mipi_config *mipi_config = dev_priv->vbt.dsi.config;
+	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
+	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
+	u16 burst_mode_ratio;
+	enum port port;
+
+	DRM_DEBUG_KMS("\n");
+
+	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
+	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
+	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
+	intel_dsi->pixel_format =
+			pixel_format_from_register_bits(
+				mipi_config->videomode_color_format << 7);
+
+	intel_dsi->dual_link = mipi_config->dual_link;
+	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
+	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
+	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
+	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
+	intel_dsi->lp_rx_timeout = mipi_config->lp_rx_timeout;
+	intel_dsi->hs_tx_timeout = mipi_config->hs_tx_timeout;
+	intel_dsi->turn_arnd_val = mipi_config->turn_around_timeout;
+	intel_dsi->rst_timer_val = mipi_config->device_reset_timer;
+	intel_dsi->init_count = mipi_config->master_init_timer;
+	intel_dsi->bw_timer = mipi_config->dbi_bw_timer;
+	intel_dsi->video_frmt_cfg_bits =
+		mipi_config->bta_enabled ? DISABLE_VIDEO_BTA : 0;
+	intel_dsi->bgr_enabled = mipi_config->rgb_flip;
+
+	/* Starting point, adjusted depending on dual link and burst mode */
+	intel_dsi->pclk = mode->clock;
+
+	/* In dual link mode each port needs half of pixel clock */
+	if (intel_dsi->dual_link) {
+		intel_dsi->pclk /= 2;
+
+		/* we can enable pixel_overlap if needed by panel. In this
+		 * case we need to increase the pixelclock for extra pixels
+		 */
+		if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
+			intel_dsi->pclk += DIV_ROUND_UP(mode->vtotal * intel_dsi->pixel_overlap * 60, 1000);
+		}
+	}
+
+	/* Burst Mode Ratio
+	 * Target ddr frequency from VBT / non burst ddr freq
+	 * multiply by 100 to preserve remainder
+	 */
+	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
+		if (mipi_config->target_burst_mode_freq) {
+			u32 bitrate = intel_dsi_bitrate(intel_dsi);
+
+			if (mipi_config->target_burst_mode_freq < bitrate) {
+				DRM_ERROR("Burst mode freq is less than computed\n");
+				return false;
+			}
+
+			burst_mode_ratio = DIV_ROUND_UP(
+				mipi_config->target_burst_mode_freq * 100,
+				bitrate);
+
+			intel_dsi->pclk = DIV_ROUND_UP(intel_dsi->pclk * burst_mode_ratio, 100);
+		} else {
+			DRM_ERROR("Burst mode target is not set\n");
+			return false;
+		}
+	} else
+		burst_mode_ratio = 100;
+
+	intel_dsi->burst_mode_ratio = burst_mode_ratio;
+
+	if (IS_ICELAKE(dev_priv))
+		icl_dphy_param_init(intel_dsi);
+	else
+		vlv_dphy_param_init(intel_dsi);
 
 	DRM_DEBUG_KMS("Pclk %d\n", intel_dsi->pclk);
 	DRM_DEBUG_KMS("Pixel overlap %d\n", intel_dsi->pixel_overlap);

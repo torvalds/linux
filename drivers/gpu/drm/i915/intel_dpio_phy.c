@@ -748,7 +748,7 @@ void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 		val |= DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW0(ch), val);
 
-	if (crtc->config->lane_count > 2) {
+	if (crtc_state->lane_count > 2) {
 		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW0(ch));
 		if (reset)
 			val &= ~(DPIO_PCS_TX_LANE2_RESET | DPIO_PCS_TX_LANE1_RESET);
@@ -765,7 +765,7 @@ void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 		val |= DPIO_PCS_CLK_SOFT_RESET;
 	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW1(ch), val);
 
-	if (crtc->config->lane_count > 2) {
+	if (crtc_state->lane_count > 2) {
 		val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW1(ch));
 		val |= CHV_PCS_REQ_SOFTRESET_EN;
 		if (reset)

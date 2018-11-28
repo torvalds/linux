@@ -42,10 +42,6 @@
 #include <linux/acpi.h>
 
 /* Private structure for the integrated LVDS support */
-struct intel_lvds_connector {
-	struct intel_connector base;
-};
-
 struct intel_lvds_pps {
 	/* 100us units */
 	int t1_t2;
@@ -70,17 +66,12 @@ struct intel_lvds_encoder {
 	struct intel_lvds_pps init_pps;
 	u32 init_lvds_val;
 
-	struct intel_lvds_connector *attached_connector;
+	struct intel_connector *attached_connector;
 };
 
 static struct intel_lvds_encoder *to_lvds_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_lvds_encoder, base.base);
-}
-
-static struct intel_lvds_connector *to_lvds_connector(struct drm_connector *connector)
-{
-	return container_of(connector, struct intel_lvds_connector, base.base);
 }
 
 bool intel_lvds_port_enabled(struct drm_i915_private *dev_priv,
@@ -396,7 +387,7 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 	struct intel_lvds_encoder *lvds_encoder =
 		to_lvds_encoder(&intel_encoder->base);
 	struct intel_connector *intel_connector =
-		&lvds_encoder->attached_connector->base;
+		lvds_encoder->attached_connector;
 	struct drm_display_mode *adjusted_mode = &pipe_config->base.adjusted_mode;
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	unsigned int lvds_bpp;
@@ -417,6 +408,8 @@ static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
 			      pipe_config->pipe_bpp, lvds_bpp);
 		pipe_config->pipe_bpp = lvds_bpp;
 	}
+
+	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 
 	/*
 	 * We have timings from the BIOS for the panel, put them in
@@ -461,41 +454,20 @@ intel_lvds_detect(struct drm_connector *connector, bool force)
  */
 static int intel_lvds_get_modes(struct drm_connector *connector)
 {
-	struct intel_lvds_connector *lvds_connector = to_lvds_connector(connector);
+	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
 
 	/* use cached edid if we have one */
-	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
-		return drm_add_edid_modes(connector, lvds_connector->base.edid);
+	if (!IS_ERR_OR_NULL(intel_connector->edid))
+		return drm_add_edid_modes(connector, intel_connector->edid);
 
-	mode = drm_mode_duplicate(dev, lvds_connector->base.panel.fixed_mode);
+	mode = drm_mode_duplicate(dev, intel_connector->panel.fixed_mode);
 	if (mode == NULL)
 		return 0;
 
 	drm_mode_probed_add(connector, mode);
 	return 1;
-}
-
-/**
- * intel_lvds_destroy - unregister and free LVDS structures
- * @connector: connector to free
- *
- * Unregister the DDC bus for this connector then free the driver private
- * structure.
- */
-static void intel_lvds_destroy(struct drm_connector *connector)
-{
-	struct intel_lvds_connector *lvds_connector =
-		to_lvds_connector(connector);
-
-	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
-		kfree(lvds_connector->base.edid);
-
-	intel_panel_fini(&lvds_connector->base.panel);
-
-	drm_connector_cleanup(connector);
-	kfree(connector);
 }
 
 static const struct drm_connector_helper_funcs intel_lvds_connector_helper_funcs = {
@@ -511,7 +483,7 @@ static const struct drm_connector_funcs intel_lvds_connector_funcs = {
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
-	.destroy = intel_lvds_destroy,
+	.destroy = intel_connector_destroy,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = intel_digital_connector_duplicate_state,
 };
@@ -802,8 +774,7 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 		return i915_modparams.lvds_channel_mode == 2;
 
 	/* single channel LVDS is limited to 112 MHz */
-	if (lvds_encoder->attached_connector->base.panel.fixed_mode->clock
-	    > 112999)
+	if (lvds_encoder->attached_connector->panel.fixed_mode->clock > 112999)
 		return true;
 
 	if (dmi_check_system(intel_dual_link_lvds))
@@ -858,7 +829,6 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	struct drm_device *dev = &dev_priv->drm;
 	struct intel_lvds_encoder *lvds_encoder;
 	struct intel_encoder *intel_encoder;
-	struct intel_lvds_connector *lvds_connector;
 	struct intel_connector *intel_connector;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
@@ -911,23 +881,16 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	if (!lvds_encoder)
 		return;
 
-	lvds_connector = kzalloc(sizeof(*lvds_connector), GFP_KERNEL);
-	if (!lvds_connector) {
+	intel_connector = intel_connector_alloc();
+	if (!intel_connector) {
 		kfree(lvds_encoder);
 		return;
 	}
 
-	if (intel_connector_init(&lvds_connector->base) < 0) {
-		kfree(lvds_connector);
-		kfree(lvds_encoder);
-		return;
-	}
-
-	lvds_encoder->attached_connector = lvds_connector;
+	lvds_encoder->attached_connector = intel_connector;
 
 	intel_encoder = &lvds_encoder->base;
 	encoder = &intel_encoder->base;
-	intel_connector = &lvds_connector->base;
 	connector = &intel_connector->base;
 	drm_connector_init(dev, &intel_connector->base, &intel_lvds_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
@@ -1008,7 +971,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	} else {
 		edid = ERR_PTR(-ENOENT);
 	}
-	lvds_connector->base.edid = edid;
+	intel_connector->edid = edid;
 
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
@@ -1072,6 +1035,6 @@ failed:
 	drm_connector_cleanup(connector);
 	drm_encoder_cleanup(encoder);
 	kfree(lvds_encoder);
-	kfree(lvds_connector);
+	intel_connector_free(intel_connector);
 	return;
 }

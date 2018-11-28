@@ -27,7 +27,7 @@
  *
  */
 
-#include <generated/utsrelease.h>
+#include <linux/utsname.h>
 #include <linux/stop_machine.h>
 #include <linux/zlib.h>
 #include <drm/drm_print.h>
@@ -512,7 +512,7 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 			err_printf(m, "  SYNC_2: 0x%08x\n",
 				   ee->semaphore_mboxes[2]);
 	}
-	if (USES_PPGTT(m->i915)) {
+	if (HAS_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
 
 		if (INTEL_GEN(m->i915) >= 8) {
@@ -648,9 +648,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		return 0;
 	}
 
+	if (IS_ERR(error))
+		return PTR_ERR(error);
+
 	if (*error->error_msg)
 		err_printf(m, "%s\n", error->error_msg);
-	err_printf(m, "Kernel: " UTS_RELEASE "\n");
+	err_printf(m, "Kernel: %s\n", init_utsname()->release);
 	ts = ktime_to_timespec64(error->time);
 	err_printf(m, "Time: %lld s %ld us\n",
 		   (s64)ts.tv_sec, ts.tv_nsec / NSEC_PER_USEC);
@@ -999,7 +1002,6 @@ i915_error_object_create(struct drm_i915_private *i915,
 	}
 
 	compress_fini(&compress, dst);
-	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
 	return dst;
 }
 
@@ -1268,7 +1270,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	ee->reset_count = i915_reset_engine_count(&dev_priv->gpu_error,
 						  engine);
 
-	if (USES_PPGTT(dev_priv)) {
+	if (HAS_PPGTT(dev_priv)) {
 		int i;
 
 		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
@@ -1785,6 +1787,14 @@ static unsigned long capture_find_epoch(const struct i915_gpu_state *error)
 	return epoch;
 }
 
+static void capture_finish(struct i915_gpu_state *error)
+{
+	struct i915_ggtt *ggtt = &error->i915->ggtt;
+	const u64 slot = ggtt->error_capture.start;
+
+	ggtt->vm.clear_range(&ggtt->vm, slot, PAGE_SIZE);
+}
+
 static int capture(void *data)
 {
 	struct i915_gpu_state *error = data;
@@ -1809,6 +1819,7 @@ static int capture(void *data)
 
 	error->epoch = capture_find_epoch(error);
 
+	capture_finish(error);
 	return 0;
 }
 
@@ -1859,6 +1870,7 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 	error = i915_capture_gpu_state(i915);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
+		i915_disable_error_state(i915, -ENOMEM);
 		return;
 	}
 
@@ -1914,5 +1926,14 @@ void i915_reset_error_state(struct drm_i915_private *i915)
 	i915->gpu_error.first_error = NULL;
 	spin_unlock_irq(&i915->gpu_error.lock);
 
-	i915_gpu_state_put(error);
+	if (!IS_ERR(error))
+		i915_gpu_state_put(error);
+}
+
+void i915_disable_error_state(struct drm_i915_private *i915, int err)
+{
+	spin_lock_irq(&i915->gpu_error.lock);
+	if (!i915->gpu_error.first_error)
+		i915->gpu_error.first_error = ERR_PTR(err);
+	spin_unlock_irq(&i915->gpu_error.lock);
 }

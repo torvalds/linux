@@ -43,6 +43,11 @@ enum i915_gpio {
 	GPIOM,
 };
 
+/*
+ * Keep the pipe enum values fixed: the code assumes that PIPE_A=0, the
+ * rest have consecutive values and match the enum values of transcoders
+ * with a 1:1 transcoder -> pipe mapping.
+ */
 enum pipe {
 	INVALID_PIPE = -1,
 
@@ -57,12 +62,25 @@ enum pipe {
 #define pipe_name(p) ((p) + 'A')
 
 enum transcoder {
-	TRANSCODER_A = 0,
-	TRANSCODER_B,
-	TRANSCODER_C,
+	/*
+	 * The following transcoders have a 1:1 transcoder -> pipe mapping,
+	 * keep their values fixed: the code assumes that TRANSCODER_A=0, the
+	 * rest have consecutive values and match the enum values of the pipes
+	 * they map to.
+	 */
+	TRANSCODER_A = PIPE_A,
+	TRANSCODER_B = PIPE_B,
+	TRANSCODER_C = PIPE_C,
+
+	/*
+	 * The following transcoders can map to any pipe, their enum value
+	 * doesn't need to stay fixed.
+	 */
 	TRANSCODER_EDP,
-	TRANSCODER_DSI_A,
-	TRANSCODER_DSI_C,
+	TRANSCODER_DSI_0,
+	TRANSCODER_DSI_1,
+	TRANSCODER_DSI_A = TRANSCODER_DSI_0,	/* legacy DSI */
+	TRANSCODER_DSI_C = TRANSCODER_DSI_1,	/* legacy DSI */
 
 	I915_MAX_TRANSCODERS
 };
@@ -120,6 +138,9 @@ enum plane_id {
 	PLANE_SPRITE0,
 	PLANE_SPRITE1,
 	PLANE_SPRITE2,
+	PLANE_SPRITE3,
+	PLANE_SPRITE4,
+	PLANE_SPRITE5,
 	PLANE_CURSOR,
 
 	I915_MAX_PLANES,
@@ -363,7 +384,7 @@ struct intel_link_m_n {
 		(__dev_priv)->power_domains.power_well_count;		\
 	     (__power_well)++)
 
-#define for_each_power_well_rev(__dev_priv, __power_well)			\
+#define for_each_power_well_reverse(__dev_priv, __power_well)			\
 	for ((__power_well) = (__dev_priv)->power_domains.power_wells +		\
 			      (__dev_priv)->power_domains.power_well_count - 1;	\
 	     (__power_well) - (__dev_priv)->power_domains.power_wells >= 0;	\
@@ -373,8 +394,8 @@ struct intel_link_m_n {
 	for_each_power_well(__dev_priv, __power_well)				\
 		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
-#define for_each_power_domain_well_rev(__dev_priv, __power_well, __domain_mask) \
-	for_each_power_well_rev(__dev_priv, __power_well)		        \
+#define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain_mask) \
+	for_each_power_well_reverse(__dev_priv, __power_well)		        \
 		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \

@@ -76,7 +76,7 @@ static int hang_init(struct hang *h, struct drm_i915_private *i915)
 	h->seqno = memset(vaddr, 0xff, PAGE_SIZE);
 
 	vaddr = i915_gem_object_pin_map(h->obj,
-					HAS_LLC(i915) ? I915_MAP_WB : I915_MAP_WC);
+					i915_coherent_map_type(i915));
 	if (IS_ERR(vaddr)) {
 		err = PTR_ERR(vaddr);
 		goto err_unpin_hws;
@@ -234,7 +234,7 @@ hang_create_request(struct hang *h, struct intel_engine_cs *engine)
 			return ERR_CAST(obj);
 
 		vaddr = i915_gem_object_pin_map(obj,
-						HAS_LLC(h->i915) ? I915_MAP_WB : I915_MAP_WC);
+						i915_coherent_map_type(h->i915));
 		if (IS_ERR(vaddr)) {
 			i915_gem_object_put(obj);
 			return ERR_CAST(vaddr);
@@ -1150,6 +1150,7 @@ static int __igt_reset_evict_vma(struct drm_i915_private *i915,
 		tsk = NULL;
 		goto out_reset;
 	}
+	get_task_struct(tsk);
 
 	wait_for_completion(&arg.completion);
 
@@ -1172,6 +1173,8 @@ out_reset:
 		/* The reset, even indirectly, should take less than 10ms. */
 		igt_wedge_on_timeout(&w, i915, HZ / 10 /* 100ms timeout*/)
 			err = kthread_stop(tsk);
+
+		put_task_struct(tsk);
 	}
 
 	mutex_lock(&i915->drm.struct_mutex);

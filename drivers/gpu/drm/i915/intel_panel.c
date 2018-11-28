@@ -111,7 +111,7 @@ intel_pch_panel_fitting(struct intel_crtc *intel_crtc,
 	/* Native modes don't need fitting */
 	if (adjusted_mode->crtc_hdisplay == pipe_config->pipe_src_w &&
 	    adjusted_mode->crtc_vdisplay == pipe_config->pipe_src_h &&
-	    !pipe_config->ycbcr420)
+	    pipe_config->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
 		goto done;
 
 	switch (fitting_mode) {
@@ -505,7 +505,7 @@ static u32 _vlv_get_backlight(struct drm_i915_private *dev_priv, enum pipe pipe)
 static u32 vlv_get_backlight(struct intel_connector *connector)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
-	enum pipe pipe = intel_get_pipe_from_connector(connector);
+	enum pipe pipe = intel_connector_get_pipe(connector);
 
 	return _vlv_get_backlight(dev_priv, pipe);
 }
@@ -763,7 +763,7 @@ static void pwm_disable_backlight(const struct drm_connector_state *old_conn_sta
 	struct intel_panel *panel = &connector->panel;
 
 	/* Disable the backlight */
-	pwm_config(panel->backlight.pwm, 0, CRC_PMIC_PWM_PERIOD_NS);
+	intel_panel_actually_set_backlight(old_conn_state, 0);
 	usleep_range(2000, 3000);
 	pwm_disable(panel->backlight.pwm);
 }
@@ -1814,11 +1814,8 @@ int intel_panel_setup_backlight(struct drm_connector *connector, enum pipe pipe)
 	return 0;
 }
 
-void intel_panel_destroy_backlight(struct drm_connector *connector)
+static void intel_panel_destroy_backlight(struct intel_panel *panel)
 {
-	struct intel_connector *intel_connector = to_intel_connector(connector);
-	struct intel_panel *panel = &intel_connector->panel;
-
 	/* dispose of the pwm */
 	if (panel->backlight.pwm)
 		pwm_put(panel->backlight.pwm);
@@ -1922,6 +1919,8 @@ void intel_panel_fini(struct intel_panel *panel)
 {
 	struct intel_connector *intel_connector =
 		container_of(panel, struct intel_connector, panel);
+
+	intel_panel_destroy_backlight(panel);
 
 	if (panel->fixed_mode)
 		drm_mode_destroy(intel_connector->base.dev, panel->fixed_mode);
