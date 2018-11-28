@@ -2384,6 +2384,8 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.update_mac = &qed_update_mac,
 	.update_mtu = &qed_update_mtu,
 	.update_wol = &qed_update_wol,
+	.db_recovery_add = &qed_db_recovery_add,
+	.db_recovery_del = &qed_db_recovery_del,
 	.read_module_eeprom = &qed_read_module_eeprom,
 };
 
