@@ -114,20 +114,20 @@ static void odm_SetTxRPTTiming_8188E(struct odm_dm_struct *dm_odm,
 	pRaInfo->RptTime = DynamicTxRPTTiming[idx];
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-			("pRaInfo->RptTime = 0x%x\n", pRaInfo->RptTime));
+		     ("pRaInfo->RptTime = 0x%x\n", pRaInfo->RptTime));
 }
 
 static int odm_RateDown_8188E(struct odm_dm_struct *dm_odm,
-				struct odm_ra_info *pRaInfo)
+			      struct odm_ra_info *pRaInfo)
 {
 	u8 RateID, LowestRate, HighestRate;
 	u8 i;
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE,
-			ODM_DBG_TRACE, ("=====>%s()\n", __func__));
+		     ODM_DBG_TRACE, ("=====>%s()\n", __func__));
 	if (!pRaInfo) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-				("%s(): pRaInfo is NULL\n", __func__));
+			     ("%s(): pRaInfo is NULL\n", __func__));
 		return -1;
 	}
 	RateID = pRaInfo->PreRate;
@@ -170,14 +170,14 @@ RateDownFinish:
 	pRaInfo->DecisionRate = RateID;
 	odm_SetTxRPTTiming_8188E(dm_odm, pRaInfo, 2);
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE,
-			ODM_DBG_LOUD, ("Rate down, RPT Timing default\n"));
+		     ODM_DBG_LOUD, ("Rate down, RPT Timing default\n"));
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-			("RAWaitingCounter %d, RAPendingCounter %d",
+		     ("RAWaitingCounter %d, RAPendingCounter %d",
 			 pRaInfo->RAWaitingCounter, pRaInfo->RAPendingCounter));
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-			("Rate down to RateID %d RateSGI %d\n", RateID, pRaInfo->RateSGI));
+		     ("Rate down to RateID %d RateSGI %d\n", RateID, pRaInfo->RateSGI));
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-			("<===== %s()\n", __func__));
+		     ("<===== %s()\n", __func__));
 	return 0;
 }
 
@@ -188,10 +188,10 @@ static int odm_RateUp_8188E(struct odm_dm_struct *dm_odm,
 	u8 i;
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE,
-			ODM_DBG_TRACE, ("=====>%s()\n", __func__));
+		     ODM_DBG_TRACE, ("=====>%s()\n", __func__));
 	if (!pRaInfo) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-				("%s(): pRaInfo is NULL\n", __func__));
+			     ("%s(): pRaInfo is NULL\n", __func__));
 		return -1;
 	}
 	RateID = pRaInfo->PreRate;
@@ -208,7 +208,7 @@ static int odm_RateUp_8188E(struct odm_dm_struct *dm_odm,
 	}
 	odm_SetTxRPTTiming_8188E(dm_odm, pRaInfo, 0);
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-			("%s():Decrease RPT Timing\n", __func__));
+		     ("%s():Decrease RPT Timing\n", __func__));
 
 	if (RateID < HighestRate) {
 		for (i = RateID + 1; i <= HighestRate; i++) {
@@ -234,12 +234,12 @@ RateUpfinish:
 
 	pRaInfo->DecisionRate = RateID;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_LOUD,
-			("Rate up to RateID %d\n", RateID));
+		     ("Rate up to RateID %d\n", RateID));
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-			("RAWaitingCounter %d, RAPendingCounter %d",
-			 pRaInfo->RAWaitingCounter, pRaInfo->RAPendingCounter));
+		     ("RAWaitingCounter %d, RAPendingCounter %d",
+		      pRaInfo->RAWaitingCounter, pRaInfo->RAPendingCounter));
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE,
-			ODM_DBG_TRACE, ("<===== %s()\n", __func__));
+		     ODM_DBG_TRACE, ("<===== %s()\n", __func__));
 	return 0;
 }
 
@@ -255,15 +255,14 @@ static void odm_ResetRaCounter_8188E(struct odm_ra_info *pRaInfo)
 }
 
 static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
-		struct odm_ra_info *pRaInfo
-	)
+				   struct odm_ra_info *pRaInfo)
 {
 	u8 RateID = 0, RtyPtID = 0, PenaltyID1 = 0, PenaltyID2 = 0, i = 0;
 	/* u32 pool_retry; */
 	static u8 DynamicTxRPTTimingCounter;
 
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-			("=====>%s()\n", __func__));
+		     ("=====>%s()\n", __func__));
 
 	if (pRaInfo->Active && (pRaInfo->TOTAL > 0)) { /*  STA used and data packet exits */
 		if ((pRaInfo->RssiStaRA < (pRaInfo->PreRssiStaRA - 3)) ||
@@ -631,7 +630,7 @@ u8 ODM_RA_GetDecisionRate_8188E(struct odm_dm_struct *dm_odm, u8 macid)
 		return 0;
 	DecisionRate = dm_odm->RAInfo[macid].DecisionRate;
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
-		(" macid =%d DecisionRate = 0x%x\n", macid, DecisionRate));
+		     (" macid =%d DecisionRate = 0x%x\n", macid, DecisionRate));
 	return DecisionRate;
 }
 
