@@ -101,6 +101,7 @@ static void nfp_net_reconfig_start(struct nfp_net *nn, u32 update)
 	/* ensure update is written before pinging HW */
 	nn_pci_flush(nn);
 	nfp_qcp_wr_ptr_add(nn->qcp_cfg, 1);
+	nn->reconfig_in_progress_update = update;
 }
 
 /* Pass 0 as update to run posted reconfigs. */
@@ -123,10 +124,14 @@ static bool nfp_net_reconfig_check_done(struct nfp_net *nn, bool last_check)
 	if (reg == 0)
 		return true;
 	if (reg & NFP_NET_CFG_UPDATE_ERR) {
-		nn_err(nn, "Reconfig error: 0x%08x\n", reg);
+		nn_err(nn, "Reconfig error (status: 0x%08x update: 0x%08x ctrl: 0x%08x)\n",
+		       reg, nn->reconfig_in_progress_update,
+		       nn_readl(nn, NFP_NET_CFG_CTRL));
 		return true;
 	} else if (last_check) {
-		nn_err(nn, "Reconfig timeout: 0x%08x\n", reg);
+		nn_err(nn, "Reconfig timeout (status: 0x%08x update: 0x%08x ctrl: 0x%08x)\n",
+		       reg, nn->reconfig_in_progress_update,
+		       nn_readl(nn, NFP_NET_CFG_CTRL));
 		return true;
 	}
 
