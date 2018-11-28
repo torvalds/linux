@@ -204,18 +204,6 @@ static uint32_t denali_wait_for_irq(struct denali_nand_info *denali,
 	return denali->irq_status;
 }
 
-static uint32_t denali_check_irq(struct denali_nand_info *denali)
-{
-	unsigned long flags;
-	uint32_t irq_status;
-
-	spin_lock_irqsave(&denali->irq_lock, flags);
-	irq_status = denali->irq_status;
-	spin_unlock_irqrestore(&denali->irq_lock, flags);
-
-	return irq_status;
-}
-
 static void denali_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 {
 	struct mtd_info *mtd = nand_to_mtd(chip);
@@ -288,21 +276,13 @@ static void denali_cmd_ctrl(struct nand_chip *chip, int dat, unsigned int ctrl)
 		return;
 
 	/*
-	 * Some commands are followed by chip->legacy.dev_ready or
-	 * chip->legacy.waitfunc.
+	 * Some commands are followed by chip->legacy.waitfunc.
 	 * irq_status must be cleared here to catch the R/B# interrupt later.
 	 */
 	if (ctrl & NAND_CTRL_CHANGE)
 		denali_reset_irq(denali);
 
 	denali->host_write(denali, DENALI_BANK(denali) | type, dat);
-}
-
-static int denali_dev_ready(struct nand_chip *chip)
-{
-	struct denali_nand_info *denali = mtd_to_denali(nand_to_mtd(chip));
-
-	return !!(denali_check_irq(denali) & INTR__INT_ACT);
 }
 
 static int denali_check_erased_page(struct mtd_info *mtd,
@@ -1360,7 +1340,6 @@ int denali_init(struct denali_nand_info *denali)
 	chip->legacy.read_byte = denali_read_byte;
 	chip->legacy.write_byte = denali_write_byte;
 	chip->legacy.cmd_ctrl = denali_cmd_ctrl;
-	chip->legacy.dev_ready = denali_dev_ready;
 	chip->legacy.waitfunc = denali_waitfunc;
 
 	if (features & FEATURES__INDEX_ADDR) {
