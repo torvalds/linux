@@ -65,7 +65,7 @@ static int i2c_acpi_fill_info(struct acpi_resource *ares, void *data)
 	status = acpi_get_handle(lookup->device_handle,
 				 sb->resource_source.string_ptr,
 				 &lookup->adapter_handle);
-	if (!ACPI_SUCCESS(status))
+	if (ACPI_FAILURE(status))
 		return 1;
 
 	info->addr = sb->slave_address;
