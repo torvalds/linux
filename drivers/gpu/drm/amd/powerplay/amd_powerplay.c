@@ -725,7 +725,7 @@ static int pp_dpm_force_clock_level(void *handle,
 	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_info("force clock level is for dpm manual mode only.\n");
+		pr_debug("force clock level is for dpm manual mode only.\n");
 		return -EINVAL;
 	}
 
@@ -899,7 +899,7 @@ static int pp_set_power_profile_mode(void *handle, long *input, uint32_t size)
 	}
 
 	if (hwmgr->dpm_level != AMD_DPM_FORCED_LEVEL_MANUAL) {
-		pr_info("power profile setting is for manual dpm mode only.\n");
+		pr_debug("power profile setting is for manual dpm mode only.\n");
 		return ret;
 	}
 
@@ -1072,7 +1072,7 @@ static int pp_get_current_clocks(void *handle,
 					&hw_clocks, PHM_PerformanceLevelDesignation_Activity);
 
 	if (ret) {
-		pr_info("Error in phm_get_clock_info \n");
+		pr_debug("Error in phm_get_clock_info \n");
 		mutex_unlock(&hwmgr->smu_lock);
 		return -EINVAL;
 	}
@@ -1332,6 +1332,78 @@ static int pp_enable_mgpu_fan_boost(void *handle)
 	return 0;
 }
 
+static int pp_set_min_deep_sleep_dcefclk(void *handle, uint32_t clock)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk == NULL) {
+		pr_debug("%s was not implemented.\n", __func__);
+		return -EINVAL;;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_min_deep_sleep_dcefclk(hwmgr, clock);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_set_hard_min_dcefclk_by_freq(void *handle, uint32_t clock)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq == NULL) {
+		pr_debug("%s was not implemented.\n", __func__);
+		return -EINVAL;;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_hard_min_dcefclk_by_freq(hwmgr, clock);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_set_hard_min_fclk_by_freq(void *handle, uint32_t clock)
+{
+	struct pp_hwmgr *hwmgr = handle;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	if (hwmgr->hwmgr_func->set_hard_min_fclk_by_freq == NULL) {
+		pr_debug("%s was not implemented.\n", __func__);
+		return -EINVAL;;
+	}
+
+	mutex_lock(&hwmgr->smu_lock);
+	hwmgr->hwmgr_func->set_hard_min_fclk_by_freq(hwmgr, clock);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return 0;
+}
+
+static int pp_set_active_display_count(void *handle, uint32_t count)
+{
+	struct pp_hwmgr *hwmgr = handle;
+	int ret = 0;
+
+	if (!hwmgr || !hwmgr->pm_en)
+		return -EINVAL;
+
+	mutex_lock(&hwmgr->smu_lock);
+	ret = phm_set_active_display_count(hwmgr, count);
+	mutex_unlock(&hwmgr->smu_lock);
+
+	return ret;
+}
+
 static const struct amd_pm_funcs pp_dpm_funcs = {
 	.load_firmware = pp_dpm_load_fw,
 	.wait_for_fw_loading_complete = pp_dpm_fw_loading_complete,
@@ -1378,4 +1450,8 @@ static const struct amd_pm_funcs pp_dpm_funcs = {
 	.get_display_mode_validation_clocks = pp_get_display_mode_validation_clocks,
 	.notify_smu_enable_pwe = pp_notify_smu_enable_pwe,
 	.enable_mgpu_fan_boost = pp_enable_mgpu_fan_boost,
+	.set_active_display_count = pp_set_active_display_count,
+	.set_min_deep_sleep_dcefclk = pp_set_min_deep_sleep_dcefclk,
+	.set_hard_min_dcefclk_by_freq = pp_set_hard_min_dcefclk_by_freq,
+	.set_hard_min_fclk_by_freq = pp_set_hard_min_fclk_by_freq,
 };

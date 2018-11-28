@@ -276,6 +276,10 @@ struct amd_pm_funcs {
 		struct amd_pp_simple_clock_info *clocks);
 	int (*notify_smu_enable_pwe)(void *handle);
 	int (*enable_mgpu_fan_boost)(void *handle);
+	int (*set_active_display_count)(void *handle, uint32_t count);
+	int (*set_hard_min_dcefclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_hard_min_fclk_by_freq)(void *handle, uint32_t clock);
+	int (*set_min_deep_sleep_dcefclk)(void *handle, uint32_t clock);
 };
 
 #endif
