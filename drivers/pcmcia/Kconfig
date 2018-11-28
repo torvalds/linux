@@ -63,6 +63,9 @@ config CARDBUS
 
 	  If unsure, say Y.
 
+config PCMCIA_MAX1600
+	tristate
+
 comment "PC-card bridges"
 
 config YENTA
