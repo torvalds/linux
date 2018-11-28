@@ -47,6 +47,7 @@
 #define SDHI_VER_GEN3_SDMMC	0xcd10
 
 struct renesas_sdhi_quirks {
+	bool hs400_disabled;
 	bool hs400_4taps;
 };
 
@@ -602,15 +603,21 @@ static void renesas_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 	renesas_sdhi_sdbuf_width(host, enable ? width : 16);
 }
 
-static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
+static const struct renesas_sdhi_quirks sdhi_quirks_h3_m3w_es1 = {
+	.hs400_disabled = true,
+	.hs400_4taps = true,
+};
+
+static const struct renesas_sdhi_quirks sdhi_quirks_h3_es2 = {
+	.hs400_disabled = false,
 	.hs400_4taps = true,
 };
 
 static const struct soc_device_attribute sdhi_quirks_match[]  = {
-	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap },
-	{ .soc_id = "r8a7796", .revision = "ES1.1", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_h3_m3w_es1 },
+	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_h3_es2 },
+	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_h3_m3w_es1 },
+	{ .soc_id = "r8a7796", .revision = "ES1.1", .data = &sdhi_quirks_h3_m3w_es1 },
 	{ /* Sentinel. */ },
 };
 
@@ -698,6 +705,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	host->set_clock		= renesas_sdhi_set_clock;
 	host->multi_io_quirk	= renesas_sdhi_multi_io_quirk;
 	host->dma_ops		= dma_ops;
+
+	if (quirks && quirks->hs400_disabled)
+		host->mmc->caps2 &= ~(MMC_CAP2_HS400 | MMC_CAP2_HS400_ES);
 
 	if (quirks && quirks->hs400_4taps)
 		mmc_data->flags |= TMIO_MMC_HAVE_4TAP_HS400;
