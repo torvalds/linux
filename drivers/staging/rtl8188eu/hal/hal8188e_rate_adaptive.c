@@ -92,11 +92,8 @@ static u16 DynamicTxRPTTiming[6] = {
 
 /*  End Rate adaptive parameters */
 
-static void odm_SetTxRPTTiming_8188E(
-		struct odm_dm_struct *dm_odm,
-		struct odm_ra_info *pRaInfo,
-		u8 extend
-	)
+static void odm_SetTxRPTTiming_8188E(struct odm_dm_struct *dm_odm,
+				     struct odm_ra_info *pRaInfo, u8 extend)
 {
 	u8 idx = 0;
 
@@ -184,10 +181,8 @@ RateDownFinish:
 	return 0;
 }
 
-static int odm_RateUp_8188E(
-		struct odm_dm_struct *dm_odm,
-		struct odm_ra_info *pRaInfo
-	)
+static int odm_RateUp_8188E(struct odm_dm_struct *dm_odm,
+			    struct odm_ra_info *pRaInfo)
 {
 	u8 RateID, HighestRate;
 	u8 i;
@@ -532,11 +527,8 @@ static void odm_PTDecision_8188E(struct odm_ra_info *pRaInfo)
 	pRaInfo->PTStage = temp_stage;
 }
 
-static void
-odm_RATxRPTTimerSetting(
-		struct odm_dm_struct *dm_odm,
-		u16 minRptTime
-)
+static void odm_RATxRPTTimerSetting(struct odm_dm_struct *dm_odm,
+				    u16 minRptTime)
 {
 	ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE, ODM_DBG_TRACE,
 		     (" =====>%s()\n", __func__));
