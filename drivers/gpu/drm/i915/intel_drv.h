@@ -951,6 +951,9 @@ struct intel_crtc_state {
 		u8 slice_count;
 	} dsc_params;
 	struct drm_dsc_config dp_dsc_cfg;
+
+	/* Forward Error correction State */
+	bool fec_enable;
 };
 
 struct intel_crtc {

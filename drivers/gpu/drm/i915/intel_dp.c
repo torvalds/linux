@@ -545,7 +545,7 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			dsc_slice_count =
 				drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
 								true);
-		} else {
+		} else if (drm_dp_sink_supports_fec(intel_dp->fec_capable)) {
 			dsc_max_output_bpp =
 				intel_dp_dsc_get_output_bpp(max_link_clock,
 							    max_lanes,
@@ -1710,14 +1710,26 @@ struct link_config_limits {
 	int min_bpp, max_bpp;
 };
 
-static bool intel_dp_source_supports_dsc(struct intel_dp *intel_dp,
+static bool intel_dp_source_supports_fec(struct intel_dp *intel_dp,
 					 const struct intel_crtc_state *pipe_config)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
-	/* FIXME: FEC needed for external DP until then reject DSC on DP */
-	if (!intel_dp_is_edp(intel_dp))
-		return false;
+	return INTEL_GEN(dev_priv) >= 11 &&
+		pipe_config->cpu_transcoder != TRANSCODER_A;
+}
+
+static bool intel_dp_supports_fec(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *pipe_config)
+{
+	return intel_dp_source_supports_fec(intel_dp, pipe_config) &&
+		drm_dp_sink_supports_fec(intel_dp->fec_capable);
+}
+
+static bool intel_dp_source_supports_dsc(struct intel_dp *intel_dp,
+					 const struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 
 	return INTEL_GEN(dev_priv) >= 10 &&
 		pipe_config->cpu_transcoder != TRANSCODER_A;
@@ -1726,6 +1738,9 @@ static bool intel_dp_source_supports_dsc(struct intel_dp *intel_dp,
 static bool intel_dp_supports_dsc(struct intel_dp *intel_dp,
 				  const struct intel_crtc_state *pipe_config)
 {
+	if (!intel_dp_is_edp(intel_dp) && !pipe_config->fec_enable)
+		return false;
+
 	return intel_dp_source_supports_dsc(intel_dp, pipe_config) &&
 		drm_dp_sink_supports_dsc(intel_dp->dsc_dpcd);
 }
@@ -2128,6 +2143,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
 		return false;
+
+	pipe_config->fec_enable = !intel_dp_is_edp(intel_dp) &&
+				  intel_dp_supports_fec(intel_dp, pipe_config);
 
 	if (!intel_dp_compute_link_config(encoder, pipe_config, conn_state))
 		return false;
