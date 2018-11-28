@@ -298,7 +298,7 @@ static int virtio_gpu_queue_ctrl_buffer(struct virtio_gpu_device *vgdev,
 static int virtio_gpu_queue_fenced_ctrl_buffer(struct virtio_gpu_device *vgdev,
 					       struct virtio_gpu_vbuffer *vbuf,
 					       struct virtio_gpu_ctrl_hdr *hdr,
-					       struct virtio_gpu_fence **fence)
+					       struct virtio_gpu_fence *fence)
 {
 	struct virtqueue *vq = vgdev->ctrlq.vq;
 	int rc;
@@ -405,7 +405,7 @@ void virtio_gpu_cmd_unref_resource(struct virtio_gpu_device *vgdev,
 
 static void virtio_gpu_cmd_resource_inval_backing(struct virtio_gpu_device *vgdev,
 						  uint32_t resource_id,
-						  struct virtio_gpu_fence **fence)
+						  struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_resource_detach_backing *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -467,7 +467,7 @@ void virtio_gpu_cmd_transfer_to_host_2d(struct virtio_gpu_device *vgdev,
 					uint64_t offset,
 					__le32 width, __le32 height,
 					__le32 x, __le32 y,
-					struct virtio_gpu_fence **fence)
+					struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_transfer_to_host_2d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -497,7 +497,7 @@ virtio_gpu_cmd_resource_attach_backing(struct virtio_gpu_device *vgdev,
 				       uint32_t resource_id,
 				       struct virtio_gpu_mem_entry *ents,
 				       uint32_t nents,
-				       struct virtio_gpu_fence **fence)
+				       struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_resource_attach_backing *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -823,7 +823,7 @@ void
 virtio_gpu_cmd_resource_create_3d(struct virtio_gpu_device *vgdev,
 				  struct virtio_gpu_object *bo,
 				  struct virtio_gpu_resource_create_3d *rc_3d,
-				  struct virtio_gpu_fence **fence)
+				  struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_resource_create_3d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -844,7 +844,7 @@ void virtio_gpu_cmd_transfer_to_host_3d(struct virtio_gpu_device *vgdev,
 					uint32_t ctx_id,
 					uint64_t offset, uint32_t level,
 					struct virtio_gpu_box *box,
-					struct virtio_gpu_fence **fence)
+					struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_transfer_host_3d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -872,7 +872,7 @@ void virtio_gpu_cmd_transfer_from_host_3d(struct virtio_gpu_device *vgdev,
 					  uint32_t resource_id, uint32_t ctx_id,
 					  uint64_t offset, uint32_t level,
 					  struct virtio_gpu_box *box,
-					  struct virtio_gpu_fence **fence)
+					  struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_transfer_host_3d *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -892,7 +892,7 @@ void virtio_gpu_cmd_transfer_from_host_3d(struct virtio_gpu_device *vgdev,
 
 void virtio_gpu_cmd_submit(struct virtio_gpu_device *vgdev,
 			   void *data, uint32_t data_size,
-			   uint32_t ctx_id, struct virtio_gpu_fence **fence)
+			   uint32_t ctx_id, struct virtio_gpu_fence *fence)
 {
 	struct virtio_gpu_cmd_submit *cmd_p;
 	struct virtio_gpu_vbuffer *vbuf;
@@ -912,7 +912,7 @@ void virtio_gpu_cmd_submit(struct virtio_gpu_device *vgdev,
 
 int virtio_gpu_object_attach(struct virtio_gpu_device *vgdev,
 			     struct virtio_gpu_object *obj,
-			     struct virtio_gpu_fence **fence)
+			     struct virtio_gpu_fence *fence)
 {
 	bool use_dma_api = !virtio_has_iommu_quirk(vgdev->vdev);
 	struct virtio_gpu_mem_entry *ents;
@@ -969,7 +969,7 @@ void virtio_gpu_object_detach(struct virtio_gpu_device *vgdev,
 	if (use_dma_api && obj->mapped) {
 		struct virtio_gpu_fence *fence = virtio_gpu_fence_alloc(vgdev);
 		/* detach backing and wait for the host process it ... */
-		virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle, &fence);
+		virtio_gpu_cmd_resource_inval_backing(vgdev, obj->hw_res_handle, fence);
 		dma_fence_wait(&fence->f, true);
 		dma_fence_put(&fence->f);
 
