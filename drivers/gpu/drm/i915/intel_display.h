@@ -440,10 +440,9 @@ struct intel_link_m_n {
 	     (__i)++) \
 		for_each_if(crtc)
 
-void intel_link_compute_m_n(int bpp, int nlanes,
+void intel_link_compute_m_n(u16 bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
 			    bool constant_n);
-
 bool is_ccs_modifier(u64 modifier);
 #endif

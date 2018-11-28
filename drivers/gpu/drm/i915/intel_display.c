@@ -6758,7 +6758,7 @@ static void compute_m_n(unsigned int m, unsigned int n,
 }
 
 void
-intel_link_compute_m_n(int bits_per_pixel, int nlanes,
+intel_link_compute_m_n(u16 bits_per_pixel, int nlanes,
 		       int pixel_clock, int link_clock,
 		       struct intel_link_m_n *m_n,
 		       bool constant_n)
