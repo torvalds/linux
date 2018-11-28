@@ -308,6 +308,7 @@ static int fill_res_info(struct sk_buff *msg, struct ib_device *device)
 		[RDMA_RESTRACK_QP] = "qp",
 		[RDMA_RESTRACK_CM_ID] = "cm_id",
 		[RDMA_RESTRACK_MR] = "mr",
+		[RDMA_RESTRACK_CTX] = "ctx",
 	};
 
 	struct rdma_restrack_root *res = &device->res;
