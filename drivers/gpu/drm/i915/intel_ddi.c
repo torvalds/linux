@@ -3144,6 +3144,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 
 	if (!is_mst)
 		intel_ddi_enable_pipe_clock(crtc_state);
+
+	intel_dsc_enable(encoder, crtc_state);
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
