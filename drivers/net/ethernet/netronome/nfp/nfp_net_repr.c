@@ -445,7 +445,9 @@ int nfp_reprs_resync_phys_ports(struct nfp_app *app)
 			continue;
 
 		nfp_app_repr_preclean(app, netdev);
+		rtnl_lock();
 		rcu_assign_pointer(reprs->reprs[i], NULL);
+		rtnl_unlock();
 		synchronize_rcu();
 		nfp_repr_clean(repr);
 	}

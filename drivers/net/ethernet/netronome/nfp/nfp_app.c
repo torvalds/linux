@@ -131,7 +131,9 @@ nfp_app_reprs_set(struct nfp_app *app, enum nfp_repr_type type,
 	struct nfp_reprs *old;
 
 	old = nfp_reprs_get_locked(app, type);
+	rtnl_lock();
 	rcu_assign_pointer(app->reprs[type], reprs);
+	rtnl_unlock();
 
 	return old;
 }
