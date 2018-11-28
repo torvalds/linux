@@ -407,13 +407,16 @@
 		#interrupt-cells = <2>;
 	};
 
-	pmc@c360000 {
+	pmc: pmc@c360000 {
 		compatible = "nvidia,tegra186-pmc";
 		reg = <0 0x0c360000 0 0x10000>,
 		      <0 0x0c370000 0 0x10000>,
 		      <0 0x0c380000 0 0x10000>,
 		      <0 0x0c390000 0 0x10000>;
 		reg-names = "pmc", "wake", "aotag", "scratch";
+
+		#interrupt-cells = <2>;
+		interrupt-controller;
 
 		sdmmc1_3v3: sdmmc1-3v3 {
 			pins = "sdmmc1-hv";
