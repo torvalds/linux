@@ -127,6 +127,8 @@ struct send_context {
 	volatile __le64 *hw_free;	/* HW free counter */
 	/* list for PIO waiters */
 	struct list_head piowait  ____cacheline_aligned_in_smp;
+	seqlock_t waitlock;
+
 	spinlock_t credit_ctrl_lock ____cacheline_aligned_in_smp;
 	u32 credit_intr_count;		/* count of credit intr users */
 	u64 credit_ctrl;		/* cache for credit control */

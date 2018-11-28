@@ -1424,6 +1424,7 @@ int sdma_init(struct hfi1_devdata *dd, u8 port)
 		seqlock_init(&sde->head_lock);
 		spin_lock_init(&sde->senddmactrl_lock);
 		spin_lock_init(&sde->flushlist_lock);
+		seqlock_init(&sde->waitlock);
 		/* insure there is always a zero bit */
 		sde->ahg_bits = 0xfffffffe00000000ULL;
 
@@ -1758,7 +1759,6 @@ static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 	struct iowait *wait, *nw;
 	struct iowait *waits[SDMA_WAIT_BATCH_SIZE];
 	uint i, n = 0, seq, max_idx = 0;
-	struct hfi1_ibdev *dev = &sde->dd->verbs_dev;
 	u8 max_starved_cnt = 0;
 
 #ifdef CONFIG_SDMA_VERBOSITY
@@ -1768,10 +1768,10 @@ static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 #endif
 
 	do {
-		seq = read_seqbegin(&dev->iowait_lock);
+		seq = read_seqbegin(&sde->waitlock);
 		if (!list_empty(&sde->dmawait)) {
 			/* at least one item */
-			write_seqlock(&dev->iowait_lock);
+			write_seqlock(&sde->waitlock);
 			/* Harvest waiters wanting DMA descriptors */
 			list_for_each_entry_safe(
 					wait,
@@ -1794,10 +1794,10 @@ static void sdma_desc_avail(struct sdma_engine *sde, uint avail)
 				list_del_init(&wait->list);
 				waits[n++] = wait;
 			}
-			write_sequnlock(&dev->iowait_lock);
+			write_sequnlock(&sde->waitlock);
 			break;
 		}
-	} while (read_seqretry(&dev->iowait_lock, seq));
+	} while (read_seqretry(&sde->waitlock, seq));
 
 	/* Schedule the most starved one first */
 	if (n)

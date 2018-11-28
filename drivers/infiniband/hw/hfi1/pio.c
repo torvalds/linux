@@ -742,6 +742,7 @@ struct send_context *sc_alloc(struct hfi1_devdata *dd, int type,
 	spin_lock_init(&sc->alloc_lock);
 	spin_lock_init(&sc->release_lock);
 	spin_lock_init(&sc->credit_ctrl_lock);
+	seqlock_init(&sc->waitlock);
 	INIT_LIST_HEAD(&sc->piowait);
 	INIT_WORK(&sc->halt_work, sc_halted);
 	init_waitqueue_head(&sc->halt_wait);
@@ -1593,7 +1594,6 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
 static void sc_piobufavail(struct send_context *sc)
 {
 	struct hfi1_devdata *dd = sc->dd;
-	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	struct list_head *list;
 	struct rvt_qp *qps[PIO_WAIT_BATCH_SIZE];
 	struct rvt_qp *qp;
@@ -1612,7 +1612,7 @@ static void sc_piobufavail(struct send_context *sc)
 	 * could end up with QPs on the wait list with the interrupt
 	 * disabled.
 	 */
-	write_seqlock_irqsave(&dev->iowait_lock, flags);
+	write_seqlock_irqsave(&sc->waitlock, flags);
 	while (!list_empty(list)) {
 		struct iowait *wait;
 
@@ -1636,7 +1636,7 @@ static void sc_piobufavail(struct send_context *sc)
 		if (!list_empty(list))
 			hfi1_sc_wantpiobuf_intr(sc, 1);
 	}
-	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
+	write_sequnlock_irqrestore(&sc->waitlock, flags);
 
 	/* Wake up the most starved one first */
 	if (n)

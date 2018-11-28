@@ -765,7 +765,6 @@ static int pio_wait(struct rvt_qp *qp,
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 	struct hfi1_devdata *dd = sc->dd;
-	struct hfi1_ibdev *dev = &dd->verbs_dev;
 	unsigned long flags;
 	int ret = 0;
 
@@ -777,7 +776,7 @@ static int pio_wait(struct rvt_qp *qp,
 	 */
 	spin_lock_irqsave(&qp->s_lock, flags);
 	if (ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK) {
-		write_seqlock(&dev->iowait_lock);
+		write_seqlock(&sc->waitlock);
 		list_add_tail(&ps->s_txreq->txreq.list,
 			      &ps->wait->tx_head);
 		if (list_empty(&priv->s_iowait.list)) {
@@ -790,14 +789,14 @@ static int pio_wait(struct rvt_qp *qp,
 			was_empty = list_empty(&sc->piowait);
 			iowait_queue(ps->pkts_sent, &priv->s_iowait,
 				     &sc->piowait);
-			priv->s_iowait.lock = &dev->iowait_lock;
+			priv->s_iowait.lock = &sc->waitlock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
 			rvt_get_qp(qp);
 			/* counting: only call wantpiobuf_intr if first user */
 			if (was_empty)
 				hfi1_sc_wantpiobuf_intr(sc, 1);
 		}
-		write_sequnlock(&dev->iowait_lock);
+		write_sequnlock(&sc->waitlock);
 		hfi1_qp_unbusy(qp, ps->wait);
 		ret = -EBUSY;
 	}

@@ -232,18 +232,17 @@ static int hfi1_vnic_sdma_sleep(struct sdma_engine *sde,
 {
 	struct hfi1_vnic_sdma *vnic_sdma =
 		container_of(wait->iow, struct hfi1_vnic_sdma, wait);
-	struct hfi1_ibdev *dev = &vnic_sdma->dd->verbs_dev;
 
-	write_seqlock(&dev->iowait_lock);
+	write_seqlock(&sde->waitlock);
 	if (sdma_progress(sde, seq, txreq)) {
-		write_sequnlock(&dev->iowait_lock);
+		write_sequnlock(&sde->waitlock);
 		return -EAGAIN;
 	}
 
 	vnic_sdma->state = HFI1_VNIC_SDMA_Q_DEFERRED;
 	if (list_empty(&vnic_sdma->wait.list))
 		iowait_queue(pkts_sent, wait->iow, &sde->dmawait);
-	write_sequnlock(&dev->iowait_lock);
+	write_sequnlock(&sde->waitlock);
 	return -EBUSY;
 }
 
