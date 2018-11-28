@@ -11,7 +11,6 @@
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/transobj.h>
 #include "mlx5_core.h"
-#include "lib/eq.h"
 
 static int srq_event_notifier(struct notifier_block *nb,
 			      unsigned long type, void *data)
