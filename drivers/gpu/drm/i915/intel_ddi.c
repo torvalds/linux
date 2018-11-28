@@ -2154,6 +2154,12 @@ static u64 intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	    intel_port_is_tc(dev_priv, encoder->port))
 		domains |= BIT_ULL(intel_ddi_main_link_aux_domain(dig_port));
 
+	/*
+	 * VDSC power is needed when DSC is enabled
+	 */
+	if (crtc_state->dsc_params.compression_enable)
+		domains |= BIT_ULL(intel_dsc_power_domain(crtc_state));
+
 	return domains;
 }
 

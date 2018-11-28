@@ -578,6 +578,24 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 	return intel_compute_rc_parameters(vdsc_cfg);
 }
 
+enum intel_display_power_domain
+intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
+{
+	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
+
+	/*
+	 * On ICL VDSC/joining for eDP transcoder uses a separate power well PW2
+	 * This requires POWER_DOMAIN_TRANSCODER_EDP_VDSC power domain.
+	 * For any other transcoder, VDSC/joining uses the power well associated
+	 * with the pipe/transcoder in use. Hence another reference on the
+	 * transcoder power domain will suffice.
+	 */
+	if (cpu_transcoder == TRANSCODER_EDP)
+		return POWER_DOMAIN_TRANSCODER_EDP_VDSC;
+	else
+		return POWER_DOMAIN_TRANSCODER(cpu_transcoder);
+}
+
 static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 						const struct intel_crtc_state *crtc_state)
 {
@@ -1010,6 +1028,10 @@ void intel_dsc_enable(struct intel_encoder *encoder,
 	if (!crtc_state->dsc_params.compression_enable)
 		return;
 
+	/* Enable Power wells for VDSC/joining */
+	intel_display_power_get(dev_priv,
+				intel_dsc_power_domain(crtc_state));
+
 	intel_configure_pps_for_dsc_encoder(encoder, crtc_state);
 
 	intel_dp_write_dsc_pps_sdp(encoder, crtc_state);
@@ -1059,4 +1081,8 @@ void intel_dsc_disable(const struct intel_crtc_state *old_crtc_state)
 		dss_ctl2_val &= ~(LEFT_BRANCH_VDSC_ENABLE |
 				  RIGHT_BRANCH_VDSC_ENABLE);
 	I915_WRITE(dss_ctl2_reg, dss_ctl2_val);
+
+	/* Disable Power wells for VDSC/joining */
+	intel_display_power_put(dev_priv,
+				intel_dsc_power_domain(old_crtc_state));
 }

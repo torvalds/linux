@@ -1863,6 +1863,8 @@ uint8_t intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
 /* intel_vdsc.c */
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config);
+enum intel_display_power_domain
+intel_dsc_power_domain(const struct intel_crtc_state *crtc_state);
 
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 {
