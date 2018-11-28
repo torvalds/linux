@@ -5174,7 +5174,7 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev,
 							  dev, extack);
 		} else {
-			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, upper_dev, dev);
+			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, dev);
 		}
 		break;
 	case NETDEV_PRE_UP:
@@ -5195,7 +5195,7 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			return 0;
 		if (!mlxsw_sp_lower_get(upper_dev))
 			return 0;
-		mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, upper_dev, dev);
+		mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, dev);
 		break;
 	}
 

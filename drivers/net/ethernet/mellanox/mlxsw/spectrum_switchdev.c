@@ -87,8 +87,6 @@ struct mlxsw_sp_bridge_ops {
 	int (*vxlan_join)(struct mlxsw_sp_bridge_device *bridge_device,
 			  const struct net_device *vxlan_dev,
 			  struct netlink_ext_ack *extack);
-	void (*vxlan_leave)(struct mlxsw_sp_bridge_device *bridge_device,
-			    const struct net_device *vxlan_dev);
 	struct mlxsw_sp_fid *
 		(*fid_get)(struct mlxsw_sp_bridge_device *bridge_device,
 			   u16 vid);
@@ -2012,12 +2010,6 @@ mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	return -EINVAL;
 }
 
-static void
-mlxsw_sp_bridge_8021q_vxlan_leave(struct mlxsw_sp_bridge_device *bridge_device,
-				  const struct net_device *vxlan_dev)
-{
-}
-
 static struct mlxsw_sp_fid *
 mlxsw_sp_bridge_8021q_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 			      u16 vid)
@@ -2047,7 +2039,6 @@ static const struct mlxsw_sp_bridge_ops mlxsw_sp_bridge_8021q_ops = {
 	.port_join	= mlxsw_sp_bridge_8021q_port_join,
 	.port_leave	= mlxsw_sp_bridge_8021q_port_leave,
 	.vxlan_join	= mlxsw_sp_bridge_8021q_vxlan_join,
-	.vxlan_leave	= mlxsw_sp_bridge_8021q_vxlan_leave,
 	.fid_get	= mlxsw_sp_bridge_8021q_fid_get,
 	.fid_lookup	= mlxsw_sp_bridge_8021q_fid_lookup,
 	.fid_vid	= mlxsw_sp_bridge_8021q_fid_vid,
@@ -2152,26 +2143,6 @@ err_nve_fid_enable:
 	return err;
 }
 
-static void
-mlxsw_sp_bridge_8021d_vxlan_leave(struct mlxsw_sp_bridge_device *bridge_device,
-				  const struct net_device *vxlan_dev)
-{
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
-	struct mlxsw_sp_fid *fid;
-
-	fid = mlxsw_sp_fid_8021d_lookup(mlxsw_sp, bridge_device->dev->ifindex);
-	if (WARN_ON(!fid))
-		return;
-
-	/* If the VxLAN device is down, then the FID does not have a VNI */
-	if (!mlxsw_sp_fid_vni_is_set(fid))
-		goto out;
-
-	mlxsw_sp_nve_fid_disable(mlxsw_sp, fid);
-out:
-	mlxsw_sp_fid_put(fid);
-}
-
 static struct mlxsw_sp_fid *
 mlxsw_sp_bridge_8021d_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 			      u16 vid)
@@ -2230,7 +2201,6 @@ static const struct mlxsw_sp_bridge_ops mlxsw_sp_bridge_8021d_ops = {
 	.port_join	= mlxsw_sp_bridge_8021d_port_join,
 	.port_leave	= mlxsw_sp_bridge_8021d_port_leave,
 	.vxlan_join	= mlxsw_sp_bridge_8021d_vxlan_join,
-	.vxlan_leave	= mlxsw_sp_bridge_8021d_vxlan_leave,
 	.fid_get	= mlxsw_sp_bridge_8021d_fid_get,
 	.fid_lookup	= mlxsw_sp_bridge_8021d_fid_lookup,
 	.fid_vid	= mlxsw_sp_bridge_8021d_fid_vid,
@@ -2298,16 +2268,18 @@ int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 }
 
 void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
-				 const struct net_device *br_dev,
 				 const struct net_device *vxlan_dev)
 {
-	struct mlxsw_sp_bridge_device *bridge_device;
+	struct vxlan_dev *vxlan = netdev_priv(vxlan_dev);
+	struct mlxsw_sp_fid *fid;
 
-	bridge_device = mlxsw_sp_bridge_device_find(mlxsw_sp->bridge, br_dev);
-	if (WARN_ON(!bridge_device))
+	/* If the VxLAN device is down, then the FID does not have a VNI */
+	fid = mlxsw_sp_fid_lookup_by_vni(mlxsw_sp, vxlan->cfg.vni);
+	if (!fid)
 		return;
 
-	bridge_device->ops->vxlan_leave(bridge_device, vxlan_dev);
+	mlxsw_sp_nve_fid_disable(mlxsw_sp, fid);
+	mlxsw_sp_fid_put(fid);
 }
 
 static void
