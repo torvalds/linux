@@ -1788,6 +1788,14 @@ enum QED_ROCE_EDPM_MODE {
 	QED_ROCE_EDPM_MODE_DISABLE = 2,
 };
 
+bool qed_edpm_enabled(struct qed_hwfn *p_hwfn)
+{
+	if (p_hwfn->dcbx_no_edpm || p_hwfn->db_bar_no_edpm)
+		return false;
+
+	return true;
+}
+
 static int
 qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
@@ -1857,13 +1865,13 @@ qed_hw_init_pf_doorbell_bar(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	p_hwfn->wid_count = (u16) n_cpus;
 
 	DP_INFO(p_hwfn,
-		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s\n",
+		"doorbell bar: normal_region_size=%d, pwm_region_size=%d, dpi_size=%d, dpi_count=%d, roce_edpm=%s, page_size=%lu\n",
 		norm_regsize,
 		pwm_regsize,
 		p_hwfn->dpi_size,
 		p_hwfn->dpi_count,
-		((p_hwfn->dcbx_no_edpm) || (p_hwfn->db_bar_no_edpm)) ?
-		"disabled" : "enabled");
+		(!qed_edpm_enabled(p_hwfn)) ?
+		"disabled" : "enabled", PAGE_SIZE);
 
 	if (rc) {
 		DP_ERR(p_hwfn,
