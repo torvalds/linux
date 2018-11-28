@@ -213,8 +213,8 @@ extern void do_IRQ(int, struct pt_regs *);
 
 static inline void check_valid_nmi(void)
 {
-	unsigned intread = get_sr(interrupt);
-	unsigned intenable = get_sr(intenable);
+	unsigned intread = xtensa_get_sr(interrupt);
+	unsigned intenable = xtensa_get_sr(intenable);
 
 	BUG_ON(intread & intenable &
 	       ~(XTENSA_INTLEVEL_ANDBELOW_MASK(PROFILING_INTLEVEL) ^
@@ -271,8 +271,8 @@ void do_interrupt(struct pt_regs *regs)
 	irq_enter();
 
 	for (;;) {
-		unsigned intread = get_sr(interrupt);
-		unsigned intenable = get_sr(intenable);
+		unsigned intread = xtensa_get_sr(interrupt);
+		unsigned intenable = xtensa_get_sr(intenable);
 		unsigned int_at_level = intread & intenable;
 		unsigned level;
 

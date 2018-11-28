@@ -87,7 +87,7 @@ void coprocessor_release_all(struct thread_info *ti)
 	}
 
 	ti->cpenable = cpenable;
-	coprocessor_clear_cpenable();
+	xtensa_set_sr(0, cpenable);
 
 	preempt_enable();
 }
@@ -99,16 +99,16 @@ void coprocessor_flush_all(struct thread_info *ti)
 
 	preempt_disable();
 
-	RSR_CPENABLE(old_cpenable);
+	old_cpenable = xtensa_get_sr(cpenable);
 	cpenable = ti->cpenable;
-	WSR_CPENABLE(cpenable);
+	xtensa_set_sr(cpenable, cpenable);
 
 	for (i = 0; i < XCHAL_CP_MAX; i++) {
 		if ((cpenable & 1) != 0 && coprocessor_owner[i] == ti)
 			coprocessor_flush(ti, i);
 		cpenable >>= 1;
 	}
-	WSR_CPENABLE(old_cpenable);
+	xtensa_set_sr(old_cpenable, cpenable);
 
 	preempt_enable();
 }
