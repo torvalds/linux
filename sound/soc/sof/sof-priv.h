@@ -379,6 +379,7 @@ struct snd_sof_dev {
 	u32 host_offset;
 	u32 dtrace_is_enabled;
 	u32 dtrace_error;
+	u32 msi_enabled;
 
 	/* PM */
 	u32 restore_kcontrols; /* restore kcontrols upon resume */

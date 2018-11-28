@@ -605,18 +605,22 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	 * TODO: support interrupt mode selection with kernel parameter
 	 *       support msi multiple vectors
 	 */
-//	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI);
-	/* todo: MSI mode doesn't work for HDMI yet, debug it later */
-	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_LEGACY);
+	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI);
 	if (ret < 0) {
 		dev_info(sdev->dev, "use legacy interrupt mode\n");
+		/*
+		 * in IO-APIC mode, hda->irq and ipc_irq are using the same
+		 * irq number of pci->irq
+		 */
 		sdev->hda->irq = pci->irq;
 		sdev->ipc_irq = pci->irq;
+		sdev->msi_enabled = 0;
 	} else {
 		dev_info(sdev->dev, "use msi interrupt mode\n");
 		sdev->hda->irq = pci_irq_vector(pci, 0);
 		/* ipc irq number is the same of hda irq */
 		sdev->ipc_irq = sdev->hda->irq;
+		sdev->msi_enabled = 1;
 	}
 
 	dev_dbg(sdev->dev, "using HDA IRQ %d\n", sdev->hda->irq);
@@ -626,7 +630,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register HDA IRQ %d\n",
 			sdev->hda->irq);
-		goto free_streams;
+		goto free_irq_vector;
 	}
 
 	dev_dbg(sdev->dev, "using IPC IRQ %d\n", sdev->ipc_irq);
@@ -716,7 +720,9 @@ free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
 free_hda_irq:
 	free_irq(sdev->hda->irq, bus);
-	pci_free_irq_vectors(pci);
+free_irq_vector:
+	if (sdev->msi_enabled)
+		pci_free_irq_vectors(pci);
 free_streams:
 	hda_dsp_stream_free(sdev);
 /* dsp_unmap: not currently used */
@@ -762,7 +768,8 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 
 	free_irq(sdev->ipc_irq, sdev);
 	free_irq(sdev->hda->irq, bus);
-	pci_free_irq_vectors(pci);
+	if (sdev->msi_enabled)
+		pci_free_irq_vectors(pci);
 
 	hda_dsp_stream_free(sdev);
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
