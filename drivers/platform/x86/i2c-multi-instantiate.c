@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/types.h>
 
 struct i2c_inst_data {
 	const char *type;
@@ -22,6 +23,31 @@ struct i2c_multi_inst_data {
 	int num_clients;
 	struct i2c_client *clients[0];
 };
+
+static int i2c_multi_inst_count(struct acpi_resource *ares, void *data)
+{
+	struct acpi_resource_i2c_serialbus *sb;
+	int *count = data;
+
+	if (i2c_acpi_get_i2c_resource(ares, &sb))
+		*count = *count + 1;
+
+	return 1;
+}
+
+static int i2c_multi_inst_count_resources(struct acpi_device *adev)
+{
+	LIST_HEAD(r);
+	int count = 0;
+	int ret;
+
+	ret = acpi_dev_get_resources(adev, &r, i2c_multi_inst_count, &count);
+	if (ret < 0)
+		return ret;
+
+	acpi_dev_free_resource_list(&r);
+	return count;
+}
 
 static int i2c_multi_inst_probe(struct platform_device *pdev)
 {
@@ -44,17 +70,19 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 	adev = ACPI_COMPANION(dev);
 
 	/* Count number of clients to instantiate */
-	for (i = 0; inst_data[i].type; i++) {}
+	ret = i2c_multi_inst_count_resources(adev);
+	if (ret < 0)
+		return ret;
 
 	multi = devm_kmalloc(dev,
-			offsetof(struct i2c_multi_inst_data, clients[i]),
+			offsetof(struct i2c_multi_inst_data, clients[ret]),
 			GFP_KERNEL);
 	if (!multi)
 		return -ENOMEM;
 
-	multi->num_clients = i;
+	multi->num_clients = ret;
 
-	for (i = 0; i < multi->num_clients; i++) {
+	for (i = 0; i < multi->num_clients && inst_data[i].type; i++) {
 		memset(&board_info, 0, sizeof(board_info));
 		strlcpy(board_info.type, inst_data[i].type, I2C_NAME_SIZE);
 		snprintf(name, sizeof(name), "%s-%s", match->id,
@@ -78,6 +106,11 @@ static int i2c_multi_inst_probe(struct platform_device *pdev)
 				dev_err(dev, "Error creating i2c-client, idx %d\n", i);
 			goto error;
 		}
+	}
+	if (i < multi->num_clients) {
+		dev_err(dev, "Error finding driver, idx %d\n", i);
+		ret = -ENODEV;
+		goto error;
 	}
 
 	platform_set_drvdata(pdev, multi);
