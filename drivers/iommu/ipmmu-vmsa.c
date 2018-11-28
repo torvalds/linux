@@ -770,8 +770,13 @@ static const struct soc_device_attribute soc_rcar_gen3_whitelist[] = {
 	{ /* sentinel */ }
 };
 
+static const char * const rcar_gen3_slave_whitelist[] = {
+};
+
 static bool ipmmu_slave_whitelist(struct device *dev)
 {
+	unsigned int i;
+
 	/*
 	 * For R-Car Gen3 use a white list to opt-in slave devices.
 	 * For Other SoCs, this returns true anyway.
@@ -783,7 +788,13 @@ static bool ipmmu_slave_whitelist(struct device *dev)
 	if (!soc_device_match(soc_rcar_gen3_whitelist))
 		return false;
 
-	/* By default, do not allow use of IPMMU */
+	/* Check whether this slave device can work with the IPMMU */
+	for (i = 0; i < ARRAY_SIZE(rcar_gen3_slave_whitelist); i++) {
+		if (!strcmp(dev_name(dev), rcar_gen3_slave_whitelist[i]))
+			return true;
+	}
+
+	/* Otherwise, do not allow use of IPMMU */
 	return false;
 }
 
