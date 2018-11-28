@@ -296,6 +296,12 @@ enum qed_wol_support {
 	QED_WOL_SUPPORT_PME,
 };
 
+enum qed_db_rec_exec {
+	DB_REC_DRY_RUN,
+	DB_REC_REAL_DEAL,
+	DB_REC_ONCE,
+};
+
 struct qed_hw_info {
 	/* PCI personality */
 	enum qed_pci_personality personality;
@@ -423,6 +429,14 @@ struct qed_qm_info {
 	u32				pf_rl;
 	struct qed_wfq_data		*wfq_data;
 	u8 num_pf_rls;
+};
+
+struct qed_db_recovery_info {
+	struct list_head list;
+
+	/* Lock to protect the doorbell recovery mechanism list */
+	spinlock_t lock;
+	u32 db_recovery_counter;
 };
 
 struct storm_stats {
@@ -639,6 +653,9 @@ struct qed_hwfn {
 
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;
+
+	/* Mechanism for recovering from doorbell drop */
+	struct qed_db_recovery_info db_recovery_info;
 
 	/* Nvm images number and attributes */
 	struct qed_nvm_image_info nvm_info;
