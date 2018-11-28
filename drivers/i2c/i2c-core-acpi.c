@@ -386,20 +386,22 @@ struct notifier_block i2c_acpi_notifier = {
  *
  * Also see i2c_new_device, which this function calls to create the i2c-client.
  *
- * Returns a pointer to the new i2c-client, or NULL if the adapter is not found.
+ * Returns a pointer to the new i2c-client, or error pointer in case of failure.
+ * Specifically, -EPROBE_DEFER is returned if the adapter is not found.
  */
 struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 				       struct i2c_board_info *info)
 {
 	struct i2c_acpi_lookup lookup;
 	struct i2c_adapter *adapter;
+	struct i2c_client *client;
 	struct acpi_device *adev;
 	LIST_HEAD(resource_list);
 	int ret;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.info = info;
@@ -408,16 +410,23 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 
 	ret = acpi_dev_get_resources(adev, &resource_list,
 				     i2c_acpi_fill_info, &lookup);
+	if (ret < 0)
+		return ERR_PTR(ret);
+
 	acpi_dev_free_resource_list(&resource_list);
 
-	if (ret < 0 || !info->addr)
-		return NULL;
+	if (!info->addr)
+		return ERR_PTR(-EADDRNOTAVAIL);
 
 	adapter = i2c_acpi_find_adapter_by_handle(lookup.adapter_handle);
 	if (!adapter)
-		return NULL;
+		return ERR_PTR(-EPROBE_DEFER);
 
-	return i2c_new_device(adapter, info);
+	client = i2c_new_device(adapter, info);
+	if (!client)
+		return ERR_PTR(-ENODEV);
+
+	return client;
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
 
