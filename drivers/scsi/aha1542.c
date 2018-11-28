@@ -325,7 +325,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		};
 
-		mbo = (scsi2int(mb[mbi].ccbptr) - aha1542->ccb_handle) / sizeof(struct ccb);
+		mbo = (scsi2int(mb[mbi].ccbptr) - (unsigned long)aha1542->ccb_handle) / sizeof(struct ccb);
 		mbistatus = mb[mbi].status;
 		mb[mbi].status = 0;
 		aha1542->aha1542_last_mbi_used = mbi;
