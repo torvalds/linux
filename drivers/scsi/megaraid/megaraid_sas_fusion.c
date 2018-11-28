@@ -3453,7 +3453,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
 				cmd_fusion->scmd->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 			}
-			//Fall thru and complete IO
+			/* Fall through - and complete IO */
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
 			atomic_dec(&instance->fw_outstanding);
 			if (cmd_fusion->r1_alt_dev_handle == MR_DEVHANDLE_INVALID) {
