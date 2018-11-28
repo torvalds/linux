@@ -50,7 +50,7 @@ typedef struct {
 typedef struct {
 	unsigned int handle;
 	unsigned int count;
-	const struct vchiq_element *elements;
+	const struct vchiq_element __user *elements;
 } VCHIQ_QUEUE_MESSAGE_T;
 
 typedef struct {
@@ -85,7 +85,7 @@ typedef struct {
 
 typedef struct {
 	unsigned int config_size;
-	VCHIQ_CONFIG_T *pconfig;
+	VCHIQ_CONFIG_T __user *pconfig;
 } VCHIQ_GET_CONFIG_T;
 
 typedef struct {

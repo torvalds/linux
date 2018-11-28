@@ -87,7 +87,7 @@ typedef struct vchiq_header_struct {
 } VCHIQ_HEADER_T;
 
 struct vchiq_element {
-	const void *data;
+	const void __user *data;
 	unsigned int size;
 };
 

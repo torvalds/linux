@@ -1593,7 +1593,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 				 unsigned long arg)
 {
 	VCHIQ_QUEUE_MESSAGE_T *args;
-	struct vchiq_element *elements;
+	struct vchiq_element __user *elements;
 	struct vchiq_queue_message32 args32;
 	unsigned int count;
 
@@ -1659,7 +1659,7 @@ vchiq_compat_ioctl_queue_bulk(struct file *file,
 			      unsigned int cmd,
 			      unsigned long arg)
 {
-	VCHIQ_QUEUE_BULK_TRANSFER_T *args;
+	VCHIQ_QUEUE_BULK_TRANSFER_T __user *args;
 	struct vchiq_queue_bulk_transfer32 args32;
 	struct vchiq_queue_bulk_transfer32 *ptrargs32 =
 		(struct vchiq_queue_bulk_transfer32 *)arg;
@@ -1725,16 +1725,16 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 				    unsigned int cmd,
 				    unsigned long arg)
 {
-	VCHIQ_AWAIT_COMPLETION_T *args;
-	VCHIQ_COMPLETION_DATA_T *completion;
+	VCHIQ_AWAIT_COMPLETION_T __user *args;
+	VCHIQ_COMPLETION_DATA_T __user *completion;
 	VCHIQ_COMPLETION_DATA_T completiontemp;
 	struct vchiq_await_completion32 args32;
 	struct vchiq_completion_data32 completion32;
-	unsigned int *msgbufcount32;
+	unsigned int __user *msgbufcount32;
 	unsigned int msgbufcount_native;
 	compat_uptr_t msgbuf32;
-	void *msgbuf;
-	void **msgbufptr;
+	void __user *msgbuf;
+	void * __user *msgbufptr;
 	long ret;
 
 	args = compat_alloc_user_space(sizeof(*args) +
@@ -1743,11 +1743,11 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 	if (!args)
 		return -EFAULT;
 
-	completion = (VCHIQ_COMPLETION_DATA_T *)(args + 1);
-	msgbufptr = (void __user **)(completion + 1);
+	completion = (VCHIQ_COMPLETION_DATA_T __user *)(args + 1);
+	msgbufptr = (void * __user *)(completion + 1);
 
 	if (copy_from_user(&args32,
-			   (struct vchiq_completion_data32 *)arg,
+			   (struct vchiq_completion_data32 __user *)arg,
 			   sizeof(args32)))
 		return -EFAULT;
 
@@ -1875,7 +1875,7 @@ vchiq_compat_ioctl_dequeue_message(struct file *file,
 				   unsigned int cmd,
 				   unsigned long arg)
 {
-	VCHIQ_DEQUEUE_MESSAGE_T *args;
+	VCHIQ_DEQUEUE_MESSAGE_T __user *args;
 	struct vchiq_dequeue_message32 args32;
 
 	args = compat_alloc_user_space(sizeof(*args));
@@ -1883,7 +1883,7 @@ vchiq_compat_ioctl_dequeue_message(struct file *file,
 		return -EFAULT;
 
 	if (copy_from_user(&args32,
-			   (struct vchiq_dequeue_message32 *)arg,
+			   (struct vchiq_dequeue_message32 __user *)arg,
 			   sizeof(args32)))
 		return -EFAULT;
 
@@ -1910,7 +1910,7 @@ vchiq_compat_ioctl_get_config(struct file *file,
 			      unsigned int cmd,
 			      unsigned long arg)
 {
-	VCHIQ_GET_CONFIG_T *args;
+	VCHIQ_GET_CONFIG_T __user *args;
 	struct vchiq_get_config32 args32;
 
 	args = compat_alloc_user_space(sizeof(*args));
@@ -1918,7 +1918,7 @@ vchiq_compat_ioctl_get_config(struct file *file,
 		return -EFAULT;
 
 	if (copy_from_user(&args32,
-			   (struct vchiq_get_config32 *)arg,
+			   (struct vchiq_get_config32 __user *)arg,
 			   sizeof(args32)))
 		return -EFAULT;
 
