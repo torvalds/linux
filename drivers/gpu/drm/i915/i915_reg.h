@@ -4570,6 +4570,7 @@ enum {
  * of the infoframe structure specified by CEA-861. */
 #define   VIDEO_DIP_DATA_SIZE	32
 #define   VIDEO_DIP_VSC_DATA_SIZE	36
+#define   VIDEO_DIP_PPS_DATA_SIZE	132
 #define VIDEO_DIP_CTL		_MMIO(0x61170)
 /* Pre HSW: */
 #define   VIDEO_DIP_ENABLE		(1 << 31)

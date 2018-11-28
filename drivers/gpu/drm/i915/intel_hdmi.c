@@ -115,6 +115,8 @@ static u32 hsw_infoframe_enable(unsigned int type)
 	switch (type) {
 	case DP_SDP_VSC:
 		return VIDEO_DIP_ENABLE_VSC_HSW;
+	case DP_SDP_PPS:
+		return VDIP_ENABLE_PPS;
 	case HDMI_INFOFRAME_TYPE_AVI:
 		return VIDEO_DIP_ENABLE_AVI_HSW;
 	case HDMI_INFOFRAME_TYPE_SPD:
@@ -136,6 +138,8 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 	switch (type) {
 	case DP_SDP_VSC:
 		return HSW_TVIDEO_DIP_VSC_DATA(cpu_transcoder, i);
+	case DP_SDP_PPS:
+		return ICL_VIDEO_DIP_PPS_DATA(cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_AVI:
 		return HSW_TVIDEO_DIP_AVI_DATA(cpu_transcoder, i);
 	case HDMI_INFOFRAME_TYPE_SPD:
@@ -145,6 +149,18 @@ hsw_dip_data_reg(struct drm_i915_private *dev_priv,
 	default:
 		MISSING_CASE(type);
 		return INVALID_MMIO_REG;
+	}
+}
+
+static int hsw_dip_data_size(unsigned int type)
+{
+	switch (type) {
+	case DP_SDP_VSC:
+		return VIDEO_DIP_VSC_DATA_SIZE;
+	case DP_SDP_PPS:
+		return VIDEO_DIP_PPS_DATA_SIZE;
+	default:
+		return VIDEO_DIP_DATA_SIZE;
 	}
 }
 
@@ -382,10 +398,11 @@ static void hsw_write_infoframe(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	i915_reg_t ctl_reg = HSW_TVIDEO_DIP_CTL(cpu_transcoder);
-	int data_size = type == DP_SDP_VSC ?
-		VIDEO_DIP_VSC_DATA_SIZE : VIDEO_DIP_DATA_SIZE;
+	int data_size;
 	int i;
 	u32 val = I915_READ(ctl_reg);
+
+	data_size = hsw_dip_data_size(type);
 
 	val &= ~hsw_infoframe_enable(type);
 	I915_WRITE(ctl_reg, val);
