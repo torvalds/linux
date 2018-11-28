@@ -284,6 +284,34 @@ int mbox_send_message(struct mbox_chan *chan, void *mssg)
 EXPORT_SYMBOL_GPL(mbox_send_message);
 
 /**
+ * mbox_flush - flush a mailbox channel
+ * @chan: mailbox channel to flush
+ * @timeout: time, in milliseconds, to allow the flush operation to succeed
+ *
+ * Mailbox controllers that need to work in atomic context can implement the
+ * ->flush() callback to busy loop until a transmission has been completed.
+ * The implementation must call mbox_chan_txdone() upon success. Clients can
+ * call the mbox_flush() function at any time after mbox_send_message() to
+ * flush the transmission. After the function returns success, the mailbox
+ * transmission is guaranteed to have completed.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int mbox_flush(struct mbox_chan *chan, unsigned long timeout)
+{
+	int ret;
+
+	if (!chan->mbox->ops->flush)
+		return -ENOTSUPP;
+
+	ret = chan->mbox->ops->flush(chan, timeout);
+	if (ret < 0)
+		tx_tick(chan, ret);
+
+	return ret;
+}
+
+/**
  * mbox_request_channel - Request a mailbox channel.
  * @cl: Identity of the client requesting the channel.
  * @index: Index of mailbox specifier in 'mboxes' property.
