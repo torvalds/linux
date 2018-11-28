@@ -358,7 +358,7 @@ bool mlxsw_sp_bridge_device_is_offloaded(const struct mlxsw_sp *mlxsw_sp,
 					 const struct net_device *br_dev);
 int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 			       const struct net_device *br_dev,
-			       const struct net_device *vxlan_dev,
+			       const struct net_device *vxlan_dev, u16 vid,
 			       struct netlink_ext_ack *extack);
 void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,
 				 const struct net_device *vxlan_dev);

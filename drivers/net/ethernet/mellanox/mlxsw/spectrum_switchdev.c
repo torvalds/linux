@@ -85,7 +85,7 @@ struct mlxsw_sp_bridge_ops {
 			   struct mlxsw_sp_bridge_port *bridge_port,
 			   struct mlxsw_sp_port *mlxsw_sp_port);
 	int (*vxlan_join)(struct mlxsw_sp_bridge_device *bridge_device,
-			  const struct net_device *vxlan_dev,
+			  const struct net_device *vxlan_dev, u16 vid,
 			  struct netlink_ext_ack *extack);
 	struct mlxsw_sp_fid *
 		(*fid_get)(struct mlxsw_sp_bridge_device *bridge_device,
@@ -2003,7 +2003,7 @@ mlxsw_sp_bridge_8021q_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 
 static int
 mlxsw_sp_bridge_8021q_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
-				 const struct net_device *vxlan_dev,
+				 const struct net_device *vxlan_dev, u16 vid,
 				 struct netlink_ext_ack *extack)
 {
 	WARN_ON(1);
@@ -2107,7 +2107,7 @@ mlxsw_sp_bridge_8021d_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 
 static int
 mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
-				 const struct net_device *vxlan_dev,
+				 const struct net_device *vxlan_dev, u16 vid,
 				 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(bridge_device->dev);
@@ -2166,7 +2166,8 @@ mlxsw_sp_bridge_8021d_fid_get(struct mlxsw_sp_bridge_device *bridge_device,
 	if (!netif_running(vxlan_dev))
 		return fid;
 
-	err = mlxsw_sp_bridge_8021d_vxlan_join(bridge_device, vxlan_dev, NULL);
+	err = mlxsw_sp_bridge_8021d_vxlan_join(bridge_device, vxlan_dev, 0,
+					       NULL);
 	if (err)
 		goto err_vxlan_join;
 
@@ -2255,7 +2256,7 @@ void mlxsw_sp_port_bridge_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 
 int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 			       const struct net_device *br_dev,
-			       const struct net_device *vxlan_dev,
+			       const struct net_device *vxlan_dev, u16 vid,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_bridge_device *bridge_device;
@@ -2264,7 +2265,8 @@ int mlxsw_sp_bridge_vxlan_join(struct mlxsw_sp *mlxsw_sp,
 	if (WARN_ON(!bridge_device))
 		return -EINVAL;
 
-	return bridge_device->ops->vxlan_join(bridge_device, vxlan_dev, extack);
+	return bridge_device->ops->vxlan_join(bridge_device, vxlan_dev, vid,
+					      extack);
 }
 
 void mlxsw_sp_bridge_vxlan_leave(struct mlxsw_sp *mlxsw_sp,

@@ -5172,7 +5172,7 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			if (!netif_running(dev))
 				return 0;
 			return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev,
-							  dev, extack);
+							  dev, 0, extack);
 		} else {
 			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, dev);
 		}
@@ -5185,7 +5185,7 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			return 0;
 		if (!mlxsw_sp_lower_get(upper_dev))
 			return 0;
-		return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev, dev,
+		return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev, dev, 0,
 						  extack);
 	case NETDEV_DOWN:
 		upper_dev = netdev_master_upper_dev_get(dev);
