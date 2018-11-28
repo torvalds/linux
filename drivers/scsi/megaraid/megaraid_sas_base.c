@@ -3281,6 +3281,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			megasas_complete_int_cmd(instance, cmd);
 			break;
 		}
+		/* fall through */
 
 	case MFI_CMD_LD_READ:
 	case MFI_CMD_LD_WRITE:
