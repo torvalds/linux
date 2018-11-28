@@ -269,6 +269,55 @@
 				status = "disabled";
 			};
 
+			twsi3: i2c@d4032000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4032000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <1>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI2>;
+				resets = <&soc_clocks MMP2_CLK_TWSI2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi4: i2c@d4033000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4033000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <2>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI3>;
+				resets = <&soc_clocks MMP2_CLK_TWSI3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+
+			twsi5: i2c@d4033800 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4033800 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <3>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI4>;
+				resets = <&soc_clocks MMP2_CLK_TWSI4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			twsi6: i2c@d4034000 {
+				compatible = "mrvl,mmp-twsi";
+				reg = <0xd4034000 0x1000>;
+				interrupt-parent = <&intcmux17>;
+				interrupts = <4>;
+				clocks = <&soc_clocks MMP2_CLK_TWSI5>;
+				resets = <&soc_clocks MMP2_CLK_TWSI5>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				status = "disabled";
+			};
+
 			rtc: rtc@d4010000 {
 				compatible = "mrvl,mmp-rtc";
 				reg = <0xd4010000 0x1000>;
