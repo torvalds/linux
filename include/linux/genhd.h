@@ -129,7 +129,7 @@ struct hd_struct {
 	struct disk_stats dkstats;
 #endif
 	struct percpu_ref ref;
-	struct rcu_head rcu_head;
+	struct rcu_work rcu_work;
 };
 
 #define GENHD_FL_REMOVABLE			1
