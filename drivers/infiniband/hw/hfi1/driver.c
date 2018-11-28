@@ -1426,7 +1426,7 @@ static int hfi1_bypass_ingress_pkt_check(struct hfi1_packet *packet)
 	if ((!(hfi1_is_16B_mcast(packet->dlid))) &&
 	    (packet->dlid !=
 		opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B))) {
-		if (packet->dlid != ppd->lid)
+		if ((packet->dlid & ~((1 << ppd->lmc) - 1)) != ppd->lid)
 			return -EINVAL;
 	}
 
