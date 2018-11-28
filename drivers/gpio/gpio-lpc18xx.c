@@ -89,11 +89,12 @@ static const struct gpio_chip lpc18xx_chip = {
 
 static int lpc18xx_gpio_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct lpc18xx_gpio_chip *gc;
 	struct resource *res;
 	int ret;
 
-	gc = devm_kzalloc(&pdev->dev, sizeof(*gc), GFP_KERNEL);
+	gc = devm_kzalloc(dev, sizeof(*gc), GFP_KERNEL);
 	if (!gc)
 		return -ENOMEM;
 
@@ -101,29 +102,29 @@ static int lpc18xx_gpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gc);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	gc->base = devm_ioremap_resource(&pdev->dev, res);
+	gc->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(gc->base))
 		return PTR_ERR(gc->base);
 
-	gc->clk = devm_clk_get(&pdev->dev, NULL);
+	gc->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(gc->clk)) {
-		dev_err(&pdev->dev, "input clock not found\n");
+		dev_err(dev, "input clock not found\n");
 		return PTR_ERR(gc->clk);
 	}
 
 	ret = clk_prepare_enable(gc->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "unable to enable clock\n");
+		dev_err(dev, "unable to enable clock\n");
 		return ret;
 	}
 
 	spin_lock_init(&gc->lock);
 
-	gc->gpio.parent = &pdev->dev;
+	gc->gpio.parent = dev;
 
 	ret = gpiochip_add_data(&gc->gpio, gc);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add gpio chip\n");
+		dev_err(dev, "failed to add gpio chip\n");
 		clk_disable_unprepare(gc->clk);
 		return ret;
 	}
