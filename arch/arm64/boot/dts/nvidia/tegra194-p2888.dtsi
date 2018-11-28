@@ -66,6 +66,10 @@
 			vmmc-supply = <&vdd_emmc_3v3>;
 		};
 
+		rtc@c2a0000 {
+			status = "okay";
+		};
+
 		pmc@c360000 {
 			nvidia,invert-interrupt;
 		};
