@@ -38,8 +38,8 @@ struct flowi_common {
 #define FLOWI_FLAG_KNOWN_NH		0x02
 #define FLOWI_FLAG_SKIP_NH_OIF		0x04
 	__u32	flowic_secid;
-	struct flowi_tunnel flowic_tun_key;
 	kuid_t  flowic_uid;
+	struct flowi_tunnel flowic_tun_key;
 };
 
 union flowi_uli {
