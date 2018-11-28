@@ -119,7 +119,7 @@ _config_display_some_debug(struct MPT3SAS_ADAPTER *ioc, u16 smid,
 		desc = "raid_volume";
 		break;
 	case MPI2_CONFIG_PAGETYPE_MANUFACTURING:
-		desc = "manufaucturing";
+		desc = "manufacturing";
 		break;
 	case MPI2_CONFIG_PAGETYPE_RAID_PHYSDISK:
 		desc = "physdisk";
