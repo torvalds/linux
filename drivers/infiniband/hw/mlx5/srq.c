@@ -12,9 +12,6 @@
 #include "mlx5_ib.h"
 #include "srq.h"
 
-/* not supported currently */
-static int srq_signature;
-
 static void *get_wqe(struct mlx5_ib_srq *srq, int n)
 {
 	return mlx5_buf_offset(&srq->buf, n << srq->msrq.wqe_shift);
@@ -175,7 +172,7 @@ static int create_srq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_srq *srq,
 		err = -ENOMEM;
 		goto err_in;
 	}
-	srq->wq_sig = !!srq_signature;
+	srq->wq_sig = 0;
 
 	in->log_page_size = srq->buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT;
 	if (MLX5_CAP_GEN(dev->mdev, cqe_version) == MLX5_CQE_VERSION_V1 &&
