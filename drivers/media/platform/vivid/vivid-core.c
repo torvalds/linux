@@ -630,8 +630,19 @@ static void vivid_dev_release(struct v4l2_device *v4l2_dev)
 }
 
 #ifdef CONFIG_MEDIA_CONTROLLER
+static int vivid_req_validate(struct media_request *req)
+{
+	struct vivid_dev *dev = container_of(req->mdev, struct vivid_dev, mdev);
+
+	if (dev->req_validate_error) {
+		dev->req_validate_error = false;
+		return -EINVAL;
+	}
+	return vb2_request_validate(req);
+}
+
 static const struct media_device_ops vivid_media_ops = {
-	.req_validate = vb2_request_validate,
+	.req_validate = vivid_req_validate,
 	.req_queue = vb2_request_queue,
 };
 #endif

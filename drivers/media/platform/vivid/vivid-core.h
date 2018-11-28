@@ -294,6 +294,7 @@ struct vivid_dev {
 	bool				buf_prepare_error;
 	bool				start_streaming_error;
 	bool				dqbuf_error;
+	bool				req_validate_error;
 	bool				seq_wrap;
 	bool				time_wrap;
 	u64				time_wrap_offset;
