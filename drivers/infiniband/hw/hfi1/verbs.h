@@ -71,6 +71,7 @@ struct hfi1_devdata;
 struct hfi1_packet;
 
 #include "iowait.h"
+#include "tid_rdma.h"
 
 #define HFI1_MAX_RDMA_ATOMIC     16
 
@@ -156,6 +157,7 @@ struct hfi1_qp_priv {
 	struct hfi1_ahg_info *s_ahg;              /* ahg info for next header */
 	struct sdma_engine *s_sde;                /* current sde */
 	struct send_context *s_sendcontext;       /* current sendcontext */
+	struct hfi1_ctxtdata *rcd;                /* QP's receive context */
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
 	struct rvt_qp *owner;

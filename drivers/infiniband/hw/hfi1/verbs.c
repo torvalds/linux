@@ -1706,6 +1706,7 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	dd->verbs_dev.rdi.dparms.max_mad_size = OPA_MGMT_MAD_SIZE;
 
 	dd->verbs_dev.rdi.driver_f.qp_priv_alloc = qp_priv_alloc;
+	dd->verbs_dev.rdi.driver_f.qp_priv_init = hfi1_qp_priv_init;
 	dd->verbs_dev.rdi.driver_f.qp_priv_free = qp_priv_free;
 	dd->verbs_dev.rdi.driver_f.free_all_qps = free_all_qps;
 	dd->verbs_dev.rdi.driver_f.notify_qp_reset = notify_qp_reset;

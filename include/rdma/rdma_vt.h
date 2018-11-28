@@ -269,6 +269,13 @@ struct rvt_driver_provided {
 	void * (*qp_priv_alloc)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
 
 	/*
+	 * Init a struture allocated with qp_priv_alloc(). This should be
+	 * called after all qp fields have been initialized in rdmavt.
+	 */
+	int (*qp_priv_init)(struct rvt_dev_info *rdi, struct rvt_qp *qp,
+			    struct ib_qp_init_attr *init_attr);
+
+	/*
 	 * Free the driver's private qp structure.
 	 */
 	void (*qp_priv_free)(struct rvt_dev_info *rdi, struct rvt_qp *qp);
