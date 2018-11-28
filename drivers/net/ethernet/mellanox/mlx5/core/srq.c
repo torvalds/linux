@@ -10,15 +10,12 @@
 #include <linux/mlx5/srq.h>
 #include <rdma/ib_verbs.h>
 #include <linux/mlx5/transobj.h>
-#include "mlx5_core.h"
 
 static int srq_event_notifier(struct notifier_block *nb,
 			      unsigned long type, void *data)
 {
 	struct mlx5_srq_table *table;
-	struct mlx5_core_dev *dev;
 	struct mlx5_core_srq *srq;
-	struct mlx5_priv *priv;
 	struct mlx5_eqe *eqe;
 	u32 srqn;
 
@@ -27,12 +24,9 @@ static int srq_event_notifier(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	table = container_of(nb, struct mlx5_srq_table, nb);
-	priv  = container_of(table, struct mlx5_priv, srq_table);
-	dev   = container_of(priv, struct mlx5_core_dev, priv);
 
 	eqe = data;
 	srqn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
-	mlx5_core_dbg(dev, "SRQ event (%d): srqn 0x%x\n", eqe->type, srqn);
 
 	spin_lock(&table->lock);
 
@@ -42,10 +36,8 @@ static int srq_event_notifier(struct notifier_block *nb,
 
 	spin_unlock(&table->lock);
 
-	if (!srq) {
-		mlx5_core_warn(dev, "Async event for bogus SRQ 0x%08x\n", srqn);
+	if (!srq)
 		return NOTIFY_OK;
-	}
 
 	srq->event(srq, eqe->type);
 
@@ -617,10 +609,8 @@ int mlx5_core_create_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq,
 	spin_lock_irq(&table->lock);
 	err = radix_tree_insert(&table->tree, srq->srqn, srq);
 	spin_unlock_irq(&table->lock);
-	if (err) {
-		mlx5_core_warn(dev, "err %d, srqn 0x%x\n", err, srq->srqn);
+	if (err)
 		goto err_destroy_srq_split;
-	}
 
 	return 0;
 
@@ -640,14 +630,8 @@ int mlx5_core_destroy_srq(struct mlx5_core_dev *dev, struct mlx5_core_srq *srq)
 	spin_lock_irq(&table->lock);
 	tmp = radix_tree_delete(&table->tree, srq->srqn);
 	spin_unlock_irq(&table->lock);
-	if (!tmp) {
-		mlx5_core_warn(dev, "srq 0x%x not found in tree\n", srq->srqn);
+	if (!tmp || tmp != srq)
 		return -EINVAL;
-	}
-	if (tmp != srq) {
-		mlx5_core_warn(dev, "corruption on srqn 0x%x\n", srq->srqn);
-		return -EINVAL;
-	}
 
 	err = destroy_srq_split(dev, srq);
 	if (err)
