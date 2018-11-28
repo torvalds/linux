@@ -387,8 +387,6 @@ struct drm_dp_mst_topology_cbs {
 	void (*register_connector)(struct drm_connector *connector);
 	void (*destroy_connector)(struct drm_dp_mst_topology_mgr *mgr,
 				  struct drm_connector *connector);
-	void (*hotplug)(struct drm_dp_mst_topology_mgr *mgr);
-
 };
 
 #define DP_MAX_PAYLOAD (sizeof(unsigned long) * 8)
