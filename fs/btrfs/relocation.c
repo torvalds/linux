@@ -2631,7 +2631,7 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 		 * only one thread can access block_rsv at this point,
 		 * so we don't need hold lock to protect block_rsv.
 		 * we expand more reservation size here to allow enough
-		 * space for relocation and we will return eailer in
+		 * space for relocation and we will return earlier in
 		 * enospc case.
 		 */
 		rc->block_rsv->size = tmp + fs_info->nodesize *

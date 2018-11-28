@@ -2005,7 +2005,7 @@ int btrfs_release_file(struct inode *inode, struct file *filp)
 	filp->private_data = NULL;
 
 	/*
-	 * ordered_data_close is set by settattr when we are about to truncate
+	 * ordered_data_close is set by setattr when we are about to truncate
 	 * a file from a non-zero size to a zero size.  This tries to
 	 * flush down new bytes that may have been written if the
 	 * application were using truncate to replace a file in place.
@@ -2114,7 +2114,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	/*
 	 * We have to do this here to avoid the priority inversion of waiting on
-	 * IO of a lower priority task while holding a transaciton open.
+	 * IO of a lower priority task while holding a transaction open.
 	 */
 	ret = btrfs_wait_ordered_range(inode, start, len);
 	if (ret) {
@@ -2154,7 +2154,7 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 	 * here we could get into a situation where we're waiting on IO to
 	 * happen that is blocked on a transaction trying to commit.  With start
 	 * we inc the extwriter counter, so we wait for all extwriters to exit
-	 * before we start blocking join'ers.  This comment is to keep somebody
+	 * before we start blocking joiners.  This comment is to keep somebody
 	 * from thinking they are super smart and changing this to
 	 * btrfs_join_transaction *cough*Josef*cough*.
 	 */

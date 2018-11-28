@@ -492,7 +492,7 @@ static struct extent_state *next_state(struct extent_state *state)
 
 /*
  * utility function to clear some bits in an extent state struct.
- * it will optionally wake up any one waiting on this state (wake == 1).
+ * it will optionally wake up anyone waiting on this state (wake == 1).
  *
  * If no bits are set on the state struct after clearing things, the
  * struct is freed and removed from the tree
@@ -4312,7 +4312,7 @@ static int emit_fiemap_extent(struct fiemap_extent_info *fieinfo,
 
 	/*
 	 * Sanity check, extent_fiemap() should have ensured that new
-	 * fiemap extent won't overlap with cahced one.
+	 * fiemap extent won't overlap with cached one.
 	 * Not recoverable.
 	 *
 	 * NOTE: Physical address can overlap, due to compression

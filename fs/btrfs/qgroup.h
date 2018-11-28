@@ -81,10 +81,10 @@ enum btrfs_qgroup_rsv_type {
  *
  * Each type should have different reservation behavior.
  * E.g, data follows its io_tree flag modification, while
- * *currently* meta is just reserve-and-clear during transcation.
+ * *currently* meta is just reserve-and-clear during transaction.
  *
  * TODO: Add new type for reservation which can survive transaction commit.
- * Currect metadata reservation behavior is not suitable for such case.
+ * Current metadata reservation behavior is not suitable for such case.
  */
 struct btrfs_qgroup_rsv {
 	u64 values[BTRFS_QGROUP_RSV_LAST];

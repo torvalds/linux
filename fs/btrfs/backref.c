@@ -591,7 +591,7 @@ unode_aux_to_inode_list(struct ulist_node *node)
 }
 
 /*
- * We maintain three seperate rbtrees: one for direct refs, one for
+ * We maintain three separate rbtrees: one for direct refs, one for
  * indirect refs which have a key, and one for indirect refs which do not
  * have a key. Each tree does merge on insertion.
  *
@@ -695,7 +695,7 @@ static int resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		}
 
 		/*
-		 * Now it's a direct ref, put it in the the direct tree. We must
+		 * Now it's a direct ref, put it in the direct tree. We must
 		 * do this last because the ref could be merged/freed here.
 		 */
 		prelim_ref_insert(fs_info, &preftrees->direct, ref, NULL);

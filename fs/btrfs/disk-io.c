@@ -3100,7 +3100,7 @@ retry_root_backup:
 
 	if (!sb_rdonly(sb) && !btrfs_check_rw_degradable(fs_info, NULL)) {
 		btrfs_warn(fs_info,
-		"writeable mount is not allowed due to too many missing devices");
+		"writable mount is not allowed due to too many missing devices");
 		goto fail_sysfs;
 	}
 
@@ -4077,7 +4077,7 @@ void btrfs_mark_buffer_dirty(struct extent_buffer *buf)
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 	/*
 	 * This is a fast path so only do this check if we have sanity tests
-	 * enabled.  Normal people shouldn't be using umapped buffers as dirty
+	 * enabled.  Normal people shouldn't be using unmapped buffers as dirty
 	 * outside of the sanity tests.
 	 */
 	if (unlikely(test_bit(EXTENT_BUFFER_UNMAPPED, &buf->bflags)))

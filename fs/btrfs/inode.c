@@ -104,7 +104,7 @@ static void __endio_write_update_ordered(struct inode *inode,
 
 /*
  * Cleanup all submitted ordered extents in specified range to handle errors
- * from the fill_dellaloc() callback.
+ * from the btrfs_run_delalloc_range() callback.
  *
  * NOTE: caller must ensure that when an error happens, it can not call
  * extent_clear_unlock_delalloc() to clear both the bits EXTENT_DO_ACCOUNTING
@@ -1842,7 +1842,7 @@ void btrfs_clear_delalloc_extent(struct inode *vfs_inode,
 
 		/*
 		 * We don't reserve metadata space for space cache inodes so we
-		 * don't need to call dellalloc_release_metadata if there is an
+		 * don't need to call delalloc_release_metadata if there is an
 		 * error.
 		 */
 		if (*bits & EXTENT_CLEAR_META_RESV &&
@@ -4516,7 +4516,7 @@ int btrfs_truncate_inode_items(struct btrfs_trans_handle *trans,
 	/*
 	 * This function is also used to drop the items in the log tree before
 	 * we relog the inode, so if root != BTRFS_I(inode)->root, it means
-	 * it is used to drop the loged items. So we shouldn't kill the delayed
+	 * it is used to drop the logged items. So we shouldn't kill the delayed
 	 * items.
 	 */
 	if (min_type == 0 && root == BTRFS_I(inode)->root)
@@ -5108,7 +5108,7 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 
 		truncate_setsize(inode, newsize);
 
-		/* Disable nonlocked read DIO to avoid the end less truncate */
+		/* Disable nonlocked read DIO to avoid the endless truncate */
 		btrfs_inode_block_unlocked_dio(BTRFS_I(inode));
 		inode_dio_wait(inode);
 		btrfs_inode_resume_unlocked_dio(BTRFS_I(inode));
@@ -8052,7 +8052,7 @@ static void __endio_write_update_ordered(struct inode *inode,
 			return;
 		/*
 		 * Our bio might span multiple ordered extents. In this case
-		 * we keep goin until we have accounted the whole dio.
+		 * we keep going until we have accounted the whole dio.
 		 */
 		if (ordered_offset < offset + bytes) {
 			ordered_bytes = offset + bytes - ordered_offset;

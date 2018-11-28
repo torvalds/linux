@@ -212,7 +212,7 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
  * the mutex can be very coarse and can cover long-running operations
  *
  * protects: updates to fs_devices counters like missing devices, rw devices,
- * seeding, structure cloning, openning/closing devices at mount/umount time
+ * seeding, structure cloning, opening/closing devices at mount/umount time
  *
  * global::fs_devs - add, remove, updates to the global list
  *
@@ -5047,7 +5047,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		BUG_ON(1);
 	}
 
-	/* we don't want a chunk larger than 10% of writeable space */
+	/* We don't want a chunk larger than 10% of writable space */
 	max_chunk_size = min(div_factor(fs_devices->total_rw_bytes, 1),
 			     max_chunk_size);
 
@@ -5355,10 +5355,10 @@ out:
 }
 
 /*
- * Chunk allocation falls into two parts. The first part does works
- * that make the new allocated chunk useable, but not do any operation
- * that modifies the chunk tree. The second part does the works that
- * require modifying the chunk tree. This division is important for the
+ * Chunk allocation falls into two parts. The first part does work
+ * that makes the new allocated chunk usable, but does not do any operation
+ * that modifies the chunk tree. The second part does the work that
+ * requires modifying the chunk tree. This division is important for the
  * bootstrap process of adding storage to a seed btrfs.
  */
 int btrfs_alloc_chunk(struct btrfs_trans_handle *trans, u64 type)
@@ -7256,7 +7256,7 @@ bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 		if (missing > max_tolerated) {
 			if (!failing_dev)
 				btrfs_warn(fs_info,
-	"chunk %llu missing %d devices, max tolerance is %d for writeable mount",
+	"chunk %llu missing %d devices, max tolerance is %d for writable mount",
 				   em->start, missing, max_tolerated);
 			free_extent_map(em);
 			ret = false;

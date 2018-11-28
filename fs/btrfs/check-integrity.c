@@ -2327,7 +2327,7 @@ static int btrfsic_check_all_ref_blocks(struct btrfsic_state *state,
 		 * write operations. Therefore it keeps the linkage
 		 * information for a block until a block is
 		 * rewritten. This can temporarily cause incorrect
-		 * and even circular linkage informations. This
+		 * and even circular linkage information. This
 		 * causes no harm unless such blocks are referenced
 		 * by the most recent super block.
 		 */

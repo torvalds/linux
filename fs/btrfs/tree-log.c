@@ -1144,7 +1144,7 @@ next:
 	}
 	btrfs_release_path(path);
 
-	/* look for a conflicing name */
+	/* look for a conflicting name */
 	di = btrfs_lookup_dir_item(trans, root, path, btrfs_ino(dir),
 				   name, namelen, 0);
 	if (di && !IS_ERR(di)) {
@@ -3149,7 +3149,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	mutex_unlock(&log_root_tree->log_mutex);
 
 	/*
-	 * nobody else is going to jump in and write the the ctree
+	 * Nobody else is going to jump in and write the ctree
 	 * super here because the log_commit atomic below is protecting
 	 * us.  We must be called with a transaction handle pinning
 	 * the running transaction open, so a full commit can't hop

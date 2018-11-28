@@ -1203,7 +1203,7 @@ int btrfs_decompress_buf2page(const char *buf, unsigned long buf_start,
 /*
  * Shannon Entropy calculation
  *
- * Pure byte distribution analysis fails to determine compressiability of data.
+ * Pure byte distribution analysis fails to determine compressibility of data.
  * Try calculating entropy to estimate the average minimum number of bits
  * needed to encode the sampled data.
  *
@@ -1267,7 +1267,7 @@ static u8 get4bits(u64 num, int shift) {
 
 /*
  * Use 4 bits as radix base
- * Use 16 u32 counters for calculating new possition in buf array
+ * Use 16 u32 counters for calculating new position in buf array
  *
  * @array     - array that will be sorted
  * @array_buf - buffer array to store sorting results

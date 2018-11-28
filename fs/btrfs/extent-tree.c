@@ -1055,7 +1055,7 @@ out_free:
 
 /*
  * is_data == BTRFS_REF_TYPE_BLOCK, tree block type is required,
- * is_data == BTRFS_REF_TYPE_DATA, data type is requried,
+ * is_data == BTRFS_REF_TYPE_DATA, data type is requiried,
  * is_data == BTRFS_REF_TYPE_ANY, either type is OK.
  */
 int btrfs_get_extent_inline_ref_type(const struct extent_buffer *eb,
@@ -3705,7 +3705,7 @@ again:
 			}
 		}
 
-		/* if its not on the io list, we need to put the block group */
+		/* if it's not on the io list, we need to put the block group */
 		if (should_put)
 			btrfs_put_block_group(cache);
 		if (drop_reserve)
@@ -4675,7 +4675,7 @@ static int can_overcommit(struct btrfs_fs_info *fs_info,
 
 	/*
 	 * If we have dup, raid1 or raid10 then only half of the free
-	 * space is actually useable.  For raid56, the space info used
+	 * space is actually usable.  For raid56, the space info used
 	 * doesn't include the parity drive, so we don't have to
 	 * change the math
 	 */
@@ -5302,7 +5302,7 @@ static int __reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
  * @orig_bytes - the number of bytes we want
  * @flush - whether or not we can flush to make our reservation
  *
- * This will reserve orgi_bytes number of bytes from the space info associated
+ * This will reserve orig_bytes number of bytes from the space info associated
  * with the block_rsv.  If there is not enough space it will make an attempt to
  * flush out space to make room.  It will do this by flushing delalloc if
  * possible or committing the transaction.  If flush is 0 then no attempts to
@@ -5771,11 +5771,11 @@ int btrfs_block_rsv_refill(struct btrfs_root *root,
 /**
  * btrfs_inode_rsv_refill - refill the inode block rsv.
  * @inode - the inode we are refilling.
- * @flush - the flusing restriction.
+ * @flush - the flushing restriction.
  *
  * Essentially the same as btrfs_block_rsv_refill, except it uses the
  * block_rsv->size as the minimum size.  We'll either refill the missing amount
- * or return if we already have enough space.  This will also handle the resreve
+ * or return if we already have enough space.  This will also handle the reserve
  * tracepoint for the reserved amount.
  */
 static int btrfs_inode_rsv_refill(struct btrfs_inode *inode,
@@ -8500,7 +8500,7 @@ btrfs_init_new_buffer(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		buf->log_index = root->log_transid % 2;
 		/*
 		 * we allow two log transactions at a time, use different
-		 * EXENT bit to differentiate dirty pages.
+		 * EXTENT bit to differentiate dirty pages.
 		 */
 		if (buf->log_index == 0)
 			set_extent_dirty(&root->dirty_log_pages, buf->start,
@@ -9762,7 +9762,7 @@ void btrfs_dec_block_group_ro(struct btrfs_block_group_cache *cache)
 }
 
 /*
- * checks to see if its even possible to relocate this block group.
+ * Checks to see if it's even possible to relocate this block group.
  *
  * @return - -1 if it's not a good idea to relocate this block group, 0 if its
  * ok to go ahead and try.
@@ -10390,7 +10390,7 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 		 * check for two cases, either we are full, and therefore
 		 * don't need to bother with the caching work since we won't
 		 * find any space, or we are empty, and we can just add all
-		 * the space in and be done with it.  This saves us _alot_ of
+		 * the space in and be done with it.  This saves us _a_lot_ of
 		 * time, particularly in the full case.
 		 */
 		if (found_key.offset == btrfs_block_group_used(&cache->item)) {
@@ -10660,7 +10660,7 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 
 	mutex_lock(&trans->transaction->cache_write_mutex);
 	/*
-	 * make sure our free spache cache IO is done before remove the
+	 * Make sure our free space cache IO is done before removing the
 	 * free space inode
 	 */
 	spin_lock(&trans->transaction->dirty_bgs_lock);
@@ -11177,7 +11177,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device,
 	if (!blk_queue_discard(bdev_get_queue(device->bdev)))
 		return 0;
 
-	/* Not writeable = nothing to do. */
+	/* Not writable = nothing to do. */
 	if (!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
 		return 0;
 

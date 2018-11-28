@@ -3554,7 +3554,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		if (!ret && sctx->is_dev_replace) {
 			/*
 			 * If we are doing a device replace wait for any tasks
-			 * that started dellaloc right before we set the block
+			 * that started delalloc right before we set the block
 			 * group to RO mode, as they might have just allocated
 			 * an extent from it or decided they could do a nocow
 			 * write. And if any such tasks did that, wait for their

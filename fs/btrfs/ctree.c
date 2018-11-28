@@ -1414,7 +1414,7 @@ static inline int should_cow_block(struct btrfs_trans_handle *trans,
 	 *
 	 * What is forced COW:
 	 *    when we create snapshot during committing the transaction,
-	 *    after we've finished coping src root, we must COW the shared
+	 *    after we've finished copying src root, we must COW the shared
 	 *    block to ensure the metadata consistency.
 	 */
 	if (btrfs_header_generation(buf) == trans->transid &&
@@ -3771,7 +3771,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 		/* Key greater than all keys in the leaf, right neighbor has
 		 * enough room for it and we're not emptying our leaf to delete
 		 * it, therefore use right neighbor to insert the new item and
-		 * no need to touch/dirty our left leaft. */
+		 * no need to touch/dirty our left leaf. */
 		btrfs_tree_unlock(left);
 		free_extent_buffer(left);
 		path->nodes[0] = right;
