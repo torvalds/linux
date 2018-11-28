@@ -18,7 +18,7 @@ Major Change History:
 
 /*  Rate adaptive parameters */
 
-static u8 RETRY_PENALTY[PERENTRY][RETRYSIZE+1] = {
+static u8 RETRY_PENALTY[PERENTRY][RETRYSIZE + 1] = {
 		{5, 4, 3, 2, 0, 3},      /* 92 , idx = 0 */
 		{6, 5, 4, 3, 0, 4},      /* 86 , idx = 1 */
 		{6, 5, 4, 2, 0, 4},      /* 81 , idx = 2 */
@@ -44,7 +44,7 @@ static u8 RETRY_PENALTY[PERENTRY][RETRYSIZE+1] = {
 		{49, 16, 16, 0, 0, 48}
 	}; /* 3, idx = 0x16 */
 
-static u8 PT_PENALTY[RETRYSIZE+1] = {34, 31, 30, 24, 0, 32};
+static u8 PT_PENALTY[RETRYSIZE + 1] = {34, 31, 30, 24, 0, 32};
 
 /*  wilson modify */
 static u8 RETRY_PENALTY_IDX[2][RATESIZE] = {
@@ -146,7 +146,7 @@ static int odm_RateDown_8188E(struct odm_dm_struct *dm_odm,
 		pRaInfo->RateSGI = 0;
 	} else if (RateID > LowestRate) {
 		if (RateID > 0) {
-			for (i = RateID-1; i > LowestRate; i--) {
+			for (i = RateID - 1; i > LowestRate; i--) {
 				if (pRaInfo->RAUseRate & BIT(i)) {
 					RateID = i;
 					goto RateDownFinish;
@@ -216,7 +216,7 @@ static int odm_RateUp_8188E(
 			("%s():Decrease RPT Timing\n", __func__));
 
 	if (RateID < HighestRate) {
-		for (i = RateID+1; i <= HighestRate; i++) {
+		for (i = RateID + 1; i <= HighestRate; i++) {
 			if (pRaInfo->RAUseRate & BIT(i)) {
 				RateID = i;
 				goto RateUpfinish;
@@ -232,7 +232,7 @@ static int odm_RateUp_8188E(
 	}
 RateUpfinish:
 	if (pRaInfo->RAWaitingCounter ==
-		(4+PendingForRateUpFail[pRaInfo->RAPendingCounter]))
+		(4 + PendingForRateUpFail[pRaInfo->RAPendingCounter]))
 		pRaInfo->RAWaitingCounter = 0;
 	else
 		pRaInfo->RAWaitingCounter++;
@@ -253,8 +253,10 @@ static void odm_ResetRaCounter_8188E(struct odm_ra_info *pRaInfo)
 	u8 RateID;
 
 	RateID = pRaInfo->DecisionRate;
-	pRaInfo->NscUp = (N_THRESHOLD_HIGH[RateID]+N_THRESHOLD_LOW[RateID])>>1;
-	pRaInfo->NscDown = (N_THRESHOLD_HIGH[RateID]+N_THRESHOLD_LOW[RateID])>>1;
+	pRaInfo->NscUp = (N_THRESHOLD_HIGH[RateID] +
+			  N_THRESHOLD_LOW[RateID]) >> 1;
+	pRaInfo->NscDown = (N_THRESHOLD_HIGH[RateID] +
+			    N_THRESHOLD_LOW[RateID]) >> 1;
 }
 
 static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
@@ -317,7 +319,7 @@ static void odm_RateDecision_8188E(struct odm_dm_struct *dm_odm,
 		else
 			pRaInfo->NscUp = 0;
 
-		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE|ODM_COMP_INIT, ODM_DBG_LOUD,
+		ODM_RT_TRACE(dm_odm, ODM_COMP_RATE_ADAPTIVE | ODM_COMP_INIT, ODM_DBG_LOUD,
 			     (" RssiStaRa = %d RtyPtID =%d PenaltyID1 = 0x%x  PenaltyID2 = 0x%x RateID =%d NscDown =%d NscUp =%d SGI =%d\n",
 			     pRaInfo->RssiStaRA, RtyPtID, PenaltyID1, PenaltyID2, RateID, pRaInfo->NscDown, pRaInfo->NscUp, pRaInfo->RateSGI));
 		if ((pRaInfo->NscDown < N_THRESHOLD_LOW[RateID]) ||
@@ -357,41 +359,41 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 
 	switch (pRaInfo->RateID) {
 	case RATR_INX_WIRELESS_NGB:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0f8ff015;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x0f8ff015;
 		break;
 	case RATR_INX_WIRELESS_NG:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0f8ff010;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x0f8ff010;
 		break;
 	case RATR_INX_WIRELESS_NB:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0f8ff005;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x0f8ff005;
 		break;
 	case RATR_INX_WIRELESS_N:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0f8ff000;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x0f8ff000;
 		break;
 	case RATR_INX_WIRELESS_GB:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x00000ff5;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x00000ff5;
 		break;
 	case RATR_INX_WIRELESS_G:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x00000ff0;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x00000ff0;
 		break;
 	case RATR_INX_WIRELESS_B:
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&0x0000000d;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & 0x0000000d;
 		break;
 	case 12:
 		MaskFromReg = usb_read32(adapt, REG_ARFR0);
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & MaskFromReg;
 		break;
 	case 13:
 		MaskFromReg = usb_read32(adapt, REG_ARFR1);
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & MaskFromReg;
 		break;
 	case 14:
 		MaskFromReg = usb_read32(adapt, REG_ARFR2);
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & MaskFromReg;
 		break;
 	case 15:
 		MaskFromReg = usb_read32(adapt, REG_ARFR3);
-		pRaInfo->RAUseRate = (pRaInfo->RateMask)&MaskFromReg;
+		pRaInfo->RAUseRate = pRaInfo->RateMask & MaskFromReg;
 		break;
 	default:
 		pRaInfo->RAUseRate = (pRaInfo->RateMask);
@@ -400,7 +402,7 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 	/*  Highest rate */
 	if (pRaInfo->RAUseRate) {
 		for (i = RATESIZE; i >= 0; i--) {
-			if ((pRaInfo->RAUseRate)&BIT(i)) {
+			if (pRaInfo->RAUseRate & BIT(i)) {
 				pRaInfo->HighestRate = i;
 				break;
 			}
@@ -512,15 +514,17 @@ static void odm_PTDecision_8188E(struct odm_ra_info *pRaInfo)
 	j >>= 1;
 	temp_stage = (pRaInfo->PTStage + 1) >> 1;
 	if (temp_stage > j)
-		stage_id = temp_stage-j;
+		stage_id = temp_stage - j;
 	else
 		stage_id = 0;
 
-	pRaInfo->PTSmoothFactor = (pRaInfo->PTSmoothFactor>>1) + (pRaInfo->PTSmoothFactor>>2) + stage_id*16+2;
+	pRaInfo->PTSmoothFactor = (pRaInfo->PTSmoothFactor >> 1) +
+				  (pRaInfo->PTSmoothFactor >> 2) +
+				  stage_id * 16 + 2;
 	if (pRaInfo->PTSmoothFactor > 192)
 		pRaInfo->PTSmoothFactor = 192;
 	stage_id = pRaInfo->PTSmoothFactor >> 6;
-	temp_stage = stage_id*2;
+	temp_stage = stage_id * 2;
 	if (temp_stage != 0)
 		temp_stage -= 1;
 	if (pRaInfo->DROP > 3)
@@ -579,8 +583,8 @@ int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 	pRaInfo->PreRssiStaRA = 0;
 	pRaInfo->SGIEnable = 0;
 	pRaInfo->RAUseRate = 0xffffffff;
-	pRaInfo->NscDown = (N_THRESHOLD_HIGH[0x13]+N_THRESHOLD_LOW[0x13])/2;
-	pRaInfo->NscUp = (N_THRESHOLD_HIGH[0x13]+N_THRESHOLD_LOW[0x13])/2;
+	pRaInfo->NscDown = (N_THRESHOLD_HIGH[0x13] + N_THRESHOLD_LOW[0x13]) / 2;
+	pRaInfo->NscUp = (N_THRESHOLD_HIGH[0x13] + N_THRESHOLD_LOW[0x13]) / 2;
 	pRaInfo->RateSGI = 0;
 	pRaInfo->Active = 1;	/* Active is not used at present. by page, 110819 */
 	pRaInfo->RptTime = 0x927c;
