@@ -80,6 +80,7 @@
 struct meson_plane {
 	struct drm_plane base;
 	struct meson_drm *priv;
+	bool enabled;
 };
 #define to_meson_plane(x) container_of(x, struct meson_plane, base)
 
@@ -304,6 +305,15 @@ static void meson_plane_atomic_update(struct drm_plane *plane,
 	priv->viu.osd1_stride = fb->pitches[0];
 	priv->viu.osd1_height = fb->height;
 
+	if (!meson_plane->enabled) {
+		/* Reset OSD1 before enabling it on GXL+ SoCs */
+		if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
+		    meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
+			meson_viu_osd1_reset(priv);
+
+		meson_plane->enabled = true;
+	}
+
 	spin_unlock_irqrestore(&priv->drm->event_lock, flags);
 }
 
@@ -316,6 +326,8 @@ static void meson_plane_atomic_disable(struct drm_plane *plane,
 	/* Disable OSD1 */
 	writel_bits_relaxed(VPP_OSD1_POSTBLEND, 0,
 			    priv->io_base + _REG(VPP_MISC));
+
+	meson_plane->enabled = false;
 
 }
 
