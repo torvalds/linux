@@ -1940,10 +1940,8 @@ int vb2_core_streamon(struct vb2_queue *q, unsigned int type)
 		if (ret)
 			return ret;
 		ret = vb2_start_streaming(q);
-		if (ret) {
-			__vb2_queue_cancel(q);
+		if (ret)
 			return ret;
-		}
 	}
 
 	q->streaming = 1;
