@@ -32,6 +32,7 @@ static const char *type2str(enum rdma_restrack_type type)
 		[RDMA_RESTRACK_QP] = "QP",
 		[RDMA_RESTRACK_CM_ID] = "CM_ID",
 		[RDMA_RESTRACK_MR] = "MR",
+		[RDMA_RESTRACK_CTX] = "CTX",
 	};
 
 	return names[type];
@@ -130,6 +131,8 @@ static struct ib_device *res_to_dev(struct rdma_restrack_entry *res)
 				    res)->id.device;
 	case RDMA_RESTRACK_MR:
 		return container_of(res, struct ib_mr, res)->device;
+	case RDMA_RESTRACK_CTX:
+		return container_of(res, struct ib_ucontext, res)->device;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return NULL;
@@ -149,6 +152,8 @@ static bool res_is_user(struct rdma_restrack_entry *res)
 		return !res->kern_name;
 	case RDMA_RESTRACK_MR:
 		return container_of(res, struct ib_mr, res)->pd->uobject;
+	case RDMA_RESTRACK_CTX:
+		return true;
 	default:
 		WARN_ONCE(true, "Wrong resource tracking type %u\n", res->type);
 		return false;

@@ -1505,6 +1505,10 @@ struct ib_ucontext {
 #endif
 
 	struct ib_rdmacg_object	cg_obj;
+	/*
+	 * Implementation details of the RDMA core, don't use in drivers:
+	 */
+	struct rdma_restrack_entry res;
 };
 
 struct ib_uobject {

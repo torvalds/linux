@@ -39,6 +39,10 @@ enum rdma_restrack_type {
 	 */
 	RDMA_RESTRACK_MR,
 	/**
+	 * @RDMA_RESTRACK_CTX: Verbs contexts (CTX)
+	 */
+	RDMA_RESTRACK_CTX,
+	/**
 	 * @RDMA_RESTRACK_MAX: Last entry, used for array dclarations
 	 */
 	RDMA_RESTRACK_MAX
