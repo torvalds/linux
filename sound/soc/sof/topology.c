@@ -325,7 +325,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 	if (le32_to_cpu(control->priv.size) > 0) {
 		memcpy(cdata->data->data, control->priv.data,
 		       le32_to_cpu(control->priv.size));
-		cdata->data->size = control->priv.size;
+		cdata->data->size = le32_to_cpu(control->priv.size);
 		cdata->data->magic = SOF_ABI_MAGIC;
 		cdata->data->abi = SOF_ABI_VERSION;
 	}

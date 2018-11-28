@@ -177,7 +177,7 @@ static int sof_spi_remove(struct spi_device *spi)
 	return 0;
 }
 
-const struct of_device_id sof_of_match[] = {
+static const struct of_device_id sof_of_match[] = {
 	{ .compatible = "sof,spi-sue-creek", .data = &spi_desc },
 	{ }
 };

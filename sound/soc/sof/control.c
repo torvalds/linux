@@ -278,7 +278,8 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct snd_ctl_tlv header;
-	struct snd_ctl_tlv *tlvd = (struct snd_ctl_tlv *)binary_data;
+	struct snd_ctl_tlv __user *tlvd =
+		(struct snd_ctl_tlv __user *)binary_data;
 	int ret;
 	int err;
 	int max_length = SOF_IPC_MSG_MAX_SIZE -
@@ -350,7 +351,8 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	struct snd_sof_dev *sdev = scontrol->sdev;
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct snd_ctl_tlv header;
-	struct snd_ctl_tlv *tlvd = (struct snd_ctl_tlv *)binary_data;
+	struct snd_ctl_tlv __user *tlvd =
+		(struct snd_ctl_tlv __user *)binary_data;
 	int max_length = SOF_IPC_MSG_MAX_SIZE -
 		sizeof(const struct sof_ipc_ctrl_data) -
 		sizeof(const struct sof_abi_hdr);
