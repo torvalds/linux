@@ -417,6 +417,26 @@ static ssize_t queue_poll_store(struct request_queue *q, const char *page,
 	return ret;
 }
 
+static ssize_t queue_io_timeout_show(struct request_queue *q, char *page)
+{
+	return sprintf(page, "%u\n", jiffies_to_msecs(q->rq_timeout));
+}
+
+static ssize_t queue_io_timeout_store(struct request_queue *q, const char *page,
+				  size_t count)
+{
+	unsigned int val;
+	int err;
+
+	err = kstrtou32(page, 10, &val);
+	if (err || val == 0)
+		return -EINVAL;
+
+	blk_queue_rq_timeout(q, msecs_to_jiffies(val));
+
+	return count;
+}
+
 static ssize_t queue_wb_lat_show(struct request_queue *q, char *page)
 {
 	if (!wbt_rq_qos(q))
@@ -685,6 +705,12 @@ static struct queue_sysfs_entry queue_dax_entry = {
 	.show = queue_dax_show,
 };
 
+static struct queue_sysfs_entry queue_io_timeout_entry = {
+	.attr = {.name = "io_timeout", .mode = 0644 },
+	.show = queue_io_timeout_show,
+	.store = queue_io_timeout_store,
+};
+
 static struct queue_sysfs_entry queue_wb_lat_entry = {
 	.attr = {.name = "wbt_lat_usec", .mode = 0644 },
 	.show = queue_wb_lat_show,
@@ -734,6 +760,7 @@ static struct attribute *default_attrs[] = {
 	&queue_dax_entry.attr,
 	&queue_wb_lat_entry.attr,
 	&queue_poll_delay_entry.attr,
+	&queue_io_timeout_entry.attr,
 #ifdef CONFIG_BLK_DEV_THROTTLING_LOW
 	&throtl_sample_time_entry.attr,
 #endif
