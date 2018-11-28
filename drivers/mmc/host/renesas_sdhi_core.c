@@ -32,6 +32,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl-state.h>
 #include <linux/regulator/consumer.h>
+#include <linux/sys_soc.h>
 
 #include "renesas_sdhi.h"
 #include "tmio_mmc.h"
@@ -44,6 +45,10 @@
 #define SDHI_VER_GEN2_SDR104	0xcb0d
 #define SDHI_VER_GEN3_SD	0xcc10
 #define SDHI_VER_GEN3_SDMMC	0xcd10
+
+struct renesas_sdhi_quirks {
+	bool hs400_4taps;
+};
 
 static void renesas_sdhi_sdbuf_width(struct tmio_mmc_host *host, int width)
 {
@@ -597,11 +602,25 @@ static void renesas_sdhi_enable_dma(struct tmio_mmc_host *host, bool enable)
 	renesas_sdhi_sdbuf_width(host, enable ? width : 16);
 }
 
+static const struct renesas_sdhi_quirks sdhi_quirks_4tap = {
+	.hs400_4taps = true,
+};
+
+static const struct soc_device_attribute sdhi_quirks_match[]  = {
+	{ .soc_id = "r8a7795", .revision = "ES1.*", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7795", .revision = "ES2.0", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7796", .revision = "ES1.0", .data = &sdhi_quirks_4tap },
+	{ .soc_id = "r8a7796", .revision = "ES1.1", .data = &sdhi_quirks_4tap },
+	{ /* Sentinel. */ },
+};
+
 int renesas_sdhi_probe(struct platform_device *pdev,
 		       const struct tmio_mmc_dma_ops *dma_ops)
 {
 	struct tmio_mmc_data *mmd = pdev->dev.platform_data;
+	const struct renesas_sdhi_quirks *quirks = NULL;
 	const struct renesas_sdhi_of_data *of_data;
+	const struct soc_device_attribute *attr;
 	struct tmio_mmc_data *mmc_data;
 	struct tmio_mmc_dma *dma_priv;
 	struct tmio_mmc_host *host;
@@ -610,6 +629,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	int irq, ret, i;
 
 	of_data = of_device_get_match_data(&pdev->dev);
+
+	attr = soc_device_match(sdhi_quirks_match);
+	if (attr)
+		quirks = attr->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -675,6 +698,9 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	host->set_clock		= renesas_sdhi_set_clock;
 	host->multi_io_quirk	= renesas_sdhi_multi_io_quirk;
 	host->dma_ops		= dma_ops;
+
+	if (quirks && quirks->hs400_4taps)
+		mmc_data->flags |= TMIO_MMC_HAVE_4TAP_HS400;
 
 	/* For some SoC, we disable internal WP. GPIO may override this */
 	if (mmc_can_gpio_ro(host->mmc))
