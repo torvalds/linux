@@ -947,7 +947,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 	}
 	atomic_dec(&q->owned_by_drv_count);
 
-	if (vb->req_obj.req) {
+	if (state != VB2_BUF_STATE_QUEUED && vb->req_obj.req) {
 		/* This is not supported at the moment */
 		WARN_ON(state == VB2_BUF_STATE_REQUEUEING);
 		media_request_object_unbind(&vb->req_obj);
