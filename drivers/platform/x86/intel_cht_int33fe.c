@@ -169,13 +169,7 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 		board_info.properties = max17047_props;
 		data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
 		if (IS_ERR(data->max17047))
-			ret = PTR_ERR(data->max17047);
-		else if (!data->max17047)
-			ret = -EPROBE_DEFER; /* Wait for i2c-adapter to load */
-		else
-			ret = 0;
-		if (ret)
-			return ret;
+			return PTR_ERR(data->max17047);
 	}
 
 	data->connections[0].endpoint[0] = "port0";
@@ -200,28 +194,20 @@ static int cht_int33fe_probe(struct platform_device *pdev)
 	board_info.irq = fusb302_irq;
 
 	data->fusb302 = i2c_acpi_new_device(dev, 2, &board_info);
-	if (IS_ERR(data->fusb302))
+	if (IS_ERR(data->fusb302)) {
 		ret = PTR_ERR(data->fusb302);
-	else if (!data->fusb302)
-		ret = -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
-	else
-		ret = 0;
-	if (ret)
 		goto out_unregister_max17047;
+	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
 	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
-	if (IS_ERR(data->pi3usb30532))
+	if (IS_ERR(data->pi3usb30532)) {
 		ret = PTR_ERR(data->pi3usb30532);
-	else if (!data->pi3usb30532)
-		ret = -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
-	else
-		ret = 0;
-	if (ret)
 		goto out_unregister_fusb302;
+	}
 
 	platform_set_drvdata(pdev, data);
 
