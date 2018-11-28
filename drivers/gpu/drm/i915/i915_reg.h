@@ -9198,6 +9198,7 @@ enum skl_power_gate {
 #define _DP_TP_CTL_B			0x64140
 #define DP_TP_CTL(port) _MMIO_PORT(port, _DP_TP_CTL_A, _DP_TP_CTL_B)
 #define  DP_TP_CTL_ENABLE			(1 << 31)
+#define  DP_TP_CTL_FEC_ENABLE			(1 << 30)
 #define  DP_TP_CTL_MODE_SST			(0 << 27)
 #define  DP_TP_CTL_MODE_MST			(1 << 27)
 #define  DP_TP_CTL_FORCE_ACT			(1 << 25)
@@ -9216,6 +9217,7 @@ enum skl_power_gate {
 #define _DP_TP_STATUS_A			0x64044
 #define _DP_TP_STATUS_B			0x64144
 #define DP_TP_STATUS(port) _MMIO_PORT(port, _DP_TP_STATUS_A, _DP_TP_STATUS_B)
+#define  DP_TP_STATUS_FEC_ENABLE_LIVE		(1 << 28)
 #define  DP_TP_STATUS_IDLE_DONE			(1 << 25)
 #define  DP_TP_STATUS_ACT_SENT			(1 << 24)
 #define  DP_TP_STATUS_MODE_STATUS_MST		(1 << 23)
