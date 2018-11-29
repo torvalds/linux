@@ -420,7 +420,7 @@ static void nvmet_p2pmem_ns_add_p2p(struct nvmet_ctrl *ctrl,
 	struct pci_dev *p2p_dev;
 	int ret;
 
-	if (!ctrl->p2p_client)
+	if (!ctrl->p2p_client || !ns->use_p2pmem)
 		return;
 
 	if (ns->p2p_dev) {

@@ -150,7 +150,7 @@ data structures necessary to handle the given policy and, possibly, to add
 a governor ``sysfs`` interface to it.  Next, the governor is started by
 invoking its ``->start()`` callback.
 
-That callback it expected to register per-CPU utilization update callbacks for
+That callback is expected to register per-CPU utilization update callbacks for
 all of the online CPUs belonging to the given policy with the CPU scheduler.
 The utilization update callbacks will be invoked by the CPU scheduler on
 important events, like task enqueue and dequeue, on every iteration of the

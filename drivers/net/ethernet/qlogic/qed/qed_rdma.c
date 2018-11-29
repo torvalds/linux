@@ -1514,6 +1514,7 @@ qed_rdma_register_tid(void *rdma_cxt,
 	default:
 		rc = -EINVAL;
 		DP_VERBOSE(p_hwfn, QED_MSG_RDMA, "rc = %d\n", rc);
+		qed_sp_destroy_request(p_hwfn, p_ent);
 		return rc;
 	}
 	SET_FIELD(p_ramrod->flags1,

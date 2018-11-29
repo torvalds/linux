@@ -854,6 +854,13 @@ void meson_venc_hdmi_mode_set(struct meson_drm *priv, int vic,
 	unsigned int sof_lines;
 	unsigned int vsync_lines;
 
+	/* Use VENCI for 480i and 576i and double HDMI pixels */
+	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
+		hdmi_repeat = true;
+		use_enci = true;
+		venc_hdmi_latency = 1;
+	}
+
 	if (meson_venc_hdmi_supported_vic(vic)) {
 		vmode = meson_venc_hdmi_get_vic_vmode(vic);
 		if (!vmode) {
@@ -865,13 +872,7 @@ void meson_venc_hdmi_mode_set(struct meson_drm *priv, int vic,
 	} else {
 		meson_venc_hdmi_get_dmt_vmode(mode, &vmode_dmt);
 		vmode = &vmode_dmt;
-	}
-
-	/* Use VENCI for 480i and 576i and double HDMI pixels */
-	if (mode->flags & DRM_MODE_FLAG_DBLCLK) {
-		hdmi_repeat = true;
-		use_enci = true;
-		venc_hdmi_latency = 1;
+		use_enci = false;
 	}
 
 	/* Repeat VENC pixels for 480/576i/p, 720p50/60 and 1080p50/60 */
