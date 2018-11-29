@@ -31,6 +31,7 @@
 #include <linux/uaccess.h>
 
 #include "pcie-designware.h"
+#include "rockchip-pcie-dma.h"
 
 /* Maximum number of inbound/outbound iATUs */
 #define MAX_IATU_IN			256
@@ -111,8 +112,6 @@ struct reset_bulk_data	{
 #define PCIE_RESBAR_CTRL_REG0_REG	0x2a8
 #define PCIE_SB_BAR0_MASK_REG		0x100010
 
-#define TABLE_NUM			24
-
 struct rk_pcie {
 	struct device			*dev;
 	enum rk_pcie_device_mode	mode;
@@ -135,42 +134,12 @@ struct rk_pcie {
 	struct pcie_port		pp;
 	struct regmap			*usb_pcie_grf;
 	struct regmap			*pmu_grf;
+	struct dma_trx_obj		*dma_obj;
 };
 
 struct rk_pcie_of_data {
 	enum rk_pcie_device_mode	mode;
 };
-
-struct pcie_misc_dev {
-	struct miscdevice dev;
-	struct rk_pcie *rk_pcie;
-};
-
-/**
- * The Interrupt Status Register for read and write.
- */
-typedef union {
-	struct {
-		u32	donesta		:8;
-		u32	rsvd0		:8;
-		u32	abortsta	:8;
-		u32	rsvd1		:8;
-	};
-	u32 asdword;
-} int_status;
-
-/**
- * The Interrupt Clear Register for read and write.
- */
-typedef union {
-	struct {
-		u32	doneclr		:8;
-		u32	rsvd0		:8;
-		u32	abortclr	:8;
-		u32	rsvd1		:8;
-	};
-	u32 asdword;
-} int_clears;
 
 #define to_rk_pcie(x)	container_of(x, struct rk_pcie, pp)
 
@@ -795,6 +764,12 @@ static int rk_pcie_add_ep(struct rk_pcie *rk_pcie,
 
 	rk_pcie_ep_setup(rk_pcie);
 
+	rk_pcie->dma_obj = rk_pcie_dma_obj_probe(dev);
+		if (IS_ERR(rk_pcie->dma_obj)) {
+			dev_err(dev, "failed to prepare dma object\n");
+			return -EINVAL;
+		}
+
 	return 0;
 }
 
@@ -981,17 +956,62 @@ static int rk_pcie_reset_grant_ctrl(struct rk_pcie *rk_pcie,
 	return ret;
 }
 
+void rk_pcie_start_dma_1808(struct dma_trx_obj *obj)
+{
+	struct rk_pcie *rk_pcie = dev_get_drvdata(obj->dev);
+
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_WR_ENB,
+		obj->cur->wr_enb.asdword);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_CTRL_LO,
+		obj->cur->ctx_reg.ctrllo.asdword);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_CTRL_HI,
+		obj->cur->ctx_reg.ctrlhi.asdword);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_XFERSIZE,
+		obj->cur->ctx_reg.xfersize);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_SAR_PTR_LO,
+		obj->cur->ctx_reg.sarptrlo);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_SAR_PTR_HI,
+		obj->cur->ctx_reg.sarptrhi);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_DAR_PTR_LO,
+		obj->cur->ctx_reg.darptrlo);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_DAR_PTR_HI,
+		obj->cur->ctx_reg.darptrhi);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_WR_WEILO,
+		obj->cur->wr_weilo.asdword);
+	rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET + PCIE_DMA_WR_DOORBELL,
+		obj->cur->start.asdword);
+}
+EXPORT_SYMBOL(rk_pcie_start_dma_1808);
+
+static inline void
+rk_pcie_handle_dma_interrupt(struct rk_pcie *rk_pcie)
+{
+	struct dma_trx_obj *obj = rk_pcie->dma_obj;
+
+	if (!obj)
+		return;
+
+	obj->dma_free = true;
+
+	if (list_empty(&obj->tbl_list)) {
+		if (obj->dma_free &&
+		    obj->loop_count >= obj->loop_count_threshold)
+			complete(&obj->done);
+	}
+}
+
 static irqreturn_t rk_pcie_sys_irq_handler(int irq, void *arg)
 {
 	struct rk_pcie *rk_pcie = arg;
-	int_status status;
-	int_clears clears;
-	u32 chn = 0x0;
+	u32 chn = rk_pcie->dma_obj->cur->chn;
+	union int_status status;
+	union int_clear clears;
 
 	status.asdword = rk_pcie_readl_dbi(rk_pcie, PCIE_DMA_OFFSET +
 					   PCIE_DMA_WR_INT_STATUS);
 
 	if (status.donesta & BIT(0)) {
+		rk_pcie_handle_dma_interrupt(rk_pcie);
 		clears.doneclr = 0x1 << chn;
 		rk_pcie_writel_dbi(rk_pcie, PCIE_DMA_OFFSET +
 				   PCIE_DMA_WR_INT_CLEAR, clears.asdword);
