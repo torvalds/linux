@@ -599,11 +599,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	plane = crtc->primary;
 
 	mutex_lock(&crtc->dev->mode_config.mutex);
-	drm_modeset_acquire_init(&ctx, DRM_MODESET_ACQUIRE_INTERRUPTIBLE);
-retry:
-	ret = drm_modeset_lock_all_ctx(crtc->dev, &ctx);
-	if (ret)
-		goto out;
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx,
+				   DRM_MODESET_ACQUIRE_INTERRUPTIBLE, ret);
 
 	if (crtc_req->mode_valid) {
 		/* If we have a mode we need a framebuffer. */
@@ -768,13 +765,7 @@ out:
 	fb = NULL;
 	mode = NULL;
 
-	if (ret == -EDEADLK) {
-		ret = drm_modeset_backoff(&ctx);
-		if (!ret)
-			goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 	mutex_unlock(&crtc->dev->mode_config.mutex);
 
 	return ret;
