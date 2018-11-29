@@ -14010,6 +14010,7 @@ S:	Supported
 F:	Documentation/devicetree/bindings/sound/
 F:	Documentation/sound/soc/
 F:	sound/soc/
+F:	include/dt-bindings/sound/
 F:	include/sound/soc*
 
 SOUNDWIRE SUBSYSTEM
