@@ -48,7 +48,16 @@ are numbered as follows.
 	  TXA		source		10
 	  TXB		source		11
 
-The digital output port nodes must contain at least one endpoint.
+The digital output port nodes, when present, shall contain at least one
+endpoint. Each of those endpoints shall contain the data-lanes property as
+described in video-interfaces.txt.
+
+Required source endpoint properties:
+  - data-lanes: an array of physical data lane indexes
+    The accepted value(s) for this property depends on which of the two
+    sources are described. For TXA 1, 2 or 4 data lanes can be described
+    while for TXB only 1 data lane is valid. See video-interfaces.txt
+    for detailed description.
 
 Ports are optional if they are not connected to anything at the hardware level.
 
