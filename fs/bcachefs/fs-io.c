@@ -242,9 +242,15 @@ static s64 sum_sector_overwrites(struct bkey_i *new, struct btree_iter *_iter,
 	bch2_btree_iter_link(_iter, &iter);
 	bch2_btree_iter_copy(&iter, _iter);
 
-	for_each_btree_key_continue(&iter, BTREE_ITER_SLOTS, old) {
-		if (bkey_cmp(new->k.p, bkey_start_pos(old.k)) <= 0)
-			break;
+	old = bch2_btree_iter_peek_slot(&iter);
+
+	while (1) {
+		/*
+		 * should not be possible to get an error here, since we're
+		 * carefully not advancing past @new and thus whatever leaf node
+		 * @_iter currently points to:
+		 */
+		BUG_ON(btree_iter_err(old));
 
 		if (allocating &&
 		    !bch2_extent_is_fully_allocated(old))
@@ -256,6 +262,11 @@ static s64 sum_sector_overwrites(struct bkey_i *new, struct btree_iter *_iter,
 			      bkey_start_offset(old.k))) *
 			(bkey_extent_is_allocation(&new->k) -
 			 bkey_extent_is_allocation(old.k));
+
+		if (bkey_cmp(old.k->p, new->k.p) >= 0)
+			break;
+
+		old = bch2_btree_iter_next_slot(&iter);
 	}
 
 	bch2_btree_iter_unlink(&iter);
