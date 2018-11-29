@@ -9477,6 +9477,8 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum intel_display_power_domain power_domain;
 	u32 tmp;
+	bool is_dsi = false;
+	bool is_edp = false;
 
 	/*
 	 * The pipe->transcoder mapping is fixed with the exception of the eDP
@@ -9489,26 +9491,41 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	 * consistency and less surprising code; it's in always on power).
 	 */
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
-	if (tmp & TRANS_DDI_FUNC_ENABLE) {
-		enum pipe trans_edp_pipe;
+	if (tmp & TRANS_DDI_FUNC_ENABLE)
+		is_edp = true;
+
+	if (IS_ICELAKE(dev_priv)) {
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_DSI_0));
+		if (tmp & TRANS_DDI_FUNC_ENABLE)
+			is_dsi = true;
+	}
+
+	WARN_ON(is_edp && is_dsi);
+
+	if (is_edp || is_dsi) {
+		enum pipe trans_pipe;
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
 			WARN(1, "unknown pipe linked to edp transcoder\n");
 			/* fall through */
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
 		case TRANS_DDI_EDP_INPUT_A_ON:
-			trans_edp_pipe = PIPE_A;
+			trans_pipe = PIPE_A;
 			break;
 		case TRANS_DDI_EDP_INPUT_B_ONOFF:
-			trans_edp_pipe = PIPE_B;
+			trans_pipe = PIPE_B;
 			break;
 		case TRANS_DDI_EDP_INPUT_C_ONOFF:
-			trans_edp_pipe = PIPE_C;
+			trans_pipe = PIPE_C;
 			break;
 		}
 
-		if (trans_edp_pipe == crtc->pipe)
-			pipe_config->cpu_transcoder = TRANSCODER_EDP;
+		if (trans_pipe == crtc->pipe) {
+			if (is_edp)
+				pipe_config->cpu_transcoder = TRANSCODER_EDP;
+			else if (is_dsi)
+				pipe_config->cpu_transcoder = TRANSCODER_DSI_0;
+		}
 	}
 
 	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
