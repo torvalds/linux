@@ -26,7 +26,7 @@
 static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_control *scontrol = NULL;
-	int ipc_cmd, ctrl_type, sof_abi;
+	int ipc_cmd, ctrl_type;
 	int ret = 0;
 
 	/* restore kcontrol values */
@@ -44,19 +44,11 @@ static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 							scontrol->cmd);
 			break;
 		case SOF_CTRL_CMD_BINARY:
-
-			/* Check if control data contains valid data.
-			 * SOF_ABI_MAGIC will not match if there is no data.
-			 */
 			ipc_cmd = SOF_IPC_COMP_SET_DATA;
 			ctrl_type = SOF_CTRL_TYPE_DATA_SET;
-			sof_abi = scontrol->control_data->data->magic;
-			if (sof_abi == SOF_ABI_MAGIC)
-				ret = snd_sof_ipc_set_comp_data(sdev->ipc,
-								scontrol,
-								ipc_cmd,
-								ctrl_type,
-								scontrol->cmd);
+			ret = snd_sof_ipc_set_comp_data(sdev->ipc, scontrol,
+							ipc_cmd, ctrl_type,
+							scontrol->cmd);
 			break;
 
 		default:
