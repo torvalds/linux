@@ -643,33 +643,6 @@ static void _synchronize_rcu_expedited(void)
 	mutex_unlock(&rcu_state.exp_mutex);
 }
 
-/*
- * During early boot, any blocking grace-period wait automatically
- * implies a grace period.  Later on, this is never the case for PREEMPT.
- *
- * Howevr, because a context switch is a grace period for !PREEMPT, any
- * blocking grace-period wait automatically implies a grace period if
- * there is only one CPU online at any point time during execution of
- * either synchronize_rcu() or synchronize_rcu_expedited().  It is OK to
- * occasionally incorrectly indicate that there are multiple CPUs online
- * when there was in fact only one the whole time, as this just adds some
- * overhead: RCU still operates correctly.
- */
-static int rcu_blocking_is_gp(void)
-{
-	int ret;
-
-	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
-		return true;
-	if (IS_ENABLED(CONFIG_PREEMPT))
-		return false;
-	might_sleep();  /* Check for RCU read-side critical section. */
-	preempt_disable();
-	ret = num_online_cpus() <= 1;
-	preempt_enable();
-	return ret;
-}
-
 #ifdef CONFIG_PREEMPT_RCU
 
 /*

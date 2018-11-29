@@ -2950,6 +2950,79 @@ void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 }
 EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
+/*
+ * During early boot, any blocking grace-period wait automatically
+ * implies a grace period.  Later on, this is never the case for PREEMPT.
+ *
+ * Howevr, because a context switch is a grace period for !PREEMPT, any
+ * blocking grace-period wait automatically implies a grace period if
+ * there is only one CPU online at any point time during execution of
+ * either synchronize_rcu() or synchronize_rcu_expedited().  It is OK to
+ * occasionally incorrectly indicate that there are multiple CPUs online
+ * when there was in fact only one the whole time, as this just adds some
+ * overhead: RCU still operates correctly.
+ */
+static int rcu_blocking_is_gp(void)
+{
+	int ret;
+
+	if (IS_ENABLED(CONFIG_PREEMPT))
+		return rcu_scheduler_active == RCU_SCHEDULER_INACTIVE;
+	might_sleep();  /* Check for RCU read-side critical section. */
+	preempt_disable();
+	ret = num_online_cpus() <= 1;
+	preempt_enable();
+	return ret;
+}
+
+/**
+ * synchronize_rcu - wait until a grace period has elapsed.
+ *
+ * Control will return to the caller some time after a full grace
+ * period has elapsed, in other words after all currently executing RCU
+ * read-side critical sections have completed.  Note, however, that
+ * upon return from synchronize_rcu(), the caller might well be executing
+ * concurrently with new RCU read-side critical sections that began while
+ * synchronize_rcu() was waiting.  RCU read-side critical sections are
+ * delimited by rcu_read_lock() and rcu_read_unlock(), and may be nested.
+ * In addition, regions of code across which interrupts, preemption, or
+ * softirqs have been disabled also serve as RCU read-side critical
+ * sections.  This includes hardware interrupt handlers, softirq handlers,
+ * and NMI handlers.
+ *
+ * Note that this guarantee implies further memory-ordering guarantees.
+ * On systems with more than one CPU, when synchronize_rcu() returns,
+ * each CPU is guaranteed to have executed a full memory barrier since
+ * the end of its last RCU read-side critical section whose beginning
+ * preceded the call to synchronize_rcu().  In addition, each CPU having
+ * an RCU read-side critical section that extends beyond the return from
+ * synchronize_rcu() is guaranteed to have executed a full memory barrier
+ * after the beginning of synchronize_rcu() and before the beginning of
+ * that RCU read-side critical section.  Note that these guarantees include
+ * CPUs that are offline, idle, or executing in user mode, as well as CPUs
+ * that are executing in the kernel.
+ *
+ * Furthermore, if CPU A invoked synchronize_rcu(), which returned
+ * to its caller on CPU B, then both CPU A and CPU B are guaranteed
+ * to have executed a full memory barrier during the execution of
+ * synchronize_rcu() -- even if CPU A and CPU B are the same CPU (but
+ * again only if the system has more than one CPU).
+ */
+void synchronize_rcu(void)
+{
+	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
+			 lock_is_held(&rcu_lock_map) ||
+			 lock_is_held(&rcu_sched_lock_map),
+			 "Illegal synchronize_rcu() in RCU read-side critical section");
+	if (rcu_blocking_is_gp())
+		return;
+	if (rcu_gp_is_expedited())
+		synchronize_rcu_expedited();
+	else
+		wait_rcu_gp(call_rcu);
+}
+EXPORT_SYMBOL_GPL(synchronize_rcu);
+
 /**
  * get_state_synchronize_rcu - Snapshot current RCU state
  *
