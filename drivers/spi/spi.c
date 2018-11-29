@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-/*
- * SPI init/core code
- *
- * Copyright (C) 2005 David Brownell
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
- */
+// SPI init/core code
+//
+// Copyright (C) 2005 David Brownell
+// Copyright (C) 2008 Secret Lab Technologies Ltd.
 
 #include <linux/kernel.h>
 #include <linux/device.h>
