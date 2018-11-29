@@ -7751,6 +7751,7 @@ enum {
 #define   ICP_DDIB_HPD_LONG_DETECT		(2 << 4)
 #define   ICP_DDIB_HPD_SHORT_LONG_DETECT	(3 << 4)
 #define   ICP_DDIA_HPD_ENABLE			(1 << 3)
+#define   ICP_DDIA_HPD_OP_DRIVE_1		(1 << 2)
 #define   ICP_DDIA_HPD_STATUS_MASK		(3 << 0)
 #define   ICP_DDIA_HPD_NO_DETECT		(0 << 0)
 #define   ICP_DDIA_HPD_SHORT_DETECT		(1 << 0)
