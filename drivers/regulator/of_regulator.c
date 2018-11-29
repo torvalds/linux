@@ -380,11 +380,15 @@ struct device_node *regulator_of_get_init_node(struct device *dev,
 	if (!dev->of_node || !desc->of_match)
 		return NULL;
 
-	if (desc->regulators_node)
+	if (desc->regulators_node) {
 		search = of_get_child_by_name(dev->of_node,
 					      desc->regulators_node);
-	else
+	} else {
 		search = of_node_get(dev->of_node);
+
+		if (!strcmp(desc->of_match, search->name))
+			return search;
+	}
 
 	if (!search) {
 		dev_dbg(dev, "Failed to find regulator container node '%s'\n",
