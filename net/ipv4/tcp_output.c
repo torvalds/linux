@@ -233,16 +233,14 @@ void tcp_select_initial_window(const struct sock *sk, int __space, __u32 mss,
 	if (init_rcv_wnd)
 		*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
 
-	(*rcv_wscale) = 0;
+	*rcv_wscale = 0;
 	if (wscale_ok) {
 		/* Set window scaling on max possible window */
 		space = max_t(u32, space, sock_net(sk)->ipv4.sysctl_tcp_rmem[2]);
 		space = max_t(u32, space, sysctl_rmem_max);
 		space = min_t(u32, space, *window_clamp);
-		while (space > U16_MAX && (*rcv_wscale) < TCP_MAX_WSCALE) {
-			space >>= 1;
-			(*rcv_wscale)++;
-		}
+		*rcv_wscale = clamp_t(int, ilog2(space) - 15,
+				      0, TCP_MAX_WSCALE);
 	}
 	/* Set the clamp no higher than max representable value */
 	(*window_clamp) = min_t(__u32, U16_MAX << (*rcv_wscale), *window_clamp);
