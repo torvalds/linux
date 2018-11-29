@@ -2639,9 +2639,6 @@ void snd_sof_free_topology(struct snd_sof_dev *sdev)
 	/* remove routes */
 	list_for_each_entry_safe(sroute, temp, &sdev->route_list, list) {
 
-		/* delete dapm route */
-		snd_soc_dapm_del_routes(dapm, &sroute->route, 1);
-
 		sof_route_remove(&sroute->route);
 
 		/* free sroute and its private data */
