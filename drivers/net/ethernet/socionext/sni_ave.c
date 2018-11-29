@@ -1208,8 +1208,12 @@ static int ave_init(struct net_device *ndev)
 
 	priv->phydev = phydev;
 
-	phy_ethtool_get_wol(phydev, &wol);
+	ave_ethtool_get_wol(ndev, &wol);
 	device_set_wakeup_capable(&ndev->dev, !!wol.supported);
+
+	/* set wol initial state disabled */
+	wol.wolopts = 0;
+	ave_ethtool_set_wol(ndev, &wol);
 
 	if (!phy_interface_is_rgmii(phydev))
 		phy_set_max_speed(phydev, SPEED_100);
