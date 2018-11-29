@@ -936,6 +936,8 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 	size_t pri_count, sec_count;
 
 	pri = cmd_db_read_aux_data(id, &pri_count);
+	if (IS_ERR(pri))
+		return PTR_ERR(pri);
 	/*
 	 * The data comes back as an array of unsigned shorts so adjust the
 	 * count accordingly
@@ -945,6 +947,9 @@ static int a6xx_gmu_rpmh_arc_votes_init(struct device *dev, u32 *votes,
 		return -EINVAL;
 
 	sec = cmd_db_read_aux_data("mx.lvl", &sec_count);
+	if (IS_ERR(sec))
+		return PTR_ERR(sec);
+
 	sec_count >>= 1;
 	if (!sec_count)
 		return -EINVAL;
