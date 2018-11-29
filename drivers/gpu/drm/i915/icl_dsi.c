@@ -536,6 +536,23 @@ static void gen11_dsi_setup_dphy_timings(struct intel_encoder *encoder)
 	}
 }
 
+static void gen11_dsi_gate_clocks(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 tmp;
+	enum port port;
+
+	mutex_lock(&dev_priv->dpll_lock);
+	tmp = I915_READ(DPCLKA_CFGCR0_ICL);
+	for_each_dsi_port(port, intel_dsi->ports) {
+		tmp |= DPCLKA_CFGCR0_DDI_CLK_OFF(port);
+	}
+
+	I915_WRITE(DPCLKA_CFGCR0_ICL, tmp);
+	mutex_unlock(&dev_priv->dpll_lock);
+}
+
 static void
 gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *pipe_config)
@@ -883,6 +900,9 @@ gen11_dsi_enable_port_and_phy(struct intel_encoder *encoder,
 
 	/* Step (4h, 4i, 4j, 4k): Configure transcoder */
 	gen11_dsi_configure_transcoder(encoder, pipe_config);
+
+	/* Step 4l: Gate DDI clocks */
+	gen11_dsi_gate_clocks(encoder);
 }
 
 static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
