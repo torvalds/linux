@@ -150,7 +150,6 @@ static u32 qib_count_sge(struct rvt_sge_state *ss, u32 length)
 			len = length;
 		if (len > sge.sge_length)
 			len = sge.sge_length;
-		BUG_ON(len == 0);
 		if (((long) sge.vaddr & (sizeof(u32) - 1)) ||
 		    (len != length && (len & (sizeof(u32) - 1)))) {
 			ndesc = 0;
@@ -193,7 +192,6 @@ static void qib_copy_from_sge(void *data, struct rvt_sge_state *ss, u32 length)
 			len = length;
 		if (len > sge->sge_length)
 			len = sge->sge_length;
-		BUG_ON(len == 0);
 		memcpy(data, sge->vaddr, len);
 		sge->vaddr += len;
 		sge->length -= len;
@@ -449,7 +447,6 @@ static void copy_io(u32 __iomem *piobuf, struct rvt_sge_state *ss,
 			len = length;
 		if (len > ss->sge.sge_length)
 			len = ss->sge.sge_length;
-		BUG_ON(len == 0);
 		/* If the source address is not aligned, try to align it. */
 		off = (unsigned long)ss->sge.vaddr & (sizeof(u32) - 1);
 		if (off) {

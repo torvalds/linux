@@ -178,7 +178,6 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 			len = length;
 		if (len > sge->sge_length)
 			len = sge->sge_length;
-		BUG_ON(len == 0);
 		rvt_copy_sge(qp, &qp->r_sge, sge->vaddr, len, true, false);
 		sge->vaddr += len;
 		sge->length -= len;

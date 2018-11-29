@@ -572,7 +572,6 @@ retry:
 			len = sge->length;
 		if (len > sge->sge_length)
 			len = sge->sge_length;
-		BUG_ON(len == 0);
 		dw = (len + 3) >> 2;
 		addr = dma_map_single(&ppd->dd->pcidev->dev, sge->vaddr,
 				      dw << 2, DMA_TO_DEVICE);
