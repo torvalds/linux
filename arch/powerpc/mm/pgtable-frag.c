@@ -38,7 +38,7 @@ static pte_t *get_pte_from_cache(struct mm_struct *mm)
 		return NULL;
 
 	spin_lock(&mm->page_table_lock);
-	ret = mm->context.pte_frag;
+	ret = pte_frag_get(&mm->context);
 	if (ret) {
 		pte_frag = ret + PTE_FRAG_SIZE;
 		/*
@@ -46,7 +46,7 @@ static pte_t *get_pte_from_cache(struct mm_struct *mm)
 		 */
 		if (((unsigned long)pte_frag & ~PAGE_MASK) == 0)
 			pte_frag = NULL;
-		mm->context.pte_frag = pte_frag;
+		pte_frag_set(&mm->context, pte_frag);
 	}
 	spin_unlock(&mm->page_table_lock);
 	return (pte_t *)ret;
@@ -86,9 +86,9 @@ static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
 	 * the allocated page with single fragement
 	 * count.
 	 */
-	if (likely(!mm->context.pte_frag)) {
+	if (likely(!pte_frag_get(&mm->context))) {
 		atomic_set(&page->pt_frag_refcount, PTE_FRAG_NR);
-		mm->context.pte_frag = ret + PTE_FRAG_SIZE;
+		pte_frag_set(&mm->context, ret + PTE_FRAG_SIZE);
 	}
 	spin_unlock(&mm->page_table_lock);
 
