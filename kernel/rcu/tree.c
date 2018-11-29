@@ -2878,9 +2878,6 @@ __call_rcu(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
 			rcu_segcblist_init(&rdp->cblist);
 	}
 	rcu_segcblist_enqueue(&rdp->cblist, head, lazy);
-	if (!lazy)
-		rcu_idle_count_callbacks_posted();
-
 	if (__is_kfree_rcu_offset((unsigned long)func))
 		trace_rcu_kfree_callback(rcu_state.name, head,
 					 (unsigned long)func,
@@ -3108,28 +3105,6 @@ static int rcu_pending(void)
 
 	/* nothing to do */
 	return 0;
-}
-
-/*
- * Return true if the specified CPU has any callback.  If all_lazy is
- * non-NULL, store an indication of whether all callbacks are lazy.
- * (If there are no callbacks, all of them are deemed to be lazy.)
- */
-static bool rcu_cpu_has_callbacks(bool *all_lazy)
-{
-	bool al = true;
-	bool hc = false;
-	struct rcu_data *rdp;
-
-	rdp = this_cpu_ptr(&rcu_data);
-	if (!rcu_segcblist_empty(&rdp->cblist)) {
-		hc = true;
-		if (rcu_segcblist_n_nonlazy_cbs(&rdp->cblist))
-			al = false;
-	}
-	if (all_lazy)
-		*all_lazy = al;
-	return hc;
 }
 
 /*

@@ -193,10 +193,7 @@ struct rcu_data {
 	bool rcu_need_heavy_qs;		/* GP old, so heavy quiescent state! */
 	bool rcu_urgent_qs;		/* GP old need light quiescent state. */
 #ifdef CONFIG_RCU_FAST_NO_HZ
-	bool all_lazy;			/* Are all CPU's CBs lazy? */
-	unsigned long nonlazy_posted;	/* # times non-lazy CB posted to CPU. */
-	unsigned long nonlazy_posted_snap;
-					/* Nonlazy_posted snapshot. */
+	bool all_lazy;			/* All CPU's CBs lazy at idle start? */
 	unsigned long last_accelerate;	/* Last jiffy CBs were accelerated. */
 	unsigned long last_advance_all;	/* Last jiffy CBs were all advanced. */
 	int tick_nohz_enabled_snap;	/* Previously seen value from sysfs. */
@@ -430,7 +427,6 @@ static void __init rcu_spawn_boost_kthreads(void);
 static void rcu_prepare_kthreads(int cpu);
 static void rcu_cleanup_after_idle(void);
 static void rcu_prepare_for_idle(void);
-static void rcu_idle_count_callbacks_posted(void);
 static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
 static void rcu_preempt_deferred_qs(struct task_struct *t);

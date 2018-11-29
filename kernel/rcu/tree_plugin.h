@@ -1474,7 +1474,7 @@ static void rcu_prepare_kthreads(int cpu)
 int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 {
 	*nextevt = KTIME_MAX;
-	return rcu_cpu_has_callbacks(NULL);
+	return !rcu_segcblist_empty(&this_cpu_ptr(&rcu_data)->cblist);
 }
 
 /*
@@ -1490,14 +1490,6 @@ static void rcu_cleanup_after_idle(void)
  * is nothing.
  */
 static void rcu_prepare_for_idle(void)
-{
-}
-
-/*
- * Don't bother keeping a running count of the number of RCU callbacks
- * posted because CONFIG_RCU_FAST_NO_HZ=n.
- */
-static void rcu_idle_count_callbacks_posted(void)
 {
 }
 
@@ -1583,11 +1575,8 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 
 	lockdep_assert_irqs_disabled();
 
-	/* Snapshot to detect later posting of non-lazy callback. */
-	rdp->nonlazy_posted_snap = rdp->nonlazy_posted;
-
 	/* If no callbacks, RCU doesn't need the CPU. */
-	if (!rcu_cpu_has_callbacks(&rdp->all_lazy)) {
+	if (rcu_segcblist_empty(&rdp->cblist)) {
 		*nextevt = KTIME_MAX;
 		return 0;
 	}
@@ -1601,11 +1590,12 @@ int rcu_needs_cpu(u64 basemono, u64 *nextevt)
 	rdp->last_accelerate = jiffies;
 
 	/* Request timer delay depending on laziness, and round. */
-	if (!rdp->all_lazy) {
+	rdp->all_lazy = !rcu_segcblist_n_nonlazy_cbs(&rdp->cblist);
+	if (rdp->all_lazy) {
+		dj = round_jiffies(rcu_idle_lazy_gp_delay + jiffies) - jiffies;
+	} else {
 		dj = round_up(rcu_idle_gp_delay + jiffies,
 			       rcu_idle_gp_delay) - jiffies;
-	} else {
-		dj = round_jiffies(rcu_idle_lazy_gp_delay + jiffies) - jiffies;
 	}
 	*nextevt = basemono + dj * TICK_NSEC;
 	return 0;
@@ -1635,7 +1625,7 @@ static void rcu_prepare_for_idle(void)
 	/* Handle nohz enablement switches conservatively. */
 	tne = READ_ONCE(tick_nohz_active);
 	if (tne != rdp->tick_nohz_enabled_snap) {
-		if (rcu_cpu_has_callbacks(NULL))
+		if (!rcu_segcblist_empty(&rdp->cblist))
 			invoke_rcu_core(); /* force nohz to see update. */
 		rdp->tick_nohz_enabled_snap = tne;
 		return;
@@ -1648,10 +1638,8 @@ static void rcu_prepare_for_idle(void)
 	 * callbacks, invoke RCU core for the side-effect of recalculating
 	 * idle duration on re-entry to idle.
 	 */
-	if (rdp->all_lazy &&
-	    rdp->nonlazy_posted != rdp->nonlazy_posted_snap) {
+	if (rdp->all_lazy && rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)) {
 		rdp->all_lazy = false;
-		rdp->nonlazy_posted_snap = rdp->nonlazy_posted;
 		invoke_rcu_core();
 		return;
 	}
@@ -1687,19 +1675,6 @@ static void rcu_cleanup_after_idle(void)
 		invoke_rcu_core();
 }
 
-/*
- * Keep a running count of the number of non-lazy callbacks posted
- * on this CPU.  This running counter (which is never decremented) allows
- * rcu_prepare_for_idle() to detect when something out of the idle loop
- * posts a callback, even if an equal number of callbacks are invoked.
- * Of course, callbacks should only be posted from within a trace event
- * designed to be called from idle or from within RCU_NONIDLE().
- */
-static void rcu_idle_count_callbacks_posted(void)
-{
-	__this_cpu_add(rcu_data.nonlazy_posted, 1);
-}
-
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
 #ifdef CONFIG_RCU_FAST_NO_HZ
@@ -1707,13 +1682,12 @@ static void rcu_idle_count_callbacks_posted(void)
 static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_data, cpu);
-	unsigned long nlpd = rdp->nonlazy_posted - rdp->nonlazy_posted_snap;
 
-	sprintf(cp, "last_accelerate: %04lx/%04lx, nonlazy_posted: %ld, %c%c",
+	sprintf(cp, "last_accelerate: %04lx/%04lx, Nonlazy posted: %c%c%c",
 		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
-		ulong2long(nlpd),
-		rdp->all_lazy ? 'L' : '.',
-		rdp->tick_nohz_enabled_snap ? '.' : 'D');
+		".l"[rdp->all_lazy],
+		".L"[!rcu_segcblist_n_nonlazy_cbs(&rdp->cblist)],
+		".D"[!rdp->tick_nohz_enabled_snap]);
 }
 
 #else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
