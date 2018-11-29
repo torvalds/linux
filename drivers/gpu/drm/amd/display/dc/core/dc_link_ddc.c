@@ -229,7 +229,9 @@ void dal_ddc_aux_payloads_add(
 	uint32_t address,
 	uint32_t len,
 	uint8_t *data,
-	bool write)
+	bool write,
+	bool mot,
+	uint32_t defer_delay)
 {
 	uint32_t payload_size = DEFAULT_AUX_MAX_DATA_SIZE;
 	uint32_t pos;
@@ -240,7 +242,10 @@ void dal_ddc_aux_payloads_add(
 			.write = write,
 			.address = address,
 			.length = DDC_MIN(payload_size, len - pos),
-			.data = data + pos };
+			.data = data + pos,
+			.reply = NULL,
+			.mot = mot,
+			.defer_delay = defer_delay};
 		dal_vector_append(&payloads->payloads, &payload);
 	}
 }
@@ -584,10 +589,10 @@ bool dal_ddc_service_query_ddc_data(
 			.max_defer_write_retry = 0 };
 
 		dal_ddc_aux_payloads_add(
-			payloads, address, write_size, write_buf, true);
+			payloads, address, write_size, write_buf, true, true, get_defer_delay(ddc));
 
 		dal_ddc_aux_payloads_add(
-			payloads, address, read_size, read_buf, false);
+			payloads, address, read_size, read_buf, false, false, get_defer_delay(ddc));
 
 		command.number_of_payloads =
 			dal_ddc_aux_payloads_get_count(payloads);
@@ -629,13 +634,25 @@ bool dal_ddc_service_query_ddc_data(
 	return ret;
 }
 
+static enum i2caux_transaction_action i2caux_action_from_payload(struct aux_payload *payload)
+{
+	if (payload->i2c_over_aux) {
+		if (payload->write) {
+			if (payload->mot)
+				return I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
+			return I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
+		}
+		if (payload->mot)
+			return I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
+		return I2CAUX_TRANSACTION_ACTION_I2C_READ;
+	}
+	if (payload->write)
+		return I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+	return I2CAUX_TRANSACTION_ACTION_DP_READ;
+}
+
 int dc_link_aux_transfer(struct ddc_service *ddc,
-			     unsigned int address,
-			     uint8_t *reply,
-			     void *buffer,
-			     unsigned int size,
-			     enum aux_transaction_type type,
-			     enum i2caux_transaction_action action)
+		struct aux_payload *payload)
 {
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct aux_engine *aux_engine;
@@ -652,21 +669,25 @@ int dc_link_aux_transfer(struct ddc_service *ddc,
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	aux_engine->funcs->acquire(aux_engine, ddc_pin);
 
-	aux_req.type = type;
-	aux_req.action = action;
+	if (payload->i2c_over_aux)
+		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
+	else
+		aux_req.type = AUX_TRANSACTION_TYPE_DP;
 
-	aux_req.address = address;
-	aux_req.delay = 0;
-	aux_req.length = size;
-	aux_req.data = buffer;
+	aux_req.action = i2caux_action_from_payload(payload);
+
+	aux_req.address = payload->address;
+	aux_req.delay = payload->defer_delay * 10;
+	aux_req.length = payload->length;
+	aux_req.data = payload->data;
 
 	aux_engine->funcs->submit_channel_request(aux_engine, &aux_req);
 	operation_result = aux_engine->funcs->get_channel_status(aux_engine, &returned_bytes);
 
 	switch (operation_result) {
 	case AUX_CHANNEL_OPERATION_SUCCEEDED:
-		res = aux_engine->funcs->read_channel_reply(aux_engine, size,
-							buffer, reply,
+		res = aux_engine->funcs->read_channel_reply(aux_engine, payload->length,
+							payload->data, payload->reply,
 							&status);
 		break;
 	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:

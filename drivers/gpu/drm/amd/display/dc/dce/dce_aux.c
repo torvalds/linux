@@ -273,7 +273,8 @@ static int read_channel_reply(struct aux_engine *engine, uint32_t size,
 
 	REG_GET(AUX_SW_DATA, AUX_SW_DATA, &reply_result_32);
 	reply_result_32 = reply_result_32 >> 4;
-	*reply_result = (uint8_t)reply_result_32;
+	if (reply_result != NULL)
+		*reply_result = (uint8_t)reply_result_32;
 
 	if (reply_result_32 == 0) { /* ACK */
 		uint32_t i = 0;

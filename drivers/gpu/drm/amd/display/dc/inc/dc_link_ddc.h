@@ -69,7 +69,9 @@ void dal_ddc_aux_payloads_add(
 		uint32_t address,
 		uint32_t len,
 		uint8_t *data,
-		bool write);
+		bool write,
+		bool mot,
+		uint32_t defer_delay);
 
 struct ddc_service_init_data {
 	struct graphics_object_id id;
@@ -103,12 +105,7 @@ bool dal_ddc_service_query_ddc_data(
 		uint32_t read_size);
 
 int dc_link_aux_transfer(struct ddc_service *ddc,
-			     unsigned int address,
-			     uint8_t *reply,
-			     void *buffer,
-			     unsigned int size,
-			     enum aux_transaction_type type,
-			     enum i2caux_transaction_action action);
+		struct aux_payload *payload);
 
 void dal_ddc_service_write_scdc_data(
 		struct ddc_service *ddc_service,
