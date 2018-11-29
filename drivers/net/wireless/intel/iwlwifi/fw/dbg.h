@@ -72,6 +72,7 @@
 #include "file.h"
 #include "error-dump.h"
 #include "api/commands.h"
+#include "api/dbg-tlv.h"
 
 /**
  * struct iwl_fw_dump_desc - describes the dump
@@ -192,6 +193,9 @@ _iwl_fw_dbg_trigger_on(struct iwl_fw_runtime *fwrt,
 {
 	struct iwl_fw_dbg_trigger_tlv *trig;
 
+	if (fwrt->trans->ini_valid)
+		return NULL;
+
 	if (!iwl_fw_dbg_trigger_enabled(fwrt->fw, id))
 		return NULL;
 
@@ -262,6 +266,9 @@ _iwl_fw_dbg_stop_recording(struct iwl_trans *trans,
 	iwl_write_prph(trans, DBGC_IN_SAMPLE, 0);
 	udelay(100);
 	iwl_write_prph(trans, DBGC_OUT_CTRL, 0);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	trans->dbg_rec_on = false;
+#endif
 }
 
 static inline void
@@ -292,6 +299,14 @@ _iwl_fw_dbg_restart_recording(struct iwl_trans *trans,
 	}
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static inline void iwl_fw_set_dbg_rec_on(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->fw->dbg.dest_tlv && fwrt->cur_fw_img == IWL_UCODE_REGULAR)
+		fwrt->trans->dbg_rec_on = true;
+}
+#endif
+
 static inline void
 iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 			     struct iwl_fw_dbg_params *params)
@@ -300,6 +315,9 @@ iwl_fw_dbg_restart_recording(struct iwl_fw_runtime *fwrt,
 		_iwl_fw_dbg_restart_recording(fwrt->trans, params);
 	else
 		iwl_fw_dbg_start_stop_hcmd(fwrt, true);
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	iwl_fw_set_dbg_rec_on(fwrt);
+#endif
 }
 
 static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
@@ -378,6 +396,10 @@ static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
+void iwl_fw_assert_error_dump(struct iwl_fw_runtime *fwrt);
 void iwl_fw_alive_error_dump(struct iwl_fw_runtime *fwrt);
 void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
+			    enum iwl_fw_ini_apply_point apply_point);
+
 #endif  /* __iwl_fw_dbg_h__ */
