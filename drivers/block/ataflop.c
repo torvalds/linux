@@ -1982,6 +1982,7 @@ static int __init atari_floppy_init (void)
 							   &ataflop_mq_ops, 2,
 							   BLK_MQ_F_SHOULD_MERGE);
 		if (IS_ERR(unit[i].disk->queue)) {
+			put_disk(unit[i].disk);
 			ret = PTR_ERR(unit[i].disk->queue);
 			unit[i].disk->queue = NULL;
 			goto err;
@@ -2033,18 +2034,13 @@ static int __init atari_floppy_init (void)
 	return 0;
 
 err:
-	do {
+	while (--i >= 0) {
 		struct gendisk *disk = unit[i].disk;
 
-		if (disk) {
-			if (disk->queue) {
-				blk_cleanup_queue(disk->queue);
-				disk->queue = NULL;
-			}
-			blk_mq_free_tag_set(&unit[i].tag_set);
-			put_disk(unit[i].disk);
-		}
-	} while (i--);
+		blk_cleanup_queue(disk->queue);
+		blk_mq_free_tag_set(&unit[i].tag_set);
+		put_disk(unit[i].disk);
+	}
 
 	unregister_blkdev(FLOPPY_MAJOR, "fd");
 	return ret;
