@@ -2,8 +2,8 @@
 VERSION = 4
 PATCHLEVEL = 20
 SUBLEVEL = 0
-EXTRAVERSION = -rc3
-NAME = "People's Front"
+EXTRAVERSION = -rc4
+NAME = Shy Crocodile
 
 # *DOCUMENTATION*
 # To see a list of typical targets execute "make help"

@@ -1918,7 +1918,6 @@ static int tc358743_probe_of(struct tc358743_state *state)
 	ret = v4l2_fwnode_endpoint_alloc_parse(of_fwnode_handle(ep), &endpoint);
 	if (ret) {
 		dev_err(dev, "failed to parse endpoint\n");
-		ret = ret;
 		goto put_node;
 	}
 

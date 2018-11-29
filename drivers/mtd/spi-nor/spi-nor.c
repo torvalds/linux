@@ -2156,7 +2156,7 @@ spi_nor_set_pp_settings(struct spi_nor_pp_command *pp,
  * @nor:	pointer to a 'struct spi_nor'
  * @addr:	offset in the serial flash memory
  * @len:	number of bytes to read
- * @buf:	buffer where the data is copied into
+ * @buf:	buffer where the data is copied into (dma-safe memory)
  *
  * Return: 0 on success, -errno otherwise.
  */
@@ -2522,6 +2522,34 @@ static int spi_nor_map_cmp_erase_type(const void *l, const void *r)
 }
 
 /**
+ * spi_nor_sort_erase_mask() - sort erase mask
+ * @map:	the erase map of the SPI NOR
+ * @erase_mask:	the erase type mask to be sorted
+ *
+ * Replicate the sort done for the map's erase types in BFPT: sort the erase
+ * mask in ascending order with the smallest erase type size starting from
+ * BIT(0) in the sorted erase mask.
+ *
+ * Return: sorted erase mask.
+ */
+static u8 spi_nor_sort_erase_mask(struct spi_nor_erase_map *map, u8 erase_mask)
+{
+	struct spi_nor_erase_type *erase_type = map->erase_type;
+	int i;
+	u8 sorted_erase_mask = 0;
+
+	if (!erase_mask)
+		return 0;
+
+	/* Replicate the sort done for the map's erase types. */
+	for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
+		if (erase_type[i].size && erase_mask & BIT(erase_type[i].idx))
+			sorted_erase_mask |= BIT(i);
+
+	return sorted_erase_mask;
+}
+
+/**
  * spi_nor_regions_sort_erase_types() - sort erase types in each region
  * @map:	the erase map of the SPI NOR
  *
@@ -2536,19 +2564,13 @@ static int spi_nor_map_cmp_erase_type(const void *l, const void *r)
 static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
 {
 	struct spi_nor_erase_region *region = map->regions;
-	struct spi_nor_erase_type *erase_type = map->erase_type;
-	int i;
 	u8 region_erase_mask, sorted_erase_mask;
 
 	while (region) {
 		region_erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
 
-		/* Replicate the sort done for the map's erase types. */
-		sorted_erase_mask = 0;
-		for (i = 0; i < SNOR_ERASE_TYPE_MAX; i++)
-			if (erase_type[i].size &&
-			    region_erase_mask & BIT(erase_type[i].idx))
-				sorted_erase_mask |= BIT(i);
+		sorted_erase_mask = spi_nor_sort_erase_mask(map,
+							    region_erase_mask);
 
 		/* Overwrite erase mask. */
 		region->offset = (region->offset & ~SNOR_ERASE_TYPE_MASK) |
@@ -2855,52 +2877,84 @@ static u8 spi_nor_smpt_read_dummy(const struct spi_nor *nor, const u32 settings)
  * spi_nor_get_map_in_use() - get the configuration map in use
  * @nor:	pointer to a 'struct spi_nor'
  * @smpt:	pointer to the sector map parameter table
+ * @smpt_len:	sector map parameter table length
+ *
+ * Return: pointer to the map in use, ERR_PTR(-errno) otherwise.
  */
-static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt)
+static const u32 *spi_nor_get_map_in_use(struct spi_nor *nor, const u32 *smpt,
+					 u8 smpt_len)
 {
-	const u32 *ret = NULL;
-	u32 i, addr;
+	const u32 *ret;
+	u8 *buf;
+	u32 addr;
 	int err;
+	u8 i;
 	u8 addr_width, read_opcode, read_dummy;
-	u8 read_data_mask, data_byte, map_id;
+	u8 read_data_mask, map_id;
+
+	/* Use a kmalloc'ed bounce buffer to guarantee it is DMA-able. */
+	buf = kmalloc(sizeof(*buf), GFP_KERNEL);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
 
 	addr_width = nor->addr_width;
 	read_dummy = nor->read_dummy;
 	read_opcode = nor->read_opcode;
 
 	map_id = 0;
-	i = 0;
 	/* Determine if there are any optional Detection Command Descriptors */
-	while (!(smpt[i] & SMPT_DESC_TYPE_MAP)) {
+	for (i = 0; i < smpt_len; i += 2) {
+		if (smpt[i] & SMPT_DESC_TYPE_MAP)
+			break;
+
 		read_data_mask = SMPT_CMD_READ_DATA(smpt[i]);
 		nor->addr_width = spi_nor_smpt_addr_width(nor, smpt[i]);
 		nor->read_dummy = spi_nor_smpt_read_dummy(nor, smpt[i]);
 		nor->read_opcode = SMPT_CMD_OPCODE(smpt[i]);
 		addr = smpt[i + 1];
 
-		err = spi_nor_read_raw(nor, addr, 1, &data_byte);
-		if (err)
+		err = spi_nor_read_raw(nor, addr, 1, buf);
+		if (err) {
+			ret = ERR_PTR(err);
 			goto out;
+		}
 
 		/*
 		 * Build an index value that is used to select the Sector Map
 		 * Configuration that is currently in use.
 		 */
-		map_id = map_id << 1 | !!(data_byte & read_data_mask);
-		i = i + 2;
+		map_id = map_id << 1 | !!(*buf & read_data_mask);
 	}
 
-	/* Find the matching configuration map */
-	while (SMPT_MAP_ID(smpt[i]) != map_id) {
+	/*
+	 * If command descriptors are provided, they always precede map
+	 * descriptors in the table. There is no need to start the iteration
+	 * over smpt array all over again.
+	 *
+	 * Find the matching configuration map.
+	 */
+	ret = ERR_PTR(-EINVAL);
+	while (i < smpt_len) {
+		if (SMPT_MAP_ID(smpt[i]) == map_id) {
+			ret = smpt + i;
+			break;
+		}
+
+		/*
+		 * If there are no more configuration map descriptors and no
+		 * configuration ID matched the configuration identifier, the
+		 * sector address map is unknown.
+		 */
 		if (smpt[i] & SMPT_DESC_END)
-			goto out;
+			break;
+
 		/* increment the table index to the next map */
 		i += SMPT_MAP_REGION_COUNT(smpt[i]) + 1;
 	}
 
-	ret = smpt + i;
 	/* fall through */
 out:
+	kfree(buf);
 	nor->addr_width = addr_width;
 	nor->read_dummy = read_dummy;
 	nor->read_opcode = read_opcode;
@@ -2946,7 +3000,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	u64 offset;
 	u32 region_count;
 	int i, j;
-	u8 erase_type;
+	u8 erase_type, uniform_erase_type;
 
 	region_count = SMPT_MAP_REGION_COUNT(*smpt);
 	/*
@@ -2959,7 +3013,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 		return -ENOMEM;
 	map->regions = region;
 
-	map->uniform_erase_type = 0xff;
+	uniform_erase_type = 0xff;
 	offset = 0;
 	/* Populate regions. */
 	for (i = 0; i < region_count; i++) {
@@ -2974,11 +3028,14 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 		 * Save the erase types that are supported in all regions and
 		 * can erase the entire flash memory.
 		 */
-		map->uniform_erase_type &= erase_type;
+		uniform_erase_type &= erase_type;
 
 		offset = (region[i].offset & ~SNOR_ERASE_FLAGS_MASK) +
 			 region[i].size;
 	}
+
+	map->uniform_erase_type = spi_nor_sort_erase_mask(map,
+							  uniform_erase_type);
 
 	spi_nor_region_mark_end(&region[i - 1]);
 
@@ -3020,9 +3077,9 @@ static int spi_nor_parse_smpt(struct spi_nor *nor,
 	for (i = 0; i < smpt_header->length; i++)
 		smpt[i] = le32_to_cpu(smpt[i]);
 
-	sector_map = spi_nor_get_map_in_use(nor, smpt);
-	if (!sector_map) {
-		ret = -EINVAL;
+	sector_map = spi_nor_get_map_in_use(nor, smpt, smpt_header->length);
+	if (IS_ERR(sector_map)) {
+		ret = PTR_ERR(sector_map);
 		goto out;
 	}
 
@@ -3125,7 +3182,7 @@ static int spi_nor_parse_sfdp(struct spi_nor *nor,
 	if (err)
 		goto exit;
 
-	/* Parse other parameter headers. */
+	/* Parse optional parameter tables. */
 	for (i = 0; i < header.nph; i++) {
 		param_header = &param_headers[i];
 
@@ -3138,8 +3195,17 @@ static int spi_nor_parse_sfdp(struct spi_nor *nor,
 			break;
 		}
 
-		if (err)
-			goto exit;
+		if (err) {
+			dev_warn(dev, "Failed to parse optional parameter table: %04x\n",
+				 SFDP_PARAM_HEADER_ID(param_header));
+			/*
+			 * Let's not drop all information we extracted so far
+			 * if optional table parsers fail. In case of failing,
+			 * each optional parser is responsible to roll back to
+			 * the previously known spi_nor data.
+			 */
+			err = 0;
+		}
 	}
 
 exit:

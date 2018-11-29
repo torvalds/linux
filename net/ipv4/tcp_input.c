@@ -4268,7 +4268,7 @@ static void tcp_sack_new_ofo_skb(struct sock *sk, u32 seq, u32 end_seq)
 	 * If the sack array is full, forget about the last one.
 	 */
 	if (this_sack >= TCP_NUM_SACKS) {
-		if (tp->compressed_ack)
+		if (tp->compressed_ack > TCP_FASTRETRANS_THRESH)
 			tcp_send_ack(sk);
 		this_sack--;
 		tp->rx_opt.num_sacks--;
@@ -4363,6 +4363,7 @@ static bool tcp_try_coalesce(struct sock *sk,
 	if (TCP_SKB_CB(from)->has_rxtstamp) {
 		TCP_SKB_CB(to)->has_rxtstamp = true;
 		to->tstamp = from->tstamp;
+		skb_hwtstamps(to)->hwtstamp = skb_hwtstamps(from)->hwtstamp;
 	}
 
 	return true;
@@ -5188,7 +5189,17 @@ send_now:
 	if (!tcp_is_sack(tp) ||
 	    tp->compressed_ack >= sock_net(sk)->ipv4.sysctl_tcp_comp_sack_nr)
 		goto send_now;
-	tp->compressed_ack++;
+
+	if (tp->compressed_ack_rcv_nxt != tp->rcv_nxt) {
+		tp->compressed_ack_rcv_nxt = tp->rcv_nxt;
+		if (tp->compressed_ack > TCP_FASTRETRANS_THRESH)
+			NET_ADD_STATS(sock_net(sk), LINUX_MIB_TCPACKCOMPRESSED,
+				      tp->compressed_ack - TCP_FASTRETRANS_THRESH);
+		tp->compressed_ack = 0;
+	}
+
+	if (++tp->compressed_ack <= TCP_FASTRETRANS_THRESH)
+		goto send_now;
 
 	if (hrtimer_is_queued(&tp->compressed_ack_timer))
 		return;

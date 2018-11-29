@@ -1749,7 +1749,7 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 static void
 __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 {
-	int cnt;
+	int cnt, status;
 	unsigned long flags;
 	srb_t *sp;
 	scsi_qla_host_t *vha = qp->vha;
@@ -1799,10 +1799,16 @@ __qla2x00_abort_all_cmds(struct qla_qpair *qp, int res)
 					if (!sp_get(sp)) {
 						spin_unlock_irqrestore
 							(qp->qp_lock_ptr, flags);
-						qla2xxx_eh_abort(
+						status = qla2xxx_eh_abort(
 							GET_CMD_SP(sp));
 						spin_lock_irqsave
 							(qp->qp_lock_ptr, flags);
+						/*
+						 * Get rid of extra reference caused
+						 * by early exit from qla2xxx_eh_abort
+						 */
+						if (status == FAST_IO_FAIL)
+							atomic_dec(&sp->ref_count);
 					}
 				}
 				sp->done(sp, res);
