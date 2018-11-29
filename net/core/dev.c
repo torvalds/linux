@@ -2173,17 +2173,19 @@ static void clean_xps_maps(struct net_device *dev, const unsigned long *mask,
 		active |= remove_xps_queue_cpu(dev, dev_maps, j, offset,
 					       count);
 	if (!active) {
-		if (is_rxqs_map) {
+		if (is_rxqs_map)
 			RCU_INIT_POINTER(dev->xps_rxqs_map, NULL);
-		} else {
+		else
 			RCU_INIT_POINTER(dev->xps_cpus_map, NULL);
-
-			for (i = offset + (count - 1); count--; i--)
-				netdev_queue_numa_node_write(
-					netdev_get_tx_queue(dev, i),
-							NUMA_NO_NODE);
-		}
 		kfree_rcu(dev_maps, rcu);
+	}
+
+	if (!is_rxqs_map) {
+		for (i = offset + (count - 1); count--; i--) {
+			netdev_queue_numa_node_write(
+				netdev_get_tx_queue(dev, i),
+				NUMA_NO_NODE);
+		}
 	}
 }
 
