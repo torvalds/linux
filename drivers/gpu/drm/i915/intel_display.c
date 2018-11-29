@@ -9660,7 +9660,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	if (!active)
 		goto out;
 
-	if (!transcoder_is_dsi(pipe_config->cpu_transcoder)) {
+	if (!transcoder_is_dsi(pipe_config->cpu_transcoder) ||
+	    IS_ICELAKE(dev_priv)) {
 		haswell_get_ddi_port_state(crtc, pipe_config);
 		intel_get_pipe_timings(crtc, pipe_config);
 	}
