@@ -602,21 +602,33 @@ int __init efi_apply_persistent_mem_reservations(void)
 
 		while (prsv) {
 			struct linux_efi_memreserve *rsv;
+			u8 *p;
+			int i;
 
-			/* reserve the entry itself */
-			memblock_reserve(prsv, sizeof(*rsv));
-
-			rsv = early_memremap(prsv, sizeof(*rsv));
-			if (rsv == NULL) {
+			/*
+			 * Just map a full page: that is what we will get
+			 * anyway, and it permits us to map the entire entry
+			 * before knowing its size.
+			 */
+			p = early_memremap(ALIGN_DOWN(prsv, PAGE_SIZE),
+					   PAGE_SIZE);
+			if (p == NULL) {
 				pr_err("Could not map UEFI memreserve entry!\n");
 				return -ENOMEM;
 			}
 
-			if (rsv->size)
-				memblock_reserve(rsv->base, rsv->size);
+			rsv = (void *)(p + prsv % PAGE_SIZE);
+
+			/* reserve the entry itself */
+			memblock_reserve(prsv, EFI_MEMRESERVE_SIZE(rsv->size));
+
+			for (i = 0; i < atomic_read(&rsv->count); i++) {
+				memblock_reserve(rsv->entry[i].base,
+						 rsv->entry[i].size);
+			}
 
 			prsv = rsv->next;
-			early_memunmap(rsv, sizeof(*rsv));
+			early_memunmap(p, PAGE_SIZE);
 		}
 	}
 
@@ -985,6 +997,7 @@ static int __init efi_memreserve_map_root(void)
 int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 {
 	struct linux_efi_memreserve *rsv;
+	int rsvsize = EFI_MEMRESERVE_SIZE(1);
 	int rc;
 
 	if (efi_memreserve_root == (void *)ULONG_MAX)
@@ -996,12 +1009,14 @@ int __ref efi_mem_reserve_persistent(phys_addr_t addr, u64 size)
 			return rc;
 	}
 
-	rsv = kmalloc(sizeof(*rsv), GFP_ATOMIC);
+	rsv = kmalloc(rsvsize, GFP_ATOMIC);
 	if (!rsv)
 		return -ENOMEM;
 
-	rsv->base = addr;
-	rsv->size = size;
+	rsv->size = 1;
+	atomic_set(&rsv->count, 1);
+	rsv->entry[0].base = addr;
+	rsv->entry[0].size = size;
 
 	spin_lock(&efi_mem_reserve_persistent_lock);
 	rsv->next = efi_memreserve_root->next;
