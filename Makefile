@@ -1075,7 +1075,7 @@ include/config/kernel.release: $(srctree)/Makefile FORCE
 # Carefully list dependencies so we do not try to build scripts twice
 # in parallel
 PHONY += scripts
-scripts: scripts_basic scripts_dtc asm-generic gcc-plugins $(autoksyms_h)
+scripts: scripts_basic scripts_dtc
 	$(Q)$(MAKE) $(build)=$(@)
 
 # Things we need to do before we recursively start building the kernel
@@ -1113,6 +1113,7 @@ macroprepare: prepare1 archmacros
 archprepare: archheaders archscripts macroprepare scripts_basic gcc-plugins
 
 prepare0: archprepare
+	$(Q)$(MAKE) $(build)=scripts/mod
 	$(Q)$(MAKE) $(build)=.
 
 # All the preparing..
