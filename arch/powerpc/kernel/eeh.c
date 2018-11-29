@@ -825,13 +825,13 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
 		eeh_unfreeze_pe(pe);
 		if (!(pe->type & EEH_PE_VF))
-			eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
+			eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED, true);
 		eeh_pe_dev_traverse(pe, eeh_restore_dev_state, dev);
-		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED, true);
 		break;
 	case pcie_hot_reset:
 		eeh_pe_mark_isolated(pe);
-		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED, true);
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		if (!(pe->type & EEH_PE_VF))
@@ -840,7 +840,7 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 		break;
 	case pcie_warm_reset:
 		eeh_pe_mark_isolated(pe);
-		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED, true);
 		eeh_ops->set_option(pe, EEH_OPT_FREEZE_PE);
 		eeh_pe_dev_traverse(pe, eeh_disable_and_save_dev_state, dev);
 		if (!(pe->type & EEH_PE_VF))
@@ -848,7 +848,7 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 		eeh_ops->reset(pe, EEH_RESET_FUNDAMENTAL);
 		break;
 	default:
-		eeh_pe_state_clear(pe, EEH_PE_ISOLATED | EEH_PE_CFG_BLOCKED);
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED | EEH_PE_CFG_BLOCKED, true);
 		return -EINVAL;
 	};
 
@@ -936,7 +936,7 @@ int eeh_pe_reset_full(struct eeh_pe *pe)
 			__func__, state, pe->phb->global_number, pe->addr, (i + 1));
 	}
 
-	eeh_pe_state_clear(pe, reset_state);
+	eeh_pe_state_clear(pe, reset_state, true);
 	return ret;
 }
 
@@ -1380,7 +1380,7 @@ static int eeh_pe_change_owner(struct eeh_pe *pe)
 
 	ret = eeh_unfreeze_pe(pe);
 	if (!ret)
-		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED, true);
 	return ret;
 }
 
@@ -1640,7 +1640,7 @@ static int eeh_pe_reenable_devices(struct eeh_pe *pe)
 	/* The PE is still in frozen state */
 	ret = eeh_unfreeze_pe(pe);
 	if (!ret)
-		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED, true);
 	return ret;
 }
 
@@ -1668,7 +1668,7 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 	switch (option) {
 	case EEH_RESET_DEACTIVATE:
 		ret = eeh_ops->reset(pe, option);
-		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED, true);
 		if (ret)
 			break;
 

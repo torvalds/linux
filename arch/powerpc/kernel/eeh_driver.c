@@ -603,7 +603,7 @@ static int eeh_clear_pe_frozen_state(struct eeh_pe *root)
 		if (i >= 3)
 			return -EIO;
 	}
-	eeh_pe_state_clear(root, EEH_PE_ISOLATED);
+	eeh_pe_state_clear(root, EEH_PE_ISOLATED, true);
 	return 0;
 }
 
@@ -624,14 +624,14 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	/* Issue reset */
 	ret = eeh_pe_reset_full(pe);
 	if (ret) {
-		eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+		eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 		return ret;
 	}
 
 	/* Unfreeze the PE */
 	ret = eeh_clear_pe_frozen_state(pe);
 	if (ret) {
-		eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+		eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 		return ret;
 	}
 
@@ -639,7 +639,7 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_dev_restore_state, NULL);
 
 	/* Clear recovery mode */
-	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+	eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 
 	return 0;
 }
@@ -730,11 +730,11 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 			eeh_add_virt_device(edev);
 		} else {
 			if (!driver_eeh_aware)
-				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
+				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
 			pci_hp_add_devices(bus);
 		}
 	}
-	eeh_pe_state_clear(pe, EEH_PE_KEEP);
+	eeh_pe_state_clear(pe, EEH_PE_KEEP, true);
 
 	pe->tstamp = tstamp;
 	pe->freeze_count = cnt;
@@ -886,7 +886,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			 * is still in frozen state. Clear it before
 			 * resuming the PE.
 			 */
-			eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+			eeh_pe_state_clear(pe, EEH_PE_ISOLATED, true);
 			result = PCI_ERS_RESULT_RECOVERED;
 		}
 	}
@@ -963,7 +963,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			eeh_pe_dev_traverse(pe, eeh_rmv_device, NULL);
 			eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 		} else {
-			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
+			eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
 			eeh_pe_dev_mode_mark(pe, EEH_DEV_REMOVED);
 
 			pci_lock_rescan_remove();
@@ -973,7 +973,7 @@ void eeh_handle_normal_event(struct eeh_pe *pe)
 			return;
 		}
 	}
-	eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
+	eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 }
 
 /**
@@ -1055,7 +1055,7 @@ void eeh_handle_special_event(void)
 					continue;
 
 				/* Notify all devices to be down */
-				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS);
+				eeh_pe_state_clear(pe, EEH_PE_PRI_BUS, true);
 				eeh_set_channel_state(pe, pci_channel_io_perm_failure);
 				eeh_pe_report(
 					"error_detected(permanent failure)", pe,

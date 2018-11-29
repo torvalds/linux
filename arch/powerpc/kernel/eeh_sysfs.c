@@ -84,7 +84,7 @@ static ssize_t eeh_pe_state_store(struct device *dev,
 
 	if (eeh_unfreeze_pe(edev->pe))
 		return -EIO;
-	eeh_pe_state_clear(edev->pe, EEH_PE_ISOLATED);
+	eeh_pe_state_clear(edev->pe, EEH_PE_ISOLATED, true);
 
 	return count;
 }
