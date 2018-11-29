@@ -263,7 +263,7 @@ out:
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err(sdev->dev, "error: volume get failed to idle %d\n",
+		dev_err(sdev->dev, "error: bytes put failed to idle %d\n",
 			err);
 	return ret;
 }
@@ -288,7 +288,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: bytes put failed to resume %d\n",
+		dev_err(sdev->dev, "error: bytes_ext put failed to resume %d\n",
 			ret);
 		return ret;
 	}
@@ -297,9 +297,10 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	 * the length (as bytes) is needed to know the correct copy
 	 * length of data from tlvd->tlv.
 	 */
-	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv)))
-		return -EFAULT;
-
+	if (copy_from_user(&header, tlvd, sizeof(const struct snd_ctl_tlv))) {
+		ret = -EFAULT;
+		goto out;
+	}
 	/* The maximum length that can be copied is limited by IPC max
 	 * length and topology defined length for ext bytes control.
 	 */
@@ -316,13 +317,15 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 
 	/* Check that header id matches the command */
 	if (header.numid != scontrol->cmd) {
-		dev_err(sdev->dev, "error: incorred numid %d\n", header.numid);
+		dev_err(sdev->dev, "error: incorrect numid %d\n", header.numid);
 		ret = -EINVAL;
 		goto out;
 	}
 
-	if (copy_from_user(cdata->data->data, tlvd->tlv, header.length))
-		return -EFAULT;
+	if (copy_from_user(cdata->data->data, tlvd->tlv, header.length)) {
+		ret = -EFAULT;
+		goto out;
+	}
 
 	/* set the ABI header values */
 	cdata->data->magic = SOF_ABI_MAGIC;
@@ -336,7 +339,8 @@ out:
 	pm_runtime_mark_last_busy(sdev->dev);
 	err = pm_runtime_put_autosuspend(sdev->dev);
 	if (err < 0)
-		dev_err(sdev->dev, "error: failed to idle %d\n", err);
+		dev_err(sdev->dev, "error: bytes_ext put failed to idle %d\n",
+			err);
 
 	return ret;
 }
@@ -356,11 +360,12 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 	int max_length = SOF_IPC_MSG_MAX_SIZE -
 		sizeof(const struct sof_ipc_ctrl_data) -
 		sizeof(const struct sof_abi_hdr);
+	int err;
 	int ret;
 
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
-		dev_err(sdev->dev, "error: bytes get failed to resume %d\n",
+		dev_err(sdev->dev, "error: bytes_ext get failed to resume %d\n",
 			ret);
 		return ret;
 	}
@@ -394,14 +399,18 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 
 	header.numid = scontrol->cmd;
 	header.length = size;
-	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv)))
-		return -EFAULT;
-
+	if (copy_to_user(tlvd, &header, sizeof(const struct snd_ctl_tlv))) {
+		ret = -EFAULT;
+		goto out;
+	}
 	if (copy_to_user(tlvd->tlv, cdata->data->data, size))
-		return -EFAULT;
+		ret = -EFAULT;
 
 out:
 	pm_runtime_mark_last_busy(sdev->dev);
-	pm_runtime_put_autosuspend(sdev->dev);
+	err = pm_runtime_put_autosuspend(sdev->dev);
+	if (err < 0)
+		dev_err(sdev->dev, "error: bytes_ext get failed to idle %d\n",
+			err);
 	return ret;
 }
