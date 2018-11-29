@@ -1056,19 +1056,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x38000 0x2000>;
-
-			mcasp0: mcasp@0 {
-				compatible = "ti,am33xx-mcasp-audio";
-				reg = <0x0 0x2000>,
-				      <0x46000000 0x400000>;
-				reg-names = "mpu", "dat";
-				interrupts = <80>, <81>;
-				interrupt-names = "tx", "rx";
-				status = "disabled";
-				dmas = <&edma 8 2>,
-					<&edma 9 2>;
-				dma-names = "tx", "rx";
-			};
+			status = "disabled";
 		};
 
 		target-module@3c000 {			/* 0x4803c000, ap 20 32.0 */
@@ -1086,19 +1074,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0x0 0x3c000 0x2000>;
-
-			mcasp1: mcasp@0 {
-				compatible = "ti,am33xx-mcasp-audio";
-				reg = <0x0 0x2000>,
-				      <0x46400000 0x400000>;
-				reg-names = "mpu", "dat";
-				interrupts = <82>, <83>;
-				interrupt-names = "tx", "rx";
-				status = "disabled";
-				dmas = <&edma 10 2>,
-					<&edma 11 2>;
-				dma-names = "tx", "rx";
-			};
+			status = "disabled";
 		};
 
 		target-module@40000 {			/* 0x48040000, ap 22 1e.0 */
