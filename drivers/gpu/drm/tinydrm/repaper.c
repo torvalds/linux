@@ -108,12 +108,11 @@ static int repaper_spi_transfer(struct spi_device *spi, u8 header,
 
 	/* Stack allocated tx? */
 	if (tx && len <= 32) {
-		txbuf = kmalloc(len, GFP_KERNEL);
+		txbuf = kmemdup(tx, len, GFP_KERNEL);
 		if (!txbuf) {
 			ret = -ENOMEM;
 			goto out_free;
 		}
-		memcpy(txbuf, tx, len);
 	}
 
 	if (rx) {
