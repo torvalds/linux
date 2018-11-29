@@ -65,6 +65,9 @@ static int __hugepte_alloc(struct mm_struct *mm, hugepd_t *hpdp,
 	if (pshift >= pdshift) {
 		cachep = PGT_CACHE(PTE_T_ORDER);
 		num_hugepd = 1 << (pshift - pdshift);
+	} else if (IS_ENABLED(CONFIG_PPC_8xx)) {
+		cachep = PGT_CACHE(PTE_INDEX_SIZE);
+		num_hugepd = 1;
 	} else {
 		cachep = PGT_CACHE(pdshift - pshift);
 		num_hugepd = 1;
@@ -331,6 +334,9 @@ static void free_hugepd_range(struct mmu_gather *tlb, hugepd_t *hpdp, int pdshif
 
 	if (shift >= pdshift)
 		hugepd_free(tlb, hugepte);
+	else if (IS_ENABLED(CONFIG_PPC_8xx))
+		pgtable_free_tlb(tlb, hugepte,
+				 get_hugepd_cache_index(PTE_INDEX_SIZE));
 	else
 		pgtable_free_tlb(tlb, hugepte,
 				 get_hugepd_cache_index(pdshift - shift));
@@ -700,7 +706,9 @@ static int __init hugetlbpage_init(void)
 		 * if we have pdshift and shift value same, we don't
 		 * use pgt cache for hugepd.
 		 */
-		if (pdshift > shift)
+		if (pdshift > shift && IS_ENABLED(CONFIG_PPC_8xx))
+			pgtable_cache_add(PTE_INDEX_SIZE);
+		else if (pdshift > shift)
 			pgtable_cache_add(pdshift - shift);
 #if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
 		else
