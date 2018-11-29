@@ -679,6 +679,7 @@ next_mr:
 				    key);
 			if (bytes_mapped)
 				*bytes_mapped += bcnt;
+			ret = 0;
 			goto srcu_unlock;
 		}
 
