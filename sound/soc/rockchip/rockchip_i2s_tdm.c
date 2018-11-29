@@ -983,9 +983,11 @@ static bool rockchip_i2s_tdm_rd_reg(struct device *dev, unsigned int reg)
 	case I2S_INTCR:
 	case I2S_XFER:
 	case I2S_CLR:
+	case I2S_TXDR:
 	case I2S_RXDR:
-	case I2S_FIFOLR:
+	case I2S_TXFIFOLR:
 	case I2S_INTSR:
+	case I2S_RXFIFOLR:
 	case I2S_TDM_TXCR:
 	case I2S_TDM_RXCR:
 	case I2S_CLKDIV:
@@ -998,8 +1000,12 @@ static bool rockchip_i2s_tdm_rd_reg(struct device *dev, unsigned int reg)
 static bool rockchip_i2s_tdm_volatile_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case I2S_TXFIFOLR:
 	case I2S_INTSR:
 	case I2S_CLR:
+	case I2S_TXDR:
+	case I2S_RXDR:
+	case I2S_RXFIFOLR:
 		return true;
 	default:
 		return false;
@@ -1009,6 +1015,8 @@ static bool rockchip_i2s_tdm_volatile_reg(struct device *dev, unsigned int reg)
 static bool rockchip_i2s_tdm_precious_reg(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case I2S_RXDR:
+		return true;
 	default:
 		return false;
 	}
