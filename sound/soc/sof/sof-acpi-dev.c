@@ -8,19 +8,20 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
+#include <linux/acpi.h>
+#include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
-#include <linux/firmware.h>
+#include <linux/pm_runtime.h>
+#include <acpi/acpi_bus.h>
+#include <asm/cpu_device_id.h>
+#include <asm/iosf_mbi.h>
 #include <sound/pcm.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
-#include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <asm/cpu_device_id.h>
-#include <asm/iosf_mbi.h>
+
 #include "sof-priv.h"
 #include "ops.h"
 

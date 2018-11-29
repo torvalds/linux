@@ -10,13 +10,13 @@
 
 /* Mixer Controls */
 
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
-#include <sound/soc-topology.h>
-#include <sound/soc.h>
+#include <linux/slab.h>
 #include <sound/control.h>
+#include <sound/soc.h>
+#include <sound/soc-topology.h>
 #include "sof-priv.h"
 
 static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)

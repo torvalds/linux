@@ -8,15 +8,15 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/sof.h>
 #include <sound/compress_driver.h>
+#include <sound/sof.h>
 #include "sof-priv.h"
 
 #define DRV_NAME	"sof-audio"

@@ -9,19 +9,19 @@
 //
 
 #include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/firmware.h>
+#include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/firmware.h>
+#include <linux/slab.h>
 #include <linux/string.h>
-#include <sound/soc-topology.h>
 #include <sound/soc.h>
-#include <uapi/sound/tlv.h>
+#include <sound/soc-topology.h>
 #include <sound/tlv.h>
+#include <uapi/sound/tlv.h>
 #include <uapi/sound/sof/tokens.h>
 #include "sof-priv.h"
 

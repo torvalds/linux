@@ -12,24 +12,21 @@
  * Hardware interface for audio DSPs via SPI
  */
 
-#include <linux/kernel.h>
-#include <linux/gpio.h>
-#include <linux/irq.h>
 #include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/firmware.h>
-#include <linux/spi/spi.h>
+#include <linux/fs.h>
+#include <linux/gpio.h>
+#include <linux/interrupt.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of_device.h>
-
-#include <linux/device.h>
+#include <linux/slab.h>
+#include <linux/spi/spi.h>
 #include <sound/sof.h>
 #include <uapi/sound/sof/fw.h>
-
 #include "sof-priv.h"
 #include "ops.h"
 

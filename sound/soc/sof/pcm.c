@@ -10,11 +10,11 @@
 // PCM Layer, interface between ALSA and IPC.
 //
 
-#include <linux/module.h>
-#include <linux/dma-mapping.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <sound/core.h>

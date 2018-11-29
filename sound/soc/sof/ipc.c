@@ -11,23 +11,23 @@
 // by platform driver code.
 //
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/list.h>
-#include <linux/device.h>
-#include <linux/wait.h>
-#include <linux/spinlock.h>
-#include <linux/workqueue.h>
-#include <linux/export.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
-#include <linux/platform_device.h>
-#include <linux/kthread.h>
-#include <linux/firmware.h>
-#include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/export.h>
+#include <linux/firmware.h>
+#include <linux/kernel.h>
+#include <linux/kthread.h>
+#include <linux/list.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
 #include <sound/asound.h>
 #include <sound/sof.h>
 #include "sof-priv.h"

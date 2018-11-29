@@ -11,10 +11,10 @@
 #ifndef __SOUND_SOC_SOF_IO_H
 #define __SOUND_SOC_SOF_IO_H
 
+#include <linux/device.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/device.h>
 #include <sound/pcm.h>
 #include "sof-priv.h"
 

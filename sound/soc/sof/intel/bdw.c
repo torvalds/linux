@@ -9,24 +9,22 @@
 //
 
 /*
- * Hardwre interface for audio DSP on Haswell and Broadwell
+ * Hardware interface for audio DSP on Broadwell
  */
 
 #include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/firmware.h>
+#include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
-#include <linux/firmware.h>
-
+#include <linux/slab.h>
 #include <trace/events/hswadsp.h>
 #include <sound/sof.h>
-#include <uapi/sound/sof/fw.h>
 #include <sound/sof/xtensa.h>
-
+#include <uapi/sound/sof/fw.h>
 #include "../sof-priv.h"
 #include "../ops.h"
 #include "shim.h"

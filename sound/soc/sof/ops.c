@@ -8,12 +8,12 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/pci.h>
+#include <linux/types.h>
 #include "ops.h"
 #include "sof-priv.h"
 

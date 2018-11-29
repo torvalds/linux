@@ -8,9 +8,9 @@
  * Author: Pan Xiuli <xiuli.pan@linux.intel.com>
  */
 
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/delay.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <sound/core.h>

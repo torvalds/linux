@@ -11,14 +11,16 @@
 #ifndef __SOUND_SOC_SOF_PRIV_H
 #define __SOUND_SOC_SOF_PRIV_H
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
 #include <linux/device.h>
-#include <linux/pci.h>
 #include <linux/firmware.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/pci.h>
+#include <linux/types.h>
+#include <sound/compress_driver.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
+#include <sound/hdaudio.h>
 #include <sound/sof/header.h>
 #include <sound/sof/stream.h>
 #include <sound/sof/control.h>
@@ -27,11 +29,9 @@
 #include <sound/sof/topology.h>
 #include <sound/sof/info.h>
 #include <sound/sof/pm.h>
+#include <uapi/sound/asoc.h>
 #include <uapi/sound/sof/manifest.h>
 #include <uapi/sound/sof/fw.h>
-#include <uapi/sound/asoc.h>
-#include <sound/hdaudio.h>
-#include <sound/compress_driver.h>
 
 /* debug flags */
 #define SOF_DBG_REGS	BIT(1)

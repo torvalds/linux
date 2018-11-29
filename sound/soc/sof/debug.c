@@ -6,20 +6,19 @@
 // Copyright(c) 2018 Intel Corporation. All rights reserved.
 //
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
-//         Yan Wang <yan.wan@linux.intel.com>
 //
 // Generic debug routines used to export DSP MMIO and memories to userspace
 // for firmware debugging.
 //
 
+#include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/debugfs.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include "sof-priv.h"
 #include "ops.h"

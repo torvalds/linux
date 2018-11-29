@@ -8,16 +8,16 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
+#include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/pm_runtime.h>
-#include <linux/platform_device.h>
 #include <linux/firmware.h>
+#include <linux/of_device.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
+#include <linux/spi/spi.h>
 #include <sound/pcm.h>
 #include <sound/sof.h>
-#include <linux/spi/spi.h>
-#include <linux/of_device.h>
-#include <linux/gpio/consumer.h>
 #include "sof-priv.h"
 #include "hw-spi.h"
 #include "ops.h"
