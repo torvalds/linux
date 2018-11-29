@@ -1467,7 +1467,8 @@ static void commit_planes_do_stream_update(struct dc *dc,
 
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
-					stream_update->vsc_infopacket) {
+					stream_update->vsc_infopacket ||
+					stream_update->vsp_infopacket) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 			}
