@@ -1724,4 +1724,7 @@ struct linux_efi_memreserve {
 #define EFI_MEMRESERVE_SIZE(count) (sizeof(struct linux_efi_memreserve) + \
 	(count) * sizeof(((struct linux_efi_memreserve *)0)->entry[0]))
 
+#define EFI_MEMRESERVE_COUNT(size) (((size) - sizeof(struct linux_efi_memreserve)) \
+	/ sizeof(((struct linux_efi_memreserve *)0)->entry[0]))
+
 #endif /* _LINUX_EFI_H */
