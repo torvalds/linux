@@ -371,13 +371,10 @@ int of_regulator_match(struct device *dev, struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(of_regulator_match);
 
-struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
-					    const struct regulator_desc *desc,
-					    struct regulator_config *config,
-					    struct device_node **node)
+struct device_node *regulator_of_get_init_node(struct device *dev,
+					       const struct regulator_desc *desc)
 {
 	struct device_node *search, *child;
-	struct regulator_init_data *init_data = NULL;
 	const char *name;
 
 	if (!dev->of_node || !desc->of_match)
@@ -400,35 +397,48 @@ struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
 		if (!name)
 			name = child->name;
 
-		if (strcmp(desc->of_match, name))
-			continue;
-
-		init_data = of_get_regulator_init_data(dev, child, desc);
-		if (!init_data) {
-			dev_err(dev,
-				"failed to parse DT for regulator %pOFn\n",
-				child);
-			break;
-		}
-
-		if (desc->of_parse_cb) {
-			if (desc->of_parse_cb(child, desc, config)) {
-				dev_err(dev,
-					"driver callback failed to parse DT for regulator %pOFn\n",
-					child);
-				init_data = NULL;
-				break;
-			}
-		}
-
-		of_node_get(child);
-		*node = child;
-		break;
+		if (!strcmp(desc->of_match, name))
+			return of_node_get(child);
 	}
 
 	of_node_put(search);
 
+	return NULL;
+}
+
+struct regulator_init_data *regulator_of_get_init_data(struct device *dev,
+					    const struct regulator_desc *desc,
+					    struct regulator_config *config,
+					    struct device_node **node)
+{
+	struct device_node *child;
+	struct regulator_init_data *init_data = NULL;
+
+	child = regulator_of_get_init_node(dev, desc);
+	if (!child)
+		return NULL;
+
+	init_data = of_get_regulator_init_data(dev, child, desc);
+	if (!init_data) {
+		dev_err(dev, "failed to parse DT for regulator %pOFn\n", child);
+		goto error;
+	}
+
+	if (desc->of_parse_cb && desc->of_parse_cb(child, desc, config)) {
+		dev_err(dev,
+			"driver callback failed to parse DT for regulator %pOFn\n",
+			child);
+		goto error;
+	}
+
+	*node = child;
+
 	return init_data;
+
+error:
+	of_node_put(child);
+
+	return NULL;
 }
 
 static int of_node_match(struct device *dev, const void *data)
