@@ -34,9 +34,11 @@ config ARCH_RCAR_GEN3
 
 config ARCH_RMOBILE
 	bool
-	select PM_RMOBILE
+	select PM
+	select PM_GENERIC_DOMAINS
 	select SYS_SUPPORTS_SH_CMT
 	select SYS_SUPPORTS_SH_TMU
+	select SYSC_RMOBILE
 
 config ARCH_RZN1
 	bool
@@ -296,5 +298,8 @@ config RST_RCAR
 
 config SYSC_RCAR
 	bool "R-Car System Controller support" if COMPILE_TEST
+
+config SYSC_RMOBILE
+	bool "R-Mobile System Controller support" if COMPILE_TEST
 
 endif # SOC_RENESAS

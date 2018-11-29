@@ -1,9 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-config PM_RMOBILE
-	bool
-	select PM
-	select PM_GENERIC_DOMAINS
-
 menuconfig ARCH_RENESAS
 	bool "Renesas ARM SoCs"
 	depends on ARCH_MULTI_V7 && MMU
