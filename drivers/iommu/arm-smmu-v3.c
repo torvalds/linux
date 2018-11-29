@@ -1696,24 +1696,26 @@ static void arm_smmu_install_ste_for_dev(struct iommu_fwspec *fwspec)
 
 static void arm_smmu_detach_dev(struct device *dev)
 {
-	struct arm_smmu_master_data *master = dev->iommu_fwspec->iommu_priv;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
+	struct arm_smmu_master_data *master = fwspec->iommu_priv;
 
 	master->ste.assigned = false;
-	arm_smmu_install_ste_for_dev(dev->iommu_fwspec);
+	arm_smmu_install_ste_for_dev(fwspec);
 }
 
 static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 {
 	int ret = 0;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_master_data *master;
 	struct arm_smmu_strtab_ent *ste;
 
-	if (!dev->iommu_fwspec)
+	if (!fwspec)
 		return -ENOENT;
 
-	master = dev->iommu_fwspec->iommu_priv;
+	master = fwspec->iommu_priv;
 	smmu = master->smmu;
 	ste = &master->ste;
 
@@ -1753,7 +1755,7 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 		ste->s2_cfg = &smmu_domain->s2_cfg;
 	}
 
-	arm_smmu_install_ste_for_dev(dev->iommu_fwspec);
+	arm_smmu_install_ste_for_dev(fwspec);
 out_unlock:
 	mutex_unlock(&smmu_domain->init_mutex);
 	return ret;
@@ -1844,7 +1846,7 @@ static int arm_smmu_add_device(struct device *dev)
 	int i, ret;
 	struct arm_smmu_device *smmu;
 	struct arm_smmu_master_data *master;
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct iommu_group *group;
 
 	if (!fwspec || fwspec->ops != &arm_smmu_ops)
@@ -1895,7 +1897,7 @@ static int arm_smmu_add_device(struct device *dev)
 
 static void arm_smmu_remove_device(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct arm_smmu_master_data *master;
 	struct arm_smmu_device *smmu;
 
