@@ -224,7 +224,7 @@ struct sfp_eeprom_ext {
  *
  * See the SFF-8472 specification and related documents for the definition
  * of these structure members. This can be obtained from
- * ftp://ftp.seagate.com/sff
+ * https://www.snia.org/technology-communities/sff/specifications
  */
 struct sfp_eeprom_id {
 	struct sfp_eeprom_base base;
