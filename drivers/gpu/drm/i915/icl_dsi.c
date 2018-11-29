@@ -108,6 +108,90 @@ static void wait_for_cmds_dispatched_to_panel(struct intel_encoder *encoder)
 	}
 }
 
+static bool add_payld_to_queue(struct intel_dsi_host *host, const u8 *data,
+			       u32 len)
+{
+	struct intel_dsi *intel_dsi = host->intel_dsi;
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+	enum transcoder dsi_trans = dsi_port_to_transcoder(host->port);
+	int free_credits;
+	int i, j;
+
+	for (i = 0; i < len; i += 4) {
+		u32 tmp = 0;
+
+		free_credits = payload_credits_available(dev_priv, dsi_trans);
+		if (free_credits < 1) {
+			DRM_ERROR("Payload credit not available\n");
+			return false;
+		}
+
+		for (j = 0; j < min_t(u32, len - i, 4); j++)
+			tmp |= *data++ << 8 * j;
+
+		I915_WRITE(DSI_CMD_TXPYLD(dsi_trans), tmp);
+	}
+
+	return true;
+}
+
+static int dsi_send_pkt_hdr(struct intel_dsi_host *host,
+			    struct mipi_dsi_packet pkt, bool enable_lpdt)
+{
+	struct intel_dsi *intel_dsi = host->intel_dsi;
+	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
+	enum transcoder dsi_trans = dsi_port_to_transcoder(host->port);
+	u32 tmp;
+	int free_credits;
+
+	/* check if header credit available */
+	free_credits = header_credits_available(dev_priv, dsi_trans);
+	if (free_credits < 1) {
+		DRM_ERROR("send pkt header failed, not enough hdr credits\n");
+		return -1;
+	}
+
+	tmp = I915_READ(DSI_CMD_TXHDR(dsi_trans));
+
+	if (pkt.payload)
+		tmp |= PAYLOAD_PRESENT;
+	else
+		tmp &= ~PAYLOAD_PRESENT;
+
+	tmp &= ~VBLANK_FENCE;
+
+	if (enable_lpdt)
+		tmp |= LP_DATA_TRANSFER;
+
+	tmp &= ~(PARAM_WC_MASK | VC_MASK | DT_MASK);
+	tmp |= ((pkt.header[0] & VC_MASK) << VC_SHIFT);
+	tmp |= ((pkt.header[0] & DT_MASK) << DT_SHIFT);
+	tmp |= (pkt.header[1] << PARAM_WC_LOWER_SHIFT);
+	tmp |= (pkt.header[2] << PARAM_WC_UPPER_SHIFT);
+	I915_WRITE(DSI_CMD_TXHDR(dsi_trans), tmp);
+
+	return 0;
+}
+
+static int dsi_send_pkt_payld(struct intel_dsi_host *host,
+			      struct mipi_dsi_packet pkt)
+{
+	/* payload queue can accept *256 bytes*, check limit */
+	if (pkt.payload_length > MAX_PLOAD_CREDIT * 4) {
+		DRM_ERROR("payload size exceeds max queue limit\n");
+		return -1;
+	}
+
+	/* load data into command payload queue */
+	if (!add_payld_to_queue(host, pkt.payload,
+				pkt.payload_length)) {
+		DRM_ERROR("adding payload to queue failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -1002,6 +1086,58 @@ static const struct drm_connector_helper_funcs gen11_dsi_connector_helper_funcs 
 	.atomic_check = intel_digital_connector_atomic_check,
 };
 
+static int gen11_dsi_host_attach(struct mipi_dsi_host *host,
+				 struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static int gen11_dsi_host_detach(struct mipi_dsi_host *host,
+				 struct mipi_dsi_device *dsi)
+{
+	return 0;
+}
+
+static ssize_t gen11_dsi_host_transfer(struct mipi_dsi_host *host,
+				       const struct mipi_dsi_msg *msg)
+{
+	struct intel_dsi_host *intel_dsi_host = to_intel_dsi_host(host);
+	struct mipi_dsi_packet dsi_pkt;
+	ssize_t ret;
+	bool enable_lpdt = false;
+
+	ret = mipi_dsi_create_packet(&dsi_pkt, msg);
+	if (ret < 0)
+		return ret;
+
+	if (msg->flags & MIPI_DSI_MSG_USE_LPM)
+		enable_lpdt = true;
+
+	/* send packet header */
+	ret  = dsi_send_pkt_hdr(intel_dsi_host, dsi_pkt, enable_lpdt);
+	if (ret < 0)
+		return ret;
+
+	/* only long packet contains payload */
+	if (mipi_dsi_packet_format_is_long(msg->type)) {
+		ret = dsi_send_pkt_payld(intel_dsi_host, dsi_pkt);
+		if (ret < 0)
+			return ret;
+	}
+
+	//TODO: add payload receive code if needed
+
+	ret = sizeof(dsi_pkt.header) + dsi_pkt.payload_length;
+
+	return ret;
+}
+
+static const struct mipi_dsi_host_ops gen11_dsi_host_ops = {
+	.attach = gen11_dsi_host_attach,
+	.detach = gen11_dsi_host_detach,
+	.transfer = gen11_dsi_host_transfer,
+};
+
 void icl_dsi_init(struct drm_i915_private *dev_priv)
 {
 	struct drm_device *dev = &dev_priv->drm;
@@ -1074,6 +1210,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	intel_panel_init(&intel_connector->panel, fixed_mode, NULL);
 	intel_panel_setup_backlight(connector, INVALID_PIPE);
 
+
 	if (dev_priv->vbt.dsi.config->dual_link)
 		intel_dsi->ports = BIT(PORT_A) | BIT(PORT_B);
 	else
@@ -1081,6 +1218,16 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 
 	intel_dsi->dcs_backlight_ports = dev_priv->vbt.dsi.bl_ports;
 	intel_dsi->dcs_cabc_ports = dev_priv->vbt.dsi.cabc_ports;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		struct intel_dsi_host *host;
+
+		host = intel_dsi_host_init(intel_dsi, &gen11_dsi_host_ops, port);
+		if (!host)
+			goto err;
+
+		intel_dsi->dsi_hosts[port] = host;
+	}
 
 	if (!intel_dsi_vbt_init(intel_dsi, MIPI_DSI_GENERIC_PANEL_ID)) {
 		DRM_DEBUG_KMS("no device found\n");
