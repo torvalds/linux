@@ -1074,6 +1074,62 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 }
 
+static u64 gen11_dsi_get_power_domains(struct intel_encoder *encoder,
+				       struct intel_crtc_state *crtc_state)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u64 domains = 0;
+	enum port port;
+
+	for_each_dsi_port(port, intel_dsi->ports)
+		if (port == PORT_A)
+			domains |= BIT_ULL(POWER_DOMAIN_PORT_DDI_A_IO);
+		else
+			domains |= BIT_ULL(POWER_DOMAIN_PORT_DDI_B_IO);
+
+	return domains;
+}
+
+static bool gen11_dsi_get_hw_state(struct intel_encoder *encoder,
+				   enum pipe *pipe)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 tmp;
+	enum port port;
+	enum transcoder dsi_trans;
+	bool ret = false;
+
+	if (!intel_display_power_get_if_enabled(dev_priv,
+						encoder->power_domain))
+		return false;
+
+	for_each_dsi_port(port, intel_dsi->ports) {
+		dsi_trans = dsi_port_to_transcoder(port);
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(dsi_trans));
+		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
+		case TRANS_DDI_EDP_INPUT_A_ON:
+			*pipe = PIPE_A;
+			break;
+		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+			*pipe = PIPE_B;
+			break;
+		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+			*pipe = PIPE_C;
+			break;
+		default:
+			DRM_ERROR("Invalid PIPE input\n");
+			goto out;
+		}
+
+		tmp = I915_READ(PIPECONF(dsi_trans));
+		ret = tmp & PIPECONF_ENABLE;
+	}
+out:
+	intel_display_power_put(dev_priv, encoder->power_domain);
+	return ret;
+}
+
 static void gen11_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	intel_encoder_destroy(encoder);
@@ -1188,10 +1244,12 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->disable = gen11_dsi_disable;
 	encoder->port = port;
 	encoder->get_config = gen11_dsi_get_config;
+	encoder->get_hw_state = gen11_dsi_get_hw_state;
 	encoder->type = INTEL_OUTPUT_DSI;
 	encoder->cloneable = 0;
 	encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);
 	encoder->power_domain = POWER_DOMAIN_PORT_DSI;
+	encoder->get_power_domains = gen11_dsi_get_power_domains;
 
 	/* register DSI connector with DRM subsystem */
 	drm_connector_init(dev, connector, &gen11_dsi_connector_funcs,
@@ -1200,6 +1258,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
+	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	/* attach connector to encoder */
 	intel_connector_attach_encoder(intel_connector, encoder);
