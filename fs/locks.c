@@ -748,8 +748,16 @@ static void __locks_wake_up_blocks(struct file_lock *blocker)
 	}
 }
 
-static void locks_delete_block(struct file_lock *waiter)
+/**
+ *	locks_delete_lock - stop waiting for a file lock
+ *	@waiter: the lock which was waiting
+ *
+ *	lockd/nfsd need to disconnect the lock while working on it.
+ */
+int locks_delete_block(struct file_lock *waiter)
 {
+	int status = -ENOENT;
+
 	/*
 	 * If fl_blocker is NULL, it won't be set again as this thread
 	 * "owns" the lock and is the only one that might try to claim
@@ -763,12 +771,16 @@ static void locks_delete_block(struct file_lock *waiter)
 	 */
 	if (waiter->fl_blocker == NULL &&
 	    list_empty(&waiter->fl_blocked_requests))
-		return;
+		return status;
 	spin_lock(&blocked_lock_lock);
+	if (waiter->fl_blocker)
+		status = 0;
 	__locks_wake_up_blocks(waiter);
 	__locks_delete_block(waiter);
 	spin_unlock(&blocked_lock_lock);
+	return status;
 }
+EXPORT_SYMBOL(locks_delete_block);
 
 /* Insert waiter into blocker's block list.
  * We use a circular list so that processes can be easily woken up in
@@ -2674,28 +2686,6 @@ void locks_remove_file(struct file *filp)
 	locks_check_ctx_file_list(filp, &ctx->flc_lease, "LEASE");
 	spin_unlock(&ctx->flc_lock);
 }
-
-/**
- *	posix_unblock_lock - stop waiting for a file lock
- *	@waiter: the lock which was waiting
- *
- *	lockd needs to block waiting for locks.
- */
-int
-posix_unblock_lock(struct file_lock *waiter)
-{
-	int status = -ENOENT;
-
-	spin_lock(&blocked_lock_lock);
-	if (waiter->fl_blocker) {
-		__locks_wake_up_blocks(waiter);
-		__locks_delete_block(waiter);
-		status = 0;
-	}
-	spin_unlock(&blocked_lock_lock);
-	return status;
-}
-EXPORT_SYMBOL(posix_unblock_lock);
 
 /**
  * vfs_cancel_lock - file byte range unblock lock
