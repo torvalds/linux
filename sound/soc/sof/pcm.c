@@ -523,7 +523,7 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
 			caps->name, ret);
-		return ret;
+		goto free_playback_dma_buffer;
 	}
 
 capture:
@@ -547,8 +547,7 @@ capture:
 		dev_err(sdev->dev, "error: can't alloc DMA buffer size 0x%x/0x%x for %s %d\n",
 			caps->buffer_size_min, caps->buffer_size_max,
 			caps->name, ret);
-		snd_dma_free_pages(&spcm->stream[stream].page_table);
-		return ret;
+		goto free_playback_tables;
 	}
 
 	/* allocate capture page table buffer */
@@ -557,11 +556,22 @@ capture:
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
 			caps->name, ret);
-		snd_dma_free_pages(&spcm->stream[stream].page_table);
-		return ret;
+		goto free_playback_tables;
 	}
 
 	/* TODO: assign channel maps from topology */
+
+	return ret;
+
+free_playback_tables:
+	if (spcm->pcm.playback)
+		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].page_table);
+
+free_playback_dma_buffer:
+	/*
+	 * no need to explicitly release preallocated memory,
+	 * snd_pcm_lib_preallocate_free_for_all() is called by the core
+	 */
 
 	return ret;
 }
@@ -588,6 +598,10 @@ static void sof_pcm_free(struct snd_pcm *pcm)
 	if (spcm->pcm.capture)
 		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_CAPTURE].page_table);
 
+	/*
+	 * no need to explicitly release preallocated memory,
+	 * snd_pcm_lib_preallocate_free_for_all() is called by the core
+	 */
 }
 
 /* fixup the BE DAI link to match any values from topology */
