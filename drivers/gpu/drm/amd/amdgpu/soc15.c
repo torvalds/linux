@@ -63,6 +63,7 @@
 #include "vcn_v1_0.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
+#include "amdgpu_smu.h"
 
 #define mmMP0_MISC_CGTT_CTRL0                                                                   0x01b9
 #define mmMP0_MISC_CGTT_CTRL0_BASE_IDX                                                          0
@@ -603,8 +604,12 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		}
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
-		if (!amdgpu_sriov_vf(adev))
-			amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		if (!amdgpu_sriov_vf(adev)) {
+			if (amdgpu_dpm == 1 && adev->asic_type >= CHIP_VEGA20)
+				amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
+			else
+				amdgpu_device_ip_block_add(adev, &pp_smu_ip_block);
+		}
 		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
 			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
 #if defined(CONFIG_DRM_AMD_DC)
