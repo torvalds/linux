@@ -882,21 +882,31 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	struct drm_gem_object *obj;
 	int ret = 0;
 
-	if (args->flags & ~MSM_INFO_FLAGS)
+	if (args->pad)
 		return -EINVAL;
+
+	switch (args->info) {
+	case MSM_INFO_GET_OFFSET:
+	case MSM_INFO_GET_IOVA:
+		/* value returned as immediate, not pointer, so len==0: */
+		if (args->len)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	obj = drm_gem_object_lookup(file, args->handle);
 	if (!obj)
 		return -ENOENT;
 
-	if (args->flags & MSM_INFO_IOVA) {
-		uint64_t iova;
-
-		ret = msm_ioctl_gem_info_iova(dev, obj, &iova);
-		if (!ret)
-			args->offset = iova;
-	} else {
-		args->offset = msm_gem_mmap_offset(obj);
+	switch (args->info) {
+	case MSM_INFO_GET_OFFSET:
+		args->value = msm_gem_mmap_offset(obj);
+		break;
+	case MSM_INFO_GET_IOVA:
+		ret = msm_ioctl_gem_info_iova(dev, obj, &args->value);
+		break;
 	}
 
 	drm_gem_object_put_unlocked(obj);
