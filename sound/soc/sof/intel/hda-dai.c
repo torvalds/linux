@@ -38,6 +38,11 @@ struct hda_pipe_params {
  * channel and the relation is fixed. To make sure FW uses the correct
  * link dma channel, host allocates stream register and sends the
  * corresponding link dma channel to FW to allocate link dma channel
+ *
+ * FIXME: this API is abused in the sense that tx_num and rx_num are
+ * passed as arguments, not returned. We need to find a better way to
+ * retrieve the stream tag allocated for the link DMA
+ *
  */
 static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 				     unsigned int *tx_num,
@@ -191,6 +196,13 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/*
+ * FIXME: This API is also abused since it's used for two purposes.
+ * when the substream argument is NULL this function is used for cleanups
+ * that aren't necessarily required, and called explicitly by handling
+ * ASoC core structures, which is not recommended.
+ * This part will be reworked in follow-up patches.
+ */
 static int hda_link_hw_free(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {

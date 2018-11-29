@@ -2264,6 +2264,11 @@ static int sof_link_hda_unload(struct snd_sof_dev *sdev,
 		return -EINVAL;
 	}
 
+	/*
+	 * FIXME: this call to hw_free is mainly to release the link DMA ID.
+	 * This is abusing the API and handling SOC internals is not
+	 * recommended. This part will be reworked.
+	 */
 	if (dai->driver->ops->hw_free)
 		ret = dai->driver->ops->hw_free(NULL, dai);
 	if (ret < 0)
