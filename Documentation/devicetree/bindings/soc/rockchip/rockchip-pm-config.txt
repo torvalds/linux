@@ -3,6 +3,7 @@
 Required properties:
 - compatible: Should be one of the following.
 - "rockchip,pm-px30" - for PX30 SOCs.
+- "rockchip,pm-rk1808" - for RK1808 SOCs.
 - "rockchip,pm-rk322x" - for RK322x SOCs.
 - "rockchip,pm-rk3288" - for RK3288 SOCs.
 - "rockchip,pm-rk3328" - for RK3328 SOCs.
@@ -36,6 +37,25 @@ Example:
 			| RKPM_CLUSTER_WKUP_EN
 			| RKPM_GPIO_WKUP_EN
 			| RKPM_USB_WKUP_EN
+			)
+		>;
+	};
+
+	rockchip_suspend: rockchip-suspend {
+		compatible = "rockchip,pm-rk1808";
+		status = "disabled";
+		rockchip,sleep-debug-en = <1>;
+		rockchip,sleep-mode-config = <
+			(0
+			| RKPM_SLP_ARMOFF
+			| RKPM_SLP_PMU_PMUALIVE_32K
+			| RKPM_SLP_PMU_DIS_OSC
+			)
+		>;
+		rockchip,wakeup-config = <
+			(0
+			| RKPM_CLUSTER_WKUP_EN
+			| RKPM_GPIO_WKUP_EN
 			)
 		>;
 	};
