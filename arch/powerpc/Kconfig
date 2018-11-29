@@ -689,7 +689,7 @@ config PPC_4K_PAGES
 
 config PPC_16K_PAGES
 	bool "16k page size"
-	depends on 44x || PPC_8xx
+	depends on 44x
 
 config PPC_64K_PAGES
 	bool "64k page size"
