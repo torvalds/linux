@@ -104,6 +104,7 @@
 
 /* U3D_EPISR */
 #define EPRISR(x)		(BIT(16) << (x))
+#define SETUPENDISR		BIT(16)
 #define EPTISR(x)		(BIT(0) << (x))
 #define EP0ISR			BIT(0)
 
