@@ -1060,6 +1060,20 @@ static void gen11_dsi_disable(struct intel_encoder *encoder,
 	gen11_dsi_disable_io_power(encoder);
 }
 
+static void gen11_dsi_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 pll_id;
+
+	/* FIXME: adapt icl_ddi_clock_get() for DSI and use that? */
+	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
+	pipe_config->port_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+	pipe_config->base.adjusted_mode.crtc_clock = intel_dsi->pclk;
+	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
+}
+
 static void gen11_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
 	intel_encoder_destroy(encoder);
@@ -1173,6 +1187,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->pre_enable = gen11_dsi_pre_enable;
 	encoder->disable = gen11_dsi_disable;
 	encoder->port = port;
+	encoder->get_config = gen11_dsi_get_config;
 	encoder->type = INTEL_OUTPUT_DSI;
 	encoder->cloneable = 0;
 	encoder->crtc_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C);

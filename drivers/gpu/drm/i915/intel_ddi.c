@@ -1364,8 +1364,8 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
-static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
-			       enum intel_dpll_id pll_id)
+int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
+			enum intel_dpll_id pll_id)
 {
 	uint32_t cfgcr0, cfgcr1;
 	uint32_t p0, p1, p2, dco_freq, ref_clock;

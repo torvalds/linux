@@ -1535,6 +1535,8 @@ u8 intel_ddi_dp_pre_emphasis_max(struct intel_encoder *encoder,
 int intel_ddi_toggle_hdcp_signalling(struct intel_encoder *intel_encoder,
 				     bool enable);
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
+int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
+			enum intel_dpll_id pll_id);
 
 unsigned int intel_fb_align_height(const struct drm_framebuffer *fb,
 				   int color_plane, unsigned int height);
