@@ -23,6 +23,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-dv-timings.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-ioctl.h>
 
 #include "adv748x.h"
@@ -521,12 +522,56 @@ void adv748x_subdev_init(struct v4l2_subdev *sd, struct adv748x_state *state,
 	sd->entity.ops = &adv748x_media_ops;
 }
 
+static int adv748x_parse_csi2_lanes(struct adv748x_state *state,
+				    unsigned int port,
+				    struct device_node *ep)
+{
+	struct v4l2_fwnode_endpoint vep;
+	unsigned int num_lanes;
+	int ret;
+
+	if (port != ADV748X_PORT_TXA && port != ADV748X_PORT_TXB)
+		return 0;
+
+	vep.bus_type = V4L2_MBUS_CSI2_DPHY;
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &vep);
+	if (ret)
+		return ret;
+
+	num_lanes = vep.bus.mipi_csi2.num_data_lanes;
+
+	if (vep.base.port == ADV748X_PORT_TXA) {
+		if (num_lanes != 1 && num_lanes != 2 && num_lanes != 4) {
+			adv_err(state, "TXA: Invalid number (%u) of lanes\n",
+				num_lanes);
+			return -EINVAL;
+		}
+
+		state->txa.num_lanes = num_lanes;
+		adv_dbg(state, "TXA: using %u lanes\n", state->txa.num_lanes);
+	}
+
+	if (vep.base.port == ADV748X_PORT_TXB) {
+		if (num_lanes != 1) {
+			adv_err(state, "TXB: Invalid number (%u) of lanes\n",
+				num_lanes);
+			return -EINVAL;
+		}
+
+		state->txb.num_lanes = num_lanes;
+		adv_dbg(state, "TXB: using %u lanes\n", state->txb.num_lanes);
+	}
+
+	return 0;
+}
+
 static int adv748x_parse_dt(struct adv748x_state *state)
 {
 	struct device_node *ep_np = NULL;
 	struct of_endpoint ep;
 	bool out_found = false;
 	bool in_found = false;
+	int ret;
 
 	for_each_endpoint_of_node(state->dev->of_node, ep_np) {
 		of_graph_parse_endpoint(ep_np, &ep);
@@ -557,6 +602,11 @@ static int adv748x_parse_dt(struct adv748x_state *state)
 			in_found = true;
 		else
 			out_found = true;
+
+		/* Store number of CSI-2 lanes used for TXA and TXB. */
+		ret = adv748x_parse_csi2_lanes(state, ep.port, ep_np);
+		if (ret)
+			return ret;
 	}
 
 	return in_found && out_found ? 0 : -ENODEV;
