@@ -118,10 +118,19 @@ int sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint, bool round_robin)
 
 	index = SB_NR_TO_INDEX(sb, alloc_hint);
 
+	/*
+	 * Unless we're doing round robin tag allocation, just use the
+	 * alloc_hint to find the right word index. No point in looping
+	 * twice in find_next_zero_bit() for that case.
+	 */
+	if (round_robin)
+		alloc_hint = SB_NR_TO_BIT(sb, alloc_hint);
+	else
+		alloc_hint = 0;
+
 	for (i = 0; i < sb->map_nr; i++) {
 		nr = __sbitmap_get_word(&sb->map[index].word,
-					sb->map[index].depth,
-					SB_NR_TO_BIT(sb, alloc_hint),
+					sb->map[index].depth, alloc_hint,
 					!round_robin);
 		if (nr != -1) {
 			nr += index << sb->shift;
@@ -129,13 +138,9 @@ int sbitmap_get(struct sbitmap *sb, unsigned int alloc_hint, bool round_robin)
 		}
 
 		/* Jump to next index. */
-		index++;
-		alloc_hint = index << sb->shift;
-
-		if (index >= sb->map_nr) {
+		alloc_hint = 0;
+		if (++index >= sb->map_nr)
 			index = 0;
-			alloc_hint = 0;
-		}
 	}
 
 	return nr;
