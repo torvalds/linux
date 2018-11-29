@@ -135,3 +135,23 @@ exit:
 	mutex_unlock(&xgmi_mutex);
 	return ret;
 }
+
+void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
+{
+	struct amdgpu_hive_info *hive;
+
+	if (!adev->gmc.xgmi.supported)
+		return;
+
+	mutex_lock(&xgmi_mutex);
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive)
+		goto exit;
+
+	if (!(hive->number_devices--))
+		mutex_destroy(&hive->hive_lock);
+
+exit:
+	mutex_unlock(&xgmi_mutex);
+}
