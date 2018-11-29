@@ -190,6 +190,7 @@ typedef struct {
 	struct slice_mask mask_8m;
 # endif
 #endif
+	void *pte_frag;
 } mm_context_t;
 
 #define PHYS_IMMR_BASE (mfspr(SPRN_IMMR) & 0xfff80000)
@@ -244,6 +245,9 @@ extern s32 patch__itlbmiss_perf, patch__dtlbmiss_perf;
 #define mmu_virtual_psize	MMU_PAGE_4K
 #elif defined(CONFIG_PPC_16K_PAGES)
 #define mmu_virtual_psize	MMU_PAGE_16K
+#define PTE_FRAG_NR		4
+#define PTE_FRAG_SIZE_SHIFT	12
+#define PTE_FRAG_SIZE		(1UL << 12)
 #else
 #error "Unsupported PAGE_SIZE"
 #endif
