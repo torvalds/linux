@@ -36,7 +36,6 @@
 
 /* Communicate arguments to a workqueue handler. */
 struct rcu_exp_work {
-	smp_call_func_t rew_func;
 	unsigned long rew_s;
 	struct work_struct rew_work;
 };

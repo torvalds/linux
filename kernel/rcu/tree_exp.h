@@ -22,6 +22,8 @@
 
 #include <linux/lockdep.h>
 
+static void rcu_exp_handler(void *unused);
+
 /*
  * Record the start of an expedited grace period.
  */
@@ -344,7 +346,6 @@ static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
 {
 	int cpu;
 	unsigned long flags;
-	smp_call_func_t func;
 	unsigned long mask_ofl_test;
 	unsigned long mask_ofl_ipi;
 	int ret;
@@ -352,7 +353,6 @@ static void sync_rcu_exp_select_node_cpus(struct work_struct *wp)
 		container_of(wp, struct rcu_exp_work, rew_work);
 	struct rcu_node *rnp = container_of(rewp, struct rcu_node, rew);
 
-	func = rewp->rew_func;
 	raw_spin_lock_irqsave_rcu_node(rnp, flags);
 
 	/* Each pass checks a CPU for identity, offline, and idle. */
@@ -396,7 +396,7 @@ retry_ipi:
 			mask_ofl_test |= mask;
 			continue;
 		}
-		ret = smp_call_function_single(cpu, func, NULL, 0);
+		ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
 		if (!ret) {
 			mask_ofl_ipi &= ~mask;
 			continue;
@@ -426,7 +426,7 @@ retry_ipi:
  * Select the nodes that the upcoming expedited grace period needs
  * to wait for.
  */
-static void sync_rcu_exp_select_cpus(smp_call_func_t func)
+static void sync_rcu_exp_select_cpus(void)
 {
 	int cpu;
 	struct rcu_node *rnp;
@@ -440,7 +440,6 @@ static void sync_rcu_exp_select_cpus(smp_call_func_t func)
 		rnp->exp_need_flush = false;
 		if (!READ_ONCE(rnp->expmask))
 			continue; /* Avoid early boot non-existent wq. */
-		rnp->rew.rew_func = func;
 		if (!READ_ONCE(rcu_par_gp_wq) ||
 		    rcu_scheduler_active != RCU_SCHEDULER_RUNNING ||
 		    rcu_is_last_leaf_node(rnp)) {
@@ -580,10 +579,10 @@ static void rcu_exp_wait_wake(unsigned long s)
  * Common code to drive an expedited grace period forward, used by
  * workqueues and mid-boot-time tasks.
  */
-static void rcu_exp_sel_wait_wake(smp_call_func_t func, unsigned long s)
+static void rcu_exp_sel_wait_wake(unsigned long s)
 {
 	/* Initialize the rcu_node tree in preparation for the wait. */
-	sync_rcu_exp_select_cpus(func);
+	sync_rcu_exp_select_cpus();
 
 	/* Wait and clean up, including waking everyone. */
 	rcu_exp_wait_wake(s);
@@ -597,14 +596,14 @@ static void wait_rcu_exp_gp(struct work_struct *wp)
 	struct rcu_exp_work *rewp;
 
 	rewp = container_of(wp, struct rcu_exp_work, rew_work);
-	rcu_exp_sel_wait_wake(rewp->rew_func, rewp->rew_s);
+	rcu_exp_sel_wait_wake(rewp->rew_s);
 }
 
 /*
  * Given a smp_call_function() handler, kick off the specified
  * implementation of expedited grace period.
  */
-static void _synchronize_rcu_expedited(smp_call_func_t func)
+static void _synchronize_rcu_expedited(void)
 {
 	struct rcu_data *rdp;
 	struct rcu_exp_work rew;
@@ -625,10 +624,9 @@ static void _synchronize_rcu_expedited(smp_call_func_t func)
 	/* Ensure that load happens before action based on it. */
 	if (unlikely(rcu_scheduler_active == RCU_SCHEDULER_INIT)) {
 		/* Direct call during scheduler init and early_initcalls(). */
-		rcu_exp_sel_wait_wake(func, s);
+		rcu_exp_sel_wait_wake(s);
 	} else {
 		/* Marshall arguments & schedule the expedited grace period. */
-		rew.rew_func = func;
 		rew.rew_s = s;
 		INIT_WORK_ONSTACK(&rew.rew_work, wait_rcu_exp_gp);
 		queue_work(rcu_gp_wq, &rew.rew_work);
@@ -654,7 +652,7 @@ static void _synchronize_rcu_expedited(smp_call_func_t func)
  * ->expmask fields in the rcu_node tree.  Otherwise, immediately
  * report the quiescent state.
  */
-static void sync_rcu_exp_handler(void *unused)
+static void rcu_exp_handler(void *unused)
 {
 	unsigned long flags;
 	struct rcu_data *rdp = this_cpu_ptr(&rcu_data);
@@ -760,14 +758,14 @@ void synchronize_rcu_expedited(void)
 
 	if (rcu_scheduler_active == RCU_SCHEDULER_INACTIVE)
 		return;
-	_synchronize_rcu_expedited(sync_rcu_exp_handler);
+	_synchronize_rcu_expedited();
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 
 #else /* #ifdef CONFIG_PREEMPT_RCU */
 
 /* Invoked on each online non-idle CPU for expedited quiescent state. */
-static void sync_sched_exp_handler(void *unused)
+static void rcu_exp_handler(void *unused)
 {
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
@@ -799,7 +797,7 @@ static void sync_sched_exp_online_cleanup(int cpu)
 	rnp = rdp->mynode;
 	if (!(READ_ONCE(rnp->expmask) & rdp->grpmask))
 		return;
-	ret = smp_call_function_single(cpu, sync_sched_exp_handler, NULL, 0);
+	ret = smp_call_function_single(cpu, rcu_exp_handler, NULL, 0);
 	WARN_ON_ONCE(ret);
 }
 
@@ -835,7 +833,7 @@ void synchronize_rcu_expedited(void)
 	if (rcu_blocking_is_gp())
 		return;
 
-	_synchronize_rcu_expedited(sync_sched_exp_handler);
+	_synchronize_rcu_expedited();
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
 

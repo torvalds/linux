@@ -72,10 +72,10 @@ will ignore it because idle and offline CPUs are already residing
 in quiescent states.
 Otherwise, the expedited grace period will use
 <tt>smp_call_function_single()</tt> to send the CPU an IPI, which
-is handled by <tt>sync_rcu_exp_handler()</tt>.
+is handled by <tt>rcu_exp_handler()</tt>.
 
 <p>
-However, because this is preemptible RCU, <tt>sync_rcu_exp_handler()</tt>
+However, because this is preemptible RCU, <tt>rcu_exp_handler()</tt>
 can check to see if the CPU is currently running in an RCU read-side
 critical section.
 If not, the handler can immediately report a quiescent state.
@@ -145,19 +145,18 @@ expedited grace period is shown in the following diagram:
 <p><img src="ExpSchedFlow.svg" alt="ExpSchedFlow.svg" width="55%">
 
 <p>
-As with RCU-preempt's <tt>synchronize_rcu_expedited()</tt>,
+As with RCU-preempt, RCU-sched's
 <tt>synchronize_sched_expedited()</tt> ignores offline and
 idle CPUs, again because they are in remotely detectable
 quiescent states.
-However, the <tt>synchronize_rcu_expedited()</tt> handler
-is <tt>sync_sched_exp_handler()</tt>, and because the
+However, because the
 <tt>rcu_read_lock_sched()</tt> and <tt>rcu_read_unlock_sched()</tt>
 leave no trace of their invocation, in general it is not possible to tell
 whether or not the current CPU is in an RCU read-side critical section.
-The best that <tt>sync_sched_exp_handler()</tt> can do is to check
+The best that RCU-sched's <tt>rcu_exp_handler()</tt> can do is to check
 for idle, on the off-chance that the CPU went idle while the IPI
 was in flight.
-If the CPU is idle, then <tt>sync_sched_exp_handler()</tt> reports
+If the CPU is idle, then <tt>rcu_exp_handler()</tt> reports
 the quiescent state.
 
 <p> Otherwise, the handler forces a future context switch by setting the
@@ -298,19 +297,18 @@ Instead, the task pushing the grace period forward will include the
 idle CPUs in the mask passed to <tt>rcu_report_exp_cpu_mult()</tt>.
 
 <p>
-For RCU-sched, there is an additional check for idle in the IPI
-handler, <tt>sync_sched_exp_handler()</tt>.
+For RCU-sched, there is an additional check:
 If the IPI has interrupted the idle loop, then
-<tt>sync_sched_exp_handler()</tt> invokes <tt>rcu_report_exp_rdp()</tt>
+<tt>rcu_exp_handler()</tt> invokes <tt>rcu_report_exp_rdp()</tt>
 to report the corresponding quiescent state.
 
 <p>
 For RCU-preempt, there is no specific check for idle in the
-IPI handler (<tt>sync_rcu_exp_handler()</tt>), but because
+IPI handler (<tt>rcu_exp_handler()</tt>), but because
 RCU read-side critical sections are not permitted within the
-idle loop, if <tt>sync_rcu_exp_handler()</tt> sees that the CPU is within
+idle loop, if <tt>rcu_exp_handler()</tt> sees that the CPU is within
 RCU read-side critical section, the CPU cannot possibly be idle.
-Otherwise, <tt>sync_rcu_exp_handler()</tt> invokes
+Otherwise, <tt>rcu_exp_handler()</tt> invokes
 <tt>rcu_report_exp_rdp()</tt> to report the corresponding quiescent
 state, regardless of whether or not that quiescent state was due to
 the CPU being idle.
@@ -625,6 +623,8 @@ checks, but only during the mid-boot dead zone.
 <p>
 With this refinement, synchronous grace periods can now be used from
 task context pretty much any time during the life of the kernel.
+That is, aside from some points in the suspend, hibernate, or shutdown
+code path.
 
 <h3><a name="Summary">
 Summary</a></h3>
