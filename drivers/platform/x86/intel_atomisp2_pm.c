@@ -99,6 +99,7 @@ static UNIVERSAL_DEV_PM_OPS(isp_pm_ops, isp_pci_suspend,
 			    isp_pci_resume, NULL);
 
 static const struct pci_device_id isp_id_table[] = {
+	{ PCI_VDEVICE(INTEL, 0x0f38), },
 	{ PCI_VDEVICE(INTEL, 0x22b8), },
 	{ 0, }
 };
