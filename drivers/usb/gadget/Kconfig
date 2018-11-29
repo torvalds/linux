@@ -487,6 +487,15 @@ config USB_CONFIGFS_F_UVC
 	  device. It provides a userspace API to process UVC control requests
 	  and stream video data to the host.
 
+config USB_CONFIGFS_F_UVC_ROCKCHIP
+	bool "Rockchip USB Webcam function"
+	depends on USB_CONFIGFS_F_UVC && ARCH_ROCKCHIP
+	default y
+	help
+	  The Rockchip USB Webcam function is used for Rockchip ISP IQ tool.
+	  Enable this option will increase the UVC_MAX_REQUEST_SIZE from
+	  64 Bytes to 4100 Bytes.
+
 config USB_CONFIGFS_F_PRINTER
 	bool "Printer function"
 	select USB_F_PRINTER
