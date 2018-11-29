@@ -27,7 +27,11 @@ MODULE_PARM_DESC(queue_depth, "Default queue depth for new SCSI devices");
 
 static bool enable_dif;
 module_param_named(dif, enable_dif, bool, 0400);
-MODULE_PARM_DESC(dif, "Enable DIF/DIX data integrity support");
+MODULE_PARM_DESC(dif, "Enable DIF data integrity support (default off)");
+
+bool zfcp_experimental_dix;
+module_param_named(dix, zfcp_experimental_dix, bool, 0400);
+MODULE_PARM_DESC(dix, "Enable experimental DIX (data integrity extension) support which implies DIF support (default off)");
 
 static bool allow_lun_scan = true;
 module_param(allow_lun_scan, bool, 0600);
@@ -790,11 +794,11 @@ void zfcp_scsi_set_prot(struct zfcp_adapter *adapter)
 	data_div = atomic_read(&adapter->status) &
 		   ZFCP_STATUS_ADAPTER_DATA_DIV_ENABLED;
 
-	if (enable_dif &&
+	if ((enable_dif || zfcp_experimental_dix) &&
 	    adapter->adapter_features & FSF_FEATURE_DIF_PROT_TYPE1)
 		mask |= SHOST_DIF_TYPE1_PROTECTION;
 
-	if (enable_dif && data_div &&
+	if (zfcp_experimental_dix && data_div &&
 	    adapter->adapter_features & FSF_FEATURE_DIX_PROT_TCPIP) {
 		mask |= SHOST_DIX_TYPE1_PROTECTION;
 		scsi_host_set_guard(shost, SHOST_DIX_GUARD_IP);

@@ -146,6 +146,7 @@ extern void zfcp_qdio_close(struct zfcp_qdio *);
 extern void zfcp_qdio_siosl(struct zfcp_adapter *);
 
 /* zfcp_scsi.c */
+extern bool zfcp_experimental_dix;
 extern struct scsi_transport_template *zfcp_scsi_transport_template;
 extern int zfcp_scsi_adapter_register(struct zfcp_adapter *);
 extern void zfcp_scsi_adapter_unregister(struct zfcp_adapter *);

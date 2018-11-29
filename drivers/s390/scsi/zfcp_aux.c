@@ -124,6 +124,9 @@ static int __init zfcp_module_init(void)
 {
 	int retval = -ENOMEM;
 
+	if (zfcp_experimental_dix)
+		pr_warn("DIX is enabled. It is experimental and might cause problems\n");
+
 	zfcp_fsf_qtcb_cache = zfcp_cache_hw_align("zfcp_fsf_qtcb",
 						  sizeof(struct fsf_qtcb));
 	if (!zfcp_fsf_qtcb_cache)
