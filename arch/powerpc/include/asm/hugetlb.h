@@ -5,8 +5,6 @@
 #ifdef CONFIG_HUGETLB_PAGE
 #include <asm/page.h>
 
-extern struct kmem_cache *hugepte_cache;
-
 #ifdef CONFIG_PPC_BOOK3S_64
 
 #include <asm/book3s/64/hugetlb.h>
