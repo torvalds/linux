@@ -364,20 +364,28 @@ static int crypto_ahash_op(struct ahash_request *req,
 
 int crypto_ahash_final(struct ahash_request *req)
 {
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int nbytes = req->nbytes;
 	int ret;
 
+	crypto_stats_get(alg);
 	ret = crypto_ahash_op(req, crypto_ahash_reqtfm(req)->final);
-	crypto_stat_ahash_final(req, ret);
+	crypto_stats_ahash_final(nbytes, ret, alg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_final);
 
 int crypto_ahash_finup(struct ahash_request *req)
 {
+	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int nbytes = req->nbytes;
 	int ret;
 
+	crypto_stats_get(alg);
 	ret = crypto_ahash_op(req, crypto_ahash_reqtfm(req)->finup);
-	crypto_stat_ahash_final(req, ret);
+	crypto_stats_ahash_final(nbytes, ret, alg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_finup);
@@ -385,13 +393,16 @@ EXPORT_SYMBOL_GPL(crypto_ahash_finup);
 int crypto_ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
+	struct crypto_alg *alg = tfm->base.__crt_alg;
+	unsigned int nbytes = req->nbytes;
 	int ret;
 
+	crypto_stats_get(alg);
 	if (crypto_ahash_get_flags(tfm) & CRYPTO_TFM_NEED_KEY)
 		ret = -ENOKEY;
 	else
 		ret = crypto_ahash_op(req, tfm->digest);
-	crypto_stat_ahash_final(req, ret);
+	crypto_stats_ahash_final(nbytes, ret, alg);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(crypto_ahash_digest);

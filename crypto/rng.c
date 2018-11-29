@@ -35,9 +35,11 @@ static int crypto_default_rng_refcnt;
 
 int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 {
+	struct crypto_alg *alg = tfm->base.__crt_alg;
 	u8 *buf = NULL;
 	int err;
 
+	crypto_stats_get(alg);
 	if (!seed && slen) {
 		buf = kmalloc(slen, GFP_KERNEL);
 		if (!buf)
@@ -50,7 +52,7 @@ int crypto_rng_reset(struct crypto_rng *tfm, const u8 *seed, unsigned int slen)
 	}
 
 	err = crypto_rng_alg(tfm)->seed(tfm, seed, slen);
-	crypto_stat_rng_seed(tfm, err);
+	crypto_stats_rng_seed(alg, err);
 out:
 	kzfree(buf);
 	return err;
