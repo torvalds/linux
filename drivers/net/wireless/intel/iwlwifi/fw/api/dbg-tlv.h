@@ -70,7 +70,7 @@ struct iwl_fw_ini_header {
 	__le32 tlv_version;
 	__le32 apply_point;
 	u8 data[];
-} __packed; /* FW_INI_HEADER_TLV_S */
+} __packed; /* FW_DEBUG_TLV_HEADER_S */
 
 /**
  * struct iwl_fw_ini_allocation_tlv - (IWL_FW_INI_TLV_TYPE_BUFFER_ALLOCATION)
@@ -92,7 +92,7 @@ struct iwl_fw_ini_allocation_tlv {
 	__le32 size;
 	__le32 max_fragments;
 	__le32 min_frag_size;
-} __packed; /* FW_INI_BUFFER_ALLOCATION_TLV_S_VER_1 */
+} __packed; /* FW_DEBUG_TLV_BUFFER_ALLOCATION_TLV_S_VER_1 */
 
 /**
  * struct iwl_fw_ini_hcmd (IWL_FW_INI_TLV_TYPE_HCMD)
@@ -108,7 +108,7 @@ struct iwl_fw_ini_hcmd {
 	u8 group;
 	__le16 padding;
 	u8 data[0];
-} __packed; /* FW_INI_HCMD_S */
+} __packed; /* FW_DEBUG_TLV_HCMD_DATA_S */
 
 /**
  * struct iwl_fw_ini_hcmd_tlv
@@ -118,7 +118,7 @@ struct iwl_fw_ini_hcmd {
 struct iwl_fw_ini_hcmd_tlv {
 	struct iwl_fw_ini_header header;
 	struct iwl_fw_ini_hcmd hcmd;
-} __packed; /* FW_INI_HCMD_TLV_S_VER_1 */
+} __packed; /* FW_DEBUG_TLV_HCMD_S_VER_1 */
 
 /*
  * struct iwl_fw_ini_debug_flow_tlv (IWL_FW_INI_TLV_TYPE_DEBUG_FLOW)
@@ -129,7 +129,7 @@ struct iwl_fw_ini_hcmd_tlv {
 struct iwl_fw_ini_debug_flow_tlv {
 	struct iwl_fw_ini_header header;
 	__le32 debug_flow_cfg;
-} __packed; /* FW_INI_DEBUG_FLOW_TLV_S_VER_1 */
+} __packed; /* FW_DEBUG_TLV_FLOW_TLV_S_VER_1 */
 
 #define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
@@ -176,7 +176,7 @@ struct iwl_fw_ini_region_tlv {
  * struct iwl_fw_ini_trigger - (IWL_FW_INI_TLV_TYPE_DUMP_CFG)
  * Region sections define IDs and triggers that use those IDs TLV
  *
- * @trigger_id: enum &iwl_fw_ini_tigger_id
+ * @trigger_id: enum &iwl_fw_ini_trigger_id
  * @ignore_default: override FW TLV with binary TLV
  * @dump_delay: delay from trigger fire to dump, in usec
  * @occurrences: max amount of times to be fired
@@ -322,7 +322,7 @@ enum iwl_fw_ini_apply_point {
 	IWL_FW_INI_APPLY_MISSED_BEACONS,
 	IWL_FW_INI_APPLY_SCAN_COMPLETE,
 	IWL_FW_INI_APPLY_NUM,
-}; /* FW_INI_APPLY_POINT_E_VER_1 */
+}; /* FW_DEBUG_TLV_APPLY_POINT_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_allocation_id
@@ -342,7 +342,7 @@ enum iwl_fw_ini_allocation_id {
 	IWL_FW_INI_ALLOCATION_ID_SDFX,
 	IWL_FW_INI_ALLOCATION_ID_FW_DUMP,
 	IWL_FW_INI_ALLOCATION_ID_USER_DEFINED,
-}; /* FW_INI_ALLOCATION_ID_E_VER_1 */
+}; /* FW_DEBUG_TLV_ALLOCATION_ID_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_buffer_location
@@ -354,7 +354,7 @@ enum iwl_fw_ini_buffer_location {
 	IWL_FW_INI_LOCATION_INVALID,
 	IWL_FW_INI_LOCATION_SRAM_PATH,
 	IWL_FW_INI_LOCATION_DRAM_PATH,
-}; /* FW_INI_BUFFER_LOCATION_E_VER_1 */
+}; /* FW_DEBUG_TLV_BUFFER_LOCATION_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_debug_flow
@@ -366,7 +366,7 @@ enum iwl_fw_ini_debug_flow {
 	IWL_FW_INI_DEBUG_INVALID,
 	IWL_FW_INI_DEBUG_DBTR_FLOW,
 	IWL_FW_INI_DEBUG_TB2DTF_FLOW,
-}; /* FW_INI_DEBUG_FLOW_E_VER_1 */
+}; /* FW_DEBUG_TLV_FLOW_E_VER_1 */
 
 /**
  * enum iwl_fw_ini_region_type
@@ -398,6 +398,6 @@ enum iwl_fw_ini_region_type {
 	IWL_FW_INI_REGION_PAGING,
 	IWL_FW_INI_REGION_CSR,
 	IWL_FW_INI_REGION_NUM
-}; /* FW_INI_REGION_TYPE_E_VER_1*/
+}; /* FW_DEBUG_TLV_REGION_TYPE_E_VER_1 */
 
 #endif
