@@ -114,6 +114,8 @@ struct drm_msm_gem_new {
  */
 #define MSM_INFO_GET_OFFSET	0x00   /* get mmap() offset, returned by value */
 #define MSM_INFO_GET_IOVA	0x01   /* get iova, returned by value */
+#define MSM_INFO_SET_NAME	0x02   /* set the debug name (by pointer) */
+#define MSM_INFO_GET_NAME	0x03   /* get debug name, returned by pointer */
 
 struct drm_msm_gem_info {
 	__u32 handle;         /* in */
