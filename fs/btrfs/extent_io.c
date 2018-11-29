@@ -4094,42 +4094,36 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
 		     unsigned nr_pages)
 {
 	struct bio *bio = NULL;
-	unsigned page_idx;
 	unsigned long bio_flags = 0;
 	struct page *pagepool[16];
-	struct page *page;
 	struct extent_map *em_cached = NULL;
 	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
 	int nr = 0;
 	u64 prev_em_start = (u64)-1;
 
-	for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-		page = list_entry(pages->prev, struct page, lru);
+	while (!list_empty(pages)) {
+		for (nr = 0; nr < ARRAY_SIZE(pagepool) && !list_empty(pages);) {
+			struct page *page = list_entry(pages->prev,
+						       struct page, lru);
 
-		prefetchw(&page->flags);
-		list_del(&page->lru);
-		if (add_to_page_cache_lru(page, mapping,
-					page->index,
-					readahead_gfp_mask(mapping))) {
-			put_page(page);
-			continue;
+			prefetchw(&page->flags);
+			list_del(&page->lru);
+			if (add_to_page_cache_lru(page, mapping, page->index,
+						readahead_gfp_mask(mapping))) {
+				put_page(page);
+				continue;
+			}
+
+			pagepool[nr++] = page;
 		}
 
-		pagepool[nr++] = page;
-		if (nr < ARRAY_SIZE(pagepool))
-			continue;
 		__extent_readpages(tree, pagepool, nr, &em_cached, &bio,
-				&bio_flags, &prev_em_start);
-		nr = 0;
+				   &bio_flags, &prev_em_start);
 	}
-	if (nr)
-		__extent_readpages(tree, pagepool, nr, &em_cached, &bio,
-				&bio_flags, &prev_em_start);
 
 	if (em_cached)
 		free_extent_map(em_cached);
 
-	BUG_ON(!list_empty(pages));
 	if (bio)
 		return submit_one_bio(bio, 0, bio_flags);
 	return 0;
