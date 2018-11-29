@@ -912,7 +912,7 @@ int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed)
 	int reset_state = (EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
 	int type = EEH_RESET_HOT;
 	unsigned int freset = 0;
-	int i, state, ret;
+	int i, state = 0, ret;
 
 	/*
 	 * Determine the type of reset to perform - hot or fundamental.
@@ -930,28 +930,32 @@ int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed)
 	/* Make three attempts at resetting the bus */
 	for (i = 0; i < 3; i++) {
 		ret = eeh_pe_reset(pe, type, include_passed);
-		if (ret)
-			break;
-
-		ret = eeh_pe_reset(pe, EEH_RESET_DEACTIVATE, include_passed);
-		if (ret)
-			break;
+		if (!ret)
+			ret = eeh_pe_reset(pe, EEH_RESET_DEACTIVATE,
+					   include_passed);
+		if (ret) {
+			ret = -EIO;
+			pr_warn("EEH: Failure %d resetting PHB#%x-PE#%x (attempt %d)\n\n",
+				state, pe->phb->global_number, pe->addr, i + 1);
+			continue;
+		}
+		if (i)
+			pr_warn("EEH: PHB#%x-PE#%x: Successful reset (attempt %d)\n",
+				pe->phb->global_number, pe->addr, i + 1);
 
 		/* Wait until the PE is in a functioning state */
 		state = eeh_wait_state(pe, PCI_BUS_RESET_WAIT_MSEC);
 		if (state < 0) {
-			pr_warn("%s: Unrecoverable slot failure on PHB#%x-PE#%x",
-				__func__, pe->phb->global_number, pe->addr);
+			pr_warn("EEH: Unrecoverable slot failure on PHB#%x-PE#%x",
+				pe->phb->global_number, pe->addr);
 			ret = -ENOTRECOVERABLE;
 			break;
 		}
 		if (eeh_state_active(state))
 			break;
-
-		/* Set error in case this is our last attempt */
-		ret = -EIO;
-		pr_warn("%s: Failure %d resetting PHB#%x-PE#%x\n (%d)\n",
-			__func__, state, pe->phb->global_number, pe->addr, (i + 1));
+		else
+			pr_warn("EEH: PHB#%x-PE#%x: Slot inactive after reset: 0x%x (attempt %d)\n",
+				pe->phb->global_number, pe->addr, state, i + 1);
 	}
 
 	/* Resetting the PE may have unfrozen child PEs. If those PEs have been
