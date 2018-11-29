@@ -3169,6 +3169,9 @@ struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev)
 	struct drm_atomic_state *state;
 	int err;
 
+	/* This can never be returned, but it makes the compiler happy */
+	state = ERR_PTR(-EINVAL);
+
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, err);
 
 	state = drm_atomic_helper_duplicate_state(dev, &ctx);
