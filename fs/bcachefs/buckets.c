@@ -862,6 +862,12 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		ret = bch2_mark_stripe(c, k, inserting,
 				       stats, journal_seq, flags, gc);
 		break;
+	case KEY_TYPE_alloc:
+		if (inserting)
+			stats->nr_inodes++;
+		else
+			stats->nr_inodes--;
+		break;
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 

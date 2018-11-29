@@ -721,9 +721,6 @@ struct bch_fs {
 	struct mutex		fsck_error_lock;
 	bool			fsck_alloc_err;
 
-	/* FILESYSTEM */
-	atomic_long_t		nr_inodes;
-
 	/* QUOTAS */
 	struct bch_memquota_type quotas[QTYP_NR];
 

@@ -439,6 +439,7 @@ static inline bool btree_node_type_needs_gc(enum btree_node_type type)
 	switch (type) {
 	case BKEY_TYPE_BTREE:
 	case BKEY_TYPE_EXTENTS:
+	case BKEY_TYPE_INODES:
 	case BKEY_TYPE_EC:
 		return true;
 	default:

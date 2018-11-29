@@ -685,6 +685,7 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 		for (b = 0; b < BCH_DATA_NR; b++)
 			copy_fs_field(buckets[b],
 				      "buckets[%s]", bch2_data_types[b]);
+		copy_fs_field(nr_inodes, "nr_inodes");
 
 		for_each_possible_cpu(cpu) {
 			p = per_cpu_ptr(c->usage[0], cpu);

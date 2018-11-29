@@ -400,8 +400,6 @@ retry:
 	if (unlikely(ret))
 		goto err_trans;
 
-	atomic_long_inc(&c->nr_inodes);
-
 	if (!tmpfile) {
 		bch2_inode_update_after_write(c, dir, &dir_u,
 					      ATTR_MTIME|ATTR_CTIME);
@@ -1418,9 +1416,6 @@ static void bch2_evict_inode(struct inode *vinode)
 		bch2_quota_acct(c, inode->ei_qid, Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
 		bch2_inode_rm(c, inode->v.i_ino);
-
-		WARN_ONCE(atomic_long_dec_return(&c->nr_inodes) < 0,
-			  "nr_inodes < 0");
 	}
 }
 
@@ -1439,7 +1434,7 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_blocks	= (c->capacity - hidden_metadata) >> shift;
 	buf->f_bfree	= (c->capacity - bch2_fs_sectors_used(c, usage)) >> shift;
 	buf->f_bavail	= buf->f_bfree;
-	buf->f_files	= atomic_long_read(&c->nr_inodes);
+	buf->f_files	= usage.nr_inodes;
 	buf->f_ffree	= U64_MAX;
 
 	fsid = le64_to_cpup((void *) c->sb.user_uuid.b) ^

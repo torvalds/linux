@@ -1314,9 +1314,6 @@ peek_nlinks:	link = genradix_iter_peek(&nlinks_iter, links);
 			BUG_ON(ret == -EINTR);
 			if (ret)
 				break;
-
-			if (link->count)
-				atomic_long_inc(&c->nr_inodes);
 		} else {
 			/* Should have been caught by dirents pass: */
 			need_fsck_err_on(link->count, c,
@@ -1380,7 +1377,6 @@ static int check_inodes_fast(struct bch_fs *c)
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct bkey_s_c_inode inode;
-	unsigned long nr_inodes = 0;
 	int ret = 0;
 
 	for_each_btree_key(&iter, c, BTREE_ID_INODES, POS_MIN, 0, k) {
@@ -1388,9 +1384,6 @@ static int check_inodes_fast(struct bch_fs *c)
 			continue;
 
 		inode = bkey_s_c_to_inode(k);
-
-		if (!(inode.v->bi_flags & BCH_INODE_UNLINKED))
-			nr_inodes++;
 
 		if (inode.v->bi_flags &
 		    (BCH_INODE_I_SIZE_DIRTY|
@@ -1405,7 +1398,6 @@ static int check_inodes_fast(struct bch_fs *c)
 				break;
 		}
 	}
-	atomic_long_set(&c->nr_inodes, nr_inodes);
 fsck_err:
 	return bch2_btree_iter_unlock(&iter) ?: ret;
 }

@@ -73,6 +73,8 @@ struct bch_fs_usage {
 
 	u64			buckets[BCH_DATA_NR];
 
+	u64			nr_inodes;
+
 	/* fields starting here aren't touched by gc: */
 	u64			online_reserved;
 	u64			available_cache;

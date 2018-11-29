@@ -375,8 +375,6 @@ int bch2_fs_initialize(struct bch_fs *c)
 	if (ret)
 		goto err;
 
-	atomic_long_set(&c->nr_inodes, 2);
-
 	if (enabled_qtypes(c)) {
 		ret = bch2_fs_quota_read(c);
 		if (ret)
