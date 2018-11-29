@@ -179,7 +179,6 @@ step5:
 
 err:
 	hda_dsp_dump(sdev, SOF_DBG_REGS | SOF_DBG_PCI | SOF_DBG_MBOX);
-	//sdev->dsp_ops.cleanup(sdev->dev, &sdev->dmab, tag);
 	hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0) |
 				      HDA_DSP_CORE_MASK(1));
 	return ret;

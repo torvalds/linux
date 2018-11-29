@@ -158,7 +158,7 @@ static u64 hsw_read64(struct snd_sof_dev *sdev, void __iomem *addr)
 
 static int hsw_run(struct snd_sof_dev *sdev)
 {
-	/* set oportunistic mode on engine 0,1 for all channels */
+	/* set opportunistic mode on engine 0,1 for all channels */
 	snd_sof_dsp_update_bits(sdev, HSW_DSP_BAR, SHIM_HMDC,
 				SHIM_HMDC_HDDA_E0_ALLCH |
 				SHIM_HMDC_HDDA_E1_ALLCH, 0);

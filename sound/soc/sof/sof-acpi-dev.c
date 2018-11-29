@@ -206,10 +206,6 @@ static int sof_acpi_probe(struct platform_device *pdev)
 
 	mach->pdata = ops;
 	sof_pdata->machine = mach;
-	/*
-	 * FIXME, this can't work for baytrail cr:
-	 * sof_pdata->desc = (struct sof_dev_desc*) id->driver_data;
-	 */
 	sof_pdata->desc = desc;
 	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = &pdev->dev;
