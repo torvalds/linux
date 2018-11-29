@@ -510,22 +510,11 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	 * support EEH. So we just care about PCI devices for
 	 * simplicity here.
 	 */
-	if (!dev || (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE))
-		return NULL;
-
-	/*
-	 * We rely on count-based pcibios_release_device() to
-	 * detach permanently offlined PEs. Unfortunately, that's
-	 * not reliable enough. We might have the permanently
-	 * offlined PEs attached, but we needn't take care of
-	 * them and their child devices.
-	 */
-	if (eeh_dev_removed(edev))
+	if (!eeh_edev_actionable(edev) ||
+	    (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE))
 		return NULL;
 
 	if (rmv_data) {
-		if (eeh_pe_passed(edev->pe))
-			return NULL;
 		driver = eeh_pcid_get(dev);
 		if (driver) {
 			if (driver->err_handler &&
@@ -539,8 +528,8 @@ static void *eeh_rmv_device(struct eeh_dev *edev, void *userdata)
 	}
 
 	/* Remove it from PCI subsystem */
-	pr_debug("EEH: Removing %s without EEH sensitive driver\n",
-		 pci_name(dev));
+	pr_info("EEH: Removing %s without EEH sensitive driver\n",
+		pci_name(dev));
 	edev->mode |= EEH_DEV_DISCONNECTED;
 	if (rmv_data)
 		rmv_data->removed_dev_count++;
@@ -624,7 +613,7 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	eeh_pe_dev_traverse(pe, eeh_dev_save_state, NULL);
 
 	/* Issue reset */
-	ret = eeh_pe_reset_full(pe);
+	ret = eeh_pe_reset_full(pe, true);
 	if (ret) {
 		eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 		return ret;
@@ -664,6 +653,11 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	time64_t tstamp;
 	int cnt, rc;
 	struct eeh_dev *edev;
+	struct eeh_pe *tmp_pe;
+	bool any_passed = false;
+
+	eeh_for_each_pe(pe, tmp_pe)
+		any_passed |= eeh_pe_passed(tmp_pe);
 
 	/* pcibios will clear the counter; save the value */
 	cnt = pe->freeze_count;
@@ -676,7 +670,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * into pci_hp_add_devices().
 	 */
 	eeh_pe_state_mark(pe, EEH_PE_KEEP);
-	if (driver_eeh_aware || (pe->type & EEH_PE_VF)) {
+	if (any_passed || driver_eeh_aware || (pe->type & EEH_PE_VF)) {
 		eeh_pe_dev_traverse(pe, eeh_rmv_device, rmv_data);
 	} else {
 		pci_lock_rescan_remove();
@@ -693,7 +687,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	 * config accesses. So we prefer to block them. However, controlled
 	 * PCI config accesses initiated from EEH itself are allowed.
 	 */
-	rc = eeh_pe_reset_full(pe);
+	rc = eeh_pe_reset_full(pe, false);
 	if (rc)
 		return rc;
 
@@ -704,7 +698,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	eeh_pe_restore_bars(pe);
 
 	/* Clear frozen state */
-	rc = eeh_clear_pe_frozen_state(pe, true);
+	rc = eeh_clear_pe_frozen_state(pe, false);
 	if (rc) {
 		pci_unlock_rescan_remove();
 		return rc;

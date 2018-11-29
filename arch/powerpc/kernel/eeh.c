@@ -877,6 +877,24 @@ static void *eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
 	return NULL;
 }
 
+static void eeh_pe_refreeze_passed(struct eeh_pe *root)
+{
+	struct eeh_pe *pe;
+	int state;
+
+	eeh_for_each_pe(root, pe) {
+		if (eeh_pe_passed(pe)) {
+			state = eeh_ops->get_state(pe, NULL);
+			if (state &
+			   (EEH_STATE_MMIO_ACTIVE | EEH_STATE_MMIO_ENABLED)) {
+				pr_info("EEH: Passed-through PE PHB#%x-PE#%x was thawed by reset, re-freezing for safety.\n",
+					pe->phb->global_number, pe->addr);
+				eeh_pe_set_option(pe, EEH_OPT_FREEZE_PE);
+			}
+		}
+	}
+}
+
 /**
  * eeh_pe_reset_full - Complete a full reset process on the indicated PE
  * @pe: EEH PE
@@ -889,7 +907,7 @@ static void *eeh_set_dev_freset(struct eeh_dev *edev, void *flag)
  *
  * This function will attempt to reset a PE three times before failing.
  */
-int eeh_pe_reset_full(struct eeh_pe *pe)
+int eeh_pe_reset_full(struct eeh_pe *pe, bool include_passed)
 {
 	int reset_state = (EEH_PE_RESET | EEH_PE_CFG_BLOCKED);
 	int type = EEH_RESET_HOT;
@@ -911,11 +929,11 @@ int eeh_pe_reset_full(struct eeh_pe *pe)
 
 	/* Make three attempts at resetting the bus */
 	for (i = 0; i < 3; i++) {
-		ret = eeh_pe_reset(pe, type);
+		ret = eeh_pe_reset(pe, type, include_passed);
 		if (ret)
 			break;
 
-		ret = eeh_pe_reset(pe, EEH_RESET_DEACTIVATE);
+		ret = eeh_pe_reset(pe, EEH_RESET_DEACTIVATE, include_passed);
 		if (ret)
 			break;
 
@@ -935,6 +953,12 @@ int eeh_pe_reset_full(struct eeh_pe *pe)
 		pr_warn("%s: Failure %d resetting PHB#%x-PE#%x\n (%d)\n",
 			__func__, state, pe->phb->global_number, pe->addr, (i + 1));
 	}
+
+	/* Resetting the PE may have unfrozen child PEs. If those PEs have been
+	 * (potentially) passed through to a guest, re-freeze them:
+	 */
+	if (!include_passed)
+		eeh_pe_refreeze_passed(pe);
 
 	eeh_pe_state_clear(pe, reset_state, true);
 	return ret;
@@ -1611,13 +1635,12 @@ int eeh_pe_get_state(struct eeh_pe *pe)
 }
 EXPORT_SYMBOL_GPL(eeh_pe_get_state);
 
-static int eeh_pe_reenable_devices(struct eeh_pe *pe)
+static int eeh_pe_reenable_devices(struct eeh_pe *pe, bool include_passed)
 {
 	struct eeh_dev *edev, *tmp;
 	struct pci_dev *pdev;
 	int ret = 0;
 
-	/* Restore config space */
 	eeh_pe_restore_bars(pe);
 
 	/*
@@ -1638,9 +1661,13 @@ static int eeh_pe_reenable_devices(struct eeh_pe *pe)
 	}
 
 	/* The PE is still in frozen state */
-	ret = eeh_unfreeze_pe(pe);
+	if (include_passed || !eeh_pe_passed(pe)) {
+		ret = eeh_unfreeze_pe(pe);
+	} else
+		pr_info("EEH: Note: Leaving passthrough PHB#%x-PE#%x frozen.\n",
+			pe->phb->global_number, pe->addr);
 	if (!ret)
-		eeh_pe_state_clear(pe, EEH_PE_ISOLATED, true);
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED, include_passed);
 	return ret;
 }
 
@@ -1654,7 +1681,7 @@ static int eeh_pe_reenable_devices(struct eeh_pe *pe)
  * indicated type, either fundamental reset or hot reset.
  * PE reset is the most important part for error recovery.
  */
-int eeh_pe_reset(struct eeh_pe *pe, int option)
+int eeh_pe_reset(struct eeh_pe *pe, int option, bool include_passed)
 {
 	int ret = 0;
 
@@ -1668,11 +1695,11 @@ int eeh_pe_reset(struct eeh_pe *pe, int option)
 	switch (option) {
 	case EEH_RESET_DEACTIVATE:
 		ret = eeh_ops->reset(pe, option);
-		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED, true);
+		eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED, include_passed);
 		if (ret)
 			break;
 
-		ret = eeh_pe_reenable_devices(pe);
+		ret = eeh_pe_reenable_devices(pe, include_passed);
 		break;
 	case EEH_RESET_HOT:
 	case EEH_RESET_FUNDAMENTAL:
