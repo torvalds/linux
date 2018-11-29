@@ -381,6 +381,7 @@ struct qede_tx_queue {
 
 	u64 xmit_pkts;
 	u64 stopped_cnt;
+	u64 tx_mem_alloc_err;
 
 	__le16 *hw_cons_ptr;
 
