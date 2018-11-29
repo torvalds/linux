@@ -800,17 +800,22 @@ static void gen11_dsi_powerup_panel(struct intel_encoder *encoder)
 	wait_for_cmds_dispatched_to_panel(encoder);
 }
 
-static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
-				 const struct intel_crtc_state *pipe_config,
-				 const struct drm_connector_state *conn_state)
+static void gen11_dsi_pre_pll_enable(struct intel_encoder *encoder,
+				     const struct intel_crtc_state *pipe_config,
+				     const struct drm_connector_state *conn_state)
 {
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
-
 	/* step2: enable IO power */
 	gen11_dsi_enable_io_power(encoder);
 
 	/* step3: enable DSI PLL */
 	gen11_dsi_program_esc_clk_div(encoder);
+}
+
+static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
+				 const struct intel_crtc_state *pipe_config,
+				 const struct drm_connector_state *conn_state)
+{
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
 
 	/* step4: enable DSI port and DPHY */
 	gen11_dsi_enable_port_and_phy(encoder, pipe_config);
@@ -1028,6 +1033,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	drm_encoder_init(dev, &encoder->base, &gen11_dsi_encoder_funcs,
 			 DRM_MODE_ENCODER_DSI, "DSI %c", port_name(port));
 
+	encoder->pre_pll_enable = gen11_dsi_pre_pll_enable;
 	encoder->pre_enable = gen11_dsi_pre_enable;
 	encoder->disable = gen11_dsi_disable;
 	encoder->port = port;
