@@ -1369,11 +1369,6 @@ static int rcu_spawn_one_boost_kthread(struct rcu_node *rnp)
 	return 0;
 }
 
-static void rcu_kthread_do_work(void)
-{
-	rcu_do_batch(this_cpu_ptr(&rcu_data));
-}
-
 static void rcu_cpu_kthread_setup(unsigned int cpu)
 {
 	struct sched_param sp;
@@ -1413,7 +1408,7 @@ static void rcu_cpu_kthread(unsigned int cpu)
 		*workp = 0;
 		local_irq_enable();
 		if (work)
-			rcu_kthread_do_work();
+			rcu_do_batch(this_cpu_ptr(&rcu_data));
 		local_bh_enable();
 		if (*workp == 0) {
 			trace_rcu_utilization(TPS("End CPU kthread@rcu_wait"));
