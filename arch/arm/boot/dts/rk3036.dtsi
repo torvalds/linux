@@ -480,6 +480,8 @@
 		assigned-clock-parents = <&cru SCLK_I2S_FRAC>;
 		dmas = <&pdma 0>, <&pdma 1>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S>;
+		reset-names = "reset-m";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_bus>;
 		status = "disabled";

@@ -762,6 +762,8 @@
 		interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&pdma 14>, <&pdma 15>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S_8CH>;
+		reset-names = "reset-m";
 		status = "disabled";
 	};
 
@@ -797,6 +799,8 @@
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 		dmas = <&pdma 0>, <&pdma 1>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S_2CH>;
+		reset-names = "reset-m";
 		status = "disabled";
 	};
 

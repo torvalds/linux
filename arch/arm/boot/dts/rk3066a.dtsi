@@ -273,6 +273,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S_8CH>, <&cru SCLK_I2S0>;
+		resets = <&cru SRST_I2S0>;
+		reset-names = "reset-m";
 		rockchip,playback-channels = <8>;
 		rockchip,capture-channels = <2>;
 		status = "disabled";
@@ -290,6 +292,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S0_2CH>, <&cru SCLK_I2S1>;
+		resets = <&cru SRST_I2S1>;
+		reset-names = "reset-m";
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
 		status = "disabled";
@@ -307,6 +311,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_hclk", "i2s_clk";
 		clocks = <&cru HCLK_I2S1_2CH>, <&cru SCLK_I2S2>;
+		resets = <&cru SRST_I2S2>;
+		reset-names = "reset-m";
 		rockchip,playback-channels = <2>;
 		rockchip,capture-channels = <2>;
 		status = "disabled";
