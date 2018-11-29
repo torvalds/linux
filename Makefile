@@ -1110,7 +1110,7 @@ prepare1: prepare2 $(version_h) $(autoksyms_h) include/generated/utsrelease.h
 
 macroprepare: prepare1 archmacros
 
-archprepare: archheaders archscripts macroprepare scripts gcc-plugins
+archprepare: archheaders archscripts macroprepare scripts
 
 prepare0: archprepare
 	$(Q)$(MAKE) $(build)=scripts/mod
