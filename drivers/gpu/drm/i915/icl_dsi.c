@@ -1074,6 +1074,36 @@ static void gen11_dsi_get_config(struct intel_encoder *encoder,
 	pipe_config->output_types |= BIT(INTEL_OUTPUT_DSI);
 }
 
+static bool gen11_dsi_compute_config(struct intel_encoder *encoder,
+				     struct intel_crtc_state *pipe_config,
+				     struct drm_connector_state *conn_state)
+{
+	struct intel_dsi *intel_dsi = container_of(encoder, struct intel_dsi,
+						   base);
+	struct intel_connector *intel_connector = intel_dsi->attached_connector;
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->base.crtc);
+	const struct drm_display_mode *fixed_mode =
+					intel_connector->panel.fixed_mode;
+	struct drm_display_mode *adjusted_mode =
+					&pipe_config->base.adjusted_mode;
+
+	intel_fixed_panel_mode(fixed_mode, adjusted_mode);
+	intel_pch_panel_fitting(crtc, pipe_config, conn_state->scaling_mode);
+
+	adjusted_mode->flags = 0;
+
+	/* Dual link goes to trancoder DSI'0' */
+	if (intel_dsi->ports == BIT(PORT_B))
+		pipe_config->cpu_transcoder = TRANSCODER_DSI_1;
+	else
+		pipe_config->cpu_transcoder = TRANSCODER_DSI_0;
+
+	pipe_config->clock_set = true;
+	pipe_config->port_clock = intel_dsi_bitrate(intel_dsi) / 5;
+
+	return true;
+}
+
 static u64 gen11_dsi_get_power_domains(struct intel_encoder *encoder,
 				       struct intel_crtc_state *crtc_state)
 {
@@ -1244,6 +1274,7 @@ void icl_dsi_init(struct drm_i915_private *dev_priv)
 	encoder->disable = gen11_dsi_disable;
 	encoder->port = port;
 	encoder->get_config = gen11_dsi_get_config;
+	encoder->compute_config = gen11_dsi_compute_config;
 	encoder->get_hw_state = gen11_dsi_get_hw_state;
 	encoder->type = INTEL_OUTPUT_DSI;
 	encoder->cloneable = 0;
