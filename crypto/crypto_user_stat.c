@@ -33,7 +33,7 @@ struct crypto_dump_info {
 
 static int crypto_report_aead(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat raead;
+	struct crypto_stat_aead raead;
 	u64 v64;
 
 	memset(&raead, 0, sizeof(raead));
@@ -56,7 +56,7 @@ static int crypto_report_aead(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_cipher(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rcipher;
+	struct crypto_stat_cipher rcipher;
 	u64 v64;
 
 	memset(&rcipher, 0, sizeof(rcipher));
@@ -79,7 +79,7 @@ static int crypto_report_cipher(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_comp(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rcomp;
+	struct crypto_stat_compress rcomp;
 	u64 v64;
 
 	memset(&rcomp, 0, sizeof(rcomp));
@@ -101,7 +101,7 @@ static int crypto_report_comp(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_acomp(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat racomp;
+	struct crypto_stat_compress racomp;
 	u64 v64;
 
 	memset(&racomp, 0, sizeof(racomp));
@@ -123,7 +123,7 @@ static int crypto_report_acomp(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_akcipher(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rakcipher;
+	struct crypto_stat_akcipher rakcipher;
 	u64 v64;
 
 	memset(&rakcipher, 0, sizeof(rakcipher));
@@ -150,7 +150,7 @@ static int crypto_report_akcipher(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_kpp(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rkpp;
+	struct crypto_stat_kpp rkpp;
 	u64 v;
 
 	memset(&rkpp, 0, sizeof(rkpp));
@@ -171,7 +171,7 @@ static int crypto_report_kpp(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_ahash(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rhash;
+	struct crypto_stat_hash rhash;
 	u64 v64;
 
 	memset(&rhash, 0, sizeof(rhash));
@@ -190,7 +190,7 @@ static int crypto_report_ahash(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_shash(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rhash;
+	struct crypto_stat_hash rhash;
 	u64 v64;
 
 	memset(&rhash, 0, sizeof(rhash));
@@ -209,7 +209,7 @@ static int crypto_report_shash(struct sk_buff *skb, struct crypto_alg *alg)
 
 static int crypto_report_rng(struct sk_buff *skb, struct crypto_alg *alg)
 {
-	struct crypto_stat rrng;
+	struct crypto_stat_rng rrng;
 	u64 v64;
 
 	memset(&rrng, 0, sizeof(rrng));
@@ -248,7 +248,7 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 	if (nla_put_u32(skb, CRYPTOCFGA_PRIORITY_VAL, alg->cra_priority))
 		goto nla_put_failure;
 	if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
-		struct crypto_stat rl;
+		struct crypto_stat_larval rl;
 
 		memset(&rl, 0, sizeof(rl));
 		strscpy(rl.type, "larval", sizeof(rl.type));
