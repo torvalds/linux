@@ -589,6 +589,10 @@ static int mt7621_pcie_init_port(struct mt7621_pcie_port *port)
 	u32 slot = port->slot;
 	u32 val = 0;
 
+	/*
+	 * Any MT7621 Ralink pcie controller that doesn't have 0x0101 at
+	 * the end of the chip_id has inverted PCI resets.
+	 */
 	mt7621_reset_port(port);
 
 	val = read_config(pcie, slot, PCIE_FTS_NUM);
