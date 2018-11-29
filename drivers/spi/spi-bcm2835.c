@@ -20,7 +20,6 @@
  * GNU General Public License for more details.
  */
 
-#include <asm/page.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -108,7 +107,7 @@ struct bcm2835_spi {
 	int rx_len;
 	int tx_prologue;
 	int rx_prologue;
-	bool tx_spillover;
+	unsigned int tx_spillover;
 	unsigned int dma_pending;
 };
 
@@ -155,21 +154,20 @@ static inline void bcm2835_wr_fifo(struct bcm2835_spi *bs)
  * The caller must ensure that @bs->rx_len is greater than or equal to @count,
  * that the RX FIFO contains at least @count bytes and that the DMA Enable flag
  * in the CS register is set (such that a read from the FIFO register receives
- * 32-bit instead of just 8-bit).
+ * 32-bit instead of just 8-bit).  Moreover @bs->rx_buf must not be %NULL.
  */
 static inline void bcm2835_rd_fifo_count(struct bcm2835_spi *bs, int count)
 {
 	u32 val;
+	int len;
 
 	bs->rx_len -= count;
 
 	while (count > 0) {
 		val = bcm2835_rd(bs, BCM2835_SPI_FIFO);
-		if (bs->rx_buf) {
-			int len = min(count, 4);
-			memcpy(bs->rx_buf, &val, len);
-			bs->rx_buf += len;
-		}
+		len = min(count, 4);
+		memcpy(bs->rx_buf, &val, len);
+		bs->rx_buf += len;
 		count -= 4;
 	}
 }
@@ -187,12 +185,13 @@ static inline void bcm2835_rd_fifo_count(struct bcm2835_spi *bs, int count)
 static inline void bcm2835_wr_fifo_count(struct bcm2835_spi *bs, int count)
 {
 	u32 val;
+	int len;
 
 	bs->tx_len -= count;
 
 	while (count > 0) {
 		if (bs->tx_buf) {
-			int len = min(count, 4);
+			len = min(count, 4);
 			memcpy(&val, bs->tx_buf, len);
 			bs->tx_buf += len;
 		} else {
@@ -206,6 +205,10 @@ static inline void bcm2835_wr_fifo_count(struct bcm2835_spi *bs, int count)
 /**
  * bcm2835_wait_tx_fifo_empty() - busy-wait for TX FIFO to empty
  * @bs: BCM2835 SPI controller
+ *
+ * The caller must ensure that the RX FIFO can accommodate as many bytes
+ * as have been written to the TX FIFO:  Transmission is halted once the
+ * RX FIFO is full, causing this function to spin forever.
  */
 static inline void bcm2835_wait_tx_fifo_empty(struct bcm2835_spi *bs)
 {
@@ -379,11 +382,12 @@ static void bcm2835_spi_transfer_prologue(struct spi_master *master,
 		bcm2835_rd_fifo_count(bs, bs->rx_prologue);
 		bcm2835_spi_reset_hw(master);
 
-		dma_sync_sg_for_device(master->dma_rx->device->dev,
-				       tfr->rx_sg.sgl, 1, DMA_FROM_DEVICE);
+		dma_sync_single_for_device(master->dma_rx->device->dev,
+					   sg_dma_address(&tfr->rx_sg.sgl[0]),
+					   bs->rx_prologue, DMA_FROM_DEVICE);
 
-		tfr->rx_sg.sgl[0].dma_address += bs->rx_prologue;
-		tfr->rx_sg.sgl[0].length      -= bs->rx_prologue;
+		sg_dma_address(&tfr->rx_sg.sgl[0]) += bs->rx_prologue;
+		sg_dma_len(&tfr->rx_sg.sgl[0])     -= bs->rx_prologue;
 	}
 
 	/*
@@ -401,12 +405,12 @@ static void bcm2835_spi_transfer_prologue(struct spi_master *master,
 	}
 
 	if (likely(!bs->tx_spillover)) {
-		tfr->tx_sg.sgl[0].dma_address += bs->tx_prologue;
-		tfr->tx_sg.sgl[0].length      -= bs->tx_prologue;
+		sg_dma_address(&tfr->tx_sg.sgl[0]) += bs->tx_prologue;
+		sg_dma_len(&tfr->tx_sg.sgl[0])     -= bs->tx_prologue;
 	} else {
-		tfr->tx_sg.sgl[0].length       = 0;
-		tfr->tx_sg.sgl[1].dma_address += 4;
-		tfr->tx_sg.sgl[1].length      -= 4;
+		sg_dma_len(&tfr->tx_sg.sgl[0])      = 0;
+		sg_dma_address(&tfr->tx_sg.sgl[1]) += 4;
+		sg_dma_len(&tfr->tx_sg.sgl[1])     -= 4;
 	}
 }
 
@@ -426,17 +430,17 @@ static void bcm2835_spi_undo_prologue(struct bcm2835_spi *bs)
 		return;
 
 	if (bs->rx_prologue) {
-		tfr->rx_sg.sgl[0].dma_address -= bs->rx_prologue;
-		tfr->rx_sg.sgl[0].length      += bs->rx_prologue;
+		sg_dma_address(&tfr->rx_sg.sgl[0]) -= bs->rx_prologue;
+		sg_dma_len(&tfr->rx_sg.sgl[0])     += bs->rx_prologue;
 	}
 
 	if (likely(!bs->tx_spillover)) {
-		tfr->tx_sg.sgl[0].dma_address -= bs->tx_prologue;
-		tfr->tx_sg.sgl[0].length      += bs->tx_prologue;
+		sg_dma_address(&tfr->tx_sg.sgl[0]) -= bs->tx_prologue;
+		sg_dma_len(&tfr->tx_sg.sgl[0])     += bs->tx_prologue;
 	} else {
-		tfr->tx_sg.sgl[0].length       = bs->tx_prologue - 4;
-		tfr->tx_sg.sgl[1].dma_address -= 4;
-		tfr->tx_sg.sgl[1].length      += 4;
+		sg_dma_len(&tfr->tx_sg.sgl[0])      = bs->tx_prologue - 4;
+		sg_dma_address(&tfr->tx_sg.sgl[1]) -= 4;
+		sg_dma_len(&tfr->tx_sg.sgl[1])     += 4;
 	}
 }
 
