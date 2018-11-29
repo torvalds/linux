@@ -348,56 +348,6 @@ __drm_gem_object_put(struct drm_gem_object *obj)
 void drm_gem_object_put_unlocked(struct drm_gem_object *obj);
 void drm_gem_object_put(struct drm_gem_object *obj);
 
-/**
- * drm_gem_object_reference - acquire a GEM buffer object reference
- * @obj: GEM buffer object
- *
- * This is a compatibility alias for drm_gem_object_get() and should not be
- * used by new code.
- */
-static inline void drm_gem_object_reference(struct drm_gem_object *obj)
-{
-	drm_gem_object_get(obj);
-}
-
-/**
- * __drm_gem_object_unreference - raw function to release a GEM buffer object
- *                                reference
- * @obj: GEM buffer object
- *
- * This is a compatibility alias for __drm_gem_object_put() and should not be
- * used by new code.
- */
-static inline void __drm_gem_object_unreference(struct drm_gem_object *obj)
-{
-	__drm_gem_object_put(obj);
-}
-
-/**
- * drm_gem_object_unreference_unlocked - release a GEM buffer object reference
- * @obj: GEM buffer object
- *
- * This is a compatibility alias for drm_gem_object_put_unlocked() and should
- * not be used by new code.
- */
-static inline void
-drm_gem_object_unreference_unlocked(struct drm_gem_object *obj)
-{
-	drm_gem_object_put_unlocked(obj);
-}
-
-/**
- * drm_gem_object_unreference - release a GEM buffer object reference
- * @obj: GEM buffer object
- *
- * This is a compatibility alias for drm_gem_object_put() and should not be
- * used by new code.
- */
-static inline void drm_gem_object_unreference(struct drm_gem_object *obj)
-{
-	drm_gem_object_put(obj);
-}
-
 int drm_gem_handle_create(struct drm_file *file_priv,
 			  struct drm_gem_object *obj,
 			  u32 *handlep);

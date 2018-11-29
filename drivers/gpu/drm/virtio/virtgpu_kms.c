@@ -44,6 +44,8 @@ static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 	virtio_cread(vgdev->vdev, struct virtio_gpu_config,
 		     events_read, &events_read);
 	if (events_read & VIRTIO_GPU_EVENT_DISPLAY) {
+		if (vgdev->has_edid)
+			virtio_gpu_cmd_get_edids(vgdev);
 		virtio_gpu_cmd_get_display_info(vgdev);
 		drm_helper_hpd_irq_event(vgdev->ddev);
 		events_clear |= VIRTIO_GPU_EVENT_DISPLAY;
@@ -156,6 +158,10 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 #else
 	DRM_INFO("virgl 3d acceleration not supported by guest\n");
 #endif
+	if (virtio_has_feature(vgdev->vdev, VIRTIO_GPU_F_EDID)) {
+		vgdev->has_edid = true;
+		DRM_INFO("EDID support available.\n");
+	}
 
 	ret = virtio_find_vqs(vgdev->vdev, 2, vqs, callbacks, names, NULL);
 	if (ret) {
@@ -201,6 +207,8 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 
 	if (num_capsets)
 		virtio_gpu_get_capsets(vgdev, num_capsets);
+	if (vgdev->has_edid)
+		virtio_gpu_cmd_get_edids(vgdev);
 	virtio_gpu_cmd_get_display_info(vgdev);
 	wait_event_timeout(vgdev->resp_wq, !vgdev->display_info_pending,
 			   5 * HZ);

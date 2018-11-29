@@ -13,6 +13,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drmP.h>
 
@@ -336,6 +337,7 @@ static void sun8i_vi_layer_atomic_update(struct drm_plane *plane,
 }
 
 static struct drm_plane_helper_funcs sun8i_vi_layer_helper_funcs = {
+	.prepare_fb	= drm_gem_fb_prepare_fb,
 	.atomic_check	= sun8i_vi_layer_atomic_check,
 	.atomic_disable	= sun8i_vi_layer_atomic_disable,
 	.atomic_update	= sun8i_vi_layer_atomic_update,

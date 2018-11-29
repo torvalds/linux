@@ -1460,6 +1460,9 @@ void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
 			DRM_ERROR("[CRTC:%d:%s] flip_done timed out\n",
 				  crtc->base.id, crtc->name);
 	}
+
+	if (old_state->fake_commit)
+		complete_all(&old_state->fake_commit->flip_done);
 }
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_flip_done);
 
@@ -2217,8 +2220,10 @@ void drm_atomic_helper_commit_cleanup_done(struct drm_atomic_state *old_state)
 		spin_unlock(&crtc->commit_lock);
 	}
 
-	if (old_state->fake_commit)
+	if (old_state->fake_commit) {
 		complete_all(&old_state->fake_commit->cleanup_done);
+		WARN_ON(!try_wait_for_completion(&old_state->fake_commit->hw_done));
+	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_cleanup_done);
 

@@ -417,7 +417,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 err_unload:
 	mxsfb_unload(drm);
 err_free:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -428,7 +428,7 @@ static int mxsfb_remove(struct platform_device *pdev)
 
 	drm_dev_unregister(drm);
 	mxsfb_unload(drm);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return 0;
 }

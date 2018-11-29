@@ -279,7 +279,6 @@ static struct drm_driver driver = {
 	.gem_free_object_unlocked = vbox_gem_free_object,
 	.dumb_create = vbox_dumb_create,
 	.dumb_map_offset = vbox_dumb_mmap_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_export = drm_gem_prime_export,

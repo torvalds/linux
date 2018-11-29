@@ -28,22 +28,16 @@ them, but also all the virtual ones used by KVM, so everyone qualifies).
 
 Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
 
-Switch from reference/unreference to get/put
---------------------------------------------
 
-For some reason DRM core uses ``reference``/``unreference`` suffixes for
-refcounting functions, but kernel uses ``get``/``put`` (e.g.
-``kref_get``/``put()``). It would be good to switch over for consistency, and
-it's shorter. Needs to be done in 3 steps for each pair of functions:
+Remove custom dumb_map_offset implementations
+---------------------------------------------
 
-* Create new ``get``/``put`` functions, define the old names as compatibility
-  wrappers
-* Switch over each file/driver using a cocci-generated spatch.
-* Once all users of the old names are gone, remove them.
+All GEM based drivers should be using drm_gem_create_mmap_offset() instead.
+Audit each individual driver, make sure it'll work with the generic
+implementation (there's lots of outdated locking leftovers in various
+implementations), and then remove it.
 
-This way drivers/patches in the progress of getting merged won't break.
-
-Contact: Daniel Vetter
+Contact: Daniel Vetter, respective driver maintainers
 
 Convert existing KMS drivers to atomic modesetting
 --------------------------------------------------
