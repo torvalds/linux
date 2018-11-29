@@ -28,6 +28,7 @@
 #include <drm/drm_scdc_helper.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "intel_dsi.h"
 
 struct ddi_buf_trans {
 	u32 trans1;	/* balance leg enable, de-emph level */
@@ -2836,8 +2837,9 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	u32 val;
-	enum port port = encoder->port;
-	bool clk_enabled;
+	enum port port;
+	u32 port_mask;
+	bool ddi_clk_needed;
 
 	/*
 	 * In case of DP MST, we sanitize the primary encoder only, not the
@@ -2845,9 +2847,6 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 	 */
 	if (encoder->type == INTEL_OUTPUT_DP_MST)
 		return;
-
-	val = I915_READ(DPCLKA_CFGCR0_ICL);
-	clk_enabled = !(val & icl_dpclka_cfgcr0_clk_off(dev_priv, port));
 
 	if (!encoder->base.crtc && intel_encoder_is_dp(encoder)) {
 		u8 pipe_mask;
@@ -2862,20 +2861,52 @@ void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
 			return;
 	}
 
-	if (clk_enabled == !!encoder->base.crtc)
-		return;
+	port_mask = BIT(encoder->port);
+	ddi_clk_needed = encoder->base.crtc;
 
-	/*
-	 * Punt on the case now where clock is disabled, but the encoder is
-	 * enabled, something else is really broken then.
-	 */
-	if (WARN_ON(!clk_enabled))
-		return;
+	if (encoder->type == INTEL_OUTPUT_DSI) {
+		struct intel_encoder *other_encoder;
 
-	DRM_NOTE("Port %c is disabled but it has a mapped PLL, unmap it\n",
-		 port_name(port));
-	val |= icl_dpclka_cfgcr0_clk_off(dev_priv, port);
-	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+		port_mask = intel_dsi_encoder_ports(encoder);
+		/*
+		 * Sanity check that we haven't incorrectly registered another
+		 * encoder using any of the ports of this DSI encoder.
+		 */
+		for_each_intel_encoder(&dev_priv->drm, other_encoder) {
+			if (other_encoder == encoder)
+				continue;
+
+			if (WARN_ON(port_mask & BIT(other_encoder->port)))
+				return;
+		}
+		/*
+		 * DSI ports should have their DDI clock ungated when disabled
+		 * and gated when enabled.
+		 */
+		ddi_clk_needed = !encoder->base.crtc;
+	}
+
+	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	for_each_port_masked(port, port_mask) {
+		bool ddi_clk_ungated = !(val &
+					 icl_dpclka_cfgcr0_clk_off(dev_priv,
+								   port));
+
+		if (ddi_clk_needed == ddi_clk_ungated)
+			continue;
+
+		/*
+		 * Punt on the case now where clock is gated, but it would
+		 * be needed by the port. Something else is really broken then.
+		 */
+		if (WARN_ON(ddi_clk_needed))
+			continue;
+
+		DRM_NOTE("Port %c is disabled/in DSI mode with an ungated DDI clock, gate it\n",
+			 port_name(port));
+		val |= icl_dpclka_cfgcr0_clk_off(dev_priv, port);
+		I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	}
 }
 
 static void intel_ddi_clk_select(struct intel_encoder *encoder,
