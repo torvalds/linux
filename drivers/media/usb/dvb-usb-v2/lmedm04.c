@@ -136,7 +136,7 @@ struct lme2510_state {
 	u8 pid_off;
 	void *buffer;
 	struct urb *lme_urb;
-	void *usb_buffer;
+	u8 usb_buffer[64];
 	/* Frontend original calls */
 	int (*fe_read_status)(struct dvb_frontend *, enum fe_status *);
 	int (*fe_read_signal_strength)(struct dvb_frontend *, u16 *);
@@ -169,17 +169,8 @@ static int lme2510_usb_talk(struct dvb_usb_device *d,
 		u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
 	struct lme2510_state *st = d->priv;
-	u8 *buff;
+	u8 *buff = st->usb_buffer;
 	int ret = 0;
-
-	if (st->usb_buffer == NULL) {
-		st->usb_buffer = kmalloc(64, GFP_KERNEL);
-		if (st->usb_buffer == NULL) {
-			info("MEM Error no memory");
-			return -ENOMEM;
-		}
-	}
-	buff = st->usb_buffer;
 
 	ret = mutex_lock_interruptible(&d->usb_mutex);
 
@@ -1245,21 +1236,13 @@ static int lme2510_get_rc_config(struct dvb_usb_device *d,
 	return 0;
 }
 
-static void *lme2510_exit_int(struct dvb_usb_device *d)
+static void lme2510_exit(struct dvb_usb_device *d)
 {
 	struct lme2510_state *st = d->priv;
 	struct dvb_usb_adapter *adap = &d->adapter[0];
-	void *buffer = NULL;
 
 	if (adap != NULL) {
 		lme2510_kill_urb(&adap->stream);
-	}
-
-	if (st->usb_buffer != NULL) {
-		st->i2c_talk_onoff = 1;
-		st->signal_level = 0;
-		st->signal_sn = 0;
-		buffer = st->usb_buffer;
 	}
 
 	if (st->lme_urb != NULL) {
@@ -1267,18 +1250,6 @@ static void *lme2510_exit_int(struct dvb_usb_device *d)
 		usb_free_coherent(d->udev, 128, st->buffer,
 				  st->lme_urb->transfer_dma);
 		info("Interrupt Service Stopped");
-	}
-
-	return buffer;
-}
-
-static void lme2510_exit(struct dvb_usb_device *d)
-{
-	void *usb_buffer;
-
-	if (d != NULL) {
-		usb_buffer = lme2510_exit_int(d);
-		kfree(usb_buffer);
 	}
 }
 
