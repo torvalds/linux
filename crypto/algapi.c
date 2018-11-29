@@ -1083,7 +1083,7 @@ void crypto_stats_ablkcipher_encrypt(unsigned int nbytes, int ret,
 				     struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.cipher.cipher_err_cnt);
+		atomic64_inc(&alg->stats.cipher.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.cipher.encrypt_cnt);
 		atomic64_add(nbytes, &alg->stats.cipher.encrypt_tlen);
@@ -1096,7 +1096,7 @@ void crypto_stats_ablkcipher_decrypt(unsigned int nbytes, int ret,
 				     struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.cipher.cipher_err_cnt);
+		atomic64_inc(&alg->stats.cipher.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.cipher.decrypt_cnt);
 		atomic64_add(nbytes, &alg->stats.cipher.decrypt_tlen);
@@ -1109,7 +1109,7 @@ void crypto_stats_aead_encrypt(unsigned int cryptlen, struct crypto_alg *alg,
 			       int ret)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.aead.aead_err_cnt);
+		atomic64_inc(&alg->stats.aead.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.aead.encrypt_cnt);
 		atomic64_add(cryptlen, &alg->stats.aead.encrypt_tlen);
@@ -1122,7 +1122,7 @@ void crypto_stats_aead_decrypt(unsigned int cryptlen, struct crypto_alg *alg,
 			       int ret)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.aead.aead_err_cnt);
+		atomic64_inc(&alg->stats.aead.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.aead.decrypt_cnt);
 		atomic64_add(cryptlen, &alg->stats.aead.decrypt_tlen);
@@ -1135,7 +1135,7 @@ void crypto_stats_akcipher_encrypt(unsigned int src_len, int ret,
 				   struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.akcipher.akcipher_err_cnt);
+		atomic64_inc(&alg->stats.akcipher.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.akcipher.encrypt_cnt);
 		atomic64_add(src_len, &alg->stats.akcipher.encrypt_tlen);
@@ -1148,7 +1148,7 @@ void crypto_stats_akcipher_decrypt(unsigned int src_len, int ret,
 				   struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.akcipher.akcipher_err_cnt);
+		atomic64_inc(&alg->stats.akcipher.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.akcipher.decrypt_cnt);
 		atomic64_add(src_len, &alg->stats.akcipher.decrypt_tlen);
@@ -1160,7 +1160,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_akcipher_decrypt);
 void crypto_stats_akcipher_sign(int ret, struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic64_inc(&alg->stats.akcipher.akcipher_err_cnt);
+		atomic64_inc(&alg->stats.akcipher.err_cnt);
 	else
 		atomic64_inc(&alg->stats.akcipher.sign_cnt);
 	crypto_alg_put(alg);
@@ -1170,7 +1170,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_akcipher_sign);
 void crypto_stats_akcipher_verify(int ret, struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic64_inc(&alg->stats.akcipher.akcipher_err_cnt);
+		atomic64_inc(&alg->stats.akcipher.err_cnt);
 	else
 		atomic64_inc(&alg->stats.akcipher.verify_cnt);
 	crypto_alg_put(alg);
@@ -1180,7 +1180,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_akcipher_verify);
 void crypto_stats_compress(unsigned int slen, int ret, struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.compress.compress_err_cnt);
+		atomic64_inc(&alg->stats.compress.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.compress.compress_cnt);
 		atomic64_add(slen, &alg->stats.compress.compress_tlen);
@@ -1192,7 +1192,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_compress);
 void crypto_stats_decompress(unsigned int slen, int ret, struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.compress.compress_err_cnt);
+		atomic64_inc(&alg->stats.compress.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.compress.decompress_cnt);
 		atomic64_add(slen, &alg->stats.compress.decompress_tlen);
@@ -1205,7 +1205,7 @@ void crypto_stats_ahash_update(unsigned int nbytes, int ret,
 			       struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic64_inc(&alg->stats.hash.hash_err_cnt);
+		atomic64_inc(&alg->stats.hash.err_cnt);
 	else
 		atomic64_add(nbytes, &alg->stats.hash.hash_tlen);
 	crypto_alg_put(alg);
@@ -1216,7 +1216,7 @@ void crypto_stats_ahash_final(unsigned int nbytes, int ret,
 			      struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.hash.hash_err_cnt);
+		atomic64_inc(&alg->stats.hash.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.hash.hash_cnt);
 		atomic64_add(nbytes, &alg->stats.hash.hash_tlen);
@@ -1228,7 +1228,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_ahash_final);
 void crypto_stats_kpp_set_secret(struct crypto_alg *alg, int ret)
 {
 	if (ret)
-		atomic64_inc(&alg->stats.kpp.kpp_err_cnt);
+		atomic64_inc(&alg->stats.kpp.err_cnt);
 	else
 		atomic64_inc(&alg->stats.kpp.setsecret_cnt);
 	crypto_alg_put(alg);
@@ -1238,7 +1238,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_kpp_set_secret);
 void crypto_stats_kpp_generate_public_key(struct crypto_alg *alg, int ret)
 {
 	if (ret)
-		atomic64_inc(&alg->stats.kpp.kpp_err_cnt);
+		atomic64_inc(&alg->stats.kpp.err_cnt);
 	else
 		atomic64_inc(&alg->stats.kpp.generate_public_key_cnt);
 	crypto_alg_put(alg);
@@ -1248,7 +1248,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_kpp_generate_public_key);
 void crypto_stats_kpp_compute_shared_secret(struct crypto_alg *alg, int ret)
 {
 	if (ret)
-		atomic64_inc(&alg->stats.kpp.kpp_err_cnt);
+		atomic64_inc(&alg->stats.kpp.err_cnt);
 	else
 		atomic64_inc(&alg->stats.kpp.compute_shared_secret_cnt);
 	crypto_alg_put(alg);
@@ -1258,7 +1258,7 @@ EXPORT_SYMBOL_GPL(crypto_stats_kpp_compute_shared_secret);
 void crypto_stats_rng_seed(struct crypto_alg *alg, int ret)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic64_inc(&alg->stats.rng.rng_err_cnt);
+		atomic64_inc(&alg->stats.rng.err_cnt);
 	else
 		atomic64_inc(&alg->stats.rng.seed_cnt);
 	crypto_alg_put(alg);
@@ -1269,7 +1269,7 @@ void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen,
 			       int ret)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.rng.rng_err_cnt);
+		atomic64_inc(&alg->stats.rng.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.rng.generate_cnt);
 		atomic64_add(dlen, &alg->stats.rng.generate_tlen);
@@ -1282,7 +1282,7 @@ void crypto_stats_skcipher_encrypt(unsigned int cryptlen, int ret,
 				   struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.cipher.cipher_err_cnt);
+		atomic64_inc(&alg->stats.cipher.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.cipher.encrypt_cnt);
 		atomic64_add(cryptlen, &alg->stats.cipher.encrypt_tlen);
@@ -1295,7 +1295,7 @@ void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret,
 				   struct crypto_alg *alg)
 {
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic64_inc(&alg->stats.cipher.cipher_err_cnt);
+		atomic64_inc(&alg->stats.cipher.err_cnt);
 	} else {
 		atomic64_inc(&alg->stats.cipher.decrypt_cnt);
 		atomic64_add(cryptlen, &alg->stats.cipher.decrypt_tlen);

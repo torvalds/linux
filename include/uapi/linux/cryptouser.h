@@ -82,7 +82,7 @@ struct crypto_stat_aead {
 	__u64 stat_encrypt_tlen;
 	__u64 stat_decrypt_cnt;
 	__u64 stat_decrypt_tlen;
-	__u64 stat_aead_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_akcipher {
@@ -93,7 +93,7 @@ struct crypto_stat_akcipher {
 	__u64 stat_decrypt_tlen;
 	__u64 stat_verify_cnt;
 	__u64 stat_sign_cnt;
-	__u64 stat_akcipher_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_cipher {
@@ -102,7 +102,7 @@ struct crypto_stat_cipher {
 	__u64 stat_encrypt_tlen;
 	__u64 stat_decrypt_cnt;
 	__u64 stat_decrypt_tlen;
-	__u64 stat_cipher_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_compress {
@@ -111,14 +111,14 @@ struct crypto_stat_compress {
 	__u64 stat_compress_tlen;
 	__u64 stat_decompress_cnt;
 	__u64 stat_decompress_tlen;
-	__u64 stat_compress_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_hash {
 	char type[CRYPTO_MAX_NAME];
 	__u64 stat_hash_cnt;
 	__u64 stat_hash_tlen;
-	__u64 stat_hash_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_kpp {
@@ -126,7 +126,7 @@ struct crypto_stat_kpp {
 	__u64 stat_setsecret_cnt;
 	__u64 stat_generate_public_key_cnt;
 	__u64 stat_compute_shared_secret_cnt;
-	__u64 stat_kpp_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_rng {
@@ -134,7 +134,7 @@ struct crypto_stat_rng {
 	__u64 stat_generate_cnt;
 	__u64 stat_generate_tlen;
 	__u64 stat_seed_cnt;
-	__u64 stat_rng_err_cnt;
+	__u64 stat_err_cnt;
 };
 
 struct crypto_stat_larval {

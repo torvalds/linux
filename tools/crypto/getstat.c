@@ -157,7 +157,7 @@ static int get_stat(const char *drivername)
 		printf("%s\tHash\n\tHash: %llu bytes: %llu\n\tErrors: %llu\n",
 			drivername,
 			rhash->stat_hash_cnt, rhash->stat_hash_tlen,
-			rhash->stat_hash_err_cnt);
+			rhash->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_COMPRESS]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_COMPRESS];
 		struct crypto_stat_compress *rblk =
@@ -166,7 +166,7 @@ static int get_stat(const char *drivername)
 			drivername,
 			rblk->stat_compress_cnt, rblk->stat_compress_tlen,
 			rblk->stat_decompress_cnt, rblk->stat_decompress_tlen,
-			rblk->stat_compress_err_cnt);
+			rblk->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_ACOMP]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_ACOMP];
 		struct crypto_stat_compress *rcomp =
@@ -175,7 +175,7 @@ static int get_stat(const char *drivername)
 			drivername,
 			rcomp->stat_compress_cnt, rcomp->stat_compress_tlen,
 			rcomp->stat_decompress_cnt, rcomp->stat_decompress_tlen,
-			rcomp->stat_compress_err_cnt);
+			rcomp->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_AEAD]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_AEAD];
 		struct crypto_stat_aead *raead =
@@ -184,7 +184,7 @@ static int get_stat(const char *drivername)
 			drivername,
 			raead->stat_encrypt_cnt, raead->stat_encrypt_tlen,
 			raead->stat_decrypt_cnt, raead->stat_decrypt_tlen,
-			raead->stat_aead_err_cnt);
+			raead->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_BLKCIPHER]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_BLKCIPHER];
 		struct crypto_stat_cipher *rblk =
@@ -193,7 +193,7 @@ static int get_stat(const char *drivername)
 			drivername,
 			rblk->stat_encrypt_cnt, rblk->stat_encrypt_tlen,
 			rblk->stat_decrypt_cnt, rblk->stat_decrypt_tlen,
-			rblk->stat_cipher_err_cnt);
+			rblk->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_AKCIPHER]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_AKCIPHER];
 		struct crypto_stat_akcipher *rblk =
@@ -203,7 +203,7 @@ static int get_stat(const char *drivername)
 			rblk->stat_encrypt_cnt, rblk->stat_encrypt_tlen,
 			rblk->stat_decrypt_cnt, rblk->stat_decrypt_tlen,
 			rblk->stat_sign_cnt, rblk->stat_verify_cnt,
-			rblk->stat_akcipher_err_cnt);
+			rblk->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_CIPHER]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_CIPHER];
 		struct crypto_stat_cipher *rblk =
@@ -212,7 +212,7 @@ static int get_stat(const char *drivername)
 			drivername,
 			rblk->stat_encrypt_cnt, rblk->stat_encrypt_tlen,
 			rblk->stat_decrypt_cnt, rblk->stat_decrypt_tlen,
-			rblk->stat_cipher_err_cnt);
+			rblk->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_RNG]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_RNG];
 		struct crypto_stat_rng *rrng =
@@ -221,7 +221,7 @@ static int get_stat(const char *drivername)
 			drivername,
 			rrng->stat_seed_cnt,
 			rrng->stat_generate_cnt, rrng->stat_generate_tlen,
-			rrng->stat_rng_err_cnt);
+			rrng->stat_err_cnt);
 	} else if (tb[CRYPTOCFGA_STAT_KPP]) {
 		struct rtattr *rta = tb[CRYPTOCFGA_STAT_KPP];
 		struct crypto_stat_kpp *rkpp =
@@ -231,7 +231,7 @@ static int get_stat(const char *drivername)
 			rkpp->stat_setsecret_cnt,
 			rkpp->stat_generate_public_key_cnt,
 			rkpp->stat_compute_shared_secret_cnt,
-			rkpp->stat_kpp_err_cnt);
+			rkpp->stat_err_cnt);
 	} else {
 		fprintf(stderr, "%s is of an unknown algorithm\n", drivername);
 	}
