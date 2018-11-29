@@ -1044,7 +1044,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /* See configdb bunit SB addr map */
 #define BUNIT_REG_BISOC				0x11
 
-#define PUNIT_REG_DSPFREQ			0x36
+#define PUNIT_REG_DSPSSPM			0x36
 #define   DSPFREQSTAT_SHIFT_CHV			24
 #define   DSPFREQSTAT_MASK_CHV			(0x1f << DSPFREQSTAT_SHIFT_CHV)
 #define   DSPFREQGUAR_SHIFT_CHV			8

@@ -335,12 +335,12 @@ static void chv_set_memory_pm5(struct drm_i915_private *dev_priv, bool enable)
 
 	mutex_lock(&dev_priv->pcu_lock);
 
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	if (enable)
 		val |= DSP_MAXFIFO_PM5_ENABLE;
 	else
 		val &= ~DSP_MAXFIFO_PM5_ENABLE;
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
 
 	mutex_unlock(&dev_priv->pcu_lock);
 }
@@ -6063,7 +6063,7 @@ void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 	if (IS_CHERRYVIEW(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
 
-		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+		val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 		if (val & DSP_MAXFIFO_PM5_ENABLE)
 			wm->level = VLV_WM_LEVEL_PM5;
 

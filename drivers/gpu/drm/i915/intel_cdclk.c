@@ -468,7 +468,7 @@ static void vlv_get_cdclk(struct drm_i915_private *dev_priv,
 					       cdclk_state->vco);
 
 	mutex_lock(&dev_priv->pcu_lock);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	mutex_unlock(&dev_priv->pcu_lock);
 
 	if (IS_VALLEYVIEW(dev_priv))
@@ -543,11 +543,11 @@ static void vlv_set_cdclk(struct drm_i915_private *dev_priv,
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK;
 	val |= (cmd << DSPFREQGUAR_SHIFT);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
-	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) &
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) &
 		      DSPFREQSTAT_MASK) == (cmd << DSPFREQSTAT_SHIFT),
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");
@@ -624,11 +624,11 @@ static void chv_set_cdclk(struct drm_i915_private *dev_priv,
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_PIPE_A);
 
 	mutex_lock(&dev_priv->pcu_lock);
-	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	val &= ~DSPFREQGUAR_MASK_CHV;
 	val |= (cmd << DSPFREQGUAR_SHIFT_CHV);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, val);
-	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) &
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, val);
+	if (wait_for((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) &
 		      DSPFREQSTAT_MASK_CHV) == (cmd << DSPFREQSTAT_SHIFT_CHV),
 		     50)) {
 		DRM_ERROR("timed out waiting for CDclk change\n");

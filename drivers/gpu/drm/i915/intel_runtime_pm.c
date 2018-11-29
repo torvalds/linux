@@ -1760,7 +1760,7 @@ static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 
 	mutex_lock(&dev_priv->pcu_lock);
 
-	state = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe);
+	state = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) & DP_SSS_MASK(pipe);
 	/*
 	 * We only ever set the power-on and power-gate states, anything
 	 * else is unexpected.
@@ -1772,7 +1772,7 @@ static bool chv_pipe_power_well_enabled(struct drm_i915_private *dev_priv,
 	 * A transient state at this point would mean some unexpected party
 	 * is poking at the power controls too.
 	 */
-	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSC_MASK(pipe);
+	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) & DP_SSC_MASK(pipe);
 	WARN_ON(ctrl << 16 != state);
 
 	mutex_unlock(&dev_priv->pcu_lock);
@@ -1793,20 +1793,20 @@ static void chv_set_pipe_power_well(struct drm_i915_private *dev_priv,
 	mutex_lock(&dev_priv->pcu_lock);
 
 #define COND \
-	((vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ) & DP_SSS_MASK(pipe)) == state)
+	((vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM) & DP_SSS_MASK(pipe)) == state)
 
 	if (COND)
 		goto out;
 
-	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ);
+	ctrl = vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM);
 	ctrl &= ~DP_SSC_MASK(pipe);
 	ctrl |= enable ? DP_SSC_PWR_ON(pipe) : DP_SSC_PWR_GATE(pipe);
-	vlv_punit_write(dev_priv, PUNIT_REG_DSPFREQ, ctrl);
+	vlv_punit_write(dev_priv, PUNIT_REG_DSPSSPM, ctrl);
 
 	if (wait_for(COND, 100))
 		DRM_ERROR("timeout setting power well state %08x (%08x)\n",
 			  state,
-			  vlv_punit_read(dev_priv, PUNIT_REG_DSPFREQ));
+			  vlv_punit_read(dev_priv, PUNIT_REG_DSPSSPM));
 
 #undef COND
 
