@@ -36,10 +36,7 @@ extern struct vmemmap_backing *vmemmap_list;
 #define MAX_PGTABLE_INDEX_SIZE	0xf
 
 extern struct kmem_cache *pgtable_cache[];
-#define PGT_CACHE(shift) ({				\
-			BUG_ON(!(shift));		\
-			pgtable_cache[(shift) - 1];	\
-		})
+#define PGT_CACHE(shift) pgtable_cache[shift]
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {

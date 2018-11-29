@@ -40,7 +40,7 @@ static void pmd_ctor(void *addr)
 	memset(addr, 0, PMD_TABLE_SIZE);
 }
 
-struct kmem_cache *pgtable_cache[MAX_PGTABLE_INDEX_SIZE];
+struct kmem_cache *pgtable_cache[MAX_PGTABLE_INDEX_SIZE + 1];
 EXPORT_SYMBOL_GPL(pgtable_cache);	/* used by kvm_hv module */
 
 /*
@@ -71,7 +71,7 @@ void pgtable_cache_add(unsigned shift, void (*ctor)(void *))
 	 * moment, gcc doesn't seem to recognize is_power_of_2 as a
 	 * constant expression, so so much for that. */
 	BUG_ON(!is_power_of_2(minalign));
-	BUG_ON((shift < 1) || (shift > MAX_PGTABLE_INDEX_SIZE));
+	BUG_ON(shift > MAX_PGTABLE_INDEX_SIZE);
 
 	if (PGT_CACHE(shift))
 		return; /* Already have a cache of this size */
@@ -83,7 +83,7 @@ void pgtable_cache_add(unsigned shift, void (*ctor)(void *))
 		panic("Could not allocate pgtable cache for order %d", shift);
 
 	kfree(name);
-	pgtable_cache[shift - 1] = new;
+	pgtable_cache[shift] = new;
 
 	pr_debug("Allocated pgtable cache for order %d\n", shift);
 }

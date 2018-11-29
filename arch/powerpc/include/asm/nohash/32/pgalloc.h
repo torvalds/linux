@@ -25,10 +25,7 @@
 extern void __bad_pte(pmd_t *pmd);
 
 extern struct kmem_cache *pgtable_cache[];
-#define PGT_CACHE(shift) ({				\
-			BUG_ON(!(shift));		\
-			pgtable_cache[(shift) - 1];	\
-		})
+#define PGT_CACHE(shift) pgtable_cache[shift]
 
 static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
