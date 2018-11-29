@@ -19,29 +19,24 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __AMDGPU_SMU_H__
-#define __AMDGPU_SMU_H__
 
+#include "pp_debug.h"
+#include <linux/firmware.h>
 #include "amdgpu.h"
+#include "amdgpu_smu.h"
 
-struct smu_context
+static int smu_v11_0_init_microcode(struct smu_context *smu)
 {
-	struct amdgpu_device            *adev;
+	struct amdgpu_device *adev = smu->adev;
 
-	const struct smu_funcs		*funcs;
-	struct mutex			mutex;
+	return 0;
+}
+
+static const struct smu_funcs smu_v11_0_funcs = {
+	.init_microcode = smu_v11_0_init_microcode,
 };
 
-struct smu_funcs
+void smu_v11_0_set_smu_funcs(struct smu_context *smu)
 {
-	int (*init_microcode)(struct smu_context *smu);
-};
-
-#define smu_init_microcode(smu) \
-	((smu)->funcs->init_microcode ? (smu)->funcs->init_microcode((smu)) : 0)
-
-extern const struct amd_ip_funcs smu_ip_funcs;
-
-extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
-
-#endif
+	smu->funcs = &smu_v11_0_funcs;
+}

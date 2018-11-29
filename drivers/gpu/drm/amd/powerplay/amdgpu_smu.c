@@ -26,9 +26,20 @@
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "soc15_common.h"
+#include "smu_v11_0.h"
 
 static int smu_set_funcs(struct amdgpu_device *adev)
 {
+	struct smu_context *smu = &adev->smu;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		smu_v11_0_set_smu_funcs(smu);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -163,4 +174,13 @@ const struct amd_ip_funcs smu_ip_funcs = {
 	.soft_reset = NULL,
 	.set_clockgating_state = smu_set_clockgating_state,
 	.set_powergating_state = smu_set_powergating_state,
+};
+
+const struct amdgpu_ip_block_version smu_v11_0_ip_block =
+{
+	.type = AMD_IP_BLOCK_TYPE_SMC,
+	.major = 11,
+	.minor = 0,
+	.rev = 0,
+	.funcs = &smu_ip_funcs,
 };

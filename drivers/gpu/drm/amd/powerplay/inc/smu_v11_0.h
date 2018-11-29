@@ -18,30 +18,13 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
+ *
  */
-#ifndef __AMDGPU_SMU_H__
-#define __AMDGPU_SMU_H__
+#ifndef __SMU_V11_0_H__
+#define __SMU_V11_0_H__
 
-#include "amdgpu.h"
+#include "amdgpu_smu.h"
 
-struct smu_context
-{
-	struct amdgpu_device            *adev;
-
-	const struct smu_funcs		*funcs;
-	struct mutex			mutex;
-};
-
-struct smu_funcs
-{
-	int (*init_microcode)(struct smu_context *smu);
-};
-
-#define smu_init_microcode(smu) \
-	((smu)->funcs->init_microcode ? (smu)->funcs->init_microcode((smu)) : 0)
-
-extern const struct amd_ip_funcs smu_ip_funcs;
-
-extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
+void smu_v11_0_set_smu_funcs(struct smu_context *smu);
 
 #endif
