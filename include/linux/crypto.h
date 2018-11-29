@@ -614,6 +614,7 @@ struct crypto_alg {
 } CRYPTO_MINALIGN_ATTR;
 
 #ifdef CONFIG_CRYPTO_STATS
+void crypto_stats_init(struct crypto_alg *alg);
 void crypto_stats_get(struct crypto_alg *alg);
 void crypto_stats_ablkcipher_encrypt(unsigned int nbytes, int ret, struct crypto_alg *alg);
 void crypto_stats_ablkcipher_decrypt(unsigned int nbytes, int ret, struct crypto_alg *alg);
@@ -635,6 +636,8 @@ void crypto_stats_rng_generate(struct crypto_alg *alg, unsigned int dlen, int re
 void crypto_stats_skcipher_encrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg);
 void crypto_stats_skcipher_decrypt(unsigned int cryptlen, int ret, struct crypto_alg *alg);
 #else
+static inline void crypto_stats_init(struct crypto_alg *alg)
+{}
 static inline void crypto_stats_get(struct crypto_alg *alg)
 {}
 static inline void crypto_stats_ablkcipher_encrypt(unsigned int nbytes, int ret, struct crypto_alg *alg)

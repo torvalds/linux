@@ -258,9 +258,7 @@ static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 	list_add(&alg->cra_list, &crypto_alg_list);
 	list_add(&larval->alg.cra_list, &crypto_alg_list);
 
-#ifdef CONFIG_CRYPTO_STATS
-	memset(&alg->stats, 0, sizeof(alg->stats));
-#endif
+	crypto_stats_init(alg);
 
 out:
 	return larval;
@@ -1073,6 +1071,12 @@ int crypto_type_has_alg(const char *name, const struct crypto_type *frontend,
 EXPORT_SYMBOL_GPL(crypto_type_has_alg);
 
 #ifdef CONFIG_CRYPTO_STATS
+void crypto_stats_init(struct crypto_alg *alg)
+{
+	memset(&alg->stats, 0, sizeof(alg->stats));
+}
+EXPORT_SYMBOL_GPL(crypto_stats_init);
+
 void crypto_stats_get(struct crypto_alg *alg)
 {
 	crypto_alg_get(alg);
