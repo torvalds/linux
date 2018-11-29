@@ -823,7 +823,7 @@ int pcibios_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state stat
 	switch (state) {
 	case pcie_deassert_reset:
 		eeh_ops->reset(pe, EEH_RESET_DEACTIVATE);
-		eeh_unfreeze_pe(pe, false);
+		eeh_unfreeze_pe(pe);
 		if (!(pe->type & EEH_PE_VF))
 			eeh_pe_state_clear(pe, EEH_PE_CFG_BLOCKED);
 		eeh_pe_dev_traverse(pe, eeh_restore_dev_state, dev);
@@ -1309,7 +1309,7 @@ void eeh_remove_device(struct pci_dev *dev)
 	edev->mode &= ~EEH_DEV_SYSFS;
 }
 
-int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
+int eeh_unfreeze_pe(struct eeh_pe *pe)
 {
 	int ret;
 
@@ -1326,10 +1326,6 @@ int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state)
 			__func__, ret, pe->phb->global_number, pe->addr);
 		return ret;
 	}
-
-	/* Clear software isolated state */
-	if (sw_state && (pe->state & EEH_PE_ISOLATED))
-		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
 
 	return ret;
 }
@@ -1382,7 +1378,10 @@ static int eeh_pe_change_owner(struct eeh_pe *pe)
 		}
 	}
 
-	return eeh_unfreeze_pe(pe, true);
+	ret = eeh_unfreeze_pe(pe);
+	if (!ret)
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+	return ret;
 }
 
 /**
@@ -1639,7 +1638,10 @@ static int eeh_pe_reenable_devices(struct eeh_pe *pe)
 	}
 
 	/* The PE is still in frozen state */
-	return eeh_unfreeze_pe(pe, true);
+	ret = eeh_unfreeze_pe(pe);
+	if (!ret)
+		eeh_pe_state_clear(pe, EEH_PE_ISOLATED);
+	return ret;
 }
 
 

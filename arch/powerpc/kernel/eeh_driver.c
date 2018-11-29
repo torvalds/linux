@@ -598,7 +598,7 @@ static int eeh_clear_pe_frozen_state(struct eeh_pe *root)
 
 	eeh_for_each_pe(root, pe) {
 		for (i = 0; i < 3; i++)
-			if (!eeh_unfreeze_pe(pe, false))
+			if (!eeh_unfreeze_pe(pe))
 				break;
 		if (i >= 3)
 			return -EIO;
