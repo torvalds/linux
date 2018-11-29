@@ -910,7 +910,9 @@ struct amdgpu_device {
 	bool                            in_gpu_reset;
 	struct mutex  lock_reset;
 	struct amdgpu_doorbell_index doorbell_index;
+
 	int asic_reset_res;
+	struct work_struct		xgmi_reset_work;
 };
 
 static inline struct amdgpu_device *amdgpu_ttm_adev(struct ttm_bo_device *bdev)

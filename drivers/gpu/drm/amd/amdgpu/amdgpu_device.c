@@ -2356,6 +2356,19 @@ bool amdgpu_device_has_dc_support(struct amdgpu_device *adev)
 	return amdgpu_device_asic_has_dc_support(adev->asic_type);
 }
 
+
+static void amdgpu_device_xgmi_reset_func(struct work_struct *__work)
+{
+	struct amdgpu_device *adev =
+		container_of(__work, struct amdgpu_device, xgmi_reset_work);
+
+	adev->asic_reset_res =  amdgpu_asic_reset(adev);
+	if (adev->asic_reset_res)
+		DRM_WARN("ASIC reset failed with err r, %d for drm dev, %s",
+			 adev->asic_reset_res, adev->ddev->unique);
+}
+
+
 /**
  * amdgpu_device_init - initialize the driver
  *
@@ -2453,6 +2466,8 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 			  amdgpu_device_ip_late_init_func_handler);
 	INIT_DELAYED_WORK(&adev->gfx.gfx_off_delay_work,
 			  amdgpu_device_delay_enable_gfx_off);
+
+	INIT_WORK(&adev->xgmi_reset_work, amdgpu_device_xgmi_reset_func);
 
 	adev->gfx.gfx_off_req_count = 1;
 	adev->pm.ac_power = power_supply_is_system_supplied() > 0 ? true : false;
@@ -3331,10 +3346,31 @@ static int amdgpu_do_asic_reset(struct amdgpu_hive_info *hive,
 	 */
 	if (need_full_reset) {
 		list_for_each_entry(tmp_adev, device_list_handle, gmc.xgmi.head) {
-			r = amdgpu_asic_reset(tmp_adev);
-			if (r)
-				DRM_WARN("ASIC reset failed with err r, %d for drm dev, %s",
+			/* For XGMI run all resets in parallel to speed up the process */
+			if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+				if (!queue_work(system_highpri_wq, &tmp_adev->xgmi_reset_work))
+					r = -EALREADY;
+			} else
+				r = amdgpu_asic_reset(tmp_adev);
+
+			if (r) {
+				DRM_ERROR("ASIC reset failed with err r, %d for drm dev, %s",
 					 r, tmp_adev->ddev->unique);
+				break;
+			}
+		}
+
+		/* For XGMI wait for all PSP resets to complete before proceed */
+		if (!r) {
+			list_for_each_entry(tmp_adev, device_list_handle,
+					    gmc.xgmi.head) {
+				if (tmp_adev->gmc.xgmi.num_physical_nodes > 1) {
+					flush_work(&tmp_adev->xgmi_reset_work);
+					r = tmp_adev->asic_reset_res;
+					if (r)
+						break;
+				}
+			}
 		}
 	}
 
@@ -3520,8 +3556,6 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 
 		if (tmp_adev == adev)
 			continue;
-
-		dev_info(tmp_adev->dev, "GPU reset begin for drm dev %s!\n", adev->ddev->unique);
 
 		amdgpu_device_lock_adev(tmp_adev);
 		r = amdgpu_device_pre_asic_reset(tmp_adev,
