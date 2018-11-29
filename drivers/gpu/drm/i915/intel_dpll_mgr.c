@@ -2523,7 +2523,8 @@ static bool icl_calc_dpll_state(struct intel_crtc_state *crtc_state,
 
 	if (intel_port_is_tc(dev_priv, encoder->port))
 		ret = icl_calc_tbt_pll(dev_priv, clock, &pll_params);
-	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
+	else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
+		 intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		ret = cnl_ddi_calculate_wrpll(clock, dev_priv, &pll_params);
 	else
 		ret = icl_calc_dp_combo_pll(dev_priv, clock, &pll_params);

@@ -9333,10 +9333,12 @@ void hsw_disable_pc8(struct drm_i915_private *dev_priv)
 static int haswell_crtc_compute_clock(struct intel_crtc *crtc,
 				      struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_atomic_state *state =
 		to_intel_atomic_state(crtc_state->base.state);
 
-	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI)) {
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) ||
+	    IS_ICELAKE(dev_priv)) {
 		struct intel_encoder *encoder =
 			intel_get_crtc_new_encoder(state, crtc_state);
 
