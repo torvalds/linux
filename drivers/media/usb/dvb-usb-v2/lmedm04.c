@@ -147,50 +147,30 @@ struct lme2510_state {
 	u8 dvb_usb_lme2510_firmware;
 };
 
-static int lme2510_bulk_write(struct usb_device *dev,
-				u8 *snd, int len, u8 pipe)
-{
-	int actual_l;
-
-	return usb_bulk_msg(dev, usb_sndbulkpipe(dev, pipe),
-			    snd, len, &actual_l, 100);
-}
-
-static int lme2510_bulk_read(struct usb_device *dev,
-				u8 *rev, int len, u8 pipe)
-{
-	int actual_l;
-
-	return usb_bulk_msg(dev, usb_rcvbulkpipe(dev, pipe),
-			    rev, len, &actual_l, 200);
-}
-
 static int lme2510_usb_talk(struct dvb_usb_device *d,
-		u8 *wbuf, int wlen, u8 *rbuf, int rlen)
+			    u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
 	struct lme2510_state *st = d->priv;
-	u8 *buff = st->usb_buffer;
 	int ret = 0;
 
-	ret = mutex_lock_interruptible(&d->usb_mutex);
+	if (max(wlen, rlen) > sizeof(st->usb_buffer))
+		return -EINVAL;
 
+	ret = mutex_lock_interruptible(&d->usb_mutex);
 	if (ret < 0)
 		return -EAGAIN;
 
-	/* the read/write capped at 64 */
-	memcpy(buff, wbuf, (wlen < 64) ? wlen : 64);
+	memcpy(st->usb_buffer, wbuf, wlen);
 
-	ret |= lme2510_bulk_write(d->udev, buff, wlen , 0x01);
+	ret = dvb_usbv2_generic_rw_locked(d, st->usb_buffer, wlen,
+					  st->usb_buffer, rlen);
 
-	ret |= lme2510_bulk_read(d->udev, buff, (rlen < 64) ?
-			rlen : 64 , 0x01);
-
-	if (rlen > 0)
-		memcpy(rbuf, buff, rlen);
+	if (rlen)
+		memcpy(rbuf, st->usb_buffer, rlen);
 
 	mutex_unlock(&d->usb_mutex);
 
-	return (ret < 0) ? -ENODEV : 0;
+	return ret;
 }
 
 static int lme2510_stream_restart(struct dvb_usb_device *d)
@@ -1259,6 +1239,8 @@ static struct dvb_usb_device_properties lme2510_props = {
 	.bInterfaceNumber = 0,
 	.adapter_nr = adapter_nr,
 	.size_of_priv = sizeof(struct lme2510_state),
+	.generic_bulk_ctrl_endpoint = 0x01,
+	.generic_bulk_ctrl_endpoint_response = 0x01,
 
 	.download_firmware = lme2510_download_firmware,
 
