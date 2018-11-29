@@ -385,6 +385,7 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 #endif
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;
+	pte_frag_set(&mm->context, NULL);
 	return 0;
 }
 
@@ -487,4 +488,3 @@ void __init mmu_context_init(void)
 	next_context = FIRST_CONTEXT;
 	nr_free_contexts = LAST_CONTEXT - FIRST_CONTEXT + 1;
 }
-

@@ -18,6 +18,7 @@ obj-$(CONFIG_PPC_BOOK3E_64)   += pgtable-book3e.o
 obj-$(CONFIG_PPC_BOOK3S_64)	+= pgtable-hash64.o hash_utils_64.o slb.o \
 				   $(hash64-y) mmu_context_book3s64.o \
 				   pgtable-book3s64.o pgtable-frag.o
+obj-$(CONFIG_PPC32)		+= pgtable-frag.o
 obj-$(CONFIG_PPC_RADIX_MMU)	+= pgtable-radix.o tlb-radix.o
 obj-$(CONFIG_PPC_BOOK3S_32)	+= ppc_mmu_32.o hash_low_32.o mmu_context_hash32.o
 obj-$(CONFIG_PPC_BOOK3S)	+= tlb_hash$(BITS).o

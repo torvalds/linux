@@ -329,7 +329,7 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #define pte_same(A,B)	(((pte_val(A) ^ pte_val(B)) & ~_PAGE_HASHPTE) == 0)
 
 #define pmd_page_vaddr(pmd)	\
-	((unsigned long) __va(pmd_val(pmd) & PAGE_MASK))
+	((unsigned long)__va(pmd_val(pmd) & ~(PTE_TABLE_SIZE - 1)))
 #define pmd_page(pmd)		\
 	pfn_to_page(pmd_val(pmd) >> PAGE_SHIFT)
 
@@ -346,7 +346,8 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #define pte_offset_kernel(dir, addr)	\
 	((pte_t *) pmd_page_vaddr(*(dir)) + pte_index(addr))
 #define pte_offset_map(dir, addr)		\
-	((pte_t *) kmap_atomic(pmd_page(*(dir))) + pte_index(addr))
+	((pte_t *)(kmap_atomic(pmd_page(*(dir))) + \
+		   (pmd_page_vaddr(*(dir)) & ~PAGE_MASK)) + pte_index(addr))
 #define pte_unmap(pte)		kunmap_atomic(pte)
 
 /*

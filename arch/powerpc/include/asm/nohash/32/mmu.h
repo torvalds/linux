@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_NOHASH_32_MMU_H_
 #define _ASM_POWERPC_NOHASH_32_MMU_H_
 
+#include <asm/page.h>
+
 #if defined(CONFIG_40x)
 /* 40x-style software loaded TLB */
 #include <asm/nohash/32/mmu-40x.h>
@@ -17,7 +19,7 @@
 #endif
 
 #ifndef __ASSEMBLY__
-typedef struct page *pgtable_t;
+typedef pte_t *pgtable_t;
 #endif
 
 #endif /* _ASM_POWERPC_NOHASH_32_MMU_H_ */

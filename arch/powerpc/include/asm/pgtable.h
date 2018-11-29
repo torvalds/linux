@@ -125,6 +125,10 @@ static inline void pte_frag_set(mm_context_t *ctx, void *p)
 	ctx->pte_frag = p;
 }
 #else
+#define PTE_FRAG_NR		1
+#define PTE_FRAG_SIZE_SHIFT	PAGE_SHIFT
+#define PTE_FRAG_SIZE		(1UL << PTE_FRAG_SIZE_SHIFT)
+
 static inline void *pte_frag_get(mm_context_t *ctx)
 {
 	return NULL;

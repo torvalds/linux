@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
+
 /*
  * 32-bit hash table MMU support
  */
@@ -8,6 +9,8 @@
 /*
  * BATs
  */
+
+#include <asm/page.h>
 
 /* Block size masks */
 #define BL_128K	0x000
@@ -43,7 +46,7 @@ struct ppc_bat {
 	u32 batl;
 };
 
-typedef struct page *pgtable_t;
+typedef pte_t *pgtable_t;
 #endif /* !__ASSEMBLY__ */
 
 /*
