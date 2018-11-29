@@ -1044,6 +1044,31 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 /* See configdb bunit SB addr map */
 #define BUNIT_REG_BISOC				0x11
 
+/* PUNIT_REG_*SSPM0 */
+#define   _SSPM0_SSC(val)			((val) << 0)
+#define   SSPM0_SSC_MASK			_SSPM0_SSC(0x3)
+#define   SSPM0_SSC_PWR_ON			_SSPM0_SSC(0x0)
+#define   SSPM0_SSC_CLK_GATE			_SSPM0_SSC(0x1)
+#define   SSPM0_SSC_RESET			_SSPM0_SSC(0x2)
+#define   SSPM0_SSC_PWR_GATE			_SSPM0_SSC(0x3)
+#define   _SSPM0_SSS(val)			((val) << 24)
+#define   SSPM0_SSS_MASK			_SSPM0_SSS(0x3)
+#define   SSPM0_SSS_PWR_ON			_SSPM0_SSS(0x0)
+#define   SSPM0_SSS_CLK_GATE			_SSPM0_SSS(0x1)
+#define   SSPM0_SSS_RESET			_SSPM0_SSS(0x2)
+#define   SSPM0_SSS_PWR_GATE			_SSPM0_SSS(0x3)
+
+/* PUNIT_REG_*SSPM1 */
+#define   SSPM1_FREQSTAT_SHIFT			24
+#define   SSPM1_FREQSTAT_MASK			(0x1f << SSPM1_FREQSTAT_SHIFT)
+#define   SSPM1_FREQGUAR_SHIFT			8
+#define   SSPM1_FREQGUAR_MASK			(0x1f << SSPM1_FREQGUAR_SHIFT)
+#define   SSPM1_FREQ_SHIFT			0
+#define   SSPM1_FREQ_MASK			(0x1f << SSPM1_FREQ_SHIFT)
+
+#define PUNIT_REG_VEDSSPM0			0x32
+#define PUNIT_REG_VEDSSPM1			0x33
+
 #define PUNIT_REG_DSPSSPM			0x36
 #define   DSPFREQSTAT_SHIFT_CHV			24
 #define   DSPFREQSTAT_MASK_CHV			(0x1f << DSPFREQSTAT_SHIFT_CHV)
@@ -1068,6 +1093,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DP_SSS_CLK_GATE(pipe)			_DP_SSS(0x1, (pipe))
 #define   DP_SSS_RESET(pipe)			_DP_SSS(0x2, (pipe))
 #define   DP_SSS_PWR_GATE(pipe)			_DP_SSS(0x3, (pipe))
+
+#define PUNIT_REG_ISPSSPM0			0x39
+#define PUNIT_REG_ISPSSPM1			0x3a
 
 /*
  * i915_power_well_id:

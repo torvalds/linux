@@ -3993,6 +3993,36 @@ static void vlv_cmnlane_wa(struct drm_i915_private *dev_priv)
 	cmn->desc->ops->disable(dev_priv, cmn);
 }
 
+static bool vlv_punit_is_power_gated(struct drm_i915_private *dev_priv, u32 reg0)
+{
+	bool ret;
+
+	mutex_lock(&dev_priv->pcu_lock);
+	ret = (vlv_punit_read(dev_priv, reg0) & SSPM0_SSC_MASK) == SSPM0_SSC_PWR_GATE;
+	mutex_unlock(&dev_priv->pcu_lock);
+
+	return ret;
+}
+
+static void assert_ved_power_gated(struct drm_i915_private *dev_priv)
+{
+	WARN(!vlv_punit_is_power_gated(dev_priv, PUNIT_REG_VEDSSPM0),
+	     "VED not power gated\n");
+}
+
+static void assert_isp_power_gated(struct drm_i915_private *dev_priv)
+{
+	static const struct pci_device_id isp_ids[] = {
+		{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0f38)},
+		{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x22b8)},
+		{}
+	};
+
+	WARN(!pci_dev_present(isp_ids) &&
+	     !vlv_punit_is_power_gated(dev_priv, PUNIT_REG_ISPSSPM0),
+	     "ISP not power gated\n");
+}
+
 static void intel_power_domains_verify_state(struct drm_i915_private *dev_priv);
 
 /**
@@ -4029,10 +4059,13 @@ void intel_power_domains_init_hw(struct drm_i915_private *i915, bool resume)
 		mutex_lock(&power_domains->lock);
 		chv_phy_control_init(i915);
 		mutex_unlock(&power_domains->lock);
+		assert_isp_power_gated(i915);
 	} else if (IS_VALLEYVIEW(i915)) {
 		mutex_lock(&power_domains->lock);
 		vlv_cmnlane_wa(i915);
 		mutex_unlock(&power_domains->lock);
+		assert_ved_power_gated(i915);
+		assert_isp_power_gated(i915);
 	} else if (IS_IVYBRIDGE(i915) || INTEL_GEN(i915) >= 7) {
 		intel_pch_reset_handshake(i915, !HAS_PCH_NOP(i915));
 	}
