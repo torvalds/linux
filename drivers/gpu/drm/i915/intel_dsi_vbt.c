@@ -336,6 +336,12 @@ static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
 	gpiod_set_value(gpio_desc, value);
 }
 
+static void icl_exec_gpio(struct drm_i915_private *dev_priv,
+			  u8 gpio_source, u8 gpio_index, bool value)
+{
+	DRM_DEBUG_KMS("Skipping ICL GPIO element execution\n");
+}
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -359,7 +365,9 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	/* pull up/down */
 	value = *data++ & 1;
 
-	if (IS_VALLEYVIEW(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		icl_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+	else if (IS_VALLEYVIEW(dev_priv))
 		vlv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
 	else if (IS_CHERRYVIEW(dev_priv))
 		chv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
