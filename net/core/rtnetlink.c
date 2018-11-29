@@ -3367,7 +3367,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->seq = 0;
 		}
 		ret = dumpit(skb, cb);
-		if (ret < 0)
+		if (ret)
 			break;
 	}
 	cb->family = idx;

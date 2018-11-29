@@ -334,6 +334,28 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	i915_gem_object_put(wa_ctx->indirect_ctx.obj);
 }
 
+static int set_context_ppgtt_from_shadow(struct intel_vgpu_workload *workload,
+					 struct i915_gem_context *ctx)
+{
+	struct intel_vgpu_mm *mm = workload->shadow_mm;
+	struct i915_hw_ppgtt *ppgtt = ctx->ppgtt;
+	int i = 0;
+
+	if (mm->type != INTEL_GVT_MM_PPGTT || !mm->ppgtt_mm.shadowed)
+		return -1;
+
+	if (mm->ppgtt_mm.root_entry_type == GTT_TYPE_PPGTT_ROOT_L4_ENTRY) {
+		px_dma(&ppgtt->pml4) = mm->ppgtt_mm.shadow_pdps[0];
+	} else {
+		for (i = 0; i < GVT_RING_CTX_NR_PDPS; i++) {
+			px_dma(ppgtt->pdp.page_directory[i]) =
+				mm->ppgtt_mm.shadow_pdps[i];
+		}
+	}
+
+	return 0;
+}
+
 /**
  * intel_gvt_scan_and_shadow_workload - audit the workload by scanning and
  * shadow it as well, include ringbuffer,wa_ctx and ctx.
@@ -357,6 +379,12 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 
 	if (workload->req)
 		return 0;
+
+	ret = set_context_ppgtt_from_shadow(workload, shadow_ctx);
+	if (ret < 0) {
+		gvt_vgpu_err("workload shadow ppgtt isn't ready\n");
+		return ret;
+	}
 
 	/* pin shadow context by gvt even the shadow context will be pinned
 	 * when i915 alloc request. That is because gvt will update the guest

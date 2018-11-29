@@ -42,12 +42,14 @@
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 
-#define I915_GTT_PAGE_SIZE_4K BIT(12)
-#define I915_GTT_PAGE_SIZE_64K BIT(16)
-#define I915_GTT_PAGE_SIZE_2M BIT(21)
+#define I915_GTT_PAGE_SIZE_4K	BIT_ULL(12)
+#define I915_GTT_PAGE_SIZE_64K	BIT_ULL(16)
+#define I915_GTT_PAGE_SIZE_2M	BIT_ULL(21)
 
 #define I915_GTT_PAGE_SIZE I915_GTT_PAGE_SIZE_4K
 #define I915_GTT_MAX_PAGE_SIZE I915_GTT_PAGE_SIZE_2M
+
+#define I915_GTT_PAGE_MASK -I915_GTT_PAGE_SIZE
 
 #define I915_GTT_MIN_ALIGNMENT I915_GTT_PAGE_SIZE
 
@@ -287,6 +289,7 @@ struct i915_address_space {
 
 	struct mutex mutex; /* protects vma and our lists */
 
+	u64 scratch_pte;
 	struct i915_page_dma scratch_page;
 	struct i915_page_table *scratch_pt;
 	struct i915_page_directory *scratch_pd;
@@ -333,12 +336,11 @@ struct i915_address_space {
 	/* Some systems support read-only mappings for GGTT and/or PPGTT */
 	bool has_read_only:1;
 
-	/* FIXME: Need a more generic return type */
-	gen6_pte_t (*pte_encode)(dma_addr_t addr,
-				 enum i915_cache_level level,
-				 u32 flags); /* Create a valid PTE */
-	/* flags for pte_encode */
+	u64 (*pte_encode)(dma_addr_t addr,
+			  enum i915_cache_level level,
+			  u32 flags); /* Create a valid PTE */
 #define PTE_READ_ONLY	(1<<0)
+
 	int (*allocate_va_range)(struct i915_address_space *vm,
 				 u64 start, u64 length);
 	void (*clear_range)(struct i915_address_space *vm,
@@ -420,7 +422,6 @@ struct gen6_hw_ppgtt {
 
 	struct i915_vma *vma;
 	gen6_pte_t __iomem *pd_addr;
-	gen6_pte_t scratch_pte;
 
 	unsigned int pin_count;
 	bool scan_for_unused_pt;
@@ -659,20 +660,20 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 			u64 start, u64 end, unsigned int flags);
 
 /* Flags used by pin/bind&friends. */
-#define PIN_NONBLOCK		BIT(0)
-#define PIN_MAPPABLE		BIT(1)
-#define PIN_ZONE_4G		BIT(2)
-#define PIN_NONFAULT		BIT(3)
-#define PIN_NOEVICT		BIT(4)
+#define PIN_NONBLOCK		BIT_ULL(0)
+#define PIN_MAPPABLE		BIT_ULL(1)
+#define PIN_ZONE_4G		BIT_ULL(2)
+#define PIN_NONFAULT		BIT_ULL(3)
+#define PIN_NOEVICT		BIT_ULL(4)
 
-#define PIN_MBZ			BIT(5) /* I915_VMA_PIN_OVERFLOW */
-#define PIN_GLOBAL		BIT(6) /* I915_VMA_GLOBAL_BIND */
-#define PIN_USER		BIT(7) /* I915_VMA_LOCAL_BIND */
-#define PIN_UPDATE		BIT(8)
+#define PIN_MBZ			BIT_ULL(5) /* I915_VMA_PIN_OVERFLOW */
+#define PIN_GLOBAL		BIT_ULL(6) /* I915_VMA_GLOBAL_BIND */
+#define PIN_USER		BIT_ULL(7) /* I915_VMA_LOCAL_BIND */
+#define PIN_UPDATE		BIT_ULL(8)
 
-#define PIN_HIGH		BIT(9)
-#define PIN_OFFSET_BIAS		BIT(10)
-#define PIN_OFFSET_FIXED	BIT(11)
+#define PIN_HIGH		BIT_ULL(9)
+#define PIN_OFFSET_BIAS		BIT_ULL(10)
+#define PIN_OFFSET_FIXED	BIT_ULL(11)
 #define PIN_OFFSET_MASK		(-I915_GTT_PAGE_SIZE)
 
 #endif

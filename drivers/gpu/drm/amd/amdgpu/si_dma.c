@@ -61,9 +61,11 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 }
 
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
+				struct amdgpu_job *job,
 				struct amdgpu_ib *ib,
-				unsigned vmid, bool ctx_switch)
+				bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
 	 * Pad as necessary with NOPs.
 	 */
@@ -122,7 +124,7 @@ static void si_dma_stop(struct amdgpu_device *adev)
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-		ring->ready = false;
+		ring->sched.ready = false;
 	}
 }
 
@@ -175,13 +177,11 @@ static int si_dma_start(struct amdgpu_device *adev)
 		WREG32(DMA_RB_WPTR + sdma_offsets[i], lower_32_bits(ring->wptr) << 2);
 		WREG32(DMA_RB_CNTL + sdma_offsets[i], rb_cntl | DMA_RB_ENABLE);
 
-		ring->ready = true;
+		ring->sched.ready = true;
 
-		r = amdgpu_ring_test_ring(ring);
-		if (r) {
-			ring->ready = false;
+		r = amdgpu_ring_test_helper(ring);
+		if (r)
 			return r;
-		}
 
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_buffer_funcs_status(adev, true);
@@ -209,21 +209,16 @@ static int si_dma_ring_test_ring(struct amdgpu_ring *ring)
 	u64 gpu_addr;
 
 	r = amdgpu_device_wb_get(adev, &index);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to allocate wb slot\n", r);
+	if (r)
 		return r;
-	}
 
 	gpu_addr = adev->wb.gpu_addr + (index * 4);
 	tmp = 0xCAFEDEAD;
 	adev->wb.wb[index] = cpu_to_le32(tmp);
 
 	r = amdgpu_ring_alloc(ring, 4);
-	if (r) {
-		DRM_ERROR("amdgpu: dma failed to lock ring %d (%d).\n", ring->idx, r);
-		amdgpu_device_wb_free(adev, index);
-		return r;
-	}
+	if (r)
+		goto error_free_wb;
 
 	amdgpu_ring_write(ring, DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, 1));
 	amdgpu_ring_write(ring, lower_32_bits(gpu_addr));
@@ -238,15 +233,11 @@ static int si_dma_ring_test_ring(struct amdgpu_ring *ring)
 		DRM_UDELAY(1);
 	}
 
-	if (i < adev->usec_timeout) {
-		DRM_DEBUG("ring test on %d succeeded in %d usecs\n", ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed (0x%08X)\n",
-			  ring->idx, tmp);
-		r = -EINVAL;
-	}
-	amdgpu_device_wb_free(adev, index);
+	if (i >= adev->usec_timeout)
+		r = -ETIMEDOUT;
 
+error_free_wb:
+	amdgpu_device_wb_free(adev, index);
 	return r;
 }
 
@@ -269,20 +260,16 @@ static int si_dma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	long r;
 
 	r = amdgpu_device_wb_get(adev, &index);
-	if (r) {
-		dev_err(adev->dev, "(%ld) failed to allocate wb slot\n", r);
+	if (r)
 		return r;
-	}
 
 	gpu_addr = adev->wb.gpu_addr + (index * 4);
 	tmp = 0xCAFEDEAD;
 	adev->wb.wb[index] = cpu_to_le32(tmp);
 	memset(&ib, 0, sizeof(ib));
 	r = amdgpu_ib_get(adev, NULL, 256, &ib);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get ib (%ld).\n", r);
+	if (r)
 		goto err0;
-	}
 
 	ib.ptr[0] = DMA_PACKET(DMA_PACKET_WRITE, 0, 0, 0, 1);
 	ib.ptr[1] = lower_32_bits(gpu_addr);
@@ -295,21 +282,16 @@ static int si_dma_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 	r = dma_fence_wait_timeout(f, false, timeout);
 	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out\n");
 		r = -ETIMEDOUT;
 		goto err1;
 	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
 		goto err1;
 	}
 	tmp = le32_to_cpu(adev->wb.wb[index]);
-	if (tmp == 0xDEADBEEF) {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+	if (tmp == 0xDEADBEEF)
 		r = 0;
-	} else {
-		DRM_ERROR("amdgpu: ib test failed (0x%08X)\n", tmp);
+	else
 		r = -EINVAL;
-	}
 
 err1:
 	amdgpu_ib_free(adev, &ib, NULL);
@@ -658,15 +640,6 @@ static int si_dma_process_trap_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-static int si_dma_process_illegal_inst_irq(struct amdgpu_device *adev,
-					      struct amdgpu_irq_src *source,
-					      struct amdgpu_iv_entry *entry)
-{
-	DRM_ERROR("Illegal instruction in SDMA command stream\n");
-	schedule_work(&adev->reset_work);
-	return 0;
-}
-
 static int si_dma_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
@@ -781,15 +754,10 @@ static const struct amdgpu_irq_src_funcs si_dma_trap_irq_funcs = {
 	.process = si_dma_process_trap_irq,
 };
 
-static const struct amdgpu_irq_src_funcs si_dma_illegal_inst_irq_funcs = {
-	.process = si_dma_process_illegal_inst_irq,
-};
-
 static void si_dma_set_irq_funcs(struct amdgpu_device *adev)
 {
 	adev->sdma.trap_irq.num_types = AMDGPU_SDMA_IRQ_LAST;
 	adev->sdma.trap_irq.funcs = &si_dma_trap_irq_funcs;
-	adev->sdma.illegal_inst_irq.funcs = &si_dma_illegal_inst_irq_funcs;
 }
 
 /**

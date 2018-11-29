@@ -519,15 +519,10 @@ static int vce_v4_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
-
 	for (i = 0; i < adev->vce.num_rings; i++) {
-		r = amdgpu_ring_test_ring(&adev->vce.ring[i]);
+		r = amdgpu_ring_test_helper(&adev->vce.ring[i]);
 		if (r)
 			return r;
-		else
-			adev->vce.ring[i].ready = true;
 	}
 
 	DRM_INFO("VCE initialized successfully.\n");
@@ -549,7 +544,7 @@ static int vce_v4_0_hw_fini(void *handle)
 	}
 
 	for (i = 0; i < adev->vce.num_rings; i++)
-		adev->vce.ring[i].ready = false;
+		adev->vce.ring[i].sched.ready = false;
 
 	return 0;
 }
@@ -951,9 +946,11 @@ static int vce_v4_0_set_powergating_state(void *handle,
 }
 #endif
 
-static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring,
-		struct amdgpu_ib *ib, unsigned int vmid, bool ctx_switch)
+static void vce_v4_0_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_job *job,
+					struct amdgpu_ib *ib, bool ctx_switch)
 {
+	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
+
 	amdgpu_ring_write(ring, VCE_CMD_IB_VM);
 	amdgpu_ring_write(ring, vmid);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));

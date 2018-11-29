@@ -589,7 +589,7 @@ static bool dcn10_link_encoder_validate_hdmi_output(
 		return false;
 
 	/* DCE11 HW does not support 420 */
-	if (!enc10->base.features.ycbcr420_supported &&
+	if (!enc10->base.features.hdmi_ycbcr420_supported &&
 			crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		return false;
 
@@ -606,8 +606,10 @@ bool dcn10_link_encoder_validate_dp_output(
 	const struct dcn10_link_encoder *enc10,
 	const struct dc_crtc_timing *crtc_timing)
 {
-	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420)
-		return false;
+	if (crtc_timing->pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+		if (!enc10->base.features.dp_ycbcr420_supported)
+			return false;
+	}
 
 	return true;
 }

@@ -75,6 +75,7 @@
 #include "amdgpu_sdma.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_virt.h"
+#include "amdgpu_csa.h"
 #include "amdgpu_gart.h"
 #include "amdgpu_debugfs.h"
 #include "amdgpu_job.h"
@@ -151,6 +152,7 @@ extern int amdgpu_compute_multipipe;
 extern int amdgpu_gpu_recovery;
 extern int amdgpu_emu_mode;
 extern uint amdgpu_smu_memory_pool_size;
+extern uint amdgpu_dc_feature_mask;
 extern struct amdgpu_mgpu_info mgpu_info;
 
 #ifdef CONFIG_DRM_AMDGPU_SI
@@ -432,7 +434,7 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	 * default non-graphics QWORD index is 0xe0 - 0xFF inclusive
 	 */
 
-	/* sDMA engines  reserved from 0xe0 -oxef  */
+	/* sDMA engines  reserved from 0xe0 -0xef  */
 	AMDGPU_DOORBELL64_sDMA_ENGINE0            = 0xE0,
 	AMDGPU_DOORBELL64_sDMA_HI_PRI_ENGINE0     = 0xE1,
 	AMDGPU_DOORBELL64_sDMA_ENGINE1            = 0xE8,
@@ -830,7 +832,6 @@ struct amdgpu_device {
 	bool				need_dma32;
 	bool				need_swiotlb;
 	bool				accel_working;
-	struct work_struct		reset_work;
 	struct notifier_block		acpi_nb;
 	struct amdgpu_i2c_chan		*i2c_bus[AMDGPU_MAX_I2C_BUS];
 	struct amdgpu_debugfs		debugfs[AMDGPU_DEBUGFS_MAX_COMPONENTS];

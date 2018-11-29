@@ -25,10 +25,139 @@
 
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drmP.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
+
+int intel_connector_init(struct intel_connector *connector)
+{
+	struct intel_digital_connector_state *conn_state;
+
+	/*
+	 * Allocate enough memory to hold intel_digital_connector_state,
+	 * This might be a few bytes too many, but for connectors that don't
+	 * need it we'll free the state and allocate a smaller one on the first
+	 * successful commit anyway.
+	 */
+	conn_state = kzalloc(sizeof(*conn_state), GFP_KERNEL);
+	if (!conn_state)
+		return -ENOMEM;
+
+	__drm_atomic_helper_connector_reset(&connector->base,
+					    &conn_state->base);
+
+	return 0;
+}
+
+struct intel_connector *intel_connector_alloc(void)
+{
+	struct intel_connector *connector;
+
+	connector = kzalloc(sizeof(*connector), GFP_KERNEL);
+	if (!connector)
+		return NULL;
+
+	if (intel_connector_init(connector) < 0) {
+		kfree(connector);
+		return NULL;
+	}
+
+	return connector;
+}
+
+/*
+ * Free the bits allocated by intel_connector_alloc.
+ * This should only be used after intel_connector_alloc has returned
+ * successfully, and before drm_connector_init returns successfully.
+ * Otherwise the destroy callbacks for the connector and the state should
+ * take care of proper cleanup/free (see intel_connector_destroy).
+ */
+void intel_connector_free(struct intel_connector *connector)
+{
+	kfree(to_intel_digital_connector_state(connector->base.state));
+	kfree(connector);
+}
+
+/*
+ * Connector type independent destroy hook for drm_connector_funcs.
+ */
+void intel_connector_destroy(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	kfree(intel_connector->detect_edid);
+
+	if (!IS_ERR_OR_NULL(intel_connector->edid))
+		kfree(intel_connector->edid);
+
+	intel_panel_fini(&intel_connector->panel);
+
+	drm_connector_cleanup(connector);
+	kfree(connector);
+}
+
+int intel_connector_register(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+	int ret;
+
+	ret = intel_backlight_device_register(intel_connector);
+	if (ret)
+		goto err;
+
+	if (i915_inject_load_failure()) {
+		ret = -EFAULT;
+		goto err_backlight;
+	}
+
+	return 0;
+
+err_backlight:
+	intel_backlight_device_unregister(intel_connector);
+err:
+	return ret;
+}
+
+void intel_connector_unregister(struct drm_connector *connector)
+{
+	struct intel_connector *intel_connector = to_intel_connector(connector);
+
+	intel_backlight_device_unregister(intel_connector);
+}
+
+void intel_connector_attach_encoder(struct intel_connector *connector,
+				    struct intel_encoder *encoder)
+{
+	connector->encoder = encoder;
+	drm_connector_attach_encoder(&connector->base, &encoder->base);
+}
+
+/*
+ * Simple connector->get_hw_state implementation for encoders that support only
+ * one connector and no cloning and hence the encoder state determines the state
+ * of the connector.
+ */
+bool intel_connector_get_hw_state(struct intel_connector *connector)
+{
+	enum pipe pipe = 0;
+	struct intel_encoder *encoder = connector->encoder;
+
+	return encoder->get_hw_state(encoder, &pipe);
+}
+
+enum pipe intel_connector_get_pipe(struct intel_connector *connector)
+{
+	struct drm_device *dev = connector->base.dev;
+
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+
+	if (!connector->base.state->crtc)
+		return INVALID_PIPE;
+
+	return to_intel_crtc(connector->base.state->crtc)->pipe;
+}
 
 /**
  * intel_connector_update_modes - update connector from edid

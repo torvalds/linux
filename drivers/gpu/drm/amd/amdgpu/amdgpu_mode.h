@@ -57,7 +57,6 @@ struct amdgpu_hpd;
 #define to_amdgpu_connector(x) container_of(x, struct amdgpu_connector, base)
 #define to_amdgpu_encoder(x) container_of(x, struct amdgpu_encoder, base)
 #define to_amdgpu_framebuffer(x) container_of(x, struct amdgpu_framebuffer, base)
-#define to_amdgpu_plane(x)	container_of(x, struct amdgpu_plane, base)
 
 #define to_dm_plane_state(x)	container_of(x, struct dm_plane_state, base);
 
@@ -325,7 +324,7 @@ struct amdgpu_mode_info {
 	struct card_info *atom_card_info;
 	bool mode_config_initialized;
 	struct amdgpu_crtc *crtcs[AMDGPU_MAX_CRTCS];
-	struct amdgpu_plane *planes[AMDGPU_MAX_PLANES];
+	struct drm_plane *planes[AMDGPU_MAX_PLANES];
 	struct amdgpu_afmt *afmt[AMDGPU_MAX_AFMT_BLOCKS];
 	/* DVI-I properties */
 	struct drm_property *coherent_mode_property;
@@ -339,6 +338,8 @@ struct amdgpu_mode_info {
 	struct drm_property *audio_property;
 	/* FMT dithering */
 	struct drm_property *dither_property;
+	/* maximum number of bits per channel for monitor color */
+	struct drm_property *max_bpc_property;
 	/* hardcoded DFP edid from BIOS */
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;
@@ -432,11 +433,6 @@ struct amdgpu_crtc {
 
 	int otg_inst;
 	struct drm_pending_vblank_event *event;
-};
-
-struct amdgpu_plane {
-	struct drm_plane base;
-	enum drm_plane_type plane_type;
 };
 
 struct amdgpu_encoder_atom_dig {

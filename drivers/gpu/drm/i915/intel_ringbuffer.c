@@ -91,6 +91,7 @@ static int
 gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 {
 	u32 cmd, *cs;
+	int i;
 
 	/*
 	 * read/write caches:
@@ -127,12 +128,45 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 			cmd |= MI_INVALIDATE_ISP;
 	}
 
-	cs = intel_ring_begin(rq, 2);
+	i = 2;
+	if (mode & EMIT_INVALIDATE)
+		i += 20;
+
+	cs = intel_ring_begin(rq, i);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
 	*cs++ = cmd;
-	*cs++ = MI_NOOP;
+
+	/*
+	 * A random delay to let the CS invalidate take effect? Without this
+	 * delay, the GPU relocation path fails as the CS does not see
+	 * the updated contents. Just as important, if we apply the flushes
+	 * to the EMIT_FLUSH branch (i.e. immediately after the relocation
+	 * write and before the invalidate on the next batch), the relocations
+	 * still fail. This implies that is a delay following invalidation
+	 * that is required to reset the caches as opposed to a delay to
+	 * ensure the memory is written.
+	 */
+	if (mode & EMIT_INVALIDATE) {
+		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
+		*cs++ = i915_ggtt_offset(rq->engine->scratch) |
+			PIPE_CONTROL_GLOBAL_GTT;
+		*cs++ = 0;
+		*cs++ = 0;
+
+		for (i = 0; i < 12; i++)
+			*cs++ = MI_FLUSH;
+
+		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
+		*cs++ = i915_ggtt_offset(rq->engine->scratch) |
+			PIPE_CONTROL_GLOBAL_GTT;
+		*cs++ = 0;
+		*cs++ = 0;
+	}
+
+	*cs++ = cmd;
+
 	intel_ring_advance(rq, cs);
 
 	return 0;
@@ -574,7 +608,9 @@ static void skip_request(struct i915_request *rq)
 
 static void reset_ring(struct intel_engine_cs *engine, struct i915_request *rq)
 {
-	GEM_TRACE("%s seqno=%x\n", engine->name, rq ? rq->global_seqno : 0);
+	GEM_TRACE("%s request global=%d, current=%d\n",
+		  engine->name, rq ? rq->global_seqno : 0,
+		  intel_engine_get_seqno(engine));
 
 	/*
 	 * Try to restore the logical GPU state to match the continuation
@@ -1021,8 +1057,7 @@ i915_emit_bb_start(struct i915_request *rq,
 int intel_ring_pin(struct intel_ring *ring)
 {
 	struct i915_vma *vma = ring->vma;
-	enum i915_map_type map =
-		HAS_LLC(vma->vm->i915) ? I915_MAP_WB : I915_MAP_WC;
+	enum i915_map_type map = i915_coherent_map_type(vma->vm->i915);
 	unsigned int flags;
 	void *addr;
 	int ret;

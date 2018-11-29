@@ -42,16 +42,12 @@ int xen_setup_shutdown_event(void);
 
 extern unsigned long *xen_contiguous_bitmap;
 
-#ifdef CONFIG_XEN_PV
+#if defined(CONFIG_XEN_PV) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
 				unsigned int address_bits,
 				dma_addr_t *dma_handle);
 
 void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
-
-int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
-		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
-		  unsigned int domid, bool no_translate, struct page **pages);
 #else
 static inline int xen_create_contiguous_region(phys_addr_t pstart,
 					       unsigned int order,
@@ -63,7 +59,13 @@ static inline int xen_create_contiguous_region(phys_addr_t pstart,
 
 static inline void xen_destroy_contiguous_region(phys_addr_t pstart,
 						 unsigned int order) { }
+#endif
 
+#if defined(CONFIG_XEN_PV)
+int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
+		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
+		  unsigned int domid, bool no_translate, struct page **pages);
+#else
 static inline int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 				xen_pfn_t *pfn, int nr, int *err_ptr,
 				pgprot_t prot,  unsigned int domid,

@@ -57,8 +57,14 @@ struct intel_opregion {
 #ifdef CONFIG_ACPI
 
 int intel_opregion_setup(struct drm_i915_private *dev_priv);
+
 void intel_opregion_register(struct drm_i915_private *dev_priv);
 void intel_opregion_unregister(struct drm_i915_private *dev_priv);
+
+void intel_opregion_resume(struct drm_i915_private *dev_priv);
+void intel_opregion_suspend(struct drm_i915_private *dev_priv,
+			    pci_power_t state);
+
 void intel_opregion_asle_intr(struct drm_i915_private *dev_priv);
 int intel_opregion_notify_encoder(struct intel_encoder *intel_encoder,
 				  bool enable);
@@ -78,6 +84,15 @@ static inline void intel_opregion_register(struct drm_i915_private *dev_priv)
 }
 
 static inline void intel_opregion_unregister(struct drm_i915_private *dev_priv)
+{
+}
+
+void intel_opregion_resume(struct drm_i915_private *dev_priv)
+{
+}
+
+void intel_opregion_suspend(struct drm_i915_private *dev_priv,
+			    pci_power_t state)
 {
 }
 

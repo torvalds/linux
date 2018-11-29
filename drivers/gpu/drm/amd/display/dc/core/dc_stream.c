@@ -106,6 +106,7 @@ static void construct(struct dc_stream_state *stream,
 
 	stream->out_transfer_func = dc_create_transfer_func();
 	stream->out_transfer_func->type = TF_TYPE_BYPASS;
+	stream->out_transfer_func->ctx = stream->ctx;
 }
 
 static void destruct(struct dc_stream_state *stream)

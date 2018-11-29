@@ -82,7 +82,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option);
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable);
 /********** DAL Core*********************/
-#include "display_clock.h"
+#include "hw/clk_mgr.h"
 #include "transform.h"
 #include "dpp.h"
 
@@ -169,6 +169,7 @@ struct resource_pool {
 	unsigned int audio_count;
 	struct audio_support audio_support;
 
+	struct clk_mgr *clk_mgr;
 	struct dccg *dccg;
 	struct irq_service *irqs;
 
@@ -287,7 +288,7 @@ struct dc_state {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	struct dccg *dis_clk;
+	struct clk_mgr *dccg;
 
 	struct kref refcount;
 };

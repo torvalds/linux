@@ -163,6 +163,7 @@ struct i915_gem_context {
 	/** engine: per-engine logical HW state */
 	struct intel_context {
 		struct i915_gem_context *gem_context;
+		struct intel_engine_cs *active;
 		struct i915_vma *state;
 		struct intel_ring *ring;
 		u32 *lrc_reg_state;

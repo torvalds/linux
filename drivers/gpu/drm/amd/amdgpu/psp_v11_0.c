@@ -34,6 +34,7 @@
 #include "nbio/nbio_7_4_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_sos.bin");
+MODULE_FIRMWARE("amdgpu/vega20_ta.bin");
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
@@ -98,7 +99,8 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	const char *chip_name;
 	char fw_name[30];
 	int err = 0;
-	const struct psp_firmware_header_v1_0 *hdr;
+	const struct psp_firmware_header_v1_0 *sos_hdr;
+	const struct ta_firmware_header_v1_0 *ta_hdr;
 
 	DRM_DEBUG("\n");
 
@@ -119,16 +121,32 @@ static int psp_v11_0_init_microcode(struct psp_context *psp)
 	if (err)
 		goto out;
 
-	hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
-	adev->psp.sos_fw_version = le32_to_cpu(hdr->header.ucode_version);
-	adev->psp.sos_feature_version = le32_to_cpu(hdr->ucode_feature_version);
-	adev->psp.sos_bin_size = le32_to_cpu(hdr->sos_size_bytes);
-	adev->psp.sys_bin_size = le32_to_cpu(hdr->header.ucode_size_bytes) -
-					le32_to_cpu(hdr->sos_size_bytes);
-	adev->psp.sys_start_addr = (uint8_t *)hdr +
-				le32_to_cpu(hdr->header.ucode_array_offset_bytes);
+	sos_hdr = (const struct psp_firmware_header_v1_0 *)adev->psp.sos_fw->data;
+	adev->psp.sos_fw_version = le32_to_cpu(sos_hdr->header.ucode_version);
+	adev->psp.sos_feature_version = le32_to_cpu(sos_hdr->ucode_feature_version);
+	adev->psp.sos_bin_size = le32_to_cpu(sos_hdr->sos_size_bytes);
+	adev->psp.sys_bin_size = le32_to_cpu(sos_hdr->header.ucode_size_bytes) -
+					le32_to_cpu(sos_hdr->sos_size_bytes);
+	adev->psp.sys_start_addr = (uint8_t *)sos_hdr +
+				le32_to_cpu(sos_hdr->header.ucode_array_offset_bytes);
 	adev->psp.sos_start_addr = (uint8_t *)adev->psp.sys_start_addr +
-				le32_to_cpu(hdr->sos_offset_bytes);
+				le32_to_cpu(sos_hdr->sos_offset_bytes);
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_ta.bin", chip_name);
+	err = request_firmware(&adev->psp.ta_fw, fw_name, adev->dev);
+	if (err)
+		goto out;
+
+	err = amdgpu_ucode_validate(adev->psp.ta_fw);
+	if (err)
+		goto out;
+
+	ta_hdr = (const struct ta_firmware_header_v1_0 *)adev->psp.ta_fw->data;
+	adev->psp.ta_xgmi_ucode_version = le32_to_cpu(ta_hdr->ta_xgmi_ucode_version);
+	adev->psp.ta_xgmi_ucode_size = le32_to_cpu(ta_hdr->ta_xgmi_size_bytes);
+	adev->psp.ta_xgmi_start_addr = (uint8_t *)ta_hdr +
+		le32_to_cpu(ta_hdr->header.ucode_array_offset_bytes);
+
 	return 0;
 out:
 	if (err) {
@@ -167,7 +185,7 @@ static int psp_v11_0_bootloader_load_sysdrv(struct psp_context *psp)
 	/* Copy PSP System Driver binary to memory */
 	memcpy(psp->fw_pri_buf, psp->sys_start_addr, psp->sys_bin_size);
 
-	/* Provide the sys driver to bootrom */
+	/* Provide the sys driver to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 1 << 16;
@@ -208,7 +226,7 @@ static int psp_v11_0_bootloader_load_sos(struct psp_context *psp)
 	/* Copy Secure OS binary to PSP memory */
 	memcpy(psp->fw_pri_buf, psp->sos_start_addr, psp->sos_bin_size);
 
-	/* Provide the PSP secure OS to bootrom */
+	/* Provide the PSP secure OS to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = 2 << 16;
@@ -552,24 +570,110 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 static int psp_v11_0_xgmi_get_topology_info(struct psp_context *psp,
 	int number_devices, struct psp_xgmi_topology_info *topology)
 {
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
+	struct ta_xgmi_cmd_get_topology_info_output *topology_info_output;
+	int i;
+	int ret;
+
+	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+		return -EINVAL;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	/* Fill in the shared memory with topology information as input */
+	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO;
+	topology_info_input->num_nodes = number_devices;
+
+	for (i = 0; i < topology_info_input->num_nodes; i++) {
+		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
+		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
+		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
+		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	}
+
+	/* Invoke xgmi ta to get the topology information */
+	ret = psp_xgmi_invoke(psp, TA_COMMAND_XGMI__GET_GET_TOPOLOGY_INFO);
+	if (ret)
+		return ret;
+
+	/* Read the output topology information from the shared memory */
+	topology_info_output = &xgmi_cmd->xgmi_out_message.get_topology_info;
+	topology->num_nodes = xgmi_cmd->xgmi_out_message.get_topology_info.num_nodes;
+	for (i = 0; i < topology->num_nodes; i++) {
+		topology->nodes[i].node_id = topology_info_output->nodes[i].node_id;
+		topology->nodes[i].num_hops = topology_info_output->nodes[i].num_hops;
+		topology->nodes[i].is_sharing_enabled = topology_info_output->nodes[i].is_sharing_enabled;
+		topology->nodes[i].sdma_engine = topology_info_output->nodes[i].sdma_engine;
+	}
+
 	return 0;
 }
 
 static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 	int number_devices, struct psp_xgmi_topology_info *topology)
 {
-	return 0;
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	struct ta_xgmi_cmd_get_topology_info_input *topology_info_input;
+	int i;
+
+	if (!topology || topology->num_nodes > TA_XGMI__MAX_CONNECTED_NODES)
+		return -EINVAL;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	topology_info_input = &xgmi_cmd->xgmi_in_message.get_topology_info;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__SET_TOPOLOGY_INFO;
+	topology_info_input->num_nodes = number_devices;
+
+	for (i = 0; i < topology_info_input->num_nodes; i++) {
+		topology_info_input->nodes[i].node_id = topology->nodes[i].node_id;
+		topology_info_input->nodes[i].num_hops = topology->nodes[i].num_hops;
+		topology_info_input->nodes[i].is_sharing_enabled = topology->nodes[i].is_sharing_enabled;
+		topology_info_input->nodes[i].sdma_engine = topology->nodes[i].sdma_engine;
+	}
+
+	/* Invoke xgmi ta to set topology information */
+	return psp_xgmi_invoke(psp, TA_COMMAND_XGMI__SET_TOPOLOGY_INFO);
 }
 
 static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
 {
-	u64 hive_id = 0;
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
 
-	/* Remove me when we can get correct hive_id through PSP */
-	if (psp->adev->gmc.xgmi.num_physical_nodes)
-		hive_id = 0x123456789abcdef;
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
 
-	return hive_id;
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_HIVE_ID;
+
+	/* Invoke xgmi ta to get hive id */
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	if (ret)
+		return 0;
+	else
+		return xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
+}
+
+static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
+{
+	struct ta_xgmi_shared_memory *xgmi_cmd;
+	int ret;
+
+	xgmi_cmd = (struct ta_xgmi_shared_memory*)psp->xgmi_context.xgmi_shared_buf;
+	memset(xgmi_cmd, 0, sizeof(struct ta_xgmi_shared_memory));
+
+	xgmi_cmd->cmd_id = TA_COMMAND_XGMI__GET_NODE_ID;
+
+	/* Invoke xgmi ta to get the node id */
+	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
+	if (ret)
+		return 0;
+	else
+		return xgmi_cmd->xgmi_out_message.get_node_id.node_id;
 }
 
 static const struct psp_funcs psp_v11_0_funcs = {
@@ -587,6 +691,7 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_get_topology_info = psp_v11_0_xgmi_get_topology_info,
 	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
+	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)

@@ -68,7 +68,7 @@
 
 /* Note we don't consider signbits :| */
 #define overflows_type(x, T) \
-	(sizeof(x) > sizeof(T) && (x) >> (sizeof(T) * BITS_PER_BYTE))
+	(sizeof(x) > sizeof(T) && (x) >> BITS_PER_TYPE(T))
 
 #define ptr_mask_bits(ptr, n) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\

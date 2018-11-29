@@ -72,8 +72,8 @@ object TTM to provide a pool for buffer object allocation by clients and
 the kernel itself. The type of this object should be
 TTM_GLOBAL_TTM_BO, and its size should be sizeof(struct
 ttm_bo_global). Again, driver-specific init and release functions may
-be provided, likely eventually calling ttm_bo_global_init() and
-ttm_bo_global_release(), respectively. Also, like the previous
+be provided, likely eventually calling ttm_bo_global_ref_init() and
+ttm_bo_global_ref_release(), respectively. Also, like the previous
 object, ttm_global_item_ref() is used to create an initial reference
 count for the TTM, which will call your initialization function.
 

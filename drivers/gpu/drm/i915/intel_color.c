@@ -149,7 +149,8 @@ static void ilk_load_csc_matrix(struct drm_crtc_state *crtc_state)
 	if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv))
 		limited_color_range = intel_crtc_state->limited_color_range;
 
-	if (intel_crtc_state->ycbcr420) {
+	if (intel_crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
+	    intel_crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444) {
 		ilk_load_ycbcr_conversion_matrix(intel_crtc);
 		return;
 	} else if (crtc_state->ctm) {

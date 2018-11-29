@@ -398,6 +398,11 @@ static int drm_atomic_connector_check(struct drm_connector *connector,
 {
 	struct drm_crtc_state *crtc_state;
 	struct drm_writeback_job *writeback_job = state->writeback_job;
+	const struct drm_display_info *info = &connector->display_info;
+
+	state->max_bpc = info->bpc ? info->bpc : 8;
+	if (connector->max_bpc_property)
+		state->max_bpc = min(state->max_bpc, state->max_requested_bpc);
 
 	if ((connector->connector_type != DRM_MODE_CONNECTOR_WRITEBACK) || !writeback_job)
 		return 0;

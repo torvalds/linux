@@ -27,8 +27,7 @@ static int query_topology_info(struct drm_i915_private *dev_priv,
 
 	slice_length = sizeof(sseu->slice_mask);
 	subslice_length = sseu->max_slices *
-		DIV_ROUND_UP(sseu->max_subslices,
-			     sizeof(sseu->subslice_mask[0]) * BITS_PER_BYTE);
+		DIV_ROUND_UP(sseu->max_subslices, BITS_PER_BYTE);
 	eu_length = sseu->max_slices * sseu->max_subslices *
 		DIV_ROUND_UP(sseu->max_eus_per_subslice, BITS_PER_BYTE);
 

@@ -22,6 +22,7 @@
  */
 
 #include "kfd_mqd_manager.h"
+#include "amdgpu_amdkfd.h"
 
 struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
 					struct kfd_dev *dev)
@@ -58,7 +59,7 @@ void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
 	uint32_t cu_per_sh[4] = {0};
 	int i, se, cu = 0;
 
-	mm->dev->kfd2kgd->get_cu_info(mm->dev->kgd, &cu_info);
+	amdgpu_amdkfd_get_cu_info(mm->dev->kgd, &cu_info);
 
 	if (cu_mask_count > cu_info.cu_active_number)
 		cu_mask_count = cu_info.cu_active_number;

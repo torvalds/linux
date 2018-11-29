@@ -2129,7 +2129,7 @@ void amdgpu_pm_compute_clocks(struct amdgpu_device *adev)
 
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
-		if (ring && ring->ready)
+		if (ring && ring->sched.ready)
 			amdgpu_fence_wait_empty(ring);
 	}
 

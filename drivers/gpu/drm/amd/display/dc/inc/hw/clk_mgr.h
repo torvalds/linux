@@ -23,41 +23,25 @@
  *
  */
 
-#ifndef __DISPLAY_CLOCK_H__
-#define __DISPLAY_CLOCK_H__
+#ifndef __DAL_CLK_MGR_H__
+#define __DAL_CLK_MGR_H__
 
 #include "dm_services_types.h"
 #include "dc.h"
 
-/* Structure containing all state-dependent clocks
- * (dependent on "enum clocks_state") */
-struct state_dependent_clocks {
-	int display_clk_khz;
-	int pixel_clk_khz;
-};
-
-struct dccg {
+struct clk_mgr {
 	struct dc_context *ctx;
-	const struct display_clock_funcs *funcs;
+	const struct clk_mgr_funcs *funcs;
 
-	enum dm_pp_clocks_state max_clks_state;
-	enum dm_pp_clocks_state cur_min_clks_state;
 	struct dc_clocks clks;
 };
 
-struct display_clock_funcs {
-	void (*update_clocks)(struct dccg *dccg,
-			struct dc_clocks *new_clocks,
+struct clk_mgr_funcs {
+	void (*update_clocks)(struct clk_mgr *clk_mgr,
+			struct dc_state *context,
 			bool safe_to_lower);
-	int (*set_dispclk)(struct dccg *dccg,
-		int requested_clock_khz);
 
-	int (*get_dp_ref_clk_frequency)(struct dccg *dccg);
-
-	bool (*update_dfs_bypass)(struct dccg *dccg,
-		struct dc *dc,
-		struct dc_state *context,
-		int requested_clock_khz);
+	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 };
 
-#endif /* __DISPLAY_CLOCK_H__ */
+#endif /* __DAL_CLK_MGR_H__ */

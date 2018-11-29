@@ -153,7 +153,7 @@ static int igt_ppgtt_alloc(void *arg)
 
 	/* Allocate a ppggt and try to fill the entire range */
 
-	if (!USES_PPGTT(dev_priv))
+	if (!HAS_PPGTT(dev_priv))
 		return 0;
 
 	ppgtt = __hw_ppgtt_create(dev_priv);
@@ -1001,7 +1001,7 @@ static int exercise_ppgtt(struct drm_i915_private *dev_priv,
 	IGT_TIMEOUT(end_time);
 	int err;
 
-	if (!USES_FULL_PPGTT(dev_priv))
+	if (!HAS_FULL_PPGTT(dev_priv))
 		return 0;
 
 	file = mock_file(dev_priv);
@@ -1337,7 +1337,7 @@ static int igt_gtt_reserve(void *arg)
 		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != total ||
 		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
-			pr_err("i915_gem_gtt_reserve (pass 1) placement failed, found (%llx + %llx), expected (%llx + %lx)\n",
+			pr_err("i915_gem_gtt_reserve (pass 1) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
 			       vma->node.start, vma->node.size,
 			       total, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
@@ -1386,7 +1386,7 @@ static int igt_gtt_reserve(void *arg)
 		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != total ||
 		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
-			pr_err("i915_gem_gtt_reserve (pass 2) placement failed, found (%llx + %llx), expected (%llx + %lx)\n",
+			pr_err("i915_gem_gtt_reserve (pass 2) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
 			       vma->node.start, vma->node.size,
 			       total, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
@@ -1430,7 +1430,7 @@ static int igt_gtt_reserve(void *arg)
 		GEM_BUG_ON(!drm_mm_node_allocated(&vma->node));
 		if (vma->node.start != offset ||
 		    vma->node.size != 2*I915_GTT_PAGE_SIZE) {
-			pr_err("i915_gem_gtt_reserve (pass 3) placement failed, found (%llx + %llx), expected (%llx + %lx)\n",
+			pr_err("i915_gem_gtt_reserve (pass 3) placement failed, found (%llx + %llx), expected (%llx + %llx)\n",
 			       vma->node.start, vma->node.size,
 			       offset, 2*I915_GTT_PAGE_SIZE);
 			err = -EINVAL;
