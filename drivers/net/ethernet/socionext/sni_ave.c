@@ -185,8 +185,8 @@
 				 NETIF_MSG_TX_ERR)
 
 /* Parameter for descriptor */
-#define AVE_NR_TXDESC		32	/* Tx descriptor */
-#define AVE_NR_RXDESC		64	/* Rx descriptor */
+#define AVE_NR_TXDESC		64	/* Tx descriptor */
+#define AVE_NR_RXDESC		256	/* Rx descriptor */
 
 #define AVE_DESC_OFS_CMDSTS	0
 #define AVE_DESC_OFS_ADDRL	4
@@ -1689,9 +1689,10 @@ static int ave_probe(struct platform_device *pdev)
 		 pdev->name, pdev->id);
 
 	/* Register as a NAPI supported driver */
-	netif_napi_add(ndev, &priv->napi_rx, ave_napi_poll_rx, priv->rx.ndesc);
+	netif_napi_add(ndev, &priv->napi_rx, ave_napi_poll_rx,
+		       NAPI_POLL_WEIGHT);
 	netif_tx_napi_add(ndev, &priv->napi_tx, ave_napi_poll_tx,
-			  priv->tx.ndesc);
+			  NAPI_POLL_WEIGHT);
 
 	platform_set_drvdata(pdev, ndev);
 
