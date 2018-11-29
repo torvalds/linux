@@ -1916,5 +1916,6 @@ static struct platform_driver ave_driver = {
 };
 module_platform_driver(ave_driver);
 
+MODULE_AUTHOR("Kunihiko Hayashi <hayashi.kunihiko@socionext.com>");
 MODULE_DESCRIPTION("Socionext UniPhier AVE ethernet driver");
 MODULE_LICENSE("GPL v2");
