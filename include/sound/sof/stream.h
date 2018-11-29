@@ -69,7 +69,7 @@ struct sof_ipc_host_buffer {
 
 struct sof_ipc_stream_params {
 	struct sof_ipc_host_buffer buffer;
-	uint32_t direction;	/**< enum sof_ipc_stream_directio */
+	uint32_t direction;	/**< enum sof_ipc_stream_direction */
 	uint32_t frame_fmt;	/**< enum sof_ipc_frame */
 	uint32_t buffer_fmt;	/**< enum sof_ipc_buffer_format */
 	uint32_t rate;
