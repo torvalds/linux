@@ -109,7 +109,7 @@ struct bcm2835_spi {
 	int tx_prologue;
 	int rx_prologue;
 	bool tx_spillover;
-	bool dma_pending;
+	unsigned int dma_pending;
 };
 
 static inline u32 bcm2835_rd(struct bcm2835_spi *bs, unsigned reg)
