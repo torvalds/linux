@@ -125,6 +125,16 @@ int adv748x_write(struct adv748x_state *state, u8 page, u8 reg, u8 value)
 	return regmap_write(state->regmap[page], reg, value);
 }
 
+static int adv748x_write_check(struct adv748x_state *state, u8 page, u8 reg,
+			       u8 value, int *error)
+{
+	if (*error)
+		return *error;
+
+	*error = adv748x_write(state, page, reg, value);
+	return *error;
+}
+
 /* adv748x_write_block(): Write raw data with a maximum of I2C_SMBUS_BLOCK_MAX
  * size to one or more registers.
  *
@@ -231,79 +241,77 @@ static int adv748x_write_regs(struct adv748x_state *state,
  * TXA and TXB
  */
 
-static const struct adv748x_reg_value adv748x_power_up_txa_4lane[] = {
+static int adv748x_power_up_tx(struct adv748x_csi2 *tx)
+{
+	struct adv748x_state *state = tx->state;
+	u8 page = is_txa(tx) ? ADV748X_PAGE_TXA : ADV748X_PAGE_TXB;
+	int ret = 0;
 
-	{ADV748X_PAGE_TXA, 0x00, 0x84},	/* Enable 4-lane MIPI */
-	{ADV748X_PAGE_TXA, 0x00, 0xa4},	/* Set Auto DPHY Timing */
-	{ADV748X_PAGE_TXA, 0xdb, 0x10},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0xd6, 0x07},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0xc4, 0x0a},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0x71, 0x33},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0x72, 0x11},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0xf0, 0x00},	/* i2c_dphy_pwdn - 1'b0 */
+	/* Enable n-lane MIPI */
+	adv748x_write_check(state, page, 0x00, 0x80 | tx->num_lanes, &ret);
 
-	{ADV748X_PAGE_TXA, 0x31, 0x82},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0x1e, 0x40},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0xda, 0x01},	/* i2c_mipi_pll_en - 1'b1 */
-	{ADV748X_PAGE_WAIT, 0x00, 0x02},/* delay 2 */
-	{ADV748X_PAGE_TXA, 0x00, 0x24 },/* Power-up CSI-TX */
-	{ADV748X_PAGE_WAIT, 0x00, 0x01},/* delay 1 */
-	{ADV748X_PAGE_TXA, 0xc1, 0x2b},	/* ADI Required Write */
-	{ADV748X_PAGE_WAIT, 0x00, 0x01},/* delay 1 */
-	{ADV748X_PAGE_TXA, 0x31, 0x80},	/* ADI Required Write */
+	/* Set Auto DPHY Timing */
+	adv748x_write_check(state, page, 0x00, 0xa0 | tx->num_lanes, &ret);
 
-	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
-};
+	/* ADI Required Write */
+	if (is_txa(tx)) {
+		adv748x_write_check(state, page, 0xdb, 0x10, &ret);
+		adv748x_write_check(state, page, 0xd6, 0x07, &ret);
+	} else {
+		adv748x_write_check(state, page, 0xd2, 0x40, &ret);
+	}
 
-static const struct adv748x_reg_value adv748x_power_down_txa_4lane[] = {
+	adv748x_write_check(state, page, 0xc4, 0x0a, &ret);
+	adv748x_write_check(state, page, 0x71, 0x33, &ret);
+	adv748x_write_check(state, page, 0x72, 0x11, &ret);
 
-	{ADV748X_PAGE_TXA, 0x31, 0x82},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0x1e, 0x00},	/* ADI Required Write */
-	{ADV748X_PAGE_TXA, 0x00, 0x84},	/* Enable 4-lane MIPI */
-	{ADV748X_PAGE_TXA, 0xda, 0x01},	/* i2c_mipi_pll_en - 1'b1 */
-	{ADV748X_PAGE_TXA, 0xc1, 0x3b},	/* ADI Required Write */
+	/* i2c_dphy_pwdn - 1'b0 */
+	adv748x_write_check(state, page, 0xf0, 0x00, &ret);
 
-	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
-};
+	/* ADI Required Writes*/
+	adv748x_write_check(state, page, 0x31, 0x82, &ret);
+	adv748x_write_check(state, page, 0x1e, 0x40, &ret);
 
-static const struct adv748x_reg_value adv748x_power_up_txb_1lane[] = {
+	/* i2c_mipi_pll_en - 1'b1 */
+	adv748x_write_check(state, page, 0xda, 0x01, &ret);
+	usleep_range(2000, 2500);
 
-	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 1-lane MIPI */
-	{ADV748X_PAGE_TXB, 0x00, 0xa1},	/* Set Auto DPHY Timing */
-	{ADV748X_PAGE_TXB, 0xd2, 0x40},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0xc4, 0x0a},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x71, 0x33},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x72, 0x11},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0xf0, 0x00},	/* i2c_dphy_pwdn - 1'b0 */
+	/* Power-up CSI-TX */
+	adv748x_write_check(state, page, 0x00, 0x20 | tx->num_lanes, &ret);
+	usleep_range(1000, 1500);
 
-	{ADV748X_PAGE_TXB, 0x31, 0x82},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x1e, 0x40},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0xda, 0x01},	/* i2c_mipi_pll_en - 1'b1 */
-	{ADV748X_PAGE_WAIT, 0x00, 0x02},/* delay 2 */
-	{ADV748X_PAGE_TXB, 0x00, 0x21 },/* Power-up CSI-TX */
-	{ADV748X_PAGE_WAIT, 0x00, 0x01},/* delay 1 */
-	{ADV748X_PAGE_TXB, 0xc1, 0x2b},	/* ADI Required Write */
-	{ADV748X_PAGE_WAIT, 0x00, 0x01},/* delay 1 */
-	{ADV748X_PAGE_TXB, 0x31, 0x80},	/* ADI Required Write */
+	/* ADI Required Writes */
+	adv748x_write_check(state, page, 0xc1, 0x2b, &ret);
+	usleep_range(1000, 1500);
+	adv748x_write_check(state, page, 0x31, 0x80, &ret);
 
-	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
-};
+	return ret;
+}
 
-static const struct adv748x_reg_value adv748x_power_down_txb_1lane[] = {
+static int adv748x_power_down_tx(struct adv748x_csi2 *tx)
+{
+	struct adv748x_state *state = tx->state;
+	u8 page = is_txa(tx) ? ADV748X_PAGE_TXA : ADV748X_PAGE_TXB;
+	int ret = 0;
 
-	{ADV748X_PAGE_TXB, 0x31, 0x82},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x1e, 0x00},	/* ADI Required Write */
-	{ADV748X_PAGE_TXB, 0x00, 0x81},	/* Enable 1-lane MIPI */
-	{ADV748X_PAGE_TXB, 0xda, 0x01},	/* i2c_mipi_pll_en - 1'b1 */
-	{ADV748X_PAGE_TXB, 0xc1, 0x3b},	/* ADI Required Write */
+	/* ADI Required Writes */
+	adv748x_write_check(state, page, 0x31, 0x82, &ret);
+	adv748x_write_check(state, page, 0x1e, 0x00, &ret);
 
-	{ADV748X_PAGE_EOR, 0xff, 0xff}	/* End of register table */
-};
+	/* Enable n-lane MIPI */
+	adv748x_write_check(state, page, 0x00, 0x80 | tx->num_lanes, &ret);
+
+	/* i2c_mipi_pll_en - 1'b1 */
+	adv748x_write_check(state, page, 0xda, 0x01, &ret);
+
+	/* ADI Required Write */
+	adv748x_write_check(state, page, 0xc1, 0x3b, &ret);
+
+	return ret;
+}
 
 int adv748x_tx_power(struct adv748x_csi2 *tx, bool on)
 {
-	struct adv748x_state *state = tx->state;
-	const struct adv748x_reg_value *reglist;
 	int val;
 
 	if (!is_tx_enabled(tx))
@@ -321,14 +329,7 @@ int adv748x_tx_power(struct adv748x_csi2 *tx, bool on)
 	WARN_ONCE((on && val & ADV748X_CSI_FS_AS_LS_UNKNOWN),
 			"Enabling with unknown bit set");
 
-	if (on)
-		reglist = is_txa(tx) ? adv748x_power_up_txa_4lane :
-				       adv748x_power_up_txb_1lane;
-	else
-		reglist = is_txa(tx) ? adv748x_power_down_txa_4lane :
-				       adv748x_power_down_txb_1lane;
-
-	return adv748x_write_regs(state, reglist);
+	return on ? adv748x_power_up_tx(tx) : adv748x_power_down_tx(tx);
 }
 
 /* -----------------------------------------------------------------------------
