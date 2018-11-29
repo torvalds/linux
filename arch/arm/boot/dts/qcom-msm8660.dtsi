@@ -141,7 +141,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16540000 0x1000>,
 				      <0x16500000 0x1000>;
-				interrupts = <GIC_SPI 156 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI6_UART_CLK>, <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -150,7 +150,7 @@
 			gsbi6_i2c: i2c@16580000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x16580000 0x1000>;
-				interrupts = <GIC_SPI 157 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI6_QUP_CLK>, <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
@@ -176,7 +176,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16640000 0x1000>,
 				      <0x16600000 0x1000>;
-				interrupts = <GIC_SPI 158 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -185,7 +185,7 @@
 			gsbi7_i2c: i2c@16680000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x16680000 0x1000>;
-				interrupts = <GIC_SPI 159 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI7_QUP_CLK>, <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
@@ -209,7 +209,7 @@
 			gsbi8_i2c: i2c@19880000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x19880000 0x1000>;
-				interrupts = <GIC_SPI 161 IRQ_TYPE_NONE>;
+				interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI8_QUP_CLK>, <&gcc GSBI8_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
@@ -234,7 +234,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x19c40000 0x1000>,
 				      <0x19c00000 0x1000>;
-				interrupts = <0 195 IRQ_TYPE_NONE>;
+				interrupts = <0 195 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI12_UART_CLK>, <&gcc GSBI12_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -243,7 +243,7 @@
 			gsbi12_i2c: i2c@19c80000 {
 				compatible = "qcom,i2c-qup-v1.1.1";
 				reg = <0x19c80000 0x1000>;
-				interrupts = <0 196 IRQ_TYPE_NONE>;
+				interrupts = <0 196 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI12_QUP_CLK>, <&gcc GSBI12_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
