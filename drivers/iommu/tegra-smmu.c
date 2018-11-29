@@ -846,7 +846,7 @@ static struct iommu_group *tegra_smmu_group_get(struct tegra_smmu *smmu,
 
 static struct iommu_group *tegra_smmu_device_group(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct tegra_smmu *smmu = dev->archdata.iommu;
 	struct iommu_group *group;
 
