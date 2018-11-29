@@ -1953,6 +1953,13 @@ static bool intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 			return false;
 		}
 	}
+	if (intel_dp_compute_dsc_params(intel_dp, pipe_config) < 0) {
+		DRM_DEBUG_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
+			      "Compressed BPP = %d\n",
+			      pipe_config->pipe_bpp,
+			      pipe_config->dsc_params.compressed_bpp);
+		return false;
+	}
 	pipe_config->dsc_params.compression_enable = true;
 	DRM_DEBUG_KMS("DP DSC computed with Input Bpp = %d "
 		      "Compressed Bpp = %d Slice Count = %d\n",

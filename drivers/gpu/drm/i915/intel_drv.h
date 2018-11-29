@@ -1857,6 +1857,10 @@ uint16_t intel_dp_dsc_get_output_bpp(int link_clock, uint8_t lane_count,
 uint8_t intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp, int mode_clock,
 				     int mode_hdisplay);
 
+/* intel_vdsc.c */
+int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
+				struct intel_crtc_state *pipe_config);
+
 static inline unsigned int intel_dp_unused_lane_mask(int lane_count)
 {
 	return ~((1 << lane_count) - 1) & 0xf;

@@ -157,7 +157,8 @@ i915-y += dvo_ch7017.o \
 	  intel_sdvo.o \
 	  intel_tv.o \
 	  vlv_dsi.o \
-	  vlv_dsi_pll.o
+	  vlv_dsi_pll.o \
+	  intel_vdsc.o
 
 # Post-mortem debug and GPU hang state capture
 i915-$(CONFIG_DRM_I915_CAPTURE_ERROR) += i915_gpu_error.o
