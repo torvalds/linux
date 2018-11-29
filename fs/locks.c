@@ -112,6 +112,46 @@
  *  Leases and LOCK_MAND
  *  Matthew Wilcox <willy@debian.org>, June, 2000.
  *  Stephen Rothwell <sfr@canb.auug.org.au>, June, 2000.
+ *
+ * Locking conflicts and dependencies:
+ * If multiple threads attempt to lock the same byte (or flock the same file)
+ * only one can be granted the lock, and other must wait their turn.
+ * The first lock has been "applied" or "granted", the others are "waiting"
+ * and are "blocked" by the "applied" lock..
+ *
+ * Waiting and applied locks are all kept in trees whose properties are:
+ *
+ *	- the root of a tree may be an applied or waiting lock.
+ *	- every other node in the tree is a waiting lock that
+ *	  conflicts with every ancestor of that node.
+ *
+ * Every such tree begins life as a waiting singleton which obviously
+ * satisfies the above properties.
+ *
+ * The only ways we modify trees preserve these properties:
+ *
+ *	1. We may add a new leaf node, but only after first verifying that it
+ *	   conflicts with all of its ancestors.
+ *	2. We may remove the root of a tree, creating a new singleton
+ *	   tree from the root and N new trees rooted in the immediate
+ *	   children.
+ *	3. If the root of a tree is not currently an applied lock, we may
+ *	   apply it (if possible).
+ *	4. We may upgrade the root of the tree (either extend its range,
+ *	   or upgrade its entire range from read to write).
+ *
+ * When an applied lock is modified in a way that reduces or downgrades any
+ * part of its range, we remove all its children (2 above).  This particularly
+ * happens when a lock is unlocked.
+ *
+ * For each of those child trees we "wake up" the thread which is
+ * waiting for the lock so it can continue handling as follows: if the
+ * root of the tree applies, we do so (3).  If it doesn't, it must
+ * conflict with some applied lock.  We remove (wake up) all of its children
+ * (2), and add it is a new leaf to the tree rooted in the applied
+ * lock (1).  We then repeat the process recursively with those
+ * children.
+ *
  */
 
 #include <linux/capability.h>
@@ -740,11 +780,25 @@ static void locks_delete_block(struct file_lock *waiter)
  * but by ensuring that the flc_lock is also held on insertions we can avoid
  * taking the blocked_lock_lock in some cases when we see that the
  * fl_blocked_requests list is empty.
+ *
+ * Rather than just adding to the list, we check for conflicts with any existing
+ * waiters, and add beneath any waiter that blocks the new waiter.
+ * Thus wakeups don't happen until needed.
  */
 static void __locks_insert_block(struct file_lock *blocker,
-					struct file_lock *waiter)
+				 struct file_lock *waiter,
+				 bool conflict(struct file_lock *,
+					       struct file_lock *))
 {
+	struct file_lock *fl;
 	BUG_ON(!list_empty(&waiter->fl_blocked_member));
+
+new_blocker:
+	list_for_each_entry(fl, &blocker->fl_blocked_requests, fl_blocked_member)
+		if (conflict(fl, waiter)) {
+			blocker =  fl;
+			goto new_blocker;
+		}
 	waiter->fl_blocker = blocker;
 	list_add_tail(&waiter->fl_blocked_member, &blocker->fl_blocked_requests);
 	if (IS_POSIX(blocker) && !IS_OFDLCK(blocker))
@@ -759,10 +813,12 @@ static void __locks_insert_block(struct file_lock *blocker,
 
 /* Must be called with flc_lock held. */
 static void locks_insert_block(struct file_lock *blocker,
-					struct file_lock *waiter)
+			       struct file_lock *waiter,
+			       bool conflict(struct file_lock *,
+					     struct file_lock *))
 {
 	spin_lock(&blocked_lock_lock);
-	__locks_insert_block(blocker, waiter);
+	__locks_insert_block(blocker, waiter, conflict);
 	spin_unlock(&blocked_lock_lock);
 }
 
@@ -1021,7 +1077,7 @@ find_conflict:
 		if (!(request->fl_flags & FL_SLEEP))
 			goto out;
 		error = FILE_LOCK_DEFERRED;
-		locks_insert_block(fl, request);
+		locks_insert_block(fl, request, flock_locks_conflict);
 		goto out;
 	}
 	if (request->fl_flags & FL_ACCESS)
@@ -1096,7 +1152,8 @@ static int posix_lock_inode(struct inode *inode, struct file_lock *request,
 			spin_lock(&blocked_lock_lock);
 			if (likely(!posix_locks_deadlock(request, fl))) {
 				error = FILE_LOCK_DEFERRED;
-				__locks_insert_block(fl, request);
+				__locks_insert_block(fl, request,
+						     posix_locks_conflict);
 			}
 			spin_unlock(&blocked_lock_lock);
 			goto out;
@@ -1567,7 +1624,7 @@ restart:
 		break_time -= jiffies;
 	if (break_time == 0)
 		break_time++;
-	locks_insert_block(fl, new_fl);
+	locks_insert_block(fl, new_fl, leases_conflict);
 	trace_break_lease_block(inode, new_fl);
 	spin_unlock(&ctx->flc_lock);
 	percpu_up_read_preempt_enable(&file_rwsem);
