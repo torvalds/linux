@@ -270,6 +270,8 @@ static void wakeup_graph_return(struct ftrace_graph_ret *trace)
 	unsigned long flags;
 	int pc;
 
+	ftrace_graph_addr_finish(trace);
+
 	if (!func_prolog_preempt_disable(tr, &data, &pc))
 		return;
 
