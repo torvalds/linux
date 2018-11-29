@@ -257,6 +257,45 @@ static void dsi_program_swing_and_deemphasis(struct intel_encoder *encoder)
 	}
 }
 
+static void configure_dual_link_mode(struct intel_encoder *encoder,
+				     const struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	u32 dss_ctl1;
+
+	dss_ctl1 = I915_READ(DSS_CTL1);
+	dss_ctl1 |= SPLITTER_ENABLE;
+	dss_ctl1 &= ~OVERLAP_PIXELS_MASK;
+	dss_ctl1 |= OVERLAP_PIXELS(intel_dsi->pixel_overlap);
+
+	if (intel_dsi->dual_link == DSI_DUAL_LINK_FRONT_BACK) {
+		const struct drm_display_mode *adjusted_mode =
+					&pipe_config->base.adjusted_mode;
+		u32 dss_ctl2;
+		u16 hactive = adjusted_mode->crtc_hdisplay;
+		u16 dl_buffer_depth;
+
+		dss_ctl1 &= ~DUAL_LINK_MODE_INTERLEAVE;
+		dl_buffer_depth = hactive / 2 + intel_dsi->pixel_overlap;
+
+		if (dl_buffer_depth > MAX_DL_BUFFER_TARGET_DEPTH)
+			DRM_ERROR("DL buffer depth exceed max value\n");
+
+		dss_ctl1 &= ~LEFT_DL_BUF_TARGET_DEPTH_MASK;
+		dss_ctl1 |= LEFT_DL_BUF_TARGET_DEPTH(dl_buffer_depth);
+		dss_ctl2 = I915_READ(DSS_CTL2);
+		dss_ctl2 &= ~RIGHT_DL_BUF_TARGET_DEPTH_MASK;
+		dss_ctl2 |= RIGHT_DL_BUF_TARGET_DEPTH(dl_buffer_depth);
+		I915_WRITE(DSS_CTL2, dss_ctl2);
+	} else {
+		/* Interleave */
+		dss_ctl1 |= DUAL_LINK_MODE_INTERLEAVE;
+	}
+
+	I915_WRITE(DSS_CTL1, dss_ctl1);
+}
+
 static void gen11_dsi_program_esc_clk_div(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
@@ -591,7 +630,8 @@ gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			I915_WRITE(TRANS_DDI_FUNC_CTL2(dsi_trans), tmp);
 		}
 
-		//TODO: configure DSS_CTL1
+		/* configure stream splitting */
+		configure_dual_link_mode(encoder, pipe_config);
 	}
 
 	for_each_dsi_port(port, intel_dsi->ports) {
