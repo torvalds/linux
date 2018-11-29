@@ -261,7 +261,7 @@ void sun6i_video_frame_done(struct sun6i_video *video)
 	buf = list_first_entry(&video->dma_queue,
 			       struct sun6i_csi_buffer, list);
 	if (list_is_last(&buf->list, &video->dma_queue)) {
-		dev_dbg(video->csi->dev, "Frame droped!\n");
+		dev_dbg(video->csi->dev, "Frame dropped!\n");
 		goto unlock;
 	}
 
@@ -274,7 +274,7 @@ void sun6i_video_frame_done(struct sun6i_video *video)
 	if (!next_buf->queued_to_csi) {
 		next_buf->queued_to_csi = true;
 		sun6i_csi_update_buf_addr(video->csi, next_buf->dma_addr);
-		dev_dbg(video->csi->dev, "Frame droped!\n");
+		dev_dbg(video->csi->dev, "Frame dropped!\n");
 		goto unlock;
 	}
 
