@@ -591,19 +591,21 @@ static void *eeh_pe_detach_dev(struct eeh_pe *pe, void *userdata)
  * PE reset (for 3 times), we try to clear the frozen state
  * for 3 times as well.
  */
-static int eeh_clear_pe_frozen_state(struct eeh_pe *root)
+static int eeh_clear_pe_frozen_state(struct eeh_pe *root, bool include_passed)
 {
 	struct eeh_pe *pe;
 	int i;
 
 	eeh_for_each_pe(root, pe) {
-		for (i = 0; i < 3; i++)
-			if (!eeh_unfreeze_pe(pe))
-				break;
-		if (i >= 3)
-			return -EIO;
+		if (include_passed || !eeh_pe_passed(pe)) {
+			for (i = 0; i < 3; i++)
+				if (!eeh_unfreeze_pe(pe))
+					break;
+			if (i >= 3)
+				return -EIO;
+		}
 	}
-	eeh_pe_state_clear(root, EEH_PE_ISOLATED, true);
+	eeh_pe_state_clear(root, EEH_PE_ISOLATED, include_passed);
 	return 0;
 }
 
@@ -629,7 +631,7 @@ int eeh_pe_reset_and_recover(struct eeh_pe *pe)
 	}
 
 	/* Unfreeze the PE */
-	ret = eeh_clear_pe_frozen_state(pe);
+	ret = eeh_clear_pe_frozen_state(pe, true);
 	if (ret) {
 		eeh_pe_state_clear(pe, EEH_PE_RECOVERING, true);
 		return ret;
@@ -702,7 +704,7 @@ static int eeh_reset_device(struct eeh_pe *pe, struct pci_bus *bus,
 	eeh_pe_restore_bars(pe);
 
 	/* Clear frozen state */
-	rc = eeh_clear_pe_frozen_state(pe);
+	rc = eeh_clear_pe_frozen_state(pe, true);
 	if (rc) {
 		pci_unlock_rescan_remove();
 		return rc;
