@@ -2791,69 +2791,45 @@ uint32_t icl_dpclka_cfgcr0_clk_off(struct drm_i915_private *dev_priv,
 	return 0;
 }
 
-void icl_map_plls_to_ports(struct drm_crtc *crtc,
-			   struct intel_crtc_state *crtc_state,
-			   struct drm_atomic_state *old_state)
+static void icl_map_plls_to_ports(struct intel_encoder *encoder,
+				  const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct drm_connector_state *conn_state;
-	struct drm_connector *conn;
-	int i;
+	enum port port = encoder->port;
+	u32 val;
 
-	for_each_new_connector_in_state(old_state, conn, conn_state, i) {
-		struct intel_encoder *encoder =
-			to_intel_encoder(conn_state->best_encoder);
-		enum port port;
-		uint32_t val;
+	mutex_lock(&dev_priv->dpll_lock);
 
-		if (conn_state->crtc != crtc)
-			continue;
+	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	WARN_ON((val & icl_dpclka_cfgcr0_clk_off(dev_priv, port)) == 0);
 
-		port = encoder->port;
-		mutex_lock(&dev_priv->dpll_lock);
-
-		val = I915_READ(DPCLKA_CFGCR0_ICL);
-		WARN_ON((val & icl_dpclka_cfgcr0_clk_off(dev_priv, port)) == 0);
-
-		if (intel_port_is_combophy(dev_priv, port)) {
-			val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
-			val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
-			I915_WRITE(DPCLKA_CFGCR0_ICL, val);
-			POSTING_READ(DPCLKA_CFGCR0_ICL);
-		}
-
-		val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, port);
+	if (intel_port_is_combophy(dev_priv, port)) {
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
+		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
 		I915_WRITE(DPCLKA_CFGCR0_ICL, val);
-
-		mutex_unlock(&dev_priv->dpll_lock);
+		POSTING_READ(DPCLKA_CFGCR0_ICL);
 	}
+
+	val &= ~icl_dpclka_cfgcr0_clk_off(dev_priv, port);
+	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+
+	mutex_unlock(&dev_priv->dpll_lock);
 }
 
-void icl_unmap_plls_to_ports(struct drm_crtc *crtc,
-			     struct intel_crtc_state *crtc_state,
-			     struct drm_atomic_state *old_state)
+static void icl_unmap_plls_to_ports(struct intel_encoder *encoder)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct drm_connector_state *old_conn_state;
-	struct drm_connector *conn;
-	int i;
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum port port = encoder->port;
+	u32 val;
 
-	for_each_old_connector_in_state(old_state, conn, old_conn_state, i) {
-		struct intel_encoder *encoder =
-			to_intel_encoder(old_conn_state->best_encoder);
-		enum port port;
+	mutex_lock(&dev_priv->dpll_lock);
 
-		if (old_conn_state->crtc != crtc)
-			continue;
+	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	val |= icl_dpclka_cfgcr0_clk_off(dev_priv, port);
+	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
 
-		port = encoder->port;
-		mutex_lock(&dev_priv->dpll_lock);
-		I915_WRITE(DPCLKA_CFGCR0_ICL,
-			   I915_READ(DPCLKA_CFGCR0_ICL) |
-			   icl_dpclka_cfgcr0_clk_off(dev_priv, port));
-		mutex_unlock(&dev_priv->dpll_lock);
-	}
+	mutex_unlock(&dev_priv->dpll_lock);
 }
 
 void icl_sanitize_encoder_pll_mapping(struct intel_encoder *encoder)
@@ -3268,6 +3244,9 @@ static void intel_ddi_pre_enable(struct intel_encoder *encoder,
 
 	WARN_ON(crtc_state->has_pch_encoder);
 
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_map_plls_to_ports(encoder, crtc_state);
+
 	intel_set_cpu_fifo_underrun_reporting(dev_priv, pipe, true);
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI)) {
@@ -3370,6 +3349,8 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *old_crtc_state,
 				   const struct drm_connector_state *old_conn_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+
 	/*
 	 * When called from DP MST code:
 	 * - old_conn_state will be NULL
@@ -3389,6 +3370,9 @@ static void intel_ddi_post_disable(struct intel_encoder *encoder,
 	else
 		intel_ddi_post_disable_dp(encoder,
 					  old_crtc_state, old_conn_state);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_unmap_plls_to_ports(encoder);
 }
 
 void intel_ddi_fdi_post_disable(struct intel_encoder *encoder,

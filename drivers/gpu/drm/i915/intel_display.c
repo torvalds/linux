@@ -5726,9 +5726,6 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (pipe_config->shared_dpll)
 		intel_enable_shared_dpll(pipe_config);
 
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_map_plls_to_ports(crtc, pipe_config, old_state);
-
 	intel_encoders_pre_enable(crtc, pipe_config, old_state);
 
 	if (intel_crtc_has_dp_encoder(pipe_config))
@@ -5931,9 +5928,6 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 		ironlake_pfit_disable(old_crtc_state);
 
 	intel_encoders_post_disable(crtc, old_crtc_state, old_state);
-
-	if (INTEL_GEN(dev_priv) >= 11)
-		icl_unmap_plls_to_ports(crtc, old_crtc_state, old_state);
 
 	intel_encoders_post_pll_disable(crtc, old_crtc_state, old_state);
 }
