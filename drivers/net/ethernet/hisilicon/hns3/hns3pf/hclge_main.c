@@ -48,6 +48,62 @@ static const struct pci_device_id ae_algo_pci_tbl[] = {
 
 MODULE_DEVICE_TABLE(pci, ae_algo_pci_tbl);
 
+static const u32 cmdq_reg_addr_list[] = {HCLGE_CMDQ_TX_ADDR_L_REG,
+					 HCLGE_CMDQ_TX_ADDR_H_REG,
+					 HCLGE_CMDQ_TX_DEPTH_REG,
+					 HCLGE_CMDQ_TX_TAIL_REG,
+					 HCLGE_CMDQ_TX_HEAD_REG,
+					 HCLGE_CMDQ_RX_ADDR_L_REG,
+					 HCLGE_CMDQ_RX_ADDR_H_REG,
+					 HCLGE_CMDQ_RX_DEPTH_REG,
+					 HCLGE_CMDQ_RX_TAIL_REG,
+					 HCLGE_CMDQ_RX_HEAD_REG,
+					 HCLGE_VECTOR0_CMDQ_SRC_REG,
+					 HCLGE_CMDQ_INTR_STS_REG,
+					 HCLGE_CMDQ_INTR_EN_REG,
+					 HCLGE_CMDQ_INTR_GEN_REG};
+
+static const u32 common_reg_addr_list[] = {HCLGE_MISC_VECTOR_REG_BASE,
+					   HCLGE_VECTOR0_OTER_EN_REG,
+					   HCLGE_MISC_RESET_STS_REG,
+					   HCLGE_MISC_VECTOR_INT_STS,
+					   HCLGE_GLOBAL_RESET_REG,
+					   HCLGE_FUN_RST_ING,
+					   HCLGE_GRO_EN_REG};
+
+static const u32 ring_reg_addr_list[] = {HCLGE_RING_RX_ADDR_L_REG,
+					 HCLGE_RING_RX_ADDR_H_REG,
+					 HCLGE_RING_RX_BD_NUM_REG,
+					 HCLGE_RING_RX_BD_LENGTH_REG,
+					 HCLGE_RING_RX_MERGE_EN_REG,
+					 HCLGE_RING_RX_TAIL_REG,
+					 HCLGE_RING_RX_HEAD_REG,
+					 HCLGE_RING_RX_FBD_NUM_REG,
+					 HCLGE_RING_RX_OFFSET_REG,
+					 HCLGE_RING_RX_FBD_OFFSET_REG,
+					 HCLGE_RING_RX_STASH_REG,
+					 HCLGE_RING_RX_BD_ERR_REG,
+					 HCLGE_RING_TX_ADDR_L_REG,
+					 HCLGE_RING_TX_ADDR_H_REG,
+					 HCLGE_RING_TX_BD_NUM_REG,
+					 HCLGE_RING_TX_PRIORITY_REG,
+					 HCLGE_RING_TX_TC_REG,
+					 HCLGE_RING_TX_MERGE_EN_REG,
+					 HCLGE_RING_TX_TAIL_REG,
+					 HCLGE_RING_TX_HEAD_REG,
+					 HCLGE_RING_TX_FBD_NUM_REG,
+					 HCLGE_RING_TX_OFFSET_REG,
+					 HCLGE_RING_TX_EBD_NUM_REG,
+					 HCLGE_RING_TX_EBD_OFFSET_REG,
+					 HCLGE_RING_TX_BD_ERR_REG,
+					 HCLGE_RING_EN_REG};
+
+static const u32 tqp_intr_reg_addr_list[] = {HCLGE_TQP_INTR_CTRL_REG,
+					     HCLGE_TQP_INTR_GL0_REG,
+					     HCLGE_TQP_INTR_GL1_REG,
+					     HCLGE_TQP_INTR_GL2_REG,
+					     HCLGE_TQP_INTR_RL_REG};
+
 static const char hns3_nic_test_strs[][ETH_GSTRING_LEN] = {
 	"App    Loopback test",
 	"Serdes serial Loopback test",
@@ -7637,8 +7693,15 @@ static int hclge_get_64_bit_regs(struct hclge_dev *hdev, u32 regs_num,
 	return 0;
 }
 
+#define MAX_SEPARATE_NUM	4
+#define SEPARATOR_VALUE		0xFFFFFFFF
+#define REG_NUM_PER_LINE	4
+#define REG_LEN_PER_LINE	(REG_NUM_PER_LINE * sizeof(u32))
+
 static int hclge_get_regs_len(struct hnae3_handle *handle)
 {
+	int cmdq_lines, common_lines, ring_lines, tqp_intr_lines;
+	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	u32 regs_num_32_bit, regs_num_64_bit;
@@ -7651,15 +7714,25 @@ static int hclge_get_regs_len(struct hnae3_handle *handle)
 		return -EOPNOTSUPP;
 	}
 
-	return regs_num_32_bit * sizeof(u32) + regs_num_64_bit * sizeof(u64);
+	cmdq_lines = sizeof(cmdq_reg_addr_list) / REG_LEN_PER_LINE + 1;
+	common_lines = sizeof(common_reg_addr_list) / REG_LEN_PER_LINE + 1;
+	ring_lines = sizeof(ring_reg_addr_list) / REG_LEN_PER_LINE + 1;
+	tqp_intr_lines = sizeof(tqp_intr_reg_addr_list) / REG_LEN_PER_LINE + 1;
+
+	return (cmdq_lines + common_lines + ring_lines * kinfo->num_tqps +
+		tqp_intr_lines * (hdev->num_msi_used - 1)) * REG_LEN_PER_LINE +
+		regs_num_32_bit * sizeof(u32) + regs_num_64_bit * sizeof(u64);
 }
 
 static void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
 			   void *data)
 {
+	struct hnae3_knic_private_info *kinfo = &handle->kinfo;
 	struct hclge_vport *vport = hclge_get_vport(handle);
 	struct hclge_dev *hdev = vport->back;
 	u32 regs_num_32_bit, regs_num_64_bit;
+	int i, j, reg_um, separator_num;
+	u32 *reg = data;
 	int ret;
 
 	*version = hdev->fw_version;
@@ -7671,16 +7744,53 @@ static void hclge_get_regs(struct hnae3_handle *handle, u32 *version,
 		return;
 	}
 
-	ret = hclge_get_32_bit_regs(hdev, regs_num_32_bit, data);
+	/* fetching per-PF registers valus from PF PCIe register space */
+	reg_um = sizeof(cmdq_reg_addr_list) / sizeof(u32);
+	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
+	for (i = 0; i < reg_um; i++)
+		*reg++ = hclge_read_dev(&hdev->hw, cmdq_reg_addr_list[i]);
+	for (i = 0; i < separator_num; i++)
+		*reg++ = SEPARATOR_VALUE;
+
+	reg_um = sizeof(common_reg_addr_list) / sizeof(u32);
+	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
+	for (i = 0; i < reg_um; i++)
+		*reg++ = hclge_read_dev(&hdev->hw, common_reg_addr_list[i]);
+	for (i = 0; i < separator_num; i++)
+		*reg++ = SEPARATOR_VALUE;
+
+	reg_um = sizeof(ring_reg_addr_list) / sizeof(u32);
+	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
+	for (j = 0; j < kinfo->num_tqps; j++) {
+		for (i = 0; i < reg_um; i++)
+			*reg++ = hclge_read_dev(&hdev->hw,
+						ring_reg_addr_list[i] +
+						0x200 * j);
+		for (i = 0; i < separator_num; i++)
+			*reg++ = SEPARATOR_VALUE;
+	}
+
+	reg_um = sizeof(tqp_intr_reg_addr_list) / sizeof(u32);
+	separator_num = MAX_SEPARATE_NUM - reg_um % REG_NUM_PER_LINE;
+	for (j = 0; j < hdev->num_msi_used - 1; j++) {
+		for (i = 0; i < reg_um; i++)
+			*reg++ = hclge_read_dev(&hdev->hw,
+						tqp_intr_reg_addr_list[i] +
+						4 * j);
+		for (i = 0; i < separator_num; i++)
+			*reg++ = SEPARATOR_VALUE;
+	}
+
+	/* fetching PF common registers values from firmware */
+	ret = hclge_get_32_bit_regs(hdev, regs_num_32_bit, reg);
 	if (ret) {
 		dev_err(&hdev->pdev->dev,
 			"Get 32 bit register failed, ret = %d.\n", ret);
 		return;
 	}
 
-	data = (u32 *)data + regs_num_32_bit;
-	ret = hclge_get_64_bit_regs(hdev, regs_num_64_bit,
-				    data);
+	reg += regs_num_32_bit;
+	ret = hclge_get_64_bit_regs(hdev, regs_num_64_bit, reg);
 	if (ret)
 		dev_err(&hdev->pdev->dev,
 			"Get 64 bit register failed, ret = %d.\n", ret);
