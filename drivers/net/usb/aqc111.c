@@ -1323,7 +1323,9 @@ static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 			      1, 1, &reg8);
 
 	if (aqc111_data->wol_flags) {
-		struct aqc111_wol_cfg wol_cfg = { 0 };
+		struct aqc111_wol_cfg wol_cfg;
+
+		memset(&wol_cfg, 0, sizeof(struct aqc111_wol_cfg));
 
 		aqc111_data->phy_cfg |= AQ_WOL;
 		ether_addr_copy(wol_cfg.hw_addr, dev->net->dev_addr);
