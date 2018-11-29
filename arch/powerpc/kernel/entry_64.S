@@ -236,18 +236,14 @@ system_call_exit:
 	/*
 	 * Disable interrupts so current_thread_info()->flags can't change,
 	 * and so that we don't get interrupted after loading SRR0/1.
+	 *
+	 * Leave MSR_RI enabled for now, because with THREAD_INFO_IN_TASK we
+	 * could fault on the load of the TI_FLAGS below.
 	 */
 #ifdef CONFIG_PPC_BOOK3E
 	wrteei	0
 #else
-	/*
-	 * For performance reasons we clear RI the same time that we
-	 * clear EE. We only need to clear RI just before we restore r13
-	 * below, but batching it with EE saves us one expensive mtmsrd call.
-	 * We have to be careful to restore RI if we branch anywhere from
-	 * here (eg syscall_exit_work).
-	 */
-	li	r11,0
+	li	r11,MSR_RI
 	mtmsrd	r11,1
 #endif /* CONFIG_PPC_BOOK3E */
 
@@ -263,15 +259,7 @@ system_call_exit:
 	bne	3f
 #endif
 2:	addi    r3,r1,STACK_FRAME_OVERHEAD
-#ifdef CONFIG_PPC_BOOK3S
-	li	r10,MSR_RI
-	mtmsrd	r10,1		/* Restore RI */
-#endif
 	bl	restore_math
-#ifdef CONFIG_PPC_BOOK3S
-	li	r11,0
-	mtmsrd	r11,1
-#endif
 	ld	r8,_MSR(r1)
 	ld	r3,RESULT(r1)
 	li	r11,-MAX_ERRNO
@@ -286,6 +274,16 @@ BEGIN_FTR_SECTION
 END_FTR_SECTION_IFCLR(CPU_FTR_STCX_CHECKS_ADDRESS)
 	andi.	r6,r8,MSR_PR
 	ld	r4,_LINK(r1)
+
+#ifdef CONFIG_PPC_BOOK3S
+	/*
+	 * Clear MSR_RI, MSR_EE is already and remains disabled. We could do
+	 * this later, but testing shows that doing it here causes less slow
+	 * down than doing it closer to the rfid.
+	 */
+	li	r11,0
+	mtmsrd	r11,1
+#endif
 
 	beq-	1f
 	ACCOUNT_CPU_USER_EXIT(r13, r11, r12)
@@ -363,10 +361,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 	b	.Lsyscall_exit
 	
 .Lsyscall_exit_work:
-#ifdef CONFIG_PPC_BOOK3S
-	li	r10,MSR_RI
-	mtmsrd	r10,1		/* Restore RI */
-#endif
 	/* If TIF_RESTOREALL is set, don't scribble on either r3 or ccr.
 	 If TIF_NOERROR is set, just save r3 as it is. */
 
