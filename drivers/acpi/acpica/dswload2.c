@@ -296,6 +296,14 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		}
 #endif
 
+		/*
+		 * For name creation opcodes, the full namepath prefix must
+		 * exist, except for the final (new) nameseg.
+		 */
+		if (walk_state->op_info->flags & AML_NAMED) {
+			flags |= ACPI_NS_PREFIX_MUST_EXIST;
+		}
+
 		/* Add new entry or lookup existing entry */
 
 		status =
