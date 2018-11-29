@@ -4618,6 +4618,17 @@ enum {
 #define _PP_STATUS			0x61200
 #define PP_STATUS(pps_idx)		_MMIO_PPS(pps_idx, _PP_STATUS)
 #define   PP_ON				(1 << 31)
+
+#define _PP_CONTROL_1			0xc7204
+#define _PP_CONTROL_2			0xc7304
+#define ICP_PP_CONTROL(x)		_MMIO(((x) == 1) ? _PP_CONTROL_1 : \
+					      _PP_CONTROL_2)
+#define  POWER_CYCLE_DELAY_MASK	(0x1f << 4)
+#define  POWER_CYCLE_DELAY_SHIFT	4
+#define  VDD_OVERRIDE_FORCE		(1 << 3)
+#define  BACKLIGHT_ENABLE		(1 << 2)
+#define  PWR_DOWN_ON_RESET		(1 << 1)
+#define  PWR_STATE_TARGET		(1 << 0)
 /*
  * Indicates that all dependencies of the panel are on:
  *
