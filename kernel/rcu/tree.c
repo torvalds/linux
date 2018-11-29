@@ -479,7 +479,6 @@ module_param_cb(jiffies_till_next_fqs, &next_fqs_jiffies_ops, &jiffies_till_next
 module_param(rcu_kick_kthreads, bool, 0644);
 
 static void force_qs_rnp(int (*f)(struct rcu_data *rdp));
-static void force_quiescent_state(void);
 static int rcu_pending(void);
 
 /*
@@ -502,15 +501,6 @@ unsigned long rcu_exp_batches_completed(void)
 	return rcu_state.expedited_sequence;
 }
 EXPORT_SYMBOL_GPL(rcu_exp_batches_completed);
-
-/*
- * Force a quiescent state.
- */
-void rcu_force_quiescent_state(void)
-{
-	force_quiescent_state();
-}
-EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
  * Convert a ->gp_state value to a character string.
@@ -1310,7 +1300,7 @@ static void print_other_cpu_stall(unsigned long gp_seq)
 
 	panic_on_rcu_stall();
 
-	force_quiescent_state();  /* Kick them all. */
+	rcu_force_quiescent_state();  /* Kick them all. */
 }
 
 static void print_cpu_stall(void)
@@ -2578,7 +2568,7 @@ static void force_qs_rnp(int (*f)(struct rcu_data *rdp))
  * Force quiescent states on reluctant CPUs, and also detect which
  * CPUs are in dyntick-idle mode.
  */
-static void force_quiescent_state(void)
+void rcu_force_quiescent_state(void)
 {
 	unsigned long flags;
 	bool ret;
@@ -2610,6 +2600,7 @@ static void force_quiescent_state(void)
 	raw_spin_unlock_irqrestore_rcu_node(rnp_old, flags);
 	rcu_gp_kthread_wake();
 }
+EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
  * This function checks for grace-period requests that fail to motivate
@@ -2801,9 +2792,9 @@ static void __call_rcu_core(struct rcu_data *rdp, struct rcu_head *head,
 
 	/*
 	 * Force the grace period if too many callbacks or too long waiting.
-	 * Enforce hysteresis, and don't invoke force_quiescent_state()
+	 * Enforce hysteresis, and don't invoke rcu_force_quiescent_state()
 	 * if some other CPU has recently done so.  Also, don't bother
-	 * invoking force_quiescent_state() if the newly enqueued callback
+	 * invoking rcu_force_quiescent_state() if the newly enqueued callback
 	 * is the only one waiting for a grace period to complete.
 	 */
 	if (unlikely(rcu_segcblist_n_cbs(&rdp->cblist) >
@@ -2820,7 +2811,7 @@ static void __call_rcu_core(struct rcu_data *rdp, struct rcu_head *head,
 			rdp->blimit = LONG_MAX;
 			if (rcu_state.n_force_qs == rdp->n_force_qs_snap &&
 			    rcu_segcblist_first_pend_cb(&rdp->cblist) != head)
-				force_quiescent_state();
+				rcu_force_quiescent_state();
 			rdp->n_force_qs_snap = rcu_state.n_force_qs;
 			rdp->qlen_last_fqs_check = rcu_segcblist_n_cbs(&rdp->cblist);
 		}
