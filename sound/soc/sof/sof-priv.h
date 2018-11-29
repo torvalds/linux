@@ -185,7 +185,6 @@ struct sof_arch_ops {
 struct sof_ops_table {
 	const struct sof_dev_desc *desc;
 	struct snd_sof_dsp_ops *ops;
-	struct platform_device *(*new_data)(struct snd_sof_pdata *pdata);
 };
 
 /* FS entry for debug files that can expose DSP memories, registers */
