@@ -1719,6 +1719,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
 		clocks = <&cru SCLK_I2S0_8CH>, <&cru HCLK_I2S0_8CH>;
+		resets = <&cru SRST_I2S0_8CH>, <&cru SRST_H_I2S0_8CH>;
+		reset-names = "reset-m", "reset-h";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_8ch_bus>;
 		power-domains = <&power RK3399_PD_SDIOAUDIO>;
@@ -1733,6 +1735,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
 		clocks = <&cru SCLK_I2S1_8CH>, <&cru HCLK_I2S1_8CH>;
+		resets = <&cru SRST_I2S1_8CH>, <&cru SRST_H_I2S1_8CH>;
+		reset-names = "reset-m", "reset-h";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s1_2ch_bus>;
 		power-domains = <&power RK3399_PD_SDIOAUDIO>;
@@ -1747,6 +1751,8 @@
 		dma-names = "tx", "rx";
 		clock-names = "i2s_clk", "i2s_hclk";
 		clocks = <&cru SCLK_I2S2_8CH>, <&cru HCLK_I2S2_8CH>;
+		resets = <&cru SRST_I2S2_8CH>, <&cru SRST_H_I2S2_8CH>;
+		reset-names = "reset-m", "reset-h";
 		power-domains = <&power RK3399_PD_SDIOAUDIO>;
 		status = "disabled";
 	};

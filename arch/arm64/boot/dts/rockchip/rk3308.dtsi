@@ -1046,6 +1046,8 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1 8>, <&dmac1 9>;
 		dma-names = "tx", "rx";
+		resets = <&cru SRST_I2S0_2CH_M>, <&cru SRST_I2S0_2CH_H>;
+		reset-names = "reset-m", "reset-h";
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_2ch_0_sclk
 			     &i2s_2ch_0_lrck
@@ -1062,6 +1064,8 @@
 		clock-names = "i2s_clk", "i2s_hclk";
 		dmas = <&dmac1 11>;
 		dma-names = "rx";
+		resets = <&cru SRST_I2S1_2CH_M>, <&cru SRST_I2S1_2CH_H>;
+		reset-names = "reset-m", "reset-h";
 		status = "disabled";
 	};
 
