@@ -476,6 +476,32 @@ static noinline void check_multi_store_2(struct xarray *xa, unsigned long index,
 	xas_unlock(&xas);
 	XA_BUG_ON(xa, !xa_empty(xa));
 }
+
+static noinline void check_multi_store_3(struct xarray *xa, unsigned long index,
+		unsigned int order)
+{
+	XA_STATE(xas, xa, 0);
+	void *entry;
+	int n = 0;
+
+	xa_store_order(xa, index, order, xa_mk_index(index), GFP_KERNEL);
+
+	xas_lock(&xas);
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		XA_BUG_ON(xa, entry != xa_mk_index(index));
+		n++;
+	}
+	XA_BUG_ON(xa, n != 1);
+	xas_set(&xas, index + 1);
+	xas_for_each(&xas, entry, ULONG_MAX) {
+		XA_BUG_ON(xa, entry != xa_mk_index(index));
+		n++;
+	}
+	XA_BUG_ON(xa, n != 2);
+	xas_unlock(&xas);
+
+	xa_destroy(xa);
+}
 #endif
 
 static noinline void check_multi_store(struct xarray *xa)
@@ -550,6 +576,11 @@ static noinline void check_multi_store(struct xarray *xa)
 		check_multi_store_1(xa, (1UL << i) + 1, i);
 	}
 	check_multi_store_2(xa, 4095, 9);
+
+	for (i = 1; i < 20; i++) {
+		check_multi_store_3(xa, 0, i);
+		check_multi_store_3(xa, 1UL << i, i);
+	}
 #endif
 }
 
