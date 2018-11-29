@@ -535,8 +535,15 @@ static int mipi_dphy_power_on(struct dw_mipi_dsi *dsi)
 	mipi_dphy_rstz_deassert(dsi);
 	usleep_range(1500, 2000);
 
-	if (dsi->dphy.phy)
+	if (dsi->dphy.phy) {
+		ret = phy_set_mode(dsi->dphy.phy, PHY_MODE_VIDEO_MIPI);
+		if (ret) {
+			dev_err(dsi->dev, "failed to set phy mode: %d\n", ret);
+			return ret;
+		}
+
 		phy_power_on(dsi->dphy.phy);
+	}
 
 	ret = regmap_read_poll_timeout(dsi->regmap, DSI_PHY_STATUS,
 				       val, val & PHY_LOCK,
