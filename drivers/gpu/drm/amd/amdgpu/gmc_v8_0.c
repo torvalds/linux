@@ -366,7 +366,7 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 	const struct mc_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data = NULL;
 	const __le32 *io_mc_regs = NULL;
-	u32 data, vbios_version;
+	u32 data;
 	int i, ucode_size, regs_size;
 
 	/* Skip MC ucode loading on SR-IOV capable boards.
@@ -375,13 +375,6 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 	 * for this adaptor.
 	 */
 	if (amdgpu_sriov_bios(adev))
-		return 0;
-
-	WREG32(mmMC_SEQ_IO_DEBUG_INDEX, 0x9F);
-	data = RREG32(mmMC_SEQ_IO_DEBUG_DATA);
-	vbios_version = data & 0xf;
-
-	if (vbios_version == 0)
 		return 0;
 
 	if (!adev->gmc.fw)
