@@ -259,13 +259,13 @@ static struct crypto_larval *__crypto_register_alg(struct crypto_alg *alg)
 	list_add(&larval->alg.cra_list, &crypto_alg_list);
 
 #ifdef CONFIG_CRYPTO_STATS
-	atomic_set(&alg->encrypt_cnt, 0);
-	atomic_set(&alg->decrypt_cnt, 0);
+	atomic64_set(&alg->encrypt_cnt, 0);
+	atomic64_set(&alg->decrypt_cnt, 0);
 	atomic64_set(&alg->encrypt_tlen, 0);
 	atomic64_set(&alg->decrypt_tlen, 0);
-	atomic_set(&alg->verify_cnt, 0);
-	atomic_set(&alg->cipher_err_cnt, 0);
-	atomic_set(&alg->sign_cnt, 0);
+	atomic64_set(&alg->verify_cnt, 0);
+	atomic64_set(&alg->cipher_err_cnt, 0);
+	atomic64_set(&alg->sign_cnt, 0);
 #endif
 
 out:

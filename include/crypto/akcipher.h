@@ -278,9 +278,9 @@ static inline void crypto_stat_akcipher_encrypt(struct akcipher_request *req,
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
 	} else {
-		atomic_inc(&tfm->base.__crt_alg->encrypt_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->encrypt_cnt);
 		atomic64_add(req->src_len, &tfm->base.__crt_alg->encrypt_tlen);
 	}
 #endif
@@ -293,9 +293,9 @@ static inline void crypto_stat_akcipher_decrypt(struct akcipher_request *req,
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
 	} else {
-		atomic_inc(&tfm->base.__crt_alg->decrypt_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->decrypt_cnt);
 		atomic64_add(req->src_len, &tfm->base.__crt_alg->decrypt_tlen);
 	}
 #endif
@@ -308,9 +308,9 @@ static inline void crypto_stat_akcipher_sign(struct akcipher_request *req,
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
 	else
-		atomic_inc(&tfm->base.__crt_alg->sign_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->sign_cnt);
 #endif
 }
 
@@ -321,9 +321,9 @@ static inline void crypto_stat_akcipher_verify(struct akcipher_request *req,
 	struct crypto_akcipher *tfm = crypto_akcipher_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->akcipher_err_cnt);
 	else
-		atomic_inc(&tfm->base.__crt_alg->verify_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->verify_cnt);
 #endif
 }
 

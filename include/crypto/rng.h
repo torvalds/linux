@@ -126,9 +126,9 @@ static inline void crypto_stat_rng_seed(struct crypto_rng *tfm, int ret)
 {
 #ifdef CONFIG_CRYPTO_STATS
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic_inc(&tfm->base.__crt_alg->rng_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->rng_err_cnt);
 	else
-		atomic_inc(&tfm->base.__crt_alg->seed_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->seed_cnt);
 #endif
 }
 
@@ -137,9 +137,9 @@ static inline void crypto_stat_rng_generate(struct crypto_rng *tfm,
 {
 #ifdef CONFIG_CRYPTO_STATS
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&tfm->base.__crt_alg->rng_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->rng_err_cnt);
 	} else {
-		atomic_inc(&tfm->base.__crt_alg->generate_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->generate_cnt);
 		atomic64_add(dlen, &tfm->base.__crt_alg->generate_tlen);
 	}
 #endif

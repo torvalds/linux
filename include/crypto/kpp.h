@@ -272,9 +272,9 @@ static inline void crypto_stat_kpp_set_secret(struct crypto_kpp *tfm, int ret)
 {
 #ifdef CONFIG_CRYPTO_STATS
 	if (ret)
-		atomic_inc(&tfm->base.__crt_alg->kpp_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->kpp_err_cnt);
 	else
-		atomic_inc(&tfm->base.__crt_alg->setsecret_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->setsecret_cnt);
 #endif
 }
 
@@ -285,9 +285,9 @@ static inline void crypto_stat_kpp_generate_public_key(struct kpp_request *req,
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 
 	if (ret)
-		atomic_inc(&tfm->base.__crt_alg->kpp_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->kpp_err_cnt);
 	else
-		atomic_inc(&tfm->base.__crt_alg->generate_public_key_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->generate_public_key_cnt);
 #endif
 }
 
@@ -298,9 +298,9 @@ static inline void crypto_stat_kpp_compute_shared_secret(struct kpp_request *req
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 
 	if (ret)
-		atomic_inc(&tfm->base.__crt_alg->kpp_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->kpp_err_cnt);
 	else
-		atomic_inc(&tfm->base.__crt_alg->compute_shared_secret_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->compute_shared_secret_cnt);
 #endif
 }
 

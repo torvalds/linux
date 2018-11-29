@@ -312,9 +312,9 @@ static inline void crypto_stat_aead_encrypt(struct aead_request *req, int ret)
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&tfm->base.__crt_alg->aead_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->aead_err_cnt);
 	} else {
-		atomic_inc(&tfm->base.__crt_alg->encrypt_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->encrypt_cnt);
 		atomic64_add(req->cryptlen, &tfm->base.__crt_alg->encrypt_tlen);
 	}
 #endif
@@ -326,9 +326,9 @@ static inline void crypto_stat_aead_decrypt(struct aead_request *req, int ret)
 	struct crypto_aead *tfm = crypto_aead_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&tfm->base.__crt_alg->aead_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->aead_err_cnt);
 	} else {
-		atomic_inc(&tfm->base.__crt_alg->decrypt_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->decrypt_cnt);
 		atomic64_add(req->cryptlen, &tfm->base.__crt_alg->decrypt_tlen);
 	}
 #endif

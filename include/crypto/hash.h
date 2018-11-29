@@ -418,7 +418,7 @@ static inline void crypto_stat_ahash_update(struct ahash_request *req, int ret)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY)
-		atomic_inc(&tfm->base.__crt_alg->hash_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->hash_err_cnt);
 	else
 		atomic64_add(req->nbytes, &tfm->base.__crt_alg->hash_tlen);
 #endif
@@ -430,9 +430,9 @@ static inline void crypto_stat_ahash_final(struct ahash_request *req, int ret)
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&tfm->base.__crt_alg->hash_err_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->hash_err_cnt);
 	} else {
-		atomic_inc(&tfm->base.__crt_alg->hash_cnt);
+		atomic64_inc(&tfm->base.__crt_alg->hash_cnt);
 		atomic64_add(req->nbytes, &tfm->base.__crt_alg->hash_tlen);
 	}
 #endif

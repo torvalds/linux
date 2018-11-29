@@ -491,9 +491,9 @@ static inline void crypto_stat_skcipher_encrypt(struct skcipher_request *req,
 {
 #ifdef CONFIG_CRYPTO_STATS
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&alg->cipher_err_cnt);
+		atomic64_inc(&alg->cipher_err_cnt);
 	} else {
-		atomic_inc(&alg->encrypt_cnt);
+		atomic64_inc(&alg->encrypt_cnt);
 		atomic64_add(req->cryptlen, &alg->encrypt_tlen);
 	}
 #endif
@@ -504,9 +504,9 @@ static inline void crypto_stat_skcipher_decrypt(struct skcipher_request *req,
 {
 #ifdef CONFIG_CRYPTO_STATS
 	if (ret && ret != -EINPROGRESS && ret != -EBUSY) {
-		atomic_inc(&alg->cipher_err_cnt);
+		atomic64_inc(&alg->cipher_err_cnt);
 	} else {
-		atomic_inc(&alg->decrypt_cnt);
+		atomic64_inc(&alg->decrypt_cnt);
 		atomic64_add(req->cryptlen, &alg->decrypt_tlen);
 	}
 #endif
