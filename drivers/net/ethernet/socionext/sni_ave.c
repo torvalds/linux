@@ -261,6 +261,7 @@ struct ave_private {
 	struct regmap		*regmap;
 	unsigned int		pinmode_mask;
 	unsigned int		pinmode_val;
+	u32			wolopts;
 
 	/* stats */
 	struct ave_stats	stats_rx;
@@ -1208,8 +1209,12 @@ static int ave_init(struct net_device *ndev)
 
 	priv->phydev = phydev;
 
-	phy_ethtool_get_wol(phydev, &wol);
+	ave_ethtool_get_wol(ndev, &wol);
 	device_set_wakeup_capable(&ndev->dev, !!wol.supported);
+
+	/* set wol initial state disabled */
+	wol.wolopts = 0;
+	ave_ethtool_set_wol(ndev, &wol);
 
 	if (!phy_interface_is_rgmii(phydev))
 		phy_set_max_speed(phydev, SPEED_100);
@@ -1734,6 +1739,58 @@ static int ave_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int ave_suspend(struct device *dev)
+{
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct ave_private *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	if (netif_running(ndev)) {
+		ret = ave_stop(ndev);
+		netif_device_detach(ndev);
+	}
+
+	ave_ethtool_get_wol(ndev, &wol);
+	priv->wolopts = wol.wolopts;
+
+	return ret;
+}
+
+static int ave_resume(struct device *dev)
+{
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
+	struct net_device *ndev = dev_get_drvdata(dev);
+	struct ave_private *priv = netdev_priv(ndev);
+	int ret = 0;
+
+	ave_global_reset(ndev);
+
+	ave_ethtool_get_wol(ndev, &wol);
+	wol.wolopts = priv->wolopts;
+	ave_ethtool_set_wol(ndev, &wol);
+
+	if (ndev->phydev) {
+		ret = phy_resume(ndev->phydev);
+		if (ret)
+			return ret;
+	}
+
+	if (netif_running(ndev)) {
+		ret = ave_open(ndev);
+		netif_device_attach(ndev);
+	}
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(ave_pm_ops, ave_suspend, ave_resume);
+#define AVE_PM_OPS	(&ave_pm_ops)
+#else
+#define AVE_PM_OPS	NULL
+#endif
+
 static int ave_pro4_get_pinmode(struct ave_private *priv,
 				phy_interface_t phy_mode, u32 arg)
 {
@@ -1908,6 +1965,7 @@ static struct platform_driver ave_driver = {
 	.remove = ave_remove,
 	.driver	= {
 		.name = "ave",
+		.pm   = AVE_PM_OPS,
 		.of_match_table	= of_ave_match,
 	},
 };
