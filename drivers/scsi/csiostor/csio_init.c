@@ -255,7 +255,6 @@ static void
 csio_hw_exit_workers(struct csio_hw *hw)
 {
 	cancel_work_sync(&hw->evtq_work);
-	flush_scheduled_work();
 }
 
 static int
