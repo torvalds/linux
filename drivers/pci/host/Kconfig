@@ -19,6 +19,13 @@ config PCIE_DW_ROCKCHIP
 	help
 	  Enables support for the DW PCIe controller in the Rockchip SoC.
 
+config ROCKCHIP_PCIE_DMA_OBJ
+	bool "Rockchip PCIe uDMA transfer support"
+	depends on PCIE_ROCKCHIP || PCIE_DW_ROCKCHIP
+	default n
+	help
+	 Say y to enable p2p DMA transfer between PCIe components.
+
 config PCI_MVEBU
 	bool "Marvell EBU PCIe controller"
 	depends on ARCH_MVEBU || ARCH_DOVE
