@@ -189,9 +189,9 @@ static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
  * This lock protects the blocked_hash. Generally, if you're accessing it, you
  * want to be holding this lock.
  *
- * In addition, it also protects the fl->fl_block list, and the fl->fl_next
- * pointer for file_lock structures that are acting as lock requests (in
- * contrast to those that are acting as records of acquired locks).
+ * In addition, it also protects the fl->fl_blocked_requests list, and the
+ * fl->fl_blocker pointer for file_lock structures that are acting as lock
+ * requests (in contrast to those that are acting as records of acquired locks).
  *
  * Note that when we acquire this lock in order to change the above fields,
  * we often hold the flc_lock as well. In certain cases, when reading the fields
@@ -293,7 +293,8 @@ static void locks_init_lock_heads(struct file_lock *fl)
 {
 	INIT_HLIST_NODE(&fl->fl_link);
 	INIT_LIST_HEAD(&fl->fl_list);
-	INIT_LIST_HEAD(&fl->fl_block);
+	INIT_LIST_HEAD(&fl->fl_blocked_requests);
+	INIT_LIST_HEAD(&fl->fl_blocked_member);
 	init_waitqueue_head(&fl->fl_wait);
 }
 
@@ -332,7 +333,8 @@ void locks_free_lock(struct file_lock *fl)
 {
 	BUG_ON(waitqueue_active(&fl->fl_wait));
 	BUG_ON(!list_empty(&fl->fl_list));
-	BUG_ON(!list_empty(&fl->fl_block));
+	BUG_ON(!list_empty(&fl->fl_blocked_requests));
+	BUG_ON(!list_empty(&fl->fl_blocked_member));
 	BUG_ON(!hlist_unhashed(&fl->fl_link));
 
 	locks_release_private(fl);
@@ -666,8 +668,8 @@ static void locks_delete_global_blocked(struct file_lock *waiter)
 static void __locks_delete_block(struct file_lock *waiter)
 {
 	locks_delete_global_blocked(waiter);
-	list_del_init(&waiter->fl_block);
-	waiter->fl_next = NULL;
+	list_del_init(&waiter->fl_blocked_member);
+	waiter->fl_blocker = NULL;
 }
 
 static void locks_delete_block(struct file_lock *waiter)
@@ -683,16 +685,17 @@ static void locks_delete_block(struct file_lock *waiter)
  * it seems like the reasonable thing to do.
  *
  * Must be called with both the flc_lock and blocked_lock_lock held. The
- * fl_block list itself is protected by the blocked_lock_lock, but by ensuring
- * that the flc_lock is also held on insertions we can avoid taking the
- * blocked_lock_lock in some cases when we see that the fl_block list is empty.
+ * fl_blocked_requests list itself is protected by the blocked_lock_lock,
+ * but by ensuring that the flc_lock is also held on insertions we can avoid
+ * taking the blocked_lock_lock in some cases when we see that the
+ * fl_blocked_requests list is empty.
  */
 static void __locks_insert_block(struct file_lock *blocker,
 					struct file_lock *waiter)
 {
-	BUG_ON(!list_empty(&waiter->fl_block));
-	waiter->fl_next = blocker;
-	list_add_tail(&waiter->fl_block, &blocker->fl_block);
+	BUG_ON(!list_empty(&waiter->fl_blocked_member));
+	waiter->fl_blocker = blocker;
+	list_add_tail(&waiter->fl_blocked_member, &blocker->fl_blocked_requests);
 	if (IS_POSIX(blocker) && !IS_OFDLCK(blocker))
 		locks_insert_global_blocked(waiter);
 }
@@ -716,19 +719,19 @@ static void locks_wake_up_blocks(struct file_lock *blocker)
 	/*
 	 * Avoid taking global lock if list is empty. This is safe since new
 	 * blocked requests are only added to the list under the flc_lock, and
-	 * the flc_lock is always held here. Note that removal from the fl_block
-	 * list does not require the flc_lock, so we must recheck list_empty()
-	 * after acquiring the blocked_lock_lock.
+	 * the flc_lock is always held here. Note that removal from the
+	 * fl_blocked_requests list does not require the flc_lock, so we must
+	 * recheck list_empty() after acquiring the blocked_lock_lock.
 	 */
-	if (list_empty(&blocker->fl_block))
+	if (list_empty(&blocker->fl_blocked_requests))
 		return;
 
 	spin_lock(&blocked_lock_lock);
-	while (!list_empty(&blocker->fl_block)) {
+	while (!list_empty(&blocker->fl_blocked_requests)) {
 		struct file_lock *waiter;
 
-		waiter = list_first_entry(&blocker->fl_block,
-				struct file_lock, fl_block);
+		waiter = list_first_entry(&blocker->fl_blocked_requests,
+				struct file_lock, fl_blocked_member);
 		__locks_delete_block(waiter);
 		if (waiter->fl_lmops && waiter->fl_lmops->lm_notify)
 			waiter->fl_lmops->lm_notify(waiter);
@@ -878,7 +881,7 @@ static struct file_lock *what_owner_is_waiting_for(struct file_lock *block_fl)
 
 	hash_for_each_possible(blocked_hash, fl, fl_link, posix_owner_key(block_fl)) {
 		if (posix_same_owner(fl, block_fl))
-			return fl->fl_next;
+			return fl->fl_blocker;
 	}
 	return NULL;
 }
@@ -1237,7 +1240,7 @@ static int posix_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 		error = posix_lock_inode(inode, fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
-		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
+		error = wait_event_interruptible(fl->fl_wait, !fl->fl_blocker);
 		if (!error)
 			continue;
 
@@ -1324,7 +1327,7 @@ int locks_mandatory_area(struct inode *inode, struct file *filp, loff_t start,
 		error = posix_lock_inode(inode, &fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
-		error = wait_event_interruptible(fl.fl_wait, !fl.fl_next);
+		error = wait_event_interruptible(fl.fl_wait, !fl.fl_blocker);
 		if (!error) {
 			/*
 			 * If we've been sleeping someone might have
@@ -1518,7 +1521,7 @@ restart:
 
 	locks_dispose_list(&dispose);
 	error = wait_event_interruptible_timeout(new_fl->fl_wait,
-						!new_fl->fl_next, break_time);
+						!new_fl->fl_blocker, break_time);
 
 	percpu_down_read_preempt_disable(&file_rwsem);
 	spin_lock(&ctx->flc_lock);
@@ -1931,7 +1934,7 @@ static int flock_lock_inode_wait(struct inode *inode, struct file_lock *fl)
 		error = flock_lock_inode(inode, fl);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
-		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
+		error = wait_event_interruptible(fl->fl_wait, !fl->fl_blocker);
 		if (!error)
 			continue;
 
@@ -2210,7 +2213,7 @@ static int do_lock_file_wait(struct file *filp, unsigned int cmd,
 		error = vfs_lock_file(filp, cmd, fl, NULL);
 		if (error != FILE_LOCK_DEFERRED)
 			break;
-		error = wait_event_interruptible(fl->fl_wait, !fl->fl_next);
+		error = wait_event_interruptible(fl->fl_wait, !fl->fl_blocker);
 		if (!error)
 			continue;
 
@@ -2581,7 +2584,7 @@ posix_unblock_lock(struct file_lock *waiter)
 	int status = 0;
 
 	spin_lock(&blocked_lock_lock);
-	if (waiter->fl_next)
+	if (waiter->fl_blocker)
 		__locks_delete_block(waiter);
 	else
 		status = -ENOENT;
@@ -2707,7 +2710,7 @@ static int locks_show(struct seq_file *f, void *v)
 
 	lock_get_status(f, fl, iter->li_pos, "");
 
-	list_for_each_entry(bfl, &fl->fl_block, fl_block)
+	list_for_each_entry(bfl, &fl->fl_blocked_requests, fl_blocked_member)
 		lock_get_status(f, bfl, iter->li_pos, " ->");
 
 	return 0;
