@@ -64,15 +64,6 @@ void dal_ddc_i2c_payloads_add(
 		uint8_t *data,
 		bool write);
 
-void dal_ddc_aux_payloads_add(
-		struct aux_payloads *payloads,
-		uint32_t address,
-		uint32_t len,
-		uint8_t *data,
-		bool write,
-		bool mot,
-		uint32_t defer_delay);
-
 struct ddc_service_init_data {
 	struct graphics_object_id id;
 	struct dc_context *ctx;
@@ -105,6 +96,9 @@ bool dal_ddc_service_query_ddc_data(
 		uint32_t read_size);
 
 int dc_link_aux_transfer(struct ddc_service *ddc,
+		struct aux_payload *payload);
+
+bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
 		struct aux_payload *payload);
 
 void dal_ddc_service_write_scdc_data(

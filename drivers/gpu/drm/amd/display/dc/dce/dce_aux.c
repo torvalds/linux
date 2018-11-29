@@ -24,6 +24,7 @@
  */
 
 #include "dm_services.h"
+#include "core_types.h"
 #include "dce_aux.h"
 #include "dce/dce_11_0_sh_mask.h"
 
@@ -936,3 +937,101 @@ struct aux_engine *dce110_aux_engine_construct(struct aux_engine_dce110 *aux_eng
 	return &aux_engine110->base;
 }
 
+static enum i2caux_transaction_action i2caux_action_from_payload(struct aux_payload *payload)
+{
+	if (payload->i2c_over_aux) {
+		if (payload->write) {
+			if (payload->mot)
+				return I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
+			return I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
+		}
+		if (payload->mot)
+			return I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
+		return I2CAUX_TRANSACTION_ACTION_I2C_READ;
+	}
+	if (payload->write)
+		return I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+	return I2CAUX_TRANSACTION_ACTION_DP_READ;
+}
+
+int dce_aux_transfer(struct ddc_service *ddc,
+		struct aux_payload *payload)
+{
+	struct ddc *ddc_pin = ddc->ddc_pin;
+	struct aux_engine *aux_engine;
+	enum aux_channel_operation_result operation_result;
+	struct aux_request_transaction_data aux_req;
+	struct aux_reply_transaction_data aux_rep;
+	uint8_t returned_bytes = 0;
+	int res = -1;
+	uint32_t status;
+
+	memset(&aux_req, 0, sizeof(aux_req));
+	memset(&aux_rep, 0, sizeof(aux_rep));
+
+	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
+	aux_engine->funcs->acquire(aux_engine, ddc_pin);
+
+	if (payload->i2c_over_aux)
+		aux_req.type = AUX_TRANSACTION_TYPE_I2C;
+	else
+		aux_req.type = AUX_TRANSACTION_TYPE_DP;
+
+	aux_req.action = i2caux_action_from_payload(payload);
+
+	aux_req.address = payload->address;
+	aux_req.delay = payload->defer_delay * 10;
+	aux_req.length = payload->length;
+	aux_req.data = payload->data;
+
+	aux_engine->funcs->submit_channel_request(aux_engine, &aux_req);
+	operation_result = aux_engine->funcs->get_channel_status(aux_engine, &returned_bytes);
+
+	switch (operation_result) {
+	case AUX_CHANNEL_OPERATION_SUCCEEDED:
+		res = aux_engine->funcs->read_channel_reply(aux_engine, payload->length,
+							payload->data, payload->reply,
+							&status);
+		break;
+	case AUX_CHANNEL_OPERATION_FAILED_HPD_DISCON:
+		res = 0;
+		break;
+	case AUX_CHANNEL_OPERATION_FAILED_REASON_UNKNOWN:
+	case AUX_CHANNEL_OPERATION_FAILED_INVALID_REPLY:
+	case AUX_CHANNEL_OPERATION_FAILED_TIMEOUT:
+		res = -1;
+		break;
+	}
+	aux_engine->funcs->release_engine(aux_engine);
+	return res;
+}
+
+#define AUX_RETRY_MAX 7
+
+bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
+		struct aux_payload *payload)
+{
+	int i, ret = 0;
+	uint8_t reply;
+	bool payload_reply = true;
+
+	if (!payload->reply) {
+		payload_reply = false;
+		payload->reply = &reply;
+	}
+
+	for (i = 0; i < AUX_RETRY_MAX; i++) {
+		ret = dce_aux_transfer(ddc, payload);
+
+		if (ret >= 0) {
+			if (*payload->reply == 0) {
+				if (!payload_reply)
+					payload->reply = NULL;
+				return true;
+			}
+		}
+
+		msleep(1);
+	}
+	return false;
+}

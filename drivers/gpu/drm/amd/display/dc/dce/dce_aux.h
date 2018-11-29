@@ -108,4 +108,10 @@ void dce110_engine_destroy(struct aux_engine **engine);
 bool dce110_aux_engine_acquire(
 	struct aux_engine *aux_engine,
 	struct ddc *ddc);
+
+int dce_aux_transfer(struct ddc_service *ddc,
+		struct aux_payload *cmd);
+
+bool dce_aux_transfer_with_retries(struct ddc_service *ddc,
+		struct aux_payload *cmd);
 #endif
