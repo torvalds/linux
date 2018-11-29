@@ -261,6 +261,7 @@ struct ave_private {
 	struct regmap		*regmap;
 	unsigned int		pinmode_mask;
 	unsigned int		pinmode_val;
+	u32			wolopts;
 
 	/* stats */
 	struct ave_stats	stats_rx;
@@ -1741,6 +1742,7 @@ static int ave_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int ave_suspend(struct device *dev)
 {
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct ave_private *priv = netdev_priv(ndev);
 	int ret = 0;
@@ -1750,16 +1752,24 @@ static int ave_suspend(struct device *dev)
 		netif_device_detach(ndev);
 	}
 
+	ave_ethtool_get_wol(ndev, &wol);
+	priv->wolopts = wol.wolopts;
+
 	return ret;
 }
 
 static int ave_resume(struct device *dev)
 {
+	struct ethtool_wolinfo wol = { .cmd = ETHTOOL_GWOL };
 	struct net_device *ndev = dev_get_drvdata(dev);
 	struct ave_private *priv = netdev_priv(ndev);
 	int ret = 0;
 
 	ave_global_reset(ndev);
+
+	ave_ethtool_get_wol(ndev, &wol);
+	wol.wolopts = priv->wolopts;
+	ave_ethtool_set_wol(ndev, &wol);
 
 	if (ndev->phydev) {
 		ret = phy_resume(ndev->phydev);
