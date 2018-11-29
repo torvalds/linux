@@ -418,17 +418,20 @@ static inline int flock_translate_cmd(int cmd) {
 
 /* Fill in a file_lock structure with an appropriate FLOCK lock. */
 static struct file_lock *
-flock_make_lock(struct file *filp, unsigned int cmd)
+flock_make_lock(struct file *filp, unsigned int cmd, struct file_lock *fl)
 {
-	struct file_lock *fl;
 	int type = flock_translate_cmd(cmd);
 
 	if (type < 0)
 		return ERR_PTR(type);
 	
-	fl = locks_alloc_lock();
-	if (fl == NULL)
-		return ERR_PTR(-ENOMEM);
+	if (fl == NULL) {
+		fl = locks_alloc_lock();
+		if (fl == NULL)
+			return ERR_PTR(-ENOMEM);
+	} else {
+		locks_init_lock(fl);
+	}
 
 	fl->fl_file = filp;
 	fl->fl_owner = filp;
@@ -2009,7 +2012,7 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	    !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
 		goto out_putf;
 
-	lock = flock_make_lock(f.file, cmd);
+	lock = flock_make_lock(f.file, cmd, NULL);
 	if (IS_ERR(lock)) {
 		error = PTR_ERR(lock);
 		goto out_putf;
@@ -2484,6 +2487,7 @@ void locks_remove_posix(struct file *filp, fl_owner_t owner)
 	if (!ctx || list_empty(&ctx->flc_posix))
 		return;
 
+	locks_init_lock(&lock);
 	lock.fl_type = F_UNLCK;
 	lock.fl_flags = FL_POSIX | FL_CLOSE;
 	lock.fl_start = 0;
@@ -2507,18 +2511,14 @@ EXPORT_SYMBOL(locks_remove_posix);
 static void
 locks_remove_flock(struct file *filp, struct file_lock_context *flctx)
 {
-	struct file_lock fl = {
-		.fl_owner = filp,
-		.fl_pid = current->tgid,
-		.fl_file = filp,
-		.fl_flags = FL_FLOCK | FL_CLOSE,
-		.fl_type = F_UNLCK,
-		.fl_end = OFFSET_MAX,
-	};
+	struct file_lock fl;
 	struct inode *inode = locks_inode(filp);
 
 	if (list_empty(&flctx->flc_flock))
 		return;
+
+	flock_make_lock(filp, LOCK_UN, &fl);
+	fl.fl_flags |= FL_CLOSE;
 
 	if (filp->f_op->flock)
 		filp->f_op->flock(filp, F_SETLKW, &fl);
