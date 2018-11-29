@@ -30,11 +30,6 @@
 
 static const unsigned int nf_ct_icmpv6_timeout = 30*HZ;
 
-static inline struct nf_icmp_net *icmpv6_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.icmpv6;
-}
-
 static bool icmpv6_pkt_to_tuple(const struct sk_buff *skb,
 				unsigned int dataoff,
 				struct net *net,
@@ -87,7 +82,7 @@ static bool icmpv6_invert_tuple(struct nf_conntrack_tuple *tuple,
 
 static unsigned int *icmpv6_get_timeouts(struct net *net)
 {
-	return &icmpv6_pernet(net)->timeout;
+	return &nf_icmpv6_pernet(net)->timeout;
 }
 
 /* Returns verdict for packet, or -1 for invalid. */
@@ -286,7 +281,7 @@ static int icmpv6_timeout_nlattr_to_obj(struct nlattr *tb[],
 					struct net *net, void *data)
 {
 	unsigned int *timeout = data;
-	struct nf_icmp_net *in = icmpv6_pernet(net);
+	struct nf_icmp_net *in = nf_icmpv6_pernet(net);
 
 	if (!timeout)
 		timeout = icmpv6_get_timeouts(net);
@@ -348,7 +343,7 @@ static int icmpv6_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int icmpv6_init_net(struct net *net)
 {
-	struct nf_icmp_net *in = icmpv6_pernet(net);
+	struct nf_icmp_net *in = nf_icmpv6_pernet(net);
 	struct nf_proto_net *pn = &in->pn;
 
 	in->timeout = nf_ct_icmpv6_timeout;

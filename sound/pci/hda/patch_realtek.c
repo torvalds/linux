@@ -5381,9 +5381,6 @@ static void alc_fixup_thinkpad_acpi(struct hda_codec *codec,
 	hda_fixup_thinkpad_acpi(codec, fix, action);
 }
 
-/* for dell wmi mic mute led */
-#include "dell_wmi_helper.c"
-
 /* for alc295_fixup_hp_top_speakers */
 #include "hp_x360_helper.c"
 
@@ -5461,7 +5458,7 @@ enum {
 	ALC292_FIXUP_TPT440_DOCK,
 	ALC292_FIXUP_TPT440,
 	ALC283_FIXUP_HEADSET_MIC,
-	ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED,
+	ALC255_FIXUP_MIC_MUTE_LED,
 	ALC282_FIXUP_ASPIRE_V5_PINS,
 	ALC280_FIXUP_HP_GPIO4,
 	ALC286_FIXUP_HP_GPIO_LED,
@@ -5757,7 +5754,7 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode,
 		.chained = true,
-		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
+		.chain_id = ALC255_FIXUP_MIC_MUTE_LED
 	},
 	[ALC269_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -5983,7 +5980,7 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode_alc255,
 		.chained = true,
-		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
+		.chain_id = ALC255_FIXUP_MIC_MUTE_LED
 	},
 	[ALC255_FIXUP_HEADSET_MODE_NO_HP_MIC] = {
 		.type = HDA_FIXUP_FUNC,
@@ -6018,9 +6015,9 @@ static const struct hda_fixup alc269_fixups[] = {
 			{ },
 		},
 	},
-	[ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED] = {
+	[ALC255_FIXUP_MIC_MUTE_LED] = {
 		.type = HDA_FIXUP_FUNC,
-		.v.func = alc_fixup_dell_wmi,
+		.v.func = snd_hda_gen_fixup_micmute_led,
 	},
 	[ALC282_FIXUP_ASPIRE_V5_PINS] = {
 		.type = HDA_FIXUP_PINS,
@@ -6079,7 +6076,7 @@ static const struct hda_fixup alc269_fixups[] = {
 		.type = HDA_FIXUP_FUNC,
 		.v.func = alc_fixup_headset_mode_dell_alc288,
 		.chained = true,
-		.chain_id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED
+		.chain_id = ALC255_FIXUP_MIC_MUTE_LED
 	},
 	[ALC288_FIXUP_DELL1_MIC_NO_PRESENCE] = {
 		.type = HDA_FIXUP_PINS,
@@ -6746,7 +6743,7 @@ static const struct hda_model_fixup alc269_fixup_models[] = {
 	{.id = ALC255_FIXUP_DELL2_MIC_NO_PRESENCE, .name = "alc255-dell2"},
 	{.id = ALC293_FIXUP_DELL1_MIC_NO_PRESENCE, .name = "alc293-dell1"},
 	{.id = ALC283_FIXUP_HEADSET_MIC, .name = "alc283-headset"},
-	{.id = ALC255_FIXUP_DELL_WMI_MIC_MUTE_LED, .name = "alc255-dell-mute"},
+	{.id = ALC255_FIXUP_MIC_MUTE_LED, .name = "alc255-dell-mute"},
 	{.id = ALC282_FIXUP_ASPIRE_V5_PINS, .name = "aspire-v5"},
 	{.id = ALC280_FIXUP_HP_GPIO4, .name = "hp-gpio4"},
 	{.id = ALC286_FIXUP_HP_GPIO_LED, .name = "hp-gpio-led"},

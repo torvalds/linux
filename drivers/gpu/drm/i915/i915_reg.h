@@ -2095,8 +2095,12 @@ enum i915_power_well_id {
 
 /* ICL PHY DFLEX registers */
 #define PORT_TX_DFLEXDPMLE1		_MMIO(0x1638C0)
-#define   DFLEXDPMLE1_DPMLETC_MASK(n)	(0xf << (4 * (n)))
-#define   DFLEXDPMLE1_DPMLETC(n, x)	((x) << (4 * (n)))
+#define   DFLEXDPMLE1_DPMLETC_MASK(tc_port)	(0xf << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML0(tc_port)	(1 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML1_0(tc_port)	(3 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML3(tc_port)	(8 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML3_2(tc_port)	(12 << (4 * (tc_port)))
+#define   DFLEXDPMLE1_DPMLETC_ML3_0(tc_port)	(15 << (4 * (tc_port)))
 
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
@@ -4593,12 +4597,12 @@ enum {
 
 #define  DRM_DIP_ENABLE			(1 << 28)
 #define  PSR_VSC_BIT_7_SET		(1 << 27)
-#define  VSC_SELECT_MASK		(0x3 << 26)
-#define  VSC_SELECT_SHIFT		26
-#define  VSC_DIP_HW_HEA_DATA		(0 << 26)
-#define  VSC_DIP_HW_HEA_SW_DATA		(1 << 26)
-#define  VSC_DIP_HW_DATA_SW_HEA		(2 << 26)
-#define  VSC_DIP_SW_HEA_DATA		(3 << 26)
+#define  VSC_SELECT_MASK		(0x3 << 25)
+#define  VSC_SELECT_SHIFT		25
+#define  VSC_DIP_HW_HEA_DATA		(0 << 25)
+#define  VSC_DIP_HW_HEA_SW_DATA		(1 << 25)
+#define  VSC_DIP_HW_DATA_SW_HEA		(2 << 25)
+#define  VSC_DIP_SW_HEA_DATA		(3 << 25)
 #define  VDIP_ENABLE_PPS		(1 << 24)
 
 /* Panel power sequencing */
