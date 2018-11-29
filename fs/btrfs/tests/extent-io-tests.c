@@ -66,7 +66,7 @@ static int test_find_delalloc(u32 sectorsize)
 	u64 max_bytes = BTRFS_MAX_EXTENT_SIZE;
 	u64 total_dirty = 2 * max_bytes;
 	u64 start, end, test_start;
-	u64 found;
+	bool found;
 	int ret = -EINVAL;
 
 	test_msg("running find delalloc tests");

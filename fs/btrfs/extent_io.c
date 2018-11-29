@@ -1452,16 +1452,16 @@ out:
  * find a contiguous range of bytes in the file marked as delalloc, not
  * more than 'max_bytes'.  start and end are used to return the range,
  *
- * 1 is returned if we find something, 0 if nothing was in the tree
+ * true is returned if we find something, false if nothing was in the tree
  */
-static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
+static noinline bool find_delalloc_range(struct extent_io_tree *tree,
 					u64 *start, u64 *end, u64 max_bytes,
 					struct extent_state **cached_state)
 {
 	struct rb_node *node;
 	struct extent_state *state;
 	u64 cur_start = *start;
-	u64 found = 0;
+	bool found = false;
 	u64 total_bytes = 0;
 
 	spin_lock(&tree->lock);
@@ -1472,8 +1472,7 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 	 */
 	node = tree_search(tree, cur_start);
 	if (!node) {
-		if (!found)
-			*end = (u64)-1;
+		*end = (u64)-1;
 		goto out;
 	}
 
@@ -1493,7 +1492,7 @@ static noinline u64 find_delalloc_range(struct extent_io_tree *tree,
 			*cached_state = state;
 			refcount_inc(&state->refs);
 		}
-		found++;
+		found = true;
 		*end = state->end;
 		cur_start = state->end + 1;
 		node = rb_next(node);
@@ -1551,13 +1550,14 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 }
 
 /*
- * find a contiguous range of bytes in the file marked as delalloc, not
- * more than 'max_bytes'.  start and end are used to return the range,
+ * Find and lock a contiguous range of bytes in the file marked as delalloc, no
+ * more than @max_bytes.  @Start and @end are used to return the range,
  *
- * 1 is returned if we find something, 0 if nothing was in the tree
+ * Return: true if we find something
+ *         false if nothing was in the tree
  */
 EXPORT_FOR_TESTS
-noinline_for_stack u64 find_lock_delalloc_range(struct inode *inode,
+noinline_for_stack bool find_lock_delalloc_range(struct inode *inode,
 				    struct extent_io_tree *tree,
 				    struct page *locked_page, u64 *start,
 				    u64 *end)
@@ -1565,7 +1565,7 @@ noinline_for_stack u64 find_lock_delalloc_range(struct inode *inode,
 	u64 max_bytes = BTRFS_MAX_EXTENT_SIZE;
 	u64 delalloc_start;
 	u64 delalloc_end;
-	u64 found;
+	bool found;
 	struct extent_state *cached_state = NULL;
 	int ret;
 	int loops = 0;
@@ -1580,7 +1580,7 @@ again:
 		*start = delalloc_start;
 		*end = delalloc_end;
 		free_extent_state(cached_state);
-		return 0;
+		return false;
 	}
 
 	/*
@@ -1612,7 +1612,7 @@ again:
 			loops = 1;
 			goto again;
 		} else {
-			found = 0;
+			found = false;
 			goto out_failed;
 		}
 	}
@@ -3195,7 +3195,7 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 {
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
 	u64 page_end = delalloc_start + PAGE_SIZE - 1;
-	u64 nr_delalloc;
+	bool found;
 	u64 delalloc_to_write = 0;
 	u64 delalloc_end = 0;
 	int ret;
@@ -3203,11 +3203,11 @@ static noinline_for_stack int writepage_delalloc(struct inode *inode,
 
 
 	while (delalloc_end < page_end) {
-		nr_delalloc = find_lock_delalloc_range(inode, tree,
+		found = find_lock_delalloc_range(inode, tree,
 					       page,
 					       &delalloc_start,
 					       &delalloc_end);
-		if (nr_delalloc == 0) {
+		if (!found) {
 			delalloc_start = delalloc_end + 1;
 			continue;
 		}
