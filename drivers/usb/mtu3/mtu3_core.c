@@ -180,7 +180,7 @@ static void mtu3_intr_enable(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_LV1IESR, value);
 
 	/* Enable U2 common USB interrupts */
-	value = SUSPEND_INTR | RESUME_INTR | RESET_INTR | LPM_RESUME_INTR;
+	value = SUSPEND_INTR | RESUME_INTR | RESET_INTR;
 	mtu3_writel(mbase, U3D_COMMON_USB_INTR_ENABLE, value);
 
 	if (mtu->is_u3_ip) {
@@ -594,6 +594,8 @@ static void mtu3_regs_init(struct mtu3 *mtu)
 	mtu3_writel(mbase, U3D_DEVICE_CONF, 0);
 	/* vbus detected by HW */
 	mtu3_clrbits(mbase, U3D_MISC_CTRL, VBUS_FRC_EN | VBUS_ON);
+	/* enable automatical HWRW from L1 */
+	mtu3_setbits(mbase, U3D_POWER_MANAGEMENT, LPM_HRWE);
 }
 
 static irqreturn_t mtu3_link_isr(struct mtu3 *mtu)
@@ -705,12 +707,6 @@ static irqreturn_t mtu3_u2_common_isr(struct mtu3 *mtu)
 
 	if (u2comm & RESET_INTR)
 		mtu3_gadget_reset(mtu);
-
-	if (u2comm & LPM_RESUME_INTR) {
-		if (!(mtu3_readl(mbase, U3D_POWER_MANAGEMENT) & LPM_HRWE))
-			mtu3_setbits(mbase, U3D_USB20_MISC_CONTROL,
-				     LPM_U3_ACK_EN);
-	}
 
 	return IRQ_HANDLED;
 }
