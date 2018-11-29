@@ -175,12 +175,12 @@ void set_context(unsigned long id, pgd_t *pgd)
 	*(ptr + 1) = pgd;
 #endif
 
-	/* Register M_TW will contain base address of level 1 table minus the
+	/* Register M_TWB will contain base address of level 1 table minus the
 	 * lower part of the kernel PGDIR base address, so that all accesses to
 	 * level 1 table are done relative to lower part of kernel PGDIR base
 	 * address.
 	 */
-	mtspr(SPRN_M_TW, __pa(pgd) - offset);
+	mtspr(SPRN_M_TWB, __pa(pgd) - offset);
 
 	/* Update context */
 	mtspr(SPRN_M_CASID, id - 1);
