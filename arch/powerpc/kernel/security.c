@@ -94,13 +94,14 @@ static int barrier_nospec_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_barrier_nospec,
-			barrier_nospec_get, barrier_nospec_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_barrier_nospec, barrier_nospec_get,
+			 barrier_nospec_set, "%llu\n");
 
 static __init int barrier_nospec_debugfs_init(void)
 {
-	debugfs_create_file("barrier_nospec", 0600, powerpc_debugfs_root, NULL,
-			    &fops_barrier_nospec);
+	debugfs_create_file_unsafe("barrier_nospec", 0600,
+				   powerpc_debugfs_root, NULL,
+				   &fops_barrier_nospec);
 	return 0;
 }
 device_initcall(barrier_nospec_debugfs_init);
@@ -368,11 +369,13 @@ static int stf_barrier_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_stf_barrier, stf_barrier_get, stf_barrier_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_stf_barrier, stf_barrier_get, stf_barrier_set,
+			 "%llu\n");
 
 static __init int stf_barrier_debugfs_init(void)
 {
-	debugfs_create_file("stf_barrier", 0600, powerpc_debugfs_root, NULL, &fops_stf_barrier);
+	debugfs_create_file_unsafe("stf_barrier", 0600, powerpc_debugfs_root,
+				   NULL, &fops_stf_barrier);
 	return 0;
 }
 device_initcall(stf_barrier_debugfs_init);
@@ -443,13 +446,14 @@ static int count_cache_flush_get(void *data, u64 *val)
 	return 0;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
-			count_cache_flush_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
+			 count_cache_flush_set, "%llu\n");
 
 static __init int count_cache_flush_debugfs_init(void)
 {
-	debugfs_create_file("count_cache_flush", 0600, powerpc_debugfs_root,
-			    NULL, &fops_count_cache_flush);
+	debugfs_create_file_unsafe("count_cache_flush", 0600,
+				   powerpc_debugfs_root, NULL,
+				   &fops_count_cache_flush);
 	return 0;
 }
 device_initcall(count_cache_flush_debugfs_init);
