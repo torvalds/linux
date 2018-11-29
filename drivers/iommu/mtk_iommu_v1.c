@@ -208,7 +208,7 @@ static void mtk_iommu_config(struct mtk_iommu_data *data,
 {
 	struct mtk_smi_larb_iommu    *larb_mmu;
 	unsigned int                 larbid, portid;
-	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	int i;
 
 	for (i = 0; i < fwspec->num_ids; ++i) {
@@ -273,7 +273,7 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 				   struct device *dev)
 {
 	struct mtk_iommu_domain *dom = to_mtk_domain(domain);
-	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
+	struct mtk_iommu_data *data = dev_iommu_fwspec_get(dev)->iommu_priv;
 	int ret;
 
 	if (!data)
@@ -295,7 +295,7 @@ static int mtk_iommu_attach_device(struct iommu_domain *domain,
 static void mtk_iommu_detach_device(struct iommu_domain *domain,
 				    struct device *dev)
 {
-	struct mtk_iommu_data *data = dev->iommu_fwspec->iommu_priv;
+	struct mtk_iommu_data *data = dev_iommu_fwspec_get(dev)->iommu_priv;
 
 	if (!data)
 		return;
@@ -373,6 +373,7 @@ static struct iommu_ops mtk_iommu_ops;
 static int mtk_iommu_create_mapping(struct device *dev,
 				    struct of_phandle_args *args)
 {
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct mtk_iommu_data *data;
 	struct platform_device *m4updev;
 	struct dma_iommu_mapping *mtk_mapping;
@@ -385,28 +386,29 @@ static int mtk_iommu_create_mapping(struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!dev->iommu_fwspec) {
+	if (!fwspec) {
 		ret = iommu_fwspec_init(dev, &args->np->fwnode, &mtk_iommu_ops);
 		if (ret)
 			return ret;
-	} else if (dev->iommu_fwspec->ops != &mtk_iommu_ops) {
+		fwspec = dev_iommu_fwspec_get(dev);
+	} else if (dev_iommu_fwspec_get(dev)->ops != &mtk_iommu_ops) {
 		return -EINVAL;
 	}
 
-	if (!dev->iommu_fwspec->iommu_priv) {
+	if (!fwspec->iommu_priv) {
 		/* Get the m4u device */
 		m4updev = of_find_device_by_node(args->np);
 		if (WARN_ON(!m4updev))
 			return -EINVAL;
 
-		dev->iommu_fwspec->iommu_priv = platform_get_drvdata(m4updev);
+		fwspec->iommu_priv = platform_get_drvdata(m4updev);
 	}
 
 	ret = iommu_fwspec_add_ids(dev, args->args, 1);
 	if (ret)
 		return ret;
 
-	data = dev->iommu_fwspec->iommu_priv;
+	data = fwspec->iommu_priv;
 	m4udev = data->dev;
 	mtk_mapping = m4udev->archdata.iommu;
 	if (!mtk_mapping) {
@@ -424,6 +426,7 @@ static int mtk_iommu_create_mapping(struct device *dev,
 
 static int mtk_iommu_add_device(struct device *dev)
 {
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct dma_iommu_mapping *mtk_mapping;
 	struct of_phandle_args iommu_spec;
 	struct of_phandle_iterator it;
@@ -442,7 +445,7 @@ static int mtk_iommu_add_device(struct device *dev)
 		of_node_put(iommu_spec.np);
 	}
 
-	if (!dev->iommu_fwspec || dev->iommu_fwspec->ops != &mtk_iommu_ops)
+	if (!fwspec || fwspec->ops != &mtk_iommu_ops)
 		return -ENODEV; /* Not a iommu client device */
 
 	/*
@@ -460,7 +463,7 @@ static int mtk_iommu_add_device(struct device *dev)
 	if (err)
 		return err;
 
-	data = dev->iommu_fwspec->iommu_priv;
+	data = fwspec->iommu_priv;
 	mtk_mapping = data->dev->archdata.iommu;
 	err = arm_iommu_attach_device(dev, mtk_mapping);
 	if (err) {
@@ -473,12 +476,13 @@ static int mtk_iommu_add_device(struct device *dev)
 
 static void mtk_iommu_remove_device(struct device *dev)
 {
+	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct mtk_iommu_data *data;
 
-	if (!dev->iommu_fwspec || dev->iommu_fwspec->ops != &mtk_iommu_ops)
+	if (!fwspec || fwspec->ops != &mtk_iommu_ops)
 		return;
 
-	data = dev->iommu_fwspec->iommu_priv;
+	data = fwspec->iommu_priv;
 	iommu_device_unlink(&data->iommu, dev);
 
 	iommu_group_remove_device(dev);
