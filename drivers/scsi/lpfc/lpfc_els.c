@@ -1538,7 +1538,9 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	struct serv_parm *sp;
 	uint8_t  name[sizeof(struct lpfc_name)];
 	uint32_t rc, keepDID = 0, keep_nlp_flag = 0;
+	uint32_t keep_new_nlp_flag = 0;
 	uint16_t keep_nlp_state;
+	u32 keep_nlp_fc4_type = 0;
 	struct lpfc_nvme_rport *keep_nrport = NULL;
 	int  put_node;
 	int  put_rport;
@@ -1630,8 +1632,10 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 	 * would have updated nlp_fc4_type in ndlp, so we must ensure
 	 * new_ndlp has the right value.
 	 */
-	if (vport->fc_flag & FC_FABRIC)
+	if (vport->fc_flag & FC_FABRIC) {
+		keep_nlp_fc4_type = new_ndlp->nlp_fc4_type;
 		new_ndlp->nlp_fc4_type = ndlp->nlp_fc4_type;
+	}
 
 	lpfc_unreg_rpi(vport, new_ndlp);
 	new_ndlp->nlp_DID = ndlp->nlp_DID;
@@ -1642,20 +1646,35 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		       phba->cfg_rrq_xri_bitmap_sz);
 
 	spin_lock_irq(shost->host_lock);
-	keep_nlp_flag = new_ndlp->nlp_flag;
+	keep_new_nlp_flag = new_ndlp->nlp_flag;
+	keep_nlp_flag = ndlp->nlp_flag;
 	new_ndlp->nlp_flag = ndlp->nlp_flag;
 
 	/* if new_ndlp had NLP_UNREG_INP set, keep it */
-	if (keep_nlp_flag & NLP_UNREG_INP)
+	if (keep_new_nlp_flag & NLP_UNREG_INP)
 		new_ndlp->nlp_flag |= NLP_UNREG_INP;
 	else
 		new_ndlp->nlp_flag &= ~NLP_UNREG_INP;
 
-	/* if ndlp had NLP_UNREG_INP set, keep it */
-	if (ndlp->nlp_flag & NLP_UNREG_INP)
-		ndlp->nlp_flag = keep_nlp_flag | NLP_UNREG_INP;
+	/* if new_ndlp had NLP_RPI_REGISTERED set, keep it */
+	if (keep_new_nlp_flag & NLP_RPI_REGISTERED)
+		new_ndlp->nlp_flag |= NLP_RPI_REGISTERED;
 	else
-		ndlp->nlp_flag = keep_nlp_flag & ~NLP_UNREG_INP;
+		new_ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
+
+	ndlp->nlp_flag = keep_new_nlp_flag;
+
+	/* if ndlp had NLP_UNREG_INP set, keep it */
+	if (keep_nlp_flag & NLP_UNREG_INP)
+		ndlp->nlp_flag |= NLP_UNREG_INP;
+	else
+		ndlp->nlp_flag &= ~NLP_UNREG_INP;
+
+	/* if ndlp had NLP_RPI_REGISTERED set, keep it */
+	if (keep_nlp_flag & NLP_RPI_REGISTERED)
+		ndlp->nlp_flag |= NLP_RPI_REGISTERED;
+	else
+		ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
 
 	spin_unlock_irq(shost->host_lock);
 
@@ -1706,7 +1725,10 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			spin_unlock_irq(&phba->ndlp_lock);
 		}
 
-		/* Two ndlps cannot have the same did on the nodelist */
+		/* Two ndlps cannot have the same did on the nodelist.
+		 * Note: for this case, ndlp has a NULL WWPN so setting
+		 * the nlp_fc4_type isn't required.
+		 */
 		ndlp->nlp_DID = keepDID;
 		lpfc_nlp_set_state(vport, ndlp, keep_nlp_state);
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
@@ -1725,8 +1747,13 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 
 		lpfc_unreg_rpi(vport, ndlp);
 
-		/* Two ndlps cannot have the same did */
+		/* Two ndlps cannot have the same did and the fc4
+		 * type must be transferred because the ndlp is in
+		 * flight.
+		 */
 		ndlp->nlp_DID = keepDID;
+		ndlp->nlp_fc4_type = keep_nlp_fc4_type;
+
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    active_rrqs_xri_bitmap)
 			memcpy(ndlp->active_rrqs_xri_bitmap,
