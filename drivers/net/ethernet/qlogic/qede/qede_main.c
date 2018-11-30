@@ -1774,6 +1774,10 @@ static int qede_drain_txq(struct qede_dev *edev,
 static int qede_stop_txq(struct qede_dev *edev,
 			 struct qede_tx_queue *txq, int rss_id)
 {
+	/* delete doorbell from doorbell recovery mechanism */
+	edev->ops->common->db_recovery_del(edev->cdev, txq->doorbell_addr,
+					   &txq->tx_db);
+
 	return edev->ops->q_tx_stop(edev->cdev, rss_id, txq->handle);
 }
 
@@ -1909,6 +1913,11 @@ static int qede_start_txq(struct qede_dev *edev,
 	SET_FIELD(txq->tx_db.data.params, ETH_DB_DATA_AGG_VAL_SEL,
 		  DQ_XCM_ETH_TX_BD_PROD_CMD);
 	txq->tx_db.data.agg_flags = DQ_XCM_ETH_DQ_CF_CMD;
+
+	/* register doorbell with doorbell recovery mechanism */
+	rc = edev->ops->common->db_recovery_add(edev->cdev, txq->doorbell_addr,
+						&txq->tx_db, DB_REC_WIDTH_32B,
+						DB_REC_KERNEL);
 
 	return rc;
 }

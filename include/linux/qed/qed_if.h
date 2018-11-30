@@ -47,6 +47,7 @@
 #include <linux/slab.h>
 #include <linux/qed/common_hsi.h>
 #include <linux/qed/qed_chain.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 
 enum dcbx_protocol_type {
 	DCBX_PROTOCOL_ISCSI,
@@ -448,10 +449,23 @@ struct qed_mfw_tlv_iscsi {
 	bool tx_bytes_set;
 };
 
+enum qed_db_rec_width {
+	DB_REC_WIDTH_32B,
+	DB_REC_WIDTH_64B,
+};
+
+enum qed_db_rec_space {
+	DB_REC_KERNEL,
+	DB_REC_USER,
+};
+
 #define DIRECT_REG_WR(reg_addr, val) writel((u32)val, \
 					    (void __iomem *)(reg_addr))
 
 #define DIRECT_REG_RD(reg_addr) readl((void __iomem *)(reg_addr))
+
+#define DIRECT_REG_WR64(reg_addr, val) writeq((u32)val,	\
+					      (void __iomem *)(reg_addr))
 
 #define QED_COALESCE_MAX 0x1FF
 #define QED_DEFAULT_RX_USECS 12
@@ -1015,6 +1029,33 @@ struct qed_common_ops {
  */
 	int (*set_led)(struct qed_dev *cdev,
 		       enum qed_led_mode mode);
+/**
+ * @brief db_recovery_add - add doorbell information to the doorbell
+ * recovery mechanism.
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address of where db_data is stored
+ * @param db_is_32b - doorbell is 32b pr 64b
+ * @param db_is_user - doorbell recovery addresses are user or kernel space
+ */
+	int (*db_recovery_add)(struct qed_dev *cdev,
+			       void __iomem *db_addr,
+			       void *db_data,
+			       enum qed_db_rec_width db_width,
+			       enum qed_db_rec_space db_space);
+
+/**
+ * @brief db_recovery_del - remove doorbell information from the doorbell
+ * recovery mechanism. db_data serves as key (db_addr is not unique).
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address where db_data is stored. Serves as key for the
+ *		    entry to delete.
+ */
+	int (*db_recovery_del)(struct qed_dev *cdev,
+			       void __iomem *db_addr, void *db_data);
 
 /**
  * @brief update_drv_state - API to inform the change in the driver state.
