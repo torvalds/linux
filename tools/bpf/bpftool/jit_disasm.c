@@ -19,7 +19,6 @@
 #include <string.h>
 #include <bfd.h>
 #include <dis-asm.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <limits.h>
 
@@ -28,20 +27,12 @@
 
 static void get_exec_path(char *tpath, size_t size)
 {
+	const char *path = "/proc/self/exe";
 	ssize_t len;
-	char *path;
-
-	snprintf(tpath, size, "/proc/%d/exe", (int) getpid());
-	tpath[size - 1] = 0;
-
-	path = strdup(tpath);
-	assert(path);
 
 	len = readlink(path, tpath, size - 1);
 	assert(len > 0);
 	tpath[len] = 0;
-
-	free(path);
 }
 
 static int oper_count;
