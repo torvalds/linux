@@ -135,6 +135,11 @@ struct sbitmap_queue {
 	 */
 	struct sbq_wait_state *ws;
 
+	/*
+	 * @ws_active: count of currently active ws waitqueues
+	 */
+	atomic_t ws_active;
+
 	/**
 	 * @round_robin: Allocate bits in strict round-robin order.
 	 */
@@ -551,5 +556,34 @@ void sbitmap_queue_wake_up(struct sbitmap_queue *sbq);
  * This is intended for debugging. The format may change at any time.
  */
 void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m);
+
+struct sbq_wait {
+	int accounted;
+	struct wait_queue_entry wait;
+};
+
+#define DEFINE_SBQ_WAIT(name)							\
+	struct sbq_wait name = {						\
+		.accounted = 0,							\
+		.wait = {							\
+			.private	= current,				\
+			.func		= autoremove_wake_function,		\
+			.entry		= LIST_HEAD_INIT((name).wait.entry),	\
+		}								\
+	}
+
+/*
+ * Wrapper around prepare_to_wait_exclusive(), which maintains some extra
+ * internal state.
+ */
+void sbitmap_prepare_to_wait(struct sbitmap_queue *sbq,
+				struct sbq_wait_state *ws,
+				struct sbq_wait *sbq_wait, int state);
+
+/*
+ * Must be paired with sbitmap_prepare_to_wait().
+ */
+void sbitmap_finish_wait(struct sbitmap_queue *sbq, struct sbq_wait_state *ws,
+				struct sbq_wait *sbq_wait);
 
 #endif /* __LINUX_SCALE_BITMAP_H */

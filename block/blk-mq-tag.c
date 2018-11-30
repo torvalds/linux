@@ -110,7 +110,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	struct blk_mq_tags *tags = blk_mq_tags_from_data(data);
 	struct sbitmap_queue *bt;
 	struct sbq_wait_state *ws;
-	DEFINE_WAIT(wait);
+	DEFINE_SBQ_WAIT(wait);
 	unsigned int tag_offset;
 	bool drop_ctx;
 	int tag;
@@ -154,8 +154,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		if (tag != -1)
 			break;
 
-		prepare_to_wait_exclusive(&ws->wait, &wait,
-						TASK_UNINTERRUPTIBLE);
+		sbitmap_prepare_to_wait(bt, ws, &wait, TASK_UNINTERRUPTIBLE);
 
 		tag = __blk_mq_get_tag(data, bt);
 		if (tag != -1)
@@ -167,6 +166,8 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		bt_prev = bt;
 		io_schedule();
 
+		sbitmap_finish_wait(bt, ws, &wait);
+
 		data->ctx = blk_mq_get_ctx(data->q);
 		data->hctx = blk_mq_map_queue(data->q, data->cmd_flags,
 						data->ctx->cpu);
@@ -175,8 +176,6 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 			bt = &tags->breserved_tags;
 		else
 			bt = &tags->bitmap_tags;
-
-		finish_wait(&ws->wait, &wait);
 
 		/*
 		 * If destination hw queue is changed, fake wake up on
@@ -192,7 +191,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	if (drop_ctx && data->ctx)
 		blk_mq_put_ctx(data->ctx);
 
-	finish_wait(&ws->wait, &wait);
+	sbitmap_finish_wait(bt, ws, &wait);
 
 found_tag:
 	return tag + tag_offset;

@@ -394,6 +394,7 @@ int sbitmap_queue_init_node(struct sbitmap_queue *sbq, unsigned int depth,
 	sbq->min_shallow_depth = UINT_MAX;
 	sbq->wake_batch = sbq_calc_wake_batch(sbq, depth);
 	atomic_set(&sbq->wake_index, 0);
+	atomic_set(&sbq->ws_active, 0);
 
 	sbq->ws = kzalloc_node(SBQ_WAIT_QUEUES * sizeof(*sbq->ws), flags, node);
 	if (!sbq->ws) {
@@ -508,6 +509,9 @@ EXPORT_SYMBOL_GPL(sbitmap_queue_min_shallow_depth);
 static struct sbq_wait_state *sbq_wake_ptr(struct sbitmap_queue *sbq)
 {
 	int i, wake_index;
+
+	if (!atomic_read(&sbq->ws_active))
+		return NULL;
 
 	wake_index = atomic_read(&sbq->wake_index);
 	for (i = 0; i < SBQ_WAIT_QUEUES; i++) {
@@ -634,6 +638,7 @@ void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m)
 
 	seq_printf(m, "wake_batch=%u\n", sbq->wake_batch);
 	seq_printf(m, "wake_index=%d\n", atomic_read(&sbq->wake_index));
+	seq_printf(m, "ws_active=%d\n", atomic_read(&sbq->ws_active));
 
 	seq_puts(m, "ws={\n");
 	for (i = 0; i < SBQ_WAIT_QUEUES; i++) {
@@ -649,3 +654,26 @@ void sbitmap_queue_show(struct sbitmap_queue *sbq, struct seq_file *m)
 	seq_printf(m, "min_shallow_depth=%u\n", sbq->min_shallow_depth);
 }
 EXPORT_SYMBOL_GPL(sbitmap_queue_show);
+
+void sbitmap_prepare_to_wait(struct sbitmap_queue *sbq,
+			     struct sbq_wait_state *ws,
+			     struct sbq_wait *sbq_wait, int state)
+{
+	if (!sbq_wait->accounted) {
+		atomic_inc(&sbq->ws_active);
+		sbq_wait->accounted = 1;
+	}
+	prepare_to_wait_exclusive(&ws->wait, &sbq_wait->wait, state);
+}
+EXPORT_SYMBOL_GPL(sbitmap_prepare_to_wait);
+
+void sbitmap_finish_wait(struct sbitmap_queue *sbq, struct sbq_wait_state *ws,
+			 struct sbq_wait *sbq_wait)
+{
+	finish_wait(&ws->wait, &sbq_wait->wait);
+	if (sbq_wait->accounted) {
+		atomic_dec(&sbq->ws_active);
+		sbq_wait->accounted = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(sbitmap_finish_wait);
