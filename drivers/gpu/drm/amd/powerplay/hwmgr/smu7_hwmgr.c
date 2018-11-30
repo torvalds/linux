@@ -4222,9 +4222,17 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 	if (tmp & (1 << 23)) {
 		data->mem_latency_high = MEM_LATENCY_HIGH;
 		data->mem_latency_low = MEM_LATENCY_LOW;
+		if ((hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12))
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableFFC);
 	} else {
 		data->mem_latency_high = 330;
 		data->mem_latency_low = 330;
+		if ((hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12))
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableFFC);
 	}
 
 	return 0;
