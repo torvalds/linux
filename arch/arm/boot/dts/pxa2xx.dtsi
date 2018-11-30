@@ -117,9 +117,9 @@
 			status = "disabled";
 		};
 
-		hwuart: serial@41100000 {
+		hwuart: serial@41600000 {
 			compatible = "mrvl,pxa-uart";
-			reg = <0x41100000 0x30>;
+			reg = <0x41600000 0x30>;
 			interrupts = <7>;
 			status = "disabled";
 		};
