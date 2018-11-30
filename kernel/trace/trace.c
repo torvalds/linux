@@ -1722,6 +1722,10 @@ static __init int init_trace_selftests(void)
 	pr_info("Running postponed tracer tests:\n");
 
 	list_for_each_entry_safe(p, n, &postponed_selftests, list) {
+		/* This loop can take minutes when sanitizers are enabled, so
+		 * lets make sure we allow RCU processing.
+		 */
+		cond_resched();
 		ret = run_tracer_selftest(p->type);
 		/* If the test fails, then warn and remove from available_tracers */
 		if (ret < 0) {
