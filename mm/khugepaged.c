@@ -1506,9 +1506,12 @@ xa_unlocked:
 		khugepaged_pages_collapsed++;
 	} else {
 		struct page *page;
+
 		/* Something went wrong: roll back page cache changes */
-		shmem_uncharge(mapping->host, nr_none);
 		xas_lock_irq(&xas);
+		mapping->nrpages -= nr_none;
+		shmem_uncharge(mapping->host, nr_none);
+
 		xas_set(&xas, start);
 		xas_for_each(&xas, page, end - 1) {
 			page = list_first_entry_or_null(&pagelist,
