@@ -26,13 +26,6 @@ enum nvmem_type {
 	NVMEM_TYPE_BATTERY_BACKED,
 };
 
-static const char * const nvmem_type_str[] = {
-	[NVMEM_TYPE_UNKNOWN] = "Unknown",
-	[NVMEM_TYPE_EEPROM] = "EEPROM",
-	[NVMEM_TYPE_OTP] = "OTP",
-	[NVMEM_TYPE_BATTERY_BACKED] = "Battery backed",
-};
-
 /**
  * struct nvmem_config - NVMEM device configuration
  *
