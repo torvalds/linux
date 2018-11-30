@@ -12075,6 +12075,7 @@ S:	Maintained
 F:	fs/proc/
 F:	include/linux/proc_fs.h
 F:	tools/testing/selftests/proc/
+F:	Documentation/filesystems/proc.txt
 
 PROC SYSCTL
 M:	Luis Chamberlain <mcgrof@kernel.org>
