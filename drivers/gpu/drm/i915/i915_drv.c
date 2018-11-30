@@ -1384,6 +1384,20 @@ static int i915_driver_init_hw(struct drm_i915_private *dev_priv)
 		}
 	}
 
+	if (HAS_EXECLISTS(dev_priv)) {
+		/*
+		 * Older GVT emulation depends upon intercepting CSB mmio,
+		 * which we no longer use, preferring to use the HWSP cache
+		 * instead.
+		 */
+		if (intel_vgpu_active(dev_priv) &&
+		    !intel_vgpu_has_hwsp_emulation(dev_priv)) {
+			i915_report_error(dev_priv,
+					  "old vGPU host found, support for HWSP emulation required\n");
+			return -ENXIO;
+		}
+	}
+
 	intel_sanitize_options(dev_priv);
 
 	i915_perf_init(dev_priv);
