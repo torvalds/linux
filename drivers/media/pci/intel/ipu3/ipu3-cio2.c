@@ -1810,7 +1810,8 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 
 	/* Register notifier for subdevices we care */
 	r = cio2_notifier_init(cio2);
-	if (r)
+	/* Proceed without sensors connected to allow the device to suspend. */
+	if (r && r != -ENODEV)
 		goto fail_cio2_queue_exit;
 
 	r = devm_request_irq(&pci_dev->dev, pci_dev->irq, cio2_irq,
