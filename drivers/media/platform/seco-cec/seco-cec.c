@@ -7,6 +7,7 @@
  * Copyright (C) 2018, Aidilab Srl.
  */
 
+#include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
