@@ -1498,7 +1498,12 @@ tree_unlocked:
 		 * Replacing old pages with new one has succeed, now we need to
 		 * copy the content and free old pages.
 		 */
+		index = start;
 		list_for_each_entry_safe(page, tmp, &pagelist, lru) {
+			while (index < page->index) {
+				clear_highpage(new_page + (index % HPAGE_PMD_NR));
+				index++;
+			}
 			copy_highpage(new_page + (page->index % HPAGE_PMD_NR),
 					page);
 			list_del(&page->lru);
@@ -1508,6 +1513,11 @@ tree_unlocked:
 			ClearPageActive(page);
 			ClearPageUnevictable(page);
 			put_page(page);
+			index++;
+		}
+		while (index < end) {
+			clear_highpage(new_page + (index % HPAGE_PMD_NR));
+			index++;
 		}
 
 		local_irq_save(flags);
