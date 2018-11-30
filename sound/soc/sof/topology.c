@@ -2111,7 +2111,8 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 	dai_component.dai_name = link->cpu_dai_name;
 	dai = snd_soc_find_dai(&dai_component);
 	if (!dai) {
-		dev_err(sdev->dev, "failed to find dai %s", dai->name);
+		dev_err(sdev->dev, "failed to find dai %s",
+			dai_component.dai_name);
 		return -EINVAL;
 	}
 
@@ -2248,7 +2249,8 @@ static int sof_link_hda_unload(struct snd_sof_dev *sdev,
 	dai_component.dai_name = link->cpu_dai_name;
 	dai = snd_soc_find_dai(&dai_component);
 	if (!dai) {
-		dev_err(sdev->dev, "failed to find dai %s", dai->name);
+		dev_err(sdev->dev, "failed to find dai %s",
+			dai_component.dai_name);
 		return -EINVAL;
 	}
 
