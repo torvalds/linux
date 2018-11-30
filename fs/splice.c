@@ -945,11 +945,16 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	sd->flags &= ~SPLICE_F_NONBLOCK;
 	more = sd->flags & SPLICE_F_MORE;
 
+	WARN_ON_ONCE(pipe->nrbufs != 0);
+
 	while (len) {
 		size_t read_len;
 		loff_t pos = sd->pos, prev_pos = pos;
 
-		ret = do_splice_to(in, &pos, pipe, len, flags);
+		/* Don't try to read more the pipe has space for. */
+		read_len = min_t(size_t, len,
+				 (pipe->buffers - pipe->nrbufs) << PAGE_SHIFT);
+		ret = do_splice_to(in, &pos, pipe, read_len, flags);
 		if (unlikely(ret <= 0))
 			goto out_release;
 
