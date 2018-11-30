@@ -5009,7 +5009,7 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 				status->plane_count,
 				dm_new_crtc_state,
 				to_dm_crtc_state(old_crtc_state),
-				dm_state->context))
+				dc_state))
 			dm_error("%s: Failed to update stream scaling!\n", __func__);
 	}
 
