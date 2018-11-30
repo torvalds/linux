@@ -146,6 +146,7 @@
 			mux {
 				groups = "uart_tx_ao_a", "uart_rx_ao_a";
 				function = "uart_ao";
+				bias-disable;
 			};
 		};
 
@@ -153,6 +154,7 @@
 			mux {
 				groups = "remote_input";
 				function = "remote";
+				bias-disable;
 			};
 		};
 	};
@@ -220,6 +222,7 @@
 					 "eth_txd2",
 					 "eth_txd3";
 				function = "ethernet";
+				bias-disable;
 			};
 		};
 
@@ -235,6 +238,7 @@
 					 "eth_mdio_en",
 					 "eth_mdc";
 				function = "ethernet";
+				bias-disable;
 			};
 		};
 
@@ -242,6 +246,7 @@
 			mux {
 				groups = "i2c_sda_a", "i2c_sck_a";
 				function = "i2c_a";
+				bias-disable;
 			};
 		};
 
@@ -250,6 +255,7 @@
 				groups = "sd_d0_b", "sd_d1_b", "sd_d2_b",
 					"sd_d3_b", "sd_clk_b", "sd_cmd_b";
 				function = "sd_b";
+				bias-disable;
 			};
 		};
 
@@ -257,6 +263,7 @@
 			mux {
 				groups = "pwm_c1";
 				function = "pwm_c";
+				bias-disable;
 			};
 		};
 
@@ -265,6 +272,7 @@
 				groups = "uart_tx_b0",
 				       "uart_rx_b0";
 				function = "uart_b";
+				bias-disable;
 			};
 		};
 
@@ -273,6 +281,7 @@
 				groups = "uart_cts_b0",
 				       "uart_rts_b0";
 				function = "uart_b";
+				bias-disable;
 			};
 		};
 	};
@@ -359,6 +368,11 @@
 	compatible = "amlogic,meson8b-sdio", "amlogic,meson-mx-sdio";
 	clocks = <&clkc CLKID_SDIO>, <&clkc CLKID_CLK81>;
 	clock-names = "core", "clkin";
+};
+
+&timer_abcde {
+	clocks = <&clkc CLKID_XTAL>, <&clkc CLKID_CLK81>;
+	clock-names = "xtal", "pclk";
 };
 
 &uart_AO {
