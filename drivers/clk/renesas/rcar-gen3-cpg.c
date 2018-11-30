@@ -368,7 +368,7 @@ static struct clk * __init cpg_sd_clk_register(const struct cpg_core_clk *core,
 
 	init.name = core->name;
 	init.ops = &cpg_sd_clock_ops;
-	init.flags = CLK_IS_BASIC | CLK_SET_RATE_PARENT;
+	init.flags = CLK_SET_RATE_PARENT;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 
