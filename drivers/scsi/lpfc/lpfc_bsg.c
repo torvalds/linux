@@ -5381,25 +5381,6 @@ ras_job_error:
 }
 
 /**
- * lpfc_ras_stop_fwlog: Disable FW logging by the adapter
- * @phba: Pointer to HBA context object.
- *
- * Disable FW logging into host memory on the adapter. To
- * be done before reading logs from the host memory.
- **/
-static void
-lpfc_ras_stop_fwlog(struct lpfc_hba *phba)
-{
-	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
-
-	ras_fwlog->ras_active = false;
-
-	/* Disable FW logging to host memory */
-	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
-	       phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
-}
-
-/**
  * lpfc_bsg_set_ras_config: Set FW logging parameters
  * @job: fc_bsg_job to handle
  *
@@ -5519,7 +5500,8 @@ lpfc_bsg_get_ras_lwpd(struct bsg_job *job)
 	if (!ras_fwlog->lwpd.virt) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
 				"6193 Restart FW Logging\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto ras_job_error;
 	}
 
 	/* Get lwpd offset */

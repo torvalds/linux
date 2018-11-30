@@ -551,6 +551,7 @@ void lpfc_sli4_ras_init(struct lpfc_hba *phba);
 void lpfc_sli4_ras_setup(struct lpfc_hba *phba);
 int  lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba, uint32_t fwlog_level,
 			 uint32_t fwlog_enable);
+void lpfc_ras_stop_fwlog(struct lpfc_hba *phba);
 int lpfc_check_fwlog_support(struct lpfc_hba *phba);
 
 /* NVME interfaces. */

@@ -10690,12 +10690,7 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	kthread_stop(phba->worker_thread);
 
 	/* Disable FW logging to host memory */
-	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
-	       phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
-
-	/* Free RAS DMA memory */
-	if (phba->ras_fwlog.ras_enabled == true)
-		lpfc_sli4_ras_dma_free(phba);
+	lpfc_ras_stop_fwlog(phba);
 
 	/* Unset the queues shared with the hardware then release all
 	 * allocated resources.
@@ -10705,6 +10700,10 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 
 	/* Reset SLI4 HBA FCoE function */
 	lpfc_pci_function_reset(phba);
+
+	/* Free RAS DMA memory */
+	if (phba->ras_fwlog.ras_enabled)
+		lpfc_sli4_ras_dma_free(phba);
 
 	/* Stop the SLI4 device port */
 	phba->pport->work_port_events = 0;
