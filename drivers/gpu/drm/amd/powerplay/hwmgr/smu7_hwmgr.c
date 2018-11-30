@@ -2859,7 +2859,10 @@ static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
+		if (hwmgr->is_kicker)
+			switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
+		else
+			switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
 		break;
 	case CHIP_VEGAM:
 		switch_limit_us = 30;
