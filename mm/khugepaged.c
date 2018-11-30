@@ -1359,6 +1359,17 @@ static void collapse_shmem(struct mm_struct *mm,
 
 		VM_BUG_ON(index != xas.xa_index);
 		if (!page) {
+			/*
+			 * Stop if extent has been truncated or hole-punched,
+			 * and is now completely empty.
+			 */
+			if (index == start) {
+				if (!xas_next_entry(&xas, end - 1)) {
+					result = SCAN_TRUNCATED;
+					break;
+				}
+				xas_set(&xas, index);
+			}
 			if (!shmem_charge(mapping->host, 1)) {
 				result = SCAN_FAIL;
 				break;
