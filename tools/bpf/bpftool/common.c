@@ -604,7 +604,7 @@ void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	if (!ifindex)
 		return;
 
-	printf(" dev ");
+	printf("  offloaded_to ");
 	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
 		printf("%s", name);
 	else
