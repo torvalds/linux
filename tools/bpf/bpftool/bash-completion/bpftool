@@ -243,16 +243,20 @@ _bpftool()
     # Completion depends on object and command in use
     case $object in
         prog)
-            if [[ $command != "load" && $command != "loadall" ]]; then
-                case $prev in
-                    id)
-                        _bpftool_get_prog_ids
-                        return 0
-                        ;;
-                esac
-            fi
+            # Complete id, only for subcommands that use prog (but no map) ids
+            case $command in
+                show|list|dump|pin)
+                    case $prev in
+                        id)
+                            _bpftool_get_prog_ids
+                            return 0
+                            ;;
+                    esac
+                    ;;
+            esac
 
             local PROG_TYPE='id pinned tag'
+            local MAP_TYPE='id pinned'
             case $command in
                 show|list)
                     [[ $prev != "$command" ]] && return 0
@@ -293,22 +297,43 @@ _bpftool()
                     return 0
                     ;;
                 attach|detach)
-                    if [[ ${#words[@]} == 7 ]]; then
-                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
-                        return 0
-                    fi
-
-                    if [[ ${#words[@]} == 6 ]]; then
-                        COMPREPLY=( $( compgen -W "msg_verdict skb_verdict \
-                            skb_parse flow_dissector" -- "$cur" ) )
-                        return 0
-                    fi
-
-                    if [[ $prev == "$command" ]]; then
-                        COMPREPLY=( $( compgen -W "id pinned" -- "$cur" ) )
-                        return 0
-                    fi
-                    return 0
+                    case $cword in
+                        3)
+                            COMPREPLY=( $( compgen -W "$PROG_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        4)
+                            case $prev in
+                                id)
+                                    _bpftool_get_prog_ids
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                        5)
+                            COMPREPLY=( $( compgen -W 'msg_verdict skb_verdict \
+                                skb_parse flow_dissector' -- "$cur" ) )
+                            return 0
+                            ;;
+                        6)
+                            COMPREPLY=( $( compgen -W "$MAP_TYPE" -- "$cur" ) )
+                            return 0
+                            ;;
+                        7)
+                            case $prev in
+                                id)
+                                    _bpftool_get_map_ids
+                                    ;;
+                                pinned)
+                                    _filedir
+                                    ;;
+                            esac
+                            return 0
+                            ;;
+                    esac
                     ;;
                 load|loadall)
                     local obj
