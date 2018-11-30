@@ -778,6 +778,13 @@ dtb-$(CONFIG_ARCH_ACTIONS) += \
 	owl-s500-sparky.dtb
 dtb-$(CONFIG_ARCH_PRIMA2) += \
 	prima2-evb.dtb
+dtb-$(CONFIG_ARCH_PXA) += \
+	pxa300-raumfeld-connector.dtb \
+	pxa300-raumfeld-controller.dtb \
+	pxa300-raumfeld-speaker-l.dtb \
+	pxa300-raumfeld-speaker-m.dtb \
+	pxa300-raumfeld-speaker-one.dtb \
+	pxa300-raumfeld-speaker-s.dtb
 dtb-$(CONFIG_ARCH_OXNAS) += \
 	ox810se-wd-mbwe.dtb \
 	ox820-cloudengines-pogoplug-series-3.dtb
