@@ -489,7 +489,7 @@ static irqreturn_t stpmic1_curlim_irq_handler(int irq, void *data)
 {
 	struct regulator_dev *rdev = (struct regulator_dev *)data;
 
-	regulator_lock(rdev, NULL);
+	regulator_lock(rdev);
 
 	/* Send an overcurrent notification */
 	regulator_notifier_call_chain(rdev,
