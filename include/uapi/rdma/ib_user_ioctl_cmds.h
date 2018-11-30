@@ -63,6 +63,16 @@ enum {
 	UVERBS_ATTR_UHW_OUT,
 };
 
+enum uverbs_methods_device {
+	UVERBS_METHOD_INVOKE_WRITE,
+};
+
+enum uverbs_attrs_invoke_write_cmd_attr_ids {
+	UVERBS_ATTR_CORE_IN,
+	UVERBS_ATTR_CORE_OUT,
+	UVERBS_ATTR_WRITE_CMD,
+};
+
 enum uverbs_attrs_create_cq_cmd_attr_ids {
 	UVERBS_ATTR_CREATE_CQ_HANDLE,
 	UVERBS_ATTR_CREATE_CQ_CQE,
