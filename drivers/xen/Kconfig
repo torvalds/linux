@@ -340,4 +340,7 @@ config XEN_SYMS
 config XEN_HAVE_VPMU
        bool
 
+config XEN_FRONT_PGDIR_SHBUF
+	tristate
+
 endmenu
