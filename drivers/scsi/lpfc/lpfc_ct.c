@@ -1964,7 +1964,7 @@ lpfc_fdmi_hba_attr_manufacturer(struct lpfc_vport *vport,
 	memset(ae, 0, 256);
 
 	strncpy(ae->un.AttrString,
-		"Emulex Corporation",
+		"Broadcom Inc.",
 		       sizeof(ae->un.AttrString));
 	len = strnlen(ae->un.AttrString,
 			  sizeof(ae->un.AttrString));
