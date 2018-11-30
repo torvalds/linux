@@ -76,27 +76,4 @@ union aux_config {
 	uint32_t raw;
 };
 
-struct i2caux;
-
-struct i2caux *dal_i2caux_create(
-	struct dc_context *ctx);
-
-bool dal_i2caux_submit_i2c_command(
-	struct i2caux *i2caux,
-	struct ddc *ddc,
-	struct i2c_command *cmd);
-
-bool dal_i2caux_submit_aux_command(
-	struct i2caux *i2caux,
-	struct ddc *ddc,
-	struct aux_command *cmd);
-
-void dal_i2caux_configure_aux(
-	struct i2caux *i2caux,
-	struct ddc *ddc,
-	union aux_config cfg);
-
-void dal_i2caux_destroy(
-	struct i2caux **ptr);
-
 #endif

@@ -25,7 +25,9 @@
 
 #ifndef __DAL_AUX_ENGINE_DCE110_H__
 #define __DAL_AUX_ENGINE_DCE110_H__
-#include "aux_engine.h"
+
+#include "i2caux_interface.h"
+#include "inc/hw/aux_engine.h"
 
 #define AUX_COMMON_REG_LIST(id)\
 	SRI(AUX_CONTROL, DP_AUX, id), \

@@ -33,7 +33,6 @@
 #include "include/vector.h"
 #include "core_types.h"
 #include "dc_link_ddc.h"
-#include "aux_engine.h"
 #include "dce/dce_aux.h"
 
 #define AUX_POWER_UP_WA_DELAY 500

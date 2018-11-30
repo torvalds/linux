@@ -97,7 +97,6 @@ struct dc_context {
 	struct dc_bios *dc_bios;
 	bool created_bios;
 	struct gpio_service *gpio_service;
-	struct i2caux *i2caux;
 	uint32_t dc_sink_id_count;
 	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
