@@ -489,6 +489,7 @@ struct ring_buffer_per_cpu {
 	local_t				commits;
 	local_t				pages_touched;
 	local_t				pages_read;
+	long				last_pages_touch;
 	size_t				shortest_full;
 	unsigned long			read;
 	unsigned long			read_bytes;
@@ -2632,7 +2633,9 @@ static void rb_commit(struct ring_buffer_per_cpu *cpu_buffer,
 static __always_inline void
 rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
 {
-	bool pagebusy;
+	size_t nr_pages;
+	size_t dirty;
+	size_t full;
 
 	if (buffer->irq_work.waiters_pending) {
 		buffer->irq_work.waiters_pending = false;
@@ -2646,24 +2649,27 @@ rb_wakeups(struct ring_buffer *buffer, struct ring_buffer_per_cpu *cpu_buffer)
 		irq_work_queue(&cpu_buffer->irq_work.work);
 	}
 
-	pagebusy = cpu_buffer->reader_page == cpu_buffer->commit_page;
+	if (cpu_buffer->last_pages_touch == local_read(&cpu_buffer->pages_touched))
+		return;
 
-	if (!pagebusy && cpu_buffer->irq_work.full_waiters_pending) {
-		size_t nr_pages;
-		size_t dirty;
-		size_t full;
+	if (cpu_buffer->reader_page == cpu_buffer->commit_page)
+		return;
 
-		full = cpu_buffer->shortest_full;
-		nr_pages = cpu_buffer->nr_pages;
-		dirty = ring_buffer_nr_dirty_pages(buffer, cpu_buffer->cpu);
-		if (full && nr_pages && (dirty * 100) <= full * nr_pages)
-			return;
+	if (!cpu_buffer->irq_work.full_waiters_pending)
+		return;
 
-		cpu_buffer->irq_work.wakeup_full = true;
-		cpu_buffer->irq_work.full_waiters_pending = false;
-		/* irq_work_queue() supplies it's own memory barriers */
-		irq_work_queue(&cpu_buffer->irq_work.work);
-	}
+	cpu_buffer->last_pages_touch = local_read(&cpu_buffer->pages_touched);
+
+	full = cpu_buffer->shortest_full;
+	nr_pages = cpu_buffer->nr_pages;
+	dirty = ring_buffer_nr_dirty_pages(buffer, cpu_buffer->cpu);
+	if (full && nr_pages && (dirty * 100) <= full * nr_pages)
+		return;
+
+	cpu_buffer->irq_work.wakeup_full = true;
+	cpu_buffer->irq_work.full_waiters_pending = false;
+	/* irq_work_queue() supplies it's own memory barriers */
+	irq_work_queue(&cpu_buffer->irq_work.work);
 }
 
 /*
@@ -4394,6 +4400,7 @@ rb_reset_cpu(struct ring_buffer_per_cpu *cpu_buffer)
 	local_set(&cpu_buffer->commits, 0);
 	local_set(&cpu_buffer->pages_touched, 0);
 	local_set(&cpu_buffer->pages_read, 0);
+	cpu_buffer->last_pages_touch = 0;
 	cpu_buffer->shortest_full = 0;
 	cpu_buffer->read = 0;
 	cpu_buffer->read_bytes = 0;
