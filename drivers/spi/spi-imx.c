@@ -39,8 +39,8 @@
 #define MXC_INT_TE	(1 << 1) /* Transmit FIFO empty interrupt */
 #define MXC_INT_RDR	BIT(4) /* Receive date threshold interrupt */
 
-/* The maximum  bytes that a sdma BD can transfer.*/
-#define MAX_SDMA_BD_BYTES  (1 << 15)
+/* The maximum bytes that a sdma BD can transfer. */
+#define MAX_SDMA_BD_BYTES (1 << 15)
 #define MX51_ECSPI_CTRL_MAX_BURST	512
 /* The maximum bytes that IMX53_ECSPI can transfer in slave mode.*/
 #define MX53_MAX_TRANSFER_BYTES		512
@@ -257,7 +257,7 @@ static bool spi_imx_can_dma(struct spi_master *master, struct spi_device *spi,
 #define MX51_ECSPI_INT_RREN		(1 <<  3)
 #define MX51_ECSPI_INT_RDREN		(1 <<  4)
 
-#define MX51_ECSPI_DMA      0x14
+#define MX51_ECSPI_DMA		0x14
 #define MX51_ECSPI_DMA_TX_WML(wml)	((wml) & 0x3f)
 #define MX51_ECSPI_DMA_RX_WML(wml)	(((wml) & 0x3f) << 16)
 #define MX51_ECSPI_DMA_RXT_WML(wml)	(((wml) & 0x3f) << 24)
@@ -726,8 +726,10 @@ static int mx31_config(struct spi_device *spi)
 	writel(reg, spi_imx->base + MX31_CSPI_TESTREG);
 
 	if (spi_imx->usedma) {
-		/* configure DMA requests when RXFIFO is half full and
-		   when TXFIFO is half empty */
+		/*
+		 * configure DMA requests when RXFIFO is half full and
+		 * when TXFIFO is half empty
+		 */
 		writel(MX31_DMAREG_RH_DEN | MX31_DMAREG_TH_DEN,
 			spi_imx->base + MX31_CSPI_DMAREG);
 	}
@@ -1093,7 +1095,7 @@ static void spi_imx_push(struct spi_imx_data *spi_imx)
 		if (!spi_imx->count)
 			break;
 		if (spi_imx->dynamic_burst &&
-		    spi_imx->txfifo >=  DIV_ROUND_UP(spi_imx->remainder,
+		    spi_imx->txfifo >= DIV_ROUND_UP(spi_imx->remainder,
 						     fifo_words))
 			break;
 		spi_imx->tx(spi_imx);
@@ -1187,7 +1189,7 @@ static int spi_imx_setupxfer(struct spi_device *spi,
 		return 0;
 
 	spi_imx->bits_per_word = t->bits_per_word;
-	spi_imx->speed_hz  = t->speed_hz;
+	spi_imx->speed_hz = t->speed_hz;
 
 	/*
 	 * Initialize the functions for transfer. To transfer non byte-aligned
