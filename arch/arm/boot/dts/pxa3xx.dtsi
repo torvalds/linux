@@ -273,6 +273,22 @@
 			clocks = <&clks CLK_SSP4>;
 			status = "disabled";
 		};
+
+		timer@40a00000 {
+			compatible = "marvell,pxa-timer";
+			reg = <0x40a00000 0x20>;
+			interrupts = <26>;
+			clocks = <&clks CLK_OSTIMER>;
+			status = "okay";
+		};
+
+		gcu: display-controller@54000000 {
+			compatible = "marvell,pxa300-gcu";
+			reg = <0x54000000 0x1000>;
+			interrupts = <39>;
+			clocks = <&clks CLK_PXA300_GCU>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
@@ -289,21 +305,5 @@
 			#clock-cells = <1>;
 			status = "okay";
 		};
-	};
-
-	timer@40a00000 {
-		compatible = "marvell,pxa-timer";
-		reg = <0x40a00000 0x20>;
-		interrupts = <26>;
-		clocks = <&clks CLK_OSTIMER>;
-		status = "okay";
-	};
-
-	gcu: display-controller@54000000 {
-		compatible = "marvell,pxa300-gcu";
-		reg = <0x54000000 0x1000>;
-		interrupts = <39>;
-		clocks = <&clks CLK_PXA300_GCU>;
-		status = "disabled";
 	};
 };
