@@ -146,7 +146,7 @@ struct resource_pool {
 	struct mpc *mpc;
 	struct pp_smu_funcs_rv *pp_smu;
 	struct pp_smu_display_requirement_rv pp_smu_req;
-	struct aux_engine *engines[MAX_PIPES];
+	struct dce_aux *engines[MAX_PIPES];
 	struct dce_i2c_hw *hw_i2cs[MAX_PIPES];
 	struct dce_i2c_sw *sw_i2cs[MAX_PIPES];
 	bool i2c_hw_buffer_in_use;

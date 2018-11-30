@@ -609,7 +609,7 @@ static struct output_pixel_processor *dcn10_opp_create(
 	return &opp->base;
 }
 
-struct aux_engine *dcn10_aux_engine_create(
+struct dce_aux *dcn10_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
@@ -911,7 +911,7 @@ static void destruct(struct dcn10_resource_pool *pool)
 
 	for (i = 0; i < pool->base.res_cap->num_ddc; i++) {
 		if (pool->base.engines[i] != NULL)
-			pool->base.engines[i]->funcs->destroy_engine(&pool->base.engines[i]);
+			dce110_engine_destroy(&pool->base.engines[i]);
 		if (pool->base.hw_i2cs[i] != NULL) {
 			kfree(pool->base.hw_i2cs[i]);
 			pool->base.hw_i2cs[i] = NULL;

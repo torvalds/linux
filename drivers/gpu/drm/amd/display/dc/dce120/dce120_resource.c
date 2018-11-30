@@ -391,7 +391,7 @@ struct output_pixel_processor *dce120_opp_create(
 			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
 	return &opp->base;
 }
-struct aux_engine *dce120_aux_engine_create(
+struct dce_aux *dce120_aux_engine_create(
 	struct dc_context *ctx,
 	uint32_t inst)
 {
