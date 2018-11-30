@@ -313,9 +313,13 @@ menu "Kernel Features"
 
 menu "ARM errata workarounds via the alternatives framework"
 
+config ARM64_WORKAROUND_CLEAN_CACHE
+	def_bool n
+
 config ARM64_ERRATUM_826319
 	bool "Cortex-A53: 826319: System might deadlock if a write cannot complete until read data is accepted"
 	default y
+	select ARM64_WORKAROUND_CLEAN_CACHE
 	help
 	  This option adds an alternative code sequence to work around ARM
 	  erratum 826319 on Cortex-A53 parts up to r0p2 with an AMBA 4 ACE or
@@ -337,6 +341,7 @@ config ARM64_ERRATUM_826319
 config ARM64_ERRATUM_827319
 	bool "Cortex-A53: 827319: Data cache clean instructions might cause overlapping transactions to the interconnect"
 	default y
+	select ARM64_WORKAROUND_CLEAN_CACHE
 	help
 	  This option adds an alternative code sequence to work around ARM
 	  erratum 827319 on Cortex-A53 parts up to r0p2 with an AMBA 5 CHI
@@ -358,6 +363,7 @@ config ARM64_ERRATUM_827319
 config ARM64_ERRATUM_824069
 	bool "Cortex-A53: 824069: Cache line might not be marked as clean after a CleanShared snoop"
 	default y
+	select ARM64_WORKAROUND_CLEAN_CACHE
 	help
 	  This option adds an alternative code sequence to work around ARM
 	  erratum 824069 on Cortex-A53 parts up to r0p2 when it is connected
@@ -380,6 +386,7 @@ config ARM64_ERRATUM_824069
 config ARM64_ERRATUM_819472
 	bool "Cortex-A53: 819472: Store exclusive instructions might cause data corruption"
 	default y
+	select ARM64_WORKAROUND_CLEAN_CACHE
 	help
 	  This option adds an alternative code sequence to work around ARM
 	  erratum 819472 on Cortex-A53 parts up to r0p1 with an L2 cache
