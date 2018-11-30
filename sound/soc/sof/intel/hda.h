@@ -337,10 +337,10 @@
 #define HDA_ADSP_ERROR_CODE_SKL		(HDA_ADSP_FW_STATUS_SKL + 0x4)
 
 struct sof_intel_dsp_bdl {
-	u32 addr_l;
-	u32 addr_h;
-	u32 size;
-	u32 ioc;
+	__le32 addr_l;
+	__le32 addr_h;
+	__le32 size;
+	__le32 ioc;
 } __attribute((packed));
 
 /* DSP hardware descriptor */

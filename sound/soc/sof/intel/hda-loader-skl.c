@@ -120,9 +120,9 @@
 
 static int cl_skl_cldma_setup_bdle(struct snd_sof_dev *sdev,
 				   struct snd_dma_buffer *dmab_data,
-				   u32 **bdlp, int size, int with_ioc)
+				   __le32 **bdlp, int size, int with_ioc)
 {
-	u32 *bdl = *bdlp;
+	__le32 *bdl = *bdlp;
 	int frags = 0;
 
 	while (size > 0) {
@@ -283,7 +283,7 @@ static int cl_stream_prepare_skl(struct snd_sof_dev *sdev)
 	struct pci_dev *pci = sdev->pci;
 	int frags = 0;
 	int ret = 0;
-	u32 *bdl;
+	__le32 *bdl;
 	unsigned int bufsize = HDA_SKL_CLDMA_MAX_BUFFER_SIZE;
 
 	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, &pci->dev, bufsize,
@@ -302,7 +302,7 @@ static int cl_stream_prepare_skl(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	bdl = (u32 *)sdev->dmab_bdl.area;
+	bdl = (__le32 *)sdev->dmab_bdl.area;
 	frags = cl_skl_cldma_setup_bdle(sdev, &sdev->dmab, &bdl, bufsize, 1);
 	cl_skl_cldma_setup_controller(sdev, &sdev->dmab_bdl, bufsize, frags);
 

@@ -56,8 +56,8 @@ static int hda_setup_bdle(struct snd_sof_dev *sdev,
 
 		addr = snd_sgbuf_get_addr(dmab, offset);
 		/* program BDL addr */
-		bdl->addr_l = lower_32_bits(addr);
-		bdl->addr_h = upper_32_bits(addr);
+		bdl->addr_l = cpu_to_le32(lower_32_bits(addr));
+		bdl->addr_h = cpu_to_le32(upper_32_bits(addr));
 		/* program BDL size */
 		chunk = snd_sgbuf_get_chunk_size(dmab, offset, size);
 		/* one BDLE should not cross 4K boundary */
