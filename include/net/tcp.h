@@ -1124,7 +1124,7 @@ void tcp_rate_check_app_limited(struct sock *sk);
  */
 static inline int tcp_is_sack(const struct tcp_sock *tp)
 {
-	return tp->rx_opt.sack_ok;
+	return likely(tp->rx_opt.sack_ok);
 }
 
 static inline bool tcp_is_reno(const struct tcp_sock *tp)
@@ -1368,7 +1368,7 @@ static inline int tcp_win_from_space(const struct sock *sk, int space)
 /* Note: caller must be prepared to deal with negative returns */
 static inline int tcp_space(const struct sock *sk)
 {
-	return tcp_win_from_space(sk, sk->sk_rcvbuf -
+	return tcp_win_from_space(sk, sk->sk_rcvbuf - sk->sk_backlog.len -
 				  atomic_read(&sk->sk_rmem_alloc));
 }
 
