@@ -126,7 +126,9 @@ nfp_abm_spawn_repr(struct nfp_app *app, struct nfp_abm_link *alink,
 
 	reprs = nfp_reprs_get_locked(app, rtype);
 	WARN(nfp_repr_get_locked(app, reprs, alink->id), "duplicate repr");
+	rtnl_lock();
 	rcu_assign_pointer(reprs->reprs[alink->id], netdev);
+	rtnl_unlock();
 
 	nfp_info(app->cpp, "%s Port %d Representor(%s) created\n",
 		 ptype == NFP_PORT_PF_PORT ? "PCIe" : "Phys",
@@ -152,7 +154,9 @@ nfp_abm_kill_repr(struct nfp_app *app, struct nfp_abm_link *alink,
 	netdev = nfp_repr_get_locked(app, reprs, alink->id);
 	if (!netdev)
 		return;
+	rtnl_lock();
 	rcu_assign_pointer(reprs->reprs[alink->id], NULL);
+	rtnl_unlock();
 	synchronize_rcu();
 	/* Cast to make sure nfp_repr_clean_and_free() takes a nfp_repr */
 	nfp_repr_clean_and_free((struct nfp_repr *)netdev_priv(netdev));

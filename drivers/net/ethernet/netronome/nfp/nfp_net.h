@@ -158,6 +158,7 @@ struct nfp_net_tx_desc {
 			__le16 data_len; /* Length of frame + meta data */
 		} __packed;
 		__le32 vals[4];
+		__le64 vals8[2];
 	};
 };
 
@@ -543,6 +544,7 @@ struct nfp_net_dp {
  * @reconfig_timer_active:  Timer for reading reconfiguration results is pending
  * @reconfig_sync_present:  Some thread is performing synchronous reconfig
  * @reconfig_timer:	Timer for async reading of reconfig results
+ * @reconfig_in_progress_update:	Update FW is processing now (debug only)
  * @link_up:            Is the link up?
  * @link_status_lock:	Protects @link_* and ensures atomicity with BAR reading
  * @rx_coalesce_usecs:      RX interrupt moderation usecs delay parameter
@@ -611,6 +613,7 @@ struct nfp_net {
 	bool reconfig_timer_active;
 	bool reconfig_sync_present;
 	struct timer_list reconfig_timer;
+	u32 reconfig_in_progress_update;
 
 	u32 rx_coalesce_usecs;
 	u32 rx_coalesce_max_frames;
