@@ -65,6 +65,7 @@ enum {
 
 enum uverbs_methods_device {
 	UVERBS_METHOD_INVOKE_WRITE,
+	UVERBS_METHOD_INFO_HANDLES,
 };
 
 enum uverbs_attrs_invoke_write_cmd_attr_ids {
@@ -165,6 +166,12 @@ enum uverbs_methods_actions_counters_ops {
 	UVERBS_METHOD_COUNTERS_CREATE,
 	UVERBS_METHOD_COUNTERS_DESTROY,
 	UVERBS_METHOD_COUNTERS_READ,
+};
+
+enum uverbs_attrs_info_handles_id {
+	UVERBS_ATTR_INFO_OBJECT_ID,
+	UVERBS_ATTR_INFO_TOTAL_HANDLES,
+	UVERBS_ATTR_INFO_HANDLES_LIST,
 };
 
 #endif
