@@ -1047,7 +1047,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         vector_calc[0x1];
 	u8         umr_ptr_rlky[0x1];
 	u8	   imaicl[0x1];
-	u8         reserved_at_232[0x4];
+	u8	   qp_packet_based[0x1];
+	u8         reserved_at_233[0x3];
 	u8         qkv[0x1];
 	u8         pkv[0x1];
 	u8         set_deth_sqpn[0x1];
@@ -2259,7 +2260,8 @@ struct mlx5_ifc_qpc_bits {
 	u8         st[0x8];
 	u8         reserved_at_10[0x3];
 	u8         pm_state[0x2];
-	u8         reserved_at_15[0x3];
+	u8         reserved_at_15[0x1];
+	u8         req_e2e_credit_mode[0x2];
 	u8         offload_type[0x4];
 	u8         end_padding_mode[0x2];
 	u8         reserved_at_1e[0x2];
