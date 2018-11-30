@@ -48,7 +48,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 
 		/* fallback to copy_from_user outside mmap_sem */
 		if (unlikely(ret)) {
-			ret = -EFAULT;
+			ret = -ENOENT;
 			*pagep = page;
 			/* don't free the page */
 			goto out;
@@ -274,7 +274,7 @@ retry:
 
 		cond_resched();
 
-		if (unlikely(err == -EFAULT)) {
+		if (unlikely(err == -ENOENT)) {
 			up_read(&dst_mm->mmap_sem);
 			BUG_ON(!page);
 
@@ -530,7 +530,7 @@ retry:
 				       src_addr, &page, zeropage);
 		cond_resched();
 
-		if (unlikely(err == -EFAULT)) {
+		if (unlikely(err == -ENOENT)) {
 			void *page_kaddr;
 
 			up_read(&dst_mm->mmap_sem);

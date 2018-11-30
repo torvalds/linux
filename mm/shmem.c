@@ -2238,7 +2238,7 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
 				*pagep = page;
 				shmem_inode_unacct_blocks(inode, 1);
 				/* don't free the page */
-				return -EFAULT;
+				return -ENOENT;
 			}
 		} else {		/* mfill_zeropage_atomic */
 			clear_highpage(page);
