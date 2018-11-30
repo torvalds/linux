@@ -436,7 +436,7 @@ _bpftool()
                                 lru_percpu_hash lpm_trie array_of_maps \
                                 hash_of_maps devmap sockmap cpumap xskmap \
                                 sockhash cgroup_storage reuseport_sockarray \
-                                percpu_cgroup_storage' -- \
+                                percpu_cgroup_storage queue stack' -- \
                                                    "$cur" ) )
                             return 0
                             ;;
