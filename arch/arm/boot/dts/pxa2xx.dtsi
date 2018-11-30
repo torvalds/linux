@@ -43,8 +43,6 @@
 	};
 
 	cpus {
-		#address-cells = <0>;
-		#size-cells = <0>;
 		cpu {
 			compatible = "marvell,xscale";
 			device_type = "cpu";
