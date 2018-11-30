@@ -12635,7 +12635,8 @@ lpfc_sli4_ras_init(struct lpfc_hba *phba)
 	case PCI_DEVICE_ID_LANCER_G6_FC:
 	case PCI_DEVICE_ID_LANCER_G7_FC:
 		phba->ras_fwlog.ras_hwsupport = true;
-		if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn))
+		if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn) &&
+		    phba->cfg_ras_fwlog_buffsize)
 			phba->ras_fwlog.ras_enabled = true;
 		else
 			phba->ras_fwlog.ras_enabled = false;

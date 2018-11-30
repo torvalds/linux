@@ -5348,7 +5348,7 @@ lpfc_bsg_get_ras_config(struct bsg_job *job)
 	    sizeof(struct fc_bsg_request) +
 	    sizeof(struct lpfc_bsg_ras_req)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
-				"6181 Received RAS_LOG request "
+				"6192 FW_LOG request received "
 				"below minimum size\n");
 		rc = -EINVAL;
 		goto ras_job_error;
@@ -5356,7 +5356,7 @@ lpfc_bsg_get_ras_config(struct bsg_job *job)
 
 	/* Check FW log status */
 	rc = lpfc_check_fwlog_support(phba);
-	if (rc == -EACCES || rc == -EPERM)
+	if (rc)
 		goto ras_job_error;
 
 	ras_reply = (struct lpfc_bsg_get_ras_config_reply *)
@@ -5430,7 +5430,7 @@ lpfc_bsg_set_ras_config(struct bsg_job *job)
 
 	/* Check FW log status */
 	rc = lpfc_check_fwlog_support(phba);
-	if (rc == -EACCES || rc == -EPERM)
+	if (rc)
 		goto ras_job_error;
 
 	ras_req = (struct lpfc_bsg_set_ras_config_req *)
@@ -5500,7 +5500,7 @@ lpfc_bsg_get_ras_lwpd(struct bsg_job *job)
 	int rc = 0;
 
 	rc = lpfc_check_fwlog_support(phba);
-	if (rc == -EACCES || rc == -EPERM)
+	if (rc)
 		goto ras_job_error;
 
 	if (job->request_len <
@@ -5515,6 +5515,12 @@ lpfc_bsg_get_ras_lwpd(struct bsg_job *job)
 
 	ras_reply = (struct lpfc_bsg_get_ras_lwpd *)
 		bsg_reply->reply_data.vendor_reply.vendor_rsp;
+
+	if (!ras_fwlog->lwpd.virt) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_LIBDFC,
+				"6193 Restart FW Logging\n");
+		return -EINVAL;
+	}
 
 	/* Get lwpd offset */
 	lwpd_ptr = (uint32_t *)(ras_fwlog->lwpd.virt);
@@ -5557,7 +5563,7 @@ lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
 	ras_fwlog = &phba->ras_fwlog;
 
 	rc = lpfc_check_fwlog_support(phba);
-	if (rc == -EACCES || rc == -EPERM)
+	if (rc)
 		goto ras_job_error;
 
 	/* Logging to be stopped before reading */
