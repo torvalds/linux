@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- *  Copyright (C) 2012 Altera <www.altera.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2012 Altera <www.altera.com>
  */
 
 #include <dt-bindings/reset/altr,rst-mgr.h>
@@ -758,7 +746,6 @@
 			      <0xffb80000 0x10000>;
 			reg-names = "nand_data", "denali_reg";
 			interrupts = <0x0 0x90 0x4>;
-			dma-mask = <0xffffffff>;
 			clocks = <&nand_clk>, <&nand_x_clk>, <&nand_ecc_clk>;
 			clock-names = "nand", "nand_x", "ecc";
 			status = "disabled";
@@ -771,7 +758,7 @@
 
 		qspi: spi@ff705000 {
 			compatible = "cdns,qspi-nor";
-                        #address-cells = <1>;
+			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0xff705000 0x1000>,
 			      <0xffa00000 0x1000>;
