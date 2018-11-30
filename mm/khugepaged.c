@@ -1350,6 +1350,16 @@ static void collapse_shmem(struct mm_struct *mm,
 		int n = min(iter.index, end) - index;
 
 		/*
+		 * Stop if extent has been hole-punched, and is now completely
+		 * empty (the more obvious i_size_read() check would take an
+		 * irq-unsafe seqlock on 32-bit).
+		 */
+		if (n >= HPAGE_PMD_NR) {
+			result = SCAN_TRUNCATED;
+			goto tree_locked;
+		}
+
+		/*
 		 * Handle holes in the radix tree: charge it from shmem and
 		 * insert relevant subpage of new_page into the radix-tree.
 		 */
@@ -1459,6 +1469,11 @@ out_unlock:
 	if (result == SCAN_SUCCEED && index < end) {
 		int n = end - index;
 
+		/* Stop if extent has been truncated, and is now empty */
+		if (n >= HPAGE_PMD_NR) {
+			result = SCAN_TRUNCATED;
+			goto tree_locked;
+		}
 		if (!shmem_charge(mapping->host, n)) {
 			result = SCAN_FAIL;
 			goto tree_locked;
