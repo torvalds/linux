@@ -43,7 +43,7 @@ static int cnl_ipc_cmd_done(struct snd_sof_dev *sdev, int dir);
 static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
-	u32 hipci, hipcida, hipctdr, hipctdd, msg = 0, msg_ext = 0;
+	u32 hipci, hipcctl, hipcida, hipctdr, hipctdd, msg = 0, msg_ext = 0;
 	irqreturn_t ret = IRQ_NONE;
 
 	/* here we handle IPC interrupts only */
@@ -51,9 +51,11 @@ static irqreturn_t cnl_ipc_irq_thread(int irq, void *context)
 		return ret;
 
 	hipcida = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDA);
+	hipcctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCCTL);
 
 	/* reply message from DSP */
-	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE) {
+	if (hipcida & CNL_DSP_REG_HIPCIDA_DONE &&
+	    hipcctl & CNL_DSP_REG_HIPCCTL_DONE) {
 		hipci = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 					 CNL_DSP_REG_HIPCIDR);
 		msg_ext = hipci & CNL_DSP_REG_HIPCIDR_MSG_MASK;
