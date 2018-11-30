@@ -8017,7 +8017,7 @@ init_tracer_tracefs(struct trace_array *tr, struct dentry *d_tracer)
 	trace_create_file("timestamp_mode", 0444, d_tracer, tr,
 			  &trace_time_stamp_mode_fops);
 
-	tr->buffer_percent = 1;
+	tr->buffer_percent = 50;
 
 	trace_create_file("buffer_percent", 0444, d_tracer,
 			tr, &buffer_percent_fops);
