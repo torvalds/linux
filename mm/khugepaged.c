@@ -1329,6 +1329,20 @@ static void collapse_shmem(struct mm_struct *mm,
 		goto out;
 	}
 
+	/* This will be less messy when we use multi-index entries */
+	do {
+		xas_lock_irq(&xas);
+		xas_create_range(&xas);
+		if (!xas_error(&xas))
+			break;
+		xas_unlock_irq(&xas);
+		if (!xas_nomem(&xas, GFP_KERNEL)) {
+			mem_cgroup_cancel_charge(new_page, memcg, true);
+			result = SCAN_FAIL;
+			goto out;
+		}
+	} while (1);
+
 	__SetPageLocked(new_page);
 	__SetPageSwapBacked(new_page);
 	new_page->index = start;
@@ -1339,17 +1353,6 @@ static void collapse_shmem(struct mm_struct *mm,
 	 * It's safe to insert it into the page cache, because nobody would
 	 * be able to map it or use it in another way until we unlock it.
 	 */
-
-	/* This will be less messy when we use multi-index entries */
-	do {
-		xas_lock_irq(&xas);
-		xas_create_range(&xas);
-		if (!xas_error(&xas))
-			break;
-		xas_unlock_irq(&xas);
-		if (!xas_nomem(&xas, GFP_KERNEL))
-			goto out;
-	} while (1);
 
 	xas_set(&xas, start);
 	for (index = start; index < end; index++) {
