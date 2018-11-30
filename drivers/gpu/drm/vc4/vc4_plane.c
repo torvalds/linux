@@ -452,6 +452,43 @@ static void vc4_write_scaling_parameters(struct drm_plane_state *state,
 	}
 }
 
+static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
+{
+	struct vc4_dev *vc4 = to_vc4_dev(state->plane->dev);
+	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	unsigned long irqflags;
+	u32 lbm_size;
+
+	lbm_size = vc4_lbm_size(state);
+	if (!lbm_size)
+		return 0;
+
+	if (WARN_ON(!vc4_state->lbm_offset))
+		return -EINVAL;
+
+	/* Allocate the LBM memory that the HVS will use for temporary
+	 * storage due to our scaling/format conversion.
+	 */
+	if (!vc4_state->lbm.allocated) {
+		int ret;
+
+		spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
+		ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
+						 &vc4_state->lbm,
+						 lbm_size, 32, 0, 0);
+		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
+
+		if (ret)
+			return ret;
+	} else {
+		WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
+	}
+
+	vc4_state->dlist[vc4_state->lbm_offset] = vc4_state->lbm.start;
+
+	return 0;
+}
+
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
  */
@@ -469,31 +506,11 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
-	u32 lbm_size, tiling;
-	unsigned long irqflags;
+	u32 tiling;
 	u32 hvs_format = format->hvs;
 	int ret, i;
 
 	ret = vc4_plane_setup_clipping_and_scaling(state);
-	if (ret)
-		return ret;
-
-	/* Allocate the LBM memory that the HVS will use for temporary
-	 * storage due to our scaling/format conversion.
-	 */
-	lbm_size = vc4_lbm_size(state);
-	if (lbm_size) {
-		if (!vc4_state->lbm.allocated) {
-			spin_lock_irqsave(&vc4->hvs->mm_lock, irqflags);
-			ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
-							 &vc4_state->lbm,
-							 lbm_size, 32, 0, 0);
-			spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
-		} else {
-			WARN_ON_ONCE(lbm_size != vc4_state->lbm.size);
-		}
-	}
-
 	if (ret)
 		return ret;
 
@@ -717,15 +734,18 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		vc4_dlist_write(vc4_state, SCALER_CSC2_ITR_R_601_5);
 	}
 
+	vc4_state->lbm_offset = 0;
+
 	if (vc4_state->x_scaling[0] != VC4_SCALING_NONE ||
 	    vc4_state->x_scaling[1] != VC4_SCALING_NONE ||
 	    vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
 	    vc4_state->y_scaling[1] != VC4_SCALING_NONE) {
-		/* LBM Base Address. */
+		/* Reserve a slot for the LBM Base Address. The real value will
+		 * be set when calling vc4_plane_allocate_lbm().
+		 */
 		if (vc4_state->y_scaling[0] != VC4_SCALING_NONE ||
-		    vc4_state->y_scaling[1] != VC4_SCALING_NONE) {
-			vc4_dlist_write(vc4_state, vc4_state->lbm.start);
-		}
+		    vc4_state->y_scaling[1] != VC4_SCALING_NONE)
+			vc4_state->lbm_offset = vc4_state->dlist_count++;
 
 		if (num_planes > 1) {
 			/* Emit Cb/Cr as channel 0 and Y as channel
@@ -785,13 +805,18 @@ static int vc4_plane_atomic_check(struct drm_plane *plane,
 				  struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
+	int ret;
 
 	vc4_state->dlist_count = 0;
 
-	if (plane_enabled(state))
-		return vc4_plane_mode_set(plane, state);
-	else
+	if (!plane_enabled(state))
 		return 0;
+
+	ret = vc4_plane_mode_set(plane, state);
+	if (ret)
+		return ret;
+
+	return vc4_plane_allocate_lbm(state);
 }
 
 static void vc4_plane_atomic_update(struct drm_plane *plane,
