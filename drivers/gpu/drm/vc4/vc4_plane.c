@@ -1095,7 +1095,6 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
-	u32 num_formats = 0;
 	int ret = 0;
 	unsigned i;
 	static const uint64_t modifiers[] = {
@@ -1112,20 +1111,13 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	if (!vc4_plane)
 		return ERR_PTR(-ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
-		/* Don't allow YUV in cursor planes, since that means
-		 * tuning on the scaler, which we don't allow for the
-		 * cursor.
-		 */
-		if (type != DRM_PLANE_TYPE_CURSOR ||
-		    hvs_formats[i].hvs < HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE) {
-			formats[num_formats++] = hvs_formats[i].drm;
-		}
-	}
+	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++)
+		formats[i] = hvs_formats[i].drm;
+
 	plane = &vc4_plane->base;
 	ret = drm_universal_plane_init(dev, plane, 0,
 				       &vc4_plane_funcs,
-				       formats, num_formats,
+				       formats, ARRAY_SIZE(formats),
 				       modifiers, type, NULL);
 
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
