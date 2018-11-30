@@ -23,7 +23,6 @@
 #include <linux/mm_types.h>
 #include <linux/rbtree.h>
 #include <linux/sched/task.h>
-#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
