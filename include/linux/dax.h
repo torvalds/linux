@@ -7,6 +7,8 @@
 #include <linux/radix-tree.h>
 #include <asm/pgtable.h>
 
+typedef unsigned long dax_entry_t;
+
 struct iomap_ops;
 struct dax_device;
 struct dax_operations {
@@ -88,8 +90,8 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 		struct block_device *bdev, struct writeback_control *wbc);
 
 struct page *dax_layout_busy_page(struct address_space *mapping);
-bool dax_lock_mapping_entry(struct page *page);
-void dax_unlock_mapping_entry(struct page *page);
+dax_entry_t dax_lock_page(struct page *page);
+void dax_unlock_page(struct page *page, dax_entry_t cookie);
 #else
 static inline bool bdev_dax_supported(struct block_device *bdev,
 		int blocksize)
@@ -122,14 +124,14 @@ static inline int dax_writeback_mapping_range(struct address_space *mapping,
 	return -EOPNOTSUPP;
 }
 
-static inline bool dax_lock_mapping_entry(struct page *page)
+static inline dax_entry_t dax_lock_page(struct page *page)
 {
 	if (IS_DAX(page->mapping->host))
-		return true;
-	return false;
+		return ~0UL;
+	return 0;
 }
 
-static inline void dax_unlock_mapping_entry(struct page *page)
+static inline void dax_unlock_page(struct page *page, dax_entry_t cookie)
 {
 }
 #endif

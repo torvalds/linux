@@ -379,20 +379,20 @@ static struct page *dax_busy_page(void *entry)
  * @page: The page whose entry we want to lock
  *
  * Context: Process context.
- * Return: %true if the entry was locked or does not need to be locked.
+ * Return: A cookie to pass to dax_unlock_page() or 0 if the entry could
+ * not be locked.
  */
-bool dax_lock_mapping_entry(struct page *page)
+dax_entry_t dax_lock_page(struct page *page)
 {
 	XA_STATE(xas, NULL, 0);
 	void *entry;
-	bool locked;
 
 	/* Ensure page->mapping isn't freed while we look at it */
 	rcu_read_lock();
 	for (;;) {
 		struct address_space *mapping = READ_ONCE(page->mapping);
 
-		locked = false;
+		entry = NULL;
 		if (!mapping || !dax_mapping(mapping))
 			break;
 
@@ -403,7 +403,7 @@ bool dax_lock_mapping_entry(struct page *page)
 		 * otherwise we would not have a valid pfn_to_page()
 		 * translation.
 		 */
-		locked = true;
+		entry = (void *)~0UL;
 		if (S_ISCHR(mapping->host->i_mode))
 			break;
 
@@ -426,23 +426,18 @@ bool dax_lock_mapping_entry(struct page *page)
 		break;
 	}
 	rcu_read_unlock();
-	return locked;
+	return (dax_entry_t)entry;
 }
 
-void dax_unlock_mapping_entry(struct page *page)
+void dax_unlock_page(struct page *page, dax_entry_t cookie)
 {
 	struct address_space *mapping = page->mapping;
 	XA_STATE(xas, &mapping->i_pages, page->index);
-	void *entry;
 
 	if (S_ISCHR(mapping->host->i_mode))
 		return;
 
-	rcu_read_lock();
-	entry = xas_load(&xas);
-	rcu_read_unlock();
-	entry = dax_make_entry(page_to_pfn_t(page), dax_is_pmd_entry(entry));
-	dax_unlock_entry(&xas, entry);
+	dax_unlock_entry(&xas, (void *)cookie);
 }
 
 /*
