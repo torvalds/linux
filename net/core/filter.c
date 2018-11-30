@@ -4890,22 +4890,23 @@ bpf_sk_lookup(struct sk_buff *skb, struct bpf_sock_tuple *tuple, u32 len,
 	struct net *net;
 
 	family = len == sizeof(tuple->ipv4) ? AF_INET : AF_INET6;
-	if (unlikely(family == AF_UNSPEC || netns_id > U32_MAX || flags))
+	if (unlikely(family == AF_UNSPEC || flags ||
+		     !((s32)netns_id < 0 || netns_id <= S32_MAX)))
 		goto out;
 
 	if (skb->dev)
 		caller_net = dev_net(skb->dev);
 	else
 		caller_net = sock_net(skb->sk);
-	if (netns_id) {
+	if ((s32)netns_id < 0) {
+		net = caller_net;
+		sk = sk_lookup(net, tuple, skb, family, proto);
+	} else {
 		net = get_net_ns_by_id(caller_net, netns_id);
 		if (unlikely(!net))
 			goto out;
 		sk = sk_lookup(net, tuple, skb, family, proto);
 		put_net(net);
-	} else {
-		net = caller_net;
-		sk = sk_lookup(net, tuple, skb, family, proto);
 	}
 
 	if (sk)

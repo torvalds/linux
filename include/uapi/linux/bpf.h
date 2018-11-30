@@ -2170,7 +2170,7 @@ union bpf_attr {
  *	Return
  *		0 on success, or a negative error in case of failure.
  *
- * struct bpf_sock *bpf_sk_lookup_tcp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u32 netns, u64 flags)
+ * struct bpf_sock *bpf_sk_lookup_tcp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u64 netns, u64 flags)
  *	Description
  *		Look for TCP socket matching *tuple*, optionally in a child
  *		network namespace *netns*. The return value must be checked,
@@ -2187,12 +2187,14 @@ union bpf_attr {
  *		**sizeof**\ (*tuple*\ **->ipv6**)
  *			Look for an IPv6 socket.
  *
- *		If the *netns* is zero, then the socket lookup table in the
- *		netns associated with the *ctx* will be used. For the TC hooks,
- *		this in the netns of the device in the skb. For socket hooks,
- *		this in the netns of the socket. If *netns* is non-zero, then
- *		it specifies the ID of the netns relative to the netns
- *		associated with the *ctx*.
+ *		If the *netns* is a negative signed 32-bit integer, then the
+ *		socket lookup table in the netns associated with the *ctx* will
+ *		will be used. For the TC hooks, this is the netns of the device
+ *		in the skb. For socket hooks, this is the netns of the socket.
+ *		If *netns* is any other signed 32-bit value greater than or
+ *		equal to zero then it specifies the ID of the netns relative to
+ *		the netns associated with the *ctx*. *netns* values beyond the
+ *		range of 32-bit integers are reserved for future use.
  *
  *		All values for *flags* are reserved for future usage, and must
  *		be left at zero.
@@ -2202,7 +2204,7 @@ union bpf_attr {
  *	Return
  *		Pointer to *struct bpf_sock*, or NULL in case of failure.
  *
- * struct bpf_sock *bpf_sk_lookup_udp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u32 netns, u64 flags)
+ * struct bpf_sock *bpf_sk_lookup_udp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u64 netns, u64 flags)
  *	Description
  *		Look for UDP socket matching *tuple*, optionally in a child
  *		network namespace *netns*. The return value must be checked,
@@ -2219,12 +2221,14 @@ union bpf_attr {
  *		**sizeof**\ (*tuple*\ **->ipv6**)
  *			Look for an IPv6 socket.
  *
- *		If the *netns* is zero, then the socket lookup table in the
- *		netns associated with the *ctx* will be used. For the TC hooks,
- *		this in the netns of the device in the skb. For socket hooks,
- *		this in the netns of the socket. If *netns* is non-zero, then
- *		it specifies the ID of the netns relative to the netns
- *		associated with the *ctx*.
+ *		If the *netns* is a negative signed 32-bit integer, then the
+ *		socket lookup table in the netns associated with the *ctx* will
+ *		will be used. For the TC hooks, this is the netns of the device
+ *		in the skb. For socket hooks, this is the netns of the socket.
+ *		If *netns* is any other signed 32-bit value greater than or
+ *		equal to zero then it specifies the ID of the netns relative to
+ *		the netns associated with the *ctx*. *netns* values beyond the
+ *		range of 32-bit integers are reserved for future use.
  *
  *		All values for *flags* are reserved for future usage, and must
  *		be left at zero.
@@ -2404,6 +2408,9 @@ enum bpf_func_id {
 #define BPF_F_CURRENT_CPU		BPF_F_INDEX_MASK
 /* BPF_FUNC_perf_event_output for sk_buff input context. */
 #define BPF_F_CTXLEN_MASK		(0xfffffULL << 32)
+
+/* Current network namespace */
+#define BPF_F_CURRENT_NETNS		(-1L)
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
