@@ -3532,9 +3532,22 @@ static void dw_hdmi_reg_initial(struct dw_hdmi *hdmi)
 void dw_hdmi_suspend(struct dw_hdmi *hdmi)
 {
 	mutex_lock(&hdmi->mutex);
+
+	/*
+	 * When system shutdown, hdmi should be disabled.
+	 * When system suspend, dw_hdmi_bridge_disable will disable hdmi first.
+	 * To prevent duplicate operation, we should determine whether hdmi
+	 * has been disabled.
+	 */
+	if (!hdmi->disabled) {
+		hdmi->disabled = true;
+		dw_hdmi_update_power(hdmi);
+		dw_hdmi_update_phy_mask(hdmi);
+	}
+	mutex_unlock(&hdmi->mutex);
+
 	if (hdmi->irq)
 		disable_irq(hdmi->irq);
-	mutex_unlock(&hdmi->mutex);
 	pinctrl_pm_select_sleep_state(hdmi->dev);
 }
 EXPORT_SYMBOL_GPL(dw_hdmi_suspend);
