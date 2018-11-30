@@ -1472,7 +1472,7 @@ static int dev_has_iommu_table(struct device *dev, void *data)
 	if (!dev)
 		return 0;
 
-	if (dev->iommu_group) {
+	if (device_iommu_mapped(dev)) {
 		*ppdev = pdev;
 		return 1;
 	}
