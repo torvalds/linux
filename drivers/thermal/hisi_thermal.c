@@ -589,7 +589,7 @@ static int hisi_thermal_probe(struct platform_device *pdev)
 			return ret;
 		}
 
-		ret = platform_get_irq_byname(pdev, sensor->irq_name);
+		ret = platform_get_irq(pdev, 0);
 		if (ret < 0)
 			return ret;
 
