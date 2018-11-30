@@ -81,6 +81,11 @@ static void flash_bch_sel(u8 bits)
 	nandc_bch_sel(bits);
 }
 
+static void flash_set_sector(u8 num)
+{
+	nand_para.sec_per_page = num;
+}
+
 static __maybe_unused void flash_timing_cfg(u32 ahb_khz)
 {
 	nandc_time_cfg(nand_para.access_freq);
@@ -427,6 +432,8 @@ static void nandc_flash_print_info(void)
 
 static void ftl_flash_init(void)
 {
+	u8 nandc_ver = nandc_get_version();
+
 	/* para init */
 	g_nand_phy_info.nand_type	= nand_para.cell;
 	g_nand_phy_info.die_num		= nand_para.die_per_chip;
@@ -449,6 +456,10 @@ static void ftl_flash_init(void)
 	g_nand_ops.erase_blk		= flash_erase_block;
 	g_nand_ops.prog_page		= flash_prog_page;
 	g_nand_ops.read_page		= flash_read_page;
+	if (nandc_ver == 9) {
+		g_nand_ops.bch_sel = flash_bch_sel;
+		g_nand_ops.set_sec_num = flash_set_sector;
+	}
 }
 
 u32 nandc_flash_init(void __iomem *nandc_addr)
@@ -484,6 +495,9 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 		nand_para.nand_id[1] = 0xDC;
 		if (id_byte[0][0] == 0x2C && id_byte[0][3] == 0xA6) {
 			nand_para.plane_per_die = 2;
+			nand_para.sec_per_page = 8;
+		} else if (id_byte[0][0] == 0x98 && id_byte[0][3] == 0x26) {
+			nand_para.blk_per_plane = 2048;
 			nand_para.sec_per_page = 8;
 		} else {
 			nand_para.plane_per_die = 2;

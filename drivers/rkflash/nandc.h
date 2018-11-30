@@ -341,5 +341,6 @@ void nandc_bch_sel(u8 bits);
 void nandc_read_not_case_busy_en(u8 en);
 void nandc_time_cfg(u32 ns);
 void nandc_clean_irq(void);
+u8 nandc_get_version(void);
 
 #endif

@@ -23,6 +23,11 @@ static struct MASTER_INFO_T master;
 static u32 *g_master_temp_buf;
 #endif
 
+u8 nandc_get_version(void)
+{
+	return g_nandc_ver;
+}
+
 void nandc_init(void __iomem *nandc_addr)
 {
 	union FM_CTL_T ctl_reg;
