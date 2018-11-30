@@ -547,7 +547,7 @@ static int psp_v11_0_mode1_reset(struct psp_context *psp)
 	/*send the mode 1 reset command*/
 	WREG32(offset, GFX_CTRL_CMD_ID_MODE1_RST);
 
-	mdelay(1000);
+	msleep(500);
 
 	offset = SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_33);
 
