@@ -3480,7 +3480,7 @@ static noinline int do_init_module(struct module *mod)
 	 * constraints, this hack seems to be the best option for now.
 	 * Please refer to the following thread for details.
 	 *
-	 * http://thread.gmane.org/gmane.linux.kernel/1420814
+	 * https://lore.kernel.org/lkml/CALxABCYMC71rvWeoZ_cW%2BWHbXRibShuRh1U5A%2B0WEB-nt2uxHw%40mail.gmail.com/
 	 */
 	if (!mod->async_probe_requested && (current->flags & PF_USED_ASYNC))
 		async_synchronize_full();

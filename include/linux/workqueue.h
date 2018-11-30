@@ -336,7 +336,7 @@ enum {
 	 * leads to noticeable power saving at the cost of small
 	 * performance disadvantage.
 	 *
-	 * http://thread.gmane.org/gmane.linux.kernel/1480396
+	 * https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg424068.html
 	 */
 	WQ_POWER_EFFICIENT	= 1 << 7,
 

@@ -4158,8 +4158,8 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CHELSIO, PCI_ANY_ID,
  * root complex.
  *
  * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/94086
- * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/94102
- * http://permalink.gmane.org/gmane.comp.emulators.kvm.devel/99402
+ * https://lore.kernel.org/lkml/Pine.GSO.4.05.10302202111580.28156-100000%40iitr.ernet.in/
+ * https://lore.kernel.org/lkml/3E6EA9FA.2090406%40pobox.com/
  *
  * 1002:4385 SBx00 SMBus Controller
  * 1002:439c SB7x0/SB8x0/SB9x0 IDE Controller

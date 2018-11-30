@@ -4454,7 +4454,7 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	/* NCQ is slow */
 	{ "WDC WD740ADFD-00",	NULL,		ATA_HORKAGE_NONCQ },
 	{ "WDC WD740ADFD-00NLR1", NULL,		ATA_HORKAGE_NONCQ, },
-	/* http://thread.gmane.org/gmane.linux.ide/14907 */
+	/* https://marc.info/?l=linux-netdev&m=109410874410531 */
 	{ "FUJITSU MHT2060BH",	NULL,		ATA_HORKAGE_NONCQ },
 	/* NCQ is broken */
 	{ "Maxtor *",		"BANC*",	ATA_HORKAGE_NONCQ },
@@ -5715,7 +5715,7 @@ static void ata_port_request_pm(struct ata_port *ap, pm_message_t mesg,
  * the device won't be used before being resumed, we don't need to touch the
  * device.  Ask EH to skip the usual stuff and proceed directly to suspend.
  *
- * http://thread.gmane.org/gmane.linux.ide/46764
+ * https://lore.kernel.org/lkml/201007091750.05020.stephan.diestelhorst%40amd.com/
  */
 static const unsigned int ata_port_suspend_ehi = ATA_EHI_QUIET
 						 | ATA_EHI_NO_AUTOPSY

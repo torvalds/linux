@@ -310,7 +310,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 		 * off-channel. See the link below and
 		 * ieee80211_start_scan() for more.
 		 *
-		 * http://article.gmane.org/gmane.linux.kernel.wireless.general/30089
+		 * https://lore.kernel.org/linux-wireless/1237212030.16396.13.camel@johannes.local/
 		 */
 		return TX_DROP;
 

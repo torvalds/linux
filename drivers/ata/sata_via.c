@@ -685,7 +685,7 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 	 *
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=15173
 	 * http://article.gmane.org/gmane.linux.ide/46352
-	 * http://thread.gmane.org/gmane.linux.kernel/1062139
+	 * https://lore.kernel.org/lkml/1289737911.24491.7.camel%40twins/
 	 *
 	 * As the fix slows down data transfer, apply it only if the error
 	 * actually appears - see vt6421_error_handler()
