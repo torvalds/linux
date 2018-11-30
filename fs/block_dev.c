@@ -302,7 +302,8 @@ static void blkdev_bio_end_io(struct bio *bio)
 			}
 
 			dio->iocb->ki_complete(iocb, ret, 0);
-			bio_put(&dio->bio);
+			if (dio->multi_bio)
+				bio_put(&dio->bio);
 		} else {
 			struct task_struct *waiter = dio->waiter;
 
@@ -343,14 +344,15 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		return -EINVAL;
 
 	bio = bio_alloc_bioset(GFP_KERNEL, nr_pages, &blkdev_dio_pool);
-	bio_get(bio); /* extra ref for the completion handler */
 
 	dio = container_of(bio, struct blkdev_dio, bio);
 	dio->is_sync = is_sync = is_sync_kiocb(iocb);
-	if (dio->is_sync)
+	if (dio->is_sync) {
 		dio->waiter = current;
-	else
+		bio_get(bio);
+	} else {
 		dio->iocb = iocb;
+	}
 
 	dio->size = 0;
 	dio->multi_bio = false;
@@ -400,6 +402,13 @@ __blkdev_direct_IO(struct kiocb *iocb, struct iov_iter *iter, int nr_pages)
 		}
 
 		if (!dio->multi_bio) {
+			/*
+			 * AIO needs an extra reference to ensure the dio
+			 * structure which is embedded into the first bio
+			 * stays around.
+			 */
+			if (!is_sync)
+				bio_get(bio);
 			dio->multi_bio = true;
 			atomic_set(&dio->ref, 2);
 		} else {
