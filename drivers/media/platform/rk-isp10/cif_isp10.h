@@ -800,7 +800,8 @@ int cif_isp10_s_vb_metadata(
 
 int cif_isp10_s_exp(
 	struct cif_isp10_device *dev,
-	struct cif_isp10_img_src_ext_ctrl *exp_ctrl);
+	struct cif_isp10_img_src_ext_ctrl *exp_ctrl,
+	bool cls_exp);
 
 int cif_isp10_s_vcm(
 	struct cif_isp10_device *dev,

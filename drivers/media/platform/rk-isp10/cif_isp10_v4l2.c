@@ -1609,7 +1609,8 @@ static int v4l2_s_ext_ctrls(struct file *file, void *priv,
 	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
 	struct cif_isp10_img_src_ext_ctrl ctrl;
 	int ret = -EINVAL;
-	unsigned int i;
+	unsigned int i, j;
+	bool cls_exp = false;
 
 	/* The only use-case is gain and exposure to sensor. Thus no check if
 	 * this shall go to img_src or not as of now.
@@ -1625,19 +1626,28 @@ static int v4l2_s_ext_ctrls(struct file *file, void *priv,
 	if (!ctrls)
 		return -ENOMEM;
 
-	ctrl.cnt = vc_ext->count;
+	if (vc_ext->controls[0].id == RK_V4L2_CID_CLS_EXP) {
+		j = 1;
+		cls_exp = true;
+		ctrl.cnt = vc_ext->count - 1;
+	} else {
+		j = 0;
+		cls_exp = false;
+		ctrl.cnt = vc_ext->count;
+	}
+
 	/*current kernel version don't define
 	 *this member for struct v4l2_ext_control.
 	 */
 	/*ctrl.class = vc_ext->ctrl_class;*/
 	ctrl.ctrls = ctrls;
 
-	for (i = 0; i < vc_ext->count; i++) {
-		ctrls[i].id = vc_ext->controls[i].id;
-		ctrls[i].val = vc_ext->controls[i].value;
+	for (i = 0; i < ctrl.cnt; i++, j++) {
+		ctrls[i].id = vc_ext->controls[j].id;
+		ctrls[i].val = vc_ext->controls[j].value;
 	}
 
-	ret = cif_isp10_s_exp(dev, &ctrl);
+	ret = cif_isp10_s_exp(dev, &ctrl, cls_exp);
 	return ret;
 }
 
