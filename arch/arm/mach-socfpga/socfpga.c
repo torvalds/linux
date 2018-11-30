@@ -32,7 +32,7 @@ void __iomem *rst_manager_base_addr;
 void __iomem *sdr_ctl_base_addr;
 unsigned long socfpga_cpu1start_addr;
 
-void __init socfpga_sysmgr_init(void)
+static void __init socfpga_sysmgr_init(void)
 {
 	struct device_node *np;
 
