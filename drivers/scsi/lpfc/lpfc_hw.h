@@ -525,6 +525,7 @@ struct serv_parm {	/* Structure is in Big Endian format */
 		struct {
 			uint32_t vid;
 #define LPFC_VV_EMLX_ID	0x454d4c58	/* EMLX */
+#define LPFC_VV_BRCD_ID	0x42524344	/* BRCD */
 			uint32_t flags;
 #define LPFC_VV_SUPPRESS_RSP	1
 		} vv;

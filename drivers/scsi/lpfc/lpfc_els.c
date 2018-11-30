@@ -8042,8 +8042,10 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct ls_rjt stat;
 	uint32_t *payload;
 	uint32_t cmd, did, newnode;
+	uint32_t vid, flag;
 	uint8_t rjt_exp, rjt_err = 0, init_link = 0;
 	IOCB_t *icmd = &elsiocb->iocb;
+	struct serv_parm *sp;
 	LPFC_MBOXQ_t *mbox;
 
 	if (!vport || !(elsiocb->context2))
@@ -8193,6 +8195,22 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			did, vport->port_state, ndlp->nlp_flag);
 
 		phba->fc_stat.elsRcvFLOGI++;
+		sp = (struct serv_parm *)
+			((uint8_t *)payload + sizeof(uint32_t));
+
+		/* Check to see if this is firmware generated */
+		if (sp->cmn.valid_vendor_ver_level) {
+			vid = be32_to_cpu(sp->un.vv.vid);
+			flag = be32_to_cpu(sp->un.vv.flags);
+			if (vid == LPFC_VV_BRCD_ID) {
+				/* Drop this FLOGI */
+				lpfc_printf_vlog(
+					vport, KERN_INFO, LOG_ELS,
+					"3316 Dropping rcv FLOGI: "
+					"flag x%x\n", flag);
+				goto lsrjt;
+			}
+		}
 
 		/* If the driver believes fabric discovery is done and is ready,
 		 * bounce the link.  There is some descrepancy.
@@ -8440,6 +8458,8 @@ lsrjt:
 	 * link and start over.
 	 */
 	if (init_link) {
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
+				 "3318 Resetting Link, multiple rcv FLOGIs\n");
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (!mbox)
 			return;
