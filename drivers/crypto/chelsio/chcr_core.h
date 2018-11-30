@@ -159,8 +159,17 @@ struct chcr_ipsec_wr {
 	struct chcr_ipsec_req req;
 };
 
+#define ESN_IV_INSERT_OFFSET 12
+struct chcr_ipsec_aadiv {
+	__be32 spi;
+	u8 seq_no[8];
+	u8 iv[8];
+};
+
 struct ipsec_sa_entry {
 	int hmac_ctrl;
+	u16 esn;
+	u16 imm;
 	unsigned int enckey_len;
 	unsigned int kctx_len;
 	unsigned int authsize;
