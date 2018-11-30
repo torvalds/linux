@@ -443,19 +443,19 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				"READ_SPARM mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
-		mp = (struct lpfc_dmabuf *) pmb->context1;
+		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 		mempool_free(pmb, phba->mbox_mem_pool);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		return -EIO;
 	}
 
-	mp = (struct lpfc_dmabuf *) pmb->context1;
+	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
-	pmb->context1 = NULL;
+	pmb->ctx_buf = NULL;
 	lpfc_update_vport_wwn(vport);
 
 	/* Update the fc_host data structures with new wwn. */

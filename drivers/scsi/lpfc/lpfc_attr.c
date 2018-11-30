@@ -1688,7 +1688,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_CONFIG;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 
 	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
 		rc = MBX_NOT_FINISHED;
@@ -6219,7 +6219,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmb = &pmboxq->u.mb;
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
@@ -6251,7 +6251,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	memset(pmboxq, 0, sizeof (LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if (vport->fc_flag & FC_OFFLINE_MODE)
@@ -6331,7 +6331,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmb->mbxCommand = MBX_READ_STATUS;
 	pmb->mbxOwner = OWN_HOST;
 	pmb->un.varWords[0] = 0x1; /* reset request */
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
@@ -6349,7 +6349,7 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	memset(pmboxq, 0, sizeof(LPFC_MBOXQ_t));
 	pmb->mbxCommand = MBX_READ_LNK_STAT;
 	pmb->mbxOwner = OWN_HOST;
-	pmboxq->context1 = NULL;
+	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
 	if ((vport->fc_flag & FC_OFFLINE_MODE) ||

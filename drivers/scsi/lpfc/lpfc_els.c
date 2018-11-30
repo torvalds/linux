@@ -415,7 +415,7 @@ lpfc_issue_fabric_reglogin(struct lpfc_vport *vport)
 	/* increment the reference count on ndlp to hold reference
 	 * for the callback routine.
 	 */
-	mbox->context2 = lpfc_nlp_get(ndlp);
+	mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
@@ -430,7 +430,7 @@ fail_issue_reg_login:
 	 * for the failed mbox command.
 	 */
 	lpfc_nlp_put(ndlp);
-	mp = (struct lpfc_dmabuf *) mbox->context1;
+	mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 fail_free_mbox:
@@ -504,7 +504,7 @@ lpfc_issue_reg_vfi(struct lpfc_vport *vport)
 
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_reg_vfi;
 	mboxq->vport = vport;
-	mboxq->context1 = dmabuf;
+	mboxq->ctx_buf = dmabuf;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		rc = -ENXIO;
@@ -3990,11 +3990,11 @@ lpfc_cmpl_els_logo_acc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 void
 lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -4070,7 +4070,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	/* Check to see if link went down during discovery */
 	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp) || lpfc_els_chk_latt(vport)) {
 		if (mbox) {
-			mp = (struct lpfc_dmabuf *) mbox->context1;
+			mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
 			if (mp) {
 				lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
@@ -4114,7 +4114,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					"Data: x%x x%x x%x\n",
 					ndlp->nlp_DID, ndlp->nlp_state,
 					ndlp->nlp_rpi, ndlp->nlp_flag);
-				mp = mbox->context1;
+				mp = mbox->ctx_buf;
 				if (mp) {
 					lpfc_mbuf_free(phba, mp->virt,
 						       mp->phys);
@@ -4127,7 +4127,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			/* Increment reference count to ndlp to hold the
 			 * reference to ndlp for the callback function.
 			 */
-			mbox->context2 = lpfc_nlp_get(ndlp);
+			mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 			mbox->vport = vport;
 			if (ndlp->nlp_flag & NLP_RM_DFLT_RPI) {
 				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
@@ -4181,7 +4181,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				}
 			}
 		}
-		mp = (struct lpfc_dmabuf *) mbox->context1;
+		mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
 		if (mp) {
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
@@ -5597,7 +5597,7 @@ lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 		goto prep_mbox_fail;
 	mbox->vport = rdp_context->ndlp->vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a0;
-	mbox->context2 = (struct lpfc_rdp_context *) rdp_context;
+	mbox->ctx_ndlp = (struct lpfc_rdp_context *)rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		goto issue_mbox_fail;
@@ -5722,10 +5722,10 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	int rc;
 
 	mb = &pmb->u.mb;
-	lcb_context = (struct lpfc_lcb_context *)pmb->context1;
+	lcb_context = (struct lpfc_lcb_context *)pmb->ctx_ndlp;
 	ndlp = lcb_context->ndlp;
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_ndlp = NULL;
+	pmb->ctx_buf = NULL;
 
 	shdr = (union lpfc_sli4_cfg_shdr *)
 			&pmb->u.mqe.un.beacon_config.header.cfg_shdr;
@@ -5832,7 +5832,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_SET_BEACON_CONFIG, len,
 			 LPFC_SLI4_MBX_EMBED);
-	mbox->context1 = (void *)lcb_context;
+	mbox->ctx_ndlp = (void *)lcb_context;
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_els_lcb_rsp;
 	bf_set(lpfc_mbx_set_beacon_port_num, &mbox->u.mqe.un.beacon_config,
@@ -6758,11 +6758,11 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	mb = &pmb->u.mb;
 
-	ndlp = (struct lpfc_nodelist *) pmb->context2;
-	rxid = (uint16_t) ((unsigned long)(pmb->context1) & 0xffff);
-	oxid = (uint16_t) (((unsigned long)(pmb->context1) >> 16) & 0xffff);
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	rxid = (uint16_t)((unsigned long)(pmb->ctx_buf) & 0xffff);
+	oxid = (uint16_t)(((unsigned long)(pmb->ctx_buf) >> 16) & 0xffff);
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 
 	if (mb->mbxStatus) {
 		mempool_free(pmb, phba->mbox_mem_pool);
@@ -6846,11 +6846,11 @@ lpfc_els_rsp_rps_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	mb = &pmb->u.mb;
 
-	ndlp = (struct lpfc_nodelist *) pmb->context2;
-	rxid = (uint16_t) ((unsigned long)(pmb->context1) & 0xffff);
-	oxid = (uint16_t) (((unsigned long)(pmb->context1) >> 16) & 0xffff);
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	rxid = (uint16_t)((unsigned long)(pmb->ctx_buf) & 0xffff);
+	oxid = (uint16_t)(((unsigned long)(pmb->ctx_buf) >> 16) & 0xffff);
+	pmb->ctx_ndlp = NULL;
+	pmb->ctx_buf = NULL;
 
 	if (mb->mbxStatus) {
 		mempool_free(pmb, phba->mbox_mem_pool);
@@ -6941,10 +6941,10 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 	if (mbox) {
 		lpfc_read_lnk_stat(phba, mbox);
-		mbox->context1 = (void *)((unsigned long)
+		mbox->ctx_buf = (void *)((unsigned long)
 			((cmdiocb->iocb.unsli3.rcvsli3.ox_id << 16) |
 			cmdiocb->iocb.ulpContext)); /* rx_id */
-		mbox->context2 = lpfc_nlp_get(ndlp);
+		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_els_rsp_rls_acc;
 		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
@@ -7104,10 +7104,10 @@ lpfc_els_rcv_rps(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 		if (mbox) {
 			lpfc_read_lnk_stat(phba, mbox);
-			mbox->context1 = (void *)((unsigned long)
+			mbox->ctx_buf = (void *)((unsigned long)
 				((cmdiocb->iocb.unsli3.rcvsli3.ox_id << 16) |
 				cmdiocb->iocb.ulpContext)); /* rx_id */
-			mbox->context2 = lpfc_nlp_get(ndlp);
+			mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 			mbox->vport = vport;
 			mbox->mbox_cmpl = lpfc_els_rsp_rps_acc;
 			if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
@@ -8602,7 +8602,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	MAILBOX_t *mb = &pmb->u.mb;
 	int rc;
 
@@ -8720,7 +8720,7 @@ lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 	if (mbox) {
 		lpfc_reg_vpi(vport, mbox);
 		mbox->vport = vport;
-		mbox->context2 = lpfc_nlp_get(ndlp);
+		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		mbox->mbox_cmpl = lpfc_cmpl_reg_new_vport;
 		if (lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT)
 		    == MBX_NOT_FINISHED) {

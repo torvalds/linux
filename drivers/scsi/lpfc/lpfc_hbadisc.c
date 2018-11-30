@@ -2944,7 +2944,7 @@ lpfc_start_fdiscs(struct lpfc_hba *phba)
 void
 lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 {
-	struct lpfc_dmabuf *dmabuf = mboxq->context1;
+	struct lpfc_dmabuf *dmabuf = mboxq->ctx_buf;
 	struct lpfc_vport *vport = mboxq->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
@@ -3037,7 +3037,7 @@ static void
 lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) pmb->context1;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 	struct lpfc_vport  *vport = pmb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct serv_parm *sp = &vport->fc_sparam;
@@ -3081,7 +3081,7 @@ lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	return;
 
 out:
-	pmb->context1 = NULL;
+	pmb->ctx_buf = NULL;
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
 	lpfc_issue_clear_la(phba, vport);
@@ -3220,7 +3220,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	sparam_mbox->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
 	rc = lpfc_sli_issue_mbox(phba, sparam_mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
-		mp = (struct lpfc_dmabuf *) sparam_mbox->context1;
+		mp = (struct lpfc_dmabuf *)sparam_mbox->ctx_buf;
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		mempool_free(sparam_mbox, phba->mbox_mem_pool);
@@ -3349,7 +3349,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_mbx_read_top *la;
 	struct lpfc_sli_ring *pring;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	uint8_t attn_type;
 
 	/* Unblock ELS traffic */
@@ -3506,12 +3506,12 @@ void
 lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_SLI,
 			 "0002 rpi:%x DID:%x flg:%x %d map:%x %p\n",
@@ -3719,8 +3719,8 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 	vport_buff = (uint8_t *) vport_info;
 	do {
 		/* free dma buffer from previous round */
-		if (pmb->context1) {
-			mp = (struct lpfc_dmabuf *)pmb->context1;
+		if (pmb->ctx_buf) {
+			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
@@ -3742,7 +3742,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			byte_count = pmb->u.mqe.un.mb_words[5];
-			mp = (struct lpfc_dmabuf *)pmb->context1;
+			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 			if (byte_count > sizeof(struct static_vport_info) -
 					offset)
 				byte_count = sizeof(struct static_vport_info)
@@ -3807,8 +3807,8 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 out:
 	kfree(vport_info);
 	if (mbx_wait_rc != MBX_TIMEOUT) {
-		if (pmb->context1) {
-			mp = (struct lpfc_dmabuf *)pmb->context1;
+		if (pmb->ctx_buf) {
+			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 		}
@@ -3829,13 +3829,13 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
 
-	ndlp = (struct lpfc_nodelist *) pmb->context2;
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	pmb->ctx_ndlp = NULL;
+	pmb->ctx_buf = NULL;
 
 	if (mb->mbxStatus) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
@@ -3982,12 +3982,12 @@ void
 lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct lpfc_vport *vport = pmb->vport;
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 	vport->gidft_inp = 0;
 
 	if (mb->mbxStatus) {
@@ -4756,7 +4756,7 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_nodelist *ndlp;
 
-	ndlp = (struct lpfc_nodelist *)(pmb->context1);
+	ndlp = (struct lpfc_nodelist *)(pmb->ctx_ndlp);
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
@@ -4799,7 +4799,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			lpfc_unreg_login(phba, vport->vpi, rpi, mbox);
 			mbox->vport = vport;
 			if (ndlp->nlp_flag & NLP_ISSUE_LOGO) {
-				mbox->context1 = ndlp;
+				mbox->ctx_ndlp = ndlp;
 				mbox->mbox_cmpl = lpfc_nlp_logo_unreg;
 			} else {
 				if (phba->sli_rev == LPFC_SLI_REV4 &&
@@ -4808,7 +4808,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				     &phba->sli4_hba.sli_intf) ==
 				      LPFC_SLI_INTF_IF_TYPE_2) &&
 				    (kref_read(&ndlp->kref) > 0)) {
-					mbox->context1 = lpfc_nlp_get(ndlp);
+					mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 					mbox->mbox_cmpl =
 						lpfc_sli4_unreg_rpi_cmpl_clr;
 					/*
@@ -4895,7 +4895,7 @@ lpfc_unreg_all_rpis(struct lpfc_vport *vport)
 				 mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		mbox->context1 = NULL;
+		mbox->ctx_ndlp = NULL;
 		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 		if (rc != MBX_TIMEOUT)
 			mempool_free(mbox, phba->mbox_mem_pool);
@@ -4920,7 +4920,7 @@ lpfc_unreg_default_rpis(struct lpfc_vport *vport)
 			       mbox);
 		mbox->vport = vport;
 		mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-		mbox->context1 = NULL;
+		mbox->ctx_ndlp = NULL;
 		rc = lpfc_sli_issue_mbox_wait(phba, mbox, LPFC_MBOX_TMO);
 		if (rc != MBX_TIMEOUT)
 			mempool_free(mbox, phba->mbox_mem_pool);
@@ -4974,8 +4974,8 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		   (ndlp == (struct lpfc_nodelist *) mb->context2)) {
-			mb->context2 = NULL;
+		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+			mb->ctx_ndlp = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
 	}
@@ -4985,18 +4985,18 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
 		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
 			(mb->mbox_flag & LPFC_MBX_IMED_UNREG) ||
-			(ndlp != (struct lpfc_nodelist *) mb->context2))
+			(ndlp != (struct lpfc_nodelist *)mb->ctx_ndlp))
 			continue;
 
-		mb->context2 = NULL;
+		mb->ctx_ndlp = NULL;
 		mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	}
 
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		    (ndlp == (struct lpfc_nodelist *) mb->context2)) {
-			mp = (struct lpfc_dmabuf *) (mb->context1);
+		    (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+			mp = (struct lpfc_dmabuf *)(mb->ctx_buf);
 			if (mp) {
 				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
 				kfree(mp);
@@ -5066,7 +5066,7 @@ lpfc_nlp_remove(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 				mbox->mbox_flag |= LPFC_MBX_IMED_UNREG;
 				mbox->mbox_cmpl = lpfc_mbx_cmpl_dflt_rpi;
 				mbox->vport = vport;
-				mbox->context2 = ndlp;
+				mbox->ctx_ndlp = ndlp;
 				rc =lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 				if (rc == MBX_NOT_FINISHED) {
 					mempool_free(mbox, phba->mbox_mem_pool);
@@ -5831,12 +5831,12 @@ void
 lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf   *mp = (struct lpfc_dmabuf *) (pmb->context1);
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
+	struct lpfc_dmabuf   *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 	struct lpfc_vport    *vport = pmb->vport;
 
-	pmb->context1 = NULL;
-	pmb->context2 = NULL;
+	pmb->ctx_buf = NULL;
+	pmb->ctx_ndlp = NULL;
 
 	if (phba->sli_rev < LPFC_SLI_REV4)
 		ndlp->nlp_rpi = mb->un.varWords[0];
