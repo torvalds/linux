@@ -395,10 +395,13 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 	u32 pix_per_line = max(vc4_state->src_w[0], (u32)vc4_state->crtc_w);
 	u32 lbm;
 
+	/* LBM is not needed when there's no vertical scaling. */
+	if (vc4_state->y_scaling[0] == VC4_SCALING_NONE &&
+	    vc4_state->y_scaling[1] == VC4_SCALING_NONE)
+		return 0;
+
 	if (!vc4_state->is_yuv) {
-		if (vc4_state->is_unity)
-			return 0;
-		else if (vc4_state->y_scaling[0] == VC4_SCALING_TPZ)
+		if (vc4_state->y_scaling[0] == VC4_SCALING_TPZ)
 			lbm = pix_per_line * 8;
 		else {
 			/* In special cases, this multiplier might be 12. */
