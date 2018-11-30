@@ -9717,7 +9717,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	const struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 	u32 base;
 
-	if (INTEL_INFO(dev_priv)->cursor_needs_physical)
+	if (INTEL_INFO(dev_priv)->display.cursor_needs_physical)
 		base = obj->phys_handle->busaddr;
 	else
 		base = intel_plane_ggtt_offset(plane_state);
@@ -13303,7 +13303,7 @@ static int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	struct i915_vma *vma;
 
 	if (plane->id == PLANE_CURSOR &&
-	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
+	    INTEL_INFO(dev_priv)->display.cursor_needs_physical) {
 		struct drm_i915_gem_object *obj = intel_fb_obj(fb);
 		const int align = intel_cursor_alignment(dev_priv);
 		int err;

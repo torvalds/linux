@@ -1309,7 +1309,7 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	fbc->active = false;
 
 	if (need_fbc_vtd_wa(dev_priv))
-		mkwrite_device_info(dev_priv)->has_fbc = false;
+		mkwrite_device_info(dev_priv)->display.has_fbc = false;
 
 	i915_modparams.enable_fbc = intel_sanitize_fbc_option(dev_priv);
 	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n",

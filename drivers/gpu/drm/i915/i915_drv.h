@@ -2449,9 +2449,9 @@ intel_info(const struct drm_i915_private *dev_priv)
 	((sizes) & ~(dev_priv)->info.page_sizes) == 0; \
 })
 
-#define HAS_OVERLAY(dev_priv)		 ((dev_priv)->info.has_overlay)
+#define HAS_OVERLAY(dev_priv)		 ((dev_priv)->info.display.has_overlay)
 #define OVERLAY_NEEDS_PHYSICAL(dev_priv) \
-		((dev_priv)->info.overlay_needs_physical)
+		((dev_priv)->info.display.overlay_needs_physical)
 
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
 #define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_I845G(dev_priv))
@@ -2472,31 +2472,31 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_128_BYTE_Y_TILING(dev_priv) (!IS_GEN2(dev_priv) && \
 					 !(IS_I915G(dev_priv) || \
 					 IS_I915GM(dev_priv)))
-#define SUPPORTS_TV(dev_priv)		((dev_priv)->info.supports_tv)
-#define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.has_hotplug)
+#define SUPPORTS_TV(dev_priv)		((dev_priv)->info.display.supports_tv)
+#define I915_HAS_HOTPLUG(dev_priv)	((dev_priv)->info.display.has_hotplug)
 
 #define HAS_FW_BLC(dev_priv) 	(INTEL_GEN(dev_priv) > 2)
-#define HAS_FBC(dev_priv)	((dev_priv)->info.has_fbc)
+#define HAS_FBC(dev_priv)	((dev_priv)->info.display.has_fbc)
 #define HAS_CUR_FBC(dev_priv)	(!HAS_GMCH_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 7)
 
 #define HAS_IPS(dev_priv)	(IS_HSW_ULT(dev_priv) || IS_BROADWELL(dev_priv))
 
-#define HAS_DP_MST(dev_priv)	((dev_priv)->info.has_dp_mst)
+#define HAS_DP_MST(dev_priv)	((dev_priv)->info.display.has_dp_mst)
 
-#define HAS_DDI(dev_priv)		 ((dev_priv)->info.has_ddi)
+#define HAS_DDI(dev_priv)		 ((dev_priv)->info.display.has_ddi)
 #define HAS_FPGA_DBG_UNCLAIMED(dev_priv) ((dev_priv)->info.has_fpga_dbg)
-#define HAS_PSR(dev_priv)		 ((dev_priv)->info.has_psr)
+#define HAS_PSR(dev_priv)		 ((dev_priv)->info.display.has_psr)
 
 #define HAS_RC6(dev_priv)		 ((dev_priv)->info.has_rc6)
 #define HAS_RC6p(dev_priv)		 ((dev_priv)->info.has_rc6p)
 #define HAS_RC6pp(dev_priv)		 (false) /* HW was never validated */
 
-#define HAS_CSR(dev_priv)	((dev_priv)->info.has_csr)
+#define HAS_CSR(dev_priv)	((dev_priv)->info.display.has_csr)
 
 #define HAS_RUNTIME_PM(dev_priv) ((dev_priv)->info.has_runtime_pm)
 #define HAS_64BIT_RELOC(dev_priv) ((dev_priv)->info.has_64bit_reloc)
 
-#define HAS_IPC(dev_priv)		 ((dev_priv)->info.has_ipc)
+#define HAS_IPC(dev_priv)		 ((dev_priv)->info.display.has_ipc)
 
 /*
  * For now, anything with a GuC requires uCode loading, and then supports
@@ -2557,7 +2557,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 #define HAS_PCH_NOP(dev_priv) (INTEL_PCH_TYPE(dev_priv) == PCH_NOP)
 #define HAS_PCH_SPLIT(dev_priv) (INTEL_PCH_TYPE(dev_priv) != PCH_NONE)
 
-#define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.has_gmch_display)
+#define HAS_GMCH_DISPLAY(dev_priv) ((dev_priv)->info.display.has_gmch_display)
 
 #define HAS_LSPCON(dev_priv) (INTEL_GEN(dev_priv) >= 9)
 
