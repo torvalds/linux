@@ -380,7 +380,17 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
 {
 	ssize_t err;
 
-	if (vma_is_anonymous(dst_vma)) {
+	/*
+	 * The normal page fault path for a shmem will invoke the
+	 * fault, fill the hole in the file and COW it right away. The
+	 * result generates plain anonymous memory. So when we are
+	 * asked to fill an hole in a MAP_PRIVATE shmem mapping, we'll
+	 * generate anonymous memory directly without actually filling
+	 * the hole. For the MAP_PRIVATE case the robustness check
+	 * only happens in the pagetable (to verify it's still none)
+	 * and not in the radix tree.
+	 */
+	if (!(dst_vma->vm_flags & VM_SHARED)) {
 		if (!zeropage)
 			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
 					       dst_addr, src_addr, page);
@@ -489,7 +499,8 @@ retry:
 	 * dst_vma.
 	 */
 	err = -ENOMEM;
-	if (vma_is_anonymous(dst_vma) && unlikely(anon_vma_prepare(dst_vma)))
+	if (!(dst_vma->vm_flags & VM_SHARED) &&
+	    unlikely(anon_vma_prepare(dst_vma)))
 		goto out_unlock;
 
 	while (src_addr < src_start + len) {
