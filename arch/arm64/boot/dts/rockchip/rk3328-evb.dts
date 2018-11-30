@@ -466,6 +466,8 @@
 &pwm3 {
 	status = "okay";
 	compatible = "rockchip,remotectl-pwm";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwmir_pin>;
 	remote_pwm_id = <3>;
 	handle_cpu_id = <1>;
 	remote_support_psci = <1>;
