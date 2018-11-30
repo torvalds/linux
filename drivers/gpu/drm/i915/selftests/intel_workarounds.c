@@ -6,6 +6,7 @@
 
 #include "../i915_selftest.h"
 
+#include "igt_spinner.h"
 #include "igt_wedge_me.h"
 #include "mock_context.h"
 
@@ -159,35 +160,57 @@ out_put:
 
 static int do_device_reset(struct intel_engine_cs *engine)
 {
-	i915_reset(engine->i915, ENGINE_MASK(engine->id), NULL);
+	set_bit(I915_RESET_HANDOFF, &engine->i915->gpu_error.flags);
+	i915_reset(engine->i915, ENGINE_MASK(engine->id), "live_workarounds");
 	return 0;
 }
 
 static int do_engine_reset(struct intel_engine_cs *engine)
 {
-	return i915_reset_engine(engine, NULL);
+	return i915_reset_engine(engine, "live_workarounds");
 }
 
-static int switch_to_scratch_context(struct intel_engine_cs *engine)
+static int
+switch_to_scratch_context(struct intel_engine_cs *engine,
+			  struct igt_spinner *spin)
 {
 	struct i915_gem_context *ctx;
 	struct i915_request *rq;
+	int err = 0;
 
 	ctx = kernel_context(engine->i915);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
 	intel_runtime_pm_get(engine->i915);
-	rq = i915_request_alloc(engine, ctx);
+
+	if (spin)
+		rq = igt_spinner_create_request(spin, ctx, engine, MI_NOOP);
+	else
+		rq = i915_request_alloc(engine, ctx);
+
 	intel_runtime_pm_put(engine->i915);
 
 	kernel_context_close(ctx);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
+
+	if (IS_ERR(rq)) {
+		spin = NULL;
+		err = PTR_ERR(rq);
+		goto err;
+	}
 
 	i915_request_add(rq);
 
-	return 0;
+	if (spin && !igt_wait_for_spinner(spin, rq)) {
+		pr_err("Spinner failed to start\n");
+		err = -ETIMEDOUT;
+	}
+
+err:
+	if (err && spin)
+		igt_spinner_end(spin);
+
+	return err;
 }
 
 static int check_whitelist_across_reset(struct intel_engine_cs *engine,
@@ -195,10 +218,22 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 					const struct whitelist *w,
 					const char *name)
 {
+	struct drm_i915_private *i915 = engine->i915;
+	bool want_spin = reset == do_engine_reset;
 	struct i915_gem_context *ctx;
+	struct igt_spinner spin;
 	int err;
 
-	ctx = kernel_context(engine->i915);
+	pr_info("Checking %d whitelisted registers (RING_NONPRIV) [%s]\n",
+		w->count, name);
+
+	if (want_spin) {
+		err = igt_spinner_init(&spin, i915);
+		if (err)
+			return err;
+	}
+
+	ctx = kernel_context(i915);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
@@ -208,11 +243,19 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 		goto out;
 	}
 
-	err = switch_to_scratch_context(engine);
+	err = switch_to_scratch_context(engine, want_spin ? &spin : NULL);
 	if (err)
 		goto out;
 
+	intel_runtime_pm_get(i915);
 	err = reset(engine);
+	intel_runtime_pm_put(i915);
+
+	if (want_spin) {
+		igt_spinner_end(&spin);
+		igt_spinner_fini(&spin);
+	}
+
 	if (err) {
 		pr_err("%s reset failed\n", name);
 		goto out;
@@ -227,7 +270,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 
 	kernel_context_close(ctx);
 
-	ctx = kernel_context(engine->i915);
+	ctx = kernel_context(i915);
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
@@ -258,8 +301,6 @@ static int live_reset_whitelist(void *arg)
 
 	if (!whitelist_build(engine, &w))
 		return 0;
-
-	pr_info("Checking %d whitelisted registers (RING_NONPRIV)\n", w.count);
 
 	set_bit(I915_RESET_BACKOFF, &error->flags);
 	set_bit(I915_RESET_ENGINE + engine->id, &error->flags);
