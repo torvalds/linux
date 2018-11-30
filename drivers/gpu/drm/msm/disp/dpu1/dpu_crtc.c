@@ -306,6 +306,19 @@ static void dpu_crtc_vblank_cb(void *data)
 	trace_dpu_crtc_vblank_cb(DRMID(crtc));
 }
 
+static void dpu_crtc_release_bw_unlocked(struct drm_crtc *crtc)
+{
+	int ret = 0;
+	struct drm_modeset_acquire_ctx ctx;
+
+	DRM_MODESET_LOCK_ALL_BEGIN(crtc->dev, ctx, 0, ret);
+	dpu_core_perf_crtc_release_bw(crtc);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
+	if (ret)
+		DRM_ERROR("Failed to acquire modeset locks to release bw, %d\n",
+			  ret);
+}
+
 static void dpu_crtc_frame_event_work(struct kthread_work *work)
 {
 	struct dpu_crtc_frame_event *fevent = container_of(work,
@@ -335,7 +348,7 @@ static void dpu_crtc_frame_event_work(struct kthread_work *work)
 			/* release bandwidth and other resources */
 			trace_dpu_crtc_frame_event_done(DRMID(crtc),
 							fevent->event);
-			dpu_core_perf_crtc_release_bw(crtc);
+			dpu_crtc_release_bw_unlocked(crtc);
 		} else {
 			trace_dpu_crtc_frame_event_more_pending(DRMID(crtc),
 								fevent->event);
