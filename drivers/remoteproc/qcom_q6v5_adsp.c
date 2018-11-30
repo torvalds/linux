@@ -48,7 +48,7 @@
 
 /* list of clocks required by ADSP PIL */
 static const char * const adsp_clk_id[] = {
-	"sway_cbcr", "lpass_aon", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
+	"sway_cbcr", "lpass_ahbs_aon_cbcr", "lpass_ahbm_aon_cbcr",
 	"qdsp6ss_xo", "qdsp6ss_sleep", "qdsp6ss_core",
 };
 
