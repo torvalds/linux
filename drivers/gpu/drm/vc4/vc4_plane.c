@@ -895,29 +895,49 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 {
 	struct vc4_plane_state *vc4_state, *new_vc4_state;
 
-	if (plane->state->fb != state->fb) {
-		vc4_plane_async_set_fb(plane, state->fb);
-		drm_atomic_set_fb_for_plane(plane->state, state->fb);
-	}
-
-	/* Set the cursor's position on the screen.  This is the
-	 * expected change from the drm_mode_cursor_universal()
-	 * helper.
-	 */
+	drm_atomic_set_fb_for_plane(plane->state, state->fb);
 	plane->state->crtc_x = state->crtc_x;
 	plane->state->crtc_y = state->crtc_y;
-
-	/* Allow changing the start position within the cursor BO, if
-	 * that matters.
-	 */
+	plane->state->crtc_w = state->crtc_w;
+	plane->state->crtc_h = state->crtc_h;
 	plane->state->src_x = state->src_x;
 	plane->state->src_y = state->src_y;
-
-	/* Update the display list based on the new crtc_x/y. */
-	vc4_plane_atomic_check(plane, state);
+	plane->state->src_w = state->src_w;
+	plane->state->src_h = state->src_h;
+	plane->state->src_h = state->src_h;
+	plane->state->alpha = state->alpha;
+	plane->state->pixel_blend_mode = state->pixel_blend_mode;
+	plane->state->rotation = state->rotation;
+	plane->state->zpos = state->zpos;
+	plane->state->normalized_zpos = state->normalized_zpos;
+	plane->state->color_encoding = state->color_encoding;
+	plane->state->color_range = state->color_range;
+	plane->state->src = state->src;
+	plane->state->dst = state->dst;
+	plane->state->visible = state->visible;
 
 	new_vc4_state = to_vc4_plane_state(state);
 	vc4_state = to_vc4_plane_state(plane->state);
+
+	vc4_state->crtc_x = new_vc4_state->crtc_x;
+	vc4_state->crtc_y = new_vc4_state->crtc_y;
+	vc4_state->crtc_h = new_vc4_state->crtc_h;
+	vc4_state->crtc_w = new_vc4_state->crtc_w;
+	vc4_state->src_x = new_vc4_state->src_x;
+	vc4_state->src_y = new_vc4_state->src_y;
+	memcpy(vc4_state->src_w, new_vc4_state->src_w,
+	       sizeof(vc4_state->src_w));
+	memcpy(vc4_state->src_h, new_vc4_state->src_h,
+	       sizeof(vc4_state->src_h));
+	memcpy(vc4_state->x_scaling, new_vc4_state->x_scaling,
+	       sizeof(vc4_state->x_scaling));
+	memcpy(vc4_state->y_scaling, new_vc4_state->y_scaling,
+	       sizeof(vc4_state->y_scaling));
+	vc4_state->is_unity = new_vc4_state->is_unity;
+	vc4_state->is_yuv = new_vc4_state->is_yuv;
+	memcpy(vc4_state->offsets, new_vc4_state->offsets,
+	       sizeof(vc4_state->offsets));
+	vc4_state->needs_bg_fill = new_vc4_state->needs_bg_fill;
 
 	/* Update the current vc4_state pos0, pos2 and ptr0 dlist entries. */
 	vc4_state->dlist[vc4_state->pos0_offset] =
@@ -942,12 +962,37 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 static int vc4_plane_atomic_async_check(struct drm_plane *plane,
 					struct drm_plane_state *state)
 {
-	/* No configuring new scaling in the fast path. */
-	if (plane->state->crtc_w != state->crtc_w ||
-	    plane->state->crtc_h != state->crtc_h ||
-	    plane->state->src_w != state->src_w ||
-	    plane->state->src_h != state->src_h)
+	struct vc4_plane_state *old_vc4_state, *new_vc4_state;
+	int ret;
+	u32 i;
+
+	ret = vc4_plane_mode_set(plane, state);
+	if (ret)
+		return ret;
+
+	old_vc4_state = to_vc4_plane_state(plane->state);
+	new_vc4_state = to_vc4_plane_state(state);
+	if (old_vc4_state->dlist_count != new_vc4_state->dlist_count ||
+	    old_vc4_state->pos0_offset != new_vc4_state->pos0_offset ||
+	    old_vc4_state->pos2_offset != new_vc4_state->pos2_offset ||
+	    old_vc4_state->ptr0_offset != new_vc4_state->ptr0_offset ||
+	    vc4_lbm_size(plane->state) != vc4_lbm_size(state))
 		return -EINVAL;
+
+	/* Only pos0, pos2 and ptr0 DWORDS can be updated in an async update
+	 * if anything else has changed, fallback to a sync update.
+	 */
+	for (i = 0; i < new_vc4_state->dlist_count; i++) {
+		if (i == new_vc4_state->pos0_offset ||
+		    i == new_vc4_state->pos2_offset ||
+		    i == new_vc4_state->ptr0_offset ||
+		    (new_vc4_state->lbm_offset &&
+		     i == new_vc4_state->lbm_offset))
+			continue;
+
+		if (new_vc4_state->dlist[i] != old_vc4_state->dlist[i])
+			return -EINVAL;
+	}
 
 	return 0;
 }
