@@ -885,7 +885,7 @@ static struct syscall_fmt *syscall_fmt__find_by_alias(const char *alias)
  * args_size: sum of the sizes of the syscall arguments, anything after that is augmented stuff: pathname for openat, etc.
  */
 struct syscall {
-	struct tep_event_format *tp_format;
+	struct tep_event    *tp_format;
 	int		    nr_args;
 	int		    args_size;
 	bool		    is_exit;

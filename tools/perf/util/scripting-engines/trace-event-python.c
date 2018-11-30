@@ -264,7 +264,7 @@ static void define_field(enum tep_print_arg_type field_type,
 	Py_DECREF(t);
 }
 
-static void define_event_symbols(struct tep_event_format *event,
+static void define_event_symbols(struct tep_event *event,
 				 const char *ev_name,
 				 struct tep_print_arg *args)
 {
@@ -332,7 +332,7 @@ static void define_event_symbols(struct tep_event_format *event,
 		define_event_symbols(event, ev_name, args->next);
 }
 
-static PyObject *get_field_numeric_entry(struct tep_event_format *event,
+static PyObject *get_field_numeric_entry(struct tep_event *event,
 		struct tep_format_field *field, void *data)
 {
 	bool is_array = field->flags & TEP_FIELD_IS_ARRAY;
@@ -790,7 +790,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct addr_location *al)
 {
-	struct tep_event_format *event = evsel->tp_format;
+	struct tep_event *event = evsel->tp_format;
 	PyObject *handler, *context, *t, *obj = NULL, *callchain;
 	PyObject *dict = NULL, *all_entries_dict = NULL;
 	static char handler_name[256];
@@ -1590,7 +1590,7 @@ static int python_stop_script(void)
 
 static int python_generate_script(struct tep_handle *pevent, const char *outfile)
 {
-	struct tep_event_format *event = NULL;
+	struct tep_event *event = NULL;
 	struct tep_format_field *f;
 	char fname[PATH_MAX];
 	int not_first, count;

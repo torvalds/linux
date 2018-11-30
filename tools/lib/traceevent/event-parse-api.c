@@ -15,7 +15,7 @@
  * This returns pointer to the first element of the events array
  * If @tep is NULL, NULL is returned.
  */
-struct tep_event_format *tep_get_first_event(struct tep_handle *tep)
+struct tep_event *tep_get_first_event(struct tep_handle *tep)
 {
 	if (tep && tep->events)
 		return tep->events[0];

@@ -3268,7 +3268,7 @@ static int read_attr(int fd, struct perf_header *ph,
 static int perf_evsel__prepare_tracepoint_event(struct perf_evsel *evsel,
 						struct tep_handle *pevent)
 {
-	struct tep_event_format *event;
+	struct tep_event *event;
 	char bf[128];
 
 	/* already prepared */
