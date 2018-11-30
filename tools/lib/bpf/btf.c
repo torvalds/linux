@@ -415,7 +415,7 @@ const char *btf__name_by_offset(const struct btf *btf, __u32 offset)
 		return NULL;
 }
 
-int btf_get_from_id(__u32 id, struct btf **btf)
+int btf__get_from_id(__u32 id, struct btf **btf)
 {
 	struct bpf_btf_info btf_info = { 0 };
 	__u32 len = sizeof(btf_info);
@@ -466,7 +466,7 @@ int btf_get_from_id(__u32 id, struct btf **btf)
 		goto exit_free;
 	}
 
-	*btf = btf__new((__u8 *)btf_info.btf, btf_info.btf_size, NULL);
+	*btf = btf__new((__u8 *)(long)btf_info.btf, btf_info.btf_size, NULL);
 	if (IS_ERR(*btf)) {
 		err = PTR_ERR(*btf);
 		*btf = NULL;

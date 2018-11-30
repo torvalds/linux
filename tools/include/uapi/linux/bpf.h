@@ -2268,6 +2268,19 @@ union bpf_attr {
  *
  *	Return
  *		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_msg_pop_data(struct sk_msg_buff *msg, u32 start, u32 pop, u64 flags)
+ *	 Description
+ *		Will remove *pop* bytes from a *msg* starting at byte *start*.
+ *		This may result in **ENOMEM** errors under certain situations if
+ *		an allocation and copy are required due to a full ring buffer.
+ *		However, the helper will try to avoid doing the allocation
+ *		if possible. Other errors can occur if input parameters are
+ *		invalid either due to *start* byte not being valid part of msg
+ *		payload and/or *pop* value being to large.
+ *
+ *	Return
+ *		0 on success, or a negative erro in case of failure.
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2360,7 +2373,8 @@ union bpf_attr {
 	FN(map_push_elem),		\
 	FN(map_pop_elem),		\
 	FN(map_peek_elem),		\
-	FN(msg_push_data),
+	FN(msg_push_data),		\
+	FN(msg_pop_data),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call

@@ -713,7 +713,7 @@ static int do_dump(int argc, char **argv)
 
 	prev_key = NULL;
 
-	err = btf_get_from_id(info.btf_id, &btf);
+	err = btf__get_from_id(info.btf_id, &btf);
 	if (err) {
 		p_err("failed to get btf");
 		goto exit_free;
@@ -857,7 +857,7 @@ static int do_lookup(int argc, char **argv)
 	}
 
 	/* here means bpf_map_lookup_elem() succeeded */
-	err = btf_get_from_id(info.btf_id, &btf);
+	err = btf__get_from_id(info.btf_id, &btf);
 	if (err) {
 		p_err("failed to get btf");
 		goto exit_free;
