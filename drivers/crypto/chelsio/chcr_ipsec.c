@@ -303,7 +303,10 @@ static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 
 static inline int is_eth_imm(const struct sk_buff *skb, unsigned int kctx_len)
 {
-	int hdrlen = sizeof(struct chcr_ipsec_req) + kctx_len;
+	int hdrlen;
+
+	hdrlen = sizeof(struct fw_ulptx_wr) +
+		 sizeof(struct chcr_ipsec_req) + kctx_len;
 
 	hdrlen += sizeof(struct cpl_tx_pkt);
 	if (skb->len <= MAX_IMM_TX_PKT_LEN - hdrlen)
