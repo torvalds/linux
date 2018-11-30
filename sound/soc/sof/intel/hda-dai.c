@@ -52,12 +52,13 @@ static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 {
 	struct hdac_bus *bus;
 	struct hdac_ext_stream *stream;
-	struct snd_pcm_substream substream = {0};
+	struct snd_pcm_substream substream;
 	struct snd_sof_dev *sdev =
 		snd_soc_component_get_drvdata(dai->component);
 
 	bus = sof_to_bus(sdev);
 
+	memset(&substream, 0, sizeof(substream));
 	if (*tx_num == 1) {
 		substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
 		stream = snd_hdac_ext_stream_assign(bus, &substream,
@@ -215,8 +216,9 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream;
 	struct snd_soc_pcm_runtime *rtd;
 	struct hdac_ext_stream *link_dev;
-	struct snd_pcm_substream pcm_substream = {0};
+	struct snd_pcm_substream pcm_substream;
 
+	memset(&pcm_substream, 0, sizeof(pcm_substream));
 	if (substream) {
 		hstream = substream->runtime->private_data;
 		bus = hstream->bus;
