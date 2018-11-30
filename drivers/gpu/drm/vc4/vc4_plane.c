@@ -154,6 +154,7 @@ static struct drm_plane_state *vc4_plane_duplicate_state(struct drm_plane *plane
 		return NULL;
 
 	memset(&vc4_state->lbm, 0, sizeof(vc4_state->lbm));
+	vc4_state->dlist_initialized = 0;
 
 	__drm_atomic_helper_plane_duplicate_state(plane, &vc4_state->base);
 
@@ -510,6 +511,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	u32 hvs_format = format->hvs;
 	int ret, i;
 
+	if (vc4_state->dlist_initialized)
+		return 0;
+
 	ret = vc4_plane_setup_clipping_and_scaling(state);
 	if (ret)
 		return ret;
@@ -790,6 +794,13 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	 */
 	vc4_state->needs_bg_fill = fb->format->has_alpha || !covers_screen ||
 				   state->alpha != DRM_BLEND_ALPHA_OPAQUE;
+
+	/* Flag the dlist as initialized to avoid checking it twice in case
+	 * the async update check already called vc4_plane_mode_set() and
+	 * decided to fallback to sync update because async update was not
+	 * possible.
+	 */
+	vc4_state->dlist_initialized = 1;
 
 	return 0;
 }
