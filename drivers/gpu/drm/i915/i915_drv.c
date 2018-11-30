@@ -287,7 +287,7 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 	 * Use PCH_NOP (PCH but no South Display) for PCH platforms without
 	 * display.
 	 */
-	if (pch && INTEL_INFO(dev_priv)->num_pipes == 0) {
+	if (pch && !HAS_DISPLAY(dev_priv)) {
 		DRM_DEBUG_KMS("Display disabled, reverting to NOP PCH\n");
 		dev_priv->pch_type = PCH_NOP;
 		dev_priv->pch_id = 0;
@@ -645,7 +645,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (i915_inject_load_failure())
 		return -ENODEV;
 
-	if (INTEL_INFO(dev_priv)->num_pipes) {
+	if (HAS_DISPLAY(dev_priv)) {
 		ret = drm_vblank_init(&dev_priv->drm,
 				      INTEL_INFO(dev_priv)->num_pipes);
 		if (ret)
@@ -696,7 +696,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_overlay_setup(dev_priv);
 
-	if (INTEL_INFO(dev_priv)->num_pipes == 0)
+	if (!HAS_DISPLAY(dev_priv))
 		return 0;
 
 	ret = intel_fbdev_init(dev);
@@ -1566,7 +1566,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	} else
 		DRM_ERROR("Failed to register driver for userspace access!\n");
 
-	if (INTEL_INFO(dev_priv)->num_pipes) {
+	if (HAS_DISPLAY(dev_priv)) {
 		/* Must be done after probing outputs */
 		intel_opregion_register(dev_priv);
 		acpi_video_register();
@@ -1590,7 +1590,7 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 * We need to coordinate the hotplugs with the asynchronous fbdev
 	 * configuration, for which we use the fbdev->async_cookie.
 	 */
-	if (INTEL_INFO(dev_priv)->num_pipes)
+	if (HAS_DISPLAY(dev_priv))
 		drm_kms_helper_poll_init(dev);
 
 	intel_power_domains_enable(dev_priv);
