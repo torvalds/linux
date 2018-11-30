@@ -254,9 +254,15 @@ objtool_dep = $(objtool_obj)					\
 	      $(wildcard include/config/orc/unwinder.h		\
 			 include/config/stack/validation.h)
 
+ifdef CONFIG_TRIM_UNUSED_KSYMS
+cmd_gen_ksymdeps = \
+	$(CONFIG_SHELL) $(srctree)/scripts/gen_ksymdeps.sh $@ >> $(dot-target).cmd;
+endif
+
 define rule_cc_o_c
 	$(call echo-cmd,checksrc) $(cmd_checksrc)			  \
 	$(call cmd_and_fixdep,cc_o_c)					  \
+	$(cmd_gen_ksymdeps)						  \
 	$(cmd_checkdoc)							  \
 	$(call echo-cmd,objtool) $(cmd_objtool)				  \
 	$(cmd_modversions_c)						  \
@@ -265,6 +271,7 @@ endef
 
 define rule_as_o_S
 	$(call cmd_and_fixdep,as_o_S)					  \
+	$(cmd_gen_ksymdeps)						  \
 	$(call echo-cmd,objtool) $(cmd_objtool)				  \
 	$(cmd_modversions_S)
 endef
