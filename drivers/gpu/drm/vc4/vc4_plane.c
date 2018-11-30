@@ -260,14 +260,12 @@ static u32 vc4_get_scl_field(struct drm_plane_state *state, int plane)
 
 static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
-	struct drm_plane *plane = state->plane;
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
 	struct drm_framebuffer *fb = state->fb;
 	struct drm_gem_cma_object *bo = drm_fb_cma_get_gem_obj(fb, 0);
 	u32 subpixel_src_mask = (1 << 16) - 1;
 	u32 format = fb->format->format;
 	int num_planes = fb->format->num_planes;
-	int min_scale = 1, max_scale = INT_MAX;
 	struct drm_crtc_state *crtc_state;
 	u32 h_subsample, v_subsample;
 	int i, ret;
@@ -279,21 +277,8 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 		return -EINVAL;
 	}
 
-	/* No configuring scaling on the cursor plane, since it gets
-	 * non-vblank-synced updates, and scaling requires LBM changes which
-	 * have to be vblank-synced.
-	 */
-	if (plane->type == DRM_PLANE_TYPE_CURSOR) {
-		min_scale = DRM_PLANE_HELPER_NO_SCALING;
-		max_scale = DRM_PLANE_HELPER_NO_SCALING;
-	} else {
-		min_scale = 1;
-		max_scale = INT_MAX;
-	}
-
-	ret = drm_atomic_helper_check_plane_state(state, crtc_state,
-						  min_scale, max_scale,
-						  true, true);
+	ret = drm_atomic_helper_check_plane_state(state, crtc_state, 1,
+						  INT_MAX, true, true);
 	if (ret)
 		return ret;
 
