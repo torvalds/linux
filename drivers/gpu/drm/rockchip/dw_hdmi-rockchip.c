@@ -1316,6 +1316,12 @@ static int dw_hdmi_rockchip_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &dw_hdmi_rockchip_ops);
 }
 
+static void dw_hdmi_rockchip_shutdown(struct platform_device *pdev)
+{
+	dw_hdmi_suspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
+}
+
 static int dw_hdmi_rockchip_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &dw_hdmi_rockchip_ops);
@@ -1348,6 +1354,7 @@ static const struct dev_pm_ops dw_hdmi_pm_ops = {
 static struct platform_driver dw_hdmi_rockchip_pltfm_driver = {
 	.probe  = dw_hdmi_rockchip_probe,
 	.remove = dw_hdmi_rockchip_remove,
+	.shutdown = dw_hdmi_rockchip_shutdown,
 	.driver = {
 		.name = "dwhdmi-rockchip",
 		.of_match_table = dw_hdmi_rockchip_dt_ids,
