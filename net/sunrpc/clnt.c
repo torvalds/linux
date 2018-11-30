@@ -2309,6 +2309,7 @@ out_retry:
 	task->tk_status = 0;
 	/* Note: rpc_verify_header() may have freed the RPC slot */
 	if (task->tk_rqstp == req) {
+		xdr_free_bvec(&req->rq_rcv_buf);
 		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
 			xprt_conditional_disconnect(req->rq_xprt,

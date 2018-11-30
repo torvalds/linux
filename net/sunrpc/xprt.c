@@ -1623,6 +1623,8 @@ xprt_request_init(struct rpc_task *task)
 	req->rq_snd_buf.buflen = 0;
 	req->rq_rcv_buf.len = 0;
 	req->rq_rcv_buf.buflen = 0;
+	req->rq_snd_buf.bvec = NULL;
+	req->rq_rcv_buf.bvec = NULL;
 	req->rq_release_snd_buf = NULL;
 	xprt_reset_majortimeo(req);
 	dprintk("RPC: %5u reserved req %p xid %08x\n", task->tk_pid,
