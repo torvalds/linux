@@ -35,7 +35,7 @@ on the Qualcomm Technology Inc. ADSP Hexagon core.
 	Value type: <stringlist>
 	Definition: List of clock input name strings sorted in the same
 		    order as the clocks property. Definition must have
-		    "xo", "sway_cbcr", "lpass_aon", "lpass_ahbs_aon_cbcr",
+		    "xo", "sway_cbcr", "lpass_ahbs_aon_cbcr",
 		    "lpass_ahbm_aon_cbcr", "qdsp6ss_xo", "qdsp6ss_sleep"
 		    and "qdsp6ss_core".
 
@@ -100,13 +100,12 @@ ADSP, as it is found on SDM845 boards.
 
 		clocks = <&rpmhcc RPMH_CXO_CLK>,
 			<&gcc GCC_LPASS_SWAY_CLK>,
-			<&lpasscc LPASS_AUDIO_WRAPPER_AON_CLK>,
 			<&lpasscc LPASS_Q6SS_AHBS_AON_CLK>,
 			<&lpasscc LPASS_Q6SS_AHBM_AON_CLK>,
 			<&lpasscc LPASS_QDSP6SS_XO_CLK>,
 			<&lpasscc LPASS_QDSP6SS_SLEEP_CLK>,
 			<&lpasscc LPASS_QDSP6SS_CORE_CLK>;
-		clock-names = "xo", "sway_cbcr", "lpass_aon",
+		clock-names = "xo", "sway_cbcr",
 			"lpass_ahbs_aon_cbcr",
 			"lpass_ahbm_aon_cbcr", "qdsp6ss_xo",
 			"qdsp6ss_sleep", "qdsp6ss_core";
