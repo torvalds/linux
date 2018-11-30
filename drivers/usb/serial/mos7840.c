@@ -298,15 +298,10 @@ static int mos7840_set_uart_reg(struct usb_serial_port *port, __u16 reg,
 	val = val & 0x00ff;
 	/* For the UART control registers, the application number need
 	   to be Or'ed */
-	if (port->serial->num_ports == 4) {
+	if (port->serial->num_ports == 2 && port->port_number != 0)
+		val |= ((__u16)port->port_number + 2) << 8;
+	else
 		val |= ((__u16)port->port_number + 1) << 8;
-	} else {
-		if (port->port_number == 0) {
-			val |= ((__u16)port->port_number + 1) << 8;
-		} else {
-			val |= ((__u16)port->port_number + 2) << 8;
-		}
-	}
 	dev_dbg(&port->dev, "%s application number is %x\n", __func__, val);
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0), MCS_WRREQ,
 			       MCS_WR_RTYPE, val, reg, NULL, 0,
@@ -332,15 +327,10 @@ static int mos7840_get_uart_reg(struct usb_serial_port *port, __u16 reg,
 		return -ENOMEM;
 
 	/* Wval  is same as application number */
-	if (port->serial->num_ports == 4) {
+	if (port->serial->num_ports == 2 && port->port_number != 0)
+		Wval = ((__u16)port->port_number + 2) << 8;
+	else
 		Wval = ((__u16)port->port_number + 1) << 8;
-	} else {
-		if (port->port_number == 0) {
-			Wval = ((__u16)port->port_number + 1) << 8;
-		} else {
-			Wval = ((__u16)port->port_number + 2) << 8;
-		}
-	}
 	dev_dbg(&port->dev, "%s application number is %x\n", __func__, Wval);
 	ret = usb_control_msg(dev, usb_rcvctrlpipe(dev, 0), MCS_RDREQ,
 			      MCS_RD_RTYPE, Wval, reg, buf, VENDOR_READ_LENGTH,
@@ -2127,22 +2117,16 @@ static int mos7840_port_probe(struct usb_serial_port *port)
 		mos7840_port->SpRegOffset = 0x0;
 		mos7840_port->ControlRegOffset = 0x1;
 		mos7840_port->DcrRegOffset = 0x4;
-	} else if ((mos7840_port->port_num == 2) && (serial->num_ports == 4)) {
-		mos7840_port->SpRegOffset = 0x8;
-		mos7840_port->ControlRegOffset = 0x9;
-		mos7840_port->DcrRegOffset = 0x16;
-	} else if ((mos7840_port->port_num == 2) && (serial->num_ports == 2)) {
-		mos7840_port->SpRegOffset = 0xa;
-		mos7840_port->ControlRegOffset = 0xb;
-		mos7840_port->DcrRegOffset = 0x19;
-	} else if ((mos7840_port->port_num == 3) && (serial->num_ports == 4)) {
-		mos7840_port->SpRegOffset = 0xa;
-		mos7840_port->ControlRegOffset = 0xb;
-		mos7840_port->DcrRegOffset = 0x19;
-	} else if ((mos7840_port->port_num == 4) && (serial->num_ports == 4)) {
-		mos7840_port->SpRegOffset = 0xc;
-		mos7840_port->ControlRegOffset = 0xd;
-		mos7840_port->DcrRegOffset = 0x1c;
+	} else {
+		u8 phy_num = mos7840_port->port_num;
+
+		/* Port 2 in the 2-port case uses registers of port 3 */
+		if (serial->num_ports == 2)
+			phy_num = 3;
+
+		mos7840_port->SpRegOffset = 0x8 + 2 * (phy_num - 2);
+		mos7840_port->ControlRegOffset = 0x9 + 2 * (phy_num - 2);
+		mos7840_port->DcrRegOffset = 0x16 + 3 * (phy_num - 2);
 	}
 	mos7840_dump_serial_port(port, mos7840_port);
 	mos7840_set_port_private(port, mos7840_port);
