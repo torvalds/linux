@@ -300,7 +300,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		clks: pxa3xx_clks@41300004 {
+		clks: clocks {
 			compatible = "marvell,pxa300-clocks";
 			#clock-cells = <1>;
 			status = "okay";
