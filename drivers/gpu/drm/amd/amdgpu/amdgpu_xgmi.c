@@ -94,9 +94,9 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	int count = 0, ret = -EINVAL;
 
-	if ((adev->asic_type < CHIP_VEGA20) ||
-		(adev->flags & AMD_IS_APU) )
+	if (!adev->gmc.xgmi.supported)
 		return 0;
+
 	adev->gmc.xgmi.node_id = psp_xgmi_get_node_id(&adev->psp);
 	adev->gmc.xgmi.hive_id = psp_xgmi_get_hive_id(&adev->psp);
 

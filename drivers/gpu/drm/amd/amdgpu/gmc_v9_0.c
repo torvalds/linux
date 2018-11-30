@@ -934,7 +934,7 @@ static int gmc_v9_0_sw_init(void *handle)
 	}
 	adev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
 
-	if (adev->asic_type == CHIP_VEGA20) {
+	if (adev->gmc.xgmi.supported) {
 		r = gfxhub_v1_1_get_xgmi_info(adev);
 		if (r)
 			return r;

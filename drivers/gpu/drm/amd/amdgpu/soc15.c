@@ -500,6 +500,9 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	if (adev->asic_type == CHIP_VEGA20)
+		adev->gmc.xgmi.supported = true;
+
 	if (adev->flags & AMD_IS_APU)
 		adev->nbio_funcs = &nbio_v7_0_funcs;
 	else if (adev->asic_type == CHIP_VEGA20)
