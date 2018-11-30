@@ -1,4 +1,3 @@
-#include <linux/seq_file.h>
 #include <linux/cpumask.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
