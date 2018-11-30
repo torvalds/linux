@@ -1000,6 +1000,7 @@ static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 
 static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 end, struct cyc_hist *ch)
 {
 	unsigned n_insn;
+	unsigned int cover_insn = 0;
 	u64 offset;
 
 	n_insn = annotation__count_insn(notes, start, end);
@@ -1013,21 +1014,34 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 		for (offset = start; offset <= end; offset++) {
 			struct annotation_line *al = notes->offsets[offset];
 
-			if (al)
+			if (al && al->ipc == 0.0) {
 				al->ipc = ipc;
+				cover_insn++;
+			}
+		}
+
+		if (cover_insn) {
+			notes->hit_cycles += ch->cycles;
+			notes->hit_insn += n_insn * ch->num;
+			notes->cover_insn += cover_insn;
 		}
 	}
 }
 
 void annotation__compute_ipc(struct annotation *notes, size_t size)
 {
-	u64 offset;
+	s64 offset;
 
 	if (!notes->src || !notes->src->cycles_hist)
 		return;
 
+	notes->total_insn = annotation__count_insn(notes, 0, size - 1);
+	notes->hit_cycles = 0;
+	notes->hit_insn = 0;
+	notes->cover_insn = 0;
+
 	pthread_mutex_lock(&notes->lock);
-	for (offset = 0; offset < size; ++offset) {
+	for (offset = size - 1; offset >= 0; --offset) {
 		struct cyc_hist *ch;
 
 		ch = &notes->src->cycles_hist[offset];
@@ -2563,6 +2577,22 @@ call_like:
 	disasm_line__scnprintf(dl, bf, size, !notes->options->use_offset);
 }
 
+static void ipc_coverage_string(char *bf, int size, struct annotation *notes)
+{
+	double ipc = 0.0, coverage = 0.0;
+
+	if (notes->hit_cycles)
+		ipc = notes->hit_insn / ((double)notes->hit_cycles);
+
+	if (notes->total_insn) {
+		coverage = notes->cover_insn * 100.0 /
+			((double)notes->total_insn);
+	}
+
+	scnprintf(bf, size, "(Average IPC: %.2f, IPC Coverage: %.1f%%)",
+		  ipc, coverage);
+}
+
 static void __annotation_line__write(struct annotation_line *al, struct annotation *notes,
 				     bool first_line, bool current_entry, bool change_color, int width,
 				     void *obj, unsigned int percent_type,
@@ -2657,6 +2687,11 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				obj__printf(obj, "%*s ",
 					    ANNOTATION__MINMAX_CYCLES_WIDTH - 1,
 					    "Cycle(min/max)");
+		}
+
+		if (show_title && !*al->line) {
+			ipc_coverage_string(bf, sizeof(bf), notes);
+			obj__printf(obj, "%*s", ANNOTATION__AVG_IPC_WIDTH, bf);
 		}
 	}
 
