@@ -871,12 +871,25 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
  * to release a rpi.
  **/
 void
-lpfc_release_rpi(struct lpfc_hba *phba,
-		struct lpfc_vport *vport,
-		uint16_t rpi)
+lpfc_release_rpi(struct lpfc_hba *phba, struct lpfc_vport *vport,
+		 struct lpfc_nodelist *ndlp, uint16_t rpi)
 {
 	LPFC_MBOXQ_t *pmb;
 	int rc;
+
+	/* If there is already an UNREG in progress for this ndlp,
+	 * no need to queue up another one.
+	 */
+	if (ndlp->nlp_flag & NLP_UNREG_INP) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "1435 release_rpi SKIP UNREG x%x on "
+				 "NPort x%x deferred x%x  flg x%x "
+				 "Data: %p\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_defer_did,
+				 ndlp->nlp_flag, ndlp);
+		return;
+	}
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
 			GFP_KERNEL);
@@ -886,6 +899,18 @@ lpfc_release_rpi(struct lpfc_hba *phba,
 	else {
 		lpfc_unreg_login(phba, vport->vpi, rpi, pmb);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		pmb->vport = vport;
+		pmb->ctx_ndlp = ndlp;
+
+		if (((ndlp->nlp_DID & Fabric_DID_MASK) != Fabric_DID_MASK) &&
+		    (!(vport->fc_flag & FC_OFFLINE_MODE)))
+			ndlp->nlp_flag |= NLP_UNREG_INP;
+
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "1437 release_rpi UNREG x%x "
+				 "on NPort x%x flg x%x\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag);
+
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 		if (rc == MBX_NOT_FINISHED)
 			mempool_free(pmb, phba->mbox_mem_pool);
@@ -906,7 +931,7 @@ lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		(evt == NLP_EVT_CMPL_REG_LOGIN) &&
 		(!pmb->u.mb.mbxStatus)) {
 		rpi = pmb->u.mb.un.varWords[0];
-		lpfc_release_rpi(phba, vport, rpi);
+		lpfc_release_rpi(phba, vport, ndlp, rpi);
 	}
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 			 "0271 Illegal State Transition: node x%x "
@@ -1334,7 +1359,7 @@ lpfc_cmpl_reglogin_plogi_issue(struct lpfc_vport *vport,
 	if (!(phba->pport->load_flag & FC_UNLOADING) &&
 		!mb->mbxStatus) {
 		rpi = pmb->u.mb.un.varWords[0];
-		lpfc_release_rpi(phba, vport, rpi);
+		lpfc_release_rpi(phba, vport, ndlp, rpi);
 	}
 	return ndlp->nlp_state;
 }
@@ -2875,8 +2900,8 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* DSM in event <evt> on NPort <nlp_DID> in state <cur_state> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 			 "0211 DSM in event x%x on NPort x%x in "
-			 "state %d Data: x%x x%x\n",
-			 evt, ndlp->nlp_DID, cur_state,
+			 "state %d rpi x%x Data: x%x x%x\n",
+			 evt, ndlp->nlp_DID, cur_state, ndlp->nlp_rpi,
 			 ndlp->nlp_flag, ndlp->nlp_fc4_type);
 
 	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
@@ -2889,8 +2914,9 @@ lpfc_disc_state_machine(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	/* DSM out state <rc> on NPort <nlp_DID> */
 	if (got_ndlp) {
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-			 "0212 DSM out state %d on NPort x%x Data: x%x\n",
-			 rc, ndlp->nlp_DID, ndlp->nlp_flag);
+			 "0212 DSM out state %d on NPort x%x "
+			 "rpi x%x Data: x%x\n",
+			 rc, ndlp->nlp_DID, ndlp->nlp_rpi, ndlp->nlp_flag);
 
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_DSM,
 			"DSM out:         ste:%d did:x%x flg:x%x",

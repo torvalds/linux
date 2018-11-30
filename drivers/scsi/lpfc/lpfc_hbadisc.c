@@ -4444,6 +4444,7 @@ lpfc_initialize_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	NLP_INT_NODE_ACT(ndlp);
 	atomic_set(&ndlp->cmd_pending, 0);
 	ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
+	ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 }
 
 struct lpfc_nodelist *
@@ -4451,10 +4452,11 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 int state)
 {
 	struct lpfc_hba *phba = vport->phba;
-	uint32_t did;
+	uint32_t did, flag;
 	unsigned long flags;
 	unsigned long *active_rrqs_xri_bitmap = NULL;
 	int rpi = LPFC_RPI_ALLOC_ERROR;
+	uint32_t defer_did = 0;
 
 	if (!ndlp)
 		return NULL;
@@ -4487,16 +4489,23 @@ lpfc_enable_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		goto free_rpi;
 	}
 
-	/* Keep the original DID */
+	/* First preserve the orginal DID, xri_bitmap and some flags */
 	did = ndlp->nlp_DID;
+	flag = (ndlp->nlp_flag & NLP_UNREG_INP);
+	if (flag & NLP_UNREG_INP)
+		defer_did = ndlp->nlp_defer_did;
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		active_rrqs_xri_bitmap = ndlp->active_rrqs_xri_bitmap;
 
-	/* re-initialize ndlp except of ndlp linked list pointer */
+	/* Zero ndlp except of ndlp linked list pointer */
 	memset((((char *)ndlp) + sizeof (struct list_head)), 0,
 		sizeof (struct lpfc_nodelist) - sizeof (struct list_head));
-	lpfc_initialize_node(vport, ndlp, did);
 
+	/* Next reinitialize and restore saved objects */
+	lpfc_initialize_node(vport, ndlp, did);
+	ndlp->nlp_flag |= flag;
+	if (flag & NLP_UNREG_INP)
+		ndlp->nlp_defer_did = defer_did;
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		ndlp->active_rrqs_xri_bitmap = active_rrqs_xri_bitmap;
 
@@ -4761,6 +4770,20 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
 	mempool_free(pmb, phba->mbox_mem_pool);
+
+	/* Check to see if there are any deferred events to process */
+	if ((ndlp->nlp_flag & NLP_UNREG_INP) &&
+	    (ndlp->nlp_defer_did != NLP_EVT_NOTHING_PENDING)) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "1434 UNREG cmpl deferred logo x%x "
+				 "on NPort x%x Data: x%x %p\n",
+				 ndlp->nlp_rpi, ndlp->nlp_DID,
+				 ndlp->nlp_defer_did, ndlp);
+
+		ndlp->nlp_flag &= ~NLP_UNREG_INP;
+		ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
+		lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
+	}
 }
 
 /*
@@ -4789,6 +4812,21 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 "did x%x\n",
 					 ndlp->nlp_rpi, ndlp->nlp_flag,
 					 ndlp->nlp_DID);
+
+		/* If there is already an UNREG in progress for this ndlp,
+		 * no need to queue up another one.
+		 */
+		if (ndlp->nlp_flag & NLP_UNREG_INP) {
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "1436 unreg_rpi SKIP UNREG x%x on "
+					 "NPort x%x deferred x%x  flg x%x "
+					 "Data: %p\n",
+					 ndlp->nlp_rpi, ndlp->nlp_DID,
+					 ndlp->nlp_defer_did,
+					 ndlp->nlp_flag, ndlp);
+			goto out;
+		}
+
 		mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 		if (mbox) {
 			/* SLI4 ports require the physical rpi value. */
@@ -4815,10 +4853,22 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 					 * accept PLOGIs after unreg_rpi_cmpl
 					 */
 					acc_plogi = 0;
-				} else
+				} else {
+					mbox->ctx_ndlp = ndlp;
 					mbox->mbox_cmpl =
 						lpfc_sli_def_mbox_cmpl;
+				}
 			}
+			if (((ndlp->nlp_DID & Fabric_DID_MASK) !=
+			    Fabric_DID_MASK) &&
+			    (!(vport->fc_flag & FC_OFFLINE_MODE)))
+				ndlp->nlp_flag |= NLP_UNREG_INP;
+
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+					 "1433 unreg_rpi UNREG x%x on "
+					 "NPort x%x deferred flg x%x Data:%p\n",
+					 ndlp->nlp_rpi, ndlp->nlp_DID,
+					 ndlp->nlp_flag, ndlp);
 
 			rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 			if (rc == MBX_NOT_FINISHED) {
@@ -4827,7 +4877,7 @@ lpfc_unreg_rpi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 			}
 		}
 		lpfc_no_rpi(phba, ndlp);
-
+out:
 		if (phba->sli_rev != LPFC_SLI_REV4)
 			ndlp->nlp_rpi = 0;
 		ndlp->nlp_flag &= ~NLP_RPI_REGISTERED;
