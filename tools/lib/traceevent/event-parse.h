@@ -581,6 +581,7 @@ struct tep_handle *tep_alloc(void);
 void tep_free(struct tep_handle *pevent);
 void tep_ref(struct tep_handle *pevent);
 void tep_unref(struct tep_handle *pevent);
+int tep_get_ref(struct tep_handle *tep);
 
 /* access to the internal parser */
 void tep_buffer_init(const char *buf, unsigned long long size);
