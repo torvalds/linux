@@ -324,7 +324,7 @@ bool cm_helper_translate_curve_to_hw_format(
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
-	PERF_TRACE();
+	PERF_TRACE_CTX(output_tf->ctx);
 
 	corner_points = lut_params->corner_points;
 	rgb_resulted = lut_params->rgb_resulted;
@@ -513,7 +513,7 @@ bool cm_helper_translate_curve_to_degamma_hw_format(
 	if (output_tf == NULL || lut_params == NULL || output_tf->type == TF_TYPE_BYPASS)
 		return false;
 
-	PERF_TRACE();
+	PERF_TRACE_CTX(output_tf->ctx);
 
 	corner_points = lut_params->corner_points;
 	rgb_resulted = lut_params->rgb_resulted;

@@ -23,6 +23,9 @@
  *
  */
 
+/* The caprices of the preprocessor require that this be declared right here */
+#define CREATE_TRACE_POINTS
+
 #include "dm_services_types.h"
 #include "dc.h"
 #include "dc/inc/core_types.h"

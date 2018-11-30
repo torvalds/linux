@@ -224,6 +224,17 @@ failed_alloc:
 	return false;
 }
 
+static struct dc_perf_trace *dc_perf_trace_create(void)
+{
+	return kzalloc(sizeof(struct dc_perf_trace), GFP_KERNEL);
+}
+
+static void dc_perf_trace_destroy(struct dc_perf_trace **perf_trace)
+{
+	kfree(*perf_trace);
+	*perf_trace = NULL;
+}
+
 /**
  *****************************************************************************
  *  Function: dc_stream_adjust_vmin_vmax
@@ -585,6 +596,8 @@ static void destruct(struct dc *dc)
 	if (dc->ctx->created_bios)
 		dal_bios_parser_destroy(&dc->ctx->dc_bios);
 
+	dc_perf_trace_destroy(&dc->ctx->perf_trace);
+
 	kfree(dc->ctx);
 	dc->ctx = NULL;
 
@@ -704,6 +717,12 @@ static bool construct(struct dc *dc,
 	dc_ctx->i2caux = dal_i2caux_create(dc_ctx);
 
 	if (!dc_ctx->i2caux) {
+		ASSERT_CRITICAL(false);
+		goto fail;
+	}
+
+	dc_ctx->perf_trace = dc_perf_trace_create();
+	if (!dc_ctx->perf_trace) {
 		ASSERT_CRITICAL(false);
 		goto fail;
 	}
