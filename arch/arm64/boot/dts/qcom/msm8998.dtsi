@@ -240,7 +240,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-msm8998";
+			compatible = "qcom,scm-msm8998", "qcom,scm";
 		};
 	};
 
