@@ -94,6 +94,7 @@
 /* The native mos7840/7820 component */
 #define USB_VENDOR_ID_MOSCHIP           0x9710
 #define MOSCHIP_DEVICE_ID_7840          0x7840
+#define MOSCHIP_DEVICE_ID_7843          0x7843
 #define MOSCHIP_DEVICE_ID_7820          0x7820
 #define MOSCHIP_DEVICE_ID_7810          0x7810
 /* The native component can have its vendor/device id's overridden
@@ -176,6 +177,7 @@ enum mos7840_flag {
 
 static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7840)},
+	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7843)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7820)},
 	{USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7810)},
 	{USB_DEVICE(USB_VENDOR_ID_BANDB, BANDB_DEVICE_ID_USO9ML2_2)},
@@ -2028,7 +2030,8 @@ static int mos7840_probe(struct usb_serial *serial,
 	int device_type;
 
 	if (product == MOSCHIP_DEVICE_ID_7810 ||
-		product == MOSCHIP_DEVICE_ID_7820) {
+		product == MOSCHIP_DEVICE_ID_7820 ||
+		product == MOSCHIP_DEVICE_ID_7843) {
 		device_type = product;
 		goto out;
 	}
@@ -2062,7 +2065,10 @@ static int mos7840_calc_num_ports(struct usb_serial *serial,
 	int device_type = (unsigned long)usb_get_serial_data(serial);
 	int num_ports;
 
-	num_ports = (device_type >> 4) & 0x000F;
+	if (device_type == MOSCHIP_DEVICE_ID_7843)
+		num_ports = 3;
+	else
+		num_ports = (device_type >> 4) & 0x000F;
 
 	/*
 	 * num_ports is currently never zero as device_type is one of
