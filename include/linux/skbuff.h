@@ -485,6 +485,7 @@ void sock_zerocopy_put_abort(struct ubuf_info *uarg);
 
 void sock_zerocopy_callback(struct ubuf_info *uarg, bool success);
 
+int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len);
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
 			     struct ubuf_info *uarg);

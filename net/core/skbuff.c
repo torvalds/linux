@@ -1105,6 +1105,12 @@ EXPORT_SYMBOL_GPL(sock_zerocopy_put_abort);
 extern int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 				   struct iov_iter *from, size_t length);
 
+int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len)
+{
+	return __zerocopy_sg_from_iter(skb->sk, skb, &msg->msg_iter, len);
+}
+EXPORT_SYMBOL_GPL(skb_zerocopy_iter_dgram);
+
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
 			     struct ubuf_info *uarg)

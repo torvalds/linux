@@ -867,6 +867,7 @@ static int __ip_append_data(struct sock *sk,
 			    unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
+	struct ubuf_info *uarg = NULL;
 	struct sk_buff *skb;
 
 	struct ip_options *opt = cork->opt;
@@ -915,6 +916,19 @@ static int __ip_append_data(struct sock *sk,
 	    (!(flags & MSG_MORE) || cork->gso_size) &&
 	    (!exthdrlen || (rt->dst.dev->features & NETIF_F_HW_ESP_TX_CSUM)))
 		csummode = CHECKSUM_PARTIAL;
+
+	if (flags & MSG_ZEROCOPY && length && sock_flag(sk, SOCK_ZEROCOPY)) {
+		uarg = sock_zerocopy_realloc(sk, length, skb_zcopy(skb));
+		if (!uarg)
+			return -ENOBUFS;
+		if (rt->dst.dev->features & NETIF_F_SG &&
+		    csummode == CHECKSUM_PARTIAL) {
+			paged = true;
+		} else {
+			uarg->zerocopy = 0;
+			skb_zcopy_set(skb, uarg);
+		}
+	}
 
 	cork->length += length;
 
@@ -1006,6 +1020,7 @@ alloc_new_skb:
 			cork->tx_flags = 0;
 			skb_shinfo(skb)->tskey = tskey;
 			tskey = 0;
+			skb_zcopy_set(skb, uarg);
 
 			/*
 			 *	Find where to start putting bytes.
@@ -1068,7 +1083,7 @@ alloc_new_skb:
 				err = -EFAULT;
 				goto error;
 			}
-		} else {
+		} else if (!uarg || !uarg->zerocopy) {
 			int i = skb_shinfo(skb)->nr_frags;
 
 			err = -ENOMEM;
@@ -1098,6 +1113,10 @@ alloc_new_skb:
 			skb->data_len += copy;
 			skb->truesize += copy;
 			wmem_alloc_delta += copy;
+		} else {
+			err = skb_zerocopy_iter_dgram(skb, from, copy);
+			if (err < 0)
+				goto error;
 		}
 		offset += copy;
 		length -= copy;
@@ -1105,11 +1124,13 @@ alloc_new_skb:
 
 	if (wmem_alloc_delta)
 		refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
+	sock_zerocopy_put(uarg);
 	return 0;
 
 error_efault:
 	err = -EFAULT;
 error:
+	sock_zerocopy_put_abort(uarg);
 	cork->length -= length;
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
 	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
