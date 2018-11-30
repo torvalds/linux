@@ -367,21 +367,8 @@ static irqreturn_t byt_irq_handler(int irq, void *context)
 
 	/* Interrupt arrived, check src */
 	isr = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_ISRX);
-	if (isr & SHIM_ISRX_DONE) {
-		/* Mask Done interrupt before return */
-		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
-						   SHIM_IMRX_DONE,
-						   SHIM_IMRX_DONE);
+	if (isr & (SHIM_ISRX_DONE | SHIM_ISRX_BUSY))
 		ret = IRQ_WAKE_THREAD;
-	}
-
-	if (isr & SHIM_ISRX_BUSY) {
-		/* Mask Busy interrupt before return */
-		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR, SHIM_IMRX,
-						   SHIM_IMRX_BUSY,
-						   SHIM_IMRX_BUSY);
-		ret = IRQ_WAKE_THREAD;
-	}
 
 	return ret;
 }
@@ -390,11 +377,19 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
 	u64 ipcx, ipcd;
+	u64 imrx;
 
+	imrx = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IMRX);
 	ipcx = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IPCX);
 
 	/* reply message from DSP */
-	if (ipcx & SHIM_BYT_IPCX_DONE) {
+	if (ipcx & SHIM_BYT_IPCX_DONE &&
+	    !(imrx & SHIM_IMRX_DONE)) {
+		/* Mask Done interrupt before first */
+		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR,
+						   SHIM_IMRX,
+						   SHIM_IMRX_DONE,
+						   SHIM_IMRX_DONE);
 		/*
 		 * handle immediate reply from DSP core. If the msg is
 		 * found, set done bit in cmd_done which is called at the
@@ -408,7 +403,14 @@ static irqreturn_t byt_irq_thread(int irq, void *context)
 
 	/* new message from DSP */
 	ipcd = snd_sof_dsp_read64(sdev, BYT_DSP_BAR, SHIM_IPCD);
-	if (ipcd & SHIM_BYT_IPCD_BUSY) {
+	if (ipcd & SHIM_BYT_IPCD_BUSY &&
+	    !(imrx & SHIM_IMRX_BUSY)) {
+		/* Mask Busy interrupt before return */
+		snd_sof_dsp_update_bits64_unlocked(sdev, BYT_DSP_BAR,
+						   SHIM_IMRX,
+						   SHIM_IMRX_BUSY,
+						   SHIM_IMRX_BUSY);
+
 		/* Handle messages from DSP Core */
 		if ((ipcd & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			snd_sof_dsp_panic(sdev, BYT_PANIC_OFFSET(ipcd) +
