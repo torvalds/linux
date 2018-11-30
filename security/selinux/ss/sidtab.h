@@ -22,6 +22,11 @@ struct sidtab_node {
 
 #define SIDTAB_SIZE SIDTAB_HASH_BUCKETS
 
+struct sidtab_isid_entry {
+	int set;
+	struct context context;
+};
+
 struct sidtab {
 	struct sidtab_node **htable;
 	unsigned int nel;	/* number of elements */
@@ -30,10 +35,13 @@ struct sidtab {
 #define SIDTAB_CACHE_LEN	3
 	struct sidtab_node *cache[SIDTAB_CACHE_LEN];
 	spinlock_t lock;
+
+	/* index == SID - 1 (no entry for SECSID_NULL) */
+	struct sidtab_isid_entry isids[SECINITSID_NUM];
 };
 
 int sidtab_init(struct sidtab *s);
-int sidtab_insert(struct sidtab *s, u32 sid, struct context *context);
+int sidtab_set_initial(struct sidtab *s, u32 sid, struct context *context);
 struct context *sidtab_search(struct sidtab *s, u32 sid);
 struct context *sidtab_search_force(struct sidtab *s, u32 sid);
 
@@ -43,13 +51,10 @@ int sidtab_convert(struct sidtab *s, struct sidtab *news,
 				void *args),
 		   void *args);
 
-int sidtab_context_to_sid(struct sidtab *s,
-			  struct context *context,
-			  u32 *sid);
+int sidtab_context_to_sid(struct sidtab *s, struct context *context, u32 *sid);
 
 void sidtab_hash_eval(struct sidtab *h, char *tag);
 void sidtab_destroy(struct sidtab *s);
-void sidtab_set(struct sidtab *dst, struct sidtab *src);
 
 #endif	/* _SS_SIDTAB_H_ */
 

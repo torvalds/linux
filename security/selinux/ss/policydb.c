@@ -914,13 +914,21 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 		if (!c->context[0].user) {
 			pr_err("SELinux:  SID %s was never defined.\n",
 				c->u.name);
+			sidtab_destroy(s);
+			goto out;
+		}
+		if (c->sid[0] == SECSID_NULL || c->sid[0] > SECINITSID_NUM) {
+			pr_err("SELinux:  Initial SID %s out of range.\n",
+				c->u.name);
+			sidtab_destroy(s);
 			goto out;
 		}
 
-		rc = sidtab_insert(s, c->sid[0], &c->context[0]);
+		rc = sidtab_set_initial(s, c->sid[0], &c->context[0]);
 		if (rc) {
 			pr_err("SELinux:  unable to load initial SID %s.\n",
 				c->u.name);
+			sidtab_destroy(s);
 			goto out;
 		}
 	}
