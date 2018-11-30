@@ -32,10 +32,20 @@
 #define DEFAULT_MCLK_FS				256
 #define CH_GRP_MAX				4  /* The max channel 8 / 2 */
 
+struct txrx_config {
+	u32 addr;
+	u32 reg;
+	u32 txonly;
+	u32 rxonly;
+};
+
 struct rk_i2s_soc_data {
 	u32 softrst_offset;
 	int tx_reset_id;
 	int rx_reset_id;
+	int config_count;
+	const struct txrx_config *configs;
+	int (*init)(struct device *dev, u32 addr);
 };
 
 struct rk_i2s_tdm_dev {
@@ -58,6 +68,7 @@ struct rk_i2s_tdm_dev {
 	struct clk *mclk_root0;
 	struct clk *mclk_root1;
 	struct regmap *regmap;
+	struct regmap *grf;
 	struct snd_dmaengine_dai_dma_data capture_dma_data;
 	struct snd_dmaengine_dai_dma_data playback_dma_data;
 	struct reset_control *tx_reset;
@@ -1047,16 +1058,70 @@ static const struct regmap_config rockchip_i2s_tdm_regmap_config = {
 	.cache_type = REGCACHE_FLAT,
 };
 
+static int common_soc_init(struct device *dev, u32 addr)
+{
+	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
+	const struct txrx_config *configs = i2s_tdm->soc_data->configs;
+	u32 reg = 0, val = 0, trcm = i2s_tdm->clk_trcm;
+	int i;
+
+	switch (trcm) {
+	case I2S_CKR_TRCM_TXONLY:
+		/* fall through */
+	case I2S_CKR_TRCM_RXONLY:
+		break;
+	default:
+		return 0;
+	}
+
+	for (i = 0; i < i2s_tdm->soc_data->config_count; i++) {
+		if (addr != configs[i].addr)
+			continue;
+		reg = configs[i].reg;
+		if (trcm == I2S_CKR_TRCM_TXONLY)
+			val = configs[i].txonly;
+		else
+			val = configs[i].rxonly;
+	}
+
+	if (reg)
+		regmap_write(i2s_tdm->grf, reg, val);
+
+	return 0;
+}
+
+static const struct txrx_config px30_txrx_config[] = {
+	{ 0xff060000, 0x184, PX30_I2S0_CLK_TXONLY, PX30_I2S0_CLK_RXONLY },
+};
+
+static const struct txrx_config rk1808_txrx_config[] = {
+	{ 0xff7e0000, 0x190, RK1808_I2S0_CLK_TXONLY, RK1808_I2S0_CLK_RXONLY },
+};
+
+static const struct txrx_config rk3308_txrx_config[] = {
+	{ 0xff300000, 0x308, RK3308_I2S0_CLK_TXONLY, RK3308_I2S0_CLK_RXONLY },
+	{ 0xff310000, 0x308, RK3308_I2S1_CLK_TXONLY, RK3308_I2S1_CLK_RXONLY },
+};
+
 static struct rk_i2s_soc_data px30_i2s_soc_data = {
 	.softrst_offset = 0x0300,
+	.configs = px30_txrx_config,
+	.config_count = ARRAY_SIZE(px30_txrx_config),
+	.init = common_soc_init,
 };
 
 static struct rk_i2s_soc_data rk1808_i2s_soc_data = {
 	.softrst_offset = 0x0300,
+	.configs = rk1808_txrx_config,
+	.config_count = ARRAY_SIZE(rk1808_txrx_config),
+	.init = common_soc_init,
 };
 
 static struct rk_i2s_soc_data rk3308_i2s_soc_data = {
 	.softrst_offset = 0x0400,
+	.configs = rk3308_txrx_config,
+	.config_count = ARRAY_SIZE(rk3308_txrx_config),
+	.init = common_soc_init,
 };
 
 static const struct of_device_id rockchip_i2s_tdm_match[] = {
@@ -1305,6 +1370,10 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		}
 	}
 
+	i2s_tdm->grf = syscon_regmap_lookup_by_phandle(node, "rockchip,grf");
+	if (IS_ERR(i2s_tdm->grf))
+		return PTR_ERR(i2s_tdm->grf);
+
 	if (i2s_tdm->clk_trcm) {
 		cru_node = of_parse_phandle(node, "rockchip,cru", 0);
 		i2s_tdm->cru_base = of_iomap(cru_node, 0);
@@ -1415,6 +1484,9 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 
 	regmap_update_bits(i2s_tdm->regmap, I2S_CKR,
 			   I2S_CKR_TRCM_MASK, i2s_tdm->clk_trcm);
+
+	if (i2s_tdm->soc_data && i2s_tdm->soc_data->init)
+		i2s_tdm->soc_data->init(&pdev->dev, res->start);
 
 	ret = devm_snd_soc_register_component(&pdev->dev,
 					      &rockchip_i2s_tdm_component,
