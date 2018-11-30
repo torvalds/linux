@@ -582,7 +582,7 @@ static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 	debug_dma_mapping_error(dev, dma_addr);
 
 	if (dma_addr == DMA_MAPPING_ERROR)
-		return 1;
+		return -ENOMEM;
 	return 0;
 }
 
