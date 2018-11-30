@@ -1915,6 +1915,13 @@ call_connect_status(struct rpc_task *task)
 	struct rpc_clnt *clnt = task->tk_client;
 	int status = task->tk_status;
 
+	/* Check if the task was already transmitted */
+	if (!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate)) {
+		xprt_end_transmit(task);
+		task->tk_action = call_transmit_status;
+		return;
+	}
+
 	dprint_status(task);
 
 	trace_rpc_connect_status(task);
