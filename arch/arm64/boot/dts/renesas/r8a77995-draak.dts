@@ -179,11 +179,17 @@
 };
 
 &ehci0 {
+	dr_mode = "host";
 	status = "okay";
 };
 
 &extal_clk {
 	clock-frequency = <48000000>;
+};
+
+&hsusb {
+	dr_mode = "host";
+	status = "okay";
 };
 
 &i2c0 {
@@ -337,6 +343,7 @@
 };
 
 &ohci0 {
+	dr_mode = "host";
 	status = "okay";
 };
 
@@ -445,6 +452,7 @@
 	pinctrl-0 = <&usb0_pins>;
 	pinctrl-names = "default";
 
+	renesas,no-otg-pins;
 	status = "okay";
 };
 
