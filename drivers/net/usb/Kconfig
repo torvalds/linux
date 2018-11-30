@@ -617,7 +617,6 @@ config USB_NET_AQC111
 	tristate "Aquantia AQtion USB to 5/2.5GbE Controllers support"
 	depends on USB_USBNET
 	select CRC32
-	default y
 	help
 	  This option adds support for Aquantia AQtion USB
 	  Ethernet adapters based on AQC111U/AQC112 chips.
