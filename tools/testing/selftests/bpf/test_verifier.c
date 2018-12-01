@@ -14257,13 +14257,14 @@ out:
 static void do_test_single(struct bpf_test *test, bool unpriv,
 			   int *passes, int *errors)
 {
-	int fd_prog, expected_ret, reject_from_alignment;
+	int fd_prog, expected_ret, alignment_prevented_execution;
 	int prog_len, prog_type = test->prog_type;
 	struct bpf_insn *prog = test->insns;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
 	uint32_t expected_val;
 	uint32_t retval;
+	__u32 pflags;
 	int i, err;
 
 	for (i = 0; i < MAX_NR_MAPS; i++)
@@ -14274,9 +14275,12 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	do_test_fixup(test, prog_type, prog, map_fds);
 	prog_len = probe_filter_length(prog);
 
-	fd_prog = bpf_verify_program(prog_type, prog, prog_len,
-				     test->flags & F_LOAD_WITH_STRICT_ALIGNMENT ?
-				     BPF_F_STRICT_ALIGNMENT : 0,
+	pflags = 0;
+	if (test->flags & F_LOAD_WITH_STRICT_ALIGNMENT)
+		pflags |= BPF_F_STRICT_ALIGNMENT;
+	if (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS)
+		pflags |= BPF_F_ANY_ALIGNMENT;
+	fd_prog = bpf_verify_program(prog_type, prog, prog_len, pflags,
 				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog), 1);
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
@@ -14286,28 +14290,27 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	expected_val = unpriv && test->retval_unpriv ?
 		       test->retval_unpriv : test->retval;
 
-	reject_from_alignment = fd_prog < 0 &&
-				(test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS) &&
-				strstr(bpf_vlog, "misaligned");
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-	if (reject_from_alignment) {
-		printf("FAIL\nFailed due to alignment despite having efficient unaligned access: '%s'!\n",
-		       strerror(errno));
-		goto fail_log;
-	}
-#endif
+	alignment_prevented_execution = 0;
+
 	if (expected_ret == ACCEPT) {
-		if (fd_prog < 0 && !reject_from_alignment) {
+		if (fd_prog < 0) {
 			printf("FAIL\nFailed to load prog '%s'!\n",
 			       strerror(errno));
 			goto fail_log;
 		}
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+		if (fd_prog >= 0 &&
+		    (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS)) {
+			alignment_prevented_execution = 1;
+			goto test_ok;
+		}
+#endif
 	} else {
 		if (fd_prog >= 0) {
 			printf("FAIL\nUnexpected success to load!\n");
 			goto fail_log;
 		}
-		if (!strstr(bpf_vlog, expected_err) && !reject_from_alignment) {
+		if (!strstr(bpf_vlog, expected_err)) {
 			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
 			      expected_err, bpf_vlog);
 			goto fail_log;
@@ -14335,9 +14338,12 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 			goto fail_log;
 		}
 	}
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+test_ok:
+#endif
 	(*passes)++;
-	printf("OK%s\n", reject_from_alignment ?
-	       " (NOTE: reject due to unknown alignment)" : "");
+	printf("OK%s\n", alignment_prevented_execution ?
+	       " (NOTE: not executed due to unknown alignment)" : "");
 close_fds:
 	close(fd_prog);
 	for (i = 0; i < MAX_NR_MAPS; i++)
