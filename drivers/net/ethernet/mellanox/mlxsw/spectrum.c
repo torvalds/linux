@@ -4782,6 +4782,30 @@ static bool mlxsw_sp_bridge_has_multiple_vxlans(struct net_device *br_dev)
 	return num_vxlans > 1;
 }
 
+static bool mlxsw_sp_bridge_vxlan_vlan_is_valid(struct net_device *br_dev)
+{
+	DECLARE_BITMAP(vlans, VLAN_N_VID) = {0};
+	struct net_device *dev;
+	struct list_head *iter;
+
+	netdev_for_each_lower_dev(br_dev, dev, iter) {
+		u16 pvid;
+		int err;
+
+		if (!netif_is_vxlan(dev))
+			continue;
+
+		err = mlxsw_sp_vxlan_mapped_vid(dev, &pvid);
+		if (err || !pvid)
+			continue;
+
+		if (test_and_set_bit(pvid, vlans))
+			return false;
+	}
+
+	return true;
+}
+
 static bool mlxsw_sp_bridge_vxlan_is_valid(struct net_device *br_dev,
 					   struct netlink_ext_ack *extack)
 {
@@ -4790,13 +4814,15 @@ static bool mlxsw_sp_bridge_vxlan_is_valid(struct net_device *br_dev,
 		return false;
 	}
 
-	if (br_vlan_enabled(br_dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "VLAN filtering can not be enabled on a bridge with a VxLAN device");
+	if (!br_vlan_enabled(br_dev) &&
+	    mlxsw_sp_bridge_has_multiple_vxlans(br_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Multiple VxLAN devices are not supported in a VLAN-unaware bridge");
 		return false;
 	}
 
-	if (mlxsw_sp_bridge_has_multiple_vxlans(br_dev)) {
-		NL_SET_ERR_MSG_MOD(extack, "Multiple VxLAN devices are not supported in a VLAN-unaware bridge");
+	if (br_vlan_enabled(br_dev) &&
+	    !mlxsw_sp_bridge_vxlan_vlan_is_valid(br_dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Multiple VxLAN devices cannot have the same VLAN as PVID and egress untagged");
 		return false;
 	}
 
@@ -5171,10 +5197,21 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 		if (cu_info->linking) {
 			if (!netif_running(dev))
 				return 0;
+			/* When the bridge is VLAN-aware, the VNI of the VxLAN
+			 * device needs to be mapped to a VLAN, but at this
+			 * point no VLANs are configured on the VxLAN device
+			 */
+			if (br_vlan_enabled(upper_dev))
+				return 0;
 			return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev,
-							  dev, extack);
+							  dev, 0, extack);
 		} else {
-			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, upper_dev, dev);
+			/* VLANs were already flushed, which triggered the
+			 * necessary cleanup
+			 */
+			if (br_vlan_enabled(upper_dev))
+				return 0;
+			mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, dev);
 		}
 		break;
 	case NETDEV_PRE_UP:
@@ -5185,7 +5222,7 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			return 0;
 		if (!mlxsw_sp_lower_get(upper_dev))
 			return 0;
-		return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev, dev,
+		return mlxsw_sp_bridge_vxlan_join(mlxsw_sp, upper_dev, dev, 0,
 						  extack);
 	case NETDEV_DOWN:
 		upper_dev = netdev_master_upper_dev_get(dev);
@@ -5195,7 +5232,7 @@ static int mlxsw_sp_netdevice_vxlan_event(struct mlxsw_sp *mlxsw_sp,
 			return 0;
 		if (!mlxsw_sp_lower_get(upper_dev))
 			return 0;
-		mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, upper_dev, dev);
+		mlxsw_sp_bridge_vxlan_leave(mlxsw_sp, dev);
 		break;
 	}
 
