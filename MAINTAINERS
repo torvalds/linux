@@ -2922,7 +2922,7 @@ F:	drivers/staging/vc04_services
 BROADCOM BCM47XX MIPS ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 M:	Rafał Miłecki <zajec5@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/mips/brcm/
 F:	arch/mips/bcm47xx/*
@@ -2986,7 +2986,7 @@ F:	drivers/cpufreq/bmips-cpufreq.c
 BROADCOM BMIPS MIPS ARCHITECTURE
 M:	Kevin Cernekee <cernekee@gmail.com>
 M:	Florian Fainelli <f.fainelli@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 T:	git git://github.com/broadcom/stblinux.git
 S:	Maintained
 F:	arch/mips/bmips/*
@@ -3124,7 +3124,7 @@ F:	include/uapi/rdma/bnxt_re-abi.h
 
 BROADCOM NVRAM DRIVER
 M:	Rafał Miłecki <zajec5@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	drivers/firmware/broadcom/*
 
@@ -4226,7 +4226,7 @@ F:	net/decnet/
 
 DECSTATION PLATFORM SUPPORT
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 W:	http://www.linux-mips.org/wiki/DECstation
 S:	Maintained
 F:	arch/mips/dec/
@@ -5317,7 +5317,7 @@ EDAC-CAVIUM OCTEON
 M:	Ralf Baechle <ralf@linux-mips.org>
 M:	David Daney <david.daney@cavium.com>
 L:	linux-edac@vger.kernel.org
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	drivers/edac/octeon_edac*
 
@@ -7764,7 +7764,7 @@ F:	Documentation/devicetree/bindings/iio/gyroscope/invensense,mpu3050.txt
 
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/sgi/ioc3-eth.c
 
@@ -8192,7 +8192,7 @@ F:	arch/arm64/kvm/
 
 KERNEL VIRTUAL MACHINE FOR MIPS (KVM/mips)
 M:	James Hogan <jhogan@kernel.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	arch/mips/include/uapi/asm/kvm*
 F:	arch/mips/include/asm/kvm*
@@ -8365,7 +8365,7 @@ F:	drivers/net/dsa/lantiq_gswip.c
 
 LANTIQ MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/lantiq
 F:	drivers/soc/lantiq
@@ -8928,7 +8928,7 @@ S:	Maintained
 
 MARDUK (CREATOR CI40) DEVICE TREE SUPPORT
 M:	Rahul Bedarkar <rahulbedarkar89@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/boot/dts/img/pistachio_marduk.dts
 
@@ -9887,7 +9887,7 @@ F:	drivers/dma/at_xdmac.c
 
 MICROSEMI MIPS SOCS
 M:	Alexandre Belloni <alexandre.belloni@bootlin.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/generic/board-ocelot.c
 F:	arch/mips/configs/generic/board-ocelot.config
@@ -9927,7 +9927,7 @@ MIPS
 M:	Ralf Baechle <ralf@linux-mips.org>
 M:	Paul Burton <paul.burton@mips.com>
 M:	James Hogan <jhogan@kernel.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 W:	http://www.linux-mips.org/
 T:	git git://git.linux-mips.org/pub/scm/ralf/linux.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mips/linux.git
@@ -9940,7 +9940,7 @@ F:	drivers/platform/mips/
 
 MIPS BOSTON DEVELOPMENT BOARD
 M:	Paul Burton <paul.burton@mips.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/clock/img,boston-clock.txt
 F:	arch/mips/boot/dts/img/boston.dts
@@ -9950,7 +9950,7 @@ F:	include/dt-bindings/clock/boston-clock.h
 
 MIPS GENERIC PLATFORM
 M:	Paul Burton <paul.burton@mips.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/power/mti,mips-cpc.txt
 F:	arch/mips/generic/
@@ -9958,7 +9958,7 @@ F:	arch/mips/tools/generic-board-config.sh
 
 MIPS/LOONGSON1 ARCHITECTURE
 M:	Keguang Zhang <keguang.zhang@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/loongson32/
 F:	arch/mips/include/asm/mach-loongson32/
@@ -9967,7 +9967,7 @@ F:	drivers/*/*/*loongson1*
 
 MIPS/LOONGSON2 ARCHITECTURE
 M:	Jiaxun Yang <jiaxun.yang@flygoat.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/loongson64/fuloong-2e/
 F:	arch/mips/loongson64/lemote-2f/
@@ -9977,7 +9977,7 @@ F:	drivers/*/*/*loongson2*
 
 MIPS/LOONGSON3 ARCHITECTURE
 M:	Huacai Chen <chenhc@lemote.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/loongson64/
 F:	arch/mips/include/asm/mach-loongson64/
@@ -9987,7 +9987,7 @@ F:	drivers/*/*/*loongson3*
 
 MIPS RINT INSTRUCTION EMULATION
 M:	Aleksandar Markovic <aleksandar.markovic@mips.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	arch/mips/math-emu/sp_rint.c
 F:	arch/mips/math-emu/dp_rint.c
@@ -10972,7 +10972,7 @@ F:	include/linux/platform_data/i2c-omap.h
 
 ONION OMEGA2+ BOARD
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/boot/dts/ralink/omega2p.dts
 
@@ -11881,7 +11881,7 @@ F:	drivers/pinctrl/spear/
 
 PISTACHIO SOC SUPPORT
 M:	James Hartley <james.hartley@sondrel.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Odd Fixes
 F:	arch/mips/pistachio/
 F:	arch/mips/include/asm/mach-pistachio/
@@ -12540,7 +12540,7 @@ F:	drivers/media/usb/rainshadow-cec/*
 
 RALINK MIPS ARCHITECTURE
 M:	John Crispin <john@phrozen.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/ralink
 
@@ -12560,7 +12560,7 @@ F:	drivers/block/brd.c
 
 RANCHU VIRTUAL BOARD FOR MIPS
 M:	Miodrag Dinic <miodrag.dinic@mips.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Supported
 F:	arch/mips/generic/board-ranchu.c
 F:	arch/mips/configs/generic/board-ranchu.config
@@ -15296,7 +15296,7 @@ F:	arch/um/os-Linux/drivers/
 TURBOCHANNEL SUBSYSTEM
 M:	"Maciej W. Rozycki" <macro@linux-mips.org>
 M:	Ralf Baechle <ralf@linux-mips.org>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 Q:	http://patchwork.linux-mips.org/project/linux-mips/list/
 S:	Maintained
 F:	drivers/tc/
@@ -16117,7 +16117,7 @@ F:	drivers/net/vmxnet3/
 
 VOCORE VOCORE2 BOARD
 M:	Harvey Hunt <harveyhuntnexus@gmail.com>
-L:	linux-mips@linux-mips.org
+L:	linux-mips@vger.kernel.org
 S:	Maintained
 F:	arch/mips/boot/dts/ralink/vocore2.dts
 
