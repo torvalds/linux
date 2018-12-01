@@ -528,8 +528,8 @@ struct bch_fs {
 
 	struct bch_dev __rcu	*devs[BCH_SB_MEMBERS_MAX];
 
-	struct bch_replicas_cpu __rcu *replicas;
-	struct bch_replicas_cpu __rcu *replicas_gc;
+	struct bch_replicas_cpu replicas;
+	struct bch_replicas_cpu replicas_gc;
 	struct mutex		replicas_gc_lock;
 
 	struct bch_disk_groups_cpu __rcu *disk_groups;

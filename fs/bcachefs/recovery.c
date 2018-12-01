@@ -131,8 +131,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 	int ret;
 
 	mutex_lock(&c->sb_lock);
-	if (!rcu_dereference_protected(c->replicas,
-			lockdep_is_held(&c->sb_lock))->nr) {
+	if (!c->replicas.entries) {
 		bch_info(c, "building replicas info");
 		set_bit(BCH_FS_REBUILD_REPLICAS, &c->flags);
 	}

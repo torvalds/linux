@@ -149,35 +149,31 @@ static inline void devlist_to_replicas(struct bch_devs_list devs,
 	replicas_entry_sort(e);
 }
 
-static struct bch_replicas_cpu *
+static struct bch_replicas_cpu
 cpu_replicas_add_entry(struct bch_replicas_cpu *old,
 		       struct bch_replicas_entry *new_entry)
 {
-	struct bch_replicas_cpu *new;
-	unsigned i, nr, entry_size;
+	unsigned i;
+	struct bch_replicas_cpu new = {
+		.nr		= old->nr + 1,
+		.entry_size	= max_t(unsigned, old->entry_size,
+					replicas_entry_bytes(new_entry)),
+	};
 
-	entry_size = max_t(unsigned, old->entry_size,
-			   replicas_entry_bytes(new_entry));
-	nr = old->nr + 1;
-
-	new = kzalloc(sizeof(struct bch_replicas_cpu) +
-		      nr * entry_size, GFP_NOIO);
-	if (!new)
-		return NULL;
-
-	new->nr		= nr;
-	new->entry_size	= entry_size;
+	new.entries = kcalloc(new.nr, new.entry_size, GFP_NOIO);
+	if (!new.entries)
+		return new;
 
 	for (i = 0; i < old->nr; i++)
-		memcpy(cpu_replicas_entry(new, i),
+		memcpy(cpu_replicas_entry(&new, i),
 		       cpu_replicas_entry(old, i),
 		       old->entry_size);
 
-	memcpy(cpu_replicas_entry(new, old->nr),
+	memcpy(cpu_replicas_entry(&new, old->nr),
 	       new_entry,
 	       replicas_entry_bytes(new_entry));
 
-	bch2_cpu_replicas_sort(new);
+	bch2_cpu_replicas_sort(&new);
 	return new;
 }
 
@@ -194,16 +190,14 @@ static bool replicas_has_entry(struct bch_fs *c,
 			       struct bch_replicas_entry *search,
 			       bool check_gc_replicas)
 {
-	struct bch_replicas_cpu *r, *gc_r;
 	bool marked;
 
-	rcu_read_lock();
-	r = rcu_dereference(c->replicas);
-	marked = __replicas_has_entry(r, search) &&
+	percpu_down_read(&c->mark_lock);
+	marked = __replicas_has_entry(&c->replicas, search) &&
 		(!check_gc_replicas ||
-		 likely(!(gc_r = rcu_dereference(c->replicas_gc))) ||
-		 __replicas_has_entry(gc_r, search));
-	rcu_read_unlock();
+		 likely((!c->replicas_gc.entries)) ||
+		 __replicas_has_entry(&c->replicas_gc, search));
+	percpu_up_read(&c->mark_lock);
 
 	return marked;
 }
@@ -212,54 +206,55 @@ noinline
 static int bch2_mark_replicas_slowpath(struct bch_fs *c,
 				struct bch_replicas_entry *new_entry)
 {
-	struct bch_replicas_cpu *old_gc, *new_gc = NULL, *old_r, *new_r = NULL;
+	struct bch_replicas_cpu new_r, new_gc;
 	int ret = -ENOMEM;
+
+	memset(&new_r, 0, sizeof(new_r));
+	memset(&new_gc, 0, sizeof(new_gc));
 
 	mutex_lock(&c->sb_lock);
 
-	old_gc = rcu_dereference_protected(c->replicas_gc,
-					   lockdep_is_held(&c->sb_lock));
-	if (old_gc && !__replicas_has_entry(old_gc, new_entry)) {
-		new_gc = cpu_replicas_add_entry(old_gc, new_entry);
-		if (!new_gc)
+	if (c->replicas_gc.entries &&
+	    !__replicas_has_entry(&c->replicas_gc, new_entry)) {
+		new_gc = cpu_replicas_add_entry(&c->replicas_gc, new_entry);
+		if (!new_gc.entries)
 			goto err;
 	}
 
-	old_r = rcu_dereference_protected(c->replicas,
-					  lockdep_is_held(&c->sb_lock));
-	if (!__replicas_has_entry(old_r, new_entry)) {
-		new_r = cpu_replicas_add_entry(old_r, new_entry);
-		if (!new_r)
+	if (!__replicas_has_entry(&c->replicas, new_entry)) {
+		new_r = cpu_replicas_add_entry(&c->replicas, new_entry);
+		if (!new_r.entries)
 			goto err;
 
-		ret = bch2_cpu_replicas_to_sb_replicas(c, new_r);
+		ret = bch2_cpu_replicas_to_sb_replicas(c, &new_r);
 		if (ret)
 			goto err;
 	}
 
+	if (!new_r.entries &&
+	    !new_gc.entries)
+		goto out;
+
 	/* allocations done, now commit: */
 
-	if (new_r)
+	if (new_r.entries)
 		bch2_write_super(c);
 
 	/* don't update in memory replicas until changes are persistent */
-
-	if (new_gc) {
-		rcu_assign_pointer(c->replicas_gc, new_gc);
-		kfree_rcu(old_gc, rcu);
-	}
-
-	if (new_r) {
-		rcu_assign_pointer(c->replicas, new_r);
-		kfree_rcu(old_r, rcu);
-	}
-
-	mutex_unlock(&c->sb_lock);
-	return 0;
+	percpu_down_write(&c->mark_lock);
+	if (new_r.entries)
+		swap(new_r, c->replicas);
+	if (new_gc.entries)
+		swap(new_gc, c->replicas_gc);
+	percpu_up_write(&c->mark_lock);
+out:
+	ret = 0;
 err:
 	mutex_unlock(&c->sb_lock);
-	kfree(new_gc);
-	kfree(new_r);
+
+	kfree(new_r.entries);
+	kfree(new_gc.entries);
+
 	return ret;
 }
 
@@ -312,20 +307,14 @@ int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 
 int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 {
-	struct bch_replicas_cpu *new_r, *old_r;
-
 	lockdep_assert_held(&c->replicas_gc_lock);
 
 	mutex_lock(&c->sb_lock);
 
-	new_r = rcu_dereference_protected(c->replicas_gc,
-					  lockdep_is_held(&c->sb_lock));
-	rcu_assign_pointer(c->replicas_gc, NULL);
-
 	if (ret)
 		goto err;
 
-	if (bch2_cpu_replicas_to_sb_replicas(c, new_r)) {
+	if (bch2_cpu_replicas_to_sb_replicas(c, &c->replicas_gc)) {
 		ret = -ENOSPC;
 		goto err;
 	}
@@ -333,51 +322,54 @@ int bch2_replicas_gc_end(struct bch_fs *c, int ret)
 	bch2_write_super(c);
 
 	/* don't update in memory replicas until changes are persistent */
+err:
+	percpu_down_write(&c->mark_lock);
+	if (!ret)
+		swap(c->replicas, c->replicas_gc);
 
-	old_r = rcu_dereference_protected(c->replicas,
-					  lockdep_is_held(&c->sb_lock));
+	kfree(c->replicas_gc.entries);
+	c->replicas_gc.entries = NULL;
+	percpu_up_write(&c->mark_lock);
 
-	rcu_assign_pointer(c->replicas, new_r);
-	kfree_rcu(old_r, rcu);
-out:
 	mutex_unlock(&c->sb_lock);
 	return ret;
-err:
-	kfree_rcu(new_r, rcu);
-	goto out;
 }
 
 int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 {
-	struct bch_replicas_cpu *dst, *src;
 	struct bch_replicas_entry *e;
+	unsigned i = 0;
 
 	lockdep_assert_held(&c->replicas_gc_lock);
 
 	mutex_lock(&c->sb_lock);
-	BUG_ON(c->replicas_gc);
+	BUG_ON(c->replicas_gc.entries);
 
-	src = rcu_dereference_protected(c->replicas,
-					lockdep_is_held(&c->sb_lock));
+	c->replicas_gc.nr		= 0;
+	c->replicas_gc.entry_size	= 0;
 
-	dst = kzalloc(sizeof(struct bch_replicas_cpu) +
-		      src->nr * src->entry_size, GFP_NOIO);
-	if (!dst) {
+	for_each_cpu_replicas_entry(&c->replicas, e)
+		if (!((1 << e->data_type) & typemask)) {
+			c->replicas_gc.nr++;
+			c->replicas_gc.entry_size =
+				max_t(unsigned, c->replicas_gc.entry_size,
+				      replicas_entry_bytes(e));
+		}
+
+	c->replicas_gc.entries = kcalloc(c->replicas_gc.nr,
+					 c->replicas_gc.entry_size,
+					 GFP_NOIO);
+	if (!c->replicas_gc.entries) {
 		mutex_unlock(&c->sb_lock);
 		return -ENOMEM;
 	}
 
-	dst->nr		= 0;
-	dst->entry_size	= src->entry_size;
-
-	for_each_cpu_replicas_entry(src, e)
+	for_each_cpu_replicas_entry(&c->replicas, e)
 		if (!((1 << e->data_type) & typemask))
-			memcpy(cpu_replicas_entry(dst, dst->nr++),
-			       e, dst->entry_size);
+			memcpy(cpu_replicas_entry(&c->replicas_gc, i++),
+			       e, c->replicas_gc.entry_size);
 
-	bch2_cpu_replicas_sort(dst);
-
-	rcu_assign_pointer(c->replicas_gc, dst);
+	bch2_cpu_replicas_sort(&c->replicas_gc);
 	mutex_unlock(&c->sb_lock);
 
 	return 0;
@@ -385,11 +377,11 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
 
 /* Replicas tracking - superblock: */
 
-static struct bch_replicas_cpu *
-__bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r)
+static int
+__bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r,
+				   struct bch_replicas_cpu *cpu_r)
 {
 	struct bch_replicas_entry *e, *dst;
-	struct bch_replicas_cpu *cpu_r;
 	unsigned nr = 0, entry_size = 0, idx = 0;
 
 	for_each_replicas_entry(sb_r, e) {
@@ -398,10 +390,9 @@ __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r)
 		nr++;
 	}
 
-	cpu_r = kzalloc(sizeof(struct bch_replicas_cpu) +
-			nr * entry_size, GFP_NOIO);
-	if (!cpu_r)
-		return NULL;
+	cpu_r->entries = kcalloc(nr, entry_size, GFP_NOIO);
+	if (!cpu_r->entries)
+		return -ENOMEM;
 
 	cpu_r->nr		= nr;
 	cpu_r->entry_size	= entry_size;
@@ -412,14 +403,14 @@ __bch2_sb_replicas_to_cpu_replicas(struct bch_sb_field_replicas *sb_r)
 		replicas_entry_sort(dst);
 	}
 
-	return cpu_r;
+	return 0;
 }
 
-static struct bch_replicas_cpu *
-__bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r)
+static int
+__bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r,
+				      struct bch_replicas_cpu *cpu_r)
 {
 	struct bch_replicas_entry_v0 *e;
-	struct bch_replicas_cpu *cpu_r;
 	unsigned nr = 0, entry_size = 0, idx = 0;
 
 	for_each_replicas_entry(sb_r, e) {
@@ -431,10 +422,9 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r)
 	entry_size += sizeof(struct bch_replicas_entry) -
 		sizeof(struct bch_replicas_entry_v0);
 
-	cpu_r = kzalloc(sizeof(struct bch_replicas_cpu) +
-			nr * entry_size, GFP_NOIO);
-	if (!cpu_r)
-		return NULL;
+	cpu_r->entries = kcalloc(nr, entry_size, GFP_NOIO);
+	if (!cpu_r->entries)
+		return -ENOMEM;
 
 	cpu_r->nr		= nr;
 	cpu_r->entry_size	= entry_size;
@@ -450,31 +440,31 @@ __bch2_sb_replicas_v0_to_cpu_replicas(struct bch_sb_field_replicas_v0 *sb_r)
 		replicas_entry_sort(dst);
 	}
 
-	return cpu_r;
+	return 0;
 }
 
 int bch2_sb_replicas_to_cpu_replicas(struct bch_fs *c)
 {
 	struct bch_sb_field_replicas *sb_v1;
 	struct bch_sb_field_replicas_v0 *sb_v0;
-	struct bch_replicas_cpu *cpu_r, *old_r;
+	struct bch_replicas_cpu new_r = { 0, 0, NULL };
+	int ret = 0;
 
 	if ((sb_v1 = bch2_sb_get_replicas(c->disk_sb.sb)))
-		cpu_r = __bch2_sb_replicas_to_cpu_replicas(sb_v1);
+		ret = __bch2_sb_replicas_to_cpu_replicas(sb_v1, &new_r);
 	else if ((sb_v0 = bch2_sb_get_replicas_v0(c->disk_sb.sb)))
-		cpu_r = __bch2_sb_replicas_v0_to_cpu_replicas(sb_v0);
-	else
-		cpu_r = kzalloc(sizeof(struct bch_replicas_cpu), GFP_NOIO);
+		ret = __bch2_sb_replicas_v0_to_cpu_replicas(sb_v0, &new_r);
 
-	if (!cpu_r)
+	if (ret)
 		return -ENOMEM;
 
-	bch2_cpu_replicas_sort(cpu_r);
+	bch2_cpu_replicas_sort(&new_r);
 
-	old_r = rcu_dereference_check(c->replicas, lockdep_is_held(&c->sb_lock));
-	rcu_assign_pointer(c->replicas, cpu_r);
-	if (old_r)
-		kfree_rcu(old_r, rcu);
+	percpu_down_write(&c->mark_lock);
+	swap(c->replicas, new_r);
+	percpu_up_write(&c->mark_lock);
+
+	kfree(new_r.entries);
 
 	return 0;
 }
@@ -589,7 +579,7 @@ static const char *bch2_sb_validate_replicas(struct bch_sb *sb, struct bch_sb_fi
 {
 	struct bch_sb_field_replicas *sb_r = field_to_type(f, replicas);
 	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
-	struct bch_replicas_cpu *cpu_r = NULL;
+	struct bch_replicas_cpu cpu_r = { .entries = NULL };
 	struct bch_replicas_entry *e;
 	const char *err;
 	unsigned i;
@@ -616,13 +606,12 @@ static const char *bch2_sb_validate_replicas(struct bch_sb *sb, struct bch_sb_fi
 	}
 
 	err = "cannot allocate memory";
-	cpu_r = __bch2_sb_replicas_to_cpu_replicas(sb_r);
-	if (!cpu_r)
+	if (__bch2_sb_replicas_to_cpu_replicas(sb_r, &cpu_r))
 		goto err;
 
-	err = check_dup_replicas_entries(cpu_r);
+	err = check_dup_replicas_entries(&cpu_r);
 err:
-	kfree(cpu_r);
+	kfree(cpu_r.entries);
 	return err;
 }
 
@@ -652,7 +641,7 @@ static const char *bch2_sb_validate_replicas_v0(struct bch_sb *sb, struct bch_sb
 {
 	struct bch_sb_field_replicas_v0 *sb_r = field_to_type(f, replicas_v0);
 	struct bch_sb_field_members *mi = bch2_sb_get_members(sb);
-	struct bch_replicas_cpu *cpu_r = NULL;
+	struct bch_replicas_cpu cpu_r = { .entries = NULL };
 	struct bch_replicas_entry_v0 *e;
 	const char *err;
 	unsigned i;
@@ -673,13 +662,12 @@ static const char *bch2_sb_validate_replicas_v0(struct bch_sb *sb, struct bch_sb
 	}
 
 	err = "cannot allocate memory";
-	cpu_r = __bch2_sb_replicas_v0_to_cpu_replicas(sb_r);
-	if (!cpu_r)
+	if (__bch2_sb_replicas_v0_to_cpu_replicas(sb_r, &cpu_r))
 		goto err;
 
-	err = check_dup_replicas_entries(cpu_r);
+	err = check_dup_replicas_entries(&cpu_r);
 err:
-	kfree(cpu_r);
+	kfree(cpu_r.entries);
 	return err;
 }
 
@@ -734,7 +722,6 @@ struct replicas_status __bch2_replicas_status(struct bch_fs *c,
 {
 	struct bch_sb_field_members *mi;
 	struct bch_replicas_entry *e;
-	struct bch_replicas_cpu *r;
 	unsigned i, nr_online, nr_offline;
 	struct replicas_status ret;
 
@@ -744,10 +731,10 @@ struct replicas_status __bch2_replicas_status(struct bch_fs *c,
 		ret.replicas[i].redundancy = INT_MAX;
 
 	mi = bch2_sb_get_members(c->disk_sb.sb);
-	rcu_read_lock();
-	r = rcu_dereference(c->replicas);
 
-	for_each_cpu_replicas_entry(r, e) {
+	percpu_down_read(&c->mark_lock);
+
+	for_each_cpu_replicas_entry(&c->replicas, e) {
 		if (e->data_type >= ARRAY_SIZE(ret.replicas))
 			panic("e %p data_type %u\n", e, e->data_type);
 
@@ -772,7 +759,7 @@ struct replicas_status __bch2_replicas_status(struct bch_fs *c,
 			    nr_offline);
 	}
 
-	rcu_read_unlock();
+	percpu_up_read(&c->mark_lock);
 
 	for (i = 0; i < ARRAY_SIZE(ret.replicas); i++)
 		if (ret.replicas[i].redundancy == INT_MAX)
@@ -821,18 +808,16 @@ int bch2_replicas_online(struct bch_fs *c, bool meta)
 unsigned bch2_dev_has_data(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct bch_replicas_entry *e;
-	struct bch_replicas_cpu *r;
 	unsigned i, ret = 0;
 
-	rcu_read_lock();
-	r = rcu_dereference(c->replicas);
+	percpu_down_read(&c->mark_lock);
 
-	for_each_cpu_replicas_entry(r, e)
+	for_each_cpu_replicas_entry(&c->replicas, e)
 		for (i = 0; i < e->nr_devs; i++)
 			if (e->devs[i] == ca->dev_idx)
 				ret |= 1 << e->data_type;
 
-	rcu_read_unlock();
+	percpu_up_read(&c->mark_lock);
 
 	return ret;
 }

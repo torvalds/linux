@@ -383,7 +383,8 @@ static void bch2_fs_free(struct bch_fs *c)
 	mempool_exit(&c->btree_reserve_pool);
 	mempool_exit(&c->fill_iter);
 	percpu_ref_exit(&c->writes);
-	kfree(rcu_dereference_protected(c->replicas, 1));
+	kfree(c->replicas.entries);
+	kfree(c->replicas_gc.entries);
 	kfree(rcu_dereference_protected(c->disk_groups, 1));
 
 	if (c->copygc_wq)
@@ -565,6 +566,9 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	bch2_fs_btree_cache_init_early(&c->btree_cache);
 
+	if (percpu_init_rwsem(&c->mark_lock))
+		goto err;
+
 	mutex_lock(&c->sb_lock);
 
 	if (bch2_sb_to_fs(c, sb)) {
@@ -608,7 +612,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 			    offsetof(struct btree_write_bio, wbio.bio)),
 			BIOSET_NEED_BVECS) ||
 	    !(c->usage[0] = alloc_percpu(struct bch_fs_usage)) ||
-	    percpu_init_rwsem(&c->mark_lock) ||
 	    mempool_init_kvpmalloc_pool(&c->btree_bounce_pool, 1,
 					btree_bytes(c)) ||
 	    mempool_init_kmalloc_pool(&c->btree_iters_pool, 1,
