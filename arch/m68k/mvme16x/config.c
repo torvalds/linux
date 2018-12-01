@@ -115,11 +115,11 @@ static void __init mvme16x_init_IRQ (void)
 	m68k_setup_user_interrupt(VEC_USER, 192);
 }
 
-#define pcc2chip	((volatile u_char *)0xfff42000)
-#define PccSCCMICR	0x1d
-#define PccSCCTICR	0x1e
-#define PccSCCRICR	0x1f
-#define PccTPIACKR	0x25
+#define PCC2CHIP   (0xfff42000)
+#define PCCSCCMICR (PCC2CHIP + 0x1d)
+#define PCCSCCTICR (PCC2CHIP + 0x1e)
+#define PCCSCCRICR (PCC2CHIP + 0x1f)
+#define PCCTPIACKR (PCC2CHIP + 0x25)
 
 #ifdef CONFIG_EARLY_PRINTK
 
@@ -227,10 +227,10 @@ void mvme16x_cons_write(struct console *co, const char *str, unsigned count)
 	base_addr[CyIER] = CyTxMpty;
 
 	while (1) {
-		if (pcc2chip[PccSCCTICR] & 0x20)
+		if (in_8(PCCSCCTICR) & 0x20)
 		{
 			/* We have a Tx int. Acknowledge it */
-			sink = pcc2chip[PccTPIACKR];
+			sink = in_8(PCCTPIACKR);
 			if ((base_addr[CyLICR] >> 2) == port) {
 				if (i == count) {
 					/* Last char of string is now output */
@@ -359,13 +359,26 @@ static u32 clk_total;
 #define PCC_TIMER_CLOCK_FREQ 1000000
 #define PCC_TIMER_CYCLES     (PCC_TIMER_CLOCK_FREQ / HZ)
 
+#define PCCTCMP1             (PCC2CHIP + 0x04)
+#define PCCTCNT1             (PCC2CHIP + 0x08)
+#define PCCTOVR1             (PCC2CHIP + 0x17)
+#define PCCTIC1              (PCC2CHIP + 0x1b)
+
+#define PCCTOVR1_TIC_EN      0x01
+#define PCCTOVR1_COC_EN      0x02
+#define PCCTOVR1_OVR_CLR     0x04
+
+#define PCCTIC1_INT_CLR      0x08
+#define PCCTIC1_INT_EN       0x10
+
 static irqreturn_t mvme16x_timer_int (int irq, void *dev_id)
 {
 	irq_handler_t timer_routine = dev_id;
 	unsigned long flags;
 
 	local_irq_save(flags);
-	*(volatile unsigned char *)0xfff4201b |= 8;
+	out_8(PCCTIC1, in_8(PCCTIC1) | PCCTIC1_INT_CLR);
+	out_8(PCCTOVR1, PCCTOVR1_OVR_CLR);
 	clk_total += PCC_TIMER_CYCLES;
 	timer_routine(0, NULL);
 	local_irq_restore(flags);
@@ -379,10 +392,10 @@ void mvme16x_sched_init (irq_handler_t timer_routine)
     int irq;
 
     /* Using PCCchip2 or MC2 chip tick timer 1 */
-    *(volatile unsigned long *)0xfff42008 = 0;
-    *(volatile unsigned long *)0xfff42004 = PCC_TIMER_CYCLES;
-    *(volatile unsigned char *)0xfff42017 |= 3;
-    *(volatile unsigned char *)0xfff4201b = 0x16;
+    out_be32(PCCTCNT1, 0);
+    out_be32(PCCTCMP1, PCC_TIMER_CYCLES);
+    out_8(PCCTOVR1, in_8(PCCTOVR1) | PCCTOVR1_TIC_EN | PCCTOVR1_COC_EN);
+    out_8(PCCTIC1, PCCTIC1_INT_EN | 6);
     if (request_irq(MVME16x_IRQ_TIMER, mvme16x_timer_int, IRQF_TIMER, "timer",
                     timer_routine))
 	panic ("Couldn't register timer int");
@@ -401,10 +414,16 @@ void mvme16x_sched_init (irq_handler_t timer_routine)
 static u64 mvme16x_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
+	u8 overflow, tmp;
 	u32 ticks;
 
 	local_irq_save(flags);
-	ticks = *(volatile u32 *)0xfff42008;
+	tmp = in_8(PCCTOVR1) >> 4;
+	ticks = in_be32(PCCTCNT1);
+	overflow = in_8(PCCTOVR1) >> 4;
+	if (overflow != tmp)
+		ticks = in_be32(PCCTCNT1);
+	ticks += overflow * PCC_TIMER_CYCLES;
 	ticks += clk_total;
 	local_irq_restore(flags);
 
