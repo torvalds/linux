@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
+#include <linux/clocksource.h>
 #include <linux/console.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
@@ -92,6 +93,21 @@ void __init config_mvme147(void)
 		vme_brdtype = VME_TYPE_MVME147;
 }
 
+static u64 mvme147_read_clk(struct clocksource *cs);
+
+static struct clocksource mvme147_clk = {
+	.name   = "pcc",
+	.rating = 250,
+	.read   = mvme147_read_clk,
+	.mask   = CLOCKSOURCE_MASK(32),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static u32 clk_total;
+
+#define PCC_TIMER_CLOCK_FREQ 160000
+#define PCC_TIMER_CYCLES     (PCC_TIMER_CLOCK_FREQ / HZ)
+#define PCC_TIMER_PRELOAD    (0x10000 - PCC_TIMER_CYCLES)
 
 /* Using pcc tick timer 1 */
 
@@ -103,6 +119,7 @@ static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 	local_irq_save(flags);
 	m147_pcc->t1_int_cntrl = PCC_TIMER_INT_CLR;
 	m147_pcc->t1_int_cntrl = PCC_INT_ENAB|PCC_LEVEL_TIMER1;
+	clk_total += PCC_TIMER_CYCLES;
 	timer_routine(0, NULL);
 	local_irq_restore(flags);
 
@@ -112,32 +129,39 @@ static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 
 void mvme147_sched_init (irq_handler_t timer_routine)
 {
-	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, 0, "timer 1",
-			timer_routine))
+	if (request_irq(PCC_IRQ_TIMER1, mvme147_timer_int, IRQF_TIMER,
+			"timer 1", timer_routine))
 		pr_err("Couldn't register timer interrupt\n");
 
 	/* Init the clock with a value */
-	/* our clock goes off every 6.25us */
+	/* The clock counter increments until 0xFFFF then reloads */
 	m147_pcc->t1_preload = PCC_TIMER_PRELOAD;
 	m147_pcc->t1_cntrl = 0x0;	/* clear timer */
 	m147_pcc->t1_cntrl = 0x3;	/* start timer */
 	m147_pcc->t1_int_cntrl = PCC_TIMER_INT_CLR;  /* clear pending ints */
 	m147_pcc->t1_int_cntrl = PCC_INT_ENAB|PCC_LEVEL_TIMER1;
+
+	clocksource_register_hz(&mvme147_clk, PCC_TIMER_CLOCK_FREQ);
 }
 
-/* This is always executed with interrupts disabled.  */
 /* XXX There are race hazards in this code XXX */
-u32 mvme147_gettimeoffset(void)
+static u64 mvme147_read_clk(struct clocksource *cs)
 {
+	unsigned long flags;
 	volatile unsigned short *cp = (volatile unsigned short *)0xfffe1012;
 	unsigned short n;
+	u32 ticks;
 
+	local_irq_save(flags);
 	n = *cp;
 	while (n != *cp)
 		n = *cp;
 
 	n -= PCC_TIMER_PRELOAD;
-	return ((unsigned long)n * 25 / 4) * 1000;
+	ticks = clk_total + n;
+	local_irq_restore(flags);
+
+	return ticks;
 }
 
 static int bcd2int (unsigned char b)

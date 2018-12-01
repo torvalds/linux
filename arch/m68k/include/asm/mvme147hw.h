@@ -66,7 +66,6 @@ struct pcc_regs {
 #define PCC_INT_ENAB		0x08
 
 #define PCC_TIMER_INT_CLR	0x80
-#define PCC_TIMER_PRELOAD	63936l
 
 #define PCC_LEVEL_ABORT		0x07
 #define PCC_LEVEL_SERIAL	0x04
