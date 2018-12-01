@@ -232,6 +232,20 @@ enum bpf_attach_type {
  */
 #define BPF_F_STRICT_ALIGNMENT	(1U << 0)
 
+/* If BPF_F_ANY_ALIGNMENT is used in BPF_PROF_LOAD command, the
+ * verifier will allow any alignment whatsoever.  On platforms
+ * with strict alignment requirements for loads ands stores (such
+ * as sparc and mips) the verifier validates that all loads and
+ * stores provably follow this requirement.  This flag turns that
+ * checking and enforcement off.
+ *
+ * It is mostly used for testing when we want to validate the
+ * context and memory access aspects of the verifier, but because
+ * of an unaligned access the alignment check would trigger before
+ * the one we are interested in.
+ */
+#define BPF_F_ANY_ALIGNMENT	(1U << 1)
+
 /* when bpf_ldimm64->src_reg == BPF_PSEUDO_MAP_FD, bpf_ldimm64->imm == fd */
 #define BPF_PSEUDO_MAP_FD	1
 
