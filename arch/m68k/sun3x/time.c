@@ -73,11 +73,6 @@ int sun3x_hwclk(int set, struct rtc_time *t)
 
 	return 0;
 }
-/* Not much we can do here */
-u32 sun3x_gettimeoffset(void)
-{
-    return 0L;
-}
 
 #if 0
 static irqreturn_t sun3x_timer_tick(int irq, void *dev_id)
