@@ -407,17 +407,15 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb)
 	if (len < 0)
 		return 0;
 
+	data_len = min_t(int, len, urb->sg[0].length - MT_DMA_HDR_LEN);
+	if (MT_DMA_HDR_LEN + data_len > SKB_WITH_OVERHEAD(q->buf_size))
+		return 0;
+
 	skb = build_skb(data, q->buf_size);
 	if (!skb)
 		return 0;
 
-	data_len = min_t(int, len, urb->sg[0].length - MT_DMA_HDR_LEN);
 	skb_reserve(skb, MT_DMA_HDR_LEN);
-	if (skb->tail + data_len > skb->end) {
-		dev_kfree_skb(skb);
-		return 1;
-	}
-
 	__skb_put(skb, data_len);
 	len -= data_len;
 
