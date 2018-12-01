@@ -132,6 +132,13 @@ devres.  Complexity is shifted from less maintained low level drivers
 to better maintained higher layer.  Also, as init failure path is
 shared with exit path, both can get more testing.
 
+Note though that when converting current calls or assignments to
+managed devm_* versions it is up to you to check if internal operations
+like allocating memory, have failed. Managed resources pertains to the
+freeing of these resources *only* - all other checks needed are still
+on you. In some cases this may mean introducing checks that were not
+necessary before moving to the managed devm_* calls.
+
 
   3. Devres group
   ---------------
