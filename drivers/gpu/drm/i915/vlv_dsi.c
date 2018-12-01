@@ -678,6 +678,10 @@ static void intel_dsi_port_enable(struct intel_encoder *encoder,
 					LANE_CONFIGURATION_DUAL_LINK_B :
 					LANE_CONFIGURATION_DUAL_LINK_A;
 		}
+
+		if (intel_dsi->pixel_format != MIPI_DSI_FMT_RGB888)
+			temp |= DITHERING_ENABLE;
+
 		/* assert ip_tg_enable signal */
 		I915_WRITE(port_ctrl, temp | DPI_ENABLE);
 		POSTING_READ(port_ctrl);
