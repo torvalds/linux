@@ -15,6 +15,7 @@
 
 #include "v3d_drv.h"
 #include "v3d_regs.h"
+#include "v3d_trace.h"
 
 #define V3D_CORE_IRQS ((u32)(V3D_INT_OUTOMEM |	\
 			     V3D_INT_FLDONE |	\
@@ -88,12 +89,20 @@ v3d_irq(int irq, void *arg)
 	}
 
 	if (intsts & V3D_INT_FLDONE) {
-		dma_fence_signal(v3d->bin_job->bin.done_fence);
+		struct v3d_fence *fence =
+			to_v3d_fence(v3d->bin_job->bin.done_fence);
+
+		trace_v3d_bcl_irq(&v3d->drm, fence->seqno);
+		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
 
 	if (intsts & V3D_INT_FRDONE) {
-		dma_fence_signal(v3d->render_job->render.done_fence);
+		struct v3d_fence *fence =
+			to_v3d_fence(v3d->render_job->render.done_fence);
+
+		trace_v3d_rcl_irq(&v3d->drm, fence->seqno);
+		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
 
@@ -119,7 +128,11 @@ v3d_hub_irq(int irq, void *arg)
 	V3D_WRITE(V3D_HUB_INT_CLR, intsts);
 
 	if (intsts & V3D_HUB_INT_TFUC) {
-		dma_fence_signal(v3d->tfu_job->done_fence);
+		struct v3d_fence *fence =
+			to_v3d_fence(v3d->tfu_job->done_fence);
+
+		trace_v3d_tfu_irq(&v3d->drm, fence->seqno);
+		dma_fence_signal(&fence->base);
 		status = IRQ_HANDLED;
 	}
 
