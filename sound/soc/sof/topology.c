@@ -342,7 +342,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 			return -EINVAL;
 		}
 		if (cdata->data->size + sizeof(const struct sof_abi_hdr) !=
-		    control->priv.size) {
+		    le32_to_cpu(control->priv.size)) {
 			dev_err(sdev->dev,
 				"error: Conflict in bytes vs. priv size.\n");
 			return -EINVAL;
