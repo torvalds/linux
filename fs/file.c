@@ -158,7 +158,7 @@ static int expand_fdtable(struct files_struct *files, unsigned int nr)
 	 * or have finished their rcu_read_lock_sched() section.
 	 */
 	if (atomic_read(&files->count) > 1)
-		synchronize_sched();
+		synchronize_rcu();
 
 	spin_lock(&files->file_lock);
 	if (!new_fdt)

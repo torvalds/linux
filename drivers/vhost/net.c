@@ -1359,7 +1359,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 	if (rx_sock)
 		sockfd_put(rx_sock);
 	/* Make sure no callbacks are outstanding */
-	synchronize_rcu_bh();
+	synchronize_rcu();
 	/* We do an extra flush before freeing memory,
 	 * since jobs can re-queue themselves. */
 	vhost_net_flush(n);

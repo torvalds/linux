@@ -57,7 +57,7 @@ struct rcu_node {
 					/*  some rcu_state fields as well as */
 					/*  following. */
 	unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
-	unsigned long gp_seq_needed; /* Track rsp->rcu_gp_seq_needed. */
+	unsigned long gp_seq_needed; /* Track furthest future GP request. */
 	unsigned long completedqs; /* All QSes done for this node. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
@@ -163,7 +163,7 @@ union rcu_noqs {
 struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
 	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
-	unsigned long	gp_seq_needed;	/* Track rsp->rcu_gp_seq_needed ctr. */
+	unsigned long	gp_seq_needed;	/* Track furthest future GP request. */
 	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
@@ -397,17 +397,6 @@ static char rcu_name[] = RCU_NAME_RAW;
 static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 #define RCU_NAME rcu_name
 #endif /* #else #ifdef CONFIG_TRACING */
-
-/*
- * RCU implementation internal declarations:
- */
-extern struct rcu_state rcu_sched_state;
-
-extern struct rcu_state rcu_bh_state;
-
-#ifdef CONFIG_PREEMPT_RCU
-extern struct rcu_state rcu_preempt_state;
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 int rcu_dynticks_snap(struct rcu_data *rdp);
 

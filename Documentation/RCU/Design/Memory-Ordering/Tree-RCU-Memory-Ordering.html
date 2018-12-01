@@ -77,7 +77,7 @@ The key point is that the lock-acquisition functions, including
 <tt>smp_mb__after_unlock_lock()</tt> immediately after successful
 acquisition of the lock.
 
-<p>Therefore, for any given <tt>rcu_node</tt> struction, any access
+<p>Therefore, for any given <tt>rcu_node</tt> structure, any access
 happening before one of the above lock-release functions will be seen
 by all CPUs as happening before any access happening after a later
 one of the above lock-acquisition functions.

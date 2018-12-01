@@ -3167,7 +3167,7 @@ struct hlist_head *efx_rps_hash_bucket(struct efx_nic *efx,
 {
 	u32 hash = efx_filter_spec_hash(spec);
 
-	WARN_ON(!spin_is_locked(&efx->rps_hash_lock));
+	lockdep_assert_held(&efx->rps_hash_lock);
 	if (!efx->rps_hash_table)
 		return NULL;
 	return &efx->rps_hash_table[hash % EFX_ARFS_HASH_TABLE_SIZE];

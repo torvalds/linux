@@ -500,16 +500,29 @@ void rcu_force_quiescent_state(void)
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
+ * Convert a ->gp_state value to a character string.
+ */
+static const char *gp_state_getname(short gs)
+{
+	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
+		return "???";
+	return gp_state_names[gs];
+}
+
+/*
  * Show the state of the grace-period kthreads.
  */
 void show_rcu_gp_kthreads(void)
 {
 	int cpu;
+	unsigned long j;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	pr_info("%s: wait state: %d ->state: %#lx\n", rcu_state.name,
-		rcu_state.gp_state, rcu_state.gp_kthread->state);
+	j = jiffies - READ_ONCE(rcu_state.gp_activity);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %ld\n",
+		rcu_state.name, gp_state_getname(rcu_state.gp_state),
+		rcu_state.gp_state, rcu_state.gp_kthread->state, j);
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
 			continue;
@@ -891,12 +904,12 @@ void rcu_irq_enter_irqson(void)
 }
 
 /**
- * rcu_is_watching - see if RCU thinks that the current CPU is idle
+ * rcu_is_watching - see if RCU thinks that the current CPU is not idle
  *
  * Return true if RCU is watching the running CPU, which means that this
  * CPU can safely enter RCU read-side critical sections.  In other words,
- * if the current CPU is in its idle loop and is neither in an interrupt
- * or NMI handler, return true.
+ * if the current CPU is not in its idle loop or is in an interrupt or
+ * NMI handler, return true.
  */
 bool notrace rcu_is_watching(void)
 {
@@ -1140,16 +1153,6 @@ static void record_gp_stall_check_time(void)
 	smp_store_release(&rcu_state.jiffies_stall, j + j1); /* ^^^ */
 	rcu_state.jiffies_resched = j + j1 / 2;
 	rcu_state.n_force_qs_gpstart = READ_ONCE(rcu_state.n_force_qs);
-}
-
-/*
- * Convert a ->gp_state value to a character string.
- */
-static const char *gp_state_getname(short gs)
-{
-	if (gs < 0 || gs >= ARRAY_SIZE(gp_state_names))
-		return "???";
-	return gp_state_names[gs];
 }
 
 /*
@@ -2032,9 +2035,9 @@ static void rcu_gp_cleanup(void)
 	rnp = rcu_get_root();
 	raw_spin_lock_irq_rcu_node(rnp); /* GP before ->gp_seq update. */
 
-	/* Declare grace period done. */
-	rcu_seq_end(&rcu_state.gp_seq);
+	/* Declare grace period done, trace first to use old GP number. */
 	trace_rcu_grace_period(rcu_state.name, rcu_state.gp_seq, TPS("end"));
+	rcu_seq_end(&rcu_state.gp_seq);
 	rcu_state.gp_state = RCU_GP_IDLE;
 	/* Check for GP requests since above loop. */
 	rdp = this_cpu_ptr(&rcu_data);
@@ -2600,10 +2603,10 @@ static void force_quiescent_state(void)
  * This function checks for grace-period requests that fail to motivate
  * RCU to come out of its idle mode.
  */
-static void
-rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp)
+void
+rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
+			 const unsigned long gpssdelay)
 {
-	const unsigned long gpssdelay = rcu_jiffies_till_stall_check() * HZ;
 	unsigned long flags;
 	unsigned long j;
 	struct rcu_node *rnp_root = rcu_get_root();
@@ -2690,7 +2693,7 @@ static __latent_entropy void rcu_process_callbacks(struct softirq_action *unused
 		local_irq_restore(flags);
 	}
 
-	rcu_check_gp_start_stall(rnp, rdp);
+	rcu_check_gp_start_stall(rnp, rdp, rcu_jiffies_till_stall_check());
 
 	/* If there are callbacks ready, invoke them. */
 	if (rcu_segcblist_ready_cbs(&rdp->cblist))
