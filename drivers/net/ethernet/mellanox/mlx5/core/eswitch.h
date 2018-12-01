@@ -281,6 +281,10 @@ enum mlx5_flow_match_level {
 /* current maximum for flow based vport multicasting */
 #define MLX5_MAX_FLOW_FWD_VPORTS 2
 
+enum {
+	MLX5_ESW_DEST_ENCAP         = BIT(0),
+};
+
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_core_dev	*in_mdev;
@@ -296,6 +300,7 @@ struct mlx5_esw_flow_attr {
 	bool	vlan_handled;
 	u32	encap_id;
 	struct {
+		u32 flags;
 		struct mlx5_eswitch_rep *rep;
 		struct mlx5_core_dev *mdev;
 	} dests[MLX5_MAX_FLOW_FWD_VPORTS];

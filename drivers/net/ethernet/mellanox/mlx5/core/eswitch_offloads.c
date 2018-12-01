@@ -128,6 +128,10 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 					dest[i].vport.flags |=
 						MLX5_FLOW_DEST_VPORT_VHCA_ID;
+				if (attr->dests[j].flags & MLX5_ESW_DEST_ENCAP) {
+					flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+					flow_act.reformat_id = attr->encap_id;
+				}
 				i++;
 			}
 		}
@@ -163,9 +167,6 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_id = attr->mod_hdr_id;
-
-	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
-		flow_act.reformat_id = attr->encap_id;
 
 	fdb = esw_get_prio_table(esw, attr->chain, attr->prio, !!split);
 	if (IS_ERR(fdb)) {

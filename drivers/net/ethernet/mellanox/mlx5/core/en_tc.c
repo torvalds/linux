@@ -908,6 +908,7 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5e_rep_priv *rpriv;
 	struct mlx5e_priv *out_priv;
 	int err = 0, encap_err = 0;
+	int out_index;
 
 	/* if prios are not supported, keep the old behaviour of using same prio
 	 * for all offloaded rules.
@@ -927,7 +928,10 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		goto err_max_prio_chain;
 	}
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++) {
+		if (!(attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP))
+			continue;
+
 		out_dev = __dev_get_by_index(dev_net(priv->netdev),
 					     attr->parse_attr->mirred_ifindex);
 		encap_err = mlx5e_attach_encap(priv, &parse_attr->tun_info,
@@ -991,8 +995,11 @@ err_create_counter:
 err_mod_hdr:
 	mlx5_eswitch_del_vlan_action(esw, attr);
 err_add_vlan:
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
-		mlx5e_detach_encap(priv, flow);
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
+			mlx5e_detach_encap(priv, flow);
+			break;
+		}
 err_attach_encap:
 err_max_prio_chain:
 	return err;
@@ -1004,6 +1011,7 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5_esw_flow_attr *attr = flow->esw_attr;
 	struct mlx5_esw_flow_attr slow_attr;
+	int out_index;
 
 	if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 		if (flow->flags & MLX5E_TC_FLOW_SLOW)
@@ -1014,10 +1022,12 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	mlx5_eswitch_del_vlan_action(esw, attr);
 
-	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT) {
-		mlx5e_detach_encap(priv, flow);
-		kvfree(attr->parse_attr);
-	}
+	for (out_index = 0; out_index < MLX5_MAX_FLOW_FWD_VPORTS; out_index++)
+		if (attr->dests[out_index].flags & MLX5_ESW_DEST_ENCAP) {
+			mlx5e_detach_encap(priv, flow);
+			break;
+		}
+	kvfree(attr->parse_attr);
 
 	if (attr->action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		mlx5e_detach_mod_hdr(priv, flow);
@@ -2461,11 +2471,11 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				return -EOPNOTSUPP;
 			}
 
+			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			if (switchdev_port_same_parent_id(priv->netdev,
 							  out_dev) ||
 			    is_merged_eswitch_dev(priv, out_dev)) {
-				action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(out_dev);
 				rpriv = out_priv->ppriv;
 				attr->dests[attr->out_count].rep = rpriv->rep;
@@ -2475,9 +2485,8 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				parse_attr->mirred_ifindex = out_dev->ifindex;
 				parse_attr->tun_info = *info;
 				attr->parse_attr = parse_attr;
-				action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
-					  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+				attr->dests[attr->out_count].flags |=
+					MLX5_ESW_DEST_ENCAP;
 				/* attr->dests[].rep is resolved when we
 				 * handle encap
 				 */
@@ -2656,10 +2665,6 @@ mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	err = mlx5e_tc_add_fdb_flow(priv, parse_attr, flow, extack);
 	if (err)
 		goto err_free;
-
-	if (!(flow->esw_attr->action &
-	      MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT))
-		kvfree(parse_attr);
 
 	*__flow = flow;
 
