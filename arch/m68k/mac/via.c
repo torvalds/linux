@@ -387,6 +387,8 @@ void via_nubus_irq_shutdown(int irq)
  * via6522.c :-), disable/pending masks added.
  */
 
+#define VIA_TIMER_1_INT BIT(6)
+
 void via1_irq(struct irq_desc *desc)
 {
 	int irq_num;
@@ -395,6 +397,21 @@ void via1_irq(struct irq_desc *desc)
 	events = via1[vIFR] & via1[vIER] & 0x7F;
 	if (!events)
 		return;
+
+	irq_num = IRQ_MAC_TIMER_1;
+	irq_bit = VIA_TIMER_1_INT;
+	if (events & irq_bit) {
+		unsigned long flags;
+
+		local_irq_save(flags);
+		via1[vIFR] = irq_bit;
+		generic_handle_irq(irq_num);
+		local_irq_restore(flags);
+
+		events &= ~irq_bit;
+		if (!events)
+			return;
+	}
 
 	irq_num = VIA1_SOURCE_BASE;
 	irq_bit = 1;
