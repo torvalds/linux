@@ -1296,7 +1296,6 @@ F:	include/dt-bindings/clock/gxbb*
 F:	Documentation/devicetree/bindings/clock/amlogic*
 
 ARM/Amlogic Meson SoC support
-M:	Carlo Caione <carlo@caione.org>
 M:	Kevin Hilman <khilman@baylibre.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-amlogic@lists.infradead.org
