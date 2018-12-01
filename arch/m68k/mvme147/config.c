@@ -38,7 +38,6 @@
 
 static void mvme147_get_model(char *model);
 extern void mvme147_sched_init(irq_handler_t handler);
-extern u32 mvme147_gettimeoffset(void);
 extern int mvme147_hwclk (int, struct rtc_time *);
 extern void mvme147_reset (void);
 
@@ -84,7 +83,6 @@ void __init config_mvme147(void)
 	mach_max_dma_address	= 0x01000000;
 	mach_sched_init		= mvme147_sched_init;
 	mach_init_IRQ		= mvme147_init_IRQ;
-	arch_gettimeoffset	= mvme147_gettimeoffset;
 	mach_hwclk		= mvme147_hwclk;
 	mach_reset		= mvme147_reset;
 	mach_get_model		= mvme147_get_model;

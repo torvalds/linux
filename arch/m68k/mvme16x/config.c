@@ -44,7 +44,6 @@ static MK48T08ptr_t volatile rtc = (MK48T08ptr_t)MVME_RTC_BASE;
 
 static void mvme16x_get_model(char *model);
 extern void mvme16x_sched_init(irq_handler_t handler);
-extern u32 mvme16x_gettimeoffset(void);
 extern int mvme16x_hwclk (int, struct rtc_time *);
 extern void mvme16x_reset (void);
 
@@ -272,7 +271,6 @@ void __init config_mvme16x(void)
     mach_max_dma_address = 0xffffffff;
     mach_sched_init      = mvme16x_sched_init;
     mach_init_IRQ        = mvme16x_init_IRQ;
-    arch_gettimeoffset   = mvme16x_gettimeoffset;
     mach_hwclk           = mvme16x_hwclk;
     mach_reset		 = mvme16x_reset;
     mach_get_model       = mvme16x_get_model;

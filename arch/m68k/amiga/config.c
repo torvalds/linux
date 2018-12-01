@@ -95,8 +95,6 @@ static char amiga_model_name[13] = "Amiga ";
 static void amiga_sched_init(irq_handler_t handler);
 static void amiga_get_model(char *model);
 static void amiga_get_hardware_list(struct seq_file *m);
-/* amiga specific timer functions */
-static u32 amiga_gettimeoffset(void);
 extern void amiga_mksound(unsigned int count, unsigned int ticks);
 static void amiga_reset(void);
 extern void amiga_init_sound(void);
@@ -386,7 +384,6 @@ void __init config_amiga(void)
 	mach_init_IRQ        = amiga_init_IRQ;
 	mach_get_model       = amiga_get_model;
 	mach_get_hardware_list = amiga_get_hardware_list;
-	arch_gettimeoffset   = amiga_gettimeoffset;
 
 	/*
 	 * default MAX_DMA=0xffffffff on all machines. If we don't do so, the SCSI
