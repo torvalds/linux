@@ -34,26 +34,24 @@ static void int_exit(int sig)
 static void poll_stats(int map_fd, int interval)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	const unsigned int nr_keys = 256;
-	__u64 values[nr_cpus], prev[nr_keys][nr_cpus];
-	__u32 key;
+	__u64 values[nr_cpus], prev[UINT8_MAX] = { 0 };
 	int i;
 
-	memset(prev, 0, sizeof(prev));
-
 	while (1) {
+		__u32 key = UINT32_MAX;
+
 		sleep(interval);
 
-		for (key = 0; key < nr_keys; key++) {
+		while (bpf_map_get_next_key(map_fd, &key, &key) != -1) {
 			__u64 sum = 0;
 
 			assert(bpf_map_lookup_elem(map_fd, &key, values) == 0);
 			for (i = 0; i < nr_cpus; i++)
-				sum += (values[i] - prev[key][i]);
-			if (sum)
+				sum += values[i];
+			if (sum > prev[key])
 				printf("proto %u: %10llu pkt/s\n",
-				       key, sum / interval);
-			memcpy(prev[key], values, sizeof(values));
+				       key, (sum - prev[key]) / interval);
+			prev[key] = sum;
 		}
 	}
 }
