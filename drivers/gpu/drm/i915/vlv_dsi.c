@@ -289,6 +289,11 @@ static int intel_dsi_compute_config(struct intel_encoder *encoder,
 	/* DSI uses short packets for sync events, so clear mode flags for DSI */
 	adjusted_mode->flags = 0;
 
+	if (intel_dsi->pixel_format == MIPI_DSI_FMT_RGB888)
+		pipe_config->pipe_bpp = 24;
+	else
+		pipe_config->pipe_bpp = 18;
+
 	if (IS_GEN9_LP(dev_priv)) {
 		/* Enable Frame time stamp based scanline reporting */
 		adjusted_mode->private_flags |=
@@ -1059,10 +1064,8 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 	}
 
 	fmt = I915_READ(MIPI_DSI_FUNC_PRG(port)) & VID_MODE_FORMAT_MASK;
-	pipe_config->pipe_bpp =
-			mipi_dsi_pixel_format_to_bpp(
-				pixel_format_from_register_bits(fmt));
-	bpp = pipe_config->pipe_bpp;
+	bpp = mipi_dsi_pixel_format_to_bpp(
+			pixel_format_from_register_bits(fmt));
 
 	/* Enable Frame time stamo based scanline reporting */
 	adjusted_mode->private_flags |=
@@ -1200,11 +1203,9 @@ static void intel_dsi_get_config(struct intel_encoder *encoder,
 
 	if (IS_GEN9_LP(dev_priv)) {
 		bxt_dsi_get_pipe_config(encoder, pipe_config);
-		pclk = bxt_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
-					pipe_config);
+		pclk = bxt_dsi_get_pclk(encoder, pipe_config);
 	} else {
-		pclk = vlv_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
-					pipe_config);
+		pclk = vlv_dsi_get_pclk(encoder, pipe_config);
 	}
 
 	if (pclk) {
