@@ -8,6 +8,7 @@
  */
 
 #include <asm/ptrace.h>
+#include <linux/clocksource.h>
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/sched.h>
@@ -18,6 +19,18 @@
 #include <asm/io.h>
 #include <asm/traps.h>
 #include <asm/blinken.h>
+
+static u64 hp300_read_clk(struct clocksource *cs);
+
+static struct clocksource hp300_clk = {
+	.name   = "timer",
+	.rating = 250,
+	.read   = hp300_read_clk,
+	.mask   = CLOCKSOURCE_MASK(32),
+	.flags  = CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static u32 clk_total;
 
 /* Clock hardware definitions */
 
@@ -32,9 +45,10 @@
 #define	CLKMSB3		0xD
 
 /* This is for machines which generate the exact clock. */
-#define USECS_PER_JIFFY (1000000/HZ)
 
-#define INTVAL ((10000 / 4) - 1)
+#define HP300_TIMER_CLOCK_FREQ 250000
+#define HP300_TIMER_CYCLES     (HP300_TIMER_CLOCK_FREQ / HZ)
+#define INTVAL                 (HP300_TIMER_CYCLES - 1)
 
 static irqreturn_t hp300_tick(int irq, void *dev_id)
 {
@@ -45,6 +59,7 @@ static irqreturn_t hp300_tick(int irq, void *dev_id)
 	local_irq_save(flags);
 	in_8(CLOCKBASE + CLKSR);
 	asm volatile ("movpw %1@(5),%0" : "=d" (tmp) : "a" (CLOCKBASE));
+	clk_total += INTVAL;
 	timer_routine(0, NULL);
 	local_irq_restore(flags);
 
@@ -53,20 +68,26 @@ static irqreturn_t hp300_tick(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-u32 hp300_gettimeoffset(void)
+static u64 hp300_read_clk(struct clocksource *cs)
 {
-  /* Read current timer 1 value */
+  unsigned long flags;
   unsigned char lsb, msb1, msb2;
-  unsigned short ticks;
+  u32 ticks;
 
+  local_irq_save(flags);
+  /* Read current timer 1 value */
   msb1 = in_8(CLOCKBASE + 5);
   lsb = in_8(CLOCKBASE + 7);
   msb2 = in_8(CLOCKBASE + 5);
   if (msb1 != msb2)
     /* A carry happened while we were reading.  Read it again */
     lsb = in_8(CLOCKBASE + 7);
+
   ticks = INTVAL - ((msb2 << 8) | lsb);
-  return ((USECS_PER_JIFFY * ticks) / INTVAL) * 1000;
+  ticks += clk_total;
+  local_irq_restore(flags);
+
+  return ticks;
 }
 
 void __init hp300_sched_init(irq_handler_t vector)
@@ -76,9 +97,11 @@ void __init hp300_sched_init(irq_handler_t vector)
 
   asm volatile(" movpw %0,%1@(5)" : : "d" (INTVAL), "a" (CLOCKBASE));
 
-  if (request_irq(IRQ_AUTO_6, hp300_tick, 0, "timer tick", vector))
+  if (request_irq(IRQ_AUTO_6, hp300_tick, IRQF_TIMER, "timer tick", vector))
     pr_err("Couldn't register timer interrupt\n");
 
   out_8(CLOCKBASE + CLKCR2, 0x1);		/* select CR1 */
   out_8(CLOCKBASE + CLKCR1, 0x40);		/* enable irq */
+
+  clocksource_register_hz(&hp300_clk, HP300_TIMER_CLOCK_FREQ);
 }
