@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/resource.h>
+#include <net/if.h>
 
 #include "bpf_util.h"
 #include "bpf/bpf.h"
@@ -59,7 +60,7 @@ static void poll_stats(int map_fd, int interval)
 static void usage(const char *prog)
 {
 	fprintf(stderr,
-		"usage: %s [OPTS] IFINDEX\n\n"
+		"usage: %s [OPTS] IFACE\n\n"
 		"OPTS:\n"
 		"    -S    use skb-mode\n"
 		"    -N    enforce native mode\n",
@@ -102,7 +103,11 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	ifindex = strtoul(argv[optind], NULL, 0);
+	ifindex = if_nametoindex(argv[1]);
+	if (!ifindex) {
+		perror("if_nametoindex");
+		return 1;
+	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	prog_load_attr.file = filename;
