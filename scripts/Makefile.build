@@ -529,8 +529,4 @@ $(shell mkdir -p $(obj-dirs))
 endif
 endif
 
-# Some files contained in $(targets) are intermediate artifacts.
-# We never want them to be removed automatically.
-.SECONDARY: $(targets)
-
 .PHONY: $(PHONY)
