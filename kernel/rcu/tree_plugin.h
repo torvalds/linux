@@ -40,7 +40,6 @@
 /*
  * Control variables for per-CPU and per-rcu_node kthreads.
  */
-DEFINE_PER_CPU(unsigned int, rcu_cpu_kthread_loops);
 DEFINE_PER_CPU(char, rcu_cpu_has_work);
 
 #else /* #ifdef CONFIG_RCU_BOOST */
@@ -1405,7 +1404,6 @@ static void rcu_cpu_kthread(unsigned int cpu)
 		trace_rcu_utilization(TPS("Start CPU kthread@rcu_wait"));
 		local_bh_disable();
 		*statusp = RCU_KTHREAD_RUNNING;
-		this_cpu_inc(rcu_cpu_kthread_loops);
 		local_irq_disable();
 		work = *workp;
 		*workp = 0;
