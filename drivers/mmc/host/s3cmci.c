@@ -1405,18 +1405,7 @@ static int s3cmci_state_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int s3cmci_state_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, s3cmci_state_show, inode->i_private);
-}
-
-static const struct file_operations s3cmci_fops_state = {
-	.owner		= THIS_MODULE,
-	.open		= s3cmci_state_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(s3cmci_state);
 
 #define DBG_REG(_r) { .addr = S3C2410_SDI##_r, .name = #_r }
 
@@ -1458,18 +1447,7 @@ static int s3cmci_regs_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int s3cmci_regs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, s3cmci_regs_show, inode->i_private);
-}
-
-static const struct file_operations s3cmci_fops_regs = {
-	.owner		= THIS_MODULE,
-	.open		= s3cmci_regs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(s3cmci_regs);
 
 static void s3cmci_debugfs_attach(struct s3cmci_host *host)
 {
@@ -1483,14 +1461,14 @@ static void s3cmci_debugfs_attach(struct s3cmci_host *host)
 
 	host->debug_state = debugfs_create_file("state", 0444,
 						host->debug_root, host,
-						&s3cmci_fops_state);
+						&s3cmci_state_fops);
 
 	if (IS_ERR(host->debug_state))
 		dev_err(dev, "failed to create debug state file\n");
 
 	host->debug_regs = debugfs_create_file("regs", 0444,
 					       host->debug_root, host,
-					       &s3cmci_fops_regs);
+					       &s3cmci_regs_fops);
 
 	if (IS_ERR(host->debug_regs))
 		dev_err(dev, "failed to create debug regs file\n");
