@@ -2173,7 +2173,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 				       &pipe_config->dp_m_n,
 				       constant_n);
 	else
-		intel_link_compute_m_n(pipe_config->dsc_params.compression_enable,
+		intel_link_compute_m_n(pipe_config->dsc_params.compressed_bpp,
 				       pipe_config->lane_count,
 				       adjusted_mode->crtc_clock,
 				       pipe_config->port_clock,
