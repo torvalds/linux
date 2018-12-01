@@ -118,7 +118,7 @@ static irqreturn_t mvme147_timer_int (int irq, void *dev_id)
 
 	local_irq_save(flags);
 	m147_pcc->t1_int_cntrl = PCC_TIMER_INT_CLR;
-	m147_pcc->t1_int_cntrl = PCC_INT_ENAB|PCC_LEVEL_TIMER1;
+	m147_pcc->t1_cntrl = PCC_TIMER_CLR_OVF;
 	clk_total += PCC_TIMER_CYCLES;
 	timer_routine(0, NULL);
 	local_irq_restore(flags);
@@ -144,21 +144,22 @@ void mvme147_sched_init (irq_handler_t timer_routine)
 	clocksource_register_hz(&mvme147_clk, PCC_TIMER_CLOCK_FREQ);
 }
 
-/* XXX There are race hazards in this code XXX */
 static u64 mvme147_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
-	volatile unsigned short *cp = (volatile unsigned short *)0xfffe1012;
-	unsigned short n;
+	u8 overflow, tmp;
+	u16 count;
 	u32 ticks;
 
 	local_irq_save(flags);
-	n = *cp;
-	while (n != *cp)
-		n = *cp;
-
-	n -= PCC_TIMER_PRELOAD;
-	ticks = clk_total + n;
+	tmp = m147_pcc->t1_cntrl >> 4;
+	count = m147_pcc->t1_count;
+	overflow = m147_pcc->t1_cntrl >> 4;
+	if (overflow != tmp)
+		count = m147_pcc->t1_count;
+	count -= PCC_TIMER_PRELOAD;
+	ticks = count + overflow * PCC_TIMER_CYCLES;
+	ticks += clk_total;
 	local_irq_restore(flags);
 
 	return ticks;
