@@ -94,22 +94,8 @@ static struct dentry *binder_debugfs_dir_entry_root;
 static struct dentry *binder_debugfs_dir_entry_proc;
 static atomic_t binder_last_id;
 
-#define BINDER_DEBUG_ENTRY(name) \
-static int binder_##name##_open(struct inode *inode, struct file *file) \
-{ \
-	return single_open(file, binder_##name##_show, inode->i_private); \
-} \
-\
-static const struct file_operations binder_##name##_fops = { \
-	.owner = THIS_MODULE, \
-	.open = binder_##name##_open, \
-	.read = seq_read, \
-	.llseek = seq_lseek, \
-	.release = single_release, \
-}
-
-static int binder_proc_show(struct seq_file *m, void *unused);
-BINDER_DEBUG_ENTRY(proc);
+static int proc_show(struct seq_file *m, void *unused);
+DEFINE_SHOW_ATTRIBUTE(proc);
 
 /* This is only defined in include/asm-arm/sizes.h */
 #ifndef SZ_1K
@@ -5280,7 +5266,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		proc->debugfs_entry = debugfs_create_file(strbuf, 0444,
 			binder_debugfs_dir_entry_proc,
 			(void *)(unsigned long)proc->pid,
-			&binder_proc_fops);
+			&proc_fops);
 	}
 
 	return 0;
@@ -5928,7 +5914,7 @@ static void print_binder_proc_stats(struct seq_file *m,
 }
 
 
-static int binder_state_show(struct seq_file *m, void *unused)
+static int state_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
 	struct binder_node *node;
@@ -5967,7 +5953,7 @@ static int binder_state_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int binder_stats_show(struct seq_file *m, void *unused)
+static int stats_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
 
@@ -5983,7 +5969,7 @@ static int binder_stats_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int binder_transactions_show(struct seq_file *m, void *unused)
+static int transactions_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *proc;
 
@@ -5996,7 +5982,7 @@ static int binder_transactions_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int binder_proc_show(struct seq_file *m, void *unused)
+static int proc_show(struct seq_file *m, void *unused)
 {
 	struct binder_proc *itr;
 	int pid = (unsigned long)m->private;
@@ -6039,7 +6025,7 @@ static void print_binder_transaction_log_entry(struct seq_file *m,
 			"\n" : " (incomplete)\n");
 }
 
-static int binder_transaction_log_show(struct seq_file *m, void *unused)
+static int transaction_log_show(struct seq_file *m, void *unused)
 {
 	struct binder_transaction_log *log = m->private;
 	unsigned int log_cur = atomic_read(&log->cur);
@@ -6071,10 +6057,10 @@ static const struct file_operations binder_fops = {
 	.release = binder_release,
 };
 
-BINDER_DEBUG_ENTRY(state);
-BINDER_DEBUG_ENTRY(stats);
-BINDER_DEBUG_ENTRY(transactions);
-BINDER_DEBUG_ENTRY(transaction_log);
+DEFINE_SHOW_ATTRIBUTE(state);
+DEFINE_SHOW_ATTRIBUTE(stats);
+DEFINE_SHOW_ATTRIBUTE(transactions);
+DEFINE_SHOW_ATTRIBUTE(transaction_log);
 
 static int __init init_binder_device(const char *name)
 {
@@ -6128,27 +6114,27 @@ static int __init binder_init(void)
 				    0444,
 				    binder_debugfs_dir_entry_root,
 				    NULL,
-				    &binder_state_fops);
+				    &state_fops);
 		debugfs_create_file("stats",
 				    0444,
 				    binder_debugfs_dir_entry_root,
 				    NULL,
-				    &binder_stats_fops);
+				    &stats_fops);
 		debugfs_create_file("transactions",
 				    0444,
 				    binder_debugfs_dir_entry_root,
 				    NULL,
-				    &binder_transactions_fops);
+				    &transactions_fops);
 		debugfs_create_file("transaction_log",
 				    0444,
 				    binder_debugfs_dir_entry_root,
 				    &binder_transaction_log,
-				    &binder_transaction_log_fops);
+				    &transaction_log_fops);
 		debugfs_create_file("failed_transaction_log",
 				    0444,
 				    binder_debugfs_dir_entry_root,
 				    &binder_transaction_log_failed,
-				    &binder_transaction_log_fops);
+				    &transaction_log_fops);
 	}
 
 	/*
