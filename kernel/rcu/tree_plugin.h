@@ -34,14 +34,7 @@
 #include "../time/tick-internal.h"
 
 #ifdef CONFIG_RCU_BOOST
-
 #include "../locking/rtmutex_common.h"
-
-/*
- * Control variables for per-CPU and per-rcu_node kthreads.
- */
-DEFINE_PER_CPU(char, rcu_cpu_has_work);
-
 #else /* #ifdef CONFIG_RCU_BOOST */
 
 /*
@@ -1304,7 +1297,7 @@ static void invoke_rcu_callbacks_kthread(void)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	__this_cpu_write(rcu_cpu_has_work, 1);
+	__this_cpu_write(rcu_data.rcu_cpu_has_work, 1);
 	if (__this_cpu_read(rcu_data.rcu_cpu_kthread_task) != NULL &&
 	    current != __this_cpu_read(rcu_data.rcu_cpu_kthread_task)) {
 		rcu_wake_cond(__this_cpu_read(rcu_data.rcu_cpu_kthread_task),
@@ -1386,7 +1379,7 @@ static void rcu_cpu_kthread_park(unsigned int cpu)
 
 static int rcu_cpu_kthread_should_run(unsigned int cpu)
 {
-	return __this_cpu_read(rcu_cpu_has_work);
+	return __this_cpu_read(rcu_data.rcu_cpu_has_work);
 }
 
 /*
@@ -1397,7 +1390,7 @@ static int rcu_cpu_kthread_should_run(unsigned int cpu)
 static void rcu_cpu_kthread(unsigned int cpu)
 {
 	unsigned int *statusp = this_cpu_ptr(&rcu_data.rcu_cpu_kthread_status);
-	char work, *workp = this_cpu_ptr(&rcu_cpu_has_work);
+	char work, *workp = this_cpu_ptr(&rcu_data.rcu_cpu_has_work);
 	int spincnt;
 
 	for (spincnt = 0; spincnt < 10; spincnt++) {
@@ -1472,7 +1465,7 @@ static void __init rcu_spawn_boost_kthreads(void)
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		per_cpu(rcu_cpu_has_work, cpu) = 0;
+		per_cpu(rcu_data.rcu_cpu_has_work, cpu) = 0;
 	if (WARN_ONCE(smpboot_register_percpu_thread(&rcu_cpu_thread_spec), "%s: Could not start rcub kthread, OOM is now expected behavior\n", __func__))
 		return;
 	rcu_for_each_leaf_node(rnp)

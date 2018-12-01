@@ -238,7 +238,7 @@ struct rcu_data {
 	struct task_struct *rcu_cpu_kthread_task;
 					/* rcuc per-CPU kthread or NULL. */
 	unsigned int rcu_cpu_kthread_status;
-					/* Running status for rcuc. */
+	char rcu_cpu_has_work;
 
 	/* 7) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
@@ -410,7 +410,6 @@ int rcu_dynticks_snap(struct rcu_data *rdp);
 
 #ifdef CONFIG_RCU_BOOST
 DECLARE_PER_CPU(int, rcu_cpu_kthread_cpu);
-DECLARE_PER_CPU(char, rcu_cpu_has_work);
 #endif /* #ifdef CONFIG_RCU_BOOST */
 
 /* Forward declarations for rcutree_plugin.h */
