@@ -2491,7 +2491,7 @@ F:	drivers/net/wireless/ath/*
 ATHEROS ATH5K WIRELESS DRIVER
 M:	Jiri Slaby <jirislaby@gmail.com>
 M:	Nick Kossifidis <mickflemm@gmail.com>
-M:	"Luis R. Rodriguez" <mcgrof@do-not-panic.com>
+M:	Luis Chamberlain <mcgrof@kernel.org>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath5k
 S:	Maintained
@@ -5835,7 +5835,7 @@ F:	include/uapi/linux/firewire*.h
 F:	tools/firewire/
 
 FIRMWARE LOADER (request_firmware)
-M:	Luis R. Rodriguez <mcgrof@kernel.org>
+M:	Luis Chamberlain <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	Documentation/firmware_class/
@@ -8135,7 +8135,7 @@ F:	tools/testing/selftests/
 F:	Documentation/dev-tools/kselftest*
 
 KERNEL USERMODE HELPER
-M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
+M:	Luis Chamberlain <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	kernel/umh.c
@@ -8311,7 +8311,7 @@ F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
 KMOD KERNEL MODULE LOADER - USERMODE HELPER
-M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
+M:	Luis Chamberlain <mcgrof@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 F:	kernel/kmod.c
@@ -12061,7 +12061,7 @@ F:	kernel/printk/
 F:	include/linux/printk.h
 
 PRISM54 WIRELESS DRIVER
-M:	"Luis R. Rodriguez" <mcgrof@gmail.com>
+M:	Luis Chamberlain <mcgrof@kernel.org>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org/en/users/Drivers/p54
 S:	Obsolete
@@ -12075,9 +12075,10 @@ S:	Maintained
 F:	fs/proc/
 F:	include/linux/proc_fs.h
 F:	tools/testing/selftests/proc/
+F:	Documentation/filesystems/proc.txt
 
 PROC SYSCTL
-M:	"Luis R. Rodriguez" <mcgrof@kernel.org>
+M:	Luis Chamberlain <mcgrof@kernel.org>
 M:	Kees Cook <keescook@chromium.org>
 L:	linux-kernel@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
