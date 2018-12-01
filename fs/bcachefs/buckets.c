@@ -106,9 +106,9 @@ static void bch2_fs_stats_verify(struct bch_fs *c)
 			      bch_data_types[j],
 			      stats.buckets[j]);
 
-	if ((s64) stats.online_reserved < 0)
+	if ((s64) stats.s.online_reserved < 0)
 		panic("sectors_online_reserved underflow: %lli\n",
-		      stats.online_reserved);
+		      stats.s.online_reserved);
 }
 
 static void bch2_dev_stats_verify(struct bch_dev *ca)
@@ -228,38 +228,6 @@ struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *c)
 	return bch2_usage_read_raw(c->usage[0]);
 }
 
-struct fs_usage_sum {
-	u64	hidden;
-	u64	data;
-	u64	cached;
-	u64	reserved;
-};
-
-static inline struct fs_usage_sum __fs_usage_sum(struct bch_fs_usage stats)
-{
-	struct fs_usage_sum sum = { 0 };
-	unsigned i;
-
-	/*
-	 * For superblock and journal we count bucket usage, not sector usage,
-	 * because any internal fragmentation should _not_ be counted as
-	 * free space:
-	 */
-	sum.hidden += stats.buckets[BCH_DATA_SB];
-	sum.hidden += stats.buckets[BCH_DATA_JOURNAL];
-
-	for (i = 0; i < ARRAY_SIZE(stats.replicas); i++) {
-		sum.data	+= stats.replicas[i].data[BCH_DATA_BTREE];
-		sum.data	+= stats.replicas[i].data[BCH_DATA_USER];
-		sum.data	+= stats.replicas[i].ec_data;
-		sum.cached	+= stats.replicas[i].data[BCH_DATA_CACHED];
-		sum.reserved	+= stats.replicas[i].persistent_reserved;
-	}
-
-	sum.reserved += stats.online_reserved;
-	return sum;
-}
-
 #define RESERVE_FACTOR	6
 
 static u64 reserve_factor(u64 r)
@@ -274,9 +242,10 @@ static u64 avail_factor(u64 r)
 
 static inline u64 __bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage fs_usage)
 {
-	struct fs_usage_sum sum = __fs_usage_sum(fs_usage);
-
-	return sum.hidden + sum.data + reserve_factor(sum.reserved);
+	return fs_usage.s.hidden +
+		fs_usage.s.data +
+		reserve_factor(fs_usage.s.reserved +
+			       fs_usage.s.online_reserved);
 }
 
 u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage fs_usage)
@@ -287,13 +256,14 @@ u64 bch2_fs_sectors_used(struct bch_fs *c, struct bch_fs_usage fs_usage)
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *c)
 {
-	struct bch_fs_usage usage = bch2_fs_usage_read(c);
-	struct fs_usage_sum sum = __fs_usage_sum(usage);
+	struct bch_fs_usage_summarized usage =
+		bch2_usage_read_raw(&c->usage[0]->s);
 	struct bch_fs_usage_short ret;
 
-	ret.capacity	= READ_ONCE(c->capacity) - sum.hidden;
-	ret.used	= min(ret.capacity, sum.data +
-			      reserve_factor(sum.reserved));
+	ret.capacity	= READ_ONCE(c->capacity) - usage.hidden;
+	ret.used	= min(ret.capacity, usage.data +
+			      reserve_factor(usage.reserved +
+					     usage.online_reserved));
 	ret.nr_inodes	= usage.nr_inodes;
 
 	return ret;
@@ -334,8 +304,7 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 			 struct disk_reservation *disk_res,
 			 struct gc_pos gc_pos)
 {
-	struct fs_usage_sum sum = __fs_usage_sum(*fs_usage);
-	s64 added = sum.data + sum.reserved;
+	s64 added = fs_usage->s.data + fs_usage->s.reserved;
 	s64 should_not_have_added;
 
 	percpu_rwsem_assert_held(&c->mark_lock);
@@ -353,7 +322,7 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 
 	if (added > 0) {
 		disk_res->sectors		-= added;
-		fs_usage->online_reserved	-= added;
+		fs_usage->s.online_reserved	-= added;
 	}
 
 	preempt_disable();
@@ -366,6 +335,18 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 	preempt_enable();
 
 	memset(fs_usage, 0, sizeof(*fs_usage));
+}
+
+static inline void account_bucket(struct bch_fs_usage *fs_usage,
+				  struct bch_dev_usage *dev_usage,
+				  enum bch_data_type type,
+				  int nr, s64 size)
+{
+	if (type == BCH_DATA_SB || type == BCH_DATA_JOURNAL)
+		fs_usage->s.hidden	+= size;
+
+	fs_usage->buckets[type]		+= size;
+	dev_usage->buckets[type]	+= nr;
 }
 
 static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
@@ -386,15 +367,13 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 	preempt_disable();
 	dev_usage = this_cpu_ptr(ca->usage[gc]);
 
-	if (bucket_type(old)) {
-		fs_usage->buckets[bucket_type(old)] -= ca->mi.bucket_size;
-		dev_usage->buckets[bucket_type(old)]--;
-	}
+	if (bucket_type(old))
+		account_bucket(fs_usage, dev_usage, bucket_type(old),
+			       -1, -ca->mi.bucket_size);
 
-	if (bucket_type(new)) {
-		fs_usage->buckets[bucket_type(new)] += ca->mi.bucket_size;
-		dev_usage->buckets[bucket_type(new)]++;
-	}
+	if (bucket_type(new))
+		account_bucket(fs_usage, dev_usage, bucket_type(new),
+			       1, ca->mi.bucket_size);
 
 	dev_usage->buckets_alloc +=
 		(int) new.owned_by_allocator - (int) old.owned_by_allocator;
@@ -460,7 +439,8 @@ static void __bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
 		new.gen++;
 	}));
 
-	fs_usage->replicas[0].data[BCH_DATA_CACHED] -= old->cached_sectors;
+	fs_usage->replicas[0].data[BCH_DATA_CACHED]	-= old->cached_sectors;
+	fs_usage->s.cached				-= old->cached_sectors;
 }
 
 void bch2_invalidate_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -528,7 +508,10 @@ static void __bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 		checked_add(new.dirty_sectors, sectors);
 	}));
 
-	fs_usage->replicas[0].data[type] += sectors;
+	if (type == BCH_DATA_BTREE ||
+	    type == BCH_DATA_USER)
+		fs_usage->s.data		+= sectors;
+	fs_usage->replicas[0].data[type]	+= sectors;
 }
 
 void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
@@ -755,8 +738,13 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	ec_redundancy	= clamp_t(unsigned,	ec_redundancy,
 				  1, ARRAY_SIZE(fs_usage->replicas));
 
+	fs_usage->s.cached					+= cached_sectors;
 	fs_usage->replicas[0].data[BCH_DATA_CACHED]		+= cached_sectors;
+
+	fs_usage->s.data					+= dirty_sectors;
 	fs_usage->replicas[replicas - 1].data[data_type]	+= dirty_sectors;
+
+	fs_usage->s.data					+= ec_sectors;
 	fs_usage->replicas[ec_redundancy - 1].ec_data		+= ec_sectors;
 
 	return 0;
@@ -866,9 +854,9 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		break;
 	case KEY_TYPE_alloc:
 		if (inserting)
-			fs_usage->nr_inodes++;
+			fs_usage->s.nr_inodes++;
 		else
-			fs_usage->nr_inodes--;
+			fs_usage->s.nr_inodes--;
 		break;
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
@@ -877,7 +865,8 @@ static int __bch2_mark_key(struct bch_fs *c, struct bkey_s_c k,
 		replicas = clamp_t(unsigned, replicas,
 				   1, ARRAY_SIZE(fs_usage->replicas));
 
-		fs_usage->replicas[replicas - 1].persistent_reserved += sectors;
+		fs_usage->s.reserved					+= sectors;
+		fs_usage->replicas[replicas - 1].persistent_reserved	+= sectors;
 		break;
 	}
 	default:
@@ -1021,8 +1010,7 @@ static u64 bch2_recalc_sectors_available(struct bch_fs *c)
 void __bch2_disk_reservation_put(struct bch_fs *c, struct disk_reservation *res)
 {
 	percpu_down_read(&c->mark_lock);
-	this_cpu_sub(c->usage[0]->online_reserved,
-		     res->sectors);
+	this_cpu_sub(c->usage[0]->s.online_reserved, res->sectors);
 
 	bch2_fs_stats_verify(c);
 	percpu_up_read(&c->mark_lock);
@@ -1064,7 +1052,7 @@ int bch2_disk_reservation_add(struct bch_fs *c, struct disk_reservation *res,
 
 out:
 	pcpu->sectors_available		-= sectors;
-	this_cpu_add(c->usage[0]->online_reserved, sectors);
+	this_cpu_add(c->usage[0]->s.online_reserved, sectors);
 	res->sectors			+= sectors;
 
 	bch2_disk_reservations_verify(c, flags);
@@ -1098,7 +1086,7 @@ recalculate:
 	    (flags & BCH_DISK_RESERVATION_NOFAIL)) {
 		atomic64_set(&c->sectors_available,
 			     max_t(s64, 0, sectors_available - sectors));
-		this_cpu_add(c->usage[0]->online_reserved, sectors);
+		this_cpu_add(c->usage[0]->s.online_reserved, sectors);
 		res->sectors			+= sectors;
 		ret = 0;
 

@@ -259,7 +259,7 @@ static ssize_t show_fs_alloc_debug(struct bch_fs *c, char *buf)
 		       stats.buckets[type]);
 
 	pr_buf(&out, "online reserved:\t%llu\n",
-	       stats.online_reserved);
+	       stats.s.online_reserved);
 
 	return out.pos - buf;
 }

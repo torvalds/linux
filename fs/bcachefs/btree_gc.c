@@ -482,6 +482,24 @@ static void bch2_gc_free(struct bch_fs *c)
 	c->usage[1] = NULL;
 }
 
+static void fs_usage_reset(struct bch_fs_usage *fs_usage)
+{
+	unsigned offset = offsetof(typeof(*fs_usage), s.gc_start);
+
+	memset((void *) fs_usage + offset, 0,
+	       sizeof(*fs_usage) - offset);
+}
+
+static void fs_usage_cpy(struct bch_fs_usage *dst,
+			 struct bch_fs_usage *src)
+{
+	unsigned offset = offsetof(typeof(*dst), s.gc_start);
+
+	memcpy((void *) dst + offset,
+	       (void *) src + offset,
+	       sizeof(*dst) - offset);
+}
+
 static void bch2_gc_done_nocheck(struct bch_fs *c)
 {
 	struct bch_dev *ca;
@@ -530,17 +548,12 @@ static void bch2_gc_done_nocheck(struct bch_fs *c)
 
 	{
 		struct bch_fs_usage src = __bch2_fs_usage_read(c, 1);
-		struct bch_fs_usage *p;
 
-		for_each_possible_cpu(cpu) {
-			p = per_cpu_ptr(c->usage[0], cpu);
-			memset(p, 0, offsetof(typeof(*p), online_reserved));
-		}
+		for_each_possible_cpu(cpu)
+			fs_usage_reset(per_cpu_ptr(c->usage[0], cpu));
 
 		preempt_disable();
-		memcpy(this_cpu_ptr(c->usage[0]),
-		       &src,
-		       offsetof(typeof(*p), online_reserved));
+		fs_usage_cpy(this_cpu_ptr(c->usage[0]), &src);
 		preempt_enable();
 	}
 
@@ -668,8 +681,13 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 	{
 		struct bch_fs_usage dst = __bch2_fs_usage_read(c, 0);
 		struct bch_fs_usage src = __bch2_fs_usage_read(c, 1);
-		struct bch_fs_usage *p;
 		unsigned r, b;
+
+		copy_fs_field(s.hidden,		"hidden");
+		copy_fs_field(s.data,		"data");
+		copy_fs_field(s.cached,		"cached");
+		copy_fs_field(s.reserved,	"reserved");
+		copy_fs_field(s.nr_inodes,	"nr_inodes");
 
 		for (r = 0; r < BCH_REPLICAS_MAX; r++) {
 			for (b = 0; b < BCH_DATA_NR; b++)
@@ -685,16 +703,12 @@ static void bch2_gc_done(struct bch_fs *c, bool initial)
 		for (b = 0; b < BCH_DATA_NR; b++)
 			copy_fs_field(buckets[b],
 				      "buckets[%s]", bch2_data_types[b]);
-		copy_fs_field(nr_inodes, "nr_inodes");
 
-		for_each_possible_cpu(cpu) {
-			p = per_cpu_ptr(c->usage[0], cpu);
-			memset(p, 0, offsetof(typeof(*p), online_reserved));
-		}
+		for_each_possible_cpu(cpu)
+			fs_usage_reset(per_cpu_ptr(c->usage[0], cpu));
 
 		preempt_disable();
-		p = this_cpu_ptr(c->usage[0]);
-		memcpy(p, &dst, offsetof(typeof(*p), online_reserved));
+		fs_usage_cpy(this_cpu_ptr(c->usage[0]), &dst);
 		preempt_enable();
 	}
 out:

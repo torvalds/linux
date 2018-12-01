@@ -398,7 +398,7 @@ static long bch2_ioctl_usage(struct bch_fs *c,
 		struct bch_ioctl_fs_usage dst = {
 			.capacity		= c->capacity,
 			.used			= bch2_fs_sectors_used(c, src),
-			.online_reserved	= src.online_reserved,
+			.online_reserved	= src.s.online_reserved,
 		};
 
 		for (i = 0; i < BCH_REPLICAS_MAX; i++) {
