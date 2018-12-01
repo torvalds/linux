@@ -14275,7 +14275,8 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	prog_len = probe_filter_length(prog);
 
 	fd_prog = bpf_verify_program(prog_type, prog, prog_len,
-				     test->flags & F_LOAD_WITH_STRICT_ALIGNMENT,
+				     test->flags & F_LOAD_WITH_STRICT_ALIGNMENT ?
+				     BPF_F_STRICT_ALIGNMENT : 0,
 				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog), 1);
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
