@@ -939,8 +939,8 @@ mlx5e_tc_add_fdb_flow(struct mlx5e_priv *priv,
 		}
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
-		attr->out_rep[attr->out_count] = rpriv->rep;
-		attr->out_mdev[attr->out_count++] = out_priv->mdev;
+		attr->dests[attr->out_count].rep = rpriv->rep;
+		attr->dests[attr->out_count++].mdev = out_priv->mdev;
 	}
 
 	err = mlx5_eswitch_add_vlan_action(esw, attr);
@@ -2468,8 +2468,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 				out_priv = netdev_priv(out_dev);
 				rpriv = out_priv->ppriv;
-				attr->out_rep[attr->out_count] = rpriv->rep;
-				attr->out_mdev[attr->out_count++] = out_priv->mdev;
+				attr->dests[attr->out_count].rep = rpriv->rep;
+				attr->dests[attr->out_count].mdev = out_priv->mdev;
+				attr->out_count++;
 			} else if (encap) {
 				parse_attr->mirred_ifindex = out_dev->ifindex;
 				parse_attr->tun_info = *info;
@@ -2477,7 +2478,9 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT |
 					  MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
 					  MLX5_FLOW_CONTEXT_ACTION_COUNT;
-				/* attr->out_rep is resolved when we handle encap */
+				/* attr->dests[].rep is resolved when we
+				 * handle encap
+				 */
 			} else if (parse_attr->filter_dev != priv->netdev) {
 				/* All mlx5 devices are called to configure
 				 * high level device filters. Therefore, the

@@ -283,8 +283,6 @@ enum mlx5_flow_match_level {
 
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
-	struct mlx5_eswitch_rep *out_rep[MLX5_MAX_FLOW_FWD_VPORTS];
-	struct mlx5_core_dev	*out_mdev[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct mlx5_core_dev	*in_mdev;
 
 	int split_count;
@@ -297,6 +295,10 @@ struct mlx5_esw_flow_attr {
 	u8	total_vlan;
 	bool	vlan_handled;
 	u32	encap_id;
+	struct {
+		struct mlx5_eswitch_rep *rep;
+		struct mlx5_core_dev *mdev;
+	} dests[MLX5_MAX_FLOW_FWD_VPORTS];
 	u32	mod_hdr_id;
 	u8	match_level;
 	struct mlx5_fc *counter;

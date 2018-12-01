@@ -122,9 +122,9 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 		} else {
 			for (j = attr->split_count; j < attr->out_count; j++) {
 				dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-				dest[i].vport.num = attr->out_rep[j]->vport;
+				dest[i].vport.num = attr->dests[j].rep->vport;
 				dest[i].vport.vhca_id =
-					MLX5_CAP_GEN(attr->out_mdev[j], vhca_id);
+					MLX5_CAP_GEN(attr->dests[j].mdev, vhca_id);
 				if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 					dest[i].vport.flags |=
 						MLX5_FLOW_DEST_VPORT_VHCA_ID;
@@ -218,9 +218,9 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	for (i = 0; i < attr->split_count; i++) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-		dest[i].vport.num = attr->out_rep[i]->vport;
+		dest[i].vport.num = attr->dests[i].rep->vport;
 		dest[i].vport.vhca_id =
-			MLX5_CAP_GEN(attr->out_mdev[i], vhca_id);
+			MLX5_CAP_GEN(attr->dests[i].mdev, vhca_id);
 		if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 	}
@@ -327,7 +327,7 @@ esw_vlan_action_get_vport(struct mlx5_esw_flow_attr *attr, bool push, bool pop)
 	struct mlx5_eswitch_rep *in_rep, *out_rep, *vport = NULL;
 
 	in_rep  = attr->in_rep;
-	out_rep = attr->out_rep[0];
+	out_rep = attr->dests[0].rep;
 
 	if (push)
 		vport = in_rep;
@@ -348,7 +348,7 @@ static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
 		goto out_notsupp;
 
 	in_rep  = attr->in_rep;
-	out_rep = attr->out_rep[0];
+	out_rep = attr->dests[0].rep;
 
 	if (push && in_rep->vport == FDB_UPLINK_VPORT)
 		goto out_notsupp;
@@ -400,7 +400,7 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 
 	if (!push && !pop && fwd) {
 		/* tracks VF --> wire rules without vlan push action */
-		if (attr->out_rep[0]->vport == FDB_UPLINK_VPORT) {
+		if (attr->dests[0].rep->vport == FDB_UPLINK_VPORT) {
 			vport->vlan_refcount++;
 			attr->vlan_handled = true;
 		}
@@ -460,7 +460,7 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 
 	if (!push && !pop && fwd) {
 		/* tracks VF --> wire rules without vlan push action */
-		if (attr->out_rep[0]->vport == FDB_UPLINK_VPORT)
+		if (attr->dests[0].rep->vport == FDB_UPLINK_VPORT)
 			vport->vlan_refcount--;
 
 		return 0;
