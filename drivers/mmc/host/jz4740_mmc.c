@@ -965,10 +965,7 @@ static int jz4740_mmc_request_gpios(struct jz4740_mmc_host *host,
 
 	host->power = devm_gpiod_get_optional(&pdev->dev, "power",
 					      GPIOD_OUT_HIGH);
-	if (IS_ERR(host->power))
-		return PTR_ERR(host->power);
-
-	return 0;
+	return PTR_ERR_OR_ZERO(host->power);
 }
 
 static const struct of_device_id jz4740_mmc_of_match[] = {
