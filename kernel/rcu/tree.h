@@ -408,10 +408,6 @@ static const char *tp_rcu_varname __used __tracepoint_string = rcu_name;
 
 int rcu_dynticks_snap(struct rcu_data *rdp);
 
-#ifdef CONFIG_RCU_BOOST
-DECLARE_PER_CPU(int, rcu_cpu_kthread_cpu);
-#endif /* #ifdef CONFIG_RCU_BOOST */
-
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
 static void rcu_qs(void);
