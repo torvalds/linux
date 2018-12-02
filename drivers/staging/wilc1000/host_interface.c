@@ -289,14 +289,8 @@ static void handle_set_wfi_drv_handler(struct work_struct *work)
 		goto free_msg;
 
 	currbyte = buffer;
-	*currbyte = hif_drv->driver_handler_id & DRV_HANDLER_MASK;
-	currbyte++;
-	*currbyte = (u32)0 & DRV_HANDLER_MASK;
-	currbyte++;
-	*currbyte = (u32)0 & DRV_HANDLER_MASK;
-	currbyte++;
-	*currbyte = (u32)0 & DRV_HANDLER_MASK;
-	currbyte++;
+	put_unaligned_le32(hif_drv->driver_handler_id, currbyte);
+	currbyte += 4;
 	*currbyte = (hif_drv_handler->name | (hif_drv_handler->mode << 1));
 
 	wid.id = WID_SET_DRV_HANDLER;

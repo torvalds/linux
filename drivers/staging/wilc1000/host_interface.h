@@ -41,7 +41,6 @@ enum {
 #define WILC_ADD_STA_LENGTH			40
 #define WILC_NUM_CONCURRENT_IFC			2
 #define WILC_DRV_HANDLER_SIZE			5
-#define DRV_HANDLER_MASK			0x000000FF
 
 #define NUM_RSSI                5
 
