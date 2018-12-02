@@ -94,12 +94,8 @@ struct set_multicast {
 };
 
 struct del_all_sta {
-	u8 del_all_sta[WILC_MAX_NUM_STA][ETH_ALEN];
 	u8 assoc_sta;
-};
-
-struct del_sta {
-	u8 mac_addr[ETH_ALEN];
+	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
 };
 
 struct set_ip_addr {
@@ -121,7 +117,6 @@ union message_body {
 	struct cfg_param_attr cfg_info;
 	struct channel_attr channel_info;
 	struct beacon_attr beacon_info;
-	struct del_sta del_sta_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
@@ -132,7 +127,6 @@ union message_body {
 	struct remain_ch remain_on_ch;
 	struct reg_frame reg_frame;
 	char *data;
-	struct del_all_sta del_all_sta_info;
 };
 
 struct host_if_msg {
@@ -1989,78 +1983,6 @@ static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 	put_unaligned_le16(params->sta_flags_set, cur_byte);
 }
 
-static void handle_del_all_sta(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct del_all_sta *param = &msg->body.del_all_sta_info;
-	int result;
-	struct wid wid;
-	u8 *curr_byte;
-	u8 i;
-	u8 zero_buff[6] = {0};
-
-	wid.id = WID_DEL_ALL_STA;
-	wid.type = WID_STR;
-	wid.size = (param->assoc_sta * ETH_ALEN) + 1;
-
-	wid.val = kmalloc((param->assoc_sta * ETH_ALEN) + 1, GFP_KERNEL);
-	if (!wid.val)
-		goto error;
-
-	curr_byte = wid.val;
-
-	*(curr_byte++) = param->assoc_sta;
-
-	for (i = 0; i < WILC_MAX_NUM_STA; i++) {
-		if (memcmp(param->del_all_sta[i], zero_buff, ETH_ALEN))
-			memcpy(curr_byte, param->del_all_sta[i], ETH_ALEN);
-		else
-			continue;
-
-		curr_byte += ETH_ALEN;
-	}
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to send delete all station\n");
-
-error:
-	kfree(wid.val);
-
-	/* free 'msg' data in caller */
-	complete(&msg->work_comp);
-}
-
-static void handle_del_station(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct del_sta *param = &msg->body.del_sta_info;
-	int result;
-	struct wid wid;
-
-	wid.id = WID_REMOVE_STA;
-	wid.type = WID_BIN;
-	wid.size = ETH_ALEN;
-
-	wid.val = kmalloc(wid.size, GFP_KERNEL);
-	if (!wid.val)
-		goto error;
-
-	ether_addr_copy(wid.val, param->mac_addr);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to del station\n");
-
-error:
-	kfree(wid.val);
-	kfree(msg);
-}
-
 static int handle_remain_on_chan(struct wilc_vif *vif,
 				 struct remain_ch *hif_remain_ch)
 {
@@ -3448,65 +3370,62 @@ int wilc_add_station(struct wilc_vif *vif, const u8 *mac,
 
 int wilc_del_station(struct wilc_vif *vif, const u8 *mac_addr)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct del_sta *del_sta_info;
 
-	msg = wilc_alloc_work(vif, handle_del_station, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	del_sta_info = &msg->body.del_sta_info;
+	wid.id = WID_REMOVE_STA;
+	wid.type = WID_BIN;
+	wid.size = ETH_ALEN;
+	wid.val = kzalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
 
 	if (!mac_addr)
-		eth_broadcast_addr(del_sta_info->mac_addr);
+		eth_broadcast_addr(wid.val);
 	else
-		memcpy(del_sta_info->mac_addr, mac_addr, ETH_ALEN);
+		ether_addr_copy(wid.val, mac_addr);
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to del station\n");
+
+	kfree(wid.val);
+
 	return result;
 }
 
 int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct del_all_sta *del_all_sta_info;
-	u8 zero_addr[ETH_ALEN] = {0};
 	int i;
+	u8 zero_addr[ETH_ALEN] = {0};
 	u8 assoc_sta = 0;
+	struct del_all_sta del_sta;
 
-	msg = wilc_alloc_work(vif, handle_del_all_sta, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	del_all_sta_info = &msg->body.del_all_sta_info;
-
+	memset(&del_sta, 0x0, sizeof(del_sta));
 	for (i = 0; i < WILC_MAX_NUM_STA; i++) {
 		if (memcmp(mac_addr[i], zero_addr, ETH_ALEN)) {
-			memcpy(del_all_sta_info->del_all_sta[i], mac_addr[i],
-			       ETH_ALEN);
 			assoc_sta++;
+			ether_addr_copy(del_sta.mac[i], mac_addr[i]);
 		}
 	}
-	if (!assoc_sta) {
-		kfree(msg);
+
+	if (!assoc_sta)
 		return 0;
-	}
 
-	del_all_sta_info->assoc_sta = assoc_sta;
-	result = wilc_enqueue_work(msg);
+	del_sta.assoc_sta = assoc_sta;
 
+	wid.id = WID_DEL_ALL_STA;
+	wid.type = WID_STR;
+	wid.size = (assoc_sta * ETH_ALEN) + 1;
+	wid.val = (u8 *)&del_sta;
+
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	else
-		wait_for_completion(&msg->work_comp);
-
-	kfree(msg);
+		netdev_err(vif->ndev, "Failed to send delete all station\n");
 
 	return result;
 }
