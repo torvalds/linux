@@ -15,8 +15,8 @@
 	leds {
 		compatible = "gpio-leds";
 
-		hobbitled {
-			label = "hobbitled";
+		led {
+			label = "gpio-led";
 			gpios = <&gpio1 29 GPIO_ACTIVE_LOW>;
 		};
 	};
