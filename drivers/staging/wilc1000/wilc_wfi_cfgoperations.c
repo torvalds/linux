@@ -32,14 +32,6 @@
 #define nl80211_SCAN_RESULT_EXPIRE	(3 * HZ)
 #define SCAN_RESULT_EXPIRE		(40 * HZ)
 
-static const u32 cipher_suites[] = {
-	WLAN_CIPHER_SUITE_WEP40,
-	WLAN_CIPHER_SUITE_WEP104,
-	WLAN_CIPHER_SUITE_TKIP,
-	WLAN_CIPHER_SUITE_CCMP,
-	WLAN_CIPHER_SUITE_AES_CMAC,
-};
-
 static const struct ieee80211_txrx_stypes
 	wilc_wfi_cfg80211_mgmt_types[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_STATION] = {
@@ -73,53 +65,6 @@ static const struct wiphy_wowlan_support wowlan_support = {
 	.flags = WIPHY_WOWLAN_ANY
 };
 
-#define CHAN2G(_channel, _freq, _flags) {	 \
-		.band             = NL80211_BAND_2GHZ, \
-		.center_freq      = (_freq),		 \
-		.hw_value         = (_channel),		 \
-		.flags            = (_flags),		 \
-		.max_antenna_gain = 0,			 \
-		.max_power        = 30,			 \
-}
-
-static struct ieee80211_channel ieee80211_2ghz_channels[] = {
-	CHAN2G(1,  2412, 0),
-	CHAN2G(2,  2417, 0),
-	CHAN2G(3,  2422, 0),
-	CHAN2G(4,  2427, 0),
-	CHAN2G(5,  2432, 0),
-	CHAN2G(6,  2437, 0),
-	CHAN2G(7,  2442, 0),
-	CHAN2G(8,  2447, 0),
-	CHAN2G(9,  2452, 0),
-	CHAN2G(10, 2457, 0),
-	CHAN2G(11, 2462, 0),
-	CHAN2G(12, 2467, 0),
-	CHAN2G(13, 2472, 0),
-	CHAN2G(14, 2484, 0),
-};
-
-#define RATETAB_ENT(_rate, _hw_value, _flags) {	\
-		.bitrate  = (_rate),			\
-		.hw_value = (_hw_value),		\
-		.flags    = (_flags),			\
-}
-
-static struct ieee80211_rate ieee80211_bitrates[] = {
-	RATETAB_ENT(10,  0,  0),
-	RATETAB_ENT(20,  1,  0),
-	RATETAB_ENT(55,  2,  0),
-	RATETAB_ENT(110, 3,  0),
-	RATETAB_ENT(60,  9,  0),
-	RATETAB_ENT(90,  6,  0),
-	RATETAB_ENT(120, 7,  0),
-	RATETAB_ENT(180, 8,  0),
-	RATETAB_ENT(240, 9,  0),
-	RATETAB_ENT(360, 10, 0),
-	RATETAB_ENT(480, 11, 0),
-	RATETAB_ENT(540, 12, 0),
-};
-
 struct p2p_mgmt_data {
 	int size;
 	u8 *buff;
@@ -129,13 +74,6 @@ static u8 wlan_channel = INVALID_CHANNEL;
 static u8 curr_channel;
 static u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
-
-static struct ieee80211_supported_band wilc_band_2ghz = {
-	.channels = ieee80211_2ghz_channels,
-	.n_channels = ARRAY_SIZE(ieee80211_2ghz_channels),
-	.bitrates = ieee80211_bitrates,
-	.n_bitrates = ARRAY_SIZE(ieee80211_bitrates),
-};
 
 #define AGING_TIME	(9 * 1000)
 #define DURING_IP_TIME_OUT	15000
@@ -2110,14 +2048,6 @@ static struct wireless_dev *wilc_wfi_cfg_alloc(void)
 	if (!wdev->wiphy)
 		goto free_mem;
 
-	wilc_band_2ghz.ht_cap.ht_supported = 1;
-	wilc_band_2ghz.ht_cap.cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
-	wilc_band_2ghz.ht_cap.mcs.rx_mask[0] = 0xff;
-	wilc_band_2ghz.ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K;
-	wilc_band_2ghz.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
-
-	wdev->wiphy->bands[NL80211_BAND_2GHZ] = &wilc_band_2ghz;
-
 	return wdev;
 
 free_mem:
@@ -2141,6 +2071,22 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 
 	priv = wdev_priv(wdev);
 	priv->wdev = wdev;
+
+	memcpy(priv->bitrates, wilc_bitrates, sizeof(wilc_bitrates));
+	memcpy(priv->channels, wilc_2ghz_channels, sizeof(wilc_2ghz_channels));
+	priv->band.bitrates = priv->bitrates;
+	priv->band.n_bitrates = ARRAY_SIZE(priv->bitrates);
+	priv->band.channels = priv->channels;
+	priv->band.n_channels = ARRAY_SIZE(wilc_2ghz_channels);
+
+	priv->band.ht_cap.ht_supported = 1;
+	priv->band.ht_cap.cap |= (1 << IEEE80211_HT_CAP_RX_STBC_SHIFT);
+	priv->band.ht_cap.mcs.rx_mask[0] = 0xff;
+	priv->band.ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_8K;
+	priv->band.ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_NONE;
+
+	wdev->wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
+
 	wdev->wiphy->max_scan_ssids = WILC_MAX_NUM_PROBED_SSID;
 #ifdef CONFIG_PM
 	wdev->wiphy->wowlan = &wowlan_support;
@@ -2148,8 +2094,10 @@ struct wireless_dev *wilc_create_wiphy(struct net_device *net,
 	wdev->wiphy->max_num_pmkids = WILC_MAX_NUM_PMKIDS;
 	wdev->wiphy->max_scan_ie_len = 1000;
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
-	wdev->wiphy->cipher_suites = cipher_suites;
-	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(cipher_suites);
+	memcpy(priv->cipher_suites, wilc_cipher_suites,
+	       sizeof(wilc_cipher_suites));
+	wdev->wiphy->cipher_suites = priv->cipher_suites;
+	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(wilc_cipher_suites);
 	wdev->wiphy->mgmt_stypes = wilc_wfi_cfg80211_mgmt_types;
 
 	wdev->wiphy->max_remain_on_channel_duration = 500;
