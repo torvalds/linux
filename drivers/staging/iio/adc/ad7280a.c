@@ -879,14 +879,14 @@ static int ad7280_probe(struct spi_device *spi)
 	if (ret < 0)
 		return ret;
 
-	ret = devm_add_action_or_reset(&spi->dev, ad7280_sw_power_down, st);
-	if (ret)
-		return ret;
-
 	st->slave_num = ret;
 	st->scan_cnt = (st->slave_num + 1) * AD7280A_NUM_CH;
 	st->cell_threshhigh = 0xFF;
 	st->aux_threshhigh = 0xFF;
+
+	ret = devm_add_action_or_reset(&spi->dev, ad7280_sw_power_down, st);
+	if (ret)
+		return ret;
 
 	/*
 	 * Total Conversion Time = ((tACQ + tCONV) *
