@@ -776,9 +776,19 @@ static struct mmc_spi_platform_data mmc_spi_info = {
 	.caps2 = MMC_CAP2_RO_ACTIVE_HIGH,
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* 3.3V only */
 	.setpower = mmc_spi_setpower,
-	.flags = MMC_SPI_USE_CD_GPIO | MMC_SPI_USE_RO_GPIO,
-	.cd_gpio = GPIO_PTY7,
-	.ro_gpio = GPIO_PTY6,
+};
+
+static struct gpiod_lookup_table mmc_spi_gpio_table = {
+	.dev_id = "mmc_spi.0", /* device "mmc_spi" @ CS0 */
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP_IDX("sh7724_pfc", GPIO_PTY7, NULL, 0,
+				GPIO_ACTIVE_LOW),
+		/* Write protect */
+		GPIO_LOOKUP_IDX("sh7724_pfc", GPIO_PTY6, NULL, 1,
+				GPIO_ACTIVE_HIGH),
+		{ },
+	},
 };
 
 static struct spi_board_info spi_bus[] = {
@@ -1282,6 +1292,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_PTB6, NULL); /* 3.3V power control */
 	gpio_direction_output(GPIO_PTB6, 0); /* disable power by default */
 
+	gpiod_add_lookup_table(&mmc_spi_gpio_table);
 	spi_register_board_info(spi_bus, ARRAY_SIZE(spi_bus));
 #endif
 
