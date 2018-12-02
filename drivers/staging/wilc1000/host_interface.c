@@ -1592,14 +1592,6 @@ static void handle_scan_timer(struct work_struct *work)
 	kfree(msg);
 }
 
-static void handle_remain_on_chan_work(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-
-	handle_remain_on_chan(msg->vif, &msg->body.remain_on_ch);
-	kfree(msg);
-}
-
 static void handle_scan_complete(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -2527,25 +2519,19 @@ int wilc_remain_on_channel(struct wilc_vif *vif, u32 session_id,
 			   wilc_remain_on_chan_ready ready,
 			   void *user_arg)
 {
+	struct remain_ch roc;
 	int result;
-	struct host_if_msg *msg;
 
-	msg = wilc_alloc_work(vif, handle_remain_on_chan_work, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.remain_on_ch.ch = chan;
-	msg->body.remain_on_ch.expired = expired;
-	msg->body.remain_on_ch.ready = ready;
-	msg->body.remain_on_ch.arg = user_arg;
-	msg->body.remain_on_ch.duration = duration;
-	msg->body.remain_on_ch.id = session_id;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	roc.ch = chan;
+	roc.expired = expired;
+	roc.ready = ready;
+	roc.arg = user_arg;
+	roc.duration = duration;
+	roc.id = session_id;
+	result = handle_remain_on_chan(vif, &roc);
+	if (result)
+		netdev_err(vif->ndev, "%s: failed to set remain on channel\n",
+			   __func__);
 
 	return result;
 }
