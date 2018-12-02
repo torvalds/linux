@@ -330,18 +330,16 @@ xs_alloc_sparse_pages(struct xdr_buf *buf, size_t want, gfp_t gfp)
 {
 	size_t i,n;
 
-	if (!(buf->flags & XDRBUF_SPARSE_PAGES))
+	if (!want || !(buf->flags & XDRBUF_SPARSE_PAGES))
 		return want;
-	if (want > buf->page_len)
-		want = buf->page_len;
 	n = (buf->page_base + want + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < n; i++) {
 		if (buf->pages[i])
 			continue;
 		buf->bvec[i].bv_page = buf->pages[i] = alloc_page(gfp);
 		if (!buf->pages[i]) {
-			buf->page_len = (i * PAGE_SIZE) - buf->page_base;
-			return buf->page_len;
+			i *= PAGE_SIZE;
+			return i > buf->page_base ? i - buf->page_base : 0;
 		}
 	}
 	return want;
@@ -404,10 +402,11 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		seek -= buf->head[0].iov_len;
 		offset += buf->head[0].iov_len;
 	}
-	if (seek < buf->page_len) {
-		want = xs_alloc_sparse_pages(buf,
-				min_t(size_t, count - offset, buf->page_len),
-				GFP_NOWAIT);
+
+	want = xs_alloc_sparse_pages(buf,
+			min_t(size_t, count - offset, buf->page_len),
+			GFP_NOWAIT);
+	if (seek < want) {
 		ret = xs_read_bvec(sock, msg, flags, buf->bvec,
 				xdr_buf_pagecount(buf),
 				want + buf->page_base,
@@ -421,9 +420,10 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 			goto out;
 		seek = 0;
 	} else {
-		seek -= buf->page_len;
-		offset += buf->page_len;
+		seek -= want;
+		offset += want;
 	}
+
 	if (seek < buf->tail[0].iov_len) {
 		want = min_t(size_t, count - offset, buf->tail[0].iov_len);
 		ret = xs_read_kvec(sock, msg, flags, &buf->tail[0], want, seek);
