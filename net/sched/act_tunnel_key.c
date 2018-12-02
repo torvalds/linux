@@ -512,7 +512,9 @@ static int tunnel_key_dump(struct sk_buff *skb, struct tc_action *a,
 		     nla_put_be32(skb, TCA_TUNNEL_KEY_ENC_KEY_ID, key_id)) ||
 		    tunnel_key_dump_addresses(skb,
 					      &params->tcft_enc_metadata->u.tun_info) ||
-		    nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT, key->tp_dst) ||
+		    (key->tp_dst &&
+		      nla_put_be16(skb, TCA_TUNNEL_KEY_ENC_DST_PORT,
+				   key->tp_dst)) ||
 		    nla_put_u8(skb, TCA_TUNNEL_KEY_NO_CSUM,
 			       !(key->tun_flags & TUNNEL_CSUM)) ||
 		    tunnel_key_opts_dump(skb, info))
