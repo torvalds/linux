@@ -1300,9 +1300,7 @@ static const struct file_operations ips_debugfs_ops = {
 
 static void ips_debugfs_cleanup(struct ips_driver *ips)
 {
-	if (ips->debug_root)
-		debugfs_remove_recursive(ips->debug_root);
-	return;
+	debugfs_remove_recursive(ips->debug_root);
 }
 
 static void ips_debugfs_init(struct ips_driver *ips)
