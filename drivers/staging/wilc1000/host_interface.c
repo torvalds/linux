@@ -362,33 +362,15 @@ error:
 	kfree(msg);
 }
 
-static void handle_connect(struct work_struct *work)
+static int wilc_send_connect_wid(struct wilc_vif *vif,
+				 struct connect_attr *conn_attr)
 {
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct connect_attr *conn_attr = &msg->body.con_info;
 	int result = 0;
 	struct wid wid_list[8];
 	u32 wid_cnt = 0, dummyval = 0;
 	u8 *cur_byte = NULL;
-	struct join_bss_param *bss_param;
+	struct join_bss_param *bss_param = conn_attr->params;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (msg->vif->hif_drv->usr_scan_req.scan_result) {
-		result = wilc_enqueue_work(msg);
-		if (result)
-			goto error;
-
-		usleep_range(2 * 1000, 2 * 1000);
-		return;
-	}
-
-	bss_param = conn_attr->params;
-	if (!bss_param) {
-		netdev_err(vif->ndev, "Required BSSID not found\n");
-		result = -ENOENT;
-		goto error;
-	}
 
 	if (conn_attr->bssid) {
 		hif_drv->usr_conn_req.bssid = kmemdup(conn_attr->bssid, 6,
@@ -490,8 +472,8 @@ static void handle_connect(struct work_struct *work)
 		netdev_err(vif->ndev, "Channel out of range\n");
 		*(cur_byte++) = 0xFF;
 	}
-	*(cur_byte++)  = (bss_param->cap_info) & 0xFF;
-	*(cur_byte++)  = ((bss_param->cap_info) >> 8) & 0xFF;
+	put_unaligned_le16(bss_param->cap_info, cur_byte);
+	cur_byte += 2;
 
 	if (conn_attr->bssid)
 		memcpy(cur_byte, conn_attr->bssid, 6);
@@ -501,8 +483,8 @@ static void handle_connect(struct work_struct *work)
 		memcpy(cur_byte, conn_attr->bssid, 6);
 	cur_byte += 6;
 
-	*(cur_byte++)  = (bss_param->beacon_period) & 0xFF;
-	*(cur_byte++)  = ((bss_param->beacon_period) >> 8) & 0xFF;
+	put_unaligned_le16(bss_param->beacon_period, cur_byte);
+	cur_byte += 2;
 	*(cur_byte++)  =  bss_param->dtim_period;
 
 	memcpy(cur_byte, bss_param->supp_rates, MAX_RATES_SUPPORTED + 1);
@@ -533,10 +515,8 @@ static void handle_connect(struct work_struct *work)
 	*(cur_byte++) = bss_param->noa_enabled;
 
 	if (bss_param->noa_enabled) {
-		*(cur_byte++) = (bss_param->tsf) & 0xFF;
-		*(cur_byte++) = ((bss_param->tsf) >> 8) & 0xFF;
-		*(cur_byte++) = ((bss_param->tsf) >> 16) & 0xFF;
-		*(cur_byte++) = ((bss_param->tsf) >> 24) & 0xFF;
+		put_unaligned_le32(bss_param->tsf, cur_byte);
+		cur_byte += 4;
 
 		*(cur_byte++) = bss_param->opp_enabled;
 		*(cur_byte++) = bss_param->idx;
@@ -616,8 +596,10 @@ error:
 	kfree(conn_attr->ies);
 	conn_attr->ies = NULL;
 
+	kfree(conn_attr);
 	kfree(cur_byte);
-	kfree(msg);
+
+	return result;
 }
 
 static void handle_connect_timeout(struct work_struct *work)
@@ -1926,8 +1908,8 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      u8 channel, void *join_params)
 {
 	int result;
-	struct host_if_msg *msg;
 	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct connect_attr *con_info;
 
 	if (!hif_drv || !connect_result) {
 		netdev_err(vif->ndev,
@@ -1941,50 +1923,51 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		return -EFAULT;
 	}
 
-	msg = wilc_alloc_work(vif, handle_connect, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	if (hif_drv->usr_scan_req.scan_result) {
+		netdev_err(vif->ndev, "%s: Scan in progress\n", __func__);
+		return -EBUSY;
+	}
 
-	msg->body.con_info.security = security;
-	msg->body.con_info.auth_type = auth_type;
-	msg->body.con_info.ch = channel;
-	msg->body.con_info.result = connect_result;
-	msg->body.con_info.arg = user_arg;
-	msg->body.con_info.params = join_params;
+	con_info = kzalloc(sizeof(*con_info), GFP_KERNEL);
+	if (!con_info)
+		return -ENOMEM;
+
+	con_info->security = security;
+	con_info->auth_type = auth_type;
+	con_info->ch = channel;
+	con_info->result = connect_result;
+	con_info->arg = user_arg;
+	con_info->params = join_params;
 
 	if (bssid) {
-		msg->body.con_info.bssid = kmemdup(bssid, 6, GFP_KERNEL);
-		if (!msg->body.con_info.bssid) {
+		con_info->bssid = kmemdup(bssid, 6, GFP_KERNEL);
+		if (!con_info->bssid) {
 			result = -ENOMEM;
-			goto free_msg;
+			goto free_con_info;
 		}
 	}
 
 	if (ssid) {
-		msg->body.con_info.ssid_len = ssid_len;
-		msg->body.con_info.ssid = kmemdup(ssid, ssid_len, GFP_KERNEL);
-		if (!msg->body.con_info.ssid) {
+		con_info->ssid_len = ssid_len;
+		con_info->ssid = kmemdup(ssid, ssid_len, GFP_KERNEL);
+		if (!con_info->ssid) {
 			result = -ENOMEM;
 			goto free_bssid;
 		}
 	}
 
 	if (ies) {
-		msg->body.con_info.ies_len = ies_len;
-		msg->body.con_info.ies = kmemdup(ies, ies_len, GFP_KERNEL);
-		if (!msg->body.con_info.ies) {
+		con_info->ies_len = ies_len;
+		con_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
+		if (!con_info->ies) {
 			result = -ENOMEM;
 			goto free_ssid;
 		}
 	}
-	if (hif_drv->hif_state < HOST_IF_CONNECTING)
-		hif_drv->hif_state = HOST_IF_CONNECTING;
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
+	result = wilc_send_connect_wid(vif);
+	if (result)
 		goto free_ies;
-	}
 
 	hif_drv->connect_timer_vif = vif;
 	mod_timer(&hif_drv->connect_timer,
@@ -1993,16 +1976,17 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 	return 0;
 
 free_ies:
-	kfree(msg->body.con_info.ies);
+	kfree(con_info->ies);
 
 free_ssid:
-	kfree(msg->body.con_info.ssid);
+	kfree(con_info->ssid);
 
 free_bssid:
-	kfree(msg->body.con_info.bssid);
+	kfree(con_info->bssid);
 
-free_msg:
-	kfree(msg);
+free_con_info:
+	kfree(con_info);
+
 	return result;
 }
 
