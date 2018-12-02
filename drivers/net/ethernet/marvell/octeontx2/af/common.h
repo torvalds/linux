@@ -143,6 +143,9 @@ enum nix_scheduler {
 	NIX_TXSCH_LVL_CNT = 0x5,
 };
 
+#define TXSCH_TL1_DFLT_RR_QTM      ((1 << 24) - 1)
+#define TXSCH_TL1_DFLT_RR_PRIO     (0x1ull)
+
 /* Min/Max packet sizes, excluding FCS */
 #define	NIC_HW_MIN_FRS			40
 #define	NIC_HW_MAX_FRS			9212
