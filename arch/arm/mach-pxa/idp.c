@@ -160,7 +160,6 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 
 static struct pxamci_platform_data idp_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_power		= -1,
 };
 
 static void __init idp_init(void)

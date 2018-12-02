@@ -664,7 +664,6 @@ static struct pxamci_platform_data zeus_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.detect_delay_ms	= 250,
 	.gpio_card_ro_invert	= 1,
-	.gpio_power             = -1
 };
 
 static struct gpiod_lookup_table zeus_mci_gpio_table = {

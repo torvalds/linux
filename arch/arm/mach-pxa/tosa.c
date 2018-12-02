@@ -292,7 +292,6 @@ static struct pxamci_platform_data tosa_mci_platform_data = {
 	.ocr_mask       	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init           	= tosa_mci_init,
 	.exit           	= tosa_mci_exit,
-	.gpio_power		= TOSA_GPIO_PWR_ON,
 };
 
 static struct gpiod_lookup_table tosa_mci_gpio_table = {
@@ -302,6 +301,8 @@ static struct gpiod_lookup_table tosa_mci_gpio_table = {
 			    "cd", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_SD_WP,
 			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_PWR_ON,
+			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };

@@ -120,7 +120,6 @@ static unsigned long palmtc_pin_config[] __initdata = {
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= GPIO_NR_PALMTC_SD_POWER,
 	.detect_delay_ms	= 200,
 };
 
@@ -131,6 +130,8 @@ static struct gpiod_lookup_table palmtc_mci_gpio_table = {
 			    "cd", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_READONLY,
 			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };

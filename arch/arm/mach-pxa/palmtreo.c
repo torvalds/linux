@@ -487,6 +487,8 @@ static struct gpiod_lookup_table treo680_mci_gpio_table = {
 			    "cd", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO680_SD_READONLY,
 			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO680_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
@@ -496,8 +498,7 @@ static void __init treo680_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
 	palmphone_common_init();
 	treo680_gpio_init();
-	palm27x_mmc_init(&treo680_mci_gpio_table,
-			 GPIO_NR_TREO680_SD_POWER, 0);
+	palm27x_mmc_init(&treo680_mci_gpio_table);
 }
 #endif
 
@@ -508,6 +509,8 @@ static struct gpiod_lookup_table centro685_mci_gpio_table = {
 	.table = {
 		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO_SD_DETECT_N,
 			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_CENTRO_SD_POWER,
+			    "power", GPIO_ACTIVE_LOW),
 		{ },
 	},
 };
@@ -516,8 +519,7 @@ static void __init centro_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(centro685_pin_config));
 	palmphone_common_init();
-	palm27x_mmc_init(&centro685_mci_gpio_table,
-			 GPIO_NR_CENTRO_SD_POWER, 1);
+	palm27x_mmc_init(&centro685_mci_gpio_table);
 }
 #endif
 

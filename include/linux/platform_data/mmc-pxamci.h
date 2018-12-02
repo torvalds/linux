@@ -16,8 +16,6 @@ struct pxamci_platform_data {
 	int (*setpower)(struct device *, unsigned int);
 	void (*exit)(struct device *, void *);
 	bool gpio_card_ro_invert;		/* gpio ro is inverted */
-	int gpio_power;				/* gpio powering up MMC bus */
-	bool gpio_power_invert;			/* gpio power is inverted */
 };
 
 extern void pxa_set_mci_info(struct pxamci_platform_data *info);

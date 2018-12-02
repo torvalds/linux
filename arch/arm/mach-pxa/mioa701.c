@@ -398,7 +398,6 @@ struct gpio_vbus_mach_info gpio_vbus_data = {
 static struct pxamci_platform_data mioa701_mci_info = {
 	.detect_delay_ms	= 250,
 	.ocr_mask 		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= GPIO91_SDIO_EN,
 };
 
 static struct gpiod_lookup_table mioa701_mci_gpio_table = {
@@ -410,6 +409,9 @@ static struct gpiod_lookup_table mioa701_mci_gpio_table = {
 		/* Write protect on GPIO 78 */
 		GPIO_LOOKUP("gpio-pxa", GPIO78_SDIO_RO,
 			    "wp", GPIO_ACTIVE_LOW),
+		/* Power on GPIO 91 */
+		GPIO_LOOKUP("gpio-pxa", GPIO91_SDIO_EN,
+			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };

@@ -276,7 +276,6 @@ static inline void littleton_init_keypad(void) {}
 static struct pxamci_platform_data littleton_mci_platform_data = {
 	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= -1,
 };
 
 static struct gpiod_lookup_table littleton_mci_gpio_table = {

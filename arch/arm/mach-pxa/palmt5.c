@@ -189,6 +189,8 @@ static struct gpiod_lookup_table palmt5_mci_gpio_table = {
 			    "cd", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMT5_SD_READONLY,
 			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMT5_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
@@ -200,8 +202,7 @@ static void __init palmt5_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palm27x_mmc_init(&palmt5_mci_gpio_table,
-			 GPIO_NR_PALMT5_SD_POWER, 0);
+	palm27x_mmc_init(&palmt5_mci_gpio_table);
 	palm27x_pm_init(PALMT5_STR_BASE);
 	palm27x_lcd_init(-1, &palm_320x480_lcd_mode);
 	palm27x_udc_init(GPIO_NR_PALMT5_USB_DETECT_N,

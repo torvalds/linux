@@ -616,7 +616,6 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
 	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.setpower		= spitz_mci_setpower,
-	.gpio_power		= -1,
 };
 
 static struct gpiod_lookup_table spitz_mci_gpio_table = {

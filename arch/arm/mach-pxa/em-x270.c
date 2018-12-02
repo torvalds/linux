@@ -630,7 +630,6 @@ static struct pxamci_platform_data em_x270_mci_platform_data = {
 	.init 			= em_x270_mci_init,
 	.setpower 		= em_x270_mci_setpower,
 	.exit			= em_x270_mci_exit,
-	.gpio_power		= -1,
 };
 
 static void __init em_x270_init_mmc(void)

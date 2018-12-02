@@ -227,7 +227,6 @@ static inline void zylonite_init_lcd(void) {}
 static struct pxamci_platform_data zylonite_mci_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_power	= -1,
 };
 
 #define PCA9539A_MCI_CD 0
@@ -251,7 +250,6 @@ static struct gpiod_lookup_table zylonite_mci_gpio_table = {
 static struct pxamci_platform_data zylonite_mci2_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_power	= -1,
 };
 
 static struct gpiod_lookup_table zylonite_mci2_gpio_table = {
@@ -268,7 +266,6 @@ static struct gpiod_lookup_table zylonite_mci2_gpio_table = {
 static struct pxamci_platform_data zylonite_mci3_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_power	= -1,
 };
 
 static struct gpiod_lookup_table zylonite_mci3_gpio_table = {

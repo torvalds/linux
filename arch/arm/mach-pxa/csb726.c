@@ -129,7 +129,6 @@ static struct pxamci_platform_data csb726_mci = {
 	.detect_delay_ms	= 500,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	/* FIXME setpower */
-	.gpio_power		= -1,
 };
 
 static struct gpiod_lookup_table csb726_mci_gpio_table = {

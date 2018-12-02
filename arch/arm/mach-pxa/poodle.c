@@ -289,7 +289,6 @@ static struct pxamci_platform_data poodle_mci_platform_data = {
 	.init 			= poodle_mci_init,
 	.setpower 		= poodle_mci_setpower,
 	.exit			= poodle_mci_exit,
-	.gpio_power		= -1,
 };
 
 static struct gpiod_lookup_table poodle_mci_gpio_table = {

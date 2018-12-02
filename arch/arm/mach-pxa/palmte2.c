@@ -102,7 +102,6 @@ static unsigned long palmte2_pin_config[] __initdata = {
  ******************************************************************************/
 static struct pxamci_platform_data palmte2_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= GPIO_NR_PALMTE2_SD_POWER,
 };
 
 static struct gpiod_lookup_table palmte2_mci_gpio_table = {
@@ -112,6 +111,8 @@ static struct gpiod_lookup_table palmte2_mci_gpio_table = {
 			    "cd", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_SD_READONLY,
 			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTE2_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };

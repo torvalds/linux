@@ -291,7 +291,6 @@ static inline void z2_lcd_init(void) {}
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data z2_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= -1,
 	.detect_delay_ms	= 200,
 };
 

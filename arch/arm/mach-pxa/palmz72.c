@@ -393,6 +393,8 @@ static struct gpiod_lookup_table palmz72_mci_gpio_table = {
 			    "cd", GPIO_ACTIVE_LOW),
 		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_RO,
 			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMZ72_SD_POWER_N,
+			    "power", GPIO_ACTIVE_LOW),
 		{ },
 	},
 };
@@ -407,8 +409,7 @@ static void __init palmz72_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	palm27x_mmc_init(&palmz72_mci_gpio_table,
-			 GPIO_NR_PALMZ72_SD_POWER_N, 1);
+	palm27x_mmc_init(&palmz72_mci_gpio_table);
 	palm27x_lcd_init(-1, &palm_320x320_lcd_mode);
 	palm27x_udc_init(GPIO_NR_PALMZ72_USB_DETECT_N,
 			GPIO_NR_PALMZ72_USB_PULLUP, 0);

@@ -436,7 +436,6 @@ static int imote2_mci_get_ro(struct device *dev)
 static struct pxamci_platform_data imote2_mci_platform_data = {
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34, /* default anyway */
 	.get_ro = imote2_mci_get_ro,
-	.gpio_power = -1,
 };
 
 static struct gpio_led imote2_led_pins[] = {
