@@ -865,6 +865,13 @@ int rvu_mbox_handler_nix_lf_alloc(struct rvu *rvu,
 		    (u64)pfvf->nix_qints_ctx->iova);
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_QINTS_CFG(nixlf), BIT_ULL(36));
 
+	/* Setup VLANX TPID's.
+	 * Use VLAN1 for 802.1Q
+	 * and VLAN0 for 802.1AD.
+	 */
+	cfg = (0x8100ULL << 16) | 0x88A8ULL;
+	rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_CFG(nixlf), cfg);
+
 	/* Enable LMTST for this NIX LF */
 	rvu_write64(rvu, blkaddr, NIX_AF_LFX_TX_CFG2(nixlf), BIT_ULL(0));
 
