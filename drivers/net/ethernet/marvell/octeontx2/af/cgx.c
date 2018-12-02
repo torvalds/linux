@@ -498,6 +498,60 @@ static inline bool cgx_event_is_linkevent(u64 event)
 		return false;
 }
 
+static inline int cgx_fwi_get_mkex_prfl_sz(u64 *prfl_sz,
+					   struct cgx *cgx)
+{
+	u64 req = 0;
+	u64 resp;
+	int err;
+
+	req = FIELD_SET(CMDREG_ID, CGX_CMD_GET_MKEX_PRFL_SIZE, req);
+	err = cgx_fwi_cmd_generic(req, &resp, cgx, 0);
+	if (!err)
+		*prfl_sz = FIELD_GET(RESP_MKEX_PRFL_SIZE, resp);
+
+	return err;
+}
+
+static inline int cgx_fwi_get_mkex_prfl_addr(u64 *prfl_addr,
+					     struct cgx *cgx)
+{
+	u64 req = 0;
+	u64 resp;
+	int err;
+
+	req = FIELD_SET(CMDREG_ID, CGX_CMD_GET_MKEX_PRFL_ADDR, req);
+	err = cgx_fwi_cmd_generic(req, &resp, cgx, 0);
+	if (!err)
+		*prfl_addr = FIELD_GET(RESP_MKEX_PRFL_ADDR, resp);
+
+	return err;
+}
+
+int cgx_get_mkex_prfl_info(u64 *addr, u64 *size)
+{
+	struct cgx *cgx_dev;
+	int err;
+
+	if (!addr || !size)
+		return -EINVAL;
+
+	cgx_dev = list_first_entry(&cgx_list, struct cgx, cgx_list);
+	if (!cgx_dev)
+		return -ENXIO;
+
+	err = cgx_fwi_get_mkex_prfl_sz(size, cgx_dev);
+	if (err)
+		return -EIO;
+
+	err = cgx_fwi_get_mkex_prfl_addr(addr, cgx_dev);
+	if (err)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(cgx_get_mkex_prfl_info);
+
 static irqreturn_t cgx_fwi_event_handler(int irq, void *data)
 {
 	struct lmac *lmac = data;

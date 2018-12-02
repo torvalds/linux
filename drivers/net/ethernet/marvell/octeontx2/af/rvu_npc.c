@@ -16,6 +16,7 @@
 #include "rvu_reg.h"
 #include "rvu.h"
 #include "npc.h"
+#include "cgx.h"
 #include "npc_profile.h"
 
 #define RSVD_MCAM_ENTRIES_PER_PF	2 /* Bcast & Promisc */
@@ -731,6 +732,111 @@ static void npc_config_ldata_extract(struct rvu *rvu, int blkaddr)
 	SET_KEX_LD(NIX_INTF_RX, NPC_LID_LD, NPC_LT_LD_TCP, 1, cfg);
 }
 
+static void npc_program_mkex_profile(struct rvu *rvu, int blkaddr,
+				     struct npc_mcam_kex *mkex)
+{
+	int lid, lt, ld, fl;
+
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_RX),
+		    mkex->keyx_cfg[NIX_INTF_RX]);
+	rvu_write64(rvu, blkaddr, NPC_AF_INTFX_KEX_CFG(NIX_INTF_TX),
+		    mkex->keyx_cfg[NIX_INTF_TX]);
+
+	for (ld = 0; ld < NPC_MAX_LD; ld++)
+		rvu_write64(rvu, blkaddr, NPC_AF_KEX_LDATAX_FLAGS_CFG(ld),
+			    mkex->kex_ld_flags[ld]);
+
+	for (lid = 0; lid < NPC_MAX_LID; lid++) {
+		for (lt = 0; lt < NPC_MAX_LT; lt++) {
+			for (ld = 0; ld < NPC_MAX_LD; ld++) {
+				SET_KEX_LD(NIX_INTF_RX, lid, lt, ld,
+					   mkex->intf_lid_lt_ld[NIX_INTF_RX]
+					   [lid][lt][ld]);
+
+				SET_KEX_LD(NIX_INTF_TX, lid, lt, ld,
+					   mkex->intf_lid_lt_ld[NIX_INTF_TX]
+					   [lid][lt][ld]);
+			}
+		}
+	}
+
+	for (ld = 0; ld < NPC_MAX_LD; ld++) {
+		for (fl = 0; fl < NPC_MAX_LFL; fl++) {
+			SET_KEX_LDFLAGS(NIX_INTF_RX, ld, fl,
+					mkex->intf_ld_flags[NIX_INTF_RX]
+					[ld][fl]);
+
+			SET_KEX_LDFLAGS(NIX_INTF_TX, ld, fl,
+					mkex->intf_ld_flags[NIX_INTF_TX]
+					[ld][fl]);
+		}
+	}
+}
+
+/* strtoull of "mkexprof" with base:36 */
+#define MKEX_SIGN      0x19bbfdbd15f
+#define MKEX_END_SIGN  0xdeadbeef
+
+static void npc_load_mkex_profile(struct rvu *rvu, int blkaddr)
+{
+	const char *mkex_profile = rvu->mkex_pfl_name;
+	struct device *dev = &rvu->pdev->dev;
+	void __iomem *mkex_prfl_addr = NULL;
+	struct npc_mcam_kex *mcam_kex;
+	u64 prfl_addr;
+	u64 prfl_sz;
+
+	/* If user not selected mkex profile */
+	if (!strncmp(mkex_profile, "default", MKEX_NAME_LEN))
+		goto load_default;
+
+	if (cgx_get_mkex_prfl_info(&prfl_addr, &prfl_sz))
+		goto load_default;
+
+	if (!prfl_addr || !prfl_sz)
+		goto load_default;
+
+	mkex_prfl_addr = ioremap_wc(prfl_addr, prfl_sz);
+	if (!mkex_prfl_addr)
+		goto load_default;
+
+	mcam_kex = (struct npc_mcam_kex *)mkex_prfl_addr;
+
+	while (((s64)prfl_sz > 0) && (mcam_kex->mkex_sign != MKEX_END_SIGN)) {
+		/* Compare with mkex mod_param name string */
+		if (mcam_kex->mkex_sign == MKEX_SIGN &&
+		    !strncmp(mcam_kex->name, mkex_profile, MKEX_NAME_LEN)) {
+			/* Due to an errata (35786) in A0 pass silicon,
+			 * parse nibble enable configuration has to be
+			 * identical for both Rx and Tx interfaces.
+			 */
+			if (is_rvu_9xxx_A0(rvu) &&
+			    mcam_kex->keyx_cfg[NIX_INTF_RX] !=
+			    mcam_kex->keyx_cfg[NIX_INTF_TX])
+				goto load_default;
+
+			/* Program selected mkex profile */
+			npc_program_mkex_profile(rvu, blkaddr, mcam_kex);
+
+			goto unmap;
+		}
+
+		mcam_kex++;
+		prfl_sz -= sizeof(struct npc_mcam_kex);
+	}
+	dev_warn(dev, "Failed to load requested profile: %s\n",
+		 rvu->mkex_pfl_name);
+
+load_default:
+	dev_info(rvu->dev, "Using default mkex profile\n");
+	/* Config packet data and flags extraction into PARSE result */
+	npc_config_ldata_extract(rvu, blkaddr);
+
+unmap:
+	if (mkex_prfl_addr)
+		iounmap(mkex_prfl_addr);
+}
+
 static void npc_config_kpuaction(struct rvu *rvu, int blkaddr,
 				 struct npc_kpu_profile_action *kpuaction,
 				 int kpu, int entry, bool pkind)
@@ -1068,8 +1174,8 @@ int rvu_npc_init(struct rvu *rvu)
 	if (err)
 		return err;
 
-	/* Config packet data and flags extraction into PARSE result */
-	npc_config_ldata_extract(rvu, blkaddr);
+	/* Configure MKEX profile */
+	npc_load_mkex_profile(rvu, blkaddr);
 
 	/* Set TX miss action to UCAST_DEFAULT i.e
 	 * transmit the packet on NIX LF SQ's default channel.
@@ -2077,6 +2183,7 @@ int rvu_mbox_handler_npc_get_kex_cfg(struct rvu *rvu, struct msg_req *req,
 					GET_KEX_LDFLAGS(NIX_INTF_TX, ld, fl);
 		}
 	}
+	memcpy(rsp->mkex_pfl_name, rvu->mkex_pfl_name, MKEX_NAME_LEN);
 	return 0;
 }
 
