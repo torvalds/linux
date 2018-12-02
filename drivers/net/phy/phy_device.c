@@ -605,7 +605,21 @@ struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
 	 * driver will get bored and give up as soon as it finds that
 	 * there's no driver _already_ loaded.
 	 */
-	request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT, MDIO_ID_ARGS(phy_id));
+	if (is_c45 && c45_ids) {
+		const int num_ids = ARRAY_SIZE(c45_ids->device_ids);
+		int i;
+
+		for (i = 1; i < num_ids; i++) {
+			if (!(c45_ids->devices_in_package & (1 << i)))
+				continue;
+
+			request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
+				       MDIO_ID_ARGS(c45_ids->device_ids[i]));
+		}
+	} else {
+		request_module(MDIO_MODULE_PREFIX MDIO_ID_FMT,
+			       MDIO_ID_ARGS(phy_id));
+	}
 
 	device_initialize(&mdiodev->dev);
 
