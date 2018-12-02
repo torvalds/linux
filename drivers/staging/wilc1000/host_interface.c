@@ -13,18 +13,6 @@
 
 #define REAL_JOIN_REQ				0
 
-struct scan_attr {
-	u8 src;
-	u8 type;
-	u8 *ch_freq_list;
-	u8 ch_list_len;
-	u8 *ies;
-	size_t ies_len;
-	wilc_scan_result result;
-	void *arg;
-	struct hidden_network hidden_network;
-};
-
 struct rcvd_async_info {
 	u8 *buffer;
 	u32 len;
@@ -84,7 +72,6 @@ struct wilc_gtk_key {
 } __packed;
 
 union message_body {
-	struct scan_attr scan_info;
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct set_multicast multicast_info;
@@ -230,11 +217,11 @@ static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
 	return result;
 }
 
-static void handle_scan(struct work_struct *work)
+int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
+	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
+	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
+	      struct hidden_network *hidden_net)
 {
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct scan_attr *scan_info = &msg->body.scan_info;
 	int result = 0;
 	struct wid wid_list[5];
 	u32 index = 0;
@@ -243,10 +230,6 @@ static void handle_scan(struct work_struct *work)
 	u8 valuesize = 0;
 	u8 *hdn_ntwk_wid_val = NULL;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct hidden_network *hidden_net = &scan_info->hidden_network;
-
-	hif_drv->usr_scan_req.scan_result = scan_info->result;
-	hif_drv->usr_scan_req.arg = scan_info->arg;
 
 	if (hif_drv->hif_state >= HOST_IF_SCANNING &&
 	    hif_drv->hif_state < HOST_IF_CONNECTED) {
@@ -288,63 +271,55 @@ static void handle_scan(struct work_struct *work)
 
 	wid_list[index].id = WID_INFO_ELEMENT_PROBE;
 	wid_list[index].type = WID_BIN_DATA;
-	wid_list[index].val = scan_info->ies;
-	wid_list[index].size = scan_info->ies_len;
+	wid_list[index].val = (s8 *)ies;
+	wid_list[index].size = ies_len;
 	index++;
 
 	wid_list[index].id = WID_SCAN_TYPE;
 	wid_list[index].type = WID_CHAR;
 	wid_list[index].size = sizeof(char);
-	wid_list[index].val = (s8 *)&scan_info->type;
+	wid_list[index].val = (s8 *)&scan_type;
 	index++;
 
 	wid_list[index].id = WID_SCAN_CHANNEL_LIST;
 	wid_list[index].type = WID_BIN_DATA;
 
-	if (scan_info->ch_freq_list &&
-	    scan_info->ch_list_len > 0) {
-		int i;
-
-		for (i = 0; i < scan_info->ch_list_len; i++) {
-			if (scan_info->ch_freq_list[i] > 0)
-				scan_info->ch_freq_list[i] -= 1;
+	if (ch_freq_list && ch_list_len > 0) {
+		for (i = 0; i < ch_list_len; i++) {
+			if (ch_freq_list[i] > 0)
+				ch_freq_list[i] -= 1;
 		}
 	}
 
-	wid_list[index].val = scan_info->ch_freq_list;
-	wid_list[index].size = scan_info->ch_list_len;
+	wid_list[index].val = ch_freq_list;
+	wid_list[index].size = ch_list_len;
 	index++;
 
 	wid_list[index].id = WID_START_SCAN_REQ;
 	wid_list[index].type = WID_CHAR;
 	wid_list[index].size = sizeof(char);
-	wid_list[index].val = (s8 *)&scan_info->src;
+	wid_list[index].val = (s8 *)&scan_source;
 	index++;
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
 				      index,
 				      wilc_get_vif_idx(vif));
-
-	if (result)
-		netdev_err(vif->ndev, "Failed to send scan parameters\n");
-
-error:
 	if (result) {
-		del_timer(&hif_drv->scan_timer);
-		handle_scan_done(vif, SCAN_EVENT_ABORTED);
+		netdev_err(vif->ndev, "Failed to send scan parameters\n");
+		goto error;
 	}
 
-	kfree(scan_info->ch_freq_list);
-	scan_info->ch_freq_list = NULL;
+	hif_drv->usr_scan_req.scan_result = scan_result;
+	hif_drv->usr_scan_req.arg = user_arg;
+	hif_drv->scan_timer_vif = vif;
+	mod_timer(&hif_drv->scan_timer,
+		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
 
-	kfree(scan_info->ies);
-	scan_info->ies = NULL;
-	kfree(scan_info->hidden_network.net_info);
-	scan_info->hidden_network.net_info = NULL;
-
+error:
+	kfree(hidden_net->net_info);
 	kfree(hdn_ntwk_wid_val);
 
-	kfree(msg);
+	return result;
 }
 
 static int wilc_send_connect_wid(struct wilc_vif *vif)
@@ -2031,76 +2006,6 @@ int wilc_get_stats_async(struct wilc_vif *vif, struct rf_info *stats)
 		return result;
 	}
 
-	return result;
-}
-
-int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
-	      u8 *ch_freq_list, u8 ch_list_len, const u8 *ies,
-	      size_t ies_len, wilc_scan_result scan_result, void *user_arg,
-	      struct hidden_network *hidden_network)
-{
-	int result;
-	struct host_if_msg *msg;
-	struct scan_attr *scan_info;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!hif_drv || !scan_result) {
-		netdev_err(vif->ndev, "hif_drv or scan_result = NULL\n");
-		return -EFAULT;
-	}
-
-	msg = wilc_alloc_work(vif, handle_scan, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	scan_info = &msg->body.scan_info;
-
-	if (hidden_network) {
-		scan_info->hidden_network.net_info = hidden_network->net_info;
-		scan_info->hidden_network.n_ssids = hidden_network->n_ssids;
-	}
-
-	scan_info->src = scan_source;
-	scan_info->type = scan_type;
-	scan_info->result = scan_result;
-	scan_info->arg = user_arg;
-
-	scan_info->ch_list_len = ch_list_len;
-	scan_info->ch_freq_list = kmemdup(ch_freq_list,
-					  ch_list_len,
-					  GFP_KERNEL);
-	if (!scan_info->ch_freq_list) {
-		result = -ENOMEM;
-		goto free_msg;
-	}
-
-	scan_info->ies_len = ies_len;
-	scan_info->ies = kmemdup(ies, ies_len, GFP_KERNEL);
-	if (!scan_info->ies) {
-		result = -ENOMEM;
-		goto free_freq_list;
-	}
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		goto free_ies;
-	}
-
-	hif_drv->scan_timer_vif = vif;
-	mod_timer(&hif_drv->scan_timer,
-		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
-
-	return 0;
-
-free_ies:
-	kfree(scan_info->ies);
-
-free_freq_list:
-	kfree(scan_info->ch_freq_list);
-
-free_msg:
-	kfree(msg);
 	return result;
 }
 

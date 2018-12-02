@@ -547,8 +547,10 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 		if (request->n_ssids >= 1) {
 			if (wilc_wfi_cfg_alloc_fill_ssid(request,
-							 &hidden_ntwk))
-				return -ENOMEM;
+							 &hidden_ntwk)) {
+				ret = -ENOMEM;
+				goto out;
+			}
 
 			ret = wilc_scan(vif, WILC_FW_USER_SCAN,
 					WILC_FW_ACTIVE_SCAN, scan_ch_list,
@@ -568,8 +570,11 @@ static int scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 		netdev_err(priv->dev, "Requested scanned channels over\n");
 	}
 
-	if (ret != 0)
-		ret = -EBUSY;
+out:
+	if (ret) {
+		priv->scan_req = NULL;
+		priv->cfg_scanning = false;
+	}
 
 	return ret;
 }
