@@ -17,13 +17,6 @@ enum {
 	WILC_CLIENT_MODE = 0x4
 };
 
-enum {
-	WILC_ADD_KEY = 0x1,
-	WILC_REMOVE_KEY = 0x2,
-	WILC_DEFAULT_KEY = 0x4,
-	WILC_ADD_KEY_AP = 0x8
-};
-
 #define WILC_MAX_NUM_STA			9
 #define MAX_NUM_SCANNED_NETWORKS		100
 #define MAX_NUM_SCANNED_NETWORKS_SHADOW		130
@@ -31,16 +24,10 @@ enum {
 
 #define TX_MIC_KEY_LEN				8
 #define RX_MIC_KEY_LEN				8
-#define PTK_KEY_LEN				16
 
-#define RX_MIC_KEY_MSG_LEN			48
-#define PTK_KEY_MSG_LEN				39
-
-#define PMKSA_KEY_LEN				22
 #define WILC_MAX_NUM_PMKIDS			16
 #define WILC_ADD_STA_LENGTH			40
 #define WILC_NUM_CONCURRENT_IFC			2
-#define WILC_DRV_HANDLER_SIZE			5
 
 #define NUM_RSSI                5
 
@@ -160,13 +147,6 @@ enum conn_event {
 	CONN_DISCONN_EVENT_FORCE_32BIT		= 0xFFFFFFFF
 };
 
-enum KEY_TYPE {
-	WILC_KEY_TYPE_WEP,
-	WILC_KEY_TYPE_WPA_RX_GTK,
-	WILC_KEY_TYPE_WPA_PTK,
-	WILC_KEY_TYPE_PMKSA,
-};
-
 typedef void (*wilc_scan_result)(enum scan_event, struct network_info *,
 				 void *, void *);
 
@@ -216,13 +196,6 @@ struct user_conn_req {
 
 struct get_mac_addr {
 	u8 *mac_addr;
-};
-
-struct ba_session_info {
-	u8 bssid[ETH_ALEN];
-	u8 tid;
-	u16 buf_size;
-	u16 time_out;
 };
 
 struct remain_ch {

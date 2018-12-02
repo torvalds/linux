@@ -13,30 +13,6 @@
 
 #define REAL_JOIN_REQ				0
 
-struct host_if_wpa_attr {
-	u8 *key;
-	const u8 *mac_addr;
-	u8 *seq;
-	u8 seq_len;
-	u8 index;
-	u8 key_len;
-	u8 mode;
-};
-
-struct host_if_wep_attr {
-	u8 *key;
-	u8 key_len;
-	u8 index;
-	u8 mode;
-	enum authtype auth_type;
-};
-
-union host_if_key_attr {
-	struct host_if_wep_attr wep;
-	struct host_if_wpa_attr wpa;
-	struct host_if_pmkid_attr pmkid;
-};
-
 struct scan_attr {
 	u8 src;
 	u8 type;
@@ -121,20 +97,13 @@ struct wilc_gtk_key {
 	u8 key[0];
 } __packed;
 
-struct set_ip_addr {
-	u8 *ip_addr;
-	u8 idx;
-};
-
 union message_body {
 	struct scan_attr scan_info;
 	struct connect_attr con_info;
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
-	struct set_ip_addr ip_info;
 	struct set_multicast multicast_info;
 	struct get_mac_addr get_mac_info;
-	struct ba_session_info session_info;
 	struct remain_ch remain_on_ch;
 	char *data;
 };
