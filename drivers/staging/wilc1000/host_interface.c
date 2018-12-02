@@ -1934,26 +1934,6 @@ error:
 	kfree(msg);
 }
 
-static void handle_del_beacon(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	int result;
-	struct wid wid;
-	u8 del_beacon = 0;
-
-	wid.id = WID_DEL_BEACON;
-	wid.type = WID_CHAR;
-	wid.size = sizeof(char);
-	wid.val = &del_beacon;
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to send delete beacon\n");
-	kfree(msg);
-}
-
 static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 				    struct station_parameters *params)
 {
@@ -3326,17 +3306,18 @@ error:
 int wilc_del_beacon(struct wilc_vif *vif)
 {
 	int result;
-	struct host_if_msg *msg;
+	struct wid wid;
+	u8 del_beacon = 0;
 
-	msg = wilc_alloc_work(vif, handle_del_beacon, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_DEL_BEACON;
+	wid.type = WID_CHAR;
+	wid.size = sizeof(char);
+	wid.val = &del_beacon;
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to send delete beacon\n");
 
 	return result;
 }
