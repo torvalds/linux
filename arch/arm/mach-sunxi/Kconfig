@@ -9,8 +9,12 @@ menuconfig ARCH_SUNXI
 	select PM_OPP
 	select SUN4I_TIMER
 	select RESET_CONTROLLER
+	help
+	  Support for Allwinner ARM-based family of processors
 
 if ARCH_SUNXI
+
+if ARCH_MULTI_V7
 
 config MACH_SUN4I
 	bool "Allwinner A10 (sun4i) SoCs support"
@@ -54,5 +58,7 @@ config ARCH_SUNXI_MC_SMP
 	default MACH_SUN9I || MACH_SUN8I
 	select ARM_CCI400_PORT_CTRL
 	select ARM_CPU_SUSPEND
+
+endif
 
 endif
