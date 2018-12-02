@@ -63,7 +63,7 @@ struct workqueue_struct *mlx4_wq;
 
 #ifdef CONFIG_MLX4_DEBUG
 
-int mlx4_debug_level = 0;
+int mlx4_debug_level; /* 0 by default */
 module_param_named(debug_level, mlx4_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0");
 
@@ -83,7 +83,7 @@ MODULE_PARM_DESC(msi_x, "0 - don't use MSI-X, 1 - use MSI-X, >1 - limit number o
 
 static uint8_t num_vfs[3] = {0, 0, 0};
 static int num_vfs_argc;
-module_param_array(num_vfs, byte , &num_vfs_argc, 0444);
+module_param_array(num_vfs, byte, &num_vfs_argc, 0444);
 MODULE_PARM_DESC(num_vfs, "enable #num_vfs functions if num_vfs > 0\n"
 			  "num_vfs=port1,port2,port1+2");
 
@@ -3251,7 +3251,7 @@ disable_sriov:
 free_mem:
 	dev->persist->num_vfs = 0;
 	kfree(dev->dev_vfs);
-        dev->dev_vfs = NULL;
+	dev->dev_vfs = NULL;
 	return dev_flags & ~MLX4_FLAG_MASTER;
 }
 
