@@ -1613,7 +1613,8 @@ static void handle_scan_complete(struct work_struct *work)
 	handle_scan_done(msg->vif, SCAN_EVENT_DONE);
 
 	if (msg->vif->hif_drv->remain_on_ch_pending)
-		handle_remain_on_chan(msg->vif, &msg->body.remain_on_ch);
+		handle_remain_on_chan(msg->vif,
+				      &msg->vif->hif_drv->remain_on_ch);
 	kfree(msg);
 }
 
