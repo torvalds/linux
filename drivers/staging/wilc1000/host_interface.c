@@ -1241,10 +1241,8 @@ free_msg:
 	kfree(msg);
 }
 
-static void handle_disconnect(struct work_struct *work)
+int wilc_disconnect(struct wilc_vif *vif)
 {
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
 	struct wid wid;
 	struct host_if_drv *hif_drv = vif->hif_drv;
 	struct disconnect_info disconn_info;
@@ -1263,10 +1261,9 @@ static void handle_disconnect(struct work_struct *work)
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
-
 	if (result) {
 		netdev_err(vif->ndev, "Failed to send dissconect\n");
-		goto out;
+		return result;
 	}
 
 	memset(&disconn_info, 0, sizeof(struct disconnect_info));
@@ -1307,10 +1304,7 @@ static void handle_disconnect(struct work_struct *work)
 	kfree(conn_req->ies);
 	conn_req->ies = NULL;
 
-out:
-
-	complete(&msg->work_comp);
-	/* free 'msg' in caller after receiving completion */
+	return 0;
 }
 
 void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
@@ -1319,7 +1313,7 @@ void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
 		return;
 	if (vif->hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
 	    vif->hif_drv->hif_state == HOST_IF_CONNECTING)
-		wilc_disconnect(vif, 1);
+		wilc_disconnect(vif);
 }
 
 int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
@@ -2008,31 +2002,6 @@ free_bssid:
 	kfree(msg->body.con_info.bssid);
 
 free_msg:
-	kfree(msg);
-	return result;
-}
-
-int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
-{
-	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return -EFAULT;
-	}
-
-	msg = wilc_alloc_work(vif, handle_disconnect, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	result = wilc_enqueue_work(msg);
-	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	else
-		wait_for_completion(&msg->work_comp);
-
 	kfree(msg);
 	return result;
 }

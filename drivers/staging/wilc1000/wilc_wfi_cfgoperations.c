@@ -760,7 +760,7 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 	priv->p2p.is_wilc_ie = false;
 	wfi_drv->p2p_timeout = 0;
 
-	ret = wilc_disconnect(vif, reason_code);
+	ret = wilc_disconnect(vif);
 	if (ret != 0) {
 		netdev_err(priv->dev, "Error in disconnecting\n");
 		ret = -EINVAL;

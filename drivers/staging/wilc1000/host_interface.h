@@ -264,7 +264,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      wilc_connect_result connect_result, void *user_arg,
 		      u8 security, enum authtype auth_type,
 		      u8 channel, void *join_params);
-int wilc_disconnect(struct wilc_vif *vif, u16 reason_code);
+int wilc_disconnect(struct wilc_vif *vif);
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel);
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level);
 int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
