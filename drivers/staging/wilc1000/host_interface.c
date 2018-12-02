@@ -3400,13 +3400,12 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	struct wid wid;
 	int result;
 	int i;
-	u8 zero_addr[ETH_ALEN] = {0};
 	u8 assoc_sta = 0;
 	struct del_all_sta del_sta;
 
 	memset(&del_sta, 0x0, sizeof(del_sta));
 	for (i = 0; i < WILC_MAX_NUM_STA; i++) {
-		if (memcmp(mac_addr[i], zero_addr, ETH_ALEN)) {
+		if (!is_zero_ether_addr(mac_addr[i])) {
 			assoc_sta++;
 			ether_addr_copy(del_sta.mac[i], mac_addr[i]);
 		}

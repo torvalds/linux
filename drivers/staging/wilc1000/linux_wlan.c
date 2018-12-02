@@ -205,11 +205,10 @@ void wilc_wlan_set_bssid(struct net_device *wilc_netdev, u8 *bssid, u8 mode)
 int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 {
 	u8 i = 0;
-	u8 null_bssid[6] = {0};
 	u8 ret_val = 0;
 
 	for (i = 0; i < wilc->vif_num; i++)
-		if (memcmp(wilc->vif[i]->bssid, null_bssid, 6))
+		if (!is_zero_ether_addr(wilc->vif[i]->bssid))
 			ret_val++;
 
 	return ret_val;
