@@ -719,6 +719,8 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 
 		netdev_err(dev, "wilc_set_join_req(): Error\n");
 		ret = -ENOENT;
+		if (!wfi_drv->p2p_connect)
+			wlan_channel = INVALID_CHANNEL;
 		wilc_wlan_set_bssid(dev, null_bssid, WILC_STATION_MODE);
 		goto out_error;
 	}

@@ -25,20 +25,6 @@ struct scan_attr {
 	struct hidden_network hidden_network;
 };
 
-struct connect_attr {
-	u8 *bssid;
-	u8 *ssid;
-	size_t ssid_len;
-	u8 *ies;
-	size_t ies_len;
-	u8 security;
-	wilc_connect_result result;
-	void *arg;
-	enum authtype auth_type;
-	u8 ch;
-	void *params;
-};
-
 struct rcvd_async_info {
 	u8 *buffer;
 	u32 len;
@@ -99,7 +85,6 @@ struct wilc_gtk_key {
 
 union message_body {
 	struct scan_attr scan_info;
-	struct connect_attr con_info;
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct set_multicast multicast_info;
@@ -362,54 +347,15 @@ error:
 	kfree(msg);
 }
 
-static int wilc_send_connect_wid(struct wilc_vif *vif,
-				 struct connect_attr *conn_attr)
+static int wilc_send_connect_wid(struct wilc_vif *vif)
 {
 	int result = 0;
 	struct wid wid_list[8];
 	u32 wid_cnt = 0, dummyval = 0;
 	u8 *cur_byte = NULL;
-	struct join_bss_param *bss_param = conn_attr->params;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	if (conn_attr->bssid) {
-		hif_drv->usr_conn_req.bssid = kmemdup(conn_attr->bssid, 6,
-						      GFP_KERNEL);
-		if (!hif_drv->usr_conn_req.bssid) {
-			result = -ENOMEM;
-			goto error;
-		}
-	}
-
-	hif_drv->usr_conn_req.ssid_len = conn_attr->ssid_len;
-	if (conn_attr->ssid) {
-		hif_drv->usr_conn_req.ssid = kmalloc(conn_attr->ssid_len + 1,
-						     GFP_KERNEL);
-		if (!hif_drv->usr_conn_req.ssid) {
-			result = -ENOMEM;
-			goto error;
-		}
-		memcpy(hif_drv->usr_conn_req.ssid,
-		       conn_attr->ssid,
-		       conn_attr->ssid_len);
-		hif_drv->usr_conn_req.ssid[conn_attr->ssid_len] = '\0';
-	}
-
-	hif_drv->usr_conn_req.ies_len = conn_attr->ies_len;
-	if (conn_attr->ies) {
-		hif_drv->usr_conn_req.ies = kmemdup(conn_attr->ies,
-						    conn_attr->ies_len,
-						    GFP_KERNEL);
-		if (!hif_drv->usr_conn_req.ies) {
-			result = -ENOMEM;
-			goto error;
-		}
-	}
-
-	hif_drv->usr_conn_req.security = conn_attr->security;
-	hif_drv->usr_conn_req.auth_type = conn_attr->auth_type;
-	hif_drv->usr_conn_req.conn_result = conn_attr->result;
-	hif_drv->usr_conn_req.arg = conn_attr->arg;
+	struct user_conn_req *conn_attr = &hif_drv->usr_conn_req;
+	struct join_bss_param *bss_param = hif_drv->usr_conn_req.param;
 
 	wid_list[wid_cnt].id = WID_SUCCESS_FRAME_COUNT;
 	wid_list[wid_cnt].type = WID_INT;
@@ -431,20 +377,20 @@ static int wilc_send_connect_wid(struct wilc_vif *vif,
 
 	wid_list[wid_cnt].id = WID_INFO_ELEMENT_ASSOCIATE;
 	wid_list[wid_cnt].type = WID_BIN_DATA;
-	wid_list[wid_cnt].val = hif_drv->usr_conn_req.ies;
-	wid_list[wid_cnt].size = hif_drv->usr_conn_req.ies_len;
+	wid_list[wid_cnt].val = conn_attr->ies;
+	wid_list[wid_cnt].size = conn_attr->ies_len;
 	wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_11I_MODE;
 	wid_list[wid_cnt].type = WID_CHAR;
 	wid_list[wid_cnt].size = sizeof(char);
-	wid_list[wid_cnt].val = (s8 *)&hif_drv->usr_conn_req.security;
+	wid_list[wid_cnt].val = (s8 *)&conn_attr->security;
 	wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_AUTH_TYPE;
 	wid_list[wid_cnt].type = WID_CHAR;
 	wid_list[wid_cnt].size = sizeof(char);
-	wid_list[wid_cnt].val = (s8 *)&hif_drv->usr_conn_req.auth_type;
+	wid_list[wid_cnt].val = (s8 *)&conn_attr->auth_type;
 	wid_cnt++;
 
 	wid_list[wid_cnt].id = WID_JOIN_REQ_EXTENDED;
@@ -494,7 +440,7 @@ static int wilc_send_connect_wid(struct wilc_vif *vif,
 	*(cur_byte++)  = bss_param->uapsd_cap;
 
 	*(cur_byte++)  = bss_param->ht_capable;
-	hif_drv->usr_conn_req.ht_capable = bss_param->ht_capable;
+	conn_attr->ht_capable = bss_param->ht_capable;
 
 	*(cur_byte++)  =  bss_param->rsn_found;
 	*(cur_byte++)  =  bss_param->rsn_grp_policy;
@@ -547,45 +493,16 @@ static int wilc_send_connect_wid(struct wilc_vif *vif,
 				      wilc_get_vif_idx(vif));
 	if (result) {
 		netdev_err(vif->ndev, "failed to send config packet\n");
-		result = -EFAULT;
+		kfree(cur_byte);
 		goto error;
 	} else {
 		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
 	}
 
+	kfree(cur_byte);
+	return 0;
+
 error:
-	if (result) {
-		struct connect_info conn_info;
-
-		del_timer(&hif_drv->connect_timer);
-
-		memset(&conn_info, 0, sizeof(struct connect_info));
-
-		if (conn_attr->result) {
-			if (conn_attr->bssid)
-				memcpy(conn_info.bssid, conn_attr->bssid, 6);
-
-			if (conn_attr->ies) {
-				conn_info.req_ies_len = conn_attr->ies_len;
-				conn_info.req_ies = kmalloc(conn_attr->ies_len,
-							    GFP_KERNEL);
-				memcpy(conn_info.req_ies,
-				       conn_attr->ies,
-				       conn_attr->ies_len);
-			}
-
-			conn_attr->result(CONN_DISCONN_EVENT_CONN_RESP,
-					  &conn_info,
-					  WILC_MAC_STATUS_DISCONNECTED,
-					  NULL, conn_attr->arg);
-			hif_drv->hif_state = HOST_IF_IDLE;
-			kfree(conn_info.req_ies);
-			conn_info.req_ies = NULL;
-
-		} else {
-			netdev_err(vif->ndev, "Connect callback is NULL\n");
-		}
-	}
 
 	kfree(conn_attr->bssid);
 	conn_attr->bssid = NULL;
@@ -595,9 +512,6 @@ error:
 
 	kfree(conn_attr->ies);
 	conn_attr->ies = NULL;
-
-	kfree(conn_attr);
-	kfree(cur_byte);
 
 	return result;
 }
@@ -1909,7 +1823,7 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 {
 	int result;
 	struct host_if_drv *hif_drv = vif->hif_drv;
-	struct connect_attr *con_info;
+	struct user_conn_req *con_info = &hif_drv->usr_conn_req;
 
 	if (!hif_drv || !connect_result) {
 		netdev_err(vif->ndev,
@@ -1928,23 +1842,17 @@ int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		return -EBUSY;
 	}
 
-	con_info = kzalloc(sizeof(*con_info), GFP_KERNEL);
-	if (!con_info)
-		return -ENOMEM;
-
 	con_info->security = security;
 	con_info->auth_type = auth_type;
 	con_info->ch = channel;
-	con_info->result = connect_result;
+	con_info->conn_result = connect_result;
 	con_info->arg = user_arg;
-	con_info->params = join_params;
+	con_info->param = join_params;
 
 	if (bssid) {
 		con_info->bssid = kmemdup(bssid, 6, GFP_KERNEL);
-		if (!con_info->bssid) {
-			result = -ENOMEM;
-			goto free_con_info;
-		}
+		if (!con_info->bssid)
+			return -ENOMEM;
 	}
 
 	if (ssid) {
@@ -1983,9 +1891,6 @@ free_ssid:
 
 free_bssid:
 	kfree(con_info->bssid);
-
-free_con_info:
-	kfree(con_info);
 
 	return result;
 }

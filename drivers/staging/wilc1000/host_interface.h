@@ -191,7 +191,9 @@ struct user_conn_req {
 	size_t ies_len;
 	wilc_connect_result conn_result;
 	bool ht_capable;
+	u8 ch;
 	void *arg;
+	void *param;
 };
 
 struct remain_ch {
