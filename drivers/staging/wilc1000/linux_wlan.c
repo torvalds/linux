@@ -896,30 +896,10 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 static int wilc_mac_close(struct net_device *ndev)
 {
-	struct wilc_priv *priv;
 	struct wilc_vif *vif = netdev_priv(ndev);
-	struct host_if_drv *hif_drv;
-	struct wilc *wl;
-
-	if (!vif || !vif->ndev || !vif->ndev->ieee80211_ptr ||
-	    !vif->ndev->ieee80211_ptr->wiphy)
-		return 0;
-
-	priv = wiphy_priv(vif->ndev->ieee80211_ptr->wiphy);
-	wl = vif->wilc;
-
-	if (!priv)
-		return 0;
-
-	hif_drv = (struct host_if_drv *)priv->hif_drv;
+	struct wilc *wl = vif->wilc;
 
 	netdev_dbg(ndev, "Mac close\n");
-
-	if (!wl)
-		return 0;
-
-	if (!hif_drv)
-		return 0;
 
 	if (wl->open_ifcs > 0)
 		wl->open_ifcs--;
