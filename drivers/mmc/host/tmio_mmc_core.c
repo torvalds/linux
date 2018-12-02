@@ -1168,11 +1168,13 @@ int tmio_mmc_host_probe(struct tmio_mmc_host *_host)
 	if (ret < 0)
 		return ret;
 
-	if (pdata->flags & TMIO_MMC_USE_GPIO_CD) {
-		ret = mmc_gpio_request_cd(mmc, pdata->cd_gpio, 0);
-		if (ret)
-			return ret;
-	}
+	/*
+	 * Look for a card detect GPIO, if it fails with anything
+	 * else than a probe deferral, just live without it.
+	 */
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	if (ret == -EPROBE_DEFER)
+		return ret;
 
 	mmc->caps |= MMC_CAP_4_BIT_DATA | pdata->capabilities;
 	mmc->caps2 |= pdata->capabilities2;

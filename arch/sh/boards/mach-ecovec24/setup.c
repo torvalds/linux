@@ -696,13 +696,20 @@ static struct gpiod_lookup_table sdhi0_power_gpiod_table = {
 	},
 };
 
+static struct gpiod_lookup_table sdhi0_gpio_table = {
+	.dev_id = "sh_mobile_sdhi.0",
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTY7, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static struct tmio_mmc_data sdhi0_info = {
 	.chan_priv_tx	= (void *)SHDMA_SLAVE_SDHI0_TX,
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI0_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.flags		= TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PTY7,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -735,8 +742,15 @@ static struct tmio_mmc_data sdhi1_info = {
 	.chan_priv_rx	= (void *)SHDMA_SLAVE_SDHI1_RX,
 	.capabilities	= MMC_CAP_SDIO_IRQ | MMC_CAP_POWER_OFF_CARD |
 			  MMC_CAP_NEEDS_POLL,
-	.flags		= TMIO_MMC_USE_GPIO_CD,
-	.cd_gpio	= GPIO_PTW7,
+};
+
+static struct gpiod_lookup_table sdhi1_gpio_table = {
+	.dev_id = "sh_mobile_sdhi.1",
+	.table = {
+		/* Card detect */
+		GPIO_LOOKUP("sh7724_pfc", GPIO_PTW7, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 static struct resource sdhi1_resources[] = {
@@ -1445,6 +1459,10 @@ static int __init arch_setup(void)
 	gpiod_add_lookup_table(&cn12_power_gpiod_table);
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 	gpiod_add_lookup_table(&sdhi0_power_gpiod_table);
+	gpiod_add_lookup_table(&sdhi0_gpio_table);
+#endif
+#if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
+	gpiod_add_lookup_table(&sdhi1_gpio_table);
 #endif
 
 	return platform_add_devices(ecovec_devices,
