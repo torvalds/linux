@@ -117,10 +117,6 @@ struct sta_inactive_t {
 	u8 mac[6];
 };
 
-struct tx_power {
-	u8 tx_pwr;
-};
-
 union message_body {
 	struct scan_attr scan_info;
 	struct connect_attr con_info;
@@ -145,7 +141,6 @@ union message_body {
 	struct reg_frame reg_frame;
 	char *data;
 	struct del_all_sta del_all_sta_info;
-	struct tx_power tx_power;
 };
 
 struct host_if_msg {
@@ -2371,48 +2366,6 @@ error:
 	kfree(msg);
 }
 
-static void handle_set_tx_pwr(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	u8 tx_pwr = msg->body.tx_power.tx_pwr;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_TX_POWER;
-	wid.type = WID_CHAR;
-	wid.val = &tx_pwr;
-	wid.size = sizeof(char);
-
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set TX PWR\n");
-	kfree(msg);
-}
-
-/* Note: 'msg' will be free after using data */
-static void handle_get_tx_pwr(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	u8 *tx_pwr = &msg->body.tx_power.tx_pwr;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_TX_POWER;
-	wid.type = WID_CHAR;
-	wid.val = (s8 *)tx_pwr;
-	wid.size = sizeof(char);
-
-	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-	if (ret)
-		netdev_err(vif->ndev, "Failed to get TX PWR\n");
-
-	complete(&msg->work_comp);
-}
-
 static void handle_scan_timer(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -3740,19 +3693,15 @@ int wilc_setup_multicast_filter(struct wilc_vif *vif, bool enabled, u32 count,
 int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power)
 {
 	int ret;
-	struct host_if_msg *msg;
+	struct wid wid;
 
-	msg = wilc_alloc_work(vif, handle_set_tx_pwr, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_TX_POWER;
+	wid.type = WID_CHAR;
+	wid.val = &tx_power;
+	wid.size = sizeof(char);
 
-	msg->body.tx_power.tx_pwr = tx_power;
-
-	ret = wilc_enqueue_work(msg);
-	if (ret) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 
 	return ret;
 }
@@ -3760,21 +3709,15 @@ int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power)
 int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power)
 {
 	int ret;
-	struct host_if_msg *msg;
+	struct wid wid;
 
-	msg = wilc_alloc_work(vif, handle_get_tx_pwr, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_TX_POWER;
+	wid.type = WID_CHAR;
+	wid.val = tx_power;
+	wid.size = sizeof(char);
 
-	ret = wilc_enqueue_work(msg);
-	if (ret) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	} else {
-		wait_for_completion(&msg->work_comp);
-		*tx_power = msg->body.tx_power.tx_pwr;
-	}
+	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
+				   wilc_get_vif_idx(vif));
 
-	/* free 'msg' after copying data */
-	kfree(msg);
 	return ret;
 }
