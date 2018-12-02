@@ -121,9 +121,7 @@ union message_body {
 	struct cfg_param_attr cfg_info;
 	struct channel_attr channel_info;
 	struct beacon_attr beacon_info;
-	struct add_sta_param add_sta_info;
 	struct del_sta del_sta_info;
-	struct add_sta_param edit_sta_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
@@ -1962,65 +1960,39 @@ static void handle_del_beacon(struct work_struct *work)
 	kfree(msg);
 }
 
-static u32 wilc_hif_pack_sta_param(u8 *buff, struct add_sta_param *param)
+static u32 wilc_hif_pack_sta_param(u8 *buff, const u8 *mac,
+				   struct station_parameters *params)
 {
 	u8 *cur_byte;
 
 	cur_byte = buff;
+	ether_addr_copy(cur_byte, mac);
+	cur_byte += ETH_ALEN;
 
-	memcpy(cur_byte, param->bssid, ETH_ALEN);
-	cur_byte +=  ETH_ALEN;
+	put_unaligned_le16(params->aid, cur_byte);
+	cur_byte += 2;
 
-	*cur_byte++ = param->aid & 0xFF;
-	*cur_byte++ = (param->aid >> 8) & 0xFF;
+	*cur_byte++ = params->supported_rates_len;
+	if (params->supported_rates_len > 0)
+		memcpy(cur_byte, params->supported_rates,
+		       params->supported_rates_len);
+	cur_byte += params->supported_rates_len;
 
-	*cur_byte++ = param->rates_len;
-	if (param->rates_len > 0)
-		memcpy(cur_byte, param->rates, param->rates_len);
-	cur_byte += param->rates_len;
-
-	*cur_byte++ = param->ht_supported;
-	memcpy(cur_byte, &param->ht_capa, sizeof(struct ieee80211_ht_cap));
+	if (params->ht_capa) {
+		*cur_byte++ = true;
+		memcpy(cur_byte, &params->ht_capa,
+		       sizeof(struct ieee80211_ht_cap));
+	} else {
+		*cur_byte++ = false;
+	}
 	cur_byte += sizeof(struct ieee80211_ht_cap);
 
-	*cur_byte++ = param->flags_mask & 0xFF;
-	*cur_byte++ = (param->flags_mask >> 8) & 0xFF;
-
-	*cur_byte++ = param->flags_set & 0xFF;
-	*cur_byte++ = (param->flags_set >> 8) & 0xFF;
+	put_unaligned_le16(params->sta_flags_mask, cur_byte);
+	cur_byte += 2;
+	put_unaligned_le16(params->sta_flags_set, cur_byte);
+	cur_byte += 2;
 
 	return cur_byte - buff;
-}
-
-static void handle_add_station(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct add_sta_param *param = &msg->body.add_sta_info;
-	int result;
-	struct wid wid;
-	u8 *cur_byte;
-
-	wid.id = WID_ADD_STA;
-	wid.type = WID_BIN;
-	wid.size = WILC_ADD_STA_LENGTH + param->rates_len;
-
-	wid.val = kmalloc(wid.size, GFP_KERNEL);
-	if (!wid.val)
-		goto error;
-
-	cur_byte = wid.val;
-	cur_byte += wilc_hif_pack_sta_param(cur_byte, param);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result != 0)
-		netdev_err(vif->ndev, "Failed to send add station\n");
-
-error:
-	kfree(param->rates);
-	kfree(wid.val);
-	kfree(msg);
 }
 
 static void handle_del_all_sta(struct work_struct *work)
@@ -2091,37 +2063,6 @@ static void handle_del_station(struct work_struct *work)
 		netdev_err(vif->ndev, "Failed to del station\n");
 
 error:
-	kfree(wid.val);
-	kfree(msg);
-}
-
-static void handle_edit_station(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct add_sta_param *param = &msg->body.edit_sta_info;
-	int result;
-	struct wid wid;
-	u8 *cur_byte;
-
-	wid.id = WID_EDIT_STA;
-	wid.type = WID_BIN;
-	wid.size = WILC_ADD_STA_LENGTH + param->rates_len;
-
-	wid.val = kmalloc(wid.size, GFP_KERNEL);
-	if (!wid.val)
-		goto error;
-
-	cur_byte = wid.val;
-	cur_byte += wilc_hif_pack_sta_param(cur_byte, param);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to send edit station\n");
-
-error:
-	kfree(param->rates);
 	kfree(wid.val);
 	kfree(msg);
 }
@@ -3484,34 +3425,30 @@ int wilc_del_beacon(struct wilc_vif *vif)
 	return result;
 }
 
-int wilc_add_station(struct wilc_vif *vif, struct add_sta_param *sta_param)
+int wilc_add_station(struct wilc_vif *vif, const u8 *mac,
+		     struct station_parameters *params)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct add_sta_param *add_sta_info;
+	u8 *cur_byte;
 
-	msg = wilc_alloc_work(vif, handle_add_station, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_ADD_STA;
+	wid.type = WID_BIN;
+	wid.size = WILC_ADD_STA_LENGTH + params->supported_rates_len;
+	wid.val = kmalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
 
-	add_sta_info = &msg->body.add_sta_info;
-	memcpy(add_sta_info, sta_param, sizeof(struct add_sta_param));
-	if (add_sta_info->rates_len > 0) {
-		add_sta_info->rates = kmemdup(sta_param->rates,
-					      add_sta_info->rates_len,
-					      GFP_KERNEL);
-		if (!add_sta_info->rates) {
-			kfree(msg);
-			return -ENOMEM;
-		}
-	}
+	cur_byte = wid.val;
+	cur_byte += wilc_hif_pack_sta_param(cur_byte, mac, params);
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(add_sta_info->rates);
-		kfree(msg);
-	}
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result != 0)
+		netdev_err(vif->ndev, "Failed to send add station\n");
+
+	kfree(wid.val);
+
 	return result;
 }
 
@@ -3580,36 +3517,29 @@ int wilc_del_allstation(struct wilc_vif *vif, u8 mac_addr[][ETH_ALEN])
 	return result;
 }
 
-int wilc_edit_station(struct wilc_vif *vif,
-		      struct add_sta_param *sta_param)
+int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
+		      struct station_parameters *params)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct add_sta_param *add_sta_info;
+	u8 *cur_byte;
 
-	msg = wilc_alloc_work(vif, handle_edit_station, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_EDIT_STA;
+	wid.type = WID_BIN;
+	wid.size = WILC_ADD_STA_LENGTH + params->supported_rates_len;
+	wid.val = kmalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
 
-	add_sta_info = &msg->body.add_sta_info;
-	memcpy(add_sta_info, sta_param, sizeof(*add_sta_info));
-	if (add_sta_info->rates_len > 0) {
-		add_sta_info->rates = kmemdup(sta_param->rates,
-					      add_sta_info->rates_len,
-					      GFP_KERNEL);
-		if (!add_sta_info->rates) {
-			kfree(msg);
-			return -ENOMEM;
-		}
-	}
+	cur_byte = wid.val;
+	cur_byte += wilc_hif_pack_sta_param(cur_byte, mac, params);
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(add_sta_info->rates);
-		kfree(msg);
-	}
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to send edit station\n");
 
+	kfree(wid.val);
 	return result;
 }
 
