@@ -103,7 +103,6 @@ union message_body {
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct set_multicast multicast_info;
-	struct get_mac_addr get_mac_info;
 	struct remain_ch remain_on_ch;
 	char *data;
 };
@@ -206,28 +205,6 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 		return NULL;
 
 	return wilc->vif[index];
-}
-
-static void handle_get_mac_address(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct get_mac_addr *get_mac_addr = &msg->body.get_mac_info;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_MAC_ADDR;
-	wid.type = WID_STR;
-	wid.val = get_mac_addr->mac_addr;
-	wid.size = ETH_ALEN;
-
-	ret = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to get mac address\n");
-	complete(&msg->work_comp);
-	/* free 'msg' data later, in caller */
 }
 
 static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
@@ -1934,21 +1911,17 @@ int wilc_set_pmkid_info(struct wilc_vif *vif, struct wilc_pmkid_attr *pmkid)
 int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 {
 	int result;
-	struct host_if_msg *msg;
+	struct wid wid;
 
-	msg = wilc_alloc_work(vif, handle_get_mac_address, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_MAC_ADDR;
+	wid.type = WID_STR;
+	wid.size = ETH_ALEN;
+	wid.val = mac_addr;
 
-	msg->body.get_mac_info.mac_addr = mac_addr;
-
-	result = wilc_enqueue_work(msg);
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	else
-		wait_for_completion(&msg->work_comp);
-
-	kfree(msg);
+		netdev_err(vif->ndev, "Failed to get mac address\n");
 
 	return result;
 }

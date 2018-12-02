@@ -194,10 +194,6 @@ struct user_conn_req {
 	void *arg;
 };
 
-struct get_mac_addr {
-	u8 *mac_addr;
-};
-
 struct remain_ch {
 	u16 ch;
 	u32 duration;
