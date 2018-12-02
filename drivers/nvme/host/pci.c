@@ -1091,13 +1091,6 @@ static int __nvme_poll(struct nvme_queue *nvmeq, unsigned int tag)
 static int nvme_poll(struct blk_mq_hw_ctx *hctx)
 {
 	struct nvme_queue *nvmeq = hctx->driver_data;
-
-	return __nvme_poll(nvmeq, -1);
-}
-
-static int nvme_poll_noirq(struct blk_mq_hw_ctx *hctx)
-{
-	struct nvme_queue *nvmeq = hctx->driver_data;
 	u16 start, end;
 	bool found;
 
@@ -1605,12 +1598,11 @@ static const struct blk_mq_ops nvme_mq_admin_ops = {
 
 static const struct blk_mq_ops nvme_mq_ops = {
 	NVME_SHARED_MQ_OPS,
-	.poll			= nvme_poll,
 };
 
-static const struct blk_mq_ops nvme_mq_poll_noirq_ops = {
+static const struct blk_mq_ops nvme_mq_poll_ops = {
 	NVME_SHARED_MQ_OPS,
-	.poll			= nvme_poll_noirq,
+	.poll			= nvme_poll,
 };
 
 static void nvme_dev_remove_admin(struct nvme_dev *dev)
@@ -2298,10 +2290,10 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	int ret;
 
 	if (!dev->ctrl.tagset) {
-		if (!dev->io_queues[HCTX_TYPE_POLL])
-			dev->tagset.ops = &nvme_mq_ops;
+		if (dev->io_queues[HCTX_TYPE_POLL])
+			dev->tagset.ops = &nvme_mq_poll_ops;
 		else
-			dev->tagset.ops = &nvme_mq_poll_noirq_ops;
+			dev->tagset.ops = &nvme_mq_ops;
 
 		dev->tagset.nr_hw_queues = dev->online_queues - 1;
 		dev->tagset.nr_maps = HCTX_MAX_TYPES;
