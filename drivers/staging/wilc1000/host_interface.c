@@ -95,6 +95,11 @@ struct wilc_reg_frame {
 	__le32 frame_type;
 } __packed;
 
+struct wilc_drv_handler {
+	__le32 handler;
+	u8 mode;
+} __packed;
+
 struct set_ip_addr {
 	u8 *ip_addr;
 	u8 idx;
@@ -113,7 +118,6 @@ union message_body {
 	struct key_attr key_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
-	struct drv_handler drv;
 	struct set_multicast multicast_info;
 	struct get_mac_addr get_mac_info;
 	struct ba_session_info session_info;
@@ -219,49 +223,6 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 		return NULL;
 
 	return wilc->vif[index];
-}
-
-static void handle_set_wfi_drv_handler(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct drv_handler *hif_drv_handler = &msg->body.drv;
-	int ret;
-	struct wid wid;
-	u8 *currbyte, *buffer;
-	struct host_if_drv *hif_drv;
-
-	if (!vif->hif_drv || !hif_drv_handler)
-		goto free_msg;
-
-	hif_drv	= vif->hif_drv;
-
-	buffer = kzalloc(WILC_DRV_HANDLER_SIZE, GFP_KERNEL);
-	if (!buffer)
-		goto free_msg;
-
-	currbyte = buffer;
-	put_unaligned_le32(hif_drv->driver_handler_id, currbyte);
-	currbyte += 4;
-	*currbyte = (hif_drv_handler->name | (hif_drv_handler->mode << 1));
-
-	wid.id = WID_SET_DRV_HANDLER;
-	wid.type = WID_STR;
-	wid.val = (s8 *)buffer;
-	wid.size = WILC_DRV_HANDLER_SIZE;
-
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				   hif_drv->driver_handler_id);
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set driver handler\n");
-
-	kfree(buffer);
-
-free_msg:
-	if (msg->is_sync)
-		complete(&msg->work_comp);
-
-	kfree(msg);
 }
 
 static void handle_get_mac_address(struct work_struct *work)
@@ -2503,28 +2464,25 @@ int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 }
 
 int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
-			     u8 ifc_id, bool is_sync)
+			     u8 ifc_id)
 {
+	struct wid wid;
+	struct host_if_drv *hif_drv = vif->hif_drv;
 	int result;
-	struct host_if_msg *msg;
+	struct wilc_drv_handler drv;
 
-	msg = wilc_alloc_work(vif, handle_set_wfi_drv_handler, is_sync);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_SET_DRV_HANDLER;
+	wid.type = WID_STR;
+	wid.size = sizeof(drv);
+	wid.val = (u8 *)&drv;
 
-	msg->body.drv.handler = index;
-	msg->body.drv.mode = mode;
-	msg->body.drv.name = ifc_id;
+	drv.handler = cpu_to_le32(index);
+	drv.mode = (ifc_id | (mode << 1));
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-		return result;
-	}
-
-	if (is_sync)
-		wait_for_completion(&msg->work_comp);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      hif_drv->driver_handler_id);
+	if (result)
+		netdev_err(vif->ndev, "Failed to set driver handler\n");
 
 	return result;
 }
@@ -2814,7 +2772,7 @@ int wilc_deinit(struct wilc_vif *vif)
 	del_timer_sync(&vif->periodic_rssi);
 	del_timer_sync(&hif_drv->remain_on_ch_timer);
 
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0, true);
+	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
 
 	if (hif_drv->usr_scan_req.scan_result) {
 		hif_drv->usr_scan_req.scan_result(SCAN_EVENT_ABORTED, NULL,

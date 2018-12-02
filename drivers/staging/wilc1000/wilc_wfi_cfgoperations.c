@@ -1739,7 +1739,7 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 
 		if (wl->initialized) {
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 0, vif->ifc_id, false);
+						 0, vif->ifc_id);
 			wilc_set_operation_mode(vif, WILC_AP_MODE);
 			wilc_set_power_mgmt(vif, 0, 0);
 		}

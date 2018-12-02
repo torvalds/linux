@@ -754,8 +754,7 @@ static int wilc_mac_open(struct net_device *ndev)
 	for (i = 0; i < wl->vif_num; i++) {
 		if (ndev == wl->vif[i]->ndev) {
 			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 vif->iftype, vif->ifc_id,
-						 false);
+						 vif->iftype, vif->ifc_id);
 			wilc_set_operation_mode(vif, vif->iftype);
 			break;
 		}
