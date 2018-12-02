@@ -1246,17 +1246,26 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 {
 	struct dentry *root;
 	struct super_block *sb;
-	char *secdata = NULL;
 	int error = -ENOMEM;
+	struct security_mnt_opts opts;
+
+	security_init_mnt_opts(&opts);
 
 	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		secdata = alloc_secdata();
+		char *secdata = alloc_secdata();
 		if (!secdata)
-			goto out;
+			return ERR_PTR(-ENOMEM);
 
 		error = security_sb_copy_data(data, secdata);
+		if (error) {
+			free_secdata(secdata);
+			return ERR_PTR(error);
+		}
+
+		error = security_sb_parse_opts_str(secdata, &opts);
+		free_secdata(secdata);
 		if (error)
-			goto out_free_secdata;
+			return ERR_PTR(error);
 	}
 
 	root = type->mount(type, flags, name, data);
@@ -1277,7 +1286,7 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 	smp_wmb();
 	sb->s_flags |= SB_BORN;
 
-	error = security_sb_kern_mount(sb, flags, secdata);
+	error = security_sb_kern_mount(sb, flags, &opts);
 	if (error)
 		goto out_sb;
 
@@ -1291,14 +1300,13 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 		"negative value (%lld)\n", type->name, sb->s_maxbytes);
 
 	up_write(&sb->s_umount);
-	free_secdata(secdata);
+	security_free_mnt_opts(&opts);
 	return root;
 out_sb:
 	dput(root);
 	deactivate_locked_super(sb);
 out_free_secdata:
-	free_secdata(secdata);
-out:
+	security_free_mnt_opts(&opts);
 	return ERR_PTR(error);
 }
 

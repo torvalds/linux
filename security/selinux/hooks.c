@@ -2897,30 +2897,12 @@ out_bad_option:
 	goto out_free_opts;
 }
 
-static int selinux_sb_kern_mount(struct super_block *sb, int flags, void *data)
+static int selinux_sb_kern_mount(struct super_block *sb, int flags,
+				 struct security_mnt_opts *opts)
 {
-	char *options = data;
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
-	int rc = 0;
-	struct security_mnt_opts opts;
-
-	security_init_mnt_opts(&opts);
-
-	if (!data)
-		goto out;
-
-	BUG_ON(sb->s_type->fs_flags & FS_BINARY_MOUNTDATA);
-
-	rc = selinux_parse_opts_str(options, &opts);
-	if (rc)
-		goto out_err;
-
-out:
-	rc = selinux_set_mnt_opts(sb, &opts, 0, NULL);
-
-out_err:
-	security_free_mnt_opts(&opts);
+	int rc = selinux_set_mnt_opts(sb, opts, 0, NULL);
 	if (rc)
 		return rc;
 

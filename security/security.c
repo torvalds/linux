@@ -395,9 +395,10 @@ int security_sb_remount(struct super_block *sb, void *data)
 	return call_int_hook(sb_remount, 0, sb, data);
 }
 
-int security_sb_kern_mount(struct super_block *sb, int flags, void *data)
+int security_sb_kern_mount(struct super_block *sb, int flags,
+			   struct security_mnt_opts *opts)
 {
-	return call_int_hook(sb_kern_mount, 0, sb, flags, data);
+	return call_int_hook(sb_kern_mount, 0, sb, flags, opts);
 }
 
 int security_sb_show_options(struct seq_file *m, struct super_block *sb)
