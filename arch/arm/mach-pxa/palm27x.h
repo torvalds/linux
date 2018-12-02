@@ -16,14 +16,10 @@
 
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 extern void __init palm27x_mmc_init(struct gpiod_lookup_table *gtable,
-				    int detect,
-				    int ro,
 				    int power,
 				    int power_inverted);
 #else
 static inline void palm27x_mmc_init(struct gpiod_lookup_table *gtable,
-				    int detect,
-				    int ro,
 				    int power,
 				    int power_inverted)
 {}

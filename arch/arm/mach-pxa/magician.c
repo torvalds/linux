@@ -775,8 +775,6 @@ static struct pxamci_platform_data magician_mci_info = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init			= magician_mci_init,
 	.exit			= magician_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= EGPIO_MAGICIAN_nSD_READONLY,
 	.gpio_card_ro_invert	= 1,
 	.gpio_power		= EGPIO_MAGICIAN_SD_POWER,
 };

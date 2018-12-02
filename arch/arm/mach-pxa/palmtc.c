@@ -121,8 +121,6 @@ static unsigned long palmtc_pin_config[] __initdata = {
 static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.gpio_power		= GPIO_NR_PALMTC_SD_POWER,
-	.gpio_card_ro		= GPIO_NR_PALMTC_SD_READONLY,
-	.gpio_card_detect	= GPIO_NR_PALMTC_SD_DETECT_N,
 	.detect_delay_ms	= 200,
 };
 

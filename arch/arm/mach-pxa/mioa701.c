@@ -398,8 +398,6 @@ struct gpio_vbus_mach_info gpio_vbus_data = {
 static struct pxamci_platform_data mioa701_mci_info = {
 	.detect_delay_ms	= 250,
 	.ocr_mask 		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO15_SDIO_INSERT,
-	.gpio_card_ro		= GPIO78_SDIO_RO,
 	.gpio_power		= GPIO91_SDIO_EN,
 };
 

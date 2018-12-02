@@ -326,8 +326,6 @@ static mfp_cfg_t mfp_cfg[] __initdata = {
 static struct pxamci_platform_data mxm_8x10_mci_platform_data = {
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
 	.detect_delay_ms = 10,
-	.gpio_card_detect = MXM_8X10_SD_nCD,
-	.gpio_card_ro = MXM_8X10_SD_WP,
 	.gpio_power = -1
 };
 

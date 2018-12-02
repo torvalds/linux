@@ -50,13 +50,9 @@ static struct pxamci_platform_data palm27x_mci_platform_data = {
 };
 
 void __init palm27x_mmc_init(struct gpiod_lookup_table *gtable,
-			     int detect,
-			     int ro,
 			     int power,
 			     int power_inverted)
 {
-	palm27x_mci_platform_data.gpio_card_detect	= detect;
-	palm27x_mci_platform_data.gpio_card_ro		= ro;
 	palm27x_mci_platform_data.gpio_power		= power;
 	palm27x_mci_platform_data.gpio_power_invert	= power_inverted;
 

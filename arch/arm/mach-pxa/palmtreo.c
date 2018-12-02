@@ -497,8 +497,6 @@ static void __init treo680_init(void)
 	palmphone_common_init();
 	treo680_gpio_init();
 	palm27x_mmc_init(&treo680_mci_gpio_table,
-			 GPIO_NR_TREO_SD_DETECT_N,
-			 GPIO_NR_TREO680_SD_READONLY,
 			 GPIO_NR_TREO680_SD_POWER, 0);
 }
 #endif
@@ -519,7 +517,6 @@ static void __init centro_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(centro685_pin_config));
 	palmphone_common_init();
 	palm27x_mmc_init(&centro685_mci_gpio_table,
-			 GPIO_NR_TREO_SD_DETECT_N, -1,
 			 GPIO_NR_CENTRO_SD_POWER, 1);
 }
 #endif

@@ -37,8 +37,6 @@
 #if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
 static struct pxamci_platform_data colibri_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_power		= -1,
-	.gpio_card_ro		= -1,
 	.detect_delay_ms	= 200,
 };
 
@@ -71,21 +69,12 @@ static struct gpiod_lookup_table colibri_pxa320_mci_gpio_table = {
 
 static void __init colibri_mmc_init(void)
 {
-	if (machine_is_colibri()) {	/* PXA270 Colibri */
-		colibri_mci_platform_data.gpio_card_detect =
-			GPIO0_COLIBRI_PXA270_SD_DETECT;
+	if (machine_is_colibri())	/* PXA270 Colibri */
 		gpiod_add_lookup_table(&colibri_pxa270_mci_gpio_table);
-	}
-	if (machine_is_colibri300()) {	/* PXA300 Colibri */
-		colibri_mci_platform_data.gpio_card_detect =
-			GPIO13_COLIBRI_PXA300_SD_DETECT;
+	if (machine_is_colibri300())	/* PXA300 Colibri */
 		gpiod_add_lookup_table(&colibri_pxa300_mci_gpio_table);
-	}
-	else {				/* PXA320 Colibri */
-		colibri_mci_platform_data.gpio_card_detect =
-			GPIO28_COLIBRI_PXA320_SD_DETECT;
+	else				/* PXA320 Colibri */
 		gpiod_add_lookup_table(&colibri_pxa320_mci_gpio_table);
-	}
 
 	pxa_set_mci_info(&colibri_mci_platform_data);
 }

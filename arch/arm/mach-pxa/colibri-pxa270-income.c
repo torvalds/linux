@@ -52,8 +52,6 @@
 static struct pxamci_platform_data income_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.gpio_power		= -1,
-	.gpio_card_detect	= GPIO0_INCOME_SD_DETECT,
-	.gpio_card_ro		= GPIO0_INCOME_SD_RO,
 	.detect_delay_ms	= 200,
 };
 

@@ -51,8 +51,6 @@
 
 #include "generic.h"
 
-#define GPIO_MMC1_CARD_DETECT	mfp_to_gpio(MFP_PIN_GPIO15)
-
 /* Littleton MFP configurations */
 static mfp_cfg_t littleton_mfp_cfg[] __initdata = {
 	/* LCD */
@@ -278,8 +276,6 @@ static inline void littleton_init_keypad(void) {}
 static struct pxamci_platform_data littleton_mci_platform_data = {
 	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO_MMC1_CARD_DETECT,
-	.gpio_card_ro		= -1,
 	.gpio_power		= -1,
 };
 

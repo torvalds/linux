@@ -102,8 +102,6 @@ static unsigned long palmte2_pin_config[] __initdata = {
  ******************************************************************************/
 static struct pxamci_platform_data palmte2_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO_NR_PALMTE2_SD_DETECT_N,
-	.gpio_card_ro		= GPIO_NR_PALMTE2_SD_READONLY,
 	.gpio_power		= GPIO_NR_PALMTE2_SD_POWER,
 };
 

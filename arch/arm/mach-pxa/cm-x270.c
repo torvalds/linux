@@ -289,8 +289,6 @@ static inline void cmx270_init_ohci(void) {}
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static struct pxamci_platform_data cmx270_mci_platform_data = {
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect	= GPIO83_MMC_IRQ,
-	.gpio_card_ro		= -1,
 	.gpio_power		= GPIO105_MMC_POWER,
 	.gpio_power_invert	= 1,
 };

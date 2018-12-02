@@ -339,8 +339,6 @@ static void __init palmld_init(void)
 	pxa_set_stuart_info(NULL);
 
 	palm27x_mmc_init(&palmld_mci_gpio_table,
-			 GPIO_NR_PALMLD_SD_DETECT_N,
-			 GPIO_NR_PALMLD_SD_READONLY,
 			 GPIO_NR_PALMLD_SD_POWER, 0);
 	palm27x_pm_init(PALMLD_STR_BASE);
 	palm27x_lcd_init(-1, &palm_320x480_lcd_mode);

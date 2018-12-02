@@ -577,15 +577,7 @@ static int em_x270_mci_init(struct device *dev,
 		goto err_irq;
 	}
 
-	if (machine_is_em_x270()) {
-		err = gpio_request(GPIO95_MMC_WP, "MMC WP");
-		if (err) {
-			dev_err(dev, "can't request MMC write protect: %d\n",
-				err);
-			goto err_gpio_wp;
-		}
-		gpio_direction_input(GPIO95_MMC_WP);
-	} else {
+	if (!machine_is_em_x270()) {
 		err = gpio_request(GPIO38_SD_PWEN, "sdio power");
 		if (err) {
 			dev_err(dev, "can't request MMC power control : %d\n",
@@ -625,15 +617,8 @@ static void em_x270_mci_exit(struct device *dev, void *data)
 	free_irq(gpio_to_irq(mmc_cd), data);
 	regulator_put(em_x270_sdio_ldo);
 
-	if (machine_is_em_x270())
-		gpio_free(GPIO95_MMC_WP);
-	else
+	if (!machine_is_em_x270())
 		gpio_free(GPIO38_SD_PWEN);
-}
-
-static int em_x270_mci_get_ro(struct device *dev)
-{
-	return gpio_get_value(GPIO95_MMC_WP);
 }
 
 static struct pxamci_platform_data em_x270_mci_platform_data = {
@@ -645,17 +630,13 @@ static struct pxamci_platform_data em_x270_mci_platform_data = {
 	.init 			= em_x270_mci_init,
 	.setpower 		= em_x270_mci_setpower,
 	.exit			= em_x270_mci_exit,
-	.gpio_card_detect	= -1,
-	.gpio_card_ro		= -1,
 	.gpio_power		= -1,
 };
 
 static void __init em_x270_init_mmc(void)
 {
-	if (machine_is_em_x270()) {
-		em_x270_mci_platform_data.get_ro = em_x270_mci_get_ro;
+	if (machine_is_em_x270())
 		gpiod_add_lookup_table(&em_x270_mci_wp_gpio_table);
-	}
 
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }

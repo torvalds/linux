@@ -292,8 +292,6 @@ static struct pxamci_platform_data tosa_mci_platform_data = {
 	.ocr_mask       	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init           	= tosa_mci_init,
 	.exit           	= tosa_mci_exit,
-	.gpio_card_detect	= TOSA_GPIO_nSD_DETECT,
-	.gpio_card_ro		= TOSA_GPIO_SD_WP,
 	.gpio_power		= TOSA_GPIO_PWR_ON,
 };
 

@@ -227,8 +227,6 @@ static inline void zylonite_init_lcd(void) {}
 static struct pxamci_platform_data zylonite_mci_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect = EXT_GPIO(0),
-	.gpio_card_ro	= EXT_GPIO(2),
 	.gpio_power	= -1,
 };
 
@@ -253,8 +251,6 @@ static struct gpiod_lookup_table zylonite_mci_gpio_table = {
 static struct pxamci_platform_data zylonite_mci2_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect = EXT_GPIO(1),
-	.gpio_card_ro	= EXT_GPIO(3),
 	.gpio_power	= -1,
 };
 
@@ -272,8 +268,6 @@ static struct gpiod_lookup_table zylonite_mci2_gpio_table = {
 static struct pxamci_platform_data zylonite_mci3_platform_data = {
 	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.gpio_card_detect = EXT_GPIO(30),
-	.gpio_card_ro	= EXT_GPIO(31),
 	.gpio_power	= -1,
 };
 
