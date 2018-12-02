@@ -24,11 +24,6 @@
 	pci_write_config_dword((dev)->pdev, (dev)->vsc_addr + (offset), (val))
 #define VSC_MAX_RETRIES 2048
 
-enum mlx5_vsc_state {
-	MLX5_VSC_UNLOCK,
-	MLX5_VSC_LOCK,
-};
-
 enum {
 	VSC_CTRL_OFFSET = 0x4,
 	VSC_COUNTER_OFFSET = 0x8,
@@ -283,4 +278,39 @@ int mlx5_vsc_gw_read_block_fast(struct mlx5_core_dev *dev, u32 *data,
 		read_addr = next_read_addr;
 	}
 	return length;
+}
+
+int mlx5_vsc_sem_set_space(struct mlx5_core_dev *dev, u16 space,
+			   enum mlx5_vsc_state state)
+{
+	u32 data, id = 0;
+	int ret;
+
+	ret = mlx5_vsc_gw_set_space(dev, MLX5_SEMAPHORE_SPACE_DOMAIN, NULL);
+	if (ret) {
+		mlx5_core_warn(dev, "Failed to set gw space %d\n", ret);
+		return ret;
+	}
+
+	if (state == MLX5_VSC_LOCK) {
+		/* Get a unique ID based on the counter */
+		ret = vsc_read(dev, VSC_COUNTER_OFFSET, &id);
+		if (ret)
+			return ret;
+	}
+
+	/* Try to modify lock */
+	ret = mlx5_vsc_gw_write(dev, space, id);
+	if (ret)
+		return ret;
+
+	/* Verify lock was modified */
+	ret = mlx5_vsc_gw_read(dev, space, &data);
+	if (ret)
+		return -EINVAL;
+
+	if (data != id)
+		return -EBUSY;
+
+	return 0;
 }
