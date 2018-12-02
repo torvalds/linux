@@ -193,7 +193,8 @@ M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_cfg, nix_txschq_config, msg_rsp)  \
 M(NIX_STATS_RST,	0x8007, nix_stats_rst, msg_req, msg_rsp)	\
 M(NIX_VTAG_CFG,		0x8008, nix_vtag_cfg, nix_vtag_config, msg_rsp)	\
 M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg,			\
-				 nix_rss_flowkey_cfg, msg_rsp)		\
+				 nix_rss_flowkey_cfg,			\
+				 nix_rss_flowkey_cfg_rsp)		\
 M(NIX_SET_MAC_ADDR,	0x800a, nix_set_mac_addr, nix_set_mac_addr, msg_rsp) \
 M(NIX_SET_RX_MODE,	0x800b, nix_set_rx_mode, nix_rx_mode, msg_rsp)	\
 M(NIX_SET_HW_FRS,	0x800c, nix_set_hw_frs, nix_frs_cfg, msg_rsp)	\
@@ -560,8 +561,19 @@ struct nix_vtag_config {
 struct nix_rss_flowkey_cfg {
 	struct mbox_msghdr hdr;
 	int	mcam_index;  /* MCAM entry index to modify */
+#define NIX_FLOW_KEY_TYPE_PORT	BIT(0)
+#define NIX_FLOW_KEY_TYPE_IPV4	BIT(1)
+#define NIX_FLOW_KEY_TYPE_IPV6	BIT(2)
+#define NIX_FLOW_KEY_TYPE_TCP	BIT(3)
+#define NIX_FLOW_KEY_TYPE_UDP	BIT(4)
+#define NIX_FLOW_KEY_TYPE_SCTP	BIT(5)
 	u32	flowkey_cfg; /* Flowkey types selected */
 	u8	group;       /* RSS context or group */
+};
+
+struct nix_rss_flowkey_cfg_rsp {
+	struct mbox_msghdr hdr;
+	u8	alg_idx; /* Selected algo index */
 };
 
 struct nix_set_mac_addr {

@@ -398,7 +398,7 @@ int rvu_mbox_handler_nix_rxvlan_alloc(struct rvu *rvu, struct msg_req *req,
 				      struct msg_rsp *rsp);
 int rvu_mbox_handler_nix_rss_flowkey_cfg(struct rvu *rvu,
 					 struct nix_rss_flowkey_cfg *req,
-					 struct msg_rsp *rsp);
+					 struct nix_rss_flowkey_cfg_rsp *rsp);
 int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 				      struct nix_set_mac_addr *req,
 				      struct msg_rsp *rsp);
