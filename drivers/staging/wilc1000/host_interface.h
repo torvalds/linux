@@ -220,10 +220,6 @@ struct drv_handler {
 	u8 name;
 };
 
-struct op_mode {
-	u32 mode;
-};
-
 struct get_mac_addr {
 	u8 *mac_addr;
 };

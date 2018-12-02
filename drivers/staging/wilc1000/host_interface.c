@@ -85,6 +85,10 @@ struct del_all_sta {
 	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
 };
 
+struct wilc_op_mode {
+	__le32 mode;
+};
+
 struct wilc_reg_frame {
 	bool reg;
 	u8 reg_id;
@@ -111,7 +115,6 @@ union message_body {
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
 	struct set_multicast multicast_info;
-	struct op_mode mode;
 	struct get_mac_addr get_mac_info;
 	struct ba_session_info session_info;
 	struct remain_ch remain_on_ch;
@@ -257,28 +260,6 @@ static void handle_set_wfi_drv_handler(struct work_struct *work)
 free_msg:
 	if (msg->is_sync)
 		complete(&msg->work_comp);
-
-	kfree(msg);
-}
-
-static void handle_set_operation_mode(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct op_mode *hif_op_mode = &msg->body.mode;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_SET_OPERATION_MODE;
-	wid.type = WID_INT;
-	wid.val = (s8 *)&hif_op_mode->mode;
-	wid.size = sizeof(u32);
-
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set operation mode\n");
 
 	kfree(msg);
 }
@@ -2550,19 +2531,21 @@ int wilc_set_wfi_drv_handler(struct wilc_vif *vif, int index, u8 mode,
 
 int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode)
 {
+	struct wid wid;
+	struct wilc_op_mode op_mode;
 	int result;
-	struct host_if_msg *msg;
 
-	msg  = wilc_alloc_work(vif, handle_set_operation_mode, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_SET_OPERATION_MODE;
+	wid.type = WID_INT;
+	wid.size = sizeof(op_mode);
+	wid.val = (u8 *)&op_mode;
 
-	msg->body.mode.mode = mode;
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	op_mode.mode = cpu_to_le32(mode);
+
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to set operation mode\n");
 
 	return result;
 }
