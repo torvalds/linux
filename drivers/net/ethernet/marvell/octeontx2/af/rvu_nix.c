@@ -2593,18 +2593,33 @@ int rvu_nix_init(struct rvu *rvu)
 		if (err)
 			return err;
 
-		/* Config Outer L2, IP, TCP and UDP's NPC layer info.
+		/* Config Outer/Inner L2, IP, TCP, UDP and SCTP NPC layer info.
 		 * This helps HW protocol checker to identify headers
 		 * and validate length and checksums.
 		 */
 		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OL2,
 			    (NPC_LID_LA << 8) | (NPC_LT_LA_ETHER << 4) | 0x0F);
-		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OUDP,
-			    (NPC_LID_LD << 8) | (NPC_LT_LD_UDP << 4) | 0x0F);
-		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OTCP,
-			    (NPC_LID_LD << 8) | (NPC_LT_LD_TCP << 4) | 0x0F);
 		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OIP4,
 			    (NPC_LID_LC << 8) | (NPC_LT_LC_IP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_IIP4,
+			    (NPC_LID_LF << 8) | (NPC_LT_LF_TU_IP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OIP6,
+			    (NPC_LID_LC << 8) | (NPC_LT_LC_IP6 << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_IIP6,
+			    (NPC_LID_LF << 8) | (NPC_LT_LF_TU_IP6 << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OTCP,
+			    (NPC_LID_LD << 8) | (NPC_LT_LD_TCP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ITCP,
+			    (NPC_LID_LG << 8) | (NPC_LT_LG_TU_TCP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OUDP,
+			    (NPC_LID_LD << 8) | (NPC_LT_LD_UDP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_IUDP,
+			    (NPC_LID_LG << 8) | (NPC_LT_LG_TU_UDP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_OSCTP,
+			    (NPC_LID_LD << 8) | (NPC_LT_LD_SCTP << 4) | 0x0F);
+		rvu_write64(rvu, blkaddr, NIX_AF_RX_DEF_ISCTP,
+			    (NPC_LID_LG << 8) | (NPC_LT_LG_TU_SCTP << 4) |
+			    0x0F);
 
 		err = nix_rx_flowkey_alg_cfg(rvu, blkaddr);
 		if (err)
