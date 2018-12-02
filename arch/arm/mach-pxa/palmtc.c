@@ -126,8 +126,20 @@ static struct pxamci_platform_data palmtc_mci_platform_data = {
 	.detect_delay_ms	= 200,
 };
 
+static struct gpiod_lookup_table palmtc_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_PALMTC_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init palmtc_mmc_init(void)
 {
+	gpiod_add_lookup_table(&palmtc_mci_gpio_table);
 	pxa_set_mci_info(&palmtc_mci_platform_data);
 }
 #else

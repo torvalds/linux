@@ -781,6 +781,21 @@ static struct pxamci_platform_data magician_mci_info = {
 	.gpio_power		= EGPIO_MAGICIAN_SD_POWER,
 };
 
+/*
+ * Write protect on EGPIO register 5 index 4, this is on the second HTC
+ * EGPIO chip which starts at register 4, so we need offset 8+4=12 on that
+ * particular chip.
+ */
+#define EGPIO_MAGICIAN_nSD_READONLY_OFFSET 12
+
+static struct gpiod_lookup_table magician_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("htc-egpio-1", EGPIO_MAGICIAN_nSD_READONLY_OFFSET,
+			    "wp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 /*
  * USB OHCI
@@ -979,6 +994,7 @@ static void __init magician_init(void)
 	i2c_register_board_info(1,
 		ARRAY_AND_SIZE(magician_pwr_i2c_board_info));
 
+	gpiod_add_lookup_table(&magician_mci_gpio_table);
 	pxa_set_mci_info(&magician_mci_info);
 	pxa_set_ohci_info(&magician_ohci_info);
 	pxa_set_udc_info(&magician_udc_info);

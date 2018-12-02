@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/delay.h>
 
 #include <linux/platform_data/rtc-v3020.h>
@@ -294,8 +295,18 @@ static struct pxamci_platform_data cmx270_mci_platform_data = {
 	.gpio_power_invert	= 1,
 };
 
+static struct gpiod_lookup_table cmx270_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 83 */
+		GPIO_LOOKUP("gpio-pxa", GPIO83_MMC_IRQ, "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init cmx270_init_mmc(void)
 {
+	gpiod_add_lookup_table(&cmx270_mci_gpio_table);
 	pxa_set_mci_info(&cmx270_mci_platform_data);
 }
 #else

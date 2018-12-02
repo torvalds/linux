@@ -27,6 +27,7 @@
 #include <linux/power_supply.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/gpio_keys.h>
 #include <linux/delay.h>
 #include <linux/regulator/machine.h>
@@ -296,8 +297,18 @@ static struct pxamci_platform_data z2_mci_platform_data = {
 	.detect_delay_ms	= 200,
 };
 
+static struct gpiod_lookup_table z2_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO96_ZIPITZ2_SD_DETECT,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init z2_mmc_init(void)
 {
+	gpiod_add_lookup_table(&z2_mci_gpio_table);
 	pxa_set_mci_info(&z2_mci_platform_data);
 }
 #else

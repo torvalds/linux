@@ -20,7 +20,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>
 #include <linux/smc91x.h>
@@ -283,8 +283,19 @@ static struct pxamci_platform_data littleton_mci_platform_data = {
 	.gpio_power		= -1,
 };
 
+static struct gpiod_lookup_table littleton_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on MFP (gpio-pxa) GPIO 15 */
+		GPIO_LOOKUP("gpio-pxa", MFP_PIN_GPIO15,
+			    "cd", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init littleton_init_mmc(void)
 {
+	gpiod_add_lookup_table(&littleton_mci_gpio_table);
 	pxa_set_mci_info(&littleton_mci_platform_data);
 }
 #else

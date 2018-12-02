@@ -21,7 +21,7 @@
 
 #include <linux/serial_8250.h>
 #include <linux/dm9000.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/platform_data/i2c-pxa.h>
 
 #include <linux/platform_data/mtd-nand-pxa3xx.h>
@@ -331,8 +331,22 @@ static struct pxamci_platform_data mxm_8x10_mci_platform_data = {
 	.gpio_power = -1
 };
 
+static struct gpiod_lookup_table mxm_8x10_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 72 */
+		GPIO_LOOKUP("gpio-pxa", MXM_8X10_SD_nCD,
+			    "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 84 */
+		GPIO_LOOKUP("gpio-pxa", MXM_8X10_SD_WP,
+			    "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 void __init mxm_8x10_mmc_init(void)
 {
+	gpiod_add_lookup_table(&mxm_8x10_mci_gpio_table);
 	pxa_set_mci_info(&mxm_8x10_mci_platform_data);
 }
 #endif

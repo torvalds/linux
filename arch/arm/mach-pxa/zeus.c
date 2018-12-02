@@ -669,6 +669,17 @@ static struct pxamci_platform_data zeus_mci_platform_data = {
 	.gpio_power             = -1
 };
 
+static struct gpiod_lookup_table zeus_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", ZEUS_MMC_CD_GPIO,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", ZEUS_MMC_WP_GPIO,
+			    "wp", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 /*
  * USB Device Controller
  */
@@ -883,6 +894,7 @@ static void __init zeus_init(void)
 	else
 		pxa_set_fb_info(NULL, &zeus_fb_info);
 
+	gpiod_add_lookup_table(&zeus_mci_gpio_table);
 	pxa_set_mci_info(&zeus_mci_platform_data);
 	pxa_set_udc_info(&zeus_udc_info);
 	pxa_set_ac97_info(&zeus_ac97_info);

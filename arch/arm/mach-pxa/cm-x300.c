@@ -464,6 +464,17 @@ static struct pxamci_platform_data cm_x300_mci_platform_data = {
 	.gpio_power		= -1,
 };
 
+static struct gpiod_lookup_table cm_x300_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Card detect on GPIO 82 */
+		GPIO_LOOKUP("gpio-pxa", GPIO82_MMC_IRQ, "cd", GPIO_ACTIVE_LOW),
+		/* Write protect on GPIO 85 */
+		GPIO_LOOKUP("gpio-pxa", GPIO85_MMC_WP, "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 /* The second MMC slot of CM-X300 is hardwired to Libertas card and has
    no detection/ro pins */
 static int cm_x300_mci2_init(struct device *dev,
@@ -489,6 +500,7 @@ static struct pxamci_platform_data cm_x300_mci2_platform_data = {
 
 static void __init cm_x300_init_mmc(void)
 {
+	gpiod_add_lookup_table(&cm_x300_mci_gpio_table);
 	pxa_set_mci_info(&cm_x300_mci_platform_data);
 	pxa3xx_set_mci2_info(&cm_x300_mci2_platform_data);
 }

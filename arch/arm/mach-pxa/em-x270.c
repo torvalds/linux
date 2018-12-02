@@ -20,6 +20,7 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/mfd/da903x.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -546,6 +547,15 @@ static inline void em_x270_init_ohci(void) {}
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static struct regulator *em_x270_sdio_ldo;
 
+static struct gpiod_lookup_table em_x270_mci_wp_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		/* Write protect on GPIO 95 */
+		GPIO_LOOKUP("gpio-pxa", GPIO95_MMC_WP, "wp", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static int em_x270_mci_init(struct device *dev,
 			    irq_handler_t em_x270_detect_int,
 			    void *data)
@@ -642,8 +652,10 @@ static struct pxamci_platform_data em_x270_mci_platform_data = {
 
 static void __init em_x270_init_mmc(void)
 {
-	if (machine_is_em_x270())
+	if (machine_is_em_x270()) {
 		em_x270_mci_platform_data.get_ro = em_x270_mci_get_ro;
+		gpiod_add_lookup_table(&em_x270_mci_wp_gpio_table);
+	}
 
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }
