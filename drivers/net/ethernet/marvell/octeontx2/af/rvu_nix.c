@@ -43,6 +43,19 @@ enum mc_buf_cnt {
 	MC_BUF_CNT_2048,
 };
 
+enum nix_makr_fmt_indexes {
+	NIX_MARK_CFG_IP_DSCP_RED,
+	NIX_MARK_CFG_IP_DSCP_YELLOW,
+	NIX_MARK_CFG_IP_DSCP_YELLOW_RED,
+	NIX_MARK_CFG_IP_ECN_RED,
+	NIX_MARK_CFG_IP_ECN_YELLOW,
+	NIX_MARK_CFG_IP_ECN_YELLOW_RED,
+	NIX_MARK_CFG_VLAN_DEI_RED,
+	NIX_MARK_CFG_VLAN_DEI_YELLOW,
+	NIX_MARK_CFG_VLAN_DEI_YELLOW_RED,
+	NIX_MARK_CFG_MAX,
+};
+
 /* For now considering MC resources needed for broadcast
  * pkt replication only. i.e 256 HWVFs + 12 PFs.
  */
@@ -939,6 +952,41 @@ int rvu_mbox_handler_nix_lf_free(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+int rvu_mbox_handler_nix_mark_format_cfg(struct rvu *rvu,
+					 struct nix_mark_format_cfg  *req,
+					 struct nix_mark_format_cfg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	struct nix_hw *nix_hw;
+	struct rvu_pfvf *pfvf;
+	int blkaddr, rc;
+	u32 cfg;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	cfg = (((u32)req->offset & 0x7) << 16) |
+	      (((u32)req->y_mask & 0xF) << 12) |
+	      (((u32)req->y_val & 0xF) << 8) |
+	      (((u32)req->r_mask & 0xF) << 4) | ((u32)req->r_val & 0xF);
+
+	rc = rvu_nix_reserve_mark_format(rvu, nix_hw, blkaddr, cfg);
+	if (rc < 0) {
+		dev_err(rvu->dev, "No mark_format_ctl for (pf:%d, vf:%d)",
+			rvu_get_pf(pcifunc), pcifunc & RVU_PFVF_FUNC_MASK);
+		return NIX_AF_ERR_MARK_CFG_FAIL;
+	}
+
+	rsp->mark_format_idx = rc;
+	return 0;
+}
+
 /* Disable shaping of pkts by a scheduler queue
  * at a given scheduler level.
  */
@@ -1829,6 +1877,57 @@ static int nix_setup_txschq(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 	return 0;
 }
 
+int rvu_nix_reserve_mark_format(struct rvu *rvu, struct nix_hw *nix_hw,
+				int blkaddr, u32 cfg)
+{
+	int fmt_idx;
+
+	for (fmt_idx = 0; fmt_idx < nix_hw->mark_format.in_use; fmt_idx++) {
+		if (nix_hw->mark_format.cfg[fmt_idx] == cfg)
+			return fmt_idx;
+	}
+	if (fmt_idx >= nix_hw->mark_format.total)
+		return -ERANGE;
+
+	rvu_write64(rvu, blkaddr, NIX_AF_MARK_FORMATX_CTL(fmt_idx), cfg);
+	nix_hw->mark_format.cfg[fmt_idx] = cfg;
+	nix_hw->mark_format.in_use++;
+	return fmt_idx;
+}
+
+static int nix_af_mark_format_setup(struct rvu *rvu, struct nix_hw *nix_hw,
+				    int blkaddr)
+{
+	u64 cfgs[] = {
+		[NIX_MARK_CFG_IP_DSCP_RED]         = 0x10003,
+		[NIX_MARK_CFG_IP_DSCP_YELLOW]      = 0x11200,
+		[NIX_MARK_CFG_IP_DSCP_YELLOW_RED]  = 0x11203,
+		[NIX_MARK_CFG_IP_ECN_RED]          = 0x6000c,
+		[NIX_MARK_CFG_IP_ECN_YELLOW]       = 0x60c00,
+		[NIX_MARK_CFG_IP_ECN_YELLOW_RED]   = 0x60c0c,
+		[NIX_MARK_CFG_VLAN_DEI_RED]        = 0x30008,
+		[NIX_MARK_CFG_VLAN_DEI_YELLOW]     = 0x30800,
+		[NIX_MARK_CFG_VLAN_DEI_YELLOW_RED] = 0x30808,
+	};
+	int i, rc;
+	u64 total;
+
+	total = (rvu_read64(rvu, blkaddr, NIX_AF_PSE_CONST) & 0xFF00) >> 8;
+	nix_hw->mark_format.total = (u8)total;
+	nix_hw->mark_format.cfg = devm_kcalloc(rvu->dev, total, sizeof(u32),
+					       GFP_KERNEL);
+	if (!nix_hw->mark_format.cfg)
+		return -ENOMEM;
+	for (i = 0; i < NIX_MARK_CFG_MAX; i++) {
+		rc = rvu_nix_reserve_mark_format(rvu, nix_hw, blkaddr, cfgs[i]);
+		if (rc < 0)
+			dev_err(rvu->dev, "Err %d in setup mark format %d\n",
+				i, rc);
+	}
+
+	return 0;
+}
+
 int rvu_mbox_handler_nix_stats_rst(struct rvu *rvu, struct msg_req *req,
 				   struct msg_rsp *rsp)
 {
@@ -2586,6 +2685,10 @@ int rvu_nix_init(struct rvu *rvu)
 			return -ENOMEM;
 
 		err = nix_setup_txschq(rvu, hw->nix0, blkaddr);
+		if (err)
+			return err;
+
+		err = nix_af_mark_format_setup(rvu, hw->nix0, blkaddr);
 		if (err)
 			return err;
 
