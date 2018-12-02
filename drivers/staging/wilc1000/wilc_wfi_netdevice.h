@@ -247,7 +247,8 @@ struct wilc {
 	struct task_struct *txq_thread;
 
 	int quit;
-	int cfg_frame_in_use;
+	/* lock to protect issue of wid command to firmware */
+	struct mutex cfg_cmd_lock;
 	struct wilc_cfg_frame cfg_frame;
 	u32 cfg_frame_offset;
 	int cfg_seq_no;

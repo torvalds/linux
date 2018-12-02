@@ -531,6 +531,7 @@ static void wlan_deinit_locks(struct net_device *dev)
 
 	mutex_destroy(&wilc->hif_cs);
 	mutex_destroy(&wilc->rxq_cs);
+	mutex_destroy(&wilc->cfg_cmd_lock);
 	mutex_destroy(&wilc->txq_add_to_head_cs);
 }
 
@@ -592,6 +593,7 @@ static void wlan_init_locks(struct net_device *dev)
 
 	mutex_init(&wl->hif_cs);
 	mutex_init(&wl->rxq_cs);
+	mutex_init(&wl->cfg_cmd_lock);
 
 	spin_lock_init(&wl->txq_spinlock);
 	mutex_init(&wl->txq_add_to_head_cs);
