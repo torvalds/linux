@@ -42,6 +42,7 @@
 #include "en.h"
 #include "en_rep.h"
 #include "en_tc.h"
+#include "en/tc_tun.h"
 #include "fs_core.h"
 
 #define MLX5E_REP_PARAMS_LOG_SQ_SIZE \
