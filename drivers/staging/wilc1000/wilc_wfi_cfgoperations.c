@@ -1659,13 +1659,16 @@ static int dump_station(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
+	int ret;
 
 	if (idx != 0)
 		return -ENOENT;
 
 	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 
-	wilc_get_rssi(vif, &sinfo->signal);
+	ret = wilc_get_rssi(vif, &sinfo->signal);
+	if (ret)
+		return ret;
 
 	memcpy(mac, priv->associated_bss, ETH_ALEN);
 	return 0;

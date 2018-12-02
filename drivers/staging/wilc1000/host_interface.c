@@ -1678,27 +1678,6 @@ void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
 		wilc_disconnect(vif, 1);
 }
 
-static void handle_get_rssi(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	int result;
-	struct wid wid;
-
-	wid.id = WID_RSSI;
-	wid.type = WID_CHAR;
-	wid.val = msg->body.data;
-	wid.size = sizeof(char);
-
-	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to get RSSI value\n");
-
-	complete(&msg->work_comp);
-	/* free 'msg' data in caller */
-}
-
 static void handle_get_statistics(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -2620,34 +2599,22 @@ s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
 
 int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
 
 	if (!rssi_level) {
 		netdev_err(vif->ndev, "%s: RSSI level is NULL\n", __func__);
 		return -EFAULT;
 	}
 
-	msg = wilc_alloc_work(vif, handle_get_rssi, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.data = kzalloc(sizeof(s8), GFP_KERNEL);
-	if (!msg->body.data) {
-		kfree(msg);
-		return -ENOMEM;
-	}
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	} else {
-		wait_for_completion(&msg->work_comp);
-		*rssi_level = *msg->body.data;
-	}
-
-	kfree(msg->body.data);
-	kfree(msg);
+	wid.id = WID_RSSI;
+	wid.type = WID_CHAR;
+	wid.size = sizeof(char);
+	wid.val = rssi_level;
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to get RSSI value\n");
 
 	return result;
 }
