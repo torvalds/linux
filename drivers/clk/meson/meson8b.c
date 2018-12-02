@@ -134,7 +134,7 @@ static struct clk_regmap meson8b_vid_pll_dco = {
 		},
 		.n = {
 			.reg_off = HHI_VID_PLL_CNTL,
-			.shift   = 9,
+			.shift   = 10,
 			.width   = 5,
 		},
 		.l = {
