@@ -74,10 +74,6 @@ struct rcvd_async_info {
 	u32 len;
 };
 
-struct channel_attr {
-	u8 set_ch;
-};
-
 struct set_multicast {
 	bool enabled;
 	u32 cnt;
@@ -112,7 +108,6 @@ union message_body {
 	struct rcvd_async_info async_info;
 	struct key_attr key_info;
 	struct cfg_param_attr cfg_info;
-	struct channel_attr channel_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
@@ -222,27 +217,6 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 		return NULL;
 
 	return wilc->vif[index];
-}
-
-static void handle_set_channel(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct channel_attr *hif_set_ch = &msg->body.channel_info;
-	int ret;
-	struct wid wid;
-
-	wid.id = WID_CURRENT_CHANNEL;
-	wid.type = WID_CHAR;
-	wid.val = (char *)&hif_set_ch->set_ch;
-	wid.size = sizeof(char);
-
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	if (ret)
-		netdev_err(vif->ndev, "Failed to set channel\n");
-	kfree(msg);
 }
 
 static void handle_set_wfi_drv_handler(struct work_struct *work)
@@ -2600,20 +2574,18 @@ int wilc_disconnect(struct wilc_vif *vif, u16 reason_code)
 
 int wilc_set_mac_chnl_num(struct wilc_vif *vif, u8 channel)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
 
-	msg = wilc_alloc_work(vif, handle_set_channel, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_CURRENT_CHANNEL;
+	wid.type = WID_CHAR;
+	wid.size = sizeof(char);
+	wid.val = &channel;
 
-	msg->body.channel_info.set_ch = channel;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to set channel\n");
 
 	return result;
 }
