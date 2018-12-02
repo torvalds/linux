@@ -441,6 +441,13 @@ config MMC_WBSD
 
 	  If unsure, say N.
 
+config MMC_ALCOR
+	tristate "Alcor Micro/Alcor Link SD/MMC controller"
+	depends on MISC_ALCOR_PCI
+	help
+	  Say Y here to include driver code to support SD/MMC card interface
+	  of Alcor Micro PCI-E card reader
+
 config MMC_AU1X
 	tristate "Alchemy AU1XX0 MMC Card Interface support"
 	depends on MIPS_ALCHEMY
