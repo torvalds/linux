@@ -9,7 +9,6 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -102,36 +101,6 @@ int mmc_gpio_get_cd(struct mmc_host *host)
 }
 EXPORT_SYMBOL(mmc_gpio_get_cd);
 
-/**
- * mmc_gpio_request_ro - request a gpio for write-protection
- * @host: mmc host
- * @gpio: gpio number requested
- *
- * As devm_* managed functions are used in mmc_gpio_request_ro(), client
- * drivers do not need to worry about freeing up memory.
- *
- * Returns zero on success, else an error.
- */
-int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
-{
-	struct mmc_gpio *ctx = host->slot.handler_priv;
-	int ret;
-
-	if (!gpio_is_valid(gpio))
-		return -EINVAL;
-
-	ret = devm_gpio_request_one(host->parent, gpio, GPIOF_DIR_IN,
-				    ctx->ro_label);
-	if (ret < 0)
-		return ret;
-
-	ctx->override_ro_active_level = true;
-	ctx->ro_gpio = gpio_to_desc(gpio);
-
-	return 0;
-}
-EXPORT_SYMBOL(mmc_gpio_request_ro);
-
 void mmc_gpiod_request_cd_irq(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
@@ -201,50 +170,6 @@ void mmc_gpio_set_cd_isr(struct mmc_host *host,
 EXPORT_SYMBOL(mmc_gpio_set_cd_isr);
 
 /**
- * mmc_gpio_request_cd - request a gpio for card-detection
- * @host: mmc host
- * @gpio: gpio number requested
- * @debounce: debounce time in microseconds
- *
- * As devm_* managed functions are used in mmc_gpio_request_cd(), client
- * drivers do not need to worry about freeing up memory.
- *
- * If GPIO debouncing is desired, set the debounce parameter to a non-zero
- * value. The caller is responsible for ensuring that the GPIO driver associated
- * with the GPIO supports debouncing, otherwise an error will be returned.
- *
- * Returns zero on success, else an error.
- */
-int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio,
-			unsigned int debounce)
-{
-	struct mmc_gpio *ctx = host->slot.handler_priv;
-	int ret;
-
-	ret = devm_gpio_request_one(host->parent, gpio, GPIOF_DIR_IN,
-				    ctx->cd_label);
-	if (ret < 0)
-		/*
-		 * don't bother freeing memory. It might still get used by other
-		 * slot functions, in any case it will be freed, when the device
-		 * is destroyed.
-		 */
-		return ret;
-
-	if (debounce) {
-		ret = gpio_set_debounce(gpio, debounce);
-		if (ret < 0)
-			return ret;
-	}
-
-	ctx->override_cd_active_level = true;
-	ctx->cd_gpio = gpio_to_desc(gpio);
-
-	return 0;
-}
-EXPORT_SYMBOL(mmc_gpio_request_cd);
-
-/**
  * mmc_gpiod_request_cd - request a gpio descriptor for card-detection
  * @host: mmc host
  * @con_id: function within the GPIO consumer
@@ -254,8 +179,7 @@ EXPORT_SYMBOL(mmc_gpio_request_cd);
  * @gpio_invert: will return whether the GPIO line is inverted or not, set
  * to NULL to ignore
  *
- * Use this function in place of mmc_gpio_request_cd() to use the GPIO
- * descriptor API.  Note that it must be called prior to mmc_add_host()
+ * Note that this must be called prior to mmc_add_host()
  * otherwise the caller must also call mmc_gpiod_request_cd_irq().
  *
  * Returns zero on success, else an error.
@@ -305,9 +229,6 @@ EXPORT_SYMBOL(mmc_can_gpio_cd);
  * @debounce: debounce time in microseconds
  * @gpio_invert: will return whether the GPIO line is inverted or not,
  * set to NULL to ignore
- *
- * Use this function in place of mmc_gpio_request_ro() to use the GPIO
- * descriptor API.
  *
  * Returns zero on success, else an error.
  */
