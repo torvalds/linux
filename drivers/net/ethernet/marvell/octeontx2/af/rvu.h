@@ -164,9 +164,16 @@ struct npc_pkind {
 	u32	*pfchan_map;
 };
 
+struct nix_flowkey {
+#define NIX_FLOW_KEY_ALG_MAX 32
+	u32 flowkey[NIX_FLOW_KEY_ALG_MAX];
+	int in_use;
+};
+
 struct nix_hw {
 	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
 	struct nix_mcast mcast;
+	struct nix_flowkey flowkey;
 };
 
 struct rvu_hwinfo {
