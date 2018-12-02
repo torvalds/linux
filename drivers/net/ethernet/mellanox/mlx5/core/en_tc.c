@@ -78,13 +78,39 @@ enum {
 
 #define MLX5E_TC_MAX_SPLITS 1
 
+/* Helper struct for accessing a struct containing list_head array.
+ * Containing struct
+ *   |- Helper array
+ *      [0] Helper item 0
+ *          |- list_head item 0
+ *          |- index (0)
+ *      [1] Helper item 1
+ *          |- list_head item 1
+ *          |- index (1)
+ * To access the containing struct from one of the list_head items:
+ * 1. Get the helper item from the list_head item using
+ *    helper item =
+ *        container_of(list_head item, helper struct type, list_head field)
+ * 2. Get the contining struct from the helper item and its index in the array:
+ *    containing struct =
+ *        container_of(helper item, containing struct type, helper field[index])
+ */
+struct encap_flow_item {
+	struct list_head list;
+	int index;
+};
+
 struct mlx5e_tc_flow {
 	struct rhash_head	node;
 	struct mlx5e_priv	*priv;
 	u64			cookie;
 	u16			flags;
 	struct mlx5_flow_handle *rule[MLX5E_TC_MAX_SPLITS + 1];
-	struct list_head	encap;   /* flows sharing the same encap ID */
+	/* Flow can be associated with multiple encap IDs.
+	 * The number of encaps is bounded by the number of supported
+	 * destinations.
+	 */
+	struct encap_flow_item encaps[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct list_head	mod_hdr; /* flows sharing the same mod hdr ID */
 	struct list_head	hairpin; /* flows sharing the same hairpin */
 	union {
@@ -1043,6 +1069,7 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr slow_attr, *esw_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
+	struct encap_flow_item *efi;
 	struct mlx5e_tc_flow *flow;
 	int err;
 
@@ -1059,7 +1086,8 @@ void mlx5e_tc_encap_flows_add(struct mlx5e_priv *priv,
 	e->flags |= MLX5_ENCAP_ENTRY_VALID;
 	mlx5e_rep_queue_neigh_stats_work(priv);
 
-	list_for_each_entry(flow, &e->flows, encap) {
+	list_for_each_entry(efi, &e->flows, list) {
+		flow = container_of(efi, struct mlx5e_tc_flow, encaps[efi->index]);
 		esw_attr = flow->esw_attr;
 		esw_attr->encap_id = e->encap_id;
 		spec = &esw_attr->parse_attr->spec;
@@ -1086,10 +1114,12 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 	struct mlx5_esw_flow_attr slow_attr;
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
+	struct encap_flow_item *efi;
 	struct mlx5e_tc_flow *flow;
 	int err;
 
-	list_for_each_entry(flow, &e->flows, encap) {
+	list_for_each_entry(efi, &e->flows, list) {
+		flow = container_of(efi, struct mlx5e_tc_flow, encaps[efi->index]);
 		spec = &flow->esw_attr->parse_attr->spec;
 
 		/* update from encap rule to slow path rule */
@@ -1142,9 +1172,12 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 		return;
 
 	list_for_each_entry(e, &nhe->encap_list, encap_list) {
+		struct encap_flow_item *efi;
 		if (!(e->flags & MLX5_ENCAP_ENTRY_VALID))
 			continue;
-		list_for_each_entry(flow, &e->flows, encap) {
+		list_for_each_entry(efi, &e->flows, list) {
+			flow = container_of(efi, struct mlx5e_tc_flow,
+					    encaps[efi->index]);
 			if (flow->flags & MLX5E_TC_FLOW_OFFLOADED) {
 				counter = mlx5e_tc_get_counter(flow);
 				mlx5_fc_query_cached(counter, &bytes, &packets, &lastuse);
@@ -1176,9 +1209,9 @@ void mlx5e_tc_update_neigh_used_value(struct mlx5e_neigh_hash_entry *nhe)
 static void mlx5e_detach_encap(struct mlx5e_priv *priv,
 			       struct mlx5e_tc_flow *flow)
 {
-	struct list_head *next = flow->encap.next;
+	struct list_head *next = flow->encaps[0].list.next;
 
-	list_del(&flow->encap);
+	list_del(&flow->encaps[0].list);
 	if (list_empty(next)) {
 		struct mlx5e_encap_entry *e;
 
@@ -2338,7 +2371,8 @@ static int mlx5e_attach_encap(struct mlx5e_priv *priv,
 	hash_add_rcu(esw->offloads.encap_tbl, &e->encap_hlist, hash_key);
 
 attach_flow:
-	list_add(&flow->encap, &e->flows);
+	list_add(&flow->encaps[0].list, &e->flows);
+	flow->encaps[0].index = 0;
 	*encap_dev = e->out_dev;
 	if (e->flags & MLX5_ENCAP_ENTRY_VALID)
 		attr->encap_id = e->encap_id;
