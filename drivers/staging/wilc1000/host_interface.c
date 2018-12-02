@@ -105,18 +105,12 @@ struct set_ip_addr {
 	u8 idx;
 };
 
-struct sta_inactive_t {
-	u32 inactive_time;
-	u8 mac[6];
-};
-
 union message_body {
 	struct scan_attr scan_info;
 	struct connect_attr con_info;
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct key_attr key_info;
-	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct set_multicast multicast_info;
 	struct get_mac_addr get_mac_info;
@@ -1678,48 +1672,6 @@ static void handle_get_statistics(struct work_struct *work)
 		kfree(msg);
 }
 
-static void handle_get_inactive_time(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct sta_inactive_t *hif_sta_inactive = &msg->body.mac_info;
-	int result;
-	struct wid wid;
-
-	wid.id = WID_SET_STA_MAC_INACTIVE_TIME;
-	wid.type = WID_STR;
-	wid.size = ETH_ALEN;
-	wid.val = kmalloc(wid.size, GFP_KERNEL);
-	if (!wid.val)
-		goto out;
-
-	ether_addr_copy(wid.val, hif_sta_inactive->mac);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	kfree(wid.val);
-
-	if (result) {
-		netdev_err(vif->ndev, "Failed to set inactive mac\n");
-		goto out;
-	}
-
-	wid.id = WID_GET_INACTIVE_TIME;
-	wid.type = WID_INT;
-	wid.val = (s8 *)&hif_sta_inactive->inactive_time;
-	wid.size = sizeof(u32);
-
-	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-
-	if (result)
-		netdev_err(vif->ndev, "Failed to get inactive time\n");
-
-out:
-	/* free 'msg' data in caller */
-	complete(&msg->work_comp);
-}
-
 static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 				    struct station_parameters *params)
 {
@@ -2508,32 +2460,35 @@ int wilc_set_operation_mode(struct wilc_vif *vif, u32 mode)
 	return result;
 }
 
-s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac,
-			   u32 *out_val)
+s32 wilc_get_inactive_time(struct wilc_vif *vif, const u8 *mac, u32 *out_val)
 {
+	struct wid wid;
 	s32 result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return -EFAULT;
+	wid.id = WID_SET_STA_MAC_INACTIVE_TIME;
+	wid.type = WID_STR;
+	wid.size = ETH_ALEN;
+	wid.val = kzalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
+
+	ether_addr_copy(wid.val, mac);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	kfree(wid.val);
+	if (result) {
+		netdev_err(vif->ndev, "Failed to set inactive mac\n");
+		return result;
 	}
 
-	msg = wilc_alloc_work(vif, handle_get_inactive_time, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	memcpy(msg->body.mac_info.mac, mac, ETH_ALEN);
-
-	result = wilc_enqueue_work(msg);
+	wid.id = WID_GET_INACTIVE_TIME;
+	wid.type = WID_INT;
+	wid.val = (s8 *)out_val;
+	wid.size = sizeof(u32);
+	result = wilc_send_config_pkt(vif, WILC_GET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	else
-		wait_for_completion(&msg->work_comp);
-
-	*out_val = msg->body.mac_info.inactive_time;
-	kfree(msg);
+		netdev_err(vif->ndev, "Failed to get inactive time\n");
 
 	return result;
 }
