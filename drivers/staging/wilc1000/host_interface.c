@@ -1322,13 +1322,10 @@ void wilc_resolve_disconnect_aberration(struct wilc_vif *vif)
 		wilc_disconnect(vif, 1);
 }
 
-static void handle_get_statistics(struct work_struct *work)
+int wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats)
 {
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
 	struct wid wid_list[5];
 	u32 wid_cnt = 0, result;
-	struct rf_info *stats = (struct rf_info *)msg->body.data;
 
 	wid_list[wid_cnt].id = WID_LINKSPEED;
 	wid_list[wid_cnt].type = WID_CHAR;
@@ -1364,8 +1361,10 @@ static void handle_get_statistics(struct work_struct *work)
 				      wid_cnt,
 				      wilc_get_vif_idx(vif));
 
-	if (result)
+	if (result) {
 		netdev_err(vif->ndev, "Failed to send scan parameters\n");
+		return result;
+	}
 
 	if (stats->link_speed > TCP_ACK_FILTER_LINK_SPEED_THRESH &&
 	    stats->link_speed != DEFAULT_LINK_SPEED)
@@ -1373,11 +1372,18 @@ static void handle_get_statistics(struct work_struct *work)
 	else if (stats->link_speed != DEFAULT_LINK_SPEED)
 		wilc_enable_tcp_ack_filter(vif, false);
 
-	/* free 'msg' for async command, for sync caller will free it */
-	if (msg->is_sync)
-		complete(&msg->work_comp);
-	else
-		kfree(msg);
+	return result;
+}
+
+static void handle_get_statistics(struct work_struct *work)
+{
+	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
+	struct wilc_vif *vif = msg->vif;
+	struct rf_info *stats = (struct rf_info *)msg->body.data;
+
+	wilc_get_statistics(vif, stats);
+
+	kfree(msg);
 }
 
 static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
@@ -2149,13 +2155,12 @@ int wilc_get_rssi(struct wilc_vif *vif, s8 *rssi_level)
 	return result;
 }
 
-int
-wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats, bool is_sync)
+int wilc_get_stats_async(struct wilc_vif *vif, struct rf_info *stats)
 {
 	int result;
 	struct host_if_msg *msg;
 
-	msg = wilc_alloc_work(vif, handle_get_statistics, is_sync);
+	msg = wilc_alloc_work(vif, handle_get_statistics, false);
 	if (IS_ERR(msg))
 		return PTR_ERR(msg);
 
@@ -2166,11 +2171,6 @@ wilc_get_statistics(struct wilc_vif *vif, struct rf_info *stats, bool is_sync)
 		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
 		kfree(msg);
 		return result;
-	}
-
-	if (is_sync) {
-		wait_for_completion(&msg->work_comp);
-		kfree(msg);
 	}
 
 	return result;
@@ -2297,7 +2297,7 @@ static void get_periodic_rssi(struct timer_list *t)
 	}
 
 	if (vif->hif_drv->hif_state == HOST_IF_CONNECTED)
-		wilc_get_statistics(vif, &vif->periodic_stat, false);
+		wilc_get_stats_async(vif, &vif->periodic_stat);
 
 	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
 }

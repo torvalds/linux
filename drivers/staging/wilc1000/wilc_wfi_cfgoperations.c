@@ -1039,7 +1039,7 @@ static int get_station(struct wiphy *wiphy, struct net_device *dev,
 	} else if (vif->iftype == WILC_STATION_MODE) {
 		struct rf_info stats;
 
-		wilc_get_statistics(vif, &stats, true);
+		wilc_get_statistics(vif, &stats);
 
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL) |
 				 BIT_ULL(NL80211_STA_INFO_RX_PACKETS) |
