@@ -102,11 +102,6 @@ struct del_sta {
 	u8 mac_addr[ETH_ALEN];
 };
 
-struct power_mgmt_param {
-	bool enabled;
-	u32 timeout;
-};
-
 struct set_ip_addr {
 	u8 *ip_addr;
 	u8 idx;
@@ -129,7 +124,6 @@ union message_body {
 	struct add_sta_param add_sta_info;
 	struct del_sta del_sta_info;
 	struct add_sta_param edit_sta_info;
-	struct power_mgmt_param pwr_mgmt_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
@@ -2298,32 +2292,6 @@ static void listen_timer_cb(struct timer_list *t)
 	}
 }
 
-static void handle_power_management(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct power_mgmt_param *pm_param = &msg->body.pwr_mgmt_info;
-	int result;
-	struct wid wid;
-	s8 power_mode;
-
-	wid.id = WID_POWER_MANAGEMENT;
-
-	if (pm_param->enabled)
-		power_mode = WILC_FW_MIN_FAST_PS;
-	else
-		power_mode = WILC_FW_NO_POWERSAVE;
-
-	wid.val = &power_mode;
-	wid.size = sizeof(char);
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to send power management\n");
-	kfree(msg);
-}
-
 static void handle_set_mcast_filter(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -3647,24 +3615,26 @@ int wilc_edit_station(struct wilc_vif *vif,
 
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
+	s8 power_mode;
 
 	if (wilc_wlan_get_num_conn_ifcs(vif->wilc) == 2 && enabled)
 		return 0;
 
-	msg = wilc_alloc_work(vif, handle_power_management, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	if (enabled)
+		power_mode = WILC_FW_MIN_FAST_PS;
+	else
+		power_mode = WILC_FW_NO_POWERSAVE;
 
-	msg->body.pwr_mgmt_info.enabled = enabled;
-	msg->body.pwr_mgmt_info.timeout = timeout;
+	wid.id = WID_POWER_MANAGEMENT;
+	wid.val = &power_mode;
+	wid.size = sizeof(char);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to send power management\n");
 
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
 	return result;
 }
 
