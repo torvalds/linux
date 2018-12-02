@@ -20,7 +20,7 @@
 #include <linux/input.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
-#include <linux/gpio.h>
+#include <linux/gpio/machine.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/ucb1400.h>
 #include <linux/power_supply.h>
