@@ -807,10 +807,8 @@ megasas_free_rdpq_fusion(struct megasas_instance *instance) {
 
 	}
 
-	if (fusion->reply_frames_desc_pool)
-		dma_pool_destroy(fusion->reply_frames_desc_pool);
-	if (fusion->reply_frames_desc_pool_align)
-		dma_pool_destroy(fusion->reply_frames_desc_pool_align);
+	dma_pool_destroy(fusion->reply_frames_desc_pool);
+	dma_pool_destroy(fusion->reply_frames_desc_pool_align);
 
 	if (fusion->rdpq_virt)
 		dma_free_coherent(&instance->pdev->dev,
@@ -830,8 +828,7 @@ megasas_free_reply_fusion(struct megasas_instance *instance) {
 			fusion->reply_frames_desc[0],
 			fusion->reply_frames_desc_phys[0]);
 
-	if (fusion->reply_frames_desc_pool)
-		dma_pool_destroy(fusion->reply_frames_desc_pool);
+	dma_pool_destroy(fusion->reply_frames_desc_pool);
 
 }
 
@@ -1623,8 +1620,7 @@ static inline void megasas_free_ioc_init_cmd(struct megasas_instance *instance)
 				  fusion->ioc_init_cmd->frame,
 				  fusion->ioc_init_cmd->frame_phys_addr);
 
-	if (fusion->ioc_init_cmd)
-		kfree(fusion->ioc_init_cmd);
+	kfree(fusion->ioc_init_cmd);
 }
 
 /**
