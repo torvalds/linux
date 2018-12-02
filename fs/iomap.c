@@ -1877,15 +1877,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				dio->wait_for_completion = true;
 				ret = 0;
 			}
-
-			/*
-			 * Splicing to pipes can fail on a full pipe. We have to
-			 * swallow this to make it look like a short IO
-			 * otherwise the higher splice layers will completely
-			 * mishandle the error and stop moving data.
-			 */
-			if (ret == -EFAULT)
-				ret = 0;
 			break;
 		}
 		pos += ret;
