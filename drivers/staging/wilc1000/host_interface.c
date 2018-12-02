@@ -1960,12 +1960,9 @@ static void handle_del_beacon(struct work_struct *work)
 	kfree(msg);
 }
 
-static u32 wilc_hif_pack_sta_param(u8 *buff, const u8 *mac,
-				   struct station_parameters *params)
+static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
+				    struct station_parameters *params)
 {
-	u8 *cur_byte;
-
-	cur_byte = buff;
 	ether_addr_copy(cur_byte, mac);
 	cur_byte += ETH_ALEN;
 
@@ -1990,9 +1987,6 @@ static u32 wilc_hif_pack_sta_param(u8 *buff, const u8 *mac,
 	put_unaligned_le16(params->sta_flags_mask, cur_byte);
 	cur_byte += 2;
 	put_unaligned_le16(params->sta_flags_set, cur_byte);
-	cur_byte += 2;
-
-	return cur_byte - buff;
 }
 
 static void handle_del_all_sta(struct work_struct *work)
@@ -3440,7 +3434,7 @@ int wilc_add_station(struct wilc_vif *vif, const u8 *mac,
 		return -ENOMEM;
 
 	cur_byte = wid.val;
-	cur_byte += wilc_hif_pack_sta_param(cur_byte, mac, params);
+	wilc_hif_pack_sta_param(cur_byte, mac, params);
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
@@ -3532,7 +3526,7 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 		return -ENOMEM;
 
 	cur_byte = wid.val;
-	cur_byte += wilc_hif_pack_sta_param(cur_byte, mac, params);
+	wilc_hif_pack_sta_param(cur_byte, mac, params);
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
 				      wilc_get_vif_idx(vif));
