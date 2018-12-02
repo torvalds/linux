@@ -730,8 +730,6 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 
 	if (host->pdata) {
-		int gpio_cd = host->pdata->gpio_card_detect;
-		int gpio_ro = host->pdata->gpio_card_ro;
 		int gpio_power = host->pdata->gpio_power;
 
 		host->detect_delay_ms = host->pdata->detect_delay_ms;
@@ -755,28 +753,11 @@ static int pxamci_probe(struct platform_device *pdev)
 			dev_err(dev, "Failed requesting gpio_cd\n");
 			goto out;
 		}
-		if (ret == -ENOENT && gpio_is_valid(gpio_cd)) {
-			ret = mmc_gpio_request_cd(mmc, gpio_cd, 0);
-			if (ret) {
-				dev_err(dev, "Failed requesting gpio_cd %d\n",
-					gpio_cd);
-			}
-		}
 
 		ret = mmc_gpiod_request_ro(mmc, "wp", 0, false, 0, NULL);
 		if (ret && ret != -ENOENT) {
 			dev_err(dev, "Failed requesting gpio_ro\n");
 			goto out;
-		}
-		/* Try platform data instead */
-		if (ret == -ENOENT && gpio_is_valid(gpio_ro)) {
-			ret = mmc_gpio_request_ro(mmc, gpio_ro);
-			if (ret) {
-				dev_err(dev,
-					"Failed requesting gpio_ro %d\n",
-					gpio_ro);
-				goto out;
-			}
 		}
 		if (!ret) {
 			host->use_ro_gpio = true;
