@@ -203,6 +203,7 @@ M(NIX_LF_STOP_RX,	0x800e, nix_lf_stop_rx, msg_req, msg_rsp)	\
 M(NIX_MARK_FORMAT_CFG,	0x800f, nix_mark_format_cfg,			\
 				 nix_mark_format_cfg,			\
 				 nix_mark_format_cfg_rsp)		\
+M(NIX_SET_RX_CFG,	0x8010, nix_set_rx_cfg, nix_rx_cfg, msg_rsp)	\
 M(NIX_RXVLAN_ALLOC,	0x8012, nix_rxvlan_alloc, msg_req, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
@@ -607,6 +608,15 @@ struct nix_rx_mode {
 #define NIX_RX_MODE_PROMISC	BIT(1)
 #define NIX_RX_MODE_ALLMULTI	BIT(2)
 	u16	mode;
+};
+
+struct nix_rx_cfg {
+	struct mbox_msghdr hdr;
+#define NIX_RX_OL3_VERIFY   BIT(0)
+#define NIX_RX_OL4_VERIFY   BIT(1)
+	u8 len_verify; /* Outer L3/L4 len check */
+#define NIX_RX_CSUM_OL4_VERIFY  BIT(0)
+	u8 csum_verify; /* Outer L4 checksum verification */
 };
 
 struct nix_frs_cfg {
