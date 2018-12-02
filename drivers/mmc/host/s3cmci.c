@@ -26,7 +26,6 @@
 #include <linux/io.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include <plat/gpio-cfg.h>
@@ -1545,25 +1544,19 @@ static int s3cmci_probe_pdata(struct s3cmci_host *host)
 	if (pdata->wprotect_invert)
 		mmc->caps2 |= MMC_CAP2_RO_ACTIVE_HIGH;
 
-	if (pdata->detect_invert)
-		 mmc->caps2 |= MMC_CAP2_CD_ACTIVE_HIGH;
-
-	if (gpio_is_valid(pdata->gpio_detect)) {
-		ret = mmc_gpio_request_cd(mmc, pdata->gpio_detect, 0);
-		if (ret) {
-			dev_err(&pdev->dev, "error requesting GPIO for CD %d\n",
-				ret);
-			return ret;
-		}
+	/* If we get -ENOENT we have no card detect GPIO line */
+	ret = mmc_gpiod_request_cd(mmc, "cd", 0, false, 0, NULL);
+	if (ret != -ENOENT) {
+		dev_err(&pdev->dev, "error requesting GPIO for CD %d\n",
+			ret);
+		return ret;
 	}
 
-	if (gpio_is_valid(pdata->gpio_wprotect)) {
-		ret = mmc_gpio_request_ro(mmc, pdata->gpio_wprotect);
-		if (ret) {
-			dev_err(&pdev->dev, "error requesting GPIO for WP %d\n",
-				ret);
-			return ret;
-		}
+	ret = mmc_gpiod_request_ro(host->mmc, "wp", 0, false, 0, NULL);
+	if (ret != -ENOENT) {
+		dev_err(&pdev->dev, "error requesting GPIO for WP %d\n",
+			ret);
+		return ret;
 	}
 
 	return 0;
