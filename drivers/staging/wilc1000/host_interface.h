@@ -244,12 +244,6 @@ struct remain_ch {
 	u32 id;
 };
 
-struct reg_frame {
-	bool reg;
-	u16 frame_type;
-	u8 reg_id;
-};
-
 struct wilc;
 struct host_if_drv {
 	struct user_scan_req usr_scan_req;

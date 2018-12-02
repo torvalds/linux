@@ -89,6 +89,12 @@ struct del_all_sta {
 	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
 };
 
+struct wilc_reg_frame {
+	bool reg;
+	u8 reg_id;
+	__le32 frame_type;
+} __packed;
+
 struct set_ip_addr {
 	u8 *ip_addr;
 	u8 idx;
@@ -115,7 +121,6 @@ union message_body {
 	struct get_mac_addr get_mac_info;
 	struct ba_session_info session_info;
 	struct remain_ch remain_on_ch;
-	struct reg_frame reg_frame;
 	char *data;
 };
 
@@ -1963,39 +1968,6 @@ error:
 	return result;
 }
 
-static void handle_register_frame(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct reg_frame *hif_reg_frame = &msg->body.reg_frame;
-	int result;
-	struct wid wid;
-	u8 *cur_byte;
-
-	wid.id = WID_REGISTER_FRAME;
-	wid.type = WID_STR;
-	wid.val = kmalloc(sizeof(u16) + 2, GFP_KERNEL);
-	if (!wid.val)
-		goto out;
-
-	cur_byte = wid.val;
-
-	*cur_byte++ = hif_reg_frame->reg;
-	*cur_byte++ = hif_reg_frame->reg_id;
-	memcpy(cur_byte, &hif_reg_frame->frame_type, sizeof(u16));
-
-	wid.size = sizeof(u16) + 2;
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	kfree(wid.val);
-	if (result)
-		netdev_err(vif->ndev, "Failed to frame register\n");
-
-out:
-	kfree(msg);
-}
-
 static void handle_listen_state_expired(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -3162,33 +3134,35 @@ int wilc_listen_state_expired(struct wilc_vif *vif, u32 session_id)
 
 void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
+	struct wilc_reg_frame reg_frame;
 
-	msg = wilc_alloc_work(vif, handle_register_frame, false);
-	if (IS_ERR(msg))
-		return;
+	wid.id = WID_REGISTER_FRAME;
+	wid.type = WID_STR;
+	wid.size = sizeof(reg_frame);
+	wid.val = (u8 *)&reg_frame;
+
+	memset(&reg_frame, 0x0, sizeof(reg_frame));
+	reg_frame.reg = reg;
 
 	switch (frame_type) {
 	case IEEE80211_STYPE_ACTION:
-		msg->body.reg_frame.reg_id = WILC_FW_ACTION_FRM_IDX;
+		reg_frame.reg_id = WILC_FW_ACTION_FRM_IDX;
 		break;
 
 	case IEEE80211_STYPE_PROBE_REQ:
-		msg->body.reg_frame.reg_id = WILC_FW_PROBE_REQ_IDX;
+		reg_frame.reg_id = WILC_FW_PROBE_REQ_IDX;
 		break;
 
 	default:
 		break;
 	}
-	msg->body.reg_frame.frame_type = frame_type;
-	msg->body.reg_frame.reg = reg;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	reg_frame.frame_type = cpu_to_le16(frame_type);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
+	if (result)
+		netdev_err(vif->ndev, "Failed to frame register\n");
 }
 
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
