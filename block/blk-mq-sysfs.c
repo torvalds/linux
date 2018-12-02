@@ -173,9 +173,16 @@ static ssize_t blk_mq_hw_sysfs_cpus_show(struct blk_mq_hw_ctx *hctx, char *page)
 	return ret;
 }
 
+static const char *const hctx_types[] = {
+	[HCTX_TYPE_DEFAULT]	= "default",
+	[HCTX_TYPE_READ]	= "read",
+	[HCTX_TYPE_POLL]	= "poll",
+};
+
 static ssize_t blk_mq_hw_sysfs_type_show(struct blk_mq_hw_ctx *hctx, char *page)
 {
-	return sprintf(page, "%u\n", hctx->type);
+	BUILD_BUG_ON(ARRAY_SIZE(hctx_types) != HCTX_MAX_TYPES);
+	return sprintf(page, "%s\n", hctx_types[hctx->type]);
 }
 
 static struct attribute *default_ctx_attrs[] = {

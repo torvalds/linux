@@ -81,16 +81,14 @@ extern int blk_mq_hw_queue_to_node(struct blk_mq_queue_map *qmap, unsigned int);
 /*
  * blk_mq_map_queue_type() - map (hctx_type,cpu) to hardware queue
  * @q: request queue
- * @hctx_type: the hctx type index
+ * @type: the hctx type index
  * @cpu: CPU
  */
 static inline struct blk_mq_hw_ctx *blk_mq_map_queue_type(struct request_queue *q,
-							  unsigned int hctx_type,
+							  enum hctx_type type,
 							  unsigned int cpu)
 {
-	struct blk_mq_tag_set *set = q->tag_set;
-
-	return q->queue_hw_ctx[set->map[hctx_type].mq_map[cpu]];
+	return q->queue_hw_ctx[q->tag_set->map[type].mq_map[cpu]];
 }
 
 /*
@@ -103,12 +101,17 @@ static inline struct blk_mq_hw_ctx *blk_mq_map_queue(struct request_queue *q,
 						     unsigned int flags,
 						     unsigned int cpu)
 {
-	int hctx_type = 0;
+	enum hctx_type type = HCTX_TYPE_DEFAULT;
 
-	if (q->mq_ops->rq_flags_to_type)
-		hctx_type = q->mq_ops->rq_flags_to_type(q, flags);
+	if (q->tag_set->nr_maps > HCTX_TYPE_POLL &&
+	    ((flags & REQ_HIPRI) && test_bit(QUEUE_FLAG_POLL, &q->queue_flags)))
+		type = HCTX_TYPE_POLL;
 
-	return blk_mq_map_queue_type(q, hctx_type, cpu);
+	else if (q->tag_set->nr_maps > HCTX_TYPE_READ &&
+		 ((flags & REQ_OP_MASK) == REQ_OP_READ))
+		type = HCTX_TYPE_READ;
+
+	return blk_mq_map_queue_type(q, type, cpu);
 }
 
 /*

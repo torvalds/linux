@@ -95,13 +95,6 @@ struct nvme_queue;
 
 static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown);
 
-enum {
-	NVMEQ_TYPE_READ,
-	NVMEQ_TYPE_WRITE,
-	NVMEQ_TYPE_POLL,
-	NVMEQ_TYPE_NR,
-};
-
 /*
  * Represents an NVM Express device.  Each nvme_dev is a PCI function.
  */
@@ -115,7 +108,7 @@ struct nvme_dev {
 	struct dma_pool *prp_small_pool;
 	unsigned online_queues;
 	unsigned max_qid;
-	unsigned io_queues[NVMEQ_TYPE_NR];
+	unsigned io_queues[HCTX_MAX_TYPES];
 	unsigned int num_vecs;
 	int q_depth;
 	u32 db_stride;
@@ -499,10 +492,10 @@ static int nvme_pci_map_queues(struct blk_mq_tag_set *set)
 
 		map->nr_queues = dev->io_queues[i];
 		if (!map->nr_queues) {
-			BUG_ON(i == NVMEQ_TYPE_READ);
+			BUG_ON(i == HCTX_TYPE_DEFAULT);
 
 			/* shared set, resuse read set parameters */
-			map->nr_queues = dev->io_queues[NVMEQ_TYPE_READ];
+			map->nr_queues = dev->io_queues[HCTX_TYPE_DEFAULT];
 			qoff = 0;
 			offset = queue_irq_offset(dev);
 		}
@@ -512,7 +505,7 @@ static int nvme_pci_map_queues(struct blk_mq_tag_set *set)
 		 * affinity), so use the regular blk-mq cpu mapping
 		 */
 		map->queue_offset = qoff;
-		if (i != NVMEQ_TYPE_POLL)
+		if (i != HCTX_TYPE_POLL)
 			blk_mq_pci_map_queues(map, to_pci_dev(dev->dev), offset);
 		else
 			blk_mq_map_queues(map);
@@ -959,16 +952,6 @@ out_cleanup_iod:
 out_free_cmd:
 	nvme_cleanup_cmd(req);
 	return ret;
-}
-
-static int nvme_rq_flags_to_type(struct request_queue *q, unsigned int flags)
-{
-	if ((flags & REQ_HIPRI) && test_bit(QUEUE_FLAG_POLL, &q->queue_flags))
-		return NVMEQ_TYPE_POLL;
-	if ((flags & REQ_OP_MASK) == REQ_OP_READ)
-		return NVMEQ_TYPE_READ;
-
-	return NVMEQ_TYPE_WRITE;
 }
 
 static void nvme_pci_complete_rq(struct request *req)
@@ -1634,7 +1617,6 @@ static const struct blk_mq_ops nvme_mq_admin_ops = {
 #define NVME_SHARED_MQ_OPS					\
 	.queue_rq		= nvme_queue_rq,		\
 	.commit_rqs		= nvme_commit_rqs,		\
-	.rq_flags_to_type	= nvme_rq_flags_to_type,	\
 	.complete		= nvme_pci_complete_rq,		\
 	.init_hctx		= nvme_init_hctx,		\
 	.init_request		= nvme_init_request,		\
@@ -1785,9 +1767,9 @@ static int nvme_create_io_queues(struct nvme_dev *dev)
 	}
 
 	max = min(dev->max_qid, dev->ctrl.queue_count - 1);
-	if (max != 1 && dev->io_queues[NVMEQ_TYPE_POLL]) {
-		rw_queues = dev->io_queues[NVMEQ_TYPE_READ] +
-				dev->io_queues[NVMEQ_TYPE_WRITE];
+	if (max != 1 && dev->io_queues[HCTX_TYPE_POLL]) {
+		rw_queues = dev->io_queues[HCTX_TYPE_DEFAULT] +
+				dev->io_queues[HCTX_TYPE_READ];
 	} else {
 		rw_queues = max;
 	}
@@ -2076,9 +2058,9 @@ static void nvme_calc_io_queues(struct nvme_dev *dev, unsigned int nr_io_queues)
 	 * Setup read/write queue split
 	 */
 	if (nr_io_queues == 1) {
-		dev->io_queues[NVMEQ_TYPE_READ] = 1;
-		dev->io_queues[NVMEQ_TYPE_WRITE] = 0;
-		dev->io_queues[NVMEQ_TYPE_POLL] = 0;
+		dev->io_queues[HCTX_TYPE_DEFAULT] = 1;
+		dev->io_queues[HCTX_TYPE_READ] = 0;
+		dev->io_queues[HCTX_TYPE_POLL] = 0;
 		return;
 	}
 
@@ -2095,10 +2077,10 @@ static void nvme_calc_io_queues(struct nvme_dev *dev, unsigned int nr_io_queues)
 			this_p_queues = nr_io_queues - 1;
 		}
 
-		dev->io_queues[NVMEQ_TYPE_POLL] = this_p_queues;
+		dev->io_queues[HCTX_TYPE_POLL] = this_p_queues;
 		nr_io_queues -= this_p_queues;
 	} else
-		dev->io_queues[NVMEQ_TYPE_POLL] = 0;
+		dev->io_queues[HCTX_TYPE_POLL] = 0;
 
 	/*
 	 * If 'write_queues' is set, ensure it leaves room for at least
@@ -2112,11 +2094,11 @@ static void nvme_calc_io_queues(struct nvme_dev *dev, unsigned int nr_io_queues)
 	 * a queue set.
 	 */
 	if (!this_w_queues) {
-		dev->io_queues[NVMEQ_TYPE_WRITE] = 0;
-		dev->io_queues[NVMEQ_TYPE_READ] = nr_io_queues;
+		dev->io_queues[HCTX_TYPE_DEFAULT] = nr_io_queues;
+		dev->io_queues[HCTX_TYPE_READ] = 0;
 	} else {
-		dev->io_queues[NVMEQ_TYPE_WRITE] = this_w_queues;
-		dev->io_queues[NVMEQ_TYPE_READ] = nr_io_queues - this_w_queues;
+		dev->io_queues[HCTX_TYPE_DEFAULT] = this_w_queues;
+		dev->io_queues[HCTX_TYPE_READ] = nr_io_queues - this_w_queues;
 	}
 }
 
@@ -2138,8 +2120,8 @@ static int nvme_setup_irqs(struct nvme_dev *dev, int nr_io_queues)
 	 */
 	do {
 		nvme_calc_io_queues(dev, nr_io_queues);
-		irq_sets[0] = dev->io_queues[NVMEQ_TYPE_READ];
-		irq_sets[1] = dev->io_queues[NVMEQ_TYPE_WRITE];
+		irq_sets[0] = dev->io_queues[HCTX_TYPE_DEFAULT];
+		irq_sets[1] = dev->io_queues[HCTX_TYPE_READ];
 		if (!irq_sets[1])
 			affd.nr_sets = 1;
 
@@ -2226,12 +2208,12 @@ static int nvme_setup_io_queues(struct nvme_dev *dev)
 
 	dev->num_vecs = result;
 	result = max(result - 1, 1);
-	dev->max_qid = result + dev->io_queues[NVMEQ_TYPE_POLL];
+	dev->max_qid = result + dev->io_queues[HCTX_TYPE_POLL];
 
-	dev_info(dev->ctrl.device, "%d/%d/%d read/write/poll queues\n",
-					dev->io_queues[NVMEQ_TYPE_READ],
-					dev->io_queues[NVMEQ_TYPE_WRITE],
-					dev->io_queues[NVMEQ_TYPE_POLL]);
+	dev_info(dev->ctrl.device, "%d/%d/%d default/read/poll queues\n",
+					dev->io_queues[HCTX_TYPE_DEFAULT],
+					dev->io_queues[HCTX_TYPE_READ],
+					dev->io_queues[HCTX_TYPE_POLL]);
 
 	/*
 	 * Should investigate if there's a performance win from allocating
@@ -2332,13 +2314,13 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	int ret;
 
 	if (!dev->ctrl.tagset) {
-		if (!dev->io_queues[NVMEQ_TYPE_POLL])
+		if (!dev->io_queues[HCTX_TYPE_POLL])
 			dev->tagset.ops = &nvme_mq_ops;
 		else
 			dev->tagset.ops = &nvme_mq_poll_noirq_ops;
 
 		dev->tagset.nr_hw_queues = dev->online_queues - 1;
-		dev->tagset.nr_maps = NVMEQ_TYPE_NR;
+		dev->tagset.nr_maps = HCTX_MAX_TYPES;
 		dev->tagset.timeout = NVME_IO_TIMEOUT;
 		dev->tagset.numa_node = dev_to_node(dev->dev);
 		dev->tagset.queue_depth =
