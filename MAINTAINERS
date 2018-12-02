@@ -1923,7 +1923,6 @@ ARM/QUALCOMM SUPPORT
 M:	Andy Gross <andy.gross@linaro.org>
 M:	David Brown <david.brown@linaro.org>
 L:	linux-arm-msm@vger.kernel.org
-L:	linux-soc@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/soc/qcom/
 F:	arch/arm/boot/dts/qcom-*.dts
@@ -2931,7 +2930,6 @@ F:	arch/mips/include/asm/mach-bcm47xx/*
 BROADCOM BCM5301X ARM ARCHITECTURE
 M:	Hauke Mehrtens <hauke@hauke-m.de>
 M:	Rafał Miłecki <zajec5@gmail.com>
-M:	Jon Mason <jonmason@broadcom.com>
 M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-arm-kernel@lists.infradead.org
 S:	Maintained
@@ -3077,7 +3075,6 @@ F:	drivers/net/ethernet/broadcom/genet/
 BROADCOM IPROC ARM ARCHITECTURE
 M:	Ray Jui <rjui@broadcom.com>
 M:	Scott Branden <sbranden@broadcom.com>
-M:	Jon Mason <jonmason@broadcom.com>
 M:	bcm-kernel-feedback-list@broadcom.com
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/broadcom/cygnus-linux.git
