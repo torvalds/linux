@@ -37,12 +37,6 @@ union host_if_key_attr {
 	struct host_if_pmkid_attr pmkid;
 };
 
-struct key_attr {
-	enum KEY_TYPE type;
-	u8 action;
-	union host_if_key_attr attr;
-};
-
 struct scan_attr {
 	u8 src;
 	u8 type;
@@ -100,6 +94,33 @@ struct wilc_drv_handler {
 	u8 mode;
 } __packed;
 
+struct wilc_wep_key {
+	u8 index;
+	u8 key_len;
+	u8 key[0];
+} __packed;
+
+struct wilc_sta_wpa_ptk {
+	u8 mac_addr[ETH_ALEN];
+	u8 key_len;
+	u8 key[0];
+} __packed;
+
+struct wilc_ap_wpa_ptk {
+	u8 mac_addr[ETH_ALEN];
+	u8 index;
+	u8 key_len;
+	u8 key[0];
+} __packed;
+
+struct wilc_gtk_key {
+	u8 mac_addr[ETH_ALEN];
+	u8 rsc[8];
+	u8 index;
+	u8 key_len;
+	u8 key[0];
+} __packed;
+
 struct set_ip_addr {
 	u8 *ip_addr;
 	u8 idx;
@@ -110,7 +131,6 @@ union message_body {
 	struct connect_attr con_info;
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
-	struct key_attr key_info;
 	struct set_ip_addr ip_info;
 	struct set_multicast multicast_info;
 	struct get_mac_addr get_mac_info;
@@ -1275,264 +1295,6 @@ free_msg:
 	kfree(msg);
 }
 
-static int wilc_pmksa_key_copy(struct wilc_vif *vif, struct key_attr *hif_key)
-{
-	int i;
-	int ret;
-	struct wid wid;
-	u8 *key_buf;
-
-	key_buf = kmalloc((hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1,
-			  GFP_KERNEL);
-	if (!key_buf)
-		return -ENOMEM;
-
-	key_buf[0] = hif_key->attr.pmkid.numpmkid;
-
-	for (i = 0; i < hif_key->attr.pmkid.numpmkid; i++) {
-		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + 1),
-		       hif_key->attr.pmkid.pmkidlist[i].bssid, ETH_ALEN);
-		memcpy(key_buf + ((PMKSA_KEY_LEN * i) + ETH_ALEN + 1),
-		       hif_key->attr.pmkid.pmkidlist[i].pmkid, WLAN_PMKID_LEN);
-	}
-
-	wid.id = WID_PMKID_INFO;
-	wid.type = WID_STR;
-	wid.val = (s8 *)key_buf;
-	wid.size = (hif_key->attr.pmkid.numpmkid * PMKSA_KEY_LEN) + 1;
-
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				   wilc_get_vif_idx(vif));
-
-	kfree(key_buf);
-
-	return ret;
-}
-
-static void handle_key(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct key_attr *hif_key = &msg->body.key_info;
-	int result = 0;
-	struct wid wid;
-	struct wid wid_list[5];
-	u8 *key_buf;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-
-	switch (hif_key->type) {
-	case WILC_KEY_TYPE_WEP:
-
-		if (hif_key->action & WILC_ADD_KEY_AP) {
-			wid_list[0].id = WID_11I_MODE;
-			wid_list[0].type = WID_CHAR;
-			wid_list[0].size = sizeof(char);
-			wid_list[0].val = (s8 *)&hif_key->attr.wep.mode;
-
-			wid_list[1].id = WID_AUTH_TYPE;
-			wid_list[1].type = WID_CHAR;
-			wid_list[1].size = sizeof(char);
-			wid_list[1].val = (s8 *)&hif_key->attr.wep.auth_type;
-
-			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
-					  GFP_KERNEL);
-			if (!key_buf) {
-				result = -ENOMEM;
-				goto out_wep;
-			}
-
-			key_buf[0] = hif_key->attr.wep.index;
-			key_buf[1] = hif_key->attr.wep.key_len;
-
-			memcpy(&key_buf[2], hif_key->attr.wep.key,
-			       hif_key->attr.wep.key_len);
-
-			wid_list[2].id = WID_WEP_KEY_VALUE;
-			wid_list[2].type = WID_STR;
-			wid_list[2].size = hif_key->attr.wep.key_len + 2;
-			wid_list[2].val = (s8 *)key_buf;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      wid_list, 3,
-						      wilc_get_vif_idx(vif));
-			kfree(key_buf);
-		} else if (hif_key->action & WILC_ADD_KEY) {
-			key_buf = kmalloc(hif_key->attr.wep.key_len + 2,
-					  GFP_KERNEL);
-			if (!key_buf) {
-				result = -ENOMEM;
-				goto out_wep;
-			}
-			key_buf[0] = hif_key->attr.wep.index;
-			memcpy(key_buf + 1, &hif_key->attr.wep.key_len, 1);
-			memcpy(key_buf + 2, hif_key->attr.wep.key,
-			       hif_key->attr.wep.key_len);
-
-			wid.id = WID_ADD_WEP_KEY;
-			wid.type = WID_STR;
-			wid.val = (s8 *)key_buf;
-			wid.size = hif_key->attr.wep.key_len + 2;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      &wid, 1,
-						      wilc_get_vif_idx(vif));
-			kfree(key_buf);
-		} else if (hif_key->action & WILC_REMOVE_KEY) {
-			wid.id = WID_REMOVE_WEP_KEY;
-			wid.type = WID_STR;
-
-			wid.val = (s8 *)&hif_key->attr.wep.index;
-			wid.size = 1;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      &wid, 1,
-						      wilc_get_vif_idx(vif));
-		} else if (hif_key->action & WILC_DEFAULT_KEY) {
-			wid.id = WID_KEY_ID;
-			wid.type = WID_CHAR;
-			wid.val = (s8 *)&hif_key->attr.wep.index;
-			wid.size = sizeof(char);
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      &wid, 1,
-						      wilc_get_vif_idx(vif));
-		}
-out_wep:
-		complete(&msg->work_comp);
-		break;
-
-	case WILC_KEY_TYPE_WPA_RX_GTK:
-		if (hif_key->action & WILC_ADD_KEY_AP) {
-			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
-			if (!key_buf) {
-				result = -ENOMEM;
-				goto out_wpa_rx_gtk;
-			}
-
-			if (hif_key->attr.wpa.seq)
-				memcpy(key_buf + 6, hif_key->attr.wpa.seq, 8);
-
-			memcpy(key_buf + 14, &hif_key->attr.wpa.index, 1);
-			memcpy(key_buf + 15, &hif_key->attr.wpa.key_len, 1);
-			memcpy(key_buf + 16, hif_key->attr.wpa.key,
-			       hif_key->attr.wpa.key_len);
-
-			wid_list[0].id = WID_11I_MODE;
-			wid_list[0].type = WID_CHAR;
-			wid_list[0].size = sizeof(char);
-			wid_list[0].val = (s8 *)&hif_key->attr.wpa.mode;
-
-			wid_list[1].id = WID_ADD_RX_GTK;
-			wid_list[1].type = WID_STR;
-			wid_list[1].val = (s8 *)key_buf;
-			wid_list[1].size = RX_MIC_KEY_MSG_LEN;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      wid_list, 2,
-						      wilc_get_vif_idx(vif));
-
-			kfree(key_buf);
-		} else if (hif_key->action & WILC_ADD_KEY) {
-			key_buf = kzalloc(RX_MIC_KEY_MSG_LEN, GFP_KERNEL);
-			if (!key_buf) {
-				result = -ENOMEM;
-				goto out_wpa_rx_gtk;
-			}
-
-			if (hif_drv->hif_state == HOST_IF_CONNECTED)
-				memcpy(key_buf, hif_drv->assoc_bssid, ETH_ALEN);
-			else
-				netdev_err(vif->ndev, "Couldn't handle\n");
-
-			memcpy(key_buf + 6, hif_key->attr.wpa.seq, 8);
-			memcpy(key_buf + 14, &hif_key->attr.wpa.index, 1);
-			memcpy(key_buf + 15, &hif_key->attr.wpa.key_len, 1);
-			memcpy(key_buf + 16, hif_key->attr.wpa.key,
-			       hif_key->attr.wpa.key_len);
-
-			wid.id = WID_ADD_RX_GTK;
-			wid.type = WID_STR;
-			wid.val = (s8 *)key_buf;
-			wid.size = RX_MIC_KEY_MSG_LEN;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      &wid, 1,
-						      wilc_get_vif_idx(vif));
-
-			kfree(key_buf);
-		}
-out_wpa_rx_gtk:
-		complete(&msg->work_comp);
-		break;
-
-	case WILC_KEY_TYPE_WPA_PTK:
-		if (hif_key->action & WILC_ADD_KEY_AP) {
-			key_buf = kmalloc(PTK_KEY_MSG_LEN + 1, GFP_KERNEL);
-			if (!key_buf) {
-				result = -ENOMEM;
-				goto out_wpa_ptk;
-			}
-
-			memcpy(key_buf, hif_key->attr.wpa.mac_addr, 6);
-			memcpy(key_buf + 6, &hif_key->attr.wpa.index, 1);
-			memcpy(key_buf + 7, &hif_key->attr.wpa.key_len, 1);
-			memcpy(key_buf + 8, hif_key->attr.wpa.key,
-			       hif_key->attr.wpa.key_len);
-
-			wid_list[0].id = WID_11I_MODE;
-			wid_list[0].type = WID_CHAR;
-			wid_list[0].size = sizeof(char);
-			wid_list[0].val = (s8 *)&hif_key->attr.wpa.mode;
-
-			wid_list[1].id = WID_ADD_PTK;
-			wid_list[1].type = WID_STR;
-			wid_list[1].val = (s8 *)key_buf;
-			wid_list[1].size = PTK_KEY_MSG_LEN + 1;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      wid_list, 2,
-						      wilc_get_vif_idx(vif));
-			kfree(key_buf);
-		} else if (hif_key->action & WILC_ADD_KEY) {
-			key_buf = kmalloc(PTK_KEY_MSG_LEN, GFP_KERNEL);
-			if (!key_buf) {
-				result = -ENOMEM;
-				goto out_wpa_ptk;
-			}
-
-			memcpy(key_buf, hif_key->attr.wpa.mac_addr, 6);
-			memcpy(key_buf + 6, &hif_key->attr.wpa.key_len, 1);
-			memcpy(key_buf + 7, hif_key->attr.wpa.key,
-			       hif_key->attr.wpa.key_len);
-
-			wid.id = WID_ADD_PTK;
-			wid.type = WID_STR;
-			wid.val = (s8 *)key_buf;
-			wid.size = PTK_KEY_MSG_LEN;
-
-			result = wilc_send_config_pkt(vif, WILC_SET_CFG,
-						      &wid, 1,
-						      wilc_get_vif_idx(vif));
-			kfree(key_buf);
-		}
-
-out_wpa_ptk:
-		complete(&msg->work_comp);
-		break;
-
-	case WILC_KEY_TYPE_PMKSA:
-		result = wilc_pmksa_key_copy(vif, hif_key);
-		/*free 'msg', this case it not a sync call*/
-		kfree(msg);
-		break;
-	}
-
-	if (result)
-		netdev_err(vif->ndev, "Failed to send key config packet\n");
-
-	/* free 'msg' data in caller sync call */
-}
-
 static void handle_disconnect(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -1944,145 +1706,107 @@ static void timer_connect_cb(struct timer_list *t)
 
 int wilc_remove_wep_key(struct wilc_vif *vif, u8 index)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (!hif_drv) {
-		result = -EFAULT;
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return result;
-	}
+	wid.id = WID_REMOVE_WEP_KEY;
+	wid.type = WID_STR;
+	wid.size = sizeof(char);
+	wid.val = &index;
 
-	msg = wilc_alloc_work(vif, handle_key, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
-	msg->body.key_info.action = WILC_REMOVE_KEY;
-	msg->body.key_info.attr.wep.index = index;
-
-	result = wilc_enqueue_work(msg);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	else
-		wait_for_completion(&msg->work_comp);
-
-	kfree(msg);
+		netdev_err(vif->ndev,
+			   "Failed to send remove wep key config packet\n");
 	return result;
 }
 
 int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
 
-	if (!hif_drv) {
-		result = -EFAULT;
-		netdev_err(vif->ndev, "%s: hif driver is NULL\n", __func__);
-		return result;
-	}
-
-	msg = wilc_alloc_work(vif, handle_key, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
-	msg->body.key_info.action = WILC_DEFAULT_KEY;
-	msg->body.key_info.attr.wep.index = index;
-
-	result = wilc_enqueue_work(msg);
+	wid.id = WID_KEY_ID;
+	wid.type = WID_CHAR;
+	wid.size = sizeof(char);
+	wid.val = &index;
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-	else
-		wait_for_completion(&msg->work_comp);
+		netdev_err(vif->ndev,
+			   "Failed to send wep default key config packet\n");
 
-	kfree(msg);
 	return result;
 }
 
 int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
 			     u8 index)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct wilc_wep_key *wep_key;
 
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return -EFAULT;
-	}
+	wid.id = WID_ADD_WEP_KEY;
+	wid.type = WID_STR;
+	wid.size = sizeof(*wep_key) + len;
+	wep_key = kzalloc(wid.size, GFP_KERNEL);
+	if (!wep_key)
+		return -ENOMEM;
 
-	msg = wilc_alloc_work(vif, handle_key, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.val = (u8 *)wep_key;
 
-	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
-	msg->body.key_info.action = WILC_ADD_KEY;
-	msg->body.key_info.attr.wep.key = kmemdup(key, len, GFP_KERNEL);
-	if (!msg->body.key_info.attr.wep.key) {
-		result = -ENOMEM;
-		goto free_msg;
-	}
+	wep_key->index = index;
+	wep_key->key_len = len;
+	memcpy(wep_key->key, key, len);
 
-	msg->body.key_info.attr.wep.key_len = len;
-	msg->body.key_info.attr.wep.index = index;
-
-	result = wilc_enqueue_work(msg);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		goto free_key;
+		netdev_err(vif->ndev,
+			   "Failed to add wep key config packet\n");
 
-	wait_for_completion(&msg->work_comp);
-
-free_key:
-	kfree(msg->body.key_info.attr.wep.key);
-
-free_msg:
-	kfree(msg);
+	kfree(wep_key);
 	return result;
 }
 
 int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
 			    u8 index, u8 mode, enum authtype auth_type)
 {
+	struct wid wid_list[3];
 	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct wilc_wep_key *wep_key;
 
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL\n", __func__);
-		return -EFAULT;
-	}
+	wid_list[0].id = WID_11I_MODE;
+	wid_list[0].type = WID_CHAR;
+	wid_list[0].size = sizeof(char);
+	wid_list[0].val = &mode;
 
-	msg = wilc_alloc_work(vif, handle_key, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid_list[1].id = WID_AUTH_TYPE;
+	wid_list[1].type = WID_CHAR;
+	wid_list[1].size = sizeof(char);
+	wid_list[1].val = (s8 *)&auth_type;
 
-	msg->body.key_info.type = WILC_KEY_TYPE_WEP;
-	msg->body.key_info.action = WILC_ADD_KEY_AP;
-	msg->body.key_info.attr.wep.key = kmemdup(key, len, GFP_KERNEL);
-	if (!msg->body.key_info.attr.wep.key) {
-		result = -ENOMEM;
-		goto free_msg;
-	}
+	wid_list[2].id = WID_WEP_KEY_VALUE;
+	wid_list[2].type = WID_STR;
+	wid_list[2].size = sizeof(*wep_key) + len;
+	wep_key = kzalloc(wid_list[2].size, GFP_KERNEL);
+	if (!wep_key)
+		return -ENOMEM;
 
-	msg->body.key_info.attr.wep.key_len = len;
-	msg->body.key_info.attr.wep.index = index;
-	msg->body.key_info.attr.wep.mode = mode;
-	msg->body.key_info.attr.wep.auth_type = auth_type;
+	wid_list[2].val = (u8 *)wep_key;
 
-	result = wilc_enqueue_work(msg);
+	wep_key->index = index;
+	wep_key->key_len = len;
+	memcpy(wep_key->key, key, len);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
+				      ARRAY_SIZE(wid_list),
+				      wilc_get_vif_idx(vif));
 	if (result)
-		goto free_key;
+		netdev_err(vif->ndev,
+			   "Failed to add wep ap key config packet\n");
 
-	wait_for_completion(&msg->work_comp);
-
-free_key:
-	kfree(msg->body.key_info.attr.wep.key);
-
-free_msg:
-	kfree(msg);
+	kfree(wep_key);
 	return result;
 }
 
@@ -2090,65 +1814,72 @@ int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
 		 u8 mode, u8 cipher_mode, u8 index)
 {
-	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-	u8 key_len = ptk_key_len;
+	int result = 0;
+	u8 t_key_len  = ptk_key_len + RX_MIC_KEY_LEN + TX_MIC_KEY_LEN;
 
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return -EFAULT;
-	}
-
-	if (rx_mic)
-		key_len += RX_MIC_KEY_LEN;
-
-	if (tx_mic)
-		key_len += TX_MIC_KEY_LEN;
-
-	msg = wilc_alloc_work(vif, handle_key, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.key_info.type = WILC_KEY_TYPE_WPA_PTK;
 	if (mode == WILC_AP_MODE) {
-		msg->body.key_info.action = WILC_ADD_KEY_AP;
-		msg->body.key_info.attr.wpa.index = index;
+		struct wid wid_list[2];
+		struct wilc_ap_wpa_ptk *key_buf;
+
+		wid_list[0].id = WID_11I_MODE;
+		wid_list[0].type = WID_CHAR;
+		wid_list[0].size = sizeof(char);
+		wid_list[0].val = (s8 *)&cipher_mode;
+
+		key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+		if (!key_buf)
+			return -ENOMEM;
+
+		ether_addr_copy(key_buf->mac_addr, mac_addr);
+		key_buf->index = index;
+		key_buf->key_len = t_key_len;
+		memcpy(&key_buf->key[0], ptk, ptk_key_len);
+
+		if (rx_mic)
+			memcpy(&key_buf->key[ptk_key_len], rx_mic,
+			       RX_MIC_KEY_LEN);
+
+		if (tx_mic)
+			memcpy(&key_buf->key[ptk_key_len + RX_MIC_KEY_LEN],
+			       tx_mic, TX_MIC_KEY_LEN);
+
+		wid_list[1].id = WID_ADD_PTK;
+		wid_list[1].type = WID_STR;
+		wid_list[1].size = sizeof(*key_buf) + t_key_len;
+		wid_list[1].val = (u8 *)key_buf;
+		result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
+					      ARRAY_SIZE(wid_list),
+					      wilc_get_vif_idx(vif));
+		kfree(key_buf);
+	} else if (mode == WILC_STATION_MODE) {
+		struct wid wid;
+		struct wilc_sta_wpa_ptk *key_buf;
+
+		key_buf = kzalloc(sizeof(*key_buf) + t_key_len, GFP_KERNEL);
+		if (!key_buf)
+			return -ENOMEM;
+
+		ether_addr_copy(key_buf->mac_addr, mac_addr);
+		key_buf->key_len = t_key_len;
+		memcpy(&key_buf->key[0], ptk, ptk_key_len);
+
+		if (rx_mic)
+			memcpy(&key_buf->key[ptk_key_len], rx_mic,
+			       RX_MIC_KEY_LEN);
+
+		if (tx_mic)
+			memcpy(&key_buf->key[ptk_key_len + RX_MIC_KEY_LEN],
+			       tx_mic, TX_MIC_KEY_LEN);
+
+		wid.id = WID_ADD_PTK;
+		wid.type = WID_STR;
+		wid.size = sizeof(*key_buf) + t_key_len;
+		wid.val = (s8 *)key_buf;
+		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+					      wilc_get_vif_idx(vif));
+		kfree(key_buf);
 	}
-	if (mode == WILC_STATION_MODE)
-		msg->body.key_info.action = WILC_ADD_KEY;
 
-	msg->body.key_info.attr.wpa.key = kmemdup(ptk, ptk_key_len, GFP_KERNEL);
-	if (!msg->body.key_info.attr.wpa.key) {
-		result = -ENOMEM;
-		goto free_msg;
-	}
-
-	if (rx_mic)
-		memcpy(msg->body.key_info.attr.wpa.key + 16, rx_mic,
-		       RX_MIC_KEY_LEN);
-
-	if (tx_mic)
-		memcpy(msg->body.key_info.attr.wpa.key + 24, tx_mic,
-		       TX_MIC_KEY_LEN);
-
-	msg->body.key_info.attr.wpa.key_len = key_len;
-	msg->body.key_info.attr.wpa.mac_addr = mac_addr;
-	msg->body.key_info.attr.wpa.mode = cipher_mode;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		goto free_key;
-	}
-
-	wait_for_completion(&msg->work_comp);
-
-free_key:
-	kfree(msg->body.key_info.attr.wpa.key);
-
-free_msg:
-	kfree(msg);
 	return result;
 }
 
@@ -2157,108 +1888,76 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
 		    u8 cipher_mode)
 {
-	int result;
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
-	u8 key_len = gtk_key_len;
+	int result = 0;
+	struct wilc_gtk_key *gtk_key;
+	int t_key_len = gtk_key_len + RX_MIC_KEY_LEN + TX_MIC_KEY_LEN;
 
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return -EFAULT;
-	}
+	gtk_key = kzalloc(sizeof(*gtk_key) + t_key_len, GFP_KERNEL);
+	if (!gtk_key)
+		return -ENOMEM;
 
-	msg = wilc_alloc_work(vif, handle_key, true);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	/* fill bssid value only in station mode */
+	if (mode == WILC_STATION_MODE &&
+	    vif->hif_drv->hif_state == HOST_IF_CONNECTED)
+		memcpy(gtk_key->mac_addr, vif->hif_drv->assoc_bssid, ETH_ALEN);
+
+	if (key_rsc)
+		memcpy(gtk_key->rsc, key_rsc, 8);
+	gtk_key->index = index;
+	gtk_key->key_len = t_key_len;
+	memcpy(&gtk_key->key[0], rx_gtk, gtk_key_len);
 
 	if (rx_mic)
-		key_len += RX_MIC_KEY_LEN;
+		memcpy(&gtk_key->key[gtk_key_len], rx_mic, RX_MIC_KEY_LEN);
 
 	if (tx_mic)
-		key_len += TX_MIC_KEY_LEN;
-
-	if (key_rsc) {
-		msg->body.key_info.attr.wpa.seq = kmemdup(key_rsc,
-							  key_rsc_len,
-							  GFP_KERNEL);
-		if (!msg->body.key_info.attr.wpa.seq) {
-			result = -ENOMEM;
-			goto free_msg;
-		}
-	}
-
-	msg->body.key_info.type = WILC_KEY_TYPE_WPA_RX_GTK;
+		memcpy(&gtk_key->key[gtk_key_len + RX_MIC_KEY_LEN],
+		       tx_mic, TX_MIC_KEY_LEN);
 
 	if (mode == WILC_AP_MODE) {
-		msg->body.key_info.action = WILC_ADD_KEY_AP;
-		msg->body.key_info.attr.wpa.mode = cipher_mode;
-	}
-	if (mode == WILC_STATION_MODE)
-		msg->body.key_info.action = WILC_ADD_KEY;
+		struct wid wid_list[2];
 
-	msg->body.key_info.attr.wpa.key = kmemdup(rx_gtk, key_len, GFP_KERNEL);
-	if (!msg->body.key_info.attr.wpa.key) {
-		result = -ENOMEM;
-		goto free_seq;
-	}
+		wid_list[0].id = WID_11I_MODE;
+		wid_list[0].type = WID_CHAR;
+		wid_list[0].size = sizeof(char);
+		wid_list[0].val = (s8 *)&cipher_mode;
 
-	if (rx_mic)
-		memcpy(msg->body.key_info.attr.wpa.key + 16, rx_mic,
-		       RX_MIC_KEY_LEN);
+		wid_list[1].id = WID_ADD_RX_GTK;
+		wid_list[1].type = WID_STR;
+		wid_list[1].size = sizeof(*gtk_key) + t_key_len;
+		wid_list[1].val = (u8 *)gtk_key;
 
-	if (tx_mic)
-		memcpy(msg->body.key_info.attr.wpa.key + 24, tx_mic,
-		       TX_MIC_KEY_LEN);
+		result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
+					      ARRAY_SIZE(wid_list),
+					      wilc_get_vif_idx(vif));
+		kfree(gtk_key);
+	} else if (mode == WILC_STATION_MODE) {
+		struct wid wid;
 
-	msg->body.key_info.attr.wpa.index = index;
-	msg->body.key_info.attr.wpa.key_len = key_len;
-	msg->body.key_info.attr.wpa.seq_len = key_rsc_len;
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		goto free_key;
+		wid.id = WID_ADD_RX_GTK;
+		wid.type = WID_STR;
+		wid.size = sizeof(*gtk_key) + t_key_len;
+		wid.val = (u8 *)gtk_key;
+		result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+					      wilc_get_vif_idx(vif));
+		kfree(gtk_key);
 	}
 
-	wait_for_completion(&msg->work_comp);
-
-free_key:
-	kfree(msg->body.key_info.attr.wpa.key);
-
-free_seq:
-	kfree(msg->body.key_info.attr.wpa.seq);
-
-free_msg:
-	kfree(msg);
 	return result;
 }
 
-int wilc_set_pmkid_info(struct wilc_vif *vif,
-			struct host_if_pmkid_attr *pmkid)
+int wilc_set_pmkid_info(struct wilc_vif *vif, struct wilc_pmkid_attr *pmkid)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	int i;
 
-	msg = wilc_alloc_work(vif, handle_key, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_PMKID_INFO;
+	wid.type = WID_STR;
+	wid.size = (pmkid->numpmkid * sizeof(struct wilc_pmkid)) + 1;
+	wid.val = (u8 *)pmkid;
 
-	msg->body.key_info.type = WILC_KEY_TYPE_PMKSA;
-	msg->body.key_info.action = WILC_ADD_KEY;
-
-	for (i = 0; i < pmkid->numpmkid; i++) {
-		memcpy(msg->body.key_info.attr.pmkid.pmkidlist[i].bssid,
-		       &pmkid->pmkidlist[i].bssid, ETH_ALEN);
-		memcpy(msg->body.key_info.attr.pmkid.pmkidlist[i].pmkid,
-		       &pmkid->pmkidlist[i].pmkid, WLAN_PMKID_LEN);
-	}
-
-	result = wilc_enqueue_work(msg);
-	if (result) {
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
-		kfree(msg);
-	}
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 
 	return result;
 }

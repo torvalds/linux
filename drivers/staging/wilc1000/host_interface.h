@@ -117,15 +117,15 @@ enum host_if_state {
 	HOST_IF_FORCE_32BIT		= 0xFFFFFFFF
 };
 
-struct host_if_pmkid {
+struct wilc_pmkid {
 	u8 bssid[ETH_ALEN];
 	u8 pmkid[WLAN_PMKID_LEN];
-};
+} __packed;
 
-struct host_if_pmkid_attr {
+struct wilc_pmkid_attr {
 	u8 numpmkid;
-	struct host_if_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
-};
+	struct wilc_pmkid pmkidlist[WILC_MAX_NUM_PMKIDS];
+} __packed;
 
 struct cfg_param_attr {
 	u32 flag;
@@ -288,8 +288,7 @@ int wilc_add_rx_gtk(struct wilc_vif *vif, const u8 *rx_gtk, u8 gtk_key_len,
 		    u8 index, u32 key_rsc_len, const u8 *key_rsc,
 		    const u8 *rx_mic, const u8 *tx_mic, u8 mode,
 		    u8 cipher_mode);
-int wilc_set_pmkid_info(struct wilc_vif *vif,
-			struct host_if_pmkid_attr *pmkid);
+int wilc_set_pmkid_info(struct wilc_vif *vif, struct wilc_pmkid_attr *pmkid);
 int wilc_get_mac_address(struct wilc_vif *vif, u8 *mac_addr);
 int wilc_set_join_req(struct wilc_vif *vif, u8 *bssid, const u8 *ssid,
 		      size_t ssid_len, const u8 *ies, size_t ies_len,

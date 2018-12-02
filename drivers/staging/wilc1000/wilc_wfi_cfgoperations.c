@@ -1171,7 +1171,7 @@ static int del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
 		if (!memcmp(pmksa->bssid, priv->pmkid_list.pmkidlist[i].bssid,
 			    ETH_ALEN)) {
 			memset(&priv->pmkid_list.pmkidlist[i], 0,
-			       sizeof(struct host_if_pmkid));
+			       sizeof(struct wilc_pmkid));
 			break;
 		}
 	}
@@ -1197,7 +1197,7 @@ static int flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
 {
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 
-	memset(&priv->pmkid_list, 0, sizeof(struct host_if_pmkid_attr));
+	memset(&priv->pmkid_list, 0, sizeof(struct wilc_pmkid_attr));
 
 	return 0;
 }
