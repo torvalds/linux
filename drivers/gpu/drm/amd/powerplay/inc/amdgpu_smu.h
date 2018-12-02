@@ -36,12 +36,15 @@ struct smu_funcs
 {
 	int (*init_microcode)(struct smu_context *smu);
 	int (*load_microcode)(struct smu_context *smu);
+	int (*check_fw_status)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
 	((smu)->funcs->init_microcode ? (smu)->funcs->init_microcode((smu)) : 0)
 #define smu_load_microcode(smu) \
 	((smu)->funcs->load_microcode ? (smu)->funcs->load_microcode((smu)) : 0)
+#define smu_check_fw_status(smu) \
+	((smu)->funcs->check_fw_status ? (smu)->funcs->check_fw_status((smu)) : 0)
 
 extern const struct amd_ip_funcs smu_ip_funcs;
 

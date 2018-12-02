@@ -102,6 +102,12 @@ static int smu_hw_init(void *handle)
 			return ret;
 	}
 
+	ret = smu_check_fw_status(smu);
+	if (ret) {
+		pr_err("SMC firmware status is not correct\n");
+		return ret;
+	}
+
 	mutex_lock(&smu->mutex);
 
 	/* TODO */

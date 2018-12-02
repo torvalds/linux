@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
+#include "smu_v11_0.h"
 
 static int smu_v11_0_init_microcode(struct smu_context *smu)
 {
@@ -37,9 +38,15 @@ static int smu_v11_0_load_microcode(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_check_fw_status(struct smu_context *smu)
+{
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
+	.check_fw_status = smu_v11_0_check_fw_status,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
