@@ -1251,29 +1251,6 @@ blk_qc_t submit_bio(struct bio *bio)
 EXPORT_SYMBOL(submit_bio);
 
 /**
- * blk_poll - poll for IO completions
- * @q:  the queue
- * @cookie: cookie passed back at IO submission time
- * @spin: whether to spin for completions
- *
- * Description:
- *    Poll for completions on the passed in queue. Returns number of
- *    completed entries found. If @spin is true, then blk_poll will continue
- *    looping until at least one completion is found, unless the task is
- *    otherwise marked running (or we need to reschedule).
- */
-int blk_poll(struct request_queue *q, blk_qc_t cookie, bool spin)
-{
-	if (!q->poll_fn || !blk_qc_t_valid(cookie))
-		return 0;
-
-	if (current->plug)
-		blk_flush_plug_list(current->plug, false);
-	return q->poll_fn(q, cookie, spin);
-}
-EXPORT_SYMBOL_GPL(blk_poll);
-
-/**
  * blk_cloned_rq_check_limits - Helper function to check a cloned request
  *                              for new the queue limits
  * @q:  the queue
