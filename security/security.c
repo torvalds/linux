@@ -390,9 +390,10 @@ int security_sb_copy_data(char *orig, char *copy)
 }
 EXPORT_SYMBOL(security_sb_copy_data);
 
-int security_sb_remount(struct super_block *sb, void *data)
+int security_sb_remount(struct super_block *sb,
+			struct security_mnt_opts *opts)
 {
-	return call_int_hook(sb_remount, 0, sb, data);
+	return call_int_hook(sb_remount, 0, sb, opts);
 }
 
 int security_sb_kern_mount(struct super_block *sb, int flags,
