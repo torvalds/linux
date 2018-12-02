@@ -431,9 +431,8 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 	bool ena;
 	u64 cfg;
 
-	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
-	if (!pfvf->nixlf || blkaddr < 0)
+	if (blkaddr < 0)
 		return NIX_AF_ERR_AF_LF_INVALID;
 
 	block = &hw->block[blkaddr];
@@ -443,9 +442,14 @@ static int rvu_nix_aq_enq_inst(struct rvu *rvu, struct nix_aq_enq_req *req,
 		return NIX_AF_ERR_AQ_ENQUEUE;
 	}
 
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
 	nixlf = rvu_get_lf(rvu, block, pcifunc, 0);
-	if (nixlf < 0)
-		return NIX_AF_ERR_AF_LF_INVALID;
+
+	/* Skip NIXLF check for broadcast MCE entry init */
+	if (!(!rsp && req->ctype == NIX_AQ_CTYPE_MCE)) {
+		if (!pfvf->nixlf || nixlf < 0)
+			return NIX_AF_ERR_AF_LF_INVALID;
+	}
 
 	switch (req->ctype) {
 	case NIX_AQ_CTYPE_RQ:
@@ -1295,7 +1299,7 @@ static int nix_setup_mce(struct rvu *rvu, int mce, u8 op,
 	struct nix_aq_enq_req aq_req;
 	int err;
 
-	aq_req.hdr.pcifunc = pcifunc;
+	aq_req.hdr.pcifunc = 0;
 	aq_req.ctype = NIX_AQ_CTYPE_MCE;
 	aq_req.op = op;
 	aq_req.qidx = mce;

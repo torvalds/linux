@@ -476,7 +476,7 @@ void rvu_npc_install_bcast_match_entry(struct rvu *rvu, u16 pcifunc,
 	 *
 	 */
 	entry.kw[0] = BIT_ULL(13) | chan;
-	entry.kw_mask[0] = ~entry.kw[0] & (BIT_ULL(13) | 0xFFFULL);
+	entry.kw_mask[0] = BIT_ULL(13) | 0xFFFULL;
 
 	*(u64 *)&action = 0x00;
 #ifdef MCAST_MCE
