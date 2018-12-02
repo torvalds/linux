@@ -1008,13 +1008,20 @@ int rvu_npc_init(struct rvu *rvu)
 	rvu_write64(rvu, blkaddr, NPC_AF_PCK_DEF_OIP4,
 		    (NPC_LID_LC << 8) | (NPC_LT_LC_IP << 4) | 0x0F);
 
+	/* Config Inner IPV4 NPC layer info */
+	rvu_write64(rvu, blkaddr, NPC_AF_PCK_DEF_IIP4,
+		    (NPC_LID_LF << 8) | (NPC_LT_LF_TU_IP << 4) | 0x0F);
+
 	/* Enable below for Rx pkts.
 	 * - Outer IPv4 header checksum validation.
 	 * - Detect outer L2 broadcast address and set NPC_RESULT_S[L2M].
+	 * - Inner IPv4 header checksum validation.
+	 * - Set non zero checksum error code value
 	 */
 	rvu_write64(rvu, blkaddr, NPC_AF_PCK_CFG,
 		    rvu_read64(rvu, blkaddr, NPC_AF_PCK_CFG) |
-		    BIT_ULL(6) | BIT_ULL(2));
+		    BIT_ULL(32) | BIT_ULL(24) | BIT_ULL(6) |
+		    BIT_ULL(2) | BIT_ULL(1));
 
 	/* Set RX and TX side MCAM search key size.
 	 * LA..LD (ltype only) + Channel
