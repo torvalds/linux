@@ -1768,11 +1768,9 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
-	struct cfg80211_beacon_data *beacon = &settings->beacon;
 	int ret;
 
 	ret = set_channel(wiphy, &settings->chandef);
-
 	if (ret != 0)
 		netdev_err(dev, "Error in setting channel\n");
 
@@ -1780,9 +1778,7 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 	wilc_set_power_mgmt(vif, 0, 0);
 
 	return wilc_add_beacon(vif, settings->beacon_interval,
-				   settings->dtim_period, beacon->head_len,
-				   (u8 *)beacon->head, beacon->tail_len,
-				   (u8 *)beacon->tail);
+				   settings->dtim_period, &settings->beacon);
 }
 
 static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
@@ -1791,9 +1787,7 @@ static int change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	struct wilc_priv *priv = wiphy_priv(wiphy);
 	struct wilc_vif *vif = netdev_priv(priv->dev);
 
-	return wilc_add_beacon(vif, 0, 0, beacon->head_len,
-				   (u8 *)beacon->head, beacon->tail_len,
-				   (u8 *)beacon->tail);
+	return wilc_add_beacon(vif, 0, 0, beacon);
 }
 
 static int stop_ap(struct wiphy *wiphy, struct net_device *dev)

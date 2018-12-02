@@ -78,15 +78,6 @@ struct channel_attr {
 	u8 set_ch;
 };
 
-struct beacon_attr {
-	u32 interval;
-	u32 dtim_period;
-	u32 head_len;
-	u8 *head;
-	u32 tail_len;
-	u8 *tail;
-};
-
 struct set_multicast {
 	bool enabled;
 	u32 cnt;
@@ -116,7 +107,6 @@ union message_body {
 	struct key_attr key_info;
 	struct cfg_param_attr cfg_info;
 	struct channel_attr channel_info;
-	struct beacon_attr beacon_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
@@ -1878,62 +1868,6 @@ out:
 	complete(&msg->work_comp);
 }
 
-static void handle_add_beacon(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct beacon_attr *param = &msg->body.beacon_info;
-	int result;
-	struct wid wid;
-	u8 *cur_byte;
-
-	wid.id = WID_ADD_BEACON;
-	wid.type = WID_BIN;
-	wid.size = param->head_len + param->tail_len + 16;
-	wid.val = kmalloc(wid.size, GFP_KERNEL);
-	if (!wid.val)
-		goto error;
-
-	cur_byte = wid.val;
-	*cur_byte++ = (param->interval & 0xFF);
-	*cur_byte++ = ((param->interval >> 8) & 0xFF);
-	*cur_byte++ = ((param->interval >> 16) & 0xFF);
-	*cur_byte++ = ((param->interval >> 24) & 0xFF);
-
-	*cur_byte++ = (param->dtim_period & 0xFF);
-	*cur_byte++ = ((param->dtim_period >> 8) & 0xFF);
-	*cur_byte++ = ((param->dtim_period >> 16) & 0xFF);
-	*cur_byte++ = ((param->dtim_period >> 24) & 0xFF);
-
-	*cur_byte++ = (param->head_len & 0xFF);
-	*cur_byte++ = ((param->head_len >> 8) & 0xFF);
-	*cur_byte++ = ((param->head_len >> 16) & 0xFF);
-	*cur_byte++ = ((param->head_len >> 24) & 0xFF);
-
-	memcpy(cur_byte, param->head, param->head_len);
-	cur_byte += param->head_len;
-
-	*cur_byte++ = (param->tail_len & 0xFF);
-	*cur_byte++ = ((param->tail_len >> 8) & 0xFF);
-	*cur_byte++ = ((param->tail_len >> 16) & 0xFF);
-	*cur_byte++ = ((param->tail_len >> 24) & 0xFF);
-
-	if (param->tail)
-		memcpy(cur_byte, param->tail, param->tail_len);
-	cur_byte += param->tail_len;
-
-	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
-				      wilc_get_vif_idx(vif));
-	if (result)
-		netdev_err(vif->ndev, "Failed to send add beacon\n");
-
-error:
-	kfree(wid.val);
-	kfree(param->head);
-	kfree(param->tail);
-	kfree(msg);
-}
-
 static void wilc_hif_pack_sta_param(u8 *cur_byte, const u8 *mac,
 				    struct station_parameters *params)
 {
@@ -3258,47 +3192,43 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 }
 
 int wilc_add_beacon(struct wilc_vif *vif, u32 interval, u32 dtim_period,
-		    u32 head_len, u8 *head, u32 tail_len, u8 *tail)
+		    struct cfg80211_beacon_data *params)
 {
+	struct wid wid;
 	int result;
-	struct host_if_msg *msg;
-	struct beacon_attr *beacon_info;
+	u8 *cur_byte;
 
-	msg = wilc_alloc_work(vif, handle_add_beacon, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	wid.id = WID_ADD_BEACON;
+	wid.type = WID_BIN;
+	wid.size = params->head_len + params->tail_len + 16;
+	wid.val = kzalloc(wid.size, GFP_KERNEL);
+	if (!wid.val)
+		return -ENOMEM;
 
-	beacon_info = &msg->body.beacon_info;
-	beacon_info->interval = interval;
-	beacon_info->dtim_period = dtim_period;
-	beacon_info->head_len = head_len;
-	beacon_info->head = kmemdup(head, head_len, GFP_KERNEL);
-	if (!beacon_info->head) {
-		result = -ENOMEM;
-		goto error;
-	}
-	beacon_info->tail_len = tail_len;
+	cur_byte = wid.val;
+	put_unaligned_le32(interval, cur_byte);
+	cur_byte += 4;
+	put_unaligned_le32(dtim_period, cur_byte);
+	cur_byte += 4;
+	put_unaligned_le32(params->head_len, cur_byte);
+	cur_byte += 4;
 
-	if (tail_len > 0) {
-		beacon_info->tail = kmemdup(tail, tail_len, GFP_KERNEL);
-		if (!beacon_info->tail) {
-			result = -ENOMEM;
-			goto error;
-		}
-	} else {
-		beacon_info->tail = NULL;
-	}
+	if (params->head_len > 0)
+		memcpy(cur_byte, params->head, params->head_len);
+	cur_byte += params->head_len;
 
-	result = wilc_enqueue_work(msg);
+	put_unaligned_le32(params->tail_len, cur_byte);
+	cur_byte += 4;
+
+	if (params->tail_len > 0)
+		memcpy(cur_byte, params->tail, params->tail_len);
+
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1,
+				      wilc_get_vif_idx(vif));
 	if (result)
-		netdev_err(vif->ndev, "%s: enqueue work failed\n", __func__);
+		netdev_err(vif->ndev, "Failed to send add beacon\n");
 
-error:
-	if (result) {
-		kfree(beacon_info->head);
-		kfree(beacon_info->tail);
-		kfree(msg);
-	}
+	kfree(wid.val);
 
 	return result;
 }
