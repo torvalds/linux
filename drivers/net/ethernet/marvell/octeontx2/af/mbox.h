@@ -204,6 +204,9 @@ M(NIX_MARK_FORMAT_CFG,	0x800f, nix_mark_format_cfg,			\
 				 nix_mark_format_cfg,			\
 				 nix_mark_format_cfg_rsp)		\
 M(NIX_SET_RX_CFG,	0x8010, nix_set_rx_cfg, nix_rx_cfg, msg_rsp)	\
+M(NIX_LSO_FORMAT_CFG,	0x8011, nix_lso_format_cfg,			\
+				 nix_lso_format_cfg,			\
+				 nix_lso_format_cfg_rsp)		\
 M(NIX_RXVLAN_ALLOC,	0x8012, nix_rxvlan_alloc, msg_req, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
@@ -421,6 +424,7 @@ enum nix_af_status {
 	NIX_AF_ERR_RSS_NOSPC_FIELD  = -415,
 	NIX_AF_ERR_RSS_NOSPC_ALGO   = -416,
 	NIX_AF_ERR_MARK_CFG_FAIL    = -417,
+	NIX_AF_ERR_LSO_CFG_FAIL     = -418,
 	NIX_AF_INVAL_NPA_PF_FUNC    = -419,
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
 };
@@ -626,6 +630,18 @@ struct nix_frs_cfg {
 	u8	sdp_link;      /* Set SDP RX link */
 	u16	maxlen;
 	u16	minlen;
+};
+
+struct nix_lso_format_cfg {
+	struct mbox_msghdr hdr;
+	u64 field_mask;
+#define NIX_LSO_FIELD_MAX	8
+	u64 fields[NIX_LSO_FIELD_MAX];
+};
+
+struct nix_lso_format_cfg_rsp {
+	struct mbox_msghdr hdr;
+	u8 lso_format_idx;
 };
 
 /* NPC mbox message structs */

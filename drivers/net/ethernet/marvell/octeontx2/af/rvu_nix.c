@@ -298,16 +298,20 @@ static void nix_setup_lso_tso_l4(struct rvu *rvu, int blkaddr,
 	/* TCP's flags field */
 	field.layer = NIX_TXLAYER_OL4;
 	field.offset = 12;
-	field.sizem1 = 0; /* not needed */
+	field.sizem1 = 1; /* 2 bytes */
 	field.alg = NIX_LSOALG_TCP_FLAGS;
 	rvu_write64(rvu, blkaddr,
 		    NIX_AF_LSO_FORMATX_FIELDX(format, (*fidx)++),
 		    *(u64 *)&field);
 }
 
-static void nix_setup_lso(struct rvu *rvu, int blkaddr)
+static void nix_setup_lso(struct rvu *rvu, struct nix_hw *nix_hw, int blkaddr)
 {
 	u64 cfg, idx, fidx = 0;
+
+	/* Get max HW supported format indices */
+	cfg = (rvu_read64(rvu, blkaddr, NIX_AF_CONST1) >> 48) & 0xFF;
+	nix_hw->lso.total = cfg;
 
 	/* Enable LSO */
 	cfg = rvu_read64(rvu, blkaddr, NIX_AF_LSO_CFG);
@@ -318,7 +322,10 @@ static void nix_setup_lso(struct rvu *rvu, int blkaddr)
 	cfg |= (0xFFF2ULL << 32) | (0xFFF2ULL << 16);
 	rvu_write64(rvu, blkaddr, NIX_AF_LSO_CFG, cfg | BIT_ULL(63));
 
-	/* Configure format fields for TCPv4 segmentation offload */
+	/* Setup default static LSO formats
+	 *
+	 * Configure format fields for TCPv4 segmentation offload
+	 */
 	idx = NIX_LSO_FORMAT_IDX_TSOV4;
 	nix_setup_lso_tso_l3(rvu, blkaddr, idx, true, &fidx);
 	nix_setup_lso_tso_l4(rvu, blkaddr, idx, &fidx);
@@ -328,6 +335,7 @@ static void nix_setup_lso(struct rvu *rvu, int blkaddr)
 		rvu_write64(rvu, blkaddr,
 			    NIX_AF_LSO_FORMATX_FIELDX(idx, fidx), 0x0ULL);
 	}
+	nix_hw->lso.in_use++;
 
 	/* Configure format fields for TCPv6 segmentation offload */
 	idx = NIX_LSO_FORMAT_IDX_TSOV6;
@@ -340,6 +348,7 @@ static void nix_setup_lso(struct rvu *rvu, int blkaddr)
 		rvu_write64(rvu, blkaddr,
 			    NIX_AF_LSO_FORMATX_FIELDX(idx, fidx), 0x0ULL);
 	}
+	nix_hw->lso.in_use++;
 }
 
 static void nix_ctx_free(struct rvu *rvu, struct rvu_pfvf *pfvf)
@@ -2724,9 +2733,6 @@ int rvu_nix_init(struct rvu *rvu)
 	/* Restore CINT timer delay to HW reset values */
 	rvu_write64(rvu, blkaddr, NIX_AF_CINT_DELAY, 0x0ULL);
 
-	/* Configure segmentation offload formats */
-	nix_setup_lso(rvu, blkaddr);
-
 	if (blkaddr == BLKADDR_NIX0) {
 		hw->nix0 = devm_kzalloc(rvu->dev,
 					sizeof(struct nix_hw), GFP_KERNEL);
@@ -2744,6 +2750,9 @@ int rvu_nix_init(struct rvu *rvu)
 		err = nix_setup_mcast(rvu, hw->nix0, blkaddr);
 		if (err)
 			return err;
+
+		/* Configure segmentation offload formats */
+		nix_setup_lso(rvu, hw->nix0, blkaddr);
 
 		/* Config Outer/Inner L2, IP, TCP, UDP and SCTP NPC layer info.
 		 * This helps HW protocol checker to identify headers
@@ -2896,4 +2905,55 @@ void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int nixlf)
 	}
 
 	nix_ctx_free(rvu, pfvf);
+}
+
+int rvu_mbox_handler_nix_lso_format_cfg(struct rvu *rvu,
+					struct nix_lso_format_cfg *req,
+					struct nix_lso_format_cfg_rsp *rsp)
+{
+	u16 pcifunc = req->hdr.pcifunc;
+	struct nix_hw *nix_hw;
+	struct rvu_pfvf *pfvf;
+	int blkaddr, idx, f;
+	u64 reg;
+
+	pfvf = rvu_get_pfvf(rvu, pcifunc);
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NIX, pcifunc);
+	if (!pfvf->nixlf || blkaddr < 0)
+		return NIX_AF_ERR_AF_LF_INVALID;
+
+	nix_hw = get_nix_hw(rvu->hw, blkaddr);
+	if (!nix_hw)
+		return -EINVAL;
+
+	/* Find existing matching LSO format, if any */
+	for (idx = 0; idx < nix_hw->lso.in_use; idx++) {
+		for (f = 0; f < NIX_LSO_FIELD_MAX; f++) {
+			reg = rvu_read64(rvu, blkaddr,
+					 NIX_AF_LSO_FORMATX_FIELDX(idx, f));
+			if (req->fields[f] != (reg & req->field_mask))
+				break;
+		}
+
+		if (f == NIX_LSO_FIELD_MAX)
+			break;
+	}
+
+	if (idx < nix_hw->lso.in_use) {
+		/* Match found */
+		rsp->lso_format_idx = idx;
+		return 0;
+	}
+
+	if (nix_hw->lso.in_use == nix_hw->lso.total)
+		return NIX_AF_ERR_LSO_CFG_FAIL;
+
+	rsp->lso_format_idx = nix_hw->lso.in_use++;
+
+	for (f = 0; f < NIX_LSO_FIELD_MAX; f++)
+		rvu_write64(rvu, blkaddr,
+			    NIX_AF_LSO_FORMATX_FIELDX(rsp->lso_format_idx, f),
+			    req->fields[f]);
+
+	return 0;
 }
