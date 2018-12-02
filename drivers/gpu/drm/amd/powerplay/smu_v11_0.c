@@ -32,8 +32,14 @@ static int smu_v11_0_init_microcode(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_load_microcode(struct smu_context *smu)
+{
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
+	.load_microcode = smu_v11_0_load_microcode,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

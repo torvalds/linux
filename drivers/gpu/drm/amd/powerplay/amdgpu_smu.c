@@ -96,6 +96,12 @@ static int smu_hw_init(void *handle)
 	if (adev->asic_type < CHIP_VEGA20)
 		return -EINVAL;
 
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		ret = smu_load_microcode(smu);
+		if (ret)
+			return ret;
+	}
+
 	mutex_lock(&smu->mutex);
 
 	/* TODO */
