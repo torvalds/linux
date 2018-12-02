@@ -107,7 +107,6 @@ union message_body {
 	struct rcvd_net_info net_info;
 	struct rcvd_async_info async_info;
 	struct key_attr key_info;
-	struct cfg_param_attr cfg_info;
 	struct sta_inactive_t mac_info;
 	struct set_ip_addr ip_info;
 	struct drv_handler drv;
@@ -304,53 +303,6 @@ static void handle_get_mac_address(struct work_struct *work)
 		netdev_err(vif->ndev, "Failed to get mac address\n");
 	complete(&msg->work_comp);
 	/* free 'msg' data later, in caller */
-}
-
-static void handle_cfg_param(struct work_struct *work)
-{
-	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
-	struct wilc_vif *vif = msg->vif;
-	struct cfg_param_attr *param = &msg->body.cfg_info;
-	int ret;
-	struct wid wid_list[32];
-	int i = 0;
-
-	if (param->flag & WILC_CFG_PARAM_RETRY_SHORT) {
-		wid_list[i].id = WID_SHORT_RETRY_LIMIT;
-		wid_list[i].val = (s8 *)&param->short_retry_limit;
-		wid_list[i].type = WID_SHORT;
-		wid_list[i].size = sizeof(u16);
-		i++;
-	}
-	if (param->flag & WILC_CFG_PARAM_RETRY_LONG) {
-		wid_list[i].id = WID_LONG_RETRY_LIMIT;
-		wid_list[i].val = (s8 *)&param->long_retry_limit;
-		wid_list[i].type = WID_SHORT;
-		wid_list[i].size = sizeof(u16);
-		i++;
-	}
-	if (param->flag & WILC_CFG_PARAM_FRAG_THRESHOLD) {
-		wid_list[i].id = WID_FRAG_THRESHOLD;
-		wid_list[i].val = (s8 *)&param->frag_threshold;
-		wid_list[i].type = WID_SHORT;
-		wid_list[i].size = sizeof(u16);
-		i++;
-	}
-	if (param->flag & WILC_CFG_PARAM_RTS_THRESHOLD) {
-		wid_list[i].id = WID_RTS_THRESHOLD;
-		wid_list[i].val = (s8 *)&param->rts_threshold;
-		wid_list[i].type = WID_SHORT;
-		wid_list[i].size = sizeof(u16);
-		i++;
-	}
-
-	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
-				   i, wilc_get_vif_idx(vif));
-
-	if (ret)
-		netdev_err(vif->ndev, "Error in setting CFG params\n");
-
-	kfree(msg);
 }
 
 static int handle_scan_done(struct wilc_vif *vif, enum scan_event evt)
@@ -2797,26 +2749,43 @@ free_msg:
 	return result;
 }
 
-int wilc_hif_set_cfg(struct wilc_vif *vif,
-		     struct cfg_param_attr *cfg_param)
+int wilc_hif_set_cfg(struct wilc_vif *vif, struct cfg_param_attr *param)
 {
-	struct host_if_msg *msg;
-	struct host_if_drv *hif_drv = vif->hif_drv;
+	struct wid wid_list[4];
+	int i = 0;
 	int result;
 
-	if (!hif_drv) {
-		netdev_err(vif->ndev, "%s: hif driver is NULL", __func__);
-		return -EFAULT;
+	if (param->flag & WILC_CFG_PARAM_RETRY_SHORT) {
+		wid_list[i].id = WID_SHORT_RETRY_LIMIT;
+		wid_list[i].val = (s8 *)&param->short_retry_limit;
+		wid_list[i].type = WID_SHORT;
+		wid_list[i].size = sizeof(u16);
+		i++;
+	}
+	if (param->flag & WILC_CFG_PARAM_RETRY_LONG) {
+		wid_list[i].id = WID_LONG_RETRY_LIMIT;
+		wid_list[i].val = (s8 *)&param->long_retry_limit;
+		wid_list[i].type = WID_SHORT;
+		wid_list[i].size = sizeof(u16);
+		i++;
+	}
+	if (param->flag & WILC_CFG_PARAM_FRAG_THRESHOLD) {
+		wid_list[i].id = WID_FRAG_THRESHOLD;
+		wid_list[i].val = (s8 *)&param->frag_threshold;
+		wid_list[i].type = WID_SHORT;
+		wid_list[i].size = sizeof(u16);
+		i++;
+	}
+	if (param->flag & WILC_CFG_PARAM_RTS_THRESHOLD) {
+		wid_list[i].id = WID_RTS_THRESHOLD;
+		wid_list[i].val = (s8 *)&param->rts_threshold;
+		wid_list[i].type = WID_SHORT;
+		wid_list[i].size = sizeof(u16);
+		i++;
 	}
 
-	msg = wilc_alloc_work(vif, handle_cfg_param, false);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
-
-	msg->body.cfg_info = *cfg_param;
-	result = wilc_enqueue_work(msg);
-	if (result)
-		kfree(msg);
+	result = wilc_send_config_pkt(vif, WILC_SET_CFG, wid_list,
+				      i, wilc_get_vif_idx(vif));
 
 	return result;
 }
