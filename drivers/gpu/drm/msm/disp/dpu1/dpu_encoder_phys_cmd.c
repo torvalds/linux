@@ -243,7 +243,6 @@ static int _dpu_encoder_phys_cmd_handle_ppdone_timeout(
 			  atomic_read(&phys_enc->pending_kickoff_cnt));
 
 		dpu_encoder_helper_unregister_irq(phys_enc, INTR_IDX_RDPTR);
-		dpu_dbg_dump(false, __func__, true, true);
 	}
 
 	atomic_add_unless(&phys_enc->pending_kickoff_cnt, -1, 0);

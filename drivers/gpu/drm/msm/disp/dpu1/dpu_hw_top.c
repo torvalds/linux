@@ -13,7 +13,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_top.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define SSPP_SPARE                        0x28
@@ -360,8 +359,6 @@ struct dpu_hw_mdp *dpu_hw_mdptop_init(enum dpu_mdp idx,
 		DPU_ERROR("failed to init hw blk %d\n", rc);
 		goto blk_init_error;
 	}
-
-	dpu_dbg_set_dpu_top_offset(mdp->hw.blk_off);
 
 	return mdp;
 

@@ -13,7 +13,6 @@
 #include <linux/delay.h>
 #include "dpu_hwio.h"
 #include "dpu_hw_ctl.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 #include "dpu_trace.h"
 

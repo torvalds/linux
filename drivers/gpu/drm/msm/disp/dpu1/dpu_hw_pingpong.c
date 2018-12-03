@@ -16,7 +16,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_pingpong.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 #include "dpu_trace.h"
 

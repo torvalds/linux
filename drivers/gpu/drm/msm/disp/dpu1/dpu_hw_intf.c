@@ -13,7 +13,6 @@
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_intf.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define INTF_TIMING_ENGINE_EN           0x000

@@ -613,7 +613,6 @@ static void dpu_encoder_phys_vid_prepare_for_kickoff(
 		DPU_ERROR_VIDENC(vid_enc, "ctl %d reset failure: %d\n",
 				ctl->idx, rc);
 		dpu_encoder_helper_unregister_irq(phys_enc, INTR_IDX_VSYNC);
-		dpu_dbg_dump(false, __func__, true, true);
 	}
 }
 

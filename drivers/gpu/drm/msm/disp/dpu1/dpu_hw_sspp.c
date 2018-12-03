@@ -14,7 +14,6 @@
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_sspp.h"
-#include "dpu_dbg.h"
 #include "dpu_kms.h"
 
 #define DPU_FETCH_CONFIG_RESET_VALUE   0x00000087

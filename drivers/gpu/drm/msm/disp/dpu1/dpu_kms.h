@@ -23,7 +23,6 @@
 #include "msm_kms.h"
 #include "msm_mmu.h"
 #include "msm_gem.h"
-#include "dpu_dbg.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_lm.h"

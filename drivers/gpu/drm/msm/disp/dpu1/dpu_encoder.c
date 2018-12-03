@@ -1517,10 +1517,8 @@ static void dpu_encoder_helper_hw_reset(struct dpu_encoder_phys *phys_enc)
 		      ctl->idx);
 
 	rc = ctl->ops.reset(ctl);
-	if (rc) {
+	if (rc)
 		DPU_ERROR_ENC(dpu_enc, "ctl %d reset failure\n",  ctl->idx);
-		dpu_dbg_dump(false, __func__, true, true);
-	}
 
 	phys_enc->enable_state = DPU_ENC_ENABLED;
 }
