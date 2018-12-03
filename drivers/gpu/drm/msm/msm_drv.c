@@ -752,7 +752,11 @@ static int msm_irq_postinstall(struct drm_device *dev)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 	BUG_ON(!kms);
-	return kms->funcs->irq_postinstall(kms);
+
+	if (kms->funcs->irq_postinstall)
+		return kms->funcs->irq_postinstall(kms);
+
+	return 0;
 }
 
 static void msm_irq_uninstall(struct drm_device *dev)
