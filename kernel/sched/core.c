@@ -421,7 +421,7 @@ void wake_q_add(struct wake_q_head *head, struct task_struct *task)
 	 * state, even in the failed case, an explicit smp_mb() must be used.
 	 */
 	smp_mb__before_atomic();
-	if (cmpxchg_relaxed(&node->next, NULL, WAKE_Q_TAIL))
+	if (unlikely(cmpxchg_relaxed(&node->next, NULL, WAKE_Q_TAIL)))
 		return;
 
 	get_task_struct(task);
