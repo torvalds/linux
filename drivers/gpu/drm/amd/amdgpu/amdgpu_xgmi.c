@@ -78,7 +78,7 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 			adev->gmc.xgmi.node_id,
 			adev->gmc.xgmi.hive_id, ret);
 	else
-		dev_info(adev->dev, "XGMI: Add node %d to hive 0x%llx.\n",
+		dev_info(adev->dev, "XGMI: Set topology for node %d, hive 0x%llx.\n",
 			 adev->gmc.xgmi.physical_node_id,
 				 adev->gmc.xgmi.hive_id);
 
