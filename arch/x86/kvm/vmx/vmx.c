@@ -385,7 +385,7 @@ static __always_inline void vmx_disable_intercept_for_msr(unsigned long *msr_bit
 							  u32 msr, int type);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
-static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
+DEFINE_PER_CPU(struct vmcs *, current_vmcs);
 /*
  * We maintain a per-CPU linked-list of VMCS loaded on that CPU. This is needed
  * when a CPU is brought down, and we need to VMCLEAR all VMCSs loaded on it.
@@ -455,154 +455,9 @@ static const u32 vmx_msr_index[] = {
 	MSR_EFER, MSR_TSC_AUX, MSR_STAR,
 };
 
-DEFINE_STATIC_KEY_FALSE(enable_evmcs);
-
-#define current_evmcs ((struct hv_enlightened_vmcs *)this_cpu_read(current_vmcs))
-
-#define KVM_EVMCS_VERSION 1
-
-/*
- * Enlightened VMCSv1 doesn't support these:
- *
- *	POSTED_INTR_NV                  = 0x00000002,
- *	GUEST_INTR_STATUS               = 0x00000810,
- *	APIC_ACCESS_ADDR		= 0x00002014,
- *	POSTED_INTR_DESC_ADDR           = 0x00002016,
- *	EOI_EXIT_BITMAP0                = 0x0000201c,
- *	EOI_EXIT_BITMAP1                = 0x0000201e,
- *	EOI_EXIT_BITMAP2                = 0x00002020,
- *	EOI_EXIT_BITMAP3                = 0x00002022,
- *	GUEST_PML_INDEX			= 0x00000812,
- *	PML_ADDRESS			= 0x0000200e,
- *	VM_FUNCTION_CONTROL             = 0x00002018,
- *	EPTP_LIST_ADDRESS               = 0x00002024,
- *	VMREAD_BITMAP                   = 0x00002026,
- *	VMWRITE_BITMAP                  = 0x00002028,
- *
- *	TSC_MULTIPLIER                  = 0x00002032,
- *	PLE_GAP                         = 0x00004020,
- *	PLE_WINDOW                      = 0x00004022,
- *	VMX_PREEMPTION_TIMER_VALUE      = 0x0000482E,
- *      GUEST_IA32_PERF_GLOBAL_CTRL     = 0x00002808,
- *      HOST_IA32_PERF_GLOBAL_CTRL      = 0x00002c04,
- *
- * Currently unsupported in KVM:
- *	GUEST_IA32_RTIT_CTL		= 0x00002814,
- */
-#define EVMCS1_UNSUPPORTED_PINCTRL (PIN_BASED_POSTED_INTR | \
-				    PIN_BASED_VMX_PREEMPTION_TIMER)
-#define EVMCS1_UNSUPPORTED_2NDEXEC					\
-	(SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |				\
-	 SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |			\
-	 SECONDARY_EXEC_APIC_REGISTER_VIRT |				\
-	 SECONDARY_EXEC_ENABLE_PML |					\
-	 SECONDARY_EXEC_ENABLE_VMFUNC |					\
-	 SECONDARY_EXEC_SHADOW_VMCS |					\
-	 SECONDARY_EXEC_TSC_SCALING |					\
-	 SECONDARY_EXEC_PAUSE_LOOP_EXITING)
-#define EVMCS1_UNSUPPORTED_VMEXIT_CTRL (VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
-#define EVMCS1_UNSUPPORTED_VMENTRY_CTRL (VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
-#define EVMCS1_UNSUPPORTED_VMFUNC (VMX_VMFUNC_EPTP_SWITCHING)
-
 #if IS_ENABLED(CONFIG_HYPERV)
 static bool __read_mostly enlightened_vmcs = true;
 module_param(enlightened_vmcs, bool, 0444);
-
-static inline void evmcs_write64(unsigned long field, u64 value)
-{
-	u16 clean_field;
-	int offset = get_evmcs_offset(field, &clean_field);
-
-	if (offset < 0)
-		return;
-
-	*(u64 *)((char *)current_evmcs + offset) = value;
-
-	current_evmcs->hv_clean_fields &= ~clean_field;
-}
-
-static inline void evmcs_write32(unsigned long field, u32 value)
-{
-	u16 clean_field;
-	int offset = get_evmcs_offset(field, &clean_field);
-
-	if (offset < 0)
-		return;
-
-	*(u32 *)((char *)current_evmcs + offset) = value;
-	current_evmcs->hv_clean_fields &= ~clean_field;
-}
-
-static inline void evmcs_write16(unsigned long field, u16 value)
-{
-	u16 clean_field;
-	int offset = get_evmcs_offset(field, &clean_field);
-
-	if (offset < 0)
-		return;
-
-	*(u16 *)((char *)current_evmcs + offset) = value;
-	current_evmcs->hv_clean_fields &= ~clean_field;
-}
-
-static inline u64 evmcs_read64(unsigned long field)
-{
-	int offset = get_evmcs_offset(field, NULL);
-
-	if (offset < 0)
-		return 0;
-
-	return *(u64 *)((char *)current_evmcs + offset);
-}
-
-static inline u32 evmcs_read32(unsigned long field)
-{
-	int offset = get_evmcs_offset(field, NULL);
-
-	if (offset < 0)
-		return 0;
-
-	return *(u32 *)((char *)current_evmcs + offset);
-}
-
-static inline u16 evmcs_read16(unsigned long field)
-{
-	int offset = get_evmcs_offset(field, NULL);
-
-	if (offset < 0)
-		return 0;
-
-	return *(u16 *)((char *)current_evmcs + offset);
-}
-
-static inline void evmcs_touch_msr_bitmap(void)
-{
-	if (unlikely(!current_evmcs))
-		return;
-
-	if (current_evmcs->hv_enlightenments_control.msr_bitmap)
-		current_evmcs->hv_clean_fields &=
-			~HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
-}
-
-static void evmcs_load(u64 phys_addr)
-{
-	struct hv_vp_assist_page *vp_ap =
-		hv_get_vp_assist_page(smp_processor_id());
-
-	vp_ap->current_nested_vmcs = phys_addr;
-	vp_ap->enlighten_vmentry = 1;
-}
-
-static void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
-{
-	vmcs_conf->pin_based_exec_ctrl &= ~EVMCS1_UNSUPPORTED_PINCTRL;
-	vmcs_conf->cpu_based_2nd_exec_ctrl &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
-
-	vmcs_conf->vmexit_ctrl &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
-	vmcs_conf->vmentry_ctrl &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
-
-}
 
 /* check_ept_pointer() should be under protection of ept_pointer_lock. */
 static void check_ept_pointer_match(struct kvm *kvm)
@@ -650,46 +505,7 @@ static int vmx_hv_remote_flush_tlb(struct kvm *kvm)
 	spin_unlock(&to_kvm_vmx(kvm)->ept_pointer_lock);
 	return ret;
 }
-#else /* !IS_ENABLED(CONFIG_HYPERV) */
-static inline void evmcs_write64(unsigned long field, u64 value) {}
-static inline void evmcs_write32(unsigned long field, u32 value) {}
-static inline void evmcs_write16(unsigned long field, u16 value) {}
-static inline u64 evmcs_read64(unsigned long field) { return 0; }
-static inline u32 evmcs_read32(unsigned long field) { return 0; }
-static inline u16 evmcs_read16(unsigned long field) { return 0; }
-static inline void evmcs_load(u64 phys_addr) {}
-static inline void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf) {}
-static inline void evmcs_touch_msr_bitmap(void) {}
 #endif /* IS_ENABLED(CONFIG_HYPERV) */
-
-static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
-			       uint16_t *vmcs_version)
-{
-	struct vcpu_vmx *vmx = to_vmx(vcpu);
-
-	/*
-	 * vmcs_version represents the range of supported Enlightened VMCS
-	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
-	 * maximum supported version. KVM supports versions from 1 to
-	 * KVM_EVMCS_VERSION.
-	 */
-	if (vmcs_version)
-		*vmcs_version = (KVM_EVMCS_VERSION << 8) | 1;
-
-	/* We don't support disabling the feature for simplicity. */
-	if (vmx->nested.enlightened_vmcs_enabled)
-		return 0;
-
-	vmx->nested.enlightened_vmcs_enabled = true;
-
-	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
-	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
-	vmx->nested.msrs.exit_ctls_high &= ~EVMCS1_UNSUPPORTED_VMEXIT_CTRL;
-	vmx->nested.msrs.secondary_ctls_high &= ~EVMCS1_UNSUPPORTED_2NDEXEC;
-	vmx->nested.msrs.vmfunc_controls &= ~EVMCS1_UNSUPPORTED_VMFUNC;
-
-	return 0;
-}
 
 /*
  * Comment's format: document - errata name - stepping - processor name.

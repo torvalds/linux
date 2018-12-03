@@ -22,6 +22,8 @@ struct vmcs {
 	char data[0];
 };
 
+DECLARE_PER_CPU(struct vmcs *, current_vmcs);
+
 /*
  * vmcs_host_state tracks registers that are loaded from the VMCS on VMEXIT
  * and whose values change infrequently, but are not constant.  I.e. this is
