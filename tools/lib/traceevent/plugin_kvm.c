@@ -387,7 +387,7 @@ static int kvm_mmu_print_role(struct trace_seq *s, struct tep_record *record,
 
 	/*
 	 * We can only use the structure if file is of the same
-	 * endianess.
+	 * endianness.
 	 */
 	if (tep_is_file_bigendian(event->pevent) ==
 	    tep_is_host_bigendian(event->pevent)) {

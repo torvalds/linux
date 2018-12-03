@@ -1145,7 +1145,7 @@ static enum tep_event_type read_token(char **tok)
 }
 
 /**
- * tep_read_token - access to utilites to use the pevent parser
+ * tep_read_token - access to utilities to use the pevent parser
  * @tok: The token to return
  *
  * This will parse tokens from the string given by
@@ -3258,7 +3258,7 @@ static int event_read_print(struct tep_event *event)
  * @name: the name of the common field to return
  *
  * Returns a common field from the event by the given @name.
- * This only searchs the common fields and not all field.
+ * This only searches the common fields and not all field.
  */
 struct tep_format_field *
 tep_find_common_field(struct tep_event *event, const char *name)
@@ -3302,7 +3302,7 @@ tep_find_field(struct tep_event *event, const char *name)
  * @name: the name of the field
  *
  * Returns a field by the given @name.
- * This searchs the common field names first, then
+ * This searches the common field names first, then
  * the non-common ones if a common one was not found.
  */
 struct tep_format_field *
@@ -3841,7 +3841,7 @@ static void print_bitmask_to_seq(struct tep_handle *pevent,
 		/*
 		 * data points to a bit mask of size bytes.
 		 * In the kernel, this is an array of long words, thus
-		 * endianess is very important.
+		 * endianness is very important.
 		 */
 		if (pevent->file_bigendian)
 			index = size - (len + 1);
@@ -5316,9 +5316,9 @@ pid_from_cmdlist(struct tep_handle *pevent, const char *comm, struct cmdline *ne
  * This returns the cmdline structure that holds a pid for a given
  * comm, or NULL if none found. As there may be more than one pid for
  * a given comm, the result of this call can be passed back into
- * a recurring call in the @next paramater, and then it will find the
+ * a recurring call in the @next parameter, and then it will find the
  * next pid.
- * Also, it does a linear seach, so it may be slow.
+ * Also, it does a linear search, so it may be slow.
  */
 struct cmdline *tep_data_pid_from_comm(struct tep_handle *pevent, const char *comm,
 				       struct cmdline *next)
