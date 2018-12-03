@@ -38,6 +38,7 @@
 #define MBOX_AUTOMATIC_ACK		1
 
 #define MBOX_STATE_IDLE			BIT(4)
+#define MBOX_STATE_READY		BIT(5)
 #define MBOX_STATE_ACK			BIT(7)
 
 #define MBOX_MSG_LEN			8
@@ -91,8 +92,8 @@ static int hi3660_mbox_check_state(struct mbox_chan *chan)
 	unsigned long val;
 	unsigned int ret;
 
-	/* Mailbox is idle so directly bail out */
-	if (readl(base + MBOX_MODE_REG) & MBOX_STATE_IDLE)
+	/* Mailbox is ready to use */
+	if (readl(base + MBOX_MODE_REG) & MBOX_STATE_READY)
 		return 0;
 
 	/* Wait for acknowledge from remote */
@@ -103,9 +104,9 @@ static int hi3660_mbox_check_state(struct mbox_chan *chan)
 		return ret;
 	}
 
-	/* Ensure channel is released */
-	writel(0xffffffff, base + MBOX_IMASK_REG);
-	writel(BIT(mchan->ack_irq), base + MBOX_SRC_REG);
+	/* clear ack state, mailbox will get back to ready state */
+	writel(BIT(mchan->ack_irq), base + MBOX_ICLR_REG);
+
 	return 0;
 }
 
@@ -160,10 +161,6 @@ static int hi3660_mbox_startup(struct mbox_chan *chan)
 {
 	int ret;
 
-	ret = hi3660_mbox_check_state(chan);
-	if (ret)
-		return ret;
-
 	ret = hi3660_mbox_unlock(chan);
 	if (ret)
 		return ret;
@@ -183,10 +180,11 @@ static int hi3660_mbox_send_data(struct mbox_chan *chan, void *msg)
 	void __iomem *base = MBOX_BASE(mbox, ch);
 	u32 *buf = msg;
 	unsigned int i;
+	int ret;
 
-	/* Ensure channel is released */
-	writel_relaxed(0xffffffff, base + MBOX_IMASK_REG);
-	writel_relaxed(BIT(mchan->ack_irq), base + MBOX_SRC_REG);
+	ret = hi3660_mbox_check_state(chan);
+	if (ret)
+		return ret;
 
 	/* Clear mask for destination interrupt */
 	writel_relaxed(~BIT(mchan->dst_irq), base + MBOX_IMASK_REG);
