@@ -145,6 +145,58 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 		seq_printf(m, "\t\tIPv6: %pI6\n", &ipv6->sin6_addr);
 }
 
+static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
+{
+	struct list_head *stmp, *tmp, *tmp1, *tmp2;
+	struct TCP_Server_Info *server;
+	struct cifs_ses *ses;
+	struct cifs_tcon *tcon;
+	struct cifsFileInfo *cfile;
+
+	seq_puts(m, "# Version:1\n");
+	seq_puts(m, "# Format:\n");
+	seq_puts(m, "# <tree id> <persistent fid> <flags> <count> <pid> <uid>");
+#ifdef CONFIG_CIFS_DEBUG2
+	seq_printf(m, " <filename> <mid>\n");
+#else
+	seq_printf(m, " <filename>\n");
+#endif /* CIFS_DEBUG2 */
+	spin_lock(&cifs_tcp_ses_lock);
+	list_for_each(stmp, &cifs_tcp_ses_list) {
+		server = list_entry(stmp, struct TCP_Server_Info,
+				    tcp_ses_list);
+		list_for_each(tmp, &server->smb_ses_list) {
+			ses = list_entry(tmp, struct cifs_ses, smb_ses_list);
+			list_for_each(tmp1, &ses->tcon_list) {
+				tcon = list_entry(tmp1, struct cifs_tcon, tcon_list);
+				spin_lock(&tcon->open_file_lock);
+				list_for_each(tmp2, &tcon->openFileList) {
+					cfile = list_entry(tmp2, struct cifsFileInfo,
+						     tlist);
+					seq_printf(m,
+						"0x%x 0x%llx 0x%x %d %d %d %s",
+						tcon->tid,
+						cfile->fid.persistent_fid,
+						cfile->f_flags,
+						cfile->count,
+						cfile->pid,
+						from_kuid(&init_user_ns, cfile->uid),
+						cfile->dentry->d_name.name);
+#ifdef CONFIG_CIFS_DEBUG2
+					seq_printf(m, " 0x%llx\n", cfile->fid.mid);
+#else
+					seq_printf(m, "\n");
+#endif /* CIFS_DEBUG2 */
+				}
+				spin_unlock(&tcon->open_file_lock);
+			}
+		}
+	}
+	spin_unlock(&cifs_tcp_ses_lock);
+	seq_putc(m, '\n');
+	return 0;
+}
+
 static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 {
 	struct list_head *tmp1, *tmp2, *tmp3;
@@ -565,6 +617,9 @@ cifs_proc_init(void)
 	proc_create_single("DebugData", 0, proc_fs_cifs,
 			cifs_debug_data_proc_show);
 
+	proc_create_single("open_files", 0400, proc_fs_cifs,
+			cifs_debug_files_proc_show);
+
 	proc_create("Stats", 0644, proc_fs_cifs, &cifs_stats_proc_fops);
 	proc_create("cifsFYI", 0644, proc_fs_cifs, &cifsFYI_proc_fops);
 	proc_create("traceSMB", 0644, proc_fs_cifs, &traceSMB_proc_fops);
@@ -601,6 +656,7 @@ cifs_proc_clean(void)
 		return;
 
 	remove_proc_entry("DebugData", proc_fs_cifs);
+	remove_proc_entry("open_files", proc_fs_cifs);
 	remove_proc_entry("cifsFYI", proc_fs_cifs);
 	remove_proc_entry("traceSMB", proc_fs_cifs);
 	remove_proc_entry("Stats", proc_fs_cifs);

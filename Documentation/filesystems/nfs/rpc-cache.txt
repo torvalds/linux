@@ -84,7 +84,7 @@ Creating a Cache
 		A message from user space has arrived to fill out a
 		cache entry.  It is in 'buf' of length 'len'.
 		cache_parse should parse this, find the item in the
-		cache with sunrpc_cache_lookup, and update the item
+		cache with sunrpc_cache_lookup_rcu, and update the item
 		with sunrpc_cache_update.
 
 
@@ -95,7 +95,7 @@ Creating a Cache
 Using a cache
 -------------
 
-To find a value in a cache, call sunrpc_cache_lookup passing a pointer
+To find a value in a cache, call sunrpc_cache_lookup_rcu passing a pointer
 to the cache_head in a sample item with the 'key' fields filled in.
 This will be passed to ->match to identify the target entry.  If no
 entry is found, a new entry will be create, added to the cache, and
@@ -116,7 +116,7 @@ item does become valid, the deferred copy of the request will be
 revisited (->revisit).  It is expected that this method will
 reschedule the request for processing.
 
-The value returned by sunrpc_cache_lookup can also be passed to
+The value returned by sunrpc_cache_lookup_rcu can also be passed to
 sunrpc_cache_update to set the content for the item.  A second item is
 passed which should hold the content.  If the item found by _lookup
 has valid data, then it is discarded and a new item is created.  This

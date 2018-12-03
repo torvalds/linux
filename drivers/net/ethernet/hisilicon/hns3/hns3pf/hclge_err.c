@@ -751,7 +751,7 @@ static void hclge_process_ncsi_error(struct hclge_dev *hdev,
 	ret = hclge_cmd_clear_error(hdev, &desc_wr, &desc_rd,
 				    HCLGE_NCSI_INT_CLR, 0);
 	if (ret)
-		dev_err(dev, "failed(=%d) to clear NCSI intrerrupt status\n",
+		dev_err(dev, "failed(=%d) to clear NCSI interrupt status\n",
 			ret);
 }
 

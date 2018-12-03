@@ -4,6 +4,7 @@
 // Copyright 2011 Linaro Ltd.
 
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	chosen {
@@ -22,6 +23,47 @@
 		user {
 			label = "debug";
 			gpios = <&gpio5 15 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_gpio_keys>;
+
+		home {
+			label = "Home";
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_HOME>;
+			wakeup-source;
+		};
+
+		back {
+			label = "Back";
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_BACK>;
+			wakeup-source;
+		};
+
+		program {
+			label = "Program";
+			gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_PROGRAM>;
+			wakeup-source;
+		};
+
+		volume-up {
+			label = "Volume Up";
+			gpios = <&gpio2 15 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEUP>;
+			wakeup-source;
+		};
+
+		volume-down {
+			label = "Volume Down";
+			gpios = <&gpio5 14 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_VOLUMEDOWN>;
+			wakeup-source;
 		};
 	};
 
@@ -375,6 +417,15 @@
 		VLC-supply = <&reg_audio>;
 	};
 
+	touchscreen@4 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_egalax_int>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &i2c3 {
@@ -407,6 +458,12 @@
 		pinctrl_ecspi1_cs: ecspi1cs {
 			fsl,pins = <
 				MX6QDL_PAD_EIM_D19__GPIO3_IO19 0x80000000
+			>;
+		};
+
+		pinctrl_egalax_int: egalax-intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_EIM_EB0__GPIO2_IO28		0xb0b1
 			>;
 		};
 
@@ -443,6 +500,16 @@
 				MX6QDL_PAD_NANDF_CS3__ESAI_TX1      0x1b030
 				MX6QDL_PAD_ENET_MDIO__ESAI_RX_CLK   0x1b030
 				MX6QDL_PAD_GPIO_9__ESAI_RX_FS       0x1b030
+			>;
+		};
+
+		pinctrl_gpio_keys: gpiokeysgrp {
+			fsl,pins = <
+				MX6QDL_PAD_SD2_CMD__GPIO1_IO11		0x1b0b0
+				MX6QDL_PAD_SD2_DAT3__GPIO1_IO12		0x1b0b0
+				MX6QDL_PAD_SD4_DAT4__GPIO2_IO12		0x1b0b0
+				MX6QDL_PAD_SD4_DAT7__GPIO2_IO15		0x1b0b0
+				MX6QDL_PAD_DISP0_DAT20__GPIO5_IO14	0x1b0b0
 			>;
 		};
 

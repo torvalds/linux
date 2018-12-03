@@ -378,9 +378,9 @@ static int sh_vou_querycap(struct file *file, void  *priv,
 
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
-	strlcpy(cap->card, "SuperH VOU", sizeof(cap->card));
-	strlcpy(cap->driver, "sh-vou", sizeof(cap->driver));
-	strlcpy(cap->bus_info, "platform:sh-vou", sizeof(cap->bus_info));
+	strscpy(cap->card, "SuperH VOU", sizeof(cap->card));
+	strscpy(cap->driver, "sh-vou", sizeof(cap->driver));
+	strscpy(cap->bus_info, "platform:sh-vou", sizeof(cap->bus_info));
 	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_READWRITE |
 			   V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
@@ -399,7 +399,7 @@ static int sh_vou_enum_fmt_vid_out(struct file *file, void  *priv,
 	dev_dbg(vou_dev->v4l2_dev.dev, "%s()\n", __func__);
 
 	fmt->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	strlcpy(fmt->description, vou_fmt[fmt->index].desc,
+	strscpy(fmt->description, vou_fmt[fmt->index].desc,
 		sizeof(fmt->description));
 	fmt->pixelformat = vou_fmt[fmt->index].pfmt;
 
@@ -790,7 +790,7 @@ static int sh_vou_enum_output(struct file *file, void *fh,
 
 	if (a->index)
 		return -EINVAL;
-	strlcpy(a->name, "Video Out", sizeof(a->name));
+	strscpy(a->name, "Video Out", sizeof(a->name));
 	a->type = V4L2_OUTPUT_TYPE_ANALOG;
 	a->std = vou_dev->vdev.tvnorms;
 	return 0;

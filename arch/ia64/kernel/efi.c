@@ -23,7 +23,7 @@
  *	Skip non-WB memory and ignore empty memory ranges.
  */
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/crash_dump.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

@@ -38,6 +38,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drmP.h>
 #include <drm/ttm/ttm_bo_api.h>
@@ -121,28 +122,15 @@ struct qxl_output {
 	struct drm_encoder enc;
 };
 
-struct qxl_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
-
 #define to_qxl_crtc(x) container_of(x, struct qxl_crtc, base)
 #define drm_connector_to_qxl_output(x) container_of(x, struct qxl_output, base)
 #define drm_encoder_to_qxl_output(x) container_of(x, struct qxl_output, enc)
-#define to_qxl_framebuffer(x) container_of(x, struct qxl_framebuffer, base)
 
 struct qxl_mman {
 	struct ttm_bo_global_ref        bo_global_ref;
 	struct drm_global_reference	mem_global_ref;
 	bool				mem_global_referenced;
 	struct ttm_bo_device		bdev;
-};
-
-struct qxl_mode_info {
-	bool mode_config_initialized;
-
-	/* pointer to fbdev info structure */
-	struct qxl_fbdev *qfbdev;
 };
 
 
@@ -232,10 +220,9 @@ struct qxl_device {
 	void *ram;
 	struct qxl_mman		mman;
 	struct qxl_gem		gem;
-	struct qxl_mode_info mode_info;
 
-	struct fb_info			*fbdev_info;
-	struct qxl_framebuffer	*fbdev_qfb;
+	struct drm_fb_helper	fb_helper;
+
 	void *ram_physical;
 
 	struct qxl_ring *release_ring;
@@ -349,19 +336,8 @@ qxl_bo_physical_address(struct qxl_device *qdev, struct qxl_bo *bo,
 
 int qxl_fbdev_init(struct qxl_device *qdev);
 void qxl_fbdev_fini(struct qxl_device *qdev);
-int qxl_get_handle_for_primary_fb(struct qxl_device *qdev,
-				  struct drm_file *file_priv,
-				  uint32_t *handle);
-void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state);
 
 /* qxl_display.c */
-void qxl_user_framebuffer_destroy(struct drm_framebuffer *fb);
-int
-qxl_framebuffer_init(struct drm_device *dev,
-		     struct qxl_framebuffer *rfb,
-		     const struct drm_mode_fb_cmd2 *mode_cmd,
-		     struct drm_gem_object *obj,
-		     const struct drm_framebuffer_funcs *funcs);
 void qxl_display_read_client_monitors_config(struct qxl_device *qdev);
 int qxl_create_monitors_object(struct qxl_device *qdev);
 int qxl_destroy_monitors_object(struct qxl_device *qdev);
@@ -471,7 +447,7 @@ void qxl_draw_opaque_fb(const struct qxl_fb_image *qxl_fb_image,
 			int stride /* filled in if 0 */);
 
 void qxl_draw_dirty_fb(struct qxl_device *qdev,
-		       struct qxl_framebuffer *qxl_fb,
+		       struct drm_framebuffer *fb,
 		       struct qxl_bo *bo,
 		       unsigned flags, unsigned color,
 		       struct drm_clip_rect *clips,

@@ -2,7 +2,6 @@
 #ifndef _TEST_RADIX_TREE_H
 #define _TEST_RADIX_TREE_H
 
-#include "generated/map-shift.h"
 #include "../../../../include/linux/radix-tree.h"
 
 extern int kmalloc_verbose;

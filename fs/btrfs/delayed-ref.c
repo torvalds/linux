@@ -164,14 +164,27 @@ static struct btrfs_delayed_ref_node* tree_insert(struct rb_root_cached *root,
 	return NULL;
 }
 
+static struct btrfs_delayed_ref_head *find_first_ref_head(
+		struct btrfs_delayed_ref_root *dr)
+{
+	struct rb_node *n;
+	struct btrfs_delayed_ref_head *entry;
+
+	n = rb_first_cached(&dr->href_root);
+	if (!n)
+		return NULL;
+
+	entry = rb_entry(n, struct btrfs_delayed_ref_head, href_node);
+
+	return entry;
+}
+
 /*
- * find an head entry based on bytenr. This returns the delayed ref
- * head if it was able to find one, or NULL if nothing was in that spot.
- * If return_bigger is given, the next bigger entry is returned if no exact
- * match is found. But if no bigger one is found then the first node of the
- * ref head tree will be returned.
+ * Find a head entry based on bytenr. This returns the delayed ref head if it
+ * was able to find one, or NULL if nothing was in that spot.  If return_bigger
+ * is given, the next bigger entry is returned if no exact match is found.
  */
-static struct btrfs_delayed_ref_head* find_ref_head(
+static struct btrfs_delayed_ref_head *find_ref_head(
 		struct btrfs_delayed_ref_root *dr, u64 bytenr,
 		bool return_bigger)
 {
@@ -195,10 +208,9 @@ static struct btrfs_delayed_ref_head* find_ref_head(
 		if (bytenr > entry->bytenr) {
 			n = rb_next(&entry->href_node);
 			if (!n)
-				n = rb_first_cached(&dr->href_root);
+				return NULL;
 			entry = rb_entry(n, struct btrfs_delayed_ref_head,
 					 href_node);
-			return entry;
 		}
 		return entry;
 	}
@@ -355,33 +367,25 @@ struct btrfs_delayed_ref_head *btrfs_select_ref_head(
 		struct btrfs_delayed_ref_root *delayed_refs)
 {
 	struct btrfs_delayed_ref_head *head;
-	u64 start;
-	bool loop = false;
 
 again:
-	start = delayed_refs->run_delayed_start;
-	head = find_ref_head(delayed_refs, start, true);
-	if (!head && !loop) {
+	head = find_ref_head(delayed_refs, delayed_refs->run_delayed_start,
+			     true);
+	if (!head && delayed_refs->run_delayed_start != 0) {
 		delayed_refs->run_delayed_start = 0;
-		start = 0;
-		loop = true;
-		head = find_ref_head(delayed_refs, start, true);
-		if (!head)
-			return NULL;
-	} else if (!head && loop) {
-		return NULL;
+		head = find_first_ref_head(delayed_refs);
 	}
+	if (!head)
+		return NULL;
 
 	while (head->processing) {
 		struct rb_node *node;
 
 		node = rb_next(&head->href_node);
 		if (!node) {
-			if (loop)
+			if (delayed_refs->run_delayed_start == 0)
 				return NULL;
 			delayed_refs->run_delayed_start = 0;
-			start = 0;
-			loop = true;
 			goto again;
 		}
 		head = rb_entry(node, struct btrfs_delayed_ref_head,

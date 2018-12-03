@@ -94,6 +94,34 @@
 
 &spi_nor {
 	status = "okay";
+
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		boot@0 {
+			label = "boot";
+			reg = <0x000000 0x040000>;
+			read-only;
+		};
+
+		os-image@100000 {
+			label = "os-image";
+			reg = <0x040000 0x200000>;
+			compatible = "brcm,trx";
+		};
+
+		rootfs@240000 {
+			label = "rootfs";
+			reg = <0x240000 0xc00000>;
+		};
+
+		nvram@ff0000 {
+			label = "nvram";
+			reg = <0xff0000 0x010000>;
+		};
+	};
 };
 
 &usb2 {

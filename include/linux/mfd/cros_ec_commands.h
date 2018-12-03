@@ -306,15 +306,18 @@ enum host_event_code {
 /* Host event mask */
 #define EC_HOST_EVENT_MASK(event_code) (1UL << ((event_code) - 1))
 
-/* Arguments at EC_LPC_ADDR_HOST_ARGS */
+/**
+ * struct ec_lpc_host_args - Arguments at EC_LPC_ADDR_HOST_ARGS
+ * @flags: The host argument flags.
+ * @command_version: Command version.
+ * @data_size: The length of data.
+ * @checksum: Checksum; sum of command + flags + command_version + data_size +
+ *            all params/response data bytes.
+ */
 struct ec_lpc_host_args {
 	uint8_t flags;
 	uint8_t command_version;
 	uint8_t data_size;
-	/*
-	 * Checksum; sum of command + flags + command_version + data_size +
-	 * all params/response data bytes.
-	 */
 	uint8_t checksum;
 } __packed;
 
@@ -468,54 +471,43 @@ struct ec_lpc_host_args {
 
 #define EC_HOST_REQUEST_VERSION 3
 
-/* Version 3 request from host */
+/**
+ * struct ec_host_request - Version 3 request from host.
+ * @struct_version: Should be 3. The EC will return EC_RES_INVALID_HEADER if it
+ *                  receives a header with a version it doesn't know how to
+ *                  parse.
+ * @checksum: Checksum of request and data; sum of all bytes including checksum
+ *            should total to 0.
+ * @command: Command to send (EC_CMD_...)
+ * @command_version: Command version.
+ * @reserved: Unused byte in current protocol version; set to 0.
+ * @data_len: Length of data which follows this header.
+ */
 struct ec_host_request {
-	/* Struct version (=3)
-	 *
-	 * EC will return EC_RES_INVALID_HEADER if it receives a header with a
-	 * version it doesn't know how to parse.
-	 */
 	uint8_t struct_version;
-
-	/*
-	 * Checksum of request and data; sum of all bytes including checksum
-	 * should total to 0.
-	 */
 	uint8_t checksum;
-
-	/* Command code */
 	uint16_t command;
-
-	/* Command version */
 	uint8_t command_version;
-
-	/* Unused byte in current protocol version; set to 0 */
 	uint8_t reserved;
-
-	/* Length of data which follows this header */
 	uint16_t data_len;
 } __packed;
 
 #define EC_HOST_RESPONSE_VERSION 3
 
-/* Version 3 response from EC */
+/**
+ * struct ec_host_response - Version 3 response from EC.
+ * @struct_version: Struct version (=3).
+ * @checksum: Checksum of response and data; sum of all bytes including
+ *            checksum should total to 0.
+ * @result: EC's response to the command (separate from communication failure)
+ * @data_len: Length of data which follows this header.
+ * @reserved: Unused bytes in current protocol version; set to 0.
+ */
 struct ec_host_response {
-	/* Struct version (=3) */
 	uint8_t struct_version;
-
-	/*
-	 * Checksum of response and data; sum of all bytes including checksum
-	 * should total to 0.
-	 */
 	uint8_t checksum;
-
-	/* Result code (EC_RES_*) */
 	uint16_t result;
-
-	/* Length of data which follows this header */
 	uint16_t data_len;
-
-	/* Unused bytes in current protocol version; set to 0 */
 	uint16_t reserved;
 } __packed;
 
@@ -540,6 +532,10 @@ struct ec_host_response {
  */
 #define EC_CMD_PROTO_VERSION 0x00
 
+/**
+ * struct ec_response_proto_version - Response to the proto version command.
+ * @version: The protocol version.
+ */
 struct ec_response_proto_version {
 	uint32_t version;
 } __packed;
@@ -550,12 +546,20 @@ struct ec_response_proto_version {
  */
 #define EC_CMD_HELLO 0x01
 
+/**
+ * struct ec_params_hello - Parameters to the hello command.
+ * @in_data: Pass anything here.
+ */
 struct ec_params_hello {
-	uint32_t in_data;  /* Pass anything here */
+	uint32_t in_data;
 } __packed;
 
+/**
+ * struct ec_response_hello - Response to the hello command.
+ * @out_data: Output will be in_data + 0x01020304.
+ */
 struct ec_response_hello {
-	uint32_t out_data;  /* Output will be in_data + 0x01020304 */
+	uint32_t out_data;
 } __packed;
 
 /* Get version number */
@@ -567,22 +571,37 @@ enum ec_current_image {
 	EC_IMAGE_RW
 };
 
+/**
+ * struct ec_response_get_version - Response to the get version command.
+ * @version_string_ro: Null-terminated RO firmware version string.
+ * @version_string_rw: Null-terminated RW firmware version string.
+ * @reserved: Unused bytes; was previously RW-B firmware version string.
+ * @current_image: One of ec_current_image.
+ */
 struct ec_response_get_version {
-	/* Null-terminated version strings for RO, RW */
 	char version_string_ro[32];
 	char version_string_rw[32];
-	char reserved[32];       /* Was previously RW-B string */
-	uint32_t current_image;  /* One of ec_current_image */
+	char reserved[32];
+	uint32_t current_image;
 } __packed;
 
 /* Read test */
 #define EC_CMD_READ_TEST 0x03
 
+/**
+ * struct ec_params_read_test - Parameters for the read test command.
+ * @offset: Starting value for read buffer.
+ * @size: Size to read in bytes.
+ */
 struct ec_params_read_test {
-	uint32_t offset;   /* Starting value for read buffer */
-	uint32_t size;     /* Size to read in bytes */
+	uint32_t offset;
+	uint32_t size;
 } __packed;
 
+/**
+ * struct ec_response_read_test - Response to the read test command.
+ * @data: Data returned by the read test command.
+ */
 struct ec_response_read_test {
 	uint32_t data[32];
 } __packed;
@@ -597,18 +616,27 @@ struct ec_response_read_test {
 /* Get chip info */
 #define EC_CMD_GET_CHIP_INFO 0x05
 
+/**
+ * struct ec_response_get_chip_info - Response to the get chip info command.
+ * @vendor: Null-terminated string for chip vendor.
+ * @name: Null-terminated string for chip name.
+ * @revision: Null-terminated string for chip mask version.
+ */
 struct ec_response_get_chip_info {
-	/* Null-terminated strings */
 	char vendor[32];
 	char name[32];
-	char revision[32];  /* Mask version */
+	char revision[32];
 } __packed;
 
 /* Get board HW version */
 #define EC_CMD_GET_BOARD_VERSION 0x06
 
+/**
+ * struct ec_response_board_version - Response to the board version command.
+ * @board_version: A monotonously incrementing number.
+ */
 struct ec_response_board_version {
-	uint16_t board_version;  /* A monotonously incrementing number. */
+	uint16_t board_version;
 } __packed;
 
 /*
@@ -621,27 +649,42 @@ struct ec_response_board_version {
  */
 #define EC_CMD_READ_MEMMAP 0x07
 
+/**
+ * struct ec_params_read_memmap - Parameters for the read memory map command.
+ * @offset: Offset in memmap (EC_MEMMAP_*).
+ * @size: Size to read in bytes.
+ */
 struct ec_params_read_memmap {
-	uint8_t offset;   /* Offset in memmap (EC_MEMMAP_*) */
-	uint8_t size;     /* Size to read in bytes */
+	uint8_t offset;
+	uint8_t size;
 } __packed;
 
 /* Read versions supported for a command */
 #define EC_CMD_GET_CMD_VERSIONS 0x08
 
+/**
+ * struct ec_params_get_cmd_versions - Parameters for the get command versions.
+ * @cmd: Command to check.
+ */
 struct ec_params_get_cmd_versions {
-	uint8_t cmd;      /* Command to check */
+	uint8_t cmd;
 } __packed;
 
+/**
+ * struct ec_params_get_cmd_versions_v1 - Parameters for the get command
+ *         versions (v1)
+ * @cmd: Command to check.
+ */
 struct ec_params_get_cmd_versions_v1 {
-	uint16_t cmd;     /* Command to check */
+	uint16_t cmd;
 } __packed;
 
+/**
+ * struct ec_response_get_cmd_version - Response to the get command versions.
+ * @version_mask: Mask of supported versions; use EC_VER_MASK() to compare with
+ *                a desired version.
+ */
 struct ec_response_get_cmd_versions {
-	/*
-	 * Mask of supported versions; use EC_VER_MASK() to compare with a
-	 * desired version.
-	 */
 	uint32_t version_mask;
 } __packed;
 
@@ -659,6 +702,11 @@ enum ec_comms_status {
 	EC_COMMS_STATUS_PROCESSING	= 1 << 0,	/* Processing cmd */
 };
 
+/**
+ * struct ec_response_get_comms_status - Response to the get comms status
+ *         command.
+ * @flags: Mask of enum ec_comms_status.
+ */
 struct ec_response_get_comms_status {
 	uint32_t flags;		/* Mask of enum ec_comms_status */
 } __packed;
@@ -685,19 +733,19 @@ struct ec_response_test_protocol {
 /* EC_RES_IN_PROGRESS may be returned if a command is slow */
 #define EC_PROTOCOL_INFO_IN_PROGRESS_SUPPORTED (1 << 0)
 
+/**
+ * struct ec_response_get_protocol_info - Response to the get protocol info.
+ * @protocol_versions: Bitmask of protocol versions supported (1 << n means
+ *                     version n).
+ * @max_request_packet_size: Maximum request packet size in bytes.
+ * @max_response_packet_size: Maximum response packet size in bytes.
+ * @flags: see EC_PROTOCOL_INFO_*
+ */
 struct ec_response_get_protocol_info {
 	/* Fields which exist if at least protocol version 3 supported */
-
-	/* Bitmask of protocol versions supported (1 << n means version n)*/
 	uint32_t protocol_versions;
-
-	/* Maximum request packet size, in bytes */
 	uint16_t max_request_packet_size;
-
-	/* Maximum response packet size, in bytes */
 	uint16_t max_response_packet_size;
-
-	/* Flags; see EC_PROTOCOL_INFO_* */
 	uint32_t flags;
 } __packed;
 
@@ -708,8 +756,10 @@ struct ec_response_get_protocol_info {
 /* The upper byte of .flags tells what to do (nothing means "get") */
 #define EC_GSV_SET        0x80000000
 
-/* The lower three bytes of .flags identifies the parameter, if that has
-   meaning for an individual command. */
+/*
+ * The lower three bytes of .flags identifies the parameter, if that has
+ * meaning for an individual command.
+ */
 #define EC_GSV_PARAM_MASK 0x00ffffff
 
 struct ec_params_get_set_value {
@@ -810,6 +860,7 @@ enum ec_feature_code {
 
 #define EC_FEATURE_MASK_0(event_code) (1UL << (event_code % 32))
 #define EC_FEATURE_MASK_1(event_code) (1UL << (event_code - 32))
+
 struct ec_response_get_features {
 	uint32_t flags[2];
 } __packed;
@@ -820,24 +871,22 @@ struct ec_response_get_features {
 /* Get flash info */
 #define EC_CMD_FLASH_INFO 0x10
 
-/* Version 0 returns these fields */
+/**
+ * struct ec_response_flash_info - Response to the flash info command.
+ * @flash_size: Usable flash size in bytes.
+ * @write_block_size: Write block size. Write offset and size must be a
+ *                    multiple of this.
+ * @erase_block_size: Erase block size. Erase offset and size must be a
+ *                    multiple of this.
+ * @protect_block_size: Protection block size. Protection offset and size
+ *                      must be a multiple of this.
+ *
+ * Version 0 returns these fields.
+ */
 struct ec_response_flash_info {
-	/* Usable flash size, in bytes */
 	uint32_t flash_size;
-	/*
-	 * Write block size.  Write offset and size must be a multiple
-	 * of this.
-	 */
 	uint32_t write_block_size;
-	/*
-	 * Erase block size.  Erase offset and size must be a multiple
-	 * of this.
-	 */
 	uint32_t erase_block_size;
-	/*
-	 * Protection block size.  Protection offset and size must be a
-	 * multiple of this.
-	 */
 	uint32_t protect_block_size;
 } __packed;
 
@@ -845,7 +894,22 @@ struct ec_response_flash_info {
 /* EC flash erases bits to 0 instead of 1 */
 #define EC_FLASH_INFO_ERASE_TO_0 (1 << 0)
 
-/*
+/**
+ * struct ec_response_flash_info_1 - Response to the flash info v1 command.
+ * @flash_size: Usable flash size in bytes.
+ * @write_block_size: Write block size. Write offset and size must be a
+ *                    multiple of this.
+ * @erase_block_size: Erase block size. Erase offset and size must be a
+ *                    multiple of this.
+ * @protect_block_size: Protection block size. Protection offset and size
+ *                      must be a multiple of this.
+ * @write_ideal_size: Ideal write size in bytes.  Writes will be fastest if
+ *                    size is exactly this and offset is a multiple of this.
+ *                    For example, an EC may have a write buffer which can do
+ *                    half-page operations if data is aligned, and a slower
+ *                    word-at-a-time write mode.
+ * @flags: Flags; see EC_FLASH_INFO_*
+ *
  * Version 1 returns the same initial fields as version 0, with additional
  * fields following.
  *
@@ -860,15 +924,7 @@ struct ec_response_flash_info_1 {
 	uint32_t protect_block_size;
 
 	/* Version 1 adds these fields: */
-	/*
-	 * Ideal write size in bytes.  Writes will be fastest if size is
-	 * exactly this and offset is a multiple of this.  For example, an EC
-	 * may have a write buffer which can do half-page operations if data is
-	 * aligned, and a slower word-at-a-time write mode.
-	 */
 	uint32_t write_ideal_size;
-
-	/* Flags; see EC_FLASH_INFO_* */
 	uint32_t flags;
 } __packed;
 
@@ -879,9 +935,14 @@ struct ec_response_flash_info_1 {
  */
 #define EC_CMD_FLASH_READ 0x11
 
+/**
+ * struct ec_params_flash_read - Parameters for the flash read command.
+ * @offset: Byte offset to read.
+ * @size: Size to read in bytes.
+ */
 struct ec_params_flash_read {
-	uint32_t offset;   /* Byte offset to read */
-	uint32_t size;     /* Size to read in bytes */
+	uint32_t offset;
+	uint32_t size;
 } __packed;
 
 /* Write flash */
@@ -891,18 +952,28 @@ struct ec_params_flash_read {
 /* Version 0 of the flash command supported only 64 bytes of data */
 #define EC_FLASH_WRITE_VER0_SIZE 64
 
+/**
+ * struct ec_params_flash_write - Parameters for the flash write command.
+ * @offset: Byte offset to write.
+ * @size: Size to write in bytes.
+ */
 struct ec_params_flash_write {
-	uint32_t offset;   /* Byte offset to write */
-	uint32_t size;     /* Size to write in bytes */
+	uint32_t offset;
+	uint32_t size;
 	/* Followed by data to write */
 } __packed;
 
 /* Erase flash */
 #define EC_CMD_FLASH_ERASE 0x13
 
+/**
+ * struct ec_params_flash_erase - Parameters for the flash erase command.
+ * @offset: Byte offset to erase.
+ * @size: Size to erase in bytes.
+ */
 struct ec_params_flash_erase {
-	uint32_t offset;   /* Byte offset to erase */
-	uint32_t size;     /* Size to erase in bytes */
+	uint32_t offset;
+	uint32_t size;
 } __packed;
 
 /*
@@ -941,21 +1012,28 @@ struct ec_params_flash_erase {
 /* Entile flash code protected when the EC boots */
 #define EC_FLASH_PROTECT_ALL_AT_BOOT        (1 << 6)
 
+/**
+ * struct ec_params_flash_protect - Parameters for the flash protect command.
+ * @mask: Bits in flags to apply.
+ * @flags: New flags to apply.
+ */
 struct ec_params_flash_protect {
-	uint32_t mask;   /* Bits in flags to apply */
-	uint32_t flags;  /* New flags to apply */
+	uint32_t mask;
+	uint32_t flags;
 } __packed;
 
+/**
+ * struct ec_response_flash_protect - Response to the flash protect command.
+ * @flags: Current value of flash protect flags.
+ * @valid_flags: Flags which are valid on this platform. This allows the
+ *               caller to distinguish between flags which aren't set vs. flags
+ *               which can't be set on this platform.
+ * @writable_flags: Flags which can be changed given the current protection
+ *                  state.
+ */
 struct ec_response_flash_protect {
-	/* Current value of flash protect flags */
 	uint32_t flags;
-	/*
-	 * Flags which are valid on this platform.  This allows the caller
-	 * to distinguish between flags which aren't set vs. flags which can't
-	 * be set on this platform.
-	 */
 	uint32_t valid_flags;
-	/* Flags which can be changed given the current protection state */
 	uint32_t writable_flags;
 } __packed;
 
@@ -982,8 +1060,13 @@ enum ec_flash_region {
 	EC_FLASH_REGION_COUNT,
 };
 
+/**
+ * struct ec_params_flash_region_info - Parameters for the flash region info
+ *         command.
+ * @region: Flash region; see EC_FLASH_REGION_*
+ */
 struct ec_params_flash_region_info {
-	uint32_t region;  /* enum ec_flash_region */
+	uint32_t region;
 } __packed;
 
 struct ec_response_flash_region_info {
@@ -1094,7 +1177,9 @@ struct rgb_s {
 };
 
 #define LB_BATTERY_LEVELS 4
-/* List of tweakable parameters. NOTE: It's __packed so it can be sent in a
+
+/*
+ * List of tweakable parameters. NOTE: It's __packed so it can be sent in a
  * host command, but the alignment is the same regardless. Keep it that way.
  */
 struct lightbar_params_v0 {

@@ -385,6 +385,12 @@
 			     regulator-max-microvolt = <1800000>;
 			};
 
+			tflash_reg: LDO17 {
+			     regulator-name = "VTF_2.8V";
+			     regulator-min-microvolt = <2800000>;
+			     regulator-max-microvolt = <2800000>;
+			};
+
 			vddq_reg: LDO21 {
 			     regulator-name = "VDDQ_M1M2_1.2V";
 			     regulator-min-microvolt = <1200000>;
@@ -449,6 +455,15 @@
 	pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus8>;
 	pinctrl-names = "default";
 	vmmc-supply = <&vemmc_reg>;
+	status = "okay";
+};
+
+&sdhci_2 {
+	bus-width = <4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4>;
+	pinctrl-names = "default";
+	vmmc-supply = <&tflash_reg>;
+	cd-gpios = <&gpx3 4 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

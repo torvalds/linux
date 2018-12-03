@@ -21,6 +21,7 @@ Core utilities
    local_ops
    workqueue
    genericirq
+   xarray
    flexible-arrays
    librs
    genalloc

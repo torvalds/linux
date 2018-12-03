@@ -369,7 +369,9 @@ static int fat_parse_short(struct super_block *sb,
 	}
 
 	memcpy(work, de->name, sizeof(work));
-	/* see namei.c, msdos_format_name */
+	/* For an explanation of the special treatment of 0x05 in
+	 * filenames, see msdos_format_name in namei_msdos.c
+	 */
 	if (work[0] == 0x05)
 		work[0] = 0xE5;
 
@@ -1071,7 +1073,7 @@ int fat_remove_entries(struct inode *dir, struct fat_slot_info *sinfo)
 		}
 	}
 
-	dir->i_mtime = dir->i_atime = current_time(dir);
+	fat_truncate_time(dir, NULL, S_ATIME|S_MTIME);
 	if (IS_DIRSYNC(dir))
 		(void)fat_sync_inode(dir);
 	else

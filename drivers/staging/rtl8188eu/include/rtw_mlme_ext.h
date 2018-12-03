@@ -231,22 +231,22 @@ enum SCAN_STATE {
 };
 
 struct mlme_handler {
-	unsigned int   num;
-	char *str;
+	unsigned int num;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
 struct action_handler {
-	unsigned int   num;
-	char *str;
+	unsigned int num;
+	const char *str;
 	unsigned int (*func)(struct adapter *adapt, struct recv_frame *frame);
 };
 
-struct	ss_res {
-	int	state;
-	int	bss_cnt;
-	int	channel_idx;
-	int	scan_mode;
+struct ss_res {
+	int state;
+	int bss_cnt;
+	int channel_idx;
+	int scan_mode;
 	u8 ssid_num;
 	u8 ch_num;
 	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];

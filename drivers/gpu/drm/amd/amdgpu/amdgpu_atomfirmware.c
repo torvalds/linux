@@ -117,6 +117,10 @@ union igp_info {
 union umc_info {
 	struct atom_umc_info_v3_1 v31;
 };
+
+union vram_info {
+	struct atom_vram_info_header_v2_3 v23;
+};
 /*
  * Return vram width from integrated system info table, if available,
  * or 0 if not.
@@ -174,7 +178,7 @@ static int convert_atom_mem_type_to_vram_type (struct amdgpu_device *adev,
 		case ATOM_DGPU_VRAM_TYPE_GDDR5:
 			vram_type = AMDGPU_VRAM_TYPE_GDDR5;
 			break;
-		case ATOM_DGPU_VRAM_TYPE_HBM:
+		case ATOM_DGPU_VRAM_TYPE_HBM2:
 			vram_type = AMDGPU_VRAM_TYPE_HBM;
 			break;
 		default:
@@ -195,7 +199,7 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 	int index;
 	u16 data_offset, size;
 	union igp_info *igp_info;
-	union umc_info *umc_info;
+	union vram_info *vram_info;
 	u8 frev, crev;
 	u8 mem_type;
 
@@ -204,7 +208,7 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 						    integratedsysteminfo);
 	else
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						    umc_info);
+						    vram_info);
 	if (amdgpu_atom_parse_data_header(mode_info->atom_context,
 					  index, &size,
 					  &frev, &crev, &data_offset)) {
@@ -219,11 +223,11 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 				return 0;
 			}
 		} else {
-			umc_info = (union umc_info *)
+			vram_info = (union vram_info *)
 				(mode_info->atom_context->bios + data_offset);
 			switch (crev) {
-			case 1:
-				mem_type = umc_info->v31.vram_type;
+			case 3:
+				mem_type = vram_info->v23.vram_module[0].memory_type;
 				return convert_atom_mem_type_to_vram_type(adev, mem_type);
 			default:
 				return 0;

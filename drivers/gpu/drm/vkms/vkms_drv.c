@@ -5,6 +5,15 @@
  * (at your option) any later version.
  */
 
+/**
+ * DOC: vkms (Virtual Kernel Modesetting)
+ *
+ * vkms is a software-only model of a kms driver that is useful for testing,
+ * or for running X (or similar) on headless machines and be able to still
+ * use the GPU. vkms aims to enable a virtual display without the need for
+ * a hardware display capability.
+ */
+
 #include <linux/module.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_crtc_helper.h>
@@ -20,6 +29,10 @@
 #define DRIVER_MINOR	0
 
 static struct vkms_device *vkms_device;
+
+bool enable_cursor;
+module_param_named(enable_cursor, enable_cursor, bool, 0444);
+MODULE_PARM_DESC(enable_cursor, "Enable/Disable cursor support");
 
 static const struct file_operations vkms_driver_fops = {
 	.owner		= THIS_MODULE,
@@ -47,6 +60,7 @@ static void vkms_release(struct drm_device *dev)
 	drm_atomic_helper_shutdown(&vkms->drm);
 	drm_mode_config_cleanup(&vkms->drm);
 	drm_dev_fini(&vkms->drm);
+	destroy_workqueue(vkms->output.crc_workq);
 }
 
 static struct drm_driver vkms_driver = {

@@ -3,15 +3,7 @@
 # description: trace_marker trigger - test snapshot trigger
 # flags: instance
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    echo 0 > snapshot
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -47,14 +39,12 @@ test_trace() {
 	fi
 	echo "testing $line for >$x<"
 	match=`echo $line | sed -e "s/>$x<//"`
-	if [ "$line" == "$match" ]; then
+	if [ "$line" = "$match" ]; then
 	    fail "$line does not have >$x< in it"
 	fi
-	let x=$x+2
+	x=$((x+2))
     done
 }
-
-do_reset
 
 echo "Test snapshot trace_marker tigger"
 
@@ -68,7 +58,5 @@ for i in `seq 1 10` ; do echo "hello >$i<" > trace_marker; done
 
 test_trace trace 1
 test_trace snapshot 2
-
-do_reset
 
 exit 0

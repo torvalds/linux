@@ -44,11 +44,13 @@ extern const struct pp_smumgr_func vegam_smu_funcs;
 extern const struct pp_smumgr_func vega10_smu_funcs;
 extern const struct pp_smumgr_func vega12_smu_funcs;
 extern const struct pp_smumgr_func smu10_smu_funcs;
+extern const struct pp_smumgr_func vega20_smu_funcs;
 
 extern int smu7_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int smu8_init_function_pointers(struct pp_hwmgr *hwmgr);
 extern int vega10_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int vega12_hwmgr_init(struct pp_hwmgr *hwmgr);
+extern int vega20_hwmgr_init(struct pp_hwmgr *hwmgr);
 extern int smu10_init_function_pointers(struct pp_hwmgr *hwmgr);
 
 static int polaris_set_asic_special_caps(struct pp_hwmgr *hwmgr);
@@ -87,7 +89,6 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	hwmgr_init_default_caps(hwmgr);
 	hwmgr_set_user_specify_caps(hwmgr);
 	hwmgr->fan_ctrl_is_in_default_mode = true;
-	hwmgr->reload_fw = 1;
 	hwmgr_init_workload_prority(hwmgr);
 
 	switch (hwmgr->chip_family) {
@@ -149,7 +150,6 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 	case AMDGPU_FAMILY_AI:
 		switch (hwmgr->chip_id) {
 		case CHIP_VEGA10:
-		case CHIP_VEGA20:
 			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
 			hwmgr->smumgr_funcs = &vega10_smu_funcs;
 			vega10_hwmgr_init(hwmgr);
@@ -157,6 +157,11 @@ int hwmgr_early_init(struct pp_hwmgr *hwmgr)
 		case CHIP_VEGA12:
 			hwmgr->smumgr_funcs = &vega12_smu_funcs;
 			vega12_hwmgr_init(hwmgr);
+			break;
+		case CHIP_VEGA20:
+			hwmgr->feature_mask &= ~PP_GFXOFF_MASK;
+			hwmgr->smumgr_funcs = &vega20_smu_funcs;
+			vega20_hwmgr_init(hwmgr);
 			break;
 		default:
 			return -EINVAL;
@@ -202,17 +207,6 @@ int hwmgr_sw_fini(struct pp_hwmgr *hwmgr)
 int hwmgr_hw_init(struct pp_hwmgr *hwmgr)
 {
 	int ret = 0;
-
-	if (!hwmgr || !hwmgr->smumgr_funcs)
-		return -EINVAL;
-
-	if (hwmgr->smumgr_funcs->start_smu) {
-		ret = hwmgr->smumgr_funcs->start_smu(hwmgr);
-		if (ret) {
-			pr_err("smc start failed\n");
-			return -EINVAL;
-		}
-	}
 
 	if (!hwmgr->pm_en)
 		return 0;
@@ -313,13 +307,6 @@ int hwmgr_resume(struct pp_hwmgr *hwmgr)
 
 	if (!hwmgr)
 		return -EINVAL;
-
-	if (hwmgr->smumgr_funcs && hwmgr->smumgr_funcs->start_smu) {
-		if (hwmgr->smumgr_funcs->start_smu(hwmgr)) {
-			pr_err("smc start failed\n");
-			return -EINVAL;
-		}
-	}
 
 	if (!hwmgr->pm_en)
 		return 0;

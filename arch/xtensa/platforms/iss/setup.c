@@ -16,7 +16,7 @@
  * option) any later version.
  *
  */
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

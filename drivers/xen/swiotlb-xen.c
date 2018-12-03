@@ -35,7 +35,7 @@
 
 #define pr_fmt(fmt) "xen:" KBUILD_MODNAME ": " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/dma-direct.h>
 #include <linux/export.h>
 #include <xen/swiotlb-xen.h>
@@ -217,7 +217,8 @@ retry:
 	 * Get IO TLB memory from any location.
 	 */
 	if (early)
-		xen_io_tlb_start = alloc_bootmem_pages(PAGE_ALIGN(bytes));
+		xen_io_tlb_start = memblock_alloc(PAGE_ALIGN(bytes),
+						  PAGE_SIZE);
 	else {
 #define SLABS_PER_PAGE (1 << (PAGE_SHIFT - IO_TLB_SHIFT))
 #define IO_TLB_MIN_SLABS ((1<<20) >> IO_TLB_SHIFT)
@@ -247,7 +248,8 @@ retry:
 			       xen_io_tlb_nslabs);
 	if (rc) {
 		if (early)
-			free_bootmem(__pa(xen_io_tlb_start), PAGE_ALIGN(bytes));
+			memblock_free(__pa(xen_io_tlb_start),
+				      PAGE_ALIGN(bytes));
 		else {
 			free_pages((unsigned long)xen_io_tlb_start, order);
 			xen_io_tlb_start = NULL;

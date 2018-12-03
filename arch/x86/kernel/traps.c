@@ -306,7 +306,7 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 	die(message, regs, 0);
 
 	/* Be absolutely certain we don't return. */
-	panic(message);
+	panic("%s", message);
 }
 #endif
 

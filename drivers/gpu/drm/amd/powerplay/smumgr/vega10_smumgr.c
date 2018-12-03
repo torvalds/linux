@@ -88,8 +88,18 @@ static int vega10_copy_table_to_smc(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-static int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
-		uint32_t *features_enabled)
+int vega10_enable_smc_features(struct pp_hwmgr *hwmgr,
+			       bool enable, uint32_t feature_mask)
+{
+	int msg = enable ? PPSMC_MSG_EnableSmuFeatures :
+			PPSMC_MSG_DisableSmuFeatures;
+
+	return smum_send_msg_to_smc_with_parameter(hwmgr,
+			msg, feature_mask);
+}
+
+int vega10_get_enabled_smc_features(struct pp_hwmgr *hwmgr,
+			    uint64_t *features_enabled)
 {
 	if (features_enabled == NULL)
 		return -EINVAL;
@@ -102,9 +112,9 @@ static int vega10_get_smc_features(struct pp_hwmgr *hwmgr,
 
 static bool vega10_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	uint32_t features_enabled = 0;
+	uint64_t features_enabled = 0;
 
-	vega10_get_smc_features(hwmgr, &features_enabled);
+	vega10_get_enabled_smc_features(hwmgr, &features_enabled);
 
 	if (features_enabled & SMC_DPM_FEATURES)
 		return true;

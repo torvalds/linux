@@ -8,8 +8,9 @@
 #include <linux/acpi.h>
 #include <linux/init.h>
 #include <linux/mfd/axp20x.h>
-#include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include <linux/platform_device.h>
+#include <asm/iosf_mbi.h>
 #include "intel_pmic.h"
 
 #define XPOWER_GPADC_LOW	0x5b
@@ -172,15 +173,21 @@ static int intel_xpower_pmic_get_power(struct regmap *regmap, int reg,
 static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 					  int bit, bool on)
 {
-	int data;
+	int data, ret;
 
 	/* GPIO1 LDO regulator needs special handling */
 	if (reg == XPOWER_GPI1_CTRL)
 		return regmap_update_bits(regmap, reg, GPI1_LDO_MASK,
 					  on ? GPI1_LDO_ON : GPI1_LDO_OFF);
 
-	if (regmap_read(regmap, reg, &data))
-		return -EIO;
+	ret = iosf_mbi_block_punit_i2c_access();
+	if (ret)
+		return ret;
+
+	if (regmap_read(regmap, reg, &data)) {
+		ret = -EIO;
+		goto out;
+	}
 
 	if (on)
 		data |= BIT(bit);
@@ -188,9 +195,11 @@ static int intel_xpower_pmic_update_power(struct regmap *regmap, int reg,
 		data &= ~BIT(bit);
 
 	if (regmap_write(regmap, reg, data))
-		return -EIO;
+		ret = -EIO;
+out:
+	iosf_mbi_unblock_punit_i2c_access();
 
-	return 0;
+	return ret;
 }
 
 /**

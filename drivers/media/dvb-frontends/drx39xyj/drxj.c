@@ -3555,8 +3555,8 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		if (!ext_attr->has_smatx)
 			return -EIO;
 		switch (uio_cfg->mode) {
-		case DRX_UIO_MODE_FIRMWARE_SMA:	/* falltrough */
-		case DRX_UIO_MODE_FIRMWARE_SAW:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE_SMA:	/* fall through */
+		case DRX_UIO_MODE_FIRMWARE_SAW:	/* fall through */
 		case DRX_UIO_MODE_READWRITE:
 			ext_attr->uio_sma_tx_mode = uio_cfg->mode;
 			break;
@@ -3579,7 +3579,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		if (!ext_attr->has_smarx)
 			return -EIO;
 		switch (uio_cfg->mode) {
-		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE0:	/* fall through */
 		case DRX_UIO_MODE_READWRITE:
 			ext_attr->uio_sma_rx_mode = uio_cfg->mode;
 			break;
@@ -3603,7 +3603,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 		if (!ext_attr->has_gpio)
 			return -EIO;
 		switch (uio_cfg->mode) {
-		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE0:	/* fall through */
 		case DRX_UIO_MODE_READWRITE:
 			ext_attr->uio_gpio_mode = uio_cfg->mode;
 			break;
@@ -3639,7 +3639,7 @@ static int ctrl_set_uio_cfg(struct drx_demod_instance *demod, struct drxuio_cfg 
 			}
 			ext_attr->uio_irqn_mode = uio_cfg->mode;
 			break;
-		case DRX_UIO_MODE_FIRMWARE0:	/* falltrough */
+		case DRX_UIO_MODE_FIRMWARE0:	/* fall through */
 		default:
 			return -EINVAL;
 			break;

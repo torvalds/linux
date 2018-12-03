@@ -4,7 +4,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/pfn.h>

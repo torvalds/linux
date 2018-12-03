@@ -40,6 +40,13 @@
 #define AU8522_DIGITAL_MODE 1
 #define AU8522_SUSPEND_MODE 2
 
+enum au8522_pads {
+	AU8522_PAD_IF_INPUT,
+	AU8522_PAD_VID_OUT,
+	AU8522_PAD_AUDIO_OUT,
+	AU8522_NUM_PADS
+};
+
 struct au8522_state {
 	struct i2c_client *c;
 	struct i2c_adapter *i2c;
@@ -71,7 +78,7 @@ struct au8522_state {
 	struct v4l2_ctrl_handler hdl;
 
 #ifdef CONFIG_MEDIA_CONTROLLER
-	struct media_pad pads[DEMOD_NUM_PADS];
+	struct media_pad pads[AU8522_NUM_PADS];
 #endif
 };
 

@@ -722,8 +722,8 @@ struct hid_usage_id {
  * input will not be passed to raw_event unless hid_device_io_start is
  * called.
  *
- * raw_event and event should return 0 on no action performed, 1 when no
- * further processing should be done and negative on error
+ * raw_event and event should return negative on error, any other value will
+ * pass the event on to .event() typically return 0 for success.
  *
  * input_mapping shall return a negative value to completely ignore this usage
  * (e.g. doubled or invalid usage), zero to continue with parsing of this
@@ -1138,34 +1138,6 @@ static inline u32 hid_report_len(struct hid_report *report)
 
 int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 		int interrupt);
-
-
-/**
- * struct hid_scroll_counter - Utility class for processing high-resolution
- *                             scroll events.
- * @dev: the input device for which events should be reported.
- * @microns_per_hi_res_unit: the amount moved by the user's finger for each
- *                           high-resolution unit reported by the mouse, in
- *                           microns.
- * @resolution_multiplier: the wheel's resolution in high-resolution mode as a
- *                         multiple of its lower resolution. For example, if
- *                         moving the wheel by one "notch" would result in a
- *                         value of 1 in low-resolution mode but 8 in
- *                         high-resolution, the multiplier is 8.
- * @remainder: counts the number of high-resolution units moved since the last
- *             low-resolution event (REL_WHEEL or REL_HWHEEL) was sent. Should
- *             only be used by class methods.
- */
-struct hid_scroll_counter {
-	struct input_dev *dev;
-	int microns_per_hi_res_unit;
-	int resolution_multiplier;
-
-	int remainder;
-};
-
-void hid_scroll_counter_handle_scroll(struct hid_scroll_counter *counter,
-				      int hi_res_value);
 
 /* HID quirks API */
 unsigned long hid_lookup_quirk(const struct hid_device *hdev);

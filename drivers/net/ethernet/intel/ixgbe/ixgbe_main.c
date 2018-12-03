@@ -8694,7 +8694,7 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 
 #endif /* IXGBE_FCOE */
 
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 	if (skb->sp && !ixgbe_ipsec_tx(tx_ring, first, &ipsec_tx))
 		goto out_drop;
 #endif
@@ -10190,7 +10190,7 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 	 * the TSO, so it's the exception.
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID)) {
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 		if (!skb->sp)
 #endif
 			features &= ~NETIF_F_TSO;
@@ -10883,7 +10883,7 @@ skip_sriov:
 	if (hw->mac.type >= ixgbe_mac_82599EB)
 		netdev->features |= NETIF_F_SCTP_CRC;
 
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 #define IXGBE_ESP_FEATURES	(NETIF_F_HW_ESP | \
 				 NETIF_F_HW_ESP_TX_CSUM | \
 				 NETIF_F_GSO_ESP)

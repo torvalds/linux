@@ -2284,8 +2284,10 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		state->aspect_ratio.numerator = 16;
 		state->aspect_ratio.denominator = 9;
 
-		if (!state->edid.present)
+		if (!state->edid.present) {
 			state->edid.blocks = 0;
+			cec_phys_addr_invalidate(state->cec_adap);
+		}
 
 		v4l2_dbg(2, debug, sd, "%s: clear EDID pad %d, edid.present = 0x%x\n",
 				__func__, edid->pad, state->edid.present);
@@ -2295,8 +2297,8 @@ static int adv76xx_set_edid(struct v4l2_subdev *sd, struct v4l2_edid *edid)
 		edid->blocks = 2;
 		return -E2BIG;
 	}
-	pa = cec_get_edid_phys_addr(edid->edid, edid->blocks * 128, &spa_loc);
-	err = cec_phys_addr_validate(pa, &pa, NULL);
+	pa = v4l2_get_edid_phys_addr(edid->edid, edid->blocks * 128, &spa_loc);
+	err = v4l2_phys_addr_validate(pa, &pa, NULL);
 	if (err)
 		return err;
 
@@ -2474,7 +2476,7 @@ static int adv76xx_log_status(struct v4l2_subdev *sd)
 		"YCbCr Bt.601 (16-235)", "YCbCr Bt.709 (16-235)",
 		"xvYCC Bt.601", "xvYCC Bt.709",
 		"YCbCr Bt.601 (0-255)", "YCbCr Bt.709 (0-255)",
-		"sYCC", "Adobe YCC 601", "AdobeRGB", "invalid", "invalid",
+		"sYCC", "opYCC 601", "opRGB", "invalid", "invalid",
 		"invalid", "invalid", "invalid"
 	};
 	static const char * const rgb_quantization_range_txt[] = {
@@ -3093,7 +3095,7 @@ MODULE_DEVICE_TABLE(of, adv76xx_of_id);
 
 static int adv76xx_parse_dt(struct adv76xx_state *state)
 {
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *endpoint;
 	struct device_node *np;
 	unsigned int flags;

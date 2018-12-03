@@ -37,7 +37,9 @@ struct in_device {
 	unsigned long		mr_v1_seen;
 	unsigned long		mr_v2_seen;
 	unsigned long		mr_maxdelay;
-	unsigned char		mr_qrv;
+	unsigned long		mr_qi;		/* Query Interval */
+	unsigned long		mr_qri;		/* Query Response Interval */
+	unsigned char		mr_qrv;		/* Query Robustness Variable */
 	unsigned char		mr_gq_running;
 	unsigned char		mr_ifc_count;
 	struct timer_list	mr_gq_timer;	/* general query timer */

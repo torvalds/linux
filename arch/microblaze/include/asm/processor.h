@@ -46,12 +46,6 @@ extern void ret_from_kernel_thread(void);
 # define TASK_SIZE	(0x81000000 - 0x80000000)
 
 /*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-# define current_text_addr() ({ __label__ _l; _l: &&_l; })
-
-/*
  * This decides where the kernel will search for a free chunk of vm
  * space during mmap's. We won't be using it
  */
@@ -91,12 +85,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 # define THREAD_KSP	0
 
 #  ifndef __ASSEMBLY__
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#  define current_text_addr()	({ __label__ _l; _l: &&_l; })
 
 /* If you change this, you must change the associated assembly-languages
  * constants defined below, THREAD_*.

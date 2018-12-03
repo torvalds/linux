@@ -145,6 +145,7 @@ int dpu_power_resource_enable(struct dpu_power_handle *phandle,
 	bool changed = false;
 	u32 max_usecase_ndx = VOTE_INDEX_DISABLE, prev_usecase_ndx;
 	struct dpu_power_client *client;
+	u32 event_type;
 
 	if (!phandle || !pclient) {
 		pr_err("invalid input argument\n");
@@ -181,19 +182,9 @@ int dpu_power_resource_enable(struct dpu_power_handle *phandle,
 	if (!changed)
 		goto end;
 
-	if (enable) {
-		dpu_power_event_trigger_locked(phandle,
-				DPU_POWER_EVENT_PRE_ENABLE);
-		dpu_power_event_trigger_locked(phandle,
-				DPU_POWER_EVENT_POST_ENABLE);
+	event_type = enable ? DPU_POWER_EVENT_ENABLE : DPU_POWER_EVENT_DISABLE;
 
-	} else {
-		dpu_power_event_trigger_locked(phandle,
-				DPU_POWER_EVENT_PRE_DISABLE);
-		dpu_power_event_trigger_locked(phandle,
-				DPU_POWER_EVENT_POST_DISABLE);
-	}
-
+	dpu_power_event_trigger_locked(phandle,	event_type);
 end:
 	mutex_unlock(&phandle->phandle_lock);
 	return 0;

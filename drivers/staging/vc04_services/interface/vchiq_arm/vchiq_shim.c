@@ -50,33 +50,6 @@ struct shim_service {
 	void *callback_param;
 };
 
-/* ----------------------------------------------------------------------
- * return pointer to the mphi message driver function table
- * -------------------------------------------------------------------- */
-const VCHI_MESSAGE_DRIVER_T *
-vchi_mphi_message_driver_func_table(void)
-{
-	return NULL;
-}
-
-/* ----------------------------------------------------------------------
- * return a pointer to the 'single' connection driver fops
- * -------------------------------------------------------------------- */
-const VCHI_CONNECTION_API_T *
-single_get_func_table(void)
-{
-	return NULL;
-}
-
-VCHI_CONNECTION_T *vchi_create_connection(
-	const VCHI_CONNECTION_API_T *function_table,
-	const VCHI_MESSAGE_DRIVER_T *low_level)
-{
-	(void)function_table;
-	(void)low_level;
-	return NULL;
-}
-
 /***********************************************************
  * Name: vchi_msg_peek
  *
@@ -517,9 +490,7 @@ EXPORT_SYMBOL(vchi_initialise);
 /***********************************************************
  * Name: vchi_connect
  *
- * Arguments: VCHI_CONNECTION_T **connections
- *            const uint32_t num_connections
- *            VCHI_INSTANCE_T instance_handle)
+ * Arguments: VCHI_INSTANCE_T instance_handle
  *
  * Description: Starts the command service on each connection,
  *              causing INIT messages to be pinged back and forth
@@ -527,14 +498,9 @@ EXPORT_SYMBOL(vchi_initialise);
  * Returns: 0 if successful, failure otherwise
  *
  ***********************************************************/
-int32_t vchi_connect(VCHI_CONNECTION_T **connections,
-	const uint32_t num_connections,
-	VCHI_INSTANCE_T instance_handle)
+int32_t vchi_connect(VCHI_INSTANCE_T instance_handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
-
-	(void)connections;
-	(void)num_connections;
 
 	return vchiq_connect(instance);
 }

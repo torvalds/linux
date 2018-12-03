@@ -15,7 +15,7 @@
 #include <linux/kvm_host.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/random.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>

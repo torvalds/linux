@@ -400,6 +400,12 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 
 	/* handle all the mailbox requests in the queue */
 	while (!hclge_cmd_crq_empty(&hdev->hw)) {
+		if (test_bit(HCLGE_STATE_CMD_DISABLE, &hdev->state)) {
+			dev_warn(&hdev->pdev->dev,
+				 "command queue needs re-initializing\n");
+			return;
+		}
+
 		desc = &crq->desc[crq->next_to_use];
 		req = (struct hclge_mbx_vf_to_pf_cmd *)desc->data;
 

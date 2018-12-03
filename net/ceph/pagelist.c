@@ -6,6 +6,26 @@
 #include <linux/highmem.h>
 #include <linux/ceph/pagelist.h>
 
+struct ceph_pagelist *ceph_pagelist_alloc(gfp_t gfp_flags)
+{
+	struct ceph_pagelist *pl;
+
+	pl = kmalloc(sizeof(*pl), gfp_flags);
+	if (!pl)
+		return NULL;
+
+	INIT_LIST_HEAD(&pl->head);
+	pl->mapped_tail = NULL;
+	pl->length = 0;
+	pl->room = 0;
+	INIT_LIST_HEAD(&pl->free_list);
+	pl->num_pages_free = 0;
+	refcount_set(&pl->refcnt, 1);
+
+	return pl;
+}
+EXPORT_SYMBOL(ceph_pagelist_alloc);
+
 static void ceph_pagelist_unmap_tail(struct ceph_pagelist *pl)
 {
 	if (pl->mapped_tail) {

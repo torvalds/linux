@@ -1,0 +1,126 @@
+Qualcomm Technology Inc. ADSP Peripheral Image Loader
+
+This document defines the binding for a component that loads and boots firmware
+on the Qualcomm Technology Inc. ADSP Hexagon core.
+
+- compatible:
+	Usage: required
+	Value type: <string>
+	Definition: must be one of:
+		    "qcom,sdm845-adsp-pil"
+
+- reg:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: must specify the base address and size of the qdsp6ss register
+
+- interrupts-extended:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: must list the watchdog, fatal IRQs ready, handover and
+		    stop-ack IRQs
+
+- interrupt-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "wdog", "fatal", "ready", "handover", "stop-ack"
+
+- clocks:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition:  List of 8 phandle and clock specifier pairs for the adsp.
+
+- clock-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: List of clock input name strings sorted in the same
+		    order as the clocks property. Definition must have
+		    "xo", "sway_cbcr", "lpass_aon", "lpass_ahbs_aon_cbcr",
+		    "lpass_ahbm_aon_cbcr", "qdsp6ss_xo", "qdsp6ss_sleep"
+		    and "qdsp6ss_core".
+
+- power-domains:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to cx power domain node.
+
+- resets:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the list of 2 reset-controller for the adsp.
+
+- reset-names:
+        Usage: required
+        Value type: <stringlist>
+        Definition: must be "pdc_sync" and "cc_lpass"
+
+- qcom,halt-regs:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: a phandle reference to a syscon representing TCSR followed
+			by the offset within syscon for lpass halt register.
+
+- memory-region:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the reserved-memory for the ADSP
+
+- qcom,smem-states:
+	Usage: required
+	Value type: <phandle>
+	Definition: reference to the smem state for requesting the ADSP to
+		    shut down
+
+- qcom,smem-state-names:
+	Usage: required
+	Value type: <stringlist>
+	Definition: must be "stop"
+
+
+= SUBNODES
+The adsp node may have an subnode named "glink-edge" that describes the
+communication edge, channels and devices related to the ADSP.
+See ../soc/qcom/qcom,glink.txt for details on how to describe these.
+
+= EXAMPLE
+The following example describes the resources needed to boot control the
+ADSP, as it is found on SDM845 boards.
+
+	remoteproc@17300000 {
+		compatible = "qcom,sdm845-adsp-pil";
+		reg = <0x17300000 0x40c>;
+
+		interrupts-extended = <&intc GIC_SPI 162 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+			<&adsp_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog", "fatal", "ready",
+			"handover", "stop-ack";
+
+		clocks = <&rpmhcc RPMH_CXO_CLK>,
+			<&gcc GCC_LPASS_SWAY_CLK>,
+			<&lpasscc LPASS_AUDIO_WRAPPER_AON_CLK>,
+			<&lpasscc LPASS_Q6SS_AHBS_AON_CLK>,
+			<&lpasscc LPASS_Q6SS_AHBM_AON_CLK>,
+			<&lpasscc LPASS_QDSP6SS_XO_CLK>,
+			<&lpasscc LPASS_QDSP6SS_SLEEP_CLK>,
+			<&lpasscc LPASS_QDSP6SS_CORE_CLK>;
+		clock-names = "xo", "sway_cbcr", "lpass_aon",
+			"lpass_ahbs_aon_cbcr",
+			"lpass_ahbm_aon_cbcr", "qdsp6ss_xo",
+			"qdsp6ss_sleep", "qdsp6ss_core";
+
+		power-domains = <&rpmhpd SDM845_CX>;
+
+		resets = <&pdc_reset PDC_AUDIO_SYNC_RESET>,
+			 <&aoss_reset AOSS_CC_LPASS_RESTART>;
+		reset-names = "pdc_sync", "cc_lpass";
+
+		qcom,halt-regs = <&tcsr_mutex_regs 0x22000>;
+
+		memory-region = <&pil_adsp_mem>;
+
+		qcom,smem-states = <&adsp_smp2p_out 0>;
+		qcom,smem-state-names = "stop";
+	};

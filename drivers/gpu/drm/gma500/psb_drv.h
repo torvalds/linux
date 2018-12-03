@@ -24,7 +24,6 @@
 #include <linux/mm_types.h>
 
 #include <drm/drmP.h>
-#include <drm/drm_global.h>
 #include <drm/gma_drm.h>
 #include "psb_reg.h"
 #include "psb_intel_drv.h"

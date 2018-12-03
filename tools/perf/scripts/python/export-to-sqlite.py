@@ -40,7 +40,7 @@ import datetime
 #	sqlite> .quit
 #
 # An example of using the database is provided by the script
-# call-graph-from-sql.py.  Refer to that script for details.
+# exported-sql-viewer.py.  Refer to that script for details.
 #
 # The database structure is practically the same as created by the script
 # export-to-postgresql.py. Refer to that script for details.  A notable

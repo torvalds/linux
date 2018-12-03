@@ -29,10 +29,9 @@
 #include <linux/unistd.h>
 #include <linux/serial.h>
 #include <linux/serial_8250.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pci.h>
 #include <linux/lockdep.h>
-#include <linux/memblock.h>
 #include <linux/memory.h>
 #include <linux/nmi.h>
 
@@ -637,6 +636,8 @@ static void *__init alloc_stack(unsigned long limit, int cpu)
 {
 	unsigned long pa;
 
+	BUILD_BUG_ON(STACK_INT_FRAME_SIZE % 16);
+
 	pa = memblock_alloc_base_nid(THREAD_SIZE, THREAD_SIZE, limit,
 					early_cpu_to_node(cpu), MEMBLOCK_NONE);
 	if (!pa) {
@@ -763,13 +764,15 @@ void __init emergency_stack_init(void)
 
 static void * __init pcpu_fc_alloc(unsigned int cpu, size_t size, size_t align)
 {
-	return __alloc_bootmem_node(NODE_DATA(early_cpu_to_node(cpu)), size, align,
-				    __pa(MAX_DMA_ADDRESS));
+	return memblock_alloc_try_nid(size, align, __pa(MAX_DMA_ADDRESS),
+				      MEMBLOCK_ALLOC_ACCESSIBLE,
+				      early_cpu_to_node(cpu));
+
 }
 
 static void __init pcpu_fc_free(void *ptr, size_t size)
 {
-	free_bootmem(__pa(ptr), size);
+	memblock_free(__pa(ptr), size);
 }
 
 static int pcpu_cpu_distance(unsigned int from, unsigned int to)

@@ -5,7 +5,7 @@
 #include <linux/ctype.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/random.h>
 #include <asm/dmi.h>
 #include <asm/unaligned.h>

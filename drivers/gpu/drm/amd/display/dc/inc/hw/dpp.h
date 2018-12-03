@@ -45,6 +45,7 @@ struct dpp_grph_csc_adjustment {
 };
 
 struct dcn_dpp_state {
+	uint32_t is_enabled;
 	uint32_t igam_lut_mode;
 	uint32_t igam_input_format;
 	uint32_t dgam_lut_mode;
@@ -146,7 +147,8 @@ struct dpp_funcs {
 			struct dpp *dpp_base,
 			const struct dc_cursor_position *pos,
 			const struct dc_cursor_mi_param *param,
-			uint32_t width
+			uint32_t width,
+			uint32_t height
 			);
 	void (*dpp_set_hdr_multiplier)(
 			struct dpp *dpp_base,

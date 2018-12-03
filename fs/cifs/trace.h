@@ -374,6 +374,48 @@ DEFINE_SMB3_ENTER_EXIT_EVENT(enter);
 DEFINE_SMB3_ENTER_EXIT_EVENT(exit_done);
 
 /*
+ * For SMB2/SMB3 tree connect
+ */
+
+DECLARE_EVENT_CLASS(smb3_tcon_class,
+	TP_PROTO(unsigned int xid,
+		__u32	tid,
+		__u64	sesid,
+		const char *unc_name,
+		int	rc),
+	TP_ARGS(xid, tid, sesid, unc_name, rc),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(const char *,  unc_name)
+		__field(int, rc)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->unc_name = unc_name;
+		__entry->rc = rc;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x unc_name=%s rc=%d",
+		__entry->xid, __entry->sesid, __entry->tid,
+		__entry->unc_name, __entry->rc)
+)
+
+#define DEFINE_SMB3_TCON_EVENT(name)          \
+DEFINE_EVENT(smb3_tcon_class, smb3_##name,    \
+	TP_PROTO(unsigned int xid,		\
+		__u32	tid,			\
+		__u64	sesid,			\
+		const char *unc_name,		\
+		int	rc),			\
+	TP_ARGS(xid, tid, sesid, unc_name, rc))
+
+DEFINE_SMB3_TCON_EVENT(tcon);
+
+
+/*
  * For smb2/smb3 open call
  */
 DECLARE_EVENT_CLASS(smb3_open_err_class,

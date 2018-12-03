@@ -348,6 +348,18 @@ static void ice_clear_vsi_ctx(struct ice_hw *hw, u16 vsi_handle)
 }
 
 /**
+ * ice_clear_all_vsi_ctx - clear all the VSI context entries
+ * @hw: pointer to the hw struct
+ */
+void ice_clear_all_vsi_ctx(struct ice_hw *hw)
+{
+	u16 i;
+
+	for (i = 0; i < ICE_MAX_VSI; i++)
+		ice_clear_vsi_ctx(hw, i);
+}
+
+/**
  * ice_add_vsi - add VSI context to the hardware and VSI handle list
  * @hw: pointer to the hw struct
  * @vsi_handle: unique VSI handle provided by drivers

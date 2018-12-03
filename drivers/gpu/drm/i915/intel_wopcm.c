@@ -163,7 +163,13 @@ int intel_wopcm_init(struct intel_wopcm *wopcm)
 	u32 guc_wopcm_rsvd;
 	int err;
 
+	if (!USES_GUC(dev_priv))
+		return 0;
+
 	GEM_BUG_ON(!wopcm->size);
+
+	if (i915_inject_load_failure())
+		return -E2BIG;
 
 	if (guc_fw_size >= wopcm->size) {
 		DRM_ERROR("GuC FW (%uKiB) is too big to fit in WOPCM.",

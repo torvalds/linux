@@ -1087,7 +1087,6 @@ static const struct of_device_id greybus_asoc_machine_of_match[]  = {
 static struct platform_driver gbaudio_codec_driver = {
 	.driver = {
 		.name = "apb-dummy-codec",
-		.owner = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm = &gbaudio_codec_pm_ops,
 #endif

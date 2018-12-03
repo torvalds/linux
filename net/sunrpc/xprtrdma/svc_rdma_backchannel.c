@@ -5,8 +5,6 @@
  * Support for backward direction RPCs on RPC/RDMA (server-side).
  */
 
-#include <linux/module.h>
-
 #include <linux/sunrpc/svc_rdma.h>
 
 #include "xprt_rdma.h"
@@ -32,7 +30,6 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	struct kvec *dst, *src = &rcvbuf->head[0];
 	struct rpc_rqst *req;
-	unsigned long cwnd;
 	u32 credits;
 	size_t len;
 	__be32 xid;
@@ -66,6 +63,8 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 	if (dst->iov_len < len)
 		goto out_unlock;
 	memcpy(dst->iov_base, p, len);
+	xprt_pin_rqst(req);
+	spin_unlock(&xprt->queue_lock);
 
 	credits = be32_to_cpup(rdma_resp + 2);
 	if (credits == 0)
@@ -74,15 +73,13 @@ int svc_rdma_handle_bc_reply(struct rpc_xprt *xprt, __be32 *rdma_resp,
 		credits = r_xprt->rx_buf.rb_bc_max_requests;
 
 	spin_lock_bh(&xprt->transport_lock);
-	cwnd = xprt->cwnd;
 	xprt->cwnd = credits << RPC_CWNDSHIFT;
-	if (xprt->cwnd > cwnd)
-		xprt_release_rqst_cong(req->rq_task);
 	spin_unlock_bh(&xprt->transport_lock);
 
-
+	spin_lock(&xprt->queue_lock);
 	ret = 0;
 	xprt_complete_rqst(req->rq_task, rcvbuf->len);
+	xprt_unpin_rqst(req);
 	rcvbuf->len = 0;
 
 out_unlock:
@@ -251,7 +248,6 @@ xprt_rdma_bc_put(struct rpc_xprt *xprt)
 	dprintk("svcrdma: %s: xprt %p\n", __func__, xprt);
 
 	xprt_free(xprt);
-	module_put(THIS_MODULE);
 }
 
 static const struct rpc_xprt_ops xprt_rdma_bc_procs = {
@@ -323,20 +319,9 @@ xprt_setup_rdma_bc(struct xprt_create *args)
 	args->bc_xprt->xpt_bc_xprt = xprt;
 	xprt->bc_xprt = args->bc_xprt;
 
-	if (!try_module_get(THIS_MODULE))
-		goto out_fail;
-
 	/* Final put for backchannel xprt is in __svc_rdma_free */
 	xprt_get(xprt);
 	return xprt;
-
-out_fail:
-	xprt_rdma_free_addresses(xprt);
-	args->bc_xprt->xpt_bc_xprt = NULL;
-	args->bc_xprt->xpt_bc_xps = NULL;
-	xprt_put(xprt);
-	xprt_free(xprt);
-	return ERR_PTR(-EINVAL);
 }
 
 struct xprt_class xprt_rdma_bc = {

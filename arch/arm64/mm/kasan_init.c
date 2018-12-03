@@ -11,7 +11,6 @@
  */
 
 #define pr_fmt(fmt) "kasan: " fmt
-#include <linux/bootmem.h>
 #include <linux/kasan.h>
 #include <linux/kernel.h>
 #include <linux/sched/task.h>
@@ -38,7 +37,7 @@ static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
 
 static phys_addr_t __init kasan_alloc_zeroed_page(int node)
 {
-	void *p = memblock_virt_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
+	void *p = memblock_alloc_try_nid(PAGE_SIZE, PAGE_SIZE,
 					      __pa(MAX_DMA_ADDRESS),
 					      MEMBLOCK_ALLOC_ACCESSIBLE, node);
 	return __pa(p);

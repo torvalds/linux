@@ -14,8 +14,9 @@ config STAGING_APEX_DRIVER
 	tristate "Apex Driver"
 	depends on STAGING_GASKET_FRAMEWORK
 	help
-	  This driver supports the Apex device.  Say Y if you want to
-	  include this driver in the kernel.
+	  This driver supports the Apex Edge TPU device.  See
+	  https://cloud.google.com/edge-tpu/ for more information.
+	  Say Y if you want to include this driver in the kernel.
 
 	  To compile this driver as a module, choose M here.  The module
 	  will be called "apex".

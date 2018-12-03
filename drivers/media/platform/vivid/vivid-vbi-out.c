@@ -96,6 +96,8 @@ static int vbi_out_start_streaming(struct vb2_queue *vq, unsigned count)
 
 		list_for_each_entry_safe(buf, tmp, &dev->vbi_out_active, list) {
 			list_del(&buf->list);
+			v4l2_ctrl_request_complete(buf->vb.vb2_buf.req_obj.req,
+						   &dev->ctrl_hdl_vbi_out);
 			vb2_buffer_done(&buf->vb.vb2_buf,
 					VB2_BUF_STATE_QUEUED);
 		}
@@ -115,12 +117,20 @@ static void vbi_out_stop_streaming(struct vb2_queue *vq)
 	dev->vbi_out_have_cc[1] = false;
 }
 
+static void vbi_out_buf_request_complete(struct vb2_buffer *vb)
+{
+	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
+
+	v4l2_ctrl_request_complete(vb->req_obj.req, &dev->ctrl_hdl_vbi_out);
+}
+
 const struct vb2_ops vivid_vbi_out_qops = {
 	.queue_setup		= vbi_out_queue_setup,
 	.buf_prepare		= vbi_out_buf_prepare,
 	.buf_queue		= vbi_out_buf_queue,
 	.start_streaming	= vbi_out_start_streaming,
 	.stop_streaming		= vbi_out_stop_streaming,
+	.buf_request_complete	= vbi_out_buf_request_complete,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
 };

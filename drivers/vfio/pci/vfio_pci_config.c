@@ -1180,8 +1180,10 @@ static int vfio_msi_cap_len(struct vfio_pci_device *vdev, u8 pos)
 		return -ENOMEM;
 
 	ret = init_pci_cap_msi_perm(vdev->msi_perm, len, flags);
-	if (ret)
+	if (ret) {
+		kfree(vdev->msi_perm);
 		return ret;
+	}
 
 	return len;
 }
@@ -1610,6 +1612,15 @@ static int vfio_ecap_init(struct vfio_pci_device *vdev)
 }
 
 /*
+ * Nag about hardware bugs, hopefully to have vendors fix them, but at least
+ * to collect a list of dependencies for the VF INTx pin quirk below.
+ */
+static const struct pci_device_id known_bogus_vf_intx_pin[] = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x270c) },
+	{}
+};
+
+/*
  * For each device we allocate a pci_config_map that indicates the
  * capability occupying each dword and thus the struct perm_bits we
  * use for read and write.  We also allocate a virtualized config
@@ -1674,6 +1685,24 @@ int vfio_config_init(struct vfio_pci_device *vdev)
 	if (pdev->is_virtfn) {
 		*(__le16 *)&vconfig[PCI_VENDOR_ID] = cpu_to_le16(pdev->vendor);
 		*(__le16 *)&vconfig[PCI_DEVICE_ID] = cpu_to_le16(pdev->device);
+
+		/*
+		 * Per SR-IOV spec rev 1.1, 3.4.1.18 the interrupt pin register
+		 * does not apply to VFs and VFs must implement this register
+		 * as read-only with value zero.  Userspace is not readily able
+		 * to identify whether a device is a VF and thus that the pin
+		 * definition on the device is bogus should it violate this
+		 * requirement.  We already virtualize the pin register for
+		 * other purposes, so we simply need to replace the bogus value
+		 * and consider VFs when we determine INTx IRQ count.
+		 */
+		if (vconfig[PCI_INTERRUPT_PIN] &&
+		    !pci_match_id(known_bogus_vf_intx_pin, pdev))
+			pci_warn(pdev,
+				 "Hardware bug: VF reports bogus INTx pin %d\n",
+				 vconfig[PCI_INTERRUPT_PIN]);
+
+		vconfig[PCI_INTERRUPT_PIN] = 0; /* Gratuitous for good VFs */
 	}
 
 	if (!IS_ENABLED(CONFIG_VFIO_PCI_INTX) || vdev->nointx)

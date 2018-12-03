@@ -222,7 +222,7 @@ int intel_uc_fw_upload(struct intel_uc_fw *uc_fw,
 		goto fail;
 	}
 
-	ggtt_pin_bias = to_i915(uc_fw->obj->base.dev)->guc.ggtt_pin_bias;
+	ggtt_pin_bias = to_i915(uc_fw->obj->base.dev)->ggtt.pin_bias;
 	vma = i915_gem_object_ggtt_pin(uc_fw->obj, NULL, 0, 0,
 				       PIN_OFFSET_BIAS | ggtt_pin_bias);
 	if (IS_ERR(vma)) {

@@ -11,7 +11,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/bootinfo.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/rbtx4938.h>

@@ -4852,18 +4852,17 @@ static struct sock *sk_lookup(struct net *net, struct bpf_sock_tuple *tuple,
 	} else {
 		struct in6_addr *src6 = (struct in6_addr *)&tuple->ipv6.saddr;
 		struct in6_addr *dst6 = (struct in6_addr *)&tuple->ipv6.daddr;
-		u16 hnum = ntohs(tuple->ipv6.dport);
 		int sdif = inet6_sdif(skb);
 
 		if (proto == IPPROTO_TCP)
 			sk = __inet6_lookup(net, &tcp_hashinfo, skb, 0,
 					    src6, tuple->ipv6.sport,
-					    dst6, hnum,
+					    dst6, ntohs(tuple->ipv6.dport),
 					    dif, sdif, &refcounted);
 		else if (likely(ipv6_bpf_stub))
 			sk = ipv6_bpf_stub->udp6_lib_lookup(net,
 							    src6, tuple->ipv6.sport,
-							    dst6, hnum,
+							    dst6, tuple->ipv6.dport,
 							    dif, sdif,
 							    &udp_table, skb);
 #endif
@@ -5264,8 +5263,6 @@ sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_msg_pull_data_proto;
 	case BPF_FUNC_msg_push_data:
 		return &bpf_msg_push_data_proto;
-	case BPF_FUNC_get_local_storage:
-		return &bpf_get_local_storage_proto;
 	default:
 		return bpf_base_func_proto(func_id);
 	}
@@ -5296,8 +5293,6 @@ sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 		return &bpf_sk_redirect_map_proto;
 	case BPF_FUNC_sk_redirect_hash:
 		return &bpf_sk_redirect_hash_proto;
-	case BPF_FUNC_get_local_storage:
-		return &bpf_get_local_storage_proto;
 #ifdef CONFIG_INET
 	case BPF_FUNC_sk_lookup_tcp:
 		return &bpf_sk_lookup_tcp_proto;
@@ -5496,7 +5491,13 @@ static bool cg_skb_is_valid_access(int off, int size,
 	case bpf_ctx_range(struct __sk_buff, data_meta):
 	case bpf_ctx_range(struct __sk_buff, flow_keys):
 		return false;
+	case bpf_ctx_range(struct __sk_buff, data):
+	case bpf_ctx_range(struct __sk_buff, data_end):
+		if (!capable(CAP_SYS_ADMIN))
+			return false;
+		break;
 	}
+
 	if (type == BPF_WRITE) {
 		switch (off) {
 		case bpf_ctx_range(struct __sk_buff, mark):
@@ -5636,6 +5637,15 @@ static bool sock_filter_is_valid_access(int off, int size,
 		return false;
 	return __sock_filter_check_attach_type(off, type,
 					       prog->expected_attach_type);
+}
+
+static int bpf_noop_prologue(struct bpf_insn *insn_buf, bool direct_write,
+			     const struct bpf_prog *prog)
+{
+	/* Neither direct read nor direct write requires any preliminary
+	 * action.
+	 */
+	return 0;
 }
 
 static int bpf_unclone_prologue(struct bpf_insn *insn_buf, bool direct_write,
@@ -7204,6 +7214,7 @@ const struct bpf_verifier_ops xdp_verifier_ops = {
 	.get_func_proto		= xdp_func_proto,
 	.is_valid_access	= xdp_is_valid_access,
 	.convert_ctx_access	= xdp_convert_ctx_access,
+	.gen_prologue		= bpf_noop_prologue,
 };
 
 const struct bpf_prog_ops xdp_prog_ops = {
@@ -7302,6 +7313,7 @@ const struct bpf_verifier_ops sk_msg_verifier_ops = {
 	.get_func_proto		= sk_msg_func_proto,
 	.is_valid_access	= sk_msg_is_valid_access,
 	.convert_ctx_access	= sk_msg_convert_ctx_access,
+	.gen_prologue		= bpf_noop_prologue,
 };
 
 const struct bpf_prog_ops sk_msg_prog_ops = {

@@ -60,38 +60,60 @@
 		serial1 = &uart_A;
 	};
 
+	linein: audio-codec@0 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es7241";
+		VDDA-supply = <&vcc_3v3>;
+		VDDP-supply = <&vcc_3v3>;
+		VDDD-supply = <&vcc_3v3>;
+		status = "okay";
+		sound-name-prefix = "Linein";
+	};
+
+	lineout: audio-codec@1 {
+		#sound-dai-cells = <0>;
+		compatible = "everest,es7154";
+		VDD-supply = <&vcc_3v3>;
+		PVDD-supply = <&vcc_5v>;
+		status = "okay";
+		sound-name-prefix = "Lineout";
+	};
+
+	spdif_dit: audio-codec@2 {
+		#sound-dai-cells = <0>;
+		compatible = "linux,spdif-dit";
+		status = "okay";
+		sound-name-prefix = "DIT";
+	};
+
+	dmics: audio-codec@3 {
+		#sound-dai-cells = <0>;
+		compatible = "dmic-codec";
+		num-channels = <7>;
+		wakeup-delay-ms = <50>;
+		status = "okay";
+		sound-name-prefix = "MIC";
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x40000000>;
+	};
+
 	main_12v: regulator-main_12v {
 		compatible = "regulator-fixed";
 		regulator-name = "12V";
 		regulator-min-microvolt = <12000000>;
 		regulator-max-microvolt = <12000000>;
-		regulator-always-on;
-	};
-
-	vddio_boot: regulator-vddio_boot {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDIO_BOOT";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vddao_3v3>;
-		regulator-always-on;
-	};
-
-	vddao_3v3: regulator-vddao_3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDAO_3V3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		vin-supply = <&main_12v>;
-		regulator-always-on;
-	};
-
-	vddio_ao18: regulator-vddio_ao18 {
-		compatible = "regulator-fixed";
-		regulator-name = "VDDIO_AO18";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		vin-supply = <&vddao_3v3>;
 		regulator-always-on;
 	};
 
@@ -115,6 +137,33 @@
 		enable-active-high;
 	};
 
+	vddao_3v3: regulator-vddao_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&main_12v>;
+		regulator-always-on;
+	};
+
+	vddio_ao18: regulator-vddio_ao18 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_AO18";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vddao_3v3>;
+		regulator-always-on;
+	};
+
+	vddio_boot: regulator-vddio_boot {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_BOOT";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vddao_3v3>;
+		regulator-always-on;
+	};
+
 	usb_pwr: regulator-usb_pwr {
 		compatible = "regulator-fixed";
 		regulator-name = "USB_PWR";
@@ -126,23 +175,11 @@
 		enable-active-high;
 	};
 
-	emmc_pwrseq: emmc-pwrseq {
-		compatible = "mmc-pwrseq-emmc";
-		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
-	};
-
 	sdio_pwrseq: sdio-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio GPIOX_7 GPIO_ACTIVE_LOW>;
 		clocks = <&wifi32k>;
 		clock-names = "ext_clock";
-	};
-
-	wifi32k: wifi32k {
-		compatible = "pwm-clock";
-		#clock-cells = <0>;
-		clock-frequency = <32768>;
-		pwms = <&pwm_ab 0 30518 0>; /* PWM_A at 32.768KHz */
 	};
 
 	speaker-leds {
@@ -179,30 +216,129 @@
 		};
 	};
 
-	linein: audio-codec@0 {
-		#sound-dai-cells = <0>;
-		compatible = "everest,es7241";
-		VDDA-supply = <&vcc_3v3>;
-		VDDP-supply = <&vcc_3v3>;
-		VDDD-supply = <&vcc_3v3>;
+	sound {
+		compatible = "amlogic,axg-sound-card";
+		model = "AXG-S400";
+		audio-aux-devs = <&tdmin_a>, <&tdmin_b>,  <&tdmin_c>,
+				 <&tdmin_lb>, <&tdmout_c>;
+		audio-widgets = "Line", "Lineout",
+				"Line", "Linein",
+				"Speaker", "Speaker1 Left",
+				"Speaker", "Speaker1 Right";
+		audio-routing = "TDMOUT_C IN 0", "FRDDR_A OUT 2",
+				"SPDIFOUT IN 0", "FRDDR_A OUT 3",
+				"TDMOUT_C IN 1", "FRDDR_B OUT 2",
+				"SPDIFOUT IN 1", "FRDDR_B OUT 3",
+				"TDMOUT_C IN 2", "FRDDR_C OUT 2",
+				"SPDIFOUT IN 2", "FRDDR_C OUT 3",
+				"TDM_C Playback", "TDMOUT_C OUT",
+				"TDMIN_A IN 2", "TDM_C Capture",
+				"TDMIN_A IN 5", "TDM_C Loopback",
+				"TDMIN_B IN 2", "TDM_C Capture",
+				"TDMIN_B IN 5", "TDM_C Loopback",
+				"TDMIN_C IN 2", "TDM_C Capture",
+				"TDMIN_C IN 5", "TDM_C Loopback",
+				"TDMIN_LB IN 2", "TDM_C Loopback",
+				"TDMIN_LB IN 5", "TDM_C Capture",
+				"TODDR_A IN 0", "TDMIN_A OUT",
+				"TODDR_B IN 0", "TDMIN_A OUT",
+				"TODDR_C IN 0", "TDMIN_A OUT",
+				"TODDR_A IN 1", "TDMIN_B OUT",
+				"TODDR_B IN 1", "TDMIN_B OUT",
+				"TODDR_C IN 1", "TDMIN_B OUT",
+				"TODDR_A IN 2", "TDMIN_C OUT",
+				"TODDR_B IN 2", "TDMIN_C OUT",
+				"TODDR_C IN 2", "TDMIN_C OUT",
+				"TODDR_A IN 4", "PDM Capture",
+				"TODDR_B IN 4", "PDM Capture",
+				"TODDR_C IN 4", "PDM Capture",
+				"TODDR_A IN 6", "TDMIN_LB OUT",
+				"TODDR_B IN 6", "TDMIN_LB OUT",
+				"TODDR_C IN 6", "TDMIN_LB OUT",
+				"Lineout", "Lineout AOUTL",
+				"Lineout", "Lineout AOUTR",
+				"Speaker1 Left", "SPK1 OUT_A",
+				"Speaker1 Left", "SPK1 OUT_B",
+				"Speaker1 Right", "SPK1 OUT_C",
+				"Speaker1 Right", "SPK1 OUT_D",
+				"Linein AINL", "Linein",
+				"Linein AINR", "Linein";
+		assigned-clocks = <&clkc CLKID_HIFI_PLL>,
+				  <&clkc CLKID_MPLL0>,
+				  <&clkc CLKID_MPLL1>;
+		assigned-clock-parents = <0>, <0>, <0>;
+		assigned-clock-rates = <589824000>,
+				       <270950400>,
+				       <393216000>;
 		status = "okay";
-		sound-name-prefix = "Linein";
+
+		dai-link@0 {
+			sound-dai = <&frddr_a>;
+		};
+
+		dai-link@1 {
+			sound-dai = <&frddr_b>;
+		};
+
+		dai-link@2 {
+			sound-dai = <&frddr_c>;
+		};
+
+		dai-link@3 {
+			sound-dai = <&toddr_a>;
+		};
+
+		dai-link@4 {
+			sound-dai = <&toddr_b>;
+		};
+
+		dai-link@5 {
+			sound-dai = <&toddr_c>;
+		};
+
+		dai-link@6 {
+			sound-dai = <&tdmif_c>;
+			dai-format = "i2s";
+			dai-tdm-slot-tx-mask-2 = <1 1>;
+			dai-tdm-slot-rx-mask-1 = <1 1>;
+			mclk-fs = <256>;
+
+			codec@0 {
+				sound-dai = <&lineout>;
+			};
+
+			codec@1 {
+				sound-dai = <&speaker_amp1>;
+			};
+
+			codec@2 {
+				sound-dai = <&linein>;
+			};
+
+		};
+
+		dai-link@7 {
+			sound-dai = <&spdifout>;
+
+			codec {
+				sound-dai = <&spdif_dit>;
+			};
+		};
+
+		dai-link@8 {
+			sound-dai = <&pdm>;
+
+			codec {
+				sound-dai = <&dmics>;
+			};
+		};
 	};
 
-	lineout: audio-codec@1 {
-		#sound-dai-cells = <0>;
-		compatible = "everest,es7154";
-		VDD-supply = <&vcc_3v3>;
-		PVDD-supply = <&vcc_5v>;
-		status = "okay";
-		sound-name-prefix = "Lineout";
-	};
-
-	spdif_dit: audio-codec@2 {
-		#sound-dai-cells = <0>;
-		compatible = "linux,spdif-dit";
-		status = "okay";
-		sound-name-prefix = "DIT";
+	wifi32k: wifi32k {
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		pwms = <&pwm_ab 0 30518 0>; /* PWM_A at 32.768KHz */
 	};
 };
 
@@ -226,16 +362,16 @@
 	};
 };
 
-&uart_A {
+&frddr_a {
 	status = "okay";
-	pinctrl-0 = <&uart_a_pins>;
-	pinctrl-names = "default";
 };
 
-&uart_AO {
+&frddr_b {
 	status = "okay";
-	pinctrl-0 = <&uart_ao_a_pins>;
-	pinctrl-names = "default";
+};
+
+&frddr_c {
+	status = "okay";
 };
 
 &ir {
@@ -260,6 +396,7 @@
 		PVDD_B-supply = <&main_12v>;
 		PVDD_C-supply = <&main_12v>;
 		PVDD_D-supply = <&main_12v>;
+		sound-name-prefix = "SPK1";
 	};
 };
 
@@ -277,30 +414,22 @@
 	};
 };
 
+&pdm {
+	pinctrl-0 = <&pdm_dclk_a14_pins>, <&pdm_din0_pins>,
+		    <&pdm_din1_pins>, <&pdm_din2_pins>, <&pdm_din3_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
 &pwm_ab {
 	status = "okay";
 	pinctrl-0 = <&pwm_a_x20_pins>;
 	pinctrl-names = "default";
 };
 
-/* emmc storage */
-&sd_emmc_c {
+&saradc {
 	status = "okay";
-	pinctrl-0 = <&emmc_pins>;
-	pinctrl-1 = <&emmc_clk_gate_pins>;
-	pinctrl-names = "default", "clk-gate";
-
-	bus-width = <8>;
-	cap-sd-highspeed;
-	cap-mmc-highspeed;
-	max-frequency = <180000000>;
-	non-removable;
-	disable-wp;
-	mmc-ddr-1_8v;
-	mmc-hs200-1_8v;
-
-	vmmc-supply = <&vcc_3v3>;
-	vqmmc-supply = <&vddio_boot>;
+	vref-supply = <&vddio_ao18>;
 };
 
 /* wifi module */
@@ -330,7 +459,96 @@
 	};
 };
 
-&saradc {
+/* emmc storage */
+&sd_emmc_c {
+	status = "disabled";
+	pinctrl-0 = <&emmc_pins>;
+	pinctrl-1 = <&emmc_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
+
+	bus-width = <8>;
+	cap-sd-highspeed;
+	cap-mmc-highspeed;
+	max-frequency = <180000000>;
+	non-removable;
+	disable-wp;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+
+	mmc-pwrseq = <&emmc_pwrseq>;
+
+	vmmc-supply = <&vcc_3v3>;
+	vqmmc-supply = <&vddio_boot>;
+};
+
+&spdifout {
+	pinctrl-0 = <&spdif_out_a20_pins>;
+	pinctrl-names = "default";
 	status = "okay";
-	vref-supply = <&vddio_ao18>;
+};
+
+&tdmif_a {
+	pinctrl-0 = <&tdma_sclk_pins>, <&tdma_fs_pins>,
+		    <&tdma_din0_pins>, <&tdma_dout0_x15_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&tdmif_b {
+	pinctrl-0 = <&tdmb_sclk_pins>, <&tdmb_fs_pins>,
+		    <&tdmb_din3_pins>, <&mclk_b_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&tdmif_c {
+	pinctrl-0 = <&tdmc_sclk_pins>, <&tdmc_fs_pins>,
+		    <&tdmc_din1_pins>, <&tdmc_dout2_pins>,
+		    <&mclk_c_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&tdmin_a {
+	status = "okay";
+};
+
+&tdmin_b {
+	status = "okay";
+};
+
+&tdmin_c {
+	status = "okay";
+};
+
+&tdmin_lb {
+	status = "okay";
+};
+
+&tdmout_c {
+	status = "okay";
+};
+
+&toddr_a {
+	status = "okay";
+};
+
+&toddr_b {
+	status = "okay";
+};
+
+&toddr_c {
+	status = "okay";
+};
+
+&uart_A {
+	status = "okay";
+	pinctrl-0 = <&uart_a_pins>;
+	pinctrl-names = "default";
+};
+
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-names = "default";
 };

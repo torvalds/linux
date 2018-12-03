@@ -7,6 +7,7 @@
 #include <linux/bpf.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/capability.h>
 #include "percpu_freelist.h"
 
 #define QUEUE_STACK_CREATE_FLAG_MASK \
@@ -45,8 +46,12 @@ static bool queue_stack_map_is_full(struct bpf_queue_stack *qs)
 /* Called from syscall */
 static int queue_stack_map_alloc_check(union bpf_attr *attr)
 {
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
 	/* check sanity of attributes */
 	if (attr->max_entries == 0 || attr->key_size != 0 ||
+	    attr->value_size == 0 ||
 	    attr->map_flags & ~QUEUE_STACK_CREATE_FLAG_MASK)
 		return -EINVAL;
 
@@ -63,15 +68,10 @@ static struct bpf_map *queue_stack_map_alloc(union bpf_attr *attr)
 {
 	int ret, numa_node = bpf_map_attr_numa_node(attr);
 	struct bpf_queue_stack *qs;
-	u32 size, value_size;
-	u64 queue_size, cost;
+	u64 size, queue_size, cost;
 
-	size = attr->max_entries + 1;
-	value_size = attr->value_size;
-
-	queue_size = sizeof(*qs) + (u64) value_size * size;
-
-	cost = queue_size;
+	size = (u64) attr->max_entries + 1;
+	cost = queue_size = sizeof(*qs) + size * attr->value_size;
 	if (cost >= U32_MAX - PAGE_SIZE)
 		return ERR_PTR(-E2BIG);
 
@@ -122,6 +122,7 @@ static int __queue_map_get(struct bpf_map *map, void *value, bool delete)
 	raw_spin_lock_irqsave(&qs->lock, flags);
 
 	if (queue_stack_map_is_empty(qs)) {
+		memset(value, 0, qs->map.value_size);
 		err = -ENOENT;
 		goto out;
 	}
@@ -151,6 +152,7 @@ static int __stack_map_get(struct bpf_map *map, void *value, bool delete)
 	raw_spin_lock_irqsave(&qs->lock, flags);
 
 	if (queue_stack_map_is_empty(qs)) {
+		memset(value, 0, qs->map.value_size);
 		err = -ENOENT;
 		goto out;
 	}

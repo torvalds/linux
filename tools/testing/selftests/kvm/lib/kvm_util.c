@@ -128,7 +128,7 @@ struct kvm_vm *vm_create(enum vm_guest_mode mode, uint64_t phy_pages, int perm)
 	int kvm_fd;
 
 	vm = calloc(1, sizeof(*vm));
-	TEST_ASSERT(vm != NULL, "Insufficent Memory");
+	TEST_ASSERT(vm != NULL, "Insufficient Memory");
 
 	vm->mode = mode;
 	vm_open(vm, perm);

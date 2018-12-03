@@ -24,6 +24,7 @@
 #define __DRM_COLOR_MGMT_H__
 
 #include <linux/ctype.h>
+#include <drm/drm_property.h>
 
 struct drm_crtc;
 struct drm_plane;

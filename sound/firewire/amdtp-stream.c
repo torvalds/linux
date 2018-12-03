@@ -146,51 +146,20 @@ static int apply_constraint_to_size(struct snd_pcm_hw_params *params,
 	struct snd_interval *s = hw_param_interval(params, rule->var);
 	const struct snd_interval *r =
 		hw_param_interval_c(params, SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval t = {
-		.min = s->min, .max = s->max, .integer = 1,
-	};
+	struct snd_interval t = {0};
+	unsigned int step = 0;
 	int i;
 
 	for (i = 0; i < CIP_SFC_COUNT; ++i) {
-		unsigned int rate = amdtp_rate_table[i];
-		unsigned int step = amdtp_syt_intervals[i];
-
-		if (!snd_interval_test(r, rate))
-			continue;
-
-		t.min = roundup(t.min, step);
-		t.max = rounddown(t.max, step);
+		if (snd_interval_test(r, amdtp_rate_table[i]))
+			step = max(step, amdtp_syt_intervals[i]);
 	}
 
-	if (snd_interval_checkempty(&t))
-		return -EINVAL;
+	t.min = roundup(s->min, step);
+	t.max = rounddown(s->max, step);
+	t.integer = 1;
 
 	return snd_interval_refine(s, &t);
-}
-
-static int apply_constraint_to_rate(struct snd_pcm_hw_params *params,
-				    struct snd_pcm_hw_rule *rule)
-{
-	struct snd_interval *r =
-			hw_param_interval(params, SNDRV_PCM_HW_PARAM_RATE);
-	const struct snd_interval *s = hw_param_interval_c(params, rule->deps[0]);
-	struct snd_interval t = {
-		.min = UINT_MAX, .max = 0, .integer = 1,
-	};
-	int i;
-
-	for (i = 0; i < CIP_SFC_COUNT; ++i) {
-		unsigned int step = amdtp_syt_intervals[i];
-		unsigned int rate = amdtp_rate_table[i];
-
-		if (s->min % step || s->max % step)
-			continue;
-
-		t.min = min(t.min, rate);
-		t.max = max(t.max, rate);
-	}
-
-	return snd_interval_refine(r, &t);
 }
 
 /**
@@ -250,22 +219,14 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	 */
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 				  apply_constraint_to_size, NULL,
+				  SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 				  SNDRV_PCM_HW_PARAM_RATE, -1);
-	if (err < 0)
-		goto end;
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				  apply_constraint_to_rate, NULL,
-				  SNDRV_PCM_HW_PARAM_PERIOD_SIZE, -1);
 	if (err < 0)
 		goto end;
 	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
 				  apply_constraint_to_size, NULL,
+				  SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
 				  SNDRV_PCM_HW_PARAM_RATE, -1);
-	if (err < 0)
-		goto end;
-	err = snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-				  apply_constraint_to_rate, NULL,
-				  SNDRV_PCM_HW_PARAM_BUFFER_SIZE, -1);
 	if (err < 0)
 		goto end;
 end:

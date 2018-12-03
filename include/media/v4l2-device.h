@@ -211,6 +211,17 @@ static inline void v4l2_subdev_notify(struct v4l2_subdev *sd,
 		sd->v4l2_dev->notify(sd, notification, arg);
 }
 
+/**
+ * v4l2_device_supports_requests - Test if requests are supported.
+ *
+ * @v4l2_dev: pointer to struct v4l2_device
+ */
+static inline bool v4l2_device_supports_requests(struct v4l2_device *v4l2_dev)
+{
+	return v4l2_dev->mdev && v4l2_dev->mdev->ops &&
+	       v4l2_dev->mdev->ops->req_queue;
+}
+
 /* Helper macros to iterate over all subdevs. */
 
 /**

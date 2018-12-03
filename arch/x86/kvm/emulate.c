@@ -1509,7 +1509,7 @@ static int read_interrupt_descriptor(struct x86_emulate_ctxt *ctxt,
 		return emulate_gp(ctxt, index << 3 | 0x2);
 
 	addr = dt.address + index * 8;
-	return linear_read_system(ctxt, addr, desc, sizeof *desc);
+	return linear_read_system(ctxt, addr, desc, sizeof(*desc));
 }
 
 static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
@@ -1522,7 +1522,7 @@ static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 		struct desc_struct desc;
 		u16 sel;
 
-		memset (dt, 0, sizeof *dt);
+		memset(dt, 0, sizeof(*dt));
 		if (!ops->get_segment(ctxt, &sel, &desc, &base3,
 				      VCPU_SREG_LDTR))
 			return;
@@ -1586,7 +1586,7 @@ static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	return linear_write_system(ctxt, addr, desc, sizeof *desc);
+	return linear_write_system(ctxt, addr, desc, sizeof(*desc));
 }
 
 static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
@@ -1604,7 +1604,7 @@ static int __load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 	u16 dummy;
 	u32 base3 = 0;
 
-	memset(&seg_desc, 0, sizeof seg_desc);
+	memset(&seg_desc, 0, sizeof(seg_desc));
 
 	if (ctxt->mode == X86EMUL_MODE_REAL) {
 		/* set real mode segment descriptor (keep limit etc. for
@@ -3075,17 +3075,17 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 	int ret;
 	u32 new_tss_base = get_desc_base(new_desc);
 
-	ret = linear_read_system(ctxt, old_tss_base, &tss_seg, sizeof tss_seg);
+	ret = linear_read_system(ctxt, old_tss_base, &tss_seg, sizeof(tss_seg));
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
 	save_state_to_tss16(ctxt, &tss_seg);
 
-	ret = linear_write_system(ctxt, old_tss_base, &tss_seg, sizeof tss_seg);
+	ret = linear_write_system(ctxt, old_tss_base, &tss_seg, sizeof(tss_seg));
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
-	ret = linear_read_system(ctxt, new_tss_base, &tss_seg, sizeof tss_seg);
+	ret = linear_read_system(ctxt, new_tss_base, &tss_seg, sizeof(tss_seg));
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -3094,7 +3094,7 @@ static int task_switch_16(struct x86_emulate_ctxt *ctxt,
 
 		ret = linear_write_system(ctxt, new_tss_base,
 					  &tss_seg.prev_task_link,
-					  sizeof tss_seg.prev_task_link);
+					  sizeof(tss_seg.prev_task_link));
 		if (ret != X86EMUL_CONTINUE)
 			return ret;
 	}
@@ -3216,7 +3216,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 	u32 eip_offset = offsetof(struct tss_segment_32, eip);
 	u32 ldt_sel_offset = offsetof(struct tss_segment_32, ldt_selector);
 
-	ret = linear_read_system(ctxt, old_tss_base, &tss_seg, sizeof tss_seg);
+	ret = linear_read_system(ctxt, old_tss_base, &tss_seg, sizeof(tss_seg));
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -3228,7 +3228,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
-	ret = linear_read_system(ctxt, new_tss_base, &tss_seg, sizeof tss_seg);
+	ret = linear_read_system(ctxt, new_tss_base, &tss_seg, sizeof(tss_seg));
 	if (ret != X86EMUL_CONTINUE)
 		return ret;
 
@@ -3237,7 +3237,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 
 		ret = linear_write_system(ctxt, new_tss_base,
 					  &tss_seg.prev_task_link,
-					  sizeof tss_seg.prev_task_link);
+					  sizeof(tss_seg.prev_task_link));
 		if (ret != X86EMUL_CONTINUE)
 			return ret;
 	}

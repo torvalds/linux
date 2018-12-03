@@ -264,7 +264,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap = kzalloc(sizeof(*adap), GFP_KERNEL);
 	if (!adap)
 		return ERR_PTR(-ENOMEM);
-	strlcpy(adap->name, name, sizeof(adap->name));
+	strscpy(adap->name, name, sizeof(adap->name));
 	adap->phys_addr = CEC_PHYS_ADDR_INVALID;
 	adap->cec_pin_is_high = true;
 	adap->log_addrs.cec_version = CEC_OP_CEC_VERSION_2_0;
@@ -307,12 +307,10 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	snprintf(adap->device_name, sizeof(adap->device_name),
-		 "RC for %s", name);
 	snprintf(adap->input_phys, sizeof(adap->input_phys),
-		 "%s/input0", name);
+		 "%s/input0", adap->name);
 
-	adap->rc->device_name = adap->device_name;
+	adap->rc->device_name = adap->name;
 	adap->rc->input_phys = adap->input_phys;
 	adap->rc->input_id.bustype = BUS_CEC;
 	adap->rc->input_id.vendor = 0;

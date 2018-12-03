@@ -163,7 +163,7 @@
 
 		aips-bus@2000000 { /* AIPS1 */
 			spba-bus@2000000 {
-				ecspi5: ecspi@2018000 {
+				ecspi5: spi@2018000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx6q-ecspi", "fsl,imx51-ecspi";

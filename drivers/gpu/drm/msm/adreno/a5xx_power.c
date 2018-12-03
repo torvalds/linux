@@ -323,7 +323,7 @@ err:
 	if (a5xx_gpu->gpmu_iova)
 		msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 	if (a5xx_gpu->gpmu_bo)
-		drm_gem_object_unreference(a5xx_gpu->gpmu_bo);
+		drm_gem_object_put(a5xx_gpu->gpmu_bo);
 
 	a5xx_gpu->gpmu_bo = NULL;
 	a5xx_gpu->gpmu_iova = 0;

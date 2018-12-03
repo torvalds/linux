@@ -1840,6 +1840,8 @@ static int cmd_handler_mi_batch_buffer_start(struct parser_exec_state *s)
 	return ret;
 }
 
+static int mi_noop_index;
+
 static struct cmd_info cmd_info[] = {
 	{"MI_NOOP", OP_MI_NOOP, F_LEN_CONST, R_ALL, D_ALL, 0, 1, NULL},
 
@@ -2525,7 +2527,12 @@ static int cmd_parser_exec(struct parser_exec_state *s)
 
 	cmd = cmd_val(s, 0);
 
-	info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
+	/* fastpath for MI_NOOP */
+	if (cmd == MI_NOOP)
+		info = &cmd_info[mi_noop_index];
+	else
+		info = get_cmd_info(s->vgpu->gvt, cmd, s->ring_id);
+
 	if (info == NULL) {
 		gvt_vgpu_err("unknown cmd 0x%x, opcode=0x%x, addr_type=%s, ring %d, workload=%p\n",
 				cmd, get_opcode(cmd, s->ring_id),
@@ -2928,6 +2935,8 @@ static int init_cmd_table(struct intel_gvt *gvt)
 			kfree(e);
 			return -EEXIST;
 		}
+		if (cmd_info[i].opcode == OP_MI_NOOP)
+			mi_noop_index = i;
 
 		INIT_HLIST_NODE(&e->hlist);
 		add_cmd_entry(gvt, e);

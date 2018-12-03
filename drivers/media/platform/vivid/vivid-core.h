@@ -111,7 +111,7 @@ enum vivid_colorspace {
 	VIVID_CS_170M,
 	VIVID_CS_709,
 	VIVID_CS_SRGB,
-	VIVID_CS_ADOBERGB,
+	VIVID_CS_OPRGB,
 	VIVID_CS_2020,
 	VIVID_CS_DCI_P3,
 	VIVID_CS_240M,
@@ -136,6 +136,14 @@ struct vivid_cec_work {
 struct vivid_dev {
 	unsigned			inst;
 	struct v4l2_device		v4l2_dev;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_device		mdev;
+	struct media_pad		vid_cap_pad;
+	struct media_pad		vid_out_pad;
+	struct media_pad		vbi_cap_pad;
+	struct media_pad		vbi_out_pad;
+	struct media_pad		sdr_cap_pad;
+#endif
 	struct v4l2_ctrl_handler	ctrl_hdl_user_gen;
 	struct v4l2_ctrl_handler	ctrl_hdl_user_vid;
 	struct v4l2_ctrl_handler	ctrl_hdl_user_aud;

@@ -28,7 +28,7 @@ static inline int is_bit_set(const u8 *buf, int bit)
 
 static void imon_ir_data(struct imon *imon)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	int offset = 0, size = 5 * 8;
 	int bit;
 

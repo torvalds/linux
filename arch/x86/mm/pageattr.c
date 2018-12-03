@@ -3,7 +3,7 @@
  * Thanks to Ben LaHaise for precious feedback.
  */
 #include <linux/highmem.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>
@@ -2309,9 +2309,13 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 
 	/*
 	 * We should perform an IPI and flush all tlbs,
-	 * but that can deadlock->flush only current cpu:
+	 * but that can deadlock->flush only current cpu.
+	 * Preemption needs to be disabled around __flush_tlb_all() due to
+	 * CR3 reload in __native_flush_tlb().
 	 */
+	preempt_disable();
 	__flush_tlb_all();
+	preempt_enable();
 
 	arch_flush_lazy_mmu_mode();
 }

@@ -206,8 +206,8 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 
 	VERB("irqs: %08x", irqstatus);
 
-	for (id = 0; id < priv->num_crtcs; id++) {
-		struct drm_crtc *crtc = priv->crtcs[id];
+	for (id = 0; id < priv->num_pipes; id++) {
+		struct drm_crtc *crtc = priv->pipes[id].crtc;
 		enum omap_channel channel = omap_crtc_channel(crtc);
 
 		if (irqstatus & priv->dispc_ops->mgr_get_vsync_irq(priv->dispc, channel)) {

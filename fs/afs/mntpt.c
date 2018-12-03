@@ -130,9 +130,10 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 			goto error_no_page;
 		}
 
-		ret = -EIO;
-		if (PageError(page))
+		if (PageError(page)) {
+			ret = afs_bad(AFS_FS_I(d_inode(mntpt)), afs_file_error_mntpt);
 			goto error;
+		}
 
 		buf = kmap_atomic(page);
 		memcpy(devname, buf, size);

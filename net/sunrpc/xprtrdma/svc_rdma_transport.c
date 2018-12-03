@@ -475,10 +475,12 @@ static struct svc_xprt *svc_rdma_accept(struct svc_xprt *xprt)
 
 	/* Qualify the transport resource defaults with the
 	 * capabilities of this particular device */
-	newxprt->sc_max_send_sges = dev->attrs.max_send_sge;
-	/* transport hdr, head iovec, one page list entry, tail iovec */
-	if (newxprt->sc_max_send_sges < 4) {
-		pr_err("svcrdma: too few Send SGEs available (%d)\n",
+	/* Transport header, head iovec, tail iovec */
+	newxprt->sc_max_send_sges = 3;
+	/* Add one SGE per page list entry */
+	newxprt->sc_max_send_sges += svcrdma_max_req_size / PAGE_SIZE;
+	if (newxprt->sc_max_send_sges > dev->attrs.max_send_sge) {
+		pr_err("svcrdma: too few Send SGEs available (%d needed)\n",
 		       newxprt->sc_max_send_sges);
 		goto errout;
 	}

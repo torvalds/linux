@@ -571,7 +571,8 @@ static int pulse8_cec_adap_log_addr(struct cec_adapter *adap, u8 log_addr)
 			memset(osd_str + osd_len, ' ', 4 - osd_len);
 			osd_len = 4;
 			osd_str[osd_len] = '\0';
-			strcpy(adap->log_addrs.osd_name, osd_str);
+			strscpy(adap->log_addrs.osd_name, osd_str,
+				sizeof(adap->log_addrs.osd_name));
 		}
 		err = pulse8_send_and_wait(pulse8, cmd, 1 + osd_len,
 					   MSGCODE_COMMAND_ACCEPTED, 0);

@@ -353,12 +353,12 @@ static int fsl_dcu_drm_probe(struct platform_device *pdev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0)
-		goto unref;
+		goto put;
 
 	return 0;
 
-unref:
-	drm_dev_unref(drm);
+put:
+	drm_dev_put(drm);
 unregister_pix_clk:
 	clk_unregister(fsl_dev->pix_clk);
 disable_clk:
@@ -371,7 +371,7 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(fsl_dev->drm);
-	drm_dev_unref(fsl_dev->drm);
+	drm_dev_put(fsl_dev->drm);
 	clk_disable_unprepare(fsl_dev->clk);
 	clk_unregister(fsl_dev->pix_clk);
 

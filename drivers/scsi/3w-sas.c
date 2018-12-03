@@ -287,7 +287,9 @@ static int twl_post_command_packet(TW_Device_Extension *tw_dev, int request_id)
 } /* End twl_post_command_packet() */
 
 /* This function hands scsi cdb's to the firmware */
-static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id, char *cdb, int use_sg, TW_SG_Entry_ISO *sglistarg)
+static int twl_scsiop_execute_scsi(TW_Device_Extension *tw_dev, int request_id,
+				   unsigned char *cdb, int use_sg,
+				   TW_SG_Entry_ISO *sglistarg)
 {
 	TW_Command_Full *full_command_packet;
 	TW_Command_Apache *command_packet;
@@ -372,7 +374,7 @@ out:
 /* This function will read the aen queue from the isr */
 static int twl_aen_read_queue(TW_Device_Extension *tw_dev, int request_id)
 {
-	char cdb[TW_MAX_CDB_LEN];
+	unsigned char cdb[TW_MAX_CDB_LEN];
 	TW_SG_Entry_ISO sglist[1];
 	TW_Command_Full *full_command_packet;
 	int retval = 1;
@@ -554,7 +556,7 @@ out:
 static int twl_aen_drain_queue(TW_Device_Extension *tw_dev, int no_check_reset)
 {
 	int request_id = 0;
-	char cdb[TW_MAX_CDB_LEN];
+	unsigned char cdb[TW_MAX_CDB_LEN];
 	TW_SG_Entry_ISO sglist[1];
 	int finished = 0, count = 0;
 	TW_Command_Full *full_command_packet;

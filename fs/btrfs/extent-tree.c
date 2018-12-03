@@ -2366,6 +2366,9 @@ static int run_one_delayed_ref(struct btrfs_trans_handle *trans,
 					   insert_reserved);
 	else
 		BUG();
+	if (ret && insert_reserved)
+		btrfs_pin_extent(trans->fs_info, node->bytenr,
+				 node->num_bytes, 1);
 	return ret;
 }
 
@@ -2954,7 +2957,6 @@ int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_head *head;
 	int ret;
 	int run_all = count == (unsigned long)-1;
-	bool can_flush_pending_bgs = trans->can_flush_pending_bgs;
 
 	/* We'll clean this up in btrfs_cleanup_transaction */
 	if (trans->aborted)
@@ -2971,7 +2973,6 @@ again:
 #ifdef SCRAMBLE_DELAYED_REFS
 	delayed_refs->run_delayed_start = find_middle(&delayed_refs->root);
 #endif
-	trans->can_flush_pending_bgs = false;
 	ret = __btrfs_run_delayed_refs(trans, count);
 	if (ret < 0) {
 		btrfs_abort_transaction(trans, ret);
@@ -3002,7 +3003,6 @@ again:
 		goto again;
 	}
 out:
-	trans->can_flush_pending_bgs = can_flush_pending_bgs;
 	return 0;
 }
 
@@ -4568,6 +4568,7 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 			goto out;
 	} else {
 		ret = 1;
+		space_info->max_extent_size = 0;
 	}
 
 	space_info->force_alloc = CHUNK_ALLOC_NO_FORCE;
@@ -4589,11 +4590,9 @@ out:
 	 * the block groups that were made dirty during the lifetime of the
 	 * transaction.
 	 */
-	if (trans->can_flush_pending_bgs &&
-	    trans->chunk_bytes_reserved >= (u64)SZ_2M) {
+	if (trans->chunk_bytes_reserved >= (u64)SZ_2M)
 		btrfs_create_pending_block_groups(trans);
-		btrfs_trans_release_chunk_metadata(trans);
-	}
+
 	return ret;
 }
 
@@ -6464,6 +6463,7 @@ static void btrfs_free_reserved_bytes(struct btrfs_block_group_cache *cache,
 		space_info->bytes_readonly += num_bytes;
 	cache->reserved -= num_bytes;
 	space_info->bytes_reserved -= num_bytes;
+	space_info->max_extent_size = 0;
 
 	if (delalloc)
 		cache->delalloc_bytes -= num_bytes;
@@ -7260,6 +7260,7 @@ static noinline int find_free_extent(struct btrfs_fs_info *fs_info,
 	struct btrfs_block_group_cache *block_group = NULL;
 	u64 search_start = 0;
 	u64 max_extent_size = 0;
+	u64 max_free_space = 0;
 	u64 empty_cluster = 0;
 	struct btrfs_space_info *space_info;
 	int loop = 0;
@@ -7555,8 +7556,8 @@ unclustered_alloc:
 			spin_lock(&ctl->tree_lock);
 			if (ctl->free_space <
 			    num_bytes + empty_cluster + empty_size) {
-				if (ctl->free_space > max_extent_size)
-					max_extent_size = ctl->free_space;
+				max_free_space = max(max_free_space,
+						     ctl->free_space);
 				spin_unlock(&ctl->tree_lock);
 				goto loop;
 			}
@@ -7723,6 +7724,8 @@ loop:
 	}
 out:
 	if (ret == -ENOSPC) {
+		if (!max_extent_size)
+			max_extent_size = max_free_space;
 		spin_lock(&space_info->lock);
 		space_info->max_extent_size = max_extent_size;
 		spin_unlock(&space_info->lock);
@@ -8004,21 +8007,14 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	}
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		btrfs_free_and_pin_reserved_extent(fs_info,
-						   extent_key.objectid,
-						   fs_info->nodesize);
+	if (!path)
 		return -ENOMEM;
-	}
 
 	path->leave_spinning = 1;
 	ret = btrfs_insert_empty_item(trans, fs_info->extent_root, path,
 				      &extent_key, size);
 	if (ret) {
 		btrfs_free_path(path);
-		btrfs_free_and_pin_reserved_extent(fs_info,
-						   extent_key.objectid,
-						   fs_info->nodesize);
 		return ret;
 	}
 
@@ -10132,9 +10128,10 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 	struct btrfs_block_group_item item;
 	struct btrfs_key key;
 	int ret = 0;
-	bool can_flush_pending_bgs = trans->can_flush_pending_bgs;
 
-	trans->can_flush_pending_bgs = false;
+	if (!trans->can_flush_pending_bgs)
+		return;
+
 	while (!list_empty(&trans->new_bgs)) {
 		block_group = list_first_entry(&trans->new_bgs,
 					       struct btrfs_block_group_cache,
@@ -10159,7 +10156,7 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 next:
 		list_del_init(&block_group->bg_list);
 	}
-	trans->can_flush_pending_bgs = can_flush_pending_bgs;
+	btrfs_trans_release_chunk_metadata(trans);
 }
 
 int btrfs_make_block_group(struct btrfs_trans_handle *trans, u64 bytes_used,

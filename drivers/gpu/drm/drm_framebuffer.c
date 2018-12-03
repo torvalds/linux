@@ -25,6 +25,7 @@
 #include <drm/drm_auth.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_print.h>
 
 #include "drm_internal.h"
@@ -112,17 +113,21 @@ int drm_mode_addfb(struct drm_device *dev, struct drm_mode_fb_cmd *or,
 	struct drm_mode_fb_cmd2 r = {};
 	int ret;
 
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		return -EOPNOTSUPP;
+
+	r.pixel_format = drm_driver_legacy_fb_format(dev, or->bpp, or->depth);
+	if (r.pixel_format == DRM_FORMAT_INVALID) {
+		DRM_DEBUG("bad {bpp:%d, depth:%d}\n", or->bpp, or->depth);
+		return -EINVAL;
+	}
+
 	/* convert to new format and call new ioctl */
 	r.fb_id = or->fb_id;
 	r.width = or->width;
 	r.height = or->height;
 	r.pitches[0] = or->pitch;
-	r.pixel_format = drm_mode_legacy_fb_format(or->bpp, or->depth);
 	r.handles[0] = or->handle;
-
-	if (r.pixel_format == DRM_FORMAT_XRGB2101010 &&
-	    dev->driver->driver_features & DRIVER_PREFER_XBGR_30BPP)
-		r.pixel_format = DRM_FORMAT_XBGR2101010;
 
 	ret = drm_mode_addfb2(dev, &r, file_priv);
 	if (ret)
@@ -164,7 +169,7 @@ static int framebuffer_check(struct drm_device *dev,
 	int i;
 
 	/* check if the format is supported at all */
-	info = __drm_format_info(r->pixel_format & ~DRM_FORMAT_BIG_ENDIAN);
+	info = __drm_format_info(r->pixel_format);
 	if (!info) {
 		struct drm_format_name_buf format_name;
 
@@ -335,7 +340,7 @@ int drm_mode_addfb2(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_internal_framebuffer_create(dev, r, file_priv);
 	if (IS_ERR(fb))
@@ -350,6 +355,30 @@ int drm_mode_addfb2(struct drm_device *dev,
 	mutex_unlock(&file_priv->fbs_lock);
 
 	return 0;
+}
+
+int drm_mode_addfb2_ioctl(struct drm_device *dev,
+			  void *data, struct drm_file *file_priv)
+{
+#ifdef __BIG_ENDIAN
+	if (!dev->mode_config.quirk_addfb_prefer_host_byte_order) {
+		/*
+		 * Drivers must set the
+		 * quirk_addfb_prefer_host_byte_order quirk to make
+		 * the drm_mode_addfb() compat code work correctly on
+		 * bigendian machines.
+		 *
+		 * If they don't they interpret pixel_format values
+		 * incorrectly for bug compatibility, which in turn
+		 * implies the ADDFB2 ioctl does not work correctly
+		 * then.  So block it to make userspace fallback to
+		 * ADDFB.
+		 */
+		DRM_DEBUG_KMS("addfb2 broken on bigendian");
+		return -EOPNOTSUPP;
+	}
+#endif
+	return drm_mode_addfb2(dev, data, file_priv);
 }
 
 struct drm_mode_rmfb_work {
@@ -391,7 +420,7 @@ int drm_mode_rmfb(struct drm_device *dev, u32 fb_id,
 	int found = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, fb_id);
 	if (!fb)
@@ -468,7 +497,7 @@ int drm_mode_getfb(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)
@@ -541,7 +570,7 @@ int drm_mode_dirtyfb_ioctl(struct drm_device *dev,
 	int ret;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	fb = drm_framebuffer_lookup(dev, file_priv, r->fb_id);
 	if (!fb)

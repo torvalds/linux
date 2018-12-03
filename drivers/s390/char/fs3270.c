@@ -8,7 +8,7 @@
  *     Copyright IBM Corp. 2003, 2009
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>

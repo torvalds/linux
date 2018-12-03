@@ -166,7 +166,7 @@ int uvcg_queue_buffer(struct uvc_video_queue *queue, struct v4l2_buffer *buf)
 	unsigned long flags;
 	int ret;
 
-	ret = vb2_qbuf(&queue->queue, buf);
+	ret = vb2_qbuf(&queue->queue, NULL, buf);
 	if (ret < 0)
 		return ret;
 

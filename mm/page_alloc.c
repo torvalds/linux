@@ -20,7 +20,6 @@
 #include <linux/interrupt.h>
 #include <linux/pagemap.h>
 #include <linux/jiffies.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
@@ -1339,7 +1338,7 @@ meminit_pfn_in_nid(unsigned long pfn, int node,
 #endif
 
 
-void __init __free_pages_bootmem(struct page *page, unsigned long pfn,
+void __init memblock_free_pages(struct page *page, unsigned long pfn,
 							unsigned int order)
 {
 	if (early_page_uninitialised(pfn))
@@ -4062,17 +4061,6 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	int reserve_flags;
 
 	/*
-	 * In the slowpath, we sanity check order to avoid ever trying to
-	 * reclaim >= MAX_ORDER areas which will never succeed. Callers may
-	 * be using allocators in order of preference for an area that is
-	 * too large.
-	 */
-	if (order >= MAX_ORDER) {
-		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-		return NULL;
-	}
-
-	/*
 	 * We also sanity check to catch abuse of atomic reserves being used by
 	 * callers that are not in atomic context.
 	 */
@@ -4364,6 +4352,15 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order, int preferred_nid,
 	unsigned int alloc_flags = ALLOC_WMARK_LOW;
 	gfp_t alloc_mask; /* The gfp_t that was actually used for allocation */
 	struct alloc_context ac = { };
+
+	/*
+	 * There are several places where we assume that the order value is sane
+	 * so bail out early if the request is out of bound.
+	 */
+	if (unlikely(order >= MAX_ORDER)) {
+		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+		return NULL;
+	}
 
 	gfp_mask &= gfp_allowed_mask;
 	alloc_mask = gfp_mask;
@@ -5476,7 +5473,7 @@ overlap_memmap_init(unsigned long zone, unsigned long *pfn)
 
 /*
  * Initially all pages are reserved - free ones are freed
- * up by free_all_bootmem() once the early boot process is
+ * up by memblock_free_all() once the early boot process is
  * done. Non-atomic initialization, single-pass.
  */
 void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
@@ -5816,8 +5813,10 @@ void __meminit init_currently_empty_zone(struct zone *zone,
 					unsigned long size)
 {
 	struct pglist_data *pgdat = zone->zone_pgdat;
+	int zone_idx = zone_idx(zone) + 1;
 
-	pgdat->nr_zones = zone_idx(zone) + 1;
+	if (zone_idx > pgdat->nr_zones)
+		pgdat->nr_zones = zone_idx;
 
 	zone->zone_start_pfn = zone_start_pfn;
 
@@ -6209,7 +6208,7 @@ static void __ref setup_usemap(struct pglist_data *pgdat,
 	zone->pageblock_flags = NULL;
 	if (usemapsize)
 		zone->pageblock_flags =
-			memblock_virt_alloc_node_nopanic(usemapsize,
+			memblock_alloc_node_nopanic(usemapsize,
 							 pgdat->node_id);
 }
 #else
@@ -6439,7 +6438,7 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
 		end = pgdat_end_pfn(pgdat);
 		end = ALIGN(end, MAX_ORDER_NR_PAGES);
 		size =  (end - start) * sizeof(struct page);
-		map = memblock_virt_alloc_node_nopanic(size, pgdat->node_id);
+		map = memblock_alloc_node_nopanic(size, pgdat->node_id);
 		pgdat->node_mem_map = map + offset;
 	}
 	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
@@ -6508,8 +6507,7 @@ void __init free_area_init_node(int nid, unsigned long *zones_size,
 	free_area_init_core(pgdat);
 }
 
-#if defined(CONFIG_HAVE_MEMBLOCK) && !defined(CONFIG_FLAT_NODE_MEM_MAP)
-
+#if !defined(CONFIG_FLAT_NODE_MEM_MAP)
 /*
  * Zero all valid struct pages in range [spfn, epfn), return number of struct
  * pages zeroed
@@ -6569,7 +6567,7 @@ void __init zero_resv_unavail(void)
 	if (pgcnt)
 		pr_info("Zeroed struct page in unavailable ranges: %lld pages", pgcnt);
 }
-#endif /* CONFIG_HAVE_MEMBLOCK && !CONFIG_FLAT_NODE_MEM_MAP */
+#endif /* !CONFIG_FLAT_NODE_MEM_MAP */
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 
@@ -7712,9 +7710,11 @@ void *__init alloc_large_system_hash(const char *tablename,
 		size = bucketsize << log2qty;
 		if (flags & HASH_EARLY) {
 			if (flags & HASH_ZERO)
-				table = memblock_virt_alloc_nopanic(size, 0);
+				table = memblock_alloc_nopanic(size,
+							       SMP_CACHE_BYTES);
 			else
-				table = memblock_virt_alloc_raw(size, 0);
+				table = memblock_alloc_raw(size,
+							   SMP_CACHE_BYTES);
 		} else if (hashdist) {
 			table = __vmalloc(size, gfp_flags, PAGE_KERNEL);
 		} else {
@@ -7787,6 +7787,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
 
 		if (PageReserved(page))
 			goto unmovable;
+
+		/*
+		 * If the zone is movable and we have ruled out all reserved
+		 * pages then it should be reasonably safe to assume the rest
+		 * is movable.
+		 */
+		if (zone_idx(zone) == ZONE_MOVABLE)
+			continue;
 
 		/*
 		 * Hugepages are not in LRU lists, but they're movable.

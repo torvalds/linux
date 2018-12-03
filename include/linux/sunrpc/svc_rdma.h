@@ -113,13 +113,14 @@ struct svcxprt_rdma {
 /* sc_flags */
 #define RDMAXPRT_CONN_PENDING	3
 
-#define RPCRDMA_LISTEN_BACKLOG  10
-#define RPCRDMA_MAX_REQUESTS    32
-
-/* Typical ULP usage of BC requests is NFSv4.1 backchannel. Our
- * current NFSv4.1 implementation supports one backchannel slot.
+/*
+ * Default connection parameters
  */
-#define RPCRDMA_MAX_BC_REQUESTS	2
+enum {
+	RPCRDMA_LISTEN_BACKLOG	= 10,
+	RPCRDMA_MAX_REQUESTS	= 64,
+	RPCRDMA_MAX_BC_REQUESTS	= 2,
+};
 
 #define RPCSVC_MAXPAYLOAD_RDMA	RPCSVC_MAXPAYLOAD
 

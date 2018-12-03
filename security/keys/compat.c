@@ -141,6 +141,24 @@ COMPAT_SYSCALL_DEFINE5(keyctl, u32, option,
 		return keyctl_restrict_keyring(arg2, compat_ptr(arg3),
 					       compat_ptr(arg4));
 
+	case KEYCTL_PKEY_QUERY:
+		if (arg3 != 0)
+			return -EINVAL;
+		return keyctl_pkey_query(arg2,
+					 compat_ptr(arg4),
+					 compat_ptr(arg5));
+
+	case KEYCTL_PKEY_ENCRYPT:
+	case KEYCTL_PKEY_DECRYPT:
+	case KEYCTL_PKEY_SIGN:
+		return keyctl_pkey_e_d_s(option,
+					 compat_ptr(arg2), compat_ptr(arg3),
+					 compat_ptr(arg4), compat_ptr(arg5));
+
+	case KEYCTL_PKEY_VERIFY:
+		return keyctl_pkey_verify(compat_ptr(arg2), compat_ptr(arg3),
+					  compat_ptr(arg4), compat_ptr(arg5));
+
 	default:
 		return -EOPNOTSUPP;
 	}

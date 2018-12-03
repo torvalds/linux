@@ -32,7 +32,6 @@ void mmhub_v1_0_init(struct amdgpu_device *adev);
 int mmhub_v1_0_set_clockgating(struct amdgpu_device *adev,
 			       enum amd_clockgating_state state);
 void mmhub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags);
-void mmhub_v1_0_initialize_power_gating(struct amdgpu_device *adev);
 void mmhub_v1_0_update_power_gating(struct amdgpu_device *adev,
                                 bool enable);
 

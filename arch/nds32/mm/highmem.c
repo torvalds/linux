@@ -6,7 +6,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>
 

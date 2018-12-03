@@ -350,8 +350,11 @@ remove:
 void imx_media_remove_internal_subdevs(struct imx_media_dev *imxmd)
 {
 	struct imx_media_async_subdev *imxasd;
+	struct v4l2_async_subdev *asd;
 
-	list_for_each_entry(imxasd, &imxmd->asd_list, list) {
+	list_for_each_entry(asd, &imxmd->notifier.asd_list, asd_list) {
+		imxasd = to_imx_media_asd(asd);
+
 		if (!imxasd->pdev)
 			continue;
 

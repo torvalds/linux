@@ -6,7 +6,7 @@
  * (C) Copyright 1995 1996 Linus Torvalds
  */
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/ioport.h>

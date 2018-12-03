@@ -286,6 +286,12 @@ pointed by REDIRECT. This should not be possible on local system as setting
 "trusted." xattrs will require CAP_SYS_ADMIN. But it should be possible
 for untrusted layers like from a pen drive.
 
+Note: redirect_dir={off|nofollow|follow(*)} conflicts with metacopy=on, and
+results in an error.
+
+(*) redirect_dir=follow only conflicts with metacopy=on if upperdir=... is
+given.
+
 Sharing and copying layers
 --------------------------
 

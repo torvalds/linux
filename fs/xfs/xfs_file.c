@@ -919,28 +919,67 @@ out_unlock:
 	return error;
 }
 
-STATIC int
-xfs_file_clone_range(
-	struct file	*file_in,
-	loff_t		pos_in,
-	struct file	*file_out,
-	loff_t		pos_out,
-	u64		len)
-{
-	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-				     len, false);
-}
 
-STATIC int
-xfs_file_dedupe_range(
-	struct file	*file_in,
-	loff_t		pos_in,
-	struct file	*file_out,
-	loff_t		pos_out,
-	u64		len)
+STATIC loff_t
+xfs_file_remap_range(
+	struct file		*file_in,
+	loff_t			pos_in,
+	struct file		*file_out,
+	loff_t			pos_out,
+	loff_t			len,
+	unsigned int		remap_flags)
 {
-	return xfs_reflink_remap_range(file_in, pos_in, file_out, pos_out,
-				     len, true);
+	struct inode		*inode_in = file_inode(file_in);
+	struct xfs_inode	*src = XFS_I(inode_in);
+	struct inode		*inode_out = file_inode(file_out);
+	struct xfs_inode	*dest = XFS_I(inode_out);
+	struct xfs_mount	*mp = src->i_mount;
+	loff_t			remapped = 0;
+	xfs_extlen_t		cowextsize;
+	int			ret;
+
+	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
+		return -EINVAL;
+
+	if (!xfs_sb_version_hasreflink(&mp->m_sb))
+		return -EOPNOTSUPP;
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	/* Prepare and then clone file data. */
+	ret = xfs_reflink_remap_prep(file_in, pos_in, file_out, pos_out,
+			&len, remap_flags);
+	if (ret < 0 || len == 0)
+		return ret;
+
+	trace_xfs_reflink_remap_range(src, pos_in, len, dest, pos_out);
+
+	ret = xfs_reflink_remap_blocks(src, pos_in, dest, pos_out, len,
+			&remapped);
+	if (ret)
+		goto out_unlock;
+
+	/*
+	 * Carry the cowextsize hint from src to dest if we're sharing the
+	 * entire source file to the entire destination file, the source file
+	 * has a cowextsize hint, and the destination file does not.
+	 */
+	cowextsize = 0;
+	if (pos_in == 0 && len == i_size_read(inode_in) &&
+	    (src->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE) &&
+	    pos_out == 0 && len >= i_size_read(inode_out) &&
+	    !(dest->i_d.di_flags2 & XFS_DIFLAG2_COWEXTSIZE))
+		cowextsize = src->i_d.di_cowextsize;
+
+	ret = xfs_reflink_update_dest(dest, pos_out + len, cowextsize,
+			remap_flags);
+
+out_unlock:
+	xfs_reflink_remap_unlock(file_in, file_out);
+	if (ret)
+		trace_xfs_reflink_remap_range_error(dest, ret, _RET_IP_);
+	return remapped > 0 ? remapped : ret;
 }
 
 STATIC int
@@ -1175,8 +1214,7 @@ const struct file_operations xfs_file_operations = {
 	.fsync		= xfs_file_fsync,
 	.get_unmapped_area = thp_get_unmapped_area,
 	.fallocate	= xfs_file_fallocate,
-	.clone_file_range = xfs_file_clone_range,
-	.dedupe_file_range = xfs_file_dedupe_range,
+	.remap_file_range = xfs_file_remap_range,
 };
 
 const struct file_operations xfs_dir_file_operations = {

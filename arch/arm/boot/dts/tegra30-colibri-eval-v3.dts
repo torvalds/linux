@@ -1,15 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
 
+#include <dt-bindings/input/input.h>
 #include "tegra30-colibri.dtsi"
 
 / {
 	model = "Toradex Colibri T30 on Colibri Evaluation Board";
-	compatible = "toradex,colibri_t30-eval-v3", "toradex,colibri_t30", "nvidia,tegra30";
+	compatible = "toradex,colibri_t30-eval-v3", "toradex,colibri_t30",
+		     "nvidia,tegra30";
 
 	aliases {
 		rtc0 = "/i2c@7000c000/rtc@68";
-		rtc1 = "/i2c@7000d000/tps65911@2d";
+		rtc1 = "/i2c@7000d000/pmic@2d";
 		rtc2 = "/rtc@7000e000";
 		serial0 = &uarta;
 		serial1 = &uartb;
@@ -27,22 +29,25 @@
 				nvidia,panel = <&panel>;
 			};
 		};
+
 		hdmi@54280000 {
 			status = "okay";
+			hdmi-supply = <&reg_5v0>;
 		};
 	};
 
+	/* Colibri UART-A */
 	serial@70006000 {
 		status = "okay";
 	};
 
+	/* Colibri UART-C */
 	serial@70006040 {
-		compatible = "nvidia,tegra30-hsuart";
 		status = "okay";
 	};
 
+	/* Colibri UART-B */
 	serial@70006300 {
-		compatible = "nvidia,tegra30-hsuart";
 		status = "okay";
 	};
 
@@ -65,8 +70,12 @@
 		};
 	};
 
+	/* GEN2_I2C: unused */
+
+	/* CAM_I2C (I2C3): unused */
+
 	/* DDC_CLOCK/DATA on X3 pin 15/16 (e.g. display EDID) */
-	hdmiddc: i2c@7000c700 {
+	i2c@7000c700 {
 		status = "okay";
 	};
 
@@ -74,18 +83,17 @@
 	spi@7000d400 {
 		status = "okay";
 		spi-max-frequency = <25000000>;
-		can0: can@0 {
+
+		can@0 {
 			compatible = "microchip,mcp2515";
 			reg = <0>;
 			clocks = <&clk16m>;
 			interrupt-parent = <&gpio>;
-			interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_EDGE_RISING>;
+			/* CAN_INT */
+			interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_EDGE_FALLING>;
 			spi-max-frequency = <10000000>;
-		};
-		spidev0: spi@1 {
-			compatible = "spidev";
-			reg = <1>;
-			spi-max-frequency = <25000000>;
+			vdd-supply = <&reg_3v3>;
+			xceiver-supply = <&reg_5v0>;
 		};
 	};
 
@@ -93,19 +101,19 @@
 	sdhci@78000200 {
 		status = "okay";
 		bus-width = <4>;
-		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>;
+		cd-gpios = <&gpio TEGRA_GPIO(C, 7) GPIO_ACTIVE_LOW>; /* MMCD */
 		no-1-8-v;
 	};
 
 	/* EHCI instance 0: USB1_DP/N -> USBC_P/N */
 	usb@7d000000 {
 		status = "okay";
+		dr_mode = "otg";
 	};
 
 	usb-phy@7d000000 {
 		status = "okay";
-		dr_mode = "otg";
-		vbus-supply = <&usbc_vbus_reg>;
+		vbus-supply = <&reg_usbc_vbus>;
 	};
 
 	/* EHCI instance 2: USB3_DP/N -> USBH_P/N */
@@ -115,28 +123,23 @@
 
 	usb-phy@7d008000 {
 		status = "okay";
-		vbus-supply = <&usbh_vbus_reg>;
+		vbus-supply = <&reg_usbh_vbus>;
 	};
 
 	backlight: backlight {
 		compatible = "pwm-backlight";
-
-		/* PWM<A> */
-		pwms = <&pwm 0 5000000>;
 		brightness-levels = <255 128 64 32 16 8 4 0>;
 		default-brightness-level = <6>;
 		/* BL_ON */
 		enable-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
+		power-supply = <&reg_3v3>;
+		pwms = <&pwm 0 5000000>; /* PWM<A> */
 	};
 
-	clocks {
-		clk16m: clk@1 {
-			compatible = "fixed-clock";
-			reg = <1>;
-			#clock-cells = <0>;
-			clock-frequency = <16000000>;
-			clock-output-names = "clk16m";
-		};
+	clk16m: osc3 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <16000000>;
 	};
 
 	gpio-keys {
@@ -157,58 +160,39 @@
 		 * edt,et070080dh6: EDT 7.0" LCD TFT
 		 */
 		compatible = "edt,et057090dhu", "simple-panel";
-
 		backlight = <&backlight>;
+		power-supply = <&reg_3v3>;
 	};
 
-	pwmleds {
-		compatible = "pwm-leds";
-
-		pwmb {
-			label = "PWM<B>";
-			pwms = <&pwm 1 19600>;
-			max-brightness = <255>;
-		};
-		pwmc {
-			label = "PWM<C>";
-			pwms = <&pwm 2 19600>;
-			max-brightness = <255>;
-		};
-		pwmd {
-			label = "PWM<D>";
-			pwms = <&pwm 3 19600>;
-			max-brightness = <255>;
-		};
+	reg_3v3: regulator-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V_SW";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
-	regulators {
-		sys_5v0_reg: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "5v0";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-always-on;
-		};
+	reg_5v0: regulator-5v0 {
+		compatible = "regulator-fixed";
+		regulator-name = "5V_SW";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
 
-		usbc_vbus_reg: regulator@2 {
-			compatible = "regulator-fixed";
-			reg = <2>;
-			regulator-name = "usbc_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			vin-supply = <&sys_5v0_reg>;
-		};
+	reg_usbc_vbus: regulator-usbc-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_USB5";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&reg_5v0>;
+	};
 
-		/* USBH_PEN */
-		usbh_vbus_reg: regulator@3 {
-			compatible = "regulator-fixed";
-			reg = <3>;
-			regulator-name = "usbh_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			gpio = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
-			vin-supply = <&sys_5v0_reg>;
-		};
+	/* USBH_PEN resp. USB_P_EN */
+	reg_usbh_vbus: regulator-usbh-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_USB[1-4]";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_LOW>;
+		vin-supply = <&reg_5v0>;
 	};
 };

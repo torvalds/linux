@@ -3298,24 +3298,30 @@ static int mvpp2_irqs_init(struct mvpp2_port *port)
 	for (i = 0; i < port->nqvecs; i++) {
 		struct mvpp2_queue_vector *qv = port->qvecs + i;
 
-		if (qv->type == MVPP2_QUEUE_VECTOR_PRIVATE)
+		if (qv->type == MVPP2_QUEUE_VECTOR_PRIVATE) {
+			qv->mask = kzalloc(cpumask_size(), GFP_KERNEL);
+			if (!qv->mask) {
+				err = -ENOMEM;
+				goto err;
+			}
+
 			irq_set_status_flags(qv->irq, IRQ_NO_BALANCING);
+		}
 
 		err = request_irq(qv->irq, mvpp2_isr, 0, port->dev->name, qv);
 		if (err)
 			goto err;
 
 		if (qv->type == MVPP2_QUEUE_VECTOR_PRIVATE) {
-			unsigned long mask = 0;
 			unsigned int cpu;
 
 			for_each_present_cpu(cpu) {
 				if (mvpp2_cpu_to_thread(port->priv, cpu) ==
 				    qv->sw_thread_id)
-					mask |= BIT(cpu);
+					cpumask_set_cpu(cpu, qv->mask);
 			}
 
-			irq_set_affinity_hint(qv->irq, to_cpumask(&mask));
+			irq_set_affinity_hint(qv->irq, qv->mask);
 		}
 	}
 
@@ -3325,6 +3331,8 @@ err:
 		struct mvpp2_queue_vector *qv = port->qvecs + i;
 
 		irq_set_affinity_hint(qv->irq, NULL);
+		kfree(qv->mask);
+		qv->mask = NULL;
 		free_irq(qv->irq, qv);
 	}
 
@@ -3339,6 +3347,8 @@ static void mvpp2_irqs_deinit(struct mvpp2_port *port)
 		struct mvpp2_queue_vector *qv = port->qvecs + i;
 
 		irq_set_affinity_hint(qv->irq, NULL);
+		kfree(qv->mask);
+		qv->mask = NULL;
 		irq_clear_status_flags(qv->irq, IRQ_NO_BALANCING);
 		free_irq(qv->irq, qv);
 	}

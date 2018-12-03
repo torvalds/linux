@@ -761,10 +761,10 @@ static int saa7127_probe(struct i2c_client *client,
 			saa7127_write(sd, SAA7129_REG_FADE_KEY_COL2,
 					read_result);
 			state->ident = SAA7129;
-			strlcpy(client->name, "saa7129", I2C_NAME_SIZE);
+			strscpy(client->name, "saa7129", I2C_NAME_SIZE);
 		} else {
 			state->ident = SAA7127;
-			strlcpy(client->name, "saa7127", I2C_NAME_SIZE);
+			strscpy(client->name, "saa7127", I2C_NAME_SIZE);
 		}
 	}
 

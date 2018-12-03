@@ -175,7 +175,7 @@ static irqreturn_t hix5hd2_ir_rx_interrupt(int irq, void *data)
 	}
 
 	if ((irq_sr & INTMS_SYMBRCV) || (irq_sr & INTMS_TIMEOUT)) {
-		DEFINE_IR_RAW_EVENT(ev);
+		struct ir_raw_event ev = {};
 
 		symb_num = readl_relaxed(priv->base + IR_DATAH);
 		for (i = 0; i < symb_num; i++) {

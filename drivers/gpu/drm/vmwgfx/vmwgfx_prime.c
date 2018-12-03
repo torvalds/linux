@@ -31,8 +31,8 @@
  */
 
 #include "vmwgfx_drv.h"
+#include "ttm_object.h"
 #include <linux/dma-buf.h>
-#include <drm/ttm/ttm_object.h>
 
 /*
  * DMA-BUF attach- and mapping methods. No need to implement

@@ -15,7 +15,7 @@
 #include <linux/mm.h>
 #include <linux/node.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/module.h>
 #include <asm/mmzone.h>
 #include <asm/numa.h>
@@ -35,6 +35,12 @@ struct node_cpuid_s node_cpuid[NR_CPUS] =
  * proportional to the memory access latency ratios.
  */
 u8 numa_slit[MAX_NUMNODES * MAX_NUMNODES];
+
+int __node_distance(int from, int to)
+{
+	return slit_distance(from, to);
+}
+EXPORT_SYMBOL(__node_distance);
 
 /* Identify which cnode a physical address resides on */
 int

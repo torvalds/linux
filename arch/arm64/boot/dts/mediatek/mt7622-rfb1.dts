@@ -51,7 +51,7 @@
 	};
 
 	memory {
-		reg = <0 0x40000000 0 0x3F000000>;
+		reg = <0 0x40000000 0 0x20000000>;
 	};
 
 	reg_1p8v: regulator-1p8v {
@@ -78,6 +78,103 @@
 		regulator-max-microvolt = <5000000>;
 		regulator-boot-on;
 		regulator-always-on;
+	};
+};
+
+&bch {
+	status = "disabled";
+};
+
+&btif {
+	status = "okay";
+};
+
+&cir {
+	pinctrl-names = "default";
+	pinctrl-0 = <&irrx_pins>;
+	status = "okay";
+};
+
+&eth {
+	pinctrl-names = "default";
+	pinctrl-0 = <&eth_pins>;
+	status = "okay";
+
+	gmac1: mac@1 {
+		compatible = "mediatek,eth-mac";
+		reg = <1>;
+		phy-handle = <&phy5>;
+	};
+
+	mdio-bus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		phy5: ethernet-phy@5 {
+			reg = <5>;
+			phy-mode = "sgmii";
+		};
+	};
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins>;
+	status = "okay";
+};
+
+&mmc0 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&emmc_pins_default>;
+	pinctrl-1 = <&emmc_pins_uhs>;
+	status = "okay";
+	bus-width = <8>;
+	max-frequency = <50000000>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	assigned-clocks = <&topckgen CLK_TOP_MSDC30_0_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
+	non-removable;
+};
+
+&mmc1 {
+	pinctrl-names = "default", "state_uhs";
+	pinctrl-0 = <&sd0_pins_default>;
+	pinctrl-1 = <&sd0_pins_uhs>;
+	status = "okay";
+	bus-width = <4>;
+	max-frequency = <50000000>;
+	cap-sd-highspeed;
+	r_smpl = <1>;
+	cd-gpios = <&pio 81 GPIO_ACTIVE_LOW>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
+	assigned-clocks = <&topckgen CLK_TOP_MSDC30_1_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
+};
+
+&nandc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&parallel_nand_pins>;
+	status = "disabled";
+};
+
+&nor_flash {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_nor_pins>;
+	status = "disabled";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
 	};
 };
 
@@ -341,103 +438,6 @@
 			function = "watchdog";
 			groups = "watchdog";
 		};
-	};
-};
-
-&bch {
-	status = "disabled";
-};
-
-&btif {
-	status = "okay";
-};
-
-&cir {
-	pinctrl-names = "default";
-	pinctrl-0 = <&irrx_pins>;
-	status = "okay";
-};
-
-&eth {
-	pinctrl-names = "default";
-	pinctrl-0 = <&eth_pins>;
-	status = "okay";
-
-	gmac1: mac@1 {
-		compatible = "mediatek,eth-mac";
-		reg = <1>;
-		phy-handle = <&phy5>;
-	};
-
-	mdio-bus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		phy5: ethernet-phy@5 {
-			reg = <5>;
-			phy-mode = "sgmii";
-		};
-	};
-};
-
-&i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
-	status = "okay";
-};
-
-&i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins>;
-	status = "okay";
-};
-
-&mmc0 {
-	pinctrl-names = "default", "state_uhs";
-	pinctrl-0 = <&emmc_pins_default>;
-	pinctrl-1 = <&emmc_pins_uhs>;
-	status = "okay";
-	bus-width = <8>;
-	max-frequency = <50000000>;
-	cap-mmc-highspeed;
-	mmc-hs200-1_8v;
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&reg_1p8v>;
-	assigned-clocks = <&topckgen CLK_TOP_MSDC30_0_SEL>;
-	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
-	non-removable;
-};
-
-&mmc1 {
-	pinctrl-names = "default", "state_uhs";
-	pinctrl-0 = <&sd0_pins_default>;
-	pinctrl-1 = <&sd0_pins_uhs>;
-	status = "okay";
-	bus-width = <4>;
-	max-frequency = <50000000>;
-	cap-sd-highspeed;
-	r_smpl = <1>;
-	cd-gpios = <&pio 81 GPIO_ACTIVE_LOW>;
-	vmmc-supply = <&reg_3p3v>;
-	vqmmc-supply = <&reg_3p3v>;
-	assigned-clocks = <&topckgen CLK_TOP_MSDC30_1_SEL>;
-	assigned-clock-parents = <&topckgen CLK_TOP_UNIV48M>;
-};
-
-&nandc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&parallel_nand_pins>;
-	status = "disabled";
-};
-
-&nor_flash {
-	pinctrl-names = "default";
-	pinctrl-0 = <&spi_nor_pins>;
-	status = "disabled";
-
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		reg = <0>;
 	};
 };
 

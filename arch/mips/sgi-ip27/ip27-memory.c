@@ -18,7 +18,6 @@
 #include <linux/export.h>
 #include <linux/nodemask.h>
 #include <linux/swap.h>
-#include <linux/bootmem.h>
 #include <linux/pfn.h>
 #include <linux/highmem.h>
 #include <asm/page.h>
@@ -436,6 +435,7 @@ void __init prom_meminit(void)
 
 	mlreset();
 	szmem();
+	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
 	for (node = 0; node < MAX_COMPACT_NODES; node++) {
 		if (node_online(node)) {
@@ -456,18 +456,8 @@ extern void setup_zero_pages(void);
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
-	unsigned node;
 
 	pagetable_init();
-
-	for_each_online_node(node) {
-		unsigned long start_pfn, end_pfn;
-
-		get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
-
-		if (end_pfn > max_low_pfn)
-			max_low_pfn = end_pfn;
-	}
 	zones_size[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(zones_size);
 }
@@ -475,7 +465,7 @@ void __init paging_init(void)
 void __init mem_init(void)
 {
 	high_memory = (void *) __va(get_num_physpages() << PAGE_SHIFT);
-	free_all_bootmem();
+	memblock_free_all();
 	setup_zero_pages();	/* This comes from node 0 */
 	mem_init_print_info(NULL);
 }

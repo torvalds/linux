@@ -197,7 +197,7 @@
 					status = "disabled";
 				};
 
-				ecspi1: ecspi@70010000 {
+				ecspi1: spi@70010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx51-ecspi";
@@ -464,7 +464,7 @@
 				status = "disabled";
 			};
 
-			ecspi2: ecspi@83fac000 {
+			ecspi2: spi@83fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx51-ecspi";
@@ -487,7 +487,7 @@
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
 			};
 
-			cspi: cspi@83fc0000 {
+			cspi: spi@83fc0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx51-cspi", "fsl,imx35-cspi";
@@ -608,7 +608,7 @@
 				status = "disabled";
 			};
 
-			vpu@83ff4000 {
+			vpu: vpu@83ff4000 {
 				compatible = "fsl,imx51-vpu", "cnm,codahx4";
 				reg = <0x83ff4000 0x1000>;
 				interrupts = <9>;

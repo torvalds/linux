@@ -666,8 +666,8 @@ static ssize_t pf_show(struct device *dev,
 }
 
 static DEVICE_ATTR_WO(reload);
-static DEVICE_ATTR(version, 0400, version_show, NULL);
-static DEVICE_ATTR(processor_flags, 0400, pf_show, NULL);
+static DEVICE_ATTR(version, 0444, version_show, NULL);
+static DEVICE_ATTR(processor_flags, 0444, pf_show, NULL);
 
 static struct attribute *mc_default_attrs[] = {
 	&dev_attr_version.attr,

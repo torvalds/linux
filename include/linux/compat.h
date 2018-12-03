@@ -488,8 +488,11 @@ put_compat_sigset(compat_sigset_t __user *compat, const sigset_t *set,
 	compat_sigset_t v;
 	switch (_NSIG_WORDS) {
 	case 4: v.sig[7] = (set->sig[3] >> 32); v.sig[6] = set->sig[3];
+		/* fall through */
 	case 3: v.sig[5] = (set->sig[2] >> 32); v.sig[4] = set->sig[2];
+		/* fall through */
 	case 2: v.sig[3] = (set->sig[1] >> 32); v.sig[2] = set->sig[1];
+		/* fall through */
 	case 1: v.sig[1] = (set->sig[0] >> 32); v.sig[0] = set->sig[0];
 	}
 	return copy_to_user(compat, &v, size) ? -EFAULT : 0;
@@ -1029,9 +1032,9 @@ int kcompat_sys_fstatfs64(unsigned int fd, compat_size_t sz,
 #else /* !CONFIG_COMPAT */
 
 #define is_compat_task() (0)
-#ifndef in_compat_syscall
+/* Ensure no one redefines in_compat_syscall() under !CONFIG_COMPAT */
+#define in_compat_syscall in_compat_syscall
 static inline bool in_compat_syscall(void) { return false; }
-#endif
 
 #endif /* CONFIG_COMPAT */
 

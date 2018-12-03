@@ -5,6 +5,7 @@ Mediatek JPEG Decoder is the JPEG decode hardware present in Mediatek SoCs
 Required properties:
 - compatible : must be one of the following string:
 	"mediatek,mt8173-jpgdec"
+	"mediatek,mt7623-jpgdec", "mediatek,mt2701-jpgdec"
 	"mediatek,mt2701-jpgdec"
 - reg : physical base address of the jpeg decoder registers and length of
   memory mapped region.

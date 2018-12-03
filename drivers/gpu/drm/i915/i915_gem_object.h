@@ -421,19 +421,19 @@ i915_gem_object_is_framebuffer(const struct drm_i915_gem_object *obj)
 }
 
 static inline unsigned int
-i915_gem_object_get_tiling(struct drm_i915_gem_object *obj)
+i915_gem_object_get_tiling(const struct drm_i915_gem_object *obj)
 {
 	return obj->tiling_and_stride & TILING_MASK;
 }
 
 static inline bool
-i915_gem_object_is_tiled(struct drm_i915_gem_object *obj)
+i915_gem_object_is_tiled(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_object_get_tiling(obj) != I915_TILING_NONE;
 }
 
 static inline unsigned int
-i915_gem_object_get_stride(struct drm_i915_gem_object *obj)
+i915_gem_object_get_stride(const struct drm_i915_gem_object *obj)
 {
 	return obj->tiling_and_stride & STRIDE_MASK;
 }
@@ -446,13 +446,13 @@ i915_gem_tile_height(unsigned int tiling)
 }
 
 static inline unsigned int
-i915_gem_object_get_tile_height(struct drm_i915_gem_object *obj)
+i915_gem_object_get_tile_height(const struct drm_i915_gem_object *obj)
 {
 	return i915_gem_tile_height(i915_gem_object_get_tiling(obj));
 }
 
 static inline unsigned int
-i915_gem_object_get_tile_row_size(struct drm_i915_gem_object *obj)
+i915_gem_object_get_tile_row_size(const struct drm_i915_gem_object *obj)
 {
 	return (i915_gem_object_get_stride(obj) *
 		i915_gem_object_get_tile_height(obj));

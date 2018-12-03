@@ -596,7 +596,6 @@ EXPORT_SYMBOL_GPL(rtc_update_irq_enable);
  * This function is called when an AIE, UIE or PIE mode interrupt
  * has occurred (or been emulated).
  *
- * Triggers the registered irq_task function callback.
  */
 void rtc_handle_legacy_irq(struct rtc_device *rtc, int num, int mode)
 {
@@ -741,7 +740,6 @@ static int rtc_update_hrtimer(struct rtc_device *rtc, int enabled)
 /**
  * rtc_irq_set_state - enable/disable 2^N Hz periodic IRQs
  * @rtc: the rtc device
- * @task: currently registered with rtc_irq_register()
  * @enabled: true to enable periodic IRQs
  * Context: any
  *
@@ -764,7 +762,6 @@ int rtc_irq_set_state(struct rtc_device *rtc, int enabled)
 /**
  * rtc_irq_set_freq - set 2^N Hz periodic IRQ frequency for IRQ
  * @rtc: the rtc device
- * @task: currently registered with rtc_irq_register()
  * @freq: positive frequency
  * Context: any
  *

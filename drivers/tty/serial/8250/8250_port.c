@@ -552,11 +552,30 @@ static unsigned int serial_icr_read(struct uart_8250_port *up, int offset)
  */
 static void serial8250_clear_fifos(struct uart_8250_port *p)
 {
+	unsigned char fcr;
+	unsigned char clr_mask = UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT;
+
 	if (p->capabilities & UART_CAP_FIFO) {
-		serial_out(p, UART_FCR, UART_FCR_ENABLE_FIFO);
-		serial_out(p, UART_FCR, UART_FCR_ENABLE_FIFO |
-			       UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
-		serial_out(p, UART_FCR, 0);
+		/*
+		 * Make sure to avoid changing FCR[7:3] and ENABLE_FIFO bits.
+		 * In case ENABLE_FIFO is not set, there is nothing to flush
+		 * so just return. Furthermore, on certain implementations of
+		 * the 8250 core, the FCR[7:3] bits may only be changed under
+		 * specific conditions and changing them if those conditions
+		 * are not met can have nasty side effects. One such core is
+		 * the 8250-omap present in TI AM335x.
+		 */
+		fcr = serial_in(p, UART_FCR);
+
+		/* FIFO is not enabled, there's nothing to clear. */
+		if (!(fcr & UART_FCR_ENABLE_FIFO))
+			return;
+
+		fcr |= clr_mask;
+		serial_out(p, UART_FCR, fcr);
+
+		fcr &= ~clr_mask;
+		serial_out(p, UART_FCR, fcr);
 	}
 }
 
@@ -1448,7 +1467,7 @@ static void __do_stop_tx_rs485(struct uart_8250_port *p)
 	 * Enable previously disabled RX interrupts.
 	 */
 	if (!(p->port.rs485.flags & SER_RS485_RX_DURING_TX)) {
-		serial8250_clear_and_reinit_fifos(p);
+		serial8250_clear_fifos(p);
 
 		p->ier |= UART_IER_RLSI | UART_IER_RDI;
 		serial_port_out(&p->port, UART_IER, p->ier);

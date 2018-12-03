@@ -60,6 +60,8 @@
 #include <asm/unistd_32_ia32.h>
 #endif
 
+#include "process.h"
+
 /* Prints also some state that isn't saved in the pt_regs */
 void __show_regs(struct pt_regs *regs, enum show_regs_mode mode)
 {
@@ -553,7 +555,6 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	struct fpu *prev_fpu = &prev->fpu;
 	struct fpu *next_fpu = &next->fpu;
 	int cpu = smp_processor_id();
-	struct tss_struct *tss = &per_cpu(cpu_tss_rw, cpu);
 
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_DEBUG_ENTRY) &&
 		     this_cpu_read(irq_count) != -1);
@@ -617,12 +618,7 @@ __switch_to(struct task_struct *prev_p, struct task_struct *next_p)
 	/* Reload sp0. */
 	update_task_stack(next_p);
 
-	/*
-	 * Now maybe reload the debug registers and handle I/O bitmaps
-	 */
-	if (unlikely(task_thread_info(next_p)->flags & _TIF_WORK_CTXSW_NEXT ||
-		     task_thread_info(prev_p)->flags & _TIF_WORK_CTXSW_PREV))
-		__switch_to_xtra(prev_p, next_p, tss);
+	switch_to_extra(prev_p, next_p);
 
 #ifdef CONFIG_XEN_PV
 	/*
@@ -701,10 +697,10 @@ static void __set_personality_x32(void)
 		current->mm->context.ia32_compat = TIF_X32;
 	current->personality &= ~READ_IMPLIES_EXEC;
 	/*
-	 * in_compat_syscall() uses the presence of the x32 syscall bit
+	 * in_32bit_syscall() uses the presence of the x32 syscall bit
 	 * flag to determine compat status.  The x86 mmap() code relies on
 	 * the syscall bitness so set x32 syscall bit right here to make
-	 * in_compat_syscall() work during exec().
+	 * in_32bit_syscall() work during exec().
 	 *
 	 * Pretend to come from a x32 execve.
 	 */

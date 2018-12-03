@@ -2422,7 +2422,7 @@ static int dvb_frontend_handle_ioctl(struct file *file,
 		struct dvb_frontend_info *info = parg;
 		memset(info, 0, sizeof(*info));
 
-		strcpy(info->name, fe->ops.info.name);
+		strscpy(info->name, fe->ops.info.name, sizeof(info->name));
 		info->symbol_rate_min = fe->ops.info.symbol_rate_min;
 		info->symbol_rate_max = fe->ops.info.symbol_rate_max;
 		info->symbol_rate_tolerance = fe->ops.info.symbol_rate_tolerance;

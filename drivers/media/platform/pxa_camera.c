@@ -633,7 +633,7 @@ static unsigned int pxa_mbus_config_compatible(const struct v4l2_mbus_config *cf
 		mode = common_flags & (V4L2_MBUS_MASTER | V4L2_MBUS_SLAVE);
 		return (!hsync || !vsync || !pclk || !data || !mode) ?
 			0 : common_flags;
-	case V4L2_MBUS_CSI2:
+	case V4L2_MBUS_CSI2_DPHY:
 		mipi_lanes = common_flags & V4L2_MBUS_CSI2_LANES;
 		mipi_clock = common_flags & (V4L2_MBUS_CSI2_NONCONTINUOUS_CLOCK |
 					     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK);
@@ -697,7 +697,6 @@ struct pxa_camera_dev {
 	struct v4l2_pix_format	current_pix;
 
 	struct v4l2_async_subdev asd;
-	struct v4l2_async_subdev *asds[1];
 
 	/*
 	 * PXA27x is only supposed to handle one camera on its Quick Capture
@@ -1994,9 +1993,9 @@ static int pxac_vidioc_s_fmt_vid_cap(struct file *filp, void *priv,
 static int pxac_vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *cap)
 {
-	strlcpy(cap->bus_info, "platform:pxa-camera", sizeof(cap->bus_info));
-	strlcpy(cap->driver, PXA_CAM_DRV_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, pxa_cam_driver_description, sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:pxa-camera", sizeof(cap->bus_info));
+	strscpy(cap->driver, PXA_CAM_DRV_NAME, sizeof(cap->driver));
+	strscpy(cap->card, pxa_cam_driver_description, sizeof(cap->card));
 	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
@@ -2010,7 +2009,7 @@ static int pxac_vidioc_enum_input(struct file *file, void *priv,
 		return -EINVAL;
 
 	i->type = V4L2_INPUT_TYPE_CAMERA;
-	strlcpy(i->name, "Camera", sizeof(i->name));
+	strscpy(i->name, "Camera", sizeof(i->name));
 
 	return 0;
 }
@@ -2299,7 +2298,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 {
 	u32 mclk_rate;
 	struct device_node *remote, *np = dev->of_node;
-	struct v4l2_fwnode_endpoint ep;
+	struct v4l2_fwnode_endpoint ep = { .bus_type = 0 };
 	int err = of_property_read_u32(np, "clock-frequency",
 				       &mclk_rate);
 	if (!err) {
@@ -2352,12 +2351,10 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 
 	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
 	remote = of_graph_get_remote_port(np);
-	if (remote) {
+	if (remote)
 		asd->match.fwnode = of_fwnode_handle(remote);
-		of_node_put(remote);
-	} else {
+	else
 		dev_notice(dev, "no remote for %pOF\n", np);
-	}
 
 out:
 	of_node_put(np);
@@ -2397,7 +2394,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->res = res;
 
 	pcdev->pdata = pdev->dev.platform_data;
-	if (&pdev->dev.of_node && !pcdev->pdata) {
+	if (pdev->dev.of_node && !pcdev->pdata) {
 		err = pxa_camera_pdata_from_dt(&pdev->dev, pcdev, &pcdev->asd);
 	} else {
 		pcdev->platform_flags = pcdev->pdata->flags;
@@ -2495,9 +2492,14 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	if (err)
 		goto exit_deactivate;
 
-	pcdev->asds[0] = &pcdev->asd;
-	pcdev->notifier.subdevs = pcdev->asds;
-	pcdev->notifier.num_subdevs = 1;
+	v4l2_async_notifier_init(&pcdev->notifier);
+
+	err = v4l2_async_notifier_add_subdev(&pcdev->notifier, &pcdev->asd);
+	if (err) {
+		fwnode_handle_put(pcdev->asd.match.fwnode);
+		goto exit_free_v4l2dev;
+	}
+
 	pcdev->notifier.ops = &pxa_camera_sensor_ops;
 
 	if (!of_have_populated_dt())
@@ -2505,7 +2507,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 
 	err = pxa_camera_init_videobuf2(pcdev);
 	if (err)
-		goto exit_free_v4l2dev;
+		goto exit_notifier_cleanup;
 
 	if (pcdev->mclk) {
 		v4l2_clk_name_i2c(clk_name, sizeof(clk_name),
@@ -2516,7 +2518,7 @@ static int pxa_camera_probe(struct platform_device *pdev)
 						    clk_name, NULL);
 		if (IS_ERR(pcdev->mclk_clk)) {
 			err = PTR_ERR(pcdev->mclk_clk);
-			goto exit_free_v4l2dev;
+			goto exit_notifier_cleanup;
 		}
 	}
 
@@ -2527,6 +2529,8 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	return 0;
 exit_free_clk:
 	v4l2_clk_unregister(pcdev->mclk_clk);
+exit_notifier_cleanup:
+	v4l2_async_notifier_cleanup(&pcdev->notifier);
 exit_free_v4l2dev:
 	v4l2_device_unregister(&pcdev->v4l2_dev);
 exit_deactivate:
@@ -2550,6 +2554,7 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	dma_release_channel(pcdev->dma_chans[2]);
 
 	v4l2_async_notifier_unregister(&pcdev->notifier);
+	v4l2_async_notifier_cleanup(&pcdev->notifier);
 
 	if (pcdev->mclk_clk) {
 		v4l2_clk_unregister(pcdev->mclk_clk);

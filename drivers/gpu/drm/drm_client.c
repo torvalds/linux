@@ -83,7 +83,7 @@ int drm_client_init(struct drm_device *dev, struct drm_client_dev *client,
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET) ||
 	    !dev->driver->dumb_create || !dev->driver->gem_prime_vmap)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (funcs && !try_module_get(funcs->owner))
 		return -ENODEV;

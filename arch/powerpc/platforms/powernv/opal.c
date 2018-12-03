@@ -171,7 +171,7 @@ int __init early_init_dt_scan_recoverable_ranges(unsigned long node,
 	/*
 	 * Allocate a buffer to hold the MC recoverable ranges.
 	 */
-	mc_recoverable_range =__va(memblock_alloc(size, __alignof__(u64)));
+	mc_recoverable_range =__va(memblock_phys_alloc(size, __alignof__(u64)));
 	memset(mc_recoverable_range, 0, size);
 
 	for (i = 0; i < mc_recoverable_range_len; i++) {

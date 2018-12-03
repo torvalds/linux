@@ -134,21 +134,12 @@ enum tegra_io_pad {
 	TEGRA_IO_PAD_USB2,
 	TEGRA_IO_PAD_USB3,
 	TEGRA_IO_PAD_USB_BIAS,
+	TEGRA_IO_PAD_AO_HV,
 };
 
 /* deprecated, use TEGRA_IO_PAD_{HDMI,LVDS} instead */
 #define TEGRA_IO_RAIL_HDMI	TEGRA_IO_PAD_HDMI
 #define TEGRA_IO_RAIL_LVDS	TEGRA_IO_PAD_LVDS
-
-/**
- * enum tegra_io_pad_voltage - voltage level of the I/O pad's source rail
- * @TEGRA_IO_PAD_1800000UV: 1.8 V
- * @TEGRA_IO_PAD_3300000UV: 3.3 V
- */
-enum tegra_io_pad_voltage {
-	TEGRA_IO_PAD_1800000UV,
-	TEGRA_IO_PAD_3300000UV,
-};
 
 #ifdef CONFIG_SOC_TEGRA_PMC
 int tegra_powergate_is_powered(unsigned int id);
@@ -162,9 +153,6 @@ int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 
 int tegra_io_pad_power_enable(enum tegra_io_pad id);
 int tegra_io_pad_power_disable(enum tegra_io_pad id);
-int tegra_io_pad_set_voltage(enum tegra_io_pad id,
-			     enum tegra_io_pad_voltage voltage);
-int tegra_io_pad_get_voltage(enum tegra_io_pad id);
 
 /* deprecated, use tegra_io_pad_power_{enable,disable}() instead */
 int tegra_io_rail_power_on(unsigned int id);
@@ -208,12 +196,6 @@ static inline int tegra_io_pad_power_enable(enum tegra_io_pad id)
 }
 
 static inline int tegra_io_pad_power_disable(enum tegra_io_pad id)
-{
-	return -ENOSYS;
-}
-
-static inline int tegra_io_pad_set_voltage(enum tegra_io_pad id,
-					   enum tegra_io_pad_voltage voltage)
 {
 	return -ENOSYS;
 }

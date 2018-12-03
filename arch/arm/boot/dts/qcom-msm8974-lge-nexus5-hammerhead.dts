@@ -241,6 +241,33 @@
 				bias-pull-up;
 			};
 		};
+
+		i2c3_pins: i2c3 {
+			mux {
+				pins = "gpio10", "gpio11";
+				function = "blsp_i2c3";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		i2c12_pins: i2c12 {
+			mux {
+				pins = "gpio87", "gpio88";
+				function = "blsp_i2c12";
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		mpu6515_pin: mpu6515 {
+			irq {
+				pins = "gpio73";
+				function = "gpio";
+				bias-disable;
+				input-enable;
+			};
+		};
 	};
 
 	sdhci@f9824900 {
@@ -275,6 +302,62 @@
 			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEDOWN>;
+		};
+	};
+
+	i2c@f9968000 {
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c12_pins>;
+		clock-frequency = <100000>;
+		qcom,src-freq = <50000000>;
+
+		mpu6515@68 {
+			compatible = "invensense,mpu6515";
+			reg = <0x68>;
+			interrupts-extended = <&msmgpio 73 IRQ_TYPE_EDGE_FALLING>;
+			vddio-supply = <&pm8941_lvs1>;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&mpu6515_pin>;
+
+			i2c-gate {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				ak8963@f {
+					compatible = "asahi-kasei,ak8963";
+					reg = <0x0f>;
+					// Currently only works in polling mode.
+					// gpios = <&msmgpio 61 0>;
+					vid-supply = <&pm8941_lvs1>;
+					vdd-supply = <&pm8941_l17>;
+				};
+
+				bmp280@76 {
+					compatible = "bosch,bmp280";
+					reg = <0x76>;
+					vdda-supply = <&pm8941_lvs1>;
+					vddd-supply = <&pm8941_l17>;
+				};
+			};
+		};
+	};
+
+	i2c@f9925000 {
+		status = "ok";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c3_pins>;
+		clock-frequency = <100000>;
+		qcom,src-freq = <50000000>;
+
+		avago_apds993@39 {
+			compatible = "avago,apds9930";
+			reg = <0x39>;
+			interrupts-extended = <&msmgpio 61 IRQ_TYPE_EDGE_FALLING>;
+			vdd-supply = <&pm8941_l17>;
+			vddio-supply = <&pm8941_lvs1>;
+			led-max-microamp = <100000>;
+			amstaos,proximity-diodes = <0>;
 		};
 	};
 };

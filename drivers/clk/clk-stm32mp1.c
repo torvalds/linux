@@ -2088,7 +2088,7 @@ static void stm32mp1_rcc_init(struct device_node *np)
 
 	base = of_iomap(np, 0);
 	if (!base) {
-		pr_err("%s: unable to map resource", np->name);
+		pr_err("%pOFn: unable to map resource", np);
 		of_node_put(np);
 		return;
 	}

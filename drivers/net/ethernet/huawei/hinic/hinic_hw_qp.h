@@ -160,7 +160,7 @@ void hinic_task_set_inner_l3(struct hinic_sq_task *task,
 			     u32 network_len);
 
 void hinic_task_set_tunnel_l4(struct hinic_sq_task *task,
-			      enum hinic_l4_offload_type l4_type,
+			      enum hinic_l4_tunnel_type l4_type,
 			      u32 tunnel_len);
 
 void hinic_set_cs_inner_l4(struct hinic_sq_task *task,

@@ -1539,6 +1539,9 @@ struct reparse_symlink_data {
 	char	PathBuffer[0];
 } __attribute__((packed));
 
+/* Flag above */
+#define SYMLINK_FLAG_RELATIVE 0x00000001
+
 /* For IO_REPARSE_TAG_NFS */
 #define NFS_SPECFILE_LNK	0x00000000014B4E4C
 #define NFS_SPECFILE_CHR	0x0000000000524843

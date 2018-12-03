@@ -28,6 +28,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_mode.h>
 #include <drm/drm_mode_object.h>
+#include <drm/drm_util.h>
 
 struct drm_encoder;
 

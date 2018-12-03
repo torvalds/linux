@@ -7,7 +7,7 @@
 
 #include <linux/pci.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/gfp.h>
 #include <linux/capability.h>
 #include <linux/mm.h>
@@ -33,7 +33,7 @@ alloc_pci_controller(void)
 {
 	struct pci_controller *hose;
 
-	hose = alloc_bootmem(sizeof(*hose));
+	hose = memblock_alloc(sizeof(*hose), SMP_CACHE_BYTES);
 
 	*hose_tail = hose;
 	hose_tail = &hose->next;
@@ -44,7 +44,7 @@ alloc_pci_controller(void)
 struct resource * __init
 alloc_resource(void)
 {
-	return alloc_bootmem(sizeof(struct resource));
+	return memblock_alloc(sizeof(struct resource), SMP_CACHE_BYTES);
 }
 
 SYSCALL_DEFINE3(pciconfig_iobase, long, which, unsigned long, bus,

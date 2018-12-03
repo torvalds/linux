@@ -116,7 +116,7 @@ static inline int device_reset_optional(struct device *dev)
  * @id: reset line name
  *
  * Returns a struct reset_control or IS_ERR() condition containing errno.
- * If this function is called more then once for the same reset_control it will
+ * If this function is called more than once for the same reset_control it will
  * return -EBUSY.
  *
  * See reset_control_get_shared for details on shared references to

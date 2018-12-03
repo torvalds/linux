@@ -129,8 +129,7 @@ static int sun8i_tcon_top_bind(struct device *dev, struct device *master,
 	if (!tcon_top)
 		return -ENOMEM;
 
-	clk_data = devm_kzalloc(dev, sizeof(*clk_data) +
-				sizeof(*clk_data->hws) * CLK_NUM,
+	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, CLK_NUM),
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
@@ -253,6 +252,7 @@ static int sun8i_tcon_top_remove(struct platform_device *pdev)
 
 /* sun4i_drv uses this list to check if a device node is a TCON TOP */
 const struct of_device_id sun8i_tcon_top_of_table[] = {
+	{ .compatible = "allwinner,sun8i-r40-tcon-top" },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun8i_tcon_top_of_table);

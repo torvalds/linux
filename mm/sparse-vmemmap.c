@@ -20,7 +20,7 @@
  */
 #include <linux/mm.h>
 #include <linux/mmzone.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/memremap.h>
 #include <linux/highmem.h>
 #include <linux/slab.h>
@@ -42,8 +42,8 @@ static void * __ref __earlyonly_bootmem_alloc(int node,
 				unsigned long align,
 				unsigned long goal)
 {
-	return memblock_virt_alloc_try_nid_raw(size, align, goal,
-					       BOOTMEM_ALLOC_ACCESSIBLE, node);
+	return memblock_alloc_try_nid_raw(size, align, goal,
+					       MEMBLOCK_ALLOC_ACCESSIBLE, node);
 }
 
 void * __meminit vmemmap_alloc_block(unsigned long size, int node)

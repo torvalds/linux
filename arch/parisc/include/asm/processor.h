@@ -20,17 +20,6 @@
 #include <asm/percpu.h>
 #endif /* __ASSEMBLY__ */
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#ifdef CONFIG_PA20
-#define current_ia(x)	__asm__("mfia %0" : "=r"(x))
-#else /* mfia added in pa2.0 */
-#define current_ia(x)	__asm__("blr 0,%0\n\tnop" : "=r"(x))
-#endif
-#define current_text_addr() ({ void *pc; current_ia(pc); pc; })
-
 #define HAVE_ARCH_PICK_MMAP_LAYOUT
 
 #define TASK_SIZE_OF(tsk)       ((tsk)->thread.task_size)

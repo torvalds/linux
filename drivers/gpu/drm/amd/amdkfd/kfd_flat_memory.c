@@ -400,6 +400,7 @@ int kfd_init_apertures(struct kfd_process *process)
 				kfd_init_apertures_vi(pdd, id);
 				break;
 			case CHIP_VEGA10:
+			case CHIP_VEGA20:
 			case CHIP_RAVEN:
 				kfd_init_apertures_v9(pdd, id);
 				break;

@@ -25,6 +25,24 @@
 #ifndef _INTEL_DISPLAY_H_
 #define _INTEL_DISPLAY_H_
 
+#include <drm/drm_util.h>
+
+enum i915_gpio {
+	GPIOA,
+	GPIOB,
+	GPIOC,
+	GPIOD,
+	GPIOE,
+	GPIOF,
+	GPIOG,
+	GPIOH,
+	__GPIOI_UNUSED,
+	GPIOJ,
+	GPIOK,
+	GPIOL,
+	GPIOM,
+};
+
 enum pipe {
 	INVALID_PIPE = -1,
 
@@ -159,6 +177,13 @@ enum tc_port {
 	PORT_TC4,
 
 	I915_MAX_TC_PORTS
+};
+
+enum tc_port_type {
+	TC_PORT_UNKNOWN = 0,
+	TC_PORT_TYPEC,
+	TC_PORT_TBT,
+	TC_PORT_LEGACY,
 };
 
 enum dpio_channel {
@@ -346,11 +371,11 @@ struct intel_link_m_n {
 
 #define for_each_power_domain_well(__dev_priv, __power_well, __domain_mask)	\
 	for_each_power_well(__dev_priv, __power_well)				\
-		for_each_if((__power_well)->domains & (__domain_mask))
+		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_power_domain_well_rev(__dev_priv, __power_well, __domain_mask) \
 	for_each_power_well_rev(__dev_priv, __power_well)		        \
-		for_each_if((__power_well)->domains & (__domain_mask))
+		for_each_if((__power_well)->desc->domains & (__domain_mask))
 
 #define for_each_new_intel_plane_in_state(__state, plane, new_plane_state, __i) \
 	for ((__i) = 0; \
@@ -380,6 +405,7 @@ struct intel_link_m_n {
 void intel_link_compute_m_n(int bpp, int nlanes,
 			    int pixel_clock, int link_clock,
 			    struct intel_link_m_n *m_n,
-			    bool reduce_m_n);
+			    bool constant_n);
 
+bool is_ccs_modifier(u64 modifier);
 #endif

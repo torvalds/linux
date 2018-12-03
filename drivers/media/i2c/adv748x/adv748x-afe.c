@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Analog Devices ADV748X 8 channel analog front end (AFE) receiver
  * with standard definition processor (SDP)
  *
  * Copyright (C) 2017 Renesas Electronics Corp.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -286,7 +282,7 @@ static int adv748x_afe_s_stream(struct v4l2_subdev *sd, int enable)
 			goto unlock;
 	}
 
-	ret = adv748x_txb_power(state, enable);
+	ret = adv748x_tx_power(&state->txb, enable);
 	if (ret)
 		goto unlock;
 

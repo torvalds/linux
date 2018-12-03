@@ -22,7 +22,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/init.h>
 

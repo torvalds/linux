@@ -23,6 +23,12 @@
  *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
  *   - FIFO size: 4KB
  *
+ * - LSM6DSO
+ *   - Accelerometer/Gyroscope supported ODR [Hz]: 13, 26, 52, 104, 208, 416
+ *   - Accelerometer supported full-scale [g]: +-2/+-4/+-8/+-16
+ *   - Gyroscope supported full-scale [dps]: +-125/+-245/+-500/+-1000/+-2000
+ *   - FIFO size: 3KB
+ *
  * Copyright 2016 STMicroelectronics Inc.
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
@@ -171,6 +177,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			},
 		},
 		.fifo_ops = {
+			.read_fifo = st_lsm6dsx_read_fifo,
 			.fifo_th = {
 				.addr = 0x06,
 				.mask = GENMASK(11, 0),
@@ -217,6 +224,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			},
 		},
 		.fifo_ops = {
+			.read_fifo = st_lsm6dsx_read_fifo,
 			.fifo_th = {
 				.addr = 0x06,
 				.mask = GENMASK(11, 0),
@@ -265,6 +273,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			},
 		},
 		.fifo_ops = {
+			.read_fifo = st_lsm6dsx_read_fifo,
 			.fifo_th = {
 				.addr = 0x06,
 				.mask = GENMASK(10, 0),
@@ -291,6 +300,45 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.decimator = {
 				.addr = 0x09,
 				.mask = GENMASK(5, 3),
+			},
+		},
+	},
+	{
+		.wai = 0x6c,
+		.max_fifo_size = 512,
+		.id = {
+			[0] = ST_LSM6DSO_ID,
+		},
+		.batch = {
+			[ST_LSM6DSX_ID_ACC] = {
+				.addr = 0x09,
+				.mask = GENMASK(3, 0),
+			},
+			[ST_LSM6DSX_ID_GYRO] = {
+				.addr = 0x09,
+				.mask = GENMASK(7, 4),
+			},
+		},
+		.fifo_ops = {
+			.read_fifo = st_lsm6dsx_read_tagged_fifo,
+			.fifo_th = {
+				.addr = 0x07,
+				.mask = GENMASK(8, 0),
+			},
+			.fifo_diff = {
+				.addr = 0x3a,
+				.mask = GENMASK(8, 0),
+			},
+			.th_wl = 1,
+		},
+		.ts_settings = {
+			.timer_en = {
+				.addr = 0x19,
+				.mask = BIT(5),
+			},
+			.decimator = {
+				.addr = 0x0a,
+				.mask = GENMASK(7, 6),
 			},
 		},
 	},
@@ -395,8 +443,7 @@ static int st_lsm6dsx_set_full_scale(struct st_lsm6dsx_sensor *sensor,
 	return 0;
 }
 
-static int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr,
-				u8 *val)
+int st_lsm6dsx_check_odr(struct st_lsm6dsx_sensor *sensor, u16 odr, u8 *val)
 {
 	int i;
 

@@ -24,14 +24,15 @@
 #define KERNEL_DS	UL(-1)
 #define USER_DS		(TASK_SIZE_64 - 1)
 
-#ifndef __ASSEMBLY__
-
 /*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
+ * On arm64 systems, unaligned accesses by the CPU are cheap, and so there is
+ * no point in shifting all network buffers by 2 bytes just to make some IP
+ * header fields appear aligned in memory, potentially sacrificing some DMA
+ * performance on some platforms.
  */
-#define current_text_addr() ({ __label__ _l; _l: &&_l;})
+#define NET_IP_ALIGN	0
 
+#ifndef __ASSEMBLY__
 #ifdef __KERNEL__
 
 #include <linux/build_bug.h>

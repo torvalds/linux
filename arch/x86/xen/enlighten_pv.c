@@ -23,7 +23,7 @@
 #include <linux/start_kernel.h>
 #include <linux/sched.h>
 #include <linux/kprobes.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/page-flags.h>
@@ -31,7 +31,6 @@
 #include <linux/console.h>
 #include <linux/pci.h>
 #include <linux/gfp.h>
-#include <linux/memblock.h>
 #include <linux/edd.h>
 #include <linux/frame.h>
 

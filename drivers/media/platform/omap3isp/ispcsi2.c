@@ -1234,7 +1234,7 @@ static int csi2_init_entities(struct isp_csi2_device *csi2)
 
 	v4l2_subdev_init(sd, &csi2_ops);
 	sd->internal_ops = &csi2_internal_ops;
-	strlcpy(sd->name, "OMAP3 ISP CSI2a", sizeof(sd->name));
+	strscpy(sd->name, "OMAP3 ISP CSI2a", sizeof(sd->name));
 
 	sd->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	v4l2_set_subdevdata(sd, csi2);

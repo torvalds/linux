@@ -350,7 +350,7 @@ int snd_ivtv_pcm_create(struct snd_ivtv_card *itvsc)
 			&snd_ivtv_pcm_capture_ops);
 	sp->info_flags = 0;
 	sp->private_data = itvsc;
-	strlcpy(sp->name, itv->card_name, sizeof(sp->name));
+	strscpy(sp->name, itv->card_name, sizeof(sp->name));
 
 	return 0;
 

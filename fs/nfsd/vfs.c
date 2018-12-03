@@ -541,8 +541,12 @@ __be32 nfsd4_set_nfs4_label(struct svc_rqst *rqstp, struct svc_fh *fhp,
 __be32 nfsd4_clone_file_range(struct file *src, u64 src_pos, struct file *dst,
 		u64 dst_pos, u64 count)
 {
-	return nfserrno(vfs_clone_file_range(src, src_pos, dst, dst_pos,
-					     count));
+	loff_t cloned;
+
+	cloned = vfs_clone_file_range(src, src_pos, dst, dst_pos, count, 0);
+	if (count && cloned != count)
+		cloned = -EINVAL;
+	return nfserrno(cloned < 0 ? cloned : 0);
 }
 
 ssize_t nfsd_copy_file_range(struct file *src, u64 src_pos, struct file *dst,
@@ -923,7 +927,7 @@ __be32 nfsd_readv(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	int host_err;
 
 	trace_nfsd_read_vector(rqstp, fhp, offset, *count);
-	iov_iter_kvec(&iter, READ | ITER_KVEC, vec, vlen, *count);
+	iov_iter_kvec(&iter, READ, vec, vlen, *count);
 	host_err = vfs_iter_read(file, &iter, &offset, 0);
 	return nfsd_finish_read(rqstp, fhp, file, offset, count, host_err);
 }
@@ -999,7 +1003,7 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
 	if (stable && !use_wgather)
 		flags |= RWF_SYNC;
 
-	iov_iter_kvec(&iter, WRITE | ITER_KVEC, vec, vlen, *cnt);
+	iov_iter_kvec(&iter, WRITE, vec, vlen, *cnt);
 	host_err = vfs_iter_write(file, &iter, &pos, flags);
 	if (host_err < 0)
 		goto out_nfserr;
@@ -1276,7 +1280,6 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		int type, dev_t rdev, struct svc_fh *resfhp)
 {
 	struct dentry	*dentry, *dchild = NULL;
-	struct inode	*dirp;
 	__be32		err;
 	int		host_err;
 
@@ -1288,7 +1291,6 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		return err;
 
 	dentry = fhp->fh_dentry;
-	dirp = d_inode(dentry);
 
 	host_err = fh_want_write(fhp);
 	if (host_err)
@@ -1409,6 +1411,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					*created = 1;
 				break;
 			}
+			/* fall through */
 		case NFS4_CREATE_EXCLUSIVE4_1:
 			if (   d_inode(dchild)->i_mtime.tv_sec == v_mtime
 			    && d_inode(dchild)->i_atime.tv_sec == v_atime
@@ -1417,7 +1420,7 @@ do_nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 					*created = 1;
 				goto set_attr;
 			}
-			 /* fallthru */
+			/* fall through */
 		case NFS3_CREATE_GUARDED:
 			err = nfserr_exist;
 		}

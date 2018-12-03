@@ -819,7 +819,8 @@ static int dvb_bt8xx_probe(struct bttv_sub_device *sub)
 
 	mutex_init(&card->lock);
 	card->bttv_nr = sub->core->nr;
-	strlcpy(card->card_name, sub->core->v4l2_dev.name, sizeof(card->card_name));
+	strscpy(card->card_name, sub->core->v4l2_dev.name,
+		sizeof(card->card_name));
 	card->i2c_adapter = &sub->core->i2c_adap;
 
 	switch(sub->core->type) {

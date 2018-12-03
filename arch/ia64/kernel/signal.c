@@ -344,10 +344,10 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 		get_signal(&ksig);
 
 		/*
-		 * get_signal_to_deliver() may have run a debugger (via notify_parent())
+		 * get_signal() may have run a debugger (via notify_parent())
 		 * and the debugger may have modified the state (e.g., to arrange for an
 		 * inferior call), thus it's important to check for restarting _after_
-		 * get_signal_to_deliver().
+		 * get_signal().
 		 */
 		if ((long) scr->pt.r10 != -1)
 			/*

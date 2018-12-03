@@ -286,9 +286,10 @@ static void rtc_device_get_offset(struct rtc_device *rtc)
  *
  * Returns the pointer to the new struct class device.
  */
-struct rtc_device *rtc_device_register(const char *name, struct device *dev,
-					const struct rtc_class_ops *ops,
-					struct module *owner)
+static struct rtc_device *rtc_device_register(const char *name,
+					      struct device *dev,
+					      const struct rtc_class_ops *ops,
+					      struct module *owner)
 {
 	struct rtc_device *rtc;
 	struct rtc_wkalrm alrm;
@@ -351,15 +352,13 @@ exit:
 			name, err);
 	return ERR_PTR(err);
 }
-EXPORT_SYMBOL_GPL(rtc_device_register);
-
 
 /**
  * rtc_device_unregister - removes the previously registered RTC class device
  *
  * @rtc: the RTC class device to destroy
  */
-void rtc_device_unregister(struct rtc_device *rtc)
+static void rtc_device_unregister(struct rtc_device *rtc)
 {
 	mutex_lock(&rtc->ops_lock);
 	/*
@@ -372,7 +371,6 @@ void rtc_device_unregister(struct rtc_device *rtc)
 	mutex_unlock(&rtc->ops_lock);
 	put_device(&rtc->dev);
 }
-EXPORT_SYMBOL_GPL(rtc_device_unregister);
 
 static void devm_rtc_device_release(struct device *dev, void *res)
 {

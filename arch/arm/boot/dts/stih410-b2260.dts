@@ -61,8 +61,11 @@
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "STI-B2260";
 		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		simple-audio-card,dai-link0 {
+		simple-audio-card,dai-link@0 {
+			reg = <0>;
 			/* DAC */
 			format = "i2s";
 			mclk-fs = <128>;

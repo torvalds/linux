@@ -23,7 +23,6 @@
 #include <linux/pci.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/proc_fs.h>
 #include <linux/memory_hotplug.h>
@@ -771,7 +770,7 @@ void __init mem_init(void)
 #endif
 	/*
 	 * With CONFIG_DEBUG_PAGEALLOC initialization of highmem pages has to
-	 * be done before free_all_bootmem(). Memblock use free low memory for
+	 * be done before memblock_free_all(). Memblock use free low memory for
 	 * temporary data (see find_range_array()) and for this purpose can use
 	 * pages that was already passed to the buddy allocator, hence marked as
 	 * not accessible in the page tables when compiled with
@@ -781,7 +780,7 @@ void __init mem_init(void)
 	set_highmem_pages_init();
 
 	/* this will put all low memory onto the freelists */
-	free_all_bootmem();
+	memblock_free_all();
 
 	after_bootmem = 1;
 	x86_init.hyper.init_after_bootmem();

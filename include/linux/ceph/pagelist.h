@@ -23,16 +23,7 @@ struct ceph_pagelist_cursor {
 	size_t room;		    /* room remaining to reset to */
 };
 
-static inline void ceph_pagelist_init(struct ceph_pagelist *pl)
-{
-	INIT_LIST_HEAD(&pl->head);
-	pl->mapped_tail = NULL;
-	pl->length = 0;
-	pl->room = 0;
-	INIT_LIST_HEAD(&pl->free_list);
-	pl->num_pages_free = 0;
-	refcount_set(&pl->refcnt, 1);
-}
+struct ceph_pagelist *ceph_pagelist_alloc(gfp_t gfp_flags);
 
 extern void ceph_pagelist_release(struct ceph_pagelist *pl);
 

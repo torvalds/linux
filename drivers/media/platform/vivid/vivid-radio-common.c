@@ -76,10 +76,10 @@ void vivid_radio_rds_init(struct vivid_dev *dev)
 		rds->ta = dev->radio_tx_rds_ta->cur.val;
 		rds->tp = dev->radio_tx_rds_tp->cur.val;
 		rds->ms = dev->radio_tx_rds_ms->cur.val;
-		strlcpy(rds->psname,
+		strscpy(rds->psname,
 			dev->radio_tx_rds_psname->p_cur.p_char,
 			sizeof(rds->psname));
-		strlcpy(rds->radiotext,
+		strscpy(rds->radiotext,
 			dev->radio_tx_rds_radiotext->p_cur.p_char + alt * 64,
 			sizeof(rds->radiotext));
 		v4l2_ctrl_unlock(dev->radio_tx_rds_pi);

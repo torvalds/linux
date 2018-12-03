@@ -5,7 +5,7 @@
 
 #define pr_fmt(fmt) "### dt-test ### " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -2192,7 +2192,7 @@ static struct device_node *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
-	return memblock_virt_alloc(size, align);
+	return memblock_alloc(size, align);
 }
 
 /*

@@ -3,6 +3,7 @@
  * Device Tree Include file for Freescale Layerscape-1043A family SoC.
  *
  * Copyright 2014-2015 Freescale Semiconductor, Inc.
+ * Copyright 2018 NXP
  *
  * Mingkai Hu <Mingkai.hu@freescale.com>
  */
@@ -65,6 +66,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			reg = <0x0 0x0 0x8000000>;
+			big-endian;
 			bank-width = <2>;
 			device-width = <1>;
 		};

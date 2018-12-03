@@ -379,7 +379,6 @@ nouveau_fbcon_create(struct drm_fb_helper *helper,
 		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
 			      FBINFO_HWACCEL_FILLRECT |
 			      FBINFO_HWACCEL_IMAGEBLIT;
-	info->flags |= FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &nouveau_fbcon_sw_ops;
 	info->fix.smem_start = fb->nvbo->bo.mem.bus.base +
 			       fb->nvbo->bo.mem.bus.offset;

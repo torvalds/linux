@@ -69,18 +69,19 @@ static SUNXI_CCU_NM_WITH_SDM_GATE_LOCK(pll_audio_base_clk, "pll-audio-base",
 				       BIT(28),	/* lock */
 				       CLK_SET_RATE_UNGATE);
 
-static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN(pll_video_clk, "pll-video",
-					    "osc24M", 0x0010,
-					    192000000,	/* Minimum rate */
-					    8, 7,	/* N */
-					    0, 4,	/* M */
-					    BIT(24),	/* frac enable */
-					    BIT(25),	/* frac select */
-					    270000000,	/* frac rate 0 */
-					    297000000,	/* frac rate 1 */
-					    BIT(31),	/* gate */
-					    BIT(28),	/* lock */
-					    CLK_SET_RATE_UNGATE);
+static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK_MIN_MAX(pll_video_clk, "pll-video",
+						"osc24M", 0x0010,
+						192000000, /* Minimum rate */
+						912000000, /* Maximum rate */
+						8, 7,      /* N */
+						0, 4,	   /* M */
+						BIT(24),   /* frac enable */
+						BIT(25),   /* frac select */
+						270000000, /* frac rate 0 */
+						297000000, /* frac rate 1 */
+						BIT(31),   /* gate */
+						BIT(28),   /* lock */
+						CLK_SET_RATE_UNGATE);
 
 static SUNXI_CCU_NM_WITH_FRAC_GATE_LOCK(pll_ve_clk, "pll-ve",
 					"osc24M", 0x0018,

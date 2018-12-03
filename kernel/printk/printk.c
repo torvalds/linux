@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/smp.h>
 #include <linux/security.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/syscalls.h>
 #include <linux/crash_core.h>
@@ -1111,9 +1110,9 @@ void __init setup_log_buf(int early)
 
 	if (early) {
 		new_log_buf =
-			memblock_virt_alloc(new_log_buf_len, LOG_ALIGN);
+			memblock_alloc(new_log_buf_len, LOG_ALIGN);
 	} else {
-		new_log_buf = memblock_virt_alloc_nopanic(new_log_buf_len,
+		new_log_buf = memblock_alloc_nopanic(new_log_buf_len,
 							  LOG_ALIGN);
 	}
 

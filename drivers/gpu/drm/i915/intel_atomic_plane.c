@@ -113,68 +113,17 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_plane_state *intel_state)
 {
 	struct drm_plane *plane = intel_state->base.plane;
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
 	struct drm_plane_state *state = &intel_state->base;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
-	const struct drm_display_mode *adjusted_mode =
-		&crtc_state->base.adjusted_mode;
 	int ret;
 
 	if (!intel_state->base.crtc && !old_plane_state->base.crtc)
 		return 0;
 
-	if (state->fb && drm_rotation_90_or_270(state->rotation)) {
-		struct drm_format_name_buf format_name;
-
-		if (state->fb->modifier != I915_FORMAT_MOD_Y_TILED &&
-		    state->fb->modifier != I915_FORMAT_MOD_Yf_TILED) {
-			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
-			return -EINVAL;
-		}
-
-		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16,
-		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
-		 * TBD: Add RGB64 case once its added in supported format list.
-		 */
-		switch (state->fb->format->format) {
-		case DRM_FORMAT_C8:
-		case DRM_FORMAT_RGB565:
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
-			              drm_get_format_name(state->fb->format->format,
-			                                  &format_name));
-			return -EINVAL;
-
-		default:
-			break;
-		}
-	}
-
-	/* CHV ignores the mirror bit when the rotate bit is set :( */
-	if (IS_CHERRYVIEW(dev_priv) &&
-	    state->rotation & DRM_MODE_ROTATE_180 &&
-	    state->rotation & DRM_MODE_REFLECT_X) {
-		DRM_DEBUG_KMS("Cannot rotate and reflect at the same time\n");
-		return -EINVAL;
-	}
-
 	intel_state->base.visible = false;
-	ret = intel_plane->check_plane(intel_plane, crtc_state, intel_state);
+	ret = intel_plane->check_plane(crtc_state, intel_state);
 	if (ret)
 		return ret;
-
-	/*
-	 * Y-tiling is not supported in IF-ID Interlace mode in
-	 * GEN9 and above.
-	 */
-	if (state->fb && INTEL_GEN(dev_priv) >= 9 && crtc_state->base.enable &&
-	    adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
-		if (state->fb->modifier == I915_FORMAT_MOD_Y_TILED ||
-		    state->fb->modifier == I915_FORMAT_MOD_Yf_TILED) {
-			DRM_DEBUG_KMS("Y/Yf tiling not supported in IF-ID mode\n");
-			return -EINVAL;
-		}
-	}
 
 	/* FIXME pre-g4x don't work like this */
 	if (state->visible)

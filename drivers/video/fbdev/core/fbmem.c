@@ -34,6 +34,7 @@
 #include <linux/fb.h>
 #include <linux/fbcon.h>
 #include <linux/mem_encrypt.h>
+#include <linux/pci.h>
 
 #include <asm/fb.h>
 
@@ -1116,6 +1117,8 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		if (!lock_fb_info(info))
 			return -ENODEV;
 		fix = info->fix;
+		if (info->flags & FBINFO_HIDE_SMEM_START)
+			fix.smem_start = 0;
 		unlock_fb_info(info);
 
 		ret = copy_to_user(argp, &fix, sizeof(fix)) ? -EFAULT : 0;
@@ -1326,6 +1329,8 @@ static int fb_get_fscreeninfo(struct fb_info *info, unsigned int cmd,
 	if (!lock_fb_info(info))
 		return -ENODEV;
 	fix = info->fix;
+	if (info->flags & FBINFO_HIDE_SMEM_START)
+		fix.smem_start = 0;
 	unlock_fb_info(info);
 	return do_fscreeninfo_to_user(&fix, compat_ptr(arg));
 }
@@ -1605,8 +1610,8 @@ static int do_remove_conflicting_framebuffers(struct apertures_struct *a,
 			(primary && gen_aper && gen_aper->count &&
 			 gen_aper->ranges[0].base == VGA_FB_PHYS)) {
 
-			printk(KERN_INFO "fb: switching to %s from %s\n",
-			       name, registered_fb[i]->fix.id);
+			printk(KERN_INFO "fb%d: switching to %s from %s\n",
+			       i, name, registered_fb[i]->fix.id);
 			ret = do_unregister_framebuffer(registered_fb[i]);
 			if (ret)
 				return ret;
@@ -1793,18 +1798,76 @@ int unlink_framebuffer(struct fb_info *fb_info)
 }
 EXPORT_SYMBOL(unlink_framebuffer);
 
+/**
+ * remove_conflicting_framebuffers - remove firmware-configured framebuffers
+ * @a: memory range, users of which are to be removed
+ * @name: requesting driver name
+ * @primary: also kick vga16fb if present
+ *
+ * This function removes framebuffer devices (initialized by firmware/bootloader)
+ * which use memory range described by @a. If @a is NULL all such devices are
+ * removed.
+ */
 int remove_conflicting_framebuffers(struct apertures_struct *a,
 				    const char *name, bool primary)
 {
 	int ret;
+	bool do_free = false;
+
+	if (!a) {
+		a = alloc_apertures(1);
+		if (!a)
+			return -ENOMEM;
+
+		a->ranges[0].base = 0;
+		a->ranges[0].size = ~0;
+		do_free = true;
+	}
 
 	mutex_lock(&registration_lock);
 	ret = do_remove_conflicting_framebuffers(a, name, primary);
 	mutex_unlock(&registration_lock);
 
+	if (do_free)
+		kfree(a);
+
 	return ret;
 }
 EXPORT_SYMBOL(remove_conflicting_framebuffers);
+
+/**
+ * remove_conflicting_pci_framebuffers - remove firmware-configured framebuffers for PCI devices
+ * @pdev: PCI device
+ * @res_id: index of PCI BAR configuring framebuffer memory
+ * @name: requesting driver name
+ *
+ * This function removes framebuffer devices (eg. initialized by firmware)
+ * using memory range configured for @pdev's BAR @res_id.
+ *
+ * The function assumes that PCI device with shadowed ROM drives a primary
+ * display and so kicks out vga16fb.
+ */
+int remove_conflicting_pci_framebuffers(struct pci_dev *pdev, int res_id, const char *name)
+{
+	struct apertures_struct *ap;
+	bool primary = false;
+	int err;
+
+	ap = alloc_apertures(1);
+	if (!ap)
+		return -ENOMEM;
+
+	ap->ranges[0].base = pci_resource_start(pdev, res_id);
+	ap->ranges[0].size = pci_resource_len(pdev, res_id);
+#ifdef CONFIG_X86
+	primary = pdev->resource[PCI_ROM_RESOURCE].flags &
+					IORESOURCE_ROM_SHADOW;
+#endif
+	err = remove_conflicting_framebuffers(ap, name, primary);
+	kfree(ap);
+	return err;
+}
+EXPORT_SYMBOL(remove_conflicting_pci_framebuffers);
 
 /**
  *	register_framebuffer - registers a frame buffer device

@@ -7,6 +7,7 @@ Required properties:
   "st,lsm6dsl"
   "st,lsm6dsm"
   "st,ism330dlc"
+  "st,lsm6dso"
 - reg: i2c address of the sensor / spi cs line
 
 Optional properties:

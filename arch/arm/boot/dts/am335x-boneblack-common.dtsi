@@ -7,6 +7,7 @@
  */
 
 #include <dt-bindings/display/tda998x.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 
 &ldo3_reg {
 	regulator-min-microvolt = <1800000>;
@@ -88,9 +89,11 @@
 };
 
 &i2c0 {
-	tda19988: tda19988 {
+	tda19988: tda19988@70 {
 		compatible = "nxp,tda998x";
 		reg = <0x70>;
+		nxp,calib-gpios = <&gpio1 25 0>;
+		interrupts-extended = <&gpio1 25 IRQ_TYPE_LEVEL_LOW>;
 
 		pinctrl-names = "default", "off";
 		pinctrl-0 = <&nxp_hdmi_bonelt_pins>;

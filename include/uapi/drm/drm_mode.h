@@ -186,8 +186,9 @@ extern "C" {
 /*
  * DRM_MODE_REFLECT_<axis>
  *
- * Signals that the contents of a drm plane is reflected in the <axis> axis,
+ * Signals that the contents of a drm plane is reflected along the <axis> axis,
  * in the same way as mirroring.
+ * See kerneldoc chapter "Plane Composition Properties" for more details.
  *
  * This define is provided as a convenience, looking up the property id
  * using the name->prop id lookup is the preferred method.

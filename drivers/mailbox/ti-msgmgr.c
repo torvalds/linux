@@ -560,8 +560,8 @@ static struct mbox_chan *ti_msgmgr_of_xlate(struct mbox_controller *mbox,
 	}
 
 err:
-	dev_err(inst->dev, "Queue ID %d, Proxy ID %d is wrong on %s\n",
-		req_qid, req_pid, p->np->name);
+	dev_err(inst->dev, "Queue ID %d, Proxy ID %d is wrong on %pOFn\n",
+		req_qid, req_pid, p->np);
 	return ERR_PTR(-ENOENT);
 }
 

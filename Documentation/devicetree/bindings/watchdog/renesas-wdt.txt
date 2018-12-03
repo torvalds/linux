@@ -21,6 +21,7 @@ Required properties:
 	         - "renesas,r8a77990-wdt" (R-Car E3)
 	         - "renesas,r8a77995-wdt" (R-Car D3)
 	         - "renesas,r7s72100-wdt" (RZ/A1)
+	         - "renesas,r7s9210-wdt"  (RZ/A2)
 		The generic compatible string must be:
 		 - "renesas,rza-wdt" for RZ/A
 		 - "renesas,rcar-gen2-wdt" for R-Car Gen2 and RZ/G1

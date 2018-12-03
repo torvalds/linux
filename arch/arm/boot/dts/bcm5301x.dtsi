@@ -475,8 +475,11 @@
 			compatible = "jedec,spi-nor";
 			reg = <0>;
 			spi-max-frequency = <20000000>;
-			linux,part-probe = "ofpart", "bcm47xxpart";
 			status = "disabled";
+
+			partitions {
+				compatible = "brcm,bcm947xx-cfe-partitions";
+			};
 		};
 	};
 

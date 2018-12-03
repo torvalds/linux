@@ -234,7 +234,7 @@ struct uvc_control_mapping {
 	enum v4l2_ctrl_type v4l2_type;
 	u32 data_type;
 
-	struct uvc_menu_info *menu_info;
+	const struct uvc_menu_info *menu_info;
 	u32 menu_count;
 
 	u32 master_id;
@@ -572,14 +572,20 @@ struct uvc_streaming {
 	} clock;
 };
 
+struct uvc_device_info {
+	u32	quirks;
+	u32	meta_format;
+};
+
 struct uvc_device {
 	struct usb_device *udev;
 	struct usb_interface *intf;
 	unsigned long warnings;
 	u32 quirks;
-	u32 meta_format;
 	int intfnum;
 	char name[32];
+
+	const struct uvc_device_info *info;
 
 	struct mutex lock;		/* Protects users */
 	unsigned int users;
@@ -694,6 +700,7 @@ int uvc_query_buffer(struct uvc_video_queue *queue,
 int uvc_create_buffers(struct uvc_video_queue *queue,
 		       struct v4l2_create_buffers *v4l2_cb);
 int uvc_queue_buffer(struct uvc_video_queue *queue,
+		     struct media_device *mdev,
 		     struct v4l2_buffer *v4l2_buf);
 int uvc_export_buffer(struct uvc_video_queue *queue,
 		      struct v4l2_exportbuffer *exp);

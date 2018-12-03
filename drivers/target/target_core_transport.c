@@ -205,19 +205,19 @@ void transport_subsystem_check_init(void)
 	if (sub_api_initialized)
 		return;
 
-	ret = request_module("target_core_iblock");
+	ret = IS_ENABLED(CONFIG_TCM_IBLOCK) && request_module("target_core_iblock");
 	if (ret != 0)
 		pr_err("Unable to load target_core_iblock\n");
 
-	ret = request_module("target_core_file");
+	ret = IS_ENABLED(CONFIG_TCM_FILEIO) && request_module("target_core_file");
 	if (ret != 0)
 		pr_err("Unable to load target_core_file\n");
 
-	ret = request_module("target_core_pscsi");
+	ret = IS_ENABLED(CONFIG_TCM_PSCSI) && request_module("target_core_pscsi");
 	if (ret != 0)
 		pr_err("Unable to load target_core_pscsi\n");
 
-	ret = request_module("target_core_user");
+	ret = IS_ENABLED(CONFIG_TCM_USER2) && request_module("target_core_user");
 	if (ret != 0)
 		pr_err("Unable to load target_core_user\n");
 
@@ -1778,7 +1778,7 @@ EXPORT_SYMBOL(target_submit_tmr);
 void transport_generic_request_failure(struct se_cmd *cmd,
 		sense_reason_t sense_reason)
 {
-	int ret = 0;
+	int ret = 0, post_ret;
 
 	pr_debug("-----[ Storage Engine Exception; sense_reason %d\n",
 		 sense_reason);
@@ -1790,7 +1790,7 @@ void transport_generic_request_failure(struct se_cmd *cmd,
 	transport_complete_task_attr(cmd);
 
 	if (cmd->transport_complete_callback)
-		cmd->transport_complete_callback(cmd, false, NULL);
+		cmd->transport_complete_callback(cmd, false, &post_ret);
 
 	if (transport_check_aborted_status(cmd, 1))
 		return;

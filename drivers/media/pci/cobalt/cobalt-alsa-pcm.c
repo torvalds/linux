@@ -557,7 +557,7 @@ int snd_cobalt_pcm_create(struct snd_cobalt_card *cobsc)
 				&snd_cobalt_pcm_capture_ops);
 		sp->info_flags = 0;
 		sp->private_data = cobsc;
-		strlcpy(sp->name, "cobalt", sizeof(sp->name));
+		strscpy(sp->name, "cobalt", sizeof(sp->name));
 	} else {
 		cobalt_s_bit_sysctrl(cobalt,
 			COBALT_SYS_CTRL_AUDIO_OPP_RESETN_BIT, 0);
@@ -581,7 +581,7 @@ int snd_cobalt_pcm_create(struct snd_cobalt_card *cobsc)
 				&snd_cobalt_pcm_playback_ops);
 		sp->info_flags = 0;
 		sp->private_data = cobsc;
-		strlcpy(sp->name, "cobalt", sizeof(sp->name));
+		strscpy(sp->name, "cobalt", sizeof(sp->name));
 	}
 
 	return 0;

@@ -267,8 +267,7 @@ cleanup:
 		os_close_file(rxfd);
 	if (txfd >= 0)
 		os_close_file(txfd);
-	if (result != NULL)
-		kfree(result);
+	kfree(result);
 	return NULL;
 }
 
@@ -434,8 +433,7 @@ cleanup:
 	if (fd >= 0)
 		os_close_file(fd);
 	if (result != NULL) {
-		if (result->remote_addr != NULL)
-			kfree(result->remote_addr);
+		kfree(result->remote_addr);
 		kfree(result);
 	}
 	return NULL;

@@ -769,9 +769,9 @@ struct ixgbe_adapter {
 #define IXGBE_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
 
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 	struct ixgbe_ipsec *ipsec;
-#endif /* CONFIG_XFRM_OFFLOAD */
+#endif /* CONFIG_IXGBE_IPSEC */
 
 	/* AF_XDP zero-copy */
 	struct xdp_umem **xsk_umems;
@@ -1008,7 +1008,7 @@ void ixgbe_store_key(struct ixgbe_adapter *adapter);
 void ixgbe_store_reta(struct ixgbe_adapter *adapter);
 s32 ixgbe_negotiate_fc(struct ixgbe_hw *hw, u32 adv_reg, u32 lp_reg,
 		       u32 adv_sym, u32 adv_asm, u32 lp_sym, u32 lp_asm);
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBE_IPSEC
 void ixgbe_init_ipsec_offload(struct ixgbe_adapter *adapter);
 void ixgbe_stop_ipsec_offload(struct ixgbe_adapter *adapter);
 void ixgbe_ipsec_restore(struct ixgbe_adapter *adapter);
@@ -1036,5 +1036,5 @@ static inline int ixgbe_ipsec_vf_add_sa(struct ixgbe_adapter *adapter,
 					u32 *mbuf, u32 vf) { return -EACCES; }
 static inline int ixgbe_ipsec_vf_del_sa(struct ixgbe_adapter *adapter,
 					u32 *mbuf, u32 vf) { return -EACCES; }
-#endif /* CONFIG_XFRM_OFFLOAD */
+#endif /* CONFIG_IXGBE_IPSEC */
 #endif /* _IXGBE_H_ */

@@ -66,6 +66,15 @@
 		 regulator-min-microvolt = <3300000>;
 		 regulator-max-microvolt = <3300000>;
 	};
+
+	sff: sfp {
+		compatible = "sff,sff";
+		pinctrl-0 = <&pinctrl_optical>;
+		pinctrl-names = "default";
+		i2c-bus = <&i2c0>;
+		los-gpio = <&gpio4 4 GPIO_ACTIVE_HIGH>;
+		tx-disable-gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &adc0 {
@@ -113,6 +122,8 @@
 	non-removable;
 	no-1-8-v;
 	keep-power-in-suspend;
+	no-sdio;
+	no-sd;
 	status = "okay";
 };
 
@@ -120,6 +131,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_esdhc1>;
 	bus-width = <4>;
+	no-sdio;
 	status = "okay";
 };
 
@@ -168,6 +180,14 @@
 				port@2 {
 					reg = <2>;
 					label = "eth_cu_1000_3";
+				};
+
+				port@5 {
+					reg = <5>;
+					label = "eth_fc_1000_1";
+					phy-mode = "1000base-x";
+					managed = "in-band-status";
+					sfp = <&sff>;
 				};
 
 				port@6 {
@@ -286,6 +306,16 @@
 			VF610_PAD_PTE4__GPIO_109		0x31c2
 			VF610_PAD_PTE5__GPIO_110		0x31c2
 			VF610_PAD_PTE6__GPIO_111		0x31c2
+		>;
+	};
+
+	pinctrl_optical: optical-grp {
+		fsl,pins = <
+		/* SFF SD input */
+		VF610_PAD_PTE27__GPIO_132	0x3061
+
+		/* SFF Transmit disable output */
+		VF610_PAD_PTE13__GPIO_118	0x3043
 		>;
 	};
 

@@ -162,12 +162,20 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_enter,
 
 	TP_printk("dev = (%d,%d), nid = %llu, la %llu llen %llu flags %s",
 		  show_dev_nid(__entry),
-		  __entry->la, __entry->llen, show_map_flags(__entry->flags))
+		  __entry->la, __entry->llen,
+		  __entry->flags ? show_map_flags(__entry->flags) : "NULL")
 );
 
 DEFINE_EVENT(erofs__map_blocks_enter, erofs_map_blocks_flatmode_enter,
 	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
 		 unsigned flags),
+
+	TP_ARGS(inode, map, flags)
+);
+
+DEFINE_EVENT(erofs__map_blocks_enter, z_erofs_map_blocks_iter_enter,
+	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+		 unsigned int flags),
 
 	TP_ARGS(inode, map, flags)
 );
@@ -204,7 +212,8 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 
 	TP_printk("dev = (%d,%d), nid = %llu, flags %s "
 		  "la %llu pa %llu llen %llu plen %llu mflags %s ret %d",
-		  show_dev_nid(__entry), show_map_flags(__entry->flags),
+		  show_dev_nid(__entry),
+		  __entry->flags ? show_map_flags(__entry->flags) : "NULL",
 		  __entry->la, __entry->pa, __entry->llen, __entry->plen,
 		  show_mflags(__entry->mflags), __entry->ret)
 );
@@ -212,6 +221,13 @@ DECLARE_EVENT_CLASS(erofs__map_blocks_exit,
 DEFINE_EVENT(erofs__map_blocks_exit, erofs_map_blocks_flatmode_exit,
 	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
 		 unsigned flags, int ret),
+
+	TP_ARGS(inode, map, flags, ret)
+);
+
+DEFINE_EVENT(erofs__map_blocks_exit, z_erofs_map_blocks_iter_exit,
+	TP_PROTO(struct inode *inode, struct erofs_map_blocks *map,
+		 unsigned int flags, int ret),
 
 	TP_ARGS(inode, map, flags, ret)
 );

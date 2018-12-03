@@ -14,7 +14,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>

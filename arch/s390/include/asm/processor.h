@@ -73,12 +73,6 @@ static inline int test_cpu_flag_of(int flag, int cpu)
 
 #define arch_needs_cpu() test_cpu_flag(CIF_NOHZ_DELAY)
 
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-#define current_text_addr() ({ void *pc; asm("basr %0,0" : "=a" (pc)); pc; })
-
 static inline void get_cpu_id(struct cpuid *ptr)
 {
 	asm volatile("stidp %0" : "=Q" (*ptr));
@@ -242,7 +236,7 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
-static __no_sanitize_address_or_inline unsigned short stap(void)
+static __no_kasan_or_inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
@@ -336,7 +330,7 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-static __no_sanitize_address_or_inline void __load_psw_mask(unsigned long mask)
+static __no_kasan_or_inline void __load_psw_mask(unsigned long mask)
 {
 	unsigned long addr;
 	psw_t psw;

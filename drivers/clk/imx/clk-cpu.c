@@ -94,7 +94,7 @@ struct clk *imx_clk_cpu(const char *name, const char *parent_name,
 
 	init.name = name;
 	init.ops = &clk_cpu_ops;
-	init.flags = 0;
+	init.flags = CLK_IS_CRITICAL;
 	init.parent_names = &parent_name;
 	init.num_parents = 1;
 

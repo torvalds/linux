@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
 #include <linux/memblock.h>
 #include <linux/kernel_stat.h>
 #include <linux/mc146818rtc.h>

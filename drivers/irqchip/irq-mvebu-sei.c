@@ -384,9 +384,9 @@ static int mvebu_sei_probe(struct platform_device *pdev)
 
 	sei->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sei->base = devm_ioremap_resource(sei->dev, sei->res);
-	if (!sei->base) {
+	if (IS_ERR(sei->base)) {
 		dev_err(sei->dev, "Failed to remap SEI resource\n");
-		return -ENODEV;
+		return PTR_ERR(sei->base);
 	}
 
 	/* Retrieve the SEI capabilities with the interrupt ranges */

@@ -16,10 +16,10 @@ CEC_RECEIVE, CEC_TRANSMIT - Receive or transmit a CEC message
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, CEC_RECEIVE, struct cec_msg *argp )
+.. c:function:: int ioctl( int fd, CEC_RECEIVE, struct cec_msg \*argp )
     :name: CEC_RECEIVE
 
-.. c:function:: int ioctl( int fd, CEC_TRANSMIT, struct cec_msg *argp )
+.. c:function:: int ioctl( int fd, CEC_TRANSMIT, struct cec_msg \*argp )
     :name: CEC_TRANSMIT
 
 Arguments
@@ -272,6 +272,19 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - The transmit failed after one or more retries. This status bit is
 	mutually exclusive with :ref:`CEC_TX_STATUS_OK <CEC-TX-STATUS-OK>`.
 	Other bits can still be set to explain which failures were seen.
+    * .. _`CEC-TX-STATUS-ABORTED`:
+
+      - ``CEC_TX_STATUS_ABORTED``
+      - 0x40
+      - The transmit was aborted due to an HDMI disconnect, or the adapter
+        was unconfigured, or a transmit was interrupted, or the driver
+	returned an error when attempting to start a transmit.
+    * .. _`CEC-TX-STATUS-TIMEOUT`:
+
+      - ``CEC_TX_STATUS_TIMEOUT``
+      - 0x80
+      - The transmit timed out. This should not normally happen and this
+	indicates a driver problem.
 
 
 .. tabularcolumns:: |p{5.6cm}|p{0.9cm}|p{11.0cm}|
@@ -300,6 +313,14 @@ View On' messages from initiator 0xf ('Unregistered') to destination 0 ('TV').
       - The message was received successfully but the reply was
 	``CEC_MSG_FEATURE_ABORT``. This status is only set if this message
 	was the reply to an earlier transmitted message.
+    * .. _`CEC-RX-STATUS-ABORTED`:
+
+      - ``CEC_RX_STATUS_ABORTED``
+      - 0x08
+      - The wait for a reply to an earlier transmitted message was aborted
+        because the HDMI cable was disconnected, the adapter was unconfigured
+	or the :ref:`CEC_TRANSMIT <CEC_RECEIVE>` that waited for a
+	reply was interrupted.
 
 
 

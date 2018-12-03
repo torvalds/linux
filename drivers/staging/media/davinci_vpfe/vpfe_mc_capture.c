@@ -639,7 +639,8 @@ static int vpfe_probe(struct platform_device *pdev)
 		goto probe_disable_clock;
 
 	vpfe_dev->media_dev.dev = vpfe_dev->pdev;
-	strcpy((char *)&vpfe_dev->media_dev.model, "davinci-media");
+	strscpy((char *)&vpfe_dev->media_dev.model, "davinci-media",
+		sizeof(vpfe_dev->media_dev.model));
 
 	ret = media_device_register(&vpfe_dev->media_dev);
 	if (ret) {

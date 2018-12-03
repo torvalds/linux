@@ -12,7 +12,6 @@ config XEN_BALLOON
 config XEN_SELFBALLOONING
 	bool "Dynamically self-balloon kernel memory to target"
 	depends on XEN && XEN_BALLOON && CLEANCACHE && SWAP && XEN_TMEM
-	default n
 	help
 	  Self-ballooning dynamically balloons available kernel memory driven
 	  by the current usage of anonymous memory ("committed AS") and
@@ -27,7 +26,6 @@ config XEN_SELFBALLOONING
 
 config XEN_BALLOON_MEMORY_HOTPLUG
 	bool "Memory hotplug support for Xen balloon driver"
-	default n
 	depends on XEN_BALLOON && MEMORY_HOTPLUG
 	help
 	  Memory hotplug support for Xen balloon driver allows expanding memory
@@ -86,7 +84,7 @@ config XEN_SCRUB_PAGES_DEFAULT
 	help
 	  Scrub pages before returning them to the system for reuse by
 	  other domains.  This makes sure that any confidential data
-	  is not accidentally visible to other domains.  Is it more
+	  is not accidentally visible to other domains.  It is more
 	  secure, but slightly less efficient. This can be controlled with
 	  xen_scrub_pages=0 parameter and
 	  /sys/devices/system/xen_memory/xen_memory0/scrub_pages.
@@ -105,8 +103,7 @@ config XEN_DEV_EVTCHN
 
 config XEN_BACKEND
 	bool "Backend driver support"
-	depends on XEN_DOM0
-	default y
+	default XEN_DOM0
 	help
 	  Support for backend device drivers that provide I/O services
 	  to other virtual machines.
@@ -227,7 +224,6 @@ config XEN_PCIDEV_BACKEND
 config XEN_PVCALLS_FRONTEND
 	tristate "XEN PV Calls frontend driver"
 	depends on INET && XEN
-	default n
 	select XEN_XENBUS_FRONTEND
 	help
 	  Experimental frontend for the Xen PV Calls protocol
@@ -238,7 +234,6 @@ config XEN_PVCALLS_FRONTEND
 config XEN_PVCALLS_BACKEND
 	bool "XEN PV Calls backend driver"
 	depends on INET && XEN && XEN_BACKEND
-	default n
 	help
 	  Experimental backend for the Xen PV Calls protocol
 	  (https://xenbits.xen.org/docs/unstable/misc/pvcalls.html). It
@@ -264,7 +259,6 @@ config XEN_PRIVCMD
 config XEN_STUB
 	bool "Xen stub drivers"
 	depends on XEN && X86_64 && BROKEN
-	default n
 	help
 	  Allow kernel to install stub drivers, to reserve space for Xen drivers,
 	  i.e. memory hotplug and cpu hotplug, and to block native drivers loaded,
@@ -275,7 +269,6 @@ config XEN_STUB
 config XEN_ACPI_HOTPLUG_MEMORY
 	tristate "Xen ACPI memory hotplug"
 	depends on XEN_DOM0 && XEN_STUB && ACPI
-	default n
 	help
 	  This is Xen ACPI memory hotplug.
 
@@ -287,7 +280,6 @@ config XEN_ACPI_HOTPLUG_CPU
 	tristate "Xen ACPI cpu hotplug"
 	depends on XEN_DOM0 && XEN_STUB && ACPI
 	select ACPI_CONTAINER
-	default n
 	help
 	  Xen ACPI cpu enumerating and hotplugging
 
@@ -316,7 +308,6 @@ config XEN_ACPI_PROCESSOR
 config XEN_MCE_LOG
 	bool "Xen platform mcelog"
 	depends on XEN_DOM0 && X86_64 && X86_MCE
-	default n
 	help
 	  Allow kernel fetching MCE error from Xen platform and
 	  converting it into Linux mcelog format for mcelog tools

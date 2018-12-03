@@ -3628,6 +3628,21 @@ struct saa7134_board saa7134_boards[] = {
 			.vmux   = 1,
 			.amux   = TV,
 			.gpio   = 0x0200000,
+		},{
+			.type = SAA7134_INPUT_COMPOSITE1,
+			.vmux = 3,
+			.amux = LINE2,
+			.gpio = 0x0200000,
+		},{
+			.type = SAA7134_INPUT_COMPOSITE2,
+			.vmux = 0,
+			.amux = LINE2,
+			.gpio = 0x0200000,
+		},{
+			.type = SAA7134_INPUT_SVIDEO,
+			.vmux = 8,
+			.amux = LINE2,
+			.gpio = 0x0200000,
 		}},
 	},
 	[SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA] = {

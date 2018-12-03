@@ -115,7 +115,7 @@ static int module_trace_bprintk_format_notify(struct notifier_block *self,
  * section, then we need to read the link list pointers. The trick is
  * we pass the address of the string to the seq function just like
  * we do for the kernel core formats. To get back the structure that
- * holds the format, we simply use containerof() and then go to the
+ * holds the format, we simply use container_of() and then go to the
  * next format in the list.
  */
 static const char **

@@ -118,11 +118,11 @@ bool afs_annotate_server_list(struct afs_server_list *new,
 	return false;
 
 changed:
-	/* Maintain the same current server as before if possible. */
-	cur = old->servers[old->index].server;
+	/* Maintain the same preferred server as before if possible. */
+	cur = old->servers[old->preferred].server;
 	for (j = 0; j < new->nr_servers; j++) {
 		if (new->servers[j].server == cur) {
-			new->index = j;
+			new->preferred = j;
 			break;
 		}
 	}

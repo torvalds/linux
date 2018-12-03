@@ -341,7 +341,7 @@ static int cafe_smbus_setup(struct cafe_camera *cam)
 		return -ENOMEM;
 	adap->owner = THIS_MODULE;
 	adap->algo = &cafe_smbus_algo;
-	strcpy(adap->name, "cafe_ccic");
+	strscpy(adap->name, "cafe_ccic", sizeof(adap->name));
 	adap->dev.parent = &cam->pdev->dev;
 	i2c_set_adapdata(adap, cam);
 	ret = i2c_add_adapter(adap);

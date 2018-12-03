@@ -512,15 +512,25 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <2>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <3>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <2>;
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@2 {
+		reg = <2>;
+	};
+
+	ethphy1: ethernet-phy@3 {
+		reg = <3>;
+	};
 };
 
 &dcan1 {

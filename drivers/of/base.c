@@ -16,6 +16,7 @@
 
 #define pr_fmt(fmt)	"OF: " fmt
 
+#include <linux/bitmap.h>
 #include <linux/console.h>
 #include <linux/ctype.h>
 #include <linux/cpu.h>
@@ -775,8 +776,6 @@ struct device_node *of_get_next_cpu_node(struct device_node *prev)
 	for (; next; next = next->sibling) {
 		if (!(of_node_name_eq(next, "cpu") ||
 		      (next->type && !of_node_cmp(next->type, "cpu"))))
-			continue;
-		if (!__of_device_is_available(next))
 			continue;
 		if (of_node_get(next))
 			break;
@@ -1984,6 +1983,59 @@ int of_alias_get_id(struct device_node *np, const char *stem)
 	return id;
 }
 EXPORT_SYMBOL_GPL(of_alias_get_id);
+
+/**
+ * of_alias_get_alias_list - Get alias list for the given device driver
+ * @matches:	Array of OF device match structures to search in
+ * @stem:	Alias stem of the given device_node
+ * @bitmap:	Bitmap field pointer
+ * @nbits:	Maximum number of alias IDs which can be recorded in bitmap
+ *
+ * The function travels the lookup table to record alias ids for the given
+ * device match structures and alias stem.
+ *
+ * Return:	0 or -ENOSYS when !CONFIG_OF or
+ *		-EOVERFLOW if alias ID is greater then allocated nbits
+ */
+int of_alias_get_alias_list(const struct of_device_id *matches,
+			     const char *stem, unsigned long *bitmap,
+			     unsigned int nbits)
+{
+	struct alias_prop *app;
+	int ret = 0;
+
+	/* Zero bitmap field to make sure that all the time it is clean */
+	bitmap_zero(bitmap, nbits);
+
+	mutex_lock(&of_mutex);
+	pr_debug("%s: Looking for stem: %s\n", __func__, stem);
+	list_for_each_entry(app, &aliases_lookup, link) {
+		pr_debug("%s: stem: %s, id: %d\n",
+			 __func__, app->stem, app->id);
+
+		if (strcmp(app->stem, stem) != 0) {
+			pr_debug("%s: stem comparison didn't pass %s\n",
+				 __func__, app->stem);
+			continue;
+		}
+
+		if (of_match_node(matches, app->np)) {
+			pr_debug("%s: Allocated ID %d\n", __func__, app->id);
+
+			if (app->id >= nbits) {
+				pr_warn("%s: ID %d >= than bitmap field %d\n",
+					__func__, app->id, nbits);
+				ret = -EOVERFLOW;
+			} else {
+				set_bit(app->id, bitmap);
+			}
+		}
+	}
+	mutex_unlock(&of_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(of_alias_get_alias_list);
 
 /**
  * of_alias_get_highest_id - Get highest alias id for the given stem

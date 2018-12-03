@@ -42,18 +42,6 @@ struct vm86;
 #define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- */
-static inline void *current_text_addr(void)
-{
-	void *pc;
-
-	asm volatile("mov $1f, %0; 1:":"=r" (pc));
-
-	return pc;
-}
 
 /*
  * These alignment constraints are for performance in the vSMP case,

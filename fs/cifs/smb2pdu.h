@@ -842,6 +842,41 @@ struct fsctl_get_integrity_information_rsp {
 /* Integrity flags for above */
 #define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
 
+/* Reparse structures - see MS-FSCC 2.1.2 */
+
+/* struct fsctl_reparse_info_req is empty, only response structs (see below) */
+
+struct reparse_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__u8	DataBuffer[0]; /* Variable Length */
+} __packed;
+
+struct reparse_guid_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__u8	ReparseGuid[16];
+	__u8	DataBuffer[0]; /* Variable Length */
+} __packed;
+
+struct reparse_mount_point_data_buffer {
+	__le32	ReparseTag;
+	__le16	ReparseDataLength;
+	__u16	Reserved;
+	__le16	SubstituteNameOffset;
+	__le16	SubstituteNameLength;
+	__le16	PrintNameOffset;
+	__le16	PrintNameLength;
+	__u8	PathBuffer[0]; /* Variable Length */
+} __packed;
+
+/* See MS-FSCC 2.1.2.4 and cifspdu.h for struct reparse_symlink_data */
+
+/* See MS-FSCC 2.1.2.6 and cifspdu.h for struct reparse_posix_data */
+
+
 /* See MS-DFSC 2.2.2 */
 struct fsctl_get_dfs_referral_req {
 	__le16 MaxReferralLevel;

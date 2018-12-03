@@ -365,7 +365,7 @@ static int isp_video_enum_fmt_mplane(struct file *file, void *priv,
 	if (WARN_ON(fmt == NULL))
 		return -EINVAL;
 
-	strlcpy(f->description, fmt->name, sizeof(f->description));
+	strscpy(f->description, fmt->name, sizeof(f->description));
 	f->pixelformat = fmt->fourcc;
 
 	return 0;

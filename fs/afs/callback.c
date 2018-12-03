@@ -210,11 +210,9 @@ void afs_init_callback_state(struct afs_server *server)
 /*
  * actually break a callback
  */
-void afs_break_callback(struct afs_vnode *vnode)
+void __afs_break_callback(struct afs_vnode *vnode)
 {
 	_enter("");
-
-	write_seqlock(&vnode->cb_lock);
 
 	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
 	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
@@ -230,7 +228,12 @@ void afs_break_callback(struct afs_vnode *vnode)
 			afs_lock_may_be_available(vnode);
 		spin_unlock(&vnode->lock);
 	}
+}
 
+void afs_break_callback(struct afs_vnode *vnode)
+{
+	write_seqlock(&vnode->cb_lock);
+	__afs_break_callback(vnode);
 	write_sequnlock(&vnode->cb_lock);
 }
 
@@ -310,14 +313,10 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 	/* TODO: Sort the callback break list by volume ID */
 
 	for (; count > 0; callbacks++, count--) {
-		_debug("- Fid { vl=%08x n=%u u=%u }  CB { v=%u x=%u t=%u }",
+		_debug("- Fid { vl=%08llx n=%llu u=%u }",
 		       callbacks->fid.vid,
 		       callbacks->fid.vnode,
-		       callbacks->fid.unique,
-		       callbacks->cb.version,
-		       callbacks->cb.expiry,
-		       callbacks->cb.type
-		       );
+		       callbacks->fid.unique);
 		afs_break_one_callback(server, &callbacks->fid);
 	}
 

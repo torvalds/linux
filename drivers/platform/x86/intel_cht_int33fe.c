@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Cherry Trail ACPI INT33FE pseudo device driver
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Some Intel Cherry Trail based device which ship with Windows 10, have
  * this weird INT33FE ACPI device with a CRS table with 4 I2cSerialBusV2
@@ -257,4 +254,4 @@ module_platform_driver(cht_int33fe_driver);
 
 MODULE_DESCRIPTION("Intel Cherry Trail ACPI INT33FE pseudo device driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

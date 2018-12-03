@@ -206,7 +206,6 @@
 	status = "okay";
 	slaves = <1>;
 	cpsw_emac0: slave@4a100200  {
-		phy_id = <&davinci_mdio>, <0>;
 		phy-mode = "mii";
 		phy-handle = <&ethernetphy0>;
 	};

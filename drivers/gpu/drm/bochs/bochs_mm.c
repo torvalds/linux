@@ -430,7 +430,7 @@ static void bochs_bo_unref(struct bochs_bo **bo)
 		return;
 
 	tbo = &((*bo)->bo);
-	ttm_bo_unref(&tbo);
+	ttm_bo_put(tbo);
 	*bo = NULL;
 }
 
@@ -457,77 +457,3 @@ int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
 	drm_gem_object_unreference_unlocked(obj);
 	return 0;
 }
-
-/* ---------------------------------------------------------------------- */
-
-static void bochs_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct bochs_framebuffer *bochs_fb = to_bochs_framebuffer(fb);
-
-	drm_gem_object_unreference_unlocked(bochs_fb->obj);
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
-
-static const struct drm_framebuffer_funcs bochs_fb_funcs = {
-	.destroy = bochs_user_framebuffer_destroy,
-};
-
-int bochs_framebuffer_init(struct drm_device *dev,
-			   struct bochs_framebuffer *gfb,
-			   const struct drm_mode_fb_cmd2 *mode_cmd,
-			   struct drm_gem_object *obj)
-{
-	int ret;
-
-	drm_helper_mode_fill_fb_struct(dev, &gfb->base, mode_cmd);
-	gfb->obj = obj;
-	ret = drm_framebuffer_init(dev, &gfb->base, &bochs_fb_funcs);
-	if (ret) {
-		DRM_ERROR("drm_framebuffer_init failed: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-static struct drm_framebuffer *
-bochs_user_framebuffer_create(struct drm_device *dev,
-			      struct drm_file *filp,
-			      const struct drm_mode_fb_cmd2 *mode_cmd)
-{
-	struct drm_gem_object *obj;
-	struct bochs_framebuffer *bochs_fb;
-	int ret;
-
-	DRM_DEBUG_DRIVER("%dx%d, format %c%c%c%c\n",
-	       mode_cmd->width, mode_cmd->height,
-	       (mode_cmd->pixel_format)       & 0xff,
-	       (mode_cmd->pixel_format >> 8)  & 0xff,
-	       (mode_cmd->pixel_format >> 16) & 0xff,
-	       (mode_cmd->pixel_format >> 24) & 0xff);
-
-	if (mode_cmd->pixel_format != DRM_FORMAT_XRGB8888)
-		return ERR_PTR(-ENOENT);
-
-	obj = drm_gem_object_lookup(filp, mode_cmd->handles[0]);
-	if (obj == NULL)
-		return ERR_PTR(-ENOENT);
-
-	bochs_fb = kzalloc(sizeof(*bochs_fb), GFP_KERNEL);
-	if (!bochs_fb) {
-		drm_gem_object_unreference_unlocked(obj);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	ret = bochs_framebuffer_init(dev, bochs_fb, mode_cmd, obj);
-	if (ret) {
-		drm_gem_object_unreference_unlocked(obj);
-		kfree(bochs_fb);
-		return ERR_PTR(ret);
-	}
-	return &bochs_fb->base;
-}
-
-const struct drm_mode_config_funcs bochs_mode_funcs = {
-	.fb_create = bochs_user_framebuffer_create,
-};

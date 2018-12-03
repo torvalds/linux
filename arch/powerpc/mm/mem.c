@@ -27,12 +27,11 @@
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/suspend.h>
-#include <linux/memblock.h>
 #include <linux/hugetlb.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
@@ -349,7 +348,7 @@ void __init mem_init(void)
 
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 	set_max_mapnr(max_pfn);
-	free_all_bootmem();
+	memblock_free_all();
 
 #ifdef CONFIG_HIGHMEM
 	{

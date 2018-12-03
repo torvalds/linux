@@ -26,7 +26,7 @@
 #include <linux/export.h>
 #include <linux/security.h>
 #include <linux/seqlock.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/bit_spinlock.h>
 #include <linux/rculist_bl.h>
 #include <linux/list_lru.h>

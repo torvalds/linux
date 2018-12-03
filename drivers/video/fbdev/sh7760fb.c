@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SH7760/SH7763 LCDC Framebuffer driver.
  *
  * (c) 2006-2008 MSC Vertriebsges.m.b.H.,
  *             Manuel Lauss <mano@roarinelk.homelinux.net>
  * (c) 2008 Nobuhiro Iwamatsu <iwamatsu.nobuhiro@renesas.com>
- *
- *  This file is subject to the terms and conditions of the GNU General
- *  Public License.  See the file COPYING in the main directory of this
- *  archive for more details.
  *
  * PLEASE HAVE A LOOK AT Documentation/fb/sh7760fb.txt!
  *
@@ -587,4 +584,4 @@ module_platform_driver(sh7760_lcdc_driver);
 
 MODULE_AUTHOR("Nobuhiro Iwamatsu, Manuel Lauss");
 MODULE_DESCRIPTION("FBdev for SH7760/63 integrated LCD Controller");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

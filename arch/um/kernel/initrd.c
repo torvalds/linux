@@ -4,7 +4,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <asm/types.h>
 #include <init.h>
@@ -36,7 +36,7 @@ int __init read_initrd(void)
 		return 0;
 	}
 
-	area = alloc_bootmem(size);
+	area = memblock_alloc(size, SMP_CACHE_BYTES);
 
 	if (load_initrd(initrd, area, size) == -1)
 		return 0;

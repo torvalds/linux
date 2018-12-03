@@ -459,7 +459,7 @@ int ethtool_ioctl(struct ifreq *ifr);
 
 extern void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector);
 
-#ifdef CONFIG_XFRM_OFFLOAD
+#ifdef CONFIG_IXGBEVF_IPSEC
 void ixgbevf_init_ipsec_offload(struct ixgbevf_adapter *adapter);
 void ixgbevf_stop_ipsec_offload(struct ixgbevf_adapter *adapter);
 void ixgbevf_ipsec_restore(struct ixgbevf_adapter *adapter);
@@ -482,7 +482,7 @@ static inline int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 				   struct ixgbevf_tx_buffer *first,
 				   struct ixgbevf_ipsec_tx_data *itd)
 { return 0; }
-#endif /* CONFIG_XFRM_OFFLOAD */
+#endif /* CONFIG_IXGBEVF_IPSEC */
 
 void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
 void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);

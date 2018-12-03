@@ -435,7 +435,7 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 
 	go->board_id = GO7007_BOARDID_PCI_VOYAGER;
 	snprintf(go->bus_info, sizeof(go->bus_info), "PCI:%s", pci_name(dev->pci));
-	strlcpy(go->name, saa7134_boards[dev->board].name, sizeof(go->name));
+	strscpy(go->name, saa7134_boards[dev->board].name, sizeof(go->name));
 	go->hpi_ops = &saa7134_go7007_hpi_ops;
 	go->hpi_context = saa;
 	saa->dev = dev;

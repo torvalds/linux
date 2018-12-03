@@ -184,18 +184,18 @@ void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
 	if (lut_sel == VIU_LUT_OSD_OETF) {
 		writel(0, priv->io_base + _REG(addr_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_OETF_LUT_SIZE / 2); i++)
 			writel(r_map[i * 2] | (r_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
 		writel(r_map[OSD_OETF_LUT_SIZE - 1] | (g_map[0] << 16),
 			priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_OETF_LUT_SIZE / 2); i++)
 			writel(g_map[i * 2 + 1] | (g_map[i * 2 + 2] << 16),
 				priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_OETF_LUT_SIZE / 2); i++)
 			writel(b_map[i * 2] | (b_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
@@ -211,18 +211,18 @@ void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
 	} else if (lut_sel == VIU_LUT_OSD_EOTF) {
 		writel(0, priv->io_base + _REG(addr_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_EOTF_LUT_SIZE / 2); i++)
 			writel(r_map[i * 2] | (r_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
 		writel(r_map[OSD_EOTF_LUT_SIZE - 1] | (g_map[0] << 16),
 			priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_EOTF_LUT_SIZE / 2); i++)
 			writel(g_map[i * 2 + 1] | (g_map[i * 2 + 2] << 16),
 				priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_EOTF_LUT_SIZE / 2); i++)
 			writel(b_map[i * 2] | (b_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 

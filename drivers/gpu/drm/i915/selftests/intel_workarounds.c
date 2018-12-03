@@ -44,7 +44,9 @@ read_nonprivs(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
 	if (err)
 		goto err_obj;
 
+	intel_runtime_pm_get(engine->i915);
 	rq = i915_request_alloc(engine, ctx);
+	intel_runtime_pm_put(engine->i915);
 	if (IS_ERR(rq)) {
 		err = PTR_ERR(rq);
 		goto err_pin;
@@ -175,7 +177,10 @@ static int switch_to_scratch_context(struct intel_engine_cs *engine)
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
+	intel_runtime_pm_get(engine->i915);
 	rq = i915_request_alloc(engine, ctx);
+	intel_runtime_pm_put(engine->i915);
+
 	kernel_context_close(ctx);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);

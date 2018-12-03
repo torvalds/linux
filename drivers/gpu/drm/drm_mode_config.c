@@ -97,8 +97,7 @@ int drm_mode_getresources(struct drm_device *dev, void *data,
 	struct drm_connector_list_iter conn_iter;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
+		return -EOPNOTSUPP;
 
 	mutex_lock(&file_priv->fbs_lock);
 	count = 0;

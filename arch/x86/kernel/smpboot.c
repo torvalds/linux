@@ -49,7 +49,7 @@
 #include <linux/sched/hotplug.h>
 #include <linux/sched/task_stack.h>
 #include <linux/percpu.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/nmi.h>
 #include <linux/tboot.h>

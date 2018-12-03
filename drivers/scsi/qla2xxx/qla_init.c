@@ -425,7 +425,7 @@ void qla24xx_handle_adisc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 	__qla24xx_handle_gpdb_event(vha, ea);
 }
 
-int qla_post_els_plogi_work(struct scsi_qla_host *vha, fc_port_t *fcport)
+static int qla_post_els_plogi_work(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
 	struct qla_work_evt *e;
 
@@ -680,7 +680,7 @@ static void qla24xx_handle_gnl_done_event(scsi_qla_host_t *vha,
 					    fcport);
 					break;
 				}
-				/* drop through */
+				/* fall through */
 			default:
 				if (fcport_is_smaller(fcport)) {
 					/* local adapter is bigger */
@@ -1551,7 +1551,8 @@ void qla24xx_handle_relogin_event(scsi_qla_host_t *vha,
 }
 
 
-void qla_handle_els_plogi_done(scsi_qla_host_t *vha, struct event_arg *ea)
+static void qla_handle_els_plogi_done(scsi_qla_host_t *vha,
+				      struct event_arg *ea)
 {
 	ql_dbg(ql_dbg_disc, vha, 0x2118,
 	    "%s %d %8phC post PRLI\n",
@@ -4762,6 +4763,7 @@ qla2x00_alloc_fcport(scsi_qla_host_t *vha, gfp_t flags)
 	fcport->loop_id = FC_NO_LOOP_ID;
 	qla2x00_set_fcport_state(fcport, FCS_UNCONFIGURED);
 	fcport->supported_classes = FC_COS_UNSPECIFIED;
+	fcport->fp_speed = PORT_SPEED_UNKNOWN;
 
 	fcport->ct_desc.ct_sns = dma_alloc_coherent(&vha->hw->pdev->dev,
 		sizeof(struct ct_sns_pkt), &fcport->ct_desc.ct_sns_dma,

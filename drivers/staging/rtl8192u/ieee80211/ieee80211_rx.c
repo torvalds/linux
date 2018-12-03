@@ -794,7 +794,7 @@ static u8 parse_subframe(struct sk_buff *skb,
 	}
 
 	if (rx_stats->bContainHTC) {
-		LLCOffset += sHTCLng;
+		LLCOffset += HTCLNG;
 	}
 	// Null packet, don't indicate it to upper layer
 	ChkLength = LLCOffset;/* + (Frame_WEP(frame)!=0 ?Adapter->MgntInfo.SecurityInfo.EncryptionHeadOverhead:0);*/
@@ -1582,7 +1582,7 @@ static inline void ieee80211_extract_country_ie(
 
 			if (!IS_COUNTRY_IE_VALID(ieee))
 			{
-				Dot11d_UpdateCountryIe(ieee, addr2, info_element->len, info_element->data);
+				dot11d_update_country_ie(ieee, addr2, info_element->len, info_element->data);
 			}
 		}
 
@@ -1944,7 +1944,7 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 					{
 						network->bMBssidValid = true;
 						network->MBssidMask = 0xff << (network->MBssidMask);
-						cpMacAddr(network->MBssid, network->bssid);
+						ether_addr_copy(network->MBssid, network->bssid);
 						network->MBssid[5] &= network->MBssidMask;
 					}
 					else
@@ -2439,7 +2439,7 @@ static inline void ieee80211_process_probe_response(
 	//       then wireless adapter should do active scan from ch1~11 and
 	//       passive scan from ch12~14
 
-	if (!IsLegalChannel(ieee, network->channel))
+	if (!is_legal_channel(ieee, network->channel))
 		goto out;
 	if (ieee->bGlobalDomain)
 	{
@@ -2448,7 +2448,7 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if (!IsLegalChannel(ieee, network->channel)) {
+				if (!is_legal_channel(ieee, network->channel)) {
 					printk("GetScanInfo(): For Country code, filter probe response at channel(%d).\n", network->channel);
 					goto out;
 				}
@@ -2469,7 +2469,7 @@ static inline void ieee80211_process_probe_response(
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
 			{
-				if (!IsLegalChannel(ieee, network->channel)) {
+				if (!is_legal_channel(ieee, network->channel)) {
 					printk("GetScanInfo(): For Country code, filter beacon at channel(%d).\n",network->channel);
 					goto out;
 				}

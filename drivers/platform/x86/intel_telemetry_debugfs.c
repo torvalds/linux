@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel SOC Telemetry debugfs Driver: Currently supports APL
  * Copyright (c) 2015, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  *
  * This file provides the debugfs interfaces for telemetry.
  * /sys/kernel/debug/telemetry/pss_info: Shows Primary Control Sub-Sys Counters
@@ -71,9 +63,6 @@
 #define TELEM_PSS_LTR_BLOCKING_EVTS	20
 #define TELEM_IOSS_DX_D0IX_EVTS		25
 #define TELEM_IOSS_PG_EVTS		30
-
-#define TELEM_DEBUGFS_CPU(model, data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_ANY, (unsigned long)&data}
 
 #define TELEM_CHECK_AND_PARSE_EVTS(EVTID, EVTNUM, BUF, EVTLOG, EVTDAT, MASK) { \
 	if (evtlog[index].telem_evtid == (EVTID)) { \
@@ -319,8 +308,8 @@ static struct telemetry_debugfs_conf telem_apl_debugfs_conf = {
 };
 
 static const struct x86_cpu_id telemetry_debugfs_cpu_ids[] = {
-	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GOLDMONT, telem_apl_debugfs_conf),
-	TELEM_DEBUGFS_CPU(INTEL_FAM6_ATOM_GOLDMONT_PLUS, telem_apl_debugfs_conf),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT, telem_apl_debugfs_conf),
+	INTEL_CPU_FAM6(ATOM_GOLDMONT_PLUS, telem_apl_debugfs_conf),
 	{}
 };
 
@@ -951,12 +940,16 @@ static int __init telemetry_debugfs_init(void)
 	debugfs_conf = (struct telemetry_debugfs_conf *)id->driver_data;
 
 	err = telemetry_pltconfig_valid();
-	if (err < 0)
+	if (err < 0) {
+		pr_info("Invalid pltconfig, ensure IPC1 device is enabled in BIOS\n");
 		return -ENODEV;
+	}
 
 	err = telemetry_debugfs_check_evts();
-	if (err < 0)
+	if (err < 0) {
+		pr_info("telemetry_debugfs_check_evts failed\n");
 		return -EINVAL;
+	}
 
 	register_pm_notifier(&pm_notifier);
 
@@ -1037,4 +1030,4 @@ module_exit(telemetry_debugfs_exit);
 MODULE_AUTHOR("Souvik Kumar Chakravarty <souvik.k.chakravarty@intel.com>");
 MODULE_DESCRIPTION("Intel SoC Telemetry debugfs Interface");
 MODULE_VERSION(DRIVER_VERSION);
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

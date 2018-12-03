@@ -1387,21 +1387,24 @@ static bool may_access_direct_pkt_data(struct bpf_verifier_env *env,
 				       enum bpf_access_type t)
 {
 	switch (env->prog->type) {
+	/* Program types only with direct read access go here! */
 	case BPF_PROG_TYPE_LWT_IN:
 	case BPF_PROG_TYPE_LWT_OUT:
 	case BPF_PROG_TYPE_LWT_SEG6LOCAL:
 	case BPF_PROG_TYPE_SK_REUSEPORT:
-		/* dst_input() and dst_output() can't write for now */
+	case BPF_PROG_TYPE_FLOW_DISSECTOR:
+	case BPF_PROG_TYPE_CGROUP_SKB:
 		if (t == BPF_WRITE)
 			return false;
 		/* fallthrough */
+
+	/* Program types with direct read + write access go here! */
 	case BPF_PROG_TYPE_SCHED_CLS:
 	case BPF_PROG_TYPE_SCHED_ACT:
 	case BPF_PROG_TYPE_XDP:
 	case BPF_PROG_TYPE_LWT_XMIT:
 	case BPF_PROG_TYPE_SK_SKB:
 	case BPF_PROG_TYPE_SK_MSG:
-	case BPF_PROG_TYPE_FLOW_DISSECTOR:
 		if (meta)
 			return meta->pkt_access;
 
@@ -2849,10 +2852,6 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 		regs[BPF_REG_0].type = NOT_INIT;
 	} else if (fn->ret_type == RET_PTR_TO_MAP_VALUE_OR_NULL ||
 		   fn->ret_type == RET_PTR_TO_MAP_VALUE) {
-		if (fn->ret_type == RET_PTR_TO_MAP_VALUE)
-			regs[BPF_REG_0].type = PTR_TO_MAP_VALUE;
-		else
-			regs[BPF_REG_0].type = PTR_TO_MAP_VALUE_OR_NULL;
 		/* There is no offset yet applied, variable or fixed */
 		mark_reg_known_zero(env, regs, BPF_REG_0);
 		/* remember map_ptr, so that check_map_access()
@@ -2865,7 +2864,12 @@ static int check_helper_call(struct bpf_verifier_env *env, int func_id, int insn
 			return -EINVAL;
 		}
 		regs[BPF_REG_0].map_ptr = meta.map_ptr;
-		regs[BPF_REG_0].id = ++env->id_gen;
+		if (fn->ret_type == RET_PTR_TO_MAP_VALUE) {
+			regs[BPF_REG_0].type = PTR_TO_MAP_VALUE;
+		} else {
+			regs[BPF_REG_0].type = PTR_TO_MAP_VALUE_OR_NULL;
+			regs[BPF_REG_0].id = ++env->id_gen;
+		}
 	} else if (fn->ret_type == RET_PTR_TO_SOCKET_OR_NULL) {
 		int id = acquire_reference_state(env, insn_idx);
 		if (id < 0)
@@ -3043,7 +3047,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 			dst_reg->umax_value = umax_ptr;
 			dst_reg->var_off = ptr_reg->var_off;
 			dst_reg->off = ptr_reg->off + smin_val;
-			dst_reg->range = ptr_reg->range;
+			dst_reg->raw = ptr_reg->raw;
 			break;
 		}
 		/* A new variable offset is created.  Note that off_reg->off
@@ -3073,10 +3077,11 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		}
 		dst_reg->var_off = tnum_add(ptr_reg->var_off, off_reg->var_off);
 		dst_reg->off = ptr_reg->off;
+		dst_reg->raw = ptr_reg->raw;
 		if (reg_is_pkt_pointer(ptr_reg)) {
 			dst_reg->id = ++env->id_gen;
 			/* something was added to pkt_ptr, set range to zero */
-			dst_reg->range = 0;
+			dst_reg->raw = 0;
 		}
 		break;
 	case BPF_SUB:
@@ -3105,7 +3110,7 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 			dst_reg->var_off = ptr_reg->var_off;
 			dst_reg->id = ptr_reg->id;
 			dst_reg->off = ptr_reg->off - smin_val;
-			dst_reg->range = ptr_reg->range;
+			dst_reg->raw = ptr_reg->raw;
 			break;
 		}
 		/* A new variable offset is created.  If the subtrahend is known
@@ -3131,11 +3136,12 @@ static int adjust_ptr_min_max_vals(struct bpf_verifier_env *env,
 		}
 		dst_reg->var_off = tnum_sub(ptr_reg->var_off, off_reg->var_off);
 		dst_reg->off = ptr_reg->off;
+		dst_reg->raw = ptr_reg->raw;
 		if (reg_is_pkt_pointer(ptr_reg)) {
 			dst_reg->id = ++env->id_gen;
 			/* something was added to pkt_ptr, set range to zero */
 			if (smin_val < 0)
-				dst_reg->range = 0;
+				dst_reg->raw = 0;
 		}
 		break;
 	case BPF_AND:
@@ -5644,7 +5650,7 @@ static void adjust_subprog_starts(struct bpf_verifier_env *env, u32 off, u32 len
 		return;
 	/* NOTE: fake 'exit' subprog should be updated as well. */
 	for (i = 0; i <= env->subprog_cnt; i++) {
-		if (env->subprog_info[i].start < off)
+		if (env->subprog_info[i].start <= off)
 			continue;
 		env->subprog_info[i].start += len - 1;
 	}
@@ -5706,7 +5712,11 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 	bool is_narrower_load;
 	u32 target_size;
 
-	if (ops->gen_prologue) {
+	if (ops->gen_prologue || env->seen_direct_write) {
+		if (!ops->gen_prologue) {
+			verbose(env, "bpf verifier is misconfigured\n");
+			return -EINVAL;
+		}
 		cnt = ops->gen_prologue(insn_buf, env->seen_direct_write,
 					env->prog);
 		if (cnt >= ARRAY_SIZE(insn_buf)) {

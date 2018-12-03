@@ -101,7 +101,7 @@ static phys_addr_t __init early_pgtable_alloc(void)
 	phys_addr_t phys;
 	void *ptr;
 
-	phys = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	phys = memblock_phys_alloc(PAGE_SIZE, PAGE_SIZE);
 
 	/*
 	 * The FIX_{PGD,PUD,PMD} slots may be in active use, but the FIX_PTE
@@ -659,6 +659,8 @@ void __init paging_init(void)
 
 	memblock_free(__pa_symbol(init_pg_dir),
 		      __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
+
+	memblock_allow_resize();
 }
 
 /*
