@@ -4765,13 +4765,9 @@ static void ept_set_mmio_spte_mask(void)
 }
 
 #define VMX_XSS_EXIT_BITMAP 0
-/*
- * Sets up the vmcs for emulated real mode.
- */
-static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
-{
-	int i;
 
+static void nested_vmx_vcpu_setup(void)
+{
 	if (enable_shadow_vmcs) {
 		/*
 		 * At vCPU creation, "VMWRITE to any supported field
@@ -4782,6 +4778,18 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 		vmcs_write64(VMREAD_BITMAP, __pa(vmx_vmread_bitmap));
 		vmcs_write64(VMWRITE_BITMAP, __pa(vmx_vmread_bitmap));
 	}
+}
+
+/*
+ * Sets up the vmcs for emulated real mode.
+ */
+static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
+{
+	int i;
+
+	if (nested)
+		nested_vmx_vcpu_setup();
+
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx->vmcs01.msr_bitmap));
 
@@ -6059,10 +6067,40 @@ static void vmx_enable_tdp(void)
 	kvm_enable_tdp();
 }
 
+static __exit void nested_vmx_hardware_unsetup(void)
+{
+	int i;
+
+	if (enable_shadow_vmcs) {
+		for (i = 0; i < VMX_BITMAP_NR; i++)
+			free_page((unsigned long)vmx_bitmap[i]);
+	}
+}
+
+static __init int nested_vmx_hardware_setup(void)
+{
+	int i;
+
+	if (enable_shadow_vmcs) {
+		for (i = 0; i < VMX_BITMAP_NR; i++) {
+			vmx_bitmap[i] = (unsigned long *)
+				__get_free_page(GFP_KERNEL);
+			if (!vmx_bitmap[i]) {
+				nested_vmx_hardware_unsetup();
+				return -ENOMEM;
+			}
+		}
+
+		init_vmcs_shadow_fields();
+	}
+
+	return 0;
+}
+
 static __init int hardware_setup(void)
 {
 	unsigned long host_bndcfgs;
-	int r = -ENOMEM, i;
+	int r, i;
 
 	rdmsrl_safe(MSR_EFER, &host_efer);
 
@@ -6186,16 +6224,6 @@ static __init int hardware_setup(void)
 
 	if (!cpu_has_vmx_shadow_vmcs() || !nested)
 		enable_shadow_vmcs = 0;
-	if (enable_shadow_vmcs) {
-		for (i = 0; i < VMX_BITMAP_NR; i++) {
-			vmx_bitmap[i] = (unsigned long *)
-				__get_free_page(GFP_KERNEL);
-			if (!vmx_bitmap[i])
-				goto out;
-		}
-
-		init_vmcs_shadow_fields();
-	}
 
 	kvm_set_posted_intr_wakeup_handler(wakeup_handler);
 	nested_vmx_setup_ctls_msrs(&vmcs_config.nested, vmx_capability.ept,
@@ -6203,27 +6231,22 @@ static __init int hardware_setup(void)
 
 	kvm_mce_cap_supported |= MCG_LMCE_P;
 
+	if (nested) {
+		r = nested_vmx_hardware_setup();
+		if (r)
+			return r;
+	}
+
 	r = alloc_kvm_area();
 	if (r)
-		goto out;
-	return 0;
-
-out:
-	if (enable_shadow_vmcs) {
-		for (i = 0; i < VMX_BITMAP_NR; i++)
-			free_page((unsigned long)vmx_bitmap[i]);
-	}
+		nested_vmx_hardware_unsetup();
 	return r;
 }
 
 static __exit void hardware_unsetup(void)
 {
-	int i;
-
-	if (enable_shadow_vmcs) {
-		for (i = 0; i < VMX_BITMAP_NR; i++)
-			free_page((unsigned long)vmx_bitmap[i]);
-	}
+	if (nested)
+		nested_vmx_hardware_unsetup();
 
 	free_kvm_area();
 }
