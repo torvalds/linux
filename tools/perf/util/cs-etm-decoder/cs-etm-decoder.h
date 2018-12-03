@@ -28,11 +28,21 @@ enum cs_etm_sample_type {
 	CS_ETM_TRACE_ON = 1 << 1,
 };
 
+enum cs_etm_isa {
+	CS_ETM_ISA_UNKNOWN,
+	CS_ETM_ISA_A64,
+	CS_ETM_ISA_A32,
+	CS_ETM_ISA_T32,
+};
+
 struct cs_etm_packet {
 	enum cs_etm_sample_type sample_type;
+	enum cs_etm_isa isa;
 	u64 start_addr;
 	u64 end_addr;
+	u32 instr_count;
 	u8 last_instr_taken_branch;
+	u8 last_instr_size;
 	u8 exc;
 	u8 exc_ret;
 	int cpu;

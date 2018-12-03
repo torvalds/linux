@@ -31,14 +31,6 @@
 
 #define MAX_TIMESTAMP (~0ULL)
 
-/*
- * A64 instructions are always 4 bytes
- *
- * Only A64 is supported, so can use this constant for converting between
- * addresses and instruction counts, calculting offsets etc
- */
-#define A64_INSTR_SIZE 4
-
 struct cs_etm_auxtrace {
 	struct auxtrace auxtrace;
 	struct auxtrace_queues queues;
@@ -510,21 +502,17 @@ static inline void cs_etm__reset_last_branch_rb(struct cs_etm_queue *etmq)
 	etmq->last_branch_rb->nr = 0;
 }
 
-static inline u64 cs_etm__last_executed_instr(struct cs_etm_packet *packet)
-{
-	/* Returns 0 for the CS_ETM_TRACE_ON packet */
-	if (packet->sample_type == CS_ETM_TRACE_ON)
-		return 0;
+static inline int cs_etm__t32_instr_size(struct cs_etm_queue *etmq,
+					 u64 addr) {
+	u8 instrBytes[2];
 
+	cs_etm__mem_access(etmq, addr, ARRAY_SIZE(instrBytes), instrBytes);
 	/*
-	 * The packet records the execution range with an exclusive end address
-	 *
-	 * A64 instructions are constant size, so the last executed
-	 * instruction is A64_INSTR_SIZE before the end address
-	 * Will need to do instruction level decode for T32 instructions as
-	 * they can be variable size (not yet supported).
+	 * T32 instruction size is indicated by bits[15:11] of the first
+	 * 16-bit word of the instruction: 0b11101, 0b11110 and 0b11111
+	 * denote a 32-bit instruction.
 	 */
-	return packet->end_addr - A64_INSTR_SIZE;
+	return ((instrBytes[1] & 0xF8) >= 0xE8) ? 4 : 2;
 }
 
 static inline u64 cs_etm__first_executed_instr(struct cs_etm_packet *packet)
@@ -536,27 +524,32 @@ static inline u64 cs_etm__first_executed_instr(struct cs_etm_packet *packet)
 	return packet->start_addr;
 }
 
-static inline u64 cs_etm__instr_count(const struct cs_etm_packet *packet)
+static inline
+u64 cs_etm__last_executed_instr(const struct cs_etm_packet *packet)
 {
-	/*
-	 * Only A64 instructions are currently supported, so can get
-	 * instruction count by dividing.
-	 * Will need to do instruction level decode for T32 instructions as
-	 * they can be variable size (not yet supported).
-	 */
-	return (packet->end_addr - packet->start_addr) / A64_INSTR_SIZE;
+	/* Returns 0 for the CS_ETM_TRACE_ON packet */
+	if (packet->sample_type == CS_ETM_TRACE_ON)
+		return 0;
+
+	return packet->end_addr - packet->last_instr_size;
 }
 
-static inline u64 cs_etm__instr_addr(const struct cs_etm_packet *packet,
+static inline u64 cs_etm__instr_addr(struct cs_etm_queue *etmq,
+				     const struct cs_etm_packet *packet,
 				     u64 offset)
 {
-	/*
-	 * Only A64 instructions are currently supported, so can get
-	 * instruction address by muliplying.
-	 * Will need to do instruction level decode for T32 instructions as
-	 * they can be variable size (not yet supported).
-	 */
-	return packet->start_addr + offset * A64_INSTR_SIZE;
+	if (packet->isa == CS_ETM_ISA_T32) {
+		u64 addr = packet->start_addr;
+
+		while (offset > 0) {
+			addr += cs_etm__t32_instr_size(etmq, addr);
+			offset--;
+		}
+		return addr;
+	}
+
+	/* Assume a 4 byte instruction size (A32/A64) */
+	return packet->start_addr + offset * 4;
 }
 
 static void cs_etm__update_last_branch_rb(struct cs_etm_queue *etmq)
@@ -888,9 +881,8 @@ static int cs_etm__sample(struct cs_etm_queue *etmq)
 	struct cs_etm_auxtrace *etm = etmq->etm;
 	struct cs_etm_packet *tmp;
 	int ret;
-	u64 instrs_executed;
+	u64 instrs_executed = etmq->packet->instr_count;
 
-	instrs_executed = cs_etm__instr_count(etmq->packet);
 	etmq->period_instructions += instrs_executed;
 
 	/*
@@ -920,7 +912,7 @@ static int cs_etm__sample(struct cs_etm_queue *etmq)
 		 * executed, but PC has not advanced to next instruction)
 		 */
 		u64 offset = (instrs_executed - instrs_over - 1);
-		u64 addr = cs_etm__instr_addr(etmq->packet, offset);
+		u64 addr = cs_etm__instr_addr(etmq, etmq->packet, offset);
 
 		ret = cs_etm__synth_instruction_sample(
 			etmq, addr, etm->instructions_sample_period);
