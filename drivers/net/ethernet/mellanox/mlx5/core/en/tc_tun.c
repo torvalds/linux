@@ -15,10 +15,6 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 	struct net_device *uplink_dev, *uplink_upper;
 	bool dst_is_lag_dev;
 
-	/* we currently don't offload vlan on underlay */
-	if (is_vlan_dev(dev))
-		return -EOPNOTSUPP;
-
 	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
 	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
 	dst_is_lag_dev = (uplink_upper &&
@@ -30,12 +26,18 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 	 * it's a LAG device, use the uplink
 	 */
 	if (!switchdev_port_same_parent_id(priv->netdev, dev) ||
-	    dst_is_lag_dev)
-		*out_dev = uplink_dev;
-	else if (!mlx5e_eswitch_rep(dev))
-		return -EOPNOTSUPP;
-	else
-		*out_dev = dev;
+	    dst_is_lag_dev) {
+		*route_dev = uplink_dev;
+		*out_dev = *route_dev;
+	} else {
+		*route_dev = dev;
+		if (is_vlan_dev(*route_dev))
+			*out_dev = uplink_dev;
+		else if (mlx5e_eswitch_rep(dev))
+			*out_dev = *route_dev;
+		else
+			return -EOPNOTSUPP;
+	}
 
 	return 0;
 }
@@ -43,6 +45,7 @@ static int get_route_and_out_devs(struct mlx5e_priv *priv,
 static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 				   struct net_device *mirred_dev,
 				   struct net_device **out_dev,
+				   struct net_device **route_dev,
 				   struct flowi4 *fl4,
 				   struct neighbour **out_n,
 				   u8 *out_ttl)
@@ -61,7 +64,7 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	return -EOPNOTSUPP;
 #endif
 
-	ret = get_route_and_out_devs(priv, rt->dst.dev, NULL, out_dev);
+	ret = get_route_and_out_devs(priv, rt->dst.dev, route_dev, out_dev);
 	if (ret < 0)
 		return ret;
 
@@ -87,6 +90,7 @@ static const char *mlx5e_netdev_kind(struct net_device *dev)
 static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 				   struct net_device *mirred_dev,
 				   struct net_device **out_dev,
+				   struct net_device **route_dev,
 				   struct flowi6 *fl6,
 				   struct neighbour **out_n,
 				   u8 *out_ttl)
@@ -105,7 +109,7 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	if (!(*out_ttl))
 		*out_ttl = ip6_dst_hoplimit(dst);
 
-	ret = get_route_and_out_devs(priv, dst->dev, NULL, out_dev);
+	ret = get_route_and_out_devs(priv, dst->dev, route_dev, out_dev);
 	if (ret < 0)
 		return ret;
 #else
@@ -210,7 +214,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev;
+	struct net_device *out_dev, *route_dev;
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
 	int ipv4_encap_size;
@@ -225,13 +229,13 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	fl4.saddr = tun_key->u.ipv4.src;
 	ttl = tun_key->ttl;
 
-	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev,
+	err = mlx5e_route_lookup_ipv4(priv, mirred_dev, &out_dev, &route_dev,
 				      &fl4, &n, &ttl);
 	if (err)
 		return err;
 
 	ipv4_encap_size =
-		ETH_HLEN +
+		(is_vlan_dev(route_dev) ? VLAN_ETH_HLEN : ETH_HLEN) +
 		sizeof(struct iphdr) +
 		e->tunnel_hlen;
 
@@ -268,7 +272,7 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	read_unlock_bh(&n->lock);
 
 	/* add ethernet header */
-	ip = (struct iphdr *)gen_eth_tnl_hdr(encap_header, out_dev, e,
+	ip = (struct iphdr *)gen_eth_tnl_hdr(encap_header, route_dev, e,
 					     ETH_P_IP);
 
 	/* add ip header */
@@ -323,7 +327,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 {
 	int max_encap_size = MLX5_CAP_ESW(priv->mdev, max_encap_header_size);
 	struct ip_tunnel_key *tun_key = &e->tun_info.key;
-	struct net_device *out_dev;
+	struct net_device *out_dev, *route_dev;
 	struct neighbour *n = NULL;
 	struct flowi6 fl6 = {};
 	struct ipv6hdr *ip6h;
@@ -338,13 +342,13 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	fl6.daddr = tun_key->u.ipv6.dst;
 	fl6.saddr = tun_key->u.ipv6.src;
 
-	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev,
+	err = mlx5e_route_lookup_ipv6(priv, mirred_dev, &out_dev, &route_dev,
 				      &fl6, &n, &ttl);
 	if (err)
 		return err;
 
 	ipv6_encap_size =
-		ETH_HLEN +
+		(is_vlan_dev(route_dev) ? VLAN_ETH_HLEN : ETH_HLEN) +
 		sizeof(struct ipv6hdr) +
 		e->tunnel_hlen;
 
@@ -381,7 +385,7 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	read_unlock_bh(&n->lock);
 
 	/* add ethernet header */
-	ip6h = (struct ipv6hdr *)gen_eth_tnl_hdr(encap_header, out_dev, e,
+	ip6h = (struct ipv6hdr *)gen_eth_tnl_hdr(encap_header, route_dev, e,
 						 ETH_P_IPV6);
 
 	/* add ip header */
