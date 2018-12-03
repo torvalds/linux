@@ -227,3 +227,7 @@
 &pio {
 	compatible = "allwinner,sun8i-h3-pinctrl";
 };
+
+&rtc {
+	compatible = "allwinner,sun8i-h3-rtc";
+};

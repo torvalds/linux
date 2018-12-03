@@ -172,3 +172,7 @@
 		     <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
 	compatible = "allwinner,sun50i-h5-pinctrl";
 };
+
+&rtc {
+	compatible = "allwinner,sun50i-h5-rtc";
+};
