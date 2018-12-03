@@ -2053,7 +2053,8 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 {
 	const struct ov5640_mode_info *mode;
 	enum ov5640_frame_rate rate = OV5640_30_FPS;
-	u32 minfps, maxfps, fps;
+	int minfps, maxfps, best_fps, fps;
+	int i;
 
 	minfps = ov5640_framerates[OV5640_15_FPS];
 	maxfps = ov5640_framerates[OV5640_30_FPS];
@@ -2064,19 +2065,21 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 		return OV5640_30_FPS;
 	}
 
-	fps = DIV_ROUND_CLOSEST(fi->denominator, fi->numerator);
+	fps = clamp_val(DIV_ROUND_CLOSEST(fi->denominator, fi->numerator),
+			minfps, maxfps);
+
+	best_fps = minfps;
+	for (i = 0; i < ARRAY_SIZE(ov5640_framerates); i++) {
+		int curr_fps = ov5640_framerates[i];
+
+		if (abs(curr_fps - fps) < abs(best_fps - fps)) {
+			best_fps = curr_fps;
+			rate = i;
+		}
+	}
 
 	fi->numerator = 1;
-	if (fps > maxfps)
-		fi->denominator = maxfps;
-	else if (fps < minfps)
-		fi->denominator = minfps;
-	else if (2 * fps >= 2 * minfps + (maxfps - minfps))
-		fi->denominator = maxfps;
-	else
-		fi->denominator = minfps;
-
-	rate = (fi->denominator == minfps) ? OV5640_15_FPS : OV5640_30_FPS;
+	fi->denominator = best_fps;
 
 	mode = ov5640_find_mode(sensor, rate, width, height, false);
 	return mode ? rate : -EINVAL;
