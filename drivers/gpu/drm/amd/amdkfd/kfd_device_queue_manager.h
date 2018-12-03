@@ -158,6 +158,8 @@ struct device_queue_manager_asic_ops {
 	void	(*init_sdma_vm)(struct device_queue_manager *dqm,
 				struct queue *q,
 				struct qcm_process_device *qpd);
+	struct mqd_manager *	(*mqd_manager_init)(enum KFD_MQD_TYPE type,
+				 struct kfd_dev *dev);
 };
 
 /**

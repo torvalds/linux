@@ -583,7 +583,7 @@ static struct mqd_manager *get_mqd_manager(
 
 	mqd_mgr = dqm->mqd_mgrs[type];
 	if (!mqd_mgr) {
-		mqd_mgr = mqd_manager_init(type, dqm->dev);
+		mqd_mgr = dqm->asic_ops.mqd_manager_init(type, dqm->dev);
 		if (!mqd_mgr)
 			pr_err("mqd manager is NULL");
 		dqm->mqd_mgrs[type] = mqd_mgr;

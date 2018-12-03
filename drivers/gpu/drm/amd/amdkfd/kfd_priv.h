@@ -819,8 +819,6 @@ void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);
 
-struct mqd_manager *mqd_manager_init(enum KFD_MQD_TYPE type,
-					struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_cik(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_cik_hawaii(enum KFD_MQD_TYPE type,
