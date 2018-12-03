@@ -1148,9 +1148,9 @@ static bool tegra30_cpu_rail_off_ready(void)
 
 	cpu_rst_status = readl(clk_base +
 				TEGRA30_CLK_RST_CONTROLLER_CPU_CMPLX_STATUS);
-	cpu_pwr_status = tegra_powergate_is_powered(TEGRA_POWERGATE_CPU1) ||
-			 tegra_powergate_is_powered(TEGRA_POWERGATE_CPU2) ||
-			 tegra_powergate_is_powered(TEGRA_POWERGATE_CPU3);
+	cpu_pwr_status = tegra_pmc_cpu_is_powered(1) ||
+			 tegra_pmc_cpu_is_powered(2) ||
+			 tegra_pmc_cpu_is_powered(3);
 
 	if (((cpu_rst_status & 0xE) != 0xE) || cpu_pwr_status)
 		return false;
