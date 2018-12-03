@@ -9,6 +9,11 @@
 
 #define HW_INTR_STATUS			0x0010
 
+struct dpu_irq_controller {
+	unsigned long enabled_mask;
+	struct irq_domain *domain;
+};
+
 struct dpu_mdss {
 	struct msm_mdss base;
 	void __iomem *mmio;

@@ -30,7 +30,6 @@
 #include "dpu_hw_top.h"
 #include "dpu_io_util.h"
 #include "dpu_rm.h"
-#include "dpu_irq.h"
 #include "dpu_core_perf.h"
 
 #define DRMID(x) ((x) ? (x)->base.id : -1)

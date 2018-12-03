@@ -734,10 +734,30 @@ static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
 			encoder->base.id, rc);
 }
 
+static irqreturn_t dpu_irq(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+
+	return dpu_core_irq(dpu_kms);
+}
+
+static void dpu_irq_preinstall(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+
+	dpu_core_irq_preinstall(dpu_kms);
+}
+
+static void dpu_irq_uninstall(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+
+	dpu_core_irq_uninstall(dpu_kms);
+}
+
 static const struct msm_kms_funcs kms_funcs = {
 	.hw_init         = dpu_kms_hw_init,
 	.irq_preinstall  = dpu_irq_preinstall,
-	.irq_postinstall = dpu_irq_postinstall,
 	.irq_uninstall   = dpu_irq_uninstall,
 	.irq             = dpu_irq,
 	.prepare_commit  = dpu_kms_prepare_commit,

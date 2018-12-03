@@ -24,13 +24,6 @@
 void dpu_core_irq_preinstall(struct dpu_kms *dpu_kms);
 
 /**
- * dpu_core_irq_postinstall - perform post-installation of core IRQ handler
- * @dpu_kms:		DPU handle
- * @return:		0 if success; error code otherwise
- */
-int dpu_core_irq_postinstall(struct dpu_kms *dpu_kms);
-
-/**
  * dpu_core_irq_uninstall - uninstall core IRQ handler
  * @dpu_kms:		DPU handle
  * @return:		none
