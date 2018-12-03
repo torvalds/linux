@@ -492,6 +492,7 @@
 		resets = <&cru SRST_I2S0_TX>, <&cru SRST_I2S0_RX>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_8ch_sclktx
 			     &i2s0_8ch_sclkrx

@@ -957,6 +957,7 @@
 		resets = <&cru SRST_I2S0_8CH_TX_M>, <&cru SRST_I2S0_8CH_RX_M>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
 		rockchip,mclk-calibrate;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s_8ch_0_sclktx
@@ -992,6 +993,7 @@
 		resets = <&cru SRST_I2S1_8CH_TX_M>, <&cru SRST_I2S1_8CH_RX_M>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
 		rockchip,mclk-calibrate;
 		status = "disabled";
 	};
@@ -1013,6 +1015,7 @@
 		resets = <&cru SRST_I2S2_8CH_TX_M>, <&cru SRST_I2S2_8CH_RX_M>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
 		rockchip,mclk-calibrate;
 		status = "disabled";
 	};
@@ -1034,6 +1037,7 @@
 		resets = <&cru SRST_I2S3_8CH_TX_M>, <&cru SRST_I2S3_8CH_RX_M>;
 		reset-names = "tx-m", "rx-m";
 		rockchip,cru = <&cru>;
+		rockchip,grf = <&grf>;
 		rockchip,mclk-calibrate;
 		status = "disabled";
 	};
