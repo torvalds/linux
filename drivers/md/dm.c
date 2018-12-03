@@ -1486,11 +1486,9 @@ static bool is_split_required_for_discard(struct dm_target *ti)
 }
 
 static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *ti,
-				       get_num_bios_fn get_num_bios,
-				       is_split_required_fn is_split_required)
+				       unsigned num_bios, bool is_split_required)
 {
 	unsigned len;
-	unsigned num_bios;
 
 	/*
 	 * Even though the device advertised support for this type of
@@ -1498,11 +1496,10 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 	 * reconfiguration might also have changed that since the
 	 * check was performed.
 	 */
-	num_bios = get_num_bios ? get_num_bios(ti) : 0;
 	if (!num_bios)
 		return -EOPNOTSUPP;
 
-	if (is_split_required && !is_split_required(ti))
+	if (!is_split_required)
 		len = min((sector_t)ci->sector_count, max_io_len_target_boundary(ci->sector, ti));
 	else
 		len = min((sector_t)ci->sector_count, max_io_len(ci->sector, ti));
@@ -1517,23 +1514,23 @@ static int __send_changing_extent_only(struct clone_info *ci, struct dm_target *
 
 static int __send_discard(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_discard_bios,
-					   is_split_required_for_discard);
+	return __send_changing_extent_only(ci, ti, get_num_discard_bios(ti),
+					   is_split_required_for_discard(ti));
 }
 
 static int __send_secure_erase(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios, NULL);
+	return __send_changing_extent_only(ci, ti, get_num_secure_erase_bios(ti), false);
 }
 
 static int __send_write_same(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_same_bios, NULL);
+	return __send_changing_extent_only(ci, ti, get_num_write_same_bios(ti), false);
 }
 
 static int __send_write_zeroes(struct clone_info *ci, struct dm_target *ti)
 {
-	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios, NULL);
+	return __send_changing_extent_only(ci, ti, get_num_write_zeroes_bios(ti), false);
 }
 
 static bool __process_abnormal_io(struct clone_info *ci, struct dm_target *ti,
