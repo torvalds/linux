@@ -37,17 +37,9 @@
 
 struct rpcsec_gss_info;
 
-/* auth_cred ac_flags bits */
-enum {
-	RPC_CRED_KEY_EXPIRE_SOON = 1, /* underlying cred key will expire soon */
-	RPC_CRED_NOTIFY_TIMEOUT = 2,   /* nofity generic cred when underlying
-					key will expire soon */
-};
-
 struct auth_cred {
 	const struct cred *cred;
 	const char *principal;	/* If present, this is a machine credential */
-	unsigned long ac_flags;
 };
 
 /*
@@ -154,7 +146,6 @@ struct rpc_credops {
 	int			(*crunwrap_resp)(struct rpc_task *, kxdrdproc_t,
 						void *, __be32 *, void *);
 	int			(*crkey_timeout)(struct rpc_cred *);
-	bool			(*crkey_to_expire)(struct rpc_cred *);
 	char *			(*crstringify_acceptor)(struct rpc_cred *);
 	bool			(*crneed_reencode)(struct rpc_task *);
 };
@@ -198,9 +189,6 @@ int			rpcauth_uptodatecred(struct rpc_task *);
 int			rpcauth_init_credcache(struct rpc_auth *);
 void			rpcauth_destroy_credcache(struct rpc_auth *);
 void			rpcauth_clear_credcache(struct rpc_cred_cache *);
-int			rpcauth_key_timeout_notify(struct rpc_auth *,
-						struct rpc_cred *);
-bool			rpcauth_cred_key_to_expire(struct rpc_auth *, struct rpc_cred *);
 char *			rpcauth_stringify_acceptor(struct rpc_cred *);
 
 static inline
