@@ -69,7 +69,9 @@ static int __init nft_masq_ipv4_module_init(void)
 	if (ret < 0)
 		return ret;
 
-	nf_nat_masquerade_ipv4_register_notifier();
+	ret = nf_nat_masquerade_ipv4_register_notifier();
+	if (ret)
+		nft_unregister_expr(&nft_masq_ipv4_type);
 
 	return ret;
 }

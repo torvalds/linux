@@ -181,7 +181,7 @@ static unsigned amdgpu_vm_num_entries(struct amdgpu_device *adev,
 
 	if (level == adev->vm_manager.root_level)
 		/* For the root directory */
-		return round_up(adev->vm_manager.max_pfn, 1 << shift) >> shift;
+		return round_up(adev->vm_manager.max_pfn, 1ULL << shift) >> shift;
 	else if (level != AMDGPU_VM_PTB)
 		/* Everything in between */
 		return 512;
@@ -1656,9 +1656,11 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			if (!amdgpu_vm_pt_descendant(adev, &cursor))
 				return -ENOENT;
 			continue;
-		} else if (frag >= parent_shift) {
+		} else if (frag >= parent_shift &&
+			   cursor.level - 1 != adev->vm_manager.root_level) {
 			/* If the fragment size is even larger than the parent
-			 * shift we should go up one level and check it again.
+			 * shift we should go up one level and check it again
+			 * unless one level up is the root level.
 			 */
 			if (!amdgpu_vm_pt_ancestor(&cursor))
 				return -ENOENT;
@@ -1666,10 +1668,10 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		}
 
 		/* Looks good so far, calculate parameters for the update */
-		incr = AMDGPU_GPU_PAGE_SIZE << shift;
+		incr = (uint64_t)AMDGPU_GPU_PAGE_SIZE << shift;
 		mask = amdgpu_vm_entries_mask(adev, cursor.level);
 		pe_start = ((cursor.pfn >> shift) & mask) * 8;
-		entry_end = (mask + 1) << shift;
+		entry_end = (uint64_t)(mask + 1) << shift;
 		entry_end += cursor.pfn & ~(entry_end - 1);
 		entry_end = min(entry_end, end);
 
@@ -1682,7 +1684,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 					      flags | AMDGPU_PTE_FRAG(frag));
 
 			pe_start += nptes * 8;
-			dst += nptes * AMDGPU_GPU_PAGE_SIZE << shift;
+			dst += (uint64_t)nptes * AMDGPU_GPU_PAGE_SIZE << shift;
 
 			frag_start = upd_end;
 			if (frag_start >= frag_end) {

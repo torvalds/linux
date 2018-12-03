@@ -55,7 +55,7 @@
 #define PRIo64 "o"
 
 /* #define apic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
-#define apic_debug(fmt, arg...)
+#define apic_debug(fmt, arg...) do {} while (0)
 
 /* 14 is the version for Xeon and Pentium 8.4.8*/
 #define APIC_VERSION			(0x14UL | ((KVM_APIC_LVT_NUM - 1) << 16))
@@ -575,6 +575,11 @@ int kvm_pv_send_ipi(struct kvm *kvm, unsigned long ipi_bitmap_low,
 
 	rcu_read_lock();
 	map = rcu_dereference(kvm->arch.apic_map);
+
+	if (unlikely(!map)) {
+		count = -EOPNOTSUPP;
+		goto out;
+	}
 
 	if (min > map->max_apic_id)
 		goto out;
