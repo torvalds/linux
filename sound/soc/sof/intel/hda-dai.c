@@ -170,9 +170,6 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 {
 	struct hdac_ext_stream *link_dev =
 				snd_soc_dai_get_dma_data(dai, substream);
-	struct hdac_stream *hstream = substream->runtime->private_data;
-	struct hdac_bus *bus = hstream->bus;
-	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 	switch (cmd) {
@@ -186,8 +183,6 @@ static int hda_link_pcm_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
 		snd_hdac_ext_link_stream_clear(link_dev);
-		if (cmd == SNDRV_PCM_TRIGGER_SUSPEND)
-			snd_hdac_ext_stream_decouple(bus, stream, false);
 		break;
 
 	default:
@@ -222,6 +217,7 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 		bus = hstream->bus;
 		rtd = snd_pcm_substream_chip(substream);
 		link_dev = snd_soc_dai_get_dma_data(dai, substream);
+		snd_hdac_ext_stream_decouple(bus, link_dev, false);
 		name = rtd->codec_dai->component->name;
 		link = snd_hdac_ext_bus_get_link(bus, name);
 		if (!link)
