@@ -1016,17 +1016,18 @@ static int fill_scaling_list_pps(struct vpu_subdev_data *data,
 
 	if (scaling_fd > 0) {
 		int i = 0;
+		u32 val;
 		dma_addr_t tmp = vcodec_fd_to_iova(data, reg->session, reg,
 						   scaling_fd, -1);
 
 		if (IS_ERR_VALUE(tmp))
 			return tmp;
 		tmp += scaling_offset;
-		tmp = cpu_to_le32(tmp);
+		val = cpu_to_le32(tmp);
 
 		/* Fill the scaling list address in each pps entries */
 		for (i = 0; i < count; i++, base += pps_info_size)
-			memcpy(pps + base, &tmp, sizeof(tmp));
+			memcpy(pps + base, &val, sizeof(val));
 	}
 
 	dma_buf_vunmap(dmabuf, vaddr);
