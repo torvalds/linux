@@ -531,7 +531,7 @@ static void hda_tegra_probe_work(struct work_struct *work)
 		goto out_free;
 
 	/* create codec instances */
-	err = azx_probe_codecs(chip, 0);
+	err = azx_probe_codecs(chip, 8);
 	if (err < 0)
 		goto out_free;
 
