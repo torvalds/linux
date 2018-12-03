@@ -2052,8 +2052,8 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 				     u32 width, u32 height)
 {
 	const struct ov5640_mode_info *mode;
+	enum ov5640_frame_rate rate = OV5640_30_FPS;
 	u32 minfps, maxfps, fps;
-	int ret;
 
 	minfps = ov5640_framerates[OV5640_15_FPS];
 	maxfps = ov5640_framerates[OV5640_30_FPS];
@@ -2076,10 +2076,10 @@ static int ov5640_try_frame_interval(struct ov5640_dev *sensor,
 	else
 		fi->denominator = minfps;
 
-	ret = (fi->denominator == minfps) ? OV5640_15_FPS : OV5640_30_FPS;
+	rate = (fi->denominator == minfps) ? OV5640_15_FPS : OV5640_30_FPS;
 
-	mode = ov5640_find_mode(sensor, ret, width, height, false);
-	return mode ? ret : -EINVAL;
+	mode = ov5640_find_mode(sensor, rate, width, height, false);
+	return mode ? rate : -EINVAL;
 }
 
 static int ov5640_get_fmt(struct v4l2_subdev *sd,
