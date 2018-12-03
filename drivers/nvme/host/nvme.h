@@ -368,15 +368,6 @@ static inline void nvme_fault_inject_fini(struct nvme_ns *ns) {}
 static inline void nvme_should_fail(struct request *req) {}
 #endif
 
-static inline bool nvme_ctrl_ready(struct nvme_ctrl *ctrl)
-{
-	u32 val = 0;
-
-	if (ctrl->ops->reg_read32(ctrl, NVME_REG_CSTS, &val))
-		return false;
-	return val & NVME_CSTS_RDY;
-}
-
 static inline int nvme_reset_subsystem(struct nvme_ctrl *ctrl)
 {
 	if (!ctrl->subsystem)
