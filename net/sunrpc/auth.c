@@ -39,6 +39,20 @@ static const struct rpc_authops __rcu *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 static LIST_HEAD(cred_unused);
 static unsigned long number_cred_unused;
 
+static struct rpc_cred machine_cred = {
+	.cr_count = REFCOUNT_INIT(1),
+};
+
+/*
+ * Return the machine_cred pointer to be used whenever
+ * the a generic machine credential is needed.
+ */
+struct rpc_cred *rpc_machine_cred(void)
+{
+	return &machine_cred;
+}
+EXPORT_SYMBOL_GPL(rpc_machine_cred);
+
 #define MAX_HASHTABLE_BITS (14)
 static int param_set_hashtbl_sz(const char *val, const struct kernel_param *kp)
 {
@@ -703,6 +717,22 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 }
 
 static struct rpc_cred *
+rpcauth_bind_machine_cred(struct rpc_task *task, int lookupflags)
+{
+	struct rpc_auth *auth = task->tk_client->cl_auth;
+	struct auth_cred acred = {
+		.principal = task->tk_client->cl_principal,
+		.cred = init_task.cred,
+	};
+
+	if (!acred.principal)
+		return NULL;
+	dprintk("RPC: %5u looking up %s machine cred\n",
+		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
+	return auth->au_ops->lookup_cred(auth, &acred, lookupflags);
+}
+
+static struct rpc_cred *
 rpcauth_bind_new_cred(struct rpc_task *task, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
@@ -716,14 +746,20 @@ static int
 rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
-	struct rpc_cred *new;
+	struct rpc_cred *new = NULL;
 	int lookupflags = 0;
 
 	if (flags & RPC_TASK_ASYNC)
 		lookupflags |= RPCAUTH_LOOKUP_NEW;
-	if (cred != NULL)
+	if (cred != NULL && cred != &machine_cred)
 		new = cred->cr_ops->crbind(task, cred, lookupflags);
-	else if (flags & RPC_TASK_ROOTCREDS)
+	else if (cred == &machine_cred)
+		new = rpcauth_bind_machine_cred(task, lookupflags);
+
+	/* If machine cred couldn't be bound, try a root cred */
+	if (new)
+		;
+	else if (cred == &machine_cred || (flags & RPC_TASK_ROOTCREDS))
 		new = rpcauth_bind_root_cred(task, lookupflags);
 	else
 		new = rpcauth_bind_new_cred(task, lookupflags);

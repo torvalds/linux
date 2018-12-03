@@ -338,7 +338,6 @@ static inline bool
 _nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
 		    struct rpc_clnt **clntp, struct rpc_message *msg)
 {
-	struct rpc_cred *newcred = NULL;
 	rpc_authflavor_t flavor;
 
 	if (sp4_mode == NFS_SP4_MACH_CRED_CLEANUP ||
@@ -353,13 +352,7 @@ _nfs4_state_protect(struct nfs_client *clp, unsigned long sp4_mode,
 			return false;
 	}
 	if (test_bit(sp4_mode, &clp->cl_sp4_flags)) {
-		spin_lock(&clp->cl_lock);
-		if (clp->cl_machine_cred != NULL)
-			/* don't call get_rpccred on the machine cred -
-			 * a reference will be held for life of clp */
-			newcred = clp->cl_machine_cred;
-		spin_unlock(&clp->cl_lock);
-		msg->rpc_cred = newcred;
+		msg->rpc_cred = rpc_machine_cred();
 
 		flavor = clp->cl_rpcclient->cl_auth->au_flavor;
 		WARN_ON_ONCE(flavor != RPC_AUTH_GSS_KRB5I &&

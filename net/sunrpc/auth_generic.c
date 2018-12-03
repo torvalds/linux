@@ -48,27 +48,6 @@ struct rpc_cred *rpc_lookup_cred_nonblock(void)
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_cred_nonblock);
 
-/*
- * Public call interface for looking up machine creds.
- * Note that if service_name is NULL, we actually look up
- * "root" credential.
- */
-struct rpc_cred *rpc_lookup_machine_cred(const char *service_name)
-{
-	struct auth_cred acred = {
-		.principal = service_name,
-		.cred = get_task_cred(&init_task),
-	};
-	struct rpc_cred *ret;
-
-	dprintk("RPC:       looking up machine cred for service %s\n",
-			service_name);
-	ret = generic_auth.au_ops->lookup_cred(&generic_auth, &acred, 0);
-	put_cred(acred.cred);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(rpc_lookup_machine_cred);
-
 static struct rpc_cred *generic_bind_cred(struct rpc_task *task,
 		struct rpc_cred *cred, int lookupflags)
 {

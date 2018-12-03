@@ -847,14 +847,10 @@ static int max_cb_time(struct net *net)
 static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc_clnt *client, struct nfsd4_session *ses)
 {
 	if (clp->cl_minorversion == 0) {
-		char *principal = clp->cl_cred.cr_targ_princ ?
-					clp->cl_cred.cr_targ_princ : "nfs";
-		struct rpc_cred *cred;
+		client->cl_principal = clp->cl_cred.cr_targ_princ ?
+			clp->cl_cred.cr_targ_princ : "nfs";
 
-		cred = rpc_lookup_machine_cred(principal);
-		if (!IS_ERR(cred))
-			get_rpccred(cred);
-		return cred;
+		return get_rpccred(rpc_machine_cred());
 	} else {
 		struct rpc_auth *auth = client->cl_auth;
 		struct auth_cred acred = {};

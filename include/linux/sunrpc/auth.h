@@ -75,6 +75,8 @@ struct rpc_cred {
 #define RPCAUTH_CRED_HASHED	2
 #define RPCAUTH_CRED_NEGATIVE	3
 
+struct rpc_cred *rpc_machine_cred(void);
+
 /* rpc_auth au_flags */
 #define RPCAUTH_AUTH_NO_CRKEY_TIMEOUT	0x0001 /* underlying cred has no key timeout */
 
@@ -170,7 +172,6 @@ void 			rpc_destroy_authunix(void);
 struct rpc_cred *	rpc_lookup_cred(void);
 struct rpc_cred *	rpc_lookup_cred_nonblock(void);
 struct rpc_cred *	rpc_lookup_generic_cred(struct auth_cred *, int, gfp_t);
-struct rpc_cred *	rpc_lookup_machine_cred(const char *service_name);
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(const struct rpc_auth_create_args *,
