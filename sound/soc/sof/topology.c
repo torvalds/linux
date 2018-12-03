@@ -1804,15 +1804,12 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	switch (swidget->id) {
 	case snd_soc_dapm_dai_in:
 	case snd_soc_dapm_dai_out:
-		dai = swidget->private;
+		dai = (struct snd_sof_dai *)swidget->private;
 
-		/* free dai config */
-		kfree(dai->dai_config);
-
-		/* remove and free dai object */
 		if (dai) {
+			/* free dai config */
+			kfree(dai->dai_config);
 			list_del(&dai->list);
-			kfree(dai);
 		}
 		break;
 	case snd_soc_dapm_scheduler:
@@ -1823,10 +1820,6 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 		if (ret < 0)
 			dev_err(sdev->dev, "error: powering down pipeline schedule core %d\n",
 				pipeline->core);
-
-		/* free private value */
-		kfree(swidget->private);
-
 		break;
 	case snd_soc_dapm_pga:
 
@@ -1837,13 +1830,13 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 
 		/* free volume table */
 		kfree(scontrol->volume_table);
-
-		/* fallthrough */
+		break;
 	default:
-		/* free private value */
-		kfree(swidget->private);
 		break;
 	}
+
+	/* free private value */
+	kfree(swidget->private);
 
 	/* remove and free swidget object */
 	list_del(&swidget->list);
