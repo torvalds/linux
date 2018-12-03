@@ -312,6 +312,48 @@ static void __init sun6i_a31_rtc_clk_init(struct device_node *node)
 CLK_OF_DECLARE_DRIVER(sun6i_a31_rtc_clk, "allwinner,sun6i-a31-rtc",
 		      sun6i_a31_rtc_clk_init);
 
+static const struct sun6i_rtc_clk_data sun8i_a23_rtc_data = {
+	.rc_osc_rate = 667000, /* datasheet says 600 ~ 700 KHz */
+	.has_prescaler = 1,
+	.has_out_clk = 1,
+};
+
+static void __init sun8i_a23_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_a23_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_a23_rtc_clk, "allwinner,sun8i-a23-rtc",
+		      sun8i_a23_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun8i_h3_rtc_data = {
+	.rc_osc_rate = 16000000,
+	.fixed_prescaler = 32,
+	.has_prescaler = 1,
+	.has_out_clk = 1,
+};
+
+static void __init sun8i_h3_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_h3_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_h3_rtc_clk, "allwinner,sun8i-h3-rtc",
+		      sun8i_h3_rtc_clk_init);
+/* As far as we are concerned, clocks for H5 are the same as H3 */
+CLK_OF_DECLARE_DRIVER(sun50i_h5_rtc_clk, "allwinner,sun50i-h5-rtc",
+		      sun8i_h3_rtc_clk_init);
+
+static const struct sun6i_rtc_clk_data sun8i_v3_rtc_data = {
+	.rc_osc_rate = 32000,
+	.has_out_clk = 1,
+};
+
+static void __init sun8i_v3_rtc_clk_init(struct device_node *node)
+{
+	sun6i_rtc_clk_init(node, &sun8i_v3_rtc_data);
+}
+CLK_OF_DECLARE_DRIVER(sun8i_v3_rtc_clk, "allwinner,sun8i-v3-rtc",
+		      sun8i_v3_rtc_clk_init);
+
 static irqreturn_t sun6i_rtc_alarmirq(int irq, void *id)
 {
 	struct sun6i_rtc_dev *chip = (struct sun6i_rtc_dev *) id;
@@ -625,6 +667,10 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
  */
 static const struct of_device_id sun6i_rtc_dt_ids[] = {
 	{ .compatible = "allwinner,sun6i-a31-rtc" },
+	{ .compatible = "allwinner,sun8i-a23-rtc" },
+	{ .compatible = "allwinner,sun8i-h3-rtc" },
+	{ .compatible = "allwinner,sun8i-v3-rtc" },
+	{ .compatible = "allwinner,sun50i-h5-rtc" },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, sun6i_rtc_dt_ids);
