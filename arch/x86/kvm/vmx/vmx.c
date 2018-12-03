@@ -365,18 +365,11 @@ static inline struct vmcs12 *get_shadow_vmcs12(struct kvm_vcpu *vcpu)
 
 static bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu);
 static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
-static void vmx_set_segment(struct kvm_vcpu *vcpu,
-			    struct kvm_segment *var, int seg);
-static void vmx_get_segment(struct kvm_vcpu *vcpu,
-			    struct kvm_segment *var, int seg);
 static bool guest_state_valid(struct kvm_vcpu *vcpu);
 static u32 vmx_segment_access_rights(struct kvm_segment *var);
 static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx);
-static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
-static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
 static bool nested_vmx_is_page_fault_vmexit(struct vmcs12 *vmcs12,
 					    u16 error_code);
-static void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu);
 static __always_inline void vmx_disable_intercept_for_msr(unsigned long *msr_bitmap,
 							  u32 msr, int type);
 
@@ -437,8 +430,6 @@ static const struct kvm_vmx_segment_field {
 };
 
 u64 host_efer;
-
-static void ept_save_pdptrs(struct kvm_vcpu *vcpu);
 
 /*
  * Keep MSR_STAR at the end, as setup_msrs() will try to optimize it
@@ -687,7 +678,7 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 			      u32 exit_intr_info,
 			      unsigned long exit_qualification);
 
-static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
+static inline int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
@@ -697,7 +688,7 @@ static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 	return -1;
 }
 
-static struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
+struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
 
@@ -705,15 +696,6 @@ static struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 	if (i >= 0)
 		return &vmx->guest_msrs[i];
 	return NULL;
-}
-
-void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
-{
-	vmcs_clear(loaded_vmcs->vmcs);
-	if (loaded_vmcs->shadow_vmcs && loaded_vmcs->launched)
-		vmcs_clear(loaded_vmcs->shadow_vmcs);
-	loaded_vmcs->cpu = -1;
-	loaded_vmcs->launched = 0;
 }
 
 #ifdef CONFIG_KEXEC_CORE
@@ -840,7 +822,7 @@ static u32 vmx_read_guest_seg_ar(struct vcpu_vmx *vmx, unsigned seg)
 	return *p;
 }
 
-static void update_exception_bitmap(struct kvm_vcpu *vcpu)
+void update_exception_bitmap(struct kvm_vcpu *vcpu)
 {
 	u32 eb;
 
@@ -1140,7 +1122,7 @@ static unsigned long segment_base(u16 selector)
 }
 #endif
 
-static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
+void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs_host_state *host_state;
@@ -1338,7 +1320,7 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
  * Switches to specified vcpu, until a matching vcpu_put(), but assumes
  * vcpu mutex is already taken.
  */
-static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
+void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	bool already_loaded = vmx->loaded_vmcs->cpu == cpu;
@@ -1419,7 +1401,7 @@ static void vmx_vcpu_pi_put(struct kvm_vcpu *vcpu)
 		pi_set_sn(pi_desc);
 }
 
-static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
+void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	vmx_vcpu_pi_put(vcpu);
 
@@ -1449,7 +1431,7 @@ static inline unsigned long nested_read_cr4(struct vmcs12 *fields)
 		(fields->cr4_read_shadow & fields->cr4_guest_host_mask);
 }
 
-static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
+unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 {
 	unsigned long rflags, save_rflags;
 
@@ -1466,7 +1448,7 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 	return to_vmx(vcpu)->rflags;
 }
 
-static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
+void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
 	unsigned long old_rflags = vmx_get_rflags(vcpu);
 
@@ -1482,7 +1464,7 @@ static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 		to_vmx(vcpu)->emulation_required = emulation_required(vcpu);
 }
 
-static u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu)
+u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu)
 {
 	u32 interruptibility = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	int ret = 0;
@@ -1495,7 +1477,7 @@ static u32 vmx_get_interrupt_shadow(struct kvm_vcpu *vcpu)
 	return ret;
 }
 
-static void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
+void vmx_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
 {
 	u32 interruptibility_old = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO);
 	u32 interruptibility = interruptibility_old;
@@ -3291,7 +3273,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	kvm_mmu_reset_context(vcpu);
 }
 
-static void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
+void vmx_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct shared_msr_entry *msr = find_msr_entry(vmx, MSR_EFER);
@@ -3391,7 +3373,7 @@ static void ept_load_pdptrs(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void ept_save_pdptrs(struct kvm_vcpu *vcpu)
+void ept_save_pdptrs(struct kvm_vcpu *vcpu)
 {
 	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
 
@@ -3442,8 +3424,6 @@ static bool nested_cr4_valid(struct kvm_vcpu *vcpu, unsigned long val)
 #define nested_guest_cr4_valid	nested_cr4_valid
 #define nested_host_cr4_valid	nested_cr4_valid
 
-static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4);
-
 static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
 					unsigned long cr0,
 					struct kvm_vcpu *vcpu)
@@ -3472,7 +3452,7 @@ static void ept_update_paging_mode_cr0(unsigned long *hw_cr0,
 		*hw_cr0 &= ~X86_CR0_WP;
 }
 
-static void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
+void vmx_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long hw_cr0;
@@ -3531,7 +3511,7 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 	return eptp;
 }
 
-static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 {
 	struct kvm *kvm = vcpu->kvm;
 	unsigned long guest_cr3;
@@ -3561,7 +3541,7 @@ static void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 	vmcs_writel(GUEST_CR3, guest_cr3);
 }
 
-static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
+int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 {
 	/*
 	 * Pass through host's Machine Check Enable value to hw_cr4, which
@@ -3636,8 +3616,7 @@ static int vmx_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	return 0;
 }
 
-static void vmx_get_segment(struct kvm_vcpu *vcpu,
-			    struct kvm_segment *var, int seg)
+void vmx_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 ar;
@@ -3684,7 +3663,7 @@ static u64 vmx_get_segment_base(struct kvm_vcpu *vcpu, int seg)
 	return vmx_read_guest_seg_base(to_vmx(vcpu), seg);
 }
 
-static int vmx_get_cpl(struct kvm_vcpu *vcpu)
+int vmx_get_cpl(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
@@ -3716,8 +3695,7 @@ static u32 vmx_segment_access_rights(struct kvm_segment *var)
 	return ar;
 }
 
-static void vmx_set_segment(struct kvm_vcpu *vcpu,
-			    struct kvm_segment *var, int seg)
+void vmx_set_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	const struct kvm_vmx_segment_field *sf = &kvm_vmx_segment_fields[seg];
@@ -4111,7 +4089,7 @@ out:
 	return r;
 }
 
-static int allocate_vpid(void)
+int allocate_vpid(void)
 {
 	int vpid;
 
@@ -4127,7 +4105,7 @@ static int allocate_vpid(void)
 	return vpid;
 }
 
-static void free_vpid(int vpid)
+void free_vpid(int vpid)
 {
 	if (!enable_vpid || vpid == 0)
 		return;
@@ -4302,7 +4280,7 @@ static void vmx_update_msr_bitmap_x2apic(unsigned long *msr_bitmap,
 	}
 }
 
-static void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu)
+void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
@@ -4490,7 +4468,7 @@ static void vmx_deliver_posted_interrupt(struct kvm_vcpu *vcpu, int vector)
  * Note that host-state that does change is set elsewhere. E.g., host-state
  * that is set differently for each CPU is set in vmx_vcpu_load(), not here.
  */
-static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
+void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 {
 	u32 low32, high32;
 	unsigned long tmpl;
@@ -4550,7 +4528,7 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 		vmcs_write64(HOST_IA32_EFER, host_efer);
 }
 
-static void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
+void set_cr4_guest_host_mask(struct vcpu_vmx *vmx)
 {
 	vmx->vcpu.arch.cr4_guest_owned_bits = KVM_CR4_GUEST_OWNED_BITS;
 	if (enable_ept)
@@ -5080,7 +5058,7 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 	vmx_clear_hlt(vcpu);
 }
 
-static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
+bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	bool masked;
@@ -5094,7 +5072,7 @@ static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
 	return masked;
 }
 
-static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
+void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
@@ -8688,7 +8666,7 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 	vmcs_write32(TPR_THRESHOLD, irr);
 }
 
-static void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
+void vmx_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 {
 	u32 sec_exec_control;
 
