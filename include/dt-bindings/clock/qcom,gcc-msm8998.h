@@ -180,6 +180,11 @@
 #define USB30_MASTER_CLK_SRC					163
 #define USB30_MOCK_UTMI_CLK_SRC					164
 #define USB3_PHY_AUX_CLK_SRC					165
+#define GCC_USB3_CLKREF_CLK					166
+#define GCC_HDMI_CLKREF_CLK					167
+#define GCC_UFS_CLKREF_CLK					168
+#define GCC_PCIE_CLKREF_CLK					169
+#define GCC_RX1_USB2_CLKREF_CLK					170
 
 #define PCIE_0_GDSC						0
 #define UFS_GDSC						1
