@@ -304,51 +304,7 @@ static void cpa_flush_all(unsigned long cache)
 	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
 
-static bool __inv_flush_all(int cache)
-{
-	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
-
-	if (cache && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
-		cpa_flush_all(cache);
-		return true;
-	}
-
-	return false;
-}
-
-static void cpa_flush_range(unsigned long start, int numpages, int cache)
-{
-	unsigned int i, level;
-	unsigned long addr;
-
-	WARN_ON(PAGE_ALIGN(start) != start);
-
-	if (__inv_flush_all(cache))
-		return;
-
-	flush_tlb_kernel_range(start, start + PAGE_SIZE * numpages);
-
-	if (!cache)
-		return;
-
-	/*
-	 * We only need to flush on one CPU,
-	 * clflush is a MESI-coherent instruction that
-	 * will cause all other CPUs to flush the same
-	 * cachelines:
-	 */
-	for (i = 0, addr = start; i < numpages; i++, addr += PAGE_SIZE) {
-		pte_t *pte = lookup_address(addr, &level);
-
-		/*
-		 * Only flush present addresses:
-		 */
-		if (pte && (pte_val(*pte) & _PAGE_PRESENT))
-			clflush_cache_range((void *) addr, PAGE_SIZE);
-	}
-}
-
-void __cpa_flush_array(void *data)
+void __cpa_flush_tlb(void *data)
 {
 	struct cpa_data *cpa = data;
 	unsigned int i;
@@ -357,33 +313,31 @@ void __cpa_flush_array(void *data)
 		__flush_tlb_one_kernel(__cpa_addr(cpa, i));
 }
 
-static void cpa_flush_array(struct cpa_data *cpa, int cache)
+static void cpa_flush(struct cpa_data *data, int cache)
 {
+	struct cpa_data *cpa = data;
 	unsigned int i;
 
-	if (cpa_check_flush_all(cache))
+	BUG_ON(irqs_disabled() && !early_boot_irqs_disabled);
+
+	if (cache && !static_cpu_has(X86_FEATURE_CLFLUSH)) {
+		cpa_flush_all(cache);
 		return;
+	}
 
 	if (cpa->numpages <= tlb_single_page_flush_ceiling)
-		on_each_cpu(__cpa_flush_array, cpa, 1);
+		on_each_cpu(__cpa_flush_tlb, cpa, 1);
 	else
 		flush_tlb_all();
 
 	if (!cache)
 		return;
 
-	/*
-	 * We only need to flush on one CPU,
-	 * clflush is a MESI-coherent instruction that
-	 * will cause all other CPUs to flush the same
-	 * cachelines:
-	 */
 	for (i = 0; i < cpa->numpages; i++) {
 		unsigned long addr = __cpa_addr(cpa, i);
 		unsigned int level;
-		pte_t *pte;
 
-		pte = lookup_address(addr, &level);
+		pte_t *pte = lookup_address(addr, &level);
 
 		/*
 		 * Only flush present addresses:
@@ -1698,7 +1652,6 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 {
 	struct cpa_data cpa;
 	int ret, cache, checkalias;
-	unsigned long baddr = 0;
 
 	memset(&cpa, 0, sizeof(cpa));
 
@@ -1732,11 +1685,6 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 			 */
 			WARN_ON_ONCE(1);
 		}
-		/*
-		 * Save address for cache flush. *addr is modified in the call
-		 * to __change_page_attr_set_clr() below.
-		 */
-		baddr = make_addr_canonical_again(*addr);
 	}
 
 	/* Must avoid aliasing mappings in the highmem code */
@@ -1784,11 +1732,7 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 		goto out;
 	}
 
-	if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY))
-		cpa_flush_array(&cpa, cache);
-	else
-		cpa_flush_range(baddr, numpages, cache);
-
+	cpa_flush(&cpa, cache);
 out:
 	return ret;
 }
@@ -2097,18 +2041,18 @@ static int __set_memory_enc_dec(unsigned long addr, int numpages, bool enc)
 	/*
 	 * Before changing the encryption attribute, we need to flush caches.
 	 */
-	cpa_flush_range(addr, numpages, 1);
+	cpa_flush(&cpa, 1);
 
 	ret = __change_page_attr_set_clr(&cpa, 1);
 
 	/*
-	 * After changing the encryption attribute, we need to flush TLBs
-	 * again in case any speculative TLB caching occurred (but no need
-	 * to flush caches again).  We could just use cpa_flush_all(), but
-	 * in case TLB flushing gets optimized in the cpa_flush_range()
-	 * path use the same logic as above.
+	 * After changing the encryption attribute, we need to flush TLBs again
+	 * in case any speculative TLB caching occurred (but no need to flush
+	 * caches again).  We could just use cpa_flush_all(), but in case TLB
+	 * flushing gets optimized in the cpa_flush() path use the same logic
+	 * as above.
 	 */
-	cpa_flush_range(addr, numpages, 0);
+	cpa_flush(&cpa, 0);
 
 	return ret;
 }
