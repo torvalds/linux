@@ -960,6 +960,7 @@ iwl_mvm_decode_he_phy_ru_alloc(struct iwl_mvm_rx_phy_data *phy_data,
 	 * the TSF/timers are not be transmitted in HE-MU.
 	 */
 	u8 ru = le32_get_bits(phy_data->d1, IWL_RX_PHY_DATA1_HE_RU_ALLOC_MASK);
+	u32 he_type = rate_n_flags & RATE_MCS_HE_TYPE_MSK;
 	u8 offs = 0;
 
 	rx_status->bw = RATE_INFO_BW_HE_RU;
@@ -1002,19 +1003,27 @@ iwl_mvm_decode_he_phy_ru_alloc(struct iwl_mvm_rx_phy_data *phy_data,
 		he->data2 |=
 			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA2_PRISEC_80_SEC);
 
-	if (he_mu) {
 #define CHECK_BW(bw) \
 	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW_ ## bw ## MHZ != \
+		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS); \
+	BUILD_BUG_ON(IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_ ## bw ## MHZ != \
 		     RATE_MCS_CHAN_WIDTH_##bw >> RATE_MCS_CHAN_WIDTH_POS)
-		CHECK_BW(20);
-		CHECK_BW(40);
-		CHECK_BW(80);
-		CHECK_BW(160);
+	CHECK_BW(20);
+	CHECK_BW(40);
+	CHECK_BW(80);
+	CHECK_BW(160);
+
+	if (he_mu)
 		he_mu->flags2 |=
 			le16_encode_bits(FIELD_GET(RATE_MCS_CHAN_WIDTH_MSK,
 						   rate_n_flags),
 					 IEEE80211_RADIOTAP_HE_MU_FLAGS2_BW_FROM_SIG_A_BW);
-	}
+	else if (he_type == RATE_MCS_HE_TYPE_TRIG)
+		he->data6 |=
+			cpu_to_le16(IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW_KNOWN) |
+			le16_encode_bits(FIELD_GET(RATE_MCS_CHAN_WIDTH_MSK,
+						   rate_n_flags),
+					 IEEE80211_RADIOTAP_HE_DATA6_TB_PPDU_BW);
 }
 
 static void iwl_mvm_decode_he_phy_data(struct iwl_mvm *mvm,
