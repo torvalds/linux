@@ -57,7 +57,7 @@
 
 #define BYT_PCI_BAR_SIZE	0x200000
 
-#define BYT_PANIC_OFFSET(x)	(((x) & (0xFFFFll << 32)) >> 32)
+#define BYT_PANIC_OFFSET(x)	(((x) & GENMASK_ULL(47, 32)) >> 32)
 
 /*
  * Debug
