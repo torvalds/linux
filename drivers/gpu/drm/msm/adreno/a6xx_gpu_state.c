@@ -116,7 +116,10 @@ static int a6xx_crashdumper_init(struct msm_gpu *gpu,
 		SZ_1M, MSM_BO_UNCACHED, gpu->aspace,
 		&dumper->bo, &dumper->iova);
 
-	return IS_ERR(dumper->ptr) ? PTR_ERR(dumper->ptr) : 0;
+	if (!IS_ERR(dumper->ptr))
+		msm_gem_object_set_name(dumper->bo, "crashdump");
+
+	return PTR_ERR_OR_ZERO(dumper->ptr);
 }
 
 static int a6xx_crashdumper_run(struct msm_gpu *gpu,
