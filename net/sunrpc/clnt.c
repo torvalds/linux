@@ -2534,12 +2534,12 @@ struct rpc_task *rpc_call_null_helper(struct rpc_clnt *clnt,
 {
 	struct rpc_message msg = {
 		.rpc_proc = &rpcproc_null,
-		.rpc_cred = cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = clnt,
 		.rpc_xprt = xprt,
 		.rpc_message = &msg,
+		.rpc_op_cred = cred,
 		.callback_ops = (ops != NULL) ? ops : &rpc_default_ops,
 		.callback_data = data,
 		.flags = flags,

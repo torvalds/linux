@@ -751,7 +751,11 @@ rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 
 	if (flags & RPC_TASK_ASYNC)
 		lookupflags |= RPCAUTH_LOOKUP_NEW;
-	if (cred != NULL && cred != &machine_cred)
+	if (task->tk_op_cred)
+		/* Task must use exactly this rpc_cred */
+		new = task->tk_op_cred->cr_ops->crbind(task, task->tk_op_cred,
+						       lookupflags);
+	else if (cred != NULL && cred != &machine_cred)
 		new = cred->cr_ops->crbind(task, cred, lookupflags);
 	else if (cred == &machine_cred)
 		new = rpcauth_bind_machine_cred(task, lookupflags);
