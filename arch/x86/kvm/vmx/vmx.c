@@ -73,23 +73,23 @@ static const struct x86_cpu_id vmx_cpu_id[] = {
 };
 MODULE_DEVICE_TABLE(x86cpu, vmx_cpu_id);
 
-static bool __read_mostly enable_vpid = 1;
+bool __read_mostly enable_vpid = 1;
 module_param_named(vpid, enable_vpid, bool, 0444);
 
 static bool __read_mostly enable_vnmi = 1;
 module_param_named(vnmi, enable_vnmi, bool, S_IRUGO);
 
-static bool __read_mostly flexpriority_enabled = 1;
+bool __read_mostly flexpriority_enabled = 1;
 module_param_named(flexpriority, flexpriority_enabled, bool, S_IRUGO);
 
-static bool __read_mostly enable_ept = 1;
+bool __read_mostly enable_ept = 1;
 module_param_named(ept, enable_ept, bool, S_IRUGO);
 
-static bool __read_mostly enable_unrestricted_guest = 1;
+bool __read_mostly enable_unrestricted_guest = 1;
 module_param_named(unrestricted_guest,
 			enable_unrestricted_guest, bool, S_IRUGO);
 
-static bool __read_mostly enable_ept_ad_bits = 1;
+bool __read_mostly enable_ept_ad_bits = 1;
 module_param_named(eptad, enable_ept_ad_bits, bool, S_IRUGO);
 
 static bool __read_mostly emulate_invalid_guest_state = true;
@@ -116,7 +116,7 @@ module_param(nested_early_check, bool, S_IRUGO);
 
 static u64 __read_mostly host_xss;
 
-static bool __read_mostly enable_pml = 1;
+bool __read_mostly enable_pml = 1;
 module_param_named(pml, enable_pml, bool, S_IRUGO);
 
 #define MSR_TYPE_R	1

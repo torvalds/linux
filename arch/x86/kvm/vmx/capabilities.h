@@ -4,6 +4,13 @@
 
 #include "lapic.h"
 
+extern bool __read_mostly enable_vpid;
+extern bool __read_mostly flexpriority_enabled;
+extern bool __read_mostly enable_ept;
+extern bool __read_mostly enable_unrestricted_guest;
+extern bool __read_mostly enable_ept_ad_bits;
+extern bool __read_mostly enable_pml;
+
 struct nested_vmx_msrs {
 	/*
 	 * We only store the "true" versions of the VMX capability MSRs. We
