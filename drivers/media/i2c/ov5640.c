@@ -1992,7 +1992,8 @@ static int ov5640_set_mode(struct ov5640_dev *sensor)
 	 * All the formats we support have 16 bits per pixel, seems to require
 	 * the same rate than YUV, so we can just use 16 bpp all the time.
 	 */
-	rate = mode->pixel_clock * 16;
+	rate = mode->vtot * mode->htot * 16;
+	rate *= ov5640_framerates[sensor->current_fr];
 	if (sensor->ep.bus_type == V4L2_MBUS_CSI2_DPHY) {
 		rate = rate / sensor->ep.bus.mipi_csi2.num_data_lanes;
 		ret = ov5640_set_mipi_pclk(sensor, rate);
