@@ -35,6 +35,7 @@
 		compatible = "sitronix,st7703", "simple-panel-dsi";
 		reg = <0>;
 		backlight = <&backlight>;
+		enable-gpios = <&gpio0 RK_PC4 GPIO_ACTIVE_HIGH>;
 		power-supply = <&vcc5v0_sys>;
 		prepare-delay-ms = <2>;
 		reset-delay-ms = <1>;
