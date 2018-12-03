@@ -953,7 +953,7 @@ void v4l2_m2m_buf_queue(struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_buf_queue);
 
-void vb2_m2m_request_queue(struct media_request *req)
+void v4l2_m2m_request_queue(struct media_request *req)
 {
 	struct media_request_object *obj, *obj_safe;
 	struct v4l2_m2m_ctx *m2m_ctx = NULL;
@@ -997,7 +997,7 @@ void vb2_m2m_request_queue(struct media_request *req)
 	if (m2m_ctx)
 		v4l2_m2m_try_schedule(m2m_ctx);
 }
-EXPORT_SYMBOL_GPL(vb2_m2m_request_queue);
+EXPORT_SYMBOL_GPL(v4l2_m2m_request_queue);
 
 /* Videobuf2 ioctl helpers */
 
