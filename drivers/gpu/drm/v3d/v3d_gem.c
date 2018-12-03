@@ -139,22 +139,10 @@ v3d_invalidate_l2(struct v3d_dev *v3d, int core)
 		       V3D_L2CACTL_L2CENA);
 }
 
-static void
-v3d_invalidate_l1td(struct v3d_dev *v3d, int core)
-{
-	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL, V3D_L2TCACTL_TMUWCF);
-	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
-		       V3D_L2TCACTL_L2TFLS), 100)) {
-		DRM_ERROR("Timeout waiting for L1T write combiner flush\n");
-	}
-}
-
 /* Invalidates texture L2 cachelines */
 static void
 v3d_flush_l2t(struct v3d_dev *v3d, int core)
 {
-	v3d_invalidate_l1td(v3d, core);
-
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL,
 		       V3D_L2TCACTL_L2TFLS |
 		       V3D_SET_FIELD(V3D_L2TCACTL_FLM_FLUSH, V3D_L2TCACTL_FLM));
