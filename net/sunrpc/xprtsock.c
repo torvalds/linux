@@ -376,8 +376,8 @@ static ssize_t
 xs_read_discard(struct socket *sock, struct msghdr *msg, int flags,
 		size_t count)
 {
-	struct kvec kvec = { 0 };
-	return xs_read_kvec(sock, msg, flags | MSG_TRUNC, &kvec, count, 0);
+	iov_iter_discard(&msg->msg_iter, READ, count);
+	return sock_recvmsg(sock, msg, flags);
 }
 
 static ssize_t
@@ -616,6 +616,7 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 	if (transport->recv.offset < transport->recv.len) {
 		if (!(msg.msg_flags & MSG_TRUNC))
 			return read;
+		msg.msg_flags = 0;
 		ret = xs_read_discard(transport->sock, &msg, flags,
 				transport->recv.len - transport->recv.offset);
 		if (ret <= 0)
