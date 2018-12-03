@@ -237,19 +237,6 @@ static inline bool dpu_crtc_state_is_stereo(struct dpu_crtc_state *cstate)
 }
 
 /**
- * dpu_crtc_get_mixer_height - get the mixer height
- * Mixer height will be same as panel height
- */
-static inline int dpu_crtc_get_mixer_height(struct dpu_crtc *dpu_crtc,
-		struct dpu_crtc_state *cstate, struct drm_display_mode *mode)
-{
-	if (!dpu_crtc || !cstate || !mode)
-		return 0;
-
-	return mode->vdisplay;
-}
-
-/**
  * dpu_crtc_frame_pending - retun the number of pending frames
  * @crtc: Pointer to drm crtc object
  */

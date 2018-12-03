@@ -495,7 +495,6 @@ static void _dpu_crtc_setup_mixers(struct drm_crtc *crtc)
 static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 		struct drm_crtc_state *state)
 {
-	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
 	struct drm_display_mode *adj_mode = &state->adjusted_mode;
 	u32 crtc_split_width = _dpu_crtc_get_mixer_width(cstate, adj_mode);
@@ -506,7 +505,7 @@ static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 		r->x1 = crtc_split_width * i;
 		r->y1 = 0;
 		r->x2 = r->x1 + crtc_split_width;
-		r->y2 = dpu_crtc_get_mixer_height(dpu_crtc, cstate, adj_mode);
+		r->y2 = adj_mode->vdisplay;
 
 		trace_dpu_crtc_setup_lm_bounds(DRMID(crtc), i, r);
 	}
