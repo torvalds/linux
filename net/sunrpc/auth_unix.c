@@ -79,14 +79,14 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 	rpcauth_init_cred(&cred->uc_base, acred, auth, &unix_credops);
 	cred->uc_base.cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
 
-	if (acred->group_info != NULL)
-		groups = acred->group_info->ngroups;
+	if (acred->cred && acred->cred->group_info != NULL)
+		groups = acred->cred->group_info->ngroups;
 	if (groups > UNX_NGROUPS)
 		groups = UNX_NGROUPS;
 
 	cred->uc_gid = acred->gid;
 	for (i = 0; i < groups; i++)
-		cred->uc_gids[i] = acred->group_info->gid[i];
+		cred->uc_gids[i] = acred->cred->group_info->gid[i];
 	if (i < UNX_NGROUPS)
 		cred->uc_gids[i] = INVALID_GID;
 
@@ -130,12 +130,12 @@ unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 	if (!uid_eq(cred->uc_uid, acred->uid) || !gid_eq(cred->uc_gid, acred->gid))
 		return 0;
 
-	if (acred->group_info != NULL)
-		groups = acred->group_info->ngroups;
+	if (acred->cred && acred->cred->group_info != NULL)
+		groups = acred->cred->group_info->ngroups;
 	if (groups > UNX_NGROUPS)
 		groups = UNX_NGROUPS;
 	for (i = 0; i < groups ; i++)
-		if (!gid_eq(cred->uc_gids[i], acred->group_info->gid[i]))
+		if (!gid_eq(cred->uc_gids[i], acred->cred->group_info->gid[i]))
 			return 0;
 	if (groups < UNX_NGROUPS && gid_valid(cred->uc_gids[groups]))
 		return 0;

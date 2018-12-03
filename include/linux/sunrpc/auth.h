@@ -49,7 +49,6 @@ struct auth_cred {
 	const struct cred *cred;
 	kuid_t	uid;
 	kgid_t	gid;
-	struct group_info *group_info;
 	const char *principal;
 	unsigned long ac_flags;
 	unsigned char machine_cred : 1;

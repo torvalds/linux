@@ -28,9 +28,6 @@
 #define FF_LAYOUT_POLL_RETRY_MAX     (15*HZ)
 #define FF_LAYOUTRETURN_MAXERR 20
 
-
-static struct group_info	*ff_zero_group;
-
 static void ff_layout_read_record_layoutstats_done(struct rpc_task *task,
 		struct nfs_pgio_header *hdr);
 static int ff_layout_mirror_prepare_stats(struct pnfs_layout_hdr *lo,
@@ -414,7 +411,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 	for (i = 0; i < fls->mirror_array_cnt; i++) {
 		struct nfs4_ff_layout_mirror *mirror;
-		struct auth_cred acred = { .group_info = ff_zero_group };
+		struct auth_cred acred = {};
 		struct rpc_cred	__rcu *cred;
 		struct cred *kcred;
 		u32 ds_count, fh_count, id;
@@ -2400,11 +2397,6 @@ static int __init nfs4flexfilelayout_init(void)
 {
 	printk(KERN_INFO "%s: NFSv4 Flexfile Layout Driver Registering...\n",
 	       __func__);
-	if (!ff_zero_group) {
-		ff_zero_group = groups_alloc(0);
-		if (!ff_zero_group)
-			return -ENOMEM;
-	}
 	return pnfs_register_layoutdriver(&flexfilelayout_type);
 }
 
@@ -2413,10 +2405,6 @@ static void __exit nfs4flexfilelayout_exit(void)
 	printk(KERN_INFO "%s: NFSv4 Flexfile Layout Driver Unregistering...\n",
 	       __func__);
 	pnfs_unregister_layoutdriver(&flexfilelayout_type);
-	if (ff_zero_group) {
-		put_group_info(ff_zero_group);
-		ff_zero_group = NULL;
-	}
 }
 
 MODULE_ALIAS("nfs-layouttype4-4");

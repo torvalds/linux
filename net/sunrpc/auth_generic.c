@@ -113,11 +113,8 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, g
 
 	gcred->acred.uid = acred->uid;
 	gcred->acred.gid = acred->gid;
-	gcred->acred.group_info = acred->group_info;
 	gcred->acred.cred = gcred->gc_base.cr_cred;
 	gcred->acred.ac_flags = 0;
-	if (gcred->acred.group_info != NULL)
-		get_group_info(gcred->acred.group_info);
 	gcred->acred.machine_cred = acred->machine_cred;
 	gcred->acred.principal = acred->principal;
 
@@ -135,8 +132,6 @@ generic_free_cred(struct rpc_cred *cred)
 	struct generic_cred *gcred = container_of(cred, struct generic_cred, gc_base);
 
 	dprintk("RPC:       generic_free_cred %p\n", gcred);
-	if (gcred->acred.group_info != NULL)
-		put_group_info(gcred->acred.group_info);
 	put_cred(cred->cr_cred);
 	kfree(gcred);
 }
@@ -173,6 +168,7 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 {
 	struct generic_cred *gcred = container_of(cred, struct generic_cred, gc_base);
 	int i;
+	struct group_info *a, *g;
 
 	if (acred->machine_cred)
 		return machine_cred_match(acred, gcred, flags);
@@ -182,16 +178,17 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	    gcred->acred.machine_cred != 0)
 		goto out_nomatch;
 
+	a = acred->cred->group_info;
+	g = gcred->acred.cred->group_info;
 	/* Optimisation in the case where pointers are identical... */
-	if (gcred->acred.group_info == acred->group_info)
+	if (a == g)
 		goto out_match;
 
 	/* Slow path... */
-	if (gcred->acred.group_info->ngroups != acred->group_info->ngroups)
+	if (g->ngroups != a->ngroups)
 		goto out_nomatch;
-	for (i = 0; i < gcred->acred.group_info->ngroups; i++) {
-		if (!gid_eq(gcred->acred.group_info->gid[i],
-				acred->group_info->gid[i]))
+	for (i = 0; i < g->ngroups; i++) {
+		if (!gid_eq(g->gid[i], a->gid[i]))
 			goto out_nomatch;
 	}
 out_match:
