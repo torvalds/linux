@@ -325,6 +325,9 @@ static const struct hid_device_id hid_battery_quirks[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_ELECOM,
 		USB_DEVICE_ID_ELECOM_BM084),
 	  HID_BATTERY_QUIRK_IGNORE },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SYMBOL,
+		USB_DEVICE_ID_SYMBOL_SCANNER_3),
+	  HID_BATTERY_QUIRK_IGNORE },
 	{}
 };
 
@@ -1838,47 +1841,3 @@ void hidinput_disconnect(struct hid_device *hid)
 }
 EXPORT_SYMBOL_GPL(hidinput_disconnect);
 
-/**
- * hid_scroll_counter_handle_scroll() - Send high- and low-resolution scroll
- *                                      events given a high-resolution wheel
- *                                      movement.
- * @counter: a hid_scroll_counter struct describing the wheel.
- * @hi_res_value: the movement of the wheel, in the mouse's high-resolution
- *                units.
- *
- * Given a high-resolution movement, this function converts the movement into
- * microns and emits high-resolution scroll events for the input device. It also
- * uses the multiplier from &struct hid_scroll_counter to emit low-resolution
- * scroll events when appropriate for backwards-compatibility with userspace
- * input libraries.
- */
-void hid_scroll_counter_handle_scroll(struct hid_scroll_counter *counter,
-				      int hi_res_value)
-{
-	int low_res_value, remainder, multiplier;
-
-	input_report_rel(counter->dev, REL_WHEEL_HI_RES,
-			 hi_res_value * counter->microns_per_hi_res_unit);
-
-	/*
-	 * Update the low-res remainder with the high-res value,
-	 * but reset if the direction has changed.
-	 */
-	remainder = counter->remainder;
-	if ((remainder ^ hi_res_value) < 0)
-		remainder = 0;
-	remainder += hi_res_value;
-
-	/*
-	 * Then just use the resolution multiplier to see if
-	 * we should send a low-res (aka regular wheel) event.
-	 */
-	multiplier = counter->resolution_multiplier;
-	low_res_value = remainder / multiplier;
-	remainder -= low_res_value * multiplier;
-	counter->remainder = remainder;
-
-	if (low_res_value)
-		input_report_rel(counter->dev, REL_WHEEL, low_res_value);
-}
-EXPORT_SYMBOL_GPL(hid_scroll_counter_handle_scroll);
