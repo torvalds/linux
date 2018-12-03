@@ -725,6 +725,7 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine)
 	i915_timeline_fini(&engine->timeline);
 
 	intel_wa_list_free(&engine->wa_list);
+	intel_wa_list_free(&engine->whitelist);
 }
 
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine)

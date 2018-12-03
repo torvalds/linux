@@ -94,17 +94,23 @@ err_obj:
 	return ERR_PTR(err);
 }
 
-static u32 get_whitelist_reg(const struct whitelist *w, unsigned int i)
+static u32
+get_whitelist_reg(const struct intel_engine_cs *engine, unsigned int i)
 {
-	return i < w->count ? i915_mmio_reg_offset(w->reg[i]) : w->nopid;
+	i915_reg_t reg = i < engine->whitelist.count ?
+			 engine->whitelist.list[i].reg :
+			 RING_NOPID(engine->mmio_base);
+
+	return i915_mmio_reg_offset(reg);
 }
 
-static void print_results(const struct whitelist *w, const u32 *results)
+static void
+print_results(const struct intel_engine_cs *engine, const u32 *results)
 {
 	unsigned int i;
 
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++) {
-		u32 expected = get_whitelist_reg(w, i);
+		u32 expected = get_whitelist_reg(engine, i);
 		u32 actual = results[i];
 
 		pr_info("RING_NONPRIV[%d]: expected 0x%08x, found 0x%08x\n",
@@ -112,8 +118,7 @@ static void print_results(const struct whitelist *w, const u32 *results)
 	}
 }
 
-static int check_whitelist(const struct whitelist *w,
-			   struct i915_gem_context *ctx,
+static int check_whitelist(struct i915_gem_context *ctx,
 			   struct intel_engine_cs *engine)
 {
 	struct drm_i915_gem_object *results;
@@ -141,11 +146,11 @@ static int check_whitelist(const struct whitelist *w,
 	}
 
 	for (i = 0; i < RING_MAX_NONPRIV_SLOTS; i++) {
-		u32 expected = get_whitelist_reg(w, i);
+		u32 expected = get_whitelist_reg(engine, i);
 		u32 actual = vaddr[i];
 
 		if (expected != actual) {
-			print_results(w, vaddr);
+			print_results(engine, vaddr);
 			pr_err("Invalid RING_NONPRIV[%d], expected 0x%08x, found 0x%08x\n",
 			       i, expected, actual);
 
@@ -217,7 +222,6 @@ err:
 
 static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 					int (*reset)(struct intel_engine_cs *),
-					const struct whitelist *w,
 					const char *name)
 {
 	struct drm_i915_private *i915 = engine->i915;
@@ -227,7 +231,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	int err;
 
 	pr_info("Checking %d whitelisted registers (RING_NONPRIV) [%s]\n",
-		w->count, name);
+		engine->whitelist.count, name);
 
 	if (want_spin) {
 		err = igt_spinner_init(&spin, i915);
@@ -239,7 +243,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	err = check_whitelist(w, ctx, engine);
+	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Invalid whitelist *before* %s reset!\n", name);
 		goto out;
@@ -263,7 +267,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 		goto out;
 	}
 
-	err = check_whitelist(w, ctx, engine);
+	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Whitelist not preserved in context across %s reset!\n",
 		       name);
@@ -276,7 +280,7 @@ static int check_whitelist_across_reset(struct intel_engine_cs *engine,
 	if (IS_ERR(ctx))
 		return PTR_ERR(ctx);
 
-	err = check_whitelist(w, ctx, engine);
+	err = check_whitelist(ctx, engine);
 	if (err) {
 		pr_err("Invalid whitelist *after* %s reset in fresh context!\n",
 		       name);
@@ -292,22 +296,18 @@ static int live_reset_whitelist(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine = i915->engine[RCS];
-	struct whitelist w;
 	int err = 0;
 
 	/* If we reset the gpu, we should not lose the RING_NONPRIV */
 
-	if (!engine)
-		return 0;
-
-	if (!whitelist_build(engine, &w))
+	if (!engine || engine->whitelist.count == 0)
 		return 0;
 
 	igt_global_reset_lock(i915);
 
 	if (intel_has_reset_engine(i915)) {
 		err = check_whitelist_across_reset(engine,
-						   do_engine_reset, &w,
+						   do_engine_reset,
 						   "engine");
 		if (err)
 			goto out;
@@ -315,7 +315,7 @@ static int live_reset_whitelist(void *arg)
 
 	if (intel_has_gpu_reset(i915)) {
 		err = check_whitelist_across_reset(engine,
-						   do_device_reset, &w,
+						   do_device_reset,
 						   "device");
 		if (err)
 			goto out;
