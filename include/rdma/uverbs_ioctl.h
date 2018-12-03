@@ -373,11 +373,7 @@ struct uapi_definition {
 
 	union {
 		bool (*func_is_supported)(struct ib_device *device);
-		int (*func_write)(struct uverbs_attr_bundle *attrs,
-				  const char __user *buf, int in_len,
-				  int out_len);
-		int (*func_write_ex)(struct uverbs_attr_bundle *attrs,
-				     struct ib_udata *ucore);
+		int (*func_write)(struct uverbs_attr_bundle *attrs);
 		const struct uapi_definition *chain;
 		const struct uverbs_object_def *chain_obj_tree;
 		size_t needs_fn_offset;
@@ -409,7 +405,7 @@ struct uapi_definition {
 		.kind = UAPI_DEF_WRITE,                                        \
 		.scope = UAPI_SCOPE_OBJECT,                                    \
 		.write = { .is_ex = 1, .command_num = _command_num },          \
-		.func_write_ex = _func,                                        \
+		.func_write = _func,                                           \
 		_cmd_desc,                                                     \
 	},                                                                     \
 		##__VA_ARGS__
@@ -647,6 +643,7 @@ struct uverbs_attr {
 
 struct uverbs_attr_bundle {
 	struct ib_udata driver_udata;
+	struct ib_udata ucore;
 	struct ib_uverbs_file *ufile;
 	DECLARE_BITMAP(attr_present, UVERBS_API_ATTR_BKEY_LEN);
 	struct uverbs_attr attrs[];

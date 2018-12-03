@@ -137,10 +137,7 @@ struct uverbs_api_ioctl_method {
 };
 
 struct uverbs_api_write_method {
-	int (*handler)(struct uverbs_attr_bundle *attrs, const char __user *buf,
-		       int in_len, int out_len);
-	int (*handler_ex)(struct uverbs_attr_bundle *attrs,
-			  struct ib_udata *ucore);
+	int (*handler)(struct uverbs_attr_bundle *attrs);
 	u8 disabled:1;
 	u8 is_ex:1;
 	u8 has_udata:1;

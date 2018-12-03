@@ -47,6 +47,127 @@
 #include "uverbs.h"
 #include "core_priv.h"
 
+/*
+ * Copy a response to userspace. If the provided 'resp' is larger than the
+ * user buffer it is silently truncated. If the user provided a larger buffer
+ * then the trailing portion is zero filled.
+ *
+ * These semantics are intended to support future extension of the output
+ * structures.
+ */
+static int uverbs_response(struct uverbs_attr_bundle *attrs, const void *resp,
+			   size_t resp_len)
+{
+	u8 __user *cur = attrs->ucore.outbuf + resp_len;
+	u8 __user *end = attrs->ucore.outbuf + attrs->ucore.outlen;
+	int ret;
+
+	if (copy_to_user(attrs->ucore.outbuf, resp,
+			 min(attrs->ucore.outlen, resp_len)))
+		return -EFAULT;
+
+	/* Zero fill any extra memory that user space might have provided */
+	for (; cur < end; cur++) {
+		ret = put_user(0, cur);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Copy a request from userspace. If the provided 'req' is larger than the
+ * user buffer then the user buffer is zero extended into the 'req'. If 'req'
+ * is smaller than the user buffer then the uncopied bytes in the user buffer
+ * must be zero.
+ */
+static int uverbs_request(struct uverbs_attr_bundle *attrs, void *req,
+			  size_t req_len)
+{
+	if (copy_from_user(req, attrs->ucore.inbuf,
+			   min(attrs->ucore.inlen, req_len)))
+		return -EFAULT;
+
+	if (attrs->ucore.inlen < req_len) {
+		memset(req + attrs->ucore.inlen, 0,
+		       req_len - attrs->ucore.inlen);
+	} else if (attrs->ucore.inlen > req_len) {
+		if (!ib_is_buffer_cleared(attrs->ucore.inbuf + req_len,
+					  attrs->ucore.inlen - req_len))
+			return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+/*
+ * Generate the value for the 'response_length' protocol used by write_ex.
+ * This is the number of bytes the kernel actually wrote. Userspace can use
+ * this to detect what structure members in the response the kernel
+ * understood.
+ */
+static u32 uverbs_response_length(struct uverbs_attr_bundle *attrs,
+				  size_t resp_len)
+{
+	return min_t(size_t, attrs->ucore.outlen, resp_len);
+}
+
+/*
+ * The iterator version of the request interface is for handlers that need to
+ * step over a flex array at the end of a command header.
+ */
+struct uverbs_req_iter {
+	const void __user *cur;
+	const void __user *end;
+};
+
+static int uverbs_request_start(struct uverbs_attr_bundle *attrs,
+				struct uverbs_req_iter *iter,
+				void *req,
+				size_t req_len)
+{
+	if (attrs->ucore.inlen < req_len)
+		return -ENOSPC;
+
+	if (copy_from_user(req, attrs->ucore.inbuf, req_len))
+		return -EFAULT;
+
+	iter->cur = attrs->ucore.inbuf + req_len;
+	iter->end = attrs->ucore.inbuf + attrs->ucore.inlen;
+	return 0;
+}
+
+static int uverbs_request_next(struct uverbs_req_iter *iter, void *val,
+			       size_t len)
+{
+	if (iter->cur + len > iter->end)
+		return -ENOSPC;
+
+	if (copy_from_user(val, iter->cur, len))
+		return -EFAULT;
+
+	iter->cur += len;
+	return 0;
+}
+
+static const void __user *uverbs_request_next_ptr(struct uverbs_req_iter *iter,
+						  size_t len)
+{
+	const void __user *res = iter->cur;
+
+	if (iter->cur + len > iter->end)
+		return ERR_PTR(-ENOSPC);
+	iter->cur += len;
+	return res;
+}
+
+static int uverbs_request_finish(struct uverbs_req_iter *iter)
+{
+	if (!ib_is_buffer_cleared(iter->cur, iter->end - iter->cur))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
 static struct ib_uverbs_completion_event_file *
 _ib_uverbs_lookup_comp_file(s32 fd, const struct uverbs_attr_bundle *attrs)
 {
@@ -65,9 +186,7 @@ _ib_uverbs_lookup_comp_file(s32 fd, const struct uverbs_attr_bundle *attrs)
 #define ib_uverbs_lookup_comp_file(_fd, _ufile)                                \
 	_ib_uverbs_lookup_comp_file((_fd)*typecheck(s32, _fd), _ufile)
 
-static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs,
-				 const char __user *buf, int in_len,
-				 int out_len)
+static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_file *file = attrs->ufile;
 	struct ib_uverbs_get_context      cmd;
@@ -78,11 +197,9 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs,
 	struct ib_device *ib_dev;
 	int ret;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	mutex_lock(&file->ucontext_lock);
 	ib_dev = srcu_dereference(file->device->ib_dev,
@@ -136,10 +253,9 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs,
 		goto err_fd;
 	}
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_file;
-	}
 
 	fd_install(resp.async_fd, filp);
 
@@ -219,31 +335,25 @@ static void copy_query_dev_fields(struct ib_ucontext *ucontext,
 	resp->phys_port_cnt		= ib_dev->phys_port_cnt;
 }
 
-static int ib_uverbs_query_device(struct uverbs_attr_bundle *attrs,
-				  const char __user *buf, int in_len,
-				  int out_len)
+static int ib_uverbs_query_device(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_query_device      cmd;
 	struct ib_uverbs_query_device_resp resp;
 	struct ib_ucontext *ucontext;
+	int ret;
 
 	ucontext = ib_uverbs_get_ucontext(attrs);
 	if (IS_ERR(ucontext))
 		return PTR_ERR(ucontext);
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	memset(&resp, 0, sizeof resp);
 	copy_query_dev_fields(ucontext, &resp, &ucontext->device->attrs);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
 /*
@@ -267,8 +377,7 @@ static u32 make_port_cap_flags(const struct ib_port_attr *attr)
 	return res;
 }
 
-static int ib_uverbs_query_port(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_query_port(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_query_port      cmd;
 	struct ib_uverbs_query_port_resp resp;
@@ -282,11 +391,9 @@ static int ib_uverbs_query_port(struct uverbs_attr_bundle *attrs,
 		return PTR_ERR(ucontext);
 	ib_dev = ucontext->device;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	ret = ib_query_port(ib_dev, cmd.port_num, &attr);
 	if (ret)
@@ -325,14 +432,10 @@ static int ib_uverbs_query_port(struct uverbs_attr_bundle *attrs,
 	resp.link_layer      = rdma_port_get_link_layer(ib_dev,
 							cmd.port_num);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs,
-			      const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_alloc_pd      cmd;
 	struct ib_uverbs_alloc_pd_resp resp;
@@ -341,11 +444,9 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs,
 	int                            ret;
 	struct ib_device *ib_dev;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_alloc(UVERBS_OBJECT_PD, attrs, &ib_dev);
 	if (IS_ERR(uobj))
@@ -368,10 +469,9 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs,
 	pd->res.type = RDMA_RESTRACK_PD;
 	rdma_restrack_add(&pd->res);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_copy;
-	}
 
 	return uobj_alloc_commit(uobj);
 
@@ -383,13 +483,14 @@ err:
 	return ret;
 }
 
-static int ib_uverbs_dealloc_pd(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_dealloc_pd(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_dealloc_pd cmd;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	return uobj_perform_destroy(UVERBS_OBJECT_PD, cmd.pd_handle, attrs);
 }
@@ -479,8 +580,7 @@ static void xrcd_table_delete(struct ib_uverbs_device *dev,
 	}
 }
 
-static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_device *ibudev = attrs->ufile->device;
 	struct ib_uverbs_open_xrcd	cmd;
@@ -493,11 +593,9 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs,
 	int				new_xrcd = 0;
 	struct ib_device *ib_dev;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	mutex_lock(&ibudev->xrcd_tree_mutex);
 
@@ -561,10 +659,9 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs,
 		atomic_inc(&xrcd->usecnt);
 	}
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_copy;
-	}
 
 	if (f.file)
 		fdput(f);
@@ -595,13 +692,14 @@ err_tree_mutex_unlock:
 	return ret;
 }
 
-static int ib_uverbs_close_xrcd(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_close_xrcd(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_close_xrcd cmd;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	return uobj_perform_destroy(UVERBS_OBJECT_XRCD, cmd.xrcd_handle, attrs);
 }
@@ -631,8 +729,7 @@ int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject,
 	return ret;
 }
 
-static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs,
-			    const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_reg_mr      cmd;
 	struct ib_uverbs_reg_mr_resp resp;
@@ -642,11 +739,9 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs,
 	int                          ret;
 	struct ib_device *ib_dev;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	if ((cmd.start & ~PAGE_MASK) != (cmd.hca_va & ~PAGE_MASK))
 		return -EINVAL;
@@ -696,10 +791,9 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs,
 	resp.rkey      = mr->rkey;
 	resp.mr_handle = uobj->id;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_copy;
-	}
 
 	uobj_put_obj_read(pd);
 
@@ -716,8 +810,7 @@ err_free:
 	return ret;
 }
 
-static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs,
-			      const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_rereg_mr      cmd;
 	struct ib_uverbs_rereg_mr_resp resp;
@@ -727,11 +820,9 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs,
 	int                          ret;
 	struct ib_uobject	    *uobj;
 
-	if (out_len < sizeof(resp))
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	if (cmd.flags & ~IB_MR_REREG_SUPPORTED || !cmd.flags)
 		return -EINVAL;
@@ -785,10 +876,7 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs,
 	resp.lkey      = mr->lkey;
 	resp.rkey      = mr->rkey;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof(resp)))
-		ret = -EFAULT;
-	else
-		ret = 0;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
 
 put_uobj_pd:
 	if (cmd.flags & IB_MR_REREG_PD)
@@ -800,19 +888,19 @@ put_uobjs:
 	return ret;
 }
 
-static int ib_uverbs_dereg_mr(struct uverbs_attr_bundle *attrs,
-			      const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_dereg_mr(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_dereg_mr cmd;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	return uobj_perform_destroy(UVERBS_OBJECT_MR, cmd.mr_handle, attrs);
 }
 
-static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs,
-			      const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_alloc_mw      cmd;
 	struct ib_uverbs_alloc_mw_resp resp;
@@ -822,11 +910,9 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs,
 	int                            ret;
 	struct ib_device *ib_dev;
 
-	if (out_len < sizeof(resp))
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_alloc(UVERBS_OBJECT_MW, attrs, &ib_dev);
 	if (IS_ERR(uobj))
@@ -855,10 +941,9 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs,
 	resp.rkey      = mw->rkey;
 	resp.mw_handle = uobj->id;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof(resp))) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_copy;
-	}
 
 	uobj_put_obj_read(pd);
 	return uobj_alloc_commit(uobj);
@@ -872,32 +957,30 @@ err_free:
 	return ret;
 }
 
-static int ib_uverbs_dealloc_mw(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_dealloc_mw(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_dealloc_mw cmd;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	return uobj_perform_destroy(UVERBS_OBJECT_MW, cmd.mw_handle, attrs);
 }
 
-static int ib_uverbs_create_comp_channel(struct uverbs_attr_bundle *attrs,
-					 const char __user *buf, int in_len,
-					 int out_len)
+static int ib_uverbs_create_comp_channel(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_comp_channel	   cmd;
 	struct ib_uverbs_create_comp_channel_resp  resp;
 	struct ib_uobject			  *uobj;
 	struct ib_uverbs_completion_event_file	  *ev_file;
 	struct ib_device *ib_dev;
+	int ret;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_alloc(UVERBS_OBJECT_COMP_CHANNEL, attrs, &ib_dev);
 	if (IS_ERR(uobj))
@@ -909,24 +992,17 @@ static int ib_uverbs_create_comp_channel(struct uverbs_attr_bundle *attrs,
 			       uobj);
 	ib_uverbs_init_event_queue(&ev_file->ev_queue);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret) {
 		uobj_alloc_abort(uobj);
-		return -EFAULT;
+		return ret;
 	}
 
 	return uobj_alloc_commit(uobj);
 }
 
 static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
-				       struct ib_udata *ucore,
-				       struct ib_uverbs_ex_create_cq *cmd,
-				       size_t cmd_sz,
-				       int (*cb)(struct uverbs_attr_bundle *attrs,
-						 struct ib_ucq_object *obj,
-						 struct ib_uverbs_ex_create_cq_resp *resp,
-						 struct ib_udata *ucore,
-						 void *context),
-				       void *context)
+				       struct ib_uverbs_ex_create_cq *cmd)
 {
 	struct ib_ucq_object           *obj;
 	struct ib_uverbs_completion_event_file    *ev_file = NULL;
@@ -960,9 +1036,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 
 	attr.cqe = cmd->cqe;
 	attr.comp_vector = cmd->comp_vector;
-
-	if (cmd_sz > offsetof(typeof(*cmd), flags) + sizeof(cmd->flags))
-		attr.flags = cmd->flags;
+	attr.flags = cmd->flags;
 
 	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context,
 			       &attrs->driver_udata);
@@ -982,14 +1056,12 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	memset(&resp, 0, sizeof resp);
 	resp.base.cq_handle = obj->uobject.id;
 	resp.base.cqe       = cq->cqe;
-
-	resp.response_length = offsetof(typeof(resp), response_length) +
-		sizeof(resp.response_length);
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_add(&cq->res);
 
-	ret = cb(attrs, obj, &resp, ucore, context);
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto err_cb;
 
@@ -1011,34 +1083,16 @@ err:
 	return ERR_PTR(ret);
 }
 
-static int ib_uverbs_create_cq_cb(struct uverbs_attr_bundle *attrs,
-				  struct ib_ucq_object *obj,
-				  struct ib_uverbs_ex_create_cq_resp *resp,
-				  struct ib_udata *ucore, void *context)
-{
-	if (ib_copy_to_udata(ucore, &resp->base, sizeof(resp->base)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int ib_uverbs_create_cq(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_create_cq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_cq      cmd;
 	struct ib_uverbs_ex_create_cq	cmd_ex;
-	struct ib_uverbs_create_cq_resp resp;
-	struct ib_udata                 ucore;
 	struct ib_ucq_object           *obj;
+	int ret;
 
-	if (out_len < sizeof(resp))
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
-
-	ib_uverbs_init_udata(&ucore, buf, u64_to_user_ptr(cmd.response),
-			     sizeof(cmd), sizeof(resp));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	memset(&cmd_ex, 0, sizeof(cmd_ex));
 	cmd_ex.user_handle = cmd.user_handle;
@@ -1046,38 +1100,19 @@ static int ib_uverbs_create_cq(struct uverbs_attr_bundle *attrs,
 	cmd_ex.comp_vector = cmd.comp_vector;
 	cmd_ex.comp_channel = cmd.comp_channel;
 
-	obj = create_cq(attrs, &ucore, &cmd_ex,
-			offsetof(typeof(cmd_ex), comp_channel) +
-				sizeof(cmd.comp_channel),
-			ib_uverbs_create_cq_cb, NULL);
+	obj = create_cq(attrs, &cmd_ex);
 	return PTR_ERR_OR_ZERO(obj);
 }
 
-static int ib_uverbs_ex_create_cq_cb(struct uverbs_attr_bundle *attrs,
-				     struct ib_ucq_object *obj,
-				     struct ib_uverbs_ex_create_cq_resp *resp,
-				     struct ib_udata *ucore, void *context)
+static int ib_uverbs_ex_create_cq(struct uverbs_attr_bundle *attrs)
 {
-	if (ib_copy_to_udata(ucore, resp, resp->response_length))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int ib_uverbs_ex_create_cq(struct uverbs_attr_bundle *attrs,
-				  struct ib_udata *ucore)
-{
-	struct ib_uverbs_ex_create_cq_resp resp;
 	struct ib_uverbs_ex_create_cq  cmd;
 	struct ib_ucq_object           *obj;
-	int err;
+	int ret;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
-	if (err)
-		return err;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	if (cmd.comp_mask)
 		return -EINVAL;
@@ -1085,26 +1120,20 @@ static int ib_uverbs_ex_create_cq(struct uverbs_attr_bundle *attrs,
 	if (cmd.reserved)
 		return -EINVAL;
 
-	if (ucore->outlen < (offsetof(typeof(resp), response_length) +
-			     sizeof(resp.response_length)))
-		return -ENOSPC;
-
-	obj = create_cq(attrs, ucore, &cmd, min(ucore->inlen, sizeof(cmd)),
-			ib_uverbs_ex_create_cq_cb, NULL);
-
+	obj = create_cq(attrs, &cmd);
 	return PTR_ERR_OR_ZERO(obj);
 }
 
-static int ib_uverbs_resize_cq(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_resize_cq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_resize_cq	cmd;
 	struct ib_uverbs_resize_cq_resp	resp = {};
 	struct ib_cq			*cq;
 	int				ret = -EINVAL;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, attrs);
 	if (!cq)
@@ -1116,9 +1145,7 @@ static int ib_uverbs_resize_cq(struct uverbs_attr_bundle *attrs,
 
 	resp.cqe = cq->cqe;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp.cqe))
-		ret = -EFAULT;
-
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
 out:
 	uobj_put_obj_read(cq);
 
@@ -1155,8 +1182,7 @@ static int copy_wc_to_user(struct ib_device *ib_dev, void __user *dest,
 	return 0;
 }
 
-static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs,
-			     const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_poll_cq       cmd;
 	struct ib_uverbs_poll_cq_resp  resp;
@@ -1166,15 +1192,16 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs,
 	struct ib_wc                   wc;
 	int                            ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, attrs);
 	if (!cq)
 		return -EINVAL;
 
 	/* we copy a struct ib_uverbs_poll_cq_resp to user space */
-	header_ptr = u64_to_user_ptr(cmd.response);
+	header_ptr = attrs->ucore.outbuf;
 	data_ptr = header_ptr + sizeof resp;
 
 	memset(&resp, 0, sizeof resp);
@@ -1205,15 +1232,15 @@ out_put:
 	return ret;
 }
 
-static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs,
-				   const char __user *buf, int in_len,
-				   int out_len)
+static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_req_notify_cq cmd;
 	struct ib_cq                  *cq;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	cq = uobj_get_obj_read(cq, UVERBS_OBJECT_CQ, cmd.cq_handle, attrs);
 	if (!cq)
@@ -1227,16 +1254,17 @@ static int ib_uverbs_req_notify_cq(struct uverbs_attr_bundle *attrs,
 	return 0;
 }
 
-static int ib_uverbs_destroy_cq(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_destroy_cq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_destroy_cq      cmd;
 	struct ib_uverbs_destroy_cq_resp resp;
 	struct ib_uobject		*uobj;
 	struct ib_ucq_object        	*obj;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_get_destroy(UVERBS_OBJECT_CQ, cmd.cq_handle, attrs);
 	if (IS_ERR(uobj))
@@ -1249,20 +1277,11 @@ static int ib_uverbs_destroy_cq(struct uverbs_attr_bundle *attrs,
 
 	uobj_put_destroy(uobj);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
 static int create_qp(struct uverbs_attr_bundle *attrs,
-		     struct ib_udata *ucore,
-		     struct ib_uverbs_ex_create_qp *cmd,
-		     size_t cmd_sz,
-		     int (*cb)(struct uverbs_attr_bundle *attrs,
-			       struct ib_uverbs_ex_create_qp_resp *resp,
-			       struct ib_udata *udata),
-		     void *context)
+		     struct ib_uverbs_ex_create_qp *cmd)
 {
 	struct ib_uqp_object		*obj;
 	struct ib_device		*device;
@@ -1272,7 +1291,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	struct ib_cq			*scq = NULL, *rcq = NULL;
 	struct ib_srq			*srq = NULL;
 	struct ib_qp			*qp;
-	char				*buf;
 	struct ib_qp_init_attr		attr = {};
 	struct ib_uverbs_ex_create_qp_resp resp;
 	int				ret;
@@ -1291,9 +1309,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	obj->uevent.uobject.user_handle = cmd->user_handle;
 	mutex_init(&obj->mcast_lock);
 
-	if (cmd_sz >= offsetof(typeof(*cmd), rwq_ind_tbl_handle) +
-		      sizeof(cmd->rwq_ind_tbl_handle) &&
-		      (cmd->comp_mask & IB_UVERBS_CREATE_QP_MASK_IND_TABLE)) {
+	if (cmd->comp_mask & IB_UVERBS_CREATE_QP_MASK_IND_TABLE) {
 		ind_tbl = uobj_get_obj_read(rwq_ind_table,
 					    UVERBS_OBJECT_RWQ_IND_TBL,
 					    cmd->rwq_ind_tbl_handle, attrs);
@@ -1303,13 +1319,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 		}
 
 		attr.rwq_ind_tbl = ind_tbl;
-	}
-
-	if (cmd_sz > sizeof(*cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(*cmd),
-				 cmd_sz - sizeof(*cmd))) {
-		ret = -EOPNOTSUPP;
-		goto err_put;
 	}
 
 	if (ind_tbl && (cmd->max_recv_wr || cmd->max_recv_sge || cmd->is_srq)) {
@@ -1398,10 +1407,7 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 	INIT_LIST_HEAD(&obj->mcast_list);
 
-	if (cmd_sz >= offsetof(typeof(*cmd), create_flags) +
-		      sizeof(cmd->create_flags))
-		attr.create_flags = cmd->create_flags;
-
+	attr.create_flags = cmd->create_flags;
 	if (attr.create_flags & ~(IB_QP_CREATE_BLOCK_MULTICAST_LOOPBACK |
 				IB_QP_CREATE_CROSS_CHANNEL |
 				IB_QP_CREATE_MANAGED_SEND |
@@ -1422,14 +1428,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 
 		attr.source_qpn = cmd->source_qpn;
 	}
-
-	buf = (void *)cmd + sizeof(*cmd);
-	if (cmd_sz > sizeof(*cmd))
-		if (!(buf[0] == 0 && !memcmp(buf, buf + 1,
-					     cmd_sz - sizeof(*cmd) - 1))) {
-			ret = -EINVAL;
-			goto err_put;
-		}
 
 	if (cmd->qp_type == IB_QPT_XRC_TGT)
 		qp = ib_create_qp(pd, &attr);
@@ -1482,11 +1480,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	resp.base.max_recv_wr     = attr.cap.max_recv_wr;
 	resp.base.max_send_wr     = attr.cap.max_send_wr;
 	resp.base.max_inline_data = attr.cap.max_inline_data;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
-	resp.response_length = offsetof(typeof(resp), response_length) +
-			       sizeof(resp.response_length);
-
-	ret = cb(attrs, &resp, ucore);
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto err_cb;
 
@@ -1530,33 +1526,15 @@ err_put:
 	return ret;
 }
 
-static int ib_uverbs_create_qp_cb(struct uverbs_attr_bundle *attrs,
-				  struct ib_uverbs_ex_create_qp_resp *resp,
-				  struct ib_udata *ucore)
-{
-	if (ib_copy_to_udata(ucore, &resp->base, sizeof(resp->base)))
-		return -EFAULT;
-
-	return 0;
-}
-
-static int ib_uverbs_create_qp(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_create_qp(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_qp      cmd;
 	struct ib_uverbs_ex_create_qp	cmd_ex;
-	struct ib_udata			ucore;
-	ssize_t resp_size = sizeof(struct ib_uverbs_create_qp_resp);
-	int				err;
+	int ret;
 
-	if (out_len < resp_size)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof(cmd)))
-		return -EFAULT;
-
-	ib_uverbs_init_udata(&ucore, buf, u64_to_user_ptr(cmd.response),
-		   sizeof(cmd), resp_size);
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	memset(&cmd_ex, 0, sizeof(cmd_ex));
 	cmd_ex.user_handle = cmd.user_handle;
@@ -1573,40 +1551,17 @@ static int ib_uverbs_create_qp(struct uverbs_attr_bundle *attrs,
 	cmd_ex.qp_type = cmd.qp_type;
 	cmd_ex.is_srq = cmd.is_srq;
 
-	err = create_qp(attrs, &ucore, &cmd_ex,
-			offsetof(typeof(cmd_ex), is_srq) + sizeof(cmd.is_srq),
-			ib_uverbs_create_qp_cb, NULL);
-
-	if (err)
-		return err;
-
-	return 0;
+	return create_qp(attrs, &cmd_ex);
 }
 
-static int ib_uverbs_ex_create_qp_cb(struct uverbs_attr_bundle *attrs,
-				     struct ib_uverbs_ex_create_qp_resp *resp,
-				     struct ib_udata *ucore)
+static int ib_uverbs_ex_create_qp(struct uverbs_attr_bundle *attrs)
 {
-	if (ib_copy_to_udata(ucore, resp, resp->response_length))
-		return -EFAULT;
+	struct ib_uverbs_ex_create_qp cmd;
+	int ret;
 
-	return 0;
-}
-
-static int ib_uverbs_ex_create_qp(struct uverbs_attr_bundle *attrs,
-				  struct ib_udata *ucore)
-{
-	struct ib_uverbs_ex_create_qp_resp resp;
-	struct ib_uverbs_ex_create_qp cmd = {0};
-	int err;
-
-	if (ucore->inlen < (offsetof(typeof(cmd), comp_mask) +
-			    sizeof(cmd.comp_mask)))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
-	if (err)
-		return err;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	if (cmd.comp_mask & ~IB_UVERBS_CREATE_QP_SUP_COMP_MASK)
 		return -EINVAL;
@@ -1614,22 +1569,10 @@ static int ib_uverbs_ex_create_qp(struct uverbs_attr_bundle *attrs,
 	if (cmd.reserved)
 		return -EINVAL;
 
-	if (ucore->outlen < (offsetof(typeof(resp), response_length) +
-			     sizeof(resp.response_length)))
-		return -ENOSPC;
-
-	err = create_qp(attrs, ucore, &cmd,
-			min(ucore->inlen, sizeof(cmd)),
-			ib_uverbs_ex_create_qp_cb, NULL);
-
-	if (err)
-		return err;
-
-	return 0;
+	return create_qp(attrs, &cmd);
 }
 
-static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs,
-			     const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_open_qp        cmd;
 	struct ib_uverbs_create_qp_resp resp;
@@ -1641,11 +1584,9 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs,
 	int ret;
 	struct ib_device *ib_dev;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	obj = (struct ib_uqp_object *)uobj_alloc(UVERBS_OBJECT_QP, attrs,
 						 &ib_dev);
@@ -1686,10 +1627,9 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs,
 	resp.qpn       = qp->qp_num;
 	resp.qp_handle = obj->uevent.uobject.id;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_destroy;
-	}
 
 	obj->uxrcd = container_of(xrcd_uobj, struct ib_uxrcd_object, uobject);
 	atomic_inc(&obj->uxrcd->refcnt);
@@ -1729,8 +1669,7 @@ static void copy_ah_attr_to_uverbs(struct ib_uverbs_qp_dest *uverb_attr,
 	uverb_attr->port_num          = rdma_ah_get_port_num(rdma_attr);
 }
 
-static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs,
-			      const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_query_qp      cmd;
 	struct ib_uverbs_query_qp_resp resp;
@@ -1739,8 +1678,9 @@ static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs,
 	struct ib_qp_init_attr         *init_attr;
 	int                            ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	attr      = kmalloc(sizeof *attr, GFP_KERNEL);
 	init_attr = kmalloc(sizeof *init_attr, GFP_KERNEL);
@@ -1796,8 +1736,7 @@ static int ib_uverbs_query_qp(struct uverbs_attr_bundle *attrs,
 	resp.max_inline_data        = init_attr->cap.max_inline_data;
 	resp.sq_sig_all             = init_attr->sq_sig_type == IB_SIGNAL_ALL_WR;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
 
 out:
 	kfree(attr);
@@ -2002,13 +1941,14 @@ out:
 	return ret;
 }
 
-static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_modify_qp cmd = {};
+	struct ib_uverbs_ex_modify_qp cmd;
+	int ret;
 
-	if (copy_from_user(&cmd.base, buf, sizeof(cmd.base)))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd.base, sizeof(cmd.base));
+	if (ret)
+		return ret;
 
 	if (cmd.base.attr_mask &
 	    ~((IB_USER_LEGACY_LAST_QP_ATTR_MASK << 1) - 1))
@@ -2017,11 +1957,17 @@ static int ib_uverbs_modify_qp(struct uverbs_attr_bundle *attrs,
 	return modify_qp(attrs, &cmd);
 }
 
-static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs,
-				  struct ib_udata *ucore)
+static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_modify_qp cmd = {};
+	struct ib_uverbs_ex_modify_qp cmd;
+	struct ib_uverbs_ex_modify_qp_resp resp = {
+		.response_length = uverbs_response_length(attrs, sizeof(resp))
+	};
 	int ret;
+
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	/*
 	 * Last bit is reserved for extending the attr_mask by
@@ -2029,38 +1975,28 @@ static int ib_uverbs_ex_modify_qp(struct uverbs_attr_bundle *attrs,
 	 */
 	BUILD_BUG_ON(IB_USER_LAST_QP_ATTR_MASK == (1 << 31));
 
-	if (ucore->inlen < sizeof(cmd.base))
-		return -EINVAL;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
-	if (ret)
-		return ret;
-
 	if (cmd.base.attr_mask &
 	    ~((IB_USER_LAST_QP_ATTR_MASK << 1) - 1))
 		return -EOPNOTSUPP;
 
-	if (ucore->inlen > sizeof(cmd)) {
-		if (!ib_is_udata_cleared(ucore, sizeof(cmd),
-					 ucore->inlen - sizeof(cmd)))
-			return -EOPNOTSUPP;
-	}
-
 	ret = modify_qp(attrs, &cmd);
+	if (ret)
+		return ret;
 
-	return ret;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-static int ib_uverbs_destroy_qp(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_destroy_qp(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_destroy_qp      cmd;
 	struct ib_uverbs_destroy_qp_resp resp;
 	struct ib_uobject		*uobj;
 	struct ib_uqp_object        	*obj;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_get_destroy(UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
 	if (IS_ERR(uobj))
@@ -2072,10 +2008,7 @@ static int ib_uverbs_destroy_qp(struct uverbs_attr_bundle *attrs,
 
 	uobj_put_destroy(uobj);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
 static void *alloc_wr(size_t wr_size, __u32 num_sge)
@@ -2088,8 +2021,7 @@ static void *alloc_wr(size_t wr_size, __u32 num_sge)
 			 num_sge * sizeof (struct ib_sge), GFP_KERNEL);
 }
 
-static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_post_send      cmd;
 	struct ib_uverbs_post_send_resp resp;
@@ -2099,18 +2031,25 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs,
 	struct ib_qp                   *qp;
 	int                             i, sg_ind;
 	int				is_ud;
-	ssize_t                         ret = -EINVAL;
+	int ret, ret2;
 	size_t                          next_size;
+	const struct ib_sge __user *sgls;
+	const void __user *wqes;
+	struct uverbs_req_iter iter;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
-
-	if (in_len < sizeof cmd + cmd.wqe_size * cmd.wr_count +
-	    cmd.sge_count * sizeof (struct ib_uverbs_sge))
-		return -EINVAL;
-
-	if (cmd.wqe_size < sizeof (struct ib_uverbs_send_wr))
-		return -EINVAL;
+	ret = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
+	wqes = uverbs_request_next_ptr(&iter, cmd.wqe_size * cmd.wr_count);
+	if (IS_ERR(wqes))
+		return PTR_ERR(wqes);
+	sgls = uverbs_request_next_ptr(
+		&iter, cmd.sge_count * sizeof(struct ib_uverbs_sge));
+	if (IS_ERR(sgls))
+		return PTR_ERR(sgls);
+	ret = uverbs_request_finish(&iter);
+	if (ret)
+		return ret;
 
 	user_wr = kmalloc(cmd.wqe_size, GFP_KERNEL);
 	if (!user_wr)
@@ -2124,8 +2063,7 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs,
 	sg_ind = 0;
 	last = NULL;
 	for (i = 0; i < cmd.wr_count; ++i) {
-		if (copy_from_user(user_wr,
-				   buf + sizeof cmd + i * cmd.wqe_size,
+		if (copy_from_user(user_wr, wqes + i * cmd.wqe_size,
 				   cmd.wqe_size)) {
 			ret = -EFAULT;
 			goto out_put;
@@ -2233,11 +2171,9 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs,
 		if (next->num_sge) {
 			next->sg_list = (void *) next +
 				ALIGN(next_size, sizeof(struct ib_sge));
-			if (copy_from_user(next->sg_list,
-					   buf + sizeof cmd +
-					   cmd.wr_count * cmd.wqe_size +
-					   sg_ind * sizeof (struct ib_sge),
-					   next->num_sge * sizeof (struct ib_sge))) {
+			if (copy_from_user(next->sg_list, sgls + sg_ind,
+					   next->num_sge *
+						   sizeof(struct ib_sge))) {
 				ret = -EFAULT;
 				goto out_put;
 			}
@@ -2255,8 +2191,9 @@ static int ib_uverbs_post_send(struct uverbs_attr_bundle *attrs,
 				break;
 		}
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		ret = -EFAULT;
+	ret2 = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret2)
+		ret = ret2;
 
 out_put:
 	uobj_put_obj_read(qp);
@@ -2275,24 +2212,31 @@ out:
 	return ret;
 }
 
-static struct ib_recv_wr *ib_uverbs_unmarshall_recv(const char __user *buf,
-						    int in_len,
-						    u32 wr_count,
-						    u32 sge_count,
-						    u32 wqe_size)
+static struct ib_recv_wr *
+ib_uverbs_unmarshall_recv(struct uverbs_req_iter *iter, u32 wr_count,
+			  u32 wqe_size, u32 sge_count)
 {
 	struct ib_uverbs_recv_wr *user_wr;
 	struct ib_recv_wr        *wr = NULL, *last, *next;
 	int                       sg_ind;
 	int                       i;
 	int                       ret;
-
-	if (in_len < wqe_size * wr_count +
-	    sge_count * sizeof (struct ib_uverbs_sge))
-		return ERR_PTR(-EINVAL);
+	const struct ib_sge __user *sgls;
+	const void __user *wqes;
 
 	if (wqe_size < sizeof (struct ib_uverbs_recv_wr))
 		return ERR_PTR(-EINVAL);
+
+	wqes = uverbs_request_next_ptr(iter, wqe_size * wr_count);
+	if (IS_ERR(wqes))
+		return ERR_CAST(wqes);
+	sgls = uverbs_request_next_ptr(
+		iter, sge_count * sizeof(struct ib_uverbs_sge));
+	if (IS_ERR(sgls))
+		return ERR_CAST(sgls);
+	ret = uverbs_request_finish(iter);
+	if (ret)
+		return ERR_PTR(ret);
 
 	user_wr = kmalloc(wqe_size, GFP_KERNEL);
 	if (!user_wr)
@@ -2301,7 +2245,7 @@ static struct ib_recv_wr *ib_uverbs_unmarshall_recv(const char __user *buf,
 	sg_ind = 0;
 	last = NULL;
 	for (i = 0; i < wr_count; ++i) {
-		if (copy_from_user(user_wr, buf + i * wqe_size,
+		if (copy_from_user(user_wr, wqes + i * wqe_size,
 				   wqe_size)) {
 			ret = -EFAULT;
 			goto err;
@@ -2340,10 +2284,9 @@ static struct ib_recv_wr *ib_uverbs_unmarshall_recv(const char __user *buf,
 		if (next->num_sge) {
 			next->sg_list = (void *) next +
 				ALIGN(sizeof *next, sizeof (struct ib_sge));
-			if (copy_from_user(next->sg_list,
-					   buf + wr_count * wqe_size +
-					   sg_ind * sizeof (struct ib_sge),
-					   next->num_sge * sizeof (struct ib_sge))) {
+			if (copy_from_user(next->sg_list, sgls + sg_ind,
+					   next->num_sge *
+						   sizeof(struct ib_sge))) {
 				ret = -EFAULT;
 				goto err;
 			}
@@ -2367,28 +2310,30 @@ err:
 	return ERR_PTR(ret);
 }
 
-static int ib_uverbs_post_recv(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_post_recv(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_post_recv      cmd;
 	struct ib_uverbs_post_recv_resp resp;
 	struct ib_recv_wr              *wr, *next;
 	const struct ib_recv_wr	       *bad_wr;
 	struct ib_qp                   *qp;
-	ssize_t                         ret = -EINVAL;
+	int ret, ret2;
+	struct uverbs_req_iter iter;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
-	wr = ib_uverbs_unmarshall_recv(buf + sizeof cmd,
-				       in_len - sizeof cmd, cmd.wr_count,
-				       cmd.sge_count, cmd.wqe_size);
+	wr = ib_uverbs_unmarshall_recv(&iter, cmd.wr_count, cmd.wqe_size,
+				       cmd.sge_count);
 	if (IS_ERR(wr))
 		return PTR_ERR(wr);
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
-	if (!qp)
+	if (!qp) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	resp.bad_wr = 0;
 	ret = qp->device->post_recv(qp->real_qp, wr, &bad_wr);
@@ -2402,9 +2347,9 @@ static int ib_uverbs_post_recv(struct uverbs_attr_bundle *attrs,
 		}
 	}
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		ret = -EFAULT;
-
+	ret2 = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret2)
+		ret = ret2;
 out:
 	while (wr) {
 		next = wr->next;
@@ -2415,29 +2360,30 @@ out:
 	return ret;
 }
 
-static int ib_uverbs_post_srq_recv(struct uverbs_attr_bundle *attrs,
-				   const char __user *buf, int in_len,
-				   int out_len)
+static int ib_uverbs_post_srq_recv(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_post_srq_recv      cmd;
 	struct ib_uverbs_post_srq_recv_resp resp;
 	struct ib_recv_wr                  *wr, *next;
 	const struct ib_recv_wr		   *bad_wr;
 	struct ib_srq                      *srq;
-	ssize_t                             ret = -EINVAL;
+	int ret, ret2;
+	struct uverbs_req_iter iter;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
-	wr = ib_uverbs_unmarshall_recv(buf + sizeof cmd,
-				       in_len - sizeof cmd, cmd.wr_count,
-				       cmd.sge_count, cmd.wqe_size);
+	wr = ib_uverbs_unmarshall_recv(&iter, cmd.wr_count, cmd.wqe_size,
+				       cmd.sge_count);
 	if (IS_ERR(wr))
 		return PTR_ERR(wr);
 
 	srq = uobj_get_obj_read(srq, UVERBS_OBJECT_SRQ, cmd.srq_handle, attrs);
-	if (!srq)
+	if (!srq) {
+		ret = -EINVAL;
 		goto out;
+	}
 
 	resp.bad_wr = 0;
 	ret = srq->device->post_srq_recv(srq, wr, &bad_wr);
@@ -2451,8 +2397,9 @@ static int ib_uverbs_post_srq_recv(struct uverbs_attr_bundle *attrs,
 				break;
 		}
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		ret = -EFAULT;
+	ret2 = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret2)
+		ret = ret2;
 
 out:
 	while (wr) {
@@ -2464,8 +2411,7 @@ out:
 	return ret;
 }
 
-static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_ah	 cmd;
 	struct ib_uverbs_create_ah_resp	 resp;
@@ -2476,11 +2422,9 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs,
 	int ret;
 	struct ib_device *ib_dev;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_alloc(UVERBS_OBJECT_AH, attrs, &ib_dev);
 	if (IS_ERR(uobj))
@@ -2527,10 +2471,9 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs,
 
 	resp.ah_handle = uobj->id;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_copy;
-	}
 
 	uobj_put_obj_read(pd);
 	return uobj_alloc_commit(uobj);
@@ -2546,20 +2489,19 @@ err:
 	return ret;
 }
 
-static int ib_uverbs_destroy_ah(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_destroy_ah(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_destroy_ah cmd;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	return uobj_perform_destroy(UVERBS_OBJECT_AH, cmd.ah_handle, attrs);
 }
 
-static int ib_uverbs_attach_mcast(struct uverbs_attr_bundle *attrs,
-				  const char __user *buf, int in_len,
-				  int out_len)
+static int ib_uverbs_attach_mcast(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_attach_mcast cmd;
 	struct ib_qp                 *qp;
@@ -2567,8 +2509,9 @@ static int ib_uverbs_attach_mcast(struct uverbs_attr_bundle *attrs,
 	struct ib_uverbs_mcast_entry *mcast;
 	int                           ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
 	if (!qp)
@@ -2606,9 +2549,7 @@ out_put:
 	return ret;
 }
 
-static int ib_uverbs_detach_mcast(struct uverbs_attr_bundle *attrs,
-				  const char __user *buf, int in_len,
-				  int out_len)
+static int ib_uverbs_detach_mcast(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_detach_mcast cmd;
 	struct ib_uqp_object         *obj;
@@ -2617,8 +2558,9 @@ static int ib_uverbs_detach_mcast(struct uverbs_attr_bundle *attrs,
 	int                           ret = -EINVAL;
 	bool                          found = false;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	qp = uobj_get_obj_read(qp, UVERBS_OBJECT_QP, cmd.qp_handle, attrs);
 	if (!qp)
@@ -2968,10 +2910,9 @@ static int kern_spec_to_ib_spec(struct uverbs_attr_bundle *attrs,
 		return kern_spec_to_ib_spec_filter(kern_spec, ib_spec);
 }
 
-static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
-				  struct ib_udata *ucore)
+static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_create_wq	  cmd = {};
+	struct ib_uverbs_ex_create_wq cmd;
 	struct ib_uverbs_ex_create_wq_resp resp = {};
 	struct ib_uwq_object           *obj;
 	int err = 0;
@@ -2979,25 +2920,9 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 	struct ib_pd *pd;
 	struct ib_wq *wq;
 	struct ib_wq_init_attr wq_init_attr = {};
-	size_t required_cmd_sz;
-	size_t required_resp_len;
 	struct ib_device *ib_dev;
 
-	required_cmd_sz = offsetof(typeof(cmd), max_sge) + sizeof(cmd.max_sge);
-	required_resp_len = offsetof(typeof(resp), wqn) + sizeof(resp.wqn);
-
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->outlen < required_resp_len)
-		return -ENOSPC;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	err = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	err = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (err)
 		return err;
 
@@ -3027,9 +2952,7 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 	wq_init_attr.wq_context = attrs->ufile;
 	wq_init_attr.wq_type = cmd.wq_type;
 	wq_init_attr.event_handler = ib_uverbs_wq_event_handler;
-	if (ucore->inlen >= (offsetof(typeof(cmd), create_flags) +
-			     sizeof(cmd.create_flags)))
-		wq_init_attr.create_flags = cmd.create_flags;
+	wq_init_attr.create_flags = cmd.create_flags;
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 
@@ -3057,9 +2980,8 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs,
 	resp.max_sge = wq_init_attr.max_sge;
 	resp.max_wr = wq_init_attr.max_wr;
 	resp.wqn = wq->wq_num;
-	resp.response_length = required_resp_len;
-	err = ib_copy_to_udata(ucore,
-			       &resp, resp.response_length);
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
+	err = uverbs_response(attrs, &resp, sizeof(resp));
 	if (err)
 		goto err_copy;
 
@@ -3079,39 +3001,22 @@ err_uobj:
 	return err;
 }
 
-static int ib_uverbs_ex_destroy_wq(struct uverbs_attr_bundle *attrs,
-				   struct ib_udata *ucore)
+static int ib_uverbs_ex_destroy_wq(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_destroy_wq	cmd = {};
+	struct ib_uverbs_ex_destroy_wq	cmd;
 	struct ib_uverbs_ex_destroy_wq_resp	resp = {};
 	struct ib_uobject		*uobj;
 	struct ib_uwq_object		*obj;
-	size_t required_cmd_sz;
-	size_t required_resp_len;
 	int				ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), wq_handle) + sizeof(cmd.wq_handle);
-	required_resp_len = offsetof(typeof(resp), reserved) + sizeof(resp.reserved);
-
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->outlen < required_resp_len)
-		return -ENOSPC;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
 	if (cmd.comp_mask)
 		return -EOPNOTSUPP;
 
-	resp.response_length = required_resp_len;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 	uobj = uobj_get_destroy(UVERBS_OBJECT_WQ, cmd.wq_handle, attrs);
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
@@ -3121,28 +3026,17 @@ static int ib_uverbs_ex_destroy_wq(struct uverbs_attr_bundle *attrs,
 
 	uobj_put_destroy(uobj);
 
-	return ib_copy_to_udata(ucore, &resp, resp.response_length);
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-static int ib_uverbs_ex_modify_wq(struct uverbs_attr_bundle *attrs,
-				  struct ib_udata *ucore)
+static int ib_uverbs_ex_modify_wq(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_modify_wq cmd = {};
+	struct ib_uverbs_ex_modify_wq cmd;
 	struct ib_wq *wq;
 	struct ib_wq_attr wq_attr = {};
-	size_t required_cmd_sz;
 	int ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), curr_wq_state) + sizeof(cmd.curr_wq_state);
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
@@ -3168,13 +3062,12 @@ static int ib_uverbs_ex_modify_wq(struct uverbs_attr_bundle *attrs,
 	return ret;
 }
 
-static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
-					     struct ib_udata *ucore)
+static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_create_rwq_ind_table	  cmd = {};
+	struct ib_uverbs_ex_create_rwq_ind_table cmd;
 	struct ib_uverbs_ex_create_rwq_ind_table_resp  resp = {};
 	struct ib_uobject		  *uobj;
-	int err = 0;
+	int err;
 	struct ib_rwq_ind_table_init_attr init_attr = {};
 	struct ib_rwq_ind_table *rwq_ind_tbl;
 	struct ib_wq	**wqs = NULL;
@@ -3182,26 +3075,12 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 	struct ib_wq	*wq = NULL;
 	int i, j, num_read_wqs;
 	u32 num_wq_handles;
-	u32 expected_in_size;
-	size_t required_cmd_sz_header;
-	size_t required_resp_len;
+	struct uverbs_req_iter iter;
 	struct ib_device *ib_dev;
 
-	required_cmd_sz_header = offsetof(typeof(cmd), log_ind_tbl_size) + sizeof(cmd.log_ind_tbl_size);
-	required_resp_len = offsetof(typeof(resp), ind_tbl_num) + sizeof(resp.ind_tbl_num);
-
-	if (ucore->inlen < required_cmd_sz_header)
-		return -EINVAL;
-
-	if (ucore->outlen < required_resp_len)
-		return -ENOSPC;
-
-	err = ib_copy_from_udata(&cmd, ucore, required_cmd_sz_header);
+	err = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
 	if (err)
 		return err;
-
-	ucore->inbuf += required_cmd_sz_header;
-	ucore->inlen -= required_cmd_sz_header;
 
 	if (cmd.comp_mask)
 		return -EOPNOTSUPP;
@@ -3210,26 +3089,17 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 		return -EINVAL;
 
 	num_wq_handles = 1 << cmd.log_ind_tbl_size;
-	expected_in_size = num_wq_handles * sizeof(__u32);
-	if (num_wq_handles == 1)
-		/* input size for wq handles is u64 aligned */
-		expected_in_size += sizeof(__u32);
-
-	if (ucore->inlen < expected_in_size)
-		return -EINVAL;
-
-	if (ucore->inlen > expected_in_size &&
-	    !ib_is_udata_cleared(ucore, expected_in_size,
-				 ucore->inlen - expected_in_size))
-		return -EOPNOTSUPP;
-
 	wqs_handles = kcalloc(num_wq_handles, sizeof(*wqs_handles),
 			      GFP_KERNEL);
 	if (!wqs_handles)
 		return -ENOMEM;
 
-	err = ib_copy_from_udata(wqs_handles, ucore,
-				 num_wq_handles * sizeof(__u32));
+	err = uverbs_request_next(&iter, wqs_handles,
+				  num_wq_handles * sizeof(__u32));
+	if (err)
+		goto err_free;
+
+	err = uverbs_request_finish(&iter);
 	if (err)
 		goto err_free;
 
@@ -3280,10 +3150,9 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 
 	resp.ind_tbl_handle = uobj->id;
 	resp.ind_tbl_num = rwq_ind_tbl->ind_tbl_num;
-	resp.response_length = required_resp_len;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
-	err = ib_copy_to_udata(ucore,
-			       &resp, resp.response_length);
+	err = uverbs_response(attrs, &resp, sizeof(resp));
 	if (err)
 		goto err_copy;
 
@@ -3307,24 +3176,12 @@ err_free:
 	return err;
 }
 
-static int ib_uverbs_ex_destroy_rwq_ind_table(struct uverbs_attr_bundle *attrs,
-					      struct ib_udata *ucore)
+static int ib_uverbs_ex_destroy_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_destroy_rwq_ind_table	cmd = {};
-	int			ret;
-	size_t required_cmd_sz;
+	struct ib_uverbs_ex_destroy_rwq_ind_table cmd;
+	int ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), ind_tbl_handle) + sizeof(cmd.ind_tbl_handle);
-
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
@@ -3335,8 +3192,7 @@ static int ib_uverbs_ex_destroy_rwq_ind_table(struct uverbs_attr_bundle *attrs,
 				    cmd.ind_tbl_handle, attrs);
 }
 
-static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
-				    struct ib_udata *ucore)
+static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_flow	  cmd;
 	struct ib_uverbs_create_flow_resp resp;
@@ -3347,23 +3203,15 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 	struct ib_qp			  *qp;
 	struct ib_uflow_resources	  *uflow_res;
 	struct ib_uverbs_flow_spec_hdr	  *kern_spec;
-	int err = 0;
+	struct uverbs_req_iter iter;
+	int err;
 	void *ib_spec;
 	int i;
 	struct ib_device *ib_dev;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	if (ucore->outlen < sizeof(resp))
-		return -ENOSPC;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	err = uverbs_request_start(attrs, &iter, &cmd, sizeof(cmd));
 	if (err)
 		return err;
-
-	ucore->inbuf += sizeof(cmd);
-	ucore->inlen -= sizeof(cmd);
 
 	if (cmd.comp_mask)
 		return -EINVAL;
@@ -3382,8 +3230,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 	if (cmd.flow_attr.num_of_specs > IB_FLOW_SPEC_SUPPORT_LAYERS)
 		return -EINVAL;
 
-	if (cmd.flow_attr.size > ucore->inlen ||
-	    cmd.flow_attr.size >
+	if (cmd.flow_attr.size >
 	    (cmd.flow_attr.num_of_specs * sizeof(struct ib_uverbs_flow_spec)))
 		return -EINVAL;
 
@@ -3398,13 +3245,17 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 			return -ENOMEM;
 
 		*kern_flow_attr = cmd.flow_attr;
-		err = ib_copy_from_udata(&kern_flow_attr->flow_specs, ucore,
-					 cmd.flow_attr.size);
+		err = uverbs_request_next(&iter, &kern_flow_attr->flow_specs,
+					  cmd.flow_attr.size);
 		if (err)
 			goto err_free_attr;
 	} else {
 		kern_flow_attr = &cmd.flow_attr;
 	}
+
+	err = uverbs_request_finish(&iter);
+	if (err)
+		goto err_free_attr;
 
 	uobj = uobj_alloc(UVERBS_OBJECT_FLOW, attrs, &ib_dev);
 	if (IS_ERR(uobj)) {
@@ -3480,8 +3331,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs,
 	memset(&resp, 0, sizeof(resp));
 	resp.flow_handle = uobj->id;
 
-	err = ib_copy_to_udata(ucore,
-			       &resp, sizeof(resp));
+	err = uverbs_response(attrs, &resp, sizeof(resp));
 	if (err)
 		goto err_copy;
 
@@ -3507,16 +3357,12 @@ err_free_attr:
 	return err;
 }
 
-static int ib_uverbs_ex_destroy_flow(struct uverbs_attr_bundle *attrs,
-				     struct ib_udata *ucore)
+static int ib_uverbs_ex_destroy_flow(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_destroy_flow	cmd;
 	int				ret;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	ret = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
@@ -3626,11 +3472,9 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	if (cmd->srq_type == IB_SRQT_XRC)
 		resp.srqn = srq->ext.xrc.srq_num;
 
-	if (copy_to_user(u64_to_user_ptr(cmd->response),
-			 &resp, sizeof resp)) {
-		ret = -EFAULT;
+	ret = uverbs_response(attrs, &resp, sizeof(resp));
+	if (ret)
 		goto err_copy;
-	}
 
 	if (cmd->srq_type == IB_SRQT_XRC)
 		uobj_put_read(xrcd_uobj);
@@ -3662,18 +3506,15 @@ err:
 	return ret;
 }
 
-static int ib_uverbs_create_srq(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_create_srq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_srq      cmd;
 	struct ib_uverbs_create_xsrq     xcmd;
-	struct ib_uverbs_create_srq_resp resp;
+	int ret;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	memset(&xcmd, 0, sizeof(xcmd));
 	xcmd.response	 = cmd.response;
@@ -3687,32 +3528,28 @@ static int ib_uverbs_create_srq(struct uverbs_attr_bundle *attrs,
 	return __uverbs_create_xsrq(attrs, &xcmd, &attrs->driver_udata);
 }
 
-static int ib_uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
-				 const char __user *buf, int in_len,
-				 int out_len)
+static int ib_uverbs_create_xsrq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_create_xsrq     cmd;
-	struct ib_uverbs_create_srq_resp resp;
+	int ret;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	return __uverbs_create_xsrq(attrs, &cmd, &attrs->driver_udata);
 }
 
-static int ib_uverbs_modify_srq(struct uverbs_attr_bundle *attrs,
-				const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_modify_srq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_modify_srq cmd;
 	struct ib_srq              *srq;
 	struct ib_srq_attr          attr;
 	int                         ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	srq = uobj_get_obj_read(srq, UVERBS_OBJECT_SRQ, cmd.srq_handle, attrs);
 	if (!srq)
@@ -3729,8 +3566,7 @@ static int ib_uverbs_modify_srq(struct uverbs_attr_bundle *attrs,
 	return ret;
 }
 
-static int ib_uverbs_query_srq(struct uverbs_attr_bundle *attrs,
-			       const char __user *buf, int in_len, int out_len)
+static int ib_uverbs_query_srq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_query_srq      cmd;
 	struct ib_uverbs_query_srq_resp resp;
@@ -3738,11 +3574,9 @@ static int ib_uverbs_query_srq(struct uverbs_attr_bundle *attrs,
 	struct ib_srq                   *srq;
 	int                             ret;
 
-	if (out_len < sizeof resp)
-		return -ENOSPC;
-
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	srq = uobj_get_obj_read(srq, UVERBS_OBJECT_SRQ, cmd.srq_handle, attrs);
 	if (!srq)
@@ -3761,23 +3595,20 @@ static int ib_uverbs_query_srq(struct uverbs_attr_bundle *attrs,
 	resp.max_sge   = attr.max_sge;
 	resp.srq_limit = attr.srq_limit;
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof resp))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-static int ib_uverbs_destroy_srq(struct uverbs_attr_bundle *attrs,
-				 const char __user *buf, int in_len,
-				 int out_len)
+static int ib_uverbs_destroy_srq(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_destroy_srq      cmd;
 	struct ib_uverbs_destroy_srq_resp resp;
 	struct ib_uobject		 *uobj;
 	struct ib_uevent_object        	 *obj;
+	int ret;
 
-	if (copy_from_user(&cmd, buf, sizeof cmd))
-		return -EFAULT;
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
+	if (ret)
+		return ret;
 
 	uobj = uobj_get_destroy(UVERBS_OBJECT_SRQ, cmd.srq_handle, attrs);
 	if (IS_ERR(uobj))
@@ -3789,16 +3620,12 @@ static int ib_uverbs_destroy_srq(struct uverbs_attr_bundle *attrs,
 
 	uobj_put_destroy(uobj);
 
-	if (copy_to_user(u64_to_user_ptr(cmd.response), &resp, sizeof(resp)))
-		return -EFAULT;
-
-	return 0;
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
-				     struct ib_udata *ucore)
+static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_query_device_resp resp = { {0} };
+	struct ib_uverbs_ex_query_device_resp resp = {};
 	struct ib_uverbs_ex_query_device  cmd;
 	struct ib_device_attr attr = {0};
 	struct ib_ucontext *ucontext;
@@ -3810,10 +3637,7 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 		return PTR_ERR(ucontext);
 	ib_dev = ucontext->device;
 
-	if (ucore->inlen < sizeof(cmd))
-		return -EINVAL;
-
-	err = ib_copy_from_udata(&cmd, ucore, sizeof(cmd));
+	err = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (err)
 		return err;
 
@@ -3823,19 +3647,11 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 	if (cmd.reserved)
 		return -EINVAL;
 
-	resp.response_length = offsetof(typeof(resp), odp_caps);
-
-	if (ucore->outlen < resp.response_length)
-		return -ENOSPC;
-
 	err = ib_dev->query_device(ib_dev, &attr, &attrs->driver_udata);
 	if (err)
 		return err;
 
 	copy_query_dev_fields(ucontext, &resp.base, &attr);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.odp_caps))
-		goto end;
 
 #ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	resp.odp_caps.general_caps = attr.odp_caps.general_caps;
@@ -3846,98 +3662,39 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs,
 	resp.odp_caps.per_transport_caps.ud_odp_caps =
 		attr.odp_caps.per_transport_caps.ud_odp_caps;
 #endif
-	resp.response_length += sizeof(resp.odp_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.timestamp_mask))
-		goto end;
 
 	resp.timestamp_mask = attr.timestamp_mask;
-	resp.response_length += sizeof(resp.timestamp_mask);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.hca_core_clock))
-		goto end;
-
 	resp.hca_core_clock = attr.hca_core_clock;
-	resp.response_length += sizeof(resp.hca_core_clock);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.device_cap_flags_ex))
-		goto end;
-
 	resp.device_cap_flags_ex = attr.device_cap_flags;
-	resp.response_length += sizeof(resp.device_cap_flags_ex);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.rss_caps))
-		goto end;
-
 	resp.rss_caps.supported_qpts = attr.rss_caps.supported_qpts;
 	resp.rss_caps.max_rwq_indirection_tables =
 		attr.rss_caps.max_rwq_indirection_tables;
 	resp.rss_caps.max_rwq_indirection_table_size =
 		attr.rss_caps.max_rwq_indirection_table_size;
-
-	resp.response_length += sizeof(resp.rss_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.max_wq_type_rq))
-		goto end;
-
 	resp.max_wq_type_rq = attr.max_wq_type_rq;
-	resp.response_length += sizeof(resp.max_wq_type_rq);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.raw_packet_caps))
-		goto end;
-
 	resp.raw_packet_caps = attr.raw_packet_caps;
-	resp.response_length += sizeof(resp.raw_packet_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.tm_caps))
-		goto end;
-
 	resp.tm_caps.max_rndv_hdr_size	= attr.tm_caps.max_rndv_hdr_size;
 	resp.tm_caps.max_num_tags	= attr.tm_caps.max_num_tags;
 	resp.tm_caps.max_ops		= attr.tm_caps.max_ops;
 	resp.tm_caps.max_sge		= attr.tm_caps.max_sge;
 	resp.tm_caps.flags		= attr.tm_caps.flags;
-	resp.response_length += sizeof(resp.tm_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.cq_moderation_caps))
-		goto end;
-
 	resp.cq_moderation_caps.max_cq_moderation_count  =
 		attr.cq_caps.max_cq_moderation_count;
 	resp.cq_moderation_caps.max_cq_moderation_period =
 		attr.cq_caps.max_cq_moderation_period;
-	resp.response_length += sizeof(resp.cq_moderation_caps);
-
-	if (ucore->outlen < resp.response_length + sizeof(resp.max_dm_size))
-		goto end;
-
 	resp.max_dm_size = attr.max_dm_size;
-	resp.response_length += sizeof(resp.max_dm_size);
-end:
-	err = ib_copy_to_udata(ucore, &resp, resp.response_length);
-	return err;
+	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
+
+	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs,
-				  struct ib_udata *ucore)
+static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
 {
-	struct ib_uverbs_ex_modify_cq cmd = {};
+	struct ib_uverbs_ex_modify_cq cmd;
 	struct ib_cq *cq;
-	size_t required_cmd_sz;
 	int ret;
 
-	required_cmd_sz = offsetof(typeof(cmd), reserved) +
-				sizeof(cmd.reserved);
-	if (ucore->inlen < required_cmd_sz)
-		return -EINVAL;
-
-	/* sanity checks */
-	if (ucore->inlen > sizeof(cmd) &&
-	    !ib_is_udata_cleared(ucore, sizeof(cmd),
-				 ucore->inlen - sizeof(cmd)))
-		return -EOPNOTSUPP;
-
-	ret = ib_copy_from_udata(&cmd, ucore, min(sizeof(cmd), ucore->inlen));
+	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
 	if (ret)
 		return ret;
 
