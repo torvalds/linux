@@ -52,8 +52,6 @@
 #include <asm/io-unit.h>
 #include <asm/leon.h>
 
-const struct sparc32_dma_ops *sparc32_dma_ops;
-
 /* This function must make sure that caches and memory are coherent after DMA
  * On LEON systems without cache snooping it flushes the entire D-CACHE.
  */
@@ -247,7 +245,7 @@ static void _sparc_free_io(struct resource *res)
 	release_resource(res);
 }
 
-static unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
+unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
 {
 	struct resource *res;
 
@@ -266,7 +264,7 @@ static unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
 	return res->start;
 }
 
-static bool sparc_dma_free_resource(void *cpu_addr, size_t size)
+bool sparc_dma_free_resource(void *cpu_addr, size_t size)
 {
 	unsigned long addr = (unsigned long)cpu_addr;
 	struct resource *res;
@@ -301,122 +299,6 @@ void sbus_set_sbus64(struct device *dev, int x)
 	printk("sbus_set_sbus64: unsupported\n");
 }
 EXPORT_SYMBOL(sbus_set_sbus64);
-
-/*
- * Allocate a chunk of memory suitable for DMA.
- * Typically devices use them for control blocks.
- * CPU may access them without any explicit flushing.
- */
-static void *sbus_alloc_coherent(struct device *dev, size_t len,
-				 dma_addr_t *dma_addrp, gfp_t gfp,
-				 unsigned long attrs)
-{
-	unsigned long len_total = PAGE_ALIGN(len);
-	unsigned long va, addr;
-	int order;
-
-	/* XXX why are some lengths signed, others unsigned? */
-	if (len <= 0) {
-		return NULL;
-	}
-	/* XXX So what is maxphys for us and how do drivers know it? */
-	if (len > 256*1024) {			/* __get_free_pages() limit */
-		return NULL;
-	}
-
-	order = get_order(len_total);
-	va = __get_free_pages(gfp, order);
-	if (va == 0)
-		goto err_nopages;
-
-	addr = sparc_dma_alloc_resource(dev, len_total);
-	if (!addr)
-		goto err_nomem;
-
-	// XXX The sbus_map_dma_area does this for us below, see comments.
-	// srmmu_mapiorange(0, virt_to_phys(va), res->start, len_total);
-	/*
-	 * XXX That's where sdev would be used. Currently we load
-	 * all iommu tables with the same translations.
-	 */
-	if (sbus_map_dma_area(dev, dma_addrp, va, addr, len_total) != 0)
-		goto err_noiommu;
-
-	return (void *)addr;
-
-err_noiommu:
-	sparc_dma_free_resource((void *)addr, len_total);
-err_nomem:
-	free_pages(va, order);
-err_nopages:
-	return NULL;
-}
-
-static void sbus_free_coherent(struct device *dev, size_t n, void *p,
-			       dma_addr_t ba, unsigned long attrs)
-{
-	struct page *pgv;
-
-	n = PAGE_ALIGN(n);
-	if (!sparc_dma_free_resource(p, n))
-		return;
-
-	pgv = virt_to_page(p);
-	sbus_unmap_dma_area(dev, ba, n);
-
-	__free_pages(pgv, get_order(n));
-}
-
-/*
- * Map a chunk of memory so that devices can see it.
- * CPU view of this memory may be inconsistent with
- * a device view and explicit flushing is necessary.
- */
-static dma_addr_t sbus_map_page(struct device *dev, struct page *page,
-				unsigned long offset, size_t len,
-				enum dma_data_direction dir,
-				unsigned long attrs)
-{
-	void *va = page_address(page) + offset;
-
-	/* XXX why are some lengths signed, others unsigned? */
-	if (len <= 0) {
-		return 0;
-	}
-	/* XXX So what is maxphys for us and how do drivers know it? */
-	if (len > 256*1024) {			/* __get_free_pages() limit */
-		return 0;
-	}
-	return mmu_get_scsi_one(dev, va, len);
-}
-
-static void sbus_unmap_page(struct device *dev, dma_addr_t ba, size_t n,
-			    enum dma_data_direction dir, unsigned long attrs)
-{
-	mmu_release_scsi_one(dev, ba, n);
-}
-
-static int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n,
-		       enum dma_data_direction dir, unsigned long attrs)
-{
-	mmu_get_scsi_sgl(dev, sg, n);
-	return n;
-}
-
-static void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n,
-			  enum dma_data_direction dir, unsigned long attrs)
-{
-	mmu_release_scsi_sgl(dev, sg, n);
-}
-
-static const struct dma_map_ops sbus_dma_ops = {
-	.alloc			= sbus_alloc_coherent,
-	.free			= sbus_free_coherent,
-	.map_page		= sbus_map_page,
-	.unmap_page		= sbus_unmap_page,
-	.map_sg			= sbus_map_sg,
-	.unmap_sg		= sbus_unmap_sg,
-};
 
 static int __init sparc_register_ioport(void)
 {
@@ -491,7 +373,7 @@ void arch_sync_dma_for_cpu(struct device *dev, phys_addr_t paddr,
 		dma_make_coherent(paddr, PAGE_ALIGN(size));
 }
 
-const struct dma_map_ops *dma_ops = &sbus_dma_ops;
+const struct dma_map_ops *dma_ops;
 EXPORT_SYMBOL(dma_ops);
 
 #ifdef CONFIG_PROC_FS
