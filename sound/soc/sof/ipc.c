@@ -133,6 +133,8 @@ static void ipc_log_header(struct device *dev, u8 *text, u32 cmd)
 			str = "GLB_PM_MSG: CLK_GET"; break;
 		case SOF_IPC_PM_CLK_REQ:
 			str = "GLB_PM_MSG: CLK_REQ"; break;
+		case SOF_IPC_PM_CORE_ENABLE:
+			str = "GLB_PM_MSG: CORE_ENABLE"; break;
 		default:
 			str = "GLB_PM_MSG: unknown type"; break;
 		}
