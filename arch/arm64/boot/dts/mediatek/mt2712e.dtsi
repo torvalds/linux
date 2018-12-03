@@ -504,6 +504,27 @@
 		status = "disabled";
 	};
 
+	nandc: nfi@1100e000 {
+		compatible = "mediatek,mt2712-nfc";
+		reg = <0 0x1100e000 0 0x1000>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_NFI2X_EN>, <&pericfg CLK_PERI_NFI>;
+		clock-names = "nfi_clk", "pad_clk";
+		ecc-engine = <&bch>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
+	};
+
+	bch: ecc@1100f000 {
+		compatible = "mediatek,mt2712-ecc";
+		reg = <0 0x1100f000 0 0x1000>;
+		interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&topckgen CLK_TOP_NFI1X_CK_EN>;
+		clock-names = "nfiecc_clk";
+		status = "disabled";
+	};
+
 	i2c3: i2c@11010000 {
 		compatible = "mediatek,mt2712-i2c";
 		reg = <0 0x11010000 0 0x90>,
