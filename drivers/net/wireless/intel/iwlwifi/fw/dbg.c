@@ -1062,31 +1062,6 @@ out:
 	return dump_file;
 }
 
-static void iwl_dump_csr_ini(struct iwl_trans *trans,
-			     struct iwl_fw_error_dump_data **data,
-			     struct iwl_fw_ini_region_cfg *reg)
-{
-	int i, num = le32_to_cpu(reg->internal.num_of_ranges);
-	u32 size = le32_to_cpu(reg->internal.range_data_size);
-
-	IWL_DEBUG_INFO(trans, "WRT CSR dump\n");
-
-	for (i = 0; i < num; i++) {
-		u32 add = le32_to_cpu(reg->start_addr[i]);
-		__le32 *val;
-		int j;
-
-		(*data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_CSR);
-		(*data)->len = cpu_to_le32(size);
-		val = (void *)(*data)->data;
-
-		for (j = 0; j < size; j += 4)
-			*val++ = cpu_to_le32(iwl_trans_read32(trans, j + add));
-
-		*data = iwl_fw_error_next_data(*data);
-	}
-}
-
 static int iwl_dump_ini_prph_iter(struct iwl_fw_runtime *fwrt,
 				  struct iwl_fw_ini_error_dump_range *range,
 				  struct iwl_fw_ini_region_cfg *reg,
@@ -1104,6 +1079,25 @@ static int iwl_dump_ini_prph_iter(struct iwl_fw_runtime *fwrt,
 		if (prph_val == 0x5a5a5a5a)
 			return -1;
 		*val++ = cpu_to_le32(prph_val);
+	}
+	return le32_to_cpu(range->range_data_size);
+}
+
+static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
+				 struct iwl_fw_ini_error_dump_range *range,
+				 struct iwl_fw_ini_region_cfg *reg,
+				 int idx)
+{
+	__le32 *val = range->data;
+	u32 addr, offset = le32_to_cpu(reg->offset);
+	int i;
+
+	range->start_addr = reg->start_addr[idx];
+	range->range_data_size = reg->internal.range_data_size;
+	for (i = 0; i < le32_to_cpu(reg->internal.range_data_size); i += 4) {
+		addr = le32_to_cpu(range->start_addr) + i;
+		*val++ = cpu_to_le32(iwl_trans_read32(fwrt->trans,
+						      addr + offset));
 	}
 	return le32_to_cpu(range->range_data_size);
 }
@@ -1230,6 +1224,7 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
 		case IWL_FW_INI_REGION_PERIPHERY_AUX:
+		case IWL_FW_INI_REGION_CSR:
 			size += hdr_len + dump_header_len + range_header_len *
 				iwl_dump_ini_mem_ranges(fwrt, reg) +
 				iwl_dump_ini_mem_get_size(fwrt, reg);
@@ -1247,11 +1242,6 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 				(hdr_len +
 				 sizeof(struct iwl_fw_error_dump_paging) +
 				 PAGING_BLOCK_SIZE);
-			break;
-		case IWL_FW_INI_REGION_CSR:
-			size += le32_to_cpu(reg->internal.num_of_ranges) *
-				(hdr_len +
-				 le32_to_cpu(reg->internal.range_data_size));
 			break;
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
 			/* Transport takes care of DRAM dumping */
@@ -1327,7 +1317,11 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 			iwl_fw_dump_rxf(fwrt, data);
 			break;
 		case IWL_FW_INI_REGION_CSR:
-			iwl_dump_csr_ini(fwrt->trans, data, reg);
+			ops.get_num_of_ranges =	iwl_dump_ini_mem_ranges;
+			ops.get_size = iwl_dump_ini_mem_get_size;
+			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
+			ops.fill_range = iwl_dump_ini_csr_iter;
+			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
 		case IWL_FW_INI_REGION_DRAM_IMR:
 		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
