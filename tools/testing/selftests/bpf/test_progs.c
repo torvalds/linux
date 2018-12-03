@@ -70,7 +70,7 @@ static struct {
 	.tcp.urg_ptr = 123,
 };
 
-#define CHECK(condition, tag, format...) ({				\
+#define _CHECK(condition, tag, duration, format...) ({			\
 	int __ret = !!(condition);					\
 	if (__ret) {							\
 		error_cnt++;						\
@@ -82,6 +82,11 @@ static struct {
 	}								\
 	__ret;								\
 })
+
+#define CHECK(condition, tag, format...) \
+	_CHECK(condition, tag, duration, format)
+#define CHECK_ATTR(condition, tag, format...) \
+	_CHECK(condition, tag, tattr.duration, format)
 
 static int bpf_find_map(const char *test, struct bpf_object *obj,
 			const char *name)
@@ -121,6 +126,53 @@ static void test_pkt_access(void)
 	CHECK(err || retval, "ipv6",
 	      "err %d errno %d retval %d duration %d\n",
 	      err, errno, retval, duration);
+	bpf_object__close(obj);
+}
+
+static void test_prog_run_xattr(void)
+{
+	const char *file = "./test_pkt_access.o";
+	struct bpf_object *obj;
+	char buf[10];
+	int err;
+	struct bpf_prog_test_run_attr tattr = {
+		.repeat = 1,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.data_out = buf,
+		.data_size_out = 5,
+	};
+
+	err = bpf_prog_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj,
+			    &tattr.prog_fd);
+	if (CHECK_ATTR(err, "load", "err %d errno %d\n", err, errno))
+		return;
+
+	memset(buf, 0, sizeof(buf));
+
+	err = bpf_prog_test_run_xattr(&tattr);
+	CHECK_ATTR(err != -1 || errno != ENOSPC || tattr.retval, "run",
+	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
+
+	CHECK_ATTR(tattr.data_size_out != sizeof(pkt_v4), "data_size_out",
+	      "incorrect output size, want %lu have %u\n",
+	      sizeof(pkt_v4), tattr.data_size_out);
+
+	CHECK_ATTR(buf[5] != 0, "overflow",
+	      "BPF_PROG_TEST_RUN ignored size hint\n");
+
+	tattr.data_out = NULL;
+	tattr.data_size_out = 0;
+	errno = 0;
+
+	err = bpf_prog_test_run_xattr(&tattr);
+	CHECK_ATTR(err || errno || tattr.retval, "run_no_output",
+	      "err %d errno %d retval %d\n", err, errno, tattr.retval);
+
+	tattr.data_size_out = 1;
+	err = bpf_prog_test_run_xattr(&tattr);
+	CHECK_ATTR(err != -EINVAL, "run_wrong_size_out", "err %d\n", err);
+
 	bpf_object__close(obj);
 }
 
@@ -1837,6 +1889,7 @@ int main(void)
 	jit_enabled = is_jit_enabled();
 
 	test_pkt_access();
+	test_prog_run_xattr();
 	test_xdp();
 	test_xdp_adjust_tail();
 	test_l4lb_all();
