@@ -515,7 +515,6 @@ void amdgpu_device_pci_config_reset(struct amdgpu_device *adev)
  */
 static int amdgpu_device_doorbell_init(struct amdgpu_device *adev)
 {
-	amdgpu_asic_init_doorbell_index(adev);
 
 	/* No doorbell on SI hardware generation */
 	if (adev->asic_type < CHIP_BONAIRE) {
@@ -528,6 +527,8 @@ static int amdgpu_device_doorbell_init(struct amdgpu_device *adev)
 
 	if (pci_resource_flags(adev->pdev, 2) & IORESOURCE_UNSET)
 		return -EINVAL;
+
+	amdgpu_asic_init_doorbell_index(adev);
 
 	/* doorbell bar mapping */
 	adev->doorbell.base = pci_resource_start(adev->pdev, 2);
