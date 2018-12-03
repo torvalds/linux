@@ -1759,11 +1759,6 @@ static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
 static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs,
 				       u32 ept_caps, bool apicv)
 {
-	if (!nested) {
-		memset(msrs, 0, sizeof(*msrs));
-		return;
-	}
-
 	/*
 	 * Note that as a general rule, the high half of the MSRs (bits in
 	 * the control fields which may be 1) should be initialized by the
@@ -9546,6 +9541,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 		nested_vmx_setup_ctls_msrs(&vmx->nested.msrs,
 					   vmx_capability.ept,
 					   kvm_vcpu_apicv_active(&vmx->vcpu));
+	else
+		memset(&vmx->nested.msrs, 0, sizeof(vmx->nested.msrs));
 
 	vmx->nested.posted_intr_nv = -1;
 	vmx->nested.current_vmptr = -1ull;
@@ -9619,7 +9616,9 @@ static void __init vmx_check_processor_compat(void *rtn)
 	*(int *)rtn = 0;
 	if (setup_vmcs_config(&vmcs_conf, &vmx_cap) < 0)
 		*(int *)rtn = -EIO;
-	nested_vmx_setup_ctls_msrs(&vmcs_conf.nested, vmx_cap.ept, enable_apicv);
+	if (nested)
+		nested_vmx_setup_ctls_msrs(&vmcs_conf.nested, vmx_cap.ept,
+					   enable_apicv);
 	if (memcmp(&vmcs_config, &vmcs_conf, sizeof(struct vmcs_config)) != 0) {
 		printk(KERN_ERR "kvm: CPU %d feature inconsistency!\n",
 				smp_processor_id());
@@ -13151,12 +13150,13 @@ static __init int hardware_setup(void)
 		enable_shadow_vmcs = 0;
 
 	kvm_set_posted_intr_wakeup_handler(wakeup_handler);
-	nested_vmx_setup_ctls_msrs(&vmcs_config.nested, vmx_capability.ept,
-				   enable_apicv);
 
 	kvm_mce_cap_supported |= MCG_LMCE_P;
 
 	if (nested) {
+		nested_vmx_setup_ctls_msrs(&vmcs_config.nested,
+					   vmx_capability.ept, enable_apicv);
+
 		r = nested_vmx_hardware_setup(kvm_vmx_exit_handlers);
 		if (r)
 			return r;
