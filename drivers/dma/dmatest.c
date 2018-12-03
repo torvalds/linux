@@ -511,18 +511,18 @@ static int dmatest_func(void *data)
 	if ((src_cnt + dst_cnt) >= 255) {
 		pr_err("too many buffers (%d of 255 supported)\n",
 		       src_cnt + dst_cnt);
-		goto err_thread_type;
+		goto err_free_coefs;
 	}
 
 	if (1 << align > params->buf_size) {
 		pr_err("%u-byte buffer too small for %d-byte alignment\n",
 		       params->buf_size, 1 << align);
-		goto err_thread_type;
+		goto err_free_coefs;
 	}
 
 	thread->srcs = kcalloc(src_cnt + 1, sizeof(u8 *), GFP_KERNEL);
 	if (!thread->srcs)
-		goto err_srcs;
+		goto err_free_coefs;
 
 	thread->usrcs = kcalloc(src_cnt + 1, sizeof(u8 *), GFP_KERNEL);
 	if (!thread->usrcs)
@@ -800,7 +800,7 @@ err_srcbuf:
 	kfree(thread->usrcs);
 err_usrcs:
 	kfree(thread->srcs);
-err_srcs:
+err_free_coefs:
 	kfree(pq_coefs);
 err_thread_type:
 	pr_info("%s: summary %u tests, %u failures %llu iops %llu KB/s (%d)\n",
