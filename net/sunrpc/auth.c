@@ -651,6 +651,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 	INIT_LIST_HEAD(&cred->cr_lru);
 	refcount_set(&cred->cr_count, 1);
 	cred->cr_auth = auth;
+	cred->cr_flags = 0;
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
 	cred->cr_cred = get_cred(acred->cred);
