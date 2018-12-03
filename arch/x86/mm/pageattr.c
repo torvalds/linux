@@ -26,6 +26,8 @@
 #include <asm/pat.h>
 #include <asm/set_memory.h>
 
+#include "mm_internal.h"
+
 /*
  * The current flushing context - we pass it instead of 5 arguments:
  */
@@ -346,16 +348,26 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	}
 }
 
-static void cpa_flush_array(unsigned long baddr, unsigned long *start,
-			    int numpages, int cache,
-			    int in_flags, struct page **pages)
+void __cpa_flush_array(void *data)
 {
-	unsigned int i, level;
+	struct cpa_data *cpa = data;
+	unsigned int i;
 
-	if (__inv_flush_all(cache))
+	for (i = 0; i < cpa->numpages; i++)
+		__flush_tlb_one_kernel(__cpa_addr(cpa, i));
+}
+
+static void cpa_flush_array(struct cpa_data *cpa, int cache)
+{
+	unsigned int i;
+
+	if (cpa_check_flush_all(cache))
 		return;
 
-	flush_tlb_all();
+	if (cpa->numpages <= tlb_single_page_flush_ceiling)
+		on_each_cpu(__cpa_flush_array, cpa, 1);
+	else
+		flush_tlb_all();
 
 	if (!cache)
 		return;
@@ -366,14 +378,10 @@ static void cpa_flush_array(unsigned long baddr, unsigned long *start,
 	 * will cause all other CPUs to flush the same
 	 * cachelines:
 	 */
-	for (i = 0; i < numpages; i++) {
-		unsigned long addr;
+	for (i = 0; i < cpa->numpages; i++) {
+		unsigned long addr = __cpa_addr(cpa, i);
+		unsigned int level;
 		pte_t *pte;
-
-		if (in_flags & CPA_PAGES_ARRAY)
-			addr = (unsigned long)page_address(pages[i]);
-		else
-			addr = start[i];
 
 		pte = lookup_address(addr, &level);
 
@@ -1771,12 +1779,10 @@ static int change_page_attr_set_clr(unsigned long *addr, int numpages,
 		goto out;
 	}
 
-	if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY)) {
-		cpa_flush_array(baddr, addr, numpages, cache,
-				cpa.flags, pages);
-	} else {
+	if (cpa.flags & (CPA_PAGES_ARRAY | CPA_ARRAY))
+		cpa_flush_array(&cpa, cache);
+	else
 		cpa_flush_range(baddr, numpages, cache);
-	}
 
 out:
 	return ret;
