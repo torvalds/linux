@@ -1,6 +1,0 @@
-Armadeus i.MX Platforms Device Tree Bindings
------------------------------------------------
-
-APF51: i.MX51 based module.
-Required root node properties:
-    - compatible = "armadeus,imx51-apf51", "fsl,imx51";
