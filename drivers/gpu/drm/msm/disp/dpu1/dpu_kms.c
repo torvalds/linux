@@ -81,7 +81,7 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 	struct dpu_danger_safe_status status;
 	int i;
 
-	if (!kms || !kms->dev || !kms->dev->dev_private || !kms->hw_mdp) {
+	if (!kms->dev || !kms->dev->dev_private || !kms->hw_mdp) {
 		DPU_ERROR("invalid arg(s)\n");
 		return 0;
 	}
@@ -138,46 +138,29 @@ static int dpu_debugfs_safe_stats_show(struct seq_file *s, void *v)
 }
 DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_safe_stats);
 
-static void dpu_debugfs_danger_destroy(struct dpu_kms *dpu_kms)
-{
-	debugfs_remove_recursive(dpu_kms->debugfs_danger);
-	dpu_kms->debugfs_danger = NULL;
-}
-
-static int dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
+static void dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
-	dpu_kms->debugfs_danger = debugfs_create_dir("danger",
-			parent);
-	if (!dpu_kms->debugfs_danger) {
-		DPU_ERROR("failed to create danger debugfs\n");
-		return -EINVAL;
-	}
+	struct dentry *entry = debugfs_create_dir("danger", parent);
+	if (IS_ERR_OR_NULL(entry))
+		return;
 
-	debugfs_create_file("danger_status", 0600, dpu_kms->debugfs_danger,
+	debugfs_create_file("danger_status", 0600, entry,
 			dpu_kms, &dpu_debugfs_danger_stats_fops);
-	debugfs_create_file("safe_status", 0600, dpu_kms->debugfs_danger,
+	debugfs_create_file("safe_status", 0600, entry,
 			dpu_kms, &dpu_debugfs_safe_stats_fops);
-
-	return 0;
 }
 
 static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 {
-	struct dpu_debugfs_regset32 *regset;
-	struct dpu_kms *dpu_kms;
+	struct dpu_debugfs_regset32 *regset = s->private;
+	struct dpu_kms *dpu_kms = regset->dpu_kms;
 	struct drm_device *dev;
 	struct msm_drm_private *priv;
 	void __iomem *base;
 	uint32_t i, addr;
 
-	if (!s || !s->private)
-		return 0;
-
-	regset = s->private;
-
-	dpu_kms = regset->dpu_kms;
-	if (!dpu_kms || !dpu_kms->mmio)
+	if (!dpu_kms->mmio)
 		return 0;
 
 	dev = dpu_kms->dev;
@@ -250,51 +233,24 @@ void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
 
 static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
 {
-	void *p;
-	int rc;
+	void *p = dpu_hw_util_get_log_mask_ptr();
+	struct dentry *entry;
 
-	p = dpu_hw_util_get_log_mask_ptr();
-
-	if (!dpu_kms || !p)
+	if (!p)
 		return -EINVAL;
 
-	dpu_kms->debugfs_root = debugfs_create_dir("debug",
-					   dpu_kms->dev->primary->debugfs_root);
-	if (IS_ERR_OR_NULL(dpu_kms->debugfs_root)) {
-		DRM_ERROR("debugfs create_dir failed %ld\n",
-			  PTR_ERR(dpu_kms->debugfs_root));
-		return PTR_ERR(dpu_kms->debugfs_root);
-	}
+	entry = debugfs_create_dir("debug", dpu_kms->dev->primary->debugfs_root);
+	if (IS_ERR_OR_NULL(entry))
+		return -ENODEV;
 
 	/* allow root to be NULL */
-	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, dpu_kms->debugfs_root, p);
+	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, entry, p);
 
-	(void) dpu_debugfs_danger_init(dpu_kms, dpu_kms->debugfs_root);
-	(void) dpu_debugfs_vbif_init(dpu_kms, dpu_kms->debugfs_root);
-	(void) dpu_debugfs_core_irq_init(dpu_kms, dpu_kms->debugfs_root);
+	dpu_debugfs_danger_init(dpu_kms, entry);
+	dpu_debugfs_vbif_init(dpu_kms, entry);
+	dpu_debugfs_core_irq_init(dpu_kms, entry);
 
-	rc = dpu_core_perf_debugfs_init(&dpu_kms->perf, dpu_kms->debugfs_root);
-	if (rc) {
-		DPU_ERROR("failed to init perf %d\n", rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-static void _dpu_debugfs_destroy(struct dpu_kms *dpu_kms)
-{
-	/* don't need to NULL check debugfs_root */
-	if (dpu_kms) {
-		dpu_debugfs_vbif_destroy(dpu_kms);
-		dpu_debugfs_danger_destroy(dpu_kms);
-		dpu_debugfs_core_irq_destroy(dpu_kms);
-		debugfs_remove_recursive(dpu_kms->debugfs_root);
-	}
-}
-#else
-static void _dpu_debugfs_destroy(struct dpu_kms *dpu_kms)
-{
+	return dpu_core_perf_debugfs_init(dpu_kms, entry);
 }
 #endif
 
@@ -620,22 +576,7 @@ fail:
 #ifdef CONFIG_DEBUG_FS
 static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
-	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
-	struct drm_device *dev;
-	int rc;
-
-	if (!dpu_kms || !dpu_kms->dev || !dpu_kms->dev->dev) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return -EINVAL;
-	}
-
-	dev = dpu_kms->dev;
-
-	rc = _dpu_debugfs_init(dpu_kms);
-	if (rc)
-		DPU_ERROR("dpu_debugfs init failed: %d\n", rc);
-
-	return rc;
+	return _dpu_debugfs_init(to_dpu_kms(kms));
 }
 #endif
 
@@ -659,7 +600,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 	dpu_kms->hw_intr = NULL;
 
 	/* safe to call these more than once during shutdown */
-	_dpu_debugfs_destroy(dpu_kms);
 	_dpu_kms_mmu_destroy(dpu_kms);
 
 	if (dpu_kms->catalog) {

@@ -1863,13 +1863,8 @@ void dpu_encoder_prepare_commit(struct drm_encoder *drm_enc)
 #ifdef CONFIG_DEBUG_FS
 static int _dpu_encoder_status_show(struct seq_file *s, void *data)
 {
-	struct dpu_encoder_virt *dpu_enc;
+	struct dpu_encoder_virt *dpu_enc = s->private;
 	int i;
-
-	if (!s || !s->private)
-		return -EINVAL;
-
-	dpu_enc = s->private;
 
 	mutex_lock(&dpu_enc->enc_lock);
 	for (i = 0; i < dpu_enc->num_phys_encs; i++) {
@@ -1908,7 +1903,7 @@ static int _dpu_encoder_debugfs_status_open(struct inode *inode,
 
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
-	struct dpu_encoder_virt *dpu_enc;
+	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(drm_enc);
 	struct msm_drm_private *priv;
 	struct dpu_kms *dpu_kms;
 	int i;
@@ -1922,12 +1917,11 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 
 	char name[DPU_NAME_SIZE];
 
-	if (!drm_enc || !drm_enc->dev || !drm_enc->dev->dev_private) {
+	if (!drm_enc->dev || !drm_enc->dev->dev_private) {
 		DPU_ERROR("invalid encoder or kms\n");
 		return -EINVAL;
 	}
 
-	dpu_enc = to_dpu_encoder_virt(drm_enc);
 	priv = drm_enc->dev->dev_private;
 	dpu_kms = to_dpu_kms(priv->kms);
 
@@ -1952,25 +1946,10 @@ static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 
 	return 0;
 }
-
-static void _dpu_encoder_destroy_debugfs(struct drm_encoder *drm_enc)
-{
-	struct dpu_encoder_virt *dpu_enc;
-
-	if (!drm_enc)
-		return;
-
-	dpu_enc = to_dpu_encoder_virt(drm_enc);
-	debugfs_remove_recursive(dpu_enc->debugfs_root);
-}
 #else
 static int _dpu_encoder_init_debugfs(struct drm_encoder *drm_enc)
 {
 	return 0;
-}
-
-static void _dpu_encoder_destroy_debugfs(struct drm_encoder *drm_enc)
-{
 }
 #endif
 
@@ -1981,7 +1960,9 @@ static int dpu_encoder_late_register(struct drm_encoder *encoder)
 
 static void dpu_encoder_early_unregister(struct drm_encoder *encoder)
 {
-	_dpu_encoder_destroy_debugfs(encoder);
+	struct dpu_encoder_virt *dpu_enc = to_dpu_encoder_virt(encoder);
+
+	debugfs_remove_recursive(dpu_enc->debugfs_root);
 }
 
 static int dpu_encoder_virt_add_phys_encs(

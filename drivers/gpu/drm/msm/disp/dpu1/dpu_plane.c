@@ -1262,26 +1262,12 @@ static ssize_t _dpu_plane_danger_read(struct file *file,
 			char __user *buff, size_t count, loff_t *ppos)
 {
 	struct dpu_kms *kms = file->private_data;
-	struct dpu_mdss_cfg *cfg = kms->catalog;
-	int len = 0;
-	char buf[40] = {'\0'};
+	int len;
+	char buf[40];
 
-	if (!cfg)
-		return -ENODEV;
+	len = scnprintf(buf, sizeof(buf), "%d\n", !kms->has_danger_ctrl);
 
-	if (*ppos)
-		return 0; /* the end */
-
-	len = snprintf(buf, sizeof(buf), "%d\n", !kms->has_danger_ctrl);
-	if (len < 0 || len >= sizeof(buf))
-		return 0;
-
-	if ((count < sizeof(buf)) || copy_to_user(buff, buf, len))
-		return -EFAULT;
-
-	*ppos += len;   /* increase offset */
-
-	return len;
+	return simple_read_from_buffer(buff, count, ppos, buf, len);
 }
 
 static void _dpu_plane_set_danger_state(struct dpu_kms *kms, bool enable)
@@ -1311,23 +1297,12 @@ static ssize_t _dpu_plane_danger_write(struct file *file,
 		    const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct dpu_kms *kms = file->private_data;
-	struct dpu_mdss_cfg *cfg = kms->catalog;
 	int disable_panic;
-	char buf[10];
+	int ret;
 
-	if (!cfg)
-		return -EFAULT;
-
-	if (count >= sizeof(buf))
-		return -EFAULT;
-
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	buf[count] = 0;	/* end of string */
-
-	if (kstrtoint(buf, 0, &disable_panic))
-		return -EFAULT;
+	ret = kstrtouint_from_user(user_buf, count, 0, &disable_panic);
+	if (ret)
+		return ret;
 
 	if (disable_panic) {
 		/* Disable panic signal for all active pipes */
@@ -1352,33 +1327,10 @@ static const struct file_operations dpu_plane_danger_enable = {
 
 static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 {
-	struct dpu_plane *pdpu;
-	struct dpu_kms *kms;
-	struct msm_drm_private *priv;
-	const struct dpu_sspp_sub_blks *sblk = 0;
-	const struct dpu_sspp_cfg *cfg = 0;
-
-	if (!plane || !plane->dev) {
-		DPU_ERROR("invalid arguments\n");
-		return -EINVAL;
-	}
-
-	priv = plane->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid KMS reference\n");
-		return -EINVAL;
-	}
-
-	kms = to_dpu_kms(priv->kms);
-	pdpu = to_dpu_plane(plane);
-
-	if (pdpu && pdpu->pipe_hw)
-		cfg = pdpu->pipe_hw->cap;
-	if (cfg)
-		sblk = cfg->sblk;
-
-	if (!sblk)
-		return 0;
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+	struct dpu_kms *kms = _dpu_plane_get_kms(plane);
+	const struct dpu_sspp_cfg *cfg = pdpu->pipe_hw->cap;
+	const struct dpu_sspp_sub_blks *sblk = cfg->sblk;
 
 	/* create overall sub-directory for the pipe */
 	pdpu->debugfs_root =
@@ -1449,24 +1401,10 @@ static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 
 	return 0;
 }
-
-static void _dpu_plane_destroy_debugfs(struct drm_plane *plane)
-{
-	struct dpu_plane *pdpu;
-
-	if (!plane)
-		return;
-	pdpu = to_dpu_plane(plane);
-
-	debugfs_remove_recursive(pdpu->debugfs_root);
-}
 #else
 static int _dpu_plane_init_debugfs(struct drm_plane *plane)
 {
 	return 0;
-}
-static void _dpu_plane_destroy_debugfs(struct drm_plane *plane)
-{
 }
 #endif
 
@@ -1477,7 +1415,9 @@ static int dpu_plane_late_register(struct drm_plane *plane)
 
 static void dpu_plane_early_unregister(struct drm_plane *plane)
 {
-	_dpu_plane_destroy_debugfs(plane);
+	struct dpu_plane *pdpu = to_dpu_plane(plane);
+
+	debugfs_remove_recursive(pdpu->debugfs_root);
 }
 
 static const struct drm_plane_funcs dpu_plane_funcs = {

@@ -130,12 +130,13 @@ int dpu_core_perf_init(struct dpu_core_perf *perf,
 		struct dpu_mdss_cfg *catalog,
 		struct dss_clk *core_clk);
 
+struct dpu_kms;
+
 /**
  * dpu_core_perf_debugfs_init - initialize debugfs for core performance context
- * @perf: Pointer to core performance context
+ * @dpu_kms: Pointer to the dpu_kms struct
  * @debugfs_parent: Pointer to parent debugfs
  */
-int dpu_core_perf_debugfs_init(struct dpu_core_perf *perf,
-		struct dentry *parent);
+int dpu_core_perf_debugfs_init(struct dpu_kms *dpu_kms, struct dentry *parent);
 
 #endif /* _DPU_CORE_PERF_H_ */

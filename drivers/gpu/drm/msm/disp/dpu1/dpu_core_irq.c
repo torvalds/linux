@@ -319,10 +319,8 @@ static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 	unsigned long irq_flags;
 	int i, irq_count, enable_count, cb_count;
 
-	if (!irq_obj || !irq_obj->enable_counts || !irq_obj->irq_cb_tbl) {
-		DPU_ERROR("invalid parameters\n");
+	if (WARN_ON(!irq_obj->enable_counts || !irq_obj->irq_cb_tbl))
 		return 0;
-	}
 
 	for (i = 0; i < irq_obj->total_irqs; i++) {
 		spin_lock_irqsave(&irq_obj->cb_lock, irq_flags);
@@ -343,31 +341,11 @@ static int dpu_debugfs_core_irq_show(struct seq_file *s, void *v)
 
 DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_core_irq);
 
-int dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
+void dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
-	dpu_kms->irq_obj.debugfs_file = debugfs_create_file("core_irq", 0600,
-			parent, &dpu_kms->irq_obj,
-			&dpu_debugfs_core_irq_fops);
-
-	return 0;
-}
-
-void dpu_debugfs_core_irq_destroy(struct dpu_kms *dpu_kms)
-{
-	debugfs_remove(dpu_kms->irq_obj.debugfs_file);
-	dpu_kms->irq_obj.debugfs_file = NULL;
-}
-
-#else
-int dpu_debugfs_core_irq_init(struct dpu_kms *dpu_kms,
-		struct dentry *parent)
-{
-	return 0;
-}
-
-void dpu_debugfs_core_irq_destroy(struct dpu_kms *dpu_kms)
-{
+	debugfs_create_file("core_irq", 0600, parent, &dpu_kms->irq_obj,
+		&dpu_debugfs_core_irq_fops);
 }
 #endif
 

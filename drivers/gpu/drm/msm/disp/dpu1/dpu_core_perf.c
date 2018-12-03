@@ -24,8 +24,6 @@
 #include "dpu_crtc.h"
 #include "dpu_core_perf.h"
 
-#define DPU_PERF_MODE_STRING_SIZE	128
-
 /**
  * enum dpu_perf_mode - performance tuning mode
  * @DPU_PERF_MODE_NORMAL: performance controlled by user mode client
@@ -451,24 +449,14 @@ static ssize_t _dpu_core_perf_mode_write(struct file *file,
 	struct dpu_core_perf *perf = file->private_data;
 	struct dpu_perf_cfg *cfg = &perf->catalog->perf;
 	u32 perf_mode = 0;
-	char buf[10];
+	int ret;
 
-	if (!perf)
-		return -ENODEV;
-
-	if (count >= sizeof(buf))
-		return -EFAULT;
-
-	if (copy_from_user(buf, user_buf, count))
-		return -EFAULT;
-
-	buf[count] = 0;	/* end of string */
-
-	if (kstrtouint(buf, 0, &perf_mode))
-		return -EFAULT;
+	ret = kstrtouint_from_user(user_buf, count, 0, &perf_mode);
+	if (ret)
+		return ret;
 
 	if (perf_mode >= DPU_PERF_MODE_MAX)
-		return -EFAULT;
+		return -EINVAL;
 
 	if (perf_mode == DPU_PERF_MODE_FIXED) {
 		DRM_INFO("fix performance mode\n");
@@ -493,29 +481,16 @@ static ssize_t _dpu_core_perf_mode_read(struct file *file,
 			char __user *buff, size_t count, loff_t *ppos)
 {
 	struct dpu_core_perf *perf = file->private_data;
-	int len = 0;
-	char buf[DPU_PERF_MODE_STRING_SIZE] = {'\0'};
+	int len;
+	char buf[128];
 
-	if (!perf)
-		return -ENODEV;
-
-	if (*ppos)
-		return 0;	/* the end */
-
-	len = snprintf(buf, sizeof(buf),
+	len = scnprintf(buf, sizeof(buf),
 			"mode %d min_mdp_clk %llu min_bus_vote %llu\n",
 			perf->perf_tune.mode,
 			perf->perf_tune.min_core_clk,
 			perf->perf_tune.min_bus_vote);
-	if (len < 0 || len >= sizeof(buf))
-		return 0;
 
-	if ((count < sizeof(buf)) || copy_to_user(buff, buf, len))
-		return -EFAULT;
-
-	*ppos += len;   /* increase offset */
-
-	return len;
+	return simple_read_from_buffer(buff, count, ppos, buf, len);
 }
 
 static const struct file_operations dpu_core_perf_mode_fops = {
@@ -524,68 +499,41 @@ static const struct file_operations dpu_core_perf_mode_fops = {
 	.write = _dpu_core_perf_mode_write,
 };
 
-static void dpu_core_perf_debugfs_destroy(struct dpu_core_perf *perf)
+int dpu_core_perf_debugfs_init(struct dpu_kms *dpu_kms, struct dentry *parent)
 {
-	debugfs_remove_recursive(perf->debugfs_root);
-	perf->debugfs_root = NULL;
-}
-
-int dpu_core_perf_debugfs_init(struct dpu_core_perf *perf,
-		struct dentry *parent)
-{
+	struct dpu_core_perf *perf = &dpu_kms->perf;
 	struct dpu_mdss_cfg *catalog = perf->catalog;
-	struct msm_drm_private *priv;
-	struct dpu_kms *dpu_kms;
+	struct dentry *entry;
 
-	priv = perf->dev->dev_private;
-	if (!priv || !priv->kms) {
-		DPU_ERROR("invalid KMS reference\n");
+	entry = debugfs_create_dir("core_perf", parent);
+	if (IS_ERR_OR_NULL(entry))
 		return -EINVAL;
-	}
 
-	dpu_kms = to_dpu_kms(priv->kms);
-
-	perf->debugfs_root = debugfs_create_dir("core_perf", parent);
-	if (!perf->debugfs_root) {
-		DPU_ERROR("failed to create core perf debugfs\n");
-		return -EINVAL;
-	}
-
-	debugfs_create_u64("max_core_clk_rate", 0600, perf->debugfs_root,
+	debugfs_create_u64("max_core_clk_rate", 0600, entry,
 			&perf->max_core_clk_rate);
-	debugfs_create_u64("core_clk_rate", 0600, perf->debugfs_root,
+	debugfs_create_u64("core_clk_rate", 0600, entry,
 			&perf->core_clk_rate);
-	debugfs_create_u32("enable_bw_release", 0600, perf->debugfs_root,
+	debugfs_create_u32("enable_bw_release", 0600, entry,
 			(u32 *)&perf->enable_bw_release);
-	debugfs_create_u32("threshold_low", 0600, perf->debugfs_root,
+	debugfs_create_u32("threshold_low", 0600, entry,
 			(u32 *)&catalog->perf.max_bw_low);
-	debugfs_create_u32("threshold_high", 0600, perf->debugfs_root,
+	debugfs_create_u32("threshold_high", 0600, entry,
 			(u32 *)&catalog->perf.max_bw_high);
-	debugfs_create_u32("min_core_ib", 0600, perf->debugfs_root,
+	debugfs_create_u32("min_core_ib", 0600, entry,
 			(u32 *)&catalog->perf.min_core_ib);
-	debugfs_create_u32("min_llcc_ib", 0600, perf->debugfs_root,
+	debugfs_create_u32("min_llcc_ib", 0600, entry,
 			(u32 *)&catalog->perf.min_llcc_ib);
-	debugfs_create_u32("min_dram_ib", 0600, perf->debugfs_root,
+	debugfs_create_u32("min_dram_ib", 0600, entry,
 			(u32 *)&catalog->perf.min_dram_ib);
-	debugfs_create_file("perf_mode", 0600, perf->debugfs_root,
+	debugfs_create_file("perf_mode", 0600, entry,
 			(u32 *)perf, &dpu_core_perf_mode_fops);
-	debugfs_create_u64("fix_core_clk_rate", 0600, perf->debugfs_root,
+	debugfs_create_u64("fix_core_clk_rate", 0600, entry,
 			&perf->fix_core_clk_rate);
-	debugfs_create_u64("fix_core_ib_vote", 0600, perf->debugfs_root,
+	debugfs_create_u64("fix_core_ib_vote", 0600, entry,
 			&perf->fix_core_ib_vote);
-	debugfs_create_u64("fix_core_ab_vote", 0600, perf->debugfs_root,
+	debugfs_create_u64("fix_core_ab_vote", 0600, entry,
 			&perf->fix_core_ab_vote);
 
-	return 0;
-}
-#else
-static void dpu_core_perf_debugfs_destroy(struct dpu_core_perf *perf)
-{
-}
-
-int dpu_core_perf_debugfs_init(struct dpu_core_perf *perf,
-		struct dentry *parent)
-{
 	return 0;
 }
 #endif
@@ -597,7 +545,6 @@ void dpu_core_perf_destroy(struct dpu_core_perf *perf)
 		return;
 	}
 
-	dpu_core_perf_debugfs_destroy(perf);
 	perf->max_core_clk_rate = 0;
 	perf->core_clk = NULL;
 	perf->catalog = NULL;

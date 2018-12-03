@@ -1186,9 +1186,6 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 
 	int i, out_width;
 
-	if (!s || !s->private)
-		return -EINVAL;
-
 	dpu_crtc = s->private;
 	crtc = &dpu_crtc->base;
 
@@ -1328,8 +1325,7 @@ DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_crtc_debugfs_state);
 
 static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 {
-	struct dpu_crtc *dpu_crtc;
-	struct dpu_kms *dpu_kms;
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
 
 	static const struct file_operations debugfs_status_fops = {
 		.open =		_dpu_debugfs_status_open,
@@ -1337,12 +1333,6 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 		.llseek =	seq_lseek,
 		.release =	single_release,
 	};
-
-	if (!crtc)
-		return -EINVAL;
-	dpu_crtc = to_dpu_crtc(crtc);
-
-	dpu_kms = _dpu_crtc_get_kms(crtc);
 
 	dpu_crtc->debugfs_root = debugfs_create_dir(dpu_crtc->name,
 			crtc->dev->primary->debugfs_root);
@@ -1360,24 +1350,10 @@ static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 
 	return 0;
 }
-
-static void _dpu_crtc_destroy_debugfs(struct drm_crtc *crtc)
-{
-	struct dpu_crtc *dpu_crtc;
-
-	if (!crtc)
-		return;
-	dpu_crtc = to_dpu_crtc(crtc);
-	debugfs_remove_recursive(dpu_crtc->debugfs_root);
-}
 #else
 static int _dpu_crtc_init_debugfs(struct drm_crtc *crtc)
 {
 	return 0;
-}
-
-static void _dpu_crtc_destroy_debugfs(struct drm_crtc *crtc)
-{
 }
 #endif /* CONFIG_DEBUG_FS */
 
@@ -1388,7 +1364,9 @@ static int dpu_crtc_late_register(struct drm_crtc *crtc)
 
 static void dpu_crtc_early_unregister(struct drm_crtc *crtc)
 {
-	_dpu_crtc_destroy_debugfs(crtc);
+	struct dpu_crtc *dpu_crtc = to_dpu_crtc(crtc);
+
+	debugfs_remove_recursive(dpu_crtc->debugfs_root);
 }
 
 static const struct drm_crtc_funcs dpu_crtc_funcs = {

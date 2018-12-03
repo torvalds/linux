@@ -310,31 +310,25 @@ void dpu_vbif_init_memtypes(struct dpu_kms *dpu_kms)
 }
 
 #ifdef CONFIG_DEBUG_FS
-void dpu_debugfs_vbif_destroy(struct dpu_kms *dpu_kms)
-{
-	debugfs_remove_recursive(dpu_kms->debugfs_vbif);
-	dpu_kms->debugfs_vbif = NULL;
-}
 
-int dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
+void dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 {
 	char vbif_name[32];
-	struct dentry *debugfs_vbif;
+	struct dentry *entry, *debugfs_vbif;
 	int i, j;
 
-	dpu_kms->debugfs_vbif = debugfs_create_dir("vbif", debugfs_root);
-	if (!dpu_kms->debugfs_vbif) {
-		DPU_ERROR("failed to create vbif debugfs\n");
-		return -EINVAL;
-	}
+	entry = debugfs_create_dir("vbif", debugfs_root);
+	if (IS_ERR_OR_NULL(entry))
+		return;
 
 	for (i = 0; i < dpu_kms->catalog->vbif_count; i++) {
 		struct dpu_vbif_cfg *vbif = &dpu_kms->catalog->vbif[i];
 
 		snprintf(vbif_name, sizeof(vbif_name), "%d", vbif->id);
 
-		debugfs_vbif = debugfs_create_dir(vbif_name,
-				dpu_kms->debugfs_vbif);
+		debugfs_vbif = debugfs_create_dir(vbif_name, entry);
+		if (IS_ERR_OR_NULL(debugfs_vbif))
+			continue;
 
 		debugfs_create_u32("features", 0600, debugfs_vbif,
 			(u32 *)&vbif->features);
@@ -376,7 +370,5 @@ int dpu_debugfs_vbif_init(struct dpu_kms *dpu_kms, struct dentry *debugfs_root)
 					(u32 *)&cfg->ot_limit);
 		}
 	}
-
-	return 0;
 }
 #endif
