@@ -40,6 +40,10 @@ static int auto_delink_en = 1;
 module_param(auto_delink_en, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(auto_delink_en, "enable auto delink");
 
+static int enable_mmc = 1;
+module_param(enable_mmc, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(enable_mmc, "enable mmc support");
+
 #ifdef CONFIG_REALTEK_AUTOPM
 static int ss_en = 1;
 module_param(ss_en, int, S_IRUGO | S_IWUSR);
@@ -474,6 +478,27 @@ static int rts51x_check_status(struct us_data *us, u8 lun)
 	return 0;
 }
 
+static int rts51x_lun_is_mmc_xd(struct us_data *us, u8 lun)
+{
+	struct rts51x_chip *chip = (struct rts51x_chip *)(us->extra);
+
+	if (rts51x_check_status(us, lun))
+		return -EIO;
+
+	usb_stor_dbg(us,"cur_lun = 0x%02X\n", chip->status[lun].cur_lun);
+	usb_stor_dbg(us,"card_type = 0x%02X\n", chip->status[lun].card_type);
+	usb_stor_dbg(us,"detailed_type1= 0x%02X\n", chip->status[lun].detailed_type.detailed_type1);
+	switch (chip->status[lun].card_type) {
+	case 0x4: /* XD */
+		return 1;
+	case 0x2: /* SD/MMC */
+		if (chip->status[lun].detailed_type.detailed_type1 & 0x08)
+			return 1;
+	default:
+		return 0;
+	}
+}
+
 static int enable_oscillator(struct us_data *us)
 {
 	int retval;
@@ -852,6 +877,17 @@ static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 			chip->proto_handler_backup(srb, us);
 			/* Check whether card is plugged in */
 			if (srb->cmnd[0] == TEST_UNIT_READY) {
+				if (!enable_mmc && rts51x_lun_is_mmc_xd(us, srb->device->lun)) {
+					usb_stor_dbg(us,"%s: lun is mmc/xd\n", __func__);
+					srb->result = SAM_STAT_CHECK_CONDITION;
+					memcpy(srb->sense_buffer,
+							media_not_present,
+							US_SENSE_SIZE);
+					CLR_LUN_READY(chip, srb->device->lun);
+					card_first_show = 1;
+					return;
+				}
+
 				if (srb->result == SAM_STAT_GOOD) {
 					SET_LUN_READY(chip, srb->device->lun);
 					if (card_first_show) {
