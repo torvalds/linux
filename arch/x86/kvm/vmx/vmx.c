@@ -7810,6 +7810,16 @@ fail:
 	return 1;
 }
 
+/*
+ * When nested=0, all VMX instruction VM Exits filter here.  The handlers
+ * are overwritten by nested_vmx_setup() when nested=1.
+ */
+static int handle_vmx_instruction(struct kvm_vcpu *vcpu)
+{
+	kvm_queue_exception(vcpu, UD_VECTOR);
+	return 1;
+}
+
 static int handle_encls(struct kvm_vcpu *vcpu)
 {
 	/*
@@ -7826,7 +7836,7 @@ static int handle_encls(struct kvm_vcpu *vcpu)
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
  * to be done to userspace and return 0.
  */
-static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
+static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_EXCEPTION_NMI]           = handle_exception,
 	[EXIT_REASON_EXTERNAL_INTERRUPT]      = handle_external_interrupt,
 	[EXIT_REASON_TRIPLE_FAULT]            = handle_triple_fault,
@@ -7843,15 +7853,15 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_INVLPG]		      = handle_invlpg,
 	[EXIT_REASON_RDPMC]                   = handle_rdpmc,
 	[EXIT_REASON_VMCALL]                  = handle_vmcall,
-	[EXIT_REASON_VMCLEAR]	              = handle_vmclear,
-	[EXIT_REASON_VMLAUNCH]                = handle_vmlaunch,
-	[EXIT_REASON_VMPTRLD]                 = handle_vmptrld,
-	[EXIT_REASON_VMPTRST]                 = handle_vmptrst,
-	[EXIT_REASON_VMREAD]                  = handle_vmread,
-	[EXIT_REASON_VMRESUME]                = handle_vmresume,
-	[EXIT_REASON_VMWRITE]                 = handle_vmwrite,
-	[EXIT_REASON_VMOFF]                   = handle_vmoff,
-	[EXIT_REASON_VMON]                    = handle_vmon,
+	[EXIT_REASON_VMCLEAR]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMLAUNCH]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMPTRLD]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMPTRST]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMREAD]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMRESUME]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMWRITE]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMOFF]		      = handle_vmx_instruction,
+	[EXIT_REASON_VMON]		      = handle_vmx_instruction,
 	[EXIT_REASON_TPR_BELOW_THRESHOLD]     = handle_tpr_below_threshold,
 	[EXIT_REASON_APIC_ACCESS]             = handle_apic_access,
 	[EXIT_REASON_APIC_WRITE]              = handle_apic_write,
@@ -7868,15 +7878,15 @@ static int (*const kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
 	[EXIT_REASON_MWAIT_INSTRUCTION]	      = handle_mwait,
 	[EXIT_REASON_MONITOR_TRAP_FLAG]       = handle_monitor_trap,
 	[EXIT_REASON_MONITOR_INSTRUCTION]     = handle_monitor,
-	[EXIT_REASON_INVEPT]                  = handle_invept,
-	[EXIT_REASON_INVVPID]                 = handle_invvpid,
+	[EXIT_REASON_INVEPT]                  = handle_vmx_instruction,
+	[EXIT_REASON_INVVPID]                 = handle_vmx_instruction,
 	[EXIT_REASON_RDRAND]                  = handle_invalid_op,
 	[EXIT_REASON_RDSEED]                  = handle_invalid_op,
 	[EXIT_REASON_XSAVES]                  = handle_xsaves,
 	[EXIT_REASON_XRSTORS]                 = handle_xrstors,
 	[EXIT_REASON_PML_FULL]		      = handle_pml_full,
 	[EXIT_REASON_INVPCID]                 = handle_invpcid,
-	[EXIT_REASON_VMFUNC]                  = handle_vmfunc,
+	[EXIT_REASON_VMFUNC]		      = handle_vmx_instruction,
 	[EXIT_REASON_PREEMPTION_TIMER]	      = handle_preemption_timer,
 	[EXIT_REASON_ENCLS]		      = handle_encls,
 };
@@ -12978,7 +12988,7 @@ static __exit void nested_vmx_hardware_unsetup(void)
 	}
 }
 
-static __init int nested_vmx_hardware_setup(void)
+static __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 {
 	int i;
 
@@ -12994,6 +13004,25 @@ static __init int nested_vmx_hardware_setup(void)
 
 		init_vmcs_shadow_fields();
 	}
+
+	exit_handlers[EXIT_REASON_VMCLEAR]	= handle_vmclear,
+	exit_handlers[EXIT_REASON_VMLAUNCH]	= handle_vmlaunch,
+	exit_handlers[EXIT_REASON_VMPTRLD]	= handle_vmptrld,
+	exit_handlers[EXIT_REASON_VMPTRST]	= handle_vmptrst,
+	exit_handlers[EXIT_REASON_VMREAD]	= handle_vmread,
+	exit_handlers[EXIT_REASON_VMRESUME]	= handle_vmresume,
+	exit_handlers[EXIT_REASON_VMWRITE]	= handle_vmwrite,
+	exit_handlers[EXIT_REASON_VMOFF]	= handle_vmoff,
+	exit_handlers[EXIT_REASON_VMON]		= handle_vmon,
+	exit_handlers[EXIT_REASON_INVEPT]	= handle_invept,
+	exit_handlers[EXIT_REASON_INVVPID]	= handle_invvpid,
+	exit_handlers[EXIT_REASON_VMFUNC]	= handle_vmfunc,
+
+	kvm_x86_ops->check_nested_events = vmx_check_nested_events;
+	kvm_x86_ops->get_nested_state = vmx_get_nested_state;
+	kvm_x86_ops->set_nested_state = vmx_set_nested_state;
+	kvm_x86_ops->get_vmcs12_pages = nested_get_vmcs12_pages,
+	kvm_x86_ops->nested_enable_evmcs = nested_enable_evmcs;
 
 	return 0;
 }
@@ -13090,11 +13119,6 @@ static __init int hardware_setup(void)
 	else
 		kvm_disable_tdp();
 
-	if (!nested) {
-		kvm_x86_ops->get_nested_state = NULL;
-		kvm_x86_ops->set_nested_state = NULL;
-	}
-
 	/*
 	 * Only enable PML when hardware supports PML feature, and both EPT
 	 * and EPT A/D bit features are enabled -- PML depends on them to work.
@@ -13133,7 +13157,7 @@ static __init int hardware_setup(void)
 	kvm_mce_cap_supported |= MCG_LMCE_P;
 
 	if (nested) {
-		r = nested_vmx_hardware_setup();
+		r = nested_vmx_hardware_setup(kvm_vmx_exit_handlers);
 		if (r)
 			return r;
 	}
@@ -13264,7 +13288,6 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.xsaves_supported = vmx_xsaves_supported,
 	.umip_emulated = vmx_umip_emulated,
 
-	.check_nested_events = vmx_check_nested_events,
 	.request_immediate_exit = vmx_request_immediate_exit,
 
 	.sched_in = vmx_sched_in,
@@ -13289,16 +13312,16 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 
 	.setup_mce = vmx_setup_mce,
 
-	.get_nested_state = vmx_get_nested_state,
-	.set_nested_state = vmx_set_nested_state,
-	.get_vmcs12_pages = nested_get_vmcs12_pages,
-
 	.smi_allowed = vmx_smi_allowed,
 	.pre_enter_smm = vmx_pre_enter_smm,
 	.pre_leave_smm = vmx_pre_leave_smm,
 	.enable_smi_window = enable_smi_window,
 
-	.nested_enable_evmcs = nested_enable_evmcs,
+	.check_nested_events = NULL,
+	.get_nested_state = NULL,
+	.set_nested_state = NULL,
+	.get_vmcs12_pages = NULL,
+	.nested_enable_evmcs = NULL,
 };
 
 static void vmx_cleanup_l1d_flush(void)
