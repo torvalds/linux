@@ -265,12 +265,14 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 	nr = SB_NR_TO_BIT(sb, start);
 
 	while (scanned < sb->depth) {
-		struct sbitmap_word *word = &sb->map[index];
-		unsigned int depth = min_t(unsigned int, word->depth - nr,
+		unsigned long word;
+		unsigned int depth = min_t(unsigned int,
+					   sb->map[index].depth - nr,
 					   sb->depth - scanned);
 
 		scanned += depth;
-		if (!word->word)
+		word = sb->map[index].word & ~sb->map[index].cleared;
+		if (!word)
 			goto next;
 
 		/*
@@ -280,7 +282,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 		 */
 		depth += nr;
 		while (1) {
-			nr = find_next_bit(&word->word, depth, nr);
+			nr = find_next_bit(&word, depth, nr);
 			if (nr >= depth)
 				break;
 			if (!fn(sb, (index << sb->shift) + nr, data))
