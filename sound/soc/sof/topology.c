@@ -1785,12 +1785,15 @@ static int sof_widget_ready(struct snd_soc_component *scomp, int index,
 static int sof_widget_unload(struct snd_soc_component *scomp,
 			     struct snd_soc_dobj *dobj)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct snd_kcontrol_new *kc = NULL;
 	struct snd_soc_dapm_widget *widget;
+	struct sof_ipc_pipe_new *pipeline;
 	struct snd_sof_control *scontrol;
 	struct snd_sof_widget *swidget;
 	struct soc_mixer_control *sm;
 	struct snd_sof_dai *dai;
+	int ret = 0;
 
 	swidget = dobj->private;
 	if (!swidget)
@@ -1811,6 +1814,19 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 			list_del(&dai->list);
 			kfree(dai);
 		}
+		break;
+	case snd_soc_dapm_scheduler:
+
+		/* power down the pipeline schedule core */
+		pipeline = (struct sof_ipc_pipe_new *)swidget->private;
+		ret = snd_sof_dsp_core_power_down(sdev, 1 << pipeline->core);
+		if (ret < 0)
+			dev_err(sdev->dev, "error: powering down pipeline schedule core %d\n",
+				pipeline->core);
+
+		/* free private value */
+		kfree(swidget->private);
+
 		break;
 	case snd_soc_dapm_pga:
 
@@ -1833,7 +1849,7 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	list_del(&swidget->list);
 	kfree(swidget);
 
-	return 0;
+	return ret;
 }
 
 /*
