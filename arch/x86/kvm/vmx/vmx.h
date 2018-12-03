@@ -267,6 +267,7 @@ struct kvm_vmx {
 	spinlock_t ept_pointer_lock;
 };
 
+bool nested_vmx_allowed(struct kvm_vcpu *vcpu);
 void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void vmx_vcpu_put(struct kvm_vcpu *vcpu);
 int allocate_vpid(void);

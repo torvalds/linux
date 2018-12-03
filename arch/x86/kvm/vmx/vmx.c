@@ -698,6 +698,15 @@ struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 	return NULL;
 }
 
+void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
+{
+	vmcs_clear(loaded_vmcs->vmcs);
+	if (loaded_vmcs->shadow_vmcs && loaded_vmcs->launched)
+		vmcs_clear(loaded_vmcs->shadow_vmcs);
+	loaded_vmcs->cpu = -1;
+	loaded_vmcs->launched = 0;
+}
+
 #ifdef CONFIG_KEXEC_CORE
 /*
  * This bitmap is used to indicate whether the vmclear
@@ -1722,7 +1731,7 @@ static u64 vmx_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
  * all guests if the "nested" module option is off, and can also be disabled
  * for a single guest by disabling its VMX cpuid bit.
  */
-static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
+bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
 {
 	return nested && guest_cpuid_has(vcpu, X86_FEATURE_VMX);
 }
