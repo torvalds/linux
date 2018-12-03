@@ -1303,5 +1303,11 @@ void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
+static bool intel_engine_verify_workarounds(struct intel_engine_cs *engine,
+					    const char *from)
+{
+	return wa_list_verify(engine->i915, &engine->wa_list, from);
+}
+
 #include "selftests/intel_workarounds.c"
 #endif

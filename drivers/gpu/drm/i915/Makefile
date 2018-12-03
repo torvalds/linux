@@ -166,6 +166,7 @@ i915-$(CONFIG_DRM_I915_SELFTEST) += \
 	selftests/i915_random.o \
 	selftests/i915_selftest.o \
 	selftests/igt_flush_test.o \
+	selftests/igt_reset.o \
 	selftests/igt_spinner.o
 
 # virtual gpu code
