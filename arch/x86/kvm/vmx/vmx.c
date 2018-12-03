@@ -469,6 +469,8 @@ static u32 vmx_preemption_cpu_tfms[] = {
  /* 321324.pdf - AAK139 - D0 - Xeon 5500 */
  /* 320836.pdf - AAJ124 - D0 - i7-900 Extreme and i7-900 Desktop */
 0x000106A5,
+ /* Xeon E3-1220 V2 */
+0x000306A8,
 };
 
 static inline bool cpu_has_broken_vmx_preemption_timer(void)
