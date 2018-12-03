@@ -271,7 +271,7 @@ void dcn10_link_encoder_setup(
 	struct link_encoder *enc,
 	enum signal_type signal);
 
-void configure_encoder(
+void enc1_configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings);
 

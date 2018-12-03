@@ -440,7 +440,7 @@ static uint8_t get_frontend_source(
 	}
 }
 
-void configure_encoder(
+void enc1_configure_encoder(
 	struct dcn10_link_encoder *enc10,
 	const struct dc_link_settings *link_settings)
 {
@@ -910,7 +910,7 @@ void dcn10_link_encoder_enable_dp_output(
 	 * but it's not passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
-	configure_encoder(enc10, link_settings);
+	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = enc->preferred_engine;
@@ -949,7 +949,7 @@ void dcn10_link_encoder_enable_dp_mst_output(
 	 * but it's not passed to asic_control.
 	 * We need to set number of lanes manually.
 	 */
-	configure_encoder(enc10, link_settings);
+	enc1_configure_encoder(enc10, link_settings);
 
 	cntl.action = TRANSMITTER_CONTROL_ENABLE;
 	cntl.engine_id = ENGINE_ID_UNKNOWN;
