@@ -481,10 +481,11 @@ static inline void sock_zerocopy_get(struct ubuf_info *uarg)
 }
 
 void sock_zerocopy_put(struct ubuf_info *uarg);
-void sock_zerocopy_put_abort(struct ubuf_info *uarg);
+void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref);
 
 void sock_zerocopy_callback(struct ubuf_info *uarg, bool success);
 
+int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len);
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
 			     struct ubuf_info *uarg);
@@ -1325,10 +1326,14 @@ static inline struct ubuf_info *skb_zcopy(struct sk_buff *skb)
 	return is_zcopy ? skb_uarg(skb) : NULL;
 }
 
-static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg)
+static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg,
+				 bool *have_ref)
 {
 	if (skb && uarg && !skb_zcopy(skb)) {
-		sock_zerocopy_get(uarg);
+		if (unlikely(have_ref && *have_ref))
+			*have_ref = false;
+		else
+			sock_zerocopy_get(uarg);
 		skb_shinfo(skb)->destructor_arg = uarg;
 		skb_shinfo(skb)->tx_flags |= SKBTX_ZEROCOPY_FRAG;
 	}
@@ -1373,7 +1378,7 @@ static inline void skb_zcopy_abort(struct sk_buff *skb)
 	struct ubuf_info *uarg = skb_zcopy(skb);
 
 	if (uarg) {
-		sock_zerocopy_put_abort(uarg);
+		sock_zerocopy_put_abort(uarg, false);
 		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
 	}
 }

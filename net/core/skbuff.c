@@ -1089,7 +1089,7 @@ void sock_zerocopy_put(struct ubuf_info *uarg)
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_put);
 
-void sock_zerocopy_put_abort(struct ubuf_info *uarg)
+void sock_zerocopy_put_abort(struct ubuf_info *uarg, bool have_uref)
 {
 	if (uarg) {
 		struct sock *sk = skb_from_uarg(uarg)->sk;
@@ -1097,13 +1097,20 @@ void sock_zerocopy_put_abort(struct ubuf_info *uarg)
 		atomic_dec(&sk->sk_zckey);
 		uarg->len--;
 
-		sock_zerocopy_put(uarg);
+		if (have_uref)
+			sock_zerocopy_put(uarg);
 	}
 }
 EXPORT_SYMBOL_GPL(sock_zerocopy_put_abort);
 
 extern int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 				   struct iov_iter *from, size_t length);
+
+int skb_zerocopy_iter_dgram(struct sk_buff *skb, struct msghdr *msg, int len)
+{
+	return __zerocopy_sg_from_iter(skb->sk, skb, &msg->msg_iter, len);
+}
+EXPORT_SYMBOL_GPL(skb_zerocopy_iter_dgram);
 
 int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 			     struct msghdr *msg, int len,
@@ -1131,7 +1138,7 @@ int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
 		return err;
 	}
 
-	skb_zcopy_set(skb, uarg);
+	skb_zcopy_set(skb, uarg, NULL);
 	return skb->len - orig_len;
 }
 EXPORT_SYMBOL_GPL(skb_zerocopy_iter_stream);
@@ -1151,7 +1158,7 @@ static int skb_zerocopy_clone(struct sk_buff *nskb, struct sk_buff *orig,
 			if (skb_copy_ubufs(nskb, GFP_ATOMIC))
 				return -EIO;
 		}
-		skb_zcopy_set(nskb, skb_uarg(orig));
+		skb_zcopy_set(nskb, skb_uarg(orig), NULL);
 	}
 	return 0;
 }
