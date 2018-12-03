@@ -24,6 +24,8 @@
 #ifndef __ARCH_X86_KVM_HYPERV_H__
 #define __ARCH_X86_KVM_HYPERV_H__
 
+#include <linux/kvm_host.h>
+
 static inline struct kvm_vcpu_hv *vcpu_to_hv_vcpu(struct kvm_vcpu *vcpu)
 {
 	return &vcpu->arch.hyperv;
