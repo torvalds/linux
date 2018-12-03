@@ -681,10 +681,8 @@ static int new_lockspace(const char *name, const char *cluster,
  out_lkbidr:
 	idr_destroy(&ls->ls_lkbidr);
  out_rsbtbl:
-	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {
-		if (ls->ls_remove_names[i])
-			kfree(ls->ls_remove_names[i]);
-	}
+	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++)
+		kfree(ls->ls_remove_names[i]);
 	vfree(ls->ls_rsbtbl);
  out_lsfree:
 	if (do_unreg)
