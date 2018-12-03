@@ -12,7 +12,7 @@
 
 #include "internals.h"
 
-#define SPI_MEM_MAX_BUSWIDTH		4
+#define SPI_MEM_MAX_BUSWIDTH		8
 
 /**
  * spi_controller_dma_map_mem_op_data() - DMA-map the buffer attached to a
@@ -117,6 +117,13 @@ static int spi_check_buswidth_req(struct spi_mem *mem, u8 buswidth, bool tx)
 	case 4:
 		if ((tx && (mode & SPI_TX_QUAD)) ||
 		    (!tx && (mode & SPI_RX_QUAD)))
+			return 0;
+
+		break;
+
+	case 8:
+		if ((tx && (mode & SPI_TX_OCTAL)) ||
+		    (!tx && (mode & SPI_RX_OCTAL)))
 			return 0;
 
 		break;
