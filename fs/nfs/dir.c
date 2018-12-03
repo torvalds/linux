@@ -2139,7 +2139,7 @@ MODULE_PARM_DESC(nfs_access_max_cachesize, "NFS access maximum total cache lengt
 
 static void nfs_access_free_entry(struct nfs_access_entry *entry)
 {
-	put_rpccred(entry->cred);
+	put_cred(entry->cred);
 	kfree_rcu(entry, rcu_head);
 	smp_mb__before_atomic();
 	atomic_long_dec(&nfs_access_nr_entries);
@@ -2265,17 +2265,18 @@ void nfs_access_zap_cache(struct inode *inode)
 }
 EXPORT_SYMBOL_GPL(nfs_access_zap_cache);
 
-static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, struct rpc_cred *cred)
+static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, const struct cred *cred)
 {
 	struct rb_node *n = NFS_I(inode)->access_cache.rb_node;
-	struct nfs_access_entry *entry;
 
 	while (n != NULL) {
-		entry = rb_entry(n, struct nfs_access_entry, rb_node);
+		struct nfs_access_entry *entry =
+			rb_entry(n, struct nfs_access_entry, rb_node);
+		int cmp = cred_fscmp(cred, entry->cred);
 
-		if (cred < entry->cred)
+		if (cmp < 0)
 			n = n->rb_left;
-		else if (cred > entry->cred)
+		else if (cmp > 0)
 			n = n->rb_right;
 		else
 			return entry;
@@ -2283,7 +2284,7 @@ static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, st
 	return NULL;
 }
 
-static int nfs_access_get_cached(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res, bool may_block)
+static int nfs_access_get_cached(struct inode *inode, const struct cred *cred, struct nfs_access_entry *res, bool may_block)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_access_entry *cache;
@@ -2326,7 +2327,7 @@ out_zap:
 	return -ENOENT;
 }
 
-static int nfs_access_get_cached_rcu(struct inode *inode, struct rpc_cred *cred, struct nfs_access_entry *res)
+static int nfs_access_get_cached_rcu(struct inode *inode, const struct cred *cred, struct nfs_access_entry *res)
 {
 	/* Only check the most recently returned cache entry,
 	 * but do it without locking.
@@ -2363,15 +2364,17 @@ static void nfs_access_add_rbtree(struct inode *inode, struct nfs_access_entry *
 	struct rb_node **p = &root_node->rb_node;
 	struct rb_node *parent = NULL;
 	struct nfs_access_entry *entry;
+	int cmp;
 
 	spin_lock(&inode->i_lock);
 	while (*p != NULL) {
 		parent = *p;
 		entry = rb_entry(parent, struct nfs_access_entry, rb_node);
+		cmp = cred_fscmp(set->cred, entry->cred);
 
-		if (set->cred < entry->cred)
+		if (cmp < 0)
 			p = &parent->rb_left;
-		else if (set->cred > entry->cred)
+		else if (cmp > 0)
 			p = &parent->rb_right;
 		else
 			goto found;
@@ -2395,7 +2398,7 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 	if (cache == NULL)
 		return;
 	RB_CLEAR_NODE(&cache->rb_node);
-	cache->cred = get_rpccred(set->cred);
+	cache->cred = get_cred(set->cred);
 	cache->mask = set->mask;
 
 	/* The above field assignments must be visible
@@ -2459,7 +2462,7 @@ void nfs_access_set_mask(struct nfs_access_entry *entry, u32 access_result)
 }
 EXPORT_SYMBOL_GPL(nfs_access_set_mask);
 
-static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
+static int nfs_do_access(struct inode *inode, const struct cred *cred, int mask)
 {
 	struct nfs_access_entry cache;
 	bool may_block = (mask & MAY_NOT_BLOCK) == 0;
@@ -2523,7 +2526,7 @@ static int nfs_open_permission_mask(int openflags)
 	return mask;
 }
 
-int nfs_may_open(struct inode *inode, struct rpc_cred *cred, int openflags)
+int nfs_may_open(struct inode *inode, const struct cred *cred, int openflags)
 {
 	return nfs_do_access(inode, cred, nfs_open_permission_mask(openflags));
 }
@@ -2548,7 +2551,7 @@ static int nfs_execute_ok(struct inode *inode, int mask)
 
 int nfs_permission(struct inode *inode, int mask)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred = current_cred();
 	int res = 0;
 
 	nfs_inc_stats(inode, NFSIOS_VFSACCESS);
@@ -2582,20 +2585,11 @@ force_lookup:
 
 	/* Always try fast lookups first */
 	rcu_read_lock();
-	cred = rpc_lookup_cred_nonblock();
-	if (!IS_ERR(cred))
-		res = nfs_do_access(inode, cred, mask|MAY_NOT_BLOCK);
-	else
-		res = PTR_ERR(cred);
+	res = nfs_do_access(inode, cred, mask|MAY_NOT_BLOCK);
 	rcu_read_unlock();
 	if (res == -ECHILD && !(mask & MAY_NOT_BLOCK)) {
 		/* Fast lookup failed, try the slow way */
-		cred = rpc_lookup_cred();
-		if (!IS_ERR(cred)) {
-			res = nfs_do_access(inode, cred, mask);
-			put_rpccred(cred);
-		} else
-			res = PTR_ERR(cred);
+		res = nfs_do_access(inode, cred, mask);
 	}
 out:
 	if (!res && (mask & MAY_EXEC))

@@ -1772,7 +1772,7 @@ static struct nfs4_state *nfs4_try_open_cached(struct nfs4_opendata *opendata)
 		rcu_read_unlock();
 		nfs_release_seqid(opendata->o_arg.seqid);
 		if (!opendata->is_recover) {
-			ret = nfs_may_open(state->inode, state->owner->so_cred, open_mode);
+			ret = nfs_may_open(state->inode, state->owner->so_cred->cr_cred, open_mode);
 			if (ret != 0)
 				goto out;
 		}
@@ -2511,7 +2511,7 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 	} else if ((fmode & FMODE_READ) && !opendata->file_created)
 		mask = NFS4_ACCESS_READ;
 
-	cache.cred = cred;
+	cache.cred = cred->cr_cred;
 	nfs_access_set_mask(&cache, opendata->o_res.access_result);
 	nfs_access_add_cache(state->inode, &cache);
 
@@ -4188,18 +4188,25 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 	struct nfs4_accessres res = {
 		.server = server,
 	};
+	struct auth_cred acred = {
+		.cred = entry->cred,
+	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_ACCESS],
 		.rpc_argp = &args,
 		.rpc_resp = &res,
-		.rpc_cred = entry->cred,
+		.rpc_cred = rpc_lookup_generic_cred(&acred, 0, GFP_NOFS),
 	};
 	int status = 0;
 
+	if (!msg.rpc_cred)
+		return -ENOMEM;
 	if (!nfs4_have_delegation(inode, FMODE_READ)) {
 		res.fattr = nfs_alloc_fattr();
-		if (res.fattr == NULL)
+		if (res.fattr == NULL) {
+			put_rpccred(msg.rpc_cred);
 			return -ENOMEM;
+		}
 		args.bitmask = server->cache_consistency_bitmask;
 	}
 
@@ -4210,6 +4217,7 @@ static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry
 			nfs_refresh_inode(inode, res.fattr);
 	}
 	nfs_free_fattr(res.fattr);
+	put_rpccred(msg.rpc_cred);
 	return status;
 }
 
