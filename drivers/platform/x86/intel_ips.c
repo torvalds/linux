@@ -1210,13 +1210,7 @@ static void ips_debugfs_cleanup(struct ips_driver *ips) { return; }
 
 /* Expose current state and limits in debugfs if possible */
 
-struct ips_debugfs_node {
-	struct ips_driver *ips;
-	char *name;
-	int (*show)(struct seq_file *m, void *data);
-};
-
-static int show_cpu_temp(struct seq_file *m, void *data)
+static int cpu_temp_show(struct seq_file *m, void *data)
 {
 	struct ips_driver *ips = m->private;
 
@@ -1225,8 +1219,9 @@ static int show_cpu_temp(struct seq_file *m, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(cpu_temp);
 
-static int show_cpu_power(struct seq_file *m, void *data)
+static int cpu_power_show(struct seq_file *m, void *data)
 {
 	struct ips_driver *ips = m->private;
 
@@ -1234,8 +1229,9 @@ static int show_cpu_power(struct seq_file *m, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(cpu_power);
 
-static int show_cpu_clamp(struct seq_file *m, void *data)
+static int cpu_clamp_show(struct seq_file *m, void *data)
 {
 	u64 turbo_override;
 	int tdp, tdc;
@@ -1255,8 +1251,9 @@ static int show_cpu_clamp(struct seq_file *m, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(cpu_clamp);
 
-static int show_mch_temp(struct seq_file *m, void *data)
+static int mch_temp_show(struct seq_file *m, void *data)
 {
 	struct ips_driver *ips = m->private;
 
@@ -1265,8 +1262,9 @@ static int show_mch_temp(struct seq_file *m, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(mch_temp);
 
-static int show_mch_power(struct seq_file *m, void *data)
+static int mch_power_show(struct seq_file *m, void *data)
 {
 	struct ips_driver *ips = m->private;
 
@@ -1274,29 +1272,7 @@ static int show_mch_power(struct seq_file *m, void *data)
 
 	return 0;
 }
-
-static struct ips_debugfs_node ips_debug_files[] = {
-	{ NULL, "cpu_temp", show_cpu_temp },
-	{ NULL, "cpu_power", show_cpu_power },
-	{ NULL, "cpu_clamp", show_cpu_clamp },
-	{ NULL, "mch_temp", show_mch_temp },
-	{ NULL, "mch_power", show_mch_power },
-};
-
-static int ips_debugfs_open(struct inode *inode, struct file *file)
-{
-	struct ips_debugfs_node *node = inode->i_private;
-
-	return single_open(file, node->show, node->ips);
-}
-
-static const struct file_operations ips_debugfs_ops = {
-	.owner = THIS_MODULE,
-	.open = ips_debugfs_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mch_power);
 
 static void ips_debugfs_cleanup(struct ips_driver *ips)
 {
@@ -1305,18 +1281,13 @@ static void ips_debugfs_cleanup(struct ips_driver *ips)
 
 static void ips_debugfs_init(struct ips_driver *ips)
 {
-	int i;
-
 	ips->debug_root = debugfs_create_dir("ips", NULL);
 
-	for (i = 0; i < ARRAY_SIZE(ips_debug_files); i++) {
-		struct ips_debugfs_node *node = &ips_debug_files[i];
-
-		node->ips = ips;
-		debugfs_create_file(node->name, S_IFREG | S_IRUGO,
-				    ips->debug_root, node,
-				    &ips_debugfs_ops);
-	}
+	debugfs_create_file("cpu_temp", 0444, ips->debug_root, ips, &cpu_temp_fops);
+	debugfs_create_file("cpu_power", 0444, ips->debug_root, ips, &cpu_power_fops);
+	debugfs_create_file("cpu_clamp", 0444, ips->debug_root, ips, &cpu_clamp_fops);
+	debugfs_create_file("mch_temp", 0444, ips->debug_root, ips, &mch_temp_fops);
+	debugfs_create_file("mch_power", 0444, ips->debug_root, ips, &mch_power_fops);
 }
 #endif /* CONFIG_DEBUG_FS */
 
