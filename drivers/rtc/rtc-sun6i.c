@@ -191,6 +191,7 @@ static void __init sun6i_rtc_clk_init(struct device_node *node)
 	struct sun6i_rtc_dev *rtc;
 	struct clk_init_data init = {
 		.ops		= &sun6i_rtc_osc_ops,
+		.name		= "losc",
 	};
 	const char *clkout_name = "osc32k-out";
 	const char *parents[2];
