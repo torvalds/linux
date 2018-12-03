@@ -3309,16 +3309,6 @@ void i915_gem_reset_finish(struct drm_i915_private *dev_priv)
 
 static void nop_submit_request(struct i915_request *request)
 {
-	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
-		  request->engine->name,
-		  request->fence.context, request->fence.seqno);
-	dma_fence_set_error(&request->fence, -EIO);
-
-	i915_request_submit(request);
-}
-
-static void nop_complete_submit_request(struct i915_request *request)
-{
 	unsigned long flags;
 
 	GEM_TRACE("%s fence %llx:%d -> -EIO\n",
@@ -3354,57 +3344,33 @@ void i915_gem_set_wedged(struct drm_i915_private *i915)
 	 * rolling the global seqno forward (since this would complete requests
 	 * for which we haven't set the fence error to EIO yet).
 	 */
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, i915, id)
 		i915_gem_reset_prepare_engine(engine);
-
-		engine->submit_request = nop_submit_request;
-		engine->schedule = NULL;
-	}
-	i915->caps.scheduler = 0;
 
 	/* Even if the GPU reset fails, it should still stop the engines */
 	if (INTEL_GEN(i915) >= 5)
 		intel_gpu_reset(i915, ALL_ENGINES);
 
-	/*
-	 * Make sure no one is running the old callback before we proceed with
-	 * cancelling requests and resetting the completion tracking. Otherwise
-	 * we might submit a request to the hardware which never completes.
-	 */
-	synchronize_rcu();
-
 	for_each_engine(engine, i915, id) {
-		/* Mark all executing requests as skipped */
-		engine->cancel_requests(engine);
-
-		/*
-		 * Only once we've force-cancelled all in-flight requests can we
-		 * start to complete all requests.
-		 */
-		engine->submit_request = nop_complete_submit_request;
+		engine->submit_request = nop_submit_request;
+		engine->schedule = NULL;
 	}
+	i915->caps.scheduler = 0;
 
 	/*
 	 * Make sure no request can slip through without getting completed by
 	 * either this call here to intel_engine_init_global_seqno, or the one
-	 * in nop_complete_submit_request.
+	 * in nop_submit_request.
 	 */
 	synchronize_rcu();
 
+	/* Mark all executing requests as skipped */
+	for_each_engine(engine, i915, id)
+		engine->cancel_requests(engine);
+
 	for_each_engine(engine, i915, id) {
-		unsigned long flags;
-
-		/*
-		 * Mark all pending requests as complete so that any concurrent
-		 * (lockless) lookup doesn't try and wait upon the request as we
-		 * reset it.
-		 */
-		spin_lock_irqsave(&engine->timeline.lock, flags);
-		intel_engine_init_global_seqno(engine,
-					       intel_engine_last_submit(engine));
-		spin_unlock_irqrestore(&engine->timeline.lock, flags);
-
 		i915_gem_reset_finish_engine(engine);
+		intel_engine_wakeup(engine);
 	}
 
 out:
