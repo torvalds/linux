@@ -485,7 +485,7 @@ struct __packed vmcs12 {
 	/*
 	 * To allow migration of L1 (complete with its L2 guests) between
 	 * machines of different natural widths (32 or 64 bit), we cannot have
-	 * unsigned long fields with no explict size. We use u64 (aliased
+	 * unsigned long fields with no explicit size. We use u64 (aliased
 	 * natural_width) instead. Luckily, x86 is little-endian.
 	 */
 	natural_width cr0_guest_host_mask;
@@ -4936,7 +4936,7 @@ static __init int alloc_kvm_area(void)
 		 * vmcs->revision_id to KVM_EVMCS_VERSION instead of
 		 * revision_id reported by MSR_IA32_VMX_BASIC.
 		 *
-		 * However, even though not explictly documented by
+		 * However, even though not explicitly documented by
 		 * TLFS, VMXArea passed as VMXON argument should
 		 * still be marked with revision_id reported by
 		 * physical CPU.

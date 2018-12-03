@@ -1199,7 +1199,7 @@ static void setup_pebs_sample_data(struct perf_event *event,
 	/*
 	 * We must however always use iregs for the unwinder to stay sane; the
 	 * record BP,SP,IP can point into thin air when the record is from a
-	 * previous PMI context or an (I)RET happend between the record and
+	 * previous PMI context or an (I)RET happened between the record and
 	 * PMI.
 	 */
 	if (sample_type & PERF_SAMPLE_CALLCHAIN)
