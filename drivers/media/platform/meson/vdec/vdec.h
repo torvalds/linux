@@ -256,6 +256,7 @@ struct amvdec_session {
 	u32 last_offset;
 	u32 wrap_count;
 	u32 dpb_size;
+	u32 fw_idx_to_vb2_idx[32];
 
 	enum amvdec_status status;
 	void *priv;

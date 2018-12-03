@@ -186,6 +186,7 @@ int amvdec_set_canvases(struct amvdec_session *sess,
 	u32 reg_cur = reg_base[0];
 	u32 reg_num_cur = 0;
 	u32 reg_base_cur = 0;
+	int i = 0;
 	int ret;
 
 	v4l2_m2m_for_each_dst_buf(sess->m2m_ctx, buf) {
@@ -218,6 +219,8 @@ int amvdec_set_canvases(struct amvdec_session *sess,
 			reg_base_cur++;
 			reg_num_cur = 0;
 		}
+
+		sess->fw_idx_to_vb2_idx[i++] = buf->vb.vb2_buf.index;
 	}
 
 	return 0;
@@ -409,7 +412,9 @@ void amvdec_dst_buf_done_idx(struct amvdec_session *sess,
 	struct vb2_v4l2_buffer *vbuf;
 	struct device *dev = sess->core->dev_dec;
 
-	vbuf = v4l2_m2m_dst_buf_remove_by_idx(sess->m2m_ctx, buf_idx);
+	vbuf = v4l2_m2m_dst_buf_remove_by_idx(sess->m2m_ctx,
+					      sess->fw_idx_to_vb2_idx[buf_idx]);
+
 	if (!vbuf) {
 		dev_err(dev,
 			"Buffer %u done but it doesn't exist in m2m_ctx\n",
