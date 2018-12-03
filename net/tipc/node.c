@@ -584,12 +584,15 @@ static void  tipc_node_clear_links(struct tipc_node *node)
 /* tipc_node_cleanup - delete nodes that does not
  * have active links for NODE_CLEANUP_AFTER time
  */
-static int tipc_node_cleanup(struct tipc_node *peer)
+static bool tipc_node_cleanup(struct tipc_node *peer)
 {
 	struct tipc_net *tn = tipc_net(peer->net);
 	bool deleted = false;
 
-	spin_lock_bh(&tn->node_list_lock);
+	/* If lock held by tipc_node_stop() the node will be deleted anyway */
+	if (!spin_trylock_bh(&tn->node_list_lock))
+		return false;
+
 	tipc_node_write_lock(peer);
 
 	if (!node_is_up(peer) && time_after(jiffies, peer->delete_at)) {
