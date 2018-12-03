@@ -56,7 +56,7 @@ int irq_reserve_ipi(struct irq_domain *domain,
 		unsigned int next;
 
 		/*
-		 * The IPI requires a seperate HW irq on each CPU. We require
+		 * The IPI requires a separate HW irq on each CPU. We require
 		 * that the destination mask is consecutive. If an
 		 * implementation needs to support holes, it can reserve
 		 * several IPI ranges.
@@ -172,7 +172,7 @@ irq_hw_number_t ipi_get_hwirq(unsigned int irq, unsigned int cpu)
 
 	/*
 	 * Get the real hardware irq number if the underlying implementation
-	 * uses a seperate irq per cpu. If the underlying implementation uses
+	 * uses a separate irq per cpu. If the underlying implementation uses
 	 * a single hardware irq for all cpus then the IPI send mechanism
 	 * needs to take care of the cpu destinations.
 	 */

@@ -915,7 +915,7 @@ irq_thread_check_affinity(struct irq_desc *desc, struct irqaction *action) { }
 #endif
 
 /*
- * Interrupts which are not explicitely requested as threaded
+ * Interrupts which are not explicitly requested as threaded
  * interrupts rely on the implicit bh/preempt disable of the hard irq
  * context. So we need to disable bh here to avoid deadlocks and other
  * side effects.
