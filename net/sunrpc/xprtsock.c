@@ -634,13 +634,7 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 	transport->recv.len = 0;
 	return read;
 out_err:
-	switch (ret) {
-	case 0:
-	case -ESHUTDOWN:
-		xprt_force_disconnect(&transport->xprt);
-		return -ESHUTDOWN;
-	}
-	return ret;
+	return ret != 0 ? ret : -ESHUTDOWN;
 }
 
 static void xs_stream_data_receive(struct sock_xprt *transport)
