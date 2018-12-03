@@ -35,11 +35,11 @@ struct cpa_data {
 	pgprot_t	mask_set;
 	pgprot_t	mask_clr;
 	unsigned long	numpages;
-	int		flags;
+	unsigned long	curpage;
 	unsigned long	pfn;
-	unsigned	force_split		: 1,
+	unsigned int	flags;
+	unsigned int	force_split		: 1,
 			force_static_prot	: 1;
-	int		curpage;
 	struct page	**pages;
 };
 
@@ -228,7 +228,7 @@ static bool __cpa_pfn_in_highmap(unsigned long pfn)
 
 #endif
 
-static unsigned long __cpa_addr(struct cpa_data *cpa, int idx)
+static unsigned long __cpa_addr(struct cpa_data *cpa, unsigned long idx)
 {
 	if (cpa->flags & CPA_PAGES_ARRAY) {
 		struct page *page = cpa->pages[idx];
@@ -242,7 +242,7 @@ static unsigned long __cpa_addr(struct cpa_data *cpa, int idx)
 	if (cpa->flags & CPA_ARRAY)
 		return cpa->vaddr[idx];
 
-	return *cpa->vaddr;
+	return *cpa->vaddr + idx * PAGE_SIZE;
 }
 
 /*
@@ -1581,6 +1581,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		alias_cpa = *cpa;
 		alias_cpa.vaddr = &laddr;
 		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
+		alias_cpa.curpage = 0;
 
 		ret = __change_page_attr_set_clr(&alias_cpa, 0);
 		if (ret)
@@ -1600,6 +1601,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 		alias_cpa = *cpa;
 		alias_cpa.vaddr = &temp_cpa_vaddr;
 		alias_cpa.flags &= ~(CPA_PAGES_ARRAY | CPA_ARRAY);
+		alias_cpa.curpage = 0;
 
 		/*
 		 * The high mapping range is imprecise, so ignore the
@@ -1648,11 +1650,7 @@ static int __change_page_attr_set_clr(struct cpa_data *cpa, int checkalias)
 		 */
 		BUG_ON(cpa->numpages > numpages || !cpa->numpages);
 		numpages -= cpa->numpages;
-		if (cpa->flags & (CPA_PAGES_ARRAY | CPA_ARRAY))
-			cpa->curpage++;
-		else
-			*cpa->vaddr += cpa->numpages * PAGE_SIZE;
-
+		cpa->curpage += cpa->numpages;
 	}
 	return 0;
 }
