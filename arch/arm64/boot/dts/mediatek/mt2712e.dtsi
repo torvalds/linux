@@ -8,6 +8,7 @@
 #include <dt-bindings/clock/mt2712-clk.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
 #include <dt-bindings/power/mt2712-power.h>
 #include "mt2712-pinfunc.h"
 
@@ -403,6 +404,131 @@
 		clocks = <&baud_clk>, <&sys_clk>;
 		clock-names = "baud", "bus";
 		status = "disabled";
+	};
+
+	ssusb: usb@11271000 {
+		compatible = "mediatek,mt2712-mtu3", "mediatek,mtu3";
+		reg = <0 0x11271000 0 0x3000>,
+		      <0 0x11280700 0 0x0100>;
+		reg-names = "mac", "ippc";
+		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_LOW>;
+		phys = <&u2port0 PHY_TYPE_USB2>,
+		       <&u2port1 PHY_TYPE_USB2>;
+		power-domains = <&scpsys MT2712_POWER_DOMAIN_USB>;
+		clocks = <&topckgen CLK_TOP_USB30_SEL>;
+		clock-names = "sys_ck";
+		mediatek,syscon-wakeup = <&pericfg 0x510 2>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "disabled";
+
+		usb_host0: xhci@11270000 {
+			compatible = "mediatek,mt2712-xhci",
+				     "mediatek,mtk-xhci";
+			reg = <0 0x11270000 0 0x1000>;
+			reg-names = "mac";
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_LOW>;
+			power-domains = <&scpsys MT2712_POWER_DOMAIN_USB>;
+			clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+			clock-names = "sys_ck", "ref_ck";
+			status = "disabled";
+		};
+	};
+
+	u3phy0: usb-phy@11290000 {
+		compatible = "mediatek,mt2712-u3phy";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "okay";
+
+		u2port0: usb-phy@11290000 {
+			reg = <0 0x11290000 0 0x700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
+
+		u2port1: usb-phy@11298000 {
+			reg = <0 0x11298000 0 0x700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
+
+		u3port0: usb-phy@11298700 {
+			reg = <0 0x11298700 0 0x900>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
+	};
+
+	ssusb1: usb@112c1000 {
+		compatible = "mediatek,mt2712-mtu3", "mediatek,mtu3";
+		reg = <0 0x112c1000 0 0x3000>,
+		      <0 0x112d0700 0 0x0100>;
+		reg-names = "mac", "ippc";
+		interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_LOW>;
+		phys = <&u2port2 PHY_TYPE_USB2>,
+		       <&u2port3 PHY_TYPE_USB2>,
+		       <&u3port1 PHY_TYPE_USB3>;
+		power-domains = <&scpsys MT2712_POWER_DOMAIN_USB2>;
+		clocks = <&topckgen CLK_TOP_USB30_SEL>;
+		clock-names = "sys_ck";
+		mediatek,syscon-wakeup = <&pericfg 0x514 2>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "disabled";
+
+		usb_host1: xhci@112c0000 {
+			compatible = "mediatek,mt2712-xhci",
+				     "mediatek,mtk-xhci";
+			reg = <0 0x112c0000 0 0x1000>;
+			reg-names = "mac";
+			interrupts = <GIC_SPI 249 IRQ_TYPE_LEVEL_LOW>;
+			power-domains = <&scpsys MT2712_POWER_DOMAIN_USB2>;
+			clocks = <&topckgen CLK_TOP_USB30_SEL>, <&clk26m>;
+			clock-names = "sys_ck", "ref_ck";
+			status = "disabled";
+		};
+	};
+
+	u3phy1: usb-phy@112e0000 {
+		compatible = "mediatek,mt2712-u3phy";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		status = "okay";
+
+		u2port2: usb-phy@112e0000 {
+			reg = <0 0x112e0000 0 0x700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
+
+		u2port3: usb-phy@112e8000 {
+			reg = <0 0x112e8000 0 0x700>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
+
+		u3port1: usb-phy@112e8700 {
+			reg = <0 0x112e8700 0 0x900>;
+			clocks = <&clk26m>;
+			clock-names = "ref";
+			#phy-cells = <1>;
+			status = "okay";
+		};
 	};
 
 	mfgcfg: syscon@13000000 {
