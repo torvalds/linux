@@ -248,6 +248,8 @@ void nfs_free_client(struct nfs_client *clp)
 
 	if (clp->cl_machine_cred != NULL)
 		put_rpccred(clp->cl_machine_cred);
+	if (clp->cl_root_cred != NULL)
+		put_rpccred(clp->cl_root_cred);
 
 	put_net(clp->cl_net);
 	put_nfs_version(clp->cl_nfs_mod);

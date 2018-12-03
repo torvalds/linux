@@ -166,24 +166,28 @@ out:
 
 struct rpc_cred *nfs4_get_machine_cred_locked(struct nfs_client *clp)
 {
-	struct rpc_cred *cred = NULL;
+	struct rpc_cred *cred = clp->cl_root_cred;
 
-	if (clp->cl_machine_cred != NULL)
-		cred = get_rpccred(clp->cl_machine_cred);
+	if (!cred)
+		cred = clp->cl_machine_cred;
+	if (cred)
+		return get_rpccred(cred);
 	return cred;
 }
 
 static void nfs4_root_machine_cred(struct nfs_client *clp)
 {
-	struct rpc_cred *cred, *new;
+	struct rpc_cred *new;
 
 	new = rpc_lookup_machine_cred(NULL);
 	spin_lock(&clp->cl_lock);
-	cred = clp->cl_machine_cred;
-	clp->cl_machine_cred = new;
+	if (clp->cl_root_cred == NULL) {
+		clp->cl_root_cred = new;
+		new = NULL;
+	}
 	spin_unlock(&clp->cl_lock);
-	if (cred != NULL)
-		put_rpccred(cred);
+	if (new != NULL)
+		put_rpccred(new);
 }
 
 static struct rpc_cred *
