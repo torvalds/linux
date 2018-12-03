@@ -191,13 +191,13 @@ static int sof_pci_probe(struct pci_dev *pci,
 	if (!sof_pdata)
 		return -ENOMEM;
 
-	ret = pci_enable_device(pci);
+	ret = pcim_enable_device(pci);
 	if (ret < 0)
 		return ret;
 
 	ret = pci_request_regions(pci, "Audio DSP");
 	if (ret < 0)
-		goto disable_dev;
+		return ret;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)
 	/* force nocodec mode */
@@ -270,8 +270,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 
 release_regions:
 	pci_release_regions(pci);
-disable_dev:
-	pci_disable_device(pci);
 
 	return ret;
 }
@@ -298,7 +296,6 @@ static void sof_pci_remove(struct pci_dev *pci)
 
 	/* release pci regions and disable device */
 	pci_release_regions(pci);
-	pci_disable_device(pci);
 }
 
 /* PCI IDs */
