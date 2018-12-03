@@ -578,7 +578,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	}
 
 	dev_dbg(sdev->dev, "LPE PHY base at 0x%x size 0x%x", base, size);
-	sdev->bar[BYT_DSP_BAR] = ioremap(base, size);
+	sdev->bar[BYT_DSP_BAR] = devm_ioremap(sdev->dev, base, size);
 	if (!sdev->bar[BYT_DSP_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap LPE base 0x%x size 0x%x\n",
 			base, size);
@@ -602,8 +602,7 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	} else {
 		dev_err(sdev->dev, "error: failed to get IMR base at idx %d\n",
 			desc->resindex_imr_base);
-		ret = -ENODEV;
-		goto imr_err;
+		return -ENODEV;
 	}
 
 	/* some BIOSes don't map IMR */
@@ -613,12 +612,11 @@ static int byt_acpi_probe(struct snd_sof_dev *sdev)
 	}
 
 	dev_dbg(sdev->dev, "IMR base at 0x%x size 0x%x", base, size);
-	sdev->bar[BYT_IMR_BAR] = ioremap(base, size);
+	sdev->bar[BYT_IMR_BAR] = devm_ioremap(sdev->dev, base, size);
 	if (!sdev->bar[BYT_IMR_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap IMR base 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENODEV;
-		goto imr_err;
+		return -ENODEV;
 	}
 	dev_dbg(sdev->dev, "IMR VADDR %p\n", sdev->bar[BYT_IMR_BAR]);
 
@@ -628,8 +626,7 @@ irq:
 	if (sdev->ipc_irq < 0) {
 		dev_err(sdev->dev, "error: failed to get IRQ at index %d\n",
 			desc->irqindex_host_ipc);
-		ret = sdev->ipc_irq;
-		goto irq_err;
+		return sdev->ipc_irq;
 	}
 
 	dev_dbg(sdev->dev, "using IRQ %d\n", sdev->ipc_irq);
@@ -639,7 +636,7 @@ irq:
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
 			sdev->ipc_irq);
-		goto irq_err;
+		return ret;
 	}
 
 	/* enable Interrupt from both sides */
@@ -652,12 +649,6 @@ irq:
 	/* set default mailbox offset for FW ready message */
 	sdev->dsp_box.offset = MBOX_OFFSET;
 
-	return ret;
-
-irq_err:
-	iounmap(sdev->bar[BYT_IMR_BAR]);
-imr_err:
-	iounmap(sdev->bar[BYT_DSP_BAR]);
 	return ret;
 }
 
@@ -681,7 +672,7 @@ static int byt_pci_probe(struct snd_sof_dev *sdev)
 	size = BYT_PCI_BAR_SIZE;
 
 	dev_dbg(sdev->dev, "LPE PHY base at 0x%x size 0x%x", base, size);
-	sdev->bar[BYT_DSP_BAR] = ioremap(base, size);
+	sdev->bar[BYT_DSP_BAR] = devm_ioremap(sdev->dev, base, size);
 	if (!sdev->bar[BYT_DSP_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap LPE base 0x%x size 0x%x\n",
 			base, size);
@@ -703,12 +694,11 @@ static int byt_pci_probe(struct snd_sof_dev *sdev)
 	}
 
 	dev_dbg(sdev->dev, "IMR base at 0x%x size 0x%x", base, size);
-	sdev->bar[BYT_IMR_BAR] = ioremap(base, size);
+	sdev->bar[BYT_IMR_BAR] = devm_ioremap(sdev->dev, base, size);
 	if (!sdev->bar[BYT_IMR_BAR]) {
 		dev_err(sdev->dev, "error: failed to ioremap IMR base 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENODEV;
-		goto imr_err;
+		return -ENODEV;
 	}
 	dev_dbg(sdev->dev, "IMR VADDR %p\n", sdev->bar[BYT_IMR_BAR]);
 
@@ -721,7 +711,7 @@ irq:
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
 			sdev->ipc_irq);
-		goto irq_err;
+		return ret;
 	}
 
 	/* enable Interrupt from both sides */
@@ -735,12 +725,6 @@ irq:
 	sdev->dsp_box.offset = MBOX_OFFSET;
 
 	return ret;
-
-irq_err:
-	iounmap(sdev->bar[BYT_IMR_BAR]);
-imr_err:
-	iounmap(sdev->bar[BYT_DSP_BAR]);
-	return ret;
 }
 
 static int byt_probe(struct snd_sof_dev *sdev)
@@ -753,9 +737,6 @@ static int byt_probe(struct snd_sof_dev *sdev)
 
 static int byt_acpi_remove(struct snd_sof_dev *sdev)
 {
-	iounmap(sdev->bar[BYT_DSP_BAR]);
-	iounmap(sdev->bar[BYT_PCI_BAR]);
-	iounmap(sdev->bar[BYT_IMR_BAR]);
 	free_irq(sdev->ipc_irq, sdev);
 	return 0;
 }

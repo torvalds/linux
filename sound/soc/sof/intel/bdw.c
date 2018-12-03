@@ -642,7 +642,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	}
 
 	dev_dbg(sdev->dev, "LPE PHY base at 0x%x size 0x%x", base, size);
-	sdev->bar[BDW_DSP_BAR] = ioremap(base, size);
+	sdev->bar[BDW_DSP_BAR] = devm_ioremap(sdev->dev, base, size);
 	if (!sdev->bar[BDW_DSP_BAR]) {
 		dev_err(sdev->dev,
 			"error: failed to ioremap LPE base 0x%x size 0x%x\n",
@@ -664,18 +664,16 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	} else {
 		dev_err(sdev->dev, "error: failed to get PCI base at idx %d\n",
 			desc->resindex_pcicfg_base);
-		ret = -ENODEV;
-		goto pci_err;
+		return -ENODEV;
 	}
 
 	dev_dbg(sdev->dev, "PCI base at 0x%x size 0x%x", base, size);
-	sdev->bar[BDW_PCI_BAR] = ioremap(base, size);
+	sdev->bar[BDW_PCI_BAR] = devm_ioremap(sdev->dev, base, size);
 	if (!sdev->bar[BDW_PCI_BAR]) {
 		dev_err(sdev->dev,
 			"error: failed to ioremap PCI base 0x%x size 0x%x\n",
 			base, size);
-		ret = -ENODEV;
-		goto pci_err;
+		return -ENODEV;
 	}
 	dev_dbg(sdev->dev, "PCI VADDR %p\n", sdev->bar[BDW_PCI_BAR]);
 
@@ -684,8 +682,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	if (sdev->ipc_irq < 0) {
 		dev_err(sdev->dev, "error: failed to get IRQ at index %d\n",
 			desc->irqindex_host_ipc);
-		ret = sdev->ipc_irq;
-		goto irq_err;
+		return sdev->ipc_irq;
 	}
 
 	dev_dbg(sdev->dev, "using IRQ %d\n", sdev->ipc_irq);
@@ -695,7 +692,7 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
 			sdev->ipc_irq);
-		goto irq_err;
+		return ret;
 	}
 
 	/* enable the DSP SHIM */
@@ -719,18 +716,10 @@ static int bdw_probe(struct snd_sof_dev *sdev)
 	snd_sof_dsp_mailbox_init(sdev, MBOX_OFFSET, MBOX_SIZE, 0, 0);
 
 	return ret;
-
-irq_err:
-	iounmap(sdev->bar[BDW_DSP_BAR]);
-pci_err:
-	iounmap(sdev->bar[BDW_PCI_BAR]);
-	return ret;
 }
 
 static int bdw_remove(struct snd_sof_dev *sdev)
 {
-	iounmap(sdev->bar[BDW_DSP_BAR]);
-	iounmap(sdev->bar[BDW_PCI_BAR]);
 	free_irq(sdev->ipc_irq, sdev);
 	return 0;
 }
