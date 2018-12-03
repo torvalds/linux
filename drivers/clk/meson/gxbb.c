@@ -1582,7 +1582,7 @@ static struct clk_regmap gxbb_vid_pll_div = {
 	},
 };
 
-const char *gxbb_vid_pll_parent_names[] = { "vid_pll_div", "hdmi_pll" };
+static const char * const gxbb_vid_pll_parent_names[] = { "vid_pll_div", "hdmi_pll" };
 
 static struct clk_regmap gxbb_vid_pll_sel = {
 	.data = &(struct clk_regmap_mux_data){
@@ -1617,7 +1617,7 @@ static struct clk_regmap gxbb_vid_pll = {
 	},
 };
 
-const char *gxbb_vclk_parent_names[] = {
+static const char * const gxbb_vclk_parent_names[] = {
 	"vid_pll", "fclk_div4", "fclk_div3", "fclk_div5", "vid_pll",
 	"fclk_div7", "mpll1",
 };
@@ -1977,7 +1977,7 @@ static struct clk_fixed_factor gxbb_vclk2_div12 = {
 };
 
 static u32 mux_table_cts_sel[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-const char *gxbb_cts_parent_names[] = {
+static const char * const gxbb_cts_parent_names[] = {
 	"vclk_div1", "vclk_div2", "vclk_div4", "vclk_div6",
 	"vclk_div12", "vclk2_div1", "vclk2_div2", "vclk2_div4",
 	"vclk2_div6", "vclk2_div12"
@@ -2033,7 +2033,7 @@ static struct clk_regmap gxbb_cts_vdac_sel = {
 
 /* TOFIX: add support for cts_tcon */
 static u32 mux_table_hdmi_tx_sel[] = { 0, 1, 2, 3, 4, 8, 9, 10, 11, 12 };
-const char *gxbb_cts_hdmi_tx_parent_names[] = {
+static const char * const gxbb_cts_hdmi_tx_parent_names[] = {
 	"vclk_div1", "vclk_div2", "vclk_div4", "vclk_div6",
 	"vclk_div12", "vclk2_div1", "vclk2_div2", "vclk2_div4",
 	"vclk2_div6", "vclk2_div12"
