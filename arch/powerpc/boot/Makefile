@@ -197,7 +197,7 @@ $(obj)/empty.c:
 $(obj)/zImage.coff.lds $(obj)/zImage.ps3.lds : $(obj)/%: $(srctree)/$(src)/%.S
 	$(Q)cp $< $@
 
-$(obj)/serial.c: $(obj)/autoconf.h
+$(srctree)/$(src)/serial.c: $(obj)/autoconf.h
 
 $(obj)/autoconf.h: $(obj)/%: $(objtree)/include/generated/%
 	$(Q)cp $< $@
