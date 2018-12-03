@@ -2692,6 +2692,11 @@ static const struct devlink_param devlink_param_generic[] = {
 		.name = DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MIN_NAME,
 		.type = DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MIN_TYPE,
 	},
+	{
+		.id = DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
+		.name = DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_NAME,
+		.type = DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_TYPE,
+	},
 };
 
 static int devlink_param_generic_verify(const struct devlink_param *param)
