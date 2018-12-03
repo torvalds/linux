@@ -68,7 +68,6 @@ nfs4_renew_state(struct work_struct *work)
 	if (test_bit(NFS_CS_STOP_RENEW, &clp->cl_res_state))
 		goto out;
 
-	spin_lock(&clp->cl_lock);
 	lease = clp->cl_lease_time;
 	last = clp->cl_last_renewal;
 	now = jiffies;
@@ -79,8 +78,7 @@ nfs4_renew_state(struct work_struct *work)
 		renew_flags |= NFS4_RENEW_DELEGATION_CB;
 
 	if (renew_flags != 0) {
-		cred = ops->get_state_renewal_cred_locked(clp);
-		spin_unlock(&clp->cl_lock);
+		cred = ops->get_state_renewal_cred(clp);
 		if (cred == NULL) {
 			if (!(renew_flags & NFS4_RENEW_DELEGATION_CB)) {
 				set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
@@ -104,7 +102,6 @@ nfs4_renew_state(struct work_struct *work)
 	} else {
 		dprintk("%s: failed to call renewd. Reason: lease not expired \n",
 				__func__);
-		spin_unlock(&clp->cl_lock);
 	}
 	nfs4_schedule_state_renewal(clp);
 out_exp:

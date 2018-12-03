@@ -164,7 +164,7 @@ out:
 	return status;
 }
 
-struct rpc_cred *nfs4_get_machine_cred_locked(struct nfs_client *clp)
+struct rpc_cred *nfs4_get_machine_cred(struct nfs_client *clp)
 {
 	struct rpc_cred *cred = clp->cl_root_cred;
 
@@ -210,22 +210,23 @@ nfs4_get_renew_cred_server_locked(struct nfs_server *server)
 }
 
 /**
- * nfs4_get_renew_cred_locked - Acquire credential for a renew operation
+ * nfs4_get_renew_cred - Acquire credential for a renew operation
  * @clp: client state handle
  *
  * Returns an rpc_cred with reference count bumped, or NULL.
  * Caller must hold clp->cl_lock.
  */
-struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp)
+struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
 {
 	struct rpc_cred *cred = NULL;
 	struct nfs_server *server;
 
 	/* Use machine credentials if available */
-	cred = nfs4_get_machine_cred_locked(clp);
+	cred = nfs4_get_machine_cred(clp);
 	if (cred != NULL)
 		goto out;
 
+	spin_lock(&clp->cl_lock);
 	rcu_read_lock();
 	list_for_each_entry_rcu(server, &clp->cl_superblocks, client_link) {
 		cred = nfs4_get_renew_cred_server_locked(server);
@@ -233,6 +234,7 @@ struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp)
 			break;
 	}
 	rcu_read_unlock();
+	spin_unlock(&clp->cl_lock);
 
 out:
 	return cred;
@@ -402,9 +404,7 @@ struct rpc_cred *nfs4_get_clid_cred(struct nfs_client *clp)
 {
 	struct rpc_cred *cred;
 
-	spin_lock(&clp->cl_lock);
-	cred = nfs4_get_machine_cred_locked(clp);
-	spin_unlock(&clp->cl_lock);
+	cred = nfs4_get_machine_cred(clp);
 	return cred;
 }
 
@@ -1908,9 +1908,7 @@ static int nfs4_check_lease(struct nfs_client *clp)
 	/* Is the client already known to have an expired lease? */
 	if (test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 		return 0;
-	spin_lock(&clp->cl_lock);
-	cred = ops->get_state_renewal_cred_locked(clp);
-	spin_unlock(&clp->cl_lock);
+	cred = ops->get_state_renewal_cred(clp);
 	if (cred == NULL) {
 		cred = nfs4_get_clid_cred(clp);
 		status = -ENOKEY;
@@ -2112,9 +2110,7 @@ static int nfs4_handle_migration(struct nfs_client *clp)
 	dprintk("%s: migration reported on \"%s\"\n", __func__,
 			clp->cl_hostname);
 
-	spin_lock(&clp->cl_lock);
-	cred = ops->get_state_renewal_cred_locked(clp);
-	spin_unlock(&clp->cl_lock);
+	cred = ops->get_state_renewal_cred(clp);
 	if (cred == NULL)
 		return -NFS4ERR_NOENT;
 
@@ -2160,9 +2156,7 @@ static int nfs4_handle_lease_moved(struct nfs_client *clp)
 	dprintk("%s: lease moved reported on \"%s\"\n", __func__,
 			clp->cl_hostname);
 
-	spin_lock(&clp->cl_lock);
-	cred = ops->get_state_renewal_cred_locked(clp);
-	spin_unlock(&clp->cl_lock);
+	cred = ops->get_state_renewal_cred(clp);
 	if (cred == NULL)
 		return -NFS4ERR_NOENT;
 

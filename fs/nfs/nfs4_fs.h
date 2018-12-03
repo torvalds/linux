@@ -250,7 +250,7 @@ struct nfs4_add_xprt_data {
 
 struct nfs4_state_maintenance_ops {
 	int (*sched_state_renewal)(struct nfs_client *, struct rpc_cred *, unsigned);
-	struct rpc_cred * (*get_state_renewal_cred_locked)(struct nfs_client *);
+	struct rpc_cred * (*get_state_renewal_cred)(struct nfs_client *);
 	int (*renew_lease)(struct nfs_client *, struct rpc_cred *);
 };
 
@@ -451,8 +451,8 @@ extern void nfs4_set_lease_period(struct nfs_client *clp,
 
 /* nfs4state.c */
 struct rpc_cred *nfs4_get_clid_cred(struct nfs_client *clp);
-struct rpc_cred *nfs4_get_machine_cred_locked(struct nfs_client *clp);
-struct rpc_cred *nfs4_get_renew_cred_locked(struct nfs_client *clp);
+struct rpc_cred *nfs4_get_machine_cred(struct nfs_client *clp);
+struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp);
 int nfs4_discover_server_trunking(struct nfs_client *clp,
 			struct nfs_client **);
 int nfs40_discover_server_trunking(struct nfs_client *clp,
