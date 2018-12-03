@@ -547,7 +547,7 @@ static struct mbox_chan *ti_msgmgr_of_xlate(struct mbox_controller *mbox,
 	}
 
 	if (d->is_sproxy) {
-		if (req_pid > d->num_valid_queues)
+		if (req_pid >= d->num_valid_queues)
 			goto err;
 		qinst = &inst->qinsts[req_pid];
 		return qinst->chan;
