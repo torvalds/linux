@@ -649,8 +649,10 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 				if (info[i]->config[j] & HWMON_T_INPUT) {
 					err = hwmon_thermal_add_sensor(dev,
 								hwdev, j);
-					if (err)
-						goto free_device;
+					if (err) {
+						device_unregister(hdev);
+						goto ida_remove;
+					}
 				}
 			}
 		}
@@ -658,8 +660,6 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 
 	return hdev;
 
-free_device:
-	device_unregister(hdev);
 free_hwmon:
 	kfree(hwdev);
 ida_remove:

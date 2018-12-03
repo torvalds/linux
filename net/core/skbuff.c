@@ -4854,6 +4854,11 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 	nf_reset(skb);
 	nf_reset_trace(skb);
 
+#ifdef CONFIG_NET_SWITCHDEV
+	skb->offload_fwd_mark = 0;
+	skb->offload_mr_fwd_mark = 0;
+#endif
+
 	if (!xnet)
 		return;
 
@@ -4943,6 +4948,8 @@ static unsigned int skb_gso_mac_seglen(const struct sk_buff *skb)
  * - L2+L3+L4+payload size (e.g. sanity check before passing to driver)
  *
  * This is a helper to do that correctly considering GSO_BY_FRAGS.
+ *
+ * @skb: GSO skb
  *
  * @seg_len: The segmented length (from skb_gso_*_seglen). In the
  *           GSO_BY_FRAGS case this will be [header sizes + GSO_BY_FRAGS].

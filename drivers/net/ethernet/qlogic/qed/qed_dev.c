@@ -185,6 +185,10 @@ void qed_resc_free(struct qed_dev *cdev)
 			qed_iscsi_free(p_hwfn);
 			qed_ooo_free(p_hwfn);
 		}
+
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn))
+			qed_rdma_info_free(p_hwfn);
+
 		qed_iov_free(p_hwfn);
 		qed_l2_free(p_hwfn);
 		qed_dmae_info_free(p_hwfn);
@@ -481,8 +485,16 @@ static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
 	struct qed_qm_info *qm_info = &p_hwfn->qm_info;
 
 	/* Can't have multiple flags set here */
-	if (bitmap_weight((unsigned long *)&pq_flags, sizeof(pq_flags)) > 1)
+	if (bitmap_weight((unsigned long *)&pq_flags,
+			  sizeof(pq_flags) * BITS_PER_BYTE) > 1) {
+		DP_ERR(p_hwfn, "requested multiple pq flags 0x%x\n", pq_flags);
 		goto err;
+	}
+
+	if (!(qed_get_pq_flags(p_hwfn) & pq_flags)) {
+		DP_ERR(p_hwfn, "pq flag 0x%x is not set\n", pq_flags);
+		goto err;
+	}
 
 	switch (pq_flags) {
 	case PQ_FLAGS_RLS:
@@ -506,8 +518,7 @@ static u16 *qed_init_qm_get_idx_from_flags(struct qed_hwfn *p_hwfn,
 	}
 
 err:
-	DP_ERR(p_hwfn, "BAD pq flags %d\n", pq_flags);
-	return NULL;
+	return &qm_info->start_pq;
 }
 
 /* save pq index in qm info */
@@ -531,20 +542,32 @@ u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc)
 {
 	u8 max_tc = qed_init_qm_get_num_tcs(p_hwfn);
 
+	if (max_tc == 0) {
+		DP_ERR(p_hwfn, "pq with flag 0x%lx do not exist\n",
+		       PQ_FLAGS_MCOS);
+		return p_hwfn->qm_info.start_pq;
+	}
+
 	if (tc > max_tc)
 		DP_ERR(p_hwfn, "tc %d must be smaller than %d\n", tc, max_tc);
 
-	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_MCOS) + tc;
+	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_MCOS) + (tc % max_tc);
 }
 
 u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf)
 {
 	u16 max_vf = qed_init_qm_get_num_vfs(p_hwfn);
 
+	if (max_vf == 0) {
+		DP_ERR(p_hwfn, "pq with flag 0x%lx do not exist\n",
+		       PQ_FLAGS_VFS);
+		return p_hwfn->qm_info.start_pq;
+	}
+
 	if (vf > max_vf)
 		DP_ERR(p_hwfn, "vf %d must be smaller than %d\n", vf, max_vf);
 
-	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_VFS) + vf;
+	return qed_get_cm_pq_idx(p_hwfn, PQ_FLAGS_VFS) + (vf % max_vf);
 }
 
 u16 qed_get_cm_pq_idx_ofld_mtc(struct qed_hwfn *p_hwfn, u8 tc)
@@ -1077,6 +1100,12 @@ int qed_resc_alloc(struct qed_dev *cdev)
 			if (rc)
 				goto alloc_err;
 			rc = qed_ooo_alloc(p_hwfn);
+			if (rc)
+				goto alloc_err;
+		}
+
+		if (QED_IS_RDMA_PERSONALITY(p_hwfn)) {
+			rc = qed_rdma_info_alloc(p_hwfn);
 			if (rc)
 				goto alloc_err;
 		}
@@ -2102,11 +2131,8 @@ int qed_hw_start_fastpath(struct qed_hwfn *p_hwfn)
 	if (!p_ptt)
 		return -EAGAIN;
 
-	/* If roce info is allocated it means roce is initialized and should
-	 * be enabled in searcher.
-	 */
 	if (p_hwfn->p_rdma_info &&
-	    p_hwfn->b_rdma_enabled_in_prs)
+	    p_hwfn->p_rdma_info->active && p_hwfn->b_rdma_enabled_in_prs)
 		qed_wr(p_hwfn, p_ptt, p_hwfn->rdma_prs_search_reg, 0x1);
 
 	/* Re-open incoming traffic */

@@ -385,8 +385,8 @@ static int create_active(struct sock_mapping *map, int *evtchn)
 out_error:
 	if (*evtchn >= 0)
 		xenbus_free_evtchn(pvcalls_front_dev, *evtchn);
-	kfree(map->active.data.in);
-	kfree(map->active.ring);
+	free_pages((unsigned long)map->active.data.in, PVCALLS_RING_ORDER);
+	free_page((unsigned long)map->active.ring);
 	return ret;
 }
 

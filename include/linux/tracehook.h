@@ -83,8 +83,8 @@ static inline int ptrace_report_syscall(struct pt_regs *regs)
  * tracehook_report_syscall_entry - task is about to attempt a system call
  * @regs:		user register state of current task
  *
- * This will be called if %TIF_SYSCALL_TRACE has been set, when the
- * current task has just entered the kernel for a system call.
+ * This will be called if %TIF_SYSCALL_TRACE or %TIF_SYSCALL_EMU have been set,
+ * when the current task has just entered the kernel for a system call.
  * Full user register state is available here.  Changing the values
  * in @regs can affect the system call number and arguments to be tried.
  * It is safe to block here, preventing the system call from beginning.

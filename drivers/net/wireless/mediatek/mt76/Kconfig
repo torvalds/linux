@@ -1,6 +1,12 @@
 config MT76_CORE
 	tristate
 
+config MT76_LEDS
+	bool
+	depends on MT76_CORE
+	depends on LEDS_CLASS=y || MT76_CORE=LEDS_CLASS
+	default y
+
 config MT76_USB
 	tristate
 	depends on MT76_CORE

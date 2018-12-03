@@ -719,7 +719,9 @@ int __init da850_register_vpif_capture(struct vpif_capture_config
 }
 
 static struct davinci_gpio_platform_data da850_gpio_platform_data = {
-	.ngpio = 144,
+	.no_auto_base	= true,
+	.base		= 0,
+	.ngpio		= 144,
 };
 
 int __init da850_register_gpio(void)

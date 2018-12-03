@@ -1757,7 +1757,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *base, struct seq_file *m)
 			if (i == 4)
 				continue;
 
-			seq_printf(m, "\t\t(%03d, %04d) %08lx: ",
+			seq_printf(m, "\t\t(%03d, %04d) %08llx: ",
 				   pde, pte,
 				   (pde * GEN6_PTES + pte) * I915_GTT_PAGE_SIZE);
 			for (i = 0; i < 4; i++) {
@@ -3413,6 +3413,11 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 		if (ggtt->vm.clear_range != nop_clear_range)
 			ggtt->vm.clear_range = bxt_vtd_ggtt_clear_range__BKL;
+
+		/* Prevent recursively calling stop_machine() and deadlocks. */
+		dev_info(dev_priv->drm.dev,
+			 "Disabling error capture for VT-d workaround\n");
+		i915_disable_error_state(dev_priv, -ENODEV);
 	}
 
 	ggtt->invalidate = gen6_ggtt_invalidate;

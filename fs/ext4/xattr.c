@@ -1031,10 +1031,8 @@ static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 	inode_lock(ea_inode);
 
 	ret = ext4_reserve_inode_write(handle, ea_inode, &iloc);
-	if (ret) {
-		iloc.bh = NULL;
+	if (ret)
 		goto out;
-	}
 
 	ref_count = ext4_xattr_inode_get_ref(ea_inode);
 	ref_count += ref_change;
@@ -1080,12 +1078,10 @@ static int ext4_xattr_inode_update_ref(handle_t *handle, struct inode *ea_inode,
 	}
 
 	ret = ext4_mark_iloc_dirty(handle, ea_inode, &iloc);
-	iloc.bh = NULL;
 	if (ret)
 		ext4_warning_inode(ea_inode,
 				   "ext4_mark_iloc_dirty() failed ret=%d", ret);
 out:
-	brelse(iloc.bh);
 	inode_unlock(ea_inode);
 	return ret;
 }
@@ -1388,6 +1384,12 @@ retry:
 		bh = ext4_getblk(handle, ea_inode, block, 0);
 		if (IS_ERR(bh))
 			return PTR_ERR(bh);
+		if (!bh) {
+			WARN_ON_ONCE(1);
+			EXT4_ERROR_INODE(ea_inode,
+					 "ext4_getblk() return bh = NULL");
+			return -EFSCORRUPTED;
+		}
 		ret = ext4_journal_get_write_access(handle, bh);
 		if (ret)
 			goto out;
@@ -2276,8 +2278,10 @@ static struct buffer_head *ext4_xattr_get_block(struct inode *inode)
 	if (!bh)
 		return ERR_PTR(-EIO);
 	error = ext4_xattr_check_block(inode, bh);
-	if (error)
+	if (error) {
+		brelse(bh);
 		return ERR_PTR(error);
+	}
 	return bh;
 }
 
@@ -2397,6 +2401,8 @@ retry_inode:
 			error = ext4_xattr_block_set(handle, inode, &i, &bs);
 		} else if (error == -ENOSPC) {
 			if (EXT4_I(inode)->i_file_acl && !bs.s.base) {
+				brelse(bs.bh);
+				bs.bh = NULL;
 				error = ext4_xattr_block_find(inode, &i, &bs);
 				if (error)
 					goto cleanup;
@@ -2617,6 +2623,8 @@ out:
 	kfree(buffer);
 	if (is)
 		brelse(is->iloc.bh);
+	if (bs)
+		brelse(bs->bh);
 	kfree(is);
 	kfree(bs);
 
@@ -2696,7 +2704,6 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			       struct ext4_inode *raw_inode, handle_t *handle)
 {
 	struct ext4_xattr_ibody_header *header;
-	struct buffer_head *bh;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	static unsigned int mnt_count;
 	size_t min_offs;
@@ -2737,13 +2744,17 @@ retry:
 	 * EA block can hold new_extra_isize bytes.
 	 */
 	if (EXT4_I(inode)->i_file_acl) {
+		struct buffer_head *bh;
+
 		bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
 		error = -EIO;
 		if (!bh)
 			goto cleanup;
 		error = ext4_xattr_check_block(inode, bh);
-		if (error)
+		if (error) {
+			brelse(bh);
 			goto cleanup;
+		}
 		base = BHDR(bh);
 		end = bh->b_data + bh->b_size;
 		min_offs = end - base;
