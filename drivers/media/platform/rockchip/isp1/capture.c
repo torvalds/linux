@@ -1501,11 +1501,28 @@ static int rkisp1_fop_release(struct file *file)
 	return ret;
 }
 
+void rkisp1_set_stream_def_fmt(struct rkisp1_device *dev, u32 id,
+	u32 width, u32 height, u32 pixelformat)
+{
+	struct rkisp1_stream *stream = &dev->stream[id];
+	struct v4l2_pix_format_mplane pixm;
+
+	memset(&pixm, 0, sizeof(pixm));
+	pixm.pixelformat = pixelformat;
+	pixm.width = width;
+	pixm.height = height;
+	rkisp1_set_fmt(stream, &pixm, false);
+
+	stream->dcrop.left = 0;
+	stream->dcrop.top = 0;
+	stream->dcrop.width = width;
+	stream->dcrop.height = height;
+}
+
 /************************* v4l2_file_operations***************************/
 void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 {
 	struct rkisp1_stream *stream = &dev->stream[id];
-	struct v4l2_pix_format_mplane pixm;
 
 	memset(stream, 0, sizeof(*stream));
 	stream->id = id;
@@ -1523,17 +1540,10 @@ void rkisp1_stream_init(struct rkisp1_device *dev, u32 id)
 	}
 
 	stream->streaming = false;
-
-	memset(&pixm, 0, sizeof(pixm));
-	pixm.pixelformat = V4L2_PIX_FMT_YUYV;
-	pixm.width = RKISP1_DEFAULT_WIDTH;
-	pixm.height = RKISP1_DEFAULT_HEIGHT;
-	rkisp1_set_fmt(stream, &pixm, false);
-
-	stream->dcrop.left = 0;
-	stream->dcrop.top = 0;
-	stream->dcrop.width = RKISP1_DEFAULT_WIDTH;
-	stream->dcrop.height = RKISP1_DEFAULT_HEIGHT;
+	rkisp1_set_stream_def_fmt(dev, id,
+				  RKISP1_DEFAULT_WIDTH,
+				  RKISP1_DEFAULT_HEIGHT,
+				  V4L2_PIX_FMT_YUYV);
 
 	stream->burst =
 		CIF_MI_CTRL_BURST_LEN_LUM_16 |

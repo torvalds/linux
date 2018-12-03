@@ -56,6 +56,9 @@
 #define RKISP1_MAX_SENSOR	2
 #define RKISP1_MAX_PIPELINE	4
 
+#define RKISP1_MEDIA_BUS_FMT_MASK	0xF000
+#define RKISP1_MEDIA_BUS_FMT_BAYER	0x3000
+
 enum rkisp1_isp_ver {
 	ISP_V10 = 0,
 	ISP_V11,

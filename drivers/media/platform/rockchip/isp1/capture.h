@@ -188,5 +188,7 @@ void rkisp1_unregister_stream_vdevs(struct rkisp1_device *dev);
 int rkisp1_register_stream_vdevs(struct rkisp1_device *dev);
 void rkisp1_mi_isr(u32 mis_val, struct rkisp1_device *dev);
 void rkisp1_stream_init(struct rkisp1_device *dev, u32 id);
+void rkisp1_set_stream_def_fmt(struct rkisp1_device *dev, u32 id,
+			       u32 width, u32 height, u32 pixelformat);
 
 #endif /* _RKISP1_PATH_VIDEO_H */
