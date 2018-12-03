@@ -30,6 +30,7 @@ struct udp_port_cfg {
 
 	__be16			local_udp_port;
 	__be16			peer_udp_port;
+	int			bind_ifindex;
 	unsigned int		use_udp_checksums:1,
 				use_udp6_tx_checksums:1,
 				use_udp6_rx_checksums:1,

@@ -31,6 +31,22 @@ int udp_sock_create6(struct net *net, struct udp_port_cfg *cfg,
 		if (err < 0)
 			goto error;
 	}
+	if (cfg->bind_ifindex) {
+		struct net_device *dev;
+
+		dev = dev_get_by_index(net, cfg->bind_ifindex);
+		if (!dev) {
+			err = -ENODEV;
+			goto error;
+		}
+
+		err = kernel_setsockopt(sock, SOL_SOCKET, SO_BINDTODEVICE,
+					dev->name, strlen(dev->name) + 1);
+		dev_put(dev);
+
+		if (err < 0)
+			goto error;
+	}
 
 	udp6_addr.sin6_family = AF_INET6;
 	memcpy(&udp6_addr.sin6_addr, &cfg->local_ip6,
