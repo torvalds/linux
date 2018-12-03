@@ -611,6 +611,40 @@
 		status = "disabled";
 	};
 
+	mmc0: mmc@11230000 {
+		compatible = "mediatek,mt2712-mmc";
+		reg = <0 0x11230000 0 0x1000>;
+		interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_MSDC30_0>,
+			 <&pericfg CLK_PERI_MSDC50_0_HCLK_EN>,
+			 <&pericfg CLK_PERI_MSDC30_0_QTR_EN>,
+			 <&pericfg CLK_PERI_MSDC50_0_EN>;
+		clock-names = "source", "hclk", "bus_clk", "source_cg";
+		status = "disabled";
+	};
+
+	mmc1: mmc@11240000 {
+		compatible = "mediatek,mt2712-mmc";
+		reg = <0 0x11240000 0 0x1000>;
+		interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_MSDC30_1>,
+			 <&topckgen CLK_TOP_AXI_SEL>,
+			 <&pericfg CLK_PERI_MSDC30_1_EN>;
+		clock-names = "source", "hclk", "source_cg";
+		status = "disabled";
+	};
+
+	mmc2: mmc@11250000 {
+		compatible = "mediatek,mt2712-mmc";
+		reg = <0 0x11250000 0 0x1000>;
+		interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_LOW>;
+		clocks = <&pericfg CLK_PERI_MSDC30_2>,
+			 <&topckgen CLK_TOP_AXI_SEL>,
+			 <&pericfg CLK_PERI_MSDC30_2_EN>;
+		clock-names = "source", "hclk", "source_cg";
+		status = "disabled";
+	};
+
 	ssusb: usb@11271000 {
 		compatible = "mediatek,mt2712-mtu3", "mediatek,mtu3";
 		reg = <0 0x11271000 0 0x3000>,
