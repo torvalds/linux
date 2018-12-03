@@ -30,27 +30,16 @@ static inline bool force_dma_unencrypted(void)
 	return sev_active();
 }
 
-static bool
-check_addr(struct device *dev, dma_addr_t dma_addr, size_t size,
-		const char *caller)
+static void report_addr(struct device *dev, dma_addr_t dma_addr, size_t size)
 {
-	if (unlikely(dev && !dma_capable(dev, dma_addr, size))) {
-		if (!dev->dma_mask) {
-			dev_err(dev,
-				"%s: call on device without dma_mask\n",
-				caller);
-			return false;
-		}
-
-		if (*dev->dma_mask >= DMA_BIT_MASK(32) || dev->bus_dma_mask) {
-			dev_err(dev,
-				"%s: overflow %pad+%zu of device mask %llx bus mask %llx\n",
-				caller, &dma_addr, size,
-				*dev->dma_mask, dev->bus_dma_mask);
-		}
-		return false;
+	if (!dev->dma_mask) {
+		dev_err_once(dev, "DMA map on device without dma_mask\n");
+	} else if (*dev->dma_mask >= DMA_BIT_MASK(32) || dev->bus_dma_mask) {
+		dev_err_once(dev,
+			"overflow %pad+%zu of DMA mask %llx bus mask %llx\n",
+			&dma_addr, size, *dev->dma_mask, dev->bus_dma_mask);
 	}
-	return true;
+	WARN_ON_ONCE(1);
 }
 
 static inline dma_addr_t phys_to_dma_direct(struct device *dev,
@@ -288,8 +277,10 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 	phys_addr_t phys = page_to_phys(page) + offset;
 	dma_addr_t dma_addr = phys_to_dma(dev, phys);
 
-	if (!check_addr(dev, dma_addr, size, __func__))
+	if (unlikely(dev && !dma_capable(dev, dma_addr, size))) {
+		report_addr(dev, dma_addr, size);
 		return DMA_MAPPING_ERROR;
+	}
 
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 		dma_direct_sync_single_for_device(dev, dma_addr, size, dir);
@@ -306,8 +297,11 @@ int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 		BUG_ON(!sg_page(sg));
 
 		sg_dma_address(sg) = phys_to_dma(dev, sg_phys(sg));
-		if (!check_addr(dev, sg_dma_address(sg), sg->length, __func__))
+		if (unlikely(dev && !dma_capable(dev, sg_dma_address(sg),
+				sg->length))) {
+			report_addr(dev, sg_dma_address(sg), sg->length);
 			return 0;
+		}
 		sg_dma_len(sg) = sg->length;
 	}
 
