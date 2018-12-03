@@ -2765,10 +2765,12 @@ enum btrfs_reserve_flush_enum {
 enum btrfs_flush_state {
 	FLUSH_DELAYED_ITEMS_NR	=	1,
 	FLUSH_DELAYED_ITEMS	=	2,
-	FLUSH_DELALLOC		=	3,
-	FLUSH_DELALLOC_WAIT	=	4,
-	ALLOC_CHUNK		=	5,
-	COMMIT_TRANS		=	6,
+	FLUSH_DELAYED_REFS_NR	=	3,
+	FLUSH_DELAYED_REFS	=	4,
+	FLUSH_DELALLOC		=	5,
+	FLUSH_DELALLOC_WAIT	=	6,
+	ALLOC_CHUNK		=	7,
+	COMMIT_TRANS		=	8,
 };
 
 int btrfs_alloc_data_chunk_ondemand(struct btrfs_inode *inode, u64 bytes);
