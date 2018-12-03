@@ -391,23 +391,6 @@ static void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n,
 	mmu_release_scsi_sgl(dev, sg, n);
 }
 
-static void sbus_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
-				 int n,	enum dma_data_direction dir)
-{
-	BUG();
-}
-
-static void sbus_sync_sg_for_device(struct device *dev, struct scatterlist *sg,
-				    int n, enum dma_data_direction dir)
-{
-	BUG();
-}
-
-static int sbus_dma_supported(struct device *dev, u64 mask)
-{
-	return 0;
-}
-
 static const struct dma_map_ops sbus_dma_ops = {
 	.alloc			= sbus_alloc_coherent,
 	.free			= sbus_free_coherent,
@@ -415,9 +398,6 @@ static const struct dma_map_ops sbus_dma_ops = {
 	.unmap_page		= sbus_unmap_page,
 	.map_sg			= sbus_map_sg,
 	.unmap_sg		= sbus_unmap_sg,
-	.sync_sg_for_cpu	= sbus_sync_sg_for_cpu,
-	.sync_sg_for_device	= sbus_sync_sg_for_device,
-	.dma_supported		= sbus_dma_supported,
 };
 
 static int __init sparc_register_ioport(void)
