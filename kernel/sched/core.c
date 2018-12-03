@@ -2857,7 +2857,7 @@ unsigned long nr_running(void)
  * preemption, thus the result might have a time-of-check-to-time-of-use
  * race.  The caller is responsible to use it correctly, for example:
  *
- * - from a non-preemptable section (of course)
+ * - from a non-preemptible section (of course)
  *
  * - from a thread that is bound to a single CPU
  *

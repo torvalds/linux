@@ -637,7 +637,7 @@ struct dl_rq {
 	/*
 	 * Deadline values of the currently executing and the
 	 * earliest ready task on this rq. Caching these facilitates
-	 * the decision wether or not a ready but not running task
+	 * the decision whether or not a ready but not running task
 	 * should migrate somewhere else.
 	 */
 	struct {
@@ -1434,7 +1434,7 @@ static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 #ifdef CONFIG_SMP
 	/*
 	 * After ->cpu is set up to a new value, task_rq_lock(p, ...) can be
-	 * successfuly executed on another CPU. We must ensure that updates of
+	 * successfully executed on another CPU. We must ensure that updates of
 	 * per-task data have been completed by this moment.
 	 */
 	smp_wmb();
