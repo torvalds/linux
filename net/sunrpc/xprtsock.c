@@ -437,7 +437,6 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 	} else
 		offset += buf->tail[0].iov_len;
 	ret = -EMSGSIZE;
-	msg->msg_flags |= MSG_TRUNC;
 out:
 	*read = offset - seek_init;
 	return ret;
@@ -489,7 +488,9 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 	switch (ret) {
 	default:
 		break;
+	case -EFAULT:
 	case -EMSGSIZE:
+		msg->msg_flags |= MSG_TRUNC;
 		return read;
 	case 0:
 		return -ESHUTDOWN;
