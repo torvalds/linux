@@ -308,6 +308,7 @@ static int igt_hang_sanitycheck(void *arg)
 		goto unlock;
 
 	for_each_engine(engine, i915, id) {
+		struct igt_wedge_me w;
 		long timeout;
 
 		if (!intel_engine_can_store_dword(engine))
@@ -328,9 +329,14 @@ static int igt_hang_sanitycheck(void *arg)
 
 		i915_request_add(rq);
 
-		timeout = i915_request_wait(rq,
-					    I915_WAIT_LOCKED,
-					    MAX_SCHEDULE_TIMEOUT);
+		timeout = 0;
+		igt_wedge_on_timeout(&w, i915, HZ / 10 /* 100ms timeout*/)
+			timeout = i915_request_wait(rq,
+						    I915_WAIT_LOCKED,
+						    MAX_SCHEDULE_TIMEOUT);
+		if (i915_terminally_wedged(&i915->gpu_error))
+			timeout = -EIO;
+
 		i915_request_put(rq);
 
 		if (timeout < 0) {
