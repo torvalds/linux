@@ -24,12 +24,14 @@ Required properties:
 
 Required properties for new device trees
 - clocks	: phandle to the 32kHz external oscillator
-- clock-output-names : names of the two clock outputs. See below.
+- clock-output-names : names of up to two clock outputs. See below.
 - #clock-cells  : must be equal to 1.
 
 The RTC provides the following clocks at the given indices:
 - 0: LOSC
 - 1: LOSC external output, known as X32KFOUT in the datasheet.
+     This clock is not available on the A31 and is deprecated for old
+     device trees still using the "allwinner,sun6i-a31-rtc" compatible.
 
 Example:
 
@@ -37,7 +39,7 @@ rtc: rtc@1f00000 {
 	compatible = "allwinner,sun6i-a31-rtc";
 	reg = <0x01f00000 0x54>;
 	interrupts = <0 40 4>, <0 41 4>;
-	clock-output-names = "osc32k", "osc32k-out";
+	clock-output-names = "osc32k";
 	clocks = <&ext_osc32k>;
 	#clock-cells = <1>;
 };
