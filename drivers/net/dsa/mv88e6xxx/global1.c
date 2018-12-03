@@ -567,6 +567,8 @@ int mv88e6xxx_g1_stats_clear(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	/* Keep the histogram mode bits */
+	val &= MV88E6XXX_G1_STATS_OP_HIST_RX_TX;
 	val |= MV88E6XXX_G1_STATS_OP_BUSY | MV88E6XXX_G1_STATS_OP_FLUSH_ALL;
 
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP, val);

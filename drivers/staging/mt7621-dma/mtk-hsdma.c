@@ -335,6 +335,8 @@ static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
 	/* tx desc */
 	src = sg->src_addr;
 	for (i = 0; i < chan->desc->num_sgs; i++) {
+		tx_desc = &chan->tx_ring[chan->tx_idx];
+
 		if (len > HSDMA_MAX_PLEN)
 			tlen = HSDMA_MAX_PLEN;
 		else
@@ -344,7 +346,6 @@ static int mtk_hsdma_start_transfer(struct mtk_hsdam_engine *hsdma,
 			tx_desc->addr1 = src;
 			tx_desc->flags |= HSDMA_DESC_PLEN1(tlen);
 		} else {
-			tx_desc = &chan->tx_ring[chan->tx_idx];
 			tx_desc->addr0 = src;
 			tx_desc->flags = HSDMA_DESC_PLEN0(tlen);
 

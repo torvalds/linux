@@ -535,7 +535,7 @@ int traceprobe_update_arg(struct probe_arg *arg)
 			if (code[1].op != FETCH_OP_IMM)
 				return -EINVAL;
 
-			tmp = strpbrk("+-", code->data);
+			tmp = strpbrk(code->data, "+-");
 			if (tmp)
 				c = *tmp;
 			ret = traceprobe_split_symbol_offset(code->data,

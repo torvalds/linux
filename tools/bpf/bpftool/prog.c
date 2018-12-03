@@ -357,10 +357,9 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	if (!hash_empty(prog_table.table)) {
 		struct pinned_obj *obj;
 
-		printf("\n");
 		hash_for_each_possible(prog_table.table, obj, hash, info->id) {
 			if (obj->id == info->id)
-				printf("\tpinned %s\n", obj->path);
+				printf("\n\tpinned %s", obj->path);
 		}
 	}
 
@@ -845,6 +844,7 @@ static int do_load(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
+			void *new_map_replace;
 			char *endptr, *name;
 			int fd;
 
@@ -878,12 +878,15 @@ static int do_load(int argc, char **argv)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			map_replace = reallocarray(map_replace, old_map_fds + 1,
-						   sizeof(*map_replace));
-			if (!map_replace) {
+			new_map_replace = reallocarray(map_replace,
+						       old_map_fds + 1,
+						       sizeof(*map_replace));
+			if (!new_map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
 			}
+			map_replace = new_map_replace;
+
 			map_replace[old_map_fds].idx = idx;
 			map_replace[old_map_fds].name = name;
 			map_replace[old_map_fds].fd = fd;
