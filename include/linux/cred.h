@@ -169,6 +169,7 @@ extern int change_create_files_as(struct cred *, struct inode *);
 extern int set_security_override(struct cred *, u32);
 extern int set_security_override_from_ctx(struct cred *, const char *);
 extern int set_create_files_as(struct cred *, struct inode *);
+extern int cred_fscmp(const struct cred *, const struct cred *);
 extern void __init cred_init(void);
 
 /*
