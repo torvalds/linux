@@ -13,6 +13,7 @@
 #include <linux/dma-noncoherent.h>
 #include <linux/pfn.h>
 #include <linux/set_memory.h>
+#include <linux/swiotlb.h>
 
 /*
  * Most architectures use ZONE_DMA for the first 16 Megabytes, but
@@ -209,68 +210,109 @@ void dma_direct_free(struct device *dev, size_t size,
 		dma_direct_free_pages(dev, size, cpu_addr, dma_addr, attrs);
 }
 
-static void dma_direct_sync_single_for_device(struct device *dev,
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+    defined(CONFIG_SWIOTLB)
+void dma_direct_sync_single_for_device(struct device *dev,
 		dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
-	if (dev_is_dma_coherent(dev))
-		return;
-	arch_sync_dma_for_device(dev, dma_to_phys(dev, addr), size, dir);
+	phys_addr_t paddr = dma_to_phys(dev, addr);
+
+	if (unlikely(is_swiotlb_buffer(paddr)))
+		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_DEVICE);
+
+	if (!dev_is_dma_coherent(dev))
+		arch_sync_dma_for_device(dev, paddr, size, dir);
 }
 
-#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE)
-static void dma_direct_sync_sg_for_device(struct device *dev,
+void dma_direct_sync_sg_for_device(struct device *dev,
 		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
 	int i;
 
-	if (dev_is_dma_coherent(dev))
-		return;
+	for_each_sg(sgl, sg, nents, i) {
+		if (unlikely(is_swiotlb_buffer(sg_phys(sg))))
+			swiotlb_tbl_sync_single(dev, sg_phys(sg), sg->length,
+					dir, SYNC_FOR_DEVICE);
 
-	for_each_sg(sgl, sg, nents, i)
-		arch_sync_dma_for_device(dev, sg_phys(sg), sg->length, dir);
+		if (!dev_is_dma_coherent(dev))
+			arch_sync_dma_for_device(dev, sg_phys(sg), sg->length,
+					dir);
+	}
 }
 #endif
 
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
-    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
-static void dma_direct_sync_single_for_cpu(struct device *dev,
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL) || \
+    defined(CONFIG_SWIOTLB)
+void dma_direct_sync_single_for_cpu(struct device *dev,
 		dma_addr_t addr, size_t size, enum dma_data_direction dir)
 {
-	if (dev_is_dma_coherent(dev))
-		return;
-	arch_sync_dma_for_cpu(dev, dma_to_phys(dev, addr), size, dir);
-	arch_sync_dma_for_cpu_all(dev);
+	phys_addr_t paddr = dma_to_phys(dev, addr);
+
+	if (!dev_is_dma_coherent(dev)) {
+		arch_sync_dma_for_cpu(dev, paddr, size, dir);
+		arch_sync_dma_for_cpu_all(dev);
+	}
+
+	if (unlikely(is_swiotlb_buffer(paddr)))
+		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_CPU);
 }
 
-static void dma_direct_sync_sg_for_cpu(struct device *dev,
+void dma_direct_sync_sg_for_cpu(struct device *dev,
 		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
 {
 	struct scatterlist *sg;
 	int i;
 
-	if (dev_is_dma_coherent(dev))
-		return;
+	for_each_sg(sgl, sg, nents, i) {
+		if (!dev_is_dma_coherent(dev))
+			arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
+	
+		if (unlikely(is_swiotlb_buffer(sg_phys(sg))))
+			swiotlb_tbl_sync_single(dev, sg_phys(sg), sg->length, dir,
+					SYNC_FOR_CPU);
+	}
 
-	for_each_sg(sgl, sg, nents, i)
-		arch_sync_dma_for_cpu(dev, sg_phys(sg), sg->length, dir);
-	arch_sync_dma_for_cpu_all(dev);
+	if (!dev_is_dma_coherent(dev))
+		arch_sync_dma_for_cpu_all(dev);
 }
 
-static void dma_direct_unmap_page(struct device *dev, dma_addr_t addr,
+void dma_direct_unmap_page(struct device *dev, dma_addr_t addr,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
 {
+	phys_addr_t phys = dma_to_phys(dev, addr);
+
 	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
 		dma_direct_sync_single_for_cpu(dev, addr, size, dir);
+
+	if (unlikely(is_swiotlb_buffer(phys)))
+		swiotlb_tbl_unmap_single(dev, phys, size, dir, attrs);
 }
 
-static void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
+void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
 		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		dma_direct_sync_sg_for_cpu(dev, sgl, nents, dir);
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(sgl, sg, nents, i)
+		dma_direct_unmap_page(dev, sg->dma_address, sg_dma_len(sg), dir,
+			     attrs);
+}
+#else
+void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
+{
 }
 #endif
+
+static inline bool dma_direct_possible(struct device *dev, dma_addr_t dma_addr,
+		size_t size)
+{
+	return swiotlb_force != SWIOTLB_FORCE &&
+		(!dev || dma_capable(dev, dma_addr, size));
+}
 
 dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		unsigned long offset, size_t size, enum dma_data_direction dir,
@@ -279,13 +321,14 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 	phys_addr_t phys = page_to_phys(page) + offset;
 	dma_addr_t dma_addr = phys_to_dma(dev, phys);
 
-	if (unlikely(dev && !dma_capable(dev, dma_addr, size))) {
+	if (unlikely(!dma_direct_possible(dev, dma_addr, size)) &&
+	    !swiotlb_map(dev, &phys, &dma_addr, size, dir, attrs)) {
 		report_addr(dev, dma_addr, size);
 		return DMA_MAPPING_ERROR;
 	}
 
-	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
-		dma_direct_sync_single_for_device(dev, dma_addr, size, dir);
+	if (!dev_is_dma_coherent(dev) && !(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		arch_sync_dma_for_device(dev, phys, size, dir);
 	return dma_addr;
 }
 
@@ -299,11 +342,15 @@ int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 		sg->dma_address = dma_direct_map_page(dev, sg_page(sg),
 				sg->offset, sg->length, dir, attrs);
 		if (sg->dma_address == DMA_MAPPING_ERROR)
-			return 0;
+			goto out_unmap;
 		sg_dma_len(sg) = sg->length;
 	}
 
 	return nents;
+
+out_unmap:
+	dma_direct_unmap_sg(dev, sgl, i, dir, attrs | DMA_ATTR_SKIP_CPU_SYNC);
+	return 0;
 }
 
 /*
@@ -331,12 +378,14 @@ const struct dma_map_ops dma_direct_ops = {
 	.free			= dma_direct_free,
 	.map_page		= dma_direct_map_page,
 	.map_sg			= dma_direct_map_sg,
-#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE)
+#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
+    defined(CONFIG_SWIOTLB)
 	.sync_single_for_device	= dma_direct_sync_single_for_device,
 	.sync_sg_for_device	= dma_direct_sync_sg_for_device,
 #endif
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
-    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL)
+    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL) || \
+    defined(CONFIG_SWIOTLB)
 	.sync_single_for_cpu	= dma_direct_sync_single_for_cpu,
 	.sync_sg_for_cpu	= dma_direct_sync_sg_for_cpu,
 	.unmap_page		= dma_direct_unmap_page,
