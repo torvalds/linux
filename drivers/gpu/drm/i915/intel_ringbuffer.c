@@ -529,6 +529,13 @@ static int init_ring_common(struct intel_engine_cs *engine)
 
 	intel_engine_reset_breadcrumbs(engine);
 
+	if (HAS_LEGACY_SEMAPHORES(engine->i915)) {
+		I915_WRITE(RING_SYNC_0(engine->mmio_base), 0);
+		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
+		if (HAS_VEBOX(dev_priv))
+			I915_WRITE(RING_SYNC_2(engine->mmio_base), 0);
+	}
+
 	/* Enforce ordering by reading HEAD register back */
 	I915_READ_HEAD(engine);
 
