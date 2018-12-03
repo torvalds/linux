@@ -1404,16 +1404,6 @@ static int ov5640_set_stream_dvp(struct ov5640_dev *sensor, bool on)
 
 	if (on) {
 		/*
-		 * reset MIPI PCLK/SERCLK divider
-		 *
-		 * SC PLL CONTRL1 0
-		 * - [3..0]:	MIPI PCLK/SERCLK divider
-		 */
-		ret = ov5640_mod_reg(sensor, OV5640_REG_SC_PLL_CTRL1, 0x0f, 0);
-		if (ret)
-			return ret;
-
-		/*
 		 * configure parallel port control lines polarity
 		 *
 		 * POLARITY CTRL0
