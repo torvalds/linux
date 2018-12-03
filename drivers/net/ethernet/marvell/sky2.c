@@ -4621,19 +4621,7 @@ static int sky2_debug_show(struct seq_file *seq, void *v)
 	napi_enable(&hw->napi);
 	return 0;
 }
-
-static int sky2_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sky2_debug_show, inode->i_private);
-}
-
-static const struct file_operations sky2_debug_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sky2_debug_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sky2_debug);
 
 /*
  * Use network device events to create/remove/rename
