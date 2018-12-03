@@ -154,6 +154,8 @@ static int vcn_v1_0_sw_init(void *handle)
 		return r;
 
 	adev->vcn.pause_dpg_mode = vcn_v1_0_pause_dpg_mode;
+	adev->vcn.internal.jpeg_pitch = adev->vcn.external.jpeg_pitch =
+		SOC15_REG_OFFSET(UVD, 0, mmUVD_JPEG_PITCH);
 
 	return 0;
 }

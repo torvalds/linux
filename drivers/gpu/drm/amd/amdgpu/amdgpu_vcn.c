@@ -631,19 +631,17 @@ int amdgpu_vcn_jpeg_ring_test_ring(struct amdgpu_ring *ring)
 	unsigned i;
 	int r;
 
-	WREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0xCAFEDEAD);
+	WREG32(adev->vcn.external.jpeg_pitch, 0xCAFEDEAD);
 	r = amdgpu_ring_alloc(ring, 3);
-
 	if (r)
 		return r;
 
-	amdgpu_ring_write(ring,
-		PACKETJ(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9), 0, 0, 0));
+	amdgpu_ring_write(ring, PACKET0(adev->vcn.internal.jpeg_pitch, 0));
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < adev->usec_timeout; i++) {
-		tmp = RREG32(SOC15_REG_OFFSET(UVD, 0, mmUVD_SCRATCH9));
+		tmp = RREG32(adev->vcn.external.jpeg_pitch);
 		if (tmp == 0xDEADBEEF)
 			break;
 		DRM_UDELAY(1);

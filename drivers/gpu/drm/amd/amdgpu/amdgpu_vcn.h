@@ -93,6 +93,7 @@ struct amdgpu_vcn_reg{
 	unsigned	cmd;
 	unsigned	nop;
 	unsigned	scratch9;
+	unsigned	jpeg_pitch;
 };
 
 struct amdgpu_vcn {
