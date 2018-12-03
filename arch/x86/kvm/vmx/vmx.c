@@ -1103,14 +1103,14 @@ static struct pi_desc *vcpu_to_pi_desc(struct kvm_vcpu *vcpu)
 
 static u16 shadow_read_only_fields[] = {
 #define SHADOW_FIELD_RO(x) x,
-#include "vmx_shadow_fields.h"
+#include "vmcs_shadow_fields.h"
 };
 static int max_shadow_read_only_fields =
 	ARRAY_SIZE(shadow_read_only_fields);
 
 static u16 shadow_read_write_fields[] = {
 #define SHADOW_FIELD_RW(x) x,
-#include "vmx_shadow_fields.h"
+#include "vmcs_shadow_fields.h"
 };
 static int max_shadow_read_write_fields =
 	ARRAY_SIZE(shadow_read_write_fields);
@@ -9266,7 +9266,7 @@ static int handle_vmwrite(struct kvm_vcpu *vcpu)
 	if (!is_guest_mode(vcpu)) {
 		switch (field) {
 #define SHADOW_FIELD_RW(x) case x:
-#include "vmx_shadow_fields.h"
+#include "vmcs_shadow_fields.h"
 			/*
 			 * The fields that can be updated by L1 without a vmexit are
 			 * always updated in the vmcs02, the others go down the slow
@@ -12910,7 +12910,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 	/*
 	 * First, the fields that are shadowed.  This must be kept in sync
-	 * with vmx_shadow_fields.h.
+	 * with vmcs_shadow_fields.h.
 	 */
 	if (!hv_evmcs || !(hv_evmcs->hv_clean_fields &
 			   HV_VMX_ENLIGHTENED_CLEAN_FIELD_GUEST_GRP2)) {
