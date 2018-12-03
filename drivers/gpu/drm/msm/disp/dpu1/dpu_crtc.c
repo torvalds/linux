@@ -819,6 +819,18 @@ static void _dpu_crtc_vblank_enable_no_lock(
 	}
 }
 
+static void dpu_crtc_reset(struct drm_crtc *crtc)
+{
+	struct dpu_crtc_state *cstate;
+
+	if (crtc->state)
+		dpu_crtc_destroy_state(crtc, crtc->state);
+
+	crtc->state = kzalloc(sizeof(*cstate), GFP_KERNEL);
+	if (crtc->state)
+		crtc->state->crtc = crtc;
+}
+
 /**
  * dpu_crtc_duplicate_state - state duplicate hook
  * @crtc: Pointer to drm crtc structure
@@ -1466,7 +1478,7 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = dpu_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
-	.reset = drm_atomic_helper_crtc_reset,
+	.reset = dpu_crtc_reset,
 	.atomic_duplicate_state = dpu_crtc_duplicate_state,
 	.atomic_destroy_state = dpu_crtc_destroy_state,
 	.late_register = dpu_crtc_late_register,
