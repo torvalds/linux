@@ -189,14 +189,12 @@ static int olpc_apsp_probe(struct platform_device *pdev)
 	struct serio *kb_serio, *pad_serio;
 	struct olpc_apsp *priv;
 	struct resource *res;
-	struct device_node *np;
 	int error;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct olpc_apsp), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	np = pdev->dev.of_node;
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->base)) {
