@@ -16,49 +16,48 @@
  *
  */
 
-#include "irq.h"
-#include "mmu.h"
-#include "cpuid.h"
-#include "lapic.h"
-#include "hyperv.h"
-
+#include <linux/frame.h>
+#include <linux/highmem.h>
+#include <linux/hrtimer.h>
+#include <linux/kernel.h>
 #include <linux/kvm_host.h>
 #include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/mm.h>
-#include <linux/highmem.h>
-#include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include <linux/mod_devicetable.h>
-#include <linux/trace_events.h>
+#include <linux/mm.h>
+#include <linux/nospec.h>
+#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/tboot.h>
-#include <linux/hrtimer.h>
-#include <linux/frame.h>
-#include <linux/nospec.h>
-#include "kvm_cache_regs.h"
-#include "x86.h"
+#include <linux/trace_events.h>
 
+#include <asm/apic.h>
 #include <asm/asm.h>
 #include <asm/cpu.h>
-#include <asm/io.h>
-#include <asm/desc.h>
-#include <asm/vmx.h>
-#include <asm/virtext.h>
-#include <asm/mce.h>
-#include <asm/fpu/internal.h>
-#include <asm/perf_event.h>
 #include <asm/debugreg.h>
-#include <asm/kexec.h>
-#include <asm/apic.h>
+#include <asm/desc.h>
+#include <asm/fpu/internal.h>
+#include <asm/io.h>
 #include <asm/irq_remapping.h>
+#include <asm/kexec.h>
+#include <asm/perf_event.h>
+#include <asm/mce.h>
 #include <asm/mmu_context.h>
-#include <asm/spec-ctrl.h>
 #include <asm/mshyperv.h>
+#include <asm/spec-ctrl.h>
+#include <asm/virtext.h>
+#include <asm/vmx.h>
 
-#include "trace.h"
+#include "cpuid.h"
+#include "hyperv.h"
+#include "irq.h"
+#include "kvm_cache_regs.h"
+#include "lapic.h"
+#include "mmu.h"
 #include "pmu.h"
+#include "trace.h"
 #include "vmx_evmcs.h"
+#include "x86.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
 #define __ex_clear(x, reg) \
