@@ -246,7 +246,6 @@ static
 const struct rpc_credops unix_credops = {
 	.cr_name	= "AUTH_UNIX",
 	.crdestroy	= unx_destroy_cred,
-	.crbind		= rpcauth_generic_bind_cred,
 	.crmatch	= unx_match,
 	.crmarshal	= unx_marshal,
 	.crrefresh	= unx_refresh,

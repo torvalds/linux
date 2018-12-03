@@ -658,15 +658,6 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
-struct rpc_cred *
-rpcauth_generic_bind_cred(struct rpc_task *task, struct rpc_cred *cred, int lookupflags)
-{
-	dprintk("RPC: %5u holding %s cred %p\n", task->tk_pid,
-			cred->cr_auth->au_ops->au_name, cred);
-	return get_rpccred(cred);
-}
-EXPORT_SYMBOL_GPL(rpcauth_generic_bind_cred);
-
 static struct rpc_cred *
 rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 {
@@ -724,8 +715,7 @@ rpcauth_bindcred(struct rpc_task *task, const struct cred *cred, int flags)
 		lookupflags |= RPCAUTH_LOOKUP_NEW;
 	if (task->tk_op_cred)
 		/* Task must use exactly this rpc_cred */
-		new = task->tk_op_cred->cr_ops->crbind(task, task->tk_op_cred,
-						       lookupflags);
+		new = get_rpccred(task->tk_op_cred);
 	else if (cred != NULL && cred != &machine_cred)
 		new = auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 	else if (cred == &machine_cred)
