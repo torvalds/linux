@@ -228,6 +228,23 @@ static bool __cpa_pfn_in_highmap(unsigned long pfn)
 
 #endif
 
+static unsigned long __cpa_addr(struct cpa_data *cpa, int idx)
+{
+	if (cpa->flags & CPA_PAGES_ARRAY) {
+		struct page *page = cpa->pages[idx];
+
+		if (unlikely(PageHighMem(page)))
+			return 0;
+
+		return (unsigned long)page_address(page);
+	}
+
+	if (cpa->flags & CPA_ARRAY)
+		return cpa->vaddr[idx];
+
+	return *cpa->vaddr;
+}
+
 /*
  * Flushing functions
  */
@@ -1476,15 +1493,7 @@ static int __change_page_attr(struct cpa_data *cpa, int primary)
 	unsigned int level;
 	pte_t *kpte, old_pte;
 
-	if (cpa->flags & CPA_PAGES_ARRAY) {
-		struct page *page = cpa->pages[cpa->curpage];
-		if (unlikely(PageHighMem(page)))
-			return 0;
-		address = (unsigned long)page_address(page);
-	} else if (cpa->flags & CPA_ARRAY)
-		address = cpa->vaddr[cpa->curpage];
-	else
-		address = *cpa->vaddr;
+	address = __cpa_addr(cpa, cpa->curpage);
 repeat:
 	kpte = _lookup_address_cpa(cpa, address, &level);
 	if (!kpte)
@@ -1565,16 +1574,7 @@ static int cpa_process_alias(struct cpa_data *cpa)
 	 * No need to redo, when the primary call touched the direct
 	 * mapping already:
 	 */
-	if (cpa->flags & CPA_PAGES_ARRAY) {
-		struct page *page = cpa->pages[cpa->curpage];
-		if (unlikely(PageHighMem(page)))
-			return 0;
-		vaddr = (unsigned long)page_address(page);
-	} else if (cpa->flags & CPA_ARRAY)
-		vaddr = cpa->vaddr[cpa->curpage];
-	else
-		vaddr = *cpa->vaddr;
-
+	vaddr = __cpa_addr(cpa, cpa->curpage);
 	if (!(within(vaddr, PAGE_OFFSET,
 		    PAGE_OFFSET + (max_pfn_mapped << PAGE_SHIFT)))) {
 
