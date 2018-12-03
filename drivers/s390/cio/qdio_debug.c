@@ -293,7 +293,7 @@ static void setup_debugfs_entry(struct qdio_q *q)
 	snprintf(name, QDIO_DEBUGFS_NAME_LEN, "%s_%d",
 		 q->is_input_q ? "input" : "output",
 		 q->nr);
-	q->debugfs_q = debugfs_create_file(name, S_IFREG | S_IRUGO | S_IWUSR,
+	q->debugfs_q = debugfs_create_file(name, 0444,
 				q->irq_ptr->debugfs_dev, q, &qstat_fops);
 	if (IS_ERR(q->debugfs_q))
 		q->debugfs_q = NULL;

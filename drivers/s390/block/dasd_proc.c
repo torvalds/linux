@@ -339,8 +339,7 @@ dasd_proc_init(void)
 	dasd_proc_root_entry = proc_mkdir("dasd", NULL);
 	if (!dasd_proc_root_entry)
 		goto out_nodasd;
-	dasd_devices_entry = proc_create_seq("devices",
-					 S_IFREG | S_IRUGO | S_IWUSR,
+	dasd_devices_entry = proc_create_seq("devices", 0444,
 					 dasd_proc_root_entry,
 					 &dasd_devices_seq_ops);
 	if (!dasd_devices_entry)
