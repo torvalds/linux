@@ -72,7 +72,7 @@ static u64 read_internal_timer(const struct cyclecounter *cc)
 	struct mlx5_core_dev *mdev = container_of(clock, struct mlx5_core_dev,
 						  clock);
 
-	return mlx5_read_internal_timer(mdev) & cc->mask;
+	return mlx5_read_internal_timer(mdev, NULL) & cc->mask;
 }
 
 static void mlx5_update_clock_info_page(struct mlx5_core_dev *mdev)
@@ -156,15 +156,19 @@ static int mlx5_ptp_settime(struct ptp_clock_info *ptp,
 	return 0;
 }
 
-static int mlx5_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int mlx5_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			     struct ptp_system_timestamp *sts)
 {
 	struct mlx5_clock *clock = container_of(ptp, struct mlx5_clock,
 						ptp_info);
-	u64 ns;
+	struct mlx5_core_dev *mdev = container_of(clock, struct mlx5_core_dev,
+						  clock);
 	unsigned long flags;
+	u64 cycles, ns;
 
 	write_seqlock_irqsave(&clock->lock, flags);
-	ns = timecounter_read(&clock->tc);
+	cycles = mlx5_read_internal_timer(mdev, sts);
+	ns = timecounter_cyc2time(&clock->tc, cycles);
 	write_sequnlock_irqrestore(&clock->lock, flags);
 
 	*ts = ns_to_timespec64(ns);
@@ -307,7 +311,7 @@ static int mlx5_perout_configure(struct ptp_clock_info *ptp,
 		ts.tv_sec = rq->perout.start.sec;
 		ts.tv_nsec = rq->perout.start.nsec;
 		ns = timespec64_to_ns(&ts);
-		cycles_now = mlx5_read_internal_timer(mdev);
+		cycles_now = mlx5_read_internal_timer(mdev, NULL);
 		write_seqlock_irqsave(&clock->lock, flags);
 		nsec_now = timecounter_cyc2time(&clock->tc, cycles_now);
 		nsec_delta = ns - nsec_now;
@@ -384,7 +388,7 @@ static const struct ptp_clock_info mlx5_ptp_clock_info = {
 	.pps		= 0,
 	.adjfreq	= mlx5_ptp_adjfreq,
 	.adjtime	= mlx5_ptp_adjtime,
-	.gettime64	= mlx5_ptp_gettime,
+	.gettimex64	= mlx5_ptp_gettimex,
 	.settime64	= mlx5_ptp_settime,
 	.enable		= NULL,
 	.verify		= NULL,
@@ -469,8 +473,8 @@ static int mlx5_pps_event(struct notifier_block *nb,
 		ptp_clock_event(clock->ptp, &ptp_event);
 		break;
 	case PTP_PF_PEROUT:
-		mlx5_ptp_gettime(&clock->ptp_info, &ts);
-		cycles_now = mlx5_read_internal_timer(mdev);
+		mlx5_ptp_gettimex(&clock->ptp_info, &ts, NULL);
+		cycles_now = mlx5_read_internal_timer(mdev, NULL);
 		ts.tv_sec += 1;
 		ts.tv_nsec = 0;
 		ns = timespec64_to_ns(&ts);
