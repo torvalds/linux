@@ -50,12 +50,13 @@ EXPORT_SYMBOL_GPL(rpc_lookup_cred_nonblock);
 
 /*
  * Public call interface for looking up machine creds.
+ * Note that if service_name is NULL, we actually look up
+ * "root" credential.
  */
 struct rpc_cred *rpc_lookup_machine_cred(const char *service_name)
 {
 	struct auth_cred acred = {
 		.principal = service_name,
-		.machine_cred = 1,
 		.cred = get_task_cred(&init_task),
 	};
 	struct rpc_cred *ret;
@@ -108,11 +109,10 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, g
 
 	gcred->acred.cred = gcred->gc_base.cr_cred;
 	gcred->acred.ac_flags = 0;
-	gcred->acred.machine_cred = acred->machine_cred;
 	gcred->acred.principal = acred->principal;
 
 	dprintk("RPC:       allocated %s cred %p for uid %d gid %d\n",
-			gcred->acred.machine_cred ? "machine" : "generic",
+			gcred->acred.principal ? "machine" : "generic",
 			gcred,
 			from_kuid(&init_user_ns, acred->cred->fsuid),
 			from_kgid(&init_user_ns, acred->cred->fsgid));
@@ -145,7 +145,7 @@ generic_destroy_cred(struct rpc_cred *cred)
 static int
 machine_cred_match(struct auth_cred *acred, struct generic_cred *gcred, int flags)
 {
-	if (!gcred->acred.machine_cred ||
+	if (!gcred->acred.principal ||
 	    gcred->acred.principal != acred->principal ||
 	    !uid_eq(gcred->acred.cred->fsuid, acred->cred->fsuid) ||
 	    !gid_eq(gcred->acred.cred->fsgid, acred->cred->fsgid))
@@ -163,12 +163,12 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	int i;
 	struct group_info *a, *g;
 
-	if (acred->machine_cred)
+	if (acred->principal)
 		return machine_cred_match(acred, gcred, flags);
 
 	if (!uid_eq(gcred->acred.cred->fsuid, acred->cred->fsuid) ||
 	    !gid_eq(gcred->acred.cred->fsgid, acred->cred->fsgid) ||
-	    gcred->acred.machine_cred != 0)
+	    gcred->acred.principal != NULL)
 		goto out_nomatch;
 
 	a = acred->cred->group_info;

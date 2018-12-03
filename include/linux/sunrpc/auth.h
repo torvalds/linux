@@ -46,9 +46,8 @@ enum {
 
 struct auth_cred {
 	const struct cred *cred;
-	const char *principal;
+	const char *principal;	/* If present, this is a machine credential */
 	unsigned long ac_flags;
-	unsigned char machine_cred : 1;
 };
 
 /*

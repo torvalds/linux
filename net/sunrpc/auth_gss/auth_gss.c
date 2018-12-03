@@ -1395,9 +1395,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 	 */
 	cred->gc_base.cr_flags = 1UL << RPCAUTH_CRED_NEW;
 	cred->gc_service = gss_auth->service;
-	cred->gc_principal = NULL;
-	if (acred->machine_cred)
-		cred->gc_principal = acred->principal;
+	cred->gc_principal = acred->principal;
 	kref_get(&gss_auth->kref);
 	return &cred->gc_base;
 
@@ -1610,7 +1608,6 @@ static int gss_renew_cred(struct rpc_task *task)
 	struct auth_cred acred = {
 		.cred = oldcred->cr_cred,
 		.principal = gss_cred->gc_principal,
-		.machine_cred = (gss_cred->gc_principal != NULL ? 1 : 0),
 	};
 	struct rpc_cred *new;
 
