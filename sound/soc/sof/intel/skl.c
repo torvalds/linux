@@ -87,6 +87,10 @@ struct snd_sof_dsp_ops sof_skl_ops = {
 	.pre_fw_run = hda_dsp_pre_fw_run,
 	.post_fw_run = hda_dsp_post_fw_run,
 
+	/* dsp core power up/down */
+	.core_power_up = hda_dsp_enable_core,
+	.core_power_down = hda_dsp_core_reset_power_down,
+
 	/* firmware run */
 	.run = hda_dsp_cl_boot_firmware_skl,
 
