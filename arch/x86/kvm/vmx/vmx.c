@@ -3521,7 +3521,8 @@ static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
  * bit in the high half is on if the corresponding bit in the control field
  * may be on. See also vmx_control_verify().
  */
-static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
+static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs,
+				       u32 ept_caps, bool apicv)
 {
 	if (!nested) {
 		memset(msrs, 0, sizeof(*msrs));
@@ -3660,7 +3661,7 @@ static void nested_vmx_setup_ctls_msrs(struct nested_vmx_msrs *msrs, bool apicv)
 		if (cpu_has_vmx_ept_execute_only())
 			msrs->ept_caps |=
 				VMX_EPT_EXECUTE_ONLY_BIT;
-		msrs->ept_caps &= vmx_capability.ept;
+		msrs->ept_caps &= ept_caps;
 		msrs->ept_caps |= VMX_EPT_EXTENT_GLOBAL_BIT |
 			VMX_EPT_EXTENT_CONTEXT_BIT | VMX_EPT_2MB_PAGE_BIT |
 			VMX_EPT_1GB_PAGE_BIT;
@@ -4542,7 +4543,8 @@ static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 	return 0;
 }
 
-static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
+static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
+				    struct vmx_capability *vmx_cap)
 {
 	u32 vmx_msr_low, vmx_msr_high;
 	u32 min, opt, min2, opt2;
@@ -4619,7 +4621,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 				SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY);
 
 	rdmsr_safe(MSR_IA32_VMX_EPT_VPID_CAP,
-		&vmx_capability.ept, &vmx_capability.vpid);
+		&vmx_cap->ept, &vmx_cap->vpid);
 
 	if (_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_EPT) {
 		/* CR3 accesses and invlpg don't need to cause VM Exits when EPT
@@ -4627,14 +4629,14 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 		_cpu_based_exec_control &= ~(CPU_BASED_CR3_LOAD_EXITING |
 					     CPU_BASED_CR3_STORE_EXITING |
 					     CPU_BASED_INVLPG_EXITING);
-	} else if (vmx_capability.ept) {
-		vmx_capability.ept = 0;
+	} else if (vmx_cap->ept) {
+		vmx_cap->ept = 0;
 		pr_warn_once("EPT CAP should not exist if not support "
 				"1-setting enable EPT VM-execution control\n");
 	}
 	if (!(_cpu_based_2nd_exec_control & SECONDARY_EXEC_ENABLE_VPID) &&
-		vmx_capability.vpid) {
-		vmx_capability.vpid = 0;
+		vmx_cap->vpid) {
+		vmx_cap->vpid = 0;
 		pr_warn_once("VPID CAP should not exist if not support "
 				"1-setting enable VPID VM-execution control\n");
 	}
@@ -7906,7 +7908,7 @@ static __init int hardware_setup(void)
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
 		kvm_define_shared_msr(i, vmx_msr_index[i]);
 
-	if (setup_vmcs_config(&vmcs_config) < 0)
+	if (setup_vmcs_config(&vmcs_config, &vmx_capability) < 0)
 		return -EIO;
 
 	if (boot_cpu_has(X86_FEATURE_NX))
@@ -8035,7 +8037,8 @@ static __init int hardware_setup(void)
 	}
 
 	kvm_set_posted_intr_wakeup_handler(wakeup_handler);
-	nested_vmx_setup_ctls_msrs(&vmcs_config.nested, enable_apicv);
+	nested_vmx_setup_ctls_msrs(&vmcs_config.nested, vmx_capability.ept,
+				   enable_apicv);
 
 	kvm_mce_cap_supported |= MCG_LMCE_P;
 
@@ -11608,6 +11611,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	if (nested)
 		nested_vmx_setup_ctls_msrs(&vmx->nested.msrs,
+					   vmx_capability.ept,
 					   kvm_vcpu_apicv_active(&vmx->vcpu));
 
 	vmx->nested.posted_intr_nv = -1;
@@ -11677,11 +11681,12 @@ static int vmx_vm_init(struct kvm *kvm)
 static void __init vmx_check_processor_compat(void *rtn)
 {
 	struct vmcs_config vmcs_conf;
+	struct vmx_capability vmx_cap;
 
 	*(int *)rtn = 0;
-	if (setup_vmcs_config(&vmcs_conf) < 0)
+	if (setup_vmcs_config(&vmcs_conf, &vmx_cap) < 0)
 		*(int *)rtn = -EIO;
-	nested_vmx_setup_ctls_msrs(&vmcs_conf.nested, enable_apicv);
+	nested_vmx_setup_ctls_msrs(&vmcs_conf.nested, vmx_cap.ept, enable_apicv);
 	if (memcmp(&vmcs_config, &vmcs_conf, sizeof(struct vmcs_config)) != 0) {
 		printk(KERN_ERR "kvm: CPU %d feature inconsistency!\n",
 				smp_processor_id());
