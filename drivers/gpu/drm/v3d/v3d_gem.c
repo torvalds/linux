@@ -130,10 +130,15 @@ v3d_flush_l3(struct v3d_dev *v3d)
 	}
 }
 
-/* Invalidates the (read-only) L2 cache. */
+/* Invalidates the (read-only) L2C cache.  This was the L2 cache for
+ * uniforms and instructions on V3D 3.2.
+ */
 static void
-v3d_invalidate_l2(struct v3d_dev *v3d, int core)
+v3d_invalidate_l2c(struct v3d_dev *v3d, int core)
 {
+	if (v3d->ver > 32)
+		return;
+
 	V3D_CORE_WRITE(core, V3D_CTL_L2CACTL,
 		       V3D_L2CACTL_L2CCLR |
 		       V3D_L2CACTL_L2CENA);
@@ -168,7 +173,7 @@ v3d_invalidate_caches(struct v3d_dev *v3d)
 {
 	v3d_flush_l3(v3d);
 
-	v3d_invalidate_l2(v3d, 0);
+	v3d_invalidate_l2c(v3d, 0);
 	v3d_invalidate_slices(v3d, 0);
 	v3d_flush_l2t(v3d, 0);
 }
