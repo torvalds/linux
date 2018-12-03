@@ -1627,9 +1627,6 @@ static void ips_remove(struct pci_dev *dev)
 	struct ips_driver *ips = pci_get_drvdata(dev);
 	u64 turbo_override;
 
-	if (!ips)
-		return;
-
 	ips_debugfs_cleanup(ips);
 
 	/* Release i915 driver */
