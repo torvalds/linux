@@ -579,6 +579,18 @@ static int rockchip_tve_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void rockchip_tve_shutdown(struct platform_device *pdev)
+{
+	struct rockchip_tve *tve = dev_get_drvdata(&pdev->dev);
+
+	mutex_lock(&tve->suspend_lock);
+
+	dev_dbg(tve->dev, "tve shutdown\n");
+	cvbs_set_disable(tve);
+
+	mutex_unlock(&tve->suspend_lock);
+}
+
 static int rockchip_tve_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &rockchip_tve_component_ops);
@@ -589,6 +601,7 @@ static int rockchip_tve_remove(struct platform_device *pdev)
 struct platform_driver rockchip_tve_driver = {
 	.probe = rockchip_tve_probe,
 	.remove = rockchip_tve_remove,
+	.shutdown = rockchip_tve_shutdown,
 	.driver = {
 		   .name = "rockchip-tve",
 		   .of_match_table = of_match_ptr(rockchip_tve_dt_ids),
