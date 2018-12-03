@@ -977,6 +977,40 @@ void intel_gt_apply_workarounds(struct drm_i915_private *dev_priv)
 	wa_list_apply(dev_priv, &dev_priv->gt_wa_list);
 }
 
+static bool
+wa_verify(const struct i915_wa *wa, u32 cur, const char *name, const char *from)
+{
+	if ((cur ^ wa->val) & wa->mask) {
+		DRM_ERROR("%s workaround lost on %s! (%x=%x/%x, expected %x, mask=%x)\n",
+			  name, from, i915_mmio_reg_offset(wa->reg), cur,
+			  cur & wa->mask, wa->val, wa->mask);
+
+		return false;
+	}
+
+	return true;
+}
+
+static bool wa_list_verify(struct drm_i915_private *dev_priv,
+			   const struct i915_wa_list *wal,
+			   const char *from)
+{
+	struct i915_wa *wa;
+	unsigned int i;
+	bool ok = true;
+
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
+		ok &= wa_verify(wa, I915_READ(wa->reg), wal->name, from);
+
+	return ok;
+}
+
+bool intel_gt_verify_workarounds(struct drm_i915_private *dev_priv,
+				 const char *from)
+{
+	return wa_list_verify(dev_priv, &dev_priv->gt_wa_list, from);
+}
+
 struct whitelist {
 	i915_reg_t reg[RING_MAX_NONPRIV_SLOTS];
 	unsigned int count;
