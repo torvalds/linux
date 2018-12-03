@@ -441,13 +441,30 @@ static int fuse_flush(struct file *file, fl_owner_t id)
 }
 
 int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
-		      int datasync, int isdir)
+		      int datasync, int opcode)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
 	FUSE_ARGS(args);
 	struct fuse_fsync_in inarg;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.fh = ff->fh;
+	inarg.fsync_flags = datasync ? 1 : 0;
+	args.in.h.opcode = opcode;
+	args.in.h.nodeid = get_node_id(inode);
+	args.in.numargs = 1;
+	args.in.args[0].size = sizeof(inarg);
+	args.in.args[0].value = &inarg;
+	return fuse_simple_request(fc, &args);
+}
+
+static int fuse_fsync(struct file *file, loff_t start, loff_t end,
+		      int datasync)
+{
+	struct inode *inode = file->f_mapping->host;
+	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
 	if (is_bad_inode(inode))
@@ -479,34 +496,18 @@ int fuse_fsync_common(struct file *file, loff_t start, loff_t end,
 	if (err)
 		goto out;
 
-	if ((!isdir && fc->no_fsync) || (isdir && fc->no_fsyncdir))
+	if (fc->no_fsync)
 		goto out;
 
-	memset(&inarg, 0, sizeof(inarg));
-	inarg.fh = ff->fh;
-	inarg.fsync_flags = datasync ? 1 : 0;
-	args.in.h.opcode = isdir ? FUSE_FSYNCDIR : FUSE_FSYNC;
-	args.in.h.nodeid = get_node_id(inode);
-	args.in.numargs = 1;
-	args.in.args[0].size = sizeof(inarg);
-	args.in.args[0].value = &inarg;
-	err = fuse_simple_request(fc, &args);
+	err = fuse_fsync_common(file, start, end, datasync, FUSE_FSYNC);
 	if (err == -ENOSYS) {
-		if (isdir)
-			fc->no_fsyncdir = 1;
-		else
-			fc->no_fsync = 1;
+		fc->no_fsync = 1;
 		err = 0;
 	}
 out:
 	inode_unlock(inode);
-	return err;
-}
 
-static int fuse_fsync(struct file *file, loff_t start, loff_t end,
-		      int datasync)
-{
-	return fuse_fsync_common(file, start, end, datasync, 0);
+	return err;
 }
 
 void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,
