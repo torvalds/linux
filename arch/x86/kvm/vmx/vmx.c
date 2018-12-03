@@ -49,6 +49,7 @@
 #include <asm/vmx.h>
 
 #include "cpuid.h"
+#include "evmcs.h"
 #include "hyperv.h"
 #include "irq.h"
 #include "kvm_cache_regs.h"
@@ -56,7 +57,6 @@
 #include "mmu.h"
 #include "pmu.h"
 #include "trace.h"
-#include "vmx_evmcs.h"
 #include "x86.h"
 
 #define __ex(x) __kvm_handle_fault_on_reboot(x)
