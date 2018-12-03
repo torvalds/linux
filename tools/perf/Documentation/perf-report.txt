@@ -252,7 +252,7 @@ OPTIONS
 	          Usually more convenient to use --branch-history for this.
 
 	value can be:
-	- percent: diplay overhead percent (default)
+	- percent: display overhead percent (default)
 	- period: display event period
 	- count: display event count
 
