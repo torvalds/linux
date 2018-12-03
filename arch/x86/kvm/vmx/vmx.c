@@ -55,16 +55,14 @@
 #include "kvm_cache_regs.h"
 #include "lapic.h"
 #include "mmu.h"
+#include "ops.h"
 #include "pmu.h"
 #include "trace.h"
 #include "vmcs.h"
 #include "vmcs12.h"
+#include "vmx.h"
 #include "x86.h"
 #include "vmx.h"
-
-#define __ex(x) __kvm_handle_fault_on_reboot(x)
-#define __ex_clear(x, reg) \
-	____kvm_handle_fault_on_reboot(x, "xor " reg ", " reg)
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
@@ -368,7 +366,6 @@ static inline struct vmcs12 *get_shadow_vmcs12(struct kvm_vcpu *vcpu)
 
 static bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu);
 static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
-static u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa);
 static void vmx_set_segment(struct kvm_vcpu *vcpu,
 			    struct kvm_segment *var, int seg);
 static void vmx_get_segment(struct kvm_vcpu *vcpu,
@@ -701,32 +698,6 @@ static int __find_msr_index(struct vcpu_vmx *vmx, u32 msr)
 	return -1;
 }
 
-static inline void __invvpid(unsigned long ext, u16 vpid, gva_t gva)
-{
-    struct {
-	u64 vpid : 16;
-	u64 rsvd : 48;
-	u64 gva;
-    } operand = { vpid, 0, gva };
-    bool error;
-
-    asm volatile (__ex("invvpid %2, %1") CC_SET(na)
-		  : CC_OUT(na) (error) : "r"(ext), "m"(operand));
-    BUG_ON(error);
-}
-
-static inline void __invept(unsigned long ext, u64 eptp, gpa_t gpa)
-{
-	struct {
-		u64 eptp, gpa;
-	} operand = {eptp, gpa};
-	bool error;
-
-	asm volatile (__ex("invept %2, %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "r"(ext), "m"(operand));
-	BUG_ON(error);
-}
-
 static struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 {
 	int i;
@@ -737,40 +708,13 @@ static struct shared_msr_entry *find_msr_entry(struct vcpu_vmx *vmx, u32 msr)
 	return NULL;
 }
 
-static void vmcs_clear(struct vmcs *vmcs)
-{
-	u64 phys_addr = __pa(vmcs);
-	bool error;
-
-	asm volatile (__ex("vmclear %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "m"(phys_addr));
-	if (unlikely(error))
-		printk(KERN_ERR "kvm: vmclear fail: %p/%llx\n",
-		       vmcs, phys_addr);
-}
-
-static inline void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
+void loaded_vmcs_init(struct loaded_vmcs *loaded_vmcs)
 {
 	vmcs_clear(loaded_vmcs->vmcs);
 	if (loaded_vmcs->shadow_vmcs && loaded_vmcs->launched)
 		vmcs_clear(loaded_vmcs->shadow_vmcs);
 	loaded_vmcs->cpu = -1;
 	loaded_vmcs->launched = 0;
-}
-
-static void vmcs_load(struct vmcs *vmcs)
-{
-	u64 phys_addr = __pa(vmcs);
-	bool error;
-
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_load(phys_addr);
-
-	asm volatile (__ex("vmptrld %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "m"(phys_addr));
-	if (unlikely(error))
-		printk(KERN_ERR "kvm: vmptrld %p/%llx failed\n",
-		       vmcs, phys_addr);
 }
 
 #ifdef CONFIG_KEXEC_CORE
@@ -837,294 +781,13 @@ static void __loaded_vmcs_clear(void *arg)
 	crash_enable_local_vmclear(cpu);
 }
 
-static void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs)
+void loaded_vmcs_clear(struct loaded_vmcs *loaded_vmcs)
 {
 	int cpu = loaded_vmcs->cpu;
 
 	if (cpu != -1)
 		smp_call_function_single(cpu,
 			 __loaded_vmcs_clear, loaded_vmcs, 1);
-}
-
-static inline bool vpid_sync_vcpu_addr(int vpid, gva_t addr)
-{
-	if (vpid == 0)
-		return true;
-
-	if (cpu_has_vmx_invvpid_individual_addr()) {
-		__invvpid(VMX_VPID_EXTENT_INDIVIDUAL_ADDR, vpid, addr);
-		return true;
-	}
-
-	return false;
-}
-
-static inline void vpid_sync_vcpu_single(int vpid)
-{
-	if (vpid == 0)
-		return;
-
-	if (cpu_has_vmx_invvpid_single())
-		__invvpid(VMX_VPID_EXTENT_SINGLE_CONTEXT, vpid, 0);
-}
-
-static inline void vpid_sync_vcpu_global(void)
-{
-	if (cpu_has_vmx_invvpid_global())
-		__invvpid(VMX_VPID_EXTENT_ALL_CONTEXT, 0, 0);
-}
-
-static inline void vpid_sync_context(int vpid)
-{
-	if (cpu_has_vmx_invvpid_single())
-		vpid_sync_vcpu_single(vpid);
-	else
-		vpid_sync_vcpu_global();
-}
-
-static inline void ept_sync_global(void)
-{
-	__invept(VMX_EPT_EXTENT_GLOBAL, 0, 0);
-}
-
-static inline void ept_sync_context(u64 eptp)
-{
-	if (cpu_has_vmx_invept_context())
-		__invept(VMX_EPT_EXTENT_CONTEXT, eptp, 0);
-	else
-		ept_sync_global();
-}
-
-static __always_inline void vmcs_check16(unsigned long field)
-{
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
-			 "16-bit accessor invalid for 64-bit field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
-			 "16-bit accessor invalid for 64-bit high field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
-			 "16-bit accessor invalid for 32-bit high field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
-			 "16-bit accessor invalid for natural width field");
-}
-
-static __always_inline void vmcs_check32(unsigned long field)
-{
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
-			 "32-bit accessor invalid for 16-bit field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
-			 "32-bit accessor invalid for natural width field");
-}
-
-static __always_inline void vmcs_check64(unsigned long field)
-{
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
-			 "64-bit accessor invalid for 16-bit field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
-			 "64-bit accessor invalid for 64-bit high field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
-			 "64-bit accessor invalid for 32-bit field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x6000,
-			 "64-bit accessor invalid for natural width field");
-}
-
-static __always_inline void vmcs_checkl(unsigned long field)
-{
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0,
-			 "Natural width accessor invalid for 16-bit field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2000,
-			 "Natural width accessor invalid for 64-bit field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6001) == 0x2001,
-			 "Natural width accessor invalid for 64-bit high field");
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x4000,
-			 "Natural width accessor invalid for 32-bit field");
-}
-
-static __always_inline unsigned long __vmcs_readl(unsigned long field)
-{
-	unsigned long value;
-
-	asm volatile (__ex_clear("vmread %1, %0", "%k0")
-		      : "=r"(value) : "r"(field));
-	return value;
-}
-
-static __always_inline u16 vmcs_read16(unsigned long field)
-{
-	vmcs_check16(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_read16(field);
-	return __vmcs_readl(field);
-}
-
-static __always_inline u32 vmcs_read32(unsigned long field)
-{
-	vmcs_check32(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_read32(field);
-	return __vmcs_readl(field);
-}
-
-static __always_inline u64 vmcs_read64(unsigned long field)
-{
-	vmcs_check64(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_read64(field);
-#ifdef CONFIG_X86_64
-	return __vmcs_readl(field);
-#else
-	return __vmcs_readl(field) | ((u64)__vmcs_readl(field+1) << 32);
-#endif
-}
-
-static __always_inline unsigned long vmcs_readl(unsigned long field)
-{
-	vmcs_checkl(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_read64(field);
-	return __vmcs_readl(field);
-}
-
-static noinline void vmwrite_error(unsigned long field, unsigned long value)
-{
-	printk(KERN_ERR "vmwrite error: reg %lx value %lx (err %d)\n",
-	       field, value, vmcs_read32(VM_INSTRUCTION_ERROR));
-	dump_stack();
-}
-
-static __always_inline void __vmcs_writel(unsigned long field, unsigned long value)
-{
-	bool error;
-
-	asm volatile (__ex("vmwrite %2, %1") CC_SET(na)
-		      : CC_OUT(na) (error) : "r"(field), "rm"(value));
-	if (unlikely(error))
-		vmwrite_error(field, value);
-}
-
-static __always_inline void vmcs_write16(unsigned long field, u16 value)
-{
-	vmcs_check16(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_write16(field, value);
-
-	__vmcs_writel(field, value);
-}
-
-static __always_inline void vmcs_write32(unsigned long field, u32 value)
-{
-	vmcs_check32(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_write32(field, value);
-
-	__vmcs_writel(field, value);
-}
-
-static __always_inline void vmcs_write64(unsigned long field, u64 value)
-{
-	vmcs_check64(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_write64(field, value);
-
-	__vmcs_writel(field, value);
-#ifndef CONFIG_X86_64
-	asm volatile ("");
-	__vmcs_writel(field+1, value >> 32);
-#endif
-}
-
-static __always_inline void vmcs_writel(unsigned long field, unsigned long value)
-{
-	vmcs_checkl(field);
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_write64(field, value);
-
-	__vmcs_writel(field, value);
-}
-
-static __always_inline void vmcs_clear_bits(unsigned long field, u32 mask)
-{
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
-			 "vmcs_clear_bits does not support 64-bit fields");
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_write32(field, evmcs_read32(field) & ~mask);
-
-	__vmcs_writel(field, __vmcs_readl(field) & ~mask);
-}
-
-static __always_inline void vmcs_set_bits(unsigned long field, u32 mask)
-{
-        BUILD_BUG_ON_MSG(__builtin_constant_p(field) && ((field) & 0x6000) == 0x2000,
-			 "vmcs_set_bits does not support 64-bit fields");
-	if (static_branch_unlikely(&enable_evmcs))
-		return evmcs_write32(field, evmcs_read32(field) | mask);
-
-	__vmcs_writel(field, __vmcs_readl(field) | mask);
-}
-
-static inline void vm_entry_controls_reset_shadow(struct vcpu_vmx *vmx)
-{
-	vmx->vm_entry_controls_shadow = vmcs_read32(VM_ENTRY_CONTROLS);
-}
-
-static inline void vm_entry_controls_init(struct vcpu_vmx *vmx, u32 val)
-{
-	vmcs_write32(VM_ENTRY_CONTROLS, val);
-	vmx->vm_entry_controls_shadow = val;
-}
-
-static inline void vm_entry_controls_set(struct vcpu_vmx *vmx, u32 val)
-{
-	if (vmx->vm_entry_controls_shadow != val)
-		vm_entry_controls_init(vmx, val);
-}
-
-static inline u32 vm_entry_controls_get(struct vcpu_vmx *vmx)
-{
-	return vmx->vm_entry_controls_shadow;
-}
-
-
-static inline void vm_entry_controls_setbit(struct vcpu_vmx *vmx, u32 val)
-{
-	vm_entry_controls_set(vmx, vm_entry_controls_get(vmx) | val);
-}
-
-static inline void vm_entry_controls_clearbit(struct vcpu_vmx *vmx, u32 val)
-{
-	vm_entry_controls_set(vmx, vm_entry_controls_get(vmx) & ~val);
-}
-
-static inline void vm_exit_controls_reset_shadow(struct vcpu_vmx *vmx)
-{
-	vmx->vm_exit_controls_shadow = vmcs_read32(VM_EXIT_CONTROLS);
-}
-
-static inline void vm_exit_controls_init(struct vcpu_vmx *vmx, u32 val)
-{
-	vmcs_write32(VM_EXIT_CONTROLS, val);
-	vmx->vm_exit_controls_shadow = val;
-}
-
-static inline void vm_exit_controls_set(struct vcpu_vmx *vmx, u32 val)
-{
-	if (vmx->vm_exit_controls_shadow != val)
-		vm_exit_controls_init(vmx, val);
-}
-
-static inline u32 vm_exit_controls_get(struct vcpu_vmx *vmx)
-{
-	return vmx->vm_exit_controls_shadow;
-}
-
-
-static inline void vm_exit_controls_setbit(struct vcpu_vmx *vmx, u32 val)
-{
-	vm_exit_controls_set(vmx, vm_exit_controls_get(vmx) | val);
-}
-
-static inline void vm_exit_controls_clearbit(struct vcpu_vmx *vmx, u32 val)
-{
-	vm_exit_controls_set(vmx, vm_exit_controls_get(vmx) & ~val);
 }
 
 static bool vmx_segment_cache_test_set(struct vcpu_vmx *vmx, unsigned seg,
@@ -1670,12 +1333,6 @@ static void vmx_vcpu_pi_load(struct kvm_vcpu *vcpu, int cpu)
 		new.sn = 0;
 	} while (cmpxchg64(&pi_desc->control, old.control,
 			   new.control) != old.control);
-}
-
-static void decache_tsc_multiplier(struct vcpu_vmx *vmx)
-{
-	vmx->current_tsc_ratio = vmx->vcpu.arch.tsc_scaling_ratio;
-	vmcs_write64(TSC_MULTIPLIER, vmx->current_tsc_ratio);
 }
 
 /*
@@ -3312,7 +2969,7 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf,
 	return 0;
 }
 
-static struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu)
+struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu)
 {
 	int node = cpu_to_node(cpu);
 	struct page *pages;
@@ -3335,7 +2992,7 @@ static struct vmcs *alloc_vmcs_cpu(bool shadow, int cpu)
 	return vmcs;
 }
 
-static void free_vmcs(struct vmcs *vmcs)
+void free_vmcs(struct vmcs *vmcs)
 {
 	free_pages((unsigned long)vmcs, vmcs_config.order);
 }
@@ -3343,7 +3000,7 @@ static void free_vmcs(struct vmcs *vmcs)
 /*
  * Free a VMCS, but before that VMCLEAR it on the CPU where it was last loaded
  */
-static void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
+void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 {
 	if (!loaded_vmcs->vmcs)
 		return;
@@ -3355,12 +3012,7 @@ static void free_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 	WARN_ON(loaded_vmcs->shadow_vmcs != NULL);
 }
 
-static struct vmcs *alloc_vmcs(bool shadow)
-{
-	return alloc_vmcs_cpu(shadow, raw_smp_processor_id());
-}
-
-static int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
+int alloc_loaded_vmcs(struct loaded_vmcs *loaded_vmcs)
 {
 	loaded_vmcs->vmcs = alloc_vmcs(false);
 	if (!loaded_vmcs->vmcs)
@@ -3692,24 +3344,6 @@ static void exit_lmode(struct kvm_vcpu *vcpu)
 
 #endif
 
-static inline void __vmx_flush_tlb(struct kvm_vcpu *vcpu, int vpid,
-				bool invalidate_gpa)
-{
-	if (enable_ept && (invalidate_gpa || !enable_vpid)) {
-		if (!VALID_PAGE(vcpu->arch.mmu->root_hpa))
-			return;
-		ept_sync_context(construct_eptp(vcpu,
-						vcpu->arch.mmu->root_hpa));
-	} else {
-		vpid_sync_context(vpid);
-	}
-}
-
-static void vmx_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa)
-{
-	__vmx_flush_tlb(vcpu, to_vmx(vcpu)->vpid, invalidate_gpa);
-}
-
 static void vmx_flush_tlb_gva(struct kvm_vcpu *vcpu, gva_t addr)
 {
 	int vpid = to_vmx(vcpu)->vpid;
@@ -3889,7 +3523,7 @@ static int get_ept_level(struct kvm_vcpu *vcpu)
 	return 4;
 }
 
-static u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
+u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
 {
 	u64 eptp = VMX_EPTP_MT_WB;
 
@@ -4749,11 +4383,6 @@ static void vmx_complete_nested_posted_interrupt(struct kvm_vcpu *vcpu)
 	nested_mark_vmcs12_pages_dirty(vcpu);
 }
 
-static u8 vmx_get_rvi(void)
-{
-	return vmcs_read16(GUEST_INTR_STATUS) & 0xff;
-}
-
 static bool vmx_guest_apic_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -4972,6 +4601,33 @@ static void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(vcpu);
 }
+
+u32 vmx_exec_control(struct vcpu_vmx *vmx)
+{
+	u32 exec_control = vmcs_config.cpu_based_exec_ctrl;
+
+	if (vmx->vcpu.arch.switch_db_regs & KVM_DEBUGREG_WONT_EXIT)
+		exec_control &= ~CPU_BASED_MOV_DR_EXITING;
+
+	if (!cpu_need_tpr_shadow(&vmx->vcpu)) {
+		exec_control &= ~CPU_BASED_TPR_SHADOW;
+#ifdef CONFIG_X86_64
+		exec_control |= CPU_BASED_CR8_STORE_EXITING |
+				CPU_BASED_CR8_LOAD_EXITING;
+#endif
+	}
+	if (!enable_ept)
+		exec_control |= CPU_BASED_CR3_STORE_EXITING |
+				CPU_BASED_CR3_LOAD_EXITING  |
+				CPU_BASED_INVLPG_EXITING;
+	if (kvm_mwait_in_guest(vmx->vcpu.kvm))
+		exec_control &= ~(CPU_BASED_MWAIT_EXITING |
+				CPU_BASED_MONITOR_EXITING);
+	if (kvm_hlt_in_guest(vmx->vcpu.kvm))
+		exec_control &= ~CPU_BASED_HLT_EXITING;
+	return exec_control;
+}
+
 
 static void vmx_compute_secondary_exec_control(struct vcpu_vmx *vmx)
 {
