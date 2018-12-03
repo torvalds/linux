@@ -798,21 +798,11 @@ static int should_end_transaction(struct btrfs_trans_handle *trans)
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans)
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
-	int updates;
-	int err;
 
 	smp_mb();
 	if (cur_trans->state >= TRANS_STATE_BLOCKED ||
 	    cur_trans->delayed_refs.flushing)
 		return 1;
-
-	updates = trans->delayed_ref_updates;
-	trans->delayed_ref_updates = 0;
-	if (updates) {
-		err = btrfs_run_delayed_refs(trans, updates * 2);
-		if (err) /* Error code will also eval true */
-			return err;
-	}
 
 	return should_end_transaction(trans);
 }
@@ -843,37 +833,13 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *info = trans->fs_info;
 	struct btrfs_transaction *cur_trans = trans->transaction;
-	u64 transid = trans->transid;
-	unsigned long cur = trans->delayed_ref_updates;
 	int lock = (trans->type != TRANS_JOIN_NOLOCK);
 	int err = 0;
-	int must_run_delayed_refs = 0;
 
 	if (refcount_read(&trans->use_count) > 1) {
 		refcount_dec(&trans->use_count);
 		trans->block_rsv = trans->orig_rsv;
 		return 0;
-	}
-
-	btrfs_trans_release_metadata(trans);
-	trans->block_rsv = NULL;
-
-	if (!list_empty(&trans->new_bgs))
-		btrfs_create_pending_block_groups(trans);
-
-	trans->delayed_ref_updates = 0;
-	if (!trans->sync) {
-		must_run_delayed_refs =
-			btrfs_should_throttle_delayed_refs(trans);
-		cur = max_t(unsigned long, cur, 32);
-
-		/*
-		 * don't make the caller wait if they are from a NOLOCK
-		 * or ATTACH transaction, it will deadlock with commit
-		 */
-		if (must_run_delayed_refs == 1 &&
-		    (trans->type & (__TRANS_JOIN_NOLOCK | __TRANS_ATTACH)))
-			must_run_delayed_refs = 2;
 	}
 
 	btrfs_trans_release_metadata(trans);
@@ -923,10 +889,6 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
-	if (must_run_delayed_refs) {
-		btrfs_async_run_delayed_refs(info, cur, transid,
-					     must_run_delayed_refs == 1);
-	}
 	return err;
 }
 
