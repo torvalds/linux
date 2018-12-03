@@ -4862,6 +4862,9 @@ static void init_vmcs_shadow_fields(void)
 {
 	int i, j;
 
+	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
+	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
+
 	for (i = j = 0; i < max_shadow_read_only_fields; i++) {
 		u16 field = shadow_read_only_fields[i];
 		if (vmcs_field_width(field) == VMCS_FIELD_WIDTH_U64 &&
@@ -7904,19 +7907,8 @@ static __init int hardware_setup(void)
 	for (i = 0; i < ARRAY_SIZE(vmx_msr_index); ++i)
 		kvm_define_shared_msr(i, vmx_msr_index[i]);
 
-	for (i = 0; i < VMX_BITMAP_NR; i++) {
-		vmx_bitmap[i] = (unsigned long *)__get_free_page(GFP_KERNEL);
-		if (!vmx_bitmap[i])
-			goto out;
-	}
-
-	memset(vmx_vmread_bitmap, 0xff, PAGE_SIZE);
-	memset(vmx_vmwrite_bitmap, 0xff, PAGE_SIZE);
-
-	if (setup_vmcs_config(&vmcs_config) < 0) {
-		r = -EIO;
-		goto out;
-	}
+	if (setup_vmcs_config(&vmcs_config) < 0)
+		return -EIO;
 
 	if (boot_cpu_has(X86_FEATURE_NX))
 		kvm_enable_efer_bits(EFER_NX);
@@ -8027,10 +8019,18 @@ static __init int hardware_setup(void)
 		kvm_x86_ops->cancel_hv_timer = NULL;
 	}
 
-	if (!cpu_has_vmx_shadow_vmcs())
+	if (!cpu_has_vmx_shadow_vmcs() || !nested)
 		enable_shadow_vmcs = 0;
-	if (enable_shadow_vmcs)
+	if (enable_shadow_vmcs) {
+		for (i = 0; i < VMX_BITMAP_NR; i++) {
+			vmx_bitmap[i] = (unsigned long *)
+				__get_free_page(GFP_KERNEL);
+			if (!vmx_bitmap[i])
+				goto out;
+		}
+
 		init_vmcs_shadow_fields();
+	}
 
 	kvm_set_posted_intr_wakeup_handler(wakeup_handler);
 	nested_vmx_setup_ctls_msrs(&vmcs_config.nested, enable_apicv);
@@ -8043,9 +8043,10 @@ static __init int hardware_setup(void)
 	return 0;
 
 out:
-	for (i = 0; i < VMX_BITMAP_NR; i++)
-		free_page((unsigned long)vmx_bitmap[i]);
-
+	if (enable_shadow_vmcs) {
+		for (i = 0; i < VMX_BITMAP_NR; i++)
+			free_page((unsigned long)vmx_bitmap[i]);
+	}
 	return r;
 }
 
@@ -8053,8 +8054,10 @@ static __exit void hardware_unsetup(void)
 {
 	int i;
 
-	for (i = 0; i < VMX_BITMAP_NR; i++)
-		free_page((unsigned long)vmx_bitmap[i]);
+	if (enable_shadow_vmcs) {
+		for (i = 0; i < VMX_BITMAP_NR; i++)
+			free_page((unsigned long)vmx_bitmap[i]);
+	}
 
 	free_kvm_area();
 }
