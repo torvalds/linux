@@ -23,6 +23,7 @@
 
 */
 
+#include <linux/cordic.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -1513,7 +1514,7 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/LoadSampleTable */
 static int b43_nphy_load_samples(struct b43_wldev *dev,
-					struct b43_c32 *samples, u16 len) {
+					struct cordic_iq *samples, u16 len) {
 	struct b43_phy_n *nphy = dev->phy.n;
 	u16 i;
 	u32 *data;
@@ -1544,7 +1545,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 {
 	int i;
 	u16 bw, len, rot, angle;
-	struct b43_c32 *samples;
+	struct cordic_iq *samples;
 
 	bw = b43_is_40mhz(dev) ? 40 : 20;
 	len = bw << 3;
@@ -1561,7 +1562,7 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 		len = bw << 1;
 	}
 
-	samples = kcalloc(len, sizeof(struct b43_c32), GFP_KERNEL);
+	samples = kcalloc(len, sizeof(struct cordic_iq), GFP_KERNEL);
 	if (!samples) {
 		b43err(dev->wl, "allocation for samples generation failed\n");
 		return 0;
@@ -1570,10 +1571,10 @@ static u16 b43_nphy_gen_load_samples(struct b43_wldev *dev, u32 freq, u16 max,
 	angle = 0;
 
 	for (i = 0; i < len; i++) {
-		samples[i] = b43_cordic(angle);
+		samples[i] = cordic_calc_iq(CORDIC_FIXED(angle));
 		angle += rot;
-		samples[i].q = CORDIC_CONVERT(samples[i].q * max);
-		samples[i].i = CORDIC_CONVERT(samples[i].i * max);
+		samples[i].q = CORDIC_FLOAT(samples[i].q * max);
+		samples[i].i = CORDIC_FLOAT(samples[i].i * max);
 	}
 
 	i = b43_nphy_load_samples(dev, samples, len);

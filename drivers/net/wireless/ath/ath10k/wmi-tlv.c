@@ -762,6 +762,9 @@ static int ath10k_wmi_tlv_op_pull_ch_info_ev(struct ath10k *ar,
 	arg->noise_floor = ev->noise_floor;
 	arg->rx_clear_count = ev->rx_clear_count;
 	arg->cycle_count = ev->cycle_count;
+	if (test_bit(ATH10K_FW_FEATURE_SINGLE_CHAN_INFO_PER_CHANNEL,
+		     ar->running_fw->fw_file.fw_features))
+		arg->mac_clk_mhz = ev->mac_clk_mhz;
 
 	kfree(tb);
 	return 0;
@@ -3452,7 +3455,6 @@ ath10k_wmi_tlv_op_gen_config_pno_start(struct ath10k *ar,
 	struct wmi_tlv *tlv;
 	struct sk_buff *skb;
 	__le32 *channel_list;
-	u16 tlv_len;
 	size_t len;
 	void *ptr;
 	u32 i;
@@ -3510,8 +3512,6 @@ ath10k_wmi_tlv_op_gen_config_pno_start(struct ath10k *ar,
 	/* nlo_configured_parameters(nlo_list) */
 	cmd->no_of_ssids = __cpu_to_le32(min_t(u8, pno->uc_networks_count,
 					       WMI_NLO_MAX_SSIDS));
-	tlv_len = __le32_to_cpu(cmd->no_of_ssids) *
-		sizeof(struct nlo_configured_parameters);
 
 	tlv = ptr;
 	tlv->tag = __cpu_to_le16(WMI_TLV_TAG_ARRAY_STRUCT);

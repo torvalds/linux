@@ -4174,6 +4174,7 @@ brcmf_sdio_prepare_fw_request(struct brcmf_sdio *bus)
 
 	fwreq->items[BRCMF_SDIO_FW_CODE].type = BRCMF_FW_TYPE_BINARY;
 	fwreq->items[BRCMF_SDIO_FW_NVRAM].type = BRCMF_FW_TYPE_NVRAM;
+	fwreq->board_type = bus->sdiodev->settings->board_type;
 
 	return fwreq;
 }

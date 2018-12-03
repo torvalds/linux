@@ -2650,7 +2650,7 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 {
 	struct rate_info *txrate = &arsta->txrate;
 	struct ath10k_htt_tx_stats *tx_stats;
-	int ht_idx, gi, mcs, bw, nss;
+	int idx, ht_idx, gi, mcs, bw, nss;
 
 	if (!arsta->tx_stats)
 		return;
@@ -2661,6 +2661,8 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	mcs = txrate->mcs;
 	bw = txrate->bw;
 	nss = txrate->nss;
+	idx = mcs * 8 + 8 * 10 * nss;
+	idx += bw * 2 + gi;
 
 #define STATS_OP_FMT(name) tx_stats->stats[ATH10K_STATS_TYPE_##name]
 
@@ -2709,11 +2711,15 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 			pstats->succ_bytes + pstats->retry_bytes;
 		STATS_OP_FMT(AMPDU).gi[0][gi] +=
 			pstats->succ_bytes + pstats->retry_bytes;
+		STATS_OP_FMT(AMPDU).rate_table[0][idx] +=
+			pstats->succ_bytes + pstats->retry_bytes;
 		STATS_OP_FMT(AMPDU).bw[1][bw] +=
 			pstats->succ_pkts + pstats->retry_pkts;
 		STATS_OP_FMT(AMPDU).nss[1][nss] +=
 			pstats->succ_pkts + pstats->retry_pkts;
 		STATS_OP_FMT(AMPDU).gi[1][gi] +=
+			pstats->succ_pkts + pstats->retry_pkts;
+		STATS_OP_FMT(AMPDU).rate_table[1][idx] +=
 			pstats->succ_pkts + pstats->retry_pkts;
 	} else {
 		tx_stats->ack_fails +=
@@ -2743,6 +2749,15 @@ ath10k_accumulate_per_peer_tx_stats(struct ath10k *ar,
 	STATS_OP_FMT(RETRY).bw[1][bw] += pstats->retry_pkts;
 	STATS_OP_FMT(RETRY).nss[1][nss] += pstats->retry_pkts;
 	STATS_OP_FMT(RETRY).gi[1][gi] += pstats->retry_pkts;
+
+	if (txrate->flags >= RATE_INFO_FLAGS_MCS) {
+		STATS_OP_FMT(SUCC).rate_table[0][idx] += pstats->succ_bytes;
+		STATS_OP_FMT(SUCC).rate_table[1][idx] += pstats->succ_pkts;
+		STATS_OP_FMT(FAIL).rate_table[0][idx] += pstats->failed_bytes;
+		STATS_OP_FMT(FAIL).rate_table[1][idx] += pstats->failed_pkts;
+		STATS_OP_FMT(RETRY).rate_table[0][idx] += pstats->retry_bytes;
+		STATS_OP_FMT(RETRY).rate_table[1][idx] += pstats->retry_pkts;
+	}
 }
 
 static void

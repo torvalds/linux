@@ -665,7 +665,7 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 						       "retry", "ampdu"};
 	const char *str[ATH10K_COUNTER_TYPE_MAX] = {"bytes", "packets"};
 	int len = 0, i, j, k, retval = 0;
-	const int size = 2 * 4096;
+	const int size = 16 * 4096;
 	char *buf;
 
 	buf = kzalloc(size, GFP_KERNEL);
@@ -719,6 +719,16 @@ static ssize_t ath10k_dbg_sta_dump_tx_stats(struct file *file,
 				len += scnprintf(buf + len, size - len, "%llu ",
 						 stats->legacy[j][i]);
 			len += scnprintf(buf + len, size - len, "\n");
+			len += scnprintf(buf + len, size - len,
+					 " Rate table %s (1,2 ... Mbps)\n  ",
+					 str[j]);
+			for (i = 0; i < ATH10K_RATE_TABLE_NUM; i++) {
+				len += scnprintf(buf + len, size - len, "%llu ",
+						 stats->rate_table[j][i]);
+				if (!((i + 1) % 8))
+					len +=
+					scnprintf(buf + len, size - len, "\n  ");
+			}
 		}
 	}
 

@@ -272,7 +272,7 @@ struct ath_node {
 #endif
 	u8 key_idx[4];
 
-	u32 ackto;
+	int ackto;
 	struct list_head list;
 };
 

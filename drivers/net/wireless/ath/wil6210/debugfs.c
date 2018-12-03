@@ -664,10 +664,10 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 	enum { max_count = 4096 };
 	struct wil_blob_wrapper *wil_blob = file->private_data;
 	struct wil6210_priv *wil = wil_blob->wil;
-	loff_t pos = *ppos;
+	loff_t aligned_pos, pos = *ppos;
 	size_t available = wil_blob->blob.size;
 	void *buf;
-	size_t ret;
+	size_t unaligned_bytes, aligned_count, ret;
 	int rc;
 
 	if (test_bit(wil_status_suspending, wil_blob->wil->status) ||
@@ -685,7 +685,12 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 	if (count > max_count)
 		count = max_count;
 
-	buf = kmalloc(count, GFP_KERNEL);
+	/* set pos to 4 bytes aligned */
+	unaligned_bytes = pos % 4;
+	aligned_pos = pos - unaligned_bytes;
+	aligned_count = count + unaligned_bytes;
+
+	buf = kmalloc(aligned_count, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -696,9 +701,9 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 	}
 
 	wil_memcpy_fromio_32(buf, (const void __iomem *)
-			     wil_blob->blob.data + pos, count);
+			     wil_blob->blob.data + aligned_pos, aligned_count);
 
-	ret = copy_to_user(user_buf, buf, count);
+	ret = copy_to_user(user_buf, buf + unaligned_bytes, count);
 
 	wil_pm_runtime_put(wil);
 
@@ -961,6 +966,8 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	struct cfg80211_mgmt_tx_params params;
 	int rc;
 	void *frame;
+
+	memset(&params, 0, sizeof(params));
 
 	if (!len)
 		return -EINVAL;

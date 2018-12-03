@@ -1579,6 +1579,16 @@ struct ath10k_mgmt_tx_pkt_addr {
 	dma_addr_t paddr;
 };
 
+struct chan_info_params {
+	u32 err_code;
+	u32 freq;
+	u32 cmd_flags;
+	u32 noise_floor;
+	u32 rx_clear_count;
+	u32 cycle_count;
+	u32 mac_clk_mhz;
+};
+
 struct wmi_tlv_mgmt_tx_compl_ev {
 	__le32 desc_id;
 	__le32 status;

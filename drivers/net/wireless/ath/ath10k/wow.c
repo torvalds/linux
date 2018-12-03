@@ -135,7 +135,7 @@ static void ath10k_wow_convert_8023_to_80211
 	       &old_hdr_mask->h_proto,
 	       sizeof(old_hdr_mask->h_proto));
 
-	/* Caculate new pkt_offset */
+	/* Calculate new pkt_offset */
 	if (old->pkt_offset < ETH_ALEN)
 		new->pkt_offset = old->pkt_offset +
 			offsetof(struct ieee80211_hdr_3addr, addr1);
@@ -146,7 +146,7 @@ static void ath10k_wow_convert_8023_to_80211
 	else
 		new->pkt_offset = old->pkt_offset + hdr_len + rfc_len - ETH_HLEN;
 
-	/* Caculate new hdr end offset */
+	/* Calculate new hdr end offset */
 	if (total_len > ETH_HLEN)
 		hdr_80211_end_offset = hdr_len + rfc_len;
 	else if (total_len > offsetof(struct ethhdr, h_proto))

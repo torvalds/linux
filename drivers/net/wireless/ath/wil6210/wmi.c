@@ -1018,7 +1018,7 @@ static void wmi_evt_connect(struct wil6210_vif *vif, int id, void *d, int len)
 		wil_err(wil, "config tx vring failed for CID %d, rc (%d)\n",
 			evt->cid, rc);
 		wmi_disconnect_sta(vif, wil->sta[evt->cid].addr,
-				   WLAN_REASON_UNSPECIFIED, false, false);
+				   WLAN_REASON_UNSPECIFIED, false);
 	} else {
 		wil_info(wil, "successful connection to CID %d\n", evt->cid);
 	}
@@ -1112,7 +1112,24 @@ static void wmi_evt_disconnect(struct wil6210_vif *vif, int id,
 	}
 
 	mutex_lock(&wil->mutex);
-	wil6210_disconnect(vif, evt->bssid, reason_code, true);
+	wil6210_disconnect_complete(vif, evt->bssid, reason_code);
+	if (disable_ap_sme) {
+		struct wireless_dev *wdev = vif_to_wdev(vif);
+		struct net_device *ndev = vif_to_ndev(vif);
+
+		/* disconnect event in disable_ap_sme mode means link loss */
+		switch (wdev->iftype) {
+		/* AP-like interface */
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_P2P_GO:
+			/* notify hostapd about link loss */
+			cfg80211_cqm_pktloss_notify(ndev, evt->bssid, 0,
+						    GFP_KERNEL);
+			break;
+		default:
+			break;
+		}
+	}
 	mutex_unlock(&wil->mutex);
 }
 
@@ -1637,7 +1654,7 @@ wmi_evt_auth_status(struct wil6210_vif *vif, int id, void *d, int len)
 	return;
 
 fail:
-	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID, false);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 static void
@@ -1766,7 +1783,7 @@ wmi_evt_reassoc_status(struct wil6210_vif *vif, int id, void *d, int len)
 	return;
 
 fail:
-	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID, false);
+	wil6210_disconnect(vif, NULL, WLAN_REASON_PREV_AUTH_NOT_VALID);
 }
 
 /**
@@ -1949,16 +1966,17 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
 {
 	int rc;
 	unsigned long remain;
+	ulong flags;
 
 	mutex_lock(&wil->wmi_mutex);
 
-	spin_lock(&wil->wmi_ev_lock);
+	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 	wil->reply_id = reply_id;
 	wil->reply_mid = mid;
 	wil->reply_buf = reply;
 	wil->reply_size = reply_size;
 	reinit_completion(&wil->wmi_call);
-	spin_unlock(&wil->wmi_ev_lock);
+	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 
 	rc = __wmi_send(wil, cmdid, mid, buf, len);
 	if (rc)
@@ -1978,12 +1996,12 @@ int wmi_call(struct wil6210_priv *wil, u16 cmdid, u8 mid, void *buf, u16 len,
 	}
 
 out:
-	spin_lock(&wil->wmi_ev_lock);
+	spin_lock_irqsave(&wil->wmi_ev_lock, flags);
 	wil->reply_id = 0;
 	wil->reply_mid = U8_MAX;
 	wil->reply_buf = NULL;
 	wil->reply_size = 0;
-	spin_unlock(&wil->wmi_ev_lock);
+	spin_unlock_irqrestore(&wil->wmi_ev_lock, flags);
 
 	mutex_unlock(&wil->wmi_mutex);
 
@@ -2560,12 +2578,11 @@ int wmi_get_temperature(struct wil6210_priv *wil, u32 *t_bb, u32 *t_rf)
 	return 0;
 }
 
-int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
-		       u16 reason, bool full_disconnect, bool del_sta)
+int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac, u16 reason,
+		       bool del_sta)
 {
 	struct wil6210_priv *wil = vif_to_wil(vif);
 	int rc;
-	u16 reason_code;
 	struct wmi_disconnect_sta_cmd disc_sta_cmd = {
 		.disconnect_reason = cpu_to_le16(reason),
 	};
@@ -2598,21 +2615,8 @@ int wmi_disconnect_sta(struct wil6210_vif *vif, const u8 *mac,
 		wil_fw_error_recovery(wil);
 		return rc;
 	}
+	wil->sinfo_gen++;
 
-	if (full_disconnect) {
-		/* call event handler manually after processing wmi_call,
-		 * to avoid deadlock - disconnect event handler acquires
-		 * wil->mutex while it is already held here
-		 */
-		reason_code = le16_to_cpu(reply.evt.protocol_reason_status);
-
-		wil_dbg_wmi(wil, "Disconnect %pM reason [proto %d wmi %d]\n",
-			    reply.evt.bssid, reason_code,
-			    reply.evt.disconnect_reason);
-
-		wil->sinfo_gen++;
-		wil6210_disconnect(vif, reply.evt.bssid, reason_code, true);
-	}
 	return 0;
 }
 
@@ -3145,7 +3149,7 @@ static void wmi_event_handle(struct wil6210_priv *wil,
 
 		if (mid == MID_BROADCAST)
 			mid = 0;
-		if (mid >= wil->max_vifs) {
+		if (mid >= ARRAY_SIZE(wil->vifs) || mid >= wil->max_vifs) {
 			wil_dbg_wmi(wil, "invalid mid %d, event skipped\n",
 				    mid);
 			return;

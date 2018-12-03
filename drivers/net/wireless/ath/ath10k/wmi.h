@@ -4991,6 +4991,7 @@ enum wmi_rate_preamble {
 #define ATH10K_LEGACY_NUM	12
 #define ATH10K_GI_NUM		2
 #define ATH10K_HT_MCS_NUM	32
+#define ATH10K_RATE_TABLE_NUM	320
 
 /* Value to disable fixed rate setting */
 #define WMI_FIXED_RATE_NONE    (0xff)
@@ -6441,6 +6442,14 @@ struct wmi_chan_info_event {
 	__le32 noise_floor;
 	__le32 rx_clear_count;
 	__le32 cycle_count;
+	__le32 chan_tx_pwr_range;
+	__le32 chan_tx_pwr_tp;
+	__le32 rx_frame_count;
+	__le32 my_bss_rx_cycle_count;
+	__le32 rx_11b_mode_data_duration;
+	__le32 tx_frame_cnt;
+	__le32 mac_clk_mhz;
+
 } __packed;
 
 struct wmi_10_4_chan_info_event {
@@ -6669,6 +6678,10 @@ struct wmi_ch_info_ev_arg {
 	__le32 chan_tx_pwr_range;
 	__le32 chan_tx_pwr_tp;
 	__le32 rx_frame_count;
+	__le32 my_bss_rx_cycle_count;
+	__le32 rx_11b_mode_data_duration;
+	__le32 tx_frame_cnt;
+	__le32 mac_clk_mhz;
 };
 
 /* From 10.4 firmware, not sure all have the same values. */
