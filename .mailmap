@@ -36,9 +36,10 @@ Bart Van Assche <bvanassche@acm.org> <bart.vanassche@sandisk.com>
 Ben Gardner <bgardner@wabtec.com>
 Ben M Cahill <ben.m.cahill@intel.com>
 Björn Steinbrink <B.Steinbrink@gmx.de>
-Boris Brezillon <boris.brezillon@bootlin.com> <boris.brezillon@free-electrons.com>
-Boris Brezillon <boris.brezillon@bootlin.com> <b.brezillon.dev@gmail.com>
-Boris Brezillon <boris.brezillon@bootlin.com> <b.brezillon@overkiz.com>
+Boris Brezillon <bbrezillon@kernel.org> <boris.brezillon@bootlin.com>
+Boris Brezillon <bbrezillon@kernel.org> <boris.brezillon@free-electrons.com>
+Boris Brezillon <bbrezillon@kernel.org> <b.brezillon.dev@gmail.com>
+Boris Brezillon <bbrezillon@kernel.org> <b.brezillon@overkiz.com>
 Brian Avery <b.avery@hp.com>
 Brian King <brking@us.ibm.com>
 Christoph Hellwig <hch@lst.de>
