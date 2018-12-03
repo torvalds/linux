@@ -187,7 +187,6 @@ module_param(ple_window_shrink, uint, 0444);
 static unsigned int ple_window_max        = KVM_VMX_DEFAULT_PLE_WINDOW_MAX;
 module_param(ple_window_max, uint, 0444);
 
-extern const ulong vmx_return;
 extern const ulong vmx_early_consistency_check_return;
 
 static DEFINE_STATIC_KEY_FALSE(vmx_l1d_should_flush);
@@ -437,7 +436,7 @@ static const struct kvm_vmx_segment_field {
 	VMX_SEGMENT_FIELD(LDTR),
 };
 
-static u64 host_efer;
+u64 host_efer;
 
 static void ept_save_pdptrs(struct kvm_vcpu *vcpu);
 
@@ -445,7 +444,7 @@ static void ept_save_pdptrs(struct kvm_vcpu *vcpu);
  * Keep MSR_STAR at the end, as setup_msrs() will try to optimize it
  * away by decrementing the array size.
  */
-static const u32 vmx_msr_index[] = {
+const u32 vmx_msr_index[] = {
 #ifdef CONFIG_X86_64
 	MSR_SYSCALL_MASK, MSR_LSTAR, MSR_CSTAR,
 #endif
