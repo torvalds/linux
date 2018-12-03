@@ -1633,48 +1633,6 @@ void debug_dma_sync_single_for_device(struct device *dev,
 }
 EXPORT_SYMBOL(debug_dma_sync_single_for_device);
 
-void debug_dma_sync_single_range_for_cpu(struct device *dev,
-					 dma_addr_t dma_handle,
-					 unsigned long offset, size_t size,
-					 int direction)
-{
-	struct dma_debug_entry ref;
-
-	if (unlikely(dma_debug_disabled()))
-		return;
-
-	ref.type         = dma_debug_single;
-	ref.dev          = dev;
-	ref.dev_addr     = dma_handle;
-	ref.size         = offset + size;
-	ref.direction    = direction;
-	ref.sg_call_ents = 0;
-
-	check_sync(dev, &ref, true);
-}
-EXPORT_SYMBOL(debug_dma_sync_single_range_for_cpu);
-
-void debug_dma_sync_single_range_for_device(struct device *dev,
-					    dma_addr_t dma_handle,
-					    unsigned long offset,
-					    size_t size, int direction)
-{
-	struct dma_debug_entry ref;
-
-	if (unlikely(dma_debug_disabled()))
-		return;
-
-	ref.type         = dma_debug_single;
-	ref.dev          = dev;
-	ref.dev_addr     = dma_handle;
-	ref.size         = offset + size;
-	ref.direction    = direction;
-	ref.sg_call_ents = 0;
-
-	check_sync(dev, &ref, false);
-}
-EXPORT_SYMBOL(debug_dma_sync_single_range_for_device);
-
 void debug_dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg,
 			       int nelems, int direction)
 {
