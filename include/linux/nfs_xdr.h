@@ -1634,7 +1634,7 @@ struct nfs_rpc_ops {
 			    unsigned int, struct iattr *);
 	int	(*mkdir)   (struct inode *, struct dentry *, struct iattr *);
 	int	(*rmdir)   (struct inode *, const struct qstr *);
-	int	(*readdir) (struct dentry *, struct rpc_cred *,
+	int	(*readdir) (struct dentry *, const struct cred *,
 			    u64, struct page **, unsigned int, bool);
 	int	(*mknod)   (struct inode *, struct dentry *, struct iattr *,
 			    dev_t);

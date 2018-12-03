@@ -67,7 +67,7 @@ const struct address_space_operations nfs_dir_aops = {
 	.freepage = nfs_readdir_clear_array,
 };
 
-static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir, struct rpc_cred *cred)
+static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir, const struct cred *cred)
 {
 	struct nfs_inode *nfsi = NFS_I(dir);
 	struct nfs_open_dir_context *ctx;
@@ -77,7 +77,7 @@ static struct nfs_open_dir_context *alloc_nfs_open_dir_context(struct inode *dir
 		ctx->attr_gencount = nfsi->attr_gencount;
 		ctx->dir_cookie = 0;
 		ctx->dup_cookie = 0;
-		ctx->cred = get_rpccred(cred);
+		ctx->cred = get_cred(cred);
 		spin_lock(&dir->i_lock);
 		list_add(&ctx->list, &nfsi->open_files);
 		spin_unlock(&dir->i_lock);
@@ -91,7 +91,7 @@ static void put_nfs_open_dir_context(struct inode *dir, struct nfs_open_dir_cont
 	spin_lock(&dir->i_lock);
 	list_del(&ctx->list);
 	spin_unlock(&dir->i_lock);
-	put_rpccred(ctx->cred);
+	put_cred(ctx->cred);
 	kfree(ctx);
 }
 
@@ -103,23 +103,18 @@ nfs_opendir(struct inode *inode, struct file *filp)
 {
 	int res = 0;
 	struct nfs_open_dir_context *ctx;
-	struct rpc_cred *cred;
 
 	dfprintk(FILE, "NFS: open dir(%pD2)\n", filp);
 
 	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 
-	cred = rpc_lookup_cred();
-	if (IS_ERR(cred))
-		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_dir_context(inode, cred);
+	ctx = alloc_nfs_open_dir_context(inode, current_cred());
 	if (IS_ERR(ctx)) {
 		res = PTR_ERR(ctx);
 		goto out;
 	}
 	filp->private_data = ctx;
 out:
-	put_rpccred(cred);
 	return res;
 }
 
@@ -334,7 +329,7 @@ int nfs_readdir_xdr_filler(struct page **pages, nfs_readdir_descriptor_t *desc,
 			struct nfs_entry *entry, struct file *file, struct inode *inode)
 {
 	struct nfs_open_dir_context *ctx = file->private_data;
-	struct rpc_cred	*cred = ctx->cred;
+	const struct cred *cred = ctx->cred;
 	unsigned long	timestamp, gencount;
 	int		error;
 

@@ -4699,7 +4699,7 @@ static int nfs4_proc_mkdir(struct inode *dir, struct dentry *dentry,
 	return err;
 }
 
-static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+static int _nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);
@@ -4712,17 +4712,23 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.plus = plus,
 	};
 	struct nfs4_readdir_res res;
+	struct auth_cred acred = {
+		.cred		= cred,
+	};
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_READDIR],
 		.rpc_argp = &args,
 		.rpc_resp = &res,
-		.rpc_cred = cred,
+		.rpc_cred = rpc_lookup_generic_cred(&acred,
+						    0, GFP_NOFS),
 	};
 	int			status;
 
 	dprintk("%s: dentry = %pd2, cookie = %Lu\n", __func__,
 			dentry,
 			(unsigned long long)cookie);
+	if (!msg.rpc_cred)
+		return -ENOMEM;
 	nfs4_setup_readdir(cookie, NFS_I(dir)->cookieverf, dentry, &args);
 	res.pgbase = args.pgbase;
 	status = nfs4_call_sync(NFS_SERVER(dir)->client, NFS_SERVER(dir), &msg, &args.seq_args, &res.seq_res, 0);
@@ -4733,11 +4739,12 @@ static int _nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 
 	nfs_invalidate_atime(dir);
 
+	put_rpccred(msg.rpc_cred);
 	dprintk("%s: returns %d\n", __func__, status);
 	return status;
 }
 
-static int nfs4_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+static int nfs4_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct nfs4_exception exception = { };

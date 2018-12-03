@@ -490,7 +490,7 @@ nfs_proc_rmdir(struct inode *dir, const struct qstr *name)
  * from nfs_readdir by calling the decode_entry function directly.
  */
 static int
-nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
+nfs_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		 u64 cookie, struct page **pages, unsigned int count, bool plus)
 {
 	struct inode		*dir = d_inode(dentry);
@@ -500,18 +500,25 @@ nfs_proc_readdir(struct dentry *dentry, struct rpc_cred *cred,
 		.count		= count,
 		.pages		= pages,
 	};
+	struct auth_cred acred = {
+		.cred		= cred,
+	};
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_READDIR],
 		.rpc_argp	= &arg,
-		.rpc_cred	= cred,
+		.rpc_cred	= rpc_lookup_generic_cred(&acred,
+							  0, GFP_NOFS),
 	};
 	int			status;
 
 	dprintk("NFS call  readdir %d\n", (unsigned int)cookie);
+	if (!msg.rpc_cred)
+		return -ENOMEM;
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
 	nfs_invalidate_atime(dir);
 
+	put_rpccred(msg.rpc_cred);
 	dprintk("NFS reply readdir: %d\n", status);
 	return status;
 }
