@@ -11,6 +11,9 @@
  *               Jason J. Herne <jjherne@us.ibm.com>
  */
 
+#define KMSG_COMPONENT "kvm-s390"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/fs.h>
@@ -43,10 +46,6 @@
 #include <asm/ap.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
-
-#define KMSG_COMPONENT "kvm-s390"
-#undef pr_fmt
-#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
