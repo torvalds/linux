@@ -67,7 +67,7 @@ struct rpc_cred {
 #define RPCAUTH_CRED_HASHED	2
 #define RPCAUTH_CRED_NEGATIVE	3
 
-struct rpc_cred *rpc_machine_cred(void);
+const struct cred *rpc_machine_cred(void);
 
 /*
  * Client authentication handle
@@ -194,22 +194,6 @@ struct rpc_cred *get_rpccred(struct rpc_cred *cred)
 	if (cred != NULL && refcount_inc_not_zero(&cred->cr_count))
 		return cred;
 	return NULL;
-}
-
-/**
- * get_rpccred_rcu - get a reference to a cred using rcu-protected pointer
- * @cred: cred of which to take a reference
- *
- * In some cases, we may have a pointer to a credential to which we
- * want to take a reference, but don't already have one. Because these
- * objects are freed using RCU, we can access the cr_count while its
- * on its way to destruction and only take a reference if it's not already
- * zero.
- */
-static inline struct rpc_cred *
-get_rpccred_rcu(struct rpc_cred *cred)
-{
-	return get_rpccred(cred);
 }
 
 #endif /* __KERNEL__ */

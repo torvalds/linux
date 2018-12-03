@@ -1030,7 +1030,7 @@ rpc_task_set_rpc_message(struct rpc_task *task, const struct rpc_message *msg)
 		task->tk_msg.rpc_argp = msg->rpc_argp;
 		task->tk_msg.rpc_resp = msg->rpc_resp;
 		if (msg->rpc_cred != NULL)
-			task->tk_msg.rpc_cred = get_rpccred(msg->rpc_cred);
+			task->tk_msg.rpc_cred = get_cred(msg->rpc_cred);
 	}
 }
 
@@ -2542,7 +2542,7 @@ struct rpc_task *rpc_call_null_helper(struct rpc_clnt *clnt,
 		.rpc_op_cred = cred,
 		.callback_ops = (ops != NULL) ? ops : &rpc_default_ops,
 		.callback_data = data,
-		.flags = flags,
+		.flags = flags | RPC_TASK_NULLCREDS,
 	};
 
 	return rpc_run_task(&task_setup_data);

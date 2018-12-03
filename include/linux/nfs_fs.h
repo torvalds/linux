@@ -70,7 +70,7 @@ struct nfs_open_context {
 	struct nfs_lock_context lock_context;
 	fl_owner_t flock_owner;
 	struct dentry *dentry;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	struct rpc_cred *ll_cred;	/* low-level cred - use to check for expiry */
 	struct nfs4_state *state;
 	fmode_t mode;
@@ -391,7 +391,7 @@ extern void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
 				struct nfs4_label *label);
 extern struct nfs_open_context *get_nfs_open_context(struct nfs_open_context *ctx);
 extern void put_nfs_open_context(struct nfs_open_context *ctx);
-extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode);
+extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, const struct cred *cred, fmode_t mode);
 extern struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, fmode_t f_mode, struct file *filp);
 extern void nfs_inode_attach_open_context(struct nfs_open_context *ctx);
 extern void nfs_file_set_open_context(struct file *filp, struct nfs_open_context *ctx);
@@ -462,7 +462,7 @@ static inline struct nfs_open_context *nfs_file_open_context(struct file *filp)
 	return filp->private_data;
 }
 
-static inline struct rpc_cred *nfs_file_cred(struct file *file)
+static inline const struct cred *nfs_file_cred(struct file *file)
 {
 	if (file != NULL) {
 		struct nfs_open_context *ctx =

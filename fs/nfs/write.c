@@ -1249,7 +1249,7 @@ bool nfs_ctx_key_to_expire(struct nfs_open_context *ctx, struct inode *inode)
 	struct rpc_auth *auth = NFS_SERVER(inode)->client->cl_auth;
 	struct rpc_cred *cred = ctx->ll_cred;
 	struct auth_cred acred = {
-		.cred = ctx->cred->cr_cred,
+		.cred = ctx->cred,
 	};
 
 	if (cred && !cred->cr_ops->crmatch(&acred, cred, 0)) {

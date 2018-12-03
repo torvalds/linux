@@ -39,15 +39,15 @@ static const struct rpc_authops __rcu *auth_flavors[RPC_AUTH_MAXFLAVOR] = {
 static LIST_HEAD(cred_unused);
 static unsigned long number_cred_unused;
 
-static struct rpc_cred machine_cred = {
-	.cr_count = REFCOUNT_INIT(1),
+static struct cred machine_cred = {
+	.usage = ATOMIC_INIT(1),
 };
 
 /*
  * Return the machine_cred pointer to be used whenever
  * the a generic machine credential is needed.
  */
-struct rpc_cred *rpc_machine_cred(void)
+const struct cred *rpc_machine_cred(void)
 {
 	return &machine_cred;
 }
@@ -720,11 +720,15 @@ rpcauth_bind_new_cred(struct rpc_task *task, int lookupflags)
 }
 
 static int
-rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
+rpcauth_bindcred(struct rpc_task *task, const struct cred *cred, int flags)
 {
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_cred *new = NULL;
 	int lookupflags = 0;
+	struct rpc_auth *auth = task->tk_client->cl_auth;
+	struct auth_cred acred = {
+		.cred = cred,
+	};
 
 	if (flags & RPC_TASK_ASYNC)
 		lookupflags |= RPCAUTH_LOOKUP_NEW;
@@ -733,7 +737,7 @@ rpcauth_bindcred(struct rpc_task *task, struct rpc_cred *cred, int flags)
 		new = task->tk_op_cred->cr_ops->crbind(task, task->tk_op_cred,
 						       lookupflags);
 	else if (cred != NULL && cred != &machine_cred)
-		new = cred->cr_ops->crbind(task, cred, lookupflags);
+		new = auth->au_ops->lookup_cred(auth, &acred, lookupflags);
 	else if (cred == &machine_cred)
 		new = rpcauth_bind_machine_cred(task, lookupflags);
 

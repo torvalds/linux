@@ -254,7 +254,7 @@ struct nfs_pgio_header *nfs_pgio_header_alloc(const struct nfs_rw_ops *);
 void nfs_pgio_header_free(struct nfs_pgio_header *);
 int nfs_generic_pgio(struct nfs_pageio_descriptor *, struct nfs_pgio_header *);
 int nfs_initiate_pgio(struct rpc_clnt *clnt, struct nfs_pgio_header *hdr,
-		      struct rpc_cred *cred, const struct nfs_rpc_ops *rpc_ops,
+		      const struct cred *cred, const struct nfs_rpc_ops *rpc_ops,
 		      const struct rpc_call_ops *call_ops, int how, int flags);
 void nfs_free_request(struct nfs_page *req);
 struct nfs_pgio_mirror *
@@ -269,7 +269,7 @@ static inline bool nfs_pgio_has_mirroring(struct nfs_pageio_descriptor *desc)
 static inline bool nfs_match_open_context(const struct nfs_open_context *ctx1,
 		const struct nfs_open_context *ctx2)
 {
-	return ctx1->cred == ctx2->cred && ctx1->state == ctx2->state;
+	return cred_fscmp(ctx1->cred, ctx2->cred) == 0 && ctx1->state == ctx2->state;
 }
 
 /* nfs2xdr.c */
@@ -564,10 +564,10 @@ extern struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 			    const struct nfs_client_initdata *);
 extern int nfs40_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
-				struct rpc_cred *cred);
+				const struct cred *cred);
 extern int nfs41_walk_client_list(struct nfs_client *clp,
 				struct nfs_client **result,
-				struct rpc_cred *cred);
+				const struct cred *cred);
 extern int nfs4_test_session_trunk(struct rpc_clnt *,
 				struct rpc_xprt *,
 				void *);

@@ -195,20 +195,15 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		.access		= entry->mask,
 	};
 	struct nfs3_accessres	res;
-	struct auth_cred acred = {
-		.cred		= entry->cred,
-	};
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_ACCESS],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
-		.rpc_cred	= rpc_lookup_generic_cred(&acred, 0, GFP_NOFS),
+		.rpc_cred	= entry->cred,
 	};
 	int status = -ENOMEM;
 
 	dprintk("NFS call  access\n");
-	if (!msg.rpc_cred)
-		goto out;
 	res.fattr = nfs_alloc_fattr();
 	if (res.fattr == NULL)
 		goto out;
@@ -219,8 +214,6 @@ static int nfs3_proc_access(struct inode *inode, struct nfs_access_entry *entry)
 		nfs_access_set_mask(entry, res.access);
 	nfs_free_fattr(res.fattr);
 out:
-	if (msg.rpc_cred)
-		put_rpccred(msg.rpc_cred);
 	dprintk("NFS reply access: %d\n", status);
 	return status;
 }
@@ -631,15 +624,11 @@ nfs3_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		.verf		= verf,
 		.plus		= plus
 	};
-	struct auth_cred acred = {
-		.cred		= cred,
-	};
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs3_procedures[NFS3PROC_READDIR],
 		.rpc_argp	= &arg,
 		.rpc_resp	= &res,
-		.rpc_cred	= rpc_lookup_generic_cred(&acred,
-							  0, GFP_NOFS),
+		.rpc_cred	= cred,
 	};
 	int status = -ENOMEM;
 
@@ -649,8 +638,6 @@ nfs3_proc_readdir(struct dentry *dentry, const struct cred *cred,
 	dprintk("NFS call  readdir%s %d\n",
 			plus? "plus" : "", (unsigned int) cookie);
 
-	if (!msg.rpc_cred)
-		return -ENOMEM;
 	res.dir_attr = nfs_alloc_fattr();
 	if (res.dir_attr == NULL)
 		goto out;
@@ -662,7 +649,6 @@ nfs3_proc_readdir(struct dentry *dentry, const struct cred *cred,
 
 	nfs_free_fattr(res.dir_attr);
 out:
-	put_rpccred(msg.rpc_cred);
 	dprintk("NFS reply readdir%s: %d\n",
 			plus? "plus" : "", status);
 	return status;

@@ -950,13 +950,11 @@ struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry,
 						struct file *filp)
 {
 	struct nfs_open_context *ctx;
-	struct rpc_cred *cred = rpc_lookup_cred();
-	if (IS_ERR(cred))
-		return ERR_CAST(cred);
+	const struct cred *cred = get_current_cred();
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		put_rpccred(cred);
+		put_cred(cred);
 		return ERR_PTR(-ENOMEM);
 	}
 	nfs_sb_active(dentry->d_sb);
@@ -998,8 +996,7 @@ static void __put_nfs_open_context(struct nfs_open_context *ctx, int is_sync)
 	}
 	if (inode != NULL)
 		NFS_PROTO(inode)->close_context(ctx, is_sync);
-	if (ctx->cred != NULL)
-		put_rpccred(ctx->cred);
+	put_cred(ctx->cred);
 	dput(ctx->dentry);
 	nfs_sb_deactive(sb);
 	put_rpccred(ctx->ll_cred);
@@ -1044,7 +1041,7 @@ EXPORT_SYMBOL_GPL(nfs_file_set_open_context);
 /*
  * Given an inode, search for an open context with the desired characteristics
  */
-struct nfs_open_context *nfs_find_open_context(struct inode *inode, struct rpc_cred *cred, fmode_t mode)
+struct nfs_open_context *nfs_find_open_context(struct inode *inode, const struct cred *cred, fmode_t mode)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_open_context *pos, *ctx = NULL;

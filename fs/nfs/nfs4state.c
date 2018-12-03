@@ -87,7 +87,7 @@ const nfs4_stateid current_stateid = {
 
 static DEFINE_MUTEX(nfs_clid_init_mutex);
 
-int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs4_init_clientid(struct nfs_client *clp, const struct cred *cred)
 {
 	struct nfs4_setclientid_res clid = {
 		.clientid = clp->cl_clientid,
@@ -134,7 +134,7 @@ out:
  */
 int nfs40_discover_server_trunking(struct nfs_client *clp,
 				   struct nfs_client **result,
-				   struct rpc_cred *cred)
+				   const struct cred *cred)
 {
 	struct nfs4_setclientid_res clid = {
 		.clientid = clp->cl_clientid,
@@ -164,9 +164,9 @@ out:
 	return status;
 }
 
-struct rpc_cred *nfs4_get_machine_cred(struct nfs_client *clp)
+const struct cred *nfs4_get_machine_cred(struct nfs_client *clp)
 {
-	return get_rpccred(rpc_machine_cred());
+	return get_cred(rpc_machine_cred());
 }
 
 static void nfs4_root_machine_cred(struct nfs_client *clp)
@@ -177,10 +177,10 @@ static void nfs4_root_machine_cred(struct nfs_client *clp)
 	clp->cl_rpcclient->cl_principal = NULL;
 }
 
-static struct rpc_cred *
+static const struct cred *
 nfs4_get_renew_cred_server_locked(struct nfs_server *server)
 {
-	struct rpc_cred *cred = NULL;
+	const struct cred *cred = NULL;
 	struct nfs4_state_owner *sp;
 	struct rb_node *pos;
 
@@ -190,7 +190,7 @@ nfs4_get_renew_cred_server_locked(struct nfs_server *server)
 		sp = rb_entry(pos, struct nfs4_state_owner, so_server_node);
 		if (list_empty(&sp->so_states))
 			continue;
-		cred = get_rpccred(sp->so_cred);
+		cred = get_cred(sp->so_cred);
 		break;
 	}
 	return cred;
@@ -203,9 +203,9 @@ nfs4_get_renew_cred_server_locked(struct nfs_server *server)
  * Returns an rpc_cred with reference count bumped, or NULL.
  * Caller must hold clp->cl_lock.
  */
-struct rpc_cred *nfs4_get_renew_cred(struct nfs_client *clp)
+const struct cred *nfs4_get_renew_cred(struct nfs_client *clp)
 {
-	struct rpc_cred *cred = NULL;
+	const struct cred *cred = NULL;
 	struct nfs_server *server;
 
 	/* Use machine credentials if available */
@@ -312,7 +312,7 @@ static void nfs41_finish_session_reset(struct nfs_client *clp)
 	nfs41_setup_state_renewal(clp);
 }
 
-int nfs41_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
+int nfs41_init_clientid(struct nfs_client *clp, const struct cred *cred)
 {
 	int status;
 
@@ -347,7 +347,7 @@ out:
  */
 int nfs41_discover_server_trunking(struct nfs_client *clp,
 				   struct nfs_client **result,
-				   struct rpc_cred *cred)
+				   const struct cred *cred)
 {
 	int status;
 
@@ -385,30 +385,32 @@ int nfs41_discover_server_trunking(struct nfs_client *clp,
  * nfs4_get_clid_cred - Acquire credential for a setclientid operation
  * @clp: client state handle
  *
- * Returns an rpc_cred with reference count bumped, or NULL.
+ * Returns a cred with reference count bumped, or NULL.
  */
-struct rpc_cred *nfs4_get_clid_cred(struct nfs_client *clp)
+const struct cred *nfs4_get_clid_cred(struct nfs_client *clp)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	cred = nfs4_get_machine_cred(clp);
 	return cred;
 }
 
 static struct nfs4_state_owner *
-nfs4_find_state_owner_locked(struct nfs_server *server, struct rpc_cred *cred)
+nfs4_find_state_owner_locked(struct nfs_server *server, const struct cred *cred)
 {
 	struct rb_node **p = &server->state_owners.rb_node,
 		       *parent = NULL;
 	struct nfs4_state_owner *sp;
+	int cmp;
 
 	while (*p != NULL) {
 		parent = *p;
 		sp = rb_entry(parent, struct nfs4_state_owner, so_server_node);
+		cmp = cred_fscmp(cred, sp->so_cred);
 
-		if (cred < sp->so_cred)
+		if (cmp < 0)
 			p = &parent->rb_left;
-		else if (cred > sp->so_cred)
+		else if (cmp > 0)
 			p = &parent->rb_right;
 		else {
 			if (!list_empty(&sp->so_lru))
@@ -427,14 +429,16 @@ nfs4_insert_state_owner_locked(struct nfs4_state_owner *new)
 	struct rb_node **p = &server->state_owners.rb_node,
 		       *parent = NULL;
 	struct nfs4_state_owner *sp;
+	int cmp;
 
 	while (*p != NULL) {
 		parent = *p;
 		sp = rb_entry(parent, struct nfs4_state_owner, so_server_node);
+		cmp = cred_fscmp(new->so_cred, sp->so_cred);
 
-		if (new->so_cred < sp->so_cred)
+		if (cmp < 0)
 			p = &parent->rb_left;
-		else if (new->so_cred > sp->so_cred)
+		else if (cmp > 0)
 			p = &parent->rb_right;
 		else {
 			if (!list_empty(&sp->so_lru))
@@ -481,7 +485,7 @@ nfs4_destroy_seqid_counter(struct nfs_seqid_counter *sc)
  */
 static struct nfs4_state_owner *
 nfs4_alloc_state_owner(struct nfs_server *server,
-		struct rpc_cred *cred,
+		const struct cred *cred,
 		gfp_t gfp_flags)
 {
 	struct nfs4_state_owner *sp;
@@ -496,7 +500,7 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 		return NULL;
 	}
 	sp->so_server = server;
-	sp->so_cred = get_rpccred(cred);
+	sp->so_cred = get_cred(cred);
 	spin_lock_init(&sp->so_lock);
 	INIT_LIST_HEAD(&sp->so_states);
 	nfs4_init_seqid_counter(&sp->so_seqid);
@@ -525,7 +529,7 @@ nfs4_reset_state_owner(struct nfs4_state_owner *sp)
 static void nfs4_free_state_owner(struct nfs4_state_owner *sp)
 {
 	nfs4_destroy_seqid_counter(&sp->so_seqid);
-	put_rpccred(sp->so_cred);
+	put_cred(sp->so_cred);
 	ida_simple_remove(&sp->so_server->openowner_id, sp->so_seqid.owner_id);
 	kfree(sp);
 }
@@ -563,7 +567,7 @@ static void nfs4_gc_state_owners(struct nfs_server *server)
  * Returns a pointer to an instantiated nfs4_state_owner struct, or NULL.
  */
 struct nfs4_state_owner *nfs4_get_state_owner(struct nfs_server *server,
-					      struct rpc_cred *cred,
+					      const struct cred *cred,
 					      gfp_t gfp_flags)
 {
 	struct nfs_client *clp = server->nfs_client;
@@ -1032,7 +1036,7 @@ bool nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
  */
 int nfs4_select_rw_stateid(struct nfs4_state *state,
 		fmode_t fmode, const struct nfs_lock_context *l_ctx,
-		nfs4_stateid *dst, struct rpc_cred **cred)
+		nfs4_stateid *dst, const struct cred **cred)
 {
 	int ret;
 
@@ -1732,7 +1736,7 @@ static void nfs4_state_start_reclaim_reboot(struct nfs_client *clp)
 
 static int nfs4_reclaim_complete(struct nfs_client *clp,
 				 const struct nfs4_state_recovery_ops *ops,
-				 struct rpc_cred *cred)
+				 const struct cred *cred)
 {
 	/* Notify the server we're done reclaiming our state */
 	if (ops->reclaim_complete)
@@ -1783,7 +1787,7 @@ static int nfs4_state_clear_reclaim_reboot(struct nfs_client *clp)
 static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 {
 	const struct nfs4_state_recovery_ops *ops;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	int err;
 
 	if (!nfs4_state_clear_reclaim_reboot(clp))
@@ -1791,7 +1795,7 @@ static void nfs4_state_end_reclaim_reboot(struct nfs_client *clp)
 	ops = clp->cl_mvops->reboot_recovery_ops;
 	cred = nfs4_get_clid_cred(clp);
 	err = nfs4_reclaim_complete(clp, ops, cred);
-	put_rpccred(cred);
+	put_cred(cred);
 	if (err == -NFS4ERR_CONN_NOT_BOUND_TO_SESSION)
 		set_bit(NFS4CLNT_RECLAIM_REBOOT, &clp->cl_state);
 }
@@ -1887,7 +1891,7 @@ restart:
 
 static int nfs4_check_lease(struct nfs_client *clp)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	const struct nfs4_state_maintenance_ops *ops =
 		clp->cl_mvops->state_renewal_ops;
 	int status;
@@ -1903,7 +1907,7 @@ static int nfs4_check_lease(struct nfs_client *clp)
 			goto out;
 	}
 	status = ops->renew_lease(clp, cred);
-	put_rpccred(cred);
+	put_cred(cred);
 	if (status == -ETIMEDOUT) {
 		set_bit(NFS4CLNT_CHECK_LEASE, &clp->cl_state);
 		return 0;
@@ -1963,7 +1967,7 @@ static int nfs4_handle_reclaim_lease_error(struct nfs_client *clp, int status)
 
 static int nfs4_establish_lease(struct nfs_client *clp)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	const struct nfs4_state_recovery_ops *ops =
 		clp->cl_mvops->reboot_recovery_ops;
 	int status;
@@ -1975,7 +1979,7 @@ static int nfs4_establish_lease(struct nfs_client *clp)
 	if (cred == NULL)
 		return -ENOENT;
 	status = ops->establish_clid(clp, cred);
-	put_rpccred(cred);
+	put_cred(cred);
 	if (status != 0)
 		return status;
 	pnfs_destroy_all_layouts(clp);
@@ -2022,7 +2026,7 @@ static int nfs4_purge_lease(struct nfs_client *clp)
  *
  * Returns zero or a negative NFS4ERR status code.
  */
-static int nfs4_try_migration(struct nfs_server *server, struct rpc_cred *cred)
+static int nfs4_try_migration(struct nfs_server *server, const struct cred *cred)
 {
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs4_fs_locations *locations = NULL;
@@ -2092,7 +2096,7 @@ static int nfs4_handle_migration(struct nfs_client *clp)
 	const struct nfs4_state_maintenance_ops *ops =
 				clp->cl_mvops->state_renewal_ops;
 	struct nfs_server *server;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	dprintk("%s: migration reported on \"%s\"\n", __func__,
 			clp->cl_hostname);
@@ -2118,13 +2122,13 @@ restart:
 		rcu_read_unlock();
 		status = nfs4_try_migration(server, cred);
 		if (status < 0) {
-			put_rpccred(cred);
+			put_cred(cred);
 			return status;
 		}
 		goto restart;
 	}
 	rcu_read_unlock();
-	put_rpccred(cred);
+	put_cred(cred);
 	return 0;
 }
 
@@ -2138,7 +2142,7 @@ static int nfs4_handle_lease_moved(struct nfs_client *clp)
 	const struct nfs4_state_maintenance_ops *ops =
 				clp->cl_mvops->state_renewal_ops;
 	struct nfs_server *server;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 
 	dprintk("%s: lease moved reported on \"%s\"\n", __func__,
 			clp->cl_hostname);
@@ -2171,7 +2175,7 @@ restart:
 	rcu_read_unlock();
 
 out:
-	put_rpccred(cred);
+	put_cred(cred);
 	return 0;
 }
 
@@ -2194,7 +2198,7 @@ int nfs4_discover_server_trunking(struct nfs_client *clp,
 	const struct nfs4_state_recovery_ops *ops =
 				clp->cl_mvops->reboot_recovery_ops;
 	struct rpc_clnt *clnt;
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	int i, status;
 
 	dprintk("NFS: %s: testing '%s'\n", __func__, clp->cl_hostname);
@@ -2210,7 +2214,7 @@ again:
 		goto out_unlock;
 
 	status = ops->detect_trunking(clp, result, cred);
-	put_rpccred(cred);
+	put_cred(cred);
 	switch (status) {
 	case 0:
 	case -EINTR:
@@ -2401,7 +2405,7 @@ out_recovery:
 
 static int nfs4_reset_session(struct nfs_client *clp)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	int status;
 
 	if (!nfs4_has_session(clp))
@@ -2439,14 +2443,13 @@ static int nfs4_reset_session(struct nfs_client *clp)
 	dprintk("%s: session reset was successful for server %s!\n",
 			__func__, clp->cl_hostname);
 out:
-	if (cred)
-		put_rpccred(cred);
+	put_cred(cred);
 	return status;
 }
 
 static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 {
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	int ret;
 
 	if (!nfs4_has_session(clp))
@@ -2456,8 +2459,7 @@ static int nfs4_bind_conn_to_session(struct nfs_client *clp)
 		return ret;
 	cred = nfs4_get_clid_cred(clp);
 	ret = nfs4_proc_bind_conn_to_session(clp, cred);
-	if (cred)
-		put_rpccred(cred);
+	put_cred(cred);
 	clear_bit(NFS4CLNT_BIND_CONN_TO_SESSION, &clp->cl_state);
 	switch (ret) {
 	case 0:

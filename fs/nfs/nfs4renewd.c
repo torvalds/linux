@@ -57,7 +57,7 @@ nfs4_renew_state(struct work_struct *work)
 	const struct nfs4_state_maintenance_ops *ops;
 	struct nfs_client *clp =
 		container_of(work, struct nfs_client, cl_renewd.work);
-	struct rpc_cred *cred;
+	const struct cred *cred;
 	long lease;
 	unsigned long last, now;
 	unsigned renew_flags = 0;
@@ -90,7 +90,7 @@ nfs4_renew_state(struct work_struct *work)
 
 			/* Queue an asynchronous RENEW. */
 			ret = ops->sched_state_renewal(clp, cred, renew_flags);
-			put_rpccred(cred);
+			put_cred(cred);
 			switch (ret) {
 			default:
 				goto out_exp;

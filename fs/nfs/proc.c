@@ -500,25 +500,18 @@ nfs_proc_readdir(struct dentry *dentry, const struct cred *cred,
 		.count		= count,
 		.pages		= pages,
 	};
-	struct auth_cred acred = {
-		.cred		= cred,
-	};
 	struct rpc_message	msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_READDIR],
 		.rpc_argp	= &arg,
-		.rpc_cred	= rpc_lookup_generic_cred(&acred,
-							  0, GFP_NOFS),
+		.rpc_cred	= cred,
 	};
 	int			status;
 
 	dprintk("NFS call  readdir %d\n", (unsigned int)cookie);
-	if (!msg.rpc_cred)
-		return -ENOMEM;
 	status = rpc_call_sync(NFS_CLIENT(dir), &msg, 0);
 
 	nfs_invalidate_atime(dir);
 
-	put_rpccred(msg.rpc_cred);
 	dprintk("NFS reply readdir: %d\n", status);
 	return status;
 }
