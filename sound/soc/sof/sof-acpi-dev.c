@@ -143,7 +143,6 @@ static const struct sof_ops_table acpi_mach_ops[] = {
 
 static int sof_acpi_probe(struct platform_device *pdev)
 {
-	const struct acpi_device_id *id;
 	struct device *dev = &pdev->dev;
 	const struct sof_dev_desc *desc;
 	struct snd_soc_acpi_mach *mach;
@@ -162,11 +161,10 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	if (!sof_pdata)
 		return -ENOMEM;
 
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
+	desc = (const struct sof_dev_desc *)device_get_match_data(dev);
+	if (!desc)
 		return -ENODEV;
 
-	desc = (const struct sof_dev_desc *)id->driver_data;
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
 	if (desc == &sof_acpi_baytrail_desc && is_byt_cr(dev))
 		desc = &sof_acpi_baytrailcr_desc;
