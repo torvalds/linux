@@ -5082,6 +5082,24 @@ static inline void hrtick_update(struct rq *rq)
 }
 #endif
 
+#ifdef CONFIG_SMP
+static inline unsigned long cpu_util(int cpu);
+static unsigned long capacity_of(int cpu);
+
+static inline bool cpu_overutilized(int cpu)
+{
+	return (capacity_of(cpu) * 1024) < (cpu_util(cpu) * capacity_margin);
+}
+
+static inline void update_overutilized_status(struct rq *rq)
+{
+	if (!READ_ONCE(rq->rd->overutilized) && cpu_overutilized(rq->cpu))
+		WRITE_ONCE(rq->rd->overutilized, SG_OVERUTILIZED);
+}
+#else
+static inline void update_overutilized_status(struct rq *rq) { }
+#endif
+
 /*
  * The enqueue_task method is called before nr_running is
  * increased. Here we update the fair scheduling stats and
@@ -5139,8 +5157,26 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		update_cfs_group(se);
 	}
 
-	if (!se)
+	if (!se) {
 		add_nr_running(rq, 1);
+		/*
+		 * Since new tasks are assigned an initial util_avg equal to
+		 * half of the spare capacity of their CPU, tiny tasks have the
+		 * ability to cross the overutilized threshold, which will
+		 * result in the load balancer ruining all the task placement
+		 * done by EAS. As a way to mitigate that effect, do not account
+		 * for the first enqueue operation of new tasks during the
+		 * overutilized flag detection.
+		 *
+		 * A better way of solving this problem would be to wait for
+		 * the PELT signals of tasks to converge before taking them
+		 * into account, but that is not straightforward to implement,
+		 * and the following generally works well enough in practice.
+		 */
+		if (flags & ENQUEUE_WAKEUP)
+			update_overutilized_status(rq);
+
+	}
 
 	hrtick_update(rq);
 }
@@ -7940,6 +7976,9 @@ static inline void update_sg_lb_stats(struct lb_env *env,
 		if (nr_running > 1)
 			*sg_status |= SG_OVERLOAD;
 
+		if (cpu_overutilized(i))
+			*sg_status |= SG_OVERUTILIZED;
+
 #ifdef CONFIG_NUMA_BALANCING
 		sgs->nr_numa_running += rq->nr_numa_running;
 		sgs->nr_preferred_running += rq->nr_preferred_running;
@@ -8170,8 +8209,15 @@ next_group:
 		env->fbq_type = fbq_classify_group(&sds->busiest_stat);
 
 	if (!env->sd->parent) {
+		struct root_domain *rd = env->dst_rq->rd;
+
 		/* update overload indicator if we are at root domain */
-		WRITE_ONCE(env->dst_rq->rd->overload, sg_status & SG_OVERLOAD);
+		WRITE_ONCE(rd->overload, sg_status & SG_OVERLOAD);
+
+		/* Update over-utilization (tipping point, U >= 0) indicator */
+		WRITE_ONCE(rd->overutilized, sg_status & SG_OVERUTILIZED);
+	} else if (sg_status & SG_OVERUTILIZED) {
+		WRITE_ONCE(env->dst_rq->rd->overutilized, SG_OVERUTILIZED);
 	}
 }
 
@@ -8398,6 +8444,14 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
 	 * this level.
 	 */
 	update_sd_lb_stats(env, &sds);
+
+	if (static_branch_unlikely(&sched_energy_present)) {
+		struct root_domain *rd = env->dst_rq->rd;
+
+		if (rcu_dereference(rd->pd) && !READ_ONCE(rd->overutilized))
+			goto out_balanced;
+	}
+
 	local = &sds.local_stat;
 	busiest = &sds.busiest_stat;
 
@@ -9798,6 +9852,7 @@ static void task_tick_fair(struct rq *rq, struct task_struct *curr, int queued)
 		task_tick_numa(rq, curr);
 
 	update_misfit_status(curr, rq);
+	update_overutilized_status(task_rq(curr));
 }
 
 /*
