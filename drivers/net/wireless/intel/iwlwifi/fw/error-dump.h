@@ -275,22 +275,6 @@ struct iwl_fw_error_dump_mem {
 };
 
 /**
- * struct iwl_fw_error_dump_named_mem - chunk of memory
- * @type: &enum iwl_fw_error_dump_mem_type
- * @offset: the offset from which the memory was read
- * @name_len: name length
- * @name: file name
- * @data: the content of the memory
- */
-struct iwl_fw_error_dump_named_mem {
-	__le32 type;
-	__le32 offset;
-	u8 name_len;
-	u8 name[32];
-	u8 data[];
-};
-
-/**
  * struct iwl_fw_ini_error_dump_range - range of memory
  * @start_addr: the start address of this range
  * @range_data_size: the size of this range, in bytes

@@ -707,28 +707,6 @@ static void iwl_fw_dump_mem(struct iwl_fw_runtime *fwrt,
 	IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
 }
 
-static void iwl_fw_dump_named_mem(struct iwl_fw_runtime *fwrt,
-				  struct iwl_fw_error_dump_data **dump_data,
-				  u32 len, u32 ofs, u8 *name, u8 name_len)
-{
-	struct iwl_fw_error_dump_named_mem *dump_mem;
-
-	if (!len)
-		return;
-
-	(*dump_data)->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM);
-	(*dump_data)->len = cpu_to_le32(len + sizeof(*dump_mem));
-	dump_mem = (void *)(*dump_data)->data;
-	dump_mem->type = cpu_to_le32(IWL_FW_ERROR_DUMP_MEM_NAMED_MEM);
-	dump_mem->offset = cpu_to_le32(ofs);
-	dump_mem->name_len = name_len;
-	memcpy(dump_mem->name, name, name_len);
-	iwl_trans_read_mem_bytes(fwrt->trans, ofs, dump_mem->data, len);
-	*dump_data = iwl_fw_error_next_data(*dump_data);
-
-	IWL_DEBUG_INFO(fwrt, "WRT memory dump. Type=%u\n", dump_mem->type);
-}
-
 #define ADD_LEN(len, item_len, const_len) \
 	do {size_t item = item_len; len += (!!item) * const_len + item; } \
 	while (0)
@@ -1102,6 +1080,21 @@ static int iwl_dump_ini_csr_iter(struct iwl_fw_runtime *fwrt,
 	return le32_to_cpu(range->range_data_size);
 }
 
+static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
+				     struct iwl_fw_ini_error_dump_range *range,
+				     struct iwl_fw_ini_region_cfg *reg,
+				     int idx)
+{
+	u32 addr = le32_to_cpu(range->start_addr);
+	u32 offset = le32_to_cpu(reg->offset);
+
+	range->start_addr = reg->start_addr[idx];
+	range->range_data_size = reg->internal.range_data_size;
+	iwl_trans_read_mem_bytes(fwrt->trans, addr + offset, range->data,
+				 le32_to_cpu(reg->internal.range_data_size));
+	return le32_to_cpu(range->range_data_size);
+}
+
 static struct iwl_fw_ini_error_dump_range
 *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt, void *data)
 {
@@ -1217,10 +1210,6 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		type = le32_to_cpu(reg->region_type);
 		switch (type) {
 		case IWL_FW_INI_REGION_DEVICE_MEMORY:
-			size += hdr_len +
-				sizeof(struct iwl_fw_error_dump_named_mem) +
-				le32_to_cpu(reg->internal.range_data_size);
-			break;
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
 		case IWL_FW_INI_REGION_PERIPHERY_AUX:
@@ -1278,20 +1267,13 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 
 		type = le32_to_cpu(reg->region_type);
 		switch (type) {
-		case IWL_FW_INI_REGION_DEVICE_MEMORY: {
-			u32 num_of_ranges =
-				le32_to_cpu(reg->internal.num_of_ranges);
-			u32 range_data_size =
-				le32_to_cpu(reg->internal.range_data_size);
-
-			if (WARN_ON(num_of_ranges) > 1)
-				continue;
-			iwl_fw_dump_named_mem(fwrt, data, range_data_size,
-					      le32_to_cpu(reg->start_addr[0]),
-					      reg->name,
-					      le32_to_cpu(reg->name_len));
+		case IWL_FW_INI_REGION_DEVICE_MEMORY:
+			ops.get_num_of_ranges = iwl_dump_ini_mem_ranges;
+			ops.get_size = iwl_dump_ini_mem_get_size;
+			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
+			ops.fill_range = iwl_dump_ini_dev_mem_iter;
+			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
-		}
 		case IWL_FW_INI_REGION_PERIPHERY_MAC:
 		case IWL_FW_INI_REGION_PERIPHERY_PHY:
 		case IWL_FW_INI_REGION_PERIPHERY_AUX:
