@@ -965,10 +965,11 @@ static const struct devlink_ops mlxsw_devlink_ops = {
 	.sb_occ_tc_port_bind_get	= mlxsw_devlink_sb_occ_tc_port_bind_get,
 };
 
-int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
-				   const struct mlxsw_bus *mlxsw_bus,
-				   void *bus_priv, bool reload,
-				   struct devlink *devlink)
+static int
+__mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
+				 const struct mlxsw_bus *mlxsw_bus,
+				 void *bus_priv, bool reload,
+				 struct devlink *devlink)
 {
 	const char *device_kind = mlxsw_bus_info->device_kind;
 	struct mlxsw_core *mlxsw_core;
@@ -1074,6 +1075,29 @@ err_bus_init:
 	if (!reload)
 		devlink_free(devlink);
 err_devlink_alloc:
+	return err;
+}
+
+int mlxsw_core_bus_device_register(const struct mlxsw_bus_info *mlxsw_bus_info,
+				   const struct mlxsw_bus *mlxsw_bus,
+				   void *bus_priv, bool reload,
+				   struct devlink *devlink)
+{
+	bool called_again = false;
+	int err;
+
+again:
+	err = __mlxsw_core_bus_device_register(mlxsw_bus_info, mlxsw_bus,
+					       bus_priv, reload, devlink);
+	/* -EAGAIN is returned in case the FW was updated. FW needs
+	 * a reset, so lets try to call __mlxsw_core_bus_device_register()
+	 * again.
+	 */
+	if (err == -EAGAIN && !called_again) {
+		called_again = true;
+		goto again;
+	}
+
 	return err;
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_register);
