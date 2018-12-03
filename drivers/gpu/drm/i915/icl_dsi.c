@@ -570,6 +570,28 @@ static void gen11_dsi_ungate_clocks(struct intel_encoder *encoder)
 	mutex_unlock(&dev_priv->dpll_lock);
 }
 
+static void gen11_dsi_map_pll(struct intel_encoder *encoder,
+			      const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+	struct intel_shared_dpll *pll = crtc_state->shared_dpll;
+	enum port port;
+	u32 val;
+
+	mutex_lock(&dev_priv->dpll_lock);
+
+	val = I915_READ(DPCLKA_CFGCR0_ICL);
+	for_each_dsi_port(port, intel_dsi->ports) {
+		val &= ~DPCLKA_CFGCR0_DDI_CLK_SEL_MASK(port);
+		val |= DPCLKA_CFGCR0_DDI_CLK_SEL(pll->info->id, port);
+	}
+	I915_WRITE(DPCLKA_CFGCR0_ICL, val);
+	POSTING_READ(DPCLKA_CFGCR0_ICL);
+
+	mutex_unlock(&dev_priv->dpll_lock);
+}
+
 static void
 gen11_dsi_configure_transcoder(struct intel_encoder *encoder,
 			       const struct intel_crtc_state *pipe_config)
@@ -977,6 +999,9 @@ static void gen11_dsi_pre_enable(struct intel_encoder *encoder,
 				 const struct drm_connector_state *conn_state)
 {
 	struct intel_dsi *intel_dsi = enc_to_intel_dsi(&encoder->base);
+
+	/* step3b */
+	gen11_dsi_map_pll(encoder, pipe_config);
 
 	/* step4: enable DSI port and DPHY */
 	gen11_dsi_enable_port_and_phy(encoder, pipe_config);
