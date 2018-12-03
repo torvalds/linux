@@ -53,8 +53,22 @@ static void wa_init_start(struct i915_wa_list *wal, const char *name)
 	wal->name = name;
 }
 
+#define WA_LIST_CHUNK (1 << 4)
+
 static void wa_init_finish(struct i915_wa_list *wal)
 {
+	/* Trim unused entries. */
+	if (!IS_ALIGNED(wal->count, WA_LIST_CHUNK)) {
+		struct i915_wa *list = kmemdup(wal->list,
+					       wal->count * sizeof(*list),
+					       GFP_KERNEL);
+
+		if (list) {
+			kfree(wal->list);
+			wal->list = list;
+		}
+	}
+
 	if (!wal->count)
 		return;
 
@@ -66,7 +80,7 @@ static void _wa_add(struct i915_wa_list *wal, const struct i915_wa *wa)
 {
 	unsigned int addr = i915_mmio_reg_offset(wa->reg);
 	unsigned int start = 0, end = wal->count;
-	const unsigned int grow = 1 << 4;
+	const unsigned int grow = WA_LIST_CHUNK;
 	struct i915_wa *wa_;
 
 	GEM_BUG_ON(!is_power_of_2(grow));
