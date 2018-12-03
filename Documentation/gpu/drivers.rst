@@ -17,6 +17,7 @@ GPU Driver Documentation
    vkms
    bridge/dw-hdmi
    xen-front
+   afbc
 
 .. only::  subproject and html
 
