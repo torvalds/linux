@@ -149,15 +149,6 @@ static int a6xx_crashdumper_run(struct msm_gpu *gpu,
 	return ret;
 }
 
-static void a6xx_crashdumper_free(struct msm_gpu *gpu,
-		struct a6xx_crashdumper *dumper)
-{
-	msm_gem_unpin_iova(dumper->bo, gpu->aspace);
-	msm_gem_put_vaddr(dumper->bo);
-
-	drm_gem_object_unreference(dumper->bo);
-}
-
 /* read a value from the GX debug bus */
 static int debugbus_read(struct msm_gpu *gpu, u32 block, u32 offset,
 		u32 *data)
@@ -900,7 +891,7 @@ struct msm_gpu_state *a6xx_gpu_state_get(struct msm_gpu *gpu)
 		a6xx_get_clusters(gpu, a6xx_state, &dumper);
 		a6xx_get_dbgahb_clusters(gpu, a6xx_state, &dumper);
 
-		a6xx_crashdumper_free(gpu, &dumper);
+		msm_gem_kernel_put(dumper.bo, gpu->aspace, true);
 	}
 
 	a6xx_get_debugbus(gpu, a6xx_state);
