@@ -251,15 +251,7 @@ static unsigned long __cpa_addr(struct cpa_data *cpa, unsigned long idx)
  * Flushing functions
  */
 
-/**
- * clflush_cache_range - flush a cache range with clflush
- * @vaddr:	virtual start address
- * @size:	number of bytes to flush
- *
- * clflushopt is an unordered instruction which needs fencing with mfence or
- * sfence to avoid ordering issues.
- */
-void clflush_cache_range(void *vaddr, unsigned int size)
+static void clflush_cache_range_opt(void *vaddr, unsigned int size)
 {
 	const unsigned long clflush_size = boot_cpu_data.x86_clflush_size;
 	void *p = (void *)((unsigned long)vaddr & ~(clflush_size - 1));
@@ -268,11 +260,22 @@ void clflush_cache_range(void *vaddr, unsigned int size)
 	if (p >= vend)
 		return;
 
-	mb();
-
 	for (; p < vend; p += clflush_size)
 		clflushopt(p);
+}
 
+/**
+ * clflush_cache_range - flush a cache range with clflush
+ * @vaddr:	virtual start address
+ * @size:	number of bytes to flush
+ *
+ * CLFLUSHOPT is an unordered instruction which needs fencing with MFENCE or
+ * SFENCE to avoid ordering issues.
+ */
+void clflush_cache_range(void *vaddr, unsigned int size)
+{
+	mb();
+	clflush_cache_range_opt(vaddr, size);
 	mb();
 }
 EXPORT_SYMBOL_GPL(clflush_cache_range);
@@ -333,6 +336,7 @@ static void cpa_flush(struct cpa_data *data, int cache)
 	if (!cache)
 		return;
 
+	mb();
 	for (i = 0; i < cpa->numpages; i++) {
 		unsigned long addr = __cpa_addr(cpa, i);
 		unsigned int level;
@@ -343,8 +347,9 @@ static void cpa_flush(struct cpa_data *data, int cache)
 		 * Only flush present addresses:
 		 */
 		if (pte && (pte_val(*pte) & _PAGE_PRESENT))
-			clflush_cache_range((void *)addr, PAGE_SIZE);
+			clflush_cache_range_opt((void *)addr, PAGE_SIZE);
 	}
+	mb();
 }
 
 static bool overlaps(unsigned long r1_start, unsigned long r1_end,
