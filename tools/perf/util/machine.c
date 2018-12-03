@@ -137,7 +137,7 @@ struct machine *machine__new_kallsyms(void)
 	struct machine *machine = machine__new_host();
 	/*
 	 * FIXME:
-	 * 1) We should switch to machine__load_kallsyms(), i.e. not explicitely
+	 * 1) We should switch to machine__load_kallsyms(), i.e. not explicitly
 	 *    ask for not using the kcore parsing code, once this one is fixed
 	 *    to create a map per module.
 	 */

@@ -2798,7 +2798,7 @@ static int perf_header__adds_write(struct perf_header *header,
 	lseek(fd, sec_start, SEEK_SET);
 	/*
 	 * may write more than needed due to dropped feature, but
-	 * this is okay, reader will skip the mising entries
+	 * this is okay, reader will skip the missing entries
 	 */
 	err = do_write(&ff, feat_sec, sec_size);
 	if (err < 0)

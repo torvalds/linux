@@ -595,7 +595,7 @@ static void *display_thread_tui(void *arg)
 
 	/*
 	 * Initialize the uid_filter_str, in the future the TUI will allow
-	 * Zooming in/out UIDs. For now juse use whatever the user passed
+	 * Zooming in/out UIDs. For now just use whatever the user passed
 	 * via --uid.
 	 */
 	evlist__for_each_entry(top->evlist, pos) {

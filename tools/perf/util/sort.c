@@ -37,7 +37,7 @@ enum sort_mode	sort__mode = SORT_MODE__NORMAL;
  * -t, --field-separator
  *
  * option, that uses a special separator character and don't pad with spaces,
- * replacing all occurances of this separator in symbol names (and other
+ * replacing all occurrences of this separator in symbol names (and other
  * output) with a '.' character, that thus it's the only non valid separator.
 */
 static int repsep_snprintf(char *bf, size_t size, const char *fmt, ...)

@@ -2782,7 +2782,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 * Now that we already used evsel->attr to ask the kernel to setup the
 	 * events, lets reuse evsel->attr.sample_max_stack as the limit in
 	 * trace__resolve_callchain(), allowing per-event max-stack settings
-	 * to override an explicitely set --max-stack global setting.
+	 * to override an explicitly set --max-stack global setting.
 	 */
 	evlist__for_each_entry(evlist, evsel) {
 		if (evsel__has_callchain(evsel) &&
