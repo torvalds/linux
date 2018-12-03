@@ -4279,10 +4279,14 @@ commit_trans:
 				/*
 				 * The cleaner kthread might still be doing iput
 				 * operations. Wait for it to finish so that
-				 * more space is released.
+				 * more space is released.  We don't need to
+				 * explicitly run the delayed iputs here because
+				 * the commit_transaction would have woken up
+				 * the cleaner.
 				 */
-				mutex_lock(&fs_info->cleaner_delayed_iput_mutex);
-				mutex_unlock(&fs_info->cleaner_delayed_iput_mutex);
+				ret = btrfs_wait_on_delayed_iputs(fs_info);
+				if (ret)
+					return ret;
 				goto again;
 			} else {
 				btrfs_end_transaction(trans);
@@ -4967,9 +4971,8 @@ static void flush_space(struct btrfs_fs_info *fs_info,
 		 * bunch of pinned space, so make sure we run the iputs before
 		 * we do our pinned bytes check below.
 		 */
-		mutex_lock(&fs_info->cleaner_delayed_iput_mutex);
 		btrfs_run_delayed_iputs(fs_info);
-		mutex_unlock(&fs_info->cleaner_delayed_iput_mutex);
+		btrfs_wait_on_delayed_iputs(fs_info);
 
 		ret = may_commit_transaction(fs_info, space_info);
 		break;
