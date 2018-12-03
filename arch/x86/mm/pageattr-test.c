@@ -124,7 +124,6 @@ static int pageattr_test(void)
 	unsigned int level;
 	int i, k;
 	int err;
-	unsigned long test_addr;
 
 	if (print)
 		printk(KERN_INFO "CPA self-test:\n");
@@ -181,8 +180,7 @@ static int pageattr_test(void)
 
 		switch (i % 3) {
 		case 0:
-			test_addr = addr[i];
-			err = change_page_attr_set(&test_addr, len[i], PAGE_CPA_TEST, 0);
+			err = change_page_attr_set(&addr[i], len[i], PAGE_CPA_TEST, 0);
 			break;
 
 		case 1:
@@ -226,8 +224,7 @@ static int pageattr_test(void)
 			failed++;
 			continue;
 		}
-		test_addr = addr[i];
-		err = change_page_attr_clear(&test_addr, len[i], PAGE_CPA_TEST, 0);
+		err = change_page_attr_clear(&addr[i], len[i], PAGE_CPA_TEST, 0);
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
 			failed++;
