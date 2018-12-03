@@ -46,12 +46,6 @@
 #define LEFT_MIXER 0
 #define RIGHT_MIXER 1
 
-static inline int _dpu_crtc_get_mixer_width(struct dpu_crtc_state *cstate,
-					    struct drm_display_mode *mode)
-{
-	return mode->hdisplay / cstate->num_mixers;
-}
-
 static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 {
 	struct msm_drm_private *priv = crtc->dev->dev_private;
@@ -497,7 +491,7 @@ static void _dpu_crtc_setup_lm_bounds(struct drm_crtc *crtc,
 {
 	struct dpu_crtc_state *cstate = to_dpu_crtc_state(state);
 	struct drm_display_mode *adj_mode = &state->adjusted_mode;
-	u32 crtc_split_width = _dpu_crtc_get_mixer_width(cstate, adj_mode);
+	u32 crtc_split_width = adj_mode->hdisplay / cstate->num_mixers;
 	int i;
 
 	for (i = 0; i < cstate->num_mixers; i++) {
@@ -952,7 +946,7 @@ static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
 
 	memset(pipe_staged, 0, sizeof(pipe_staged));
 
-	mixer_width = _dpu_crtc_get_mixer_width(cstate, mode);
+	mixer_width = mode->hdisplay / cstate->num_mixers;
 
 	_dpu_crtc_setup_lm_bounds(crtc, state);
 
@@ -1193,7 +1187,7 @@ static int _dpu_debugfs_status_show(struct seq_file *s, void *data)
 	cstate = to_dpu_crtc_state(crtc->state);
 
 	mode = &crtc->state->adjusted_mode;
-	out_width = _dpu_crtc_get_mixer_width(cstate, mode);
+	out_width = mode->hdisplay / cstate->num_mixers;
 
 	seq_printf(s, "crtc:%d width:%d height:%d\n", crtc->base.id,
 				mode->hdisplay, mode->vdisplay);

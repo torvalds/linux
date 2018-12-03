@@ -44,14 +44,7 @@
 
 #define DPU_ENC_WR_PTR_START_TIMEOUT_US 20000
 
-static inline int _dpu_encoder_phys_cmd_get_idle_timeout(
-		struct dpu_encoder_phys_cmd *cmd_enc)
-{
-	return KICKOFF_TIMEOUT_MS;
-}
-
-static inline bool dpu_encoder_phys_cmd_is_master(
-		struct dpu_encoder_phys *phys_enc)
+static bool dpu_encoder_phys_cmd_is_master(struct dpu_encoder_phys *phys_enc)
 {
 	return (phys_enc->split_role != ENC_ROLE_SLAVE) ? true : false;
 }
@@ -723,7 +716,7 @@ static int dpu_encoder_phys_cmd_wait_for_vblank(
 
 	wait_info.wq = &cmd_enc->pending_vblank_wq;
 	wait_info.atomic_cnt = &cmd_enc->pending_vblank_cnt;
-	wait_info.timeout_ms = _dpu_encoder_phys_cmd_get_idle_timeout(cmd_enc);
+	wait_info.timeout_ms = KICKOFF_TIMEOUT_MS;
 
 	atomic_inc(&cmd_enc->pending_vblank_cnt);
 

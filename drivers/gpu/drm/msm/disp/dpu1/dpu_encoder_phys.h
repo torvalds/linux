@@ -350,7 +350,7 @@ static inline enum dpu_3d_blend_mode dpu_encoder_helper_get_3d_blend_mode(
 	dpu_cstate = to_dpu_crtc_state(phys_enc->parent->crtc->state);
 
 	if (phys_enc->split_role == ENC_ROLE_SOLO &&
-	    dpu_crtc_state_is_stereo(dpu_cstate))
+	    dpu_cstate->num_mixers == CRTC_DUAL_MIXERS)
 		return BLEND_3D_H_ROW_INT;
 
 	return BLEND_3D_NONE;

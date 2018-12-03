@@ -156,11 +156,6 @@ static void dpu_hw_lm_setup_color3(struct dpu_hw_mixer *ctx,
 	DPU_REG_WRITE(c, LM_OP_MODE, op_mode);
 }
 
-static void dpu_hw_lm_gc(struct dpu_hw_mixer *mixer,
-			void *cfg)
-{
-}
-
 static void _setup_mixer_ops(struct dpu_mdss_cfg *m,
 		struct dpu_hw_lm_ops *ops,
 		unsigned long features)
@@ -172,7 +167,6 @@ static void _setup_mixer_ops(struct dpu_mdss_cfg *m,
 		ops->setup_blend_config = dpu_hw_lm_setup_blend_config;
 	ops->setup_alpha_out = dpu_hw_lm_setup_color3;
 	ops->setup_border_color = dpu_hw_lm_setup_border_color;
-	ops->setup_gc = dpu_hw_lm_gc;
 };
 
 static struct dpu_hw_blk_ops dpu_hw_ops;

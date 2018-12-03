@@ -716,12 +716,6 @@ static const struct msm_kms_funcs kms_funcs = {
 #endif
 };
 
-/* the caller api needs to turn on clock before calling it */
-static inline void _dpu_kms_core_hw_rev_init(struct dpu_kms *dpu_kms)
-{
-	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
-}
-
 static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 {
 	struct msm_mmu *mmu;
@@ -859,7 +853,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 
-	_dpu_kms_core_hw_rev_init(dpu_kms);
+	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
 
 	pr_info("dpu hardware revision:0x%x\n", dpu_kms->core_rev);
 

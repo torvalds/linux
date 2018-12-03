@@ -430,24 +430,14 @@ static void _dpu_plane_set_qos_remap(struct drm_plane *plane)
 	dpu_vbif_set_qos_remap(dpu_kms, &qos_params);
 }
 
-/**
- * _dpu_plane_get_aspace: gets the address space
- */
-static inline struct msm_gem_address_space *_dpu_plane_get_aspace(
-		struct dpu_plane *pdpu)
-{
-	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
-
-	return kms->base.aspace;
-}
-
 static void _dpu_plane_set_scanout(struct drm_plane *plane,
 		struct dpu_plane_state *pstate,
 		struct dpu_hw_pipe_cfg *pipe_cfg,
 		struct drm_framebuffer *fb)
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct msm_gem_address_space *aspace = _dpu_plane_get_aspace(pdpu);
+	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
+	struct msm_gem_address_space *aspace = kms->base.aspace;
 	int ret;
 
 	ret = dpu_format_populate_layout(aspace, fb, &pipe_cfg->layout);
@@ -801,7 +791,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	struct drm_gem_object *obj;
 	struct msm_gem_object *msm_obj;
 	struct dma_fence *fence;
-	struct msm_gem_address_space *aspace = _dpu_plane_get_aspace(pdpu);
+	struct dpu_kms *kms = _dpu_plane_get_kms(&pdpu->base);
 	int ret;
 
 	if (!new_state->fb)
@@ -810,7 +800,7 @@ static int dpu_plane_prepare_fb(struct drm_plane *plane,
 	DPU_DEBUG_PLANE(pdpu, "FB[%u]\n", fb->base.id);
 
 	/* cache aspace */
-	pstate->aspace = aspace;
+	pstate->aspace = kms->base.aspace;
 
 	/*
 	 * TODO: Need to sort out the msm_framebuffer_prepare() call below so
