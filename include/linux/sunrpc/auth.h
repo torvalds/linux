@@ -104,7 +104,6 @@ struct rpc_auth_create_args {
 
 /* Flags for rpcauth_lookupcred() */
 #define RPCAUTH_LOOKUP_NEW		0x01	/* Accept an uninitialised cred */
-#define RPCAUTH_LOOKUP_RCU		0x02	/* lock-less lookup */
 
 /*
  * Client authentication ops
@@ -151,15 +150,10 @@ extern const struct rpc_authops	authunix_ops;
 extern const struct rpc_authops	authnull_ops;
 
 int __init		rpc_init_authunix(void);
-int __init		rpc_init_generic_auth(void);
 int __init		rpcauth_init_module(void);
 void			rpcauth_remove_module(void);
-void			rpc_destroy_generic_auth(void);
 void 			rpc_destroy_authunix(void);
 
-struct rpc_cred *	rpc_lookup_cred(void);
-struct rpc_cred *	rpc_lookup_cred_nonblock(void);
-struct rpc_cred *	rpc_lookup_generic_cred(struct auth_cred *, int, gfp_t);
 int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(const struct rpc_auth_create_args *,
