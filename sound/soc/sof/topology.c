@@ -24,6 +24,7 @@
 #include <uapi/sound/tlv.h>
 #include <uapi/sound/sof/tokens.h>
 #include "sof-priv.h"
+#include "ops.h"
 
 #define COMP_ID_UNASSIGNED		0xffffffff
 /* Constants used in the computation of linear volume gain from dB gain */
@@ -1088,6 +1089,48 @@ err:
 /*
  * Pipeline Topology
  */
+int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
+			  struct sof_ipc_pipe_new *pipeline,
+			  struct sof_ipc_comp_reply *r)
+{
+	struct sof_ipc_pm_core_config pm_core_config;
+	int ret = 0;
+
+	ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
+				 sizeof(*pipeline), r, sizeof(*r));
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: load pipeline ipc failure\n");
+		return ret;
+	}
+
+	/* power up the core that this pipeline is scheduled on */
+	ret = snd_sof_dsp_core_power_up(sdev, 1 << pipeline->core);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: powering up pipeline schedule core %d\n",
+			pipeline->core);
+		return ret;
+	}
+
+	/*
+	 * Now notify DSP that the core that this pipeline is scheduled on
+	 * has been powered up
+	 */
+	memset(&pm_core_config, 0, sizeof(pm_core_config));
+	pm_core_config.enable_mask = 1 << pipeline->core;
+
+	/* configure CORE_ENABLE ipc message */
+	pm_core_config.hdr.size = sizeof(pm_core_config);
+	pm_core_config.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE;
+
+	/* send ipc */
+	ret = sof_ipc_tx_message(sdev->ipc, pm_core_config.hdr.cmd,
+				 &pm_core_config, sizeof(pm_core_config),
+				 &pm_core_config, sizeof(pm_core_config));
+	if (ret < 0)
+		dev_err(sdev->dev, "error: core enable ipc failure\n");
+
+	return ret;
+}
 
 static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 				    int index, struct snd_sof_widget *swidget,
@@ -1139,8 +1182,8 @@ static int sof_widget_load_pipeline(struct snd_soc_component *scomp,
 
 	swidget->private = (void *)pipeline;
 
-	ret = sof_ipc_tx_message(sdev->ipc, pipeline->hdr.cmd, pipeline,
-				 sizeof(*pipeline), r, sizeof(*r));
+	/* send ipc's to create pipeline comp and power up schedule core */
+	ret = sof_load_pipeline_ipc(sdev, pipeline, r);
 	if (ret >= 0)
 		return ret;
 err:

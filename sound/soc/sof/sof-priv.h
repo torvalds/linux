@@ -493,6 +493,10 @@ void snd_sof_free_topology(struct snd_sof_dev *sdev);
 int snd_sof_complete_pipeline(struct snd_sof_dev *sdev,
 			      struct snd_sof_widget *swidget);
 
+int sof_load_pipeline_ipc(struct snd_sof_dev *sdev,
+			  struct sof_ipc_pipe_new *pipeline,
+			  struct sof_ipc_comp_reply *r);
+
 /*
  * Trace/debug
  */
