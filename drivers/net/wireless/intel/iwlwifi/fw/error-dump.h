@@ -291,6 +291,40 @@ struct iwl_fw_error_dump_named_mem {
 };
 
 /**
+ * struct iwl_fw_ini_error_dump_range - range of memory
+ * @start_addr: the start address of this range
+ * @range_data_size: the size of this range, in bytes
+ * @data: the actual memory
+ */
+struct iwl_fw_ini_error_dump_range {
+	__le32 start_addr;
+	__le32 range_data_size;
+	__le32 data[];
+} __packed;
+
+/**
+ * struct iwl_fw_ini_error_dump_header - ini region dump header
+ * @num_of_ranges: number of ranges in this region
+ * @name_len: number of bytes allocated to the name string of this region
+ * @name: name of the region
+ */
+struct iwl_fw_ini_error_dump_header {
+	__le32 num_of_ranges;
+	__le32 name_len;
+	u8 name[IWL_FW_INI_MAX_NAME];
+};
+
+/**
+ * struct iwl_fw_ini_error_dump - ini region dump
+ * @header: the header of this region
+ * @ranges: the memory ranges of this this region
+ */
+struct iwl_fw_ini_error_dump {
+	struct iwl_fw_ini_error_dump_header header;
+	struct iwl_fw_ini_error_dump_range ranges[];
+} __packed;
+
+/**
  * struct iwl_fw_error_dump_rb - content of an Receive Buffer
  * @index: the index of the Receive Buffer in the Rx queue
  * @rxq: the RB's Rx queue

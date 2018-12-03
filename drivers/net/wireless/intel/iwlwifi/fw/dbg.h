@@ -441,4 +441,8 @@ void iwl_fw_dbg_apply_point(struct iwl_fw_runtime *fwrt,
 			    enum iwl_fw_ini_apply_point apply_point);
 
 void iwl_fwrt_stop_device(struct iwl_fw_runtime *fwrt);
+
+/* This bit is used to differentiate the legacy dump from the ini dump */
+#define INI_DUMP_BIT BIT(31)
+
 #endif  /* __iwl_fw_dbg_h__ */
