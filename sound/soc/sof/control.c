@@ -23,8 +23,8 @@ static inline u32 mixer_to_ipc(unsigned int value, u32 *volume_map, int size)
 {
 	if (value >= size)
 		return volume_map[size - 1];
-	else
-		return volume_map[value];
+
+	return volume_map[value];
 }
 
 static inline u32 ipc_to_mixer(u32 value, u32 *volume_map, int size)

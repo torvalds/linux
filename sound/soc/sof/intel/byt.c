@@ -747,8 +747,8 @@ static int byt_probe(struct snd_sof_dev *sdev)
 {
 	if (sdev->pci)
 		return byt_pci_probe(sdev);
-	else
-		return byt_acpi_probe(sdev);
+
+	return byt_acpi_probe(sdev);
 }
 
 static int byt_acpi_remove(struct snd_sof_dev *sdev)
@@ -770,8 +770,8 @@ static int byt_remove(struct snd_sof_dev *sdev)
 {
 	if (sdev->pci)
 		return byt_pci_remove(sdev);
-	else
-		return byt_acpi_remove(sdev);
+
+	return byt_acpi_remove(sdev);
 }
 
 #define BYT_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \

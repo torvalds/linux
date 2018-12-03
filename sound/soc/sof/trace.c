@@ -58,8 +58,8 @@ out:
 	/* return bytes available for copy */
 	if (sdev->host_offset < pos)
 		return buffer_size - pos;
-	else
-		return sdev->host_offset - pos;
+
+	return sdev->host_offset - pos;
 }
 
 static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,

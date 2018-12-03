@@ -23,16 +23,16 @@ static inline int snd_sof_probe(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->probe)
 		return sdev->ops->probe(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_remove(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->remove)
 		return sdev->ops->remove(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* control */
@@ -40,24 +40,24 @@ static inline int snd_sof_dsp_run(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->run)
 		return sdev->ops->run(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_stall(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->stall)
 		return sdev->ops->stall(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_reset(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->reset)
 		return sdev->ops->reset(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* pre/post fw load */
@@ -65,16 +65,16 @@ static inline int snd_sof_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->pre_fw_run)
 		return sdev->ops->pre_fw_run(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_post_fw_run(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->post_fw_run)
 		return sdev->ops->post_fw_run(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* power management */
@@ -82,24 +82,24 @@ static inline int snd_sof_dsp_resume(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->resume)
 		return sdev->ops->resume(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_suspend(struct snd_sof_dev *sdev, int state)
 {
 	if (sdev->ops->suspend)
 		return sdev->ops->suspend(sdev, state);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_runtime_resume(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->runtime_resume)
 		return sdev->ops->runtime_resume(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_runtime_suspend(struct snd_sof_dev *sdev,
@@ -107,16 +107,16 @@ static inline int snd_sof_dsp_runtime_suspend(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops->runtime_suspend)
 		return sdev->ops->runtime_suspend(sdev, state);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_set_clk(struct snd_sof_dev *sdev, u32 freq)
 {
 	if (sdev->ops->set_clk)
 		return sdev->ops->set_clk(sdev, freq);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* debug */
@@ -147,8 +147,8 @@ static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
 {
 	if (sdev->ops->read)
 		return sdev->ops->read(sdev, sdev->bar[bar] + offset);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
@@ -156,8 +156,8 @@ static inline u64 snd_sof_dsp_read64(struct snd_sof_dev *sdev, u32 bar,
 {
 	if (sdev->ops->read64)
 		return sdev->ops->read64(sdev, sdev->bar[bar] + offset);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* block IO */
@@ -198,8 +198,8 @@ static inline int snd_sof_dsp_send_msg(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops->send_msg)
 		return sdev->ops->send_msg(sdev, msg);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_get_reply(struct snd_sof_dev *sdev,
@@ -207,16 +207,16 @@ static inline int snd_sof_dsp_get_reply(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops->get_reply)
 		return sdev->ops->get_reply(sdev, msg);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_is_ready(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->is_ready)
 		return sdev->ops->is_ready(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dsp_cmd_done(struct snd_sof_dev *sdev,
@@ -224,8 +224,8 @@ static inline int snd_sof_dsp_cmd_done(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops->cmd_done)
 		return sdev->ops->cmd_done(sdev, dir);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* host DMA trace */
@@ -234,24 +234,24 @@ static inline int snd_sof_dma_trace_init(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops->trace_init)
 		return sdev->ops->trace_init(sdev, stream_tag);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dma_trace_release(struct snd_sof_dev *sdev)
 {
 	if (sdev->ops->trace_release)
 		return sdev->ops->trace_release(sdev);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline int snd_sof_dma_trace_trigger(struct snd_sof_dev *sdev, int cmd)
 {
 	if (sdev->ops->trace_trigger)
 		return sdev->ops->trace_trigger(sdev, cmd);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* host PCM ops */
@@ -261,8 +261,8 @@ snd_sof_pcm_platform_open(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops && sdev->ops->pcm_open)
 		return sdev->ops->pcm_open(sdev, substream);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* disconnect pcm substream to a host stream */
@@ -272,8 +272,8 @@ snd_sof_pcm_platform_close(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops && sdev->ops->pcm_close)
 		return sdev->ops->pcm_close(sdev, substream);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* host stream hw params */
@@ -286,8 +286,8 @@ snd_sof_pcm_platform_hw_params(struct snd_sof_dev *sdev,
 	if (sdev->ops && sdev->ops->pcm_hw_params)
 		return sdev->ops->pcm_hw_params(sdev, substream,
 						params, ipc_params);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* host stream trigger */
@@ -297,8 +297,8 @@ snd_sof_pcm_platform_trigger(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops && sdev->ops->pcm_trigger)
 		return sdev->ops->pcm_trigger(sdev, substream, cmd);
-	else
-		return 0;
+
+	return 0;
 }
 
 /* host stream pointer */
@@ -308,8 +308,8 @@ snd_sof_pcm_platform_pointer(struct snd_sof_dev *sdev,
 {
 	if (sdev->ops && sdev->ops->pcm_pointer)
 		return sdev->ops->pcm_pointer(sdev, substream);
-	else
-		return 0;
+
+	return 0;
 }
 
 static inline struct snd_sof_dsp_ops
