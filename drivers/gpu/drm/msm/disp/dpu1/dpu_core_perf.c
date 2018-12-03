@@ -57,18 +57,13 @@ static struct dpu_kms *_dpu_crtc_get_kms(struct drm_crtc *crtc)
 	return to_dpu_kms(priv->kms);
 }
 
-static bool _dpu_core_perf_crtc_is_power_on(struct drm_crtc *crtc)
-{
-	return dpu_crtc_is_enabled(crtc);
-}
-
 static bool _dpu_core_video_mode_intf_connected(struct drm_crtc *crtc)
 {
 	struct drm_crtc *tmp_crtc;
 
 	drm_for_each_crtc(tmp_crtc, crtc->dev) {
 		if ((dpu_crtc_get_intf_mode(tmp_crtc) == INTF_MODE_VIDEO) &&
-				_dpu_core_perf_crtc_is_power_on(tmp_crtc)) {
+				tmp_crtc->enabled) {
 			DPU_DEBUG("video interface connected crtc:%d\n",
 				tmp_crtc->base.id);
 			return true;
@@ -164,7 +159,7 @@ int dpu_core_perf_crtc_check(struct drm_crtc *crtc,
 		curr_client_type = dpu_crtc_get_client_type(crtc);
 
 		drm_for_each_crtc(tmp_crtc, crtc->dev) {
-			if (_dpu_core_perf_crtc_is_power_on(tmp_crtc) &&
+			if (tmp_crtc->enabled &&
 			    (dpu_crtc_get_client_type(tmp_crtc) ==
 					    curr_client_type) &&
 			    (tmp_crtc != crtc)) {
@@ -223,7 +218,7 @@ static int _dpu_core_perf_crtc_update_bus(struct dpu_kms *kms,
 	int ret = 0;
 
 	drm_for_each_crtc(tmp_crtc, crtc->dev) {
-		if (_dpu_core_perf_crtc_is_power_on(tmp_crtc) &&
+		if (tmp_crtc->enabled &&
 			curr_client_type ==
 				dpu_crtc_get_client_type(tmp_crtc)) {
 			dpu_cstate = to_dpu_crtc_state(tmp_crtc->state);
@@ -280,7 +275,7 @@ void dpu_core_perf_crtc_release_bw(struct drm_crtc *crtc)
 	 */
 	if (dpu_crtc_get_intf_mode(crtc) == INTF_MODE_CMD)
 		drm_for_each_crtc(tmp_crtc, crtc->dev) {
-			if (_dpu_core_perf_crtc_is_power_on(tmp_crtc) &&
+			if (tmp_crtc->enabled &&
 				dpu_crtc_get_intf_mode(tmp_crtc) ==
 						INTF_MODE_VIDEO)
 				return;
@@ -315,7 +310,7 @@ static u64 _dpu_core_perf_get_core_clk_rate(struct dpu_kms *kms)
 	struct dpu_crtc_state *dpu_cstate;
 
 	drm_for_each_crtc(crtc, kms->dev) {
-		if (_dpu_core_perf_crtc_is_power_on(crtc)) {
+		if (crtc->enabled) {
 			dpu_cstate = to_dpu_crtc_state(crtc->state);
 			clk_rate = max(dpu_cstate->new_perf.core_clk_rate,
 							clk_rate);
@@ -366,7 +361,7 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 	old = &dpu_crtc->cur_perf;
 	new = &dpu_cstate->new_perf;
 
-	if (_dpu_core_perf_crtc_is_power_on(crtc) && !stop_req) {
+	if (crtc->enabled && !stop_req) {
 		for (i = 0; i < DPU_CORE_PERF_DATA_BUS_ID_MAX; i++) {
 			/*
 			 * cases for bus bandwidth update.

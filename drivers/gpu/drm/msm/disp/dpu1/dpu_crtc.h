@@ -309,13 +309,4 @@ static inline enum dpu_crtc_client_type dpu_crtc_get_client_type(
 	return crtc && crtc->state ? RT_CLIENT : NRT_CLIENT;
 }
 
-/**
- * dpu_crtc_is_enabled - check if dpu crtc is enabled or not
- * @crtc: Pointer to crtc
- */
-static inline bool dpu_crtc_is_enabled(struct drm_crtc *crtc)
-{
-	return crtc ? crtc->enabled : false;
-}
-
 #endif /* _DPU_CRTC_H_ */
