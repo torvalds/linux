@@ -1857,22 +1857,24 @@ static void zero_cpu_stall_ticks(struct rcu_data *rdp)
 
 /*
  * Offload callback processing from the boot-time-specified set of CPUs
- * specified by rcu_nocb_mask.  For each CPU in the set, there is a
- * kthread created that pulls the callbacks from the corresponding CPU,
- * waits for a grace period to elapse, and invokes the callbacks.
- * The no-CBs CPUs do a wake_up() on their kthread when they insert
- * a callback into any empty list, unless the rcu_nocb_poll boot parameter
- * has been specified, in which case each kthread actively polls its
- * CPU.  (Which isn't so great for energy efficiency, but which does
- * reduce RCU's overhead on that CPU.)
+ * specified by rcu_nocb_mask.  For the CPUs in the set, there are kthreads
+ * created that pull the callbacks from the corresponding CPU, wait for
+ * a grace period to elapse, and invoke the callbacks.  These kthreads
+ * are organized into leaders, which manage incoming callbacks, wait for
+ * grace periods, and awaken followers, and the followers, which only
+ * invoke callbacks.  Each leader is its own follower.  The no-CBs CPUs
+ * do a wake_up() on their kthread when they insert a callback into any
+ * empty list, unless the rcu_nocb_poll boot parameter has been specified,
+ * in which case each kthread actively polls its CPU.  (Which isn't so great
+ * for energy efficiency, but which does reduce RCU's overhead on that CPU.)
  *
  * This is intended to be used in conjunction with Frederic Weisbecker's
  * adaptive-idle work, which would seriously reduce OS jitter on CPUs
  * running CPU-bound user-mode computations.
  *
- * Offloading of callback processing could also in theory be used as
- * an energy-efficiency measure because CPUs with no RCU callbacks
- * queued are more aggressive about entering dyntick-idle mode.
+ * Offloading of callbacks can also be used as an energy-efficiency
+ * measure because CPUs with no RCU callbacks queued are more aggressive
+ * about entering dyntick-idle mode.
  */
 
 
@@ -1976,10 +1978,7 @@ static void wake_nocb_leader_defer(struct rcu_data *rdp, int waketype,
 	raw_spin_unlock_irqrestore(&rdp->nocb_lock, flags);
 }
 
-/*
- * Does the specified CPU need an RCU callback for this invocation
- * of rcu_barrier()?
- */
+/* Does rcu_barrier need to queue an RCU callback on the specified CPU?  */
 static bool rcu_nocb_cpu_needs_barrier(int cpu)
 {
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
@@ -1995,8 +1994,8 @@ static bool rcu_nocb_cpu_needs_barrier(int cpu)
 	 * callbacks would be posted.  In the worst case, the first
 	 * barrier in rcu_barrier() suffices (but the caller cannot
 	 * necessarily rely on this, not a substitute for the caller
-	 * getting the concurrency design right!).  There must also be
-	 * a barrier between the following load an posting of a callback
+	 * getting the concurrency design right!).  There must also be a
+	 * barrier between the following load and posting of a callback
 	 * (if a callback is in fact needed).  This is associated with an
 	 * atomic_inc() in the caller.
 	 */
