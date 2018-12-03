@@ -1016,14 +1016,11 @@ static int __init stratix10_svc_init(void)
 		return -ENODEV;
 
 	np = of_find_matching_node(fw_np, stratix10_svc_drv_match);
-	if (!np) {
-		of_node_put(fw_np);
+	if (!np)
 		return -ENODEV;
-	}
 
 	of_node_put(np);
 	ret = of_platform_populate(fw_np, stratix10_svc_drv_match, NULL, NULL);
-	of_node_put(fw_np);
 	if (ret)
 		return ret;
 
