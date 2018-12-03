@@ -215,6 +215,16 @@ static void geni_se_io_init(void __iomem *base)
 	writel_relaxed(FORCE_DEFAULT, base + GENI_FORCE_DEFAULT_REG);
 }
 
+static void geni_se_irq_clear(struct geni_se *se)
+{
+	writel_relaxed(0, se->base + SE_GSI_EVENT_EN);
+	writel_relaxed(0xffffffff, se->base + SE_GENI_M_IRQ_CLEAR);
+	writel_relaxed(0xffffffff, se->base + SE_GENI_S_IRQ_CLEAR);
+	writel_relaxed(0xffffffff, se->base + SE_DMA_TX_IRQ_CLR);
+	writel_relaxed(0xffffffff, se->base + SE_DMA_RX_IRQ_CLR);
+	writel_relaxed(0xffffffff, se->base + SE_IRQ_EN);
+}
+
 /**
  * geni_se_init() - Initialize the GENI serial engine
  * @se:		Pointer to the concerned serial engine.
@@ -228,6 +238,7 @@ void geni_se_init(struct geni_se *se, u32 rx_wm, u32 rx_rfr)
 {
 	u32 val;
 
+	geni_se_irq_clear(se);
 	geni_se_io_init(se->base);
 	geni_se_io_set_mode(se->base);
 
@@ -249,12 +260,7 @@ static void geni_se_select_fifo_mode(struct geni_se *se)
 	u32 proto = geni_se_read_proto(se);
 	u32 val;
 
-	writel_relaxed(0, se->base + SE_GSI_EVENT_EN);
-	writel_relaxed(0xffffffff, se->base + SE_GENI_M_IRQ_CLEAR);
-	writel_relaxed(0xffffffff, se->base + SE_GENI_S_IRQ_CLEAR);
-	writel_relaxed(0xffffffff, se->base + SE_DMA_TX_IRQ_CLR);
-	writel_relaxed(0xffffffff, se->base + SE_DMA_RX_IRQ_CLR);
-	writel_relaxed(0xffffffff, se->base + SE_IRQ_EN);
+	geni_se_irq_clear(se);
 
 	val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 	if (proto != GENI_SE_UART) {
@@ -277,12 +283,7 @@ static void geni_se_select_dma_mode(struct geni_se *se)
 {
 	u32 val;
 
-	writel_relaxed(0, se->base + SE_GSI_EVENT_EN);
-	writel_relaxed(0xffffffff, se->base + SE_GENI_M_IRQ_CLEAR);
-	writel_relaxed(0xffffffff, se->base + SE_GENI_S_IRQ_CLEAR);
-	writel_relaxed(0xffffffff, se->base + SE_DMA_TX_IRQ_CLR);
-	writel_relaxed(0xffffffff, se->base + SE_DMA_RX_IRQ_CLR);
-	writel_relaxed(0xffffffff, se->base + SE_IRQ_EN);
+	geni_se_irq_clear(se);
 
 	val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
 	val |= GENI_DMA_MODE_EN;
