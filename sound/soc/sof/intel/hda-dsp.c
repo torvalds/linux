@@ -212,6 +212,10 @@ int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
 {
 	int ret;
 
+	/* return if core is already enabled */
+	if (hda_dsp_core_is_enabled(sdev, core_mask))
+		return 0;
+
 	/* power up */
 	ret = hda_dsp_core_power_up(sdev, core_mask);
 	if (ret < 0) {
