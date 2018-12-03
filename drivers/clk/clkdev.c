@@ -52,6 +52,12 @@ struct clk *of_clk_get(struct device_node *np, int index)
 }
 EXPORT_SYMBOL(of_clk_get);
 
+/*
+ * Beware the return values when np is valid, but no clock provider is found.
+ * If name == NULL, the function returns -ENOENT.
+ * If name != NULL, the function returns -EINVAL. This is because __of_clk_get()
+ * is called even if of_property_match_string() returns an error.
+ */
 static struct clk *__of_clk_get_by_name(struct device_node *np,
 					const char *dev_id,
 					const char *name)
