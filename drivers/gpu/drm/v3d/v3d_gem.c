@@ -143,13 +143,13 @@ v3d_invalidate_l2(struct v3d_dev *v3d, int core)
 static void
 v3d_flush_l2t(struct v3d_dev *v3d, int core)
 {
+	/* While there is a busy bit (V3D_L2TCACTL_L2TFLS), we don't
+	 * need to wait for completion before dispatching the job --
+	 * L2T accesses will be stalled until the flush has completed.
+	 */
 	V3D_CORE_WRITE(core, V3D_CTL_L2TCACTL,
 		       V3D_L2TCACTL_L2TFLS |
 		       V3D_SET_FIELD(V3D_L2TCACTL_FLM_FLUSH, V3D_L2TCACTL_FLM));
-	if (wait_for(!(V3D_CORE_READ(core, V3D_CTL_L2TCACTL) &
-		       V3D_L2TCACTL_L2TFLS), 100)) {
-		DRM_ERROR("Timeout waiting for L2T flush\n");
-	}
 }
 
 /* Invalidates the slice caches.  These are read-only caches. */
