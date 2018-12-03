@@ -18,9 +18,6 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
-#define RPC_MACHINE_CRED_USERID		GLOBAL_ROOT_UID
-#define RPC_MACHINE_CRED_GROUPID	GLOBAL_ROOT_GID
-
 struct generic_cred {
 	struct rpc_cred gc_base;
 	struct auth_cred acred;
@@ -57,8 +54,6 @@ EXPORT_SYMBOL_GPL(rpc_lookup_cred_nonblock);
 struct rpc_cred *rpc_lookup_machine_cred(const char *service_name)
 {
 	struct auth_cred acred = {
-		.uid = RPC_MACHINE_CRED_USERID,
-		.gid = RPC_MACHINE_CRED_GROUPID,
 		.principal = service_name,
 		.machine_cred = 1,
 		.cred = get_task_cred(&init_task),
@@ -85,8 +80,8 @@ static struct rpc_cred *generic_bind_cred(struct rpc_task *task,
 static int
 generic_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 {
-	return hash_64(from_kgid(&init_user_ns, acred->gid) |
-		((u64)from_kuid(&init_user_ns, acred->uid) <<
+	return hash_64(from_kgid(&init_user_ns, acred->cred->fsgid) |
+		((u64)from_kuid(&init_user_ns, acred->cred->fsuid) <<
 			(sizeof(gid_t) * 8)), hashbits);
 }
 
@@ -111,8 +106,6 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, g
 	rpcauth_init_cred(&gcred->gc_base, acred, &generic_auth, &generic_credops);
 	gcred->gc_base.cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
 
-	gcred->acred.uid = acred->uid;
-	gcred->acred.gid = acred->gid;
 	gcred->acred.cred = gcred->gc_base.cr_cred;
 	gcred->acred.ac_flags = 0;
 	gcred->acred.machine_cred = acred->machine_cred;
@@ -121,8 +114,8 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, g
 	dprintk("RPC:       allocated %s cred %p for uid %d gid %d\n",
 			gcred->acred.machine_cred ? "machine" : "generic",
 			gcred,
-			from_kuid(&init_user_ns, acred->uid),
-			from_kgid(&init_user_ns, acred->gid));
+			from_kuid(&init_user_ns, acred->cred->fsuid),
+			from_kgid(&init_user_ns, acred->cred->fsgid));
 	return &gcred->gc_base;
 }
 
@@ -154,8 +147,8 @@ machine_cred_match(struct auth_cred *acred, struct generic_cred *gcred, int flag
 {
 	if (!gcred->acred.machine_cred ||
 	    gcred->acred.principal != acred->principal ||
-	    !uid_eq(gcred->acred.uid, acred->uid) ||
-	    !gid_eq(gcred->acred.gid, acred->gid))
+	    !uid_eq(gcred->acred.cred->fsuid, acred->cred->fsuid) ||
+	    !gid_eq(gcred->acred.cred->fsgid, acred->cred->fsgid))
 		return 0;
 	return 1;
 }
@@ -173,8 +166,8 @@ generic_match(struct auth_cred *acred, struct rpc_cred *cred, int flags)
 	if (acred->machine_cred)
 		return machine_cred_match(acred, gcred, flags);
 
-	if (!uid_eq(gcred->acred.uid, acred->uid) ||
-	    !gid_eq(gcred->acred.gid, acred->gid) ||
+	if (!uid_eq(gcred->acred.cred->fsuid, acred->cred->fsuid) ||
+	    !gid_eq(gcred->acred.cred->fsgid, acred->cred->fsgid) ||
 	    gcred->acred.machine_cred != 0)
 		goto out_nomatch;
 

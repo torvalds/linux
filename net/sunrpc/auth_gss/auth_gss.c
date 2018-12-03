@@ -1248,7 +1248,7 @@ gss_dup_cred(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	new = kzalloc(sizeof(*gss_cred), GFP_NOIO);
 	if (new) {
 		struct auth_cred acred = {
-			.uid = gss_cred->gc_base.cr_uid,
+			.cred = gss_cred->gc_base.cr_cred,
 		};
 		struct gss_cl_ctx *ctx =
 			rcu_dereference_protected(gss_cred->gc_ctx, 1);
@@ -1362,7 +1362,7 @@ gss_destroy_cred(struct rpc_cred *cred)
 static int
 gss_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 {
-	return hash_64(from_kuid(&init_user_ns, acred->uid), hashbits);
+	return hash_64(from_kuid(&init_user_ns, acred->cred->fsuid), hashbits);
 }
 
 /*
@@ -1382,7 +1382,7 @@ gss_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 	int err = -ENOMEM;
 
 	dprintk("RPC:       %s for uid %d, flavor %d\n",
-		__func__, from_kuid(&init_user_ns, acred->uid),
+		__func__, from_kuid(&init_user_ns, acred->cred->fsuid),
 		auth->au_flavor);
 
 	if (!(cred = kzalloc(sizeof(*cred), gfp)))
@@ -1523,7 +1523,7 @@ out:
 	}
 	if (gss_cred->gc_principal != NULL)
 		return 0;
-	ret = uid_eq(rc->cr_uid, acred->uid);
+	ret = uid_eq(rc->cr_uid, acred->cred->fsuid);
 
 check_expire:
 	if (ret == 0)
@@ -1608,7 +1608,6 @@ static int gss_renew_cred(struct rpc_task *task)
 						 gc_base);
 	struct rpc_auth *auth = oldcred->cr_auth;
 	struct auth_cred acred = {
-		.uid = oldcred->cr_uid,
 		.cred = oldcred->cr_cred,
 		.principal = gss_cred->gc_principal,
 		.machine_cred = (gss_cred->gc_principal != NULL ? 1 : 0),

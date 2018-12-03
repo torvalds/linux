@@ -48,8 +48,8 @@ unx_destroy(struct rpc_auth *auth)
 static int
 unx_hash_cred(struct auth_cred *acred, unsigned int hashbits)
 {
-	return hash_64(from_kgid(&init_user_ns, acred->gid) |
-		((u64)from_kuid(&init_user_ns, acred->uid) <<
+	return hash_64(from_kgid(&init_user_ns, acred->cred->fsgid) |
+		((u64)from_kuid(&init_user_ns, acred->cred->fsuid) <<
 			(sizeof(gid_t) * 8)), hashbits);
 }
 
@@ -70,8 +70,8 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 	unsigned int i;
 
 	dprintk("RPC:       allocating UNIX cred for uid %d gid %d\n",
-			from_kuid(&init_user_ns, acred->uid),
-			from_kgid(&init_user_ns, acred->gid));
+			from_kuid(&init_user_ns, acred->cred->fsuid),
+			from_kgid(&init_user_ns, acred->cred->fsgid));
 
 	if (!(cred = kmalloc(sizeof(*cred), gfp)))
 		return ERR_PTR(-ENOMEM);
@@ -84,7 +84,7 @@ unx_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, gfp_t
 	if (groups > UNX_NGROUPS)
 		groups = UNX_NGROUPS;
 
-	cred->uc_gid = acred->gid;
+	cred->uc_gid = acred->cred->fsgid;
 	for (i = 0; i < groups; i++)
 		cred->uc_gids[i] = acred->cred->group_info->gid[i];
 	if (i < UNX_NGROUPS)
@@ -127,7 +127,7 @@ unx_match(struct auth_cred *acred, struct rpc_cred *rcred, int flags)
 	unsigned int i;
 
 
-	if (!uid_eq(cred->uc_uid, acred->uid) || !gid_eq(cred->uc_gid, acred->gid))
+	if (!uid_eq(cred->uc_uid, acred->cred->fsuid) || !gid_eq(cred->uc_gid, acred->cred->fsgid))
 		return 0;
 
 	if (acred->cred && acred->cred->group_info != NULL)

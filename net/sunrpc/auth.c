@@ -656,8 +656,6 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 		auth->au_ops->au_name);
 
 	memset(&acred, 0, sizeof(acred));
-	acred.uid = cred->fsuid;
-	acred.gid = cred->fsgid;
 	acred.cred = cred;
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
 	return ret;
@@ -675,7 +673,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
 	cred->cr_cred = get_cred(acred->cred);
-	cred->cr_uid = acred->uid;
+	cred->cr_uid = acred->cred->fsuid;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
 
@@ -693,8 +691,6 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 {
 	struct rpc_auth *auth = task->tk_client->cl_auth;
 	struct auth_cred acred = {
-		.uid = GLOBAL_ROOT_UID,
-		.gid = GLOBAL_ROOT_GID,
 		.cred = get_task_cred(&init_task),
 	};
 	struct rpc_cred *ret;

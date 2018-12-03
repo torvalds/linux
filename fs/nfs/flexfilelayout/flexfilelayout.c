@@ -414,6 +414,8 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		struct auth_cred acred = {};
 		struct rpc_cred	__rcu *cred;
 		struct cred *kcred;
+		kuid_t uid;
+		kgid_t gid;
 		u32 ds_count, fh_count, id;
 		int j;
 
@@ -481,14 +483,14 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		if (rc)
 			goto out_err_free;
 
-		acred.uid = make_kuid(&init_user_ns, id);
+		uid = make_kuid(&init_user_ns, id);
 
 		/* group */
 		rc = decode_name(&stream, &id);
 		if (rc)
 			goto out_err_free;
 
-		acred.gid = make_kgid(&init_user_ns, id);
+		gid = make_kgid(&init_user_ns, id);
 
 		if (gfp_flags & __GFP_FS)
 			kcred = prepare_kernel_cred(NULL);
@@ -500,8 +502,8 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		rc = -ENOMEM;
 		if (!kcred)
 			goto out_err_free;
-		kcred->fsuid = acred.uid;
-		kcred->fsgid = acred.gid;
+		kcred->fsuid = uid;
+		kcred->fsgid = gid;
 		acred.cred = kcred;
 
 		/* find the cred for it */
@@ -533,8 +535,8 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 		dprintk("%s: iomode %s uid %u gid %u\n", __func__,
 			lgr->range.iomode == IOMODE_READ ? "READ" : "RW",
-			from_kuid(&init_user_ns, acred.uid),
-			from_kgid(&init_user_ns, acred.gid));
+			from_kuid(&init_user_ns, uid),
+			from_kgid(&init_user_ns, gid));
 	}
 
 	p = xdr_inline_decode(&stream, 4);

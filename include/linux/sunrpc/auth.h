@@ -44,11 +44,8 @@ enum {
 					key will expire soon */
 };
 
-/* Work around the lack of a VFS credential */
 struct auth_cred {
 	const struct cred *cred;
-	kuid_t	uid;
-	kgid_t	gid;
 	const char *principal;
 	unsigned long ac_flags;
 	unsigned char machine_cred : 1;
