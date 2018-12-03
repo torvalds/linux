@@ -1336,9 +1336,6 @@ static unsigned long *vmx_bitmap[VMX_BITMAP_NR];
 #define vmx_vmread_bitmap                    (vmx_bitmap[VMX_VMREAD_BITMAP])
 #define vmx_vmwrite_bitmap                   (vmx_bitmap[VMX_VMWRITE_BITMAP])
 
-static bool cpu_has_load_ia32_efer;
-static bool cpu_has_load_perf_global_ctrl;
-
 static DECLARE_BITMAP(vmx_vpid_bitmap, VMX_NR_VPIDS);
 static DEFINE_SPINLOCK(vmx_vpid_lock);
 
@@ -1679,6 +1676,18 @@ static inline bool is_icebp(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
 		== (INTR_TYPE_PRIV_SW_EXCEPTION | INTR_INFO_VALID_MASK);
+}
+
+static inline bool cpu_has_load_ia32_efer(void)
+{
+	return (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_EFER) &&
+	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_EFER);
+}
+
+static inline bool cpu_has_load_perf_global_ctrl(void)
+{
+	return (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL) &&
+	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
 }
 
 static inline bool cpu_has_vmx_msr_bitmap(void)
@@ -2696,7 +2705,7 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 
 	switch (msr) {
 	case MSR_EFER:
-		if (cpu_has_load_ia32_efer) {
+		if (cpu_has_load_ia32_efer()) {
 			clear_atomic_switch_msr_special(vmx,
 					VM_ENTRY_LOAD_IA32_EFER,
 					VM_EXIT_LOAD_IA32_EFER);
@@ -2704,7 +2713,7 @@ static void clear_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr)
 		}
 		break;
 	case MSR_CORE_PERF_GLOBAL_CTRL:
-		if (cpu_has_load_perf_global_ctrl) {
+		if (cpu_has_load_perf_global_ctrl()) {
 			clear_atomic_switch_msr_special(vmx,
 					VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL,
 					VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
@@ -2749,7 +2758,7 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 
 	switch (msr) {
 	case MSR_EFER:
-		if (cpu_has_load_ia32_efer) {
+		if (cpu_has_load_ia32_efer()) {
 			add_atomic_switch_msr_special(vmx,
 					VM_ENTRY_LOAD_IA32_EFER,
 					VM_EXIT_LOAD_IA32_EFER,
@@ -2760,7 +2769,7 @@ static void add_atomic_switch_msr(struct vcpu_vmx *vmx, unsigned msr,
 		}
 		break;
 	case MSR_CORE_PERF_GLOBAL_CTRL:
-		if (cpu_has_load_perf_global_ctrl) {
+		if (cpu_has_load_perf_global_ctrl()) {
 			add_atomic_switch_msr_special(vmx,
 					VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL,
 					VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL,
@@ -2839,7 +2848,7 @@ static bool update_transition_efer(struct vcpu_vmx *vmx, int efer_offset)
 	 * On CPUs that support "load IA32_EFER", always switch EFER
 	 * atomically, since it's faster than switching it manually.
 	 */
-	if (cpu_has_load_ia32_efer ||
+	if (cpu_has_load_ia32_efer() ||
 	    (enable_ept && ((vmx->vcpu.arch.efer ^ host_efer) & EFER_NX))) {
 		if (!(guest_efer & EFER_LMA))
 			guest_efer &= ~EFER_LME;
@@ -4533,14 +4542,6 @@ static __init int adjust_vmx_controls(u32 ctl_min, u32 ctl_opt,
 	return 0;
 }
 
-static __init bool allow_1_setting(u32 msr, u32 ctl)
-{
-	u32 vmx_msr_low, vmx_msr_high;
-
-	rdmsr(msr, vmx_msr_low, vmx_msr_high);
-	return vmx_msr_high & ctl;
-}
-
 static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 {
 	u32 vmx_msr_low, vmx_msr_high;
@@ -4642,8 +4643,11 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 #ifdef CONFIG_X86_64
 	min |= VM_EXIT_HOST_ADDR_SPACE_SIZE;
 #endif
-	opt = VM_EXIT_SAVE_IA32_PAT | VM_EXIT_LOAD_IA32_PAT |
-		VM_EXIT_CLEAR_BNDCFGS;
+	opt = VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL |
+	      VM_EXIT_SAVE_IA32_PAT |
+	      VM_EXIT_LOAD_IA32_PAT |
+	      VM_EXIT_LOAD_IA32_EFER |
+	      VM_EXIT_CLEAR_BNDCFGS;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_EXIT_CTLS,
 				&_vmexit_control) < 0)
 		return -EIO;
@@ -4662,10 +4666,37 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 		_pin_based_exec_control &= ~PIN_BASED_POSTED_INTR;
 
 	min = VM_ENTRY_LOAD_DEBUG_CONTROLS;
-	opt = VM_ENTRY_LOAD_IA32_PAT | VM_ENTRY_LOAD_BNDCFGS;
+	opt = VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL |
+	      VM_ENTRY_LOAD_IA32_PAT |
+	      VM_ENTRY_LOAD_IA32_EFER |
+	      VM_ENTRY_LOAD_BNDCFGS;
 	if (adjust_vmx_controls(min, opt, MSR_IA32_VMX_ENTRY_CTLS,
 				&_vmentry_control) < 0)
 		return -EIO;
+
+	/*
+	 * Some cpus support VM_{ENTRY,EXIT}_IA32_PERF_GLOBAL_CTRL but they
+	 * can't be used due to an errata where VM Exit may incorrectly clear
+	 * IA32_PERF_GLOBAL_CTRL[34:32].  Workaround the errata by using the
+	 * MSR load mechanism to switch IA32_PERF_GLOBAL_CTRL.
+	 */
+	if (boot_cpu_data.x86 == 0x6) {
+		switch (boot_cpu_data.x86_model) {
+		case 26: /* AAK155 */
+		case 30: /* AAP115 */
+		case 37: /* AAT100 */
+		case 44: /* BC86,AAY89,BD102 */
+		case 46: /* BA97 */
+			_vmexit_control &= ~VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
+			_vmexit_control &= ~VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL;
+			pr_warn_once("kvm: VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL "
+					"does not work properly. Using workaround\n");
+			break;
+		default:
+			break;
+		}
+	}
+
 
 	rdmsr(MSR_IA32_VMX_BASIC, vmx_msr_low, vmx_msr_high);
 
@@ -4697,48 +4728,6 @@ static __init int setup_vmcs_config(struct vmcs_config *vmcs_conf)
 
 	if (static_branch_unlikely(&enable_evmcs))
 		evmcs_sanitize_exec_ctrls(vmcs_conf);
-
-	cpu_has_load_ia32_efer =
-		allow_1_setting(MSR_IA32_VMX_ENTRY_CTLS,
-				VM_ENTRY_LOAD_IA32_EFER)
-		&& allow_1_setting(MSR_IA32_VMX_EXIT_CTLS,
-				   VM_EXIT_LOAD_IA32_EFER);
-
-	cpu_has_load_perf_global_ctrl =
-		allow_1_setting(MSR_IA32_VMX_ENTRY_CTLS,
-				VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
-		&& allow_1_setting(MSR_IA32_VMX_EXIT_CTLS,
-				   VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
-
-	/*
-	 * Some cpus support VM_ENTRY_(LOAD|SAVE)_IA32_PERF_GLOBAL_CTRL
-	 * but due to errata below it can't be used. Workaround is to use
-	 * msr load mechanism to switch IA32_PERF_GLOBAL_CTRL.
-	 *
-	 * VM Exit May Incorrectly Clear IA32_PERF_GLOBAL_CTRL [34:32]
-	 *
-	 * AAK155             (model 26)
-	 * AAP115             (model 30)
-	 * AAT100             (model 37)
-	 * BC86,AAY89,BD102   (model 44)
-	 * BA97               (model 46)
-	 *
-	 */
-	if (cpu_has_load_perf_global_ctrl && boot_cpu_data.x86 == 0x6) {
-		switch (boot_cpu_data.x86_model) {
-		case 26:
-		case 30:
-		case 37:
-		case 44:
-		case 46:
-			cpu_has_load_perf_global_ctrl = false;
-			printk_once(KERN_WARNING"kvm: VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL "
-					"does not work properly. Using workaround\n");
-			break;
-		default:
-			break;
-		}
-	}
 
 	return 0;
 }
@@ -6375,7 +6364,7 @@ static void vmx_set_constant_host_state(struct vcpu_vmx *vmx)
 		vmcs_write64(HOST_IA32_PAT, low32 | ((u64) high32 << 32));
 	}
 
-	if (cpu_has_load_ia32_efer)
+	if (cpu_has_load_ia32_efer())
 		vmcs_write64(HOST_IA32_EFER, host_efer);
 }
 
@@ -6423,6 +6412,20 @@ static void vmx_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu)
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(vcpu);
+}
+
+static u32 vmx_vmentry_ctrl(void)
+{
+	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
+	return vmcs_config.vmentry_ctrl &
+		~(VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL | VM_ENTRY_LOAD_IA32_EFER);
+}
+
+static u32 vmx_vmexit_ctrl(void)
+{
+	/* Loading of EFER and PERF_GLOBAL_CTRL are toggled dynamically */
+	return vmcs_config.vmexit_ctrl &
+		~(VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL | VM_EXIT_LOAD_IA32_EFER);
 }
 
 static u32 vmx_exec_control(struct vcpu_vmx *vmx)
@@ -6690,10 +6693,10 @@ static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
 
 	vmx->arch_capabilities = kvm_get_arch_capabilities();
 
-	vm_exit_controls_init(vmx, vmcs_config.vmexit_ctrl);
+	vm_exit_controls_init(vmx, vmx_vmexit_ctrl());
 
 	/* 22.2.1, 20.8.1 */
-	vm_entry_controls_init(vmx, vmcs_config.vmentry_ctrl);
+	vm_entry_controls_init(vmx, vmx_vmentry_ctrl());
 
 	vmx->vcpu.arch.cr0_guest_owned_bits = X86_CR0_TS;
 	vmcs_writel(CR0_GUEST_HOST_MASK, ~X86_CR0_TS);
@@ -10468,7 +10471,7 @@ static void dump_vmcs(void)
 	pr_err("DebugCtl = 0x%016llx  DebugExceptions = 0x%016lx\n",
 	       vmcs_read64(GUEST_IA32_DEBUGCTL),
 	       vmcs_readl(GUEST_PENDING_DBG_EXCEPTIONS));
-	if (cpu_has_load_perf_global_ctrl &&
+	if (cpu_has_load_perf_global_ctrl() &&
 	    vmentry_ctl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL)
 		pr_err("PerfGlobCtl = 0x%016llx\n",
 		       vmcs_read64(GUEST_IA32_PERF_GLOBAL_CTRL));
@@ -10505,7 +10508,7 @@ static void dump_vmcs(void)
 		pr_err("EFER = 0x%016llx  PAT = 0x%016llx\n",
 		       vmcs_read64(HOST_IA32_EFER),
 		       vmcs_read64(HOST_IA32_PAT));
-	if (cpu_has_load_perf_global_ctrl &&
+	if (cpu_has_load_perf_global_ctrl() &&
 	    vmexit_ctl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL)
 		pr_err("PerfGlobCtl = 0x%016llx\n",
 		       vmcs_read64(HOST_IA32_PERF_GLOBAL_CTRL));
@@ -12730,9 +12733,9 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 * on the related bits (if supported by the CPU) in the hope that
 	 * we can avoid VMWrites during vmx_set_efer().
 	 */
-	exec_control = (vmcs12->vm_entry_controls | vmcs_config.vmentry_ctrl) &
+	exec_control = (vmcs12->vm_entry_controls | vmx_vmentry_ctrl()) &
 			~VM_ENTRY_IA32E_MODE & ~VM_ENTRY_LOAD_IA32_EFER;
-	if (cpu_has_load_ia32_efer) {
+	if (cpu_has_load_ia32_efer()) {
 		if (guest_efer & EFER_LMA)
 			exec_control |= VM_ENTRY_IA32E_MODE;
 		if (guest_efer != host_efer)
@@ -12747,8 +12750,8 @@ static void prepare_vmcs02_early(struct vcpu_vmx *vmx, struct vmcs12 *vmcs12)
 	 * we should use its exit controls. Note that VM_EXIT_LOAD_IA32_EFER
 	 * bits may be modified by vmx_set_efer() in prepare_vmcs02().
 	 */
-	exec_control = vmcs_config.vmexit_ctrl;
-	if (cpu_has_load_ia32_efer && guest_efer != host_efer)
+	exec_control = vmx_vmexit_ctrl();
+	if (cpu_has_load_ia32_efer() && guest_efer != host_efer)
 		exec_control |= VM_EXIT_LOAD_IA32_EFER;
 	vm_exit_controls_init(vmx, exec_control);
 
@@ -14073,7 +14076,7 @@ static inline u64 nested_vmx_get_vmcs01_guest_efer(struct vcpu_vmx *vmx)
 	if (vm_entry_controls_get(vmx) & VM_ENTRY_LOAD_IA32_EFER)
 		return vmcs_read64(GUEST_IA32_EFER);
 
-	if (cpu_has_load_ia32_efer)
+	if (cpu_has_load_ia32_efer())
 		return host_efer;
 
 	for (i = 0; i < vmx->msr_autoload.guest.nr; ++i) {
