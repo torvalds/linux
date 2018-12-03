@@ -285,7 +285,7 @@ void qed_db_recovery_dp(struct qed_hwfn *p_hwfn)
 	struct qed_db_recovery_entry *db_entry = NULL;
 
 	DP_NOTICE(p_hwfn,
-		  "Dispalying doorbell recovery database. Counter was %d\n",
+		  "Displaying doorbell recovery database. Counter was %d\n",
 		  p_hwfn->db_recovery_info.db_recovery_counter);
 
 	/* Protect the list */
