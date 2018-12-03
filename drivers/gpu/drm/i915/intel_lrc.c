@@ -1626,6 +1626,8 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
+	intel_engine_apply_workarounds(engine);
+
 	intel_mocs_init_engine(engine);
 
 	intel_engine_reset_breadcrumbs(engine);
@@ -2304,6 +2306,8 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 		DRM_ERROR("WA batch buffer initialization failed: %d\n",
 			  ret);
 	}
+
+	intel_engine_init_workarounds(engine);
 
 	return 0;
 
