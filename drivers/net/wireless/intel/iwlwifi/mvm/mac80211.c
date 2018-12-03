@@ -3078,6 +3078,24 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		ret = iwl_mvm_update_sta(mvm, vif, sta);
 	} else if (old_state == IEEE80211_STA_ASSOC &&
 		   new_state == IEEE80211_STA_AUTHORIZED) {
+		/* if wep is used, need to set the key for the station now */
+		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
+			mvm_sta->wep_key =
+				kmemdup(mvmvif->ap_wep_key,
+					sizeof(*mvmvif->ap_wep_key) +
+					mvmvif->ap_wep_key->keylen,
+					GFP_KERNEL);
+			if (!mvm_sta->wep_key) {
+				ret = -ENOMEM;
+				goto out_unlock;
+			}
+
+			ret = iwl_mvm_set_sta_key(mvm, vif, sta,
+						  mvm_sta->wep_key,
+						  STA_KEY_IDX_INVALID);
+		} else {
+			ret = 0;
+		}
 
 		/* we don't support TDLS during DCM */
 		if (iwl_mvm_phy_ctx_count(mvm) > 1)
@@ -3092,14 +3110,6 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
 				     true);
-
-		/* if wep is used, need to set the key for the station now */
-		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key)
-			ret = iwl_mvm_set_sta_key(mvm, vif, sta,
-						  mvmvif->ap_wep_key,
-						  STA_KEY_IDX_INVALID);
-		else
-			ret = 0;
 	} else if (old_state == IEEE80211_STA_AUTHORIZED &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		/* disable beacon filtering */
@@ -3127,10 +3137,12 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 		/* Remove STA key if this is an AP using WEP */
 		if (vif->type == NL80211_IFTYPE_AP && mvmvif->ap_wep_key) {
 			int rm_ret = iwl_mvm_remove_sta_key(mvm, vif, sta,
-							    mvmvif->ap_wep_key);
+							    mvm_sta->wep_key);
 
 			if (!ret)
 				ret = rm_ret;
+			kfree(mvm_sta->wep_key);
+			mvm_sta->wep_key = NULL;
 		}
 
 	} else {

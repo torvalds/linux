@@ -2337,17 +2337,72 @@ int iwl_mvm_add_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	if (mvmvif->ap_wep_key) {
 		u8 key_offset = iwl_mvm_set_fw_key_idx(mvm);
 
+		__set_bit(key_offset, mvm->fw_key_table);
+
 		if (key_offset == STA_KEY_IDX_INVALID)
 			return -ENOSPC;
 
 		ret = iwl_mvm_send_sta_key(mvm, mvmvif->mcast_sta.sta_id,
-					   mvmvif->ap_wep_key, 1, 0, NULL, 0,
+					   mvmvif->ap_wep_key, true, 0, NULL, 0,
 					   key_offset, 0);
 		if (ret)
 			return ret;
 	}
 
 	return 0;
+}
+
+static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
+				    struct ieee80211_key_conf *keyconf,
+				    bool mcast)
+{
+	union {
+		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
+		struct iwl_mvm_add_sta_key_cmd cmd;
+	} u = {};
+	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
+				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
+	__le16 key_flags;
+	int ret, size;
+	u32 status;
+
+	/* This is a valid situation for GTK removal */
+	if (sta_id == IWL_MVM_INVALID_STA)
+		return 0;
+
+	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
+				 STA_KEY_FLG_KEYID_MSK);
+	key_flags |= cpu_to_le16(STA_KEY_FLG_NO_ENC | STA_KEY_FLG_WEP_KEY_MAP);
+	key_flags |= cpu_to_le16(STA_KEY_NOT_VALID);
+
+	if (mcast)
+		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
+
+	/*
+	 * The fields assigned here are in the same location at the start
+	 * of the command, so we can do this union trick.
+	 */
+	u.cmd.common.key_flags = key_flags;
+	u.cmd.common.key_offset = keyconf->hw_key_idx;
+	u.cmd.common.sta_id = sta_id;
+
+	size = new_api ? sizeof(u.cmd) : sizeof(u.cmd_v1);
+
+	status = ADD_STA_SUCCESS;
+	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, size, &u.cmd,
+					  &status);
+
+	switch (status) {
+	case ADD_STA_SUCCESS:
+		IWL_DEBUG_WEP(mvm, "MODIFY_STA: remove sta key passed\n");
+		break;
+	default:
+		ret = -EIO;
+		IWL_ERR(mvm, "MODIFY_STA: remove sta key failed\n");
+		break;
+	}
+
+	return ret;
 }
 
 /*
@@ -2364,6 +2419,28 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	iwl_mvm_flush_sta(mvm, &mvmvif->mcast_sta, true, 0);
 
 	iwl_mvm_disable_txq(mvm, NULL, mvmvif->cab_queue, 0, 0);
+
+	if (mvmvif->ap_wep_key) {
+		int i;
+
+		if (!__test_and_clear_bit(mvmvif->ap_wep_key->hw_key_idx,
+					  mvm->fw_key_table)) {
+			IWL_ERR(mvm, "offset %d not used in fw key table.\n",
+				mvmvif->ap_wep_key->hw_key_idx);
+			return -ENOENT;
+		}
+
+		/* track which key was deleted last */
+		for (i = 0; i < STA_KEY_MAX_NUM; i++) {
+			if (mvm->fw_key_deleted[i] < U8_MAX)
+				mvm->fw_key_deleted[i]++;
+		}
+		mvm->fw_key_deleted[mvmvif->ap_wep_key->hw_key_idx] = 0;
+		ret = __iwl_mvm_remove_sta_key(mvm, mvmvif->mcast_sta.sta_id,
+					       mvmvif->ap_wep_key, true);
+		if (ret)
+			return ret;
+	}
 
 	ret = iwl_mvm_rm_sta_common(mvm, mvmvif->mcast_sta.sta_id);
 	if (ret)
@@ -3391,59 +3468,6 @@ static int __iwl_mvm_set_sta_key(struct iwl_mvm *mvm,
 	default:
 		ret = iwl_mvm_send_sta_key(mvm, sta_id, keyconf, mcast,
 					   0, NULL, 0, key_offset, mfp);
-	}
-
-	return ret;
-}
-
-static int __iwl_mvm_remove_sta_key(struct iwl_mvm *mvm, u8 sta_id,
-				    struct ieee80211_key_conf *keyconf,
-				    bool mcast)
-{
-	union {
-		struct iwl_mvm_add_sta_key_cmd_v1 cmd_v1;
-		struct iwl_mvm_add_sta_key_cmd cmd;
-	} u = {};
-	bool new_api = fw_has_api(&mvm->fw->ucode_capa,
-				  IWL_UCODE_TLV_API_TKIP_MIC_KEYS);
-	__le16 key_flags;
-	int ret, size;
-	u32 status;
-
-	/* This is a valid situation for GTK removal */
-	if (sta_id == IWL_MVM_INVALID_STA)
-		return 0;
-
-	key_flags = cpu_to_le16((keyconf->keyidx << STA_KEY_FLG_KEYID_POS) &
-				 STA_KEY_FLG_KEYID_MSK);
-	key_flags |= cpu_to_le16(STA_KEY_FLG_NO_ENC | STA_KEY_FLG_WEP_KEY_MAP);
-	key_flags |= cpu_to_le16(STA_KEY_NOT_VALID);
-
-	if (mcast)
-		key_flags |= cpu_to_le16(STA_KEY_MULTICAST);
-
-	/*
-	 * The fields assigned here are in the same location at the start
-	 * of the command, so we can do this union trick.
-	 */
-	u.cmd.common.key_flags = key_flags;
-	u.cmd.common.key_offset = keyconf->hw_key_idx;
-	u.cmd.common.sta_id = sta_id;
-
-	size = new_api ? sizeof(u.cmd) : sizeof(u.cmd_v1);
-
-	status = ADD_STA_SUCCESS;
-	ret = iwl_mvm_send_cmd_pdu_status(mvm, ADD_STA_KEY, size, &u.cmd,
-					  &status);
-
-	switch (status) {
-	case ADD_STA_SUCCESS:
-		IWL_DEBUG_WEP(mvm, "MODIFY_STA: remove sta key passed\n");
-		break;
-	default:
-		ret = -EIO;
-		IWL_ERR(mvm, "MODIFY_STA: remove sta key failed\n");
-		break;
 	}
 
 	return ret;
