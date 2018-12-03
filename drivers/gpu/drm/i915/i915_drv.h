@@ -1190,20 +1190,6 @@ struct i915_frontbuffer_tracking {
 	unsigned flip_bits;
 };
 
-struct i915_wa_reg {
-	u32 addr;
-	u32 value;
-	/* bitmask representing WA bits */
-	u32 mask;
-};
-
-#define I915_MAX_WA_REGS 16
-
-struct i915_workarounds {
-	struct i915_wa_reg reg[I915_MAX_WA_REGS];
-	u32 count;
-};
-
 struct i915_virtual_gpu {
 	bool active;
 	u32 caps;
@@ -1653,7 +1639,6 @@ struct drm_i915_private {
 
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
 
-	struct i915_workarounds workarounds;
 	struct i915_wa_list gt_wa_list;
 
 	struct i915_frontbuffer_tracking fb_tracking;

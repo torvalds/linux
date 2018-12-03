@@ -3375,13 +3375,15 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 static int i915_wa_registers(struct seq_file *m, void *unused)
 {
-	struct i915_workarounds *wa = &node_to_i915(m->private)->workarounds;
-	int i;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	const struct i915_wa_list *wal = &i915->engine[RCS]->ctx_wa_list;
+	struct i915_wa *wa;
+	unsigned int i;
 
-	seq_printf(m, "Workarounds applied: %d\n", wa->count);
-	for (i = 0; i < wa->count; ++i)
+	seq_printf(m, "Workarounds applied: %u\n", wal->count);
+	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		seq_printf(m, "0x%X: 0x%08X, mask: 0x%08X\n",
-			   wa->reg[i].addr, wa->reg[i].value, wa->reg[i].mask);
+			   i915_mmio_reg_offset(wa->reg), wa->val, wa->mask);
 
 	return 0;
 }

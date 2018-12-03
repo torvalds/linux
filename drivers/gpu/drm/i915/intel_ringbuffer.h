@@ -436,6 +436,7 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
+	struct i915_wa_list ctx_wa_list;
 	struct i915_wa_list wa_list;
 	struct i915_wa_list whitelist;
 	struct i915_vma *scratch;

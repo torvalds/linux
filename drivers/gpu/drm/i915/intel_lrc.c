@@ -2087,7 +2087,7 @@ static int gen8_init_rcs_context(struct i915_request *rq)
 {
 	int ret;
 
-	ret = intel_ctx_workarounds_emit(rq);
+	ret = intel_engine_emit_ctx_wa(rq);
 	if (ret)
 		return ret;
 

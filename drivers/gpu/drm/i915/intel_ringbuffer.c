@@ -656,7 +656,7 @@ static int intel_rcs_ctx_init(struct i915_request *rq)
 {
 	int ret;
 
-	ret = intel_ctx_workarounds_emit(rq);
+	ret = intel_engine_emit_ctx_wa(rq);
 	if (ret != 0)
 		return ret;
 
