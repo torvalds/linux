@@ -24,7 +24,7 @@ Required properties:
 
 Required properties for new device trees
 - clocks	: phandle to the 32kHz external oscillator
-- clock-output-names : names of up to two clock outputs. See below.
+- clock-output-names : names of up to three clock outputs. See below.
 - #clock-cells  : must be equal to 1.
 
 The RTC provides the following clocks at the given indices:
@@ -32,6 +32,7 @@ The RTC provides the following clocks at the given indices:
 - 1: LOSC external output, known as X32KFOUT in the datasheet.
      This clock is not available on the A31 and is deprecated for old
      device trees still using the "allwinner,sun6i-a31-rtc" compatible.
+- 2: InternalOSC, or internal RC oscillator (A64/H3/H5 only)
 
 Example:
 
