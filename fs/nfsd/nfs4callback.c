@@ -858,10 +858,21 @@ static struct rpc_cred *get_backchannel_cred(struct nfs4_client *clp, struct rpc
 	} else {
 		struct rpc_auth *auth = client->cl_auth;
 		struct auth_cred acred = {};
+		struct cred *kcred;
+		struct rpc_cred *ret;
+
+		kcred = prepare_kernel_cred(NULL);
+		if (!kcred)
+			return NULL;
 
 		acred.uid = ses->se_cb_sec.uid;
 		acred.gid = ses->se_cb_sec.gid;
-		return auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+		kcred->uid = acred.uid;
+		kcred->gid = acred.gid;
+		acred.cred = kcred;
+		ret = auth->au_ops->lookup_cred(client->cl_auth, &acred, 0);
+		put_cred(kcred);
+		return ret;
 	}
 }
 

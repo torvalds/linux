@@ -46,6 +46,7 @@ enum {
 
 /* Work around the lack of a VFS credential */
 struct auth_cred {
+	const struct cred *cred;
 	kuid_t	uid;
 	kgid_t	gid;
 	struct group_info *group_info;
@@ -68,6 +69,7 @@ struct rpc_cred {
 	unsigned long		cr_expire;	/* when to gc */
 	unsigned long		cr_flags;	/* various flags */
 	refcount_t		cr_count;	/* ref count */
+	const struct cred	*cr_cred;
 
 	kuid_t			cr_uid;
 

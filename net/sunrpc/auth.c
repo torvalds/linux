@@ -659,6 +659,7 @@ rpcauth_lookupcred(struct rpc_auth *auth, int flags)
 	acred.uid = cred->fsuid;
 	acred.gid = cred->fsgid;
 	acred.group_info = cred->group_info;
+	acred.cred = cred;
 	ret = auth->au_ops->lookup_cred(auth, &acred, flags);
 	return ret;
 }
@@ -674,6 +675,7 @@ rpcauth_init_cred(struct rpc_cred *cred, const struct auth_cred *acred,
 	cred->cr_auth = auth;
 	cred->cr_ops = ops;
 	cred->cr_expire = jiffies;
+	cred->cr_cred = get_cred(acred->cred);
 	cred->cr_uid = acred->uid;
 }
 EXPORT_SYMBOL_GPL(rpcauth_init_cred);
@@ -694,11 +696,15 @@ rpcauth_bind_root_cred(struct rpc_task *task, int lookupflags)
 	struct auth_cred acred = {
 		.uid = GLOBAL_ROOT_UID,
 		.gid = GLOBAL_ROOT_GID,
+		.cred = get_task_cred(&init_task),
 	};
+	struct rpc_cred *ret;
 
 	dprintk("RPC: %5u looking up %s cred\n",
 		task->tk_pid, task->tk_client->cl_auth->au_ops->au_name);
-	return auth->au_ops->lookup_cred(auth, &acred, lookupflags);
+	ret = auth->au_ops->lookup_cred(auth, &acred, lookupflags);
+	put_cred(acred.cred);
+	return ret;
 }
 
 static struct rpc_cred *

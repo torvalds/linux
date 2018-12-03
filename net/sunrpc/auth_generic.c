@@ -61,11 +61,15 @@ struct rpc_cred *rpc_lookup_machine_cred(const char *service_name)
 		.gid = RPC_MACHINE_CRED_GROUPID,
 		.principal = service_name,
 		.machine_cred = 1,
+		.cred = get_task_cred(&init_task),
 	};
+	struct rpc_cred *ret;
 
 	dprintk("RPC:       looking up machine cred for service %s\n",
 			service_name);
-	return generic_auth.au_ops->lookup_cred(&generic_auth, &acred, 0);
+	ret = generic_auth.au_ops->lookup_cred(&generic_auth, &acred, 0);
+	put_cred(acred.cred);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(rpc_lookup_machine_cred);
 
@@ -110,6 +114,7 @@ generic_create_cred(struct rpc_auth *auth, struct auth_cred *acred, int flags, g
 	gcred->acred.uid = acred->uid;
 	gcred->acred.gid = acred->gid;
 	gcred->acred.group_info = acred->group_info;
+	gcred->acred.cred = gcred->gc_base.cr_cred;
 	gcred->acred.ac_flags = 0;
 	if (gcred->acred.group_info != NULL)
 		get_group_info(gcred->acred.group_info);
@@ -132,6 +137,7 @@ generic_free_cred(struct rpc_cred *cred)
 	dprintk("RPC:       generic_free_cred %p\n", gcred);
 	if (gcred->acred.group_info != NULL)
 		put_group_info(gcred->acred.group_info);
+	put_cred(cred->cr_cred);
 	kfree(gcred);
 }
 

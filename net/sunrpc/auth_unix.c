@@ -97,6 +97,7 @@ static void
 unx_free_cred(struct unx_cred *unx_cred)
 {
 	dprintk("RPC:       unx_free_cred %p\n", unx_cred);
+	put_cred(unx_cred->uc_base.cr_cred);
 	kfree(unx_cred);
 }
 

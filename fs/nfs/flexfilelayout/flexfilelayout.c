@@ -9,6 +9,7 @@
 #include <linux/nfs_fs.h>
 #include <linux/nfs_page.h>
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 
 #include <linux/sunrpc/metrics.h>
 
@@ -415,6 +416,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		struct nfs4_ff_layout_mirror *mirror;
 		struct auth_cred acred = { .group_info = ff_zero_group };
 		struct rpc_cred	__rcu *cred;
+		struct cred *kcred;
 		u32 ds_count, fh_count, id;
 		int j;
 
@@ -491,8 +493,23 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 
 		acred.gid = make_kgid(&init_user_ns, id);
 
+		if (gfp_flags & __GFP_FS)
+			kcred = prepare_kernel_cred(NULL);
+		else {
+			unsigned int nofs_flags = memalloc_nofs_save();
+			kcred = prepare_kernel_cred(NULL);
+			memalloc_nofs_restore(nofs_flags);
+		}
+		rc = -ENOMEM;
+		if (!kcred)
+			goto out_err_free;
+		kcred->fsuid = acred.uid;
+		kcred->fsgid = acred.gid;
+		acred.cred = kcred;
+
 		/* find the cred for it */
 		rcu_assign_pointer(cred, rpc_lookup_generic_cred(&acred, 0, gfp_flags));
+		put_cred(kcred);
 		if (IS_ERR(cred)) {
 			rc = PTR_ERR(cred);
 			goto out_err_free;

@@ -1343,6 +1343,7 @@ gss_destroy_nullcred(struct rpc_cred *cred)
 	struct gss_cl_ctx *ctx = rcu_dereference_protected(gss_cred->gc_ctx, 1);
 
 	RCU_INIT_POINTER(gss_cred->gc_ctx, NULL);
+	put_cred(cred->cr_cred);
 	call_rcu(&cred->cr_rcu, gss_free_cred_callback);
 	if (ctx)
 		gss_put_ctx(ctx);
@@ -1608,6 +1609,7 @@ static int gss_renew_cred(struct rpc_task *task)
 	struct rpc_auth *auth = oldcred->cr_auth;
 	struct auth_cred acred = {
 		.uid = oldcred->cr_uid,
+		.cred = oldcred->cr_cred,
 		.principal = gss_cred->gc_principal,
 		.machine_cred = (gss_cred->gc_principal != NULL ? 1 : 0),
 	};
