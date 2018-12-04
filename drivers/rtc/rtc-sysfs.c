@@ -39,12 +39,10 @@ date_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct rtc_time tm;
 
 	retval = rtc_read_time(to_rtc_device(dev), &tm);
-	if (retval == 0) {
-		retval = sprintf(buf, "%04d-%02d-%02d\n",
-			tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
-	}
+	if (retval)
+		return retval;
 
-	return retval;
+	return sprintf(buf, "%ptRd\n", &tm);
 }
 static DEVICE_ATTR_RO(date);
 
@@ -55,12 +53,10 @@ time_show(struct device *dev, struct device_attribute *attr, char *buf)
 	struct rtc_time tm;
 
 	retval = rtc_read_time(to_rtc_device(dev), &tm);
-	if (retval == 0) {
-		retval = sprintf(buf, "%02d:%02d:%02d\n",
-			tm.tm_hour, tm.tm_min, tm.tm_sec);
-	}
+	if (retval)
+		return retval;
 
-	return retval;
+	return sprintf(buf, "%ptRt\n", &tm);
 }
 static DEVICE_ATTR_RO(time);
 
