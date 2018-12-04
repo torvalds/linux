@@ -23,25 +23,20 @@
 	.text
 	.align		6
 
-ENTRY(chacha20_block_xor_neon)
-	// x0: Input state matrix, s
-	// x1: 1 data block output, o
-	// x2: 1 data block input, i
-
-	//
-	// This function encrypts one ChaCha20 block by loading the state matrix
-	// in four NEON registers. It performs matrix operation on four words in
-	// parallel, but requires shuffling to rearrange the words after each
-	// round.
-	//
-
-	// x0..3 = s0..3
-	adr		x3, ROT8
-	ld1		{v0.4s-v3.4s}, [x0]
-	ld1		{v8.4s-v11.4s}, [x0]
-	ld1		{v12.4s}, [x3]
+/*
+ * chacha20_permute - permute one block
+ *
+ * Permute one 64-byte block where the state matrix is stored in the four NEON
+ * registers v0-v3.  It performs matrix operations on four words in parallel,
+ * but requires shuffling to rearrange the words after each round.
+ *
+ * Clobbers: x3, x10, v4, v12
+ */
+chacha20_permute:
 
 	mov		x3, #10
+	adr		x10, ROT8
+	ld1		{v12.4s}, [x10]
 
 .Ldoubleround:
 	// x0 += x1, x3 = rotl32(x3 ^ x0, 16)
@@ -105,6 +100,23 @@ ENTRY(chacha20_block_xor_neon)
 	subs		x3, x3, #1
 	b.ne		.Ldoubleround
 
+	ret
+ENDPROC(chacha20_permute)
+
+ENTRY(chacha20_block_xor_neon)
+	// x0: Input state matrix, s
+	// x1: 1 data block output, o
+	// x2: 1 data block input, i
+
+	stp		x29, x30, [sp, #-16]!
+	mov		x29, sp
+
+	// x0..3 = s0..3
+	ld1		{v0.4s-v3.4s}, [x0]
+	ld1		{v8.4s-v11.4s}, [x0]
+
+	bl		chacha20_permute
+
 	ld1		{v4.16b-v7.16b}, [x2]
 
 	// o0 = i0 ^ (x0 + s0)
@@ -125,8 +137,27 @@ ENTRY(chacha20_block_xor_neon)
 
 	st1		{v0.16b-v3.16b}, [x1]
 
+	ldp		x29, x30, [sp], #16
 	ret
 ENDPROC(chacha20_block_xor_neon)
+
+ENTRY(hchacha20_block_neon)
+	// x0: Input state matrix, s
+	// x1: output (8 32-bit words)
+
+	stp		x29, x30, [sp, #-16]!
+	mov		x29, sp
+
+	ld1		{v0.4s-v3.4s}, [x0]
+
+	bl		chacha20_permute
+
+	st1		{v0.16b}, [x1], #16
+	st1		{v3.16b}, [x1]
+
+	ldp		x29, x30, [sp], #16
+	ret
+ENDPROC(hchacha20_block_neon)
 
 	.align		6
 ENTRY(chacha20_4block_xor_neon)
