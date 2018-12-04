@@ -206,6 +206,19 @@ struct scif_status {
 };
 
 /*
+ * struct scif_cb_arg - Stores the argument of the callback func
+ *
+ * @src_dma_addr: Source buffer DMA address
+ * @status: DMA status
+ * @ep: SCIF endpoint
+ */
+struct scif_cb_arg {
+	dma_addr_t src_dma_addr;
+	struct scif_status *status;
+	struct scif_endpt *ep;
+};
+
+/*
  * struct scif_window - Registration Window for Self and Remote
  *
  * @nr_pages: Number of pages which is defined as a s64 instead of an int
