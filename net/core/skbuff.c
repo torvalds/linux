@@ -4885,7 +4885,7 @@ void skb_scrub_packet(struct sk_buff *skb, bool xnet)
 
 #ifdef CONFIG_NET_SWITCHDEV
 	skb->offload_fwd_mark = 0;
-	skb->offload_mr_fwd_mark = 0;
+	skb->offload_l3_fwd_mark = 0;
 #endif
 
 	if (!xnet)
