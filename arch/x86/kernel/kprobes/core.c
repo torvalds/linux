@@ -66,6 +66,8 @@
 
 #include "common.h"
 
+void *trampoline_handler(struct pt_regs *regs);
+
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
