@@ -47,6 +47,7 @@ struct smu_funcs
 	int (*check_fw_version)(struct smu_context *smu);
 	int (*write_pptable)(struct smu_context *smu);
 	int (*set_min_dcef_deep_sleep)(struct smu_context *smu);
+	int (*set_tool_table_location)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -75,6 +76,8 @@ struct smu_funcs
 	((smu)->funcs->write_pptable ? (smu)->funcs->write_pptable((smu)) : 0)
 #define smu_set_min_dcef_deep_sleep(smu) \
 	((smu)->funcs->set_min_dcef_deep_sleep ? (smu)->funcs->set_min_dcef_deep_sleep((smu)) : 0)
+#define smu_set_tool_table_location(smu) \
+	((smu)->funcs->set_tool_table_location ? (smu)->funcs->set_tool_table_location((smu)) : 0)
 
 
 extern const struct amd_ip_funcs smu_ip_funcs;
