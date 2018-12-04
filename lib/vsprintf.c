@@ -30,6 +30,7 @@
 #include <linux/ioport.h>
 #include <linux/dcache.h>
 #include <linux/cred.h>
+#include <linux/rtc.h>
 #include <linux/uuid.h>
 #include <linux/of.h>
 #include <net/addrconf.h>
@@ -822,6 +823,20 @@ static const struct printf_spec default_dec_spec = {
 	.precision = -1,
 };
 
+static const struct printf_spec default_dec02_spec = {
+	.base = 10,
+	.field_width = 2,
+	.precision = -1,
+	.flags = ZEROPAD,
+};
+
+static const struct printf_spec default_dec04_spec = {
+	.base = 10,
+	.field_width = 4,
+	.precision = -1,
+	.flags = ZEROPAD,
+};
+
 static noinline_for_stack
 char *resource_string(char *buf, char *end, struct resource *res,
 		      struct printf_spec spec, const char *fmt)
@@ -1550,6 +1565,87 @@ char *address_val(char *buf, char *end, const void *addr, const char *fmt)
 }
 
 static noinline_for_stack
+char *date_str(char *buf, char *end, const struct rtc_time *tm, bool r)
+{
+	int year = tm->tm_year + (r ? 0 : 1900);
+	int mon = tm->tm_mon + (r ? 0 : 1);
+
+	buf = number(buf, end, year, default_dec04_spec);
+	if (buf < end)
+		*buf = '-';
+	buf++;
+
+	buf = number(buf, end, mon, default_dec02_spec);
+	if (buf < end)
+		*buf = '-';
+	buf++;
+
+	return number(buf, end, tm->tm_mday, default_dec02_spec);
+}
+
+static noinline_for_stack
+char *time_str(char *buf, char *end, const struct rtc_time *tm, bool r)
+{
+	buf = number(buf, end, tm->tm_hour, default_dec02_spec);
+	if (buf < end)
+		*buf = ':';
+	buf++;
+
+	buf = number(buf, end, tm->tm_min, default_dec02_spec);
+	if (buf < end)
+		*buf = ':';
+	buf++;
+
+	return number(buf, end, tm->tm_sec, default_dec02_spec);
+}
+
+static noinline_for_stack
+char *rtc_str(char *buf, char *end, const struct rtc_time *tm, const char *fmt)
+{
+	bool have_t = true, have_d = true;
+	bool raw = false;
+	int count = 2;
+
+	switch (fmt[count]) {
+	case 'd':
+		have_t = false;
+		count++;
+		break;
+	case 't':
+		have_d = false;
+		count++;
+		break;
+	}
+
+	raw = fmt[count] == 'r';
+
+	if (have_d)
+		buf = date_str(buf, end, tm, raw);
+	if (have_d && have_t) {
+		/* Respect ISO 8601 */
+		if (buf < end)
+			*buf = 'T';
+		buf++;
+	}
+	if (have_t)
+		buf = time_str(buf, end, tm, raw);
+
+	return buf;
+}
+
+static noinline_for_stack
+char *time_and_date(char *buf, char *end, void *ptr, struct printf_spec spec,
+		    const char *fmt)
+{
+	switch (fmt[1]) {
+	case 'R':
+		return rtc_str(buf, end, (const struct rtc_time *)ptr, fmt);
+	default:
+		return ptr_to_id(buf, end, ptr, spec);
+	}
+}
+
+static noinline_for_stack
 char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 	    const char *fmt)
 {
@@ -1828,6 +1924,8 @@ char *device_node_string(char *buf, char *end, struct device_node *dn,
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
  * - 'g' For block_device name (gendisk + partition number)
+ * - 't[R][dt][r]' For time and date as represented:
+ *      R    struct rtc_time
  * - 'C' For a clock, it prints the name (Common Clock Framework) or address
  *       (legacy clock framework) of the clock
  * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
@@ -1952,6 +2050,8 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return address_val(buf, end, ptr, fmt);
 	case 'd':
 		return dentry_name(buf, end, ptr, spec, fmt);
+	case 't':
+		return time_and_date(buf, end, ptr, spec, fmt);
 	case 'C':
 		return clock(buf, end, ptr, spec, fmt);
 	case 'D':

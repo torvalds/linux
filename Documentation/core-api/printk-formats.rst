@@ -412,6 +412,24 @@ Examples::
 
 Passed by reference.
 
+Time and date (struct rtc_time)
+-------------------------------
+
+::
+
+	%ptR		YYYY-mm-ddTHH:MM:SS
+	%ptRd		YYYY-mm-dd
+	%ptRt		HH:MM:SS
+	%ptR[dt][r]
+
+For printing date and time as represented by struct rtc_time structure in
+human readable format.
+
+By default year will be incremented by 1900 and month by 1. Use %ptRr (raw)
+to suppress this behaviour.
+
+Passed by reference.
+
 struct clk
 ----------
 
