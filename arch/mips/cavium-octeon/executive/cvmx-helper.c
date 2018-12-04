@@ -218,7 +218,7 @@ static cvmx_helper_interface_mode_t __cvmx_get_mode_octeon2(int interface)
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 
 	if (OCTEON_IS_MODEL(OCTEON_CN63XX)) {
-		switch (mode.cn63xx.mode) {
+		switch (mode.cn61xx.mode) {
 		case 0:
 			return CVMX_HELPER_INTERFACE_MODE_SGMII;
 		case 1:
@@ -342,7 +342,7 @@ cvmx_helper_interface_mode_t cvmx_helper_interface_get_mode(int interface)
 	mode.u64 = cvmx_read_csr(CVMX_GMXX_INF_MODE(interface));
 
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX)) {
-		switch (mode.cn56xx.mode) {
+		switch (mode.cn52xx.mode) {
 		case 0:
 			return CVMX_HELPER_INTERFACE_MODE_DISABLED;
 		case 1:
