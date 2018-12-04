@@ -1023,14 +1023,13 @@ static void ext4_put_super(struct super_block *sb)
 		invalidate_bdev(sbi->journal_bdev);
 		ext4_blkdev_remove(sbi);
 	}
-	if (sbi->s_ea_inode_cache) {
-		ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
-		sbi->s_ea_inode_cache = NULL;
-	}
-	if (sbi->s_ea_block_cache) {
-		ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
-		sbi->s_ea_block_cache = NULL;
-	}
+
+	ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
+	sbi->s_ea_inode_cache = NULL;
+
+	ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
+	sbi->s_ea_block_cache = NULL;
+
 	if (sbi->s_mmp_tsk)
 		kthread_stop(sbi->s_mmp_tsk);
 	brelse(sbi->s_sbh);
@@ -4545,14 +4544,12 @@ failed_mount4:
 	if (EXT4_SB(sb)->rsv_conversion_wq)
 		destroy_workqueue(EXT4_SB(sb)->rsv_conversion_wq);
 failed_mount_wq:
-	if (sbi->s_ea_inode_cache) {
-		ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
-		sbi->s_ea_inode_cache = NULL;
-	}
-	if (sbi->s_ea_block_cache) {
-		ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
-		sbi->s_ea_block_cache = NULL;
-	}
+	ext4_xattr_destroy_cache(sbi->s_ea_inode_cache);
+	sbi->s_ea_inode_cache = NULL;
+
+	ext4_xattr_destroy_cache(sbi->s_ea_block_cache);
+	sbi->s_ea_block_cache = NULL;
+
 	if (sbi->s_journal) {
 		jbd2_journal_destroy(sbi->s_journal);
 		sbi->s_journal = NULL;
