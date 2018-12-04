@@ -32,41 +32,29 @@
 asmlinkage void chacha_block_xor_neon(u32 *state, u8 *dst, const u8 *src,
 				      int nrounds);
 asmlinkage void chacha_4block_xor_neon(u32 *state, u8 *dst, const u8 *src,
-				       int nrounds);
+				       int nrounds, int bytes);
 asmlinkage void hchacha_block_neon(const u32 *state, u32 *out, int nrounds);
 
 static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
-			  unsigned int bytes, int nrounds)
+			  int bytes, int nrounds)
 {
 	u8 buf[CHACHA_BLOCK_SIZE];
 
-	while (bytes >= CHACHA_BLOCK_SIZE * 4) {
-		kernel_neon_begin();
-		chacha_4block_xor_neon(state, dst, src, nrounds);
-		kernel_neon_end();
+	if (bytes < CHACHA_BLOCK_SIZE) {
+		memcpy(buf, src, bytes);
+		chacha_block_xor_neon(state, buf, buf, nrounds);
+		memcpy(dst, buf, bytes);
+		return;
+	}
+
+	while (bytes > 0) {
+		chacha_4block_xor_neon(state, dst, src, nrounds,
+				       min(bytes, CHACHA_BLOCK_SIZE * 4));
 		bytes -= CHACHA_BLOCK_SIZE * 4;
 		src += CHACHA_BLOCK_SIZE * 4;
 		dst += CHACHA_BLOCK_SIZE * 4;
 		state[12] += 4;
 	}
-
-	if (!bytes)
-		return;
-
-	kernel_neon_begin();
-	while (bytes >= CHACHA_BLOCK_SIZE) {
-		chacha_block_xor_neon(state, dst, src, nrounds);
-		bytes -= CHACHA_BLOCK_SIZE;
-		src += CHACHA_BLOCK_SIZE;
-		dst += CHACHA_BLOCK_SIZE;
-		state[12]++;
-	}
-	if (bytes) {
-		memcpy(buf, src, bytes);
-		chacha_block_xor_neon(state, buf, buf, nrounds);
-		memcpy(dst, buf, bytes);
-	}
-	kernel_neon_end();
 }
 
 static int chacha_neon_stream_xor(struct skcipher_request *req,
@@ -86,8 +74,10 @@ static int chacha_neon_stream_xor(struct skcipher_request *req,
 		if (nbytes < walk.total)
 			nbytes = round_down(nbytes, walk.stride);
 
+		kernel_neon_begin();
 		chacha_doneon(state, walk.dst.virt.addr, walk.src.virt.addr,
 			      nbytes, ctx->nrounds);
+		kernel_neon_end();
 		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 	}
 
