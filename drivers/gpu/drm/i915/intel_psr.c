@@ -394,7 +394,7 @@ static void intel_psr_enable_sink(struct intel_dp *intel_dp)
 	if (dev_priv->psr.psr2_enabled) {
 		drm_dp_dpcd_writeb(&intel_dp->aux, DP_RECEIVER_ALPM_CONFIG,
 				   DP_ALPM_ENABLE);
-		dpcd_val |= DP_PSR_ENABLE_PSR2;
+		dpcd_val |= DP_PSR_ENABLE_PSR2 | DP_PSR_IRQ_HPD_WITH_CRC_ERRORS;
 	} else {
 		if (dev_priv->psr.link_standby)
 			dpcd_val |= DP_PSR_MAIN_LINK_ACTIVE;
