@@ -116,6 +116,19 @@ int cs_etm_decoder__get_packet(struct cs_etm_decoder *decoder,
 	return 1;
 }
 
+static int cs_etm_decoder__gen_etmv3_config(struct cs_etm_trace_params *params,
+					    ocsd_etmv3_cfg *config)
+{
+	config->reg_idr = params->etmv3.reg_idr;
+	config->reg_ctrl = params->etmv3.reg_ctrl;
+	config->reg_ccer = params->etmv3.reg_ccer;
+	config->reg_trc_id = params->etmv3.reg_trc_id;
+	config->arch_ver = ARCH_V7;
+	config->core_prof = profile_CortexA;
+
+	return 0;
+}
+
 static void cs_etm_decoder__gen_etmv4_config(struct cs_etm_trace_params *params,
 					     ocsd_etmv4_cfg *config)
 {
@@ -237,10 +250,16 @@ cs_etm_decoder__create_etm_packet_printer(struct cs_etm_trace_params *t_params,
 					  struct cs_etm_decoder *decoder)
 {
 	const char *decoder_name;
+	ocsd_etmv3_cfg config_etmv3;
 	ocsd_etmv4_cfg trace_config_etmv4;
 	void *trace_config;
 
 	switch (t_params->protocol) {
+	case CS_ETM_PROTO_ETMV3:
+		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
+		decoder_name = OCSD_BUILTIN_DCD_ETMV3;
+		trace_config = &config_etmv3;
+		break;
 	case CS_ETM_PROTO_ETMV4i:
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
 		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
@@ -427,11 +446,17 @@ static int cs_etm_decoder__create_etm_packet_decoder(
 					struct cs_etm_decoder *decoder)
 {
 	const char *decoder_name;
+	ocsd_etmv3_cfg config_etmv3;
 	ocsd_etmv4_cfg trace_config_etmv4;
 	void *trace_config;
 	u8 csid;
 
 	switch (t_params->protocol) {
+	case CS_ETM_PROTO_ETMV3:
+		cs_etm_decoder__gen_etmv3_config(t_params, &config_etmv3);
+		decoder_name = OCSD_BUILTIN_DCD_ETMV3;
+		trace_config = &config_etmv3;
+		break;
 	case CS_ETM_PROTO_ETMV4i:
 		cs_etm_decoder__gen_etmv4_config(t_params, &trace_config_etmv4);
 		decoder_name = OCSD_BUILTIN_DCD_ETMV4I;
