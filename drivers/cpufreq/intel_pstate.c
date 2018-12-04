@@ -1930,7 +1930,7 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 
 	cpufreq_remove_update_util_hook(cpu);
 	cpu_data->update_util_set = false;
-	synchronize_sched();
+	synchronize_rcu();
 }
 
 static int intel_pstate_get_max_freq(struct cpudata *cpu)

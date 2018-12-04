@@ -160,9 +160,9 @@ was in flight.
 If the CPU is idle, then <tt>sync_sched_exp_handler()</tt> reports
 the quiescent state.
 
-<p>
-Otherwise, the handler invokes <tt>resched_cpu()</tt>, which forces
-a future context switch.
+<p> Otherwise, the handler forces a future context switch by setting the
+NEED_RESCHED flag of the current task's thread flag and the CPU preempt
+counter.
 At the time of the context switch, the CPU reports the quiescent state.
 Should the CPU go offline first, it will report the quiescent state
 at that time.

@@ -289,7 +289,7 @@ static void hugepd_free(struct mmu_gather *tlb, void *hugepte)
 
 	(*batchp)->ptes[(*batchp)->index++] = hugepte;
 	if ((*batchp)->index == HUGEPD_FREELIST_SIZE) {
-		call_rcu_sched(&(*batchp)->rcu, hugepd_free_rcu_callback);
+		call_rcu(&(*batchp)->rcu, hugepd_free_rcu_callback);
 		*batchp = NULL;
 	}
 	put_cpu_var(hugepd_freelist_cur);

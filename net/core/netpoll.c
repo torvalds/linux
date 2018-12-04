@@ -801,7 +801,7 @@ void __netpoll_cleanup(struct netpoll *np)
 			ops->ndo_netpoll_cleanup(np->dev);
 
 		RCU_INIT_POINTER(np->dev->npinfo, NULL);
-		call_rcu_bh(&npinfo->rcu, rcu_cleanup_netpoll_info);
+		call_rcu(&npinfo->rcu, rcu_cleanup_netpoll_info);
 	} else
 		RCU_INIT_POINTER(np->dev->npinfo, NULL);
 }
@@ -812,7 +812,7 @@ void __netpoll_free(struct netpoll *np)
 	ASSERT_RTNL();
 
 	/* Wait for transmitting packets to finish before freeing. */
-	synchronize_rcu_bh();
+	synchronize_rcu();
 	__netpoll_cleanup(np);
 	kfree(np);
 }

@@ -580,7 +580,7 @@ void sk_psock_drop(struct sock *sk, struct sk_psock *psock)
 	write_unlock_bh(&sk->sk_callback_lock);
 	sk_psock_clear_state(psock, SK_PSOCK_TX_ENABLED);
 
-	call_rcu_sched(&psock->rcu, sk_psock_destroy);
+	call_rcu(&psock->rcu, sk_psock_destroy);
 }
 EXPORT_SYMBOL_GPL(sk_psock_drop);
 
