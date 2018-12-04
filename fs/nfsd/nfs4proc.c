@@ -2679,25 +2679,25 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 	/* NFSv4.2 operations */
 	[OP_ALLOCATE] = {
 		.op_func = nfsd4_allocate,
-		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_ALLOCATE",
 		.op_rsize_bop = nfsd4_only_status_rsize,
 	},
 	[OP_DEALLOCATE] = {
 		.op_func = nfsd4_deallocate,
-		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_DEALLOCATE",
 		.op_rsize_bop = nfsd4_only_status_rsize,
 	},
 	[OP_CLONE] = {
 		.op_func = nfsd4_clone,
-		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_CLONE",
 		.op_rsize_bop = nfsd4_only_status_rsize,
 	},
 	[OP_COPY] = {
 		.op_func = nfsd4_copy,
-		.op_flags = OP_MODIFIES_SOMETHING | OP_CACHEME,
+		.op_flags = OP_MODIFIES_SOMETHING,
 		.op_name = "OP_COPY",
 		.op_rsize_bop = nfsd4_copy_rsize,
 	},
