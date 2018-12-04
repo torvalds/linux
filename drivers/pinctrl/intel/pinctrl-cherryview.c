@@ -846,6 +846,19 @@ static int chv_pinmux_set_mux(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static void chv_gpio_clear_triggering(struct chv_pinctrl *pctrl,
+				      unsigned int offset)
+{
+	void __iomem *reg;
+	u32 value;
+
+	reg = chv_padreg(pctrl, offset, CHV_PADCTRL1);
+	value = readl(reg);
+	value &= ~CHV_PADCTRL1_INTWAKECFG_MASK;
+	value &= ~CHV_PADCTRL1_INVRXTX_MASK;
+	chv_writel(value, reg);
+}
+
 static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 				   struct pinctrl_gpio_range *range,
 				   unsigned int offset)
@@ -876,11 +889,7 @@ static int chv_gpio_request_enable(struct pinctrl_dev *pctldev,
 		}
 
 		/* Disable interrupt generation */
-		reg = chv_padreg(pctrl, offset, CHV_PADCTRL1);
-		value = readl(reg);
-		value &= ~CHV_PADCTRL1_INTWAKECFG_MASK;
-		value &= ~CHV_PADCTRL1_INVRXTX_MASK;
-		chv_writel(value, reg);
+		chv_gpio_clear_triggering(pctrl, offset);
 
 		reg = chv_padreg(pctrl, offset, CHV_PADCTRL0);
 		value = readl(reg);
