@@ -649,17 +649,14 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_psr_setup_aux(intel_dp);
 
-	if (dev_priv->psr.psr2_enabled) {
+	if (dev_priv->psr.psr2_enabled && (IS_GEN9(dev_priv) &&
+					   !IS_GEMINILAKE(dev_priv))) {
 		i915_reg_t reg = gen9_chicken_trans_reg(dev_priv,
 							cpu_transcoder);
 		u32 chicken = I915_READ(reg);
 
-		if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
-			chicken |= (PSR2_VSC_ENABLE_PROG_HEADER
-				   | PSR2_ADD_VERTICAL_LINE_COUNT);
-
-		else
-			chicken &= ~VSC_DATA_SEL_SOFTWARE_CONTROL;
+		chicken |= PSR2_VSC_ENABLE_PROG_HEADER |
+			   PSR2_ADD_VERTICAL_LINE_COUNT;
 		I915_WRITE(reg, chicken);
 	}
 
