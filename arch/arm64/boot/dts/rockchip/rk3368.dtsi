@@ -1128,6 +1128,15 @@
 			status = "disabled";
 		};
 
+		pvtm_clock: pvtm-clock {
+			compatible = "rockchip,rk3368-pvtm-clock";
+			#clock-cells = <0>;
+			clocks = <&cru SCLK_PVTM_PMU>;
+			clock-names = "pvtm_pmu_clk";
+			clock-output-names = "xin32k_pvtm";
+			status = "okay";
+		};
+
 		reboot-mode {
 			compatible = "syscon-reboot-mode";
 			offset = <0x200>;
