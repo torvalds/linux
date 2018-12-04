@@ -145,6 +145,14 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	/*
+	 * check if the format_revision in vbios is up to pptable header
+	 * version, and the structure size is not 0.
+	 */
+	ret = smu_check_pptable(smu);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
