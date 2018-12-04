@@ -76,7 +76,7 @@ Usage::
 
 Where::
 
-	format:= 'default | ecryptfs'
+	format:= 'default | ecryptfs | enc32'
 	key-type:= 'trusted' | 'user'
 
 
@@ -173,3 +173,7 @@ are anticipated.  In particular the new format 'ecryptfs' has been defined in
 in order to use encrypted keys to mount an eCryptfs filesystem.  More details
 about the usage can be found in the file
 ``Documentation/security/keys/ecryptfs.rst``.
+
+Another new format 'enc32' has been defined in order to support encrypted keys
+with payload size of 32 bytes. This will initially be used for nvdimm security
+but may expand to other usages that require 32 bytes payload.
