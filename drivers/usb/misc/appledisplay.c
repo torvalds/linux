@@ -260,6 +260,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 		usb_rcvintpipe(udev, int_in_endpointAddr),
 		pdata->urbdata, ACD_URB_BUFFER_LEN, appledisplay_complete,
 		pdata, 1);
+	pdata->urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_submit_urb(pdata->urb, GFP_KERNEL)) {
 		retval = -EIO;
 		dev_err(&iface->dev, "Submitting URB failed\n");
