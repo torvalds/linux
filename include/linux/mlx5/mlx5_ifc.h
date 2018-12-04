@@ -144,6 +144,9 @@ enum {
 	MLX5_CMD_OP_DESTROY_XRQ                   = 0x718,
 	MLX5_CMD_OP_QUERY_XRQ                     = 0x719,
 	MLX5_CMD_OP_ARM_XRQ                       = 0x71a,
+	MLX5_CMD_OP_QUERY_XRQ_DC_PARAMS_ENTRY     = 0x725,
+	MLX5_CMD_OP_SET_XRQ_DC_PARAMS_ENTRY       = 0x726,
+	MLX5_CMD_OP_QUERY_XRQ_ERROR_PARAMS        = 0x727,
 	MLX5_CMD_OP_QUERY_VPORT_STATE             = 0x750,
 	MLX5_CMD_OP_MODIFY_VPORT_STATE            = 0x751,
 	MLX5_CMD_OP_QUERY_ESW_VPORT_CONTEXT       = 0x752,
@@ -245,6 +248,7 @@ enum {
 	MLX5_CMD_OP_MODIFY_FLOW_TABLE             = 0x93c,
 	MLX5_CMD_OP_ALLOC_PACKET_REFORMAT_CONTEXT = 0x93d,
 	MLX5_CMD_OP_DEALLOC_PACKET_REFORMAT_CONTEXT = 0x93e,
+	MLX5_CMD_OP_QUERY_PACKET_REFORMAT_CONTEXT = 0x93f,
 	MLX5_CMD_OP_ALLOC_MODIFY_HEADER_CONTEXT   = 0x940,
 	MLX5_CMD_OP_DEALLOC_MODIFY_HEADER_CONTEXT = 0x941,
 	MLX5_CMD_OP_QUERY_MODIFY_HEADER_CONTEXT   = 0x942,
@@ -258,6 +262,12 @@ enum {
 	MLX5_CMD_OP_QUERY_GENERAL_OBJECT          = 0xa02,
 	MLX5_CMD_OP_DESTROY_GENERAL_OBJECT        = 0xa03,
 	MLX5_CMD_OP_MAX
+};
+
+/* Valid range for general commands that don't work over an object */
+enum {
+	MLX5_CMD_OP_GENERAL_START = 0xb00,
+	MLX5_CMD_OP_GENERAL_END = 0xd00,
 };
 
 struct mlx5_ifc_flow_table_fields_supported_bits {
@@ -883,6 +893,10 @@ enum {
 	MLX5_CAP_UMR_FENCE_NONE		= 0x2,
 };
 
+enum {
+	MLX5_UCTX_CAP_RAW_TX = 1UL << 0,
+};
+
 struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         reserved_at_0[0x30];
 	u8         vhca_id[0x10];
@@ -1193,7 +1207,13 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   num_vhca_ports[0x8];
 	u8	   reserved_at_618[0x6];
 	u8	   sw_owner_id[0x1];
-	u8	   reserved_at_61f[0x1e1];
+	u8         reserved_at_61f[0x1];
+
+	u8         reserved_at_620[0x80];
+
+	u8         uctx_cap[0x20];
+
+	u8	   reserved_at_6c0[0x140];
 };
 
 enum mlx5_flow_destination_type {
@@ -9276,7 +9296,9 @@ struct mlx5_ifc_umem_bits {
 struct mlx5_ifc_uctx_bits {
 	u8         modify_field_select[0x40];
 
-	u8         reserved_at_40[0x1c0];
+	u8         cap[0x20];
+
+	u8         reserved_at_60[0x1a0];
 };
 
 struct mlx5_ifc_create_umem_in_bits {

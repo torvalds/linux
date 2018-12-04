@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include "lib/mlx5.h"
 #include "en.h"
 #include "en_accel/ipsec.h"
 #include "en_accel/tls.h"
@@ -1120,15 +1121,17 @@ static int mlx5e_grp_pme_fill_strings(struct mlx5e_priv *priv, u8 *data,
 static int mlx5e_grp_pme_fill_stats(struct mlx5e_priv *priv, u64 *data,
 				    int idx)
 {
-	struct mlx5_priv *mlx5_priv = &priv->mdev->priv;
+	struct mlx5_pme_stats pme_stats;
 	int i;
 
+	mlx5_get_pme_stats(priv->mdev, &pme_stats);
+
 	for (i = 0; i < NUM_PME_STATUS_STATS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.status_counters,
+		data[idx++] = MLX5E_READ_CTR64_CPU(pme_stats.status_counters,
 						   mlx5e_pme_status_desc, i);
 
 	for (i = 0; i < NUM_PME_ERR_STATS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(mlx5_priv->pme_stats.error_counters,
+		data[idx++] = MLX5E_READ_CTR64_CPU(pme_stats.error_counters,
 						   mlx5e_pme_error_desc, i);
 
 	return idx;

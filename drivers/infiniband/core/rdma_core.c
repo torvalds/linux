@@ -398,16 +398,23 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 	struct ib_uobject *uobj;
 	int ret;
 
-	if (!obj)
-		return ERR_PTR(-EINVAL);
+	if (IS_ERR(obj) && PTR_ERR(obj) == -ENOMSG) {
+		/* must be UVERBS_IDR_ANY_OBJECT, see uapi_get_object() */
+		uobj = lookup_get_idr_uobject(NULL, ufile, id, mode);
+		if (IS_ERR(uobj))
+			return uobj;
+	} else {
+		if (IS_ERR(obj))
+			return ERR_PTR(-EINVAL);
 
-	uobj = obj->type_class->lookup_get(obj, ufile, id, mode);
-	if (IS_ERR(uobj))
-		return uobj;
+		uobj = obj->type_class->lookup_get(obj, ufile, id, mode);
+		if (IS_ERR(uobj))
+			return uobj;
 
-	if (uobj->uapi_object != obj) {
-		ret = -EINVAL;
-		goto free;
+		if (uobj->uapi_object != obj) {
+			ret = -EINVAL;
+			goto free;
+		}
 	}
 
 	/*
@@ -427,7 +434,7 @@ struct ib_uobject *rdma_lookup_get_uobject(const struct uverbs_api_object *obj,
 
 	return uobj;
 free:
-	obj->type_class->lookup_put(uobj, mode);
+	uobj->uapi_object->type_class->lookup_put(uobj, mode);
 	uverbs_uobject_put(uobj);
 	return ERR_PTR(ret);
 }
@@ -491,7 +498,7 @@ struct ib_uobject *rdma_alloc_begin_uobject(const struct uverbs_api_object *obj,
 {
 	struct ib_uobject *ret;
 
-	if (!obj)
+	if (IS_ERR(obj))
 		return ERR_PTR(-EINVAL);
 
 	/*

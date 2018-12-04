@@ -4,6 +4,8 @@
 #ifndef __LIB_MLX5_EQ_H__
 #define __LIB_MLX5_EQ_H__
 #include <linux/mlx5/driver.h>
+#include <linux/mlx5/eq.h>
+#include <linux/mlx5/cq.h>
 
 #define MLX5_MAX_IRQ_NAME   (32)
 #define MLX5_EQE_SIZE       (sizeof(struct mlx5_eqe))
@@ -89,5 +91,8 @@ void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev);
 #ifdef CONFIG_RFS_ACCEL
 struct cpu_rmap *mlx5_eq_table_get_rmap(struct mlx5_core_dev *dev);
 #endif
+
+int mlx5_eq_notifier_register(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
+int mlx5_eq_notifier_unregister(struct mlx5_core_dev *dev, struct mlx5_nb *nb);
 
 #endif

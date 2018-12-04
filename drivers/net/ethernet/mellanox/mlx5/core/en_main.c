@@ -294,33 +294,35 @@ void mlx5e_queue_update_stats(struct mlx5e_priv *priv)
 	queue_work(priv->wq, &priv->update_stats_work);
 }
 
-static void mlx5e_async_event(struct mlx5_core_dev *mdev, void *vpriv,
-			      enum mlx5_dev_event event, unsigned long param)
+static int async_event(struct notifier_block *nb, unsigned long event, void *data)
 {
-	struct mlx5e_priv *priv = vpriv;
+	struct mlx5e_priv *priv = container_of(nb, struct mlx5e_priv, events_nb);
+	struct mlx5_eqe   *eqe = data;
 
-	if (!test_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state))
-		return;
+	if (event != MLX5_EVENT_TYPE_PORT_CHANGE)
+		return NOTIFY_DONE;
 
-	switch (event) {
-	case MLX5_DEV_EVENT_PORT_UP:
-	case MLX5_DEV_EVENT_PORT_DOWN:
+	switch (eqe->sub_type) {
+	case MLX5_PORT_CHANGE_SUBTYPE_DOWN:
+	case MLX5_PORT_CHANGE_SUBTYPE_ACTIVE:
 		queue_work(priv->wq, &priv->update_carrier_work);
 		break;
 	default:
-		break;
+		return NOTIFY_DONE;
 	}
+
+	return NOTIFY_OK;
 }
 
 static void mlx5e_enable_async_events(struct mlx5e_priv *priv)
 {
-	set_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state);
+	priv->events_nb.notifier_call = async_event;
+	mlx5_notifier_register(priv->mdev, &priv->events_nb);
 }
 
 static void mlx5e_disable_async_events(struct mlx5e_priv *priv)
 {
-	clear_bit(MLX5E_STATE_ASYNC_EVENTS_ENABLED, &priv->state);
-	mlx5_eq_synchronize_async_irq(priv->mdev);
+	mlx5_notifier_unregister(priv->mdev, &priv->events_nb);
 }
 
 static inline void mlx5e_build_umr_wqe(struct mlx5e_rq *rq,
@@ -5170,7 +5172,6 @@ static struct mlx5_interface mlx5e_interface = {
 	.remove    = mlx5e_remove,
 	.attach    = mlx5e_attach,
 	.detach    = mlx5e_detach,
-	.event     = mlx5e_async_event,
 	.protocol  = MLX5_INTERFACE_PROTOCOL_ETH,
 	.get_dev   = mlx5e_get_netdev,
 };

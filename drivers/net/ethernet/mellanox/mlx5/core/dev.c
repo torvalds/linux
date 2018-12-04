@@ -45,75 +45,11 @@ struct mlx5_device_context {
 	unsigned long		state;
 };
 
-struct mlx5_delayed_event {
-	struct list_head	list;
-	struct mlx5_core_dev	*dev;
-	enum mlx5_dev_event	event;
-	unsigned long		param;
-};
-
 enum {
 	MLX5_INTERFACE_ADDED,
 	MLX5_INTERFACE_ATTACHED,
 };
 
-static void add_delayed_event(struct mlx5_priv *priv,
-			      struct mlx5_core_dev *dev,
-			      enum mlx5_dev_event event,
-			      unsigned long param)
-{
-	struct mlx5_delayed_event *delayed_event;
-
-	delayed_event = kzalloc(sizeof(*delayed_event), GFP_ATOMIC);
-	if (!delayed_event) {
-		mlx5_core_err(dev, "event %d is missed\n", event);
-		return;
-	}
-
-	mlx5_core_dbg(dev, "Accumulating event %d\n", event);
-	delayed_event->dev = dev;
-	delayed_event->event = event;
-	delayed_event->param = param;
-	list_add_tail(&delayed_event->list, &priv->waiting_events_list);
-}
-
-static void delayed_event_release(struct mlx5_device_context *dev_ctx,
-				  struct mlx5_priv *priv)
-{
-	struct mlx5_core_dev *dev = container_of(priv, struct mlx5_core_dev, priv);
-	struct mlx5_delayed_event *de;
-	struct mlx5_delayed_event *n;
-	struct list_head temp;
-
-	INIT_LIST_HEAD(&temp);
-
-	spin_lock_irq(&priv->ctx_lock);
-
-	priv->is_accum_events = false;
-	list_splice_init(&priv->waiting_events_list, &temp);
-	if (!dev_ctx->context)
-		goto out;
-	list_for_each_entry_safe(de, n, &temp, list)
-		dev_ctx->intf->event(dev, dev_ctx->context, de->event, de->param);
-
-out:
-	spin_unlock_irq(&priv->ctx_lock);
-
-	list_for_each_entry_safe(de, n, &temp, list) {
-		list_del(&de->list);
-		kfree(de);
-	}
-}
-
-/* accumulating events that can come after mlx5_ib calls to
- * ib_register_device, till adding that interface to the events list.
- */
-static void delayed_event_start(struct mlx5_priv *priv)
-{
-	spin_lock_irq(&priv->ctx_lock);
-	priv->is_accum_events = true;
-	spin_unlock_irq(&priv->ctx_lock);
-}
 
 void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 {
@@ -129,8 +65,6 @@ void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 
 	dev_ctx->intf = intf;
 
-	delayed_event_start(priv);
-
 	dev_ctx->context = intf->add(dev);
 	if (dev_ctx->context) {
 		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
@@ -141,8 +75,6 @@ void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv)
 		list_add_tail(&dev_ctx->list, &priv->ctx_list);
 		spin_unlock_irq(&priv->ctx_lock);
 	}
-
-	delayed_event_release(dev_ctx, priv);
 
 	if (!dev_ctx->context)
 		kfree(dev_ctx);
@@ -187,26 +119,20 @@ static void mlx5_attach_interface(struct mlx5_interface *intf, struct mlx5_priv 
 	if (!dev_ctx)
 		return;
 
-	delayed_event_start(priv);
 	if (intf->attach) {
 		if (test_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state))
-			goto out;
+			return;
 		if (intf->attach(dev, dev_ctx->context))
-			goto out;
-
+			return;
 		set_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state);
 	} else {
 		if (test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
-			goto out;
+			return;
 		dev_ctx->context = intf->add(dev);
 		if (!dev_ctx->context)
-			goto out;
-
+			return;
 		set_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state);
 	}
-
-out:
-	delayed_event_release(dev_ctx, priv);
 }
 
 void mlx5_attach_device(struct mlx5_core_dev *dev)
@@ -402,30 +328,6 @@ struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
 	return res;
 }
 
-void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
-		     unsigned long param)
-{
-	struct mlx5_priv *priv = &dev->priv;
-	struct mlx5_device_context *dev_ctx;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->ctx_lock, flags);
-
-	if (priv->is_accum_events)
-		add_delayed_event(priv, dev, event, param);
-
-	/* After mlx5_detach_device, the dev_ctx->intf is still set and dev_ctx is
-	 * still in priv->ctx_list. In this case, only notify the dev_ctx if its
-	 * ADDED or ATTACHED bit are set.
-	 */
-	list_for_each_entry(dev_ctx, &priv->ctx_list, list)
-		if (dev_ctx->intf->event &&
-		    (test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state) ||
-		     test_bit(MLX5_INTERFACE_ATTACHED, &dev_ctx->state)))
-			dev_ctx->intf->event(dev, dev_ctx->context, event, param);
-
-	spin_unlock_irqrestore(&priv->ctx_lock, flags);
-}
 
 void mlx5_dev_list_lock(void)
 {

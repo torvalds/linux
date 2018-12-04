@@ -524,6 +524,12 @@ struct uapi_definition {
 			  .u2.objs_arr.max_len = _max_len,                     \
 			  __VA_ARGS__ } })
 
+/*
+ * Only for use with UVERBS_ATTR_IDR, allows any uobject type to be accepted,
+ * the user must validate the type of the uobject instead.
+ */
+#define UVERBS_IDR_ANY_OBJECT 0xFFFF
+
 #define UVERBS_ATTR_IDR(_attr_id, _idr_type, _access, ...)                     \
 	(&(const struct uverbs_attr_def){                                      \
 		.id = _attr_id,                                                \

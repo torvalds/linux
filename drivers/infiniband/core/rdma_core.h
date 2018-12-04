@@ -118,11 +118,6 @@ void release_ufile_idr_uobject(struct ib_uverbs_file *ufile);
  * Depending on ID the slot pointer in the radix tree points at one of these
  * structs.
  */
-struct uverbs_api_object {
-	const struct uverbs_obj_type *type_attrs;
-	const struct uverbs_obj_type_class *type_class;
-	u8 disabled:1;
-};
 
 struct uverbs_api_ioctl_method {
 	int(__rcu *handler)(struct uverbs_attr_bundle *attrs);
@@ -162,10 +157,24 @@ struct uverbs_api {
 	const struct uverbs_api_write_method **write_ex_methods;
 };
 
+/*
+ * Get an uverbs_api_object that corresponds to the given object_id.
+ * Note:
+ * -ENOMSG means that any object is allowed to match during lookup.
+ */
 static inline const struct uverbs_api_object *
 uapi_get_object(struct uverbs_api *uapi, u16 object_id)
 {
-	return radix_tree_lookup(&uapi->radix, uapi_key_obj(object_id));
+	const struct uverbs_api_object *res;
+
+	if (object_id == UVERBS_IDR_ANY_OBJECT)
+		return ERR_PTR(-ENOMSG);
+
+	res = radix_tree_lookup(&uapi->radix, uapi_key_obj(object_id));
+	if (!res)
+		return ERR_PTR(-ENOENT);
+
+	return res;
 }
 
 char *uapi_key_format(char *S, unsigned int key);

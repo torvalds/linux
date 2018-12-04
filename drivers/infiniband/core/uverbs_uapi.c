@@ -184,6 +184,7 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 		if (WARN_ON(obj_elm->type_attrs))
 			return -EINVAL;
 
+		obj_elm->id = obj->id;
 		obj_elm->type_attrs = obj->type_attrs;
 		obj_elm->type_class = obj->type_attrs->type_class;
 		/*
@@ -580,8 +581,13 @@ again:
 			if (obj_key == UVERBS_API_KEY_ERR)
 				continue;
 			tmp_obj = uapi_get_object(uapi, obj_key);
-			if (tmp_obj && !tmp_obj->disabled)
-				continue;
+			if (IS_ERR(tmp_obj)) {
+				if (PTR_ERR(tmp_obj) == -ENOMSG)
+					continue;
+			} else {
+				if (!tmp_obj->disabled)
+					continue;
+			}
 
 			starting_key = iter.index;
 			uapi_remove_method(
