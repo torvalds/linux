@@ -26,6 +26,7 @@ static inline void pgd_clear(pgd_t *pgd)	{ }
 #define p4d_ERROR(p4d)				(pgd_ERROR((p4d).pgd))
 
 #define pgd_populate(mm, pgd, p4d)		do { } while (0)
+#define pgd_populate_safe(mm, pgd, p4d)		do { } while (0)
 /*
  * (p4ds are folded into pgds so this doesn't get actually called,
  * but the define is needed for a generic inline function.)
