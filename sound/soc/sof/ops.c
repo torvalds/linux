@@ -153,7 +153,6 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 			      u32 mask, u32 target, u32 timeout)
 {
 	int time, ret;
-	bool done = false;
 
 	/*
 	 * we will poll for couple of ms using mdelay, if not successful
@@ -161,19 +160,17 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 	 */
 
 	/* check if set state successful */
-	for (time = 0; time < 5; time++) {
-		if ((snd_sof_dsp_read(sdev, bar, offset) & mask) == target) {
-			done = true;
+	for (time = 5; time > 0; time--) {
+		if ((snd_sof_dsp_read(sdev, bar, offset) & mask) == target)
 			break;
-		}
 		msleep(20);
 	}
 
-	if (!done) {
+	if (!time) {
 		/* sleeping in 10ms steps so adjust timeout value */
 		timeout /= 10;
 
-		for (time = 0; time < timeout; time++) {
+		for (time = timeout; time > 0; time--) {
 			if ((snd_sof_dsp_read(sdev, bar, offset) & mask) ==
 				target)
 				break;
@@ -182,7 +179,7 @@ int snd_sof_dsp_register_poll(struct snd_sof_dev *sdev, u32 bar, u32 offset,
 		}
 	}
 
-	ret = time < timeout ? 0 : -ETIME;
+	ret = time ? 0 : -ETIME;
 
 	return ret;
 }
