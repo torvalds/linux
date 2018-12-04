@@ -317,6 +317,7 @@ static struct rsnd_mod_ops rsnd_ctu_ops = {
 	.get_status	= rsnd_mod_get_status,
 	.id		= rsnd_ctu_id,
 	.id_sub		= rsnd_ctu_id_sub,
+	.id_cmd		= rsnd_mod_id_raw,
 };
 
 struct rsnd_mod *rsnd_ctu_mod_get(struct rsnd_priv *priv, int id)
