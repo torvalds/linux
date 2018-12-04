@@ -87,6 +87,8 @@
 #define SCLK_UART1_SRC		85
 #define SCLK_SDMMC_DIV		86
 #define SCLK_SDMMC_DIV50	87
+#define SCLK_I2S0_TX_MUX	88
+#define SCLK_I2S0_RX_MUX	89
 
 /* dclk gates */
 #define DCLK_VOPB		150
