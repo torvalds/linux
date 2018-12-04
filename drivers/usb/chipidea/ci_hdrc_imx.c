@@ -148,6 +148,8 @@ static struct imx_usbmisc_data *usbmisc_get_init_data(struct device *dev)
 	} else if (of_find_property(np, "over-current-active-low", NULL)) {
 		data->oc_pol_active_low = 1;
 		data->oc_pol_configured = 1;
+	} else {
+		dev_warn(dev, "No over current polarity defined\n");
 	}
 
 	if (of_find_property(np, "external-vbus-divider", NULL))
