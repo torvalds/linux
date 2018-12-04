@@ -356,11 +356,17 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 	reg = readl(usbmisc->base + data->index * 4);
 	if (data->disable_oc) {
 		reg |= MX6_BM_OVER_CUR_DIS;
-	} else if (data->oc_polarity == 1) {
-		/* High active */
-		reg &= ~(MX6_BM_OVER_CUR_DIS | MX6_BM_OVER_CUR_POLARITY);
 	} else {
-		reg &= ~(MX6_BM_OVER_CUR_DIS);
+		reg &= ~MX6_BM_OVER_CUR_DIS;
+
+		/*
+		 * If the polarity is not configured keep it as setup by the
+		 * bootloader.
+		 */
+		if (data->oc_pol_configured && data->oc_pol_active_low)
+			reg |= MX6_BM_OVER_CUR_POLARITY;
+		else if (data->oc_pol_configured)
+			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
 	writel(reg, usbmisc->base + data->index * 4);
 
@@ -552,9 +558,17 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 	reg = readl(usbmisc->base);
 	if (data->disable_oc) {
 		reg |= MX6_BM_OVER_CUR_DIS;
-	} else if (data->oc_polarity == 1) {
-		/* High active */
-		reg &= ~(MX6_BM_OVER_CUR_DIS | MX6_BM_OVER_CUR_POLARITY);
+	} else {
+		reg &= ~MX6_BM_OVER_CUR_DIS;
+
+		/*
+		 * If the polarity is not configured keep it as setup by the
+		 * bootloader.
+		 */
+		if (data->oc_pol_configured && data->oc_pol_active_low)
+			reg |= MX6_BM_OVER_CUR_POLARITY;
+		else if (data->oc_pol_configured)
+			reg &= ~MX6_BM_OVER_CUR_POLARITY;
 	}
 	writel(reg, usbmisc->base);
 

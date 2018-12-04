@@ -11,7 +11,13 @@ struct imx_usbmisc_data {
 	int index;
 
 	unsigned int disable_oc:1; /* over current detect disabled */
-	unsigned int oc_polarity:1; /* over current polarity if oc enabled */
+
+	/* true if over-current polarity is active low */
+	unsigned int oc_pol_active_low:1;
+
+	/* true if dt specifies polarity */
+	unsigned int oc_pol_configured:1;
+
 	unsigned int evdo:1; /* set external vbus divider option */
 	unsigned int ulpi:1; /* connected to an ULPI phy */
 	unsigned int hsic:1; /* HSIC controlller */
