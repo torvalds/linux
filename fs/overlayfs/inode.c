@@ -286,22 +286,13 @@ int ovl_permission(struct inode *inode, int mask)
 	if (err)
 		return err;
 
-	/* No need to do any access on underlying for special files */
-	if (special_file(realinode->i_mode))
-		return 0;
-
-	/* No need to access underlying for execute */
-	mask &= ~MAY_EXEC;
-	if ((mask & (MAY_READ | MAY_WRITE)) == 0)
-		return 0;
-
-	/* Lower files get copied up, so turn write access into read */
-	if (!upperinode && mask & MAY_WRITE) {
+	old_cred = ovl_override_creds(inode->i_sb);
+	if (!upperinode &&
+	    !special_file(realinode->i_mode) && mask & MAY_WRITE) {
 		mask &= ~(MAY_WRITE | MAY_APPEND);
+		/* Make sure mounter can read file for copy up later */
 		mask |= MAY_READ;
 	}
-
-	old_cred = ovl_override_creds(inode->i_sb);
 	err = inode_permission(realinode, mask);
 	revert_creds(old_cred);
 
