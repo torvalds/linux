@@ -298,9 +298,10 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       void *owner);
 void drm_sched_job_cleanup(struct drm_sched_job *job);
 void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
-void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,
-			    struct drm_sched_job *job);
-void drm_sched_job_recovery(struct drm_gpu_scheduler *sched);
+void drm_sched_stop(struct drm_gpu_scheduler *sched);
+void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery);
+void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
+void drm_sched_increase_karma(struct drm_sched_job *bad);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);

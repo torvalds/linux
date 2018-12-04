@@ -3313,16 +3313,14 @@ static int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 		if (!ring || !ring->sched.thread)
 			continue;
 
-		kthread_park(ring->sched.thread);
-
-		if (job && job->base.sched != &ring->sched)
-			continue;
-
-		drm_sched_hw_job_reset(&ring->sched, job ? &job->base : NULL);
+		drm_sched_stop(&ring->sched);
 
 		/* after all hw jobs are reset, hw fence is meaningless, so force_completion */
 		amdgpu_fence_driver_force_completion(ring);
 	}
+
+	if(job)
+		drm_sched_increase_karma(&job->base);
 
 
 
@@ -3469,14 +3467,10 @@ static void amdgpu_device_post_asic_reset(struct amdgpu_device *adev,
 		if (!ring || !ring->sched.thread)
 			continue;
 
-		/* only need recovery sched of the given job's ring
-		 * or all rings (in the case @job is NULL)
-		 * after above amdgpu_reset accomplished
-		 */
-		if ((!job || job->base.sched == &ring->sched) && !adev->asic_reset_res)
-			drm_sched_job_recovery(&ring->sched);
+		if (!adev->asic_reset_res)
+			drm_sched_resubmit_jobs(&ring->sched);
 
-		kthread_unpark(ring->sched.thread);
+		drm_sched_start(&ring->sched, !adev->asic_reset_res);
 	}
 
 	if (!amdgpu_device_has_dc_support(adev)) {
