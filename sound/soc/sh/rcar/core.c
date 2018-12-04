@@ -1031,6 +1031,49 @@ static const struct snd_soc_dai_ops rsnd_soc_dai_ops = {
 	.prepare	= rsnd_soc_dai_prepare,
 };
 
+static void rsnd_parse_connect_simple(struct rsnd_priv *priv,
+				      struct device_node *dai_np,
+				      int dai_i, int is_play)
+{
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct rsnd_dai *rdai = rsnd_rdai_get(priv, dai_i);
+	struct rsnd_dai_stream *io = is_play ?
+		&rdai->playback :
+		&rdai->capture;
+	struct device_node *ssiu_np = rsnd_ssiu_of_node(priv);
+	struct device_node *np;
+	int i, j;
+
+	if (!ssiu_np)
+		return;
+
+	if (!rsnd_io_to_mod_ssi(io))
+		return;
+
+	/*
+	 * This driver assumes that it is TDM Split mode
+	 * if it includes ssiu node
+	 */
+	for (i = 0;; i++) {
+		struct device_node *node = is_play ?
+			of_parse_phandle(dai_np, "playback", i) :
+			of_parse_phandle(dai_np, "capture",  i);
+
+		if (!node)
+			break;
+
+		j = 0;
+		for_each_child_of_node(ssiu_np, np) {
+			if (np == node) {
+				rsnd_flags_set(io, RSND_STREAM_TDM_SPLIT);
+				dev_dbg(dev, "%s is part of TDM Split\n", io->name);
+			}
+			j++;
+		}
+
+	}
+}
+
 static void rsnd_parse_connect_graph(struct rsnd_priv *priv,
 				     struct rsnd_dai_stream *io,
 				     struct device_node *endpoint)
@@ -1246,8 +1289,14 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 			dai_i++;
 		}
 	} else {
-		for_each_child_of_node(dai_node, dai_np)
-			__rsnd_dai_probe(priv, dai_np, dai_i++);
+		for_each_child_of_node(dai_node, dai_np) {
+			__rsnd_dai_probe(priv, dai_np, dai_i);
+			if (rsnd_is_gen3(priv)) {
+				rsnd_parse_connect_simple(priv, dai_np, dai_i, 1);
+				rsnd_parse_connect_simple(priv, dai_np, dai_i, 0);
+			}
+			dai_i++;
+		}
 	}
 
 	return 0;
