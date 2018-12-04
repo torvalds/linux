@@ -75,82 +75,6 @@ static const struct snd_sof_debugfs_map bdw_debugfs[] = {
 static int bdw_cmd_done(struct snd_sof_dev *sdev, int dir);
 
 /*
- * Memory copy.
- */
-
-/* write has to deal with copying non 32 bit sized data */
-static void bdw_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
-			    size_t size)
-{
-	void __iomem *dest = sdev->bar[sdev->mmio_bar] + offset;
-	u32 tmp = 0;
-	int i, m, n;
-	const u8 *src_byte = src;
-
-	m = size / 4;
-	n = size % 4;
-
-	/* __iowrite32_copy use 32bit size values so divide by 4 */
-	__iowrite32_copy(dest, src, m);
-
-	if (n) {
-		for (i = 0; i < n; i++)
-			tmp |= (u32)*(src_byte + m * 4 + i) << (i * 8);
-		__iowrite32_copy(dest + m * 4, &tmp, 1);
-	}
-}
-
-static void bdw_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
-			   size_t size)
-{
-	void __iomem *src = sdev->bar[sdev->mmio_bar] + offset;
-
-	memcpy_fromio(dest, src, size);
-}
-
-static void bdw_mailbox_write(struct snd_sof_dev *sdev, u32 offset,
-			      void *message, size_t bytes)
-{
-	void __iomem *dest = sdev->bar[sdev->mailbox_bar] + offset;
-
-	memcpy_toio(dest, message, bytes);
-}
-
-static void bdw_mailbox_read(struct snd_sof_dev *sdev, u32 offset,
-			     void *message, size_t bytes)
-{
-	void __iomem *src = sdev->bar[sdev->mailbox_bar] + offset;
-
-	memcpy_fromio(message, src, bytes);
-}
-
-/*
- * Register IO
- */
-
-static void bdw_write(struct snd_sof_dev *sdev, void __iomem *addr,
-		      u32 value)
-{
-	writel(value, addr);
-}
-
-static u32 bdw_read(struct snd_sof_dev *sdev, void __iomem *addr)
-{
-	return readl(addr);
-}
-
-static void bdw_write64(struct snd_sof_dev *sdev, void __iomem *addr,
-			u64 value)
-{
-	writeq(value, addr);
-}
-
-static u64 bdw_read64(struct snd_sof_dev *sdev, void __iomem *addr)
-{
-	return readq(addr);
-}
-
-/*
  * DSP Control.
  */
 
@@ -299,14 +223,14 @@ static void bdw_get_registers(struct snd_sof_dev *sdev,
 			      u32 *stack, size_t stack_words)
 {
 	/* first read regsisters */
-	bdw_mailbox_read(sdev, sdev->dsp_oops_offset, xoops, sizeof(*xoops));
+	sof_mailbox_read(sdev, sdev->dsp_oops_offset, xoops, sizeof(*xoops));
 
 	/* then get panic info */
-	bdw_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops),
+	sof_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops),
 			 panic_info, sizeof(*panic_info));
 
 	/* then get the stack */
-	bdw_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops) +
+	sof_mailbox_read(sdev, sdev->dsp_oops_offset + sizeof(*xoops) +
 			   sizeof(*panic_info), stack,
 			   stack_words * sizeof(u32));
 }
@@ -368,7 +292,7 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 	/* reply message from DSP */
 	if (ipcx & SHIM_IPCX_DONE) {
 		/* Handle Immediate reply from DSP Core */
-		bdw_mailbox_read(sdev, sdev->host_box.offset, &hdr,
+		sof_mailbox_read(sdev, sdev->host_box.offset, &hdr,
 				 sizeof(hdr));
 
 		/*
@@ -511,7 +435,7 @@ static int bdw_fw_ready(struct snd_sof_dev *sdev, u32 msg_id)
 		msg_id, offset);
 
 	/* copy data from the DSP FW ready offset */
-	bdw_block_read(sdev, offset, fw_ready, sizeof(*fw_ready));
+	sof_block_read(sdev, offset, fw_ready, sizeof(*fw_ready));
 
 	snd_sof_dsp_mailbox_init(sdev, fw_ready->dspbox_offset,
 				 fw_ready->dspbox_size,
@@ -553,7 +477,7 @@ static int bdw_is_ready(struct snd_sof_dev *sdev)
 static int bdw_send_msg(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 {
 	/* send the message */
-	bdw_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
+	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
 			  msg->msg_size);
 	snd_sof_dsp_write(sdev, BDW_DSP_BAR, SHIM_IPCX, SHIM_IPCX_BUSY);
 
@@ -567,7 +491,7 @@ static int bdw_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 	u32 size;
 
 	/* get reply */
-	bdw_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
+	sof_mailbox_read(sdev, sdev->host_box.offset, &reply, sizeof(reply));
 	if (reply.error < 0) {
 		size = sizeof(reply);
 		ret = reply.error;
@@ -585,7 +509,7 @@ static int bdw_get_reply(struct snd_sof_dev *sdev, struct snd_sof_ipc_msg *msg)
 
 	/* read the message */
 	if (msg->msg_data && size > 0)
-		bdw_mailbox_read(sdev, sdev->host_box.offset, msg->reply_data,
+		sof_mailbox_read(sdev, sdev->host_box.offset, msg->reply_data,
 				 size);
 
 	return ret;
@@ -751,18 +675,18 @@ struct snd_sof_dsp_ops sof_bdw_ops = {
 	.reset          = bdw_reset,
 
 	/* Register IO */
-	.read           = bdw_read,
-	.write          = bdw_write,
-	.read64         = bdw_read64,
-	.write64        = bdw_write64,
+	.write		= sof_io_write,
+	.read		= sof_io_read,
+	.write64	= sof_io_write64,
+	.read64		= sof_io_read64,
 
 	/* Block IO */
-	.block_read     = bdw_block_read,
-	.block_write    = bdw_block_write,
+	.block_read	= sof_block_read,
+	.block_write	= sof_block_write,
 
 	/* mailbox */
-	.mailbox_read   = bdw_mailbox_read,
-	.mailbox_write  = bdw_mailbox_write,
+	.mailbox_read   = sof_mailbox_read,
+	.mailbox_write  = sof_mailbox_write,
 
 	/* ipc */
 	.send_msg	= bdw_send_msg,

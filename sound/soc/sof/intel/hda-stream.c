@@ -155,7 +155,7 @@ int hda_dsp_stream_spib_config(struct snd_sof_dev *sdev,
 				enable << hstream->index);
 
 	/* set the SPIB value */
-	hda_dsp_write(sdev, stream->spib_addr, size);
+	sof_io_write(sdev, stream->spib_addr, size);
 
 	return 0;
 }

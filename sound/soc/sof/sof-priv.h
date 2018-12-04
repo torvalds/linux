@@ -570,4 +570,17 @@ extern const struct sof_arch_ops sof_xtensa_arch_ops;
  * Utilities
  */
 int sof_create_platform_device(struct sof_platform_priv *priv);
+void sof_io_write(struct snd_sof_dev *sdev, void __iomem *addr, u32 value);
+void sof_io_write64(struct snd_sof_dev *sdev, void __iomem *addr, u64 value);
+u32 sof_io_read(struct snd_sof_dev *sdev, void __iomem *addr);
+u64 sof_io_read64(struct snd_sof_dev *sdev, void __iomem *addr);
+void sof_mailbox_write(struct snd_sof_dev *sdev, u32 offset,
+		       void *message, size_t bytes);
+void sof_mailbox_read(struct snd_sof_dev *sdev, u32 offset,
+		      void *message, size_t bytes);
+void sof_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
+		     size_t size);
+void sof_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
+		    size_t size);
+
 #endif

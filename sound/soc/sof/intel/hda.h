@@ -414,22 +414,6 @@ void hda_dsp_dump_skl(struct snd_sof_dev *sdev, u32 flags);
 void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags);
 
 /*
- * DSP IO
- */
-void hda_dsp_write(struct snd_sof_dev *sdev, void __iomem *addr, u32 value);
-u32 hda_dsp_read(struct snd_sof_dev *sdev, void __iomem *addr);
-void hda_dsp_write64(struct snd_sof_dev *sdev, void __iomem *addr, u64 value);
-u64 hda_dsp_read64(struct snd_sof_dev *sdev, void __iomem *addr);
-void hda_dsp_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
-			 size_t size);
-void hda_dsp_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
-			size_t size);
-void hda_dsp_mailbox_write(struct snd_sof_dev *sdev, u32 offset,
-			   void *message, size_t bytes);
-void hda_dsp_mailbox_read(struct snd_sof_dev *sdev, u32 offset,
-			  void *message, size_t bytes);
-
-/*
  * DSP PCM Operations.
  */
 int hda_dsp_pcm_open(struct snd_sof_dev *sdev,

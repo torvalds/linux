@@ -180,8 +180,8 @@ static int cnl_ipc_send_msg(struct snd_sof_dev *sdev,
 	u32 cmd = msg->header;
 
 	/* send the message */
-	hda_dsp_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
-			      msg->msg_size);
+	sof_mailbox_write(sdev, sdev->host_box.offset, msg->msg_data,
+			  msg->msg_size);
 	snd_sof_dsp_write(sdev, HDA_DSP_BAR, CNL_DSP_REG_HIPCIDR,
 			  cmd | CNL_DSP_REG_HIPCIDR_BUSY);
 
@@ -195,22 +195,22 @@ struct snd_sof_dsp_ops sof_cnl_ops = {
 	.remove		= hda_dsp_remove,
 
 	/* Register IO */
-	.write		= hda_dsp_write,
-	.read		= hda_dsp_read,
-	.write64	= hda_dsp_write64,
-	.read64		= hda_dsp_read64,
+	.write		= sof_io_write,
+	.read		= sof_io_read,
+	.write64	= sof_io_write64,
+	.read64		= sof_io_read64,
 
 	/* Block IO */
-	.block_read	= hda_dsp_block_read,
-	.block_write	= hda_dsp_block_write,
+	.block_read	= sof_block_read,
+	.block_write	= sof_block_write,
 
 	/* doorbell */
 	.irq_handler	= hda_dsp_ipc_irq_handler,
 	.irq_thread	= cnl_ipc_irq_thread,
 
 	/* mailbox */
-	.mailbox_read	= hda_dsp_mailbox_read,
-	.mailbox_write	= hda_dsp_mailbox_write,
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
 
 	/* ipc */
 	.send_msg	= cnl_ipc_send_msg,

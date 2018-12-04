@@ -45,22 +45,22 @@ struct snd_sof_dsp_ops sof_skl_ops = {
 	.remove		= hda_dsp_remove,
 
 	/* Register IO */
-	.write		= hda_dsp_write,
-	.read		= hda_dsp_read,
-	.write64	= hda_dsp_write64,
-	.read64		= hda_dsp_read64,
+	.write		= sof_io_write,
+	.read		= sof_io_read,
+	.write64	= sof_io_write64,
+	.read64		= sof_io_read64,
 
 	/* Block IO */
-	.block_read	= hda_dsp_block_read,
-	.block_write	= hda_dsp_block_write,
+	.block_read	= sof_block_read,
+	.block_write	= sof_block_write,
 
 	/* doorbell */
 	.irq_handler	= hda_dsp_ipc_irq_handler,
 	.irq_thread	= hda_dsp_ipc_irq_thread,
 
 	/* mailbox */
-	.mailbox_read	= hda_dsp_mailbox_read,
-	.mailbox_write	= hda_dsp_mailbox_write,
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
 
 	/* ipc */
 	.send_msg	= hda_dsp_ipc_send_msg,
