@@ -87,6 +87,17 @@ static int smu_sw_fini(void *handle)
 	return 0;
 }
 
+static int smu_smc_table_hw_init(struct smu_context *smu)
+{
+	int ret;
+
+	ret = smu_read_pptable_from_vbios(smu);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int smu_hw_init(void *handle)
 {
 	int ret;
@@ -110,13 +121,19 @@ static int smu_hw_init(void *handle)
 
 	mutex_lock(&smu->mutex);
 
-	/* TODO */
+	ret = smu_smc_table_hw_init(smu);
+	if (ret)
+		goto failed;
 
 	mutex_unlock(&smu->mutex);
 
 	pr_info("SMU is initialized successfully!\n");
 
 	return 0;
+
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
 }
 
 static int smu_hw_fini(void *handle)
