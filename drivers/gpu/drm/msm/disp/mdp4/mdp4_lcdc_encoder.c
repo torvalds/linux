@@ -377,20 +377,25 @@ static void mdp4_lcdc_encoder_enable(struct drm_encoder *encoder)
 	unsigned long pc = mdp4_lcdc_encoder->pixclock;
 	struct mdp4_kms *mdp4_kms = get_kms(encoder);
 	struct drm_panel *panel;
+	uint32_t config;
 	int i, ret;
 
 	if (WARN_ON(mdp4_lcdc_encoder->enabled))
 		return;
 
 	/* TODO: hard-coded for 18bpp: */
-	mdp4_crtc_set_config(encoder->crtc,
-			MDP4_DMA_CONFIG_R_BPC(BPC6) |
-			MDP4_DMA_CONFIG_G_BPC(BPC6) |
-			MDP4_DMA_CONFIG_B_BPC(BPC6) |
-			MDP4_DMA_CONFIG_PACK_ALIGN_MSB |
-			MDP4_DMA_CONFIG_PACK(0x21) |
-			MDP4_DMA_CONFIG_DEFLKR_EN |
-			MDP4_DMA_CONFIG_DITHER_EN);
+	config =
+		MDP4_DMA_CONFIG_R_BPC(BPC6) |
+		MDP4_DMA_CONFIG_G_BPC(BPC6) |
+		MDP4_DMA_CONFIG_B_BPC(BPC6) |
+		MDP4_DMA_CONFIG_PACK(0x21) |
+		MDP4_DMA_CONFIG_DEFLKR_EN |
+		MDP4_DMA_CONFIG_DITHER_EN;
+
+	if (!of_property_read_bool(dev->dev->of_node, "qcom,lcdc-align-lsb"))
+		config |= MDP4_DMA_CONFIG_PACK_ALIGN_MSB;
+
+	mdp4_crtc_set_config(encoder->crtc, config);
 	mdp4_crtc_set_intf(encoder->crtc, INTF_LCDC_DTV, 0);
 
 	bs_set(mdp4_lcdc_encoder, 1);
