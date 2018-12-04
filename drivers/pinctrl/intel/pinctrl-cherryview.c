@@ -921,14 +921,11 @@ static void chv_gpio_disable_free(struct pinctrl_dev *pctldev,
 {
 	struct chv_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	unsigned long flags;
-	void __iomem *reg;
-	u32 value;
 
 	raw_spin_lock_irqsave(&chv_lock, flags);
 
-	reg = chv_padreg(pctrl, offset, CHV_PADCTRL0);
-	value = readl(reg) & ~CHV_PADCTRL0_GPIOEN;
-	chv_writel(value, reg);
+	if (!chv_pad_locked(pctrl, offset))
+		chv_gpio_clear_triggering(pctrl, offset);
 
 	raw_spin_unlock_irqrestore(&chv_lock, flags);
 }
