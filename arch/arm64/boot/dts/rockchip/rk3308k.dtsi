@@ -24,11 +24,17 @@
 
 &thermal_zones {
 	soc-thermal {
-		sustainable-power = <198>;
+		sustainable-power = <308>;
+		k_pu = <8>;
+		k_po = <1024>;
+		k_i = <0>;
 
 		trips {
 			trip-point-0 {
 				temperature = <55000>;
+			};
+			trip-point-1 {
+				temperature = <90000>;
 			};
 		};
 	};
