@@ -489,31 +489,21 @@ static inline unsigned int get_limit(struct rq_wb *rwb, unsigned long rw)
 }
 
 struct wbt_wait_data {
-	struct wait_queue_entry wq;
-	struct task_struct *task;
 	struct rq_wb *rwb;
-	struct rq_wait *rqw;
+	enum wbt_flags wb_acct;
 	unsigned long rw;
-	bool got_token;
 };
 
-static int wbt_wake_function(struct wait_queue_entry *curr, unsigned int mode,
-			     int wake_flags, void *key)
+static bool wbt_inflight_cb(struct rq_wait *rqw, void *private_data)
 {
-	struct wbt_wait_data *data = container_of(curr, struct wbt_wait_data,
-							wq);
+	struct wbt_wait_data *data = private_data;
+	return rq_wait_inc_below(rqw, get_limit(data->rwb, data->rw));
+}
 
-	/*
-	 * If we fail to get a budget, return -1 to interrupt the wake up
-	 * loop in __wake_up_common.
-	 */
-	if (!rq_wait_inc_below(data->rqw, get_limit(data->rwb, data->rw)))
-		return -1;
-
-	data->got_token = true;
-	list_del_init(&curr->entry);
-	wake_up_process(data->task);
-	return 1;
+static void wbt_cleanup_cb(struct rq_wait *rqw, void *private_data)
+{
+	struct wbt_wait_data *data = private_data;
+	wbt_rqw_done(data->rwb, rqw, data->wb_acct);
 }
 
 /*
@@ -525,45 +515,12 @@ static void __wbt_wait(struct rq_wb *rwb, enum wbt_flags wb_acct,
 {
 	struct rq_wait *rqw = get_rq_wait(rwb, wb_acct);
 	struct wbt_wait_data data = {
-		.wq = {
-			.func	= wbt_wake_function,
-			.entry	= LIST_HEAD_INIT(data.wq.entry),
-		},
-		.task = current,
 		.rwb = rwb,
-		.rqw = rqw,
+		.wb_acct = wb_acct,
 		.rw = rw,
 	};
-	bool has_sleeper;
 
-	has_sleeper = wq_has_sleeper(&rqw->wait);
-	if (!has_sleeper && rq_wait_inc_below(rqw, get_limit(rwb, rw)))
-		return;
-
-	prepare_to_wait_exclusive(&rqw->wait, &data.wq, TASK_UNINTERRUPTIBLE);
-	do {
-		if (data.got_token)
-			break;
-
-		if (!has_sleeper &&
-		    rq_wait_inc_below(rqw, get_limit(rwb, rw))) {
-			finish_wait(&rqw->wait, &data.wq);
-
-			/*
-			 * We raced with wbt_wake_function() getting a token,
-			 * which means we now have two. Put our local token
-			 * and wake anyone else potentially waiting for one.
-			 */
-			if (data.got_token)
-				wbt_rqw_done(rwb, rqw, wb_acct);
-			break;
-		}
-
-		io_schedule();
-		has_sleeper = false;
-	} while (1);
-
-	finish_wait(&rqw->wait, &data.wq);
+	rq_qos_wait(rqw, &data, wbt_inflight_cb, wbt_cleanup_cb);
 }
 
 static inline bool wbt_should_throttle(struct rq_wb *rwb, struct bio *bio)
