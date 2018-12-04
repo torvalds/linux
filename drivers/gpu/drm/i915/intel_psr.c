@@ -536,6 +536,17 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 		return false;
 	}
 
+	/*
+	 * HW sends SU blocks of size four scan lines, which means the starting
+	 * X coordinate and Y granularity requirements will always be met. We
+	 * only need to validate the SU block width is a multiple of 4.
+	 */
+	if (crtc_hdisplay % 4) {
+		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of 4\n",
+			      crtc_hdisplay);
+		return false;
+	}
+
 	return true;
 }
 
