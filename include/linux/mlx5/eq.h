@@ -4,8 +4,6 @@
 #ifndef MLX5_CORE_EQ_H
 #define MLX5_CORE_EQ_H
 
-#include <linux/mlx5/driver.h>
-
 enum {
 	MLX5_EQ_PAGEREQ_IDX        = 0,
 	MLX5_EQ_CMD_IDX            = 1,
@@ -22,6 +20,7 @@ enum {
 #define MLX5_NUM_SPARE_EQE (0x80)
 
 struct mlx5_eq;
+struct mlx5_core_dev;
 
 struct mlx5_eq_param {
 	u8             index;
@@ -56,5 +55,18 @@ static inline u32 mlx5_eq_update_cc(struct mlx5_eq *eq, u32 cc)
 	}
 	return cc;
 }
+
+struct mlx5_nb {
+	struct notifier_block nb;
+	u8 event_type;
+};
+
+#define mlx5_nb_cof(ptr, type, member) \
+	(container_of(container_of(ptr, struct mlx5_nb, nb), type, member))
+
+#define MLX5_NB_INIT(name, handler, event) do {              \
+	(name)->nb.notifier_call = handler;                  \
+	(name)->event_type = MLX5_EVENT_TYPE_##event;        \
+} while (0)
 
 #endif /* MLX5_CORE_EQ_H */
