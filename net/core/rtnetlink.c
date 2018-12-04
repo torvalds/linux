@@ -2931,6 +2931,9 @@ int ndo_dflt_fdb_dump(struct sk_buff *skb,
 {
 	int err;
 
+	if (dev->type != ARPHRD_ETHER)
+		return -EINVAL;
+
 	netif_addr_lock_bh(dev);
 	err = nlmsg_populate_fdb(skb, cb, dev, &idx, &dev->uc);
 	if (err)
