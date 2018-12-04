@@ -329,7 +329,8 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	ssi->rate = rate;
 	ssi->chan = chan;
 
-	dev_dbg(dev, "%s outputs %u Hz\n", rsnd_mod_name(mod), rate);
+	dev_dbg(dev, "%s outputs %d chan %u Hz\n",
+		rsnd_mod_name(mod), chan, rate);
 
 	return 0;
 }
@@ -360,6 +361,8 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 				struct rsnd_dai_stream *io)
 {
 	struct rsnd_dai *rdai = rsnd_io_to_rdai(io);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	struct snd_pcm_runtime *runtime = rsnd_io_to_runtime(io);
 	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
 	u32 cr_own	= ssi->cr_own;
@@ -370,6 +373,11 @@ static void rsnd_ssi_config_init(struct rsnd_mod *mod,
 
 	is_tdm		= rsnd_runtime_is_tdm(io);
 	is_tdm_split	= rsnd_runtime_is_tdm_split(io);
+
+	if (is_tdm)
+		dev_dbg(dev, "TDM mode\n");
+	if (is_tdm_split)
+		dev_dbg(dev, "TDM Split mode\n");
 
 	cr_own |= FORCE | rsnd_rdai_width_to_swl(rdai);
 
