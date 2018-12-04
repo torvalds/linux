@@ -38,22 +38,23 @@ asmlinkage void hchacha_block_neon(const u32 *state, u32 *out, int nrounds);
 static void chacha_doneon(u32 *state, u8 *dst, const u8 *src,
 			  int bytes, int nrounds)
 {
-	u8 buf[CHACHA_BLOCK_SIZE];
-
-	if (bytes < CHACHA_BLOCK_SIZE) {
-		memcpy(buf, src, bytes);
-		chacha_block_xor_neon(state, buf, buf, nrounds);
-		memcpy(dst, buf, bytes);
-		return;
-	}
-
 	while (bytes > 0) {
-		chacha_4block_xor_neon(state, dst, src, nrounds,
-				       min(bytes, CHACHA_BLOCK_SIZE * 4));
-		bytes -= CHACHA_BLOCK_SIZE * 4;
-		src += CHACHA_BLOCK_SIZE * 4;
-		dst += CHACHA_BLOCK_SIZE * 4;
-		state[12] += 4;
+		int l = min(bytes, CHACHA_BLOCK_SIZE * 5);
+
+		if (l <= CHACHA_BLOCK_SIZE) {
+			u8 buf[CHACHA_BLOCK_SIZE];
+
+			memcpy(buf, src, l);
+			chacha_block_xor_neon(state, buf, buf, nrounds);
+			memcpy(dst, buf, l);
+			state[12] += 1;
+			break;
+		}
+		chacha_4block_xor_neon(state, dst, src, nrounds, l);
+		bytes -= CHACHA_BLOCK_SIZE * 5;
+		src += CHACHA_BLOCK_SIZE * 5;
+		dst += CHACHA_BLOCK_SIZE * 5;
+		state[12] += 5;
 	}
 }
 
@@ -72,7 +73,7 @@ static int chacha_neon_stream_xor(struct skcipher_request *req,
 		unsigned int nbytes = walk.nbytes;
 
 		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, walk.stride);
+			nbytes = rounddown(nbytes, walk.stride);
 
 		kernel_neon_begin();
 		chacha_doneon(state, walk.dst.virt.addr, walk.src.virt.addr,
@@ -131,7 +132,7 @@ static struct skcipher_alg algs[] = {
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= CHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.walksize		= 4 * CHACHA_BLOCK_SIZE,
+		.walksize		= 5 * CHACHA_BLOCK_SIZE,
 		.setkey			= crypto_chacha20_setkey,
 		.encrypt		= chacha_neon,
 		.decrypt		= chacha_neon,
@@ -147,7 +148,7 @@ static struct skcipher_alg algs[] = {
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= XCHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.walksize		= 4 * CHACHA_BLOCK_SIZE,
+		.walksize		= 5 * CHACHA_BLOCK_SIZE,
 		.setkey			= crypto_chacha20_setkey,
 		.encrypt		= xchacha_neon,
 		.decrypt		= xchacha_neon,
@@ -163,7 +164,7 @@ static struct skcipher_alg algs[] = {
 		.max_keysize		= CHACHA_KEY_SIZE,
 		.ivsize			= XCHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
-		.walksize		= 4 * CHACHA_BLOCK_SIZE,
+		.walksize		= 5 * CHACHA_BLOCK_SIZE,
 		.setkey			= crypto_chacha12_setkey,
 		.encrypt		= xchacha_neon,
 		.decrypt		= xchacha_neon,
