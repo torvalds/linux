@@ -1802,7 +1802,7 @@ static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
 	struct vif_device *out_vif = &mrt->vif_table[out_vifi];
 	struct vif_device *in_vif = &mrt->vif_table[in_vifi];
 
-	if (!skb->offload_mr_fwd_mark)
+	if (!skb->offload_l3_fwd_mark)
 		return false;
 	if (!out_vif->dev_parent_id.id_len || !in_vif->dev_parent_id.id_len)
 		return false;
