@@ -410,9 +410,6 @@ union cvmx_gmxx_inf_mode {
 		uint64_t reserved_2_63:62;
 #endif
 	} cn31xx;
-	struct cvmx_gmxx_inf_mode_cn31xx cn38xx;
-	struct cvmx_gmxx_inf_mode_cn31xx cn38xxp2;
-	struct cvmx_gmxx_inf_mode_cn30xx cn50xx;
 	struct cvmx_gmxx_inf_mode_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_10_63:54;
@@ -432,11 +429,6 @@ union cvmx_gmxx_inf_mode {
 		uint64_t reserved_10_63:54;
 #endif
 	} cn52xx;
-	struct cvmx_gmxx_inf_mode_cn52xx cn52xxp1;
-	struct cvmx_gmxx_inf_mode_cn52xx cn56xx;
-	struct cvmx_gmxx_inf_mode_cn52xx cn56xxp1;
-	struct cvmx_gmxx_inf_mode_cn31xx cn58xx;
-	struct cvmx_gmxx_inf_mode_cn31xx cn58xxp1;
 	struct cvmx_gmxx_inf_mode_cn61xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_12_63:52;
@@ -456,8 +448,6 @@ union cvmx_gmxx_inf_mode {
 		uint64_t reserved_12_63:52;
 #endif
 	} cn61xx;
-	struct cvmx_gmxx_inf_mode_cn61xx cn63xx;
-	struct cvmx_gmxx_inf_mode_cn61xx cn63xxp1;
 	struct cvmx_gmxx_inf_mode_cn66xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
@@ -500,8 +490,6 @@ union cvmx_gmxx_inf_mode {
 		uint64_t reserved_12_63:52;
 #endif
 	} cn68xx;
-	struct cvmx_gmxx_inf_mode_cn68xx cn68xxp1;
-	struct cvmx_gmxx_inf_mode_cn61xx cnf71xx;
 };
 
 union cvmx_gmxx_prtx_cfg {
@@ -550,10 +538,6 @@ union cvmx_gmxx_prtx_cfg {
 		uint64_t reserved_4_63:60;
 #endif
 	} cn30xx;
-	struct cvmx_gmxx_prtx_cfg_cn30xx cn31xx;
-	struct cvmx_gmxx_prtx_cfg_cn30xx cn38xx;
-	struct cvmx_gmxx_prtx_cfg_cn30xx cn38xxp2;
-	struct cvmx_gmxx_prtx_cfg_cn30xx cn50xx;
 	struct cvmx_gmxx_prtx_cfg_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_14_63:50;
@@ -579,18 +563,6 @@ union cvmx_gmxx_prtx_cfg {
 		uint64_t reserved_14_63:50;
 #endif
 	} cn52xx;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn52xxp1;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn56xx;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn56xxp1;
-	struct cvmx_gmxx_prtx_cfg_cn30xx cn58xx;
-	struct cvmx_gmxx_prtx_cfg_cn30xx cn58xxp1;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn61xx;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn63xx;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn63xxp1;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cn66xx;
-	struct cvmx_gmxx_prtx_cfg_s cn68xx;
-	struct cvmx_gmxx_prtx_cfg_s cn68xxp1;
-	struct cvmx_gmxx_prtx_cfg_cn52xx cnf71xx;
 };
 
 union cvmx_gmxx_rxx_adr_ctl {
@@ -693,8 +665,6 @@ union cvmx_gmxx_rxx_frm_ctl {
 		uint64_t reserved_8_63:56;
 #endif
 	} cn31xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn30xx cn38xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn31xx cn38xxp2;
 	struct cvmx_gmxx_rxx_frm_ctl_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_11_63:53;
@@ -722,9 +692,6 @@ union cvmx_gmxx_rxx_frm_ctl {
 		uint64_t reserved_11_63:53;
 #endif
 	} cn50xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn50xx cn52xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn50xx cn52xxp1;
-	struct cvmx_gmxx_rxx_frm_ctl_cn50xx cn56xx;
 	struct cvmx_gmxx_rxx_frm_ctl_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_10_63:54;
@@ -779,7 +746,6 @@ union cvmx_gmxx_rxx_frm_ctl {
 		uint64_t reserved_11_63:53;
 #endif
 	} cn58xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn30xx cn58xxp1;
 	struct cvmx_gmxx_rxx_frm_ctl_cn61xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_13_63:51;
@@ -811,12 +777,6 @@ union cvmx_gmxx_rxx_frm_ctl {
 		uint64_t reserved_13_63:51;
 #endif
 	} cn61xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn61xx cn63xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn61xx cn63xxp1;
-	struct cvmx_gmxx_rxx_frm_ctl_cn61xx cn66xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn61xx cn68xx;
-	struct cvmx_gmxx_rxx_frm_ctl_cn61xx cn68xxp1;
-	struct cvmx_gmxx_rxx_frm_ctl_cn61xx cnf71xx;
 };
 
 union cvmx_gmxx_rxx_frm_max {
@@ -957,9 +917,6 @@ union cvmx_gmxx_rxx_int_en {
 		uint64_t reserved_19_63:45;
 #endif
 	} cn30xx;
-	struct cvmx_gmxx_rxx_int_en_cn30xx cn31xx;
-	struct cvmx_gmxx_rxx_int_en_cn30xx cn38xx;
-	struct cvmx_gmxx_rxx_int_en_cn30xx cn38xxp2;
 	struct cvmx_gmxx_rxx_int_en_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
@@ -1066,8 +1023,6 @@ union cvmx_gmxx_rxx_int_en {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn52xx;
-	struct cvmx_gmxx_rxx_int_en_cn52xx cn52xxp1;
-	struct cvmx_gmxx_rxx_int_en_cn52xx cn56xx;
 	struct cvmx_gmxx_rxx_int_en_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_27_63:37;
@@ -1170,7 +1125,6 @@ union cvmx_gmxx_rxx_int_en {
 		uint64_t reserved_20_63:44;
 #endif
 	} cn58xx;
-	struct cvmx_gmxx_rxx_int_en_cn58xx cn58xxp1;
 	struct cvmx_gmxx_rxx_int_en_cn61xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
@@ -1230,12 +1184,6 @@ union cvmx_gmxx_rxx_int_en {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn61xx;
-	struct cvmx_gmxx_rxx_int_en_cn61xx cn63xx;
-	struct cvmx_gmxx_rxx_int_en_cn61xx cn63xxp1;
-	struct cvmx_gmxx_rxx_int_en_cn61xx cn66xx;
-	struct cvmx_gmxx_rxx_int_en_cn61xx cn68xx;
-	struct cvmx_gmxx_rxx_int_en_cn61xx cn68xxp1;
-	struct cvmx_gmxx_rxx_int_en_cn61xx cnf71xx;
 };
 
 union cvmx_gmxx_rxx_int_reg {
@@ -1350,9 +1298,6 @@ union cvmx_gmxx_rxx_int_reg {
 		uint64_t reserved_19_63:45;
 #endif
 	} cn30xx;
-	struct cvmx_gmxx_rxx_int_reg_cn30xx cn31xx;
-	struct cvmx_gmxx_rxx_int_reg_cn30xx cn38xx;
-	struct cvmx_gmxx_rxx_int_reg_cn30xx cn38xxp2;
 	struct cvmx_gmxx_rxx_int_reg_cn50xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
@@ -1459,8 +1404,6 @@ union cvmx_gmxx_rxx_int_reg {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn52xx;
-	struct cvmx_gmxx_rxx_int_reg_cn52xx cn52xxp1;
-	struct cvmx_gmxx_rxx_int_reg_cn52xx cn56xx;
 	struct cvmx_gmxx_rxx_int_reg_cn56xxp1 {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_27_63:37;
@@ -1563,7 +1506,6 @@ union cvmx_gmxx_rxx_int_reg {
 		uint64_t reserved_20_63:44;
 #endif
 	} cn58xx;
-	struct cvmx_gmxx_rxx_int_reg_cn58xx cn58xxp1;
 	struct cvmx_gmxx_rxx_int_reg_cn61xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_29_63:35;
@@ -1623,12 +1565,6 @@ union cvmx_gmxx_rxx_int_reg {
 		uint64_t reserved_29_63:35;
 #endif
 	} cn61xx;
-	struct cvmx_gmxx_rxx_int_reg_cn61xx cn63xx;
-	struct cvmx_gmxx_rxx_int_reg_cn61xx cn63xxp1;
-	struct cvmx_gmxx_rxx_int_reg_cn61xx cn66xx;
-	struct cvmx_gmxx_rxx_int_reg_cn61xx cn68xx;
-	struct cvmx_gmxx_rxx_int_reg_cn61xx cn68xxp1;
-	struct cvmx_gmxx_rxx_int_reg_cn61xx cnf71xx;
 };
 
 union cvmx_gmxx_rxx_jabber {
@@ -1707,7 +1643,6 @@ union cvmx_gmxx_txx_thresh {
 		uint64_t reserved_7_63:57;
 #endif
 	} cn30xx;
-	struct cvmx_gmxx_txx_thresh_cn30xx cn31xx;
 	struct cvmx_gmxx_txx_thresh_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_9_63:55;
@@ -1717,21 +1652,6 @@ union cvmx_gmxx_txx_thresh {
 		uint64_t reserved_9_63:55;
 #endif
 	} cn38xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn38xxp2;
-	struct cvmx_gmxx_txx_thresh_cn30xx cn50xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn52xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn52xxp1;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn56xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn56xxp1;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn58xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn58xxp1;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn61xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn63xx;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn63xxp1;
-	struct cvmx_gmxx_txx_thresh_cn38xx cn66xx;
-	struct cvmx_gmxx_txx_thresh_s cn68xx;
-	struct cvmx_gmxx_txx_thresh_s cn68xxp1;
-	struct cvmx_gmxx_txx_thresh_cn38xx cnf71xx;
 };
 
 union cvmx_gmxx_tx_int_en {
@@ -1847,7 +1767,6 @@ union cvmx_gmxx_tx_int_en {
 		uint64_t reserved_16_63:48;
 #endif
 	} cn38xxp2;
-	struct cvmx_gmxx_tx_int_en_cn30xx cn50xx;
 	struct cvmx_gmxx_tx_int_en_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
@@ -1869,12 +1788,6 @@ union cvmx_gmxx_tx_int_en {
 		uint64_t reserved_20_63:44;
 #endif
 	} cn52xx;
-	struct cvmx_gmxx_tx_int_en_cn52xx cn52xxp1;
-	struct cvmx_gmxx_tx_int_en_cn52xx cn56xx;
-	struct cvmx_gmxx_tx_int_en_cn52xx cn56xxp1;
-	struct cvmx_gmxx_tx_int_en_cn38xx cn58xx;
-	struct cvmx_gmxx_tx_int_en_cn38xx cn58xxp1;
-	struct cvmx_gmxx_tx_int_en_s cn61xx;
 	struct cvmx_gmxx_tx_int_en_cn63xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_24_63:40;
@@ -1898,8 +1811,6 @@ union cvmx_gmxx_tx_int_en {
 		uint64_t reserved_24_63:40;
 #endif
 	} cn63xx;
-	struct cvmx_gmxx_tx_int_en_cn63xx cn63xxp1;
-	struct cvmx_gmxx_tx_int_en_s cn66xx;
 	struct cvmx_gmxx_tx_int_en_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_25_63:39;
@@ -1925,7 +1836,6 @@ union cvmx_gmxx_tx_int_en {
 		uint64_t reserved_25_63:39;
 #endif
 	} cn68xx;
-	struct cvmx_gmxx_tx_int_en_cn68xx cn68xxp1;
 	struct cvmx_gmxx_tx_int_en_cnf71xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_25_63:39;
@@ -2074,7 +1984,6 @@ union cvmx_gmxx_tx_int_reg {
 		uint64_t reserved_16_63:48;
 #endif
 	} cn38xxp2;
-	struct cvmx_gmxx_tx_int_reg_cn30xx cn50xx;
 	struct cvmx_gmxx_tx_int_reg_cn52xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_20_63:44;
@@ -2096,12 +2005,6 @@ union cvmx_gmxx_tx_int_reg {
 		uint64_t reserved_20_63:44;
 #endif
 	} cn52xx;
-	struct cvmx_gmxx_tx_int_reg_cn52xx cn52xxp1;
-	struct cvmx_gmxx_tx_int_reg_cn52xx cn56xx;
-	struct cvmx_gmxx_tx_int_reg_cn52xx cn56xxp1;
-	struct cvmx_gmxx_tx_int_reg_cn38xx cn58xx;
-	struct cvmx_gmxx_tx_int_reg_cn38xx cn58xxp1;
-	struct cvmx_gmxx_tx_int_reg_s cn61xx;
 	struct cvmx_gmxx_tx_int_reg_cn63xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_24_63:40;
@@ -2125,8 +2028,6 @@ union cvmx_gmxx_tx_int_reg {
 		uint64_t reserved_24_63:40;
 #endif
 	} cn63xx;
-	struct cvmx_gmxx_tx_int_reg_cn63xx cn63xxp1;
-	struct cvmx_gmxx_tx_int_reg_s cn66xx;
 	struct cvmx_gmxx_tx_int_reg_cn68xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_25_63:39;
@@ -2152,7 +2053,6 @@ union cvmx_gmxx_tx_int_reg {
 		uint64_t reserved_25_63:39;
 #endif
 	} cn68xx;
-	struct cvmx_gmxx_tx_int_reg_cn68xx cn68xxp1;
 	struct cvmx_gmxx_tx_int_reg_cnf71xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_25_63:39;
@@ -2224,7 +2124,6 @@ union cvmx_gmxx_tx_ovr_bp {
 		uint64_t reserved_11_63:53;
 #endif
 	} cn30xx;
-	struct cvmx_gmxx_tx_ovr_bp_cn30xx cn31xx;
 	struct cvmx_gmxx_tx_ovr_bp_cn38xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_12_63:52;
@@ -2238,20 +2137,6 @@ union cvmx_gmxx_tx_ovr_bp {
 		uint64_t reserved_12_63:52;
 #endif
 	} cn38xx;
-	struct cvmx_gmxx_tx_ovr_bp_cn38xx cn38xxp2;
-	struct cvmx_gmxx_tx_ovr_bp_cn30xx cn50xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn52xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn52xxp1;
-	struct cvmx_gmxx_tx_ovr_bp_s cn56xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn56xxp1;
-	struct cvmx_gmxx_tx_ovr_bp_cn38xx cn58xx;
-	struct cvmx_gmxx_tx_ovr_bp_cn38xx cn58xxp1;
-	struct cvmx_gmxx_tx_ovr_bp_s cn61xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn63xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn63xxp1;
-	struct cvmx_gmxx_tx_ovr_bp_s cn66xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn68xx;
-	struct cvmx_gmxx_tx_ovr_bp_s cn68xxp1;
 	struct cvmx_gmxx_tx_ovr_bp_cnf71xx {
 #ifdef __BIG_ENDIAN_BITFIELD
 		uint64_t reserved_48_63:16;
@@ -2329,9 +2214,6 @@ union cvmx_gmxx_tx_spi_max {
 		uint64_t reserved_16_63:48;
 #endif
 	} cn38xx;
-	struct cvmx_gmxx_tx_spi_max_cn38xx cn38xxp2;
-	struct cvmx_gmxx_tx_spi_max_s cn58xx;
-	struct cvmx_gmxx_tx_spi_max_s cn58xxp1;
 };
 
 union cvmx_gmxx_tx_spi_thresh {

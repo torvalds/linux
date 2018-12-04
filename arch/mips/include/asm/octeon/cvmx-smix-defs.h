@@ -186,23 +186,6 @@ union cvmx_smix_clk {
 		uint64_t reserved_21_63:43;
 #endif
 	} cn30xx;
-	struct cvmx_smix_clk_cn30xx cn31xx;
-	struct cvmx_smix_clk_cn30xx cn38xx;
-	struct cvmx_smix_clk_cn30xx cn38xxp2;
-	struct cvmx_smix_clk_s cn50xx;
-	struct cvmx_smix_clk_s cn52xx;
-	struct cvmx_smix_clk_s cn52xxp1;
-	struct cvmx_smix_clk_s cn56xx;
-	struct cvmx_smix_clk_s cn56xxp1;
-	struct cvmx_smix_clk_cn30xx cn58xx;
-	struct cvmx_smix_clk_cn30xx cn58xxp1;
-	struct cvmx_smix_clk_s cn61xx;
-	struct cvmx_smix_clk_s cn63xx;
-	struct cvmx_smix_clk_s cn63xxp1;
-	struct cvmx_smix_clk_s cn66xx;
-	struct cvmx_smix_clk_s cn68xx;
-	struct cvmx_smix_clk_s cn68xxp1;
-	struct cvmx_smix_clk_s cnf71xx;
 };
 
 union cvmx_smix_cmd {
@@ -241,23 +224,6 @@ union cvmx_smix_cmd {
 		uint64_t reserved_17_63:47;
 #endif
 	} cn30xx;
-	struct cvmx_smix_cmd_cn30xx cn31xx;
-	struct cvmx_smix_cmd_cn30xx cn38xx;
-	struct cvmx_smix_cmd_cn30xx cn38xxp2;
-	struct cvmx_smix_cmd_s cn50xx;
-	struct cvmx_smix_cmd_s cn52xx;
-	struct cvmx_smix_cmd_s cn52xxp1;
-	struct cvmx_smix_cmd_s cn56xx;
-	struct cvmx_smix_cmd_s cn56xxp1;
-	struct cvmx_smix_cmd_cn30xx cn58xx;
-	struct cvmx_smix_cmd_cn30xx cn58xxp1;
-	struct cvmx_smix_cmd_s cn61xx;
-	struct cvmx_smix_cmd_s cn63xx;
-	struct cvmx_smix_cmd_s cn63xxp1;
-	struct cvmx_smix_cmd_s cn66xx;
-	struct cvmx_smix_cmd_s cn68xx;
-	struct cvmx_smix_cmd_s cn68xxp1;
-	struct cvmx_smix_cmd_s cnf71xx;
 };
 
 union cvmx_smix_en {
@@ -271,24 +237,6 @@ union cvmx_smix_en {
 		uint64_t reserved_1_63:63;
 #endif
 	} s;
-	struct cvmx_smix_en_s cn30xx;
-	struct cvmx_smix_en_s cn31xx;
-	struct cvmx_smix_en_s cn38xx;
-	struct cvmx_smix_en_s cn38xxp2;
-	struct cvmx_smix_en_s cn50xx;
-	struct cvmx_smix_en_s cn52xx;
-	struct cvmx_smix_en_s cn52xxp1;
-	struct cvmx_smix_en_s cn56xx;
-	struct cvmx_smix_en_s cn56xxp1;
-	struct cvmx_smix_en_s cn58xx;
-	struct cvmx_smix_en_s cn58xxp1;
-	struct cvmx_smix_en_s cn61xx;
-	struct cvmx_smix_en_s cn63xx;
-	struct cvmx_smix_en_s cn63xxp1;
-	struct cvmx_smix_en_s cn66xx;
-	struct cvmx_smix_en_s cn68xx;
-	struct cvmx_smix_en_s cn68xxp1;
-	struct cvmx_smix_en_s cnf71xx;
 };
 
 union cvmx_smix_rd_dat {
@@ -306,24 +254,6 @@ union cvmx_smix_rd_dat {
 		uint64_t reserved_18_63:46;
 #endif
 	} s;
-	struct cvmx_smix_rd_dat_s cn30xx;
-	struct cvmx_smix_rd_dat_s cn31xx;
-	struct cvmx_smix_rd_dat_s cn38xx;
-	struct cvmx_smix_rd_dat_s cn38xxp2;
-	struct cvmx_smix_rd_dat_s cn50xx;
-	struct cvmx_smix_rd_dat_s cn52xx;
-	struct cvmx_smix_rd_dat_s cn52xxp1;
-	struct cvmx_smix_rd_dat_s cn56xx;
-	struct cvmx_smix_rd_dat_s cn56xxp1;
-	struct cvmx_smix_rd_dat_s cn58xx;
-	struct cvmx_smix_rd_dat_s cn58xxp1;
-	struct cvmx_smix_rd_dat_s cn61xx;
-	struct cvmx_smix_rd_dat_s cn63xx;
-	struct cvmx_smix_rd_dat_s cn63xxp1;
-	struct cvmx_smix_rd_dat_s cn66xx;
-	struct cvmx_smix_rd_dat_s cn68xx;
-	struct cvmx_smix_rd_dat_s cn68xxp1;
-	struct cvmx_smix_rd_dat_s cnf71xx;
 };
 
 union cvmx_smix_wr_dat {
@@ -341,24 +271,6 @@ union cvmx_smix_wr_dat {
 		uint64_t reserved_18_63:46;
 #endif
 	} s;
-	struct cvmx_smix_wr_dat_s cn30xx;
-	struct cvmx_smix_wr_dat_s cn31xx;
-	struct cvmx_smix_wr_dat_s cn38xx;
-	struct cvmx_smix_wr_dat_s cn38xxp2;
-	struct cvmx_smix_wr_dat_s cn50xx;
-	struct cvmx_smix_wr_dat_s cn52xx;
-	struct cvmx_smix_wr_dat_s cn52xxp1;
-	struct cvmx_smix_wr_dat_s cn56xx;
-	struct cvmx_smix_wr_dat_s cn56xxp1;
-	struct cvmx_smix_wr_dat_s cn58xx;
-	struct cvmx_smix_wr_dat_s cn58xxp1;
-	struct cvmx_smix_wr_dat_s cn61xx;
-	struct cvmx_smix_wr_dat_s cn63xx;
-	struct cvmx_smix_wr_dat_s cn63xxp1;
-	struct cvmx_smix_wr_dat_s cn66xx;
-	struct cvmx_smix_wr_dat_s cn68xx;
-	struct cvmx_smix_wr_dat_s cn68xxp1;
-	struct cvmx_smix_wr_dat_s cnf71xx;
 };
 
 #endif
