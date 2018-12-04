@@ -63,6 +63,7 @@
 #include "accel/tls.h"
 #include "lib/clock.h"
 #include "lib/vxlan.h"
+#include "lib/devcom.h"
 #include "diag/fw_tracer.h"
 
 MODULE_AUTHOR("Eli Cohen <eli@mellanox.com>");
@@ -722,16 +723,21 @@ static int mlx5_init_once(struct mlx5_core_dev *dev, struct mlx5_priv *priv)
 	struct pci_dev *pdev = dev->pdev;
 	int err;
 
+	priv->devcom = mlx5_devcom_register_device(dev);
+	if (IS_ERR(priv->devcom))
+		dev_err(&pdev->dev, "failed to register with devcom (0x%p)\n",
+			priv->devcom);
+
 	err = mlx5_query_board_id(dev);
 	if (err) {
 		dev_err(&pdev->dev, "query board id failed\n");
-		goto out;
+		goto err_devcom;
 	}
 
 	err = mlx5_eq_table_init(dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to initialize eq\n");
-		goto out;
+		goto err_devcom;
 	}
 
 	err = mlx5_events_init(dev);
@@ -807,8 +813,9 @@ err_events_cleanup:
 	mlx5_events_cleanup(dev);
 err_eq_cleanup:
 	mlx5_eq_table_cleanup(dev);
+err_devcom:
+	mlx5_devcom_unregister_device(dev->priv.devcom);
 
-out:
 	return err;
 }
 
@@ -828,6 +835,7 @@ static void mlx5_cleanup_once(struct mlx5_core_dev *dev)
 	mlx5_cq_debugfs_cleanup(dev);
 	mlx5_events_cleanup(dev);
 	mlx5_eq_table_cleanup(dev);
+	mlx5_devcom_unregister_device(dev->priv.devcom);
 }
 
 static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
