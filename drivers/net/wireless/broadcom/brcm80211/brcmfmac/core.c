@@ -1130,7 +1130,7 @@ int brcmf_attach(struct device *dev, struct brcmf_mp_device *settings)
 
 	brcmf_dbg(TRACE, "Enter\n");
 
-	ops = brcmf_cfg80211_get_ops();
+	ops = brcmf_cfg80211_get_ops(settings);
 	if (!ops)
 		return -ENOMEM;
 
