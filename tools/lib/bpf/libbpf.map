@@ -65,6 +65,7 @@ LIBBPF_0.0.1 {
 		bpf_prog_load_xattr;
 		bpf_prog_query;
 		bpf_prog_test_run;
+		bpf_prog_test_run_xattr;
 		bpf_program__fd;
 		bpf_program__is_kprobe;
 		bpf_program__is_perf_event;

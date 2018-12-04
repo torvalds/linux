@@ -463,6 +463,29 @@ int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 	return ret;
 }
 
+int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr)
+{
+	union bpf_attr attr;
+	int ret;
+
+	if (!test_attr->data_out && test_attr->data_size_out > 0)
+		return -EINVAL;
+
+	bzero(&attr, sizeof(attr));
+	attr.test.prog_fd = test_attr->prog_fd;
+	attr.test.data_in = ptr_to_u64(test_attr->data_in);
+	attr.test.data_out = ptr_to_u64(test_attr->data_out);
+	attr.test.data_size_in = test_attr->data_size_in;
+	attr.test.data_size_out = test_attr->data_size_out;
+	attr.test.repeat = test_attr->repeat;
+
+	ret = sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
+	test_attr->data_size_out = attr.test.data_size_out;
+	test_attr->retval = attr.test.retval;
+	test_attr->duration = attr.test.duration;
+	return ret;
+}
+
 int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id)
 {
 	union bpf_attr attr;
