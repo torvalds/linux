@@ -81,7 +81,7 @@ static char *check[] = {
 	NULL
 };
 
-static u32 block_sizes[] = { 16, 64, 256, 1024, 8192, 0 };
+static u32 block_sizes[] = { 16, 64, 256, 1024, 1472, 8192, 0 };
 static u32 aead_sizes[] = { 16, 64, 256, 512, 1024, 2048, 4096, 8192, 0 };
 
 #define XBUFSIZE 8
