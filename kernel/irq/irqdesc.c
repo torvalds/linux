@@ -449,28 +449,29 @@ static void free_desc(unsigned int irq)
 }
 
 static int alloc_descs(unsigned int start, unsigned int cnt, int node,
-		       const struct cpumask *affinity, struct module *owner)
+		       const struct irq_affinity_desc *affinity,
+		       struct module *owner)
 {
-	const struct cpumask *mask = NULL;
 	struct irq_desc *desc;
 	unsigned int flags;
 	int i;
 
 	/* Validate affinity mask(s) */
 	if (affinity) {
-		for (i = 0, mask = affinity; i < cnt; i++, mask++) {
-			if (cpumask_empty(mask))
+		for (i = 0; i < cnt; i++) {
+			if (cpumask_empty(&affinity[i].mask))
 				return -EINVAL;
 		}
 	}
 
 	flags = affinity ? IRQD_AFFINITY_MANAGED | IRQD_MANAGED_SHUTDOWN : 0;
-	mask = NULL;
 
 	for (i = 0; i < cnt; i++) {
+		const struct cpumask *mask = NULL;
+
 		if (affinity) {
 			node = cpu_to_node(cpumask_first(affinity));
-			mask = affinity;
+			mask = &affinity->mask;
 			affinity++;
 		}
 		desc = alloc_desc(start + i, node, flags, mask, owner);
@@ -575,7 +576,7 @@ static void free_desc(unsigned int irq)
 }
 
 static inline int alloc_descs(unsigned int start, unsigned int cnt, int node,
-			      const struct cpumask *affinity,
+			      const struct irq_affinity_desc *affinity,
 			      struct module *owner)
 {
 	u32 i;
@@ -705,7 +706,7 @@ EXPORT_SYMBOL_GPL(irq_free_descs);
  */
 int __ref
 __irq_alloc_descs(int irq, unsigned int from, unsigned int cnt, int node,
-		  struct module *owner, const struct cpumask *affinity)
+		  struct module *owner, const struct irq_affinity_desc *affinity)
 {
 	int start, ret;
 
