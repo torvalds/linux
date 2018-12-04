@@ -1060,6 +1060,11 @@
  *	the measurement completed, using the measurement cookie
  *	(%NL80211_ATTR_COOKIE).
  *
+ * @NL80211_CMD_NOTIFY_RADAR: Notify the kernel that a radar signal was
+ *	detected and reported by a neighboring device on the channel
+ *	indicated by %NL80211_ATTR_WIPHY_FREQ and other attributes
+ *	determining the width and type.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -1277,6 +1282,8 @@ enum nl80211_commands {
 	NL80211_CMD_PEER_MEASUREMENT_START,
 	NL80211_CMD_PEER_MEASUREMENT_RESULT,
 	NL80211_CMD_PEER_MEASUREMENT_COMPLETE,
+
+	NL80211_CMD_NOTIFY_RADAR,
 
 	/* add new commands above here */
 
