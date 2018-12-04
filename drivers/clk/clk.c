@@ -3893,6 +3893,17 @@ static void devm_of_clk_release_provider(struct device *dev, void *res)
 	of_clk_del_provider(*(struct device_node **)res);
 }
 
+/**
+ * devm_of_clk_add_hw_provider() - Managed clk provider node registration
+ * @dev: Device acting as the clock provider (used for DT node and lifetime)
+ * @get: callback for decoding clk_hw
+ * @data: context pointer for @get callback
+ *
+ * Registers clock provider for given device's node. Provider is automatically
+ * released at device exit.
+ *
+ * Return: 0 on success or an errno on failure.
+ */
 int devm_of_clk_add_hw_provider(struct device *dev,
 			struct clk_hw *(*get)(struct of_phandle_args *clkspec,
 					      void *data),
@@ -3950,6 +3961,10 @@ static int devm_clk_provider_match(struct device *dev, void *res, void *data)
 	return *np == data;
 }
 
+/**
+ * devm_of_clk_del_provider() - Remove clock provider registered using devm
+ * @dev: Device to whose lifetime the clock provider was bound
+ */
 void devm_of_clk_del_provider(struct device *dev)
 {
 	int ret;
