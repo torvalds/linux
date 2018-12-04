@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include "symbol.h"
+#include "map.h"
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
@@ -38,6 +39,7 @@ struct thread {
 	void			*priv;
 	struct thread_stack	*ts;
 	struct nsinfo		*nsinfo;
+	struct srccode_state	srccode_state;
 #ifdef HAVE_LIBUNWIND_SUPPORT
 	void				*addr_space;
 	struct unwind_libunwind_ops	*unwind_libunwind_ops;
