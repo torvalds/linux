@@ -166,6 +166,15 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	if (ret)
 		return ret;
 
+	/*
+	 * Parse pptable format and fill PPTable_t smc_pptable to
+	 * smu_table_context structure. And read the smc_dpm_table from vbios,
+	 * then fill it into smc_pptable.
+	 */
+	ret = smu_parse_pptable(smu);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
