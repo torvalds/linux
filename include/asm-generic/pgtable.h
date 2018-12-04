@@ -386,6 +386,20 @@ static inline int pud_same(pud_t pud_a, pud_t pud_b)
 }
 #endif
 
+#ifndef __HAVE_ARCH_P4D_SAME
+static inline int p4d_same(p4d_t p4d_a, p4d_t p4d_b)
+{
+	return p4d_val(p4d_a) == p4d_val(p4d_b);
+}
+#endif
+
+#ifndef __HAVE_ARCH_PGD_SAME
+static inline int pgd_same(pgd_t pgd_a, pgd_t pgd_b)
+{
+	return pgd_val(pgd_a) == pgd_val(pgd_b);
+}
+#endif
+
 #ifndef __HAVE_ARCH_DO_SWAP_PAGE
 /*
  * Some architectures support metadata associated with a page. When a
