@@ -359,3 +359,14 @@ encryption of files and directories.
     :maxdepth: 2
 
     fscrypt
+
+Pathname lookup
+===============
+
+Pathname lookup in Linux is a complex beast; the document linked below
+provides a comprehensive summary for those looking for the details.
+
+.. toctree::
+   :maxdepth: 2
+
+   path-lookup.rst
