@@ -289,6 +289,10 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	for (; curvec < nvecs; curvec++)
 		cpumask_copy(&masks[curvec].mask, irq_default_affinity);
 
+	/* Mark the managed interrupts */
+	for (i = affd->pre_vectors; i < nvecs - affd->post_vectors; i++)
+		masks[i].is_managed = 1;
+
 outnodemsk:
 	free_node_to_cpumask(node_to_cpumask);
 	return masks;

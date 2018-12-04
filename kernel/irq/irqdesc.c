@@ -453,27 +453,30 @@ static int alloc_descs(unsigned int start, unsigned int cnt, int node,
 		       struct module *owner)
 {
 	struct irq_desc *desc;
-	unsigned int flags;
 	int i;
 
 	/* Validate affinity mask(s) */
 	if (affinity) {
-		for (i = 0; i < cnt; i++) {
+		for (i = 0; i < cnt; i++, i++) {
 			if (cpumask_empty(&affinity[i].mask))
 				return -EINVAL;
 		}
 	}
 
-	flags = affinity ? IRQD_AFFINITY_MANAGED | IRQD_MANAGED_SHUTDOWN : 0;
-
 	for (i = 0; i < cnt; i++) {
 		const struct cpumask *mask = NULL;
+		unsigned int flags = 0;
 
 		if (affinity) {
-			node = cpu_to_node(cpumask_first(affinity));
+			if (affinity->is_managed) {
+				flags = IRQD_AFFINITY_MANAGED |
+					IRQD_MANAGED_SHUTDOWN;
+			}
 			mask = &affinity->mask;
+			node = cpu_to_node(cpumask_first(mask));
 			affinity++;
 		}
+
 		desc = alloc_desc(start + i, node, flags, mask, owner);
 		if (!desc)
 			goto err;

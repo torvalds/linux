@@ -263,6 +263,7 @@ struct irq_affinity {
  */
 struct irq_affinity_desc {
 	struct cpumask	mask;
+	unsigned int	is_managed : 1;
 };
 
 #if defined(CONFIG_SMP)
