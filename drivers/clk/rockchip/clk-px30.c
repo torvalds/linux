@@ -212,11 +212,11 @@ static struct rockchip_clk_branch px30_pdm_fracmux __initdata =
 			PX30_CLKSEL_CON(26), 15, 1, MFLAGS);
 
 static struct rockchip_clk_branch px30_i2s0_tx_fracmux __initdata =
-	MUX(0, "clk_i2s0_tx_mux", mux_i2s0_tx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S0_TX_MUX, "clk_i2s0_tx_mux", mux_i2s0_tx_p, CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(28), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch px30_i2s0_rx_fracmux __initdata =
-	MUX(0, "clk_i2s0_rx_mux", mux_i2s0_rx_p, CLK_SET_RATE_PARENT,
+	MUX(SCLK_I2S0_RX_MUX, "clk_i2s0_rx_mux", mux_i2s0_rx_p, CLK_SET_RATE_PARENT,
 			PX30_CLKSEL_CON(58), 10, 2, MFLAGS);
 
 static struct rockchip_clk_branch px30_i2s1_fracmux __initdata =
