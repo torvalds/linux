@@ -92,16 +92,23 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int asoc_simple_card_dai_link_of(struct device_node *np,
+static int asoc_simple_card_dai_link_of(struct device_node *link,
+					struct device_node *np,
+					struct device_node *codec,
 					struct simple_card_data *priv,
-					unsigned int daifmt,
-					int idx, bool is_fe)
+					int idx, bool is_fe,
+					bool is_top_level_node)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, idx);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, idx);
 	struct snd_soc_card *card = simple_priv_to_card(priv);
+	char *prefix = "";
 	int ret;
+
+	/* For single DAI link & old style of DT node */
+	if (is_top_level_node)
+		prefix = PREFIX;
 
 	if (is_fe) {
 		int is_single_links = 0;
@@ -178,7 +185,11 @@ static int asoc_simple_card_dai_link_of(struct device_node *np,
 	if (ret < 0)
 		return ret;
 
-	dai_link->dai_fmt		= daifmt;
+	ret = asoc_simple_card_parse_daifmt(dev, link, codec,
+					    prefix, &dai_link->dai_fmt);
+	if (ret < 0)
+		return ret;
+
 	dai_link->dpcm_playback		= 1;
 	dai_link->dpcm_capture		= 1;
 	dai_link->ops			= &asoc_simple_card_ops;
@@ -191,10 +202,10 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *np;
-	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct device_node *node = dev->of_node;
-	unsigned int daifmt = 0;
+	struct device_node *np;
+	struct device_node *codec;
+	struct snd_soc_card *card = simple_priv_to_card(priv);
 	bool is_fe;
 	int ret, i;
 
@@ -211,22 +222,18 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 
 	asoc_simple_card_parse_convert(dev, node, PREFIX, &priv->adata);
 
-	/* find 1st codec */
-	np = of_get_child_by_name(node, PREFIX "codec");
-	if (!np)
+	i = 0;
+	codec = of_get_child_by_name(node, PREFIX "codec");
+	if (!codec)
 		return -ENODEV;
 
-	ret = asoc_simple_card_parse_daifmt(dev, node, np, PREFIX, &daifmt);
-	if (ret < 0)
-		return ret;
-
-	i = 0;
 	for_each_child_of_node(node, np) {
 		is_fe = false;
 		if (of_node_name_eq(np, PREFIX "cpu"))
 			is_fe = true;
 
-		ret = asoc_simple_card_dai_link_of(np, priv, daifmt, i, is_fe);
+		ret = asoc_simple_card_dai_link_of(node, np, codec, priv,
+						   i, is_fe, true);
 		if (ret < 0)
 			return ret;
 		i++;
