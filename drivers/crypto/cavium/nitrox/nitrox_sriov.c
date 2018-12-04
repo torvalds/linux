@@ -6,6 +6,7 @@
 #include "nitrox_hal.h"
 #include "nitrox_common.h"
 #include "nitrox_isr.h"
+#include "nitrox_mbx.h"
 
 /**
  * num_vfs_valid - validate VF count
@@ -52,6 +53,31 @@ static inline enum vf_mode num_vfs_to_mode(int num_vfs)
 	return mode;
 }
 
+static inline int vf_mode_to_nr_queues(enum vf_mode mode)
+{
+	int nr_queues = 0;
+
+	switch (mode) {
+	case __NDEV_MODE_PF:
+		nr_queues = MAX_PF_QUEUES;
+		break;
+	case __NDEV_MODE_VF16:
+		nr_queues = 8;
+		break;
+	case __NDEV_MODE_VF32:
+		nr_queues = 4;
+		break;
+	case __NDEV_MODE_VF64:
+		nr_queues = 2;
+		break;
+	case __NDEV_MODE_VF128:
+		nr_queues = 1;
+		break;
+	}
+
+	return nr_queues;
+}
+
 static void nitrox_pf_cleanup(struct nitrox_device *ndev)
 {
 	 /* PF has no queues in SR-IOV mode */
@@ -94,16 +120,31 @@ static int nitrox_pf_reinit(struct nitrox_device *ndev)
 	return nitrox_crypto_register();
 }
 
-static int nitrox_sriov_init(struct nitrox_device *ndev)
-{
-	/* register interrupts for PF in SR-IOV */
-	return nitrox_sriov_register_interupts(ndev);
-}
-
 static void nitrox_sriov_cleanup(struct nitrox_device *ndev)
 {
 	/* unregister interrupts for PF in SR-IOV */
 	nitrox_sriov_unregister_interrupts(ndev);
+	nitrox_mbox_cleanup(ndev);
+}
+
+static int nitrox_sriov_init(struct nitrox_device *ndev)
+{
+	int ret;
+
+	/* register interrupts for PF in SR-IOV */
+	ret = nitrox_sriov_register_interupts(ndev);
+	if (ret)
+		return ret;
+
+	ret = nitrox_mbox_init(ndev);
+	if (ret)
+		goto sriov_init_fail;
+
+	return 0;
+
+sriov_init_fail:
+	nitrox_sriov_cleanup(ndev);
+	return ret;
 }
 
 static int nitrox_sriov_enable(struct pci_dev *pdev, int num_vfs)
@@ -126,8 +167,9 @@ static int nitrox_sriov_enable(struct pci_dev *pdev, int num_vfs)
 	}
 	dev_info(DEV(ndev), "Enabled VF(s) %d\n", num_vfs);
 
-	ndev->iov.num_vfs = num_vfs;
 	ndev->mode = num_vfs_to_mode(num_vfs);
+	ndev->iov.num_vfs = num_vfs;
+	ndev->iov.max_vf_queues = vf_mode_to_nr_queues(ndev->mode);
 	/* set bit in flags */
 	set_bit(__NDEV_SRIOV_BIT, &ndev->flags);
 
@@ -169,6 +211,7 @@ static int nitrox_sriov_disable(struct pci_dev *pdev)
 	clear_bit(__NDEV_SRIOV_BIT, &ndev->flags);
 
 	ndev->iov.num_vfs = 0;
+	ndev->iov.max_vf_queues = 0;
 	ndev->mode = __NDEV_MODE_PF;
 
 	/* cleanup PF SR-IOV resources */

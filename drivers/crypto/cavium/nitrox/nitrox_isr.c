@@ -7,6 +7,7 @@
 #include "nitrox_csr.h"
 #include "nitrox_common.h"
 #include "nitrox_hal.h"
+#include "nitrox_mbx.h"
 
 /**
  * One vector for each type of ring
@@ -220,7 +221,8 @@ static void nps_core_int_tasklet(unsigned long data)
  */
 static irqreturn_t nps_core_int_isr(int irq, void *data)
 {
-	struct nitrox_device *ndev = data;
+	struct nitrox_q_vector *qvec = data;
+	struct nitrox_device *ndev = qvec->ndev;
 	union nps_core_int_active core_int;
 
 	core_int.value = nitrox_read_csr(ndev, NPS_CORE_INT_ACTIVE);
@@ -245,6 +247,10 @@ static irqreturn_t nps_core_int_isr(int irq, void *data)
 
 	if (core_int.s.bmi)
 		clear_bmi_err_intr(ndev);
+
+	/* Mailbox interrupt */
+	if (core_int.s.mbox)
+		nitrox_pf2vf_mbox_handler(ndev);
 
 	/* If more work callback the ISR, set resend */
 	core_int.s.resend = 1;

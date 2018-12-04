@@ -8,6 +8,8 @@
 #include <linux/if.h>
 
 #define VERSION_LEN 32
+/* Maximum queues in PF mode */
+#define MAX_PF_QUEUES	64
 
 /**
  * struct nitrox_cmdq - NITROX command queue
@@ -104,12 +106,57 @@ struct nitrox_q_vector {
 };
 
 /**
+ * mbox_msg - Mailbox message data
+ * @type: message type
+ * @opcode: message opcode
+ * @data: message data
+ */
+union mbox_msg {
+	u64 value;
+	struct {
+		u64 type: 2;
+		u64 opcode: 6;
+		u64 data: 58;
+	};
+	struct {
+		u64 type: 2;
+		u64 opcode: 6;
+		u64 chipid: 8;
+		u64 vfid: 8;
+	} id;
+};
+
+/**
+ * nitrox_vfdev - NITROX VF device instance in PF
+ * @state: VF device state
+ * @vfno: VF number
+ * @nr_queues: number of queues enabled in VF
+ * @ring: ring to communicate with VF
+ * @msg: Mailbox message data from VF
+ * @mbx_resp: Mailbox counters
+ */
+struct nitrox_vfdev {
+	atomic_t state;
+	int vfno;
+	int nr_queues;
+	int ring;
+	union mbox_msg msg;
+	atomic64_t mbx_resp;
+};
+
+/**
  * struct nitrox_iov - SR-IOV information
  * @num_vfs: number of VF(s) enabled
- * @msix: MSI-X for PF in SR-IOV case
+ * @max_vf_queues: Maximum number of queues allowed for VF
+ * @vfdev: VF(s) devices
+ * @pf2vf_wq: workqueue for PF2VF communication
+ * @msix: MSI-X entry for PF in SR-IOV case
  */
 struct nitrox_iov {
 	int num_vfs;
+	int max_vf_queues;
+	struct nitrox_vfdev *vfdev;
+	struct workqueue_struct *pf2vf_wq;
 	struct msix_entry msix;
 };
 
@@ -226,17 +273,9 @@ static inline bool nitrox_ready(struct nitrox_device *ndev)
 	return atomic_read(&ndev->state) == __NDEV_READY;
 }
 
-#ifdef CONFIG_DEBUG_FS
-int nitrox_debugfs_init(struct nitrox_device *ndev);
-void nitrox_debugfs_exit(struct nitrox_device *ndev);
-#else
-static inline int nitrox_debugfs_init(struct nitrox_device *ndev)
+static inline bool nitrox_vfdev_ready(struct nitrox_vfdev *vfdev)
 {
-	return 0;
+	return atomic_read(&vfdev->state) == __NDEV_READY;
 }
-
-static inline void nitrox_debugfs_exit(struct nitrox_device *ndev)
-{ }
-#endif
 
 #endif /* __NITROX_DEV_H */
