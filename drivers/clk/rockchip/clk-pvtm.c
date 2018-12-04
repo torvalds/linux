@@ -172,7 +172,6 @@ static int clock_pvtm_regitstor(struct device *dev,
 	/* Init the xin32k_pvtm */
 	pvtm->info->init_freq(pvtm);
 
-	init.flags = CLK_IS_ROOT;
 	init.parent_names = NULL;
 	init.num_parents = 0;
 	init.name = "xin32k_pvtm";
