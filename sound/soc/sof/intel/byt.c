@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 #include <trace/events/hswadsp.h>
 #include <sound/sof.h>
 #include <sound/sof/xtensa.h>
@@ -116,15 +117,12 @@ static u32 byt_read(struct snd_sof_dev *sdev, void __iomem *addr)
 static void byt_write64(struct snd_sof_dev *sdev, void __iomem *addr,
 			u64 value)
 {
-	memcpy_toio(addr, &value, sizeof(value));
+	writeq(value, addr);
 }
 
 static u64 byt_read64(struct snd_sof_dev *sdev, void __iomem *addr)
 {
-	u64 val;
-
-	memcpy_fromio(&val, addr, sizeof(val));
-	return val;
+	return readq(addr);
 }
 
 /*
