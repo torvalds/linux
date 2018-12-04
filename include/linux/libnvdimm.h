@@ -87,7 +87,7 @@ struct nvdimm_bus_descriptor {
 	ndctl_fn ndctl;
 	int (*flush_probe)(struct nvdimm_bus_descriptor *nd_desc);
 	int (*clear_to_send)(struct nvdimm_bus_descriptor *nd_desc,
-			struct nvdimm *nvdimm, unsigned int cmd);
+			struct nvdimm *nvdimm, unsigned int cmd, void *data);
 };
 
 struct nd_cmd_desc {
