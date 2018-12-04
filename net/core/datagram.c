@@ -465,7 +465,7 @@ int __skb_datagram_iter(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			if (__skb_datagram_iter(frag_iter, offset - start,
-						to, copy, short_copy, cb, data))
+						to, copy, fault_short, cb, data))
 				goto fault;
 			if ((len -= copy) == 0)
 				return 0;
@@ -491,6 +491,24 @@ short_copy:
 
 	return 0;
 }
+
+/**
+ *	skb_copy_and_hash_datagram_iter - Copy datagram to an iovec iterator
+ *          and update a hash.
+ *	@skb: buffer to copy
+ *	@offset: offset in the buffer to start copying from
+ *	@to: iovec iterator to copy to
+ *	@len: amount of data to copy from buffer to iovec
+ *      @hash: hash request to update
+ */
+int skb_copy_and_hash_datagram_iter(const struct sk_buff *skb, int offset,
+			   struct iov_iter *to, int len,
+			   struct ahash_request *hash)
+{
+	return __skb_datagram_iter(skb, offset, to, len, true,
+			hash_and_copy_to_iter, hash);
+}
+EXPORT_SYMBOL(skb_copy_and_hash_datagram_iter);
 
 static size_t simple_copy_to_iter(const void *addr, size_t bytes,
 		void *data __always_unused, struct iov_iter *i)
