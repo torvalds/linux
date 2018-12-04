@@ -439,7 +439,6 @@ struct intel_engine_cs {
 	struct i915_wa_list ctx_wa_list;
 	struct i915_wa_list wa_list;
 	struct i915_wa_list whitelist;
-	struct i915_vma *scratch;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -895,10 +894,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
-
-int intel_engine_create_scratch(struct intel_engine_cs *engine,
-				unsigned int size);
-void intel_engine_cleanup_scratch(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);

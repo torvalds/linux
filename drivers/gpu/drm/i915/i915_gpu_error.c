@@ -1571,7 +1571,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			if (HAS_BROKEN_CS_TLB(i915))
 				ee->wa_batchbuffer =
 					i915_error_object_create(i915,
-								 engine->scratch);
+								 i915->gt.scratch);
 			request_record_user_bo(request, ee);
 
 			ee->ctx =

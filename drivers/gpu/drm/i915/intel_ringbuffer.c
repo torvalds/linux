@@ -150,8 +150,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 	 */
 	if (mode & EMIT_INVALIDATE) {
 		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
-		*cs++ = i915_ggtt_offset(rq->engine->scratch) |
-			PIPE_CONTROL_GLOBAL_GTT;
+		*cs++ = i915_scratch_offset(rq->i915) | PIPE_CONTROL_GLOBAL_GTT;
 		*cs++ = 0;
 		*cs++ = 0;
 
@@ -159,8 +158,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 			*cs++ = MI_FLUSH;
 
 		*cs++ = GFX_OP_PIPE_CONTROL(4) | PIPE_CONTROL_QW_WRITE;
-		*cs++ = i915_ggtt_offset(rq->engine->scratch) |
-			PIPE_CONTROL_GLOBAL_GTT;
+		*cs++ = i915_scratch_offset(rq->i915) | PIPE_CONTROL_GLOBAL_GTT;
 		*cs++ = 0;
 		*cs++ = 0;
 	}
@@ -212,8 +210,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 static int
 intel_emit_post_sync_nonzero_flush(struct i915_request *rq)
 {
-	u32 scratch_addr =
-		i915_ggtt_offset(rq->engine->scratch) + 2 * CACHELINE_BYTES;
+	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
 	u32 *cs;
 
 	cs = intel_ring_begin(rq, 6);
@@ -246,8 +243,7 @@ intel_emit_post_sync_nonzero_flush(struct i915_request *rq)
 static int
 gen6_render_ring_flush(struct i915_request *rq, u32 mode)
 {
-	u32 scratch_addr =
-		i915_ggtt_offset(rq->engine->scratch) + 2 * CACHELINE_BYTES;
+	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
 	u32 *cs, flags = 0;
 	int ret;
 
@@ -316,8 +312,7 @@ gen7_render_ring_cs_stall_wa(struct i915_request *rq)
 static int
 gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 {
-	u32 scratch_addr =
-		i915_ggtt_offset(rq->engine->scratch) + 2 * CACHELINE_BYTES;
+	u32 scratch_addr = i915_scratch_offset(rq->i915) + 2 * CACHELINE_BYTES;
 	u32 *cs, flags = 0;
 
 	/*
@@ -994,7 +989,7 @@ i965_emit_bb_start(struct i915_request *rq,
 }
 
 /* Just userspace ABI convention to limit the wa batch bo to a resonable size */
-#define I830_BATCH_LIMIT (256*1024)
+#define I830_BATCH_LIMIT SZ_256K
 #define I830_TLB_ENTRIES (2)
 #define I830_WA_SIZE max(I830_TLB_ENTRIES*4096, I830_BATCH_LIMIT)
 static int
@@ -1002,7 +997,9 @@ i830_emit_bb_start(struct i915_request *rq,
 		   u64 offset, u32 len,
 		   unsigned int dispatch_flags)
 {
-	u32 *cs, cs_offset = i915_ggtt_offset(rq->engine->scratch);
+	u32 *cs, cs_offset = i915_scratch_offset(rq->i915);
+
+	GEM_BUG_ON(rq->i915->gt.scratch->size < I830_WA_SIZE);
 
 	cs = intel_ring_begin(rq, 6);
 	if (IS_ERR(cs))
@@ -1459,7 +1456,6 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 {
 	struct i915_timeline *timeline;
 	struct intel_ring *ring;
-	unsigned int size;
 	int err;
 
 	intel_engine_setup_common(engine);
@@ -1484,21 +1480,12 @@ static int intel_init_ring_buffer(struct intel_engine_cs *engine)
 	GEM_BUG_ON(engine->buffer);
 	engine->buffer = ring;
 
-	size = PAGE_SIZE;
-	if (HAS_BROKEN_CS_TLB(engine->i915))
-		size = I830_WA_SIZE;
-	err = intel_engine_create_scratch(engine, size);
+	err = intel_engine_init_common(engine);
 	if (err)
 		goto err_unpin;
 
-	err = intel_engine_init_common(engine);
-	if (err)
-		goto err_scratch;
-
 	return 0;
 
-err_scratch:
-	intel_engine_cleanup_scratch(engine);
 err_unpin:
 	intel_ring_unpin(ring);
 err_ring:
@@ -1572,7 +1559,7 @@ static int flush_pd_dir(struct i915_request *rq)
 	/* Stall until the page table load is complete */
 	*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 	*cs++ = i915_mmio_reg_offset(RING_PP_DIR_BASE(engine));
-	*cs++ = i915_ggtt_offset(engine->scratch);
+	*cs++ = i915_scratch_offset(rq->i915);
 	*cs++ = MI_NOOP;
 
 	intel_ring_advance(rq, cs);
@@ -1681,7 +1668,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			/* Insert a delay before the next switch! */
 			*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 			*cs++ = i915_mmio_reg_offset(last_reg);
-			*cs++ = i915_ggtt_offset(engine->scratch);
+			*cs++ = i915_scratch_offset(rq->i915);
 			*cs++ = MI_NOOP;
 		}
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
