@@ -9476,13 +9476,18 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	enum intel_display_power_domain power_domain;
+	unsigned long panel_transcoder_mask = BIT(TRANSCODER_EDP);
+	unsigned long enabled_panel_transcoders = 0;
+	enum transcoder panel_transcoder;
 	u32 tmp;
-	bool is_dsi = false;
-	bool is_edp = false;
+
+	if (IS_ICELAKE(dev_priv))
+		panel_transcoder_mask |=
+			BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1);
 
 	/*
 	 * The pipe->transcoder mapping is fixed with the exception of the eDP
-	 * transcoder handled below.
+	 * and DSI transcoders handled below.
 	 */
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
 
@@ -9490,23 +9495,26 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 	 * XXX: Do intel_display_power_get_if_enabled before reading this (for
 	 * consistency and less surprising code; it's in always on power).
 	 */
-	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
-	if (tmp & TRANS_DDI_FUNC_ENABLE)
-		is_edp = true;
-
-	if (IS_ICELAKE(dev_priv)) {
-		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_DSI_0));
-		if (tmp & TRANS_DDI_FUNC_ENABLE)
-			is_dsi = true;
-	}
-
-	WARN_ON(is_edp && is_dsi);
-
-	if (is_edp || is_dsi) {
+	for_each_set_bit(panel_transcoder, &panel_transcoder_mask, 32) {
 		enum pipe trans_pipe;
+
+		tmp = I915_READ(TRANS_DDI_FUNC_CTL(panel_transcoder));
+		if (!(tmp & TRANS_DDI_FUNC_ENABLE))
+			continue;
+
+		/*
+		 * Log all enabled ones, only use the first one.
+		 *
+		 * FIXME: This won't work for two separate DSI displays.
+		 */
+		enabled_panel_transcoders |= BIT(panel_transcoder);
+		if (enabled_panel_transcoders != BIT(panel_transcoder))
+			continue;
+
 		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
 		default:
-			WARN(1, "unknown pipe linked to edp transcoder\n");
+			WARN(1, "unknown pipe linked to transcoder %s\n",
+			     transcoder_name(panel_transcoder));
 			/* fall through */
 		case TRANS_DDI_EDP_INPUT_A_ONOFF:
 		case TRANS_DDI_EDP_INPUT_A_ON:
@@ -9520,13 +9528,15 @@ static bool hsw_get_transcoder_state(struct intel_crtc *crtc,
 			break;
 		}
 
-		if (trans_pipe == crtc->pipe) {
-			if (is_edp)
-				pipe_config->cpu_transcoder = TRANSCODER_EDP;
-			else if (is_dsi)
-				pipe_config->cpu_transcoder = TRANSCODER_DSI_0;
-		}
+		if (trans_pipe == crtc->pipe)
+			pipe_config->cpu_transcoder = panel_transcoder;
 	}
+
+	/*
+	 * Valid combos: none, eDP, DSI0, DSI1, DSI0+DSI1
+	 */
+	WARN_ON((enabled_panel_transcoders & BIT(TRANSCODER_EDP)) &&
+		enabled_panel_transcoders != BIT(TRANSCODER_EDP));
 
 	power_domain = POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
