@@ -649,9 +649,9 @@ static void xs_stream_data_receive(struct sock_xprt *transport)
 	ssize_t ret = 0;
 
 	mutex_lock(&transport->recv_mutex);
+	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	if (transport->sock == NULL)
 		goto out;
-	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	for (;;) {
 		ret = xs_read_stream(transport, MSG_DONTWAIT);
 		if (ret < 0)
@@ -1346,10 +1346,10 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 	int err;
 
 	mutex_lock(&transport->recv_mutex);
+	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	sk = transport->inet;
 	if (sk == NULL)
 		goto out;
-	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	for (;;) {
 		skb = skb_recv_udp(sk, 0, 1, &err);
 		if (skb == NULL)
