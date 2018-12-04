@@ -686,8 +686,9 @@ static int hsw_probe(struct snd_sof_dev *sdev)
 	}
 
 	dev_dbg(sdev->dev, "using IRQ %d\n", sdev->ipc_irq);
-	ret = request_threaded_irq(sdev->ipc_irq, hsw_irq_handler,
-				   hsw_irq_thread, 0, "AudioDSP", sdev);
+	ret = devm_request_threaded_irq(sdev->dev, sdev->ipc_irq,
+					hsw_irq_handler, hsw_irq_thread,
+					0, "AudioDSP", sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
 			sdev->ipc_irq);
@@ -717,12 +718,6 @@ static int hsw_probe(struct snd_sof_dev *sdev)
 	return ret;
 }
 
-static int hsw_remove(struct snd_sof_dev *sdev)
-{
-	free_irq(sdev->ipc_irq, sdev);
-	return 0;
-}
-
 #define HSW_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
 	SNDRV_PCM_FMTBIT_S32_LE)
 
@@ -748,7 +743,6 @@ static struct snd_soc_dai_driver hsw_dai[] = {
 struct snd_sof_dsp_ops sof_hsw_ops = {
 	/*Device init */
 	.probe          = hsw_probe,
-	.remove         = hsw_remove,
 
 	/* DSP Core Control */
 	.run            = hsw_run,
