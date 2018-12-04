@@ -398,7 +398,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (offset == count || msg->msg_flags & (MSG_EOR|MSG_TRUNC))
 			goto out;
 		if (ret != want)
-			goto eagain;
+			goto out;
 		seek = 0;
 	} else {
 		seek -= buf->head[0].iov_len;
@@ -418,7 +418,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (offset == count || msg->msg_flags & (MSG_EOR|MSG_TRUNC))
 			goto out;
 		if (ret != want)
-			goto eagain;
+			goto out;
 		seek = 0;
 	} else {
 		seek -= buf->page_len;
@@ -433,7 +433,7 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (offset == count || msg->msg_flags & (MSG_EOR|MSG_TRUNC))
 			goto out;
 		if (ret != want)
-			goto eagain;
+			goto out;
 	} else
 		offset += buf->tail[0].iov_len;
 	ret = -EMSGSIZE;
@@ -441,9 +441,6 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 out:
 	*read = offset - seek_init;
 	return ret;
-eagain:
-	ret = -EAGAIN;
-	goto out;
 sock_err:
 	offset += seek;
 	goto out;
@@ -486,19 +483,18 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 	if (transport->recv.offset == transport->recv.len) {
 		if (xs_read_stream_request_done(transport))
 			msg->msg_flags |= MSG_EOR;
-		return transport->recv.copied;
+		return read;
 	}
 
 	switch (ret) {
+	default:
+		break;
 	case -EMSGSIZE:
-		return transport->recv.copied;
+		return read;
 	case 0:
 		return -ESHUTDOWN;
-	default:
-		if (ret < 0)
-			return ret;
 	}
-	return -EAGAIN;
+	return ret < 0 ? ret : read;
 }
 
 static size_t
@@ -537,7 +533,7 @@ xs_read_stream_call(struct sock_xprt *transport, struct msghdr *msg, int flags)
 
 	ret = xs_read_stream_request(transport, msg, flags, req);
 	if (msg->msg_flags & (MSG_EOR|MSG_TRUNC))
-		xprt_complete_bc_request(req, ret);
+		xprt_complete_bc_request(req, transport->recv.copied);
 
 	return ret;
 }
@@ -570,7 +566,7 @@ xs_read_stream_reply(struct sock_xprt *transport, struct msghdr *msg, int flags)
 
 	spin_lock(&xprt->queue_lock);
 	if (msg->msg_flags & (MSG_EOR|MSG_TRUNC))
-		xprt_complete_rqst(req->rq_task, ret);
+		xprt_complete_rqst(req->rq_task, transport->recv.copied);
 	xprt_unpin_rqst(req);
 out:
 	spin_unlock(&xprt->queue_lock);
@@ -591,10 +587,8 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 		if (ret <= 0)
 			goto out_err;
 		transport->recv.offset = ret;
-		if (ret != want) {
-			ret = -EAGAIN;
-			goto out_err;
-		}
+		if (transport->recv.offset != want)
+			return transport->recv.offset;
 		transport->recv.len = be32_to_cpu(transport->recv.fraghdr) &
 			RPC_FRAGMENT_SIZE_MASK;
 		transport->recv.offset -= sizeof(transport->recv.fraghdr);
@@ -602,6 +596,9 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 	}
 
 	switch (be32_to_cpu(transport->recv.calldir)) {
+	default:
+		msg.msg_flags |= MSG_TRUNC;
+		break;
 	case RPC_CALL:
 		ret = xs_read_stream_call(transport, &msg, flags);
 		break;
@@ -616,6 +613,8 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 		goto out_err;
 	read += ret;
 	if (transport->recv.offset < transport->recv.len) {
+		if (!(msg.msg_flags & MSG_TRUNC))
+			return read;
 		ret = xs_read_discard(transport->sock, &msg, flags,
 				transport->recv.len - transport->recv.offset);
 		if (ret <= 0)
@@ -623,7 +622,7 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 		transport->recv.offset += ret;
 		read += ret;
 		if (transport->recv.offset != transport->recv.len)
-			return -EAGAIN;
+			return read;
 	}
 	if (xs_read_stream_request_done(transport)) {
 		trace_xs_stream_read_request(transport);
@@ -653,7 +652,7 @@ static void xs_stream_data_receive(struct sock_xprt *transport)
 	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	for (;;) {
 		ret = xs_read_stream(transport, MSG_DONTWAIT);
-		if (ret <= 0)
+		if (ret < 0)
 			break;
 		read += ret;
 		cond_resched();
