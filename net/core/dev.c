@@ -5014,7 +5014,7 @@ static void __netif_receive_skb_list_core(struct list_head *head, bool pfmemallo
 		struct net_device *orig_dev = skb->dev;
 		struct packet_type *pt_prev = NULL;
 
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		__netif_receive_skb_core(skb, pfmemalloc, &pt_prev);
 		if (!pt_prev)
 			continue;
@@ -5170,7 +5170,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 	INIT_LIST_HEAD(&sublist);
 	list_for_each_entry_safe(skb, next, head, list) {
 		net_timestamp_check(netdev_tstamp_prequeue, skb);
-		list_del(&skb->list);
+		skb_list_del_init(skb);
 		if (!skb_defer_rx_timestamp(skb))
 			list_add_tail(&skb->list, &sublist);
 	}
@@ -5181,7 +5181,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 		rcu_read_lock();
 		list_for_each_entry_safe(skb, next, head, list) {
 			xdp_prog = rcu_dereference(skb->dev->xdp_prog);
-			list_del(&skb->list);
+			skb_list_del_init(skb);
 			if (do_xdp_generic(xdp_prog, skb) == XDP_PASS)
 				list_add_tail(&skb->list, &sublist);
 		}
@@ -5200,7 +5200,7 @@ static void netif_receive_skb_list_internal(struct list_head *head)
 
 			if (cpu >= 0) {
 				/* Will be handled, remove from list */
-				list_del(&skb->list);
+				skb_list_del_init(skb);
 				enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
 			}
 		}
