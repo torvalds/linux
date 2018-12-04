@@ -136,6 +136,14 @@ static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 		val &= ~(MX25_OTG_SIC_MASK | MX25_OTG_PP_BIT);
 		val |= (MX25_EHCI_INTERFACE_DIFF_UNI & MX25_EHCI_INTERFACE_MASK) << MX25_OTG_SIC_SHIFT;
 		val |= (MX25_OTG_PM_BIT | MX25_OTG_OCPOL_BIT);
+
+		/*
+		 * If the polarity is not configured assume active high for
+		 * historical reasons.
+		 */
+		if (data->oc_pol_configured && data->oc_pol_active_low)
+			val &= ~MX25_OTG_OCPOL_BIT;
+
 		writel(val, usbmisc->base);
 		break;
 	case 1:
@@ -144,6 +152,13 @@ static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 		val |= (MX25_EHCI_INTERFACE_SINGLE_UNI & MX25_EHCI_INTERFACE_MASK) << MX25_H1_SIC_SHIFT;
 		val |= (MX25_H1_PM_BIT | MX25_H1_OCPOL_BIT | MX25_H1_TLL_BIT |
 			MX25_H1_USBTE_BIT | MX25_H1_IPPUE_DOWN_BIT);
+
+		/*
+		 * If the polarity is not configured assume active high for
+		 * historical reasons.
+		 */
+		if (data->oc_pol_configured && data->oc_pol_active_low)
+			val &= ~MX25_H1_OCPOL_BIT;
 
 		writel(val, usbmisc->base);
 
