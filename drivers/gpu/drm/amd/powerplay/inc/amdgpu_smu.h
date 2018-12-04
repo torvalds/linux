@@ -36,6 +36,7 @@ struct smu_funcs
 {
 	int (*init_microcode)(struct smu_context *smu);
 	int (*init_smc_tables)(struct smu_context *smu);
+	int (*init_power)(struct smu_context *smu);
 	int (*load_microcode)(struct smu_context *smu);
 	int (*check_fw_status)(struct smu_context *smu);
 	int (*read_pptable_from_vbios)(struct smu_context *smu);
@@ -45,6 +46,8 @@ struct smu_funcs
 	((smu)->funcs->init_microcode ? (smu)->funcs->init_microcode((smu)) : 0)
 #define smu_init_smc_tables(smu) \
 	((smu)->funcs->init_smc_tables ? (smu)->funcs->init_smc_tables((smu)) : 0)
+#define smu_init_power(smu) \
+	((smu)->funcs->init_power ? (smu)->funcs->init_power((smu)) : 0)
 #define smu_load_microcode(smu) \
 	((smu)->funcs->load_microcode ? (smu)->funcs->load_microcode((smu)) : 0)
 #define smu_check_fw_status(smu) \

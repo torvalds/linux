@@ -85,6 +85,16 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 		return ret;
 	}
 
+	/**
+	 * Create smu_power_context structure, and allocate smu_dpm_context and
+	 * context size to fill the smu_power_context data.
+	 */
+	ret = smu_init_power(smu);
+	if (ret) {
+		pr_err("Failed to init smu_init_power!\n");
+		return ret;
+	}
+
 	return 0;
 }
 
