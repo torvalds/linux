@@ -370,6 +370,7 @@
 				compatible = "marvell,armada-3700-ahci";
 				reg = <0xe0000 0x178>;
 				interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&nb_periph_clk 1>;
 				status = "disabled";
 			};
 
