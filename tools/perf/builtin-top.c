@@ -1096,7 +1096,6 @@ static int __cmd_top(struct perf_top *top)
 
 	machine__synthesize_threads(&top->session->machines.host, &opts->target,
 				    top->evlist->threads, false,
-				    opts->proc_map_timeout,
 				    top->nr_threads_synthesize);
 
 	if (top->nr_threads_synthesize > 1)
@@ -1256,7 +1255,6 @@ int cmd_top(int argc, const char **argv)
 			.target		= {
 				.uses_mmap   = true,
 			},
-			.proc_map_timeout    = 500,
 			/*
 			 * FIXME: This will lose PERF_RECORD_MMAP and other metadata
 			 * when we pause, fix that and reenable. Probably using a
@@ -1369,7 +1367,7 @@ int cmd_top(int argc, const char **argv)
 	OPT_STRING('w', "column-widths", &symbol_conf.col_width_list_str,
 		   "width[,width...]",
 		   "don't try to adjust column width, use these fixed values"),
-	OPT_UINTEGER(0, "proc-map-timeout", &opts->proc_map_timeout,
+	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_CALLBACK_NOOPT('b', "branch-any", &opts->branch_stack,
 		     "branch any", "sample any taken branches",

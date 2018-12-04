@@ -199,6 +199,12 @@ colors.*::
 		Colors for headers in the output of a sub-commands (top, report).
 		Default values are 'white', 'blue'.
 
+core.*::
+	core.proc-map-timeout::
+		Sets a timeout (in milliseconds) for parsing /proc/<pid>/maps files.
+		Can be overridden by the --proc-map-timeout option on supported
+		subcommands. The default timeout is 500ms.
+
 tui.*, gtk.*::
 	Subcommands that can be configured here are 'top', 'report' and 'annotate'.
 	These values are booleans, for example:

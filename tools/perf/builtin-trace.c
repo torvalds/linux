@@ -1264,7 +1264,7 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 
 	err = __machine__synthesize_threads(trace->host, &trace->tool, &trace->opts.target,
 					    evlist->threads, trace__tool_process, false,
-					    trace->opts.proc_map_timeout, 1);
+					    1);
 out:
 	if (err)
 		symbol__exit();
@@ -3393,7 +3393,6 @@ int cmd_trace(int argc, const char **argv)
 			.user_interval = ULLONG_MAX,
 			.no_buffering  = true,
 			.mmap_pages    = UINT_MAX,
-			.proc_map_timeout  = 500,
 		},
 		.output = stderr,
 		.show_comm = true,
@@ -3464,7 +3463,7 @@ int cmd_trace(int argc, const char **argv)
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
 	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
 			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
-	OPT_UINTEGER(0, "proc-map-timeout", &trace.opts.proc_map_timeout,
+	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_CALLBACK('G', "cgroup", &trace, "name", "monitor event in cgroup name only",
 		     trace__parse_cgroups),

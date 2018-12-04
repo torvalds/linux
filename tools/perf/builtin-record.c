@@ -867,8 +867,7 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 	err = perf_event__synthesize_thread_map(&rec->tool, thread_map,
 						 process_synthesized_event,
 						 &rec->session->machines.host,
-						 rec->opts.sample_address,
-						 rec->opts.proc_map_timeout);
+						 rec->opts.sample_address);
 	thread_map__put(thread_map);
 	return err;
 }
@@ -1085,7 +1084,7 @@ static int record__synthesize(struct record *rec, bool tail)
 
 	err = __machine__synthesize_threads(machine, tool, &opts->target, rec->evlist->threads,
 					    process_synthesized_event, opts->sample_address,
-					    opts->proc_map_timeout, 1);
+					    1);
 out:
 	return err;
 }
@@ -1783,7 +1782,6 @@ static struct record record = {
 			.uses_mmap   = true,
 			.default_per_cpu = true,
 		},
-		.proc_map_timeout     = 500,
 	},
 	.tool = {
 		.sample		= process_sample_event,
@@ -1913,7 +1911,7 @@ static struct option __record_options[] = {
 	parse_clockid),
 	OPT_STRING_OPTARG('S', "snapshot", &record.opts.auxtrace_snapshot_opts,
 			  "opts", "AUX area tracing Snapshot Mode", ""),
-	OPT_UINTEGER(0, "proc-map-timeout", &record.opts.proc_map_timeout,
+	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
 			"per thread proc mmap processing timeout in ms"),
 	OPT_BOOLEAN(0, "namespaces", &record.opts.record_namespaces,
 		    "Record namespaces events"),

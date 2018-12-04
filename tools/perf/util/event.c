@@ -25,6 +25,8 @@
 #include "asm/bug.h"
 #include "stat.h"
 
+#define DEFAULT_PROC_MAP_PARSE_TIMEOUT 500
+
 static const char *perf_event__names[] = {
 	[0]					= "TOTAL",
 	[PERF_RECORD_MMAP]			= "MMAP",
@@ -71,6 +73,8 @@ static const char *perf_ns__names[] = {
 	[MNT_NS_INDEX]		= "mnt",
 	[CGROUP_NS_INDEX]	= "cgroup",
 };
+
+unsigned int proc_map_timeout = DEFAULT_PROC_MAP_PARSE_TIMEOUT;
 
 const char *perf_event__name(unsigned int id)
 {
@@ -323,8 +327,7 @@ int perf_event__synthesize_mmap_events(struct perf_tool *tool,
 				       pid_t pid, pid_t tgid,
 				       perf_event__handler_t process,
 				       struct machine *machine,
-				       bool mmap_data,
-				       unsigned int proc_map_timeout)
+				       bool mmap_data)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
@@ -521,8 +524,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 				      perf_event__handler_t process,
 				      struct perf_tool *tool,
 				      struct machine *machine,
-				      bool mmap_data,
-				      unsigned int proc_map_timeout)
+				      bool mmap_data)
 {
 	char filename[PATH_MAX];
 	DIR *tasks;
@@ -548,8 +550,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		 */
 		if (pid == tgid &&
 		    perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-						       process, machine, mmap_data,
-						       proc_map_timeout))
+						       process, machine, mmap_data))
 			return -1;
 
 		return 0;
@@ -598,7 +599,7 @@ static int __event__synthesize_thread(union perf_event *comm_event,
 		if (_pid == pid) {
 			/* process the parent's maps too */
 			rc = perf_event__synthesize_mmap_events(tool, mmap_event, pid, tgid,
-						process, machine, mmap_data, proc_map_timeout);
+						process, machine, mmap_data);
 			if (rc)
 				break;
 		}
@@ -612,8 +613,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 				      struct thread_map *threads,
 				      perf_event__handler_t process,
 				      struct machine *machine,
-				      bool mmap_data,
-				      unsigned int proc_map_timeout)
+				      bool mmap_data)
 {
 	union perf_event *comm_event, *mmap_event, *fork_event;
 	union perf_event *namespaces_event;
@@ -643,7 +643,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 					       fork_event, namespaces_event,
 					       thread_map__pid(threads, thread), 0,
 					       process, tool, machine,
-					       mmap_data, proc_map_timeout)) {
+					       mmap_data)) {
 			err = -1;
 			break;
 		}
@@ -669,7 +669,7 @@ int perf_event__synthesize_thread_map(struct perf_tool *tool,
 						       fork_event, namespaces_event,
 						       comm_event->comm.pid, 0,
 						       process, tool, machine,
-						       mmap_data, proc_map_timeout)) {
+						       mmap_data)) {
 				err = -1;
 				break;
 			}
@@ -690,7 +690,6 @@ static int __perf_event__synthesize_threads(struct perf_tool *tool,
 					    perf_event__handler_t process,
 					    struct machine *machine,
 					    bool mmap_data,
-					    unsigned int proc_map_timeout,
 					    struct dirent **dirent,
 					    int start,
 					    int num)
@@ -734,8 +733,7 @@ static int __perf_event__synthesize_threads(struct perf_tool *tool,
 		 */
 		__event__synthesize_thread(comm_event, mmap_event, fork_event,
 					   namespaces_event, pid, 1, process,
-					   tool, machine, mmap_data,
-					   proc_map_timeout);
+					   tool, machine, mmap_data);
 	}
 	err = 0;
 
@@ -755,7 +753,6 @@ struct synthesize_threads_arg {
 	perf_event__handler_t process;
 	struct machine *machine;
 	bool mmap_data;
-	unsigned int proc_map_timeout;
 	struct dirent **dirent;
 	int num;
 	int start;
@@ -767,7 +764,7 @@ static void *synthesize_threads_worker(void *arg)
 
 	__perf_event__synthesize_threads(args->tool, args->process,
 					 args->machine, args->mmap_data,
-					 args->proc_map_timeout, args->dirent,
+					 args->dirent,
 					 args->start, args->num);
 	return NULL;
 }
@@ -776,7 +773,6 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 				   perf_event__handler_t process,
 				   struct machine *machine,
 				   bool mmap_data,
-				   unsigned int proc_map_timeout,
 				   unsigned int nr_threads_synthesize)
 {
 	struct synthesize_threads_arg *args = NULL;
@@ -806,7 +802,6 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 	if (thread_nr <= 1) {
 		err = __perf_event__synthesize_threads(tool, process,
 						       machine, mmap_data,
-						       proc_map_timeout,
 						       dirent, base, n);
 		goto free_dirent;
 	}
@@ -828,7 +823,6 @@ int perf_event__synthesize_threads(struct perf_tool *tool,
 		args[i].process = process;
 		args[i].machine = machine;
 		args[i].mmap_data = mmap_data;
-		args[i].proc_map_timeout = proc_map_timeout;
 		args[i].dirent = dirent;
 	}
 	for (i = 0; i < m; i++) {

@@ -14,6 +14,7 @@
 #include "util.h"
 #include "cache.h"
 #include <subcmd/exec-cmd.h>
+#include "util/event.h"  /* proc_map_timeout */
 #include "util/hist.h"  /* perf_hist_config */
 #include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "config.h"
@@ -419,6 +420,9 @@ static int perf_buildid_config(const char *var, const char *value)
 static int perf_default_core_config(const char *var __maybe_unused,
 				    const char *value __maybe_unused)
 {
+	if (!strcmp(var, "core.proc-map-timeout"))
+		proc_map_timeout = strtoul(value, NULL, 10);
+
 	/* Add other config variables here. */
 	return 0;
 }
