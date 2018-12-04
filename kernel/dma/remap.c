@@ -121,7 +121,6 @@ int __init dma_atomic_pool_init(gfp_t gfp, pgprot_t prot)
 	if (!page)
 		goto out;
 
-	memset(page_address(page), 0, atomic_pool_size);
 	arch_dma_prep_coherent(page, atomic_pool_size);
 
 	atomic_pool = gen_pool_create(PAGE_SHIFT, -1);
