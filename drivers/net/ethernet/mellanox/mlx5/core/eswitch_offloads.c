@@ -131,6 +131,8 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				if (attr->dests[j].flags & MLX5_ESW_DEST_ENCAP) {
 					flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
 					flow_act.reformat_id = attr->encap_id;
+					dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
+					dest[i].vport.reformat_id = attr->encap_id;
 				}
 				i++;
 			}
