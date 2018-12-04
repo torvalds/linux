@@ -206,7 +206,7 @@ static int process_access_response(struct fsnotify_group *group,
 
 static ssize_t copy_event_to_user(struct fsnotify_group *group,
 				  struct fsnotify_event *event,
-				  char __user *buf)
+				  char __user *buf, size_t count)
 {
 	struct fanotify_event_metadata fanotify_event_metadata;
 	struct file *f;
@@ -220,6 +220,12 @@ static ssize_t copy_event_to_user(struct fsnotify_group *group,
 
 	fd = fanotify_event_metadata.fd;
 	ret = -EFAULT;
+	/*
+	 * Sanity check copy size in case get_one_event() and
+	 * fill_event_metadata() event_len sizes ever get out of sync.
+	 */
+	if (WARN_ON_ONCE(fanotify_event_metadata.event_len > count))
+		goto out_close_fd;
 	if (copy_to_user(buf, &fanotify_event_metadata,
 			 fanotify_event_metadata.event_len))
 		goto out_close_fd;
@@ -295,7 +301,7 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 			continue;
 		}
 
-		ret = copy_event_to_user(group, kevent, buf);
+		ret = copy_event_to_user(group, kevent, buf, count);
 		if (unlikely(ret == -EOPENSTALE)) {
 			/*
 			 * We cannot report events with stale fd so drop it.
