@@ -103,52 +103,87 @@ static u64 hws_address(const struct i915_vma *hws,
 	return hws->node.start + offset_in_page(sizeof(u32)*rq->fence.context);
 }
 
-static int emit_recurse_batch(struct hang *h,
-			      struct i915_request *rq)
+static int move_to_active(struct i915_vma *vma,
+			  struct i915_request *rq,
+			  unsigned int flags)
 {
-	struct drm_i915_private *i915 = h->i915;
-	struct i915_address_space *vm =
-		rq->gem_context->ppgtt ?
-		&rq->gem_context->ppgtt->vm :
-		&i915->ggtt.vm;
-	struct i915_vma *hws, *vma;
-	unsigned int flags;
-	u32 *batch;
 	int err;
 
-	vma = i915_vma_instance(h->obj, vm, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	hws = i915_vma_instance(h->hws, vm, NULL);
-	if (IS_ERR(hws))
-		return PTR_ERR(hws);
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	err = i915_vma_move_to_active(vma, rq, flags);
 	if (err)
 		return err;
-
-	err = i915_vma_pin(hws, 0, 0, PIN_USER);
-	if (err)
-		goto unpin_vma;
-
-	err = i915_vma_move_to_active(vma, rq, 0);
-	if (err)
-		goto unpin_hws;
 
 	if (!i915_gem_object_has_active_reference(vma->obj)) {
 		i915_gem_object_get(vma->obj);
 		i915_gem_object_set_active_reference(vma->obj);
 	}
 
-	err = i915_vma_move_to_active(hws, rq, 0);
-	if (err)
-		goto unpin_hws;
+	return 0;
+}
 
-	if (!i915_gem_object_has_active_reference(hws->obj)) {
-		i915_gem_object_get(hws->obj);
-		i915_gem_object_set_active_reference(hws->obj);
+static struct i915_request *
+hang_create_request(struct hang *h, struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = h->i915;
+	struct i915_address_space *vm =
+		h->ctx->ppgtt ? &h->ctx->ppgtt->vm : &i915->ggtt.vm;
+	struct i915_request *rq = NULL;
+	struct i915_vma *hws, *vma;
+	unsigned int flags;
+	u32 *batch;
+	int err;
+
+	if (i915_gem_object_is_active(h->obj)) {
+		struct drm_i915_gem_object *obj;
+		void *vaddr;
+
+		obj = i915_gem_object_create_internal(h->i915, PAGE_SIZE);
+		if (IS_ERR(obj))
+			return ERR_CAST(obj);
+
+		vaddr = i915_gem_object_pin_map(obj,
+						i915_coherent_map_type(h->i915));
+		if (IS_ERR(vaddr)) {
+			i915_gem_object_put(obj);
+			return ERR_CAST(vaddr);
+		}
+
+		i915_gem_object_unpin_map(h->obj);
+		i915_gem_object_put(h->obj);
+
+		h->obj = obj;
+		h->batch = vaddr;
 	}
+
+	vma = i915_vma_instance(h->obj, vm, NULL);
+	if (IS_ERR(vma))
+		return ERR_CAST(vma);
+
+	hws = i915_vma_instance(h->hws, vm, NULL);
+	if (IS_ERR(hws))
+		return ERR_CAST(hws);
+
+	err = i915_vma_pin(vma, 0, 0, PIN_USER);
+	if (err)
+		return ERR_PTR(err);
+
+	err = i915_vma_pin(hws, 0, 0, PIN_USER);
+	if (err)
+		goto unpin_vma;
+
+	rq = i915_request_alloc(engine, h->ctx);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto unpin_hws;
+	}
+
+	err = move_to_active(vma, rq, 0);
+	if (err)
+		goto cancel_rq;
+
+	err = move_to_active(hws, rq, 0);
+	if (err)
+		goto cancel_rq;
 
 	batch = h->batch;
 	if (INTEL_GEN(i915) >= 8) {
@@ -213,52 +248,16 @@ static int emit_recurse_batch(struct hang *h,
 
 	err = rq->engine->emit_bb_start(rq, vma->node.start, PAGE_SIZE, flags);
 
+cancel_rq:
+	if (err) {
+		i915_request_skip(rq, err);
+		i915_request_add(rq);
+	}
 unpin_hws:
 	i915_vma_unpin(hws);
 unpin_vma:
 	i915_vma_unpin(vma);
-	return err;
-}
-
-static struct i915_request *
-hang_create_request(struct hang *h, struct intel_engine_cs *engine)
-{
-	struct i915_request *rq;
-	int err;
-
-	if (i915_gem_object_is_active(h->obj)) {
-		struct drm_i915_gem_object *obj;
-		void *vaddr;
-
-		obj = i915_gem_object_create_internal(h->i915, PAGE_SIZE);
-		if (IS_ERR(obj))
-			return ERR_CAST(obj);
-
-		vaddr = i915_gem_object_pin_map(obj,
-						i915_coherent_map_type(h->i915));
-		if (IS_ERR(vaddr)) {
-			i915_gem_object_put(obj);
-			return ERR_CAST(vaddr);
-		}
-
-		i915_gem_object_unpin_map(h->obj);
-		i915_gem_object_put(h->obj);
-
-		h->obj = obj;
-		h->batch = vaddr;
-	}
-
-	rq = i915_request_alloc(engine, h->ctx);
-	if (IS_ERR(rq))
-		return rq;
-
-	err = emit_recurse_batch(h, rq);
-	if (err) {
-		i915_request_add(rq);
-		return ERR_PTR(err);
-	}
-
-	return rq;
+	return err ? ERR_PTR(err) : rq;
 }
 
 static u32 hws_seqno(const struct hang *h, const struct i915_request *rq)
