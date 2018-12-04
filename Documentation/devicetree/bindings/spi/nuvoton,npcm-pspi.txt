@@ -19,7 +19,15 @@ Optional properties:
 - clock-frequency : Input clock frequency to the PSPI block in Hz.
 		    Default is 25000000 Hz.
 
+Aliases:
+- All the SPI controller nodes should be represented in the aliases node using
+  the following format 'spi{n}' withe the correct numbered in "aliases" node.
+
 Example:
+
+aliases {
+	spi0 = &spi0;
+};
 
 spi0: spi@f0200000 {
 	compatible = "nuvoton,npcm750-pspi";
