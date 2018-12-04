@@ -52,6 +52,10 @@ MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, rvu_id_table);
 
+static char *mkex_profile; /* MKEX profile name */
+module_param(mkex_profile, charp, 0000);
+MODULE_PARM_DESC(mkex_profile, "MKEX profile name string");
+
 /* Poll a RVU block's register 'offset', for a 'zero'
  * or 'nonzero' at bits specified by 'mask'
  */
@@ -2359,6 +2363,14 @@ static void rvu_disable_sriov(struct rvu *rvu)
 	pci_disable_sriov(rvu->pdev);
 }
 
+static void rvu_update_module_params(struct rvu *rvu)
+{
+	const char *default_pfl_name = "default";
+
+	strscpy(rvu->mkex_pfl_name,
+		mkex_profile ? mkex_profile : default_pfl_name, MKEX_NAME_LEN);
+}
+
 static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
@@ -2411,6 +2423,9 @@ static int rvu_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		err = -ENOMEM;
 		goto err_release_regions;
 	}
+
+	/* Store module params in rvu structure */
+	rvu_update_module_params(rvu);
 
 	/* Check which blocks the HW supports */
 	rvu_check_block_implemented(rvu);

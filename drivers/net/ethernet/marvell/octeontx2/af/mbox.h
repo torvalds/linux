@@ -193,12 +193,20 @@ M(NIX_TXSCHQ_CFG,	0x8006, nix_txschq_cfg, nix_txschq_config, msg_rsp)  \
 M(NIX_STATS_RST,	0x8007, nix_stats_rst, msg_req, msg_rsp)	\
 M(NIX_VTAG_CFG,		0x8008, nix_vtag_cfg, nix_vtag_config, msg_rsp)	\
 M(NIX_RSS_FLOWKEY_CFG,  0x8009, nix_rss_flowkey_cfg,			\
-				 nix_rss_flowkey_cfg, msg_rsp)		\
+				 nix_rss_flowkey_cfg,			\
+				 nix_rss_flowkey_cfg_rsp)		\
 M(NIX_SET_MAC_ADDR,	0x800a, nix_set_mac_addr, nix_set_mac_addr, msg_rsp) \
 M(NIX_SET_RX_MODE,	0x800b, nix_set_rx_mode, nix_rx_mode, msg_rsp)	\
 M(NIX_SET_HW_FRS,	0x800c, nix_set_hw_frs, nix_frs_cfg, msg_rsp)	\
 M(NIX_LF_START_RX,	0x800d, nix_lf_start_rx, msg_req, msg_rsp)	\
 M(NIX_LF_STOP_RX,	0x800e, nix_lf_stop_rx, msg_req, msg_rsp)	\
+M(NIX_MARK_FORMAT_CFG,	0x800f, nix_mark_format_cfg,			\
+				 nix_mark_format_cfg,			\
+				 nix_mark_format_cfg_rsp)		\
+M(NIX_SET_RX_CFG,	0x8010, nix_set_rx_cfg, nix_rx_cfg, msg_rsp)	\
+M(NIX_LSO_FORMAT_CFG,	0x8011, nix_lso_format_cfg,			\
+				 nix_lso_format_cfg,			\
+				 nix_lso_format_cfg_rsp)		\
 M(NIX_RXVLAN_ALLOC,	0x8012, nix_rxvlan_alloc, msg_req, msg_rsp)
 
 /* Messages initiated by AF (range 0xC00 - 0xDFF) */
@@ -413,6 +421,10 @@ enum nix_af_status {
 	NIX_AF_INVAL_TXSCHQ_CFG     = -412,
 	NIX_AF_SMQ_FLUSH_FAILED     = -413,
 	NIX_AF_ERR_LF_RESET         = -414,
+	NIX_AF_ERR_RSS_NOSPC_FIELD  = -415,
+	NIX_AF_ERR_RSS_NOSPC_ALGO   = -416,
+	NIX_AF_ERR_MARK_CFG_FAIL    = -417,
+	NIX_AF_ERR_LSO_CFG_FAIL     = -418,
 	NIX_AF_INVAL_NPA_PF_FUNC    = -419,
 	NIX_AF_INVAL_SSO_PF_FUNC    = -420,
 };
@@ -560,13 +572,38 @@ struct nix_vtag_config {
 struct nix_rss_flowkey_cfg {
 	struct mbox_msghdr hdr;
 	int	mcam_index;  /* MCAM entry index to modify */
+#define NIX_FLOW_KEY_TYPE_PORT	BIT(0)
+#define NIX_FLOW_KEY_TYPE_IPV4	BIT(1)
+#define NIX_FLOW_KEY_TYPE_IPV6	BIT(2)
+#define NIX_FLOW_KEY_TYPE_TCP	BIT(3)
+#define NIX_FLOW_KEY_TYPE_UDP	BIT(4)
+#define NIX_FLOW_KEY_TYPE_SCTP	BIT(5)
 	u32	flowkey_cfg; /* Flowkey types selected */
 	u8	group;       /* RSS context or group */
+};
+
+struct nix_rss_flowkey_cfg_rsp {
+	struct mbox_msghdr hdr;
+	u8	alg_idx; /* Selected algo index */
 };
 
 struct nix_set_mac_addr {
 	struct mbox_msghdr hdr;
 	u8 mac_addr[ETH_ALEN]; /* MAC address to be set for this pcifunc */
+};
+
+struct nix_mark_format_cfg {
+	struct mbox_msghdr hdr;
+	u8 offset;
+	u8 y_mask;
+	u8 y_val;
+	u8 r_mask;
+	u8 r_val;
+};
+
+struct nix_mark_format_cfg_rsp {
+	struct mbox_msghdr hdr;
+	u8 mark_format_idx;
 };
 
 struct nix_rx_mode {
@@ -577,6 +614,15 @@ struct nix_rx_mode {
 	u16	mode;
 };
 
+struct nix_rx_cfg {
+	struct mbox_msghdr hdr;
+#define NIX_RX_OL3_VERIFY   BIT(0)
+#define NIX_RX_OL4_VERIFY   BIT(1)
+	u8 len_verify; /* Outer L3/L4 len check */
+#define NIX_RX_CSUM_OL4_VERIFY  BIT(0)
+	u8 csum_verify; /* Outer L4 checksum verification */
+};
+
 struct nix_frs_cfg {
 	struct mbox_msghdr hdr;
 	u8	update_smq;    /* Update SMQ's min/max lens */
@@ -584,6 +630,18 @@ struct nix_frs_cfg {
 	u8	sdp_link;      /* Set SDP RX link */
 	u16	maxlen;
 	u16	minlen;
+};
+
+struct nix_lso_format_cfg {
+	struct mbox_msghdr hdr;
+	u64 field_mask;
+#define NIX_LSO_FIELD_MAX	8
+	u64 fields[NIX_LSO_FIELD_MAX];
+};
+
+struct nix_lso_format_cfg_rsp {
+	struct mbox_msghdr hdr;
+	u8 lso_format_idx;
 };
 
 /* NPC mbox message structs */
@@ -730,6 +788,8 @@ struct npc_get_kex_cfg_rsp {
 	u64 intf_lid_lt_ld[NPC_MAX_INTF][NPC_MAX_LID][NPC_MAX_LT][NPC_MAX_LD];
 	/* NPC_AF_INTF(0..1)_LDATA(0..1)_FLAGS(0..15)_CFG */
 	u64 intf_ld_flags[NPC_MAX_INTF][NPC_MAX_LD][NPC_MAX_LFL];
+#define MKEX_NAME_LEN 128
+	u8 mkex_pfl_name[MKEX_NAME_LEN];
 };
 
 #endif /* MBOX_H */

@@ -156,7 +156,17 @@ struct rvu_pfvf {
 struct nix_txsch {
 	struct rsrc_bmap schq;
 	u8   lvl;
-	u16  *pfvf_map;
+#define NIX_TXSCHQ_TL1_CFG_DONE       BIT_ULL(0)
+#define TXSCH_MAP_FUNC(__pfvf_map)    ((__pfvf_map) & 0xFFFF)
+#define TXSCH_MAP_FLAGS(__pfvf_map)   ((__pfvf_map) >> 16)
+#define TXSCH_MAP(__func, __flags)    (((__func) & 0xFFFF) | ((__flags) << 16))
+	u32  *pfvf_map;
+};
+
+struct nix_mark_format {
+	u8 total;
+	u8 in_use;
+	u32 *cfg;
 };
 
 struct npc_pkind {
@@ -164,9 +174,23 @@ struct npc_pkind {
 	u32	*pfchan_map;
 };
 
+struct nix_flowkey {
+#define NIX_FLOW_KEY_ALG_MAX 32
+	u32 flowkey[NIX_FLOW_KEY_ALG_MAX];
+	int in_use;
+};
+
+struct nix_lso {
+	u8 total;
+	u8 in_use;
+};
+
 struct nix_hw {
 	struct nix_txsch txsch[NIX_TXSCH_LVL_CNT]; /* Tx schedulers */
 	struct nix_mcast mcast;
+	struct nix_flowkey flowkey;
+	struct nix_mark_format mark_format;
+	struct nix_lso lso;
 };
 
 struct rvu_hwinfo {
@@ -237,6 +261,8 @@ struct rvu {
 	struct			workqueue_struct *cgx_evh_wq;
 	spinlock_t		cgx_evq_lock; /* cgx event queue lock */
 	struct list_head	cgx_evq_head; /* cgx event queue head */
+
+	char mkex_pfl_name[MKEX_NAME_LEN]; /* Configured MKEX profile name */
 };
 
 static inline void rvu_write64(struct rvu *rvu, u64 block, u64 offset, u64 val)
@@ -366,6 +392,8 @@ int rvu_mbox_handler_npa_lf_free(struct rvu *rvu, struct msg_req *req,
 /* NIX APIs */
 bool is_nixlf_attached(struct rvu *rvu, u16 pcifunc);
 int rvu_nix_init(struct rvu *rvu);
+int rvu_nix_reserve_mark_format(struct rvu *rvu, struct nix_hw *nix_hw,
+				int blkaddr, u32 cfg);
 void rvu_nix_freemem(struct rvu *rvu);
 int rvu_get_nixlf_count(struct rvu *rvu);
 void rvu_nix_lf_teardown(struct rvu *rvu, u16 pcifunc, int blkaddr, int npalf);
@@ -398,7 +426,7 @@ int rvu_mbox_handler_nix_rxvlan_alloc(struct rvu *rvu, struct msg_req *req,
 				      struct msg_rsp *rsp);
 int rvu_mbox_handler_nix_rss_flowkey_cfg(struct rvu *rvu,
 					 struct nix_rss_flowkey_cfg *req,
-					 struct msg_rsp *rsp);
+					 struct nix_rss_flowkey_cfg_rsp *rsp);
 int rvu_mbox_handler_nix_set_mac_addr(struct rvu *rvu,
 				      struct nix_set_mac_addr *req,
 				      struct msg_rsp *rsp);
@@ -410,6 +438,14 @@ int rvu_mbox_handler_nix_lf_start_rx(struct rvu *rvu, struct msg_req *req,
 				     struct msg_rsp *rsp);
 int rvu_mbox_handler_nix_lf_stop_rx(struct rvu *rvu, struct msg_req *req,
 				    struct msg_rsp *rsp);
+int rvu_mbox_handler_nix_mark_format_cfg(struct rvu *rvu,
+					 struct nix_mark_format_cfg  *req,
+					 struct nix_mark_format_cfg_rsp *rsp);
+int rvu_mbox_handler_nix_set_rx_cfg(struct rvu *rvu, struct nix_rx_cfg *req,
+				    struct msg_rsp *rsp);
+int rvu_mbox_handler_nix_lso_format_cfg(struct rvu *rvu,
+					struct nix_lso_format_cfg *req,
+					struct nix_lso_format_cfg_rsp *rsp);
 
 /* NPC APIs */
 int rvu_npc_init(struct rvu *rvu);
