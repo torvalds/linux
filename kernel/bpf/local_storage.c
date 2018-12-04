@@ -139,7 +139,8 @@ static int cgroup_storage_update_elem(struct bpf_map *map, void *_key,
 		return -ENOENT;
 
 	new = kmalloc_node(sizeof(struct bpf_storage_buffer) +
-			   map->value_size, __GFP_ZERO | GFP_USER,
+			   map->value_size,
+			   __GFP_ZERO | GFP_ATOMIC | __GFP_NOWARN,
 			   map->numa_node);
 	if (!new)
 		return -ENOMEM;

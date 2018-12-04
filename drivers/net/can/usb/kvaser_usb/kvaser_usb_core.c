@@ -528,7 +528,6 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 			context = &priv->tx_contexts[i];
 
 			context->echo_index = i;
-			can_put_echo_skb(skb, netdev, context->echo_index);
 			++priv->active_tx_contexts;
 			if (priv->active_tx_contexts >= (int)dev->max_tx_urbs)
 				netif_stop_queue(netdev);
@@ -553,7 +552,6 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		spin_lock_irqsave(&priv->tx_contexts_lock, flags);
 
-		can_free_echo_skb(netdev, context->echo_index);
 		context->echo_index = dev->max_tx_urbs;
 		--priv->active_tx_contexts;
 		netif_wake_queue(netdev);
@@ -563,6 +561,8 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 	}
 
 	context->priv = priv;
+
+	can_put_echo_skb(skb, netdev, context->echo_index);
 
 	usb_fill_bulk_urb(urb, dev->udev,
 			  usb_sndbulkpipe(dev->udev,

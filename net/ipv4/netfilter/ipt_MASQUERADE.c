@@ -81,9 +81,12 @@ static int __init masquerade_tg_init(void)
 	int ret;
 
 	ret = xt_register_target(&masquerade_tg_reg);
+	if (ret)
+		return ret;
 
-	if (ret == 0)
-		nf_nat_masquerade_ipv4_register_notifier();
+	ret = nf_nat_masquerade_ipv4_register_notifier();
+	if (ret)
+		xt_unregister_target(&masquerade_tg_reg);
 
 	return ret;
 }

@@ -1413,7 +1413,7 @@ void __i40e_del_filter(struct i40e_vsi *vsi, struct i40e_mac_filter *f)
 	}
 
 	vsi->flags |= I40E_VSI_FLAG_FILTER_CHANGED;
-	set_bit(__I40E_MACVLAN_SYNC_PENDING, vsi->state);
+	set_bit(__I40E_MACVLAN_SYNC_PENDING, vsi->back->state);
 }
 
 /**

@@ -516,6 +516,14 @@ int vmbus_establish_gpadl(struct vmbus_channel *channel, void *kbuffer,
 	}
 	wait_for_completion(&msginfo->waitevent);
 
+	if (msginfo->response.gpadl_created.creation_status != 0) {
+		pr_err("Failed to establish GPADL: err = 0x%x\n",
+		       msginfo->response.gpadl_created.creation_status);
+
+		ret = -EDQUOT;
+		goto cleanup;
+	}
+
 	if (channel->rescind) {
 		ret = -ENODEV;
 		goto cleanup;

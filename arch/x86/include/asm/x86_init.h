@@ -303,6 +303,4 @@ extern void x86_init_noop(void);
 extern void x86_init_uint_noop(unsigned int unused);
 extern bool x86_pnpbios_disabled(void);
 
-void x86_verify_bootdata_version(void);
-
 #endif
