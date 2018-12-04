@@ -93,6 +93,12 @@ static inline void rq_qos_del(struct request_queue *q, struct rq_qos *rqos)
 	}
 }
 
+typedef bool (acquire_inflight_cb_t)(struct rq_wait *rqw, void *private_data);
+typedef void (cleanup_cb_t)(struct rq_wait *rqw, void *private_data);
+
+void rq_qos_wait(struct rq_wait *rqw, void *private_data,
+		 acquire_inflight_cb_t *acquire_inflight_cb,
+		 cleanup_cb_t *cleanup_cb);
 bool rq_wait_inc_below(struct rq_wait *rq_wait, unsigned int limit);
 void rq_depth_scale_up(struct rq_depth *rqd);
 void rq_depth_scale_down(struct rq_depth *rqd, bool hard_throttle);
