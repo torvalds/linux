@@ -132,6 +132,12 @@ static int smu_sw_fini(void *handle)
 	return 0;
 }
 
+static int smu_init_fb_allocations(struct smu_context *smu)
+{
+	/* TODO */
+	return 0;
+}
+
 static int smu_smc_table_hw_init(struct smu_context *smu)
 {
 	int ret;
@@ -150,6 +156,13 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	 * version, and the structure size is not 0.
 	 */
 	ret = smu_check_pptable(smu);
+	if (ret)
+		return ret;
+
+	/*
+	 * allocate vram bos to store smc table contents.
+	 */
+	ret = smu_init_fb_allocations(smu);
 	if (ret)
 		return ret;
 
