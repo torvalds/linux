@@ -1353,7 +1353,7 @@ static int register_kprobe_event(struct trace_kprobe *tk)
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
-	ret = trace_add_event_call_nolock(call);
+	ret = trace_add_event_call(call);
 	if (ret) {
 		pr_info("Failed to register kprobe event: %s\n",
 			trace_event_name(call));
@@ -1368,7 +1368,7 @@ static int unregister_kprobe_event(struct trace_kprobe *tk)
 	int ret;
 
 	/* tp->event is unregistered in trace_remove_event_call() */
-	ret = trace_remove_event_call_nolock(&tk->tp.call);
+	ret = trace_remove_event_call(&tk->tp.call);
 	if (!ret)
 		kfree(tk->tp.call.print_fmt);
 	return ret;

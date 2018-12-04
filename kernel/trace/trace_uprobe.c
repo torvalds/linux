@@ -1320,7 +1320,7 @@ static int register_uprobe_event(struct trace_uprobe *tu)
 		return -ENODEV;
 	}
 
-	ret = trace_add_event_call_nolock(call);
+	ret = trace_add_event_call(call);
 
 	if (ret) {
 		pr_info("Failed to register uprobe event: %s\n",
@@ -1337,7 +1337,7 @@ static int unregister_uprobe_event(struct trace_uprobe *tu)
 	int ret;
 
 	/* tu->event is unregistered in trace_remove_event_call() */
-	ret = trace_remove_event_call_nolock(&tu->tp.call);
+	ret = trace_remove_event_call(&tu->tp.call);
 	if (ret)
 		return ret;
 	kfree(tu->tp.call.print_fmt);
