@@ -245,7 +245,7 @@ static void r3k_flush_cache_page(struct vm_area_struct *vma,
 	pmd_t *pmdp;
 	pte_t *ptep;
 
-	pr_debug("cpage[%08lx,%08lx]\n",
+	pr_debug("cpage[%08llx,%08lx]\n",
 		 cpu_context(smp_processor_id(), mm), addr);
 
 	/* No ASID => no such page in the cache.  */
