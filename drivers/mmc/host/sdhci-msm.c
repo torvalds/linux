@@ -260,6 +260,8 @@ struct sdhci_msm_host {
 	bool restore_dll_config;
 	const struct sdhci_msm_variant_ops *var_ops;
 	const struct sdhci_msm_offset *offset;
+	bool use_cdr;
+	u32 transfer_mode;
 };
 
 static const struct sdhci_msm_offset *sdhci_priv_msm_offset(struct sdhci_host *host)
@@ -1069,6 +1071,27 @@ static int sdhci_msm_restore_sdr_dll_config(struct sdhci_host *host)
 	return ret;
 }
 
+static void sdhci_msm_set_cdr(struct sdhci_host *host, bool enable)
+{
+	const struct sdhci_msm_offset *msm_offset = sdhci_priv_msm_offset(host);
+	u32 config, oldconfig = readl_relaxed(host->ioaddr +
+					      msm_offset->core_dll_config);
+
+	config = oldconfig;
+	if (enable) {
+		config |= CORE_CDR_EN;
+		config &= ~CORE_CDR_EXT_EN;
+	} else {
+		config &= ~CORE_CDR_EN;
+		config |= CORE_CDR_EXT_EN;
+	}
+
+	if (config != oldconfig) {
+		writel_relaxed(config, host->ioaddr +
+			       msm_offset->core_dll_config);
+	}
+}
+
 static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
@@ -1079,8 +1102,14 @@ static int sdhci_msm_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_msm_host *msm_host = sdhci_pltfm_priv(pltfm_host);
 
-	if (!sdhci_msm_is_tuning_needed(host))
+	if (!sdhci_msm_is_tuning_needed(host)) {
+		msm_host->use_cdr = false;
+		sdhci_msm_set_cdr(host, false);
 		return 0;
+	}
+
+	/* Clock-Data-Recovery used to dynamically adjust RX sampling point */
+	msm_host->use_cdr = true;
 
 	/*
 	 * For HS400 tuning in HS200 timing requires:
@@ -1561,6 +1590,19 @@ static int __sdhci_msm_check_write(struct sdhci_host *host, u16 val, int reg)
 		break;
 	case SDHCI_POWER_CONTROL:
 		req_type = !val ? REQ_BUS_OFF : REQ_BUS_ON;
+		break;
+	case SDHCI_TRANSFER_MODE:
+		msm_host->transfer_mode = val;
+		break;
+	case SDHCI_COMMAND:
+		if (!msm_host->use_cdr)
+			break;
+		if ((msm_host->transfer_mode & SDHCI_TRNS_READ) &&
+		    SDHCI_GET_CMD(val) != MMC_SEND_TUNING_BLOCK_HS200 &&
+		    SDHCI_GET_CMD(val) != MMC_SEND_TUNING_BLOCK)
+			sdhci_msm_set_cdr(host, true);
+		else
+			sdhci_msm_set_cdr(host, false);
 		break;
 	}
 
