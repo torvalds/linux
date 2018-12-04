@@ -261,6 +261,32 @@ static u8 intel_dp_get_sink_sync_latency(struct intel_dp *intel_dp)
 	return val;
 }
 
+static u16 intel_dp_get_su_x_granulartiy(struct intel_dp *intel_dp)
+{
+	u16 val;
+	ssize_t r;
+
+	/*
+	 * Returning the default X granularity if granularity not required or
+	 * if DPCD read fails
+	 */
+	if (!(intel_dp->psr_dpcd[1] & DP_PSR2_SU_GRANULARITY_REQUIRED))
+		return 4;
+
+	r = drm_dp_dpcd_read(&intel_dp->aux, DP_PSR2_SU_X_GRANULARITY, &val, 2);
+	if (r != 2)
+		DRM_DEBUG_KMS("Unable to read DP_PSR2_SU_X_GRANULARITY\n");
+
+	/*
+	 * Spec says that if the value read is 0 the default granularity should
+	 * be used instead.
+	 */
+	if (r != 2 || val == 0)
+		val = 4;
+
+	return val;
+}
+
 void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv =
@@ -315,6 +341,8 @@ void intel_psr_init_dpcd(struct intel_dp *intel_dp)
 		if (dev_priv->psr.sink_psr2_support) {
 			dev_priv->psr.colorimetry_support =
 				intel_dp_get_colorimetry_status(intel_dp);
+			dev_priv->psr.su_x_granularity =
+				intel_dp_get_su_x_granulartiy(intel_dp);
 		}
 	}
 }
@@ -539,11 +567,12 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	/*
 	 * HW sends SU blocks of size four scan lines, which means the starting
 	 * X coordinate and Y granularity requirements will always be met. We
-	 * only need to validate the SU block width is a multiple of 4.
+	 * only need to validate the SU block width is a multiple of
+	 * x granularity.
 	 */
-	if (crtc_hdisplay % 4) {
-		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of 4\n",
-			      crtc_hdisplay);
+	if (crtc_hdisplay % dev_priv->psr.su_x_granularity) {
+		DRM_DEBUG_KMS("PSR2 not enabled, hdisplay(%d) not multiple of %d\n",
+			      crtc_hdisplay, dev_priv->psr.su_x_granularity);
 		return false;
 	}
 

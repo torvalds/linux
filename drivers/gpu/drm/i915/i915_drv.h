@@ -509,6 +509,7 @@ struct i915_psr {
 	ktime_t last_exit;
 	bool sink_not_reliable;
 	bool irq_aux_error;
+	u16 su_x_granularity;
 };
 
 enum intel_pch {
