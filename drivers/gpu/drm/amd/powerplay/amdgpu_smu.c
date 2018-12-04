@@ -75,6 +75,16 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 		return ret;
 	}
 
+	/**
+	 * Create smu_table structure, and init smc tables such as
+	 * TABLE_PPTABLE, TABLE_WATERMARKS, TABLE_SMU_METRICS, and etc.
+	 */
+	ret = smu_init_smc_tables(smu);
+	if (ret) {
+		pr_err("Failed to init smc tables!\n");
+		return ret;
+	}
+
 	return 0;
 }
 
