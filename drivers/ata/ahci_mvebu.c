@@ -197,11 +197,6 @@ static const struct of_device_id ahci_mvebu_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ahci_mvebu_of_match);
 
-/*
- * We currently don't provide power management related operations,
- * since there is no suspend/resume support at the platform level for
- * Armada 38x for the moment.
- */
 static struct platform_driver ahci_mvebu_driver = {
 	.probe = ahci_mvebu_probe,
 	.remove = ata_platform_remove_one,
