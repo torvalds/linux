@@ -1,4 +1,4 @@
-Documentation/networking/vortex.txt
+Documentation/networking/device_drivers/3com/vortex.txt
 Andrew Morton
 30 April 2000
 
