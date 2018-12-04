@@ -183,6 +183,8 @@ enum nfit_mem_flags {
 	NFIT_MEM_DIRTY_COUNT,
 };
 
+#define NFIT_DIMM_ID_LEN	22
+
 /* assembled tables for a given dimm/memory-device */
 struct nfit_mem {
 	struct nvdimm *nvdimm;
@@ -200,6 +202,7 @@ struct nfit_mem {
 	struct list_head list;
 	struct acpi_device *adev;
 	struct acpi_nfit_desc *acpi_desc;
+	char id[NFIT_DIMM_ID_LEN+1];
 	struct resource *flush_wpq;
 	unsigned long dsm_mask;
 	unsigned long flags;
