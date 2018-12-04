@@ -155,15 +155,15 @@ static void estimate_pid_constants(struct thermal_zone_device *tz,
 	if (!temperature_threshold)
 		return;
 
-	if (!tz->tzp->k_po || force)
+	if (!tz->tzp->is_k_po_available || force)
 		tz->tzp->k_po = int_to_frac(sustainable_power) /
 			temperature_threshold;
 
-	if (!tz->tzp->k_pu || force)
+	if (!tz->tzp->is_k_pu_available || force)
 		tz->tzp->k_pu = int_to_frac(2 * sustainable_power) /
 			temperature_threshold;
 
-	if (!tz->tzp->k_i || force)
+	if (!tz->tzp->is_k_i_available || force)
 		tz->tzp->k_i = int_to_frac(10) / 1000;
 	/*
 	 * The default for k_d and integral_cutoff is 0, so we can

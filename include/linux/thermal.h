@@ -300,14 +300,20 @@ struct thermal_zone_params {
 	 */
 	s32 k_po;
 
+	bool is_k_po_available;
+
 	/*
 	 * Proportional parameter of the PID controller when
 	 * undershooting
 	 */
 	s32 k_pu;
 
+	bool is_k_pu_available;
+
 	/* Integral parameter of the PID controller */
 	s32 k_i;
+
+	bool is_k_i_available;
 
 	/* Derivative parameter of the PID controller */
 	s32 k_d;
