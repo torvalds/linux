@@ -44,6 +44,7 @@ struct smu_funcs
 	int (*check_pptable)(struct smu_context *smu);
 	int (*parse_pptable)(struct smu_context *smu);
 	int (*populate_smc_pptable)(struct smu_context *smu);
+	int (*check_fw_version)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -66,6 +67,8 @@ struct smu_funcs
 	((smu)->funcs->parse_pptable ? (smu)->funcs->parse_pptable((smu)) : 0)
 #define smu_populate_smc_pptable(smu) \
 	((smu)->funcs->populate_smc_pptable ? (smu)->funcs->populate_smc_pptable((smu)) : 0)
+#define smu_check_fw_version(smu) \
+	((smu)->funcs->check_fw_version ? (smu)->funcs->check_fw_version((smu)) : 0)
 
 
 extern const struct amd_ip_funcs smu_ip_funcs;
