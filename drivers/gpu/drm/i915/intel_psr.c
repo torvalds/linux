@@ -476,9 +476,6 @@ static void hsw_activate_psr2(struct intel_dp *intel_dp)
 	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
 	val = idle_frames << EDP_PSR2_IDLE_FRAME_SHIFT;
 
-	/* FIXME: selective update is probably totally broken because it doesn't
-	 * mesh at all with our frontbuffer tracking. And the hw alone isn't
-	 * good enough. */
 	val |= EDP_PSR2_ENABLE | EDP_SU_TRACK_ENABLE;
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		val |= EDP_Y_COORDINATE_ENABLE;
