@@ -314,6 +314,10 @@
 # define DP_PSR_SETUP_TIME_SHIFT            1
 # define DP_PSR2_SU_Y_COORDINATE_REQUIRED   (1 << 4)  /* eDP 1.4a */
 # define DP_PSR2_SU_GRANULARITY_REQUIRED    (1 << 5)  /* eDP 1.4b */
+
+#define DP_PSR2_SU_X_GRANULARITY	    0x072 /* eDP 1.4b */
+#define DP_PSR2_SU_Y_GRANULARITY	    0x074 /* eDP 1.4b */
+
 /*
  * 0x80-0x8f describe downstream port capabilities, but there are two layouts
  * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
