@@ -59,6 +59,25 @@ static int smu_early_init(void *handle)
 	return 0;
 }
 
+static int smu_initialize_pptable(struct smu_context *smu)
+{
+	/* TODO */
+	return 0;
+}
+
+static int smu_smc_table_sw_init(struct smu_context *smu)
+{
+	int ret;
+
+	ret = smu_initialize_pptable(smu);
+	if (ret) {
+		pr_err("Failed to init smu_initialize_pptable!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int smu_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -71,6 +90,12 @@ static int smu_sw_init(void *handle)
 	ret = smu_init_microcode(smu);
 	if (ret) {
 		pr_err("Failed to load smu firmware!\n");
+		return ret;
+	}
+
+	ret = smu_smc_table_sw_init(smu);
+	if (ret) {
+		pr_err("Failed to sw init smc table!\n");
 		return ret;
 	}
 
