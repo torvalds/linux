@@ -620,4 +620,9 @@ static inline bool sctp_transport_pmtu_check(struct sctp_transport *t)
 	return false;
 }
 
+static inline __u32 sctp_min_frag_point(struct sctp_sock *sp, __u16 datasize)
+{
+	return sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT, datasize);
+}
+
 #endif /* __net_sctp_h__ */
