@@ -58,6 +58,9 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->nop_packet = nop.u32all;
 	switch (type) {
 	case KFD_QUEUE_TYPE_DIQ:
+		kq->mqd_mgr = dev->dqm->ops.get_mqd_manager(dev->dqm,
+						KFD_MQD_TYPE_DIQ);
+		break;
 	case KFD_QUEUE_TYPE_HIQ:
 		kq->mqd_mgr = dev->dqm->ops.get_mqd_manager(dev->dqm,
 						KFD_MQD_TYPE_HIQ);

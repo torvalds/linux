@@ -474,6 +474,17 @@ struct mqd_manager *mqd_manager_init_vi(enum KFD_MQD_TYPE type,
 		mqd->debugfs_show_mqd = debugfs_show_mqd;
 #endif
 		break;
+	case KFD_MQD_TYPE_DIQ:
+		mqd->init_mqd = init_mqd_hiq;
+		mqd->uninit_mqd = uninit_mqd;
+		mqd->load_mqd = load_mqd;
+		mqd->update_mqd = update_mqd_hiq;
+		mqd->destroy_mqd = destroy_mqd;
+		mqd->is_occupied = is_occupied;
+#if defined(CONFIG_DEBUG_FS)
+		mqd->debugfs_show_mqd = debugfs_show_mqd;
+#endif
+		break;
 	case KFD_MQD_TYPE_SDMA:
 		mqd->init_mqd = init_mqd_sdma;
 		mqd->uninit_mqd = uninit_mqd_sdma;

@@ -470,7 +470,6 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 			case KFD_QUEUE_TYPE_DIQ:
 				seq_printf(m, "  DIQ on device %x\n",
 					   pqn->kq->dev->id);
-				mqd_type = KFD_MQD_TYPE_HIQ;
 				break;
 			default:
 				seq_printf(m,
