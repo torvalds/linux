@@ -1,0 +1,228 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/shmobile.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Renesas SH-Mobile, R-Mobile, and R-Car Platform Device Tree Bindings
+
+maintainers:
+  - Geert Uytterhoeven <geert+renesas@glider.be>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+      - description: Emma Mobile EV2
+        items:
+          - enum:
+              - renesas,kzm9d # Kyoto Microcomputer Co. KZM-A9-Dual
+          - const: renesas,emev2
+
+      - description: RZ/A1H (R7S72100)
+        items:
+          - enum:
+              - renesas,genmai # Genmai (RTK772100BC00000BR)
+              - renesas,gr-peach # GR-Peach (X28A-M01-E/F)
+              - renesas,rskrza1 # RSKRZA1 (YR0K77210C000BE)
+          - const: renesas,r7s72100
+
+      - description: RZ/A2 (R7S9210)
+        items:
+          - const: renesas,r7s9210
+
+      - description: SH-Mobile AG5 (R8A73A00/SH73A0)
+        items:
+          - enum:
+              - renesas,kzm9g # Kyoto Microcomputer Co. KZM-A9-GT
+          - const: renesas,sh73a0
+
+      - description: R-Mobile APE6 (R8A73A40)
+        items:
+          - enum:
+              - renesas,ape6evm
+          - const: renesas,r8a73a4
+
+      - description: R-Mobile A1 (R8A77400)
+        items:
+          - enum:
+              - renesas,armadillo800eva # Atmark Techno Armadillo-800 EVA
+          - const: renesas,r8a7740
+
+      - description: RZ/G1H (R8A77420)
+        items:
+          - const: renesas,r8a7742
+
+      - description: RZ/G1M (R8A77430)
+        items:
+          - enum:
+              # iWave Systems RZ/G1M Qseven Development Platform (iW-RainboW-G20D-Qseven)
+              - iwave,g20d
+          - const: iwave,g20m
+          - const: renesas,r8a7743
+
+      - items:
+          - enum:
+              # iWave Systems RZ/G1M Qseven System On Module (iW-RainboW-G20M-Qseven)
+              - iwave,g20m
+              - renesas,sk-rzg1m # SK-RZG1M (YR8A77430S000BE)
+          - const: renesas,r8a7743
+
+      - description: RZ/G1N (R8A77440)
+        items:
+          - enum:
+              # iWave Systems RZ/G1N Qseven Development Platform (iW-RainboW-G20D-Qseven)
+              - iwave,g20d
+          - const: iwave,g20m
+          - const: renesas,r8a7744
+
+      - items:
+          - enum:
+              # iWave Systems RZ/G1N Qseven System On Module (iW-RainboW-G20M-Qseven)
+              - iwave,g20m
+          - const: renesas,r8a7744
+
+      - description: RZ/G1E (R8A77450)
+        items:
+          - enum:
+              - iwave,g22m # iWave Systems RZ/G1E SODIMM System On Module (iW-RainboW-G22M-SM)
+              - renesas,sk-rzg1e # SK-RZG1E (YR8A77450S000BE)
+          - const: renesas,r8a7745
+
+      - description: iWave Systems RZ/G1E SODIMM SOM Development Platform (iW-RainboW-G22D)
+        items:
+          - const: iwave,g22d
+          - const: iwave,g22m
+          - const: renesas,r8a7745
+
+      - description: RZ/G1C (R8A77470)
+        items:
+          - enum:
+              - iwave,g23s #iWave Systems RZ/G1C Single Board Computer (iW-RainboW-G23S)
+          - const: renesas,r8a77470
+
+      - description: RZ/G2M (R8A774A1)
+        items:
+          - const: renesas,r8a774a1
+
+      - description: RZ/G2E (R8A774C0)
+        items:
+          - const: renesas,r8a774c0
+
+      - description: R-Car M1A (R8A77781)
+        items:
+          - enum:
+              - renesas,bockw
+          - const: renesas,r8a7778
+
+      - description: R-Car H1 (R8A77790)
+        items:
+          - enum:
+              - renesas,marzen # Marzen (R0P7779A00010S)
+              - renesas,stout # Stout (ADAS Starterkit, Y-R-CAR-ADAS-SKH2-BOARD)
+          - const: renesas,r8a7779
+
+      - description: R-Car H2 (R8A77900)
+        items:
+          - enum:
+              - renesas,lager # Lager (RTP0RC7790SEB00010S)
+          - const: renesas,r8a7790
+
+      - description: R-Car M2-W (R8A77910)
+        items:
+          - enum:
+              - renesas,henninger
+              - renesas,koelsch # Koelsch (RTP0RC7791SEB00010S)
+              - renesas,porter # Porter (M2-LCDP)
+          - const: renesas,r8a7791
+
+      - description: R-Car V2H (R8A77920)
+        items:
+          - enum:
+              - renesas,blanche # Blanche (RTP0RC7792SEB00010S)
+              - renesas,wheat # Wheat (RTP0RC7792ASKB0000JE)
+          - const: renesas,r8a7792
+
+      - description: R-Car M2-N (R8A77930)
+        items:
+          - enum:
+              - renesas,gose # Gose (RTP0RC7793SEB00010S)
+          - const: renesas,r8a7793
+
+      - description: R-Car E2 (R8A77940)
+        items:
+          - enum:
+              - renesas,alt # Alt (RTP0RC7794SEB00010S)
+              - renesas,silk # SILK (RTP0RC7794LCB00011S)
+          - const: renesas,r8a7794
+
+      - description: R-Car H3 (R8A77950)
+        items:
+          - enum:
+                # H3ULCB (R-Car Starter Kit Premier, RTP0RC7795SKBX0010SA00 (H3 ES1.1))
+                # H3ULCB (R-Car Starter Kit Premier, RTP0RC77951SKBX010SA00 (H3 ES2.0))
+              - renesas,h3ulcb
+              - renesas,salvator-x # Salvator-X (RTP0RC7795SIPB0010S)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC7795SIPB0012S)
+          - const: renesas,r8a7795
+
+      - description: R-Car M3-W (R8A77960)
+        items:
+          - enum:
+              - renesas,m3ulcb # M3ULCB (R-Car Starter Kit Pro, RTP0RC7796SKBX0010SA09 (M3 ES1.0))
+              - renesas,salvator-x # Salvator-X (RTP0RC7796SIPB0011S)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC7796SIPB0012S)
+          - const: renesas,r8a7796
+
+      - description: Kingfisher (SBEV-RCAR-KF-M03)
+        items:
+          - const: shimafuji,kingfisher
+          - enum:
+              - renesas,h3ulcb
+              - renesas,m3ulcb
+          - enum:
+              - renesas,r8a7795
+              - renesas,r8a7796
+
+      - description: R-Car M3-N (R8A77965)
+        items:
+          - enum:
+              - renesas,m3nulcb # M3NULCB (R-Car Starter Kit Pro, RTP0RC77965SKBX010SA00 (M3-N ES1.1))
+              - renesas,salvator-x # Salvator-X (RTP0RC7796SIPB0011S (M3-N))
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version, RTP0RC77965SIPB012S)
+          - const: renesas,r8a77965
+
+      - description: R-Car V3M (R8A77970)
+        items:
+          - enum:
+              - renesas,eagle # Eagle (RTP0RC77970SEB0010S)
+              - renesas,v3msk # V3MSK (Y-ASK-RCAR-V3M-WS10)
+          - const: renesas,r8a77970
+
+      - description: R-Car V3H (R8A77980)
+        items:
+          - enum:
+              - renesas,condor # Condor (RTP0RC77980SEB0010SS/RTP0RC77980SEB0010SA01)
+              - renesas,v3hsk # V3HSK (Y-ASK-RCAR-V3H-WS10)
+          - const: renesas,r8a77980
+
+      - description: R-Car E3 (R8A77990)
+        items:
+          - enum:
+              - renesas,ebisu # Ebisu (RTP0RC77990SEB0010S)
+          - const: renesas,r8a77990
+
+      - description: R-Car D3 (R8A77995)
+        items:
+          - enum:
+              - renesas,draak # Draak (RTP0RC77995SEB0010S)
+          - const: renesas,r8a77995
+
+      - description: RZ/N1D (R9A06G032)
+        items:
+          - enum:
+              - renesas,rzn1d400-db # RZN1D-DB (RZ/N1D Demo Board for the RZ/N1D 400 pins package)
+          - const: renesas,r9a06g032
+
+...
