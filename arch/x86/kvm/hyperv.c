@@ -56,20 +56,7 @@ static inline int synic_get_sint_vector(u64 sint_value)
 static bool synic_has_vector_connected(struct kvm_vcpu_hv_synic *synic,
 				      int vector)
 {
-	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
-	struct kvm_vcpu_hv_stimer *stimer;
 	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++) {
-		stimer = &hv_vcpu->stimer[i];
-		if (stimer->config.enable && stimer->config.direct_mode &&
-		    stimer->config.apic_vector == vector)
-			return true;
-	}
-
-	if (vector < HV_SYNIC_FIRST_VALID_VECTOR)
-		return false;
 
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++) {
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
@@ -96,13 +83,13 @@ static bool synic_has_vector_auto_eoi(struct kvm_vcpu_hv_synic *synic,
 static void synic_update_vector(struct kvm_vcpu_hv_synic *synic,
 				int vector)
 {
+	if (vector < HV_SYNIC_FIRST_VALID_VECTOR)
+		return;
+
 	if (synic_has_vector_connected(synic, vector))
 		__set_bit(vector, synic->vec_bitmap);
 	else
 		__clear_bit(vector, synic->vec_bitmap);
-
-	if (vector < HV_SYNIC_FIRST_VALID_VECTOR)
-		return;
 
 	if (synic_has_vector_auto_eoi(synic, vector))
 		__set_bit(vector, synic->auto_eoi_bitmap);
@@ -353,9 +340,7 @@ int kvm_hv_synic_set_irq(struct kvm *kvm, u32 vpidx, u32 sint)
 
 void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 {
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
 	struct kvm_vcpu_hv_synic *synic = vcpu_to_synic(vcpu);
-	struct kvm_vcpu_hv_stimer *stimer;
 	int i;
 
 	trace_kvm_hv_synic_send_eoi(vcpu->vcpu_id, vector);
@@ -363,14 +348,6 @@ void kvm_hv_synic_send_eoi(struct kvm_vcpu *vcpu, int vector)
 	for (i = 0; i < ARRAY_SIZE(synic->sint); i++)
 		if (synic_get_sint_vector(synic_read_sint(synic, i)) == vector)
 			kvm_hv_notify_acked_sint(vcpu, i);
-
-	for (i = 0; i < ARRAY_SIZE(hv_vcpu->stimer); i++) {
-		stimer = &hv_vcpu->stimer[i];
-		if (stimer->msg_pending && stimer->config.enable &&
-		    stimer->config.direct_mode &&
-		    stimer->config.apic_vector == vector)
-			stimer_mark_pending(stimer, false);
-	}
 }
 
 static int kvm_hv_set_sint_gsi(struct kvm *kvm, u32 vpidx, u32 sint, int gsi)
@@ -537,8 +514,6 @@ static int stimer_start(struct kvm_vcpu_hv_stimer *stimer)
 static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 			     bool host)
 {
-	struct kvm_vcpu *vcpu = stimer_to_vcpu(stimer);
-	struct kvm_vcpu_hv *hv_vcpu = vcpu_to_hv_vcpu(vcpu);
 	union hv_stimer_config new_config = {.as_uint64 = config},
 		old_config = {.as_uint64 = stimer->config.as_uint64};
 
@@ -550,11 +525,6 @@ static int stimer_set_config(struct kvm_vcpu_hv_stimer *stimer, u64 config,
 	    !new_config.direct_mode && new_config.sintx == 0)
 		new_config.enable = 0;
 	stimer->config.as_uint64 = new_config.as_uint64;
-
-	if (old_config.direct_mode)
-		synic_update_vector(&hv_vcpu->synic, old_config.apic_vector);
-	if (new_config.direct_mode)
-		synic_update_vector(&hv_vcpu->synic, new_config.apic_vector);
 
 	stimer_mark_pending(stimer, false);
 	return 0;
