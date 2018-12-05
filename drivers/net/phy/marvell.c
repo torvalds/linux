@@ -1138,7 +1138,7 @@ static int marvell_read_status_page_an(struct phy_device *phydev,
 
 	if (!fiber) {
 		mii_lpa_to_linkmode_lpa_t(phydev->lp_advertising, lpa);
-		mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising, lpagb);
+		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, lpagb);
 
 		if (phydev->duplex == DUPLEX_FULL) {
 			phydev->pause = lpa & LPA_PAUSE_CAP ? 1 : 0;

@@ -490,7 +490,7 @@ static int mv3310_read_status(struct phy_device *phydev)
 		if (val < 0)
 			return val;
 
-		mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising, val);
+		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, val);
 
 		if (phydev->autoneg == AUTONEG_ENABLE)
 			phy_resolve_aneg_linkmode(phydev);

@@ -288,22 +288,22 @@ static inline u32 mii_stat1000_to_ethtool_lpa_t(u32 lpa)
 }
 
 /**
- * mii_stat1000_to_linkmode_lpa_t
+ * mii_stat1000_mod_linkmode_lpa_t
  * @advertising: target the linkmode advertisement settings
  * @adv: value of the MII_STAT1000 register
  *
  * A small helper function that translates MII_STAT1000 bits, when in
- * 1000Base-T mode, to linkmode advertisement settings.
+ * 1000Base-T mode, to linkmode advertisement settings. Other bits in
+ * advertising are not changes.
  */
-static inline void mii_stat1000_to_linkmode_lpa_t(unsigned long *advertising,
-						  u32 lpa)
+static inline void mii_stat1000_mod_linkmode_lpa_t(unsigned long *advertising,
+						   u32 lpa)
 {
-	if (lpa & LPA_1000HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				 advertising);
-	if (lpa & LPA_1000FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				 advertising);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			 advertising, lpa & LPA_1000HALF);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 advertising, lpa & LPA_1000FULL);
 }
 
 /**

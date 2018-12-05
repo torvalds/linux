@@ -1739,8 +1739,8 @@ int genphy_read_status(struct phy_device *phydev)
 				return -ENOLINK;
 			}
 
-			mii_stat1000_to_linkmode_lpa_t(phydev->lp_advertising,
-						       lpagb);
+			mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising,
+							lpagb);
 			common_adv_gb = lpagb & adv << 2;
 		}
 
