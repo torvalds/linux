@@ -15,6 +15,7 @@
 #include <drm/drm.h>
 #include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_flip_work.h>
@@ -820,10 +821,83 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 	spin_unlock(&vop->reg_lock);
 }
 
+static int vop_plane_atomic_async_check(struct drm_plane *plane,
+					struct drm_plane_state *state)
+{
+	struct vop_win *vop_win = to_vop_win(plane);
+	const struct vop_win_data *win = vop_win->data;
+	int min_scale = win->phy->scl ? FRAC_16_16(1, 8) :
+					DRM_PLANE_HELPER_NO_SCALING;
+	int max_scale = win->phy->scl ? FRAC_16_16(8, 1) :
+					DRM_PLANE_HELPER_NO_SCALING;
+	struct drm_crtc_state *crtc_state;
+
+	if (plane != state->crtc->cursor)
+		return -EINVAL;
+
+	if (!plane->state)
+		return -EINVAL;
+
+	if (!plane->state->fb)
+		return -EINVAL;
+
+	if (state->state)
+		crtc_state = drm_atomic_get_existing_crtc_state(state->state,
+								state->crtc);
+	else /* Special case for asynchronous cursor updates. */
+		crtc_state = plane->crtc->state;
+
+	return drm_atomic_helper_check_plane_state(plane->state, crtc_state,
+						   min_scale, max_scale,
+						   true, true);
+}
+
+static void vop_plane_atomic_async_update(struct drm_plane *plane,
+					  struct drm_plane_state *new_state)
+{
+	struct vop *vop = to_vop(plane->state->crtc);
+	struct drm_plane_state *plane_state;
+
+	plane_state = plane->funcs->atomic_duplicate_state(plane);
+	plane_state->crtc_x = new_state->crtc_x;
+	plane_state->crtc_y = new_state->crtc_y;
+	plane_state->crtc_h = new_state->crtc_h;
+	plane_state->crtc_w = new_state->crtc_w;
+	plane_state->src_x = new_state->src_x;
+	plane_state->src_y = new_state->src_y;
+	plane_state->src_h = new_state->src_h;
+	plane_state->src_w = new_state->src_w;
+
+	if (plane_state->fb != new_state->fb)
+		drm_atomic_set_fb_for_plane(plane_state, new_state->fb);
+
+	swap(plane_state, plane->state);
+
+	if (plane->state->fb && plane->state->fb != new_state->fb) {
+		drm_framebuffer_get(plane->state->fb);
+		WARN_ON(drm_crtc_vblank_get(plane->state->crtc) != 0);
+		drm_flip_work_queue(&vop->fb_unref_work, plane->state->fb);
+		set_bit(VOP_PENDING_FB_UNREF, &vop->pending);
+	}
+
+	if (vop->is_enabled) {
+		rockchip_drm_psr_inhibit_get_state(new_state->state);
+		vop_plane_atomic_update(plane, plane->state);
+		spin_lock(&vop->reg_lock);
+		vop_cfg_done(vop);
+		spin_unlock(&vop->reg_lock);
+		rockchip_drm_psr_inhibit_put_state(new_state->state);
+	}
+
+	plane->funcs->atomic_destroy_state(plane, plane_state);
+}
+
 static const struct drm_plane_helper_funcs plane_helper_funcs = {
 	.atomic_check = vop_plane_atomic_check,
 	.atomic_update = vop_plane_atomic_update,
 	.atomic_disable = vop_plane_atomic_disable,
+	.atomic_async_check = vop_plane_atomic_async_check,
+	.atomic_async_update = vop_plane_atomic_async_update,
 	.prepare_fb = drm_gem_fb_prepare_fb,
 };
 
