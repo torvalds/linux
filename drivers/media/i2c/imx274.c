@@ -207,8 +207,8 @@ static const char * const tp_qmenu[] = {
 	"Vertical Stripe (555h / 000h)",
 	"Vertical Stripe (000h / FFFh)",
 	"Vertical Stripe (FFFh / 000h)",
-	"Horizontal Color Bars",
 	"Vertical Color Bars",
+	"Horizontal Color Bars",
 };
 
 /*
