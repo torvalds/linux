@@ -1366,7 +1366,7 @@ enum drm_dp_quirk {
 	 */
 	DP_DPCD_QUIRK_CONSTANT_N,
 	/**
-	 * @DP_DPCD_QUIRK_NO_PSR
+	 * @DP_DPCD_QUIRK_NO_PSR:
 	 *
 	 * The device does not support PSR even if reports that it supports or
 	 * driver still need to implement proper handling for such device.
