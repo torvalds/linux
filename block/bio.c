@@ -1990,7 +1990,7 @@ static void __bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
 {
 	bio_disassociate_blkg(bio);
 
-	bio->bi_blkg = blkg_try_get_closest(blkg);
+	bio->bi_blkg = blkg_tryget_closest(blkg);
 }
 
 /**
