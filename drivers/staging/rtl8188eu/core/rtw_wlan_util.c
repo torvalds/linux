@@ -1440,10 +1440,9 @@ void update_wireless_mode(struct adapter *padapter)
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_RESP_SIFS,  (u8 *)&SIFS_Timer);
 
-	if (pmlmeext->cur_wireless_mode & WIRELESS_11B)
-		update_mgnt_tx_rate(padapter, IEEE80211_CCK_RATE_1MB);
-	 else
-		update_mgnt_tx_rate(padapter, IEEE80211_OFDM_RATE_6MB);
+	update_mgnt_tx_rate(padapter,
+			    pmlmeext->cur_wireless_mode & WIRELESS_11B ?
+			    IEEE80211_CCK_RATE_1MB : IEEE80211_OFDM_RATE_6MB);
 }
 
 void update_bmc_sta_support_rate(struct adapter *padapter, u32 mac_id)
