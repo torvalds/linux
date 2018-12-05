@@ -249,7 +249,7 @@ err_free_blkg:
 }
 
 /**
- * blkg_lookup_create - lookup blkg, try to create one if not there
+ * __blkg_lookup_create - lookup blkg, try to create one if not there
  * @blkcg: blkcg of interest
  * @q: request_queue of interest
  *
@@ -262,8 +262,8 @@ err_free_blkg:
  * value on error.  If @q is dead, returns ERR_PTR(-EINVAL).  If @q is not
  * dead and bypassing, returns ERR_PTR(-EBUSY).
  */
-struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
-				    struct request_queue *q)
+struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
+				      struct request_queue *q)
 {
 	struct blkcg_gq *blkg;
 
@@ -291,6 +291,28 @@ struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
 		if (pos == blkcg || IS_ERR(blkg))
 			return blkg;
 	}
+}
+
+/**
+ * blkg_lookup_create - find or create a blkg
+ * @blkcg: target block cgroup
+ * @q: target request_queue
+ *
+ * This looks up or creates the blkg representing the unique pair
+ * of the blkcg and the request_queue.
+ */
+struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
+				    struct request_queue *q)
+{
+	struct blkcg_gq *blkg = blkg_lookup(blkcg, q);
+
+	if (unlikely(!blkg)) {
+		spin_lock_irq(&q->queue_lock);
+		blkg = __blkg_lookup_create(blkcg, q);
+		spin_unlock_irq(&q->queue_lock);
+	}
+
+	return blkg;
 }
 
 static void blkg_destroy(struct blkcg_gq *blkg)
