@@ -404,7 +404,6 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 {
 	struct wil6210_priv *wil;
 	struct net_device *ndev;
-	struct wireless_dev *wdev;
 	int cid = -ENOENT;
 
 	if (unlikely(!vif))
@@ -412,7 +411,6 @@ static void _wil6210_disconnect(struct wil6210_vif *vif, const u8 *bssid,
 
 	wil = vif_to_wil(vif);
 	ndev = vif_to_ndev(vif);
-	wdev = vif_to_wdev(vif);
 
 	might_sleep();
 	wil_info(wil, "disconnect bssid=%pM, reason=%d\n", bssid, reason_code);
