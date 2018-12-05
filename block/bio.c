@@ -244,7 +244,7 @@ fallback:
 
 void bio_uninit(struct bio *bio)
 {
-	bio_disassociate_task(bio);
+	bio_disassociate_blkg(bio);
 }
 EXPORT_SYMBOL(bio_uninit);
 
@@ -2072,15 +2072,6 @@ void bio_associate_blkg(struct bio *bio)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(bio_associate_blkg);
-
-/**
- * bio_disassociate_task - undo bio_associate_current()
- * @bio: target bio
- */
-void bio_disassociate_task(struct bio *bio)
-{
-	bio_disassociate_blkg(bio);
-}
 
 /**
  * bio_clone_blkg_association - clone blkg association from src to dst bio
