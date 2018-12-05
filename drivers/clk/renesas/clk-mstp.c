@@ -280,7 +280,7 @@ int cpg_mstp_attach_dev(struct generic_pm_domain *unused, struct device *dev)
 			goto found;
 
 		/* BSC on r8a73a4/sh73a0 uses zb_clk instead of an mstp clock */
-		if (!strcmp(clkspec.np->name, "zb_clk"))
+		if (of_node_name_eq(clkspec.np, "zb_clk"))
 			goto found;
 
 		of_node_put(clkspec.np);
