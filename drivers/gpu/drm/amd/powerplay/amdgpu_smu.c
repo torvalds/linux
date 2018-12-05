@@ -216,6 +216,21 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
 	return ret;
 }
 
+/**
+ * smu_alloc_memory_pool - allocate memory pool in the system memory
+ *
+ * @smu: amdgpu_device pointer
+ *
+ * This memory pool will be used for SMC use and msg SetSystemVirtualDramAddr
+ * and DramLogSetDramAddr can notify it changed.
+ *
+ * Returns 0 on success, error on failure.
+ */
+static int smu_alloc_memory_pool(struct smu_context *smu)
+{
+	return 0;
+}
+
 static int smu_hw_init(void *handle)
 {
 	int ret;
@@ -240,6 +255,10 @@ static int smu_hw_init(void *handle)
 	mutex_lock(&smu->mutex);
 
 	ret = smu_smc_table_hw_init(smu);
+	if (ret)
+		goto failed;
+
+	ret = smu_alloc_memory_pool(smu);
 	if (ret)
 		goto failed;
 
