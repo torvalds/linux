@@ -36,6 +36,10 @@
 #define USB2PHY_DISCON_BYP_LATCH (1 << 31)
 #define USB2PHY_ANA_CONFIG1 0x4c
 
+#define AM654_USB2_OTG_PD		BIT(8)
+#define AM654_USB2_VBUS_DET_EN		BIT(5)
+#define AM654_USB2_VBUSVALID_DET_EN	BIT(4)
+
 /**
  * omap_usb2_set_comparator - links the comparator present in the sytem with
  *	this phy
@@ -245,6 +249,15 @@ static const struct usb_phy_data am437x_usb2_data = {
 	.power_off = AM437X_USB2_PHY_PD | AM437X_USB2_OTG_PD,
 };
 
+static const struct usb_phy_data am654_usb2_data = {
+	.label = "am654_usb2",
+	.flags = OMAP_USB2_CALIBRATE_FALSE_DISCONNECT,
+	.mask = AM654_USB2_OTG_PD | AM654_USB2_VBUS_DET_EN |
+		AM654_USB2_VBUSVALID_DET_EN,
+	.power_on = AM654_USB2_VBUS_DET_EN | AM654_USB2_VBUSVALID_DET_EN,
+	.power_off = AM654_USB2_OTG_PD,
+};
+
 static const struct of_device_id omap_usb2_id_table[] = {
 	{
 		.compatible = "ti,omap-usb2",
@@ -265,6 +278,10 @@ static const struct of_device_id omap_usb2_id_table[] = {
 	{
 		.compatible = "ti,am437x-usb2",
 		.data = &am437x_usb2_data,
+	},
+	{
+		.compatible = "ti,am654-usb2",
+		.data = &am654_usb2_data,
 	},
 	{},
 };
