@@ -2021,6 +2021,7 @@ void bio_disassociate_blkg(struct bio *bio)
 		bio->bi_blkg = NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(bio_disassociate_blkg);
 
 /**
  * __bio_associate_blkg - associate a bio with the a blkg
