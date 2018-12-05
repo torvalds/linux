@@ -7,6 +7,7 @@
 
 #include <dt-bindings/clock/qcom,dispcc-sdm845.h>
 #include <dt-bindings/clock/qcom,gcc-sdm845.h>
+#include <dt-bindings/clock/qcom,lpass-sdm845.h>
 #include <dt-bindings/clock/qcom,gpucc-sdm845.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/clock/qcom,videocc-sdm845.h>
@@ -2006,6 +2007,14 @@
 				     <GIC_SPI 341 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 342 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 343 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
+		lpasscc: clock-controller@17014000 {
+			compatible = "qcom,sdm845-lpasscc";
+			reg = <0x17014000 0x1f004>, <0x17300000 0x200>;
+			reg-names = "cc", "qdsp6ss";
+			#clock-cells = <1>;
+			status = "disabled";
 		};
 
 		apss_shared: mailbox@17990000 {
