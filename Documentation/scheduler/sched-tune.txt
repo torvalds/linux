@@ -30,11 +30,9 @@ Table of Contents
 1. Motivation
 =============
 
-Sched-DVFS [3] was a new event-driven cpufreq governor which allows the
+Schedutil [3] is a utilization-driven cpufreq governor which allows the
 scheduler to select the optimal DVFS operating point (OPP) for running a task
-allocated to a CPU. Later, the cpufreq maintainers introduced a similar
-governor, schedutil. The introduction of schedutil also enables running
-workloads at the most energy efficient OPPs.
+allocated to a CPU.
 
 However, sometimes it may be desired to intentionally boost the performance of
 a workload even if that could imply a reasonable increase in energy
@@ -44,16 +42,16 @@ by it's CPU bandwidth demand.
 
 This last requirement is especially important if we consider that one of the
 main goals of the utilization-driven governor component is to replace all
-currently available CPUFreq policies. Since sched-DVFS and schedutil are event
-based, as opposed to the sampling driven governors we currently have, they are
-already more responsive at selecting the optimal OPP to run tasks allocated to
-a CPU. However, just tracking the actual task load demand may not be enough
-from a performance standpoint.  For example, it is not possible to get
-behaviors similar to those provided by the "performance" and "interactive"
-CPUFreq governors.
+currently available CPUFreq policies. Since schedutil is event-based, as
+opposed to the sampling driven governors we currently have, they are already
+more responsive at selecting the optimal OPP to run tasks allocated to a CPU.
+However, just tracking the actual task utilization may not be enough from a
+performance standpoint.  For example, it is not possible to get behaviors
+similar to those provided by the "performance" and "interactive" CPUFreq
+governors.
 
 This document describes an implementation of a tunable, stacked on top of the
-utilization-driven governors which extends their functionality to support task
+utilization-driven governor which extends its functionality to support task
 performance boosting.
 
 By "performance boosting" we mean the reduction of the time required to
@@ -62,17 +60,6 @@ next deactivation (e.g. because it goes back to sleep or it terminates).  For
 example, if we consider a simple periodic task which executes the same workload
 for 5[s] every 20[s] while running at a certain OPP, a boosted execution of
 that task must complete each of its activations in less than 5[s].
-
-A previous attempt [5] to introduce such a boosting feature has not been
-successful mainly because of the complexity of the proposed solution. Previous
-versions of the approach described in this document exposed a single simple
-interface to user-space.  This single tunable knob allowed the tuning of
-system wide scheduler behaviours ranging from energy efficiency at one end
-through to incremental performance boosting at the other end.  This first
-tunable affects all tasks. However, that is not useful for Android products
-so in this version only a more advanced extension of the concept is provided
-which uses CGroups to boost the performance of only selected tasks while using
-the energy efficient default for all others.
 
 The rest of this document introduces in more details the proposed solution
 which has been named SchedTune.
@@ -97,25 +84,22 @@ More details are given in section 5.
 2.1 Boosting
 ============
 
-The boost value is expressed as an integer in the range [-100..0..100].
+The boost value is expressed as an integer in the range [0..100].
 
 A value of 0 (default) configures the CFS scheduler for maximum energy
-efficiency. This means that sched-DVFS runs the tasks at the minimum OPP
+efficiency. This means that schedutil runs the tasks at the minimum OPP
 required to satisfy their workload demand.
 
 A value of 100 configures scheduler for maximum performance, which translates
 to the selection of the maximum OPP on that CPU.
 
-A value of -100 configures scheduler for minimum performance, which translates
-to the selection of the minimum OPP on that CPU.
-
-The range between -100, 0 and 100 can be set to satisfy other scenarios suitably.
-For example to satisfy interactive response or depending on other system events
+The range between 0 and 100 can be set to satisfy other scenarios suitably. For
+example to satisfy interactive response or depending on other system events
 (battery level etc).
 
 The overall design of the SchedTune module is built on top of "Per-Entity Load
-Tracking" (PELT) signals and sched-DVFS by introducing a bias on the Operating
-Performance Point (OPP) selection.
+Tracking" (PELT) signals and schedutil by introducing a bias on the OPP
+selection.
 
 Each time a task is allocated on a CPU, cpufreq is given the opportunity to tune
 the operating frequency of that CPU to better match the workload demand. The
@@ -140,9 +124,6 @@ can be placed according to the energy-aware wakeup strategy.
 
 A value of 1 signals to the CFS scheduler that tasks in this group should be
 placed to minimise wakeup latency.
-
-The value is combined with the boost value - task placement will not be
-boost aware however CPU OPP selection is still boost aware.
 
 Android platforms typically use this flag for application tasks which the
 user is currently interacting with.
@@ -169,21 +150,16 @@ to a signal to get its inflated value:
   margin         := boosting_strategy(sched_cfs_boost, signal)
   boosted_signal := signal + margin
 
-Different boosting strategies were identified and analyzed before selecting the
-one found to be most effective.
-
-Signal Proportional Compensation (SPC)
---------------------------------------
-
-In this boosting strategy the sched_cfs_boost value is used to compute a
-margin which is proportional to the complement of the original signal.
+The boosting strategy currently implemented in SchedTune is called 'Signal
+Proportional Compensation' (SPC). With SPC, the sched_cfs_boost value is used to
+compute a margin which is proportional to the complement of the original signal.
 When a signal has a maximum possible value, its complement is defined as
 the delta from the actual value and its possible maximum.
 
-Since the tunable implementation uses signals which have SCHED_LOAD_SCALE as
+Since the tunable implementation uses signals which have SCHED_CAPACITY_SCALE as
 the maximum possible value, the margin becomes:
 
-	margin := sched_cfs_boost * (SCHED_LOAD_SCALE - signal)
+	margin := sched_cfs_boost * (SCHED_CAPACITY_SCALE - signal)
 
 Using this boosting strategy:
 - a 100% sched_cfs_boost means that the signal is scaled to the maximum value
@@ -209,7 +185,7 @@ following figure where:
 
 
    ^
-   |  SCHED_LOAD_SCALE
+   |  SCHED_CAPACITY_SCALE
    +-----------------------------------------------------------------+
    |pppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppppp
    |
@@ -250,7 +226,7 @@ one, depending on the value of sched_cfs_boost. This is a clean an non invasive
 modification of the existing existing code paths.
 
 The signal representing a CPU's utilization is boosted according to the
-previously described SPC boosting strategy. To sched-DVFS, this allows a CPU
+previously described SPC boosting strategy. To schedutil, this allows a CPU
 (ie CFS run-queue) to appear more used then it actually is.
 
 Thus, with the sched_cfs_boost enabled we have the following main functions to
@@ -262,10 +238,9 @@ get the current utilization of a CPU:
 The new boosted_cpu_util() is similar to the first but returns a boosted
 utilization signal which is a function of the sched_cfs_boost value.
 
-This function is used in the CFS scheduler code paths where sched-DVFS needs to
-decide the OPP to run a CPU at.
-For example, this allows selecting the highest OPP for a CPU which has
-the boost value set to 100%.
+This function is used in the CFS scheduler code paths where schedutil needs to
+decide the OPP to run a CPU at. For example, this allows selecting the highest
+OPP for a CPU which has the boost value set to 100%.
 
 
 5. Per task group boosting
@@ -305,16 +280,16 @@ main characteristics:
 
      This number is defined at compile time and by default configured to 16.
      This is a design decision motivated by two main reasons:
-     a) In a real system we do not expect utilization scenarios with more then few
-	boost groups. For example, a reasonable collection of groups could be
-        just "background", "interactive" and "performance".
+     a) In a real system we do not expect utilization scenarios with more than
+        a few boost groups. For example, a reasonable collection of groups could
+        be just "background", "interactive" and "performance".
      b) It simplifies the implementation considerably, especially for the code
 	which has to compute the per CPU boosting once there are multiple
         RUNNABLE tasks with different boost values.
 
-Such a simple design should allow servicing the main utilization scenarios identified
-so far. It provides a simple interface which can be used to manage the
-power-performance of all tasks or only selected tasks.
+Such a simple design should allow servicing the main utilization scenarios
+identified so far. It provides a simple interface which can be used to manage
+the power-performance of all tasks or only selected tasks.
 Moreover, this interface can be easily integrated by user-space run-times (e.g.
 Android, ChromeOS) to implement a QoS solution for task boosting based on tasks
 classification, which has been a long standing requirement.
@@ -397,9 +372,9 @@ How are multiple groups of tasks with different boost values managed?
 ---------------------------------------------------------------------
 
 The current SchedTune implementation keeps track of the boosted RUNNABLE tasks
-on a CPU. The CPU utilization seen by the scheduler-driven cpufreq governors
-(and used to select an appropriate OPP) is boosted with a value which is the
-maximum of the boost values of the currently RUNNABLE tasks in its RQ.
+on a CPU. The CPU utilization seen by schedutil (and used to select an
+appropriate OPP) is boosted with a value which is the maximum of the boost
+values of the currently RUNNABLE tasks in its RQ.
 
 This allows cpufreq to boost a CPU only while there are boosted tasks ready
 to run and switch back to the energy efficient mode as soon as the last boosted
@@ -410,4 +385,4 @@ task is dequeued.
 =============
 [1] http://lwn.net/Articles/552889
 [2] http://lkml.org/lkml/2012/5/18/91
-[3] http://lkml.org/lkml/2015/6/26/620
+[3] https://lkml.org/lkml/2016/3/29/1041
