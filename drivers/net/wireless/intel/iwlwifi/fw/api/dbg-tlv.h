@@ -133,6 +133,33 @@ struct iwl_fw_ini_debug_flow_tlv {
 
 #define IWL_FW_INI_MAX_REGION_ID	64
 #define IWL_FW_INI_MAX_NAME		32
+
+/**
+ * struct iwl_fw_ini_region_cfg_internal - meta data of internal memory region
+ * @num_of_range: the amount of ranges in the region
+ * @range_data_size: size of the data to read per range, in bytes.
+ */
+struct iwl_fw_ini_region_cfg_internal {
+	__le32 num_of_ranges;
+	__le32 range_data_size;
+} __packed; /* FW_DEBUG_TLV_REGION_NIC_INTERNAL_RANGES_S */
+
+/**
+ * struct iwl_fw_ini_region_cfg_fifos - meta data of fifos region
+ * @lmac1_id: bit map of lmac1 fifos to include in the region.
+ * @lmac2_id: bit map of lmac2 fifos to include in the region.
+ * @num_of_registers: number of prph registers in the region, each register is
+ *	4 bytes size.
+ * @header_only: none zero value indicates that this region does not include
+ *	fifo data and includes only the given registers.
+ */
+struct iwl_fw_ini_region_cfg_fifos {
+	__le32 lmac1_id;
+	__le32 lmac2_id;
+	__le32 num_of_registers;
+	__le32 header_only;
+} __packed; /* FW_DEBUG_TLV_REGION_FIFOS_S */
+
 /**
  * struct iwl_fw_ini_region_cfg
  * @region_id: ID of this dump configuration
@@ -140,11 +167,11 @@ struct iwl_fw_ini_debug_flow_tlv {
  * @num_regions: amount of regions in the address array.
  * @name_len: name length
  * @name: file name to use for this region
- * @num_of_range: the amount of ranges in the region.
+ * @internal: used in case the region uses internal memory.
  * @allocation_id: For DRAM type field substitutes for allocation_id
- * @range_data_size: size of the data to read per range, in bytes.
- * @start_addr: array of addresses. for type IWL_FW_INI_REGION_DRAM_BUFFER,
- *	1 entry. For any other case, num_of_ranges entries.
+ * @fifos: used in case of fifos region.
+ * @offset: offset to use for each memory base address
+ * @start_addr: array of addresses.
  */
 struct iwl_fw_ini_region_cfg {
 	__le32 region_id;
@@ -152,10 +179,11 @@ struct iwl_fw_ini_region_cfg {
 	__le32 name_len;
 	u8 name[IWL_FW_INI_MAX_NAME];
 	union {
-		__le32 num_of_ranges;
+		struct iwl_fw_ini_region_cfg_internal internal;
 		__le32 allocation_id;
+		struct iwl_fw_ini_region_cfg_fifos fifos;
 	};
-	__le32 range_data_size;
+	__le32 offset;
 	__le32 start_addr[];
 } __packed; /* FW_DEBUG_TLV_REGION_CONFIG_S */
 
