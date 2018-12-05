@@ -1179,7 +1179,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 /*
- * Common iterator interface used to define for_each_mem_range().
+ * Common iterator interface used to define for_each_mem_pfn_range().
  */
 void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 				unsigned long *out_start_pfn,

@@ -236,7 +236,7 @@ static inline unsigned long current_stack_pointer(void)
 	return sp;
 }
 
-static __no_sanitize_address_or_inline unsigned short stap(void)
+static __no_kasan_or_inline unsigned short stap(void)
 {
 	unsigned short cpu_address;
 
@@ -330,7 +330,7 @@ static inline void __load_psw(psw_t psw)
  * Set PSW mask to specified value, while leaving the
  * PSW addr pointing to the next instruction.
  */
-static __no_sanitize_address_or_inline void __load_psw_mask(unsigned long mask)
+static __no_kasan_or_inline void __load_psw_mask(unsigned long mask)
 {
 	unsigned long addr;
 	psw_t psw;

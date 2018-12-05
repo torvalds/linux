@@ -44,6 +44,7 @@ struct nvmem_cell {
 	int			bytes;
 	int			bit_offset;
 	int			nbits;
+	struct device_node	*np;
 	struct nvmem_device	*nvmem;
 	struct list_head	node;
 };
@@ -298,6 +299,7 @@ static void nvmem_cell_drop(struct nvmem_cell *cell)
 	mutex_lock(&nvmem_mutex);
 	list_del(&cell->node);
 	mutex_unlock(&nvmem_mutex);
+	of_node_put(cell->np);
 	kfree(cell->name);
 	kfree(cell);
 }
@@ -530,6 +532,7 @@ static int nvmem_add_cells_from_of(struct nvmem_device *nvmem)
 			return -ENOMEM;
 
 		cell->nvmem = nvmem;
+		cell->np = of_node_get(child);
 		cell->offset = be32_to_cpup(addr++);
 		cell->bytes = be32_to_cpup(addr);
 		cell->name = kasprintf(GFP_KERNEL, "%pOFn", child);
@@ -960,14 +963,13 @@ out:
 
 #if IS_ENABLED(CONFIG_OF)
 static struct nvmem_cell *
-nvmem_find_cell_by_index(struct nvmem_device *nvmem, int index)
+nvmem_find_cell_by_node(struct nvmem_device *nvmem, struct device_node *np)
 {
 	struct nvmem_cell *cell = NULL;
-	int i = 0;
 
 	mutex_lock(&nvmem_mutex);
 	list_for_each_entry(cell, &nvmem->cells, node) {
-		if (index == i++)
+		if (np == cell->np)
 			break;
 	}
 	mutex_unlock(&nvmem_mutex);
@@ -1011,7 +1013,7 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np, const char *id)
 	if (IS_ERR(nvmem))
 		return ERR_CAST(nvmem);
 
-	cell = nvmem_find_cell_by_index(nvmem, index);
+	cell = nvmem_find_cell_by_node(nvmem, cell_np);
 	if (!cell) {
 		__nvmem_device_put(nvmem);
 		return ERR_PTR(-ENOENT);

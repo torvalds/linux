@@ -238,6 +238,9 @@ static const struct file_operations request_fops = {
 	.owner = THIS_MODULE,
 	.poll = media_request_poll,
 	.unlocked_ioctl = media_request_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = media_request_ioctl,
+#endif /* CONFIG_COMPAT */
 	.release = media_request_close,
 };
 

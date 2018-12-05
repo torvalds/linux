@@ -1333,7 +1333,6 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.cpu_enable = cpu_enable_hw_dbm,
 	},
 #endif
-#ifdef CONFIG_ARM64_SSBD
 	{
 		.desc = "CRC32 instructions",
 		.capability = ARM64_HAS_CRC32,
@@ -1343,6 +1342,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.field_pos = ID_AA64ISAR0_CRC32_SHIFT,
 		.min_field_value = 1,
 	},
+#ifdef CONFIG_ARM64_SSBD
 	{
 		.desc = "Speculative Store Bypassing Safe (SSBS)",
 		.capability = ARM64_SSBS,

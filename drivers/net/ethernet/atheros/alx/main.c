@@ -49,7 +49,7 @@
 #include "hw.h"
 #include "reg.h"
 
-const char alx_drv_name[] = "alx";
+static const char alx_drv_name[] = "alx";
 
 static void alx_free_txbuf(struct alx_tx_queue *txq, int entry)
 {

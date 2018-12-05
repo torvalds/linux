@@ -508,6 +508,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 				regs->pc -= 4;
 				regs->npc -= 4;
 				pt_regs_clear_syscall(regs);
+				/* fall through */
 			case ERESTART_RESTARTBLOCK:
 				regs->u_regs[UREG_G1] = __NR_restart_syscall;
 				regs->pc -= 4;

@@ -718,5 +718,20 @@ void ap_queue_remove(struct ap_queue *aq)
 {
 	ap_flush_queue(aq);
 	del_timer_sync(&aq->timeout);
+
+	/* reset with zero, also clears irq registration */
+	spin_lock_bh(&aq->lock);
+	ap_zapq(aq->qid);
+	aq->state = AP_STATE_BORKED;
+	spin_unlock_bh(&aq->lock);
 }
 EXPORT_SYMBOL(ap_queue_remove);
+
+void ap_queue_reinit_state(struct ap_queue *aq)
+{
+	spin_lock_bh(&aq->lock);
+	aq->state = AP_STATE_RESET_START;
+	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
+	spin_unlock_bh(&aq->lock);
+}
+EXPORT_SYMBOL(ap_queue_reinit_state);
