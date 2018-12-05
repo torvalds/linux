@@ -311,13 +311,50 @@ static int smu_resume(void *handle)
 	if (adev->asic_type < CHIP_VEGA20)
 		return -EINVAL;
 
+	pr_info("SMU is resuming...\n");
+
+	if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
+		ret = smu_load_microcode(smu);
+		if (ret)
+			return ret;
+	}
+
+	ret = smu_check_fw_status(smu);
+	if (ret) {
+		pr_err("SMC firmware status is not correct\n");
+		return ret;
+	}
+
 	mutex_lock(&smu->mutex);
 
-	/* TODO */
+	ret = smu_set_tool_table_location(smu);
+	if (ret)
+		goto failed;
+
+	ret = smu_write_pptable(smu);
+	if (ret)
+		goto failed;
+
+	ret = smu_write_watermarks_table(smu);
+	if (ret)
+		goto failed;
+
+	ret = smu_set_last_dcef_min_deep_sleep_clk(smu);
+	if (ret)
+		goto failed;
+
+	ret = smu_system_features_control(smu, true);
+	if (ret)
+		goto failed;
 
 	mutex_unlock(&smu->mutex);
 
+	pr_info("SMU is resumed successfully!\n");
+
 	return 0;
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
 }
 
 static int smu_set_clockgating_state(void *handle,
