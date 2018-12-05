@@ -2497,13 +2497,16 @@ void tcp_send_loss_probe(struct sock *sk)
 		goto rearm_timer;
 	}
 	skb = skb_rb_last(&sk->tcp_rtx_queue);
+	if (unlikely(!skb)) {
+		WARN_ONCE(tp->packets_out,
+			  "invalid inflight: %u state %u cwnd %u mss %d\n",
+			  tp->packets_out, sk->sk_state, tp->snd_cwnd, mss);
+		inet_csk(sk)->icsk_pending = 0;
+		return;
+	}
 
 	/* At most one outstanding TLP retransmission. */
 	if (tp->tlp_high_seq)
-		goto rearm_timer;
-
-	/* Retransmit last segment. */
-	if (WARN_ON(!skb))
 		goto rearm_timer;
 
 	if (skb_still_in_host_queue(sk, skb))
