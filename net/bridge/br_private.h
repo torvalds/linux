@@ -31,6 +31,8 @@
 #define BR_PORT_BITS	10
 #define BR_MAX_PORTS	(1<<BR_PORT_BITS)
 
+#define BR_MULTICAST_DEFAULT_HASH_MAX 4096
+
 #define BR_VERSION	"2.3"
 
 /* Control of forwarding link local multicast */

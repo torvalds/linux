@@ -1741,7 +1741,7 @@ static void br_ip6_multicast_query_expired(struct timer_list *t)
 
 void br_multicast_init(struct net_bridge *br)
 {
-	br->hash_max = 512;
+	br->hash_max = BR_MULTICAST_DEFAULT_HASH_MAX;
 
 	br->multicast_router = MDB_RTR_TYPE_TEMP_QUERY;
 	br->multicast_last_member_count = 2;
