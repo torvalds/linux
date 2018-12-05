@@ -477,7 +477,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 
 		if (page->index == end_index) {
 			char *userpage;
-			size_t zero_offset = isize & (PAGE_SIZE - 1);
+			size_t zero_offset = offset_in_page(isize);
 
 			if (zero_offset) {
 				int zeros;

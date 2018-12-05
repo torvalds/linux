@@ -4775,7 +4775,7 @@ static ssize_t fill_read_buf(struct send_ctx *sctx, u64 offset, u32 len)
 	struct btrfs_key key;
 	pgoff_t index = offset >> PAGE_SHIFT;
 	pgoff_t last_index;
-	unsigned pg_offset = offset & ~PAGE_MASK;
+	unsigned pg_offset = offset_in_page(offset);
 	ssize_t ret = 0;
 
 	key.objectid = sctx->cur_ino;

@@ -1436,7 +1436,7 @@ static int btrfs_read_disk_super(struct block_device *bdev, u64 bytenr,
 	p = kmap(*page);
 
 	/* align our pointer to the offset of the super block */
-	*disk_super = p + (bytenr & ~PAGE_MASK);
+	*disk_super = p + offset_in_page(bytenr);
 
 	if (btrfs_super_bytenr(*disk_super) != bytenr ||
 	    btrfs_super_magic(*disk_super) != BTRFS_MAGIC) {

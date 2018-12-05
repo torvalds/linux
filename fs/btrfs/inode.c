@@ -240,7 +240,7 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 				     start >> PAGE_SHIFT);
 		btrfs_set_file_extent_compression(leaf, ei, 0);
 		kaddr = kmap_atomic(page);
-		offset = start & (PAGE_SIZE - 1);
+		offset = offset_in_page(start);
 		write_extent_buffer(leaf, kaddr + offset, ptr, size);
 		kunmap_atomic(kaddr);
 		put_page(page);
@@ -549,8 +549,7 @@ again:
 					   &total_compressed);
 
 		if (!ret) {
-			unsigned long offset = total_compressed &
-				(PAGE_SIZE - 1);
+			unsigned long offset = offset_in_page(total_compressed);
 			struct page *page = pages[nr_pages - 1];
 			char *kaddr;
 
@@ -8906,7 +8905,7 @@ again:
 
 	/* page is wholly or partially inside EOF */
 	if (page_start + PAGE_SIZE > size)
-		zero_start = size & ~PAGE_MASK;
+		zero_start = offset_in_page(size);
 	else
 		zero_start = PAGE_SIZE;
 

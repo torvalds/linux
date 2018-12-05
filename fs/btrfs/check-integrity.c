@@ -1202,24 +1202,24 @@ static void btrfsic_read_from_block_data(
 	void *dstv, u32 offset, size_t len)
 {
 	size_t cur;
-	size_t offset_in_page;
+	size_t pgoff;
 	char *kaddr;
 	char *dst = (char *)dstv;
-	size_t start_offset = block_ctx->start & ((u64)PAGE_SIZE - 1);
+	size_t start_offset = offset_in_page(block_ctx->start);
 	unsigned long i = (start_offset + offset) >> PAGE_SHIFT;
 
 	WARN_ON(offset + len > block_ctx->len);
-	offset_in_page = (start_offset + offset) & (PAGE_SIZE - 1);
+	pgoff = offset_in_page(start_offset + offset);
 
 	while (len > 0) {
-		cur = min(len, ((size_t)PAGE_SIZE - offset_in_page));
+		cur = min(len, ((size_t)PAGE_SIZE - pgoff));
 		BUG_ON(i >= DIV_ROUND_UP(block_ctx->len, PAGE_SIZE));
 		kaddr = block_ctx->datav[i];
-		memcpy(dst, kaddr + offset_in_page, cur);
+		memcpy(dst, kaddr + pgoff, cur);
 
 		dst += cur;
 		len -= cur;
-		offset_in_page = 0;
+		pgoff = 0;
 		i++;
 	}
 }
