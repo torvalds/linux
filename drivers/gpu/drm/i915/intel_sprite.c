@@ -373,14 +373,12 @@ skl_program_scaler(struct intel_plane *plane,
 #define  BOFF(x)          (((x) & 0xffff) << 16)
 
 static void
-icl_program_input_csc_coeff(const struct intel_crtc_state *crtc_state,
-			    const struct intel_plane_state *plane_state)
+icl_program_input_csc(struct intel_plane *plane,
+		      const struct intel_crtc_state *crtc_state,
+		      const struct intel_plane_state *plane_state)
 {
-	struct drm_i915_private *dev_priv =
-		to_i915(plane_state->base.plane->dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	enum pipe pipe = crtc->pipe;
-	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	enum pipe pipe = plane->pipe;
 	enum plane_id plane_id = plane->id;
 
 	static const u16 input_csc_matrix[][9] = {
@@ -508,27 +506,11 @@ skl_program_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
-		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
-			      plane_state->color_ctl);
-
-	if (fb->format->is_yuv && icl_is_hdr_plane(plane))
-		icl_program_input_csc_coeff(crtc_state, plane_state);
-
-	I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
-	I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), keymax);
-	I915_WRITE_FW(PLANE_KEYMSK(pipe, plane_id), keymsk);
-
-	I915_WRITE_FW(PLANE_OFFSET(pipe, plane_id), (y << 16) | x);
 	I915_WRITE_FW(PLANE_STRIDE(pipe, plane_id), stride);
+	I915_WRITE_FW(PLANE_POS(pipe, plane_id), (crtc_y << 16) | crtc_x);
 	I915_WRITE_FW(PLANE_SIZE(pipe, plane_id), (src_h << 16) | src_w);
 	I915_WRITE_FW(PLANE_AUX_DIST(pipe, plane_id),
 		      (plane_state->color_plane[1].offset - surf_addr) | aux_stride);
-
-	if (INTEL_GEN(dev_priv) < 11)
-		I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
-			      (plane_state->color_plane[1].y << 16) |
-			       plane_state->color_plane[1].x);
 
 	if (icl_is_hdr_plane(plane)) {
 		u32 cus_ctl = 0;
@@ -551,14 +533,37 @@ skl_program_plane(struct intel_plane *plane,
 		I915_WRITE_FW(PLANE_CUS_CTL(pipe, plane_id), cus_ctl);
 	}
 
-	if (!slave && plane_state->scaler_id >= 0)
-		skl_program_scaler(plane, crtc_state, plane_state);
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+		I915_WRITE_FW(PLANE_COLOR_CTL(pipe, plane_id),
+			      plane_state->color_ctl);
 
-	I915_WRITE_FW(PLANE_POS(pipe, plane_id), (crtc_y << 16) | crtc_x);
+	if (fb->format->is_yuv && icl_is_hdr_plane(plane))
+		icl_program_input_csc(plane, crtc_state, plane_state);
 
+	skl_write_plane_wm(plane, crtc_state);
+
+	I915_WRITE_FW(PLANE_KEYVAL(pipe, plane_id), key->min_value);
+	I915_WRITE_FW(PLANE_KEYMSK(pipe, plane_id), keymsk);
+	I915_WRITE_FW(PLANE_KEYMAX(pipe, plane_id), keymax);
+
+	I915_WRITE_FW(PLANE_OFFSET(pipe, plane_id), (y << 16) | x);
+
+	if (INTEL_GEN(dev_priv) < 11)
+		I915_WRITE_FW(PLANE_AUX_OFFSET(pipe, plane_id),
+			      (plane_state->color_plane[1].y << 16) |
+			      plane_state->color_plane[1].x);
+
+	/*
+	 * The control register self-arms if the plane was previously
+	 * disabled. Try to make the plane enable atomic by writing
+	 * the control register just before the surface register.
+	 */
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), plane_ctl);
 	I915_WRITE_FW(PLANE_SURF(pipe, plane_id),
 		      intel_plane_ggtt_offset(plane_state) + surf_addr);
+
+	if (!slave && plane_state->scaler_id >= 0)
+		skl_program_scaler(plane, crtc_state, plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
@@ -589,7 +594,8 @@ icl_update_slave(struct intel_plane *plane,
 }
 
 static void
-skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
+skl_disable_plane(struct intel_plane *plane,
+		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum plane_id plane_id = plane->id;
@@ -597,6 +603,8 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
+
+	skl_write_plane_wm(plane, crtc_state);
 
 	I915_WRITE_FW(PLANE_CTL(pipe, plane_id), 0);
 	I915_WRITE_FW(PLANE_SURF(pipe, plane_id), 0);
@@ -819,35 +827,41 @@ vlv_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	vlv_update_clrc(plane_state);
+	I915_WRITE_FW(SPSTRIDE(pipe, plane_id),
+		      plane_state->color_plane[0].stride);
+	I915_WRITE_FW(SPPOS(pipe, plane_id), (crtc_y << 16) | crtc_x);
+	I915_WRITE_FW(SPSIZE(pipe, plane_id), (crtc_h << 16) | crtc_w);
+	I915_WRITE_FW(SPCONSTALPHA(pipe, plane_id), 0);
 
 	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B)
 		chv_update_csc(plane_state);
 
 	if (key->flags) {
 		I915_WRITE_FW(SPKEYMINVAL(pipe, plane_id), key->min_value);
-		I915_WRITE_FW(SPKEYMAXVAL(pipe, plane_id), key->max_value);
 		I915_WRITE_FW(SPKEYMSK(pipe, plane_id), key->channel_mask);
+		I915_WRITE_FW(SPKEYMAXVAL(pipe, plane_id), key->max_value);
 	}
-	I915_WRITE_FW(SPSTRIDE(pipe, plane_id),
-		      plane_state->color_plane[0].stride);
-	I915_WRITE_FW(SPPOS(pipe, plane_id), (crtc_y << 16) | crtc_x);
 
-	I915_WRITE_FW(SPTILEOFF(pipe, plane_id), (y << 16) | x);
 	I915_WRITE_FW(SPLINOFF(pipe, plane_id), linear_offset);
+	I915_WRITE_FW(SPTILEOFF(pipe, plane_id), (y << 16) | x);
 
-	I915_WRITE_FW(SPCONSTALPHA(pipe, plane_id), 0);
-
-	I915_WRITE_FW(SPSIZE(pipe, plane_id), (crtc_h << 16) | crtc_w);
+	/*
+	 * The control register self-arms if the plane was previously
+	 * disabled. Try to make the plane enable atomic by writing
+	 * the control register just before the surface register.
+	 */
 	I915_WRITE_FW(SPCNTR(pipe, plane_id), sprctl);
 	I915_WRITE_FW(SPSURF(pipe, plane_id),
 		      intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
+
+	vlv_update_clrc(plane_state);
 
 	spin_unlock_irqrestore(&dev_priv->uncore.lock, irqflags);
 }
 
 static void
-vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
+vlv_disable_plane(struct intel_plane *plane,
+		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -980,27 +994,32 @@ ivb_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (key->flags) {
-		I915_WRITE_FW(SPRKEYVAL(pipe), key->min_value);
-		I915_WRITE_FW(SPRKEYMAX(pipe), key->max_value);
-		I915_WRITE_FW(SPRKEYMSK(pipe), key->channel_mask);
-	}
-
 	I915_WRITE_FW(SPRSTRIDE(pipe), plane_state->color_plane[0].stride);
 	I915_WRITE_FW(SPRPOS(pipe), (crtc_y << 16) | crtc_x);
+	I915_WRITE_FW(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
+	if (IS_IVYBRIDGE(dev_priv))
+		I915_WRITE_FW(SPRSCALE(pipe), sprscale);
+
+	if (key->flags) {
+		I915_WRITE_FW(SPRKEYVAL(pipe), key->min_value);
+		I915_WRITE_FW(SPRKEYMSK(pipe), key->channel_mask);
+		I915_WRITE_FW(SPRKEYMAX(pipe), key->max_value);
+	}
 
 	/* HSW consolidates SPRTILEOFF and SPRLINOFF into a single SPROFFSET
 	 * register */
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
 		I915_WRITE_FW(SPROFFSET(pipe), (y << 16) | x);
 	} else {
-		I915_WRITE_FW(SPRTILEOFF(pipe), (y << 16) | x);
 		I915_WRITE_FW(SPRLINOFF(pipe), linear_offset);
+		I915_WRITE_FW(SPRTILEOFF(pipe), (y << 16) | x);
 	}
 
-	I915_WRITE_FW(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
-	if (IS_IVYBRIDGE(dev_priv))
-		I915_WRITE_FW(SPRSCALE(pipe), sprscale);
+	/*
+	 * The control register self-arms if the plane was previously
+	 * disabled. Try to make the plane enable atomic by writing
+	 * the control register just before the surface register.
+	 */
 	I915_WRITE_FW(SPRCTL(pipe), sprctl);
 	I915_WRITE_FW(SPRSURF(pipe),
 		      intel_plane_ggtt_offset(plane_state) + sprsurf_offset);
@@ -1009,7 +1028,8 @@ ivb_update_plane(struct intel_plane *plane,
 }
 
 static void
-ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
+ivb_disable_plane(struct intel_plane *plane,
+		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;
@@ -1018,7 +1038,7 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
 	I915_WRITE_FW(SPRCTL(pipe), 0);
-	/* Can't leave the scaler enabled... */
+	/* Disable the scaler */
 	if (IS_IVYBRIDGE(dev_priv))
 		I915_WRITE_FW(SPRSCALE(pipe), 0);
 	I915_WRITE_FW(SPRSURF(pipe), 0);
@@ -1148,20 +1168,25 @@ g4x_update_plane(struct intel_plane *plane,
 
 	spin_lock_irqsave(&dev_priv->uncore.lock, irqflags);
 
-	if (key->flags) {
-		I915_WRITE_FW(DVSKEYVAL(pipe), key->min_value);
-		I915_WRITE_FW(DVSKEYMAX(pipe), key->max_value);
-		I915_WRITE_FW(DVSKEYMSK(pipe), key->channel_mask);
-	}
-
 	I915_WRITE_FW(DVSSTRIDE(pipe), plane_state->color_plane[0].stride);
 	I915_WRITE_FW(DVSPOS(pipe), (crtc_y << 16) | crtc_x);
-
-	I915_WRITE_FW(DVSTILEOFF(pipe), (y << 16) | x);
-	I915_WRITE_FW(DVSLINOFF(pipe), linear_offset);
-
 	I915_WRITE_FW(DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE_FW(DVSSCALE(pipe), dvsscale);
+
+	if (key->flags) {
+		I915_WRITE_FW(DVSKEYVAL(pipe), key->min_value);
+		I915_WRITE_FW(DVSKEYMSK(pipe), key->channel_mask);
+		I915_WRITE_FW(DVSKEYMAX(pipe), key->max_value);
+	}
+
+	I915_WRITE_FW(DVSLINOFF(pipe), linear_offset);
+	I915_WRITE_FW(DVSTILEOFF(pipe), (y << 16) | x);
+
+	/*
+	 * The control register self-arms if the plane was previously
+	 * disabled. Try to make the plane enable atomic by writing
+	 * the control register just before the surface register.
+	 */
 	I915_WRITE_FW(DVSCNTR(pipe), dvscntr);
 	I915_WRITE_FW(DVSSURF(pipe),
 		      intel_plane_ggtt_offset(plane_state) + dvssurf_offset);
@@ -1170,7 +1195,8 @@ g4x_update_plane(struct intel_plane *plane,
 }
 
 static void
-g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
+g4x_disable_plane(struct intel_plane *plane,
+		  const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum pipe pipe = plane->pipe;

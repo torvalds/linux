@@ -1,10 +1,9 @@
 /*
+ * SPDX-License-Identifier: MIT
+ *
  * i915_sw_fence.h - library routines for N:M synchronisation points
  *
  * Copyright (C) 2016 Intel Corporation
- *
- * This file is released under the GPLv2.
- *
  */
 
 #ifndef _I915_SW_FENCE_H_

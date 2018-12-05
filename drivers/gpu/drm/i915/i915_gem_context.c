@@ -535,16 +535,12 @@ static bool needs_preempt_context(struct drm_i915_private *i915)
 int i915_gem_contexts_init(struct drm_i915_private *dev_priv)
 {
 	struct i915_gem_context *ctx;
-	int ret;
 
 	/* Reassure ourselves we are only called once */
 	GEM_BUG_ON(dev_priv->kernel_context);
 	GEM_BUG_ON(dev_priv->preempt_context);
 
-	ret = intel_ctx_workarounds_init(dev_priv);
-	if (ret)
-		return ret;
-
+	intel_engine_init_ctx_wa(dev_priv->engine[RCS]);
 	init_contexts(dev_priv);
 
 	/* lowest priority; idle task */

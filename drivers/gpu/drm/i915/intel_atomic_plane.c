@@ -139,6 +139,9 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	if (state->visible && state->fb->format->format == DRM_FORMAT_NV12)
 		crtc_state->nv12_planes |= BIT(intel_plane->id);
 
+	if (state->visible || old_plane_state->base.visible)
+		crtc_state->update_planes |= BIT(intel_plane->id);
+
 	return intel_plane_atomic_calc_changes(old_crtc_state,
 					       &crtc_state->base,
 					       old_plane_state,
@@ -168,27 +171,75 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 						   to_intel_plane_state(new_plane_state));
 }
 
-void intel_update_planes_on_crtc(struct intel_atomic_state *old_state,
-				 struct intel_crtc *crtc,
-				 struct intel_crtc_state *old_crtc_state,
-				 struct intel_crtc_state *new_crtc_state)
+static struct intel_plane *
+skl_next_plane_to_commit(struct intel_atomic_state *state,
+			 struct intel_crtc *crtc,
+			 struct skl_ddb_entry entries_y[I915_MAX_PLANES],
+			 struct skl_ddb_entry entries_uv[I915_MAX_PLANES],
+			 unsigned int *update_mask)
 {
-	struct intel_plane_state *new_plane_state;
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
-	u32 update_mask;
 	int i;
 
-	update_mask = old_crtc_state->active_planes;
-	update_mask |= new_crtc_state->active_planes;
+	if (*update_mask == 0)
+		return NULL;
 
-	for_each_new_intel_plane_in_state(old_state, plane, new_plane_state, i) {
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
+		enum plane_id plane_id = plane->id;
+
 		if (crtc->pipe != plane->pipe ||
-		    !(update_mask & BIT(plane->id)))
+		    !(*update_mask & BIT(plane_id)))
 			continue;
+
+		if (skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_y[plane_id],
+						entries_y,
+						I915_MAX_PLANES, plane_id) ||
+		    skl_ddb_allocation_overlaps(&crtc_state->wm.skl.plane_ddb_uv[plane_id],
+						entries_uv,
+						I915_MAX_PLANES, plane_id))
+			continue;
+
+		*update_mask &= ~BIT(plane_id);
+		entries_y[plane_id] = crtc_state->wm.skl.plane_ddb_y[plane_id];
+		entries_uv[plane_id] = crtc_state->wm.skl.plane_ddb_uv[plane_id];
+
+		return plane;
+	}
+
+	/* should never happen */
+	WARN_ON(1);
+
+	return NULL;
+}
+
+void skl_update_planes_on_crtc(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct skl_ddb_entry entries_y[I915_MAX_PLANES];
+	struct skl_ddb_entry entries_uv[I915_MAX_PLANES];
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane *plane;
+
+	memcpy(entries_y, old_crtc_state->wm.skl.plane_ddb_y,
+	       sizeof(old_crtc_state->wm.skl.plane_ddb_y));
+	memcpy(entries_uv, old_crtc_state->wm.skl.plane_ddb_uv,
+	       sizeof(old_crtc_state->wm.skl.plane_ddb_uv));
+
+	while ((plane = skl_next_plane_to_commit(state, crtc,
+						 entries_y, entries_uv,
+						 &update_mask))) {
+		struct intel_plane_state *new_plane_state =
+			intel_atomic_get_new_plane_state(state, plane);
 
 		if (new_plane_state->base.visible) {
 			trace_intel_update_plane(&plane->base, crtc);
-
 			plane->update_plane(plane, new_crtc_state, new_plane_state);
 		} else if (new_plane_state->slave) {
 			struct intel_plane *master =
@@ -204,15 +255,38 @@ void intel_update_planes_on_crtc(struct intel_atomic_state *old_state,
 			 * plane_state.
 			 */
 			new_plane_state =
-				intel_atomic_get_new_plane_state(old_state, master);
+				intel_atomic_get_new_plane_state(state, master);
 
 			trace_intel_update_plane(&plane->base, crtc);
-
 			plane->update_slave(plane, new_crtc_state, new_plane_state);
 		} else {
 			trace_intel_disable_plane(&plane->base, crtc);
+			plane->disable_plane(plane, new_crtc_state);
+		}
+	}
+}
 
-			plane->disable_plane(plane, crtc);
+void i9xx_update_planes_on_crtc(struct intel_atomic_state *state,
+				struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	u32 update_mask = new_crtc_state->update_planes;
+	struct intel_plane_state *new_plane_state;
+	struct intel_plane *plane;
+	int i;
+
+	for_each_new_intel_plane_in_state(state, plane, new_plane_state, i) {
+		if (crtc->pipe != plane->pipe ||
+		    !(update_mask & BIT(plane->id)))
+			continue;
+
+		if (new_plane_state->base.visible) {
+			trace_intel_update_plane(&plane->base, crtc);
+			plane->update_plane(plane, new_crtc_state, new_plane_state);
+		} else {
+			trace_intel_disable_plane(&plane->base, crtc);
+			plane->disable_plane(plane, new_crtc_state);
 		}
 	}
 }

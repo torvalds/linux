@@ -27,11 +27,7 @@
 
 #include "i915_drv.h"
 
-#ifdef CONFIG_SMP
-#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL && !(tsk)->on_cpu)
-#else
-#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL)
-#endif
+#define task_asleep(tsk) ((tsk)->state & TASK_NORMAL && !(tsk)->on_rq)
 
 static unsigned int __intel_breadcrumbs_wakeup(struct intel_breadcrumbs *b)
 {

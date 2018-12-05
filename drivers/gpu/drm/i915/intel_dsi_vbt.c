@@ -103,6 +103,18 @@ static struct gpio_map vlv_gpio_table[] = {
 #define CHV_GPIO_PAD_CFG1(f, i)		(0x4400 + (f) * 0x400 + (i) * 8 + 4)
 #define  CHV_GPIO_CFGLOCK		(1 << 31)
 
+/* ICL DSI Display GPIO Pins */
+#define  ICL_GPIO_DDSP_HPD_A		0
+#define  ICL_GPIO_L_VDDEN_1		1
+#define  ICL_GPIO_L_BKLTEN_1		2
+#define  ICL_GPIO_DDPA_CTRLCLK_1	3
+#define  ICL_GPIO_DDPA_CTRLDATA_1	4
+#define  ICL_GPIO_DDSP_HPD_B		5
+#define  ICL_GPIO_L_VDDEN_2		6
+#define  ICL_GPIO_L_BKLTEN_2		7
+#define  ICL_GPIO_DDPA_CTRLCLK_2	8
+#define  ICL_GPIO_DDPA_CTRLDATA_2	9
+
 static inline enum port intel_dsi_seq_port_to_port(u8 port)
 {
 	return port ? PORT_C : PORT_A;
@@ -324,6 +336,12 @@ static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
 	gpiod_set_value(gpio_desc, value);
 }
 
+static void icl_exec_gpio(struct drm_i915_private *dev_priv,
+			  u8 gpio_source, u8 gpio_index, bool value)
+{
+	DRM_DEBUG_KMS("Skipping ICL GPIO element execution\n");
+}
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -347,7 +365,9 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	/* pull up/down */
 	value = *data++ & 1;
 
-	if (IS_VALLEYVIEW(dev_priv))
+	if (IS_ICELAKE(dev_priv))
+		icl_exec_gpio(dev_priv, gpio_source, gpio_index, value);
+	else if (IS_VALLEYVIEW(dev_priv))
 		vlv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
 	else if (IS_CHERRYVIEW(dev_priv))
 		chv_exec_gpio(dev_priv, gpio_source, gpio_number, value);
