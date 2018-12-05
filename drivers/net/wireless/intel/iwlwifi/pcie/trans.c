@@ -3650,3 +3650,28 @@ out_no_pci:
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);
 }
+
+void iwl_trans_sync_nmi(struct iwl_trans *trans)
+{
+	unsigned long timeout = jiffies + IWL_TRANS_NMI_TIMEOUT;
+
+	iwl_disable_interrupts(trans);
+	iwl_force_nmi(trans);
+	while (time_after(timeout, jiffies)) {
+		u32 inta_hw = iwl_read32(trans,
+					 CSR_MSIX_HW_INT_CAUSES_AD);
+
+		/* Error detected by uCode */
+		if (inta_hw & MSIX_HW_INT_CAUSES_REG_SW_ERR) {
+			/* Clear causes register */
+			iwl_write32(trans, CSR_MSIX_HW_INT_CAUSES_AD,
+				    inta_hw &
+				    MSIX_HW_INT_CAUSES_REG_SW_ERR);
+			break;
+		}
+
+		mdelay(1);
+	}
+	iwl_enable_interrupts(trans);
+	iwl_trans_fw_error(trans);
+}
