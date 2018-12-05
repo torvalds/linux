@@ -123,6 +123,8 @@ struct thermal_zone_device_ops {
 	int (*notify) (struct thermal_zone_device *, int,
 		       enum thermal_trip_type);
 	bool (*is_wakeable)(struct thermal_zone_device *);
+	int (*set_polling_delay)(struct thermal_zone_device *, int);
+	int (*set_passive_delay)(struct thermal_zone_device *, int);
 };
 
 struct thermal_cooling_device_ops {
