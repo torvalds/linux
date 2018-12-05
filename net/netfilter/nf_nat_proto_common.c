@@ -80,8 +80,6 @@ void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		off = l3proto->secure_port(tuple, maniptype == NF_NAT_MANIP_SRC
 						  ? tuple->dst.u.all
 						  : tuple->src.u.all);
-	} else if (range->flags & NF_NAT_RANGE_PROTO_RANDOM_FULLY) {
-		off = prandom_u32();
 	} else if (range->flags & NF_NAT_RANGE_PROTO_OFFSET) {
 		off = (ntohs(*portptr) - ntohs(range->base_proto.all));
 	} else {
