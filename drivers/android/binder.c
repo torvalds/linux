@@ -5418,6 +5418,9 @@ static void print_binder_proc(struct seq_file *m,
 	for (n = rb_first(&proc->nodes); n != NULL; n = rb_next(n)) {
 		struct binder_node *node = rb_entry(n, struct binder_node,
 						    rb_node);
+		if (!print_all && !node->has_async_transaction)
+			continue;
+
 		/*
 		 * take a temporary reference on the node so it
 		 * survives and isn't removed from the tree
