@@ -192,7 +192,7 @@
 		simple-audio-card,format = "i2s";
 		simple-audio-card,frame-master = <&link_codec>;
 		simple-audio-card,bitclock-master = <&link_codec>;
-		simple-audio-card,mclk-fs = <512>;
+		simple-audio-card,mclk-fs = <128>;
 		simple-audio-card,aux-devs = <&codec_analog>;
 		simple-audio-card,routing =
 			"Left DAC", "AIF1 Slot 0 Left",
