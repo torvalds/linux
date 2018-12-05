@@ -21,7 +21,6 @@
 #include "ethernet-util.h"
 
 #include <asm/octeon/cvmx-gmxx-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 
 static void cvm_oct_get_drvinfo(struct net_device *dev,
 				struct ethtool_drvinfo *info)

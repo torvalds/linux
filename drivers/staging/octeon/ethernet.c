@@ -36,7 +36,6 @@
 #include <asm/octeon/cvmx-helper.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 #include <asm/octeon/cvmx-gmxx-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 
 #define OCTEON_MAX_MTU 65392
 
