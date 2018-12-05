@@ -770,6 +770,13 @@ execlists_cancel_port_requests(struct intel_engine_execlists * const execlists)
 	execlists_clear_all_active(execlists);
 }
 
+static inline void
+invalidate_csb_entries(const u32 *first, const u32 *last)
+{
+	clflush((void *)first);
+	clflush((void *)last);
+}
+
 static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 {
 	const unsigned int reset_value = GEN8_CSB_ENTRIES - 1;
@@ -785,6 +792,9 @@ static void reset_csb_pointers(struct intel_engine_execlists *execlists)
 	 */
 	execlists->csb_head = reset_value;
 	WRITE_ONCE(*execlists->csb_write, reset_value);
+
+	invalidate_csb_entries(&execlists->csb_status[0],
+			       &execlists->csb_status[GEN8_CSB_ENTRIES - 1]);
 }
 
 static void nop_submission_tasklet(unsigned long data)
@@ -1020,6 +1030,19 @@ static void process_csb(struct intel_engine_cs *engine)
 	} while (head != tail);
 
 	execlists->csb_head = head;
+
+	/*
+	 * Gen11 has proven to fail wrt global observation point between
+	 * entry and tail update, failing on the ordering and thus
+	 * we see an old entry in the context status buffer.
+	 *
+	 * Forcibly evict out entries for the next gpu csb update,
+	 * to increase the odds that we get a fresh entries with non
+	 * working hardware. The cost for doing so comes out mostly with
+	 * the wash as hardware, working or not, will need to do the
+	 * invalidation before.
+	 */
+	invalidate_csb_entries(&buf[0], &buf[GEN8_CSB_ENTRIES - 1]);
 }
 
 static void __execlists_submission_tasklet(struct intel_engine_cs *const engine)
