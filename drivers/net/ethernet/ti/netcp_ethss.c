@@ -3623,7 +3623,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		return -EINVAL;
 	}
 
-	if (!strcmp(node->name, "gbe")) {
+	if (of_node_name_eq(node, "gbe")) {
 		ret = get_gbe_resource_version(gbe_dev, node);
 		if (ret)
 			return ret;
@@ -3637,7 +3637,7 @@ static int gbe_probe(struct netcp_device *netcp_device, struct device *dev,
 		else
 			ret = -ENODEV;
 
-	} else if (!strcmp(node->name, "xgbe")) {
+	} else if (of_node_name_eq(node, "xgbe")) {
 		ret = set_xgbe_ethss10_priv(gbe_dev, node);
 		if (ret)
 			return ret;

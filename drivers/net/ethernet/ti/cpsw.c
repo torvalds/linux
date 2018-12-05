@@ -3271,7 +3271,7 @@ static int cpsw_probe_dt(struct cpsw_platform_data *data,
 		const __be32 *parp;
 
 		/* This is no slave child node, continue */
-		if (strcmp(slave_node->name, "slave"))
+		if (!of_node_name_eq(slave_node, "slave"))
 			continue;
 
 		slave_data->phy_node = of_parse_phandle(slave_node,
@@ -3367,7 +3367,7 @@ static void cpsw_remove_dt(struct platform_device *pdev)
 	for_each_available_child_of_node(node, slave_node) {
 		struct cpsw_slave_data *slave_data = &data->slave_data[i];
 
-		if (strcmp(slave_node->name, "slave"))
+		if (!of_node_name_eq(slave_node, "slave"))
 			continue;
 
 		if (of_phy_is_fixed_link(slave_node))
