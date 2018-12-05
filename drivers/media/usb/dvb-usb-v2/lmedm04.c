@@ -1229,6 +1229,7 @@ static void lme2510_exit(struct dvb_usb_device *d)
 		usb_kill_urb(st->lme_urb);
 		usb_free_coherent(d->udev, 128, st->buffer,
 				  st->lme_urb->transfer_dma);
+		usb_free_urb(st->lme_urb);
 		info("Interrupt Service Stopped");
 	}
 }
