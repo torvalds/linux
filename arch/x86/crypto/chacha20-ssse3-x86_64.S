@@ -10,6 +10,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 
 .section	.rodata.cst16.ROT8, "aM", @progbits, 16
 .align 16
@@ -23,37 +24,24 @@ CTRINC:	.octa 0x00000003000000020000000100000000
 
 .text
 
-ENTRY(chacha20_block_xor_ssse3)
-	# %rdi: Input state matrix, s
-	# %rsi: up to 1 data block output, o
-	# %rdx: up to 1 data block input, i
-	# %rcx: input/output length in bytes
-
-	# This function encrypts one ChaCha20 block by loading the state matrix
-	# in four SSE registers. It performs matrix operation on four words in
-	# parallel, but requires shuffling to rearrange the words after each
-	# round. 8/16-bit word rotation is done with the slightly better
-	# performing SSSE3 byte shuffling, 7/12-bit word rotation uses
-	# traditional shift+OR.
-
-	# x0..3 = s0..3
-	movdqa		0x00(%rdi),%xmm0
-	movdqa		0x10(%rdi),%xmm1
-	movdqa		0x20(%rdi),%xmm2
-	movdqa		0x30(%rdi),%xmm3
-	movdqa		%xmm0,%xmm8
-	movdqa		%xmm1,%xmm9
-	movdqa		%xmm2,%xmm10
-	movdqa		%xmm3,%xmm11
+/*
+ * chacha20_permute - permute one block
+ *
+ * Permute one 64-byte block where the state matrix is in %xmm0-%xmm3.  This
+ * function performs matrix operations on four words in parallel, but requires
+ * shuffling to rearrange the words after each round.  8/16-bit word rotation is
+ * done with the slightly better performing SSSE3 byte shuffling, 7/12-bit word
+ * rotation uses traditional shift+OR.
+ *
+ * Clobbers: %ecx, %xmm4-%xmm7
+ */
+chacha20_permute:
 
 	movdqa		ROT8(%rip),%xmm4
 	movdqa		ROT16(%rip),%xmm5
-
-	mov		%rcx,%rax
 	mov		$10,%ecx
 
 .Ldoubleround:
-
 	# x0 += x1, x3 = rotl32(x3 ^ x0, 16)
 	paddd		%xmm1,%xmm0
 	pxor		%xmm0,%xmm3
@@ -123,6 +111,29 @@ ENTRY(chacha20_block_xor_ssse3)
 	dec		%ecx
 	jnz		.Ldoubleround
 
+	ret
+ENDPROC(chacha20_permute)
+
+ENTRY(chacha20_block_xor_ssse3)
+	# %rdi: Input state matrix, s
+	# %rsi: up to 1 data block output, o
+	# %rdx: up to 1 data block input, i
+	# %rcx: input/output length in bytes
+	FRAME_BEGIN
+
+	# x0..3 = s0..3
+	movdqa		0x00(%rdi),%xmm0
+	movdqa		0x10(%rdi),%xmm1
+	movdqa		0x20(%rdi),%xmm2
+	movdqa		0x30(%rdi),%xmm3
+	movdqa		%xmm0,%xmm8
+	movdqa		%xmm1,%xmm9
+	movdqa		%xmm2,%xmm10
+	movdqa		%xmm3,%xmm11
+
+	mov		%rcx,%rax
+	call		chacha20_permute
+
 	# o0 = i0 ^ (x0 + s0)
 	paddd		%xmm8,%xmm0
 	cmp		$0x10,%rax
@@ -156,6 +167,7 @@ ENTRY(chacha20_block_xor_ssse3)
 	movdqu		%xmm0,0x30(%rsi)
 
 .Ldone:
+	FRAME_END
 	ret
 
 .Lxorpart:
@@ -188,6 +200,25 @@ ENTRY(chacha20_block_xor_ssse3)
 	jmp		.Ldone
 
 ENDPROC(chacha20_block_xor_ssse3)
+
+ENTRY(hchacha20_block_ssse3)
+	# %rdi: Input state matrix, s
+	# %rsi: output (8 32-bit words)
+	FRAME_BEGIN
+
+	movdqa		0x00(%rdi),%xmm0
+	movdqa		0x10(%rdi),%xmm1
+	movdqa		0x20(%rdi),%xmm2
+	movdqa		0x30(%rdi),%xmm3
+
+	call		chacha20_permute
+
+	movdqu		%xmm0,0x00(%rsi)
+	movdqu		%xmm3,0x10(%rsi)
+
+	FRAME_END
+	ret
+ENDPROC(hchacha20_block_ssse3)
 
 ENTRY(chacha20_4block_xor_ssse3)
 	# %rdi: Input state matrix, s
