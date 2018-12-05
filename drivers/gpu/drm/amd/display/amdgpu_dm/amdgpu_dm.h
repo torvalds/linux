@@ -135,6 +135,14 @@ struct amdgpu_display_manager {
 	struct drm_modeset_lock atomic_obj_lock;
 
 	/**
+	 * @dc_lock:
+	 *
+	 * Guards access to DC functions that can issue register write
+	 * sequences.
+	 */
+	struct mutex dc_lock;
+
+	/**
 	 * @irq_handler_list_low_tab:
 	 *
 	 * Low priority IRQ handler table.
