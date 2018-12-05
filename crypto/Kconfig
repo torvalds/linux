@@ -1487,19 +1487,13 @@ config CRYPTO_CHACHA20
 	  in some performance-sensitive scenarios.
 
 config CRYPTO_CHACHA20_X86_64
-	tristate "ChaCha20 cipher algorithm (x86_64/SSSE3/AVX2)"
+	tristate "ChaCha stream cipher algorithms (x86_64/SSSE3/AVX2/AVX-512VL)"
 	depends on X86 && 64BIT
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_CHACHA20
 	help
-	  ChaCha20 cipher algorithm, RFC7539.
-
-	  ChaCha20 is a 256-bit high-speed stream cipher designed by Daniel J.
-	  Bernstein and further specified in RFC7539 for use in IETF protocols.
-	  This is the x86_64 assembler implementation using SIMD instructions.
-
-	  See also:
-	  <http://cr.yp.to/chacha/chacha-20080128.pdf>
+	  SSSE3, AVX2, and AVX-512VL optimized implementations of the ChaCha20
+	  and XChaCha20 stream ciphers.
 
 config CRYPTO_SEED
 	tristate "SEED cipher algorithm"
