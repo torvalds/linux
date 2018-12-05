@@ -127,6 +127,10 @@ struct trace {
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
+	struct {
+		struct ordered_events	data;
+		u64			last;
+	} oe;
 };
 
 struct tp_field {
@@ -2652,6 +2656,42 @@ static int trace__deliver_event(struct trace *trace, union perf_event *event)
 	return 0;
 }
 
+static int trace__flush_ordered_events(struct trace *trace)
+{
+	u64 first = ordered_events__first_time(&trace->oe.data);
+	u64 flush = trace->oe.last - NSEC_PER_SEC;
+
+	/* Is there some thing to flush.. */
+	if (first && first < flush)
+		return ordered_events__flush_time(&trace->oe.data, flush);
+
+	return 0;
+}
+
+static int trace__deliver_ordered_event(struct trace *trace, union perf_event *event)
+{
+	struct perf_evlist *evlist = trace->evlist;
+	int err;
+
+	err = perf_evlist__parse_sample_timestamp(evlist, event, &trace->oe.last);
+	if (err && err != -1)
+		return err;
+
+	err = ordered_events__queue(&trace->oe.data, event, trace->oe.last, 0);
+	if (err)
+		return err;
+
+	return trace__flush_ordered_events(trace);
+}
+
+static int ordered_events__deliver_event(struct ordered_events *oe,
+					 struct ordered_event *event)
+{
+	struct trace *trace = container_of(oe, struct trace, oe.data);
+
+	return trace__deliver_event(trace, event->event);
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
@@ -2819,7 +2859,9 @@ again:
 		while ((event = perf_mmap__read_event(md)) != NULL) {
 			++trace->nr_events;
 
-			trace__deliver_event(trace, event);
+			err = trace__deliver_ordered_event(trace, event);
+			if (err)
+				goto out_disable;
 
 			perf_mmap__consume(md);
 
@@ -2842,6 +2884,9 @@ again:
 				draining = true;
 
 			goto again;
+		} else {
+			if (trace__flush_ordered_events(trace))
+				goto out_disable;
 		}
 	} else {
 		goto again;
@@ -2851,6 +2896,8 @@ out_disable:
 	thread__zput(trace->current);
 
 	perf_evlist__disable(evlist);
+
+	ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
 
 	if (!err) {
 		if (trace->summary)
@@ -3561,6 +3608,9 @@ int cmd_trace(int argc, const char **argv)
 			goto out;
 		}
 	}
+
+	ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
+	ordered_events__set_copy_on_queue(&trace.oe.data, true);
 
 	/*
 	 * If we are augmenting syscalls, then combine what we put in the
