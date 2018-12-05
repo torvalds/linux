@@ -255,6 +255,7 @@ struct dc_debug_options {
 	bool scl_reset_length10;
 	bool hdmi20_disable;
 	bool skip_detection_link_training;
+	unsigned int force_odm_combine; //bit vector based on otg inst
 	unsigned int force_fclk_khz;
 };
 
