@@ -1546,17 +1546,23 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``picture``
       - Structure with MPEG-2 picture metadata, merging relevant fields from
 	the picture header and picture coding extension parts of the bitstream.
-    * - __u8
+    * - __u64
+      - ``backward_ref_ts``
+      - Timestamp of the V4L2 capture buffer to use as backward reference, used
+        with B-coded and P-coded frames. The timestamp refers to the
+	``timestamp`` field in struct :c:type:`v4l2_buffer`. Use the
+	:c:func:`v4l2_timeval_to_ns()` function to convert the struct
+	:c:type:`timeval` in struct :c:type:`v4l2_buffer` to a __u64.
+    * - __u64
+      - ``forward_ref_ts``
+      - Timestamp for the V4L2 capture buffer to use as forward reference, used
+        with B-coded frames. The timestamp refers to the ``timestamp`` field in
+	struct :c:type:`v4l2_buffer`. Use the :c:func:`v4l2_timeval_to_ns()`
+	function to convert the struct :c:type:`timeval` in struct
+	:c:type:`v4l2_buffer` to a __u64.
+    * - __u32
       - ``quantiser_scale_code``
       - Code used to determine the quantization scale to use for the IDCT.
-    * - __u8
-      - ``backward_ref_index``
-      - Index for the V4L2 buffer to use as backward reference, used with
-	B-coded and P-coded frames.
-    * - __u8
-      - ``forward_ref_index``
-      - Index for the V4L2 buffer to use as forward reference, used with
-	B-coded frames.
 
 .. c:type:: v4l2_mpeg2_sequence
 
@@ -1577,7 +1583,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
       - ``vbv_buffer_size``
       - Used to calculate the required size of the video buffering verifier,
 	defined (in bits) as: 16 * 1024 * vbv_buffer_size.
-    * - __u8
+    * - __u16
       - ``profile_and_level_indication``
       - The current profile and level indication as extracted from the
 	bitstream.
@@ -1635,7 +1641,7 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     * - __u8
       - ``repeat_first_field``
       - This flag affects the decoding process of progressive frames.
-    * - __u8
+    * - __u16
       - ``progressive_frame``
       - Indicates whether the current frame is progressive.
 
