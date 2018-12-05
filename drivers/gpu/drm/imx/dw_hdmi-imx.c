@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2011-2013 Freescale Semiconductor, Inc.
  *
  * derived from imx-hdmi.c(renamed to bridge/dw_hdmi.c now)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/platform_device.h>
