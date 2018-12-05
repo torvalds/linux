@@ -184,6 +184,29 @@ static const struct iwl_fw_bcast_filter iwl_mvm_default_bcast_filters[] = {
 };
 #endif
 
+static const struct cfg80211_pmsr_capabilities iwl_mvm_pmsr_capa = {
+	.max_peers = IWL_MVM_TOF_MAX_APS,
+	.report_ap_tsf = 1,
+	.randomize_mac_addr = 1,
+
+	.ftm = {
+		.supported = 1,
+		.asap = 1,
+		.non_asap = 1,
+		.request_lci = 1,
+		.request_civicloc = 1,
+		.max_bursts_exponent = -1, /* all supported */
+		.max_ftms_per_burst = 0, /* no limits */
+		.bandwidths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+			      BIT(NL80211_CHAN_WIDTH_20) |
+			      BIT(NL80211_CHAN_WIDTH_40) |
+			      BIT(NL80211_CHAN_WIDTH_80),
+		.preambles = BIT(NL80211_PREAMBLE_LEGACY) |
+			     BIT(NL80211_PREAMBLE_HT) |
+			     BIT(NL80211_PREAMBLE_VHT),
+	},
+};
+
 void iwl_mvm_ref(struct iwl_mvm *mvm, enum iwl_mvm_ref_type ref_type)
 {
 	if (!iwl_mvm_is_d0i3_supported(mvm))
@@ -549,9 +572,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	}
 
 	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_FTM_CALIBRATED))
+			IWL_UCODE_TLV_CAPA_FTM_CALIBRATED)) {
 		wiphy_ext_feature_set(hw->wiphy,
 				      NL80211_EXT_FEATURE_ENABLE_FTM_RESPONDER);
+		hw->wiphy->pmsr_capa = &iwl_mvm_pmsr_capa;
+	}
 
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	hw->wiphy->features |=
@@ -1185,6 +1210,8 @@ static void iwl_mvm_restart_cleanup(struct iwl_mvm *mvm)
 	/* just in case one was running */
 	iwl_mvm_cleanup_roc_te(mvm);
 	ieee80211_remain_on_channel_expired(mvm->hw);
+
+	iwl_mvm_ftm_restart(mvm);
 
 	/*
 	 * cleanup all interfaces, even inactive ones, as some might have
@@ -4895,6 +4922,31 @@ iwl_mvm_mac_get_ftm_responder_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int iwl_mvm_start_pmsr(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct cfg80211_pmsr_request *request)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+	ret = iwl_mvm_ftm_start(mvm, vif, request);
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
+static void iwl_mvm_abort_pmsr(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_pmsr_request *request)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_ftm_abort(mvm, request);
+	mutex_unlock(&mvm->mutex);
+}
+
 static bool iwl_mvm_can_hw_csum(struct sk_buff *skb)
 {
 	u8 protocol = ip_hdr(skb)->protocol;
@@ -4998,6 +5050,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 	.get_survey = iwl_mvm_mac_get_survey,
 	.sta_statistics = iwl_mvm_mac_sta_statistics,
 	.get_ftm_responder_stats = iwl_mvm_mac_get_ftm_responder_stats,
+	.start_pmsr = iwl_mvm_start_pmsr,
+	.abort_pmsr = iwl_mvm_abort_pmsr,
 
 	.can_aggregate_in_amsdu = iwl_mvm_mac_can_aggregate,
 #ifdef CONFIG_IWLWIFI_DEBUGFS

@@ -7,6 +7,7 @@
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -28,6 +29,7 @@
  *
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -403,7 +405,10 @@ enum iwl_tof_response_mode {
  * @IWL_TOF_INITIATOR_FLAGS_TX_CHAIN_SEL_A: use antenna A fo TX ACKs during FTM
  * @IWL_TOF_INITIATOR_FLAGS_TX_CHAIN_SEL_B: use antenna B fo TX ACKs during FTM
  * @IWL_TOF_INITIATOR_FLAGS_TX_CHAIN_SEL_C: use antenna C fo TX ACKs during FTM
- * @IWL_TOF_INITIATOR_FLAGS_MINDELTA_NO_PREF: no preference for minDeltaFTM
+ * @IWL_TOF_INITIATOR_FLAGS_SPECIFIC_CALIB: use the specific calib value from
+ *	the range request command
+ * @IWL_TOF_INITIATOR_FLAGS_COMMON_CALIB: use the common calib value from the
+ *	ragne request command
  */
 enum iwl_tof_initiator_flags {
 	IWL_TOF_INITIATOR_FLAGS_FAST_ALGO_DISABLED = BIT(0),
@@ -413,7 +418,8 @@ enum iwl_tof_initiator_flags {
 	IWL_TOF_INITIATOR_FLAGS_TX_CHAIN_SEL_A = BIT(4),
 	IWL_TOF_INITIATOR_FLAGS_TX_CHAIN_SEL_B = BIT(5),
 	IWL_TOF_INITIATOR_FLAGS_TX_CHAIN_SEL_C = BIT(6),
-	IWL_TOF_INITIATOR_FLAGS_MINDELTA_NO_PREF = BIT(7),
+	IWL_TOF_INITIATOR_FLAGS_SPECIFIC_CALIB = BIT(15),
+	IWL_TOF_INITIATOR_FLAGS_COMMON_CALIB   = BIT(16),
 }; /* LOCATION_RANGE_REQ_CMD_API_S_VER_5 */
 
 #define IWL_MVM_TOF_MAX_APS 5

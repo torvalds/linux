@@ -1151,6 +1151,12 @@ struct iwl_mvm {
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 
 	struct cfg80211_ftm_responder_stats ftm_resp_stats;
+	struct {
+		struct cfg80211_pmsr_request *req;
+		struct wireless_dev *req_wdev;
+		struct list_head loc_list;
+		int responses[IWL_MVM_TOF_MAX_APS];
+	} ftm_initiator;
 
 	struct ieee80211_vif *nan_vif;
 #define IWL_MAX_BAID	32
@@ -2068,6 +2074,16 @@ void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif);
 void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
 				 struct iwl_rx_cmd_buffer *rxb);
+
+/* FTM initiator */
+void iwl_mvm_ftm_restart(struct iwl_mvm *mvm);
+void iwl_mvm_ftm_range_resp(struct iwl_mvm *mvm,
+			    struct iwl_rx_cmd_buffer *rxb);
+void iwl_mvm_ftm_lc_notif(struct iwl_mvm *mvm,
+			  struct iwl_rx_cmd_buffer *rxb);
+int iwl_mvm_ftm_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      struct cfg80211_pmsr_request *request);
+void iwl_mvm_ftm_abort(struct iwl_mvm *mvm, struct cfg80211_pmsr_request *req);
 
 /* TDLS */
 
