@@ -284,8 +284,6 @@ static void drm_sched_job_finish(struct work_struct *work)
 	cancel_delayed_work_sync(&sched->work_tdr);
 
 	spin_lock_irqsave(&sched->job_list_lock, flags);
-	/* remove job from ring_mirror_list */
-	list_del_init(&s_job->node);
 	/* queue TDR for next job */
 	drm_sched_start_timeout(sched);
 	spin_unlock_irqrestore(&sched->job_list_lock, flags);
@@ -293,21 +291,10 @@ static void drm_sched_job_finish(struct work_struct *work)
 	sched->ops->free_job(s_job);
 }
 
-static void drm_sched_job_finish_cb(struct dma_fence *f,
-				    struct dma_fence_cb *cb)
-{
-	struct drm_sched_job *job = container_of(cb, struct drm_sched_job,
-						 finish_cb);
-	schedule_work(&job->finish_work);
-}
-
 static void drm_sched_job_begin(struct drm_sched_job *s_job)
 {
 	struct drm_gpu_scheduler *sched = s_job->sched;
 	unsigned long flags;
-
-	dma_fence_add_callback(&s_job->s_fence->finished, &s_job->finish_cb,
-			       drm_sched_job_finish_cb);
 
 	spin_lock_irqsave(&sched->job_list_lock, flags);
 	list_add_tail(&s_job->node, &sched->ring_mirror_list);
@@ -403,7 +390,7 @@ void drm_sched_stop(struct drm_gpu_scheduler *sched)
 	list_for_each_entry_reverse(s_job, &sched->ring_mirror_list, node) {
 		if (s_job->s_fence->parent &&
 		    dma_fence_remove_callback(s_job->s_fence->parent,
-					      &s_job->s_fence->cb)) {
+					      &s_job->cb)) {
 			dma_fence_put(s_job->s_fence->parent);
 			s_job->s_fence->parent = NULL;
 			atomic_dec(&sched->hw_rq_count);
@@ -431,31 +418,34 @@ EXPORT_SYMBOL(drm_sched_stop);
 void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery)
 {
 	struct drm_sched_job *s_job, *tmp;
-	unsigned long flags;
 	int r;
 
 	if (!full_recovery)
 		goto unpark;
 
-	spin_lock_irqsave(&sched->job_list_lock, flags);
+	/*
+	 * Locking the list is not required here as the sched thread is parked
+	 * so no new jobs are being pushed in to HW and in drm_sched_stop we
+	 * flushed all the jobs who were still in mirror list but who already
+	 * signaled and removed them self from the list. Also concurrent
+	 * GPU recovers can't run in parallel.
+	 */
 	list_for_each_entry_safe(s_job, tmp, &sched->ring_mirror_list, node) {
-		struct drm_sched_fence *s_fence = s_job->s_fence;
 		struct dma_fence *fence = s_job->s_fence->parent;
 
 		if (fence) {
-			r = dma_fence_add_callback(fence, &s_fence->cb,
+			r = dma_fence_add_callback(fence, &s_job->cb,
 						   drm_sched_process_job);
 			if (r == -ENOENT)
-				drm_sched_process_job(fence, &s_fence->cb);
+				drm_sched_process_job(fence, &s_job->cb);
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n",
 					  r);
 		} else
-			drm_sched_process_job(NULL, &s_fence->cb);
+			drm_sched_process_job(NULL, &s_job->cb);
 	}
 
 	drm_sched_start_timeout(sched);
-	spin_unlock_irqrestore(&sched->job_list_lock, flags);
 
 unpark:
 	kthread_unpark(sched->thread);
@@ -604,18 +594,27 @@ drm_sched_select_entity(struct drm_gpu_scheduler *sched)
  */
 static void drm_sched_process_job(struct dma_fence *f, struct dma_fence_cb *cb)
 {
-	struct drm_sched_fence *s_fence =
-		container_of(cb, struct drm_sched_fence, cb);
+	struct drm_sched_job *s_job = container_of(cb, struct drm_sched_job, cb);
+	struct drm_sched_fence *s_fence = s_job->s_fence;
 	struct drm_gpu_scheduler *sched = s_fence->sched;
+	unsigned long flags;
 
-	dma_fence_get(&s_fence->finished);
+	cancel_delayed_work(&sched->work_tdr);
+
 	atomic_dec(&sched->hw_rq_count);
 	atomic_dec(&sched->num_jobs);
+
+	spin_lock_irqsave(&sched->job_list_lock, flags);
+	/* remove job from ring_mirror_list */
+	list_del_init(&s_job->node);
+	spin_unlock_irqrestore(&sched->job_list_lock, flags);
+
 	drm_sched_fence_finished(s_fence);
 
 	trace_drm_sched_process_job(s_fence);
-	dma_fence_put(&s_fence->finished);
 	wake_up_interruptible(&sched->wake_up_worker);
+
+	schedule_work(&s_job->finish_work);
 }
 
 /**
@@ -678,16 +677,16 @@ static int drm_sched_main(void *param)
 
 		if (fence) {
 			s_fence->parent = dma_fence_get(fence);
-			r = dma_fence_add_callback(fence, &s_fence->cb,
+			r = dma_fence_add_callback(fence, &sched_job->cb,
 						   drm_sched_process_job);
 			if (r == -ENOENT)
-				drm_sched_process_job(fence, &s_fence->cb);
+				drm_sched_process_job(fence, &sched_job->cb);
 			else if (r)
 				DRM_ERROR("fence add callback failed (%d)\n",
 					  r);
 			dma_fence_put(fence);
 		} else
-			drm_sched_process_job(NULL, &s_fence->cb);
+			drm_sched_process_job(NULL, &sched_job->cb);
 
 		wake_up(&sched->job_scheduled);
 	}
