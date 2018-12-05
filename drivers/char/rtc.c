@@ -866,8 +866,8 @@ static int __init rtc_init(void)
 #ifdef CONFIG_SPARC32
 	for_each_node_by_name(ebus_dp, "ebus") {
 		struct device_node *dp;
-		for (dp = ebus_dp; dp; dp = dp->sibling) {
-			if (!strcmp(dp->name, "rtc")) {
+		for_each_child_of_node(ebus_dp, dp) {
+			if (of_node_name_eq(dp, "rtc")) {
 				op = of_find_device_by_node(dp);
 				if (op) {
 					rtc_port = op->resource[0].start;
