@@ -2039,7 +2039,7 @@ int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end,
 			      unsigned int extra_bits,
 			      struct extent_state **cached_state, int dedupe)
 {
-	WARN_ON((end & (PAGE_SIZE - 1)) == 0);
+	WARN_ON(PAGE_ALIGNED(end));
 	return set_extent_delalloc(&BTRFS_I(inode)->io_tree, start, end,
 				   extra_bits, cached_state);
 }

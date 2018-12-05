@@ -1601,7 +1601,7 @@ static int btrfsic_read_block(struct btrfsic_state *state,
 	BUG_ON(block_ctx->datav);
 	BUG_ON(block_ctx->pagev);
 	BUG_ON(block_ctx->mem_to_free);
-	if (block_ctx->dev_bytenr & ((u64)PAGE_SIZE - 1)) {
+	if (!PAGE_ALIGNED(block_ctx->dev_bytenr)) {
 		pr_info("btrfsic: read_block() with unaligned bytenr %llu\n",
 		       block_ctx->dev_bytenr);
 		return -1;
@@ -1778,7 +1778,7 @@ again:
 				return;
 			}
 			is_metadata = 1;
-			BUG_ON(BTRFS_SUPER_INFO_SIZE & (PAGE_SIZE - 1));
+			BUG_ON(!PAGE_ALIGNED(BTRFS_SUPER_INFO_SIZE));
 			processed_len = BTRFS_SUPER_INFO_SIZE;
 			if (state->print_mask &
 			    BTRFSIC_PRINT_MASK_TREE_BEFORE_SB_WRITE) {
@@ -2892,12 +2892,12 @@ int btrfsic_mount(struct btrfs_fs_info *fs_info,
 	struct list_head *dev_head = &fs_devices->devices;
 	struct btrfs_device *device;
 
-	if (fs_info->nodesize & ((u64)PAGE_SIZE - 1)) {
+	if (!PAGE_ALIGNED(fs_info->nodesize)) {
 		pr_info("btrfsic: cannot handle nodesize %d not being a multiple of PAGE_SIZE %ld!\n",
 		       fs_info->nodesize, PAGE_SIZE);
 		return -1;
 	}
-	if (fs_info->sectorsize & ((u64)PAGE_SIZE - 1)) {
+	if (!PAGE_ALIGNED(fs_info->sectorsize)) {
 		pr_info("btrfsic: cannot handle sectorsize %d not being a multiple of PAGE_SIZE %ld!\n",
 		       fs_info->sectorsize, PAGE_SIZE);
 		return -1;

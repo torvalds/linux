@@ -301,7 +301,7 @@ blk_status_t btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	blk_status_t ret;
 	int skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
-	WARN_ON(start & ((u64)PAGE_SIZE - 1));
+	WARN_ON(!PAGE_ALIGNED(start));
 	cb = kmalloc(compressed_bio_size(fs_info, compressed_len), GFP_NOFS);
 	if (!cb)
 		return BLK_STS_RESOURCE;
