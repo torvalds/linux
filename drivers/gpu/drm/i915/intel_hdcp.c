@@ -157,10 +157,11 @@ static int intel_hdcp_load_keys(struct drm_i915_private *dev_priv)
 	/*
 	 * Initiate loading the HDCP key from fuses.
 	 *
-	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only SKL and KBL
-	 * differ in the key load trigger process from other platforms.
+	 * BXT+ platforms, HDCP key needs to be loaded by SW. Only Gen 9
+	 * platforms except BXT and GLK, differ in the key load trigger process
+	 * from other platforms. So GEN9_BC uses the GT Driver Mailbox i/f.
 	 */
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv)) {
 		mutex_lock(&dev_priv->pcu_lock);
 		ret = sandybridge_pcode_write(dev_priv,
 					      SKL_PCODE_LOAD_HDCP_KEYS, 1);
