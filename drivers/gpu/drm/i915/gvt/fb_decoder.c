@@ -235,7 +235,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		plane->bpp = skl_pixel_formats[fmt].bpp;
 		plane->drm_format = skl_pixel_formats[fmt].drm_format;
 	} else {
-		plane->tiled = !!(val & DISPPLANE_TILED);
+		plane->tiled = val & DISPPLANE_TILED;
 		fmt = bdw_format_to_drm(val & DISPPLANE_PIXFORMAT_MASK);
 		plane->bpp = bdw_pixel_formats[fmt].bpp;
 		plane->drm_format = bdw_pixel_formats[fmt].drm_format;
