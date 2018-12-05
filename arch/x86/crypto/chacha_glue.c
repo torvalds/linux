@@ -1,5 +1,6 @@
 /*
- * ChaCha20 256-bit cipher algorithm, RFC7539, SIMD glue code
+ * x64 SIMD accelerated ChaCha and XChaCha stream ciphers,
+ * including ChaCha20 (RFC7539)
  *
  * Copyright (C) 2015 Martin Willi
  *
@@ -17,120 +18,124 @@
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
 
-#define CHACHA20_STATE_ALIGN 16
+#define CHACHA_STATE_ALIGN 16
 
-asmlinkage void chacha20_block_xor_ssse3(u32 *state, u8 *dst, const u8 *src,
-					 unsigned int len);
-asmlinkage void chacha20_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src,
-					  unsigned int len);
-asmlinkage void hchacha20_block_ssse3(const u32 *state, u32 *out);
+asmlinkage void chacha_block_xor_ssse3(u32 *state, u8 *dst, const u8 *src,
+				       unsigned int len, int nrounds);
+asmlinkage void chacha_4block_xor_ssse3(u32 *state, u8 *dst, const u8 *src,
+					unsigned int len, int nrounds);
+asmlinkage void hchacha_block_ssse3(const u32 *state, u32 *out, int nrounds);
 #ifdef CONFIG_AS_AVX2
-asmlinkage void chacha20_2block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
-					 unsigned int len);
-asmlinkage void chacha20_4block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
-					 unsigned int len);
-asmlinkage void chacha20_8block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
-					 unsigned int len);
-static bool chacha20_use_avx2;
+asmlinkage void chacha_2block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
+				       unsigned int len, int nrounds);
+asmlinkage void chacha_4block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
+				       unsigned int len, int nrounds);
+asmlinkage void chacha_8block_xor_avx2(u32 *state, u8 *dst, const u8 *src,
+				       unsigned int len, int nrounds);
+static bool chacha_use_avx2;
 #ifdef CONFIG_AS_AVX512
-asmlinkage void chacha20_2block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
-					     unsigned int len);
-asmlinkage void chacha20_4block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
-					     unsigned int len);
-asmlinkage void chacha20_8block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
-					     unsigned int len);
-static bool chacha20_use_avx512vl;
+asmlinkage void chacha_2block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
+					   unsigned int len, int nrounds);
+asmlinkage void chacha_4block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
+					   unsigned int len, int nrounds);
+asmlinkage void chacha_8block_xor_avx512vl(u32 *state, u8 *dst, const u8 *src,
+					   unsigned int len, int nrounds);
+static bool chacha_use_avx512vl;
 #endif
 #endif
 
-static unsigned int chacha20_advance(unsigned int len, unsigned int maxblocks)
+static unsigned int chacha_advance(unsigned int len, unsigned int maxblocks)
 {
 	len = min(len, maxblocks * CHACHA_BLOCK_SIZE);
 	return round_up(len, CHACHA_BLOCK_SIZE) / CHACHA_BLOCK_SIZE;
 }
 
-static void chacha20_dosimd(u32 *state, u8 *dst, const u8 *src,
-			    unsigned int bytes)
+static void chacha_dosimd(u32 *state, u8 *dst, const u8 *src,
+			  unsigned int bytes, int nrounds)
 {
 #ifdef CONFIG_AS_AVX2
 #ifdef CONFIG_AS_AVX512
-	if (chacha20_use_avx512vl) {
+	if (chacha_use_avx512vl) {
 		while (bytes >= CHACHA_BLOCK_SIZE * 8) {
-			chacha20_8block_xor_avx512vl(state, dst, src, bytes);
+			chacha_8block_xor_avx512vl(state, dst, src, bytes,
+						   nrounds);
 			bytes -= CHACHA_BLOCK_SIZE * 8;
 			src += CHACHA_BLOCK_SIZE * 8;
 			dst += CHACHA_BLOCK_SIZE * 8;
 			state[12] += 8;
 		}
 		if (bytes > CHACHA_BLOCK_SIZE * 4) {
-			chacha20_8block_xor_avx512vl(state, dst, src, bytes);
-			state[12] += chacha20_advance(bytes, 8);
+			chacha_8block_xor_avx512vl(state, dst, src, bytes,
+						   nrounds);
+			state[12] += chacha_advance(bytes, 8);
 			return;
 		}
 		if (bytes > CHACHA_BLOCK_SIZE * 2) {
-			chacha20_4block_xor_avx512vl(state, dst, src, bytes);
-			state[12] += chacha20_advance(bytes, 4);
+			chacha_4block_xor_avx512vl(state, dst, src, bytes,
+						   nrounds);
+			state[12] += chacha_advance(bytes, 4);
 			return;
 		}
 		if (bytes) {
-			chacha20_2block_xor_avx512vl(state, dst, src, bytes);
-			state[12] += chacha20_advance(bytes, 2);
+			chacha_2block_xor_avx512vl(state, dst, src, bytes,
+						   nrounds);
+			state[12] += chacha_advance(bytes, 2);
 			return;
 		}
 	}
 #endif
-	if (chacha20_use_avx2) {
+	if (chacha_use_avx2) {
 		while (bytes >= CHACHA_BLOCK_SIZE * 8) {
-			chacha20_8block_xor_avx2(state, dst, src, bytes);
+			chacha_8block_xor_avx2(state, dst, src, bytes, nrounds);
 			bytes -= CHACHA_BLOCK_SIZE * 8;
 			src += CHACHA_BLOCK_SIZE * 8;
 			dst += CHACHA_BLOCK_SIZE * 8;
 			state[12] += 8;
 		}
 		if (bytes > CHACHA_BLOCK_SIZE * 4) {
-			chacha20_8block_xor_avx2(state, dst, src, bytes);
-			state[12] += chacha20_advance(bytes, 8);
+			chacha_8block_xor_avx2(state, dst, src, bytes, nrounds);
+			state[12] += chacha_advance(bytes, 8);
 			return;
 		}
 		if (bytes > CHACHA_BLOCK_SIZE * 2) {
-			chacha20_4block_xor_avx2(state, dst, src, bytes);
-			state[12] += chacha20_advance(bytes, 4);
+			chacha_4block_xor_avx2(state, dst, src, bytes, nrounds);
+			state[12] += chacha_advance(bytes, 4);
 			return;
 		}
 		if (bytes > CHACHA_BLOCK_SIZE) {
-			chacha20_2block_xor_avx2(state, dst, src, bytes);
-			state[12] += chacha20_advance(bytes, 2);
+			chacha_2block_xor_avx2(state, dst, src, bytes, nrounds);
+			state[12] += chacha_advance(bytes, 2);
 			return;
 		}
 	}
 #endif
 	while (bytes >= CHACHA_BLOCK_SIZE * 4) {
-		chacha20_4block_xor_ssse3(state, dst, src, bytes);
+		chacha_4block_xor_ssse3(state, dst, src, bytes, nrounds);
 		bytes -= CHACHA_BLOCK_SIZE * 4;
 		src += CHACHA_BLOCK_SIZE * 4;
 		dst += CHACHA_BLOCK_SIZE * 4;
 		state[12] += 4;
 	}
 	if (bytes > CHACHA_BLOCK_SIZE) {
-		chacha20_4block_xor_ssse3(state, dst, src, bytes);
-		state[12] += chacha20_advance(bytes, 4);
+		chacha_4block_xor_ssse3(state, dst, src, bytes, nrounds);
+		state[12] += chacha_advance(bytes, 4);
 		return;
 	}
 	if (bytes) {
-		chacha20_block_xor_ssse3(state, dst, src, bytes);
+		chacha_block_xor_ssse3(state, dst, src, bytes, nrounds);
 		state[12]++;
 	}
 }
 
-static int chacha20_simd_stream_xor(struct skcipher_request *req,
-				    struct chacha_ctx *ctx, u8 *iv)
+static int chacha_simd_stream_xor(struct skcipher_request *req,
+				  struct chacha_ctx *ctx, u8 *iv)
 {
 	u32 *state, state_buf[16 + 2] __aligned(8);
 	struct skcipher_walk walk;
 	int err;
 
-	BUILD_BUG_ON(CHACHA20_STATE_ALIGN != 16);
-	state = PTR_ALIGN(state_buf + 0, CHACHA20_STATE_ALIGN);
+	BUILD_BUG_ON(CHACHA_STATE_ALIGN != 16);
+	state = PTR_ALIGN(state_buf + 0, CHACHA_STATE_ALIGN);
 
 	err = skcipher_walk_virt(&walk, req, true);
 
@@ -142,8 +147,8 @@ static int chacha20_simd_stream_xor(struct skcipher_request *req,
 		if (nbytes < walk.total)
 			nbytes = round_down(nbytes, walk.stride);
 
-		chacha20_dosimd(state, walk.dst.virt.addr, walk.src.virt.addr,
-				nbytes);
+		chacha_dosimd(state, walk.dst.virt.addr, walk.src.virt.addr,
+			      nbytes, ctx->nrounds);
 
 		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
 	}
@@ -151,7 +156,7 @@ static int chacha20_simd_stream_xor(struct skcipher_request *req,
 	return err;
 }
 
-static int chacha20_simd(struct skcipher_request *req)
+static int chacha_simd(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -161,12 +166,12 @@ static int chacha20_simd(struct skcipher_request *req)
 		return crypto_chacha_crypt(req);
 
 	kernel_fpu_begin();
-	err = chacha20_simd_stream_xor(req, ctx, req->iv);
+	err = chacha_simd_stream_xor(req, ctx, req->iv);
 	kernel_fpu_end();
 	return err;
 }
 
-static int xchacha20_simd(struct skcipher_request *req)
+static int xchacha_simd(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
@@ -178,17 +183,18 @@ static int xchacha20_simd(struct skcipher_request *req)
 	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
 		return crypto_xchacha_crypt(req);
 
-	BUILD_BUG_ON(CHACHA20_STATE_ALIGN != 16);
-	state = PTR_ALIGN(state_buf + 0, CHACHA20_STATE_ALIGN);
+	BUILD_BUG_ON(CHACHA_STATE_ALIGN != 16);
+	state = PTR_ALIGN(state_buf + 0, CHACHA_STATE_ALIGN);
 	crypto_chacha_init(state, ctx, req->iv);
 
 	kernel_fpu_begin();
 
-	hchacha20_block_ssse3(state, subctx.key);
+	hchacha_block_ssse3(state, subctx.key, ctx->nrounds);
+	subctx.nrounds = ctx->nrounds;
 
 	memcpy(&real_iv[0], req->iv + 24, 8);
 	memcpy(&real_iv[8], req->iv + 16, 8);
-	err = chacha20_simd_stream_xor(req, &subctx, real_iv);
+	err = chacha_simd_stream_xor(req, &subctx, real_iv);
 
 	kernel_fpu_end();
 
@@ -209,8 +215,8 @@ static struct skcipher_alg algs[] = {
 		.ivsize			= CHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
 		.setkey			= crypto_chacha20_setkey,
-		.encrypt		= chacha20_simd,
-		.decrypt		= chacha20_simd,
+		.encrypt		= chacha_simd,
+		.decrypt		= chacha_simd,
 	}, {
 		.base.cra_name		= "xchacha20",
 		.base.cra_driver_name	= "xchacha20-simd",
@@ -224,40 +230,40 @@ static struct skcipher_alg algs[] = {
 		.ivsize			= XCHACHA_IV_SIZE,
 		.chunksize		= CHACHA_BLOCK_SIZE,
 		.setkey			= crypto_chacha20_setkey,
-		.encrypt		= xchacha20_simd,
-		.decrypt		= xchacha20_simd,
+		.encrypt		= xchacha_simd,
+		.decrypt		= xchacha_simd,
 	},
 };
 
-static int __init chacha20_simd_mod_init(void)
+static int __init chacha_simd_mod_init(void)
 {
 	if (!boot_cpu_has(X86_FEATURE_SSSE3))
 		return -ENODEV;
 
 #ifdef CONFIG_AS_AVX2
-	chacha20_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) &&
-			    boot_cpu_has(X86_FEATURE_AVX2) &&
-			    cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+	chacha_use_avx2 = boot_cpu_has(X86_FEATURE_AVX) &&
+			  boot_cpu_has(X86_FEATURE_AVX2) &&
+			  cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
 #ifdef CONFIG_AS_AVX512
-	chacha20_use_avx512vl = chacha20_use_avx2 &&
-				boot_cpu_has(X86_FEATURE_AVX512VL) &&
-				boot_cpu_has(X86_FEATURE_AVX512BW); /* kmovq */
+	chacha_use_avx512vl = chacha_use_avx2 &&
+			      boot_cpu_has(X86_FEATURE_AVX512VL) &&
+			      boot_cpu_has(X86_FEATURE_AVX512BW); /* kmovq */
 #endif
 #endif
 	return crypto_register_skciphers(algs, ARRAY_SIZE(algs));
 }
 
-static void __exit chacha20_simd_mod_fini(void)
+static void __exit chacha_simd_mod_fini(void)
 {
 	crypto_unregister_skciphers(algs, ARRAY_SIZE(algs));
 }
 
-module_init(chacha20_simd_mod_init);
-module_exit(chacha20_simd_mod_fini);
+module_init(chacha_simd_mod_init);
+module_exit(chacha_simd_mod_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Martin Willi <martin@strongswan.org>");
-MODULE_DESCRIPTION("chacha20 cipher algorithm, SIMD accelerated");
+MODULE_DESCRIPTION("ChaCha and XChaCha stream ciphers (x64 SIMD accelerated)");
 MODULE_ALIAS_CRYPTO("chacha20");
 MODULE_ALIAS_CRYPTO("chacha20-simd");
 MODULE_ALIAS_CRYPTO("xchacha20");

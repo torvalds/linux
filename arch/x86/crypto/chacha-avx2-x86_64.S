@@ -1,5 +1,5 @@
 /*
- * ChaCha20 256-bit cipher algorithm, RFC7539, x64 AVX2 functions
+ * ChaCha 256-bit cipher algorithm, x64 AVX2 functions
  *
  * Copyright (C) 2015 Martin Willi
  *
@@ -38,13 +38,14 @@ CTR4BL:	.octa 0x00000000000000000000000000000002
 
 .text
 
-ENTRY(chacha20_2block_xor_avx2)
+ENTRY(chacha_2block_xor_avx2)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 2 data blocks output, o
 	# %rdx: up to 2 data blocks input, i
 	# %rcx: input/output length in bytes
+	# %r8d: nrounds
 
-	# This function encrypts two ChaCha20 blocks by loading the state
+	# This function encrypts two ChaCha blocks by loading the state
 	# matrix twice across four AVX registers. It performs matrix operations
 	# on four words in each matrix in parallel, but requires shuffling to
 	# rearrange the words after each round.
@@ -68,7 +69,6 @@ ENTRY(chacha20_2block_xor_avx2)
 	vmovdqa		ROT16(%rip),%ymm5
 
 	mov		%rcx,%rax
-	mov		$10,%ecx
 
 .Ldoubleround:
 
@@ -138,7 +138,7 @@ ENTRY(chacha20_2block_xor_avx2)
 	# x3 = shuffle32(x3, MASK(0, 3, 2, 1))
 	vpshufd		$0x39,%ymm3,%ymm3
 
-	dec		%ecx
+	sub		$2,%r8d
 	jnz		.Ldoubleround
 
 	# o0 = i0 ^ (x0 + s0)
@@ -228,15 +228,16 @@ ENTRY(chacha20_2block_xor_avx2)
 	lea		-8(%r10),%rsp
 	jmp		.Ldone2
 
-ENDPROC(chacha20_2block_xor_avx2)
+ENDPROC(chacha_2block_xor_avx2)
 
-ENTRY(chacha20_4block_xor_avx2)
+ENTRY(chacha_4block_xor_avx2)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 4 data blocks output, o
 	# %rdx: up to 4 data blocks input, i
 	# %rcx: input/output length in bytes
+	# %r8d: nrounds
 
-	# This function encrypts four ChaCha20 block by loading the state
+	# This function encrypts four ChaCha blocks by loading the state
 	# matrix four times across eight AVX registers. It performs matrix
 	# operations on four words in two matrices in parallel, sequentially
 	# to the operations on the four words of the other two matrices. The
@@ -269,7 +270,6 @@ ENTRY(chacha20_4block_xor_avx2)
 	vmovdqa		ROT16(%rip),%ymm9
 
 	mov		%rcx,%rax
-	mov		$10,%ecx
 
 .Ldoubleround4:
 
@@ -389,7 +389,7 @@ ENTRY(chacha20_4block_xor_avx2)
 	vpshufd		$0x39,%ymm3,%ymm3
 	vpshufd		$0x39,%ymm7,%ymm7
 
-	dec		%ecx
+	sub		$2,%r8d
 	jnz		.Ldoubleround4
 
 	# o0 = i0 ^ (x0 + s0), first block
@@ -533,15 +533,16 @@ ENTRY(chacha20_4block_xor_avx2)
 	lea		-8(%r10),%rsp
 	jmp		.Ldone4
 
-ENDPROC(chacha20_4block_xor_avx2)
+ENDPROC(chacha_4block_xor_avx2)
 
-ENTRY(chacha20_8block_xor_avx2)
+ENTRY(chacha_8block_xor_avx2)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 8 data blocks output, o
 	# %rdx: up to 8 data blocks input, i
 	# %rcx: input/output length in bytes
+	# %r8d: nrounds
 
-	# This function encrypts eight consecutive ChaCha20 blocks by loading
+	# This function encrypts eight consecutive ChaCha blocks by loading
 	# the state matrix in AVX registers eight times. As we need some
 	# scratch registers, we save the first four registers on the stack. The
 	# algorithm performs each operation on the corresponding word of each
@@ -587,8 +588,6 @@ ENTRY(chacha20_8block_xor_avx2)
 
 	# x12 += counter values 0-3
 	vpaddd		%ymm1,%ymm12,%ymm12
-
-	mov		$10,%ecx
 
 .Ldoubleround8:
 	# x0 += x4, x12 = rotl32(x12 ^ x0, 16)
@@ -775,7 +774,7 @@ ENTRY(chacha20_8block_xor_avx2)
 	vpsrld		$25,%ymm4,%ymm4
 	vpor		%ymm0,%ymm4,%ymm4
 
-	dec		%ecx
+	sub		$2,%r8d
 	jnz		.Ldoubleround8
 
 	# x0..15[0-3] += s[0..15]
@@ -1023,4 +1022,4 @@ ENTRY(chacha20_8block_xor_avx2)
 
 	jmp		.Ldone8
 
-ENDPROC(chacha20_8block_xor_avx2)
+ENDPROC(chacha_8block_xor_avx2)
