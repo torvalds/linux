@@ -613,7 +613,9 @@
 	ranges = <0x00000000 0x48000000 0x100000>,	/* segment 0 */
 		 <0x00100000 0x48100000 0x100000>,	/* segment 1 */
 		 <0x00200000 0x48200000 0x100000>,	/* segment 2 */
-		 <0x00300000 0x48300000 0x100000>;	/* segment 3 */
+		 <0x00300000 0x48300000 0x100000>,	/* segment 3 */
+		 <0x46000000 0x46000000 0x400000>,	/* l3 data port */
+		 <0x46400000 0x46400000 0x400000>;	/* l3 data port */
 
 	segment@0 {					/* 0x48000000 */
 		compatible = "simple-bus";
@@ -664,7 +666,9 @@
 			 <0x00034000 0x00034000 0x001000>,	/* ap 80 */
 			 <0x00035000 0x00035000 0x001000>,	/* ap 81 */
 			 <0x00036000 0x00036000 0x001000>,	/* ap 84 */
-			 <0x00037000 0x00037000 0x001000>;	/* ap 85 */
+			 <0x00037000 0x00037000 0x001000>,	/* ap 85 */
+			 <0x46000000 0x46000000 0x400000>,	/* l3 data port */
+			 <0x46400000 0x46400000 0x400000>;	/* l3 data port */
 
 		target-module@8000 {			/* 0x48008000, ap 6 10.0 */
 			compatible = "ti,sysc";
@@ -826,7 +830,8 @@
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x38000 0x2000>;
+			ranges = <0x0 0x38000 0x2000>,
+				 <0x46000000 0x46000000 0x400000>;
 
 			mcasp0: mcasp@0 {
 				compatible = "ti,am33xx-mcasp-audio";
@@ -857,7 +862,8 @@
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x3c000 0x2000>;
+			ranges = <0x0 0x3c000 0x2000>,
+				 <0x46400000 0x46400000 0x400000>;
 
 			mcasp1: mcasp@0 {
 				compatible = "ti,am33xx-mcasp-audio";
