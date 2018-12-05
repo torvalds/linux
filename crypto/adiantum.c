@@ -590,6 +590,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 		     hash_alg->base.cra_driver_name) >= CRYPTO_MAX_ALG_NAME)
 		goto out_drop_hash;
 
+	inst->alg.base.cra_flags = streamcipher_alg->base.cra_flags &
+				   CRYPTO_ALG_ASYNC;
 	inst->alg.base.cra_blocksize = BLOCKCIPHER_BLOCK_SIZE;
 	inst->alg.base.cra_ctxsize = sizeof(struct adiantum_tfm_ctx);
 	inst->alg.base.cra_alignmask = streamcipher_alg->base.cra_alignmask |
