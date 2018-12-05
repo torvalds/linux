@@ -18,6 +18,7 @@ Required properties:
 - resets: a list of phandle + reset-specifer paris, one for each entry in reset-names.
 - reset-names: reset names, should include "tx-m", "rx-m".
 - rockchip,cru: cru phandle.
+- rockchip,grf: the phandle of the syscon node for GRF register.
 - rockchip,mclk-calibrate: enable mclk source calibration.
 - rockchip,clk-trcm: tx and rx lrck/bclk common use.
    - 0: both tx_lrck/bclk and rx_lrck/bclk are used
