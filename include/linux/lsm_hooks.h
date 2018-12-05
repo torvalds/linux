@@ -1464,8 +1464,7 @@ union security_list_options {
 	int (*sb_copy_data)(char *orig, char *copy);
 	int (*sb_remount)(struct super_block *sb,
 			  struct security_mnt_opts *opts);
-	int (*sb_kern_mount)(struct super_block *sb, int flags,
-			     struct security_mnt_opts *opts);
+	int (*sb_kern_mount)(struct super_block *sb);
 	int (*sb_show_options)(struct seq_file *m, struct super_block *sb);
 	int (*sb_statfs)(struct dentry *dentry);
 	int (*sb_mount)(const char *dev_name, const struct path *path,

@@ -2874,18 +2874,10 @@ out_bad_option:
 	return -EINVAL;
 }
 
-static int selinux_sb_kern_mount(struct super_block *sb, int flags,
-				 struct security_mnt_opts *opts)
+static int selinux_sb_kern_mount(struct super_block *sb)
 {
 	const struct cred *cred = current_cred();
 	struct common_audit_data ad;
-	int rc = selinux_set_mnt_opts(sb, opts, 0, NULL);
-	if (rc)
-		return rc;
-
-	/* Allow all mounts performed by the kernel */
-	if (flags & MS_KERNMOUNT)
-		return 0;
 
 	ad.type = LSM_AUDIT_DATA_DENTRY;
 	ad.u.dentry = sb->s_root;
