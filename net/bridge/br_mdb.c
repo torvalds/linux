@@ -710,7 +710,7 @@ static int __br_mdb_del(struct net_bridge *br, struct br_mdb_entry *entry)
 		rcu_assign_pointer(*pp, p->next);
 		hlist_del_init(&p->mglist);
 		del_timer(&p->timer);
-		call_rcu_bh(&p->rcu, br_multicast_free_pg);
+		kfree_rcu(p, rcu);
 		err = 0;
 
 		if (!mp->ports && !mp->host_joined &&

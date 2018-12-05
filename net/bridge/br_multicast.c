@@ -160,22 +160,6 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 	return br_mdb_ip_get_rcu(br, &ip);
 }
 
-void br_multicast_free_pg(struct rcu_head *head)
-{
-	struct net_bridge_port_group *p =
-		container_of(head, struct net_bridge_port_group, rcu);
-
-	kfree(p);
-}
-
-static void br_multicast_free_group(struct rcu_head *head)
-{
-	struct net_bridge_mdb_entry *mp =
-		container_of(head, struct net_bridge_mdb_entry, rcu);
-
-	kfree(mp);
-}
-
 static void br_multicast_group_expired(struct timer_list *t)
 {
 	struct net_bridge_mdb_entry *mp = from_timer(mp, t, timer);
@@ -195,7 +179,7 @@ static void br_multicast_group_expired(struct timer_list *t)
 			       br_mdb_rht_params);
 	hlist_del_rcu(&mp->mdb_node);
 
-	call_rcu_bh(&mp->rcu, br_multicast_free_group);
+	kfree_rcu(mp, rcu);
 
 out:
 	spin_unlock(&br->multicast_lock);
@@ -223,7 +207,7 @@ static void br_multicast_del_pg(struct net_bridge *br,
 		del_timer(&p->timer);
 		br_mdb_notify(br->dev, p->port, &pg->addr, RTM_DELMDB,
 			      p->flags);
-		call_rcu_bh(&p->rcu, br_multicast_free_pg);
+		kfree_rcu(p, rcu);
 
 		if (!mp->ports && !mp->host_joined &&
 		    netif_running(br->dev))
@@ -1425,7 +1409,7 @@ br_multicast_leave_group(struct net_bridge *br,
 			rcu_assign_pointer(*pp, p->next);
 			hlist_del_init(&p->mglist);
 			del_timer(&p->timer);
-			call_rcu_bh(&p->rcu, br_multicast_free_pg);
+			kfree_rcu(p, rcu);
 			br_mdb_notify(br->dev, port, group, RTM_DELMDB,
 				      p->flags);
 
@@ -1839,11 +1823,11 @@ void br_multicast_dev_del(struct net_bridge *br)
 		rhashtable_remove_fast(&br->mdb_hash_tbl, &mp->rhnode,
 				       br_mdb_rht_params);
 		hlist_del_rcu(&mp->mdb_node);
-		call_rcu_bh(&mp->rcu, br_multicast_free_group);
+		kfree_rcu(mp, rcu);
 	}
 	spin_unlock_bh(&br->multicast_lock);
 
-	rcu_barrier_bh();
+	rcu_barrier();
 }
 
 int br_multicast_set_router(struct net_bridge *br, unsigned long val)
