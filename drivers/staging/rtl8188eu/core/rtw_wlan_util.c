@@ -455,9 +455,8 @@ void write_cam(struct adapter *padapter, u8 entry, u16 ctrl, u8 *mac, u8 *key)
 
 void clear_cam_entry(struct adapter *padapter, u8 entry)
 {
-	u8 null_sta[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-	u8 null_key[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+	u8 null_sta[ETH_ALEN] = {};
+	u8 null_key[16] = {};
 
 	write_cam(padapter, entry, 0, null_sta, null_key);
 }
