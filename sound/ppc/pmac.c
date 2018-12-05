@@ -908,7 +908,7 @@ static void detect_byte_swap(struct snd_pmac *chip)
 
 	/* if seems that Keylargo can't byte-swap  */
 	for (mio = chip->node->parent; mio; mio = mio->parent) {
-		if (strcmp(mio->name, "mac-io") == 0) {
+		if (of_node_name_eq(mio, "mac-io")) {
 			if (of_device_is_compatible(mio, "Keylargo"))
 				chip->can_byte_swap = 0;
 			break;
@@ -1313,7 +1313,7 @@ int snd_pmac_new(struct snd_card *card, struct snd_pmac **chip_return)
 	} else if (chip->is_pbook_G3) {
 		struct device_node* mio;
 		for (mio = chip->node->parent; mio; mio = mio->parent) {
-			if (strcmp(mio->name, "mac-io") == 0) {
+			if (of_node_name_eq(mio, "mac-io")) {
 				struct resource r;
 				if (of_address_to_resource(mio, 0, &r) == 0)
 					chip->macio_base =
