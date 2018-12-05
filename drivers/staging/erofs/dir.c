@@ -53,8 +53,11 @@ static int erofs_fill_dentries(struct dir_context *ctx,
 			strnlen(de_name, maxsize - nameoff) :
 			le16_to_cpu(de[1].nameoff) - nameoff;
 
-		/* the corrupted directory found */
-		BUG_ON(de_namelen < 0);
+		/* a corrupted entry is found */
+		if (unlikely(de_namelen < 0)) {
+			DBG_BUGON(1);
+			return -EIO;
+		}
 
 #ifdef CONFIG_EROFS_FS_DEBUG
 		dbg_namelen = min(EROFS_NAME_LEN - 1, de_namelen);
