@@ -247,6 +247,7 @@ void __weak kgdb_roundup_cpus(void)
 	call_single_data_t *csd;
 	int this_cpu = raw_smp_processor_id();
 	int cpu;
+	int ret;
 
 	for_each_online_cpu(cpu) {
 		/* No need to roundup ourselves */
@@ -254,8 +255,23 @@ void __weak kgdb_roundup_cpus(void)
 			continue;
 
 		csd = &per_cpu(kgdb_roundup_csd, cpu);
+
+		/*
+		 * If it didn't round up last time, don't try again
+		 * since smp_call_function_single_async() will block.
+		 *
+		 * If rounding_up is false then we know that the
+		 * previous call must have at least started and that
+		 * means smp_call_function_single_async() won't block.
+		 */
+		if (kgdb_info[cpu].rounding_up)
+			continue;
+		kgdb_info[cpu].rounding_up = true;
+
 		csd->func = kgdb_call_nmi_hook;
-		smp_call_function_single_async(cpu, csd);
+		ret = smp_call_function_single_async(cpu, csd);
+		if (ret)
+			kgdb_info[cpu].rounding_up = false;
 	}
 }
 
@@ -787,6 +803,8 @@ int kgdb_nmicallback(int cpu, void *regs)
 #ifdef CONFIG_SMP
 	struct kgdb_state kgdb_var;
 	struct kgdb_state *ks = &kgdb_var;
+
+	kgdb_info[cpu].rounding_up = false;
 
 	memset(ks, 0, sizeof(struct kgdb_state));
 	ks->cpu			= cpu;
