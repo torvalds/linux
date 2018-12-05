@@ -2034,6 +2034,24 @@ static void __bio_associate_blkg_from_css(struct bio *bio,
 	rcu_read_unlock();
 }
 
+/**
+ * bio_associate_blkg_from_css - associate a bio with a specified css
+ * @bio: target bio
+ * @css: target css
+ *
+ * Associate @bio with the blkg found by combining the css's blkg and the
+ * request_queue of the @bio.  This takes a reference on the css that will
+ * be put upon freeing of @bio.
+ */
+void bio_associate_blkg_from_css(struct bio *bio,
+				 struct cgroup_subsys_state *css)
+{
+	css_get(css);
+	bio->bi_css = css;
+	__bio_associate_blkg_from_css(bio, css);
+}
+EXPORT_SYMBOL_GPL(bio_associate_blkg_from_css);
+
 #ifdef CONFIG_MEMCG
 /**
  * bio_associate_blkg_from_page - associate a bio with the page's blkg
