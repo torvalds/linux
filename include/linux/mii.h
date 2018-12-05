@@ -378,7 +378,8 @@ static inline u32 mii_lpa_to_ethtool_lpa_x(u32 lpa)
  * @adv: value of the MII_ADVERTISE register
  *
  * A small helper function that translates MII_ADVERTISE bits
- * to linkmode advertisement settings.
+ * to linkmode advertisement settings. Clears the old value
+ * of advertising.
  */
 static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
 					     u32 adv)
@@ -408,16 +409,18 @@ static inline void mii_adv_to_linkmode_adv_t(unsigned long *advertising,
  * @adv: value of the MII_LPA register
  *
  * A small helper function that translates MII_LPA bits, when in
- * 1000Base-T mode, to linkmode LP advertisement settings.
+ * 1000Base-T mode, to linkmode LP advertisement settings. Clears the
+ * old value of advertising
  */
 static inline void mii_lpa_to_linkmode_lpa_t(unsigned long *lp_advertising,
 					     u32 lpa)
 {
+	mii_adv_to_linkmode_adv_t(lp_advertising, lpa);
+
 	if (lpa & LPA_LPACK)
 		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
 				 lp_advertising);
 
-	mii_adv_to_linkmode_adv_t(lp_advertising, lpa);
 }
 
 /**
