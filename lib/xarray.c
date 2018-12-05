@@ -1251,35 +1251,6 @@ void *xas_find_conflict(struct xa_state *xas)
 EXPORT_SYMBOL_GPL(xas_find_conflict);
 
 /**
- * xa_init_flags() - Initialise an empty XArray with flags.
- * @xa: XArray.
- * @flags: XA_FLAG values.
- *
- * If you need to initialise an XArray with special flags (eg you need
- * to take the lock from interrupt context), use this function instead
- * of xa_init().
- *
- * Context: Any context.
- */
-void xa_init_flags(struct xarray *xa, gfp_t flags)
-{
-	unsigned int lock_type;
-	static struct lock_class_key xa_lock_irq;
-	static struct lock_class_key xa_lock_bh;
-
-	spin_lock_init(&xa->xa_lock);
-	xa->xa_flags = flags;
-	xa->xa_head = NULL;
-
-	lock_type = xa_lock_type(xa);
-	if (lock_type == XA_LOCK_IRQ)
-		lockdep_set_class(&xa->xa_lock, &xa_lock_irq);
-	else if (lock_type == XA_LOCK_BH)
-		lockdep_set_class(&xa->xa_lock, &xa_lock_bh);
-}
-EXPORT_SYMBOL(xa_init_flags);
-
-/**
  * xa_load() - Load an entry from an XArray.
  * @xa: XArray.
  * @index: index into array.

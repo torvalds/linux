@@ -286,7 +286,6 @@ struct xarray {
  */
 #define DEFINE_XARRAY_ALLOC(name) DEFINE_XARRAY_FLAGS(name, XA_FLAGS_ALLOC)
 
-void xa_init_flags(struct xarray *, gfp_t flags);
 void *xa_load(struct xarray *, unsigned long index);
 void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
 void *xa_erase(struct xarray *, unsigned long index);
@@ -302,6 +301,24 @@ void *xa_find_after(struct xarray *xa, unsigned long *index,
 unsigned int xa_extract(struct xarray *, void **dst, unsigned long start,
 		unsigned long max, unsigned int n, xa_mark_t);
 void xa_destroy(struct xarray *);
+
+/**
+ * xa_init_flags() - Initialise an empty XArray with flags.
+ * @xa: XArray.
+ * @flags: XA_FLAG values.
+ *
+ * If you need to initialise an XArray with special flags (eg you need
+ * to take the lock from interrupt context), use this function instead
+ * of xa_init().
+ *
+ * Context: Any context.
+ */
+static inline void xa_init_flags(struct xarray *xa, gfp_t flags)
+{
+	spin_lock_init(&xa->xa_lock);
+	xa->xa_flags = flags;
+	xa->xa_head = NULL;
+}
 
 /**
  * xa_init() - Initialise an empty XArray.
