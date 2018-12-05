@@ -548,8 +548,10 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	int ret;
 	struct psp_context *psp = &adev->psp;
 
-	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset != 0)
+	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
+		psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 		goto skip_memalloc;
+	}
 
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd)
