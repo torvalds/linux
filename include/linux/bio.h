@@ -511,12 +511,15 @@ static inline int bio_associate_blkcg_from_page(struct bio *bio,
 
 #ifdef CONFIG_BLK_CGROUP
 int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css);
-int bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg);
+void bio_disassociate_blkg(struct bio *bio);
+void bio_associate_blkg(struct bio *bio);
 void bio_disassociate_task(struct bio *bio);
 void bio_clone_blkcg_association(struct bio *dst, struct bio *src);
 #else	/* CONFIG_BLK_CGROUP */
 static inline int bio_associate_blkcg(struct bio *bio,
 			struct cgroup_subsys_state *blkcg_css) { return 0; }
+static inline void bio_disassociate_blkg(struct bio *bio) { }
+static inline void bio_associate_blkg(struct bio *bio) { }
 static inline void bio_disassociate_task(struct bio *bio) { }
 static inline void bio_clone_blkcg_association(struct bio *dst,
 			struct bio *src) { }

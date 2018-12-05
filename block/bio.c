@@ -2009,7 +2009,21 @@ int bio_associate_blkcg(struct bio *bio, struct cgroup_subsys_state *blkcg_css)
 EXPORT_SYMBOL_GPL(bio_associate_blkcg);
 
 /**
- * bio_associate_blkg - associate a bio with the a blkg
+ * bio_disassociate_blkg - puts back the blkg reference if associated
+ * @bio: target bio
+ *
+ * Helper to disassociate the blkg from @bio if a blkg is associated.
+ */
+void bio_disassociate_blkg(struct bio *bio)
+{
+	if (bio->bi_blkg) {
+		blkg_put(bio->bi_blkg);
+		bio->bi_blkg = NULL;
+	}
+}
+
+/**
+ * __bio_associate_blkg - associate a bio with the a blkg
  * @bio: target bio
  * @blkg: the blkg to associate
  *
@@ -2022,12 +2036,42 @@ EXPORT_SYMBOL_GPL(bio_associate_blkcg);
  * A reference will be taken on the @blkg and will be released when @bio is
  * freed.
  */
-int bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
+static void __bio_associate_blkg(struct bio *bio, struct blkcg_gq *blkg)
 {
-	if (unlikely(bio->bi_blkg))
-		return -EBUSY;
+	bio_disassociate_blkg(bio);
+
 	bio->bi_blkg = blkg_try_get_closest(blkg);
-	return 0;
+}
+
+/**
+ * bio_associate_blkg - associate a bio with a blkg
+ * @bio: target bio
+ *
+ * Associate @bio with the blkg found from the bio's css and request_queue.
+ * If one is not found, bio_lookup_blkg() creates the blkg.  If a blkg is
+ * already associated, the css is reused and association redone as the
+ * request_queue may have changed.
+ */
+void bio_associate_blkg(struct bio *bio)
+{
+	struct request_queue *q = bio->bi_disk->queue;
+	struct blkcg *blkcg;
+	struct blkcg_gq *blkg;
+
+	rcu_read_lock();
+
+	bio_associate_blkcg(bio, NULL);
+	blkcg = bio_blkcg(bio);
+
+	if (!blkcg->css.parent) {
+		__bio_associate_blkg(bio, q->root_blkg);
+	} else {
+		blkg = blkg_lookup_create(blkcg, q);
+
+		__bio_associate_blkg(bio, blkg);
+	}
+
+	rcu_read_unlock();
 }
 
 /**
@@ -2040,10 +2084,7 @@ void bio_disassociate_task(struct bio *bio)
 		css_put(bio->bi_css);
 		bio->bi_css = NULL;
 	}
-	if (bio->bi_blkg) {
-		blkg_put(bio->bi_blkg);
-		bio->bi_blkg = NULL;
-	}
+	bio_disassociate_blkg(bio);
 }
 
 /**
@@ -2055,6 +2096,9 @@ void bio_clone_blkcg_association(struct bio *dst, struct bio *src)
 {
 	if (src->bi_css)
 		WARN_ON(bio_associate_blkcg(dst, src->bi_css));
+
+	if (src->bi_blkg)
+		__bio_associate_blkg(dst, src->bi_blkg);
 }
 EXPORT_SYMBOL_GPL(bio_clone_blkcg_association);
 #endif /* CONFIG_BLK_CGROUP */
