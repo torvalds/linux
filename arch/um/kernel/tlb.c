@@ -520,6 +520,13 @@ pte_t *addr_pte(struct task_struct *task, unsigned long addr)
 
 void flush_tlb_all(void)
 {
+	/*
+	 * Don't bother flushing if this address space is about to be
+	 * destroyed.
+	 */
+	if (atomic_read(&current->mm->mm_users) == 0)
+		return;
+
 	flush_tlb_mm(current->mm);
 }
 
@@ -541,6 +548,13 @@ void __flush_tlb_one(unsigned long addr)
 static void fix_range(struct mm_struct *mm, unsigned long start_addr,
 		      unsigned long end_addr, int force)
 {
+	/*
+	 * Don't bother flushing if this address space is about to be
+	 * destroyed.
+	 */
+	if (atomic_read(&mm->mm_users) == 0)
+		return;
+
 	fix_range_common(mm, start_addr, end_addr, force);
 }
 
@@ -556,13 +570,6 @@ EXPORT_SYMBOL(flush_tlb_range);
 void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
 			unsigned long end)
 {
-	/*
-	 * Don't bother flushing if this address space is about to be
-	 * destroyed.
-	 */
-	if (atomic_read(&mm->mm_users) == 0)
-		return;
-
 	fix_range(mm, start, end, 0);
 }
 
