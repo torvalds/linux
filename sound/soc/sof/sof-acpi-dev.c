@@ -181,6 +181,8 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	/* force nocodec mode */
 	dev_warn(dev, "Force to use nocodec mode\n");
 	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
+	if (!mach)
+		return -ENOMEM;
 	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
 	if (ret < 0)
 		return ret;

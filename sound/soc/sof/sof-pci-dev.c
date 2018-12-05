@@ -203,6 +203,10 @@ static int sof_pci_probe(struct pci_dev *pci,
 	/* force nocodec mode */
 	dev_warn(dev, "Force to use nocodec mode\n");
 	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
+	if (!mach) {
+		ret = -ENOMEM;
+		goto release_regions;
+	}
 	ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
 	if (ret < 0)
 		goto release_regions;
@@ -227,6 +231,10 @@ static int sof_pci_probe(struct pci_dev *pci,
 		/* fallback to nocodec mode */
 		dev_warn(dev, "No matching ASoC machine driver found - using nocodec\n");
 		mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
+		if (!mach) {
+			ret = -ENOMEM;
+			goto release_regions;
+		}
 		ret = sof_nocodec_setup(dev, sof_pdata, mach, desc, ops);
 		if (ret < 0)
 			goto release_regions;
@@ -234,6 +242,12 @@ static int sof_pci_probe(struct pci_dev *pci,
 #endif /* CONFIG_SND_SOC_SOF_NOCODEC */
 
 #endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
+
+	if (!mach) {
+		dev_err(dev, "No matching ASoC machine driver found - aborting probe\n");
+		ret = -ENODEV;
+		goto release_regions;
+	}
 
 	mach->pdata = ops;
 
