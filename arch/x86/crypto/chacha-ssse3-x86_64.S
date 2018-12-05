@@ -1,5 +1,5 @@
 /*
- * ChaCha20 256-bit cipher algorithm, RFC7539, x64 SSSE3 functions
+ * ChaCha 256-bit cipher algorithm, x64 SSSE3 functions
  *
  * Copyright (C) 2015 Martin Willi
  *
@@ -25,7 +25,7 @@ CTRINC:	.octa 0x00000003000000020000000100000000
 .text
 
 /*
- * chacha20_permute - permute one block
+ * chacha_permute - permute one block
  *
  * Permute one 64-byte block where the state matrix is in %xmm0-%xmm3.  This
  * function performs matrix operations on four words in parallel, but requires
@@ -33,13 +33,14 @@ CTRINC:	.octa 0x00000003000000020000000100000000
  * done with the slightly better performing SSSE3 byte shuffling, 7/12-bit word
  * rotation uses traditional shift+OR.
  *
- * Clobbers: %ecx, %xmm4-%xmm7
+ * The round count is given in %r8d.
+ *
+ * Clobbers: %r8d, %xmm4-%xmm7
  */
-chacha20_permute:
+chacha_permute:
 
 	movdqa		ROT8(%rip),%xmm4
 	movdqa		ROT16(%rip),%xmm5
-	mov		$10,%ecx
 
 .Ldoubleround:
 	# x0 += x1, x3 = rotl32(x3 ^ x0, 16)
@@ -108,17 +109,18 @@ chacha20_permute:
 	# x3 = shuffle32(x3, MASK(0, 3, 2, 1))
 	pshufd		$0x39,%xmm3,%xmm3
 
-	dec		%ecx
+	sub		$2,%r8d
 	jnz		.Ldoubleround
 
 	ret
-ENDPROC(chacha20_permute)
+ENDPROC(chacha_permute)
 
-ENTRY(chacha20_block_xor_ssse3)
+ENTRY(chacha_block_xor_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 1 data block output, o
 	# %rdx: up to 1 data block input, i
 	# %rcx: input/output length in bytes
+	# %r8d: nrounds
 	FRAME_BEGIN
 
 	# x0..3 = s0..3
@@ -132,7 +134,7 @@ ENTRY(chacha20_block_xor_ssse3)
 	movdqa		%xmm3,%xmm11
 
 	mov		%rcx,%rax
-	call		chacha20_permute
+	call		chacha_permute
 
 	# o0 = i0 ^ (x0 + s0)
 	paddd		%xmm8,%xmm0
@@ -199,11 +201,12 @@ ENTRY(chacha20_block_xor_ssse3)
 	lea		-8(%r10),%rsp
 	jmp		.Ldone
 
-ENDPROC(chacha20_block_xor_ssse3)
+ENDPROC(chacha_block_xor_ssse3)
 
-ENTRY(hchacha20_block_ssse3)
+ENTRY(hchacha_block_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: output (8 32-bit words)
+	# %edx: nrounds
 	FRAME_BEGIN
 
 	movdqa		0x00(%rdi),%xmm0
@@ -211,22 +214,24 @@ ENTRY(hchacha20_block_ssse3)
 	movdqa		0x20(%rdi),%xmm2
 	movdqa		0x30(%rdi),%xmm3
 
-	call		chacha20_permute
+	mov		%edx,%r8d
+	call		chacha_permute
 
 	movdqu		%xmm0,0x00(%rsi)
 	movdqu		%xmm3,0x10(%rsi)
 
 	FRAME_END
 	ret
-ENDPROC(hchacha20_block_ssse3)
+ENDPROC(hchacha_block_ssse3)
 
-ENTRY(chacha20_4block_xor_ssse3)
+ENTRY(chacha_4block_xor_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 4 data blocks output, o
 	# %rdx: up to 4 data blocks input, i
 	# %rcx: input/output length in bytes
+	# %r8d: nrounds
 
-	# This function encrypts four consecutive ChaCha20 blocks by loading the
+	# This function encrypts four consecutive ChaCha blocks by loading the
 	# the state matrix in SSE registers four times. As we need some scratch
 	# registers, we save the first four registers on the stack. The
 	# algorithm performs each operation on the corresponding word of each
@@ -278,8 +283,6 @@ ENTRY(chacha20_4block_xor_ssse3)
 
 	# x12 += counter values 0-3
 	paddd		%xmm1,%xmm12
-
-	mov		$10,%ecx
 
 .Ldoubleround4:
 	# x0 += x4, x12 = rotl32(x12 ^ x0, 16)
@@ -498,7 +501,7 @@ ENTRY(chacha20_4block_xor_ssse3)
 	psrld		$25,%xmm4
 	por		%xmm0,%xmm4
 
-	dec		%ecx
+	sub		$2,%r8d
 	jnz		.Ldoubleround4
 
 	# x0[0-3] += s0[0]
@@ -789,4 +792,4 @@ ENTRY(chacha20_4block_xor_ssse3)
 
 	jmp		.Ldone4
 
-ENDPROC(chacha20_4block_xor_ssse3)
+ENDPROC(chacha_4block_xor_ssse3)
