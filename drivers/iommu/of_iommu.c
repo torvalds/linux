@@ -222,10 +222,10 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	}
 	/*
 	 * If we have reason to believe the IOMMU driver missed the initial
-	 * add_device callback for dev, replay it to get things in order.
+	 * probe for dev, replay it to get things in order.
 	 */
-	if (ops && ops->add_device && dev->bus && !device_iommu_mapped(dev))
-		err = ops->add_device(dev);
+	if (dev->bus && !device_iommu_mapped(dev))
+		err = iommu_probe_device(dev);
 
 	/* Ignore all other errors apart from EPROBE_DEFER */
 	if (err == -EPROBE_DEFER) {
