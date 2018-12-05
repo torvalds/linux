@@ -117,6 +117,17 @@ static const char * const gcc_parent_names_5[] = {
 	"core_bi_pll_test_se",
 };
 
+static struct clk_fixed_factor xo = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "xo",
+		.parent_names = (const char *[]){ "xo_board" },
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+	},
+};
+
 static struct pll_vco fabia_vco[] = {
 	{ 250000000, 2000000000, 0 },
 	{ 125000000, 1000000000, 1 },
@@ -2795,6 +2806,10 @@ static int gcc_msm8998_probe(struct platform_device *pdev)
 	 * turned off by hardware during certain apps low power modes.
 	 */
 	ret = regmap_update_bits(regmap, 0x52008, BIT(21), BIT(21));
+	if (ret)
+		return ret;
+
+	ret = devm_clk_hw_register(&pdev->dev, &xo.hw);
 	if (ret)
 		return ret;
 
