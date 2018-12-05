@@ -263,7 +263,7 @@ static int usbctrl_vendorreq(struct adapter *adapt, u8 request, u16 value, u16 i
 				if (status == (-ESHUTDOWN) || status == -ENODEV)
 					adapt->bSurpriseRemoved = true;
 				else
-					adapt->HalData->srestpriv.Wifi_Error_Status = USB_VEN_REQ_CMD_FAIL;
+					adapt->HalData->srestpriv.wifi_error_status = USB_VEN_REQ_CMD_FAIL;
 			} else { /*  status != len && status >= 0 */
 				if (status > 0) {
 					if (requesttype == 0x01) {
@@ -410,7 +410,7 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			adapt->HalData->srestpriv.Wifi_Error_Status = USB_READ_PORT_FAIL;
+			adapt->HalData->srestpriv.wifi_error_status = USB_READ_PORT_FAIL;
 			precvbuf->reuse = true;
 			usb_read_port(adapt, RECV_BULK_IN_ADDR, precvbuf);
 			break;
