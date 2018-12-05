@@ -524,6 +524,22 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	const struct sof_intel_dsp_desc *chip;
 	int sd_offset, ret = 0;
 
+	/*
+	 * detect DSP by checking class/subclass/prog-id information
+	 * class=04 subclass 03 prog-if 00: no DSP, legacy driver is required
+	 * class=04 subclass 01 prog-if 00: DSP is present
+	 *   (and may be required e.g. for DMIC or SSP support)
+	 * class=04 subclass 03 prog-if 80: either of DSP or legacy mode works
+	 */
+	if (pci->class == 0x040300) {
+		dev_err(sdev->dev, "The DSP is not enabled on this platform, aborting probe\n");
+		return -ENODEV;
+	} else if (pci->class != 0x040100 && pci->class != 0x040380) {
+		dev_err(sdev->dev, "Unknown PCI class/subclass/prog-if 0x%06x found, aborting probe\n", pci->class);
+		return -ENODEV;
+	}
+	dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n", pci->class);
+
 	/* set DSP arch ops */
 	sdev->arch_ops = &sof_xtensa_arch_ops;
 
