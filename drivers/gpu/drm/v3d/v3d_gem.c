@@ -716,7 +716,7 @@ v3d_submit_tfu_ioctl(struct drm_device *dev, void *data,
 	/* Update the return sync object */
 	sync_out = drm_syncobj_find(file_priv, args->out_sync);
 	if (sync_out) {
-		drm_syncobj_replace_fence(sync_out, 0, sched_done_fence);
+		drm_syncobj_replace_fence(sync_out, sched_done_fence);
 		drm_syncobj_put(sync_out);
 	}
 	dma_fence_put(sched_done_fence);
