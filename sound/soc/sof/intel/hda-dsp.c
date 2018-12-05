@@ -338,7 +338,7 @@ static int hda_resume(struct snd_sof_dev *sdev)
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(bus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(bus, true);
-#endif
+#else
 
 	/* reset controller */
 	ret = hda_dsp_ctrl_link_reset(sdev, true);
@@ -355,6 +355,7 @@ static int hda_resume(struct snd_sof_dev *sdev)
 			"error: failed to ready controller during resume\n");
 		return ret;
 	}
+#endif
 
 	/* power up the DSP */
 	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
