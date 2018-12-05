@@ -291,7 +291,7 @@ static bool ath6kl_cfg80211_ready(struct ath6kl_vif *vif)
 	}
 
 	if (!test_bit(WLAN_ENABLED, &vif->flags)) {
-		ath6kl_err("wlan disabled\n");
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "wlan disabled\n");
 		return false;
 	}
 
