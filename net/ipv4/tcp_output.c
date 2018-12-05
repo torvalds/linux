@@ -2356,8 +2356,11 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		} else {
 			if (!push_one &&
 			    tcp_tso_should_defer(sk, skb, &is_cwnd_limited,
-						 max_segs))
+						 max_segs)) {
+				if (!is_cwnd_limited)
+					is_rwnd_limited = true;
 				break;
+			}
 		}
 
 		limit = mss_now;
