@@ -1123,29 +1123,29 @@ static int wifirate2_ratetbl_inx(unsigned char rate)
 	rate = rate & 0x7f;
 
 	switch (rate) {
-	case 54*2:
+	case 108:
 		return 11;
-	case 48*2:
+	case 96:
 		return 10;
-	case 36*2:
+	case 72:
 		return 9;
-	case 24*2:
+	case 48:
 		return 8;
-	case 18*2:
+	case 36:
 		return 7;
-	case 12*2:
+	case 24:
 		return 6;
-	case 9*2:
+	case 18:
 		return 5;
-	case 6*2:
+	case 12:
 		return 4;
-	case 11*2:
+	case 22:
 		return 3;
 	case 11:
 		return 2;
-	case 2*2:
+	case 4:
 		return 1;
-	case 1*2:
+	case 2:
 		return 0;
 	default:
 		return 0;
