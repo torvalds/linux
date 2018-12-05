@@ -110,6 +110,19 @@ config MEDIA_CONTROLLER_DVB
 
 	  This is currently experimental.
 
+config MEDIA_CONTROLLER_REQUEST_API
+	bool "Enable Media controller Request API (EXPERIMENTAL)"
+	depends on MEDIA_CONTROLLER && STAGING_MEDIA
+	default n
+	---help---
+	  DO NOT ENABLE THIS OPTION UNLESS YOU KNOW WHAT YOU'RE DOING.
+
+	  This option enables the Request API for the Media controller and V4L2
+	  interfaces. It is currently needed by a few stateless codec drivers.
+
+	  There is currently no intention to provide API or ABI stability for
+	  this new API as of yet.
+
 #
 # Video4Linux support
 #	Only enables if one of the V4L2 types (ATV, webcam, radio) is selected
