@@ -824,7 +824,9 @@
 	ranges = <0x00000000 0x48000000 0x100000>,	/* segment 0 */
 		 <0x00100000 0x48100000 0x100000>,	/* segment 1 */
 		 <0x00200000 0x48200000 0x100000>,	/* segment 2 */
-		 <0x00300000 0x48300000 0x100000>;	/* segment 3 */
+		 <0x00300000 0x48300000 0x100000>,	/* segment 3 */
+		 <0x46000000 0x46000000 0x400000>,	/* l3 data port */
+		 <0x46400000 0x46400000 0x400000>;	/* l3 data port */
 
 	segment@0 {					/* 0x48000000 */
 		compatible = "simple-bus";
@@ -881,7 +883,9 @@
 			 <0x000cc000 0x000cc000 0x001000>,	/* ap 89 */
 			 <0x000cd000 0x000cd000 0x001000>,	/* ap 90 */
 			 <0x000ca000 0x000ca000 0x001000>,	/* ap 91 */
-			 <0x000cb000 0x000cb000 0x001000>;	/* ap 92 */
+			 <0x000cb000 0x000cb000 0x001000>,	/* ap 92 */
+			 <0x46000000 0x46000000 0x400000>,	/* l3 data port */
+			 <0x46400000 0x46400000 0x400000>;	/* l3 data port */
 
 		target-module@8000 {			/* 0x48008000, ap 6 10.0 */
 			compatible = "ti,sysc";
@@ -1055,8 +1059,21 @@
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x38000 0x2000>;
-			status = "disabled";
+			ranges = <0x0 0x38000 0x2000>,
+				 <0x46000000 0x46000000 0x400000>;
+
+			mcasp0: mcasp@0 {
+				compatible = "ti,am33xx-mcasp-audio";
+				reg = <0x0 0x2000>,
+				      <0x46000000 0x400000>;
+				reg-names = "mpu", "dat";
+				interrupts = <80>, <81>;
+				interrupt-names = "tx", "rx";
+				status = "disabled";
+				dmas = <&edma 8 2>,
+					<&edma 9 2>;
+				dma-names = "tx", "rx";
+			};
 		};
 
 		target-module@3c000 {			/* 0x4803c000, ap 20 32.0 */
@@ -1073,8 +1090,21 @@
 			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges = <0x0 0x3c000 0x2000>;
-			status = "disabled";
+			ranges = <0x0 0x3c000 0x2000>,
+				 <0x46400000 0x46400000 0x400000>;
+
+			mcasp1: mcasp@0 {
+				compatible = "ti,am33xx-mcasp-audio";
+				reg = <0x0 0x2000>,
+				      <0x46400000 0x400000>;
+				reg-names = "mpu", "dat";
+				interrupts = <82>, <83>;
+				interrupt-names = "tx", "rx";
+				status = "disabled";
+				dmas = <&edma 10 2>,
+					<&edma 11 2>;
+				dma-names = "tx", "rx";
+			};
 		};
 
 		target-module@40000 {			/* 0x48040000, ap 22 1e.0 */
