@@ -1035,6 +1035,7 @@ config SENSORS_LM75
 		- National Semiconductor LM75, LM75A
 		- NXP's LM75A
 		- ST Microelectronics STDS75
+		- ST Microelectronics STLM75
 		- TelCom (now Microchip) TCN75
 		- Texas Instruments TMP100, TMP101, TMP105, TMP112, TMP75,
 		  TMP175, TMP275
