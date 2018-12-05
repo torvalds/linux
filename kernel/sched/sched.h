@@ -2299,11 +2299,19 @@ unsigned long scale_irq_capacity(unsigned long util, unsigned long irq, unsigned
 #endif
 
 #if defined(CONFIG_ENERGY_MODEL) && defined(CONFIG_CPU_FREQ_GOV_SCHEDUTIL)
-#define perf_domain_span(pd) (to_cpumask(((pd)->em_pd->cpus)))
-#else
-#define perf_domain_span(pd) NULL
-#endif
 
-#ifdef CONFIG_SMP
-extern struct static_key_false sched_energy_present;
-#endif
+#define perf_domain_span(pd) (to_cpumask(((pd)->em_pd->cpus)))
+
+DECLARE_STATIC_KEY_FALSE(sched_energy_present);
+
+static inline bool sched_energy_enabled(void)
+{
+	return static_branch_unlikely(&sched_energy_present);
+}
+
+#else /* ! (CONFIG_ENERGY_MODEL && CONFIG_CPU_FREQ_GOV_SCHEDUTIL) */
+
+#define perf_domain_span(pd) NULL
+static inline bool sched_energy_enabled(void) { return false; }
+
+#endif /* CONFIG_ENERGY_MODEL && CONFIG_CPU_FREQ_GOV_SCHEDUTIL */
