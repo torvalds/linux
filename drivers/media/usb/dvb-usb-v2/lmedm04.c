@@ -134,7 +134,7 @@ struct lme2510_state {
 	u8 stream_on;
 	u8 pid_size;
 	u8 pid_off;
-	void *buffer;
+	u8 int_buffer[128];
 	struct urb *lme_urb;
 	u8 usb_buffer[64];
 	/* Frontend original calls */
@@ -388,28 +388,20 @@ static int lme2510_int_read(struct dvb_usb_adapter *adap)
 	if (lme_int->lme_urb == NULL)
 			return -ENOMEM;
 
-	lme_int->buffer = usb_alloc_coherent(d->udev, 128, GFP_ATOMIC,
-					&lme_int->lme_urb->transfer_dma);
-
-	if (lme_int->buffer == NULL)
-			return -ENOMEM;
-
 	usb_fill_int_urb(lme_int->lme_urb,
-				d->udev,
-				usb_rcvintpipe(d->udev, 0xa),
-				lme_int->buffer,
-				128,
-				lme2510_int_response,
-				adap,
-				8);
+			 d->udev,
+			 usb_rcvintpipe(d->udev, 0xa),
+			 lme_int->int_buffer,
+			 sizeof(lme_int->int_buffer),
+			 lme2510_int_response,
+			 adap,
+			 8);
 
 	/* Quirk of pipe reporting PIPE_BULK but behaves as interrupt */
 	ep = usb_pipe_endpoint(d->udev, lme_int->lme_urb->pipe);
 
 	if (usb_endpoint_type(&ep->desc) == USB_ENDPOINT_XFER_BULK)
 		lme_int->lme_urb->pipe = usb_rcvbulkpipe(d->udev, 0xa),
-
-	lme_int->lme_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	usb_submit_urb(lme_int->lme_urb, GFP_ATOMIC);
 	info("INT Interrupt Service Started");
@@ -1225,10 +1217,8 @@ static void lme2510_exit(struct dvb_usb_device *d)
 		lme2510_kill_urb(&adap->stream);
 	}
 
-	if (st->lme_urb != NULL) {
+	if (st->lme_urb) {
 		usb_kill_urb(st->lme_urb);
-		usb_free_coherent(d->udev, 128, st->buffer,
-				  st->lme_urb->transfer_dma);
 		usb_free_urb(st->lme_urb);
 		info("Interrupt Service Stopped");
 	}
