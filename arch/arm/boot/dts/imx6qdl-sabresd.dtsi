@@ -272,6 +272,16 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
+	touchscreen@4 {
+		compatible = "eeti,egalax_ts";
+		reg = <0x04>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c2_egalax_int>;
+		interrupt-parent = <&gpio6>;
+		interrupts = <8 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-gpios = <&gpio6 8 GPIO_ACTIVE_HIGH>;
+	};
+
 	ov5640: camera@3c {
 		compatible = "ovti,ov5640";
 		pinctrl-names = "default";
@@ -495,6 +505,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_KEY_COL3__I2C2_SCL		0x4001b8b1
 				MX6QDL_PAD_KEY_ROW3__I2C2_SDA		0x4001b8b1
+			>;
+		};
+
+		pinctrl_i2c2_egalax_int: i2c2egalaxintgrp {
+			fsl,pins = <
+				MX6QDL_PAD_NANDF_ALE__GPIO6_IO08	0x1b0b0
 			>;
 		};
 
