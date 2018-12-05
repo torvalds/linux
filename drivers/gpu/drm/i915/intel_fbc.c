@@ -626,7 +626,10 @@ static bool intel_fbc_hw_tracking_covers_screen(struct intel_crtc *crtc)
 	struct intel_fbc *fbc = &dev_priv->fbc;
 	unsigned int effective_w, effective_h, max_w, max_h;
 
-	if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
+		max_w = 5120;
+		max_h = 4096;
+	} else if (INTEL_GEN(dev_priv) >= 8 || IS_HASWELL(dev_priv)) {
 		max_w = 4096;
 		max_h = 4096;
 	} else if (IS_G4X(dev_priv) || INTEL_GEN(dev_priv) >= 5) {
