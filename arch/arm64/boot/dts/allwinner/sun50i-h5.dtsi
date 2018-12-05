@@ -94,6 +94,28 @@
 	};
 
 	soc {
+		system-control@1c00000 {
+			compatible = "allwinner,sun50i-h5-system-control";
+			reg = <0x01c00000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			sram_c1: sram@18000 {
+				compatible = "mmio-sram";
+				reg = <0x00018000 0x1c000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x00018000 0x1c000>;
+
+				ve_sram: sram-section@0 {
+					compatible = "allwinner,sun50i-h5-sram-c1",
+						     "allwinner,sun4i-a10-sram-c1";
+					reg = <0x000000 0x1c000>;
+				};
+			};
+		};
+
 		mali: gpu@1e80000 {
 			compatible = "allwinner,sun50i-h5-mali", "arm,mali-450";
 			reg = <0x01e80000 0x30000>;
