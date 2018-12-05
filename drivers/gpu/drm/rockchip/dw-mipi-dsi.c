@@ -200,6 +200,7 @@
 #define PHY_TESTDIN(v)			UPDATE(v, 7, 0)
 #define DSI_INT_ST0			0xbc
 #define DSI_INT_ST1			0xc0
+#define DPI_PLD_WR_ERR			BIT(7)
 #define DSI_INT_MSK0			0xc4
 #define DSI_INT_MSK1			0xc8
 #define DSI_MAX_REGISGER		DSI_INT_MSK1
@@ -1244,6 +1245,7 @@ static void dw_mipi_dsi_encoder_mode_set(struct drm_encoder *encoder,
 
 static void dw_mipi_dsi_disable(struct dw_mipi_dsi *dsi)
 {
+	regmap_update_bits(dsi->regmap, DSI_INT_MSK1, DPI_PLD_WR_ERR, 0);
 	regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
 	regmap_write(dsi->regmap, DSI_LPCLK_CTRL, 0);
 	regmap_write(dsi->regmap, DSI_EDPI_CMD_SIZE, 0);
@@ -1321,6 +1323,7 @@ static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 {
 	const struct drm_display_mode *mode = &dsi->mode;
+	u32 int_st1;
 
 	/*
 	 * The high-speed clock is started before that the high-speed data is
@@ -1345,6 +1348,10 @@ static void dw_mipi_dsi_enable(struct dw_mipi_dsi *dsi)
 	}
 
 	regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
+
+	regmap_read(dsi->regmap, DSI_INT_ST1, &int_st1);
+	regmap_update_bits(dsi->regmap, DSI_INT_MSK1,
+			   DPI_PLD_WR_ERR, DPI_PLD_WR_ERR);
 
 	if (dsi->slave)
 		dw_mipi_dsi_enable(dsi->slave);
@@ -1431,10 +1438,18 @@ dw_mipi_dsi_encoder_atomic_check(struct drm_encoder *encoder,
 
 static int dw_mipi_dsi_loader_protect(struct dw_mipi_dsi *dsi, bool on)
 {
-	if (on)
+	u32 int_st1;
+
+	if (on) {
 		pm_runtime_get_sync(dsi->dev);
-	else
+		regmap_read(dsi->regmap, DSI_INT_ST1, &int_st1);
+		regmap_update_bits(dsi->regmap, DSI_INT_MSK1,
+				   DPI_PLD_WR_ERR, DPI_PLD_WR_ERR);
+	} else {
+		regmap_update_bits(dsi->regmap, DSI_INT_MSK1,
+				   DPI_PLD_WR_ERR, 0);
 		pm_runtime_put(dsi->dev);
+	}
 
 	if (dsi->slave)
 		dw_mipi_dsi_loader_protect(dsi->slave, on);
@@ -1703,15 +1718,20 @@ static irqreturn_t dw_mipi_dsi_irq_handler(int irq, void *dev_id)
 
 	for (i = 0; i < ARRAY_SIZE(ack_with_err); i++)
 		if (int_st0 & BIT(i))
-			dev_dbg(dsi->dev, "%s\n", ack_with_err[i]);
+			dev_err(dsi->dev, "%s\n", ack_with_err[i]);
 
 	for (i = 0; i < ARRAY_SIZE(dphy_error); i++)
 		if (int_st0 & BIT(16 + i))
-			dev_dbg(dsi->dev, "%s\n", dphy_error[i]);
+			dev_err(dsi->dev, "%s\n", dphy_error[i]);
 
 	for (i = 0; i < ARRAY_SIZE(error_report); i++)
 		if (int_st1 & BIT(i))
-			dev_dbg(dsi->dev, "%s\n", error_report[i]);
+			dev_err(dsi->dev, "%s\n", error_report[i]);
+
+	if (int_st1 & DPI_PLD_WR_ERR) {
+		regmap_write(dsi->regmap, DSI_PWR_UP, RESET);
+		regmap_write(dsi->regmap, DSI_PWR_UP, POWERUP);
+	}
 
 	return IRQ_HANDLED;
 }
