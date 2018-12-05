@@ -134,7 +134,7 @@
 	};
 
 	soc {
-		system-control@1c00000 {
+		syscon: system-control@1c00000 {
 			compatible = "allwinner,sun8i-h3-system-control";
 			reg = <0x01c00000 0x1000>;
 			#address-cells = <1>;
