@@ -30,6 +30,8 @@
 #include <asm/msr.h>
 #include <asm/trace/irq_vectors.h>
 
+#include "internal.h"
+
 /* How long to wait between reporting thermal events */
 #define CHECK_INTERVAL		(300 * HZ)
 

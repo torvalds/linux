@@ -14,6 +14,8 @@
 #include <asm/mce.h>
 #include <asm/msr.h>
 
+#include "internal.h"
+
 /* By default disabled */
 int mce_p5_enabled __read_mostly;
 
