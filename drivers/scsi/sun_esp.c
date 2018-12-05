@@ -529,11 +529,10 @@ static int esp_sbus_probe(struct platform_device *op)
 	int hme = 0;
 	int ret;
 
-	if (dp->parent &&
-	    (!strcmp(dp->parent->name, "espdma") ||
-	     !strcmp(dp->parent->name, "dma")))
+	if (of_node_name_eq(dp->parent, "espdma") ||
+	    of_node_name_eq(dp->parent, "dma"))
 		dma_node = dp->parent;
-	else if (!strcmp(dp->name, "SUNW,fas")) {
+	else if (of_node_name_eq(dp, "SUNW,fas")) {
 		dma_node = op->dev.of_node;
 		hme = 1;
 	}
