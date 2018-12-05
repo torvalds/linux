@@ -810,6 +810,13 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	mutex_init(&xcopy_lun->lun_tg_pt_md_mutex);
 	xcopy_lun->lun_tpg = &xcopy_pt_tpg;
 
+	/* Preload the default INQUIRY const values */
+	strlcpy(dev->t10_wwn.vendor, "LIO-ORG", sizeof(dev->t10_wwn.vendor));
+	strlcpy(dev->t10_wwn.model, dev->transport->inquiry_prod,
+		sizeof(dev->t10_wwn.model));
+	strlcpy(dev->t10_wwn.revision, dev->transport->inquiry_rev,
+		sizeof(dev->t10_wwn.revision));
+
 	return dev;
 }
 
@@ -971,20 +978,6 @@ int target_configure_device(struct se_device *dev)
 	 * Setup work_queue for QUEUE_FULL
 	 */
 	INIT_WORK(&dev->qf_work_queue, target_qf_do_work);
-
-	/*
-	 * Preload the initial INQUIRY const values if we are doing
-	 * anything virtual (IBLOCK, FILEIO, RAMDISK), but not for TCM/pSCSI
-	 * passthrough because this is being provided by the backend LLD.
-	 */
-	if (!(dev->transport->transport_flags & TRANSPORT_FLAG_PASSTHROUGH)) {
-		strlcpy(dev->t10_wwn.vendor, "LIO-ORG",
-			sizeof(dev->t10_wwn.vendor));
-		strlcpy(dev->t10_wwn.model, dev->transport->inquiry_prod,
-			sizeof(dev->t10_wwn.model));
-		strlcpy(dev->t10_wwn.revision, dev->transport->inquiry_rev,
-			sizeof(dev->t10_wwn.revision));
-	}
 
 	scsi_dump_inquiry(dev);
 
