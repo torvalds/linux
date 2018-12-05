@@ -933,32 +933,34 @@ EXPORT_SYMBOL_GPL(__bpf_call_base);
 #define BPF_INSN_MAP(INSN_2, INSN_3)		\
 	/* 32 bit ALU operations. */		\
 	/*   Register based. */			\
-	INSN_3(ALU, ADD, X),			\
-	INSN_3(ALU, SUB, X),			\
-	INSN_3(ALU, AND, X),			\
-	INSN_3(ALU, OR,  X),			\
-	INSN_3(ALU, LSH, X),			\
-	INSN_3(ALU, RSH, X),			\
-	INSN_3(ALU, XOR, X),			\
-	INSN_3(ALU, MUL, X),			\
-	INSN_3(ALU, MOV, X),			\
-	INSN_3(ALU, DIV, X),			\
-	INSN_3(ALU, MOD, X),			\
+	INSN_3(ALU, ADD,  X),			\
+	INSN_3(ALU, SUB,  X),			\
+	INSN_3(ALU, AND,  X),			\
+	INSN_3(ALU, OR,   X),			\
+	INSN_3(ALU, LSH,  X),			\
+	INSN_3(ALU, RSH,  X),			\
+	INSN_3(ALU, XOR,  X),			\
+	INSN_3(ALU, MUL,  X),			\
+	INSN_3(ALU, MOV,  X),			\
+	INSN_3(ALU, ARSH, X),			\
+	INSN_3(ALU, DIV,  X),			\
+	INSN_3(ALU, MOD,  X),			\
 	INSN_2(ALU, NEG),			\
 	INSN_3(ALU, END, TO_BE),		\
 	INSN_3(ALU, END, TO_LE),		\
 	/*   Immediate based. */		\
-	INSN_3(ALU, ADD, K),			\
-	INSN_3(ALU, SUB, K),			\
-	INSN_3(ALU, AND, K),			\
-	INSN_3(ALU, OR,  K),			\
-	INSN_3(ALU, LSH, K),			\
-	INSN_3(ALU, RSH, K),			\
-	INSN_3(ALU, XOR, K),			\
-	INSN_3(ALU, MUL, K),			\
-	INSN_3(ALU, MOV, K),			\
-	INSN_3(ALU, DIV, K),			\
-	INSN_3(ALU, MOD, K),			\
+	INSN_3(ALU, ADD,  K),			\
+	INSN_3(ALU, SUB,  K),			\
+	INSN_3(ALU, AND,  K),			\
+	INSN_3(ALU, OR,   K),			\
+	INSN_3(ALU, LSH,  K),			\
+	INSN_3(ALU, RSH,  K),			\
+	INSN_3(ALU, XOR,  K),			\
+	INSN_3(ALU, MUL,  K),			\
+	INSN_3(ALU, MOV,  K),			\
+	INSN_3(ALU, ARSH, K),			\
+	INSN_3(ALU, DIV,  K),			\
+	INSN_3(ALU, MOD,  K),			\
 	/* 64 bit ALU operations. */		\
 	/*   Register based. */			\
 	INSN_3(ALU64, ADD,  X),			\
@@ -1136,6 +1138,12 @@ select_insn:
 	LD_IMM_DW:
 		DST = (u64) (u32) insn[0].imm | ((u64) (u32) insn[1].imm) << 32;
 		insn++;
+		CONT;
+	ALU_ARSH_X:
+		DST = (u64) (u32) ((*(s32 *) &DST) >> SRC);
+		CONT;
+	ALU_ARSH_K:
+		DST = (u64) (u32) ((*(s32 *) &DST) >> IMM);
 		CONT;
 	ALU64_ARSH_X:
 		(*(s64 *) &DST) >>= SRC;
