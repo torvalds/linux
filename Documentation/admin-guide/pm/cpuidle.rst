@@ -566,6 +566,13 @@ processors implementing the architecture (i.e. CPU instruction set) in question,
 however, so it is rather crude and not very energy-efficient.  For this reason,
 it is not recommended for production use.
 
+The ``cpuidle.governor=`` kernel command line switch allows the ``CPUIdle``
+governor to use to be specified.  It has to be appended with a string matching
+the name of an available governor (e.g. ``cpuidle.governor=menu``) and that
+governor will be used instead of the default one.  It is possible to force
+the ``menu`` governor to be used on the systems that use the ``ladder`` governor
+by default this way, for example.
+
 The other kernel command line parameters controlling CPU idle time management
 described below are only relevant for the *x86* architecture and some of
 them affect Intel processors only.

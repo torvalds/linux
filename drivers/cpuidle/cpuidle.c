@@ -702,4 +702,5 @@ static int __init cpuidle_init(void)
 }
 
 module_param(off, int, 0444);
+module_param_string(governor, param_governor, CPUIDLE_NAME_LEN, 0444);
 core_initcall(cpuidle_init);
