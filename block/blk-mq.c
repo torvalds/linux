@@ -1715,6 +1715,15 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 		break;
 	case BLK_STS_RESOURCE:
 	case BLK_STS_DEV_RESOURCE:
+		/*
+		 * If direct dispatch fails, we cannot allow any merging on
+		 * this IO. Drivers (like SCSI) may have set up permanent state
+		 * for this request, like SG tables and mappings, and if we
+		 * merge to it later on then we'll still only do IO to the
+		 * original part.
+		 */
+		rq->cmd_flags |= REQ_NOMERGE;
+
 		blk_mq_update_dispatch_busy(hctx, true);
 		__blk_mq_requeue_request(rq);
 		break;
@@ -1725,6 +1734,18 @@ static blk_status_t __blk_mq_issue_directly(struct blk_mq_hw_ctx *hctx,
 	}
 
 	return ret;
+}
+
+/*
+ * Don't allow direct dispatch of anything but regular reads/writes,
+ * as some of the other commands can potentially share request space
+ * with data we need for the IO scheduler. If we attempt a direct dispatch
+ * on those and fail, we can't safely add it to the scheduler afterwards
+ * without potentially overwriting data that the driver has already written.
+ */
+static bool blk_rq_can_direct_dispatch(struct request *rq)
+{
+	return req_op(rq) == REQ_OP_READ || req_op(rq) == REQ_OP_WRITE;
 }
 
 static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
@@ -1748,7 +1769,7 @@ static blk_status_t __blk_mq_try_issue_directly(struct blk_mq_hw_ctx *hctx,
 		goto insert;
 	}
 
-	if (q->elevator && !bypass_insert)
+	if (!blk_rq_can_direct_dispatch(rq) || (q->elevator && !bypass_insert))
 		goto insert;
 
 	if (!blk_mq_get_dispatch_budget(hctx))
@@ -1809,6 +1830,9 @@ void blk_mq_try_issue_list_directly(struct blk_mq_hw_ctx *hctx,
 		blk_status_t ret;
 		struct request *rq = list_first_entry(list, struct request,
 				queuelist);
+
+		if (!blk_rq_can_direct_dispatch(rq))
+			break;
 
 		list_del_init(&rq->queuelist);
 		ret = blk_mq_request_issue_directly(rq);
