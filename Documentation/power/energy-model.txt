@@ -142,3 +142,28 @@ EM framework.
 37
 38	        return 0;
 39	}
+
+
+4. Support for legacy Energy Models (DEPRECATED)
+------------------------------------------------
+
+The Android kernel version 4.14 and before used a different type of EM for EAS,
+referred to as the 'legacy' EM. The legacy EM relies on the out-of-tree
+'sched-energy-costs' devicetree bindings to provide the kernel with power costs.
+The usage of such bindings in Android has now been DEPRECATED in favour of the
+mainline equivalents.
+
+The currently supported alternatives to populate the EM include:
+ - using a firmware-based solution such as Arm SCMI (supported in
+   drivers/cpufreq/scmi-cpufreq.c);
+ - using the 'dynamic-power-coefficient' devicetree binding together with
+   PM_OPP. See the of_dev_pm_opp_get_cpu_power() helper in PM_OPP, and the
+   reference implementation in drivers/cpufreq/cpufreq-dt.c.
+
+In order to ease the transition to the new EM format, Android 4.19 also provides
+a compatibility driver able to load a legacy EM from DT into the EM framework.
+*** Please note that THIS FEATURE WILL NOT BE AVAILABLE in future Android
+kernels, and as such it must be considered only as a temporary workaround. ***
+
+If you know what you're doing and still want to use this driver, you need to set
+CONFIG_LEGACY_ENERGY_MODEL_DT=y in your kernel configuration to enable it.
