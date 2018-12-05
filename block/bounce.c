@@ -278,6 +278,7 @@ static struct bio *bounce_clone_bio(struct bio *bio_src, gfp_t gfp_mask,
 	}
 
 	bio_clone_blkcg_association(bio, bio_src);
+	blkcg_bio_issue_init(bio);
 
 	return bio;
 }
