@@ -661,17 +661,6 @@ static void gen9_gt_workarounds_init(struct drm_i915_private *i915)
 {
 	struct i915_wa_list *wal = &i915->gt_wa_list;
 
-	/* WaContextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl,glk,cfl */
-	wa_masked_en(wal,
-		     GEN9_CSFE_CHICKEN1_RCS,
-		     GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE);
-
-
-	/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl,glk,cfl */
-	wa_write_or(wal,
-		    BDW_SCRATCH1,
-		    GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
-
 	/* WaDisableKillLogic:bxt,skl,kbl */
 	if (!IS_COFFEELAKE(i915))
 		wa_write_or(wal,
@@ -693,24 +682,6 @@ static void gen9_gt_workarounds_init(struct drm_i915_private *i915)
 	wa_write_or(wal,
 		    GAM_ECOCHK,
 		    BDW_DISABLE_HDC_INVALIDATION);
-
-	/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
-	if (IS_GEN9_LP(i915))
-		wa_write_masked_or(wal,
-				   GEN8_L3SQCREG1,
-				   L3_PRIO_CREDITS_MASK,
-				   L3_GENERAL_PRIO_CREDITS(62) |
-				   L3_HIGH_PRIO_CREDITS(2));
-
-	/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
-	wa_write_or(wal,
-		    GEN8_L3SQCREG4,
-		    GEN8_LQSC_FLUSH_COHERENT_LINES);
-
-	/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,[cnl] */
-	wa_masked_en(wal,
-		     GEN7_FF_SLICE_CS_CHICKEN1,
-		     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
 }
 
 static void skl_gt_workarounds_init(struct drm_i915_private *i915)
@@ -718,11 +689,6 @@ static void skl_gt_workarounds_init(struct drm_i915_private *i915)
 	struct i915_wa_list *wal = &i915->gt_wa_list;
 
 	gen9_gt_workarounds_init(i915);
-
-	/* WaEnableGapsTsvCreditFix:skl */
-	wa_write_or(wal,
-		    GEN8_GARBCNTL,
-		    GEN9_GAPS_TSV_CREDIT_DISABLE);
 
 	/* WaDisableGafsUnitClkGating:skl */
 	wa_write_or(wal,
@@ -742,11 +708,6 @@ static void bxt_gt_workarounds_init(struct drm_i915_private *i915)
 
 	gen9_gt_workarounds_init(i915);
 
-	/* WaDisablePooledEuLoadBalancingFix:bxt */
-	wa_masked_en(wal,
-		     FF_SLICE_CS_CHICKEN2,
-		     GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE);
-
 	/* WaInPlaceDecompressionHang:bxt */
 	wa_write_or(wal,
 		    GEN9_GAMT_ECO_REG_RW_IA,
@@ -758,11 +719,6 @@ static void kbl_gt_workarounds_init(struct drm_i915_private *i915)
 	struct i915_wa_list *wal = &i915->gt_wa_list;
 
 	gen9_gt_workarounds_init(i915);
-
-	/* WaEnableGapsTsvCreditFix:kbl */
-	wa_write_or(wal,
-		    GEN8_GARBCNTL,
-		    GEN9_GAPS_TSV_CREDIT_DISABLE);
 
 	/* WaDisableDynamicCreditSharing:kbl */
 	if (IS_KBL_REVID(i915, 0, KBL_REVID_B0))
@@ -779,21 +735,6 @@ static void kbl_gt_workarounds_init(struct drm_i915_private *i915)
 	wa_write_or(wal,
 		    GEN9_GAMT_ECO_REG_RW_IA,
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
-	/* WaKBLVECSSemaphoreWaitPoll:kbl */
-	if (IS_KBL_REVID(i915, KBL_REVID_A0, KBL_REVID_E0)) {
-		struct intel_engine_cs *engine;
-		unsigned int tmp;
-
-		for_each_engine(engine, i915, tmp) {
-			if (engine->id == RCS)
-				continue;
-
-			wa_write(wal,
-				 RING_SEMA_WAIT_POLL(engine->mmio_base),
-				 1);
-		}
-	}
 }
 
 static void glk_gt_workarounds_init(struct drm_i915_private *i915)
@@ -806,11 +747,6 @@ static void cfl_gt_workarounds_init(struct drm_i915_private *i915)
 	struct i915_wa_list *wal = &i915->gt_wa_list;
 
 	gen9_gt_workarounds_init(i915);
-
-	/* WaEnableGapsTsvCreditFix:cfl */
-	wa_write_or(wal,
-		    GEN8_GARBCNTL,
-		    GEN9_GAPS_TSV_CREDIT_DISABLE);
 
 	/* WaDisableGafsUnitClkGating:cfl */
 	wa_write_or(wal,
@@ -902,11 +838,6 @@ static void cnl_gt_workarounds_init(struct drm_i915_private *i915)
 	wa_write_or(wal,
 		    GEN9_GAMT_ECO_REG_RW_IA,
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
-	/* WaEnablePreemptionGranularityControlByUMD:cnl */
-	wa_masked_en(wal,
-		     GEN7_FF_SLICE_CS_CHICKEN1,
-		     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
 }
 
 static void icl_gt_workarounds_init(struct drm_i915_private *i915)
@@ -915,52 +846,16 @@ static void icl_gt_workarounds_init(struct drm_i915_private *i915)
 
 	wa_init_mcr(i915);
 
-	/* This is not an Wa. Enable for better image quality */
-	wa_masked_en(wal,
-		     _3D_CHICKEN3,
-		     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
-
 	/* WaInPlaceDecompressionHang:icl */
 	wa_write_or(wal,
 		    GEN9_GAMT_ECO_REG_RW_IA,
 		    GAMT_ECO_ENABLE_IN_PLACE_DECOMPRESS);
-
-	/* WaPipelineFlushCoherentLines:icl */
-	wa_write_or(wal,
-		    GEN8_L3SQCREG4,
-		    GEN8_LQSC_FLUSH_COHERENT_LINES);
-
-	/* Wa_1405543622:icl
-	 * Formerly known as WaGAPZPriorityScheme
-	 */
-	wa_write_or(wal,
-		    GEN8_GARBCNTL,
-		    GEN11_ARBITRATION_PRIO_ORDER_MASK);
-
-	/* Wa_1604223664:icl
-	 * Formerly known as WaL3BankAddressHashing
-	 */
-	wa_write_masked_or(wal,
-			   GEN8_GARBCNTL,
-			   GEN11_HASH_CTRL_EXCL_MASK,
-			   GEN11_HASH_CTRL_EXCL_BIT0);
-	wa_write_masked_or(wal,
-			   GEN11_GLBLINVL,
-			   GEN11_BANK_HASH_ADDR_EXCL_MASK,
-			   GEN11_BANK_HASH_ADDR_EXCL_BIT0);
 
 	/* WaModifyGamTlbPartitioning:icl */
 	wa_write_masked_or(wal,
 			   GEN11_GACB_PERF_CTRL,
 			   GEN11_HASH_CTRL_MASK,
 			   GEN11_HASH_CTRL_BIT0 | GEN11_HASH_CTRL_BIT4);
-
-	/* Wa_1405733216:icl
-	 * Formerly known as WaDisableCleanEvicts
-	 */
-	wa_write_or(wal,
-		    GEN8_L3SQCREG4,
-		    GEN11_LQSC_CLEAN_EVICT_DISABLE);
 
 	/* Wa_1405766107:icl
 	 * Formerly known as WaCL2SFHalfMaxAlloc
@@ -988,23 +883,11 @@ static void icl_gt_workarounds_init(struct drm_i915_private *i915)
 		    SUBSLICE_UNIT_LEVEL_CLKGATE,
 		    GWUNIT_CLKGATE_DIS);
 
-	/* Wa_1604302699:icl */
-	wa_write_or(wal,
-		    GEN10_L3_CHICKEN_MODE_REGISTER,
-		    GEN11_I2M_WRITE_DISABLE);
-
 	/* Wa_1406838659:icl (pre-prod) */
 	if (IS_ICL_REVID(i915, ICL_REVID_A0, ICL_REVID_B0))
 		wa_write_or(wal,
 			    INF_UNIT_LEVEL_CLKGATE,
 			    CGPSF_CLKGATE_DIS);
-
-	/* WaForwardProgressSoftReset:icl */
-	wa_write_or(wal,
-		    GEN10_SCRATCH_LNCF2,
-		    PMFLUSHDONE_LNICRSDROP |
-		    PMFLUSH_GAPL3UNBLOCK |
-		    PMFLUSHDONE_LNEBLK);
 
 	/* Wa_1406463099:icl
 	 * Formerly known as WaGamTlbPendError
@@ -1241,6 +1124,146 @@ void intel_whitelist_workarounds_apply(struct intel_engine_cs *engine)
 	struct whitelist w;
 
 	whitelist_apply(engine, whitelist_build(engine, &w));
+}
+
+static void rcs_engine_wa_init(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->wa_list;
+
+	if (IS_ICELAKE(i915)) {
+		/* This is not an Wa. Enable for better image quality */
+		wa_masked_en(wal,
+			     _3D_CHICKEN3,
+			     _3D_CHICKEN3_AA_LINE_QUALITY_FIX_ENABLE);
+
+		/* WaPipelineFlushCoherentLines:icl */
+		wa_write_or(wal,
+			    GEN8_L3SQCREG4,
+			    GEN8_LQSC_FLUSH_COHERENT_LINES);
+
+		/*
+		 * Wa_1405543622:icl
+		 * Formerly known as WaGAPZPriorityScheme
+		 */
+		wa_write_or(wal,
+			    GEN8_GARBCNTL,
+			    GEN11_ARBITRATION_PRIO_ORDER_MASK);
+
+		/*
+		 * Wa_1604223664:icl
+		 * Formerly known as WaL3BankAddressHashing
+		 */
+		wa_write_masked_or(wal,
+				   GEN8_GARBCNTL,
+				   GEN11_HASH_CTRL_EXCL_MASK,
+				   GEN11_HASH_CTRL_EXCL_BIT0);
+		wa_write_masked_or(wal,
+				   GEN11_GLBLINVL,
+				   GEN11_BANK_HASH_ADDR_EXCL_MASK,
+				   GEN11_BANK_HASH_ADDR_EXCL_BIT0);
+
+		/*
+		 * Wa_1405733216:icl
+		 * Formerly known as WaDisableCleanEvicts
+		 */
+		wa_write_or(wal,
+			    GEN8_L3SQCREG4,
+			    GEN11_LQSC_CLEAN_EVICT_DISABLE);
+
+		/* Wa_1604302699:icl */
+		wa_write_or(wal,
+			    GEN10_L3_CHICKEN_MODE_REGISTER,
+			    GEN11_I2M_WRITE_DISABLE);
+
+		/* WaForwardProgressSoftReset:icl */
+		wa_write_or(wal,
+			    GEN10_SCRATCH_LNCF2,
+			    PMFLUSHDONE_LNICRSDROP |
+			    PMFLUSH_GAPL3UNBLOCK |
+			    PMFLUSHDONE_LNEBLK);
+	}
+
+	if (IS_GEN9(i915) || IS_CANNONLAKE(i915)) {
+		/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,cnl */
+		wa_masked_en(wal,
+			     GEN7_FF_SLICE_CS_CHICKEN1,
+			     GEN9_FFSC_PERCTX_PREEMPT_CTRL);
+	}
+
+	if (IS_SKYLAKE(i915) || IS_KABYLAKE(i915) || IS_COFFEELAKE(i915)) {
+		/* WaEnableGapsTsvCreditFix:skl,kbl,cfl */
+		wa_write_or(wal,
+			    GEN8_GARBCNTL,
+			    GEN9_GAPS_TSV_CREDIT_DISABLE);
+	}
+
+	if (IS_BROXTON(i915)) {
+		/* WaDisablePooledEuLoadBalancingFix:bxt */
+		wa_masked_en(wal,
+			     FF_SLICE_CS_CHICKEN2,
+			     GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE);
+	}
+
+	if (IS_GEN9(i915)) {
+		/* WaContextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl,glk,cfl */
+		wa_masked_en(wal,
+			     GEN9_CSFE_CHICKEN1_RCS,
+			     GEN9_PREEMPT_GPGPU_SYNC_SWITCH_DISABLE);
+
+		/* WaEnableLbsSlaRetryTimerDecrement:skl,bxt,kbl,glk,cfl */
+		wa_write_or(wal,
+			    BDW_SCRATCH1,
+			    GEN9_LBS_SLA_RETRY_TIMER_DECREMENT_ENABLE);
+
+		/* WaProgramL3SqcReg1DefaultForPerf:bxt,glk */
+		if (IS_GEN9_LP(i915))
+			wa_write_masked_or(wal,
+					   GEN8_L3SQCREG1,
+					   L3_PRIO_CREDITS_MASK,
+					   L3_GENERAL_PRIO_CREDITS(62) |
+					   L3_HIGH_PRIO_CREDITS(2));
+
+		/* WaOCLCoherentLineFlush:skl,bxt,kbl,cfl */
+		wa_write_or(wal,
+			    GEN8_L3SQCREG4,
+			    GEN8_LQSC_FLUSH_COHERENT_LINES);
+	}
+}
+
+static void xcs_engine_wa_init(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_wa_list *wal = &engine->wa_list;
+
+	/* WaKBLVECSSemaphoreWaitPoll:kbl */
+	if (IS_KBL_REVID(i915, KBL_REVID_A0, KBL_REVID_E0)) {
+		wa_write(wal,
+			 RING_SEMA_WAIT_POLL(engine->mmio_base),
+			 1);
+	}
+}
+
+void intel_engine_init_workarounds(struct intel_engine_cs *engine)
+{
+	struct i915_wa_list *wal = &engine->wa_list;
+
+	if (GEM_WARN_ON(INTEL_GEN(engine->i915) < 8))
+		return;
+
+	wa_init_start(wal, engine->name);
+
+	if (engine->id == RCS)
+		rcs_engine_wa_init(engine);
+	else
+		xcs_engine_wa_init(engine);
+
+	wa_init_finish(wal);
+}
+
+void intel_engine_apply_workarounds(struct intel_engine_cs *engine)
+{
+	wa_list_apply(engine->i915, &engine->wa_list);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

@@ -35,4 +35,7 @@ void intel_gt_apply_workarounds(struct drm_i915_private *dev_priv);
 
 void intel_whitelist_workarounds_apply(struct intel_engine_cs *engine);
 
+void intel_engine_init_workarounds(struct intel_engine_cs *engine);
+void intel_engine_apply_workarounds(struct intel_engine_cs *engine);
+
 #endif
