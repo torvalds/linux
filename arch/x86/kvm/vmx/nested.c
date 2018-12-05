@@ -3504,6 +3504,18 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 		 * L2 to IDT_VECTORING_INFO_FIELD.
 		 */
 		vmcs12_save_pending_event(vcpu, vmcs12);
+
+		/*
+		 * According to spec, there's no need to store the guest's
+		 * MSRs if the exit is due to a VM-entry failure that occurs
+		 * during or after loading the guest state. Since this exit
+		 * does not fall in that category, we need to save the MSRs.
+		 */
+		if (nested_vmx_store_msr(vcpu,
+					 vmcs12->vm_exit_msr_store_addr,
+					 vmcs12->vm_exit_msr_store_count))
+			nested_vmx_abort(vcpu,
+					 VMX_ABORT_SAVE_GUEST_MSR_FAIL);
 	}
 
 	/*
@@ -3835,10 +3847,6 @@ void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 		 * immutable.
 		 */
 		nested_flush_cached_shadow_vmcs12(vcpu, vmcs12);
-
-		if (nested_vmx_store_msr(vcpu, vmcs12->vm_exit_msr_store_addr,
-					 vmcs12->vm_exit_msr_store_count))
-			nested_vmx_abort(vcpu, VMX_ABORT_SAVE_GUEST_MSR_FAIL);
 	} else {
 		/*
 		 * The only expected VM-instruction error is "VM entry with
