@@ -113,12 +113,13 @@ spc_emulate_inquiry_std(struct se_cmd *cmd, unsigned char *buf)
 	 * unused bytes at the end of the field (i.e., highest offset) and the
 	 * unused bytes shall be filled with ASCII space characters (20h).
 	 */
-	memset(&buf[8], 0x20, 8 + 16 + 4);
+	memset(&buf[8], 0x20,
+	       INQUIRY_VENDOR_LEN + INQUIRY_MODEL_LEN + INQUIRY_REVISION_LEN);
 	memcpy(&buf[8], "LIO-ORG", sizeof("LIO-ORG") - 1);
 	memcpy(&buf[16], dev->t10_wwn.model,
-	       strnlen(dev->t10_wwn.model, 16));
+	       strnlen(dev->t10_wwn.model, INQUIRY_MODEL_LEN));
 	memcpy(&buf[32], dev->t10_wwn.revision,
-	       strnlen(dev->t10_wwn.revision, 4));
+	       strnlen(dev->t10_wwn.revision, INQUIRY_REVISION_LEN));
 	buf[4] = 31; /* Set additional length to 31 */
 
 	return 0;
