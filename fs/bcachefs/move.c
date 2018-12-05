@@ -128,13 +128,15 @@ static int bch2_migrate_index_update(struct bch_write_op *op)
 						 op->opts.data_replicas);
 
 		/*
-		 * It's possible we race, and for whatever reason the extent now
-		 * has fewer replicas than when we last looked at it - meaning
-		 * we need to get a disk reservation here:
+		 * If we're not fully overwriting @k, and it's compressed, we
+		 * need a reservation for all the pointers in @insert
 		 */
 		nr = bch2_bkey_nr_dirty_ptrs(bkey_i_to_s_c(&insert->k_i)) -
-			(bch2_bkey_nr_dirty_ptrs(k) + m->nr_ptrs_reserved);
-		if (nr > 0) {
+			 m->nr_ptrs_reserved;
+
+		if (insert->k.size < k.k->size &&
+		    bch2_extent_is_compressed(k) &&
+		    nr > 0) {
 			/*
 			 * can't call bch2_disk_reservation_add() with btree
 			 * locks held, at least not without a song and dance
@@ -242,8 +244,16 @@ int bch2_migrate_write_init(struct bch_fs *c, struct migrate_write *m,
 
 	switch (data_cmd) {
 	case DATA_ADD_REPLICAS: {
+		/*
+		 * DATA_ADD_REPLICAS is used for moving data to a different
+		 * device in the background, and due to compression the new copy
+		 * might take up more space than the old copy:
+		 */
+#if 0
 		int nr = (int) io_opts.data_replicas -
 			bch2_bkey_nr_dirty_ptrs(k);
+#endif
+		int nr = (int) io_opts.data_replicas;
 
 		if (nr > 0) {
 			m->op.nr_replicas = m->nr_ptrs_reserved = nr;

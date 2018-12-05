@@ -305,8 +305,7 @@ unsigned bch2_extent_is_compressed(struct bkey_s_c k)
 
 		extent_for_each_ptr_decode(e, p, entry)
 			if (!p.ptr.cached &&
-			    p.crc.compression_type != BCH_COMPRESSION_NONE &&
-			    p.crc.compressed_size < p.crc.live_size)
+			    p.crc.compression_type != BCH_COMPRESSION_NONE)
 				ret += p.crc.compressed_size;
 	}
 	}
