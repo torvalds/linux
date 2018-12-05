@@ -451,12 +451,8 @@ static inline void mii_lpa_mod_linkmode_lpa_t(unsigned long *lp_advertising,
 {
 	mii_adv_mod_linkmode_adv_t(lp_advertising, lpa);
 
-	if (lpa & LPA_LPACK)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				 lp_advertising);
-	else
-		linkmode_clear_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
-				   lp_advertising);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			 lp_advertising, lpa & LPA_LPACK);
 }
 
 /**
