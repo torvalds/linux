@@ -131,7 +131,7 @@ static int cell_setup_phb(struct pci_controller *phb)
 
 	np = phb->dn;
 	model = of_get_property(np, "model", NULL);
-	if (model == NULL || strcmp(np->name, "pci"))
+	if (model == NULL || !of_node_name_eq(np, "pci"))
 		return 0;
 
 	/* Setup workarounds for spider */

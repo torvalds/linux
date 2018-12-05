@@ -287,10 +287,7 @@ static __init void chrp_init(void)
 	 * or /pci@80000000/isa@C/serial@i2F8
 	 * The optional graphics card has also type 'serial' in VGA mode.
 	 */
-	property = of_get_property(node, "name", NULL);
-	if (!property)
-		goto out_put;
-	if (!strcmp(property, "failsafe") || !strcmp(property, "serial"))
+	if (of_node_name_eq(node, "failsafe") || of_node_name_eq(node, "serial"))
 		add_preferred_console("ttyS", 0, NULL);
 out_put:
 	of_node_put(node);

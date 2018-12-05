@@ -190,7 +190,7 @@ static void __init pseries_setup_i8259_cascade(void)
 		of_node_put(old);
 		if (np == NULL)
 			break;
-		if (strcmp(np->name, "pci") != 0)
+		if (!of_node_name_eq(np, "pci"))
 			continue;
 		addrp = of_get_property(np, "8259-interrupt-acknowledge", NULL);
 		if (addrp == NULL)
