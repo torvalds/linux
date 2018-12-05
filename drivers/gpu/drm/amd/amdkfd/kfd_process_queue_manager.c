@@ -461,8 +461,7 @@ int pqm_debugfs_mqds(struct seq_file *m, void *data)
 					   q->properties.type, q->device->id);
 				continue;
 			}
-			mqd_mgr = q->device->dqm->ops.get_mqd_manager(
-				q->device->dqm, mqd_type);
+			mqd_mgr = q->device->dqm->mqd_mgrs[mqd_type];
 		} else if (pqn->kq) {
 			q = pqn->kq->queue;
 			mqd_mgr = pqn->kq->mqd_mgr;

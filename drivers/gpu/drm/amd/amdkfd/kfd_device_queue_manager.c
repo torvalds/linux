@@ -368,9 +368,7 @@ static int create_compute_queue_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd_mgr;
 	int retval;
 
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
-	if (!mqd_mgr)
-		return -ENOMEM;
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_COMPUTE];
 
 	retval = allocate_hqd(dqm, q);
 	if (retval)
@@ -425,10 +423,8 @@ static int destroy_queue_nocpsch_locked(struct device_queue_manager *dqm,
 	int retval;
 	struct mqd_manager *mqd_mgr;
 
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-		get_mqd_type_from_queue_type(q->properties.type));
-	if (!mqd_mgr)
-		return -ENOMEM;
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
 
 	if (q->properties.type == KFD_QUEUE_TYPE_COMPUTE) {
 		deallocate_hqd(dqm, q);
@@ -501,12 +497,8 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q)
 		retval = -ENODEV;
 		goto out_unlock;
 	}
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-			get_mqd_type_from_queue_type(q->properties.type));
-	if (!mqd_mgr) {
-		retval = -ENOMEM;
-		goto out_unlock;
-	}
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
 	/*
 	 * Eviction state logic: we only mark active queues as evicted
 	 * to avoid the overhead of restoring inactive queues later
@@ -571,27 +563,6 @@ out_unlock:
 	return retval;
 }
 
-static struct mqd_manager *get_mqd_manager(
-		struct device_queue_manager *dqm, enum KFD_MQD_TYPE type)
-{
-	struct mqd_manager *mqd_mgr;
-
-	if (WARN_ON(type >= KFD_MQD_TYPE_MAX))
-		return NULL;
-
-	pr_debug("mqd type %d\n", type);
-
-	mqd_mgr = dqm->mqd_mgrs[type];
-	if (!mqd_mgr) {
-		mqd_mgr = dqm->asic_ops.mqd_manager_init(type, dqm->dev);
-		if (!mqd_mgr)
-			pr_err("mqd manager is NULL");
-		dqm->mqd_mgrs[type] = mqd_mgr;
-	}
-
-	return mqd_mgr;
-}
-
 static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd)
 {
@@ -612,13 +583,8 @@ static int evict_process_queues_nocpsch(struct device_queue_manager *dqm,
 	list_for_each_entry(q, &qpd->queues_list, list) {
 		if (!q->properties.is_active)
 			continue;
-		mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-			get_mqd_type_from_queue_type(q->properties.type));
-		if (!mqd_mgr) { /* should not be here */
-			pr_err("Cannot evict queue, mqd mgr is NULL\n");
-			retval = -ENOMEM;
-			goto out;
-		}
+		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+				q->properties.type)];
 		q->properties.is_evicted = true;
 		q->properties.is_active = false;
 		retval = mqd_mgr->destroy_mqd(mqd_mgr, q->mqd,
@@ -717,13 +683,8 @@ static int restore_process_queues_nocpsch(struct device_queue_manager *dqm,
 	list_for_each_entry(q, &qpd->queues_list, list) {
 		if (!q->properties.is_evicted)
 			continue;
-		mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-			get_mqd_type_from_queue_type(q->properties.type));
-		if (!mqd_mgr) { /* should not be here */
-			pr_err("Cannot restore queue, mqd mgr is NULL\n");
-			retval = -ENOMEM;
-			goto out;
-		}
+		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+				q->properties.type)];
 		q->properties.is_evicted = false;
 		q->properties.is_active = true;
 		retval = mqd_mgr->load_mqd(mqd_mgr, q->mqd, q->pipe,
@@ -950,9 +911,7 @@ static int create_sdma_queue_nocpsch(struct device_queue_manager *dqm,
 	struct mqd_manager *mqd_mgr;
 	int retval;
 
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_SDMA);
-	if (!mqd_mgr)
-		return -ENOMEM;
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_SDMA];
 
 	retval = allocate_sdma_queue(dqm, &q->sdma_id);
 	if (retval)
@@ -1185,17 +1144,8 @@ static int create_queue_cpsch(struct device_queue_manager *dqm, struct queue *q,
 	if (retval)
 		goto out_deallocate_sdma_queue;
 
-	/* Do init_mqd before dqm_lock(dqm) to avoid circular locking order:
-	 * lock(dqm) -> bo::reserve
-	 */
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-			get_mqd_type_from_queue_type(q->properties.type));
-
-	if (!mqd_mgr) {
-		retval = -ENOMEM;
-		goto out_deallocate_doorbell;
-	}
-
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
 	/*
 	 * Eviction state logic: we only mark active queues as evicted
 	 * to avoid the overhead of restoring inactive queues later
@@ -1380,12 +1330,8 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	}
 
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-			get_mqd_type_from_queue_type(q->properties.type));
-	if (!mqd_mgr) {
-		retval = -ENOMEM;
-		goto failed;
-	}
+	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+			q->properties.type)];
 
 	deallocate_doorbell(qpd, q);
 
@@ -1419,7 +1365,6 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	return retval;
 
-failed:
 failed_try_destroy_debugged_queue:
 
 	dqm_unlock(dqm);
@@ -1566,11 +1511,7 @@ static int get_wave_state(struct device_queue_manager *dqm,
 		goto dqm_unlock;
 	}
 
-	mqd_mgr = dqm->ops.get_mqd_manager(dqm, KFD_MQD_TYPE_COMPUTE);
-	if (!mqd_mgr) {
-		r = -ENOMEM;
-		goto dqm_unlock;
-	}
+	mqd_mgr = dqm->mqd_mgrs[KFD_MQD_TYPE_COMPUTE];
 
 	if (!mqd_mgr->get_wave_state) {
 		r = -EINVAL;
@@ -1646,21 +1587,40 @@ static int process_termination_cpsch(struct device_queue_manager *dqm,
 	 * Do uninit_mqd() after dqm_unlock to avoid circular locking.
 	 */
 	list_for_each_entry_safe(q, next, &qpd->queues_list, list) {
-		mqd_mgr = dqm->ops.get_mqd_manager(dqm,
-			get_mqd_type_from_queue_type(q->properties.type));
-		if (!mqd_mgr) {
-			retval = -ENOMEM;
-			goto out;
-		}
+		mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
+				q->properties.type)];
 		list_del(&q->list);
 		qpd->queue_count--;
 		mqd_mgr->uninit_mqd(mqd_mgr, q->mqd, q->mqd_mem_obj);
 	}
 
-out:
 	return retval;
 }
 
+static int init_mqd_managers(struct device_queue_manager *dqm)
+{
+	int i, j;
+	struct mqd_manager *mqd_mgr;
+
+	for (i = 0; i < KFD_MQD_TYPE_MAX; i++) {
+		mqd_mgr = dqm->asic_ops.mqd_manager_init(i, dqm->dev);
+		if (!mqd_mgr) {
+			pr_err("mqd manager [%d] initialization failed\n", i);
+			goto out_free;
+		}
+		dqm->mqd_mgrs[i] = mqd_mgr;
+	}
+
+	return 0;
+
+out_free:
+	for (j = 0; j < i; j++) {
+		kfree(dqm->mqd_mgrs[j]);
+		dqm->mqd_mgrs[j] = NULL;
+	}
+
+	return -ENOMEM;
+}
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 {
 	struct device_queue_manager *dqm;
@@ -1698,7 +1658,6 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.stop = stop_cpsch;
 		dqm->ops.destroy_queue = destroy_queue_cpsch;
 		dqm->ops.update_queue = update_queue;
-		dqm->ops.get_mqd_manager = get_mqd_manager;
 		dqm->ops.register_process = register_process;
 		dqm->ops.unregister_process = unregister_process;
 		dqm->ops.uninitialize = uninitialize;
@@ -1718,7 +1677,6 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		dqm->ops.create_queue = create_queue_nocpsch;
 		dqm->ops.destroy_queue = destroy_queue_nocpsch;
 		dqm->ops.update_queue = update_queue;
-		dqm->ops.get_mqd_manager = get_mqd_manager;
 		dqm->ops.register_process = register_process;
 		dqm->ops.unregister_process = unregister_process;
 		dqm->ops.initialize = initialize_nocpsch;
@@ -1768,6 +1726,9 @@ struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev)
 		     dev->device_info->asic_family);
 		goto out_free;
 	}
+
+	if (init_mqd_managers(dqm))
+		goto out_free;
 
 	if (!dqm->ops.initialize(dqm))
 		return dqm;

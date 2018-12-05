@@ -48,8 +48,6 @@ struct device_process_node {
  *
  * @update_queue: Queue update routine.
  *
- * @get_mqd_manager: Returns the mqd manager according to the mqd type.
- *
  * @exeute_queues: Dispatches the queues list to the H/W.
  *
  * @register_process: This routine associates a specific process with device.
@@ -96,10 +94,6 @@ struct device_queue_manager_ops {
 
 	int	(*update_queue)(struct device_queue_manager *dqm,
 				struct queue *q);
-
-	struct mqd_manager * (*get_mqd_manager)
-					(struct device_queue_manager *dqm,
-					enum KFD_MQD_TYPE type);
 
 	int	(*register_process)(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
