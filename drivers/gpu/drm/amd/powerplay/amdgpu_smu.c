@@ -262,6 +262,14 @@ static int smu_hw_init(void *handle)
 	if (ret)
 		goto failed;
 
+	/*
+	 * Use msg SetSystemVirtualDramAddr and DramLogSetDramAddr can notify
+	 * pool location.
+	 */
+	ret = smu_notify_memory_pool_location(smu);
+	if (ret)
+		goto failed;
+
 	mutex_unlock(&smu->mutex);
 
 	pr_info("SMU is initialized successfully!\n");
