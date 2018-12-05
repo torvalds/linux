@@ -106,8 +106,8 @@ void rk3288_vpu_jpeg_enc_run(struct rockchip_vpu_ctx *ctx)
 	rk3288_vpu_set_src_img_ctrl(vpu, ctx);
 	rk3288_vpu_jpeg_enc_set_buffers(vpu, ctx, src_buf);
 	rk3288_vpu_jpeg_enc_set_qtable(vpu,
-		rockchip_vpu_jpeg_get_qtable(&jpeg_ctx, 0),
-		rockchip_vpu_jpeg_get_qtable(&jpeg_ctx, 1));
+				       rockchip_vpu_jpeg_get_qtable(&jpeg_ctx, 0),
+				       rockchip_vpu_jpeg_get_qtable(&jpeg_ctx, 1));
 
 	reg = VEPU_REG_AXI_CTRL_OUTPUT_SWAP16
 		| VEPU_REG_AXI_CTRL_INPUT_SWAP16
