@@ -18,8 +18,6 @@
 #ifndef __MT76X02_MAC_H
 #define __MT76X02_MAC_H
 
-#include <linux/average.h>
-
 struct mt76x02_dev;
 
 struct mt76x02_tx_status {
@@ -41,8 +39,6 @@ struct mt76x02_vif {
 	u8 idx;
 };
 
-DECLARE_EWMA(signal, 10, 8);
-
 struct mt76x02_sta {
 	struct mt76_wcid wcid; /* must be first */
 
@@ -50,8 +46,6 @@ struct mt76x02_sta {
 	struct mt76x02_tx_status status;
 	int n_frames;
 
-	struct ewma_signal rssi;
-	int inactive_count;
 };
 
 #define MT_RXINFO_BA			BIT(0)

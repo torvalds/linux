@@ -548,7 +548,7 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 }
 
 static void
-mt76_check_ps(struct mt76_dev *dev, struct sk_buff *skb)
+mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *) skb->cb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
@@ -566,6 +566,9 @@ mt76_check_ps(struct mt76_dev *dev, struct sk_buff *skb)
 		return;
 
 	sta = container_of((void *) wcid, struct ieee80211_sta, drv_priv);
+
+	ewma_signal_add(&wcid->rssi, status->signal);
+	wcid->inactive_count = 0;
 
 	if (!test_bit(MT_WCID_FLAG_CHECK_PS, &wcid->flags))
 		return;
@@ -626,7 +629,7 @@ void mt76_rx_poll_complete(struct mt76_dev *dev, enum mt76_rxq_id q,
 	__skb_queue_head_init(&frames);
 
 	while ((skb = __skb_dequeue(&dev->rx_skb[q])) != NULL) {
-		mt76_check_ps(dev, skb);
+		mt76_check_sta(dev, skb);
 		mt76_rx_aggr_reorder(skb, &frames);
 	}
 
@@ -660,6 +663,7 @@ mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
 		mt76_txq_init(dev, sta->txq[i]);
 	}
 
+	ewma_signal_init(&wcid->rssi);
 	rcu_assign_pointer(dev->wcid[wcid->idx], wcid);
 
 out:

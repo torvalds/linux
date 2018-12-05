@@ -23,6 +23,7 @@
 #include <linux/skbuff.h>
 #include <linux/leds.h>
 #include <linux/usb.h>
+#include <linux/average.h>
 #include <net/mac80211.h>
 #include "util.h"
 
@@ -174,12 +175,17 @@ enum mt76_wcid_flags {
 
 #define MT76_N_WCIDS 128
 
+DECLARE_EWMA(signal, 10, 8);
+
 struct mt76_wcid {
 	struct mt76_rx_tid __rcu *aggr[IEEE80211_NUM_TIDS];
 
 	struct work_struct aggr_work;
 
 	unsigned long flags;
+
+	struct ewma_signal rssi;
+	int inactive_count;
 
 	u8 idx;
 	u8 hw_key_idx;
@@ -679,6 +685,8 @@ int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum ieee80211_sta_state new_state);
 
 struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb);
+
+int mt76_get_min_avg_rssi(struct mt76_dev *dev);
 
 int mt76_get_txpower(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		     int *dbm);
