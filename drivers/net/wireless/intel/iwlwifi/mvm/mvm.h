@@ -1150,6 +1150,8 @@ struct iwl_mvm {
 	u32 ciphers[IWL_MVM_NUM_CIPHERS];
 	struct ieee80211_cipher_scheme cs[IWL_UCODE_MAX_CS];
 
+	struct cfg80211_ftm_responder_stats ftm_resp_stats;
+
 	struct ieee80211_vif *nan_vif;
 #define IWL_MAX_BAID	32
 	struct iwl_mvm_baid_data __rcu *baid_map[IWL_MAX_BAID];
@@ -2059,6 +2061,13 @@ void iwl_mvm_update_changed_regdom(struct iwl_mvm *mvm);
 /* smart fifo */
 int iwl_mvm_sf_update(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      bool added_vif);
+
+/* FTM responder */
+int iwl_mvm_ftm_start_responder(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+void iwl_mvm_ftm_restart_responder(struct iwl_mvm *mvm,
+				   struct ieee80211_vif *vif);
+void iwl_mvm_ftm_responder_stats(struct iwl_mvm *mvm,
+				 struct iwl_rx_cmd_buffer *rxb);
 
 /* TDLS */
 

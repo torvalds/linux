@@ -548,6 +548,11 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		hw->wiphy->n_cipher_suites++;
 	}
 
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_FTM_CALIBRATED))
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_ENABLE_FTM_RESPONDER);
+
 	ieee80211_hw_set(hw, SINGLE_SCAN_ON_ALL_BANDS);
 	hw->wiphy->features |=
 		NL80211_FEATURE_SCHED_SCAN_RANDOM_MAC_ADDR |
@@ -1657,6 +1662,9 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 				       IEEE80211_VIF_SUPPORTS_CQM_RSSI);
 	}
 
+	if (vif->bss_conf.ftm_responder)
+		memset(&mvm->ftm_resp_stats, 0, sizeof(mvm->ftm_resp_stats));
+
 	iwl_mvm_vif_dbgfs_clean(mvm, vif);
 
 	/*
@@ -2548,6 +2556,8 @@ static int iwl_mvm_start_ap_ibss(struct ieee80211_hw *hw,
 	if (iwl_mvm_phy_ctx_count(mvm) > 1)
 		iwl_mvm_teardown_tdls_peers(mvm);
 
+	iwl_mvm_ftm_restart_responder(mvm, vif);
+
 	goto out_unlock;
 
 out_quota_failed:
@@ -2659,6 +2669,15 @@ iwl_mvm_bss_info_changed_ap_ibss(struct iwl_mvm *mvm,
 				bss_conf->txpower);
 		iwl_mvm_set_tx_power(mvm, vif, bss_conf->txpower);
 	}
+
+	if (changes & BSS_CHANGED_FTM_RESPONDER) {
+		int ret = iwl_mvm_ftm_start_responder(mvm, vif);
+
+		if (ret)
+			IWL_WARN(mvm, "Failed to enable FTM responder (%d)\n",
+				 ret);
+	}
+
 }
 
 static void iwl_mvm_bss_info_changed(struct ieee80211_hw *hw,
@@ -3796,11 +3815,43 @@ static int iwl_mvm_cancel_roc(struct ieee80211_hw *hw)
 	return 0;
 }
 
+struct iwl_mvm_ftm_responder_iter_data {
+	bool responder;
+	struct ieee80211_chanctx_conf *ctx;
+};
+
+static void iwl_mvm_ftm_responder_chanctx_iter(void *_data, u8 *mac,
+					       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_ftm_responder_iter_data *data = _data;
+
+	if (rcu_access_pointer(vif->chanctx_conf) == data->ctx &&
+	    vif->type == NL80211_IFTYPE_AP && vif->bss_conf.ftmr_params)
+		data->responder = true;
+}
+
+static bool iwl_mvm_is_ftm_responder_chanctx(struct iwl_mvm *mvm,
+					     struct ieee80211_chanctx_conf *ctx)
+{
+	struct iwl_mvm_ftm_responder_iter_data data = {
+		.responder = false,
+		.ctx = ctx,
+	};
+
+	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+					IEEE80211_IFACE_ITER_NORMAL,
+					iwl_mvm_ftm_responder_chanctx_iter,
+					&data);
+	return data.responder;
+}
+
 static int __iwl_mvm_add_chanctx(struct iwl_mvm *mvm,
 				 struct ieee80211_chanctx_conf *ctx)
 {
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt;
+	bool responder = iwl_mvm_is_ftm_responder_chanctx(mvm, ctx);
+	struct cfg80211_chan_def *def = responder ? &ctx->def : &ctx->min_def;
 	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
@@ -3813,7 +3864,7 @@ static int __iwl_mvm_add_chanctx(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->min_def,
+	ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, def,
 				       ctx->rx_chains_static,
 				       ctx->rx_chains_dynamic);
 	if (ret) {
@@ -3868,6 +3919,8 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u16 *phy_ctxt_id = (u16 *)ctx->drv_priv;
 	struct iwl_mvm_phy_ctxt *phy_ctxt = &mvm->phy_ctxts[*phy_ctxt_id];
+	bool responder = iwl_mvm_is_ftm_responder_chanctx(mvm, ctx);
+	struct cfg80211_chan_def *def = responder ? &ctx->def : &ctx->min_def;
 
 	if (WARN_ONCE((phy_ctxt->ref > 1) &&
 		      (changed & ~(IEEE80211_CHANCTX_CHANGE_WIDTH |
@@ -3882,17 +3935,17 @@ static void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 
 	/* we are only changing the min_width, may be a noop */
 	if (changed == IEEE80211_CHANCTX_CHANGE_MIN_WIDTH) {
-		if (phy_ctxt->width == ctx->min_def.width)
+		if (phy_ctxt->width == def->width)
 			goto out_unlock;
 
 		/* we are just toggling between 20_NOHT and 20 */
 		if (phy_ctxt->width <= NL80211_CHAN_WIDTH_20 &&
-		    ctx->min_def.width <= NL80211_CHAN_WIDTH_20)
+		    def->width <= NL80211_CHAN_WIDTH_20)
 			goto out_unlock;
 	}
 
 	iwl_mvm_bt_coex_vif_change(mvm);
-	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &ctx->min_def,
+	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, def,
 				 ctx->rx_chains_static,
 				 ctx->rx_chains_dynamic);
 
@@ -4813,6 +4866,35 @@ static void iwl_mvm_sync_rx_queues(struct ieee80211_hw *hw)
 	mutex_unlock(&mvm->mutex);
 }
 
+static int
+iwl_mvm_mac_get_ftm_responder_stats(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct cfg80211_ftm_responder_stats *stats)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (vif->p2p || vif->type != NL80211_IFTYPE_AP ||
+	    !mvmvif->ap_ibss_active || !vif->bss_conf.ftm_responder)
+		return -EINVAL;
+
+	mutex_lock(&mvm->mutex);
+	*stats = mvm->ftm_resp_stats;
+	mutex_unlock(&mvm->mutex);
+
+	stats->filled = BIT(NL80211_FTM_STATS_SUCCESS_NUM) |
+			BIT(NL80211_FTM_STATS_PARTIAL_NUM) |
+			BIT(NL80211_FTM_STATS_FAILED_NUM) |
+			BIT(NL80211_FTM_STATS_ASAP_NUM) |
+			BIT(NL80211_FTM_STATS_NON_ASAP_NUM) |
+			BIT(NL80211_FTM_STATS_TOTAL_DURATION_MSEC) |
+			BIT(NL80211_FTM_STATS_UNKNOWN_TRIGGERS_NUM) |
+			BIT(NL80211_FTM_STATS_RESCHEDULE_REQUESTS_NUM) |
+			BIT(NL80211_FTM_STATS_OUT_OF_WINDOW_TRIGGERS_NUM);
+
+	return 0;
+}
+
 static bool iwl_mvm_can_hw_csum(struct sk_buff *skb)
 {
 	u8 protocol = ip_hdr(skb)->protocol;
@@ -4915,6 +4997,8 @@ const struct ieee80211_ops iwl_mvm_hw_ops = {
 #endif
 	.get_survey = iwl_mvm_mac_get_survey,
 	.sta_statistics = iwl_mvm_mac_sta_statistics,
+	.get_ftm_responder_stats = iwl_mvm_mac_get_ftm_responder_stats,
+
 	.can_aggregate_in_amsdu = iwl_mvm_mac_can_aggregate,
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	.sta_add_debugfs = iwl_mvm_sta_add_debugfs,
