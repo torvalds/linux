@@ -99,6 +99,7 @@ struct mqd_manager {
 
 	struct mutex	mqd_mutex;
 	struct kfd_dev	*dev;
+	uint32_t mqd_size;
 };
 
 void mqd_symmetrically_map_cu_mask(struct mqd_manager *mm,
