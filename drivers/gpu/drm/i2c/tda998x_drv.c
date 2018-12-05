@@ -877,6 +877,19 @@ tda998x_write_avi(struct tda998x_priv *priv, const struct drm_display_mode *mode
 	tda998x_write_if(priv, DIP_IF_FLAGS_IF2, REG_IF2_HB0, &frame);
 }
 
+static void tda998x_write_vsi(struct tda998x_priv *priv,
+			      const struct drm_display_mode *mode)
+{
+	union hdmi_infoframe frame;
+
+	if (drm_hdmi_vendor_infoframe_from_display_mode(&frame.vendor.hdmi,
+							&priv->connector,
+							mode))
+		reg_clear(priv, REG_DIP_IF_FLAGS, DIP_IF_FLAGS_IF1);
+	else
+		tda998x_write_if(priv, DIP_IF_FLAGS_IF1, REG_IF1_HB0, &frame);
+}
+
 /* Audio support */
 
 static const struct tda998x_audio_route tda998x_audio_route[AUDIO_ROUTE_NUM] = {
@@ -1654,6 +1667,7 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 		reg_set(priv, REG_TX33, TX33_HDMI);
 
 		tda998x_write_avi(priv, adjusted_mode);
+		tda998x_write_vsi(priv, adjusted_mode);
 
 		if (priv->sink_has_audio)
 			tda998x_configure_audio(priv);
