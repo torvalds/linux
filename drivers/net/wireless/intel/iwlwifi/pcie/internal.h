@@ -454,20 +454,6 @@ enum iwl_image_response_code {
 };
 
 /**
- * struct iwl_self_init_dram - dram data used by self init process
- * @fw: lmac and umac dram data
- * @fw_cnt: total number of items in array
- * @paging: paging dram data
- * @paging_cnt: total number of items in array
- */
-struct iwl_self_init_dram {
-	struct iwl_dram_data *fw;
-	int fw_cnt;
-	struct iwl_dram_data *paging;
-	int paging_cnt;
-};
-
-/**
  * struct cont_rec: continuous recording data structure
  * @prev_wr_ptr: the last address that was read in monitor_data
  *	debugfs file
@@ -554,7 +540,6 @@ struct iwl_trans_pcie {
 	dma_addr_t prph_info_dma_addr;
 	dma_addr_t prph_scratch_dma_addr;
 	dma_addr_t iml_dma_addr;
-	struct iwl_self_init_dram init_dram;
 	struct iwl_trans *trans;
 
 	struct net_device napi_dev;
@@ -813,8 +798,7 @@ static inline int iwl_pcie_ctxt_info_alloc_dma(struct iwl_trans *trans,
 
 static inline void iwl_pcie_ctxt_info_free_fw_img(struct iwl_trans *trans)
 {
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_self_init_dram *dram = &trans_pcie->init_dram;
+	struct iwl_self_init_dram *dram = &trans->init_dram;
 	int i;
 
 	if (!dram->fw) {

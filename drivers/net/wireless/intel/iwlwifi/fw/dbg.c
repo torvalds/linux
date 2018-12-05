@@ -1095,6 +1095,43 @@ static int iwl_dump_ini_dev_mem_iter(struct iwl_fw_runtime *fwrt,
 	return le32_to_cpu(range->range_data_size);
 }
 
+static int
+iwl_dump_ini_paging_gen2_iter(struct iwl_fw_runtime *fwrt,
+			      struct iwl_fw_ini_error_dump_range *range,
+			      struct iwl_fw_ini_region_cfg *reg,
+			      int idx)
+{
+	u32 page_size = fwrt->trans->init_dram.paging[idx].size;
+
+	range->start_addr = cpu_to_le32(idx);
+	range->range_data_size = cpu_to_le32(page_size);
+	memcpy(range->data, fwrt->trans->init_dram.paging[idx].block,
+	       page_size);
+	return le32_to_cpu(range->range_data_size);
+}
+
+static int iwl_dump_ini_paging_iter(struct iwl_fw_runtime *fwrt,
+				    struct iwl_fw_ini_error_dump_range *range,
+				    struct iwl_fw_ini_region_cfg *reg,
+				    int idx)
+{
+	/* increase idx by 1 since the pages are from 1 to
+	 * fwrt->num_of_paging_blk + 1
+	 */
+	struct page *page = fwrt->fw_paging_db[++idx].fw_paging_block;
+	dma_addr_t addr = fwrt->fw_paging_db[idx].fw_paging_phys;
+	u32 page_size = fwrt->fw_paging_db[idx].fw_paging_size;
+
+	range->start_addr = cpu_to_le32(idx);
+	range->range_data_size = cpu_to_le32(page_size);
+	dma_sync_single_for_cpu(fwrt->trans->dev, addr,	page_size,
+				DMA_BIDIRECTIONAL);
+	memcpy(range->data, page_address(page), page_size);
+	dma_sync_single_for_device(fwrt->trans->dev, addr, page_size,
+				   DMA_BIDIRECTIONAL);
+	return le32_to_cpu(range->range_data_size);
+}
+
 static struct iwl_fw_ini_error_dump_range
 *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt, void *data)
 {
@@ -1110,10 +1147,44 @@ static u32 iwl_dump_ini_mem_get_size(struct iwl_fw_runtime *fwrt,
 		le32_to_cpu(reg->internal.range_data_size);
 }
 
+static u32 iwl_dump_ini_paging_gen2_get_size(struct iwl_fw_runtime *fwrt,
+					     struct iwl_fw_ini_region_cfg *reg)
+{
+	int i;
+	u32 size = 0;
+
+	for (i = 0; i < fwrt->trans->init_dram.paging_cnt; i++)
+		size += fwrt->trans->init_dram.paging[i].size;
+	return size;
+}
+
+static u32 iwl_dump_ini_paging_get_size(struct iwl_fw_runtime *fwrt,
+					struct iwl_fw_ini_region_cfg *reg)
+{
+	int i;
+	u32 size = 0;
+
+	for (i = 1; i <= fwrt->num_of_paging_blk; i++)
+		size += fwrt->fw_paging_db[i].fw_paging_size;
+	return size;
+}
+
 static u32 iwl_dump_ini_mem_ranges(struct iwl_fw_runtime *fwrt,
 				   struct iwl_fw_ini_region_cfg *reg)
 {
 	return le32_to_cpu(reg->internal.num_of_ranges);
+}
+
+static u32 iwl_dump_ini_paging_gen2_ranges(struct iwl_fw_runtime *fwrt,
+					   struct iwl_fw_ini_region_cfg *reg)
+{
+	return fwrt->trans->init_dram.paging_cnt;
+}
+
+static u32 iwl_dump_ini_paging_ranges(struct iwl_fw_runtime *fwrt,
+				      struct iwl_fw_ini_region_cfg *reg)
+{
+	return fwrt->num_of_paging_blk;
 }
 
 /**
@@ -1224,14 +1295,21 @@ static int iwl_fw_ini_get_trigger_len(struct iwl_fw_runtime *fwrt,
 		case IWL_FW_INI_REGION_RXF:
 			size += iwl_fw_rxf_len(fwrt, &fwrt->smem_cfg);
 			break;
-		case IWL_FW_INI_REGION_PAGING:
-			if (!iwl_fw_dbg_is_paging_enabled(fwrt))
-				break;
-			size += fwrt->num_of_paging_blk *
-				(hdr_len +
-				 sizeof(struct iwl_fw_error_dump_paging) +
-				 PAGING_BLOCK_SIZE);
+		case IWL_FW_INI_REGION_PAGING: {
+			size += hdr_len + dump_header_len;
+			if (iwl_fw_dbg_is_paging_enabled(fwrt)) {
+				size += range_header_len *
+					iwl_dump_ini_paging_ranges(fwrt, reg) +
+					iwl_dump_ini_paging_get_size(fwrt, reg);
+			} else {
+				size += range_header_len *
+					iwl_dump_ini_paging_gen2_ranges(fwrt,
+									reg) +
+					iwl_dump_ini_paging_gen2_get_size(fwrt,
+									  reg);
+			}
 			break;
+		}
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
 			/* Transport takes care of DRAM dumping */
 		case IWL_FW_INI_REGION_INTERNAL_BUFFER:
@@ -1286,12 +1364,24 @@ static void iwl_fw_ini_dump_trigger(struct iwl_fw_runtime *fwrt,
 		case IWL_FW_INI_REGION_DRAM_BUFFER:
 			*dump_mask |= BIT(IWL_FW_ERROR_DUMP_FW_MONITOR);
 			break;
-		case IWL_FW_INI_REGION_PAGING:
-			if (iwl_fw_dbg_is_paging_enabled(fwrt))
-				iwl_dump_paging(fwrt, data);
-			else
-				*dump_mask |= BIT(IWL_FW_ERROR_DUMP_PAGING);
+		case IWL_FW_INI_REGION_PAGING: {
+			ops.fill_mem_hdr = iwl_dump_ini_mem_fill_header;
+			if (iwl_fw_dbg_is_paging_enabled(fwrt)) {
+				ops.get_num_of_ranges =
+					iwl_dump_ini_paging_ranges;
+				ops.get_size = iwl_dump_ini_paging_get_size;
+				ops.fill_range = iwl_dump_ini_paging_iter;
+			} else {
+				ops.get_num_of_ranges =
+					iwl_dump_ini_paging_gen2_ranges;
+				ops.get_size =
+					iwl_dump_ini_paging_gen2_get_size;
+				ops.fill_range = iwl_dump_ini_paging_gen2_iter;
+			}
+
+			iwl_dump_ini_mem(fwrt, type, data, reg, &ops);
 			break;
+		}
 		case IWL_FW_INI_REGION_TXF:
 			iwl_fw_dump_txf(fwrt, data);
 			break;
