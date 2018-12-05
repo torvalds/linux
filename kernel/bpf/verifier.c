@@ -572,7 +572,7 @@ static bool is_spillable_regtype(enum bpf_reg_type type)
 static int check_stack_write(struct verifier_state *state, int off, int size,
 			     int value_regno)
 {
-	int i;
+	int i, spi = (MAX_BPF_STACK + off) / BPF_REG_SIZE;
 	/* caller checked that off % size == 0 and -MAX_BPF_STACK <= off < 0,
 	 * so it's aligned access and [off, off + size) are within stack limits
 	 */
@@ -587,15 +587,13 @@ static int check_stack_write(struct verifier_state *state, int off, int size,
 		}
 
 		/* save register state */
-		state->spilled_regs[(MAX_BPF_STACK + off) / BPF_REG_SIZE] =
-			state->regs[value_regno];
+		state->spilled_regs[spi] = state->regs[value_regno];
 
 		for (i = 0; i < BPF_REG_SIZE; i++)
 			state->stack_slot_type[MAX_BPF_STACK + off + i] = STACK_SPILL;
 	} else {
 		/* regular write of data into stack */
-		state->spilled_regs[(MAX_BPF_STACK + off) / BPF_REG_SIZE] =
-			(struct reg_state) {};
+		state->spilled_regs[spi] = (struct reg_state) {};
 
 		for (i = 0; i < size; i++)
 			state->stack_slot_type[MAX_BPF_STACK + off + i] = STACK_MISC;
