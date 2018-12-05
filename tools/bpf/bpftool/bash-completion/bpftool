@@ -398,10 +398,13 @@ _bpftool()
                             ;;
                     esac
                     ;;
+                tracelog)
+                    return 0
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
                         COMPREPLY=( $( compgen -W 'dump help pin attach detach load \
-                            show list' -- "$cur" ) )
+                            show list tracelog' -- "$cur" ) )
                     ;;
             esac
             ;;

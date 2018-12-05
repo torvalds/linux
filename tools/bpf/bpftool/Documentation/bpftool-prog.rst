@@ -26,8 +26,9 @@ MAP COMMANDS
 |	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
 |	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
-|       **bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
-|       **bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
+|	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
+|	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
+|	**bpftool** **prog tracelog**
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -116,6 +117,14 @@ DESCRIPTION
 		  *ATTACH_TYPE*). Most *ATTACH_TYPEs* require a *MAP*
 		  parameter, with the exception of *flow_dissector* which is
 		  detached from the current networking name space.
+
+	**bpftool prog tracelog**
+		  Dump the trace pipe of the system to the console (stdout).
+		  Hit <Ctrl+C> to stop printing. BPF programs can write to this
+		  trace pipe at runtime with the **bpf_trace_printk()** helper.
+		  This should be used only for debugging purposes. For
+		  streaming data from BPF programs to user space, one can use
+		  perf events (see also **bpftool-map**\ (8)).
 
 	**bpftool prog help**
 		  Print short help message.
