@@ -257,8 +257,9 @@ err:	nvdimm_bus_unregister(p->bus);
 
 static int papr_scm_probe(struct platform_device *pdev)
 {
-	uint32_t drc_index, metadata_size, unit_cap[2];
 	struct device_node *dn = pdev->dev.of_node;
+	u32 drc_index, metadata_size;
+	u64 blocks, block_size;
 	struct papr_scm_priv *p;
 	int rc;
 
@@ -268,8 +269,13 @@ static int papr_scm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (of_property_read_u32_array(dn, "ibm,unit-capacity", unit_cap, 2)) {
-		dev_err(&pdev->dev, "%pOF: missing unit-capacity!\n", dn);
+	if (of_property_read_u64(dn, "ibm,block-size", &block_size)) {
+		dev_err(&pdev->dev, "%pOF: missing block-size!\n", dn);
+		return -ENODEV;
+	}
+
+	if (of_property_read_u64(dn, "ibm,number-of-blocks", &blocks)) {
+		dev_err(&pdev->dev, "%pOF: missing number-of-blocks!\n", dn);
 		return -ENODEV;
 	}
 
@@ -282,8 +288,8 @@ static int papr_scm_probe(struct platform_device *pdev)
 
 	p->dn = dn;
 	p->drc_index = drc_index;
-	p->block_size = unit_cap[0];
-	p->blocks     = unit_cap[1];
+	p->block_size = block_size;
+	p->blocks = blocks;
 
 	/* might be zero */
 	p->metadata_size = metadata_size;
