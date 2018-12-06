@@ -250,13 +250,13 @@ static int max77686_of_parse_cb(struct device_node *np,
 		struct regulator_config *config)
 {
 	struct max77686_data *max77686 = config->driver_data;
+	int ret;
 
 	switch (desc->id) {
 	case MAX77686_BUCK8:
 	case MAX77686_BUCK9:
 	case MAX77686_LDO20 ... MAX77686_LDO22:
-		config->ena_gpiod = devm_gpiod_get_from_of_node(max77686->dev,
-				np,
+		config->ena_gpiod = gpiod_get_from_of_node(np,
 				"maxim,ena",
 				0,
 				GPIOD_OUT_HIGH | GPIOD_FLAGS_BIT_NONEXCLUSIVE,
@@ -271,9 +271,13 @@ static int max77686_of_parse_cb(struct device_node *np,
 	if (config->ena_gpiod) {
 		set_bit(desc->id, max77686->gpio_enabled);
 
-		return regmap_update_bits(config->regmap, desc->enable_reg,
-					  desc->enable_mask,
-					  MAX77686_GPIO_CONTROL);
+		ret = regmap_update_bits(config->regmap, desc->enable_reg,
+					 desc->enable_mask,
+					 MAX77686_GPIO_CONTROL);
+		if (ret) {
+			gpiod_put(config->ena_gpiod);
+			config->ena_gpiod = NULL;
+		}
 	}
 
 	return 0;
