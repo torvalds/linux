@@ -283,7 +283,7 @@ struct cpuinfo_arc_cache {
 };
 
 struct cpuinfo_arc_bpu {
-	unsigned int ver, full, num_cache, num_pred;
+	unsigned int ver, full, num_cache, num_pred, ret_stk;
 };
 
 struct cpuinfo_arc_ccm {

@@ -195,6 +195,7 @@ static void read_arc_build_cfg_regs(void)
 		cpu->bpu.full = bpu.ft;
 		cpu->bpu.num_cache = 256 << bpu.bce;
 		cpu->bpu.num_pred = 2048 << bpu.pte;
+		cpu->bpu.ret_stk = 4 << bpu.rse;
 
 		if (cpu->core.family >= 0x54) {
 			unsigned int exec_ctrl;
@@ -299,10 +300,10 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	if (cpu->bpu.ver)
 		n += scnprintf(buf + n, len - n,
-			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d",
+			      "BPU\t\t: %s%s match, cache:%d, Predict Table:%d Return stk: %d",
 			      IS_AVAIL1(cpu->bpu.full, "full"),
 			      IS_AVAIL1(!cpu->bpu.full, "partial"),
-			      cpu->bpu.num_cache, cpu->bpu.num_pred);
+			      cpu->bpu.num_cache, cpu->bpu.num_pred, cpu->bpu.ret_stk);
 
 	if (is_isa_arcv2()) {
 		struct bcr_lpb lpb;
