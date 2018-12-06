@@ -2404,7 +2404,7 @@
 		rockchip,sleep-debug-en = <0>;
 		rockchip,sleep-mode-config = <
 			(0
-			| RKPM_SLP_ARMOFF_LOGPD
+			| RKPM_SLP_ARMOFF
 			| RKPM_SLP_PMU_PLLS_PWRDN
 			| RKPM_SLP_PMU_PMUALIVE_32K
 			| RKPM_SLP_SFT_PLLS_DEEP
