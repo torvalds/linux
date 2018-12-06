@@ -282,6 +282,10 @@
 	vqmmc-supply = <&v_3_3>;
 };
 
+&cp0_usb3_1 {
+	status = "okay";
+};
+
 &cp1_pinctrl {
 	/*
 	 * MPP Bus:
