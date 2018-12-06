@@ -32,7 +32,6 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_crtc.h"
 #include "exynos_drm_plane.h"
-#include "exynos_drm_iommu.h"
 
 /*
  * FIMD stands for Fully Interactive Mobile Display and
@@ -1011,7 +1010,7 @@ static int fimd_bind(struct device *dev, struct device *master, void *data)
 	if (is_drm_iommu_supported(drm_dev))
 		fimd_clear_channels(ctx->crtc);
 
-	return drm_iommu_attach_device(drm_dev, dev);
+	return exynos_drm_register_dma(drm_dev, dev);
 }
 
 static void fimd_unbind(struct device *dev, struct device *master,
@@ -1021,7 +1020,7 @@ static void fimd_unbind(struct device *dev, struct device *master,
 
 	fimd_disable(ctx->crtc);
 
-	drm_iommu_detach_device(ctx->drm_dev, ctx->dev);
+	exynos_drm_unregister_dma(ctx->drm_dev, ctx->dev);
 
 	if (ctx->encoder)
 		exynos_dpi_remove(ctx->encoder);

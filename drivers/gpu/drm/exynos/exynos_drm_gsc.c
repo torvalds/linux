@@ -24,7 +24,6 @@
 #include <drm/exynos_drm.h>
 #include "regs-gsc.h"
 #include "exynos_drm_drv.h"
-#include "exynos_drm_iommu.h"
 #include "exynos_drm_ipp.h"
 
 /*
@@ -1170,7 +1169,7 @@ static int gsc_bind(struct device *dev, struct device *master, void *data)
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
 	ctx->drm_dev = drm_dev;
-	drm_iommu_attach_device(drm_dev, dev);
+	exynos_drm_register_dma(drm_dev, dev);
 
 	exynos_drm_ipp_register(drm_dev, ipp, &ipp_funcs,
 			DRM_EXYNOS_IPP_CAP_CROP | DRM_EXYNOS_IPP_CAP_ROTATE |
@@ -1190,7 +1189,7 @@ static void gsc_unbind(struct device *dev, struct device *master,
 	struct exynos_drm_ipp *ipp = &ctx->ipp;
 
 	exynos_drm_ipp_unregister(drm_dev, ipp);
-	drm_iommu_detach_device(drm_dev, dev);
+	exynos_drm_unregister_dma(drm_dev, dev);
 }
 
 static const struct component_ops gsc_component_ops = {
