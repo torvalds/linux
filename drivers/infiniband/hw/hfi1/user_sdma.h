@@ -205,8 +205,6 @@ struct user_sdma_request {
 	/* Writeable fields shared with interrupt */
 	u64 seqcomp ____cacheline_aligned_in_smp;
 	u64 seqsubmitted;
-	/* status of the last txreq completed */
-	int status;
 
 	/* Send side fields */
 	struct list_head txps ____cacheline_aligned_in_smp;
@@ -228,7 +226,6 @@ struct user_sdma_request {
 	u16 tididx;
 	/* progress index moving along the iovs array */
 	u8 iov_idx;
-	u8 done;
 	u8 has_error;
 
 	struct user_sdma_iovec iovs[MAX_VECTORS_PER_REQ];
