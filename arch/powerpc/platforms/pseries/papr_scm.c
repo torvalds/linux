@@ -296,7 +296,7 @@ static int papr_scm_probe(struct platform_device *pdev)
 
 	/* setup the resource for the newly bound range */
 	p->res.start = p->bound_addr;
-	p->res.end   = p->bound_addr + p->blocks * p->block_size;
+	p->res.end   = p->bound_addr + p->blocks * p->block_size - 1;
 	p->res.name  = pdev->name;
 	p->res.flags = IORESOURCE_MEM;
 
