@@ -583,6 +583,7 @@ static void mt76u_stop_rx(struct mt76_dev *dev)
 static void mt76u_tx_tasklet(unsigned long data)
 {
 	struct mt76_dev *dev = (struct mt76_dev *)data;
+	struct mt76_queue_entry entry;
 	struct mt76u_buf *buf;
 	struct mt76_queue *q;
 	bool wake;
@@ -597,17 +598,18 @@ static void mt76u_tx_tasklet(unsigned long data)
 			if (!buf->done || !q->queued)
 				break;
 
-			dev->drv->tx_complete_skb(dev, q,
-						  &q->entry[q->head],
-						  false);
-
 			if (q->entry[q->head].schedule) {
 				q->entry[q->head].schedule = false;
 				q->swq_queued--;
 			}
 
+			entry = q->entry[q->head];
 			q->head = (q->head + 1) % q->ndesc;
 			q->queued--;
+
+			spin_unlock_bh(&q->lock);
+			dev->drv->tx_complete_skb(dev, q, &entry, false);
+			spin_lock_bh(&q->lock);
 		}
 		mt76_txq_schedule(dev, q);
 		wake = i < IEEE80211_NUM_ACS && q->queued < q->ndesc - 8;
