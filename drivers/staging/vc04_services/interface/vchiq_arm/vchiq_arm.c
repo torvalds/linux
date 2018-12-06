@@ -167,6 +167,7 @@ static VCHIQ_STATE_T g_state;
 static struct class  *vchiq_class;
 static DEFINE_SPINLOCK(msg_queue_spinlock);
 static struct platform_device *bcm2835_camera;
+static struct platform_device *bcm2835_audio;
 
 static struct vchiq_drvdata bcm2835_drvdata = {
 	.cache_line_size = 32,
@@ -3553,6 +3554,7 @@ static int vchiq_probe(struct platform_device *pdev)
 		MAJOR(vchiq_devid), MINOR(vchiq_devid));
 
 	bcm2835_camera = vchiq_register_child(pdev, "bcm2835-camera");
+	bcm2835_audio = vchiq_register_child(pdev, "bcm2835_audio");
 
 	return 0;
 
