@@ -26,11 +26,56 @@
 #include "amdgpu_smu.h"
 #include "smu_v11_0.h"
 
+MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
+
 static int smu_v11_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
+	const char *chip_name;
+	char fw_name[30];
+	int err = 0;
+	const struct smc_firmware_header_v1_0 *hdr;
+	const struct common_firmware_header *header;
+	struct amdgpu_firmware_info *ucode = NULL;
 
-	return 0;
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		chip_name = "vega20";
+		break;
+	default:
+		BUG();
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_smc.bin", chip_name);
+
+	err = request_firmware(&adev->pm.fw, fw_name, adev->dev);
+	if (err)
+		goto out;
+	err = amdgpu_ucode_validate(adev->pm.fw);
+	if (err)
+		goto out;
+
+	hdr = (const struct smc_firmware_header_v1_0 *) adev->pm.fw->data;
+	amdgpu_ucode_print_smc_hdr(&hdr->header);
+	adev->pm.fw_version = le32_to_cpu(hdr->header.ucode_version);
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		ucode = &adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
+		ucode->ucode_id = AMDGPU_UCODE_ID_SMC;
+		ucode->fw = adev->pm.fw;
+		header = (const struct common_firmware_header *)ucode->fw->data;
+		adev->firmware.fw_size +=
+			ALIGN(le32_to_cpu(header->ucode_size_bytes), PAGE_SIZE);
+	}
+
+out:
+	if (err) {
+		DRM_ERROR("smu_v11_0: Failed to load firmware \"%s\"\n",
+			  fw_name);
+		release_firmware(adev->pm.fw);
+		adev->pm.fw = NULL;
+	}
+	return err;
 }
 
 static int smu_v11_0_load_microcode(struct smu_context *smu)
