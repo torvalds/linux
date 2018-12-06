@@ -217,26 +217,6 @@ static void msdc_tasklet_card(struct work_struct *work)
 	spin_unlock(&host->lock);
 }
 
-static void msdc_select_clksrc(struct msdc_host *host, unsigned char clksrc)
-{
-	u32 val;
-
-	BUG_ON(clksrc > 3);
-
-	val = readl(host->base + MSDC_CLKSRC_REG);
-	if (readl(host->base + MSDC_ECO_VER) >= 4) {
-		val &= ~(0x3  << clk_src_bit[host->id]);
-		val |= clksrc << clk_src_bit[host->id];
-	} else {
-		val &= ~0x3; val |= clksrc;
-	}
-	writel(val, host->base + MSDC_CLKSRC_REG);
-
-	host->hclk = hclks[clksrc];
-	host->hw->clk_src = clksrc;
-}
-#endif /* end of --- */
-
 static void msdc_set_mclk(struct msdc_host *host, int ddr, unsigned int hz)
 {
 	//struct msdc_hw *hw = host->hw;
