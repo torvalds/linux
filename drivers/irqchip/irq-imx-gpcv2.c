@@ -17,6 +17,9 @@
 
 #define GPC_IMR1_CORE0		0x30
 #define GPC_IMR1_CORE1		0x40
+#define GPC_IMR1_CORE2		0x1c0
+#define GPC_IMR1_CORE3		0x1d0
+
 
 struct gpcv2_irqchip_data {
 	struct raw_spinlock	rlock;
@@ -192,17 +195,33 @@ static const struct irq_domain_ops gpcv2_irqchip_data_domain_ops = {
 	.free		= irq_domain_free_irqs_common,
 };
 
+static const struct of_device_id gpcv2_of_match[] = {
+	{ .compatible = "fsl,imx7d-gpc",  .data = (const void *) 2 },
+	{ .compatible = "fsl,imx8mq-gpc", .data = (const void *) 4 },
+	{ /* END */ }
+};
+
 static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 			       struct device_node *parent)
 {
 	struct irq_domain *parent_domain, *domain;
 	struct gpcv2_irqchip_data *cd;
+	const struct of_device_id *id;
+	unsigned long core_num;
 	int i;
 
 	if (!parent) {
 		pr_err("%pOF: no parent, giving up\n", node);
 		return -ENODEV;
 	}
+
+	id = of_match_node(gpcv2_of_match, node);
+	if (!id) {
+		pr_err("%pOF: unknown compatibility string\n", node);
+		return -ENODEV;
+	}
+
+	core_num = (unsigned long)id->data;
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
@@ -236,8 +255,16 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 
 	/* Initially mask all interrupts */
 	for (i = 0; i < IMR_NUM; i++) {
-		writel_relaxed(~0, cd->gpc_base + GPC_IMR1_CORE0 + i * 4);
-		writel_relaxed(~0, cd->gpc_base + GPC_IMR1_CORE1 + i * 4);
+		void __iomem *reg = cd->gpc_base + i * 4;
+
+		switch (core_num) {
+		case 4:
+			writel_relaxed(~0, reg + GPC_IMR1_CORE2);
+			writel_relaxed(~0, reg + GPC_IMR1_CORE3);
+		case 2:	      /* FALLTHROUGH */
+			writel_relaxed(~0, reg + GPC_IMR1_CORE0);
+			writel_relaxed(~0, reg + GPC_IMR1_CORE1);
+		}
 		cd->wakeup_sources[i] = ~0;
 	}
 
