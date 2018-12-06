@@ -126,11 +126,17 @@ struct sunxi_pinctrl_group {
 	unsigned	pin;
 };
 
+struct sunxi_pinctrl_regulator {
+	struct regulator	*regulator;
+	refcount_t		refcount;
+};
+
 struct sunxi_pinctrl {
 	void __iomem			*membase;
 	struct gpio_chip		*chip;
 	const struct sunxi_pinctrl_desc	*desc;
 	struct device			*dev;
+	struct sunxi_pinctrl_regulator	regulators[12];
 	struct irq_domain		*domain;
 	struct sunxi_pinctrl_function	*functions;
 	unsigned			nfunctions;

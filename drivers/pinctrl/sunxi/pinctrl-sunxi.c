@@ -26,6 +26,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/regulator/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -693,12 +694,74 @@ sunxi_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	unsigned short bank = offset / PINS_PER_BANK;
+	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank];
+	struct regulator *reg;
+	int ret;
+
+	reg = s_reg->regulator;
+	if (!reg) {
+		char supply[16];
+
+		snprintf(supply, sizeof(supply), "vcc-p%c", 'a' + bank);
+		reg = regulator_get(pctl->dev, supply);
+		if (IS_ERR(reg)) {
+			dev_err(pctl->dev, "Couldn't get bank P%c regulator\n",
+				'A' + bank);
+			return PTR_ERR(reg);
+		}
+
+		s_reg->regulator = reg;
+		refcount_set(&s_reg->refcount, 1);
+	} else {
+		refcount_inc(&s_reg->refcount);
+	}
+
+	ret = regulator_enable(reg);
+	if (ret) {
+		dev_err(pctl->dev,
+			"Couldn't enable bank P%c regulator\n", 'A' + bank);
+		goto out;
+	}
+
+	return 0;
+
+out:
+	if (refcount_dec_and_test(&s_reg->refcount)) {
+		regulator_put(s_reg->regulator);
+		s_reg->regulator = NULL;
+	}
+
+	return ret;
+}
+
+static int sunxi_pmx_free(struct pinctrl_dev *pctldev, unsigned offset)
+{
+	struct sunxi_pinctrl *pctl = pinctrl_dev_get_drvdata(pctldev);
+	unsigned short bank = offset / PINS_PER_BANK;
+	struct sunxi_pinctrl_regulator *s_reg = &pctl->regulators[bank];
+
+	if (!refcount_dec_and_test(&s_reg->refcount))
+		return 0;
+
+	regulator_disable(s_reg->regulator);
+	regulator_put(s_reg->regulator);
+	s_reg->regulator = NULL;
+
+	return 0;
+}
+
 static const struct pinmux_ops sunxi_pmx_ops = {
 	.get_functions_count	= sunxi_pmx_get_funcs_cnt,
 	.get_function_name	= sunxi_pmx_get_func_name,
 	.get_function_groups	= sunxi_pmx_get_func_groups,
 	.set_mux		= sunxi_pmx_set_mux,
 	.gpio_set_direction	= sunxi_pmx_gpio_set_direction,
+	.request		= sunxi_pmx_request,
+	.free			= sunxi_pmx_free,
 	.strict			= true,
 };
 
