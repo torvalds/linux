@@ -791,11 +791,9 @@ static int iwl_mvm_sta_alloc_queue_tvqm(struct iwl_mvm *mvm,
 	if (queue < 0)
 		return queue;
 
-	if (sta) {
-		mvmtxq->txq_id = queue;
-		mvm->tvqm_info[queue].txq_tid = tid;
-		mvm->tvqm_info[queue].sta_id = mvmsta->sta_id;
-	}
+	mvmtxq->txq_id = queue;
+	mvm->tvqm_info[queue].txq_tid = tid;
+	mvm->tvqm_info[queue].sta_id = mvmsta->sta_id;
 
 	IWL_DEBUG_TX_QUEUES(mvm, "Allocated queue is %d\n", queue);
 
