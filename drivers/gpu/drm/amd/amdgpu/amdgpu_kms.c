@@ -467,9 +467,6 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	if (!info->return_size || !info->return_pointer)
 		return -EINVAL;
 
-	/* Ensure IB tests are run on ring */
-	flush_delayed_work(&adev->late_init_work);
-
 	switch (info->query) {
 	case AMDGPU_INFO_ACCEL_WORKING:
 		ui32 = adev->accel_working;
@@ -949,6 +946,9 @@ int amdgpu_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_fpriv *fpriv;
 	int r, pasid;
+
+	/* Ensure IB tests are run on ring */
+	flush_delayed_work(&adev->late_init_work);
 
 	file_priv->driver_priv = NULL;
 
