@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: (GPL-2.0 OR BSD-3-Clause)
-/*
- * This file is provided under a dual BSD/GPLv2 license.  When using or
- * redistributing this file, you may do so under either license.
- *
- * Copyright(c) 2018 Intel Corporation. All rights reserved.
- *
- * Author: Pan Xiuli <xiuli.pan@linux.intel.com>
- */
+//
+// This file is provided under a dual BSD/GPLv2 license.  When using or
+// redistributing this file, you may do so under either license.
+//
+// Copyright(c) 2018 Intel Corporation. All rights reserved.
+//
+// Author: Pan Xiuli <xiuli.pan@linux.intel.com>
+//
 
 #include <sound/sof.h>
 #include <sound/sof/xtensa.h>
