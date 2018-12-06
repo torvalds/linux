@@ -86,6 +86,10 @@ enum {
 };
 
 enum {
+	MLX5_SHARED_RESOURCE_UID = 0xffff,
+};
+
+enum {
 	MLX5_CMD_OP_QUERY_HCA_CAP                 = 0x100,
 	MLX5_CMD_OP_QUERY_ADAPTER                 = 0x101,
 	MLX5_CMD_OP_INIT_HCA                      = 0x102,
@@ -7567,7 +7571,7 @@ struct mlx5_ifc_alloc_q_counter_out_bits {
 
 struct mlx5_ifc_alloc_q_counter_in_bits {
 	u8         opcode[0x10];
-	u8         reserved_at_10[0x10];
+	u8         uid[0x10];
 
 	u8         reserved_at_20[0x10];
 	u8         op_mod[0x10];
