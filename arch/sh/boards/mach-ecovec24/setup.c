@@ -1460,9 +1460,9 @@ static int __init arch_setup(void)
 #if defined(CONFIG_MMC_SDHI) || defined(CONFIG_MMC_SDHI_MODULE)
 	gpiod_add_lookup_table(&sdhi0_power_gpiod_table);
 	gpiod_add_lookup_table(&sdhi0_gpio_table);
-#endif
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 	gpiod_add_lookup_table(&sdhi1_gpio_table);
+#endif
 #endif
 
 	return platform_add_devices(ecovec_devices,
