@@ -26,6 +26,8 @@
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 
+#define perf_arch_bpf_user_pt_regs(regs) &regs->user_regs
+
 /*
  * Overload regs->result to specify whether we should use the MSR (result
  * is zero) or the SIAR (result is non zero).
