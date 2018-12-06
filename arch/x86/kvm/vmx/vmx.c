@@ -423,11 +423,18 @@ static int vmx_hv_remote_flush_tlb(struct kvm *kvm)
 	/*
 	 * FLUSH_GUEST_PHYSICAL_ADDRESS_SPACE hypercall needs the address of the
 	 * base of EPT PML4 table, strip off EPT configuration information.
+	 * If ept_pointer is invalid pointer, bypass the flush request.
 	 */
 	if (to_kvm_vmx(kvm)->ept_pointers_match != EPT_POINTERS_MATCH) {
-		kvm_for_each_vcpu(i, vcpu, kvm)
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			u64 ept_pointer = to_vmx(vcpu)->ept_pointer;
+
+			if (!VALID_PAGE(ept_pointer))
+				continue;
+
 			ret |= hyperv_flush_guest_mapping(
-				to_vmx(kvm_get_vcpu(kvm, i))->ept_pointer & PAGE_MASK);
+				ept_pointer & PAGE_MASK);
+		}
 	} else {
 		ret = hyperv_flush_guest_mapping(
 				to_vmx(kvm_get_vcpu(kvm, 0))->ept_pointer & PAGE_MASK);
@@ -6432,6 +6439,8 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	 */
 	vmx->pi_desc.nv = POSTED_INTR_VECTOR;
 	vmx->pi_desc.sn = 1;
+
+	vmx->ept_pointer = INVALID_PAGE;
 
 	return &vmx->vcpu;
 
