@@ -1137,8 +1137,9 @@ static void neigh_update_hhs(struct neighbour *neigh)
    Caller MUST hold reference count on the entry.
  */
 
-int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
-		 u32 flags, u32 nlmsg_pid)
+static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
+			  u8 new, u32 flags, u32 nlmsg_pid,
+			  struct netlink_ext_ack *extack)
 {
 	u8 old;
 	int err;
@@ -1155,8 +1156,10 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 	if (!(flags & NEIGH_UPDATE_F_ADMIN) &&
 	    (old & (NUD_NOARP | NUD_PERMANENT)))
 		goto out;
-	if (neigh->dead)
+	if (neigh->dead) {
+		NL_SET_ERR_MSG(extack, "Neighbor entry is now dead");
 		goto out;
+	}
 
 	neigh_update_ext_learned(neigh, flags, &notify);
 
@@ -1193,8 +1196,10 @@ int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
 		   use it, otherwise discard the request.
 		 */
 		err = -EINVAL;
-		if (!(old & NUD_VALID))
+		if (!(old & NUD_VALID)) {
+			NL_SET_ERR_MSG(extack, "No link layer address given");
 			goto out;
+		}
 		lladdr = neigh->ha;
 	}
 
@@ -1306,6 +1311,12 @@ out:
 		neigh_update_notify(neigh, nlmsg_pid);
 
 	return err;
+}
+
+int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new,
+		 u32 flags, u32 nlmsg_pid)
+{
+	return __neigh_update(neigh, lladdr, new, flags, nlmsg_pid, NULL);
 }
 EXPORT_SYMBOL(neigh_update);
 
@@ -1678,8 +1689,10 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 
 	dst_attr = nlmsg_find_attr(nlh, sizeof(*ndm), NDA_DST);
-	if (dst_attr == NULL)
+	if (!dst_attr) {
+		NL_SET_ERR_MSG(extack, "Network address not specified");
 		goto out;
+	}
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex) {
@@ -1694,8 +1707,10 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (tbl == NULL)
 		return -EAFNOSUPPORT;
 
-	if (nla_len(dst_attr) < (int)tbl->key_len)
+	if (nla_len(dst_attr) < (int)tbl->key_len) {
+		NL_SET_ERR_MSG(extack, "Invalid network address");
 		goto out;
+	}
 
 	if (ndm->ndm_flags & NTF_PROXY) {
 		err = pneigh_delete(tbl, net, nla_data(dst_attr), dev);
@@ -1711,10 +1726,9 @@ static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 	}
 
-	err = neigh_update(neigh, NULL, NUD_FAILED,
-			   NEIGH_UPDATE_F_OVERRIDE |
-			   NEIGH_UPDATE_F_ADMIN,
-			   NETLINK_CB(skb).portid);
+	err = __neigh_update(neigh, NULL, NUD_FAILED,
+			     NEIGH_UPDATE_F_OVERRIDE | NEIGH_UPDATE_F_ADMIN,
+			     NETLINK_CB(skb).portid, extack);
 	write_lock_bh(&tbl->lock);
 	neigh_release(neigh);
 	neigh_remove_one(neigh, tbl);
@@ -1744,8 +1758,10 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 
 	err = -EINVAL;
-	if (tb[NDA_DST] == NULL)
+	if (!tb[NDA_DST]) {
+		NL_SET_ERR_MSG(extack, "Network address not specified");
 		goto out;
+	}
 
 	ndm = nlmsg_data(nlh);
 	if (ndm->ndm_ifindex) {
@@ -1755,16 +1771,21 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 			goto out;
 		}
 
-		if (tb[NDA_LLADDR] && nla_len(tb[NDA_LLADDR]) < dev->addr_len)
+		if (tb[NDA_LLADDR] && nla_len(tb[NDA_LLADDR]) < dev->addr_len) {
+			NL_SET_ERR_MSG(extack, "Invalid link address");
 			goto out;
+		}
 	}
 
 	tbl = neigh_find_table(ndm->ndm_family);
 	if (tbl == NULL)
 		return -EAFNOSUPPORT;
 
-	if (nla_len(tb[NDA_DST]) < (int)tbl->key_len)
+	if (nla_len(tb[NDA_DST]) < (int)tbl->key_len) {
+		NL_SET_ERR_MSG(extack, "Invalid network address");
 		goto out;
+	}
+
 	dst = nla_data(tb[NDA_DST]);
 	lladdr = tb[NDA_LLADDR] ? nla_data(tb[NDA_LLADDR]) : NULL;
 
@@ -1780,8 +1801,10 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto out;
 	}
 
-	if (dev == NULL)
+	if (!dev) {
+		NL_SET_ERR_MSG(extack, "Device not specified");
 		goto out;
+	}
 
 	neigh = neigh_lookup(tbl, dst, dev);
 	if (neigh == NULL) {
@@ -1817,8 +1840,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		neigh_event_send(neigh, NULL);
 		err = 0;
 	} else
-		err = neigh_update(neigh, lladdr, ndm->ndm_state, flags,
-				   NETLINK_CB(skb).portid);
+		err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
+				     NETLINK_CB(skb).portid, extack);
 	neigh_release(neigh);
 
 out:
