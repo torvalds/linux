@@ -1364,7 +1364,7 @@ void netdev_notify_peers(struct net_device *dev)
 }
 EXPORT_SYMBOL(netdev_notify_peers);
 
-static int __dev_open(struct net_device *dev)
+static int __dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int ret;
@@ -1380,7 +1380,7 @@ static int __dev_open(struct net_device *dev)
 	 */
 	netpoll_poll_disable(dev);
 
-	ret = call_netdevice_notifiers(NETDEV_PRE_UP, dev);
+	ret = call_netdevice_notifiers_extack(NETDEV_PRE_UP, dev, extack);
 	ret = notifier_to_errno(ret);
 	if (ret)
 		return ret;
@@ -1427,7 +1427,7 @@ int dev_open(struct net_device *dev, struct netlink_ext_ack *extack)
 	if (dev->flags & IFF_UP)
 		return 0;
 
-	ret = __dev_open(dev);
+	ret = __dev_open(dev, extack);
 	if (ret < 0)
 		return ret;
 
@@ -7547,7 +7547,7 @@ int __dev_change_flags(struct net_device *dev, unsigned int flags,
 		if (old_flags & IFF_UP)
 			__dev_close(dev);
 		else
-			ret = __dev_open(dev);
+			ret = __dev_open(dev, extack);
 	}
 
 	if ((flags ^ dev->gflags) & IFF_PROMISC) {
