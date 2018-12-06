@@ -9,17 +9,7 @@
 //
 
 #include <linux/debugfs.h>
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/dma-mapping.h>
-#include <linux/firmware.h>
-#include <linux/fs.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/platform_device.h>
 #include <linux/sched/signal.h>
-#include <linux/slab.h>
-#include <linux/time.h>
 #include "sof-priv.h"
 #include "ops.h"
 

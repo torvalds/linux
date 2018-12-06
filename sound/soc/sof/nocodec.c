@@ -8,13 +8,7 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <linux/device.h>
-#include <linux/init.h>
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <sound/pcm.h>
-#include <sound/pcm_params.h>
-#include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"
 

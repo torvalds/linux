@@ -8,17 +8,12 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <linux/acpi.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <sound/pcm.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
-#include "sof-priv.h"
 #include "ops.h"
 
 /* platform specific devices */

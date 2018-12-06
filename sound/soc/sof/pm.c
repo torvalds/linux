@@ -8,16 +8,6 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <linux/delay.h>
-#include <linux/mm.h>
-#include <linux/module.h>
-#include <linux/pm_runtime.h>
-#include <linux/slab.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <sound/core.h>
-#include <sound/soc.h>
-#include <sound/sof.h>
 #include "ops.h"
 #include "sof-priv.h"
 

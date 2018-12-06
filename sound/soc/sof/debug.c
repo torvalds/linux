@@ -12,16 +12,8 @@
 //
 
 #include <linux/debugfs.h>
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/fs.h>
-#include <linux/platform_device.h>
-#include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/slab.h>
-#include <linux/uaccess.h>
 #include "sof-priv.h"
-#include "ops.h"
 
 static int sof_dfsentry_open(struct inode *inode, struct file *file)
 {

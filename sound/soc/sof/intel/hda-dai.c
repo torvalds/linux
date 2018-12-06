@@ -10,7 +10,6 @@
 
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
-#include <sound/hda_register.h>
 #include "../sof-priv.h"
 #include "hda.h"
 

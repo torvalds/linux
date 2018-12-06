@@ -8,20 +8,10 @@
 // Authors: Keyon Jie <yang.jie@linux.intel.com>
 //
 
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/fs.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/slab.h>
-#include <sound/hdaudio.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_i915.h>
-#include <sound/hda_register.h>
 #include <sound/sof.h>
-#include "../sof-priv.h"
 #include "../ops.h"
 #include "hda.h"
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)

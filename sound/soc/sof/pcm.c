@@ -10,20 +10,8 @@
 // PCM Layer, interface between ALSA and IPC.
 //
 
-#include <linux/delay.h>
-#include <linux/dma-mapping.h>
-#include <linux/module.h>
 #include <linux/pm_runtime.h>
-#include <linux/slab.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/dmaengine_pcm.h>
-#include <sound/soc.h>
-#include <sound/tlv.h>
-#include <sound/compress_driver.h>
 #include <sound/sof.h>
 #include "sof-priv.h"
 #include "ops.h"

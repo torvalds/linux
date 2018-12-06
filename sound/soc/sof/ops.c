@@ -8,14 +8,8 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/types.h>
 #include "ops.h"
-#include "sof-priv.h"
 
 int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 				     u32 mask, u32 value)

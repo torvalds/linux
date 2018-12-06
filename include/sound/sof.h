@@ -11,11 +11,6 @@
 #ifndef __INCLUDE_SOUND_SOF_H
 #define __INCLUDE_SOUND_SOF_H
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>

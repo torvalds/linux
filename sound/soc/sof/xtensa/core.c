@@ -8,17 +8,9 @@
  * Author: Pan Xiuli <xiuli.pan@linux.intel.com>
  */
 
-#include <linux/delay.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <asm/page.h>
-#include <asm/pgtable.h>
-#include <sound/core.h>
-#include <sound/soc.h>
 #include <sound/sof.h>
 #include <sound/sof/xtensa.h>
 #include "../sof-priv.h"
-#include "../ops.h"
 
 struct xtensa_exception_cause {
 	u32 id;

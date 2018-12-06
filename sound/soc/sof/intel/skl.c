@@ -15,21 +15,7 @@
  * Hardware interface for audio DSP on Skylake and Kabylake.
  */
 
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/dma-mapping.h>
-#include <linux/firmware.h>
-#include <linux/fs.h>
-#include <linux/interrupt.h>
-#include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/pm_runtime.h>
-#include <linux/slab.h>
-#include <sound/hdaudio_ext.h>
-#include <sound/pcm_params.h>
-#include <sound/sof.h>
 #include "../sof-priv.h"
-#include "../ops.h"
 #include "hda.h"
 
 static const struct snd_sof_debugfs_map skl_dsp_debugfs[] = {

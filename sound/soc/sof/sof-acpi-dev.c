@@ -8,26 +8,19 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
+#include <asm/iosf_mbi.h>
 #include <linux/acpi.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <linux/pci.h>
-#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <acpi/acpi_bus.h>
-#include <asm/cpu_device_id.h>
-#include <asm/iosf_mbi.h>
-#include <sound/pcm.h>
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
 
-#include "sof-priv.h"
 #include "ops.h"
 
 /* platform specific devices */
 #include "intel/shim.h"
-#include "intel/hda.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HASWELL)
 static struct sof_dev_desc sof_acpi_haswell_desc = {

@@ -15,24 +15,10 @@
  * Hardware interface for generic Intel audio DSP HDA IP
  */
 
-#include <linux/delay.h>
-#include <linux/device.h>
-#include <linux/dma-mapping.h>
-#include <linux/firmware.h>
-#include <linux/fs.h>
-#include <linux/interrupt.h>
 #include <linux/module.h>
-#include <linux/pm_runtime.h>
-#include <linux/pci.h>
-#include <linux/slab.h>
-#include <linux/io.h>
 #include <sound/hdaudio_ext.h>
-#include <sound/hdaudio.h>
-#include <sound/hda_i915.h>
-#include <sound/pcm_params.h>
 #include <sound/sof.h>
 #include <sound/sof/xtensa.h>
-#include "../sof-priv.h"
 #include "../ops.h"
 #include "hda.h"
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
