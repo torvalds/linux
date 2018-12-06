@@ -223,6 +223,9 @@ static int papr_scm_nvdimm_init(struct papr_scm_priv *p)
 		goto err;
 	}
 
+	if (nvdimm_bus_check_dimm_count(p->bus, 1))
+		goto err;
+
 	/* now add the region */
 
 	memset(&mapping, 0, sizeof(mapping));
