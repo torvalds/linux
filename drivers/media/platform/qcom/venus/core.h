@@ -134,6 +134,7 @@ struct venus_core {
 	struct video_firmware {
 		struct device *dev;
 		struct iommu_domain *iommu_domain;
+		size_t mapped_mem_size;
 	} fw;
 	struct mutex lock;
 	struct list_head instances;
