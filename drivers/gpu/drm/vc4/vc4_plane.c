@@ -258,6 +258,52 @@ static u32 vc4_get_scl_field(struct drm_plane_state *state, int plane)
 	}
 }
 
+static int vc4_plane_margins_adj(struct drm_plane_state *pstate)
+{
+	struct vc4_plane_state *vc4_pstate = to_vc4_plane_state(pstate);
+	unsigned int left, right, top, bottom, adjhdisplay, adjvdisplay;
+	struct drm_crtc_state *crtc_state;
+
+	crtc_state = drm_atomic_get_new_crtc_state(pstate->state,
+						   pstate->crtc);
+
+	vc4_crtc_get_margins(crtc_state, &left, &right, &top, &bottom);
+	if (!left && !right && !top && !bottom)
+		return 0;
+
+	if (left + right >= crtc_state->mode.hdisplay ||
+	    top + bottom >= crtc_state->mode.vdisplay)
+		return -EINVAL;
+
+	adjhdisplay = crtc_state->mode.hdisplay - (left + right);
+	vc4_pstate->crtc_x = DIV_ROUND_CLOSEST(vc4_pstate->crtc_x *
+					       adjhdisplay,
+					       crtc_state->mode.hdisplay);
+	vc4_pstate->crtc_x += left;
+	if (vc4_pstate->crtc_x > crtc_state->mode.hdisplay - left)
+		vc4_pstate->crtc_x = crtc_state->mode.hdisplay - left;
+
+	adjvdisplay = crtc_state->mode.vdisplay - (top + bottom);
+	vc4_pstate->crtc_y = DIV_ROUND_CLOSEST(vc4_pstate->crtc_y *
+					       adjvdisplay,
+					       crtc_state->mode.vdisplay);
+	vc4_pstate->crtc_y += top;
+	if (vc4_pstate->crtc_y > crtc_state->mode.vdisplay - top)
+		vc4_pstate->crtc_y = crtc_state->mode.vdisplay - top;
+
+	vc4_pstate->crtc_w = DIV_ROUND_CLOSEST(vc4_pstate->crtc_w *
+					       adjhdisplay,
+					       crtc_state->mode.hdisplay);
+	vc4_pstate->crtc_h = DIV_ROUND_CLOSEST(vc4_pstate->crtc_h *
+					       adjvdisplay,
+					       crtc_state->mode.vdisplay);
+
+	if (!vc4_pstate->crtc_w || !vc4_pstate->crtc_h)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 {
 	struct vc4_plane_state *vc4_state = to_vc4_plane_state(state);
@@ -305,6 +351,10 @@ static int vc4_plane_setup_clipping_and_scaling(struct drm_plane_state *state)
 	vc4_state->crtc_y = state->dst.y1;
 	vc4_state->crtc_w = state->dst.x2 - state->dst.x1;
 	vc4_state->crtc_h = state->dst.y2 - state->dst.y1;
+
+	ret = vc4_plane_margins_adj(state);
+	if (ret)
+		return ret;
 
 	vc4_state->x_scaling[0] = vc4_get_scaling_mode(vc4_state->src_w[0],
 						       vc4_state->crtc_w);
