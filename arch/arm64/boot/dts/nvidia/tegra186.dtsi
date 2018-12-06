@@ -352,6 +352,15 @@
 		interrupt-parent = <&gic>;
 	};
 
+	cec@3960000 {
+		compatible = "nvidia,tegra186-cec";
+		reg = <0x0 0x03960000 0x0 0x10000>;
+		interrupts = <GIC_SPI 162 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_CEC>;
+		clock-names = "cec";
+		status = "disabled";
+	};
+
 	hsp_top0: hsp@3c00000 {
 		compatible = "nvidia,tegra186-hsp";
 		reg = <0x0 0x03c00000 0x0 0xa0000>;
