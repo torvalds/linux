@@ -410,7 +410,7 @@ static void bpf_get_prog_name(const struct bpf_prog *prog, char *sym)
 	sym  = bin2hex(sym, prog->tag, sizeof(prog->tag));
 
 	/* prog->aux->name will be ignored if full btf name is available */
-	if (prog->aux->btf) {
+	if (prog->aux->func_info_cnt) {
 		type = btf_type_by_id(prog->aux->btf,
 				      prog->aux->func_info[prog->aux->func_idx].type_id);
 		func_name = btf_name_by_offset(prog->aux->btf, type->name_off);
