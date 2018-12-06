@@ -46,6 +46,9 @@ The Slab Cache
 .. kernel-doc:: mm/slab.c
    :export:
 
+.. kernel-doc:: mm/slab_common.c
+   :export:
+
 .. kernel-doc:: mm/util.c
    :functions: kfree_const kvmalloc_node kvfree
 
