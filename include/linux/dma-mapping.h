@@ -253,6 +253,12 @@ static inline void dma_unmap_single_attrs(struct device *dev, dma_addr_t addr,
 	debug_dma_unmap_page(dev, addr, size, dir, true);
 }
 
+static inline void dma_unmap_page_attrs(struct device *dev, dma_addr_t addr,
+		size_t size, enum dma_data_direction dir, unsigned long attrs)
+{
+	return dma_unmap_single_attrs(dev, addr, size, dir, attrs);
+}
+
 /*
  * dma_maps_sg_attrs returns 0 on error and > 0 on success.
  * It should never return a value < 0.
@@ -298,19 +304,6 @@ static inline dma_addr_t dma_map_page_attrs(struct device *dev,
 	debug_dma_map_page(dev, page, offset, size, dir, addr, false);
 
 	return addr;
-}
-
-static inline void dma_unmap_page_attrs(struct device *dev,
-					dma_addr_t addr, size_t size,
-					enum dma_data_direction dir,
-					unsigned long attrs)
-{
-	const struct dma_map_ops *ops = get_dma_ops(dev);
-
-	BUG_ON(!valid_dma_direction(dir));
-	if (ops->unmap_page)
-		ops->unmap_page(dev, addr, size, dir, attrs);
-	debug_dma_unmap_page(dev, addr, size, dir, false);
 }
 
 static inline dma_addr_t dma_map_resource(struct device *dev,
