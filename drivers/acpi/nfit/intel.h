@@ -35,6 +35,8 @@ struct nd_intel_smart {
 	};
 } __packed;
 
+extern const struct nvdimm_security_ops *intel_security_ops;
+
 #define ND_INTEL_STATUS_SIZE		4
 #define ND_INTEL_PASSPHRASE_SIZE	32
 

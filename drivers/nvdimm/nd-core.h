@@ -42,7 +42,20 @@ struct nvdimm {
 	int id, num_flush;
 	struct resource *flush_wpq;
 	const char *dimm_id;
+	struct {
+		const struct nvdimm_security_ops *ops;
+		enum nvdimm_security_state state;
+	} sec;
 };
+
+static inline enum nvdimm_security_state nvdimm_security_state(
+		struct nvdimm *nvdimm)
+{
+	if (!nvdimm->sec.ops)
+		return -ENXIO;
+
+	return nvdimm->sec.ops->state(nvdimm);
+}
 
 /**
  * struct blk_alloc_info - tracking info for BLK dpa scanning
