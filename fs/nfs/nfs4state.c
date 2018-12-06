@@ -1555,7 +1555,7 @@ static void nfs42_complete_copies(struct nfs4_state_owner *sp, struct nfs4_state
 
 	spin_lock(&sp->so_server->nfs_client->cl_lock);
 	list_for_each_entry(copy, &sp->so_server->ss_copies, copies) {
-		if (nfs4_stateid_match_other(&state->stateid, &copy->parent_state->stateid))
+		if (!nfs4_stateid_match_other(&state->stateid, &copy->parent_state->stateid))
 			continue;
 		copy->flags = 1;
 		complete(&copy->completion);
