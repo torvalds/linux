@@ -3365,6 +3365,7 @@ static int spi_nor_init_params(struct spi_nor *nor,
 
 		if (spi_nor_parse_sfdp(nor, &sfdp_params)) {
 			nor->addr_width = 0;
+			nor->flags &= ~SNOR_F_4B_OPCODES;
 			/* restore previous erase map */
 			memcpy(&nor->erase_map, &prev_map,
 			       sizeof(nor->erase_map));
@@ -3665,9 +3666,7 @@ static int spi_nor_init(struct spi_nor *nor)
 		}
 	}
 
-	if ((nor->addr_width == 4) &&
-	    (JEDEC_MFR(nor->info) != SNOR_MFR_SPANSION) &&
-	    !(nor->info->flags & SPI_NOR_4B_OPCODES)) {
+	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES)) {
 		/*
 		 * If the RESET# pin isn't hooked up properly, or the system
 		 * otherwise doesn't perform a reset command in the boot
@@ -3699,10 +3698,8 @@ static void spi_nor_resume(struct mtd_info *mtd)
 void spi_nor_restore(struct spi_nor *nor)
 {
 	/* restore the addressing mode */
-	if ((nor->addr_width == 4) &&
-	    (JEDEC_MFR(nor->info) != SNOR_MFR_SPANSION) &&
-	    !(nor->info->flags & SPI_NOR_4B_OPCODES) &&
-	    (nor->flags & SNOR_F_BROKEN_RESET))
+	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
+	    nor->flags & SNOR_F_BROKEN_RESET)
 		set_4byte(nor, nor->info, 0);
 }
 EXPORT_SYMBOL_GPL(spi_nor_restore);
@@ -3858,12 +3855,16 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	} else if (mtd->size > 0x1000000) {
 		/* enable 4-byte addressing if the device exceeds 16MiB */
 		nor->addr_width = 4;
-		if (JEDEC_MFR(info) == SNOR_MFR_SPANSION ||
-		    info->flags & SPI_NOR_4B_OPCODES)
-			spi_nor_set_4byte_opcodes(nor, info);
 	} else {
 		nor->addr_width = 3;
 	}
+
+	if (info->flags & SPI_NOR_4B_OPCODES ||
+	    (JEDEC_MFR(info) == SNOR_MFR_SPANSION && mtd->size > SZ_16M))
+		nor->flags |= SNOR_F_4B_OPCODES;
+
+	if (nor->addr_width == 4 && nor->flags & SNOR_F_4B_OPCODES)
+		spi_nor_set_4byte_opcodes(nor, info);
 
 	if (nor->addr_width > SPI_NOR_MAX_ADDR_WIDTH) {
 		dev_err(dev, "address width is too large: %u\n",
