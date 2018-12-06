@@ -19,6 +19,12 @@ static int ad5686_spi_write(struct ad5686_state *st,
 	u8 tx_len, *buf;
 
 	switch (st->chip_info->regmap_type) {
+	case AD5310_REGMAP:
+		st->data[0].d16 = cpu_to_be16(AD5310_CMD(cmd) |
+					      val);
+		buf = &st->data[0].d8[0];
+		tx_len = 2;
+		break;
 	case AD5683_REGMAP:
 		st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) |
 					      AD5683_DATA(val));
@@ -56,10 +62,18 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 	u8 cmd = 0;
 	int ret;
 
-	if (st->chip_info->regmap_type == AD5686_REGMAP)
-		cmd = AD5686_CMD_READBACK_ENABLE;
-	else if (st->chip_info->regmap_type == AD5683_REGMAP)
+	switch (st->chip_info->regmap_type) {
+	case AD5310_REGMAP:
+		return -ENOTSUPP;
+	case AD5683_REGMAP:
 		cmd = AD5686_CMD_READBACK_ENABLE_V2;
+		break;
+	case AD5686_REGMAP:
+		cmd = AD5686_CMD_READBACK_ENABLE;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	st->data[0].d32 = cpu_to_be32(AD5686_CMD(cmd) |
 				      AD5686_ADDR(addr));
@@ -86,6 +100,7 @@ static int ad5686_spi_remove(struct spi_device *spi)
 }
 
 static const struct spi_device_id ad5686_spi_id[] = {
+	{"ad5310r", ID_AD5310R},
 	{"ad5672r", ID_AD5672R},
 	{"ad5676", ID_AD5676},
 	{"ad5676r", ID_AD5676R},
