@@ -2704,7 +2704,7 @@ int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file)
 	int ret;
 
 	if (sdev->tplg_loaded) {
-		dev_err(sdev->dev, "topology already loaded ?\n");
+		dev_err(sdev->dev, "error: topology already loaded ?\n");
 		return -EINVAL;
 	}
 
