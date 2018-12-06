@@ -243,6 +243,15 @@
 		>;
 	};
 
+	accelerometer@1c {
+		compatible = "fsl,mma8451";
+		reg = <0x1c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c1_mma8451_int>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <18 IRQ_TYPE_LEVEL_LOW>;
+	};
+
 	ov5642: camera@3c {
 		compatible = "ovti,ov5642";
 		pinctrl-names = "default";
@@ -519,6 +528,12 @@
 			fsl,pins = <
 				MX6QDL_PAD_CSI0_DAT8__I2C1_SDA		0x4001b8b1
 				MX6QDL_PAD_CSI0_DAT9__I2C1_SCL		0x4001b8b1
+			>;
+		};
+
+		pinctrl_i2c1_mma8451_int: i2c1mma8451intgrp {
+			fsl,pins = <
+				MX6QDL_PAD_SD1_CMD__GPIO1_IO18		0xb0b1
 			>;
 		};
 
