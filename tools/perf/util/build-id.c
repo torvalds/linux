@@ -364,7 +364,8 @@ int perf_session__write_buildid_table(struct perf_session *session,
 	if (err)
 		return err;
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		err = machine__write_buildid_table(pos, fd);
 		if (err)
@@ -397,7 +398,8 @@ int dsos__hit_all(struct perf_session *session)
 	if (err)
 		return err;
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 
 		err = machine__hit_all_dsos(pos);
@@ -850,7 +852,8 @@ int perf_session__cache_build_ids(struct perf_session *session)
 
 	ret = machine__cache_build_ids(&session->machines.host);
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret |= machine__cache_build_ids(pos);
 	}
@@ -867,7 +870,8 @@ bool perf_session__read_build_ids(struct perf_session *session, bool with_hits)
 	struct rb_node *nd;
 	bool ret = machine__read_build_ids(&session->machines.host, with_hits);
 
-	for (nd = rb_first(&session->machines.guests); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&session->machines.guests); nd;
+	     nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
 		ret |= machine__read_build_ids(pos, with_hits);
 	}
