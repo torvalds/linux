@@ -78,7 +78,7 @@ static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 	u32 mask, val;
 
 	raw_spin_lock_irqsave(&cd->rlock, flags);
-	mask = 1 << d->hwirq % 32;
+	mask = BIT(d->hwirq % 32);
 	val = cd->wakeup_sources[idx];
 
 	cd->wakeup_sources[idx] = on ? (val & ~mask) : (val | mask);
@@ -101,7 +101,7 @@ static void imx_gpcv2_irq_unmask(struct irq_data *d)
 	raw_spin_lock(&cd->rlock);
 	reg = gpcv2_idx_to_reg(cd, d->hwirq / 32);
 	val = readl_relaxed(reg);
-	val &= ~(1 << d->hwirq % 32);
+	val &= ~BIT(d->hwirq % 32);
 	writel_relaxed(val, reg);
 	raw_spin_unlock(&cd->rlock);
 
@@ -117,7 +117,7 @@ static void imx_gpcv2_irq_mask(struct irq_data *d)
 	raw_spin_lock(&cd->rlock);
 	reg = gpcv2_idx_to_reg(cd, d->hwirq / 32);
 	val = readl_relaxed(reg);
-	val |= 1 << (d->hwirq % 32);
+	val |= BIT(d->hwirq % 32);
 	writel_relaxed(val, reg);
 	raw_spin_unlock(&cd->rlock);
 
