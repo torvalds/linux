@@ -509,6 +509,11 @@
 	status = "okay";
 };
 
+&rockchip_suspend {
+	status = "okay";
+	rockchip,virtual-poweroff = <1>;
+};
+
 &saradc {
 	status = "okay";
 	vref-supply = <&vcc_18>;
