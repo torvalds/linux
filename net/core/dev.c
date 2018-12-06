@@ -162,6 +162,9 @@ static struct list_head offload_base __read_mostly;
 static int netif_rx_internal(struct sk_buff *skb);
 static int call_netdevice_notifiers_info(unsigned long val,
 					 struct netdev_notifier_info *info);
+static int call_netdevice_notifiers_extack(unsigned long val,
+					   struct net_device *dev,
+					   struct netlink_ext_ack *extack);
 static struct napi_struct *napi_by_id(unsigned int napi_id);
 
 /*
@@ -1734,6 +1737,18 @@ static int call_netdevice_notifiers_info(unsigned long val,
 	return raw_notifier_call_chain(&netdev_chain, val, info);
 }
 
+static int call_netdevice_notifiers_extack(unsigned long val,
+					   struct net_device *dev,
+					   struct netlink_ext_ack *extack)
+{
+	struct netdev_notifier_info info = {
+		.dev = dev,
+		.extack = extack,
+	};
+
+	return call_netdevice_notifiers_info(val, &info);
+}
+
 /**
  *	call_netdevice_notifiers - call all network notifier blocks
  *      @val: value passed unmodified to notifier function
@@ -1745,11 +1760,7 @@ static int call_netdevice_notifiers_info(unsigned long val,
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 {
-	struct netdev_notifier_info info = {
-		.dev = dev,
-	};
-
-	return call_netdevice_notifiers_info(val, &info);
+	return call_netdevice_notifiers_extack(val, dev, NULL);
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
