@@ -43,7 +43,7 @@
 #define _UVERBS_NAME(x, y)	_UVERBS_PASTE(x, y)
 #define UVERBS_METHOD(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _method_##id)
 #define UVERBS_HANDLER(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _handler_##id)
-#define UVERBS_OBJECT(id)	_UVERBS_NAME(UVERBS_MOUDLE_NAME, _object_##id)
+#define UVERBS_OBJECT(id)	_UVERBS_NAME(UVERBS_MODULE_NAME, _object_##id)
 
 /* These are static so they do not need to be qualified */
 #define UVERBS_METHOD_ATTRS(method_id) _method_attrs_##method_id
