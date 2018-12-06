@@ -626,46 +626,32 @@ void bch2_btree_ptr_debugcheck(struct bch_fs *c, struct btree *b,
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
-	unsigned seq;
 	const char *err;
 	char buf[160];
 	struct bucket_mark mark;
 	struct bch_dev *ca;
-	unsigned replicas = 0;
-	bool bad;
+
+	bch2_fs_bug_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+		       !bch2_bkey_replicas_marked(c, k, false), c,
+		       "btree key bad (replicas not marked in superblock):\n%s",
+		       (bch2_bkey_val_to_text(&PBUF(buf), c, k), buf));
+
+	if (!test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags))
+		return;
 
 	bkey_for_each_ptr(ptrs, ptr) {
 		ca = bch_dev_bkey_exists(c, ptr->dev);
-		replicas++;
 
-		if (!test_bit(BCH_FS_ALLOC_READ_DONE, &c->flags))
-			continue;
+		mark = ptr_bucket_mark(ca, ptr);
 
 		err = "stale";
-		if (ptr_stale(ca, ptr))
+		if (gen_after(mark.gen, ptr->gen))
 			goto err;
-
-		do {
-			seq = read_seqcount_begin(&c->gc_pos_lock);
-			mark = ptr_bucket_mark(ca, ptr);
-
-			bad = gc_pos_cmp(c->gc_pos, gc_pos_btree_node(b)) > 0 &&
-				(mark.data_type != BCH_DATA_BTREE ||
-				 mark.dirty_sectors < c->opts.btree_node_size);
-		} while (read_seqcount_retry(&c->gc_pos_lock, seq));
 
 		err = "inconsistent";
-		if (bad)
+		if (mark.data_type != BCH_DATA_BTREE ||
+		    mark.dirty_sectors < c->opts.btree_node_size)
 			goto err;
-	}
-
-	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-	    !bch2_bkey_replicas_marked(c, k, false)) {
-		bch2_bkey_val_to_text(&PBUF(buf), c, k);
-		bch2_fs_bug(c,
-			"btree key bad (replicas not marked in superblock):\n%s",
-			buf);
-		return;
 	}
 
 	return;
@@ -1340,13 +1326,9 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b,
 			    struct bkey_s_c k)
 {
 	struct bkey_s_c_extent e = bkey_s_c_to_extent(k);
-	const struct bch_extent_ptr *ptr;
-	struct bch_dev *ca;
-	struct bucket_mark mark;
-	unsigned seq, stale;
+	const union bch_extent_entry *entry;
+	struct extent_ptr_decoded p;
 	char buf[160];
-	bool bad;
-	unsigned replicas = 0;
 
 	/*
 	 * XXX: we should be doing most/all of these checks at startup time,
@@ -1357,73 +1339,42 @@ void bch2_extent_debugcheck(struct bch_fs *c, struct btree *b,
 	 * going to get overwritten during replay)
 	 */
 
-	extent_for_each_ptr(e, ptr) {
-		ca = bch_dev_bkey_exists(c, ptr->dev);
-		replicas++;
+	bch2_fs_bug_on(!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
+		       !bch2_bkey_replicas_marked(c, e.s_c, false), c,
+		       "extent key bad (replicas not marked in superblock):\n%s",
+		       (bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf));
 
-		/*
-		 * If journal replay hasn't finished, we might be seeing keys
-		 * that will be overwritten by the time journal replay is done:
-		 */
-		if (!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
-			continue;
-
-		stale = 0;
-
-		do {
-			seq = read_seqcount_begin(&c->gc_pos_lock);
-			mark = ptr_bucket_mark(ca, ptr);
-
-			/* between mark and bucket gen */
-			smp_rmb();
-
-			stale = ptr_stale(ca, ptr);
-
-			bch2_fs_bug_on(stale && !ptr->cached, c,
-					 "stale dirty pointer");
-
-			bch2_fs_bug_on(stale > 96, c,
-					 "key too stale: %i",
-					 stale);
-
-			if (stale)
-				break;
-
-			bad = gc_pos_cmp(c->gc_pos, gc_pos_btree_node(b)) > 0 &&
-				(mark.data_type != BCH_DATA_USER ||
-				 !(ptr->cached
-				   ? mark.cached_sectors
-				   : mark.dirty_sectors));
-		} while (read_seqcount_retry(&c->gc_pos_lock, seq));
-
-		if (bad)
-			goto bad_ptr;
-	}
-
-	if (replicas > BCH_REPLICAS_MAX) {
-		bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c);
-		bch2_fs_bug(c,
-			"extent key bad (too many replicas: %u): %s",
-			replicas, buf);
+	/*
+	 * If journal replay hasn't finished, we might be seeing keys
+	 * that will be overwritten by the time journal replay is done:
+	 */
+	if (!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
 		return;
+
+	extent_for_each_ptr_decode(e, p, entry) {
+		struct bch_dev *ca	= bch_dev_bkey_exists(c, p.ptr.dev);
+		struct bucket_mark mark = ptr_bucket_mark(ca, &p.ptr);
+		unsigned stale		= gen_after(mark.gen, p.ptr.gen);
+		unsigned disk_sectors	= ptr_disk_sectors(p);
+		unsigned mark_sectors	= p.ptr.cached
+			? mark.cached_sectors
+			: mark.dirty_sectors;
+
+		bch2_fs_bug_on(stale && !p.ptr.cached, c,
+			       "stale dirty pointer (ptr gen %u bucket %u",
+			       p.ptr.gen, mark.gen);
+
+		bch2_fs_bug_on(stale > 96, c, "key too stale: %i", stale);
+
+		bch2_fs_bug_on(!stale &&
+			       (mark.data_type != BCH_DATA_USER ||
+				mark_sectors < disk_sectors), c,
+			       "extent pointer not marked: %s:\n"
+			       "type %u sectors %u < %u",
+			       (bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c), buf),
+			       mark.data_type,
+			       mark_sectors, disk_sectors);
 	}
-
-	if (!test_bit(BCH_FS_REBUILD_REPLICAS, &c->flags) &&
-	    !bch2_bkey_replicas_marked(c, e.s_c, false)) {
-		bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c);
-		bch2_fs_bug(c,
-			"extent key bad (replicas not marked in superblock):\n%s",
-			buf);
-		return;
-	}
-
-	return;
-
-bad_ptr:
-	bch2_bkey_val_to_text(&PBUF(buf), c, e.s_c);
-	bch2_fs_bug(c, "extent pointer bad gc mark: %s:\nbucket %zu "
-		   "gen %i type %u", buf,
-		   PTR_BUCKET_NR(ca, ptr), mark.gen, mark.data_type);
 }
 
 void bch2_extent_to_text(struct printbuf *out, struct bch_fs *c,
