@@ -98,15 +98,28 @@ struct gpio_desc *__must_check devm_gpiod_get_index(struct device *dev,
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
+	desc = gpiod_get_index(dev, con_id, idx, flags);
+	if (IS_ERR(desc))
+		return desc;
+
+	/*
+	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * already under resource management by this device.
+	 */
+	if (flags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
+		struct devres *dres;
+
+		dres = devres_find(dev, devm_gpiod_release,
+				   devm_gpiod_match, &desc);
+		if (dres)
+			return desc;
+	}
+
 	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
-	if (!dr)
+	if (!dr) {
+		gpiod_put(desc);
 		return ERR_PTR(-ENOMEM);
-
-	desc = gpiod_get_index(dev, con_id, idx, flags);
-	if (IS_ERR(desc)) {
-		devres_free(dr);
-		return desc;
 	}
 
 	*dr = desc;
@@ -140,15 +153,28 @@ struct gpio_desc *devm_gpiod_get_from_of_node(struct device *dev,
 	struct gpio_desc **dr;
 	struct gpio_desc *desc;
 
+	desc = gpiod_get_from_of_node(node, propname, index, dflags, label);
+	if (IS_ERR(desc))
+		return desc;
+
+	/*
+	 * For non-exclusive GPIO descriptors, check if this descriptor is
+	 * already under resource management by this device.
+	 */
+	if (dflags & GPIOD_FLAGS_BIT_NONEXCLUSIVE) {
+		struct devres *dres;
+
+		dres = devres_find(dev, devm_gpiod_release,
+				   devm_gpiod_match, &desc);
+		if (dres)
+			return desc;
+	}
+
 	dr = devres_alloc(devm_gpiod_release, sizeof(struct gpio_desc *),
 			  GFP_KERNEL);
-	if (!dr)
+	if (!dr) {
+		gpiod_put(desc);
 		return ERR_PTR(-ENOMEM);
-
-	desc = gpiod_get_from_of_node(node, propname, index, dflags, label);
-	if (IS_ERR(desc)) {
-		devres_free(dr);
-		return desc;
 	}
 
 	*dr = desc;
