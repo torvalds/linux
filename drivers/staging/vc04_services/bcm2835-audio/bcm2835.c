@@ -354,25 +354,7 @@ static struct platform_driver bcm2835_alsa_driver = {
 		.of_match_table = snd_bcm2835_of_match_table,
 	},
 };
-
-static int bcm2835_alsa_device_init(void)
-{
-	int retval;
-
-	retval = platform_driver_register(&bcm2835_alsa_driver);
-	if (retval)
-		pr_err("Error registering bcm2835_audio driver %d .\n", retval);
-
-	return retval;
-}
-
-static void bcm2835_alsa_device_exit(void)
-{
-	platform_driver_unregister(&bcm2835_alsa_driver);
-}
-
-late_initcall(bcm2835_alsa_device_init);
-module_exit(bcm2835_alsa_device_exit);
+module_platform_driver(bcm2835_alsa_driver);
 
 MODULE_AUTHOR("Dom Cobley");
 MODULE_DESCRIPTION("Alsa driver for BCM2835 chip");
