@@ -2298,9 +2298,22 @@ union bpf_attr {
  *		if possible. Other errors can occur if input parameters are
  *		invalid either due to *start* byte not being valid part of msg
  *		payload and/or *pop* value being to large.
- *
  *	Return
- *		0 on success, or a negative erro in case of failure.
+ *		0 on success, or a negative error in case of failure.
+ *
+ * int bpf_rc_pointer_rel(void *ctx, s32 rel_x, s32 rel_y)
+ *	Description
+ *		This helper is used in programs implementing IR decoding, to
+ *		report a successfully decoded pointer movement.
+ *
+ *		The *ctx* should point to the lirc sample as passed into
+ *		the program.
+ *
+ *		This helper is only available is the kernel was compiled with
+ *		the **CONFIG_BPF_LIRC_MODE2** configuration option set to
+ *		"**y**".
+ *	Return
+ *		0
  */
 #define __BPF_FUNC_MAPPER(FN)		\
 	FN(unspec),			\
@@ -2394,7 +2407,8 @@ union bpf_attr {
 	FN(map_pop_elem),		\
 	FN(map_peek_elem),		\
 	FN(msg_push_data),		\
-	FN(msg_pop_data),
+	FN(msg_pop_data),		\
+	FN(rc_pointer_rel),
 
 /* integer value in 'imm' field of BPF_CALL instruction selects which helper
  * function eBPF program intends to call
