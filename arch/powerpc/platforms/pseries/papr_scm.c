@@ -264,6 +264,8 @@ static int papr_scm_probe(struct platform_device *pdev)
 	u32 drc_index, metadata_size;
 	u64 blocks, block_size;
 	struct papr_scm_priv *p;
+	const char *uuid_str;
+	u64 uuid[2];
 	int rc;
 
 	/* check we have all the required DT properties */
@@ -282,6 +284,11 @@ static int papr_scm_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (of_property_read_string(dn, "ibm,unit-guid", &uuid_str)) {
+		dev_err(&pdev->dev, "%pOF: missing unit-guid!\n", dn);
+		return -ENODEV;
+	}
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
@@ -293,6 +300,11 @@ static int papr_scm_probe(struct platform_device *pdev)
 	p->drc_index = drc_index;
 	p->block_size = block_size;
 	p->blocks = blocks;
+
+	/* We just need to ensure that set cookies are unique across */
+	uuid_parse(uuid_str, (uuid_t *) uuid);
+	p->nd_set.cookie1 = uuid[0];
+	p->nd_set.cookie2 = uuid[1];
 
 	/* might be zero */
 	p->metadata_size = metadata_size;
