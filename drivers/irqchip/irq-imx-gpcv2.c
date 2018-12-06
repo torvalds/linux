@@ -28,6 +28,11 @@ struct gpcv2_irqchip_data {
 
 static struct gpcv2_irqchip_data *imx_gpcv2_instance;
 
+static void __iomem *gpcv2_idx_to_reg(struct gpcv2_irqchip_data *cd, int i)
+{
+	return cd->gpc_base + cd->cpu2wakeup + i * 4;
+}
+
 static int gpcv2_wakeup_source_save(void)
 {
 	struct gpcv2_irqchip_data *cd;
@@ -39,7 +44,7 @@ static int gpcv2_wakeup_source_save(void)
 		return 0;
 
 	for (i = 0; i < IMR_NUM; i++) {
-		reg = cd->gpc_base + cd->cpu2wakeup + i * 4;
+		reg = gpcv2_idx_to_reg(cd, i);
 		cd->saved_irq_mask[i] = readl_relaxed(reg);
 		writel_relaxed(cd->wakeup_sources[i], reg);
 	}
@@ -50,17 +55,14 @@ static int gpcv2_wakeup_source_save(void)
 static void gpcv2_wakeup_source_restore(void)
 {
 	struct gpcv2_irqchip_data *cd;
-	void __iomem *reg;
 	int i;
 
 	cd = imx_gpcv2_instance;
 	if (!cd)
 		return;
 
-	for (i = 0; i < IMR_NUM; i++) {
-		reg = cd->gpc_base + cd->cpu2wakeup + i * 4;
-		writel_relaxed(cd->saved_irq_mask[i], reg);
-	}
+	for (i = 0; i < IMR_NUM; i++)
+		writel_relaxed(cd->saved_irq_mask[i], gpcv2_idx_to_reg(cd, i));
 }
 
 static struct syscore_ops imx_gpcv2_syscore_ops = {
@@ -97,7 +99,7 @@ static void imx_gpcv2_irq_unmask(struct irq_data *d)
 	u32 val;
 
 	raw_spin_lock(&cd->rlock);
-	reg = cd->gpc_base + cd->cpu2wakeup + d->hwirq / 32 * 4;
+	reg = gpcv2_idx_to_reg(cd, d->hwirq / 32);
 	val = readl_relaxed(reg);
 	val &= ~(1 << d->hwirq % 32);
 	writel_relaxed(val, reg);
@@ -113,7 +115,7 @@ static void imx_gpcv2_irq_mask(struct irq_data *d)
 	u32 val;
 
 	raw_spin_lock(&cd->rlock);
-	reg = cd->gpc_base + cd->cpu2wakeup + d->hwirq / 32 * 4;
+	reg = gpcv2_idx_to_reg(cd, d->hwirq / 32);
 	val = readl_relaxed(reg);
 	val |= 1 << (d->hwirq % 32);
 	writel_relaxed(val, reg);
