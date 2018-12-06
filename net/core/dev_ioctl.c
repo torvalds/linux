@@ -234,7 +234,7 @@ static int dev_ifsioc(struct net *net, struct ifreq *ifr, unsigned int cmd)
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:	/* Set interface flags */
-		return dev_change_flags(dev, ifr->ifr_flags);
+		return dev_change_flags(dev, ifr->ifr_flags, NULL);
 
 	case SIOCSIFMETRIC:	/* Set the metric on the interface
 				   (currently unused) */

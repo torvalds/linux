@@ -337,7 +337,7 @@ NETDEVICE_SHOW_RW(mtu, fmt_dec);
 
 static int change_flags(struct net_device *dev, unsigned long new_flags)
 {
-	return dev_change_flags(dev, (unsigned int)new_flags);
+	return dev_change_flags(dev, (unsigned int)new_flags, NULL);
 }
 
 static ssize_t flags_store(struct device *dev, struct device_attribute *attr,

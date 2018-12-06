@@ -93,7 +93,7 @@ static struct vport *geneve_tnl_create(const struct vport_parms *parms)
 		return ERR_CAST(dev);
 	}
 
-	err = dev_change_flags(dev, dev->flags | IFF_UP);
+	err = dev_change_flags(dev, dev->flags | IFF_UP, NULL);
 	if (err < 0) {
 		rtnl_delete_link(dev);
 		rtnl_unlock();
