@@ -390,7 +390,48 @@ static ssize_t security_show(struct device *dev,
 
 	return -ENOTTY;
 }
-static DEVICE_ATTR_RO(security);
+
+static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
+{
+	struct nvdimm *nvdimm = to_nvdimm(dev);
+	ssize_t rc;
+
+	if (atomic_read(&nvdimm->busy))
+		return -EBUSY;
+
+	if (sysfs_streq(buf, "freeze")) {
+		dev_dbg(dev, "freeze\n");
+		rc = nvdimm_security_freeze(nvdimm);
+	} else
+		return -EINVAL;
+
+	if (rc == 0)
+		rc = len;
+	return rc;
+
+}
+
+static ssize_t security_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+
+{
+	ssize_t rc;
+
+	/*
+	 * Require all userspace triggered security management to be
+	 * done while probing is idle and the DIMM is not in active use
+	 * in any region.
+	 */
+	device_lock(dev);
+	nvdimm_bus_lock(dev);
+	wait_nvdimm_bus_probe_idle(dev);
+	rc = __security_store(dev, buf, len);
+	nvdimm_bus_unlock(dev);
+	device_unlock(dev);
+
+	return rc;
+}
+static DEVICE_ATTR_RW(security);
 
 static struct attribute *nvdimm_attributes[] = {
 	&dev_attr_state.attr,
@@ -410,7 +451,10 @@ static umode_t nvdimm_visible(struct kobject *kobj, struct attribute *a, int n)
 		return a->mode;
 	if (nvdimm->sec.state < 0)
 		return 0;
-	return a->mode;
+	/* Are there any state mutation ops? */
+	if (nvdimm->sec.ops->freeze)
+		return a->mode;
+	return 0444;
 }
 
 struct attribute_group nvdimm_attribute_group = {
@@ -461,6 +505,24 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	return nvdimm;
 }
 EXPORT_SYMBOL_GPL(__nvdimm_create);
+
+int nvdimm_security_freeze(struct nvdimm *nvdimm)
+{
+	int rc;
+
+	WARN_ON_ONCE(!is_nvdimm_bus_locked(&nvdimm->dev));
+
+	if (!nvdimm->sec.ops || !nvdimm->sec.ops->freeze)
+		return -EOPNOTSUPP;
+
+	if (nvdimm->sec.state < 0)
+		return -EIO;
+
+	rc = nvdimm->sec.ops->freeze(nvdimm);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+
+	return rc;
+}
 
 int alias_dpa_busy(struct device *dev, void *data)
 {

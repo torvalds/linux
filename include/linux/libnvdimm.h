@@ -165,6 +165,7 @@ enum nvdimm_security_state {
 
 struct nvdimm_security_ops {
 	enum nvdimm_security_state (*state)(struct nvdimm *nvdimm);
+	int (*freeze)(struct nvdimm *nvdimm);
 };
 
 void badrange_init(struct badrange *badrange);

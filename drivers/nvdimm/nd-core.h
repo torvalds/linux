@@ -56,6 +56,7 @@ static inline enum nvdimm_security_state nvdimm_security_state(
 
 	return nvdimm->sec.ops->state(nvdimm);
 }
+int nvdimm_security_freeze(struct nvdimm *nvdimm);
 
 /**
  * struct blk_alloc_info - tracking info for BLK dpa scanning

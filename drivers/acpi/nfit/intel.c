@@ -48,7 +48,35 @@ static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm)
 	return NVDIMM_SECURITY_DISABLED;
 }
 
+static int intel_security_freeze(struct nvdimm *nvdimm)
+{
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	struct {
+		struct nd_cmd_pkg pkg;
+		struct nd_intel_freeze_lock cmd;
+	} nd_cmd = {
+		.pkg = {
+			.nd_command = NVDIMM_INTEL_FREEZE_LOCK,
+			.nd_family = NVDIMM_FAMILY_INTEL,
+			.nd_size_out = ND_INTEL_STATUS_SIZE,
+			.nd_fw_size = ND_INTEL_STATUS_SIZE,
+		},
+	};
+	int rc;
+
+	if (!test_bit(NVDIMM_INTEL_FREEZE_LOCK, &nfit_mem->dsm_mask))
+		return -ENOTTY;
+
+	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
+	if (rc < 0)
+		return rc;
+	if (nd_cmd.cmd.status)
+		return -EIO;
+	return 0;
+}
+
 static const struct nvdimm_security_ops __intel_security_ops = {
 	.state = intel_security_state,
+	.freeze = intel_security_freeze,
 };
 const struct nvdimm_security_ops *intel_security_ops = &__intel_security_ops;
