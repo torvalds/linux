@@ -316,7 +316,7 @@ static void mlx5e_hairpin_fill_rqt_rqns(struct mlx5e_hairpin *hp, void *rqtc)
 
 	for (i = 0; i < sz; i++) {
 		ix = i;
-		if (priv->channels.params.rss_hfunc == ETH_RSS_HASH_XOR)
+		if (priv->rss_params.hfunc == ETH_RSS_HASH_XOR)
 			ix = mlx5e_bits_invert(i, ilog2(sz));
 		ix = indirection_rqt[ix];
 		rqn = hp->pair->rqn[ix];
@@ -360,13 +360,15 @@ static int mlx5e_hairpin_create_indirect_tirs(struct mlx5e_hairpin *hp)
 	void *tirc;
 
 	for (tt = 0; tt < MLX5E_NUM_INDIR_TIRS; tt++) {
+		struct mlx5e_tirc_config ttconfig = mlx5e_tirc_get_default_config(tt);
+
 		memset(in, 0, MLX5_ST_SZ_BYTES(create_tir_in));
 		tirc = MLX5_ADDR_OF(create_tir_in, in, ctx);
 
 		MLX5_SET(tirc, tirc, transport_domain, hp->tdn);
 		MLX5_SET(tirc, tirc, disp_type, MLX5_TIRC_DISP_TYPE_INDIRECT);
 		MLX5_SET(tirc, tirc, indirect_table, hp->indir_rqt.rqtn);
-		mlx5e_build_indir_tir_ctx_hash(&priv->channels.params, tt, tirc, false);
+		mlx5e_build_indir_tir_ctx_hash(&priv->rss_params, &ttconfig, tirc, false);
 
 		err = mlx5_core_create_tir(hp->func_mdev, in,
 					   MLX5_ST_SZ_BYTES(create_tir_in), &hp->indir_tirn[tt]);
