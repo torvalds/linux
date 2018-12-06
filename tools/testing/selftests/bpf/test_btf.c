@@ -3156,7 +3156,7 @@ static struct btf_func_type_test {
 },
 
 {
-	.descr = "func_type (Incorrect bpf_func_info.insn_offset)",
+	.descr = "func_type (Incorrect bpf_func_info.insn_off)",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),	/* [2] */
@@ -3299,6 +3299,12 @@ static int do_test_func_type(int test_num)
 	if (CHECK(info.func_info_rec_size != rec_size,
 		  "incorrect info.func_info_rec_size (2nd) %d\n",
 		  info.func_info_rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	if (CHECK(!info.func_info,
+		  "info.func_info == 0. kernel.kptr_restrict is set?")) {
 		err = -1;
 		goto done;
 	}

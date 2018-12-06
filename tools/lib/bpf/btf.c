@@ -45,7 +45,7 @@ struct btf_ext {
 
 /* The minimum bpf_func_info checked by the loader */
 struct bpf_func_info_min {
-	__u32   insn_offset;
+	__u32   insn_off;
 	__u32   type_id;
 };
 
@@ -670,7 +670,7 @@ int btf_ext__reloc_init(struct btf *btf, struct btf_ext *btf_ext,
 
 		memcpy(data, sinfo->data, records_len);
 
-		/* adjust the insn_offset, the data in .BTF.ext is
+		/* adjust the insn_off, the data in .BTF.ext is
 		 * the actual byte offset, and the kernel expects
 		 * the offset in term of bpf_insn.
 		 *
@@ -681,7 +681,7 @@ int btf_ext__reloc_init(struct btf *btf, struct btf_ext *btf_ext,
 			struct bpf_func_info_min *record;
 
 			record = data + i * record_size;
-			record->insn_offset /= sizeof(struct bpf_insn);
+			record->insn_off /= sizeof(struct bpf_insn);
 		}
 
 		*func_info = data;
@@ -722,15 +722,15 @@ int btf_ext__reloc(struct btf *btf, struct btf_ext *btf_ext,
 			return -ENOMEM;
 
 		memcpy(data + existing_flen, sinfo->data, records_len);
-		/* adjust insn_offset only, the rest data will be passed
+		/* adjust insn_off only, the rest data will be passed
 		 * to the kernel.
 		 */
 		for (i = 0; i < sinfo->num_func_info; i++) {
 			struct bpf_func_info_min *record;
 
 			record = data + existing_flen + i * record_size;
-			record->insn_offset =
-				record->insn_offset / sizeof(struct bpf_insn) +
+			record->insn_off =
+				record->insn_off / sizeof(struct bpf_insn) +
 				insns_cnt;
 		}
 		*func_info = data;
