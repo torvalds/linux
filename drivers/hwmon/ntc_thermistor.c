@@ -601,14 +601,14 @@ static int ntc_read_temp(void *data, int *temp)
 	return 0;
 }
 
-static ssize_t ntc_show_type(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t ntc_type_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	return sprintf(buf, "4\n");
 }
 
-static ssize_t ntc_show_temp(struct device *dev,
-		struct device_attribute *attr, char *buf)
+static ssize_t ntc_temp_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
 {
 	struct ntc_data *data = dev_get_drvdata(dev);
 	int ohm;
@@ -620,8 +620,8 @@ static ssize_t ntc_show_temp(struct device *dev,
 	return sprintf(buf, "%d\n", get_temp_mc(data, ohm));
 }
 
-static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO, ntc_show_type, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ntc_show_temp, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_type, ntc_type, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, ntc_temp, 0);
 
 static struct attribute *ntc_attrs[] = {
 	&sensor_dev_attr_temp1_type.dev_attr.attr,
