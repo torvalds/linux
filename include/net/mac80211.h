@@ -467,7 +467,7 @@ struct ieee80211_mu_group_data {
 };
 
 /**
- * ieee80211_ftm_responder_params - FTM responder parameters
+ * struct ieee80211_ftm_responder_params - FTM responder parameters
  *
  * @lci: LCI subelement content
  * @civicloc: CIVIC location subelement content

@@ -2823,7 +2823,7 @@ struct cfg80211_external_auth_params {
 };
 
 /**
- * cfg80211_ftm_responder_stats - FTM responder statistics
+ * struct cfg80211_ftm_responder_stats - FTM responder statistics
  *
  * @filled: bitflag of flags using the bits of &enum nl80211_ftm_stats to
  *	indicate the relevant values in this struct for them
