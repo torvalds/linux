@@ -519,17 +519,14 @@ rockchip_vpu_queue_setup(struct vb2_queue *vq,
 			 struct device *alloc_devs[])
 {
 	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(vq);
-	const struct rockchip_vpu_fmt *vpu_fmt;
 	struct v4l2_pix_format_mplane *pixfmt;
 	int i;
 
 	switch (vq->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
-		vpu_fmt = ctx->vpu_dst_fmt;
 		pixfmt = &ctx->dst_fmt;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		vpu_fmt = ctx->vpu_src_fmt;
 		pixfmt = &ctx->src_fmt;
 		break;
 	default:
@@ -557,7 +554,6 @@ static int rockchip_vpu_buf_prepare(struct vb2_buffer *vb)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct vb2_queue *vq = vb->vb2_queue;
 	struct rockchip_vpu_ctx *ctx = vb2_get_drv_priv(vq);
-	const struct rockchip_vpu_fmt *vpu_fmt;
 	struct v4l2_pix_format_mplane *pixfmt;
 	unsigned int sz;
 	int ret = 0;
@@ -565,11 +561,9 @@ static int rockchip_vpu_buf_prepare(struct vb2_buffer *vb)
 
 	switch (vq->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
-		vpu_fmt = ctx->vpu_dst_fmt;
 		pixfmt = &ctx->dst_fmt;
 		break;
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		vpu_fmt = ctx->vpu_src_fmt;
 		pixfmt = &ctx->src_fmt;
 
 		if (vbuf->field == V4L2_FIELD_ANY)
