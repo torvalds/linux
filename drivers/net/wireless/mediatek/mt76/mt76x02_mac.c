@@ -774,8 +774,8 @@ static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
 
 	mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_RESET_CSR);
 	udelay(10);
-	mt76_clear(dev, MT_MAC_SYS_CTRL,
-		   MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
+	mt76_wr(dev, MT_MAC_SYS_CTRL,
+		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 }
 
 void mt76x02_mac_work(struct work_struct *work)
