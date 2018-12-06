@@ -131,12 +131,16 @@ def exec_cmd(args, pm, stage, command):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         env=ENVIR)
-    (rawout, serr) = proc.communicate()
 
-    if proc.returncode != 0 and len(serr) > 0:
-        foutput = serr.decode("utf-8", errors="ignore")
-    else:
-        foutput = rawout.decode("utf-8", errors="ignore")
+    try:
+        (rawout, serr) = proc.communicate(timeout=NAMES['TIMEOUT'])
+        if proc.returncode != 0 and len(serr) > 0:
+            foutput = serr.decode("utf-8", errors="ignore")
+        else:
+            foutput = rawout.decode("utf-8", errors="ignore")
+    except subprocess.TimeoutExpired:
+        foutput = "Command \"{}\" timed out\n".format(command)
+        proc.returncode = 255
 
     proc.stdout.close()
     proc.stderr.close()
@@ -438,6 +442,8 @@ def check_default_settings(args, remaining, pm):
         NAMES['TC'] = args.path
     if args.device != None:
         NAMES['DEV2'] = args.device
+    if 'TIMEOUT' not in NAMES:
+        NAMES['TIMEOUT'] = None
     if not os.path.isfile(NAMES['TC']):
         print("The specified tc path " + NAMES['TC'] + " does not exist.")
         exit(1)
