@@ -68,7 +68,7 @@ struct symbol {
 };
 
 void symbol__delete(struct symbol *sym);
-void symbols__delete(struct rb_root *symbols);
+void symbols__delete(struct rb_root_cached *symbols);
 
 /* symbols__for_each_entry - iterate over symbols (rb_root)
  *
@@ -77,7 +77,7 @@ void symbols__delete(struct rb_root *symbols);
  * @nd: the 'struct rb_node *' to use as a temporary storage
  */
 #define symbols__for_each_entry(symbols, pos, nd)			\
-	for (nd = rb_first(symbols);					\
+	for (nd = rb_first_cached(symbols);					\
 	     nd && (pos = rb_entry(nd, struct symbol, rb_node));	\
 	     nd = rb_next(nd))
 
@@ -247,10 +247,11 @@ int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss);
 
 char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
-void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
-void symbols__insert(struct rb_root *symbols, struct symbol *sym);
-void symbols__fixup_duplicate(struct rb_root *symbols);
-void symbols__fixup_end(struct rb_root *symbols);
+void __symbols__insert(struct rb_root_cached *symbols, struct symbol *sym,
+		       bool kernel);
+void symbols__insert(struct rb_root_cached *symbols, struct symbol *sym);
+void symbols__fixup_duplicate(struct rb_root_cached *symbols);
+void symbols__fixup_end(struct rb_root_cached *symbols);
 void map_groups__fixup_end(struct map_groups *mg);
 
 typedef int (*mapfn_t)(u64 start, u64 len, u64 pgoff, void *data);

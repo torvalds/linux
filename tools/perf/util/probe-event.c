@@ -3529,7 +3529,8 @@ int show_available_funcs(const char *target, struct nsinfo *nsi,
 	/* Show all (filtered) symbols */
 	setup_pager();
 
-	for (nd = rb_first(&map->dso->symbol_names); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&map->dso->symbol_names); nd;
+	     nd = rb_next(nd)) {
 		struct symbol_name_rb_node *pos = rb_entry(nd, struct symbol_name_rb_node, rb_node);
 
 		if (strfilter__compare(_filter, pos->sym.name))

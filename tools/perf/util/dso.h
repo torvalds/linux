@@ -141,8 +141,8 @@ struct dso {
 	struct list_head node;
 	struct rb_node	 rb_node;	/* rbtree node sorted by long name */
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
-	struct rb_root	 symbols;
-	struct rb_root	 symbol_names;
+	struct rb_root_cached symbols;
+	struct rb_root_cached symbol_names;
 	struct rb_root_cached inlined_nodes;
 	struct rb_root_cached srclines;
 	struct {
@@ -236,7 +236,7 @@ bool dso__loaded(const struct dso *dso);
 
 static inline bool dso__has_symbols(const struct dso *dso)
 {
-	return !RB_EMPTY_ROOT(&dso->symbols);
+	return !RB_EMPTY_ROOT(&dso->symbols.rb_root);
 }
 
 bool dso__sorted_by_name(const struct dso *dso);
