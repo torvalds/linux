@@ -434,15 +434,14 @@ static u8 spi_nor_convert_3to4_erase(u8 opcode)
 				      ARRAY_SIZE(spi_nor_3to4_erase));
 }
 
-static void spi_nor_set_4byte_opcodes(struct spi_nor *nor,
-				      const struct flash_info *info)
+static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
 {
 	/* Do some manufacturer fixups first */
-	switch (JEDEC_MFR(info)) {
+	switch (JEDEC_MFR(nor->info)) {
 	case SNOR_MFR_SPANSION:
 		/* No small sector erase for 4-byte command set */
 		nor->erase_opcode = SPINOR_OP_SE;
-		nor->mtd.erasesize = info->sector_size;
+		nor->mtd.erasesize = nor->info->sector_size;
 		break;
 
 	default:
@@ -467,14 +466,13 @@ static void spi_nor_set_4byte_opcodes(struct spi_nor *nor,
 }
 
 /* Enable/disable 4-byte addressing mode. */
-static int set_4byte(struct spi_nor *nor, const struct flash_info *info,
-		     int enable)
+static int set_4byte(struct spi_nor *nor, int enable)
 {
 	int status;
 	bool need_wren = false;
 	u8 cmd;
 
-	switch (JEDEC_MFR(info)) {
+	switch (JEDEC_MFR(nor->info)) {
 	case SNOR_MFR_ST:
 	case SNOR_MFR_MICRON:
 		/* Some Micron need WREN command; all will accept it */
@@ -491,7 +489,7 @@ static int set_4byte(struct spi_nor *nor, const struct flash_info *info,
 			write_disable(nor);
 
 		if (!status && !enable &&
-		    JEDEC_MFR(info) == SNOR_MFR_WINBOND) {
+		    JEDEC_MFR(nor->info) == SNOR_MFR_WINBOND) {
 			/*
 			 * On Winbond W25Q256FV, leaving 4byte mode causes
 			 * the Extended Address Register to be set to 1, so all
@@ -2251,7 +2249,7 @@ static int spi_nor_check(struct spi_nor *nor)
 	return 0;
 }
 
-static int s3an_nor_scan(const struct flash_info *info, struct spi_nor *nor)
+static int s3an_nor_scan(struct spi_nor *nor)
 {
 	int ret;
 	u8 val;
@@ -2282,7 +2280,7 @@ static int s3an_nor_scan(const struct flash_info *info, struct spi_nor *nor)
 		/* Flash in Power of 2 mode */
 		nor->page_size = (nor->page_size == 264) ? 256 : 512;
 		nor->mtd.writebufsize = nor->page_size;
-		nor->mtd.size = 8 * nor->page_size * info->n_sectors;
+		nor->mtd.size = 8 * nor->page_size * nor->info->n_sectors;
 		nor->mtd.erasesize = 8 * nor->page_size;
 	} else {
 		/* Flash in Default addressing mode */
@@ -3363,10 +3361,10 @@ exit:
 }
 
 static int spi_nor_init_params(struct spi_nor *nor,
-			       const struct flash_info *info,
 			       struct spi_nor_flash_parameter *params)
 {
 	struct spi_nor_erase_map *map = &nor->erase_map;
+	const struct flash_info *info = nor->info;
 	u8 i, erase_mask;
 
 	/* Set legacy flash parameters as default. */
@@ -3632,7 +3630,7 @@ static int spi_nor_select_erase(struct spi_nor *nor, u32 wanted_size)
 	return 0;
 }
 
-static int spi_nor_setup(struct spi_nor *nor, const struct flash_info *info,
+static int spi_nor_setup(struct spi_nor *nor,
 			 const struct spi_nor_flash_parameter *params,
 			 const struct spi_nor_hwcaps *hwcaps)
 {
@@ -3675,7 +3673,7 @@ static int spi_nor_setup(struct spi_nor *nor, const struct flash_info *info,
 	}
 
 	/* Select the Sector Erase command. */
-	err = spi_nor_select_erase(nor, info->sector_size);
+	err = spi_nor_select_erase(nor, nor->info->sector_size);
 	if (err) {
 		dev_err(nor->dev,
 			"can't select erase settings supported by both the SPI controller and memory.\n");
@@ -3728,7 +3726,7 @@ static int spi_nor_init(struct spi_nor *nor)
 		 */
 		WARN_ONCE(nor->flags & SNOR_F_BROKEN_RESET,
 			  "enabling reset hack; may not recover from unexpected reboots\n");
-		set_4byte(nor, nor->info, 1);
+		set_4byte(nor, 1);
 	}
 
 	return 0;
@@ -3752,7 +3750,7 @@ void spi_nor_restore(struct spi_nor *nor)
 	/* restore the addressing mode */
 	if (nor->addr_width == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
 	    nor->flags & SNOR_F_BROKEN_RESET)
-		set_4byte(nor, nor->info, 0);
+		set_4byte(nor, 0);
 }
 EXPORT_SYMBOL_GPL(spi_nor_restore);
 
@@ -3820,6 +3818,8 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		}
 	}
 
+	nor->info = info;
+
 	mutex_init(&nor->lock);
 
 	/*
@@ -3831,7 +3831,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		nor->flags |=  SNOR_F_READY_XSR_RDY;
 
 	/* Parse the Serial Flash Discoverable Parameters table. */
-	ret = spi_nor_init_params(nor, info, &params);
+	ret = spi_nor_init_params(nor, &params);
 	if (ret)
 		return ret;
 
@@ -3908,7 +3908,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	 * - set the SPI protocols for register and memory accesses.
 	 * - set the Quad Enable bit if needed (required by SPI x-y-4 protos).
 	 */
-	ret = spi_nor_setup(nor, info, &params, hwcaps);
+	ret = spi_nor_setup(nor, &params, hwcaps);
 	if (ret)
 		return ret;
 
@@ -3928,7 +3928,7 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		nor->flags |= SNOR_F_4B_OPCODES;
 
 	if (nor->addr_width == 4 && nor->flags & SNOR_F_4B_OPCODES)
-		spi_nor_set_4byte_opcodes(nor, info);
+		spi_nor_set_4byte_opcodes(nor);
 
 	if (nor->addr_width > SPI_NOR_MAX_ADDR_WIDTH) {
 		dev_err(dev, "address width is too large: %u\n",
@@ -3937,13 +3937,12 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 	}
 
 	if (info->flags & SPI_S3AN) {
-		ret = s3an_nor_scan(info, nor);
+		ret = s3an_nor_scan(nor);
 		if (ret)
 			return ret;
 	}
 
 	/* Send all the required SPI flash commands to initialize device */
-	nor->info = info;
 	ret = spi_nor_init(nor);
 	if (ret)
 		return ret;
