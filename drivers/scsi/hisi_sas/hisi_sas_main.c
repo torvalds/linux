@@ -296,6 +296,90 @@ static void hisi_sas_task_prep_abort(struct hisi_hba *hisi_hba,
 			device_id, abort_flag, tag_to_abort);
 }
 
+static void hisi_sas_dma_unmap(struct hisi_hba *hisi_hba,
+			       struct sas_task *task, int n_elem,
+			       int n_elem_req, int n_elem_resp)
+{
+	struct device *dev = hisi_hba->dev;
+
+	if (!sas_protocol_ata(task->task_proto)) {
+		if (task->num_scatter) {
+			if (n_elem)
+				dma_unmap_sg(dev, task->scatter,
+					     task->num_scatter,
+					     task->data_dir);
+		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
+			if (n_elem_req)
+				dma_unmap_sg(dev, &task->smp_task.smp_req,
+					     1, DMA_TO_DEVICE);
+			if (n_elem_resp)
+				dma_unmap_sg(dev, &task->smp_task.smp_resp,
+					     1, DMA_FROM_DEVICE);
+		}
+	}
+}
+
+static int hisi_sas_dma_map(struct hisi_hba *hisi_hba,
+			    struct sas_task *task, int *n_elem,
+			    int *n_elem_req, int *n_elem_resp)
+{
+	struct device *dev = hisi_hba->dev;
+	int rc;
+
+	if (sas_protocol_ata(task->task_proto)) {
+		*n_elem = task->num_scatter;
+	} else {
+		unsigned int req_len, resp_len;
+
+		if (task->num_scatter) {
+			*n_elem = dma_map_sg(dev, task->scatter,
+					     task->num_scatter, task->data_dir);
+			if (!*n_elem) {
+				rc = -ENOMEM;
+				goto prep_out;
+			}
+		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
+			*n_elem_req = dma_map_sg(dev, &task->smp_task.smp_req,
+						 1, DMA_TO_DEVICE);
+			if (!*n_elem_req) {
+				rc = -ENOMEM;
+				goto prep_out;
+			}
+			req_len = sg_dma_len(&task->smp_task.smp_req);
+			if (req_len & 0x3) {
+				rc = -EINVAL;
+				goto err_out_dma_unmap;
+			}
+			*n_elem_resp = dma_map_sg(dev, &task->smp_task.smp_resp,
+						  1, DMA_FROM_DEVICE);
+			if (!*n_elem_resp) {
+				rc = -ENOMEM;
+				goto err_out_dma_unmap;
+			}
+			resp_len = sg_dma_len(&task->smp_task.smp_resp);
+			if (resp_len & 0x3) {
+				rc = -EINVAL;
+				goto err_out_dma_unmap;
+			}
+		}
+	}
+
+	if (*n_elem > HISI_SAS_SGE_PAGE_CNT) {
+		dev_err(dev, "task prep: n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
+			*n_elem);
+		rc = -EINVAL;
+		goto err_out_dma_unmap;
+	}
+	return 0;
+
+err_out_dma_unmap:
+	/* It would be better to call dma_unmap_sg() here, but it's messy */
+	hisi_sas_dma_unmap(hisi_hba, task, *n_elem,
+			   *n_elem_req, *n_elem_resp);
+prep_out:
+	return rc;
+}
+
 static int hisi_sas_task_prep(struct sas_task *task,
 			      struct hisi_sas_dq **dq_pointer,
 			      bool is_tmf, struct hisi_sas_tmf_task *tmf,
@@ -338,49 +422,10 @@ static int hisi_sas_task_prep(struct sas_task *task,
 		return -ECOMM;
 	}
 
-	if (!sas_protocol_ata(task->task_proto)) {
-		unsigned int req_len, resp_len;
-
-		if (task->num_scatter) {
-			n_elem = dma_map_sg(dev, task->scatter,
-					    task->num_scatter, task->data_dir);
-			if (!n_elem) {
-				rc = -ENOMEM;
-				goto prep_out;
-			}
-		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
-			n_elem_req = dma_map_sg(dev, &task->smp_task.smp_req,
-						1, DMA_TO_DEVICE);
-			if (!n_elem_req) {
-				rc = -ENOMEM;
-				goto prep_out;
-			}
-			req_len = sg_dma_len(&task->smp_task.smp_req);
-			if (req_len & 0x3) {
-				rc = -EINVAL;
-				goto err_out_dma_unmap;
-			}
-			n_elem_resp = dma_map_sg(dev, &task->smp_task.smp_resp,
-						 1, DMA_FROM_DEVICE);
-			if (!n_elem_resp) {
-				rc = -ENOMEM;
-				goto err_out_dma_unmap;
-			}
-			resp_len = sg_dma_len(&task->smp_task.smp_resp);
-			if (resp_len & 0x3) {
-				rc = -EINVAL;
-				goto err_out_dma_unmap;
-			}
-		}
-	} else
-		n_elem = task->num_scatter;
-
-	if (n_elem > HISI_SAS_SGE_PAGE_CNT) {
-		dev_err(dev, "task prep: n_elem(%d) > HISI_SAS_SGE_PAGE_CNT",
-			n_elem);
-		rc = -EINVAL;
-		goto err_out_dma_unmap;
-	}
+	rc = hisi_sas_dma_map(hisi_hba, task, &n_elem,
+			      &n_elem_req, &n_elem_resp);
+	if (rc < 0)
+		goto prep_out;
 
 	if (hisi_hba->hw->slot_index_alloc)
 		rc = hisi_hba->hw->slot_index_alloc(hisi_hba, device);
@@ -465,19 +510,8 @@ static int hisi_sas_task_prep(struct sas_task *task,
 err_out_tag:
 	hisi_sas_slot_index_free(hisi_hba, slot_idx);
 err_out_dma_unmap:
-	if (!sas_protocol_ata(task->task_proto)) {
-		if (task->num_scatter) {
-			dma_unmap_sg(dev, task->scatter, task->num_scatter,
-			     task->data_dir);
-		} else if (task->task_proto & SAS_PROTOCOL_SMP) {
-			if (n_elem_req)
-				dma_unmap_sg(dev, &task->smp_task.smp_req,
-					     1, DMA_TO_DEVICE);
-			if (n_elem_resp)
-				dma_unmap_sg(dev, &task->smp_task.smp_resp,
-					     1, DMA_FROM_DEVICE);
-		}
-	}
+	hisi_sas_dma_unmap(hisi_hba, task, n_elem,
+			   n_elem_req, n_elem_resp);
 prep_out:
 	dev_err(dev, "task prep: failed[%d]!\n", rc);
 	return rc;
