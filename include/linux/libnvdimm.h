@@ -163,9 +163,21 @@ enum nvdimm_security_state {
 	NVDIMM_SECURITY_OVERWRITE,
 };
 
+#define NVDIMM_PASSPHRASE_LEN		32
+#define NVDIMM_KEY_DESC_LEN		22
+
+struct nvdimm_key_data {
+	u8 data[NVDIMM_PASSPHRASE_LEN];
+};
+
 struct nvdimm_security_ops {
 	enum nvdimm_security_state (*state)(struct nvdimm *nvdimm);
 	int (*freeze)(struct nvdimm *nvdimm);
+	int (*change_key)(struct nvdimm *nvdimm,
+			const struct nvdimm_key_data *old_data,
+			const struct nvdimm_key_data *new_data);
+	int (*unlock)(struct nvdimm *nvdimm,
+			const struct nvdimm_key_data *key_data);
 };
 
 void badrange_init(struct badrange *badrange);
