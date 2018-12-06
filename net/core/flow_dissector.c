@@ -783,6 +783,7 @@ bool __skb_flow_dissect(const struct sk_buff *skb,
 		/* Pass parameters to the BPF program */
 		cb->qdisc_cb.flow_keys = &flow_keys;
 		flow_keys.nhoff = nhoff;
+		flow_keys.thoff = nhoff;
 
 		bpf_compute_data_pointers((struct sk_buff *)skb);
 		result = BPF_PROG_RUN(attached, skb);

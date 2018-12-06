@@ -70,18 +70,18 @@ static __always_inline void *bpf_flow_dissect_get_header(struct __sk_buff *skb,
 {
 	void *data_end = (void *)(long)skb->data_end;
 	void *data = (void *)(long)skb->data;
-	__u16 nhoff = skb->flow_keys->nhoff;
+	__u16 thoff = skb->flow_keys->thoff;
 	__u8 *hdr;
 
 	/* Verifies this variable offset does not overflow */
-	if (nhoff > (USHRT_MAX - hdr_size))
+	if (thoff > (USHRT_MAX - hdr_size))
 		return NULL;
 
-	hdr = data + nhoff;
+	hdr = data + thoff;
 	if (hdr + hdr_size <= data_end)
 		return hdr;
 
-	if (bpf_skb_load_bytes(skb, nhoff, buffer, hdr_size))
+	if (bpf_skb_load_bytes(skb, thoff, buffer, hdr_size))
 		return NULL;
 
 	return buffer;
@@ -158,13 +158,13 @@ static __always_inline int parse_ip_proto(struct __sk_buff *skb, __u8 proto)
 			/* Only inspect standard GRE packets with version 0 */
 			return BPF_OK;
 
-		keys->nhoff += sizeof(*gre); /* Step over GRE Flags and Proto */
+		keys->thoff += sizeof(*gre); /* Step over GRE Flags and Proto */
 		if (GRE_IS_CSUM(gre->flags))
-			keys->nhoff += 4; /* Step over chksum and Padding */
+			keys->thoff += 4; /* Step over chksum and Padding */
 		if (GRE_IS_KEY(gre->flags))
-			keys->nhoff += 4; /* Step over key */
+			keys->thoff += 4; /* Step over key */
 		if (GRE_IS_SEQ(gre->flags))
-			keys->nhoff += 4; /* Step over sequence number */
+			keys->thoff += 4; /* Step over sequence number */
 
 		keys->is_encap = true;
 
@@ -174,7 +174,7 @@ static __always_inline int parse_ip_proto(struct __sk_buff *skb, __u8 proto)
 			if (!eth)
 				return BPF_DROP;
 
-			keys->nhoff += sizeof(*eth);
+			keys->thoff += sizeof(*eth);
 
 			return parse_eth_proto(skb, eth->h_proto);
 		} else {
@@ -191,7 +191,6 @@ static __always_inline int parse_ip_proto(struct __sk_buff *skb, __u8 proto)
 		if ((__u8 *)tcp + (tcp->doff << 2) > data_end)
 			return BPF_DROP;
 
-		keys->thoff = keys->nhoff;
 		keys->sport = tcp->source;
 		keys->dport = tcp->dest;
 		return BPF_OK;
@@ -201,7 +200,6 @@ static __always_inline int parse_ip_proto(struct __sk_buff *skb, __u8 proto)
 		if (!udp)
 			return BPF_DROP;
 
-		keys->thoff = keys->nhoff;
 		keys->sport = udp->source;
 		keys->dport = udp->dest;
 		return BPF_OK;
@@ -252,8 +250,8 @@ PROG(IP)(struct __sk_buff *skb)
 	keys->ipv4_src = iph->saddr;
 	keys->ipv4_dst = iph->daddr;
 
-	keys->nhoff += iph->ihl << 2;
-	if (data + keys->nhoff > data_end)
+	keys->thoff += iph->ihl << 2;
+	if (data + keys->thoff > data_end)
 		return BPF_DROP;
 
 	if (iph->frag_off & bpf_htons(IP_MF | IP_OFFSET)) {
@@ -285,7 +283,7 @@ PROG(IPV6)(struct __sk_buff *skb)
 	keys->addr_proto = ETH_P_IPV6;
 	memcpy(&keys->ipv6_src, &ip6h->saddr, 2*sizeof(ip6h->saddr));
 
-	keys->nhoff += sizeof(struct ipv6hdr);
+	keys->thoff += sizeof(struct ipv6hdr);
 
 	return parse_ipv6_proto(skb, ip6h->nexthdr);
 }
@@ -301,7 +299,7 @@ PROG(IPV6OP)(struct __sk_buff *skb)
 	/* hlen is in 8-octets and does not include the first 8 bytes
 	 * of the header
 	 */
-	skb->flow_keys->nhoff += (1 + ip6h->hdrlen) << 3;
+	skb->flow_keys->thoff += (1 + ip6h->hdrlen) << 3;
 
 	return parse_ipv6_proto(skb, ip6h->nexthdr);
 }
@@ -315,7 +313,7 @@ PROG(IPV6FR)(struct __sk_buff *skb)
 	if (!fragh)
 		return BPF_DROP;
 
-	keys->nhoff += sizeof(*fragh);
+	keys->thoff += sizeof(*fragh);
 	keys->is_frag = true;
 	if (!(fragh->frag_off & bpf_htons(IP6_OFFSET)))
 		keys->is_first_frag = true;
@@ -341,7 +339,7 @@ PROG(VLAN)(struct __sk_buff *skb)
 	__be16 proto;
 
 	/* Peek back to see if single or double-tagging */
-	if (bpf_skb_load_bytes(skb, keys->nhoff - sizeof(proto), &proto,
+	if (bpf_skb_load_bytes(skb, keys->thoff - sizeof(proto), &proto,
 			       sizeof(proto)))
 		return BPF_DROP;
 
@@ -354,14 +352,14 @@ PROG(VLAN)(struct __sk_buff *skb)
 		if (vlan->h_vlan_encapsulated_proto != bpf_htons(ETH_P_8021Q))
 			return BPF_DROP;
 
-		keys->nhoff += sizeof(*vlan);
+		keys->thoff += sizeof(*vlan);
 	}
 
 	vlan = bpf_flow_dissect_get_header(skb, sizeof(*vlan), &_vlan);
 	if (!vlan)
 		return BPF_DROP;
 
-	keys->nhoff += sizeof(*vlan);
+	keys->thoff += sizeof(*vlan);
 	/* Only allow 8021AD + 8021Q double tagging and no triple tagging.*/
 	if (vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021AD) ||
 	    vlan->h_vlan_encapsulated_proto == bpf_htons(ETH_P_8021Q))
