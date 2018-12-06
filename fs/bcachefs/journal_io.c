@@ -1036,7 +1036,7 @@ done:
 	spin_unlock(&j->lock);
 	rcu_read_unlock();
 
-	return replicas >= replicas_want ? 0 : -EROFS;
+	return replicas >= c->opts.metadata_replicas_required ? 0 : -EROFS;
 }
 
 static void journal_write_compact(struct jset *jset)
