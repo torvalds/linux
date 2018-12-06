@@ -109,7 +109,7 @@ static int sof_spi_probe(struct spi_device *spi)
 	/* TODO: add any required regulators */
 
 	/* use nocodec machine atm */
-	dev_err(dev, "No matching ASoC machine driver found - using nocodec\n");
+	dev_err(dev, "error: no matching ASoC machine driver found - using nocodec\n");
 	sof_pdata->drv_name = "sof-nocodec";
 	mach = devm_kzalloc(dev, sizeof(*mach), GFP_KERNEL);
 	if (!mach)
@@ -125,7 +125,7 @@ static int sof_spi_probe(struct spi_device *spi)
 	mach->asoc_plat_name = "sof-platform";
 	mach->pdata = sof_get_ops(desc, spi_mach_ops, ARRAY_SIZE(spi_mach_ops));
 	if (!mach->pdata) {
-		dev_err(dev, "No matching SPI descriptor ops\n");
+		dev_err(dev, "error: no matching SPI descriptor ops\n");
 		return -ENODEV;
 	}
 

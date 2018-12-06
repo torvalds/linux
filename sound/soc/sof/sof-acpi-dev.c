@@ -191,7 +191,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 		if (ret < 0)
 			return ret;
 #else
-		dev_err(dev, "No matching ASoC machine driver found - aborting probe\n");
+		dev_err(dev, "error: no matching ASoC machine driver found - aborting probe\n");
 		return -ENODEV;
 #endif
 	}

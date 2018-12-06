@@ -239,7 +239,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 #endif /* CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE */
 
 	if (!mach) {
-		dev_err(dev, "No matching ASoC machine driver found - aborting probe\n");
+		dev_err(dev, "error: no matching ASoC machine driver found - aborting probe\n");
 		ret = -ENODEV;
 		goto release_regions;
 	}

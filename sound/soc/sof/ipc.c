@@ -404,7 +404,7 @@ static void ipc_msgs_rx(struct work_struct *work)
 			if (sdev->ops->fw_ready)
 				err = sdev->ops->fw_ready(sdev, cmd);
 			if (err < 0) {
-				dev_err(sdev->dev, "DSP firmware boot timeout %d\n",
+				dev_err(sdev->dev, "error: DSP firmware boot timeout %d\n",
 					err);
 			} else {
 				/* firmware boot completed OK */
@@ -427,7 +427,7 @@ static void ipc_msgs_rx(struct work_struct *work)
 		ipc_trace_message(sdev, type);
 		break;
 	default:
-		dev_err(sdev->dev, "unknown DSP message 0x%x\n", cmd);
+		dev_err(sdev->dev, "error: unknown DSP message 0x%x\n", cmd);
 		break;
 	}
 
@@ -497,7 +497,7 @@ static void ipc_period_elapsed(struct snd_sof_dev *sdev, u32 msg_id)
 
 	if (!spcm) {
 		dev_err(sdev->dev,
-			"period elapsed for unknown stream, msg_id %d\n",
+			"error: period elapsed for unknown stream, msg_id %d\n",
 			msg_id);
 		return;
 	}
@@ -542,7 +542,7 @@ static void ipc_xrun(struct snd_sof_dev *sdev, u32 msg_id)
 	}
 
 	if (!spcm) {
-		dev_err(sdev->dev, "XRUN for unknown stream, msg_id %d\n",
+		dev_err(sdev->dev, "error: XRUN for unknown stream, msg_id %d\n",
 			msg_id);
 		return;
 	}

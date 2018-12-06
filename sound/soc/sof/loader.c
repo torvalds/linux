@@ -275,7 +275,7 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 						      "fw_version");
 
 		if (ret < 0) {
-			dev_err(sdev->dev, "cannot create debugfs for fw_version\n");
+			dev_err(sdev->dev, "error: cannot create debugfs for fw_version\n");
 			return ret;
 		}
 	}

@@ -311,7 +311,7 @@ static int hda_init(struct snd_sof_dev *sdev)
 	bus->addr = pci_resource_start(pci, 0);
 	bus->remap_addr = pci_ioremap_bar(pci, 0);
 	if (!bus->remap_addr) {
-		dev_err(bus->dev, "ioremap error\n");
+		dev_err(bus->dev, "error: ioremap error\n");
 		return -ENXIO;
 	}
 
@@ -349,13 +349,13 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 	/* init i915 and HDMI codecs */
 	ret = hda_codec_i915_init(sdev);
 	if (ret < 0) {
-		dev_err(&pci->dev, "no HDMI audio devices found\n");
+		dev_err(&pci->dev, "error: no HDMI audio devices found\n");
 		return ret;
 	}
 
 	ret = hda_dsp_ctrl_init_chip(sdev, true);
 	if (ret < 0) {
-		dev_err(bus->dev, "Init chip failed with ret: %d\n", ret);
+		dev_err(bus->dev, "error: init chip failed with ret: %d\n", ret);
 		err = hda_codec_i915_put(sdev);
 		if (err < 0)
 			return err;
@@ -432,10 +432,10 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	 * class=04 subclass 03 prog-if 80: either of DSP or legacy mode works
 	 */
 	if (pci->class == 0x040300) {
-		dev_err(sdev->dev, "The DSP is not enabled on this platform, aborting probe\n");
+		dev_err(sdev->dev, "error: the DSP is not enabled on this platform, aborting probe\n");
 		return -ENODEV;
 	} else if (pci->class != 0x040100 && pci->class != 0x040380) {
-		dev_err(sdev->dev, "Unknown PCI class/subclass/prog-if 0x%06x found, aborting probe\n", pci->class);
+		dev_err(sdev->dev, "error: unknown PCI class/subclass/prog-if 0x%06x found, aborting probe\n", pci->class);
 		return -ENODEV;
 	}
 	dev_info(sdev->dev, "DSP detected with PCI class/subclass/prog-if 0x%06x\n", pci->class);
@@ -445,7 +445,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 
 	chip = get_chip_info(pci->device);
 	if (!chip) {
-		dev_err(sdev->dev, "no such device supported, chip id:%x\n",
+		dev_err(sdev->dev, "error: no such device supported, chip id:%x\n",
 			pci->device);
 		ret = -EIO;
 		goto err;
@@ -460,7 +460,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	hdev->dmic_dev = platform_device_register_data(&pci->dev, "dmic-codec",
 						       -1, NULL, 0);
 	if (IS_ERR(hdev->dmic_dev)) {
-		dev_err(&pci->dev, "Failed to create DMIC device\n");
+		dev_err(&pci->dev, "error: failed to create DMIC device\n");
 		return PTR_ERR(hdev->dmic_dev);
 	}
 

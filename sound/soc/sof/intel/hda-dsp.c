@@ -205,7 +205,7 @@ int hda_dsp_enable_core(struct snd_sof_dev *sdev, unsigned int core_mask)
 	/* power up */
 	ret = hda_dsp_core_power_up(sdev, core_mask);
 	if (ret < 0) {
-		dev_err(sdev->dev, "dsp core power up failed: core_mask %x\n",
+		dev_err(sdev->dev, "error: dsp core power up failed: core_mask %x\n",
 			core_mask);
 		return ret;
 	}
@@ -374,7 +374,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 	/* turn display power on */
 	ret = hda_codec_i915_get(sdev);
 	if (ret < 0) {
-		dev_err(bus->dev, "Cannot turn on display power on i915 after resume\n");
+		dev_err(bus->dev, "error: cannot turn on display power on i915 after resume\n");
 		return ret;
 	}
 
@@ -409,7 +409,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, int state)
 	/* turn display power off */
 	ret = hda_codec_i915_put(sdev);
 	if (ret < 0) {
-		dev_err(bus->dev, "Cannot turn OFF display power on i915 during suspend\n");
+		dev_err(bus->dev, "error: cannot turn OFF display power on i915 during suspend\n");
 		return ret;
 	}
 

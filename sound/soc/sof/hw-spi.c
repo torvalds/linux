@@ -43,7 +43,7 @@ static void spi_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
 	if (offset) {
 		buf = kmalloc(size + offset, GFP_KERNEL);
 		if (!buf) {
-			dev_err(sdev->dev, "Buffer allocation failed\n");
+			dev_err(sdev->dev, "error: buffer allocation failed\n");
 			return;
 		}
 	} else {
@@ -52,7 +52,7 @@ static void spi_block_read(struct snd_sof_dev *sdev, u32 offset, void *dest,
 
 	ret = spi_read(to_spi_device(sdev->dev), buf, size + offset);
 	if (ret < 0)
-		dev_err(sdev->dev, "SPI read failed: %d\n", ret);
+		dev_err(sdev->dev, "error: SPI read failed: %d\n", ret);
 
 	if (offset) {
 		memcpy(dest, buf + offset, size);
@@ -69,14 +69,14 @@ static void spi_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
 	if (offset) {
 		buf = kmalloc(size + offset, GFP_KERNEL);
 		if (!buf) {
-			dev_err(sdev->dev, "Buffer allocation failed\n");
+			dev_err(sdev->dev, "error: buffer allocation failed\n");
 			return;
 		}
 
 		/* Use Read-Modify-Wwrite */
 		ret = spi_read(to_spi_device(sdev->dev), buf, size + offset);
 		if (ret < 0) {
-			dev_err(sdev->dev, "SPI read failed: %d\n", ret);
+			dev_err(sdev->dev, "error: SPI read failed: %d\n", ret);
 			goto free;
 		}
 
@@ -87,7 +87,7 @@ static void spi_block_write(struct snd_sof_dev *sdev, u32 offset, void *src,
 
 	ret = spi_write(to_spi_device(sdev->dev), buf, size + offset);
 	if (ret < 0)
-		dev_err(sdev->dev, "SPI write failed: %d\n", ret);
+		dev_err(sdev->dev, "error: SPI write failed: %d\n", ret);
 
 free:
 	if (offset)

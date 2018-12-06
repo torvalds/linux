@@ -58,7 +58,7 @@ int sof_create_platform_device(struct sof_platform_priv *priv)
 		platform_device_register_data(dev, "sof-audio", -1,
 					      sof_pdata, sizeof(*sof_pdata));
 	if (IS_ERR(priv->pdev_pcm)) {
-		dev_err(dev, "Cannot register device sof-audio. Error %d\n",
+		dev_err(dev, "error: cannot register device sof-audio. Error %d\n",
 			(int)PTR_ERR(priv->pdev_pcm));
 		return PTR_ERR(priv->pdev_pcm);
 	}

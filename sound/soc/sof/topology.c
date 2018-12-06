@@ -308,7 +308,7 @@ static int sof_control_load_bytes(struct snd_soc_component *scomp,
 		scontrol->comp_id, scontrol->num_channels);
 
 	if (le32_to_cpu(control->priv.size) > max_size) {
-		dev_err(sdev->dev, "bytes priv data size %d exceeds max %d.\n",
+		dev_err(sdev->dev, "error: bytes priv data size %d exceeds max %d.\n",
 			control->priv.size, max_size);
 		return -EINVAL;
 	}
@@ -1007,7 +1007,7 @@ static int sof_widget_load_buffer(struct snd_soc_component *scomp, int index,
 	ret = sof_ipc_tx_message(sdev->ipc, buffer->comp.hdr.cmd, buffer,
 				 sizeof(*buffer), r, sizeof(*r));
 	if (ret < 0) {
-		dev_err(sdev->dev, "buffer %s load failed\n",
+		dev_err(sdev->dev, "error: buffer %s load failed\n",
 			swidget->widget->name);
 		kfree(buffer);
 	}
@@ -2148,7 +2148,7 @@ static int sof_link_hda_process(struct snd_sof_dev *sdev,
 	}
 
 	if (!found) {
-		dev_err(sdev->dev, "failed to find dai %s", link->name);
+		dev_err(sdev->dev, "error: failed to find dai %s", link->name);
 		return -EINVAL;
 	}
 
@@ -2198,7 +2198,7 @@ static int sof_link_hda_load(struct snd_soc_component *scomp, int index,
 	dai_component.dai_name = link->cpu_dai_name;
 	dai = snd_soc_find_dai(&dai_component);
 	if (!dai) {
-		dev_err(sdev->dev, "failed to find dai %s",
+		dev_err(sdev->dev, "error: failed to find dai %s",
 			dai_component.dai_name);
 		return -EINVAL;
 	}
@@ -2341,7 +2341,7 @@ static int sof_link_hda_unload(struct snd_sof_dev *sdev,
 	dai_component.dai_name = link->cpu_dai_name;
 	dai = snd_soc_find_dai(&dai_component);
 	if (!dai) {
-		dev_err(sdev->dev, "failed to find dai %s",
+		dev_err(sdev->dev, "error: failed to find dai %s",
 			dai_component.dai_name);
 		return -EINVAL;
 	}
@@ -2379,7 +2379,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 	}
 
 	if (!sof_dai) {
-		dev_err(sdev->dev, "failed to find dai %s", link->name);
+		dev_err(sdev->dev, "error: failed to find dai %s", link->name);
 		return -EINVAL;
 	}
 

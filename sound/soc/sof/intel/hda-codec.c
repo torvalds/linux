@@ -107,7 +107,7 @@ int hda_codec_probe_bus(struct snd_sof_dev *sdev)
 
 		ret = hda_codec_probe(sdev, i);
 		if (ret < 0) {
-			dev_err(bus->dev, "codec #%d probe error, ret: %d\n",
+			dev_err(bus->dev, "error: codec #%d probe error, ret: %d\n",
 				i, ret);
 			return ret;
 		}
@@ -127,7 +127,7 @@ int hda_codec_i915_get(struct snd_sof_dev *sdev)
 	dev_dbg(bus->dev, "Turning i915 HDAC power on\n");
 	ret = snd_hdac_display_power(bus, true);
 	if (ret < 0)
-		dev_err(bus->dev, "i915 HDAC power on failed %d\n", ret);
+		dev_err(bus->dev, "error: i915 HDAC power on failed %d\n", ret);
 
 	return ret;
 }
@@ -141,7 +141,7 @@ int hda_codec_i915_put(struct snd_sof_dev *sdev)
 	dev_dbg(bus->dev, "Turning i915 HDAC power off\n");
 	ret = snd_hdac_display_power(bus, false);
 	if (ret < 0)
-		dev_err(bus->dev, "i915 HDAC power off failed %d\n", ret);
+		dev_err(bus->dev, "error: i915 HDAC power off failed %d\n", ret);
 
 	return ret;
 }

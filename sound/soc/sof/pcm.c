@@ -640,7 +640,7 @@ static int sof_pcm_dai_link_fixup(struct snd_soc_pcm_runtime *rtd,
 		snd_mask_set(fmt, (__force int)SNDRV_PCM_FORMAT_S32_LE);
 		break;
 	default:
-		dev_err(sdev->dev, "No available DAI format!\n");
+		dev_err(sdev->dev, "error: No available DAI format!\n");
 		return -EINVAL;
 	}
 

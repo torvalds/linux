@@ -102,7 +102,7 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
 					     dfse, &sof_dfs_fops);
 	if (!dfse->dfsentry) {
-		dev_err(sdev->dev, "cannot create debugfs entry.\n");
+		dev_err(sdev->dev, "error: cannot create debugfs entry.\n");
 		return -ENODEV;
 	}
 
@@ -131,7 +131,7 @@ int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
 	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
 					     dfse, &sof_dfs_fops);
 	if (!dfse->dfsentry) {
-		dev_err(sdev->dev, "cannot create debugfs entry.\n");
+		dev_err(sdev->dev, "error: cannot create debugfs entry.\n");
 		return -ENODEV;
 	}
 
@@ -160,7 +160,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 						  map->offset, map->size,
 						  map->name);
 		if (err < 0)
-			dev_err(sdev->dev, "cannot create debugfs for %s\n",
+			dev_err(sdev->dev, "error: cannot create debugfs for %s\n",
 				map->name);
 	}
 

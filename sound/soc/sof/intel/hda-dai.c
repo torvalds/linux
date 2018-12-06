@@ -63,7 +63,7 @@ static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 		stream = snd_hdac_ext_stream_assign(bus, &substream,
 						    HDAC_EXT_STREAM_TYPE_LINK);
 		if (!stream) {
-			dev_err(bus->dev, "failed to find a free hda ext stream for playback");
+			dev_err(bus->dev, "error: failed to find a free hda ext stream for playback");
 			return -EBUSY;
 		}
 
@@ -78,7 +78,7 @@ static int hda_link_dma_get_channels(struct snd_soc_dai *dai,
 		stream = snd_hdac_ext_stream_assign(bus, &substream,
 						    HDAC_EXT_STREAM_TYPE_LINK);
 		if (!stream) {
-			dev_err(bus->dev, "failed to find a free hda ext stream for capture");
+			dev_err(bus->dev, "error: failed to find a free hda ext stream for capture");
 			return -EBUSY;
 		}
 

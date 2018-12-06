@@ -333,12 +333,12 @@ static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 		 */
 		ret = hda_dsp_core_reset_power_down(sdev, HDA_DSP_CORE_MASK(0));
 		if (ret < 0) {
-			dev_err(sdev->dev, "dsp core0 disable fail: %d\n", ret);
+			dev_err(sdev->dev, "error: dsp core0 disable fail: %d\n", ret);
 			goto err;
 		}
 		ret = hda_dsp_enable_core(sdev, HDA_DSP_CORE_MASK(0));
 		if (ret < 0) {
-			dev_err(sdev->dev, "dsp core0 enable fail: %d\n", ret);
+			dev_err(sdev->dev, "error: dsp core0 enable fail: %d\n", ret);
 			goto err;
 		}
 	}
@@ -472,7 +472,7 @@ static int cl_copy_fw_skl(struct snd_sof_dev *sdev)
 					HDA_DSP_ROM_FW_FW_LOADED,
 					HDA_DSP_BASEFW_TIMEOUT);
 	if (ret < 0)
-		dev_err(sdev->dev, "firmware transfer timeout!");
+		dev_err(sdev->dev, "error: firmware transfer timeout!");
 
 	cl_skl_cldma_stream_run(sdev, false);
 	cl_cleanup_skl(sdev);
@@ -490,12 +490,12 @@ int hda_dsp_cl_boot_firmware_skl(struct snd_sof_dev *sdev)
 	if (ret < 0) {
 		ret = cl_dsp_init_skl(sdev);
 		if (ret < 0) {
-			dev_err(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
+			dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 						 HDA_ADSP_ERROR_CODE_SKL),
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 						 HDA_ADSP_FW_STATUS_SKL));
-			dev_err(sdev->dev, "Core En/ROM load fail:%d\n", ret);
+			dev_err(sdev->dev, "error: Core En/ROM load fail:%d\n", ret);
 			goto irq_err;
 		}
 	}

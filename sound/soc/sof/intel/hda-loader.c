@@ -318,12 +318,12 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 				  stripped_firmware.size);
 
 		if (tag <= 0) {
-			dev_err(sdev->dev, "Error code=0x%x: FW status=0x%x\n",
+			dev_err(sdev->dev, "error: Error code=0x%x: FW status=0x%x\n",
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 						 HDA_DSP_SRAM_REG_ROM_ERROR),
 				snd_sof_dsp_read(sdev, HDA_DSP_BAR,
 						 HDA_DSP_SRAM_REG_ROM_STATUS));
-			dev_err(sdev->dev, "iteration %d of Core En/ROM load fail:%d\n",
+			dev_err(sdev->dev, "error: iteration %d of Core En/ROM load fail:%d\n",
 				i, tag);
 			ret = tag;
 			continue;
