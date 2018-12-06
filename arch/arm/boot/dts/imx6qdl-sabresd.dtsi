@@ -22,7 +22,7 @@
 		regulator-name = "usb_otg_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio3 22 0>;
+		gpio = <&gpio3 22 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&swbst_reg>;
 	};
@@ -32,7 +32,7 @@
 		regulator-name = "usb_h1_vbus";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		gpio = <&gpio1 29 0>;
+		gpio = <&gpio1 29 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 		vin-supply = <&swbst_reg>;
 	};
@@ -40,7 +40,7 @@
 	reg_audio: regulator-audio {
 		compatible = "regulator-fixed";
 		regulator-name = "wm8962-supply";
-		gpio = <&gpio4 10 0>;
+		gpio = <&gpio4 10 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
@@ -51,7 +51,7 @@
 		regulator-name = "MPCIE_3V3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio3 19 0>;
+		gpio = <&gpio3 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 
