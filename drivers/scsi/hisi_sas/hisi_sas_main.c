@@ -1461,12 +1461,12 @@ static int hisi_sas_abort_task(struct sas_task *task)
 	if (task->lldd_task && task->task_proto & SAS_PROTOCOL_SSP) {
 		struct scsi_cmnd *cmnd = task->uldd_task;
 		struct hisi_sas_slot *slot = task->lldd_task;
-		u32 tag = slot->idx;
+		u16 tag = slot->idx;
 		int rc2;
 
 		int_to_scsilun(cmnd->device->lun, &lun);
 		tmf_task.tmf = TMF_ABORT_TASK;
-		tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
+		tmf_task.tag_of_task_to_be_managed = tag;
 
 		rc = hisi_sas_debug_issue_ssp_tmf(task->dev, lun.scsi_lun,
 						  &tmf_task);
@@ -1720,7 +1720,7 @@ static int hisi_sas_query_task(struct sas_task *task)
 
 		int_to_scsilun(cmnd->device->lun, &lun);
 		tmf_task.tmf = TMF_QUERY_TASK;
-		tmf_task.tag_of_task_to_be_managed = cpu_to_le16(tag);
+		tmf_task.tag_of_task_to_be_managed = tag;
 
 		rc = hisi_sas_debug_issue_ssp_tmf(device,
 						  lun.scsi_lun,

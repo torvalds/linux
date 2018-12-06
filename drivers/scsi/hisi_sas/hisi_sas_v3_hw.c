@@ -628,6 +628,7 @@ static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
 	struct domain_device *parent_dev = device->parent;
 	struct asd_sas_port *sas_port = device->port;
 	struct hisi_sas_port *port = to_hisi_sas_port(sas_port);
+	u64 sas_addr;
 
 	memset(itct, 0, sizeof(*itct));
 
@@ -660,8 +661,8 @@ static void setup_itct_v3_hw(struct hisi_hba *hisi_hba,
 	itct->qw0 = cpu_to_le64(qw0);
 
 	/* qw1 */
-	memcpy(&itct->sas_addr, device->sas_addr, SAS_ADDR_SIZE);
-	itct->sas_addr = __swab64(itct->sas_addr);
+	memcpy(&sas_addr, device->sas_addr, SAS_ADDR_SIZE);
+	itct->sas_addr = cpu_to_le64(__swab64(sas_addr));
 
 	/* qw2 */
 	if (!dev_is_sata(device))
@@ -1592,15 +1593,16 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 			&complete_queue[slot->cmplt_queue_slot];
 	struct hisi_sas_err_record_v3 *record =
 			hisi_sas_status_buf_addr_mem(slot);
-	u32 dma_rx_err_type = record->dma_rx_err_type;
-	u32 trans_tx_fail_type = record->trans_tx_fail_type;
+	u32 dma_rx_err_type = le32_to_cpu(record->dma_rx_err_type);
+	u32 trans_tx_fail_type = le32_to_cpu(record->trans_tx_fail_type);
+	u32 dw3 = le32_to_cpu(complete_hdr->dw3);
 
 	switch (task->task_proto) {
 	case SAS_PROTOCOL_SSP:
 		if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
 			ts->residual = trans_tx_fail_type;
 			ts->stat = SAS_DATA_UNDERRUN;
-		} else if (complete_hdr->dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
+		} else if (dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
 			ts->stat = SAS_QUEUE_FULL;
 			slot->abort = 1;
 		} else {
@@ -1614,7 +1616,7 @@ slot_err_v3_hw(struct hisi_hba *hisi_hba, struct sas_task *task,
 		if (dma_rx_err_type & RX_DATA_LEN_UNDERFLOW_MSK) {
 			ts->residual = trans_tx_fail_type;
 			ts->stat = SAS_DATA_UNDERRUN;
-		} else if (complete_hdr->dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
+		} else if (dw3 & CMPLT_HDR_IO_IN_TARGET_MSK) {
 			ts->stat = SAS_PHY_DOWN;
 			slot->abort = 1;
 		} else {
@@ -1647,6 +1649,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 			&complete_queue[slot->cmplt_queue_slot];
 	unsigned long flags;
 	bool is_internal = slot->is_internal;
+	u32 dw0, dw1, dw3;
 
 	if (unlikely(!task || !task->lldd_task || !task->dev))
 		return -EINVAL;
@@ -1670,11 +1673,14 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 		goto out;
 	}
 
+	dw0 = le32_to_cpu(complete_hdr->dw0);
+	dw1 = le32_to_cpu(complete_hdr->dw1);
+	dw3 = le32_to_cpu(complete_hdr->dw3);
+
 	/*
 	 * Use SAS+TMF status codes
 	 */
-	switch ((complete_hdr->dw0 & CMPLT_HDR_ABORT_STAT_MSK)
-			>> CMPLT_HDR_ABORT_STAT_OFF) {
+	switch ((dw0 & CMPLT_HDR_ABORT_STAT_MSK) >> CMPLT_HDR_ABORT_STAT_OFF) {
 	case STAT_IO_ABORTED:
 		/* this IO has been aborted by abort command */
 		ts->stat = SAS_ABORTED_TASK;
@@ -1697,7 +1703,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 	}
 
 	/* check for erroneous completion */
-	if ((complete_hdr->dw0 & CMPLT_HDR_CMPLT_MSK) == 0x3) {
+	if ((dw0 & CMPLT_HDR_CMPLT_MSK) == 0x3) {
 		u32 *error_info = hisi_sas_status_buf_addr_mem(slot);
 
 		slot_err_v3_hw(hisi_hba, task, slot);
@@ -1706,8 +1712,7 @@ slot_complete_v3_hw(struct hisi_hba *hisi_hba, struct hisi_sas_slot *slot)
 				"CQ hdr: 0x%x 0x%x 0x%x 0x%x "
 				"Error info: 0x%x 0x%x 0x%x 0x%x\n",
 				slot->idx, task, sas_dev->device_id,
-				complete_hdr->dw0, complete_hdr->dw1,
-				complete_hdr->act, complete_hdr->dw3,
+				dw0, dw1, complete_hdr->act, dw3,
 				error_info[0], error_info[1],
 				error_info[2], error_info[3]);
 		if (unlikely(slot->abort))
@@ -1805,11 +1810,13 @@ static void cq_tasklet_v3_hw(unsigned long val)
 	while (rd_point != wr_point) {
 		struct hisi_sas_complete_v3_hdr *complete_hdr;
 		struct device *dev = hisi_hba->dev;
+		u32 dw1;
 		int iptt;
 
 		complete_hdr = &complete_queue[rd_point];
+		dw1 = le32_to_cpu(complete_hdr->dw1);
 
-		iptt = (complete_hdr->dw1) & CMPLT_HDR_IPTT_MSK;
+		iptt = dw1 & CMPLT_HDR_IPTT_MSK;
 		if (likely(iptt < HISI_SAS_COMMAND_ENTRIES_V3_HW)) {
 			slot = &hisi_hba->slot_info[iptt];
 			slot->cmplt_queue_slot = rd_point;
@@ -2205,7 +2212,7 @@ static ssize_t intr_coal_count_v3_hw_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(intr_coal_count_v3_hw);
 
-struct device_attribute *host_attrs_v3_hw[] = {
+static struct device_attribute *host_attrs_v3_hw[] = {
 	&dev_attr_phy_event_threshold,
 	&dev_attr_intr_conv_v3_hw,
 	&dev_attr_intr_coal_ticks_v3_hw,
@@ -2651,7 +2658,7 @@ static int hisi_sas_v3_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
 	struct device *dev = hisi_hba->dev;
 	struct Scsi_Host *shost = hisi_hba->shost;
-	u32 device_state;
+	pci_power_t device_state;
 	int rc;
 
 	if (!pdev->pm_cap) {
@@ -2697,7 +2704,7 @@ static int hisi_sas_v3_resume(struct pci_dev *pdev)
 	struct Scsi_Host *shost = hisi_hba->shost;
 	struct device *dev = hisi_hba->dev;
 	unsigned int rc;
-	u32 device_state = pdev->current_state;
+	pci_power_t device_state = pdev->current_state;
 
 	dev_warn(dev, "resuming from operating state [D%d]\n",
 			device_state);

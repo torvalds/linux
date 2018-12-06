@@ -211,7 +211,7 @@ struct hisi_sas_slot {
 	/* Do not reorder/change members after here */
 	void	*buf;
 	dma_addr_t buf_dma;
-	int	idx;
+	u16	idx;
 };
 
 struct hisi_sas_hw {
