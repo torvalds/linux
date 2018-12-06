@@ -137,7 +137,7 @@ static int netvsc_open(struct net_device *net)
 		 * slave as up. If open fails, then slave will be
 		 * still be offline (and not used).
 		 */
-		ret = dev_open(vf_netdev);
+		ret = dev_open(vf_netdev, NULL);
 		if (ret)
 			netdev_warn(net,
 				    "unable to open slave: %s: %d\n",
@@ -2002,7 +2002,7 @@ static void __netvsc_vf_setup(struct net_device *ndev,
 	netif_addr_unlock_bh(ndev);
 
 	if (netif_running(ndev)) {
-		ret = dev_open(vf_netdev);
+		ret = dev_open(vf_netdev, NULL);
 		if (ret)
 			netdev_warn(vf_netdev,
 				    "unable to open: %d\n", ret);

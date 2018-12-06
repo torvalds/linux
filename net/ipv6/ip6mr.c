@@ -655,7 +655,7 @@ static struct net_device *ip6mr_reg_vif(struct net *net, struct mr_table *mrt)
 		return NULL;
 	}
 
-	if (dev_open(dev))
+	if (dev_open(dev, NULL))
 		goto failure;
 
 	dev_hold(dev);

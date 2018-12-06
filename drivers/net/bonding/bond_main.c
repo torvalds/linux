@@ -1538,7 +1538,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	slave_dev->flags |= IFF_SLAVE;
 
 	/* open the slave since the application closed it */
-	res = dev_open(slave_dev);
+	res = dev_open(slave_dev, extack);
 	if (res) {
 		netdev_dbg(bond_dev, "Opening slave %s failed\n", slave_dev->name);
 		goto err_restore_mac;

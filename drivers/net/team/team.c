@@ -1212,7 +1212,7 @@ static int team_port_add(struct team *team, struct net_device *port_dev,
 		goto err_port_enter;
 	}
 
-	err = dev_open(port_dev);
+	err = dev_open(port_dev, extack);
 	if (err) {
 		netdev_dbg(dev, "Device %s opening failed\n",
 			   portname);
