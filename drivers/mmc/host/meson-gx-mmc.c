@@ -66,6 +66,9 @@
 
 #define SD_EMMC_DELAY 0x4
 #define SD_EMMC_ADJUST 0x8
+#define   ADJUST_ADJ_DELAY_MASK GENMASK(21, 16)
+#define   ADJUST_DS_EN BIT(15)
+#define   ADJUST_ADJ_EN BIT(13)
 
 #define SD_EMMC_DELAY1 0x4
 #define SD_EMMC_DELAY2 0x8
@@ -143,6 +146,7 @@ struct meson_mmc_data {
 	unsigned int tx_delay_mask;
 	unsigned int rx_delay_mask;
 	unsigned int always_on;
+	unsigned int adjust;
 };
 
 struct sd_emmc_desc {
@@ -1162,7 +1166,7 @@ static int meson_mmc_get_cd(struct mmc_host *mmc)
 
 static void meson_mmc_cfg_init(struct meson_host *host)
 {
-	u32 cfg = 0;
+	u32 cfg = 0, adj = 0;
 
 	cfg |= FIELD_PREP(CFG_RESP_TIMEOUT_MASK,
 			  ilog2(SD_EMMC_CFG_RESP_TIMEOUT));
@@ -1173,6 +1177,10 @@ static void meson_mmc_cfg_init(struct meson_host *host)
 	cfg |= CFG_ERR_ABORT;
 
 	writel(cfg, host->regs + SD_EMMC_CFG);
+
+	/* enable signal resampling w/o delay */
+	adj = ADJUST_ADJ_EN;
+	writel(adj, host->regs + host->data->adjust);
 }
 
 static int meson_mmc_card_busy(struct mmc_host *mmc)
@@ -1396,12 +1404,14 @@ static const struct meson_mmc_data meson_gx_data = {
 	.tx_delay_mask	= CLK_V2_TX_DELAY_MASK,
 	.rx_delay_mask	= CLK_V2_RX_DELAY_MASK,
 	.always_on	= CLK_V2_ALWAYS_ON,
+	.adjust		= SD_EMMC_ADJUST,
 };
 
 static const struct meson_mmc_data meson_axg_data = {
 	.tx_delay_mask	= CLK_V3_TX_DELAY_MASK,
 	.rx_delay_mask	= CLK_V3_RX_DELAY_MASK,
 	.always_on	= CLK_V3_ALWAYS_ON,
+	.adjust		= SD_EMMC_V3_ADJUST,
 };
 
 static const struct of_device_id meson_mmc_of_match[] = {
