@@ -241,8 +241,8 @@ static int stm_thermal_read_factory_settings(struct stm_thermal_sensor *sensor)
 		sensor->t0 = TS1_T0_VAL1;
 
 	/* Retrieve fmt0 and put it on Hz */
-	sensor->fmt0 = ADJUST * readl_relaxed(sensor->base + DTS_T0VALR1_OFFSET)
-					      & TS1_FMT0_MASK;
+	sensor->fmt0 = ADJUST * (readl_relaxed(sensor->base +
+				 DTS_T0VALR1_OFFSET) & TS1_FMT0_MASK);
 
 	/* Retrieve ramp coefficient */
 	sensor->ramp_coeff = readl_relaxed(sensor->base + DTS_RAMPVALR_OFFSET) &
