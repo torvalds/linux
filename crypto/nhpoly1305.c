@@ -9,15 +9,15 @@
  * "NHPoly1305" is the main component of Adiantum hashing.
  * Specifically, it is the calculation
  *
- *	H_M ← Poly1305_{K_M}(NH_{K_N}(pad_{128}(M)))
+ *	H_L ← Poly1305_{K_L}(NH_{K_N}(pad_{128}(L)))
  *
- * from the procedure in section A.5 of the Adiantum paper [1].  It is an
- * ε-almost-∆-universal (εA∆U) hash function for equal-length inputs over
+ * from the procedure in section 6.4 of the Adiantum paper [1].  It is an
+ * ε-almost-∆-universal (ε-∆U) hash function for equal-length inputs over
  * Z/(2^{128}Z), where the "∆" operation is addition.  It hashes 1024-byte
  * chunks of the input with the NH hash function [2], reducing the input length
  * by 32x.  The resulting NH digests are evaluated as a polynomial in
  * GF(2^{130}-5), like in the Poly1305 MAC [3].  Note that the polynomial
- * evaluation by itself would suffice to achieve the εA∆U property; NH is used
+ * evaluation by itself would suffice to achieve the ε-∆U property; NH is used
  * for performance since it's over twice as fast as Poly1305.
  *
  * This is *not* a cryptographic hash function; do not use it as such!
