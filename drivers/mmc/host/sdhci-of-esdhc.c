@@ -597,7 +597,7 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 			pre_div = 4;
 			div = 3;
 		} else {
-			pr_warn("%s: using upsupported clock division.\n",
+			pr_warn("%s: using unsupported clock division.\n",
 				mmc_hostname(host->mmc));
 		}
 	}
