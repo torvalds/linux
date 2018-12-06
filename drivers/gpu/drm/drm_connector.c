@@ -1138,7 +1138,7 @@ void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
 EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
 
 /**
- * drm_create_tv_properties - create TV specific connector properties
+ * drm_mode_create_tv_properties - create TV specific connector properties
  * @dev: DRM device
  * @num_modes: number of different TV formats (modes) supported
  * @modes: array of pointers to strings containing name of each format
