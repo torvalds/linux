@@ -49,6 +49,7 @@
 #include <linux/memory.h>
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
+#include <linux/version.h>
 
 #include <asm/ipl.h>
 #include <asm/facility.h>
@@ -990,6 +991,25 @@ static void __init setup_task_size(void)
 }
 
 /*
+ * Issue diagnose 318 to set the control program name and
+ * version codes.
+ */
+static void __init setup_control_program_code(void)
+{
+	union diag318_info diag318_info = {
+		.cpnc = CPNC_LINUX,
+		.cpvc_linux = 0,
+		.cpvc_distro = {0},
+	};
+
+	if (!sclp.has_diag318)
+		return;
+
+	diag_stat_inc(DIAG_STAT_X318);
+	asm volatile("diag %0,0,0x318\n" : : "d" (diag318_info.val));
+}
+
+/*
  * Setup function called from init/main.c just after the banner
  * was printed.
  */
@@ -1031,6 +1051,7 @@ void __init setup_arch(char **cmdline_p)
 	os_info_init();
 	setup_ipl();
 	setup_task_size();
+	setup_control_program_code();
 
 	/* Do some memory reservations *before* memory is added to memblock */
 	reserve_memory_end();
