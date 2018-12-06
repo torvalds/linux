@@ -1178,7 +1178,12 @@ common_reg:
 			config.of_node = rdata[i].of_node;
 		}
 		config.ena_gpiod = s2mps11->ext_control_gpiod[i];
-
+		/*
+		 * Hand the GPIO descriptor management over to the regulator
+		 * core, remove it from devres management.
+		 */
+		if (config.ena_gpiod)
+			devm_gpiod_unhinge(&pdev->dev, config.ena_gpiod);
 		regulator = devm_regulator_register(&pdev->dev,
 						&regulators[i], &config);
 		if (IS_ERR(regulator)) {
