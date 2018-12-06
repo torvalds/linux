@@ -241,7 +241,7 @@ static void rxe_pool_put(struct rxe_pool *pool)
 	kref_put(&pool->ref_cnt, rxe_pool_release);
 }
 
-int rxe_pool_cleanup(struct rxe_pool *pool)
+void rxe_pool_cleanup(struct rxe_pool *pool)
 {
 	unsigned long flags;
 
@@ -253,8 +253,6 @@ int rxe_pool_cleanup(struct rxe_pool *pool)
 	write_unlock_irqrestore(&pool->pool_lock, flags);
 
 	rxe_pool_put(pool);
-
-	return 0;
 }
 
 static u32 alloc_index(struct rxe_pool *pool)
