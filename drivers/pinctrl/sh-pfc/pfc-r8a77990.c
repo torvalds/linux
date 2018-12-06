@@ -4914,6 +4914,17 @@ static const struct pinmux_bias_reg pinmux_bias_regs[] = {
 	{ /* sentinel */ },
 };
 
+static bool pin_has_pud(unsigned int pin)
+{
+	/* Some pins are pull-up only */
+	switch (pin) {
+	case RCAR_GP_PIN(6, 9):	/* USB30_OVC  */
+		return false;
+	}
+
+	return true;
+}
+
 static unsigned int r8a77990_pinmux_get_bias(struct sh_pfc *pfc,
 					     unsigned int pin)
 {
@@ -4926,7 +4937,7 @@ static unsigned int r8a77990_pinmux_get_bias(struct sh_pfc *pfc,
 
 	if (!(sh_pfc_read(pfc, reg->puen) & BIT(bit)))
 		return PIN_CONFIG_BIAS_DISABLE;
-	else if (sh_pfc_read(pfc, reg->pud) & BIT(bit))
+	else if (!pin_has_pud(pin) || (sh_pfc_read(pfc, reg->pud) & BIT(bit)))
 		return PIN_CONFIG_BIAS_PULL_UP;
 	else
 		return PIN_CONFIG_BIAS_PULL_DOWN;
@@ -4947,11 +4958,13 @@ static void r8a77990_pinmux_set_bias(struct sh_pfc *pfc, unsigned int pin,
 	if (bias != PIN_CONFIG_BIAS_DISABLE)
 		enable |= BIT(bit);
 
-	updown = sh_pfc_read(pfc, reg->pud) & ~BIT(bit);
-	if (bias == PIN_CONFIG_BIAS_PULL_UP)
-		updown |= BIT(bit);
+	if (pin_has_pud(pin)) {
+		updown = sh_pfc_read(pfc, reg->pud) & ~BIT(bit);
+		if (bias == PIN_CONFIG_BIAS_PULL_UP)
+			updown |= BIT(bit);
 
-	sh_pfc_write(pfc, reg->pud, updown);
+		sh_pfc_write(pfc, reg->pud, updown);
+	}
 	sh_pfc_write(pfc, reg->puen, enable);
 }
 
