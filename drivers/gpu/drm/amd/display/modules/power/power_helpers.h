@@ -1,5 +1,4 @@
-/*
- * Copyright 2014 Advanced Micro Devices, Inc.
+/* Copyright 2018 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,16 +18,30 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  *
+ * Authors: AMD
+ *
  */
 
-#ifndef __CIK_H__
-#define __CIK_H__
+#ifndef MODULES_POWER_POWER_HELPERS_H_
+#define MODULES_POWER_POWER_HELPERS_H_
 
-#define CIK_FLUSH_GPU_TLB_NUM_WREG	3
+#include "dc/inc/hw/dmcu.h"
 
-void cik_srbm_select(struct amdgpu_device *adev,
-		     u32 me, u32 pipe, u32 queue, u32 vmid);
-int cik_set_ip_blocks(struct amdgpu_device *adev);
 
-void legacy_doorbell_index_init(struct amdgpu_device *adev);
-#endif
+enum abm_defines {
+	abm_defines_max_level = 4,
+	abm_defines_max_config = 4,
+};
+
+struct dmcu_iram_parameters {
+	unsigned int *backlight_lut_array;
+	unsigned int backlight_lut_array_size;
+	unsigned int backlight_ramping_reduction;
+	unsigned int backlight_ramping_start;
+	unsigned int set;
+};
+
+bool dmcu_load_iram(struct dmcu *dmcu,
+		struct dmcu_iram_parameters params);
+
+#endif /* MODULES_POWER_POWER_HELPERS_H_ */

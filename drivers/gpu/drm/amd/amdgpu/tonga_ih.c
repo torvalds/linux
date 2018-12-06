@@ -322,7 +322,7 @@ static int tonga_ih_sw_init(void *handle)
 		return r;
 
 	adev->irq.ih.use_doorbell = true;
-	adev->irq.ih.doorbell_index = AMDGPU_DOORBELL_IH;
+	adev->irq.ih.doorbell_index = adev->doorbell_index.ih;
 
 	r = amdgpu_irq_init(adev);
 

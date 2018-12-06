@@ -454,12 +454,6 @@ static unsigned int dcn10_get_otg_states(struct dc *dc, char *pBuf, unsigned int
 
 			remaining_buffer -= chars_printed;
 			pBuf += chars_printed;
-
-			// Clear underflow for debug purposes
-			// We want to keep underflow sticky bit on for the longevity tests outside of test environment.
-			// This function is called only from Windows or Diags test environment, hence it's safe to clear
-			// it from here without affecting the original intent.
-			tg->funcs->clear_optc_underflow(tg);
 		}
 	}
 
@@ -482,6 +476,59 @@ static unsigned int dcn10_get_clock_states(struct dc *dc, char *pBuf, unsigned i
 		dc->current_state->bw.dcn.clk.socclk_khz);
 
 	return chars_printed;
+}
+
+static void dcn10_clear_otpc_underflow(struct dc *dc)
+{
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	for (i = 0; i < pool->timing_generator_count; i++) {
+		struct timing_generator *tg = pool->timing_generators[i];
+		struct dcn_otg_state s = {0};
+
+		optc1_read_otg_state(DCN10TG_FROM_TG(tg), &s);
+
+		if (s.otg_enabled & 1)
+			tg->funcs->clear_optc_underflow(tg);
+	}
+}
+
+static void dcn10_clear_hubp_underflow(struct dc *dc)
+{
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct hubp *hubp = pool->hubps[i];
+		struct dcn_hubp_state *s = &(TO_DCN10_HUBP(hubp)->state);
+
+		hubp->funcs->hubp_read_state(hubp);
+
+		if (!s->blank_en)
+			hubp->funcs->hubp_clear_underflow(hubp);
+	}
+}
+
+void dcn10_clear_status_bits(struct dc *dc, unsigned int mask)
+{
+	/*
+	 *  Mask Format
+	 *  Bit 0 - 31: Status bit to clear
+	 *
+	 *  Mask = 0x0 means clear all status bits
+	 */
+	const unsigned int DC_HW_STATE_MASK_HUBP_UNDERFLOW	= 0x1;
+	const unsigned int DC_HW_STATE_MASK_OTPC_UNDERFLOW	= 0x2;
+
+	if (mask == 0x0)
+		mask = 0xFFFFFFFF;
+
+	if (mask & DC_HW_STATE_MASK_HUBP_UNDERFLOW)
+		dcn10_clear_hubp_underflow(dc);
+
+	if (mask & DC_HW_STATE_MASK_OTPC_UNDERFLOW)
+		dcn10_clear_otpc_underflow(dc);
 }
 
 void dcn10_get_hw_state(struct dc *dc, char *pBuf, unsigned int bufSize, unsigned int mask)

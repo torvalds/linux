@@ -908,7 +908,6 @@ static void dce110_stream_encoder_dp_blank(
 	struct stream_encoder *enc)
 {
 	struct dce110_stream_encoder *enc110 = DCE110STRENC_FROM_STRENC(enc);
-	uint32_t retries = 0;
 	uint32_t  reg1 = 0;
 	uint32_t max_retries = DP_BLANK_MAX_RETRY * 10;
 
@@ -926,30 +925,28 @@ static void dce110_stream_encoder_dp_blank(
 	 * (2 = start of the next vertical blank) */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_DIS_DEFER, 2);
 	/* Larger delay to wait until VBLANK - use max retry of
-	* 10us*3000=30ms. This covers 16.6ms of typical 60 Hz mode +
-	* a little more because we may not trust delay accuracy.
-	*/
+	 * 10us*3000=30ms. This covers 16.6ms of typical 60 Hz mode +
+	 * a little more because we may not trust delay accuracy.
+	 */
 	max_retries = DP_BLANK_MAX_RETRY * 150;
 
 	/* disable DP stream */
 	REG_UPDATE(DP_VID_STREAM_CNTL, DP_VID_STREAM_ENABLE, 0);
 
 	/* the encoder stops sending the video stream
-	* at the start of the vertical blanking.
-	* Poll for DP_VID_STREAM_STATUS == 0
-	*/
+	 * at the start of the vertical blanking.
+	 * Poll for DP_VID_STREAM_STATUS == 0
+	 */
 
 	REG_WAIT(DP_VID_STREAM_CNTL, DP_VID_STREAM_STATUS,
 			0,
 			10, max_retries);
 
-	ASSERT(retries <= max_retries);
-
 	/* Tell the DP encoder to ignore timing from CRTC, must be done after
-	* the polling. If we set DP_STEER_FIFO_RESET before DP stream blank is
-	* complete, stream status will be stuck in video stream enabled state,
-	* i.e. DP_VID_STREAM_STATUS stuck at 1.
-	*/
+	 * the polling. If we set DP_STEER_FIFO_RESET before DP stream blank is
+	 * complete, stream status will be stuck in video stream enabled state,
+	 * i.e. DP_VID_STREAM_STATUS stuck at 1.
+	 */
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, true);
 }

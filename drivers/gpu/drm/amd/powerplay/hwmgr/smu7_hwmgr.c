@@ -269,7 +269,7 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 					hwmgr->dyn_state.mvdd_dependency_on_mclk);
 
 		PP_ASSERT_WITH_CODE((0 == result),
-				"Failed to retrieve SVI2 MVDD table from dependancy table.",
+				"Failed to retrieve SVI2 MVDD table from dependency table.",
 				return result;);
 	}
 
@@ -288,7 +288,7 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 			result = phm_get_svi2_voltage_table_v0(&(data->vddci_voltage_table),
 					hwmgr->dyn_state.vddci_dependency_on_mclk);
 		PP_ASSERT_WITH_CODE((0 == result),
-				"Failed to retrieve SVI2 VDDCI table from dependancy table.",
+				"Failed to retrieve SVI2 VDDCI table from dependency table.",
 				return result);
 	}
 
@@ -317,7 +317,7 @@ static int smu7_construct_voltage_tables(struct pp_hwmgr *hwmgr)
 				table_info->vddc_lookup_table);
 
 		PP_ASSERT_WITH_CODE((0 == result),
-			"Failed to retrieve SVI2 VDDC table from dependancy table.", return result;);
+			"Failed to retrieve SVI2 VDDC table from dependency table.", return result;);
 	}
 
 	tmp = smum_get_mac_definition(hwmgr, SMU_MAX_LEVELS_VDDC);

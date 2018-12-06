@@ -37,7 +37,6 @@
 #include "gca/gfx_8_0_d.h"
 #include "smu/smu_7_1_2_d.h"
 #include "smu/smu_7_1_2_sh_mask.h"
-#include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_sh_mask.h"
 #include "ivsrcid/ivsrcid_vislands30.h"
 

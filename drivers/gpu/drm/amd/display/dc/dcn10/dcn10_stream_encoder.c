@@ -766,7 +766,6 @@ void enc1_stream_encoder_dp_blank(
 	struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-	uint32_t retries = 0;
 	uint32_t  reg1 = 0;
 	uint32_t max_retries = DP_BLANK_MAX_RETRY * 10;
 
@@ -802,8 +801,6 @@ void enc1_stream_encoder_dp_blank(
 	REG_WAIT(DP_VID_STREAM_CNTL, DP_VID_STREAM_STATUS,
 			0,
 			10, max_retries);
-
-	ASSERT(retries <= max_retries);
 
 	/* Tell the DP encoder to ignore timing from CRTC, must be done after
 	 * the polling. If we set DP_STEER_FIFO_RESET before DP stream blank is

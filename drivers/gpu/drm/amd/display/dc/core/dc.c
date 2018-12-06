@@ -328,7 +328,7 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
 	struct bit_depth_reduction_params params;
-	struct dc_link *link = stream->status.link;
+	struct dc_link *link = stream->sink->link;
 	struct pipe_ctx *pipes = NULL;
 	int i;
 
@@ -1684,6 +1684,15 @@ void dc_resume(struct dc *dc)
 
 	for (i = 0; i < dc->link_count; i++)
 		core_link_resume(dc->links[i]);
+}
+
+bool dc_is_dmcu_initialized(struct dc *dc)
+{
+	struct dmcu *dmcu = dc->res_pool->dmcu;
+
+	if (dmcu)
+		return dmcu->funcs->is_dmcu_initialized(dmcu);
+	return false;
 }
 
 bool dc_submit_i2c(

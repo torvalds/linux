@@ -20,25 +20,12 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 #
 #
-# Makefile for the DAL (Display Abstract Layer), which is a  sub-component
-# of the AMDGPU drm driver.
-# It provides the HW control for display related functionalities.
+# Makefile for the 'power' sub-module of DAL.
+#
 
-AMDDALPATH = $(RELATIVE_AMD_DISPLAY_PATH)
+MOD_POWER = power_helpers.o
 
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/dc/inc/hw
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/inc
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/freesync
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/color
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/info_packet
-subdir-ccflags-y += -I$(FULL_AMD_DISPLAY_PATH)/modules/power
+AMD_DAL_MOD_POWER = $(addprefix $(AMDDALPATH)/modules/power/,$(MOD_POWER))
+#$(info ************  DAL POWER MODULE MAKEFILE ************)
 
-#TODO: remove when Timing Sync feature is complete
-subdir-ccflags-y += -DBUILD_FEATURE_TIMING_SYNC=0
-
-DAL_LIBS = amdgpu_dm dc	modules/freesync modules/color modules/info_packet modules/power
-
-AMD_DAL = $(addsuffix /Makefile, $(addprefix $(FULL_AMD_DISPLAY_PATH)/,$(DAL_LIBS)))
-
-include $(AMD_DAL)
+AMD_DISPLAY_FILES += $(AMD_DAL_MOD_POWER)

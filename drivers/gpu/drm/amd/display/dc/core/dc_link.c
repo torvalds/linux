@@ -1396,8 +1396,6 @@ static enum dc_status enable_link_dp(
 	else
 		status = DC_FAIL_DP_LINK_TRAINING;
 
-	enable_stream_features(pipe_ctx);
-
 	return status;
 }
 
@@ -2175,11 +2173,11 @@ bool dc_link_set_backlight_level(const struct dc_link *link,
 			backlight_pwm_u16_16, backlight_pwm_u16_16);
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
-		if (stream != NULL) {
-			for (i = 0; i < MAX_PIPES; i++) {
+		for (i = 0; i < MAX_PIPES; i++) {
+			if (core_dc->current_state->res_ctx.pipe_ctx[i].stream) {
 				if (core_dc->current_state->res_ctx.
-						pipe_ctx[i].stream
-						== stream)
+						pipe_ctx[i].stream->sink->link
+						== link)
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -2218,7 +2216,7 @@ bool dc_link_set_psr_enable(const struct dc_link *link, bool enable, bool wait)
 	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
-	if (dmcu != NULL && link->psr_enabled)
+	if ((dmcu != NULL && dmcu->funcs->is_dmcu_initialized(dmcu)) && link->psr_enabled)
 		dmcu->funcs->set_psr_enable(dmcu, enable, wait);
 
 	return true;
@@ -2593,6 +2591,9 @@ void core_link_enable_stream(
 
 		core_dc->hwss.unblank_stream(pipe_ctx,
 			&pipe_ctx->stream->sink->link->cur_link_settings);
+
+		if (dc_is_dp_signal(pipe_ctx->stream->signal))
+			enable_stream_features(pipe_ctx);
 
 		dc_link_set_backlight_level(pipe_ctx->stream->sink->link,
 				pipe_ctx->stream->bl_pwm_level,

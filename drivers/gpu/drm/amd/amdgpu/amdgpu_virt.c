@@ -334,7 +334,7 @@ void amdgpu_virt_init_data_exchange(struct amdgpu_device *adev)
 
 	if (adev->fw_vram_usage.va != NULL) {
 		adev->virt.fw_reserve.p_pf2vf =
-			(struct amdgim_pf2vf_info_header *)(
+			(struct amd_sriov_msg_pf2vf_info_header *)(
 			adev->fw_vram_usage.va + AMDGIM_DATAEXCHANGE_OFFSET);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, header.size, &pf2vf_size);
 		AMDGPU_FW_VRAM_PF2VF_READ(adev, checksum, &checksum);

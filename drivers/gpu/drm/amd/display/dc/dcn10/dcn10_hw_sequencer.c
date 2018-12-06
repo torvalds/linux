@@ -1227,7 +1227,8 @@ static bool dcn10_set_input_transfer_func(struct pipe_ctx *pipe_ctx,
 		tf = plane_state->in_transfer_func;
 
 	if (plane_state->gamma_correction &&
-		!plane_state->gamma_correction->is_identity
+		!dpp_base->ctx->dc->debug.always_use_regamma
+		&& !plane_state->gamma_correction->is_identity
 			&& dce_use_lut(plane_state->format))
 		dpp_base->funcs->dpp_program_input_lut(dpp_base, plane_state->gamma_correction);
 
@@ -1400,7 +1401,7 @@ static void dcn10_enable_per_frame_crtc_position_reset(
 		if (grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset)
 			grouped_pipes[i]->stream_res.tg->funcs->enable_crtc_reset(
 					grouped_pipes[i]->stream_res.tg,
-					grouped_pipes[i]->stream->triggered_crtc_reset.event_source->status.primary_otg_inst,
+					0,
 					&grouped_pipes[i]->stream->triggered_crtc_reset);
 
 	DC_SYNC_INFO("Waiting for trigger\n");
@@ -1770,7 +1771,7 @@ bool is_rgb_cspace(enum dc_color_space output_color_space)
 	}
 }
 
-static void dcn10_get_surface_visual_confirm_color(
+void dcn10_get_surface_visual_confirm_color(
 		const struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
@@ -1806,7 +1807,7 @@ static void dcn10_get_surface_visual_confirm_color(
 	}
 }
 
-static void dcn10_get_hdr_visual_confirm_color(
+void dcn10_get_hdr_visual_confirm_color(
 		struct pipe_ctx *pipe_ctx,
 		struct tg_color *color)
 {
@@ -2067,6 +2068,10 @@ void update_dchubp_dpp(
 			&pipe_ctx->ttu_regs,
 			&pipe_ctx->rq_regs,
 			&pipe_ctx->pipe_dlg_param);
+		hubp->funcs->hubp_setup_interdependent(
+			hubp,
+			&pipe_ctx->dlg_regs,
+			&pipe_ctx->ttu_regs);
 	}
 
 	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
@@ -2336,6 +2341,32 @@ static void dcn10_apply_ctx_for_surface(
 		program_all_pipe_in_tree(dc, top_pipe_to_program, context);
 
 	dcn10_pipe_control_lock(dc, top_pipe_to_program, false);
+
+	if (top_pipe_to_program->plane_state &&
+			top_pipe_to_program->plane_state->update_flags.bits.full_update)
+		for (i = 0; i < dc->res_pool->pipe_count; i++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+			/* Skip inactive pipes and ones already updated */
+			if (!pipe_ctx->stream || pipe_ctx->stream == stream)
+				continue;
+
+			pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
+
+			pipe_ctx->plane_res.hubp->funcs->hubp_setup_interdependent(
+				pipe_ctx->plane_res.hubp,
+				&pipe_ctx->dlg_regs,
+				&pipe_ctx->ttu_regs);
+		}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->stream || pipe_ctx->stream == stream)
+			continue;
+
+		dcn10_pipe_control_lock(dc, pipe_ctx, false);
+	}
 
 	if (num_planes == 0)
 		false_optc_underflow_wa(dc, stream, tg);
@@ -2710,6 +2741,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_avmute = dce110_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
 	.get_hw_state = dcn10_get_hw_state,
+	.clear_status_bits = dcn10_clear_status_bits,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.edp_backlight_control = hwss_edp_backlight_control,
 	.edp_power_control = hwss_edp_power_control,

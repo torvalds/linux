@@ -433,6 +433,8 @@ static int drm_atomic_crtc_set_property(struct drm_crtc *crtc,
 		ret = drm_atomic_set_mode_prop_for_crtc(state, mode);
 		drm_property_blob_put(mode);
 		return ret;
+	} else if (property == config->prop_vrr_enabled) {
+		state->vrr_enabled = val;
 	} else if (property == config->degamma_lut_property) {
 		ret = drm_atomic_replace_property_blob_from_id(dev,
 					&state->degamma_lut,
@@ -491,6 +493,8 @@ drm_atomic_crtc_get_property(struct drm_crtc *crtc,
 		*val = state->active;
 	else if (property == config->prop_mode_id)
 		*val = (state->mode_blob) ? state->mode_blob->base.id : 0;
+	else if (property == config->prop_vrr_enabled)
+		*val = state->vrr_enabled;
 	else if (property == config->degamma_lut_property)
 		*val = (state->degamma_lut) ? state->degamma_lut->base.id : 0;
 	else if (property == config->ctm_property)

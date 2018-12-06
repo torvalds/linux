@@ -43,7 +43,7 @@ int amdgpu_allocate_static_csa(struct amdgpu_device *adev, struct amdgpu_bo **bo
 	r = amdgpu_bo_create_kernel(adev, size, PAGE_SIZE,
 				domain, bo,
 				NULL, &ptr);
-	if (!bo)
+	if (!*bo)
 		return -ENOMEM;
 
 	memset(ptr, 0, size);

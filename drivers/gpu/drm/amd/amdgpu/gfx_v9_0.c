@@ -1566,7 +1566,7 @@ static int gfx_v9_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 	ring->ring_obj = NULL;
 	ring->use_doorbell = true;
-	ring->doorbell_index = (AMDGPU_DOORBELL_MEC_RING0 + ring_id) << 1;
+	ring->doorbell_index = (adev->doorbell_index.mec_ring0 + ring_id) << 1;
 	ring->eop_gpu_addr = adev->gfx.mec.hpd_eop_gpu_addr
 				+ (ring_id * GFX9_MEC_HPD_SIZE);
 	sprintf(ring->name, "comp_%d.%d.%d", ring->me, ring->pipe, ring->queue);
@@ -1655,7 +1655,7 @@ static int gfx_v9_0_sw_init(void *handle)
 		else
 			sprintf(ring->name, "gfx_%d", i);
 		ring->use_doorbell = true;
-		ring->doorbell_index = AMDGPU_DOORBELL64_GFX_RING0 << 1;
+		ring->doorbell_index = adev->doorbell_index.gfx_ring0 << 1;
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->gfx.eop_irq, AMDGPU_CP_IRQ_GFX_EOP);
 		if (r)
@@ -2981,9 +2981,9 @@ static int gfx_v9_0_kiq_init_register(struct amdgpu_ring *ring)
 	/* enable the doorbell if requested */
 	if (ring->use_doorbell) {
 		WREG32_SOC15(GC, 0, mmCP_MEC_DOORBELL_RANGE_LOWER,
-					(AMDGPU_DOORBELL64_KIQ *2) << 2);
+					(adev->doorbell_index.kiq * 2) << 2);
 		WREG32_SOC15(GC, 0, mmCP_MEC_DOORBELL_RANGE_UPPER,
-					(AMDGPU_DOORBELL64_USERQUEUE_END * 2) << 2);
+					(adev->doorbell_index.userqueue_end * 2) << 2);
 	}
 
 	WREG32_SOC15(GC, 0, mmCP_HQD_PQ_DOORBELL_CONTROL,

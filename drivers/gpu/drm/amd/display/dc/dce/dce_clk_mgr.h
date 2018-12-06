@@ -165,4 +165,6 @@ struct clk_mgr *dce120_clk_mgr_create(struct dc_context *ctx);
 
 void dce_clk_mgr_destroy(struct clk_mgr **clk_mgr);
 
+int dentist_get_divider_from_did(int did);
+
 #endif /* _DCE_CLK_MGR_H_ */

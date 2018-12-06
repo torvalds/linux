@@ -94,7 +94,7 @@ static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStatePerformance*/
 { .display_clk_khz = 1133000, .pixel_clk_khz = 600000 } };
 
-static int dentist_get_divider_from_did(int did)
+int dentist_get_divider_from_did(int did)
 {
 	if (did < DENTIST_BASE_DID_1)
 		did = DENTIST_BASE_DID_1;
@@ -277,7 +277,8 @@ static int dce_set_clock(
 	if (requested_clk_khz == 0)
 		clk_mgr_dce->cur_min_clks_state = DM_PP_CLOCKS_STATE_NOMINAL;
 
-	dmcu->funcs->set_psr_wait_loop(dmcu, actual_clock / 1000 / 7);
+	if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu))
+		dmcu->funcs->set_psr_wait_loop(dmcu, actual_clock / 1000 / 7);
 
 	return actual_clock;
 }
@@ -324,9 +325,11 @@ int dce112_set_clock(struct clk_mgr *clk_mgr, int requested_clk_khz)
 	bp->funcs->set_dce_clock(bp, &dce_clk_params);
 
 	if (!IS_FPGA_MAXIMUS_DC(core_dc->ctx->dce_environment)) {
-		if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
-			dmcu->funcs->set_psr_wait_loop(dmcu,
-					actual_clock / 1000 / 7);
+		if (dmcu && dmcu->funcs->is_dmcu_initialized(dmcu)) {
+			if (clk_mgr_dce->dfs_bypass_disp_clk != actual_clock)
+				dmcu->funcs->set_psr_wait_loop(dmcu,
+						actual_clock / 1000 / 7);
+		}
 	}
 
 	clk_mgr_dce->dfs_bypass_disp_clk = actual_clock;
@@ -587,6 +590,8 @@ static void dce11_pplib_apply_display_requirements(
 	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
 			dc,
 			context->bw.dce.sclk_khz);
+
+	pp_display_cfg->min_dcfclock_khz = pp_display_cfg->min_engine_clock_khz;
 
 	pp_display_cfg->min_engine_clock_deep_sleep_khz
 			= context->bw.dce.sclk_deep_sleep_khz;

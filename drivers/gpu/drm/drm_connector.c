@@ -1279,6 +1279,105 @@ int drm_mode_create_scaling_mode_property(struct drm_device *dev)
 EXPORT_SYMBOL(drm_mode_create_scaling_mode_property);
 
 /**
+ * DOC: Variable refresh properties
+ *
+ * Variable refresh rate capable displays can dynamically adjust their
+ * refresh rate by extending the duration of their vertical front porch
+ * until page flip or timeout occurs. This can reduce or remove stuttering
+ * and latency in scenarios where the page flip does not align with the
+ * vblank interval.
+ *
+ * An example scenario would be an application flipping at a constant rate
+ * of 48Hz on a 60Hz display. The page flip will frequently miss the vblank
+ * interval and the same contents will be displayed twice. This can be
+ * observed as stuttering for content with motion.
+ *
+ * If variable refresh rate was active on a display that supported a
+ * variable refresh range from 35Hz to 60Hz no stuttering would be observable
+ * for the example scenario. The minimum supported variable refresh rate of
+ * 35Hz is below the page flip frequency and the vertical front porch can
+ * be extended until the page flip occurs. The vblank interval will be
+ * directly aligned to the page flip rate.
+ *
+ * Not all userspace content is suitable for use with variable refresh rate.
+ * Large and frequent changes in vertical front porch duration may worsen
+ * perceived stuttering for input sensitive applications.
+ *
+ * Panel brightness will also vary with vertical front porch duration. Some
+ * panels may have noticeable differences in brightness between the minimum
+ * vertical front porch duration and the maximum vertical front porch duration.
+ * Large and frequent changes in vertical front porch duration may produce
+ * observable flickering for such panels.
+ *
+ * Userspace control for variable refresh rate is supported via properties
+ * on the &drm_connector and &drm_crtc objects.
+ *
+ * "vrr_capable":
+ *	Optional &drm_connector boolean property that drivers should attach
+ *	with drm_connector_attach_vrr_capable_property() on connectors that
+ *	could support variable refresh rates. Drivers should update the
+ *	property value by calling drm_connector_set_vrr_capable_property().
+ *
+ *	Absence of the property should indicate absence of support.
+ *
+ * "vrr_enabled":
+ *	Default &drm_crtc boolean property that notifies the driver that the
+ *	content on the CRTC is suitable for variable refresh rate presentation.
+ *	The driver will take this property as a hint to enable variable
+ *	refresh rate support if the receiver supports it, ie. if the
+ *	"vrr_capable" property is true on the &drm_connector object. The
+ *	vertical front porch duration will be extended until page-flip or
+ *	timeout when enabled.
+ *
+ *	The minimum vertical front porch duration is defined as the vertical
+ *	front porch duration for the current mode.
+ *
+ *	The maximum vertical front porch duration is greater than or equal to
+ *	the minimum vertical front porch duration. The duration is derived
+ *	from the minimum supported variable refresh rate for the connector.
+ *
+ *	The driver may place further restrictions within these minimum
+ *	and maximum bounds.
+ *
+ *	The semantics for the vertical blank timestamp differ when
+ *	variable refresh rate is active. The vertical blank timestamp
+ *	is defined to be an estimate using the current mode's fixed
+ *	refresh rate timings. The semantics for the page-flip event
+ *	timestamp remain the same.
+ */
+
+/**
+ * drm_connector_attach_vrr_capable_property - creates the
+ * vrr_capable property
+ * @connector: connector to create the vrr_capable property on.
+ *
+ * This is used by atomic drivers to add support for querying
+ * variable refresh rate capability for a connector.
+ *
+ * Returns:
+ * Zero on success, negative errono on failure.
+ */
+int drm_connector_attach_vrr_capable_property(
+	struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_property *prop;
+
+	if (!connector->vrr_capable_property) {
+		prop = drm_property_create_bool(dev, DRM_MODE_PROP_IMMUTABLE,
+			"vrr_capable");
+		if (!prop)
+			return -ENOMEM;
+
+		connector->vrr_capable_property = prop;
+		drm_object_attach_property(&connector->base, prop, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_connector_attach_vrr_capable_property);
+
+/**
  * drm_connector_attach_scaling_mode_property - attach atomic scaling mode property
  * @connector: connector to attach scaling mode property on.
  * @scaling_mode_mask: or'ed mask of BIT(%DRM_MODE_SCALE_\*).
@@ -1639,6 +1738,24 @@ int drm_connector_attach_max_bpc_property(struct drm_connector *connector,
 	return 0;
 }
 EXPORT_SYMBOL(drm_connector_attach_max_bpc_property);
+
+/**
+ * drm_connector_set_vrr_capable_property - sets the variable refresh rate
+ * capable property for a connector
+ * @connector: drm connector
+ * @capable: True if the connector is variable refresh rate capable
+ *
+ * Should be used by atomic drivers to update the indicated support for
+ * variable refresh rate over a connector.
+ */
+void drm_connector_set_vrr_capable_property(
+		struct drm_connector *connector, bool capable)
+{
+	drm_object_property_set_value(&connector->base,
+				      connector->vrr_capable_property,
+				      capable);
+}
+EXPORT_SYMBOL(drm_connector_set_vrr_capable_property);
 
 /**
  * drm_connector_init_panel_orientation_property -
