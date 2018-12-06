@@ -716,6 +716,10 @@ config ARM64_PA_BITS_52
 
 endchoice
 
+config ARM64_52BIT_VA
+	def_bool y
+	depends on ARM64_VA_BITS_48 && ARM64_64K_PAGES && (ARM64_PAN || !ARM64_SW_TTBR0_PAN)
+
 config ARM64_PA_BITS
 	int
 	default 48 if ARM64_PA_BITS_48
