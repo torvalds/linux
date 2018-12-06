@@ -1776,6 +1776,11 @@ restart:
 		}
 	}
 
+	if (need_flush && kvm_available_flush_tlb_with_range()) {
+		kvm_flush_remote_tlbs_with_address(kvm, gfn, 1);
+		return 0;
+	}
+
 	return need_flush;
 }
 
