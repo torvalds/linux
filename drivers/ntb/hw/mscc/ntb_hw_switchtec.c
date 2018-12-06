@@ -264,6 +264,7 @@ static void switchtec_ntb_mw_clr_direct(struct switchtec_ntb *sndev, int idx)
 	ctl_val &= ~NTB_CTRL_BAR_DIR_WIN_EN;
 	iowrite32(ctl_val, &ctl->bar_entry[bar].ctl);
 	iowrite32(0, &ctl->bar_entry[bar].win_size);
+	iowrite32(0, &ctl->bar_ext_entry[bar].win_size);
 	iowrite64(sndev->self_partition, &ctl->bar_entry[bar].xlate_addr);
 }
 
@@ -286,7 +287,9 @@ static void switchtec_ntb_mw_set_direct(struct switchtec_ntb *sndev, int idx,
 	ctl_val |= NTB_CTRL_BAR_DIR_WIN_EN;
 
 	iowrite32(ctl_val, &ctl->bar_entry[bar].ctl);
-	iowrite32(xlate_pos | size, &ctl->bar_entry[bar].win_size);
+	iowrite32(xlate_pos | (lower_32_bits(size) & 0xFFFFF000),
+		  &ctl->bar_entry[bar].win_size);
+	iowrite32(upper_32_bits(size), &ctl->bar_ext_entry[bar].win_size);
 	iowrite64(sndev->self_partition | addr,
 		  &ctl->bar_entry[bar].xlate_addr);
 }
@@ -1053,7 +1056,9 @@ static int crosslink_setup_mws(struct switchtec_ntb *sndev, int ntb_lut_idx,
 		ctl_val |= NTB_CTRL_BAR_DIR_WIN_EN;
 
 		iowrite32(ctl_val, &ctl->bar_entry[bar].ctl);
-		iowrite32(xlate_pos | size, &ctl->bar_entry[bar].win_size);
+		iowrite32(xlate_pos | (lower_32_bits(size) & 0xFFFFF000),
+			  &ctl->bar_entry[bar].win_size);
+		iowrite32(upper_32_bits(size), &ctl->bar_ext_entry[bar].win_size);
 		iowrite64(sndev->peer_partition | addr,
 			  &ctl->bar_entry[bar].xlate_addr);
 	}
