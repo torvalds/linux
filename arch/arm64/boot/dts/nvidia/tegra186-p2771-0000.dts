@@ -51,6 +51,10 @@
 		vmmc-supply = <&vdd_sd>;
 	};
 
+	hda@3510000 {
+		status = "okay";
+	};
+
 	pcie@10003000 {
 		status = "okay";
 
