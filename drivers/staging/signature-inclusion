@@ -12,6 +12,7 @@ r8188eu.ko
 r8192e_pci.ko
 r8192u_usb.ko
 r8712u.ko
+r8822be.ko
 rtllib_crypt_ccmp.ko
 rtllib_crypt_tkip.ko
 rtllib_crypt_wep.ko
