@@ -105,7 +105,7 @@ static int alcor_pci_find_cap_offset(struct alcor_pci_priv *priv,
 	while (1) {
 		pci_read_config_dword(pci, where, &val32);
 		if (val32 == 0xffffffff) {
-			dev_dbg(priv->dev, "find_cap_offset invailid value %x.\n",
+			dev_dbg(priv->dev, "find_cap_offset invalid value %x.\n",
 				val32);
 			return 0;
 		}
@@ -116,7 +116,7 @@ static int alcor_pci_find_cap_offset(struct alcor_pci_priv *priv,
 		}
 
 		if ((val32 & 0xff00) == 0x00) {
-			dev_dbg(priv->dev, "pci_find_cap_offset invailid value %x.\n",
+			dev_dbg(priv->dev, "pci_find_cap_offset invalid value %x.\n",
 				val32);
 			break;
 		}
