@@ -387,7 +387,7 @@ int kgdb_arch_handle_exception(int vector, int signo, int err_code,
 	return -1;
 }
 
-struct kgdb_arch arch_kgdb_ops = {
+const struct kgdb_arch arch_kgdb_ops = {
 #ifdef CONFIG_CPU_BIG_ENDIAN
 	.gdb_bpt_instr = { spec_op << 2, 0x00, 0x00, break_op },
 #else
