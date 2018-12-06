@@ -6,13 +6,13 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of.h>
 
 #include "bcm2835.h"
 
 static bool enable_hdmi;
 static bool enable_headphones;
 static bool enable_compat_alsa = true;
+static int num_channels = MAX_SUBSTREAMS;
 
 module_param(enable_hdmi, bool, 0444);
 MODULE_PARM_DESC(enable_hdmi, "Enables HDMI virtual audio device");
@@ -21,6 +21,8 @@ MODULE_PARM_DESC(enable_headphones, "Enables Headphones virtual audio device");
 module_param(enable_compat_alsa, bool, 0444);
 MODULE_PARM_DESC(enable_compat_alsa,
 		 "Enables ALSA compatibility virtual audio device");
+module_param(num_channels, int, 0644);
+MODULE_PARM_DESC(num_channels, "Number of audio channels (default: 8)");
 
 static void bcm2835_devm_free_vchi_ctx(struct device *dev, void *res)
 {
@@ -294,28 +296,19 @@ static int snd_add_child_devices(struct device *device, u32 numchans)
 static int snd_bcm2835_alsa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	u32 numchans;
 	int err;
 
-	err = of_property_read_u32(dev->of_node, "brcm,pwm-channels",
-				   &numchans);
-	if (err) {
-		dev_err(dev, "Failed to get DT property 'brcm,pwm-channels'");
-		return err;
-	}
-
-	if (numchans == 0 || numchans > MAX_SUBSTREAMS) {
-		numchans = MAX_SUBSTREAMS;
-		dev_warn(dev,
-			 "Illegal 'brcm,pwm-channels' value, will use %u\n",
-			 numchans);
+	if (num_channels <= 0 || num_channels > MAX_SUBSTREAMS) {
+		num_channels = MAX_SUBSTREAMS;
+		dev_warn(dev, "Illegal num_channels value, will use %u\n",
+			 num_channels);
 	}
 
 	err = bcm2835_devm_add_vchi_ctx(dev);
 	if (err)
 		return err;
 
-	err = snd_add_child_devices(dev, numchans);
+	err = snd_add_child_devices(dev, num_channels);
 	if (err)
 		return err;
 
@@ -337,12 +330,6 @@ static int snd_bcm2835_alsa_resume(struct platform_device *pdev)
 
 #endif
 
-static const struct of_device_id snd_bcm2835_of_match_table[] = {
-	{ .compatible = "brcm,bcm2835-audio",},
-	{},
-};
-MODULE_DEVICE_TABLE(of, snd_bcm2835_of_match_table);
-
 static struct platform_driver bcm2835_alsa_driver = {
 	.probe = snd_bcm2835_alsa_probe,
 #ifdef CONFIG_PM
@@ -351,7 +338,6 @@ static struct platform_driver bcm2835_alsa_driver = {
 #endif
 	.driver = {
 		.name = "bcm2835_audio",
-		.of_match_table = snd_bcm2835_of_match_table,
 	},
 };
 module_platform_driver(bcm2835_alsa_driver);
@@ -359,3 +345,4 @@ module_platform_driver(bcm2835_alsa_driver);
 MODULE_AUTHOR("Dom Cobley");
 MODULE_DESCRIPTION("Alsa driver for BCM2835 chip");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:bcm2835_audio");
