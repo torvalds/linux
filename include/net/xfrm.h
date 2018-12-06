@@ -1970,7 +1970,7 @@ static inline void xfrm_dev_state_delete(struct xfrm_state *x)
 static inline void xfrm_dev_state_free(struct xfrm_state *x)
 {
 	struct xfrm_state_offload *xso = &x->xso;
-	 struct net_device *dev = xso->dev;
+	struct net_device *dev = xso->dev;
 
 	if (dev && dev->xfrmdev_ops) {
 		if (dev->xfrmdev_ops->xdo_dev_state_free)
