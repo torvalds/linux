@@ -55,7 +55,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 	do {
 		rc = plpar_hcall(H_SCM_BIND_MEM, ret, p->drc_index, 0,
 				p->blocks, BIND_ANY_ADDR, token);
-		token = be64_to_cpu(ret[0]);
+		token = ret[0];
 		cond_resched();
 	} while (rc == H_BUSY);
 
@@ -64,7 +64,7 @@ static int drc_pmem_bind(struct papr_scm_priv *p)
 		return -ENXIO;
 	}
 
-	p->bound_addr = be64_to_cpu(ret[1]);
+	p->bound_addr = ret[1];
 
 	dev_dbg(&p->pdev->dev, "bound drc %x to %pR\n", p->drc_index, &p->res);
 
@@ -82,7 +82,7 @@ static int drc_pmem_unbind(struct papr_scm_priv *p)
 	do {
 		rc = plpar_hcall(H_SCM_UNBIND_MEM, ret, p->drc_index,
 				p->bound_addr, p->blocks, token);
-		token = be64_to_cpu(ret);
+		token = ret[0];
 		cond_resched();
 	} while (rc == H_BUSY);
 
