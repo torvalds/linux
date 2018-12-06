@@ -3,6 +3,7 @@
  * GPL LICENSE SUMMARY
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -2238,7 +2239,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	buf_size = min(count, sizeof(buf) -  1);
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
-	if (sscanf(buf, "%d", &event_log_flag) != 1)
+	if (sscanf(buf, "%u", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
 		iwl_dump_nic_event_log(priv, true, NULL);
