@@ -52,6 +52,7 @@ MODULE_DEVICE_TABLE(pci, hpwdt_devices);
 
 static const struct pci_device_id hpwdt_blacklist[] = {
 	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3306, PCI_VENDOR_ID_HP, 0x1979) }, /* auxilary iLO */
+	{ PCI_DEVICE_SUB(PCI_VENDOR_ID_HP, 0x3306, PCI_VENDOR_ID_HP_3PAR, 0x0289) },  /* CL */
 	{0},			/* terminate list */
 };
 
