@@ -437,8 +437,8 @@ int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd)
 				}
 				break;
 			case MII_ADVERTISE:
-				mii_adv_to_linkmode_adv_t(phydev->advertising,
-							  val);
+				mii_adv_mod_linkmode_adv_t(phydev->advertising,
+							   val);
 				change_autoneg = true;
 				break;
 			default:
