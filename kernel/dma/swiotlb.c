@@ -706,21 +706,8 @@ void swiotlb_unmap_page(struct device *hwdev, dma_addr_t dev_addr,
 	    (attrs & DMA_ATTR_SKIP_CPU_SYNC) == 0)
 		arch_sync_dma_for_cpu(hwdev, paddr, size, dir);
 
-	if (is_swiotlb_buffer(paddr)) {
+	if (is_swiotlb_buffer(paddr))
 		swiotlb_tbl_unmap_single(hwdev, paddr, size, dir, attrs);
-		return;
-	}
-
-	if (dir != DMA_FROM_DEVICE)
-		return;
-
-	/*
-	 * phys_to_virt doesn't work with hihgmem page but we could
-	 * call dma_mark_clean() with hihgmem page here. However, we
-	 * are fine since dma_mark_clean() is null on POWERPC. We can
-	 * make dma_mark_clean() take a physical address if necessary.
-	 */
-	dma_mark_clean(phys_to_virt(paddr), size);
 }
 
 /*
@@ -750,9 +737,6 @@ swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 
 	if (!dev_is_dma_coherent(hwdev) && target == SYNC_FOR_DEVICE)
 		arch_sync_dma_for_device(hwdev, paddr, size, dir);
-
-	if (!is_swiotlb_buffer(paddr) && dir == DMA_FROM_DEVICE)
-		dma_mark_clean(phys_to_virt(paddr), size);
 }
 
 void
