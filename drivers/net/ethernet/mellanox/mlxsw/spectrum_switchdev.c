@@ -2134,8 +2134,10 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	if (!fid)
 		return -EINVAL;
 
-	if (mlxsw_sp_fid_vni_is_set(fid))
-		return -EINVAL;
+	if (mlxsw_sp_fid_vni_is_set(fid)) {
+		err = -EINVAL;
+		goto err_vni_exists;
+	}
 
 	err = mlxsw_sp_nve_fid_enable(mlxsw_sp, fid, &params, extack);
 	if (err)
@@ -2149,6 +2151,7 @@ mlxsw_sp_bridge_8021d_vxlan_join(struct mlxsw_sp_bridge_device *bridge_device,
 	return 0;
 
 err_nve_fid_enable:
+err_vni_exists:
 	mlxsw_sp_fid_put(fid);
 	return err;
 }
