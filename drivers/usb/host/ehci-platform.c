@@ -28,6 +28,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
@@ -262,6 +263,9 @@ static int ehci_platform_probe(struct platform_device *dev)
 	}
 #endif
 
+	pm_runtime_set_active(&dev->dev);
+	pm_runtime_enable(&dev->dev);
+	pm_runtime_get_sync(&dev->dev);
 	if (pdata->power_on) {
 		err = pdata->power_on(dev);
 		if (err < 0)
@@ -294,6 +298,8 @@ err_power:
 	if (pdata->power_off)
 		pdata->power_off(dev);
 err_reset:
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 	reset_control_assert(priv->rsts);
 err_put_clks:
 	while (--clk >= 0)
@@ -325,6 +331,9 @@ static int ehci_platform_remove(struct platform_device *dev)
 		clk_put(priv->clks[clk]);
 
 	usb_put_hcd(hcd);
+
+	pm_runtime_put_sync(&dev->dev);
+	pm_runtime_disable(&dev->dev);
 
 	if (pdata == &ehci_platform_defaults)
 		dev->dev.platform_data = NULL;
