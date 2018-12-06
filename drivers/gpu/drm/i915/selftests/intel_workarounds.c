@@ -333,7 +333,6 @@ static bool verify_gt_engine_wa(struct drm_i915_private *i915, const char *str)
 	bool ok = true;
 
 	ok &= intel_gt_verify_workarounds(i915, str);
-
 	for_each_engine(engine, i915, id)
 		ok &= intel_engine_verify_workarounds(engine, str);
 
@@ -353,19 +352,19 @@ live_gpu_reset_gt_engine_workarounds(void *arg)
 	pr_info("Verifying after GPU reset...\n");
 
 	igt_global_reset_lock(i915);
+	intel_runtime_pm_get(i915);
 
 	ok = verify_gt_engine_wa(i915, "before reset");
 	if (!ok)
 		goto out;
 
-	intel_runtime_pm_get(i915);
 	set_bit(I915_RESET_HANDOFF, &error->flags);
 	i915_reset(i915, ALL_ENGINES, "live_workarounds");
-	intel_runtime_pm_put(i915);
 
 	ok = verify_gt_engine_wa(i915, "after reset");
 
 out:
+	intel_runtime_pm_put(i915);
 	igt_global_reset_unlock(i915);
 
 	return ok ? 0 : -ESRCH;
@@ -390,6 +389,7 @@ live_engine_reset_gt_engine_workarounds(void *arg)
 		return PTR_ERR(ctx);
 
 	igt_global_reset_lock(i915);
+	intel_runtime_pm_get(i915);
 
 	for_each_engine(engine, i915, id) {
 		bool ok;
@@ -402,9 +402,7 @@ live_engine_reset_gt_engine_workarounds(void *arg)
 			goto err;
 		}
 
-		intel_runtime_pm_get(i915);
 		i915_reset_engine(engine, "live_workarounds");
-		intel_runtime_pm_put(i915);
 
 		ok = verify_gt_engine_wa(i915, "after idle reset");
 		if (!ok) {
@@ -416,13 +414,10 @@ live_engine_reset_gt_engine_workarounds(void *arg)
 		if (ret)
 			goto err;
 
-		intel_runtime_pm_get(i915);
-
 		rq = igt_spinner_create_request(&spin, ctx, engine, MI_NOOP);
 		if (IS_ERR(rq)) {
 			ret = PTR_ERR(rq);
 			igt_spinner_fini(&spin);
-			intel_runtime_pm_put(i915);
 			goto err;
 		}
 
@@ -431,14 +426,11 @@ live_engine_reset_gt_engine_workarounds(void *arg)
 		if (!igt_wait_for_spinner(&spin, rq)) {
 			pr_err("Spinner failed to start\n");
 			igt_spinner_fini(&spin);
-			intel_runtime_pm_put(i915);
 			ret = -ETIMEDOUT;
 			goto err;
 		}
 
 		i915_reset_engine(engine, "live_workarounds");
-
-		intel_runtime_pm_put(i915);
 
 		igt_spinner_end(&spin);
 		igt_spinner_fini(&spin);
@@ -451,6 +443,7 @@ live_engine_reset_gt_engine_workarounds(void *arg)
 	}
 
 err:
+	intel_runtime_pm_put(i915);
 	igt_global_reset_unlock(i915);
 	kernel_context_close(ctx);
 
