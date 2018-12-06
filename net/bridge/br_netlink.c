@@ -1189,19 +1189,12 @@ static int br_changelink(struct net_device *brdev, struct nlattr *tb[],
 			return err;
 	}
 
-	if (data[IFLA_BR_MCAST_HASH_ELASTICITY]) {
-		u32 val = nla_get_u32(data[IFLA_BR_MCAST_HASH_ELASTICITY]);
+	if (data[IFLA_BR_MCAST_HASH_ELASTICITY])
+		br_warn(br, "the hash_elasticity option has been deprecated and is always %u\n",
+			RHT_ELASTICITY);
 
-		br->hash_elasticity = val;
-	}
-
-	if (data[IFLA_BR_MCAST_HASH_MAX]) {
-		u32 hash_max = nla_get_u32(data[IFLA_BR_MCAST_HASH_MAX]);
-
-		err = br_multicast_set_hash_max(br, hash_max);
-		if (err)
-			return err;
-	}
+	if (data[IFLA_BR_MCAST_HASH_MAX])
+		br->hash_max = nla_get_u32(data[IFLA_BR_MCAST_HASH_MAX]);
 
 	if (data[IFLA_BR_MCAST_LAST_MEMBER_CNT]) {
 		u32 val = nla_get_u32(data[IFLA_BR_MCAST_LAST_MEMBER_CNT]);
@@ -1457,8 +1450,7 @@ static int br_fill_info(struct sk_buff *skb, const struct net_device *brdev)
 		       br_opt_get(br, BROPT_MULTICAST_QUERIER)) ||
 	    nla_put_u8(skb, IFLA_BR_MCAST_STATS_ENABLED,
 		       br_opt_get(br, BROPT_MULTICAST_STATS_ENABLED)) ||
-	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY,
-			br->hash_elasticity) ||
+	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_ELASTICITY, RHT_ELASTICITY) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_HASH_MAX, br->hash_max) ||
 	    nla_put_u32(skb, IFLA_BR_MCAST_LAST_MEMBER_CNT,
 			br->multicast_last_member_count) ||

@@ -424,13 +424,13 @@ static DEVICE_ATTR_RW(multicast_querier);
 static ssize_t hash_elasticity_show(struct device *d,
 				    struct device_attribute *attr, char *buf)
 {
-	struct net_bridge *br = to_bridge(d);
-	return sprintf(buf, "%u\n", br->hash_elasticity);
+	return sprintf(buf, "%u\n", RHT_ELASTICITY);
 }
 
 static int set_elasticity(struct net_bridge *br, unsigned long val)
 {
-	br->hash_elasticity = val;
+	br_warn(br, "the hash_elasticity option has been deprecated and is always %u\n",
+		RHT_ELASTICITY);
 	return 0;
 }
 
@@ -449,10 +449,16 @@ static ssize_t hash_max_show(struct device *d, struct device_attribute *attr,
 	return sprintf(buf, "%u\n", br->hash_max);
 }
 
+static int set_hash_max(struct net_bridge *br, unsigned long val)
+{
+	br->hash_max = val;
+	return 0;
+}
+
 static ssize_t hash_max_store(struct device *d, struct device_attribute *attr,
 			      const char *buf, size_t len)
 {
-	return store_bridge_parm(d, buf, len, br_multicast_set_hash_max);
+	return store_bridge_parm(d, buf, len, set_hash_max);
 }
 static DEVICE_ATTR_RW(hash_max);
 

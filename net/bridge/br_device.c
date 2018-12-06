@@ -131,9 +131,17 @@ static int br_dev_init(struct net_device *dev)
 		return err;
 	}
 
+	err = br_mdb_hash_init(br);
+	if (err) {
+		free_percpu(br->stats);
+		br_fdb_hash_fini(br);
+		return err;
+	}
+
 	err = br_vlan_init(br);
 	if (err) {
 		free_percpu(br->stats);
+		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
 		return err;
 	}
@@ -142,6 +150,7 @@ static int br_dev_init(struct net_device *dev)
 	if (err) {
 		free_percpu(br->stats);
 		br_vlan_flush(br);
+		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
 	}
 	br_set_lockdep_class(dev);
@@ -156,6 +165,7 @@ static void br_dev_uninit(struct net_device *dev)
 	br_multicast_dev_del(br);
 	br_multicast_uninit_stats(br);
 	br_vlan_flush(br);
+	br_mdb_hash_fini(br);
 	br_fdb_hash_fini(br);
 	free_percpu(br->stats);
 }
