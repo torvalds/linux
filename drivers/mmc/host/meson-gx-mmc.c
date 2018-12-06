@@ -634,14 +634,8 @@ static int meson_mmc_clk_init(struct meson_host *host)
 	if (ret)
 		return ret;
 
-	/*
-	 * Set phases : These values are mostly the datasheet recommended ones
-	 * except for the Tx phase. Datasheet recommends 180 but some cards
-	 * fail at initialisation with it. 270 works just fine, it fixes these
-	 * initialisation issues and enable eMMC DDR52 mode.
-	 */
 	clk_set_phase(host->mmc_clk, 180);
-	clk_set_phase(host->tx_clk, 270);
+	clk_set_phase(host->tx_clk, 0);
 	clk_set_phase(host->rx_clk, 0);
 
 	return clk_prepare_enable(host->mmc_clk);
