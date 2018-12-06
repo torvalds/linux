@@ -3340,14 +3340,23 @@ static int tegra_sor_probe(struct platform_device *pdev)
 		goto remove;
 	}
 
-	if (!pdev->dev.pm_domain) {
-		sor->rst = devm_reset_control_get(&pdev->dev, "sor");
-		if (IS_ERR(sor->rst)) {
-			err = PTR_ERR(sor->rst);
+	sor->rst = devm_reset_control_get(&pdev->dev, "sor");
+	if (IS_ERR(sor->rst)) {
+		err = PTR_ERR(sor->rst);
+
+		if (err != -EBUSY || WARN_ON(!pdev->dev.pm_domain)) {
 			dev_err(&pdev->dev, "failed to get reset control: %d\n",
 				err);
 			goto remove;
 		}
+
+		/*
+		 * At this point, the reset control is most likely being used
+		 * by the generic power domain implementation. With any luck
+		 * the power domain will have taken care of resetting the SOR
+		 * and we don't have to do anything.
+		 */
+		sor->rst = NULL;
 	}
 
 	sor->clk = devm_clk_get(&pdev->dev, NULL);
