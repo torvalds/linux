@@ -553,7 +553,6 @@ fwnode_create_software_node(const struct property_entry *properties,
 {
 	struct software_node *p = NULL;
 	struct software_node *swnode;
-	char node_name[20];
 	int ret;
 
 	if (parent) {
@@ -576,8 +575,6 @@ fwnode_create_software_node(const struct property_entry *properties,
 	}
 
 	swnode->id = ret;
-	sprintf(node_name, "node%d", swnode->id);
-
 	swnode->kobj.kset = swnode_kset;
 	swnode->fwnode.ops = &software_node_ops;
 
@@ -590,7 +587,7 @@ fwnode_create_software_node(const struct property_entry *properties,
 		list_add_tail(&swnode->entry, &p->children);
 
 	ret = kobject_init_and_add(&swnode->kobj, &software_node_type,
-				   p ? &p->kobj : NULL, node_name);
+				   p ? &p->kobj : NULL, "node%d", swnode->id);
 	if (ret) {
 		kobject_put(&swnode->kobj);
 		return ERR_PTR(ret);
