@@ -9,7 +9,7 @@
  * Adiantum is a tweakable, length-preserving encryption mode designed for fast
  * and secure disk encryption, especially on CPUs without dedicated crypto
  * instructions.  Adiantum encrypts each sector using the XChaCha12 stream
- * cipher, two passes of an ε-almost-∆-universal (εA∆U) hash function based on
+ * cipher, two passes of an ε-almost-∆-universal (ε-∆U) hash function based on
  * NH and Poly1305, and an invocation of the AES-256 block cipher on a single
  * 16-byte block.  See the paper for details:
  *
@@ -21,12 +21,12 @@
  *	- Stream cipher: XChaCha12 or XChaCha20
  *	- Block cipher: any with a 128-bit block size and 256-bit key
  *
- * This implementation doesn't currently allow other εA∆U hash functions, i.e.
+ * This implementation doesn't currently allow other ε-∆U hash functions, i.e.
  * HPolyC is not supported.  This is because Adiantum is ~20% faster than HPolyC
- * but still provably as secure, and also the εA∆U hash function of HBSH is
+ * but still provably as secure, and also the ε-∆U hash function of HBSH is
  * formally defined to take two inputs (tweak, message) which makes it difficult
  * to wrap with the crypto_shash API.  Rather, some details need to be handled
- * here.  Nevertheless, if needed in the future, support for other εA∆U hash
+ * here.  Nevertheless, if needed in the future, support for other ε-∆U hash
  * functions could be added here.
  */
 
@@ -41,7 +41,7 @@
 #include "internal.h"
 
 /*
- * Size of right-hand block of input data, in bytes; also the size of the block
+ * Size of right-hand part of input data, in bytes; also the size of the block
  * cipher's block size and the hash function's output.
  */
 #define BLOCKCIPHER_BLOCK_SIZE		16
@@ -77,7 +77,7 @@ struct adiantum_tfm_ctx {
 struct adiantum_request_ctx {
 
 	/*
-	 * Buffer for right-hand block of data, i.e.
+	 * Buffer for right-hand part of data, i.e.
 	 *
 	 *    P_L => P_M => C_M => C_R when encrypting, or
 	 *    C_R => C_M => P_M => P_L when decrypting.
@@ -93,8 +93,8 @@ struct adiantum_request_ctx {
 	bool enc; /* true if encrypting, false if decrypting */
 
 	/*
-	 * The result of the Poly1305 εA∆U hash function applied to
-	 * (message length, tweak).
+	 * The result of the Poly1305 ε-∆U hash function applied to
+	 * (bulk length, tweak)
 	 */
 	le128 header_hash;
 
@@ -213,13 +213,16 @@ static inline void le128_sub(le128 *r, const le128 *v1, const le128 *v2)
 }
 
 /*
- * Apply the Poly1305 εA∆U hash function to (message length, tweak) and save the
- * result to rctx->header_hash.
+ * Apply the Poly1305 ε-∆U hash function to (bulk length, tweak) and save the
+ * result to rctx->header_hash.  This is the calculation
  *
- * This value is reused in both the first and second hash steps.  Specifically,
- * it's added to the result of an independently keyed εA∆U hash function (for
- * equal length inputs only) taken over the message.  This gives the overall
- * Adiantum hash of the (tweak, message) pair.
+ *	H_T ← Poly1305_{K_T}(bin_{128}(|L|) || T)
+ *
+ * from the procedure in section 6.4 of the Adiantum paper.  The resulting value
+ * is reused in both the first and second hash steps.  Specifically, it's added
+ * to the result of an independently keyed ε-∆U hash function (for equal length
+ * inputs only) taken over the left-hand part (the "bulk") of the message, to
+ * give the overall Adiantum hash of the (tweak, left-hand part) pair.
  */
 static void adiantum_hash_header(struct skcipher_request *req)
 {
@@ -248,7 +251,7 @@ static void adiantum_hash_header(struct skcipher_request *req)
 	poly1305_core_emit(&state, &rctx->header_hash);
 }
 
-/* Hash the left-hand block (the "bulk") of the message using NHPoly1305 */
+/* Hash the left-hand part (the "bulk") of the message using NHPoly1305 */
 static int adiantum_hash_message(struct skcipher_request *req,
 				 struct scatterlist *sgl, le128 *digest)
 {
@@ -550,7 +553,7 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 		goto out_drop_streamcipher;
 	blockcipher_alg = ictx->blockcipher_spawn.alg;
 
-	/* NHPoly1305 εA∆U hash function */
+	/* NHPoly1305 ε-∆U hash function */
 	_hash_alg = crypto_alg_mod_lookup(nhpoly1305_name,
 					  CRYPTO_ALG_TYPE_SHASH,
 					  CRYPTO_ALG_TYPE_MASK);
