@@ -740,7 +740,9 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->probe = sof_pcm_probe;
 	pd->remove = sof_pcm_remove;
 	pd->ops	= &sof_pcm_ops;
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
 	pd->compr_ops = &sof_compressed_ops;
+#endif
 	pd->pcm_new = sof_pcm_new;
 	pd->pcm_free = sof_pcm_free;
 	pd->ignore_machine = drv_name;
