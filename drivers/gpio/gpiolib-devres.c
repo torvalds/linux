@@ -347,6 +347,36 @@ void devm_gpiod_put(struct device *dev, struct gpio_desc *desc)
 EXPORT_SYMBOL(devm_gpiod_put);
 
 /**
+ * devm_gpiod_unhinge - Remove resource management from a gpio descriptor
+ * @dev:	GPIO consumer
+ * @desc:	GPIO descriptor to remove resource management from
+ *
+ * Remove resource management from a GPIO descriptor. This is needed when
+ * you want to hand over lifecycle management of a descriptor to another
+ * mechanism.
+ */
+
+void devm_gpiod_unhinge(struct device *dev, struct gpio_desc *desc)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(desc))
+		return;
+	ret = devres_destroy(dev, devm_gpiod_release,
+			     devm_gpiod_match, &desc);
+	/*
+	 * If the GPIO descriptor is requested as nonexclusive, we
+	 * may call this function several times on the same descriptor
+	 * so it is OK if devres_destroy() returns -ENOENT.
+	 */
+	if (ret == -ENOENT)
+		return;
+	/* Anything else we should warn about */
+	WARN_ON(ret);
+}
+EXPORT_SYMBOL(devm_gpiod_unhinge);
+
+/**
  * devm_gpiod_put_array - Resource-managed gpiod_put_array()
  * @dev:	GPIO consumer
  * @descs:	GPIO descriptor array to dispose of
