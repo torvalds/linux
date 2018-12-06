@@ -55,9 +55,6 @@
 #define MT7621_CPOL		BIT(4)
 #define MT7621_LSB_FIRST	BIT(3)
 
-#define RT2880_SPI_MODE_BITS	(SPI_CPOL | SPI_CPHA |		\
-				 SPI_LSB_FIRST | SPI_CS_HIGH)
-
 struct mt7621_spi;
 
 struct mt7621_spi {
@@ -136,20 +133,13 @@ static int mt7621_spi_prepare(struct spi_device *spi, unsigned int speed)
 	if (spi->mode & SPI_LSB_FIRST)
 		reg |= MT7621_LSB_FIRST;
 
+	/* This SPI controller seems to be tested on SPI flash only
+	 * and some bits are swizzled under other SPI modes probably
+	 * due to incorrect wiring inside the silicon. Only mode 0
+	 * works correctly.
+	 */
 	reg &= ~(MT7621_CPHA | MT7621_CPOL);
-	switch (spi->mode & (SPI_CPOL | SPI_CPHA)) {
-	case SPI_MODE_0:
-		break;
-	case SPI_MODE_1:
-		reg |= MT7621_CPHA;
-		break;
-	case SPI_MODE_2:
-		reg |= MT7621_CPOL;
-		break;
-	case SPI_MODE_3:
-		reg |= MT7621_CPOL | MT7621_CPHA;
-		break;
-	}
+
 	mt7621_spi_write(rs, MT7621_SPI_MASTER, reg);
 
 	return 0;
@@ -368,7 +358,7 @@ static int mt7621_spi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	master->mode_bits = RT2880_SPI_MODE_BITS;
+	master->mode_bits = SPI_LSB_FIRST;
 
 	master->setup = mt7621_spi_setup;
 	master->transfer_one_message = mt7621_spi_transfer_one_message;
