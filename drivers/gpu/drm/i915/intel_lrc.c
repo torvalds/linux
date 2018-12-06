@@ -1628,6 +1628,7 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
 	intel_engine_apply_workarounds(engine);
+	intel_engine_apply_whitelist(engine);
 
 	intel_mocs_init_engine(engine);
 
@@ -1640,43 +1641,6 @@ static int gen8_init_common_ring(struct intel_engine_cs *engine)
 	}
 
 	enable_execlists(engine);
-
-	return 0;
-}
-
-static int gen8_init_render_ring(struct intel_engine_cs *engine)
-{
-	struct drm_i915_private *dev_priv = engine->i915;
-	int ret;
-
-	ret = gen8_init_common_ring(engine);
-	if (ret)
-		return ret;
-
-	intel_engine_apply_whitelist(engine);
-
-	/* We need to disable the AsyncFlip performance optimisations in order
-	 * to use MI_WAIT_FOR_EVENT within the CS. It should already be
-	 * programmed to '1' on all products.
-	 *
-	 * WaDisableAsyncFlipPerfMode:snb,ivb,hsw,vlv,bdw,chv
-	 */
-	I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(ASYNC_FLIP_PERF_DISABLE));
-
-	I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
-
-	return 0;
-}
-
-static int gen9_init_render_ring(struct intel_engine_cs *engine)
-{
-	int ret;
-
-	ret = gen8_init_common_ring(engine);
-	if (ret)
-		return ret;
-
-	intel_engine_apply_whitelist(engine);
 
 	return 0;
 }
@@ -2280,10 +2244,6 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 		engine->irq_keep_mask |= GT_RENDER_L3_PARITY_ERROR_INTERRUPT;
 
 	/* Override some for render ring. */
-	if (INTEL_GEN(dev_priv) >= 9)
-		engine->init_hw = gen9_init_render_ring;
-	else
-		engine->init_hw = gen8_init_render_ring;
 	engine->init_context = gen8_init_rcs_context;
 	engine->emit_flush = gen8_emit_flush_render;
 	engine->emit_breadcrumb = gen8_emit_breadcrumb_rcs;
