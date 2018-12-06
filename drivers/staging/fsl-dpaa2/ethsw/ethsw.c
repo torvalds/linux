@@ -1172,7 +1172,7 @@ static int ethsw_open(struct ethsw_core *ethsw)
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_priv = ethsw->ports[i];
-		err = dev_open(port_priv->netdev);
+		err = dev_open(port_priv->netdev, NULL);
 		if (err) {
 			netdev_err(port_priv->netdev, "dev_open err %d\n", err);
 			return err;

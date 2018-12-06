@@ -525,7 +525,7 @@ static int aq_set_ringparam(struct net_device *ndev,
 		}
 	}
 	if (ndev_running)
-		err = dev_open(ndev);
+		err = dev_open(ndev, NULL);
 
 err_exit:
 	return err;

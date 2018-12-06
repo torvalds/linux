@@ -2489,7 +2489,8 @@ static int do_setlink(const struct sk_buff *skb,
 	}
 
 	if (ifm->ifi_flags || ifm->ifi_change) {
-		err = dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
+		err = dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm),
+				       extack);
 		if (err < 0)
 			goto errout;
 	}
@@ -2870,7 +2871,8 @@ int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
 
 	old_flags = dev->flags;
 	if (ifm && (ifm->ifi_flags || ifm->ifi_change)) {
-		err = __dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
+		err = __dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm),
+					 NULL);
 		if (err < 0)
 			return err;
 	}

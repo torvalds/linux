@@ -821,7 +821,7 @@ static int hns3_set_ringparam(struct net_device *ndev,
 	}
 
 	if (if_running)
-		ret = dev_open(ndev);
+		ret = dev_open(ndev, NULL);
 
 	return ret;
 }

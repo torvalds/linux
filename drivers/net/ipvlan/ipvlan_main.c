@@ -71,7 +71,8 @@ static void ipvlan_unregister_nf_hook(struct net *net)
 					ARRAY_SIZE(ipvl_nfops));
 }
 
-static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
+static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval,
+				struct netlink_ext_ack *extack)
 {
 	struct ipvl_dev *ipvlan;
 	struct net_device *mdev = port->dev;
@@ -84,10 +85,12 @@ static int ipvlan_set_port_mode(struct ipvl_port *port, u16 nval)
 			flags = ipvlan->dev->flags;
 			if (nval == IPVLAN_MODE_L3 || nval == IPVLAN_MODE_L3S) {
 				err = dev_change_flags(ipvlan->dev,
-						       flags | IFF_NOARP);
+						       flags | IFF_NOARP,
+						       extack);
 			} else {
 				err = dev_change_flags(ipvlan->dev,
-						       flags & ~IFF_NOARP);
+						       flags & ~IFF_NOARP,
+						       extack);
 			}
 			if (unlikely(err))
 				goto fail;
@@ -116,9 +119,11 @@ fail:
 		flags = ipvlan->dev->flags;
 		if (port->mode == IPVLAN_MODE_L3 ||
 		    port->mode == IPVLAN_MODE_L3S)
-			dev_change_flags(ipvlan->dev, flags | IFF_NOARP);
+			dev_change_flags(ipvlan->dev, flags | IFF_NOARP,
+					 NULL);
 		else
-			dev_change_flags(ipvlan->dev, flags & ~IFF_NOARP);
+			dev_change_flags(ipvlan->dev, flags & ~IFF_NOARP,
+					 NULL);
 	}
 
 	return err;
@@ -498,7 +503,7 @@ static int ipvlan_nl_changelink(struct net_device *dev,
 	if (data[IFLA_IPVLAN_MODE]) {
 		u16 nmode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
-		err = ipvlan_set_port_mode(port, nmode);
+		err = ipvlan_set_port_mode(port, nmode, extack);
 	}
 
 	if (!err && data[IFLA_IPVLAN_FLAGS]) {
@@ -672,7 +677,7 @@ int ipvlan_link_new(struct net *src_net, struct net_device *dev,
 	if (data && data[IFLA_IPVLAN_MODE])
 		mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
-	err = ipvlan_set_port_mode(port, mode);
+	err = ipvlan_set_port_mode(port, mode, extack);
 	if (err)
 		goto unlink_netdev;
 
