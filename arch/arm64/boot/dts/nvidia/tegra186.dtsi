@@ -318,6 +318,22 @@
 		status = "disabled";
 	};
 
+	hda@3510000 {
+		compatible = "nvidia,tegra186-hda", "nvidia,tegra30-hda";
+		reg = <0x0 0x03510000 0x0 0x10000>;
+		interrupts = <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&bpmp TEGRA186_CLK_HDA>,
+			 <&bpmp TEGRA186_CLK_HDA2HDMICODEC>,
+			 <&bpmp TEGRA186_CLK_HDA2CODEC_2X>;
+		clock-names = "hda", "hda2hdmi", "hda2codec_2x";
+		resets = <&bpmp TEGRA186_RESET_HDA>,
+			 <&bpmp TEGRA186_RESET_HDA2HDMICODEC>,
+			 <&bpmp TEGRA186_RESET_HDA2CODEC_2X>;
+		reset-names = "hda", "hda2hdmi", "hda2codec_2x";
+		power-domains = <&bpmp TEGRA186_POWER_DOMAIN_DISP>;
+		status = "disabled";
+	};
+
 	fuse@3820000 {
 		compatible = "nvidia,tegra186-efuse";
 		reg = <0x0 0x03820000 0x0 0x10000>;
