@@ -143,8 +143,8 @@ struct dso {
 	struct rb_root	 *root;		/* root of rbtree that rb_node is in */
 	struct rb_root	 symbols;
 	struct rb_root	 symbol_names;
-	struct rb_root	 inlined_nodes;
-	struct rb_root	 srclines;
+	struct rb_root_cached inlined_nodes;
+	struct rb_root_cached srclines;
 	struct {
 		u64		addr;
 		struct symbol	*symbol;
