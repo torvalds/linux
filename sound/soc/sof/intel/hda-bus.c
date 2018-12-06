@@ -10,6 +10,8 @@
  */
 
 #include <sound/hdaudio.h>
+#include "../sof-priv.h"
+#include "hda.h"
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
