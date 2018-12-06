@@ -97,7 +97,7 @@ int rxe_qp_chk_init(struct rxe_dev *rxe, struct ib_qp_init_attr *init)
 		goto err1;
 
 	if (init->qp_type == IB_QPT_SMI || init->qp_type == IB_QPT_GSI) {
-		if (port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, port_num)) {
 			pr_warn("invalid port = %d\n", port_num);
 			goto err1;
 		}
@@ -433,7 +433,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	}
 
 	if (mask & IB_QP_PORT) {
-		if (attr->port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, attr->port_num)) {
 			pr_warn("invalid port %d\n", attr->port_num);
 			goto err1;
 		}
@@ -448,7 +448,7 @@ int rxe_qp_chk_attr(struct rxe_dev *rxe, struct rxe_qp *qp,
 	if (mask & IB_QP_ALT_PATH) {
 		if (rxe_av_chk_attr(rxe, &attr->alt_ah_attr))
 			goto err1;
-		if (attr->alt_port_num != 1) {
+		if (!rdma_is_port_valid(&rxe->ib_dev, attr->alt_port_num))  {
 			pr_warn("invalid alt port %d\n", attr->alt_port_num);
 			goto err1;
 		}
