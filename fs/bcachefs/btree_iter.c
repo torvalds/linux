@@ -531,8 +531,24 @@ found:
 	btree_iter_set_dirty(iter, BTREE_ITER_NEED_PEEK);
 
 	bch2_btree_node_iter_sort(node_iter, b);
-	if (!b->level && node_iter == &iter->l[0].iter)
+	if (!b->level && node_iter == &iter->l[0].iter) {
+		/*
+		 * not legal to call bkey_debugcheck() here, because we're
+		 * called midway through the update path after update has been
+		 * marked but before deletes have actually happened:
+		 */
+#if 0
 		__btree_iter_peek_all(iter, &iter->l[0], &iter->k);
+#endif
+		struct btree_iter_level *l = &iter->l[0];
+		struct bkey_packed *k =
+			bch2_btree_node_iter_peek_all(&l->iter, l->b);
+
+		if (unlikely(!k))
+			iter->k.type = KEY_TYPE_deleted;
+		else
+			bkey_disassemble(l->b, k, &iter->k);
+	}
 iter_current_key_not_modified:
 
 	/*
