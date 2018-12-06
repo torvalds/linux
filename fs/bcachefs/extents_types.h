@@ -5,14 +5,14 @@
 #include "bcachefs_format.h"
 
 struct bch_extent_crc_unpacked {
+	u32			compressed_size;
+	u32			uncompressed_size;
+	u32			live_size;
+
 	u8			csum_type;
 	u8			compression_type;
 
-	u16			compressed_size;
-	u16			uncompressed_size;
-
 	u16			offset;
-	u16			live_size;
 
 	u16			nonce;
 

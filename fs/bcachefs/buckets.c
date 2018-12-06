@@ -558,36 +558,25 @@ void bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 	preempt_enable();
 }
 
-static int __disk_sectors(struct bch_extent_crc_unpacked crc, unsigned sectors)
+static s64 ptr_disk_sectors_delta(struct extent_ptr_decoded p,
+				  s64 delta)
 {
-	if (!sectors)
-		return 0;
+	if (delta > 0) {
+		/*
+		 * marking a new extent, which _will have size_ @delta
+		 *
+		 * in the bch2_mark_update -> BCH_EXTENT_OVERLAP_MIDDLE
+		 * case, we haven't actually created the key we'll be inserting
+		 * yet (for the split) - so we don't want to be using
+		 * k->size/crc.live_size here:
+		 */
+		return __ptr_disk_sectors(p, delta);
+	} else {
+		BUG_ON(-delta > p.crc.live_size);
 
-	return max(1U, DIV_ROUND_UP(sectors * crc.compressed_size,
-				    crc.uncompressed_size));
-}
-
-static s64 ptr_disk_sectors(const struct bkey *k,
-			    struct extent_ptr_decoded p,
-			    s64 sectors)
-{
-
-	if (p.crc.compression_type) {
-		unsigned old_sectors, new_sectors;
-
-		if (sectors > 0) {
-			old_sectors = 0;
-			new_sectors = sectors;
-		} else {
-			old_sectors = k->size;
-			new_sectors = k->size + sectors;
-		}
-
-		sectors = -__disk_sectors(p.crc, old_sectors)
-			  +__disk_sectors(p.crc, new_sectors);
+		return (s64) __ptr_disk_sectors(p, p.crc.live_size + delta) -
+			(s64) ptr_disk_sectors(p);
 	}
-
-	return sectors;
 }
 
 /*
@@ -722,7 +711,9 @@ static int bch2_mark_extent(struct bch_fs *c, struct bkey_s_c k,
 	BUG_ON(!sectors);
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
-		s64 disk_sectors = ptr_disk_sectors(k.k, p, sectors);
+		s64 disk_sectors = data_type == BCH_DATA_BTREE
+			? sectors
+			: ptr_disk_sectors_delta(p, sectors);
 		s64 adjusted_disk_sectors = disk_sectors;
 
 		bch2_mark_pointer(c, p, disk_sectors, data_type,
