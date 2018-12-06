@@ -43,12 +43,6 @@
 
 #define MAX_BCM2835_CAMERAS 2
 
-MODULE_DESCRIPTION("Broadcom 2835 MMAL video capture");
-MODULE_AUTHOR("Vincent Sanders");
-MODULE_LICENSE("GPL");
-MODULE_VERSION(BM2835_MMAL_VERSION);
-MODULE_ALIAS("platform:bcm2835-camera");
-
 int bcm2835_v4l2_debug;
 module_param_named(debug, bcm2835_v4l2_debug, int, 0644);
 MODULE_PARM_DESC(bcm2835_v4l2_debug, "Debug level 0-2");
@@ -1976,3 +1970,9 @@ static struct platform_driver bcm2835_camera_driver = {
 };
 
 module_platform_driver(bcm2835_camera_driver)
+
+MODULE_DESCRIPTION("Broadcom 2835 MMAL video capture");
+MODULE_AUTHOR("Vincent Sanders");
+MODULE_LICENSE("GPL");
+MODULE_VERSION(BM2835_MMAL_VERSION);
+MODULE_ALIAS("platform:bcm2835-camera");
