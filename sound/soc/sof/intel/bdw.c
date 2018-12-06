@@ -251,21 +251,8 @@ static irqreturn_t bdw_irq_handler(int irq, void *context)
 
 	/* Interrupt arrived, check src */
 	isr = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_ISRX);
-	if (isr & SHIM_ISRX_DONE) {
-		/* Mask Done interrupt before return */
-		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR,
-						 SHIM_IMRX, SHIM_IMRX_DONE,
-						 SHIM_IMRX_DONE);
+	if (isr & (SHIM_ISRX_DONE | SHIM_ISRX_BUSY))
 		ret = IRQ_WAKE_THREAD;
-	}
-
-	if (isr & SHIM_ISRX_BUSY) {
-		/* Mask Busy interrupt before return */
-		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR,
-						 SHIM_IMRX, SHIM_IMRX_BUSY,
-						 SHIM_IMRX_BUSY);
-		ret = IRQ_WAKE_THREAD;
-	}
 
 	return ret;
 }
@@ -273,15 +260,18 @@ static irqreturn_t bdw_irq_handler(int irq, void *context)
 static irqreturn_t bdw_irq_thread(int irq, void *context)
 {
 	struct snd_sof_dev *sdev = (struct snd_sof_dev *)context;
-	u32 ipcx, ipcd, hdr;
+	u32 ipcx, ipcd, imrx;
 
+	imrx = snd_sof_dsp_read64(sdev, BDW_DSP_BAR, SHIM_IMRX);
 	ipcx = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCX);
 
 	/* reply message from DSP */
-	if (ipcx & SHIM_IPCX_DONE) {
-		/* Handle Immediate reply from DSP Core */
-		sof_mailbox_read(sdev, sdev->host_box.offset, &hdr,
-				 sizeof(hdr));
+	if (ipcx & SHIM_IPCX_DONE &&
+	    !(imrx & SHIM_IMRX_DONE)) {
+		/* Mask Done interrupt before return */
+		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR,
+						 SHIM_IMRX, SHIM_IMRX_DONE,
+						 SHIM_IMRX_DONE);
 
 		/*
 		 * handle immediate reply from DSP core. If the msg is
@@ -290,14 +280,20 @@ static irqreturn_t bdw_irq_thread(int irq, void *context)
 		 * because the done bit can't be set in cmd_done function
 		 * which is triggered by msg
 		 */
-		if (snd_sof_ipc_reply(sdev, hdr))
+		if (snd_sof_ipc_reply(sdev, ipcx))
 			bdw_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 	}
 
 	ipcd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IPCD);
 
 	/* new message from DSP */
-	if (ipcd & SHIM_IPCD_BUSY) {
+	if (ipcd & SHIM_IPCD_BUSY &&
+	    !(imrx & SHIM_IMRX_BUSY)) {
+		/* Mask Busy interrupt before return */
+		snd_sof_dsp_update_bits_unlocked(sdev, BDW_DSP_BAR,
+						 SHIM_IMRX, SHIM_IMRX_BUSY,
+						 SHIM_IMRX_BUSY);
+
 		/* Handle messages from DSP Core */
 		if ((ipcd & SOF_IPC_PANIC_MAGIC_MASK) == SOF_IPC_PANIC_MAGIC) {
 			snd_sof_dsp_panic(sdev, BDW_PANIC_OFFSET(ipcx) +
