@@ -7,6 +7,7 @@
  */
 #include <linux/memblock.h> /* for max_pfn */
 #include <linux/acpi.h>
+#include <linux/dma-direct.h>
 #include <linux/dma-noncoherent.h>
 #include <linux/export.h>
 #include <linux/gfp.h>
@@ -229,8 +230,8 @@ int dma_get_sgtable_attrs(struct device *dev, struct sg_table *sgt,
 		unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-	BUG_ON(!ops);
-	if (ops->get_sgtable)
+
+	if (!dma_is_direct(ops) && ops->get_sgtable)
 		return ops->get_sgtable(dev, sgt, cpu_addr, dma_addr, size,
 					attrs);
 	return dma_common_get_sgtable(dev, sgt, cpu_addr, dma_addr, size,
@@ -293,8 +294,8 @@ int dma_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
 		unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-	BUG_ON(!ops);
-	if (ops->mmap)
+
+	if (!dma_is_direct(ops) && ops->mmap)
 		return ops->mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
 	return dma_common_mmap(dev, vma, cpu_addr, dma_addr, size, attrs);
 }
@@ -324,6 +325,8 @@ u64 dma_get_required_mask(struct device *dev)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
+	if (dma_is_direct(ops))
+		return dma_direct_get_required_mask(dev);
 	if (ops->get_required_mask)
 		return ops->get_required_mask(dev);
 	return dma_default_get_required_mask(dev);
@@ -341,7 +344,6 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 	void *cpu_addr;
 
-	BUG_ON(!ops);
 	WARN_ON_ONCE(dev && !dev->coherent_dma_mask);
 
 	if (dma_alloc_from_dev_coherent(dev, size, dma_handle, &cpu_addr))
@@ -352,10 +354,14 @@ void *dma_alloc_attrs(struct device *dev, size_t size, dma_addr_t *dma_handle,
 
 	if (!arch_dma_alloc_attrs(&dev))
 		return NULL;
-	if (!ops->alloc)
+
+	if (dma_is_direct(ops))
+		cpu_addr = dma_direct_alloc(dev, size, dma_handle, flag, attrs);
+	else if (ops->alloc)
+		cpu_addr = ops->alloc(dev, size, dma_handle, flag, attrs);
+	else
 		return NULL;
 
-	cpu_addr = ops->alloc(dev, size, dma_handle, flag, attrs);
 	debug_dma_alloc_coherent(dev, size, *dma_handle, cpu_addr);
 	return cpu_addr;
 }
@@ -365,8 +371,6 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_handle, unsigned long attrs)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
-
-	BUG_ON(!ops);
 
 	if (dma_release_from_dev_coherent(dev, get_order(size), cpu_addr))
 		return;
@@ -379,11 +383,14 @@ void dma_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 	 */
 	WARN_ON(irqs_disabled());
 
-	if (!ops->free || !cpu_addr)
+	if (!cpu_addr)
 		return;
 
 	debug_dma_free_coherent(dev, size, cpu_addr, dma_handle);
-	ops->free(dev, size, cpu_addr, dma_handle, attrs);
+	if (dma_is_direct(ops))
+		dma_direct_free(dev, size, cpu_addr, dma_handle, attrs);
+	else if (ops->free)
+		ops->free(dev, size, cpu_addr, dma_handle, attrs);
 }
 EXPORT_SYMBOL(dma_free_attrs);
 
@@ -397,9 +404,9 @@ int dma_supported(struct device *dev, u64 mask)
 {
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (!ops)
-		return 0;
-	if (!ops->dma_supported)
+	if (dma_is_direct(ops))
+		return dma_direct_supported(dev, mask);
+	if (ops->dma_supported)
 		return 1;
 	return ops->dma_supported(dev, mask);
 }
@@ -437,7 +444,10 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	const struct dma_map_ops *ops = get_dma_ops(dev);
 
 	BUG_ON(!valid_dma_direction(dir));
-	if (ops->cache_sync)
+
+	if (dma_is_direct(ops))
+		arch_dma_cache_sync(dev, vaddr, size, dir);
+	else if (ops->cache_sync)
 		ops->cache_sync(dev, vaddr, size, dir);
 }
 EXPORT_SYMBOL(dma_cache_sync);

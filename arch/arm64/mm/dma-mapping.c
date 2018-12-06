@@ -462,9 +462,6 @@ static void __iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
 			const struct iommu_ops *iommu, bool coherent)
 {
-	if (!dev->dma_ops)
-		dev->dma_ops = &dma_direct_ops;
-
 	dev->dma_coherent = coherent;
 	__iommu_setup_dma_ops(dev, dma_base, size, iommu);
 

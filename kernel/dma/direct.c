@@ -223,6 +223,7 @@ void dma_direct_sync_single_for_device(struct device *dev,
 	if (!dev_is_dma_coherent(dev))
 		arch_sync_dma_for_device(dev, paddr, size, dir);
 }
+EXPORT_SYMBOL(dma_direct_sync_single_for_device);
 
 void dma_direct_sync_sg_for_device(struct device *dev,
 		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
@@ -240,6 +241,7 @@ void dma_direct_sync_sg_for_device(struct device *dev,
 					dir);
 	}
 }
+EXPORT_SYMBOL(dma_direct_sync_sg_for_device);
 #endif
 
 #if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
@@ -258,6 +260,7 @@ void dma_direct_sync_single_for_cpu(struct device *dev,
 	if (unlikely(is_swiotlb_buffer(paddr)))
 		swiotlb_tbl_sync_single(dev, paddr, size, dir, SYNC_FOR_CPU);
 }
+EXPORT_SYMBOL(dma_direct_sync_single_for_cpu);
 
 void dma_direct_sync_sg_for_cpu(struct device *dev,
 		struct scatterlist *sgl, int nents, enum dma_data_direction dir)
@@ -277,6 +280,7 @@ void dma_direct_sync_sg_for_cpu(struct device *dev,
 	if (!dev_is_dma_coherent(dev))
 		arch_sync_dma_for_cpu_all(dev);
 }
+EXPORT_SYMBOL(dma_direct_sync_sg_for_cpu);
 
 void dma_direct_unmap_page(struct device *dev, dma_addr_t addr,
 		size_t size, enum dma_data_direction dir, unsigned long attrs)
@@ -289,6 +293,7 @@ void dma_direct_unmap_page(struct device *dev, dma_addr_t addr,
 	if (unlikely(is_swiotlb_buffer(phys)))
 		swiotlb_tbl_unmap_single(dev, phys, size, dir, attrs);
 }
+EXPORT_SYMBOL(dma_direct_unmap_page);
 
 void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
 		int nents, enum dma_data_direction dir, unsigned long attrs)
@@ -300,11 +305,7 @@ void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
 		dma_direct_unmap_page(dev, sg->dma_address, sg_dma_len(sg), dir,
 			     attrs);
 }
-#else
-void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sgl,
-		int nents, enum dma_data_direction dir, unsigned long attrs)
-{
-}
+EXPORT_SYMBOL(dma_direct_unmap_sg);
 #endif
 
 static inline bool dma_direct_possible(struct device *dev, dma_addr_t dma_addr,
@@ -331,6 +332,7 @@ dma_addr_t dma_direct_map_page(struct device *dev, struct page *page,
 		arch_sync_dma_for_device(dev, phys, size, dir);
 	return dma_addr;
 }
+EXPORT_SYMBOL(dma_direct_map_page);
 
 int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 		enum dma_data_direction dir, unsigned long attrs)
@@ -352,6 +354,7 @@ out_unmap:
 	dma_direct_unmap_sg(dev, sgl, i, dir, attrs | DMA_ATTR_SKIP_CPU_SYNC);
 	return 0;
 }
+EXPORT_SYMBOL(dma_direct_map_sg);
 
 /*
  * Because 32-bit DMA masks are so common we expect every architecture to be
@@ -372,27 +375,3 @@ int dma_direct_supported(struct device *dev, u64 mask)
 
 	return mask >= phys_to_dma(dev, min_mask);
 }
-
-const struct dma_map_ops dma_direct_ops = {
-	.alloc			= dma_direct_alloc,
-	.free			= dma_direct_free,
-	.map_page		= dma_direct_map_page,
-	.map_sg			= dma_direct_map_sg,
-#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_DEVICE) || \
-    defined(CONFIG_SWIOTLB)
-	.sync_single_for_device	= dma_direct_sync_single_for_device,
-	.sync_sg_for_device	= dma_direct_sync_sg_for_device,
-#endif
-#if defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU) || \
-    defined(CONFIG_ARCH_HAS_SYNC_DMA_FOR_CPU_ALL) || \
-    defined(CONFIG_SWIOTLB)
-	.sync_single_for_cpu	= dma_direct_sync_single_for_cpu,
-	.sync_sg_for_cpu	= dma_direct_sync_sg_for_cpu,
-	.unmap_page		= dma_direct_unmap_page,
-	.unmap_sg		= dma_direct_unmap_sg,
-#endif
-	.get_required_mask	= dma_direct_get_required_mask,
-	.dma_supported		= dma_direct_supported,
-	.cache_sync		= arch_dma_cache_sync,
-};
-EXPORT_SYMBOL(dma_direct_ops);

@@ -99,10 +99,6 @@ void __init dma_ops_init(void)
 
 	case pcxl2:
 		pa7300lc_init();
-	case pcxl: /* falls through */
-	case pcxs:
-	case pcxt:
-		hppa_dma_ops = &dma_direct_ops;
 		break;
 	default:
 		break;
