@@ -589,6 +589,13 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
+	if (func_info && !info.func_info) {
+		/* kernel.kptr_restrict is set.  No func_info available. */
+		free(func_info);
+		func_info = NULL;
+		finfo_cnt = 0;
+	}
+
 	if ((member_len == &info.jited_prog_len &&
 	     info.jited_prog_insns == 0) ||
 	    (member_len == &info.xlated_prog_len &&

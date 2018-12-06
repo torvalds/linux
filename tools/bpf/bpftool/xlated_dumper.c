@@ -261,7 +261,7 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 		jsonw_start_object(json_wtr);
 
 		if (btf && record) {
-			if (record->insn_offset == i) {
+			if (record->insn_off == i) {
 				btf_dumper_type_only(btf, record->type_id,
 						     func_sig,
 						     sizeof(func_sig));
@@ -330,7 +330,7 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 		}
 
 		if (btf && record) {
-			if (record->insn_offset == i) {
+			if (record->insn_off == i) {
 				btf_dumper_type_only(btf, record->type_id,
 						     func_sig,
 						     sizeof(func_sig));
