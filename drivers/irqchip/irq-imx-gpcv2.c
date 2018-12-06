@@ -212,7 +212,7 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 
 	cd = kzalloc(sizeof(struct gpcv2_irqchip_data), GFP_KERNEL);
 	if (!cd) {
-		pr_err("kzalloc failed!\n");
+		pr_err("%pOF: kzalloc failed!\n", node);
 		return -ENOMEM;
 	}
 
@@ -220,7 +220,7 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 
 	cd->gpc_base = of_iomap(node, 0);
 	if (!cd->gpc_base) {
-		pr_err("fsl-gpcv2: unable to map gpc registers\n");
+		pr_err("%pOF: unable to map gpc registers\n", node);
 		kfree(cd);
 		return -ENOMEM;
 	}
