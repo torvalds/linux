@@ -295,8 +295,8 @@ extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 #define part_stat_lock()	({ rcu_read_lock(); get_cpu(); })
 #define part_stat_unlock()	do { put_cpu(); rcu_read_unlock(); } while (0)
 
-#define __part_stat_add(cpu, part, field, addnd)			\
-	(per_cpu_ptr((part)->dkstats, (cpu))->field += (addnd))
+#define __part_stat_add(part, field, addnd)				\
+	(per_cpu_ptr((part)->dkstats, smp_processor_id())->field += (addnd))
 
 #define part_stat_read(part, field)					\
 ({									\
@@ -333,7 +333,7 @@ static inline void free_part_stats(struct hd_struct *part)
 #define part_stat_lock()	({ rcu_read_lock(); 0; })
 #define part_stat_unlock()	rcu_read_unlock()
 
-#define __part_stat_add(cpu, part, field, addnd)				\
+#define __part_stat_add(part, field, addnd)				\
 	((part)->dkstats.field += addnd)
 
 #define part_stat_read(part, field)	((part)->dkstats.field)
@@ -362,19 +362,19 @@ static inline void free_part_stats(struct hd_struct *part)
 	 part_stat_read(part, field[STAT_WRITE]) +			\
 	 part_stat_read(part, field[STAT_DISCARD]))
 
-#define part_stat_add(cpu, part, field, addnd)	do {			\
-	__part_stat_add((cpu), (part), field, addnd);			\
+#define part_stat_add(part, field, addnd)	do {			\
+	__part_stat_add((part), field, addnd);				\
 	if ((part)->partno)						\
-		__part_stat_add((cpu), &part_to_disk((part))->part0,	\
+		__part_stat_add(&part_to_disk((part))->part0,		\
 				field, addnd);				\
 } while (0)
 
-#define part_stat_dec(cpu, gendiskp, field)				\
-	part_stat_add(cpu, gendiskp, field, -1)
-#define part_stat_inc(cpu, gendiskp, field)				\
-	part_stat_add(cpu, gendiskp, field, 1)
-#define part_stat_sub(cpu, gendiskp, field, subnd)			\
-	part_stat_add(cpu, gendiskp, field, -subnd)
+#define part_stat_dec(gendiskp, field)					\
+	part_stat_add(gendiskp, field, -1)
+#define part_stat_inc(gendiskp, field)					\
+	part_stat_add(gendiskp, field, 1)
+#define part_stat_sub(gendiskp, field, subnd)				\
+	part_stat_add(gendiskp, field, -subnd)
 
 void part_in_flight(struct request_queue *q, struct hd_struct *part,
 		    unsigned int inflight[2]);
@@ -399,7 +399,7 @@ static inline void free_part_info(struct hd_struct *part)
 }
 
 /* block/blk-core.c */
-extern void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part);
+extern void part_round_stats(struct request_queue *q, struct hd_struct *part);
 
 /* block/genhd.c */
 extern void device_add_disk(struct device *parent, struct gendisk *disk,
