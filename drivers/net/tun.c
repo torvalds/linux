@@ -529,10 +529,7 @@ static void tun_flow_update(struct tun_struct *tun, u32 rxhash,
 	unsigned long delay = tun->ageing_time;
 	u16 queue_index = tfile->queue_index;
 
-	if (!rxhash)
-		return;
-	else
-		head = &tun->flows[tun_hashfn(rxhash)];
+	head = &tun->flows[tun_hashfn(rxhash)];
 
 	rcu_read_lock();
 
