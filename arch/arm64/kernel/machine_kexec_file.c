@@ -22,10 +22,10 @@
 #include <asm/byteorder.h>
 
 /* relevant device tree properties */
-#define FDT_PSTR_INITRD_STA	"linux,initrd-start"
-#define FDT_PSTR_INITRD_END	"linux,initrd-end"
-#define FDT_PSTR_BOOTARGS	"bootargs"
-#define FDT_PSTR_KASLR_SEED	"kaslr-seed"
+#define FDT_PROP_INITRD_START	"linux,initrd-start"
+#define FDT_PROP_INITRD_END	"linux,initrd-end"
+#define FDT_PROP_BOOTARGS	"bootargs"
+#define FDT_PROP_KASLR_SEED	"kaslr-seed"
 
 const struct kexec_file_ops * const kexec_file_loaders[] = {
 	&kexec_image_ops,
@@ -44,60 +44,64 @@ static int setup_dtb(struct kimage *image,
 		     unsigned long initrd_load_addr, unsigned long initrd_len,
 		     char *cmdline, void *dtb)
 {
-	int nodeoffset;
-	int ret;
+	int off, ret;
 
-	nodeoffset = fdt_path_offset(dtb, "/chosen");
-	if (nodeoffset < 0)
-		return -EINVAL;
+	ret = fdt_path_offset(dtb, "/chosen");
+	if (ret < 0)
+		goto out;
+
+	off = ret;
 
 	/* add bootargs */
 	if (cmdline) {
-		ret = fdt_setprop_string(dtb, nodeoffset, FDT_PSTR_BOOTARGS,
-							cmdline);
+		ret = fdt_setprop_string(dtb, off, FDT_PROP_BOOTARGS, cmdline);
 		if (ret)
-			return (ret == -FDT_ERR_NOSPACE ? -ENOMEM : -EINVAL);
+			goto out;
 	} else {
-		ret = fdt_delprop(dtb, nodeoffset, FDT_PSTR_BOOTARGS);
+		ret = fdt_delprop(dtb, off, FDT_PROP_BOOTARGS);
 		if (ret && (ret != -FDT_ERR_NOTFOUND))
-			return -EINVAL;
+			goto out;
 	}
 
 	/* add initrd-* */
 	if (initrd_load_addr) {
-		ret = fdt_setprop_u64(dtb, nodeoffset, FDT_PSTR_INITRD_STA,
-							initrd_load_addr);
+		ret = fdt_setprop_u64(dtb, off, FDT_PROP_INITRD_START,
+				      initrd_load_addr);
 		if (ret)
-			return (ret == -FDT_ERR_NOSPACE ? -ENOMEM : -EINVAL);
+			goto out;
 
-		ret = fdt_setprop_u64(dtb, nodeoffset, FDT_PSTR_INITRD_END,
-						initrd_load_addr + initrd_len);
+		ret = fdt_setprop_u64(dtb, off, FDT_PROP_INITRD_END,
+				      initrd_load_addr + initrd_len);
 		if (ret)
-			return (ret == -FDT_ERR_NOSPACE ? -ENOMEM : -EINVAL);
+			goto out;
 	} else {
-		ret = fdt_delprop(dtb, nodeoffset, FDT_PSTR_INITRD_STA);
+		ret = fdt_delprop(dtb, off, FDT_PROP_INITRD_START);
 		if (ret && (ret != -FDT_ERR_NOTFOUND))
-			return -EINVAL;
+			goto out;
 
-		ret = fdt_delprop(dtb, nodeoffset, FDT_PSTR_INITRD_END);
+		ret = fdt_delprop(dtb, off, FDT_PROP_INITRD_END);
 		if (ret && (ret != -FDT_ERR_NOTFOUND))
-			return -EINVAL;
+			goto out;
 	}
 
 	/* add kaslr-seed */
-	ret = fdt_delprop(dtb, nodeoffset, FDT_PSTR_KASLR_SEED);
+	ret = fdt_delprop(dtb, off, FDT_PROP_KASLR_SEED);
 	if (ret && (ret != -FDT_ERR_NOTFOUND))
-		return -EINVAL;
+		goto out;
 
 	if (rng_is_initialized()) {
-		u64 r = get_random_u64();
-		ret = fdt_setprop_u64(dtb, nodeoffset, FDT_PSTR_KASLR_SEED, r);
+		u64 seed = get_random_u64();
+		ret = fdt_setprop_u64(dtb, off, FDT_PROP_KASLR_SEED, seed);
 		if (ret)
-			return (ret == -FDT_ERR_NOSPACE ? -ENOMEM : -EINVAL);
+			goto out;
 	} else {
 		pr_notice("RNG is not initialised: omitting \"%s\" property\n",
-				FDT_PSTR_KASLR_SEED);
+				FDT_PROP_KASLR_SEED);
 	}
+
+out:
+	if (ret)
+		return (ret == -FDT_ERR_NOSPACE) ? -ENOMEM : -EINVAL;
 
 	return 0;
 }
