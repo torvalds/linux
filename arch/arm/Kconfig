@@ -1810,6 +1810,21 @@ config XEN
 	help
 	  Say Y if you want to run Linux in a Virtual Machine on Xen on ARM.
 
+config STACKPROTECTOR_PER_TASK
+	bool "Use a unique stack canary value for each task"
+	depends on GCC_PLUGINS && STACKPROTECTOR && SMP && !XIP_DEFLATED_DATA
+	select GCC_PLUGIN_ARM_SSP_PER_TASK
+	default y
+	help
+	  Due to the fact that GCC uses an ordinary symbol reference from
+	  which to load the value of the stack canary, this value can only
+	  change at reboot time on SMP systems, and all tasks running in the
+	  kernel's address space are forced to use the same canary value for
+	  the entire duration that the system is up.
+
+	  Enable this option to switch to a different method that uses a
+	  different canary value for each task.
+
 endmenu
 
 menu "Boot options"
