@@ -560,7 +560,7 @@ static void mlxsw_sp_nve_mc_list_ip_del(struct mlxsw_sp *mlxsw_sp,
 
 	mc_record = mlxsw_sp_nve_mc_record_find(mc_list, proto, addr,
 						&mc_entry);
-	if (WARN_ON(!mc_record))
+	if (!mc_record)
 		return;
 
 	mlxsw_sp_nve_mc_record_entry_del(mc_record, mc_entry);
@@ -647,7 +647,7 @@ void mlxsw_sp_nve_flood_ip_del(struct mlxsw_sp *mlxsw_sp,
 
 	key.fid_index = mlxsw_sp_fid_index(fid);
 	mc_list = mlxsw_sp_nve_mc_list_find(mlxsw_sp, &key);
-	if (WARN_ON(!mc_list))
+	if (!mc_list)
 		return;
 
 	mlxsw_sp_nve_fid_flood_index_clear(fid, mc_list);
