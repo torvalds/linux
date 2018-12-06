@@ -544,6 +544,29 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 /*
+ * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
+ * orr is used as it can cover the immediate value (and is idempotent).
+ * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
+ * 	ttbr: Value of ttbr to set, modified.
+ */
+	.macro	offset_ttbr1, ttbr
+#ifdef CONFIG_ARM64_52BIT_VA
+	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+#endif
+	.endm
+
+/*
+ * Perform the reverse of offset_ttbr1.
+ * bic is used as it can cover the immediate value and, in future, won't need
+ * to be nop'ed out when dealing with 52-bit kernel VAs.
+ */
+	.macro	restore_ttbr1, ttbr
+#ifdef CONFIG_ARM64_52BIT_VA
+	bic	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
+#endif
+	.endm
+
+/*
  * Arrange a physical address in a TTBR register, taking care of 52-bit
  * addresses.
  *
