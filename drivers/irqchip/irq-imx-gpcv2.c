@@ -73,11 +73,9 @@ static int imx_gpcv2_irq_set_wake(struct irq_data *d, unsigned int on)
 	struct gpcv2_irqchip_data *cd = d->chip_data;
 	unsigned int idx = d->hwirq / 32;
 	unsigned long flags;
-	void __iomem *reg;
 	u32 mask, val;
 
 	raw_spin_lock_irqsave(&cd->rlock, flags);
-	reg = cd->gpc_base + cd->cpu2wakeup + idx * 4;
 	mask = 1 << d->hwirq % 32;
 	val = cd->wakeup_sources[idx];
 
