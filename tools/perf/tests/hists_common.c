@@ -161,7 +161,7 @@ out:
 void print_hists_in(struct hists *hists)
 {
 	int i = 0;
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *node;
 
 	if (hists__has(hists, need_collapse))
@@ -170,7 +170,7 @@ void print_hists_in(struct hists *hists)
 		root = hists->entries_in;
 
 	pr_info("----- %s --------\n", __func__);
-	node = rb_first(root);
+	node = rb_first_cached(root);
 	while (node) {
 		struct hist_entry *he;
 
@@ -191,13 +191,13 @@ void print_hists_in(struct hists *hists)
 void print_hists_out(struct hists *hists)
 {
 	int i = 0;
-	struct rb_root *root;
+	struct rb_root_cached *root;
 	struct rb_node *node;
 
 	root = &hists->entries;
 
 	pr_info("----- %s --------\n", __func__);
-	node = rb_first(root);
+	node = rb_first_cached(root);
 	while (node) {
 		struct hist_entry *he;
 

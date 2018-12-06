@@ -353,7 +353,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 
 	g_object_unref(GTK_TREE_MODEL(store));
 
-	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
+	for (nd = rb_first_cached(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		GtkTreeIter iter;
 		u64 total = hists__total_period(h->hists);
@@ -401,7 +401,7 @@ static void perf_gtk__show_hists(GtkWidget *window, struct hists *hists,
 }
 
 static void perf_gtk__add_hierarchy_entries(struct hists *hists,
-					    struct rb_root *root,
+					    struct rb_root_cached *root,
 					    GtkTreeStore *store,
 					    GtkTreeIter *parent,
 					    struct perf_hpp *hpp,
@@ -415,7 +415,7 @@ static void perf_gtk__add_hierarchy_entries(struct hists *hists,
 	u64 total = hists__total_period(hists);
 	int size;
 
-	for (node = rb_first(root); node; node = rb_next(node)) {
+	for (node = rb_first_cached(root); node; node = rb_next(node)) {
 		GtkTreeIter iter;
 		float percent;
 		char *bf;
