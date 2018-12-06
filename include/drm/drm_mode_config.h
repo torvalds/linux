@@ -683,22 +683,22 @@ struct drm_mode_config {
 	struct drm_property *tv_mode_property;
 	/**
 	 * @tv_left_margin_property: Optional TV property to set the left
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_left_margin_property;
 	/**
 	 * @tv_right_margin_property: Optional TV property to set the right
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_right_margin_property;
 	/**
 	 * @tv_top_margin_property: Optional TV property to set the right
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_top_margin_property;
 	/**
 	 * @tv_bottom_margin_property: Optional TV property to set the right
-	 * margin.
+	 * margin (expressed in pixels).
 	 */
 	struct drm_property *tv_bottom_margin_property;
 	/**
