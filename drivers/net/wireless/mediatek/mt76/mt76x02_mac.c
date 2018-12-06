@@ -784,6 +784,8 @@ void mt76x02_mac_work(struct work_struct *work)
 					       mac_work.work);
 	int i, idx;
 
+	mutex_lock(&dev->mt76.mutex);
+
 	mt76x02_update_channel(&dev->mt76);
 	for (i = 0, idx = 0; i < 16; i++) {
 		u32 val = mt76_rr(dev, MT_TX_AGG_CNT(i));
@@ -795,6 +797,8 @@ void mt76x02_mac_work(struct work_struct *work)
 	/* XXX: check beacon stuck for ap mode */
 	if (!dev->beacon_mask)
 		mt76x02_check_mac_err(dev);
+
+	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_tx_status_check(&dev->mt76, NULL, false);
 
