@@ -958,7 +958,11 @@ static void lp_attach(struct parport *port)
 			printk(KERN_INFO "lp: ignoring parallel port (max. %d)\n",LP_NO);
 			return;
 		}
-		if (!lp_register(lp_count, port))
+		for (i = 0; i < LP_NO; i++)
+			if (port_num[i] == -1)
+				break;
+
+		if (!lp_register(i, port))
 			lp_count++;
 		break;
 
