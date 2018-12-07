@@ -9,6 +9,9 @@
 #define HCLGE_RAS_PF_OTHER_INT_STS_REG   0x20B00
 #define HCLGE_RAS_REG_NFE_MASK   0xFF00
 
+#define HCLGE_VECTOR0_PF_OTHER_INT_STS_REG   0x20800
+#define HCLGE_VECTOR0_REG_MSIX_MASK   0x1FF00
+
 #define HCLGE_IMP_TCM_ECC_ERR_INT_EN	0xFFFF0000
 #define HCLGE_IMP_TCM_ECC_ERR_INT_EN_MASK	0xFFFF0000
 #define HCLGE_IMP_ITCM4_ECC_ERR_INT_EN	0x300
@@ -69,4 +72,6 @@ struct hclge_hw_error {
 
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state);
 pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev);
+int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
+			       unsigned long *reset_requests);
 #endif

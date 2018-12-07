@@ -727,3 +727,95 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
+
+int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
+			       unsigned long *reset_requests)
+{
+	struct device *dev = &hdev->pdev->dev;
+	u32 mpf_bd_num, pf_bd_num, bd_num;
+	struct hclge_desc desc_bd;
+	struct hclge_desc *desc;
+	int ret = 0;
+
+	/* set default handling */
+	set_bit(HNAE3_FUNC_RESET, reset_requests);
+
+	/* query the number of bds for the MSIx int status */
+	hclge_cmd_setup_basic_desc(&desc_bd, HCLGE_QUERY_MSIX_INT_STS_BD_NUM,
+				   true);
+	ret = hclge_cmd_send(&hdev->hw, &desc_bd, 1);
+	if (ret) {
+		dev_err(dev, "fail(%d) to query msix int status bd num\n",
+			ret);
+		/* reset everything for now */
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+		return ret;
+	}
+
+	mpf_bd_num = le32_to_cpu(desc_bd.data[0]);
+	pf_bd_num = le32_to_cpu(desc_bd.data[1]);
+	bd_num = max_t(u32, mpf_bd_num, pf_bd_num);
+
+	desc = kcalloc(bd_num, sizeof(struct hclge_desc), GFP_KERNEL);
+	if (!desc)
+		goto out;
+
+	/* query all main PF MSIx errors */
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_MPF_MSIX_INT,
+				   true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
+	if (ret) {
+		dev_err(dev, "query all mpf msix int cmd failed (%d)\n",
+			ret);
+		/* reset everything for now */
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+		goto msi_error;
+	}
+
+	/* clear all main PF MSIx errors */
+	hclge_cmd_reuse_desc(&desc[0], false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], mpf_bd_num);
+	if (ret) {
+		dev_err(dev, "clear all mpf msix int cmd failed (%d)\n",
+			ret);
+		/* reset everything for now */
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+		goto msi_error;
+	}
+
+	/* query all PF MSIx errors */
+	memset(desc, 0, bd_num * sizeof(struct hclge_desc));
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_QUERY_CLEAR_ALL_PF_MSIX_INT,
+				   true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
+	if (ret) {
+		dev_err(dev, "query all pf msix int cmd failed (%d)\n",
+			ret);
+		/* reset everything for now */
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+		goto msi_error;
+	}
+
+	/* clear all PF MSIx errors */
+	hclge_cmd_reuse_desc(&desc[0], false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], pf_bd_num);
+	if (ret) {
+		dev_err(dev, "clear all pf msix int cmd failed (%d)\n",
+			ret);
+		/* reset everything for now */
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
+	}
+
+msi_error:
+	kfree(desc);
+out:
+	return ret;
+}
