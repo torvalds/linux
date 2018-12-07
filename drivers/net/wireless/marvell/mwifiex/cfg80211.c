@@ -1333,6 +1333,28 @@ mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 rateinfo, u8 htinfo,
 				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 		}
 	}
+
+	/* Decode legacy rates for non-HT. */
+	if (!(htinfo & (BIT(0) | BIT(1)))) {
+		/* Bitrates in multiples of 100kb/s. */
+		static const int legacy_rates[] = {
+			[0] = 10,
+			[1] = 20,
+			[2] = 55,
+			[3] = 110,
+			[4] = 60, /* MWIFIEX_RATE_INDEX_OFDM0 */
+			[5] = 60,
+			[6] = 90,
+			[7] = 120,
+			[8] = 180,
+			[9] = 240,
+			[10] = 360,
+			[11] = 480,
+			[12] = 540,
+		};
+		if (rateinfo < ARRAY_SIZE(legacy_rates))
+			rate->legacy = legacy_rates[rateinfo];
+	}
 }
 
 /*
@@ -1413,6 +1435,10 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	sinfo->signal = priv->bcn_rssi_avg;
 	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
 	sinfo->txrate.legacy = rate * 5;
+
+	sinfo->filled |= BIT(NL80211_STA_INFO_RX_BITRATE);
+	mwifiex_parse_htinfo(priv, priv->rxpd_rate, priv->rxpd_htinfo,
+			     &sinfo->rxrate);
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_BSS_PARAM);
