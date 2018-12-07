@@ -2,9 +2,11 @@
 #ifndef __ASM_POINTER_AUTH_H
 #define __ASM_POINTER_AUTH_H
 
+#include <linux/bitops.h>
 #include <linux/random.h>
 
 #include <asm/cpufeature.h>
+#include <asm/memory.h>
 #include <asm/sysreg.h>
 
 #ifdef CONFIG_ARM64_PTR_AUTH
@@ -60,6 +62,12 @@ static inline void ptrauth_keys_switch(struct ptrauth_keys *keys)
 	if (system_supports_generic_auth())
 		__ptrauth_key_install(APGA, keys->apga);
 }
+
+/*
+ * The EL0 pointer bits used by a pointer authentication code.
+ * This is dependent on TBI0 being enabled, or bits 63:56 would also apply.
+ */
+#define ptrauth_user_pac_mask()	GENMASK(54, vabits_user)
 
 #define ptrauth_thread_init_user(tsk)					\
 do {									\

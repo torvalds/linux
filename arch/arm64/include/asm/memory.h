@@ -207,6 +207,9 @@ static inline unsigned long kaslr_offset(void)
 	return kimage_vaddr - KIMAGE_VADDR;
 }
 
+/* the actual size of a user virtual address */
+extern u64			vabits_user;
+
 /*
  * Allow all memory at the discovery stage. We will clip it later.
  */
