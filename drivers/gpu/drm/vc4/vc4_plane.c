@@ -492,8 +492,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	bool mix_plane_alpha;
 	bool covers_screen;
 	u32 scl0, scl1, pitch0;
-	u32 tiling;
+	u32 tiling, src_y;
 	u32 hvs_format = format->hvs;
+	unsigned int rotation;
 	int ret, i;
 
 	if (vc4_state->dlist_initialized)
@@ -520,6 +521,16 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	h_subsample = drm_format_horz_chroma_subsampling(format->drm);
 	v_subsample = drm_format_vert_chroma_subsampling(format->drm);
 
+	rotation = drm_rotation_simplify(state->rotation,
+					 DRM_MODE_ROTATE_0 |
+					 DRM_MODE_REFLECT_X |
+					 DRM_MODE_REFLECT_Y);
+
+	/* We must point to the last line when Y reflection is enabled. */
+	src_y = vc4_state->src_y;
+	if (rotation & DRM_MODE_REFLECT_Y)
+		src_y += vc4_state->src_h[0] - 1;
+
 	switch (base_format_mod) {
 	case DRM_FORMAT_MOD_LINEAR:
 		tiling = SCALER_CTL0_TILING_LINEAR;
@@ -529,9 +540,10 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		 * out.
 		 */
 		for (i = 0; i < num_planes; i++) {
-			vc4_state->offsets[i] += vc4_state->src_y /
+			vc4_state->offsets[i] += src_y /
 						 (i ? v_subsample : 1) *
 						 fb->pitches[i];
+
 			vc4_state->offsets[i] += vc4_state->src_x /
 						 (i ? h_subsample : 1) *
 						 fb->format->cpp[i];
@@ -557,22 +569,38 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		u32 tiles_w = fb->pitches[0] >> (tile_size_shift - tile_h_shift);
 		u32 tiles_l = vc4_state->src_x >> tile_w_shift;
 		u32 tiles_r = tiles_w - tiles_l;
-		u32 tiles_t = vc4_state->src_y >> tile_h_shift;
+		u32 tiles_t = src_y >> tile_h_shift;
 		/* Intra-tile offsets, which modify the base address (the
 		 * SCALER_PITCH0_TILE_Y_OFFSET tells HVS how to walk from that
 		 * base address).
 		 */
-		u32 tile_y = (vc4_state->src_y >> 4) & 1;
-		u32 subtile_y = (vc4_state->src_y >> 2) & 3;
-		u32 utile_y = vc4_state->src_y & 3;
+		u32 tile_y = (src_y >> 4) & 1;
+		u32 subtile_y = (src_y >> 2) & 3;
+		u32 utile_y = src_y & 3;
 		u32 x_off = vc4_state->src_x & tile_w_mask;
-		u32 y_off = vc4_state->src_y & tile_h_mask;
+		u32 y_off = src_y & tile_h_mask;
+
+		/* When Y reflection is requested we must set the
+		 * SCALER_PITCH0_TILE_LINE_DIR flag to tell HVS that all lines
+		 * after the initial one should be fetched in descending order,
+		 * which makes sense since we start from the last line and go
+		 * backward.
+		 * Don't know why we need y_off = max_y_off - y_off, but it's
+		 * definitely required (I guess it's also related to the "going
+		 * backward" situation).
+		 */
+		if (rotation & DRM_MODE_REFLECT_Y) {
+			y_off = tile_h_mask - y_off;
+			pitch0 = SCALER_PITCH0_TILE_LINE_DIR;
+		} else {
+			pitch0 = 0;
+		}
 
 		tiling = SCALER_CTL0_TILING_256B_OR_T;
-		pitch0 = (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
-			  VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
-			  VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
-			  VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
+		pitch0 |= (VC4_SET_FIELD(x_off, SCALER_PITCH0_SINK_PIX) |
+			   VC4_SET_FIELD(y_off, SCALER_PITCH0_TILE_Y_OFFSET) |
+			   VC4_SET_FIELD(tiles_l, SCALER_PITCH0_TILE_WIDTH_L) |
+			   VC4_SET_FIELD(tiles_r, SCALER_PITCH0_TILE_WIDTH_R));
 		vc4_state->offsets[0] += tiles_t * (tiles_w << tile_size_shift);
 		vc4_state->offsets[0] += subtile_y << 8;
 		vc4_state->offsets[0] += utile_y << 4;
@@ -643,7 +671,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		 */
 		for (i = 0; i < num_planes; i++) {
 			vc4_state->offsets[i] += param * tile_w * tile;
-			vc4_state->offsets[i] += vc4_state->src_y /
+			vc4_state->offsets[i] += src_y /
 						 (i ? v_subsample : 1) *
 						 tile_w;
 			vc4_state->offsets[i] += x_off /
@@ -664,6 +692,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	/* Control word */
 	vc4_dlist_write(vc4_state,
 			SCALER_CTL0_VALID |
+			(rotation & DRM_MODE_REFLECT_X ? SCALER_CTL0_HFLIP : 0) |
+			(rotation & DRM_MODE_REFLECT_Y ? SCALER_CTL0_VFLIP : 0) |
 			VC4_SET_FIELD(SCALER_CTL0_RGBA_EXPAND_ROUND, SCALER_CTL0_RGBA_EXPAND) |
 			(format->pixel_order << SCALER_CTL0_ORDER_SHIFT) |
 			(hvs_format << SCALER_CTL0_PIXEL_FORMAT_SHIFT) |
@@ -1144,6 +1174,11 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
 	drm_plane_create_alpha_property(plane);
+	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
+					   DRM_MODE_ROTATE_0 |
+					   DRM_MODE_ROTATE_180 |
+					   DRM_MODE_REFLECT_X |
+					   DRM_MODE_REFLECT_Y);
 
 	return plane;
 }
