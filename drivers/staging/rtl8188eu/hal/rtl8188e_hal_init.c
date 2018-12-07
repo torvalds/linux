@@ -373,7 +373,7 @@ static void Hal_ReadPowerValueFromPROM_8188E(struct txpowerinfo24g *pwrInfo24G, 
 	}
 }
 
-static void Hal_GetChnlGroup88E(u8 chnl, u8 *group)
+void Hal_GetChnlGroup88E(u8 chnl, u8 *group)
 {
 	if (chnl < 3)			/*  Channel 1-2 */
 		*group = 0;
