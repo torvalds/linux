@@ -719,11 +719,6 @@ i915_request_alloc(struct intel_engine_cs *engine, struct i915_gem_context *ctx)
 	 */
 	rq->head = rq->ring->emit;
 
-	/* Unconditionally invalidate GPU caches and TLBs. */
-	ret = engine->emit_flush(rq, EMIT_INVALIDATE);
-	if (ret)
-		goto err_unwind;
-
 	ret = engine->request_alloc(rq);
 	if (ret)
 		goto err_unwind;

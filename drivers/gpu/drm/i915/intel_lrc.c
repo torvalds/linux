@@ -1276,17 +1276,20 @@ static int execlists_request_alloc(struct i915_request *request)
 
 	GEM_BUG_ON(!request->hw_context->pin_count);
 
-	/* Flush enough space to reduce the likelihood of waiting after
+	/*
+	 * Flush enough space to reduce the likelihood of waiting after
 	 * we start building the request - in which case we will just
 	 * have to repeat work.
 	 */
 	request->reserved_space += EXECLISTS_REQUEST_SIZE;
 
-	ret = intel_ring_wait_for_space(request->ring, request->reserved_space);
+	/* Unconditionally invalidate GPU caches and TLBs. */
+	ret = request->engine->emit_flush(request, EMIT_INVALIDATE);
 	if (ret)
 		return ret;
 
-	/* Note that after this point, we have committed to using
+	/*
+	 * Note that after this point, we have committed to using
 	 * this request as it is being used to both track the
 	 * state of engine initialisation and liveness of the
 	 * golden renderstate above. Think twice before you try
