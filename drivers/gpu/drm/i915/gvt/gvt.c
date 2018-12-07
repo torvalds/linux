@@ -316,7 +316,7 @@ void intel_gvt_clean_device(struct drm_i915_private *dev_priv)
 		return;
 
 	intel_gvt_destroy_idle_vgpu(gvt->idle_vgpu);
-	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev, gvt);
+	intel_gvt_hypervisor_host_exit(&dev_priv->drm.pdev->dev);
 	intel_gvt_cleanup_vgpu_type_groups(gvt);
 	intel_gvt_clean_vgpu_types(gvt);
 

@@ -1467,7 +1467,7 @@ static int kvmgt_host_init(struct device *dev, void *gvt, const void *ops)
 	return mdev_register_device(dev, &intel_vgpu_ops);
 }
 
-static void kvmgt_host_exit(struct device *dev, void *gvt)
+static void kvmgt_host_exit(struct device *dev)
 {
 	mdev_unregister_device(dev);
 }
