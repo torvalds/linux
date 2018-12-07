@@ -83,7 +83,9 @@ archheaders:
 	$(Q)$(MAKE) $(build)=arch/microblaze/kernel/syscalls all
 
 PHONY += linux.bin linux.bin.gz linux.bin.ub
-linux.bin linux.bin.gz linux.bin.ub: vmlinux
+linux.bin.ub linux.bin.gz: linux.bin
+linux.bin: vmlinux
+linux.bin linux.bin.gz linux.bin.ub:
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 	@echo 'Kernel: $(boot)/$@ is ready' ' (#'`cat .version`')'
 
