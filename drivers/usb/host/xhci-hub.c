@@ -891,7 +891,7 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	rhub = xhci_get_rhub(hcd);
 	port = rhub->ports[wIndex];
 
-	/* wPortChange bits */
+	/* common wPortChange bits */
 	if (raw_port_status & PORT_CSC)
 		status |= USB_PORT_STAT_C_CONNECTION << 16;
 	if (raw_port_status & PORT_PEC)
@@ -901,7 +901,19 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 	if ((raw_port_status & PORT_RC))
 		status |= USB_PORT_STAT_C_RESET << 16;
 
-	/* USB2 and USB3 specific bits including Port Link State */
+	/* common wPortStatus bits */
+	if (raw_port_status & PORT_CONNECT) {
+		status |= USB_PORT_STAT_CONNECTION;
+		status |= xhci_port_speed(raw_port_status);
+	}
+	if (raw_port_status & PORT_PE)
+		status |= USB_PORT_STAT_ENABLE;
+	if (raw_port_status & PORT_OC)
+		status |= USB_PORT_STAT_OVERCURRENT;
+	if (raw_port_status & PORT_RESET)
+		status |= USB_PORT_STAT_RESET;
+
+	/* USB2 and USB3 specific bits, including Port Link State */
 	if (hcd->speed >= HCD_USB3)
 		xhci_get_usb3_port_status(port, &status, raw_port_status);
 	else
@@ -1010,16 +1022,6 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		bus_state->resume_done[wIndex] = 0;
 		clear_bit(wIndex, &bus_state->resuming_ports);
 	}
-	if (raw_port_status & PORT_CONNECT) {
-		status |= USB_PORT_STAT_CONNECTION;
-		status |= xhci_port_speed(raw_port_status);
-	}
-	if (raw_port_status & PORT_PE)
-		status |= USB_PORT_STAT_ENABLE;
-	if (raw_port_status & PORT_OC)
-		status |= USB_PORT_STAT_OVERCURRENT;
-	if (raw_port_status & PORT_RESET)
-		status |= USB_PORT_STAT_RESET;
 
 	if (bus_state->port_c_suspend & (1 << wIndex))
 		status |= USB_PORT_STAT_C_SUSPEND << 16;
