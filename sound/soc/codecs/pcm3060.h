@@ -37,7 +37,9 @@ int pcm3060_remove(struct device *dev);
 #define PCM3060_REG_MRST		0x80
 #define PCM3060_REG_SRST		0x40
 #define PCM3060_REG_ADPSV		0x20
+#define PCM3060_REG_SHIFT_ADPSV	0x05
 #define PCM3060_REG_DAPSV		0x10
+#define PCM3060_REG_SHIFT_DAPSV	0x04
 #define PCM3060_REG_SE			0x01
 
 #define PCM3060_REG65			0x41

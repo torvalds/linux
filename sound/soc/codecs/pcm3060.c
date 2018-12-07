@@ -198,19 +198,25 @@ static const struct snd_kcontrol_new pcm3060_dapm_controls[] = {
 };
 
 static const struct snd_soc_dapm_widget pcm3060_dapm_widgets[] = {
+	SND_SOC_DAPM_DAC("DAC", "Playback", PCM3060_REG64,
+			 PCM3060_REG_SHIFT_DAPSV, 1),
+
 	SND_SOC_DAPM_OUTPUT("OUTL"),
 	SND_SOC_DAPM_OUTPUT("OUTR"),
 
 	SND_SOC_DAPM_INPUT("INL"),
 	SND_SOC_DAPM_INPUT("INR"),
+
+	SND_SOC_DAPM_ADC("ADC", "Capture", PCM3060_REG64,
+			 PCM3060_REG_SHIFT_ADPSV, 1),
 };
 
 static const struct snd_soc_dapm_route pcm3060_dapm_map[] = {
-	{ "OUTL", NULL, "Playback" },
-	{ "OUTR", NULL, "Playback" },
+	{ "OUTL", NULL, "DAC" },
+	{ "OUTR", NULL, "DAC" },
 
-	{ "Capture", NULL, "INL" },
-	{ "Capture", NULL, "INR" },
+	{ "ADC", NULL, "INL" },
+	{ "ADC", NULL, "INR" },
 };
 
 /* soc component */
