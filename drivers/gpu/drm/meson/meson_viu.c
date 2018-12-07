@@ -296,6 +296,33 @@ static void meson_viu_load_matrix(struct meson_drm *priv)
 				 true);
 }
 
+/* VIU OSD1 Reset as workaround for GXL+ Alpha OSD Bug */
+void meson_viu_osd1_reset(struct meson_drm *priv)
+{
+	uint32_t osd1_fifo_ctrl_stat, osd1_ctrl_stat2;
+
+	/* Save these 2 registers state */
+	osd1_fifo_ctrl_stat = readl_relaxed(
+				priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
+	osd1_ctrl_stat2 = readl_relaxed(
+				priv->io_base + _REG(VIU_OSD1_CTRL_STAT2));
+
+	/* Reset OSD1 */
+	writel_bits_relaxed(BIT(0), BIT(0),
+			    priv->io_base + _REG(VIU_SW_RESET));
+	writel_bits_relaxed(BIT(0), 0,
+			    priv->io_base + _REG(VIU_SW_RESET));
+
+	/* Rewrite these registers state lost in the reset */
+	writel_relaxed(osd1_fifo_ctrl_stat,
+		       priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
+	writel_relaxed(osd1_ctrl_stat2,
+		       priv->io_base + _REG(VIU_OSD1_CTRL_STAT2));
+
+	/* Reload the conversion matrix */
+	meson_viu_load_matrix(priv);
+}
+
 void meson_viu_init(struct meson_drm *priv)
 {
 	uint32_t reg;

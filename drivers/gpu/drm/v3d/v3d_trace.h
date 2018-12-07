@@ -12,6 +12,28 @@
 #define TRACE_SYSTEM v3d
 #define TRACE_INCLUDE_FILE v3d_trace
 
+TRACE_EVENT(v3d_submit_cl_ioctl,
+	    TP_PROTO(struct drm_device *dev, u32 ct1qba, u32 ct1qea),
+	    TP_ARGS(dev, ct1qba, ct1qea),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, ct1qba)
+			     __field(u32, ct1qea)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->ct1qba = ct1qba;
+			   __entry->ct1qea = ct1qea;
+			   ),
+
+	    TP_printk("dev=%u, RCL 0x%08x..0x%08x",
+		      __entry->dev,
+		      __entry->ct1qba,
+		      __entry->ct1qea)
+);
+
 TRACE_EVENT(v3d_submit_cl,
 	    TP_PROTO(struct drm_device *dev, bool is_render,
 		     uint64_t seqno,
@@ -40,6 +62,105 @@ TRACE_EVENT(v3d_submit_cl,
 		      __entry->seqno,
 		      __entry->ctnqba,
 		      __entry->ctnqea)
+);
+
+TRACE_EVENT(v3d_bcl_irq,
+	    TP_PROTO(struct drm_device *dev,
+		     uint64_t seqno),
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu",
+		      __entry->dev,
+		      __entry->seqno)
+);
+
+TRACE_EVENT(v3d_rcl_irq,
+	    TP_PROTO(struct drm_device *dev,
+		     uint64_t seqno),
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu",
+		      __entry->dev,
+		      __entry->seqno)
+);
+
+TRACE_EVENT(v3d_tfu_irq,
+	    TP_PROTO(struct drm_device *dev,
+		     uint64_t seqno),
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu",
+		      __entry->dev,
+		      __entry->seqno)
+);
+
+TRACE_EVENT(v3d_submit_tfu_ioctl,
+	    TP_PROTO(struct drm_device *dev, u32 iia),
+	    TP_ARGS(dev, iia),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u32, iia)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->iia = iia;
+			   ),
+
+	    TP_printk("dev=%u, IIA 0x%08x",
+		      __entry->dev,
+		      __entry->iia)
+);
+
+TRACE_EVENT(v3d_submit_tfu,
+	    TP_PROTO(struct drm_device *dev,
+		     uint64_t seqno),
+	    TP_ARGS(dev, seqno),
+
+	    TP_STRUCT__entry(
+			     __field(u32, dev)
+			     __field(u64, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->dev = dev->primary->index;
+			   __entry->seqno = seqno;
+			   ),
+
+	    TP_printk("dev=%u, seqno=%llu",
+		      __entry->dev,
+		      __entry->seqno)
 );
 
 TRACE_EVENT(v3d_reset_begin,

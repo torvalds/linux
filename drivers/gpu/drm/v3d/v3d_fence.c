@@ -29,10 +29,16 @@ static const char *v3d_fence_get_timeline_name(struct dma_fence *fence)
 {
 	struct v3d_fence *f = to_v3d_fence(fence);
 
-	if (f->queue == V3D_BIN)
+	switch (f->queue) {
+	case V3D_BIN:
 		return "v3d-bin";
-	else
+	case V3D_RENDER:
 		return "v3d-render";
+	case V3D_TFU:
+		return "v3d-tfu";
+	default:
+		return NULL;
+	}
 }
 
 const struct dma_fence_ops v3d_fence_ops = {

@@ -221,7 +221,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	}
 
 	virtio_gpu_cmd_submit(vgdev, buf, exbuf->size,
-			      vfpriv->ctx_id, &out_fence);
+			      vfpriv->ctx_id, out_fence);
 
 	ttm_eu_fence_buffer_objects(&ticket, &validate_list, &out_fence->f);
 
@@ -348,8 +348,8 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 			goto fail_backoff;
 		}
 
-		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d, NULL);
-		ret = virtio_gpu_object_attach(vgdev, qobj, &fence);
+		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d);
+		ret = virtio_gpu_object_attach(vgdev, qobj, fence);
 		if (ret) {
 			virtio_gpu_fence_cleanup(fence);
 			goto fail_backoff;
@@ -450,7 +450,7 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 	virtio_gpu_cmd_transfer_from_host_3d
 		(vgdev, qobj->hw_res_handle,
 		 vfpriv->ctx_id, offset, args->level,
-		 &box, &fence);
+		 &box, fence);
 	reservation_object_add_excl_fence(qobj->tbo.resv,
 					  &fence->f);
 
@@ -504,7 +504,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 		virtio_gpu_cmd_transfer_to_host_3d
 			(vgdev, qobj,
 			 vfpriv ? vfpriv->ctx_id : 0, offset,
-			 args->level, &box, &fence);
+			 args->level, &box, fence);
 		reservation_object_add_excl_fence(qobj->tbo.resv,
 						  &fence->f);
 		dma_fence_put(&fence->f);

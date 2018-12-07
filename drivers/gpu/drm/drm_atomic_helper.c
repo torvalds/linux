@@ -3131,25 +3131,102 @@ void drm_atomic_helper_shutdown(struct drm_device *dev)
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	drm_modeset_acquire_init(&ctx, 0);
-	while (1) {
-		ret = drm_modeset_lock_all_ctx(dev, &ctx);
-		if (!ret)
-			ret = __drm_atomic_helper_disable_all(dev, &ctx, true);
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 
-		if (ret != -EDEADLK)
-			break;
-
-		drm_modeset_backoff(&ctx);
-	}
-
+	ret = __drm_atomic_helper_disable_all(dev, &ctx, true);
 	if (ret)
 		DRM_ERROR("Disabling all crtc's during unload failed with %i\n", ret);
 
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
+	DRM_MODESET_LOCK_ALL_END(ctx, ret);
 }
 EXPORT_SYMBOL(drm_atomic_helper_shutdown);
+
+/**
+ * drm_atomic_helper_duplicate_state - duplicate an atomic state object
+ * @dev: DRM device
+ * @ctx: lock acquisition context
+ *
+ * Makes a copy of the current atomic state by looping over all objects and
+ * duplicating their respective states. This is used for example by suspend/
+ * resume support code to save the state prior to suspend such that it can
+ * be restored upon resume.
+ *
+ * Note that this treats atomic state as persistent between save and restore.
+ * Drivers must make sure that this is possible and won't result in confusion
+ * or erroneous behaviour.
+ *
+ * Note that if callers haven't already acquired all modeset locks this might
+ * return -EDEADLK, which must be handled by calling drm_modeset_backoff().
+ *
+ * Returns:
+ * A pointer to the copy of the atomic state object on success or an
+ * ERR_PTR()-encoded error code on failure.
+ *
+ * See also:
+ * drm_atomic_helper_suspend(), drm_atomic_helper_resume()
+ */
+struct drm_atomic_state *
+drm_atomic_helper_duplicate_state(struct drm_device *dev,
+				  struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_atomic_state *state;
+	struct drm_connector *conn;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_plane *plane;
+	struct drm_crtc *crtc;
+	int err = 0;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return ERR_PTR(-ENOMEM);
+
+	state->acquire_ctx = ctx;
+
+	drm_for_each_crtc(crtc, dev) {
+		struct drm_crtc_state *crtc_state;
+
+		crtc_state = drm_atomic_get_crtc_state(state, crtc);
+		if (IS_ERR(crtc_state)) {
+			err = PTR_ERR(crtc_state);
+			goto free;
+		}
+	}
+
+	drm_for_each_plane(plane, dev) {
+		struct drm_plane_state *plane_state;
+
+		plane_state = drm_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state)) {
+			err = PTR_ERR(plane_state);
+			goto free;
+		}
+	}
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(conn, &conn_iter) {
+		struct drm_connector_state *conn_state;
+
+		conn_state = drm_atomic_get_connector_state(state, conn);
+		if (IS_ERR(conn_state)) {
+			err = PTR_ERR(conn_state);
+			drm_connector_list_iter_end(&conn_iter);
+			goto free;
+		}
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	/* clear the acquire context so that it isn't accidentally reused */
+	state->acquire_ctx = NULL;
+
+free:
+	if (err < 0) {
+		drm_atomic_state_put(state);
+		state = ERR_PTR(err);
+	}
+
+	return state;
+}
+EXPORT_SYMBOL(drm_atomic_helper_duplicate_state);
 
 /**
  * drm_atomic_helper_suspend - subsystem-level suspend helper
@@ -3182,14 +3259,10 @@ struct drm_atomic_state *drm_atomic_helper_suspend(struct drm_device *dev)
 	struct drm_atomic_state *state;
 	int err;
 
-	drm_modeset_acquire_init(&ctx, 0);
+	/* This can never be returned, but it makes the compiler happy */
+	state = ERR_PTR(-EINVAL);
 
-retry:
-	err = drm_modeset_lock_all_ctx(dev, &ctx);
-	if (err < 0) {
-		state = ERR_PTR(err);
-		goto unlock;
-	}
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, err);
 
 	state = drm_atomic_helper_duplicate_state(dev, &ctx);
 	if (IS_ERR(state))
@@ -3203,13 +3276,10 @@ retry:
 	}
 
 unlock:
-	if (PTR_ERR(state) == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
+	DRM_MODESET_LOCK_ALL_END(ctx, err);
+	if (err)
+		return ERR_PTR(err);
 
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
 	return state;
 }
 EXPORT_SYMBOL(drm_atomic_helper_suspend);
@@ -3232,7 +3302,7 @@ EXPORT_SYMBOL(drm_atomic_helper_suspend);
 int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
 					      struct drm_modeset_acquire_ctx *ctx)
 {
-	int i;
+	int i, ret;
 	struct drm_plane *plane;
 	struct drm_plane_state *new_plane_state;
 	struct drm_connector *connector;
@@ -3251,7 +3321,11 @@ int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
 	for_each_new_connector_in_state(state, connector, new_conn_state, i)
 		state->connectors[i].old_state = connector->state;
 
-	return drm_atomic_commit(state);
+	ret = drm_atomic_commit(state);
+
+	state->acquire_ctx = NULL;
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_duplicated_state);
 
@@ -3279,23 +3353,12 @@ int drm_atomic_helper_resume(struct drm_device *dev,
 
 	drm_mode_config_reset(dev);
 
-	drm_modeset_acquire_init(&ctx, 0);
-	while (1) {
-		err = drm_modeset_lock_all_ctx(dev, &ctx);
-		if (err)
-			goto out;
+	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, err);
 
-		err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
-out:
-		if (err != -EDEADLK)
-			break;
+	err = drm_atomic_helper_commit_duplicated_state(state, &ctx);
 
-		drm_modeset_backoff(&ctx);
-	}
-
+	DRM_MODESET_LOCK_ALL_END(ctx, err);
 	drm_atomic_state_put(state);
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
 
 	return err;
 }
@@ -3434,3 +3497,73 @@ fail:
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip_target);
+
+/**
+ * drm_atomic_helper_legacy_gamma_set - set the legacy gamma correction table
+ * @crtc: CRTC object
+ * @red: red correction table
+ * @green: green correction table
+ * @blue: green correction table
+ * @size: size of the tables
+ * @ctx: lock acquire context
+ *
+ * Implements support for legacy gamma correction table for drivers
+ * that support color management through the DEGAMMA_LUT/GAMMA_LUT
+ * properties. See drm_crtc_enable_color_mgmt() and the containing chapter for
+ * how the atomic color management and gamma tables work.
+ */
+int drm_atomic_helper_legacy_gamma_set(struct drm_crtc *crtc,
+				       u16 *red, u16 *green, u16 *blue,
+				       uint32_t size,
+				       struct drm_modeset_acquire_ctx *ctx)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_atomic_state *state;
+	struct drm_crtc_state *crtc_state;
+	struct drm_property_blob *blob = NULL;
+	struct drm_color_lut *blob_data;
+	int i, ret = 0;
+	bool replaced;
+
+	state = drm_atomic_state_alloc(crtc->dev);
+	if (!state)
+		return -ENOMEM;
+
+	blob = drm_property_create_blob(dev,
+					sizeof(struct drm_color_lut) * size,
+					NULL);
+	if (IS_ERR(blob)) {
+		ret = PTR_ERR(blob);
+		blob = NULL;
+		goto fail;
+	}
+
+	/* Prepare GAMMA_LUT with the legacy values. */
+	blob_data = blob->data;
+	for (i = 0; i < size; i++) {
+		blob_data[i].red = red[i];
+		blob_data[i].green = green[i];
+		blob_data[i].blue = blue[i];
+	}
+
+	state->acquire_ctx = ctx;
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto fail;
+	}
+
+	/* Reset DEGAMMA_LUT and CTM properties. */
+	replaced  = drm_property_replace_blob(&crtc_state->degamma_lut, NULL);
+	replaced |= drm_property_replace_blob(&crtc_state->ctm, NULL);
+	replaced |= drm_property_replace_blob(&crtc_state->gamma_lut, blob);
+	crtc_state->color_mgmt_changed |= replaced;
+
+	ret = drm_atomic_commit(state);
+
+fail:
+	drm_atomic_state_put(state);
+	drm_property_blob_put(blob);
+	return ret;
+}
+EXPORT_SYMBOL(drm_atomic_helper_legacy_gamma_set);
