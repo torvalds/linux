@@ -97,6 +97,8 @@ struct dc_plane_address {
 			union large_integer chroma_dcc_const_color;
 		} video_progressive;
 	};
+
+	union large_integer page_table_base;
 };
 
 struct dc_size {

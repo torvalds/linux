@@ -110,6 +110,12 @@ struct dcn_hubbub_registers {
 	uint32_t DCHUBBUB_SDPIF_AGP_TOP;
 	uint32_t DCHUBBUB_CRC_CTRL;
 	uint32_t DCHUBBUB_SOFT_RESET;
+	uint32_t DCN_VM_FB_LOCATION_BASE;
+	uint32_t DCN_VM_FB_LOCATION_TOP;
+	uint32_t DCN_VM_FB_OFFSET;
+	uint32_t DCN_VM_AGP_BOT;
+	uint32_t DCN_VM_AGP_TOP;
+	uint32_t DCN_VM_AGP_BASE;
 };
 
 /* set field name */
@@ -155,7 +161,13 @@ struct dcn_hubbub_registers {
 		type SDPIF_FB_OFFSET;\
 		type SDPIF_AGP_BASE;\
 		type SDPIF_AGP_BOT;\
-		type SDPIF_AGP_TOP
+		type SDPIF_AGP_TOP;\
+		type FB_BASE;\
+		type FB_TOP;\
+		type FB_OFFSET;\
+		type AGP_BOT;\
+		type AGP_TOP;\
+		type AGP_BASE
 
 
 struct dcn_hubbub_shift {
