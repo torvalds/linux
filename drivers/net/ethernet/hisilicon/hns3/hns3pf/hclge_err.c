@@ -263,6 +263,80 @@ static const struct hclge_hw_error hclge_ppu_pf_abnormal_int[] = {
 	{ /* sentinel */ }
 };
 
+static const struct hclge_hw_error hclge_ssu_com_err_int[] = {
+	{ .int_msk = BIT(0), .msg = "buf_sum_err" },
+	{ .int_msk = BIT(1), .msg = "ppp_mb_num_err" },
+	{ .int_msk = BIT(2), .msg = "ppp_mbid_err" },
+	{ .int_msk = BIT(3), .msg = "ppp_rlt_mac_err" },
+	{ .int_msk = BIT(4), .msg = "ppp_rlt_host_err" },
+	{ .int_msk = BIT(5), .msg = "cks_edit_position_err" },
+	{ .int_msk = BIT(6), .msg = "cks_edit_condition_err" },
+	{ .int_msk = BIT(7), .msg = "vlan_edit_condition_err" },
+	{ .int_msk = BIT(8), .msg = "vlan_num_ot_err" },
+	{ .int_msk = BIT(9), .msg = "vlan_num_in_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ssu_port_based_err_int[] = {
+	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port" },
+	{ .int_msk = BIT(1), .msg = "tpu_pkt_without_key_port" },
+	{ .int_msk = BIT(2), .msg = "igu_pkt_without_key_port" },
+	{ .int_msk = BIT(3), .msg = "roc_eof_mis_match_port" },
+	{ .int_msk = BIT(4), .msg = "tpu_eof_mis_match_port" },
+	{ .int_msk = BIT(5), .msg = "igu_eof_mis_match_port" },
+	{ .int_msk = BIT(6), .msg = "roc_sof_mis_match_port" },
+	{ .int_msk = BIT(7), .msg = "tpu_sof_mis_match_port" },
+	{ .int_msk = BIT(8), .msg = "igu_sof_mis_match_port" },
+	{ .int_msk = BIT(11), .msg = "ets_rd_int_rx_port" },
+	{ .int_msk = BIT(12), .msg = "ets_wr_int_rx_port" },
+	{ .int_msk = BIT(13), .msg = "ets_rd_int_tx_port" },
+	{ .int_msk = BIT(14), .msg = "ets_wr_int_tx_port" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ssu_fifo_overflow_int[] = {
+	{ .int_msk = BIT(0), .msg = "ig_mac_inf_int" },
+	{ .int_msk = BIT(1), .msg = "ig_host_inf_int" },
+	{ .int_msk = BIT(2), .msg = "ig_roc_buf_int" },
+	{ .int_msk = BIT(3), .msg = "ig_host_data_fifo_int" },
+	{ .int_msk = BIT(4), .msg = "ig_host_key_fifo_int" },
+	{ .int_msk = BIT(5), .msg = "tx_qcn_fifo_int" },
+	{ .int_msk = BIT(6), .msg = "rx_qcn_fifo_int" },
+	{ .int_msk = BIT(7), .msg = "tx_pf_rd_fifo_int" },
+	{ .int_msk = BIT(8), .msg = "rx_pf_rd_fifo_int" },
+	{ .int_msk = BIT(9), .msg = "qm_eof_fifo_int" },
+	{ .int_msk = BIT(10), .msg = "mb_rlt_fifo_int" },
+	{ .int_msk = BIT(11), .msg = "dup_uncopy_fifo_int" },
+	{ .int_msk = BIT(12), .msg = "dup_cnt_rd_fifo_int" },
+	{ .int_msk = BIT(13), .msg = "dup_cnt_drop_fifo_int" },
+	{ .int_msk = BIT(14), .msg = "dup_cnt_wrb_fifo_int" },
+	{ .int_msk = BIT(15), .msg = "host_cmd_fifo_int" },
+	{ .int_msk = BIT(16), .msg = "mac_cmd_fifo_int" },
+	{ .int_msk = BIT(17), .msg = "host_cmd_bitmap_empty_int" },
+	{ .int_msk = BIT(18), .msg = "mac_cmd_bitmap_empty_int" },
+	{ .int_msk = BIT(19), .msg = "dup_bitmap_empty_int" },
+	{ .int_msk = BIT(20), .msg = "out_queue_bitmap_empty_int" },
+	{ .int_msk = BIT(21), .msg = "bank2_bitmap_empty_int" },
+	{ .int_msk = BIT(22), .msg = "bank1_bitmap_empty_int" },
+	{ .int_msk = BIT(23), .msg = "bank0_bitmap_empty_int" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ssu_ets_tcg_int[] = {
+	{ .int_msk = BIT(0), .msg = "ets_rd_int_rx_tcg" },
+	{ .int_msk = BIT(1), .msg = "ets_wr_int_rx_tcg" },
+	{ .int_msk = BIT(2), .msg = "ets_rd_int_tx_tcg" },
+	{ .int_msk = BIT(3), .msg = "ets_wr_int_tx_tcg" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ssu_port_based_pf_int[] = {
+	{ .int_msk = BIT(0), .msg = "roc_pkt_without_key_port" },
+	{ .int_msk = BIT(9), .msg = "low_water_line_err_port" },
+	{ .int_msk = BIT(10), .msg = "hi_water_line_err_port" },
+	{ /* sentinel */ }
+};
+
 static void hclge_log_error(struct device *dev, char *reg,
 			    const struct hclge_hw_error *err,
 			    u32 err_sts)
@@ -606,6 +680,63 @@ static int hclge_config_ppu_hw_err_int(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+static int hclge_config_ssu_hw_err_int(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	int ret;
+
+	/* configure SSU ecc error interrupts */
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_SSU_ECC_INT_CMD, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_SSU_ECC_INT_CMD, false);
+	if (en) {
+		desc[0].data[0] = cpu_to_le32(HCLGE_SSU_1BIT_ECC_ERR_INT_EN);
+		desc[0].data[1] =
+			cpu_to_le32(HCLGE_SSU_MULTI_BIT_ECC_ERR_INT_EN);
+		desc[0].data[4] = cpu_to_le32(HCLGE_SSU_BIT32_ECC_ERR_INT_EN);
+	}
+
+	desc[1].data[0] = cpu_to_le32(HCLGE_SSU_1BIT_ECC_ERR_INT_EN_MASK);
+	desc[1].data[1] = cpu_to_le32(HCLGE_SSU_MULTI_BIT_ECC_ERR_INT_EN_MASK);
+	desc[1].data[2] = cpu_to_le32(HCLGE_SSU_BIT32_ECC_ERR_INT_EN_MASK);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 2);
+	if (ret) {
+		dev_err(dev,
+			"fail(%d) to configure SSU ECC error interrupt\n", ret);
+		return ret;
+	}
+
+	/* configure SSU common error interrupts */
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_SSU_COMMON_INT_CMD, false);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_SSU_COMMON_INT_CMD, false);
+
+	if (en) {
+		if (hdev->pdev->revision >= 0x21)
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_SSU_COMMON_INT_EN);
+		else
+			desc[0].data[0] =
+				cpu_to_le32(HCLGE_SSU_COMMON_INT_EN & ~BIT(5));
+		desc[0].data[1] = cpu_to_le32(HCLGE_SSU_PORT_BASED_ERR_INT_EN);
+		desc[0].data[2] =
+			cpu_to_le32(HCLGE_SSU_FIFO_OVERFLOW_ERR_INT_EN);
+	}
+
+	desc[1].data[0] = cpu_to_le32(HCLGE_SSU_COMMON_INT_EN_MASK |
+				HCLGE_SSU_PORT_BASED_ERR_INT_EN_MASK);
+	desc[1].data[1] = cpu_to_le32(HCLGE_SSU_FIFO_OVERFLOW_ERR_INT_EN_MASK);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 2);
+	if (ret)
+		dev_err(dev,
+			"fail(%d) to configure SSU COMMON error intr\n", ret);
+
+	return ret;
+}
+
 #define HCLGE_SET_DEFAULT_RESET_REQUEST(reset_type) \
 	do { \
 		if (ae_dev->ops->set_default_reset_request) \
@@ -674,6 +805,27 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 		hclge_log_error(dev, "MSIX_ECC_INT_STS",
 				&hclge_msix_sram_ecc_int[0], status);
 		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+	}
+
+	/* log SSU(Storage Switch Unit) errors */
+	desc_data = (__le32 *)&desc[2];
+	status = le32_to_cpu(*(desc_data + 2));
+	if (status) {
+		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_0 ssu_ecc_mbit_int[31:0]\n");
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+	}
+
+	status = le32_to_cpu(*(desc_data + 3)) & BIT(0);
+	if (status) {
+		dev_warn(dev, "SSU_ECC_MULTI_BIT_INT_1 ssu_ecc_mbit_int[32]\n");
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+	}
+
+	status = le32_to_cpu(*(desc_data + 4)) & HCLGE_SSU_COMMON_ERR_INT_MASK;
+	if (status) {
+		hclge_log_error(dev, "SSU_COMMON_ERR_INT",
+				&hclge_ssu_com_err_int[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
 	}
 
 	/* log IGU(Ingress Unit) errors */
@@ -775,6 +927,7 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 				     struct hclge_desc *desc,
 				     int num)
 {
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
 	struct device *dev = &hdev->pdev->dev;
 	__le32 *desc_data;
 	u32 status;
@@ -789,6 +942,28 @@ static int hclge_handle_pf_ras_error(struct hclge_dev *hdev,
 	if (ret) {
 		dev_err(dev, "query all pf ras int cmd failed (%d)\n", ret);
 		return ret;
+	}
+
+	/* log SSU(Storage Switch Unit) errors */
+	status = le32_to_cpu(desc[0].data[0]);
+	if (status) {
+		hclge_log_error(dev, "SSU_PORT_BASED_ERR_INT",
+				&hclge_ssu_port_based_err_int[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+	}
+
+	status = le32_to_cpu(desc[0].data[1]);
+	if (status) {
+		hclge_log_error(dev, "SSU_FIFO_OVERFLOW_INT",
+				&hclge_ssu_fifo_overflow_int[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+	}
+
+	status = le32_to_cpu(desc[0].data[2]);
+	if (status) {
+		hclge_log_error(dev, "SSU_ETS_TCG_INT",
+				&hclge_ssu_ets_tcg_int[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
 	}
 
 	/* log IGU(Ingress Unit) EGU(Egress Unit) TNL errors */
@@ -856,6 +1031,10 @@ static const struct hclge_hw_blk hw_blk[] = {
 	{
 	  .msk = BIT(1), .name = "PPP",
 	  .config_err_int = hclge_config_ppp_hw_err_int,
+	},
+	{
+	  .msk = BIT(2), .name = "SSU",
+	  .config_err_int = hclge_config_ssu_hw_err_int,
 	},
 	{
 	  .msk = BIT(3), .name = "PPU",
@@ -1007,6 +1186,14 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		/* reset everything for now */
 		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
+	}
+
+	/* log SSU PF errors */
+	status = le32_to_cpu(desc[0].data[0]) & HCLGE_SSU_PORT_INT_MSIX_MASK;
+	if (status) {
+		hclge_log_error(dev, "SSU_PORT_BASED_ERR_INT",
+				&hclge_ssu_port_based_pf_int[0], status);
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 	}
 
 	/* read and log PPP PF errors */
