@@ -1828,8 +1828,8 @@ static pci_ers_result_t hns3_error_detected(struct pci_dev *pdev,
 		return PCI_ERS_RESULT_NONE;
 	}
 
-	if (ae_dev->ops->process_hw_error)
-		ret = ae_dev->ops->process_hw_error(ae_dev);
+	if (ae_dev->ops->handle_hw_ras_error)
+		ret = ae_dev->ops->handle_hw_ras_error(ae_dev);
 	else
 		return PCI_ERS_RESULT_NONE;
 

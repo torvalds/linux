@@ -454,7 +454,7 @@ struct hnae3_ae_ops {
 	int (*restore_fd_rules)(struct hnae3_handle *handle);
 	void (*enable_fd)(struct hnae3_handle *handle, bool enable);
 	int (*dbg_run_cmd)(struct hnae3_handle *handle, char *cmd_buf);
-	pci_ers_result_t (*process_hw_error)(struct hnae3_ae_dev *ae_dev);
+	pci_ers_result_t (*handle_hw_ras_error)(struct hnae3_ae_dev *ae_dev);
 	bool (*get_hw_reset_stat)(struct hnae3_handle *handle);
 	bool (*ae_dev_resetting)(struct hnae3_handle *handle);
 	unsigned long (*ae_dev_reset_cnt)(struct hnae3_handle *handle);

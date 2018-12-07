@@ -603,7 +603,7 @@ int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 	return ret;
 }
 
-pci_ers_result_t hclge_process_ras_hw_error(struct hnae3_ae_dev *ae_dev)
+pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 {
 	struct hclge_dev *hdev = ae_dev->priv;
 	struct device *dev = &hdev->pdev->dev;
