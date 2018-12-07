@@ -241,6 +241,8 @@ int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 
 		/* Start the stream in the subdevice direct connected */
 		pad = media_entity_remote_pad(&ent->pads[i]);
+		if (!pad)
+			continue;
 
 		if (!is_media_entity_v4l2_subdev(pad->entity))
 			return -EINVAL;
