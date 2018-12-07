@@ -48,8 +48,7 @@ static ssize_t available_uuids_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+	struct int3400_thermal_priv *priv = dev_get_drvdata(dev);
 	int i;
 	int length = 0;
 
@@ -68,8 +67,7 @@ static ssize_t available_uuids_show(struct device *dev,
 static ssize_t current_uuid_show(struct device *dev,
 				 struct device_attribute *devattr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+	struct int3400_thermal_priv *priv = dev_get_drvdata(dev);
 
 	if (priv->uuid_bitmap & (1 << priv->current_uuid_index))
 		return sprintf(buf, "%s\n",
@@ -82,8 +80,7 @@ static ssize_t current_uuid_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t count)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
+	struct int3400_thermal_priv *priv = dev_get_drvdata(dev);
 	int i;
 
 	for (i = 0; i < INT3400_THERMAL_MAXIMUM_UUID; ++i) {
