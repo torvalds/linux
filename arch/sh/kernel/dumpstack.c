@@ -59,17 +59,20 @@ print_ftrace_graph_addr(unsigned long addr, void *data,
 			struct thread_info *tinfo, int *graph)
 {
 	struct task_struct *task = tinfo->task;
+	struct ftrace_ret_stack *ret_stack;
 	unsigned long ret_addr;
-	int index = task->curr_ret_stack;
 
 	if (addr != (unsigned long)return_to_handler)
 		return;
 
-	if (!task->ret_stack || index < *graph)
+	if (!task->ret_stack)
 		return;
 
-	index -= *graph;
-	ret_addr = task->ret_stack[index].ret;
+	ret_stack = ftrace_graph_get_ret_stack(task, *graph);
+	if (!ret_stack)
+		return;
+
+	ret_addr = ret_stack->ret;
 
 	ops->address(data, ret_addr, 1);
 
