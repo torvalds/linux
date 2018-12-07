@@ -193,4 +193,14 @@ config PCIE_HISI_STB
 	help
           Say Y here if you want PCIe controller support on HiSilicon STB SoCs
 
+config PCIE_UNIPHIER
+	bool "Socionext UniPhier PCIe controllers"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support on UniPhier SoCs.
+	  This driver supports LD20 and PXs3 SoCs.
+
 endmenu
