@@ -380,6 +380,10 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	}
 
 	/* If it's the first fault for this address, process it normally */
+	if (retry_fault && !in_interrupt() &&
+	    amdgpu_vm_handle_fault(adev, entry->pasid, addr))
+		return 1; /* This also prevents sending it to KFD */
+
 	if (!amdgpu_sriov_vf(adev)) {
 		/*
 		 * Issue a dummy read to wait for the status register to

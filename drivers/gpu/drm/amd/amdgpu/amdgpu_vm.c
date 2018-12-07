@@ -3126,3 +3126,76 @@ void amdgpu_vm_set_task_info(struct amdgpu_vm *vm)
 		}
 	}
 }
+
+/**
+ * amdgpu_vm_handle_fault - graceful handling of VM faults.
+ * @adev: amdgpu device pointer
+ * @pasid: PASID of the VM
+ * @addr: Address of the fault
+ *
+ * Try to gracefully handle a VM fault. Return true if the fault was handled and
+ * shouldn't be reported any more.
+ */
+bool amdgpu_vm_handle_fault(struct amdgpu_device *adev, unsigned int pasid,
+			    uint64_t addr)
+{
+	struct amdgpu_bo *root;
+	uint64_t value, flags;
+	struct amdgpu_vm *vm;
+	long r;
+
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	if (vm)
+		root = amdgpu_bo_ref(vm->root.base.bo);
+	else
+		root = NULL;
+	spin_unlock(&adev->vm_manager.pasid_lock);
+
+	if (!root)
+		return false;
+
+	r = amdgpu_bo_reserve(root, true);
+	if (r)
+		goto error_unref;
+
+	/* Double check that the VM still exists */
+	spin_lock(&adev->vm_manager.pasid_lock);
+	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
+	if (vm && vm->root.base.bo != root)
+		vm = NULL;
+	spin_unlock(&adev->vm_manager.pasid_lock);
+	if (!vm)
+		goto error_unlock;
+
+	addr /= AMDGPU_GPU_PAGE_SIZE;
+	flags = AMDGPU_PTE_VALID | AMDGPU_PTE_SNOOPED |
+		AMDGPU_PTE_SYSTEM;
+
+	if (amdgpu_vm_fault_stop == AMDGPU_VM_FAULT_STOP_NEVER) {
+		/* Redirect the access to the dummy page */
+		value = adev->dummy_page_addr;
+		flags |= AMDGPU_PTE_EXECUTABLE | AMDGPU_PTE_READABLE |
+			AMDGPU_PTE_WRITEABLE;
+	} else {
+		/* Let the hw retry silently on the PTE */
+		value = 0;
+	}
+
+	r = amdgpu_vm_bo_update_mapping(adev, vm, true, NULL, addr, addr + 1,
+					flags, value, NULL, NULL);
+	if (r)
+		goto error_unlock;
+
+	r = amdgpu_vm_update_pdes(adev, vm, true);
+
+error_unlock:
+	amdgpu_bo_unreserve(root);
+	if (r < 0)
+		DRM_ERROR("Can't handle page fault (%ld)\n", r);
+
+error_unref:
+	amdgpu_bo_unref(&root);
+
+	return false;
+}
