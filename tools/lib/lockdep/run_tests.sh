@@ -31,3 +31,17 @@ find tests -name '*.c' | sort | while read -r i; do
 	fi
 	rm -f "tests/$testname"
 done
+
+find tests -name '*.c' | sort | while read -r i; do
+	testname=$(basename "$i" .c)
+	echo -ne "(PRELOAD + Valgrind) $testname... "
+	if gcc -o "tests/$testname" -pthread -Iinclude "$i" &&
+		{ timeout 10 valgrind --read-var-info=yes ./lockdep "./tests/$testname" >& "tests/${testname}.vg.out"; true; } &&
+		"tests/${testname}.sh" < "tests/${testname}.vg.out" &&
+		! grep -Eq '(^==[0-9]*== (Invalid |Uninitialised ))|Mismatched free|Source and destination overlap| UME ' "tests/${testname}.vg.out"; then
+		echo "PASSED!"
+	else
+		echo "FAILED!"
+	fi
+	rm -f "tests/$testname"
+done
