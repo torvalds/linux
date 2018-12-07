@@ -1682,13 +1682,6 @@ struct xhci_bus_state {
  */
 #define	XHCI_MAX_REXIT_TIMEOUT_MS	20
 
-static inline unsigned int hcd_index(struct usb_hcd *hcd)
-{
-	if (hcd->speed >= HCD_USB3)
-		return 0;
-	else
-		return 1;
-}
 struct xhci_port {
 	__le32 __iomem		*addr;
 	int			hw_portnum;
