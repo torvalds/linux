@@ -15,6 +15,9 @@
 #include "nd-core.h"
 #include "nd.h"
 
+#define NVDIMM_BASE_KEY		0
+#define NVDIMM_NEW_KEY		1
+
 static bool key_revalidate = true;
 module_param(key_revalidate, bool, 0444);
 MODULE_PARM_DESC(key_revalidate, "Require key validation at init.");
@@ -70,7 +73,7 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 }
 
 static struct key *nvdimm_lookup_user_key(struct nvdimm *nvdimm,
-		key_serial_t id)
+		key_serial_t id, int subclass)
 {
 	key_ref_t keyref;
 	struct key *key;
@@ -86,10 +89,10 @@ static struct key *nvdimm_lookup_user_key(struct nvdimm *nvdimm,
 		key_put(key);
 		return NULL;
 	}
+
 	dev_dbg(dev, "%s: key found: %#x\n", __func__, key_serial(key));
 
-
-	down_read(&key->sem);
+	down_read_nested(&key->sem, subclass);
 	epayload = dereference_key_locked(key);
 	if (epayload->decrypted_datalen != NVDIMM_PASSPHRASE_LEN) {
 		up_read(&key->sem);
@@ -197,7 +200,7 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EIO;
 	}
 
-	key = nvdimm_lookup_user_key(nvdimm, keyid);
+	key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
 	if (!key)
 		return -ENOKEY;
 
@@ -205,6 +208,53 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 	dev_dbg(dev, "key: %d disable: %s\n", key_serial(key),
 			rc == 0 ? "success" : "fail");
 
+	nvdimm_put_key(key);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	return rc;
+}
+
+int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
+		unsigned int new_keyid)
+{
+	struct device *dev = &nvdimm->dev;
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct key *key, *newkey;
+	int rc;
+
+	/* The bus lock should be held at the top level of the call stack */
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+
+	if (!nvdimm->sec.ops || !nvdimm->sec.ops->change_key
+			|| nvdimm->sec.state < 0)
+		return -EOPNOTSUPP;
+
+	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
+		dev_warn(dev, "Incorrect security state: %d\n",
+				nvdimm->sec.state);
+		return -EIO;
+	}
+
+	if (keyid == 0)
+		key = NULL;
+	else {
+		key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
+		if (!key)
+			return -ENOKEY;
+	}
+
+	newkey = nvdimm_lookup_user_key(nvdimm, new_keyid, NVDIMM_NEW_KEY);
+	if (!newkey) {
+		nvdimm_put_key(key);
+		return -ENOKEY;
+	}
+
+	rc = nvdimm->sec.ops->change_key(nvdimm, key ? key_data(key) : NULL,
+			key_data(newkey));
+	dev_dbg(dev, "key: %d %d update: %s\n",
+			key_serial(key), key_serial(newkey),
+			rc == 0 ? "success" : "fail");
+
+	nvdimm_put_key(newkey);
 	nvdimm_put_key(key);
 	nvdimm->sec.state = nvdimm_security_state(nvdimm);
 	return rc;
