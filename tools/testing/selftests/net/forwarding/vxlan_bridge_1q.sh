@@ -95,6 +95,7 @@ export VXPORT
 	test_flood
 	test_unicast
 	test_learning
+	test_pvid
     "}
 
 NUM_NETIFS=6
@@ -608,6 +609,75 @@ test_unicast()
 	for target in "${targets[@]}"; do
 		vxlan_fdb_add_del del 20 $target
 	done
+}
+
+test_pvid()
+{
+	local -a expects=(0 0 0 0 0)
+	local mac=de:ad:be:ef:13:37
+	local dst=192.0.2.100
+	local vid=10
+
+	# Check that flooding works
+	RET=0
+
+	expects[0]=10; expects[1]=10; expects[3]=10
+	vxlan_flood_test $mac $dst $vid "${expects[@]}"
+
+	log_test "VXLAN: flood before pvid off"
+
+	# Toggle PVID off and test that flood to remote hosts does not work
+	RET=0
+
+	bridge vlan add vid 10 dev vx10
+
+	expects[0]=10; expects[1]=0; expects[3]=0
+	vxlan_flood_test $mac $dst $vid "${expects[@]}"
+
+	log_test "VXLAN: flood after pvid off"
+
+	# Toggle PVID on and test that flood to remote hosts does work
+	RET=0
+
+	bridge vlan add vid 10 dev vx10 pvid untagged
+
+	expects[0]=10; expects[1]=10; expects[3]=10
+	vxlan_flood_test $mac $dst $vid "${expects[@]}"
+
+	log_test "VXLAN: flood after pvid on"
+
+	# Add a new VLAN and test that it does not affect flooding
+	RET=0
+
+	bridge vlan add vid 30 dev vx10
+
+	expects[0]=10; expects[1]=10; expects[3]=10
+	vxlan_flood_test $mac $dst $vid "${expects[@]}"
+
+	bridge vlan del vid 30 dev vx10
+
+	log_test "VXLAN: flood after vlan add"
+
+	# Remove currently mapped VLAN and test that flood to remote hosts does
+	# not work
+	RET=0
+
+	bridge vlan del vid 10 dev vx10
+
+	expects[0]=10; expects[1]=0; expects[3]=0
+	vxlan_flood_test $mac $dst $vid "${expects[@]}"
+
+	log_test "VXLAN: flood after vlan delete"
+
+	# Re-add the VLAN and test that flood to remote hosts does work
+	RET=0
+
+	bridge vlan add vid 10 dev vx10 pvid untagged
+
+	expects[0]=10; expects[1]=10; expects[3]=10
+	vxlan_flood_test $mac $dst $vid "${expects[@]}"
+
+	log_test "VXLAN: flood after vlan re-add"
 }
 
 vxlan_ping_test()
