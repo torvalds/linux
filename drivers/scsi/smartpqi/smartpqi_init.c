@@ -1686,6 +1686,7 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 		new_device->raid_bypass_configured;
 	existing_device->raid_bypass_enabled =
 		new_device->raid_bypass_enabled;
+	existing_device->device_offline = false;
 
 	/* To prevent this from being freed later. */
 	new_device->raid_map = NULL;
@@ -2589,10 +2590,9 @@ static inline void pqi_take_device_offline(struct scsi_device *sdev, char *path)
 		return;
 
 	device->device_offline = true;
-	scsi_device_set_state(sdev, SDEV_OFFLINE);
 	ctrl_info = shost_to_hba(sdev->host);
 	pqi_schedule_rescan_worker(ctrl_info);
-	dev_err(&ctrl_info->pci_dev->dev, "offlined %s scsi %d:%d:%d:%d\n",
+	dev_err(&ctrl_info->pci_dev->dev, "re-scanning %s scsi %d:%d:%d:%d\n",
 		path, ctrl_info->scsi_host->host_no, device->bus,
 		device->target, device->lun);
 }
