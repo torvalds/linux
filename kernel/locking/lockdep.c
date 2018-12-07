@@ -3091,7 +3091,7 @@ static int mark_lock(struct task_struct *curr, struct held_lock *this,
 /*
  * Initialize a lock instance's lock-class mapping info:
  */
-static void __lockdep_init_map(struct lockdep_map *lock, const char *name,
+void lockdep_init_map(struct lockdep_map *lock, const char *name,
 		      struct lock_class_key *key, int subclass)
 {
 	int i;
@@ -3146,12 +3146,6 @@ static void __lockdep_init_map(struct lockdep_map *lock, const char *name,
 		current->lockdep_recursion = 0;
 		raw_local_irq_restore(flags);
 	}
-}
-
-void lockdep_init_map(struct lockdep_map *lock, const char *name,
-		      struct lock_class_key *key, int subclass)
-{
-	__lockdep_init_map(lock, name, key, subclass);
 }
 EXPORT_SYMBOL_GPL(lockdep_init_map);
 
