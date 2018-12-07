@@ -573,6 +573,79 @@ static inline int pqi_scsi_inquiry(struct pqi_ctrl_info *ctrl_info,
 		buffer, buffer_length, vpd_page, NULL, NO_TIMEOUT);
 }
 
+static bool pqi_vpd_page_supported(struct pqi_ctrl_info *ctrl_info,
+	u8 *scsi3addr, u16 vpd_page)
+{
+	int rc;
+	int i;
+	int pages;
+	unsigned char *buf, bufsize;
+
+	buf = kzalloc(256, GFP_KERNEL);
+	if (!buf)
+		return false;
+
+	/* Get the size of the page list first */
+	rc = pqi_scsi_inquiry(ctrl_info, scsi3addr,
+				VPD_PAGE | SCSI_VPD_SUPPORTED_PAGES,
+				buf, SCSI_VPD_HEADER_SZ);
+	if (rc != 0)
+		goto exit_unsupported;
+
+	pages = buf[3];
+	if ((pages + SCSI_VPD_HEADER_SZ) <= 255)
+		bufsize = pages + SCSI_VPD_HEADER_SZ;
+	else
+		bufsize = 255;
+
+	/* Get the whole VPD page list */
+	rc = pqi_scsi_inquiry(ctrl_info, scsi3addr,
+				VPD_PAGE | SCSI_VPD_SUPPORTED_PAGES,
+				buf, bufsize);
+	if (rc != 0)
+		goto exit_unsupported;
+
+	pages = buf[3];
+	for (i = 1; i <= pages; i++)
+		if (buf[3 + i] == vpd_page)
+			goto exit_supported;
+
+exit_unsupported:
+	kfree(buf);
+	return false;
+
+exit_supported:
+	kfree(buf);
+	return true;
+}
+
+static int pqi_get_device_id(struct pqi_ctrl_info *ctrl_info,
+	u8 *scsi3addr, u8 *device_id, int buflen)
+{
+	int rc;
+	unsigned char *buf;
+
+	if (!pqi_vpd_page_supported(ctrl_info, scsi3addr, SCSI_VPD_DEVICE_ID))
+		return 1; /* function not supported */
+
+	buf = kzalloc(64, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	rc = pqi_scsi_inquiry(ctrl_info, scsi3addr,
+				VPD_PAGE | SCSI_VPD_DEVICE_ID,
+				buf, 64);
+	if (rc == 0) {
+		if (buflen > 16)
+			buflen = 16;
+		memcpy(device_id, &buf[SCSI_VPD_DEVICE_ID_IDX], buflen);
+	}
+
+	kfree(buf);
+
+	return rc;
+}
+
 static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device,
 	struct bmic_identify_physical_device *buffer,
@@ -1244,6 +1317,14 @@ static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
 		}
 	}
 
+	if (pqi_get_device_id(ctrl_info, device->scsi3addr,
+		device->unique_id, sizeof(device->unique_id)) < 0)
+		dev_warn(&ctrl_info->pci_dev->dev,
+			"Can't get device id for scsi %d:%d:%d:%d\n",
+			ctrl_info->scsi_host->host_no,
+			device->bus, device->target,
+			device->lun);
+
 out:
 	kfree(buffer);
 
@@ -1773,6 +1854,12 @@ static inline bool pqi_skip_device(u8 *scsi3addr)
 		return true;
 
 	return false;
+}
+
+static inline bool pqi_expose_device(struct pqi_scsi_dev *device)
+{
+	return !device->is_physical_device ||
+		!pqi_skip_device(device->scsi3addr);
 }
 
 static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
@@ -5722,6 +5809,145 @@ static struct device_attribute *pqi_shost_attrs[] = {
 	NULL
 };
 
+static ssize_t pqi_unique_id_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	unsigned char uid[16];
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
+			flags);
+		return -ENODEV;
+	}
+	memcpy(uid, device->unique_id, sizeof(uid));
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return snprintf(buffer, PAGE_SIZE, "%16phN", uid);
+}
+
+static ssize_t pqi_lunid_show(struct device *dev,
+	struct device_attribute *attr, char *buffer)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	u8 lunid[8];
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
+			flags);
+		return -ENODEV;
+	}
+	memcpy(lunid, device->scsi3addr, sizeof(lunid));
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	return snprintf(buffer, PAGE_SIZE, "0x%8phN\n", lunid);
+}
+
+#define MAX_PATHS 8
+static ssize_t pqi_path_info_show(struct device *dev,
+	struct device_attribute *attr, char *buf)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct scsi_device *sdev;
+	struct pqi_scsi_dev *device;
+	unsigned long flags;
+	int i;
+	int output_len = 0;
+	u8 box;
+	u8 bay;
+	u8 path_map_index = 0;
+	char *active;
+	unsigned char phys_connector[2];
+
+	sdev = to_scsi_device(dev);
+	ctrl_info = shost_to_hba(sdev->host);
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	device = sdev->hostdata;
+	if (!device) {
+		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock,
+			flags);
+		return -ENODEV;
+	}
+
+	bay = device->bay;
+	for (i = 0; i < MAX_PATHS; i++) {
+		path_map_index = 1<<i;
+		if (i == device->active_path_index)
+			active = "Active";
+		else if (device->path_map & path_map_index)
+			active = "Inactive";
+		else
+			continue;
+
+		output_len += scnprintf(buf + output_len,
+					PAGE_SIZE - output_len,
+					"[%d:%d:%d:%d] %20.20s ",
+					ctrl_info->scsi_host->host_no,
+					device->bus, device->target,
+					device->lun,
+					scsi_device_type(device->devtype));
+
+		if (device->devtype == TYPE_RAID ||
+			pqi_is_logical_device(device))
+			goto end_buffer;
+
+		memcpy(&phys_connector, &device->phys_connector[i],
+			sizeof(phys_connector));
+		if (phys_connector[0] < '0')
+			phys_connector[0] = '0';
+		if (phys_connector[1] < '0')
+			phys_connector[1] = '0';
+
+		output_len += scnprintf(buf + output_len,
+					PAGE_SIZE - output_len,
+					"PORT: %.2s ", phys_connector);
+
+		box = device->box[i];
+		if (box != 0 && box != 0xFF)
+			output_len += scnprintf(buf + output_len,
+						PAGE_SIZE - output_len,
+						"BOX: %hhu ", box);
+
+		if ((device->devtype == TYPE_DISK ||
+			device->devtype == TYPE_ZBC) &&
+			pqi_expose_device(device))
+			output_len += scnprintf(buf + output_len,
+						PAGE_SIZE - output_len,
+						"BAY: %hhu ", bay);
+
+end_buffer:
+		output_len += scnprintf(buf + output_len,
+					PAGE_SIZE - output_len,
+					"%s\n", active);
+	}
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+	return output_len;
+}
+
+
 static ssize_t pqi_sas_address_show(struct device *dev,
 	struct device_attribute *attr, char *buffer)
 {
@@ -5798,12 +6024,18 @@ static ssize_t pqi_raid_level_show(struct device *dev,
 	return snprintf(buffer, PAGE_SIZE, "%s\n", raid_level);
 }
 
+static DEVICE_ATTR(lunid, 0444, pqi_lunid_show, NULL);
+static DEVICE_ATTR(unique_id, 0444, pqi_unique_id_show, NULL);
+static DEVICE_ATTR(path_info, 0444, pqi_path_info_show, NULL);
 static DEVICE_ATTR(sas_address, 0444, pqi_sas_address_show, NULL);
 static DEVICE_ATTR(ssd_smart_path_enabled, 0444,
 	pqi_ssd_smart_path_enabled_show, NULL);
 static DEVICE_ATTR(raid_level, 0444, pqi_raid_level_show, NULL);
 
 static struct device_attribute *pqi_sdev_attrs[] = {
+	&dev_attr_lunid,
+	&dev_attr_unique_id,
+	&dev_attr_path_info,
 	&dev_attr_sas_address,
 	&dev_attr_ssd_smart_path_enabled,
 	&dev_attr_raid_level,
