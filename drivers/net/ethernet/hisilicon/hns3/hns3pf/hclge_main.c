@@ -7408,7 +7408,7 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 	/* Re-enable the TM hw error interrupts because
 	 * they get disabled on core/global reset.
 	 */
-	if (hclge_enable_tm_hw_error(hdev, true))
+	if (hclge_config_tm_hw_err_int(hdev, true))
 		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
 
 	hclge_reset_vport_state(hdev);

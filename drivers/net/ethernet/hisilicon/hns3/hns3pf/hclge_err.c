@@ -372,18 +372,18 @@ static int hclge_cmd_query_error(struct hclge_dev *hdev,
 	return ret;
 }
 
-static int hclge_enable_common_error(struct hclge_dev *hdev, bool en)
+static int hclge_config_common_hw_err_int(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc[2];
 	int ret;
 
+	/* configure common error interrupts */
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_COMMON_ECC_INT_CFG, false);
 	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_COMMON_ECC_INT_CFG, false);
 
 	if (en) {
-		/* enable COMMON error interrupts */
 		desc[0].data[0] = cpu_to_le32(HCLGE_IMP_TCM_ECC_ERR_INT_EN);
 		desc[0].data[2] = cpu_to_le32(HCLGE_CMDQ_NIC_ECC_ERR_INT_EN |
 					HCLGE_CMDQ_ROCEE_ECC_ERR_INT_EN);
@@ -391,7 +391,6 @@ static int hclge_enable_common_error(struct hclge_dev *hdev, bool en)
 		desc[0].data[4] = cpu_to_le32(HCLGE_TQP_ECC_ERR_INT_EN);
 		desc[0].data[5] = cpu_to_le32(HCLGE_IMP_ITCM4_ECC_ERR_INT_EN);
 	} else {
-		/* disable COMMON error interrupts */
 		desc[0].data[0] = 0;
 		desc[0].data[2] = 0;
 		desc[0].data[3] = 0;
@@ -408,13 +407,12 @@ static int hclge_enable_common_error(struct hclge_dev *hdev, bool en)
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], 2);
 	if (ret)
 		dev_err(dev,
-			"failed(%d) to enable/disable COMMON err interrupts\n",
-			ret);
+			"fail(%d) to configure common err interrupts\n", ret);
 
 	return ret;
 }
 
-static int hclge_enable_ncsi_error(struct hclge_dev *hdev, bool en)
+static int hclge_config_ncsi_hw_err_int(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc;
@@ -423,7 +421,7 @@ static int hclge_enable_ncsi_error(struct hclge_dev *hdev, bool en)
 	if (hdev->pdev->revision < 0x21)
 		return 0;
 
-	/* enable/disable NCSI  error interrupts */
+	/* configure NCSI error interrupts */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_NCSI_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_NCSI_ERR_INT_EN);
@@ -433,19 +431,18 @@ static int hclge_enable_ncsi_error(struct hclge_dev *hdev, bool en)
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(dev,
-			"failed(%d) to enable/disable NCSI error interrupts\n",
-			ret);
+			"fail(%d) to configure  NCSI error interrupts\n", ret);
 
 	return ret;
 }
 
-static int hclge_enable_igu_egu_error(struct hclge_dev *hdev, bool en)
+static int hclge_config_igu_egu_hw_err_int(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc;
 	int ret;
 
-	/* enable/disable error interrupts */
+	/* configure IGU,EGU error interrupts */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_IGU_COMMON_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN);
@@ -456,8 +453,7 @@ static int hclge_enable_igu_egu_error(struct hclge_dev *hdev, bool en)
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(dev,
-			"failed(%d) to enable/disable IGU common interrupts\n",
-			ret);
+			"fail(%d) to configure IGU common interrupts\n", ret);
 		return ret;
 	}
 
@@ -471,26 +467,23 @@ static int hclge_enable_igu_egu_error(struct hclge_dev *hdev, bool en)
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
 		dev_err(dev,
-			"failed(%d) to enable/disable IGU-EGU TNL interrupts\n",
-			ret);
+			"fail(%d) to configure IGU-EGU TNL interrupts\n", ret);
 		return ret;
 	}
 
-	ret = hclge_enable_ncsi_error(hdev, en);
-	if (ret)
-		dev_err(dev, "fail(%d) to en/disable err int\n", ret);
+	ret = hclge_config_ncsi_hw_err_int(hdev, en);
 
 	return ret;
 }
 
-static int hclge_enable_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
+static int hclge_config_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
 					    bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc[2];
 	int ret;
 
-	/* enable/disable PPP error interrupts */
+	/* configure PPP error interrupts */
 	hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
 	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
 	hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
@@ -527,44 +520,33 @@ static int hclge_enable_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
 
 	ret = hclge_cmd_send(&hdev->hw, &desc[0], 2);
 	if (ret)
-		dev_err(dev,
-			"failed(%d) to enable/disable PPP error interrupts\n",
-			ret);
+		dev_err(dev, "fail(%d) to configure PPP error intr\n", ret);
 
 	return ret;
 }
 
-static int hclge_enable_ppp_error(struct hclge_dev *hdev, bool en)
+static int hclge_config_ppp_hw_err_int(struct hclge_dev *hdev, bool en)
 {
-	struct device *dev = &hdev->pdev->dev;
 	int ret;
 
-	ret = hclge_enable_ppp_error_interrupt(hdev, HCLGE_PPP_CMD0_INT_CMD,
-					       en);
-	if (ret) {
-		dev_err(dev,
-			"failed(%d) to enable/disable PPP error intr 0,1\n",
-			ret);
-		return ret;
-	}
-
-	ret = hclge_enable_ppp_error_interrupt(hdev, HCLGE_PPP_CMD1_INT_CMD,
+	ret = hclge_config_ppp_error_interrupt(hdev, HCLGE_PPP_CMD0_INT_CMD,
 					       en);
 	if (ret)
-		dev_err(dev,
-			"failed(%d) to enable/disable PPP error intr 2,3\n",
-			ret);
+		return ret;
+
+	ret = hclge_config_ppp_error_interrupt(hdev, HCLGE_PPP_CMD1_INT_CMD,
+					       en);
 
 	return ret;
 }
 
-int hclge_enable_tm_hw_error(struct hclge_dev *hdev, bool en)
+int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc;
 	int ret;
 
-	/* enable TM SCH hw errors */
+	/* configure TM SCH hw errors */
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_SCH_ECC_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_TM_SCH_ECC_ERR_INT_EN);
@@ -573,15 +555,15 @@ int hclge_enable_tm_hw_error(struct hclge_dev *hdev, bool en)
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
-		dev_err(dev, "failed(%d) to configure TM SCH errors\n", ret);
+		dev_err(dev, "fail(%d) to configure TM SCH errors\n", ret);
 		return ret;
 	}
 
-	/* enable TM QCN hw errors */
+	/* configure TM QCN hw errors */
 	ret = hclge_cmd_query_error(hdev, &desc, HCLGE_TM_QCN_MEM_INT_CFG,
 				    0, 0, 0);
 	if (ret) {
-		dev_err(dev, "failed(%d) to read TM QCN CFG status\n", ret);
+		dev_err(dev, "fail(%d) to read TM QCN CFG status\n", ret);
 		return ret;
 	}
 
@@ -594,7 +576,7 @@ int hclge_enable_tm_hw_error(struct hclge_dev *hdev, bool en)
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
 		dev_err(dev,
-			"failed(%d) to configure TM QCN mem errors\n", ret);
+			"fail(%d) to configure TM QCN mem errors\n", ret);
 
 	return ret;
 }
@@ -602,39 +584,36 @@ int hclge_enable_tm_hw_error(struct hclge_dev *hdev, bool en)
 static const struct hclge_hw_blk hw_blk[] = {
 	{
 	  .msk = BIT(0), .name = "IGU_EGU",
-	  .enable_error = hclge_enable_igu_egu_error,
+	  .config_err_int = hclge_config_igu_egu_hw_err_int,
 	},
 	{
 	  .msk = BIT(1), .name = "PPP",
-	  .enable_error = hclge_enable_ppp_error,
+	  .config_err_int = hclge_config_ppp_hw_err_int,
 	},
 	{
 	  .msk = BIT(4), .name = "TM",
-	  .enable_error = hclge_enable_tm_hw_error,
+	  .config_err_int = hclge_config_tm_hw_err_int,
 	},
 	{
 	  .msk = BIT(5), .name = "COMMON",
-	  .enable_error = hclge_enable_common_error,
+	  .config_err_int = hclge_config_common_hw_err_int,
 	},
 	{ /* sentinel */ }
 };
 
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 {
-	struct device *dev = &hdev->pdev->dev;
 	int ret = 0;
 	int i = 0;
 
 	while (hw_blk[i].name) {
-		if (!hw_blk[i].enable_error) {
+		if (!hw_blk[i].config_err_int) {
 			i++;
 			continue;
 		}
-		ret = hw_blk[i].enable_error(hdev, state);
-		if (ret) {
-			dev_err(dev, "fail(%d) to en/disable err int\n", ret);
+		ret = hw_blk[i].config_err_int(hdev, state);
+		if (ret)
 			return ret;
-		}
 		i++;
 	}
 
