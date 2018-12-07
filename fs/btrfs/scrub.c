@@ -322,7 +322,6 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 	struct rb_node *parent = NULL;
 	struct full_stripe_lock *entry;
 	struct full_stripe_lock *ret;
-	unsigned int nofs_flag;
 
 	lockdep_assert_held(&locks_root->lock);
 
@@ -342,15 +341,8 @@ static struct full_stripe_lock *insert_full_stripe_lock(
 
 	/*
 	 * Insert new lock.
-	 *
-	 * We must use GFP_NOFS because the scrub task might be waiting for a
-	 * worker task executing this function and in turn a transaction commit
-	 * might be waiting the scrub task to pause (which needs to wait for all
-	 * the worker tasks to complete before pausing).
 	 */
-	nofs_flag = memalloc_nofs_save();
 	ret = kmalloc(sizeof(*ret), GFP_KERNEL);
-	memalloc_nofs_restore(nofs_flag);
 	if (!ret)
 		return ERR_PTR(-ENOMEM);
 	ret->logical = fstripe_logical;
@@ -841,6 +833,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	int page_num;
 	int success;
 	bool full_stripe_locked;
+	unsigned int nofs_flag;
 	static DEFINE_RATELIMIT_STATE(_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
@@ -866,6 +859,16 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	dev = sblock_to_check->pagev[0]->dev;
 
 	/*
+	 * We must use GFP_NOFS because the scrub task might be waiting for a
+	 * worker task executing this function and in turn a transaction commit
+	 * might be waiting the scrub task to pause (which needs to wait for all
+	 * the worker tasks to complete before pausing).
+	 * We do allocations in the workers through insert_full_stripe_lock()
+	 * and scrub_add_page_to_wr_bio(), which happens down the call chain of
+	 * this function.
+	 */
+	nofs_flag = memalloc_nofs_save();
+	/*
 	 * For RAID5/6, race can happen for a different device scrub thread.
 	 * For data corruption, Parity and Data threads will both try
 	 * to recovery the data.
@@ -874,6 +877,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 */
 	ret = lock_full_stripe(fs_info, logical, &full_stripe_locked);
 	if (ret < 0) {
+		memalloc_nofs_restore(nofs_flag);
 		spin_lock(&sctx->stat_lock);
 		if (ret == -ENOMEM)
 			sctx->stat.malloc_errors++;
@@ -913,7 +917,7 @@ static int scrub_handle_errored_block(struct scrub_block *sblock_to_check)
 	 */
 
 	sblocks_for_recheck = kcalloc(BTRFS_MAX_MIRRORS,
-				      sizeof(*sblocks_for_recheck), GFP_NOFS);
+				      sizeof(*sblocks_for_recheck), GFP_KERNEL);
 	if (!sblocks_for_recheck) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -1211,6 +1215,7 @@ out:
 	}
 
 	ret = unlock_full_stripe(fs_info, logical, full_stripe_locked);
+	memalloc_nofs_restore(nofs_flag);
 	if (ret < 0)
 		return ret;
 	return 0;
@@ -1629,19 +1634,8 @@ static int scrub_add_page_to_wr_bio(struct scrub_ctx *sctx,
 	mutex_lock(&sctx->wr_lock);
 again:
 	if (!sctx->wr_curr_bio) {
-		unsigned int nofs_flag;
-
-		/*
-		 * We must use GFP_NOFS because the scrub task might be waiting
-		 * for a worker task executing this function and in turn a
-		 * transaction commit might be waiting the scrub task to pause
-		 * (which needs to wait for all the worker tasks to complete
-		 * before pausing).
-		 */
-		nofs_flag = memalloc_nofs_save();
 		sctx->wr_curr_bio = kzalloc(sizeof(*sctx->wr_curr_bio),
 					      GFP_KERNEL);
-		memalloc_nofs_restore(nofs_flag);
 		if (!sctx->wr_curr_bio) {
 			mutex_unlock(&sctx->wr_lock);
 			return -ENOMEM;
