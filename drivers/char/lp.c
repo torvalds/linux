@@ -141,6 +141,7 @@
 
 static DEFINE_MUTEX(lp_mutex);
 static struct lp_struct lp_table[LP_NO];
+static int port_num[LP_NO];
 
 static unsigned int lp_count = 0;
 static struct class *lp_class;
@@ -938,6 +939,7 @@ static int lp_register(int nr, struct parport *port)
 			       CONSOLE_LP, port->name);
 	}
 #endif
+	port_num[nr] = port->number;
 
 	return 0;
 }
@@ -1013,6 +1015,7 @@ static int __init lp_init(void)
 		init_waitqueue_head(&lp_table[i].dataq);
 		mutex_init(&lp_table[i].port_mutex);
 		lp_table[i].timeout = 10 * HZ;
+		port_num[i] = -1;
 	}
 
 	if (register_chrdev(LP_MAJOR, "lp", &lp_fops)) {
@@ -1091,6 +1094,7 @@ static void lp_cleanup_module(void)
 	for (offset = 0; offset < LP_NO; offset++) {
 		if (lp_table[offset].dev == NULL)
 			continue;
+		port_num[offset] = -1;
 		parport_unregister_device(lp_table[offset].dev);
 		device_destroy(lp_class, MKDEV(LP_MAJOR, offset));
 	}
