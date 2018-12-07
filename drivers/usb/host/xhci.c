@@ -169,7 +169,7 @@ int xhci_reset(struct xhci_hcd *xhci)
 {
 	u32 command;
 	u32 state;
-	int ret, i;
+	int ret;
 
 	state = readl(&xhci->op_regs->status);
 
@@ -215,11 +215,12 @@ int xhci_reset(struct xhci_hcd *xhci)
 	ret = xhci_handshake(&xhci->op_regs->status,
 			STS_CNR, 0, 10 * 1000 * 1000);
 
-	for (i = 0; i < 2; i++) {
-		xhci->bus_state[i].port_c_suspend = 0;
-		xhci->bus_state[i].suspended_ports = 0;
-		xhci->bus_state[i].resuming_ports = 0;
-	}
+	xhci->usb2_rhub.bus_state.port_c_suspend = 0;
+	xhci->usb2_rhub.bus_state.suspended_ports = 0;
+	xhci->usb2_rhub.bus_state.resuming_ports = 0;
+	xhci->usb3_rhub.bus_state.port_c_suspend = 0;
+	xhci->usb3_rhub.bus_state.suspended_ports = 0;
+	xhci->usb3_rhub.bus_state.resuming_ports = 0;
 
 	return ret;
 }
@@ -1069,9 +1070,9 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 	/* Wait a bit if either of the roothubs need to settle from the
 	 * transition into bus suspend.
 	 */
-	if (time_before(jiffies, xhci->bus_state[0].next_statechange) ||
-			time_before(jiffies,
-				xhci->bus_state[1].next_statechange))
+
+	if (time_before(jiffies, xhci->usb2_rhub.bus_state.next_statechange) ||
+	    time_before(jiffies, xhci->usb3_rhub.bus_state.next_statechange))
 		msleep(100);
 
 	set_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags);

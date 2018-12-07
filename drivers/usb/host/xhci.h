@@ -1700,6 +1700,8 @@ struct xhci_hub {
 	struct xhci_port	**ports;
 	unsigned int		num_ports;
 	struct usb_hcd		*hcd;
+	/* keep track of bus suspend info */
+	struct xhci_bus_state   bus_state;
 	/* supported prococol extended capabiliy values */
 	u8			maj_rev;
 	u8			min_rev;
@@ -1853,8 +1855,6 @@ struct xhci_hcd {
 
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
-	/* There are two roothubs to keep track of bus suspend info for */
-	struct xhci_bus_state   bus_state[2];
 	struct xhci_port	*hw_ports;
 	struct xhci_hub		usb2_rhub;
 	struct xhci_hub		usb3_rhub;
