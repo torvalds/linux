@@ -930,66 +930,42 @@ static int param_set_xint(const char *val, const struct kernel_param *kp)
 	mutex_unlock(&card_list_lock);
 	return 0;
 }
-#else
-#define azx_add_card_list(chip) /* NOP */
-#define azx_del_card_list(chip) /* NOP */
-#endif /* CONFIG_PM */
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
-static int azx_suspend(struct device *dev)
+static bool azx_is_pm_ready(struct snd_card *card)
 {
-	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
 	struct hda_intel *hda;
-	struct hdac_bus *bus;
 
 	if (!card)
-		return 0;
-
+		return false;
 	chip = card->private_data;
 	hda = container_of(chip, struct hda_intel, chip);
 	if (chip->disabled || hda->init_failed || !chip->running)
-		return 0;
-
-	bus = azx_bus(chip);
-	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	azx_clear_irq_pending(chip);
-	azx_stop_chip(chip);
-	azx_enter_link_reset(chip);
-	if (bus->irq >= 0) {
-		free_irq(bus->irq, chip);
-		bus->irq = -1;
-	}
-
-	if (chip->msi)
-		pci_disable_msi(chip->pci);
-	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		&& hda->need_i915_power)
-		snd_hdac_display_power(bus, false);
-
-	trace_azx_suspend(chip);
-	return 0;
+		return false;
+	return true;
 }
 
-static int azx_resume(struct device *dev)
+static void __azx_runtime_suspend(struct azx *chip)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct snd_card *card = dev_get_drvdata(dev);
-	struct azx *chip;
-	struct hda_intel *hda;
-	struct hdac_bus *bus;
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
 
-	if (!card)
-		return 0;
+	azx_stop_chip(chip);
+	azx_enter_link_reset(chip);
+	azx_clear_irq_pending(chip);
+	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
+	    hda->need_i915_power)
+		snd_hdac_display_power(azx_bus(chip), false);
+}
 
-	chip = card->private_data;
-	hda = container_of(chip, struct hda_intel, chip);
-	bus = azx_bus(chip);
-	if (chip->disabled || hda->init_failed || !chip->running)
-		return 0;
+static void __azx_runtime_resume(struct azx *chip)
+{
+	struct hda_intel *hda = container_of(chip, struct hda_intel, chip);
+	struct hdac_bus *bus = azx_bus(chip);
+	struct hda_codec *codec;
+	int status;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		snd_hdac_display_power(bus, true);
@@ -997,20 +973,66 @@ static int azx_resume(struct device *dev)
 			snd_hdac_i915_set_bclk(bus);
 	}
 
-	if (chip->msi)
-		if (pci_enable_msi(pci) < 0)
-			chip->msi = 0;
-	if (azx_acquire_irq(chip, 1) < 0)
-		return -EIO;
-	azx_init_pci(chip);
+	/* Read STATESTS before controller reset */
+	status = azx_readw(chip, STATESTS);
 
+	azx_init_pci(chip);
 	hda_intel_init_chip(chip, true);
+
+	if (status) {
+		list_for_each_codec(codec, &chip->bus)
+			if (status & (1 << codec->addr))
+				schedule_delayed_work(&codec->jackpoll_work,
+						      codec->jackpoll_interval);
+	}
 
 	/* power down again for link-controlled chips */
 	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
 	    !hda->need_i915_power)
 		snd_hdac_display_power(bus, false);
+}
 
+#ifdef CONFIG_PM_SLEEP
+static int azx_suspend(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip;
+	struct hdac_bus *bus;
+
+	if (!azx_is_pm_ready(card))
+		return 0;
+
+	chip = card->private_data;
+	bus = azx_bus(chip);
+	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
+	__azx_runtime_suspend(chip);
+	if (bus->irq >= 0) {
+		free_irq(bus->irq, chip);
+		bus->irq = -1;
+	}
+
+	if (chip->msi)
+		pci_disable_msi(chip->pci);
+
+	trace_azx_suspend(chip);
+	return 0;
+}
+
+static int azx_resume(struct device *dev)
+{
+	struct snd_card *card = dev_get_drvdata(dev);
+	struct azx *chip;
+
+	if (!azx_is_pm_ready(card))
+		return 0;
+
+	chip = card->private_data;
+	if (chip->msi)
+		if (pci_enable_msi(chip->pci) < 0)
+			chip->msi = 0;
+	if (azx_acquire_irq(chip, 1) < 0)
+		return -EIO;
+	__azx_runtime_resume(chip);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
 
 	trace_azx_resume(chip);
@@ -1045,21 +1067,14 @@ static int azx_thaw_noirq(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int azx_runtime_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
-	struct hda_intel *hda;
 
-	if (!card)
+	if (!azx_is_pm_ready(card))
 		return 0;
-
 	chip = card->private_data;
-	hda = container_of(chip, struct hda_intel, chip);
-	if (chip->disabled || hda->init_failed)
-		return 0;
-
 	if (!azx_has_pm_runtime(chip))
 		return 0;
 
@@ -1067,13 +1082,7 @@ static int azx_runtime_suspend(struct device *dev)
 	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) |
 		  STATESTS_INT_MASK);
 
-	azx_stop_chip(chip);
-	azx_enter_link_reset(chip);
-	azx_clear_irq_pending(chip);
-	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
-		&& hda->need_i915_power)
-		snd_hdac_display_power(azx_bus(chip), false);
-
+	__azx_runtime_suspend(chip);
 	trace_azx_runtime_suspend(chip);
 	return 0;
 }
@@ -1082,50 +1091,17 @@ static int azx_runtime_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip;
-	struct hda_intel *hda;
-	struct hdac_bus *bus;
-	struct hda_codec *codec;
-	int status;
 
-	if (!card)
+	if (!azx_is_pm_ready(card))
 		return 0;
-
 	chip = card->private_data;
-	hda = container_of(chip, struct hda_intel, chip);
-	bus = azx_bus(chip);
-	if (chip->disabled || hda->init_failed)
-		return 0;
-
 	if (!azx_has_pm_runtime(chip))
 		return 0;
-
-	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		snd_hdac_display_power(bus, true);
-		if (hda->need_i915_power)
-			snd_hdac_i915_set_bclk(bus);
-	}
-
-	/* Read STATESTS before controller reset */
-	status = azx_readw(chip, STATESTS);
-
-	azx_init_pci(chip);
-	hda_intel_init_chip(chip, true);
-
-	if (status) {
-		list_for_each_codec(codec, &chip->bus)
-			if (status & (1 << codec->addr))
-				schedule_delayed_work(&codec->jackpoll_work,
-						      codec->jackpoll_interval);
-	}
+	__azx_runtime_resume(chip);
 
 	/* disable controller Wake Up event*/
 	azx_writew(chip, WAKEEN, azx_readw(chip, WAKEEN) &
 			~STATESTS_INT_MASK);
-
-	/* power down again for link-controlled chips */
-	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
-	    !hda->need_i915_power)
-		snd_hdac_display_power(bus, false);
 
 	trace_azx_runtime_resume(chip);
 	return 0;
@@ -1167,6 +1143,8 @@ static const struct dev_pm_ops azx_pm = {
 
 #define AZX_PM_OPS	&azx_pm
 #else
+#define azx_add_card_list(chip) /* NOP */
+#define azx_del_card_list(chip) /* NOP */
 #define AZX_PM_OPS	NULL
 #endif /* CONFIG_PM */
 
