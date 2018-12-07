@@ -5434,6 +5434,8 @@ static int pqi_slave_alloc(struct scsi_device *sdev)
 		}
 		if (pqi_is_logical_device(device))
 			pqi_disable_write_same(sdev);
+		else
+			sdev->allow_restart = 1;
 	}
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
