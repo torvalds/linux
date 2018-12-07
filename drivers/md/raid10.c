@@ -1124,6 +1124,29 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	kfree(plug);
 }
 
+/*
+ * 1. Register the new request and wait if the reconstruction thread has put
+ * up a bar for new requests. Continue immediately if no resync is active
+ * currently.
+ * 2. If IO spans the reshape position.  Need to wait for reshape to pass.
+ */
+static void regular_request_wait(struct mddev *mddev, struct r10conf *conf,
+				 struct bio *bio, sector_t sectors)
+{
+	wait_barrier(conf);
+	while (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
+	    bio->bi_iter.bi_sector < conf->reshape_progress &&
+	    bio->bi_iter.bi_sector + sectors > conf->reshape_progress) {
+		raid10_log(conf->mddev, "wait reshape");
+		allow_barrier(conf);
+		wait_event(conf->wait_barrier,
+			   conf->reshape_progress <= bio->bi_iter.bi_sector ||
+			   conf->reshape_progress >= bio->bi_iter.bi_sector +
+			   sectors);
+		wait_barrier(conf);
+	}
+}
+
 static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 				struct r10bio *r10_bio)
 {
@@ -1132,7 +1155,6 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 	const int op = bio_op(bio);
 	const unsigned long do_sync = (bio->bi_opf & REQ_SYNC);
 	int max_sectors;
-	sector_t sectors;
 	struct md_rdev *rdev;
 	char b[BDEVNAME_SIZE];
 	int slot = r10_bio->read_slot;
@@ -1166,30 +1188,8 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 		}
 		rcu_read_unlock();
 	}
-	/*
-	 * Register the new request and wait if the reconstruction
-	 * thread has put up a bar for new requests.
-	 * Continue immediately if no resync is active currently.
-	 */
-	wait_barrier(conf);
 
-	sectors = r10_bio->sectors;
-	while (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
-	    bio->bi_iter.bi_sector < conf->reshape_progress &&
-	    bio->bi_iter.bi_sector + sectors > conf->reshape_progress) {
-		/*
-		 * IO spans the reshape position.  Need to wait for reshape to
-		 * pass
-		 */
-		raid10_log(conf->mddev, "wait reshape");
-		allow_barrier(conf);
-		wait_event(conf->wait_barrier,
-			   conf->reshape_progress <= bio->bi_iter.bi_sector ||
-			   conf->reshape_progress >= bio->bi_iter.bi_sector +
-			   sectors);
-		wait_barrier(conf);
-	}
-
+	regular_request_wait(mddev, conf, bio, r10_bio->sectors);
 	rdev = read_balance(conf, r10_bio, &max_sectors);
 	if (!rdev) {
 		if (err_rdev) {
@@ -1332,30 +1332,8 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 		finish_wait(&conf->wait_barrier, &w);
 	}
 
-	/*
-	 * Register the new request and wait if the reconstruction
-	 * thread has put up a bar for new requests.
-	 * Continue immediately if no resync is active currently.
-	 */
-	wait_barrier(conf);
-
 	sectors = r10_bio->sectors;
-	while (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
-	    bio->bi_iter.bi_sector < conf->reshape_progress &&
-	    bio->bi_iter.bi_sector + sectors > conf->reshape_progress) {
-		/*
-		 * IO spans the reshape position.  Need to wait for reshape to
-		 * pass
-		 */
-		raid10_log(conf->mddev, "wait reshape");
-		allow_barrier(conf);
-		wait_event(conf->wait_barrier,
-			   conf->reshape_progress <= bio->bi_iter.bi_sector ||
-			   conf->reshape_progress >= bio->bi_iter.bi_sector +
-			   sectors);
-		wait_barrier(conf);
-	}
-
+	regular_request_wait(mddev, conf, bio, sectors);
 	if (test_bit(MD_RECOVERY_RESHAPE, &mddev->recovery) &&
 	    (mddev->reshape_backwards
 	     ? (bio->bi_iter.bi_sector < conf->reshape_safe &&
