@@ -157,6 +157,32 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
 	param_get_int, &mpt3sas_fwfault_debug, 0644);
 
 /**
+ * _base_readl_aero - retry readl for max three times.
+ * @addr - MPT Fusion system interface register address
+ *
+ * Retry the readl() for max three times if it gets zero value
+ * while reading the system interface register.
+ */
+static inline u32
+_base_readl_aero(const volatile void __iomem *addr)
+{
+	u32 i = 0, ret_val;
+
+	do {
+		ret_val = readl(addr);
+		i++;
+	} while (ret_val == 0 && i < 3);
+
+	return ret_val;
+}
+
+static inline u32
+_base_readl(const volatile void __iomem *addr)
+{
+	return readl(addr);
+}
+
+/**
  * _base_clone_reply_to_sys_mem - copies reply to reply free iomem
  *				  in BAR0 space.
  *
@@ -6398,6 +6424,10 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 
 	ioc->rdpq_array_enable_assigned = 0;
 	ioc->dma_mask = 0;
+	if (ioc->is_aero_ioc)
+		ioc->base_readl = &_base_readl_aero;
+	else
+		ioc->base_readl = &_base_readl;
 	r = mpt3sas_base_map_resources(ioc);
 	if (r)
 		goto out_free_resources;
