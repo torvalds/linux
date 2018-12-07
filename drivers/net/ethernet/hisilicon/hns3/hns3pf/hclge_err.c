@@ -222,6 +222,47 @@ static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
 	{ /* sentinel */ }
 };
 
+static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st2[] = {
+	{ .int_msk = BIT(13), .msg = "rpu_rx_pkt_bit32_ecc_mbit_err" },
+	{ .int_msk = BIT(14), .msg = "rpu_rx_pkt_bit33_ecc_mbit_err" },
+	{ .int_msk = BIT(15), .msg = "rpu_rx_pkt_bit34_ecc_mbit_err" },
+	{ .int_msk = BIT(16), .msg = "rpu_rx_pkt_bit35_ecc_mbit_err" },
+	{ .int_msk = BIT(17), .msg = "rcb_tx_ring_ecc_mbit_err" },
+	{ .int_msk = BIT(18), .msg = "rcb_rx_ring_ecc_mbit_err" },
+	{ .int_msk = BIT(19), .msg = "rcb_tx_fbd_ecc_mbit_err" },
+	{ .int_msk = BIT(20), .msg = "rcb_rx_ebd_ecc_mbit_err" },
+	{ .int_msk = BIT(21), .msg = "rcb_tso_info_ecc_mbit_err" },
+	{ .int_msk = BIT(22), .msg = "rcb_tx_int_info_ecc_mbit_err" },
+	{ .int_msk = BIT(23), .msg = "rcb_rx_int_info_ecc_mbit_err" },
+	{ .int_msk = BIT(24), .msg = "tpu_tx_pkt_0_ecc_mbit_err" },
+	{ .int_msk = BIT(25), .msg = "tpu_tx_pkt_1_ecc_mbit_err" },
+	{ .int_msk = BIT(26), .msg = "rd_bus_err" },
+	{ .int_msk = BIT(27), .msg = "wr_bus_err" },
+	{ .int_msk = BIT(28), .msg = "reg_search_miss" },
+	{ .int_msk = BIT(29), .msg = "rx_q_search_miss" },
+	{ .int_msk = BIT(30), .msg = "ooo_ecc_err_detect" },
+	{ .int_msk = BIT(31), .msg = "ooo_ecc_err_multpl" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ppu_mpf_abnormal_int_st3[] = {
+	{ .int_msk = BIT(4), .msg = "gro_bd_ecc_mbit_err" },
+	{ .int_msk = BIT(5), .msg = "gro_context_ecc_mbit_err" },
+	{ .int_msk = BIT(6), .msg = "rx_stash_cfg_ecc_mbit_err" },
+	{ .int_msk = BIT(7), .msg = "axi_rd_fbd_ecc_mbit_err" },
+	{ /* sentinel */ }
+};
+
+static const struct hclge_hw_error hclge_ppu_pf_abnormal_int[] = {
+	{ .int_msk = BIT(0), .msg = "over_8bd_no_fe" },
+	{ .int_msk = BIT(1), .msg = "tso_mss_cmp_min_err" },
+	{ .int_msk = BIT(2), .msg = "tso_mss_cmp_max_err" },
+	{ .int_msk = BIT(3), .msg = "tx_rd_fbd_poison" },
+	{ .int_msk = BIT(4), .msg = "rx_rd_ebd_poison" },
+	{ .int_msk = BIT(5), .msg = "buf_wait_timeout" },
+	{ /* sentinel */ }
+};
+
 static void hclge_log_error(struct device *dev, char *reg,
 			    const struct hclge_hw_error *err,
 			    u32 err_sts)
@@ -489,6 +530,82 @@ static int hclge_config_mac_err_int(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+static int hclge_config_ppu_error_interrupts(struct hclge_dev *hdev, u32 cmd,
+					     bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	int num = 1;
+	int ret;
+
+	/* configure PPU error interrupts */
+	if (cmd == HCLGE_PPU_MPF_ECC_INT_CMD) {
+		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
+		desc[0].flag |= HCLGE_CMD_FLAG_NEXT;
+		hclge_cmd_setup_basic_desc(&desc[1], cmd, false);
+		if (en) {
+			desc[0].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT0_EN;
+			desc[0].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN;
+			desc[1].data[3] = HCLGE_PPU_MPF_ABNORMAL_INT3_EN;
+			desc[1].data[4] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN;
+		}
+
+		desc[1].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT0_EN_MASK;
+		desc[1].data[1] = HCLGE_PPU_MPF_ABNORMAL_INT1_EN_MASK;
+		desc[1].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN_MASK;
+		desc[1].data[3] |= HCLGE_PPU_MPF_ABNORMAL_INT3_EN_MASK;
+		num = 2;
+	} else if (cmd == HCLGE_PPU_MPF_OTHER_INT_CMD) {
+		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
+		if (en)
+			desc[0].data[0] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN2;
+
+		desc[0].data[2] = HCLGE_PPU_MPF_ABNORMAL_INT2_EN2_MASK;
+	} else if (cmd == HCLGE_PPU_PF_OTHER_INT_CMD) {
+		hclge_cmd_setup_basic_desc(&desc[0], cmd, false);
+		if (en)
+			desc[0].data[0] = HCLGE_PPU_PF_ABNORMAL_INT_EN;
+
+		desc[0].data[2] = HCLGE_PPU_PF_ABNORMAL_INT_EN_MASK;
+	} else {
+		dev_err(dev, "Invalid cmd to configure PPU error interrupts\n");
+		return -EINVAL;
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], num);
+
+	return ret;
+}
+
+static int hclge_config_ppu_hw_err_int(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	int ret;
+
+	ret = hclge_config_ppu_error_interrupts(hdev, HCLGE_PPU_MPF_ECC_INT_CMD,
+						en);
+	if (ret) {
+		dev_err(dev, "fail(%d) to configure PPU MPF ECC error intr\n",
+			ret);
+		return ret;
+	}
+
+	ret = hclge_config_ppu_error_interrupts(hdev,
+						HCLGE_PPU_MPF_OTHER_INT_CMD,
+						en);
+	if (ret) {
+		dev_err(dev, "fail(%d) to configure PPU MPF other intr\n", ret);
+		return ret;
+	}
+
+	ret = hclge_config_ppu_error_interrupts(hdev,
+						HCLGE_PPU_PF_OTHER_INT_CMD, en);
+	if (ret)
+		dev_err(dev, "fail(%d) to configure PPU PF error interrupts\n",
+			ret);
+	return ret;
+}
+
 #define HCLGE_SET_DEFAULT_RESET_REQUEST(reset_type) \
 	do { \
 		if (ae_dev->ops->set_default_reset_request) \
@@ -577,6 +694,29 @@ static int hclge_handle_mpf_ras_error(struct hclge_dev *hdev,
 	if (status)
 		hclge_log_error(dev, "PPP_MPF_ABNORMAL_INT_ST3",
 				&hclge_ppp_mpf_abnormal_int_st3[0], status);
+
+	/* log PPU(RCB) errors */
+	desc_data = (__le32 *)&desc[5];
+	status = le32_to_cpu(*(desc_data + 1));
+	if (status) {
+		dev_warn(dev, "PPU_MPF_ABNORMAL_INT_ST1 %s found\n",
+			 "rpu_rx_pkt_ecc_mbit_err");
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+	}
+
+	status = le32_to_cpu(*(desc_data + 2));
+	if (status) {
+		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST2",
+				&hclge_ppu_mpf_abnormal_int_st2[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+	}
+
+	status = le32_to_cpu(*(desc_data + 3)) & HCLGE_PPU_MPF_INT_ST3_MASK;
+	if (status) {
+		hclge_log_error(dev, "PPU_MPF_ABNORMAL_INT_ST3",
+				&hclge_ppu_mpf_abnormal_int_st3[0], status);
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_CORE_RESET);
+	}
 
 	/* log TM(Traffic Manager) errors */
 	desc_data = (__le32 *)&desc[6];
@@ -718,6 +858,10 @@ static const struct hclge_hw_blk hw_blk[] = {
 	  .config_err_int = hclge_config_ppp_hw_err_int,
 	},
 	{
+	  .msk = BIT(3), .name = "PPU",
+	  .config_err_int = hclge_config_ppu_hw_err_int,
+	},
+	{
 	  .msk = BIT(4), .name = "TM",
 	  .config_err_int = hclge_config_tm_hw_err_int,
 	},
@@ -826,6 +970,17 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 	}
 
+	/* log PPU(RCB) errors */
+	desc_data = (__le32 *)&desc[5];
+	status = le32_to_cpu(*(desc_data + 2)) &
+			HCLGE_PPU_MPF_INT_ST2_MSIX_MASK;
+	if (status) {
+		dev_warn(dev,
+			 "PPU_MPF_ABNORMAL_INT_ST2[28:29], err_status(0x%x)\n",
+			 status);
+		set_bit(HNAE3_CORE_RESET, reset_requests);
+	}
+
 	/* clear all main PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
 	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
@@ -860,6 +1015,13 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	if (status)
 		hclge_log_error(dev, "PPP_PF_ABNORMAL_INT_ST0",
 				&hclge_ppp_pf_abnormal_int[0], status);
+
+	/* PPU(RCB) PF errors */
+	desc_data = (__le32 *)&desc[3];
+	status = le32_to_cpu(*desc_data) & HCLGE_PPU_PF_INT_MSIX_MASK;
+	if (status)
+		hclge_log_error(dev, "PPU_PF_ABNORMAL_INT_ST",
+				&hclge_ppu_pf_abnormal_int[0], status);
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
