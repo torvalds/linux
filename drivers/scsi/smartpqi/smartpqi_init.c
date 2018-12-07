@@ -519,44 +519,58 @@ static void pqi_free_io_request(struct pqi_io_request *io_request)
 	atomic_dec(&io_request->refcount);
 }
 
-static int pqi_identify_controller(struct pqi_ctrl_info *ctrl_info,
-	struct bmic_identify_controller *buffer)
+static int pqi_send_scsi_raid_request(struct pqi_ctrl_info *ctrl_info, u8 cmd,
+		u8 *scsi3addr, void *buffer, size_t buffer_length, u16 vpd_page,
+		struct pqi_raid_error_info *error_info,
+		unsigned long timeout_msecs)
 {
 	int rc;
 	enum dma_data_direction dir;
 	struct pqi_raid_path_request request;
 
 	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		BMIC_IDENTIFY_CONTROLLER, RAID_CTLR_LUNID, buffer,
-		sizeof(*buffer), 0, &dir);
+		cmd, scsi3addr, buffer,
+		buffer_length, vpd_page, &dir);
 	if (rc)
 		return rc;
 
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header, 0,
-		NULL, NO_TIMEOUT);
+	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
+		 0, error_info, timeout_msecs);
 
 	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
 	return rc;
 }
 
-static int pqi_scsi_inquiry(struct pqi_ctrl_info *ctrl_info,
+/* Helper functions for pqi_send_scsi_raid_request */
+
+static inline int pqi_send_ctrl_raid_request(struct pqi_ctrl_info *ctrl_info,
+		u8 cmd, void *buffer, size_t buffer_length)
+{
+	return pqi_send_scsi_raid_request(ctrl_info, cmd, RAID_CTLR_LUNID,
+			buffer, buffer_length, 0, NULL, NO_TIMEOUT);
+}
+
+static inline int pqi_send_ctrl_raid_with_error(struct pqi_ctrl_info *ctrl_info,
+		u8 cmd, void *buffer, size_t buffer_length,
+		struct pqi_raid_error_info *error_info)
+{
+	return pqi_send_scsi_raid_request(ctrl_info, cmd, RAID_CTLR_LUNID,
+			buffer, buffer_length, 0, error_info, NO_TIMEOUT);
+}
+
+
+static inline int pqi_identify_controller(struct pqi_ctrl_info *ctrl_info,
+		struct bmic_identify_controller *buffer)
+{
+	return pqi_send_ctrl_raid_request(ctrl_info, BMIC_IDENTIFY_CONTROLLER,
+			buffer, sizeof(*buffer));
+}
+
+static inline int pqi_scsi_inquiry(struct pqi_ctrl_info *ctrl_info,
 	u8 *scsi3addr, u16 vpd_page, void *buffer, size_t buffer_length)
 {
-	int rc;
-	enum dma_data_direction dir;
-	struct pqi_raid_path_request request;
-
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		INQUIRY, scsi3addr, buffer, buffer_length, vpd_page,
-		&dir);
-	if (rc)
-		return rc;
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header, 0,
-		NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
-	return rc;
+	return pqi_send_scsi_raid_request(ctrl_info, INQUIRY, scsi3addr,
+		buffer, buffer_length, vpd_page, NULL, NO_TIMEOUT);
 }
 
 static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
@@ -590,9 +604,7 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
 	enum bmic_flush_cache_shutdown_event shutdown_event)
 {
 	int rc;
-	struct pqi_raid_path_request request;
 	struct bmic_flush_cache *flush_cache;
-	enum dma_data_direction dir;
 
 	/*
 	 * Don't bother trying to flush the cache if the controller is
@@ -607,17 +619,9 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
 
 	flush_cache->shutdown_event = shutdown_event;
 
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		SA_FLUSH_CACHE, RAID_CTLR_LUNID, flush_cache,
-		sizeof(*flush_cache), 0, &dir);
-	if (rc)
-		goto out;
+	rc = pqi_send_ctrl_raid_request(ctrl_info, SA_FLUSH_CACHE, flush_cache,
+		sizeof(*flush_cache));
 
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
-		0, NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
-out:
 	kfree(flush_cache);
 
 	return rc;
@@ -629,66 +633,32 @@ out:
 static int pqi_set_diag_rescan(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
-	struct pqi_raid_path_request request;
 	struct bmic_diag_options *diag;
-	enum dma_data_direction pci_direction;
 
 	diag = kzalloc(sizeof(*diag), GFP_KERNEL);
 	if (!diag)
 		return -ENOMEM;
 
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		BMIC_SENSE_DIAG_OPTIONS, RAID_CTLR_LUNID, diag,
-		sizeof(*diag), 0, &pci_direction);
-	if (rc)
-		goto out;
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
-		0, NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1,
-		pci_direction);
-
+	rc = pqi_send_ctrl_raid_request(ctrl_info, BMIC_SENSE_DIAG_OPTIONS,
+					diag, sizeof(*diag));
 	if (rc)
 		goto out;
 
 	diag->options |= cpu_to_le32(PQI_FETCH_PTRAID_DATA);
 
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		BMIC_SET_DIAG_OPTIONS, RAID_CTLR_LUNID, diag,
-		sizeof(*diag), 0, &pci_direction);
-	if (rc)
-		goto out;
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
-		0, NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1,
-		pci_direction);
+	rc = pqi_send_ctrl_raid_request(ctrl_info, BMIC_SET_DIAG_OPTIONS,
+					diag, sizeof(*diag));
 out:
 	kfree(diag);
 
 	return rc;
 }
 
-static int pqi_write_host_wellness(struct pqi_ctrl_info *ctrl_info,
+static inline int pqi_write_host_wellness(struct pqi_ctrl_info *ctrl_info,
 	void *buffer, size_t buffer_length)
 {
-	int rc;
-	struct pqi_raid_path_request request;
-	enum dma_data_direction dir;
-
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		BMIC_WRITE_HOST_WELLNESS, RAID_CTLR_LUNID, buffer,
-		buffer_length, 0, &dir);
-	if (rc)
-		return rc;
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
-		0, NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
-	return rc;
+	return pqi_send_ctrl_raid_request(ctrl_info, BMIC_WRITE_HOST_WELLNESS,
+					buffer, buffer_length);
 }
 
 #pragma pack(1)
@@ -837,23 +807,11 @@ static inline void pqi_cancel_update_time_worker(
 	cancel_delayed_work_sync(&ctrl_info->update_time_work);
 }
 
-static int pqi_report_luns(struct pqi_ctrl_info *ctrl_info, u8 cmd,
+static inline int pqi_report_luns(struct pqi_ctrl_info *ctrl_info, u8 cmd,
 	void *buffer, size_t buffer_length)
 {
-	int rc;
-	enum dma_data_direction dir;
-	struct pqi_raid_path_request request;
-
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		cmd, RAID_CTLR_LUNID, buffer, buffer_length, 0, &dir);
-	if (rc)
-		return rc;
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header, 0,
-		NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
-	return rc;
+	return pqi_send_ctrl_raid_request(ctrl_info, cmd, buffer,
+					buffer_length);
 }
 
 static int pqi_report_phys_logical_luns(struct pqi_ctrl_info *ctrl_info, u8 cmd,
