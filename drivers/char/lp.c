@@ -912,9 +912,13 @@ static int __init lp_setup(char *str)
 
 static int lp_register(int nr, struct parport *port)
 {
-	lp_table[nr].dev = parport_register_device(port, "lp",
-						   lp_preempt, NULL, NULL, 0,
-						   (void *) &lp_table[nr]);
+	struct pardev_cb ppdev_cb;
+
+	memset(&ppdev_cb, 0, sizeof(ppdev_cb));
+	ppdev_cb.preempt = lp_preempt;
+	ppdev_cb.private = &lp_table[nr];
+	lp_table[nr].dev = parport_register_dev_model(port, "lp",
+						      &ppdev_cb, nr);
 	if (lp_table[nr].dev == NULL)
 		return 1;
 	lp_table[nr].flags |= LP_EXIST;
@@ -1002,8 +1006,9 @@ static void lp_detach(struct parport *port)
 
 static struct parport_driver lp_driver = {
 	.name = "lp",
-	.attach = lp_attach,
+	.match_port = lp_attach,
 	.detach = lp_detach,
+	.devmodel = true,
 };
 
 static int __init lp_init(void)
