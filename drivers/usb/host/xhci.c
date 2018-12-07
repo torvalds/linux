@@ -4370,8 +4370,7 @@ static int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	int		portnum = udev->portnum - 1;
 
-	if (hcd->speed >= HCD_USB3 || !xhci->sw_lpm_support ||
-			!udev->lpm_capable)
+	if (hcd->speed >= HCD_USB3 || !udev->lpm_capable)
 		return 0;
 
 	/* we only support lpm for non-hub device connected to root hub yet */

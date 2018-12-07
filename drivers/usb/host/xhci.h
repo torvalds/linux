@@ -1858,8 +1858,6 @@ struct xhci_hcd {
 	struct xhci_port	*hw_ports;
 	struct xhci_hub		usb2_rhub;
 	struct xhci_hub		usb3_rhub;
-	/* support xHCI 0.96 spec USB2 software LPM */
-	unsigned		sw_lpm_support:1;
 	/* support xHCI 1.0 spec USB2 hardware LPM */
 	unsigned		hw_lpm_support:1;
 	/* cached usb2 extened protocol capabilites */
