@@ -89,6 +89,7 @@ struct fsl_lpspi_data {
 	void (*rx)(struct fsl_lpspi_data *);
 
 	u32 remain;
+	u8 watermark;
 	u8 txfifosize;
 	u8 rxfifosize;
 
@@ -235,7 +236,7 @@ static void fsl_lpspi_set_watermark(struct fsl_lpspi_data *fsl_lpspi)
 {
 	u32 temp;
 
-	temp = fsl_lpspi->txfifosize >> 1 | (fsl_lpspi->rxfifosize >> 1) << 16;
+	temp = fsl_lpspi->watermark >> 1 | (fsl_lpspi->watermark >> 1) << 16;
 
 	writel(temp, fsl_lpspi->base + IMX7ULP_FCR);
 
@@ -261,7 +262,8 @@ static int fsl_lpspi_set_bitrate(struct fsl_lpspi_data *fsl_lpspi)
 	if (prescale == 8 && scldiv >= 256)
 		return -EINVAL;
 
-	writel(scldiv, fsl_lpspi->base + IMX7ULP_CCR);
+	writel(scldiv | (scldiv << 8) | ((scldiv >> 1) << 16),
+					fsl_lpspi->base + IMX7ULP_CCR);
 
 	dev_dbg(fsl_lpspi->dev, "perclk=%d, speed=%d, prescale =%d, scldiv=%d\n",
 		perclk_rate, config.speed_hz, prescale, scldiv);
@@ -328,6 +330,11 @@ static void fsl_lpspi_setup_transfer(struct spi_device *spi,
 		fsl_lpspi->rx = fsl_lpspi_buf_rx_u32;
 		fsl_lpspi->tx = fsl_lpspi_buf_tx_u32;
 	}
+
+	if (t->len <= fsl_lpspi->txfifosize)
+		fsl_lpspi->watermark = t->len;
+	else
+		fsl_lpspi->watermark = fsl_lpspi->txfifosize;
 
 	fsl_lpspi_config(fsl_lpspi);
 }
