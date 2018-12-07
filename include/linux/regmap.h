@@ -1137,6 +1137,9 @@ struct regmap_irq {
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
  * @type_invert: Invert the type flags.
+ * @type_in_mask: Use the mask registers for controlling irq type. For
+ *                interrupts defining type_rising/falling_mask use mask_base
+ *                for edge configuration and never update bits in type_base.
  * @runtime_pm:  Hold a runtime PM lock on the device when accessing it.
  *
  * @num_regs:    Number of registers in each control bank.
@@ -1175,6 +1178,7 @@ struct regmap_irq_chip {
 	bool wake_invert:1;
 	bool runtime_pm:1;
 	bool type_invert:1;
+	bool type_in_mask:1;
 
 	int num_regs;
 

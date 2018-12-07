@@ -157,20 +157,23 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		}
 	}
 
-	for (i = 0; i < d->chip->num_type_reg; i++) {
-		if (!d->type_buf_def[i])
-			continue;
-		reg = d->chip->type_base +
-			(i * map->reg_stride * d->type_reg_stride);
-		if (d->chip->type_invert)
-			ret = regmap_irq_update_bits(d, reg,
-				d->type_buf_def[i], ~d->type_buf[i]);
-		else
-			ret = regmap_irq_update_bits(d, reg,
-				d->type_buf_def[i], d->type_buf[i]);
-		if (ret != 0)
-			dev_err(d->map->dev, "Failed to sync type in %x\n",
-				reg);
+	/* Don't update the type bits if we're using mask bits for irq type. */
+	if (!d->chip->type_in_mask) {
+		for (i = 0; i < d->chip->num_type_reg; i++) {
+			if (!d->type_buf_def[i])
+				continue;
+			reg = d->chip->type_base +
+				(i * map->reg_stride * d->type_reg_stride);
+			if (d->chip->type_invert)
+				ret = regmap_irq_update_bits(d, reg,
+					d->type_buf_def[i], ~d->type_buf[i]);
+			else
+				ret = regmap_irq_update_bits(d, reg,
+					d->type_buf_def[i], d->type_buf[i]);
+			if (ret != 0)
+				dev_err(d->map->dev, "Failed to sync type in %x\n",
+					reg);
+		}
 	}
 
 	if (d->chip->runtime_pm)
@@ -194,8 +197,27 @@ static void regmap_irq_enable(struct irq_data *data)
 	struct regmap_irq_chip_data *d = irq_data_get_irq_chip_data(data);
 	struct regmap *map = d->map;
 	const struct regmap_irq *irq_data = irq_to_regmap_irq(d, data->hwirq);
+	unsigned int mask, type;
 
-	d->mask_buf[irq_data->reg_offset / map->reg_stride] &= ~irq_data->mask;
+	type = irq_data->type_falling_mask | irq_data->type_rising_mask;
+
+	/*
+	 * The type_in_mask flag means that the underlying hardware uses
+	 * separate mask bits for rising and falling edge interrupts, but
+	 * we want to make them into a single virtual interrupt with
+	 * configurable edge.
+	 *
+	 * If the interrupt we're enabling defines the falling or rising
+	 * masks then instead of using the regular mask bits for this
+	 * interrupt, use the value previously written to the type buffer
+	 * at the corresponding offset in regmap_irq_set_type().
+	 */
+	if (d->chip->type_in_mask && type)
+		mask = d->type_buf[irq_data->reg_offset / map->reg_stride];
+	else
+		mask = irq_data->mask;
+
+	d->mask_buf[irq_data->reg_offset / map->reg_stride] &= ~mask;
 }
 
 static void regmap_irq_disable(struct irq_data *data)
@@ -430,6 +452,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	struct regmap_irq_chip_data *d;
 	int i;
 	int ret = -ENOMEM;
+	int num_type_reg;
 	u32 reg;
 	u32 unmask_offset;
 
@@ -479,13 +502,14 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 			goto err_alloc;
 	}
 
-	if (chip->num_type_reg) {
-		d->type_buf_def = kcalloc(chip->num_type_reg,
-					sizeof(unsigned int), GFP_KERNEL);
+	num_type_reg = chip->type_in_mask ? chip->num_regs : chip->num_type_reg;
+	if (num_type_reg) {
+		d->type_buf_def = kcalloc(num_type_reg,
+					  sizeof(unsigned int), GFP_KERNEL);
 		if (!d->type_buf_def)
 			goto err_alloc;
 
-		d->type_buf = kcalloc(chip->num_type_reg, sizeof(unsigned int),
+		d->type_buf = kcalloc(num_type_reg, sizeof(unsigned int),
 				      GFP_KERNEL);
 		if (!d->type_buf)
 			goto err_alloc;
@@ -600,7 +624,7 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 		}
 	}
 
-	if (chip->num_type_reg) {
+	if (chip->num_type_reg && !chip->type_in_mask) {
 		for (i = 0; i < chip->num_irqs; i++) {
 			reg = chip->irqs[i].type_reg_offset / map->reg_stride;
 			d->type_buf_def[reg] |= chip->irqs[i].type_rising_mask |
