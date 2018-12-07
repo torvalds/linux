@@ -246,8 +246,7 @@ static int pch_irq_type(struct irq_data *d, unsigned int type)
 		im_reg = &chip->reg->im1;
 		im_pos = ch - 8;
 	}
-	dev_dbg(chip->dev, "%s:irq=%d type=%d ch=%d pos=%d\n",
-		__func__, irq, type, ch, im_pos);
+	dev_dbg(chip->dev, "irq=%d type=%d ch=%d pos=%d\n", irq, type, ch, im_pos);
 
 	spin_lock_irqsave(&chip->spinlock, flags);
 
@@ -317,8 +316,7 @@ static irqreturn_t pch_gpio_handler(int irq, void *dev_id)
 	int i, ret = IRQ_NONE;
 
 	for_each_set_bit(i, &reg_val, gpio_pins[chip->ioh]) {
-		dev_dbg(chip->dev, "%s:[%d]:irq=%d  status=0x%lx\n", __func__,
-			i, irq, reg_val);
+		dev_dbg(chip->dev, "[%d]:irq=%d  status=0x%lx\n", i, irq, reg_val);
 		generic_handle_irq(chip->irq_base + i);
 		ret = IRQ_HANDLED;
 	}
@@ -368,7 +366,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	chip->dev = &pdev->dev;
 	ret = pcim_enable_device(pdev);
 	if (ret) {
-		dev_err(&pdev->dev, "%s : pci_enable_device FAILED", __func__);
+		dev_err(&pdev->dev, "pci_enable_device FAILED");
 		return ret;
 	}
 
@@ -417,8 +415,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	ret = devm_request_irq(&pdev->dev, pdev->irq, pch_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
 	if (ret) {
-		dev_err(&pdev->dev,
-			"%s request_irq failed\n", __func__);
+		dev_err(&pdev->dev, "request_irq failed\n");
 		return ret;
 	}
 
