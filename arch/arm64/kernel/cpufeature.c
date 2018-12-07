@@ -1191,6 +1191,12 @@ static void cpu_clear_disr(const struct arm64_cpu_capabilities *__unused)
 #endif /* CONFIG_ARM64_RAS_EXTN */
 
 #ifdef CONFIG_ARM64_PTR_AUTH
+static void cpu_enable_address_auth(struct arm64_cpu_capabilities const *cap)
+{
+	sysreg_clear_set(sctlr_el1, 0, SCTLR_ELx_ENIA | SCTLR_ELx_ENIB |
+				       SCTLR_ELx_ENDA | SCTLR_ELx_ENDB);
+}
+
 static bool has_address_auth(const struct arm64_cpu_capabilities *entry,
 			     int __unused)
 {
@@ -1478,6 +1484,7 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_ADDRESS_AUTH,
 		.type = ARM64_CPUCAP_SYSTEM_FEATURE,
 		.matches = has_address_auth,
+		.cpu_enable = cpu_enable_address_auth,
 	},
 	{
 		.desc = "Generic authentication (architected algorithm)",
@@ -1552,6 +1559,12 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(SYS_ID_AA64PFR0_EL1, ID_AA64PFR0_SVE_SHIFT, FTR_UNSIGNED, ID_AA64PFR0_SVE, CAP_HWCAP, HWCAP_SVE),
 #endif
 	HWCAP_CAP(SYS_ID_AA64PFR1_EL1, ID_AA64PFR1_SSBS_SHIFT, FTR_UNSIGNED, ID_AA64PFR1_SSBS_PSTATE_INSNS, CAP_HWCAP, HWCAP_SSBS),
+#ifdef CONFIG_ARM64_PTR_AUTH
+	{ .desc = "HWCAP_PACA", .type = ARM64_CPUCAP_SYSTEM_FEATURE, .matches = has_address_auth,
+		.hwcap_type = CAP_HWCAP, .hwcap = HWCAP_PACA },
+	{ .desc = "HWCAP_PACG", .type = ARM64_CPUCAP_SYSTEM_FEATURE, .matches = has_generic_auth,
+		.hwcap_type = CAP_HWCAP, .hwcap = HWCAP_PACG },
+#endif
 	{},
 };
 
