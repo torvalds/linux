@@ -21,7 +21,7 @@
 
 #define DEFAULT_B0_BOARD_BASIC_CAPABILITIES \
 	.is_64_dma = true,		  \
-	.msix_irqs = 4U,		  \
+	.msix_irqs = 8U,		  \
 	.irq_mask = ~0U,		  \
 	.vecs = HW_ATL_B0_RSS_MAX,	  \
 	.tcs = HW_ATL_B0_TC_MAX,	  \

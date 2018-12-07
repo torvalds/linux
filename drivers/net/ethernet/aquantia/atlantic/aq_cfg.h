@@ -12,7 +12,7 @@
 #ifndef AQ_CFG_H
 #define AQ_CFG_H
 
-#define AQ_CFG_VECS_DEF   4U
+#define AQ_CFG_VECS_DEF   8U
 #define AQ_CFG_TCS_DEF    1U
 
 #define AQ_CFG_TXDS_DEF    4096U
