@@ -38,7 +38,7 @@ Example:
 
 rtc: rtc@1f00000 {
 	compatible = "allwinner,sun6i-a31-rtc";
-	reg = <0x01f00000 0x54>;
+	reg = <0x01f00000 0x400>;
 	interrupts = <0 40 4>, <0 41 4>;
 	clock-output-names = "osc32k";
 	clocks = <&ext_osc32k>;
