@@ -7,9 +7,7 @@
 #include "hclge_main.h"
 
 #define HCLGE_RAS_PF_OTHER_INT_STS_REG   0x20B00
-#define HCLGE_RAS_REG_FE_MASK    0xFF
 #define HCLGE_RAS_REG_NFE_MASK   0xFF00
-#define HCLGE_RAS_REG_NFE_SHIFT	8
 
 #define HCLGE_IMP_TCM_ECC_ERR_INT_EN	0xFFFF0000
 #define HCLGE_IMP_TCM_ECC_ERR_INT_EN_MASK	0xFFFF0000
@@ -42,21 +40,6 @@
 #define HCLGE_NCSI_ERR_INT_EN	0x3
 #define HCLGE_NCSI_ERR_INT_TYPE	0x9
 
-#define HCLGE_IMP_TCM_ECC_INT_MASK	0xFFFF
-#define HCLGE_IMP_ITCM4_ECC_INT_MASK	0x3
-#define HCLGE_CMDQ_ECC_INT_MASK		0xFFFF
-#define HCLGE_CMDQ_ROC_ECC_INT_SHIFT	16
-#define HCLGE_TQP_ECC_INT_MASK		0xFFF
-#define HCLGE_TQP_ECC_INT_SHIFT		16
-#define HCLGE_IMP_TCM_ECC_CLR_MASK	0xFFFF
-#define HCLGE_IMP_ITCM4_ECC_CLR_MASK	0x3
-#define HCLGE_CMDQ_NIC_ECC_CLR_MASK	0xFFFF
-#define HCLGE_CMDQ_ROCEE_ECC_CLR_MASK	0xFFFF0000
-#define HCLGE_TQP_IMP_ERR_CLR_MASK	0x0FFF0001
-#define HCLGE_IGU_COM_INT_MASK		0xF
-#define HCLGE_IGU_EGU_TNL_INT_MASK	0x3F
-#define HCLGE_PPP_PF_INT_MASK		0x100
-
 enum hclge_err_int_type {
 	HCLGE_ERR_INT_MSIX = 0,
 	HCLGE_ERR_INT_RAS_CE = 1,
@@ -68,8 +51,6 @@ struct hclge_hw_blk {
 	u32 msk;
 	const char *name;
 	int (*enable_error)(struct hclge_dev *hdev, bool en);
-	void (*process_error)(struct hclge_dev *hdev,
-			      enum hclge_err_int_type type);
 };
 
 struct hclge_hw_error {
