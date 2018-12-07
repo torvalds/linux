@@ -203,6 +203,52 @@ static int intel_security_disable(struct nvdimm *nvdimm,
 	return 0;
 }
 
+static int intel_security_erase(struct nvdimm *nvdimm,
+		const struct nvdimm_key_data *key)
+{
+	int rc;
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	struct {
+		struct nd_cmd_pkg pkg;
+		struct nd_intel_secure_erase cmd;
+	} nd_cmd = {
+		.pkg = {
+			.nd_family = NVDIMM_FAMILY_INTEL,
+			.nd_size_in = ND_INTEL_PASSPHRASE_SIZE,
+			.nd_size_out = ND_INTEL_STATUS_SIZE,
+			.nd_fw_size = ND_INTEL_STATUS_SIZE,
+			.nd_command = NVDIMM_INTEL_SECURE_ERASE,
+		},
+	};
+
+	if (!test_bit(NVDIMM_INTEL_SECURE_ERASE, &nfit_mem->dsm_mask))
+		return -ENOTTY;
+
+	/* flush all cache before we erase DIMM */
+	nvdimm_invalidate_cache();
+	memcpy(nd_cmd.cmd.passphrase, key->data,
+			sizeof(nd_cmd.cmd.passphrase));
+	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
+	if (rc < 0)
+		return rc;
+
+	switch (nd_cmd.cmd.status) {
+	case 0:
+		break;
+	case ND_INTEL_STATUS_NOT_SUPPORTED:
+		return -EOPNOTSUPP;
+	case ND_INTEL_STATUS_INVALID_PASS:
+		return -EINVAL;
+	case ND_INTEL_STATUS_INVALID_STATE:
+	default:
+		return -ENXIO;
+	}
+
+	/* DIMM erased, invalidate all CPU caches before we read it */
+	nvdimm_invalidate_cache();
+	return 0;
+}
+
 /*
  * TODO: define a cross arch wbinvd equivalent when/if
  * NVDIMM_FAMILY_INTEL command support arrives on another arch.
@@ -226,6 +272,7 @@ static const struct nvdimm_security_ops __intel_security_ops = {
 	.disable = intel_security_disable,
 #ifdef CONFIG_X86
 	.unlock = intel_security_unlock,
+	.erase = intel_security_erase,
 #endif
 };
 

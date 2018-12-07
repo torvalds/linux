@@ -180,6 +180,8 @@ struct nvdimm_security_ops {
 			const struct nvdimm_key_data *key_data);
 	int (*disable)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
+	int (*erase)(struct nvdimm *nvdimm,
+			const struct nvdimm_key_data *key_data);
 };
 
 void badrange_init(struct badrange *badrange);

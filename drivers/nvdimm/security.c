@@ -33,6 +33,9 @@ static void *key_data(struct key *key)
 
 static void nvdimm_put_key(struct key *key)
 {
+	if (!key)
+		return;
+
 	up_read(&key->sem);
 	key_put(key);
 }
@@ -255,6 +258,44 @@ int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
 			rc == 0 ? "success" : "fail");
 
 	nvdimm_put_key(newkey);
+	nvdimm_put_key(key);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	return rc;
+}
+
+int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
+{
+	struct device *dev = &nvdimm->dev;
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct key *key;
+	int rc;
+
+	/* The bus lock should be held at the top level of the call stack */
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+
+	if (!nvdimm->sec.ops || !nvdimm->sec.ops->erase
+			|| nvdimm->sec.state < 0)
+		return -EOPNOTSUPP;
+
+	if (atomic_read(&nvdimm->busy)) {
+		dev_warn(dev, "Unable to secure erase while DIMM active.\n");
+		return -EBUSY;
+	}
+
+	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
+		dev_warn(dev, "Incorrect security state: %d\n",
+				nvdimm->sec.state);
+		return -EIO;
+	}
+
+	key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
+	if (!key)
+		return -ENOKEY;
+
+	rc = nvdimm->sec.ops->erase(nvdimm, key_data(key));
+	dev_dbg(dev, "key: %d erase: %s\n", key_serial(key),
+			rc == 0 ? "success" : "fail");
+
 	nvdimm_put_key(key);
 	nvdimm->sec.state = nvdimm_security_state(nvdimm);
 	return rc;

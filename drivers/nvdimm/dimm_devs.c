@@ -394,7 +394,8 @@ static ssize_t security_show(struct device *dev,
 #define OPS						\
 	C( OP_FREEZE,		"freeze",	1),	\
 	C( OP_DISABLE,		"disable",	2),	\
-	C( OP_UPDATE,		"update",	3)
+	C( OP_UPDATE,		"update",	3),	\
+	C( OP_ERASE,		"erase",	2)
 #undef C
 #define C(a, b, c) a
 enum nvdimmsec_op_ids { OPS };
@@ -448,6 +449,9 @@ static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
 	} else if (i == OP_UPDATE) {
 		dev_dbg(dev, "update %u %u\n", key, newkey);
 		rc = nvdimm_security_update(nvdimm, key, newkey);
+	} else if (i == OP_ERASE) {
+		dev_dbg(dev, "erase %u\n", key);
+		rc = nvdimm_security_erase(nvdimm, key);
 	} else
 		return -EINVAL;
 
@@ -498,7 +502,8 @@ static umode_t nvdimm_visible(struct kobject *kobj, struct attribute *a, int n)
 		return 0;
 	/* Are there any state mutation ops? */
 	if (nvdimm->sec.ops->freeze || nvdimm->sec.ops->disable
-			|| nvdimm->sec.ops->change_key)
+			|| nvdimm->sec.ops->change_key
+			|| nvdimm->sec.ops->erase)
 		return a->mode;
 	return 0444;
 }
