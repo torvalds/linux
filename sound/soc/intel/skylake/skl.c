@@ -928,6 +928,12 @@ static int skl_first_init(struct hdac_bus *bus)
 
 	snd_hdac_bus_parse_capabilities(bus);
 
+	/* check if PPCAP exists */
+	if (!bus->ppcap) {
+		dev_err(bus->dev, "bus ppcap not set, HDaudio or DSP not present?\n");
+		return -ENODEV;
+	}
+
 	if (skl_acquire_irq(bus, 0) < 0)
 		return -EBUSY;
 
@@ -937,6 +943,17 @@ static int skl_first_init(struct hdac_bus *bus)
 	gcap = snd_hdac_chip_readw(bus, GCAP);
 	dev_dbg(bus->dev, "chipset global capabilities = 0x%x\n", gcap);
 
+	/* read number of streams from GCAP register */
+	cp_streams = (gcap >> 8) & 0x0f;
+	pb_streams = (gcap >> 12) & 0x0f;
+
+	if (!pb_streams && !cp_streams) {
+		dev_err(bus->dev, "no streams found in GCAP definitions?\n");
+		return -EIO;
+	}
+
+	bus->num_streams = cp_streams + pb_streams;
+
 	/* allow 64bit DMA address if supported by H/W */
 	if (!dma_set_mask(bus->dev, DMA_BIT_MASK(64))) {
 		dma_set_coherent_mask(bus->dev, DMA_BIT_MASK(64));
@@ -944,15 +961,6 @@ static int skl_first_init(struct hdac_bus *bus)
 		dma_set_mask(bus->dev, DMA_BIT_MASK(32));
 		dma_set_coherent_mask(bus->dev, DMA_BIT_MASK(32));
 	}
-
-	/* read number of streams from GCAP register */
-	cp_streams = (gcap >> 8) & 0x0f;
-	pb_streams = (gcap >> 12) & 0x0f;
-
-	if (!pb_streams && !cp_streams)
-		return -EIO;
-
-	bus->num_streams = cp_streams + pb_streams;
 
 	/* initialize streams */
 	snd_hdac_ext_stream_init_all
