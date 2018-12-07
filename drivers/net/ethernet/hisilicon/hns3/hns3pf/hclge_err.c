@@ -112,8 +112,8 @@ static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st1[] = {
 	{ /* sentinel */ }
 };
 
-static const struct hclge_hw_error hclge_ppp_pf_int[] = {
-	{ .int_msk = BIT(0), .msg = "Tx_vlan_tag_err" },
+static const struct hclge_hw_error hclge_ppp_pf_abnormal_int[] = {
+	{ .int_msk = BIT(0), .msg = "tx_vlan_tag_err" },
 	{ .int_msk = BIT(1), .msg = "rss_list_tc_unassigned_queue_err" },
 	{ /* sentinel */ }
 };
@@ -385,12 +385,16 @@ static int hclge_config_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT0_EN);
 			desc[0].data[1] =
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT1_EN);
+			desc[0].data[4] = cpu_to_le32(HCLGE_PPP_PF_ERR_INT_EN);
 		}
 
 		desc[1].data[0] =
 			cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT0_EN_MASK);
 		desc[1].data[1] =
 			cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT1_EN_MASK);
+		if (hdev->pdev->revision >= 0x21)
+			desc[1].data[2] =
+				cpu_to_le32(HCLGE_PPP_PF_ERR_INT_EN_MASK);
 	} else if (cmd == HCLGE_PPP_CMD1_INT_CMD) {
 		if (en) {
 			desc[0].data[0] =
@@ -849,6 +853,13 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
 	}
+
+	/* read and log PPP PF errors */
+	desc_data = (__le32 *)&desc[2];
+	status = le32_to_cpu(*desc_data);
+	if (status)
+		hclge_log_error(dev, "PPP_PF_ABNORMAL_INT_ST0",
+				&hclge_ppp_pf_abnormal_int[0], status);
 
 	/* clear all PF MSIx errors */
 	hclge_cmd_reuse_desc(&desc[0], false);
