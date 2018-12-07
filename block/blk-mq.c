@@ -2936,7 +2936,7 @@ static int blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 
 static int blk_mq_update_queue_map(struct blk_mq_tag_set *set)
 {
-	if (set->ops->map_queues) {
+	if (set->ops->map_queues && !is_kdump_kernel()) {
 		int i;
 
 		/*
@@ -3006,6 +3006,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	 */
 	if (is_kdump_kernel()) {
 		set->nr_hw_queues = 1;
+		set->nr_maps = 1;
 		set->queue_depth = min(64U, set->queue_depth);
 	}
 	/*
@@ -3027,7 +3028,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 						  GFP_KERNEL, set->numa_node);
 		if (!set->map[i].mq_map)
 			goto out_free_mq_map;
-		set->map[i].nr_queues = set->nr_hw_queues;
+		set->map[i].nr_queues = is_kdump_kernel() ? 1 : set->nr_hw_queues;
 	}
 
 	ret = blk_mq_update_queue_map(set);
