@@ -7269,7 +7269,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_hw_error_set_state(hdev, true);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"hw error interrupts enable failed, ret =%d\n", ret);
+			"fail(%d) to enable hw error interrupts\n", ret);
 		goto err_mdiobus_unreg;
 	}
 
@@ -7405,11 +7405,15 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	/* Re-enable the TM hw error interrupts because
-	 * they get disabled on core/global reset.
+	/* Re-enable the hw error interrupts because
+	 * the interrupts get disabled on core/global reset.
 	 */
-	if (hclge_config_tm_hw_err_int(hdev, true))
-		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
+	ret = hclge_hw_error_set_state(hdev, true);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"fail(%d) to re-enable HNS hw error interrupts\n", ret);
+		return ret;
+	}
 
 	hclge_reset_vport_state(hdev);
 

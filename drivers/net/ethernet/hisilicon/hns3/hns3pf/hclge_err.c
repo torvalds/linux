@@ -540,7 +540,7 @@ static int hclge_config_ppp_hw_err_int(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
-int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
+static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 {
 	struct device *dev = &hdev->pdev->dev;
 	struct hclge_desc desc;
