@@ -74,6 +74,8 @@ static int pqi_aio_submit_io(struct pqi_ctrl_info *ctrl_info,
 	struct scsi_cmnd *scmd, u32 aio_handle, u8 *cdb,
 	unsigned int cdb_length, struct pqi_queue_group *queue_group,
 	struct pqi_encryption_info *encryption_info, bool raid_bypass);
+static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_scsi_dev *device, unsigned long timeout_secs);
 
 /* for flags argument to pqi_submit_raid_request_synchronous() */
 #define PQI_SYNC_FLAGS_INTERRUPTABLE	0x1
@@ -315,6 +317,17 @@ static inline void pqi_device_reset_done(struct pqi_scsi_dev *device)
 static inline bool pqi_device_in_reset(struct pqi_scsi_dev *device)
 {
 	return device->in_reset;
+}
+
+static inline void pqi_device_remove_start(struct pqi_scsi_dev *device)
+{
+	device->in_remove = true;
+}
+
+static inline bool pqi_device_in_remove(struct pqi_ctrl_info *ctrl_info,
+					struct pqi_scsi_dev *device)
+{
+	return device->in_remove & !ctrl_info->in_shutdown;
 }
 
 static inline void pqi_schedule_rescan_worker_with_delay(
@@ -1487,9 +1500,24 @@ static int pqi_add_device(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
+#define PQI_PENDING_IO_TIMEOUT_SECS	20
+
 static inline void pqi_remove_device(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
+	int rc;
+
+	pqi_device_remove_start(device);
+
+	rc = pqi_device_wait_for_pending_io(ctrl_info, device,
+		PQI_PENDING_IO_TIMEOUT_SECS);
+	if (rc)
+		dev_err(&ctrl_info->pci_dev->dev,
+			"scsi %d:%d:%d:%d removing device with %d outstanding commands\n",
+			ctrl_info->scsi_host->host_no, device->bus,
+			device->target, device->lun,
+			atomic_read(&device->scsi_cmds_outstanding));
+
 	if (pqi_is_logical_device(device))
 		scsi_remove_device(device->sdev);
 	else
@@ -5042,7 +5070,17 @@ void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd)
 {
 	struct pqi_scsi_dev *device;
 
+	if (!scmd->device) {
+		set_host_byte(scmd, DID_NO_CONNECT);
+		return;
+	}
+
 	device = scmd->device->hostdata;
+	if (!device) {
+		set_host_byte(scmd, DID_NO_CONNECT);
+		return;
+	}
+
 	atomic_dec(&device->scsi_cmds_outstanding);
 }
 
@@ -5059,9 +5097,16 @@ static int pqi_scsi_queue_command(struct Scsi_Host *shost,
 	device = scmd->device->hostdata;
 	ctrl_info = shost_to_hba(shost);
 
+	if (!device) {
+		set_host_byte(scmd, DID_NO_CONNECT);
+		pqi_scsi_done(scmd);
+		return 0;
+	}
+
 	atomic_inc(&device->scsi_cmds_outstanding);
 
-	if (pqi_ctrl_offline(ctrl_info)) {
+	if (pqi_ctrl_offline(ctrl_info) || pqi_device_in_remove(ctrl_info,
+								device)) {
 		set_host_byte(scmd, DID_NO_CONNECT);
 		pqi_scsi_done(scmd);
 		return 0;
@@ -5214,12 +5259,23 @@ static void pqi_fail_io_queued_for_device(struct pqi_ctrl_info *ctrl_info,
 }
 
 static int pqi_device_wait_for_pending_io(struct pqi_ctrl_info *ctrl_info,
-	struct pqi_scsi_dev *device)
+	struct pqi_scsi_dev *device, unsigned long timeout_secs)
 {
+	unsigned long timeout;
+
+	timeout = (timeout_secs * HZ) + jiffies;
+
 	while (atomic_read(&device->scsi_cmds_outstanding)) {
 		pqi_check_ctrl_health(ctrl_info);
 		if (pqi_ctrl_offline(ctrl_info))
 			return -ENXIO;
+		if (timeout_secs != NO_TIMEOUT) {
+			if (time_after(jiffies, timeout)) {
+				dev_err(&ctrl_info->pci_dev->dev,
+					"timed out waiting for pending IO\n");
+				return -ETIMEDOUT;
+			}
+		}
 		usleep_range(1000, 2000);
 	}
 
@@ -5345,7 +5401,8 @@ static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 		msleep(PQI_LUN_RESET_RETRY_INTERVAL_MSECS);
 	}
 	if (rc == 0)
-		rc = pqi_device_wait_for_pending_io(ctrl_info, device);
+		rc = pqi_device_wait_for_pending_io(ctrl_info,
+			device, NO_TIMEOUT);
 
 	return rc == 0 ? SUCCESS : FAILED;
 }
@@ -7187,6 +7244,8 @@ static void pqi_pci_remove(struct pci_dev *pci_dev)
 	ctrl_info = pci_get_drvdata(pci_dev);
 	if (!ctrl_info)
 		return;
+
+	ctrl_info->in_shutdown = true;
 
 	pqi_remove_ctrl(ctrl_info);
 }

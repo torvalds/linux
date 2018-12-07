@@ -862,6 +862,7 @@ struct pqi_scsi_dev {
 	u8	volume_offline : 1;
 	bool	aio_enabled;		/* only valid for physical disks */
 	bool	in_reset;
+	bool	in_remove;
 	bool	device_offline;
 	u8	vendor[8];		/* bytes 8-15 of inquiry data */
 	u8	model[16];		/* bytes 16-31 of inquiry data */
@@ -1063,6 +1064,7 @@ struct pqi_ctrl_info {
 	struct mutex	lun_reset_mutex;
 	bool		controller_online;
 	bool		block_requests;
+	bool		in_shutdown;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
