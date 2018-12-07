@@ -779,6 +779,11 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 
 	pm_runtime_get_sync(dev);
 
+	/* Check bus state before init otherwise bus busy info will be lost */
+	ret = rcar_i2c_bus_barrier(priv);
+	if (ret < 0)
+		goto out;
+
 	/* Gen3 needs a reset before allowing RXDMA once */
 	if (priv->devtype == I2C_RCAR_GEN3) {
 		priv->flags |= ID_P_NO_RXDMA;
@@ -790,10 +795,6 @@ static int rcar_i2c_master_xfer(struct i2c_adapter *adap,
 	}
 
 	rcar_i2c_init(priv);
-
-	ret = rcar_i2c_bus_barrier(priv);
-	if (ret < 0)
-		goto out;
 
 	for (i = 0; i < num; i++)
 		rcar_i2c_request_dma(priv, msgs + i);
