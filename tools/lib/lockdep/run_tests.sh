@@ -7,7 +7,7 @@ if ! make >/dev/null; then
     exit 1
 fi
 
-for i in `ls tests/*.c`; do
+find tests -name '*.c' | sort | while read -r i; do
 	testname=$(basename "$i" .c)
 	echo -ne "$testname... "
 	if gcc -o "tests/$testname" -pthread "$i" liblockdep.a -Iinclude -D__USE_LIBLOCKDEP &&
@@ -16,12 +16,10 @@ for i in `ls tests/*.c`; do
 	else
 		echo "FAILED!"
 	fi
-	if [ -f "tests/$testname" ]; then
-		rm tests/$testname
-	fi
+	rm -f "tests/$testname"
 done
 
-for i in `ls tests/*.c`; do
+find tests -name '*.c' | sort | while read -r i; do
 	testname=$(basename "$i" .c)
 	echo -ne "(PRELOAD) $testname... "
 	if gcc -o "tests/$testname" -pthread -Iinclude "$i" &&
@@ -30,7 +28,5 @@ for i in `ls tests/*.c`; do
 	else
 		echo "FAILED!"
 	fi
-	if [ -f "tests/$testname" ]; then
-		rm tests/$testname
-	fi
+	rm -f "tests/$testname"
 done
