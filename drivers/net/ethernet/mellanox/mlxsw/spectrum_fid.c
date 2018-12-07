@@ -85,6 +85,8 @@ struct mlxsw_sp_fid_ops {
 	int (*nve_flood_index_set)(struct mlxsw_sp_fid *fid,
 				   u32 nve_flood_index);
 	void (*nve_flood_index_clear)(struct mlxsw_sp_fid *fid);
+	void (*fdb_clear_offload)(const struct mlxsw_sp_fid *fid,
+				  const struct net_device *nve_dev);
 };
 
 struct mlxsw_sp_fid_family {
@@ -275,6 +277,16 @@ void mlxsw_sp_fid_vni_clear(struct mlxsw_sp_fid *fid)
 bool mlxsw_sp_fid_vni_is_set(const struct mlxsw_sp_fid *fid)
 {
 	return fid->vni_valid;
+}
+
+void mlxsw_sp_fid_fdb_clear_offload(const struct mlxsw_sp_fid *fid,
+				    const struct net_device *nve_dev)
+{
+	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
+	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
+
+	if (ops->fdb_clear_offload)
+		ops->fdb_clear_offload(fid, nve_dev);
 }
 
 static const struct mlxsw_sp_flood_table *
@@ -766,6 +778,13 @@ static void mlxsw_sp_fid_8021d_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
 			    fid->vni_valid, 0, false);
 }
 
+static void
+mlxsw_sp_fid_8021d_fdb_clear_offload(const struct mlxsw_sp_fid *fid,
+				     const struct net_device *nve_dev)
+{
+	br_fdb_clear_offload(nve_dev, 0);
+}
+
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 	.setup			= mlxsw_sp_fid_8021d_setup,
 	.configure		= mlxsw_sp_fid_8021d_configure,
@@ -779,6 +798,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 	.vni_clear		= mlxsw_sp_fid_8021d_vni_clear,
 	.nve_flood_index_set	= mlxsw_sp_fid_8021d_nve_flood_index_set,
 	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
+	.fdb_clear_offload	= mlxsw_sp_fid_8021d_fdb_clear_offload,
 };
 
 static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021d_flood_tables[] = {
@@ -815,6 +835,13 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.lag_vid_valid		= 1,
 };
 
+static void
+mlxsw_sp_fid_8021q_fdb_clear_offload(const struct mlxsw_sp_fid *fid,
+				     const struct net_device *nve_dev)
+{
+	br_fdb_clear_offload(nve_dev, mlxsw_sp_fid_8021q_vid(fid));
+}
+
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_emu_ops = {
 	.setup			= mlxsw_sp_fid_8021q_setup,
 	.configure		= mlxsw_sp_fid_8021d_configure,
@@ -828,6 +855,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_emu_ops = {
 	.vni_clear		= mlxsw_sp_fid_8021d_vni_clear,
 	.nve_flood_index_set	= mlxsw_sp_fid_8021d_nve_flood_index_set,
 	.nve_flood_index_clear	= mlxsw_sp_fid_8021d_nve_flood_index_clear,
+	.fdb_clear_offload	= mlxsw_sp_fid_8021q_fdb_clear_offload,
 };
 
 /* There are 4K-2 emulated 802.1Q FIDs, starting right after the 802.1D FIDs */
