@@ -627,6 +627,12 @@ static int intel_vgpu_open(struct mdev_device *mdev)
 		goto undo_iommu;
 	}
 
+	/* Take a module reference as mdev core doesn't take
+	 * a reference for vendor driver.
+	 */
+	if (!try_module_get(THIS_MODULE))
+		goto undo_group;
+
 	ret = kvmgt_guest_init(mdev);
 	if (ret)
 		goto undo_group;
@@ -678,6 +684,9 @@ static void __intel_vgpu_release(struct intel_vgpu *vgpu)
 	ret = vfio_unregister_notifier(mdev_dev(vgpu->vdev.mdev), VFIO_GROUP_NOTIFY,
 					&vgpu->vdev.group_notifier);
 	WARN(ret, "vfio_unregister_notifier for group failed: %d\n", ret);
+
+	/* dereference module reference taken at open */
+	module_put(THIS_MODULE);
 
 	info = (struct kvmgt_guest_info *)vgpu->handle;
 	kvmgt_guest_exit(info);
@@ -1849,7 +1858,8 @@ static bool kvmgt_is_valid_gfn(unsigned long handle, unsigned long gfn)
 	return ret;
 }
 
-struct intel_gvt_mpt kvmgt_mpt = {
+static struct intel_gvt_mpt kvmgt_mpt = {
+	.type = INTEL_GVT_HYPERVISOR_KVM,
 	.host_init = kvmgt_host_init,
 	.host_exit = kvmgt_host_exit,
 	.attach_vgpu = kvmgt_attach_vgpu,
@@ -1868,15 +1878,17 @@ struct intel_gvt_mpt kvmgt_mpt = {
 	.put_vfio_device = kvmgt_put_vfio_device,
 	.is_valid_gfn = kvmgt_is_valid_gfn,
 };
-EXPORT_SYMBOL_GPL(kvmgt_mpt);
 
 static int __init kvmgt_init(void)
 {
+	if (intel_gvt_register_hypervisor(&kvmgt_mpt) < 0)
+		return -ENODEV;
 	return 0;
 }
 
 static void __exit kvmgt_exit(void)
 {
+	intel_gvt_unregister_hypervisor();
 }
 
 module_init(kvmgt_init);

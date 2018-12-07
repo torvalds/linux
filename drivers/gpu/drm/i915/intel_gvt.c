@@ -105,15 +105,6 @@ int intel_gvt_init(struct drm_i915_private *dev_priv)
 		return -EIO;
 	}
 
-	/*
-	 * We're not in host or fail to find a MPT module, disable GVT-g
-	 */
-	ret = intel_gvt_init_host();
-	if (ret) {
-		DRM_DEBUG_DRIVER("Not in host or MPT modules not found\n");
-		goto bail;
-	}
-
 	ret = intel_gvt_init_device(dev_priv);
 	if (ret) {
 		DRM_DEBUG_DRIVER("Fail to init GVT device\n");
