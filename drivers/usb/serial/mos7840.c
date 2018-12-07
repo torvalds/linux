@@ -1581,7 +1581,6 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 	int divisor = 0;
 	int status;
 	__u16 Data;
-	unsigned char number;
 	__u16 clk_sel_val;
 	struct usb_serial_port *port;
 
@@ -1594,8 +1593,6 @@ static int mos7840_send_cmd_write_baud_rate(struct moschip_port *mos7840_port,
 
 	if (mos7840_serial_paranoia_check(port->serial, __func__))
 		return -1;
-
-	number = mos7840_port->port->port_number;
 
 	dev_dbg(&port->dev, "%s - baud = %d\n", __func__, baudRate);
 	/* reset clk_uart_sel in spregOffset */
@@ -1692,7 +1689,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 	int status;
 	__u16 Data;
 	struct usb_serial_port *port;
-	struct usb_serial *serial;
 
 	if (mos7840_port == NULL)
 		return;
@@ -1704,8 +1700,6 @@ static void mos7840_change_port_settings(struct tty_struct *tty,
 
 	if (mos7840_serial_paranoia_check(port->serial, __func__))
 		return;
-
-	serial = port->serial;
 
 	if (!mos7840_port->open) {
 		dev_dbg(&port->dev, "%s - port not opened\n", __func__);
