@@ -2706,6 +2706,12 @@ static unsigned int pqi_process_io_intr(struct pqi_ctrl_info *ctrl_info,
 		case PQI_RESPONSE_IU_AIO_PATH_IO_SUCCESS:
 		case PQI_RESPONSE_IU_GENERAL_MANAGEMENT:
 			break;
+		case PQI_RESPONSE_IU_VENDOR_GENERAL:
+			io_request->status =
+				get_unaligned_le16(
+				&((struct pqi_vendor_general_response *)
+					response)->status);
+			break;
 		case PQI_RESPONSE_IU_TASK_MANAGEMENT:
 			io_request->status =
 				pqi_interpret_task_management_response(
@@ -5946,6 +5952,233 @@ out:
 	return rc;
 }
 
+struct pqi_config_table_section_info {
+	struct pqi_ctrl_info *ctrl_info;
+	void		*section;
+	u32		section_offset;
+	void __iomem	*section_iomem_addr;
+};
+
+static inline bool pqi_is_firmware_feature_supported(
+	struct pqi_config_table_firmware_features *firmware_features,
+	unsigned int bit_position)
+{
+	unsigned int byte_index;
+
+	byte_index = bit_position / BITS_PER_BYTE;
+
+	if (byte_index >= le16_to_cpu(firmware_features->num_elements))
+		return false;
+
+	return firmware_features->features_supported[byte_index] &
+		(1 << (bit_position % BITS_PER_BYTE)) ? true : false;
+}
+
+static inline bool pqi_is_firmware_feature_enabled(
+	struct pqi_config_table_firmware_features *firmware_features,
+	void __iomem *firmware_features_iomem_addr,
+	unsigned int bit_position)
+{
+	unsigned int byte_index;
+	u8 __iomem *features_enabled_iomem_addr;
+
+	byte_index = (bit_position / BITS_PER_BYTE) +
+		(le16_to_cpu(firmware_features->num_elements) * 2);
+
+	features_enabled_iomem_addr = firmware_features_iomem_addr +
+		offsetof(struct pqi_config_table_firmware_features,
+			features_supported) + byte_index;
+
+	return *((__force u8 *)features_enabled_iomem_addr) &
+		(1 << (bit_position % BITS_PER_BYTE)) ? true : false;
+}
+
+static inline void pqi_request_firmware_feature(
+	struct pqi_config_table_firmware_features *firmware_features,
+	unsigned int bit_position)
+{
+	unsigned int byte_index;
+
+	byte_index = (bit_position / BITS_PER_BYTE) +
+		le16_to_cpu(firmware_features->num_elements);
+
+	firmware_features->features_supported[byte_index] |=
+		(1 << (bit_position % BITS_PER_BYTE));
+}
+
+static int pqi_config_table_update(struct pqi_ctrl_info *ctrl_info,
+	u16 first_section, u16 last_section)
+{
+	struct pqi_vendor_general_request request;
+
+	memset(&request, 0, sizeof(request));
+
+	request.header.iu_type = PQI_REQUEST_IU_VENDOR_GENERAL;
+	put_unaligned_le16(sizeof(request) - PQI_REQUEST_HEADER_LENGTH,
+		&request.header.iu_length);
+	put_unaligned_le16(PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE,
+		&request.function_code);
+	put_unaligned_le16(first_section,
+		&request.data.config_table_update.first_section);
+	put_unaligned_le16(last_section,
+		&request.data.config_table_update.last_section);
+
+	return pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
+		0, NULL, NO_TIMEOUT);
+}
+
+static int pqi_enable_firmware_features(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_config_table_firmware_features *firmware_features,
+	void __iomem *firmware_features_iomem_addr)
+{
+	void *features_requested;
+	void __iomem *features_requested_iomem_addr;
+
+	features_requested = firmware_features->features_supported +
+		le16_to_cpu(firmware_features->num_elements);
+
+	features_requested_iomem_addr = firmware_features_iomem_addr +
+		(features_requested - (void *)firmware_features);
+
+	memcpy_toio(features_requested_iomem_addr, features_requested,
+		le16_to_cpu(firmware_features->num_elements));
+
+	return pqi_config_table_update(ctrl_info,
+		PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES,
+		PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES);
+}
+
+struct pqi_firmware_feature {
+	char		*feature_name;
+	unsigned int	feature_bit;
+	bool		supported;
+	bool		enabled;
+	void (*feature_status)(struct pqi_ctrl_info *ctrl_info,
+		struct pqi_firmware_feature *firmware_feature);
+};
+
+static void pqi_firmware_feature_status(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_firmware_feature *firmware_feature)
+{
+	if (!firmware_feature->supported) {
+		dev_info(&ctrl_info->pci_dev->dev, "%s not supported by controller\n",
+			firmware_feature->feature_name);
+		return;
+	}
+
+	if (firmware_feature->enabled) {
+		dev_info(&ctrl_info->pci_dev->dev,
+			"%s enabled\n", firmware_feature->feature_name);
+		return;
+	}
+
+	dev_err(&ctrl_info->pci_dev->dev, "failed to enable %s\n",
+		firmware_feature->feature_name);
+}
+
+static inline void pqi_firmware_feature_update(struct pqi_ctrl_info *ctrl_info,
+	struct pqi_firmware_feature *firmware_feature)
+{
+	if (firmware_feature->feature_status)
+		firmware_feature->feature_status(ctrl_info, firmware_feature);
+}
+
+static DEFINE_MUTEX(pqi_firmware_features_mutex);
+
+static struct pqi_firmware_feature pqi_firmware_features[] = {
+	{
+		.feature_name = "Online Firmware Activation",
+		.feature_bit = PQI_FIRMWARE_FEATURE_OFA,
+		.feature_status = pqi_firmware_feature_status,
+	},
+	{
+		.feature_name = "Serial Management Protocol",
+		.feature_bit = PQI_FIRMWARE_FEATURE_SMP,
+		.feature_status = pqi_firmware_feature_status,
+	},
+};
+
+static void pqi_process_firmware_features(
+	struct pqi_config_table_section_info *section_info)
+{
+	int rc;
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_config_table_firmware_features *firmware_features;
+	void __iomem *firmware_features_iomem_addr;
+	unsigned int i;
+	unsigned int num_features_supported;
+
+	ctrl_info = section_info->ctrl_info;
+	firmware_features = section_info->section;
+	firmware_features_iomem_addr = section_info->section_iomem_addr;
+
+	for (i = 0, num_features_supported = 0;
+		i < ARRAY_SIZE(pqi_firmware_features); i++) {
+		if (pqi_is_firmware_feature_supported(firmware_features,
+			pqi_firmware_features[i].feature_bit)) {
+			pqi_firmware_features[i].supported = true;
+			num_features_supported++;
+		} else {
+			pqi_firmware_feature_update(ctrl_info,
+				&pqi_firmware_features[i]);
+		}
+	}
+
+	if (num_features_supported == 0)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(pqi_firmware_features); i++) {
+		if (!pqi_firmware_features[i].supported)
+			continue;
+		pqi_request_firmware_feature(firmware_features,
+			pqi_firmware_features[i].feature_bit);
+	}
+
+	rc = pqi_enable_firmware_features(ctrl_info, firmware_features,
+		firmware_features_iomem_addr);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"failed to enable firmware features in PQI configuration table\n");
+		for (i = 0; i < ARRAY_SIZE(pqi_firmware_features); i++) {
+			if (!pqi_firmware_features[i].supported)
+				continue;
+			pqi_firmware_feature_update(ctrl_info,
+				&pqi_firmware_features[i]);
+		}
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pqi_firmware_features); i++) {
+		if (!pqi_firmware_features[i].supported)
+			continue;
+		if (pqi_is_firmware_feature_enabled(firmware_features,
+			firmware_features_iomem_addr,
+			pqi_firmware_features[i].feature_bit))
+			pqi_firmware_features[i].enabled = true;
+		pqi_firmware_feature_update(ctrl_info,
+			&pqi_firmware_features[i]);
+	}
+}
+
+static void pqi_init_firmware_features(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(pqi_firmware_features); i++) {
+		pqi_firmware_features[i].supported = false;
+		pqi_firmware_features[i].enabled = false;
+	}
+}
+
+static void pqi_process_firmware_features_section(
+	struct pqi_config_table_section_info *section_info)
+{
+	mutex_lock(&pqi_firmware_features_mutex);
+	pqi_init_firmware_features();
+	pqi_process_firmware_features(section_info);
+	mutex_unlock(&pqi_firmware_features_mutex);
+}
+
 static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 {
 	u32 table_length;
@@ -5953,8 +6186,11 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 	void __iomem *table_iomem_addr;
 	struct pqi_config_table *config_table;
 	struct pqi_config_table_section_header *section;
+	struct pqi_config_table_section_info section_info;
 
 	table_length = ctrl_info->config_table_length;
+	if (table_length == 0)
+		return 0;
 
 	config_table = kmalloc(table_length, GFP_KERNEL);
 	if (!config_table) {
@@ -5971,13 +6207,22 @@ static int pqi_process_config_table(struct pqi_ctrl_info *ctrl_info)
 		ctrl_info->config_table_offset;
 	memcpy_fromio(config_table, table_iomem_addr, table_length);
 
+	section_info.ctrl_info = ctrl_info;
 	section_offset =
 		get_unaligned_le32(&config_table->first_section_offset);
 
 	while (section_offset) {
 		section = (void *)config_table + section_offset;
 
+		section_info.section = section;
+		section_info.section_offset = section_offset;
+		section_info.section_iomem_addr =
+			table_iomem_addr + section_offset;
+
 		switch (get_unaligned_le16(&section->section_id)) {
+		case PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES:
+			pqi_process_firmware_features_section(&section_info);
+			break;
 		case PQI_CONFIG_TABLE_SECTION_HEARTBEAT:
 			if (pqi_disable_heartbeat)
 				dev_warn(&ctrl_info->pci_dev->dev,
@@ -6122,10 +6367,6 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	ctrl_info->pqi_mode_enabled = true;
 	pqi_save_ctrl_mode(ctrl_info, PQI_MODE);
 
-	rc = pqi_process_config_table(ctrl_info);
-	if (rc)
-		return rc;
-
 	rc = pqi_alloc_admin_queues(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
@@ -6187,6 +6428,11 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 	pqi_change_irq_mode(ctrl_info, IRQ_MODE_MSIX);
 
 	ctrl_info->controller_online = true;
+
+	rc = pqi_process_config_table(ctrl_info);
+	if (rc)
+		return rc;
+
 	pqi_start_heartbeat_timer(ctrl_info);
 
 	rc = pqi_enable_events(ctrl_info);

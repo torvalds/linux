@@ -389,6 +389,35 @@ struct pqi_task_management_response {
 	u8	response_code;
 };
 
+struct pqi_vendor_general_request {
+	struct pqi_iu_header header;
+	__le16	request_id;
+	__le16	function_code;
+	union {
+		struct {
+			__le16	first_section;
+			__le16	last_section;
+			u8	reserved[48];
+		} config_table_update;
+
+		struct {
+			__le64	buffer_address;
+			__le32	buffer_length;
+			u8	reserved[40];
+		} ofa_memory_allocation;
+	} data;
+};
+
+struct pqi_vendor_general_response {
+	struct pqi_iu_header header;
+	__le16	request_id;
+	__le16	function_code;
+	__le16	status;
+	u8	reserved[2];
+};
+
+#define PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE	0
+
 struct pqi_aio_error_info {
 	u8	status;
 	u8	service_response;
@@ -419,6 +448,7 @@ struct pqi_raid_error_info {
 #define PQI_REQUEST_IU_GENERAL_ADMIN			0x60
 #define PQI_REQUEST_IU_REPORT_VENDOR_EVENT_CONFIG	0x72
 #define PQI_REQUEST_IU_SET_VENDOR_EVENT_CONFIG		0x73
+#define PQI_REQUEST_IU_VENDOR_GENERAL			0x75
 #define PQI_REQUEST_IU_ACKNOWLEDGE_VENDOR_EVENT		0xf6
 
 #define PQI_RESPONSE_IU_GENERAL_MANAGEMENT		0x81
@@ -430,6 +460,7 @@ struct pqi_raid_error_info {
 #define PQI_RESPONSE_IU_AIO_PATH_IO_ERROR		0xf3
 #define PQI_RESPONSE_IU_AIO_PATH_DISABLED		0xf4
 #define PQI_RESPONSE_IU_VENDOR_EVENT			0xf5
+#define PQI_RESPONSE_IU_VENDOR_GENERAL			0xf7
 
 #define PQI_GENERAL_ADMIN_FUNCTION_REPORT_DEVICE_CAPABILITY	0x0
 #define PQI_GENERAL_ADMIN_FUNCTION_CREATE_IQ			0x10
@@ -644,6 +675,7 @@ struct pqi_encryption_info {
 #define PQI_CONFIG_TABLE_MAX_LENGTH	((u16)~0)
 
 /* configuration table section IDs */
+#define PQI_CONFIG_TABLE_ALL_SECTIONS			(-1)
 #define PQI_CONFIG_TABLE_SECTION_GENERAL_INFO		0
 #define PQI_CONFIG_TABLE_SECTION_FIRMWARE_FEATURES	1
 #define PQI_CONFIG_TABLE_SECTION_FIRMWARE_ERRATA	2
@@ -679,6 +711,17 @@ struct pqi_config_table_general_info {
 					/* entries supported in a single */
 					/* command */
 };
+
+struct pqi_config_table_firmware_features {
+	struct pqi_config_table_section_header header;
+	__le16	num_elements;
+	u8	features_supported[];
+/*	u8	features_requested_by_host[]; */
+/*	u8	features_enabled[]; */
+};
+
+#define PQI_FIRMWARE_FEATURE_OFA	0
+#define PQI_FIRMWARE_FEATURE_SMP	1
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
