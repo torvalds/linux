@@ -47,6 +47,10 @@ static void *image_load(struct kimage *image,
 	struct kexec_segment *kernel_segment;
 	int ret;
 
+	/* We don't support crash kernels yet. */
+	if (image->type == KEXEC_TYPE_CRASH)
+		return ERR_PTR(-EOPNOTSUPP);
+
 	/*
 	 * We require a kernel with an unambiguous Image header. Per
 	 * Documentation/booting.txt, this is the case when image_size
