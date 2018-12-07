@@ -349,6 +349,7 @@ static const struct kfd_deviceid supported_devices[] = {
 	{ 0x66a1, &vega20_device_info },	/* Vega20 */
 	{ 0x66a2, &vega20_device_info },	/* Vega20 */
 	{ 0x66a3, &vega20_device_info },	/* Vega20 */
+	{ 0x66a4, &vega20_device_info },	/* Vega20 */
 	{ 0x66a7, &vega20_device_info },	/* Vega20 */
 	{ 0x66af, &vega20_device_info }		/* Vega20 */
 };
