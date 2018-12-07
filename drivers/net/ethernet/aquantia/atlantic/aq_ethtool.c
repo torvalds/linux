@@ -202,6 +202,41 @@ static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
 	return 0;
 }
 
+static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
+			      const u8 *key, const u8 hfunc)
+{
+	struct aq_nic_s *aq_nic = netdev_priv(netdev);
+	struct aq_nic_cfg_s *cfg;
+	unsigned int i = 0U;
+	u32 rss_entries;
+	int err = 0;
+
+	cfg = aq_nic_get_cfg(aq_nic);
+	rss_entries = cfg->aq_rss.indirection_table_size;
+
+	/* We do not allow change in unsupported parameters */
+	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+	/* Fill out the redirection table */
+	if (indir)
+		for (i = 0; i < rss_entries; i++)
+			cfg->aq_rss.indirection_table[i] = indir[i];
+
+	/* Fill out the rss hash key */
+	if (key) {
+		memcpy(cfg->aq_rss.hash_secret_key, key,
+		       sizeof(cfg->aq_rss.hash_secret_key));
+		err = aq_nic->aq_hw_ops->hw_rss_hash_set(aq_nic->aq_hw,
+			&cfg->aq_rss);
+		if (err)
+			return err;
+	}
+
+	err = aq_nic->aq_hw_ops->hw_rss_set(aq_nic->aq_hw, &cfg->aq_rss);
+
+	return err;
+}
+
 static int aq_ethtool_get_rxnfc(struct net_device *ndev,
 				struct ethtool_rxnfc *cmd,
 				u32 *rule_locs)
@@ -549,6 +584,7 @@ const struct ethtool_ops aq_ethtool_ops = {
 	.set_pauseparam      = aq_ethtool_set_pauseparam,
 	.get_rxfh_key_size   = aq_ethtool_get_rss_key_size,
 	.get_rxfh            = aq_ethtool_get_rss,
+	.set_rxfh            = aq_ethtool_set_rss,
 	.get_rxnfc           = aq_ethtool_get_rxnfc,
 	.set_rxnfc           = aq_ethtool_set_rxnfc,
 	.get_sset_count      = aq_ethtool_get_sset_count,
