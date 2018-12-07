@@ -2002,11 +2002,7 @@ static void handle_automated_test(struct dc_link *link)
 		dp_test_send_phy_test_pattern(link);
 		test_response.bits.ACK = 1;
 	}
-	if (!test_request.raw)
-		/* no requests, revert all test signals
-		 * TODO: revert all test signals
-		 */
-		test_response.bits.ACK = 1;
+
 	/* send request acknowledgment */
 	if (test_response.bits.ACK)
 		core_link_write_dpcd(
