@@ -595,6 +595,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	case DRM_FORMAT_MOD_BROADCOM_SAND128:
 	case DRM_FORMAT_MOD_BROADCOM_SAND256: {
 		uint32_t param = fourcc_mod_broadcom_param(fb->modifier);
+		u32 tile_w, tile, x_off, pix_per_tile;
 
 		/* Column-based NV12 or RGBA.
 		 */
@@ -614,12 +615,15 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		switch (base_format_mod) {
 		case DRM_FORMAT_MOD_BROADCOM_SAND64:
 			tiling = SCALER_CTL0_TILING_64B;
+			tile_w = 64;
 			break;
 		case DRM_FORMAT_MOD_BROADCOM_SAND128:
 			tiling = SCALER_CTL0_TILING_128B;
+			tile_w = 128;
 			break;
 		case DRM_FORMAT_MOD_BROADCOM_SAND256:
 			tiling = SCALER_CTL0_TILING_256B_OR_T;
+			tile_w = 256;
 			break;
 		default:
 			break;
@@ -628,6 +632,23 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		if (param > SCALER_TILE_HEIGHT_MASK) {
 			DRM_DEBUG_KMS("SAND height too large (%d)\n", param);
 			return -EINVAL;
+		}
+
+		pix_per_tile = tile_w / fb->format->cpp[0];
+		tile = vc4_state->src_x / pix_per_tile;
+		x_off = vc4_state->src_x % pix_per_tile;
+
+		/* Adjust the base pointer to the first pixel to be scanned
+		 * out.
+		 */
+		for (i = 0; i < num_planes; i++) {
+			vc4_state->offsets[i] += param * tile_w * tile;
+			vc4_state->offsets[i] += vc4_state->src_y /
+						 (i ? v_subsample : 1) *
+						 tile_w;
+			vc4_state->offsets[i] += x_off /
+						 (i ? h_subsample : 1) *
+						 fb->format->cpp[i];
 		}
 
 		pitch0 = VC4_SET_FIELD(param, SCALER_TILE_HEIGHT);
