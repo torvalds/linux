@@ -2375,13 +2375,12 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 			continue;
 
 		if (strcmp(link->name, sof_dai->name) == 0)
-			break;
+			goto found;
 	}
 
-	if (!sof_dai) {
-		dev_err(sdev->dev, "error: failed to find dai %s", link->name);
-		return -EINVAL;
-	}
+	dev_err(sdev->dev, "failed to find dai %s", link->name);
+	return -EINVAL;
+found:
 
 	switch (sof_dai->dai_config->type) {
 	case SOF_DAI_INTEL_SSP:
