@@ -5,8 +5,11 @@ Required properties:
   - "fsl,imx7ulp-spi" for LPSPI compatible with the one integrated on i.MX7ULP soc
   - "fsl,imx8qxp-spi" for LPSPI compatible with the one integrated on i.MX8QXP soc
 - reg : address and length of the lpspi master registers
+- interrupt-parent : core interrupt controller
 - interrupts : lpspi interrupt
 - clocks : lpspi clock specifier
+- spi-slave : spi slave mode support. In slave mode, add this attribute without
+	      value. In master mode, remove it.
 
 Examples:
 
@@ -16,4 +19,5 @@ lpspi2: lpspi@40290000 {
 	interrupt-parent = <&intc>;
 	interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
 	clocks = <&clks IMX7ULP_CLK_LPSPI2>;
+	spi-slave;
 };
