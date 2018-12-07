@@ -390,13 +390,8 @@ static int hclge_config_common_hw_err_int(struct hclge_dev *hdev, bool en)
 		desc[0].data[3] = cpu_to_le32(HCLGE_IMP_RD_POISON_ERR_INT_EN);
 		desc[0].data[4] = cpu_to_le32(HCLGE_TQP_ECC_ERR_INT_EN);
 		desc[0].data[5] = cpu_to_le32(HCLGE_IMP_ITCM4_ECC_ERR_INT_EN);
-	} else {
-		desc[0].data[0] = 0;
-		desc[0].data[2] = 0;
-		desc[0].data[3] = 0;
-		desc[0].data[4] = 0;
-		desc[0].data[5] = 0;
 	}
+
 	desc[1].data[0] = cpu_to_le32(HCLGE_IMP_TCM_ECC_ERR_INT_EN_MASK);
 	desc[1].data[2] = cpu_to_le32(HCLGE_CMDQ_NIC_ECC_ERR_INT_EN_MASK |
 				HCLGE_CMDQ_ROCEE_ECC_ERR_INT_EN_MASK);
@@ -425,8 +420,6 @@ static int hclge_config_ncsi_hw_err_int(struct hclge_dev *hdev, bool en)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_NCSI_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_NCSI_ERR_INT_EN);
-	else
-		desc.data[0] = 0;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
@@ -446,8 +439,7 @@ static int hclge_config_igu_egu_hw_err_int(struct hclge_dev *hdev, bool en)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_IGU_COMMON_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN);
-	else
-		desc.data[0] = 0;
+
 	desc.data[1] = cpu_to_le32(HCLGE_IGU_ERR_INT_EN_MASK);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -460,8 +452,7 @@ static int hclge_config_igu_egu_hw_err_int(struct hclge_dev *hdev, bool en)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_IGU_EGU_TNL_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_IGU_TNL_ERR_INT_EN);
-	else
-		desc.data[0] = 0;
+
 	desc.data[1] = cpu_to_le32(HCLGE_IGU_TNL_ERR_INT_EN_MASK);
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
@@ -494,10 +485,8 @@ static int hclge_config_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT0_EN);
 			desc[0].data[1] =
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT1_EN);
-		} else {
-			desc[0].data[0] = 0;
-			desc[0].data[1] = 0;
 		}
+
 		desc[1].data[0] =
 			cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT0_EN_MASK);
 		desc[1].data[1] =
@@ -508,10 +497,8 @@ static int hclge_config_ppp_error_interrupt(struct hclge_dev *hdev, u32 cmd,
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT2_EN);
 			desc[0].data[1] =
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT3_EN);
-		} else {
-			desc[0].data[0] = 0;
-			desc[0].data[1] = 0;
 		}
+
 		desc[1].data[0] =
 				cpu_to_le32(HCLGE_PPP_MPF_ECC_ERR_INT2_EN_MASK);
 		desc[1].data[1] =
@@ -550,8 +537,6 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	hclge_cmd_setup_basic_desc(&desc, HCLGE_TM_SCH_ECC_INT_EN, false);
 	if (en)
 		desc.data[0] = cpu_to_le32(HCLGE_TM_SCH_ECC_ERR_INT_EN);
-	else
-		desc.data[0] = 0;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret) {
@@ -570,8 +555,6 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	hclge_cmd_reuse_desc(&desc, false);
 	if (en)
 		desc.data[1] = cpu_to_le32(HCLGE_TM_QCN_MEM_ERR_INT_EN);
-	else
-		desc.data[1] = 0;
 
 	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
 	if (ret)
