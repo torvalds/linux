@@ -129,4 +129,13 @@
 		clocks = <&k3_clks 113 1>;
 		power-domains = <&k3_pds 113>;
 	};
+
+	ecap0: pwm@3100000 {
+		compatible = "ti,am654-ecap", "ti,am3352-ecap";
+		#pwm-cells = <3>;
+		reg = <0x0 0x03100000 0x0 0x60>;
+		power-domains = <&k3_pds 39>;
+		clocks = <&k3_clks 39 0>;
+		clock-names = "fck";
+	};
 };
