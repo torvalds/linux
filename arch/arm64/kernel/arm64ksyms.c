@@ -40,9 +40,6 @@ EXPORT_SYMBOL(__arch_copy_to_user);
 EXPORT_SYMBOL(__arch_clear_user);
 EXPORT_SYMBOL(__arch_copy_in_user);
 
-	/* physical memory */
-EXPORT_SYMBOL(memstart_addr);
-
 	/* string / mem functions */
 #ifndef CONFIG_KASAN
 EXPORT_SYMBOL(strchr);
