@@ -889,7 +889,7 @@ static struct regulator_ops rk808_switch_ops = {
 static struct regulator_ops rk817_switch_ops = {
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
-	.is_enabled		= regulator_is_enabled_regmap,
+	.is_enabled		= rk8xx_is_enabled_wmsk_regmap,
 	.set_suspend_enable	= rk817_set_suspend_enable,
 	.set_suspend_disable	= rk817_set_suspend_disable,
 };
