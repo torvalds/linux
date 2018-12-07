@@ -23,8 +23,8 @@
  */
 
 #define BXT_HUC_FW_MAJOR 01
-#define BXT_HUC_FW_MINOR 07
-#define BXT_BLD_NUM 1398
+#define BXT_HUC_FW_MINOR 8
+#define BXT_BLD_NUM 2893
 
 #define SKL_HUC_FW_MAJOR 01
 #define SKL_HUC_FW_MINOR 07
