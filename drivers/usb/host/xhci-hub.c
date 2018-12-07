@@ -714,13 +714,6 @@ void xhci_test_and_clear_bit(struct xhci_hcd *xhci, struct xhci_port *port,
 	}
 }
 
-/* Updates Link Status for USB 2.1 port */
-static void xhci_hub_report_usb2_link_state(u32 *status, u32 status_reg)
-{
-	if ((status_reg & PORT_PLS_MASK) == XDEV_U2)
-		*status |= USB_PORT_STAT_L1;
-}
-
 /* Updates Link Status for super Speed port */
 static void xhci_hub_report_usb3_link_state(struct xhci_hcd *xhci,
 		u32 *status, u32 status_reg)
@@ -853,6 +846,25 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 	xhci_del_comp_mod_timer(xhci, portsc, portnum);
 }
 
+static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
+				      u32 portsc)
+{
+	u32 link_state;
+
+	link_state = portsc & PORT_PLS_MASK;
+
+	/* USB2 wPortStatus bits */
+	if (portsc & PORT_POWER) {
+		*status |= USB_PORT_STAT_POWER;
+
+		/* link state is only valid if port is powered */
+		if (link_state == XDEV_U3)
+			*status |= USB_PORT_STAT_SUSPEND;
+		if (link_state == XDEV_U2)
+			*status |= USB_PORT_STAT_L1;
+	}
+}
+
 /*
  * Converts a raw xHCI port status into the format that external USB 2.0 or USB
  * 3.0 hubs use.
@@ -888,14 +900,13 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 	if ((raw_port_status & PORT_RC))
 		status |= USB_PORT_STAT_C_RESET << 16;
-	/* USB3.0 only */
+
+	/* USB2 and USB3 specific bits including Port Link State */
 	if (hcd->speed >= HCD_USB3)
 		xhci_get_usb3_port_status(port, &status, raw_port_status);
-	if (hcd->speed < HCD_USB3) {
-		if ((raw_port_status & PORT_PLS_MASK) == XDEV_U3
-				&& (raw_port_status & PORT_POWER))
-			status |= USB_PORT_STAT_SUSPEND;
-	}
+	else
+		xhci_get_usb2_port_status(port, &status, raw_port_status);
+
 	if ((raw_port_status & PORT_PLS_MASK) == XDEV_RESUME &&
 		!DEV_SUPERSPEED_ANY(raw_port_status) && hcd->speed < HCD_USB3) {
 		if ((raw_port_status & PORT_RESET) ||
@@ -1009,13 +1020,6 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		status |= USB_PORT_STAT_OVERCURRENT;
 	if (raw_port_status & PORT_RESET)
 		status |= USB_PORT_STAT_RESET;
-	if (raw_port_status & PORT_POWER) {
-		if (hcd->speed < HCD_USB3)
-			status |= USB_PORT_STAT_POWER;
-	}
-	/* Update Port Link State */
-	if (hcd->speed < HCD_USB3)
-		xhci_hub_report_usb2_link_state(&status, raw_port_status);
 
 	if (bus_state->port_c_suspend & (1 << wIndex))
 		status |= USB_PORT_STAT_C_SUSPEND << 16;
