@@ -15,6 +15,12 @@
 
 #include <trace/events/erofs.h>
 
+/*
+ * a compressed_pages[] placeholder in order to avoid
+ * being filled with file pages for in-place decompression.
+ */
+#define PAGE_UNALLOCATED     ((void *)0x5F0E4B1D)
+
 static struct workqueue_struct *z_erofs_workqueue __read_mostly;
 static struct kmem_cache *z_erofs_workgroup_cachep __read_mostly;
 
@@ -147,7 +153,7 @@ static bool grab_managed_cache_pages(struct address_space *mapping,
 			noio = false;
 			if (!reserve_allocation)
 				continue;
-			page = EROFS_UNALLOCATED_CACHED_PAGE;
+			page = PAGE_UNALLOCATED;
 		}
 
 		if (!cmpxchg(compressed_pages + i, NULL, page))
@@ -1180,7 +1186,7 @@ repeat:
 #ifdef EROFS_FS_HAS_MANAGED_CACHE
 		cachemngd = false;
 
-		if (page == EROFS_UNALLOCATED_CACHED_PAGE) {
+		if (page == PAGE_UNALLOCATED) {
 			cachemngd = true;
 			goto do_allocpage;
 		} else if (page) {
