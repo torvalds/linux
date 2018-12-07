@@ -26,7 +26,7 @@ void cedrus_device_run(void *priv)
 {
 	struct cedrus_ctx *ctx = priv;
 	struct cedrus_dev *dev = ctx->dev;
-	struct cedrus_run run = { 0 };
+	struct cedrus_run run = {};
 	struct media_request *src_req;
 
 	run.src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
