@@ -199,9 +199,13 @@
 			assigned-clock-parents = <&scg1 IMX7ULP_CLK_SOSC_BUS_CLK>;
 		};
 
-		smc1: smc1@40410000 {
+		smc1: clock-controller@40410000 {
 			compatible = "fsl,imx7ulp-smc1";
 			reg = <0x40410000 0x1000>;
+			#clock-cells = <1>;
+			clocks = <&scg1 IMX7ULP_CLK_CORE_DIV>,
+				 <&scg1 IMX7ULP_CLK_HSRUN_CORE_DIV>;
+			clock-names = "divcore", "hsrun_divcore";
 		};
 
 		pcc3: clock-controller@40b30000 {
