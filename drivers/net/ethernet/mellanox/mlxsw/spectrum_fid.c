@@ -30,6 +30,7 @@ struct mlxsw_sp_fid {
 	struct rhash_head ht_node;
 
 	struct rhash_head vni_ht_node;
+	enum mlxsw_sp_nve_type nve_type;
 	__be32 vni;
 	u32 nve_flood_index;
 	int nve_ifindex;
@@ -151,6 +152,17 @@ int mlxsw_sp_fid_nve_ifindex(const struct mlxsw_sp_fid *fid, int *nve_ifindex)
 	return 0;
 }
 
+int mlxsw_sp_fid_nve_type(const struct mlxsw_sp_fid *fid,
+			  enum mlxsw_sp_nve_type *p_type)
+{
+	if (!fid->vni_valid)
+		return -EINVAL;
+
+	*p_type = fid->nve_type;
+
+	return 0;
+}
+
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_vni(struct mlxsw_sp *mlxsw_sp,
 						__be32 vni)
 {
@@ -211,7 +223,8 @@ bool mlxsw_sp_fid_nve_flood_index_is_set(const struct mlxsw_sp_fid *fid)
 	return fid->nve_flood_index_valid;
 }
 
-int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni, int nve_ifindex)
+int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
+			 __be32 vni, int nve_ifindex)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
@@ -221,6 +234,7 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni, int nve_ifindex)
 	if (WARN_ON(!ops->vni_set || fid->vni_valid))
 		return -EINVAL;
 
+	fid->nve_type = type;
 	fid->nve_ifindex = nve_ifindex;
 	fid->vni = vni;
 	err = rhashtable_lookup_insert_fast(&mlxsw_sp->fid_core->vni_ht,
