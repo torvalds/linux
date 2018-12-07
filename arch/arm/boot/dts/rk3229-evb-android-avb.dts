@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+
+#include "rk3229-evb-android.dtsi"
+
+/ {
+	model = "Rockchip RK3229 Evaluation avb board";
+	compatible = "rockchip,rk3229-evb-avb", "rockchip,rk3229";
+};
+
+&firmware_android {
+	compatible = "android,firmware";
+	boot_devices = "30020000.dwmmc,30030000.nandc";
+	vbmeta {
+		compatible = "android,vbmeta";
+		parts = "vbmeta,boot,system,vendor,dtbo";
+	};
+	fstab {
+		compatible = "android,fstab";
+		vendor {
+			compatible = "android,vendor";
+			dev = "/dev/block/by-name/vendor";
+			type = "ext4";
+			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+			fsmgr_flags = "wait,avb";
+		};
+	};
+};
