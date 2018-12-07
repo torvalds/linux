@@ -189,7 +189,6 @@ static const struct of_device_id omapdss_of_fixups_whitelist[] __initconst = {
 	{ .compatible = "hdmi-connector" },
 	{ .compatible = "lgphilips,lb035q02" },
 	{ .compatible = "nec,nl8048hl11" },
-	{ .compatible = "panel-dpi" },
 	{ .compatible = "panel-dsi-cm" },
 	{ .compatible = "sharp,ls037v7dw01" },
 	{ .compatible = "sony,acx565akm" },

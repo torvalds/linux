@@ -22,12 +22,6 @@ config DRM_OMAP_CONNECTOR_ANALOG_TV
 	help
 	  Driver for a generic analog TV connector.
 
-config DRM_OMAP_PANEL_DPI
-	tristate "Generic DPI panel"
-	depends on BACKLIGHT_CLASS_DEVICE
-	help
-	  Driver for generic DPI panels.
-
 config DRM_OMAP_PANEL_DSI_CM
 	tristate "Generic DSI Command Mode Panel"
 	depends on BACKLIGHT_CLASS_DEVICE
