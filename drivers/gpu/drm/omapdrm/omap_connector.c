@@ -17,6 +17,7 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 
 #include "omap_drv.h"
@@ -211,6 +212,7 @@ no_edid:
 
 static int omap_connector_get_modes(struct drm_connector *connector)
 {
+	struct omap_connector *omap_connector = to_omap_connector(connector);
 	struct omap_dss_device *dssdev;
 
 	DBG("%s", connector->name);
@@ -232,6 +234,13 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 					    OMAP_DSS_DEVICE_OP_MODES);
 	if (dssdev)
 		return dssdev->ops->get_modes(dssdev, connector);
+
+	/*
+	 * Otherwise if the display pipeline uses a drm_panel, we delegate the
+	 * operation to the panel API.
+	 */
+	if (omap_connector->output->panel)
+		return drm_panel_get_modes(omap_connector->output->panel);
 
 	/*
 	 * We can't retrieve modes, which can happen for instance for a DVI or

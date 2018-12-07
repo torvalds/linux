@@ -20,6 +20,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_panel.h>
 
 #include "omap_drv.h"
 
@@ -79,22 +80,15 @@ static void omap_encoder_update_videomode_flags(struct videomode *vm,
 	}
 }
 
-static void omap_encoder_hdmi_mode_set(struct drm_encoder *encoder,
+static void omap_encoder_hdmi_mode_set(struct drm_connector *connector,
+				       struct drm_encoder *encoder,
 				       struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *dssdev = omap_encoder->output;
-	struct drm_connector *connector;
 	bool hdmi_mode;
 
-	hdmi_mode = false;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			hdmi_mode = omap_connector_get_hdmi_mode(connector);
-			break;
-		}
-	}
+	hdmi_mode = omap_connector_get_hdmi_mode(connector);
 
 	if (dssdev->ops->hdmi.set_hdmi_mode)
 		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
@@ -117,8 +111,16 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
 	struct omap_dss_device *output = omap_encoder->output;
 	struct omap_dss_device *dssdev;
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
 	struct drm_bridge *bridge;
 	struct videomode vm = { 0 };
+	u32 bus_flags;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			break;
+	}
 
 	drm_display_mode_to_videomode(adjusted_mode, &vm);
 
@@ -135,14 +137,15 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 		omap_encoder_update_videomode_flags(&vm, dssdev->bus_flags);
 
 	for (bridge = output->bridge; bridge; bridge = bridge->next) {
-		u32 bus_flags;
-
 		if (!bridge->timings)
 			continue;
 
 		bus_flags = bridge->timings->input_bus_flags;
 		omap_encoder_update_videomode_flags(&vm, bus_flags);
 	}
+
+	bus_flags = connector->display_info.bus_flags;
+	omap_encoder_update_videomode_flags(&vm, bus_flags);
 
 	/* Set timings for all devices in the display pipeline. */
 	dss_mgr_set_timings(output, &vm);
@@ -154,7 +157,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 
 	/* Set the HDMI mode and HDMI infoframe if applicable. */
 	if (output->type == OMAP_DISPLAY_TYPE_HDMI)
-		omap_encoder_hdmi_mode_set(encoder, adjusted_mode);
+		omap_encoder_hdmi_mode_set(connector, encoder, adjusted_mode);
 }
 
 static void omap_encoder_disable(struct drm_encoder *encoder)
@@ -164,6 +167,12 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 
 	dev_dbg(dev->dev, "disable(%s)\n", dssdev->name);
+
+	/* Disable the panel if present. */
+	if (dssdev->panel) {
+		drm_panel_disable(dssdev->panel);
+		drm_panel_unprepare(dssdev->panel);
+	}
 
 	/*
 	 * Disable the chain of external devices, starting at the one at the
@@ -214,6 +223,12 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 	 * internal encoder's output.
 	 */
 	omapdss_device_enable(dssdev->next);
+
+	/* Enable the panel if present. */
+	if (dssdev->panel) {
+		drm_panel_prepare(dssdev->panel);
+		drm_panel_enable(dssdev->panel);
+	}
 }
 
 static int omap_encoder_atomic_check(struct drm_encoder *encoder,

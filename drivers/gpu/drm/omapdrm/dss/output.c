@@ -22,6 +22,8 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 
+#include <drm/drm_panel.h>
+
 #include "dss.h"
 #include "omapdss.h"
 
@@ -37,6 +39,9 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 
 	out->next = omapdss_find_device_by_node(remote_node);
 	out->bridge = of_drm_find_bridge(remote_node);
+	out->panel = of_drm_find_panel(remote_node);
+	if (IS_ERR(out->panel))
+		out->panel = NULL;
 
 	of_node_put(remote_node);
 
@@ -47,7 +52,7 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 		return -EINVAL;
 	}
 
-	return out->next || out->bridge ? 0 : -EPROBE_DEFER;
+	return out->next || out->bridge || out->panel ? 0 : -EPROBE_DEFER;
 }
 EXPORT_SYMBOL(omapdss_device_init_output);
 
