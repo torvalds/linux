@@ -3186,7 +3186,7 @@ err_addr_alloc:
 	return NOTIFY_BAD;
 }
 
-static struct notifier_block mlxsw_sp_switchdev_notifier = {
+struct notifier_block mlxsw_sp_switchdev_notifier = {
 	.notifier_call = mlxsw_sp_switchdev_event,
 };
 

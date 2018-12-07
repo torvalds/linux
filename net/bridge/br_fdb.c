@@ -1164,3 +1164,23 @@ void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
 
 	spin_unlock_bh(&br->hash_lock);
 }
+
+void br_fdb_clear_offload(const struct net_device *dev, u16 vid)
+{
+	struct net_bridge_fdb_entry *f;
+	struct net_bridge_port *p;
+
+	ASSERT_RTNL();
+
+	p = br_port_get_rtnl(dev);
+	if (!p)
+		return;
+
+	spin_lock_bh(&p->br->hash_lock);
+	hlist_for_each_entry(f, &p->br->fdb_list, fdb_node) {
+		if (f->dst == p && f->key.vlan_id == vid)
+			f->offloaded = 0;
+	}
+	spin_unlock_bh(&p->br->hash_lock);
+}
+EXPORT_SYMBOL_GPL(br_fdb_clear_offload);
