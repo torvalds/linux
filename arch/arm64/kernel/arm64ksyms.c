@@ -30,9 +30,6 @@
 
 #include <asm/checksum.h>
 
-EXPORT_SYMBOL(copy_page);
-EXPORT_SYMBOL(clear_page);
-
 	/* user mem (segment) */
 EXPORT_SYMBOL(__arch_copy_from_user);
 EXPORT_SYMBOL(__arch_copy_to_user);
