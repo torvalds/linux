@@ -1225,15 +1225,10 @@ void rtl88eu_phy_iq_calibrate(struct adapter *adapt, bool recovery)
 		return;
 	}
 
-	for (i = 0; i < 8; i++) {
-		result[0][i] = 0;
-		result[1][i] = 0;
-		result[2][i] = 0;
-		if ((i == 0) || (i == 2) || (i == 4)  || (i == 6))
-			result[3][i] = 0x100;
-		else
-			result[3][i] = 0;
-	}
+	memset(result, 0, sizeof(result));
+	for (i = 0; i < 8; i += 2)
+		result[3][i] = 0x100;
+
 	final = 0xff;
 	pathaok = false;
 	pathbok = false;
