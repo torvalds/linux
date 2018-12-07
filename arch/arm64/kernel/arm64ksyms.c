@@ -28,8 +28,3 @@
 
 #include <asm/checksum.h>
 
-#ifdef CONFIG_FUNCTION_TRACER
-EXPORT_SYMBOL(_mcount);
-NOKPROBE_SYMBOL(_mcount);
-#endif
-
