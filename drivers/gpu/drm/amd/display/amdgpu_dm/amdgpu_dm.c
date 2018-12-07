@@ -3240,6 +3240,10 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 
 	new_state->freesync_capable = state->freesync_capable;
 	new_state->abm_level = state->abm_level;
+	new_state->scaling = state->scaling;
+	new_state->underscan_enable = state->underscan_enable;
+	new_state->underscan_hborder = state->underscan_hborder;
+	new_state->underscan_vborder = state->underscan_vborder;
 	new_state->max_bpc = state->max_bpc;
 
 	return &new_state->base;
