@@ -2200,12 +2200,13 @@ static void hclge_service_complete(struct hclge_dev *hdev)
 
 static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 {
-	u32 rst_src_reg;
-	u32 cmdq_src_reg;
+	u32 rst_src_reg, cmdq_src_reg, msix_src_reg;
 
 	/* fetch the events from their corresponding regs */
 	rst_src_reg = hclge_read_dev(&hdev->hw, HCLGE_MISC_VECTOR_INT_STS);
 	cmdq_src_reg = hclge_read_dev(&hdev->hw, HCLGE_VECTOR0_CMDQ_SRC_REG);
+	msix_src_reg = hclge_read_dev(&hdev->hw,
+				      HCLGE_VECTOR0_PF_OTHER_INT_STS_REG);
 
 	/* Assumption: If by any chance reset and mailbox events are reported
 	 * together then we will only process reset event in this go and will
@@ -2238,6 +2239,10 @@ static u32 hclge_check_event_cause(struct hclge_dev *hdev, u32 *clearval)
 		*clearval = BIT(HCLGE_VECTOR0_CORERESET_INT_B);
 		return HCLGE_VECTOR0_EVENT_RST;
 	}
+
+	/* check for vector0 msix event source */
+	if (msix_src_reg & HCLGE_VECTOR0_REG_MSIX_MASK)
+		return HCLGE_VECTOR0_EVENT_ERR;
 
 	/* check for vector0 mailbox(=CMDQ RX) event source */
 	if (BIT(HCLGE_VECTOR0_RX_CMDQ_INT_B) & cmdq_src_reg) {
@@ -2289,6 +2294,19 @@ static irqreturn_t hclge_misc_irq_handle(int irq, void *data)
 
 	/* vector 0 interrupt is shared with reset and mailbox source events.*/
 	switch (event_cause) {
+	case HCLGE_VECTOR0_EVENT_ERR:
+		/* we do not know what type of reset is required now. This could
+		 * only be decided after we fetch the type of errors which
+		 * caused this event. Therefore, we will do below for now:
+		 * 1. Assert HNAE3_UNKNOWN_RESET type of reset. This means we
+		 *    have defered type of reset to be used.
+		 * 2. Schedule the reset serivce task.
+		 * 3. When service task receives  HNAE3_UNKNOWN_RESET type it
+		 *    will fetch the correct type of reset.  This would be done
+		 *    by first decoding the types of errors.
+		 */
+		set_bit(HNAE3_UNKNOWN_RESET, &hdev->reset_request);
+		/* fall through */
 	case HCLGE_VECTOR0_EVENT_RST:
 		hclge_reset_task_schedule(hdev);
 		break;
@@ -2592,6 +2610,23 @@ static enum hnae3_reset_type hclge_get_reset_level(struct hclge_dev *hdev,
 						   unsigned long *addr)
 {
 	enum hnae3_reset_type rst_level = HNAE3_NONE_RESET;
+
+	/* first, resolve any unknown reset type to the known type(s) */
+	if (test_bit(HNAE3_UNKNOWN_RESET, addr)) {
+		/* we will intentionally ignore any errors from this function
+		 *  as we will end up in *some* reset request in any case
+		 */
+		hclge_handle_hw_msix_error(hdev, addr);
+		clear_bit(HNAE3_UNKNOWN_RESET, addr);
+		/* We defered the clearing of the error event which caused
+		 * interrupt since it was not posssible to do that in
+		 * interrupt context (and this is the reason we introduced
+		 * new UNKNOWN reset type). Now, the errors have been
+		 * handled and cleared in hardware we can safely enable
+		 * interrupts. This is an exception to the norm.
+		 */
+		hclge_enable_vector(&hdev->misc_vector, true);
+	}
 
 	/* return the highest priority reset level amongst all */
 	if (test_bit(HNAE3_IMP_RESET, addr)) {
@@ -7269,7 +7304,7 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 	ret = hclge_hw_error_set_state(hdev, true);
 	if (ret) {
 		dev_err(&pdev->dev,
-			"hw error interrupts enable failed, ret =%d\n", ret);
+			"fail(%d) to enable hw error interrupts\n", ret);
 		goto err_mdiobus_unreg;
 	}
 
@@ -7405,11 +7440,15 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	/* Re-enable the TM hw error interrupts because
-	 * they get disabled on core/global reset.
+	/* Re-enable the hw error interrupts because
+	 * the interrupts get disabled on core/global reset.
 	 */
-	if (hclge_enable_tm_hw_error(hdev, true))
-		dev_err(&pdev->dev, "failed to enable TM hw error interrupts\n");
+	ret = hclge_hw_error_set_state(hdev, true);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"fail(%d) to re-enable HNS hw error interrupts\n", ret);
+		return ret;
+	}
 
 	hclge_reset_vport_state(hdev);
 
@@ -7931,7 +7970,7 @@ static const struct hnae3_ae_ops hclge_ops = {
 	.restore_fd_rules = hclge_restore_fd_entries,
 	.enable_fd = hclge_enable_fd,
 	.dbg_run_cmd = hclge_dbg_run_cmd,
-	.process_hw_error = hclge_process_ras_hw_error,
+	.handle_hw_ras_error = hclge_handle_hw_ras_error,
 	.get_hw_reset_stat = hclge_get_hw_reset_stat,
 	.ae_dev_resetting = hclge_ae_dev_resetting,
 	.ae_dev_reset_cnt = hclge_ae_dev_reset_cnt,
