@@ -121,7 +121,7 @@ static void alcor_reset(struct alcor_sdmmc_host *host, u8 val)
 static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
-	u32 addr, len;
+	u32 addr;
 
 	if (!host->sg_count)
 		return;
@@ -138,7 +138,6 @@ static void alcor_data_set_dma(struct alcor_sdmmc_host *host)
 
 
 	addr = (u32)sg_dma_address(host->sg);
-	len = sg_dma_len(host->sg);
 
 	alcor_write32(priv, addr, AU6601_REG_SDMA_ADDR);
 	host->sg = sg_next(host->sg);
@@ -645,7 +644,6 @@ alcor_irq_done:
 static void alcor_set_clock(struct alcor_sdmmc_host *host, unsigned int clock)
 {
 	struct alcor_pci_priv *priv = host->alcor_pci;
-	unsigned int clock_out = 0;
 	int i, diff = 0x7fffffff, tmp_clock = 0;
 	u16 clk_src = 0;
 	u8 clk_div = 0;
@@ -670,7 +668,6 @@ static void alcor_set_clock(struct alcor_sdmmc_host *host, unsigned int clock)
 			diff = tmp_diff;
 			clk_src = cfg->clk_src_reg;
 			clk_div = tmp_div;
-			clock_out = tmp_clock;
 		}
 	}
 
