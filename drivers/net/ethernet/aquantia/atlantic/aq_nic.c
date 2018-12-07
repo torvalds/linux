@@ -84,8 +84,6 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->is_lro = AQ_CFG_IS_LRO_DEF;
 
-	aq_nic_rss_init(self, cfg->num_rss_queues);
-
 	/*descriptors */
 	cfg->rxds = min(cfg->aq_hw_caps->rxds_max, AQ_CFG_RXDS_DEF);
 	cfg->txds = min(cfg->aq_hw_caps->txds_max, AQ_CFG_TXDS_DEF);
@@ -105,6 +103,8 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 		cfg->vecs = 1U;
 
 	cfg->num_rss_queues = min(cfg->vecs, AQ_CFG_NUM_RSS_QUEUES_DEF);
+
+	aq_nic_rss_init(self, cfg->num_rss_queues);
 
 	cfg->irq_type = aq_pci_func_get_irq_type(self);
 
