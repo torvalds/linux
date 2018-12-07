@@ -1423,8 +1423,6 @@ static int gen8_ppgtt_alloc_pdp(struct i915_address_space *vm,
 			gen8_initialize_pd(vm, pd);
 			gen8_ppgtt_set_pdpe(vm, pdp, pd, pdpe);
 			GEM_BUG_ON(pdp->used_pdpes > i915_pdpes_per_pdp(vm));
-
-			mark_tlbs_dirty(i915_vm_to_ppgtt(vm));
 		}
 
 		ret = gen8_ppgtt_alloc_pd(vm, pd, start, length);
