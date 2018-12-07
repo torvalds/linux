@@ -42,6 +42,7 @@ struct mlxsw_sp_nve_ops {
 		    const struct mlxsw_sp_nve_config *config);
 	void (*fini)(struct mlxsw_sp_nve *nve);
 	int (*fdb_replay)(const struct net_device *nve_dev, __be32 vni);
+	void (*fdb_clear_offload)(const struct net_device *nve_dev, __be32 vni);
 };
 
 extern const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops;
