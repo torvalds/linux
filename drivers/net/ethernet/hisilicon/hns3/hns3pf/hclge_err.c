@@ -210,6 +210,18 @@ static const struct hclge_hw_error hclge_qcn_ecc_rint[] = {
 	{ /* sentinel */ }
 };
 
+static const struct hclge_hw_error hclge_mac_afifo_tnl_int[] = {
+	{ .int_msk = BIT(0), .msg = "egu_cge_afifo_ecc_1bit_err" },
+	{ .int_msk = BIT(1), .msg = "egu_cge_afifo_ecc_mbit_err" },
+	{ .int_msk = BIT(2), .msg = "egu_lge_afifo_ecc_1bit_err" },
+	{ .int_msk = BIT(3), .msg = "egu_lge_afifo_ecc_mbit_err" },
+	{ .int_msk = BIT(4), .msg = "cge_igu_afifo_ecc_1bit_err" },
+	{ .int_msk = BIT(5), .msg = "cge_igu_afifo_ecc_mbit_err" },
+	{ .int_msk = BIT(6), .msg = "lge_igu_afifo_ecc_1bit_err" },
+	{ .int_msk = BIT(7), .msg = "lge_igu_afifo_ecc_mbit_err" },
+	{ /* sentinel */ }
+};
+
 static void hclge_log_error(struct device *dev, char *reg,
 			    const struct hclge_hw_error *err,
 			    u32 err_sts)
@@ -452,6 +464,27 @@ static int hclge_config_tm_hw_err_int(struct hclge_dev *hdev, bool en)
 	return ret;
 }
 
+static int hclge_config_mac_err_int(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc;
+	int ret;
+
+	/* configure MAC common error interrupts */
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_MAC_COMMON_INT_EN, false);
+	if (en)
+		desc.data[0] = cpu_to_le32(HCLGE_MAC_COMMON_ERR_INT_EN);
+
+	desc.data[1] = cpu_to_le32(HCLGE_MAC_COMMON_ERR_INT_EN_MASK);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(dev,
+			"fail(%d) to configure MAC COMMON error intr\n", ret);
+
+	return ret;
+}
+
 #define HCLGE_SET_DEFAULT_RESET_REQUEST(reset_type) \
 	do { \
 		if (ae_dev->ops->set_default_reset_request) \
@@ -688,6 +721,10 @@ static const struct hclge_hw_blk hw_blk[] = {
 	  .msk = BIT(5), .name = "COMMON",
 	  .config_err_int = hclge_config_common_hw_err_int,
 	},
+	{
+	  .msk = BIT(8), .name = "MAC",
+	  .config_err_int = hclge_config_mac_err_int,
+	},
 	{ /* sentinel */ }
 };
 
@@ -735,7 +772,9 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 	u32 mpf_bd_num, pf_bd_num, bd_num;
 	struct hclge_desc desc_bd;
 	struct hclge_desc *desc;
+	__le32 *desc_data;
 	int ret = 0;
+	u32 status;
 
 	/* set default handling */
 	set_bit(HNAE3_FUNC_RESET, reset_requests);
@@ -772,6 +811,15 @@ int hclge_handle_hw_msix_error(struct hclge_dev *hdev,
 		/* reset everything for now */
 		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 		goto msi_error;
+	}
+
+	/* log MAC errors */
+	desc_data = (__le32 *)&desc[1];
+	status = le32_to_cpu(*desc_data);
+	if (status) {
+		hclge_log_error(dev, "MAC_AFIFO_TNL_INT_R",
+				&hclge_mac_afifo_tnl_int[0], status);
+		set_bit(HNAE3_GLOBAL_RESET, reset_requests);
 	}
 
 	/* clear all main PF MSIx errors */
