@@ -2720,6 +2720,9 @@ static unsigned int pqi_process_io_intr(struct pqi_ctrl_info *ctrl_info,
 		switch (response->header.iu_type) {
 		case PQI_RESPONSE_IU_RAID_PATH_IO_SUCCESS:
 		case PQI_RESPONSE_IU_AIO_PATH_IO_SUCCESS:
+			if (io_request->scmd)
+				io_request->scmd->result = 0;
+			/* fall through */
 		case PQI_RESPONSE_IU_GENERAL_MANAGEMENT:
 			break;
 		case PQI_RESPONSE_IU_TASK_MANAGEMENT:
