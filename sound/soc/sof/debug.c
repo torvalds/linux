@@ -12,6 +12,7 @@
 //
 
 #include <linux/debugfs.h>
+#include <linux/io.h>
 #include <linux/pm_runtime.h>
 #include "sof-priv.h"
 
