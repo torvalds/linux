@@ -48,6 +48,7 @@ enum {
 	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_UC = 1 << 6,
 	MLX5_QP_FLAG_TIR_ALLOW_SELF_LB_MC = 1 << 7,
 	MLX5_QP_FLAG_ALLOW_SCATTER_CQE	= 1 << 8,
+	MLX5_QP_FLAG_PACKET_BASED_CREDIT_MODE	= 1 << 9,
 };
 
 enum {
@@ -236,6 +237,7 @@ enum mlx5_ib_query_dev_resp_flags {
 	/* Support 128B CQE compression */
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_COMP = 1 << 0,
 	MLX5_IB_QUERY_DEV_RESP_FLAGS_CQE_128B_PAD  = 1 << 1,
+	MLX5_IB_QUERY_DEV_RESP_PACKET_BASED_CREDIT_MODE = 1 << 2,
 };
 
 enum mlx5_ib_tunnel_offloads {
