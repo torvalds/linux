@@ -69,6 +69,36 @@ static struct key *nvdimm_request_key(struct nvdimm *nvdimm)
 	return key;
 }
 
+static struct key *nvdimm_lookup_user_key(struct nvdimm *nvdimm,
+		key_serial_t id)
+{
+	key_ref_t keyref;
+	struct key *key;
+	struct encrypted_key_payload *epayload;
+	struct device *dev = &nvdimm->dev;
+
+	keyref = lookup_user_key(id, 0, 0);
+	if (IS_ERR(keyref))
+		return NULL;
+
+	key = key_ref_to_ptr(keyref);
+	if (key->type != &key_type_encrypted) {
+		key_put(key);
+		return NULL;
+	}
+	dev_dbg(dev, "%s: key found: %#x\n", __func__, key_serial(key));
+
+
+	down_read(&key->sem);
+	epayload = dereference_key_locked(key);
+	if (epayload->decrypted_datalen != NVDIMM_PASSPHRASE_LEN) {
+		up_read(&key->sem);
+		key_put(key);
+		key = NULL;
+	}
+	return key;
+}
+
 static struct key *nvdimm_key_revalidate(struct nvdimm *nvdimm)
 {
 	struct key *key;
@@ -144,5 +174,38 @@ int nvdimm_security_unlock(struct device *dev)
 	nvdimm_bus_lock(dev);
 	rc = __nvdimm_security_unlock(nvdimm);
 	nvdimm_bus_unlock(dev);
+	return rc;
+}
+
+int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
+{
+	struct device *dev = &nvdimm->dev;
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct key *key;
+	int rc;
+
+	/* The bus lock should be held at the top level of the call stack */
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+
+	if (!nvdimm->sec.ops || !nvdimm->sec.ops->disable
+			|| nvdimm->sec.state < 0)
+		return -EOPNOTSUPP;
+
+	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
+		dev_warn(dev, "Incorrect security state: %d\n",
+				nvdimm->sec.state);
+		return -EIO;
+	}
+
+	key = nvdimm_lookup_user_key(nvdimm, keyid);
+	if (!key)
+		return -ENOKEY;
+
+	rc = nvdimm->sec.ops->disable(nvdimm, key_data(key));
+	dev_dbg(dev, "key: %d disable: %s\n", key_serial(key),
+			rc == 0 ? "success" : "fail");
+
+	nvdimm_put_key(key);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm);
 	return rc;
 }

@@ -391,24 +391,65 @@ static ssize_t security_show(struct device *dev,
 	return -ENOTTY;
 }
 
+#define OPS						\
+	C( OP_FREEZE,        "freeze",        1),	\
+	C( OP_DISABLE,       "disable",       2)
+#undef C
+#define C(a, b, c) a
+enum nvdimmsec_op_ids { OPS };
+#undef C
+#define C(a, b, c) { b, c }
+static struct {
+	const char *name;
+	int args;
+} ops[] = { OPS };
+#undef C
+
+#define SEC_CMD_SIZE 32
+#define KEY_ID_SIZE 10
+
 static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
 {
 	struct nvdimm *nvdimm = to_nvdimm(dev);
 	ssize_t rc;
+	char cmd[SEC_CMD_SIZE+1], keystr[KEY_ID_SIZE+1],
+		nkeystr[KEY_ID_SIZE+1];
+	unsigned int key, newkey;
+	int i;
 
 	if (atomic_read(&nvdimm->busy))
 		return -EBUSY;
 
-	if (sysfs_streq(buf, "freeze")) {
+	rc = sscanf(buf, "%"__stringify(SEC_CMD_SIZE)"s"
+			" %"__stringify(KEY_ID_SIZE)"s"
+			" %"__stringify(KEY_ID_SIZE)"s",
+			cmd, keystr, nkeystr);
+	if (rc < 1)
+		return -EINVAL;
+	for (i = 0; i < ARRAY_SIZE(ops); i++)
+		if (sysfs_streq(cmd, ops[i].name))
+			break;
+	if (i >= ARRAY_SIZE(ops))
+		return -EINVAL;
+	if (ops[i].args > 1)
+		rc = kstrtouint(keystr, 0, &key);
+	if (rc >= 0 && ops[i].args > 2)
+		rc = kstrtouint(nkeystr, 0, &newkey);
+	if (rc < 0)
+		return rc;
+
+	if (i == OP_FREEZE) {
 		dev_dbg(dev, "freeze\n");
 		rc = nvdimm_security_freeze(nvdimm);
+	} else if (i == OP_DISABLE) {
+		dev_dbg(dev, "disable %u\n", key);
+		rc = nvdimm_security_disable(nvdimm, key);
 	} else
 		return -EINVAL;
 
 	if (rc == 0)
 		rc = len;
 	return rc;
-
 }
 
 static ssize_t security_store(struct device *dev,
@@ -452,7 +493,7 @@ static umode_t nvdimm_visible(struct kobject *kobj, struct attribute *a, int n)
 	if (nvdimm->sec.state < 0)
 		return 0;
 	/* Are there any state mutation ops? */
-	if (nvdimm->sec.ops->freeze)
+	if (nvdimm->sec.ops->freeze || nvdimm->sec.ops->disable)
 		return a->mode;
 	return 0444;
 }
