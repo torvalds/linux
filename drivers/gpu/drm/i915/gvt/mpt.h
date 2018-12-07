@@ -50,11 +50,10 @@
  * Zero on success, negative error code if failed
  */
 static inline int intel_gvt_hypervisor_host_init(struct device *dev,
-			void *gvt, const void *ops)
+						 void *gvt, const void *ops)
 {
-	/* optional to provide */
 	if (!intel_gvt_host.mpt->host_init)
-		return 0;
+		return -ENODEV;
 
 	return intel_gvt_host.mpt->host_init(dev, gvt, ops);
 }
