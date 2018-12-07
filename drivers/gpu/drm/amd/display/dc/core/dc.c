@@ -1570,9 +1570,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		}
 	}
 
-	if (update_type == UPDATE_TYPE_FULL)
-		context_timing_trace(dc, &context->res_ctx);
-
 	// Update Type FAST, Surface updates
 	if (update_type == UPDATE_TYPE_FAST) {
 		/* Lock the top pipe while updating plane addrs, since freesync requires
