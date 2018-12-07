@@ -1126,6 +1126,8 @@ enum pqi_ctrl_mode {
 #define BMIC_SENSE_SUBSYSTEM_INFORMATION	0x66
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
 #define BMIC_FLUSH_CACHE			0xc2
+#define BMIC_SET_DIAG_OPTIONS			0xf4
+#define BMIC_SENSE_DIAG_OPTIONS			0xf5
 
 #define SA_FLUSH_CACHE				0x1
 
@@ -1248,6 +1250,10 @@ enum bmic_flush_cache_shutdown_event {
 	HIBERNATE = 2,
 	SUSPEND = 3,
 	RESTART = 4
+};
+
+struct bmic_diag_options {
+	__le32 options;
 };
 
 #pragma pack()

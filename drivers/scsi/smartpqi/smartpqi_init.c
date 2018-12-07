@@ -395,6 +395,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 	u16 vpd_page, enum dma_data_direction *dir)
 {
 	u8 *cdb;
+	size_t cdb_length = buffer_length;
 
 	memset(request, 0, sizeof(*request));
 
@@ -417,7 +418,7 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 			cdb[1] = 0x1;
 			cdb[2] = (u8)vpd_page;
 		}
-		cdb[4] = (u8)buffer_length;
+		cdb[4] = (u8)cdb_length;
 		break;
 	case CISS_REPORT_LOG:
 	case CISS_REPORT_PHYS:
@@ -427,32 +428,36 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 			cdb[1] = CISS_REPORT_PHYS_EXTENDED;
 		else
 			cdb[1] = CISS_REPORT_LOG_EXTENDED;
-		put_unaligned_be32(buffer_length, &cdb[6]);
+		put_unaligned_be32(cdb_length, &cdb[6]);
 		break;
 	case CISS_GET_RAID_MAP:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = CISS_READ;
 		cdb[1] = CISS_GET_RAID_MAP;
-		put_unaligned_be32(buffer_length, &cdb[6]);
+		put_unaligned_be32(cdb_length, &cdb[6]);
 		break;
 	case SA_FLUSH_CACHE:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
 		cdb[6] = BMIC_FLUSH_CACHE;
-		put_unaligned_be16(buffer_length, &cdb[7]);
+		put_unaligned_be16(cdb_length, &cdb[7]);
 		break;
+	case BMIC_SENSE_DIAG_OPTIONS:
+		cdb_length = 0;
 	case BMIC_IDENTIFY_CONTROLLER:
 	case BMIC_IDENTIFY_PHYSICAL_DEVICE:
 		request->data_direction = SOP_READ_FLAG;
 		cdb[0] = BMIC_READ;
 		cdb[6] = cmd;
-		put_unaligned_be16(buffer_length, &cdb[7]);
+		put_unaligned_be16(cdb_length, &cdb[7]);
 		break;
+	case BMIC_SET_DIAG_OPTIONS:
+		cdb_length = 0;
 	case BMIC_WRITE_HOST_WELLNESS:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
 		cdb[6] = cmd;
-		put_unaligned_be16(buffer_length, &cdb[7]);
+		put_unaligned_be16(cdb_length, &cdb[7]);
 		break;
 	default:
 		dev_err(&ctrl_info->pci_dev->dev, "unknown command 0x%c\n",
@@ -614,6 +619,54 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
 	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
 out:
 	kfree(flush_cache);
+
+	return rc;
+}
+
+
+#define PQI_FETCH_PTRAID_DATA (1UL<<31)
+
+static int pqi_set_diag_rescan(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc;
+	struct pqi_raid_path_request request;
+	struct bmic_diag_options *diag;
+	enum dma_data_direction pci_direction;
+
+	diag = kzalloc(sizeof(*diag), GFP_KERNEL);
+	if (!diag)
+		return -ENOMEM;
+
+	rc = pqi_build_raid_path_request(ctrl_info, &request,
+		BMIC_SENSE_DIAG_OPTIONS, RAID_CTLR_LUNID, diag,
+		sizeof(*diag), 0, &pci_direction);
+	if (rc)
+		goto out;
+
+	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
+		0, NULL, NO_TIMEOUT);
+
+	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1,
+		pci_direction);
+
+	if (rc)
+		goto out;
+
+	diag->options |= cpu_to_le32(PQI_FETCH_PTRAID_DATA);
+
+	rc = pqi_build_raid_path_request(ctrl_info, &request,
+		BMIC_SET_DIAG_OPTIONS, RAID_CTLR_LUNID, diag,
+		sizeof(*diag), 0, &pci_direction);
+	if (rc)
+		goto out;
+
+	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header,
+		0, NULL, NO_TIMEOUT);
+
+	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1,
+		pci_direction);
+out:
+	kfree(diag);
 
 	return rc;
 }
@@ -6476,6 +6529,13 @@ static int pqi_ctrl_init(struct pqi_ctrl_info *ctrl_info)
 		return rc;
 	}
 
+	rc = pqi_set_diag_rescan(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error enabling multi-lun rescan\n");
+		return rc;
+	}
+
 	rc = pqi_write_driver_version_to_host_wellness(ctrl_info);
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
@@ -6579,6 +6639,13 @@ static int pqi_ctrl_init_resume(struct pqi_ctrl_info *ctrl_info)
 	if (rc) {
 		dev_err(&ctrl_info->pci_dev->dev,
 			"error enabling events\n");
+		return rc;
+	}
+
+	rc = pqi_set_diag_rescan(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"error enabling multi-lun rescan\n");
 		return rc;
 	}
 
