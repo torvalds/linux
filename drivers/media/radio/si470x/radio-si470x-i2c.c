@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 
 #include "radio-si470x.h"
@@ -392,6 +393,17 @@ static int si470x_i2c_probe(struct i2c_client *client,
 	radio->videodev.release = video_device_release_empty;
 	video_set_drvdata(&radio->videodev, radio);
 
+	radio->gpio_reset = devm_gpiod_get_optional(&client->dev, "reset",
+						    GPIOD_OUT_LOW);
+	if (IS_ERR(radio->gpio_reset)) {
+		retval = PTR_ERR(radio->gpio_reset);
+		dev_err(&client->dev, "Failed to request gpio: %d\n", retval);
+		goto err_all;
+	}
+
+	if (radio->gpio_reset)
+		gpiod_set_value(radio->gpio_reset, 1);
+
 	/* power up : need 110ms */
 	radio->registers[POWERCFG] = POWERCFG_ENABLE;
 	if (si470x_set_register(radio, POWERCFG) < 0) {
@@ -477,6 +489,9 @@ static int si470x_i2c_remove(struct i2c_client *client)
 	struct si470x_device *radio = i2c_get_clientdata(client);
 
 	video_unregister_device(&radio->videodev);
+
+	if (radio->gpio_reset)
+		gpiod_set_value(radio->gpio_reset, 0);
 
 	return 0;
 }
