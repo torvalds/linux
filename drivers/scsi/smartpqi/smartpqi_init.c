@@ -1115,29 +1115,11 @@ static int pqi_validate_raid_map(struct pqi_ctrl_info *ctrl_info,
 	char *err_msg;
 	u32 raid_map_size;
 	u32 r5or6_blocks_per_row;
-	unsigned int num_phys_disks;
-	unsigned int num_raid_map_entries;
 
 	raid_map_size = get_unaligned_le32(&raid_map->structure_size);
 
 	if (raid_map_size < offsetof(struct raid_map, disk_data)) {
 		err_msg = "RAID map too small";
-		goto bad_raid_map;
-	}
-
-	if (raid_map_size > sizeof(*raid_map)) {
-		err_msg = "RAID map too large";
-		goto bad_raid_map;
-	}
-
-	num_phys_disks = get_unaligned_le16(&raid_map->layout_map_count) *
-		(get_unaligned_le16(&raid_map->data_disks_per_row) +
-		get_unaligned_le16(&raid_map->metadata_disks_per_row));
-	num_raid_map_entries = num_phys_disks *
-		get_unaligned_le16(&raid_map->row_cnt);
-
-	if (num_raid_map_entries > RAID_MAP_MAX_ENTRIES) {
-		err_msg = "invalid number of map entries in RAID map";
 		goto bad_raid_map;
 	}
 
@@ -1179,27 +1161,45 @@ static int pqi_get_raid_map(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
-	enum dma_data_direction dir;
-	struct pqi_raid_path_request request;
+	u32 raid_map_size;
 	struct raid_map *raid_map;
 
 	raid_map = kmalloc(sizeof(*raid_map), GFP_KERNEL);
 	if (!raid_map)
 		return -ENOMEM;
 
-	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		CISS_GET_RAID_MAP, device->scsi3addr, raid_map,
-		sizeof(*raid_map), 0, &dir);
-	if (rc)
-		goto error;
-
-	rc = pqi_submit_raid_request_synchronous(ctrl_info, &request.header, 0,
-		NULL, NO_TIMEOUT);
-
-	pqi_pci_unmap(ctrl_info->pci_dev, request.sg_descriptors, 1, dir);
+	rc = pqi_send_scsi_raid_request(ctrl_info, CISS_GET_RAID_MAP,
+		device->scsi3addr, raid_map, sizeof(*raid_map),
+		0, NULL, NO_TIMEOUT);
 
 	if (rc)
 		goto error;
+
+	raid_map_size = get_unaligned_le32(&raid_map->structure_size);
+
+	if (raid_map_size > sizeof(*raid_map)) {
+
+		kfree(raid_map);
+
+		raid_map = kmalloc(raid_map_size, GFP_KERNEL);
+		if (!raid_map)
+			return -ENOMEM;
+
+		rc = pqi_send_scsi_raid_request(ctrl_info, CISS_GET_RAID_MAP,
+			device->scsi3addr, raid_map, raid_map_size,
+			0, NULL, NO_TIMEOUT);
+		if (rc)
+			goto error;
+
+		if (get_unaligned_le32(&raid_map->structure_size)
+			!= raid_map_size) {
+			dev_warn(&ctrl_info->pci_dev->dev,
+				"Requested %d bytes, received %d bytes",
+				raid_map_size,
+				get_unaligned_le32(&raid_map->structure_size));
+			goto error;
+		}
+	}
 
 	rc = pqi_validate_raid_map(ctrl_info, device, raid_map);
 	if (rc)
@@ -2458,9 +2458,6 @@ static int pqi_raid_bypass_submit_scsi_cmd(struct pqi_ctrl_info *ctrl_info,
 			total_disks_per_row)) +
 			(map_row * total_disks_per_row) + first_column;
 	}
-
-	if (unlikely(map_index >= RAID_MAP_MAX_ENTRIES))
-		return PQI_RAID_BYPASS_INELIGIBLE;
 
 	aio_handle = raid_map->disk_data[map_index].aio_handle;
 	disk_block = get_unaligned_le64(&raid_map->disk_starting_blk) +
