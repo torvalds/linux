@@ -976,6 +976,8 @@ static void lp_attach(struct parport *port)
 
 static void lp_detach(struct parport *port)
 {
+	int n;
+
 	/* Write this some day. */
 #ifdef CONFIG_LP_CONSOLE
 	if (console_registered == port) {
@@ -983,6 +985,14 @@ static void lp_detach(struct parport *port)
 		console_registered = NULL;
 	}
 #endif /* CONFIG_LP_CONSOLE */
+
+	for (n = 0; n < LP_NO; n++) {
+		if (port_num[n] == port->number) {
+			port_num[n] = -1;
+			device_destroy(lp_class, MKDEV(LP_MAJOR, n));
+			parport_unregister_device(lp_table[n].dev);
+		}
+	}
 }
 
 static struct parport_driver lp_driver = {
@@ -1082,8 +1092,6 @@ static int __init lp_init_module(void)
 
 static void lp_cleanup_module(void)
 {
-	unsigned int offset;
-
 	parport_unregister_driver(&lp_driver);
 
 #ifdef CONFIG_LP_CONSOLE
@@ -1091,13 +1099,6 @@ static void lp_cleanup_module(void)
 #endif
 
 	unregister_chrdev(LP_MAJOR, "lp");
-	for (offset = 0; offset < LP_NO; offset++) {
-		if (lp_table[offset].dev == NULL)
-			continue;
-		port_num[offset] = -1;
-		parport_unregister_device(lp_table[offset].dev);
-		device_destroy(lp_class, MKDEV(LP_MAJOR, offset));
-	}
 	class_destroy(lp_class);
 }
 
