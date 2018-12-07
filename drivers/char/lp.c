@@ -993,6 +993,7 @@ static void lp_detach(struct parport *port)
 	for (n = 0; n < LP_NO; n++) {
 		if (port_num[n] == port->number) {
 			port_num[n] = -1;
+			lp_count--;
 			device_destroy(lp_class, MKDEV(LP_MAJOR, n));
 			parport_unregister_device(lp_table[n].dev);
 		}
