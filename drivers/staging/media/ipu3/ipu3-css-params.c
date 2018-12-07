@@ -364,55 +364,59 @@ static int ipu3_css_osys_calc_frame_and_stripe_params(
 		struct ipu3_css_scaler_info *scaler_luma,
 		struct ipu3_css_scaler_info *scaler_chroma,
 		struct ipu3_css_frame_params frame_params[],
-		struct ipu3_css_stripe_params stripe_params[])
+		struct ipu3_css_stripe_params stripe_params[],
+		unsigned int pipe)
 {
-	u32 input_width = css->rect[IPU3_CSS_RECT_GDC].width;
-	u32 input_height = css->rect[IPU3_CSS_RECT_GDC].height;
-	u32 target_width = css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
-	u32 target_height = css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
-	unsigned int procmode = 0;
 	struct ipu3_css_reso reso;
 	unsigned int output_width, pin, s;
+	u32 input_width, input_height, target_width, target_height;
+	unsigned int procmode = 0;
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
+
+	input_width = css_pipe->rect[IPU3_CSS_RECT_GDC].width;
+	input_height = css_pipe->rect[IPU3_CSS_RECT_GDC].height;
+	target_width = css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
+	target_height = css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
 
 	/* Frame parameters */
 
 	/* Input width for Output System is output width of DVS (with GDC) */
-	reso.input_width = css->rect[IPU3_CSS_RECT_GDC].width;
+	reso.input_width = css_pipe->rect[IPU3_CSS_RECT_GDC].width;
 
 	/* Input height for Output System is output height of DVS (with GDC) */
-	reso.input_height = css->rect[IPU3_CSS_RECT_GDC].height;
+	reso.input_height = css_pipe->rect[IPU3_CSS_RECT_GDC].height;
 
 	reso.input_format =
-		css->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
 
 	reso.pin_width[IMGU_ABI_OSYS_PIN_OUT] =
-		css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
 	reso.pin_height[IMGU_ABI_OSYS_PIN_OUT] =
-		css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
 	reso.pin_stride[IMGU_ABI_OSYS_PIN_OUT] =
-		css->queue[IPU3_CSS_QUEUE_OUT].width_pad;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].width_pad;
 	reso.pin_format[IMGU_ABI_OSYS_PIN_OUT] =
-		css->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].css_fmt->frame_format;
 
 	reso.pin_width[IMGU_ABI_OSYS_PIN_VF] =
-		css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
 	reso.pin_height[IMGU_ABI_OSYS_PIN_VF] =
-		css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
 	reso.pin_stride[IMGU_ABI_OSYS_PIN_VF] =
-		css->queue[IPU3_CSS_QUEUE_VF].width_pad;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].width_pad;
 	reso.pin_format[IMGU_ABI_OSYS_PIN_VF] =
-		css->queue[IPU3_CSS_QUEUE_VF].css_fmt->frame_format;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].css_fmt->frame_format;
 
 	/* Configure the frame parameters for all output pins */
 
 	frame_params[IMGU_ABI_OSYS_PIN_OUT].width =
-		css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
 	frame_params[IMGU_ABI_OSYS_PIN_OUT].height =
-		css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
 	frame_params[IMGU_ABI_OSYS_PIN_VF].width =
-		css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
 	frame_params[IMGU_ABI_OSYS_PIN_VF].height =
-		css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
 	frame_params[IMGU_ABI_OSYS_PIN_VF].crop_top = 0;
 	frame_params[IMGU_ABI_OSYS_PIN_VF].crop_left = 0;
 
@@ -842,16 +846,18 @@ static int ipu3_css_osys_calc_frame_and_stripe_params(
  * This function configures the Output Formatter System, given the number of
  * stripes, scaler luma and chrome parameters
  */
-static int ipu3_css_osys_calc(struct ipu3_css *css, unsigned int stripes,
-			       struct imgu_abi_osys_config *osys,
-			       struct ipu3_css_scaler_info *scaler_luma,
-			       struct ipu3_css_scaler_info *scaler_chroma,
-			       struct imgu_abi_stripes block_stripes[])
+static int ipu3_css_osys_calc(struct ipu3_css *css, unsigned int pipe,
+			      unsigned int stripes,
+			      struct imgu_abi_osys_config *osys,
+			      struct ipu3_css_scaler_info *scaler_luma,
+			      struct ipu3_css_scaler_info *scaler_chroma,
+			      struct imgu_abi_stripes block_stripes[])
 {
 	struct ipu3_css_frame_params frame_params[IMGU_ABI_OSYS_PINS];
 	struct ipu3_css_stripe_params stripe_params[IPU3_UAPI_MAX_STRIPES];
 	struct imgu_abi_osys_formatter_params *param;
 	unsigned int pin, s;
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
 
 	memset(osys, 0, sizeof(*osys));
 
@@ -860,7 +866,7 @@ static int ipu3_css_osys_calc(struct ipu3_css *css, unsigned int stripes,
 						       scaler_luma,
 						       scaler_chroma,
 						       frame_params,
-						       stripe_params))
+						       stripe_params, pipe))
 		return -EINVAL;
 
 	/* Output formatter system parameters */
@@ -1183,19 +1189,20 @@ static int ipu3_css_osys_calc(struct ipu3_css *css, unsigned int stripes,
 		block_stripes[0].height = stripe_params[0].input_height;
 	} else {
 		struct imgu_fw_info *bi =
-				&css->fwp->binary_header[css->current_binary];
-		unsigned int sp_block_width = IPU3_UAPI_ISP_VEC_ELEMS *
-				bi->info.isp.sp.block.block_width;
+			&css->fwp->binary_header[css_pipe->bindex];
+		unsigned int sp_block_width =
+				bi->info.isp.sp.block.block_width *
+				IPU3_UAPI_ISP_VEC_ELEMS;
 
 		block_stripes[0].width = roundup(stripe_params[0].input_width,
 						 sp_block_width);
 		block_stripes[1].offset =
-			rounddown(css->rect[IPU3_CSS_RECT_GDC].width -
+			rounddown(css_pipe->rect[IPU3_CSS_RECT_GDC].width -
 				  stripe_params[1].input_width, sp_block_width);
 		block_stripes[1].width =
-			roundup(css->rect[IPU3_CSS_RECT_GDC].width -
+			roundup(css_pipe->rect[IPU3_CSS_RECT_GDC].width -
 				block_stripes[1].offset, sp_block_width);
-		block_stripes[0].height = css->rect[IPU3_CSS_RECT_GDC].height;
+		block_stripes[0].height = css_pipe->rect[IPU3_CSS_RECT_GDC].height;
 		block_stripes[1].height = block_stripes[0].height;
 	}
 
@@ -1625,15 +1632,17 @@ ipu3_css_acc_process_lines(const struct process_lines *pl,
 	return 0;
 }
 
-static int ipu3_css_af_ops_calc(struct ipu3_css *css,
+static int ipu3_css_af_ops_calc(struct ipu3_css *css, unsigned int pipe,
 				struct imgu_abi_af_config *af_config)
 {
 	struct imgu_abi_af_intra_frame_operations_data *to =
 		&af_config->operations_data;
-	struct imgu_fw_info *bi = &css->fwp->binary_header[css->current_binary];
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
+	struct imgu_fw_info *bi =
+		&css->fwp->binary_header[css_pipe->bindex];
 
 	struct process_lines pl = {
-		.image_height = css->rect[IPU3_CSS_RECT_BDS].height,
+		.image_height = css_pipe->rect[IPU3_CSS_RECT_BDS].height,
 		.grid_height = af_config->config.grid_cfg.height,
 		.block_height =
 			1 << af_config->config.grid_cfg.block_height_log2,
@@ -1651,14 +1660,16 @@ static int ipu3_css_af_ops_calc(struct ipu3_css *css,
 }
 
 static int
-ipu3_css_awb_fr_ops_calc(struct ipu3_css *css,
+ipu3_css_awb_fr_ops_calc(struct ipu3_css *css, unsigned int pipe,
 			 struct imgu_abi_awb_fr_config *awb_fr_config)
 {
 	struct imgu_abi_awb_fr_intra_frame_operations_data *to =
 		&awb_fr_config->operations_data;
-	struct imgu_fw_info *bi = &css->fwp->binary_header[css->current_binary];
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
+	struct imgu_fw_info *bi =
+		&css->fwp->binary_header[css_pipe->bindex];
 	struct process_lines pl = {
-		.image_height = css->rect[IPU3_CSS_RECT_BDS].height,
+		.image_height = css_pipe->rect[IPU3_CSS_RECT_BDS].height,
 		.grid_height = awb_fr_config->config.grid_cfg.height,
 		.block_height =
 			1 << awb_fr_config->config.grid_cfg.block_height_log2,
@@ -1675,15 +1686,17 @@ ipu3_css_awb_fr_ops_calc(struct ipu3_css *css,
 					  NULL);
 }
 
-static int ipu3_css_awb_ops_calc(struct ipu3_css *css,
+static int ipu3_css_awb_ops_calc(struct ipu3_css *css, unsigned int pipe,
 				 struct imgu_abi_awb_config *awb_config)
 {
 	struct imgu_abi_awb_intra_frame_operations_data *to =
 		&awb_config->operations_data;
-	struct imgu_fw_info *bi = &css->fwp->binary_header[css->current_binary];
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
+	struct imgu_fw_info *bi =
+		&css->fwp->binary_header[css_pipe->bindex];
 
 	struct process_lines pl = {
-		.image_height = css->rect[IPU3_CSS_RECT_BDS].height,
+		.image_height = css_pipe->rect[IPU3_CSS_RECT_BDS].height,
 		.grid_height = awb_config->config.grid.height,
 		.block_height =
 			1 << awb_config->config.grid.block_height_log2,
@@ -1715,21 +1728,22 @@ static void ipu3_css_grid_end_calc(struct ipu3_uapi_grid_config *grid_cfg)
 
 /****************** config computation *****************************/
 
-static int ipu3_css_cfg_acc_stripe(struct ipu3_css *css,
+static int ipu3_css_cfg_acc_stripe(struct ipu3_css *css, unsigned int pipe,
 				   struct imgu_abi_acc_param *acc)
 {
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
 	const struct imgu_fw_info *bi =
-		&css->fwp->binary_header[css->current_binary];
-	const unsigned int stripes = bi->info.isp.sp.iterator.num_stripes;
-	const unsigned int F = IPU3_UAPI_ISP_VEC_ELEMS * 2;
+		&css->fwp->binary_header[css_pipe->bindex];
 	struct ipu3_css_scaler_info scaler_luma, scaler_chroma;
+	const unsigned int stripes = bi->info.isp.sp.iterator.num_stripes;
+	const unsigned int f = IPU3_UAPI_ISP_VEC_ELEMS * 2;
 	unsigned int bds_ds, i;
 
 	memset(acc, 0, sizeof(*acc));
 
 	/* acc_param: osys_config */
 
-	if (ipu3_css_osys_calc(css, stripes, &acc->osys, &scaler_luma,
+	if (ipu3_css_osys_calc(css, pipe, stripes, &acc->osys, &scaler_luma,
 			       &scaler_chroma, acc->stripe.block_stripes))
 		return -EINVAL;
 
@@ -1746,77 +1760,78 @@ static int ipu3_css_cfg_acc_stripe(struct ipu3_css *css,
 
 	acc->stripe.num_of_stripes = stripes;
 	acc->stripe.input_frame.width =
-		css->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.width;
 	acc->stripe.input_frame.height =
-		css->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix.height;
 	acc->stripe.input_frame.bayer_order =
-		css->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order;
+		css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order;
 
 	for (i = 0; i < stripes; i++)
 		acc->stripe.bds_out_stripes[i].height =
-					css->rect[IPU3_CSS_RECT_BDS].height;
+					css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 	acc->stripe.bds_out_stripes[0].offset = 0;
 	if (stripes <= 1) {
 		acc->stripe.bds_out_stripes[0].width =
-			ALIGN(css->rect[IPU3_CSS_RECT_BDS].width, F);
+			ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, f);
 	} else {
 		/* Image processing is divided into two stripes */
 		acc->stripe.bds_out_stripes[0].width =
 			acc->stripe.bds_out_stripes[1].width =
-			(css->rect[IPU3_CSS_RECT_BDS].width / 2 & ~(F - 1)) + F;
+			(css_pipe->rect[IPU3_CSS_RECT_BDS].width / 2 & ~(f - 1)) + f;
 		/*
 		 * Sum of width of the two stripes should not be smaller
 		 * than output width and must be even times of overlapping
 		 * unit f.
 		 */
-		if ((css->rect[IPU3_CSS_RECT_BDS].width / F & 1) !=
-		    !!(css->rect[IPU3_CSS_RECT_BDS].width & (F - 1)))
-			acc->stripe.bds_out_stripes[0].width += F;
-		if ((css->rect[IPU3_CSS_RECT_BDS].width / F & 1) &&
-		    (css->rect[IPU3_CSS_RECT_BDS].width & (F - 1))) {
-			acc->stripe.bds_out_stripes[0].width += F;
-			acc->stripe.bds_out_stripes[1].width += F;
+		if ((css_pipe->rect[IPU3_CSS_RECT_BDS].width / f & 1) !=
+		    !!(css_pipe->rect[IPU3_CSS_RECT_BDS].width & (f - 1)))
+			acc->stripe.bds_out_stripes[0].width += f;
+		if ((css_pipe->rect[IPU3_CSS_RECT_BDS].width / f & 1) &&
+		    (css_pipe->rect[IPU3_CSS_RECT_BDS].width & (f - 1))) {
+			acc->stripe.bds_out_stripes[0].width += f;
+			acc->stripe.bds_out_stripes[1].width += f;
 		}
 		/* Overlap between stripes is IPU3_UAPI_ISP_VEC_ELEMS * 4 */
 		acc->stripe.bds_out_stripes[1].offset =
-			acc->stripe.bds_out_stripes[0].width - 2 * F;
+			acc->stripe.bds_out_stripes[0].width - 2 * f;
 	}
 
 	acc->stripe.effective_stripes[0].height =
-				css->rect[IPU3_CSS_RECT_EFFECTIVE].height;
+				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height;
 	acc->stripe.effective_stripes[0].offset = 0;
 	acc->stripe.bds_out_stripes_no_overlap[0].height =
-				css->rect[IPU3_CSS_RECT_BDS].height;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 	acc->stripe.bds_out_stripes_no_overlap[0].offset = 0;
 	acc->stripe.output_stripes[0].height =
-				css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
+				css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
 	acc->stripe.output_stripes[0].offset = 0;
 	if (stripes <= 1) {
 		acc->stripe.down_scaled_stripes[0].width =
-				css->rect[IPU3_CSS_RECT_BDS].width;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].width;
 		acc->stripe.down_scaled_stripes[0].height =
-				css->rect[IPU3_CSS_RECT_BDS].height;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 		acc->stripe.down_scaled_stripes[0].offset = 0;
 
 		acc->stripe.effective_stripes[0].width =
-				css->rect[IPU3_CSS_RECT_EFFECTIVE].width;
+				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].width;
 		acc->stripe.bds_out_stripes_no_overlap[0].width =
-			ALIGN(css->rect[IPU3_CSS_RECT_BDS].width, F);
+			ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, f);
 
 		acc->stripe.output_stripes[0].width =
-			css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
+			css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
 	} else { /* Two stripes */
-		bds_ds = css->rect[IPU3_CSS_RECT_EFFECTIVE].width *
+		bds_ds = css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].width *
 				IMGU_BDS_GRANULARITY /
-				css->rect[IPU3_CSS_RECT_BDS].width;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].width;
 
 		acc->stripe.down_scaled_stripes[0] =
 			acc->stripe.bds_out_stripes[0];
 		acc->stripe.down_scaled_stripes[1] =
 			acc->stripe.bds_out_stripes[1];
-		if (!IS_ALIGNED(css->rect[IPU3_CSS_RECT_BDS].width, F))
-			acc->stripe.down_scaled_stripes[1].width += -F +
-				(css->rect[IPU3_CSS_RECT_BDS].width & (F - 1));
+		if (!IS_ALIGNED(css_pipe->rect[IPU3_CSS_RECT_BDS].width, f))
+			acc->stripe.down_scaled_stripes[1].width +=
+				(css_pipe->rect[IPU3_CSS_RECT_BDS].width
+				& (f - 1)) - f;
 
 		acc->stripe.effective_stripes[0].width = bds_ds *
 			acc->stripe.down_scaled_stripes[0].width /
@@ -1825,55 +1840,55 @@ static int ipu3_css_cfg_acc_stripe(struct ipu3_css *css,
 			acc->stripe.down_scaled_stripes[1].width /
 			IMGU_BDS_GRANULARITY;
 		acc->stripe.effective_stripes[1].height =
-			css->rect[IPU3_CSS_RECT_EFFECTIVE].height;
+			css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height;
 		acc->stripe.effective_stripes[1].offset = bds_ds *
 			acc->stripe.down_scaled_stripes[1].offset /
 			IMGU_BDS_GRANULARITY;
 
 		acc->stripe.bds_out_stripes_no_overlap[0].width =
 		acc->stripe.bds_out_stripes_no_overlap[1].offset =
-			ALIGN(css->rect[IPU3_CSS_RECT_BDS].width, 2 * F) / 2;
+			ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, 2 * f) / 2;
 		acc->stripe.bds_out_stripes_no_overlap[1].width =
-			DIV_ROUND_UP(css->rect[IPU3_CSS_RECT_BDS].width, F) /
-			2 * F;
+			DIV_ROUND_UP(css_pipe->rect[IPU3_CSS_RECT_BDS].width, f)
+			/ 2 * f;
 		acc->stripe.bds_out_stripes_no_overlap[1].height =
-			css->rect[IPU3_CSS_RECT_BDS].height;
+			css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 
 		acc->stripe.output_stripes[0].width =
-			acc->stripe.down_scaled_stripes[0].width - F;
+			acc->stripe.down_scaled_stripes[0].width - f;
 		acc->stripe.output_stripes[1].width =
-			acc->stripe.down_scaled_stripes[1].width - F;
+			acc->stripe.down_scaled_stripes[1].width - f;
 		acc->stripe.output_stripes[1].height =
-			css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
+			css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
 		acc->stripe.output_stripes[1].offset =
 			acc->stripe.output_stripes[0].width;
 	}
 
 	acc->stripe.output_system_in_frame_width =
-		css->rect[IPU3_CSS_RECT_GDC].width;
+		css_pipe->rect[IPU3_CSS_RECT_GDC].width;
 	acc->stripe.output_system_in_frame_height =
-		css->rect[IPU3_CSS_RECT_GDC].height;
+		css_pipe->rect[IPU3_CSS_RECT_GDC].height;
 
 	acc->stripe.effective_frame_width =
-				css->rect[IPU3_CSS_RECT_EFFECTIVE].width;
-	acc->stripe.bds_frame_width = css->rect[IPU3_CSS_RECT_BDS].width;
+				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].width;
+	acc->stripe.bds_frame_width = css_pipe->rect[IPU3_CSS_RECT_BDS].width;
 	acc->stripe.out_frame_width =
-		css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.width;
 	acc->stripe.out_frame_height =
-		css->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_OUT].fmt.mpix.height;
 	acc->stripe.gdc_in_buffer_width =
-		css->aux_frames[IPU3_CSS_AUX_FRAME_REF].bytesperline /
-		css->aux_frames[IPU3_CSS_AUX_FRAME_REF].bytesperpixel;
+		css_pipe->aux_frames[IPU3_CSS_AUX_FRAME_REF].bytesperline /
+		css_pipe->aux_frames[IPU3_CSS_AUX_FRAME_REF].bytesperpixel;
 	acc->stripe.gdc_in_buffer_height =
-		css->aux_frames[IPU3_CSS_AUX_FRAME_REF].height;
+		css_pipe->aux_frames[IPU3_CSS_AUX_FRAME_REF].height;
 	acc->stripe.gdc_in_buffer_offset_x = IMGU_GDC_BUF_X;
 	acc->stripe.gdc_in_buffer_offset_y = IMGU_GDC_BUF_Y;
 	acc->stripe.display_frame_width =
-		css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.width;
 	acc->stripe.display_frame_height =
-		css->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
+		css_pipe->queue[IPU3_CSS_QUEUE_VF].fmt.mpix.height;
 	acc->stripe.bds_aligned_frame_width =
-		roundup(css->rect[IPU3_CSS_RECT_BDS].width,
+		roundup(css_pipe->rect[IPU3_CSS_RECT_BDS].width,
 			2 * IPU3_UAPI_ISP_VEC_ELEMS);
 
 	if (stripes > 1)
@@ -1886,13 +1901,15 @@ static int ipu3_css_cfg_acc_stripe(struct ipu3_css *css,
 }
 
 static void ipu3_css_cfg_acc_dvs(struct ipu3_css *css,
-				 struct imgu_abi_acc_param *acc)
+				 struct imgu_abi_acc_param *acc,
+				 unsigned int pipe)
 {
 	unsigned int i;
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
 
 	/* Disable DVS statistics */
 	acc->dvs_stat.operations_data.process_lines_data[0].lines =
-				css->rect[IPU3_CSS_RECT_BDS].height;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 	acc->dvs_stat.operations_data.process_lines_data[0].cfg_set = 0;
 	acc->dvs_stat.operations_data.ops[0].op_type =
 		IMGU_ABI_ACC_OPTYPE_PROCESS_LINES;
@@ -1904,8 +1921,10 @@ static void ipu3_css_cfg_acc_dvs(struct ipu3_css *css,
 
 static void acc_bds_per_stripe_data(struct ipu3_css *css,
 				    struct imgu_abi_acc_param *acc,
-				    const int i)
+				    const int i, unsigned int pipe)
 {
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
+
 	acc->bds.per_stripe.aligned_data[i].data.crop.hor_crop_en = 0;
 	acc->bds.per_stripe.aligned_data[i].data.crop.hor_crop_start = 0;
 	acc->bds.per_stripe.aligned_data[i].data.crop.hor_crop_end = 0;
@@ -1916,7 +1935,7 @@ static void acc_bds_per_stripe_data(struct ipu3_css *css,
 	acc->bds.per_stripe.aligned_data[i].data.ver_ctrl1.out_frame_width =
 		acc->stripe.down_scaled_stripes[i].width;
 	acc->bds.per_stripe.aligned_data[i].data.ver_ctrl1.out_frame_height =
-		css->rect[IPU3_CSS_RECT_BDS].height;
+		css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 }
 
 /*
@@ -1925,19 +1944,21 @@ static void acc_bds_per_stripe_data(struct ipu3_css *css,
  * telling which fields to take from the old values (or generate if it is NULL)
  * and which to take from the new user values.
  */
-int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
+int ipu3_css_cfg_acc(struct ipu3_css *css, unsigned int pipe,
+		     struct ipu3_uapi_flags *use,
 		     struct imgu_abi_acc_param *acc,
 		     struct imgu_abi_acc_param *acc_old,
 		     struct ipu3_uapi_acc_param *acc_user)
 {
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
 	const struct imgu_fw_info *bi =
-		&css->fwp->binary_header[css->current_binary];
+		&css->fwp->binary_header[css_pipe->bindex];
 	const unsigned int stripes = bi->info.isp.sp.iterator.num_stripes;
 	const unsigned int tnr_frame_width =
 		acc->stripe.bds_aligned_frame_width;
 	const unsigned int min_overlap = 10;
 	const struct v4l2_pix_format_mplane *pixm =
-		&css->queue[IPU3_CSS_QUEUE_IN].fmt.mpix;
+		&css_pipe->queue[IPU3_CSS_QUEUE_IN].fmt.mpix;
 	const struct ipu3_css_bds_config *cfg_bds;
 	struct imgu_abi_input_feeder_data *feeder_data;
 
@@ -1946,22 +1967,22 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 
 	/* Update stripe using chroma and luma */
 
-	if (ipu3_css_cfg_acc_stripe(css, acc))
+	if (ipu3_css_cfg_acc_stripe(css, pipe, acc))
 		return -EINVAL;
 
 	/* acc_param: input_feeder_config */
 
 	ofs_x = ((pixm->width -
-		  css->rect[IPU3_CSS_RECT_EFFECTIVE].width) >> 1) & ~1;
-	ofs_x += css->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
+		  css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].width) >> 1) & ~1;
+	ofs_x += css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
 		IMGU_ABI_BAYER_ORDER_RGGB ||
-		css->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
+		css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
 		IMGU_ABI_BAYER_ORDER_GBRG ? 1 : 0;
 	ofs_y = ((pixm->height -
-		  css->rect[IPU3_CSS_RECT_EFFECTIVE].height) >> 1) & ~1;
-	ofs_y += css->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
+		  css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height) >> 1) & ~1;
+	ofs_y += css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
 		IMGU_ABI_BAYER_ORDER_BGGR ||
-		css->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
+		css_pipe->queue[IPU3_CSS_QUEUE_IN].css_fmt->bayer_order ==
 		IMGU_ABI_BAYER_ORDER_GBRG ? 1 : 0;
 	acc->input_feeder.data.row_stride = pixm->plane_fmt[0].bytesperline;
 	acc->input_feeder.data.start_row_address =
@@ -2117,11 +2138,11 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 				acc->shd.shd.grid.grid_height_per_slice;
 
 	if (ipu3_css_shd_ops_calc(&acc->shd.shd_ops, &acc->shd.shd.grid,
-				  css->rect[IPU3_CSS_RECT_BDS].height))
+				  css_pipe->rect[IPU3_CSS_RECT_BDS].height))
 		return -EINVAL;
 
 	/* acc_param: dvs_stat_config */
-	ipu3_css_cfg_acc_dvs(css, acc);
+	ipu3_css_cfg_acc_dvs(css, acc, pipe);
 
 	/* acc_param: yuvp1_iefd_config */
 
@@ -2263,8 +2284,8 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 
 	/* acc_param: bds_config */
 
-	bds_ds = (css->rect[IPU3_CSS_RECT_EFFECTIVE].height *
-		  IMGU_BDS_GRANULARITY) / css->rect[IPU3_CSS_RECT_BDS].height;
+	bds_ds = (css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height *
+		  IMGU_BDS_GRANULARITY) / css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 	if (bds_ds < IMGU_BDS_MIN_SF_INV ||
 	    bds_ds - IMGU_BDS_MIN_SF_INV >= ARRAY_SIZE(ipu3_css_bds_configs))
 		return -EINVAL;
@@ -2279,11 +2300,11 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	acc->bds.hor.hor_ctrl0.min_clip_val = IMGU_BDS_MIN_CLIP_VAL;
 	acc->bds.hor.hor_ctrl0.max_clip_val = IMGU_BDS_MAX_CLIP_VAL;
 	acc->bds.hor.hor_ctrl0.out_frame_width =
-				css->rect[IPU3_CSS_RECT_BDS].width;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].width;
 	acc->bds.hor.hor_ptrn_arr = cfg_bds->ptrn_arr;
 	acc->bds.hor.hor_phase_arr = cfg_bds->hor_phase_arr;
 	acc->bds.hor.hor_ctrl2.input_frame_height =
-				css->rect[IPU3_CSS_RECT_EFFECTIVE].height;
+				css_pipe->rect[IPU3_CSS_RECT_EFFECTIVE].height;
 	acc->bds.ver.ver_ctrl0.min_clip_val = IMGU_BDS_MIN_CLIP_VAL;
 	acc->bds.ver.ver_ctrl0.max_clip_val = IMGU_BDS_MAX_CLIP_VAL;
 	acc->bds.ver.ver_ctrl0.sample_patrn_length =
@@ -2292,11 +2313,11 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	acc->bds.ver.ver_ptrn_arr = cfg_bds->ptrn_arr;
 	acc->bds.ver.ver_phase_arr = cfg_bds->ver_phase_arr;
 	acc->bds.ver.ver_ctrl1.out_frame_width =
-				css->rect[IPU3_CSS_RECT_BDS].width;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].width;
 	acc->bds.ver.ver_ctrl1.out_frame_height =
-				css->rect[IPU3_CSS_RECT_BDS].height;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 	for (i = 0; i < stripes; i++)
-		acc_bds_per_stripe_data(css, acc, i);
+		acc_bds_per_stripe_data(css, acc, i, pipe);
 
 	acc->bds.enabled = cfg_bds->hor_ds_en || cfg_bds->ver_ds_en;
 
@@ -2326,15 +2347,15 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	acc->anr.transform.enable = 1;
 	acc->anr.tile2strm.enable = 1;
 	acc->anr.tile2strm.frame_width =
-		ALIGN(css->rect[IPU3_CSS_RECT_BDS].width, IMGU_ISP_VMEM_ALIGN);
+		ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, IMGU_ISP_VMEM_ALIGN);
 	acc->anr.search.frame_width = acc->anr.tile2strm.frame_width;
 	acc->anr.stitch.frame_width = acc->anr.tile2strm.frame_width;
-	acc->anr.tile2strm.frame_height = css->rect[IPU3_CSS_RECT_BDS].height;
+	acc->anr.tile2strm.frame_height = css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 	acc->anr.search.frame_height = acc->anr.tile2strm.frame_height;
 	acc->anr.stitch.frame_height = acc->anr.tile2strm.frame_height;
 
-	width = ALIGN(css->rect[IPU3_CSS_RECT_BDS].width, IMGU_ISP_VMEM_ALIGN);
-	height = css->rect[IPU3_CSS_RECT_BDS].height;
+	width = ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, IMGU_ISP_VMEM_ALIGN);
+	height = css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 
 	if (acc->anr.transform.xreset + width > IPU3_UAPI_ANR_MAX_RESET)
 		acc->anr.transform.xreset = IPU3_UAPI_ANR_MAX_RESET - width;
@@ -2418,7 +2439,7 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 			acc->awb_fr.stripes[i].grid_cfg.height_per_slice = 1;
 	}
 
-	if (ipu3_css_awb_fr_ops_calc(css, &acc->awb_fr))
+	if (ipu3_css_awb_fr_ops_calc(css, pipe, &acc->awb_fr))
 		return -EINVAL;
 
 	/* acc_param: ae_config */
@@ -2519,9 +2540,9 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	acc->af.config.grid_cfg.height_per_slice =
 		IMGU_ABI_AF_MAX_CELLS_PER_SET / acc->af.config.grid_cfg.width;
 	acc->af.config.frame_size.width =
-		ALIGN(css->rect[IPU3_CSS_RECT_BDS].width, IMGU_ISP_VMEM_ALIGN);
+		ALIGN(css_pipe->rect[IPU3_CSS_RECT_BDS].width, IMGU_ISP_VMEM_ALIGN);
 	acc->af.config.frame_size.height =
-		css->rect[IPU3_CSS_RECT_BDS].height;
+		css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 
 	if (acc->stripe.bds_out_stripes[0].width <= min_overlap)
 		return -EINVAL;
@@ -2529,7 +2550,7 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	for (i = 0; i < stripes; i++) {
 		acc->af.stripes[i].grid_cfg = acc->af.config.grid_cfg;
 		acc->af.stripes[i].frame_size.height =
-				css->rect[IPU3_CSS_RECT_BDS].height;
+				css_pipe->rect[IPU3_CSS_RECT_BDS].height;
 		acc->af.stripes[i].frame_size.width =
 			acc->stripe.bds_out_stripes[i].width;
 	}
@@ -2580,7 +2601,7 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 			acc->af.stripes[i].grid_cfg.height_per_slice = 1;
 	}
 
-	if (ipu3_css_af_ops_calc(css, &acc->af))
+	if (ipu3_css_af_ops_calc(css, pipe, &acc->af))
 		return -EINVAL;
 
 	/* acc_param: awb_config */
@@ -2649,7 +2670,7 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 			acc->awb.stripes[i].grid.height_per_slice = 1;
 	}
 
-	if (ipu3_css_awb_ops_calc(css, &acc->awb))
+	if (ipu3_css_awb_ops_calc(css, pipe, &acc->awb))
 		return -EINVAL;
 
 	return 0;
@@ -2664,7 +2685,8 @@ int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
  * to the structure inside `new_binary_params'. In that case the caller
  * should calculate and fill the structure from scratch.
  */
-static void *ipu3_css_cfg_copy(struct ipu3_css *css, bool use_user,
+static void *ipu3_css_cfg_copy(struct ipu3_css *css,
+			       unsigned int pipe, bool use_user,
 			       void *user_setting, void *old_binary_params,
 			       void *new_binary_params,
 			       enum imgu_abi_memories m,
@@ -2674,8 +2696,8 @@ static void *ipu3_css_cfg_copy(struct ipu3_css *css, bool use_user,
 	const enum imgu_abi_param_class c = IMGU_ABI_PARAM_CLASS_PARAM;
 	void *new_setting, *old_setting;
 
-	new_setting = ipu3_css_fw_pipeline_params(css, c, m, par, par_size,
-						  new_binary_params);
+	new_setting = ipu3_css_fw_pipeline_params(css, pipe, c, m, par,
+						  par_size, new_binary_params);
 	if (!new_setting)
 		return ERR_PTR(-EPROTO);	/* Corrupted firmware */
 
@@ -2684,7 +2706,7 @@ static void *ipu3_css_cfg_copy(struct ipu3_css *css, bool use_user,
 		memcpy(new_setting, user_setting, par_size);
 	} else if (old_binary_params) {
 		/* Take previous value */
-		old_setting = ipu3_css_fw_pipeline_params(css, c, m, par,
+		old_setting = ipu3_css_fw_pipeline_params(css, pipe, c, m, par,
 							  par_size,
 							  old_binary_params);
 		if (!old_setting)
@@ -2700,12 +2722,13 @@ static void *ipu3_css_cfg_copy(struct ipu3_css *css, bool use_user,
 /*
  * Configure VMEM0 parameters (late binding parameters).
  */
-int ipu3_css_cfg_vmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
+int ipu3_css_cfg_vmem0(struct ipu3_css *css, unsigned int pipe,
+		       struct ipu3_uapi_flags *use,
 		       void *vmem0, void *vmem0_old,
 		       struct ipu3_uapi_params *user)
 {
 	const struct imgu_fw_info *bi =
-		&css->fwp->binary_header[css->current_binary];
+		&css->fwp->binary_header[css->pipes[pipe].bindex];
 	struct imgu_fw_param_memory_offsets *pofs = (void *)css->fwp +
 		bi->blob.memory_offsets.offsets[IMGU_ABI_PARAM_CLASS_PARAM];
 	struct ipu3_uapi_isp_lin_vmem_params *lin_vmem = NULL;
@@ -2721,7 +2744,7 @@ int ipu3_css_cfg_vmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 
 	/* Configure Linearization VMEM0 parameters */
 
-	lin_vmem = ipu3_css_cfg_copy(css, use && use->lin_vmem_params,
+	lin_vmem = ipu3_css_cfg_copy(css, pipe, use && use->lin_vmem_params,
 				     &user->lin_vmem_params, vmem0_old, vmem0,
 				     m, &pofs->vmem.lin, sizeof(*lin_vmem));
 	if (!IS_ERR_OR_NULL(lin_vmem)) {
@@ -2740,8 +2763,9 @@ int ipu3_css_cfg_vmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	}
 
 	/* Configure TNR3 VMEM parameters */
-	if (css->pipe_id == IPU3_CSS_PIPE_ID_VIDEO) {
-		tnr_vmem = ipu3_css_cfg_copy(css, use && use->tnr3_vmem_params,
+	if (css->pipes[pipe].pipe_id == IPU3_CSS_PIPE_ID_VIDEO) {
+		tnr_vmem = ipu3_css_cfg_copy(css, pipe,
+					     use && use->tnr3_vmem_params,
 					     &user->tnr3_vmem_params,
 					     vmem0_old, vmem0, m,
 					     &pofs->vmem.tnr3,
@@ -2756,7 +2780,7 @@ int ipu3_css_cfg_vmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 
 	/* Configure XNR3 VMEM parameters */
 
-	xnr_vmem = ipu3_css_cfg_copy(css, use && use->xnr3_vmem_params,
+	xnr_vmem = ipu3_css_cfg_copy(css, pipe, use && use->xnr3_vmem_params,
 				     &user->xnr3_vmem_params, vmem0_old, vmem0,
 				     m, &pofs->vmem.xnr3, sizeof(*xnr_vmem));
 	if (!IS_ERR_OR_NULL(xnr_vmem)) {
@@ -2777,12 +2801,14 @@ int ipu3_css_cfg_vmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 /*
  * Configure DMEM0 parameters (late binding parameters).
  */
-int ipu3_css_cfg_dmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
+int ipu3_css_cfg_dmem0(struct ipu3_css *css, unsigned int pipe,
+		       struct ipu3_uapi_flags *use,
 		       void *dmem0, void *dmem0_old,
 		       struct ipu3_uapi_params *user)
 {
+	struct ipu3_css_pipe *css_pipe = &css->pipes[pipe];
 	const struct imgu_fw_info *bi =
-		&css->fwp->binary_header[css->current_binary];
+		&css->fwp->binary_header[css_pipe->bindex];
 	struct imgu_fw_param_memory_offsets *pofs = (void *)css->fwp +
 		bi->blob.memory_offsets.offsets[IMGU_ABI_PARAM_CLASS_PARAM];
 
@@ -2797,10 +2823,12 @@ int ipu3_css_cfg_dmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 	memset(dmem0, 0, bi->info.isp.sp.mem_initializers.params[c][m].size);
 
 	/* Configure TNR3 DMEM0 parameters */
-	if (css->pipe_id == IPU3_CSS_PIPE_ID_VIDEO) {
-		tnr_dmem = ipu3_css_cfg_copy(css, use && use->tnr3_dmem_params,
-					     &user->tnr3_dmem_params, dmem0_old,
-					     dmem0, m, &pofs->dmem.tnr3,
+	if (css_pipe->pipe_id == IPU3_CSS_PIPE_ID_VIDEO) {
+		tnr_dmem = ipu3_css_cfg_copy(css, pipe,
+					     use && use->tnr3_dmem_params,
+					     &user->tnr3_dmem_params,
+					     dmem0_old, dmem0, m,
+					     &pofs->dmem.tnr3,
 					     sizeof(*tnr_dmem));
 		if (!IS_ERR_OR_NULL(tnr_dmem)) {
 			/* Generate parameter from scratch */
@@ -2811,7 +2839,7 @@ int ipu3_css_cfg_dmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
 
 	/* Configure XNR3 DMEM0 parameters */
 
-	xnr_dmem = ipu3_css_cfg_copy(css, use && use->xnr3_dmem_params,
+	xnr_dmem = ipu3_css_cfg_copy(css, pipe, use && use->xnr3_dmem_params,
 				     &user->xnr3_dmem_params, dmem0_old, dmem0,
 				     m, &pofs->dmem.xnr3, sizeof(*xnr_dmem));
 	if (!IS_ERR_OR_NULL(xnr_dmem)) {

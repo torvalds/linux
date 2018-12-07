@@ -45,7 +45,6 @@ static const struct imgu_node_mapping imgu_node_map[IMGU_NODE_NUM] = {
 	[IMGU_NODE_PARAMS] = {IPU3_CSS_QUEUE_PARAMS, "parameters"},
 	[IMGU_NODE_OUT] = {IPU3_CSS_QUEUE_OUT, "output"},
 	[IMGU_NODE_VF] = {IPU3_CSS_QUEUE_VF, "viewfinder"},
-	[IMGU_NODE_PV] = {IPU3_CSS_QUEUE_VF, "postview"},
 	[IMGU_NODE_STAT_3A] = {IPU3_CSS_QUEUE_STAT_3A, "3a stat"},
 };
 
@@ -58,10 +57,6 @@ unsigned int imgu_map_node(struct imgu_device *imgu, unsigned int css_queue)
 {
 	unsigned int i;
 
-	if (css_queue == IPU3_CSS_QUEUE_VF)
-		return imgu->nodes[IMGU_NODE_VF].enabled ?
-			IMGU_NODE_VF : IMGU_NODE_PV;
-
 	for (i = 0; i < IMGU_NODE_NUM; i++)
 		if (imgu_node_map[i].css_queue == css_queue)
 			break;
@@ -71,18 +66,22 @@ unsigned int imgu_map_node(struct imgu_device *imgu, unsigned int css_queue)
 
 /**************** Dummy buffers ****************/
 
-static void imgu_dummybufs_cleanup(struct imgu_device *imgu)
+static void imgu_dummybufs_cleanup(struct imgu_device *imgu, unsigned int pipe)
 {
 	unsigned int i;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	for (i = 0; i < IPU3_CSS_QUEUES; i++)
-		ipu3_dmamap_free(imgu, &imgu->queues[i].dmap);
+		ipu3_dmamap_free(imgu,
+				 &imgu_pipe->queues[i].dmap);
 }
 
-static int imgu_dummybufs_preallocate(struct imgu_device *imgu)
+static int imgu_dummybufs_preallocate(struct imgu_device *imgu,
+				      unsigned int pipe)
 {
 	unsigned int i;
 	size_t size;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
 		size = css_queue_buf_size_map[i];
@@ -94,8 +93,9 @@ static int imgu_dummybufs_preallocate(struct imgu_device *imgu)
 		if (i == IMGU_QUEUE_MASTER || size == 0)
 			continue;
 
-		if (!ipu3_dmamap_alloc(imgu, &imgu->queues[i].dmap, size)) {
-			imgu_dummybufs_cleanup(imgu);
+		if (!ipu3_dmamap_alloc(imgu,
+				       &imgu_pipe->queues[i].dmap, size)) {
+			imgu_dummybufs_cleanup(imgu, pipe);
 			return -ENOMEM;
 		}
 	}
@@ -103,45 +103,46 @@ static int imgu_dummybufs_preallocate(struct imgu_device *imgu)
 	return 0;
 }
 
-static int imgu_dummybufs_init(struct imgu_device *imgu)
+static int imgu_dummybufs_init(struct imgu_device *imgu, unsigned int pipe)
 {
 	const struct v4l2_pix_format_mplane *mpix;
 	const struct v4l2_meta_format	*meta;
-	unsigned int i, j, node;
+	unsigned int i, k, node;
 	size_t size;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	/* Allocate a dummy buffer for each queue where buffer is optional */
 	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
 		node = imgu_map_node(imgu, i);
-		if (!imgu->queue_enabled[node] || i == IMGU_QUEUE_MASTER)
+		if (!imgu_pipe->queue_enabled[node] || i == IMGU_QUEUE_MASTER)
 			continue;
 
-		if (!imgu->nodes[IMGU_NODE_VF].enabled &&
-		    !imgu->nodes[IMGU_NODE_PV].enabled &&
+		if (!imgu_pipe->nodes[IMGU_NODE_VF].enabled &&
 		    i == IPU3_CSS_QUEUE_VF)
 			/*
-			 * Do not enable dummy buffers for VF/PV if it is not
+			 * Do not enable dummy buffers for VF if it is not
 			 * requested by the user.
 			 */
 			continue;
 
-		meta = &imgu->nodes[node].vdev_fmt.fmt.meta;
-		mpix = &imgu->nodes[node].vdev_fmt.fmt.pix_mp;
+		meta = &imgu_pipe->nodes[node].vdev_fmt.fmt.meta;
+		mpix = &imgu_pipe->nodes[node].vdev_fmt.fmt.pix_mp;
 
 		if (node == IMGU_NODE_STAT_3A || node == IMGU_NODE_PARAMS)
 			size = meta->buffersize;
 		else
 			size = mpix->plane_fmt[0].sizeimage;
 
-		if (ipu3_css_dma_buffer_resize(imgu, &imgu->queues[i].dmap,
+		if (ipu3_css_dma_buffer_resize(imgu,
+					       &imgu_pipe->queues[i].dmap,
 					       size)) {
-			imgu_dummybufs_cleanup(imgu);
+			imgu_dummybufs_cleanup(imgu, pipe);
 			return -ENOMEM;
 		}
 
-		for (j = 0; j < IMGU_MAX_QUEUE_DEPTH; j++)
-			ipu3_css_buf_init(&imgu->queues[i].dummybufs[j], i,
-					  imgu->queues[i].dmap.daddr);
+		for (k = 0; k < IMGU_MAX_QUEUE_DEPTH; k++)
+			ipu3_css_buf_init(&imgu_pipe->queues[i].dummybufs[k], i,
+					  imgu_pipe->queues[i].dmap.daddr);
 	}
 
 	return 0;
@@ -149,40 +150,43 @@ static int imgu_dummybufs_init(struct imgu_device *imgu)
 
 /* May be called from atomic context */
 static struct ipu3_css_buffer *imgu_dummybufs_get(struct imgu_device *imgu,
-						  int queue)
+						   int queue, unsigned int pipe)
 {
 	unsigned int i;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	/* dummybufs are not allocated for master q */
 	if (queue == IPU3_CSS_QUEUE_IN)
 		return NULL;
 
-	if (WARN_ON(!imgu->queues[queue].dmap.vaddr))
+	if (WARN_ON(!imgu_pipe->queues[queue].dmap.vaddr))
 		/* Buffer should not be allocated here */
 		return NULL;
 
 	for (i = 0; i < IMGU_MAX_QUEUE_DEPTH; i++)
-		if (ipu3_css_buf_state(&imgu->queues[queue].dummybufs[i]) !=
+		if (ipu3_css_buf_state(&imgu_pipe->queues[queue].dummybufs[i]) !=
 			IPU3_CSS_BUFFER_QUEUED)
 			break;
 
 	if (i == IMGU_MAX_QUEUE_DEPTH)
 		return NULL;
 
-	ipu3_css_buf_init(&imgu->queues[queue].dummybufs[i], queue,
-			  imgu->queues[queue].dmap.daddr);
+	ipu3_css_buf_init(&imgu_pipe->queues[queue].dummybufs[i], queue,
+			  imgu_pipe->queues[queue].dmap.daddr);
 
-	return &imgu->queues[queue].dummybufs[i];
+	return &imgu_pipe->queues[queue].dummybufs[i];
 }
 
 /* Check if given buffer is a dummy buffer */
 static bool imgu_dummybufs_check(struct imgu_device *imgu,
-				 struct ipu3_css_buffer *buf)
+				 struct ipu3_css_buffer *buf,
+				 unsigned int pipe)
 {
 	unsigned int i;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	for (i = 0; i < IMGU_MAX_QUEUE_DEPTH; i++)
-		if (buf == &imgu->queues[buf->queue].dummybufs[i])
+		if (buf == &imgu_pipe->queues[buf->queue].dummybufs[i])
 			break;
 
 	return i < IMGU_MAX_QUEUE_DEPTH;
@@ -197,63 +201,64 @@ static void imgu_buffer_done(struct imgu_device *imgu, struct vb2_buffer *vb,
 }
 
 static struct ipu3_css_buffer *imgu_queue_getbuf(struct imgu_device *imgu,
-						 unsigned int node)
+						 unsigned int node,
+						 unsigned int pipe)
 {
 	struct imgu_buffer *buf;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	if (WARN_ON(node >= IMGU_NODE_NUM))
 		return NULL;
 
 	/* Find first free buffer from the node */
-	list_for_each_entry(buf, &imgu->nodes[node].buffers, vid_buf.list) {
+	list_for_each_entry(buf, &imgu_pipe->nodes[node].buffers, vid_buf.list) {
 		if (ipu3_css_buf_state(&buf->css_buf) == IPU3_CSS_BUFFER_NEW)
 			return &buf->css_buf;
 	}
 
 	/* There were no free buffers, try to return a dummy buffer */
-	return imgu_dummybufs_get(imgu, imgu_node_map[node].css_queue);
+	return imgu_dummybufs_get(imgu, imgu_node_map[node].css_queue, pipe);
 }
 
 /*
  * Queue as many buffers to CSS as possible. If all buffers don't fit into
  * CSS buffer queues, they remain unqueued and will be queued later.
  */
-int imgu_queue_buffers(struct imgu_device *imgu, bool initial)
+int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe)
 {
 	unsigned int node;
 	int r = 0;
 	struct imgu_buffer *ibuf;
+	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	if (!ipu3_css_is_streaming(&imgu->css))
 		return 0;
 
+	dev_dbg(&imgu->pci_dev->dev, "Queue buffers to pipe %d", pipe);
 	mutex_lock(&imgu->lock);
 
 	/* Buffer set is queued to FW only when input buffer is ready */
 	for (node = IMGU_NODE_NUM - 1;
-	     imgu_queue_getbuf(imgu, IMGU_NODE_IN);
+	     imgu_queue_getbuf(imgu, IMGU_NODE_IN, pipe);
 	     node = node ? node - 1 : IMGU_NODE_NUM - 1) {
 
 		if (node == IMGU_NODE_VF &&
-		    (imgu->css.pipe_id == IPU3_CSS_PIPE_ID_CAPTURE ||
-		     !imgu->nodes[IMGU_NODE_VF].enabled)) {
+		    !imgu_pipe->nodes[IMGU_NODE_VF].enabled) {
+			dev_warn(&imgu->pci_dev->dev,
+				 "Vf not enabled, ignore queue");
 			continue;
-		} else if (node == IMGU_NODE_PV &&
-			   (imgu->css.pipe_id == IPU3_CSS_PIPE_ID_VIDEO ||
-			    !imgu->nodes[IMGU_NODE_PV].enabled)) {
-			continue;
-		} else if (imgu->queue_enabled[node]) {
+		} else if (imgu_pipe->queue_enabled[node]) {
 			struct ipu3_css_buffer *buf =
-					imgu_queue_getbuf(imgu, node);
+				imgu_queue_getbuf(imgu, node, pipe);
 			int dummy;
 
 			if (!buf)
 				break;
 
-			r = ipu3_css_buf_queue(&imgu->css, buf);
+			r = ipu3_css_buf_queue(&imgu->css, pipe, buf);
 			if (r)
 				break;
-			dummy = imgu_dummybufs_check(imgu, buf);
+			dummy = imgu_dummybufs_check(imgu, buf, pipe);
 			if (!dummy)
 				ibuf = container_of(buf, struct imgu_buffer,
 						    css_buf);
@@ -288,14 +293,15 @@ failed:
 	for (node = 0; node < IMGU_NODE_NUM; node++) {
 		struct imgu_buffer *buf, *buf0;
 
-		if (!imgu->queue_enabled[node])
+		if (!imgu_pipe->queue_enabled[node])
 			continue;	/* Skip disabled queues */
 
 		mutex_lock(&imgu->lock);
-		list_for_each_entry_safe(buf, buf0, &imgu->nodes[node].buffers,
+		list_for_each_entry_safe(buf, buf0,
+					 &imgu_pipe->nodes[node].buffers,
 					 vid_buf.list) {
 			if (ipu3_css_buf_state(&buf->css_buf) ==
-					IPU3_CSS_BUFFER_QUEUED)
+			    IPU3_CSS_BUFFER_QUEUED)
 				continue;	/* Was already queued, skip */
 
 			imgu_v4l2_buffer_done(&buf->vid_buf.vbb.vb2_buf,
@@ -328,10 +334,7 @@ static void imgu_powerdown(struct imgu_device *imgu)
 int imgu_s_stream(struct imgu_device *imgu, int enable)
 {
 	struct device *dev = &imgu->pci_dev->dev;
-	struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES] = { NULL };
-	struct v4l2_rect *rects[IPU3_CSS_RECTS] = { NULL };
-	unsigned int i, node;
-	int r;
+	int r, pipe;
 
 	if (!enable) {
 		/* Stop streaming */
@@ -345,54 +348,6 @@ int imgu_s_stream(struct imgu_device *imgu, int enable)
 		pm_runtime_put(&imgu->pci_dev->dev);
 
 		return 0;
-	}
-
-	/* Start streaming */
-
-	dev_dbg(dev, "stream on\n");
-	for (i = 0; i < IMGU_NODE_NUM; i++)
-		imgu->queue_enabled[i] = imgu->nodes[i].enabled;
-
-	/*
-	 * CSS library expects that the following queues are
-	 * always enabled; if buffers are not provided to some of the
-	 * queues, it stalls due to lack of buffers.
-	 * Force the queues to be enabled and if the user really hasn't
-	 * enabled them, use dummy buffers.
-	 */
-	imgu->queue_enabled[IMGU_NODE_OUT] = true;
-	imgu->queue_enabled[IMGU_NODE_VF] = true;
-	imgu->queue_enabled[IMGU_NODE_PV] = true;
-	imgu->queue_enabled[IMGU_NODE_STAT_3A] = true;
-
-	/* This is handled specially */
-	imgu->queue_enabled[IPU3_CSS_QUEUE_PARAMS] = false;
-
-	/* Initialize CSS formats */
-	for (i = 0; i < IPU3_CSS_QUEUES; i++) {
-		node = imgu_map_node(imgu, i);
-		/* No need to reconfig meta nodes */
-		if (node == IMGU_NODE_STAT_3A || node == IMGU_NODE_PARAMS)
-			continue;
-		fmts[i] = imgu->queue_enabled[node] ?
-			&imgu->nodes[node].vdev_fmt.fmt.pix_mp : NULL;
-	}
-
-	/* Enable VF output only when VF or PV queue requested by user */
-	imgu->css.vf_output_en = IPU3_NODE_VF_DISABLED;
-	if (imgu->nodes[IMGU_NODE_VF].enabled)
-		imgu->css.vf_output_en = IPU3_NODE_VF_ENABLED;
-	else if (imgu->nodes[IMGU_NODE_PV].enabled)
-		imgu->css.vf_output_en = IPU3_NODE_PV_ENABLED;
-
-	rects[IPU3_CSS_RECT_EFFECTIVE] = &imgu->rect.eff;
-	rects[IPU3_CSS_RECT_BDS] = &imgu->rect.bds;
-	rects[IPU3_CSS_RECT_GDC] = &imgu->rect.gdc;
-
-	r = ipu3_css_fmt_set(&imgu->css, fmts, rects);
-	if (r) {
-		dev_err(dev, "failed to set initial formats (%d)", r);
-		return r;
 	}
 
 	/* Set Power */
@@ -417,24 +372,26 @@ int imgu_s_stream(struct imgu_device *imgu, int enable)
 		goto fail_start_streaming;
 	}
 
-	/* Initialize dummy buffers */
-	r = imgu_dummybufs_init(imgu);
-	if (r) {
-		dev_err(dev, "failed to initialize dummy buffers (%d)", r);
-		goto fail_dummybufs;
-	}
+	for_each_set_bit(pipe, imgu->css.enabled_pipes, IMGU_MAX_PIPE_NUM) {
+		/* Initialize dummy buffers */
+		r = imgu_dummybufs_init(imgu, pipe);
+		if (r) {
+			dev_err(dev, "failed to initialize dummy buffers (%d)", r);
+			goto fail_dummybufs;
+		}
 
-	/* Queue as many buffers from queue as possible */
-	r = imgu_queue_buffers(imgu, true);
-	if (r) {
-		dev_err(dev, "failed to queue initial buffers (%d)", r);
-		goto fail_queueing;
+		/* Queue as many buffers from queue as possible */
+		r = imgu_queue_buffers(imgu, true, pipe);
+		if (r) {
+			dev_err(dev, "failed to queue initial buffers (%d)", r);
+			goto fail_queueing;
+		}
 	}
 
 	return 0;
-
 fail_queueing:
-	imgu_dummybufs_cleanup(imgu);
+	for_each_set_bit(pipe, imgu->css.enabled_pipes, IMGU_MAX_PIPE_NUM)
+		imgu_dummybufs_cleanup(imgu, pipe);
 fail_dummybufs:
 	ipu3_css_stop_streaming(&imgu->css);
 fail_start_streaming:
@@ -447,51 +404,66 @@ static int imgu_video_nodes_init(struct imgu_device *imgu)
 {
 	struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES] = { NULL };
 	struct v4l2_rect *rects[IPU3_CSS_RECTS] = { NULL };
-	unsigned int i;
+	struct imgu_media_pipe *imgu_pipe;
+	unsigned int i, j;
 	int r;
 
 	imgu->buf_struct_size = sizeof(struct imgu_buffer);
 
-	for (i = 0; i < IMGU_NODE_NUM; i++) {
-		imgu->nodes[i].name = imgu_node_map[i].name;
-		imgu->nodes[i].output = i < IMGU_QUEUE_FIRST_INPUT;
-		imgu->nodes[i].immutable = false;
-		imgu->nodes[i].enabled = false;
+	for (j = 0; j < IMGU_MAX_PIPE_NUM; j++) {
+		imgu_pipe = &imgu->imgu_pipe[j];
 
-		if (i != IMGU_NODE_PARAMS && i != IMGU_NODE_STAT_3A)
-			fmts[imgu_node_map[i].css_queue] =
-				&imgu->nodes[i].vdev_fmt.fmt.pix_mp;
-		atomic_set(&imgu->nodes[i].sequence, 0);
+		for (i = 0; i < IMGU_NODE_NUM; i++) {
+			imgu_pipe->nodes[i].name = imgu_node_map[i].name;
+			imgu_pipe->nodes[i].output = i < IMGU_QUEUE_FIRST_INPUT;
+			imgu_pipe->nodes[i].enabled = false;
+
+			if (i != IMGU_NODE_PARAMS && i != IMGU_NODE_STAT_3A)
+				fmts[imgu_node_map[i].css_queue] =
+					&imgu_pipe->nodes[i].vdev_fmt.fmt.pix_mp;
+			atomic_set(&imgu_pipe->nodes[i].sequence, 0);
+		}
 	}
-
-	/* Master queue is always enabled */
-	imgu->nodes[IMGU_QUEUE_MASTER].immutable = true;
-	imgu->nodes[IMGU_QUEUE_MASTER].enabled = true;
 
 	r = imgu_v4l2_register(imgu);
 	if (r)
 		return r;
 
 	/* Set initial formats and initialize formats of video nodes */
-	rects[IPU3_CSS_RECT_EFFECTIVE] = &imgu->rect.eff;
-	rects[IPU3_CSS_RECT_BDS] = &imgu->rect.bds;
-	ipu3_css_fmt_set(&imgu->css, fmts, rects);
+	for (j = 0; j < IMGU_MAX_PIPE_NUM; j++) {
+		imgu_pipe = &imgu->imgu_pipe[j];
 
-	/* Pre-allocate dummy buffers */
-	r = imgu_dummybufs_preallocate(imgu);
-	if (r) {
-		dev_err(&imgu->pci_dev->dev,
-			"failed to pre-allocate dummy buffers (%d)", r);
-		imgu_dummybufs_cleanup(imgu);
-		imgu_v4l2_unregister(imgu);
+		rects[IPU3_CSS_RECT_EFFECTIVE] = &imgu_pipe->imgu_sd.rect.eff;
+		rects[IPU3_CSS_RECT_BDS] = &imgu_pipe->imgu_sd.rect.bds;
+		ipu3_css_fmt_set(&imgu->css, fmts, rects, j);
+
+		/* Pre-allocate dummy buffers */
+		r = imgu_dummybufs_preallocate(imgu, j);
+		if (r) {
+			dev_err(&imgu->pci_dev->dev,
+				"failed to pre-allocate dummy buffers (%d)", r);
+			goto out_cleanup;
+		}
 	}
 
 	return 0;
+
+out_cleanup:
+	for (j = 0; j < IMGU_MAX_PIPE_NUM; j++)
+		imgu_dummybufs_cleanup(imgu, j);
+
+	imgu_v4l2_unregister(imgu);
+
+	return r;
 }
 
 static void imgu_video_nodes_exit(struct imgu_device *imgu)
 {
-	imgu_dummybufs_cleanup(imgu);
+	int i;
+
+	for (i = 0; i < IMGU_MAX_PIPE_NUM; i++)
+		imgu_dummybufs_cleanup(imgu, i);
+
 	imgu_v4l2_unregister(imgu);
 }
 
@@ -500,13 +472,15 @@ static void imgu_video_nodes_exit(struct imgu_device *imgu)
 static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 {
 	struct imgu_device *imgu = imgu_ptr;
+	struct imgu_media_pipe *imgu_pipe;
+	int p;
 
 	/* Dequeue / queue buffers */
 	do {
 		u64 ns = ktime_get_ns();
 		struct ipu3_css_buffer *b;
 		struct imgu_buffer *buf;
-		unsigned int node;
+		unsigned int node, pipe;
 		bool dummy;
 
 		do {
@@ -525,25 +499,31 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 		}
 
 		node = imgu_map_node(imgu, b->queue);
-		dummy = imgu_dummybufs_check(imgu, b);
+		pipe = b->pipe;
+		dummy = imgu_dummybufs_check(imgu, b, pipe);
 		if (!dummy)
 			buf = container_of(b, struct imgu_buffer, css_buf);
 		dev_dbg(&imgu->pci_dev->dev,
-			"dequeue %s %s buffer %d from css\n",
+			"dequeue %s %s buffer %d daddr 0x%x from css\n",
 			dummy ? "dummy" : "user",
 			imgu_node_map[node].name,
-			dummy ? 0 : buf->vid_buf.vbb.vb2_buf.index);
+			dummy ? 0 : buf->vid_buf.vbb.vb2_buf.index,
+			(u32)b->daddr);
 
 		if (dummy)
 			/* It was a dummy buffer, skip it */
 			continue;
 
 		/* Fill vb2 buffer entries and tell it's ready */
-		if (!imgu->nodes[node].output) {
+		imgu_pipe = &imgu->imgu_pipe[pipe];
+		if (!imgu_pipe->nodes[node].output) {
 			buf->vid_buf.vbb.vb2_buf.timestamp = ns;
 			buf->vid_buf.vbb.field = V4L2_FIELD_NONE;
 			buf->vid_buf.vbb.sequence =
-				atomic_inc_return(&imgu->nodes[node].sequence);
+				atomic_inc_return(
+				&imgu_pipe->nodes[node].sequence);
+			dev_dbg(&imgu->pci_dev->dev, "vb2 buffer sequence %d",
+				buf->vid_buf.vbb.sequence);
 		}
 		imgu_buffer_done(imgu, &buf->vid_buf.vbb.vb2_buf,
 				 ipu3_css_buf_state(&buf->css_buf) ==
@@ -562,7 +542,8 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 	 * to be queued to CSS.
 	 */
 	if (!atomic_read(&imgu->qbuf_barrier))
-		imgu_queue_buffers(imgu, false);
+		for_each_set_bit(p, imgu->css.enabled_pipes, IMGU_MAX_PIPE_NUM)
+			imgu_queue_buffers(imgu, false, p);
 
 	return IRQ_HANDLED;
 }
@@ -772,6 +753,7 @@ static int __maybe_unused imgu_resume(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct imgu_device *imgu = pci_get_drvdata(pci_dev);
 	int r = 0;
+	unsigned int pipe;
 
 	dev_dbg(dev, "enter %s\n", __func__);
 
@@ -793,9 +775,13 @@ static int __maybe_unused imgu_resume(struct device *dev)
 		goto out;
 	}
 
-	r = imgu_queue_buffers(imgu, true);
-	if (r)
-		dev_err(dev, "failed to queue buffers (%d)", r);
+	for_each_set_bit(pipe, imgu->css.enabled_pipes, IMGU_MAX_PIPE_NUM) {
+		r = imgu_queue_buffers(imgu, true, pipe);
+		if (r)
+			dev_err(dev, "failed to queue buffers to pipe %d (%d)",
+				pipe, r);
+	}
+
 out:
 	dev_dbg(dev, "leave %s\n", __func__);
 

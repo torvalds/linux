@@ -179,9 +179,9 @@ int ipu3_css_fw_init(struct ipu3_css *css);
 void ipu3_css_fw_cleanup(struct ipu3_css *css);
 
 unsigned int ipu3_css_fw_obgrid_size(const struct imgu_fw_info *bi);
-void *ipu3_css_fw_pipeline_params(struct ipu3_css *css,
-				  enum imgu_abi_param_class c,
-				  enum imgu_abi_memories m,
+void *ipu3_css_fw_pipeline_params(struct ipu3_css *css, unsigned int pipe,
+				  enum imgu_abi_param_class cls,
+				  enum imgu_abi_memories mem,
 				  struct imgu_fw_isp_parameter *par,
 				  size_t par_size, void *binary_params);
 

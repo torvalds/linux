@@ -4,16 +4,19 @@
 #ifndef __IPU3_PARAMS_H
 #define __IPU3_PARAMS_H
 
-int ipu3_css_cfg_acc(struct ipu3_css *css, struct ipu3_uapi_flags *use,
+int ipu3_css_cfg_acc(struct ipu3_css *css, unsigned int pipe,
+		     struct ipu3_uapi_flags *use,
 		     struct imgu_abi_acc_param *acc,
 		     struct imgu_abi_acc_param *acc_old,
 		     struct ipu3_uapi_acc_param *acc_user);
 
-int ipu3_css_cfg_vmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
+int ipu3_css_cfg_vmem0(struct ipu3_css *css, unsigned int pipe,
+		       struct ipu3_uapi_flags *use,
 		       void *vmem0, void *vmem0_old,
 		       struct ipu3_uapi_params *user);
 
-int ipu3_css_cfg_dmem0(struct ipu3_css *css, struct ipu3_uapi_flags *use,
+int ipu3_css_cfg_dmem0(struct ipu3_css *css, unsigned int pipe,
+		       struct ipu3_uapi_flags *use,
 		       void *dmem0, void *dmem0_old,
 		       struct ipu3_uapi_params *user);
 

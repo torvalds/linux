@@ -69,16 +69,17 @@ unsigned int ipu3_css_fw_obgrid_size(const struct imgu_fw_info *bi)
 	return obgrid_size;
 }
 
-void *ipu3_css_fw_pipeline_params(struct ipu3_css *css,
-				  enum imgu_abi_param_class c,
-				  enum imgu_abi_memories m,
+void *ipu3_css_fw_pipeline_params(struct ipu3_css *css, unsigned int pipe,
+				  enum imgu_abi_param_class cls,
+				  enum imgu_abi_memories mem,
 				  struct imgu_fw_isp_parameter *par,
 				  size_t par_size, void *binary_params)
 {
-	struct imgu_fw_info *bi = &css->fwp->binary_header[css->current_binary];
+	struct imgu_fw_info *bi =
+		&css->fwp->binary_header[css->pipes[pipe].bindex];
 
 	if (par->offset + par->size >
-	    bi->info.isp.sp.mem_initializers.params[c][m].size)
+	    bi->info.isp.sp.mem_initializers.params[cls][mem].size)
 		return NULL;
 
 	if (par->size != par_size)
