@@ -310,8 +310,8 @@ v4l2_fwnode_endpoint_parse_parallel_bus(struct fwnode_handle *fwnode,
 	}
 
 	if (!fwnode_property_read_u32(fwnode, "data-active", &v)) {
-		flags &= ~(V4L2_MBUS_PCLK_SAMPLE_RISING |
-			   V4L2_MBUS_PCLK_SAMPLE_FALLING);
+		flags &= ~(V4L2_MBUS_DATA_ACTIVE_HIGH |
+			   V4L2_MBUS_DATA_ACTIVE_LOW);
 		flags |= v ? V4L2_MBUS_DATA_ACTIVE_HIGH :
 			V4L2_MBUS_DATA_ACTIVE_LOW;
 		pr_debug("data-active %s\n", v ? "high" : "low");
