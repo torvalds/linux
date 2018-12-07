@@ -176,6 +176,11 @@ static inline void pqi_scsi_done(struct scsi_cmnd *scmd)
 	scmd->scsi_done(scmd);
 }
 
+static inline void pqi_disable_write_same(struct scsi_device *sdev)
+{
+	sdev->no_write_same = 1;
+}
+
 static inline bool pqi_scsi3addr_equal(u8 *scsi3addr1, u8 *scsi3addr2)
 {
 	return memcmp(scsi3addr1, scsi3addr2, 8) == 0;
@@ -5326,6 +5331,8 @@ static int pqi_slave_alloc(struct scsi_device *sdev)
 			scsi_change_queue_depth(sdev,
 				device->advertised_queue_depth);
 		}
+		if (pqi_is_logical_device(device))
+			pqi_disable_write_same(sdev);
 	}
 
 	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
