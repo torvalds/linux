@@ -4,42 +4,26 @@
 #include "hclge_err.h"
 
 static const struct hclge_hw_error hclge_imp_tcm_ecc_int[] = {
-	{ .int_msk = BIT(0), .msg = "imp_itcm0_ecc_1bit_err" },
 	{ .int_msk = BIT(1), .msg = "imp_itcm0_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "imp_itcm1_ecc_1bit_err" },
 	{ .int_msk = BIT(3), .msg = "imp_itcm1_ecc_mbit_err" },
-	{ .int_msk = BIT(4), .msg = "imp_itcm2_ecc_1bit_err" },
 	{ .int_msk = BIT(5), .msg = "imp_itcm2_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "imp_itcm3_ecc_1bit_err" },
 	{ .int_msk = BIT(7), .msg = "imp_itcm3_ecc_mbit_err" },
-	{ .int_msk = BIT(8), .msg = "imp_dtcm0_mem0_ecc_1bit_err" },
 	{ .int_msk = BIT(9), .msg = "imp_dtcm0_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(10), .msg = "imp_dtcm0_mem1_ecc_1bit_err" },
 	{ .int_msk = BIT(11), .msg = "imp_dtcm0_mem1_ecc_mbit_err" },
-	{ .int_msk = BIT(12), .msg = "imp_dtcm1_mem0_ecc_1bit_err" },
 	{ .int_msk = BIT(13), .msg = "imp_dtcm1_mem0_ecc_mbit_err" },
-	{ .int_msk = BIT(14), .msg = "imp_dtcm1_mem1_ecc_1bit_err" },
 	{ .int_msk = BIT(15), .msg = "imp_dtcm1_mem1_ecc_mbit_err" },
 	{ .int_msk = BIT(17), .msg = "imp_itcm4_ecc_mbit_err" },
 	{ /* sentinel */ }
 };
 
 static const struct hclge_hw_error hclge_cmdq_nic_mem_ecc_int[] = {
-	{ .int_msk = BIT(0), .msg = "cmdq_nic_rx_depth_ecc_1bit_err" },
 	{ .int_msk = BIT(1), .msg = "cmdq_nic_rx_depth_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "cmdq_nic_tx_depth_ecc_1bit_err" },
 	{ .int_msk = BIT(3), .msg = "cmdq_nic_tx_depth_ecc_mbit_err" },
-	{ .int_msk = BIT(4), .msg = "cmdq_nic_rx_tail_ecc_1bit_err" },
 	{ .int_msk = BIT(5), .msg = "cmdq_nic_rx_tail_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "cmdq_nic_tx_tail_ecc_1bit_err" },
 	{ .int_msk = BIT(7), .msg = "cmdq_nic_tx_tail_ecc_mbit_err" },
-	{ .int_msk = BIT(8), .msg = "cmdq_nic_rx_head_ecc_1bit_err" },
 	{ .int_msk = BIT(9), .msg = "cmdq_nic_rx_head_ecc_mbit_err" },
-	{ .int_msk = BIT(10), .msg = "cmdq_nic_tx_head_ecc_1bit_err" },
 	{ .int_msk = BIT(11), .msg = "cmdq_nic_tx_head_ecc_mbit_err" },
-	{ .int_msk = BIT(12), .msg = "cmdq_nic_rx_addr_ecc_1bit_err" },
 	{ .int_msk = BIT(13), .msg = "cmdq_nic_rx_addr_ecc_mbit_err" },
-	{ .int_msk = BIT(14), .msg = "cmdq_nic_tx_addr_ecc_1bit_err" },
 	{ .int_msk = BIT(15), .msg = "cmdq_nic_tx_addr_ecc_mbit_err" },
 	{ .int_msk = BIT(17), .msg = "cmdq_rocee_rx_depth_ecc_mbit_err" },
 	{ .int_msk = BIT(19), .msg = "cmdq_rocee_tx_depth_ecc_mbit_err" },
@@ -53,12 +37,6 @@ static const struct hclge_hw_error hclge_cmdq_nic_mem_ecc_int[] = {
 };
 
 static const struct hclge_hw_error hclge_tqp_int_ecc_int[] = {
-	{ .int_msk = BIT(0), .msg = "tqp_int_cfg_even_ecc_1bit_err" },
-	{ .int_msk = BIT(1), .msg = "tqp_int_cfg_odd_ecc_1bit_err" },
-	{ .int_msk = BIT(2), .msg = "tqp_int_ctrl_even_ecc_1bit_err" },
-	{ .int_msk = BIT(3), .msg = "tqp_int_ctrl_odd_ecc_1bit_err" },
-	{ .int_msk = BIT(4), .msg = "tx_que_scan_int_ecc_1bit_err" },
-	{ .int_msk = BIT(5), .msg = "rx_que_scan_int_ecc_1bit_err" },
 	{ .int_msk = BIT(6), .msg = "tqp_int_cfg_even_ecc_mbit_err" },
 	{ .int_msk = BIT(7), .msg = "tqp_int_cfg_odd_ecc_mbit_err" },
 	{ .int_msk = BIT(8), .msg = "tqp_int_ctrl_even_ecc_mbit_err" },
@@ -76,9 +54,7 @@ static const struct hclge_hw_error hclge_msix_sram_ecc_int[] = {
 
 static const struct hclge_hw_error hclge_igu_int[] = {
 	{ .int_msk = BIT(0), .msg = "igu_rx_buf0_ecc_mbit_err" },
-	{ .int_msk = BIT(1), .msg = "igu_rx_buf0_ecc_1bit_err" },
 	{ .int_msk = BIT(2), .msg = "igu_rx_buf1_ecc_mbit_err" },
-	{ .int_msk = BIT(3), .msg = "igu_rx_buf1_ecc_1bit_err" },
 	{ /* sentinel */ }
 };
 
@@ -93,7 +69,6 @@ static const struct hclge_hw_error hclge_igu_egu_tnl_int[] = {
 };
 
 static const struct hclge_hw_error hclge_ncsi_err_int[] = {
-	{ .int_msk = BIT(0), .msg = "ncsi_tx_ecc_1bit_err" },
 	{ .int_msk = BIT(1), .msg = "ncsi_tx_ecc_mbit_err" },
 	{ /* sentinel */ }
 };
@@ -154,7 +129,6 @@ static const struct hclge_hw_error hclge_ppp_mpf_abnormal_int_st3[] = {
 };
 
 static const struct hclge_hw_error hclge_tm_sch_rint[] = {
-	{ .int_msk = BIT(0), .msg = "tm_sch_ecc_1bit_err" },
 	{ .int_msk = BIT(1), .msg = "tm_sch_ecc_mbit_err" },
 	{ .int_msk = BIT(2), .msg = "tm_sch_port_shap_sub_fifo_wr_err" },
 	{ .int_msk = BIT(3), .msg = "tm_sch_port_shap_sub_fifo_rd_err" },
@@ -222,27 +196,16 @@ static const struct hclge_hw_error hclge_qcn_fifo_rint[] = {
 };
 
 static const struct hclge_hw_error hclge_qcn_ecc_rint[] = {
-	{ .int_msk = BIT(0), .msg = "qcn_byte_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(1), .msg = "qcn_byte_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(2), .msg = "qcn_time_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(3), .msg = "qcn_time_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(4), .msg = "qcn_fb_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(5), .msg = "qcn_fb_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(6), .msg = "qcn_link_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(7), .msg = "qcn_link_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(8), .msg = "qcn_rate_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(9), .msg = "qcn_rate_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(10), .msg = "qcn_tmplt_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(11), .msg = "qcn_tmplt_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(12), .msg = "qcn_shap_cfg_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(13), .msg = "qcn_shap_cfg_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(14), .msg = "qcn_gp0_barrel_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(15), .msg = "qcn_gp0_barrel_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(16), .msg = "qcn_gp1_barrel_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(17), .msg = "qcn_gp1_barrel_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(18), .msg = "qcn_gp2_barrel_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(19), .msg = "qcn_gp2_barrel_mem_ecc_mbit_err" },
-	{ .int_msk = BIT(20), .msg = "qcn_gp3_barral_mem_ecc_1bit_err" },
 	{ .int_msk = BIT(21), .msg = "qcn_gp3_barral_mem_ecc_mbit_err" },
 	{ /* sentinel */ }
 };
