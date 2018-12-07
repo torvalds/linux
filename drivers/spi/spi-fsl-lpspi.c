@@ -55,6 +55,7 @@
 #define IER_RDIE	BIT(1)
 #define IER_TDIE	BIT(0)
 #define CFGR1_PCSCFG	BIT(27)
+#define CFGR1_PINCFG	(BIT(24)|BIT(25))
 #define CFGR1_PCSPOL	BIT(8)
 #define CFGR1_NOSTALL	BIT(3)
 #define CFGR1_MASTER	BIT(0)
@@ -80,6 +81,7 @@ struct fsl_lpspi_data {
 	struct device *dev;
 	void __iomem *base;
 	struct clk *clk;
+	bool is_slave;
 
 	void *rx_buf;
 	const void *tx_buf;
@@ -92,6 +94,8 @@ struct fsl_lpspi_data {
 
 	struct lpspi_config config;
 	struct completion xfer_done;
+
+	bool slave_aborted;
 };
 
 static const struct of_device_id fsl_lpspi_dt_ids[] = {
@@ -206,21 +210,22 @@ static void fsl_lpspi_set_cmd(struct fsl_lpspi_data *fsl_lpspi,
 	u32 temp = 0;
 
 	temp |= fsl_lpspi->config.bpw - 1;
-	temp |= fsl_lpspi->config.prescale << 27;
 	temp |= (fsl_lpspi->config.mode & 0x3) << 30;
-	temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
+	if (!fsl_lpspi->is_slave) {
+		temp |= fsl_lpspi->config.prescale << 27;
+		temp |= (fsl_lpspi->config.chip_select & 0x3) << 24;
 
-	/*
-	 * Set TCR_CONT will keep SS asserted after current transfer.
-	 * For the first transfer, clear TCR_CONTC to assert SS.
-	 * For subsequent transfer, set TCR_CONTC to keep SS asserted.
-	 */
-	temp |= TCR_CONT;
-	if (is_first_xfer)
-		temp &= ~TCR_CONTC;
-	else
-		temp |= TCR_CONTC;
-
+		/*
+		 * Set TCR_CONT will keep SS asserted after current transfer.
+		 * For the first transfer, clear TCR_CONTC to assert SS.
+		 * For subsequent transfer, set TCR_CONTC to keep SS asserted.
+		 */
+		temp |= TCR_CONT;
+		if (is_first_xfer)
+			temp &= ~TCR_CONTC;
+		else
+			temp |= TCR_CONTC;
+	}
 	writel(temp, fsl_lpspi->base + IMX7ULP_TCR);
 
 	dev_dbg(fsl_lpspi->dev, "TCR=0x%x\n", temp);
@@ -273,13 +278,18 @@ static int fsl_lpspi_config(struct fsl_lpspi_data *fsl_lpspi)
 	writel(temp, fsl_lpspi->base + IMX7ULP_CR);
 	writel(0, fsl_lpspi->base + IMX7ULP_CR);
 
-	ret = fsl_lpspi_set_bitrate(fsl_lpspi);
-	if (ret)
-		return ret;
+	if (!fsl_lpspi->is_slave) {
+		ret = fsl_lpspi_set_bitrate(fsl_lpspi);
+		if (ret)
+			return ret;
+	}
 
 	fsl_lpspi_set_watermark(fsl_lpspi);
 
-	temp = CFGR1_PCSCFG | CFGR1_MASTER;
+	if (!fsl_lpspi->is_slave)
+		temp = CFGR1_MASTER;
+	else
+		temp = CFGR1_PINCFG;
 	if (fsl_lpspi->config.mode & SPI_CS_HIGH)
 		temp |= CFGR1_PCSPOL;
 	writel(temp, fsl_lpspi->base + IMX7ULP_CFGR1);
@@ -322,6 +332,37 @@ static void fsl_lpspi_setup_transfer(struct spi_device *spi,
 	fsl_lpspi_config(fsl_lpspi);
 }
 
+static int fsl_lpspi_slave_abort(struct spi_controller *controller)
+{
+	struct fsl_lpspi_data *fsl_lpspi =
+				spi_controller_get_devdata(controller);
+
+	fsl_lpspi->slave_aborted = true;
+	complete(&fsl_lpspi->xfer_done);
+	return 0;
+}
+
+static int fsl_lpspi_wait_for_completion(struct spi_controller *controller)
+{
+	struct fsl_lpspi_data *fsl_lpspi =
+				spi_controller_get_devdata(controller);
+
+	if (fsl_lpspi->is_slave) {
+		if (wait_for_completion_interruptible(&fsl_lpspi->xfer_done) ||
+			fsl_lpspi->slave_aborted) {
+			dev_dbg(fsl_lpspi->dev, "interrupted\n");
+			return -EINTR;
+		}
+	} else {
+		if (!wait_for_completion_timeout(&fsl_lpspi->xfer_done, HZ)) {
+			dev_dbg(fsl_lpspi->dev, "wait for completion timeout\n");
+			return -ETIMEDOUT;
+		}
+	}
+
+	return 0;
+}
+
 static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 				  struct spi_device *spi,
 				  struct spi_transfer *t)
@@ -335,13 +376,13 @@ static int fsl_lpspi_transfer_one(struct spi_controller *controller,
 	fsl_lpspi->remain = t->len;
 
 	reinit_completion(&fsl_lpspi->xfer_done);
+	fsl_lpspi->slave_aborted = false;
+
 	fsl_lpspi_write_tx_fifo(fsl_lpspi);
 
-	ret = wait_for_completion_timeout(&fsl_lpspi->xfer_done, HZ);
-	if (!ret) {
-		dev_dbg(fsl_lpspi->dev, "wait for completion timeout\n");
-		return -ETIMEDOUT;
-	}
+	ret = fsl_lpspi_wait_for_completion(controller);
+	if (ret)
+		return ret;
 
 	ret = fsl_lpspi_txfifo_empty(fsl_lpspi);
 	if (ret)
@@ -380,10 +421,12 @@ static int fsl_lpspi_transfer_one_msg(struct spi_controller *controller,
 	}
 
 complete:
-	/* de-assert SS, then finalize current message */
-	temp = readl(fsl_lpspi->base + IMX7ULP_TCR);
-	temp &= ~TCR_CONTC;
-	writel(temp, fsl_lpspi->base + IMX7ULP_TCR);
+	if (!fsl_lpspi->is_slave) {
+		/* de-assert SS, then finalize current message */
+		temp = readl(fsl_lpspi->base + IMX7ULP_TCR);
+		temp &= ~TCR_CONTC;
+		writel(temp, fsl_lpspi->base + IMX7ULP_TCR);
+	}
 
 	msg->status = ret;
 	spi_finalize_current_message(controller);
@@ -421,8 +464,13 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	int ret, irq;
 	u32 temp;
 
-	controller = spi_alloc_master(&pdev->dev,
+	if (of_property_read_bool((&pdev->dev)->of_node, "spi-slave"))
+		controller = spi_alloc_slave(&pdev->dev,
 					sizeof(struct fsl_lpspi_data));
+	else
+		controller = spi_alloc_master(&pdev->dev,
+					sizeof(struct fsl_lpspi_data));
+
 	if (!controller)
 		return -ENOMEM;
 
@@ -433,6 +481,8 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 
 	fsl_lpspi = spi_controller_get_devdata(controller);
 	fsl_lpspi->dev = &pdev->dev;
+	fsl_lpspi->is_slave = of_property_read_bool((&pdev->dev)->of_node,
+						    "spi-slave");
 
 	controller->transfer_one_message = fsl_lpspi_transfer_one_msg;
 	controller->prepare_transfer_hardware = lpspi_prepare_xfer_hardware;
@@ -441,6 +491,7 @@ static int fsl_lpspi_probe(struct platform_device *pdev)
 	controller->flags = SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX;
 	controller->dev.of_node = pdev->dev.of_node;
 	controller->bus_num = pdev->id;
+	controller->slave_abort = fsl_lpspi_slave_abort;
 
 	init_completion(&fsl_lpspi->xfer_done);
 
