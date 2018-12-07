@@ -337,6 +337,30 @@ static const struct hclge_hw_error hclge_ssu_port_based_pf_int[] = {
 	{ /* sentinel */ }
 };
 
+static const struct hclge_hw_error hclge_rocee_qmm_ovf_err_int[] = {
+	{ .int_msk = 0, .msg = "rocee qmm ovf: sgid invalid err" },
+	{ .int_msk = 0x4, .msg = "rocee qmm ovf: sgid ovf err" },
+	{ .int_msk = 0x8, .msg = "rocee qmm ovf: smac invalid err" },
+	{ .int_msk = 0xC, .msg = "rocee qmm ovf: smac ovf err" },
+	{ .int_msk = 0x10, .msg = "rocee qmm ovf: cqc invalid err" },
+	{ .int_msk = 0x11, .msg = "rocee qmm ovf: cqc ovf err" },
+	{ .int_msk = 0x12, .msg = "rocee qmm ovf: cqc hopnum err" },
+	{ .int_msk = 0x13, .msg = "rocee qmm ovf: cqc ba0 err" },
+	{ .int_msk = 0x14, .msg = "rocee qmm ovf: srqc invalid err" },
+	{ .int_msk = 0x15, .msg = "rocee qmm ovf: srqc ovf err" },
+	{ .int_msk = 0x16, .msg = "rocee qmm ovf: srqc hopnum err" },
+	{ .int_msk = 0x17, .msg = "rocee qmm ovf: srqc ba0 err" },
+	{ .int_msk = 0x18, .msg = "rocee qmm ovf: mpt invalid err" },
+	{ .int_msk = 0x19, .msg = "rocee qmm ovf: mpt ovf err" },
+	{ .int_msk = 0x1A, .msg = "rocee qmm ovf: mpt hopnum err" },
+	{ .int_msk = 0x1B, .msg = "rocee qmm ovf: mpt ba0 err" },
+	{ .int_msk = 0x1C, .msg = "rocee qmm ovf: qpc invalid err" },
+	{ .int_msk = 0x1D, .msg = "rocee qmm ovf: qpc ovf err" },
+	{ .int_msk = 0x1E, .msg = "rocee qmm ovf: qpc hopnum err" },
+	{ .int_msk = 0x1F, .msg = "rocee qmm ovf: qpc ba0 err" },
+	{ /* sentinel */ }
+};
+
 static void hclge_log_error(struct device *dev, char *reg,
 			    const struct hclge_hw_error *err,
 			    u32 err_sts)
@@ -1023,6 +1047,148 @@ static int hclge_handle_all_ras_errors(struct hclge_dev *hdev)
 	return ret;
 }
 
+static int hclge_log_rocee_ovf_error(struct hclge_dev *hdev)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	int ret;
+
+	/* read overflow error status */
+	ret = hclge_cmd_query_error(hdev, &desc[0],
+				    HCLGE_ROCEE_PF_RAS_INT_CMD,
+				    0, 0, 0);
+	if (ret) {
+		dev_err(dev, "failed(%d) to query ROCEE OVF error sts\n", ret);
+		return ret;
+	}
+
+	/* log overflow error */
+	if (le32_to_cpu(desc[0].data[0]) & HCLGE_ROCEE_OVF_ERR_INT_MASK) {
+		const struct hclge_hw_error *err;
+		u32 err_sts;
+
+		err = &hclge_rocee_qmm_ovf_err_int[0];
+		err_sts = HCLGE_ROCEE_OVF_ERR_TYPE_MASK &
+			  le32_to_cpu(desc[0].data[0]);
+		while (err->msg) {
+			if (err->int_msk == err_sts) {
+				dev_warn(dev, "%s [error status=0x%x] found\n",
+					 err->msg,
+					 le32_to_cpu(desc[0].data[0]));
+				break;
+			}
+			err++;
+		}
+	}
+
+	if (le32_to_cpu(desc[0].data[1]) & HCLGE_ROCEE_OVF_ERR_INT_MASK) {
+		dev_warn(dev, "ROCEE TSP OVF [error status=0x%x] found\n",
+			 le32_to_cpu(desc[0].data[1]));
+	}
+
+	if (le32_to_cpu(desc[0].data[2]) & HCLGE_ROCEE_OVF_ERR_INT_MASK) {
+		dev_warn(dev, "ROCEE SCC OVF [error status=0x%x] found\n",
+			 le32_to_cpu(desc[0].data[2]));
+	}
+
+	return 0;
+}
+
+static int hclge_log_and_clear_rocee_ras_error(struct hclge_dev *hdev)
+{
+	enum hnae3_reset_type reset_type = HNAE3_FUNC_RESET;
+	struct hnae3_ae_dev *ae_dev = hdev->ae_dev;
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc[2];
+	unsigned int status;
+	int ret;
+
+	/* read RAS error interrupt status */
+	ret = hclge_cmd_query_error(hdev, &desc[0],
+				    HCLGE_QUERY_CLEAR_ROCEE_RAS_INT,
+				    0, 0, 0);
+	if (ret) {
+		dev_err(dev, "failed(%d) to query ROCEE RAS INT SRC\n", ret);
+		/* reset everything for now */
+		HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+		return ret;
+	}
+
+	status = le32_to_cpu(desc[0].data[0]);
+
+	if (status & HCLGE_ROCEE_RERR_INT_MASK)
+		dev_warn(dev, "ROCEE RAS AXI rresp error\n");
+
+	if (status & HCLGE_ROCEE_BERR_INT_MASK)
+		dev_warn(dev, "ROCEE RAS AXI bresp error\n");
+
+	if (status & HCLGE_ROCEE_ECC_INT_MASK) {
+		dev_warn(dev, "ROCEE RAS 2bit ECC error\n");
+		reset_type = HNAE3_GLOBAL_RESET;
+	}
+
+	if (status & HCLGE_ROCEE_OVF_INT_MASK) {
+		ret = hclge_log_rocee_ovf_error(hdev);
+		if (ret) {
+			dev_err(dev, "failed(%d) to process ovf error\n", ret);
+			/* reset everything for now */
+			HCLGE_SET_DEFAULT_RESET_REQUEST(HNAE3_GLOBAL_RESET);
+			return ret;
+		}
+	}
+
+	/* clear error status */
+	hclge_cmd_reuse_desc(&desc[0], false);
+	ret = hclge_cmd_send(&hdev->hw, &desc[0], 1);
+	if (ret) {
+		dev_err(dev, "failed(%d) to clear ROCEE RAS error\n", ret);
+		/* reset everything for now */
+		reset_type = HNAE3_GLOBAL_RESET;
+	}
+
+	HCLGE_SET_DEFAULT_RESET_REQUEST(reset_type);
+
+	return ret;
+}
+
+static int hclge_config_rocee_ras_interrupt(struct hclge_dev *hdev, bool en)
+{
+	struct device *dev = &hdev->pdev->dev;
+	struct hclge_desc desc;
+	int ret;
+
+	if (hdev->pdev->revision < 0x21 || !hnae3_dev_roce_supported(hdev))
+		return 0;
+
+	hclge_cmd_setup_basic_desc(&desc, HCLGE_CONFIG_ROCEE_RAS_INT_EN, false);
+	if (en) {
+		/* enable ROCEE hw error interrupts */
+		desc.data[0] = cpu_to_le32(HCLGE_ROCEE_RAS_NFE_INT_EN);
+		desc.data[1] = cpu_to_le32(HCLGE_ROCEE_RAS_CE_INT_EN);
+
+		hclge_log_and_clear_rocee_ras_error(hdev);
+	}
+	desc.data[2] = cpu_to_le32(HCLGE_ROCEE_RAS_NFE_INT_EN_MASK);
+	desc.data[3] = cpu_to_le32(HCLGE_ROCEE_RAS_CE_INT_EN_MASK);
+
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		dev_err(dev, "failed(%d) to config ROCEE RAS interrupt\n", ret);
+
+	return ret;
+}
+
+static int hclge_handle_rocee_ras_error(struct hnae3_ae_dev *ae_dev)
+{
+	struct hclge_dev *hdev = ae_dev->priv;
+
+	if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
+	    hdev->pdev->revision < 0x21)
+		return HNAE3_NONE_RESET;
+
+	return hclge_log_and_clear_rocee_ras_error(hdev);
+}
+
 static const struct hclge_hw_blk hw_blk[] = {
 	{
 	  .msk = BIT(0), .name = "IGU_EGU",
@@ -1058,6 +1224,7 @@ static const struct hclge_hw_blk hw_blk[] = {
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 {
 	const struct hclge_hw_blk *module = hw_blk;
+	struct device *dev = &hdev->pdev->dev;
 	int ret = 0;
 
 	while (module->name) {
@@ -1068,6 +1235,10 @@ int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 		}
 		module++;
 	}
+
+	ret = hclge_config_rocee_ras_interrupt(hdev, state);
+	if (ret)
+		dev_err(dev, "fail(%d) to configure ROCEE err int\n", ret);
 
 	return ret;
 }
@@ -1086,8 +1257,20 @@ pci_ers_result_t hclge_handle_hw_ras_error(struct hnae3_ae_dev *ae_dev)
 			 "HNS Non-Fatal RAS error(status=0x%x) identified\n",
 			 status);
 		hclge_handle_all_ras_errors(hdev);
-		return PCI_ERS_RESULT_NEED_RESET;
+	} else {
+		if (test_bit(HCLGE_STATE_RST_HANDLING, &hdev->state) ||
+		    hdev->pdev->revision < 0x21)
+			return PCI_ERS_RESULT_RECOVERED;
 	}
+
+	if (status & HCLGE_RAS_REG_ROCEE_ERR_MASK) {
+		dev_warn(dev, "ROCEE uncorrected RAS error identified\n");
+		hclge_handle_rocee_ras_error(ae_dev);
+	}
+
+	if (status & HCLGE_RAS_REG_NFE_MASK ||
+	    status & HCLGE_RAS_REG_ROCEE_ERR_MASK)
+		return PCI_ERS_RESULT_NEED_RESET;
 
 	return PCI_ERS_RESULT_RECOVERED;
 }
