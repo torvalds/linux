@@ -582,6 +582,8 @@
 			};
 
 			vcc5v0_usb: SWITCH_REG1 {
+				regulator-always-on;
+				regulator-boot-on;
 				regulator-min-microvolt = <5000000>;
 				regulator-max-microvolt = <5000000>;
 
