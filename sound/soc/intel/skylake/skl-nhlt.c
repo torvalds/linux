@@ -180,6 +180,9 @@ int skl_get_dmic_geo(struct skl *skl)
 	unsigned int dmic_geo = 0;
 	u8 j;
 
+	if (!nhlt)
+		return 0;
+
 	epnt = (struct nhlt_endpoint *)nhlt->desc;
 
 	for (j = 0; j < nhlt->endpoint_count; j++) {

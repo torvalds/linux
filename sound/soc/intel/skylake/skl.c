@@ -992,8 +992,10 @@ static int skl_probe(struct pci_dev *pci,
 	bus = skl_to_bus(skl);
 
 	err = skl_first_init(bus);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(bus->dev, "skl_first_init failed with err: %d\n", err);
 		goto out_free;
+	}
 
 	skl->pci_id = pci->device;
 
@@ -1002,26 +1004,39 @@ static int skl_probe(struct pci_dev *pci,
 	skl->nhlt = skl_nhlt_init(bus->dev);
 
 	if (skl->nhlt == NULL) {
+#if !IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
+		dev_err(bus->dev, "no nhlt info found\n");
 		err = -ENODEV;
 		goto out_free;
+#else
+		dev_warn(bus->dev, "no nhlt info found, continuing to try to enable HDaudio codec\n");
+#endif
+	} else {
+
+		err = skl_nhlt_create_sysfs(skl);
+		if (err < 0) {
+			dev_err(bus->dev, "skl_nhlt_create_sysfs failed with err: %d\n", err);
+			goto out_nhlt_free;
+		}
+
+		skl_nhlt_update_topology_bin(skl);
+
+		/* create device for dsp clk */
+		err = skl_clock_device_register(skl);
+		if (err < 0) {
+			dev_err(bus->dev, "skl_clock_device_register failed with err: %d\n", err);
+			goto out_clk_free;
+		}
 	}
-
-	err = skl_nhlt_create_sysfs(skl);
-	if (err < 0)
-		goto out_nhlt_free;
-
-	skl_nhlt_update_topology_bin(skl);
 
 	pci_set_drvdata(skl->pci, bus);
 
-	/* create device for dsp clk */
-	err = skl_clock_device_register(skl);
-	if (err < 0)
-		goto out_clk_free;
 
 	err = skl_find_machine(skl, (void *)pci_id->driver_data);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(bus->dev, "skl_find_machine failed with err: %d\n", err);
 		goto out_nhlt_free;
+	}
 
 	err = skl_init_dsp(skl);
 	if (err < 0) {
@@ -1038,8 +1053,10 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* create device for soc dmic */
 	err = skl_dmic_device_register(skl);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(bus->dev, "skl_dmic_device_register failed with err: %d\n", err);
 		goto out_dsp_free;
+	}
 
 	schedule_work(&skl->probe_work);
 
