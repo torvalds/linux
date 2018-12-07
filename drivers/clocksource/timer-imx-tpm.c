@@ -139,6 +139,9 @@ static struct timer_of to_tpm = {
 		.handler		= tpm_timer_interrupt,
 		.flags			= IRQF_TIMER | IRQF_IRQPOLL,
 	},
+	.of_clk = {
+		.name = "per",
+	},
 };
 
 static int __init tpm_clocksource_init(void)
