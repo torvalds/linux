@@ -276,6 +276,11 @@ int ov_camera_module_s_ext_ctrls(
 	struct v4l2_subdev *sd,
 	struct v4l2_ext_controls *ctrls);
 
+int ov_camera_module_enum_frame_size(
+	struct v4l2_subdev *sd,
+	struct v4l2_subdev_pad_config *cfg,
+	struct v4l2_subdev_frame_size_enum *fse);
+
 int ov_camera_module_enum_frameintervals(
 	struct v4l2_subdev *sd,
 	struct v4l2_subdev_pad_config *cfg,

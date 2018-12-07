@@ -953,6 +953,7 @@ static struct v4l2_subdev_pad_ops ov9750_camera_module_pad_ops = {
 	.enum_frame_interval = ov_camera_module_enum_frameintervals,
 	.get_fmt = ov_camera_module_g_fmt,
 	.set_fmt = ov_camera_module_s_fmt,
+	.enum_frame_size = ov_camera_module_enum_frame_size,
 };
 
 static struct v4l2_subdev_ops ov9750_camera_module_ops = {
