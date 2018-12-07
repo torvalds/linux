@@ -852,6 +852,7 @@ static int cif_isp10_v4l2_enum_framesizes(
 	int ret;
 	struct vb2_queue *queue = to_vb2_queue(file);
 	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
+	struct v4l2_subdev_frame_size_enum fse;
 
 	if (IS_ERR_OR_NULL(dev->img_src)) {
 		cif_isp10_pltfrm_pr_err(NULL,
@@ -860,9 +861,20 @@ static int cif_isp10_v4l2_enum_framesizes(
 		goto err;
 	}
 
-	return -EINVAL;
+	memset(&fse, 0x00, sizeof(fse));
+	fse.index = fsize->index;
+
+	ret = cif_isp10_img_src_enum_frame_size(dev->img_src, &fse);
+	if (IS_ERR_VALUE(ret))
+		goto err;
+
+	fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+
+	fsize->discrete.width = fse.max_width;
+	fsize->discrete.height = fse.max_height;
+
+	return 0;
 err:
-	cif_isp10_pltfrm_pr_err(NULL, "failed with error %d\n", ret);
 	return ret;
 }
 

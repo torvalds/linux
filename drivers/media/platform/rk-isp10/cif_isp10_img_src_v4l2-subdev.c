@@ -546,3 +546,13 @@ err:
 	return ret;
 }
 
+int cif_isp10_img_src_v4l2_subdev_enum_frame_size(
+	void *img_src,
+	struct v4l2_subdev_frame_size_enum *fse)
+{
+	struct v4l2_subdev *subdev = img_src;
+
+	return v4l2_subdev_call(subdev, pad,
+		enum_frame_size, NULL, fse);
+}
+

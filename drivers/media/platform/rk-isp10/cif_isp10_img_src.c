@@ -205,3 +205,14 @@ int cif_isp10_img_src_g_frame_interval(
 	return -EINVAL;
 }
 
+int cif_isp10_img_src_enum_frame_size(
+	struct cif_isp10_img_src *img_src,
+	void *fse)
+{
+	if (img_src)
+		return img_src->ops->enum_frame_size(
+			img_src->img_src,
+			fse);
+	return -EINVAL;
+}
+

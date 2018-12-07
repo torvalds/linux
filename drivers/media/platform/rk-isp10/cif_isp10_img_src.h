@@ -92,4 +92,8 @@ int cif_isp10_img_src_g_frame_interval(
 	struct cif_isp10_img_src *img_src,
 	struct cif_isp10_frm_intrvl *frm_intrvl);
 
+int cif_isp10_img_src_enum_frame_size(
+	struct cif_isp10_img_src *img_src,
+	void *fse);
+
 #endif
