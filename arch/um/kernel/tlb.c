@@ -242,10 +242,11 @@ static inline int update_pte_range(pmd_t *pmd, unsigned long addr,
 		prot = ((r ? UM_PROT_READ : 0) | (w ? UM_PROT_WRITE : 0) |
 			(x ? UM_PROT_EXEC : 0));
 		if (hvc->force || pte_newpage(*pte)) {
-			if (pte_present(*pte))
-				ret = add_mmap(addr, pte_val(*pte) & PAGE_MASK,
-					       PAGE_SIZE, prot, hvc);
-			else
+			if (pte_present(*pte)) {
+				if (pte_newpage(*pte))
+					ret = add_mmap(addr, pte_val(*pte) & PAGE_MASK,
+						       PAGE_SIZE, prot, hvc);
+			} else
 				ret = add_munmap(addr, PAGE_SIZE, hvc);
 		} else if (pte_newprot(*pte))
 			ret = add_mprotect(addr, PAGE_SIZE, prot, hvc);
