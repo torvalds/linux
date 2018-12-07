@@ -4201,13 +4201,33 @@ void lockdep_free_key_range(void *start, unsigned long size)
 	 */
 }
 
-void lockdep_reset_lock(struct lockdep_map *lock)
+/*
+ * Check whether any element of the @lock->class_cache[] array refers to a
+ * registered lock class. The caller must hold either the graph lock or the
+ * RCU read lock.
+ */
+static bool lock_class_cache_is_registered(struct lockdep_map *lock)
 {
 	struct lock_class *class;
 	struct hlist_head *head;
-	unsigned long flags;
 	int i, j;
-	int locked;
+
+	for (i = 0; i < CLASSHASH_SIZE; i++) {
+		head = classhash_table + i;
+		hlist_for_each_entry_rcu(class, head, hash_entry) {
+			for (j = 0; j < NR_LOCKDEP_CACHING_CLASSES; j++)
+				if (lock->class_cache[j] == class)
+					return true;
+		}
+	}
+	return false;
+}
+
+void lockdep_reset_lock(struct lockdep_map *lock)
+{
+	struct lock_class *class;
+	unsigned long flags;
+	int j, locked;
 
 	raw_local_irq_save(flags);
 
@@ -4227,24 +4247,14 @@ void lockdep_reset_lock(struct lockdep_map *lock)
 	 * be gone.
 	 */
 	locked = graph_lock();
-	for (i = 0; i < CLASSHASH_SIZE; i++) {
-		head = classhash_table + i;
-		hlist_for_each_entry_rcu(class, head, hash_entry) {
-			int match = 0;
-
-			for (j = 0; j < NR_LOCKDEP_CACHING_CLASSES; j++)
-				match |= class == lock->class_cache[j];
-
-			if (unlikely(match)) {
-				if (debug_locks_off_graph_unlock()) {
-					/*
-					 * We all just reset everything, how did it match?
-					 */
-					WARN_ON(1);
-				}
-				goto out_restore;
-			}
+	if (unlikely(lock_class_cache_is_registered(lock))) {
+		if (debug_locks_off_graph_unlock()) {
+			/*
+			 * We all just reset everything, how did it match?
+			 */
+			WARN_ON(1);
 		}
+		goto out_restore;
 	}
 	if (locked)
 		graph_unlock();
