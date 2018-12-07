@@ -108,8 +108,8 @@ neigh/default/gc_thresh2 - INTEGER
 	Default: 512
 
 neigh/default/gc_thresh3 - INTEGER
-	Maximum number of neighbor entries allowed.  Increase this
-	when using large numbers of interfaces and when communicating
+	Maximum number of non-PERMANENT neighbor entries allowed.  Increase
+	this when using large numbers of interfaces and when communicating
 	with large numbers of directly-connected peers.
 	Default: 1024
 
