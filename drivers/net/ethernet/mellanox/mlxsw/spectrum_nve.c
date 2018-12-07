@@ -789,6 +789,21 @@ static void mlxsw_sp_nve_fdb_flush_by_fid(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfdf), sfdf_pl);
 }
 
+static void mlxsw_sp_nve_fdb_clear_offload(struct mlxsw_sp *mlxsw_sp,
+					   const struct mlxsw_sp_fid *fid,
+					   const struct net_device *nve_dev,
+					   __be32 vni)
+{
+	const struct mlxsw_sp_nve_ops *ops;
+	enum mlxsw_sp_nve_type type;
+
+	if (WARN_ON(mlxsw_sp_fid_nve_type(fid, &type)))
+		return;
+
+	ops = mlxsw_sp->nve->nve_ops_arr[type];
+	ops->fdb_clear_offload(nve_dev, vni);
+}
+
 int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 			    struct mlxsw_sp_nve_params *params,
 			    struct netlink_ext_ack *extack)
@@ -826,8 +841,16 @@ int mlxsw_sp_nve_fid_enable(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_fid *fid,
 
 	nve->config = config;
 
+	err = ops->fdb_replay(params->dev, params->vni);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Failed to offload the FDB");
+		goto err_fdb_replay;
+	}
+
 	return 0;
 
+err_fdb_replay:
+	mlxsw_sp_fid_vni_clear(fid);
 err_fid_vni_set:
 	mlxsw_sp_nve_tunnel_fini(mlxsw_sp);
 	return err;
@@ -837,9 +860,27 @@ void mlxsw_sp_nve_fid_disable(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_fid *fid)
 {
 	u16 fid_index = mlxsw_sp_fid_index(fid);
+	struct net_device *nve_dev;
+	int nve_ifindex;
+	__be32 vni;
 
 	mlxsw_sp_nve_flood_ip_flush(mlxsw_sp, fid);
 	mlxsw_sp_nve_fdb_flush_by_fid(mlxsw_sp, fid_index);
+
+	if (WARN_ON(mlxsw_sp_fid_nve_ifindex(fid, &nve_ifindex) ||
+		    mlxsw_sp_fid_vni(fid, &vni)))
+		goto out;
+
+	nve_dev = dev_get_by_index(&init_net, nve_ifindex);
+	if (!nve_dev)
+		goto out;
+
+	mlxsw_sp_nve_fdb_clear_offload(mlxsw_sp, fid, nve_dev, vni);
+	mlxsw_sp_fid_fdb_clear_offload(fid, nve_dev);
+
+	dev_put(nve_dev);
+
+out:
 	mlxsw_sp_fid_vni_clear(fid);
 	mlxsw_sp_nve_tunnel_fini(mlxsw_sp);
 }
