@@ -586,18 +586,16 @@ static const struct hclge_hw_blk hw_blk[] = {
 
 int hclge_hw_error_set_state(struct hclge_dev *hdev, bool state)
 {
+	const struct hclge_hw_blk *module = hw_blk;
 	int ret = 0;
-	int i = 0;
 
-	while (hw_blk[i].name) {
-		if (!hw_blk[i].config_err_int) {
-			i++;
-			continue;
+	while (module->name) {
+		if (module->config_err_int) {
+			ret = module->config_err_int(hdev, state);
+			if (ret)
+				return ret;
 		}
-		ret = hw_blk[i].config_err_int(hdev, state);
-		if (ret)
-			return ret;
-		i++;
+		module++;
 	}
 
 	return ret;
