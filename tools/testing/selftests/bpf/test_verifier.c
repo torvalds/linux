@@ -721,8 +721,18 @@ static struct bpf_test tests[] = {
 			BPF_ALU32_IMM(BPF_ARSH, BPF_REG_0, 5),
 			BPF_EXIT_INSN(),
 		},
-		.result = REJECT,
-		.errstr = "unknown opcode c4",
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"arsh32 on imm 2",
+		.insns = {
+			BPF_LD_IMM64(BPF_REG_0, 0x1122334485667788),
+			BPF_ALU32_IMM(BPF_ARSH, BPF_REG_0, 7),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = -16069393,
 	},
 	{
 		"arsh32 on reg",
@@ -732,8 +742,19 @@ static struct bpf_test tests[] = {
 			BPF_ALU32_REG(BPF_ARSH, BPF_REG_0, BPF_REG_1),
 			BPF_EXIT_INSN(),
 		},
-		.result = REJECT,
-		.errstr = "unknown opcode cc",
+		.result = ACCEPT,
+		.retval = 0,
+	},
+	{
+		"arsh32 on reg 2",
+		.insns = {
+			BPF_LD_IMM64(BPF_REG_0, 0xffff55667788),
+			BPF_MOV64_IMM(BPF_REG_1, 15),
+			BPF_ALU32_REG(BPF_ARSH, BPF_REG_0, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.retval = 43724,
 	},
 	{
 		"arsh64 on imm",
