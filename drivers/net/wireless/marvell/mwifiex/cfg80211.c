@@ -1275,27 +1275,27 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 }
 
 static void
-mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
+mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 rateinfo, u8 htinfo,
 		     struct rate_info *rate)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 
 	if (adapter->is_hw_11ac_capable) {
 		/* bit[1-0]: 00=LG 01=HT 10=VHT */
-		if (tx_htinfo & BIT(0)) {
+		if (htinfo & BIT(0)) {
 			/* HT */
-			rate->mcs = priv->tx_rate;
+			rate->mcs = rateinfo;
 			rate->flags |= RATE_INFO_FLAGS_MCS;
 		}
-		if (tx_htinfo & BIT(1)) {
+		if (htinfo & BIT(1)) {
 			/* VHT */
-			rate->mcs = priv->tx_rate & 0x0F;
+			rate->mcs = rateinfo & 0x0F;
 			rate->flags |= RATE_INFO_FLAGS_VHT_MCS;
 		}
 
-		if (tx_htinfo & (BIT(1) | BIT(0))) {
+		if (htinfo & (BIT(1) | BIT(0))) {
 			/* HT or VHT */
-			switch (tx_htinfo & (BIT(3) | BIT(2))) {
+			switch (htinfo & (BIT(3) | BIT(2))) {
 			case 0:
 				rate->bw = RATE_INFO_BW_20;
 				break;
@@ -1310,26 +1310,26 @@ mwifiex_parse_htinfo(struct mwifiex_private *priv, u8 tx_htinfo,
 				break;
 			}
 
-			if (tx_htinfo & BIT(4))
+			if (htinfo & BIT(4))
 				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 
-			if ((priv->tx_rate >> 4) == 1)
+			if ((rateinfo >> 4) == 1)
 				rate->nss = 2;
 			else
 				rate->nss = 1;
 		}
 	} else {
 		/*
-		 * Bit 0 in tx_htinfo indicates that current Tx rate
-		 * is 11n rate. Valid MCS index values for us are 0 to 15.
+		 * Bit 0 in htinfo indicates that current rate is 11n. Valid
+		 * MCS index values for us are 0 to 15.
 		 */
-		if ((tx_htinfo & BIT(0)) && (priv->tx_rate < 16)) {
-			rate->mcs = priv->tx_rate;
+		if ((htinfo & BIT(0)) && (rateinfo < 16)) {
+			rate->mcs = rateinfo;
 			rate->flags |= RATE_INFO_FLAGS_MCS;
 			rate->bw = RATE_INFO_BW_20;
-			if (tx_htinfo & BIT(1))
+			if (htinfo & BIT(1))
 				rate->bw = RATE_INFO_BW_40;
-			if (tx_htinfo & BIT(2))
+			if (htinfo & BIT(2))
 				rate->flags |= RATE_INFO_FLAGS_SHORT_GI;
 		}
 	}
@@ -1375,7 +1375,8 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 		sinfo->tx_packets = node->stats.tx_packets;
 		sinfo->tx_failed = node->stats.tx_failed;
 
-		mwifiex_parse_htinfo(priv, node->stats.last_tx_htinfo,
+		mwifiex_parse_htinfo(priv, priv->tx_rate,
+				     node->stats.last_tx_htinfo,
 				     &sinfo->txrate);
 		sinfo->txrate.legacy = node->stats.last_tx_rate * 5;
 
@@ -1401,7 +1402,8 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			 HostCmd_ACT_GEN_GET, DTIM_PERIOD_I,
 			 &priv->dtim_period, true);
 
-	mwifiex_parse_htinfo(priv, priv->tx_htinfo, &sinfo->txrate);
+	mwifiex_parse_htinfo(priv, priv->tx_rate, priv->tx_htinfo,
+			     &sinfo->txrate);
 
 	sinfo->signal_avg = priv->bcn_rssi_avg;
 	sinfo->rx_bytes = priv->stats.rx_bytes;
