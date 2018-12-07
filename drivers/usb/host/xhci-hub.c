@@ -814,10 +814,12 @@ static u32 xhci_get_ext_port_status(u32 raw_port_status, u32 port_li)
 static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 				      u32 portsc)
 {
+	struct xhci_bus_state *bus_state;
 	struct xhci_hcd	*xhci;
 	u32 link_state;
 	u32 portnum;
 
+	bus_state = &port->rhub->bus_state;
 	xhci = hcd_to_xhci(port->rhub->hcd);
 	link_state = portsc & PORT_PLS_MASK;
 	portnum = port->hcd_portnum;
@@ -839,8 +841,12 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 		*status |= USB_PORT_STAT_C_CONFIG_ERROR << 16;
 
 	/* USB3 specific wPortStatus bits */
-	if (portsc & PORT_POWER)
+	if (portsc & PORT_POWER) {
 		*status |= USB_SS_PORT_STAT_POWER;
+		/* link state handling */
+		if (link_state == XDEV_U0)
+			bus_state->suspended_ports &= ~(1 << portnum);
+	}
 
 	xhci_hub_report_usb3_link_state(xhci, status, portsc);
 	xhci_del_comp_mod_timer(xhci, portsc, portnum);
@@ -849,9 +855,13 @@ static void xhci_get_usb3_port_status(struct xhci_port *port, u32 *status,
 static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
 				      u32 portsc)
 {
+	struct xhci_bus_state *bus_state;
 	u32 link_state;
+	u32 portnum;
 
+	bus_state = &port->rhub->bus_state;
 	link_state = portsc & PORT_PLS_MASK;
+	portnum = port->hcd_portnum;
 
 	/* USB2 wPortStatus bits */
 	if (portsc & PORT_POWER) {
@@ -862,6 +872,14 @@ static void xhci_get_usb2_port_status(struct xhci_port *port, u32 *status,
 			*status |= USB_PORT_STAT_SUSPEND;
 		if (link_state == XDEV_U2)
 			*status |= USB_PORT_STAT_L1;
+		if (link_state == XDEV_U0) {
+			bus_state->resume_done[portnum] = 0;
+			clear_bit(portnum, &bus_state->resuming_ports);
+			if (bus_state->suspended_ports & (1 << portnum)) {
+				bus_state->suspended_ports &= ~(1 << portnum);
+				bus_state->port_c_suspend |= 1 << portnum;
+			}
+		}
 	}
 }
 
@@ -1009,18 +1027,6 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 		bus_state->resume_done[wIndex] = 0;
 		clear_bit(wIndex, &bus_state->resuming_ports);
 		usb_hcd_end_port_resume(&hcd->self, wIndex);
-	}
-
-
-	if ((raw_port_status & PORT_PLS_MASK) == XDEV_U0 &&
-	    (raw_port_status & PORT_POWER)) {
-		if (bus_state->suspended_ports & (1 << wIndex)) {
-			bus_state->suspended_ports &= ~(1 << wIndex);
-			if (hcd->speed < HCD_USB3)
-				bus_state->port_c_suspend |= 1 << wIndex;
-		}
-		bus_state->resume_done[wIndex] = 0;
-		clear_bit(wIndex, &bus_state->resuming_ports);
 	}
 
 	if (bus_state->port_c_suspend & (1 << wIndex))
