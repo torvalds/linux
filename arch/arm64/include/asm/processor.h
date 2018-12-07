@@ -44,6 +44,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/lse.h>
 #include <asm/pgtable-hwdef.h>
+#include <asm/pointer_auth.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
 
@@ -288,6 +289,9 @@ extern void __init minsigstksz_setup(void);
 /* Userspace interface for PR_SVE_{SET,GET}_VL prctl()s: */
 #define SVE_SET_VL(arg)	sve_set_current_vl(arg)
 #define SVE_GET_VL()	sve_get_current_vl()
+
+/* PR_PAC_RESET_KEYS prctl */
+#define PAC_RESET_KEYS(tsk, arg)	ptrauth_prctl_reset_keys(tsk, arg)
 
 /*
  * For CONFIG_GCC_PLUGIN_STACKLEAK
