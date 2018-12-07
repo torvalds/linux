@@ -21,6 +21,9 @@
 #if !defined(_SMARTPQI_H)
 #define _SMARTPQI_H
 
+#include <scsi/scsi_host.h>
+#include <linux/bsg-lib.h>
+
 #pragma pack(1)
 
 #define PQI_DEVICE_SIGNATURE	"PQI DREG"
@@ -855,6 +858,7 @@ struct pqi_scsi_dev {
 	u8	unique_id[16];
 	u8	is_physical_device : 1;
 	u8	is_external_raid_device : 1;
+	u8	is_expander_smp_device : 1;
 	u8	target_lun_valid : 1;
 	u8	device_gone : 1;
 	u8	new_device : 1;
@@ -964,6 +968,7 @@ struct pqi_sas_node {
 struct pqi_sas_port {
 	struct list_head port_list_entry;
 	u64	sas_address;
+	struct pqi_scsi_dev *device;
 	struct sas_port *port;
 	int	next_phy_index;
 	struct list_head phy_list_head;
@@ -1129,10 +1134,13 @@ enum pqi_ctrl_mode {
 #define BMIC_WRITE				0x27
 #define BMIC_SENSE_CONTROLLER_PARAMETERS	0x64
 #define BMIC_SENSE_SUBSYSTEM_INFORMATION	0x66
+#define BMIC_CSMI_PASSTHRU			0x68
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
 #define BMIC_FLUSH_CACHE			0xc2
 #define BMIC_SET_DIAG_OPTIONS			0xf4
 #define BMIC_SENSE_DIAG_OPTIONS			0xf5
+
+#define CSMI_CC_SAS_SMP_PASSTHRU		0X17
 
 #define SA_FLUSH_CACHE				0x1
 
@@ -1159,6 +1167,10 @@ struct bmic_identify_controller {
 	u8	controller_mode;
 	u8	reserved3[32];
 };
+
+#define SA_EXPANDER_SMP_DEVICE		0x05
+/*SCSI Invalid Device Type for SAS devices*/
+#define PQI_SAS_SCSI_INVALID_DEVTYPE	0xff
 
 struct bmic_identify_physical_device {
 	u8	scsi_bus;		/* SCSI Bus number on controller */
@@ -1240,6 +1252,50 @@ struct bmic_identify_physical_device {
 	u8	padding_to_multiple_of_512[9];
 };
 
+struct bmic_smp_request {
+	u8	frame_type;
+	u8	function;
+	u8	allocated_response_length;
+	u8	request_length;
+	u8	additional_request_bytes[1016];
+};
+
+struct  bmic_smp_response {
+	u8	frame_type;
+	u8	function;
+	u8	function_result;
+	u8	response_length;
+	u8	additional_response_bytes[1016];
+};
+
+struct bmic_csmi_ioctl_header {
+	__le32	header_length;
+	u8	signature[8];
+	__le32	timeout;
+	__le32	control_code;
+	__le32	return_code;
+	__le32	length;
+};
+
+struct bmic_csmi_smp_passthru {
+	u8	phy_identifier;
+	u8	port_identifier;
+	u8	connection_rate;
+	u8	reserved;
+	__be64	destination_sas_address;
+	__le32	request_length;
+	struct bmic_smp_request request;
+	u8	connection_status;
+	u8	reserved1[3];
+	__le32	response_length;
+	struct bmic_smp_response response;
+};
+
+struct bmic_csmi_smp_passthru_buffer {
+	struct bmic_csmi_ioctl_header ioctl_header;
+	struct bmic_csmi_smp_passthru parameters;
+};
+
 struct bmic_flush_cache {
 	u8	disable_flag;
 	u8	system_power_action;
@@ -1263,6 +1319,36 @@ struct bmic_diag_options {
 
 #pragma pack()
 
+static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
+{
+	void *hostdata = shost_priv(shost);
+
+	return *((struct pqi_ctrl_info **)hostdata);
+}
+
+static inline bool pqi_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
+{
+	return !ctrl_info->controller_online;
+}
+
+static inline void pqi_ctrl_busy(struct pqi_ctrl_info *ctrl_info)
+{
+	atomic_inc(&ctrl_info->num_busy_threads);
+}
+
+static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
+{
+	atomic_dec(&ctrl_info->num_busy_threads);
+}
+
+static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
+{
+	return ctrl_info->block_requests;
+}
+
+void pqi_sas_smp_handler(struct bsg_job *job, struct Scsi_Host *shost,
+	struct sas_rphy *rphy);
+
 int pqi_add_sas_host(struct Scsi_Host *shost, struct pqi_ctrl_info *ctrl_info);
 void pqi_delete_sas_host(struct pqi_ctrl_info *ctrl_info);
 int pqi_add_sas_device(struct pqi_sas_node *pqi_sas_node,
@@ -1271,6 +1357,9 @@ void pqi_remove_sas_device(struct pqi_scsi_dev *device);
 struct pqi_scsi_dev *pqi_find_device_by_sas_rphy(
 	struct pqi_ctrl_info *ctrl_info, struct sas_rphy *rphy);
 void pqi_prep_for_scsi_done(struct scsi_cmnd *scmd);
+int pqi_csmi_smp_passthru(struct pqi_ctrl_info *ctrl_info,
+	struct bmic_csmi_smp_passthru_buffer *buffer, size_t buffer_length,
+	struct pqi_raid_error_info *error_info);
 
 extern struct sas_function_template pqi_sas_transport_functions;
 

@@ -188,13 +188,6 @@ static inline bool pqi_scsi3addr_equal(u8 *scsi3addr1, u8 *scsi3addr2)
 	return memcmp(scsi3addr1, scsi3addr2, 8) == 0;
 }
 
-static inline struct pqi_ctrl_info *shost_to_hba(struct Scsi_Host *shost)
-{
-	void *hostdata = shost_priv(shost);
-
-	return *((struct pqi_ctrl_info **)hostdata);
-}
-
 static inline bool pqi_is_logical_device(struct pqi_scsi_dev *device)
 {
 	return !device->is_physical_device;
@@ -203,11 +196,6 @@ static inline bool pqi_is_logical_device(struct pqi_scsi_dev *device)
 static inline bool pqi_is_external_raid_addr(u8 *scsi3addr)
 {
 	return scsi3addr[2] != 0;
-}
-
-static inline bool pqi_ctrl_offline(struct pqi_ctrl_info *ctrl_info)
-{
-	return !ctrl_info->controller_online;
 }
 
 static inline void pqi_check_ctrl_health(struct pqi_ctrl_info *ctrl_info)
@@ -248,11 +236,6 @@ static inline void pqi_ctrl_unblock_requests(struct pqi_ctrl_info *ctrl_info)
 	scsi_unblock_requests(ctrl_info->scsi_host);
 }
 
-static inline bool pqi_ctrl_blocked(struct pqi_ctrl_info *ctrl_info)
-{
-	return ctrl_info->block_requests;
-}
-
 static unsigned long pqi_wait_if_ctrl_blocked(struct pqi_ctrl_info *ctrl_info,
 	unsigned long timeout_msecs)
 {
@@ -280,16 +263,6 @@ static unsigned long pqi_wait_if_ctrl_blocked(struct pqi_ctrl_info *ctrl_info,
 	atomic_dec(&ctrl_info->num_blocked_threads);
 
 	return remaining_msecs;
-}
-
-static inline void pqi_ctrl_busy(struct pqi_ctrl_info *ctrl_info)
-{
-	atomic_inc(&ctrl_info->num_busy_threads);
-}
-
-static inline void pqi_ctrl_unbusy(struct pqi_ctrl_info *ctrl_info)
-{
-	atomic_dec(&ctrl_info->num_busy_threads);
 }
 
 static inline void pqi_ctrl_wait_until_quiesced(struct pqi_ctrl_info *ctrl_info)
@@ -469,6 +442,13 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 	case BMIC_WRITE_HOST_WELLNESS:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
+		cdb[6] = cmd;
+		put_unaligned_be16(cdb_length, &cdb[7]);
+		break;
+	case BMIC_CSMI_PASSTHRU:
+		request->data_direction = SOP_BIDIRECTIONAL;
+		cdb[0] = BMIC_WRITE;
+		cdb[5] = CSMI_CC_SAS_SMP_PASSTHRU;
 		cdb[6] = cmd;
 		put_unaligned_be16(cdb_length, &cdb[7]);
 		break;
@@ -713,6 +693,13 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
+int pqi_csmi_smp_passthru(struct pqi_ctrl_info *ctrl_info,
+	struct bmic_csmi_smp_passthru_buffer *buffer, size_t buffer_length,
+	struct pqi_raid_error_info *error_info)
+{
+	return pqi_send_ctrl_raid_with_error(ctrl_info, BMIC_CSMI_PASSTHRU,
+		buffer, buffer_length, error_info);
+}
 
 #define PQI_FETCH_PTRAID_DATA (1UL<<31)
 
@@ -1298,6 +1285,9 @@ static int pqi_get_device_info(struct pqi_ctrl_info *ctrl_info,
 	u8 *buffer;
 	unsigned int retries;
 
+	if (device->is_expander_smp_device)
+		return 0;
+
 	buffer = kmalloc(64, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
@@ -1585,6 +1575,14 @@ static enum pqi_find_result pqi_scsi_find_entry(struct pqi_ctrl_info *ctrl_info,
 	return DEVICE_NOT_FOUND;
 }
 
+static inline const char *pqi_device_type(struct pqi_scsi_dev *device)
+{
+	if (device->is_expander_smp_device)
+		return "Enclosure SMP    ";
+
+	return scsi_device_type(device->devtype);
+}
+
 #define PQI_DEV_INFO_BUFFER_LENGTH	128
 
 static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
@@ -1620,7 +1618,7 @@ static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 
 	count += snprintf(buffer + count, PQI_DEV_INFO_BUFFER_LENGTH - count,
 		" %s %.8s %.16s ",
-		scsi_device_type(device->devtype),
+		pqi_device_type(device),
 		device->vendor,
 		device->model);
 
@@ -1665,6 +1663,8 @@ static void pqi_scsi_update_device(struct pqi_scsi_dev *existing_device,
 	existing_device->is_physical_device = new_device->is_physical_device;
 	existing_device->is_external_raid_device =
 		new_device->is_external_raid_device;
+	existing_device->is_expander_smp_device =
+		new_device->is_expander_smp_device;
 	existing_device->aio_enabled = new_device->aio_enabled;
 	memcpy(existing_device->vendor, new_device->vendor,
 		sizeof(existing_device->vendor));
@@ -1719,6 +1719,14 @@ static inline void pqi_fixup_botched_add(struct pqi_ctrl_info *ctrl_info,
 
 	/* Allow the device structure to be freed later. */
 	device->keep_device = false;
+}
+
+static inline bool pqi_is_device_added(struct pqi_scsi_dev *device)
+{
+	if (device->is_expander_smp_device)
+		return device->sas_port != NULL;
+
+	return device->sdev != NULL;
 }
 
 static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
@@ -1815,7 +1823,7 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 		} else {
 			pqi_dev_info(ctrl_info, "removed", device);
 		}
-		if (device->sdev)
+		if (pqi_is_device_added(device))
 			pqi_remove_device(ctrl_info, device);
 		list_del(&device->delete_list_entry);
 		pqi_free_device(device);
@@ -1837,7 +1845,7 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 
 	/* Expose any new devices. */
 	list_for_each_entry_safe(device, next, &add_list, add_list_entry) {
-		if (!device->sdev) {
+		if (!pqi_is_device_added(device)) {
 			pqi_dev_info(ctrl_info, "added", device);
 			rc = pqi_add_device(ctrl_info, device);
 			if (rc) {
@@ -1854,7 +1862,12 @@ static void pqi_update_device_list(struct pqi_ctrl_info *ctrl_info,
 
 static bool pqi_is_supported_device(struct pqi_scsi_dev *device)
 {
-	bool is_supported = false;
+	bool is_supported;
+
+	if (device->is_expander_smp_device)
+		return true;
+
+	is_supported = false;
 
 	switch (device->devtype) {
 	case TYPE_DISK:
@@ -1884,6 +1897,24 @@ static inline bool pqi_skip_device(u8 *scsi3addr)
 	/* Ignore all masked devices. */
 	if (MASKED_DEVICE(scsi3addr))
 		return true;
+
+	return false;
+}
+
+static inline bool pqi_is_device_with_sas_address(struct pqi_scsi_dev *device)
+{
+	if (!device->is_physical_device)
+		return false;
+
+	if (device->is_expander_smp_device)
+		return true;
+
+	switch (device->devtype) {
+	case TYPE_DISK:
+	case TYPE_ZBC:
+	case TYPE_ENCLOSURE:
+		return true;
+	}
 
 	return false;
 }
@@ -2002,9 +2033,14 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 
 		memcpy(device->scsi3addr, scsi3addr, sizeof(device->scsi3addr));
 		device->is_physical_device = is_physical_device;
-		if (!is_physical_device)
+		if (is_physical_device) {
+			if (phys_lun_ext_entry->device_type ==
+				SA_EXPANDER_SMP_DEVICE)
+				device->is_expander_smp_device = true;
+		} else {
 			device->is_external_raid_device =
 				pqi_is_external_raid_addr(scsi3addr);
+		}
 
 		/* Gather information about the device. */
 		rc = pqi_get_device_info(ctrl_info, device);
@@ -2037,30 +2073,23 @@ static int pqi_update_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 			device->wwid = phys_lun_ext_entry->wwid;
 			if ((phys_lun_ext_entry->device_flags &
 				REPORT_PHYS_LUN_DEV_FLAG_AIO_ENABLED) &&
-				phys_lun_ext_entry->aio_handle)
+				phys_lun_ext_entry->aio_handle) {
 				device->aio_enabled = true;
+					device->aio_handle =
+						phys_lun_ext_entry->aio_handle;
+			}
+			if (device->devtype == TYPE_DISK ||
+				device->devtype == TYPE_ZBC) {
+				pqi_get_physical_disk_info(ctrl_info,
+					device, id_phys);
+			}
 		} else {
 			memcpy(device->volume_id, log_lun_ext_entry->volume_id,
 				sizeof(device->volume_id));
 		}
 
-		switch (device->devtype) {
-		case TYPE_DISK:
-		case TYPE_ZBC:
-		case TYPE_ENCLOSURE:
-			if (device->is_physical_device) {
-				device->sas_address =
-					get_unaligned_be64(&device->wwid);
-				if (device->devtype == TYPE_DISK ||
-					device->devtype == TYPE_ZBC) {
-					device->aio_handle =
-						phys_lun_ext_entry->aio_handle;
-					pqi_get_physical_disk_info(ctrl_info,
-						device, id_phys);
-				}
-			}
-			break;
-		}
+		if (pqi_is_device_with_sas_address(device))
+			device->sas_address = get_unaligned_be64(&device->wwid);
 
 		new_device_list[num_valid_devices++] = device;
 	}
@@ -2103,7 +2132,7 @@ static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 		if (!device)
 			break;
 
-		if (device->sdev)
+		if (pqi_is_device_added(device))
 			pqi_remove_device(ctrl_info, device);
 		pqi_free_device(device);
 	}
