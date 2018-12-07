@@ -2665,6 +2665,9 @@ static int pqi_interpret_task_management_response(
 	case SOP_TMF_FUNCTION_SUCCEEDED:
 		rc = 0;
 		break;
+	case SOP_TMF_REJECTED:
+		rc = -EAGAIN;
+		break;
 	default:
 		rc = -EIO;
 		break;
@@ -5218,14 +5221,23 @@ static int pqi_lun_reset(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
+#define PQI_LUN_RESET_RETRIES			3
+#define PQI_LUN_RESET_RETRY_INTERVAL_MSECS	10000
 /* Performs a reset at the LUN level. */
 
 static int pqi_device_reset(struct pqi_ctrl_info *ctrl_info,
 	struct pqi_scsi_dev *device)
 {
 	int rc;
+	unsigned int retries;
 
-	rc = pqi_lun_reset(ctrl_info, device);
+	for (retries = 0;;) {
+		rc = pqi_lun_reset(ctrl_info, device);
+		if (rc != -EAGAIN ||
+		    ++retries > PQI_LUN_RESET_RETRIES)
+			break;
+		msleep(PQI_LUN_RESET_RETRY_INTERVAL_MSECS);
+	}
 	if (rc == 0)
 		rc = pqi_device_wait_for_pending_io(ctrl_info, device);
 

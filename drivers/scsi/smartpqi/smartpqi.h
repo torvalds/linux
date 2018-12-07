@@ -587,6 +587,7 @@ typedef u32 pqi_index_t;
 #define SOP_TASK_ATTRIBUTE_ACA			4
 
 #define SOP_TMF_COMPLETE		0x0
+#define SOP_TMF_REJECTED		0x4
 #define SOP_TMF_FUNCTION_SUCCEEDED	0x8
 
 /* additional CDB bytes usage field codes */
