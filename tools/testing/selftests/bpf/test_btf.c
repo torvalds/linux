@@ -108,7 +108,7 @@ static int __base_pr(const char *format, ...)
 #define BTF_END_RAW 0xdeadbeef
 #define NAME_TBD 0xdeadb33f
 
-#define MAX_NR_RAW_TYPES 1024
+#define MAX_NR_RAW_U32 1024
 #define BTF_LOG_BUF_SIZE 65535
 
 static struct args {
@@ -137,7 +137,7 @@ struct btf_raw_test {
 	const char *str_sec;
 	const char *map_name;
 	const char *err_str;
-	__u32 raw_types[MAX_NR_RAW_TYPES];
+	__u32 raw_types[MAX_NR_RAW_U32];
 	__u32 str_sec_size;
 	enum bpf_map_type map_type;
 	__u32 key_size;
@@ -155,6 +155,9 @@ struct btf_raw_test {
 	int str_off_delta;
 	int str_len_delta;
 };
+
+#define BTF_STR_SEC(str) \
+	.str_sec = str, .str_sec_size = sizeof(str)
 
 static struct btf_raw_test raw_tests[] = {
 /* enum E {
@@ -1858,11 +1861,11 @@ static const char *get_next_str(const char *start, const char *end)
 	return start < end - 1 ? start + 1 : NULL;
 }
 
-static int get_type_sec_size(const __u32 *raw_types)
+static int get_raw_sec_size(const __u32 *raw_types)
 {
 	int i;
 
-	for (i = MAX_NR_RAW_TYPES - 1;
+	for (i = MAX_NR_RAW_U32 - 1;
 	     i >= 0 && raw_types[i] != BTF_END_RAW;
 	     i--)
 		;
@@ -1874,7 +1877,8 @@ static void *btf_raw_create(const struct btf_header *hdr,
 			    const __u32 *raw_types,
 			    const char *str,
 			    unsigned int str_sec_size,
-			    unsigned int *btf_size)
+			    unsigned int *btf_size,
+			    const char **ret_next_str)
 {
 	const char *next_str = str, *end_str = str + str_sec_size;
 	unsigned int size_needed, offset;
@@ -1883,7 +1887,7 @@ static void *btf_raw_create(const struct btf_header *hdr,
 	uint32_t *ret_types;
 	void *raw_btf;
 
-	type_sec_size = get_type_sec_size(raw_types);
+	type_sec_size = get_raw_sec_size(raw_types);
 	if (CHECK(type_sec_size < 0, "Cannot get nr_raw_types"))
 		return NULL;
 
@@ -1922,6 +1926,8 @@ static void *btf_raw_create(const struct btf_header *hdr,
 	ret_hdr->str_len = str_sec_size;
 
 	*btf_size = size_needed;
+	if (ret_next_str)
+		*ret_next_str = next_str;
 
 	return raw_btf;
 }
@@ -1941,7 +1947,7 @@ static int do_test_raw(unsigned int test_num)
 				 test->raw_types,
 				 test->str_sec,
 				 test->str_sec_size,
-				 &raw_btf_size);
+				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
 		return -1;
@@ -2018,7 +2024,7 @@ static int test_raw(void)
 struct btf_get_info_test {
 	const char *descr;
 	const char *str_sec;
-	__u32 raw_types[MAX_NR_RAW_TYPES];
+	__u32 raw_types[MAX_NR_RAW_U32];
 	__u32 str_sec_size;
 	int btf_size_delta;
 	int (*special_test)(unsigned int test_num);
@@ -2098,7 +2104,7 @@ static int test_big_btf_info(unsigned int test_num)
 				 test->raw_types,
 				 test->str_sec,
 				 test->str_sec_size,
-				 &raw_btf_size);
+				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
 		return -1;
@@ -2182,7 +2188,7 @@ static int test_btf_id(unsigned int test_num)
 				 test->raw_types,
 				 test->str_sec,
 				 test->str_sec_size,
-				 &raw_btf_size);
+				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
 		return -1;
@@ -2320,7 +2326,7 @@ static int do_test_get_info(unsigned int test_num)
 				 test->raw_types,
 				 test->str_sec,
 				 test->str_sec_size,
-				 &raw_btf_size);
+				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
 		return -1;
@@ -2849,7 +2855,7 @@ static int do_test_pprint(void)
 	fprintf(stderr, "%s......", test->descr);
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
 				 test->str_sec, test->str_sec_size,
-				 &raw_btf_size);
+				 &raw_btf_size, NULL);
 
 	if (!raw_btf)
 		return -1;
@@ -3053,16 +3059,23 @@ static int test_pprint(void)
 	return err;
 }
 
+#define BPF_LINE_INFO_ENC(insn_off, file_off, line_off, line_num, line_col) \
+	(insn_off), (file_off), (line_off), ((line_num) << 10 | ((line_col) & 0x3ff))
+
 static struct prog_info_raw_test {
 	const char *descr;
 	const char *str_sec;
-	__u32 raw_types[MAX_NR_RAW_TYPES];
+	const char *err_str;
+	__u32 raw_types[MAX_NR_RAW_U32];
 	__u32 str_sec_size;
 	struct bpf_insn insns[MAX_INSNS];
 	__u32 prog_type;
 	__u32 func_info[MAX_SUBPROGS][2];
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
+	__u32 line_info[MAX_NR_RAW_U32];
+	__u32 line_info_rec_size;
+	__u32 nr_jited_ksyms;
 	bool expected_prog_load_failure;
 } info_raw_tests[] = {
 {
@@ -3093,6 +3106,7 @@ static struct prog_info_raw_test {
 	.func_info = { {0, 5}, {3, 6} },
 	.func_info_rec_size = 8,
 	.func_info_cnt = 2,
+	.line_info = { BTF_END_RAW },
 },
 
 {
@@ -3123,6 +3137,7 @@ static struct prog_info_raw_test {
 	.func_info = { {0, 5}, {3, 6} },
 	.func_info_rec_size = 4,
 	.func_info_cnt = 2,
+	.line_info = { BTF_END_RAW },
 	.expected_prog_load_failure = true,
 },
 
@@ -3154,6 +3169,7 @@ static struct prog_info_raw_test {
 	.func_info = { {0, 5}, {3, 6} },
 	.func_info_rec_size = 8,
 	.func_info_cnt = 1,
+	.line_info = { BTF_END_RAW },
 	.expected_prog_load_failure = true,
 },
 
@@ -3185,6 +3201,278 @@ static struct prog_info_raw_test {
 	.func_info = { {0, 5}, {2, 6} },
 	.func_info_rec_size = 8,
 	.func_info_cnt = 2,
+	.line_info = { BTF_END_RAW },
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "line_info (No subprog)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1;\0int b=2;\0return a + b;\0return a + b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_MOV64_IMM(BPF_REG_1, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 1,
+},
+
+{
+	.descr = "line_info (No subprog. insn_off >= prog->len)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1;\0int b=2;\0return a + b;\0return a + b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_MOV64_IMM(BPF_REG_1, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 4, 7),
+		BPF_LINE_INFO_ENC(4, 0, 0, 5, 6),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 1,
+	.err_str = "line_info[4].insn_off",
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "line_info (No subprog. zero tailing line_info",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1;\0int b=2;\0return a + b;\0return a + b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_MOV64_IMM(BPF_REG_1, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10), 0,
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 2, 9), 0,
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8), 0,
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 4, 7), 0,
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info) + sizeof(__u32),
+	.nr_jited_ksyms = 1,
+},
+
+{
+	.descr = "line_info (No subprog. nonzero tailing line_info)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1;\0int b=2;\0return a + b;\0return a + b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_0, 1),
+		BPF_MOV64_IMM(BPF_REG_1, 2),
+		BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10), 0,
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 2, 9), 0,
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8), 0,
+		BPF_LINE_INFO_ENC(3, 0, NAME_TBD, 4, 7), 1,
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info) + sizeof(__u32),
+	.nr_jited_ksyms = 1,
+	.err_str = "nonzero tailing record in line_info",
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "line_info (subprog)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1+1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+},
+
+{
+	.descr = "line_info (subprog + func_info)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_FUNC_PROTO_ENC(1, 1),			/* [2] */
+			BTF_FUNC_PROTO_ARG_ENC(NAME_TBD, 1),
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [3] */
+		BTF_FUNC_ENC(NAME_TBD, 2),			/* [4] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0x\0sub\0main\0int a=1+1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 2,
+	.func_info_rec_size = 8,
+	.func_info = { {0, 4}, {5, 3} },
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+},
+
+{
+	.descr = "line_info (subprog. missing 1st func line info)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1+1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(1, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.err_str = "missing bpf_line_info for func#0",
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "line_info (subprog. missing 2nd func line info)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1+1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(6, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.err_str = "missing bpf_line_info for func#1",
+	.expected_prog_load_failure = true,
+},
+
+{
+	.descr = "line_info (subprog. unordered insn offset)",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0int\0int a=1+1;\0return func(a);\0b+=1;\0return b;"),
+	.insns = {
+		BPF_MOV64_IMM(BPF_REG_2, 1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, 1),
+		BPF_MOV64_REG(BPF_REG_1, BPF_REG_2),
+		BPF_CALL_REL(1),
+		BPF_EXIT_INSN(),
+		BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+		BPF_EXIT_INSN(),
+	},
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
+	.func_info_cnt = 0,
+	.line_info = {
+		BPF_LINE_INFO_ENC(0, 0, NAME_TBD, 1, 10),
+		BPF_LINE_INFO_ENC(5, 0, NAME_TBD, 2, 9),
+		BPF_LINE_INFO_ENC(2, 0, NAME_TBD, 3, 8),
+		BPF_LINE_INFO_ENC(7, 0, NAME_TBD, 4, 7),
+		BTF_END_RAW,
+	},
+	.line_info_rec_size = sizeof(struct bpf_line_info),
+	.nr_jited_ksyms = 2,
+	.err_str = "Invalid line_info[2].insn_off",
 	.expected_prog_load_failure = true,
 },
 
@@ -3198,6 +3486,46 @@ static size_t probe_prog_length(const struct bpf_insn *fp)
 		if (fp[len].code != 0 || fp[len].imm != 0)
 			break;
 	return len + 1;
+}
+
+static __u32 *patch_name_tbd(const __u32 *raw_u32,
+			     const char *str, __u32 str_off,
+			     unsigned int str_sec_size,
+			     unsigned int *ret_size)
+{
+	int i, raw_u32_size = get_raw_sec_size(raw_u32);
+	const char *end_str = str + str_sec_size;
+	const char *next_str = str + str_off;
+	__u32 *new_u32 = NULL;
+
+	if (raw_u32_size == -1)
+		return ERR_PTR(-EINVAL);
+
+	if (!raw_u32_size) {
+		*ret_size = 0;
+		return NULL;
+	}
+
+	new_u32 = malloc(raw_u32_size);
+	if (!new_u32)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < raw_u32_size / sizeof(raw_u32[0]); i++) {
+		if (raw_u32[i] == NAME_TBD) {
+			next_str = get_next_str(next_str, end_str);
+			if (CHECK(!next_str, "Error in getting next_str\n")) {
+				free(new_u32);
+				return ERR_PTR(-EINVAL);
+			}
+			new_u32[i] = next_str - str;
+			next_str += strlen(next_str);
+		} else {
+			new_u32[i] = raw_u32[i];
+		}
+	}
+
+	*ret_size = raw_u32_size;
+	return new_u32;
 }
 
 static int test_get_finfo(const struct prog_info_raw_test *test,
@@ -3283,18 +3611,229 @@ done:
 	return err;
 }
 
+static int test_get_linfo(const struct prog_info_raw_test *test,
+			  const void *patched_linfo,
+			  __u32 cnt, int prog_fd)
+{
+	__u32 i, info_len, nr_jited_ksyms, nr_jited_func_lens;
+	__u64 *jited_linfo = NULL, *jited_ksyms = NULL;
+	__u32 rec_size, jited_rec_size, jited_cnt;
+	struct bpf_line_info *linfo = NULL;
+	__u32 cur_func_len, ksyms_found;
+	struct bpf_prog_info info = {};
+	__u32 *jited_func_lens = NULL;
+	__u64 cur_func_ksyms;
+	int err;
+
+	jited_cnt = cnt;
+	rec_size = sizeof(*linfo);
+	jited_rec_size = sizeof(*jited_linfo);
+	if (test->nr_jited_ksyms)
+		nr_jited_ksyms = test->nr_jited_ksyms;
+	else
+		nr_jited_ksyms = test->func_info_cnt;
+	nr_jited_func_lens = nr_jited_ksyms;
+
+	info_len = sizeof(struct bpf_prog_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (CHECK(err == -1, "err:%d errno:%d", err, errno)) {
+		err = -1;
+		goto done;
+	}
+
+	if (!info.jited_prog_len) {
+		/* prog is not jited */
+		jited_cnt = 0;
+		nr_jited_ksyms = 1;
+		nr_jited_func_lens = 1;
+	}
+
+	if (CHECK(info.line_info_cnt != cnt ||
+		  info.jited_line_info_cnt != jited_cnt ||
+		  info.nr_jited_ksyms != nr_jited_ksyms ||
+		  info.nr_jited_func_lens != nr_jited_func_lens ||
+		  (!info.line_info_cnt && info.jited_line_info_cnt),
+		  "info: line_info_cnt:%u(expected:%u) jited_line_info_cnt:%u(expected:%u) nr_jited_ksyms:%u(expected:%u) nr_jited_func_lens:%u(expected:%u)",
+		  info.line_info_cnt, cnt,
+		  info.jited_line_info_cnt, jited_cnt,
+		  info.nr_jited_ksyms, nr_jited_ksyms,
+		  info.nr_jited_func_lens, nr_jited_func_lens)) {
+		err = -1;
+		goto done;
+	}
+
+	if (CHECK(info.line_info_rec_size < 16 ||
+		  info.jited_line_info_rec_size < 8,
+		  "info: line_info_rec_size:%u(userspace expected:%u) jited_line_info_rec_size:%u(userspace expected:%u)",
+		  info.line_info_rec_size, rec_size,
+		  info.jited_line_info_rec_size, jited_rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	if (!cnt)
+		return 0;
+
+	rec_size = info.line_info_rec_size;
+	jited_rec_size = info.jited_line_info_rec_size;
+
+	memset(&info, 0, sizeof(info));
+
+	linfo = calloc(cnt, rec_size);
+	if (CHECK(!linfo, "!linfo")) {
+		err = -1;
+		goto done;
+	}
+	info.line_info_cnt = cnt;
+	info.line_info_rec_size = rec_size;
+	info.line_info = ptr_to_u64(linfo);
+
+	if (jited_cnt) {
+		jited_linfo = calloc(jited_cnt, jited_rec_size);
+		jited_ksyms = calloc(nr_jited_ksyms, sizeof(*jited_ksyms));
+		jited_func_lens = calloc(nr_jited_func_lens,
+					 sizeof(*jited_func_lens));
+		if (CHECK(!jited_linfo || !jited_ksyms || !jited_func_lens,
+			  "jited_linfo:%p jited_ksyms:%p jited_func_lens:%p",
+			  jited_linfo, jited_ksyms, jited_func_lens)) {
+			err = -1;
+			goto done;
+		}
+
+		info.jited_line_info_cnt = jited_cnt;
+		info.jited_line_info_rec_size = jited_rec_size;
+		info.jited_line_info = ptr_to_u64(jited_linfo);
+		info.nr_jited_ksyms = nr_jited_ksyms;
+		info.jited_ksyms = ptr_to_u64(jited_ksyms);
+		info.nr_jited_func_lens = nr_jited_func_lens;
+		info.jited_func_lens = ptr_to_u64(jited_func_lens);
+	}
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+
+	/*
+	 * Only recheck the info.*line_info* fields.
+	 * Other fields are not the concern of this test.
+	 */
+	if (CHECK(err == -1 ||
+		  !info.line_info ||
+		  info.line_info_cnt != cnt ||
+		  (jited_cnt && !info.jited_line_info) ||
+		  info.jited_line_info_cnt != jited_cnt ||
+		  info.line_info_rec_size != rec_size ||
+		  info.jited_line_info_rec_size != jited_rec_size,
+		  "err:%d errno:%d info: line_info_cnt:%u(expected:%u) jited_line_info_cnt:%u(expected:%u) line_info_rec_size:%u(expected:%u) jited_linfo_rec_size:%u(expected:%u) line_info:%p jited_line_info:%p",
+		  err, errno,
+		  info.line_info_cnt, cnt,
+		  info.jited_line_info_cnt, jited_cnt,
+		  info.line_info_rec_size, rec_size,
+		  info.jited_line_info_rec_size, jited_rec_size,
+		  (void *)(long)info.line_info,
+		  (void *)(long)info.jited_line_info)) {
+		err = -1;
+		goto done;
+	}
+
+	CHECK(linfo[0].insn_off, "linfo[0].insn_off:%u",
+	      linfo[0].insn_off);
+	for (i = 1; i < cnt; i++) {
+		const struct bpf_line_info *expected_linfo;
+
+		expected_linfo = patched_linfo + (i * test->line_info_rec_size);
+		if (CHECK(linfo[i].insn_off <= linfo[i - 1].insn_off,
+			  "linfo[%u].insn_off:%u <= linfo[%u].insn_off:%u",
+			  i, linfo[i].insn_off,
+			  i - 1, linfo[i - 1].insn_off)) {
+			err = -1;
+			goto done;
+		}
+		if (CHECK(linfo[i].file_name_off != expected_linfo->file_name_off ||
+			  linfo[i].line_off != expected_linfo->line_off ||
+			  linfo[i].line_col != expected_linfo->line_col,
+			  "linfo[%u] (%u, %u, %u) != (%u, %u, %u)", i,
+			  linfo[i].file_name_off,
+			  linfo[i].line_off,
+			  linfo[i].line_col,
+			  expected_linfo->file_name_off,
+			  expected_linfo->line_off,
+			  expected_linfo->line_col)) {
+			err = -1;
+			goto done;
+		}
+	}
+
+	if (!jited_cnt) {
+		fprintf(stderr, "not jited. skipping jited_line_info check. ");
+		err = 0;
+		goto done;
+	}
+
+	if (CHECK(jited_linfo[0] != jited_ksyms[0],
+		  "jited_linfo[0]:%lx != jited_ksyms[0]:%lx",
+		  (long)(jited_linfo[0]), (long)(jited_ksyms[0]))) {
+		err = -1;
+		goto done;
+	}
+
+	ksyms_found = 1;
+	cur_func_len = jited_func_lens[0];
+	cur_func_ksyms = jited_ksyms[0];
+	for (i = 1; i < jited_cnt; i++) {
+		if (ksyms_found < nr_jited_ksyms &&
+		    jited_linfo[i] == jited_ksyms[ksyms_found]) {
+			cur_func_ksyms = jited_ksyms[ksyms_found];
+			cur_func_len = jited_ksyms[ksyms_found];
+			ksyms_found++;
+			continue;
+		}
+
+		if (CHECK(jited_linfo[i] <= jited_linfo[i - 1],
+			  "jited_linfo[%u]:%lx <= jited_linfo[%u]:%lx",
+			  i, (long)jited_linfo[i],
+			  i - 1, (long)(jited_linfo[i - 1]))) {
+			err = -1;
+			goto done;
+		}
+
+		if (CHECK(jited_linfo[i] - cur_func_ksyms > cur_func_len,
+			  "jited_linfo[%u]:%lx - %lx > %u",
+			  i, (long)jited_linfo[i], (long)cur_func_ksyms,
+			  cur_func_len)) {
+			err = -1;
+			goto done;
+		}
+	}
+
+	if (CHECK(ksyms_found != nr_jited_ksyms,
+		  "ksyms_found:%u != nr_jited_ksyms:%u",
+		  ksyms_found, nr_jited_ksyms)) {
+		err = -1;
+		goto done;
+	}
+
+	err = 0;
+
+done:
+	free(linfo);
+	free(jited_linfo);
+	free(jited_ksyms);
+	free(jited_func_lens);
+	return err;
+}
+
 static int do_test_info_raw(unsigned int test_num)
 {
 	const struct prog_info_raw_test *test = &info_raw_tests[test_num - 1];
+	unsigned int raw_btf_size, linfo_str_off, linfo_size;
 	int btf_fd = -1, prog_fd = -1, err = 0;
-	unsigned int raw_btf_size;
+	void *raw_btf, *patched_linfo = NULL;
+	const char *ret_next_str;
 	union bpf_attr attr = {};
-	void *raw_btf;
 
 	fprintf(stderr, "BTF prog info raw test[%u] (%s): ", test_num, test->descr);
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
 				 test->str_sec, test->str_sec_size,
-				 &raw_btf_size);
+				 &raw_btf_size, &ret_next_str);
 
 	if (!raw_btf)
 		return -1;
@@ -3314,6 +3853,16 @@ static int do_test_info_raw(unsigned int test_num)
 		fprintf(stderr, "\n%s", btf_log_buf);
 	*btf_log_buf = '\0';
 
+	linfo_str_off = ret_next_str - test->str_sec;
+	patched_linfo = patch_name_tbd(test->line_info,
+				       test->str_sec, linfo_str_off,
+				       test->str_sec_size, &linfo_size);
+	if (IS_ERR(patched_linfo)) {
+		fprintf(stderr, "error in creating raw bpf_line_info");
+		err = -1;
+		goto done;
+	}
+
 	attr.prog_type = test->prog_type;
 	attr.insns = ptr_to_u64(test->insns);
 	attr.insn_cnt = probe_prog_length(test->insns);
@@ -3325,11 +3874,18 @@ static int do_test_info_raw(unsigned int test_num)
 	attr.log_buf = ptr_to_u64(btf_log_buf);
 	attr.log_size = BTF_LOG_BUF_SIZE;
 	attr.log_level = 1;
+	if (linfo_size) {
+		attr.line_info_rec_size = test->line_info_rec_size;
+		attr.line_info = ptr_to_u64(patched_linfo);
+		attr.line_info_cnt = linfo_size / attr.line_info_rec_size;
+	}
 
 	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
 	err = ((prog_fd == -1) != test->expected_prog_load_failure);
 	if (CHECK(err, "prog_fd:%d expected_prog_load_failure:%u errno:%d",
-		  prog_fd, test->expected_prog_load_failure, errno)) {
+		  prog_fd, test->expected_prog_load_failure, errno) ||
+	    CHECK(test->err_str && !strstr(btf_log_buf, test->err_str),
+		  "expected err_str:%s", test->err_str)) {
 		err = -1;
 		goto done;
 	}
@@ -3338,6 +3894,10 @@ static int do_test_info_raw(unsigned int test_num)
 		goto done;
 
 	err = test_get_finfo(test, prog_fd);
+	if (err)
+		goto done;
+
+	err = test_get_linfo(test, patched_linfo, attr.line_info_cnt, prog_fd);
 	if (err)
 		goto done;
 
@@ -3352,6 +3912,9 @@ done:
 		close(btf_fd);
 	if (prog_fd != -1)
 		close(prog_fd);
+
+	if (!IS_ERR(patched_linfo))
+		free(patched_linfo);
 
 	return err;
 }
