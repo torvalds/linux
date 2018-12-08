@@ -217,6 +217,19 @@
 	};
 };
 
+&dsi_in_vopb {
+	status = "okay";
+};
+
+&dsi_in_vopl {
+	status = "disabled";
+};
+
+&route_dsi {
+	connect = <&vopb_out_dsi>;
+	status = "okay";
+};
+
 &bus_apll {
 	bus-supply = <&vdd_logic>;
 	status = "okay";
@@ -246,10 +259,6 @@
 		/*MHz	MHz	uV */
 		451	800	75000
 	>;
-};
-
-&dsi_in_vopl {
-	status = "disabled";
 };
 
 &dfi {
@@ -629,10 +638,6 @@
 	vccio5-supply = <&vcc_3v0>;
 };
 
-&mipi_dphy {
-	status = "okay";
-};
-
 &nandc0 {
 	status = "okay";
 };
@@ -691,10 +696,6 @@
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
-};
-
-&route_dsi {
-	status = "okay";
 };
 
 &saradc {

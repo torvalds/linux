@@ -822,10 +822,6 @@
 	};
 };
 
-&mipi_dphy {
-	status = "okay";
-};
-
 &dsi_in_vopl {
 	status = "disabled";
 };
@@ -840,9 +836,6 @@
 };
 
 &rgb {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&lcdc_rgb_pins>;
-	pinctrl-1 = <&lcdc_sleep_pins>;
 	status = "okay";
 
 	ports {
@@ -870,72 +863,6 @@
 };
 
 &pinctrl {
-	lcdc {
-		lcdc_rgb_pins: lcdc-rgb-pins {
-			rockchip,pins =
-				<3 RK_PA0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_DCLK */
-				<3 RK_PA1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_HSYNC */
-				<3 RK_PA2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_VSYNC */
-				<3 RK_PA3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_DEN */
-				<3 RK_PD3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D23 */
-				<3 RK_PD2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D22 */
-				<3 RK_PD1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D21 */
-				<3 RK_PD0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D20 */
-				<3 RK_PC7 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D19 */
-				<3 RK_PC6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D18 */
-				<3 RK_PC5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D17 */
-				<3 RK_PC4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D16 */
-				<3 RK_PC3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D15 */
-				<3 RK_PC2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D14 */
-				<3 RK_PC1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D13 */
-				<3 RK_PC0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D12 */
-				<3 RK_PB7 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D11 */
-				<3 RK_PB6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D10 */
-				<3 RK_PB5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D9 */
-				<3 RK_PB4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D8 */
-				<3 RK_PB3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D7 */
-				<3 RK_PB2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D6 */
-				<3 RK_PB1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D5 */
-				<3 RK_PB0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D4 */
-				<3 RK_PA7 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D3 */
-				<3 RK_PA6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D2 */
-				<3 RK_PA5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D1 */
-				<3 RK_PA4 RK_FUNC_1 &pcfg_pull_none_8ma>;	/* LCDC_D0 */
-		};
-
-		lcdc_sleep_pins: lcdc-sleep-pins {
-			rockchip,pins =
-				<3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_DCLK */
-				<3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_HSYNC */
-				<3 RK_PA2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_VSYNC */
-				<3 RK_PA3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_DEN */
-				<3 RK_PD3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D23 */
-				<3 RK_PD2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D22 */
-				<3 RK_PD1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D21 */
-				<3 RK_PD0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D20 */
-				<3 RK_PC7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D19 */
-				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D18 */
-				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D17 */
-				<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D16 */
-				<3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D15 */
-				<3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D14 */
-				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D13 */
-				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D12 */
-				<3 RK_PB7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D11 */
-				<3 RK_PB6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D10 */
-				<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D9 */
-				<3 RK_PB4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D8 */
-				<3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D7 */
-				<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D6 */
-				<3 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D5 */
-				<3 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D4 */
-				<3 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D3 */
-				<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D2 */
-				<3 RK_PA5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D1 */
-				<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCDC_D0 */
-		};
-	};
-
 	pmic {
 		pmic_int: pmic_int {
 			rockchip,pins =

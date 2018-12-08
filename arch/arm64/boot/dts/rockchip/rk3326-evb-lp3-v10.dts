@@ -35,8 +35,3 @@
 &rk_isp {
 	status = "okay";
 };
-
-&mipi_dphy {
-	status = "okay";
-};
-

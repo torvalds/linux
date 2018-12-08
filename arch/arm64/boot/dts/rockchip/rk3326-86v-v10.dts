@@ -90,8 +90,6 @@
 		enable-gpios = <&gpio0 RK_PB5 GPIO_ACTIVE_LOW>;
 		reset-gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
 		bus-format = <MEDIA_BUS_FMT_RGB666_1X18>;
-		rockchip,data-width = <18>;
-		rockchip,output = "rgb";
 
 		display-timings {
 			native-mode = <&timing0>;
@@ -114,8 +112,8 @@
 		};
 
 		port {
-			panel_in_lvds: endpoint {
-				remote-endpoint = <&lvds_out_panel>;
+			panel_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_panel>;
 			};
 		};
 	};
@@ -597,17 +595,15 @@
 	vccio5-supply = <&vcc_3v0>;
 };
 
-&lvds {
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcdc_rgb_dclk_pin &lcdc_rgb666_m1_data_pins>;
+&rgb {
 	status = "okay";
 
 	ports {
 		port@1 {
 			reg = <1>;
 
-			lvds_out_panel: endpoint {
-				remote-endpoint = <&panel_in_lvds>;
+			rgb_out_panel: endpoint {
+				remote-endpoint = <&panel_in_rgb>;
 			};
 		};
 	};
@@ -625,8 +621,36 @@
 	};
 
 	lcdc {
-		lcdc_rgb_dclk_pin: lcdc-rgb-dclk-pin {
-			rockchip,pins = <3 RK_PA0 RK_FUNC_1 &pcfg_pull_none>;
+		lcdc_m1_rgb_pins: lcdc-m1-rgb-pins {
+			rockchip,pins =
+				<3 RK_PA0 RK_FUNC_1 &pcfg_pull_none>,		/* LCDC_DCLK */
+				<3 RK_PA4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D0 */
+				<3 RK_PA6 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D2 */
+				<3 RK_PB2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D6 */
+				<3 RK_PB3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D7 */
+				<3 RK_PB5 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D9 */
+				<3 RK_PC0 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D12 */
+				<3 RK_PC1 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D13 */
+				<3 RK_PC2 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D14 */
+				<3 RK_PC3 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D15 */
+				<3 RK_PC4 RK_FUNC_1 &pcfg_pull_none_8ma>,	/* LCDC_D16 */
+				<3 RK_PC5 RK_FUNC_1 &pcfg_pull_none_8ma>;	/* LCDC_D17 */
+		};
+
+		lcdc_m1_sleep_pins: lcdc-m1-sleep-pins {
+			rockchip,pins =
+				<3 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_DCLK */
+				<3 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D0 */
+				<3 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D2 */
+				<3 RK_PB2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D6 */
+				<3 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D7 */
+				<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D9 */
+				<3 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D12 */
+				<3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D13 */
+				<3 RK_PC2 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D14 */
+				<3 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D15 */
+				<3 RK_PC4 RK_FUNC_GPIO &pcfg_pull_none>,	/* LCDC_D16 */
+				<3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_none>;	/* LCDC_D17 */
 		};
 	};
 
@@ -679,7 +703,8 @@
 	rockchip,sleep-debug-en = <1>;
 };
 
-&route_lvds {
+&route_rgb {
+	connect = <&vopb_out_rgb>;
 	status = "okay";
 };
 

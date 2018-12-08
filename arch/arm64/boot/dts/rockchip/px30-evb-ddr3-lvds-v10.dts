@@ -509,11 +509,16 @@
 	};
 };
 
+&lvds_in_vopb {
+	status = "okay";
+};
+
 &lvds_in_vopl {
 	status = "disabled";
 };
 
 &route_lvds {
+	connect = <&vopb_out_lvds>;
 	status = "okay";
 };
 

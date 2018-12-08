@@ -274,6 +274,19 @@
 	};
 };
 
+&dsi_in_vopb {
+	status = "okay";
+};
+
+&dsi_in_vopl {
+	status = "disabled";
+};
+
+&route_dsi {
+	connect = <&vopb_out_dsi>;
+	status = "okay";
+};
+
 &bus_apll {
 	bus-supply = <&vdd_logic>;
 	status = "okay";
@@ -281,10 +294,6 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
-};
-
-&dsi_in_vopl {
-	status = "disabled";
 };
 
 &emmc {
@@ -630,10 +639,6 @@
 	#sound-dai-cells = <0>;
 };
 
-&mipi_dphy {
-	status = "okay";
-};
-
 &nandc0 {
 	status = "okay";
 };
@@ -692,10 +697,6 @@
 &rockchip_suspend {
 	status = "okay";
 	rockchip,sleep-debug-en = <1>;
-};
-
-&route_dsi {
-	status = "okay";
 };
 
 &saradc {
