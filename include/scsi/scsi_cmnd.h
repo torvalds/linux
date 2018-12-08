@@ -62,7 +62,7 @@ struct scsi_pointer {
 #define SCMD_PRESERVED_FLAGS	(SCMD_UNCHECKED_ISA_DMA | SCMD_INITIALIZED)
 
 /* for scmd->state */
-#define SCMD_STATE_COMPLETE	(1 << 0)
+#define SCMD_STATE_COMPLETE	0
 
 struct scsi_cmnd {
 	struct scsi_request req;
