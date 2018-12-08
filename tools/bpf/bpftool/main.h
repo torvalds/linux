@@ -138,6 +138,9 @@ struct pinned_obj {
 	struct hlist_node hash;
 };
 
+struct btf;
+struct bpf_line_info;
+
 int build_pinned_obj_table(struct pinned_obj_table *table,
 			   enum bpf_obj_type type);
 void delete_pinned_obj_table(struct pinned_obj_table *tab);
@@ -175,13 +178,23 @@ int map_parse_fd(int *argc, char ***argv);
 int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len);
 
 #ifdef HAVE_LIBBFD_SUPPORT
+struct bpf_prog_linfo;
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch, const char *disassembler_options);
+		       const char *arch, const char *disassembler_options,
+		       const struct btf *btf,
+		       const struct bpf_prog_linfo *prog_linfo,
+		       __u64 func_ksym, unsigned int func_idx,
+		       bool linum);
 int disasm_init(void);
 #else
 static inline
 void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
-		       const char *arch, const char *disassembler_options)
+		       const char *arch, const char *disassembler_options,
+		       const struct btf *btf,
+		       const struct bpf_prog_linfo *prog_linfo,
+		       __u64 func_ksym, unsigned int func_idx,
+		       bool linum)
+
 {
 }
 static inline int disasm_init(void)
@@ -216,6 +229,12 @@ int btf_dumper_type(const struct btf_dumper *d, __u32 type_id,
 		    const void *data);
 void btf_dumper_type_only(const struct btf *btf, __u32 func_type_id,
 			  char *func_only, int size);
+
+void btf_dump_linfo_plain(const struct btf *btf,
+			  const struct bpf_line_info *linfo,
+			  const char *prefix, bool linum);
+void btf_dump_linfo_json(const struct btf *btf,
+			 const struct bpf_line_info *linfo, bool linum);
 
 struct nlattr;
 struct ifinfomsg;
