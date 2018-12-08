@@ -172,6 +172,18 @@ void dsa_master_set_mtu(struct net_device *dev, struct dsa_port *cpu_dp)
 	rtnl_unlock();
 }
 
+static void dsa_master_reset_mtu(struct net_device *dev)
+{
+	int err;
+
+	rtnl_lock();
+	err = dev_set_mtu(dev, ETH_DATA_LEN);
+	if (err)
+		netdev_dbg(dev,
+			   "Unable to reset MTU to exclude DSA overheads\n");
+	rtnl_unlock();
+}
+
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	dsa_master_set_mtu(dev,  cpu_dp);
@@ -190,6 +202,7 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 void dsa_master_teardown(struct net_device *dev)
 {
 	dsa_master_ethtool_teardown(dev);
+	dsa_master_reset_mtu(dev);
 
 	dev->dsa_ptr = NULL;
 
