@@ -3670,6 +3670,21 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 	return 0;
 }
 
+static inline bool hns_roce_v2_check_qp_stat(enum ib_qp_state cur_state,
+					     enum ib_qp_state new_state)
+{
+
+	if ((cur_state != IB_QPS_RESET &&
+	    (new_state == IB_QPS_ERR || new_state == IB_QPS_RESET)) ||
+	    ((cur_state == IB_QPS_RTS || cur_state == IB_QPS_SQD) &&
+	    (new_state == IB_QPS_RTS || new_state == IB_QPS_SQD)) ||
+	    (cur_state == IB_QPS_SQE && new_state == IB_QPS_RTS))
+		return true;
+
+	return false;
+
+}
+
 static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 				 const struct ib_qp_attr *attr,
 				 int attr_mask, enum ib_qp_state cur_state,
@@ -3711,21 +3726,7 @@ static int hns_roce_v2_modify_qp(struct ib_qp *ibqp,
 					   qpc_mask);
 		if (ret)
 			goto out;
-	} else if ((cur_state == IB_QPS_RTS && new_state == IB_QPS_RTS) ||
-		   (cur_state == IB_QPS_SQE && new_state == IB_QPS_RTS) ||
-		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_SQD) ||
-		   (cur_state == IB_QPS_SQD && new_state == IB_QPS_SQD) ||
-		   (cur_state == IB_QPS_SQD && new_state == IB_QPS_RTS) ||
-		   (cur_state == IB_QPS_INIT && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_RESET) ||
-		   (cur_state == IB_QPS_INIT && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_RTR && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_RTS && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_SQD && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_SQE && new_state == IB_QPS_ERR) ||
-		   (cur_state == IB_QPS_ERR && new_state == IB_QPS_ERR)) {
+	} else if (hns_roce_v2_check_qp_stat(cur_state, new_state)) {
 		/* Nothing */
 		;
 	} else {
