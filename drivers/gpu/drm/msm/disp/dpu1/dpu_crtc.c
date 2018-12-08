@@ -465,8 +465,6 @@ static void _dpu_crtc_setup_mixer_for_encoder(
 			return;
 		}
 
-		mixer->encoder = enc;
-
 		cstate->num_mixers++;
 		DPU_DEBUG("setup mixer %d: lm %d\n",
 				i, mixer->hw_lm->idx - LM_0);
