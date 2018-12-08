@@ -24,13 +24,11 @@
  * struct dpu_rm - DPU dynamic hardware resource manager
  * @hw_blks: array of lists of hardware resources present in the system, one
  *	list per type of hardware block
- * @hw_mdp: hardware object for mdp_top
  * @lm_max_width: cached layer mixer maximum width
  * @rm_lock: resource manager mutex
  */
 struct dpu_rm {
 	struct list_head hw_blks[DPU_HW_BLK_MAX];
-	struct dpu_hw_mdp *hw_mdp;
 	uint32_t lm_max_width;
 	struct mutex rm_lock;
 };
@@ -102,14 +100,6 @@ int dpu_rm_reserve(struct dpu_rm *rm,
  * @Return: 0 on Success otherwise -ERROR
  */
 void dpu_rm_release(struct dpu_rm *rm, struct drm_encoder *enc);
-
-/**
- * dpu_rm_get_mdp - Retrieve HW block for MDP TOP.
- *	This is never reserved, and is usable by any display.
- * @rm: DPU Resource Manager handle
- * @Return: Pointer to hw block or NULL
- */
-struct dpu_hw_mdp *dpu_rm_get_mdp(struct dpu_rm *rm);
 
 /**
  * dpu_rm_init_hw_iter - setup given iterator for new iteration over hw list

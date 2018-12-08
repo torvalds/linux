@@ -627,6 +627,10 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 		devm_iounmap(&dpu_kms->pdev->dev, dpu_kms->vbif[VBIF_RT]);
 	dpu_kms->vbif[VBIF_RT] = NULL;
 
+	if (dpu_kms->hw_mdp)
+		dpu_hw_mdp_destroy(dpu_kms->hw_mdp);
+	dpu_kms->hw_mdp = NULL;
+
 	if (dpu_kms->mmio)
 		devm_iounmap(&dpu_kms->pdev->dev, dpu_kms->mmio);
 	dpu_kms->mmio = NULL;
@@ -885,11 +889,10 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	dpu_kms->rm_init = true;
 
-	dpu_kms->hw_mdp = dpu_rm_get_mdp(&dpu_kms->rm);
-	if (IS_ERR_OR_NULL(dpu_kms->hw_mdp)) {
+	dpu_kms->hw_mdp = dpu_hw_mdptop_init(MDP_TOP, dpu_kms->mmio,
+					     dpu_kms->catalog);
+	if (IS_ERR(dpu_kms->hw_mdp)) {
 		rc = PTR_ERR(dpu_kms->hw_mdp);
-		if (!dpu_kms->hw_mdp)
-			rc = -EINVAL;
 		DPU_ERROR("failed to get hw_mdp: %d\n", rc);
 		dpu_kms->hw_mdp = NULL;
 		goto power_error;

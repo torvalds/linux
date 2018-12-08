@@ -49,11 +49,6 @@ struct dpu_rm_hw_blk {
 	struct dpu_hw_blk *hw;
 };
 
-struct dpu_hw_mdp *dpu_rm_get_mdp(struct dpu_rm *rm)
-{
-	return rm->hw_mdp;
-}
-
 void dpu_rm_init_hw_iter(
 		struct dpu_rm_hw_iter *iter,
 		uint32_t enc_id,
@@ -148,9 +143,6 @@ int dpu_rm_destroy(struct dpu_rm *rm)
 		}
 	}
 
-	dpu_hw_mdp_destroy(rm->hw_mdp);
-	rm->hw_mdp = NULL;
-
 	mutex_destroy(&rm->rm_lock);
 
 	return 0;
@@ -165,10 +157,7 @@ static int _dpu_rm_hw_blk_create(
 		void *hw_catalog_info)
 {
 	struct dpu_rm_hw_blk *blk;
-	struct dpu_hw_mdp *hw_mdp;
 	void *hw;
-
-	hw_mdp = rm->hw_mdp;
 
 	switch (type) {
 	case DPU_HW_BLK_LM:
@@ -232,15 +221,6 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	for (type = 0; type < DPU_HW_BLK_MAX; type++)
 		INIT_LIST_HEAD(&rm->hw_blks[type]);
-
-	/* Some of the sub-blocks require an mdptop to be created */
-	rm->hw_mdp = dpu_hw_mdptop_init(MDP_TOP, mmio, cat);
-	if (IS_ERR_OR_NULL(rm->hw_mdp)) {
-		rc = PTR_ERR(rm->hw_mdp);
-		rm->hw_mdp = NULL;
-		DPU_ERROR("failed: mdp hw not available\n");
-		goto fail;
-	}
 
 	/* Interrogate HW catalog and create tracking items for hw blocks */
 	for (i = 0; i < cat->mixer_count; i++) {
