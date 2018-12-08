@@ -38,14 +38,12 @@ struct dpu_rm_requirements {
 /**
  * struct dpu_rm_hw_blk - hardware block tracking list member
  * @list:	List head for list of all hardware blocks tracking items
- * @type:	Type of hardware block this structure tracks
  * @id:		Hardware ID number, within it's own space, ie. LM_X
  * @enc_id:	Encoder id to which this blk is binded
  * @hw:		Pointer to the hardware register access object for this block
  */
 struct dpu_rm_hw_blk {
 	struct list_head list;
-	enum dpu_hw_blk_type type;
 	uint32_t id;
 	uint32_t enc_id;
 	struct dpu_hw_blk *hw;
@@ -86,12 +84,6 @@ static bool _dpu_rm_get_hw_locked(struct dpu_rm *rm, struct dpu_rm_hw_iter *i)
 	i->blk = list_prepare_entry(i->blk, blk_list, list);
 
 	list_for_each_entry_continue(i->blk, blk_list, list) {
-		if (i->blk->type != i->type) {
-			DPU_ERROR("found incorrect block type %d on %d list\n",
-					i->blk->type, i->type);
-			return false;
-		}
-
 		if (i->enc_id == i->blk->enc_id) {
 			i->hw = i->blk->hw;
 			DPU_DEBUG("found type %d id %d for enc %d\n",
@@ -151,7 +143,7 @@ int dpu_rm_destroy(struct dpu_rm *rm)
 		list_for_each_entry_safe(hw_cur, hw_nxt, &rm->hw_blks[type],
 				list) {
 			list_del(&hw_cur->list);
-			_dpu_rm_hw_destroy(hw_cur->type, hw_cur->hw);
+			_dpu_rm_hw_destroy(type, hw_cur->hw);
 			kfree(hw_cur);
 		}
 	}
@@ -213,7 +205,6 @@ static int _dpu_rm_hw_blk_create(
 		return -ENOMEM;
 	}
 
-	blk->type = type;
 	blk->id = id;
 	blk->hw = hw;
 	blk->enc_id = 0;
@@ -458,8 +449,7 @@ static int _dpu_rm_reserve_lms(struct dpu_rm *rm, uint32_t enc_id,
 		lm[i]->enc_id = enc_id;
 		pp[i]->enc_id = enc_id;
 
-		trace_dpu_rm_reserve_lms(lm[i]->id, lm[i]->type, enc_id,
-					 pp[i]->id);
+		trace_dpu_rm_reserve_lms(lm[i]->id, enc_id, pp[i]->id);
 	}
 
 	return rc;
@@ -510,8 +500,7 @@ static int _dpu_rm_reserve_ctls(
 
 	for (i = 0; i < ARRAY_SIZE(ctls) && i < num_ctls; i++) {
 		ctls[i]->enc_id = enc_id;
-		trace_dpu_rm_reserve_ctls(ctls[i]->id, ctls[i]->type,
-					  enc_id);
+		trace_dpu_rm_reserve_ctls(ctls[i]->id, enc_id);
 	}
 
 	return 0;
@@ -538,8 +527,7 @@ static int _dpu_rm_reserve_intf(
 		}
 
 		iter.blk->enc_id = enc_id;
-		trace_dpu_rm_reserve_intf(iter.blk->id, iter.blk->type,
-					  enc_id);
+		trace_dpu_rm_reserve_intf(iter.blk->id, enc_id);
 		break;
 	}
 
@@ -628,7 +616,7 @@ static void _dpu_rm_release_reservation(struct dpu_rm *rm, uint32_t enc_id)
 			if (blk->enc_id == enc_id) {
 				blk->enc_id = 0;
 				DPU_DEBUG("rel enc %d %d %d\n", enc_id,
-					  blk->type, blk->id);
+					  type, blk->id);
 			}
 		}
 	}
