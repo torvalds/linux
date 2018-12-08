@@ -1573,6 +1573,135 @@ static struct clk_regmap meson8b_hdmi_sys = {
 	},
 };
 
+/*
+ * The MALI IP is clocked by two identical clocks (mali_0 and mali_1)
+ * muxed by a glitch-free switch on Meson8b and Meson8m2. Meson8 only
+ * has mali_0 and no glitch-free mux.
+ */
+static const char * const meson8b_mali_0_1_parent_names[] = {
+	"xtal", "mpll2", "mpll1", "fclk_div7", "fclk_div4", "fclk_div3",
+	"fclk_div5"
+};
+
+static u32 meson8b_mali_0_1_mux_table[] = { 0, 2, 3, 4, 5, 6, 7 };
+
+static struct clk_regmap meson8b_mali_0_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 9,
+		.table = meson8b_mali_0_1_mux_table,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali_0_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = meson8b_mali_0_1_parent_names,
+		.num_parents = ARRAY_SIZE(meson8b_mali_0_1_parent_names),
+		/*
+		 * Don't propagate rate changes up because the only changeable
+		 * parents are mpll1 and mpll2 but we need those for audio and
+		 * RGMII (Ethernet). We don't want to change the audio or
+		 * Ethernet clocks when setting the GPU frequency.
+		 */
+		.flags = 0,
+	},
+};
+
+static struct clk_regmap meson8b_mali_0_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.shift = 0,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali_0_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "mali_0_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_mali_0 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.bit_idx = 8,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali_0",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mali_0_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_mali_1_sel = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.mask = 0x7,
+		.shift = 25,
+		.table = meson8b_mali_0_1_mux_table,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali_1_sel",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = meson8b_mali_0_1_parent_names,
+		.num_parents = ARRAY_SIZE(meson8b_mali_0_1_parent_names),
+		/*
+		 * Don't propagate rate changes up because the only changeable
+		 * parents are mpll1 and mpll2 but we need those for audio and
+		 * RGMII (Ethernet). We don't want to change the audio or
+		 * Ethernet clocks when setting the GPU frequency.
+		 */
+		.flags = 0,
+	},
+};
+
+static struct clk_regmap meson8b_mali_1_div = {
+	.data = &(struct clk_regmap_div_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.shift = 16,
+		.width = 7,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali_1_div",
+		.ops = &clk_regmap_divider_ops,
+		.parent_names = (const char *[]){ "mali_1_sel" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_mali_1 = {
+	.data = &(struct clk_regmap_gate_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.bit_idx = 24,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali_1",
+		.ops = &clk_regmap_gate_ops,
+		.parent_names = (const char *[]){ "mali_1_div" },
+		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_regmap meson8b_mali = {
+	.data = &(struct clk_regmap_mux_data){
+		.offset = HHI_MALI_CLK_CNTL,
+		.mask = 1,
+		.shift = 31,
+	},
+	.hw.init = &(struct clk_init_data){
+		.name = "mali",
+		.ops = &clk_regmap_mux_ops,
+		.parent_names = (const char *[]){ "mali_0", "mali_1" },
+		.num_parents = 2,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 /* Everything Else (EE) domain gates */
 
 static MESON_GATE(meson8b_ddr, HHI_GCLK_MPEG0, 0);
@@ -1833,6 +1962,9 @@ static struct clk_hw_onecell_data meson8_hw_onecell_data = {
 		[CLKID_HDMI_SYS_SEL]	    = &meson8b_hdmi_sys_sel.hw,
 		[CLKID_HDMI_SYS_DIV]	    = &meson8b_hdmi_sys_div.hw,
 		[CLKID_HDMI_SYS]	    = &meson8b_hdmi_sys.hw,
+		[CLKID_MALI_0_SEL]	    = &meson8b_mali_0_sel.hw,
+		[CLKID_MALI_0_DIV]	    = &meson8b_mali_0_div.hw,
+		[CLKID_MALI]		    = &meson8b_mali_0.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -2012,6 +2144,13 @@ static struct clk_hw_onecell_data meson8b_hw_onecell_data = {
 		[CLKID_HDMI_SYS_SEL]	    = &meson8b_hdmi_sys_sel.hw,
 		[CLKID_HDMI_SYS_DIV]	    = &meson8b_hdmi_sys_div.hw,
 		[CLKID_HDMI_SYS]	    = &meson8b_hdmi_sys.hw,
+		[CLKID_MALI_0_SEL]	    = &meson8b_mali_0_sel.hw,
+		[CLKID_MALI_0_DIV]	    = &meson8b_mali_0_div.hw,
+		[CLKID_MALI_0]		    = &meson8b_mali_0.hw,
+		[CLKID_MALI_1_SEL]	    = &meson8b_mali_1_sel.hw,
+		[CLKID_MALI_1_DIV]	    = &meson8b_mali_1_div.hw,
+		[CLKID_MALI_1]		    = &meson8b_mali_1.hw,
+		[CLKID_MALI]		    = &meson8b_mali.hw,
 		[CLK_NR_CLKS]		    = NULL,
 	},
 	.num = CLK_NR_CLKS,
@@ -2167,6 +2306,13 @@ static struct clk_regmap *const meson8b_clk_regmaps[] = {
 	&meson8b_hdmi_sys_sel,
 	&meson8b_hdmi_sys_div,
 	&meson8b_hdmi_sys,
+	&meson8b_mali_0_sel,
+	&meson8b_mali_0_div,
+	&meson8b_mali_0,
+	&meson8b_mali_1_sel,
+	&meson8b_mali_1_div,
+	&meson8b_mali_1,
+	&meson8b_mali,
 };
 
 static const struct meson8b_clk_reset_line {
