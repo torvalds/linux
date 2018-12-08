@@ -124,6 +124,8 @@
 	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
 	(step_idx == 1 && hop_num == 1) || \
 	(step_idx == 2 && hop_num == 2))
+#define HNS_ICL_SWITCH_CMD_ROCEE_SEL_SHIFT	0
+#define HNS_ICL_SWITCH_CMD_ROCEE_SEL	BIT(HNS_ICL_SWITCH_CMD_ROCEE_SEL_SHIFT)
 
 #define CMD_CSQ_DESC_NUM		1024
 #define CMD_CRQ_DESC_NUM		1024
@@ -227,6 +229,7 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
 	HNS_ROCE_OPC_QUERY_MB_ST			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
+	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
 };
 
 enum {
@@ -1385,6 +1388,22 @@ struct hns_roce_vf_res_b {
 
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
+
+struct hns_roce_vf_switch {
+	__le32 rocee_sel;
+	__le32 fun_id;
+	__le32 cfg;
+	__le32 resv1;
+	__le32 resv2;
+	__le32 resv3;
+};
+
+#define VF_SWITCH_DATA_FUN_ID_VF_ID_S 3
+#define VF_SWITCH_DATA_FUN_ID_VF_ID_M GENMASK(10, 3)
+
+#define VF_SWITCH_DATA_CFG_ALW_LPBK_S 1
+#define VF_SWITCH_DATA_CFG_ALW_LCL_LPBK_S 2
+#define VF_SWITCH_DATA_CFG_ALW_DST_OVRD_S 3
 
 struct hns_roce_post_mbox {
 	__le32	in_param_l;

@@ -1082,6 +1082,33 @@ static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev,
+						  int vf_id)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_vf_switch *swt;
+	int ret;
+
+	swt = (struct hns_roce_vf_switch *)desc.data;
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_SWITCH_PARAMETER_CFG, true);
+	swt->rocee_sel |= cpu_to_le16(HNS_ICL_SWITCH_CMD_ROCEE_SEL);
+	roce_set_field(swt->fun_id,
+			VF_SWITCH_DATA_FUN_ID_VF_ID_M,
+			VF_SWITCH_DATA_FUN_ID_VF_ID_S,
+			vf_id);
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+	desc.flag =
+		cpu_to_le16(HNS_ROCE_CMD_FLAG_NO_INTR | HNS_ROCE_CMD_FLAG_IN);
+	desc.flag &= cpu_to_le16(~HNS_ROCE_CMD_FLAG_WR);
+	roce_set_bit(swt->cfg, VF_SWITCH_DATA_CFG_ALW_LPBK_S, 1);
+	roce_set_bit(swt->cfg, VF_SWITCH_DATA_CFG_ALW_LCL_LPBK_S, 1);
+	roce_set_bit(swt->cfg, VF_SWITCH_DATA_CFG_ALW_DST_OVRD_S, 1);
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
 static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_cmq_desc desc[2];
@@ -1269,6 +1296,15 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
+	if (hr_dev->pci_dev->revision == 0x21) {
+		ret = hns_roce_set_vf_switch_param(hr_dev, 0);
+		if (ret) {
+			dev_err(hr_dev->dev,
+				"Set function switch param fail, ret = %d.\n",
+				ret);
+			return ret;
+		}
+	}
 
 	hr_dev->vendor_part_id = hr_dev->pci_dev->device;
 	hr_dev->sys_image_guid = be64_to_cpu(hr_dev->ib_dev.node_guid);
