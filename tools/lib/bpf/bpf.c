@@ -173,11 +173,36 @@ int bpf_create_map_in_map(enum bpf_map_type map_type, const char *name,
 					  -1);
 }
 
+static void *
+alloc_zero_tailing_info(const void *orecord, __u32 cnt,
+			__u32 actual_rec_size, __u32 expected_rec_size)
+{
+	__u64 info_len = actual_rec_size * cnt;
+	void *info, *nrecord;
+	int i;
+
+	info = malloc(info_len);
+	if (!info)
+		return NULL;
+
+	/* zero out bytes kernel does not understand */
+	nrecord = info;
+	for (i = 0; i < cnt; i++) {
+		memcpy(nrecord, orecord, expected_rec_size);
+		memset(nrecord + expected_rec_size, 0,
+		       actual_rec_size - expected_rec_size);
+		orecord += actual_rec_size;
+		nrecord += actual_rec_size;
+	}
+
+	return info;
+}
+
 int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 			   char *log_buf, size_t log_buf_sz)
 {
+	void *finfo = NULL, *linfo = NULL;
 	union bpf_attr attr;
-	void *finfo = NULL;
 	__u32 name_len;
 	int fd;
 
@@ -201,6 +226,9 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	attr.func_info_rec_size = load_attr->func_info_rec_size;
 	attr.func_info_cnt = load_attr->func_info_cnt;
 	attr.func_info = ptr_to_u64(load_attr->func_info);
+	attr.line_info_rec_size = load_attr->line_info_rec_size;
+	attr.line_info_cnt = load_attr->line_info_cnt;
+	attr.line_info = ptr_to_u64(load_attr->line_info);
 	memcpy(attr.prog_name, load_attr->name,
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
@@ -212,35 +240,34 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	 * to give user space a hint how to deal with loading failure.
 	 * Check to see whether we can make some changes and load again.
 	 */
-	if (errno == E2BIG && attr.func_info_cnt &&
-	    attr.func_info_rec_size < load_attr->func_info_rec_size) {
-		__u32 actual_rec_size = load_attr->func_info_rec_size;
-		__u32 expected_rec_size = attr.func_info_rec_size;
-		__u32 finfo_cnt = load_attr->func_info_cnt;
-		__u64 finfo_len = actual_rec_size * finfo_cnt;
-		const void *orecord;
-		void *nrecord;
-		int i;
+	while (errno == E2BIG && (!finfo || !linfo)) {
+		if (!finfo && attr.func_info_cnt &&
+		    attr.func_info_rec_size < load_attr->func_info_rec_size) {
+			/* try with corrected func info records */
+			finfo = alloc_zero_tailing_info(load_attr->func_info,
+							load_attr->func_info_cnt,
+							load_attr->func_info_rec_size,
+							attr.func_info_rec_size);
+			if (!finfo)
+				goto done;
 
-		finfo = malloc(finfo_len);
-		if (!finfo)
-			/* further try with log buffer won't help */
-			return fd;
+			attr.func_info = ptr_to_u64(finfo);
+			attr.func_info_rec_size = load_attr->func_info_rec_size;
+		} else if (!linfo && attr.line_info_cnt &&
+			   attr.line_info_rec_size <
+			   load_attr->line_info_rec_size) {
+			linfo = alloc_zero_tailing_info(load_attr->line_info,
+							load_attr->line_info_cnt,
+							load_attr->line_info_rec_size,
+							attr.line_info_rec_size);
+			if (!linfo)
+				goto done;
 
-		/* zero out bytes kernel does not understand */
-		orecord = load_attr->func_info;
-		nrecord = finfo;
-		for (i = 0; i < load_attr->func_info_cnt; i++) {
-			memcpy(nrecord, orecord, expected_rec_size);
-			memset(nrecord + expected_rec_size, 0,
-			       actual_rec_size - expected_rec_size);
-			orecord += actual_rec_size;
-			nrecord += actual_rec_size;
+			attr.line_info = ptr_to_u64(linfo);
+			attr.line_info_rec_size = load_attr->line_info_rec_size;
+		} else {
+			break;
 		}
-
-		/* try with corrected func info records */
-		attr.func_info = ptr_to_u64(finfo);
-		attr.func_info_rec_size = load_attr->func_info_rec_size;
 
 		fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 
@@ -259,6 +286,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 done:
 	free(finfo);
+	free(linfo);
 	return fd;
 }
 

@@ -170,6 +170,10 @@ struct bpf_program {
 	__u32 func_info_cnt;
 
 	struct bpf_capabilities *caps;
+
+	void *line_info;
+	__u32 line_info_rec_size;
+	__u32 line_info_cnt;
 };
 
 struct bpf_map {
@@ -1342,6 +1346,19 @@ bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
 		prog->func_info_rec_size = btf_ext__func_info_rec_size(obj->btf_ext);
 	}
 
+	if (!insn_offset || prog->line_info) {
+		err = btf_ext__reloc_line_info(obj->btf, obj->btf_ext,
+					       section_name, insn_offset,
+					       &prog->line_info,
+					       &prog->line_info_cnt);
+		if (err)
+			return check_btf_ext_reloc_err(prog, err,
+						       prog->line_info,
+						       "bpf_line_info");
+
+		prog->line_info_rec_size = btf_ext__line_info_rec_size(obj->btf_ext);
+	}
+
 	if (!insn_offset)
 		prog->btf_fd = btf__fd(obj->btf);
 
@@ -1526,6 +1543,9 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.func_info = prog->func_info;
 	load_attr.func_info_rec_size = prog->func_info_rec_size;
 	load_attr.func_info_cnt = prog->func_info_cnt;
+	load_attr.line_info = prog->line_info;
+	load_attr.line_info_rec_size = prog->line_info_rec_size;
+	load_attr.line_info_cnt = prog->line_info_cnt;
 	if (!load_attr.insns || !load_attr.insns_cnt)
 		return -EINVAL;
 

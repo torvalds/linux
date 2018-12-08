@@ -51,6 +51,8 @@ struct btf_ext_header {
 	/* All offsets are in bytes relative to the end of this header */
 	__u32	func_info_off;
 	__u32	func_info_len;
+	__u32	line_info_off;
+	__u32	line_info_len;
 };
 
 typedef int (*btf_print_fn_t)(const char *, ...)
@@ -70,10 +72,16 @@ LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
 struct btf_ext *btf_ext__new(__u8 *data, __u32 size, btf_print_fn_t err_log);
 void btf_ext__free(struct btf_ext *btf_ext);
-int btf_ext__reloc_func_info(struct btf *btf, struct btf_ext *btf_ext,
+int btf_ext__reloc_func_info(const struct btf *btf,
+			     const struct btf_ext *btf_ext,
 			     const char *sec_name, __u32 insns_cnt,
 			     void **func_info, __u32 *func_info_len);
+int btf_ext__reloc_line_info(const struct btf *btf,
+			     const struct btf_ext *btf_ext,
+			     const char *sec_name, __u32 insns_cnt,
+			     void **line_info, __u32 *cnt);
 __u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
+__u32 btf_ext__line_info_rec_size(const struct btf_ext *btf_ext);
 
 #ifdef __cplusplus
 } /* extern "C" */
