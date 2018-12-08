@@ -154,6 +154,8 @@ int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 
 int __init integrity_init_keyring(const unsigned int id);
 int __init integrity_load_x509(const unsigned int id, const char *path);
+int __init integrity_load_cert(const unsigned int id, const char *source,
+			       const void *data, size_t len, key_perm_t perm);
 #else
 
 static inline int integrity_digsig_verify(const unsigned int id,
@@ -164,6 +166,14 @@ static inline int integrity_digsig_verify(const unsigned int id,
 }
 
 static inline int integrity_init_keyring(const unsigned int id)
+{
+	return 0;
+}
+
+static inline int __init integrity_load_cert(const unsigned int id,
+					     const char *source,
+					     const void *data, size_t len,
+					     key_perm_t perm)
 {
 	return 0;
 }
@@ -222,4 +232,14 @@ integrity_audit_log_start(struct audit_context *ctx, gfp_t gfp_mask, int type)
 	return NULL;
 }
 
+#endif
+
+#ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
+void __init add_to_platform_keyring(const char *source, const void *data,
+				    size_t len);
+#else
+static inline void __init add_to_platform_keyring(const char *source,
+						  const void *data, size_t len)
+{
+}
 #endif

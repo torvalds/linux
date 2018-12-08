@@ -14,6 +14,29 @@
 #include <linux/slab.h>
 #include "../integrity.h"
 
+/**
+ * add_to_platform_keyring - Add to platform keyring without validation.
+ * @source: Source of key
+ * @data: The blob holding the key
+ * @len: The length of the data blob
+ *
+ * Add a key to the platform keyring without checking its trust chain.  This
+ * is available only during kernel initialisation.
+ */
+void __init add_to_platform_keyring(const char *source, const void *data,
+				    size_t len)
+{
+	key_perm_t perm;
+	int rc;
+
+	perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW;
+
+	rc = integrity_load_cert(INTEGRITY_KEYRING_PLATFORM, source, data, len,
+				 perm);
+	if (rc)
+		pr_info("Error adding keys to platform keyring %s\n", source);
+}
+
 /*
  * Create the trusted keyrings.
  */

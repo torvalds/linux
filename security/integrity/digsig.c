@@ -82,8 +82,7 @@ static int __integrity_init_keyring(const unsigned int id, key_perm_t perm,
 
 	keyring[id] = keyring_alloc(keyring_name[id], KUIDT_INIT(0),
 				    KGIDT_INIT(0), cred, perm,
-				    KEY_ALLOC_NOT_IN_QUOTA,
-				    restriction, NULL);
+				    KEY_ALLOC_NOT_IN_QUOTA, restriction, NULL);
 	if (IS_ERR(keyring[id])) {
 		err = PTR_ERR(keyring[id]);
 		pr_info("Can't allocate %s keyring (%d)\n",
@@ -121,15 +120,37 @@ out:
 	return __integrity_init_keyring(id, perm, restriction);
 }
 
-int __init integrity_load_x509(const unsigned int id, const char *path)
+int __init integrity_add_key(const unsigned int id, const void *data,
+			     off_t size, key_perm_t perm)
 {
 	key_ref_t key;
-	void *data;
-	loff_t size;
-	int rc;
+	int rc = 0;
 
 	if (!keyring[id])
 		return -EINVAL;
+
+	key = key_create_or_update(make_key_ref(keyring[id], 1), "asymmetric",
+				   NULL, data, size, perm,
+				   KEY_ALLOC_NOT_IN_QUOTA);
+	if (IS_ERR(key)) {
+		rc = PTR_ERR(key);
+		pr_err("Problem loading X.509 certificate %d\n", rc);
+	} else {
+		pr_notice("Loaded X.509 cert '%s'\n",
+			  key_ref_to_ptr(key)->description);
+		key_ref_put(key);
+	}
+
+	return rc;
+
+}
+
+int __init integrity_load_x509(const unsigned int id, const char *path)
+{
+	void *data;
+	loff_t size;
+	int rc;
+	key_perm_t perm;
 
 	rc = kernel_read_file_from_path(path, &data, &size, 0,
 					READING_X509_CERTIFICATE);
@@ -138,23 +159,21 @@ int __init integrity_load_x509(const unsigned int id, const char *path)
 		return rc;
 	}
 
-	key = key_create_or_update(make_key_ref(keyring[id], 1),
-				   "asymmetric",
-				   NULL,
-				   data,
-				   size,
-				   ((KEY_POS_ALL & ~KEY_POS_SETATTR) |
-				    KEY_USR_VIEW | KEY_USR_READ),
-				   KEY_ALLOC_NOT_IN_QUOTA);
-	if (IS_ERR(key)) {
-		rc = PTR_ERR(key);
-		pr_err("Problem loading X.509 certificate (%d): %s\n",
-		       rc, path);
-	} else {
-		pr_notice("Loaded X.509 cert '%s': %s\n",
-			  key_ref_to_ptr(key)->description, path);
-		key_ref_put(key);
-	}
+	perm = (KEY_POS_ALL & ~KEY_POS_SETATTR) | KEY_USR_VIEW | KEY_USR_READ;
+
+	pr_info("Loading X.509 certificate: %s\n", path);
+	rc = integrity_add_key(id, (const void *)data, size, perm);
+
 	vfree(data);
-	return 0;
+	return rc;
+}
+
+int __init integrity_load_cert(const unsigned int id, const char *source,
+			       const void *data, size_t len, key_perm_t perm)
+{
+	if (!data)
+		return -EINVAL;
+
+	pr_info("Loading X.509 certificate: %s\n", source);
+	return integrity_add_key(id, data, len, perm);
 }
