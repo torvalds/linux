@@ -136,12 +136,4 @@ void dpu_rm_init_hw_iter(
  * @Return: true on match found, false on no match found
  */
 bool dpu_rm_get_hw(struct dpu_rm *rm, struct dpu_rm_hw_iter *iter);
-
-/**
- * dpu_rm_check_property_topctl - validate property bitmask before it is set
- * @val: user's proposed topology control bitmask
- * @Return: 0 on success or error
- */
-int dpu_rm_check_property_topctl(uint64_t val);
-
 #endif /* __DPU_RM_H__ */
