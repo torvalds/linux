@@ -6,6 +6,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/filter.h>
+#include <linux/unistd.h>
 #include <bpf/bpf.h>
 #include <sys/resource.h>
 #include <libelf.h>
@@ -114,12 +115,13 @@ static struct args {
 	unsigned int raw_test_num;
 	unsigned int file_test_num;
 	unsigned int get_info_test_num;
+	unsigned int info_raw_test_num;
 	bool raw_test;
 	bool file_test;
 	bool get_info_test;
 	bool pprint_test;
 	bool always_log;
-	bool func_type_test;
+	bool info_raw_test;
 } args;
 
 static char btf_log_buf[BTF_LOG_BUF_SIZE];
@@ -3051,7 +3053,7 @@ static int test_pprint(void)
 	return err;
 }
 
-static struct btf_func_type_test {
+static struct prog_info_raw_test {
 	const char *descr;
 	const char *str_sec;
 	__u32 raw_types[MAX_NR_RAW_TYPES];
@@ -3062,7 +3064,7 @@ static struct btf_func_type_test {
 	__u32 func_info_rec_size;
 	__u32 func_info_cnt;
 	bool expected_prog_load_failure;
-} func_type_test[] = {
+} info_raw_tests[] = {
 {
 	.descr = "func_type (main func + one sub)",
 	.raw_types = {
@@ -3198,17 +3200,98 @@ static size_t probe_prog_length(const struct bpf_insn *fp)
 	return len + 1;
 }
 
-static int do_test_func_type(int test_num)
+static int test_get_finfo(const struct prog_info_raw_test *test,
+			  int prog_fd)
 {
-	const struct btf_func_type_test *test = &func_type_test[test_num];
-	unsigned int raw_btf_size, info_len, rec_size;
-	int i, btf_fd = -1, prog_fd = -1, err = 0;
-	struct bpf_load_program_attr attr = {};
-	void *raw_btf, *func_info = NULL;
 	struct bpf_prog_info info = {};
 	struct bpf_func_info *finfo;
+	__u32 info_len, rec_size, i;
+	void *func_info = NULL;
+	int err;
 
-	fprintf(stderr, "%s......", test->descr);
+	/* get necessary lens */
+	info_len = sizeof(struct bpf_prog_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		return -1;
+	}
+	if (CHECK(info.func_info_cnt != test->func_info_cnt,
+		  "incorrect info.func_info_cnt (1st) %d",
+		  info.func_info_cnt)) {
+		return -1;
+	}
+
+	rec_size = info.func_info_rec_size;
+	if (CHECK(rec_size < 8,
+		  "incorrect info.func_info_rec_size (1st) %d", rec_size)) {
+		return -1;
+	}
+
+	if (!info.func_info_cnt)
+		return 0;
+
+	func_info = malloc(info.func_info_cnt * rec_size);
+	if (CHECK(!func_info, "out of memory"))
+		return -1;
+
+	/* reset info to only retrieve func_info related data */
+	memset(&info, 0, sizeof(info));
+	info.func_info_cnt = test->func_info_cnt;
+	info.func_info_rec_size = rec_size;
+	info.func_info = ptr_to_u64(func_info);
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
+		fprintf(stderr, "%s\n", btf_log_buf);
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_cnt != test->func_info_cnt,
+		  "incorrect info.func_info_cnt (2nd) %d",
+		  info.func_info_cnt)) {
+		err = -1;
+		goto done;
+	}
+	if (CHECK(info.func_info_rec_size < 8,
+		  "incorrect info.func_info_rec_size (2nd) %d",
+		  info.func_info_rec_size)) {
+		err = -1;
+		goto done;
+	}
+
+	if (CHECK(!info.func_info,
+		  "info.func_info == 0. kernel.kptr_restrict is set?")) {
+		err = -1;
+		goto done;
+	}
+
+	finfo = func_info;
+	for (i = 0; i < test->func_info_cnt; i++) {
+		if (CHECK(finfo->type_id != test->func_info[i][1],
+			  "incorrect func_type %u expected %u",
+			  finfo->type_id, test->func_info[i][1])) {
+			err = -1;
+			goto done;
+		}
+		finfo = (void *)finfo + rec_size;
+	}
+
+	err = 0;
+
+done:
+	free(func_info);
+	return err;
+}
+
+static int do_test_info_raw(unsigned int test_num)
+{
+	const struct prog_info_raw_test *test = &info_raw_tests[test_num - 1];
+	int btf_fd = -1, prog_fd = -1, err = 0;
+	unsigned int raw_btf_size;
+	union bpf_attr attr = {};
+	void *raw_btf;
+
+	fprintf(stderr, "BTF prog info raw test[%u] (%s): ", test_num, test->descr);
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
 				 test->str_sec, test->str_sec_size,
 				 &raw_btf_size);
@@ -3229,98 +3312,39 @@ static int do_test_func_type(int test_num)
 
 	if (*btf_log_buf && args.always_log)
 		fprintf(stderr, "\n%s", btf_log_buf);
+	*btf_log_buf = '\0';
 
 	attr.prog_type = test->prog_type;
-	attr.insns = test->insns;
-	attr.insns_cnt = probe_prog_length(attr.insns);
-	attr.license = "GPL";
+	attr.insns = ptr_to_u64(test->insns);
+	attr.insn_cnt = probe_prog_length(test->insns);
+	attr.license = ptr_to_u64("GPL");
 	attr.prog_btf_fd = btf_fd;
 	attr.func_info_rec_size = test->func_info_rec_size;
 	attr.func_info_cnt = test->func_info_cnt;
-	attr.func_info = test->func_info;
+	attr.func_info = ptr_to_u64(test->func_info);
+	attr.log_buf = ptr_to_u64(btf_log_buf);
+	attr.log_size = BTF_LOG_BUF_SIZE;
+	attr.log_level = 1;
 
-	*btf_log_buf = '\0';
-	prog_fd = bpf_load_program_xattr(&attr, btf_log_buf,
-					 BTF_LOG_BUF_SIZE);
-	if (test->expected_prog_load_failure && prog_fd == -1) {
-		err = 0;
-		goto done;
-	}
-	if (CHECK(prog_fd == -1, "invalid prog_id errno:%d", errno)) {
-		fprintf(stderr, "%s\n", btf_log_buf);
+	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+	err = ((prog_fd == -1) != test->expected_prog_load_failure);
+	if (CHECK(err, "prog_fd:%d expected_prog_load_failure:%u errno:%d",
+		  prog_fd, test->expected_prog_load_failure, errno)) {
 		err = -1;
 		goto done;
 	}
 
-	/* get necessary lens */
-	info_len = sizeof(struct bpf_prog_info);
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err == -1, "invalid get info (1st) errno:%d", errno)) {
-		fprintf(stderr, "%s\n", btf_log_buf);
-		err = -1;
+	if (prog_fd == -1)
 		goto done;
-	}
-	if (CHECK(info.func_info_cnt != 2,
-		  "incorrect info.func_info_cnt (1st) %d\n",
-		  info.func_info_cnt)) {
-		err = -1;
-		goto done;
-	}
-	rec_size = info.func_info_rec_size;
-	if (CHECK(rec_size < 4,
-		  "incorrect info.func_info_rec_size (1st) %d\n", rec_size)) {
-		err = -1;
-		goto done;
-	}
 
-	func_info = malloc(info.func_info_cnt * rec_size);
-	if (CHECK(!func_info, "out of memory")) {
-		err = -1;
+	err = test_get_finfo(test, prog_fd);
+	if (err)
 		goto done;
-	}
-
-	/* reset info to only retrieve func_info related data */
-	memset(&info, 0, sizeof(info));
-	info.func_info_cnt = 2;
-	info.func_info_rec_size = rec_size;
-	info.func_info = ptr_to_u64(func_info);
-	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
-	if (CHECK(err == -1, "invalid get info (2nd) errno:%d", errno)) {
-		fprintf(stderr, "%s\n", btf_log_buf);
-		err = -1;
-		goto done;
-	}
-	if (CHECK(info.func_info_cnt != 2,
-		  "incorrect info.func_info_cnt (2nd) %d\n",
-		  info.func_info_cnt)) {
-		err = -1;
-		goto done;
-	}
-	if (CHECK(info.func_info_rec_size != rec_size,
-		  "incorrect info.func_info_rec_size (2nd) %d\n",
-		  info.func_info_rec_size)) {
-		err = -1;
-		goto done;
-	}
-
-	if (CHECK(!info.func_info,
-		  "info.func_info == 0. kernel.kptr_restrict is set?")) {
-		err = -1;
-		goto done;
-	}
-
-	finfo = func_info;
-	for (i = 0; i < 2; i++) {
-		if (CHECK(finfo->type_id != test->func_info[i][1],
-			  "incorrect func_type %u expected %u",
-			  finfo->type_id, test->func_info[i][1])) {
-			err = -1;
-			goto done;
-		}
-		finfo = (void *)finfo + rec_size;
-	}
 
 done:
+	if (!err)
+		fprintf(stderr, "OK");
+
 	if (*btf_log_buf && (err || args.always_log))
 		fprintf(stderr, "\n%s", btf_log_buf);
 
@@ -3328,33 +3352,38 @@ done:
 		close(btf_fd);
 	if (prog_fd != -1)
 		close(prog_fd);
-	free(func_info);
+
 	return err;
 }
 
-static int test_func_type(void)
+static int test_info_raw(void)
 {
 	unsigned int i;
 	int err = 0;
 
-	for (i = 0; i < ARRAY_SIZE(func_type_test); i++)
-		err |= count_result(do_test_func_type(i));
+	if (args.info_raw_test_num)
+		return count_result(do_test_info_raw(args.info_raw_test_num));
+
+	for (i = 1; i <= ARRAY_SIZE(info_raw_tests); i++)
+		err |= count_result(do_test_info_raw(i));
 
 	return err;
 }
 
 static void usage(const char *cmd)
 {
-	fprintf(stderr, "Usage: %s [-l] [[-r test_num (1 - %zu)] |"
-			" [-g test_num (1 - %zu)] |"
-			" [-f test_num (1 - %zu)] | [-p] | [-k] ]\n",
+	fprintf(stderr, "Usage: %s [-l] [[-r btf_raw_test_num (1 - %zu)] |\n"
+			"\t[-g btf_get_info_test_num (1 - %zu)] |\n"
+			"\t[-f btf_file_test_num (1 - %zu)] |\n"
+			"\t[-k btf_prog_info_raw_test_num (1 - %zu)] |\n"
+			"\t[-p (pretty print test)]]\n",
 		cmd, ARRAY_SIZE(raw_tests), ARRAY_SIZE(get_info_tests),
-		ARRAY_SIZE(file_tests));
+		ARRAY_SIZE(file_tests), ARRAY_SIZE(info_raw_tests));
 }
 
 static int parse_args(int argc, char **argv)
 {
-	const char *optstr = "lpkf:r:g:";
+	const char *optstr = "lpk:f:r:g:";
 	int opt;
 
 	while ((opt = getopt(argc, argv, optstr)) != -1) {
@@ -3378,7 +3407,8 @@ static int parse_args(int argc, char **argv)
 			args.pprint_test = true;
 			break;
 		case 'k':
-			args.func_type_test = true;
+			args.info_raw_test_num = atoi(optarg);
+			args.info_raw_test = true;
 			break;
 		case 'h':
 			usage(argv[0]);
@@ -3410,6 +3440,14 @@ static int parse_args(int argc, char **argv)
 	     args.get_info_test_num > ARRAY_SIZE(get_info_tests))) {
 		fprintf(stderr, "BTF get info test number must be [1 - %zu]\n",
 			ARRAY_SIZE(get_info_tests));
+		return -1;
+	}
+
+	if (args.info_raw_test_num &&
+	    (args.info_raw_test_num < 1 ||
+	     args.info_raw_test_num > ARRAY_SIZE(info_raw_tests))) {
+		fprintf(stderr, "BTF prog info raw test number must be [1 - %zu]\n",
+			ARRAY_SIZE(info_raw_tests));
 		return -1;
 	}
 
@@ -3445,16 +3483,17 @@ int main(int argc, char **argv)
 	if (args.pprint_test)
 		err |= test_pprint();
 
-	if (args.func_type_test)
-		err |= test_func_type();
+	if (args.info_raw_test)
+		err |= test_info_raw();
 
 	if (args.raw_test || args.get_info_test || args.file_test ||
-	    args.pprint_test || args.func_type_test)
+	    args.pprint_test || args.info_raw_test)
 		goto done;
 
 	err |= test_raw();
 	err |= test_get_info();
 	err |= test_file();
+	err |= test_info_raw();
 
 done:
 	print_summary();
