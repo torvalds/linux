@@ -667,13 +667,8 @@ static int azx_position_check(struct azx *chip, struct azx_dev *azx_dev)
 	return 0;
 }
 
-/* Enable/disable i915 display power for the link */
-static int azx_intel_link_power(struct azx *chip, bool enable)
-{
-	struct hdac_bus *bus = azx_bus(chip);
-
-	return snd_hdac_display_power(bus, enable);
-}
+#define display_power(chip, enable) \
+	snd_hdac_display_power(azx_bus(chip), HDA_CODEC_IDX_CONTROLLER, enable)
 
 /*
  * Check whether the current DMA position is acceptable for updating
@@ -957,7 +952,7 @@ static void __azx_runtime_suspend(struct azx *chip)
 	azx_clear_irq_pending(chip);
 	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
 	    hda->need_i915_power)
-		snd_hdac_display_power(azx_bus(chip), false);
+		display_power(chip, false);
 }
 
 static void __azx_runtime_resume(struct azx *chip)
@@ -968,7 +963,7 @@ static void __azx_runtime_resume(struct azx *chip)
 	int status;
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		snd_hdac_display_power(bus, true);
+		display_power(chip, true);
 		if (hda->need_i915_power)
 			snd_hdac_i915_set_bclk(bus);
 	}
@@ -989,7 +984,7 @@ static void __azx_runtime_resume(struct azx *chip)
 	/* power down again for link-controlled chips */
 	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL) &&
 	    !hda->need_i915_power)
-		snd_hdac_display_power(bus, false);
+		display_power(chip, false);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1355,7 +1350,7 @@ static int azx_free(struct azx *chip)
 
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
 		if (hda->need_i915_power)
-			snd_hdac_display_power(bus, false);
+			display_power(chip, false);
 	}
 	if (chip->driver_caps & AZX_DCAPS_I915_COMPONENT)
 		snd_hdac_i915_exit(bus);
@@ -2056,7 +2051,6 @@ static const struct hda_controller_ops pci_hda_ops = {
 	.disable_msi_reset_irq = disable_msi_reset_irq,
 	.pcm_mmap_prepare = pcm_mmap_prepare,
 	.position_check = azx_position_check,
-	.link_power = azx_intel_link_power,
 };
 
 static int azx_probe(struct pci_dev *pci,
@@ -2239,7 +2233,7 @@ static int azx_probe_continue(struct azx *chip)
 		if (CONTROLLER_IN_GPU(pci))
 			hda->need_i915_power = 1;
 
-		err = snd_hdac_display_power(bus, true);
+		err = display_power(chip, true);
 		if (err < 0) {
 			dev_err(chip->card->dev,
 				"Cannot turn on display power on i915\n");
@@ -2295,7 +2289,7 @@ static int azx_probe_continue(struct azx *chip)
 out_free:
 	if ((chip->driver_caps & AZX_DCAPS_I915_POWERWELL)
 		&& !hda->need_i915_power)
-		snd_hdac_display_power(bus, false);
+		display_power(chip, false);
 
 i915_power_fail:
 	if (err < 0)
