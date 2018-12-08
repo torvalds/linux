@@ -1006,14 +1006,6 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct inno_video_phy_socdata px30_socdata = {
-	.has_h2p_clk = false,
-	.pinmux = false,
-	.post_div_enable = false,
-	.timings = inno_mipi_dphy_timing_table,
-	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
-};
-
 static const struct inno_video_phy_socdata rk1808_socdata = {
 	.has_h2p_clk = false,
 	.pinmux = false,
@@ -1047,7 +1039,6 @@ static const struct inno_video_phy_socdata rk3368_socdata = {
 };
 
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
-	{ .compatible = "rockchip,px30-mipi-dphy", .data = &px30_socdata },
 	{ .compatible = "rockchip,rk1808-mipi-dphy", .data = &rk1808_socdata },
 	{ .compatible = "rockchip,rk3128-mipi-dphy", .data = &rk3128_socdata },
 	{ .compatible = "rockchip,rk3366-mipi-dphy", .data = &rk3366_socdata },
