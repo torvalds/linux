@@ -224,13 +224,12 @@ static int _dpu_rm_hw_blk_create(
 
 int dpu_rm_init(struct dpu_rm *rm,
 		struct dpu_mdss_cfg *cat,
-		void __iomem *mmio,
-		struct drm_device *dev)
+		void __iomem *mmio)
 {
 	int rc, i;
 	enum dpu_hw_blk_type type;
 
-	if (!rm || !cat || !mmio || !dev) {
+	if (!rm || !cat || !mmio) {
 		DPU_ERROR("invalid kms\n");
 		return -EINVAL;
 	}
@@ -242,8 +241,6 @@ int dpu_rm_init(struct dpu_rm *rm,
 
 	for (type = 0; type < DPU_HW_BLK_MAX; type++)
 		INIT_LIST_HEAD(&rm->hw_blks[type]);
-
-	rm->dev = dev;
 
 	/* Some of the sub-blocks require an mdptop to be created */
 	rm->hw_mdp = dpu_hw_mdptop_init(MDP_TOP, mmio, cat);

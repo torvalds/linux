@@ -22,7 +22,6 @@
 
 /**
  * struct dpu_rm - DPU dynamic hardware resource manager
- * @dev: device handle for event logging purposes
  * @hw_blks: array of lists of hardware resources present in the system, one
  *	list per type of hardware block
  * @hw_mdp: hardware object for mdp_top
@@ -30,7 +29,6 @@
  * @rm_lock: resource manager mutex
  */
 struct dpu_rm {
-	struct drm_device *dev;
 	struct list_head hw_blks[DPU_HW_BLK_MAX];
 	struct dpu_hw_mdp *hw_mdp;
 	uint32_t lm_max_width;
@@ -63,13 +61,11 @@ struct dpu_rm_hw_iter {
  * @rm: DPU Resource Manager handle
  * @cat: Pointer to hardware catalog
  * @mmio: mapped register io address of MDP
- * @dev: device handle for event logging purposes
  * @Return: 0 on Success otherwise -ERROR
  */
 int dpu_rm_init(struct dpu_rm *rm,
 		struct dpu_mdss_cfg *cat,
-		void __iomem *mmio,
-		struct drm_device *dev);
+		void __iomem *mmio);
 
 /**
  * dpu_rm_destroy - Free all memory allocated by dpu_rm_init
