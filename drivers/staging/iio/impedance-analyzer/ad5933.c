@@ -91,7 +91,6 @@
 
 struct ad5933_platform_data {
 	unsigned long			ext_clk_hz;
-	unsigned short			vref_mv;
 };
 
 struct ad5933_state {
@@ -113,7 +112,6 @@ struct ad5933_state {
 };
 
 static struct ad5933_platform_data ad5933_default_pdata  = {
-	.vref_mv = 3300,
 };
 
 #define AD5933_CHANNEL(_type, _extend_name, _info_mask_separate, _address, \
@@ -691,7 +689,7 @@ static void ad5933_work(struct work_struct *work)
 static int ad5933_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	int ret, voltage_uv = 0;
+	int ret;
 	struct ad5933_platform_data *pdata = dev_get_platdata(&client->dev);
 	struct ad5933_state *st;
 	struct iio_dev *indio_dev;
@@ -718,12 +716,12 @@ static int ad5933_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to enable specified VDD supply\n");
 		return ret;
 	}
-	voltage_uv = regulator_get_voltage(st->reg);
+	ret = regulator_get_voltage(st->reg);
 
-	if (voltage_uv)
-		st->vref_mv = voltage_uv / 1000;
-	else
-		st->vref_mv = pdata->vref_mv;
+	if (ret < 0)
+		goto error_disable_reg;
+
+	st->vref_mv = ret / 1000;
 
 	if (pdata->ext_clk_hz) {
 		st->mclk_hz = pdata->ext_clk_hz;
