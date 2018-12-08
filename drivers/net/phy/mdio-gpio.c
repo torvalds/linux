@@ -130,8 +130,10 @@ static struct mii_bus *mdio_gpio_bus_init(struct device *dev,
 	else
 		strncpy(new_bus->id, "gpio", MII_BUS_ID_SIZE);
 
-	if (pdata)
+	if (pdata) {
 		new_bus->phy_mask = pdata->phy_mask;
+		new_bus->phy_ignore_ta_mask = pdata->phy_ignore_ta_mask;
+	}
 
 	dev_set_drvdata(dev, new_bus);
 
