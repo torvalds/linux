@@ -23,21 +23,17 @@
 /**
  * struct dpu_rm - DPU dynamic hardware resource manager
  * @dev: device handle for event logging purposes
- * @rsvps: list of hardware reservations by each crtc->encoder->connector
  * @hw_blks: array of lists of hardware resources present in the system, one
  *	list per type of hardware block
  * @hw_mdp: hardware object for mdp_top
  * @lm_max_width: cached layer mixer maximum width
- * @rsvp_next_seq: sequence number for next reservation for debugging purposes
  * @rm_lock: resource manager mutex
  */
 struct dpu_rm {
 	struct drm_device *dev;
-	struct list_head rsvps;
 	struct list_head hw_blks[DPU_HW_BLK_MAX];
 	struct dpu_hw_mdp *hw_mdp;
 	uint32_t lm_max_width;
-	uint32_t rsvp_next_seq;
 	struct mutex rm_lock;
 };
 
