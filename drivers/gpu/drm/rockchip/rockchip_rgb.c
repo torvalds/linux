@@ -25,6 +25,7 @@
 #include <linux/of_graph.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
+#include <linux/phy/phy.h>
 
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
@@ -51,6 +52,7 @@ struct rockchip_rgb {
 	struct drm_bridge *bridge;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
+	struct phy *phy;
 	struct regmap *grf;
 	bool data_sync;
 	const struct rockchip_rgb_funcs *funcs;
@@ -107,11 +109,22 @@ struct drm_connector_helper_funcs rockchip_rgb_connector_helper_funcs = {
 static void rockchip_rgb_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_rgb *rgb = encoder_to_rgb(encoder);
+	int ret;
 
 	pinctrl_pm_select_default_state(rgb->dev);
 
 	if (rgb->funcs && rgb->funcs->enable)
 		rgb->funcs->enable(rgb);
+
+	if (rgb->phy) {
+		ret = phy_set_mode(rgb->phy, PHY_MODE_VIDEO_TTL);
+		if (ret) {
+			dev_err(rgb->dev, "failed to set phy mode: %d\n", ret);
+			return;
+		}
+
+		phy_power_on(rgb->phy);
+	}
 
 	if (rgb->panel) {
 		drm_panel_prepare(rgb->panel);
@@ -127,6 +140,9 @@ static void rockchip_rgb_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_disable(rgb->panel);
 		drm_panel_unprepare(rgb->panel);
 	}
+
+	if (rgb->phy)
+		phy_power_off(rgb->phy);
 
 	if (rgb->funcs && rgb->funcs->disable)
 		rgb->funcs->disable(rgb);
@@ -297,6 +313,13 @@ static int rockchip_rgb_probe(struct platform_device *pdev)
 			dev_err(dev, "Unable to get grf: %d\n", ret);
 			return ret;
 		}
+	}
+
+	rgb->phy = devm_phy_optional_get(dev, "phy");
+	if (IS_ERR(rgb->phy)) {
+		ret = PTR_ERR(rgb->phy);
+		dev_err(dev, "failed to get phy: %d\n", ret);
+		return ret;
 	}
 
 	return component_add(dev, &rockchip_rgb_component_ops);
