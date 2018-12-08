@@ -53,13 +53,6 @@ struct btf_ext_header {
 	__u32	func_info_len;
 };
 
-struct btf_sec_func_info {
-	__u32	sec_name_off;
-	__u32	num_func_info;
-	/* Followed by num_func_info number of bpf func_info records */
-	__u8	data[0];
-};
-
 typedef int (*btf_print_fn_t)(const char *, ...)
 	__attribute__((format(printf, 1, 2)));
 
@@ -77,12 +70,10 @@ LIBBPF_API int btf__get_from_id(__u32 id, struct btf **btf);
 
 struct btf_ext *btf_ext__new(__u8 *data, __u32 size, btf_print_fn_t err_log);
 void btf_ext__free(struct btf_ext *btf_ext);
-int btf_ext__reloc_init(struct btf *btf, struct btf_ext *btf_ext,
-			const char *sec_name, void **func_info,
-			__u32 *func_info_rec_size, __u32 *func_info_len);
-int btf_ext__reloc(struct btf *btf, struct btf_ext *btf_ext,
-		   const char *sec_name, __u32 insns_cnt, void **func_info,
-		   __u32 *func_info_len);
+int btf_ext__reloc_func_info(struct btf *btf, struct btf_ext *btf_ext,
+			     const char *sec_name, __u32 insns_cnt,
+			     void **func_info, __u32 *func_info_len);
+__u32 btf_ext__func_info_rec_size(const struct btf_ext *btf_ext);
 
 #ifdef __cplusplus
 } /* extern "C" */

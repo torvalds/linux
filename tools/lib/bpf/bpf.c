@@ -205,7 +205,7 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 	       min(name_len, BPF_OBJ_NAME_LEN - 1));
 
 	fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
-	if (fd >= 0 || !log_buf || !log_buf_sz)
+	if (fd >= 0)
 		return fd;
 
 	/* After bpf_prog_load, the kernel may modify certain attributes
@@ -244,9 +244,12 @@ int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
 
 		fd = sys_bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
 
-		if (fd >= 0 || !log_buf || !log_buf_sz)
+		if (fd >= 0)
 			goto done;
 	}
+
+	if (!log_buf || !log_buf_sz)
+		goto done;
 
 	/* Try again with log */
 	attr.log_buf = ptr_to_u64(log_buf);
