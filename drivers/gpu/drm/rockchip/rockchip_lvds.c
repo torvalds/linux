@@ -37,6 +37,15 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_lvds.h"
 
+#define HIWORD_UPDATE(v, h, l)  (((v) << (l)) | (GENMASK(h, l) << 16))
+
+#define PX30_GRF_PD_VO_CON1		0x0438
+#define PX30_LVDS_SELECT(x)		HIWORD_UPDATE(x, 14, 13)
+#define PX30_LVDS_MODE_EN(x)		HIWORD_UPDATE(x, 12, 12)
+#define PX30_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
+#define PX30_LVDS_P2S_EN(x)		HIWORD_UPDATE(x, 10, 10)
+#define PX30_LVDS_VOP_SEL(x)		HIWORD_UPDATE(x,  1,  1)
+
 #define DISPLAY_OUTPUT_RGB		0
 #define DISPLAY_OUTPUT_LVDS		1
 #define DISPLAY_OUTPUT_DUAL_LVDS	2
@@ -783,42 +792,25 @@ static int innov1_lvds_probe(struct rockchip_lvds *lvds)
 
 static int px30_lvds_power_on(struct rockchip_lvds *lvds)
 {
-	int pipe;
+	int pipe = drm_of_encoder_active_endpoint_id(lvds->dev->of_node,
+						     &lvds->encoder);
 
-	pipe = drm_of_encoder_active_endpoint_id(lvds->dev->of_node,
-						 &lvds->encoder);
+	regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
+		     PX30_LVDS_SELECT(lvds->format) |
+		     PX30_LVDS_MODE_EN(1) | PX30_LVDS_MSBSEL(1) |
+		     PX30_LVDS_P2S_EN(1) | PX30_LVDS_VOP_SEL(pipe));
 
-	if (lvds->output == DISPLAY_OUTPUT_RGB) {
-		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
-			     PX30_RGB_VOP_SEL(pipe));
-		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
-			     PX30_DPHY_FORCERXMODE(1) |
-			     PX30_RGB_SYNC_BYPASS(1));
-	} else if (lvds->output == DISPLAY_OUTPUT_LVDS) {
-		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
-			     PX30_LVDS_VOP_SEL(pipe));
-		regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
-			     PX30_LVDS_PHY_MODE(1) |
-			     PX30_LVDS_OUTPUT_FORMAT(lvds->format) |
-			     PX30_LVDS_MSBSEL(LVDS_MSB_D7) |
-			     PX30_DPHY_FORCERXMODE(1));
-		lvds_msk_reg(lvds, MIPIPHY_REG8,
-			     m_SAMPLE_CLK_DIR, v_SAMPLE_CLK_DIR_REVERSE);
-	}
-
-	return innov1_lvds_power_on(lvds);
+	return 0;
 }
 
 static void px30_lvds_power_off(struct rockchip_lvds *lvds)
 {
-	regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1, PX30_LVDS_PHY_MODE(0));
-
-	innov1_lvds_power_off(lvds);
+	regmap_write(lvds->grf, PX30_GRF_PD_VO_CON1,
+		     PX30_LVDS_MODE_EN(0) | PX30_LVDS_P2S_EN(0));
 }
 
 static const struct rockchip_lvds_soc_data px30_lvds_soc_data = {
 	.chip_type = PX30,
-	.probe = innov1_lvds_probe,
 	.power_on = px30_lvds_power_on,
 	.power_off = px30_lvds_power_off,
 };
