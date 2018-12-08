@@ -11,7 +11,6 @@
 #include <linux/gpio/driver.h>
 #include <linux/io.h>
 #include <linux/irqdomain.h>
-#include <linux/irqchip.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -158,7 +157,6 @@ static struct irq_chip lpc18xx_gpio_pin_ic = {
 	.irq_unmask	= lpc18xx_gpio_pin_ic_unmask,
 	.irq_eoi	= lpc18xx_gpio_pin_ic_eoi,
 	.irq_set_type	= lpc18xx_gpio_pin_ic_set_type,
-	.irq_retrigger	= irq_chip_retrigger_hierarchy,
 	.flags		= IRQCHIP_SET_TYPE_MASKED,
 };
 
