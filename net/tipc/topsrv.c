@@ -657,7 +657,7 @@ int tipc_topsrv_start(struct net *net)
 	srv->max_rcvbuf_size = sizeof(struct tipc_subscr);
 	INIT_WORK(&srv->awork, tipc_topsrv_accept);
 
-	strncpy(srv->name, name, strlen(name) + 1);
+	strscpy(srv->name, name, sizeof(srv->name));
 	tn->topsrv = srv;
 	atomic_set(&tn->subscription_count, 0);
 
