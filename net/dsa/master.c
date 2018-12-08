@@ -158,7 +158,7 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 	cpu_dp->orig_ethtool_ops = NULL;
 }
 
-void dsa_master_set_mtu(struct net_device *dev, struct dsa_port *cpu_dp)
+static void dsa_master_set_mtu(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	unsigned int mtu = ETH_DATA_LEN + cpu_dp->tag_ops->overhead;
 	int err;
