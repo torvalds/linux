@@ -3361,6 +3361,12 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 	user_enter();
 }
 
+void __init pt_regs_check(void);
+
+/*
+ * Dummy function, its purpose is to break the build if struct pt_regs and
+ * struct user_pt_regs don't match.
+ */
 void __init pt_regs_check(void)
 {
 	BUILD_BUG_ON(offsetof(struct pt_regs, gpr) !=
