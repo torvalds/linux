@@ -2620,7 +2620,7 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid)
 	 * can cover the codec power request, and so need not set this flag.
 	 */
 	if (!is_haswell(codec) && !is_broadwell(codec))
-		codec->core.link_power_control = 1;
+		codec->display_power_control = 1;
 
 	codec->patch_ops.set_power_state = haswell_set_power_state;
 	codec->depop_delay = 0;
@@ -2656,7 +2656,7 @@ static int patch_i915_byt_hdmi(struct hda_codec *codec)
 	/* For Valleyview/Cherryview, only the display codec is in the display
 	 * power well and can use link_power ops to request/release the power.
 	 */
-	codec->core.link_power_control = 1;
+	codec->display_power_control = 1;
 
 	codec->depop_delay = 0;
 	codec->auto_runtime_pm = 1;
