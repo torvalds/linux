@@ -185,12 +185,23 @@ static char *gen_eth_tnl_hdr(char *buf, struct net_device *dev,
 			     u16 proto)
 {
 	struct ethhdr *eth = (struct ethhdr *)buf;
+	char *ip;
 
 	ether_addr_copy(eth->h_dest, e->h_dest);
 	ether_addr_copy(eth->h_source, dev->dev_addr);
-	eth->h_proto = htons(proto);
+	if (is_vlan_dev(dev)) {
+		struct vlan_hdr *vlan = (struct vlan_hdr *)
+					((char *)eth + ETH_HLEN);
+		ip = (char *)vlan + VLAN_HLEN;
+		eth->h_proto = vlan_dev_vlan_proto(dev);
+		vlan->h_vlan_TCI = htons(vlan_dev_vlan_id(dev));
+		vlan->h_vlan_encapsulated_proto = htons(proto);
+	} else {
+		eth->h_proto = htons(proto);
+		ip = (char *)eth + ETH_HLEN;
+	}
 
-	return (char *)eth + ETH_HLEN;
+	return ip;
 }
 
 int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
