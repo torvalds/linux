@@ -5162,6 +5162,7 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 		cp = le16_to_cpu(resp->alloc_cmpl_rings);
 		stats = le16_to_cpu(resp->alloc_stat_ctx);
 		cp = min_t(u16, cp, stats);
+		hw_resc->resv_irqs = cp;
 		if (bp->flags & BNXT_FLAG_CHIP_P5) {
 			int rx = hw_resc->resv_rx_rings;
 			int tx = hw_resc->resv_tx_rings;
@@ -5175,7 +5176,7 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 				hw_resc->resv_rx_rings = rx;
 				hw_resc->resv_tx_rings = tx;
 			}
-			cp = le16_to_cpu(resp->alloc_msix);
+			hw_resc->resv_irqs = le16_to_cpu(resp->alloc_msix);
 			hw_resc->resv_hw_ring_grps = rx;
 		}
 		hw_resc->resv_cp_rings = cp;
@@ -7055,7 +7056,9 @@ int bnxt_get_avail_msix(struct bnxt *bp, int num)
 	int total_req = bp->cp_nr_rings + num;
 	int max_idx, avail_msix;
 
-	max_idx = min_t(int, bp->total_irqs, max_cp);
+	max_idx = bp->total_irqs;
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+		max_idx = min_t(int, bp->total_irqs, max_cp);
 	avail_msix = max_idx - bp->cp_nr_rings;
 	if (!BNXT_NEW_RM(bp) || avail_msix >= num)
 		return avail_msix;
@@ -7801,6 +7804,7 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 
 		rc = bnxt_hwrm_func_resc_qcaps(bp, true);
 		hw_resc->resv_cp_rings = 0;
+		hw_resc->resv_irqs = 0;
 		hw_resc->resv_tx_rings = 0;
 		hw_resc->resv_rx_rings = 0;
 		hw_resc->resv_hw_ring_grps = 0;
