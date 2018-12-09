@@ -160,6 +160,13 @@
 	status = "okay";
 };
 
+&wdog1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_wdog>;
+	fsl,ext-reset-output;
+	status = "okay";
+};
+
 &iomuxc {
 	pinctrl_fec1: fec1grp {
 		fsl,pins = <
@@ -285,6 +292,12 @@
 			MX8MQ_IOMUXC_SD2_DATA2_USDHC2_DATA2		0xc7
 			MX8MQ_IOMUXC_SD2_DATA3_USDHC2_DATA3		0xc7
 			MX8MQ_IOMUXC_GPIO1_IO04_USDHC2_VSELECT		0xc1
+		>;
+	};
+
+	pinctrl_wdog: wdog1grp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B		0xc6
 		>;
 	};
 };
