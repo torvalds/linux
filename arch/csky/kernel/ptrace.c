@@ -50,15 +50,11 @@ static void singlestep_enable(struct task_struct *tsk)
  */
 void user_enable_single_step(struct task_struct *child)
 {
-	if (child->thread.esp0 == 0)
-		return;
 	singlestep_enable(child);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
-	if (child->thread.esp0 == 0)
-		return;
 	singlestep_disable(child);
 }
 

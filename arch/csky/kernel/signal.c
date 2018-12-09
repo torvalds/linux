@@ -238,8 +238,6 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return;
 
-	current->thread.esp0 = (unsigned long)regs;
-
 	/*
 	 * If we were from a system call, check for system call restarting...
 	 */

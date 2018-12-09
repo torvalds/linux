@@ -122,16 +122,6 @@ ENTRY(csky_systemcall)
 
 	psrset  ee, ie
 
-	/* Stack frame for syscall, origin call set_esp0 */
-	mov     r12, sp
-
-	bmaski  r11, 13
-	andn    r12, r11
-	bgeni   r11, 9
-	addi    r11, 32
-	addu    r12, r11
-	st      sp, (r12, 0)
-
 	lrw     r11, __NR_syscalls
 	cmphs   syscallid, r11		/* Check nr of syscall */
 	bt      ret_from_exception
@@ -230,8 +220,6 @@ resume_userspace:
 1:  RESTORE_ALL
 
 exit_work:
-	mov	a0, sp			/* Stack address is arg[0] */
-	jbsr	set_esp0		/* Call C level */
 	btsti	r8, TIF_NEED_RESCHED
 	bt	work_resched
 	/* If thread_info->flag is empty, RESTORE_ALL */
