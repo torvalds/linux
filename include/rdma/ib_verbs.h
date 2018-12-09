@@ -592,6 +592,7 @@ struct ib_port_attr {
 	u8			active_width;
 	u8			active_speed;
 	u8                      phys_state;
+	u16			port_cap_flags2;
 };
 
 enum ib_device_modify_flags {
