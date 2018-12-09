@@ -88,7 +88,7 @@ static int phy_gmii_sel_mode(struct phy *phy, enum phy_mode mode, int submode)
 			 "port%u: unsupported mode: \"%s\". Defaulting to MII.\n",
 			 if_phy->id, phy_modes(rgmii_id));
 		return -EINVAL;
-	};
+	}
 
 	if_phy->phy_if_mode = submode;
 
