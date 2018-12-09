@@ -130,6 +130,14 @@ static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 static void pmao_restore_workaround(bool ebb) { }
 #endif /* CONFIG_PPC32 */
 
+bool is_sier_available(void)
+{
+	if (ppmu->flags & PPMU_HAS_SIER)
+		return true;
+
+	return false;
+}
+
 static bool regs_use_siar(struct pt_regs *regs)
 {
 	/*
