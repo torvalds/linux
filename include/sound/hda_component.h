@@ -12,8 +12,8 @@
 
 #ifdef CONFIG_SND_HDA_COMPONENT
 int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable);
-int snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx,
-			   bool enable);
+void snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx,
+			    bool enable);
 int snd_hdac_sync_audio_rate(struct hdac_device *codec, hda_nid_t nid,
 			     int dev_id, int rate);
 int snd_hdac_acomp_get_eld(struct hdac_device *codec, hda_nid_t nid, int dev_id,
@@ -30,10 +30,9 @@ static inline int snd_hdac_set_codec_wakeup(struct hdac_bus *bus, bool enable)
 {
 	return 0;
 }
-static inline int snd_hdac_display_power(struct hdac_bus *bus,
-					 unsigned int idx, bool enable)
+static inline void snd_hdac_display_power(struct hdac_bus *bus,
+					  unsigned int idx, bool enable)
 {
-	return 0;
 }
 static inline int snd_hdac_sync_audio_rate(struct hdac_device *codec,
 					   hda_nid_t nid, int dev_id, int rate)
