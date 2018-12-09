@@ -25,13 +25,13 @@ static const char *deleted_key_invalid(const struct bch_fs *c,
 	return NULL;
 }
 
-const struct bkey_ops bch2_bkey_ops_deleted = {
-	.key_invalid = deleted_key_invalid,
-};
+#define bch2_bkey_ops_deleted (struct bkey_ops) {	\
+	.key_invalid = deleted_key_invalid,		\
+}
 
-const struct bkey_ops bch2_bkey_ops_discard = {
-	.key_invalid = deleted_key_invalid,
-};
+#define bch2_bkey_ops_discard (struct bkey_ops) {	\
+	.key_invalid = deleted_key_invalid,		\
+}
 
 static const char *empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c k)
 {
@@ -41,9 +41,9 @@ static const char *empty_val_key_invalid(const struct bch_fs *c, struct bkey_s_c
 	return NULL;
 }
 
-const struct bkey_ops bch2_bkey_ops_error = {
-	.key_invalid = empty_val_key_invalid,
-};
+#define bch2_bkey_ops_error (struct bkey_ops) {		\
+	.key_invalid = empty_val_key_invalid,		\
+}
 
 static const char *key_type_cookie_invalid(const struct bch_fs *c,
 					   struct bkey_s_c k)
@@ -54,13 +54,13 @@ static const char *key_type_cookie_invalid(const struct bch_fs *c,
 	return NULL;
 }
 
-const struct bkey_ops bch2_bkey_ops_cookie = {
-	.key_invalid = key_type_cookie_invalid,
-};
+#define bch2_bkey_ops_cookie (struct bkey_ops) {	\
+	.key_invalid = key_type_cookie_invalid,		\
+}
 
-const struct bkey_ops bch2_bkey_ops_whiteout = {
-	.key_invalid = empty_val_key_invalid,
-};
+#define bch2_bkey_ops_whiteout (struct bkey_ops) {	\
+	.key_invalid = empty_val_key_invalid,		\
+}
 
 static const struct bkey_ops bch2_bkey_ops[] = {
 #define x(name, nr) [KEY_TYPE_##name]	= bch2_bkey_ops_##name,
