@@ -1068,6 +1068,7 @@ void fuse_dev_free(struct fuse_dev *fud)
 
 		fuse_conn_put(fc);
 	}
+	kfree(fud->pq.processing);
 	kfree(fud);
 }
 EXPORT_SYMBOL_GPL(fuse_dev_free);
