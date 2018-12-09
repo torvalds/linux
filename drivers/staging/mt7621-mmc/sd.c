@@ -1693,7 +1693,7 @@ static int msdc_drv_probe(struct platform_device *pdev)
 	host->mrq = NULL;
 	//init_MUTEX(&host->sem); /* we don't need to support multiple threads access */
 
-	mmc_dev(mmc)->dma_mask = NULL;
+	dma_coerce_mask_and_coherent(mmc_dev(mmc), DMA_BIT_MASK(32));
 
 	/* using dma_alloc_coherent*/  /* todo: using 1, for all 4 slots */
 	host->dma.gpd = dma_alloc_coherent(&pdev->dev,
