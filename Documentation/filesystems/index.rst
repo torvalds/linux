@@ -363,8 +363,18 @@ encryption of files and directories.
 Pathname lookup
 ===============
 
-Pathname lookup in Linux is a complex beast; the document linked below
-provides a comprehensive summary for those looking for the details.
+
+This write-up is based on three articles published at lwn.net:
+
+- <https://lwn.net/Articles/649115/> Pathname lookup in Linux
+- <https://lwn.net/Articles/649729/> RCU-walk: faster pathname lookup in Linux
+- <https://lwn.net/Articles/650786/> A walk among the symlinks
+
+Written by Neil Brown with help from Al Viro and Jon Corbet.
+It has subsequently been updated to reflect changes in the kernel
+including:
+
+- per-directory parallel name lookup.
 
 .. toctree::
    :maxdepth: 2
