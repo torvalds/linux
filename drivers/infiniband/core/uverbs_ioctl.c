@@ -751,3 +751,14 @@ int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 	return 0;
 }
 EXPORT_SYMBOL(_uverbs_get_const);
+
+int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+				  size_t idx, const void *from, size_t size)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(bundle, idx);
+
+	if (clear_user(u64_to_user_ptr(attr->ptr_attr.data),
+		       attr->ptr_attr.len))
+		return -EFAULT;
+	return uverbs_copy_to(bundle, idx, from, size);
+}

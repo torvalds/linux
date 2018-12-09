@@ -871,6 +871,8 @@ static inline __malloc void *uverbs_zalloc(struct uverbs_attr_bundle *bundle,
 int _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		      size_t idx, s64 lower_bound, u64 upper_bound,
 		      s64 *def_val);
+int uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+				  size_t idx, const void *from, size_t size);
 #else
 static inline int
 uverbs_get_flags64(u64 *to, const struct uverbs_attr_bundle *attrs_bundle,
@@ -903,6 +905,12 @@ static inline int
 _uverbs_get_const(s64 *to, const struct uverbs_attr_bundle *attrs_bundle,
 		  size_t idx, s64 lower_bound, u64 upper_bound,
 		  s64 *def_val)
+{
+	return -EINVAL;
+}
+static inline int
+uverbs_copy_to_struct_or_zero(const struct uverbs_attr_bundle *bundle,
+			      size_t idx, const void *from, size_t size)
 {
 	return -EINVAL;
 }
