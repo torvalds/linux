@@ -5354,7 +5354,7 @@ static int bnxt_hwrm_reserve_rings(struct bnxt *bp, int tx, int rx, int grp,
 		return bnxt_hwrm_reserve_vf_rings(bp, tx, rx, grp, cp, vnic);
 }
 
-static int bnxt_cp_rings_in_use(struct bnxt *bp)
+static int bnxt_nq_rings_in_use(struct bnxt *bp)
 {
 	int cp = bp->cp_nr_rings;
 	int ulp_msix, ulp_base;
@@ -5369,10 +5369,22 @@ static int bnxt_cp_rings_in_use(struct bnxt *bp)
 	return cp;
 }
 
+static int bnxt_cp_rings_in_use(struct bnxt *bp)
+{
+	int cp;
+
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+		return bnxt_nq_rings_in_use(bp);
+
+	cp = bp->tx_nr_rings + bp->rx_nr_rings;
+	return cp;
+}
+
 static bool bnxt_need_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int cp = bnxt_cp_rings_in_use(bp);
+	int nq = bnxt_nq_rings_in_use(bp);
 	int rx = bp->rx_nr_rings;
 	int vnic = 1, grp = rx;
 
@@ -5388,7 +5400,7 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 		rx <<= 1;
 	if (BNXT_NEW_RM(bp) &&
 	    (hw_resc->resv_rx_rings != rx || hw_resc->resv_cp_rings != cp ||
-	     hw_resc->resv_vnics != vnic ||
+	     hw_resc->resv_irqs < nq || hw_resc->resv_vnics != vnic ||
 	     (hw_resc->resv_hw_ring_grps != grp &&
 	      !(bp->flags & BNXT_FLAG_CHIP_P5))))
 		return true;
@@ -5398,7 +5410,7 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 static int __bnxt_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
-	int cp = bnxt_cp_rings_in_use(bp);
+	int cp = bnxt_nq_rings_in_use(bp);
 	int tx = bp->tx_nr_rings;
 	int rx = bp->rx_nr_rings;
 	int grp, rx_rings, rc;
@@ -5423,7 +5435,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	tx = hw_resc->resv_tx_rings;
 	if (BNXT_NEW_RM(bp)) {
 		rx = hw_resc->resv_rx_rings;
-		cp = hw_resc->resv_cp_rings;
+		cp = hw_resc->resv_irqs;
 		grp = hw_resc->resv_hw_ring_grps;
 		vnic = hw_resc->resv_vnics;
 	}
@@ -7034,7 +7046,12 @@ unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 
 unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp)
 {
-	return bp->hw_resc.max_cp_rings - bnxt_get_ulp_msix_num(bp);
+	unsigned int cp = bp->hw_resc.max_cp_rings;
+
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+		cp -= bnxt_get_ulp_msix_num(bp);
+
+	return cp;
 }
 
 static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
@@ -7076,7 +7093,7 @@ static int bnxt_get_num_msix(struct bnxt *bp)
 	if (!BNXT_NEW_RM(bp))
 		return bnxt_get_max_func_irqs(bp);
 
-	return bnxt_cp_rings_in_use(bp);
+	return bnxt_nq_rings_in_use(bp);
 }
 
 static int bnxt_init_msix(struct bnxt *bp)
