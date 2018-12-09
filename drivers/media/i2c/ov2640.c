@@ -842,9 +842,6 @@ static int ov2640_set_params(struct i2c_client *client,
 	u8 val;
 	int ret;
 
-	if (!win)
-		return -EINVAL;
-
 	switch (code) {
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
 		dev_dbg(&client->dev, "%s: Selected cfmt RGB565 BE", __func__);
@@ -929,10 +926,6 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
-	if (!priv->win) {
-		priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
-		priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
-	}
 
 	mf->width	= priv->win->width;
 	mf->height	= priv->win->height;
@@ -1192,6 +1185,9 @@ static int ov2640_probe(struct i2c_client *client,
 	ret = ov2640_probe_dt(client, priv);
 	if (ret)
 		goto err_clk;
+
+	priv->win = ov2640_select_win(SVGA_WIDTH, SVGA_HEIGHT);
+	priv->cfmt_code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov2640_subdev_ops);
 	priv->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
