@@ -94,6 +94,9 @@ config MMU
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
+config STACKTRACE_SUPPORT
+	def_bool y
+
 config TIME_LOW_RES
 	def_bool y
 

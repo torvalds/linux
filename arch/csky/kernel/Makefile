@@ -6,3 +6,4 @@ obj-y += process.o cpu-probe.o ptrace.o dumpstack.o
 
 obj-$(CONFIG_MODULES)			+= module.o
 obj-$(CONFIG_SMP)			+= smp.o
+obj-$(CONFIG_STACKTRACE)		+= stacktrace.o
