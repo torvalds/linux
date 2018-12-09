@@ -1228,6 +1228,9 @@ static int mlx5_query_hca_port(struct ib_device *ibdev, u8 port,
 	props->subnet_timeout	= rep->subnet_timeout;
 	props->init_type_reply	= rep->init_type_reply;
 
+	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP)
+		props->port_cap_flags2 = rep->cap_mask2;
+
 	err = mlx5_query_port_link_width_oper(mdev, &ib_link_width_oper, port);
 	if (err)
 		goto out;
