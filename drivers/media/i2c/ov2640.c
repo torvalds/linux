@@ -941,6 +941,9 @@ static int ov2640_get_fmt(struct v4l2_subdev *sd,
 	mf->code	= priv->cfmt_code;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
 	mf->field	= V4L2_FIELD_NONE;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	return 0;
 }
@@ -967,6 +970,9 @@ static int ov2640_set_fmt(struct v4l2_subdev *sd,
 
 	mf->field	= V4L2_FIELD_NONE;
 	mf->colorspace	= V4L2_COLORSPACE_SRGB;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization = V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	switch (mf->code) {
 	case MEDIA_BUS_FMT_RGB565_2X8_BE:
