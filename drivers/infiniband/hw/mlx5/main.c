@@ -1108,6 +1108,8 @@ static void translate_active_width(struct ib_device *ibdev, u8 active_width,
 
 	if (active_width & MLX5_IB_WIDTH_1X)
 		*ib_width = IB_WIDTH_1X;
+	else if (active_width & MLX5_IB_WIDTH_2X)
+		*ib_width = IB_WIDTH_2X;
 	else if (active_width & MLX5_IB_WIDTH_4X)
 		*ib_width = IB_WIDTH_4X;
 	else if (active_width & MLX5_IB_WIDTH_8X)

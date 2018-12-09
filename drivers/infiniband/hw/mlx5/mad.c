@@ -568,9 +568,13 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	props->max_vl_num	= out_mad->data[37] >> 4;
 	props->init_type_reply	= out_mad->data[41] >> 4;
 
-	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP)
+	if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP) {
 		props->port_cap_flags2 =
 			be16_to_cpup((__be16 *)(out_mad->data + 60));
+
+		if (props->port_cap_flags2 & IB_PORT_LINK_WIDTH_2X_SUP)
+			props->active_width = out_mad->data[31] & 0x1f;
+	}
 
 	/* Check if extended speeds (EDR/FDR/...) are supported */
 	if (props->port_cap_flags & IB_PORT_EXTENDED_SPEEDS_SUP) {
