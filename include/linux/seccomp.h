@@ -43,7 +43,7 @@ extern void secure_computing_strict(int this_syscall);
 #endif
 
 extern long prctl_get_seccomp(void);
-extern long prctl_set_seccomp(unsigned long, char __user *);
+extern long prctl_set_seccomp(unsigned long, void __user *);
 
 static inline int seccomp_mode(struct seccomp *s)
 {
