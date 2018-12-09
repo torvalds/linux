@@ -177,11 +177,6 @@ int ocrdma_query_port(struct ib_device *ibdev,
 
 	/* props being zeroed by the caller, avoid zeroing it here */
 	dev = get_ocrdma_dev(ibdev);
-	if (port > 1) {
-		pr_err("%s(%d) invalid_port=0x%x\n", __func__,
-		       dev->id, port);
-		return -EINVAL;
-	}
 	netdev = dev->nic_info.netdev;
 	if (netif_running(netdev) && netif_oper_up(netdev)) {
 		port_state = IB_PORT_ACTIVE;
@@ -215,13 +210,6 @@ int ocrdma_query_port(struct ib_device *ibdev,
 int ocrdma_modify_port(struct ib_device *ibdev, u8 port, int mask,
 		       struct ib_port_modify *props)
 {
-	struct ocrdma_dev *dev;
-
-	dev = get_ocrdma_dev(ibdev);
-	if (port > 1) {
-		pr_err("%s(%d) invalid_port=0x%x\n", __func__, dev->id, port);
-		return -EINVAL;
-	}
 	return 0;
 }
 

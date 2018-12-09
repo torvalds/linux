@@ -216,10 +216,6 @@ int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
 	struct qed_rdma_port *rdma_port;
 
 	dev = get_qedr_dev(ibdev);
-	if (port > 1) {
-		DP_ERR(dev, "invalid_port=0x%x\n", port);
-		return -EINVAL;
-	}
 
 	if (!dev->rdma_ctx) {
 		DP_ERR(dev, "rdma_ctx is NULL\n");
@@ -263,14 +259,6 @@ int qedr_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr *attr)
 int qedr_modify_port(struct ib_device *ibdev, u8 port, int mask,
 		     struct ib_port_modify *props)
 {
-	struct qedr_dev *dev;
-
-	dev = get_qedr_dev(ibdev);
-	if (port > 1) {
-		DP_ERR(dev, "invalid_port=0x%x\n", port);
-		return -EINVAL;
-	}
-
 	return 0;
 }
 

@@ -526,11 +526,6 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 	int ext_active_speed;
 	int err = -ENOMEM;
 
-	if (port < 1 || port > dev->num_ports) {
-		mlx5_ib_warn(dev, "invalid port number %d\n", port);
-		return -EINVAL;
-	}
-
 	in_mad  = kzalloc(sizeof(*in_mad), GFP_KERNEL);
 	out_mad = kmalloc(sizeof(*out_mad), GFP_KERNEL);
 	if (!in_mad || !out_mad)

@@ -56,12 +56,7 @@ static int rxe_query_port(struct ib_device *dev,
 {
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
-	int rc = -EINVAL;
-
-	if (unlikely(port_num != 1)) {
-		pr_warn("invalid port_number %d\n", port_num);
-		goto out;
-	}
+	int rc;
 
 	port = &rxe->port;
 
@@ -81,7 +76,6 @@ static int rxe_query_port(struct ib_device *dev,
 
 	mutex_unlock(&rxe->usdev_lock);
 
-out:
 	return rc;
 }
 
@@ -103,12 +97,6 @@ static int rxe_query_pkey(struct ib_device *device,
 {
 	struct rxe_dev *rxe = to_rdev(device);
 	struct rxe_port *port;
-
-	if (unlikely(port_num != 1)) {
-		dev_warn(device->dev.parent, "invalid port_num = %d\n",
-			 port_num);
-		goto err1;
-	}
 
 	port = &rxe->port;
 
@@ -147,11 +135,6 @@ static int rxe_modify_port(struct ib_device *dev,
 	struct rxe_dev *rxe = to_rdev(dev);
 	struct rxe_port *port;
 
-	if (unlikely(port_num != 1)) {
-		pr_warn("invalid port_num = %d\n", port_num);
-		goto err1;
-	}
-
 	port = &rxe->port;
 
 	port->attr.port_cap_flags |= attr->set_port_cap_mask;
@@ -161,9 +144,6 @@ static int rxe_modify_port(struct ib_device *dev,
 		port->attr.qkey_viol_cntr = 0;
 
 	return 0;
-
-err1:
-	return -EINVAL;
 }
 
 static enum rdma_link_layer rxe_get_link_layer(struct ib_device *dev,
