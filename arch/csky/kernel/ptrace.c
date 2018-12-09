@@ -241,6 +241,7 @@ asmlinkage void syscall_trace(int why, struct pt_regs *regs)
 	regs->regs[SYSTRACE_SAVENUM] = saved_why;
 }
 
+extern void show_stack(struct task_struct *task, unsigned long *stack);
 void show_regs(struct pt_regs *fp)
 {
 	unsigned long   *sp;
@@ -263,35 +264,37 @@ void show_regs(struct pt_regs *fp)
 		       (int) (((unsigned long) current) + 2 * PAGE_SIZE));
 	}
 
-	pr_info("PC: 0x%08lx\n", (long)fp->pc);
+	pr_info("PC: 0x%08lx (%pS)\n", (long)fp->pc, (void *)fp->pc);
+	pr_info("LR: 0x%08lx (%pS)\n", (long)fp->lr, (void *)fp->lr);
+	pr_info("SP: 0x%08lx\n", (long)fp);
 	pr_info("orig_a0: 0x%08lx\n", fp->orig_a0);
 	pr_info("PSR: 0x%08lx\n", (long)fp->sr);
 
-	pr_info("a0: 0x%08lx  a1: 0x%08lx  a2: 0x%08lx  a3: 0x%08lx\n",
-	       fp->a0, fp->a1, fp->a2, fp->a3);
+	pr_info(" a0: 0x%08lx   a1: 0x%08lx   a2: 0x%08lx   a3: 0x%08lx\n",
+		fp->a0, fp->a1, fp->a2, fp->a3);
 #if defined(__CSKYABIV2__)
-	pr_info("r4: 0x%08lx  r5: 0x%08lx    r6: 0x%08lx    r7: 0x%08lx\n",
+	pr_info(" r4: 0x%08lx   r5: 0x%08lx   r6: 0x%08lx   r7: 0x%08lx\n",
 		fp->regs[0], fp->regs[1], fp->regs[2], fp->regs[3]);
-	pr_info("r8: 0x%08lx  r9: 0x%08lx   r10: 0x%08lx   r11: 0x%08lx\n",
+	pr_info(" r8: 0x%08lx   r9: 0x%08lx  r10: 0x%08lx  r11: 0x%08lx\n",
 		fp->regs[4], fp->regs[5], fp->regs[6], fp->regs[7]);
-	pr_info("r12 0x%08lx  r13: 0x%08lx   r15: 0x%08lx\n",
+	pr_info("r12: 0x%08lx  r13: 0x%08lx  r15: 0x%08lx\n",
 		fp->regs[8], fp->regs[9], fp->lr);
-	pr_info("r16:0x%08lx   r17: 0x%08lx   r18: 0x%08lx    r19: 0x%08lx\n",
+	pr_info("r16: 0x%08lx  r17: 0x%08lx  r18: 0x%08lx  r19: 0x%08lx\n",
 		fp->exregs[0], fp->exregs[1], fp->exregs[2], fp->exregs[3]);
-	pr_info("r20 0x%08lx   r21: 0x%08lx   r22: 0x%08lx    r23: 0x%08lx\n",
+	pr_info("r20: 0x%08lx  r21: 0x%08lx  r22: 0x%08lx  r23: 0x%08lx\n",
 		fp->exregs[4], fp->exregs[5], fp->exregs[6], fp->exregs[7]);
-	pr_info("r24 0x%08lx   r25: 0x%08lx   r26: 0x%08lx    r27: 0x%08lx\n",
+	pr_info("r24: 0x%08lx  r25: 0x%08lx  r26: 0x%08lx  r27: 0x%08lx\n",
 		fp->exregs[8], fp->exregs[9], fp->exregs[10], fp->exregs[11]);
-	pr_info("r28 0x%08lx   r29: 0x%08lx   r30: 0x%08lx    tls: 0x%08lx\n",
+	pr_info("r28: 0x%08lx  r29: 0x%08lx  r30: 0x%08lx  tls: 0x%08lx\n",
 		fp->exregs[12], fp->exregs[13], fp->exregs[14], fp->tls);
-	pr_info("hi 0x%08lx    lo: 0x%08lx\n",
+	pr_info(" hi: 0x%08lx   lo: 0x%08lx\n",
 		fp->rhi, fp->rlo);
 #else
-	pr_info("r6: 0x%08lx   r7: 0x%08lx   r8: 0x%08lx   r9: 0x%08lx\n",
+	pr_info(" r6: 0x%08lx   r7: 0x%08lx   r8: 0x%08lx   r9: 0x%08lx\n",
 		fp->regs[0], fp->regs[1], fp->regs[2], fp->regs[3]);
-	pr_info("r10: 0x%08lx   r11: 0x%08lx   r12: 0x%08lx   r13: 0x%08lx\n",
+	pr_info("r10: 0x%08lx  r11: 0x%08lx  r12: 0x%08lx  r13: 0x%08lx\n",
 		fp->regs[4], fp->regs[5], fp->regs[6], fp->regs[7]);
-	pr_info("r14 0x%08lx   r1: 0x%08lx   r15: 0x%08lx\n",
+	pr_info("r14: 0x%08lx   r1: 0x%08lx  r15: 0x%08lx\n",
 		fp->regs[8], fp->regs[9], fp->lr);
 #endif
 
@@ -313,4 +316,7 @@ void show_regs(struct pt_regs *fp)
 		pr_cont("%08x ", (int) *sp++);
 	}
 	pr_cont("\n");
+
+	show_stack(NULL, (unsigned long *)fp->regs[4]);
+	return;
 }
