@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, version 2 of the License.
  */
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/xattr.h>

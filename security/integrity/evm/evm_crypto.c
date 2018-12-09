@@ -15,7 +15,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/crypto.h>
 #include <linux/xattr.h>
 #include <linux/evm.h>

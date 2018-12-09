@@ -16,7 +16,7 @@
  *	  using a rbtree tree.
  */
 #include <linux/slab.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/rbtree.h>
 #include <linux/file.h>
