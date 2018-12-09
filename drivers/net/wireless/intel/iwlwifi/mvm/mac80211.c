@@ -3066,11 +3066,15 @@ static int iwl_mvm_mac_sta_state(struct ieee80211_hw *hw,
 	} else if (old_state == IEEE80211_STA_AUTH &&
 		   new_state == IEEE80211_STA_ASSOC) {
 		if (vif->type == NL80211_IFTYPE_AP) {
+			vif->bss_conf.he_support = sta->he_cap.has_he;
 			mvmvif->ap_assoc_sta_count++;
 			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 			if (vif->bss_conf.he_support &&
 			    !iwlwifi_mod_params.disable_11ax)
 				iwl_mvm_cfg_he_sta(mvm, vif, mvm_sta->sta_id);
+		} else if (vif->type == NL80211_IFTYPE_STATION) {
+			vif->bss_conf.he_support = sta->he_cap.has_he;
+			iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
 		}
 
 		iwl_mvm_rs_rate_init(mvm, sta, mvmvif->phy_ctxt->channel->band,
