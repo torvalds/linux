@@ -423,24 +423,26 @@ static int do_show(int argc, char **argv)
 
 static int do_dump(int argc, char **argv)
 {
+	unsigned int finfo_rec_size, linfo_rec_size, jited_linfo_rec_size;
+	void *func_info = NULL, *linfo = NULL, *jited_linfo = NULL;
+	unsigned int finfo_cnt, linfo_cnt = 0, jited_linfo_cnt = 0;
+	struct bpf_prog_linfo *prog_linfo = NULL;
 	unsigned long *func_ksyms = NULL;
 	struct bpf_prog_info info = {};
 	unsigned int *func_lens = NULL;
 	const char *disasm_opt = NULL;
-	unsigned int finfo_rec_size;
 	unsigned int nr_func_ksyms;
 	unsigned int nr_func_lens;
 	struct dump_data dd = {};
 	__u32 len = sizeof(info);
 	struct btf *btf = NULL;
-	void *func_info = NULL;
-	unsigned int finfo_cnt;
 	unsigned int buf_size;
 	char *filepath = NULL;
 	bool opcodes = false;
 	bool visual = false;
 	char func_sig[1024];
 	unsigned char *buf;
+	bool linum = false;
 	__u32 *member_len;
 	__u64 *member_ptr;
 	ssize_t n;
@@ -483,6 +485,9 @@ static int do_dump(int argc, char **argv)
 		NEXT_ARG();
 	} else if (is_prefix(*argv, "visual")) {
 		visual = true;
+		NEXT_ARG();
+	} else if (is_prefix(*argv, "linum")) {
+		linum = true;
 		NEXT_ARG();
 	}
 
@@ -543,6 +548,32 @@ static int do_dump(int argc, char **argv)
 		}
 	}
 
+	linfo_rec_size = info.line_info_rec_size;
+	if (info.line_info_cnt && linfo_rec_size && info.btf_id) {
+		linfo_cnt = info.line_info_cnt;
+		linfo = malloc(linfo_cnt * linfo_rec_size);
+		if (!linfo) {
+			p_err("mem alloc failed");
+			close(fd);
+			goto err_free;
+		}
+	}
+
+	jited_linfo_rec_size = info.jited_line_info_rec_size;
+	if (info.jited_line_info_cnt &&
+	    jited_linfo_rec_size &&
+	    info.nr_jited_ksyms &&
+	    info.nr_jited_func_lens &&
+	    info.btf_id) {
+		jited_linfo_cnt = info.jited_line_info_cnt;
+		jited_linfo = malloc(jited_linfo_cnt * jited_linfo_rec_size);
+		if (!jited_linfo) {
+			p_err("mem alloc failed");
+			close(fd);
+			goto err_free;
+		}
+	}
+
 	memset(&info, 0, sizeof(info));
 
 	*member_ptr = ptr_to_u64(buf);
@@ -554,6 +585,13 @@ static int do_dump(int argc, char **argv)
 	info.func_info_cnt = finfo_cnt;
 	info.func_info_rec_size = finfo_rec_size;
 	info.func_info = ptr_to_u64(func_info);
+	info.line_info_cnt = linfo_cnt;
+	info.line_info_rec_size = linfo_rec_size;
+	info.line_info = ptr_to_u64(linfo);
+	info.jited_line_info_cnt = jited_linfo_cnt;
+	info.jited_line_info_rec_size = jited_linfo_rec_size;
+	info.jited_line_info = ptr_to_u64(jited_linfo);
+
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	close(fd);
@@ -596,6 +634,30 @@ static int do_dump(int argc, char **argv)
 		finfo_cnt = 0;
 	}
 
+	if (linfo && info.line_info_cnt != linfo_cnt) {
+		p_err("incorrect line_info_cnt %u vs. expected %u",
+		      info.line_info_cnt, linfo_cnt);
+		goto err_free;
+	}
+
+	if (info.line_info_rec_size != linfo_rec_size) {
+		p_err("incorrect line_info_rec_size %u vs. expected %u",
+		      info.line_info_rec_size, linfo_rec_size);
+		goto err_free;
+	}
+
+	if (jited_linfo && info.jited_line_info_cnt != jited_linfo_cnt) {
+		p_err("incorrect jited_line_info_cnt %u vs. expected %u",
+		      info.jited_line_info_cnt, jited_linfo_cnt);
+		goto err_free;
+	}
+
+	if (info.jited_line_info_rec_size != jited_linfo_rec_size) {
+		p_err("incorrect jited_line_info_rec_size %u vs. expected %u",
+		      info.jited_line_info_rec_size, jited_linfo_rec_size);
+		goto err_free;
+	}
+
 	if ((member_len == &info.jited_prog_len &&
 	     info.jited_prog_insns == 0) ||
 	    (member_len == &info.xlated_prog_len &&
@@ -607,6 +669,12 @@ static int do_dump(int argc, char **argv)
 	if (info.btf_id && btf__get_from_id(info.btf_id, &btf)) {
 		p_err("failed to get btf");
 		goto err_free;
+	}
+
+	if (linfo_cnt) {
+		prog_linfo = bpf_prog_linfo__new(&info);
+		if (!prog_linfo)
+			p_err("error in processing bpf_line_info.  continue without it.");
 	}
 
 	if (filepath) {
@@ -690,8 +758,11 @@ static int do_dump(int argc, char **argv)
 					printf("%s:\n", sym_name);
 				}
 
-				disasm_print_insn(img, lens[i], opcodes, name,
-						  disasm_opt);
+				disasm_print_insn(img, lens[i], opcodes,
+						  name, disasm_opt, btf,
+						  prog_linfo, ksyms[i], i,
+						  linum);
+
 				img += lens[i];
 
 				if (json_output)
@@ -704,7 +775,7 @@ static int do_dump(int argc, char **argv)
 				jsonw_end_array(json_wtr);
 		} else {
 			disasm_print_insn(buf, *member_len, opcodes, name,
-					  disasm_opt);
+					  disasm_opt, btf, NULL, 0, 0, false);
 		}
 	} else if (visual) {
 		if (json_output)
@@ -718,11 +789,14 @@ static int do_dump(int argc, char **argv)
 		dd.btf = btf;
 		dd.func_info = func_info;
 		dd.finfo_rec_size = finfo_rec_size;
+		dd.prog_linfo = prog_linfo;
 
 		if (json_output)
-			dump_xlated_json(&dd, buf, *member_len, opcodes);
+			dump_xlated_json(&dd, buf, *member_len, opcodes,
+					 linum);
 		else
-			dump_xlated_plain(&dd, buf, *member_len, opcodes);
+			dump_xlated_plain(&dd, buf, *member_len, opcodes,
+					  linum);
 		kernel_syms_destroy(&dd);
 	}
 
@@ -730,6 +804,9 @@ static int do_dump(int argc, char **argv)
 	free(func_ksyms);
 	free(func_lens);
 	free(func_info);
+	free(linfo);
+	free(jited_linfo);
+	bpf_prog_linfo__free(prog_linfo);
 	return 0;
 
 err_free:
@@ -737,6 +814,9 @@ err_free:
 	free(func_ksyms);
 	free(func_lens);
 	free(func_info);
+	free(linfo);
+	free(jited_linfo);
+	bpf_prog_linfo__free(prog_linfo);
 	return -1;
 }
 
@@ -1138,8 +1218,8 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %s %s { show | list } [PROG]\n"
-		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
-		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
+		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual | linum }]\n"
+		"       %s %s dump jited  PROG [{ file FILE | opcodes | linum }]\n"
 		"       %s %s pin   PROG FILE\n"
 		"       %s %s { load | loadall } OBJ  PATH \\\n"
 		"                         [type TYPE] [dev NAME] \\\n"

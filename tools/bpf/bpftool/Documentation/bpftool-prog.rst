@@ -22,8 +22,8 @@ MAP COMMANDS
 =============
 
 |	**bpftool** **prog { show | list }** [*PROG*]
-|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual**}]
-|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
+|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual** | **linum**}]
+|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes** | **linum**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
 |	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
 |	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
@@ -56,7 +56,7 @@ DESCRIPTION
 		  Output will start with program ID followed by program type and
 		  zero or more named attributes (depending on kernel version).
 
-	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** }]
+	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
 		  Dump eBPF instructions of the program from the kernel. By
 		  default, eBPF will be disassembled and printed to standard
 		  output in human-readable format. In this case, **opcodes**
@@ -69,13 +69,21 @@ DESCRIPTION
 		  built instead, and eBPF instructions will be presented with
 		  CFG in DOT format, on standard output.
 
-	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** }]
+		  If the prog has line_info available, the source line will
+		  be displayed by default.  If **linum** is specified,
+		  the filename, line number and line column will also be
+		  displayed on top of the source line.
+	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** | **linum** }]
 		  Dump jited image (host machine code) of the program.
 		  If *FILE* is specified image will be written to a file,
 		  otherwise it will be disassembled and printed to stdout.
 
 		  **opcodes** controls if raw opcodes will be printed.
 
+		  If the prog has line_info available, the source line will
+		  be displayed by default.  If **linum** is specified,
+		  the filename, line number and line column will also be
+		  displayed on top of the source line.
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
 

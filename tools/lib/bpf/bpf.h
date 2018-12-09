@@ -82,6 +82,9 @@ struct bpf_load_program_attr {
 	__u32 func_info_rec_size;
 	const void *func_info;
 	__u32 func_info_cnt;
+	__u32 line_info_rec_size;
+	const void *line_info;
+	__u32 line_info_cnt;
 };
 
 /* Flags to direct loading requirements */

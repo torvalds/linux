@@ -191,7 +191,7 @@ _bpftool()
 
     # Deal with simplest keywords
     case $prev in
-        help|hex|opcodes|visual)
+        help|hex|opcodes|visual|linum)
             return 0
             ;;
         tag)
@@ -278,10 +278,10 @@ _bpftool()
                     *)
                         _bpftool_once_attr 'file'
                         if _bpftool_search_list 'xlated'; then
-                            COMPREPLY+=( $( compgen -W 'opcodes visual' -- \
+                            COMPREPLY+=( $( compgen -W 'opcodes visual linum' -- \
                                 "$cur" ) )
                         else
-                            COMPREPLY+=( $( compgen -W 'opcodes' -- \
+                            COMPREPLY+=( $( compgen -W 'opcodes linum' -- \
                                 "$cur" ) )
                         fi
                         return 0
