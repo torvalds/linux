@@ -141,6 +141,10 @@ __attribute_const__ int ib_rate_to_mult(enum ib_rate rate)
 	case IB_RATE_100_GBPS: return  40;
 	case IB_RATE_200_GBPS: return  80;
 	case IB_RATE_300_GBPS: return 120;
+	case IB_RATE_28_GBPS:  return  11;
+	case IB_RATE_50_GBPS:  return  20;
+	case IB_RATE_400_GBPS: return 160;
+	case IB_RATE_600_GBPS: return 240;
 	default:	       return  -1;
 	}
 }
@@ -166,6 +170,10 @@ __attribute_const__ enum ib_rate mult_to_ib_rate(int mult)
 	case 40:  return IB_RATE_100_GBPS;
 	case 80:  return IB_RATE_200_GBPS;
 	case 120: return IB_RATE_300_GBPS;
+	case 11:  return IB_RATE_28_GBPS;
+	case 20:  return IB_RATE_50_GBPS;
+	case 160: return IB_RATE_400_GBPS;
+	case 240: return IB_RATE_600_GBPS;
 	default:  return IB_RATE_PORT_CURRENT;
 	}
 }
@@ -191,6 +199,10 @@ __attribute_const__ int ib_rate_to_mbps(enum ib_rate rate)
 	case IB_RATE_100_GBPS: return 103125;
 	case IB_RATE_200_GBPS: return 206250;
 	case IB_RATE_300_GBPS: return 309375;
+	case IB_RATE_28_GBPS:  return 28125;
+	case IB_RATE_50_GBPS:  return 53125;
+	case IB_RATE_400_GBPS: return 425000;
+	case IB_RATE_600_GBPS: return 637500;
 	default:	       return -1;
 	}
 }
