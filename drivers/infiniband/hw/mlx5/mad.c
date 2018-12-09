@@ -583,6 +583,11 @@ int mlx5_query_mad_ifc_port(struct ib_device *ibdev, u8 port,
 		case 2:
 			props->active_speed = 32; /* EDR */
 			break;
+		case 4:
+			if (props->port_cap_flags & IB_PORT_CAP_MASK2_SUP &&
+			    props->port_cap_flags2 & IB_PORT_LINK_SPEED_HDR_SUP)
+				props->active_speed = IB_SPEED_HDR;
+			break;
 		}
 	}
 
