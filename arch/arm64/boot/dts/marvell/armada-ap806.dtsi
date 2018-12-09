@@ -28,33 +28,6 @@
 		method = "smc";
 	};
 
-	cpus {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		idle_states {
-			entry_method = "arm,pcsi";
-
-			CPU_SLEEP_0: cpu-sleep-0 {
-				compatible = "arm,idle-state";
-				local-timer-stop;
-				arm,psci-suspend-param = <0x0010000>;
-				entry-latency-us = <80>;
-				exit-latency-us  = <160>;
-				min-residency-us = <320>;
-			};
-
-			CLUSTER_SLEEP_0: cluster-sleep-0 {
-				compatible = "arm,idle-state";
-				local-timer-stop;
-				arm,psci-suspend-param = <0x1010000>;
-				entry-latency-us = <500>;
-				exit-latency-us = <1000>;
-				min-residency-us = <2500>;
-			};
-		};
-	};
-
 	ap806 {
 		#address-cells = <2>;
 		#size-cells = <2>;
