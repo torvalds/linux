@@ -183,18 +183,10 @@ ENTRY(csky_systemcall)
 #endif
 	stw	a0, (sp, LSAVE_A0)	/* Save return value */
 
-	movi	a0, 1			/* leave system call */
-	mov	a1, sp			/* sp = pt_regs pointer */
-	jbsr	syscall_trace
-
-syscall_exit_work:
-	ld	syscallid, (sp, LSAVE_PSR)
-	btsti	syscallid, 31
-	bt	2f
-
-	jmpi	resume_userspace
-
-2:      RESTORE_ALL
+	movi    a0, 1                   /* leave system call */
+	mov     a1, sp                  /* right now, sp --> pt_regs */
+	jbsr    syscall_trace
+	br	ret_from_exception
 
 ENTRY(ret_from_kernel_thread)
 	jbsr	schedule_tail
