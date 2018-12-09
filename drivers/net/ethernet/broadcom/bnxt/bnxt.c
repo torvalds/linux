@@ -9827,13 +9827,16 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 				int *max_cp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
-	int max_ring_grps = 0;
+	int max_ring_grps = 0, max_irq;
 
 	*max_tx = hw_resc->max_tx_rings;
 	*max_rx = hw_resc->max_rx_rings;
-	*max_cp = min_t(int, bnxt_get_max_func_cp_rings_for_en(bp),
-			hw_resc->max_irqs - bnxt_get_ulp_msix_num(bp));
-	*max_cp = min_t(int, *max_cp, hw_resc->max_stat_ctxs);
+	*max_cp = bnxt_get_max_func_cp_rings_for_en(bp);
+	max_irq = min_t(int, bnxt_get_max_func_irqs(bp) -
+			bnxt_get_ulp_msix_num(bp),
+			bnxt_get_max_func_stat_ctxs(bp));
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
+		*max_cp = min_t(int, *max_cp, max_irq);
 	max_ring_grps = hw_resc->max_hw_ring_grps;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp) && BNXT_PF(bp)) {
 		*max_cp -= 1;
@@ -9841,6 +9844,11 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	}
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		*max_rx >>= 1;
+	if (bp->flags & BNXT_FLAG_CHIP_P5) {
+		bnxt_trim_rings(bp, max_rx, max_tx, *max_cp, false);
+		/* On P5 chips, max_cp output param should be available NQs */
+		*max_cp = max_irq;
+	}
 	*max_rx = min_t(int, *max_rx, max_ring_grps);
 }
 
