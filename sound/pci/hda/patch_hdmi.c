@@ -2616,11 +2616,7 @@ static int intel_hsw_common_init(struct hda_codec *codec, hda_nid_t vendor_nid)
 	intel_haswell_enable_all_pins(codec, true);
 	intel_haswell_fixup_enable_dp12(codec);
 
-	/* For Haswell/Broadwell, the controller is also in the power well and
-	 * can cover the codec power request, and so need not set this flag.
-	 */
-	if (!is_haswell(codec) && !is_broadwell(codec))
-		codec->display_power_control = 1;
+	codec->display_power_control = 1;
 
 	codec->patch_ops.set_power_state = haswell_set_power_state;
 	codec->depop_delay = 0;
