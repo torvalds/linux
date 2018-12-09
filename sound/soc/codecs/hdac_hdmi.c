@@ -2102,6 +2102,8 @@ static int hdac_hdmi_dev_remove(struct hdac_device *hdev)
 	struct hdac_hdmi_port *port, *port_next;
 	int i;
 
+	snd_hdac_display_power(hdev->bus, hdev->addr, false);
+
 	list_for_each_entry_safe(pcm, pcm_next, &hdmi->pcm_list, head) {
 		pcm->cvt = NULL;
 		if (list_empty(&pcm->port_list))
