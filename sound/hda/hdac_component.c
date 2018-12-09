@@ -62,10 +62,8 @@ EXPORT_SYMBOL_GPL(snd_hdac_set_codec_wakeup);
  *
  * This function updates the power status, and calls the get_power() and
  * put_power() ops accordingly, toggling the codec wakeup, too.
- *
- * Returns zero for success or a negative error code.
  */
-int snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
+void snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
 {
 	struct drm_audio_component *acomp = bus->audio_component;
 
@@ -77,7 +75,7 @@ int snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
 		clear_bit(idx, &bus->display_power_status);
 
 	if (!acomp || !acomp->ops)
-		return 0;
+		return;
 
 	if (bus->display_power_status) {
 		if (!bus->display_power_active) {
@@ -94,8 +92,6 @@ int snd_hdac_display_power(struct hdac_bus *bus, unsigned int idx, bool enable)
 			bus->display_power_active = false;
 		}
 	}
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_display_power);
 

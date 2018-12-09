@@ -2216,12 +2216,7 @@ static int azx_probe_continue(struct azx *chip)
 	 * this power. For other platforms, like Baytrail/Braswell, only the
 	 * display codec needs the power and it can be released after probe.
 	 */
-	err = display_power(chip, true);
-	if (err < 0) {
-		dev_err(chip->card->dev,
-			"Cannot turn on display power on i915\n");
-		goto i915_power_fail;
-	}
+	display_power(chip, true);
 
 	err = azx_first_init(chip);
 	if (err < 0)
@@ -2271,8 +2266,6 @@ static int azx_probe_continue(struct azx *chip)
 out_free:
 	if (err < 0 || !hda->need_i915_power)
 		display_power(chip, false);
-
-i915_power_fail:
 	if (err < 0)
 		hda->init_failed = 1;
 	complete_all(&hda->probe_wait);
