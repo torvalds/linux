@@ -43,6 +43,7 @@
 #define RX_IRQ_NO_LLI_TIMER             0
 #define RX_IRQ_NO_CREDIT                0
 #define RX_IRQ_NO_RESEND_TIMER          0
+#define HINIC_RX_BUFFER_WRITE           16
 
 /**
  * hinic_rxq_clean_stats - Clean the statistics of specific queue
@@ -229,7 +230,6 @@ skb_out:
 		wmb();  /* write all the wqes before update PI */
 
 		hinic_rq_update(rxq->rq, prod_idx);
-		tasklet_schedule(&rxq->rx_task);
 	}
 
 	return i;
@@ -256,17 +256,6 @@ static void free_all_rx_skbs(struct hinic_rxq *rxq)
 
 		rx_free_skb(rxq, rq->saved_skb[ci], hinic_sge_to_dma(&sge));
 	}
-}
-
-/**
- * rx_alloc_task - tasklet for queue allocation
- * @data: rx queue
- **/
-static void rx_alloc_task(unsigned long data)
-{
-	struct hinic_rxq *rxq = (struct hinic_rxq *)data;
-
-	(void)rx_alloc_pkts(rxq);
 }
 
 /**
@@ -333,6 +322,7 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 	struct hinic_qp *qp = container_of(rxq->rq, struct hinic_qp, rq);
 	u64 pkt_len = 0, rx_bytes = 0;
 	struct hinic_rq_wqe *rq_wqe;
+	unsigned int free_wqebbs;
 	int num_wqes, pkts = 0;
 	struct hinic_sge sge;
 	struct sk_buff *skb;
@@ -376,8 +366,9 @@ static int rxq_recv(struct hinic_rxq *rxq, int budget)
 		rx_bytes += pkt_len;
 	}
 
-	if (pkts)
-		tasklet_schedule(&rxq->rx_task); /* rx_alloc_pkts */
+	free_wqebbs = hinic_get_rq_free_wqebbs(rxq->rq);
+	if (free_wqebbs > HINIC_RX_BUFFER_WRITE)
+		rx_alloc_pkts(rxq);
 
 	u64_stats_update_begin(&rxq->rxq_stats.syncp);
 	rxq->rxq_stats.pkts += pkts;
@@ -494,8 +485,6 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 
 	sprintf(rxq->irq_name, "hinic_rxq%d", qp->q_id);
 
-	tasklet_init(&rxq->rx_task, rx_alloc_task, (unsigned long)rxq);
-
 	pkts = rx_alloc_pkts(rxq);
 	if (!pkts) {
 		err = -ENOMEM;
@@ -512,7 +501,6 @@ int hinic_init_rxq(struct hinic_rxq *rxq, struct hinic_rq *rq,
 
 err_req_rx_irq:
 err_rx_pkts:
-	tasklet_kill(&rxq->rx_task);
 	free_all_rx_skbs(rxq);
 	devm_kfree(&netdev->dev, rxq->irq_name);
 	return err;
@@ -528,7 +516,6 @@ void hinic_clean_rxq(struct hinic_rxq *rxq)
 
 	rx_free_irq(rxq);
 
-	tasklet_kill(&rxq->rx_task);
 	free_all_rx_skbs(rxq);
 	devm_kfree(&netdev->dev, rxq->irq_name);
 }

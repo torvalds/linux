@@ -42,8 +42,6 @@ struct hinic_rxq {
 
 	char                    *irq_name;
 
-	struct tasklet_struct   rx_task;
-
 	struct napi_struct      napi;
 };
 
