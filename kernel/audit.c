@@ -60,7 +60,6 @@
 #include <linux/mutex.h>
 #include <linux/gfp.h>
 #include <linux/pid.h>
-#include <linux/slab.h>
 
 #include <linux/audit.h>
 
