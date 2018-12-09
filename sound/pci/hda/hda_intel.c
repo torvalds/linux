@@ -2269,7 +2269,7 @@ static int azx_probe_continue(struct azx *chip)
 		pm_runtime_put_autosuspend(&pci->dev);
 
 out_free:
-	if (!hda->need_i915_power)
+	if (err < 0 || !hda->need_i915_power)
 		display_power(chip, false);
 
 i915_power_fail:
