@@ -2966,8 +2966,7 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 				NL_SET_ERR_MSG(extack, "Requested destination chain is out of supported range");
 				return -EOPNOTSUPP;
 			}
-			action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
-				  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+			action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 			attr->dest_chain = dest_chain;
 
 			continue;
@@ -2979,6 +2978,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv, struct tcf_exts *exts,
 	attr->action = action;
 	if (!actions_match_supported(priv, exts, parse_attr, flow, extack))
 		return -EOPNOTSUPP;
+
+	if (attr->dest_chain) {
+		if (attr->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {
+			NL_SET_ERR_MSG(extack, "Mirroring goto chain rules isn't supported");
+			return -EOPNOTSUPP;
+		}
+		attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+	}
 
 	if (attr->mirror_count > 0 && !mlx5_esw_has_fwd_fdb(priv->mdev)) {
 		NL_SET_ERR_MSG_MOD(extack,
