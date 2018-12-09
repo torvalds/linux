@@ -27,4 +27,34 @@
 		clocks = <&k3_clks 114 1>;
 		power-domains = <&k3_pds 114>;
 	};
+
+	mcu_spi0: spi@40300000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x40300000 0x0 0x400>;
+		interrupts = <GIC_SPI 560 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 142 1>;
+		power-domains = <&k3_pds 142>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	mcu_spi1: spi@40310000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x40310000 0x0 0x400>;
+		interrupts = <GIC_SPI 561 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 143 1>;
+		power-domains = <&k3_pds 143>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+
+	mcu_spi2: spi@40320000 {
+		compatible = "ti,am654-mcspi","ti,omap4-mcspi";
+		reg = <0x0 0x40320000 0x0 0x400>;
+		interrupts = <GIC_SPI 562 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&k3_clks 144 1>;
+		power-domains = <&k3_pds 144>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
 };
