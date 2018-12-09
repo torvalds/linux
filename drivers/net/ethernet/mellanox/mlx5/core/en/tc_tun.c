@@ -180,6 +180,19 @@ static int mlx5e_gen_ip_tunnel_header(char buf[], __u8 *ip_proto,
 	return err;
 }
 
+static char *gen_eth_tnl_hdr(char *buf, struct net_device *dev,
+			     struct mlx5e_encap_entry *e,
+			     u16 proto)
+{
+	struct ethhdr *eth = (struct ethhdr *)buf;
+
+	ether_addr_copy(eth->h_dest, e->h_dest);
+	ether_addr_copy(eth->h_source, dev->dev_addr);
+	eth->h_proto = htons(proto);
+
+	return (char *)eth + ETH_HLEN;
+}
+
 int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 				    struct net_device *mirred_dev,
 				    struct mlx5e_encap_entry *e)
@@ -193,7 +206,6 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	struct neighbour *n = NULL;
 	struct flowi4 fl4 = {};
 	char *encap_header;
-	struct ethhdr *eth;
 	u8 nud_state, ttl;
 	struct iphdr *ip;
 	int err;
@@ -242,13 +254,10 @@ int mlx5e_tc_tun_create_header_ipv4(struct mlx5e_priv *priv,
 	read_unlock_bh(&n->lock);
 
 	/* add ethernet header */
-	eth = (struct ethhdr *)encap_header;
-	ether_addr_copy(eth->h_dest, e->h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IP);
+	ip = (struct iphdr *)gen_eth_tnl_hdr(encap_header, out_dev, e,
+					     ETH_P_IP);
 
 	/* add ip header */
-	ip = (struct iphdr *)((char *)eth + sizeof(struct ethhdr));
 	ip->tos = tun_key->tos;
 	ip->version = 0x4;
 	ip->ihl = 0x5;
@@ -308,7 +317,6 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	struct flowi6 fl6 = {};
 	struct ipv6hdr *ip6h;
 	char *encap_header;
-	struct ethhdr *eth;
 	u8 nud_state, ttl;
 	int err;
 
@@ -356,13 +364,10 @@ int mlx5e_tc_tun_create_header_ipv6(struct mlx5e_priv *priv,
 	read_unlock_bh(&n->lock);
 
 	/* add ethernet header */
-	eth = (struct ethhdr *)encap_header;
-	ether_addr_copy(eth->h_dest, e->h_dest);
-	ether_addr_copy(eth->h_source, out_dev->dev_addr);
-	eth->h_proto = htons(ETH_P_IPV6);
+	ip6h = (struct ipv6hdr *)gen_eth_tnl_hdr(encap_header, out_dev, e,
+						 ETH_P_IPV6);
 
 	/* add ip header */
-	ip6h = (struct ipv6hdr *)((char *)eth + sizeof(struct ethhdr));
 	ip6_flow_hdr(ip6h, tun_key->tos, 0);
 	/* the HW fills up ipv6 payload len */
 	ip6h->hop_limit   = ttl;
