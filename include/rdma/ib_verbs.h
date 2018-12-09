@@ -434,6 +434,7 @@ enum ib_port_state {
 
 enum ib_port_width {
 	IB_WIDTH_1X	= 1,
+	IB_WIDTH_2X	= 16,
 	IB_WIDTH_4X	= 2,
 	IB_WIDTH_8X	= 4,
 	IB_WIDTH_12X	= 8
@@ -443,6 +444,7 @@ static inline int ib_width_enum_to_int(enum ib_port_width width)
 {
 	switch (width) {
 	case IB_WIDTH_1X:  return  1;
+	case IB_WIDTH_2X:  return  2;
 	case IB_WIDTH_4X:  return  4;
 	case IB_WIDTH_8X:  return  8;
 	case IB_WIDTH_12X: return 12;
