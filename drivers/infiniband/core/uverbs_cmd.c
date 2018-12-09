@@ -361,27 +361,6 @@ static int ib_uverbs_query_device(struct uverbs_attr_bundle *attrs)
 	return uverbs_response(attrs, &resp, sizeof(resp));
 }
 
-/*
- * ib_uverbs_query_port_resp.port_cap_flags started out as just a copy of the
- * PortInfo CapabilityMask, but was extended with unique bits.
- */
-static u32 make_port_cap_flags(const struct ib_port_attr *attr)
-{
-	u32 res;
-
-	/* All IBA CapabilityMask bits are passed through here, except bit 26,
-	 * which is overridden with IP_BASED_GIDS. This is due to a historical
-	 * mistake in the implementation of IP_BASED_GIDS. Otherwise all other
-	 * bits match the IBA definition across all kernel versions.
-	 */
-	res = attr->port_cap_flags & ~(u32)IB_UVERBS_PCF_IP_BASED_GIDS;
-
-	if (attr->ip_gids)
-		res |= IB_UVERBS_PCF_IP_BASED_GIDS;
-
-	return res;
-}
-
 static int ib_uverbs_query_port(struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uverbs_query_port      cmd;
@@ -405,37 +384,7 @@ static int ib_uverbs_query_port(struct uverbs_attr_bundle *attrs)
 		return ret;
 
 	memset(&resp, 0, sizeof resp);
-
-	resp.state 	     = attr.state;
-	resp.max_mtu 	     = attr.max_mtu;
-	resp.active_mtu      = attr.active_mtu;
-	resp.gid_tbl_len     = attr.gid_tbl_len;
-	resp.port_cap_flags  = make_port_cap_flags(&attr);
-	resp.max_msg_sz      = attr.max_msg_sz;
-	resp.bad_pkey_cntr   = attr.bad_pkey_cntr;
-	resp.qkey_viol_cntr  = attr.qkey_viol_cntr;
-	resp.pkey_tbl_len    = attr.pkey_tbl_len;
-
-	if (rdma_is_grh_required(ib_dev, cmd.port_num))
-		resp.flags |= IB_UVERBS_QPF_GRH_REQUIRED;
-
-	if (rdma_cap_opa_ah(ib_dev, cmd.port_num)) {
-		resp.lid     = OPA_TO_IB_UCAST_LID(attr.lid);
-		resp.sm_lid  = OPA_TO_IB_UCAST_LID(attr.sm_lid);
-	} else {
-		resp.lid     = ib_lid_cpu16(attr.lid);
-		resp.sm_lid  = ib_lid_cpu16(attr.sm_lid);
-	}
-	resp.lmc 	     = attr.lmc;
-	resp.max_vl_num      = attr.max_vl_num;
-	resp.sm_sl 	     = attr.sm_sl;
-	resp.subnet_timeout  = attr.subnet_timeout;
-	resp.init_type_reply = attr.init_type_reply;
-	resp.active_width    = attr.active_width;
-	resp.active_speed    = attr.active_speed;
-	resp.phys_state      = attr.phys_state;
-	resp.link_layer      = rdma_port_get_link_layer(ib_dev,
-							cmd.port_num);
+	copy_port_attr_to_resp(&attr, &resp, ib_dev, cmd.port_num);
 
 	return uverbs_response(attrs, &resp, sizeof(resp));
 }

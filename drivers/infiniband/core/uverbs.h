@@ -293,4 +293,29 @@ extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_FLOW_ACTION);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_DM);
 extern const struct uverbs_object_def UVERBS_OBJECT(UVERBS_OBJECT_COUNTERS);
 
+/*
+ * ib_uverbs_query_port_resp.port_cap_flags started out as just a copy of the
+ * PortInfo CapabilityMask, but was extended with unique bits.
+ */
+static inline u32 make_port_cap_flags(const struct ib_port_attr *attr)
+{
+	u32 res;
+
+	/* All IBA CapabilityMask bits are passed through here, except bit 26,
+	 * which is overridden with IP_BASED_GIDS. This is due to a historical
+	 * mistake in the implementation of IP_BASED_GIDS. Otherwise all other
+	 * bits match the IBA definition across all kernel versions.
+	 */
+	res = attr->port_cap_flags & ~(u32)IB_UVERBS_PCF_IP_BASED_GIDS;
+
+	if (attr->ip_gids)
+		res |= IB_UVERBS_PCF_IP_BASED_GIDS;
+
+	return res;
+}
+
+
+void copy_port_attr_to_resp(struct ib_port_attr *attr,
+			    struct ib_uverbs_query_port_resp *resp,
+			    struct ib_device *ib_dev, u8 port_num);
 #endif /* UVERBS_H */
