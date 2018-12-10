@@ -29,13 +29,6 @@ static int bmi160_spi_probe(struct spi_device *spi)
 	return bmi160_core_probe(&spi->dev, regmap, id->name, true);
 }
 
-static int bmi160_spi_remove(struct spi_device *spi)
-{
-	bmi160_core_remove(&spi->dev);
-
-	return 0;
-}
-
 static const struct spi_device_id bmi160_spi_id[] = {
 	{"bmi160", 0},
 	{}
@@ -58,7 +51,6 @@ MODULE_DEVICE_TABLE(of, bmi160_of_match);
 
 static struct spi_driver bmi160_spi_driver = {
 	.probe		= bmi160_spi_probe,
-	.remove		= bmi160_spi_remove,
 	.id_table	= bmi160_spi_id,
 	.driver = {
 		.acpi_match_table	= ACPI_PTR(bmi160_acpi_match),
