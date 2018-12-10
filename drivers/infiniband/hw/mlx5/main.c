@@ -5812,6 +5812,94 @@ static void mlx5_ib_stage_flow_db_cleanup(struct mlx5_ib_dev *dev)
 	kfree(dev->flow_db);
 }
 
+static const struct ib_device_ops mlx5_ib_dev_ops = {
+	.add_gid = mlx5_ib_add_gid,
+	.alloc_mr = mlx5_ib_alloc_mr,
+	.alloc_pd = mlx5_ib_alloc_pd,
+	.alloc_ucontext = mlx5_ib_alloc_ucontext,
+	.attach_mcast = mlx5_ib_mcg_attach,
+	.check_mr_status = mlx5_ib_check_mr_status,
+	.create_ah = mlx5_ib_create_ah,
+	.create_counters = mlx5_ib_create_counters,
+	.create_cq = mlx5_ib_create_cq,
+	.create_flow = mlx5_ib_create_flow,
+	.create_qp = mlx5_ib_create_qp,
+	.create_srq = mlx5_ib_create_srq,
+	.dealloc_pd = mlx5_ib_dealloc_pd,
+	.dealloc_ucontext = mlx5_ib_dealloc_ucontext,
+	.del_gid = mlx5_ib_del_gid,
+	.dereg_mr = mlx5_ib_dereg_mr,
+	.destroy_ah = mlx5_ib_destroy_ah,
+	.destroy_counters = mlx5_ib_destroy_counters,
+	.destroy_cq = mlx5_ib_destroy_cq,
+	.destroy_flow = mlx5_ib_destroy_flow,
+	.destroy_flow_action = mlx5_ib_destroy_flow_action,
+	.destroy_qp = mlx5_ib_destroy_qp,
+	.destroy_srq = mlx5_ib_destroy_srq,
+	.detach_mcast = mlx5_ib_mcg_detach,
+	.disassociate_ucontext = mlx5_ib_disassociate_ucontext,
+	.drain_rq = mlx5_ib_drain_rq,
+	.drain_sq = mlx5_ib_drain_sq,
+	.get_dev_fw_str = get_dev_fw_str,
+	.get_dma_mr = mlx5_ib_get_dma_mr,
+	.get_link_layer = mlx5_ib_port_link_layer,
+	.map_mr_sg = mlx5_ib_map_mr_sg,
+	.mmap = mlx5_ib_mmap,
+	.modify_cq = mlx5_ib_modify_cq,
+	.modify_device = mlx5_ib_modify_device,
+	.modify_port = mlx5_ib_modify_port,
+	.modify_qp = mlx5_ib_modify_qp,
+	.modify_srq = mlx5_ib_modify_srq,
+	.poll_cq = mlx5_ib_poll_cq,
+	.post_recv = mlx5_ib_post_recv,
+	.post_send = mlx5_ib_post_send,
+	.post_srq_recv = mlx5_ib_post_srq_recv,
+	.process_mad = mlx5_ib_process_mad,
+	.query_ah = mlx5_ib_query_ah,
+	.query_device = mlx5_ib_query_device,
+	.query_gid = mlx5_ib_query_gid,
+	.query_pkey = mlx5_ib_query_pkey,
+	.query_qp = mlx5_ib_query_qp,
+	.query_srq = mlx5_ib_query_srq,
+	.read_counters = mlx5_ib_read_counters,
+	.reg_user_mr = mlx5_ib_reg_user_mr,
+	.req_notify_cq = mlx5_ib_arm_cq,
+	.rereg_user_mr = mlx5_ib_rereg_user_mr,
+	.resize_cq = mlx5_ib_resize_cq,
+};
+
+static const struct ib_device_ops mlx5_ib_dev_flow_ipsec_ops = {
+	.create_flow_action_esp = mlx5_ib_create_flow_action_esp,
+	.modify_flow_action_esp = mlx5_ib_modify_flow_action_esp,
+};
+
+static const struct ib_device_ops mlx5_ib_dev_ipoib_enhanced_ops = {
+	.rdma_netdev_get_params = mlx5_ib_rn_get_params,
+};
+
+static const struct ib_device_ops mlx5_ib_dev_sriov_ops = {
+	.get_vf_config = mlx5_ib_get_vf_config,
+	.get_vf_stats = mlx5_ib_get_vf_stats,
+	.set_vf_guid = mlx5_ib_set_vf_guid,
+	.set_vf_link_state = mlx5_ib_set_vf_link_state,
+};
+
+static const struct ib_device_ops mlx5_ib_dev_mw_ops = {
+	.alloc_mw = mlx5_ib_alloc_mw,
+	.dealloc_mw = mlx5_ib_dealloc_mw,
+};
+
+static const struct ib_device_ops mlx5_ib_dev_xrc_ops = {
+	.alloc_xrcd = mlx5_ib_alloc_xrcd,
+	.dealloc_xrcd = mlx5_ib_dealloc_xrcd,
+};
+
+static const struct ib_device_ops mlx5_ib_dev_dm_ops = {
+	.alloc_dm = mlx5_ib_alloc_dm,
+	.dealloc_dm = mlx5_ib_dealloc_dm,
+	.reg_dm_mr = mlx5_ib_reg_dm_mr,
+};
+
 int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 {
 	struct mlx5_core_dev *mdev = dev->mdev;
@@ -5850,108 +5938,42 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_CQ)	|
 		(1ull << IB_USER_VERBS_EX_CMD_CREATE_QP)	|
 		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_QP)	|
-		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ);
+		(1ull << IB_USER_VERBS_EX_CMD_MODIFY_CQ)	|
+		(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW)	|
+		(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 
-	dev->ib_dev.query_device	= mlx5_ib_query_device;
-	dev->ib_dev.get_link_layer	= mlx5_ib_port_link_layer;
-	dev->ib_dev.query_gid		= mlx5_ib_query_gid;
-	dev->ib_dev.add_gid		= mlx5_ib_add_gid;
-	dev->ib_dev.del_gid		= mlx5_ib_del_gid;
-	dev->ib_dev.query_pkey		= mlx5_ib_query_pkey;
-	dev->ib_dev.modify_device	= mlx5_ib_modify_device;
-	dev->ib_dev.modify_port		= mlx5_ib_modify_port;
-	dev->ib_dev.alloc_ucontext	= mlx5_ib_alloc_ucontext;
-	dev->ib_dev.dealloc_ucontext	= mlx5_ib_dealloc_ucontext;
-	dev->ib_dev.mmap		= mlx5_ib_mmap;
-	dev->ib_dev.alloc_pd		= mlx5_ib_alloc_pd;
-	dev->ib_dev.dealloc_pd		= mlx5_ib_dealloc_pd;
-	dev->ib_dev.create_ah		= mlx5_ib_create_ah;
-	dev->ib_dev.query_ah		= mlx5_ib_query_ah;
-	dev->ib_dev.destroy_ah		= mlx5_ib_destroy_ah;
-	dev->ib_dev.create_srq		= mlx5_ib_create_srq;
-	dev->ib_dev.modify_srq		= mlx5_ib_modify_srq;
-	dev->ib_dev.query_srq		= mlx5_ib_query_srq;
-	dev->ib_dev.destroy_srq		= mlx5_ib_destroy_srq;
-	dev->ib_dev.post_srq_recv	= mlx5_ib_post_srq_recv;
-	dev->ib_dev.create_qp		= mlx5_ib_create_qp;
-	dev->ib_dev.modify_qp		= mlx5_ib_modify_qp;
-	dev->ib_dev.query_qp		= mlx5_ib_query_qp;
-	dev->ib_dev.destroy_qp		= mlx5_ib_destroy_qp;
-	dev->ib_dev.drain_sq		= mlx5_ib_drain_sq;
-	dev->ib_dev.drain_rq		= mlx5_ib_drain_rq;
-	dev->ib_dev.post_send		= mlx5_ib_post_send;
-	dev->ib_dev.post_recv		= mlx5_ib_post_recv;
-	dev->ib_dev.create_cq		= mlx5_ib_create_cq;
-	dev->ib_dev.modify_cq		= mlx5_ib_modify_cq;
-	dev->ib_dev.resize_cq		= mlx5_ib_resize_cq;
-	dev->ib_dev.destroy_cq		= mlx5_ib_destroy_cq;
-	dev->ib_dev.poll_cq		= mlx5_ib_poll_cq;
-	dev->ib_dev.req_notify_cq	= mlx5_ib_arm_cq;
-	dev->ib_dev.get_dma_mr		= mlx5_ib_get_dma_mr;
-	dev->ib_dev.reg_user_mr		= mlx5_ib_reg_user_mr;
-	dev->ib_dev.rereg_user_mr	= mlx5_ib_rereg_user_mr;
-	dev->ib_dev.dereg_mr		= mlx5_ib_dereg_mr;
-	dev->ib_dev.attach_mcast	= mlx5_ib_mcg_attach;
-	dev->ib_dev.detach_mcast	= mlx5_ib_mcg_detach;
-	dev->ib_dev.process_mad		= mlx5_ib_process_mad;
-	dev->ib_dev.alloc_mr		= mlx5_ib_alloc_mr;
-	dev->ib_dev.map_mr_sg		= mlx5_ib_map_mr_sg;
-	dev->ib_dev.check_mr_status	= mlx5_ib_check_mr_status;
-	dev->ib_dev.get_dev_fw_str      = get_dev_fw_str;
 	if (MLX5_CAP_GEN(mdev, ipoib_enhanced_offloads) &&
 	    IS_ENABLED(CONFIG_MLX5_CORE_IPOIB))
-		dev->ib_dev.rdma_netdev_get_params = mlx5_ib_rn_get_params;
+		ib_set_device_ops(&dev->ib_dev,
+				  &mlx5_ib_dev_ipoib_enhanced_ops);
 
-	if (mlx5_core_is_pf(mdev)) {
-		dev->ib_dev.get_vf_config	= mlx5_ib_get_vf_config;
-		dev->ib_dev.set_vf_link_state	= mlx5_ib_set_vf_link_state;
-		dev->ib_dev.get_vf_stats	= mlx5_ib_get_vf_stats;
-		dev->ib_dev.set_vf_guid		= mlx5_ib_set_vf_guid;
-	}
-
-	dev->ib_dev.disassociate_ucontext = mlx5_ib_disassociate_ucontext;
+	if (mlx5_core_is_pf(mdev))
+		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_sriov_ops);
 
 	dev->umr_fence = mlx5_get_umr_fence(MLX5_CAP_GEN(mdev, umr_fence));
 
 	if (MLX5_CAP_GEN(mdev, imaicl)) {
-		dev->ib_dev.alloc_mw		= mlx5_ib_alloc_mw;
-		dev->ib_dev.dealloc_mw		= mlx5_ib_dealloc_mw;
 		dev->ib_dev.uverbs_cmd_mask |=
 			(1ull << IB_USER_VERBS_CMD_ALLOC_MW)	|
 			(1ull << IB_USER_VERBS_CMD_DEALLOC_MW);
+		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_mw_ops);
 	}
 
 	if (MLX5_CAP_GEN(mdev, xrc)) {
-		dev->ib_dev.alloc_xrcd = mlx5_ib_alloc_xrcd;
-		dev->ib_dev.dealloc_xrcd = mlx5_ib_dealloc_xrcd;
 		dev->ib_dev.uverbs_cmd_mask |=
 			(1ull << IB_USER_VERBS_CMD_OPEN_XRCD) |
 			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
+		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_xrc_ops);
 	}
 
-	if (MLX5_CAP_DEV_MEM(mdev, memic)) {
-		dev->ib_dev.alloc_dm = mlx5_ib_alloc_dm;
-		dev->ib_dev.dealloc_dm = mlx5_ib_dealloc_dm;
-		dev->ib_dev.reg_dm_mr = mlx5_ib_reg_dm_mr;
-	}
+	if (MLX5_CAP_DEV_MEM(mdev, memic))
+		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_dm_ops);
 
-	dev->ib_dev.create_flow	= mlx5_ib_create_flow;
-	dev->ib_dev.destroy_flow = mlx5_ib_destroy_flow;
-	dev->ib_dev.uverbs_ex_cmd_mask |=
-			(1ull << IB_USER_VERBS_EX_CMD_CREATE_FLOW) |
-			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_FLOW);
 	if (mlx5_accel_ipsec_device_caps(dev->mdev) &
-	    MLX5_ACCEL_IPSEC_CAP_DEVICE) {
-		dev->ib_dev.create_flow_action_esp =
-			mlx5_ib_create_flow_action_esp;
-		dev->ib_dev.modify_flow_action_esp =
-			mlx5_ib_modify_flow_action_esp;
-	}
-	dev->ib_dev.destroy_flow_action = mlx5_ib_destroy_flow_action;
+	    MLX5_ACCEL_IPSEC_CAP_DEVICE)
+		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_flow_ipsec_ops);
 	dev->ib_dev.driver_id = RDMA_DRIVER_MLX5;
-	dev->ib_dev.create_counters = mlx5_ib_create_counters;
-	dev->ib_dev.destroy_counters = mlx5_ib_destroy_counters;
-	dev->ib_dev.read_counters = mlx5_ib_read_counters;
+	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_ops);
 
 	if (IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS))
 		dev->ib_dev.driver_def = mlx5_ib_defs;
@@ -5968,21 +5990,36 @@ int mlx5_ib_stage_caps_init(struct mlx5_ib_dev *dev)
 	return 0;
 }
 
+static const struct ib_device_ops mlx5_ib_dev_port_ops = {
+	.get_port_immutable = mlx5_port_immutable,
+	.query_port = mlx5_ib_query_port,
+};
+
 static int mlx5_ib_stage_non_default_cb(struct mlx5_ib_dev *dev)
 {
-	dev->ib_dev.get_port_immutable  = mlx5_port_immutable;
-	dev->ib_dev.query_port		= mlx5_ib_query_port;
-
+	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_port_ops);
 	return 0;
 }
+
+static const struct ib_device_ops mlx5_ib_dev_port_rep_ops = {
+	.get_port_immutable = mlx5_port_rep_immutable,
+	.query_port = mlx5_ib_rep_query_port,
+};
 
 int mlx5_ib_stage_rep_non_default_cb(struct mlx5_ib_dev *dev)
 {
-	dev->ib_dev.get_port_immutable  = mlx5_port_rep_immutable;
-	dev->ib_dev.query_port		= mlx5_ib_rep_query_port;
-
+	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_port_rep_ops);
 	return 0;
 }
+
+static const struct ib_device_ops mlx5_ib_dev_common_roce_ops = {
+	.create_rwq_ind_table = mlx5_ib_create_rwq_ind_table,
+	.create_wq = mlx5_ib_create_wq,
+	.destroy_rwq_ind_table = mlx5_ib_destroy_rwq_ind_table,
+	.destroy_wq = mlx5_ib_destroy_wq,
+	.get_netdev = mlx5_ib_get_netdev,
+	.modify_wq = mlx5_ib_modify_wq,
+};
 
 static int mlx5_ib_stage_common_roce_init(struct mlx5_ib_dev *dev)
 {
@@ -5995,19 +6032,13 @@ static int mlx5_ib_stage_common_roce_init(struct mlx5_ib_dev *dev)
 		dev->roce[i].last_port_state = IB_PORT_DOWN;
 	}
 
-	dev->ib_dev.get_netdev	= mlx5_ib_get_netdev;
-	dev->ib_dev.create_wq	 = mlx5_ib_create_wq;
-	dev->ib_dev.modify_wq	 = mlx5_ib_modify_wq;
-	dev->ib_dev.destroy_wq	 = mlx5_ib_destroy_wq;
-	dev->ib_dev.create_rwq_ind_table = mlx5_ib_create_rwq_ind_table;
-	dev->ib_dev.destroy_rwq_ind_table = mlx5_ib_destroy_rwq_ind_table;
-
 	dev->ib_dev.uverbs_ex_cmd_mask |=
 			(1ull << IB_USER_VERBS_EX_CMD_CREATE_WQ) |
 			(1ull << IB_USER_VERBS_EX_CMD_MODIFY_WQ) |
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_WQ) |
 			(1ull << IB_USER_VERBS_EX_CMD_CREATE_RWQ_IND_TBL) |
 			(1ull << IB_USER_VERBS_EX_CMD_DESTROY_RWQ_IND_TBL);
+	ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_common_roce_ops);
 
 	port_num = mlx5_core_native_port_num(dev->mdev) - 1;
 
@@ -6106,11 +6137,15 @@ void mlx5_ib_stage_odp_cleanup(struct mlx5_ib_dev *dev)
 	mlx5_ib_odp_cleanup_one(dev);
 }
 
+static const struct ib_device_ops mlx5_ib_dev_hw_stats_ops = {
+	.alloc_hw_stats = mlx5_ib_alloc_hw_stats,
+	.get_hw_stats = mlx5_ib_get_hw_stats,
+};
+
 int mlx5_ib_stage_counters_init(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, max_qp_cnt)) {
-		dev->ib_dev.get_hw_stats	= mlx5_ib_get_hw_stats;
-		dev->ib_dev.alloc_hw_stats	= mlx5_ib_alloc_hw_stats;
+		ib_set_device_ops(&dev->ib_dev, &mlx5_ib_dev_hw_stats_ops);
 
 		return mlx5_ib_alloc_counters(dev);
 	}
