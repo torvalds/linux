@@ -294,6 +294,7 @@ static const struct {
 	{ "SYSASSERT", 0x35 },
 	{ "UCODE_VERSION_MISMATCH", 0x37 },
 	{ "BAD_COMMAND", 0x38 },
+	{ "BAD_COMMAND", 0x39 },
 	{ "NMI_INTERRUPT_DATA_ACTION_PT", 0x3C },
 	{ "FATAL_ERROR", 0x3D },
 	{ "NMI_TRM_HW_ERR", 0x46 },
