@@ -5334,13 +5334,6 @@ void report_add_sta_event(struct adapter *padapter, unsigned char *MacAddr, int 
 	return;
 }
 
-
-bool rtw_port_switch_chk(struct adapter *adapter)
-{
-	bool switch_needed = false;
-	return switch_needed;
-}
-
 /****************************************************************************
 
 Following are the event callback functions
@@ -5414,7 +5407,6 @@ static void rtw_mlmeext_disconnect(struct adapter *padapter)
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex		*pnetwork = (struct wlan_bssid_ex *)(&(pmlmeinfo->network));
-	u8 state_backup = (pmlmeinfo->state&0x03);
 
 	/* set_opmode_cmd(padapter, infra_client_with_mlme); */
 
@@ -5439,17 +5431,6 @@ static void rtw_mlmeext_disconnect(struct adapter *padapter)
 	Set_MSR(padapter, _HW_STATE_STATION_);
 
 	pmlmeinfo->state = WIFI_FW_NULL_STATE;
-
-	if (state_backup == WIFI_FW_STATION_STATE) {
-		if (rtw_port_switch_chk(padapter)) {
-			rtw_hal_set_hwreg(padapter, HW_VAR_PORT_SWITCH, NULL);
-			{
-				struct adapter *port0_iface = dvobj_get_port0_adapter(adapter_to_dvobj(padapter));
-				if (port0_iface)
-					rtw_lps_ctrl_wk_cmd(port0_iface, LPS_CTRL_CONNECT, 0);
-			}
-		}
-	}
 
 	/* switch to the 20M Hz mode after disconnect */
 	pmlmeext->cur_bwmode = CHANNEL_WIDTH_20;
@@ -5529,9 +5510,6 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 			the subsequent data frames can be sent out normally */
 		rtw_hal_macid_wakeup(padapter, psta->mac_id);
 	}
-
-	if (rtw_port_switch_chk(padapter))
-		rtw_hal_set_hwreg(padapter, HW_VAR_PORT_SWITCH, NULL);
 
 	join_type = 2;
 	rtw_hal_set_hwreg(padapter, HW_VAR_MLME_JOIN, (u8 *)(&join_type));
@@ -6086,18 +6064,6 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 	if (psetop->mode == Ndis802_11APMode)
 		rtw_auto_ap_start_beacon(padapter);
 #endif
-
-	if (rtw_port_switch_chk(padapter)) {
-		rtw_hal_set_hwreg(padapter, HW_VAR_PORT_SWITCH, NULL);
-
-		if (psetop->mode == Ndis802_11APMode)
-			adapter_to_pwrctl(padapter)->fw_psmode_iface_id = 0xff; /* ap mode won't dowload rsvd pages */
-		else if (psetop->mode == Ndis802_11Infrastructure) {
-			struct adapter *port0_iface = dvobj_get_port0_adapter(adapter_to_dvobj(padapter));
-			if (port0_iface)
-				rtw_lps_ctrl_wk_cmd(port0_iface, LPS_CTRL_CONNECT, 0);
-		}
-	}
 
 	if (psetop->mode == Ndis802_11APMode) {
 		/*  Do this after port switch to */
