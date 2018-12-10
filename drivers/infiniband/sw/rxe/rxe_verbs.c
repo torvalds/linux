@@ -1145,6 +1145,52 @@ static const struct attribute_group rxe_attr_group = {
 	.attrs = rxe_dev_attributes,
 };
 
+static const struct ib_device_ops rxe_dev_ops = {
+	.alloc_hw_stats = rxe_ib_alloc_hw_stats,
+	.alloc_mr = rxe_alloc_mr,
+	.alloc_pd = rxe_alloc_pd,
+	.alloc_ucontext = rxe_alloc_ucontext,
+	.attach_mcast = rxe_attach_mcast,
+	.create_ah = rxe_create_ah,
+	.create_cq = rxe_create_cq,
+	.create_qp = rxe_create_qp,
+	.create_srq = rxe_create_srq,
+	.dealloc_pd = rxe_dealloc_pd,
+	.dealloc_ucontext = rxe_dealloc_ucontext,
+	.dereg_mr = rxe_dereg_mr,
+	.destroy_ah = rxe_destroy_ah,
+	.destroy_cq = rxe_destroy_cq,
+	.destroy_qp = rxe_destroy_qp,
+	.destroy_srq = rxe_destroy_srq,
+	.detach_mcast = rxe_detach_mcast,
+	.get_dma_mr = rxe_get_dma_mr,
+	.get_hw_stats = rxe_ib_get_hw_stats,
+	.get_link_layer = rxe_get_link_layer,
+	.get_netdev = rxe_get_netdev,
+	.get_port_immutable = rxe_port_immutable,
+	.map_mr_sg = rxe_map_mr_sg,
+	.mmap = rxe_mmap,
+	.modify_ah = rxe_modify_ah,
+	.modify_device = rxe_modify_device,
+	.modify_port = rxe_modify_port,
+	.modify_qp = rxe_modify_qp,
+	.modify_srq = rxe_modify_srq,
+	.peek_cq = rxe_peek_cq,
+	.poll_cq = rxe_poll_cq,
+	.post_recv = rxe_post_recv,
+	.post_send = rxe_post_send,
+	.post_srq_recv = rxe_post_srq_recv,
+	.query_ah = rxe_query_ah,
+	.query_device = rxe_query_device,
+	.query_pkey = rxe_query_pkey,
+	.query_port = rxe_query_port,
+	.query_qp = rxe_query_qp,
+	.query_srq = rxe_query_srq,
+	.reg_user_mr = rxe_reg_user_mr,
+	.req_notify_cq = rxe_req_notify_cq,
+	.resize_cq = rxe_resize_cq,
+};
+
 int rxe_register_device(struct rxe_dev *rxe)
 {
 	int err;
@@ -1199,49 +1245,7 @@ int rxe_register_device(struct rxe_dev *rxe)
 	    | BIT_ULL(IB_USER_VERBS_CMD_DETACH_MCAST)
 	    ;
 
-	dev->query_device = rxe_query_device;
-	dev->modify_device = rxe_modify_device;
-	dev->query_port = rxe_query_port;
-	dev->modify_port = rxe_modify_port;
-	dev->get_link_layer = rxe_get_link_layer;
-	dev->get_netdev = rxe_get_netdev;
-	dev->query_pkey = rxe_query_pkey;
-	dev->alloc_ucontext = rxe_alloc_ucontext;
-	dev->dealloc_ucontext = rxe_dealloc_ucontext;
-	dev->mmap = rxe_mmap;
-	dev->get_port_immutable = rxe_port_immutable;
-	dev->alloc_pd = rxe_alloc_pd;
-	dev->dealloc_pd = rxe_dealloc_pd;
-	dev->create_ah = rxe_create_ah;
-	dev->modify_ah = rxe_modify_ah;
-	dev->query_ah = rxe_query_ah;
-	dev->destroy_ah = rxe_destroy_ah;
-	dev->create_srq = rxe_create_srq;
-	dev->modify_srq = rxe_modify_srq;
-	dev->query_srq = rxe_query_srq;
-	dev->destroy_srq = rxe_destroy_srq;
-	dev->post_srq_recv = rxe_post_srq_recv;
-	dev->create_qp = rxe_create_qp;
-	dev->modify_qp = rxe_modify_qp;
-	dev->query_qp = rxe_query_qp;
-	dev->destroy_qp = rxe_destroy_qp;
-	dev->post_send = rxe_post_send;
-	dev->post_recv = rxe_post_recv;
-	dev->create_cq = rxe_create_cq;
-	dev->destroy_cq = rxe_destroy_cq;
-	dev->resize_cq = rxe_resize_cq;
-	dev->poll_cq = rxe_poll_cq;
-	dev->peek_cq = rxe_peek_cq;
-	dev->req_notify_cq = rxe_req_notify_cq;
-	dev->get_dma_mr = rxe_get_dma_mr;
-	dev->reg_user_mr = rxe_reg_user_mr;
-	dev->dereg_mr = rxe_dereg_mr;
-	dev->alloc_mr = rxe_alloc_mr;
-	dev->map_mr_sg = rxe_map_mr_sg;
-	dev->attach_mcast = rxe_attach_mcast;
-	dev->detach_mcast = rxe_detach_mcast;
-	dev->get_hw_stats = rxe_ib_get_hw_stats;
-	dev->alloc_hw_stats = rxe_ib_alloc_hw_stats;
+	ib_set_device_ops(dev, &rxe_dev_ops);
 
 	tfm = crypto_alloc_shash("crc32", 0, 0);
 	if (IS_ERR(tfm)) {
