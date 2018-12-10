@@ -1197,6 +1197,8 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	unsigned long flag;
 
 	addr = virt_to_phys(iommu->root_entry);
+	if (sm_supported(iommu))
+		addr |= DMA_RTADDR_SMT;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, addr);
@@ -1918,6 +1920,56 @@ static void domain_exit(struct dmar_domain *domain)
 	free_domain_mem(domain);
 }
 
+/*
+ * Get the PASID directory size for scalable mode context entry.
+ * Value of X in the PDTS field of a scalable mode context entry
+ * indicates PASID directory with 2^(X + 7) entries.
+ */
+static inline unsigned long context_get_sm_pds(struct pasid_table *table)
+{
+	int pds, max_pde;
+
+	max_pde = table->max_pasid >> PASID_PDE_SHIFT;
+	pds = find_first_bit((unsigned long *)&max_pde, MAX_NR_PASID_BITS);
+	if (pds < 7)
+		return 0;
+
+	return pds - 7;
+}
+
+/*
+ * Set the RID_PASID field of a scalable mode context entry. The
+ * IOMMU hardware will use the PASID value set in this field for
+ * DMA translations of DMA requests without PASID.
+ */
+static inline void
+context_set_sm_rid2pasid(struct context_entry *context, unsigned long pasid)
+{
+	context->hi |= pasid & ((1 << 20) - 1);
+	context->hi |= (1 << 20);
+}
+
+/*
+ * Set the DTE(Device-TLB Enable) field of a scalable mode context
+ * entry.
+ */
+static inline void context_set_sm_dte(struct context_entry *context)
+{
+	context->lo |= (1 << 2);
+}
+
+/*
+ * Set the PRE(Page Request Enable) field of a scalable mode context
+ * entry.
+ */
+static inline void context_set_sm_pre(struct context_entry *context)
+{
+	context->lo |= (1 << 4);
+}
+
+/* Convert value to context PASID directory size field coding. */
+#define context_pdts(pds)	(((pds) & 0x7) << 9)
+
 static int domain_context_mapping_one(struct dmar_domain *domain,
 				      struct intel_iommu *iommu,
 				      struct pasid_table *table,
@@ -1928,8 +1980,7 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 	struct device_domain_info *info = NULL;
 	struct context_entry *context;
 	unsigned long flags;
-	struct dma_pte *pgd;
-	int ret, agaw;
+	int ret;
 
 	WARN_ON(did == 0);
 
@@ -1975,41 +2026,67 @@ static int domain_context_mapping_one(struct dmar_domain *domain,
 		}
 	}
 
-	pgd = domain->pgd;
-
 	context_clear_entry(context);
-	context_set_domain_id(context, did);
 
-	/*
-	 * Skip top levels of page tables for iommu which has less agaw
-	 * than default.  Unnecessary for PT mode.
-	 */
-	if (translation != CONTEXT_TT_PASS_THROUGH) {
-		for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
-			ret = -ENOMEM;
-			pgd = phys_to_virt(dma_pte_addr(pgd));
-			if (!dma_pte_present(pgd))
-				goto out_unlock;
-		}
+	if (sm_supported(iommu)) {
+		unsigned long pds;
 
+		WARN_ON(!table);
+
+		/* Setup the PASID DIR pointer: */
+		pds = context_get_sm_pds(table);
+		context->lo = (u64)virt_to_phys(table->table) |
+				context_pdts(pds);
+
+		/* Setup the RID_PASID field: */
+		context_set_sm_rid2pasid(context, PASID_RID2PASID);
+
+		/*
+		 * Setup the Device-TLB enable bit and Page request
+		 * Enable bit:
+		 */
 		info = iommu_support_dev_iotlb(domain, iommu, bus, devfn);
 		if (info && info->ats_supported)
-			translation = CONTEXT_TT_DEV_IOTLB;
-		else
-			translation = CONTEXT_TT_MULTI_LEVEL;
-
-		context_set_address_root(context, virt_to_phys(pgd));
-		context_set_address_width(context, agaw);
+			context_set_sm_dte(context);
+		if (info && info->pri_supported)
+			context_set_sm_pre(context);
 	} else {
-		/*
-		 * In pass through mode, AW must be programmed to
-		 * indicate the largest AGAW value supported by
-		 * hardware. And ASR is ignored by hardware.
-		 */
-		context_set_address_width(context, iommu->msagaw);
+		struct dma_pte *pgd = domain->pgd;
+		int agaw;
+
+		context_set_domain_id(context, did);
+		context_set_translation_type(context, translation);
+
+		if (translation != CONTEXT_TT_PASS_THROUGH) {
+			/*
+			 * Skip top levels of page tables for iommu which has
+			 * less agaw than default. Unnecessary for PT mode.
+			 */
+			for (agaw = domain->agaw; agaw > iommu->agaw; agaw--) {
+				ret = -ENOMEM;
+				pgd = phys_to_virt(dma_pte_addr(pgd));
+				if (!dma_pte_present(pgd))
+					goto out_unlock;
+			}
+
+			info = iommu_support_dev_iotlb(domain, iommu, bus, devfn);
+			if (info && info->ats_supported)
+				translation = CONTEXT_TT_DEV_IOTLB;
+			else
+				translation = CONTEXT_TT_MULTI_LEVEL;
+
+			context_set_address_root(context, virt_to_phys(pgd));
+			context_set_address_width(context, agaw);
+		} else {
+			/*
+			 * In pass through mode, AW must be programmed to
+			 * indicate the largest AGAW value supported by
+			 * hardware. And ASR is ignored by hardware.
+			 */
+			context_set_address_width(context, iommu->msagaw);
+		}
 	}
 
-	context_set_translation_type(context, translation);
 	context_set_fault_enable(context);
 	context_set_present(context);
 	domain_flush_cache(domain, context, sizeof(*context));
@@ -5180,7 +5257,6 @@ static void intel_iommu_put_resv_regions(struct device *dev,
 }
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-#define MAX_NR_PASID_BITS (20)
 static inline unsigned long intel_iommu_get_pts(struct device *dev)
 {
 	int pts, max_pasid;

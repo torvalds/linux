@@ -17,6 +17,7 @@
 #define PASID_PTE_PRESENT		1
 #define PDE_PFN_MASK			PAGE_MASK
 #define PASID_PDE_SHIFT			6
+#define MAX_NR_PASID_BITS		20
 
 /*
  * Domain ID reserved for pasid entries programmed for first-level

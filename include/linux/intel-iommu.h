@@ -258,6 +258,7 @@
 
 /* DMA_RTADDR_REG */
 #define DMA_RTADDR_RTT (((u64)1) << 11)
+#define DMA_RTADDR_SMT (((u64)1) << 10)
 
 /* CCMD_REG */
 #define DMA_CCMD_ICC (((u64)1) << 63)
