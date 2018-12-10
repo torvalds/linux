@@ -2327,10 +2327,10 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 					struct intel_plane_state *intel_state);
 
 /* intel_color.c */
-void intel_color_init(struct drm_crtc *crtc);
-int intel_color_check(struct drm_crtc *crtc, struct drm_crtc_state *state);
-void intel_color_set_csc(struct drm_crtc_state *crtc_state);
-void intel_color_load_luts(struct drm_crtc_state *crtc_state);
+void intel_color_init(struct intel_crtc *crtc);
+int intel_color_check(struct intel_crtc_state *crtc_state);
+void intel_color_set_csc(struct intel_crtc_state *crtc_state);
+void intel_color_load_luts(struct intel_crtc_state *crtc_state);
 
 /* intel_lspcon.c */
 bool lspcon_init(struct intel_digital_port *intel_dig_port);
