@@ -706,6 +706,7 @@ static const struct regmap_config meson_dw_hdmi_regmap_config = {
 	.reg_read = meson_dw_hdmi_reg_read,
 	.reg_write = meson_dw_hdmi_reg_write,
 	.max_register = 0x10000,
+	.fast_io = true,
 };
 
 static bool meson_hdmi_connector_is_available(struct device *dev)

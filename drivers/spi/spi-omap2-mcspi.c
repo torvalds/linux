@@ -1540,13 +1540,26 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:omap2_mcspi");
 
-#ifdef	CONFIG_SUSPEND
-static int omap2_mcspi_suspend_noirq(struct device *dev)
+static int __maybe_unused omap2_mcspi_suspend(struct device *dev)
 {
-	return pinctrl_pm_select_sleep_state(dev);
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
+	int error;
+
+	error = pinctrl_pm_select_sleep_state(dev);
+	if (error)
+		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
+			 __func__, error);
+
+	error = spi_master_suspend(master);
+	if (error)
+		dev_warn(mcspi->dev, "%s: master suspend failed: %i\n",
+			 __func__, error);
+
+	return pm_runtime_force_suspend(dev);
 }
 
-static int omap2_mcspi_resume_noirq(struct device *dev)
+static int __maybe_unused omap2_mcspi_resume(struct device *dev)
 {
 	struct spi_master *master = dev_get_drvdata(dev);
 	struct omap2_mcspi *mcspi = spi_master_get_devdata(master);
@@ -1557,17 +1570,17 @@ static int omap2_mcspi_resume_noirq(struct device *dev)
 		dev_warn(mcspi->dev, "%s: failed to set pins: %i\n",
 			 __func__, error);
 
-	return 0;
+	error = spi_master_resume(master);
+	if (error)
+		dev_warn(mcspi->dev, "%s: master resume failed: %i\n",
+			 __func__, error);
+
+	return pm_runtime_force_resume(dev);
 }
 
-#else
-#define omap2_mcspi_suspend_noirq	NULL
-#define omap2_mcspi_resume_noirq	NULL
-#endif
-
 static const struct dev_pm_ops omap2_mcspi_pm_ops = {
-	.suspend_noirq = omap2_mcspi_suspend_noirq,
-	.resume_noirq = omap2_mcspi_resume_noirq,
+	SET_SYSTEM_SLEEP_PM_OPS(omap2_mcspi_suspend,
+				omap2_mcspi_resume)
 	.runtime_resume	= omap_mcspi_runtime_resume,
 };
 

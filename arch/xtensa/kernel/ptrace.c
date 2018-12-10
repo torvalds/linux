@@ -127,12 +127,37 @@ static int ptrace_setregs(struct task_struct *child, void __user *uregs)
 }
 
 
+#if XTENSA_HAVE_COPROCESSORS
+#define CP_OFFSETS(cp) \
+	{ \
+		.elf_xtregs_offset = offsetof(elf_xtregs_t, cp), \
+		.ti_offset = offsetof(struct thread_info, xtregs_cp.cp), \
+		.sz = sizeof(xtregs_ ## cp ## _t), \
+	}
+
+static const struct {
+	size_t elf_xtregs_offset;
+	size_t ti_offset;
+	size_t sz;
+} cp_offsets[] = {
+	CP_OFFSETS(cp0),
+	CP_OFFSETS(cp1),
+	CP_OFFSETS(cp2),
+	CP_OFFSETS(cp3),
+	CP_OFFSETS(cp4),
+	CP_OFFSETS(cp5),
+	CP_OFFSETS(cp6),
+	CP_OFFSETS(cp7),
+};
+#endif
+
 static int ptrace_getxregs(struct task_struct *child, void __user *uregs)
 {
 	struct pt_regs *regs = task_pt_regs(child);
 	struct thread_info *ti = task_thread_info(child);
 	elf_xtregs_t __user *xtregs = uregs;
 	int ret = 0;
+	int i __maybe_unused;
 
 	if (!access_ok(VERIFY_WRITE, uregs, sizeof(elf_xtregs_t)))
 		return -EIO;
@@ -140,8 +165,13 @@ static int ptrace_getxregs(struct task_struct *child, void __user *uregs)
 #if XTENSA_HAVE_COPROCESSORS
 	/* Flush all coprocessor registers to memory. */
 	coprocessor_flush_all(ti);
-	ret |= __copy_to_user(&xtregs->cp0, &ti->xtregs_cp,
-			      sizeof(xtregs_coprocessor_t));
+
+	for (i = 0; i < ARRAY_SIZE(cp_offsets); ++i)
+		ret |= __copy_to_user((char __user *)xtregs +
+				      cp_offsets[i].elf_xtregs_offset,
+				      (const char *)ti +
+				      cp_offsets[i].ti_offset,
+				      cp_offsets[i].sz);
 #endif
 	ret |= __copy_to_user(&xtregs->opt, &regs->xtregs_opt,
 			      sizeof(xtregs->opt));
@@ -157,6 +187,7 @@ static int ptrace_setxregs(struct task_struct *child, void __user *uregs)
 	struct pt_regs *regs = task_pt_regs(child);
 	elf_xtregs_t *xtregs = uregs;
 	int ret = 0;
+	int i __maybe_unused;
 
 	if (!access_ok(VERIFY_READ, uregs, sizeof(elf_xtregs_t)))
 		return -EFAULT;
@@ -166,8 +197,11 @@ static int ptrace_setxregs(struct task_struct *child, void __user *uregs)
 	coprocessor_flush_all(ti);
 	coprocessor_release_all(ti);
 
-	ret |= __copy_from_user(&ti->xtregs_cp, &xtregs->cp0,
-				sizeof(xtregs_coprocessor_t));
+	for (i = 0; i < ARRAY_SIZE(cp_offsets); ++i)
+		ret |= __copy_from_user((char *)ti + cp_offsets[i].ti_offset,
+					(const char __user *)xtregs +
+					cp_offsets[i].elf_xtregs_offset,
+					cp_offsets[i].sz);
 #endif
 	ret |= __copy_from_user(&regs->xtregs_opt, &xtregs->opt,
 				sizeof(xtregs->opt));

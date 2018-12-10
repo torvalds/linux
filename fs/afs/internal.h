@@ -696,6 +696,14 @@ struct afs_interface {
 };
 
 /*
+ * Error prioritisation and accumulation.
+ */
+struct afs_error {
+	short	error;			/* Accumulated error */
+	bool	responded;		/* T if server responded */
+};
+
+/*
  * Cursor for iterating over a server's address list.
  */
 struct afs_addr_cursor {
@@ -1015,6 +1023,7 @@ static inline void __afs_stat(atomic_t *s)
  * misc.c
  */
 extern int afs_abort_to_error(u32);
+extern void afs_prioritise_error(struct afs_error *, int, u32);
 
 /*
  * mntpt.c

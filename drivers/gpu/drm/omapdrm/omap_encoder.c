@@ -52,17 +52,44 @@ static const struct drm_encoder_funcs omap_encoder_funcs = {
 	.destroy = omap_encoder_destroy,
 };
 
+static void omap_encoder_hdmi_mode_set(struct drm_encoder *encoder,
+				       struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = encoder->dev;
+	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
+	struct omap_dss_device *dssdev = omap_encoder->output;
+	struct drm_connector *connector;
+	bool hdmi_mode;
+
+	hdmi_mode = false;
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder) {
+			hdmi_mode = omap_connector_get_hdmi_mode(connector);
+			break;
+		}
+	}
+
+	if (dssdev->ops->hdmi.set_hdmi_mode)
+		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
+
+	if (hdmi_mode && dssdev->ops->hdmi.set_infoframe) {
+		struct hdmi_avi_infoframe avi;
+		int r;
+
+		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
+							     false);
+		if (r == 0)
+			dssdev->ops->hdmi.set_infoframe(dssdev, &avi);
+	}
+}
+
 static void omap_encoder_mode_set(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
-	struct drm_device *dev = encoder->dev;
 	struct omap_encoder *omap_encoder = to_omap_encoder(encoder);
-	struct drm_connector *connector;
 	struct omap_dss_device *dssdev;
 	struct videomode vm = { 0 };
-	bool hdmi_mode;
-	int r;
 
 	drm_display_mode_to_videomode(adjusted_mode, &vm);
 
@@ -112,27 +139,8 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* Set the HDMI mode and HDMI infoframe if applicable. */
-	hdmi_mode = false;
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (connector->encoder == encoder) {
-			hdmi_mode = omap_connector_get_hdmi_mode(connector);
-			break;
-		}
-	}
-
-	dssdev = omap_encoder->output;
-
-	if (dssdev->ops->hdmi.set_hdmi_mode)
-		dssdev->ops->hdmi.set_hdmi_mode(dssdev, hdmi_mode);
-
-	if (hdmi_mode && dssdev->ops->hdmi.set_infoframe) {
-		struct hdmi_avi_infoframe avi;
-
-		r = drm_hdmi_avi_infoframe_from_display_mode(&avi, adjusted_mode,
-							     false);
-		if (r == 0)
-			dssdev->ops->hdmi.set_infoframe(dssdev, &avi);
-	}
+	if (omap_encoder->output->output_type == OMAP_DISPLAY_TYPE_HDMI)
+		omap_encoder_hdmi_mode_set(encoder, adjusted_mode);
 }
 
 static void omap_encoder_disable(struct drm_encoder *encoder)

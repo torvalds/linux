@@ -928,6 +928,7 @@ struct bnxt_hw_resc {
 	u16	min_stat_ctxs;
 	u16	max_stat_ctxs;
 	u16	max_irqs;
+	u16	resv_irqs;
 };
 
 #if defined(CONFIG_BNXT_SRIOV)
