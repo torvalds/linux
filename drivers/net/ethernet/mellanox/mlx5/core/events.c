@@ -166,6 +166,8 @@ static const char *mlx5_pme_status_to_string(enum port_module_event_status_type 
 		return "Cable unplugged";
 	case MLX5_MODULE_STATUS_ERROR:
 		return "Cable error";
+	case MLX5_MODULE_STATUS_DISABLED:
+		return "Cable disabled";
 	default:
 		return "Unknown status";
 	}
