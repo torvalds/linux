@@ -70,7 +70,7 @@ struct asyncppp {
 	struct tasklet_struct tsk;
 
 	refcount_t	refcnt;
-	struct semaphore dead_sem;
+	struct completion dead;
 	struct ppp_channel chan;	/* interface to generic ppp layer */
 	unsigned char	obuf[OBUFSIZE];
 };
@@ -148,7 +148,7 @@ static struct asyncppp *ap_get(struct tty_struct *tty)
 static void ap_put(struct asyncppp *ap)
 {
 	if (refcount_dec_and_test(&ap->refcnt))
-		up(&ap->dead_sem);
+		complete(&ap->dead);
 }
 
 /*
@@ -186,7 +186,7 @@ ppp_asynctty_open(struct tty_struct *tty)
 	tasklet_init(&ap->tsk, ppp_async_process, (unsigned long) ap);
 
 	refcount_set(&ap->refcnt, 1);
-	sema_init(&ap->dead_sem, 0);
+	init_completion(&ap->dead);
 
 	ap->chan.private = ap;
 	ap->chan.ops = &async_ops;
@@ -235,7 +235,7 @@ ppp_asynctty_close(struct tty_struct *tty)
 	 * by the time it returns.
 	 */
 	if (!refcount_dec_and_test(&ap->refcnt))
-		down(&ap->dead_sem);
+		wait_for_completion(&ap->dead);
 	tasklet_kill(&ap->tsk);
 
 	ppp_unregister_channel(&ap->chan);
