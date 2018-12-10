@@ -568,6 +568,50 @@ static void bnxt_re_unregister_ib(struct bnxt_re_dev *rdev)
 	ib_unregister_device(&rdev->ibdev);
 }
 
+static const struct ib_device_ops bnxt_re_dev_ops = {
+	.add_gid = bnxt_re_add_gid,
+	.alloc_hw_stats = bnxt_re_ib_alloc_hw_stats,
+	.alloc_mr = bnxt_re_alloc_mr,
+	.alloc_pd = bnxt_re_alloc_pd,
+	.alloc_ucontext = bnxt_re_alloc_ucontext,
+	.create_ah = bnxt_re_create_ah,
+	.create_cq = bnxt_re_create_cq,
+	.create_qp = bnxt_re_create_qp,
+	.create_srq = bnxt_re_create_srq,
+	.dealloc_pd = bnxt_re_dealloc_pd,
+	.dealloc_ucontext = bnxt_re_dealloc_ucontext,
+	.del_gid = bnxt_re_del_gid,
+	.dereg_mr = bnxt_re_dereg_mr,
+	.destroy_ah = bnxt_re_destroy_ah,
+	.destroy_cq = bnxt_re_destroy_cq,
+	.destroy_qp = bnxt_re_destroy_qp,
+	.destroy_srq = bnxt_re_destroy_srq,
+	.get_dev_fw_str = bnxt_re_query_fw_str,
+	.get_dma_mr = bnxt_re_get_dma_mr,
+	.get_hw_stats = bnxt_re_ib_get_hw_stats,
+	.get_link_layer = bnxt_re_get_link_layer,
+	.get_netdev = bnxt_re_get_netdev,
+	.get_port_immutable = bnxt_re_get_port_immutable,
+	.map_mr_sg = bnxt_re_map_mr_sg,
+	.mmap = bnxt_re_mmap,
+	.modify_ah = bnxt_re_modify_ah,
+	.modify_device = bnxt_re_modify_device,
+	.modify_qp = bnxt_re_modify_qp,
+	.modify_srq = bnxt_re_modify_srq,
+	.poll_cq = bnxt_re_poll_cq,
+	.post_recv = bnxt_re_post_recv,
+	.post_send = bnxt_re_post_send,
+	.post_srq_recv = bnxt_re_post_srq_recv,
+	.query_ah = bnxt_re_query_ah,
+	.query_device = bnxt_re_query_device,
+	.query_pkey = bnxt_re_query_pkey,
+	.query_port = bnxt_re_query_port,
+	.query_qp = bnxt_re_query_qp,
+	.query_srq = bnxt_re_query_srq,
+	.reg_user_mr = bnxt_re_reg_user_mr,
+	.req_notify_cq = bnxt_re_req_notify_cq,
+};
+
 static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 {
 	struct ib_device *ibdev = &rdev->ibdev;
@@ -614,60 +658,10 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 			(1ull << IB_USER_VERBS_CMD_DESTROY_AH);
 	/* POLL_CQ and REQ_NOTIFY_CQ is directly handled in libbnxt_re */
 
-	/* Kernel verbs */
-	ibdev->query_device		= bnxt_re_query_device;
-	ibdev->modify_device		= bnxt_re_modify_device;
-
-	ibdev->query_port		= bnxt_re_query_port;
-	ibdev->get_port_immutable	= bnxt_re_get_port_immutable;
-	ibdev->get_dev_fw_str           = bnxt_re_query_fw_str;
-	ibdev->query_pkey		= bnxt_re_query_pkey;
-	ibdev->get_netdev		= bnxt_re_get_netdev;
-	ibdev->add_gid			= bnxt_re_add_gid;
-	ibdev->del_gid			= bnxt_re_del_gid;
-	ibdev->get_link_layer		= bnxt_re_get_link_layer;
-
-	ibdev->alloc_pd			= bnxt_re_alloc_pd;
-	ibdev->dealloc_pd		= bnxt_re_dealloc_pd;
-
-	ibdev->create_ah		= bnxt_re_create_ah;
-	ibdev->modify_ah		= bnxt_re_modify_ah;
-	ibdev->query_ah			= bnxt_re_query_ah;
-	ibdev->destroy_ah		= bnxt_re_destroy_ah;
-
-	ibdev->create_srq		= bnxt_re_create_srq;
-	ibdev->modify_srq		= bnxt_re_modify_srq;
-	ibdev->query_srq		= bnxt_re_query_srq;
-	ibdev->destroy_srq		= bnxt_re_destroy_srq;
-	ibdev->post_srq_recv		= bnxt_re_post_srq_recv;
-
-	ibdev->create_qp		= bnxt_re_create_qp;
-	ibdev->modify_qp		= bnxt_re_modify_qp;
-	ibdev->query_qp			= bnxt_re_query_qp;
-	ibdev->destroy_qp		= bnxt_re_destroy_qp;
-
-	ibdev->post_send		= bnxt_re_post_send;
-	ibdev->post_recv		= bnxt_re_post_recv;
-
-	ibdev->create_cq		= bnxt_re_create_cq;
-	ibdev->destroy_cq		= bnxt_re_destroy_cq;
-	ibdev->poll_cq			= bnxt_re_poll_cq;
-	ibdev->req_notify_cq		= bnxt_re_req_notify_cq;
-
-	ibdev->get_dma_mr		= bnxt_re_get_dma_mr;
-	ibdev->dereg_mr			= bnxt_re_dereg_mr;
-	ibdev->alloc_mr			= bnxt_re_alloc_mr;
-	ibdev->map_mr_sg		= bnxt_re_map_mr_sg;
-
-	ibdev->reg_user_mr		= bnxt_re_reg_user_mr;
-	ibdev->alloc_ucontext		= bnxt_re_alloc_ucontext;
-	ibdev->dealloc_ucontext		= bnxt_re_dealloc_ucontext;
-	ibdev->mmap			= bnxt_re_mmap;
-	ibdev->get_hw_stats             = bnxt_re_ib_get_hw_stats;
-	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
+	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
 	return ib_register_device(ibdev, "bnxt_re%d", NULL);
 }
 
