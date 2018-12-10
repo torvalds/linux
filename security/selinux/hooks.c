@@ -571,10 +571,9 @@ static int sb_finish_set_opts(struct super_block *sb)
 	   during get_sb by a pseudo filesystem that directly
 	   populates itself. */
 	spin_lock(&sbsec->isec_lock);
-next_inode:
-	if (!list_empty(&sbsec->isec_head)) {
+	while (!list_empty(&sbsec->isec_head)) {
 		struct inode_security_struct *isec =
-				list_entry(sbsec->isec_head.next,
+				list_first_entry(&sbsec->isec_head,
 					   struct inode_security_struct, list);
 		struct inode *inode = isec->inode;
 		list_del_init(&isec->list);
@@ -586,7 +585,6 @@ next_inode:
 			iput(inode);
 		}
 		spin_lock(&sbsec->isec_lock);
-		goto next_inode;
 	}
 	spin_unlock(&sbsec->isec_lock);
 out:
