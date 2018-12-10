@@ -54,7 +54,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	struct ib_mr *mr;
 	int ret;
 
-	if (!ib_dev->reg_dm_mr)
+	if (!ib_dev->ops.reg_dm_mr)
 		return -EOPNOTSUPP;
 
 	ret = uverbs_copy_from(&attr.offset, attrs, UVERBS_ATTR_REG_DM_MR_OFFSET);
@@ -83,7 +83,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	    attr.length > dm->length - attr.offset)
 		return -EINVAL;
 
-	mr = pd->device->reg_dm_mr(pd, dm, &attr, attrs);
+	mr = pd->device->ops.reg_dm_mr(pd, dm, &attr, attrs);
 	if (IS_ERR(mr))
 		return PTR_ERR(mr);
 

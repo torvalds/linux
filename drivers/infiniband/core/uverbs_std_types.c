@@ -54,7 +54,7 @@ static int uverbs_free_flow(struct ib_uobject *uobject,
 	struct ib_qp *qp = flow->qp;
 	int ret;
 
-	ret = flow->device->destroy_flow(flow);
+	ret = flow->device->ops.destroy_flow(flow);
 	if (!ret) {
 		if (qp)
 			atomic_dec(&qp->usecnt);

@@ -96,7 +96,7 @@ static struct notifier_block ibdev_lsm_nb = {
 
 static int ib_device_check_mandatory(struct ib_device *device)
 {
-#define IB_MANDATORY_FUNC(x) { offsetof(struct ib_device, x), #x }
+#define IB_MANDATORY_FUNC(x) { offsetof(struct ib_device_ops, x), #x }
 	static const struct {
 		size_t offset;
 		char  *name;
@@ -122,7 +122,8 @@ static int ib_device_check_mandatory(struct ib_device *device)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(mandatory_table); ++i) {
-		if (!*(void **) ((void *) device + mandatory_table[i].offset)) {
+		if (!*(void **) ((void *) &device->ops +
+				 mandatory_table[i].offset)) {
 			dev_warn(&device->dev,
 				 "Device is missing mandatory function %s\n",
 				 mandatory_table[i].name);
@@ -373,8 +374,8 @@ static int read_port_immutable(struct ib_device *device)
 		return -ENOMEM;
 
 	for (port = start_port; port <= end_port; ++port) {
-		ret = device->get_port_immutable(device, port,
-						 &device->port_immutable[port]);
+		ret = device->ops.get_port_immutable(
+			device, port, &device->port_immutable[port]);
 		if (ret)
 			return ret;
 
@@ -386,8 +387,8 @@ static int read_port_immutable(struct ib_device *device)
 
 void ib_get_device_fw_str(struct ib_device *dev, char *str)
 {
-	if (dev->get_dev_fw_str)
-		dev->get_dev_fw_str(dev, str);
+	if (dev->ops.get_dev_fw_str)
+		dev->ops.get_dev_fw_str(dev, str);
 	else
 		str[0] = '\0';
 }
@@ -536,7 +537,7 @@ static int setup_device(struct ib_device *device)
 	}
 
 	memset(&device->attrs, 0, sizeof(device->attrs));
-	ret = device->query_device(device, &device->attrs, &uhw);
+	ret = device->ops.query_device(device, &device->attrs, &uhw);
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't query the device attributes\n");
@@ -923,14 +924,14 @@ int ib_query_port(struct ib_device *device,
 		return -EINVAL;
 
 	memset(port_attr, 0, sizeof(*port_attr));
-	err = device->query_port(device, port_num, port_attr);
+	err = device->ops.query_port(device, port_num, port_attr);
 	if (err || port_attr->subnet_prefix)
 		return err;
 
 	if (rdma_port_get_link_layer(device, port_num) != IB_LINK_LAYER_INFINIBAND)
 		return 0;
 
-	err = device->query_gid(device, port_num, 0, &gid);
+	err = device->ops.query_gid(device, port_num, 0, &gid);
 	if (err)
 		return err;
 
@@ -964,8 +965,8 @@ void ib_enum_roce_netdev(struct ib_device *ib_dev,
 		if (rdma_protocol_roce(ib_dev, port)) {
 			struct net_device *idev = NULL;
 
-			if (ib_dev->get_netdev)
-				idev = ib_dev->get_netdev(ib_dev, port);
+			if (ib_dev->ops.get_netdev)
+				idev = ib_dev->ops.get_netdev(ib_dev, port);
 
 			if (idev &&
 			    idev->reg_state >= NETREG_UNREGISTERED) {
@@ -1045,7 +1046,7 @@ int ib_query_pkey(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	return device->query_pkey(device, port_num, index, pkey);
+	return device->ops.query_pkey(device, port_num, index, pkey);
 }
 EXPORT_SYMBOL(ib_query_pkey);
 
@@ -1062,11 +1063,11 @@ int ib_modify_device(struct ib_device *device,
 		     int device_modify_mask,
 		     struct ib_device_modify *device_modify)
 {
-	if (!device->modify_device)
+	if (!device->ops.modify_device)
 		return -ENOSYS;
 
-	return device->modify_device(device, device_modify_mask,
-				     device_modify);
+	return device->ops.modify_device(device, device_modify_mask,
+					 device_modify);
 }
 EXPORT_SYMBOL(ib_modify_device);
 
@@ -1090,9 +1091,10 @@ int ib_modify_port(struct ib_device *device,
 	if (!rdma_is_port_valid(device, port_num))
 		return -EINVAL;
 
-	if (device->modify_port)
-		rc = device->modify_port(device, port_num, port_modify_mask,
-					   port_modify);
+	if (device->ops.modify_port)
+		rc = device->ops.modify_port(device, port_num,
+					     port_modify_mask,
+					     port_modify);
 	else
 		rc = rdma_protocol_roce(device, port_num) ? 0 : -ENOSYS;
 	return rc;
@@ -1221,6 +1223,7 @@ EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
 void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 {
+	struct ib_device_ops *dev_ops = &dev->ops;
 #define SET_DEVICE_OP(ptr, name)                                               \
 	do {                                                                   \
 		if (ops->name)                                                 \
@@ -1228,92 +1231,92 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 				(ptr)->name = ops->name;                       \
 	} while (0)
 
-	SET_DEVICE_OP(dev, add_gid);
-	SET_DEVICE_OP(dev, alloc_dm);
-	SET_DEVICE_OP(dev, alloc_fmr);
-	SET_DEVICE_OP(dev, alloc_hw_stats);
-	SET_DEVICE_OP(dev, alloc_mr);
-	SET_DEVICE_OP(dev, alloc_mw);
-	SET_DEVICE_OP(dev, alloc_pd);
-	SET_DEVICE_OP(dev, alloc_rdma_netdev);
-	SET_DEVICE_OP(dev, alloc_ucontext);
-	SET_DEVICE_OP(dev, alloc_xrcd);
-	SET_DEVICE_OP(dev, attach_mcast);
-	SET_DEVICE_OP(dev, check_mr_status);
-	SET_DEVICE_OP(dev, create_ah);
-	SET_DEVICE_OP(dev, create_counters);
-	SET_DEVICE_OP(dev, create_cq);
-	SET_DEVICE_OP(dev, create_flow);
-	SET_DEVICE_OP(dev, create_flow_action_esp);
-	SET_DEVICE_OP(dev, create_qp);
-	SET_DEVICE_OP(dev, create_rwq_ind_table);
-	SET_DEVICE_OP(dev, create_srq);
-	SET_DEVICE_OP(dev, create_wq);
-	SET_DEVICE_OP(dev, dealloc_dm);
-	SET_DEVICE_OP(dev, dealloc_fmr);
-	SET_DEVICE_OP(dev, dealloc_mw);
-	SET_DEVICE_OP(dev, dealloc_pd);
-	SET_DEVICE_OP(dev, dealloc_ucontext);
-	SET_DEVICE_OP(dev, dealloc_xrcd);
-	SET_DEVICE_OP(dev, del_gid);
-	SET_DEVICE_OP(dev, dereg_mr);
-	SET_DEVICE_OP(dev, destroy_ah);
-	SET_DEVICE_OP(dev, destroy_counters);
-	SET_DEVICE_OP(dev, destroy_cq);
-	SET_DEVICE_OP(dev, destroy_flow);
-	SET_DEVICE_OP(dev, destroy_flow_action);
-	SET_DEVICE_OP(dev, destroy_qp);
-	SET_DEVICE_OP(dev, destroy_rwq_ind_table);
-	SET_DEVICE_OP(dev, destroy_srq);
-	SET_DEVICE_OP(dev, destroy_wq);
-	SET_DEVICE_OP(dev, detach_mcast);
-	SET_DEVICE_OP(dev, disassociate_ucontext);
-	SET_DEVICE_OP(dev, drain_rq);
-	SET_DEVICE_OP(dev, drain_sq);
-	SET_DEVICE_OP(dev, get_dev_fw_str);
-	SET_DEVICE_OP(dev, get_dma_mr);
-	SET_DEVICE_OP(dev, get_hw_stats);
-	SET_DEVICE_OP(dev, get_link_layer);
-	SET_DEVICE_OP(dev, get_netdev);
-	SET_DEVICE_OP(dev, get_port_immutable);
-	SET_DEVICE_OP(dev, get_vector_affinity);
-	SET_DEVICE_OP(dev, get_vf_config);
-	SET_DEVICE_OP(dev, get_vf_stats);
-	SET_DEVICE_OP(dev, map_mr_sg);
-	SET_DEVICE_OP(dev, map_phys_fmr);
-	SET_DEVICE_OP(dev, mmap);
-	SET_DEVICE_OP(dev, modify_ah);
-	SET_DEVICE_OP(dev, modify_cq);
-	SET_DEVICE_OP(dev, modify_device);
-	SET_DEVICE_OP(dev, modify_flow_action_esp);
-	SET_DEVICE_OP(dev, modify_port);
-	SET_DEVICE_OP(dev, modify_qp);
-	SET_DEVICE_OP(dev, modify_srq);
-	SET_DEVICE_OP(dev, modify_wq);
-	SET_DEVICE_OP(dev, peek_cq);
-	SET_DEVICE_OP(dev, poll_cq);
-	SET_DEVICE_OP(dev, post_recv);
-	SET_DEVICE_OP(dev, post_send);
-	SET_DEVICE_OP(dev, post_srq_recv);
-	SET_DEVICE_OP(dev, process_mad);
-	SET_DEVICE_OP(dev, query_ah);
-	SET_DEVICE_OP(dev, query_device);
-	SET_DEVICE_OP(dev, query_gid);
-	SET_DEVICE_OP(dev, query_pkey);
-	SET_DEVICE_OP(dev, query_port);
-	SET_DEVICE_OP(dev, query_qp);
-	SET_DEVICE_OP(dev, query_srq);
-	SET_DEVICE_OP(dev, rdma_netdev_get_params);
-	SET_DEVICE_OP(dev, read_counters);
-	SET_DEVICE_OP(dev, reg_dm_mr);
-	SET_DEVICE_OP(dev, reg_user_mr);
-	SET_DEVICE_OP(dev, req_ncomp_notif);
-	SET_DEVICE_OP(dev, req_notify_cq);
-	SET_DEVICE_OP(dev, rereg_user_mr);
-	SET_DEVICE_OP(dev, resize_cq);
-	SET_DEVICE_OP(dev, set_vf_guid);
-	SET_DEVICE_OP(dev, set_vf_link_state);
-	SET_DEVICE_OP(dev, unmap_fmr);
+	SET_DEVICE_OP(dev_ops, add_gid);
+	SET_DEVICE_OP(dev_ops, alloc_dm);
+	SET_DEVICE_OP(dev_ops, alloc_fmr);
+	SET_DEVICE_OP(dev_ops, alloc_hw_stats);
+	SET_DEVICE_OP(dev_ops, alloc_mr);
+	SET_DEVICE_OP(dev_ops, alloc_mw);
+	SET_DEVICE_OP(dev_ops, alloc_pd);
+	SET_DEVICE_OP(dev_ops, alloc_rdma_netdev);
+	SET_DEVICE_OP(dev_ops, alloc_ucontext);
+	SET_DEVICE_OP(dev_ops, alloc_xrcd);
+	SET_DEVICE_OP(dev_ops, attach_mcast);
+	SET_DEVICE_OP(dev_ops, check_mr_status);
+	SET_DEVICE_OP(dev_ops, create_ah);
+	SET_DEVICE_OP(dev_ops, create_counters);
+	SET_DEVICE_OP(dev_ops, create_cq);
+	SET_DEVICE_OP(dev_ops, create_flow);
+	SET_DEVICE_OP(dev_ops, create_flow_action_esp);
+	SET_DEVICE_OP(dev_ops, create_qp);
+	SET_DEVICE_OP(dev_ops, create_rwq_ind_table);
+	SET_DEVICE_OP(dev_ops, create_srq);
+	SET_DEVICE_OP(dev_ops, create_wq);
+	SET_DEVICE_OP(dev_ops, dealloc_dm);
+	SET_DEVICE_OP(dev_ops, dealloc_fmr);
+	SET_DEVICE_OP(dev_ops, dealloc_mw);
+	SET_DEVICE_OP(dev_ops, dealloc_pd);
+	SET_DEVICE_OP(dev_ops, dealloc_ucontext);
+	SET_DEVICE_OP(dev_ops, dealloc_xrcd);
+	SET_DEVICE_OP(dev_ops, del_gid);
+	SET_DEVICE_OP(dev_ops, dereg_mr);
+	SET_DEVICE_OP(dev_ops, destroy_ah);
+	SET_DEVICE_OP(dev_ops, destroy_counters);
+	SET_DEVICE_OP(dev_ops, destroy_cq);
+	SET_DEVICE_OP(dev_ops, destroy_flow);
+	SET_DEVICE_OP(dev_ops, destroy_flow_action);
+	SET_DEVICE_OP(dev_ops, destroy_qp);
+	SET_DEVICE_OP(dev_ops, destroy_rwq_ind_table);
+	SET_DEVICE_OP(dev_ops, destroy_srq);
+	SET_DEVICE_OP(dev_ops, destroy_wq);
+	SET_DEVICE_OP(dev_ops, detach_mcast);
+	SET_DEVICE_OP(dev_ops, disassociate_ucontext);
+	SET_DEVICE_OP(dev_ops, drain_rq);
+	SET_DEVICE_OP(dev_ops, drain_sq);
+	SET_DEVICE_OP(dev_ops, get_dev_fw_str);
+	SET_DEVICE_OP(dev_ops, get_dma_mr);
+	SET_DEVICE_OP(dev_ops, get_hw_stats);
+	SET_DEVICE_OP(dev_ops, get_link_layer);
+	SET_DEVICE_OP(dev_ops, get_netdev);
+	SET_DEVICE_OP(dev_ops, get_port_immutable);
+	SET_DEVICE_OP(dev_ops, get_vector_affinity);
+	SET_DEVICE_OP(dev_ops, get_vf_config);
+	SET_DEVICE_OP(dev_ops, get_vf_stats);
+	SET_DEVICE_OP(dev_ops, map_mr_sg);
+	SET_DEVICE_OP(dev_ops, map_phys_fmr);
+	SET_DEVICE_OP(dev_ops, mmap);
+	SET_DEVICE_OP(dev_ops, modify_ah);
+	SET_DEVICE_OP(dev_ops, modify_cq);
+	SET_DEVICE_OP(dev_ops, modify_device);
+	SET_DEVICE_OP(dev_ops, modify_flow_action_esp);
+	SET_DEVICE_OP(dev_ops, modify_port);
+	SET_DEVICE_OP(dev_ops, modify_qp);
+	SET_DEVICE_OP(dev_ops, modify_srq);
+	SET_DEVICE_OP(dev_ops, modify_wq);
+	SET_DEVICE_OP(dev_ops, peek_cq);
+	SET_DEVICE_OP(dev_ops, poll_cq);
+	SET_DEVICE_OP(dev_ops, post_recv);
+	SET_DEVICE_OP(dev_ops, post_send);
+	SET_DEVICE_OP(dev_ops, post_srq_recv);
+	SET_DEVICE_OP(dev_ops, process_mad);
+	SET_DEVICE_OP(dev_ops, query_ah);
+	SET_DEVICE_OP(dev_ops, query_device);
+	SET_DEVICE_OP(dev_ops, query_gid);
+	SET_DEVICE_OP(dev_ops, query_pkey);
+	SET_DEVICE_OP(dev_ops, query_port);
+	SET_DEVICE_OP(dev_ops, query_qp);
+	SET_DEVICE_OP(dev_ops, query_srq);
+	SET_DEVICE_OP(dev_ops, rdma_netdev_get_params);
+	SET_DEVICE_OP(dev_ops, read_counters);
+	SET_DEVICE_OP(dev_ops, reg_dm_mr);
+	SET_DEVICE_OP(dev_ops, reg_user_mr);
+	SET_DEVICE_OP(dev_ops, req_ncomp_notif);
+	SET_DEVICE_OP(dev_ops, req_notify_cq);
+	SET_DEVICE_OP(dev_ops, rereg_user_mr);
+	SET_DEVICE_OP(dev_ops, resize_cq);
+	SET_DEVICE_OP(dev_ops, set_vf_guid);
+	SET_DEVICE_OP(dev_ops, set_vf_link_state);
+	SET_DEVICE_OP(dev_ops, unmap_fmr);
 }
 EXPORT_SYMBOL(ib_set_device_ops);
 

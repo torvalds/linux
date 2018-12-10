@@ -820,8 +820,8 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 	 */
 	if (reason == RDMA_REMOVE_DRIVER_REMOVE) {
 		uverbs_user_mmap_disassociate(ufile);
-		if (ib_dev->disassociate_ucontext)
-			ib_dev->disassociate_ucontext(ucontext);
+		if (ib_dev->ops.disassociate_ucontext)
+			ib_dev->ops.disassociate_ucontext(ucontext);
 	}
 
 	ib_rdmacg_uncharge(&ucontext->cg_obj, ib_dev,
@@ -833,7 +833,7 @@ static void ufile_destroy_ucontext(struct ib_uverbs_file *ufile,
 	 * FIXME: Drivers are not permitted to fail dealloc_ucontext, remove
 	 * the error return.
 	 */
-	ret = ib_dev->dealloc_ucontext(ucontext);
+	ret = ib_dev->ops.dealloc_ucontext(ucontext);
 	WARN_ON(ret);
 
 	ufile->ucontext = NULL;

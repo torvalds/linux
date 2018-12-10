@@ -456,31 +456,31 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		 * rdmavt does not support modify device currently drivers must
 		 * provide.
 		 */
-		if (!rdi->ibdev.modify_device)
+		if (!rdi->ibdev.ops.modify_device)
 			return -EOPNOTSUPP;
 		break;
 
 	case QUERY_PORT:
-		if (!rdi->ibdev.query_port)
+		if (!rdi->ibdev.ops.query_port)
 			if (!rdi->driver_f.query_port_state)
 				return -EINVAL;
 		break;
 
 	case MODIFY_PORT:
-		if (!rdi->ibdev.modify_port)
+		if (!rdi->ibdev.ops.modify_port)
 			if (!rdi->driver_f.cap_mask_chg ||
 			    !rdi->driver_f.shut_down_port)
 				return -EINVAL;
 		break;
 
 	case QUERY_GID:
-		if (!rdi->ibdev.query_gid)
+		if (!rdi->ibdev.ops.query_gid)
 			if (!rdi->driver_f.get_guid_be)
 				return -EINVAL;
 		break;
 
 	case CREATE_QP:
-		if (!rdi->ibdev.create_qp)
+		if (!rdi->ibdev.ops.create_qp)
 			if (!rdi->driver_f.qp_priv_alloc ||
 			    !rdi->driver_f.qp_priv_free ||
 			    !rdi->driver_f.notify_qp_reset ||
@@ -491,7 +491,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		break;
 
 	case MODIFY_QP:
-		if (!rdi->ibdev.modify_qp)
+		if (!rdi->ibdev.ops.modify_qp)
 			if (!rdi->driver_f.notify_qp_reset ||
 			    !rdi->driver_f.schedule_send ||
 			    !rdi->driver_f.get_pmtu_from_attr ||
@@ -505,7 +505,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		break;
 
 	case DESTROY_QP:
-		if (!rdi->ibdev.destroy_qp)
+		if (!rdi->ibdev.ops.destroy_qp)
 			if (!rdi->driver_f.qp_priv_free ||
 			    !rdi->driver_f.notify_qp_reset ||
 			    !rdi->driver_f.flush_qp_waiters ||
@@ -515,7 +515,7 @@ static noinline int check_support(struct rvt_dev_info *rdi, int verb)
 		break;
 
 	case POST_SEND:
-		if (!rdi->ibdev.post_send)
+		if (!rdi->ibdev.ops.post_send)
 			if (!rdi->driver_f.schedule_send ||
 			    !rdi->driver_f.do_send ||
 			    !rdi->post_parms)

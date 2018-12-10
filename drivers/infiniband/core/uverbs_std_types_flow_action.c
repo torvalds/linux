@@ -43,7 +43,7 @@ static int uverbs_free_flow_action(struct ib_uobject *uobject,
 	if (ret)
 		return ret;
 
-	return action->device->destroy_flow_action(action);
+	return action->device->ops.destroy_flow_action(action);
 }
 
 static u64 esp_flags_uverbs_to_verbs(struct uverbs_attr_bundle *attrs,
@@ -313,7 +313,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
 	struct ib_flow_action		  *action;
 	struct ib_flow_action_esp_attr	  esp_attr = {};
 
-	if (!ib_dev->create_flow_action_esp)
+	if (!ib_dev->ops.create_flow_action_esp)
 		return -EOPNOTSUPP;
 
 	ret = parse_flow_action_esp(ib_dev, attrs, &esp_attr, false);
@@ -321,7 +321,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_CREATE)(
 		return ret;
 
 	/* No need to check as this attribute is marked as MANDATORY */
-	action = ib_dev->create_flow_action_esp(ib_dev, &esp_attr.hdr, attrs);
+	action = ib_dev->ops.create_flow_action_esp(ib_dev, &esp_attr.hdr,
+						    attrs);
 	if (IS_ERR(action))
 		return PTR_ERR(action);
 
@@ -340,7 +341,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
 	int				  ret;
 	struct ib_flow_action_esp_attr	  esp_attr = {};
 
-	if (!action->device->modify_flow_action_esp)
+	if (!action->device->ops.modify_flow_action_esp)
 		return -EOPNOTSUPP;
 
 	ret = parse_flow_action_esp(action->device, attrs, &esp_attr, true);
@@ -350,8 +351,9 @@ static int UVERBS_HANDLER(UVERBS_METHOD_FLOW_ACTION_ESP_MODIFY)(
 	if (action->type != IB_FLOW_ACTION_ESP)
 		return -EINVAL;
 
-	return action->device->modify_flow_action_esp(action, &esp_attr.hdr,
-						      attrs);
+	return action->device->ops.modify_flow_action_esp(action,
+							  &esp_attr.hdr,
+							  attrs);
 }
 
 static const struct uverbs_attr_spec uverbs_flow_action_esp_keymat[] = {

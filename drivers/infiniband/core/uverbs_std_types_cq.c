@@ -71,7 +71,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	struct ib_uverbs_completion_event_file    *ev_file = NULL;
 	struct ib_uobject *ev_file_uobj;
 
-	if (!ib_dev->create_cq || !ib_dev->destroy_cq)
+	if (!ib_dev->ops.create_cq || !ib_dev->ops.destroy_cq)
 		return -EOPNOTSUPP;
 
 	ret = uverbs_copy_from(&attr.comp_vector, attrs,
@@ -110,8 +110,8 @@ static int UVERBS_HANDLER(UVERBS_METHOD_CQ_CREATE)(
 	INIT_LIST_HEAD(&obj->comp_list);
 	INIT_LIST_HEAD(&obj->async_list);
 
-	cq = ib_dev->create_cq(ib_dev, &attr, obj->uobject.context,
-			       &attrs->driver_udata);
+	cq = ib_dev->ops.create_cq(ib_dev, &attr, obj->uobject.context,
+				   &attrs->driver_udata);
 	if (IS_ERR(cq)) {
 		ret = PTR_ERR(cq);
 		goto err_event_file;

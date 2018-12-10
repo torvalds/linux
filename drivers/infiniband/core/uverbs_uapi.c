@@ -300,7 +300,8 @@ static int uapi_merge_def(struct uverbs_api *uapi, struct ib_device *ibdev,
 			return 0;
 
 		case UAPI_DEF_IS_SUPPORTED_DEV_FN: {
-			void **ibdev_fn = (void *)ibdev + def->needs_fn_offset;
+			void **ibdev_fn =
+				(void *)(&ibdev->ops) + def->needs_fn_offset;
 
 			if (*ibdev_fn)
 				continue;

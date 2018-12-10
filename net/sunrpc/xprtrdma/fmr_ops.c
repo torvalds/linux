@@ -41,7 +41,7 @@ enum {
 bool
 fmr_is_supported(struct rpcrdma_ia *ia)
 {
-	if (!ia->ri_device->alloc_fmr) {
+	if (!ia->ri_device->ops.alloc_fmr) {
 		pr_info("rpcrdma: 'fmr' mode is not supported by device %s\n",
 			ia->ri_device->name);
 		return false;

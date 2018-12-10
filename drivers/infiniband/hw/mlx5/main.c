@@ -150,7 +150,7 @@ static int get_port_state(struct ib_device *ibdev,
 	int ret;
 
 	memset(&attr, 0, sizeof(attr));
-	ret = ibdev->query_port(ibdev, port_num, &attr);
+	ret = ibdev->ops.query_port(ibdev, port_num, &attr);
 	if (!ret)
 		*state = attr.state;
 	return ret;
