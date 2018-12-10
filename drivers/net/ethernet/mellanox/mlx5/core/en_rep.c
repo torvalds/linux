@@ -467,8 +467,8 @@ static void mlx5e_rep_update_flows(struct mlx5e_priv *priv,
 
 	ASSERT_RTNL();
 
-	if ((!neigh_connected && (e->flags & MLX5_ENCAP_ENTRY_VALID)) ||
-	    !ether_addr_equal(e->h_dest, ha))
+	if ((e->flags & MLX5_ENCAP_ENTRY_VALID) &&
+	    (!neigh_connected || !ether_addr_equal(e->h_dest, ha)))
 		mlx5e_tc_encap_flows_del(priv, e);
 
 	if (neigh_connected && !(e->flags & MLX5_ENCAP_ENTRY_VALID)) {

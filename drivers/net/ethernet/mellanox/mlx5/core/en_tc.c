@@ -1096,10 +1096,9 @@ void mlx5e_tc_encap_flows_del(struct mlx5e_priv *priv,
 		flow->rule[0] = rule;
 	}
 
-	if (e->flags & MLX5_ENCAP_ENTRY_VALID) {
-		e->flags &= ~MLX5_ENCAP_ENTRY_VALID;
-		mlx5_packet_reformat_dealloc(priv->mdev, e->encap_id);
-	}
+	/* we know that the encap is valid */
+	e->flags &= ~MLX5_ENCAP_ENTRY_VALID;
+	mlx5_packet_reformat_dealloc(priv->mdev, e->encap_id);
 }
 
 static struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow)
