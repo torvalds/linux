@@ -799,17 +799,17 @@ static void atk_debugfs_init(struct atk_data *data)
 	if (!d || IS_ERR(d))
 		return;
 
-	f = debugfs_create_x32("id", S_IRUSR | S_IWUSR, d, &data->debugfs.id);
+	f = debugfs_create_x32("id", 0600, d, &data->debugfs.id);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file("gitm", S_IRUSR, d, data,
-			&atk_debugfs_gitm);
+	f = debugfs_create_file("gitm", 0400, d, data,
+				&atk_debugfs_gitm);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file("ggrp", S_IRUSR, d, data,
-			&atk_debugfs_ggrp_fops);
+	f = debugfs_create_file("ggrp", 0400, d, data,
+				&atk_debugfs_ggrp_fops);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
