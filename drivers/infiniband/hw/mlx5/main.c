@@ -2680,11 +2680,11 @@ static int parse_flow_attr(struct mlx5_core_dev *mdev, u32 *match_c,
 			 ntohs(ib_spec->gre.val.protocol));
 
 		memcpy(MLX5_ADDR_OF(fte_match_set_misc, misc_params_c,
-				    gre_key_h),
+				    gre_key.nvgre.hi),
 		       &ib_spec->gre.mask.key,
 		       sizeof(ib_spec->gre.mask.key));
 		memcpy(MLX5_ADDR_OF(fte_match_set_misc, misc_params_v,
-				    gre_key_h),
+				    gre_key.nvgre.hi),
 		       &ib_spec->gre.val.key,
 		       sizeof(ib_spec->gre.val.key));
 		break;

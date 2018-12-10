@@ -423,6 +423,16 @@ struct mlx5_ifc_fte_match_set_lyr_2_4_bits {
 	union mlx5_ifc_ipv6_layout_ipv4_layout_auto_bits dst_ipv4_dst_ipv6;
 };
 
+struct mlx5_ifc_nvgre_key_bits {
+	u8 hi[0x18];
+	u8 lo[0x8];
+};
+
+union mlx5_ifc_gre_key_bits {
+	struct mlx5_ifc_nvgre_key_bits nvgre;
+	u8 key[0x20];
+};
+
 struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         reserved_at_0[0x8];
 	u8         source_sqn[0x18];
@@ -444,8 +454,7 @@ struct mlx5_ifc_fte_match_set_misc_bits {
 	u8         reserved_at_64[0xc];
 	u8         gre_protocol[0x10];
 
-	u8         gre_key_h[0x18];
-	u8         gre_key_l[0x8];
+	union mlx5_ifc_gre_key_bits gre_key;
 
 	u8         vxlan_vni[0x18];
 	u8         reserved_at_b8[0x8];
