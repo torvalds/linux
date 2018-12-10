@@ -21,6 +21,15 @@ Description:	Holds a comma separated list of device unique_ids that
 		If a device is authorized automatically during boot its
 		boot attribute is set to 1.
 
+What: /sys/bus/thunderbolt/devices/.../domainX/iommu_dma_protection
+Date:		Mar 2019
+KernelVersion:	4.21
+Contact:	thunderbolt-software@lists.01.org
+Description:	This attribute tells whether the system uses IOMMU
+		for DMA protection. Value of 1 means IOMMU is used 0 means
+		it is not (DMA protection is solely based on Thunderbolt
+		security levels).
+
 What: /sys/bus/thunderbolt/devices/.../domainX/security
 Date:		Sep 2017
 KernelVersion:	4.13
