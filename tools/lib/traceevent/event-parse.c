@@ -4968,6 +4968,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
 
 				if (arg->type == PRINT_BSTRING) {
 					trace_seq_puts(s, arg->string.string);
+					arg = arg->next;
 					break;
 				}
 
