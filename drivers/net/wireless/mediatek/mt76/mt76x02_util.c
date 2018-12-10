@@ -661,6 +661,10 @@ void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 		tasklet_enable(&dev->pre_tbtt_tasklet);
 	}
 
+	if (changed & BSS_CHANGED_HT || changed & BSS_CHANGED_ERP_CTS_PROT)
+		mt76x02_mac_set_tx_protection(dev, info->use_cts_prot,
+					      info->ht_operation_mode);
+
 	if (changed & BSS_CHANGED_BEACON_INT) {
 		mt76_rmw_field(dev, MT_BEACON_TIME_CFG,
 			       MT_BEACON_TIME_CFG_INTVAL,

@@ -731,6 +731,89 @@ void mt76x02_mac_set_rts_thresh(struct mt76x02_dev *dev, u32 val)
 		 MT_PROT_CFG_CTRL | MT_PROT_CFG_RTS_THRESH, data);
 }
 
+void mt76x02_mac_set_tx_protection(struct mt76x02_dev *dev, bool legacy_prot,
+				   int ht_mode)
+{
+	int mode = ht_mode & IEEE80211_HT_OP_MODE_PROTECTION;
+	bool non_gf = !!(ht_mode & IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
+	u32 prot[6];
+	u32 vht_prot[3];
+	int i;
+	u16 rts_thr;
+
+	for (i = 0; i < ARRAY_SIZE(prot); i++) {
+		prot[i] = mt76_rr(dev, MT_CCK_PROT_CFG + i * 4);
+		prot[i] &= ~MT_PROT_CFG_CTRL;
+		if (i >= 2)
+			prot[i] &= ~MT_PROT_CFG_RATE;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vht_prot); i++) {
+		vht_prot[i] = mt76_rr(dev, MT_TX_PROT_CFG6 + i * 4);
+		vht_prot[i] &= ~(MT_PROT_CFG_CTRL | MT_PROT_CFG_RATE);
+	}
+
+	rts_thr = mt76_get_field(dev, MT_TX_RTS_CFG, MT_TX_RTS_CFG_THRESH);
+
+	if (rts_thr != 0xffff)
+		prot[0] |= MT_PROT_CTRL_RTS_CTS;
+
+	if (legacy_prot) {
+		prot[1] |= MT_PROT_CTRL_CTS2SELF;
+
+		prot[2] |= MT_PROT_RATE_CCK_11;
+		prot[3] |= MT_PROT_RATE_CCK_11;
+		prot[4] |= MT_PROT_RATE_CCK_11;
+		prot[5] |= MT_PROT_RATE_CCK_11;
+
+		vht_prot[0] |= MT_PROT_RATE_CCK_11;
+		vht_prot[1] |= MT_PROT_RATE_CCK_11;
+		vht_prot[2] |= MT_PROT_RATE_CCK_11;
+	} else {
+		if (rts_thr != 0xffff)
+			prot[1] |= MT_PROT_CTRL_RTS_CTS;
+
+		prot[2] |= MT_PROT_RATE_OFDM_24;
+		prot[3] |= MT_PROT_RATE_DUP_OFDM_24;
+		prot[4] |= MT_PROT_RATE_OFDM_24;
+		prot[5] |= MT_PROT_RATE_DUP_OFDM_24;
+
+		vht_prot[0] |= MT_PROT_RATE_OFDM_24;
+		vht_prot[1] |= MT_PROT_RATE_DUP_OFDM_24;
+		vht_prot[2] |= MT_PROT_RATE_SGI_OFDM_24;
+	}
+
+	switch (mode) {
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONMEMBER:
+	case IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED:
+		prot[2] |= MT_PROT_CTRL_RTS_CTS;
+		prot[3] |= MT_PROT_CTRL_RTS_CTS;
+		prot[4] |= MT_PROT_CTRL_RTS_CTS;
+		prot[5] |= MT_PROT_CTRL_RTS_CTS;
+		vht_prot[0] |= MT_PROT_CTRL_RTS_CTS;
+		vht_prot[1] |= MT_PROT_CTRL_RTS_CTS;
+		vht_prot[2] |= MT_PROT_CTRL_RTS_CTS;
+		break;
+	case IEEE80211_HT_OP_MODE_PROTECTION_20MHZ:
+		prot[3] |= MT_PROT_CTRL_RTS_CTS;
+		prot[5] |= MT_PROT_CTRL_RTS_CTS;
+		vht_prot[1] |= MT_PROT_CTRL_RTS_CTS;
+		vht_prot[2] |= MT_PROT_CTRL_RTS_CTS;
+		break;
+	}
+
+	if (non_gf) {
+		prot[4] |= MT_PROT_CTRL_RTS_CTS;
+		prot[5] |= MT_PROT_CTRL_RTS_CTS;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(prot); i++)
+		mt76_wr(dev, MT_CCK_PROT_CFG + i * 4, prot[i]);
+
+	for (i = 0; i < ARRAY_SIZE(vht_prot); i++)
+		mt76_wr(dev, MT_TX_PROT_CFG6 + i * 4, vht_prot[i]);
+}
+
 void mt76x02_update_channel(struct mt76_dev *mdev)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
