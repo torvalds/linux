@@ -1542,6 +1542,75 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
 	return count;
 }
 
+static ssize_t amdgpu_hwmon_show_sclk(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
+	uint32_t sclk;
+	int r, size = sizeof(sclk);
+
+	/* Can't get voltage when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* get the sclk */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_SCLK,
+				   (void *)&sclk, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", sclk * 10 * 1000);
+}
+
+static ssize_t amdgpu_hwmon_show_sclk_label(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "sclk\n");
+}
+
+static ssize_t amdgpu_hwmon_show_mclk(struct device *dev,
+				      struct device_attribute *attr,
+				      char *buf)
+{
+	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	struct drm_device *ddev = adev->ddev;
+	uint32_t mclk;
+	int r, size = sizeof(mclk);
+
+	/* Can't get voltage when the card is off */
+	if  ((adev->flags & AMD_IS_PX) &&
+	     (ddev->switch_power_state != DRM_SWITCH_POWER_ON))
+		return -EINVAL;
+
+	/* sanity check PP is enabled */
+	if (!(adev->powerplay.pp_funcs &&
+	      adev->powerplay.pp_funcs->read_sensor))
+	      return -EINVAL;
+
+	/* get the sclk */
+	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_GFX_MCLK,
+				   (void *)&mclk, &size);
+	if (r)
+		return r;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", mclk * 10 * 1000);
+}
+
+static ssize_t amdgpu_hwmon_show_mclk_label(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "mclk\n");
+}
 
 /**
  * DOC: hwmon
@@ -1557,6 +1626,10 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
  * - GPU power
  *
  * - GPU fan
+ *
+ * - GPU gfx/compute engine clock
+ *
+ * - GPU memory clock (dGPU only)
  *
  * hwmon interfaces for GPU temperature:
  *
@@ -1602,6 +1675,12 @@ static ssize_t amdgpu_hwmon_set_power_cap(struct device *dev,
  *
  * - fan[1-*]_enable: Enable or disable the sensors.1: Enable 0: Disable
  *
+ * hwmon interfaces for GPU clocks:
+ *
+ * - freq1_input: the gfx/compute clock in hertz
+ *
+ * - freq2_input: the memory clock in hertz
+ *
  * You can use hwmon tools like sensors to view this information on your system.
  *
  */
@@ -1626,6 +1705,10 @@ static SENSOR_DEVICE_ATTR(power1_average, S_IRUGO, amdgpu_hwmon_show_power_avg, 
 static SENSOR_DEVICE_ATTR(power1_cap_max, S_IRUGO, amdgpu_hwmon_show_power_cap_max, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap_min, S_IRUGO, amdgpu_hwmon_show_power_cap_min, NULL, 0);
 static SENSOR_DEVICE_ATTR(power1_cap, S_IRUGO | S_IWUSR, amdgpu_hwmon_show_power_cap, amdgpu_hwmon_set_power_cap, 0);
+static SENSOR_DEVICE_ATTR(freq1_input, S_IRUGO, amdgpu_hwmon_show_sclk, NULL, 0);
+static SENSOR_DEVICE_ATTR(freq1_label, S_IRUGO, amdgpu_hwmon_show_sclk_label, NULL, 0);
+static SENSOR_DEVICE_ATTR(freq2_input, S_IRUGO, amdgpu_hwmon_show_mclk, NULL, 0);
+static SENSOR_DEVICE_ATTR(freq2_label, S_IRUGO, amdgpu_hwmon_show_mclk_label, NULL, 0);
 
 static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
@@ -1648,6 +1731,10 @@ static struct attribute *hwmon_attributes[] = {
 	&sensor_dev_attr_power1_cap_max.dev_attr.attr,
 	&sensor_dev_attr_power1_cap_min.dev_attr.attr,
 	&sensor_dev_attr_power1_cap.dev_attr.attr,
+	&sensor_dev_attr_freq1_input.dev_attr.attr,
+	&sensor_dev_attr_freq1_label.dev_attr.attr,
+	&sensor_dev_attr_freq2_input.dev_attr.attr,
+	&sensor_dev_attr_freq2_label.dev_attr.attr,
 	NULL
 };
 
@@ -1736,6 +1823,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	if (!(adev->flags & AMD_IS_APU) &&
 	    (attr == &sensor_dev_attr_in1_input.dev_attr.attr ||
 	     attr == &sensor_dev_attr_in1_label.dev_attr.attr))
+		return 0;
+
+	/* no mclk on APUs */
+	if ((adev->flags & AMD_IS_APU) &&
+	    (attr == &sensor_dev_attr_freq2_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_freq2_label.dev_attr.attr))
 		return 0;
 
 	return effective_mode;
