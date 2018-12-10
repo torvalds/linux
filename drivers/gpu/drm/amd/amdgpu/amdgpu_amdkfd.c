@@ -583,7 +583,7 @@ bool amdkfd_fence_check_mm(struct dma_fence *f, struct mm_struct *mm)
 	return false;
 }
 
-void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo)
+void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo)
 {
 }
 
