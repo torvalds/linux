@@ -53,7 +53,7 @@ static bool check_damage_clip(struct drm_plane_state *state, struct drm_rect *r,
 	int src_y2 = (state->src.y2 >> 16) + !!(state->src.y2 & 0xFFFF);
 
 	if (x1 >= x2 || y1 >= y2) {
-		pr_err("Cannot have damage clip with no dimention.\n");
+		pr_err("Cannot have damage clip with no dimension.\n");
 		return false;
 	}
 
