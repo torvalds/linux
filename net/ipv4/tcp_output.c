@@ -1947,10 +1947,6 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 	if ((skb != tcp_write_queue_tail(sk)) && (limit >= skb->len))
 		goto send_now;
 
-	/* If this packet won't get more data, do not wait. */
-	if (TCP_SKB_CB(skb)->eor)
-		goto send_now;
-
 	win_divisor = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_tso_win_divisor);
 	if (win_divisor) {
 		u32 chunk = min(tp->snd_wnd, tp->snd_cwnd * tp->mss_cache);
@@ -1999,7 +1995,8 @@ static bool tcp_tso_should_defer(struct sock *sk, struct sk_buff *skb,
 	}
 
 	/* If this packet won't get more data, do not wait. */
-	if (TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN)
+	if ((TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN) ||
+	    TCP_SKB_CB(skb)->eor)
 		goto send_now;
 
 	return true;
