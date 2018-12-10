@@ -177,6 +177,13 @@ MODULE_PARM_DESC(test_list, "Print current test list");
 #define PATTERN_COUNT_MASK	0x1f
 #define PATTERN_MEMSET_IDX	0x01
 
+/* Fixed point arithmetic ops */
+#define FIXPT_SHIFT		8
+#define FIXPNT_MASK		0xFF
+#define FIXPT_TO_INT(a)	((a) >> FIXPT_SHIFT)
+#define INT_TO_FIXPT(a)	((a) << FIXPT_SHIFT)
+#define FIXPT_GET_FRAC(a)	((((a) & FIXPNT_MASK) * 100) >> FIXPT_SHIFT)
+
 /* poor man's completion - we want to use wait_event_freezable() on it */
 struct dmatest_done {
 	bool			done;
@@ -453,13 +460,15 @@ static unsigned long long dmatest_persec(s64 runtime, unsigned int val)
 	}
 
 	per_sec *= val;
+	per_sec = INT_TO_FIXPT(per_sec);
 	do_div(per_sec, runtime);
+
 	return per_sec;
 }
 
 static unsigned long long dmatest_KBs(s64 runtime, unsigned long long len)
 {
-	return dmatest_persec(runtime, len >> 10);
+	return FIXPT_TO_INT(dmatest_persec(runtime, len >> 10));
 }
 
 /*
@@ -500,6 +509,7 @@ static int dmatest_func(void *data)
 	ktime_t			comparetime = 0;
 	s64			runtime = 0;
 	unsigned long long	total_len = 0;
+	unsigned long long	iops = 0;
 	u8			align = 0;
 	bool			is_memset = false;
 	dma_addr_t		*srcs;
@@ -838,9 +848,10 @@ err_usrcs:
 err_free_coefs:
 	kfree(pq_coefs);
 err_thread_type:
-	pr_info("%s: summary %u tests, %u failures %llu iops %llu KB/s (%d)\n",
+	iops = dmatest_persec(runtime, total_tests);
+	pr_info("%s: summary %u tests, %u failures %llu.%02llu iops %llu KB/s (%d)\n",
 		current->comm, total_tests, failed_tests,
-		dmatest_persec(runtime, total_tests),
+		FIXPT_TO_INT(iops), FIXPT_GET_FRAC(iops),
 		dmatest_KBs(runtime, total_len), ret);
 
 	/* terminate all transfers on specified channels */
