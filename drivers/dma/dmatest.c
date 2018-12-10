@@ -83,6 +83,10 @@ static int alignment = -1;
 module_param(alignment, int, 0644);
 MODULE_PARM_DESC(alignment, "Custom data address alignment taken as 2^(alignment) (default: not used (-1))");
 
+static unsigned int transfer_size;
+module_param(transfer_size, uint, 0644);
+MODULE_PARM_DESC(transfer_size, "Optional custom transfer size in bytes (default: not used (0))");
+
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -108,6 +112,7 @@ struct dmatest_params {
 	bool		noverify;
 	bool		norandom;
 	int		alignment;
+	unsigned int	transfer_size;
 };
 
 /**
@@ -643,15 +648,25 @@ static int dmatest_func(void *data)
 
 		total_tests++;
 
-		if (params->norandom)
+		if (params->transfer_size) {
+			if (params->transfer_size >= params->buf_size) {
+				pr_err("%u-byte transfer size must be lower than %u-buffer size\n",
+				       params->transfer_size, params->buf_size);
+				break;
+			}
+			len = params->transfer_size;
+		} else if (params->norandom) {
 			len = params->buf_size;
-		else
+		} else {
 			len = dmatest_random() % params->buf_size + 1;
+		}
 
-		len = (len >> align) << align;
-		if (!len)
-			len = 1 << align;
-
+		/* Do not alter transfer size explicitly defined by user */
+		if (!params->transfer_size) {
+			len = (len >> align) << align;
+			if (!len)
+				len = 1 << align;
+		}
 		total_len += len;
 
 		if (params->norandom) {
@@ -1047,6 +1062,7 @@ static void add_threaded_test(struct dmatest_info *info)
 	params->noverify = noverify;
 	params->norandom = norandom;
 	params->alignment = alignment;
+	params->transfer_size = transfer_size;
 
 	request_channels(info, DMA_MEMCPY);
 	request_channels(info, DMA_MEMSET);
