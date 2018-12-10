@@ -18,10 +18,9 @@
 /*
  * PVH variables.
  *
- * xen_pvh pvh_bootparams and pvh_start_info need to live in data segment
- * since they are used after startup_{32|64}, which clear .bss, are invoked.
+ * pvh_bootparams and pvh_start_info need to live in the data segment since
+ * they are used after startup_{32|64}, which clear .bss, are invoked.
  */
-bool xen_pvh __attribute__((section(".data"))) = 0;
 struct boot_params pvh_bootparams __attribute__((section(".data")));
 struct hvm_start_info pvh_start_info __attribute__((section(".data")));
 
