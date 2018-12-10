@@ -721,6 +721,21 @@ void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 	ops->rule_del(mlxsw_sp, rule->priv);
 }
 
+int mlxsw_sp_acl_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_rule *rule,
+				     struct mlxsw_afa_block *afa_block)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset = rule->ruleset;
+	const struct mlxsw_sp_acl_profile_ops *ops = ruleset->ht_key.ops;
+	struct mlxsw_sp_acl_rule_info *rulei;
+
+	rulei = mlxsw_sp_acl_rule_rulei(rule);
+	rulei->act_block = afa_block;
+
+	return ops->rule_action_replace(mlxsw_sp, ruleset->priv, rule->priv,
+					rule->rulei);
+}
+
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_lookup(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,

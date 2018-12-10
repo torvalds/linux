@@ -779,6 +779,20 @@ static void mlxsw_sp_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_group *group,
+				       struct mlxsw_sp_acl_tcam_entry *entry,
+				       struct mlxsw_sp_acl_rule_info *rulei)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	struct mlxsw_sp_acl_tcam_chunk *chunk = entry->chunk;
+	struct mlxsw_sp_acl_tcam_region *region = chunk->region;
+
+	return ops->entry_action_replace(mlxsw_sp, region->priv, chunk->priv,
+					 entry->priv, rulei);
+}
+
+static int
 mlxsw_sp_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_entry *entry,
 				     bool *activity)
@@ -939,6 +953,15 @@ mlxsw_sp_acl_tcam_flower_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
 }
 
 static int
+mlxsw_sp_acl_tcam_flower_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+					     void *ruleset_priv,
+					     void *rule_priv,
+					     struct mlxsw_sp_acl_rule_info *rulei)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
 mlxsw_sp_acl_tcam_flower_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
 					   void *rule_priv, bool *activity)
 {
@@ -958,6 +981,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.rule_priv_size		= mlxsw_sp_acl_tcam_flower_rule_priv_size,
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,
+	.rule_action_replace	= mlxsw_sp_acl_tcam_flower_rule_action_replace,
 	.rule_activity_get	= mlxsw_sp_acl_tcam_flower_rule_activity_get,
 };
 
@@ -1058,6 +1082,18 @@ mlxsw_sp_acl_tcam_mr_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
 }
 
 static int
+mlxsw_sp_acl_tcam_mr_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+					 void *ruleset_priv, void *rule_priv,
+					 struct mlxsw_sp_acl_rule_info *rulei)
+{
+	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
+	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
+
+	return mlxsw_sp_acl_tcam_entry_action_replace(mlxsw_sp, &ruleset->group,
+						      &rule->entry, rulei);
+}
+
+static int
 mlxsw_sp_acl_tcam_mr_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
 				       void *rule_priv, bool *activity)
 {
@@ -1077,6 +1113,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_mr_ops = {
 	.rule_priv_size		= mlxsw_sp_acl_tcam_mr_rule_priv_size,
 	.rule_add		= mlxsw_sp_acl_tcam_mr_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_mr_rule_del,
+	.rule_action_replace	= mlxsw_sp_acl_tcam_mr_rule_action_replace,
 	.rule_activity_get	= mlxsw_sp_acl_tcam_mr_rule_activity_get,
 };
 

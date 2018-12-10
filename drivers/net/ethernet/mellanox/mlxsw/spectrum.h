@@ -658,6 +658,9 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_rule *rule);
 void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_rule *rule);
+int mlxsw_sp_acl_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_rule *rule,
+				     struct mlxsw_afa_block *afa_block);
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_lookup(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
@@ -702,6 +705,10 @@ struct mlxsw_sp_acl_tcam_ops {
 	void (*entry_del)(struct mlxsw_sp *mlxsw_sp,
 			  void *region_priv, void *chunk_priv,
 			  void *entry_priv);
+	int (*entry_action_replace)(struct mlxsw_sp *mlxsw_sp,
+				    void *region_priv, void *chunk_priv,
+				    void *entry_priv,
+				    struct mlxsw_sp_acl_rule_info *rulei);
 	int (*entry_activity_get)(struct mlxsw_sp *mlxsw_sp,
 				  void *region_priv, void *entry_priv,
 				  bool *activity);
