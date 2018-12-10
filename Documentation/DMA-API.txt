@@ -747,7 +747,9 @@ driver afterwards. This filter can be disabled or changed later using debugfs.
 When the code disables itself at runtime this is most likely because it ran
 out of dma_debug_entries and was unable to allocate more on-demand. 65536
 entries are preallocated at boot - if this is too low for you boot with
-'dma_debug_entries=<your_desired_number>' to overwrite the default. The
+'dma_debug_entries=<your_desired_number>' to overwrite the default. Note
+that the code allocates entries in batches, so the exact number of
+preallocated entries may be greater than the actual number requested. The
 code will print to the kernel log each time it has dynamically allocated
 as many entries as were initially preallocated. This is to indicate that a
 larger preallocation size may be appropriate, or if it happens continually

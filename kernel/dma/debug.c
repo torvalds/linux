@@ -43,12 +43,9 @@
 #define HASH_FN_SHIFT   13
 #define HASH_FN_MASK    (HASH_SIZE - 1)
 
-/* allow architectures to override this if absolutely required */
-#ifndef PREALLOC_DMA_DEBUG_ENTRIES
 #define PREALLOC_DMA_DEBUG_ENTRIES (1 << 16)
-#endif
 /* If the pool runs out, add this many new entries at once */
-#define DMA_DEBUG_DYNAMIC_ENTRIES 256
+#define DMA_DEBUG_DYNAMIC_ENTRIES (PAGE_SIZE / sizeof(struct dma_debug_entry))
 
 enum {
 	dma_debug_single,
@@ -648,32 +645,22 @@ static void add_dma_entry(struct dma_debug_entry *entry)
 	 */
 }
 
-static int dma_debug_create_entries(u32 num_entries, gfp_t gfp)
+static int dma_debug_create_entries(gfp_t gfp)
 {
-	struct dma_debug_entry *entry, *next_entry;
+	struct dma_debug_entry *entry;
 	int i;
 
-	for (i = 0; i < num_entries; ++i) {
-		entry = kzalloc(sizeof(*entry), gfp);
-		if (!entry)
-			goto out_err;
+	entry = (void *)get_zeroed_page(gfp);
+	if (!entry)
+		return -ENOMEM;
 
-		list_add_tail(&entry->list, &free_entries);
-	}
+	for (i = 0; i < DMA_DEBUG_DYNAMIC_ENTRIES; i++)
+		list_add_tail(&entry[i].list, &free_entries);
 
-	num_free_entries += num_entries;
-	nr_total_entries += num_entries;
+	num_free_entries += DMA_DEBUG_DYNAMIC_ENTRIES;
+	nr_total_entries += DMA_DEBUG_DYNAMIC_ENTRIES;
 
 	return 0;
-
-out_err:
-
-	list_for_each_entry_safe(entry, next_entry, &free_entries, list) {
-		list_del(&entry->list);
-		kfree(entry);
-	}
-
-	return -ENOMEM;
 }
 
 static struct dma_debug_entry *__dma_entry_alloc(void)
@@ -715,8 +702,7 @@ static struct dma_debug_entry *dma_entry_alloc(void)
 
 	spin_lock_irqsave(&free_entries_lock, flags);
 	if (num_free_entries == 0) {
-		if (dma_debug_create_entries(DMA_DEBUG_DYNAMIC_ENTRIES,
-					     GFP_ATOMIC)) {
+		if (dma_debug_create_entries(GFP_ATOMIC)) {
 			global_disable = true;
 			spin_unlock_irqrestore(&free_entries_lock, flags);
 			pr_err("debugging out of memory - disabling\n");
@@ -987,7 +973,7 @@ void dma_debug_add_bus(struct bus_type *bus)
 
 static int dma_debug_init(void)
 {
-	int i;
+	int i, nr_pages;
 
 	/* Do not use dma_debug_initialized here, since we really want to be
 	 * called to set dma_debug_initialized
@@ -1007,15 +993,21 @@ static int dma_debug_init(void)
 		return 0;
 	}
 
-	if (dma_debug_create_entries(nr_prealloc_entries, GFP_KERNEL) != 0) {
+	nr_pages = DIV_ROUND_UP(nr_prealloc_entries, DMA_DEBUG_DYNAMIC_ENTRIES);
+	for (i = 0; i < nr_pages; ++i)
+		dma_debug_create_entries(GFP_KERNEL);
+	if (num_free_entries >= nr_prealloc_entries) {
+		pr_info("preallocated %d debug entries\n", nr_total_entries);
+	} else if (num_free_entries > 0) {
+		pr_warn("%d debug entries requested but only %d allocated\n",
+			nr_prealloc_entries, nr_total_entries);
+	} else {
 		pr_err("debugging out of memory error - disabled\n");
 		global_disable = true;
 
 		return 0;
 	}
-
 	min_free_entries = num_free_entries;
-	pr_info("preallocated %d debug entries\n", nr_total_entries);
 
 	dma_debug_initialized = true;
 
