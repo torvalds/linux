@@ -8,12 +8,14 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_data/microchip-ksz.h>
 #include <linux/phy.h>
 #include <linux/etherdevice.h>
 #include <linux/if_bridge.h>
+#include <linux/of_gpio.h>
 #include <linux/of_net.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
@@ -294,6 +296,17 @@ int ksz_switch_register(struct ksz_device *dev,
 	if (dev->pdata)
 		dev->chip_id = dev->pdata->chip_id;
 
+	dev->reset_gpio = devm_gpiod_get_optional(dev->dev, "reset",
+						  GPIOD_OUT_LOW);
+	if (IS_ERR(dev->reset_gpio))
+		return PTR_ERR(dev->reset_gpio);
+
+	if (dev->reset_gpio) {
+		gpiod_set_value(dev->reset_gpio, 1);
+		mdelay(10);
+		gpiod_set_value(dev->reset_gpio, 0);
+	}
+
 	mutex_init(&dev->reg_mutex);
 	mutex_init(&dev->stats_mutex);
 	mutex_init(&dev->alu_mutex);
@@ -329,6 +342,10 @@ void ksz_switch_remove(struct ksz_device *dev)
 {
 	dev->dev_ops->exit(dev);
 	dsa_unregister_switch(dev->ds);
+
+	if (dev->reset_gpio)
+		gpiod_set_value(dev->reset_gpio, 1);
+
 }
 EXPORT_SYMBOL(ksz_switch_remove);
 

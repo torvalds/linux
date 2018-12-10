@@ -8,6 +8,10 @@ Required properties:
   - "microchip,ksz9477"
   - "microchip,ksz9897"
 
+Optional properties:
+
+- reset-gpios		: Should be a gpio specifier for a reset line
+
 See Documentation/devicetree/bindings/net/dsa/dsa.txt for a list of additional
 required and optional properties.
 
