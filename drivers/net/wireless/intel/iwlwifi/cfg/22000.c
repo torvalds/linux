@@ -220,6 +220,7 @@ const struct iwl_cfg iwl22260_2ax_cfg = {
 	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
 	 */
 	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
+	.bisr_workaround = 1,
 };
 
 const struct iwl_cfg killer1650x_2ax_cfg = {
@@ -232,6 +233,7 @@ const struct iwl_cfg killer1650x_2ax_cfg = {
 	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
 	 */
 	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
+	.bisr_workaround = 1,
 };
 
 const struct iwl_cfg killer1650w_2ax_cfg = {
@@ -244,6 +246,7 @@ const struct iwl_cfg killer1650w_2ax_cfg = {
 	 * HT size; mac80211 would otherwise pick the HE max (256) by default.
 	 */
 	.max_tx_agg_size = IEEE80211_MAX_AMPDU_BUF_HT,
+	.bisr_workaround = 1,
 };
 
 /*

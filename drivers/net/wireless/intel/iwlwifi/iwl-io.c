@@ -493,6 +493,11 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 {
 	int err;
 
+	if (trans->cfg->bisr_workaround) {
+		/* ensure the TOP FSM isn't still in previous reset */
+		mdelay(2);
+	}
+
 	/*
 	 * Set "initialization complete" bit to move adapter from
 	 * D0U* --> D0A* (powered-up active) state.
@@ -514,6 +519,11 @@ int iwl_finish_nic_init(struct iwl_trans *trans)
 			   25000);
 	if (err < 0)
 		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
+
+	if (trans->cfg->bisr_workaround) {
+		/* ensure BISR shift has finished */
+		udelay(200);
+	}
 
 	return err < 0 ? err : 0;
 }

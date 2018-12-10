@@ -379,6 +379,7 @@ struct iwl_csr_params {
  * @nvm_type: see &enum iwl_nvm_type
  * @d3_debug_data_base_addr: base address where D3 debug data is stored
  * @d3_debug_data_length: length of the D3 debug data
+ * @bisr_workaround: BISR hardware workaround (for 22260 series devices)
  *
  * We enable the driver to be backward compatible wrt. hardware features.
  * API differences in uCode shouldn't be handled here but through TLVs
@@ -428,7 +429,8 @@ struct iwl_cfg {
 	    use_tfh:1,
 	    gen2:1,
 	    cdb:1,
-	    dbgc_supported:1;
+	    dbgc_supported:1,
+	    bisr_workaround:1;
 	u8 valid_tx_ant;
 	u8 valid_rx_ant;
 	u8 non_shared_ant;
