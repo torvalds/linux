@@ -1560,7 +1560,7 @@ static void __aac_shutdown(struct aac_dev * aac)
 			struct fib *fib = &aac->fibs[i];
 			if (!(fib->hw_fib_va->header.XferState & cpu_to_le32(NoResponseExpected | Async)) &&
 			    (fib->hw_fib_va->header.XferState & cpu_to_le32(ResponseExpected)))
-				up(&fib->event_wait);
+				complete(&fib->event_wait);
 		}
 		kthread_stop(aac->thread);
 		aac->thread = NULL;

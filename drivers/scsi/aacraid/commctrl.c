@@ -41,7 +41,6 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h> /* ssleep prototype */
 #include <linux/kthread.h>
-#include <linux/semaphore.h>
 #include <linux/uaccess.h>
 #include <scsi/scsi_host.h>
 

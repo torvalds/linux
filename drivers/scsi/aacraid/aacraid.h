@@ -40,6 +40,7 @@
 #define nblank(x) _nblank(x)[0]
 
 #include <linux/interrupt.h>
+#include <linux/completion.h>
 #include <linux/pci.h>
 #include <scsi/scsi_host.h>
 
@@ -1313,7 +1314,7 @@ struct fib {
 	 *	This is the event the sendfib routine will wait on if the
 	 *	caller did not pass one and this is synch io.
 	 */
-	struct semaphore	event_wait;
+	struct completion	event_wait;
 	spinlock_t		event_lock;
 
 	u32			done;	/* gets set to 1 when fib is complete */
