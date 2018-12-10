@@ -44,7 +44,7 @@ config ARCH_RZN1
 	bool
 	select ARM_AMBA
 
-if ARM
+if ARM && ARCH_RENESAS
 
 #comment "Renesas ARM SoCs System Type"
 
