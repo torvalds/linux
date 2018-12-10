@@ -488,3 +488,33 @@ int iwl_dump_fh(struct iwl_trans *trans, char **buf)
 
 	return 0;
 }
+
+int iwl_finish_nic_init(struct iwl_trans *trans)
+{
+	int err;
+
+	/*
+	 * Set "initialization complete" bit to move adapter from
+	 * D0U* --> D0A* (powered-up active) state.
+	 */
+	iwl_set_bit(trans, CSR_GP_CNTRL,
+		    BIT(trans->cfg->csr->flag_init_done));
+
+	if (trans->cfg->device_family == IWL_DEVICE_FAMILY_8000)
+		udelay(2);
+
+	/*
+	 * Wait for clock stabilization; once stabilized, access to
+	 * device-internal resources is supported, e.g. iwl_write_prph()
+	 * and accesses to uCode SRAM.
+	 */
+	err = iwl_poll_bit(trans, CSR_GP_CNTRL,
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   BIT(trans->cfg->csr->flag_mac_clock_ready),
+			   25000);
+	if (err < 0)
+		IWL_DEBUG_INFO(trans, "Failed to wake NIC\n");
+
+	return err < 0 ? err : 0;
+}
+IWL_EXPORT_SYMBOL(iwl_finish_nic_init);
