@@ -258,10 +258,7 @@ static void iwl_mvm_pass_packet_to_mac80211(struct iwl_mvm *mvm,
 					    struct ieee80211_sta *sta,
 					    bool csi)
 {
-	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-
-	if (!(rx_status->flag & RX_FLAG_NO_PSDU) &&
-	    iwl_mvm_check_pn(mvm, skb, queue, sta))
+	if (iwl_mvm_check_pn(mvm, skb, queue, sta))
 		kfree_skb(skb);
 	else
 		ieee80211_rx_napi(mvm->hw, sta, skb, napi);
@@ -1800,7 +1797,7 @@ void iwl_mvm_rx_monitor_ndp(struct iwl_mvm *mvm, struct napi_struct *napi,
 		rx_status->rate_idx = rate;
 	}
 
-	iwl_mvm_pass_packet_to_mac80211(mvm, napi, skb, queue, sta, false);
+	ieee80211_rx_napi(mvm->hw, sta, skb, napi);
 out:
 	rcu_read_unlock();
 }
