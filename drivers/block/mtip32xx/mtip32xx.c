@@ -2680,7 +2680,7 @@ static void mtip_softirq_done_fn(struct request *rq)
 							cmd->direction);
 
 	if (unlikely(cmd->unaligned))
-		up(&dd->port->cmd_slot_unal);
+		atomic_inc(&dd->port->cmd_slot_unal);
 
 	blk_mq_end_request(rq, cmd->status);
 }
@@ -2990,7 +2990,7 @@ static int mtip_hw_init(struct driver_data *dd)
 	else
 		dd->unal_qdepth = 0;
 
-	sema_init(&dd->port->cmd_slot_unal, dd->unal_qdepth);
+	atomic_set(&dd->port->cmd_slot_unal, dd->unal_qdepth);
 
 	/* Spinlock to prevent concurrent issue */
 	for (i = 0; i < MTIP_MAX_SLOT_GROUPS; i++)
@@ -3533,7 +3533,7 @@ static bool mtip_check_unal_depth(struct blk_mq_hw_ctx *hctx,
 			cmd->unaligned = 1;
 	}
 
-	if (cmd->unaligned && down_trylock(&dd->port->cmd_slot_unal))
+	if (cmd->unaligned && atomic_dec_if_positive(&dd->port->cmd_slot_unal) >= 0)
 		return true;
 
 	return false;

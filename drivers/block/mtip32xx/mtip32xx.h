@@ -433,8 +433,8 @@ struct mtip_port {
 	 */
 	unsigned long ic_pause_timer;
 
-	/* Semaphore to control queue depth of unaligned IOs */
-	struct semaphore cmd_slot_unal;
+	/* Counter to control queue depth of unaligned IOs */
+	atomic_t cmd_slot_unal;
 
 	/* Spinlock for working around command-issue bug. */
 	spinlock_t cmd_issue_lock[MTIP_MAX_SLOT_GROUPS];
