@@ -1,5 +1,6 @@
 #include "misc.h"
 
+#include <asm/asm.h>
 #include <asm/msr.h>
 #include <asm/archrandom.h>
 #include <asm/e820.h>
