@@ -1444,6 +1444,9 @@ void __audit_free(struct task_struct *tsk)
 	if (!context)
 		return;
 
+	if (!list_empty(&context->killed_trees))
+		audit_kill_trees(context);
+
 	/* We are called either by do_exit() or the fork() error handling code;
 	 * in the former case tsk == current and in the latter tsk is a
 	 * random task_struct that doesn't doesn't have any meaningful data we
@@ -1459,9 +1462,6 @@ void __audit_free(struct task_struct *tsk)
 		if (context->current_state == AUDIT_RECORD_CONTEXT)
 			audit_log_exit();
 	}
-
-	if (!list_empty(&context->killed_trees))
-		audit_kill_trees(&context->killed_trees);
 
 	audit_set_context(tsk, NULL);
 	audit_free_context(context);
@@ -1537,6 +1537,9 @@ void __audit_syscall_exit(int success, long return_code)
 	if (!context)
 		return;
 
+	if (!list_empty(&context->killed_trees))
+		audit_kill_trees(context);
+
 	if (!context->dummy && context->in_syscall) {
 		if (success)
 			context->return_valid = AUDITSC_SUCCESS;
@@ -1570,9 +1573,6 @@ void __audit_syscall_exit(int success, long return_code)
 
 	context->in_syscall = 0;
 	context->prio = context->state == AUDIT_RECORD_CONTEXT ? ~0ULL : 0;
-
-	if (!list_empty(&context->killed_trees))
-		audit_kill_trees(&context->killed_trees);
 
 	audit_free_names(context);
 	unroll_tree_refs(context, NULL, 0);
