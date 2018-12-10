@@ -15,12 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef __ASM_IMAGE_H
-#define __ASM_IMAGE_H
+#ifndef __ARM64_KERNEL_IMAGE_H
+#define __ARM64_KERNEL_IMAGE_H
 
 #ifndef LINKER_SCRIPT
 #error This file should only be included in vmlinux.lds.S
 #endif
+
+#include <asm/image.h>
 
 /*
  * There aren't any ELF relocations we can use to endian-swap values known only
@@ -47,19 +49,22 @@
 	sym##_lo32 = DATA_LE32((data) & 0xffffffff);		\
 	sym##_hi32 = DATA_LE32((data) >> 32)
 
+#define __HEAD_FLAG(field)	(__HEAD_FLAG_##field << \
+					ARM64_IMAGE_FLAG_##field##_SHIFT)
+
 #ifdef CONFIG_CPU_BIG_ENDIAN
-#define __HEAD_FLAG_BE		1
+#define __HEAD_FLAG_BE		ARM64_IMAGE_FLAG_BE
 #else
-#define __HEAD_FLAG_BE		0
+#define __HEAD_FLAG_BE		ARM64_IMAGE_FLAG_LE
 #endif
 
 #define __HEAD_FLAG_PAGE_SIZE	((PAGE_SHIFT - 10) / 2)
 
 #define __HEAD_FLAG_PHYS_BASE	1
 
-#define __HEAD_FLAGS		((__HEAD_FLAG_BE << 0) |	\
-				 (__HEAD_FLAG_PAGE_SIZE << 1) |	\
-				 (__HEAD_FLAG_PHYS_BASE << 3))
+#define __HEAD_FLAGS		(__HEAD_FLAG(BE)	| \
+				 __HEAD_FLAG(PAGE_SIZE) | \
+				 __HEAD_FLAG(PHYS_BASE))
 
 /*
  * These will output as part of the Image header, which should be little-endian
@@ -109,4 +114,4 @@ __efistub_screen_info		= screen_info;
 
 #endif
 
-#endif /* __ASM_IMAGE_H */
+#endif /* __ARM64_KERNEL_IMAGE_H */
