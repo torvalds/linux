@@ -194,7 +194,6 @@ void disasm_print_insn(unsigned char *image, ssize_t len, int opcodes,
 		       const struct bpf_prog_linfo *prog_linfo,
 		       __u64 func_ksym, unsigned int func_idx,
 		       bool linum)
-
 {
 }
 static inline int disasm_init(void)

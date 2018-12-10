@@ -73,6 +73,7 @@ DESCRIPTION
 		  be displayed by default.  If **linum** is specified,
 		  the filename, line number and line column will also be
 		  displayed on top of the source line.
+
 	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** | **linum** }]
 		  Dump jited image (host machine code) of the program.
 		  If *FILE* is specified image will be written to a file,
@@ -84,6 +85,7 @@ DESCRIPTION
 		  be displayed by default.  If **linum** is specified,
 		  the filename, line number and line column will also be
 		  displayed on top of the source line.
+
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
 

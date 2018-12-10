@@ -592,7 +592,6 @@ static int do_dump(int argc, char **argv)
 	info.jited_line_info_rec_size = jited_linfo_rec_size;
 	info.jited_line_info = ptr_to_u64(jited_linfo);
 
-
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	close(fd);
 	if (err) {
@@ -674,7 +673,7 @@ static int do_dump(int argc, char **argv)
 	if (linfo_cnt) {
 		prog_linfo = bpf_prog_linfo__new(&info);
 		if (!prog_linfo)
-			p_err("error in processing bpf_line_info.  continue without it.");
+			p_info("error in processing bpf_line_info.  continue without it.");
 	}
 
 	if (filepath) {
