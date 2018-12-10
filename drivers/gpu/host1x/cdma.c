@@ -210,7 +210,7 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 		cdma->event = event;
 
 		mutex_unlock(&cdma->lock);
-		down(&cdma->sem);
+		wait_for_completion(&cdma->complete);
 		mutex_lock(&cdma->lock);
 	}
 
@@ -314,7 +314,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 
 	if (signal) {
 		cdma->event = CDMA_EVENT_NONE;
-		up(&cdma->sem);
+		complete(&cdma->complete);
 	}
 }
 
@@ -416,7 +416,7 @@ int host1x_cdma_init(struct host1x_cdma *cdma)
 	int err;
 
 	mutex_init(&cdma->lock);
-	sema_init(&cdma->sem, 0);
+	init_completion(&cdma->complete);
 
 	INIT_LIST_HEAD(&cdma->sync_queue);
 
