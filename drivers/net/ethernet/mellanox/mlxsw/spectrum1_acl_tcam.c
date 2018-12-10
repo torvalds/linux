@@ -67,7 +67,7 @@ mlxsw_sp1_acl_ctcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ctcam_chunk_init(&region->cregion,
 				      &region->catchall.cchunk,
 				      MLXSW_SP_ACL_TCAM_CATCHALL_PRIO);
-	rulei = mlxsw_sp_acl_rulei_create(mlxsw_sp->acl);
+	rulei = mlxsw_sp_acl_rulei_create(mlxsw_sp->acl, NULL);
 	if (IS_ERR(rulei)) {
 		err = PTR_ERR(rulei);
 		goto err_rulei_create;
