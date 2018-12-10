@@ -1210,7 +1210,7 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	raw_spin_unlock_irqrestore(&iommu->register_lock, flag);
 }
 
-static void iommu_flush_write_buffer(struct intel_iommu *iommu)
+void iommu_flush_write_buffer(struct intel_iommu *iommu)
 {
 	u32 val;
 	unsigned long flag;
