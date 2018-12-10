@@ -557,7 +557,7 @@ static int stimer_get_count(struct kvm_vcpu_hv_stimer *stimer, u64 *pcount)
 }
 
 static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
-			     struct hv_message *src_msg)
+			     struct hv_message *src_msg, bool no_retry)
 {
 	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
 	int msg_off = offsetof(struct hv_message_page, sint_message[sint]);
@@ -584,6 +584,9 @@ static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
 		return r;
 
 	if (hv_hdr.message_type != HVMSG_NONE) {
+		if (no_retry)
+			return 0;
+
 		hv_hdr.message_flags.msg_pending = 1;
 		r = kvm_vcpu_write_guest_page(vcpu, msg_page_gfn,
 					      &hv_hdr.message_flags,
@@ -617,10 +620,17 @@ static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
 	struct hv_timer_message_payload *payload =
 			(struct hv_timer_message_payload *)&msg->u.payload;
 
+	/*
+	 * To avoid piling up periodic ticks, don't retry message
+	 * delivery for them (within "lazy" lost ticks policy).
+	 */
+	bool no_retry = stimer->config & HV_STIMER_PERIODIC;
+
 	payload->expiration_time = stimer->exp_time;
 	payload->delivery_time = get_time_ref_counter(vcpu->kvm);
 	return synic_deliver_msg(vcpu_to_synic(vcpu),
-				 HV_STIMER_SINT(stimer->config), msg);
+				 HV_STIMER_SINT(stimer->config), msg,
+				 no_retry);
 }
 
 static void stimer_expiration(struct kvm_vcpu_hv_stimer *stimer)
