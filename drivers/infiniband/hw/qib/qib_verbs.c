@@ -1493,6 +1493,11 @@ static void qib_fill_device_attr(struct qib_devdata *dd)
 	dd->verbs_dev.rdi.wc_opcode = ib_qib_wc_opcode;
 }
 
+static const struct ib_device_ops qib_dev_ops = {
+	.modify_device = qib_modify_device,
+	.process_mad = qib_process_mad,
+};
+
 /**
  * qib_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -1555,8 +1560,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	ibdev->node_guid = ppd->guid;
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dev.parent = &dd->pcidev->dev;
-	ibdev->modify_device = qib_modify_device;
-	ibdev->process_mad = qib_process_mad;
 
 	snprintf(ibdev->node_desc, sizeof(ibdev->node_desc),
 		 "Intel Infiniband HCA %s", init_utsname()->nodename);
@@ -1624,6 +1627,7 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	}
 	rdma_set_device_sysfs_group(&dd->verbs_dev.rdi.ibdev, &qib_attr_group);
 
+	ib_set_device_ops(ibdev, &qib_dev_ops);
 	ret = rvt_register_device(&dd->verbs_dev.rdi, RDMA_DRIVER_QIB);
 	if (ret)
 		goto err_tx;
