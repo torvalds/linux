@@ -94,10 +94,6 @@ struct reportpwrstate_parm {
 	unsigned short rsvd;
 };
 
-
-typedef _sema _pwrlock;
-
-
 #define LPS_DELAY_TIME	1*HZ /*  1 sec */
 
 #define EXE_PWR_NONE	0x01
@@ -209,7 +205,6 @@ typedef struct pno_scan_info
 struct pwrctrl_priv
 {
 	struct mutex lock;
-	_pwrlock	check_32k_lock;
 	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm; /*  fw current power state. updated when 1. read from HCPWM 2. driver lowers power level */
 	volatile u8 tog; /*  toggling */

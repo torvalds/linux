@@ -1126,7 +1126,6 @@ void rtw_init_pwrctrl_priv(struct adapter *padapter)
 	struct pwrctrl_priv *pwrctrlpriv = adapter_to_pwrctl(padapter);
 
 	mutex_init(&pwrctrlpriv->lock);
-	sema_init(&pwrctrlpriv->check_32k_lock, 1);
 	pwrctrlpriv->rf_pwrstate = rf_on;
 	pwrctrlpriv->ips_enter_cnts = 0;
 	pwrctrlpriv->ips_leave_cnts = 0;
