@@ -57,7 +57,8 @@ struct dpaa2_io_desc {
 	u32 qman_version;
 };
 
-struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc);
+struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
+				 struct device *dev);
 
 void dpaa2_io_down(struct dpaa2_io *d);
 

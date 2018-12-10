@@ -27,6 +27,7 @@ struct dpaa2_io {
 	/* protect notifications list */
 	spinlock_t lock_notifications;
 	struct list_head notifications;
+	struct device *dev;
 };
 
 struct dpaa2_io_store {
@@ -98,13 +99,15 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_select);
 /**
  * dpaa2_io_create() - create a dpaa2_io object.
  * @desc: the dpaa2_io descriptor
+ * @dev: the actual DPIO device
  *
  * Activates a "struct dpaa2_io" corresponding to the given config of an actual
  * DPIO object.
  *
  * Return a valid dpaa2_io object for success, or NULL for failure.
  */
-struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
+struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc,
+				 struct device *dev)
 {
 	struct dpaa2_io *obj = kmalloc(sizeof(*obj), GFP_KERNEL);
 
@@ -145,6 +148,8 @@ struct dpaa2_io *dpaa2_io_create(const struct dpaa2_io_desc *desc)
 	if (desc->cpu >= 0 && !dpio_by_cpu[desc->cpu])
 		dpio_by_cpu[desc->cpu] = obj;
 	spin_unlock(&dpio_list_lock);
+
+	obj->dev = dev;
 
 	return obj;
 }

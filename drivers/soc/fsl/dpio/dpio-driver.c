@@ -176,7 +176,7 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	if (err)
 		goto err_register_dpio_irq;
 
-	priv->io = dpaa2_io_create(&desc);
+	priv->io = dpaa2_io_create(&desc, dev);
 	if (!priv->io) {
 		dev_err(dev, "dpaa2_io_create failed\n");
 		err = -ENOMEM;
