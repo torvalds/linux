@@ -382,6 +382,7 @@ static void percpu_array_map_seq_show_elem(struct bpf_map *map, void *key,
 }
 
 static int array_map_check_btf(const struct bpf_map *map,
+			       const struct btf *btf,
 			       const struct btf_type *key_type,
 			       const struct btf_type *value_type)
 {
