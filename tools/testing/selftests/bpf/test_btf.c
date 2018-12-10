@@ -2548,9 +2548,9 @@ static int do_test_file(unsigned int test_num)
 		err = -1;
 		goto done;
 	}
-	if (CHECK(info.func_info_cnt != 3,
-		  "incorrect info.func_info_cnt (1st) %d",
-		  info.func_info_cnt)) {
+	if (CHECK(info.nr_func_info != 3,
+		  "incorrect info.nr_func_info (1st) %d",
+		  info.nr_func_info)) {
 		err = -1;
 		goto done;
 	}
@@ -2561,7 +2561,7 @@ static int do_test_file(unsigned int test_num)
 		goto done;
 	}
 
-	func_info = malloc(info.func_info_cnt * rec_size);
+	func_info = malloc(info.nr_func_info * rec_size);
 	if (CHECK(!func_info, "out of memory")) {
 		err = -1;
 		goto done;
@@ -2569,7 +2569,7 @@ static int do_test_file(unsigned int test_num)
 
 	/* reset info to only retrieve func_info related data */
 	memset(&info, 0, sizeof(info));
-	info.func_info_cnt = 3;
+	info.nr_func_info = 3;
 	info.func_info_rec_size = rec_size;
 	info.func_info = ptr_to_u64(func_info);
 
@@ -2580,9 +2580,9 @@ static int do_test_file(unsigned int test_num)
 		err = -1;
 		goto done;
 	}
-	if (CHECK(info.func_info_cnt != 3,
-		  "incorrect info.func_info_cnt (2nd) %d",
-		  info.func_info_cnt)) {
+	if (CHECK(info.nr_func_info != 3,
+		  "incorrect info.nr_func_info (2nd) %d",
+		  info.nr_func_info)) {
 		err = -1;
 		goto done;
 	}
@@ -3544,9 +3544,9 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		fprintf(stderr, "%s\n", btf_log_buf);
 		return -1;
 	}
-	if (CHECK(info.func_info_cnt != test->func_info_cnt,
-		  "incorrect info.func_info_cnt (1st) %d",
-		  info.func_info_cnt)) {
+	if (CHECK(info.nr_func_info != test->func_info_cnt,
+		  "incorrect info.nr_func_info (1st) %d",
+		  info.nr_func_info)) {
 		return -1;
 	}
 
@@ -3556,16 +3556,16 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		return -1;
 	}
 
-	if (!info.func_info_cnt)
+	if (!info.nr_func_info)
 		return 0;
 
-	func_info = malloc(info.func_info_cnt * rec_size);
+	func_info = malloc(info.nr_func_info * rec_size);
 	if (CHECK(!func_info, "out of memory"))
 		return -1;
 
 	/* reset info to only retrieve func_info related data */
 	memset(&info, 0, sizeof(info));
-	info.func_info_cnt = test->func_info_cnt;
+	info.nr_func_info = test->func_info_cnt;
 	info.func_info_rec_size = rec_size;
 	info.func_info = ptr_to_u64(func_info);
 	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
@@ -3574,9 +3574,9 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		err = -1;
 		goto done;
 	}
-	if (CHECK(info.func_info_cnt != test->func_info_cnt,
-		  "incorrect info.func_info_cnt (2nd) %d",
-		  info.func_info_cnt)) {
+	if (CHECK(info.nr_func_info != test->func_info_cnt,
+		  "incorrect info.nr_func_info (2nd) %d",
+		  info.nr_func_info)) {
 		err = -1;
 		goto done;
 	}
@@ -3648,14 +3648,14 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 		nr_jited_func_lens = 1;
 	}
 
-	if (CHECK(info.line_info_cnt != cnt ||
-		  info.jited_line_info_cnt != jited_cnt ||
+	if (CHECK(info.nr_line_info != cnt ||
+		  info.nr_jited_line_info != jited_cnt ||
 		  info.nr_jited_ksyms != nr_jited_ksyms ||
 		  info.nr_jited_func_lens != nr_jited_func_lens ||
-		  (!info.line_info_cnt && info.jited_line_info_cnt),
-		  "info: line_info_cnt:%u(expected:%u) jited_line_info_cnt:%u(expected:%u) nr_jited_ksyms:%u(expected:%u) nr_jited_func_lens:%u(expected:%u)",
-		  info.line_info_cnt, cnt,
-		  info.jited_line_info_cnt, jited_cnt,
+		  (!info.nr_line_info && info.nr_jited_line_info),
+		  "info: nr_line_info:%u(expected:%u) nr_jited_line_info:%u(expected:%u) nr_jited_ksyms:%u(expected:%u) nr_jited_func_lens:%u(expected:%u)",
+		  info.nr_line_info, cnt,
+		  info.nr_jited_line_info, jited_cnt,
 		  info.nr_jited_ksyms, nr_jited_ksyms,
 		  info.nr_jited_func_lens, nr_jited_func_lens)) {
 		err = -1;
@@ -3684,7 +3684,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 		err = -1;
 		goto done;
 	}
-	info.line_info_cnt = cnt;
+	info.nr_line_info = cnt;
 	info.line_info_rec_size = rec_size;
 	info.line_info = ptr_to_u64(linfo);
 
@@ -3700,7 +3700,7 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 			goto done;
 		}
 
-		info.jited_line_info_cnt = jited_cnt;
+		info.nr_jited_line_info = jited_cnt;
 		info.jited_line_info_rec_size = jited_rec_size;
 		info.jited_line_info = ptr_to_u64(jited_linfo);
 		info.nr_jited_ksyms = nr_jited_ksyms;
@@ -3717,15 +3717,15 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 	 */
 	if (CHECK(err == -1 ||
 		  !info.line_info ||
-		  info.line_info_cnt != cnt ||
+		  info.nr_line_info != cnt ||
 		  (jited_cnt && !info.jited_line_info) ||
-		  info.jited_line_info_cnt != jited_cnt ||
+		  info.nr_jited_line_info != jited_cnt ||
 		  info.line_info_rec_size != rec_size ||
 		  info.jited_line_info_rec_size != jited_rec_size,
-		  "err:%d errno:%d info: line_info_cnt:%u(expected:%u) jited_line_info_cnt:%u(expected:%u) line_info_rec_size:%u(expected:%u) jited_linfo_rec_size:%u(expected:%u) line_info:%p jited_line_info:%p",
+		  "err:%d errno:%d info: nr_line_info:%u(expected:%u) nr_jited_line_info:%u(expected:%u) line_info_rec_size:%u(expected:%u) jited_linfo_rec_size:%u(expected:%u) line_info:%p jited_line_info:%p",
 		  err, errno,
-		  info.line_info_cnt, cnt,
-		  info.jited_line_info_cnt, jited_cnt,
+		  info.nr_line_info, cnt,
+		  info.nr_jited_line_info, jited_cnt,
 		  info.line_info_rec_size, rec_size,
 		  info.jited_line_info_rec_size, jited_rec_size,
 		  (void *)(long)info.line_info,

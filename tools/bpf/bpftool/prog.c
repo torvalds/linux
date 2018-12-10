@@ -425,7 +425,7 @@ static int do_dump(int argc, char **argv)
 {
 	unsigned int finfo_rec_size, linfo_rec_size, jited_linfo_rec_size;
 	void *func_info = NULL, *linfo = NULL, *jited_linfo = NULL;
-	unsigned int finfo_cnt, linfo_cnt = 0, jited_linfo_cnt = 0;
+	unsigned int nr_finfo, nr_linfo = 0, nr_jited_linfo = 0;
 	struct bpf_prog_linfo *prog_linfo = NULL;
 	unsigned long *func_ksyms = NULL;
 	struct bpf_prog_info info = {};
@@ -537,10 +537,10 @@ static int do_dump(int argc, char **argv)
 		}
 	}
 
-	finfo_cnt = info.func_info_cnt;
+	nr_finfo = info.nr_func_info;
 	finfo_rec_size = info.func_info_rec_size;
-	if (finfo_cnt && finfo_rec_size) {
-		func_info = malloc(finfo_cnt * finfo_rec_size);
+	if (nr_finfo && finfo_rec_size) {
+		func_info = malloc(nr_finfo * finfo_rec_size);
 		if (!func_info) {
 			p_err("mem alloc failed");
 			close(fd);
@@ -549,9 +549,9 @@ static int do_dump(int argc, char **argv)
 	}
 
 	linfo_rec_size = info.line_info_rec_size;
-	if (info.line_info_cnt && linfo_rec_size && info.btf_id) {
-		linfo_cnt = info.line_info_cnt;
-		linfo = malloc(linfo_cnt * linfo_rec_size);
+	if (info.nr_line_info && linfo_rec_size && info.btf_id) {
+		nr_linfo = info.nr_line_info;
+		linfo = malloc(nr_linfo * linfo_rec_size);
 		if (!linfo) {
 			p_err("mem alloc failed");
 			close(fd);
@@ -560,13 +560,13 @@ static int do_dump(int argc, char **argv)
 	}
 
 	jited_linfo_rec_size = info.jited_line_info_rec_size;
-	if (info.jited_line_info_cnt &&
+	if (info.nr_jited_line_info &&
 	    jited_linfo_rec_size &&
 	    info.nr_jited_ksyms &&
 	    info.nr_jited_func_lens &&
 	    info.btf_id) {
-		jited_linfo_cnt = info.jited_line_info_cnt;
-		jited_linfo = malloc(jited_linfo_cnt * jited_linfo_rec_size);
+		nr_jited_linfo = info.nr_jited_line_info;
+		jited_linfo = malloc(nr_jited_linfo * jited_linfo_rec_size);
 		if (!jited_linfo) {
 			p_err("mem alloc failed");
 			close(fd);
@@ -582,13 +582,13 @@ static int do_dump(int argc, char **argv)
 	info.nr_jited_ksyms = nr_func_ksyms;
 	info.jited_func_lens = ptr_to_u64(func_lens);
 	info.nr_jited_func_lens = nr_func_lens;
-	info.func_info_cnt = finfo_cnt;
+	info.nr_func_info = nr_finfo;
 	info.func_info_rec_size = finfo_rec_size;
 	info.func_info = ptr_to_u64(func_info);
-	info.line_info_cnt = linfo_cnt;
+	info.nr_line_info = nr_linfo;
 	info.line_info_rec_size = linfo_rec_size;
 	info.line_info = ptr_to_u64(linfo);
-	info.jited_line_info_cnt = jited_linfo_cnt;
+	info.nr_jited_line_info = nr_jited_linfo;
 	info.jited_line_info_rec_size = jited_linfo_rec_size;
 	info.jited_line_info = ptr_to_u64(jited_linfo);
 
@@ -614,9 +614,9 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	if (info.func_info_cnt != finfo_cnt) {
-		p_err("incorrect func_info_cnt %d vs. expected %d",
-		      info.func_info_cnt, finfo_cnt);
+	if (info.nr_func_info != nr_finfo) {
+		p_err("incorrect nr_func_info %d vs. expected %d",
+		      info.nr_func_info, nr_finfo);
 		goto err_free;
 	}
 
@@ -630,12 +630,12 @@ static int do_dump(int argc, char **argv)
 		/* kernel.kptr_restrict is set.  No func_info available. */
 		free(func_info);
 		func_info = NULL;
-		finfo_cnt = 0;
+		nr_finfo = 0;
 	}
 
-	if (linfo && info.line_info_cnt != linfo_cnt) {
-		p_err("incorrect line_info_cnt %u vs. expected %u",
-		      info.line_info_cnt, linfo_cnt);
+	if (linfo && info.nr_line_info != nr_linfo) {
+		p_err("incorrect nr_line_info %u vs. expected %u",
+		      info.nr_line_info, nr_linfo);
 		goto err_free;
 	}
 
@@ -645,9 +645,9 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	if (jited_linfo && info.jited_line_info_cnt != jited_linfo_cnt) {
-		p_err("incorrect jited_line_info_cnt %u vs. expected %u",
-		      info.jited_line_info_cnt, jited_linfo_cnt);
+	if (jited_linfo && info.nr_jited_line_info != nr_jited_linfo) {
+		p_err("incorrect nr_jited_line_info %u vs. expected %u",
+		      info.nr_jited_line_info, nr_jited_linfo);
 		goto err_free;
 	}
 
@@ -670,7 +670,7 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	if (linfo_cnt) {
+	if (nr_linfo) {
 		prog_linfo = bpf_prog_linfo__new(&info);
 		if (!prog_linfo)
 			p_info("error in processing bpf_line_info.  continue without it.");

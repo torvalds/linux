@@ -2696,11 +2696,11 @@ struct bpf_prog_info {
 	__u32 btf_id;
 	__u32 func_info_rec_size;
 	__aligned_u64 func_info;
-	__u32 func_info_cnt;
-	__u32 line_info_cnt;
+	__u32 nr_func_info;
+	__u32 nr_line_info;
 	__aligned_u64 line_info;
 	__aligned_u64 jited_line_info;
-	__u32 jited_line_info_cnt;
+	__u32 nr_jited_line_info;
 	__u32 line_info_rec_size;
 	__u32 jited_line_info_rec_size;
 } __attribute__((aligned(8)));
