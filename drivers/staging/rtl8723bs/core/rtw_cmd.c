@@ -166,10 +166,8 @@ sint	_rtw_init_cmd_priv(struct	cmd_priv *pcmdpriv)
 {
 	sint res = _SUCCESS;
 
-	sema_init(&(pcmdpriv->cmd_queue_sema), 0);
-	/* sema_init(&(pcmdpriv->cmd_done_sema), 0); */
-	sema_init(&(pcmdpriv->terminate_cmdthread_sema), 0);
-
+	init_completion(&pcmdpriv->cmd_queue_comp);
+	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
 	_rtw_init_queue(&(pcmdpriv->cmd_queue));
 
@@ -369,7 +367,7 @@ u32 rtw_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *cmd_obj)
 	res = _rtw_enqueue_cmd(&pcmdpriv->cmd_queue, cmd_obj);
 
 	if (res == _SUCCESS)
-		up(&pcmdpriv->cmd_queue_sema);
+		complete(&pcmdpriv->cmd_queue_comp);
 
 exit:
 	return res;
@@ -410,8 +408,8 @@ void rtw_stop_cmd_thread(struct adapter *adapter)
 		atomic_read(&(adapter->cmdpriv.cmdthd_running)) == true &&
 		adapter->cmdpriv.stop_req == 0) {
 		adapter->cmdpriv.stop_req = 1;
-		up(&adapter->cmdpriv.cmd_queue_sema);
-		down(&adapter->cmdpriv.terminate_cmdthread_sema);
+		complete(&adapter->cmdpriv.cmd_queue_comp);
+		wait_for_completion(&adapter->cmdpriv.terminate_cmdthread_comp);
 	}
 }
 
@@ -435,13 +433,13 @@ int rtw_cmd_thread(void *context)
 
 	pcmdpriv->stop_req = 0;
 	atomic_set(&(pcmdpriv->cmdthd_running), true);
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	complete(&pcmdpriv->terminate_cmdthread_comp);
 
 	RT_TRACE(_module_rtl871x_cmd_c_, _drv_info_, ("start r871x rtw_cmd_thread !!!!\n"));
 
 	while (1) {
-		if (down_interruptible(&pcmdpriv->cmd_queue_sema)) {
-			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" down_interruptible(&pcmdpriv->cmd_queue_sema) return != 0, break\n", FUNC_ADPT_ARG(padapter));
+		if (wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp)) {
+			DBG_871X_LEVEL(_drv_always_, FUNC_ADPT_FMT" wait_for_completion_interruptible(&pcmdpriv->cmd_queue_comp) return != 0, break\n", FUNC_ADPT_ARG(padapter));
 			break;
 		}
 
@@ -581,7 +579,7 @@ post_process:
 		rtw_free_cmd_obj(pcmd);
 	} while (1);
 
-	up(&pcmdpriv->terminate_cmdthread_sema);
+	complete(&pcmdpriv->terminate_cmdthread_comp);
 	atomic_set(&(pcmdpriv->cmdthd_running), false);
 
 	thread_exit();

@@ -2373,8 +2373,6 @@ sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, s
 
 		INIT_LIST_HEAD(&pcmd->list);
 
-		/* sema_init(&(pcmd->cmd_sem), 0); */
-
 		res = rtw_enqueue_cmd(pcmdpriv, pcmd);
 	} else{
 		setkey_hdl(adapter, (u8 *)psetkeyparm);

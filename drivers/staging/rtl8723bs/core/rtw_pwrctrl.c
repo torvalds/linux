@@ -745,10 +745,10 @@ void cpwm_int_hdl(
 
 	if (pwrpriv->cpwm >= PS_STATE_S2) {
 		if (pwrpriv->alives & CMD_ALIVE)
-			up(&padapter->cmdpriv.cmd_queue_sema);
+			complete(&padapter->cmdpriv.cmd_queue_comp);
 
 		if (pwrpriv->alives & XMIT_ALIVE)
-			up(&padapter->xmitpriv.xmit_sema);
+			complete(&padapter->xmitpriv.xmit_comp);
 	}
 
 	up(&pwrpriv->lock);

@@ -7,6 +7,7 @@
 #ifndef __RTW_CMD_H_
 #define __RTW_CMD_H_
 
+#include <linux/completion.h>
 
 #define C2H_MEM_SZ (16*1024)
 
@@ -27,7 +28,6 @@
 		u8 *rsp;
 		u32 rspsz;
 		struct submit_ctx *sctx;
-		/* _sema		cmd_sem; */
 		struct list_head	list;
 	};
 
@@ -38,9 +38,8 @@
 	};
 
 	struct cmd_priv {
-		_sema	cmd_queue_sema;
-		/* _sema	cmd_done_sema; */
-		_sema	terminate_cmdthread_sema;
+		struct completion cmd_queue_comp;
+		struct completion terminate_cmdthread_comp;
 		struct __queue	cmd_queue;
 		u8 cmd_seq;
 		u8 *cmd_buf;	/* shall be non-paged, and 4 bytes aligned */
