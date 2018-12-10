@@ -84,7 +84,7 @@ struct gcm_context_data {
 	u8 current_counter[GCM_BLOCK_LEN];
 	u64 partial_block_len;
 	u64 unused;
-	u8 hash_keys[GCM_BLOCK_LEN * 8];
+	u8 hash_keys[GCM_BLOCK_LEN * 16];
 };
 
 asmlinkage int aesni_set_key(struct crypto_aes_ctx *ctx, const u8 *in_key,
@@ -187,14 +187,18 @@ asmlinkage void aes_ctr_enc_256_avx_by8(const u8 *in, u8 *iv,
  * gcm_data *my_ctx_data, context data
  * u8 *hash_subkey,  the Hash sub key input. Data starts on a 16-byte boundary.
  */
-asmlinkage void aesni_gcm_precomp_avx_gen2(void *my_ctx_data, u8 *hash_subkey);
+asmlinkage void aesni_gcm_precomp_avx_gen2(void *my_ctx_data,
+					   struct gcm_context_data *gdata,
+					   u8 *hash_subkey);
 
-asmlinkage void aesni_gcm_enc_avx_gen2(void *ctx, u8 *out,
+asmlinkage void aesni_gcm_enc_avx_gen2(void *ctx,
+				struct gcm_context_data *gdata, u8 *out,
 			const u8 *in, unsigned long plaintext_len, u8 *iv,
 			const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
 
-asmlinkage void aesni_gcm_dec_avx_gen2(void *ctx, u8 *out,
+asmlinkage void aesni_gcm_dec_avx_gen2(void *ctx,
+				struct gcm_context_data *gdata, u8 *out,
 			const u8 *in, unsigned long ciphertext_len, u8 *iv,
 			const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
@@ -211,9 +215,9 @@ static void aesni_gcm_enc_avx(void *ctx,
 			plaintext_len, iv, hash_subkey, aad,
 			aad_len, auth_tag, auth_tag_len);
 	} else {
-		aesni_gcm_precomp_avx_gen2(ctx, hash_subkey);
-		aesni_gcm_enc_avx_gen2(ctx, out, in, plaintext_len, iv, aad,
-					aad_len, auth_tag, auth_tag_len);
+		aesni_gcm_precomp_avx_gen2(ctx, data, hash_subkey);
+		aesni_gcm_enc_avx_gen2(ctx, data, out, in, plaintext_len, iv,
+				       aad, aad_len, auth_tag, auth_tag_len);
 	}
 }
 
@@ -229,9 +233,9 @@ static void aesni_gcm_dec_avx(void *ctx,
 			ciphertext_len, iv, hash_subkey, aad,
 			aad_len, auth_tag, auth_tag_len);
 	} else {
-		aesni_gcm_precomp_avx_gen2(ctx, hash_subkey);
-		aesni_gcm_dec_avx_gen2(ctx, out, in, ciphertext_len, iv, aad,
-					aad_len, auth_tag, auth_tag_len);
+		aesni_gcm_precomp_avx_gen2(ctx, data, hash_subkey);
+		aesni_gcm_dec_avx_gen2(ctx, data, out, in, ciphertext_len, iv,
+				       aad, aad_len, auth_tag, auth_tag_len);
 	}
 }
 #endif
@@ -242,14 +246,18 @@ static void aesni_gcm_dec_avx(void *ctx,
  * gcm_data *my_ctx_data, context data
  * u8 *hash_subkey,  the Hash sub key input. Data starts on a 16-byte boundary.
  */
-asmlinkage void aesni_gcm_precomp_avx_gen4(void *my_ctx_data, u8 *hash_subkey);
+asmlinkage void aesni_gcm_precomp_avx_gen4(void *my_ctx_data,
+					   struct gcm_context_data *gdata,
+					   u8 *hash_subkey);
 
-asmlinkage void aesni_gcm_enc_avx_gen4(void *ctx, u8 *out,
+asmlinkage void aesni_gcm_enc_avx_gen4(void *ctx,
+				struct gcm_context_data *gdata, u8 *out,
 			const u8 *in, unsigned long plaintext_len, u8 *iv,
 			const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
 
-asmlinkage void aesni_gcm_dec_avx_gen4(void *ctx, u8 *out,
+asmlinkage void aesni_gcm_dec_avx_gen4(void *ctx,
+				struct gcm_context_data *gdata, u8 *out,
 			const u8 *in, unsigned long ciphertext_len, u8 *iv,
 			const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len);
@@ -266,13 +274,13 @@ static void aesni_gcm_enc_avx2(void *ctx,
 			      plaintext_len, iv, hash_subkey, aad,
 			      aad_len, auth_tag, auth_tag_len);
 	} else if (plaintext_len < AVX_GEN4_OPTSIZE) {
-		aesni_gcm_precomp_avx_gen2(ctx, hash_subkey);
-		aesni_gcm_enc_avx_gen2(ctx, out, in, plaintext_len, iv, aad,
-					aad_len, auth_tag, auth_tag_len);
+		aesni_gcm_precomp_avx_gen2(ctx, data, hash_subkey);
+		aesni_gcm_enc_avx_gen2(ctx, data, out, in, plaintext_len, iv,
+				       aad, aad_len, auth_tag, auth_tag_len);
 	} else {
-		aesni_gcm_precomp_avx_gen4(ctx, hash_subkey);
-		aesni_gcm_enc_avx_gen4(ctx, out, in, plaintext_len, iv, aad,
-					aad_len, auth_tag, auth_tag_len);
+		aesni_gcm_precomp_avx_gen4(ctx, data, hash_subkey);
+		aesni_gcm_enc_avx_gen4(ctx, data, out, in, plaintext_len, iv,
+				       aad, aad_len, auth_tag, auth_tag_len);
 	}
 }
 
@@ -288,13 +296,13 @@ static void aesni_gcm_dec_avx2(void *ctx,
 			      ciphertext_len, iv, hash_subkey,
 			      aad, aad_len, auth_tag, auth_tag_len);
 	} else if (ciphertext_len < AVX_GEN4_OPTSIZE) {
-		aesni_gcm_precomp_avx_gen2(ctx, hash_subkey);
-		aesni_gcm_dec_avx_gen2(ctx, out, in, ciphertext_len, iv, aad,
-					aad_len, auth_tag, auth_tag_len);
+		aesni_gcm_precomp_avx_gen2(ctx, data, hash_subkey);
+		aesni_gcm_dec_avx_gen2(ctx, data, out, in, ciphertext_len, iv,
+				       aad, aad_len, auth_tag, auth_tag_len);
 	} else {
-		aesni_gcm_precomp_avx_gen4(ctx, hash_subkey);
-		aesni_gcm_dec_avx_gen4(ctx, out, in, ciphertext_len, iv, aad,
-					aad_len, auth_tag, auth_tag_len);
+		aesni_gcm_precomp_avx_gen4(ctx, data, hash_subkey);
+		aesni_gcm_dec_avx_gen4(ctx, data, out, in, ciphertext_len, iv,
+				       aad, aad_len, auth_tag, auth_tag_len);
 	}
 }
 #endif
