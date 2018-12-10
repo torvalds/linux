@@ -260,7 +260,7 @@ mt76x2_power_on(struct mt76x02_dev *dev)
 	mt76x2_power_on_rf(dev, 1);
 }
 
-int mt76x2_init_hardware(struct mt76x02_dev *dev)
+static int mt76x2_init_hardware(struct mt76x02_dev *dev)
 {
 	int ret;
 
