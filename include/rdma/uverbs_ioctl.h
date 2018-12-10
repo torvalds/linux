@@ -454,15 +454,16 @@ struct uapi_definition {
 	}
 
 /* Temporary until the tree base description is replaced */
-#define UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, _object_ptr)                     \
+#define UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, _object_ptr, ...)                \
 	{                                                                      \
 		.kind = UAPI_DEF_CHAIN_OBJ_TREE,                               \
 		.object_start = { .object_id = _object_enum },                 \
 		.chain_obj_tree = _object_ptr,                                 \
-	}
-#define UAPI_DEF_CHAIN_OBJ_TREE_NAMED(_object_enum, ...)                       \
-	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, &UVERBS_OBJECT(_object_enum)),   \
+	},								       \
 		##__VA_ARGS__
+#define UAPI_DEF_CHAIN_OBJ_TREE_NAMED(_object_enum, ...)                       \
+	UAPI_DEF_CHAIN_OBJ_TREE(_object_enum, &UVERBS_OBJECT(_object_enum),    \
+				##__VA_ARGS__)
 
 /*
  * =======================================

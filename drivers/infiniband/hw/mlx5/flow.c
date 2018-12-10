@@ -134,8 +134,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_CREATE_FLOW)(
 			return -EINVAL;
 		flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	}
-	if (dev->rep)
-		return -ENOTSUPP;
 
 	if (dest_type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
 	    fs_matcher->ns_type == MLX5_FLOW_NAMESPACE_EGRESS)
@@ -623,9 +621,19 @@ DECLARE_UVERBS_NAMED_OBJECT(MLX5_IB_OBJECT_FLOW_MATCHER,
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_CREATE),
 			    &UVERBS_METHOD(MLX5_IB_METHOD_FLOW_MATCHER_DESTROY));
 
+static bool flow_is_supported(struct ib_device *device)
+{
+	return !to_mdev(device)->rep;
+}
+
 const struct uapi_definition mlx5_ib_flow_defs[] = {
-	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(MLX5_IB_OBJECT_FLOW_MATCHER),
-	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_FLOW, &mlx5_ib_fs),
+	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(
+		MLX5_IB_OBJECT_FLOW_MATCHER,
+		UAPI_DEF_IS_OBJ_SUPPORTED(flow_is_supported)),
+	UAPI_DEF_CHAIN_OBJ_TREE(
+		UVERBS_OBJECT_FLOW,
+		&mlx5_ib_fs,
+		UAPI_DEF_IS_OBJ_SUPPORTED(flow_is_supported)),
 	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_FLOW_ACTION,
 				&mlx5_ib_flow_actions),
 	{},
