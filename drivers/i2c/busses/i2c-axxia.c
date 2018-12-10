@@ -337,17 +337,9 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
+static void axxia_i2c_set_addr(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 {
-	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SNS;
-	u32 rx_xfer, tx_xfer;
 	u32 addr_1, addr_2;
-	unsigned long time_left;
-	unsigned int wt_value;
-
-	idev->msg = msg;
-	idev->msg_xfrd = 0;
-	reinit_completion(&idev->msg_complete);
 
 	if (i2c_m_ten(msg)) {
 		/* 10-bit address
@@ -367,6 +359,23 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 		addr_2 = 0;
 	}
 
+	writel(addr_1, idev->base + MST_ADDR_1);
+	writel(addr_2, idev->base + MST_ADDR_2);
+}
+
+static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
+{
+	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SNS;
+	u32 rx_xfer, tx_xfer;
+	unsigned long time_left;
+	unsigned int wt_value;
+
+	idev->msg = msg;
+	idev->msg_xfrd = 0;
+	reinit_completion(&idev->msg_complete);
+
+	axxia_i2c_set_addr(idev, msg);
+
 	if (i2c_m_rd(msg)) {
 		/* I2C read transfer */
 		rx_xfer = i2c_m_recv_len(msg) ? I2C_SMBUS_BLOCK_MAX : msg->len;
@@ -379,8 +388,6 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 
 	writel(rx_xfer, idev->base + MST_RX_XFER);
 	writel(tx_xfer, idev->base + MST_TX_XFER);
-	writel(addr_1, idev->base + MST_ADDR_1);
-	writel(addr_2, idev->base + MST_ADDR_2);
 
 	if (i2c_m_rd(msg))
 		int_mask |= MST_STATUS_RFL;
