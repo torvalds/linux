@@ -110,6 +110,7 @@ struct trace {
 	} stats;
 	unsigned int		max_stack;
 	unsigned int		min_stack;
+	bool			sort_events;
 	bool			raw_augmented_syscalls;
 	bool			not_ev_qualifier;
 	bool			live;
@@ -2656,7 +2657,7 @@ static int __trace__deliver_event(struct trace *trace, union perf_event *event)
 	return 0;
 }
 
-static int trace__flush_events(struct trace *trace)
+static int __trace__flush_events(struct trace *trace)
 {
 	u64 first = ordered_events__first_time(&trace->oe.data);
 	u64 flush = trace->oe.last - NSEC_PER_SEC;
@@ -2668,12 +2669,19 @@ static int trace__flush_events(struct trace *trace)
 	return 0;
 }
 
+static int trace__flush_events(struct trace *trace)
+{
+	return !trace->sort_events ? 0 : __trace__flush_events(trace);
+}
+
 static int trace__deliver_event(struct trace *trace, union perf_event *event)
 {
-	struct perf_evlist *evlist = trace->evlist;
 	int err;
 
-	err = perf_evlist__parse_sample_timestamp(evlist, event, &trace->oe.last);
+	if (!trace->sort_events)
+		return __trace__deliver_event(trace, event);
+
+	err = perf_evlist__parse_sample_timestamp(trace->evlist, event, &trace->oe.last);
 	if (err && err != -1)
 		return err;
 
@@ -2897,7 +2905,8 @@ out_disable:
 
 	perf_evlist__disable(evlist);
 
-	ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
+	if (trace->sort_events)
+		ordered_events__flush(&trace->oe.data, OE_FLUSH__FINAL);
 
 	if (!err) {
 		if (trace->summary)
@@ -3516,6 +3525,8 @@ int cmd_trace(int argc, const char **argv)
 		     "Set the maximum stack depth when parsing the callchain, "
 		     "anything beyond the specified depth will be ignored. "
 		     "Default: kernel.perf_event_max_stack or " __stringify(PERF_MAX_STACK_DEPTH)),
+	OPT_BOOLEAN(0, "sort-events", &trace.sort_events,
+			"Sort batch of events before processing, use if getting out of order events"),
 	OPT_BOOLEAN(0, "print-sample", &trace.print_sample,
 			"print the PERF_RECORD_SAMPLE PERF_SAMPLE_ info, for debugging"),
 	OPT_UINTEGER(0, "proc-map-timeout", &proc_map_timeout,
@@ -3609,8 +3620,10 @@ int cmd_trace(int argc, const char **argv)
 		}
 	}
 
-	ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
-	ordered_events__set_copy_on_queue(&trace.oe.data, true);
+	if (trace.sort_events) {
+		ordered_events__init(&trace.oe.data, ordered_events__deliver_event, &trace);
+		ordered_events__set_copy_on_queue(&trace.oe.data, true);
+	}
 
 	/*
 	 * If we are augmenting syscalls, then combine what we put in the
