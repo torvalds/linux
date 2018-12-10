@@ -174,18 +174,26 @@ struct nvdimm_key_data {
 	u8 data[NVDIMM_PASSPHRASE_LEN];
 };
 
+enum nvdimm_passphrase_type {
+	NVDIMM_USER,
+	NVDIMM_MASTER,
+};
+
 struct nvdimm_security_ops {
-	enum nvdimm_security_state (*state)(struct nvdimm *nvdimm);
+	enum nvdimm_security_state (*state)(struct nvdimm *nvdimm,
+			enum nvdimm_passphrase_type pass_type);
 	int (*freeze)(struct nvdimm *nvdimm);
 	int (*change_key)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *old_data,
-			const struct nvdimm_key_data *new_data);
+			const struct nvdimm_key_data *new_data,
+			enum nvdimm_passphrase_type pass_type);
 	int (*unlock)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
 	int (*disable)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
 	int (*erase)(struct nvdimm *nvdimm,
-			const struct nvdimm_key_data *key_data);
+			const struct nvdimm_key_data *key_data,
+			enum nvdimm_passphrase_type pass_type);
 	int (*overwrite)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
 	int (*query_overwrite)(struct nvdimm *nvdimm);

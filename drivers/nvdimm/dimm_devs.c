@@ -386,17 +386,21 @@ static ssize_t security_show(struct device *dev,
 		return sprintf(buf, "frozen\n");
 	case NVDIMM_SECURITY_OVERWRITE:
 		return sprintf(buf, "overwrite\n");
+	default:
+		return -ENOTTY;
 	}
 
 	return -ENOTTY;
 }
 
-#define OPS						\
-	C( OP_FREEZE,		"freeze",	1),	\
-	C( OP_DISABLE,		"disable",	2),	\
-	C( OP_UPDATE,		"update",	3),	\
-	C( OP_ERASE,		"erase",	2),	\
-	C( OP_OVERWRITE,	"overwrite",	2)
+#define OPS							\
+	C( OP_FREEZE,		"freeze",		1),	\
+	C( OP_DISABLE,		"disable",		2),	\
+	C( OP_UPDATE,		"update",		3),	\
+	C( OP_ERASE,		"erase",		2),	\
+	C( OP_OVERWRITE,	"overwrite",		2),	\
+	C( OP_MASTER_UPDATE,	"master_update",	3),	\
+	C( OP_MASTER_ERASE,	"master_erase",		2)
 #undef C
 #define C(a, b, c) a
 enum nvdimmsec_op_ids { OPS };
@@ -449,13 +453,21 @@ static ssize_t __security_store(struct device *dev, const char *buf, size_t len)
 		rc = nvdimm_security_disable(nvdimm, key);
 	} else if (i == OP_UPDATE) {
 		dev_dbg(dev, "update %u %u\n", key, newkey);
-		rc = nvdimm_security_update(nvdimm, key, newkey);
+		rc = nvdimm_security_update(nvdimm, key, newkey, NVDIMM_USER);
 	} else if (i == OP_ERASE) {
 		dev_dbg(dev, "erase %u\n", key);
-		rc = nvdimm_security_erase(nvdimm, key);
+		rc = nvdimm_security_erase(nvdimm, key, NVDIMM_USER);
 	} else if (i == OP_OVERWRITE) {
 		dev_dbg(dev, "overwrite %u\n", key);
 		rc = nvdimm_security_overwrite(nvdimm, key);
+	} else if (i == OP_MASTER_UPDATE) {
+		dev_dbg(dev, "master_update %u %u\n", key, newkey);
+		rc = nvdimm_security_update(nvdimm, key, newkey,
+				NVDIMM_MASTER);
+	} else if (i == OP_MASTER_ERASE) {
+		dev_dbg(dev, "master_erase %u\n", key);
+		rc = nvdimm_security_erase(nvdimm, key,
+				NVDIMM_MASTER);
 	} else
 		return -EINVAL;
 
@@ -557,7 +569,9 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	 * Security state must be initialized before device_add() for
 	 * attribute visibility.
 	 */
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	/* get security state and extended (master) state */
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
+	nvdimm->sec.ext_state = nvdimm_security_state(nvdimm, NVDIMM_MASTER);
 	nd_device_register(dev);
 
 	return nvdimm;
@@ -598,7 +612,7 @@ int nvdimm_security_freeze(struct nvdimm *nvdimm)
 	}
 
 	rc = nvdimm->sec.ops->freeze(nvdimm);
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
 
 	return rc;
 }

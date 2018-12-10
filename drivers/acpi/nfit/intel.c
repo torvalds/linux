@@ -7,7 +7,8 @@
 #include "intel.h"
 #include "nfit.h"
 
-static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm)
+static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm,
+		enum nvdimm_passphrase_type ptype)
 {
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 	struct {
@@ -33,7 +34,7 @@ static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm)
 	 * The DSM spec states that the security state is indeterminate
 	 * until the overwrite DSM completes.
 	 */
-	if (nvdimm_in_overwrite(nvdimm))
+	if (nvdimm_in_overwrite(nvdimm) && ptype == NVDIMM_USER)
 		return NVDIMM_SECURITY_OVERWRITE;
 
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
@@ -43,17 +44,28 @@ static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm)
 		return -EIO;
 
 	/* check and see if security is enabled and locked */
-	if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_UNSUPPORTED)
-		return -ENXIO;
-	else if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_ENABLED) {
-		if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_LOCKED)
-			return NVDIMM_SECURITY_LOCKED;
-		else if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_FROZEN ||
-				nd_cmd.cmd.state & ND_INTEL_SEC_STATE_PLIMIT)
-			return NVDIMM_SECURITY_FROZEN;
-		else
+	if (ptype == NVDIMM_MASTER) {
+		if (nd_cmd.cmd.extended_state & ND_INTEL_SEC_ESTATE_ENABLED)
 			return NVDIMM_SECURITY_UNLOCKED;
+		else if (nd_cmd.cmd.extended_state &
+				ND_INTEL_SEC_ESTATE_PLIMIT)
+			return NVDIMM_SECURITY_FROZEN;
+	} else {
+		if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_UNSUPPORTED)
+			return -ENXIO;
+		else if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_ENABLED) {
+			if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_LOCKED)
+				return NVDIMM_SECURITY_LOCKED;
+			else if (nd_cmd.cmd.state & ND_INTEL_SEC_STATE_FROZEN
+					|| nd_cmd.cmd.state &
+					ND_INTEL_SEC_STATE_PLIMIT)
+				return NVDIMM_SECURITY_FROZEN;
+			else
+				return NVDIMM_SECURITY_UNLOCKED;
+		}
 	}
+
+	/* this should cover master security disabled as well */
 	return NVDIMM_SECURITY_DISABLED;
 }
 
@@ -86,24 +98,28 @@ static int intel_security_freeze(struct nvdimm *nvdimm)
 
 static int intel_security_change_key(struct nvdimm *nvdimm,
 		const struct nvdimm_key_data *old_data,
-		const struct nvdimm_key_data *new_data)
+		const struct nvdimm_key_data *new_data,
+		enum nvdimm_passphrase_type ptype)
 {
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	unsigned int cmd = ptype == NVDIMM_MASTER ?
+		NVDIMM_INTEL_SET_MASTER_PASSPHRASE :
+		NVDIMM_INTEL_SET_PASSPHRASE;
 	struct {
 		struct nd_cmd_pkg pkg;
 		struct nd_intel_set_passphrase cmd;
 	} nd_cmd = {
 		.pkg = {
-			.nd_command = NVDIMM_INTEL_SET_PASSPHRASE,
 			.nd_family = NVDIMM_FAMILY_INTEL,
 			.nd_size_in = ND_INTEL_PASSPHRASE_SIZE * 2,
 			.nd_size_out = ND_INTEL_STATUS_SIZE,
 			.nd_fw_size = ND_INTEL_STATUS_SIZE,
+			.nd_command = cmd,
 		},
 	};
 	int rc;
 
-	if (!test_bit(NVDIMM_INTEL_SET_PASSPHRASE, &nfit_mem->dsm_mask))
+	if (!test_bit(cmd, &nfit_mem->dsm_mask))
 		return -ENOTTY;
 
 	if (old_data)
@@ -212,10 +228,13 @@ static int intel_security_disable(struct nvdimm *nvdimm,
 }
 
 static int intel_security_erase(struct nvdimm *nvdimm,
-		const struct nvdimm_key_data *key)
+		const struct nvdimm_key_data *key,
+		enum nvdimm_passphrase_type ptype)
 {
 	int rc;
 	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	unsigned int cmd = ptype == NVDIMM_MASTER ?
+		NVDIMM_INTEL_MASTER_SECURE_ERASE : NVDIMM_INTEL_SECURE_ERASE;
 	struct {
 		struct nd_cmd_pkg pkg;
 		struct nd_intel_secure_erase cmd;
@@ -225,11 +244,11 @@ static int intel_security_erase(struct nvdimm *nvdimm,
 			.nd_size_in = ND_INTEL_PASSPHRASE_SIZE,
 			.nd_size_out = ND_INTEL_STATUS_SIZE,
 			.nd_fw_size = ND_INTEL_STATUS_SIZE,
-			.nd_command = NVDIMM_INTEL_SECURE_ERASE,
+			.nd_command = cmd,
 		},
 	};
 
-	if (!test_bit(NVDIMM_INTEL_SECURE_ERASE, &nfit_mem->dsm_mask))
+	if (!test_bit(cmd, &nfit_mem->dsm_mask))
 		return -ENOTTY;
 
 	/* flush all cache before we erase DIMM */

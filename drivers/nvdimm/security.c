@@ -121,7 +121,8 @@ static struct key *nvdimm_key_revalidate(struct nvdimm *nvdimm)
 	 * Send the same key to the hardware as new and old key to
 	 * verify that the key is good.
 	 */
-	rc = nvdimm->sec.ops->change_key(nvdimm, key_data(key), key_data(key));
+	rc = nvdimm->sec.ops->change_key(nvdimm, key_data(key),
+			key_data(key), NVDIMM_USER);
 	if (rc < 0) {
 		nvdimm_put_key(key);
 		key = NULL;
@@ -173,7 +174,7 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 			rc == 0 ? "success" : "fail");
 
 	nvdimm_put_key(key);
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
 	return rc;
 }
 
@@ -222,12 +223,13 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 			rc == 0 ? "success" : "fail");
 
 	nvdimm_put_key(key);
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
 	return rc;
 }
 
 int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
-		unsigned int new_keyid)
+		unsigned int new_keyid,
+		enum nvdimm_passphrase_type pass_type)
 {
 	struct device *dev = &nvdimm->dev;
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
@@ -262,18 +264,25 @@ int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
 	}
 
 	rc = nvdimm->sec.ops->change_key(nvdimm, key ? key_data(key) : NULL,
-			key_data(newkey));
-	dev_dbg(dev, "key: %d %d update: %s\n",
+			key_data(newkey), pass_type);
+	dev_dbg(dev, "key: %d %d update%s: %s\n",
 			key_serial(key), key_serial(newkey),
+			pass_type == NVDIMM_MASTER ? "(master)" : "(user)",
 			rc == 0 ? "success" : "fail");
 
 	nvdimm_put_key(newkey);
 	nvdimm_put_key(key);
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	if (pass_type == NVDIMM_MASTER)
+		nvdimm->sec.ext_state = nvdimm_security_state(nvdimm,
+				NVDIMM_MASTER);
+	else
+		nvdimm->sec.state = nvdimm_security_state(nvdimm,
+				NVDIMM_USER);
 	return rc;
 }
 
-int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
+int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid,
+		enum nvdimm_passphrase_type pass_type)
 {
 	struct device *dev = &nvdimm->dev;
 	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
@@ -303,16 +312,24 @@ int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EBUSY;
 	}
 
+	if (nvdimm->sec.ext_state != NVDIMM_SECURITY_UNLOCKED
+			&& pass_type == NVDIMM_MASTER) {
+		dev_warn(dev,
+			"Attempt to secure erase in wrong master state.\n");
+		return -EOPNOTSUPP;
+	}
+
 	key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
 	if (!key)
 		return -ENOKEY;
 
-	rc = nvdimm->sec.ops->erase(nvdimm, key_data(key));
-	dev_dbg(dev, "key: %d erase: %s\n", key_serial(key),
+	rc = nvdimm->sec.ops->erase(nvdimm, key_data(key), pass_type);
+	dev_dbg(dev, "key: %d erase%s: %s\n", key_serial(key),
+			pass_type == NVDIMM_MASTER ? "(master)" : "(user)",
 			rc == 0 ? "success" : "fail");
 
 	nvdimm_put_key(key);
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
 	return rc;
 }
 
@@ -375,6 +392,7 @@ int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
 		get_device(dev);
 		queue_delayed_work(system_wq, &nvdimm->dwork, 0);
 	}
+
 	return rc;
 }
 
@@ -421,7 +439,8 @@ void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
 	clear_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags);
 	clear_bit(NDD_WORK_PENDING, &nvdimm->flags);
 	put_device(&nvdimm->dev);
-	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm, NVDIMM_USER);
+	nvdimm->sec.ext_state = nvdimm_security_state(nvdimm, NVDIMM_MASTER);
 }
 
 void nvdimm_security_overwrite_query(struct work_struct *work)

@@ -46,6 +46,7 @@ struct nvdimm {
 	struct {
 		const struct nvdimm_security_ops *ops;
 		enum nvdimm_security_state state;
+		enum nvdimm_security_state ext_state;
 		unsigned int overwrite_tmo;
 		struct kernfs_node *overwrite_state;
 	} sec;
@@ -53,19 +54,21 @@ struct nvdimm {
 };
 
 static inline enum nvdimm_security_state nvdimm_security_state(
-		struct nvdimm *nvdimm)
+		struct nvdimm *nvdimm, bool master)
 {
 	if (!nvdimm->sec.ops)
 		return -ENXIO;
 
-	return nvdimm->sec.ops->state(nvdimm);
+	return nvdimm->sec.ops->state(nvdimm, master);
 }
 int nvdimm_security_freeze(struct nvdimm *nvdimm);
 #if IS_ENABLED(CONFIG_NVDIMM_KEYS)
 int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid);
 int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
-		unsigned int new_keyid);
-int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid);
+		unsigned int new_keyid,
+		enum nvdimm_passphrase_type pass_type);
+int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid,
+		enum nvdimm_passphrase_type pass_type);
 int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid);
 void nvdimm_security_overwrite_query(struct work_struct *work);
 #else
@@ -74,12 +77,16 @@ static inline int nvdimm_security_disable(struct nvdimm *nvdimm,
 {
 	return -EOPNOTSUPP;
 }
-static inline int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
-		unsigned int new_keyid)
+static inline int nvdimm_security_update(struct nvdimm *nvdimm,
+		unsigned int keyid,
+		unsigned int new_keyid,
+		enum nvdimm_passphrase_type pass_type)
 {
 	return -EOPNOTSUPP;
 }
-static inline int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
+static inline int nvdimm_security_erase(struct nvdimm *nvdimm,
+		unsigned int keyid,
+		enum nvdimm_passphrase_type pass_type)
 {
 	return -EOPNOTSUPP;
 }
