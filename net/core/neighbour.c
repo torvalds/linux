@@ -138,11 +138,17 @@ static void neigh_change_state(struct neighbour *n, u8 new)
 	 * add to the gc list if new state is not permanent
 	 */
 	if (new_is_perm && on_gc_list) {
+		write_lock_bh(&n->tbl->lock);
 		list_del_init(&n->gc_list);
+		write_unlock_bh(&n->tbl->lock);
+
 		atomic_dec(&n->tbl->gc_entries);
 	} else if (!new_is_perm && !on_gc_list) {
 		/* add entries to the tail; cleaning removes from the front */
+		write_lock_bh(&n->tbl->lock);
 		list_add_tail(&n->gc_list, &n->tbl->gc_list);
+		write_unlock_bh(&n->tbl->lock);
+
 		atomic_inc(&n->tbl->gc_entries);
 	}
 }
@@ -390,11 +396,7 @@ do_alloc:
 	n->tbl		  = tbl;
 	refcount_set(&n->refcnt, 1);
 	n->dead		  = 1;
-
-	if (!permanent)
-		list_add_tail(&n->gc_list, &n->tbl->gc_list);
-	else
-		INIT_LIST_HEAD(&n->gc_list);
+	INIT_LIST_HEAD(&n->gc_list);
 
 	atomic_inc(&tbl->entries);
 out:
@@ -616,6 +618,9 @@ static struct neighbour *___neigh_create(struct neigh_table *tbl,
 	}
 
 	n->dead = 0;
+	if (!permanent)
+		list_add_tail(&n->gc_list, &n->tbl->gc_list);
+
 	if (want_ref)
 		neigh_hold(n);
 	rcu_assign_pointer(n->next,
