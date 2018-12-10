@@ -372,7 +372,6 @@ static int map_request(struct dm_rq_target_io *tio)
 	blk_status_t ret;
 
 	r = ti->type->clone_and_map_rq(ti, rq, &tio->info, &clone);
-check_again:
 	switch (r) {
 	case DM_MAPIO_SUBMITTED:
 		/* The target has taken the I/O to submit by itself later */
@@ -392,8 +391,7 @@ check_again:
 			blk_rq_unprep_clone(clone);
 			tio->ti->type->release_clone_rq(clone);
 			tio->clone = NULL;
-			r = DM_MAPIO_REQUEUE;
-			goto check_again;
+			return DM_MAPIO_REQUEUE;
 		}
 		break;
 	case DM_MAPIO_REQUEUE:
