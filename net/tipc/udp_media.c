@@ -679,6 +679,11 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	if (err)
 		goto err;
 
+	if (remote.proto != local.proto) {
+		err = -EINVAL;
+		goto err;
+	}
+
 	/* Checking remote ip address */
 	rmcast = tipc_udp_is_mcast_addr(&remote);
 
