@@ -1219,6 +1219,104 @@ struct net_device *ib_get_net_dev_by_params(struct ib_device *dev,
 }
 EXPORT_SYMBOL(ib_get_net_dev_by_params);
 
+void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
+{
+#define SET_DEVICE_OP(ptr, name)                                               \
+	do {                                                                   \
+		if (ops->name)                                                 \
+			if (!((ptr)->name))				       \
+				(ptr)->name = ops->name;                       \
+	} while (0)
+
+	SET_DEVICE_OP(dev, add_gid);
+	SET_DEVICE_OP(dev, alloc_dm);
+	SET_DEVICE_OP(dev, alloc_fmr);
+	SET_DEVICE_OP(dev, alloc_hw_stats);
+	SET_DEVICE_OP(dev, alloc_mr);
+	SET_DEVICE_OP(dev, alloc_mw);
+	SET_DEVICE_OP(dev, alloc_pd);
+	SET_DEVICE_OP(dev, alloc_rdma_netdev);
+	SET_DEVICE_OP(dev, alloc_ucontext);
+	SET_DEVICE_OP(dev, alloc_xrcd);
+	SET_DEVICE_OP(dev, attach_mcast);
+	SET_DEVICE_OP(dev, check_mr_status);
+	SET_DEVICE_OP(dev, create_ah);
+	SET_DEVICE_OP(dev, create_counters);
+	SET_DEVICE_OP(dev, create_cq);
+	SET_DEVICE_OP(dev, create_flow);
+	SET_DEVICE_OP(dev, create_flow_action_esp);
+	SET_DEVICE_OP(dev, create_qp);
+	SET_DEVICE_OP(dev, create_rwq_ind_table);
+	SET_DEVICE_OP(dev, create_srq);
+	SET_DEVICE_OP(dev, create_wq);
+	SET_DEVICE_OP(dev, dealloc_dm);
+	SET_DEVICE_OP(dev, dealloc_fmr);
+	SET_DEVICE_OP(dev, dealloc_mw);
+	SET_DEVICE_OP(dev, dealloc_pd);
+	SET_DEVICE_OP(dev, dealloc_ucontext);
+	SET_DEVICE_OP(dev, dealloc_xrcd);
+	SET_DEVICE_OP(dev, del_gid);
+	SET_DEVICE_OP(dev, dereg_mr);
+	SET_DEVICE_OP(dev, destroy_ah);
+	SET_DEVICE_OP(dev, destroy_counters);
+	SET_DEVICE_OP(dev, destroy_cq);
+	SET_DEVICE_OP(dev, destroy_flow);
+	SET_DEVICE_OP(dev, destroy_flow_action);
+	SET_DEVICE_OP(dev, destroy_qp);
+	SET_DEVICE_OP(dev, destroy_rwq_ind_table);
+	SET_DEVICE_OP(dev, destroy_srq);
+	SET_DEVICE_OP(dev, destroy_wq);
+	SET_DEVICE_OP(dev, detach_mcast);
+	SET_DEVICE_OP(dev, disassociate_ucontext);
+	SET_DEVICE_OP(dev, drain_rq);
+	SET_DEVICE_OP(dev, drain_sq);
+	SET_DEVICE_OP(dev, get_dev_fw_str);
+	SET_DEVICE_OP(dev, get_dma_mr);
+	SET_DEVICE_OP(dev, get_hw_stats);
+	SET_DEVICE_OP(dev, get_link_layer);
+	SET_DEVICE_OP(dev, get_netdev);
+	SET_DEVICE_OP(dev, get_port_immutable);
+	SET_DEVICE_OP(dev, get_vector_affinity);
+	SET_DEVICE_OP(dev, get_vf_config);
+	SET_DEVICE_OP(dev, get_vf_stats);
+	SET_DEVICE_OP(dev, map_mr_sg);
+	SET_DEVICE_OP(dev, map_phys_fmr);
+	SET_DEVICE_OP(dev, mmap);
+	SET_DEVICE_OP(dev, modify_ah);
+	SET_DEVICE_OP(dev, modify_cq);
+	SET_DEVICE_OP(dev, modify_device);
+	SET_DEVICE_OP(dev, modify_flow_action_esp);
+	SET_DEVICE_OP(dev, modify_port);
+	SET_DEVICE_OP(dev, modify_qp);
+	SET_DEVICE_OP(dev, modify_srq);
+	SET_DEVICE_OP(dev, modify_wq);
+	SET_DEVICE_OP(dev, peek_cq);
+	SET_DEVICE_OP(dev, poll_cq);
+	SET_DEVICE_OP(dev, post_recv);
+	SET_DEVICE_OP(dev, post_send);
+	SET_DEVICE_OP(dev, post_srq_recv);
+	SET_DEVICE_OP(dev, process_mad);
+	SET_DEVICE_OP(dev, query_ah);
+	SET_DEVICE_OP(dev, query_device);
+	SET_DEVICE_OP(dev, query_gid);
+	SET_DEVICE_OP(dev, query_pkey);
+	SET_DEVICE_OP(dev, query_port);
+	SET_DEVICE_OP(dev, query_qp);
+	SET_DEVICE_OP(dev, query_srq);
+	SET_DEVICE_OP(dev, rdma_netdev_get_params);
+	SET_DEVICE_OP(dev, read_counters);
+	SET_DEVICE_OP(dev, reg_dm_mr);
+	SET_DEVICE_OP(dev, reg_user_mr);
+	SET_DEVICE_OP(dev, req_ncomp_notif);
+	SET_DEVICE_OP(dev, req_notify_cq);
+	SET_DEVICE_OP(dev, rereg_user_mr);
+	SET_DEVICE_OP(dev, resize_cq);
+	SET_DEVICE_OP(dev, set_vf_guid);
+	SET_DEVICE_OP(dev, set_vf_link_state);
+	SET_DEVICE_OP(dev, unmap_fmr);
+}
+EXPORT_SYMBOL(ib_set_device_ops);
+
 static const struct rdma_nl_cbs ibnl_ls_cb_table[RDMA_NL_LS_NUM_OPS] = {
 	[RDMA_NL_LS_OP_RESOLVE] = {
 		.doit = ib_nl_handle_resolve_resp,
