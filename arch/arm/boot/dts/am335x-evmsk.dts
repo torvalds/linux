@@ -540,7 +540,7 @@
 &epwmss2 {
 	status = "okay";
 
-	ecap2: ecap@48304100 {
+	ecap2: ecap@100 {
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&ecap2_pins>;

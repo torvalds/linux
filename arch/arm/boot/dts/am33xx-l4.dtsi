@@ -1899,15 +1899,13 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				status = "disabled";
-				ranges = <0x48300100 0x48300100 0x80   /* ECAP */
-					  0x48300180 0x48300180 0x80   /* EQEP */
-					  0x48300200 0x48300200 0x80>; /* EHRPWM */
+				ranges = <0 0 0x1000>;
 
-				ecap0: ecap@48300100 {
+				ecap0: ecap@100 {
 					compatible = "ti,am3352-ecap",
 						     "ti,am33xx-ecap";
 					#pwm-cells = <3>;
-					reg = <0x48300100 0x80>;
+					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
 					interrupts = <31>;
@@ -1915,11 +1913,11 @@
 					status = "disabled";
 				};
 
-				ehrpwm0: pwm@48300200 {
+				ehrpwm0: pwm@200 {
 					compatible = "ti,am3352-ehrpwm",
 						     "ti,am33xx-ehrpwm";
 					#pwm-cells = <3>;
-					reg = <0x48300200 0x80>;
+					reg = <0x200 0x80>;
 					clocks = <&ehrpwm0_tbclk>, <&l4ls_gclk>;
 					clock-names = "tbclk", "fck";
 					status = "disabled";
@@ -1954,15 +1952,13 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				status = "disabled";
-				ranges = <0x48302100 0x48302100 0x80   /* ECAP */
-					  0x48302180 0x48302180 0x80   /* EQEP */
-					  0x48302200 0x48302200 0x80>; /* EHRPWM */
+				ranges = <0 0 0x1000>;
 
-				ecap1: ecap@48302100 {
+				ecap1: ecap@100 {
 					compatible = "ti,am3352-ecap",
 						     "ti,am33xx-ecap";
 					#pwm-cells = <3>;
-					reg = <0x48302100 0x80>;
+					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
 					interrupts = <47>;
@@ -1970,11 +1966,11 @@
 					status = "disabled";
 				};
 
-				ehrpwm1: pwm@48302200 {
+				ehrpwm1: pwm@200 {
 					compatible = "ti,am3352-ehrpwm",
 						     "ti,am33xx-ehrpwm";
 					#pwm-cells = <3>;
-					reg = <0x48302200 0x80>;
+					reg = <0x200 0x80>;
 					clocks = <&ehrpwm1_tbclk>, <&l4ls_gclk>;
 					clock-names = "tbclk", "fck";
 					status = "disabled";
@@ -2009,15 +2005,13 @@
 				#address-cells = <1>;
 				#size-cells = <1>;
 				status = "disabled";
-				ranges = <0x48304100 0x48304100 0x80   /* ECAP */
-					  0x48304180 0x48304180 0x80   /* EQEP */
-					  0x48304200 0x48304200 0x80>; /* EHRPWM */
+				ranges = <0 0 0x1000>;
 
-				ecap2: ecap@48304100 {
+				ecap2: ecap@100 {
 					compatible = "ti,am3352-ecap",
 						     "ti,am33xx-ecap";
 					#pwm-cells = <3>;
-					reg = <0x48304100 0x80>;
+					reg = <0x100 0x80>;
 					clocks = <&l4ls_gclk>;
 					clock-names = "fck";
 					interrupts = <61>;
@@ -2025,11 +2019,11 @@
 					status = "disabled";
 				};
 
-				ehrpwm2: pwm@48304200 {
+				ehrpwm2: pwm@200 {
 					compatible = "ti,am3352-ehrpwm",
 						     "ti,am33xx-ehrpwm";
 					#pwm-cells = <3>;
-					reg = <0x48304200 0x80>;
+					reg = <0x200 0x80>;
 					clocks = <&ehrpwm2_tbclk>, <&l4ls_gclk>;
 					clock-names = "tbclk", "fck";
 					status = "disabled";
