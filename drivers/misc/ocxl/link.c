@@ -273,9 +273,9 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	spa->irq_name = kasprintf(GFP_KERNEL, "ocxl-xsl-%x-%x-%x",
 				link->domain, link->bus, link->dev);
 	if (!spa->irq_name) {
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev, "Can't allocate name for xsl interrupt\n");
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto err_xsl;
 	}
 	/*
 	 * At some point, we'll need to look into allowing a higher
@@ -283,11 +283,10 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	 */
 	spa->virq = irq_create_mapping(NULL, hwirq);
 	if (!spa->virq) {
-		kfree(spa->irq_name);
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev,
 			"irq_create_mapping failed for translation interrupt\n");
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_name;
 	}
 
 	dev_dbg(&dev->dev, "hwirq %d mapped to virq %d\n", hwirq, spa->virq);
@@ -295,15 +294,21 @@ static int setup_xsl_irq(struct pci_dev *dev, struct link *link)
 	rc = request_irq(spa->virq, xsl_fault_handler, 0, spa->irq_name,
 			link);
 	if (rc) {
-		irq_dispose_mapping(spa->virq);
-		kfree(spa->irq_name);
-		unmap_irq_registers(spa);
 		dev_err(&dev->dev,
 			"request_irq failed for translation interrupt: %d\n",
 			rc);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto err_mapping;
 	}
 	return 0;
+
+err_mapping:
+	irq_dispose_mapping(spa->virq);
+err_name:
+	kfree(spa->irq_name);
+err_xsl:
+	unmap_irq_registers(spa);
+	return rc;
 }
 
 static void release_xsl_irq(struct link *link)
