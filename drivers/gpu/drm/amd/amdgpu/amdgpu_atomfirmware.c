@@ -118,6 +118,7 @@ union umc_info {
 
 union vram_info {
 	struct atom_vram_info_header_v2_3 v23;
+	struct atom_vram_info_header_v2_4 v24;
 };
 /*
  * Return vram width from integrated system info table, if available,
@@ -179,6 +180,9 @@ static int convert_atom_mem_type_to_vram_type (struct amdgpu_device *adev,
 		case ATOM_DGPU_VRAM_TYPE_HBM2:
 			vram_type = AMDGPU_VRAM_TYPE_HBM;
 			break;
+		case ATOM_DGPU_VRAM_TYPE_GDDR6:
+			vram_type = AMDGPU_VRAM_TYPE_GDDR6;
+			break;
 		default:
 			vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 			break;
@@ -226,6 +230,9 @@ int amdgpu_atomfirmware_get_vram_type(struct amdgpu_device *adev)
 			switch (crev) {
 			case 3:
 				mem_type = vram_info->v23.vram_module[0].memory_type;
+				return convert_atom_mem_type_to_vram_type(adev, mem_type);
+			case 4:
+				mem_type = vram_info->v24.vram_module[0].memory_type;
 				return convert_atom_mem_type_to_vram_type(adev, mem_type);
 			default:
 				return 0;
