@@ -680,6 +680,11 @@ static int tipc_udp_enable(struct net *net, struct tipc_bearer *b,
 	if (err)
 		goto err;
 
+	if (remote.proto != local.proto) {
+		err = -EINVAL;
+		goto err;
+	}
+
 	/* Autoconfigure own node identity if needed */
 	if (!tipc_own_id(net)) {
 		memcpy(node_id, local.ipv6.in6_u.u6_addr8, 16);
