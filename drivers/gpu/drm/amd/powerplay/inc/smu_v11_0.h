@@ -25,6 +25,17 @@
 
 #include "amdgpu_smu.h"
 
+/* MP Apertures */
+#define MP0_Public			0x03800000
+#define MP0_SRAM			0x03900000
+#define MP1_Public			0x03b00000
+#define MP1_SRAM			0x03c00004
+
+/* address block */
+#define smnMP1_FIRMWARE_FLAGS		0x3010024
+#define smnMP0_FW_INTF			0x30101c0
+#define smnMP1_PUB_CTRL			0x3010b14
+
 void smu_v11_0_set_smu_funcs(struct smu_context *smu);
 
 #endif
