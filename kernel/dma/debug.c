@@ -142,6 +142,7 @@ static struct dentry *show_all_errors_dent  __read_mostly;
 static struct dentry *show_num_errors_dent  __read_mostly;
 static struct dentry *num_free_entries_dent __read_mostly;
 static struct dentry *min_free_entries_dent __read_mostly;
+static struct dentry *nr_total_entries_dent __read_mostly;
 static struct dentry *filter_dent           __read_mostly;
 
 /* per-driver filter related state */
@@ -924,6 +925,12 @@ static int dma_debug_fs_init(void)
 			dma_debug_dent,
 			&min_free_entries);
 	if (!min_free_entries_dent)
+		goto out_err;
+
+	nr_total_entries_dent = debugfs_create_u32("nr_total_entries", 0444,
+			dma_debug_dent,
+			&nr_total_entries);
+	if (!nr_total_entries_dent)
 		goto out_err;
 
 	filter_dent = debugfs_create_file("driver_filter", 0644,

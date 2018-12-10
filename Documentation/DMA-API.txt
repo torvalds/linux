@@ -723,6 +723,9 @@ dma-api/min_free_entries	This read-only file can be read to get the
 dma-api/num_free_entries	The current number of free dma_debug_entries
 				in the allocator.
 
+dma-api/nr_total_entries	The total number of dma_debug_entries in the
+				allocator, both free and used.
+
 dma-api/driver-filter		You can write a name of a driver into this file
 				to limit the debug output to requests from that
 				particular driver. Write an empty string to
