@@ -1232,12 +1232,12 @@ static int remove_session_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	dout("removing cap %p, ci is %p, inode is %p\n",
 	     cap, ci, &ci->vfs_inode);
 	spin_lock(&ci->i_ceph_lock);
+	if (cap->mds_wanted | cap->issued)
+		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
 	__ceph_remove_cap(cap, false);
 	if (!ci->i_auth_cap) {
 		struct ceph_cap_flush *cf;
 		struct ceph_mds_client *mdsc = fsc->mdsc;
-
-		ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
 
 		if (ci->i_wrbuffer_ref > 0 &&
 		    READ_ONCE(fsc->mount_state) == CEPH_MOUNT_SHUTDOWN)
@@ -1355,6 +1355,12 @@ static void remove_session_caps(struct ceph_mds_session *session)
 	dispose_cap_releases(session->s_mdsc, &dispose);
 }
 
+enum {
+	RECONNECT,
+	RENEWCAPS,
+	FORCE_RO,
+};
+
 /*
  * wake up any threads waiting on this session's caps.  if the cap is
  * old (didn't get renewed on the client reconnect), remove it now.
@@ -1365,23 +1371,34 @@ static int wake_up_session_cb(struct inode *inode, struct ceph_cap *cap,
 			      void *arg)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
+	unsigned long ev = (unsigned long)arg;
 
-	if (arg) {
+	if (ev == RECONNECT) {
 		spin_lock(&ci->i_ceph_lock);
 		ci->i_wanted_max_size = 0;
 		ci->i_requested_max_size = 0;
 		spin_unlock(&ci->i_ceph_lock);
+	} else if (ev == RENEWCAPS) {
+		if (cap->cap_gen < cap->session->s_cap_gen) {
+			/* mds did not re-issue stale cap */
+			spin_lock(&ci->i_ceph_lock);
+			cap->issued = cap->implemented = CEPH_CAP_PIN;
+			/* make sure mds knows what we want */
+			if (__ceph_caps_file_wanted(ci) & ~cap->mds_wanted)
+				ci->i_ceph_flags |= CEPH_I_CAP_DROPPED;
+			spin_unlock(&ci->i_ceph_lock);
+		}
+	} else if (ev == FORCE_RO) {
 	}
 	wake_up_all(&ci->i_cap_wq);
 	return 0;
 }
 
-static void wake_up_session_caps(struct ceph_mds_session *session,
-				 int reconnect)
+static void wake_up_session_caps(struct ceph_mds_session *session, int ev)
 {
 	dout("wake_up_session_caps %p mds%d\n", session, session->s_mds);
 	iterate_session_caps(session, wake_up_session_cb,
-			     (void *)(unsigned long)reconnect);
+			     (void *)(unsigned long)ev);
 }
 
 /*
@@ -1466,7 +1483,7 @@ static void renewed_caps(struct ceph_mds_client *mdsc,
 	spin_unlock(&session->s_cap_lock);
 
 	if (wake)
-		wake_up_session_caps(session, 0);
+		wake_up_session_caps(session, RENEWCAPS);
 }
 
 /*
@@ -2847,7 +2864,7 @@ static void handle_session(struct ceph_mds_session *session,
 		spin_lock(&session->s_cap_lock);
 		session->s_readonly = true;
 		spin_unlock(&session->s_cap_lock);
-		wake_up_session_caps(session, 0);
+		wake_up_session_caps(session, FORCE_RO);
 		break;
 
 	case CEPH_SESSION_REJECT:
@@ -3339,7 +3356,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 				pr_info("mds%d recovery completed\n", s->s_mds);
 			kick_requests(mdsc, i);
 			ceph_kick_flushing_caps(mdsc, s);
-			wake_up_session_caps(s, 1);
+			wake_up_session_caps(s, RECONNECT);
 		}
 	}
 
