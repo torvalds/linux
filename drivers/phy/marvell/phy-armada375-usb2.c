@@ -18,7 +18,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
@@ -142,7 +141,6 @@ static const struct of_device_id of_usb_cluster_table[] = {
 	{ .compatible = "marvell,armada-375-usb-cluster", },
 	{ /* end of list */ },
 };
-MODULE_DEVICE_TABLE(of, of_usb_cluster_table);
 
 static struct platform_driver armada375_usb_phy_driver = {
 	.probe	= armada375_usb_phy_probe,
@@ -151,8 +149,4 @@ static struct platform_driver armada375_usb_phy_driver = {
 		.name  = "armada-375-usb-cluster",
 	}
 };
-module_platform_driver(armada375_usb_phy_driver);
-
-MODULE_DESCRIPTION("Armada 375 USB cluster driver");
-MODULE_AUTHOR("Gregory CLEMENT <gregory.clement@free-electrons.com>");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(armada375_usb_phy_driver);
