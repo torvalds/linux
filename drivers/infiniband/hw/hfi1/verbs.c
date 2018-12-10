@@ -1617,6 +1617,16 @@ static int get_hw_stats(struct ib_device *ibdev, struct rdma_hw_stats *stats,
 	return count;
 }
 
+static const struct ib_device_ops hfi1_dev_ops = {
+	.alloc_hw_stats = alloc_hw_stats,
+	.alloc_rdma_netdev = hfi1_vnic_alloc_rn,
+	.get_dev_fw_str = hfi1_get_dev_fw_str,
+	.get_hw_stats = get_hw_stats,
+	.modify_device = modify_device,
+	/* keep process mad in the driver */
+	.process_mad = hfi1_process_mad,
+};
+
 /**
  * hfi1_register_ib_device - register our device with the infiniband core
  * @dd: the device data structure
@@ -1660,14 +1670,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *dd)
 	ibdev->owner = THIS_MODULE;
 	ibdev->phys_port_cnt = dd->num_pports;
 	ibdev->dev.parent = &dd->pcidev->dev;
-	ibdev->modify_device = modify_device;
-	ibdev->alloc_hw_stats = alloc_hw_stats;
-	ibdev->get_hw_stats = get_hw_stats;
-	ibdev->alloc_rdma_netdev = hfi1_vnic_alloc_rn;
 
-	/* keep process mad in the driver */
-	ibdev->process_mad = hfi1_process_mad;
-	ibdev->get_dev_fw_str = hfi1_get_dev_fw_str;
+	ib_set_device_ops(ibdev, &hfi1_dev_ops);
 
 	strlcpy(ibdev->node_desc, init_utsname()->nodename,
 		sizeof(ibdev->node_desc));
