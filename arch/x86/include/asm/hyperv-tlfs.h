@@ -30,158 +30,151 @@
 /*
  * Feature identification. EAX indicates which features are available
  * to the partition based upon the current partition privileges.
+ * These are HYPERV_CPUID_FEATURES.EAX bits.
  */
 
 /* VP Runtime (HV_X64_MSR_VP_RUNTIME) available */
-#define HV_X64_MSR_VP_RUNTIME_AVAILABLE		(1 << 0)
+#define HV_X64_MSR_VP_RUNTIME_AVAILABLE		BIT(0)
 /* Partition Reference Counter (HV_X64_MSR_TIME_REF_COUNT) available*/
-#define HV_MSR_TIME_REF_COUNT_AVAILABLE		(1 << 1)
-/* Partition reference TSC MSR is available */
-#define HV_MSR_REFERENCE_TSC_AVAILABLE		(1 << 9)
-/* Partition Guest IDLE MSR is available */
-#define HV_X64_MSR_GUEST_IDLE_AVAILABLE		(1 << 10)
-
-/* A partition's reference time stamp counter (TSC) page */
-#define HV_X64_MSR_REFERENCE_TSC		0x40000021
-
-/*
- * There is a single feature flag that signifies if the partition has access
- * to MSRs with local APIC and TSC frequencies.
- */
-#define HV_X64_ACCESS_FREQUENCY_MSRS		(1 << 11)
-
-/* AccessReenlightenmentControls privilege */
-#define HV_X64_ACCESS_REENLIGHTENMENT		BIT(13)
-
+#define HV_MSR_TIME_REF_COUNT_AVAILABLE		BIT(1)
 /*
  * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
  * and HV_X64_MSR_SINT0 through HV_X64_MSR_SINT15) available
  */
-#define HV_X64_MSR_SYNIC_AVAILABLE		(1 << 2)
+#define HV_X64_MSR_SYNIC_AVAILABLE		BIT(2)
 /*
  * Synthetic Timer MSRs (HV_X64_MSR_STIMER0_CONFIG through
  * HV_X64_MSR_STIMER3_COUNT) available
  */
-#define HV_MSR_SYNTIMER_AVAILABLE		(1 << 3)
+#define HV_MSR_SYNTIMER_AVAILABLE		BIT(3)
 /*
  * APIC access MSRs (HV_X64_MSR_EOI, HV_X64_MSR_ICR and HV_X64_MSR_TPR)
  * are available
  */
-#define HV_X64_MSR_APIC_ACCESS_AVAILABLE	(1 << 4)
+#define HV_X64_MSR_APIC_ACCESS_AVAILABLE	BIT(4)
 /* Hypercall MSRs (HV_X64_MSR_GUEST_OS_ID and HV_X64_MSR_HYPERCALL) available*/
-#define HV_X64_MSR_HYPERCALL_AVAILABLE		(1 << 5)
+#define HV_X64_MSR_HYPERCALL_AVAILABLE		BIT(5)
 /* Access virtual processor index MSR (HV_X64_MSR_VP_INDEX) available*/
-#define HV_X64_MSR_VP_INDEX_AVAILABLE		(1 << 6)
+#define HV_X64_MSR_VP_INDEX_AVAILABLE		BIT(6)
 /* Virtual system reset MSR (HV_X64_MSR_RESET) is available*/
-#define HV_X64_MSR_RESET_AVAILABLE		(1 << 7)
- /*
-  * Access statistics pages MSRs (HV_X64_MSR_STATS_PARTITION_RETAIL_PAGE,
-  * HV_X64_MSR_STATS_PARTITION_INTERNAL_PAGE, HV_X64_MSR_STATS_VP_RETAIL_PAGE,
-  * HV_X64_MSR_STATS_VP_INTERNAL_PAGE) available
-  */
-#define HV_X64_MSR_STAT_PAGES_AVAILABLE		(1 << 8)
-
-/* Frequency MSRs available */
-#define HV_FEATURE_FREQUENCY_MSRS_AVAILABLE	(1 << 8)
-
-/* Crash MSR available */
-#define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
-
-/* stimer Direct Mode is available */
-#define HV_STIMER_DIRECT_MODE_AVAILABLE		(1 << 19)
+#define HV_X64_MSR_RESET_AVAILABLE		BIT(7)
+/*
+ * Access statistics pages MSRs (HV_X64_MSR_STATS_PARTITION_RETAIL_PAGE,
+ * HV_X64_MSR_STATS_PARTITION_INTERNAL_PAGE, HV_X64_MSR_STATS_VP_RETAIL_PAGE,
+ * HV_X64_MSR_STATS_VP_INTERNAL_PAGE) available
+ */
+#define HV_X64_MSR_STAT_PAGES_AVAILABLE		BIT(8)
+/* Partition reference TSC MSR is available */
+#define HV_MSR_REFERENCE_TSC_AVAILABLE		BIT(9)
+/* Partition Guest IDLE MSR is available */
+#define HV_X64_MSR_GUEST_IDLE_AVAILABLE		BIT(10)
+/*
+ * There is a single feature flag that signifies if the partition has access
+ * to MSRs with local APIC and TSC frequencies.
+ */
+#define HV_X64_ACCESS_FREQUENCY_MSRS		BIT(11)
+/* AccessReenlightenmentControls privilege */
+#define HV_X64_ACCESS_REENLIGHTENMENT		BIT(13)
 
 /*
- * Feature identification: EBX indicates which flags were specified at
- * partition creation. The format is the same as the partition creation
- * flag structure defined in section Partition Creation Flags.
+ * Feature identification: indicates which flags were specified at partition
+ * creation. The format is the same as the partition creation flag structure
+ * defined in section Partition Creation Flags.
+ * These are HYPERV_CPUID_FEATURES.EBX bits.
  */
-#define HV_X64_CREATE_PARTITIONS		(1 << 0)
-#define HV_X64_ACCESS_PARTITION_ID		(1 << 1)
-#define HV_X64_ACCESS_MEMORY_POOL		(1 << 2)
-#define HV_X64_ADJUST_MESSAGE_BUFFERS		(1 << 3)
-#define HV_X64_POST_MESSAGES			(1 << 4)
-#define HV_X64_SIGNAL_EVENTS			(1 << 5)
-#define HV_X64_CREATE_PORT			(1 << 6)
-#define HV_X64_CONNECT_PORT			(1 << 7)
-#define HV_X64_ACCESS_STATS			(1 << 8)
-#define HV_X64_DEBUGGING			(1 << 11)
-#define HV_X64_CPU_POWER_MANAGEMENT		(1 << 12)
-#define HV_X64_CONFIGURE_PROFILER		(1 << 13)
+#define HV_X64_CREATE_PARTITIONS		BIT(0)
+#define HV_X64_ACCESS_PARTITION_ID		BIT(1)
+#define HV_X64_ACCESS_MEMORY_POOL		BIT(2)
+#define HV_X64_ADJUST_MESSAGE_BUFFERS		BIT(3)
+#define HV_X64_POST_MESSAGES			BIT(4)
+#define HV_X64_SIGNAL_EVENTS			BIT(5)
+#define HV_X64_CREATE_PORT			BIT(6)
+#define HV_X64_CONNECT_PORT			BIT(7)
+#define HV_X64_ACCESS_STATS			BIT(8)
+#define HV_X64_DEBUGGING			BIT(11)
+#define HV_X64_CPU_POWER_MANAGEMENT		BIT(12)
+#define HV_X64_CONFIGURE_PROFILER		BIT(13)
 
 /*
  * Feature identification. EDX indicates which miscellaneous features
  * are available to the partition.
+ * These are HYPERV_CPUID_FEATURES.EDX bits.
  */
 /* The MWAIT instruction is available (per section MONITOR / MWAIT) */
-#define HV_X64_MWAIT_AVAILABLE				(1 << 0)
+#define HV_X64_MWAIT_AVAILABLE				BIT(0)
 /* Guest debugging support is available */
-#define HV_X64_GUEST_DEBUGGING_AVAILABLE		(1 << 1)
+#define HV_X64_GUEST_DEBUGGING_AVAILABLE		BIT(1)
 /* Performance Monitor support is available*/
-#define HV_X64_PERF_MONITOR_AVAILABLE			(1 << 2)
+#define HV_X64_PERF_MONITOR_AVAILABLE			BIT(2)
 /* Support for physical CPU dynamic partitioning events is available*/
-#define HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE	(1 << 3)
+#define HV_X64_CPU_DYNAMIC_PARTITIONING_AVAILABLE	BIT(3)
 /*
  * Support for passing hypercall input parameter block via XMM
  * registers is available
  */
-#define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		(1 << 4)
+#define HV_X64_HYPERCALL_PARAMS_XMM_AVAILABLE		BIT(4)
 /* Support for a virtual guest idle state is available */
-#define HV_X64_GUEST_IDLE_STATE_AVAILABLE		(1 << 5)
-/* Guest crash data handler available */
-#define HV_X64_GUEST_CRASH_MSR_AVAILABLE		(1 << 10)
+#define HV_X64_GUEST_IDLE_STATE_AVAILABLE		BIT(5)
+/* Frequency MSRs available */
+#define HV_FEATURE_FREQUENCY_MSRS_AVAILABLE		BIT(8)
+/* Crash MSR available */
+#define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE		BIT(10)
+/* stimer Direct Mode is available */
+#define HV_STIMER_DIRECT_MODE_AVAILABLE			BIT(19)
 
 /*
  * Implementation recommendations. Indicates which behaviors the hypervisor
  * recommends the OS implement for optimal performance.
+ * These are HYPERV_CPUID_ENLIGHTMENT_INFO.EAX bits.
  */
- /*
-  * Recommend using hypercall for address space switches rather
-  * than MOV to CR3 instruction
-  */
-#define HV_X64_AS_SWITCH_RECOMMENDED		(1 << 0)
+/*
+ * Recommend using hypercall for address space switches rather
+ * than MOV to CR3 instruction
+ */
+#define HV_X64_AS_SWITCH_RECOMMENDED			BIT(0)
 /* Recommend using hypercall for local TLB flushes rather
  * than INVLPG or MOV to CR3 instructions */
-#define HV_X64_LOCAL_TLB_FLUSH_RECOMMENDED	(1 << 1)
+#define HV_X64_LOCAL_TLB_FLUSH_RECOMMENDED		BIT(1)
 /*
  * Recommend using hypercall for remote TLB flushes rather
  * than inter-processor interrupts
  */
-#define HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED	(1 << 2)
+#define HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED		BIT(2)
 /*
  * Recommend using MSRs for accessing APIC registers
  * EOI, ICR and TPR rather than their memory-mapped counterparts
  */
-#define HV_X64_APIC_ACCESS_RECOMMENDED		(1 << 3)
+#define HV_X64_APIC_ACCESS_RECOMMENDED			BIT(3)
 /* Recommend using the hypervisor-provided MSR to initiate a system RESET */
-#define HV_X64_SYSTEM_RESET_RECOMMENDED		(1 << 4)
+#define HV_X64_SYSTEM_RESET_RECOMMENDED			BIT(4)
 /*
  * Recommend using relaxed timing for this partition. If used,
  * the VM should disable any watchdog timeouts that rely on the
  * timely delivery of external interrupts
  */
-#define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
+#define HV_X64_RELAXED_TIMING_RECOMMENDED		BIT(5)
 
 /*
  * Recommend not using Auto End-Of-Interrupt feature
  */
-#define HV_DEPRECATING_AEOI_RECOMMENDED		(1 << 9)
+#define HV_DEPRECATING_AEOI_RECOMMENDED			BIT(9)
 
 /*
  * Recommend using cluster IPI hypercalls.
  */
-#define HV_X64_CLUSTER_IPI_RECOMMENDED         (1 << 10)
+#define HV_X64_CLUSTER_IPI_RECOMMENDED			BIT(10)
 
 /* Recommend using the newer ExProcessorMasks interface */
-#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
+#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED		BIT(11)
 
 /* Recommend using enlightened VMCS */
-#define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED    (1 << 14)
+#define HV_X64_ENLIGHTENED_VMCS_RECOMMENDED		BIT(14)
 
-/*
- * Crash notification flags.
- */
-#define HV_CRASH_CTL_CRASH_NOTIFY_MSG	BIT_ULL(62)
-#define HV_CRASH_CTL_CRASH_NOTIFY	BIT_ULL(63)
+/* Nested features. These are HYPERV_CPUID_NESTED_FEATURES.EAX bits. */
+#define HV_X64_NESTED_GUEST_MAPPING_FLUSH		BIT(18)
+#define HV_X64_NESTED_MSR_BITMAP			BIT(19)
+
+/* Hyper-V specific model specific registers (MSRs) */
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000
@@ -200,6 +193,9 @@
 
 /* MSR used to read the per-partition time reference counter */
 #define HV_X64_MSR_TIME_REF_COUNT		0x40000020
+
+/* A partition's reference time stamp counter (TSC) page */
+#define HV_X64_MSR_REFERENCE_TSC		0x40000021
 
 /* MSR used to retrieve the TSC frequency */
 #define HV_X64_MSR_TSC_FREQUENCY		0x40000022
@@ -258,9 +254,11 @@
 #define HV_X64_MSR_CRASH_P3			0x40000103
 #define HV_X64_MSR_CRASH_P4			0x40000104
 #define HV_X64_MSR_CRASH_CTL			0x40000105
-#define HV_X64_MSR_CRASH_CTL_NOTIFY		(1ULL << 63)
-#define HV_X64_MSR_CRASH_PARAMS		\
-		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
+
+/* TSC emulation after migration */
+#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
+#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
+#define HV_X64_MSR_TSC_EMULATION_STATUS		0x40000108
 
 /*
  * Declare the MSR used to setup pages used to communicate with the hypervisor.
@@ -311,13 +309,6 @@ struct ms_hyperv_tsc_page {
 
 #define HV_LINUX_VENDOR_ID              0x8100
 
-/* TSC emulation after migration */
-#define HV_X64_MSR_REENLIGHTENMENT_CONTROL	0x40000106
-
-/* Nested features (CPUID 0x4000000A) EAX */
-#define HV_X64_NESTED_GUEST_MAPPING_FLUSH	BIT(18)
-#define HV_X64_NESTED_MSR_BITMAP		BIT(19)
-
 struct hv_reenlightenment_control {
 	__u64 vector:8;
 	__u64 reserved1:8;
@@ -325,9 +316,6 @@ struct hv_reenlightenment_control {
 	__u64 reserved2:15;
 	__u64 target_vp:32;
 }  __packed;
-
-#define HV_X64_MSR_TSC_EMULATION_CONTROL	0x40000107
-#define HV_X64_MSR_TSC_EMULATION_STATUS		0x40000108
 
 struct hv_tsc_emulation_control {
 	__u64 enabled:1;
@@ -343,6 +331,14 @@ struct hv_tsc_emulation_status {
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT	12
 #define HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_MASK	\
 		(~((1ull << HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT) - 1))
+
+/*
+ * Crash notification (HV_X64_MSR_CRASH_CTL) flags.
+ */
+#define HV_CRASH_CTL_CRASH_NOTIFY_MSG		BIT_ULL(62)
+#define HV_CRASH_CTL_CRASH_NOTIFY		BIT_ULL(63)
+#define HV_X64_MSR_CRASH_PARAMS		\
+		(1 + (HV_X64_MSR_CRASH_P4 - HV_X64_MSR_CRASH_P0))
 
 #define HV_IPI_LOW_VECTOR	0x10
 #define HV_IPI_HIGH_VECTOR	0xff

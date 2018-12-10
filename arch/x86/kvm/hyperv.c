@@ -809,9 +809,9 @@ static int kvm_hv_msr_set_crash_ctl(struct kvm_vcpu *vcpu, u64 data, bool host)
 	struct kvm_hv *hv = &vcpu->kvm->arch.hyperv;
 
 	if (host)
-		hv->hv_crash_ctl = data & HV_X64_MSR_CRASH_CTL_NOTIFY;
+		hv->hv_crash_ctl = data & HV_CRASH_CTL_CRASH_NOTIFY;
 
-	if (!host && (data & HV_X64_MSR_CRASH_CTL_NOTIFY)) {
+	if (!host && (data & HV_CRASH_CTL_CRASH_NOTIFY)) {
 
 		vcpu_debug(vcpu, "hv crash (0x%llx 0x%llx 0x%llx 0x%llx 0x%llx)\n",
 			  hv->hv_crash_param[0],
