@@ -113,6 +113,19 @@ static void stuser_set_state(struct switchtec_user *stuser,
 
 static void mrpc_complete_cmd(struct switchtec_dev *stdev);
 
+static void flush_wc_buf(struct switchtec_dev *stdev)
+{
+	struct ntb_dbmsg_regs __iomem *mmio_dbmsg;
+
+	/*
+	 * odb (outbound doorbell) register is processed by low latency
+	 * hardware and w/o side effect
+	 */
+	mmio_dbmsg = (void __iomem *)stdev->mmio_ntb +
+		SWITCHTEC_NTB_REG_DBMSG_OFFSET;
+	ioread32(&mmio_dbmsg->odb);
+}
+
 static void mrpc_cmd_submit(struct switchtec_dev *stdev)
 {
 	/* requires the mrpc_mutex to already be held when called */
@@ -132,6 +145,7 @@ static void mrpc_cmd_submit(struct switchtec_dev *stdev)
 	stdev->mrpc_busy = 1;
 	memcpy_toio(&stdev->mmio_mrpc->input_data,
 		    stuser->data, stuser->data_len);
+	flush_wc_buf(stdev);
 	iowrite32(stuser->cmd, &stdev->mmio_mrpc->cmd);
 
 	schedule_delayed_work(&stdev->mrpc_timeout,
@@ -1231,12 +1245,10 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 			      struct pci_dev *pdev)
 {
 	int rc;
+	void __iomem *map;
+	unsigned long res_start, res_len;
 
 	rc = pcim_enable_device(pdev);
-	if (rc)
-		return rc;
-
-	rc = pcim_iomap_regions(pdev, 0x1, KBUILD_MODNAME);
 	if (rc)
 		return rc;
 
@@ -1246,8 +1258,25 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 
 	pci_set_master(pdev);
 
-	stdev->mmio = pcim_iomap_table(pdev)[0];
-	stdev->mmio_mrpc = stdev->mmio + SWITCHTEC_GAS_MRPC_OFFSET;
+	res_start = pci_resource_start(pdev, 0);
+	res_len = pci_resource_len(pdev, 0);
+
+	if (!devm_request_mem_region(&pdev->dev, res_start,
+				     res_len, KBUILD_MODNAME))
+		return -EBUSY;
+
+	stdev->mmio_mrpc = devm_ioremap_wc(&pdev->dev, res_start,
+					   SWITCHTEC_GAS_TOP_CFG_OFFSET);
+	if (!stdev->mmio_mrpc)
+		return -ENOMEM;
+
+	map = devm_ioremap(&pdev->dev,
+			   res_start + SWITCHTEC_GAS_TOP_CFG_OFFSET,
+			   res_len - SWITCHTEC_GAS_TOP_CFG_OFFSET);
+	if (!map)
+		return -ENOMEM;
+
+	stdev->mmio = map - SWITCHTEC_GAS_TOP_CFG_OFFSET;
 	stdev->mmio_sw_event = stdev->mmio + SWITCHTEC_GAS_SW_EVENT_OFFSET;
 	stdev->mmio_sys_info = stdev->mmio + SWITCHTEC_GAS_SYS_INFO_OFFSET;
 	stdev->mmio_flash_info = stdev->mmio + SWITCHTEC_GAS_FLASH_INFO_OFFSET;
