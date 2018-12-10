@@ -118,8 +118,13 @@ static int __sbitmap_get_word(unsigned long *word, unsigned long depth,
 static inline bool sbitmap_deferred_clear(struct sbitmap *sb, int index)
 {
 	unsigned long mask, val;
+	unsigned long __maybe_unused flags;
 	bool ret = false;
 
+	/* Silence bogus lockdep warning */
+#if defined(CONFIG_LOCKDEP)
+	local_irq_save(flags);
+#endif
 	spin_lock(&sb->map[index].swap_lock);
 
 	if (!sb->map[index].cleared)
@@ -142,6 +147,9 @@ static inline bool sbitmap_deferred_clear(struct sbitmap *sb, int index)
 	ret = true;
 out_unlock:
 	spin_unlock(&sb->map[index].swap_lock);
+#if defined(CONFIG_LOCKDEP)
+	local_irq_restore(flags);
+#endif
 	return ret;
 }
 
