@@ -245,10 +245,8 @@ static int tipc_udp_send_msg(struct net *net, struct sk_buff *skb,
 		}
 
 		err = tipc_udp_xmit(net, _skb, ub, src, &rcast->addr);
-		if (err) {
-			kfree_skb(_skb);
+		if (err)
 			goto out;
-		}
 	}
 	err = 0;
 out:
