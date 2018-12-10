@@ -117,6 +117,9 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
 		ctr->profile.h264 = ctrl->val;
 		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_PROFILE:
+		ctr->profile.hevc = ctrl->val;
+		break;
 	case V4L2_CID_MPEG_VIDEO_VP8_PROFILE:
 		ctr->profile.vpx = ctrl->val;
 		break;
@@ -125,6 +128,9 @@ static int venc_op_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
 		ctr->level.h264 = ctrl->val;
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LEVEL:
+		ctr->level.hevc = ctrl->val;
 		break;
 	case V4L2_CID_MPEG_VIDEO_H264_I_FRAME_QP:
 		ctr->h264_i_qp = ctrl->val;
@@ -217,7 +223,7 @@ int venc_ctrl_init(struct venus_inst *inst)
 {
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 28);
+	ret = v4l2_ctrl_handler_init(&inst->ctrl_handler, 30);
 	if (ret)
 		return ret;
 
@@ -244,6 +250,19 @@ int venc_ctrl_init(struct venus_inst *inst)
 		V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL,
 		V4L2_MPEG_VIDEO_MPEG4_LEVEL_5,
 		0, V4L2_MPEG_VIDEO_MPEG4_LEVEL_0);
+
+	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_HEVC_PROFILE,
+		V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10,
+		~((1 << V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN) |
+		  (1 << V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE) |
+		  (1 << V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10)),
+		V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN);
+
+	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
+		V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2,
+		0, V4L2_MPEG_VIDEO_HEVC_LEVEL_1);
 
 	v4l2_ctrl_new_std_menu(&inst->ctrl_handler, &venc_ctrl_ops,
 		V4L2_CID_MPEG_VIDEO_H264_PROFILE,
