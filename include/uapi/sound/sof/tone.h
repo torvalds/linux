@@ -9,11 +9,6 @@
 #ifndef __INCLUDE_UAPI_SOUND_SOF_USER_TONE_H__
 #define __INCLUDE_UAPI_SOUND_SOF_USER_TONE_H__
 
-/* Component will reject non-matching configuration. The version number need
- * to be incremented with any ABI changes in function fir_cmd().
- */
-#define SOF_TONE_ABI_VERSION		1
-
 #define SOF_TONE_IDX_FREQUENCY		0
 #define SOF_TONE_IDX_AMPLITUDE		1
 #define SOF_TONE_IDX_FREQ_MULT		2
