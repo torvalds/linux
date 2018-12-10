@@ -127,22 +127,50 @@ union vram_info {
 int amdgpu_atomfirmware_get_vram_width(struct amdgpu_device *adev)
 {
 	struct amdgpu_mode_info *mode_info = &adev->mode_info;
-	int index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
-						integratedsysteminfo);
+	int index;
 	u16 data_offset, size;
 	union igp_info *igp_info;
+	union vram_info *vram_info;
+	u32 mem_channel_number;
+	u32 mem_channel_width;
 	u8 frev, crev;
+
+	if (adev->flags & AMD_IS_APU)
+		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+						    integratedsysteminfo);
+	else
+		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+						    vram_info);
 
 	/* get any igp specific overrides */
 	if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, &size,
 				   &frev, &crev, &data_offset)) {
-		igp_info = (union igp_info *)
-			(mode_info->atom_context->bios + data_offset);
-		switch (crev) {
-		case 11:
-			return igp_info->v11.umachannelnumber * 64;
-		default:
-			return 0;
+		if (adev->flags & AMD_IS_APU) {
+			igp_info = (union igp_info *)
+				(mode_info->atom_context->bios + data_offset);
+			switch (crev) {
+			case 11:
+				mem_channel_number = igp_info->v11.umachannelnumber;
+				/* channel width is 64 */
+				return mem_channel_number * 64;
+			default:
+				return 0;
+			}
+		} else {
+			vram_info = (union vram_info *)
+				(mode_info->atom_context->bios + data_offset);
+			switch (crev) {
+			case 3:
+				mem_channel_number = vram_info->v23.vram_module[0].channel_num;
+				mem_channel_width = vram_info->v23.vram_module[0].channel_width;
+				return mem_channel_number * (1 << mem_channel_width);
+			case 4:
+				mem_channel_number = vram_info->v24.vram_module[0].channel_num;
+				mem_channel_width = vram_info->v24.vram_module[0].channel_width;
+				return mem_channel_number * (1 << mem_channel_width);
+			default:
+				return 0;
+			}
 		}
 	}
 
