@@ -1346,7 +1346,7 @@ sint r8712_restruct_sec_ie(struct _adapter *adapter, u8 *in_ie,
 		     u8 *out_ie, uint in_len)
 {
 	u8 authmode = 0, match;
-	u8 sec_ie[255], uncst_oui[4], bkup_ie[255];
+	u8 sec_ie[IW_CUSTOM_MAX], uncst_oui[4], bkup_ie[255];
 	u8 wpa_oui[4] = {0x0, 0x50, 0xf2, 0x01};
 	uint ielength, cnt, remove_cnt;
 	int iEntry;

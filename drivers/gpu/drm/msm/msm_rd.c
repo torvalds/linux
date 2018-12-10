@@ -316,10 +316,11 @@ static void snapshot_buf(struct msm_rd_state *rd,
 		uint64_t iova, uint32_t size)
 {
 	struct msm_gem_object *obj = submit->bos[idx].obj;
+	unsigned offset = 0;
 	const char *buf;
 
 	if (iova) {
-		buf += iova - submit->bos[idx].iova;
+		offset = iova - submit->bos[idx].iova;
 	} else {
 		iova = submit->bos[idx].iova;
 		size = obj->base.size;
@@ -339,6 +340,8 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	buf = msm_gem_get_vaddr_active(&obj->base);
 	if (IS_ERR(buf))
 		return;
+
+	buf += offset;
 
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 

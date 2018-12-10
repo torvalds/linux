@@ -2541,14 +2541,13 @@ static int
 cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 	struct cifs_aio_ctx *ctx)
 {
-	int wait_retry = 0;
 	unsigned int wsize, credits;
 	int rc;
 	struct TCP_Server_Info *server =
 		tlink_tcon(wdata->cfile->tlink)->ses->server;
 
 	/*
-	 * Try to resend this wdata, waiting for credits up to 3 seconds.
+	 * Wait for credits to resend this wdata.
 	 * Note: we are attempting to resend the whole wdata not in segments
 	 */
 	do {
@@ -2556,19 +2555,13 @@ cifs_resend_wdata(struct cifs_writedata *wdata, struct list_head *wdata_list,
 			server, wdata->bytes, &wsize, &credits);
 
 		if (rc)
-			break;
+			goto out;
 
 		if (wsize < wdata->bytes) {
 			add_credits_and_wake_if(server, credits, 0);
 			msleep(1000);
-			wait_retry++;
 		}
-	} while (wsize < wdata->bytes && wait_retry < 3);
-
-	if (wsize < wdata->bytes) {
-		rc = -EBUSY;
-		goto out;
-	}
+	} while (wsize < wdata->bytes);
 
 	rc = -EAGAIN;
 	while (rc == -EAGAIN) {
@@ -3234,14 +3227,13 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 			struct list_head *rdata_list,
 			struct cifs_aio_ctx *ctx)
 {
-	int wait_retry = 0;
 	unsigned int rsize, credits;
 	int rc;
 	struct TCP_Server_Info *server =
 		tlink_tcon(rdata->cfile->tlink)->ses->server;
 
 	/*
-	 * Try to resend this rdata, waiting for credits up to 3 seconds.
+	 * Wait for credits to resend this rdata.
 	 * Note: we are attempting to resend the whole rdata not in segments
 	 */
 	do {
@@ -3249,24 +3241,13 @@ static int cifs_resend_rdata(struct cifs_readdata *rdata,
 						&rsize, &credits);
 
 		if (rc)
-			break;
+			goto out;
 
 		if (rsize < rdata->bytes) {
 			add_credits_and_wake_if(server, credits, 0);
 			msleep(1000);
-			wait_retry++;
 		}
-	} while (rsize < rdata->bytes && wait_retry < 3);
-
-	/*
-	 * If we can't find enough credits to send this rdata
-	 * release the rdata and return failure, this will pass
-	 * whatever I/O amount we have finished to VFS.
-	 */
-	if (rsize < rdata->bytes) {
-		rc = -EBUSY;
-		goto out;
-	}
+	} while (rsize < rdata->bytes);
 
 	rc = -EAGAIN;
 	while (rc == -EAGAIN) {

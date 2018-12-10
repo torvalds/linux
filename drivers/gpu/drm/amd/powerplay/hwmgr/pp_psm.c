@@ -265,8 +265,6 @@ int psm_adjust_power_state_dynamic(struct pp_hwmgr *hwmgr, bool skip,
 	if (skip)
 		return 0;
 
-	phm_pre_display_configuration_changed(hwmgr);
-
 	phm_display_configuration_changed(hwmgr);
 
 	if (hwmgr->ps)
