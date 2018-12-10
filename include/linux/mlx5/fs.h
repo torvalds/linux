@@ -88,6 +88,7 @@ struct mlx5_flow_spec {
 
 enum {
 	MLX5_FLOW_DEST_VPORT_VHCA_ID      = BIT(0),
+	MLX5_FLOW_DEST_VPORT_REFORMAT_ID  = BIT(1),
 };
 
 struct mlx5_flow_destination {
@@ -100,6 +101,7 @@ struct mlx5_flow_destination {
 		struct {
 			u16		num;
 			u16		vhca_id;
+			u32		reformat_id;
 			u8		flags;
 		} vport;
 	};
