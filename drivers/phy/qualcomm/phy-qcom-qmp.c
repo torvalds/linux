@@ -1542,6 +1542,11 @@ static int qcom_qmp_phy_clk_init(struct device *dev)
 	return devm_clk_bulk_get(dev, num, qmp->clks);
 }
 
+static void phy_pipe_clk_release_provider(void *res)
+{
+	of_clk_del_provider(res);
+}
+
 /*
  * Register a fixed rate pipe clock.
  *
@@ -1588,7 +1593,23 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 	fixed->fixed_rate = 125000000;
 	fixed->hw.init = &init;
 
-	return devm_clk_hw_register(qmp->dev, &fixed->hw);
+	ret = devm_clk_hw_register(qmp->dev, &fixed->hw);
+	if (ret)
+		return ret;
+
+	ret = of_clk_add_hw_provider(np, of_clk_hw_simple_get, &fixed->hw);
+	if (ret)
+		return ret;
+
+	/*
+	 * Roll a devm action because the clock provider is the child node, but
+	 * the child node is not actually a device.
+	 */
+	ret = devm_add_action(qmp->dev, phy_pipe_clk_release_provider, np);
+	if (ret)
+		phy_pipe_clk_release_provider(np);
+
+	return ret;
 }
 
 static const struct phy_ops qcom_qmp_phy_gen_ops = {
