@@ -1271,6 +1271,11 @@ static void __init gic_of_setup_kvm_info(struct device_node *node)
 	gic_set_kvm_info(&gic_v3_kvm_info);
 }
 
+static const struct gic_quirk gic_quirks[] = {
+	{
+	}
+};
+
 static int __init gic_of_init(struct device_node *node, struct device_node *parent)
 {
 	void __iomem *dist_base;
@@ -1317,6 +1322,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 
 	if (of_property_read_u64(node, "redistributor-stride", &redist_stride))
 		redist_stride = 0;
+
+	gic_enable_of_quirks(node, gic_quirks, &gic_data);
 
 	err = gic_init_bases(dist_base, rdist_regs, nr_redist_regions,
 			     redist_stride, &node->fwnode);

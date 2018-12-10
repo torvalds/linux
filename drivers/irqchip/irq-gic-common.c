@@ -36,6 +36,18 @@ void gic_set_kvm_info(const struct gic_kvm_info *info)
 	gic_kvm_info = info;
 }
 
+void gic_enable_of_quirks(const struct device_node *np,
+			  const struct gic_quirk *quirks, void *data)
+{
+	for (; quirks->desc; quirks++) {
+		if (!of_device_is_compatible(np, quirks->compatible))
+			continue;
+		if (quirks->init(data))
+			pr_info("GIC: enabling workaround for %s\n",
+				quirks->desc);
+	}
+}
+
 void gic_enable_quirks(u32 iidr, const struct gic_quirk *quirks,
 		void *data)
 {
