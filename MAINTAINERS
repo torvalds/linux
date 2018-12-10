@@ -9378,6 +9378,13 @@ F:	drivers/media/platform/mtk-vpu/
 F:	Documentation/devicetree/bindings/media/mediatek-vcodec.txt
 F:	Documentation/devicetree/bindings/media/mediatek-vpu.txt
 
+MEDIATEK MT76 WIRELESS LAN DRIVER
+M:	Felix Fietkau <nbd@nbd.name>
+M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
+L:	linux-wireless@vger.kernel.org
+S:	Maintained
+F:	drivers/net/wireless/mediatek/mt76/
+
 MEDIATEK MT7601U WIRELESS LAN DRIVER
 M:	Jakub Kicinski <kubakici@wp.pl>
 L:	linux-wireless@vger.kernel.org
