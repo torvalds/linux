@@ -190,6 +190,8 @@ static const char *mlx5_pme_error_to_string(enum port_module_event_error_type er
 		return "High Temperature";
 	case MLX5_MODULE_EVENT_ERROR_BAD_CABLE:
 		return "Bad or shorted cable/module";
+	case MLX5_MODULE_EVENT_ERROR_PCIE_POWER_SLOT_EXCEEDED:
+		return "One or more network ports have been powered down due to insufficient/unadvertised power on the PCIe slot";
 	default:
 		return "Unknown error";
 	}
