@@ -25,10 +25,6 @@ Required properties:
   - For all others:
     - The reg-names property shouldn't be defined.
 
- - #clock-cells: must be 1 (PCIe and USB3 PHYs only)
-    - Phy pll outputs a bunch of clocks for Tx, Rx and Pipe
-      interface (for pipe based PHYs). These clock are then gate-controlled
-      by gcc.
  - #address-cells: must be 1
  - #size-cells: must be 1
  - ranges: must be present
@@ -106,6 +102,9 @@ Required properties for child node of PCIe and USB3 qmp phys:
 		- "pcie20_phy0_pipe_clk"	Pipe Clock parent
 			(or)
 		  "pcie20_phy1_pipe_clk"
+ - #clock-cells: must be 0
+    - Phy pll outputs pipe clocks for pipe based PHYs. These clocks are then
+      gate-controlled by the gcc.
 
 Required properties for child node of PHYs with lane reset, AKA:
 	"qcom,msm8996-qmp-pcie-phy"
@@ -118,7 +117,6 @@ Example:
 	phy@34000 {
 		compatible = "qcom,msm8996-qmp-pcie-phy";
 		reg = <0x34000 0x488>;
-		#clock-cells = <1>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -140,6 +138,7 @@ Example:
 			reg = <0x35000 0x130>,
 				<0x35200 0x200>,
 				<0x35400 0x1dc>;
+			#clock-cells = <0>;
 			#phy-cells = <0>;
 
 			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
@@ -157,7 +156,6 @@ Example:
 	phy@88eb000 {
 		compatible = "qcom,sdm845-qmp-usb3-uni-phy";
 		reg = <0x88eb000 0x18c>;
-		#clock-cells = <1>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
@@ -177,6 +175,7 @@ Example:
 			      <0x88eb400 0x1fc>,
 			      <0x88eb800 0x218>,
 			      <0x88eb600 0x70>;
+			#clock-cells = <0>;
 			#phy-cells = <0>;
 			clocks = <&gcc GCC_USB3_SEC_PHY_PIPE_CLK>;
 			clock-names = "pipe0";
