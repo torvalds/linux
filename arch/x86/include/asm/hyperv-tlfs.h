@@ -93,7 +93,6 @@
 #define HV_X64_ACCESS_STATS			BIT(8)
 #define HV_X64_DEBUGGING			BIT(11)
 #define HV_X64_CPU_POWER_MANAGEMENT		BIT(12)
-#define HV_X64_CONFIGURE_PROFILER		BIT(13)
 
 /*
  * Feature identification. EDX indicates which miscellaneous features
