@@ -418,26 +418,23 @@ vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate)
 }
 
 static inline void
-remote_event_create(REMOTE_EVENT_T *event)
+remote_event_create(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
 {
 	event->armed = 0;
 	/* Don't clear the 'fired' flag because it may already have been set
 	** by the other side. */
+	init_waitqueue_head(wq);
 }
 
 static inline int
-remote_event_wait(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
+remote_event_wait(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
 {
 	if (!event->fired) {
 		event->armed = 1;
 		dsb(sy);
-		if (!event->fired) {
-			if (wait_for_completion_interruptible(
-					(struct completion *)
-					((char *)state + event->event))) {
-				event->armed = 0;
-				return 0;
-			}
+		if (wait_event_killable(*wq, event->fired)) {
+			event->armed = 0;
+			return 0;
 		}
 		event->armed = 0;
 		wmb();
@@ -448,26 +445,26 @@ remote_event_wait(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
 }
 
 static inline void
-remote_event_signal_local(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
+remote_event_signal_local(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
 {
 	event->armed = 0;
-	complete((struct completion *)((char *)state + event->event));
+	wake_up_all(wq);
 }
 
 static inline void
-remote_event_poll(VCHIQ_STATE_T *state, REMOTE_EVENT_T *event)
+remote_event_poll(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
 {
 	if (event->fired && event->armed)
-		remote_event_signal_local(state, event);
+		remote_event_signal_local(wq, event);
 }
 
 void
 remote_event_pollall(VCHIQ_STATE_T *state)
 {
-	remote_event_poll(state, &state->local->sync_trigger);
-	remote_event_poll(state, &state->local->sync_release);
-	remote_event_poll(state, &state->local->trigger);
-	remote_event_poll(state, &state->local->recycle);
+	remote_event_poll(&state->sync_trigger_event, &state->local->sync_trigger);
+	remote_event_poll(&state->sync_release_event, &state->local->sync_release);
+	remote_event_poll(&state->trigger_event, &state->local->trigger);
+	remote_event_poll(&state->recycle_event, &state->local->recycle);
 }
 
 /* Round up message sizes so that any space at the end of a slot is always big
@@ -551,7 +548,7 @@ request_poll(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service, int poll_type)
 	wmb();
 
 	/* ... and ensure the slot handler runs. */
-	remote_event_signal_local(state, &state->local->trigger);
+	remote_event_signal_local(&state->trigger_event, &state->local->trigger);
 }
 
 /* Called from queue_message, by the slot handler and application threads,
@@ -1070,7 +1067,7 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 		(mutex_lock_killable(&state->sync_mutex) != 0))
 		return VCHIQ_RETRY;
 
-	remote_event_wait(state, &local->sync_release);
+	remote_event_wait(&state->sync_release_event, &local->sync_release);
 
 	rmb();
 
@@ -1888,7 +1885,7 @@ slot_handler_func(void *v)
 	while (1) {
 		DEBUG_COUNT(SLOT_HANDLER_COUNT);
 		DEBUG_TRACE(SLOT_HANDLER_LINE);
-		remote_event_wait(state, &local->trigger);
+		remote_event_wait(&state->trigger_event, &local->trigger);
 
 		rmb();
 
@@ -1977,7 +1974,7 @@ recycle_func(void *v)
 		return -ENOMEM;
 
 	while (1) {
-		remote_event_wait(state, &local->recycle);
+		remote_event_wait(&state->recycle_event, &local->recycle);
 
 		process_free_queue(state, found, length);
 	}
@@ -1999,7 +1996,7 @@ sync_func(void *v)
 		int type;
 		unsigned int localport, remoteport;
 
-		remote_event_wait(state, &local->sync_trigger);
+		remote_event_wait(&state->sync_trigger_event, &local->sync_trigger);
 
 		rmb();
 
@@ -2194,11 +2191,6 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 
 	init_completion(&state->connect);
 	mutex_init(&state->mutex);
-	init_completion(&state->trigger_event);
-	init_completion(&state->recycle_event);
-	init_completion(&state->sync_trigger_event);
-	init_completion(&state->sync_release_event);
-
 	mutex_init(&state->slot_mutex);
 	mutex_init(&state->recycle_mutex);
 	mutex_init(&state->sync_mutex);
@@ -2230,24 +2222,17 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 	state->data_use_count = 0;
 	state->data_quota = state->slot_queue_available - 1;
 
-	local->trigger.event = offsetof(VCHIQ_STATE_T, trigger_event);
-	remote_event_create(&local->trigger);
+	remote_event_create(&state->trigger_event, &local->trigger);
 	local->tx_pos = 0;
-
-	local->recycle.event = offsetof(VCHIQ_STATE_T, recycle_event);
-	remote_event_create(&local->recycle);
+	remote_event_create(&state->recycle_event, &local->recycle);
 	local->slot_queue_recycle = state->slot_queue_available;
-
-	local->sync_trigger.event = offsetof(VCHIQ_STATE_T, sync_trigger_event);
-	remote_event_create(&local->sync_trigger);
-
-	local->sync_release.event = offsetof(VCHIQ_STATE_T, sync_release_event);
-	remote_event_create(&local->sync_release);
+	remote_event_create(&state->sync_trigger_event, &local->sync_trigger);
+	remote_event_create(&state->sync_release_event, &local->sync_release);
 
 	/* At start-of-day, the slot is empty and available */
 	((VCHIQ_HEADER_T *)SLOT_DATA_FROM_INDEX(state, local->slot_sync))->msgid
 		= VCHIQ_MSGID_PADDING;
-	remote_event_signal_local(state, &local->sync_release);
+	remote_event_signal_local(&state->sync_release_event, &local->sync_release);
 
 	local->debug[DEBUG_ENTRIES] = DEBUG_MAX;
 
