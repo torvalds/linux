@@ -1399,10 +1399,9 @@ static int g4x_compute_pipe_wm(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int g4x_compute_intermediate_wm(struct drm_device *dev,
-				       struct intel_crtc *crtc,
-				       struct intel_crtc_state *new_crtc_state)
+static int g4x_compute_intermediate_wm(struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct g4x_wm_state *intermediate = &new_crtc_state->wm.g4x.intermediate;
 	const struct g4x_wm_state *optimal = &new_crtc_state->wm.g4x.optimal;
 	struct intel_atomic_state *intel_state =
@@ -2032,10 +2031,9 @@ static void vlv_atomic_update_fifo(struct intel_atomic_state *state,
 
 #undef VLV_FIFO
 
-static int vlv_compute_intermediate_wm(struct drm_device *dev,
-				       struct intel_crtc *crtc,
-				       struct intel_crtc_state *new_crtc_state)
+static int vlv_compute_intermediate_wm(struct intel_crtc_state *new_crtc_state)
 {
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->base.crtc);
 	struct vlv_wm_state *intermediate = &new_crtc_state->wm.vlv.intermediate;
 	const struct vlv_wm_state *optimal = &new_crtc_state->wm.vlv.optimal;
 	struct intel_atomic_state *intel_state =
@@ -2626,13 +2624,12 @@ static unsigned int ilk_fbc_wm_reg_max(const struct drm_i915_private *dev_priv)
 }
 
 /* Calculate the maximum primary/sprite plane watermark */
-static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
+static unsigned int ilk_plane_wm_max(const struct drm_i915_private *dev_priv,
 				     int level,
 				     const struct intel_wm_config *config,
 				     enum intel_ddb_partitioning ddb_partitioning,
 				     bool is_sprite)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	unsigned int fifo_size = ilk_display_fifo_size(dev_priv);
 
 	/* if sprites aren't enabled, sprites get nothing */
@@ -2668,7 +2665,7 @@ static unsigned int ilk_plane_wm_max(const struct drm_device *dev,
 }
 
 /* Calculate the maximum cursor plane watermark */
-static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
+static unsigned int ilk_cursor_wm_max(const struct drm_i915_private *dev_priv,
 				      int level,
 				      const struct intel_wm_config *config)
 {
@@ -2677,19 +2674,19 @@ static unsigned int ilk_cursor_wm_max(const struct drm_device *dev,
 		return 64;
 
 	/* otherwise just report max that registers can hold */
-	return ilk_cursor_wm_reg_max(to_i915(dev), level);
+	return ilk_cursor_wm_reg_max(dev_priv, level);
 }
 
-static void ilk_compute_wm_maximums(const struct drm_device *dev,
+static void ilk_compute_wm_maximums(const struct drm_i915_private *dev_priv,
 				    int level,
 				    const struct intel_wm_config *config,
 				    enum intel_ddb_partitioning ddb_partitioning,
 				    struct ilk_wm_maximums *max)
 {
-	max->pri = ilk_plane_wm_max(dev, level, config, ddb_partitioning, false);
-	max->spr = ilk_plane_wm_max(dev, level, config, ddb_partitioning, true);
-	max->cur = ilk_cursor_wm_max(dev, level, config);
-	max->fbc = ilk_fbc_wm_reg_max(to_i915(dev));
+	max->pri = ilk_plane_wm_max(dev_priv, level, config, ddb_partitioning, false);
+	max->spr = ilk_plane_wm_max(dev_priv, level, config, ddb_partitioning, true);
+	max->cur = ilk_cursor_wm_max(dev_priv, level, config);
+	max->fbc = ilk_fbc_wm_reg_max(dev_priv);
 }
 
 static void ilk_compute_wm_reg_maximums(const struct drm_i915_private *dev_priv,
@@ -3073,7 +3070,7 @@ static void skl_setup_wm_latency(struct drm_i915_private *dev_priv)
 	intel_print_wm_latency(dev_priv, "Gen9 Plane", dev_priv->wm.skl_latency);
 }
 
-static bool ilk_validate_pipe_wm(struct drm_device *dev,
+static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
 				 struct intel_pipe_wm *pipe_wm)
 {
 	/* LP0 watermark maximums depend on this pipe alone */
@@ -3085,7 +3082,7 @@ static bool ilk_validate_pipe_wm(struct drm_device *dev,
 	struct ilk_wm_maximums max;
 
 	/* LP0 watermarks always use 1/2 DDB partitioning */
-	ilk_compute_wm_maximums(dev, 0, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_compute_wm_maximums(dev_priv, 0, &config, INTEL_DDB_PART_1_2, &max);
 
 	/* At least LP0 must be valid */
 	if (!ilk_validate_wm_level(0, &max, &pipe_wm->wm[0])) {
@@ -3150,7 +3147,7 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		pipe_wm->linetime = hsw_compute_linetime_wm(cstate);
 
-	if (!ilk_validate_pipe_wm(dev, pipe_wm))
+	if (!ilk_validate_pipe_wm(dev_priv, pipe_wm))
 		return -EINVAL;
 
 	ilk_compute_wm_reg_maximums(dev_priv, 1, &max);
@@ -3180,17 +3177,17 @@ static int ilk_compute_pipe_wm(struct intel_crtc_state *cstate)
  * state and the new state.  These can be programmed to the hardware
  * immediately.
  */
-static int ilk_compute_intermediate_wm(struct drm_device *dev,
-				       struct intel_crtc *intel_crtc,
-				       struct intel_crtc_state *newstate)
+static int ilk_compute_intermediate_wm(struct intel_crtc_state *newstate)
 {
+	struct intel_crtc *intel_crtc = to_intel_crtc(newstate->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
 	struct intel_pipe_wm *a = &newstate->wm.ilk.intermediate;
 	struct intel_atomic_state *intel_state =
 		to_intel_atomic_state(newstate->base.state);
 	const struct intel_crtc_state *oldstate =
 		intel_atomic_get_old_crtc_state(intel_state, intel_crtc);
 	const struct intel_pipe_wm *b = &oldstate->wm.ilk.optimal;
-	int level, max_level = ilk_wm_max_level(to_i915(dev));
+	int level, max_level = ilk_wm_max_level(dev_priv);
 
 	/*
 	 * Start with the final, target watermarks, then combine with the
@@ -3223,7 +3220,7 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 	 * there's no safe way to transition from the old state to
 	 * the new state, so we need to fail the atomic transaction.
 	 */
-	if (!ilk_validate_pipe_wm(dev, a))
+	if (!ilk_validate_pipe_wm(dev_priv, a))
 		return -EINVAL;
 
 	/*
@@ -3239,7 +3236,7 @@ static int ilk_compute_intermediate_wm(struct drm_device *dev,
 /*
  * Merge the watermarks from all active pipes for a specific level.
  */
-static void ilk_merge_wm_level(struct drm_device *dev,
+static void ilk_merge_wm_level(struct drm_i915_private *dev_priv,
 			       int level,
 			       struct intel_wm_level *ret_wm)
 {
@@ -3247,7 +3244,7 @@ static void ilk_merge_wm_level(struct drm_device *dev,
 
 	ret_wm->enable = true;
 
-	for_each_intel_crtc(dev, intel_crtc) {
+	for_each_intel_crtc(&dev_priv->drm, intel_crtc) {
 		const struct intel_pipe_wm *active = &intel_crtc->wm.active.ilk;
 		const struct intel_wm_level *wm = &active->wm[level];
 
@@ -3272,12 +3269,11 @@ static void ilk_merge_wm_level(struct drm_device *dev,
 /*
  * Merge all low power watermarks for all active pipes.
  */
-static void ilk_wm_merge(struct drm_device *dev,
+static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 			 const struct intel_wm_config *config,
 			 const struct ilk_wm_maximums *max,
 			 struct intel_pipe_wm *merged)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	int level, max_level = ilk_wm_max_level(dev_priv);
 	int last_enabled_level = max_level;
 
@@ -3293,7 +3289,7 @@ static void ilk_wm_merge(struct drm_device *dev,
 	for (level = 1; level <= max_level; level++) {
 		struct intel_wm_level *wm = &merged->wm[level];
 
-		ilk_merge_wm_level(dev, level, wm);
+		ilk_merge_wm_level(dev_priv, level, wm);
 
 		if (level > last_enabled_level)
 			wm->enable = false;
@@ -3335,22 +3331,20 @@ static int ilk_wm_lp_to_level(int wm_lp, const struct intel_pipe_wm *pipe_wm)
 }
 
 /* The value we need to program into the WM_LPx latency field */
-static unsigned int ilk_wm_lp_latency(struct drm_device *dev, int level)
+static unsigned int ilk_wm_lp_latency(struct drm_i915_private *dev_priv,
+				      int level)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		return 2 * level;
 	else
 		return dev_priv->wm.pri_latency[level];
 }
 
-static void ilk_compute_wm_results(struct drm_device *dev,
+static void ilk_compute_wm_results(struct drm_i915_private *dev_priv,
 				   const struct intel_pipe_wm *merged,
 				   enum intel_ddb_partitioning partitioning,
 				   struct ilk_wm_values *results)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *intel_crtc;
 	int level, wm_lp;
 
@@ -3370,7 +3364,7 @@ static void ilk_compute_wm_results(struct drm_device *dev,
 		 * disabled. Doing otherwise could cause underruns.
 		 */
 		results->wm_lp[wm_lp - 1] =
-			(ilk_wm_lp_latency(dev, level) << WM1_LP_LATENCY_SHIFT) |
+			(ilk_wm_lp_latency(dev_priv, level) << WM1_LP_LATENCY_SHIFT) |
 			(r->pri_val << WM1_LP_SR_SHIFT) |
 			r->cur_val;
 
@@ -3396,7 +3390,7 @@ static void ilk_compute_wm_results(struct drm_device *dev,
 	}
 
 	/* LP0 register values */
-	for_each_intel_crtc(dev, intel_crtc) {
+	for_each_intel_crtc(&dev_priv->drm, intel_crtc) {
 		enum pipe pipe = intel_crtc->pipe;
 		const struct intel_wm_level *r =
 			&intel_crtc->wm.active.ilk.wm[0];
@@ -3415,11 +3409,12 @@ static void ilk_compute_wm_results(struct drm_device *dev,
 
 /* Find the result with the highest level enabled. Check for enable_fbc_wm in
  * case both are at the same level. Prefer r1 in case they're the same. */
-static struct intel_pipe_wm *ilk_find_best_result(struct drm_device *dev,
-						  struct intel_pipe_wm *r1,
-						  struct intel_pipe_wm *r2)
+static struct intel_pipe_wm *
+ilk_find_best_result(struct drm_i915_private *dev_priv,
+		     struct intel_pipe_wm *r1,
+		     struct intel_pipe_wm *r2)
 {
-	int level, max_level = ilk_wm_max_level(to_i915(dev));
+	int level, max_level = ilk_wm_max_level(dev_priv);
 	int level1 = 0, level2 = 0;
 
 	for (level = 1; level <= max_level; level++) {
@@ -4307,10 +4302,9 @@ icl_get_total_relative_data_rate(struct intel_crtc_state *intel_cstate,
 }
 
 static uint16_t
-skl_ddb_min_alloc(const struct drm_plane_state *pstate, const int plane)
+skl_ddb_min_alloc(const struct intel_plane_state *plane_state, const int plane)
 {
-	struct drm_framebuffer *fb = pstate->fb;
-	struct intel_plane_state *intel_pstate = to_intel_plane_state(pstate);
+	struct drm_framebuffer *fb = plane_state->base.fb;
 	uint32_t src_w, src_h;
 	uint32_t min_scanlines = 8;
 	uint8_t plane_bpp;
@@ -4334,8 +4328,8 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate, const int plane)
 	 * the 90/270 degree plane rotation cases (to match the
 	 * GTT mapping), hence no need to account for rotation here.
 	 */
-	src_w = drm_rect_width(&intel_pstate->base.src) >> 16;
-	src_h = drm_rect_height(&intel_pstate->base.src) >> 16;
+	src_w = drm_rect_width(&plane_state->base.src) >> 16;
+	src_h = drm_rect_height(&plane_state->base.src) >> 16;
 
 	/* Halve UV plane width and height for NV12 */
 	if (plane == 1) {
@@ -4345,7 +4339,7 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate, const int plane)
 
 	plane_bpp = fb->format->cpp[plane];
 
-	if (drm_rotation_90_or_270(pstate->rotation)) {
+	if (drm_rotation_90_or_270(plane_state->base.rotation)) {
 		switch (plane_bpp) {
 		case 1:
 			min_scanlines = 32;
@@ -4388,14 +4382,15 @@ skl_ddb_calc_min(const struct intel_crtc_state *cstate, int num_active,
 			continue;
 
 		if (!plane_state->linked_plane) {
-			minimum[plane_id] = skl_ddb_min_alloc(pstate, 0);
-			uv_minimum[plane_id] = skl_ddb_min_alloc(pstate, 1);
+			minimum[plane_id] = skl_ddb_min_alloc(plane_state, 0);
+			uv_minimum[plane_id] =
+				skl_ddb_min_alloc(plane_state, 1);
 		} else {
 			enum plane_id y_plane_id =
 				plane_state->linked_plane->id;
 
-			minimum[y_plane_id] = skl_ddb_min_alloc(pstate, 0);
-			minimum[plane_id] = skl_ddb_min_alloc(pstate, 1);
+			minimum[y_plane_id] = skl_ddb_min_alloc(plane_state, 0);
+			minimum[plane_id] = skl_ddb_min_alloc(plane_state, 1);
 		}
 	}
 
@@ -5251,15 +5246,14 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 	return false;
 }
 
-static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
+static int skl_update_pipe_wm(struct intel_crtc_state *cstate,
 			      const struct skl_pipe_wm *old_pipe_wm,
 			      struct skl_pipe_wm *pipe_wm, /* out */
 			      bool *changed /* out */)
 {
-	struct intel_crtc_state *intel_cstate = to_intel_crtc_state(cstate);
 	int ret;
 
-	ret = skl_build_pipe_wm(intel_cstate, pipe_wm);
+	ret = skl_build_pipe_wm(cstate, pipe_wm);
 	if (ret)
 		return ret;
 
@@ -5272,14 +5266,14 @@ static int skl_update_pipe_wm(struct drm_crtc_state *cstate,
 }
 
 static uint32_t
-pipes_modified(struct drm_atomic_state *state)
+pipes_modified(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *cstate;
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *cstate;
 	uint32_t i, ret = 0;
 
-	for_each_new_crtc_in_state(state, crtc, cstate, i)
-		ret |= drm_crtc_mask(crtc);
+	for_each_new_intel_crtc_in_state(state, crtc, cstate, i)
+		ret |= drm_crtc_mask(&crtc->base);
 
 	return ret;
 }
@@ -5314,11 +5308,10 @@ skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 }
 
 static int
-skl_compute_ddb(struct drm_atomic_state *state)
+skl_compute_ddb(struct intel_atomic_state *state)
 {
-	const struct drm_i915_private *dev_priv = to_i915(state->dev);
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct skl_ddb_allocation *ddb = &intel_state->wm_results.ddb;
+	const struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct skl_ddb_allocation *ddb = &state->wm_results.ddb;
 	struct intel_crtc_state *old_crtc_state;
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc *crtc;
@@ -5326,7 +5319,7 @@ skl_compute_ddb(struct drm_atomic_state *state)
 
 	memcpy(ddb, &dev_priv->wm.skl_hw.ddb, sizeof(*ddb));
 
-	for_each_oldnew_intel_crtc_in_state(intel_state, crtc, old_crtc_state,
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		ret = skl_allocate_pipe_ddb(new_crtc_state, ddb);
 		if (ret)
@@ -5372,14 +5365,12 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 }
 
 static int
-skl_ddb_add_affected_pipes(struct drm_atomic_state *state, bool *changed)
+skl_ddb_add_affected_pipes(struct intel_atomic_state *state, bool *changed)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = state->base.dev;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
-	const struct drm_crtc *crtc;
-	const struct drm_crtc_state *cstate;
-	struct intel_crtc *intel_crtc;
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *crtc_state;
 	uint32_t realloc_pipes = pipes_modified(state);
 	int ret, i;
 
@@ -5398,7 +5389,7 @@ skl_ddb_add_affected_pipes(struct drm_atomic_state *state, bool *changed)
 	 * since any racing commits that want to update them would need to
 	 * hold _all_ CRTC state mutexes.
 	 */
-	for_each_new_crtc_in_state(state, crtc, cstate, i)
+	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
 		(*changed) = true;
 
 	if (!*changed)
@@ -5412,20 +5403,20 @@ skl_ddb_add_affected_pipes(struct drm_atomic_state *state, bool *changed)
 	 */
 	if (dev_priv->wm.distrust_bios_wm) {
 		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
-				       state->acquire_ctx);
+				       state->base.acquire_ctx);
 		if (ret)
 			return ret;
 
-		intel_state->active_pipe_changes = ~0;
+		state->active_pipe_changes = ~0;
 
 		/*
-		 * We usually only initialize intel_state->active_crtcs if we
+		 * We usually only initialize state->active_crtcs if we
 		 * we're doing a modeset; make sure this field is always
 		 * initialized during the sanitization process that happens
 		 * on the first commit too.
 		 */
-		if (!intel_state->modeset)
-			intel_state->active_crtcs = dev_priv->active_crtcs;
+		if (!state->modeset)
+			state->active_crtcs = dev_priv->active_crtcs;
 	}
 
 	/*
@@ -5441,21 +5432,19 @@ skl_ddb_add_affected_pipes(struct drm_atomic_state *state, bool *changed)
 	 * any other display updates race with this transaction, so we need
 	 * to grab the lock on *all* CRTC's.
 	 */
-	if (intel_state->active_pipe_changes || intel_state->modeset) {
+	if (state->active_pipe_changes || state->modeset) {
 		realloc_pipes = ~0;
-		intel_state->wm_results.dirty_pipes = ~0;
+		state->wm_results.dirty_pipes = ~0;
 	}
 
 	/*
 	 * We're not recomputing for the pipes not included in the commit, so
 	 * make sure we start with the current state.
 	 */
-	for_each_intel_crtc_mask(dev, intel_crtc, realloc_pipes) {
-		struct intel_crtc_state *cstate;
-
-		cstate = intel_atomic_get_crtc_state(state, intel_crtc);
-		if (IS_ERR(cstate))
-			return PTR_ERR(cstate);
+	for_each_intel_crtc_mask(dev, crtc, realloc_pipes) {
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
 	}
 
 	return 0;
@@ -5522,13 +5511,12 @@ static int skl_wm_add_affected_planes(struct intel_atomic_state *state,
 }
 
 static int
-skl_compute_wm(struct drm_atomic_state *state)
+skl_compute_wm(struct intel_atomic_state *state)
 {
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *cstate;
-	struct drm_crtc_state *old_crtc_state;
-	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct skl_ddb_values *results = &intel_state->wm_results;
+	struct intel_crtc *crtc;
+	struct intel_crtc_state *cstate;
+	struct intel_crtc_state *old_crtc_state;
+	struct skl_ddb_values *results = &state->wm_results;
 	struct skl_pipe_wm *pipe_wm;
 	bool changed = false;
 	int ret, i;
@@ -5550,27 +5538,25 @@ skl_compute_wm(struct drm_atomic_state *state)
 	 * weren't otherwise being modified (and set bits in dirty_pipes) if
 	 * pipe allocations had to change.
 	 */
-	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, cstate, i) {
-		struct intel_crtc_state *intel_cstate =
-			to_intel_crtc_state(cstate);
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    cstate, i) {
 		const struct skl_pipe_wm *old_pipe_wm =
-			&to_intel_crtc_state(old_crtc_state)->wm.skl.optimal;
+			&old_crtc_state->wm.skl.optimal;
 
-		pipe_wm = &intel_cstate->wm.skl.optimal;
+		pipe_wm = &cstate->wm.skl.optimal;
 		ret = skl_update_pipe_wm(cstate, old_pipe_wm, pipe_wm, &changed);
 		if (ret)
 			return ret;
 
-		ret = skl_wm_add_affected_planes(intel_state,
-						 to_intel_crtc(crtc));
+		ret = skl_wm_add_affected_planes(state, crtc);
 		if (ret)
 			return ret;
 
 		if (changed)
-			results->dirty_pipes |= drm_crtc_mask(crtc);
+			results->dirty_pipes |= drm_crtc_mask(&crtc->base);
 	}
 
-	skl_print_wm_changes(intel_state);
+	skl_print_wm_changes(state);
 
 	return 0;
 }
@@ -5608,13 +5594,13 @@ static void skl_initial_wm(struct intel_atomic_state *state,
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
-static void ilk_compute_wm_config(struct drm_device *dev,
+static void ilk_compute_wm_config(struct drm_i915_private *dev_priv,
 				  struct intel_wm_config *config)
 {
 	struct intel_crtc *crtc;
 
 	/* Compute the currently _active_ config */
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		const struct intel_pipe_wm *wm = &crtc->wm.active.ilk;
 
 		if (!wm->pipe_enabled)
@@ -5628,25 +5614,24 @@ static void ilk_compute_wm_config(struct drm_device *dev,
 
 static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 {
-	struct drm_device *dev = &dev_priv->drm;
 	struct intel_pipe_wm lp_wm_1_2 = {}, lp_wm_5_6 = {}, *best_lp_wm;
 	struct ilk_wm_maximums max;
 	struct intel_wm_config config = {};
 	struct ilk_wm_values results = {};
 	enum intel_ddb_partitioning partitioning;
 
-	ilk_compute_wm_config(dev, &config);
+	ilk_compute_wm_config(dev_priv, &config);
 
-	ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_1_2, &max);
-	ilk_wm_merge(dev, &config, &max, &lp_wm_1_2);
+	ilk_compute_wm_maximums(dev_priv, 1, &config, INTEL_DDB_PART_1_2, &max);
+	ilk_wm_merge(dev_priv, &config, &max, &lp_wm_1_2);
 
 	/* 5/6 split only in single pipe config on IVB+ */
 	if (INTEL_GEN(dev_priv) >= 7 &&
 	    config.num_pipes_active == 1 && config.sprites_enabled) {
-		ilk_compute_wm_maximums(dev, 1, &config, INTEL_DDB_PART_5_6, &max);
-		ilk_wm_merge(dev, &config, &max, &lp_wm_5_6);
+		ilk_compute_wm_maximums(dev_priv, 1, &config, INTEL_DDB_PART_5_6, &max);
+		ilk_wm_merge(dev_priv, &config, &max, &lp_wm_5_6);
 
-		best_lp_wm = ilk_find_best_result(dev, &lp_wm_1_2, &lp_wm_5_6);
+		best_lp_wm = ilk_find_best_result(dev_priv, &lp_wm_1_2, &lp_wm_5_6);
 	} else {
 		best_lp_wm = &lp_wm_1_2;
 	}
@@ -5654,7 +5639,7 @@ static void ilk_program_watermarks(struct drm_i915_private *dev_priv)
 	partitioning = (best_lp_wm == &lp_wm_1_2) ?
 		       INTEL_DDB_PART_1_2 : INTEL_DDB_PART_5_6;
 
-	ilk_compute_wm_results(dev, best_lp_wm, partitioning, &results);
+	ilk_compute_wm_results(dev_priv, best_lp_wm, partitioning, &results);
 
 	ilk_write_wm_values(dev_priv, &results);
 }
@@ -5694,19 +5679,18 @@ static inline void skl_wm_level_from_reg_val(uint32_t val,
 		PLANE_WM_LINES_MASK;
 }
 
-void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
+void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 			      struct skl_pipe_wm *out)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	enum pipe pipe = intel_crtc->pipe;
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum pipe pipe = crtc->pipe;
 	int level, max_level;
 	enum plane_id plane_id;
 	uint32_t val;
 
 	max_level = ilk_wm_max_level(dev_priv);
 
-	for_each_plane_id_on_crtc(intel_crtc, plane_id) {
+	for_each_plane_id_on_crtc(crtc, plane_id) {
 		struct skl_plane_wm *wm = &out->planes[plane_id];
 
 		for (level = 0; level <= max_level; level++) {
@@ -5726,30 +5710,27 @@ void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
 		skl_wm_level_from_reg_val(val, &wm->trans_wm);
 	}
 
-	if (!intel_crtc->active)
+	if (!crtc->active)
 		return;
 
 	out->linetime = I915_READ(PIPE_WM_LINETIME(pipe));
 }
 
-void skl_wm_get_hw_state(struct drm_device *dev)
+void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct skl_ddb_values *hw = &dev_priv->wm.skl_hw;
 	struct skl_ddb_allocation *ddb = &dev_priv->wm.skl_hw.ddb;
-	struct drm_crtc *crtc;
-	struct intel_crtc *intel_crtc;
+	struct intel_crtc *crtc;
 	struct intel_crtc_state *cstate;
 
 	skl_ddb_get_hw_state(dev_priv, ddb);
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		intel_crtc = to_intel_crtc(crtc);
-		cstate = to_intel_crtc_state(crtc->state);
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		cstate = to_intel_crtc_state(crtc->base.state);
 
 		skl_pipe_wm_get_hw_state(crtc, &cstate->wm.skl.optimal);
 
-		if (intel_crtc->active)
-			hw->dirty_pipes |= drm_crtc_mask(crtc);
+		if (crtc->active)
+			hw->dirty_pipes |= drm_crtc_mask(&crtc->base);
 	}
 
 	if (dev_priv->active_crtcs) {
@@ -5758,15 +5739,14 @@ void skl_wm_get_hw_state(struct drm_device *dev)
 	}
 }
 
-static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
+static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
+	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct ilk_wm_values *hw = &dev_priv->wm.hw;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->state);
+	struct intel_crtc_state *cstate = to_intel_crtc_state(crtc->base.state);
 	struct intel_pipe_wm *active = &cstate->wm.ilk.optimal;
-	enum pipe pipe = intel_crtc->pipe;
+	enum pipe pipe = crtc->pipe;
 	static const i915_reg_t wm0_pipe_reg[] = {
 		[PIPE_A] = WM0_PIPEA_ILK,
 		[PIPE_B] = WM0_PIPEB_ILK,
@@ -5779,7 +5759,7 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 
 	memset(active, 0, sizeof(*active));
 
-	active->pipe_enabled = intel_crtc->active;
+	active->pipe_enabled = crtc->active;
 
 	if (active->pipe_enabled) {
 		u32 tmp = hw->wm_pipe[pipe];
@@ -5807,7 +5787,7 @@ static void ilk_pipe_wm_get_hw_state(struct drm_crtc *crtc)
 			active->wm[level].enable = true;
 	}
 
-	intel_crtc->wm.active.ilk = *active;
+	crtc->wm.active.ilk = *active;
 }
 
 #define _FW_WM(value, plane) \
@@ -5917,9 +5897,8 @@ static void vlv_read_wm_values(struct drm_i915_private *dev_priv,
 #undef _FW_WM
 #undef _FW_WM_VLV
 
-void g4x_wm_get_hw_state(struct drm_device *dev)
+void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct g4x_wm_values *wm = &dev_priv->wm.g4x;
 	struct intel_crtc *crtc;
 
@@ -5927,7 +5906,7 @@ void g4x_wm_get_hw_state(struct drm_device *dev)
 
 	wm->cxsr = I915_READ(FW_BLC_SELF) & FW_BLC_SELF_EN;
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct g4x_wm_state *active = &crtc->wm.active.g4x;
@@ -6058,9 +6037,8 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 	mutex_unlock(&dev_priv->wm.wm_mutex);
 }
 
-void vlv_wm_get_hw_state(struct drm_device *dev)
+void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct vlv_wm_values *wm = &dev_priv->wm.vlv;
 	struct intel_crtc *crtc;
 	u32 val;
@@ -6104,7 +6082,7 @@ void vlv_wm_get_hw_state(struct drm_device *dev)
 		mutex_unlock(&dev_priv->pcu_lock);
 	}
 
-	for_each_intel_crtc(dev, crtc) {
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
 		struct vlv_wm_state *active = &crtc->wm.active.vlv;
@@ -6221,15 +6199,14 @@ static void ilk_init_lp_watermarks(struct drm_i915_private *dev_priv)
 	 */
 }
 
-void ilk_wm_get_hw_state(struct drm_device *dev)
+void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct ilk_wm_values *hw = &dev_priv->wm.hw;
-	struct drm_crtc *crtc;
+	struct intel_crtc *crtc;
 
 	ilk_init_lp_watermarks(dev_priv);
 
-	for_each_crtc(dev, crtc)
+	for_each_intel_crtc(&dev_priv->drm, crtc)
 		ilk_pipe_wm_get_hw_state(crtc);
 
 	hw->wm_lp[0] = I915_READ(WM1_LP_ILK);

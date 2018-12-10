@@ -2200,16 +2200,16 @@ void gen6_rps_busy(struct drm_i915_private *dev_priv);
 void gen6_rps_reset_ei(struct drm_i915_private *dev_priv);
 void gen6_rps_idle(struct drm_i915_private *dev_priv);
 void gen6_rps_boost(struct i915_request *rq, struct intel_rps_client *rps);
-void g4x_wm_get_hw_state(struct drm_device *dev);
-void vlv_wm_get_hw_state(struct drm_device *dev);
-void ilk_wm_get_hw_state(struct drm_device *dev);
-void skl_wm_get_hw_state(struct drm_device *dev);
+void g4x_wm_get_hw_state(struct drm_i915_private *dev_priv);
+void vlv_wm_get_hw_state(struct drm_i915_private *dev_priv);
+void ilk_wm_get_hw_state(struct drm_i915_private *dev_priv);
+void skl_wm_get_hw_state(struct drm_i915_private *dev_priv);
 void skl_pipe_ddb_get_hw_state(struct intel_crtc *crtc,
 			       struct skl_ddb_entry *ddb_y,
 			       struct skl_ddb_entry *ddb_uv);
 void skl_ddb_get_hw_state(struct drm_i915_private *dev_priv,
 			  struct skl_ddb_allocation *ddb /* out */);
-void skl_pipe_wm_get_hw_state(struct drm_crtc *crtc,
+void skl_pipe_wm_get_hw_state(struct intel_crtc *crtc,
 			      struct skl_pipe_wm *out);
 void g4x_wm_sanitize(struct drm_i915_private *dev_priv);
 void vlv_wm_sanitize(struct drm_i915_private *dev_priv);

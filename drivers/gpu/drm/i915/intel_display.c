@@ -10661,12 +10661,9 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
  *
  * Returns true or false.
  */
-static bool intel_wm_need_update(struct drm_plane *plane,
-				 struct drm_plane_state *state)
+static bool intel_wm_need_update(struct intel_plane_state *cur,
+				 struct intel_plane_state *new)
 {
-	struct intel_plane_state *new = to_intel_plane_state(state);
-	struct intel_plane_state *cur = to_intel_plane_state(plane->state);
-
 	/* Update watermarks on tiling or size changes. */
 	if (new->base.visible != cur->base.visible)
 		return true;
@@ -10775,7 +10772,8 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 		/* must disable cxsr around plane enable/disable */
 		if (plane->id != PLANE_CURSOR)
 			pipe_config->disable_cxsr = true;
-	} else if (intel_wm_need_update(&plane->base, plane_state)) {
+	} else if (intel_wm_need_update(to_intel_plane_state(plane->base.state),
+					to_intel_plane_state(plane_state))) {
 		if (INTEL_GEN(dev_priv) < 5 && !IS_G4X(dev_priv)) {
 			/* FIXME bollocks */
 			pipe_config->update_wm_pre = true;
@@ -10954,8 +10952,7 @@ static int icl_check_nv12_planes(struct intel_crtc_state *crtc_state)
 static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 				   struct drm_crtc_state *crtc_state)
 {
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_crtc_state *pipe_config =
 		to_intel_crtc_state(crtc_state);
@@ -11004,9 +11001,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 		 * old state and the new state.  We can program these
 		 * immediately.
 		 */
-		ret = dev_priv->display.compute_intermediate_wm(dev,
-								intel_crtc,
-								pipe_config);
+		ret = dev_priv->display.compute_intermediate_wm(pipe_config);
 		if (ret) {
 			DRM_DEBUG_KMS("No valid intermediate pipe watermarks are possible\n");
 			return ret;
@@ -11964,7 +11959,7 @@ static void verify_wm_state(struct drm_crtc *crtc,
 	if (INTEL_GEN(dev_priv) < 9 || !new_state->active)
 		return;
 
-	skl_pipe_wm_get_hw_state(crtc, &hw_wm);
+	skl_pipe_wm_get_hw_state(intel_crtc, &hw_wm);
 	sw_wm = &to_intel_crtc_state(new_state)->wm.skl.optimal;
 
 	skl_pipe_ddb_get_hw_state(intel_crtc, hw_ddb_y, hw_ddb_uv);
@@ -12619,9 +12614,9 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
  * phase.  The code here should be run after the per-crtc and per-plane 'check'
  * handlers to ensure that all derived state has been updated.
  */
-static int calc_watermark_data(struct drm_atomic_state *state)
+static int calc_watermark_data(struct intel_atomic_state *state)
 {
-	struct drm_device *dev = state->dev;
+	struct drm_device *dev = state->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	/* Is there platform-specific watermark information to calculate? */
@@ -12713,7 +12708,7 @@ static int intel_atomic_check(struct drm_device *dev,
 		return ret;
 
 	intel_fbc_choose_crtc(dev_priv, intel_state);
-	return calc_watermark_data(state);
+	return calc_watermark_data(intel_state);
 }
 
 static int intel_atomic_prepare_commit(struct drm_device *dev,
@@ -15843,15 +15838,15 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	}
 
 	if (IS_G4X(dev_priv)) {
-		g4x_wm_get_hw_state(dev);
+		g4x_wm_get_hw_state(dev_priv);
 		g4x_wm_sanitize(dev_priv);
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		vlv_wm_get_hw_state(dev);
+		vlv_wm_get_hw_state(dev_priv);
 		vlv_wm_sanitize(dev_priv);
 	} else if (INTEL_GEN(dev_priv) >= 9) {
-		skl_wm_get_hw_state(dev);
+		skl_wm_get_hw_state(dev_priv);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
-		ilk_wm_get_hw_state(dev);
+		ilk_wm_get_hw_state(dev_priv);
 	}
 
 	for_each_intel_crtc(dev, crtc) {
