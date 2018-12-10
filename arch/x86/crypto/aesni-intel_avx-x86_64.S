@@ -510,6 +510,14 @@ _less_than_8_bytes_left\@:
         #############################
 
 _multiple_of_16_bytes\@:
+        GCM_COMPLETE \GHASH_MUL \REP
+.endm
+
+
+# GCM_COMPLETE Finishes update of tag of last partial block
+# Output: Authorization Tag (AUTH_TAG)
+# Clobbers rax, r10-r12, and xmm0, xmm1, xmm5-xmm15
+.macro GCM_COMPLETE GHASH_MUL REP
         mov     arg8, %r12                           # r12 = aadLen (number of bytes)
         shl     $3, %r12                             # convert into number of bits
         vmovd   %r12d, %xmm15                        # len(A) in xmm15
