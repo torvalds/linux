@@ -1237,6 +1237,10 @@ static int switchtec_init_pci(struct switchtec_dev *stdev,
 	if (rc)
 		return rc;
 
+	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		return rc;
+
 	pci_set_master(pdev);
 
 	stdev->mmio = pcim_iomap_table(pdev)[0];
