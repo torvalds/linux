@@ -280,7 +280,10 @@ static int asoc_simple_card_get_dai_id(struct device_node *ep)
 	 * Non HDMI sound case, counting port/endpoint on its DT
 	 * is enough. Let's count it.
 	 */
-	of_graph_parse_endpoint(ep, &info);
+	ret = of_graph_parse_endpoint(ep, &info);
+	if (ret)
+		return -ENXIO;
+
 	return info.port;
 }
 
