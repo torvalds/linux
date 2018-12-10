@@ -425,21 +425,24 @@ static LIST_HEAD(device_domain_list);
 
 /*
  * Iterate over elements in device_domain_list and call the specified
- * callback @fn against each element. This helper should only be used
- * in the context where the device_domain_lock has already been holden.
+ * callback @fn against each element.
  */
 int for_each_device_domain(int (*fn)(struct device_domain_info *info,
 				     void *data), void *data)
 {
 	int ret = 0;
+	unsigned long flags;
 	struct device_domain_info *info;
 
-	assert_spin_locked(&device_domain_lock);
+	spin_lock_irqsave(&device_domain_lock, flags);
 	list_for_each_entry(info, &device_domain_list, global) {
 		ret = fn(info, data);
-		if (ret)
+		if (ret) {
+			spin_unlock_irqrestore(&device_domain_lock, flags);
 			return ret;
+		}
 	}
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 
 	return 0;
 }
@@ -2481,16 +2484,18 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 	list_add(&info->global, &device_domain_list);
 	if (dev)
 		dev->archdata.iommu = info;
+	spin_unlock_irqrestore(&device_domain_lock, flags);
 
-	if (dev && dev_is_pci(dev) && info->pasid_supported) {
+	/* PASID table is mandatory for a PCI device in scalable mode. */
+	if (dev && dev_is_pci(dev) && sm_supported(iommu)) {
 		ret = intel_pasid_alloc_table(dev);
 		if (ret) {
-			pr_warn("No pasid table for %s, pasid disabled\n",
-				dev_name(dev));
-			info->pasid_supported = 0;
+			pr_err("PASID table allocation for %s failed\n",
+			       dev_name(dev));
+			dmar_remove_one_dev_info(domain, dev);
+			return NULL;
 		}
 	}
-	spin_unlock_irqrestore(&device_domain_lock, flags);
 
 	if (dev && domain_context_mapping(domain, dev)) {
 		pr_err("Domain context map for %s failed\n", dev_name(dev));

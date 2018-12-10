@@ -65,8 +65,6 @@ int intel_svm_init(struct intel_iommu *iommu)
 
 	order = get_order(sizeof(struct pasid_entry) * iommu->pasid_max);
 	if (ecap_dis(iommu->ecap)) {
-		/* Just making it explicit... */
-		BUILD_BUG_ON(sizeof(struct pasid_entry) != sizeof(struct pasid_state_entry));
 		pages = alloc_pages(GFP_KERNEL | __GFP_ZERO, order);
 		if (pages)
 			iommu->pasid_state_table = page_address(pages);
@@ -405,9 +403,7 @@ int intel_svm_bind_mm(struct device *dev, int *pasid, int flags, struct svm_dev_
 			pasid_entry_val |= PASID_ENTRY_FLPM_5LP;
 
 		entry = intel_pasid_get_entry(dev, svm->pasid);
-		entry->val = pasid_entry_val;
-
-		wmb();
+		WRITE_ONCE(entry->val[0], pasid_entry_val);
 
 		/*
 		 * Flush PASID cache when a PASID table entry becomes
