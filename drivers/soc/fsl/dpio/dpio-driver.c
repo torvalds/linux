@@ -110,6 +110,12 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 		goto err_open;
 	}
 
+	err = dpio_reset(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
+	if (err) {
+		dev_err(dev, "dpio_reset() failed\n");
+		goto err_reset;
+	}
+
 	err = dpio_get_attributes(dpio_dev->mc_io, 0, dpio_dev->mc_handle,
 				  &dpio_attrs);
 	if (err) {
@@ -192,6 +198,7 @@ err_register_dpio_irq:
 err_allocate_irqs:
 	dpio_disable(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 err_get_attr:
+err_reset:
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
 err_open:
 	fsl_mc_portal_free(dpio_dev->mc_io);
