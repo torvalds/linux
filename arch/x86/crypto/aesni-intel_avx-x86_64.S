@@ -518,14 +518,13 @@ _less_than_8_bytes_left\@:
         #############################
 
 _multiple_of_16_bytes\@:
-        GCM_COMPLETE \GHASH_MUL \REP
 .endm
 
 
 # GCM_COMPLETE Finishes update of tag of last partial block
 # Output: Authorization Tag (AUTH_TAG)
 # Clobbers rax, r10-r12, and xmm0, xmm1, xmm5-xmm15
-.macro GCM_COMPLETE GHASH_MUL REP
+.macro GCM_COMPLETE GHASH_MUL REP AUTH_TAG AUTH_TAG_LEN
         vmovdqu AadHash(arg2), %xmm14
         vmovdqu HashKey(arg2), %xmm13
 
@@ -560,8 +559,8 @@ _partial_done\@:
 
 
 _return_T\@:
-        mov     arg9, %r10              # r10 = authTag
-        mov     arg10, %r11              # r11 = auth_tag_len
+        mov     \AUTH_TAG, %r10              # r10 = authTag
+        mov     \AUTH_TAG_LEN, %r11              # r11 = auth_tag_len
 
         cmp     $16, %r11
         je      _T_16\@
@@ -680,14 +679,14 @@ _get_AAD_done\@:
 
         mov %r11, PBlockLen(arg2) # ctx_data.partial_block_length = 0
         mov %r11, PBlockEncKey(arg2) # ctx_data.partial_block_enc_key = 0
-        mov arg4, %rax
+        mov arg3, %rax
         movdqu (%rax), %xmm0
         movdqu %xmm0, OrigIV(arg2) # ctx_data.orig_IV = iv
 
         vpshufb SHUF_MASK(%rip), %xmm0, %xmm0
         movdqu %xmm0, CurCount(arg2) # ctx_data.current_counter = iv
 
-        vmovdqu  (arg3), %xmm6              # xmm6 = HashKey
+        vmovdqu  (arg4), %xmm6              # xmm6 = HashKey
 
         vpshufb  SHUF_MASK(%rip), %xmm6, %xmm6
         ###############  PRECOMPUTATION of HashKey<<1 mod poly from the HashKey
@@ -1776,88 +1775,100 @@ _initial_blocks_done\@:
 #        const   u8 *aad, /* Additional Authentication Data (AAD)*/
 #        u64     aad_len) /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
 #############################################################
-ENTRY(aesni_gcm_precomp_avx_gen2)
+ENTRY(aesni_gcm_init_avx_gen2)
         FUNC_SAVE
         INIT GHASH_MUL_AVX, PRECOMPUTE_AVX
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_precomp_avx_gen2)
+ENDPROC(aesni_gcm_init_avx_gen2)
 
 ###############################################################################
-#void   aesni_gcm_enc_avx_gen2(
+#void   aesni_gcm_enc_update_avx_gen2(
 #        gcm_data        *my_ctx_data,     /* aligned to 16 Bytes */
 #        gcm_context_data *data,
 #        u8      *out, /* Ciphertext output. Encrypt in-place is allowed.  */
 #        const   u8 *in, /* Plaintext input */
-#        u64     plaintext_len, /* Length of data in Bytes for encryption. */
-#        u8      *iv, /* Pre-counter block j0: 4 byte salt
-#			(from Security Association) concatenated with 8 byte
-#			Initialisation Vector (from IPSec ESP Payload)
-#			concatenated with 0x00000001. 16-byte aligned pointer. */
-#        const   u8 *aad, /* Additional Authentication Data (AAD)*/
-#        u64     aad_len, /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
-#        u8      *auth_tag, /* Authenticated Tag output. */
-#        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
-#				Valid values are 16 (most likely), 12 or 8. */
+#        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_enc_avx_gen2)
+ENTRY(aesni_gcm_enc_update_avx_gen2)
         FUNC_SAVE
         mov     keysize, %eax
         cmp     $32, %eax
-        je      key_256_enc
+        je      key_256_enc_update
         cmp     $16, %eax
-        je      key_128_enc
+        je      key_128_enc_update
         # must be 192
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, ENC, 11
         FUNC_RESTORE
         ret
-key_128_enc:
+key_128_enc_update:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, ENC, 9
         FUNC_RESTORE
         ret
-key_256_enc:
+key_256_enc_update:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, ENC, 13
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_enc_avx_gen2)
+ENDPROC(aesni_gcm_enc_update_avx_gen2)
 
 ###############################################################################
-#void   aesni_gcm_dec_avx_gen2(
+#void   aesni_gcm_dec_update_avx_gen2(
 #        gcm_data        *my_ctx_data,     /* aligned to 16 Bytes */
 #        gcm_context_data *data,
 #        u8      *out, /* Plaintext output. Decrypt in-place is allowed.  */
 #        const   u8 *in, /* Ciphertext input */
-#        u64     plaintext_len, /* Length of data in Bytes for encryption. */
-#        u8      *iv, /* Pre-counter block j0: 4 byte salt
-#			(from Security Association) concatenated with 8 byte
-#			Initialisation Vector (from IPSec ESP Payload)
-#			concatenated with 0x00000001. 16-byte aligned pointer. */
-#        const   u8 *aad, /* Additional Authentication Data (AAD)*/
-#        u64     aad_len, /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
-#        u8      *auth_tag, /* Authenticated Tag output. */
-#        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
-#				Valid values are 16 (most likely), 12 or 8. */
+#        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_dec_avx_gen2)
+ENTRY(aesni_gcm_dec_update_avx_gen2)
         FUNC_SAVE
         mov     keysize,%eax
         cmp     $32, %eax
-        je      key_256_dec
+        je      key_256_dec_update
         cmp     $16, %eax
-        je      key_128_dec
+        je      key_128_dec_update
         # must be 192
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, DEC, 11
         FUNC_RESTORE
         ret
-key_128_dec:
+key_128_dec_update:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, DEC, 9
         FUNC_RESTORE
         ret
-key_256_dec:
+key_256_dec_update:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX, GHASH_8_ENCRYPT_8_PARALLEL_AVX, GHASH_LAST_8_AVX, GHASH_MUL_AVX, DEC, 13
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_dec_avx_gen2)
+ENDPROC(aesni_gcm_dec_update_avx_gen2)
+
+###############################################################################
+#void   aesni_gcm_finalize_avx_gen2(
+#        gcm_data        *my_ctx_data,     /* aligned to 16 Bytes */
+#        gcm_context_data *data,
+#        u8      *auth_tag, /* Authenticated Tag output. */
+#        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
+#				Valid values are 16 (most likely), 12 or 8. */
+###############################################################################
+ENTRY(aesni_gcm_finalize_avx_gen2)
+        FUNC_SAVE
+        mov	keysize,%eax
+        cmp     $32, %eax
+        je      key_256_finalize
+        cmp     $16, %eax
+        je      key_128_finalize
+        # must be 192
+        GCM_COMPLETE GHASH_MUL_AVX, 11, arg3, arg4
+        FUNC_RESTORE
+        ret
+key_128_finalize:
+        GCM_COMPLETE GHASH_MUL_AVX, 9, arg3, arg4
+        FUNC_RESTORE
+        ret
+key_256_finalize:
+        GCM_COMPLETE GHASH_MUL_AVX, 13, arg3, arg4
+        FUNC_RESTORE
+        ret
+ENDPROC(aesni_gcm_finalize_avx_gen2)
+
 #endif /* CONFIG_AS_AVX */
 
 #ifdef CONFIG_AS_AVX2
@@ -2724,24 +2735,23 @@ _initial_blocks_done\@:
 
 
 #############################################################
-#void   aesni_gcm_precomp_avx_gen4
+#void   aesni_gcm_init_avx_gen4
 #        (gcm_data     *my_ctx_data,
 #         gcm_context_data *data,
-#        u8     *hash_subkey# /* H, the Hash sub key input. Data starts on a 16-byte boundary. */
 #        u8      *iv, /* Pre-counter block j0: 4 byte salt
 #			(from Security Association) concatenated with 8 byte
 #			Initialisation Vector (from IPSec ESP Payload)
 #			concatenated with 0x00000001. 16-byte aligned pointer. */
+#        u8     *hash_subkey# /* H, the Hash sub key input. Data starts on a 16-byte boundary. */
 #        const   u8 *aad, /* Additional Authentication Data (AAD)*/
 #        u64     aad_len) /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
 #############################################################
-ENTRY(aesni_gcm_precomp_avx_gen4)
+ENTRY(aesni_gcm_init_avx_gen4)
         FUNC_SAVE
         INIT GHASH_MUL_AVX2, PRECOMPUTE_AVX2
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_precomp_avx_gen4)
-
+ENDPROC(aesni_gcm_init_avx_gen4)
 
 ###############################################################################
 #void   aesni_gcm_enc_avx_gen4(
@@ -2749,74 +2759,85 @@ ENDPROC(aesni_gcm_precomp_avx_gen4)
 #        gcm_context_data *data,
 #        u8      *out, /* Ciphertext output. Encrypt in-place is allowed.  */
 #        const   u8 *in, /* Plaintext input */
-#        u64     plaintext_len, /* Length of data in Bytes for encryption. */
-#        u8      *iv, /* Pre-counter block j0: 4 byte salt
-#			(from Security Association) concatenated with 8 byte
-#			 Initialisation Vector (from IPSec ESP Payload)
-#			 concatenated with 0x00000001. 16-byte aligned pointer. */
-#        const   u8 *aad, /* Additional Authentication Data (AAD)*/
-#        u64     aad_len, /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
-#        u8      *auth_tag, /* Authenticated Tag output. */
-#        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
-#				Valid values are 16 (most likely), 12 or 8. */
+#        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_enc_avx_gen4)
+ENTRY(aesni_gcm_enc_update_avx_gen4)
         FUNC_SAVE
         mov     keysize,%eax
         cmp     $32, %eax
-        je      key_256_enc4
+        je      key_256_enc_update4
         cmp     $16, %eax
-        je      key_128_enc4
+        je      key_128_enc_update4
         # must be 192
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, ENC, 11
         FUNC_RESTORE
 	ret
-key_128_enc4:
+key_128_enc_update4:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, ENC, 9
         FUNC_RESTORE
 	ret
-key_256_enc4:
+key_256_enc_update4:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, ENC, 13
         FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_enc_avx_gen4)
+ENDPROC(aesni_gcm_enc_update_avx_gen4)
 
 ###############################################################################
-#void   aesni_gcm_dec_avx_gen4(
+#void   aesni_gcm_dec_update_avx_gen4(
 #        gcm_data        *my_ctx_data,     /* aligned to 16 Bytes */
 #        gcm_context_data *data,
 #        u8      *out, /* Plaintext output. Decrypt in-place is allowed.  */
 #        const   u8 *in, /* Ciphertext input */
-#        u64     plaintext_len, /* Length of data in Bytes for encryption. */
-#        u8      *iv, /* Pre-counter block j0: 4 byte salt
-#			(from Security Association) concatenated with 8 byte
-#			Initialisation Vector (from IPSec ESP Payload)
-#			concatenated with 0x00000001. 16-byte aligned pointer. */
-#        const   u8 *aad, /* Additional Authentication Data (AAD)*/
-#        u64     aad_len, /* Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 Bytes */
-#        u8      *auth_tag, /* Authenticated Tag output. */
-#        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
-#				Valid values are 16 (most likely), 12 or 8. */
+#        u64     plaintext_len) /* Length of data in Bytes for encryption. */
 ###############################################################################
-ENTRY(aesni_gcm_dec_avx_gen4)
+ENTRY(aesni_gcm_dec_update_avx_gen4)
         FUNC_SAVE
         mov     keysize,%eax
         cmp     $32, %eax
-        je      key_256_dec4
+        je      key_256_dec_update4
         cmp     $16, %eax
-        je      key_128_dec4
+        je      key_128_dec_update4
         # must be 192
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, DEC, 11
         FUNC_RESTORE
         ret
-key_128_dec4:
+key_128_dec_update4:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, DEC, 9
         FUNC_RESTORE
         ret
-key_256_dec4:
+key_256_dec_update4:
         GCM_ENC_DEC INITIAL_BLOCKS_AVX2, GHASH_8_ENCRYPT_8_PARALLEL_AVX2, GHASH_LAST_8_AVX2, GHASH_MUL_AVX2, DEC, 13
         FUNC_RESTORE
         ret
-ENDPROC(aesni_gcm_dec_avx_gen4)
+ENDPROC(aesni_gcm_dec_update_avx_gen4)
+
+###############################################################################
+#void   aesni_gcm_finalize_avx_gen4(
+#        gcm_data        *my_ctx_data,     /* aligned to 16 Bytes */
+#        gcm_context_data *data,
+#        u8      *auth_tag, /* Authenticated Tag output. */
+#        u64     auth_tag_len)# /* Authenticated Tag Length in bytes.
+#                              Valid values are 16 (most likely), 12 or 8. */
+###############################################################################
+ENTRY(aesni_gcm_finalize_avx_gen4)
+        FUNC_SAVE
+        mov	keysize,%eax
+        cmp     $32, %eax
+        je      key_256_finalize4
+        cmp     $16, %eax
+        je      key_128_finalize4
+        # must be 192
+        GCM_COMPLETE GHASH_MUL_AVX2, 11, arg3, arg4
+        FUNC_RESTORE
+        ret
+key_128_finalize4:
+        GCM_COMPLETE GHASH_MUL_AVX2, 9, arg3, arg4
+        FUNC_RESTORE
+        ret
+key_256_finalize4:
+        GCM_COMPLETE GHASH_MUL_AVX2, 13, arg3, arg4
+        FUNC_RESTORE
+        ret
+ENDPROC(aesni_gcm_finalize_avx_gen4)
 
 #endif /* CONFIG_AS_AVX2 */
