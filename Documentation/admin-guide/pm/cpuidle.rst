@@ -398,6 +398,16 @@ deeper the (effective) idle state represented by it.  Each of them contains
 a number of files (attributes) representing the properties of the idle state
 object corresponding to it, as follows:
 
+``above``
+	Total number of times this idle state had been asked for, but the
+	observed idle duration was certainly too short to match its target
+	residency.
+
+``below``
+	Total number of times this idle state had been asked for, but cerainly
+	a deeper idle state would have been a better match for the observed idle
+	duration.
+
 ``desc``
 	Description of the idle state.
 
