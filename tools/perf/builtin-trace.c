@@ -2641,7 +2641,7 @@ static int trace__set_filter_pids(struct trace *trace)
 	return err;
 }
 
-static int trace__deliver_event(struct trace *trace, union perf_event *event)
+static int __trace__deliver_event(struct trace *trace, union perf_event *event)
 {
 	struct perf_evlist *evlist = trace->evlist;
 	struct perf_sample sample;
@@ -2656,7 +2656,7 @@ static int trace__deliver_event(struct trace *trace, union perf_event *event)
 	return 0;
 }
 
-static int trace__flush_ordered_events(struct trace *trace)
+static int trace__flush_events(struct trace *trace)
 {
 	u64 first = ordered_events__first_time(&trace->oe.data);
 	u64 flush = trace->oe.last - NSEC_PER_SEC;
@@ -2668,7 +2668,7 @@ static int trace__flush_ordered_events(struct trace *trace)
 	return 0;
 }
 
-static int trace__deliver_ordered_event(struct trace *trace, union perf_event *event)
+static int trace__deliver_event(struct trace *trace, union perf_event *event)
 {
 	struct perf_evlist *evlist = trace->evlist;
 	int err;
@@ -2681,7 +2681,7 @@ static int trace__deliver_ordered_event(struct trace *trace, union perf_event *e
 	if (err)
 		return err;
 
-	return trace__flush_ordered_events(trace);
+	return trace__flush_events(trace);
 }
 
 static int ordered_events__deliver_event(struct ordered_events *oe,
@@ -2689,7 +2689,7 @@ static int ordered_events__deliver_event(struct ordered_events *oe,
 {
 	struct trace *trace = container_of(oe, struct trace, oe.data);
 
-	return trace__deliver_event(trace, event->event);
+	return __trace__deliver_event(trace, event->event);
 }
 
 static int trace__run(struct trace *trace, int argc, const char **argv)
@@ -2859,7 +2859,7 @@ again:
 		while ((event = perf_mmap__read_event(md)) != NULL) {
 			++trace->nr_events;
 
-			err = trace__deliver_ordered_event(trace, event);
+			err = trace__deliver_event(trace, event);
 			if (err)
 				goto out_disable;
 
@@ -2885,7 +2885,7 @@ again:
 
 			goto again;
 		} else {
-			if (trace__flush_ordered_events(trace))
+			if (trace__flush_events(trace))
 				goto out_disable;
 		}
 	} else {
