@@ -1,11 +1,13 @@
 //SPDX-License-Identifier: GPL-2.0
 #include <linux/bpf-cgroup.h>
 #include <linux/bpf.h>
+#include <linux/btf.h>
 #include <linux/bug.h>
 #include <linux/filter.h>
 #include <linux/mm.h>
 #include <linux/rbtree.h>
 #include <linux/slab.h>
+#include <uapi/linux/btf.h>
 
 DEFINE_PER_CPU(struct bpf_cgroup_storage*, bpf_cgroup_storage[MAX_BPF_CGROUP_STORAGE_TYPE]);
 
@@ -308,6 +310,94 @@ static int cgroup_storage_delete_elem(struct bpf_map *map, void *key)
 	return -EINVAL;
 }
 
+static int cgroup_storage_check_btf(const struct bpf_map *map,
+				    const struct btf *btf,
+				    const struct btf_type *key_type,
+				    const struct btf_type *value_type)
+{
+	const struct btf_type *t;
+	struct btf_member *m;
+	u32 id, size;
+
+	/* Key is expected to be of struct bpf_cgroup_storage_key type,
+	 * which is:
+	 * struct bpf_cgroup_storage_key {
+	 *	__u64	cgroup_inode_id;
+	 *	__u32	attach_type;
+	 * };
+	 */
+
+	/*
+	 * Key_type must be a structure with two fields.
+	 */
+	if (BTF_INFO_KIND(key_type->info) != BTF_KIND_STRUCT ||
+	    BTF_INFO_VLEN(key_type->info) != 2)
+		return -EINVAL;
+
+	/*
+	 * The first field must be a 64 bit integer at 0 offset.
+	 */
+	m = (struct btf_member *)(key_type + 1);
+	if (m->offset)
+		return -EINVAL;
+	id = m->type;
+	t = btf_type_id_size(btf, &id, NULL);
+	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, cgroup_inode_id);
+	if (!t || !btf_type_is_reg_int(t, size))
+		return -EINVAL;
+
+	/*
+	 * The second field must be a 32 bit integer at 64 bit offset.
+	 */
+	m++;
+	if (m->offset != offsetof(struct bpf_cgroup_storage_key, attach_type) *
+	    BITS_PER_BYTE)
+		return -EINVAL;
+	id = m->type;
+	t = btf_type_id_size(btf, &id, NULL);
+	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, attach_type);
+	if (!t || !btf_type_is_reg_int(t, size))
+		return -EINVAL;
+
+	return 0;
+}
+
+static void cgroup_storage_seq_show_elem(struct bpf_map *map, void *_key,
+					 struct seq_file *m)
+{
+	enum bpf_cgroup_storage_type stype = cgroup_storage_type(map);
+	struct bpf_cgroup_storage_key *key = _key;
+	struct bpf_cgroup_storage *storage;
+	int cpu;
+
+	rcu_read_lock();
+	storage = cgroup_storage_lookup(map_to_storage(map), key, false);
+	if (!storage) {
+		rcu_read_unlock();
+		return;
+	}
+
+	btf_type_seq_show(map->btf, map->btf_key_type_id, key, m);
+	stype = cgroup_storage_type(map);
+	if (stype == BPF_CGROUP_STORAGE_SHARED) {
+		seq_puts(m, ": ");
+		btf_type_seq_show(map->btf, map->btf_value_type_id,
+				  &READ_ONCE(storage->buf)->data[0], m);
+		seq_puts(m, "\n");
+	} else {
+		seq_puts(m, ": {\n");
+		for_each_possible_cpu(cpu) {
+			seq_printf(m, "\tcpu%d: ", cpu);
+			btf_type_seq_show(map->btf, map->btf_value_type_id,
+					  per_cpu_ptr(storage->percpu_buf, cpu),
+					  m);
+			seq_puts(m, "\n");
+		}
+		seq_puts(m, "}\n");
+	}
+	rcu_read_unlock();
+}
+
 const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_alloc = cgroup_storage_map_alloc,
 	.map_free = cgroup_storage_map_free,
@@ -315,7 +405,8 @@ const struct bpf_map_ops cgroup_storage_map_ops = {
 	.map_lookup_elem = cgroup_storage_lookup_elem,
 	.map_update_elem = cgroup_storage_update_elem,
 	.map_delete_elem = cgroup_storage_delete_elem,
-	.map_check_btf = map_check_no_btf,
+	.map_check_btf = cgroup_storage_check_btf,
+	.map_seq_show_elem = cgroup_storage_seq_show_elem,
 };
 
 int bpf_cgroup_storage_assign(struct bpf_prog *prog, struct bpf_map *_map)
