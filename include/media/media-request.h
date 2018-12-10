@@ -68,7 +68,7 @@ struct media_request {
 	unsigned int access_count;
 	struct list_head objects;
 	unsigned int num_incomplete_objects;
-	struct wait_queue_head poll_wait;
+	wait_queue_head_t poll_wait;
 	spinlock_t lock;
 };
 

@@ -304,7 +304,8 @@ restart:
 		for (; p < p_out + sz; p++) {
 			u32 copy;
 
-			p = memchr(p, magic[ctx->comp_magic_cnt], sz);
+			p = memchr(p, magic[ctx->comp_magic_cnt],
+				   p_out + sz - p);
 			if (!p) {
 				ctx->comp_magic_cnt = 0;
 				break;

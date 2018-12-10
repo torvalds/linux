@@ -104,7 +104,7 @@ asmlinkage void notrace stackleak_erase(void)
 }
 NOKPROBE_SYMBOL(stackleak_erase);
 
-void __used stackleak_track_stack(void)
+void __used notrace stackleak_track_stack(void)
 {
 	/*
 	 * N.B. stackleak_erase() fills the kernel stack with the poison value,

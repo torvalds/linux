@@ -168,3 +168,19 @@ a shared clock is forbidden.
 
 Configuration of common clocks, which affect multiple consumer devices can
 be similarly specified in the clock provider node.
+
+==Protected clocks==
+
+Some platforms or firmwares may not fully expose all the clocks to the OS, such
+as in situations where those clks are used by drivers running in ARM secure
+execution levels. Such a configuration can be specified in device tree with the
+protected-clocks property in the form of a clock specifier list. This property should
+only be specified in the node that is providing the clocks being protected:
+
+   clock-controller@a000f000 {
+        compatible = "vendor,clk95;
+        reg = <0xa000f000 0x1000>
+        #clocks-cells = <1>;
+        ...
+        protected-clocks = <UART3_CLK>, <SPI5_CLK>;
+   };
