@@ -372,7 +372,6 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
 	pr_hard("initing context for mm @%p\n", mm);
 
-#ifdef	CONFIG_PPC_MM_SLICES
 	/*
 	 * We have MMU_NO_CONTEXT set to be ~0. Hence check
 	 * explicitly against context.id == 0. This ensures that we properly
@@ -382,7 +381,6 @@ int init_new_context(struct task_struct *t, struct mm_struct *mm)
 	 */
 	if (mm->context.id == 0)
 		slice_init_new_context_exec(mm);
-#endif
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;
 	pte_frag_set(&mm->context, NULL);
