@@ -118,6 +118,7 @@ config HNS3_ENET
 	tristate "Hisilicon HNS3 Ethernet Device Support"
 	default m
 	depends on 64BIT && PCI
+	depends on INET
 	---help---
 	  This selects the Ethernet Driver for Hisilicon Network Subsystem 3 for hip08
 	  family of SoCs. This module depends upon HNAE3 driver to access the HNAE3
