@@ -141,10 +141,10 @@ static umode_t tmp102_is_visible(const void *data, enum hwmon_sensor_types type,
 
 	switch (attr) {
 	case hwmon_temp_input:
-		return S_IRUGO;
+		return 0444;
 	case hwmon_temp_max_hyst:
 	case hwmon_temp_max:
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 	default:
 		return 0;
 	}
