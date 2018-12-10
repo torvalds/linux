@@ -2721,6 +2721,39 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 	return 0;
 }
 
+static const struct ib_device_ops i40iw_dev_ops = {
+	.alloc_hw_stats = i40iw_alloc_hw_stats,
+	.alloc_mr = i40iw_alloc_mr,
+	.alloc_pd = i40iw_alloc_pd,
+	.alloc_ucontext = i40iw_alloc_ucontext,
+	.create_cq = i40iw_create_cq,
+	.create_qp = i40iw_create_qp,
+	.dealloc_pd = i40iw_dealloc_pd,
+	.dealloc_ucontext = i40iw_dealloc_ucontext,
+	.dereg_mr = i40iw_dereg_mr,
+	.destroy_cq = i40iw_destroy_cq,
+	.destroy_qp = i40iw_destroy_qp,
+	.drain_rq = i40iw_drain_rq,
+	.drain_sq = i40iw_drain_sq,
+	.get_dev_fw_str = i40iw_get_dev_fw_str,
+	.get_dma_mr = i40iw_get_dma_mr,
+	.get_hw_stats = i40iw_get_hw_stats,
+	.get_port_immutable = i40iw_port_immutable,
+	.map_mr_sg = i40iw_map_mr_sg,
+	.mmap = i40iw_mmap,
+	.modify_qp = i40iw_modify_qp,
+	.poll_cq = i40iw_poll_cq,
+	.post_recv = i40iw_post_recv,
+	.post_send = i40iw_post_send,
+	.query_device = i40iw_query_device,
+	.query_gid = i40iw_query_gid,
+	.query_pkey = i40iw_query_pkey,
+	.query_port = i40iw_query_port,
+	.query_qp = i40iw_query_qp,
+	.reg_user_mr = i40iw_reg_user_mr,
+	.req_notify_cq = i40iw_req_notify_cq,
+};
+
 /**
  * i40iw_init_rdma_device - initialization of iwarp device
  * @iwdev: iwarp device
@@ -2767,30 +2800,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.phys_port_cnt = 1;
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
-	iwibdev->ibdev.query_port = i40iw_query_port;
-	iwibdev->ibdev.query_pkey = i40iw_query_pkey;
-	iwibdev->ibdev.query_gid = i40iw_query_gid;
-	iwibdev->ibdev.alloc_ucontext = i40iw_alloc_ucontext;
-	iwibdev->ibdev.dealloc_ucontext = i40iw_dealloc_ucontext;
-	iwibdev->ibdev.mmap = i40iw_mmap;
-	iwibdev->ibdev.alloc_pd = i40iw_alloc_pd;
-	iwibdev->ibdev.dealloc_pd = i40iw_dealloc_pd;
-	iwibdev->ibdev.create_qp = i40iw_create_qp;
-	iwibdev->ibdev.modify_qp = i40iw_modify_qp;
-	iwibdev->ibdev.query_qp = i40iw_query_qp;
-	iwibdev->ibdev.destroy_qp = i40iw_destroy_qp;
-	iwibdev->ibdev.create_cq = i40iw_create_cq;
-	iwibdev->ibdev.destroy_cq = i40iw_destroy_cq;
-	iwibdev->ibdev.get_dma_mr = i40iw_get_dma_mr;
-	iwibdev->ibdev.reg_user_mr = i40iw_reg_user_mr;
-	iwibdev->ibdev.dereg_mr = i40iw_dereg_mr;
-	iwibdev->ibdev.alloc_hw_stats = i40iw_alloc_hw_stats;
-	iwibdev->ibdev.get_hw_stats = i40iw_get_hw_stats;
-	iwibdev->ibdev.query_device = i40iw_query_device;
-	iwibdev->ibdev.drain_sq = i40iw_drain_sq;
-	iwibdev->ibdev.drain_rq = i40iw_drain_rq;
-	iwibdev->ibdev.alloc_mr = i40iw_alloc_mr;
-	iwibdev->ibdev.map_mr_sg = i40iw_map_mr_sg;
 	iwibdev->ibdev.iwcm = kzalloc(sizeof(*iwibdev->ibdev.iwcm), GFP_KERNEL);
 	if (!iwibdev->ibdev.iwcm) {
 		ib_dealloc_device(&iwibdev->ibdev);
@@ -2807,12 +2816,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.iwcm->destroy_listen = i40iw_destroy_listen;
 	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(iwibdev->ibdev.iwcm->ifname));
-	iwibdev->ibdev.get_port_immutable   = i40iw_port_immutable;
-	iwibdev->ibdev.get_dev_fw_str       = i40iw_get_dev_fw_str;
-	iwibdev->ibdev.poll_cq = i40iw_poll_cq;
-	iwibdev->ibdev.req_notify_cq = i40iw_req_notify_cq;
-	iwibdev->ibdev.post_send = i40iw_post_send;
-	iwibdev->ibdev.post_recv = i40iw_post_recv;
 
 	return iwibdev;
 }
