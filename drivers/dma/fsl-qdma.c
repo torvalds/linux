@@ -1255,4 +1255,5 @@ static struct platform_driver fsl_qdma_driver = {
 module_platform_driver(fsl_qdma_driver);
 
 MODULE_ALIAS("platform:fsl-qdma");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("NXP Layerscape qDMA engine driver");
