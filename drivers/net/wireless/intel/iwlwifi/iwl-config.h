@@ -445,35 +445,8 @@ struct iwl_cfg {
 	u32 d3_debug_data_length;
 };
 
-static const struct iwl_csr_params iwl_csr_v1 = {
-	.flag_mac_clock_ready = 0,
-	.flag_val_mac_access_en = 0,
-	.flag_init_done = 2,
-	.flag_mac_access_req = 3,
-	.flag_sw_reset = 7,
-	.flag_master_dis = 8,
-	.flag_stop_master = 9,
-	.addr_sw_reset = (CSR_BASE + 0x020),
-	.mac_addr0_otp = 0x380,
-	.mac_addr1_otp = 0x384,
-	.mac_addr0_strap = 0x388,
-	.mac_addr1_strap = 0x38C
-};
-
-static const struct iwl_csr_params iwl_csr_v2 = {
-	.flag_init_done = 6,
-	.flag_mac_clock_ready = 20,
-	.flag_val_mac_access_en = 20,
-	.flag_mac_access_req = 21,
-	.flag_master_dis = 28,
-	.flag_stop_master = 29,
-	.flag_sw_reset = 31,
-	.addr_sw_reset = (CSR_BASE + 0x024),
-	.mac_addr0_otp = 0x30,
-	.mac_addr1_otp = 0x34,
-	.mac_addr0_strap = 0x38,
-	.mac_addr1_strap = 0x3C
-};
+extern const struct iwl_csr_params iwl_csr_v1;
+extern const struct iwl_csr_params iwl_csr_v2;
 
 /*
  * This list declares the config structures for all devices.
