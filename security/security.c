@@ -404,6 +404,7 @@ int security_sb_remount(struct super_block *sb,
 {
 	return call_int_hook(sb_remount, 0, sb, opts);
 }
+EXPORT_SYMBOL(security_sb_remount);
 
 int security_sb_kern_mount(struct super_block *sb)
 {

@@ -1100,9 +1100,6 @@ struct btrfs_fs_info {
 	struct mutex unused_bg_unpin_mutex;
 	struct mutex delete_unused_bgs_mutex;
 
-	/* For btrfs to record security options */
-	struct security_mnt_opts security_opts;
-
 	/*
 	 * Chunks that can't be freed yet (under a trim/discard operation)
 	 * and will be latter freed. Protected by fs_info->chunk_mutex.
@@ -2959,7 +2956,6 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->free_space_root);
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
-	security_free_mnt_opts(&fs_info->security_opts);
 	kvfree(fs_info);
 }
 
