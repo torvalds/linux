@@ -399,7 +399,7 @@ static int audit_log_config_change(char *function_name, u32 new, u32 old,
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
 	if (unlikely(!ab))
 		return rc;
-	audit_log_format(ab, "%s=%u old=%u ", function_name, new, old);
+	audit_log_format(ab, "op=set %s=%u old=%u ", function_name, new, old);
 	audit_log_session_info(ab);
 	rc = audit_log_task_context(ab);
 	if (rc)
@@ -1362,7 +1362,10 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EINVAL;
 		if (audit_enabled == AUDIT_LOCKED) {
 			audit_log_common_recv_msg(&ab, AUDIT_CONFIG_CHANGE);
-			audit_log_format(ab, " audit_enabled=%d res=0", audit_enabled);
+			audit_log_format(ab, " op=%s audit_enabled=%d res=0",
+					 msg_type == AUDIT_ADD_RULE ?
+						"add_rule" : "remove_rule",
+					 audit_enabled);
 			audit_log_end(ab);
 			return -EPERM;
 		}
