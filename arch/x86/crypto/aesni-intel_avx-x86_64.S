@@ -488,8 +488,7 @@ _final_ghash_mul\@:
         vpand   %xmm1, %xmm2, %xmm2
         vpshufb SHUF_MASK(%rip), %xmm2, %xmm2
         vpxor   %xmm2, %xmm14, %xmm14
-	#GHASH computation for the last <16 Byte block
-        \GHASH_MUL       %xmm14, %xmm13, %xmm0, %xmm10, %xmm11, %xmm5, %xmm6
+
         vmovdqu %xmm14, AadHash(arg2)
         sub     %r13, %r11
         add     $16, %r11
@@ -500,8 +499,7 @@ _final_ghash_mul\@:
         vpand   %xmm1, %xmm9, %xmm9                  # mask out top 16-r13 bytes of xmm9
         vpshufb SHUF_MASK(%rip), %xmm9, %xmm9
         vpxor   %xmm9, %xmm14, %xmm14
-	#GHASH computation for the last <16 Byte block
-        \GHASH_MUL       %xmm14, %xmm13, %xmm0, %xmm10, %xmm11, %xmm5, %xmm6
+
         vmovdqu %xmm14, AadHash(arg2)
         sub     %r13, %r11
         add     $16, %r11
@@ -541,6 +539,14 @@ _multiple_of_16_bytes\@:
         vmovdqu AadHash(arg2), %xmm14
         vmovdqu HashKey(arg2), %xmm13
 
+        mov PBlockLen(arg2), %r12
+        cmp $0, %r12
+        je _partial_done\@
+
+	#GHASH computation for the last <16 Byte block
+        \GHASH_MUL       %xmm14, %xmm13, %xmm0, %xmm10, %xmm11, %xmm5, %xmm6
+
+_partial_done\@:
         mov AadLen(arg2), %r12                          # r12 = aadLen (number of bytes)
         shl     $3, %r12                             # convert into number of bits
         vmovd   %r12d, %xmm15                        # len(A) in xmm15
