@@ -8874,7 +8874,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	u64 bytenr;
 	u64 generation;
 	u64 parent;
-	u32 blocksize;
 	struct btrfs_key key;
 	struct btrfs_key first_key;
 	struct extent_buffer *next;
@@ -8899,7 +8898,6 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 	bytenr = btrfs_node_blockptr(path->nodes[level], path->slots[level]);
 	btrfs_node_key_to_cpu(path->nodes[level], &first_key,
 			      path->slots[level]);
-	blocksize = fs_info->nodesize;
 
 	next = find_extent_buffer(fs_info, bytenr);
 	if (!next) {
@@ -9023,7 +9021,7 @@ skip:
 					     ret);
 			}
 		}
-		ret = btrfs_free_extent(trans, root, bytenr, blocksize,
+		ret = btrfs_free_extent(trans, root, bytenr, fs_info->nodesize,
 					parent, root->root_key.objectid,
 					level - 1, 0);
 		if (ret)
