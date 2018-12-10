@@ -228,7 +228,6 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 {
 	unsigned int node;
 	int r = 0;
-	struct imgu_buffer *ibuf;
 	struct imgu_media_pipe *imgu_pipe = &imgu->imgu_pipe[pipe];
 
 	if (!ipu3_css_is_streaming(&imgu->css))
@@ -250,7 +249,8 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 		} else if (imgu_pipe->queue_enabled[node]) {
 			struct ipu3_css_buffer *buf =
 				imgu_queue_getbuf(imgu, node, pipe);
-			int dummy;
+			struct imgu_buffer *ibuf = NULL;
+			bool dummy;
 
 			if (!buf)
 				break;
@@ -263,7 +263,7 @@ int imgu_queue_buffers(struct imgu_device *imgu, bool initial, unsigned int pipe
 				ibuf = container_of(buf, struct imgu_buffer,
 						    css_buf);
 			dev_dbg(&imgu->pci_dev->dev,
-				"queue %s %s buffer %d to css da: 0x%08x\n",
+				"queue %s %s buffer %u to css da: 0x%08x\n",
 				dummy ? "dummy" : "user",
 				imgu_node_map[node].name,
 				dummy ? 0 : ibuf->vid_buf.vbb.vb2_buf.index,
@@ -479,7 +479,7 @@ static irqreturn_t imgu_isr_threaded(int irq, void *imgu_ptr)
 	do {
 		u64 ns = ktime_get_ns();
 		struct ipu3_css_buffer *b;
-		struct imgu_buffer *buf;
+		struct imgu_buffer *buf = NULL;
 		unsigned int node, pipe;
 		bool dummy;
 
