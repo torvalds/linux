@@ -209,8 +209,7 @@ static void aesni_gcm_enc_avx(void *ctx,
 			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len)
 {
-        struct crypto_aes_ctx *aes_ctx = (struct crypto_aes_ctx*)ctx;
-	if ((plaintext_len < AVX_GEN2_OPTSIZE) || (aes_ctx-> key_length != AES_KEYSIZE_128)){
+	if (plaintext_len < AVX_GEN2_OPTSIZE) {
 		aesni_gcm_enc(ctx, data, out, in,
 			plaintext_len, iv, hash_subkey, aad,
 			aad_len, auth_tag, auth_tag_len);
@@ -227,8 +226,7 @@ static void aesni_gcm_dec_avx(void *ctx,
 			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len)
 {
-        struct crypto_aes_ctx *aes_ctx = (struct crypto_aes_ctx*)ctx;
-	if ((ciphertext_len < AVX_GEN2_OPTSIZE) || (aes_ctx-> key_length != AES_KEYSIZE_128)) {
+	if (ciphertext_len < AVX_GEN2_OPTSIZE) {
 		aesni_gcm_dec(ctx, data, out, in,
 			ciphertext_len, iv, hash_subkey, aad,
 			aad_len, auth_tag, auth_tag_len);
@@ -268,8 +266,7 @@ static void aesni_gcm_enc_avx2(void *ctx,
 			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len)
 {
-       struct crypto_aes_ctx *aes_ctx = (struct crypto_aes_ctx*)ctx;
-	if ((plaintext_len < AVX_GEN2_OPTSIZE) || (aes_ctx-> key_length != AES_KEYSIZE_128)) {
+	if (plaintext_len < AVX_GEN2_OPTSIZE) {
 		aesni_gcm_enc(ctx, data, out, in,
 			      plaintext_len, iv, hash_subkey, aad,
 			      aad_len, auth_tag, auth_tag_len);
@@ -290,8 +287,7 @@ static void aesni_gcm_dec_avx2(void *ctx,
 			u8 *hash_subkey, const u8 *aad, unsigned long aad_len,
 			u8 *auth_tag, unsigned long auth_tag_len)
 {
-       struct crypto_aes_ctx *aes_ctx = (struct crypto_aes_ctx*)ctx;
-	if ((ciphertext_len < AVX_GEN2_OPTSIZE) || (aes_ctx-> key_length != AES_KEYSIZE_128)) {
+	if (ciphertext_len < AVX_GEN2_OPTSIZE) {
 		aesni_gcm_dec(ctx, data, out, in,
 			      ciphertext_len, iv, hash_subkey,
 			      aad, aad_len, auth_tag, auth_tag_len);
@@ -928,8 +924,7 @@ static int gcmaes_encrypt(struct aead_request *req, unsigned int assoclen,
 	struct scatter_walk dst_sg_walk = {};
 	struct gcm_context_data data AESNI_ALIGN_ATTR;
 
-	if (((struct crypto_aes_ctx *)aes_ctx)->key_length != AES_KEYSIZE_128 ||
-		aesni_gcm_enc_tfm == aesni_gcm_enc ||
+	if (aesni_gcm_enc_tfm == aesni_gcm_enc ||
 		req->cryptlen < AVX_GEN2_OPTSIZE) {
 		return gcmaes_crypt_by_sg(true, req, assoclen, hash_subkey, iv,
 					  aes_ctx);
@@ -1000,8 +995,7 @@ static int gcmaes_decrypt(struct aead_request *req, unsigned int assoclen,
 	struct gcm_context_data data AESNI_ALIGN_ATTR;
 	int retval = 0;
 
-	if (((struct crypto_aes_ctx *)aes_ctx)->key_length != AES_KEYSIZE_128 ||
-		aesni_gcm_enc_tfm == aesni_gcm_enc ||
+	if (aesni_gcm_enc_tfm == aesni_gcm_enc ||
 		req->cryptlen < AVX_GEN2_OPTSIZE) {
 		return gcmaes_crypt_by_sg(false, req, assoclen, hash_subkey, iv,
 					  aes_ctx);
