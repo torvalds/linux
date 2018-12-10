@@ -62,19 +62,7 @@ static int fjes_dbg_status_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int fjes_dbg_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, fjes_dbg_status_show, inode->i_private);
-}
-
-static const struct file_operations fjes_dbg_status_fops = {
-	.owner		= THIS_MODULE,
-	.open		= fjes_dbg_status_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(fjes_dbg_status);
 
 void fjes_dbg_adapter_init(struct fjes_adapter *adapter)
 {
