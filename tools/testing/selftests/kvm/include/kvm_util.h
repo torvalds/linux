@@ -80,6 +80,8 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 
 void vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid, unsigned long ioctl,
 		void *arg);
+int _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid, unsigned long ioctl,
+		void *arg);
 void vm_ioctl(struct kvm_vm *vm, unsigned long ioctl, void *arg);
 void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags);
 void vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid, int pgd_memslot,
