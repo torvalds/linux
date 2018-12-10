@@ -129,7 +129,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		a->dev_attr.show = iio_hwmon_read_val;
-		a->dev_attr.attr.mode = S_IRUGO;
+		a->dev_attr.attr.mode = 0444;
 		a->index = i;
 		st->attrs[i] = &a->dev_attr.attr;
 	}
