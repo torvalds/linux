@@ -59,6 +59,8 @@ struct ksz_device {
 
 	void *priv;
 
+	struct gpio_desc *reset_gpio;	/* Optional reset GPIO */
+
 	/* chip specific data */
 	u32 chip_id;
 	int num_vlans;
