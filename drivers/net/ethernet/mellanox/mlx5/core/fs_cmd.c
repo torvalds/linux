@@ -387,7 +387,8 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 				id = dst->dest_attr.vport.num;
 				MLX5_SET(dest_format_struct, in_dests,
 					 destination_eswitch_owner_vhca_id_valid,
-					 dst->dest_attr.vport.vhca_id_valid);
+					 !!(dst->dest_attr.vport.flags &
+					    MLX5_FLOW_DEST_VPORT_VHCA_ID));
 				MLX5_SET(dest_format_struct, in_dests,
 					 destination_eswitch_owner_vhca_id,
 					 dst->dest_attr.vport.vhca_id);

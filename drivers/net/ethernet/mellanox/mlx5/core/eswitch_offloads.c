@@ -125,8 +125,9 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 				dest[i].vport.num = attr->out_rep[j]->vport;
 				dest[i].vport.vhca_id =
 					MLX5_CAP_GEN(attr->out_mdev[j], vhca_id);
-				dest[i].vport.vhca_id_valid =
-					!!MLX5_CAP_ESW(esw->dev, merged_eswitch);
+				if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+					dest[i].vport.flags |=
+						MLX5_FLOW_DEST_VPORT_VHCA_ID;
 				i++;
 			}
 		}
@@ -220,7 +221,8 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 		dest[i].vport.num = attr->out_rep[i]->vport;
 		dest[i].vport.vhca_id =
 			MLX5_CAP_GEN(attr->out_mdev[i], vhca_id);
-		dest[i].vport.vhca_id_valid = !!MLX5_CAP_ESW(esw->dev, merged_eswitch);
+		if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
+			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
 	}
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[i].ft = fwd_fdb,
