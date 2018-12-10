@@ -5734,6 +5734,22 @@ static int hns_roce_v2_post_srq_recv(struct ib_srq *ibsrq,
 	return ret;
 }
 
+static const struct ib_device_ops hns_roce_v2_dev_ops = {
+	.destroy_qp = hns_roce_v2_destroy_qp,
+	.modify_cq = hns_roce_v2_modify_cq,
+	.poll_cq = hns_roce_v2_poll_cq,
+	.post_recv = hns_roce_v2_post_recv,
+	.post_send = hns_roce_v2_post_send,
+	.query_qp = hns_roce_v2_query_qp,
+	.req_notify_cq = hns_roce_v2_req_notify_cq,
+};
+
+static const struct ib_device_ops hns_roce_v2_dev_srq_ops = {
+	.modify_srq = hns_roce_v2_modify_srq,
+	.post_srq_recv = hns_roce_v2_post_srq_recv,
+	.query_srq = hns_roce_v2_query_srq,
+};
+
 static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.cmq_init = hns_roce_v2_cmq_init,
 	.cmq_exit = hns_roce_v2_cmq_exit,
@@ -5765,6 +5781,8 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.modify_srq = hns_roce_v2_modify_srq,
 	.query_srq = hns_roce_v2_query_srq,
 	.post_srq_recv = hns_roce_v2_post_srq_recv,
+	.hns_roce_dev_ops = &hns_roce_v2_dev_ops,
+	.hns_roce_dev_srq_ops = &hns_roce_v2_dev_srq_ops,
 };
 
 static const struct pci_device_id hns_roce_hw_v2_pci_tbl[] = {

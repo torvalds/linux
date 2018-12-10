@@ -883,6 +883,8 @@ struct hns_roce_hw {
 	int (*query_srq)(struct ib_srq *ibsrq, struct ib_srq_attr *attr);
 	int (*post_srq_recv)(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
 			     const struct ib_recv_wr **bad_wr);
+	const struct ib_device_ops *hns_roce_dev_ops;
+	const struct ib_device_ops *hns_roce_dev_srq_ops;
 };
 
 struct hns_roce_dev {
