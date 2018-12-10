@@ -299,7 +299,7 @@ static int brcmstb_set_trips(void *data, int low, int high)
 	return 0;
 }
 
-static struct thermal_zone_of_device_ops of_ops = {
+static const struct thermal_zone_of_device_ops of_ops = {
 	.get_temp	= brcmstb_get_temp,
 	.set_trips	= brcmstb_set_trips,
 };

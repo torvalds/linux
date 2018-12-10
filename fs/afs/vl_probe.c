@@ -61,8 +61,11 @@ void afs_vlserver_probe_result(struct afs_call *call)
 		afs_io_error(call, afs_io_error_vl_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
+	case -ERFKILL:
+	case -EADDRNOTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
@@ -129,15 +132,17 @@ out:
  * Probe all of a vlserver's addresses to find out the best route and to
  * query its capabilities.
  */
-static int afs_do_probe_vlserver(struct afs_net *net,
-				 struct afs_vlserver *server,
-				 struct key *key,
-				 unsigned int server_index)
+static bool afs_do_probe_vlserver(struct afs_net *net,
+				  struct afs_vlserver *server,
+				  struct key *key,
+				  unsigned int server_index,
+				  struct afs_error *_e)
 {
 	struct afs_addr_cursor ac = {
 		.index = 0,
 	};
-	int ret;
+	bool in_progress = false;
+	int err;
 
 	_enter("%s", server->name);
 
@@ -151,15 +156,17 @@ static int afs_do_probe_vlserver(struct afs_net *net,
 	server->probe.rtt = UINT_MAX;
 
 	for (ac.index = 0; ac.index < ac.alist->nr_addrs; ac.index++) {
-		ret = afs_vl_get_capabilities(net, &ac, key, server,
+		err = afs_vl_get_capabilities(net, &ac, key, server,
 					      server_index, true);
-		if (ret != -EINPROGRESS) {
-			afs_vl_probe_done(server);
-			return ret;
-		}
+		if (err == -EINPROGRESS)
+			in_progress = true;
+		else
+			afs_prioritise_error(_e, err, ac.abort_code);
 	}
 
-	return 0;
+	if (!in_progress)
+		afs_vl_probe_done(server);
+	return in_progress;
 }
 
 /*
@@ -169,21 +176,23 @@ int afs_send_vl_probes(struct afs_net *net, struct key *key,
 		       struct afs_vlserver_list *vllist)
 {
 	struct afs_vlserver *server;
-	int i, ret;
+	struct afs_error e;
+	bool in_progress = false;
+	int i;
 
+	e.error = 0;
+	e.responded = false;
 	for (i = 0; i < vllist->nr_servers; i++) {
 		server = vllist->servers[i].server;
 		if (test_bit(AFS_VLSERVER_FL_PROBED, &server->flags))
 			continue;
 
-		if (!test_and_set_bit_lock(AFS_VLSERVER_FL_PROBING, &server->flags)) {
-			ret = afs_do_probe_vlserver(net, server, key, i);
-			if (ret)
-				return ret;
-		}
+		if (!test_and_set_bit_lock(AFS_VLSERVER_FL_PROBING, &server->flags) &&
+		    afs_do_probe_vlserver(net, server, key, i, &e))
+			in_progress = true;
 	}
 
-	return 0;
+	return in_progress ? 0 : e.error;
 }
 
 /*

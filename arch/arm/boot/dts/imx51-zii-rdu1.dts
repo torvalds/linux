@@ -492,12 +492,6 @@
 	pinctrl-0 = <&pinctrl_i2c2>;
 	status = "okay";
 
-	eeprom@50 {
-		compatible = "atmel,24c04";
-		pagesize = <16>;
-		reg = <0x50>;
-	};
-
 	hpa1: amp@60 {
 		compatible = "ti,tpa6130a2";
 		reg = <0x60>;

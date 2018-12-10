@@ -343,6 +343,12 @@
 	};
 };
 
+&gcc {
+	protected-clocks = <GCC_QSPI_CORE_CLK>,
+			   <GCC_QSPI_CORE_CLK_SRC>,
+			   <GCC_QSPI_CNOC_PERIPH_AHB_CLK>;
+};
+
 &i2c10 {
 	status = "okay";
 	clock-frequency = <400000>;
@@ -350,6 +356,10 @@
 
 &qupv3_id_1 {
 	status = "okay";
+};
+
+&tlmm {
+	gpio-reserved-ranges = <0 4>, <81 4>;
 };
 
 &uart9 {

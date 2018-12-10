@@ -1752,12 +1752,12 @@ nvme_fc_init_request(struct blk_mq_tag_set *set, struct request *rq,
 	struct nvme_fc_queue *queue = &ctrl->queues[queue_idx];
 	int res;
 
-	nvme_req(rq)->ctrl = &ctrl->ctrl;
 	res = __nvme_fc_init_request(ctrl, queue, &op->op, rq, queue->rqcnt++);
 	if (res)
 		return res;
 	op->op.fcp_req.first_sgl = &op->sgl[0];
 	op->op.fcp_req.private = &op->priv[0];
+	nvme_req(rq)->ctrl = &ctrl->ctrl;
 	return res;
 }
 

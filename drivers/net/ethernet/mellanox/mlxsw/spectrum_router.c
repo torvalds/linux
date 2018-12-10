@@ -1275,15 +1275,12 @@ mlxsw_sp_ipip_entry_matches_decap(struct mlxsw_sp *mlxsw_sp,
 {
 	u32 ul_tb_id = l3mdev_fib_table(ul_dev) ? : RT_TABLE_MAIN;
 	enum mlxsw_sp_ipip_type ipipt = ipip_entry->ipipt;
-	struct net_device *ipip_ul_dev;
 
 	if (mlxsw_sp->router->ipip_ops_arr[ipipt]->ul_proto != ul_proto)
 		return false;
 
-	ipip_ul_dev = __mlxsw_sp_ipip_netdev_ul_dev_get(ipip_entry->ol_dev);
 	return mlxsw_sp_ipip_entry_saddr_matches(mlxsw_sp, ul_proto, ul_dip,
-						 ul_tb_id, ipip_entry) &&
-	       (!ipip_ul_dev || ipip_ul_dev == ul_dev);
+						 ul_tb_id, ipip_entry);
 }
 
 /* Given decap parameters, find the corresponding IPIP entry. */

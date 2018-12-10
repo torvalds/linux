@@ -158,6 +158,27 @@ static void dsa_master_ethtool_teardown(struct net_device *dev)
 	cpu_dp->orig_ethtool_ops = NULL;
 }
 
+static ssize_t tagging_show(struct device *d, struct device_attribute *attr,
+			    char *buf)
+{
+	struct net_device *dev = to_net_dev(d);
+	struct dsa_port *cpu_dp = dev->dsa_ptr;
+
+	return sprintf(buf, "%s\n",
+		       dsa_tag_protocol_to_str(cpu_dp->tag_ops));
+}
+static DEVICE_ATTR_RO(tagging);
+
+static struct attribute *dsa_slave_attrs[] = {
+	&dev_attr_tagging.attr,
+	NULL
+};
+
+static const struct attribute_group dsa_group = {
+	.name	= "dsa",
+	.attrs	= dsa_slave_attrs,
+};
+
 static void dsa_master_set_mtu(struct net_device *dev, struct dsa_port *cpu_dp)
 {
 	unsigned int mtu = ETH_DATA_LEN + cpu_dp->tag_ops->overhead;
@@ -186,6 +207,8 @@ static void dsa_master_reset_mtu(struct net_device *dev)
 
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
+	int ret;
+
 	dsa_master_set_mtu(dev,  cpu_dp);
 
 	/* If we use a tagging format that doesn't have an ethertype
@@ -196,11 +219,20 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 
 	dev->dsa_ptr = cpu_dp;
 
-	return dsa_master_ethtool_setup(dev);
+	ret = dsa_master_ethtool_setup(dev);
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_group(&dev->dev.kobj, &dsa_group);
+	if (ret)
+		dsa_master_ethtool_teardown(dev);
+
+	return ret;
 }
 
 void dsa_master_teardown(struct net_device *dev)
 {
+	sysfs_remove_group(&dev->dev.kobj, &dsa_group);
 	dsa_master_ethtool_teardown(dev);
 	dsa_master_reset_mtu(dev);
 
