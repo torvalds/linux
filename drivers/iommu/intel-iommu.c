@@ -405,38 +405,16 @@ static int dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
 static int intel_iommu_superpage = 1;
-static int intel_iommu_ecs = 1;
-static int intel_iommu_pasid28;
+static int intel_iommu_sm = 1;
 static int iommu_identity_mapping;
 
 #define IDENTMAP_ALL		1
 #define IDENTMAP_GFX		2
 #define IDENTMAP_AZALIA		4
 
-/* Broadwell and Skylake have broken ECS support — normal so-called "second
- * level" translation of DMA requests-without-PASID doesn't actually happen
- * unless you also set the NESTE bit in an extended context-entry. Which of
- * course means that SVM doesn't work because it's trying to do nested
- * translation of the physical addresses it finds in the process page tables,
- * through the IOVA->phys mapping found in the "second level" page tables.
- *
- * The VT-d specification was retroactively changed to change the definition
- * of the capability bits and pretend that Broadwell/Skylake never happened...
- * but unfortunately the wrong bit was changed. It's ECS which is broken, but
- * for some reason it was the PASID capability bit which was redefined (from
- * bit 28 on BDW/SKL to bit 40 in future).
- *
- * So our test for ECS needs to eschew those implementations which set the old
- * PASID capabiity bit 28, since those are the ones on which ECS is broken.
- * Unless we are working around the 'pasid28' limitations, that is, by putting
- * the device into passthrough mode for normal DMA and thus masking the bug.
- */
-#define ecs_enabled(iommu) (intel_iommu_ecs && ecap_ecs(iommu->ecap) && \
-			    (intel_iommu_pasid28 || !ecap_broken_pasid(iommu->ecap)))
-/* PASID support is thus enabled if ECS is enabled and *either* of the old
- * or new capability bits are set. */
-#define pasid_enabled(iommu) (ecs_enabled(iommu) &&			\
-			      (ecap_pasid(iommu->ecap) || ecap_broken_pasid(iommu->ecap)))
+#define sm_supported(iommu)	(intel_iommu_sm && ecap_smts((iommu)->ecap))
+#define pasid_supported(iommu)	(sm_supported(iommu) &&			\
+				 ecap_pasid((iommu)->ecap))
 
 int intel_iommu_gfx_mapped;
 EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
@@ -516,15 +494,9 @@ static int __init intel_iommu_setup(char *str)
 		} else if (!strncmp(str, "sp_off", 6)) {
 			pr_info("Disable supported super page\n");
 			intel_iommu_superpage = 0;
-		} else if (!strncmp(str, "ecs_off", 7)) {
-			printk(KERN_INFO
-				"Intel-IOMMU: disable extended context table support\n");
-			intel_iommu_ecs = 0;
-		} else if (!strncmp(str, "pasid28", 7)) {
-			printk(KERN_INFO
-				"Intel-IOMMU: enable pre-production PASID support\n");
-			intel_iommu_pasid28 = 1;
-			iommu_identity_mapping |= IDENTMAP_GFX;
+		} else if (!strncmp(str, "sm_off", 6)) {
+			pr_info("Intel-IOMMU: disable scalable mode support\n");
+			intel_iommu_sm = 0;
 		} else if (!strncmp(str, "tboot_noforce", 13)) {
 			printk(KERN_INFO
 				"Intel-IOMMU: not forcing on after tboot. This could expose security risk for tboot\n");
@@ -771,7 +743,7 @@ struct context_entry *iommu_context_addr(struct intel_iommu *iommu, u8 bus,
 	u64 *entry;
 
 	entry = &root->lo;
-	if (ecs_enabled(iommu)) {
+	if (sm_supported(iommu)) {
 		if (devfn >= 0x80) {
 			devfn -= 0x80;
 			entry = &root->hi;
@@ -913,7 +885,7 @@ static void free_context_table(struct intel_iommu *iommu)
 		if (context)
 			free_pgtable_page(context);
 
-		if (!ecs_enabled(iommu))
+		if (!sm_supported(iommu))
 			continue;
 
 		context = iommu_context_addr(iommu, i, 0x80, 0);
@@ -1265,8 +1237,6 @@ static void iommu_set_root_entry(struct intel_iommu *iommu)
 	unsigned long flag;
 
 	addr = virt_to_phys(iommu->root_entry);
-	if (ecs_enabled(iommu))
-		addr |= DMA_RTADDR_RTT;
 
 	raw_spin_lock_irqsave(&iommu->register_lock, flag);
 	dmar_writeq(iommu->reg + DMAR_RTADDR_REG, addr);
@@ -1755,7 +1725,7 @@ static void free_dmar_iommu(struct intel_iommu *iommu)
 	free_context_table(iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	if (pasid_enabled(iommu)) {
+	if (pasid_supported(iommu)) {
 		if (ecap_prs(iommu->ecap))
 			intel_svm_finish_prq(iommu);
 		intel_svm_exit(iommu);
@@ -2464,8 +2434,8 @@ static struct dmar_domain *dmar_insert_one_dev_info(struct intel_iommu *iommu,
 		    dmar_find_matched_atsr_unit(pdev))
 			info->ats_supported = 1;
 
-		if (ecs_enabled(iommu)) {
-			if (pasid_enabled(iommu)) {
+		if (sm_supported(iommu)) {
+			if (pasid_supported(iommu)) {
 				int features = pci_pasid_features(pdev);
 				if (features >= 0)
 					info->pasid_supported = features | 1;
@@ -3277,7 +3247,7 @@ static int __init init_dmars(void)
 		 * We need to ensure the system pasid table is no bigger
 		 * than the smallest supported.
 		 */
-		if (pasid_enabled(iommu)) {
+		if (pasid_supported(iommu)) {
 			u32 temp = 2 << ecap_pss(iommu->ecap);
 
 			intel_pasid_max_id = min_t(u32, temp,
@@ -3338,7 +3308,7 @@ static int __init init_dmars(void)
 		if (!ecap_pass_through(iommu->ecap))
 			hw_pass_through = 0;
 #ifdef CONFIG_INTEL_IOMMU_SVM
-		if (pasid_enabled(iommu))
+		if (pasid_supported(iommu))
 			intel_svm_init(iommu);
 #endif
 	}
@@ -3442,7 +3412,7 @@ domains_done:
 		iommu_flush_write_buffer(iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-		if (pasid_enabled(iommu) && ecap_prs(iommu->ecap)) {
+		if (pasid_supported(iommu) && ecap_prs(iommu->ecap)) {
 			ret = intel_svm_enable_prq(iommu);
 			if (ret)
 				goto free_iommu;
@@ -4331,7 +4301,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 		goto out;
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	if (pasid_enabled(iommu))
+	if (pasid_supported(iommu))
 		intel_svm_init(iommu);
 #endif
 
@@ -4348,7 +4318,7 @@ static int intel_iommu_add(struct dmar_drhd_unit *dmaru)
 	iommu_flush_write_buffer(iommu);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
-	if (pasid_enabled(iommu) && ecap_prs(iommu->ecap)) {
+	if (pasid_supported(iommu) && ecap_prs(iommu->ecap)) {
 		ret = intel_svm_enable_prq(iommu);
 		if (ret)
 			goto disable_iommu;
