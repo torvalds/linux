@@ -105,7 +105,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	struct bpf_prog_linfo *prog_linfo;
 	__u32 nr_linfo, nr_jited_func;
 
-	nr_linfo = info->line_info_cnt;
+	nr_linfo = info->nr_line_info;
 
 	/*
 	 * Test !info->line_info because the kernel may NULL
@@ -138,7 +138,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 	nr_jited_func = info->nr_jited_ksyms;
 	if (!nr_jited_func ||
 	    !info->jited_line_info ||
-	    info->jited_line_info_cnt != nr_linfo ||
+	    info->nr_jited_line_info != nr_linfo ||
 	    info->jited_line_info_rec_size < sizeof(__u64) ||
 	    info->nr_jited_func_lens != nr_jited_func ||
 	    !info->jited_ksyms ||
