@@ -27,11 +27,6 @@ static unsigned int test_buf_size = 16384;
 module_param(test_buf_size, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(test_buf_size, "Size of the memcpy test buffer");
 
-static char test_channel[20];
-module_param_string(channel, test_channel, sizeof(test_channel),
-		S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
-
 static char test_device[32];
 module_param_string(device, test_device, sizeof(test_device),
 		S_IRUGO | S_IWUSR);
@@ -139,6 +134,28 @@ static bool dmatest_run;
 module_param_cb(run, &run_ops, &dmatest_run, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(run, "Run the test (default: false)");
 
+static int dmatest_chan_set(const char *val, const struct kernel_param *kp);
+static int dmatest_chan_get(char *val, const struct kernel_param *kp);
+static const struct kernel_param_ops multi_chan_ops = {
+	.set = dmatest_chan_set,
+	.get = dmatest_chan_get,
+};
+
+static char test_channel[20];
+static struct kparam_string newchan_kps = {
+	.string = test_channel,
+	.maxlen = 20,
+};
+module_param_cb(channel, &multi_chan_ops, &newchan_kps, 0644);
+MODULE_PARM_DESC(channel, "Bus ID of the channel to test (default: any)");
+
+static int dmatest_test_list_get(char *val, const struct kernel_param *kp);
+static const struct kernel_param_ops test_list_ops = {
+	.get = dmatest_test_list_get,
+};
+module_param_cb(test_list, &test_list_ops, NULL, 0444);
+MODULE_PARM_DESC(test_list, "Print current test list");
+
 /* Maximum amount of mismatched bytes in buffer to print */
 #define MAX_ERROR_COUNT		32
 
@@ -179,6 +196,7 @@ struct dmatest_thread {
 	wait_queue_head_t done_wait;
 	struct dmatest_done test_done;
 	bool			done;
+	bool			pending;
 };
 
 struct dmatest_chan {
@@ -199,6 +217,22 @@ static bool is_threaded_test_run(struct dmatest_info *info)
 
 		list_for_each_entry(thread, &dtc->threads, node) {
 			if (!thread->done)
+				return true;
+		}
+	}
+
+	return false;
+}
+
+static bool is_threaded_test_pending(struct dmatest_info *info)
+{
+	struct dmatest_chan *dtc;
+
+	list_for_each_entry(dtc, &info->channels, node) {
+		struct dmatest_thread *thread;
+
+		list_for_each_entry(thread, &dtc->threads, node) {
+			if (thread->pending)
 				return true;
 		}
 	}
@@ -476,6 +510,7 @@ static int dmatest_func(void *data)
 	ret = -ENOMEM;
 
 	smp_rmb();
+	thread->pending = false;
 	info = thread->info;
 	params = &info->params;
 	chan = thread->chan;
@@ -884,7 +919,7 @@ static int dmatest_add_threads(struct dmatest_info *info,
 		/* srcbuf and dstbuf are allocated by the thread itself */
 		get_task_struct(thread->task);
 		list_add_tail(&thread->node, &dtc->threads);
-		wake_up_process(thread->task);
+		thread->pending = true;
 	}
 
 	return i;
@@ -930,7 +965,7 @@ static int dmatest_add_channel(struct dmatest_info *info,
 		thread_count += cnt > 0 ? cnt : 0;
 	}
 
-	pr_info("Started %u threads using %s\n",
+	pr_info("Added %u threads using %s\n",
 		thread_count, dma_chan_name(chan));
 
 	list_add_tail(&dtc->node, &info->channels);
@@ -975,7 +1010,7 @@ static void request_channels(struct dmatest_info *info,
 	}
 }
 
-static void run_threaded_test(struct dmatest_info *info)
+static void add_threaded_test(struct dmatest_info *info)
 {
 	struct dmatest_params *params = &info->params;
 
@@ -998,6 +1033,24 @@ static void run_threaded_test(struct dmatest_info *info)
 	request_channels(info, DMA_PQ);
 }
 
+static void run_pending_tests(struct dmatest_info *info)
+{
+	struct dmatest_chan *dtc;
+	unsigned int thread_count = 0;
+
+	list_for_each_entry(dtc, &info->channels, node) {
+		struct dmatest_thread *thread;
+
+		thread_count = 0;
+		list_for_each_entry(thread, &dtc->threads, node) {
+			wake_up_process(thread->task);
+			thread_count++;
+		}
+		pr_info("Started %u threads using %s\n",
+			thread_count, dma_chan_name(dtc->chan));
+	}
+}
+
 static void stop_threaded_test(struct dmatest_info *info)
 {
 	struct dmatest_chan *dtc, *_dtc;
@@ -1014,7 +1067,7 @@ static void stop_threaded_test(struct dmatest_info *info)
 	info->nr_channels = 0;
 }
 
-static void restart_threaded_test(struct dmatest_info *info, bool run)
+static void start_threaded_tests(struct dmatest_info *info)
 {
 	/* we might be called early to set run=, defer running until all
 	 * parameters have been evaluated
@@ -1022,11 +1075,7 @@ static void restart_threaded_test(struct dmatest_info *info, bool run)
 	if (!info->did_init)
 		return;
 
-	/* Stop any running test first */
-	stop_threaded_test(info);
-
-	/* Run test with new parameters */
-	run_threaded_test(info);
+	run_pending_tests(info);
 }
 
 static int dmatest_run_get(char *val, const struct kernel_param *kp)
@@ -1037,7 +1086,8 @@ static int dmatest_run_get(char *val, const struct kernel_param *kp)
 	if (is_threaded_test_run(info)) {
 		dmatest_run = true;
 	} else {
-		stop_threaded_test(info);
+		if (!is_threaded_test_pending(info))
+			stop_threaded_test(info);
 		dmatest_run = false;
 	}
 	mutex_unlock(&info->lock);
@@ -1055,16 +1105,123 @@ static int dmatest_run_set(const char *val, const struct kernel_param *kp)
 	if (ret) {
 		mutex_unlock(&info->lock);
 		return ret;
+	} else if (dmatest_run) {
+		if (is_threaded_test_pending(info))
+			start_threaded_tests(info);
+		else
+			pr_info("Could not start test, no channels configured\n");
+	} else {
+		stop_threaded_test(info);
 	}
-
-	if (is_threaded_test_run(info))
-		ret = -EBUSY;
-	else if (dmatest_run)
-		restart_threaded_test(info, dmatest_run);
 
 	mutex_unlock(&info->lock);
 
 	return ret;
+}
+
+static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
+{
+	struct dmatest_info *info = &test_info;
+	struct dmatest_chan *dtc;
+	char chan_reset_val[20];
+	int ret = 0;
+
+	mutex_lock(&info->lock);
+	ret = param_set_copystring(val, kp);
+	if (ret) {
+		mutex_unlock(&info->lock);
+		return ret;
+	}
+	/*Clear any previously run threads */
+	if (!is_threaded_test_run(info) && !is_threaded_test_pending(info))
+		stop_threaded_test(info);
+	/* Reject channels that are already registered */
+	if (is_threaded_test_pending(info)) {
+		list_for_each_entry(dtc, &info->channels, node) {
+			if (strcmp(dma_chan_name(dtc->chan),
+				   strim(test_channel)) == 0) {
+				dtc = list_last_entry(&info->channels,
+						      struct dmatest_chan,
+						      node);
+				strlcpy(chan_reset_val,
+					dma_chan_name(dtc->chan),
+					sizeof(chan_reset_val));
+				ret = -EBUSY;
+				goto add_chan_err;
+			}
+		}
+	}
+
+	add_threaded_test(info);
+
+	/* Check if channel was added successfully */
+	dtc = list_last_entry(&info->channels, struct dmatest_chan, node);
+
+	if (dtc->chan) {
+		/*
+		 * if new channel was not successfully added, revert the
+		 * "test_channel" string to the name of the last successfully
+		 * added channel. exception for when users issues empty string
+		 * to channel parameter.
+		 */
+		if ((strcmp(dma_chan_name(dtc->chan), strim(test_channel)) != 0)
+		    && (strcmp("", strim(test_channel)) != 0)) {
+			ret = -EINVAL;
+			strlcpy(chan_reset_val, dma_chan_name(dtc->chan),
+				sizeof(chan_reset_val));
+			goto add_chan_err;
+		}
+
+	} else {
+		/* Clear test_channel if no channels were added successfully */
+		strlcpy(chan_reset_val, "", sizeof(chan_reset_val));
+		ret = -EBUSY;
+		goto add_chan_err;
+	}
+
+	mutex_unlock(&info->lock);
+
+	return ret;
+
+add_chan_err:
+	param_set_copystring(chan_reset_val, kp);
+	mutex_unlock(&info->lock);
+
+	return ret;
+}
+
+static int dmatest_chan_get(char *val, const struct kernel_param *kp)
+{
+	struct dmatest_info *info = &test_info;
+
+	mutex_lock(&info->lock);
+	if (!is_threaded_test_run(info) && !is_threaded_test_pending(info)) {
+		stop_threaded_test(info);
+		strlcpy(test_channel, "", sizeof(test_channel));
+	}
+	mutex_unlock(&info->lock);
+
+	return param_get_string(val, kp);
+}
+
+static int dmatest_test_list_get(char *val, const struct kernel_param *kp)
+{
+	struct dmatest_info *info = &test_info;
+	struct dmatest_chan *dtc;
+	unsigned int thread_count = 0;
+
+	list_for_each_entry(dtc, &info->channels, node) {
+		struct dmatest_thread *thread;
+
+		thread_count = 0;
+		list_for_each_entry(thread, &dtc->threads, node) {
+			thread_count++;
+		}
+		pr_info("%u threads using %s\n",
+			thread_count, dma_chan_name(dtc->chan));
+	}
+
+	return 0;
 }
 
 static int __init dmatest_init(void)
@@ -1074,7 +1231,8 @@ static int __init dmatest_init(void)
 
 	if (dmatest_run) {
 		mutex_lock(&info->lock);
-		run_threaded_test(info);
+		add_threaded_test(info);
+		run_pending_tests(info);
 		mutex_unlock(&info->lock);
 	}
 
