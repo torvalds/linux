@@ -352,6 +352,9 @@ int hwmgr_handle_task(struct pp_hwmgr *hwmgr, enum amd_pp_task task_id,
 
 	switch (task_id) {
 	case AMD_PP_TASK_DISPLAY_CONFIG_CHANGE:
+		ret = phm_pre_display_configuration_changed(hwmgr);
+		if (ret)
+			return ret;
 		ret = phm_set_cpu_power_state(hwmgr);
 		if (ret)
 			return ret;

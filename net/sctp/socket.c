@@ -3324,8 +3324,7 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 		__u16 datasize = asoc ? sctp_datachk_len(&asoc->stream) :
 				 sizeof(struct sctp_data_chunk);
 
-		min_len = sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT,
-					   datasize);
+		min_len = sctp_min_frag_point(sp, datasize);
 		max_len = SCTP_MAX_CHUNK_LEN - datasize;
 
 		if (val < min_len || val > max_len)

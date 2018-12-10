@@ -177,6 +177,7 @@ static int panel_dpi_probe(struct platform_device *pdev)
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
+	drm_bus_flags_from_videomode(&ddata->vm, &dssdev->bus_flags);
 
 	omapdss_display_init(dssdev);
 	omapdss_device_register(dssdev);

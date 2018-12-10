@@ -1472,6 +1472,7 @@ F:	drivers/clk/sirf/
 F:	drivers/clocksource/timer-prima2.c
 F:	drivers/clocksource/timer-atlas7.c
 N:	[^a-z]sirf
+X:	drivers/gnss
 
 ARM/EBSA110 MACHINE SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -3271,11 +3272,16 @@ S:	Maintained
 F:	sound/pci/oxygen/
 
 C-SKY ARCHITECTURE
-M:	Guo Ren <ren_guo@c-sky.com>
+M:	Guo Ren <guoren@kernel.org>
 T:	git https://github.com/c-sky/csky-linux.git
 S:	Supported
 F:	arch/csky/
 F:	Documentation/devicetree/bindings/csky/
+F:	drivers/irqchip/irq-csky-*
+F:	Documentation/devicetree/bindings/interrupt-controller/csky,*
+F:	drivers/clocksource/timer-gx6605s.c
+F:	drivers/clocksource/timer-mp-csky.c
+F:	Documentation/devicetree/bindings/timer/csky,*
 K:	csky
 N:	csky
 
@@ -6316,6 +6322,7 @@ F:	include/uapi/linux/gigaset_dev.h
 
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/gnss.git
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-gnss
 F:	Documentation/devicetree/bindings/gnss/
@@ -13882,6 +13889,13 @@ F:	drivers/md/md*
 F:	drivers/md/raid*
 F:	include/linux/raid/
 F:	include/uapi/linux/raid/
+
+SOCIONEXT (SNI) AVE NETWORK DRIVER
+M:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/socionext/sni_ave.c
+F:	Documentation/devicetree/bindings/net/socionext,uniphier-ave4.txt
 
 SOCIONEXT (SNI) NETSEC NETWORK DRIVER
 M:	Jassi Brar <jaswinder.singh@linaro.org>

@@ -85,7 +85,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       int ovr, int bind, bool rtnl_held,
 			       struct netlink_ext_ack *extack)
 {
-	int ret = 0, err;
+	int ret = 0, tcfp_result = TC_ACT_OK, err, size;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
 	struct tc_police *parm;
 	struct tcf_police *police;
@@ -93,7 +93,6 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 	struct tcf_police_params *new;
 	bool exists = false;
-	int size;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -160,6 +159,16 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		goto failure;
 	}
 
+	if (tb[TCA_POLICE_RESULT]) {
+		tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
+		if (TC_ACT_EXT_CMP(tcfp_result, TC_ACT_GOTO_CHAIN)) {
+			NL_SET_ERR_MSG(extack,
+				       "goto chain not allowed on fallback");
+			err = -EINVAL;
+			goto failure;
+		}
+	}
+
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (unlikely(!new)) {
 		err = -ENOMEM;
@@ -167,6 +176,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 
 	/* No failure allowed after this point */
+	new->tcfp_result = tcfp_result;
 	new->tcfp_mtu = parm->mtu;
 	if (!new->tcfp_mtu) {
 		new->tcfp_mtu = ~0;
@@ -195,16 +205,6 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 
 	if (tb[TCA_POLICE_AVRATE])
 		new->tcfp_ewma_rate = nla_get_u32(tb[TCA_POLICE_AVRATE]);
-
-	if (tb[TCA_POLICE_RESULT]) {
-		new->tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
-		if (TC_ACT_EXT_CMP(new->tcfp_result, TC_ACT_GOTO_CHAIN)) {
-			NL_SET_ERR_MSG(extack,
-				       "goto chain not allowed on fallback");
-			err = -EINVAL;
-			goto failure;
-		}
-	}
 
 	spin_lock_bh(&police->tcf_lock);
 	spin_lock_bh(&police->tcfp_lock);
