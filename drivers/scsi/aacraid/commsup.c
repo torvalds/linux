@@ -1828,7 +1828,7 @@ int aac_check_health(struct aac_dev * aac)
 			 * Set the event to wake up the
 			 * thread that will waiting.
 			 */
-			up(&fibctx->wait_sem);
+			complete(&fibctx->completion);
 		} else {
 			printk(KERN_WARNING "aifd: didn't allocate NewFib.\n");
 			kfree(fib);
@@ -2165,7 +2165,7 @@ static void wakeup_fibctx_threads(struct aac_dev *dev,
 		 * Set the event to wake up the
 		 * thread that is waiting.
 		 */
-		up(&fibctx->wait_sem);
+		complete(&fibctx->completion);
 
 		entry = entry->next;
 	}
