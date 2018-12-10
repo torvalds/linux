@@ -1880,7 +1880,7 @@ void intel_ddi_enable_transcoder_func(const struct intel_crtc_state *crtc_state)
 			temp |= TRANS_DDI_MODE_SELECT_DVI;
 
 		if (crtc_state->hdmi_scrambling)
-			temp |= TRANS_DDI_HDMI_SCRAMBLING_MASK;
+			temp |= TRANS_DDI_HDMI_SCRAMBLING;
 		if (crtc_state->hdmi_high_tmds_clock_ratio)
 			temp |= TRANS_DDI_HIGH_TMDS_CHAR_RATE;
 	} else if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG)) {
@@ -3793,8 +3793,7 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		if (intel_dig_port->infoframe_enabled(encoder, pipe_config))
 			pipe_config->has_infoframe = true;
 
-		if ((temp & TRANS_DDI_HDMI_SCRAMBLING_MASK) ==
-			TRANS_DDI_HDMI_SCRAMBLING_MASK)
+		if (temp & TRANS_DDI_HDMI_SCRAMBLING)
 			pipe_config->hdmi_scrambling = true;
 		if (temp & TRANS_DDI_HIGH_TMDS_CHAR_RATE)
 			pipe_config->hdmi_high_tmds_clock_ratio = true;
