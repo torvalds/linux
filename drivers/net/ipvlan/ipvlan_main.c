@@ -540,7 +540,7 @@ static int ipvlan_nl_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_IPVLAN_MODE]) {
 		u16 mode = nla_get_u16(data[IFLA_IPVLAN_MODE]);
 
-		if (mode < IPVLAN_MODE_L2 || mode >= IPVLAN_MODE_MAX)
+		if (mode >= IPVLAN_MODE_MAX)
 			return -EINVAL;
 	}
 	if (data[IFLA_IPVLAN_FLAGS]) {
