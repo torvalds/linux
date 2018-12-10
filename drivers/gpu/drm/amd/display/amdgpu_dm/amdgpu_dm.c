@@ -4673,7 +4673,6 @@ static void amdgpu_dm_do_flip(struct drm_crtc *crtc,
 					     1,
 					     acrtc_state->stream,
 					     &stream_update,
-					     &surface_updates->surface,
 					     state);
 	mutex_unlock(&adev->dm.dc_lock);
 
@@ -4772,7 +4771,7 @@ static bool commit_planes_to_stream(
 			dc,
 			updates,
 			new_plane_count,
-			dc_stream, stream_update, plane_states, state);
+			dc_stream, stream_update, state);
 	mutex_unlock(&dm->dc_lock);
 
 	kfree(flip_addr);
