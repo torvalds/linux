@@ -313,19 +313,28 @@ void evmcs_sanitize_exec_ctrls(struct vmcs_config *vmcs_conf)
 }
 #endif
 
+uint16_t nested_get_evmcs_version(struct kvm_vcpu *vcpu)
+{
+       struct vcpu_vmx *vmx = to_vmx(vcpu);
+       /*
+        * vmcs_version represents the range of supported Enlightened VMCS
+        * versions: lower 8 bits is the minimal version, higher 8 bits is the
+        * maximum supported version. KVM supports versions from 1 to
+        * KVM_EVMCS_VERSION.
+        */
+       if (vmx->nested.enlightened_vmcs_enabled)
+               return (KVM_EVMCS_VERSION << 8) | 1;
+
+       return 0;
+}
+
 int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 			uint16_t *vmcs_version)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/*
-	 * vmcs_version represents the range of supported Enlightened VMCS
-	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
-	 * maximum supported version. KVM supports versions from 1 to
-	 * KVM_EVMCS_VERSION.
-	 */
 	if (vmcs_version)
-		*vmcs_version = (KVM_EVMCS_VERSION << 8) | 1;
+		*vmcs_version = nested_get_evmcs_version(vcpu);
 
 	/* We don't support disabling the feature for simplicity. */
 	if (vmx->nested.enlightened_vmcs_enabled)

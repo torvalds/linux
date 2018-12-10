@@ -5669,6 +5669,7 @@ __init int nested_vmx_hardware_setup(int (*exit_handlers[])(struct kvm_vcpu *))
 	kvm_x86_ops->set_nested_state = vmx_set_nested_state;
 	kvm_x86_ops->get_vmcs12_pages = nested_get_vmcs12_pages,
 	kvm_x86_ops->nested_enable_evmcs = nested_enable_evmcs;
+	kvm_x86_ops->nested_get_evmcs_version = nested_get_evmcs_version;
 
 	return 0;
 }
