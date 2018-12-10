@@ -1072,14 +1072,14 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 		}
 }
 
-static int msm_pinctrl_suspend(struct device *dev)
+static __maybe_unused int msm_pinctrl_suspend(struct device *dev)
 {
 	struct msm_pinctrl *pctrl = dev_get_drvdata(dev);
 
 	return pinctrl_force_sleep(pctrl->pctrl);
 }
 
-static int msm_pinctrl_resume(struct device *dev)
+static __maybe_unused int msm_pinctrl_resume(struct device *dev)
 {
 	struct msm_pinctrl *pctrl = dev_get_drvdata(dev);
 
