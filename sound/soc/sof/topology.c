@@ -2378,7 +2378,7 @@ static int sof_link_unload(struct snd_soc_component *scomp,
 			goto found;
 	}
 
-	dev_err(sdev->dev, "failed to find dai %s", link->name);
+	dev_err(sdev->dev, "error: failed to find dai %s", link->name);
 	return -EINVAL;
 found:
 
