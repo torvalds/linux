@@ -1621,7 +1621,7 @@ static void rtw_lps_change_dtim_hdl(struct adapter *padapter, u8 dtim)
 	if (rtw_btcoex_IsBtControlLps(padapter) == true)
 		return;
 
-	down(&pwrpriv->lock);
+	mutex_lock(&pwrpriv->lock);
 
 	if (pwrpriv->dtim != dtim) {
 		DBG_871X("change DTIM from %d to %d, bFwCurrentInPSMode =%d, ps_mode =%d\n", pwrpriv->dtim, dtim,
@@ -1638,7 +1638,7 @@ static void rtw_lps_change_dtim_hdl(struct adapter *padapter, u8 dtim)
 		rtw_hal_set_hwreg(padapter, HW_VAR_H2C_FW_PWRMODE, (u8 *)(&ps_mode));
 	}
 
-	up(&pwrpriv->lock);
+	mutex_unlock(&pwrpriv->lock);
 }
 
 static void rtw_dm_ra_mask_hdl(struct adapter *padapter, struct sta_info *psta)

@@ -7,6 +7,7 @@
 #ifndef __RTW_PWRCTRL_H_
 #define __RTW_PWRCTRL_H_
 
+#include <linux/mutex.h>
 
 #define FW_PWR0	0
 #define FW_PWR1		1
@@ -207,7 +208,7 @@ typedef struct pno_scan_info
 
 struct pwrctrl_priv
 {
-	_pwrlock	lock;
+	struct mutex lock;
 	_pwrlock	check_32k_lock;
 	volatile u8 rpwm; /*  requested power state for fw */
 	volatile u8 cpwm; /*  fw current power state. updated when 1. read from HCPWM 2. driver lowers power level */
