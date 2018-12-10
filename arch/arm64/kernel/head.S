@@ -809,13 +809,8 @@ ENTRY(__cpu_secondary_check52bitva)
 	and	x0, x0, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
 	cbnz	x0, 2f
 
-	adr_l	x0, va52mismatch
-	mov	w1, #1
-	strb	w1, [x0]
-	dmb	sy
-	dc	ivac, x0	// Invalidate potentially stale cache line
-
-	update_early_cpu_boot_status CPU_STUCK_IN_KERNEL, x0, x1
+	update_early_cpu_boot_status \
+		CPU_STUCK_IN_KERNEL | CPU_STUCK_REASON_52_BIT_VA, x0, x1
 1:	wfe
 	wfi
 	b	1b
@@ -826,7 +821,8 @@ ENDPROC(__cpu_secondary_check52bitva)
 
 __no_granule_support:
 	/* Indicate that this CPU can't boot and is stuck in the kernel */
-	update_early_cpu_boot_status CPU_STUCK_IN_KERNEL, x1, x2
+	update_early_cpu_boot_status \
+		CPU_STUCK_IN_KERNEL | CPU_STUCK_REASON_NO_GRAN, x1, x2
 1:
 	wfe
 	wfi

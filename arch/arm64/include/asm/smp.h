@@ -17,15 +17,20 @@
 #define __ASM_SMP_H
 
 /* Values for secondary_data.status */
+#define CPU_STUCK_REASON_SHIFT		(8)
+#define CPU_BOOT_STATUS_MASK		((1U << CPU_STUCK_REASON_SHIFT) - 1)
 
-#define CPU_MMU_OFF		(-1)
-#define CPU_BOOT_SUCCESS	(0)
+#define CPU_MMU_OFF			(-1)
+#define CPU_BOOT_SUCCESS		(0)
 /* The cpu invoked ops->cpu_die, synchronise it with cpu_kill */
-#define CPU_KILL_ME		(1)
+#define CPU_KILL_ME			(1)
 /* The cpu couldn't die gracefully and is looping in the kernel */
-#define CPU_STUCK_IN_KERNEL	(2)
+#define CPU_STUCK_IN_KERNEL		(2)
 /* Fatal system error detected by secondary CPU, crash the system */
-#define CPU_PANIC_KERNEL	(3)
+#define CPU_PANIC_KERNEL		(3)
+
+#define CPU_STUCK_REASON_52_BIT_VA	(1U << CPU_STUCK_REASON_SHIFT)
+#define CPU_STUCK_REASON_NO_GRAN	(2U << CPU_STUCK_REASON_SHIFT)
 
 #ifndef __ASSEMBLY__
 
