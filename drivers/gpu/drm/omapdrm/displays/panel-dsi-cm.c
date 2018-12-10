@@ -1272,6 +1272,7 @@ static int dsicm_probe(struct platform_device *pdev)
 	dssdev->ops = &dsicm_ops;
 	dssdev->driver = &dsicm_dss_driver;
 	dssdev->type = OMAP_DISPLAY_TYPE_DSI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
 	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;

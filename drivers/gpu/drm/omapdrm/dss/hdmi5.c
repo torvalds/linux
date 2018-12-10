@@ -663,7 +663,7 @@ static int hdmi5_init_output(struct omap_hdmi *hdmi)
 
 	out->dev = &hdmi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
-	out->output_type = OMAP_DISPLAY_TYPE_HDMI;
+	out->type = OMAP_DISPLAY_TYPE_HDMI;
 	out->name = "hdmi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->ops = &hdmi_ops;

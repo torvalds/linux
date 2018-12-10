@@ -207,6 +207,7 @@ static int sharp_ls_probe(struct platform_device *pdev)
 	dssdev->dev = &pdev->dev;
 	dssdev->ops = &sharp_ls_ops;
 	dssdev->type = OMAP_DISPLAY_TYPE_DPI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
 	dssdev->ops_flags = OMAP_DSS_DEVICE_OP_MODES;

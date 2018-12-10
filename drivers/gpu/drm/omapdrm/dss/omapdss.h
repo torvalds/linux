@@ -413,14 +413,18 @@ struct omap_dss_device {
 
 	struct list_head list;
 
-	enum omap_display_type type;
 	/*
-	 * DSS output type that this device generates (for DSS internal devices)
-	 * or requires (for external encoders). Must be OMAP_DISPLAY_TYPE_NONE
-	 * for display devices (connectors and panels) and to non-zero value for
-	 * all other devices.
+	 * DSS type that this device generates (for DSS internal devices) or
+	 * requires (for external encoders, connectors and panels). Must be a
+	 * non-zero (different than OMAP_DISPLAY_TYPE_NONE) value.
 	 */
-	enum omap_display_type output_type;
+	enum omap_display_type type;
+
+	/*
+	 * True if the device is a display (panel or connector) at the end of
+	 * the pipeline, false otherwise.
+	 */
+	bool display;
 
 	const char *name;
 

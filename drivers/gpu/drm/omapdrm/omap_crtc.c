@@ -128,7 +128,7 @@ static void omap_crtc_set_enabled(struct drm_crtc *crtc, bool enable)
 	if (WARN_ON(omap_crtc->enabled == enable))
 		return;
 
-	if (omap_crtc->pipe->output->output_type == OMAP_DISPLAY_TYPE_HDMI) {
+	if (omap_crtc->pipe->output->type == OMAP_DISPLAY_TYPE_HDMI) {
 		priv->dispc_ops->mgr_enable(priv->dispc, channel, enable);
 		omap_crtc->enabled = enable;
 		return;

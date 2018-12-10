@@ -5121,7 +5121,7 @@ static int dsi_init_output(struct dsi_data *dsi)
 	out->id = dsi->module_id == 0 ?
 			OMAP_DSS_OUTPUT_DSI1 : OMAP_DSS_OUTPUT_DSI2;
 
-	out->output_type = OMAP_DISPLAY_TYPE_DSI;
+	out->type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 	out->dispc_channel = dsi_get_channel(dsi);
 	out->ops = &dsi_ops;

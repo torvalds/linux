@@ -138,7 +138,7 @@ static void omap_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	/* Set the HDMI mode and HDMI infoframe if applicable. */
-	if (omap_encoder->output->output_type == OMAP_DISPLAY_TYPE_HDMI)
+	if (omap_encoder->output->type == OMAP_DISPLAY_TYPE_HDMI)
 		omap_encoder_hdmi_mode_set(encoder, adjusted_mode);
 }
 
@@ -161,7 +161,7 @@ static void omap_encoder_disable(struct drm_encoder *encoder)
 	 * DSI is treated as an exception as DSI pipelines still use the legacy
 	 * flow where the pipeline output controls the encoder.
 	 */
-	if (dssdev->output_type != OMAP_DISPLAY_TYPE_DSI) {
+	if (dssdev->type != OMAP_DISPLAY_TYPE_DSI) {
 		dssdev->ops->disable(dssdev);
 		dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 	}
@@ -189,7 +189,7 @@ static void omap_encoder_enable(struct drm_encoder *encoder)
 	 * DSI is treated as an exception as DSI pipelines still use the legacy
 	 * flow where the pipeline output controls the encoder.
 	 */
-	if (dssdev->output_type != OMAP_DISPLAY_TYPE_DSI) {
+	if (dssdev->type != OMAP_DISPLAY_TYPE_DSI) {
 		dssdev->ops->enable(dssdev);
 		dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 	}

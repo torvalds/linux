@@ -760,7 +760,7 @@ static int venc_init_output(struct venc_device *venc)
 
 	out->dev = &venc->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_VENC;
-	out->output_type = OMAP_DISPLAY_TYPE_VENC;
+	out->type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 	out->ops = &venc_ops;

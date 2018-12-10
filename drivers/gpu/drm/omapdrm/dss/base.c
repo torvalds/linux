@@ -207,7 +207,7 @@ void omapdss_device_disconnect(struct omap_dss_device *src,
 	dev_dbg(dst->dev, "disconnect\n");
 
 	if (!dst->id && !omapdss_device_is_connected(dst)) {
-		WARN_ON(dst->output_type);
+		WARN_ON(!dst->display);
 		return;
 	}
 

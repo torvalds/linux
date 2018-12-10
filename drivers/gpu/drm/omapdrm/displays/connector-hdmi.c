@@ -140,6 +140,7 @@ static int hdmic_probe(struct platform_device *pdev)
 	dssdev->ops = &hdmic_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_HDMI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
 	dssdev->ops_flags = ddata->hpd_gpio

@@ -239,6 +239,7 @@ static int dvic_probe(struct platform_device *pdev)
 	dssdev->ops = &dvic_ops;
 	dssdev->dev = &pdev->dev;
 	dssdev->type = OMAP_DISPLAY_TYPE_DVI;
+	dssdev->display = true;
 	dssdev->owner = THIS_MODULE;
 	dssdev->of_ports = BIT(0);
 

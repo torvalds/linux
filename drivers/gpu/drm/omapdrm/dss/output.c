@@ -33,7 +33,7 @@ int omapdss_device_init_output(struct omap_dss_device *out)
 		return PTR_ERR(out->next);
 	}
 
-	if (out->next && out->output_type != out->next->type) {
+	if (out->next && out->type != out->next->type) {
 		dev_err(out->dev, "output type and display type don't match\n");
 		return -EINVAL;
 	}

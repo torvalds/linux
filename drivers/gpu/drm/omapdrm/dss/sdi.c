@@ -272,7 +272,7 @@ static int sdi_init_output(struct sdi_device *sdi)
 
 	out->dev = &sdi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_SDI;
-	out->output_type = OMAP_DISPLAY_TYPE_SDI;
+	out->type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
 	/* We have SDI only on OMAP3, where it's on port 1 */
