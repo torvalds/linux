@@ -252,12 +252,12 @@ static umode_t max31790_fan_is_visible(const void *_data, u32 attr, int channel)
 	case hwmon_fan_fault:
 		if (channel < NR_CHANNEL ||
 		    (fan_config & MAX31790_FAN_CFG_TACH_INPUT))
-			return S_IRUGO;
+			return 0444;
 		return 0;
 	case hwmon_fan_target:
 		if (channel < NR_CHANNEL &&
 		    !(fan_config & MAX31790_FAN_CFG_TACH_INPUT))
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		return 0;
 	default:
 		return 0;
@@ -353,7 +353,7 @@ static umode_t max31790_pwm_is_visible(const void *_data, u32 attr, int channel)
 	case hwmon_pwm_input:
 	case hwmon_pwm_enable:
 		if (!(fan_config & MAX31790_FAN_CFG_TACH_INPUT))
-			return S_IRUGO | S_IWUSR;
+			return 0644;
 		return 0;
 	default:
 		return 0;
