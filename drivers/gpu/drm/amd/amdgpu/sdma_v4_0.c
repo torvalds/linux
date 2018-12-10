@@ -1706,13 +1706,15 @@ static int sdma_v4_0_process_trap_irq(struct amdgpu_device *adev,
 		amdgpu_fence_process(&adev->sdma.instance[instance].ring);
 		break;
 	case 1:
-		/* XXX compute */
+		if (adev->asic_type == CHIP_VEGA20)
+			amdgpu_fence_process(&adev->sdma.instance[instance].page);
 		break;
 	case 2:
 		/* XXX compute */
 		break;
 	case 3:
-		amdgpu_fence_process(&adev->sdma.instance[instance].page);
+		if (adev->asic_type != CHIP_VEGA20)
+			amdgpu_fence_process(&adev->sdma.instance[instance].page);
 		break;
 	}
 	return 0;
