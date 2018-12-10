@@ -158,32 +158,6 @@ static struct kvm_vcpu_hv_synic *synic_get(struct kvm *kvm, u32 vpidx)
 	return (synic->active) ? synic : NULL;
 }
 
-static void synic_clear_sint_msg_pending(struct kvm_vcpu_hv_synic *synic,
-					u32 sint)
-{
-	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
-	struct page *page;
-	gpa_t gpa;
-	struct hv_message *msg;
-	struct hv_message_page *msg_page;
-
-	gpa = synic->msg_page & PAGE_MASK;
-	page = kvm_vcpu_gfn_to_page(vcpu, gpa >> PAGE_SHIFT);
-	if (is_error_page(page)) {
-		vcpu_err(vcpu, "Hyper-V SynIC can't get msg page, gpa 0x%llx\n",
-			 gpa);
-		return;
-	}
-	msg_page = kmap_atomic(page);
-
-	msg = &msg_page->sint_message[sint];
-	msg->header.message_flags.msg_pending = 0;
-
-	kunmap_atomic(msg_page);
-	kvm_release_page_dirty(page);
-	kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
-}
-
 static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 {
 	struct kvm *kvm = vcpu->kvm;
@@ -193,9 +167,6 @@ static void kvm_hv_notify_acked_sint(struct kvm_vcpu *vcpu, u32 sint)
 	int gsi, idx, stimers_pending;
 
 	trace_kvm_hv_notify_acked_sint(vcpu->vcpu_id, sint);
-
-	if (synic->msg_page & HV_SYNIC_SIMP_ENABLE)
-		synic_clear_sint_msg_pending(synic, sint);
 
 	/* Try to deliver pending Hyper-V SynIC timers messages */
 	stimers_pending = 0;
@@ -589,41 +560,54 @@ static int synic_deliver_msg(struct kvm_vcpu_hv_synic *synic, u32 sint,
 			     struct hv_message *src_msg)
 {
 	struct kvm_vcpu *vcpu = synic_to_vcpu(synic);
-	struct page *page;
-	gpa_t gpa;
-	struct hv_message *dst_msg;
+	int msg_off = offsetof(struct hv_message_page, sint_message[sint]);
+	gfn_t msg_page_gfn;
+	struct hv_message_header hv_hdr;
 	int r;
-	struct hv_message_page *msg_page;
 
 	if (!(synic->msg_page & HV_SYNIC_SIMP_ENABLE))
 		return -ENOENT;
 
-	gpa = synic->msg_page & PAGE_MASK;
-	page = kvm_vcpu_gfn_to_page(vcpu, gpa >> PAGE_SHIFT);
-	if (is_error_page(page))
-		return -EFAULT;
+	msg_page_gfn = synic->msg_page >> PAGE_SHIFT;
 
-	msg_page = kmap_atomic(page);
-	dst_msg = &msg_page->sint_message[sint];
-	if (sync_cmpxchg(&dst_msg->header.message_type, HVMSG_NONE,
-			 src_msg->header.message_type) != HVMSG_NONE) {
-		dst_msg->header.message_flags.msg_pending = 1;
-		r = -EAGAIN;
-	} else {
-		memcpy(&dst_msg->u.payload, &src_msg->u.payload,
-		       src_msg->header.payload_size);
-		dst_msg->header.message_type = src_msg->header.message_type;
-		dst_msg->header.payload_size = src_msg->header.payload_size;
-		r = synic_set_irq(synic, sint);
-		if (r >= 1)
-			r = 0;
-		else if (r == 0)
-			r = -EFAULT;
+	/*
+	 * Strictly following the spec-mandated ordering would assume setting
+	 * .msg_pending before checking .message_type.  However, this function
+	 * is only called in vcpu context so the entire update is atomic from
+	 * guest POV and thus the exact order here doesn't matter.
+	 */
+	r = kvm_vcpu_read_guest_page(vcpu, msg_page_gfn, &hv_hdr.message_type,
+				     msg_off + offsetof(struct hv_message,
+							header.message_type),
+				     sizeof(hv_hdr.message_type));
+	if (r < 0)
+		return r;
+
+	if (hv_hdr.message_type != HVMSG_NONE) {
+		hv_hdr.message_flags.msg_pending = 1;
+		r = kvm_vcpu_write_guest_page(vcpu, msg_page_gfn,
+					      &hv_hdr.message_flags,
+					      msg_off +
+					      offsetof(struct hv_message,
+						       header.message_flags),
+					      sizeof(hv_hdr.message_flags));
+		if (r < 0)
+			return r;
+		return -EAGAIN;
 	}
-	kunmap_atomic(msg_page);
-	kvm_release_page_dirty(page);
-	kvm_vcpu_mark_page_dirty(vcpu, gpa >> PAGE_SHIFT);
-	return r;
+
+	r = kvm_vcpu_write_guest_page(vcpu, msg_page_gfn, src_msg, msg_off,
+				      sizeof(src_msg->header) +
+				      src_msg->header.payload_size);
+	if (r < 0)
+		return r;
+
+	r = synic_set_irq(synic, sint);
+	if (r < 0)
+		return r;
+	if (r == 0)
+		return -EFAULT;
+	return 0;
 }
 
 static int stimer_send_msg(struct kvm_vcpu_hv_stimer *stimer)
