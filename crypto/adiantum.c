@@ -564,10 +564,8 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	hash_alg = __crypto_shash_alg(_hash_alg);
 	err = crypto_init_shash_spawn(&ictx->hash_spawn, hash_alg,
 				      skcipher_crypto_instance(inst));
-	if (err) {
-		crypto_mod_put(_hash_alg);
-		goto out_drop_blockcipher;
-	}
+	if (err)
+		goto out_put_hash;
 
 	/* Check the set of algorithms */
 	if (!adiantum_supported_algorithms(streamcipher_alg, blockcipher_alg,
@@ -624,10 +622,13 @@ static int adiantum_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (err)
 		goto out_drop_hash;
 
+	crypto_mod_put(_hash_alg);
 	return 0;
 
 out_drop_hash:
 	crypto_drop_shash(&ictx->hash_spawn);
+out_put_hash:
+	crypto_mod_put(_hash_alg);
 out_drop_blockcipher:
 	crypto_drop_spawn(&ictx->blockcipher_spawn);
 out_drop_streamcipher:
