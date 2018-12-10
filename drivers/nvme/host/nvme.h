@@ -565,6 +565,6 @@ static inline struct nvme_ns *nvme_get_ns_from_dev(struct device *dev)
 }
 
 int __init nvme_core_init(void);
-void nvme_core_exit(void);
+void __exit nvme_core_exit(void);
 
 #endif /* _NVME_H */

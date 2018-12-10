@@ -3802,7 +3802,7 @@ out:
 	return result;
 }
 
-void nvme_core_exit(void)
+void __exit nvme_core_exit(void)
 {
 	ida_destroy(&nvme_subsystems_ida);
 	class_destroy(nvme_subsys_class);
