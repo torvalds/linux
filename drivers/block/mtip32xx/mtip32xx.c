@@ -3550,7 +3550,7 @@ static blk_status_t mtip_issue_reserved_cmd(struct blk_mq_hw_ctx *hctx,
 	struct mtip_cmd_sg *command_sg;
 
 	if (mtip_commands_active(dd->port))
-		return BLK_STS_RESOURCE;
+		return BLK_STS_DEV_RESOURCE;
 
 	hdr->ctba = cpu_to_le32(cmd->command_dma & 0xFFFFFFFF);
 	if (test_bit(MTIP_PF_HOST_CAP_64, &dd->port->flags))
@@ -3587,7 +3587,7 @@ static blk_status_t mtip_queue_rq(struct blk_mq_hw_ctx *hctx,
 		return mtip_issue_reserved_cmd(hctx, rq);
 
 	if (unlikely(mtip_check_unal_depth(hctx, rq)))
-		return BLK_STS_RESOURCE;
+		return BLK_STS_DEV_RESOURCE;
 
 	if (is_se_active(dd) || is_stopped(dd, rq))
 		return BLK_STS_IOERR;
