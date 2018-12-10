@@ -661,6 +661,31 @@ _get_AAD_done\@:
         vmovdqu \T7, AadHash(arg2)
 .endm
 
+.macro INIT GHASH_MUL PRECOMPUTE
+        vmovdqu  (arg3), %xmm6              # xmm6 = HashKey
+
+        vpshufb  SHUF_MASK(%rip), %xmm6, %xmm6
+        ###############  PRECOMPUTATION of HashKey<<1 mod poly from the HashKey
+        vmovdqa  %xmm6, %xmm2
+        vpsllq   $1, %xmm6, %xmm6
+        vpsrlq   $63, %xmm2, %xmm2
+        vmovdqa  %xmm2, %xmm1
+        vpslldq  $8, %xmm2, %xmm2
+        vpsrldq  $8, %xmm1, %xmm1
+        vpor     %xmm2, %xmm6, %xmm6
+        #reduction
+        vpshufd  $0b00100100, %xmm1, %xmm2
+        vpcmpeqd TWOONE(%rip), %xmm2, %xmm2
+        vpand    POLY(%rip), %xmm2, %xmm2
+        vpxor    %xmm2, %xmm6, %xmm6        # xmm6 holds the HashKey<<1 mod poly
+        #######################################################################
+        vmovdqu  %xmm6, HashKey(arg2)       # store HashKey<<1 mod poly
+
+        CALC_AAD_HASH \GHASH_MUL, arg5, arg6, %xmm2, %xmm6, %xmm3, %xmm4, %xmm5, %xmm7, %xmm1, %xmm0
+
+        \PRECOMPUTE  %xmm6, %xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5
+.endm
+
 #ifdef CONFIG_AS_AVX
 ###############################################################################
 # GHASH_MUL MACRO to implement: Data*HashKey mod (128,127,126,121,0)
@@ -1558,31 +1583,7 @@ _initial_blocks_done\@:
 #############################################################
 ENTRY(aesni_gcm_precomp_avx_gen2)
         FUNC_SAVE
-
-        vmovdqu  (arg3), %xmm6              # xmm6 = HashKey
-
-        vpshufb  SHUF_MASK(%rip), %xmm6, %xmm6
-        ###############  PRECOMPUTATION of HashKey<<1 mod poly from the HashKey
-        vmovdqa  %xmm6, %xmm2
-        vpsllq   $1, %xmm6, %xmm6
-        vpsrlq   $63, %xmm2, %xmm2
-        vmovdqa  %xmm2, %xmm1
-        vpslldq  $8, %xmm2, %xmm2
-        vpsrldq  $8, %xmm1, %xmm1
-        vpor     %xmm2, %xmm6, %xmm6
-        #reduction
-        vpshufd  $0b00100100, %xmm1, %xmm2
-        vpcmpeqd TWOONE(%rip), %xmm2, %xmm2
-        vpand    POLY(%rip), %xmm2, %xmm2
-        vpxor    %xmm2, %xmm6, %xmm6        # xmm6 holds the HashKey<<1 mod poly
-        #######################################################################
-        vmovdqu  %xmm6, HashKey(arg2)       # store HashKey<<1 mod poly
-
-
-        CALC_AAD_HASH GHASH_MUL_AVX, arg5, arg6, %xmm2, %xmm6, %xmm3, %xmm4, %xmm5, %xmm7, %xmm1, %xmm0
-
-        PRECOMPUTE_AVX  %xmm6, %xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5
-
+        INIT GHASH_MUL_AVX, PRECOMPUTE_AVX
         FUNC_RESTORE
         ret
 ENDPROC(aesni_gcm_precomp_avx_gen2)
@@ -2547,30 +2548,7 @@ _initial_blocks_done\@:
 #############################################################
 ENTRY(aesni_gcm_precomp_avx_gen4)
         FUNC_SAVE
-
-        vmovdqu  (arg3), %xmm6                # xmm6 = HashKey
-
-        vpshufb  SHUF_MASK(%rip), %xmm6, %xmm6
-        ###############  PRECOMPUTATION of HashKey<<1 mod poly from the HashKey
-        vmovdqa  %xmm6, %xmm2
-        vpsllq   $1, %xmm6, %xmm6
-        vpsrlq   $63, %xmm2, %xmm2
-        vmovdqa  %xmm2, %xmm1
-        vpslldq  $8, %xmm2, %xmm2
-        vpsrldq  $8, %xmm1, %xmm1
-        vpor     %xmm2, %xmm6, %xmm6
-        #reduction
-        vpshufd  $0b00100100, %xmm1, %xmm2
-        vpcmpeqd TWOONE(%rip), %xmm2, %xmm2
-        vpand    POLY(%rip), %xmm2, %xmm2
-        vpxor    %xmm2, %xmm6, %xmm6          # xmm6 holds the HashKey<<1 mod poly
-        #######################################################################
-        vmovdqu  %xmm6, HashKey(arg2)         # store HashKey<<1 mod poly
-
-        CALC_AAD_HASH GHASH_MUL_AVX2, arg5, arg6, %xmm2, %xmm6, %xmm3, %xmm4, %xmm5, %xmm7, %xmm1, %xmm0
-
-        PRECOMPUTE_AVX2  %xmm6, %xmm0, %xmm1, %xmm2, %xmm3, %xmm4, %xmm5
-
+        INIT GHASH_MUL_AVX2, PRECOMPUTE_AVX2
         FUNC_RESTORE
         ret
 ENDPROC(aesni_gcm_precomp_avx_gen4)
