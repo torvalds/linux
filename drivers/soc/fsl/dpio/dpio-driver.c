@@ -187,7 +187,6 @@ static int dpaa2_dpio_probe(struct fsl_mc_device *dpio_dev)
 	dev_dbg(dev, "   receives_notifications = %d\n",
 		desc.receives_notifications);
 	dpio_close(dpio_dev->mc_io, 0, dpio_dev->mc_handle);
-	fsl_mc_portal_free(dpio_dev->mc_io);
 
 	return 0;
 
@@ -229,12 +228,6 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 	cpu = dpaa2_io_get_cpu(priv->io);
 	cpumask_set_cpu(cpu, cpus_unused_mask);
 
-	err = fsl_mc_portal_allocate(dpio_dev, 0, &dpio_dev->mc_io);
-	if (err) {
-		dev_err(dev, "MC portal allocation failed\n");
-		goto err_mcportal;
-	}
-
 	err = dpio_open(dpio_dev->mc_io, 0, dpio_dev->obj_desc.id,
 			&dpio_dev->mc_handle);
 	if (err) {
@@ -252,7 +245,7 @@ static int dpaa2_dpio_remove(struct fsl_mc_device *dpio_dev)
 
 err_open:
 	fsl_mc_portal_free(dpio_dev->mc_io);
-err_mcportal:
+
 	return err;
 }
 
