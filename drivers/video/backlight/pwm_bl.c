@@ -562,7 +562,30 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 		goto err_alloc;
 	}
 
-	if (!data->levels) {
+	if (data->levels) {
+		/*
+		 * For the DT case, only when brightness levels is defined
+		 * data->levels is filled. For the non-DT case, data->levels
+		 * can come from platform data, however is not usual.
+		 */
+		for (i = 0; i <= data->max_brightness; i++) {
+			if (data->levels[i] > pb->scale)
+				pb->scale = data->levels[i];
+
+			pb->levels = data->levels;
+		}
+	} else if (!data->max_brightness) {
+		/*
+		 * If no brightness levels are provided and max_brightness is
+		 * not set, use the default brightness table. For the DT case,
+		 * max_brightness is set to 0 when brightness levels is not
+		 * specified. For the non-DT case, max_brightness is usually
+		 * set to some value.
+		 */
+
+		/* Get the PWM period (in nanoseconds) */
+		pwm_get_state(pb->pwm, &state);
+
 		ret = pwm_backlight_brightness_default(&pdev->dev, data,
 						       state.period);
 		if (ret < 0) {
@@ -570,13 +593,19 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 				"failed to setup default brightness table\n");
 			goto err_alloc;
 		}
-	}
 
-	for (i = 0; i <= data->max_brightness; i++) {
-		if (data->levels[i] > pb->scale)
-			pb->scale = data->levels[i];
+		for (i = 0; i <= data->max_brightness; i++) {
+			if (data->levels[i] > pb->scale)
+				pb->scale = data->levels[i];
 
-		pb->levels = data->levels;
+			pb->levels = data->levels;
+		}
+	} else {
+		/*
+		 * That only happens for the non-DT case, where platform data
+		 * sets the max_brightness value.
+		 */
+		pb->scale = data->max_brightness;
 	}
 
 	pb->lth_brightness = data->lth_brightness * (state.period / pb->scale);
