@@ -2209,7 +2209,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 
 	ulen = info.nr_jited_ksyms;
 	info.nr_jited_ksyms = prog->aux->func_cnt ? : 1;
-	if (info.nr_jited_ksyms && ulen) {
+	if (ulen) {
 		if (bpf_dump_raw_ok()) {
 			unsigned long ksym_addr;
 			u64 __user *user_ksyms;
@@ -2240,7 +2240,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 
 	ulen = info.nr_jited_func_lens;
 	info.nr_jited_func_lens = prog->aux->func_cnt ? : 1;
-	if (info.nr_jited_func_lens && ulen) {
+	if (ulen) {
 		if (bpf_dump_raw_ok()) {
 			u32 __user *user_lens;
 			u32 func_len, i;
