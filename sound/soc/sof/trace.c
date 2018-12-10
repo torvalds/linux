@@ -148,6 +148,7 @@ int snd_sof_init_trace_ipc(struct snd_sof_dev *sdev)
 	params.buffer.size = sdev->dmatb.bytes;
 	params.buffer.offset = 0;
 	params.buffer.pages = sdev->dma_trace_pages;
+	params.stream_tag = 0;
 
 	sdev->host_offset = 0;
 
