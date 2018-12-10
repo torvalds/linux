@@ -18,9 +18,6 @@
 #ifndef _DDBRIDGE_H_
 #define _DDBRIDGE_H_
 
-#include <asm/dma.h>
-#include <asm/irq.h>
-
 #include <linux/clk.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -47,6 +44,9 @@
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/workqueue.h>
+
+#include <asm/dma.h>
+#include <asm/irq.h>
 
 #include <media/dmxdev.h>
 #include <media/dvb_ca_en50221.h>
