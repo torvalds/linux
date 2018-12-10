@@ -286,7 +286,7 @@ static inline void pasid_clear_entry(struct pasid_entry *pe)
 	WRITE_ONCE(pe->val[7], 0);
 }
 
-void intel_pasid_clear_entry(struct device *dev, int pasid)
+static void intel_pasid_clear_entry(struct device *dev, int pasid)
 {
 	struct pasid_entry *pe;
 
