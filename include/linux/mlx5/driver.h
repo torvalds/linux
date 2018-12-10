@@ -1088,6 +1088,11 @@ static inline bool mlx5_core_is_ecpf_esw_manager(struct mlx5_core_dev *dev)
 	return dev->caps.embedded_cpu && MLX5_CAP_GEN(dev, eswitch_manager);
 }
 
+static inline bool mlx5_ecpf_vport_exists(struct mlx5_core_dev *dev)
+{
+	return mlx5_core_is_pf(dev) && MLX5_CAP_ESW(dev, ecpf_vport_exists);
+}
+
 #define MLX5_HOST_PF_MAX_VFS	(127u)
 static inline u16 mlx5_core_max_vfs(struct mlx5_core_dev *dev)
 {

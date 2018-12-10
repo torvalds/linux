@@ -639,14 +639,35 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 	misc = MLX5_ADDR_OF(fte_match_param, spec->match_value,
 			    misc_parameters);
 
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		MLX5_SET(fte_match_set_misc, misc, source_port, MLX5_VPORT_PF);
+		flow = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb,
+					   spec, &flow_act, &dest, 1);
+		if (IS_ERR(flow)) {
+			err = PTR_ERR(flow);
+			goto add_pf_flow_err;
+		}
+		flows[MLX5_VPORT_PF] = flow;
+	}
+
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		MLX5_SET(fte_match_set_misc, misc, source_port, MLX5_VPORT_ECPF);
+		flow = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb,
+					   spec, &flow_act, &dest, 1);
+		if (IS_ERR(flow)) {
+			err = PTR_ERR(flow);
+			goto add_ecpf_flow_err;
+		}
+		flows[mlx5_eswitch_ecpf_idx(esw)] = flow;
+	}
+
 	mlx5_esw_for_each_vf_vport(esw, i, mlx5_core_max_vfs(esw->dev)) {
 		MLX5_SET(fte_match_set_misc, misc, source_port, i);
 		flow = mlx5_add_flow_rules(esw->fdb_table.offloads.slow_fdb,
 					   spec, &flow_act, &dest, 1);
 		if (IS_ERR(flow)) {
 			err = PTR_ERR(flow);
-			esw_warn(esw->dev, "FDB: Failed to add peer miss flow rule err %d\n", err);
-			goto add_flow_err;
+			goto add_vf_flow_err;
 		}
 		flows[i] = flow;
 	}
@@ -656,10 +677,18 @@ static int esw_add_fdb_peer_miss_rules(struct mlx5_eswitch *esw,
 	kvfree(spec);
 	return 0;
 
-add_flow_err:
+add_vf_flow_err:
 	nvports = --i;
 	mlx5_esw_for_each_vf_vport_reverse(esw, i, nvports)
 		mlx5_del_flow_rules(flows[i]);
+
+	if (mlx5_ecpf_vport_exists(esw->dev))
+		mlx5_del_flow_rules(flows[mlx5_eswitch_ecpf_idx(esw)]);
+add_ecpf_flow_err:
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev))
+		mlx5_del_flow_rules(flows[MLX5_VPORT_PF]);
+add_pf_flow_err:
+	esw_warn(esw->dev, "FDB: Failed to add peer miss flow rule err %d\n", err);
 	kvfree(flows);
 alloc_flows_err:
 	kvfree(spec);
@@ -675,6 +704,12 @@ static void esw_del_fdb_peer_miss_rules(struct mlx5_eswitch *esw)
 
 	mlx5_esw_for_each_vf_vport_reverse(esw, i, mlx5_core_max_vfs(esw->dev))
 		mlx5_del_flow_rules(flows[i]);
+
+	if (mlx5_ecpf_vport_exists(esw->dev))
+		mlx5_del_flow_rules(flows[mlx5_eswitch_ecpf_idx(esw)]);
+
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev))
+		mlx5_del_flow_rules(flows[MLX5_VPORT_PF]);
 
 	kvfree(flows);
 }
@@ -1288,6 +1323,16 @@ static void __unload_reps_special_vport(struct mlx5_eswitch *esw, u8 rep_type)
 {
 	struct mlx5_eswitch_rep *rep;
 
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_ECPF);
+		__esw_offloads_unload_rep(esw, rep, rep_type);
+	}
+
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_PF);
+		__esw_offloads_unload_rep(esw, rep, rep_type);
+	}
+
 	rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_UPLINK);
 	__esw_offloads_unload_rep(esw, rep, rep_type);
 }
@@ -1351,6 +1396,34 @@ static int __load_reps_special_vport(struct mlx5_eswitch *esw, u8 rep_type)
 
 	rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_UPLINK);
 	err = __esw_offloads_load_rep(esw, rep, rep_type);
+	if (err)
+		return err;
+
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_PF);
+		err = __esw_offloads_load_rep(esw, rep, rep_type);
+		if (err)
+			goto err_pf;
+	}
+
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_ECPF);
+		err = __esw_offloads_load_rep(esw, rep, rep_type);
+		if (err)
+			goto err_ecpf;
+	}
+
+	return 0;
+
+err_ecpf:
+	if (mlx5_core_is_ecpf_esw_manager(esw->dev)) {
+		rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_PF);
+		__esw_offloads_unload_rep(esw, rep, rep_type);
+	}
+
+err_pf:
+	rep = mlx5_eswitch_get_rep(esw, MLX5_VPORT_UPLINK);
+	__esw_offloads_unload_rep(esw, rep, rep_type);
 	return err;
 }
 

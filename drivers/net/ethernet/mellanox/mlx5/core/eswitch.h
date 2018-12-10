@@ -380,9 +380,20 @@ static inline int mlx5_eswitch_uplink_idx(struct mlx5_eswitch *esw)
 	return esw->total_vports - 1;
 }
 
+static inline int mlx5_eswitch_ecpf_idx(struct mlx5_eswitch *esw)
+{
+	return esw->total_vports - 2;
+}
+
 static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
 						  u16 vport_num)
 {
+	if (vport_num == MLX5_VPORT_ECPF) {
+		if (!mlx5_ecpf_vport_exists(esw->dev))
+			esw_warn(esw->dev, "ECPF vport doesn't exist!\n");
+		return mlx5_eswitch_ecpf_idx(esw);
+	}
+
 	if (vport_num == MLX5_VPORT_UPLINK)
 		return mlx5_eswitch_uplink_idx(esw);
 
@@ -392,6 +403,10 @@ static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
 static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
 						  int index)
 {
+	if (index == mlx5_eswitch_ecpf_idx(esw) &&
+	    mlx5_ecpf_vport_exists(esw->dev))
+		return MLX5_VPORT_ECPF;
+
 	if (index == mlx5_eswitch_uplink_idx(esw))
 		return MLX5_VPORT_UPLINK;
 

@@ -1667,7 +1667,7 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_ETH);
 		mlx5_reload_interface(esw->dev, MLX5_INTERFACE_PROTOCOL_IB);
 		err = esw_offloads_init(esw, nvfs,
-					nvfs + MLX5_SPECIAL_VPORTS);
+					nvfs + MLX5_SPECIAL_VPORTS(esw->dev));
 	}
 
 	if (err)
@@ -1686,6 +1686,12 @@ int mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode)
 	/* Enable PF vport */
 	vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_PF);
 	esw_enable_vport(esw, vport, enabled_events);
+
+	/* Enable ECPF vports */
+	if (mlx5_ecpf_vport_exists(esw->dev)) {
+		vport = mlx5_eswitch_get_vport(esw, MLX5_VPORT_ECPF);
+		esw_enable_vport(esw, vport, enabled_events);
+	}
 
 	/* Enable VF vports */
 	mlx5_esw_for_each_vf_vport(esw, i, vport, nvfs)
