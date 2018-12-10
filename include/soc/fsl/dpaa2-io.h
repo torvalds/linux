@@ -94,9 +94,11 @@ struct dpaa2_io_notification_ctx {
 int dpaa2_io_get_cpu(struct dpaa2_io *d);
 
 int dpaa2_io_service_register(struct dpaa2_io *service,
-			      struct dpaa2_io_notification_ctx *ctx);
+			      struct dpaa2_io_notification_ctx *ctx,
+			      struct device *dev);
 void dpaa2_io_service_deregister(struct dpaa2_io *service,
-				 struct dpaa2_io_notification_ctx *ctx);
+				 struct dpaa2_io_notification_ctx *ctx,
+				 struct device *dev);
 int dpaa2_io_service_rearm(struct dpaa2_io *service,
 			   struct dpaa2_io_notification_ctx *ctx);
 
