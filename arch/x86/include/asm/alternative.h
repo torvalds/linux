@@ -122,6 +122,16 @@ static inline int alternatives_text_reserved(void *start, void *end)
 		"(" alt_max_short(alt_rlen(num1), alt_rlen(num2)) " - (" alt_slen ")), 0x90\n"	\
 	alt_end_marker ":\n"
 
+#define OLDINSTR_3(oldinsn, n1, n2, n3)								\
+	"# ALT: oldinstr3\n"									\
+	"661:\n\t" oldinsn "\n662:\n"								\
+	"# ALT: padding3\n"									\
+	".skip -((" alt_max_short(alt_max_short(alt_rlen(n1), alt_rlen(n2)), alt_rlen(n3))	\
+		" - (" alt_slen ")) > 0) * "							\
+		"(" alt_max_short(alt_max_short(alt_rlen(n1), alt_rlen(n2)), alt_rlen(n3))	\
+		" - (" alt_slen ")), 0x90\n"							\
+	alt_end_marker ":\n"
+
 #define ALTINSTR_ENTRY(feature, num)					      \
 	" .long 661b - .\n"				/* label           */ \
 	" .long " b_replacement(num)"f - .\n"		/* new instruction */ \
@@ -153,6 +163,19 @@ static inline int alternatives_text_reserved(void *start, void *end)
 	".pushsection .altinstr_replacement, \"ax\"\n"			\
 	ALTINSTR_REPLACEMENT(newinstr1, feature1, 1)			\
 	ALTINSTR_REPLACEMENT(newinstr2, feature2, 2)			\
+	".popsection\n"
+
+#define ALTERNATIVE_3(oldinsn, newinsn1, feat1, newinsn2, feat2, newinsn3, feat3) \
+	OLDINSTR_3(oldinsn, 1, 2, 3)						\
+	".pushsection .altinstructions,\"a\"\n"					\
+	ALTINSTR_ENTRY(feat1, 1)						\
+	ALTINSTR_ENTRY(feat2, 2)						\
+	ALTINSTR_ENTRY(feat3, 3)						\
+	".popsection\n"								\
+	".pushsection .altinstr_replacement, \"ax\"\n"				\
+	ALTINSTR_REPLACEMENT(newinsn1, feat1, 1)				\
+	ALTINSTR_REPLACEMENT(newinsn2, feat2, 2)				\
+	ALTINSTR_REPLACEMENT(newinsn3, feat3, 3)				\
 	".popsection\n"
 
 /*
