@@ -139,7 +139,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		if (!cpu_online(cpu)) {
 			pr_crit("CPU%u: failed to come online\n", cpu);
 
-			if (IS_ENABLED(CONFIG_ARM64_52BIT_VA) && va52mismatch)
+			if (IS_ENABLED(CONFIG_ARM64_USER_VA_BITS_52) && va52mismatch)
 				pr_crit("CPU%u: does not support 52-bit VAs\n", cpu);
 
 			ret = -EIO;

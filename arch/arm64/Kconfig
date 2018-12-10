@@ -682,7 +682,35 @@ config ARM64_VA_BITS_47
 config ARM64_VA_BITS_48
 	bool "48-bit"
 
+config ARM64_USER_VA_BITS_52
+	bool "52-bit (user)"
+	depends on ARM64_64K_PAGES && (ARM64_PAN || !ARM64_SW_TTBR0_PAN)
+	help
+	  Enable 52-bit virtual addressing for userspace when explicitly
+	  requested via a hint to mmap(). The kernel will continue to
+	  use 48-bit virtual addresses for its own mappings.
+
+	  NOTE: Enabling 52-bit virtual addressing in conjunction with
+	  ARMv8.3 Pointer Authentication will result in the PAC being
+	  reduced from 7 bits to 3 bits, which may have a significant
+	  impact on its susceptibility to brute-force attacks.
+
+	  If unsure, select 48-bit virtual addressing instead.
+
 endchoice
+
+config ARM64_FORCE_52BIT
+	bool "Force 52-bit virtual addresses for userspace"
+	depends on ARM64_USER_VA_BITS_52 && EXPERT
+	help
+	  For systems with 52-bit userspace VAs enabled, the kernel will attempt
+	  to maintain compatibility with older software by providing 48-bit VAs
+	  unless a hint is supplied to mmap.
+
+	  This configuration option disables the 48-bit compatibility logic, and
+	  forces all userspace addresses to be 52-bit on HW that supports it. One
+	  should only enable this configuration option for stress testing userspace
+	  memory management code. If unsure say N here.
 
 config ARM64_VA_BITS
 	int
@@ -690,7 +718,7 @@ config ARM64_VA_BITS
 	default 39 if ARM64_VA_BITS_39
 	default 42 if ARM64_VA_BITS_42
 	default 47 if ARM64_VA_BITS_47
-	default 48 if ARM64_VA_BITS_48
+	default 48 if ARM64_VA_BITS_48 || ARM64_USER_VA_BITS_52
 
 choice
 	prompt "Physical address space size"
@@ -715,10 +743,6 @@ config ARM64_PA_BITS_52
 	  minor performance overhead).
 
 endchoice
-
-config ARM64_52BIT_VA
-	def_bool y
-	depends on ARM64_VA_BITS_48 && ARM64_64K_PAGES && (ARM64_PAN || !ARM64_SW_TTBR0_PAN)
 
 config ARM64_PA_BITS
 	int
@@ -1185,19 +1209,6 @@ config ARM64_CNP
 	  Selecting this option allows the CNP feature to be detected
 	  at runtime, and does not affect PEs that do not implement
 	  this feature.
-
-config ARM64_FORCE_52BIT
-	bool "Force 52-bit virtual addresses for userspace"
-	depends on ARM64_52BIT_VA && EXPERT
-	help
-	  For systems with 52-bit userspace VAs enabled, the kernel will attempt
-	  to maintain compatibility with older software by providing 48-bit VAs
-	  unless a hint is supplied to mmap.
-
-	  This configuration option disables the 48-bit compatibility logic, and
-	  forces all userspace addresses to be 52-bit on HW that supports it. One
-	  should only enable this configuration option for stress testing userspace
-	  memory management code. If unsure say N here.
 
 endmenu
 

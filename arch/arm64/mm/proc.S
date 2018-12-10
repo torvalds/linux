@@ -451,8 +451,8 @@ ENTRY(__cpu_setup)
 			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
 			TCR_TBI0 | TCR_A1
 
-#ifdef CONFIG_ARM64_52BIT_VA
-	ldr_l 		x9, vabits_user
+#ifdef CONFIG_ARM64_USER_VA_BITS_52
+	ldr_l		x9, vabits_user
 	sub		x9, xzr, x9
 	add		x9, x9, #64
 #else

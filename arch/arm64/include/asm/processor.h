@@ -20,11 +20,11 @@
 #define __ASM_PROCESSOR_H
 
 #define KERNEL_DS		UL(-1)
-#ifdef CONFIG_ARM64_52BIT_VA
+#ifdef CONFIG_ARM64_USER_VA_BITS_52
 #define USER_DS			((UL(1) << 52) - 1)
 #else
 #define USER_DS			((UL(1) << VA_BITS) - 1)
-#endif /* CONFIG_ARM64_52BIT_VA */
+#endif /* CONFIG_ARM64_USER_VA_BITS_52 */
 
 /*
  * On arm64 systems, unaligned accesses by the CPU are cheap, and so there is
