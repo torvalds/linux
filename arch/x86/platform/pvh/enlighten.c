@@ -8,6 +8,8 @@
 #include <asm/e820/api.h>
 #include <asm/x86_init.h>
 
+#include <asm/xen/interface.h>
+
 #include <xen/xen.h>
 #include <xen/interface/hvm/start_info.h>
 
@@ -40,11 +42,28 @@ void __init __weak mem_map_via_hcall(struct boot_params *ptr __maybe_unused)
 	BUG();
 }
 
-static void __init init_pvh_bootparams(void)
+static void __init init_pvh_bootparams(bool xen_guest)
 {
 	memset(&pvh_bootparams, 0, sizeof(pvh_bootparams));
 
-	mem_map_via_hcall(&pvh_bootparams);
+	if ((pvh_start_info.version > 0) && (pvh_start_info.memmap_entries)) {
+		struct hvm_memmap_table_entry *ep;
+		int i;
+
+		ep = __va(pvh_start_info.memmap_paddr);
+		pvh_bootparams.e820_entries = pvh_start_info.memmap_entries;
+
+		for (i = 0; i < pvh_bootparams.e820_entries ; i++, ep++) {
+			pvh_bootparams.e820_table[i].addr = ep->addr;
+			pvh_bootparams.e820_table[i].size = ep->size;
+			pvh_bootparams.e820_table[i].type = ep->type;
+		}
+	} else if (xen_guest) {
+		mem_map_via_hcall(&pvh_bootparams);
+	} else {
+		/* Non-xen guests are not supported by version 0 */
+		BUG();
+	}
 
 	if (pvh_bootparams.e820_entries < E820_MAX_ENTRIES_ZEROPAGE - 1) {
 		pvh_bootparams.e820_table[pvh_bootparams.e820_entries].addr =
@@ -75,7 +94,7 @@ static void __init init_pvh_bootparams(void)
 	 * environment (i.e. hardware_subarch 0).
 	 */
 	pvh_bootparams.hdr.version = (2 << 8) | 12;
-	pvh_bootparams.hdr.type_of_loader = (9 << 4) | 0; /* Xen loader */
+	pvh_bootparams.hdr.type_of_loader = ((xen_guest ? 0x9 : 0xb) << 4) | 0;
 
 	x86_init.acpi.get_root_pointer = pvh_get_root_pointer;
 }
@@ -90,13 +109,10 @@ void __init __weak xen_pvh_init(void)
 	BUG();
 }
 
-/*
- * When we add support for other hypervisors like Qemu/KVM, this routine can
- * selectively invoke the appropriate initialization based on guest type.
- */
-static void hypervisor_specific_init(void)
+static void hypervisor_specific_init(bool xen_guest)
 {
-	xen_pvh_init();
+	if (xen_guest)
+		xen_pvh_init();
 }
 
 /*
@@ -105,13 +121,17 @@ static void hypervisor_specific_init(void)
  */
 void __init xen_prepare_pvh(void)
 {
+
+	u32 msr = xen_cpuid_base();
+	bool xen_guest = !!msr;
+
 	if (pvh_start_info.magic != XEN_HVM_START_MAGIC_VALUE) {
 		xen_raw_printk("Error: Unexpected magic value (0x%08x)\n",
 				pvh_start_info.magic);
 		BUG();
 	}
 
-	hypervisor_specific_init();
+	hypervisor_specific_init(xen_guest);
 
-	init_pvh_bootparams();
+	init_pvh_bootparams(xen_guest);
 }
