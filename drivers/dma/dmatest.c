@@ -79,6 +79,10 @@ static bool verbose;
 module_param(verbose, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(verbose, "Enable \"success\" result messages (default: off)");
 
+static int alignment = -1;
+module_param(alignment, int, 0644);
+MODULE_PARM_DESC(alignment, "Custom data address alignment taken as 2^(alignment) (default: not used (-1))");
+
 /**
  * struct dmatest_params - test parameters.
  * @buf_size:		size of the memcpy test buffer
@@ -103,6 +107,7 @@ struct dmatest_params {
 	int		timeout;
 	bool		noverify;
 	bool		norandom;
+	int		alignment;
 };
 
 /**
@@ -526,22 +531,26 @@ static int dmatest_func(void *data)
 	chan = thread->chan;
 	dev = chan->device;
 	if (thread->type == DMA_MEMCPY) {
-		align = dev->copy_align;
+		align = params->alignment < 0 ? dev->copy_align :
+						params->alignment;
 		src_cnt = dst_cnt = 1;
 	} else if (thread->type == DMA_MEMSET) {
-		align = dev->fill_align;
+		align = params->alignment < 0 ? dev->fill_align :
+						params->alignment;
 		src_cnt = dst_cnt = 1;
 		is_memset = true;
 	} else if (thread->type == DMA_XOR) {
 		/* force odd to ensure dst = src */
 		src_cnt = min_odd(params->xor_sources | 1, dev->max_xor);
 		dst_cnt = 1;
-		align = dev->xor_align;
+		align = params->alignment < 0 ? dev->xor_align :
+						params->alignment;
 	} else if (thread->type == DMA_PQ) {
 		/* force odd to ensure dst = src */
 		src_cnt = min_odd(params->pq_sources | 1, dma_maxpq(dev, 0));
 		dst_cnt = 2;
-		align = dev->pq_align;
+		align = params->alignment < 0 ? dev->pq_align :
+						params->alignment;
 
 		pq_coefs = kmalloc(params->pq_sources + 1, GFP_KERNEL);
 		if (!pq_coefs)
@@ -1037,6 +1046,7 @@ static void add_threaded_test(struct dmatest_info *info)
 	params->timeout = timeout;
 	params->noverify = noverify;
 	params->norandom = norandom;
+	params->alignment = alignment;
 
 	request_channels(info, DMA_MEMCPY);
 	request_channels(info, DMA_MEMSET);
