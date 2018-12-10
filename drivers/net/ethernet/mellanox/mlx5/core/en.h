@@ -176,8 +176,7 @@ static inline int mlx5e_get_max_num_channels(struct mlx5_core_dev *mdev)
 {
 	return is_kdump_kernel() ?
 		MLX5E_MIN_NUM_CHANNELS :
-		min_t(int, mdev->priv.eq_table.num_comp_vectors,
-		      MLX5E_MAX_NUM_CHANNELS);
+		min_t(int, mlx5_comp_vectors_count(mdev), MLX5E_MAX_NUM_CHANNELS);
 }
 
 /* Use this function to get max num channels after netdev was created */
@@ -629,7 +628,6 @@ struct mlx5e_channel_stats {
 } ____cacheline_aligned_in_smp;
 
 enum {
-	MLX5E_STATE_ASYNC_EVENTS_ENABLED,
 	MLX5E_STATE_OPENED,
 	MLX5E_STATE_DESTROYING,
 };
@@ -696,6 +694,8 @@ struct mlx5e_priv {
 	struct hwtstamp_config     tstamp;
 	u16                        q_counter;
 	u16                        drop_rq_q_counter;
+	struct notifier_block      events_nb;
+
 #ifdef CONFIG_MLX5_CORE_EN_DCB
 	struct mlx5e_dcbx          dcbx;
 #endif
