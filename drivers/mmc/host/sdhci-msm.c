@@ -1997,8 +1997,7 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int sdhci_msm_runtime_suspend(struct device *dev)
+static __maybe_unused int sdhci_msm_runtime_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2010,7 +2009,7 @@ static int sdhci_msm_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int sdhci_msm_runtime_resume(struct device *dev)
+static __maybe_unused int sdhci_msm_runtime_resume(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
@@ -2030,7 +2029,6 @@ static int sdhci_msm_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops sdhci_msm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
