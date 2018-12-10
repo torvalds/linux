@@ -167,7 +167,11 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		       sizeof(phba->wwpn));
 	}
 
-	phba->sli3_options = 0x0;
+	/*
+	 * Clear all option bits except LPFC_SLI3_BG_ENABLED,
+	 * which was already set in lpfc_get_cfgparam()
+	 */
+	phba->sli3_options &= (uint32_t)LPFC_SLI3_BG_ENABLED;
 
 	/* Setup and issue mailbox READ REV command */
 	lpfc_read_rev(phba, pmb);

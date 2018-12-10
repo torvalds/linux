@@ -214,7 +214,7 @@ static int create_safe_exec_page(void *src_start, size_t length,
 	}
 
 	memcpy((void *)dst, src_start, length);
-	flush_icache_range(dst, dst + length);
+	__flush_icache_range(dst, dst + length);
 
 	pgdp = pgd_offset_raw(allocator(mask), dst_addr);
 	if (pgd_none(READ_ONCE(*pgdp))) {

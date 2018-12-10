@@ -3589,8 +3589,10 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	}
 
 	if (i >= sclk_table->count) {
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
-		sclk_table->dpm_levels[i-1].value = sclk;
+		if (sclk > sclk_table->dpm_levels[i-1].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+			sclk_table->dpm_levels[i-1].value = sclk;
+		}
 	} else {
 	/* TODO: Check SCLK in DAL's minimum clocks
 	 * in case DeepSleep divider update is required.
@@ -3607,8 +3609,10 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	}
 
 	if (i >= mclk_table->count) {
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-		mclk_table->dpm_levels[i-1].value = mclk;
+		if (mclk > mclk_table->dpm_levels[i-1].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+			mclk_table->dpm_levels[i-1].value = mclk;
+		}
 	}
 
 	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)

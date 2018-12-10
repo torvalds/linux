@@ -40,7 +40,7 @@ xfs_fill_statvfs_from_dquot(
 		statp->f_files = limit;
 		statp->f_ffree =
 			(statp->f_files > dqp->q_res_icount) ?
-			 (statp->f_ffree - dqp->q_res_icount) : 0;
+			 (statp->f_files - dqp->q_res_icount) : 0;
 	}
 }
 

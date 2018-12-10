@@ -2766,6 +2766,7 @@ static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct sta_info *sta;
+	bool result = true;
 
 	sdata_info(sdata, "authenticated\n");
 	ifmgd->auth_data->done = true;
@@ -2778,15 +2779,18 @@ static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata,
 	sta = sta_info_get(sdata, bssid);
 	if (!sta) {
 		WARN_ONCE(1, "%s: STA %pM not found", sdata->name, bssid);
-		return false;
+		result = false;
+		goto out;
 	}
 	if (sta_info_move_state(sta, IEEE80211_STA_AUTH)) {
 		sdata_info(sdata, "failed moving %pM to auth\n", bssid);
-		return false;
+		result = false;
+		goto out;
 	}
-	mutex_unlock(&sdata->local->sta_mtx);
 
-	return true;
+out:
+	mutex_unlock(&sdata->local->sta_mtx);
+	return result;
 }
 
 static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,

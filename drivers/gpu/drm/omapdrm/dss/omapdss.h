@@ -432,7 +432,7 @@ struct omap_dss_device {
 	const struct omap_dss_driver *driver;
 	const struct omap_dss_device_ops *ops;
 	unsigned long ops_flags;
-	unsigned long bus_flags;
+	u32 bus_flags;
 
 	/* helper variable for driver suspend/resume */
 	bool activate_after_resume;
