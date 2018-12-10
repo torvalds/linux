@@ -2495,6 +2495,43 @@ static inline void mlxsw_reg_pefa_unpack(char *payload, bool *p_a)
 	*p_a = mlxsw_reg_pefa_a_get(payload);
 }
 
+/* PEMRBT - Policy-Engine Multicast Router Binding Table Register
+ * --------------------------------------------------------------
+ * This register is used for binding Multicast router to an ACL group
+ * that serves the MC router.
+ * This register is not supported by SwitchX/-2 and Spectrum.
+ */
+#define MLXSW_REG_PEMRBT_ID 0x3014
+#define MLXSW_REG_PEMRBT_LEN 0x14
+
+MLXSW_REG_DEFINE(pemrbt, MLXSW_REG_PEMRBT_ID, MLXSW_REG_PEMRBT_LEN);
+
+enum mlxsw_reg_pemrbt_protocol {
+	MLXSW_REG_PEMRBT_PROTO_IPV4,
+	MLXSW_REG_PEMRBT_PROTO_IPV6,
+};
+
+/* reg_pemrbt_protocol
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, pemrbt, protocol, 0x00, 0, 1);
+
+/* reg_pemrbt_group_id
+ * ACL group identifier.
+ * Range 0..cap_max_acl_groups-1
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, pemrbt, group_id, 0x10, 0, 16);
+
+static inline void
+mlxsw_reg_pemrbt_pack(char *payload, enum mlxsw_reg_pemrbt_protocol protocol,
+		      u16 group_id)
+{
+	MLXSW_REG_ZERO(pemrbt, payload);
+	mlxsw_reg_pemrbt_protocol_set(payload, protocol);
+	mlxsw_reg_pemrbt_group_id_set(payload, group_id);
+}
+
 /* PTCE-V2 - Policy-Engine TCAM Entry Register Version 2
  * -----------------------------------------------------
  * This register is used for accessing rules within a TCAM region.
@@ -9568,6 +9605,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(ppbs),
 	MLXSW_REG(prcr),
 	MLXSW_REG(pefa),
+	MLXSW_REG(pemrbt),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perpt),
 	MLXSW_REG(perar),
