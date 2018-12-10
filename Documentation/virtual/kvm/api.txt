@@ -3800,6 +3800,62 @@ is enabled; for more information, see the description of the capability.
 However, it can always be used as long as KVM_CHECK_EXTENSION confirms
 that KVM_CAP_MANUAL_DIRTY_LOG_PROTECT is present.
 
+4.118 KVM_GET_SUPPORTED_HV_CPUID
+
+Capability: KVM_CAP_HYPERV_CPUID
+Architectures: x86
+Type: vcpu ioctl
+Parameters: struct kvm_cpuid2 (in/out)
+Returns: 0 on success, -1 on error
+
+struct kvm_cpuid2 {
+	__u32 nent;
+	__u32 padding;
+	struct kvm_cpuid_entry2 entries[0];
+};
+
+struct kvm_cpuid_entry2 {
+	__u32 function;
+	__u32 index;
+	__u32 flags;
+	__u32 eax;
+	__u32 ebx;
+	__u32 ecx;
+	__u32 edx;
+	__u32 padding[3];
+};
+
+This ioctl returns x86 cpuid features leaves related to Hyper-V emulation in
+KVM.  Userspace can use the information returned by this ioctl to construct
+cpuid information presented to guests consuming Hyper-V enlightenments (e.g.
+Windows or Hyper-V guests).
+
+CPUID feature leaves returned by this ioctl are defined by Hyper-V Top Level
+Functional Specification (TLFS). These leaves can't be obtained with
+KVM_GET_SUPPORTED_CPUID ioctl because some of them intersect with KVM feature
+leaves (0x40000000, 0x40000001).
+
+Currently, the following list of CPUID leaves are returned:
+ HYPERV_CPUID_VENDOR_AND_MAX_FUNCTIONS
+ HYPERV_CPUID_INTERFACE
+ HYPERV_CPUID_VERSION
+ HYPERV_CPUID_FEATURES
+ HYPERV_CPUID_ENLIGHTMENT_INFO
+ HYPERV_CPUID_IMPLEMENT_LIMITS
+ HYPERV_CPUID_NESTED_FEATURES
+
+HYPERV_CPUID_NESTED_FEATURES leaf is only exposed when Enlightened VMCS was
+enabled on the corresponding vCPU (KVM_CAP_HYPERV_ENLIGHTENED_VMCS).
+
+Userspace invokes KVM_GET_SUPPORTED_CPUID by passing a kvm_cpuid2 structure
+with the 'nent' field indicating the number of entries in the variable-size
+array 'entries'.  If the number of entries is too low to describe all Hyper-V
+feature leaves, an error (E2BIG) is returned. If the number is more or equal
+to the number of Hyper-V feature leaves, the 'nent' field is adjusted to the
+number of valid entries in the 'entries' array, which is then filled.
+
+'index' and 'flags' fields in 'struct kvm_cpuid_entry2' are currently reserved,
+userspace should not expect to get any particular value there.
 
 5. The kvm_run structure
 ------------------------
