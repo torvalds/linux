@@ -161,27 +161,40 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 		 * because that's the only option the hardware gives us. Despite
 		 * the fact that they are actually only accessible through one. */
 		if (gl)
-			desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
-				QI_EIOTLB_GRAN(QI_GRAN_ALL_ALL) | QI_EIOTLB_TYPE;
+			desc.qw0 = QI_EIOTLB_PASID(svm->pasid) |
+					QI_EIOTLB_DID(sdev->did) |
+					QI_EIOTLB_GRAN(QI_GRAN_ALL_ALL) |
+					QI_EIOTLB_TYPE;
 		else
-			desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
-				QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) | QI_EIOTLB_TYPE;
-		desc.high = 0;
+			desc.qw0 = QI_EIOTLB_PASID(svm->pasid) |
+					QI_EIOTLB_DID(sdev->did) |
+					QI_EIOTLB_GRAN(QI_GRAN_NONG_PASID) |
+					QI_EIOTLB_TYPE;
+		desc.qw1 = 0;
 	} else {
 		int mask = ilog2(__roundup_pow_of_two(pages));
 
-		desc.low = QI_EIOTLB_PASID(svm->pasid) | QI_EIOTLB_DID(sdev->did) |
-			QI_EIOTLB_GRAN(QI_GRAN_PSI_PASID) | QI_EIOTLB_TYPE;
-		desc.high = QI_EIOTLB_ADDR(address) | QI_EIOTLB_GL(gl) |
-			QI_EIOTLB_IH(ih) | QI_EIOTLB_AM(mask);
+		desc.qw0 = QI_EIOTLB_PASID(svm->pasid) |
+				QI_EIOTLB_DID(sdev->did) |
+				QI_EIOTLB_GRAN(QI_GRAN_PSI_PASID) |
+				QI_EIOTLB_TYPE;
+		desc.qw1 = QI_EIOTLB_ADDR(address) |
+				QI_EIOTLB_GL(gl) |
+				QI_EIOTLB_IH(ih) |
+				QI_EIOTLB_AM(mask);
 	}
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 	qi_submit_sync(&desc, svm->iommu);
 
 	if (sdev->dev_iotlb) {
-		desc.low = QI_DEV_EIOTLB_PASID(svm->pasid) | QI_DEV_EIOTLB_SID(sdev->sid) |
-			QI_DEV_EIOTLB_QDEP(sdev->qdep) | QI_DEIOTLB_TYPE;
+		desc.qw0 = QI_DEV_EIOTLB_PASID(svm->pasid) |
+				QI_DEV_EIOTLB_SID(sdev->sid) |
+				QI_DEV_EIOTLB_QDEP(sdev->qdep) |
+				QI_DEIOTLB_TYPE;
 		if (pages == -1) {
-			desc.high = QI_DEV_EIOTLB_ADDR(-1ULL >> 1) | QI_DEV_EIOTLB_SIZE;
+			desc.qw1 = QI_DEV_EIOTLB_ADDR(-1ULL >> 1) |
+					QI_DEV_EIOTLB_SIZE;
 		} else if (pages > 1) {
 			/* The least significant zero bit indicates the size. So,
 			 * for example, an "address" value of 0x12345f000 will
@@ -189,10 +202,13 @@ static void intel_flush_svm_range_dev (struct intel_svm *svm, struct intel_svm_d
 			unsigned long last = address + ((unsigned long)(pages - 1) << VTD_PAGE_SHIFT);
 			unsigned long mask = __rounddown_pow_of_two(address ^ last);
 
-			desc.high = QI_DEV_EIOTLB_ADDR((address & ~mask) | (mask - 1)) | QI_DEV_EIOTLB_SIZE;
+			desc.qw1 = QI_DEV_EIOTLB_ADDR((address & ~mask) |
+					(mask - 1)) | QI_DEV_EIOTLB_SIZE;
 		} else {
-			desc.high = QI_DEV_EIOTLB_ADDR(address);
+			desc.qw1 = QI_DEV_EIOTLB_ADDR(address);
 		}
+		desc.qw2 = 0;
+		desc.qw3 = 0;
 		qi_submit_sync(&desc, svm->iommu);
 	}
 }
@@ -237,8 +253,11 @@ static void intel_flush_pasid_dev(struct intel_svm *svm, struct intel_svm_dev *s
 {
 	struct qi_desc desc;
 
-	desc.high = 0;
-	desc.low = QI_PC_TYPE | QI_PC_DID(sdev->did) | QI_PC_PASID_SEL | QI_PC_PASID(pasid);
+	desc.qw0 = QI_PC_TYPE | QI_PC_DID(sdev->did) |
+			QI_PC_PASID_SEL | QI_PC_PASID(pasid);
+	desc.qw1 = 0;
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
 	qi_submit_sync(&desc, svm->iommu);
 }
@@ -667,24 +686,27 @@ static irqreturn_t prq_event_thread(int irq, void *d)
 	no_pasid:
 		if (req->lpig) {
 			/* Page Group Response */
-			resp.low = QI_PGRP_PASID(req->pasid) |
+			resp.qw0 = QI_PGRP_PASID(req->pasid) |
 				QI_PGRP_DID((req->bus << 8) | req->devfn) |
 				QI_PGRP_PASID_P(req->pasid_present) |
 				QI_PGRP_RESP_TYPE;
-			resp.high = QI_PGRP_IDX(req->prg_index) |
-				QI_PGRP_PRIV(req->private) | QI_PGRP_RESP_CODE(result);
-
-			qi_submit_sync(&resp, iommu);
+			resp.qw1 = QI_PGRP_IDX(req->prg_index) |
+				QI_PGRP_PRIV(req->private) |
+				QI_PGRP_RESP_CODE(result);
 		} else if (req->srr) {
 			/* Page Stream Response */
-			resp.low = QI_PSTRM_IDX(req->prg_index) |
-				QI_PSTRM_PRIV(req->private) | QI_PSTRM_BUS(req->bus) |
-				QI_PSTRM_PASID(req->pasid) | QI_PSTRM_RESP_TYPE;
-			resp.high = QI_PSTRM_ADDR(address) | QI_PSTRM_DEVFN(req->devfn) |
+			resp.qw0 = QI_PSTRM_IDX(req->prg_index) |
+				QI_PSTRM_PRIV(req->private) |
+				QI_PSTRM_BUS(req->bus) |
+				QI_PSTRM_PASID(req->pasid) |
+				QI_PSTRM_RESP_TYPE;
+			resp.qw1 = QI_PSTRM_ADDR(address) |
+				QI_PSTRM_DEVFN(req->devfn) |
 				QI_PSTRM_RESP_CODE(result);
-
-			qi_submit_sync(&resp, iommu);
 		}
+		resp.qw2 = 0;
+		resp.qw3 = 0;
+		qi_submit_sync(&resp, iommu);
 
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;
 	}

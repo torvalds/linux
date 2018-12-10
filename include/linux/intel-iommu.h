@@ -401,13 +401,18 @@ enum {
 #define QI_GRAN_NONG_PASID		2
 #define QI_GRAN_PSI_PASID		3
 
+#define qi_shift(iommu)		(DMAR_IQ_SHIFT + !!ecap_smts((iommu)->ecap))
+
 struct qi_desc {
-	u64 low, high;
+	u64 qw0;
+	u64 qw1;
+	u64 qw2;
+	u64 qw3;
 };
 
 struct q_inval {
 	raw_spinlock_t  q_lock;
-	struct qi_desc  *desc;          /* invalidation queue */
+	void		*desc;          /* invalidation queue */
 	int             *desc_status;   /* desc status */
 	int             free_head;      /* first free entry */
 	int             free_tail;      /* last free entry */
