@@ -94,10 +94,11 @@ struct snd_ff {
 enum snd_ff_clock_src {
 	SND_FF_CLOCK_SRC_INTERNAL,
 	SND_FF_CLOCK_SRC_SPDIF,
-	SND_FF_CLOCK_SRC_ADAT,
+	SND_FF_CLOCK_SRC_ADAT1,
+	SND_FF_CLOCK_SRC_ADAT2,
 	SND_FF_CLOCK_SRC_WORD,
 	SND_FF_CLOCK_SRC_LTC,
-	/* TODO: perhaps ADAT2 and TCO exists. */
+	/* TODO: perhaps TCO exists. */
 };
 
 struct snd_ff_protocol {

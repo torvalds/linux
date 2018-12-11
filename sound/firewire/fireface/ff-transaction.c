@@ -46,8 +46,14 @@ int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,
 	if (data & 0x01) {
 		*src = SND_FF_CLOCK_SRC_INTERNAL;
 	} else {
-		/* TODO: 0x00, 0x01, 0x02, 0x06, 0x07? */
+		/* TODO: 0x02, 0x06, 0x07? */
 		switch ((data >> 10) & 0x07) {
+		case 0x00:
+			*src = SND_FF_CLOCK_SRC_ADAT1;
+			break;
+		case 0x01:
+			*src = SND_FF_CLOCK_SRC_ADAT2;
+			break;
 		case 0x03:
 			*src = SND_FF_CLOCK_SRC_SPDIF;
 			break;
@@ -57,10 +63,8 @@ int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,
 		case 0x05:
 			*src = SND_FF_CLOCK_SRC_LTC;
 			break;
-		case 0x00:
 		default:
-			*src = SND_FF_CLOCK_SRC_ADAT;
-			break;
+			return -EIO;
 		}
 	}
 

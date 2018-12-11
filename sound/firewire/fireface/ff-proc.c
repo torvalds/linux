@@ -65,7 +65,10 @@ static void proc_dump_clock_config(struct snd_info_entry *entry,
 	} else {
 		switch ((data >> 10) & 0x07) {
 		case 0x00:
-			src = "ADAT";
+			src = "ADAT1";
+			break;
+		case 0x01:
+			src = "ADAT2";
 			break;
 		case 0x03:
 			src = "S/PDIF";
@@ -121,9 +124,19 @@ static void proc_dump_sync_status(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "none\n");
 	}
 
-	snd_iprintf(buffer, "ADAT:");
+	snd_iprintf(buffer, "ADAT1:");
 	if ((data >> 8) & 0x04) {
 		if ((data >> 8) & 0x10)
+			snd_iprintf(buffer, "sync\n");
+		else
+			snd_iprintf(buffer, "lock\n");
+	} else {
+		snd_iprintf(buffer, "none\n");
+	}
+
+	snd_iprintf(buffer, "ADAT2:");
+	if ((data >> 8) & 0x08) {
+		if ((data >> 8) & 0x20)
 			snd_iprintf(buffer, "sync\n");
 		else
 			snd_iprintf(buffer, "lock\n");
@@ -138,7 +151,10 @@ static void proc_dump_sync_status(struct snd_info_entry *entry,
 	} else {
 		switch ((data >> 22) & 0x07) {
 		case 0x00:
-			snd_iprintf(buffer, "ADAT:");
+			snd_iprintf(buffer, "ADAT1:");
+			break;
+		case 0x01:
+			snd_iprintf(buffer, "ADAT2:");
 			break;
 		case 0x03:
 			snd_iprintf(buffer, "S/PDIF:");
@@ -149,7 +165,6 @@ static void proc_dump_sync_status(struct snd_info_entry *entry,
 		case 0x07:
 			snd_iprintf(buffer, "Nothing:");
 			break;
-		case 0x01:
 		case 0x02:
 		case 0x05:
 		case 0x06:
