@@ -114,7 +114,7 @@ gv100_fifo_gpfifo_func = {
 
 static int
 gv100_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
-		       u64 vmm, u64 ioffset, u64 ilength, u64 *inst,
+		       u64 vmm, u64 ioffset, u64 ilength, u64 *inst, bool priv,
 		       const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
@@ -185,9 +185,9 @@ gv100_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 					  (ilength << 16));
 	nvkm_wo32(chan->base.inst, 0x084, 0x20400000);
 	nvkm_wo32(chan->base.inst, 0x094, 0x30000001);
-	nvkm_wo32(chan->base.inst, 0x0e4, 0x00000020);
+	nvkm_wo32(chan->base.inst, 0x0e4, priv ? 0x00000020 : 0x00000000);
 	nvkm_wo32(chan->base.inst, 0x0e8, chan->base.chid);
-	nvkm_wo32(chan->base.inst, 0x0f4, 0x00001100);
+	nvkm_wo32(chan->base.inst, 0x0f4, 0x00001000);
 	nvkm_wo32(chan->base.inst, 0x0f8, 0x10003080);
 	nvkm_mo32(chan->base.inst, 0x218, 0x00000000, 0x00000000);
 	nvkm_wo32(chan->base.inst, 0x220, 0x020a1000);
@@ -210,9 +210,11 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create channel gpfifo vers %d vmm %llx "
 				   "ioffset %016llx ilength %08x "
-				   "runlist %016llx\n",
+				   "runlist %016llx priv %d\n",
 			   args->v0.version, args->v0.vmm, args->v0.ioffset,
-			   args->v0.ilength, args->v0.runlist);
+			   args->v0.ilength, args->v0.runlist, args->v0.priv);
+		if (args->v0.priv && !oclass->client->super)
+			return -EINVAL;
 		return gv100_fifo_gpfifo_new_(fifo,
 					      &args->v0.runlist,
 					      &args->v0.chid,
@@ -220,6 +222,7 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 					       args->v0.ioffset,
 					       args->v0.ilength,
 					      &args->v0.inst,
+					       args->v0.priv,
 					      oclass, pobject);
 	}
 

@@ -217,7 +217,7 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
-		    u64 runlist, struct nouveau_channel **pchan)
+		    u64 runlist, bool priv, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	static const u16 oclasses[] = { VOLTA_CHANNEL_GPFIFO_A,
@@ -253,6 +253,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 			args.kepler.ioffset = 0x10000 + chan->push.addr;
 			args.kepler.runlist = runlist;
 			args.kepler.vmm = nvif_handle(&cli->vmm.vmm.object);
+			args.kepler.priv = priv;
 			size = sizeof(args.kepler);
 		} else
 		if (oclass[0] >= FERMI_CHANNEL_GPFIFO) {
@@ -450,7 +451,8 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 int
 nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 arg0, u32 arg1, struct nouveau_channel **pchan)
+		    u32 arg0, u32 arg1, bool priv,
+		    struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	bool super;
@@ -460,7 +462,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	super = cli->base.super;
 	cli->base.super = true;
 
-	ret = nouveau_channel_ind(drm, device, arg0, pchan);
+	ret = nouveau_channel_ind(drm, device, arg0, priv, pchan);
 	if (ret) {
 		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, device, pchan);

@@ -4,7 +4,7 @@
 
 struct kepler_channel_gpfifo_a_v0 {
 	__u8  version;
-	__u8  pad01[1];
+	__u8  priv;
 	__u16 chid;
 	__u32 ilength;
 	__u64 ioffset;
