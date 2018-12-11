@@ -410,6 +410,7 @@ static void sctp_packet_gso_append(struct sk_buff *head, struct sk_buff *skb)
 	head->truesize += skb->truesize;
 	head->data_len += skb->len;
 	head->len += skb->len;
+	refcount_add(skb->truesize, &head->sk->sk_wmem_alloc);
 
 	__skb_header_release(skb);
 }

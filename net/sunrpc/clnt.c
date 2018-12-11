@@ -1915,6 +1915,13 @@ call_connect_status(struct rpc_task *task)
 	struct rpc_clnt *clnt = task->tk_client;
 	int status = task->tk_status;
 
+	/* Check if the task was already transmitted */
+	if (!test_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate)) {
+		xprt_end_transmit(task);
+		task->tk_action = call_transmit_status;
+		return;
+	}
+
 	dprint_status(task);
 
 	trace_rpc_connect_status(task);
@@ -2302,6 +2309,7 @@ out_retry:
 	task->tk_status = 0;
 	/* Note: rpc_verify_header() may have freed the RPC slot */
 	if (task->tk_rqstp == req) {
+		xdr_free_bvec(&req->rq_rcv_buf);
 		req->rq_reply_bytes_recvd = req->rq_rcv_buf.len = 0;
 		if (task->tk_client->cl_discrtry)
 			xprt_conditional_disconnect(req->rq_xprt,
