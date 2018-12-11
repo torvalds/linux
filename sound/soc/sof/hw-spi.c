@@ -28,6 +28,7 @@
 #include <sound/sof.h>
 #include <uapi/sound/sof/fw.h>
 #include "sof-priv.h"
+#include "hw-spi.h"
 #include "ops.h"
 
 /*
@@ -274,7 +275,7 @@ static int spi_cmd_done(struct snd_sof_dev *sof_dev __maybe_unused, int dir __ma
 }
 
 /* SPI SOF ops */
-static struct snd_sof_dsp_ops snd_sof_spi_ops = {
+struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	/* device init */
 	.probe		= spi_sof_probe,
 	.remove		= spi_sof_remove,
