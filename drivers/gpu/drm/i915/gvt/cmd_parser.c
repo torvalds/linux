@@ -1900,11 +1900,11 @@ static struct cmd_info cmd_info[] = {
 
 	{"MI_URB_CLEAR", OP_MI_URB_CLEAR, F_LEN_VAR, R_RCS, D_ALL, 0, 8, NULL},
 
-	{"ME_SEMAPHORE_SIGNAL", OP_MI_SEMAPHORE_SIGNAL, F_LEN_VAR, R_ALL,
+	{"MI_SEMAPHORE_SIGNAL", OP_MI_SEMAPHORE_SIGNAL, F_LEN_VAR, R_ALL,
 		D_BDW_PLUS, 0, 8, NULL},
 
-	{"ME_SEMAPHORE_WAIT", OP_MI_SEMAPHORE_WAIT, F_LEN_VAR, R_ALL, D_BDW_PLUS,
-		ADDR_FIX_1(2), 8, cmd_handler_mi_semaphore_wait},
+	{"MI_SEMAPHORE_WAIT", OP_MI_SEMAPHORE_WAIT, F_LEN_VAR, R_ALL,
+		D_BDW_PLUS, ADDR_FIX_1(2), 8, cmd_handler_mi_semaphore_wait},
 
 	{"MI_STORE_DATA_IMM", OP_MI_STORE_DATA_IMM, F_LEN_VAR, R_ALL, D_BDW_PLUS,
 		ADDR_FIX_1(1), 10, cmd_handler_mi_store_data_imm},
