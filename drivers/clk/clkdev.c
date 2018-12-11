@@ -174,16 +174,9 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 	if (!cl)
 		goto out;
 
-	clk = __clk_create_clk(cl->clk_hw, dev_id, con_id);
+	clk = clk_hw_create_clk(cl->clk_hw, dev_id, con_id);
 	if (IS_ERR(clk))
-		goto out;
-
-	if (!__clk_get(clk)) {
-		__clk_free_clk(clk);
 		cl = NULL;
-		goto out;
-	}
-
 out:
 	mutex_unlock(&clocks_mutex);
 
