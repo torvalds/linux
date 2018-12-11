@@ -169,12 +169,8 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 
 	ack_err_status =
 		ntohl(*(__be32 *)((unsigned char *)&fw6_pld->data[0] + 4));
-	if (ack_err_status) {
-		if (CHK_MAC_ERR_BIT(ack_err_status) ||
-		    CHK_PAD_ERR_BIT(ack_err_status))
-			error_status = -EBADMSG;
-		atomic_inc(&adap->chcr_stats.error);
-	}
+	if (CHK_MAC_ERR_BIT(ack_err_status) || CHK_PAD_ERR_BIT(ack_err_status))
+		error_status = -EBADMSG;
 	/* call completion callback with failure status */
 	if (req) {
 		error_status = chcr_handle_resp(req, input, error_status);
@@ -182,6 +178,9 @@ static int cpl_fw6_pld_handler(struct chcr_dev *dev,
 		pr_err("Incorrect request address from the firmware\n");
 		return -EFAULT;
 	}
+	if (error_status)
+		atomic_inc(&adap->chcr_stats.error);
+
 	return 0;
 }
 

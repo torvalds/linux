@@ -218,7 +218,7 @@ static inline void chcr_dec_wrcount(struct chcr_dev *dev)
 	atomic_dec(&dev->inflight);
 }
 
-static inline void chcr_handle_aead_resp(struct aead_request *req,
+static inline int chcr_handle_aead_resp(struct aead_request *req,
 					 unsigned char *input,
 					 int err)
 {
@@ -233,6 +233,8 @@ static inline void chcr_handle_aead_resp(struct aead_request *req,
 	}
 	chcr_dec_wrcount(dev);
 	req->base.complete(&req->base, err);
+
+	return err;
 }
 
 static void get_aes_decrypt_key(unsigned char *dec_key,
@@ -2072,14 +2074,13 @@ int chcr_handle_resp(struct crypto_async_request *req, unsigned char *input,
 
 	switch (tfm->__crt_alg->cra_flags & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_AEAD:
-		chcr_handle_aead_resp(aead_request_cast(req), input, err);
+		err = chcr_handle_aead_resp(aead_request_cast(req), input, err);
 		break;
 
 	case CRYPTO_ALG_TYPE_ABLKCIPHER:
-		 err = chcr_handle_cipher_resp(ablkcipher_request_cast(req),
+		 chcr_handle_cipher_resp(ablkcipher_request_cast(req),
 					       input, err);
 		break;
-
 	case CRYPTO_ALG_TYPE_AHASH:
 		chcr_handle_ahash_resp(ahash_request_cast(req), input, err);
 		}
