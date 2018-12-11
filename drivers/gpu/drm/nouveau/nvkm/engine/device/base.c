@@ -2480,6 +2480,7 @@ nv166_chipset = {
 	.imem = nv50_instmem_new,
 	.ltc = gp102_ltc_new,
 	.mc = tu104_mc_new,
+	.mmu = tu104_mmu_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
