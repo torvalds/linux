@@ -10,6 +10,7 @@ struct nouveau_channel {
 	struct nouveau_drm *drm;
 
 	int chid;
+	u64 inst;
 
 	struct nvif_object vram;
 	struct nvif_object gart;

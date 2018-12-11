@@ -114,7 +114,7 @@ gv100_fifo_gpfifo_func = {
 
 static int
 gv100_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
-		       u64 vmm, u64 ioffset, u64 ilength,
+		       u64 vmm, u64 ioffset, u64 ilength, u64 *inst,
 		       const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
@@ -150,6 +150,7 @@ gv100_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		return ret;
 
 	*chid = chan->base.chid;
+	*inst = chan->base.inst->addr;
 
 	/* Hack to support GPUs where even individual channels should be
 	 * part of a channel group.
@@ -218,6 +219,7 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 					       args->v0.vmm,
 					       args->v0.ioffset,
 					       args->v0.ilength,
+					      &args->v0.inst,
 					      oclass, pobject);
 	}
 

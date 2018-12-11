@@ -273,13 +273,15 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		ret = nvif_object_init(&device->object, 0, *oclass++,
 				       &args, size, &chan->user);
 		if (ret == 0) {
-			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A)
+			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A) {
 				chan->chid = args.kepler.chid;
-			else
-			if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO)
+				chan->inst = args.kepler.inst;
+			} else
+			if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
 				chan->chid = args.fermi.chid;
-			else
+			} else {
 				chan->chid = args.nv50.chid;
+			}
 			return ret;
 		}
 	} while (*oclass);
