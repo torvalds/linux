@@ -296,5 +296,7 @@
 #define GCC_GLM_BCR						103
 #define GCC_SKL_BCR						104
 #define GCC_MSMPU_BCR						105
+#define GCC_QUSB2PHY_PRIM_BCR					106
+#define GCC_QUSB2PHY_SEC_BCR					107
 
 #endif
