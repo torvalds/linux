@@ -52,6 +52,9 @@ struct smu_funcs
 	int (*write_watermarks_table)(struct smu_context *smu);
 	int (*set_last_dcef_min_deep_sleep_clk)(struct smu_context *smu);
 	int (*system_features_control)(struct smu_context *smu, bool en);
+	int (*send_smc_msg)(struct smu_context *smu, uint16_t msg);
+	int (*send_smc_msg_with_param)(struct smu_context *smu, uint16_t msg, uint32_t param);
+
 };
 
 #define smu_init_microcode(smu) \
@@ -90,7 +93,10 @@ struct smu_funcs
 	((smu)->funcs->set_last_dcef_min_deep_sleep_clk ? (smu)->funcs->set_last_dcef_min_deep_sleep_clk((smu)) : 0)
 #define smu_system_features_control(smu, en) \
 	((smu)->funcs->system_features_control ? (smu)->funcs->system_features_control((smu), (en)) : 0)
-
+#define smu_send_smc_msg(smu, msg) \
+	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
+#define smu_send_smc_msg_with_param(smu, msg, param) \
+	((smu)->funcs->send_smc_msg_with_param? (smu)->funcs->send_smc_msg_with_param((smu), (msg), (param)) : 0)
 
 extern const struct amd_ip_funcs smu_ip_funcs;
 

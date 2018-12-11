@@ -26,8 +26,90 @@
 #include "amdgpu_smu.h"
 #include "smu_v11_0.h"
 #include "smu_v11_0_ppsmc.h"
+#include "soc15_common.h"
+
+#include "asic_reg/thm/thm_11_0_2_offset.h"
+#include "asic_reg/thm/thm_11_0_2_sh_mask.h"
+#include "asic_reg/mp/mp_9_0_offset.h"
+#include "asic_reg/mp/mp_9_0_sh_mask.h"
+#include "asic_reg/nbio/nbio_7_4_offset.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
+
+static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
+					      uint16_t msg)
+{
+	struct amdgpu_device *adev = smu->adev;
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	return 0;
+}
+
+static int smu_v11_0_wait_for_response(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint32_t cur_value, i;
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		cur_value = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		if ((cur_value & MP1_C2PMSG_90__CONTENT_MASK) != 0)
+			break;
+		udelay(1);
+	}
+
+	/* timeout means wrong logic */
+	if (i == adev->usec_timeout)
+		return -ETIME;
+
+	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) ==  PPSMC_Result_OK ? 0:-EIO;
+}
+
+static int smu_v11_0_send_msg(struct smu_context *smu, uint16_t msg)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	smu_v11_0_wait_for_response(smu);
+
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+
+	smu_v11_0_send_msg_without_waiting(smu, msg);
+
+	ret = smu_v11_0_wait_for_response(smu);
+
+	if (ret)
+		pr_err("Failed to send message 0x%x, response 0x%x\n", msg,
+		       ret);
+
+	return ret;
+
+}
+
+static int
+smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
+			      uint32_t param)
+{
+
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	ret = smu_v11_0_wait_for_response(smu);
+	if (ret)
+		pr_err("Failed to send message 0x%x, response 0x%x\n", msg,
+		       ret);
+
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
+
+	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
+
+	smu_v11_0_send_msg_without_waiting(smu, msg);
+
+	ret = smu_v11_0_wait_for_response(smu);
+	if (ret)
+		pr_err("Failed to send message 0x%x, response 0x%x\n", msg,
+		       ret);
+
+	return ret;
+}
 
 static int smu_v11_0_init_microcode(struct smu_context *smu)
 {
@@ -93,6 +175,8 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
 	.check_fw_status = smu_v11_0_check_fw_status,
+	.send_smc_msg = smu_v11_0_send_msg,
+	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
