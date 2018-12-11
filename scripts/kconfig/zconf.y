@@ -379,7 +379,12 @@ comment: T_COMMENT prompt T_EOL
 	printd(DEBUG_PARSE, "%s:%d:comment\n", zconf_curname(), zconf_lineno());
 };
 
-comment_stmt: comment depends_list
+comment_stmt: comment comment_option_list
+;
+
+comment_option_list:
+	  /* empty */
+	| comment_option_list depends
 ;
 
 /* help option */
@@ -407,11 +412,6 @@ help: help_start T_HELPTEXT
 };
 
 /* depends option */
-
-depends_list:
-	  /* empty */
-	| depends_list depends
-;
 
 depends: T_DEPENDS T_ON expr T_EOL
 {
