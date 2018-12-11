@@ -2471,6 +2471,7 @@ nv166_chipset = {
 	.name = "TU106",
 	.bios = nvkm_bios_new,
 	.devinit = tu104_devinit_new,
+	.ibus = gm200_ibus_new,
 	.pci = gp100_pci_new,
 	.top = gk104_top_new,
 };
