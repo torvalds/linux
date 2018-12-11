@@ -29,6 +29,7 @@
 #include <nvif/cl506f.h>
 #include <nvif/cl906f.h>
 #include <nvif/cla06f.h>
+#include <nvif/clc36f.h>
 #include <nvif/ioctl.h>
 
 /*XXX*/
@@ -234,6 +235,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		struct nv50_channel_gpfifo_v0 nv50;
 		struct fermi_channel_gpfifo_v0 fermi;
 		struct kepler_channel_gpfifo_a_v0 kepler;
+		struct volta_channel_gpfifo_a_v0 volta;
 	} args;
 	struct nouveau_channel *chan;
 	u32 size;
@@ -247,6 +249,15 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 
 	/* create channel object */
 	do {
+		if (oclass[0] >= VOLTA_CHANNEL_GPFIFO_A) {
+			args.volta.version = 0;
+			args.volta.ilength = 0x02000;
+			args.volta.ioffset = 0x10000 + chan->push.addr;
+			args.volta.runlist = runlist;
+			args.volta.vmm = nvif_handle(&cli->vmm.vmm.object);
+			args.volta.priv = priv;
+			size = sizeof(args.volta);
+		} else
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
 			args.kepler.ilength = 0x02000;
@@ -274,6 +285,11 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		ret = nvif_object_init(&device->object, 0, *oclass++,
 				       &args, size, &chan->user);
 		if (ret == 0) {
+			if (chan->user.oclass >= VOLTA_CHANNEL_GPFIFO_A) {
+				chan->chid = args.volta.chid;
+				chan->inst = args.volta.inst;
+				chan->token = args.volta.token;
+			} else
 			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A) {
 				chan->chid = args.kepler.chid;
 				chan->inst = args.kepler.inst;

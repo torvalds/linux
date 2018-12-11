@@ -25,8 +25,14 @@
 #include <core/client.h>
 #include <core/gpuobj.h>
 
-#include <nvif/cla06f.h>
+#include <nvif/clc36f.h>
 #include <nvif/unpack.h>
+
+static u32
+gv100_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *chan)
+{
+	return chan->chid;
+}
 
 static int
 gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid)
@@ -100,8 +106,8 @@ gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 	return gv100_fifo_gpfifo_engine_valid(chan, false, true);
 }
 
-const struct nvkm_fifo_chan_func
-gv100_fifo_gpfifo_func = {
+static const struct nvkm_fifo_chan_func
+gv100_fifo_gpfifo = {
 	.dtor = gk104_fifo_gpfifo_dtor,
 	.init = gk104_fifo_gpfifo_init,
 	.fini = gk104_fifo_gpfifo_fini,
@@ -110,12 +116,14 @@ gv100_fifo_gpfifo_func = {
 	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
 	.engine_init = gv100_fifo_gpfifo_engine_init,
 	.engine_fini = gv100_fifo_gpfifo_engine_fini,
+	.submit_token = gv100_fifo_gpfifo_submit_token,
 };
 
-static int
-gv100_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
+int
+gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
+		       struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		       u64 vmm, u64 ioffset, u64 ilength, u64 *inst, bool priv,
-		       const struct nvkm_oclass *oclass,
+		       u32 *token, const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
@@ -144,15 +152,15 @@ gv100_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	chan->runl = runlist;
 	INIT_LIST_HEAD(&chan->head);
 
-	ret = nvkm_fifo_chan_ctor(&gv100_fifo_gpfifo_func, &fifo->base,
-				  0x1000, 0x1000, true, vmm, 0, subdevs,
-				  1, fifo->user.bar->addr, 0x200,
+	ret = nvkm_fifo_chan_ctor(func, &fifo->base, 0x1000, 0x1000, true, vmm,
+				  0, subdevs, 1, fifo->user.bar->addr, 0x200,
 				  oclass, &chan->base);
 	if (ret)
 		return ret;
 
 	*chid = chan->base.chid;
 	*inst = chan->base.inst->addr;
+	*token = chan->base.func->submit_token(&chan->base);
 
 	/* Hack to support GPUs where even individual channels should be
 	 * part of a channel group.
@@ -218,7 +226,7 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 {
 	struct nvkm_object *parent = oclass->parent;
 	union {
-		struct kepler_channel_gpfifo_a_v0 v0;
+		struct volta_channel_gpfifo_a_v0 v0;
 	} *args = data;
 	int ret = -ENOSYS;
 
@@ -231,7 +239,7 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 			   args->v0.ilength, args->v0.runlist, args->v0.priv);
 		if (args->v0.priv && !oclass->client->super)
 			return -EINVAL;
-		return gv100_fifo_gpfifo_new_(fifo,
+		return gv100_fifo_gpfifo_new_(&gv100_fifo_gpfifo, fifo,
 					      &args->v0.runlist,
 					      &args->v0.chid,
 					       args->v0.vmm,
@@ -239,6 +247,7 @@ gv100_fifo_gpfifo_new(struct gk104_fifo *fifo, const struct nvkm_oclass *oclass,
 					       args->v0.ilength,
 					      &args->v0.inst,
 					       args->v0.priv,
+					      &args->v0.token,
 					      oclass, pobject);
 	}
 
