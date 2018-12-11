@@ -53,6 +53,7 @@
 #include <linux/mlx5/eq.h>
 #include <linux/timecounter.h>
 #include <linux/ptp_clock_kernel.h>
+#include <net/devlink.h>
 
 enum {
 	MLX5_BOARD_ID_LEN = 64,
@@ -443,6 +444,7 @@ struct mlx5_core_health {
 	unsigned long			flags;
 	struct work_struct		work;
 	struct delayed_work		recover_work;
+	struct devlink_health_reporter *fw_reporter;
 };
 
 struct mlx5_qp_table {
