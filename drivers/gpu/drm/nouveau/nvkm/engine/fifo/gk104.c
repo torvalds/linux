@@ -456,10 +456,10 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	if (ee && ee->data2) {
 		switch (ee->data2) {
 		case NVKM_SUBDEV_BAR:
-			nvkm_mask(device, 0x001704, 0x00000000, 0x00000000);
+			nvkm_bar_bar1_reset(device);
 			break;
 		case NVKM_SUBDEV_INSTMEM:
-			nvkm_mask(device, 0x001714, 0x00000000, 0x00000000);
+			nvkm_bar_bar2_reset(device);
 			break;
 		case NVKM_ENGINE_IFB:
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
