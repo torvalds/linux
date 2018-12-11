@@ -182,18 +182,8 @@ n	[A-Za-z0-9_-]
 
 <STRING>{
 	"$".*	append_expanded_string(yytext);
-	[^$'"\\\n]+/\n	{
-		append_string(yytext, yyleng);
-		yylval.string = text;
-		return T_WORD_QUOTE;
-	}
 	[^$'"\\\n]+	{
 		append_string(yytext, yyleng);
-	}
-	\\.?/\n	{
-		append_string(yytext + 1, yyleng - 1);
-		yylval.string = text;
-		return T_WORD_QUOTE;
 	}
 	\\.?	{
 		append_string(yytext + 1, yyleng - 1);
@@ -210,8 +200,10 @@ n	[A-Za-z0-9_-]
 		fprintf(stderr,
 			"%s:%d:warning: multi-line strings not supported\n",
 			zconf_curname(), zconf_lineno());
+		unput('\n');
 		BEGIN(INITIAL);
-		return T_EOL;
+		yylval.string = text;
+		return T_WORD_QUOTE;
 	}
 	<<EOF>>	{
 		BEGIN(INITIAL);
