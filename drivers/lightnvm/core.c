@@ -1145,15 +1145,16 @@ int nvm_register(struct nvm_dev *dev)
 	if (!dev->q || !dev->ops)
 		return -EINVAL;
 
+	ret = nvm_init(dev);
+	if (ret)
+		return ret;
+
 	dev->dma_pool = dev->ops->create_dma_pool(dev, "ppalist");
 	if (!dev->dma_pool) {
 		pr_err("nvm: could not create dma pool\n");
+		nvm_free(dev);
 		return -ENOMEM;
 	}
-
-	ret = nvm_init(dev);
-	if (ret)
-		goto err_init;
 
 	/* register device with a supported media manager */
 	down_write(&nvm_lock);
@@ -1161,9 +1162,6 @@ int nvm_register(struct nvm_dev *dev)
 	up_write(&nvm_lock);
 
 	return 0;
-err_init:
-	dev->ops->destroy_dma_pool(dev->dma_pool);
-	return ret;
 }
 EXPORT_SYMBOL(nvm_register);
 
