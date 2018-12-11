@@ -354,7 +354,7 @@ static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 
 	gpio_vbus_value = gpiod_get_value(chip->gpio_vbus_5v);
 	if (chip->gpio_vbus_5v) {
-		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_5v);
+		gpiod_set_value(chip->gpio_vbus_5v, vbus_5v);
 		/* Only set state here, don't sync notifier to PMIC */
 		extcon_set_state(chip->extcon, EXTCON_USB_VBUS_EN, vbus_5v);
 	} else {
@@ -364,7 +364,7 @@ static void platform_set_vbus_lvl_enable(struct fusb30x_chip *chip, int vbus_5v,
 	}
 
 	if (chip->gpio_vbus_other)
-		gpiod_set_raw_value(chip->gpio_vbus_5v, vbus_other);
+		gpiod_set_value(chip->gpio_vbus_other, vbus_other);
 
 	if (chip->gpio_discharge && !vbus_5v && gpio_vbus_value) {
 		gpiod_set_value(chip->gpio_discharge, 1);
@@ -3124,7 +3124,7 @@ static int fusb_initialize_gpio(struct fusb30x_chip *chip)
 		dev_warn(chip->dev,
 			 "Could not get named GPIO for VBus5V!\n");
 	else
-		gpiod_set_raw_value(chip->gpio_vbus_5v, 0);
+		gpiod_set_value(chip->gpio_vbus_5v, 0);
 
 	chip->gpio_vbus_other = devm_gpiod_get_optional(chip->dev,
 							"vbus-other",
@@ -3133,7 +3133,7 @@ static int fusb_initialize_gpio(struct fusb30x_chip *chip)
 		dev_warn(chip->dev,
 			 "Could not get named GPIO for VBusOther!\n");
 	else
-		gpiod_set_raw_value(chip->gpio_vbus_other, 0);
+		gpiod_set_value(chip->gpio_vbus_other, 0);
 
 	chip->gpio_discharge = devm_gpiod_get_optional(chip->dev, "discharge",
 						       GPIOD_OUT_LOW);
