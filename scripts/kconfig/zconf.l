@@ -16,6 +16,8 @@
 
 #include "lkc.h"
 
+#define YY_DECL		static int yylex1(void)
+
 #define START_STRSIZE	16
 
 static struct {
@@ -23,6 +25,7 @@ static struct {
 	int lineno;
 } current_pos;
 
+static int prev_token = T_EOL;
 static char *text;
 static int text_size, text_asize;
 
@@ -268,6 +271,24 @@ n	[A-Za-z0-9_-]
 }
 
 %%
+
+/* second stage lexer */
+int yylex(void)
+{
+	int token;
+
+repeat:
+	token = yylex1();
+
+	/* Do not pass unneeded T_EOL to the parser. */
+	if ((prev_token == T_EOL || prev_token == T_HELPTEXT) && token == T_EOL)
+		goto repeat;
+
+	prev_token = token;
+
+	return token;
+}
+
 static char *expand_token(const char *in, size_t n)
 {
 	char *out;

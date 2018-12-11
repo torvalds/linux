@@ -31,7 +31,7 @@ struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 static struct menu *current_menu, *current_entry;
 
 %}
-%expect 29
+%expect 21
 
 %union
 {
@@ -111,9 +111,7 @@ static struct menu *current_menu, *current_entry;
 %}
 
 %%
-input: nl start | start;
-
-start: mainmenu_stmt stmt_list | stmt_list;
+input: mainmenu_stmt stmt_list | stmt_list;
 
 /* mainmenu entry */
 
@@ -141,8 +139,7 @@ option_name:
 ;
 
 common_stmt:
-	  T_EOL
-	| if_stmt
+	  if_stmt
 	| comment_stmt
 	| config_stmt
 	| menuconfig_stmt
@@ -193,7 +190,6 @@ config_option_list:
 	| config_option_list depends
 	| config_option_list help
 	| config_option_list option_error
-	| config_option_list T_EOL
 ;
 
 config_option: T_TYPE prompt_stmt_opt T_EOL
@@ -293,7 +289,6 @@ choice_option_list:
 	| choice_option_list choice_option
 	| choice_option_list depends
 	| choice_option_list help
-	| choice_option_list T_EOL
 	| choice_option_list option_error
 ;
 
@@ -443,7 +438,6 @@ help: help_start T_HELPTEXT
 depends_list:
 	  /* empty */
 	| depends_list depends
-	| depends_list T_EOL
 	| depends_list option_error
 ;
 
@@ -458,7 +452,6 @@ depends: T_DEPENDS T_ON expr T_EOL
 visibility_list:
 	  /* empty */
 	| visibility_list visible
-	| visibility_list T_EOL
 ;
 
 visible: T_VISIBLE if_expr T_EOL
@@ -482,11 +475,6 @@ prompt:	  T_WORD
 end:	  T_ENDMENU T_EOL	{ $$ = $1; }
 	| T_ENDCHOICE T_EOL	{ $$ = $1; }
 	| T_ENDIF T_EOL		{ $$ = $1; }
-;
-
-nl:
-	  T_EOL
-	| nl T_EOL
 ;
 
 if_expr:  /* empty */			{ $$ = NULL; }
