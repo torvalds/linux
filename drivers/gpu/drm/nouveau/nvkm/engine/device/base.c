@@ -2475,6 +2475,7 @@ nv166_chipset = {
 	.gpio = gk104_gpio_new,
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
+	.mc = tu104_mc_new,
 	.pci = gp100_pci_new,
 	.top = gk104_top_new,
 };
