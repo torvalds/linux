@@ -772,11 +772,8 @@ out_free_irq:
 void kvm_timer_vcpu_terminate(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_cpu *timer = &vcpu->arch.timer_cpu;
-	struct arch_timer_context *vtimer = vcpu_vtimer(vcpu);
 
 	soft_timer_cancel(&timer->bg_timer);
-	soft_timer_cancel(&timer->phys_timer);
-	kvm_vgic_unmap_phys_irq(vcpu, vtimer->irq.irq);
 }
 
 static bool timer_irqs_are_valid(struct kvm_vcpu *vcpu)
