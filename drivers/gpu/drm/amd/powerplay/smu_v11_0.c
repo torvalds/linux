@@ -25,6 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_smu.h"
 #include "smu_v11_0.h"
+#include "smu_v11_0_ppsmc.h"
 
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 
