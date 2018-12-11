@@ -84,11 +84,14 @@ void kvm_clear_hyp_idmap(void);
 
 #define kvm_pfn_pte(pfn, prot)	pfn_pte(pfn, prot)
 #define kvm_pfn_pmd(pfn, prot)	pfn_pmd(pfn, prot)
+#define kvm_pfn_pud(pfn, prot)	(__pud(0))
 
 #define kvm_pud_pfn(pud)	({ WARN_ON(1); 0; })
 
 
 #define kvm_pmd_mkhuge(pmd)	pmd_mkhuge(pmd)
+/* No support for pud hugepages */
+#define kvm_pud_mkhuge(pud)	( {WARN_ON(1); pud; })
 
 /*
  * The following kvm_*pud*() functions are provided strictly to allow
@@ -103,6 +106,23 @@ static inline bool kvm_s2pud_readonly(pud_t *pud)
 {
 	WARN_ON(1);
 	return false;
+}
+
+static inline void kvm_set_pud(pud_t *pud, pud_t new_pud)
+{
+	WARN_ON(1);
+}
+
+static inline pud_t kvm_s2pud_mkwrite(pud_t pud)
+{
+	WARN_ON(1);
+	return pud;
+}
+
+static inline pud_t kvm_s2pud_mkexec(pud_t pud)
+{
+	WARN_ON(1);
+	return pud;
 }
 
 static inline bool kvm_s2pud_exec(pud_t *pud)
