@@ -101,8 +101,6 @@ n	[A-Za-z0-9_-]
 <COMMAND>{
 	{n}+	{
 		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
-		current_pos.file = current_file;
-		current_pos.lineno = yylineno;
 		if (id && id->flags & TF_COMMAND) {
 			BEGIN(PARAM);
 			return id->token;
@@ -285,9 +283,21 @@ int yylex(void)
 repeat:
 	token = yylex1();
 
-	/* Do not pass unneeded T_EOL to the parser. */
-	if ((prev_token == T_EOL || prev_token == T_HELPTEXT) && token == T_EOL)
-		goto repeat;
+	if (prev_token == T_EOL || prev_token == T_HELPTEXT) {
+		if (token == T_EOL) {
+			/* Do not pass unneeded T_EOL to the parser. */
+			goto repeat;
+		} else {
+			/*
+			 * For the parser, update file/lineno at the first token
+			 * of each statement. Generally, \n is a statement
+			 * terminator in Kconfig, but it is not always true
+			 * because \n could be escaped by a backslash.
+			 */
+			current_pos.file = current_file;
+			current_pos.lineno = yylineno;
+		}
+	}
 
 	if (prev_prev_token == T_EOL && prev_token == T_WORD &&
 	    (token == T_EQUAL || token == T_COLON_EQUAL || token == T_PLUS_EQUAL))
