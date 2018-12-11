@@ -1458,8 +1458,7 @@ static bool sdma_v4_0_fw_support_paging_queue(struct amdgpu_device *adev)
 		/*return fw_version >= 31;*/
 		return false;
 	case CHIP_VEGA20:
-		/*return fw_version >= 115;*/
-		return false;
+		return fw_version >= 123;
 	default:
 		return false;
 	}
