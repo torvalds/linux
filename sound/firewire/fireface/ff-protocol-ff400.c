@@ -14,9 +14,6 @@
 #define FF400_ISOC_COMM_START	0x000080100508ull
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
-#define FF400_SYNC_STATUS	0x0000801c0000ull
-#define FF400_FETCH_PCM_FRAMES	0x0000801c0000ull	/* For block request. */
-#define FF400_CLOCK_CONFIG	0x0000801c0004ull
 
 #define FF400_MIDI_HIGH_ADDR	0x0000801003f4ull
 #define FF400_MIDI_RX_PORT_0	0x000080180000ull
@@ -30,7 +27,7 @@ static int ff400_get_clock(struct snd_ff *ff, unsigned int *rate,
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
-				 FF400_CLOCK_CONFIG, &reg, sizeof(reg), 0);
+				 SND_FF_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return err;
 	data = le32_to_cpu(reg);
@@ -165,7 +162,7 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
 	}
 
 	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
-				 FF400_FETCH_PCM_FRAMES, reg,
+				 SND_FF_REG_FETCH_PCM_FRAMES, reg,
 				 sizeof(__le32) * 18, 0);
 	kfree(reg);
 	return err;
@@ -179,7 +176,7 @@ static void ff400_dump_sync_status(struct snd_ff *ff,
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_QUADLET_REQUEST,
-				 FF400_SYNC_STATUS, &reg, sizeof(reg), 0);
+				 SND_FF_REG_SYNC_STATUS, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return;
 
@@ -294,7 +291,7 @@ static void ff400_dump_clock_config(struct snd_ff *ff,
 	int err;
 
 	err = snd_fw_transaction(ff->unit, TCODE_READ_BLOCK_REQUEST,
-				 FF400_CLOCK_CONFIG, &reg, sizeof(reg), 0);
+				 SND_FF_REG_CLOCK_CONFIG, &reg, sizeof(reg), 0);
 	if (err < 0)
 		return;
 

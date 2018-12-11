@@ -37,6 +37,11 @@
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
 
+#define SND_FF_REG_SYNC_STATUS		0x0000801c0000ull
+/* For block wriet request. */
+#define SND_FF_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
+#define SND_FF_REG_CLOCK_CONFIG		0x0000801c0004ull
+
 struct snd_ff_protocol;
 struct snd_ff_spec {
 	const char *const name;
