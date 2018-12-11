@@ -249,6 +249,10 @@ gk104_fifo_runlist = {
 	.commit = gk104_fifo_runlist_commit,
 };
 
+const struct gk104_fifo_pbdma_func
+gk104_fifo_pbdma = {
+};
+
 static void
 gk104_fifo_recover_work(struct work_struct *w)
 {
@@ -1004,8 +1008,8 @@ gk104_fifo_init(struct nvkm_fifo *base)
 
 	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
 
-	if (fifo->func->init_pbdma_timeout)
-		fifo->func->init_pbdma_timeout(fifo);
+	if (fifo->func->pbdma->init_timeout)
+		fifo->func->pbdma->init_timeout(fifo);
 
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
@@ -1184,6 +1188,7 @@ gk104_fifo_fault_gpcclient[] = {
 
 static const struct gk104_fifo_func
 gk104_fifo = {
+	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,

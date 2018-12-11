@@ -288,7 +288,7 @@ gv100_fifo_fault_access[] = {
 
 static const struct gk104_fifo_func
 gv100_fifo = {
-	.init_pbdma_timeout = gk208_fifo_init_pbdma_timeout,
+	.pbdma = &gk208_fifo_pbdma,
 	.fault.access = gv100_fifo_fault_access,
 	.fault.engine = gv100_fifo_fault_engine,
 	.fault.reason = gv100_fifo_fault_reason,
