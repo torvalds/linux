@@ -70,6 +70,7 @@ static struct menu *current_menu, *current_entry;
 %token T_ALLNOCONFIG_Y
 %token T_BOOL
 %token T_CLOSE_PAREN
+%token T_COLON_EQUAL
 %token T_DEFAULT
 %token T_DEFCONFIG_LIST
 %token T_DEF_BOOL
@@ -79,11 +80,11 @@ static struct menu *current_menu, *current_entry;
 %token T_MODULES
 %token T_OPEN_PAREN
 %token T_OPTION
+%token T_PLUS_EQUAL
 %token T_STRING
 %token T_TRISTATE
 %token T_EOL
 %token <string> T_VARIABLE
-%token <flavor> T_ASSIGN
 %token <string> T_ASSIGN_VAL
 
 %left T_OR
@@ -101,6 +102,7 @@ static struct menu *current_menu, *current_entry;
 %type <id> end
 %type <menu> if_entry menu_entry choice_entry
 %type <string> word_opt assign_val
+%type <flavor> assign_op
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
@@ -478,7 +480,13 @@ word_opt: /* empty */			{ $$ = NULL; }
 
 /* assignment statement */
 
-assignment_stmt:  T_VARIABLE T_ASSIGN assign_val T_EOL	{ variable_add($1, $3, $2); free($1); free($3); }
+assignment_stmt:  T_VARIABLE assign_op assign_val T_EOL	{ variable_add($1, $3, $2); free($1); free($3); }
+
+assign_op:
+	  T_EQUAL	{ $$ = VAR_RECURSIVE; }
+	| T_COLON_EQUAL	{ $$ = VAR_SIMPLE; }
+	| T_PLUS_EQUAL	{ $$ = VAR_APPEND; }
+;
 
 assign_val:
 	/* empty */		{ $$ = xstrdup(""); };

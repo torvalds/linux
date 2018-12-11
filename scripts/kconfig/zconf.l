@@ -118,9 +118,9 @@ n	[A-Za-z0-9_-]
 			return T_VARIABLE;
 		free(yylval.string);
 	}
-	"="	{ BEGIN(ASSIGN_VAL); yylval.flavor = VAR_RECURSIVE; return T_ASSIGN; }
-	":="	{ BEGIN(ASSIGN_VAL); yylval.flavor = VAR_SIMPLE; return T_ASSIGN; }
-	"+="	{ BEGIN(ASSIGN_VAL); yylval.flavor = VAR_APPEND; return T_ASSIGN; }
+	"="	{ BEGIN(ASSIGN_VAL); return T_EQUAL; }
+	":="	{ BEGIN(ASSIGN_VAL); return T_COLON_EQUAL; }
+	"+="	{ BEGIN(ASSIGN_VAL); return T_PLUS_EQUAL; }
 	[[:blank:]]+
 	.	warn_ignored_character(*yytext);
 	\n	{
