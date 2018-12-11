@@ -2218,9 +2218,9 @@ union bpf_attr {
  *		This helper is available only if the kernel was compiled with
  *		**CONFIG_NET** configuration option.
  *	Return
- *		Pointer to *struct bpf_sock*, or NULL in case of failure.
- *		For sockets with reuseport option, the *struct bpf_sock*
- *		result is from reuse->socks[] using the hash of the tuple.
+ *		Pointer to **struct bpf_sock**, or **NULL** in case of failure.
+ *		For sockets with reuseport option, the **struct bpf_sock**
+ *		result is from **reuse->socks**\ [] using the hash of the tuple.
  *
  * struct bpf_sock *bpf_sk_lookup_udp(void *ctx, struct bpf_sock_tuple *tuple, u32 tuple_size, u64 netns, u64 flags)
  *	Description
@@ -2254,9 +2254,9 @@ union bpf_attr {
  *		This helper is available only if the kernel was compiled with
  *		**CONFIG_NET** configuration option.
  *	Return
- *		Pointer to *struct bpf_sock*, or NULL in case of failure.
- *		For sockets with reuseport option, the *struct bpf_sock*
- *		result is from reuse->socks[] using the hash of the tuple.
+ *		Pointer to **struct bpf_sock**, or **NULL** in case of failure.
+ *		For sockets with reuseport option, the **struct bpf_sock**
+ *		result is from **reuse->socks**\ [] using the hash of the tuple.
  *
  * int bpf_sk_release(struct bpf_sock *sock)
  *	Description
