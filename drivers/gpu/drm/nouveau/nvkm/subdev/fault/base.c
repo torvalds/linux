@@ -96,7 +96,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 		return -ENOMEM;
 	buffer->fault = fault;
 	buffer->id = id;
-	buffer->entries = fault->func->buffer.entries(buffer);
+	fault->func->buffer.info(buffer);
 	fault->buffer[id] = buffer;
 
 	nvkm_debug(subdev, "buffer %d: %d entries\n", id, buffer->entries);

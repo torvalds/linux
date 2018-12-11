@@ -12,6 +12,8 @@ struct nvkm_fault_buffer {
 	struct nvkm_fault *fault;
 	int id;
 	int entries;
+	u32 get;
+	u32 put;
 	struct nvkm_memory *mem;
 	u64 addr;
 };
@@ -27,7 +29,7 @@ struct nvkm_fault_func {
 	struct {
 		int nr;
 		u32 entry_size;
-		u32 (*entries)(struct nvkm_fault_buffer *);
+		void (*info)(struct nvkm_fault_buffer *);
 		void (*init)(struct nvkm_fault_buffer *);
 		void (*fini)(struct nvkm_fault_buffer *);
 	} buffer;
