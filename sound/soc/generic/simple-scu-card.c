@@ -202,14 +202,15 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 
 {
 	struct device *dev = simple_priv_to_dev(priv);
-	struct device_node *node = dev->of_node;
+	struct device_node *top = dev->of_node;
+	struct device_node *node;
 	struct device_node *np;
 	struct device_node *codec;
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	bool is_fe;
-	int ret, i;
+	int ret, i, loop;
 
-	if (!node)
+	if (!top)
 		return -EINVAL;
 
 	ret = asoc_simple_card_of_parse_widgets(card, PREFIX);
@@ -220,24 +221,33 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	if (ret < 0)
 		return ret;
 
-	asoc_simple_card_parse_convert(dev, node, PREFIX, &priv->adata);
+	asoc_simple_card_parse_convert(dev, top, PREFIX, &priv->adata);
 
+	loop = 1;
 	i = 0;
-	codec = of_get_child_by_name(node, PREFIX "codec");
-	if (!codec)
-		return -ENODEV;
-
-	for_each_child_of_node(node, np) {
-		is_fe = false;
-		if (of_node_name_eq(np, PREFIX "cpu"))
-			is_fe = true;
-
-		ret = asoc_simple_card_dai_link_of(node, np, codec, priv,
-						   i, is_fe, true);
-		if (ret < 0)
-			return ret;
-		i++;
+	node = of_get_child_by_name(top, PREFIX "dai-link");
+	if (!node) {
+		node = dev->of_node;
+		loop = 0;
 	}
+
+	do  {
+		codec = of_get_child_by_name(node,
+					     loop ? "codec" : PREFIX "codec");
+		if (!codec)
+			return -ENODEV;
+
+		for_each_child_of_node(node, np) {
+			is_fe = (np != codec);
+
+			ret = asoc_simple_card_dai_link_of(node, np, codec, priv,
+							   i, is_fe, !loop);
+			if (ret < 0)
+				return ret;
+			i++;
+		}
+		node = of_get_next_child(top, node);
+	} while (loop && node);
 
 	ret = asoc_simple_card_parse_card_name(card, PREFIX);
 	if (ret < 0)
