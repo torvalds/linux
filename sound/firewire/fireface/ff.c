@@ -31,7 +31,8 @@ static void ff_card_free(struct snd_card *card)
 {
 	struct snd_ff *ff = card->private_data;
 
-	snd_ff_stream_destroy_duplex(ff);
+	if (ff->spec->protocol->begin_session)
+		snd_ff_stream_destroy_duplex(ff);
 	snd_ff_transaction_unregister(ff);
 }
 
@@ -56,9 +57,11 @@ static void do_registration(struct work_struct *work)
 
 	name_card(ff);
 
-	err = snd_ff_stream_init_duplex(ff);
-	if (err < 0)
-		goto error;
+	if (ff->spec->protocol->begin_session) {
+		err = snd_ff_stream_init_duplex(ff);
+		if (err < 0)
+			goto error;
+	}
 
 	snd_ff_proc_init(ff);
 
@@ -66,13 +69,15 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	err = snd_ff_create_pcm_devices(ff);
-	if (err < 0)
-		goto error;
+	if (ff->spec->protocol->begin_session) {
+		err = snd_ff_create_pcm_devices(ff);
+		if (err < 0)
+			goto error;
 
-	err = snd_ff_create_hwdep_devices(ff);
-	if (err < 0)
-		goto error;
+		err = snd_ff_create_hwdep_devices(ff);
+		if (err < 0)
+			goto error;
+	}
 
 	err = snd_card_register(ff->card);
 	if (err < 0)
@@ -121,7 +126,7 @@ static void snd_ff_update(struct fw_unit *unit)
 
 	snd_ff_transaction_reregister(ff);
 
-	if (ff->registered)
+	if (ff->registered && ff->spec->protocol->begin_session)
 		snd_ff_stream_update_duplex(ff);
 }
 
@@ -145,6 +150,16 @@ static void snd_ff_remove(struct fw_unit *unit)
 	fw_unit_put(ff->unit);
 }
 
+static const struct snd_ff_spec spec_ff800 = {
+	.name = "Fireface800",
+	.midi_in_ports = 1,
+	.midi_out_ports = 1,
+	.protocol = &snd_ff_protocol_ff800,
+	.regs = {
+		[SND_FF_REG_TYPE_MIDI_HIGH_ADDR] = 0x000200000320ull,
+	},
+};
+
 static const struct snd_ff_spec spec_ff400 = {
 	.name = "Fireface400",
 	.pcm_capture_channels = {18, 14, 10},
@@ -158,6 +173,18 @@ static const struct snd_ff_spec spec_ff400 = {
 };
 
 static const struct ieee1394_device_id snd_ff_id_table[] = {
+	/* Fireface 800 */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= 0x000001,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ff800,
+	},
 	/* Fireface 400 */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
@@ -165,7 +192,7 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 				  IEEE1394_MATCH_VERSION |
 				  IEEE1394_MATCH_MODEL_ID,
 		.vendor_id	= OUI_RME,
-		.specifier_id	= 0x000a35,
+		.specifier_id	= OUI_RME,
 		.version	= 0x000002,
 		.model_id	= 0x101800,
 		.driver_data	= (kernel_ulong_t)&spec_ff400,

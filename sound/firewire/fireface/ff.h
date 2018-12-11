@@ -114,6 +114,7 @@ struct snd_ff_protocol {
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 };
 
+extern const struct snd_ff_protocol snd_ff_protocol_ff800;
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;
 
 int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,

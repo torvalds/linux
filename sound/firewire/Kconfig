@@ -162,5 +162,6 @@ config SND_FIREFACE
 	help
 	 Say Y here to include support for RME fireface series.
 	  * Fireface 400
+	  * Fireface 800
 
 endif # SND_FIREWIRE
