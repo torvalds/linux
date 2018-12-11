@@ -1137,36 +1137,3 @@ const struct msm_format *dpu_get_msm_format(
 		return &fmt->base;
 	return NULL;
 }
-
-uint32_t dpu_populate_formats(
-		const struct dpu_format_extended *format_list,
-		uint32_t *pixel_formats,
-		uint64_t *pixel_modifiers,
-		uint32_t pixel_formats_max)
-{
-	uint32_t i, fourcc_format;
-
-	if (!format_list || !pixel_formats)
-		return 0;
-
-	for (i = 0, fourcc_format = 0;
-			format_list->fourcc_format && i < pixel_formats_max;
-			++format_list) {
-		/* verify if listed format is in dpu_format_map? */
-
-		/* optionally return modified formats */
-		if (pixel_modifiers) {
-			/* assume same modifier for all fb planes */
-			pixel_formats[i] = format_list->fourcc_format;
-			pixel_modifiers[i++] = format_list->modifier;
-		} else {
-			/* assume base formats grouped together */
-			if (fourcc_format != format_list->fourcc_format) {
-				fourcc_format = format_list->fourcc_format;
-				pixel_formats[i++] = fourcc_format;
-			}
-		}
-	}
-
-	return i;
-}

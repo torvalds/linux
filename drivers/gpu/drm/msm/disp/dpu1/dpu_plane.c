@@ -95,8 +95,6 @@ struct dpu_plane {
 
 	enum dpu_sspp pipe;
 	uint32_t features;      /* capabilities from catalog */
-	uint32_t nformats;
-	uint32_t formats[64];
 
 	struct dpu_hw_pipe *pipe_hw;
 	struct dpu_hw_pipe_cfg pipe_cfg;
@@ -1444,11 +1442,12 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 		unsigned long possible_crtcs, u32 master_plane_id)
 {
 	struct drm_plane *plane = NULL, *master_plane = NULL;
-	const struct dpu_format_extended *format_list;
+	const uint32_t *format_list;
 	struct dpu_plane *pdpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct dpu_kms *kms = to_dpu_kms(priv->kms);
 	int zpos_max = DPU_ZPOS_MAX;
+	uint32_t num_formats;
 	int ret = -EINVAL;
 
 	/* create and zero local structure */
@@ -1491,23 +1490,17 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 		goto clean_sspp;
 	}
 
-	if (!master_plane_id)
-		format_list = pdpu->pipe_sblk->format_list;
-	else
+	if (pdpu->is_virtual) {
 		format_list = pdpu->pipe_sblk->virt_format_list;
-
-	pdpu->nformats = dpu_populate_formats(format_list,
-				pdpu->formats,
-				0,
-				ARRAY_SIZE(pdpu->formats));
-
-	if (!pdpu->nformats) {
-		DPU_ERROR("[%u]no valid formats for plane\n", pipe);
-		goto clean_sspp;
+		num_formats = pdpu->pipe_sblk->virt_num_formats;
+	}
+	else {
+		format_list = pdpu->pipe_sblk->format_list;
+		num_formats = pdpu->pipe_sblk->num_formats;
 	}
 
 	ret = drm_universal_plane_init(dev, plane, 0xff, &dpu_plane_funcs,
-				pdpu->formats, pdpu->nformats,
+				format_list, num_formats,
 				NULL, type, NULL);
 	if (ret)
 		goto clean_sspp;
