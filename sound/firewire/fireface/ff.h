@@ -107,11 +107,6 @@ struct snd_ff_protocol {
 	void (*finish_session)(struct snd_ff *ff);
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 
-	void (*dump_sync_status)(struct snd_ff *ff,
-				 struct snd_info_buffer *buffer);
-	void (*dump_clock_config)(struct snd_ff *ff,
-				  struct snd_info_buffer *buffer);
-
 	u64 midi_high_addr_reg;
 	u64 midi_rx_port_0_reg;
 	u64 midi_rx_port_1_reg;
