@@ -309,6 +309,8 @@ struct rcu_state {
 	struct swait_queue_head gp_wq;		/* Where GP task waits. */
 	short gp_flags;				/* Commands for GP task. */
 	short gp_state;				/* GP kthread sleep state. */
+	unsigned long gp_wake_time;		/* Last GP kthread wake. */
+	unsigned long gp_wake_seq;		/* ->gp_seq at ^^^. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 

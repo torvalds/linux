@@ -513,6 +513,14 @@ void rcu_force_quiescent_state(void)
 EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
 
 /*
+ * Return the root node of the rcu_state structure.
+ */
+static struct rcu_node *rcu_get_root(void)
+{
+	return &rcu_state.node[0];
+}
+
+/*
  * Convert a ->gp_state value to a character string.
  */
 static const char *gp_state_getname(short gs)
@@ -529,19 +537,30 @@ void show_rcu_gp_kthreads(void)
 {
 	int cpu;
 	unsigned long j;
+	unsigned long ja;
+	unsigned long jr;
+	unsigned long jw;
 	struct rcu_data *rdp;
 	struct rcu_node *rnp;
 
-	j = jiffies - READ_ONCE(rcu_state.gp_activity);
-	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %ld\n",
+	j = jiffies;
+	ja = j - READ_ONCE(rcu_state.gp_activity);
+	jr = j - READ_ONCE(rcu_state.gp_req_activity);
+	jw = j - READ_ONCE(rcu_state.gp_wake_time);
+	pr_info("%s: wait state: %s(%d) ->state: %#lx delta ->gp_activity %lu ->gp_req_activity %lu ->gp_wake_time %lu ->gp_wake_seq %ld ->gp_seq %ld ->gp_seq_needed %ld ->gp_flags %#x\n",
 		rcu_state.name, gp_state_getname(rcu_state.gp_state),
-		rcu_state.gp_state, rcu_state.gp_kthread->state, j);
+		rcu_state.gp_state,
+		rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL,
+		ja, jr, jw, (long)READ_ONCE(rcu_state.gp_wake_seq),
+		(long)READ_ONCE(rcu_state.gp_seq),
+		(long)READ_ONCE(rcu_get_root()->gp_seq_needed),
+		READ_ONCE(rcu_state.gp_flags));
 	rcu_for_each_node_breadth_first(rnp) {
 		if (ULONG_CMP_GE(rcu_state.gp_seq, rnp->gp_seq_needed))
 			continue;
-		pr_info("\trcu_node %d:%d ->gp_seq %lu ->gp_seq_needed %lu\n",
-			rnp->grplo, rnp->grphi, rnp->gp_seq,
-			rnp->gp_seq_needed);
+		pr_info("\trcu_node %d:%d ->gp_seq %ld ->gp_seq_needed %ld\n",
+			rnp->grplo, rnp->grphi, (long)rnp->gp_seq,
+			(long)rnp->gp_seq_needed);
 		if (!rcu_is_leaf_node(rnp))
 			continue;
 		for_each_leaf_node_possible_cpu(rnp, cpu) {
@@ -550,8 +569,8 @@ void show_rcu_gp_kthreads(void)
 			    ULONG_CMP_GE(rcu_state.gp_seq,
 					 rdp->gp_seq_needed))
 				continue;
-			pr_info("\tcpu %d ->gp_seq_needed %lu\n",
-				cpu, rdp->gp_seq_needed);
+			pr_info("\tcpu %d ->gp_seq_needed %ld\n",
+				cpu, (long)rdp->gp_seq_needed);
 		}
 	}
 	/* sched_show_task(rcu_state.gp_kthread); */
@@ -576,14 +595,6 @@ void rcutorture_get_gp_data(enum rcutorture_type test_type, int *flags,
 	}
 }
 EXPORT_SYMBOL_GPL(rcutorture_get_gp_data);
-
-/*
- * Return the root node of the rcu_state structure.
- */
-static struct rcu_node *rcu_get_root(void)
-{
-	return &rcu_state.node[0];
-}
 
 /*
  * Enter an RCU extended quiescent state, which can be either the
@@ -1560,7 +1571,8 @@ static bool rcu_future_gp_cleanup(struct rcu_node *rnp)
  * Awaken the grace-period kthread.  Don't do a self-awaken, and don't
  * bother awakening when there is nothing for the grace-period kthread
  * to do (as in several CPUs raced to awaken, and we lost), and finally
- * don't try to awaken a kthread that has not yet been created.
+ * don't try to awaken a kthread that has not yet been created.  If
+ * all those checks are passed, track some debug information and awaken.
  */
 static void rcu_gp_kthread_wake(void)
 {
@@ -1568,6 +1580,8 @@ static void rcu_gp_kthread_wake(void)
 	    !READ_ONCE(rcu_state.gp_flags) ||
 	    !rcu_state.gp_kthread)
 		return;
+	WRITE_ONCE(rcu_state.gp_wake_time, jiffies);
+	WRITE_ONCE(rcu_state.gp_wake_seq, READ_ONCE(rcu_state.gp_seq));
 	swake_up_one(&rcu_state.gp_wq);
 }
 
@@ -2657,16 +2671,11 @@ rcu_check_gp_start_stall(struct rcu_node *rnp, struct rcu_data *rdp,
 		raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 		return;
 	}
-	pr_alert("%s: g%ld->%ld gar:%lu ga:%lu f%#x gs:%d %s->state:%#lx\n",
-		 __func__, (long)READ_ONCE(rcu_state.gp_seq),
-		 (long)READ_ONCE(rnp_root->gp_seq_needed),
-		 j - rcu_state.gp_req_activity, j - rcu_state.gp_activity,
-		 rcu_state.gp_flags, rcu_state.gp_state, rcu_state.name,
-		 rcu_state.gp_kthread ? rcu_state.gp_kthread->state : 0x1ffffL);
 	WARN_ON(1);
 	if (rnp_root != rnp)
 		raw_spin_unlock_rcu_node(rnp_root);
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
+	show_rcu_gp_kthreads();
 }
 
 /*
