@@ -94,7 +94,7 @@ endif
 # ---------------------------------------------------------------------------
 
 # Default is built-in, unless we know otherwise
-$(foreach x, i lst o s, $(patsubst %.o,%.$(x),$(real-obj-m))): \
+$(foreach x, i ll lst o s symtypes, $(patsubst %.o,%.$(x),$(real-obj-m))): \
 	part-of-module := y
 
 modkern_cflags =                                          \
