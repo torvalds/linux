@@ -1408,6 +1408,23 @@ static void dpu_plane_early_unregister(struct drm_plane *plane)
 	debugfs_remove_recursive(pdpu->debugfs_root);
 }
 
+static bool dpu_plane_format_mod_supported(struct drm_plane *plane,
+		uint32_t format, uint64_t modifier)
+{
+	if (modifier == DRM_FORMAT_MOD_LINEAR)
+		return true;
+
+	if (modifier == DRM_FORMAT_MOD_QCOM_COMPRESSED) {
+		int i;
+		for (i = 0; i < ARRAY_SIZE(qcom_compressed_supported_formats); i++) {
+			if (format == qcom_compressed_supported_formats[i])
+				return true;
+		}
+	}
+
+	return false;
+}
+
 static const struct drm_plane_funcs dpu_plane_funcs = {
 		.update_plane = drm_atomic_helper_update_plane,
 		.disable_plane = drm_atomic_helper_disable_plane,
@@ -1417,6 +1434,7 @@ static const struct drm_plane_funcs dpu_plane_funcs = {
 		.atomic_destroy_state = dpu_plane_destroy_state,
 		.late_register = dpu_plane_late_register,
 		.early_unregister = dpu_plane_early_unregister,
+		.format_mod_supported = dpu_plane_format_mod_supported,
 };
 
 static const struct drm_plane_helper_funcs dpu_plane_helper_funcs = {
