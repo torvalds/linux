@@ -25,6 +25,7 @@ static struct {
 	int lineno;
 } current_pos;
 
+static int prev_prev_token = T_EOL;
 static int prev_token = T_EOL;
 static char *text;
 static int text_size, text_asize;
@@ -117,9 +118,9 @@ n	[A-Za-z0-9_-]
 			return T_WORD;
 		free(yylval.string);
 	}
-	"="	{ BEGIN(ASSIGN_VAL); return T_EQUAL; }
-	":="	{ BEGIN(ASSIGN_VAL); return T_COLON_EQUAL; }
-	"+="	{ BEGIN(ASSIGN_VAL); return T_PLUS_EQUAL; }
+	"="	return T_EQUAL;
+	":="	return T_COLON_EQUAL;
+	"+="	return T_PLUS_EQUAL;
 	[[:blank:]]+
 	.	warn_ignored_character(*yytext);
 	\n	{
@@ -288,6 +289,11 @@ repeat:
 	if ((prev_token == T_EOL || prev_token == T_HELPTEXT) && token == T_EOL)
 		goto repeat;
 
+	if (prev_prev_token == T_EOL && prev_token == T_WORD &&
+	    (token == T_EQUAL || token == T_COLON_EQUAL || token == T_PLUS_EQUAL))
+		BEGIN(ASSIGN_VAL);
+
+	prev_prev_token = prev_token;
 	prev_token = token;
 
 	return token;
