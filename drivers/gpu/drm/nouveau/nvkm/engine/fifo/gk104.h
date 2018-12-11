@@ -61,6 +61,8 @@ struct gk104_fifo_func {
 			     struct nvkm_memory *, u32 offset);
 		void (*chan)(struct gk104_fifo_chan *,
 			     struct nvkm_memory *, u32 offset);
+		void (*commit)(struct gk104_fifo *, int runl,
+			       struct nvkm_memory *, int entries);
 	} *runlist;
 
 	struct gk104_fifo_user_user {
@@ -81,7 +83,7 @@ int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *,
 		    int index, int nr, struct nvkm_fifo **);
 void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
-void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl);
+void gk104_fifo_runlist_update(struct gk104_fifo *, int runl);
 
 extern const struct nvkm_enum gk104_fifo_fault_access[];
 extern const struct nvkm_enum gk104_fifo_fault_engine[];
@@ -91,6 +93,8 @@ extern const struct nvkm_enum gk104_fifo_fault_gpcclient[];
 extern const struct gk104_fifo_runlist_func gk104_fifo_runlist;
 void gk104_fifo_runlist_chan(struct gk104_fifo_chan *,
 			     struct nvkm_memory *, u32);
+void gk104_fifo_runlist_commit(struct gk104_fifo *, int runl,
+			       struct nvkm_memory *, int);
 
 extern const struct gk104_fifo_runlist_func gk110_fifo_runlist;
 void gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,

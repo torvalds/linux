@@ -57,6 +57,7 @@ gv100_fifo_runlist = {
 	.size = 16,
 	.cgrp = gv100_fifo_runlist_cgrp,
 	.chan = gv100_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
 };
 
 static const struct nvkm_enum

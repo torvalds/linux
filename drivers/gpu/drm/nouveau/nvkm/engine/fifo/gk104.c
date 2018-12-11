@@ -149,16 +149,41 @@ gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 }
 
 void
-gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
+gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
+			  struct nvkm_memory *mem, int nr)
+{
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	int target;
+
+	switch (nvkm_memory_target(mem)) {
+	case NVKM_MEM_TARGET_VRAM: target = 0; break;
+	case NVKM_MEM_TARGET_NCOH: target = 3; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
+				    (target << 28));
+	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
+
+	if (nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x002284 + (runl * 0x08)) & 0x00100000))
+			break;
+	) < 0)
+		nvkm_error(subdev, "runlist %d update timeout\n", runl);
+}
+
+void
+gk104_fifo_runlist_update(struct gk104_fifo *fifo, int runl)
 {
 	const struct gk104_fifo_runlist_func *func = fifo->func->runlist;
 	struct gk104_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
 	struct nvkm_memory *mem;
 	struct nvkm_fifo_cgrp *cgrp;
 	int nr = 0;
-	int target;
 
 	mutex_lock(&subdev->mutex);
 	mem = fifo->runlist[runl].mem[fifo->runlist[runl].next];
@@ -177,24 +202,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl)
 	}
 	nvkm_done(mem);
 
-	switch (nvkm_memory_target(mem)) {
-	case NVKM_MEM_TARGET_VRAM: target = 0; break;
-	case NVKM_MEM_TARGET_NCOH: target = 3; break;
-	default:
-		WARN_ON(1);
-		goto unlock;
-	}
-
-	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
-				    (target << 28));
-	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
-
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x002284 + (runl * 0x08)) & 0x00100000))
-			break;
-	) < 0)
-		nvkm_error(subdev, "runlist %d update timeout\n", runl);
-unlock:
+	func->commit(fifo, runl, mem, nr);
 	mutex_unlock(&subdev->mutex);
 }
 
@@ -238,6 +246,7 @@ const struct gk104_fifo_runlist_func
 gk104_fifo_runlist = {
 	.size = 8,
 	.chan = gk104_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
 };
 
 static void
@@ -267,7 +276,7 @@ gk104_fifo_recover_work(struct work_struct *w)
 	}
 
 	for (todo = runm; runl = __ffs(todo), todo; todo &= ~BIT(runl))
-		gk104_fifo_runlist_commit(fifo, runl);
+		gk104_fifo_runlist_update(fifo, runl);
 
 	nvkm_wr32(device, 0x00262c, runm);
 	nvkm_mask(device, 0x002630, runm, 0x00000000);

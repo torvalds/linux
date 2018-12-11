@@ -41,6 +41,7 @@ gm107_fifo_runlist = {
 	.size = 8,
 	.cgrp = gk110_fifo_runlist_cgrp,
 	.chan = gm107_fifo_runlist_chan,
+	.commit = gk104_fifo_runlist_commit,
 };
 
 const struct nvkm_enum
