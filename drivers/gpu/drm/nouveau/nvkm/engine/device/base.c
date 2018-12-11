@@ -2470,6 +2470,7 @@ static const struct nvkm_device_chip
 nv166_chipset = {
 	.name = "TU106",
 	.bios = nvkm_bios_new,
+	.bus = gf100_bus_new,
 	.devinit = tu104_devinit_new,
 	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
