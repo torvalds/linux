@@ -349,6 +349,9 @@ static void __sdhci_led_activate(struct sdhci_host *host)
 {
 	u8 ctrl;
 
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return;
+
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 	ctrl |= SDHCI_CTRL_LED;
 	sdhci_writeb(host, ctrl, SDHCI_HOST_CONTROL);
@@ -357,6 +360,9 @@ static void __sdhci_led_activate(struct sdhci_host *host)
 static void __sdhci_led_deactivate(struct sdhci_host *host)
 {
 	u8 ctrl;
+
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return;
 
 	ctrl = sdhci_readb(host, SDHCI_HOST_CONTROL);
 	ctrl &= ~SDHCI_CTRL_LED;
@@ -387,6 +393,9 @@ static int sdhci_led_register(struct sdhci_host *host)
 {
 	struct mmc_host *mmc = host->mmc;
 
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return 0;
+
 	snprintf(host->led_name, sizeof(host->led_name),
 		 "%s::", mmc_hostname(mmc));
 
@@ -400,6 +409,9 @@ static int sdhci_led_register(struct sdhci_host *host)
 
 static void sdhci_led_unregister(struct sdhci_host *host)
 {
+	if (host->quirks & SDHCI_QUIRK_NO_LED)
+		return;
+
 	led_classdev_unregister(&host->led);
 }
 
