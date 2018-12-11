@@ -632,6 +632,7 @@ struct pblk {
 	int state;			/* pblk line state */
 
 	int min_write_pgs; /* Minimum amount of pages required by controller */
+	int min_write_pgs_data; /* Minimum amount of payload pages */
 	int max_write_pgs; /* Maximum amount of pages supported by controller */
 	int oob_meta_size; /* Size of OOB sector metadata */
 
@@ -838,7 +839,7 @@ void pblk_dealloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
 u64 pblk_alloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
 u64 __pblk_alloc_page(struct pblk *pblk, struct pblk_line *line, int nr_secs);
 int pblk_calc_secs(struct pblk *pblk, unsigned long secs_avail,
-		   unsigned long secs_to_flush);
+		   unsigned long secs_to_flush, bool skip_meta);
 void pblk_down_rq(struct pblk *pblk, struct ppa_addr ppa,
 		  unsigned long *lun_bitmap);
 void pblk_down_chunk(struct pblk *pblk, struct ppa_addr ppa);
@@ -862,6 +863,8 @@ void pblk_lookup_l2p_rand(struct pblk *pblk, struct ppa_addr *ppas,
 			  u64 *lba_list, int nr_secs);
 void pblk_lookup_l2p_seq(struct pblk *pblk, struct ppa_addr *ppas,
 			 sector_t blba, int nr_secs);
+void *pblk_get_meta_for_writes(struct pblk *pblk, struct nvm_rq *rqd);
+void pblk_get_packed_meta(struct pblk *pblk, struct nvm_rq *rqd);
 
 /*
  * pblk user I/O write path
@@ -1391,5 +1394,10 @@ static inline struct pblk_sec_meta *pblk_get_meta(struct pblk *pblk,
 static inline int pblk_dma_meta_size(struct pblk *pblk)
 {
 	return pblk->oob_meta_size * NVM_MAX_VLBA;
+}
+
+static inline int pblk_is_oob_meta_supported(struct pblk *pblk)
+{
+	return pblk->oob_meta_size >= sizeof(struct pblk_sec_meta);
 }
 #endif /* PBLK_H_ */

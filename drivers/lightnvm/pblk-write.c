@@ -348,7 +348,7 @@ static int pblk_calc_secs_to_sync(struct pblk *pblk, unsigned int secs_avail,
 {
 	int secs_to_sync;
 
-	secs_to_sync = pblk_calc_secs(pblk, secs_avail, secs_to_flush);
+	secs_to_sync = pblk_calc_secs(pblk, secs_avail, secs_to_flush, true);
 
 #ifdef CONFIG_NVM_PBLK_DEBUG
 	if ((!secs_to_sync && secs_to_flush)
@@ -569,7 +569,7 @@ static int pblk_submit_write(struct pblk *pblk, int *secs_left)
 	struct bio *bio;
 	struct nvm_rq *rqd;
 	unsigned int secs_avail, secs_to_sync, secs_to_com;
-	unsigned int secs_to_flush;
+	unsigned int secs_to_flush, packed_meta_pgs;
 	unsigned long pos;
 	unsigned int resubmit;
 
@@ -607,7 +607,7 @@ static int pblk_submit_write(struct pblk *pblk, int *secs_left)
 			return 0;
 
 		secs_to_flush = pblk_rb_flush_point_count(&pblk->rwb);
-		if (!secs_to_flush && secs_avail < pblk->min_write_pgs)
+		if (!secs_to_flush && secs_avail < pblk->min_write_pgs_data)
 			return 0;
 
 		secs_to_sync = pblk_calc_secs_to_sync(pblk, secs_avail,
@@ -622,7 +622,8 @@ static int pblk_submit_write(struct pblk *pblk, int *secs_left)
 		pos = pblk_rb_read_commit(&pblk->rwb, secs_to_com);
 	}
 
-	bio = bio_alloc(GFP_KERNEL, secs_to_sync);
+	packed_meta_pgs = (pblk->min_write_pgs - pblk->min_write_pgs_data);
+	bio = bio_alloc(GFP_KERNEL, secs_to_sync + packed_meta_pgs);
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);

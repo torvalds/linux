@@ -552,6 +552,9 @@ unsigned int pblk_rb_read_to_bio(struct pblk_rb *rb, struct nvm_rq *rqd,
 		to_read = count;
 	}
 
+	/* Add space for packed metadata if in use*/
+	pad += (pblk->min_write_pgs - pblk->min_write_pgs_data);
+
 	c_ctx->sentry = pos;
 	c_ctx->nr_valid = to_read;
 	c_ctx->nr_padded = pad;

@@ -112,6 +112,9 @@ static void pblk_read_check_seq(struct pblk *pblk, struct nvm_rq *rqd,
 	int nr_lbas = rqd->nr_ppas;
 	int i;
 
+	if (!pblk_is_oob_meta_supported(pblk))
+		return;
+
 	for (i = 0; i < nr_lbas; i++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
 		u64 lba = le64_to_cpu(meta->lba);
@@ -140,6 +143,9 @@ static void pblk_read_check_rand(struct pblk *pblk, struct nvm_rq *rqd,
 {
 	void *meta_lba_list = rqd->meta_list;
 	int i, j;
+
+	if (!pblk_is_oob_meta_supported(pblk))
+		return;
 
 	for (i = 0, j = 0; i < nr_lbas; i++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk,

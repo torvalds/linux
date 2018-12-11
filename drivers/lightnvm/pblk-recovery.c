@@ -191,7 +191,7 @@ static int pblk_recov_pad_line(struct pblk *pblk, struct pblk_line *line,
 	kref_init(&pad_rq->ref);
 
 next_pad_rq:
-	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
+	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	if (rq_ppas < pblk->min_write_pgs) {
 		pblk_err(pblk, "corrupted pad line %d\n", line->id);
 		goto fail_free_pad;
@@ -371,17 +371,19 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 next_rq:
 	memset(rqd, 0, pblk_g_rq_size);
 
-	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0);
+	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	if (!rq_ppas)
 		rq_ppas = pblk->min_write_pgs;
 	rq_len = rq_ppas * geo->csecs;
 
+retry_rq:
 	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
 
 	bio->bi_iter.bi_sector = 0; /* internal bio */
 	bio_set_op_attrs(bio, REQ_OP_READ, 0);
+	bio_get(bio);
 
 	rqd->bio = bio;
 	rqd->opcode = NVM_OP_PREAD;
@@ -394,7 +396,6 @@ next_rq:
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->is_seq = 1;
 
-retry_rq:
 	for (i = 0; i < rqd->nr_ppas; ) {
 		struct ppa_addr ppa;
 		int pos;
@@ -417,6 +418,7 @@ retry_rq:
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
 		bio_put(bio);
+		bio_put(bio);
 		return ret;
 	}
 
@@ -428,17 +430,24 @@ retry_rq:
 
 		if (padded) {
 			pblk_log_read_err(pblk, rqd);
+			bio_put(bio);
 			return -EINTR;
 		}
 
 		pad_distance = pblk_pad_distance(pblk, line);
 		ret = pblk_recov_pad_line(pblk, line, pad_distance);
-		if (ret)
+		if (ret) {
+			bio_put(bio);
 			return ret;
+		}
 
 		padded = true;
+		bio_put(bio);
 		goto retry_rq;
 	}
+
+	pblk_get_packed_meta(pblk, rqd);
+	bio_put(bio);
 
 	for (i = 0; i < rqd->nr_ppas; i++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
