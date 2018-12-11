@@ -871,10 +871,10 @@ int pblk_write_gc_to_cache(struct pblk *pblk, struct pblk_gc_rq *gc_rq);
 /*
  * pblk map
  */
-void pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
+int pblk_map_erase_rq(struct pblk *pblk, struct nvm_rq *rqd,
 		       unsigned int sentry, unsigned long *lun_bitmap,
 		       unsigned int valid_secs, struct ppa_addr *erase_ppa);
-void pblk_map_rq(struct pblk *pblk, struct nvm_rq *rqd, unsigned int sentry,
+int pblk_map_rq(struct pblk *pblk, struct nvm_rq *rqd, unsigned int sentry,
 		 unsigned long *lun_bitmap, unsigned int valid_secs,
 		 unsigned int off);
 

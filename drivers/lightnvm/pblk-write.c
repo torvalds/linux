@@ -334,12 +334,13 @@ static int pblk_setup_w_rq(struct pblk *pblk, struct nvm_rq *rqd,
 	}
 
 	if (likely(!e_line || !atomic_read(&e_line->left_eblks)))
-		pblk_map_rq(pblk, rqd, c_ctx->sentry, lun_bitmap, valid, 0);
+		ret = pblk_map_rq(pblk, rqd, c_ctx->sentry, lun_bitmap,
+							valid, 0);
 	else
-		pblk_map_erase_rq(pblk, rqd, c_ctx->sentry, lun_bitmap,
+		ret = pblk_map_erase_rq(pblk, rqd, c_ctx->sentry, lun_bitmap,
 							valid, erase_ppa);
 
-	return 0;
+	return ret;
 }
 
 static int pblk_calc_secs_to_sync(struct pblk *pblk, unsigned int secs_avail,
@@ -563,7 +564,7 @@ static void pblk_free_write_rqd(struct pblk *pblk, struct nvm_rq *rqd)
 							c_ctx->nr_padded);
 }
 
-static int pblk_submit_write(struct pblk *pblk)
+static int pblk_submit_write(struct pblk *pblk, int *secs_left)
 {
 	struct bio *bio;
 	struct nvm_rq *rqd;
@@ -571,6 +572,8 @@ static int pblk_submit_write(struct pblk *pblk)
 	unsigned int secs_to_flush;
 	unsigned long pos;
 	unsigned int resubmit;
+
+	*secs_left = 0;
 
 	spin_lock(&pblk->resubmit_lock);
 	resubmit = !list_empty(&pblk->resubmit_list);
@@ -601,17 +604,17 @@ static int pblk_submit_write(struct pblk *pblk)
 		 */
 		secs_avail = pblk_rb_read_count(&pblk->rwb);
 		if (!secs_avail)
-			return 1;
+			return 0;
 
 		secs_to_flush = pblk_rb_flush_point_count(&pblk->rwb);
 		if (!secs_to_flush && secs_avail < pblk->min_write_pgs)
-			return 1;
+			return 0;
 
 		secs_to_sync = pblk_calc_secs_to_sync(pblk, secs_avail,
 					secs_to_flush);
 		if (secs_to_sync > pblk->max_write_pgs) {
 			pblk_err(pblk, "bad buffer sync calculation\n");
-			return 1;
+			return 0;
 		}
 
 		secs_to_com = (secs_to_sync > secs_avail) ?
@@ -640,6 +643,7 @@ static int pblk_submit_write(struct pblk *pblk)
 	atomic_long_add(secs_to_sync, &pblk->sub_writes);
 #endif
 
+	*secs_left = 1;
 	return 0;
 
 fail_free_bio:
@@ -648,16 +652,22 @@ fail_put_bio:
 	bio_put(bio);
 	pblk_free_rqd(pblk, rqd, PBLK_WRITE);
 
-	return 1;
+	return -EINTR;
 }
 
 int pblk_write_ts(void *data)
 {
 	struct pblk *pblk = data;
+	int secs_left;
+	int write_failure = 0;
 
 	while (!kthread_should_stop()) {
-		if (!pblk_submit_write(pblk))
-			continue;
+		if (!write_failure) {
+			write_failure = pblk_submit_write(pblk, &secs_left);
+
+			if (secs_left)
+				continue;
+		}
 		set_current_state(TASK_INTERRUPTIBLE);
 		io_schedule();
 	}
