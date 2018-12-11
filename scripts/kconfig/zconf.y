@@ -123,7 +123,6 @@ stmt_list:
 	| stmt_list common_stmt
 	| stmt_list choice_stmt
 	| stmt_list menu_stmt
-	| stmt_list end			{ zconf_error("unexpected end statement"); }
 	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
 	| stmt_list error T_EOL		{ zconf_error("invalid statement"); }
 ;
@@ -330,14 +329,7 @@ if_end: end
 	}
 };
 
-if_stmt: if_entry if_block if_end
-;
-
-if_block:
-	  /* empty */
-	| if_block common_stmt
-	| if_block menu_stmt
-	| if_block choice_stmt
+if_stmt: if_entry stmt_list if_end
 ;
 
 /* menu entry */
