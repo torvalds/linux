@@ -659,6 +659,7 @@ struct dpcd_caps {
 	int8_t branch_dev_name[6];
 	int8_t branch_hw_revision;
 	int8_t branch_fw_revision[2];
+	uint8_t link_rate_set;
 
 	bool allow_invalid_MSA_timing_param;
 	bool panel_mode_edp;

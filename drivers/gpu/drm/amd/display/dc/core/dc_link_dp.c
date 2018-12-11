@@ -117,6 +117,13 @@ static void dpcd_set_link_settings(
 	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 	&downspread.raw, sizeof(downspread));
 
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14 &&
+		(link->dpcd_caps.link_rate_set >= 1 &&
+		link->dpcd_caps.link_rate_set <= 8)) {
+		core_link_write_dpcd(link, DP_LINK_RATE_SET,
+		&link->dpcd_caps.link_rate_set, 1);
+	}
+
 	DC_LOG_HW_LINK_TRAINING("%s\n %x rate = %x\n %x lane = %x\n %x spread = %x\n",
 		__func__,
 		DP_LINK_BW_SET,
@@ -2489,13 +2496,105 @@ bool detect_dp_sink_caps(struct dc_link *link)
 	/* TODO save sink caps in link->sink */
 }
 
+enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in_khz)
+{
+	enum dc_link_rate link_rate;
+	// LinkRate is normally stored as a multiplier of 0.27 Gbps per lane. Do the translation.
+	switch (link_rate_in_khz) {
+	case 1620000:
+		link_rate = LINK_RATE_LOW;		// Rate_1 (RBR)		- 1.62 Gbps/Lane
+		break;
+	case 2160000:
+		link_rate = LINK_RATE_RATE_2;	// Rate_2			- 2.16 Gbps/Lane
+		break;
+	case 2430000:
+		link_rate = LINK_RATE_RATE_3;	// Rate_3			- 2.43 Gbps/Lane
+		break;
+	case 2700000:
+		link_rate = LINK_RATE_HIGH;		// Rate_4 (HBR)		- 2.70 Gbps/Lane
+		break;
+	case 3240000:
+		link_rate = LINK_RATE_RBR2;		// Rate_5 (RBR2)	- 3.24 Gbps/Lane
+		break;
+	case 4320000:
+		link_rate = LINK_RATE_RATE_6;	// Rate_6			- 4.32 Gbps/Lane
+		break;
+	case 5400000:
+		link_rate = LINK_RATE_HIGH2;	// Rate_7 (HBR2)	- 5.40 Gbps/Lane
+		break;
+	case 8100000:
+		link_rate = LINK_RATE_HIGH3;	// Rate_8 (HBR3)	- 8.10 Gbps/Lane
+		break;
+	default:
+		link_rate = LINK_RATE_UNKNOWN;
+		break;
+	}
+	return link_rate;
+}
+
 void detect_edp_sink_caps(struct dc_link *link)
 {
+	uint8_t supported_link_rates[16] = {0};
+	uint32_t entry;
+	uint32_t link_rate_in_khz;
+	enum dc_link_rate link_rate = LINK_RATE_UNKNOWN;
+	uint8_t link_rate_set = 0;
+
 	retrieve_link_cap(link);
 
-	if (link->reported_link_cap.link_rate == LINK_RATE_UNKNOWN)
-		link->reported_link_cap.link_rate = LINK_RATE_HIGH2;
+	if (link->dpcd_caps.dpcd_rev.raw >= DPCD_REV_14) {
+		// Read DPCD 00010h - 0001Fh 16 bytes at one shot
+		core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
+							supported_link_rates, sizeof(supported_link_rates));
 
+		link->dpcd_caps.link_rate_set = 0;
+		for (entry = 0; entry < 16; entry += 2) {
+			// DPCD register reports per-lane link rate = 16-bit link rate capability
+			// value X 200 kHz. Need multipler to find link rate in kHz.
+			link_rate_in_khz = (supported_link_rates[entry+1] * 0x100 +
+										supported_link_rates[entry]) * 200;
+
+			if (link_rate_in_khz != 0) {
+				link_rate = linkRateInKHzToLinkRateMultiplier(link_rate_in_khz);
+				if (link->reported_link_cap.link_rate < link_rate) {
+					link->reported_link_cap.link_rate = link_rate;
+
+					switch (link_rate) {
+					case LINK_RATE_LOW:
+						link_rate_set = 1;
+						break;
+					case LINK_RATE_RATE_2:
+						link_rate_set = 2;
+						break;
+					case LINK_RATE_RATE_3:
+						link_rate_set = 3;
+						break;
+					case LINK_RATE_HIGH:
+						link_rate_set = 4;
+						break;
+					case LINK_RATE_RBR2:
+						link_rate_set = 5;
+						break;
+					case LINK_RATE_RATE_6:
+						link_rate_set = 6;
+						break;
+					case LINK_RATE_HIGH2:
+						link_rate_set = 7;
+						break;
+					case LINK_RATE_HIGH3:
+						link_rate_set = 8;
+						break;
+					default:
+						link_rate_set = 0;
+						break;
+					}
+
+					if (link->dpcd_caps.link_rate_set < link_rate_set)
+						link->dpcd_caps.link_rate_set = link_rate_set;
+				}
+			}
+		}
+	}
 	link->verified_link_cap = link->reported_link_cap;
 }
 
