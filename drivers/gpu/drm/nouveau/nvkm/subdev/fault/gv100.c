@@ -188,7 +188,7 @@ gv100_fault_init(struct nvkm_fault *fault)
 	nvkm_notify_get(&fault->nrpfb);
 }
 
-static int
+int
 gv100_fault_oneinit(struct nvkm_fault *fault)
 {
 	return nvkm_notify_init(&fault->buffer[0]->object, &fault->event,

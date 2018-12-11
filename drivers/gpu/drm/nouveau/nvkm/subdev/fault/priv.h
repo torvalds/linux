@@ -35,4 +35,6 @@ struct nvkm_fault_func {
 		void (*intr)(struct nvkm_fault_buffer *, bool enable);
 	} buffer;
 };
+
+int gv100_fault_oneinit(struct nvkm_fault *);
 #endif
