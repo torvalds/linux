@@ -51,7 +51,7 @@ static struct clk *__of_clk_get(struct device_node *np,
 {
 	struct clk_hw *hw = of_clk_get_hw(np, index, con_id);
 
-	return clk_hw_create_clk(hw, dev_id, con_id);
+	return clk_hw_create_clk(NULL, hw, dev_id, con_id);
 }
 
 struct clk *of_clk_get(struct device_node *np, int index)
@@ -130,7 +130,8 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 	return cl;
 }
 
-struct clk *clk_get_sys(const char *dev_id, const char *con_id)
+static struct clk *__clk_get_sys(struct device *dev, const char *dev_id,
+				 const char *con_id)
 {
 	struct clk_lookup *cl;
 	struct clk *clk = NULL;
@@ -141,13 +142,18 @@ struct clk *clk_get_sys(const char *dev_id, const char *con_id)
 	if (!cl)
 		goto out;
 
-	clk = clk_hw_create_clk(cl->clk_hw, dev_id, con_id);
+	clk = clk_hw_create_clk(dev, cl->clk_hw, dev_id, con_id);
 	if (IS_ERR(clk))
 		cl = NULL;
 out:
 	mutex_unlock(&clocks_mutex);
 
 	return cl ? clk : ERR_PTR(-ENOENT);
+}
+
+struct clk *clk_get_sys(const char *dev_id, const char *con_id)
+{
+	return __clk_get_sys(NULL, dev_id, con_id);
 }
 EXPORT_SYMBOL(clk_get_sys);
 
@@ -159,10 +165,10 @@ struct clk *clk_get(struct device *dev, const char *con_id)
 	if (dev && dev->of_node) {
 		hw = of_clk_get_hw(dev->of_node, 0, con_id);
 		if (!IS_ERR(hw) || PTR_ERR(hw) == -EPROBE_DEFER)
-			return clk_hw_create_clk(hw, dev_id, con_id);
+			return clk_hw_create_clk(dev, hw, dev_id, con_id);
 	}
 
-	return clk_get_sys(dev_id, con_id);
+	return __clk_get_sys(dev, dev_id, con_id);
 }
 EXPORT_SYMBOL(clk_get);
 
