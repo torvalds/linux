@@ -301,31 +301,43 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 
 /* How much time to wait until health resetting the driver (in msecs) */
 #define MLX5_RECOVERY_WAIT_MSECS 60000
-static void health_care(struct work_struct *work)
+static int mlx5_health_try_recover(struct mlx5_core_dev *dev)
 {
-	struct mlx5_core_health *health;
-	struct mlx5_core_dev *dev;
-	struct mlx5_priv *priv;
 	unsigned long end;
 
-	health = container_of(work, struct mlx5_core_health, work);
-	priv = container_of(health, struct mlx5_priv, health);
-	dev = container_of(priv, struct mlx5_core_dev, priv);
 	mlx5_core_warn(dev, "handling bad device here\n");
 	mlx5_handle_bad_state(dev);
-
 	end = jiffies + msecs_to_jiffies(MLX5_RECOVERY_WAIT_MSECS);
 	while (sensor_pci_not_working(dev)) {
 		if (time_after(jiffies, end)) {
 			mlx5_core_err(dev,
 				      "health recovery flow aborted, PCI reads still not working\n");
-			return;
+			return -EIO;
 		}
 		msleep(100);
 	}
 
 	mlx5_core_err(dev, "starting health recovery flow\n");
 	mlx5_recover_device(dev);
+	if (!test_bit(MLX5_INTERFACE_STATE_UP, &dev->intf_state) ||
+	    check_fatal_sensors(dev)) {
+		mlx5_core_err(dev, "health recovery failed\n");
+		return -EIO;
+	}
+	return 0;
+}
+
+static void health_recover_work(struct work_struct *work)
+{
+	struct mlx5_core_health *health;
+	struct mlx5_core_dev *dev;
+	struct mlx5_priv *priv;
+
+	health = container_of(work, struct mlx5_core_health, work);
+	priv = container_of(health, struct mlx5_priv, health);
+	dev = container_of(priv, struct mlx5_core_dev, priv);
+
+	mlx5_health_try_recover(dev);
 }
 
 static const char *hsynd_str(u8 synd)
@@ -544,7 +556,22 @@ static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
 		.dump = mlx5_fw_reporter_dump,
 };
 
-static void mlx5_fw_reporter_create(struct mlx5_core_dev *dev)
+static int
+mlx5_fw_fatal_reporter_recover(struct devlink_health_reporter *reporter,
+			       void *priv_ctx)
+{
+	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
+
+	return mlx5_health_try_recover(dev);
+}
+
+static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
+		.name = "fw_fatal",
+		.recover = mlx5_fw_fatal_reporter_recover,
+};
+
+#define MLX5_REPORTER_FW_GRACEFUL_PERIOD 1200000
+static void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct devlink *devlink = priv_to_devlink(dev);
@@ -555,16 +582,26 @@ static void mlx5_fw_reporter_create(struct mlx5_core_dev *dev)
 	if (IS_ERR(health->fw_reporter))
 		mlx5_core_warn(dev, "Failed to create fw reporter, err = %ld\n",
 			       PTR_ERR(health->fw_reporter));
+
+	health->fw_fatal_reporter =
+		devlink_health_reporter_create(devlink,
+					       &mlx5_fw_fatal_reporter_ops,
+					       MLX5_REPORTER_FW_GRACEFUL_PERIOD,
+					       true, dev);
+	if (IS_ERR(health->fw_fatal_reporter))
+		mlx5_core_warn(dev, "Failed to create fw fatal reporter, err = %ld\n",
+			       PTR_ERR(health->fw_fatal_reporter));
 }
 
-static void mlx5_fw_reporter_destroy(struct mlx5_core_dev *dev)
+static void mlx5_fw_reporters_destroy(struct mlx5_core_dev *dev)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 
-	if (IS_ERR_OR_NULL(health->fw_reporter))
-		return;
+	if (!IS_ERR_OR_NULL(health->fw_reporter))
+		devlink_health_reporter_destroy(health->fw_reporter);
 
-	devlink_health_reporter_destroy(health->fw_reporter);
+	if (!IS_ERR_OR_NULL(health->fw_fatal_reporter))
+		devlink_health_reporter_destroy(health->fw_fatal_reporter);
 }
 
 static unsigned long get_next_poll_jiffies(void)
@@ -686,7 +723,7 @@ void mlx5_health_cleanup(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health = &dev->priv.health;
 
 	destroy_workqueue(health->wq);
-	mlx5_fw_reporter_destroy(dev);
+	mlx5_fw_reporters_destroy(dev);
 }
 
 int mlx5_health_init(struct mlx5_core_dev *dev)
@@ -694,22 +731,26 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 	struct mlx5_core_health *health;
 	char *name;
 
+	mlx5_fw_reporters_create(dev);
+
 	health = &dev->priv.health;
 	name = kmalloc(64, GFP_KERNEL);
 	if (!name)
-		return -ENOMEM;
+		goto out_err;
 
 	strcpy(name, "mlx5_health");
 	strcat(name, dev_name(dev->device));
 	health->wq = create_singlethread_workqueue(name);
 	kfree(name);
 	if (!health->wq)
-		return -ENOMEM;
+		goto out_err;
 	spin_lock_init(&health->wq_lock);
-	INIT_WORK(&health->work, health_care);
+	INIT_WORK(&health->work, health_recover_work);
 	INIT_WORK(&health->report_work, mlx5_fw_reporter_err_work);
 
-	mlx5_fw_reporter_create(dev);
-
 	return 0;
+
+out_err:
+	mlx5_fw_reporters_destroy(dev);
+	return -ENOMEM;
 }
