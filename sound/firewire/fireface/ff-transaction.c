@@ -206,42 +206,10 @@ static void handle_midi_msg(struct fw_card *card, struct fw_request *request,
 {
 	struct snd_ff *ff = callback_data;
 	__le32 *buf = data;
-	u32 quad;
-	u8 byte;
-	unsigned int index;
-	struct snd_rawmidi_substream *substream;
-	int i;
 
 	fw_send_response(card, request, RCODE_COMPLETE);
 
-	for (i = 0; i < length / 4; i++) {
-		quad = le32_to_cpu(buf[i]);
-
-		/* Message in first port. */
-		/*
-		 * This value may represent the index of this unit when the same
-		 * units are on the same IEEE 1394 bus. This driver doesn't use
-		 * it.
-		 */
-		index = (quad >> 8) & 0xff;
-		if (index > 0) {
-			substream = READ_ONCE(ff->tx_midi_substreams[0]);
-			if (substream != NULL) {
-				byte = quad & 0xff;
-				snd_rawmidi_receive(substream, &byte, 1);
-			}
-		}
-
-		/* Message in second port. */
-		index = (quad >> 24) & 0xff;
-		if (index > 0) {
-			substream = READ_ONCE(ff->tx_midi_substreams[1]);
-			if (substream != NULL) {
-				byte = (quad >> 16) & 0xff;
-				snd_rawmidi_receive(substream, &byte, 1);
-			}
-		}
-	}
+	ff->spec->protocol->handle_midi_msg(ff, buf, length);
 }
 
 static int allocate_own_address(struct snd_ff *ff, int i)
