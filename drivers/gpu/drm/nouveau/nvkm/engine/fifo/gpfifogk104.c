@@ -222,6 +222,7 @@ void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
+	nvkm_memory_unref(&chan->mthd);
 	kfree(chan->cgrp);
 	return chan;
 }
