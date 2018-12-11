@@ -1289,6 +1289,52 @@ static int rga2_convert_dma_buf(struct rga2_req *req)
 	return 0;
 }
 #endif
+
+static int rga2_blit_flush_cache(rga2_session *session, struct rga2_req *req)
+{
+	int ret = 0;
+	struct rga2_reg *reg = kzalloc(sizeof(*reg), GFP_KERNEL);
+	struct rga2_mmu_buf_t *tbuf = &rga2_mmu_buf;
+
+	if (!reg) {
+		pr_err("%s, [%d] kzalloc error\n", __func__, __LINE__);
+		ret = -ENOMEM;
+		goto err_free_reg;
+	}
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+	if (rga2_get_dma_buf(req)) {
+		pr_err("RGA2 : DMA buf copy error\n");
+		ret = -EFAULT;
+		goto err_free_reg;
+	}
+#else
+	if (rga2_convert_dma_buf(req)) {
+		pr_err("RGA2 : DMA buf copy error\n");
+		ret = -EFAULT;
+		goto err_free_reg;
+	}
+#endif
+	if ((req->mmu_info.src0_mmu_flag & 1) || (req->mmu_info.src1_mmu_flag & 1) ||
+	    (req->mmu_info.dst_mmu_flag & 1) || (req->mmu_info.els_mmu_flag & 1)) {
+		ret = rga2_set_mmu_info(reg, req);
+		if (ret < 0) {
+			pr_err("%s, [%d] set mmu info error\n", __func__, __LINE__);
+			ret = -EFAULT;
+			goto err_free_reg;
+		}
+	}
+	if (reg->MMU_len && tbuf) {
+		if (tbuf->back + reg->MMU_len > 2 * tbuf->size)
+			tbuf->back = reg->MMU_len + tbuf->size;
+		else
+			tbuf->back += reg->MMU_len;
+	}
+err_free_reg:
+	kfree(reg);
+
+	return ret;
+}
+
 static int rga2_blit(rga2_session *session, struct rga2_req *req)
 {
 	int ret = -1;
@@ -1573,6 +1619,16 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 				}
 				ret = rga2_blit_async(session, &req);
 			}
+			break;
+		case RGA_CACHE_FLUSH:
+			if (unlikely(copy_from_user(&req_rga, (struct rga_req*)arg, sizeof(struct rga_req))))
+			{
+				ERR("copy_from_user failed\n");
+				ret = -EFAULT;
+				break;
+			}
+			RGA_MSG_2_RGA2_MSG(&req_rga, &req);
+			ret = rga2_blit_flush_cache(session, &req);
 			break;
 		case RGA2_BLIT_SYNC:
 			if (unlikely(copy_from_user(&req, (struct rga2_req*)arg, sizeof(struct rga2_req))))

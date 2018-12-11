@@ -12,6 +12,7 @@
 #define RGA_FLUSH       0x5019
 #define RGA_GET_RESULT  0x501a
 #define RGA_GET_VERSION 0x501b
+#define RGA_CACHE_FLUSH 0x501c
 
 #define RGA2_BLIT_SYNC	 0x6017
 #define RGA2_BLIT_ASYNC  0x6018
