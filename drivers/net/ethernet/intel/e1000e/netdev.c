@@ -7422,6 +7422,8 @@ static void e1000_remove(struct pci_dev *pdev)
 		clear_bit(__E1000_DOWN, &adapter->state);
 	unregister_netdev(netdev);
 
+	dev_pm_set_driver_flags(&pdev->dev, DPM_FLAG_NEVER_SKIP);
+
 	if (pci_dev_run_wake(pdev))
 		pm_runtime_get_noresume(&pdev->dev);
 
