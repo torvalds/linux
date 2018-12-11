@@ -147,10 +147,18 @@ enum uverbs_attrs_reg_dm_mr_cmd_attr_ids {
 enum uverbs_methods_mr {
 	UVERBS_METHOD_DM_MR_REG,
 	UVERBS_METHOD_MR_DESTROY,
+	UVERBS_METHOD_ADVISE_MR,
 };
 
 enum uverbs_attrs_mr_destroy_ids {
 	UVERBS_ATTR_DESTROY_MR_HANDLE,
+};
+
+enum uverbs_attrs_advise_mr_cmd_attr_ids {
+	UVERBS_ATTR_ADVISE_MR_PD_HANDLE,
+	UVERBS_ATTR_ADVISE_MR_ADVICE,
+	UVERBS_ATTR_ADVISE_MR_FLAGS,
+	UVERBS_ATTR_ADVISE_MR_SGE_LIST,
 };
 
 enum uverbs_attrs_create_counters_cmd_attr_ids {

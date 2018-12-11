@@ -39,6 +39,42 @@ static int uverbs_free_mr(struct ib_uobject *uobject,
 	return ib_dereg_mr((struct ib_mr *)uobject->object);
 }
 
+static int UVERBS_HANDLER(UVERBS_METHOD_ADVISE_MR)(
+	struct uverbs_attr_bundle *attrs)
+{
+	struct ib_pd *pd =
+		uverbs_attr_get_obj(attrs, UVERBS_ATTR_ADVISE_MR_PD_HANDLE);
+	enum ib_uverbs_advise_mr_advice advice;
+	struct ib_device *ib_dev = pd->device;
+	struct ib_sge *sg_list;
+	u32 num_sge;
+	u32 flags;
+	int ret;
+
+	/* FIXME: Extend the UAPI_DEF_OBJ_NEEDS_FN stuff.. */
+	if (!ib_dev->ops.advise_mr)
+		return -EOPNOTSUPP;
+
+	ret = uverbs_get_const(&advice, attrs, UVERBS_ATTR_ADVISE_MR_ADVICE);
+	if (ret)
+		return ret;
+
+	ret = uverbs_get_flags32(&flags, attrs, UVERBS_ATTR_ADVISE_MR_FLAGS,
+				 IB_UVERBS_ADVISE_MR_FLAG_FLUSH);
+	if (ret)
+		return ret;
+
+	num_sge = uverbs_attr_ptr_get_array_size(
+		attrs, UVERBS_ATTR_ADVISE_MR_SGE_LIST, sizeof(struct ib_sge));
+	if (num_sge < 0)
+		return num_sge;
+
+	sg_list = uverbs_attr_get_alloced_ptr(attrs,
+					      UVERBS_ATTR_ADVISE_MR_SGE_LIST);
+	return ib_dev->ops.advise_mr(pd, advice, flags, sg_list, num_sge,
+				     attrs);
+}
+
 static int UVERBS_HANDLER(UVERBS_METHOD_DM_MR_REG)(
 	struct uverbs_attr_bundle *attrs)
 {
@@ -115,6 +151,23 @@ err_dereg:
 }
 
 DECLARE_UVERBS_NAMED_METHOD(
+	UVERBS_METHOD_ADVISE_MR,
+	UVERBS_ATTR_IDR(UVERBS_ATTR_ADVISE_MR_PD_HANDLE,
+			UVERBS_OBJECT_PD,
+			UVERBS_ACCESS_READ,
+			UA_MANDATORY),
+	UVERBS_ATTR_CONST_IN(UVERBS_ATTR_ADVISE_MR_ADVICE,
+			     enum ib_uverbs_advise_mr_advice,
+			     UA_MANDATORY),
+	UVERBS_ATTR_FLAGS_IN(UVERBS_ATTR_ADVISE_MR_FLAGS,
+			     enum ib_uverbs_advise_mr_flag,
+			     UA_MANDATORY),
+	UVERBS_ATTR_PTR_IN(UVERBS_ATTR_ADVISE_MR_SGE_LIST,
+			   UVERBS_ATTR_MIN_SIZE(sizeof(struct ib_uverbs_sge)),
+			   UA_MANDATORY,
+			   UA_ALLOC_AND_COPY));
+
+DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_METHOD_DM_MR_REG,
 	UVERBS_ATTR_IDR(UVERBS_ATTR_REG_DM_MR_HANDLE,
 			UVERBS_OBJECT_MR,
@@ -154,7 +207,8 @@ DECLARE_UVERBS_NAMED_OBJECT(
 	UVERBS_OBJECT_MR,
 	UVERBS_TYPE_ALLOC_IDR(uverbs_free_mr),
 	&UVERBS_METHOD(UVERBS_METHOD_DM_MR_REG),
-	&UVERBS_METHOD(UVERBS_METHOD_MR_DESTROY));
+	&UVERBS_METHOD(UVERBS_METHOD_MR_DESTROY),
+	&UVERBS_METHOD(UVERBS_METHOD_ADVISE_MR));
 
 const struct uapi_definition uverbs_def_obj_mr[] = {
 	UAPI_DEF_CHAIN_OBJ_TREE_NAMED(UVERBS_OBJECT_MR,
