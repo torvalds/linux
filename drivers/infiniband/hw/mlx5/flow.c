@@ -331,7 +331,6 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 	struct ib_flow_action *action;
 	size_t num_actions;
 	void *in;
-	int len;
 	int ret;
 
 	if (!mlx5_ib_modify_header_supported(mdev))
@@ -339,18 +338,17 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_FLOW_ACTION_CREATE_MODIFY_HEADER)(
 
 	in = uverbs_attr_get_alloced_ptr(attrs,
 		MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM);
-	len = uverbs_attr_get_len(attrs,
-		MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM);
 
-	if (len % MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto))
-		return -EINVAL;
+	num_actions = uverbs_attr_ptr_get_array_size(
+		attrs, MLX5_IB_ATTR_CREATE_MODIFY_HEADER_ACTIONS_PRM,
+		MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto));
+	if (num_actions < 0)
+		return num_actions;
 
 	ret = uverbs_get_const(&ft_type, attrs,
 			       MLX5_IB_ATTR_CREATE_MODIFY_HEADER_FT_TYPE);
 	if (ret)
 		return ret;
-
-	num_actions = len / MLX5_UN_SZ_BYTES(set_action_in_add_action_in_auto),
 	action = mlx5_ib_create_modify_header(mdev, ft_type, num_actions, in);
 	if (IS_ERR(action))
 		return PTR_ERR(action);

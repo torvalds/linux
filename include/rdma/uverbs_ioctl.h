@@ -719,6 +719,28 @@ uverbs_attr_get_len(const struct uverbs_attr_bundle *attrs_bundle, u16 idx)
 	return attr->ptr_attr.len;
 }
 
+/*
+ * uverbs_attr_ptr_get_array_size() - Get array size pointer by a ptr
+ * attribute.
+ * @attrs: The attribute bundle
+ * @idx: The ID of the attribute
+ * @elem_size: The size of the element in the array
+ */
+static inline int
+uverbs_attr_ptr_get_array_size(struct uverbs_attr_bundle *attrs, u16 idx,
+			       size_t elem_size)
+{
+	int size = uverbs_attr_get_len(attrs, idx);
+
+	if (size < 0)
+		return size;
+
+	if (size % elem_size)
+		return -EINVAL;
+
+	return size / elem_size;
+}
+
 /**
  * uverbs_attr_get_uobjs_arr() - Provides array's properties for attribute for
  * UVERBS_ATTR_TYPE_IDRS_ARRAY.
