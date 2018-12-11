@@ -124,6 +124,10 @@
 		status = "okay";
 	};
 
+	rtc@c2a0000 {
+		status = "okay";
+	};
+
 	pmc@c360000 {
 		nvidia,invert-interrupt;
 	};

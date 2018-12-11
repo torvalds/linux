@@ -1330,6 +1330,10 @@
 		phys = <&{/padctl@7009f000/pads/sata/lanes/sata-0}>;
 	};
 
+	hda@70030000 {
+		status = "okay";
+	};
+
 	padctl@7009f000 {
 		status = "okay";
 
