@@ -4761,13 +4761,6 @@ static int skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 		     wp->dbuf_block_size < 1) &&
 		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1)) {
 			selected_result = method2;
-		} else if (ddb_allocation >=
-			 fixed16_to_u32_round_up(wp->plane_blocks_per_line)) {
-			if (IS_GEN9(dev_priv) &&
-			    !IS_GEMINILAKE(dev_priv))
-				selected_result = min_fixed16(method1, method2);
-			else
-				selected_result = method2;
 		} else if (latency >= wp->linetime_us) {
 			if (IS_GEN9(dev_priv) &&
 			    !IS_GEMINILAKE(dev_priv))
