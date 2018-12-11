@@ -132,6 +132,8 @@ static void chcr_dev_init(struct uld_ctx *u_ctx)
 
 static int chcr_dev_move(struct uld_ctx *u_ctx)
 {
+	struct adapter *adap;
+
 	 mutex_lock(&drv_data.drv_mutex);
 	if (drv_data.last_dev == u_ctx) {
 		if (list_is_last(&drv_data.last_dev->entry, &drv_data.act_dev))
@@ -144,6 +146,8 @@ static int chcr_dev_move(struct uld_ctx *u_ctx)
 	list_move(&u_ctx->entry, &drv_data.inact_dev);
 	if (list_empty(&drv_data.act_dev))
 		drv_data.last_dev = NULL;
+	adap = padap(&u_ctx->dev);
+	memset(&adap->chcr_stats, 0, sizeof(adap->chcr_stats));
 	atomic_dec(&drv_data.dev_count);
 	mutex_unlock(&drv_data.drv_mutex);
 
