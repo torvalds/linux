@@ -910,7 +910,7 @@ config PLAT_VERSATILE
 
 source "arch/arm/firmware/Kconfig"
 
-source arch/arm/mm/Kconfig
+source "arch/arm/mm/Kconfig"
 
 config IWMMXT
 	bool "Enable iWMMXt support"

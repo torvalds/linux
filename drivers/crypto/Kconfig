@@ -258,7 +258,7 @@ config CRYPTO_DEV_HIFN_795X_RNG
 	  Select this option if you want to enable the random number generator
 	  on the HIFN 795x crypto adapters.
 
-source drivers/crypto/caam/Kconfig
+source "drivers/crypto/caam/Kconfig"
 
 config CRYPTO_DEV_TALITOS
 	tristate "Talitos Freescale Security Engine (SEC)"

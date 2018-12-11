@@ -224,4 +224,4 @@ config BLK_MQ_RDMA
 config BLK_PM
 	def_bool BLOCK && PM
 
-source block/Kconfig.iosched
+source "block/Kconfig.iosched"

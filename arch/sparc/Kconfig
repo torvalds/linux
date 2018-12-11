@@ -187,7 +187,7 @@ config NR_CPUS
 	default 32 if SPARC32
 	default 4096 if SPARC64
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config RWSEM_GENERIC_SPINLOCK
 	bool

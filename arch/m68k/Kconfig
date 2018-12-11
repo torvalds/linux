@@ -123,11 +123,11 @@ config BOOTINFO_PROC
 
 menu "Platform setup"
 
-source arch/m68k/Kconfig.cpu
+source "arch/m68k/Kconfig.cpu"
 
-source arch/m68k/Kconfig.machine
+source "arch/m68k/Kconfig.machine"
 
-source arch/m68k/Kconfig.bus
+source "arch/m68k/Kconfig.bus"
 
 endmenu
 

@@ -520,7 +520,7 @@ config SCHED_TOPOLOGY
 	  making when dealing with machines that have multi-threading,
 	  multiple cores or multiple books.
 
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 
 config KEXEC
 	def_bool y

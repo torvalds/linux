@@ -261,7 +261,7 @@ config HZ
 endif
 
 if !IA64_HP_SIM
-source kernel/Kconfig.hz
+source "kernel/Kconfig.hz"
 endif
 
 config IA64_BRL_EMU
