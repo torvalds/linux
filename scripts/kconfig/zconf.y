@@ -69,11 +69,6 @@ static struct menu *current_menu, *current_entry;
 %token <id>T_ON
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
-%token T_UNEQUAL
-%token T_LESS
-%token T_LESS_EQUAL
-%token T_GREATER
-%token T_GREATER_EQUAL
 %token T_CLOSE_PAREN
 %token T_OPEN_PAREN
 %token T_EOL
