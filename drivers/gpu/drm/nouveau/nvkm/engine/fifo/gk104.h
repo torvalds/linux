@@ -46,6 +46,7 @@ struct gk104_fifo {
 
 struct gk104_fifo_func {
 	const struct gk104_fifo_pbdma_func {
+		void (*init)(struct gk104_fifo *);
 		void (*init_timeout)(struct gk104_fifo *);
 	} *pbdma;
 
@@ -88,6 +89,7 @@ void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_update(struct gk104_fifo *, int runl);
 
 extern const struct gk104_fifo_pbdma_func gk104_fifo_pbdma;
+void gk104_fifo_pbdma_init(struct gk104_fifo *);
 extern const struct nvkm_enum gk104_fifo_fault_access[];
 extern const struct nvkm_enum gk104_fifo_fault_engine[];
 extern const struct nvkm_enum gk104_fifo_fault_reason[];

@@ -249,8 +249,16 @@ gk104_fifo_runlist = {
 	.commit = gk104_fifo_runlist_commit,
 };
 
+void
+gk104_fifo_pbdma_init(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
+}
+
 const struct gk104_fifo_pbdma_func
 gk104_fifo_pbdma = {
+	.init = gk104_fifo_pbdma_init,
 };
 
 static void
@@ -991,7 +999,7 @@ gk104_fifo_init(struct nvkm_fifo *base)
 	int i;
 
 	/* Enable PBDMAs. */
-	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
+	fifo->func->pbdma->init(fifo);
 
 	/* PBDMA[n] */
 	for (i = 0; i < fifo->pbdma_nr; i++) {
