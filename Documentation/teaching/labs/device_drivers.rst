@@ -571,7 +571,7 @@ The structure of the write function is similar:
 	   return -EFAULT;
 
        *offset += len;
-       return lent;
+       return len;
    }
 
 The write operation will respond to a write request from userspace. In
