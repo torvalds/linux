@@ -515,6 +515,29 @@ mlx5_fw_reporter_dump(struct devlink_health_reporter *reporter,
 	return mlx5_fw_tracer_get_saved_traces_objects(dev->tracer, fmsg);
 }
 
+static void mlx5_fw_reporter_err_work(struct work_struct *work)
+{
+	struct mlx5_fw_reporter_ctx fw_reporter_ctx;
+	struct mlx5_core_health *health;
+
+	health = container_of(work, struct mlx5_core_health, report_work);
+
+	if (IS_ERR_OR_NULL(health->fw_reporter))
+		return;
+
+	fw_reporter_ctx.err_synd = health->synd;
+	fw_reporter_ctx.miss_counter = health->miss_counter;
+	if (fw_reporter_ctx.err_synd) {
+		devlink_health_report(health->fw_reporter,
+				      "FW syndrom reported", &fw_reporter_ctx);
+		return;
+	}
+	if (fw_reporter_ctx.miss_counter)
+		devlink_health_report(health->fw_reporter,
+				      "FW miss counter reported",
+				      &fw_reporter_ctx);
+}
+
 static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
 		.name = "fw",
 		.diagnose = mlx5_fw_reporter_diagnose,
@@ -572,7 +595,9 @@ static void poll_health(struct timer_list *t)
 {
 	struct mlx5_core_dev *dev = from_timer(dev, t, priv.health.timer);
 	struct mlx5_core_health *health = &dev->priv.health;
+	struct health_buffer __iomem *h = health->health;
 	u32 fatal_error;
+	u8 prev_synd;
 	u32 count;
 
 	if (dev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR)
@@ -588,7 +613,13 @@ static void poll_health(struct timer_list *t)
 	if (health->miss_counter == MAX_MISSES) {
 		mlx5_core_err(dev, "device's health compromised - reached miss count\n");
 		print_health_info(dev);
+		queue_work(health->wq, &health->report_work);
 	}
+
+	prev_synd = health->synd;
+	health->synd = ioread8(&h->synd);
+	if (health->synd && health->synd != prev_synd)
+		queue_work(health->wq, &health->report_work);
 
 	fatal_error = check_fatal_sensors(dev);
 
@@ -639,6 +670,7 @@ void mlx5_drain_health_wq(struct mlx5_core_dev *dev)
 	spin_lock_irqsave(&health->wq_lock, flags);
 	set_bit(MLX5_DROP_NEW_HEALTH_WORK, &health->flags);
 	spin_unlock_irqrestore(&health->wq_lock, flags);
+	cancel_work_sync(&health->report_work);
 	cancel_work_sync(&health->work);
 }
 
@@ -675,6 +707,7 @@ int mlx5_health_init(struct mlx5_core_dev *dev)
 		return -ENOMEM;
 	spin_lock_init(&health->wq_lock);
 	INIT_WORK(&health->work, health_care);
+	INIT_WORK(&health->report_work, mlx5_fw_reporter_err_work);
 
 	mlx5_fw_reporter_create(dev);
 
