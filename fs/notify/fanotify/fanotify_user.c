@@ -675,7 +675,7 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 	 */
 	if ((flags & FAN_MARK_IGNORED_MASK) &&
 	    !(flags & FAN_MARK_IGNORED_SURV_MODIFY) &&
-	    (atomic_read(&inode->i_writecount) > 0))
+	    inode_is_open_for_write(inode))
 		return 0;
 
 	return fanotify_add_mark(group, &inode->i_fsnotify_marks,
