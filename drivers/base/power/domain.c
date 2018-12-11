@@ -311,12 +311,10 @@ int dev_pm_genpd_set_performance_state(struct device *dev, unsigned int state)
 	 */
 
 update_state:
-	if (genpd_status_on(genpd)) {
-		ret = genpd->set_performance_state(genpd, state);
-		if (ret) {
-			gpd_data->performance_state = prev;
-			goto unlock;
-		}
+	ret = genpd->set_performance_state(genpd, state);
+	if (ret) {
+		gpd_data->performance_state = prev;
+		goto unlock;
 	}
 
 	genpd->performance_state = state;
@@ -347,15 +345,6 @@ static int _genpd_power_on(struct generic_pm_domain *genpd, bool timed)
 		return ret;
 
 	elapsed_ns = ktime_to_ns(ktime_sub(ktime_get(), time_start));
-
-	if (unlikely(genpd->set_performance_state)) {
-		ret = genpd->set_performance_state(genpd, genpd->performance_state);
-		if (ret) {
-			pr_warn("%s: Failed to set performance state %d (%d)\n",
-				genpd->name, genpd->performance_state, ret);
-		}
-	}
-
 	if (elapsed_ns <= genpd->states[state_idx].power_on_latency_ns)
 		return ret;
 
