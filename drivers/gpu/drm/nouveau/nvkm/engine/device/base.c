@@ -2439,6 +2439,7 @@ nv164_chipset = {
 	.name = "TU104",
 	.bios = nvkm_bios_new,
 	.devinit = tu104_devinit_new,
+	.fuse = gm107_fuse_new,
 	.gpio = gk104_gpio_new,
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
