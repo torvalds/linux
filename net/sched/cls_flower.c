@@ -368,8 +368,7 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f,
 	cls_flower.command = TC_CLSFLOWER_DESTROY;
 	cls_flower.cookie = (unsigned long) f;
 
-	tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
-			 &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
 	tcf_block_offload_dec(block, &f->flags);
 }
 
@@ -391,8 +390,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 	cls_flower.exts = &f->exts;
 	cls_flower.classid = f->res.classid;
 
-	err = tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
-			       &cls_flower, skip_sw);
+	err = tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, skip_sw);
 	if (err < 0) {
 		fl_hw_destroy_filter(tp, f, NULL);
 		return err;
@@ -418,8 +416,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	cls_flower.exts = &f->exts;
 	cls_flower.classid = f->res.classid;
 
-	tc_setup_cb_call(block, &f->exts, TC_SETUP_CLSFLOWER,
-			 &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
 }
 
 static bool __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f,
@@ -1502,8 +1499,7 @@ static void fl_hw_create_tmplt(struct tcf_chain *chain,
 	/* We don't care if driver (any of them) fails to handle this
 	 * call. It serves just as a hint for it.
 	 */
-	tc_setup_cb_call(block, NULL, TC_SETUP_CLSFLOWER,
-			 &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
 }
 
 static void fl_hw_destroy_tmplt(struct tcf_chain *chain,
@@ -1516,8 +1512,7 @@ static void fl_hw_destroy_tmplt(struct tcf_chain *chain,
 	cls_flower.command = TC_CLSFLOWER_TMPLT_DESTROY;
 	cls_flower.cookie = (unsigned long) tmplt;
 
-	tc_setup_cb_call(block, NULL, TC_SETUP_CLSFLOWER,
-			 &cls_flower, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSFLOWER, &cls_flower, false);
 }
 
 static void *fl_tmplt_create(struct net *net, struct tcf_chain *chain,
