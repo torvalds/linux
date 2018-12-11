@@ -309,13 +309,28 @@ int qcom_llcc_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(qcom_llcc_remove);
 
+static struct regmap *qcom_llcc_init_mmio(struct platform_device *pdev,
+		const char *name)
+{
+	struct resource *res;
+	void __iomem *base;
+
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
+	if (!res)
+		return ERR_PTR(-ENODEV);
+
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return ERR_CAST(base);
+
+	return devm_regmap_init_mmio(&pdev->dev, base, &llcc_regmap_config);
+}
+
 int qcom_llcc_probe(struct platform_device *pdev,
 		      const struct llcc_slice_config *llcc_cfg, u32 sz)
 {
 	u32 num_banks;
 	struct device *dev = &pdev->dev;
-	struct resource *llcc_banks_res, *llcc_bcast_res;
-	void __iomem *llcc_banks_base, *llcc_bcast_base;
 	int ret, i;
 	struct platform_device *llcc_edac;
 
@@ -325,31 +340,14 @@ int qcom_llcc_probe(struct platform_device *pdev,
 		goto err;
 	}
 
-	llcc_banks_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"llcc_base");
-	llcc_banks_base = devm_ioremap_resource(&pdev->dev, llcc_banks_res);
-	if (IS_ERR(llcc_banks_base)) {
-		ret = PTR_ERR(llcc_banks_base);
-		goto err;
-	}
-
-	drv_data->regmap = devm_regmap_init_mmio(dev, llcc_banks_base,
-						&llcc_regmap_config);
+	drv_data->regmap = qcom_llcc_init_mmio(pdev, "llcc_base");
 	if (IS_ERR(drv_data->regmap)) {
 		ret = PTR_ERR(drv_data->regmap);
 		goto err;
 	}
 
-	llcc_bcast_res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-							"llcc_broadcast_base");
-	llcc_bcast_base = devm_ioremap_resource(&pdev->dev, llcc_bcast_res);
-	if (IS_ERR(llcc_bcast_base)) {
-		ret = PTR_ERR(llcc_bcast_base);
-		goto err;
-	}
-
-	drv_data->bcast_regmap = devm_regmap_init_mmio(dev, llcc_bcast_base,
-							&llcc_regmap_config);
+	drv_data->bcast_regmap =
+		qcom_llcc_init_mmio(pdev, "llcc_broadcast_base");
 	if (IS_ERR(drv_data->bcast_regmap)) {
 		ret = PTR_ERR(drv_data->bcast_regmap);
 		goto err;
