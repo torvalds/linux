@@ -93,7 +93,19 @@
 	PCIE_CLIENT_INT_FATAL_ERR | PCIE_CLIENT_INT_DPA | \
 	PCIE_CLIENT_INT_HOT_RST | PCIE_CLIENT_INT_MSG | \
 	PCIE_CLIENT_INT_LEGACY_DONE | PCIE_CLIENT_INT_LEGACY | \
-	PCIE_CLIENT_INT_PHY)
+	PCIE_CLIENT_INT_PHY | PCIE_CLIENT_INT_UDMA)
+
+#define PCIE_APB_CORE_UDMA_BASE	(BIT(23) | BIT(22) | BIT(21))
+#define PCIE_CH0_DONE_ENABLE	BIT(0)
+#define PCIE_CH1_DONE_ENABLE	BIT(1)
+#define PCIE_CH0_ERR_ENABLE	BIT(8)
+#define PCIE_CH1_ERR_ENABLE	BIT(9)
+
+#define PCIE_UDMA_INT_ENABLE_REG	0xa4
+
+#define PCIE_UDMA_INT_ENABLE_MASK \
+	(PCIE_CH0_DONE_ENABLE | PCIE_CH1_DONE_ENABLE | \
+	PCIE_CH0_ERR_ENABLE | PCIE_CH1_ERR_ENABLE)
 
 #define PCIE_CORE_CTRL_MGMT_BASE	0x900000
 #define PCIE_CORE_CTRL			(PCIE_CORE_CTRL_MGMT_BASE + 0x000)
@@ -675,9 +687,10 @@ static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 	u32 sub_reg;
 
 	reg = rockchip_pcie_read(rockchip, PCIE_CLIENT_INT_STATUS);
+	sub_reg = rockchip_pcie_read(rockchip, PCIE_CORE_INT_STATUS);
+	dev_dbg(dev, "reg = 0x%x, sub_reg = 0x%x\n", reg, sub_reg);
 	if (reg & PCIE_CLIENT_INT_LOCAL) {
 		dev_dbg(dev, "local interrupt received\n");
-		sub_reg = rockchip_pcie_read(rockchip, PCIE_CORE_INT_STATUS);
 		if (sub_reg & PCIE_CORE_INT_PRFPE)
 			dev_dbg(dev, "parity error detected while reading from the PNP receive FIFO RAM\n");
 
@@ -725,6 +738,11 @@ static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 		dev_dbg(dev, "phy link changes\n");
 		rockchip_pcie_update_txcredit_mui(rockchip);
 		rockchip_pcie_clr_bw_int(rockchip);
+	}
+
+	if (reg & PCIE_CLIENT_INT_UDMA) {
+		rockchip_pcie_write(rockchip, sub_reg, PCIE_CLIENT_INT_STATUS);
+		rockchip_pcie_write(rockchip, reg, PCIE_CLIENT_INT_STATUS);
 	}
 
 	rockchip_pcie_write(rockchip, reg & PCIE_CLIENT_INT_LOCAL,
@@ -1041,6 +1059,8 @@ static void rockchip_pcie_enable_interrupts(struct rockchip_pcie *rockchip)
 			    PCIE_CORE_INT_MASK);
 
 	rockchip_pcie_enable_bw_int(rockchip);
+	rockchip_pcie_write(rockchip, PCIE_UDMA_INT_ENABLE_MASK,
+		PCIE_APB_CORE_UDMA_BASE + PCIE_UDMA_INT_ENABLE_REG);
 }
 
 static int rockchip_pcie_intx_map(struct irq_domain *domain, unsigned int irq,
