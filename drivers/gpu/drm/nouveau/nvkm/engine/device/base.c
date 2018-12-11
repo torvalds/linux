@@ -2469,6 +2469,7 @@ nv164_chipset = {
 static const struct nvkm_device_chip
 nv166_chipset = {
 	.name = "TU106",
+	.pci = gp100_pci_new,
 };
 
 static int
