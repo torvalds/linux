@@ -117,4 +117,13 @@ extern const struct gk104_fifo_pbdma_func gm200_fifo_pbdma;
 int gm200_fifo_pbdma_nr(struct gk104_fifo *);
 
 extern const struct nvkm_enum gp100_fifo_fault_engine[];
+
+extern const struct nvkm_enum gv100_fifo_fault_access[];
+extern const struct nvkm_enum gv100_fifo_fault_reason[];
+extern const struct nvkm_enum gv100_fifo_fault_hubclient[];
+extern const struct nvkm_enum gv100_fifo_fault_gpcclient[];
+void gv100_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,
+			     struct nvkm_memory *, u32);
+void gv100_fifo_runlist_chan(struct gk104_fifo_chan *,
+			     struct nvkm_memory *, u32);
 #endif

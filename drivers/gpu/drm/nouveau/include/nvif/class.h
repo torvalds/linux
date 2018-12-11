@@ -69,6 +69,7 @@
 #define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
 #define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
 #define VOLTA_CHANNEL_GPFIFO_A                        /* clc36f.h */ 0x0000c36f
+#define TURING_CHANNEL_GPFIFO_A                       /* clc36f.h */ 0x0000c46f
 
 #define NV50_DISP                                     /* cl5070.h */ 0x00005070
 #define G82_DISP                                      /* cl5070.h */ 0x00008270

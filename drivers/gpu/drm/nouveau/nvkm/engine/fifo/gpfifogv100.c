@@ -62,7 +62,7 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 	return ret;
 }
 
-static int
+int
 gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine, bool suspend)
 {
@@ -85,7 +85,7 @@ gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 	return ret;
 }
 
-static int
+int
 gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 			      struct nvkm_engine *engine)
 {

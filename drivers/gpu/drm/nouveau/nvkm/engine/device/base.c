@@ -2458,6 +2458,7 @@ nv164_chipset = {
 	.top = gk104_top_new,
 	.disp = tu104_disp_new,
 	.dma = gv100_dma_new,
+	.fifo = tu104_fifo_new,
 };
 
 static int
