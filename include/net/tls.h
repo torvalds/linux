@@ -76,6 +76,10 @@
  *
  * void (*unhash)(struct tls_device *device, struct sock *sk);
  *     This function cleans listen state set by Inline TLS driver
+ *
+ * void (*release)(struct kref *kref);
+ *     Release the registered device and allocated resources
+ * @kref: Number of reference to tls_device
  */
 struct tls_device {
 	char name[TLS_DEVICE_NAME_MAX];
@@ -83,6 +87,8 @@ struct tls_device {
 	int  (*feature)(struct tls_device *device);
 	int  (*hash)(struct tls_device *device, struct sock *sk);
 	void (*unhash)(struct tls_device *device, struct sock *sk);
+	void (*release)(struct kref *kref);
+	struct kref kref;
 };
 
 enum {
