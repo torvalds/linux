@@ -172,7 +172,6 @@ static int mlx5_netdev_event(struct notifier_block *this,
 
 	switch (event) {
 	case NETDEV_REGISTER:
-	case NETDEV_UNREGISTER:
 		write_lock(&roce->netdev_lock);
 		if (ibdev->rep) {
 			struct mlx5_eswitch *esw = ibdev->mdev->priv.eswitch;
@@ -181,12 +180,17 @@ static int mlx5_netdev_event(struct notifier_block *this,
 			rep_ndev = mlx5_ib_get_rep_netdev(esw,
 							  ibdev->rep->vport);
 			if (rep_ndev == ndev)
-				roce->netdev = (event == NETDEV_UNREGISTER) ?
-					NULL : ndev;
+				roce->netdev = ndev;
 		} else if (ndev->dev.parent == &mdev->pdev->dev) {
-			roce->netdev = (event == NETDEV_UNREGISTER) ?
-				NULL : ndev;
+			roce->netdev = ndev;
 		}
+		write_unlock(&roce->netdev_lock);
+		break;
+
+	case NETDEV_UNREGISTER:
+		write_lock(&roce->netdev_lock);
+		if (roce->netdev == ndev)
+			roce->netdev = NULL;
 		write_unlock(&roce->netdev_lock);
 		break;
 
