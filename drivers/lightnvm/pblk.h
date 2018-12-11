@@ -1388,12 +1388,15 @@ static inline unsigned int pblk_get_min_chks(struct pblk *pblk)
 static inline struct pblk_sec_meta *pblk_get_meta(struct pblk *pblk,
 							 void *meta, int index)
 {
-	return meta + pblk->oob_meta_size * index;
+	return meta +
+	       max_t(int, sizeof(struct pblk_sec_meta), pblk->oob_meta_size)
+	       * index;
 }
 
 static inline int pblk_dma_meta_size(struct pblk *pblk)
 {
-	return pblk->oob_meta_size * NVM_MAX_VLBA;
+	return max_t(int, sizeof(struct pblk_sec_meta), pblk->oob_meta_size)
+	       * NVM_MAX_VLBA;
 }
 
 static inline int pblk_is_oob_meta_supported(struct pblk *pblk)
