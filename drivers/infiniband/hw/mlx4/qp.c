@@ -401,7 +401,7 @@ static int set_kernel_sq_size(struct mlx4_ib_dev *dev, struct ib_qp_cap *cap,
 	 * We need to leave 2 KB + 1 WR of headroom in the SQ to
 	 * allow HW to prefetch.
 	 */
-	qp->sq_spare_wqes = (2048 >> qp->sq.wqe_shift) + 1;
+	qp->sq_spare_wqes = MLX4_IB_SQ_HEADROOM(qp->sq.wqe_shift);
 	qp->sq.wqe_cnt = roundup_pow_of_two(cap->max_send_wr +
 					    qp->sq_spare_wqes);
 
