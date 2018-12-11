@@ -31,7 +31,6 @@ struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 static struct menu *current_menu, *current_entry;
 
 %}
-%expect 6
 
 %union
 {
@@ -138,12 +137,6 @@ common_stmt:
 	| assignment_stmt
 ;
 
-option_error:
-	  T_WORD error T_EOL		{ zconf_error("unknown option \"%s\"", $1); }
-	| error T_EOL			{ zconf_error("invalid option"); }
-;
-
-
 /* config/menuconfig entry */
 
 config_entry_start: T_CONFIG nonconst_symbol T_EOL
@@ -180,7 +173,6 @@ config_option_list:
 	| config_option_list symbol_option
 	| config_option_list depends
 	| config_option_list help
-	| config_option_list option_error
 ;
 
 config_option: T_TYPE prompt_stmt_opt T_EOL
@@ -280,7 +272,6 @@ choice_option_list:
 	| choice_option_list choice_option
 	| choice_option_list depends
 	| choice_option_list help
-	| choice_option_list option_error
 ;
 
 choice_option: T_PROMPT prompt if_expr T_EOL
@@ -429,7 +420,6 @@ help: help_start T_HELPTEXT
 depends_list:
 	  /* empty */
 	| depends_list depends
-	| depends_list option_error
 ;
 
 depends: T_DEPENDS T_ON expr T_EOL
