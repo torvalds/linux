@@ -2438,6 +2438,7 @@ static const struct nvkm_device_chip
 nv164_chipset = {
 	.name = "TU104",
 	.bios = nvkm_bios_new,
+	.devinit = tu104_devinit_new,
 	.pci = gp100_pci_new,
 };
 
