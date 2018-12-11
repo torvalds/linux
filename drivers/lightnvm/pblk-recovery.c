@@ -334,6 +334,7 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 			       struct pblk_recov_alloc p)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
+	struct pblk_line_meta *lm = &pblk->lm;
 	struct nvm_geo *geo = &dev->geo;
 	struct ppa_addr *ppa_list;
 	struct pblk_sec_meta *meta_list;
@@ -342,12 +343,12 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 	void *data;
 	dma_addr_t dma_ppa_list, dma_meta_list;
 	__le64 *lba_list;
-	u64 paddr = 0;
+	u64 paddr = pblk_line_smeta_start(pblk, line) + lm->smeta_sec;
 	bool padded = false;
 	int rq_ppas, rq_len;
 	int i, j;
 	int ret;
-	u64 left_ppas = pblk_sec_in_open_line(pblk, line);
+	u64 left_ppas = pblk_sec_in_open_line(pblk, line) - lm->smeta_sec;
 
 	if (pblk_line_wp_is_unbalanced(pblk, line))
 		pblk_warn(pblk, "recovering unbalanced line (%d)\n", line->id);
