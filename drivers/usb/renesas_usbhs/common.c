@@ -841,7 +841,7 @@ static int usbhs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int usbhsc_suspend(struct device *dev)
+static __maybe_unused int usbhsc_suspend(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct usbhs_mod *mod = usbhs_mod_get_current(priv);
@@ -857,7 +857,7 @@ static int usbhsc_suspend(struct device *dev)
 	return 0;
 }
 
-static int usbhsc_resume(struct device *dev)
+static __maybe_unused int usbhsc_resume(struct device *dev)
 {
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
