@@ -341,7 +341,7 @@ menu: T_MENU prompt T_EOL
 	printd(DEBUG_PARSE, "%s:%d:menu\n", zconf_curname(), zconf_lineno());
 };
 
-menu_entry: menu visibility_list depends_list
+menu_entry: menu menu_option_list
 {
 	$$ = menu_add_menu();
 };
@@ -355,6 +355,12 @@ menu_end: end
 };
 
 menu_stmt: menu_entry stmt_list menu_end
+;
+
+menu_option_list:
+	  /* empty */
+	| menu_option_list visible
+	| menu_option_list depends
 ;
 
 source_stmt: T_SOURCE prompt T_EOL
@@ -414,12 +420,6 @@ depends: T_DEPENDS T_ON expr T_EOL
 };
 
 /* visibility option */
-
-visibility_list:
-	  /* empty */
-	| visibility_list visible
-;
-
 visible: T_VISIBLE if_expr T_EOL
 {
 	menu_add_visibility($2);
