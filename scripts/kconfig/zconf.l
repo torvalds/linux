@@ -88,12 +88,6 @@ n	[A-Za-z0-9_-]
 	return T_EOL;
 }
 [ \t]*#.*
-
-
-[ \t]+	{
-	BEGIN(COMMAND);
-}
-
 .	{
 	unput(yytext[0]);
 	BEGIN(COMMAND);
