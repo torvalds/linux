@@ -1107,6 +1107,7 @@ config VIDEO_I2C
 	  Enable the I2C transport video support which supports the
 	  following:
 	   * Panasonic AMG88xx Grid-Eye Sensors
+	   * Melexis MLX90640 Thermal Cameras
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called video-i2c
