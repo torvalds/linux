@@ -2446,6 +2446,7 @@ nv164_chipset = {
 	.i2c = gm200_i2c_new,
 	.ibus = gm200_ibus_new,
 	.imem = nv50_instmem_new,
+	.ltc = gp102_ltc_new,
 	.mc = tu104_mc_new,
 	.pci = gp100_pci_new,
 	.timer = gk20a_timer_new,
