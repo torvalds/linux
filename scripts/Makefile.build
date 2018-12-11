@@ -98,17 +98,12 @@ modkern_cflags =                                          \
 	$(if $(part-of-module),                           \
 		$(KBUILD_CFLAGS_MODULE) $(CFLAGS_MODULE), \
 		$(KBUILD_CFLAGS_KERNEL) $(CFLAGS_KERNEL))
-quiet_modtag := $(empty)   $(empty)
+quiet_modtag = $(if $(part-of-module),[M],   )
 
 $(real-obj-m)        : part-of-module := y
 $(real-obj-m:.o=.i)  : part-of-module := y
 $(real-obj-m:.o=.s)  : part-of-module := y
 $(real-obj-m:.o=.lst): part-of-module := y
-
-$(real-obj-m)        : quiet_modtag := [M]
-$(real-obj-m:.o=.i)  : quiet_modtag := [M]
-$(real-obj-m:.o=.s)  : quiet_modtag := [M]
-$(real-obj-m:.o=.lst): quiet_modtag := [M]
 
 quiet_cmd_cc_s_c = CC $(quiet_modtag)  $@
 cmd_cc_s_c       = $(CC) $(c_flags) $(DISABLE_LTO) -fverbose-asm -S -o $@ $<
