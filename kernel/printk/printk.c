@@ -1228,12 +1228,14 @@ static inline void boot_delay_msec(int level)
 static bool printk_time = IS_ENABLED(CONFIG_PRINTK_TIME);
 module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
+static size_t print_syslog(unsigned int level, char *buf)
+{
+	return sprintf(buf, "<%u>", level);
+}
+
 static size_t print_time(u64 ts, char *buf)
 {
 	unsigned long rem_nsec = do_div(ts, 1000000000);
-
-	if (!buf)
-		return snprintf(NULL, 0, "[%5lu.000000] ", (unsigned long)ts);
 
 	return sprintf(buf, "[%5lu.%06lu] ",
 		       (unsigned long)ts, rem_nsec / 1000);
@@ -1243,24 +1245,11 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog,
 			   bool time, char *buf)
 {
 	size_t len = 0;
-	unsigned int prefix = (msg->facility << 3) | msg->level;
 
-	if (syslog) {
-		if (buf) {
-			len += sprintf(buf, "<%u>", prefix);
-		} else {
-			len += 3;
-			if (prefix > 999)
-				len += 3;
-			else if (prefix > 99)
-				len += 2;
-			else if (prefix > 9)
-				len++;
-		}
-	}
-
+	if (syslog)
+		len = print_syslog((msg->facility << 3) | msg->level, buf);
 	if (time)
-		len += print_time(msg->ts_nsec, buf ? buf + len : NULL);
+		len += print_time(msg->ts_nsec, buf + len);
 	return len;
 }
 
@@ -1270,6 +1259,8 @@ static size_t msg_print_text(const struct printk_log *msg, bool syslog,
 	const char *text = log_text(msg);
 	size_t text_size = msg->text_len;
 	size_t len = 0;
+	char prefix[PREFIX_MAX];
+	const size_t prefix_len = print_prefix(msg, syslog, time, prefix);
 
 	do {
 		const char *next = memchr(text, '\n', text_size);
@@ -1284,19 +1275,17 @@ static size_t msg_print_text(const struct printk_log *msg, bool syslog,
 		}
 
 		if (buf) {
-			if (print_prefix(msg, syslog, time, NULL) +
-			    text_len + 1 >= size - len)
+			if (prefix_len + text_len + 1 >= size - len)
 				break;
 
-			len += print_prefix(msg, syslog, time, buf + len);
+			memcpy(buf + len, prefix, prefix_len);
+			len += prefix_len;
 			memcpy(buf + len, text, text_len);
 			len += text_len;
 			buf[len++] = '\n';
 		} else {
 			/* SYSLOG_ACTION_* buffer size only calculation */
-			len += print_prefix(msg, syslog, time, NULL);
-			len += text_len;
-			len++;
+			len += prefix_len + text_len + 1;
 		}
 
 		text = next;
