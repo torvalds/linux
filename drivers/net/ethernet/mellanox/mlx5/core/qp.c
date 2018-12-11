@@ -38,11 +38,11 @@
 #include <linux/mlx5/transobj.h>
 
 #include "mlx5_core.h"
+#include "lib/eq.h"
 
-static struct mlx5_core_rsc_common *mlx5_get_rsc(struct mlx5_core_dev *dev,
-						 u32 rsn)
+static struct mlx5_core_rsc_common *
+mlx5_get_rsc(struct mlx5_qp_table *table, u32 rsn)
 {
-	struct mlx5_qp_table *table = &dev->priv.qp_table;
 	struct mlx5_core_rsc_common *common;
 
 	spin_lock(&table->lock);
@@ -53,11 +53,6 @@ static struct mlx5_core_rsc_common *mlx5_get_rsc(struct mlx5_core_dev *dev,
 
 	spin_unlock(&table->lock);
 
-	if (!common) {
-		mlx5_core_warn(dev, "Async event for bogus resource 0x%x\n",
-			       rsn);
-		return NULL;
-	}
 	return common;
 }
 
@@ -120,19 +115,57 @@ static bool is_event_type_allowed(int rsc_type, int event_type)
 	}
 }
 
-void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
+static int rsc_event_notifier(struct notifier_block *nb,
+			      unsigned long type, void *data)
 {
-	struct mlx5_core_rsc_common *common = mlx5_get_rsc(dev, rsn);
+	struct mlx5_core_rsc_common *common;
+	struct mlx5_qp_table *table;
+	struct mlx5_core_dev *dev;
 	struct mlx5_core_dct *dct;
+	u8 event_type = (u8)type;
 	struct mlx5_core_qp *qp;
+	struct mlx5_priv *priv;
+	struct mlx5_eqe *eqe;
+	u32 rsn;
 
-	if (!common)
-		return;
+	switch (event_type) {
+	case MLX5_EVENT_TYPE_DCT_DRAINED:
+		eqe = data;
+		rsn = be32_to_cpu(eqe->data.dct.dctn) & 0xffffff;
+		rsn |= (MLX5_RES_DCT << MLX5_USER_INDEX_LEN);
+		break;
+	case MLX5_EVENT_TYPE_PATH_MIG:
+	case MLX5_EVENT_TYPE_COMM_EST:
+	case MLX5_EVENT_TYPE_SQ_DRAINED:
+	case MLX5_EVENT_TYPE_SRQ_LAST_WQE:
+	case MLX5_EVENT_TYPE_WQ_CATAS_ERROR:
+	case MLX5_EVENT_TYPE_PATH_MIG_FAILED:
+	case MLX5_EVENT_TYPE_WQ_INVAL_REQ_ERROR:
+	case MLX5_EVENT_TYPE_WQ_ACCESS_ERROR:
+		eqe = data;
+		rsn = be32_to_cpu(eqe->data.qp_srq.qp_srq_n) & 0xffffff;
+		rsn |= (eqe->data.qp_srq.type << MLX5_USER_INDEX_LEN);
+		break;
+	default:
+		return NOTIFY_DONE;
+	}
+
+	table = container_of(nb, struct mlx5_qp_table, nb);
+	priv  = container_of(table, struct mlx5_priv, qp_table);
+	dev   = container_of(priv, struct mlx5_core_dev, priv);
+
+	mlx5_core_dbg(dev, "event (%d) arrived on resource 0x%x\n", eqe->type, rsn);
+
+	common = mlx5_get_rsc(table, rsn);
+	if (!common) {
+		mlx5_core_warn(dev, "Async event for bogus resource 0x%x\n", rsn);
+		return NOTIFY_OK;
+	}
 
 	if (!is_event_type_allowed((rsn >> MLX5_USER_INDEX_LEN), event_type)) {
 		mlx5_core_warn(dev, "event 0x%.2x is not allowed on resource 0x%.8x\n",
 			       event_type, rsn);
-		return;
+		goto out;
 	}
 
 	switch (common->res) {
@@ -150,8 +183,10 @@ void mlx5_rsc_event(struct mlx5_core_dev *dev, u32 rsn, int event_type)
 	default:
 		mlx5_core_warn(dev, "invalid resource type for 0x%x\n", rsn);
 	}
-
+out:
 	mlx5_core_put_rsc(common);
+
+	return NOTIFY_OK;
 }
 
 static int create_resource_common(struct mlx5_core_dev *dev,
@@ -487,10 +522,16 @@ void mlx5_init_qp_table(struct mlx5_core_dev *dev)
 	spin_lock_init(&table->lock);
 	INIT_RADIX_TREE(&table->tree, GFP_ATOMIC);
 	mlx5_qp_debugfs_init(dev);
+
+	table->nb.notifier_call = rsc_event_notifier;
+	mlx5_notifier_register(dev, &table->nb);
 }
 
 void mlx5_cleanup_qp_table(struct mlx5_core_dev *dev)
 {
+	struct mlx5_qp_table *table = &dev->priv.qp_table;
+
+	mlx5_notifier_unregister(dev, &table->nb);
 	mlx5_qp_debugfs_cleanup(dev);
 }
 
@@ -670,3 +711,20 @@ int mlx5_core_query_q_counter(struct mlx5_core_dev *dev, u16 counter_id,
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, out_size);
 }
 EXPORT_SYMBOL_GPL(mlx5_core_query_q_counter);
+
+struct mlx5_core_rsc_common *mlx5_core_res_hold(struct mlx5_core_dev *dev,
+						int res_num,
+						enum mlx5_res_type res_type)
+{
+	u32 rsn = res_num | (res_type << MLX5_USER_INDEX_LEN);
+	struct mlx5_qp_table *table = &dev->priv.qp_table;
+
+	return mlx5_get_rsc(table, rsn);
+}
+EXPORT_SYMBOL_GPL(mlx5_core_res_hold);
+
+void mlx5_core_res_put(struct mlx5_core_rsc_common *res)
+{
+	mlx5_core_put_rsc(res);
+}
+EXPORT_SYMBOL_GPL(mlx5_core_res_put);

@@ -53,13 +53,33 @@ struct mlx5e_neigh_update_table {
 	unsigned long           min_interval; /* jiffies */
 };
 
+struct mlx5_rep_uplink_priv {
+	/* Filters DB - instantiated by the uplink representor and shared by
+	 * the uplink's VFs
+	 */
+	struct rhashtable  tc_ht;
+
+	/* indirect block callbacks are invoked on bind/unbind events
+	 * on registered higher level devices (e.g. tunnel devices)
+	 *
+	 * tc_indr_block_cb_priv_list is used to lookup indirect callback
+	 * private data
+	 *
+	 * netdevice_nb is the netdev events notifier - used to register
+	 * tunnel devices for block events
+	 *
+	 */
+	struct list_head	    tc_indr_block_priv_list;
+	struct notifier_block	    netdevice_nb;
+};
+
 struct mlx5e_rep_priv {
 	struct mlx5_eswitch_rep *rep;
 	struct mlx5e_neigh_update_table neigh_update;
 	struct net_device      *netdev;
 	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
-	struct rhashtable      tc_ht; /* valid for uplink rep */
+	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
 };
 
 static inline
@@ -129,6 +149,8 @@ struct mlx5e_encap_entry {
 
 	struct net_device *out_dev;
 	int tunnel_type;
+	int tunnel_hlen;
+	int reformat_type;
 	u8 flags;
 	char *encap_header;
 	int encap_size;

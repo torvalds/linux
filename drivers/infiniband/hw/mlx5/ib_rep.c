@@ -4,6 +4,7 @@
  */
 
 #include "ib_rep.h"
+#include "srq.h"
 
 static const struct mlx5_ib_profile rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_INIT,
@@ -21,6 +22,9 @@ static const struct mlx5_ib_profile rep_profile = {
 	STAGE_CREATE(MLX5_IB_STAGE_ROCE,
 		     mlx5_ib_stage_rep_roce_init,
 		     mlx5_ib_stage_rep_roce_cleanup),
+	STAGE_CREATE(MLX5_IB_STAGE_SRQ,
+		     mlx5_init_srq_table,
+		     mlx5_cleanup_srq_table),
 	STAGE_CREATE(MLX5_IB_STAGE_DEVICE_RESOURCES,
 		     mlx5_ib_stage_dev_res_init,
 		     mlx5_ib_stage_dev_res_cleanup),
