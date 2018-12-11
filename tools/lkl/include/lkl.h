@@ -35,7 +35,7 @@ extern "C" {
 int inet_pton(int af, const char *src, void *dst);
 #endif
 
-#if defined(__ANDROID__) && __LKL__BITS_PER_LONG == 32
+#if __LKL__BITS_PER_LONG == 32 && (defined(__ANDROID__) || defined(__i386__))
 #define __lkl__NR_fcntl __lkl__NR_fcntl64
 #endif
 
