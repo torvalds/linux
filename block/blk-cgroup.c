@@ -202,6 +202,12 @@ static struct blkcg_gq *blkg_create(struct blkcg *blkcg,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(&q->queue_lock);
 
+	/* request_queue is dying, do not create/recreate a blkg */
+	if (blk_queue_dying(q)) {
+		ret = -ENODEV;
+		goto err_free_blkg;
+	}
+
 	/* blkg holds a reference to blkcg */
 	if (!css_tryget_online(&blkcg->css)) {
 		ret = -ENODEV;

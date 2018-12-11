@@ -511,7 +511,7 @@ static inline bool blkg_tryget(struct blkcg_gq *blkg)
  */
 static inline struct blkcg_gq *blkg_tryget_closest(struct blkcg_gq *blkg)
 {
-	while (!percpu_ref_tryget(&blkg->refcnt))
+	while (blkg && !percpu_ref_tryget(&blkg->refcnt))
 		blkg = blkg->parent;
 
 	return blkg;
