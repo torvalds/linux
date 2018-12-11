@@ -147,7 +147,7 @@ int pblk_rb_init(struct pblk_rb *rb, unsigned int size, unsigned int threshold,
 
 	/*
 	 * Initialize rate-limiter, which controls access to the write buffer
-	 * but user and GC I/O
+	 * by user and GC I/O
 	 */
 	pblk_rl_init(&pblk->rl, rb->nr_entries);
 
