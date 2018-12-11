@@ -490,7 +490,7 @@ config USB_CONFIGFS_F_UVC
 config USB_CONFIGFS_F_UVC_ROCKCHIP
 	bool "Rockchip USB Webcam function"
 	depends on USB_CONFIGFS_F_UVC && ARCH_ROCKCHIP
-	default y
+	default n
 	help
 	  The Rockchip USB Webcam function is used for Rockchip ISP IQ tool.
 	  Enable this option will increase the UVC_MAX_REQUEST_SIZE from
