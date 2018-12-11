@@ -30,6 +30,10 @@
 	>;
 };
 
+&ocotp {
+	compatible = "fsl,imx6ull-ocotp", "syscon";
+};
+
 / {
 	soc {
 		aips3: aips-bus@2200000 {
