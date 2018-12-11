@@ -514,9 +514,14 @@ static void marvell_nfc_enable_int(struct marvell_nfc *nfc, u32 int_mask)
 	writel_relaxed(reg & ~int_mask, nfc->regs + NDCR);
 }
 
-static void marvell_nfc_clear_int(struct marvell_nfc *nfc, u32 int_mask)
+static u32 marvell_nfc_clear_int(struct marvell_nfc *nfc, u32 int_mask)
 {
+	u32 reg;
+
+	reg = readl_relaxed(nfc->regs + NDSR);
 	writel_relaxed(int_mask, nfc->regs + NDSR);
+
+	return reg & int_mask;
 }
 
 static void marvell_nfc_force_byte_access(struct nand_chip *chip,
@@ -683,6 +688,7 @@ static int marvell_nfc_wait_cmdd(struct nand_chip *chip)
 static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 {
 	struct marvell_nfc *nfc = to_marvell_nfc(chip->controller);
+	u32 pending;
 	int ret;
 
 	/* Timeout is expressed in ms */
@@ -695,8 +701,13 @@ static int marvell_nfc_wait_op(struct nand_chip *chip, unsigned int timeout_ms)
 	ret = wait_for_completion_timeout(&nfc->complete,
 					  msecs_to_jiffies(timeout_ms));
 	marvell_nfc_disable_int(nfc, NDCR_RDYM);
-	marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
-	if (!ret) {
+	pending = marvell_nfc_clear_int(nfc, NDSR_RDY(0) | NDSR_RDY(1));
+
+	/*
+	 * In case the interrupt was not served in the required time frame,
+	 * check if the ISR was not served or if something went actually wrong.
+	 */
+	if (ret && !pending) {
 		dev_err(nfc->dev, "Timeout waiting for RB signal\n");
 		return -ETIMEDOUT;
 	}
