@@ -13,6 +13,9 @@
  * General Public License for more details.
  *
  * pblk-recovery.c - pblk's recovery path
+ *
+ * The L2P recovery path is single threaded as the L2P table is updated in order
+ * following the line sequence ID.
  */
 
 #include "pblk.h"
