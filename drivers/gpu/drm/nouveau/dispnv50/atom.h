@@ -54,7 +54,7 @@ struct nv50_head_atom {
 		u64 offset:40;
 		u8 buffer:1;
 		u8 mode:4;
-		u8 size:2;
+		u16 size:11;
 		u8 range:2;
 		u8 output_mode:2;
 		void (*load)(struct drm_color_lut *, int size, void __iomem *);
@@ -170,7 +170,7 @@ struct nv50_wndw_atom {
 			u8  buffer:1;
 			u8  enable:2;
 			u8  mode:4;
-			u8  size:2;
+			u16 size:11;
 			u8  range:2;
 			u8  output_mode:2;
 			void (*load)(struct drm_color_lut *, int size,

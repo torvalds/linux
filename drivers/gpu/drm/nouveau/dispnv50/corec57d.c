@@ -22,57 +22,8 @@
 #include "core.h"
 #include "head.h"
 
-#include <nouveau_bo.h>
-
-void
-corec37d_update(struct nv50_core *core, u32 *interlock, bool ntfy)
-{
-	u32 *push;
-	if ((push = evo_wait(&core->chan, 9))) {
-		if (ntfy) {
-			evo_mthd(push, 0x020c, 1);
-			evo_data(push, 0x00001000 | NV50_DISP_CORE_NTFY);
-		}
-
-		evo_mthd(push, 0x0218, 2);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_CURS]);
-		evo_data(push, interlock[NV50_DISP_INTERLOCK_WNDW]);
-		evo_mthd(push, 0x0200, 1);
-		evo_data(push, 0x00000001);
-
-		if (ntfy) {
-			evo_mthd(push, 0x020c, 1);
-			evo_data(push, 0x00000000);
-		}
-		evo_kick(push, &core->chan);
-	}
-}
-
-int
-corec37d_ntfy_wait_done(struct nouveau_bo *bo, u32 offset,
-			struct nvif_device *device)
-{
-	u32 data;
-	s64 time = nvif_msec(device, 2000ULL,
-		data = nouveau_bo_rd32(bo, offset / 4 + 0);
-		if ((data & 0xc0000000) == 0x80000000)
-			break;
-		usleep_range(1, 2);
-	);
-	return time < 0 ? time : 0;
-}
-
-void
-corec37d_ntfy_init(struct nouveau_bo *bo, u32 offset)
-{
-	nouveau_bo_wr32(bo, offset / 4 + 0, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 1, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 2, 0x00000000);
-	nouveau_bo_wr32(bo, offset / 4 + 3, 0x00000000);
-}
-
 static void
-corec37d_init(struct nv50_core *core)
+corec57d_init(struct nv50_core *core)
 {
 	const u32 windows = 8; /*XXX*/
 	u32 *push, i;
@@ -82,10 +33,10 @@ corec37d_init(struct nv50_core *core)
 		for (i = 0; i < windows; i++) {
 			evo_mthd(push, 0x1000 + (i * 0x080), 3);
 			evo_data(push, i >> 1);
-			evo_data(push, 0x00000017);
+			evo_data(push, 0x0000000f);
 			evo_data(push, 0x00000000);
 			evo_mthd(push, 0x1010 + (i * 0x080), 1);
-			evo_data(push, 0x00127fff);
+			evo_data(push, 0x00117fff);
 		}
 		evo_mthd(push, 0x0200, 1);
 		evo_data(push, 0x00000001);
@@ -94,17 +45,17 @@ corec37d_init(struct nv50_core *core)
 }
 
 static const struct nv50_core_func
-corec37d = {
-	.init = corec37d_init,
+corec57d = {
+	.init = corec57d_init,
 	.ntfy_init = corec37d_ntfy_init,
 	.ntfy_wait_done = corec37d_ntfy_wait_done,
 	.update = corec37d_update,
-	.head = &headc37d,
+	.head = &headc57d,
 	.sor = &sorc37d,
 };
 
 int
-corec37d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
+corec57d_new(struct nouveau_drm *drm, s32 oclass, struct nv50_core **pcore)
 {
-	return core507d_new_(&corec37d, drm, oclass, pcore);
+	return core507d_new_(&corec57d, drm, oclass, pcore);
 }
