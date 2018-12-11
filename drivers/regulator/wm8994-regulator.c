@@ -172,6 +172,11 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 		ldo->init_data = *pdata->ldo[id].init_data;
 	}
 
+	/*
+	 * At this point the GPIO descriptor is handled over to the
+	 * regulator core and we need not worry about it on the
+	 * error path.
+	 */
 	ldo->regulator = devm_regulator_register(&pdev->dev,
 						 &wm8994_ldo_desc[id],
 						 &config);
@@ -179,16 +184,12 @@ static int wm8994_ldo_probe(struct platform_device *pdev)
 		ret = PTR_ERR(ldo->regulator);
 		dev_err(wm8994->dev, "Failed to register LDO%d: %d\n",
 			id + 1, ret);
-		goto err;
+		return ret;
 	}
 
 	platform_set_drvdata(pdev, ldo);
 
 	return 0;
-
-err:
-	gpiod_put(gpiod);
-	return ret;
 }
 
 static struct platform_driver wm8994_ldo_driver = {
