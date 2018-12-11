@@ -104,7 +104,6 @@ enum {
 	PBLK_RL_LOW = 4
 };
 
-#define pblk_dma_meta_size (sizeof(struct pblk_sec_meta) * NVM_MAX_VLBA)
 #define pblk_dma_ppa_size (sizeof(u64) * NVM_MAX_VLBA)
 
 /* write buffer completion context */
@@ -1387,5 +1386,10 @@ static inline struct pblk_sec_meta *pblk_get_meta(struct pblk *pblk,
 							 void *meta, int index)
 {
 	return meta + pblk->oob_meta_size * index;
+}
+
+static inline int pblk_dma_meta_size(struct pblk *pblk)
+{
+	return pblk->oob_meta_size * NVM_MAX_VLBA;
 }
 #endif /* PBLK_H_ */
