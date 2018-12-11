@@ -48,7 +48,6 @@
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/vfs.h>
 
 #include <bpf.h>
@@ -276,7 +275,7 @@ int get_fd_type(int fd)
 	char buf[512];
 	ssize_t n;
 
-	snprintf(path, sizeof(path), "/proc/%d/fd/%d", getpid(), fd);
+	snprintf(path, sizeof(path), "/proc/self/fd/%d", fd);
 
 	n = readlink(path, buf, sizeof(buf));
 	if (n < 0) {
@@ -304,7 +303,7 @@ char *get_fdinfo(int fd, const char *key)
 	ssize_t n;
 	FILE *fdi;
 
-	snprintf(path, sizeof(path), "/proc/%d/fdinfo/%d", getpid(), fd);
+	snprintf(path, sizeof(path), "/proc/self/fdinfo/%d", fd);
 
 	fdi = fopen(path, "r");
 	if (!fdi) {
@@ -605,7 +604,7 @@ void print_dev_plain(__u32 ifindex, __u64 ns_dev, __u64 ns_inode)
 	if (!ifindex)
 		return;
 
-	printf(" dev ");
+	printf("  offloaded_to ");
 	if (ifindex_to_name_ns(ifindex, ns_dev, ns_inode, name))
 		printf("%s", name);
 	else

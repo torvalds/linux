@@ -342,6 +342,19 @@ int libbpf_nl_get_qdisc(int sock, unsigned int nl_pid, int ifindex,
 int libbpf_nl_get_filter(int sock, unsigned int nl_pid, int ifindex, int handle,
 			 libbpf_dump_nlmsg_t dump_filter_nlmsg, void *cookie);
 
+struct bpf_prog_linfo;
+struct bpf_prog_info;
+
+LIBBPF_API void bpf_prog_linfo__free(struct bpf_prog_linfo *prog_linfo);
+LIBBPF_API struct bpf_prog_linfo *
+bpf_prog_linfo__new(const struct bpf_prog_info *info);
+LIBBPF_API const struct bpf_line_info *
+bpf_prog_linfo__lfind_addr_func(const struct bpf_prog_linfo *prog_linfo,
+				__u64 addr, __u32 func_idx, __u32 nr_skip);
+LIBBPF_API const struct bpf_line_info *
+bpf_prog_linfo__lfind(const struct bpf_prog_linfo *prog_linfo,
+		      __u32 insn_off, __u32 nr_skip);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

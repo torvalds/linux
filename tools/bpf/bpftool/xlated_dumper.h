@@ -40,6 +40,8 @@
 
 #define SYM_MAX_NAME	256
 
+struct bpf_prog_linfo;
+
 struct kernel_sym {
 	unsigned long address;
 	char name[SYM_MAX_NAME];
@@ -54,6 +56,7 @@ struct dump_data {
 	struct btf *btf;
 	void *func_info;
 	__u32 finfo_rec_size;
+	const struct bpf_prog_linfo *prog_linfo;
 	char scratch_buff[SYM_MAX_NAME + 8];
 };
 
@@ -61,9 +64,9 @@ void kernel_syms_load(struct dump_data *dd);
 void kernel_syms_destroy(struct dump_data *dd);
 struct kernel_sym *kernel_syms_search(struct dump_data *dd, unsigned long key);
 void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
-		      bool opcodes);
+		       bool opcodes, bool linum);
 void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
-		       bool opcodes);
+		       bool opcodes, bool linum);
 void dump_xlated_for_graph(struct dump_data *dd, void *buf, void *buf_end,
 			   unsigned int start_index);
 

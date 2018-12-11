@@ -3584,12 +3584,15 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 			return err;
 
 		if (BPF_SRC(insn->code) == BPF_X) {
+			struct bpf_reg_state *src_reg = regs + insn->src_reg;
+			struct bpf_reg_state *dst_reg = regs + insn->dst_reg;
+
 			if (BPF_CLASS(insn->code) == BPF_ALU64) {
 				/* case: R1 = R2
 				 * copy register state to dest reg
 				 */
-				regs[insn->dst_reg] = regs[insn->src_reg];
-				regs[insn->dst_reg].live |= REG_LIVE_WRITTEN;
+				*dst_reg = *src_reg;
+				dst_reg->live |= REG_LIVE_WRITTEN;
 			} else {
 				/* R1 = (u32) R2 */
 				if (is_pointer_value(env, insn->src_reg)) {
@@ -3597,9 +3600,14 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 						"R%d partial copy of pointer\n",
 						insn->src_reg);
 					return -EACCES;
+				} else if (src_reg->type == SCALAR_VALUE) {
+					*dst_reg = *src_reg;
+					dst_reg->live |= REG_LIVE_WRITTEN;
+				} else {
+					mark_reg_unknown(env, regs,
+							 insn->dst_reg);
 				}
-				mark_reg_unknown(env, regs, insn->dst_reg);
-				coerce_reg_to_size(&regs[insn->dst_reg], 4);
+				coerce_reg_to_size(dst_reg, 4);
 			}
 		} else {
 			/* case: R = imm
@@ -3647,11 +3655,6 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		if ((opcode == BPF_MOD || opcode == BPF_DIV) &&
 		    BPF_SRC(insn->code) == BPF_K && insn->imm == 0) {
 			verbose(env, "div by zero\n");
-			return -EINVAL;
-		}
-
-		if (opcode == BPF_ARSH && BPF_CLASS(insn->code) != BPF_ALU64) {
-			verbose(env, "BPF_ARSH not supported for 32 bit ALU\n");
 			return -EINVAL;
 		}
 
@@ -4713,15 +4716,17 @@ err_free:
 #define MIN_BPF_FUNCINFO_SIZE	8
 #define MAX_FUNCINFO_REC_SIZE	252
 
-static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
-			  union bpf_attr *attr, union bpf_attr __user *uattr)
+static int check_btf_func(struct bpf_verifier_env *env,
+			  const union bpf_attr *attr,
+			  union bpf_attr __user *uattr)
 {
 	u32 i, nfuncs, urec_size, min_size, prev_offset;
 	u32 krec_size = sizeof(struct bpf_func_info);
-	struct bpf_func_info *krecord = NULL;
+	struct bpf_func_info *krecord;
 	const struct btf_type *type;
+	struct bpf_prog *prog;
+	const struct btf *btf;
 	void __user *urecord;
-	struct btf *btf;
 	int ret = 0;
 
 	nfuncs = attr->func_info_cnt;
@@ -4741,20 +4746,15 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	btf = btf_get_by_fd(attr->prog_btf_fd);
-	if (IS_ERR(btf)) {
-		verbose(env, "unable to get btf from fd\n");
-		return PTR_ERR(btf);
-	}
+	prog = env->prog;
+	btf = prog->aux->btf;
 
 	urecord = u64_to_user_ptr(attr->func_info);
 	min_size = min_t(u32, krec_size, urec_size);
 
 	krecord = kvcalloc(nfuncs, krec_size, GFP_KERNEL | __GFP_NOWARN);
-	if (!krecord) {
-		ret = -ENOMEM;
-		goto free_btf;
-	}
+	if (!krecord)
+		return -ENOMEM;
 
 	for (i = 0; i < nfuncs; i++) {
 		ret = bpf_check_uarg_tail_zero(urecord, krec_size, urec_size);
@@ -4767,35 +4767,35 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
 				if (put_user(min_size, &uattr->func_info_rec_size))
 					ret = -EFAULT;
 			}
-			goto free_btf;
+			goto err_free;
 		}
 
 		if (copy_from_user(&krecord[i], urecord, min_size)) {
 			ret = -EFAULT;
-			goto free_btf;
+			goto err_free;
 		}
 
-		/* check insn_offset */
+		/* check insn_off */
 		if (i == 0) {
-			if (krecord[i].insn_offset) {
+			if (krecord[i].insn_off) {
 				verbose(env,
-					"nonzero insn_offset %u for the first func info record",
-					krecord[i].insn_offset);
+					"nonzero insn_off %u for the first func info record",
+					krecord[i].insn_off);
 				ret = -EINVAL;
-				goto free_btf;
+				goto err_free;
 			}
-		} else if (krecord[i].insn_offset <= prev_offset) {
+		} else if (krecord[i].insn_off <= prev_offset) {
 			verbose(env,
 				"same or smaller insn offset (%u) than previous func info record (%u)",
-				krecord[i].insn_offset, prev_offset);
+				krecord[i].insn_off, prev_offset);
 			ret = -EINVAL;
-			goto free_btf;
+			goto err_free;
 		}
 
-		if (env->subprog_info[i].start != krecord[i].insn_offset) {
+		if (env->subprog_info[i].start != krecord[i].insn_off) {
 			verbose(env, "func_info BTF section doesn't match subprog layout in BPF program\n");
 			ret = -EINVAL;
-			goto free_btf;
+			goto err_free;
 		}
 
 		/* check type_id */
@@ -4804,20 +4804,18 @@ static int check_btf_func(struct bpf_prog *prog, struct bpf_verifier_env *env,
 			verbose(env, "invalid type id %d in func info",
 				krecord[i].type_id);
 			ret = -EINVAL;
-			goto free_btf;
+			goto err_free;
 		}
 
-		prev_offset = krecord[i].insn_offset;
+		prev_offset = krecord[i].insn_off;
 		urecord += urec_size;
 	}
 
-	prog->aux->btf = btf;
 	prog->aux->func_info = krecord;
 	prog->aux->func_info_cnt = nfuncs;
 	return 0;
 
-free_btf:
-	btf_put(btf);
+err_free:
 	kvfree(krecord);
 	return ret;
 }
@@ -4830,7 +4828,151 @@ static void adjust_btf_func(struct bpf_verifier_env *env)
 		return;
 
 	for (i = 0; i < env->subprog_cnt; i++)
-		env->prog->aux->func_info[i].insn_offset = env->subprog_info[i].start;
+		env->prog->aux->func_info[i].insn_off = env->subprog_info[i].start;
+}
+
+#define MIN_BPF_LINEINFO_SIZE	(offsetof(struct bpf_line_info, line_col) + \
+		sizeof(((struct bpf_line_info *)(0))->line_col))
+#define MAX_LINEINFO_REC_SIZE	MAX_FUNCINFO_REC_SIZE
+
+static int check_btf_line(struct bpf_verifier_env *env,
+			  const union bpf_attr *attr,
+			  union bpf_attr __user *uattr)
+{
+	u32 i, s, nr_linfo, ncopy, expected_size, rec_size, prev_offset = 0;
+	struct bpf_subprog_info *sub;
+	struct bpf_line_info *linfo;
+	struct bpf_prog *prog;
+	const struct btf *btf;
+	void __user *ulinfo;
+	int err;
+
+	nr_linfo = attr->line_info_cnt;
+	if (!nr_linfo)
+		return 0;
+
+	rec_size = attr->line_info_rec_size;
+	if (rec_size < MIN_BPF_LINEINFO_SIZE ||
+	    rec_size > MAX_LINEINFO_REC_SIZE ||
+	    rec_size & (sizeof(u32) - 1))
+		return -EINVAL;
+
+	/* Need to zero it in case the userspace may
+	 * pass in a smaller bpf_line_info object.
+	 */
+	linfo = kvcalloc(nr_linfo, sizeof(struct bpf_line_info),
+			 GFP_KERNEL | __GFP_NOWARN);
+	if (!linfo)
+		return -ENOMEM;
+
+	prog = env->prog;
+	btf = prog->aux->btf;
+
+	s = 0;
+	sub = env->subprog_info;
+	ulinfo = u64_to_user_ptr(attr->line_info);
+	expected_size = sizeof(struct bpf_line_info);
+	ncopy = min_t(u32, expected_size, rec_size);
+	for (i = 0; i < nr_linfo; i++) {
+		err = bpf_check_uarg_tail_zero(ulinfo, expected_size, rec_size);
+		if (err) {
+			if (err == -E2BIG) {
+				verbose(env, "nonzero tailing record in line_info");
+				if (put_user(expected_size,
+					     &uattr->line_info_rec_size))
+					err = -EFAULT;
+			}
+			goto err_free;
+		}
+
+		if (copy_from_user(&linfo[i], ulinfo, ncopy)) {
+			err = -EFAULT;
+			goto err_free;
+		}
+
+		/*
+		 * Check insn_off to ensure
+		 * 1) strictly increasing AND
+		 * 2) bounded by prog->len
+		 *
+		 * The linfo[0].insn_off == 0 check logically falls into
+		 * the later "missing bpf_line_info for func..." case
+		 * because the first linfo[0].insn_off must be the
+		 * first sub also and the first sub must have
+		 * subprog_info[0].start == 0.
+		 */
+		if ((i && linfo[i].insn_off <= prev_offset) ||
+		    linfo[i].insn_off >= prog->len) {
+			verbose(env, "Invalid line_info[%u].insn_off:%u (prev_offset:%u prog->len:%u)\n",
+				i, linfo[i].insn_off, prev_offset,
+				prog->len);
+			err = -EINVAL;
+			goto err_free;
+		}
+
+		if (!btf_name_offset_valid(btf, linfo[i].line_off) ||
+		    !btf_name_offset_valid(btf, linfo[i].file_name_off)) {
+			verbose(env, "Invalid line_info[%u].line_off or .file_name_off\n", i);
+			err = -EINVAL;
+			goto err_free;
+		}
+
+		if (s != env->subprog_cnt) {
+			if (linfo[i].insn_off == sub[s].start) {
+				sub[s].linfo_idx = i;
+				s++;
+			} else if (sub[s].start < linfo[i].insn_off) {
+				verbose(env, "missing bpf_line_info for func#%u\n", s);
+				err = -EINVAL;
+				goto err_free;
+			}
+		}
+
+		prev_offset = linfo[i].insn_off;
+		ulinfo += rec_size;
+	}
+
+	if (s != env->subprog_cnt) {
+		verbose(env, "missing bpf_line_info for %u funcs starting from func#%u\n",
+			env->subprog_cnt - s, s);
+		err = -EINVAL;
+		goto err_free;
+	}
+
+	prog->aux->linfo = linfo;
+	prog->aux->nr_linfo = nr_linfo;
+
+	return 0;
+
+err_free:
+	kvfree(linfo);
+	return err;
+}
+
+static int check_btf_info(struct bpf_verifier_env *env,
+			  const union bpf_attr *attr,
+			  union bpf_attr __user *uattr)
+{
+	struct btf *btf;
+	int err;
+
+	if (!attr->func_info_cnt && !attr->line_info_cnt)
+		return 0;
+
+	btf = btf_get_by_fd(attr->prog_btf_fd);
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
+	env->prog->aux->btf = btf;
+
+	err = check_btf_func(env, attr, uattr);
+	if (err)
+		return err;
+
+	err = check_btf_line(env, attr, uattr);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 /* check %cur's range satisfies %old's */
@@ -6084,7 +6226,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	int i, j, subprog_start, subprog_end = 0, len, subprog;
 	struct bpf_insn *insn;
 	void *old_bpf_func;
-	int err = -ENOMEM;
+	int err;
 
 	if (env->subprog_cnt <= 1)
 		return 0;
@@ -6115,6 +6257,11 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		insn->imm = 1;
 	}
 
+	err = bpf_prog_alloc_jited_linfo(prog);
+	if (err)
+		goto out_undo_insn;
+
+	err = -ENOMEM;
 	func = kcalloc(env->subprog_cnt, sizeof(prog), GFP_KERNEL);
 	if (!func)
 		goto out_undo_insn;
@@ -6145,6 +6292,10 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		func[i]->aux->name[0] = 'F';
 		func[i]->aux->stack_depth = env->subprog_info[i].stack_depth;
 		func[i]->jit_requested = 1;
+		func[i]->aux->linfo = prog->aux->linfo;
+		func[i]->aux->nr_linfo = prog->aux->nr_linfo;
+		func[i]->aux->jited_linfo = prog->aux->jited_linfo;
+		func[i]->aux->linfo_idx = env->subprog_info[i].linfo_idx;
 		func[i] = bpf_int_jit_compile(func[i]);
 		if (!func[i]->jited) {
 			err = -ENOTSUPP;
@@ -6218,6 +6369,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	prog->bpf_func = func[0]->bpf_func;
 	prog->aux->func = func;
 	prog->aux->func_cnt = env->subprog_cnt;
+	bpf_prog_free_unused_jited_linfo(prog);
 	return 0;
 out_free:
 	for (i = 0; i < env->subprog_cnt; i++)
@@ -6234,6 +6386,7 @@ out_undo_insn:
 		insn->off = 0;
 		insn->imm = env->insn_aux_data[i].call_imm;
 	}
+	bpf_prog_free_jited_linfo(prog);
 	return err;
 }
 
@@ -6580,6 +6733,8 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 	env->strict_alignment = !!(attr->prog_flags & BPF_F_STRICT_ALIGNMENT);
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS))
 		env->strict_alignment = true;
+	if (attr->prog_flags & BPF_F_ANY_ALIGNMENT)
+		env->strict_alignment = false;
 
 	ret = replace_map_fd_with_map_ptr(env);
 	if (ret < 0)
@@ -6604,7 +6759,7 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 	if (ret < 0)
 		goto skip_full_check;
 
-	ret = check_btf_func(env->prog, env, attr, uattr);
+	ret = check_btf_info(env, attr, uattr);
 	if (ret < 0)
 		goto skip_full_check;
 

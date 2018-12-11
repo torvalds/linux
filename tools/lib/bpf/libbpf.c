@@ -167,9 +167,13 @@ struct bpf_program {
 	int btf_fd;
 	void *func_info;
 	__u32 func_info_rec_size;
-	__u32 func_info_len;
+	__u32 func_info_cnt;
 
 	struct bpf_capabilities *caps;
+
+	void *line_info;
+	__u32 line_info_rec_size;
+	__u32 line_info_cnt;
 };
 
 struct bpf_map {
@@ -779,6 +783,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
+	Elf_Data *btf_ext_data = NULL;
 	Elf_Scn *scn = NULL;
 	int idx = 0, err = 0;
 
@@ -841,14 +846,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 				obj->btf = NULL;
 			}
 		} else if (strcmp(name, BTF_EXT_ELF_SEC) == 0) {
-			obj->btf_ext = btf_ext__new(data->d_buf, data->d_size,
-						    __pr_debug);
-			if (IS_ERR(obj->btf_ext)) {
-				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
-					   BTF_EXT_ELF_SEC,
-					   PTR_ERR(obj->btf_ext));
-				obj->btf_ext = NULL;
-			}
+			btf_ext_data = data;
 		} else if (sh.sh_type == SHT_SYMTAB) {
 			if (obj->efile.symbols) {
 				pr_warning("bpf: multiple SYMTAB in %s\n",
@@ -909,6 +907,22 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 	if (!obj->efile.strtabidx || obj->efile.strtabidx >= idx) {
 		pr_warning("Corrupted ELF file: index of strtab invalid\n");
 		return LIBBPF_ERRNO__FORMAT;
+	}
+	if (btf_ext_data) {
+		if (!obj->btf) {
+			pr_debug("Ignore ELF section %s because its depending ELF section %s is not found.\n",
+				 BTF_EXT_ELF_SEC, BTF_ELF_SEC);
+		} else {
+			obj->btf_ext = btf_ext__new(btf_ext_data->d_buf,
+						    btf_ext_data->d_size,
+						    __pr_debug);
+			if (IS_ERR(obj->btf_ext)) {
+				pr_warning("Error loading ELF section %s: %ld. Ignored and continue.\n",
+					   BTF_EXT_ELF_SEC,
+					   PTR_ERR(obj->btf_ext));
+				obj->btf_ext = NULL;
+			}
+		}
 	}
 	if (obj->efile.maps_shndx >= 0) {
 		err = bpf_object__init_maps(obj, flags);
@@ -1276,6 +1290,82 @@ bpf_object__create_maps(struct bpf_object *obj)
 }
 
 static int
+check_btf_ext_reloc_err(struct bpf_program *prog, int err,
+			void *btf_prog_info, const char *info_name)
+{
+	if (err != -ENOENT) {
+		pr_warning("Error in loading %s for sec %s.\n",
+			   info_name, prog->section_name);
+		return err;
+	}
+
+	/* err == -ENOENT (i.e. prog->section_name not found in btf_ext) */
+
+	if (btf_prog_info) {
+		/*
+		 * Some info has already been found but has problem
+		 * in the last btf_ext reloc.  Must have to error
+		 * out.
+		 */
+		pr_warning("Error in relocating %s for sec %s.\n",
+			   info_name, prog->section_name);
+		return err;
+	}
+
+	/*
+	 * Have problem loading the very first info.  Ignore
+	 * the rest.
+	 */
+	pr_warning("Cannot find %s for main program sec %s. Ignore all %s.\n",
+		   info_name, prog->section_name, info_name);
+	return 0;
+}
+
+static int
+bpf_program_reloc_btf_ext(struct bpf_program *prog, struct bpf_object *obj,
+			  const char *section_name,  __u32 insn_offset)
+{
+	int err;
+
+	if (!insn_offset || prog->func_info) {
+		/*
+		 * !insn_offset => main program
+		 *
+		 * For sub prog, the main program's func_info has to
+		 * be loaded first (i.e. prog->func_info != NULL)
+		 */
+		err = btf_ext__reloc_func_info(obj->btf, obj->btf_ext,
+					       section_name, insn_offset,
+					       &prog->func_info,
+					       &prog->func_info_cnt);
+		if (err)
+			return check_btf_ext_reloc_err(prog, err,
+						       prog->func_info,
+						       "bpf_func_info");
+
+		prog->func_info_rec_size = btf_ext__func_info_rec_size(obj->btf_ext);
+	}
+
+	if (!insn_offset || prog->line_info) {
+		err = btf_ext__reloc_line_info(obj->btf, obj->btf_ext,
+					       section_name, insn_offset,
+					       &prog->line_info,
+					       &prog->line_info_cnt);
+		if (err)
+			return check_btf_ext_reloc_err(prog, err,
+						       prog->line_info,
+						       "bpf_line_info");
+
+		prog->line_info_rec_size = btf_ext__line_info_rec_size(obj->btf_ext);
+	}
+
+	if (!insn_offset)
+		prog->btf_fd = btf__fd(obj->btf);
+
+	return 0;
+}
+
+static int
 bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			struct reloc_desc *relo)
 {
@@ -1306,17 +1396,12 @@ bpf_program__reloc_text(struct bpf_program *prog, struct bpf_object *obj,
 			return -ENOMEM;
 		}
 
-		if (obj->btf && obj->btf_ext) {
-			err = btf_ext__reloc(obj->btf, obj->btf_ext,
-					     text->section_name,
-					     prog->insns_cnt,
-					     &prog->func_info,
-					     &prog->func_info_len);
-			if (err) {
-				pr_warning("error in btf_ext__reloc for sec %s\n",
-					   text->section_name);
+		if (obj->btf_ext) {
+			err = bpf_program_reloc_btf_ext(prog, obj,
+							text->section_name,
+							prog->insns_cnt);
+			if (err)
 				return err;
-			}
 		}
 
 		memcpy(new_insn + prog->insns_cnt, text->insns,
@@ -1341,18 +1426,11 @@ bpf_program__relocate(struct bpf_program *prog, struct bpf_object *obj)
 	if (!prog)
 		return 0;
 
-	if (obj->btf && obj->btf_ext) {
-		err = btf_ext__reloc_init(obj->btf, obj->btf_ext,
-					  prog->section_name,
-					  &prog->func_info,
-					  &prog->func_info_rec_size,
-					  &prog->func_info_len);
-		if (err) {
-			pr_warning("err in btf_ext__reloc_init for sec %s\n",
-				   prog->section_name);
+	if (obj->btf_ext) {
+		err = bpf_program_reloc_btf_ext(prog, obj,
+						prog->section_name, 0);
+		if (err)
 			return err;
-		}
-		prog->btf_fd = btf__fd(obj->btf);
 	}
 
 	if (!prog->reloc_desc)
@@ -1444,8 +1522,7 @@ static int bpf_object__collect_reloc(struct bpf_object *obj)
 
 static int
 load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
-	     char *license, __u32 kern_version, int *pfd,
-	     __u32 func_info_cnt)
+	     char *license, __u32 kern_version, int *pfd)
 {
 	struct bpf_load_program_attr load_attr;
 	char *cp, errmsg[STRERR_BUFSIZE];
@@ -1465,8 +1542,10 @@ load_program(struct bpf_program *prog, struct bpf_insn *insns, int insns_cnt,
 	load_attr.prog_btf_fd = prog->btf_fd >= 0 ? prog->btf_fd : 0;
 	load_attr.func_info = prog->func_info;
 	load_attr.func_info_rec_size = prog->func_info_rec_size;
-	load_attr.func_info_cnt = func_info_cnt;
-
+	load_attr.func_info_cnt = prog->func_info_cnt;
+	load_attr.line_info = prog->line_info;
+	load_attr.line_info_rec_size = prog->line_info_rec_size;
+	load_attr.line_info_cnt = prog->line_info_cnt;
 	if (!load_attr.insns || !load_attr.insns_cnt)
 		return -EINVAL;
 
@@ -1523,13 +1602,7 @@ int
 bpf_program__load(struct bpf_program *prog,
 		  char *license, __u32 kern_version)
 {
-	__u32 func_info_cnt;
 	int err = 0, fd, i;
-
-	if (prog->func_info_len == 0)
-		func_info_cnt = 0;
-	else
-		func_info_cnt = prog->func_info_len / prog->func_info_rec_size;
 
 	if (prog->instances.nr < 0 || !prog->instances.fds) {
 		if (prog->preprocessor) {
@@ -1553,8 +1626,7 @@ bpf_program__load(struct bpf_program *prog,
 				   prog->section_name, prog->instances.nr);
 		}
 		err = load_program(prog, prog->insns, prog->insns_cnt,
-				   license, kern_version, &fd,
-				   func_info_cnt);
+				   license, kern_version, &fd);
 		if (!err)
 			prog->instances.fds[0] = fd;
 		goto out;
@@ -1584,8 +1656,7 @@ bpf_program__load(struct bpf_program *prog,
 
 		err = load_program(prog, result.new_insn_ptr,
 				   result.new_insn_cnt,
-				   license, kern_version, &fd,
-				   func_info_cnt);
+				   license, kern_version, &fd);
 
 		if (err) {
 			pr_warning("Loading the %dth instance of program '%s' failed\n",

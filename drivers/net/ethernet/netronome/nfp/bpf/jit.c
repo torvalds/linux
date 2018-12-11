@@ -2382,6 +2382,49 @@ static int neg_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 	return 0;
 }
 
+static int __ashr_imm(struct nfp_prog *nfp_prog, u8 dst, u8 shift_amt)
+{
+	/* Set signedness bit (MSB of result). */
+	emit_alu(nfp_prog, reg_none(), reg_a(dst), ALU_OP_OR, reg_imm(0));
+	emit_shf(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR, reg_b(dst),
+		 SHF_SC_R_SHF, shift_amt);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+
+	return 0;
+}
+
+static int ashr_reg(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u64 umin, umax;
+	u8 dst, src;
+
+	dst = insn->dst_reg * 2;
+	umin = meta->umin_src;
+	umax = meta->umax_src;
+	if (umin == umax)
+		return __ashr_imm(nfp_prog, dst, umin);
+
+	src = insn->src_reg * 2;
+	/* NOTE: the first insn will set both indirect shift amount (source A)
+	 * and signedness bit (MSB of result).
+	 */
+	emit_alu(nfp_prog, reg_none(), reg_a(src), ALU_OP_OR, reg_b(dst));
+	emit_shf_indir(nfp_prog, reg_both(dst), reg_none(), SHF_OP_ASHR,
+		       reg_b(dst), SHF_SC_R_SHF);
+	wrp_immed(nfp_prog, reg_both(dst + 1), 0);
+
+	return 0;
+}
+
+static int ashr_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
+{
+	const struct bpf_insn *insn = &meta->insn;
+	u8 dst = insn->dst_reg * 2;
+
+	return __ashr_imm(nfp_prog, dst, insn->imm);
+}
+
 static int shl_imm(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta)
 {
 	const struct bpf_insn *insn = &meta->insn;
@@ -3286,6 +3329,8 @@ static const instr_cb_t instr_cb[256] = {
 	[BPF_ALU | BPF_DIV | BPF_K] =	div_imm,
 	[BPF_ALU | BPF_NEG] =		neg_reg,
 	[BPF_ALU | BPF_LSH | BPF_K] =	shl_imm,
+	[BPF_ALU | BPF_ARSH | BPF_X] =	ashr_reg,
+	[BPF_ALU | BPF_ARSH | BPF_K] =	ashr_imm,
 	[BPF_ALU | BPF_END | BPF_X] =	end_reg32,
 	[BPF_LD | BPF_IMM | BPF_DW] =	imm_ld8,
 	[BPF_LD | BPF_ABS | BPF_B] =	data_ld1,

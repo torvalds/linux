@@ -444,7 +444,7 @@ static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
 	return kind_ops[BTF_INFO_KIND(t->info)];
 }
 
-static bool btf_name_offset_valid(const struct btf *btf, u32 offset)
+bool btf_name_offset_valid(const struct btf *btf, u32 offset)
 {
 	return BTF_STR_OFFSET_VALID(offset) &&
 		offset < btf->hdr.str_len;

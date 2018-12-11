@@ -65,6 +65,7 @@ LIBBPF_0.0.1 {
 		bpf_prog_load_xattr;
 		bpf_prog_query;
 		bpf_prog_test_run;
+		bpf_prog_test_run_xattr;
 		bpf_program__fd;
 		bpf_program__is_kprobe;
 		bpf_program__is_perf_event;
@@ -98,6 +99,10 @@ LIBBPF_0.0.1 {
 		bpf_program__unload;
 		bpf_program__unpin;
 		bpf_program__unpin_instance;
+		bpf_prog_linfo__free;
+		bpf_prog_linfo__new;
+		bpf_prog_linfo__lfind_addr_func;
+		bpf_prog_linfo__lfind;
 		bpf_raw_tracepoint_open;
 		bpf_set_link_xdp_fd;
 		bpf_task_fd_query;

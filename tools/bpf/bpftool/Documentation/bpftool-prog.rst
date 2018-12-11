@@ -22,12 +22,13 @@ MAP COMMANDS
 =============
 
 |	**bpftool** **prog { show | list }** [*PROG*]
-|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual**}]
-|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes**}]
+|	**bpftool** **prog dump xlated** *PROG* [{**file** *FILE* | **opcodes** | **visual** | **linum**}]
+|	**bpftool** **prog dump jited**  *PROG* [{**file** *FILE* | **opcodes** | **linum**}]
 |	**bpftool** **prog pin** *PROG* *FILE*
 |	**bpftool** **prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** {**idx** *IDX* | **name** *NAME*} *MAP*] [**dev** *NAME*]
-|       **bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
-|       **bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
+|	**bpftool** **prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
+|	**bpftool** **prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
+|	**bpftool** **prog tracelog**
 |	**bpftool** **prog help**
 |
 |	*MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
@@ -55,7 +56,7 @@ DESCRIPTION
 		  Output will start with program ID followed by program type and
 		  zero or more named attributes (depending on kernel version).
 
-	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** }]
+	**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | **opcodes** | **visual** | **linum** }]
 		  Dump eBPF instructions of the program from the kernel. By
 		  default, eBPF will be disassembled and printed to standard
 		  output in human-readable format. In this case, **opcodes**
@@ -68,12 +69,22 @@ DESCRIPTION
 		  built instead, and eBPF instructions will be presented with
 		  CFG in DOT format, on standard output.
 
-	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** }]
+		  If the prog has line_info available, the source line will
+		  be displayed by default.  If **linum** is specified,
+		  the filename, line number and line column will also be
+		  displayed on top of the source line.
+
+	**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | **opcodes** | **linum** }]
 		  Dump jited image (host machine code) of the program.
 		  If *FILE* is specified image will be written to a file,
 		  otherwise it will be disassembled and printed to stdout.
 
 		  **opcodes** controls if raw opcodes will be printed.
+
+		  If the prog has line_info available, the source line will
+		  be displayed by default.  If **linum** is specified,
+		  the filename, line number and line column will also be
+		  displayed on top of the source line.
 
 	**bpftool prog pin** *PROG* *FILE*
 		  Pin program *PROG* as *FILE*.
@@ -116,6 +127,14 @@ DESCRIPTION
 		  *ATTACH_TYPE*). Most *ATTACH_TYPEs* require a *MAP*
 		  parameter, with the exception of *flow_dissector* which is
 		  detached from the current networking name space.
+
+	**bpftool prog tracelog**
+		  Dump the trace pipe of the system to the console (stdout).
+		  Hit <Ctrl+C> to stop printing. BPF programs can write to this
+		  trace pipe at runtime with the **bpf_trace_printk()** helper.
+		  This should be used only for debugging purposes. For
+		  streaming data from BPF programs to user space, one can use
+		  perf events (see also **bpftool-map**\ (8)).
 
 	**bpftool prog help**
 		  Print short help message.

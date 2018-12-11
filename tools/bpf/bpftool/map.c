@@ -487,7 +487,6 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 	char *memlock;
 
 	memlock = get_fdinfo(fd, "memlock");
-	close(fd);
 
 	jsonw_start_object(json_wtr);
 
@@ -514,6 +513,30 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 		jsonw_int_field(json_wtr, "bytes_memlock", atoi(memlock));
 	free(memlock);
 
+	if (info->type == BPF_MAP_TYPE_PROG_ARRAY) {
+		char *owner_prog_type = get_fdinfo(fd, "owner_prog_type");
+		char *owner_jited = get_fdinfo(fd, "owner_jited");
+
+		if (owner_prog_type) {
+			unsigned int prog_type = atoi(owner_prog_type);
+
+			if (prog_type < ARRAY_SIZE(prog_type_name))
+				jsonw_string_field(json_wtr, "owner_prog_type",
+						   prog_type_name[prog_type]);
+			else
+				jsonw_uint_field(json_wtr, "owner_prog_type",
+						 prog_type);
+		}
+		if (atoi(owner_jited))
+			jsonw_bool_field(json_wtr, "owner_jited", true);
+		else
+			jsonw_bool_field(json_wtr, "owner_jited", false);
+
+		free(owner_prog_type);
+		free(owner_jited);
+	}
+	close(fd);
+
 	if (!hash_empty(map_table.table)) {
 		struct pinned_obj *obj;
 
@@ -536,7 +559,6 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	char *memlock;
 
 	memlock = get_fdinfo(fd, "memlock");
-	close(fd);
 
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(map_type_name))
@@ -556,6 +578,30 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	if (memlock)
 		printf("  memlock %sB", memlock);
 	free(memlock);
+
+	if (info->type == BPF_MAP_TYPE_PROG_ARRAY) {
+		char *owner_prog_type = get_fdinfo(fd, "owner_prog_type");
+		char *owner_jited = get_fdinfo(fd, "owner_jited");
+
+		printf("\n\t");
+		if (owner_prog_type) {
+			unsigned int prog_type = atoi(owner_prog_type);
+
+			if (prog_type < ARRAY_SIZE(prog_type_name))
+				printf("owner_prog_type %s  ",
+				       prog_type_name[prog_type]);
+			else
+				printf("owner_prog_type %d  ", prog_type);
+		}
+		if (atoi(owner_jited))
+			printf("owner jited");
+		else
+			printf("owner not jited");
+
+		free(owner_prog_type);
+		free(owner_jited);
+	}
+	close(fd);
 
 	printf("\n");
 	if (!hash_empty(map_table.table)) {

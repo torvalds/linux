@@ -385,3 +385,67 @@ void btf_dumper_type_only(const struct btf *btf, __u32 type_id, char *func_sig,
 	if (err < 0)
 		func_sig[0] = '\0';
 }
+
+static const char *ltrim(const char *s)
+{
+	while (isspace(*s))
+		s++;
+
+	return s;
+}
+
+void btf_dump_linfo_plain(const struct btf *btf,
+			  const struct bpf_line_info *linfo,
+			  const char *prefix, bool linum)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (!line)
+		return;
+	line = ltrim(line);
+
+	if (!prefix)
+		prefix = "";
+
+	if (linum) {
+		const char *file = btf__name_by_offset(btf, linfo->file_name_off);
+
+		/* More forgiving on file because linum option is
+		 * expected to provide more info than the already
+		 * available src line.
+		 */
+		if (!file)
+			file = "";
+
+		printf("%s%s [file:%s line_num:%u line_col:%u]\n",
+		       prefix, line, file,
+		       BPF_LINE_INFO_LINE_NUM(linfo->line_col),
+		       BPF_LINE_INFO_LINE_COL(linfo->line_col));
+	} else {
+		printf("%s%s\n", prefix, line);
+	}
+}
+
+void btf_dump_linfo_json(const struct btf *btf,
+			 const struct bpf_line_info *linfo, bool linum)
+{
+	const char *line = btf__name_by_offset(btf, linfo->line_off);
+
+	if (line)
+		jsonw_string_field(json_wtr, "src", ltrim(line));
+
+	if (linum) {
+		const char *file = btf__name_by_offset(btf, linfo->file_name_off);
+
+		if (file)
+			jsonw_string_field(json_wtr, "file", file);
+
+		if (BPF_LINE_INFO_LINE_NUM(linfo->line_col))
+			jsonw_int_field(json_wtr, "line_num",
+					BPF_LINE_INFO_LINE_NUM(linfo->line_col));
+
+		if (BPF_LINE_INFO_LINE_COL(linfo->line_col))
+			jsonw_int_field(json_wtr, "line_col",
+					BPF_LINE_INFO_LINE_COL(linfo->line_col));
+	}
+}

@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <libbpf.h>
 
 #include "disasm.h"
 #include "json_writer.h"
@@ -234,8 +235,9 @@ static const char *print_imm(void *private_data,
 }
 
 void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
-		      bool opcodes)
+		      bool opcodes, bool linum)
 {
+	const struct bpf_prog_linfo *prog_linfo = dd->prog_linfo;
 	const struct bpf_insn_cbs cbs = {
 		.cb_print	= print_insn_json,
 		.cb_call	= print_call,
@@ -246,6 +248,7 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 	struct bpf_insn *insn = buf;
 	struct btf *btf = dd->btf;
 	bool double_insn = false;
+	unsigned int nr_skip = 0;
 	char func_sig[1024];
 	unsigned int i;
 
@@ -261,7 +264,7 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 		jsonw_start_object(json_wtr);
 
 		if (btf && record) {
-			if (record->insn_offset == i) {
+			if (record->insn_off == i) {
 				btf_dumper_type_only(btf, record->type_id,
 						     func_sig,
 						     sizeof(func_sig));
@@ -270,6 +273,16 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 					jsonw_string(json_wtr, func_sig);
 				}
 				record = (void *)record + dd->finfo_rec_size;
+			}
+		}
+
+		if (prog_linfo) {
+			const struct bpf_line_info *linfo;
+
+			linfo = bpf_prog_linfo__lfind(prog_linfo, i, nr_skip);
+			if (linfo) {
+				btf_dump_linfo_json(btf, linfo, linum);
+				nr_skip++;
 			}
 		}
 
@@ -307,8 +320,9 @@ void dump_xlated_json(struct dump_data *dd, void *buf, unsigned int len,
 }
 
 void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
-		       bool opcodes)
+		       bool opcodes, bool linum)
 {
+	const struct bpf_prog_linfo *prog_linfo = dd->prog_linfo;
 	const struct bpf_insn_cbs cbs = {
 		.cb_print	= print_insn,
 		.cb_call	= print_call,
@@ -318,6 +332,7 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 	struct bpf_func_info *record;
 	struct bpf_insn *insn = buf;
 	struct btf *btf = dd->btf;
+	unsigned int nr_skip = 0;
 	bool double_insn = false;
 	char func_sig[1024];
 	unsigned int i;
@@ -330,13 +345,24 @@ void dump_xlated_plain(struct dump_data *dd, void *buf, unsigned int len,
 		}
 
 		if (btf && record) {
-			if (record->insn_offset == i) {
+			if (record->insn_off == i) {
 				btf_dumper_type_only(btf, record->type_id,
 						     func_sig,
 						     sizeof(func_sig));
 				if (func_sig[0] != '\0')
 					printf("%s:\n", func_sig);
 				record = (void *)record + dd->finfo_rec_size;
+			}
+		}
+
+		if (prog_linfo) {
+			const struct bpf_line_info *linfo;
+
+			linfo = bpf_prog_linfo__lfind(prog_linfo, i, nr_skip);
+			if (linfo) {
+				btf_dump_linfo_plain(btf, linfo, "; ",
+						     linum);
+				nr_skip++;
 			}
 		}
 

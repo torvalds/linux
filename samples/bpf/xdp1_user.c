@@ -15,6 +15,7 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <sys/resource.h>
+#include <net/if.h>
 
 #include "bpf_util.h"
 #include "bpf/bpf.h"
@@ -34,26 +35,24 @@ static void int_exit(int sig)
 static void poll_stats(int map_fd, int interval)
 {
 	unsigned int nr_cpus = bpf_num_possible_cpus();
-	const unsigned int nr_keys = 256;
-	__u64 values[nr_cpus], prev[nr_keys][nr_cpus];
-	__u32 key;
+	__u64 values[nr_cpus], prev[UINT8_MAX] = { 0 };
 	int i;
 
-	memset(prev, 0, sizeof(prev));
-
 	while (1) {
+		__u32 key = UINT32_MAX;
+
 		sleep(interval);
 
-		for (key = 0; key < nr_keys; key++) {
+		while (bpf_map_get_next_key(map_fd, &key, &key) != -1) {
 			__u64 sum = 0;
 
 			assert(bpf_map_lookup_elem(map_fd, &key, values) == 0);
 			for (i = 0; i < nr_cpus; i++)
-				sum += (values[i] - prev[key][i]);
-			if (sum)
+				sum += values[i];
+			if (sum > prev[key])
 				printf("proto %u: %10llu pkt/s\n",
-				       key, sum / interval);
-			memcpy(prev[key], values, sizeof(values));
+				       key, (sum - prev[key]) / interval);
+			prev[key] = sum;
 		}
 	}
 }
@@ -61,7 +60,7 @@ static void poll_stats(int map_fd, int interval)
 static void usage(const char *prog)
 {
 	fprintf(stderr,
-		"usage: %s [OPTS] IFINDEX\n\n"
+		"usage: %s [OPTS] IFACE\n\n"
 		"OPTS:\n"
 		"    -S    use skb-mode\n"
 		"    -N    enforce native mode\n",
@@ -104,7 +103,11 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	ifindex = strtoul(argv[optind], NULL, 0);
+	ifindex = if_nametoindex(argv[1]);
+	if (!ifindex) {
+		perror("if_nametoindex");
+		return 1;
+	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
 	prog_load_attr.file = filename;
