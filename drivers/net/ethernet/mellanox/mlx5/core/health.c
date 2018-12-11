@@ -41,6 +41,7 @@
 #include "lib/eq.h"
 #include "lib/mlx5.h"
 #include "lib/pci_vsc.h"
+#include "diag/fw_tracer.h"
 
 enum {
 	MLX5_HEALTH_POLL_INTERVAL	= 2 * HZ,
@@ -405,9 +406,119 @@ mlx5_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 	return devlink_fmsg_string_pair_put(fmsg, "Description", hsynd_str(synd));
 }
 
+struct mlx5_fw_reporter_ctx {
+	u8 err_synd;
+	int miss_counter;
+};
+
+static int
+mlx5_fw_reporter_ctx_pairs_put(struct devlink_fmsg *fmsg,
+			       struct mlx5_fw_reporter_ctx *fw_reporter_ctx)
+{
+	int err;
+
+	err = devlink_fmsg_u8_pair_put(fmsg, "syndrome",
+				       fw_reporter_ctx->err_synd);
+	if (err)
+		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "fw_miss_counter",
+					fw_reporter_ctx->miss_counter);
+	if (err)
+		return err;
+	return 0;
+}
+
+static int
+mlx5_fw_reporter_heath_buffer_data_put(struct mlx5_core_dev *dev,
+				       struct devlink_fmsg *fmsg)
+{
+	struct mlx5_core_health *health = &dev->priv.health;
+	struct health_buffer __iomem *h = health->health;
+	int err;
+	int i;
+
+	if (!ioread8(&h->synd))
+		return 0;
+
+	err = devlink_fmsg_pair_nest_start(fmsg, "health buffer");
+	if (err)
+		return err;
+	err = devlink_fmsg_obj_nest_start(fmsg);
+	if (err)
+		return err;
+	err = devlink_fmsg_arr_pair_nest_start(fmsg, "assert_var");
+	if (err)
+		return err;
+
+	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++) {
+		err = devlink_fmsg_u32_put(fmsg, ioread32be(h->assert_var + i));
+		if (err)
+			return err;
+	}
+	err = devlink_fmsg_arr_pair_nest_end(fmsg);
+	if (err)
+		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "assert_exit_ptr",
+					ioread32be(&h->assert_exit_ptr));
+	if (err)
+		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "assert_callra",
+					ioread32be(&h->assert_callra));
+	if (err)
+		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "hw_id", ioread32be(&h->hw_id));
+	if (err)
+		return err;
+	err = devlink_fmsg_u8_pair_put(fmsg, "irisc_index",
+				       ioread8(&h->irisc_index));
+	if (err)
+		return err;
+	err = devlink_fmsg_u8_pair_put(fmsg, "synd", ioread8(&h->synd));
+	if (err)
+		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "ext_synd",
+					ioread16be(&h->ext_synd));
+	if (err)
+		return err;
+	err = devlink_fmsg_u32_pair_put(fmsg, "raw_fw_ver",
+					ioread32be(&h->fw_ver));
+	if (err)
+		return err;
+	err = devlink_fmsg_obj_nest_end(fmsg);
+	if (err)
+		return err;
+	return devlink_fmsg_pair_nest_end(fmsg);
+}
+
+static int
+mlx5_fw_reporter_dump(struct devlink_health_reporter *reporter,
+		      struct devlink_fmsg *fmsg, void *priv_ctx)
+{
+	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
+	int err;
+
+	err = mlx5_fw_tracer_trigger_core_dump_general(dev);
+	if (err)
+		return err;
+
+	if (priv_ctx) {
+		struct mlx5_fw_reporter_ctx *fw_reporter_ctx = priv_ctx;
+
+		err = mlx5_fw_reporter_ctx_pairs_put(fmsg, fw_reporter_ctx);
+		if (err)
+			return err;
+	}
+
+	err = mlx5_fw_reporter_heath_buffer_data_put(dev, fmsg);
+	if (err)
+		return err;
+	return mlx5_fw_tracer_get_saved_traces_objects(dev->tracer, fmsg);
+}
+
 static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
 		.name = "fw",
 		.diagnose = mlx5_fw_reporter_diagnose,
+		.dump = mlx5_fw_reporter_dump,
 };
 
 static void mlx5_fw_reporter_create(struct mlx5_core_dev *dev)
