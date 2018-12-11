@@ -95,6 +95,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-tve1205g.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-videostrong-linux.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399-vr-android.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399pro-evb-v10.dtb
+dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399pro-evb-v11.dtb
 dtb-$(CONFIG_ARCH_ROCKCHIP) += rk3399pro-npu-evb-v10.dtb
 
 always		:= $(dtb-y)
