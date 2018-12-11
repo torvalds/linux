@@ -38,6 +38,8 @@
 #include <linux/reset.h>
 #include <linux/regmap.h>
 
+#include "rockchip-pcie-dma.h"
+
 /*
  * The upper 16 bits of PCIE_CLIENT_CONFIG are a write mask for the lower 16
  * bits.  This allows atomic updates of the register without locking.
@@ -101,6 +103,7 @@
 #define PCIE_CH0_ERR_ENABLE	BIT(8)
 #define PCIE_CH1_ERR_ENABLE	BIT(9)
 
+#define PCIE_UDMA_INT_REG		0xa0
 #define PCIE_UDMA_INT_ENABLE_REG	0xa4
 
 #define PCIE_UDMA_INT_ENABLE_MASK \
@@ -186,6 +189,7 @@
 #define IB_ROOT_PORT_REG_SIZE_SHIFT		3
 #define AXI_WRAPPER_IO_WRITE			0x6
 #define AXI_WRAPPER_MEM_WRITE			0x2
+#define AXI_WRAPPER_CFG0			0xa
 #define AXI_WRAPPER_NOR_MSG			0xc
 
 #define MAX_AXI_IB_ROOTPORT_REGION_NUM		3
@@ -242,6 +246,10 @@ struct rockchip_pcie {
 	u32     mem_size;
 	phys_addr_t msg_bus_addr;
 	phys_addr_t mem_bus_addr;
+	phys_addr_t mem_reserve_start;
+	size_t mem_reserve_size;
+	int dma_trx_enabled;
+	struct dma_trx_obj *dma_obj;
 };
 
 static u32 rockchip_pcie_read(struct rockchip_pcie *rockchip, u32 reg)
@@ -254,6 +262,21 @@ static void rockchip_pcie_write(struct rockchip_pcie *rockchip, u32 val,
 {
 	writel(val, rockchip->apb_base + reg);
 }
+
+void rk_pcie_start_dma_3399(struct dma_trx_obj *obj)
+{
+	struct rockchip_pcie *rockchip = dev_get_drvdata(obj->dev);
+	struct dma_table *tbl = obj->cur;
+	int chn = tbl->chn;
+
+	rockchip_pcie_write(rockchip, (u32)(tbl->phys_descs & 0xffffffff),
+			    PCIE_APB_CORE_UDMA_BASE + 0x14 * chn + 0x04);
+	rockchip_pcie_write(rockchip, (u32)(tbl->phys_descs >> 32),
+			    PCIE_APB_CORE_UDMA_BASE + 0x14 * chn + 0x08);
+	rockchip_pcie_write(rockchip, BIT(0) | (tbl->dir << 1),
+			    PCIE_APB_CORE_UDMA_BASE + 0x14 * chn + 0x00);
+}
+EXPORT_SYMBOL(rk_pcie_start_dma_3399);
 
 static void rockchip_pcie_enable_bw_int(struct rockchip_pcie *rockchip)
 {
@@ -679,6 +702,31 @@ static int rockchip_pcie_init_port(struct rockchip_pcie *rockchip)
 	return 0;
 }
 
+static inline void
+rk_pcie_handle_dma_interrupt(struct rockchip_pcie *rockchip)
+{
+	u32 dma_status;
+	struct dma_trx_obj *obj = rockchip->dma_obj;
+
+	dma_status = rockchip_pcie_read(rockchip,
+			PCIE_APB_CORE_UDMA_BASE + PCIE_UDMA_INT_REG);
+
+	/* Core: clear dma interrupt */
+	rockchip_pcie_write(rockchip, dma_status,
+			PCIE_APB_CORE_UDMA_BASE + PCIE_UDMA_INT_REG);
+
+	WARN_ONCE(!(dma_status & 0x3), "dma_status 0x%x\n", dma_status);
+
+	if (dma_status & (1 << 0))
+		obj->dma_free = true;
+
+	if (list_empty(&obj->tbl_list)) {
+		if (obj->dma_free &&
+			obj->loop_count >= obj->loop_count_threshold)
+			complete(&obj->done);
+	}
+}
+
 static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 {
 	struct rockchip_pcie *rockchip = arg;
@@ -741,6 +789,7 @@ static irqreturn_t rockchip_pcie_subsys_irq_handler(int irq, void *arg)
 	}
 
 	if (reg & PCIE_CLIENT_INT_UDMA) {
+		rk_pcie_handle_dma_interrupt(rockchip);
 		rockchip_pcie_write(rockchip, sub_reg, PCIE_CLIENT_INT_STATUS);
 		rockchip_pcie_write(rockchip, reg, PCIE_CLIENT_INT_STATUS);
 	}
@@ -833,6 +882,8 @@ static int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 	struct device *dev = rockchip->dev;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct device_node *node = dev->of_node;
+	struct device_node *mem;
+	struct resource reg;
 	struct resource *regs;
 	int irq;
 	int err;
@@ -1005,6 +1056,28 @@ static int rockchip_pcie_parse_dt(struct rockchip_pcie *rockchip)
 		if (PTR_ERR(rockchip->vpcie0v9) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		dev_info(dev, "no vpcie0v9 regulator found\n");
+	}
+
+	mem = of_parse_phandle(node, "memory-region", 0);
+	if (!mem) {
+		dev_warn(dev, "missing \"memory-region\" property\n");
+		return 0;
+	}
+
+	err = of_address_to_resource(mem, 0, &reg);
+	if (err < 0) {
+		dev_warn(dev, "missing \"reg\" property\n");
+		return 0;
+	}
+
+	rockchip->mem_reserve_start = reg.start;
+	rockchip->mem_reserve_size = resource_size(&reg);
+
+	err = of_property_read_u32(node, "dma_trx_enabled",
+				&rockchip->dma_trx_enabled);
+	if (err < 0) {
+		dev_warn(dev, "missing \"dma_trx_enabled\" property\n");
+		return 0;
 	}
 
 	return 0;
@@ -1184,6 +1257,13 @@ static int rockchip_cfg_atu(struct rockchip_pcie *rockchip)
 			dev_err(dev, "program RC mem outbound ATU failed\n");
 			return err;
 		}
+	}
+	/* Workaround for PCIe DMA transfer */
+	if (rockchip->dma_trx_enabled) {
+		rockchip_pcie_prog_ob_atu(rockchip, 0, AXI_WRAPPER_CFG0, 12,
+					  0x0, 0x0);
+		rockchip_pcie_prog_ob_atu(rockchip, 1, AXI_WRAPPER_MEM_WRITE,
+				32 - 1, rockchip->mem_reserve_start, 0x0);
 	}
 
 	err = rockchip_pcie_prog_ib_atu(rockchip, 2, 32 - 1, 0x0, 0);
@@ -1417,6 +1497,14 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		pcie_bus_configure_settings(child);
 
 	pci_bus_add_devices(bus);
+
+	rockchip->dma_obj = rk_pcie_dma_obj_probe(dev);
+	if (IS_ERR(rockchip->dma_obj)) {
+		dev_err(dev, "failed to prepare dma object\n");
+		err = -EINVAL;
+		goto err_free_res;
+	}
+
 	return err;
 
 err_free_res:
