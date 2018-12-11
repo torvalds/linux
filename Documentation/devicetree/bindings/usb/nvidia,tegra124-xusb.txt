@@ -59,6 +59,14 @@ For Tegra210:
 - avdd-pll-uerefe-supply: PLLE reference PLL power supply. Must supply 1.05 V.
 - dvdd-pex-pll-supply: PCIe/USB3 PLL power supply. Must supply 1.05 V.
 - hvdd-pex-pll-e-supply: High-voltage PLLE power supply. Must supply 1.8 V.
+- power-domains: A list of PM domain specifiers that reference each power-domain
+  used by the xHCI controller. This list must comprise of a specifier for the
+  XUSBA and XUSBC power-domains. See ../power/power_domain.txt and
+  ../arm/tegra/nvidia,tegra20-pmc.txt for details.
+- power-domain-names: A list of names that represent each of the specifiers in
+  the 'power-domains' property. Must include 'xusb_ss' and 'xusb_host' which
+  represent the power-domains XUSBA and XUSBC, respectively. See
+  ../power/power_domain.txt for details.
 
 Optional properties:
 --------------------

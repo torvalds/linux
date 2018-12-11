@@ -15,6 +15,9 @@ Required properties:
 
 Optional properties:
 - nvidia,invert-interrupt: If present, inverts the PMU interrupt signal.
+- interrupt-controller: Identifies the node as an interrupt controller.
+- #interrupt-cells: Specifies the number of cells needed to encode an
+  interrupt source. The value must be 2.
 
 Example:
 
