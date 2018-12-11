@@ -244,9 +244,8 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	spawn = skcipher_instance_ctx(inst);
 	err = crypto_init_spawn(spawn, alg, skcipher_crypto_instance(inst),
 				CRYPTO_ALG_TYPE_MASK);
-	crypto_mod_put(alg);
 	if (err)
-		goto err_free_inst;
+		goto err_put_alg;
 
 	err = crypto_inst_setname(skcipher_crypto_instance(inst), "pcbc", alg);
 	if (err)
@@ -275,12 +274,15 @@ static int crypto_pcbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 	err = skcipher_register_instance(tmpl, inst);
 	if (err)
 		goto err_drop_spawn;
+	crypto_mod_put(alg);
 
 out:
 	return err;
 
 err_drop_spawn:
 	crypto_drop_spawn(spawn);
+err_put_alg:
+	crypto_mod_put(alg);
 err_free_inst:
 	kfree(inst);
 	goto out;

@@ -709,11 +709,23 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla_enc_key, *nla_opt_key, *nla_opt_msk = NULL;
-	int option_len, key_depth, msk_depth = 0;
+	int err, option_len, key_depth, msk_depth = 0;
+
+	err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS],
+				  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+				  enc_opts_policy, extack);
+	if (err)
+		return err;
 
 	nla_enc_key = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS]);
 
 	if (tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]) {
+		err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
+					  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+					  enc_opts_policy, extack);
+		if (err)
+			return err;
+
 		nla_opt_msk = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 		msk_depth = nla_len(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 	}
@@ -1226,17 +1238,15 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 	if (err)
 		goto errout_idr;
 
-	if (!tc_skip_sw(fnew->flags)) {
-		if (!fold && fl_lookup(fnew->mask, &fnew->mkey)) {
-			err = -EEXIST;
-			goto errout_mask;
-		}
-
-		err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
-					     fnew->mask->filter_ht_params);
-		if (err)
-			goto errout_mask;
+	if (!fold && fl_lookup(fnew->mask, &fnew->mkey)) {
+		err = -EEXIST;
+		goto errout_mask;
 	}
+
+	err = rhashtable_insert_fast(&fnew->mask->ht, &fnew->ht_node,
+				     fnew->mask->filter_ht_params);
+	if (err)
+		goto errout_mask;
 
 	if (!tc_skip_hw(fnew->flags)) {
 		err = fl_hw_replace_filter(tp, fnew, extack);
@@ -1291,9 +1301,8 @@ static int fl_delete(struct tcf_proto *tp, void *arg, bool *last,
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f = arg;
 
-	if (!tc_skip_sw(f->flags))
-		rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
-				       f->mask->filter_ht_params);
+	rhashtable_remove_fast(&f->mask->ht, &f->ht_node,
+			       f->mask->filter_ht_params);
 	__fl_delete(tp, f, extack);
 	*last = list_empty(&head->masks);
 	return 0;

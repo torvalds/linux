@@ -30,6 +30,8 @@
 #define HW_ATL_FW2X_MPI_STATE_ADDR	0x370
 #define HW_ATL_FW2X_MPI_STATE2_ADDR	0x374
 
+#define HW_ATL_FW2X_CAP_PAUSE            BIT(CAPS_HI_PAUSE)
+#define HW_ATL_FW2X_CAP_ASYM_PAUSE       BIT(CAPS_HI_ASYMMETRIC_PAUSE)
 #define HW_ATL_FW2X_CAP_SLEEP_PROXY      BIT(CAPS_HI_SLEEP_PROXY)
 #define HW_ATL_FW2X_CAP_WOL              BIT(CAPS_HI_WOL)
 
@@ -451,6 +453,24 @@ static int aq_fw2x_set_flow_control(struct aq_hw_s *self)
 	return 0;
 }
 
+static u32 aq_fw2x_get_flow_control(struct aq_hw_s *self, u32 *fcmode)
+{
+	u32 mpi_state = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_STATE2_ADDR);
+
+	if (mpi_state & HW_ATL_FW2X_CAP_PAUSE)
+		if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
+			*fcmode = AQ_NIC_FC_RX;
+		else
+			*fcmode = AQ_NIC_FC_RX | AQ_NIC_FC_TX;
+	else
+		if (mpi_state & HW_ATL_FW2X_CAP_ASYM_PAUSE)
+			*fcmode = AQ_NIC_FC_TX;
+		else
+			*fcmode = 0;
+
+	return 0;
+}
+
 const struct aq_fw_ops aq_fw_2x_ops = {
 	.init = aq_fw2x_init,
 	.deinit = aq_fw2x_deinit,
@@ -465,4 +485,5 @@ const struct aq_fw_ops aq_fw_2x_ops = {
 	.set_eee_rate = aq_fw2x_set_eee_rate,
 	.get_eee_rate = aq_fw2x_get_eee_rate,
 	.set_flow_control = aq_fw2x_set_flow_control,
+	.get_flow_control = aq_fw2x_get_flow_control
 };

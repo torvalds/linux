@@ -133,6 +133,11 @@ The format as returned by :ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>` must be identical
       - Definition of a data format, see :ref:`pixfmt`, used by SDR
 	capture and output devices.
     * -
+      - struct :c:type:`v4l2_meta_format`
+      - ``meta``
+      - Definition of a metadata format, see :ref:`meta-formats`, used by
+	metadata capture devices.
+    * -
       - __u8
       - ``raw_data``\ [200]
       - Place holder for future extensions.

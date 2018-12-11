@@ -127,6 +127,9 @@ int amdgpu_compute_multipipe = -1;
 int amdgpu_gpu_recovery = -1; /* auto */
 int amdgpu_emu_mode = 0;
 uint amdgpu_smu_memory_pool_size = 0;
+/* FBC (bit 0) disabled by default*/
+uint amdgpu_dc_feature_mask = 0;
+
 struct amdgpu_mgpu_info mgpu_info = {
 	.mutex = __MUTEX_INITIALIZER(mgpu_info.mutex),
 };
@@ -630,6 +633,14 @@ int halt_if_hws_hang;
 module_param(halt_if_hws_hang, int, 0644);
 MODULE_PARM_DESC(halt_if_hws_hang, "Halt if HWS hang is detected (0 = off (default), 1 = on)");
 #endif
+
+/**
+ * DOC: dcfeaturemask (uint)
+ * Override display features enabled. See enum DC_FEATURE_MASK in drivers/gpu/drm/amd/include/amd_shared.h.
+ * The default is the current set of stable display features.
+ */
+MODULE_PARM_DESC(dcfeaturemask, "all stable DC features enabled (default))");
+module_param_named(dcfeaturemask, amdgpu_dc_feature_mask, uint, 0444);
 
 static const struct pci_device_id pciidlist[] = {
 #ifdef  CONFIG_DRM_AMDGPU_SI

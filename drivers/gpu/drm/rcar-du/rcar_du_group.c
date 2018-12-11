@@ -202,10 +202,25 @@ void rcar_du_group_put(struct rcar_du_group *rgrp)
 
 static void __rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)
 {
-	struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+	struct rcar_du_device *rcdu = rgrp->dev;
 
-	rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
-				   start ? DSYSR_DEN : DSYSR_DRES);
+	/*
+	 * Group start/stop is controlled by the DRES and DEN bits of DSYSR0
+	 * for the first group and DSYSR2 for the second group. On most DU
+	 * instances, this maps to the first CRTC of the group, and we can just
+	 * use rcar_du_crtc_dsysr_clr_set() to access the correct DSYSR. On
+	 * M3-N, however, DU2 doesn't exist, but DSYSR2 does. We thus need to
+	 * access the register directly using group read/write.
+	 */
+	if (rcdu->info->channels_mask & BIT(rgrp->index * 2)) {
+		struct rcar_du_crtc *rcrtc = &rgrp->dev->crtcs[rgrp->index * 2];
+
+		rcar_du_crtc_dsysr_clr_set(rcrtc, DSYSR_DRES | DSYSR_DEN,
+					   start ? DSYSR_DEN : DSYSR_DRES);
+	} else {
+		rcar_du_group_write(rgrp, DSYSR,
+				    start ? DSYSR_DEN : DSYSR_DRES);
+	}
 }
 
 void rcar_du_group_start_stop(struct rcar_du_group *rgrp, bool start)

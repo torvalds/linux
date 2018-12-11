@@ -21,15 +21,9 @@
 
 MODULE_LICENSE("GPL");
 
-static unsigned int limit = 64;
-module_param(limit, uint, 0644);
-MODULE_PARM_DESC(limit, "Maximum number of pages that may be allocated by "
-			"the privcmd-buf device per open file");
-
 struct privcmd_buf_private {
 	struct mutex lock;
 	struct list_head list;
-	unsigned int allocated;
 };
 
 struct privcmd_buf_vma_private {
@@ -60,13 +54,10 @@ static void privcmd_buf_vmapriv_free(struct privcmd_buf_vma_private *vma_priv)
 {
 	unsigned int i;
 
-	vma_priv->file_priv->allocated -= vma_priv->n_pages;
-
 	list_del(&vma_priv->list);
 
 	for (i = 0; i < vma_priv->n_pages; i++)
-		if (vma_priv->pages[i])
-			__free_page(vma_priv->pages[i]);
+		__free_page(vma_priv->pages[i]);
 
 	kfree(vma_priv);
 }
@@ -146,8 +137,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned int i;
 	int ret = 0;
 
-	if (!(vma->vm_flags & VM_SHARED) || count > limit ||
-	    file_priv->allocated + count > limit)
+	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
 	vma_priv = kzalloc(sizeof(*vma_priv) + count * sizeof(void *),
@@ -155,18 +145,14 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!vma_priv)
 		return -ENOMEM;
 
-	vma_priv->n_pages = count;
-	count = 0;
-	for (i = 0; i < vma_priv->n_pages; i++) {
+	for (i = 0; i < count; i++) {
 		vma_priv->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
 		if (!vma_priv->pages[i])
 			break;
-		count++;
+		vma_priv->n_pages++;
 	}
 
 	mutex_lock(&file_priv->lock);
-
-	file_priv->allocated += count;
 
 	vma_priv->file_priv = file_priv;
 	vma_priv->users = 1;

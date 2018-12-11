@@ -357,7 +357,7 @@ static int armada_get_temp_legacy(struct thermal_zone_device *thermal,
 	int ret;
 
 	/* Valid check */
-	if (armada_is_valid(priv)) {
+	if (!armada_is_valid(priv)) {
 		dev_err(priv->dev,
 			"Temperature sensor reading not valid\n");
 		return -EIO;
@@ -395,7 +395,7 @@ unlock_mutex:
 	return ret;
 }
 
-static struct thermal_zone_of_device_ops of_ops = {
+static const struct thermal_zone_of_device_ops of_ops = {
 	.get_temp = armada_get_temp,
 };
 
@@ -526,22 +526,20 @@ static int armada_thermal_probe_legacy(struct platform_device *pdev,
 
 	/* First memory region points towards the status register */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EIO;
-
-	/*
-	 * Edit the resource start address and length to map over all the
-	 * registers, instead of pointing at them one by one.
-	 */
-	res->start -= data->syscon_status_off;
-	res->end = res->start + max(data->syscon_status_off,
-				    max(data->syscon_control0_off,
-					data->syscon_control1_off)) +
-		   sizeof(unsigned int) - 1;
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+
+	/*
+	 * Fix up from the old individual DT register specification to
+	 * cover all the registers.  We do this by adjusting the ioremap()
+	 * result, which should be fine as ioremap() deals with pages.
+	 * However, validate that we do not cross a page boundary while
+	 * making this adjustment.
+	 */
+	if (((unsigned long)base & ~PAGE_MASK) < data->syscon_status_off)
+		return -EINVAL;
+	base -= data->syscon_status_off;
 
 	priv->syscon = devm_regmap_init_mmio(&pdev->dev, base,
 					     &armada_thermal_regmap_config);

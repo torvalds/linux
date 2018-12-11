@@ -197,7 +197,7 @@ static void nbp_vlan_rcu_free(struct rcu_head *rcu)
 	v = container_of(rcu, struct net_bridge_vlan, rcu);
 	WARN_ON(br_vlan_is_master(v));
 	/* if we had per-port stats configured then free them here */
-	if (v->brvlan->stats != v->stats)
+	if (v->priv_flags & BR_VLFLAG_PER_PORT_STATS)
 		free_percpu(v->stats);
 	v->stats = NULL;
 	kfree(v);
@@ -264,6 +264,7 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags)
 				err = -ENOMEM;
 				goto out_filt;
 			}
+			v->priv_flags |= BR_VLFLAG_PER_PORT_STATS;
 		} else {
 			v->stats = masterv->stats;
 		}

@@ -137,15 +137,6 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
 	up_read(&per_mm->umem_rwsem);
 }
 
-static int invalidate_page_trampoline(struct ib_umem_odp *item, u64 start,
-				      u64 end, void *cookie)
-{
-	ib_umem_notifier_start_account(item);
-	item->umem.context->invalidate_range(item, start, start + PAGE_SIZE);
-	ib_umem_notifier_end_account(item);
-	return 0;
-}
-
 static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
 					     u64 start, u64 end, void *cookie)
 {
@@ -553,12 +544,13 @@ out:
 		put_page(page);
 
 	if (remove_existing_mapping && umem->context->invalidate_range) {
-		invalidate_page_trampoline(
+		ib_umem_notifier_start_account(umem_odp);
+		umem->context->invalidate_range(
 			umem_odp,
-			ib_umem_start(umem) + (page_index >> umem->page_shift),
-			ib_umem_start(umem) + ((page_index + 1) >>
-					       umem->page_shift),
-			NULL);
+			ib_umem_start(umem) + (page_index << umem->page_shift),
+			ib_umem_start(umem) +
+				((page_index + 1) << umem->page_shift));
+		ib_umem_notifier_end_account(umem_odp);
 		ret = -EAGAIN;
 	}
 

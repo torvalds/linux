@@ -83,11 +83,11 @@ struct kfd_ioctl_set_cu_mask_args {
 };
 
 struct kfd_ioctl_get_queue_wave_state_args {
-	uint64_t ctl_stack_address;	/* to KFD */
-	uint32_t ctl_stack_used_size;	/* from KFD */
-	uint32_t save_area_used_size;	/* from KFD */
-	uint32_t queue_id;		/* to KFD */
-	uint32_t pad;
+	__u64 ctl_stack_address;	/* to KFD */
+	__u32 ctl_stack_used_size;	/* from KFD */
+	__u32 save_area_used_size;	/* from KFD */
+	__u32 queue_id;			/* to KFD */
+	__u32 pad;
 };
 
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */
@@ -255,10 +255,10 @@ struct kfd_hsa_memory_exception_data {
 
 /* hw exception data */
 struct kfd_hsa_hw_exception_data {
-	uint32_t reset_type;
-	uint32_t reset_cause;
-	uint32_t memory_lost;
-	uint32_t gpu_id;
+	__u32 reset_type;
+	__u32 reset_cause;
+	__u32 memory_lost;
+	__u32 gpu_id;
 };
 
 /* Event data */

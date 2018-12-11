@@ -258,7 +258,8 @@ static int tcf_mirred_act(struct sk_buff *skb, const struct tc_action *a,
 	if (is_redirect) {
 		skb2->tc_redirected = 1;
 		skb2->tc_from_ingress = skb2->tc_at_ingress;
-
+		if (skb2->tc_from_ingress)
+			skb2->tstamp = 0;
 		/* let's the caller reinsert the packet, if possible */
 		if (use_reinsert) {
 			res->ingress = want_ingress;

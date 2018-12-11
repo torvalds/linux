@@ -406,6 +406,8 @@ static inline void net_dim(struct net_dim *dim,
 		}
 		/* fall through */
 	case NET_DIM_START_MEASURE:
+		net_dim_sample(end_sample.event_ctr, end_sample.pkt_ctr, end_sample.byte_ctr,
+			       &dim->start_sample);
 		dim->state = NET_DIM_MEASURE_IN_PROGRESS;
 		break;
 	case NET_DIM_APPLY_NEW_PROFILE:

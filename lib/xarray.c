@@ -610,8 +610,8 @@ static int xas_expand(struct xa_state *xas, void *head)
  * (see the xa_cmpxchg() implementation for an example).
  *
  * Return: If the slot already existed, returns the contents of this slot.
- * If the slot was newly created, returns NULL.  If it failed to create the
- * slot, returns NULL and indicates the error in @xas.
+ * If the slot was newly created, returns %NULL.  If it failed to create the
+ * slot, returns %NULL and indicates the error in @xas.
  */
 static void *xas_create(struct xa_state *xas)
 {
@@ -1334,44 +1334,31 @@ void *__xa_erase(struct xarray *xa, unsigned long index)
 	XA_STATE(xas, xa, index);
 	return xas_result(&xas, xas_store(&xas, NULL));
 }
-EXPORT_SYMBOL_GPL(__xa_erase);
+EXPORT_SYMBOL(__xa_erase);
 
 /**
- * xa_store() - Store this entry in the XArray.
+ * xa_erase() - Erase this entry from the XArray.
  * @xa: XArray.
- * @index: Index into array.
- * @entry: New entry.
- * @gfp: Memory allocation flags.
+ * @index: Index of entry.
  *
- * After this function returns, loads from this index will return @entry.
- * Storing into an existing multislot entry updates the entry of every index.
- * The marks associated with @index are unaffected unless @entry is %NULL.
+ * This function is the equivalent of calling xa_store() with %NULL as
+ * the third argument.  The XArray does not need to allocate memory, so
+ * the user does not need to provide GFP flags.
  *
- * Context: Process context.  Takes and releases the xa_lock.  May sleep
- * if the @gfp flags permit.
- * Return: The old entry at this index on success, xa_err(-EINVAL) if @entry
- * cannot be stored in an XArray, or xa_err(-ENOMEM) if memory allocation
- * failed.
+ * Context: Any context.  Takes and releases the xa_lock.
+ * Return: The entry which used to be at this index.
  */
-void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+void *xa_erase(struct xarray *xa, unsigned long index)
 {
-	XA_STATE(xas, xa, index);
-	void *curr;
+	void *entry;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
-		return XA_ERROR(-EINVAL);
+	xa_lock(xa);
+	entry = __xa_erase(xa, index);
+	xa_unlock(xa);
 
-	do {
-		xas_lock(&xas);
-		curr = xas_store(&xas, entry);
-		if (xa_track_free(xa) && entry)
-			xas_clear_mark(&xas, XA_FREE_MARK);
-		xas_unlock(&xas);
-	} while (xas_nomem(&xas, gfp));
-
-	return xas_result(&xas, curr);
+	return entry;
 }
-EXPORT_SYMBOL(xa_store);
+EXPORT_SYMBOL(xa_erase);
 
 /**
  * __xa_store() - Store this entry in the XArray.
@@ -1395,10 +1382,12 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 
 	if (WARN_ON_ONCE(xa_is_internal(entry)))
 		return XA_ERROR(-EINVAL);
+	if (xa_track_free(xa) && !entry)
+		entry = XA_ZERO_ENTRY;
 
 	do {
 		curr = xas_store(&xas, entry);
-		if (xa_track_free(xa) && entry)
+		if (xa_track_free(xa))
 			xas_clear_mark(&xas, XA_FREE_MARK);
 	} while (__xas_nomem(&xas, gfp));
 
@@ -1407,45 +1396,33 @@ void *__xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 EXPORT_SYMBOL(__xa_store);
 
 /**
- * xa_cmpxchg() - Conditionally replace an entry in the XArray.
+ * xa_store() - Store this entry in the XArray.
  * @xa: XArray.
  * @index: Index into array.
- * @old: Old value to test against.
- * @entry: New value to place in array.
+ * @entry: New entry.
  * @gfp: Memory allocation flags.
  *
- * If the entry at @index is the same as @old, replace it with @entry.
- * If the return value is equal to @old, then the exchange was successful.
+ * After this function returns, loads from this index will return @entry.
+ * Storing into an existing multislot entry updates the entry of every index.
+ * The marks associated with @index are unaffected unless @entry is %NULL.
  *
- * Context: Process context.  Takes and releases the xa_lock.  May sleep
- * if the @gfp flags permit.
- * Return: The old value at this index or xa_err() if an error happened.
+ * Context: Any context.  Takes and releases the xa_lock.
+ * May sleep if the @gfp flags permit.
+ * Return: The old entry at this index on success, xa_err(-EINVAL) if @entry
+ * cannot be stored in an XArray, or xa_err(-ENOMEM) if memory allocation
+ * failed.
  */
-void *xa_cmpxchg(struct xarray *xa, unsigned long index,
-			void *old, void *entry, gfp_t gfp)
+void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
 {
-	XA_STATE(xas, xa, index);
 	void *curr;
 
-	if (WARN_ON_ONCE(xa_is_internal(entry)))
-		return XA_ERROR(-EINVAL);
+	xa_lock(xa);
+	curr = __xa_store(xa, index, entry, gfp);
+	xa_unlock(xa);
 
-	do {
-		xas_lock(&xas);
-		curr = xas_load(&xas);
-		if (curr == XA_ZERO_ENTRY)
-			curr = NULL;
-		if (curr == old) {
-			xas_store(&xas, entry);
-			if (xa_track_free(xa) && entry)
-				xas_clear_mark(&xas, XA_FREE_MARK);
-		}
-		xas_unlock(&xas);
-	} while (xas_nomem(&xas, gfp));
-
-	return xas_result(&xas, curr);
+	return curr;
 }
-EXPORT_SYMBOL(xa_cmpxchg);
+EXPORT_SYMBOL(xa_store);
 
 /**
  * __xa_cmpxchg() - Store this entry in the XArray.
@@ -1471,6 +1448,8 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 
 	if (WARN_ON_ONCE(xa_is_internal(entry)))
 		return XA_ERROR(-EINVAL);
+	if (xa_track_free(xa) && !entry)
+		entry = XA_ZERO_ENTRY;
 
 	do {
 		curr = xas_load(&xas);
@@ -1478,7 +1457,7 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 			curr = NULL;
 		if (curr == old) {
 			xas_store(&xas, entry);
-			if (xa_track_free(xa) && entry)
+			if (xa_track_free(xa))
 				xas_clear_mark(&xas, XA_FREE_MARK);
 		}
 	} while (__xas_nomem(&xas, gfp));
@@ -1488,7 +1467,7 @@ void *__xa_cmpxchg(struct xarray *xa, unsigned long index,
 EXPORT_SYMBOL(__xa_cmpxchg);
 
 /**
- * xa_reserve() - Reserve this index in the XArray.
+ * __xa_reserve() - Reserve this index in the XArray.
  * @xa: XArray.
  * @index: Index into array.
  * @gfp: Memory allocation flags.
@@ -1496,33 +1475,32 @@ EXPORT_SYMBOL(__xa_cmpxchg);
  * Ensures there is somewhere to store an entry at @index in the array.
  * If there is already something stored at @index, this function does
  * nothing.  If there was nothing there, the entry is marked as reserved.
- * Loads from @index will continue to see a %NULL pointer until a
- * subsequent store to @index.
+ * Loading from a reserved entry returns a %NULL pointer.
  *
  * If you do not use the entry that you have reserved, call xa_release()
  * or xa_erase() to free any unnecessary memory.
  *
- * Context: Process context.  Takes and releases the xa_lock, IRQ or BH safe
- * if specified in XArray flags.  May sleep if the @gfp flags permit.
+ * Context: Any context.  Expects the xa_lock to be held on entry.  May
+ * release the lock, sleep and reacquire the lock if the @gfp flags permit.
  * Return: 0 if the reservation succeeded or -ENOMEM if it failed.
  */
-int xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
+int __xa_reserve(struct xarray *xa, unsigned long index, gfp_t gfp)
 {
 	XA_STATE(xas, xa, index);
-	unsigned int lock_type = xa_lock_type(xa);
 	void *curr;
 
 	do {
-		xas_lock_type(&xas, lock_type);
 		curr = xas_load(&xas);
-		if (!curr)
+		if (!curr) {
 			xas_store(&xas, XA_ZERO_ENTRY);
-		xas_unlock_type(&xas, lock_type);
-	} while (xas_nomem(&xas, gfp));
+			if (xa_track_free(xa))
+				xas_clear_mark(&xas, XA_FREE_MARK);
+		}
+	} while (__xas_nomem(&xas, gfp));
 
 	return xas_error(&xas);
 }
-EXPORT_SYMBOL(xa_reserve);
+EXPORT_SYMBOL(__xa_reserve);
 
 #ifdef CONFIG_XARRAY_MULTI
 static void xas_set_range(struct xa_state *xas, unsigned long first,
@@ -1587,8 +1565,9 @@ void *xa_store_range(struct xarray *xa, unsigned long first,
 	do {
 		xas_lock(&xas);
 		if (entry) {
-			unsigned int order = (last == ~0UL) ? 64 :
-						ilog2(last + 1);
+			unsigned int order = BITS_PER_LONG;
+			if (last + 1)
+				order = __ffs(last + 1);
 			xas_set_order(&xas, last, order);
 			xas_create(&xas);
 			if (xas_error(&xas))
@@ -1662,7 +1641,7 @@ EXPORT_SYMBOL(__xa_alloc);
  * @index: Index of entry.
  * @mark: Mark number.
  *
- * Attempting to set a mark on a NULL entry does not succeed.
+ * Attempting to set a mark on a %NULL entry does not succeed.
  *
  * Context: Any context.  Expects xa_lock to be held on entry.
  */
@@ -1674,7 +1653,7 @@ void __xa_set_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
 	if (entry)
 		xas_set_mark(&xas, mark);
 }
-EXPORT_SYMBOL_GPL(__xa_set_mark);
+EXPORT_SYMBOL(__xa_set_mark);
 
 /**
  * __xa_clear_mark() - Clear this mark on this entry while locked.
@@ -1692,7 +1671,7 @@ void __xa_clear_mark(struct xarray *xa, unsigned long index, xa_mark_t mark)
 	if (entry)
 		xas_clear_mark(&xas, mark);
 }
-EXPORT_SYMBOL_GPL(__xa_clear_mark);
+EXPORT_SYMBOL(__xa_clear_mark);
 
 /**
  * xa_get_mark() - Inquire whether this mark is set on this entry.
@@ -1732,7 +1711,7 @@ EXPORT_SYMBOL(xa_get_mark);
  * @index: Index of entry.
  * @mark: Mark number.
  *
- * Attempting to set a mark on a NULL entry does not succeed.
+ * Attempting to set a mark on a %NULL entry does not succeed.
  *
  * Context: Process context.  Takes and releases the xa_lock.
  */
@@ -1829,6 +1808,8 @@ void *xa_find_after(struct xarray *xa, unsigned long *indexp,
 			entry = xas_find_marked(&xas, max, filter);
 		else
 			entry = xas_find(&xas, max);
+		if (xas.xa_node == XAS_BOUNDS)
+			break;
 		if (xas.xa_shift) {
 			if (xas.xa_index & ((1UL << xas.xa_shift) - 1))
 				continue;
@@ -1899,7 +1880,7 @@ static unsigned int xas_extract_marked(struct xa_state *xas, void **dst,
  *
  * The @filter may be an XArray mark value, in which case entries which are
  * marked with that mark will be copied.  It may also be %XA_PRESENT, in
- * which case all entries which are not NULL will be copied.
+ * which case all entries which are not %NULL will be copied.
  *
  * The entries returned may not represent a snapshot of the XArray at a
  * moment in time.  For example, if another thread stores to index 5, then
