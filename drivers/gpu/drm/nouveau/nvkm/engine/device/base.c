@@ -2221,7 +2221,7 @@ nv132_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 	.gr = gp102_gr_new,
-	.nvdec = gp102_nvdec_new,
+	.nvdec[0] = gp102_nvdec_new,
 	.sec2 = gp102_sec2_new,
 	.sw = gf100_sw_new,
 };
@@ -2257,7 +2257,7 @@ nv134_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 	.gr = gp104_gr_new,
-	.nvdec = gp102_nvdec_new,
+	.nvdec[0] = gp102_nvdec_new,
 	.sec2 = gp102_sec2_new,
 	.sw = gf100_sw_new,
 };
@@ -2293,7 +2293,7 @@ nv136_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 	.gr = gp104_gr_new,
-	.nvdec = gp102_nvdec_new,
+	.nvdec[0] = gp102_nvdec_new,
 	.sec2 = gp102_sec2_new,
 	.sw = gf100_sw_new,
 };
@@ -2329,7 +2329,7 @@ nv137_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 	.gr = gp107_gr_new,
-	.nvdec = gp102_nvdec_new,
+	.nvdec[0] = gp102_nvdec_new,
 	.sec2 = gp102_sec2_new,
 	.sw = gf100_sw_new,
 };
@@ -2365,7 +2365,7 @@ nv138_chipset = {
 	.dma = gf119_dma_new,
 	.fifo = gp100_fifo_new,
 	.gr = gp107_gr_new,
-	.nvdec = gp102_nvdec_new,
+	.nvdec[0] = gp102_nvdec_new,
 	.sec2 = gp102_sec2_new,
 	.sw = gf100_sw_new,
 };
@@ -2430,7 +2430,7 @@ nv140_chipset = {
 	.dma = gv100_dma_new,
 	.fifo = gv100_fifo_new,
 	.gr = gv100_gr_new,
-	.nvdec = gp102_nvdec_new,
+	.nvdec[0] = gp102_nvdec_new,
 	.sec2 = gp102_sec2_new,
 };
 
@@ -2529,7 +2529,8 @@ nvkm_device_engine(struct nvkm_device *device, int index)
 	_(NVENC0 , device->nvenc[0],  device->nvenc[0]);
 	_(NVENC1 , device->nvenc[1],  device->nvenc[1]);
 	_(NVENC2 , device->nvenc[2],  device->nvenc[2]);
-	_(NVDEC  , device->nvdec   , &device->nvdec->engine);
+	_(NVDEC0 , device->nvdec[0], &device->nvdec[0]->engine);
+	_(NVDEC1 , device->nvdec[1], &device->nvdec[1]->engine);
 	_(PM     , device->pm      , &device->pm->engine);
 	_(SEC    , device->sec     ,  device->sec);
 	_(SEC2   , device->sec2    , &device->sec2->engine);
@@ -2988,7 +2989,8 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		_(NVKM_ENGINE_NVENC0  , nvenc[0]);
 		_(NVKM_ENGINE_NVENC1  , nvenc[1]);
 		_(NVKM_ENGINE_NVENC2  , nvenc[2]);
-		_(NVKM_ENGINE_NVDEC   ,    nvdec);
+		_(NVKM_ENGINE_NVDEC0  , nvdec[0]);
+		_(NVKM_ENGINE_NVDEC1  , nvdec[1]);
 		_(NVKM_ENGINE_PM      ,       pm);
 		_(NVKM_ENGINE_SEC     ,      sec);
 		_(NVKM_ENGINE_SEC2    ,     sec2);

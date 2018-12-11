@@ -91,7 +91,7 @@ nvkm_udevice_info_v1(struct nvkm_device *device,
 	case ENGINE_A(MSENC ); break;
 	case ENGINE_A(VIC   ); break;
 	case ENGINE_A(SEC2  ); break;
-	case ENGINE_A(NVDEC ); break;
+	case ENGINE_B(NVDEC ); break;
 	case ENGINE_B(NVENC ); break;
 	default:
 		args->mthd = NV_DEVICE_INFO_INVALID;

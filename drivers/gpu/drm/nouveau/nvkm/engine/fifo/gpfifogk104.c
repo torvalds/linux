@@ -85,7 +85,7 @@ gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 	case NVKM_ENGINE_MSVLD : return 0x0270;
 	case NVKM_ENGINE_VIC   : return 0x0280;
 	case NVKM_ENGINE_MSENC : return 0x0290;
-	case NVKM_ENGINE_NVDEC : return 0x02100270;
+	case NVKM_ENGINE_NVDEC0: return 0x02100270;
 	case NVKM_ENGINE_NVENC0: return 0x02100290;
 	case NVKM_ENGINE_NVENC1: return 0x0210;
 	default:
