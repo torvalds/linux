@@ -103,7 +103,7 @@ static void ima_rdwr_violation_check(struct file *file,
 	} else {
 		if (must_measure)
 			set_bit(IMA_MUST_MEASURE, &iint->atomic_flags);
-		if ((atomic_read(&inode->i_writecount) > 0) && must_measure)
+		if (inode_is_open_for_write(inode) && must_measure)
 			send_writers = true;
 	}
 
