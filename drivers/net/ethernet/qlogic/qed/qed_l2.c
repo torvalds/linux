@@ -740,8 +740,7 @@ int qed_sp_vport_update(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_vport_update_rss(p_hwfn, p_ramrod, p_rss_params);
 	if (rc) {
-		/* Return spq entry which is taken in qed_sp_init_request()*/
-		qed_spq_return_entry(p_hwfn, p_ent);
+		qed_sp_destroy_request(p_hwfn, p_ent);
 		return rc;
 	}
 
@@ -1355,6 +1354,7 @@ qed_filter_ucast_common(struct qed_hwfn *p_hwfn,
 			DP_NOTICE(p_hwfn,
 				  "%d is not supported yet\n",
 				  p_filter_cmd->opcode);
+			qed_sp_destroy_request(p_hwfn, *pp_ent);
 			return -EINVAL;
 		}
 
@@ -2056,13 +2056,13 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 	} else {
 		rc = qed_fw_vport(p_hwfn, p_params->vport_id, &abs_vport_id);
 		if (rc)
-			return rc;
+			goto err;
 
 		if (p_params->qid != QED_RFS_NTUPLE_QID_RSS) {
 			rc = qed_fw_l2_queue(p_hwfn, p_params->qid,
 					     &abs_rx_q_id);
 			if (rc)
-				return rc;
+				goto err;
 
 			p_ramrod->rx_qid_valid = 1;
 			p_ramrod->rx_qid = cpu_to_le16(abs_rx_q_id);
@@ -2083,6 +2083,10 @@ qed_configure_rfs_ntuple_filter(struct qed_hwfn *p_hwfn,
 		   (u64)p_params->addr, p_params->length);
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);
+
+err:
+	qed_sp_destroy_request(p_hwfn, p_ent);
+	return rc;
 }
 
 int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,

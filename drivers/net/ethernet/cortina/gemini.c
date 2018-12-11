@@ -660,7 +660,7 @@ static void gmac_clean_txq(struct net_device *netdev, struct gmac_txq *txq,
 
 			u64_stats_update_begin(&port->tx_stats_syncp);
 			port->tx_frag_stats[nfrags]++;
-			u64_stats_update_end(&port->ir_stats_syncp);
+			u64_stats_update_end(&port->tx_stats_syncp);
 		}
 	}
 

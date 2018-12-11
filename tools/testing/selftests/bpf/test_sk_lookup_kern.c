@@ -72,7 +72,7 @@ int bpf_sk_lookup_test0(struct __sk_buff *skb)
 		return TC_ACT_SHOT;
 
 	tuple_len = ipv4 ? sizeof(tuple->ipv4) : sizeof(tuple->ipv6);
-	sk = bpf_sk_lookup_tcp(skb, tuple, tuple_len, 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, tuple, tuple_len, BPF_F_CURRENT_NETNS, 0);
 	if (sk)
 		bpf_sk_release(sk);
 	return sk ? TC_ACT_OK : TC_ACT_UNSPEC;
@@ -84,7 +84,7 @@ int bpf_sk_lookup_test1(struct __sk_buff *skb)
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
 
-	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	if (sk)
 		bpf_sk_release(sk);
 	return 0;
@@ -97,7 +97,7 @@ int bpf_sk_lookup_uaf(struct __sk_buff *skb)
 	struct bpf_sock *sk;
 	__u32 family = 0;
 
-	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	if (sk) {
 		bpf_sk_release(sk);
 		family = sk->family;
@@ -112,7 +112,7 @@ int bpf_sk_lookup_modptr(struct __sk_buff *skb)
 	struct bpf_sock *sk;
 	__u32 family;
 
-	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	if (sk) {
 		sk += 1;
 		bpf_sk_release(sk);
@@ -127,7 +127,7 @@ int bpf_sk_lookup_modptr_or_null(struct __sk_buff *skb)
 	struct bpf_sock *sk;
 	__u32 family;
 
-	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	sk += 1;
 	if (sk)
 		bpf_sk_release(sk);
@@ -139,7 +139,7 @@ int bpf_sk_lookup_test2(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
 
-	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	return 0;
 }
 
@@ -149,7 +149,7 @@ int bpf_sk_lookup_test3(struct __sk_buff *skb)
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
 
-	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	bpf_sk_release(sk);
 	bpf_sk_release(sk);
 	return 0;
@@ -161,7 +161,7 @@ int bpf_sk_lookup_test4(struct __sk_buff *skb)
 	struct bpf_sock_tuple tuple = {};
 	struct bpf_sock *sk;
 
-	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	sk = bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 	bpf_sk_release(sk);
 	return 0;
 }
@@ -169,7 +169,7 @@ int bpf_sk_lookup_test4(struct __sk_buff *skb)
 void lookup_no_release(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
-	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), 0, 0);
+	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 }
 
 SEC("fail_no_release_subcall")

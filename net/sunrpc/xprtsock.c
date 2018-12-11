@@ -330,18 +330,16 @@ xs_alloc_sparse_pages(struct xdr_buf *buf, size_t want, gfp_t gfp)
 {
 	size_t i,n;
 
-	if (!(buf->flags & XDRBUF_SPARSE_PAGES))
+	if (!want || !(buf->flags & XDRBUF_SPARSE_PAGES))
 		return want;
-	if (want > buf->page_len)
-		want = buf->page_len;
 	n = (buf->page_base + want + PAGE_SIZE - 1) >> PAGE_SHIFT;
 	for (i = 0; i < n; i++) {
 		if (buf->pages[i])
 			continue;
 		buf->bvec[i].bv_page = buf->pages[i] = alloc_page(gfp);
 		if (!buf->pages[i]) {
-			buf->page_len = (i * PAGE_SIZE) - buf->page_base;
-			return buf->page_len;
+			i *= PAGE_SIZE;
+			return i > buf->page_base ? i - buf->page_base : 0;
 		}
 	}
 	return want;
@@ -378,8 +376,8 @@ static ssize_t
 xs_read_discard(struct socket *sock, struct msghdr *msg, int flags,
 		size_t count)
 {
-	struct kvec kvec = { 0 };
-	return xs_read_kvec(sock, msg, flags | MSG_TRUNC, &kvec, count, 0);
+	iov_iter_discard(&msg->msg_iter, READ, count);
+	return sock_recvmsg(sock, msg, flags);
 }
 
 static ssize_t
@@ -398,16 +396,17 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (offset == count || msg->msg_flags & (MSG_EOR|MSG_TRUNC))
 			goto out;
 		if (ret != want)
-			goto eagain;
+			goto out;
 		seek = 0;
 	} else {
 		seek -= buf->head[0].iov_len;
 		offset += buf->head[0].iov_len;
 	}
-	if (seek < buf->page_len) {
-		want = xs_alloc_sparse_pages(buf,
-				min_t(size_t, count - offset, buf->page_len),
-				GFP_NOWAIT);
+
+	want = xs_alloc_sparse_pages(buf,
+			min_t(size_t, count - offset, buf->page_len),
+			GFP_NOWAIT);
+	if (seek < want) {
 		ret = xs_read_bvec(sock, msg, flags, buf->bvec,
 				xdr_buf_pagecount(buf),
 				want + buf->page_base,
@@ -418,12 +417,13 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (offset == count || msg->msg_flags & (MSG_EOR|MSG_TRUNC))
 			goto out;
 		if (ret != want)
-			goto eagain;
+			goto out;
 		seek = 0;
 	} else {
-		seek -= buf->page_len;
-		offset += buf->page_len;
+		seek -= want;
+		offset += want;
 	}
+
 	if (seek < buf->tail[0].iov_len) {
 		want = min_t(size_t, count - offset, buf->tail[0].iov_len);
 		ret = xs_read_kvec(sock, msg, flags, &buf->tail[0], want, seek);
@@ -433,17 +433,13 @@ xs_read_xdr_buf(struct socket *sock, struct msghdr *msg, int flags,
 		if (offset == count || msg->msg_flags & (MSG_EOR|MSG_TRUNC))
 			goto out;
 		if (ret != want)
-			goto eagain;
+			goto out;
 	} else
 		offset += buf->tail[0].iov_len;
 	ret = -EMSGSIZE;
-	msg->msg_flags |= MSG_TRUNC;
 out:
 	*read = offset - seek_init;
 	return ret;
-eagain:
-	ret = -EAGAIN;
-	goto out;
 sock_err:
 	offset += seek;
 	goto out;
@@ -486,19 +482,20 @@ xs_read_stream_request(struct sock_xprt *transport, struct msghdr *msg,
 	if (transport->recv.offset == transport->recv.len) {
 		if (xs_read_stream_request_done(transport))
 			msg->msg_flags |= MSG_EOR;
-		return transport->recv.copied;
+		return read;
 	}
 
 	switch (ret) {
+	default:
+		break;
+	case -EFAULT:
 	case -EMSGSIZE:
-		return transport->recv.copied;
+		msg->msg_flags |= MSG_TRUNC;
+		return read;
 	case 0:
 		return -ESHUTDOWN;
-	default:
-		if (ret < 0)
-			return ret;
 	}
-	return -EAGAIN;
+	return ret < 0 ? ret : read;
 }
 
 static size_t
@@ -537,7 +534,7 @@ xs_read_stream_call(struct sock_xprt *transport, struct msghdr *msg, int flags)
 
 	ret = xs_read_stream_request(transport, msg, flags, req);
 	if (msg->msg_flags & (MSG_EOR|MSG_TRUNC))
-		xprt_complete_bc_request(req, ret);
+		xprt_complete_bc_request(req, transport->recv.copied);
 
 	return ret;
 }
@@ -570,7 +567,7 @@ xs_read_stream_reply(struct sock_xprt *transport, struct msghdr *msg, int flags)
 
 	spin_lock(&xprt->queue_lock);
 	if (msg->msg_flags & (MSG_EOR|MSG_TRUNC))
-		xprt_complete_rqst(req->rq_task, ret);
+		xprt_complete_rqst(req->rq_task, transport->recv.copied);
 	xprt_unpin_rqst(req);
 out:
 	spin_unlock(&xprt->queue_lock);
@@ -591,10 +588,8 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 		if (ret <= 0)
 			goto out_err;
 		transport->recv.offset = ret;
-		if (ret != want) {
-			ret = -EAGAIN;
-			goto out_err;
-		}
+		if (transport->recv.offset != want)
+			return transport->recv.offset;
 		transport->recv.len = be32_to_cpu(transport->recv.fraghdr) &
 			RPC_FRAGMENT_SIZE_MASK;
 		transport->recv.offset -= sizeof(transport->recv.fraghdr);
@@ -602,6 +597,9 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 	}
 
 	switch (be32_to_cpu(transport->recv.calldir)) {
+	default:
+		msg.msg_flags |= MSG_TRUNC;
+		break;
 	case RPC_CALL:
 		ret = xs_read_stream_call(transport, &msg, flags);
 		break;
@@ -616,6 +614,9 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 		goto out_err;
 	read += ret;
 	if (transport->recv.offset < transport->recv.len) {
+		if (!(msg.msg_flags & MSG_TRUNC))
+			return read;
+		msg.msg_flags = 0;
 		ret = xs_read_discard(transport->sock, &msg, flags,
 				transport->recv.len - transport->recv.offset);
 		if (ret <= 0)
@@ -623,7 +624,7 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 		transport->recv.offset += ret;
 		read += ret;
 		if (transport->recv.offset != transport->recv.len)
-			return -EAGAIN;
+			return read;
 	}
 	if (xs_read_stream_request_done(transport)) {
 		trace_xs_stream_read_request(transport);
@@ -633,13 +634,7 @@ xs_read_stream(struct sock_xprt *transport, int flags)
 	transport->recv.len = 0;
 	return read;
 out_err:
-	switch (ret) {
-	case 0:
-	case -ESHUTDOWN:
-		xprt_force_disconnect(&transport->xprt);
-		return -ESHUTDOWN;
-	}
-	return ret;
+	return ret != 0 ? ret : -ESHUTDOWN;
 }
 
 static void xs_stream_data_receive(struct sock_xprt *transport)
@@ -648,12 +643,12 @@ static void xs_stream_data_receive(struct sock_xprt *transport)
 	ssize_t ret = 0;
 
 	mutex_lock(&transport->recv_mutex);
+	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	if (transport->sock == NULL)
 		goto out;
-	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	for (;;) {
 		ret = xs_read_stream(transport, MSG_DONTWAIT);
-		if (ret <= 0)
+		if (ret < 0)
 			break;
 		read += ret;
 		cond_resched();
@@ -1345,10 +1340,10 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 	int err;
 
 	mutex_lock(&transport->recv_mutex);
+	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	sk = transport->inet;
 	if (sk == NULL)
 		goto out;
-	clear_bit(XPRT_SOCK_DATA_READY, &transport->sock_state);
 	for (;;) {
 		skb = skb_recv_udp(sk, 0, 1, &err);
 		if (skb == NULL)

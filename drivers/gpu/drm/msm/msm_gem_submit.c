@@ -317,6 +317,9 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	uint32_t *ptr;
 	int ret = 0;
 
+	if (!nr_relocs)
+		return 0;
+
 	if (offset % 4) {
 		DRM_ERROR("non-aligned cmdstream buffer: %u\n", offset);
 		return -EINVAL;
@@ -410,7 +413,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_gem_submit *submit;
 	struct msm_gpu *gpu = priv->gpu;
-	struct dma_fence *in_fence = NULL;
 	struct sync_file *sync_file = NULL;
 	struct msm_gpu_submitqueue *queue;
 	struct msm_ringbuffer *ring;
@@ -443,6 +445,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	ring = gpu->rb[queue->prio];
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
+		struct dma_fence *in_fence;
+
 		in_fence = sync_file_get_fence(args->fence_fd);
 
 		if (!in_fence)
@@ -452,11 +456,13 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 * Wait if the fence is from a foreign context, or if the fence
 		 * array contains any fence from a foreign context.
 		 */
-		if (!dma_fence_match_context(in_fence, ring->fctx->context)) {
+		ret = 0;
+		if (!dma_fence_match_context(in_fence, ring->fctx->context))
 			ret = dma_fence_wait(in_fence, true);
-			if (ret)
-				return ret;
-		}
+
+		dma_fence_put(in_fence);
+		if (ret)
+			return ret;
 	}
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -582,8 +588,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 out:
-	if (in_fence)
-		dma_fence_put(in_fence);
 	submit_cleanup(submit);
 	if (ret)
 		msm_gem_submit_free(submit);

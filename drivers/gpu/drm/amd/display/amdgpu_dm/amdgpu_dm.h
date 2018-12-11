@@ -160,8 +160,6 @@ struct amdgpu_dm_connector {
 	struct mutex hpd_lock;
 
 	bool fake_enable;
-
-	bool mst_connected;
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
@@ -206,6 +204,7 @@ struct dm_connector_state {
 	enum amdgpu_rmx_type scaling;
 	uint8_t underscan_vborder;
 	uint8_t underscan_hborder;
+	uint8_t max_bpc;
 	bool underscan_enable;
 	bool freesync_enable;
 	bool freesync_capable;

@@ -1736,7 +1736,12 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 	if (events->force_trigger)
 		value |= 0x1;
 
-	value |= 0x84;
+	if (num_pipes) {
+		struct dc *dc = pipe_ctx[0]->stream->ctx->dc;
+
+		if (dc->fbc_compressor)
+			value |= 0x84;
+	}
 
 	for (i = 0; i < num_pipes; i++)
 		pipe_ctx[i]->stream_res.tg->funcs->
@@ -2506,6 +2511,8 @@ static void pplib_apply_display_requirements(
 	pp_display_cfg->min_engine_clock_khz = determine_sclk_from_bounding_box(
 			dc,
 			context->bw.dce.sclk_khz);
+
+	pp_display_cfg->min_dcfclock_khz = pp_display_cfg->min_engine_clock_khz;
 
 	pp_display_cfg->min_engine_clock_deep_sleep_khz
 			= context->bw.dce.sclk_deep_sleep_khz;

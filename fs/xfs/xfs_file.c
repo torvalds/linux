@@ -920,7 +920,7 @@ out_unlock:
 }
 
 
-loff_t
+STATIC loff_t
 xfs_file_remap_range(
 	struct file		*file_in,
 	loff_t			pos_in,

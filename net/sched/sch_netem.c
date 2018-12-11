@@ -431,6 +431,9 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch,
 	int count = 1;
 	int rc = NET_XMIT_SUCCESS;
 
+	/* Do not fool qdisc_drop_all() */
+	skb->prev = NULL;
+
 	/* Random duplication */
 	if (q->duplicate && q->duplicate >= get_crandom(&q->dup_cor))
 		++count;
@@ -647,15 +650,6 @@ deliver:
 			 * we need to restore its value.
 			 */
 			skb->dev = qdisc_dev(sch);
-
-#ifdef CONFIG_NET_CLS_ACT
-			/*
-			 * If it's at ingress let's pretend the delay is
-			 * from the network (tstamp will be updated).
-			 */
-			if (skb->tc_redirected && skb->tc_from_ingress)
-				skb->tstamp = 0;
-#endif
 
 			if (q->slot.slot_next) {
 				q->slot.packets_left--;

@@ -492,8 +492,10 @@ static int ttm_buffer_object_transfer(struct ttm_buffer_object *bo,
 	if (!fbo)
 		return -ENOMEM;
 
-	ttm_bo_get(bo);
 	fbo->base = *bo;
+	fbo->base.mem.placement |= TTM_PL_FLAG_NO_EVICT;
+
+	ttm_bo_get(bo);
 	fbo->bo = bo;
 
 	/**

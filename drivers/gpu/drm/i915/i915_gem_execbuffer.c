@@ -460,7 +460,7 @@ eb_validate_vma(struct i915_execbuffer *eb,
 	 * any non-page-aligned or non-canonical addresses.
 	 */
 	if (unlikely(entry->flags & EXEC_OBJECT_PINNED &&
-		     entry->offset != gen8_canonical_addr(entry->offset & PAGE_MASK)))
+		     entry->offset != gen8_canonical_addr(entry->offset & I915_GTT_PAGE_MASK)))
 		return -EINVAL;
 
 	/* pad_to_size was once a reserved field, so sanitize it */
@@ -1268,7 +1268,7 @@ relocate_entry(struct i915_vma *vma,
 		else if (gen >= 4)
 			len = 4;
 		else
-			len = 3;
+			len = 6;
 
 		batch = reloc_gpu(eb, vma, len);
 		if (IS_ERR(batch))
@@ -1306,6 +1306,11 @@ relocate_entry(struct i915_vma *vma,
 			*batch++ = addr;
 			*batch++ = target_offset;
 		} else {
+			*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
+			*batch++ = addr;
+			*batch++ = target_offset;
+
+			/* And again for good measure (blb/pnv) */
 			*batch++ = MI_STORE_DWORD_IMM | MI_MEM_VIRTUAL;
 			*batch++ = addr;
 			*batch++ = target_offset;

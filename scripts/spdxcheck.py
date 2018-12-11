@@ -168,7 +168,6 @@ class id_parser(object):
         self.curline = 0
         try:
             for line in fd:
-                line = line.decode(locale.getpreferredencoding(False), errors='ignore')
                 self.curline += 1
                 if self.curline > maxlines:
                     break

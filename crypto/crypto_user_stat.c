@@ -37,6 +37,8 @@ static int crypto_report_aead(struct sk_buff *skb, struct crypto_alg *alg)
 	u64 v64;
 	u32 v32;
 
+	memset(&raead, 0, sizeof(raead));
+
 	strncpy(raead.type, "aead", sizeof(raead.type));
 
 	v32 = atomic_read(&alg->encrypt_cnt);
@@ -64,6 +66,8 @@ static int crypto_report_cipher(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_stat rcipher;
 	u64 v64;
 	u32 v32;
+
+	memset(&rcipher, 0, sizeof(rcipher));
 
 	strlcpy(rcipher.type, "cipher", sizeof(rcipher.type));
 
@@ -93,6 +97,8 @@ static int crypto_report_comp(struct sk_buff *skb, struct crypto_alg *alg)
 	u64 v64;
 	u32 v32;
 
+	memset(&rcomp, 0, sizeof(rcomp));
+
 	strlcpy(rcomp.type, "compression", sizeof(rcomp.type));
 	v32 = atomic_read(&alg->compress_cnt);
 	rcomp.stat_compress_cnt = v32;
@@ -120,6 +126,8 @@ static int crypto_report_acomp(struct sk_buff *skb, struct crypto_alg *alg)
 	u64 v64;
 	u32 v32;
 
+	memset(&racomp, 0, sizeof(racomp));
+
 	strlcpy(racomp.type, "acomp", sizeof(racomp.type));
 	v32 = atomic_read(&alg->compress_cnt);
 	racomp.stat_compress_cnt = v32;
@@ -146,6 +154,8 @@ static int crypto_report_akcipher(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_stat rakcipher;
 	u64 v64;
 	u32 v32;
+
+	memset(&rakcipher, 0, sizeof(rakcipher));
 
 	strncpy(rakcipher.type, "akcipher", sizeof(rakcipher.type));
 	v32 = atomic_read(&alg->encrypt_cnt);
@@ -177,6 +187,8 @@ static int crypto_report_kpp(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_stat rkpp;
 	u32 v;
 
+	memset(&rkpp, 0, sizeof(rkpp));
+
 	strlcpy(rkpp.type, "kpp", sizeof(rkpp.type));
 
 	v = atomic_read(&alg->setsecret_cnt);
@@ -203,6 +215,8 @@ static int crypto_report_ahash(struct sk_buff *skb, struct crypto_alg *alg)
 	u64 v64;
 	u32 v32;
 
+	memset(&rhash, 0, sizeof(rhash));
+
 	strncpy(rhash.type, "ahash", sizeof(rhash.type));
 
 	v32 = atomic_read(&alg->hash_cnt);
@@ -226,6 +240,8 @@ static int crypto_report_shash(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_stat rhash;
 	u64 v64;
 	u32 v32;
+
+	memset(&rhash, 0, sizeof(rhash));
 
 	strncpy(rhash.type, "shash", sizeof(rhash.type));
 
@@ -251,6 +267,8 @@ static int crypto_report_rng(struct sk_buff *skb, struct crypto_alg *alg)
 	u64 v64;
 	u32 v32;
 
+	memset(&rrng, 0, sizeof(rrng));
+
 	strncpy(rrng.type, "rng", sizeof(rrng.type));
 
 	v32 = atomic_read(&alg->generate_cnt);
@@ -275,6 +293,8 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 				 struct crypto_user_alg *ualg,
 				 struct sk_buff *skb)
 {
+	memset(ualg, 0, sizeof(*ualg));
+
 	strlcpy(ualg->cru_name, alg->cra_name, sizeof(ualg->cru_name));
 	strlcpy(ualg->cru_driver_name, alg->cra_driver_name,
 		sizeof(ualg->cru_driver_name));
@@ -291,6 +311,7 @@ static int crypto_reportstat_one(struct crypto_alg *alg,
 	if (alg->cra_flags & CRYPTO_ALG_LARVAL) {
 		struct crypto_stat rl;
 
+		memset(&rl, 0, sizeof(rl));
 		strlcpy(rl.type, "larval", sizeof(rl.type));
 		if (nla_put(skb, CRYPTOCFGA_STAT_LARVAL,
 			    sizeof(struct crypto_stat), &rl))

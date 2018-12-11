@@ -96,6 +96,7 @@ struct mlx5e_sw_stats {
 	u64 rx_wqe_err;
 	u64 rx_mpwqe_filler_cqes;
 	u64 rx_mpwqe_filler_strides;
+	u64 rx_oversize_pkts_sw_drop;
 	u64 rx_buff_alloc_err;
 	u64 rx_cqe_compress_blks;
 	u64 rx_cqe_compress_pkts;
@@ -193,6 +194,7 @@ struct mlx5e_rq_stats {
 	u64 wqe_err;
 	u64 mpwqe_filler_cqes;
 	u64 mpwqe_filler_strides;
+	u64 oversize_pkts_sw_drop;
 	u64 buff_alloc_err;
 	u64 cqe_compress_blks;
 	u64 cqe_compress_pkts;

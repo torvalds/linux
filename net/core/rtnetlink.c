@@ -3367,7 +3367,7 @@ static int rtnl_dump_all(struct sk_buff *skb, struct netlink_callback *cb)
 			cb->seq = 0;
 		}
 		ret = dumpit(skb, cb);
-		if (ret < 0)
+		if (ret)
 			break;
 	}
 	cb->family = idx;
@@ -3799,6 +3799,9 @@ int ndo_dflt_fdb_dump(struct sk_buff *skb,
 		      int *idx)
 {
 	int err;
+
+	if (dev->type != ARPHRD_ETHER)
+		return -EINVAL;
 
 	netif_addr_lock_bh(dev);
 	err = nlmsg_populate_fdb(skb, cb, dev, idx, &dev->uc);

@@ -494,7 +494,7 @@ struct mvneta_port {
 #if defined(__LITTLE_ENDIAN)
 struct mvneta_tx_desc {
 	u32  command;		/* Options used by HW for packet transmitting.*/
-	u16  reserverd1;	/* csum_l4 (for future use)		*/
+	u16  reserved1;		/* csum_l4 (for future use)		*/
 	u16  data_size;		/* Data size of transmitted packet in bytes */
 	u32  buf_phys_addr;	/* Physical addr of transmitted buffer	*/
 	u32  reserved2;		/* hw_cmd - (for future use, PMT)	*/
@@ -519,7 +519,7 @@ struct mvneta_rx_desc {
 #else
 struct mvneta_tx_desc {
 	u16  data_size;		/* Data size of transmitted packet in bytes */
-	u16  reserverd1;	/* csum_l4 (for future use)		*/
+	u16  reserved1;		/* csum_l4 (for future use)		*/
 	u32  command;		/* Options used by HW for packet transmitting.*/
 	u32  reserved2;		/* hw_cmd - (for future use, PMT)	*/
 	u32  buf_phys_addr;	/* Physical addr of transmitted buffer	*/
@@ -3343,7 +3343,6 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	if (state->interface != PHY_INTERFACE_MODE_NA &&
 	    state->interface != PHY_INTERFACE_MODE_QSGMII &&
 	    state->interface != PHY_INTERFACE_MODE_SGMII &&
-	    state->interface != PHY_INTERFACE_MODE_2500BASEX &&
 	    !phy_interface_mode_is_8023z(state->interface) &&
 	    !phy_interface_mode_is_rgmii(state->interface)) {
 		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
@@ -3357,14 +3356,9 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	/* Asymmetric pause is unsupported */
 	phylink_set(mask, Pause);
 
-	/* We cannot use 1Gbps when using the 2.5G interface. */
-	if (state->interface == PHY_INTERFACE_MODE_2500BASEX) {
-		phylink_set(mask, 2500baseT_Full);
-		phylink_set(mask, 2500baseX_Full);
-	} else {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-	}
+	/* Half-duplex at speeds higher than 100Mbit is unsupported */
+	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
 
 	if (!phy_interface_mode_is_8023z(state->interface)) {
 		/* 10M and 100M are only supported in non-802.3z mode */

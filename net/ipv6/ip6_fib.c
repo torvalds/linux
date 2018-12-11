@@ -591,7 +591,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 
 	/* fib entries are never clones */
 	if (arg.filter.flags & RTM_F_CLONED)
-		return skb->len;
+		goto out;
 
 	w = (void *)cb->args[2];
 	if (!w) {
@@ -621,7 +621,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 		tb = fib6_get_table(net, arg.filter.table_id);
 		if (!tb) {
 			if (arg.filter.dump_all_families)
-				return skb->len;
+				goto out;
 
 			NL_SET_ERR_MSG_MOD(cb->extack, "FIB table does not exist");
 			return -ENOENT;

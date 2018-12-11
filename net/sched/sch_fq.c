@@ -469,22 +469,29 @@ begin:
 		goto begin;
 	}
 	prefetch(&skb->end);
-	f->credit -= qdisc_pkt_len(skb);
+	plen = qdisc_pkt_len(skb);
+	f->credit -= plen;
 
-	if (ktime_to_ns(skb->tstamp) || !q->rate_enable)
+	if (!q->rate_enable)
 		goto out;
 
 	rate = q->flow_max_rate;
-	if (skb->sk)
-		rate = min(skb->sk->sk_pacing_rate, rate);
 
-	if (rate <= q->low_rate_threshold) {
-		f->credit = 0;
-		plen = qdisc_pkt_len(skb);
-	} else {
-		plen = max(qdisc_pkt_len(skb), q->quantum);
-		if (f->credit > 0)
-			goto out;
+	/* If EDT time was provided for this skb, we need to
+	 * update f->time_next_packet only if this qdisc enforces
+	 * a flow max rate.
+	 */
+	if (!skb->tstamp) {
+		if (skb->sk)
+			rate = min(skb->sk->sk_pacing_rate, rate);
+
+		if (rate <= q->low_rate_threshold) {
+			f->credit = 0;
+		} else {
+			plen = max(plen, q->quantum);
+			if (f->credit > 0)
+				goto out;
+		}
 	}
 	if (rate != ~0UL) {
 		u64 len = (u64)plen * NSEC_PER_SEC;
