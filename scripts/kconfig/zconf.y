@@ -31,7 +31,7 @@ struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 static struct menu *current_menu, *current_entry;
 
 %}
-%expect 21
+%expect 6
 
 %union
 {
@@ -94,7 +94,6 @@ static struct menu *current_menu, *current_entry;
 %type <expr> expr
 %type <expr> if_expr
 %type <id> end
-%type <id> option_name
 %type <menu> if_entry menu_entry choice_entry
 %type <string> symbol_option_arg word_opt assign_val
 
@@ -127,15 +126,7 @@ stmt_list:
 	| stmt_list menu_stmt
 	| stmt_list end			{ zconf_error("unexpected end statement"); }
 	| stmt_list T_WORD error T_EOL	{ zconf_error("unknown statement \"%s\"", $2); }
-	| stmt_list option_name error T_EOL
-{
-	zconf_error("unexpected option \"%s\"", $2->name);
-}
 	| stmt_list error T_EOL		{ zconf_error("invalid statement"); }
-;
-
-option_name:
-	T_DEPENDS | T_PROMPT | T_TYPE | T_SELECT | T_IMPLY | T_OPTIONAL | T_RANGE | T_DEFAULT | T_VISIBLE
 ;
 
 common_stmt:
