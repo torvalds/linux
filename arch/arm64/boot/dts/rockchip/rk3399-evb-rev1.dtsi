@@ -121,7 +121,7 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb0_int>;
-		vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+		vbus-5v-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 		int-n-gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
 		status = "okay";
 	};
@@ -334,7 +334,7 @@
 		reg = <0x22>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&fusb1_int>;
-		vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+		vbus-5v-gpios = <&gpio1 4 GPIO_ACTIVE_HIGH>;
 		int-n-gpios = <&gpio1 24 GPIO_ACTIVE_HIGH>;
 	};
 };
