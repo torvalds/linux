@@ -40,50 +40,49 @@ static struct menu *current_menu, *current_entry;
 	struct symbol *symbol;
 	struct expr *expr;
 	struct menu *menu;
-	const struct kconf_id *id;
 	enum symbol_type type;
 	enum variable_flavor flavor;
 }
 
-%token <id>T_MAINMENU
-%token <id>T_MENU
-%token <id>T_ENDMENU
-%token <id>T_SOURCE
-%token <id>T_CHOICE
-%token <id>T_ENDCHOICE
-%token <id>T_COMMENT
-%token <id>T_CONFIG
-%token <id>T_MENUCONFIG
-%token <id>T_HELP
 %token <string> T_HELPTEXT
-%token <id>T_IF
-%token <id>T_ENDIF
-%token <id>T_DEPENDS
-%token <id>T_OPTIONAL
-%token <id>T_PROMPT
-%token <id>T_SELECT
-%token <id>T_IMPLY
-%token <id>T_RANGE
-%token <id>T_VISIBLE
-%token <id>T_ON
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
 %token T_ALLNOCONFIG_Y
 %token T_BOOL
+%token T_CHOICE
 %token T_CLOSE_PAREN
 %token T_COLON_EQUAL
+%token T_COMMENT
+%token T_CONFIG
 %token T_DEFAULT
 %token T_DEFCONFIG_LIST
 %token T_DEF_BOOL
 %token T_DEF_TRISTATE
+%token T_DEPENDS
+%token T_ENDCHOICE
+%token T_ENDIF
+%token T_ENDMENU
+%token T_HELP
 %token T_HEX
+%token T_IF
+%token T_IMPLY
 %token T_INT
+%token T_MAINMENU
+%token T_MENU
+%token T_MENUCONFIG
 %token T_MODULES
+%token T_ON
 %token T_OPEN_PAREN
 %token T_OPTION
+%token T_OPTIONAL
 %token T_PLUS_EQUAL
+%token T_PROMPT
+%token T_RANGE
+%token T_SELECT
+%token T_SOURCE
 %token T_STRING
 %token T_TRISTATE
+%token T_VISIBLE
 %token T_EOL
 %token <string> T_ASSIGN_VAL
 

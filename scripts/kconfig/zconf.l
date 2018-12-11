@@ -104,7 +104,6 @@ n	[A-Za-z0-9_-]
 		current_pos.lineno = yylineno;
 		if (id && id->flags & TF_COMMAND) {
 			BEGIN(PARAM);
-			yylval.id = id;
 			return id->token;
 		}
 		alloc_string(yytext, yyleng);
@@ -163,7 +162,6 @@ n	[A-Za-z0-9_-]
 	{n}+	{
 		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
 		if (id && id->flags & TF_PARAM) {
-			yylval.id = id;
 			return id->token;
 		}
 		alloc_string(yytext, yyleng);
