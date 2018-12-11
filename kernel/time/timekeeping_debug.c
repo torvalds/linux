@@ -19,7 +19,7 @@
 
 static unsigned int sleep_time_bin[NUM_BINS] = {0};
 
-static int tk_debug_show_sleep_time(struct seq_file *s, void *data)
+static int tk_debug_sleep_time_show(struct seq_file *s, void *data)
 {
 	unsigned int bin;
 	seq_puts(s, "      time (secs)        count\n");
@@ -33,18 +33,7 @@ static int tk_debug_show_sleep_time(struct seq_file *s, void *data)
 	}
 	return 0;
 }
-
-static int tk_debug_sleep_time_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, tk_debug_show_sleep_time, NULL);
-}
-
-static const struct file_operations tk_debug_sleep_time_fops = {
-	.open		= tk_debug_sleep_time_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(tk_debug_sleep_time);
 
 static int __init tk_debug_sleep_time_init(void)
 {
