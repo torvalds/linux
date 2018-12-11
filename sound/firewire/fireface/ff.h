@@ -42,6 +42,11 @@
 #define SND_FF_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
 #define SND_FF_REG_CLOCK_CONFIG		0x0000801c0004ull
 
+enum snd_ff_reg_type {
+	SND_FF_REG_TYPE_MIDI_HIGH_ADDR = 0,
+	SND_FF_REG_TYPE_COUNT,
+};
+
 struct snd_ff_protocol;
 struct snd_ff_spec {
 	const char *const name;
@@ -53,6 +58,7 @@ struct snd_ff_spec {
 	unsigned int midi_out_ports;
 
 	const struct snd_ff_protocol *protocol;
+	u64 regs[SND_FF_REG_TYPE_COUNT];
 };
 
 struct snd_ff {
@@ -105,8 +111,6 @@ struct snd_ff_protocol {
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
-
-	u64 midi_high_addr_reg;
 };
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;

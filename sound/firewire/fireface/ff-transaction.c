@@ -269,36 +269,33 @@ static int allocate_own_address(struct snd_ff *ff, int i)
 }
 
 /*
- * The configuration to start asynchronous transactions for MIDI messages is in
- * 0x'0000'8010'051c. This register includes the other options, thus this driver
- * doesn't touch it and leaves the decision to userspace. The userspace MUST add
- * 0x04000000 to write transactions to the register to receive any MIDI
- * messages.
- *
- * Here, I just describe MIDI-related offsets of the register, in little-endian
- * order.
- *
  * Controllers are allowed to register higher 4 bytes of address to receive
- * the transactions. The register is 0x'0000'8010'03f4. On the other hand, the
- * controllers are not allowed to register lower 4 bytes of the address. They
- * are forced to select from 4 options by writing corresponding bits to
- * 0x'0000'8010'051c.
+ * the transactions. Different models have different registers for this purpose;
+ * e.g. 0x'0000'8010'03f4 for Fireface 400.
+ * The controllers are not allowed to register lower 4 bytes of the address.
+ * They are forced to select one of 4 options for the part of address by writing
+ * corresponding bits to 0x'0000'8010'051f.
  *
- * The 3rd-6th bits in MSB of this register are used to indicate lower 4 bytes
- * of address to which the device transferrs the transactions.
- *  - 6th: 0x'....'....'0000'0180
- *  - 5th: 0x'....'....'0000'0100
- *  - 4th: 0x'....'....'0000'0080
- *  - 3rd: 0x'....'....'0000'0000
+ * The 3rd-6th bits of this register are flags to indicate lower 4 bytes of
+ * address to which the device transferrs the transactions. In short:
+ *  - 0x20: 0x'....'....'0000'0180
+ *  - 0x10: 0x'....'....'0000'0100
+ *  - 0x08: 0x'....'....'0000'0080
+ *  - 0x04: 0x'....'....'0000'0000
  *
- * This driver configure 0x'....'....'0000'0000 for units to receive MIDI
- * messages. 3rd bit of the register should be configured, however this driver
- * deligates this task to user space applications due to a restriction that
- * this register is write-only and the other bits have own effects.
+ * This driver configure 0x'....'....'0000'0000 to receive MIDI messages from
+ * units. The 3rd bit of the register should be configured, however this driver
+ * deligates this task to userspace applications due to a restriction that this
+ * register is write-only and the other bits have own effects.
  *
- * The 1st and 2nd bits in LSB of this register are used to cancel transferring
- * asynchronous transactions. These two bits have the same effect.
- *  - 1st/2nd: cancel transferring
+ * Unlike Fireface 800, Fireface 400 cancels transferring asynchronous
+ * transactions when the 1st and 2nd of the register stand. These two bits have
+ * the same effect.
+ *  - 0x02, 0x01: cancel transferring
+ *
+ * On the other hand, the bits have no effect on Fireface 800. This model
+ * cancels asynchronous transactions when the higher 4 bytes of address is
+ * overwritten with zero.
  */
 int snd_ff_transaction_reregister(struct snd_ff *ff)
 {
@@ -313,7 +310,7 @@ int snd_ff_transaction_reregister(struct snd_ff *ff)
 	addr = (fw_card->node_id << 16) | (ff->async_handler.offset >> 32);
 	reg = cpu_to_le32(addr);
 	return snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
-				  ff->spec->protocol->midi_high_addr_reg,
+				  ff->spec->regs[SND_FF_REG_TYPE_MIDI_HIGH_ADDR],
 				  &reg, sizeof(reg), 0);
 }
 
@@ -354,7 +351,7 @@ void snd_ff_transaction_unregister(struct snd_ff *ff)
 	/* Release higher 4 bytes of address. */
 	reg = cpu_to_le32(0x00000000);
 	snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   ff->spec->protocol->midi_high_addr_reg,
+			   ff->spec->regs[SND_FF_REG_TYPE_MIDI_HIGH_ADDR],
 			   &reg, sizeof(reg), 0);
 
 	fw_core_remove_address_handler(&ff->async_handler);

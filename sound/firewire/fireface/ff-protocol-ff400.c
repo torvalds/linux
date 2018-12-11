@@ -15,8 +15,6 @@
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
-#define FF400_MIDI_HIGH_ADDR	0x0000801003f4ull
-
 static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 {
 	__le32 reg;
@@ -111,6 +109,4 @@ const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.begin_session		= ff400_begin_session,
 	.finish_session		= ff400_finish_session,
 	.switch_fetching_mode	= ff400_switch_fetching_mode,
-
-	.midi_high_addr_reg	= FF400_MIDI_HIGH_ADDR,
 };

@@ -152,6 +152,9 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_in_ports = 2,
 	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_ff400,
+	.regs = {
+		[SND_FF_REG_TYPE_MIDI_HIGH_ADDR] = 0x0000801003f4ull,
+	},
 };
 
 static const struct ieee1394_device_id snd_ff_id_table[] = {
