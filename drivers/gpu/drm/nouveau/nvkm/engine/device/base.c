@@ -2469,6 +2469,7 @@ nv164_chipset = {
 static const struct nvkm_device_chip
 nv166_chipset = {
 	.name = "TU106",
+	.bar = tu104_bar_new,
 	.bios = nvkm_bios_new,
 	.bus = gf100_bus_new,
 	.devinit = tu104_devinit_new,
