@@ -21,8 +21,6 @@
  */
 #include "priv.h"
 
-#include <subdev/mmu.h>
-
 static void
 gp100_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 {
@@ -34,8 +32,8 @@ static void
 gp100_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 {
 	struct nvkm_device *device = buffer->fault->subdev.device;
-	nvkm_wr32(device, 0x002a74, upper_32_bits(buffer->vma->addr));
-	nvkm_wr32(device, 0x002a70, lower_32_bits(buffer->vma->addr));
+	nvkm_wr32(device, 0x002a74, upper_32_bits(buffer->addr));
+	nvkm_wr32(device, 0x002a70, lower_32_bits(buffer->addr));
 	nvkm_mask(device, 0x002a70, 0x00000001, 0x00000001);
 }
 

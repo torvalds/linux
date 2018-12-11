@@ -13,7 +13,7 @@ struct nvkm_fault_buffer {
 	int id;
 	int entries;
 	struct nvkm_memory *mem;
-	struct nvkm_vma *vma;
+	u64 addr;
 };
 
 int nvkm_fault_new_(const struct nvkm_fault_func *, struct nvkm_device *,

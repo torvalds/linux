@@ -88,8 +88,8 @@ gv100_fault_buffer_init(struct nvkm_fault_buffer *buffer)
 	const u32 foff = buffer->id * 0x14;
 
 	nvkm_mask(device, 0x100e34 + foff, 0xc0000000, 0x40000000);
-	nvkm_wr32(device, 0x100e28 + foff, upper_32_bits(buffer->vma->addr));
-	nvkm_wr32(device, 0x100e24 + foff, lower_32_bits(buffer->vma->addr));
+	nvkm_wr32(device, 0x100e28 + foff, upper_32_bits(buffer->addr));
+	nvkm_wr32(device, 0x100e24 + foff, lower_32_bits(buffer->addr));
 	nvkm_mask(device, 0x100e34 + foff, 0x80000000, 0x80000000);
 	nvkm_mask(device, 0x100a2c, intr, intr);
 }
