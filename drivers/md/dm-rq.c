@@ -131,10 +131,8 @@ static void rq_end_stats(struct mapped_device *md, struct request *orig)
 static void rq_completed(struct mapped_device *md, int rw, bool run_queue)
 {
 	/* nudge anyone waiting on suspend queue */
-	if (unlikely(waitqueue_active(&md->wait))) {
-		if (!blk_mq_queue_busy(md->queue))
-			wake_up(&md->wait);
-	}
+	if (unlikely(waitqueue_active(&md->wait)))
+		wake_up(&md->wait);
 
 	/*
 	 * dm_put() must be at the end of this function. See the comment above

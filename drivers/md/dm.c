@@ -646,7 +646,7 @@ static void free_tio(struct dm_target_io *tio)
 	bio_put(&tio->clone);
 }
 
-static bool md_in_flight(struct mapped_device *md)
+static bool md_in_flight_bios(struct mapped_device *md)
 {
 	int cpu;
 	struct hd_struct *part = &dm_disk(md)->part0;
@@ -658,6 +658,14 @@ static bool md_in_flight(struct mapped_device *md)
 	}
 
 	return sum != 0;
+}
+
+static bool md_in_flight(struct mapped_device *md)
+{
+	if (queue_is_mq(md->queue))
+		return blk_mq_queue_busy(md->queue);
+	else
+		return md_in_flight_bios(md);
 }
 
 static void start_io_acct(struct dm_io *io)
