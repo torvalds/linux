@@ -30,21 +30,12 @@ static inline const char *CONFIG_prefix(void)
 #undef CONFIG_
 #define CONFIG_ CONFIG_prefix()
 
-#define TF_COMMAND	0x0001
-#define TF_PARAM	0x0002
-
 enum conf_def_mode {
 	def_default,
 	def_yes,
 	def_mod,
 	def_no,
 	def_random
-};
-
-struct kconf_id {
-	const char *name;
-	int token;
-	unsigned int flags;
 };
 
 extern int yylineno;

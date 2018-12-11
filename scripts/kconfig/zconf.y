@@ -110,11 +110,6 @@ static struct menu *current_menu, *current_entry;
 		menu_end_menu();
 } if_entry menu_entry choice_entry
 
-%{
-/* Include kconf_id.c here so it can see the token constants. */
-#include "kconf_id.c"
-%}
-
 %%
 input: mainmenu_stmt stmt_list | stmt_list;
 

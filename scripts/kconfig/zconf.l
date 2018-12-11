@@ -1,6 +1,6 @@
 %option nostdinit noyywrap never-interactive full ecs
 %option 8bit nodefault yylineno
-%x COMMAND HELP STRING PARAM ASSIGN_VAL
+%x ASSIGN_VAL HELP STRING
 %{
 /*
  * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
@@ -87,45 +87,73 @@ n	[A-Za-z0-9_-]
 	int str = 0;
 	int ts, i;
 
-[ \t]*#.*\n	|
-[ \t]*\n	{
-	return T_EOL;
-}
-[ \t]*#.*
-.	{
-	unput(yytext[0]);
-	BEGIN(COMMAND);
-}
-
-
-<COMMAND>{
-	{n}+	{
-		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
-		if (id && id->flags & TF_COMMAND) {
-			BEGIN(PARAM);
-			return id->token;
-		}
-		alloc_string(yytext, yyleng);
-		yylval.string = text;
-		return T_WORD;
-	}
-	({n}|$)+	{
-		/* this token includes at least one '$' */
-		yylval.string = expand_token(yytext, yyleng);
-		if (strlen(yylval.string))
-			return T_WORD;
-		free(yylval.string);
-	}
-	"="	return T_EQUAL;
-	":="	return T_COLON_EQUAL;
-	"+="	return T_PLUS_EQUAL;
-	[[:blank:]]+
-	.	warn_ignored_character(*yytext);
-	\n	{
-		BEGIN(INITIAL);
-		return T_EOL;
-	}
-}
+#.*			/* ignore comment */
+[ \t]*			/* whitespaces */
+\\\n			/* escaped new line */
+\n			return T_EOL;
+"allnoconfig_y"		return T_ALLNOCONFIG_Y;
+"bool"			return T_BOOL;
+"choice"		return T_CHOICE;
+"comment"		return T_COMMENT;
+"config"		return T_CONFIG;
+"def_bool"		return T_DEF_BOOL;
+"def_tristate"		return T_DEF_TRISTATE;
+"default"		return T_DEFAULT;
+"defconfig_list"	return T_DEFCONFIG_LIST;
+"depends"		return T_DEPENDS;
+"endchoice"		return T_ENDCHOICE;
+"endif"			return T_ENDIF;
+"endmenu"		return T_ENDMENU;
+"help"|"---help---"	return T_HELP;
+"hex"			return T_HEX;
+"if"			return T_IF;
+"imply"			return T_IMPLY;
+"int"			return T_INT;
+"mainmenu"		return T_MAINMENU;
+"menu"			return T_MENU;
+"menuconfig"		return T_MENUCONFIG;
+"modules"		return T_MODULES;
+"on"			return T_ON;
+"option"		return T_OPTION;
+"optional"		return T_OPTIONAL;
+"prompt"		return T_PROMPT;
+"range"			return T_RANGE;
+"select"		return T_SELECT;
+"source"		return T_SOURCE;
+"string"		return T_STRING;
+"tristate"		return T_TRISTATE;
+"visible"		return T_VISIBLE;
+"||"			return T_OR;
+"&&"			return T_AND;
+"="			return T_EQUAL;
+"!="			return T_UNEQUAL;
+"<"			return T_LESS;
+"<="			return T_LESS_EQUAL;
+">"			return T_GREATER;
+">="			return T_GREATER_EQUAL;
+"!"			return T_NOT;
+"("			return T_OPEN_PAREN;
+")"			return T_CLOSE_PAREN;
+":="			return T_COLON_EQUAL;
+"+="			return T_PLUS_EQUAL;
+\"|\'			{
+				str = yytext[0];
+				new_string();
+				BEGIN(STRING);
+			}
+{n}+			{
+				alloc_string(yytext, yyleng);
+				yylval.string = text;
+				return T_WORD;
+			}
+({n}|$)+		{
+				/* this token includes at least one '$' */
+				yylval.string = expand_token(yytext, yyleng);
+				if (strlen(yylval.string))
+					return T_WORD;
+				free(yylval.string);
+			}
+.			warn_ignored_character(*yytext);
 
 <ASSIGN_VAL>{
 	[^[:blank:]\n]+.*	{
@@ -135,49 +163,6 @@ n	[A-Za-z0-9_-]
 	}
 	\n	{ BEGIN(INITIAL); return T_EOL; }
 	.
-}
-
-<PARAM>{
-	"modules"		return T_MODULES;
-	"defconfig_list"	return T_DEFCONFIG_LIST;
-	"allnoconfig_y"		return T_ALLNOCONFIG_Y;
-	"&&"	return T_AND;
-	"||"	return T_OR;
-	"("	return T_OPEN_PAREN;
-	")"	return T_CLOSE_PAREN;
-	"!"	return T_NOT;
-	"="	return T_EQUAL;
-	"!="	return T_UNEQUAL;
-	"<="	return T_LESS_EQUAL;
-	">="	return T_GREATER_EQUAL;
-	"<"	return T_LESS;
-	">"	return T_GREATER;
-	\"|\'	{
-		str = yytext[0];
-		new_string();
-		BEGIN(STRING);
-	}
-	\n	BEGIN(INITIAL); return T_EOL;
-	{n}+	{
-		const struct kconf_id *id = kconf_id_lookup(yytext, yyleng);
-		if (id && id->flags & TF_PARAM) {
-			return id->token;
-		}
-		alloc_string(yytext, yyleng);
-		yylval.string = text;
-		return T_WORD;
-	}
-	({n}|$)+	{
-		/* this token includes at least one '$' */
-		yylval.string = expand_token(yytext, yyleng);
-		if (strlen(yylval.string))
-			return T_WORD;
-		free(yylval.string);
-	}
-	#.*	/* comment */
-	\\\n	;
-	[[:blank:]]+
-	.	warn_ignored_character(*yytext);
 }
 
 <STRING>{
@@ -190,7 +175,7 @@ n	[A-Za-z0-9_-]
 	}
 	\'|\"	{
 		if (str == yytext[0]) {
-			BEGIN(PARAM);
+			BEGIN(INITIAL);
 			yylval.string = text;
 			return T_WORD_QUOTE;
 		} else
