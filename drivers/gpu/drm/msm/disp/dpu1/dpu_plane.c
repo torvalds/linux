@@ -119,6 +119,12 @@ struct dpu_plane {
 	bool debugfs_default_scale;
 };
 
+static const uint64_t supported_format_modifiers[] = {
+	DRM_FORMAT_MOD_QCOM_COMPRESSED,
+	DRM_FORMAT_MOD_LINEAR,
+	DRM_FORMAT_MOD_INVALID
+};
+
 #define to_dpu_plane(x) container_of(x, struct dpu_plane, base)
 
 static struct dpu_kms *_dpu_plane_get_kms(struct drm_plane *plane)
@@ -1519,7 +1525,7 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 
 	ret = drm_universal_plane_init(dev, plane, 0xff, &dpu_plane_funcs,
 				format_list, num_formats,
-				NULL, type, NULL);
+				supported_format_modifiers, type, NULL);
 	if (ret)
 		goto clean_sspp;
 
