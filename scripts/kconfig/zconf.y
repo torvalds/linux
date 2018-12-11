@@ -354,14 +354,7 @@ menu_end: end
 	}
 };
 
-menu_stmt: menu_entry menu_block menu_end
-;
-
-menu_block:
-	  /* empty */
-	| menu_block common_stmt
-	| menu_block menu_stmt
-	| menu_block choice_stmt
+menu_stmt: menu_entry stmt_list menu_end
 ;
 
 source_stmt: T_SOURCE prompt T_EOL
