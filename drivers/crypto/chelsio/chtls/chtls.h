@@ -220,6 +220,8 @@ struct chtls_sock {
 	u16 resv2;
 	u32 delack_mode;
 	u32 delack_seq;
+	u32 snd_win;
+	u32 rcv_win;
 
 	void *passive_reap_next;        /* placeholder for passive */
 	struct chtls_hws tlshws;
