@@ -926,16 +926,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		goto hw_intr_init_err;
 	}
 
-	/*
-	 * _dpu_kms_drm_obj_init should create the DRM related objects
-	 * i.e. CRTCs, planes, encoders, connectors and so forth
-	 */
-	rc = _dpu_kms_drm_obj_init(dpu_kms);
-	if (rc) {
-		DPU_ERROR("modeset init failed: %d\n", rc);
-		goto drm_obj_init_err;
-	}
-
 	dev->mode_config.min_width = 0;
 	dev->mode_config.min_height = 0;
 
@@ -951,6 +941,16 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	 * Support format modifiers for compression etc.
 	 */
 	dev->mode_config.allow_fb_modifiers = true;
+
+	/*
+	 * _dpu_kms_drm_obj_init should create the DRM related objects
+	 * i.e. CRTCs, planes, encoders, connectors and so forth
+	 */
+	rc = _dpu_kms_drm_obj_init(dpu_kms);
+	if (rc) {
+		DPU_ERROR("modeset init failed: %d\n", rc);
+		goto drm_obj_init_err;
+	}
 
 	dpu_vbif_init_memtypes(dpu_kms);
 
