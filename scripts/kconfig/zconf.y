@@ -31,7 +31,7 @@ struct symbol *symbol_hash[SYMBOL_HASHSIZE];
 static struct menu *current_menu, *current_entry;
 
 %}
-%expect 30
+%expect 29
 
 %union
 {
@@ -461,7 +461,7 @@ visibility_list:
 	| visibility_list T_EOL
 ;
 
-visible: T_VISIBLE if_expr
+visible: T_VISIBLE if_expr T_EOL
 {
 	menu_add_visibility($2);
 };
