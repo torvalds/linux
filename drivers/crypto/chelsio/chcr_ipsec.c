@@ -671,7 +671,7 @@ int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipsec_sa_entry *sa_entry;
 	u64 *pos, *end, *before, *sgl;
 	int qidx, left, credits;
-	unsigned int flits = 0, ndesc, kctx_len;
+	unsigned int flits = 0, ndesc;
 	struct adapter *adap;
 	struct sge_eth_txq *q;
 	struct port_info *pi;
@@ -682,7 +682,6 @@ int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;
 
 	sa_entry = (struct ipsec_sa_entry *)x->xso.offload_handle;
-	kctx_len = sa_entry->kctx_len;
 
 	if (skb->sp->len != 1) {
 out_free:       dev_kfree_skb_any(skb);
