@@ -16,8 +16,6 @@
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
 #define FF400_MIDI_HIGH_ADDR	0x0000801003f4ull
-#define FF400_MIDI_RX_PORT_0	0x000080180000ull
-#define FF400_MIDI_RX_PORT_1	0x000080190000ull
 
 static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
 {
@@ -115,6 +113,4 @@ const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.switch_fetching_mode	= ff400_switch_fetching_mode,
 
 	.midi_high_addr_reg	= FF400_MIDI_HIGH_ADDR,
-	.midi_rx_port_0_reg	= FF400_MIDI_RX_PORT_0,
-	.midi_rx_port_1_reg	= FF400_MIDI_RX_PORT_1,
 };

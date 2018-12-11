@@ -107,8 +107,6 @@ struct snd_ff_protocol {
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 
 	u64 midi_high_addr_reg;
-	u64 midi_rx_port_0_reg;
-	u64 midi_rx_port_1_reg;
 };
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;

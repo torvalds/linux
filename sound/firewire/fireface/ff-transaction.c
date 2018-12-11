@@ -8,6 +8,9 @@
 
 #include "ff.h"
 
+#define SND_FF_REG_MIDI_RX_PORT_0	0x000080180000ull
+#define SND_FF_REG_MIDI_RX_PORT_1	0x000080190000ull
+
 int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,
 				 enum snd_ff_clock_src *src)
 {
@@ -153,10 +156,10 @@ static void transmit_midi_msg(struct snd_ff *ff, unsigned int port)
 		fill_midi_buf(ff, port, i, buf[i]);
 
 	if (port == 0) {
-		addr = ff->spec->protocol->midi_rx_port_0_reg;
+		addr = SND_FF_REG_MIDI_RX_PORT_0;
 		callback = finish_transmit_midi0_msg;
 	} else {
-		addr = ff->spec->protocol->midi_rx_port_1_reg;
+		addr = SND_FF_REG_MIDI_RX_PORT_1;
 		callback = finish_transmit_midi1_msg;
 	}
 
