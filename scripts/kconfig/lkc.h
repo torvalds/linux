@@ -50,7 +50,6 @@ struct kconf_id {
 	const char *name;
 	int token;
 	unsigned int flags;
-	enum symbol_type stype;
 };
 
 extern int yylineno;
