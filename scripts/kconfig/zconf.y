@@ -84,7 +84,6 @@ static struct menu *current_menu, *current_entry;
 %token T_STRING
 %token T_TRISTATE
 %token T_EOL
-%token <string> T_VARIABLE
 %token <string> T_ASSIGN_VAL
 
 %left T_OR
@@ -480,7 +479,7 @@ word_opt: /* empty */			{ $$ = NULL; }
 
 /* assignment statement */
 
-assignment_stmt:  T_VARIABLE assign_op assign_val T_EOL	{ variable_add($1, $3, $2); free($1); free($3); }
+assignment_stmt:  T_WORD assign_op assign_val T_EOL	{ variable_add($1, $3, $2); free($1); free($3); }
 
 assign_op:
 	  T_EQUAL	{ $$ = VAR_RECURSIVE; }

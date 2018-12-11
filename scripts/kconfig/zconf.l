@@ -109,13 +109,13 @@ n	[A-Za-z0-9_-]
 		}
 		alloc_string(yytext, yyleng);
 		yylval.string = text;
-		return T_VARIABLE;
+		return T_WORD;
 	}
 	({n}|$)+	{
 		/* this token includes at least one '$' */
 		yylval.string = expand_token(yytext, yyleng);
 		if (strlen(yylval.string))
-			return T_VARIABLE;
+			return T_WORD;
 		free(yylval.string);
 	}
 	"="	{ BEGIN(ASSIGN_VAL); return T_EQUAL; }
