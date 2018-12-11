@@ -25,7 +25,7 @@ struct cs_etm_buffer {
 enum cs_etm_sample_type {
 	CS_ETM_EMPTY,
 	CS_ETM_RANGE,
-	CS_ETM_TRACE_ON,
+	CS_ETM_DISCONTINUITY,
 };
 
 enum cs_etm_isa {
