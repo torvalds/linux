@@ -101,8 +101,6 @@ enum snd_ff_clock_src {
 };
 
 struct snd_ff_protocol {
-	int (*get_clock)(struct snd_ff *ff, unsigned int *rate,
-			 enum snd_ff_clock_src *src);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
 	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
@@ -114,6 +112,8 @@ struct snd_ff_protocol {
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff400;
 
+int snd_ff_transaction_get_clock(struct snd_ff *ff, unsigned int *rate,
+				 enum snd_ff_clock_src *src);
 int snd_ff_transaction_register(struct snd_ff *ff);
 int snd_ff_transaction_reregister(struct snd_ff *ff);
 void snd_ff_transaction_unregister(struct snd_ff *ff);

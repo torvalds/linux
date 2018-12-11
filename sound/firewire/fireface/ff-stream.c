@@ -149,7 +149,7 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 	if (ff->substreams_counter == 0)
 		return 0;
 
-	err = ff->spec->protocol->get_clock(ff, &curr_rate, &src);
+	err = snd_ff_transaction_get_clock(ff, &curr_rate, &src);
 	if (err < 0)
 		return err;
 	if (curr_rate != rate ||
