@@ -811,7 +811,7 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 			DRM_INFO("PipeC fused off\n");
 			info->num_pipes -= 1;
 		}
-	} else if (HAS_DISPLAY(dev_priv) && IS_GEN9(dev_priv)) {
+	} else if (HAS_DISPLAY(dev_priv) && INTEL_GEN(dev_priv) >= 9) {
 		u32 dfsm = I915_READ(SKL_DFSM);
 		u8 disabled_mask = 0;
 		bool invalid;
