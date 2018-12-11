@@ -1211,10 +1211,10 @@ err_db:
 		mlx4_db_free(dev->dev, &qp->db);
 
 err:
-	if (sqp)
-		kfree(sqp);
-	else if (!*caller_qp)
+	if (!sqp && !*caller_qp)
 		kfree(qp);
+	kfree(sqp);
+
 	return err;
 }
 
