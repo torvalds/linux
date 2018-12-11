@@ -2452,6 +2452,7 @@ nv164_chipset = {
 	.mc = tu104_mc_new,
 	.mmu = tu104_mmu_new,
 	.pci = gp100_pci_new,
+	.pmu = gp102_pmu_new,
 	.timer = gk20a_timer_new,
 	.top = gk104_top_new,
 };
