@@ -56,6 +56,7 @@
 #include "fs_core.h"
 #include "lib/mpfs.h"
 #include "eswitch.h"
+#include "devlink.h"
 #include "lib/mlx5.h"
 #include "fpga/core.h"
 #include "fpga/ipsec.h"
@@ -1214,37 +1215,6 @@ out:
 	return err;
 }
 
-static int mlx5_devlink_flash_update(struct devlink *devlink,
-				     const char *file_name,
-				     const char *component,
-				     struct netlink_ext_ack *extack)
-{
-	struct mlx5_core_dev *dev = devlink_priv(devlink);
-	const struct firmware *fw;
-	int err;
-
-	if (component)
-		return -EOPNOTSUPP;
-
-	err = request_firmware_direct(&fw, file_name, &dev->pdev->dev);
-	if (err)
-		return err;
-
-	return mlx5_firmware_flash(dev, fw, extack);
-}
-
-static const struct devlink_ops mlx5_devlink_ops = {
-#ifdef CONFIG_MLX5_ESWITCH
-	.eswitch_mode_set = mlx5_devlink_eswitch_mode_set,
-	.eswitch_mode_get = mlx5_devlink_eswitch_mode_get,
-	.eswitch_inline_mode_set = mlx5_devlink_eswitch_inline_mode_set,
-	.eswitch_inline_mode_get = mlx5_devlink_eswitch_inline_mode_get,
-	.eswitch_encap_mode_set = mlx5_devlink_eswitch_encap_mode_set,
-	.eswitch_encap_mode_get = mlx5_devlink_eswitch_encap_mode_get,
-#endif
-	.flash_update = mlx5_devlink_flash_update,
-};
-
 static int mlx5_mdev_init(struct mlx5_core_dev *dev, int profile_idx)
 {
 	struct mlx5_priv *priv = &dev->priv;
@@ -1306,9 +1276,9 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct devlink *devlink;
 	int err;
 
-	devlink = devlink_alloc(&mlx5_devlink_ops, sizeof(*dev));
+	devlink = mlx5_devlink_alloc();
 	if (!devlink) {
-		dev_err(&pdev->dev, "kzalloc failed\n");
+		dev_err(&pdev->dev, "devlink alloc failed\n");
 		return -ENOMEM;
 	}
 
@@ -1336,7 +1306,7 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	request_module_nowait(MLX5_IB_MOD);
 
-	err = devlink_register(devlink, &pdev->dev);
+	err = mlx5_devlink_register(devlink, &pdev->dev);
 	if (err)
 		goto clean_load;
 
@@ -1351,7 +1321,7 @@ err_load_one:
 pci_init_err:
 	mlx5_mdev_uninit(dev);
 mdev_init_err:
-	devlink_free(devlink);
+	mlx5_devlink_free(devlink);
 
 	return err;
 }
@@ -1361,7 +1331,7 @@ static void remove_one(struct pci_dev *pdev)
 	struct mlx5_core_dev *dev  = pci_get_drvdata(pdev);
 	struct devlink *devlink = priv_to_devlink(dev);
 
-	devlink_unregister(devlink);
+	mlx5_devlink_unregister(devlink);
 	mlx5_unregister_device(dev);
 
 	if (mlx5_unload_one(dev, true)) {
@@ -1372,7 +1342,7 @@ static void remove_one(struct pci_dev *pdev)
 
 	mlx5_pci_close(dev);
 	mlx5_mdev_uninit(dev);
-	devlink_free(devlink);
+	mlx5_devlink_free(devlink);
 }
 
 static pci_ers_result_t mlx5_pci_err_detected(struct pci_dev *pdev,
