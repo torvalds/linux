@@ -140,6 +140,9 @@ n	[A-Za-z0-9_-]
 }
 
 <PARAM>{
+	"modules"		return T_MODULES;
+	"defconfig_list"	return T_DEFCONFIG_LIST;
+	"allnoconfig_y"		return T_ALLNOCONFIG_Y;
 	"&&"	return T_AND;
 	"||"	return T_OR;
 	"("	return T_OPEN_PAREN;

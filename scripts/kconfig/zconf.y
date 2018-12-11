@@ -64,18 +64,21 @@ static struct menu *current_menu, *current_entry;
 %token <id>T_IMPLY
 %token <id>T_RANGE
 %token <id>T_VISIBLE
-%token <id>T_OPTION
 %token <id>T_ON
 %token <string> T_WORD
 %token <string> T_WORD_QUOTE
+%token T_ALLNOCONFIG_Y
 %token T_BOOL
 %token T_CLOSE_PAREN
 %token T_DEFAULT
+%token T_DEFCONFIG_LIST
 %token T_DEF_BOOL
 %token T_DEF_TRISTATE
 %token T_HEX
 %token T_INT
+%token T_MODULES
 %token T_OPEN_PAREN
+%token T_OPTION
 %token T_STRING
 %token T_TRISTATE
 %token T_EOL
@@ -97,7 +100,7 @@ static struct menu *current_menu, *current_entry;
 %type <expr> if_expr
 %type <id> end
 %type <menu> if_entry menu_entry choice_entry
-%type <string> symbol_option_arg word_opt assign_val
+%type <string> word_opt assign_val
 
 %destructor {
 	fprintf(stderr, "%s:%d: missing end statement for this entry\n",
@@ -172,7 +175,6 @@ menuconfig_stmt: menuconfig_entry_start config_option_list
 config_option_list:
 	  /* empty */
 	| config_option_list config_option
-	| config_option_list symbol_option
 	| config_option_list depends
 	| config_option_list help
 ;
@@ -219,27 +221,20 @@ config_option: T_RANGE symbol symbol if_expr T_EOL
 	printd(DEBUG_PARSE, "%s:%d:range\n", zconf_curname(), zconf_lineno());
 };
 
-symbol_option: T_OPTION symbol_option_list T_EOL
-;
-
-symbol_option_list:
-	  /* empty */
-	| symbol_option_list T_WORD symbol_option_arg
+config_option: T_OPTION T_MODULES T_EOL
 {
-	const struct kconf_id *id = kconf_id_lookup($2, strlen($2));
-	if (id && id->flags & TF_OPTION) {
-		menu_add_option(id->token, $3);
-		free($3);
-	}
-	else
-		zconfprint("warning: ignoring unknown option %s", $2);
-	free($2);
+	menu_add_option_modules();
 };
 
-symbol_option_arg:
-	  /* empty */		{ $$ = NULL; }
-	| T_EQUAL prompt	{ $$ = $2; }
-;
+config_option: T_OPTION T_DEFCONFIG_LIST T_EOL
+{
+	menu_add_option_defconfig_list();
+};
+
+config_option: T_OPTION T_ALLNOCONFIG_Y T_EOL
+{
+	menu_add_option_allnoconfig_y();
+};
 
 /* choice entry */
 
