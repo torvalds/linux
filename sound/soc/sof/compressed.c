@@ -13,6 +13,8 @@
 #include <sound/compress_driver.h>
 #include "sof-priv.h"
 
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMPRESS)
+
 #define DRV_NAME	"sof-audio"
 
 static int sof_compressed_open(struct snd_compr_stream *cstream)
@@ -179,6 +181,4 @@ struct snd_compr_ops sof_compressed_ops = {
 	.get_caps = sof_compressed_get_caps,
 	.get_codec_caps = sof_compressed_get_codec_caps,
 };
-EXPORT_SYMBOL(sof_compressed_ops);
-
-MODULE_LICENSE("Dual BSD/GPL");
+#endif
