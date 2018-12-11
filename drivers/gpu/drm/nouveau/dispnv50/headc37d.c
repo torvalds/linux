@@ -155,6 +155,7 @@ headc37d_olut(struct nv50_head *head, struct nv50_head_atom *asyh)
 	asyh->olut.size = 0;
 	asyh->olut.range = 0;
 	asyh->olut.output_mode = 1;
+	asyh->olut.load = head907d_olut_load;
 }
 
 static void

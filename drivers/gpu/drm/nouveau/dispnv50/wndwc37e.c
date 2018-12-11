@@ -61,6 +61,7 @@ wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	asyw->xlut.i.size = 0;
 	asyw->xlut.i.range = 0;
 	asyw->xlut.i.output_mode = 1;
+	asyw->xlut.i.load = head907d_olut_load;
 }
 
 static void

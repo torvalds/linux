@@ -139,10 +139,8 @@ nv50_wndw_flush_set(struct nv50_wndw *wndw, u32 *interlock,
 	if (asyw->set.xlut ) {
 		if (asyw->ilut) {
 			asyw->xlut.i.offset =
-				nv50_lut_load(&wndw->ilut,
-					      asyw->xlut.i.mode <= 1,
-					      asyw->xlut.i.buffer,
-					      asyw->ilut);
+				nv50_lut_load(&wndw->ilut, asyw->xlut.i.buffer,
+					      asyw->ilut, asyw->xlut.i.load);
 		}
 		wndw->func->xlut_set(wndw, asyw);
 	}
@@ -320,6 +318,11 @@ nv50_wndw_atomic_check_lut(struct nv50_wndw *wndw,
 			asyh->wndw.olut |= BIT(wndw->id);
 	} else {
 		asyh->wndw.olut &= ~BIT(wndw->id);
+	}
+
+	if (!ilut && wndw->func->ilut_identity) {
+		static struct drm_property_blob dummy = {};
+		ilut = &dummy;
 	}
 
 	/* Recalculate LUT state. */

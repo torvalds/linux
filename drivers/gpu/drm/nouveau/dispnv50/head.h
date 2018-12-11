@@ -21,6 +21,7 @@ struct nv50_head_func {
 	void (*view)(struct nv50_head *, struct nv50_head_atom *);
 	void (*mode)(struct nv50_head *, struct nv50_head_atom *);
 	void (*olut)(struct nv50_head *, struct nv50_head_atom *);
+	bool olut_identity;
 	void (*olut_set)(struct nv50_head *, struct nv50_head_atom *);
 	void (*olut_clr)(struct nv50_head *);
 	void (*core_calc)(struct nv50_head *, struct nv50_head_atom *);

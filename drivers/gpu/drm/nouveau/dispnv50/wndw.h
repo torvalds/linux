@@ -65,6 +65,7 @@ struct nv50_wndw_func {
 	int (*ntfy_wait_begun)(struct nouveau_bo *, u32 offset,
 			       struct nvif_device *);
 	void (*ilut)(struct nv50_wndw *, struct nv50_wndw_atom *);
+	bool ilut_identity;
 	bool olut_core;
 	void (*xlut_set)(struct nv50_wndw *, struct nv50_wndw_atom *);
 	void (*xlut_clr)(struct nv50_wndw *);
