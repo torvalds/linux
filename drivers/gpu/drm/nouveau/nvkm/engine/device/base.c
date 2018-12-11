@@ -2434,6 +2434,11 @@ nv140_chipset = {
 	.sec2 = gp102_sec2_new,
 };
 
+static const struct nvkm_device_chip
+nv164_chipset = {
+	.name = "TU104",
+};
+
 static int
 nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
 		       struct nvkm_notify *notify)
@@ -2792,6 +2797,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 			case 0x120: device->card_type = GM100; break;
 			case 0x130: device->card_type = GP100; break;
 			case 0x140: device->card_type = GV100; break;
+			case 0x160: device->card_type = TU100; break;
 			default:
 				break;
 			}
@@ -2884,6 +2890,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		case 0x138: device->chip = &nv138_chipset; break;
 		case 0x13b: device->chip = &nv13b_chipset; break;
 		case 0x140: device->chip = &nv140_chipset; break;
+		case 0x164: device->chip = &nv164_chipset; break;
 		default:
 			nvdev_error(device, "unknown chipset (%08x)\n", boot0);
 			goto done;
