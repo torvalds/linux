@@ -634,6 +634,7 @@ struct pblk {
 
 	int min_write_pgs; /* Minimum amount of pages required by controller */
 	int max_write_pgs; /* Maximum amount of pages supported by controller */
+	int oob_meta_size; /* Size of OOB sector metadata */
 
 	sector_t capacity; /* Device capacity when bad blocks are subtracted */
 
@@ -1380,6 +1381,11 @@ static inline unsigned int pblk_get_min_chks(struct pblk *pblk)
 	 */
 
 	return DIV_ROUND_UP(100, pblk->op) * lm->blk_per_line;
+}
 
+static inline struct pblk_sec_meta *pblk_get_meta(struct pblk *pblk,
+							 void *meta, int index)
+{
+	return meta + pblk->oob_meta_size * index;
 }
 #endif /* PBLK_H_ */

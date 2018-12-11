@@ -405,6 +405,12 @@ static int pblk_core_init(struct pblk *pblk)
 		queue_max_hw_sectors(dev->q) / (geo->csecs >> SECTOR_SHIFT));
 	pblk_set_sec_per_write(pblk, pblk->min_write_pgs);
 
+	pblk->oob_meta_size = geo->sos;
+	if (pblk->oob_meta_size != sizeof(struct pblk_sec_meta)) {
+		pblk_err(pblk, "Unsupported metadata size\n");
+		return -EINVAL;
+	}
+
 	pblk->pad_dist = kcalloc(pblk->min_write_pgs - 1, sizeof(atomic64_t),
 								GFP_KERNEL);
 	if (!pblk->pad_dist)
