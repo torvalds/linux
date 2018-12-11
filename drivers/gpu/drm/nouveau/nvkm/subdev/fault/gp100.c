@@ -21,6 +21,15 @@
  */
 #include "priv.h"
 
+#include <subdev/mc.h>
+
+static void
+gp100_fault_buffer_intr(struct nvkm_fault_buffer *buffer, bool enable)
+{
+	struct nvkm_device *device = buffer->fault->subdev.device;
+	nvkm_mc_intr_mask(device, NVKM_SUBDEV_FAULT, enable);
+}
+
 static void
 gp100_fault_buffer_fini(struct nvkm_fault_buffer *buffer)
 {
@@ -59,6 +68,7 @@ gp100_fault = {
 	.buffer.info = gp100_fault_buffer_info,
 	.buffer.init = gp100_fault_buffer_init,
 	.buffer.fini = gp100_fault_buffer_fini,
+	.buffer.intr = gp100_fault_buffer_intr,
 };
 
 int

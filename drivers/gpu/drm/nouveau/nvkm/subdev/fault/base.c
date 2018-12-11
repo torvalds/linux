@@ -28,14 +28,14 @@ static void
 nvkm_fault_ntfy_fini(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fault *fault = container_of(event, typeof(*fault), event);
-	fault->func->buffer.fini(fault->buffer[index]);
+	fault->func->buffer.intr(fault->buffer[index], false);
 }
 
 static void
 nvkm_fault_ntfy_init(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fault *fault = container_of(event, typeof(*fault), event);
-	fault->func->buffer.init(fault->buffer[index]);
+	fault->func->buffer.intr(fault->buffer[index], true);
 }
 
 static int

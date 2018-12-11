@@ -32,6 +32,7 @@ struct nvkm_fault_func {
 		void (*info)(struct nvkm_fault_buffer *);
 		void (*init)(struct nvkm_fault_buffer *);
 		void (*fini)(struct nvkm_fault_buffer *);
+		void (*intr)(struct nvkm_fault_buffer *, bool enable);
 	} buffer;
 };
 #endif
