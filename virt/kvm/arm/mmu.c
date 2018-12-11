@@ -908,6 +908,7 @@ int create_hyp_exec_mappings(phys_addr_t phys_addr, size_t size,
  */
 int kvm_alloc_stage2_pgd(struct kvm *kvm)
 {
+	phys_addr_t pgd_phys;
 	pgd_t *pgd;
 
 	if (kvm->arch.pgd != NULL) {
@@ -920,7 +921,12 @@ int kvm_alloc_stage2_pgd(struct kvm *kvm)
 	if (!pgd)
 		return -ENOMEM;
 
+	pgd_phys = virt_to_phys(pgd);
+	if (WARN_ON(pgd_phys & ~kvm_vttbr_baddr_mask(kvm)))
+		return -EINVAL;
+
 	kvm->arch.pgd = pgd;
+	kvm->arch.pgd_phys = pgd_phys;
 	return 0;
 }
 
@@ -1008,6 +1014,7 @@ void kvm_free_stage2_pgd(struct kvm *kvm)
 		unmap_stage2_range(kvm, 0, kvm_phys_size(kvm));
 		pgd = READ_ONCE(kvm->arch.pgd);
 		kvm->arch.pgd = NULL;
+		kvm->arch.pgd_phys = 0;
 	}
 	spin_unlock(&kvm->mmu_lock);
 

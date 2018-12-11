@@ -57,16 +57,19 @@ int kvm_reset_vcpu(struct kvm_vcpu *vcpu);
 int kvm_arch_vm_ioctl_check_extension(struct kvm *kvm, long ext);
 void __extended_idmap_trampoline(phys_addr_t boot_pgd, phys_addr_t idmap_start);
 
-struct kvm_arch {
+struct kvm_vmid {
 	/* The VMID generation used for the virt. memory system */
 	u64    vmid_gen;
 	u32    vmid;
+};
+
+struct kvm_arch {
+	struct kvm_vmid vmid;
 
 	/* stage2 entry level table */
 	pgd_t *pgd;
+	phys_addr_t pgd_phys;
 
-	/* VTTBR value associated with above pgd and vmid */
-	u64    vttbr;
 	/* VTCR_EL2 value for this VM */
 	u64    vtcr;
 

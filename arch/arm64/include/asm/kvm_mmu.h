@@ -591,9 +591,15 @@ static inline u64 kvm_vttbr_baddr_mask(struct kvm *kvm)
 	return vttbr_baddr_mask(kvm_phys_shift(kvm), kvm_stage2_levels(kvm));
 }
 
-static inline bool kvm_cpu_has_cnp(void)
+static __always_inline u64 kvm_get_vttbr(struct kvm *kvm)
 {
-	return system_supports_cnp();
+	struct kvm_vmid *vmid = &kvm->arch.vmid;
+	u64 vmid_field, baddr;
+	u64 cnp = system_supports_cnp() ? VTTBR_CNP_BIT : 0;
+
+	baddr = kvm->arch.pgd_phys;
+	vmid_field = (u64)vmid->vmid << VTTBR_VMID_SHIFT;
+	return kvm_phys_to_vttbr(baddr) | vmid_field | cnp;
 }
 
 #endif /* __ASSEMBLY__ */

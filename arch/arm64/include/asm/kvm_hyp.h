@@ -21,6 +21,7 @@
 #include <linux/compiler.h>
 #include <linux/kvm_host.h>
 #include <asm/alternative.h>
+#include <asm/kvm_mmu.h>
 #include <asm/sysreg.h>
 
 #define __hyp_text __section(.hyp.text) notrace
@@ -163,7 +164,7 @@ void __noreturn __hyp_do_panic(unsigned long, ...);
 static __always_inline void __hyp_text __load_guest_stage2(struct kvm *kvm)
 {
 	write_sysreg(kvm->arch.vtcr, vtcr_el2);
-	write_sysreg(kvm->arch.vttbr, vttbr_el2);
+	write_sysreg(kvm_get_vttbr(kvm), vttbr_el2);
 
 	/*
 	 * ARM erratum 1165522 requires the actual execution of the above
