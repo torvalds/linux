@@ -178,9 +178,6 @@ n	[A-Za-z0-9_-]
 	\\\n	;
 	[[:blank:]]+
 	.	warn_ignored_character(*yytext);
-	<<EOF>> {
-		BEGIN(INITIAL);
-	}
 }
 
 <STRING>{
@@ -262,6 +259,8 @@ n	[A-Za-z0-9_-]
 }
 
 <<EOF>>	{
+	BEGIN(INITIAL);
+
 	if (current_file) {
 		zconf_endfile();
 		return T_EOL;
