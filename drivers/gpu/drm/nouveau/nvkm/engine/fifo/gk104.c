@@ -256,8 +256,18 @@ gk104_fifo_pbdma_init(struct gk104_fifo *fifo)
 	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
 }
 
+int
+gk104_fifo_pbdma_nr(struct gk104_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	/* Determine number of PBDMAs by checking valid enable bits. */
+	nvkm_wr32(device, 0x000204, 0xffffffff);
+	return hweight32(nvkm_rd32(device, 0x000204));
+}
+
 const struct gk104_fifo_pbdma_func
 gk104_fifo_pbdma = {
+	.nr = gk104_fifo_pbdma_nr,
 	.init = gk104_fifo_pbdma_init,
 };
 
@@ -925,9 +935,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	enum nvkm_devidx engidx;
 	u32 *map;
 
-	/* Determine number of PBDMAs by checking valid enable bits. */
-	nvkm_wr32(device, 0x000204, 0xffffffff);
-	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x000204));
+	fifo->pbdma_nr = fifo->func->pbdma->nr(fifo);
 	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
 
 	/* Read PBDMA->runlist(s) mapping from HW. */

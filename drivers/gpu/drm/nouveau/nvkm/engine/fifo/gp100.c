@@ -52,7 +52,7 @@ gp100_fifo_fault_engine[] = {
 
 static const struct gk104_fifo_func
 gp100_fifo = {
-	.pbdma = &gk208_fifo_pbdma,
+	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gp100_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
