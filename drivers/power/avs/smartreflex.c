@@ -37,7 +37,6 @@
 static LIST_HEAD(sr_list);
 
 static struct omap_sr_class_data *sr_class;
-static struct omap_sr_pmic_data *sr_pmic_data;
 static struct dentry		*sr_dbg_dir;
 
 static inline void sr_write_reg(struct omap_sr *sr, unsigned offset, u32 value)
@@ -780,25 +779,6 @@ void omap_sr_disable_reset_volt(struct voltagedomain *voltdm)
 	sr_class->disable(sr, 1);
 }
 
-/**
- * omap_sr_register_pmic() - API to register pmic specific info.
- * @pmic_data:	The structure containing pmic specific data.
- *
- * This API is to be called from the PMIC specific code to register with
- * smartreflex driver pmic specific info. Currently the only info required
- * is the smartreflex init on the PMIC side.
- */
-void omap_sr_register_pmic(struct omap_sr_pmic_data *pmic_data)
-{
-	if (!pmic_data) {
-		pr_warn("%s: Trying to register NULL PMIC data structure with smartreflex\n",
-			__func__);
-		return;
-	}
-
-	sr_pmic_data = pmic_data;
-}
-
 /* PM Debug FS entries to enable and disable smartreflex. */
 static int omap_sr_autocomp_show(void *data, u64 *val)
 {
@@ -1064,17 +1044,6 @@ static struct platform_driver smartreflex_driver = {
 static int __init sr_init(void)
 {
 	int ret = 0;
-
-	/*
-	 * sr_init is a late init. If by then a pmic specific API is not
-	 * registered either there is no need for anything to be done on
-	 * the PMIC side or somebody has forgotten to register a PMIC
-	 * handler. Warn for the second condition.
-	 */
-	if (sr_pmic_data && sr_pmic_data->sr_pmic_init)
-		sr_pmic_data->sr_pmic_init();
-	else
-		pr_warn("%s: No PMIC hook to init smartreflex\n", __func__);
 
 	ret = platform_driver_register(&smartreflex_driver);
 	if (ret) {
