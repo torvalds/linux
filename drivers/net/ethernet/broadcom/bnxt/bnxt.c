@@ -6190,7 +6190,8 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 	req.fid = cpu_to_le16(0xffff);
 
 	mutex_lock(&bp->hwrm_cmd_lock);
-	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	rc = _hwrm_send_message_silent(bp, &req, sizeof(req),
+				       HWRM_CMD_TIMEOUT);
 	if (rc) {
 		rc = -EIO;
 		goto hwrm_func_resc_qcaps_exit;
