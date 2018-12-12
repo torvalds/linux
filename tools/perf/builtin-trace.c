@@ -76,6 +76,7 @@ struct trace {
 	struct {
 		int		max;
 		struct syscall  *table;
+		struct bpf_map  *map;
 		struct {
 			struct perf_evsel *sys_enter,
 					  *sys_exit,
@@ -2578,8 +2579,64 @@ out_enomem:
 	goto out;
 }
 
+#ifdef HAVE_LIBBPF_SUPPORT
+static int trace__set_ev_qualifier_bpf_filter(struct trace *trace)
+{
+	int fd = bpf_map__fd(trace->syscalls.map);
+	bool value = !trace->not_ev_qualifier;
+	int err = 0;
+	size_t i;
+
+	for (i = 0; i < trace->ev_qualifier_ids.nr; ++i) {
+		int key = trace->ev_qualifier_ids.entries[i];
+
+		err = bpf_map_update_elem(fd, &key, &value, BPF_EXIST);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int __trace__init_syscalls_bpf_map(struct trace *trace, bool enabled)
+{
+	int fd = bpf_map__fd(trace->syscalls.map);
+	int err = 0, key;
+
+	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
+		err = bpf_map_update_elem(fd, &key, &enabled, BPF_ANY);
+		if (err)
+			break;
+	}
+
+	return err;
+}
+
+static int trace__init_syscalls_bpf_map(struct trace *trace)
+{
+	bool enabled = true;
+
+	if (trace->ev_qualifier_ids.nr)
+		enabled = trace->not_ev_qualifier;
+
+	return __trace__init_syscalls_bpf_map(trace, enabled);
+}
+#else
+static int trace__set_ev_qualifier_bpf_filter(struct trace *trace __maybe_unused)
+{
+	return 0;
+}
+
+static int trace__init_syscalls_bpf_map(struct trace *trace __maybe_unused)
+{
+	return 0;
+}
+#endif // HAVE_LIBBPF_SUPPORT
+
 static int trace__set_ev_qualifier_filter(struct trace *trace)
 {
+	if (trace->syscalls.map)
+		return trace__set_ev_qualifier_bpf_filter(trace);
 	return trace__set_ev_qualifier_tp_filter(trace);
 }
 
@@ -2821,6 +2878,9 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	err = trace__set_filter_pids(trace);
 	if (err < 0)
 		goto out_error_mem;
+
+	if (trace->syscalls.map)
+		trace__init_syscalls_bpf_map(trace);
 
 	if (trace->ev_qualifier_ids.nr > 0) {
 		err = trace__set_ev_qualifier_filter(trace);
@@ -3449,6 +3509,11 @@ static void trace__set_bpf_map_filtered_pids(struct trace *trace)
 	trace->filter_pids.map = bpf__find_map_by_name("pids_filtered");
 }
 
+static void trace__set_bpf_map_syscalls(struct trace *trace)
+{
+	trace->syscalls.map = bpf__find_map_by_name("syscalls");
+}
+
 int cmd_trace(int argc, const char **argv)
 {
 	const char *trace_usage[] = {
@@ -3589,6 +3654,7 @@ int cmd_trace(int argc, const char **argv)
 	if (evsel) {
 		trace.syscalls.events.augmented = evsel;
 		trace__set_bpf_map_filtered_pids(&trace);
+		trace__set_bpf_map_syscalls(&trace);
 	}
 
 	err = bpf__setup_stdout(trace.evlist);
