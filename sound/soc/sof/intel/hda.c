@@ -458,7 +458,8 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	hdev->desc = chip;
 
 	hdev->dmic_dev = platform_device_register_data(&pci->dev, "dmic-codec",
-						       -1, NULL, 0);
+						       PLATFORM_DEVID_NONE,
+						       NULL, 0);
 	if (IS_ERR(hdev->dmic_dev)) {
 		dev_err(&pci->dev, "error: failed to create DMIC device\n");
 		return PTR_ERR(hdev->dmic_dev);

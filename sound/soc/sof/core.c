@@ -330,7 +330,7 @@ static int sof_probe(struct platform_device *pdev)
 	/* register machine driver, pass machine info as pdata */
 	plat_data->pdev_mach =
 		platform_device_register_data(sdev->dev, drv_name,
-					      -1, mach, size);
+					      PLATFORM_DEVID_NONE, mach, size);
 
 	if (IS_ERR(plat_data->pdev_mach)) {
 		ret = PTR_ERR(plat_data->pdev_mach);
