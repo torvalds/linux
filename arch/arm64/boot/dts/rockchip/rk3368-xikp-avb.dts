@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include "rk3368-xikp.dtsi"
+
+/ {
+	model = "Rockchip rk3368 xkp avb board";
+	compatible = "rockchip,xkp-avb", "rockchip,rk3368";
+};
+
+&firmware_android {
+	compatible = "android,firmware";
+	boot_devices = "ff0f0000.dwmmc,ff400000.nandc";
+	vbmeta {
+		compatible = "android,vbmeta";
+		parts = "vbmeta,dtbo";
+	};
+	fstab {
+		compatible = "android,fstab";
+		vendor {
+			compatible = "android,vendor";
+			dev = "/dev/block/by-name/vendor";
+			type = "ext4";
+			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+			fsmgr_flags = "wait,avb";
+		};
+	};
+};
+
+&chosen {
+	bootargs = "earlyprintk=uart8250,mmio32,0xff690000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 init=/init root=PARTUUID=af01642c-9b84-11e8-9b2a-234eb5e198a0 kpti=0";
+};
