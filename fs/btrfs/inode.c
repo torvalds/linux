@@ -6945,9 +6945,7 @@ out:
 }
 
 struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
-		struct page *page,
-		size_t pg_offset, u64 start, u64 len,
-		int create)
+					   u64 start, u64 len)
 {
 	struct extent_map *em;
 	struct extent_map *hole_em = NULL;
@@ -6957,7 +6955,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
 	u64 found_end;
 	int err = 0;
 
-	em = btrfs_get_extent(inode, page, pg_offset, start, len, create);
+	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
 	if (IS_ERR(em))
 		return em;
 	/*

@@ -4259,8 +4259,7 @@ static struct extent_map *get_extent_skip_holes(struct inode *inode,
 		if (len == 0)
 			break;
 		len = ALIGN(len, sectorsize);
-		em = btrfs_get_extent_fiemap(BTRFS_I(inode), NULL, 0, offset,
-				len, 0);
+		em = btrfs_get_extent_fiemap(BTRFS_I(inode), offset, len);
 		if (IS_ERR_OR_NULL(em))
 			return em;
 

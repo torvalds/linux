@@ -3181,8 +3181,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 
 /* inode.c */
 struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
-		struct page *page, size_t pg_offset, u64 start,
-		u64 len, int create);
+					   u64 start, u64 len);
 noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
 			      u64 *orig_start, u64 *orig_block_len,
 			      u64 *ram_bytes);
