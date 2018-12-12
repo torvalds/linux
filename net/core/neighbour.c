@@ -153,14 +153,13 @@ static void neigh_update_gc_list(struct neighbour *n)
 	write_unlock_bh(&n->tbl->lock);
 }
 
-static bool neigh_del(struct neighbour *n, __u8 state, __u8 flags,
-		      struct neighbour __rcu **np, struct neigh_table *tbl)
+static bool neigh_del(struct neighbour *n, struct neighbour __rcu **np,
+		      struct neigh_table *tbl)
 {
 	bool retval = false;
 
 	write_lock(&n->lock);
-	if (refcount_read(&n->refcnt) == 1 && !(n->nud_state & state) &&
-	    !(n->flags & flags)) {
+	if (refcount_read(&n->refcnt) == 1) {
 		struct neighbour *neigh;
 
 		neigh = rcu_dereference_protected(n->next,
@@ -192,7 +191,7 @@ bool neigh_remove_one(struct neighbour *ndel, struct neigh_table *tbl)
 	while ((n = rcu_dereference_protected(*np,
 					      lockdep_is_held(&tbl->lock)))) {
 		if (n == ndel)
-			return neigh_del(n, 0, 0, np, tbl);
+			return neigh_del(n, np, tbl);
 		np = &n->next;
 	}
 	return false;
