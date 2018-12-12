@@ -221,11 +221,6 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static void sof_acpi_shutdown(struct platform_device *pdev)
-{
-	snd_sof_shutdown(&pdev->dev);
-}
-
 static int sof_acpi_remove(struct platform_device *pdev)
 {
 	struct sof_platform_priv *priv = dev_get_drvdata(&pdev->dev);
@@ -257,7 +252,6 @@ MODULE_DEVICE_TABLE(acpi, sof_acpi_match);
 static struct platform_driver snd_sof_acpi_driver = {
 	.probe = sof_acpi_probe,
 	.remove = sof_acpi_remove,
-	.shutdown = sof_acpi_shutdown,
 	.driver = {
 		.name = "sof-audio-acpi",
 		.pm = &sof_acpi_pm,

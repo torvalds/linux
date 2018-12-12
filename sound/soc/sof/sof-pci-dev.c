@@ -283,11 +283,6 @@ release_regions:
 	return ret;
 }
 
-static void sof_pci_shutdown(struct pci_dev *pci)
-{
-	snd_sof_shutdown(&pci->dev);
-}
-
 static void sof_pci_remove(struct pci_dev *pci)
 {
 	struct sof_platform_priv *priv = pci_get_drvdata(pci);
@@ -351,7 +346,6 @@ static struct pci_driver snd_sof_pci_driver = {
 	.id_table = sof_pci_ids,
 	.probe = sof_pci_probe,
 	.remove = sof_pci_remove,
-	.shutdown = sof_pci_shutdown,
 	.driver = {
 		.pm = &sof_pci_pm,
 	},
