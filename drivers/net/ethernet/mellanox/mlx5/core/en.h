@@ -804,6 +804,7 @@ mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 
 void mlx5e_update_stats(struct mlx5e_priv *priv);
 void mlx5e_get_stats(struct net_device *dev, struct rtnl_link_stats64 *stats);
+void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s);
 
 void mlx5e_init_l2_addr(struct mlx5e_priv *priv);
 int mlx5e_self_test_num(struct mlx5e_priv *priv);

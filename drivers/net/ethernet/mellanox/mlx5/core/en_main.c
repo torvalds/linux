@@ -3521,7 +3521,7 @@ static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	}
 }
 
-static void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
+void mlx5e_fold_sw_stats64(struct mlx5e_priv *priv, struct rtnl_link_stats64 *s)
 {
 	int i;
 
