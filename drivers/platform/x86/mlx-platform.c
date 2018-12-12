@@ -1692,6 +1692,13 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		},
 	},
 	{
+		.callback = mlxplat_dmi_qmb7xx_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Mellanox Technologies"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MSN38"),
+		},
+	},
+	{
 		.callback = mlxplat_dmi_default_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "VMOD0001"),
@@ -1719,6 +1726,12 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		.callback = mlxplat_dmi_qmb7xx_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "VMOD0005"),
+		},
+	},
+	{
+		.callback = mlxplat_dmi_qmb7xx_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "VMOD0007"),
 		},
 	},
 	{ }
