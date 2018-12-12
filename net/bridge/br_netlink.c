@@ -850,7 +850,8 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 }
 
 /* Change state and parameters on port. */
-int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags)
+int br_setlink(struct net_device *dev, struct nlmsghdr *nlh, u16 flags,
+	       struct netlink_ext_ack *extack)
 {
 	struct net_bridge *br = (struct net_bridge *)netdev_priv(dev);
 	struct nlattr *tb[IFLA_BRPORT_MAX + 1];
