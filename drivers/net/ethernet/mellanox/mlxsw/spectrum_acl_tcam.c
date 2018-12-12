@@ -95,8 +95,9 @@ int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, KVD_SIZE))
 		return -EIO;
 
-	max_priority = MLXSW_CORE_RES_GET(mlxsw_sp->core, KVD_SIZE);
-	if (rulei->priority > max_priority)
+	/* Priority range is 1..cap_kvd_size-1. */
+	max_priority = MLXSW_CORE_RES_GET(mlxsw_sp->core, KVD_SIZE) - 1;
+	if (rulei->priority >= max_priority)
 		return -EINVAL;
 
 	/* Unlike in TC, in HW, higher number means higher priority. */
@@ -779,6 +780,20 @@ static void mlxsw_sp_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 }
 
 static int
+mlxsw_sp_acl_tcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+				       struct mlxsw_sp_acl_tcam_group *group,
+				       struct mlxsw_sp_acl_tcam_entry *entry,
+				       struct mlxsw_sp_acl_rule_info *rulei)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+	struct mlxsw_sp_acl_tcam_chunk *chunk = entry->chunk;
+	struct mlxsw_sp_acl_tcam_region *region = chunk->region;
+
+	return ops->entry_action_replace(mlxsw_sp, region->priv, chunk->priv,
+					 entry->priv, rulei);
+}
+
+static int
 mlxsw_sp_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_entry *entry,
 				     bool *activity)
@@ -845,6 +860,15 @@ struct mlxsw_sp_acl_tcam_flower_ruleset {
 };
 
 struct mlxsw_sp_acl_tcam_flower_rule {
+	struct mlxsw_sp_acl_tcam_entry entry;
+};
+
+struct mlxsw_sp_acl_tcam_mr_ruleset {
+	struct mlxsw_sp_acl_tcam_chunk *chunk;
+	struct mlxsw_sp_acl_tcam_group group;
+};
+
+struct mlxsw_sp_acl_tcam_mr_rule {
 	struct mlxsw_sp_acl_tcam_entry entry;
 };
 
@@ -930,6 +954,15 @@ mlxsw_sp_acl_tcam_flower_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
 }
 
 static int
+mlxsw_sp_acl_tcam_flower_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+					     void *ruleset_priv,
+					     void *rule_priv,
+					     struct mlxsw_sp_acl_rule_info *rulei)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
 mlxsw_sp_acl_tcam_flower_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
 					   void *rule_priv, bool *activity)
 {
@@ -949,12 +982,146 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.rule_priv_size		= mlxsw_sp_acl_tcam_flower_rule_priv_size,
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,
+	.rule_action_replace	= mlxsw_sp_acl_tcam_flower_rule_action_replace,
 	.rule_activity_get	= mlxsw_sp_acl_tcam_flower_rule_activity_get,
+};
+
+static int
+mlxsw_sp_acl_tcam_mr_ruleset_add(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_tcam *tcam,
+				 void *ruleset_priv,
+				 struct mlxsw_afk_element_usage *tmplt_elusage)
+{
+	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
+	int err;
+
+	err = mlxsw_sp_acl_tcam_group_add(mlxsw_sp, tcam, &ruleset->group,
+					  mlxsw_sp_acl_tcam_patterns,
+					  MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
+					  tmplt_elusage);
+	if (err)
+		return err;
+
+	/* For most of the TCAM clients it would make sense to take a tcam chunk
+	 * only when the first rule is written. This is not the case for
+	 * multicast router as it is required to bind the multicast router to a
+	 * specific ACL Group ID which must exist in HW before multicast router
+	 * is initialized.
+	 */
+	ruleset->chunk = mlxsw_sp_acl_tcam_chunk_get(mlxsw_sp, &ruleset->group,
+						     1, tmplt_elusage);
+	if (IS_ERR(ruleset->chunk)) {
+		err = PTR_ERR(ruleset->chunk);
+		goto err_chunk_get;
+	}
+
+	return 0;
+
+err_chunk_get:
+	mlxsw_sp_acl_tcam_group_del(mlxsw_sp, &ruleset->group);
+	return err;
+}
+
+static void
+mlxsw_sp_acl_tcam_mr_ruleset_del(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv)
+{
+	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
+
+	mlxsw_sp_acl_tcam_chunk_put(mlxsw_sp, ruleset->chunk);
+	mlxsw_sp_acl_tcam_group_del(mlxsw_sp, &ruleset->group);
+}
+
+static int
+mlxsw_sp_acl_tcam_mr_ruleset_bind(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
+				  struct mlxsw_sp_port *mlxsw_sp_port,
+				  bool ingress)
+{
+	/* Binding is done when initializing multicast router */
+	return 0;
+}
+
+static void
+mlxsw_sp_acl_tcam_mr_ruleset_unbind(struct mlxsw_sp *mlxsw_sp,
+				    void *ruleset_priv,
+				    struct mlxsw_sp_port *mlxsw_sp_port,
+				    bool ingress)
+{
+}
+
+static u16
+mlxsw_sp_acl_tcam_mr_ruleset_group_id(void *ruleset_priv)
+{
+	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
+
+	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
+}
+
+static size_t mlxsw_sp_acl_tcam_mr_rule_priv_size(struct mlxsw_sp *mlxsw_sp)
+{
+	return sizeof(struct mlxsw_sp_acl_tcam_mr_rule) +
+	       mlxsw_sp_acl_tcam_entry_priv_size(mlxsw_sp);
+}
+
+static int
+mlxsw_sp_acl_tcam_mr_rule_add(struct mlxsw_sp *mlxsw_sp, void *ruleset_priv,
+			      void *rule_priv,
+			      struct mlxsw_sp_acl_rule_info *rulei)
+{
+	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
+	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
+
+	return mlxsw_sp_acl_tcam_entry_add(mlxsw_sp, &ruleset->group,
+					   &rule->entry, rulei);
+}
+
+static void
+mlxsw_sp_acl_tcam_mr_rule_del(struct mlxsw_sp *mlxsw_sp, void *rule_priv)
+{
+	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
+
+	mlxsw_sp_acl_tcam_entry_del(mlxsw_sp, &rule->entry);
+}
+
+static int
+mlxsw_sp_acl_tcam_mr_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+					 void *ruleset_priv, void *rule_priv,
+					 struct mlxsw_sp_acl_rule_info *rulei)
+{
+	struct mlxsw_sp_acl_tcam_mr_ruleset *ruleset = ruleset_priv;
+	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
+
+	return mlxsw_sp_acl_tcam_entry_action_replace(mlxsw_sp, &ruleset->group,
+						      &rule->entry, rulei);
+}
+
+static int
+mlxsw_sp_acl_tcam_mr_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
+				       void *rule_priv, bool *activity)
+{
+	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
+
+	return mlxsw_sp_acl_tcam_entry_activity_get(mlxsw_sp, &rule->entry,
+						    activity);
+}
+
+static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_mr_ops = {
+	.ruleset_priv_size	= sizeof(struct mlxsw_sp_acl_tcam_mr_ruleset),
+	.ruleset_add		= mlxsw_sp_acl_tcam_mr_ruleset_add,
+	.ruleset_del		= mlxsw_sp_acl_tcam_mr_ruleset_del,
+	.ruleset_bind		= mlxsw_sp_acl_tcam_mr_ruleset_bind,
+	.ruleset_unbind		= mlxsw_sp_acl_tcam_mr_ruleset_unbind,
+	.ruleset_group_id	= mlxsw_sp_acl_tcam_mr_ruleset_group_id,
+	.rule_priv_size		= mlxsw_sp_acl_tcam_mr_rule_priv_size,
+	.rule_add		= mlxsw_sp_acl_tcam_mr_rule_add,
+	.rule_del		= mlxsw_sp_acl_tcam_mr_rule_del,
+	.rule_action_replace	= mlxsw_sp_acl_tcam_mr_rule_action_replace,
+	.rule_activity_get	= mlxsw_sp_acl_tcam_mr_rule_activity_get,
 };
 
 static const struct mlxsw_sp_acl_profile_ops *
 mlxsw_sp_acl_tcam_profile_ops_arr[] = {
 	[MLXSW_SP_ACL_PROFILE_FLOWER] = &mlxsw_sp_acl_tcam_flower_ops,
+	[MLXSW_SP_ACL_PROFILE_MR] = &mlxsw_sp_acl_tcam_mr_ops,
 };
 
 const struct mlxsw_sp_acl_profile_ops *

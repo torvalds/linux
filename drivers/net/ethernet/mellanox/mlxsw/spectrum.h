@@ -563,6 +563,7 @@ struct mlxsw_sp_acl_rule_info {
 	unsigned int priority;
 	struct mlxsw_afk_element_values values;
 	struct mlxsw_afa_block *act_block;
+	u8 action_created:1;
 	unsigned int counter_index;
 };
 
@@ -572,6 +573,7 @@ struct mlxsw_sp_acl_ruleset;
 /* spectrum_acl.c */
 enum mlxsw_sp_acl_profile {
 	MLXSW_SP_ACL_PROFILE_FLOWER,
+	MLXSW_SP_ACL_PROFILE_MR,
 };
 
 struct mlxsw_afk *mlxsw_sp_acl_afk(struct mlxsw_sp_acl *acl);
@@ -606,7 +608,8 @@ void mlxsw_sp_acl_ruleset_put(struct mlxsw_sp *mlxsw_sp,
 u16 mlxsw_sp_acl_ruleset_group_id(struct mlxsw_sp_acl_ruleset *ruleset);
 
 struct mlxsw_sp_acl_rule_info *
-mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl);
+mlxsw_sp_acl_rulei_create(struct mlxsw_sp_acl *acl,
+			  struct mlxsw_afa_block *afa_block);
 void mlxsw_sp_acl_rulei_destroy(struct mlxsw_sp_acl_rule_info *rulei);
 int mlxsw_sp_acl_rulei_commit(struct mlxsw_sp_acl_rule_info *rulei);
 void mlxsw_sp_acl_rulei_priority(struct mlxsw_sp_acl_rule_info *rulei,
@@ -650,6 +653,7 @@ struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_create(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
 			 unsigned long cookie,
+			 struct mlxsw_afa_block *afa_block,
 			 struct netlink_ext_ack *extack);
 void mlxsw_sp_acl_rule_destroy(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_rule *rule);
@@ -657,6 +661,9 @@ int mlxsw_sp_acl_rule_add(struct mlxsw_sp *mlxsw_sp,
 			  struct mlxsw_sp_acl_rule *rule);
 void mlxsw_sp_acl_rule_del(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_acl_rule *rule);
+int mlxsw_sp_acl_rule_action_replace(struct mlxsw_sp *mlxsw_sp,
+				     struct mlxsw_sp_acl_rule *rule,
+				     struct mlxsw_afa_block *afa_block);
 struct mlxsw_sp_acl_rule *
 mlxsw_sp_acl_rule_lookup(struct mlxsw_sp *mlxsw_sp,
 			 struct mlxsw_sp_acl_ruleset *ruleset,
@@ -701,6 +708,10 @@ struct mlxsw_sp_acl_tcam_ops {
 	void (*entry_del)(struct mlxsw_sp *mlxsw_sp,
 			  void *region_priv, void *chunk_priv,
 			  void *entry_priv);
+	int (*entry_action_replace)(struct mlxsw_sp *mlxsw_sp,
+				    void *region_priv, void *chunk_priv,
+				    void *entry_priv,
+				    struct mlxsw_sp_acl_rule_info *rulei);
 	int (*entry_activity_get)(struct mlxsw_sp *mlxsw_sp,
 				  void *region_priv, void *entry_priv,
 				  bool *activity);

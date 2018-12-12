@@ -89,6 +89,27 @@ mlxsw_sp_acl_ctcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
 	cregion->ops->entry_remove(cregion, centry);
 }
 
+static int
+mlxsw_sp_acl_ctcam_region_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+					       struct mlxsw_sp_acl_ctcam_region *cregion,
+					       struct mlxsw_sp_acl_ctcam_entry *centry,
+					       struct mlxsw_afa_block *afa_block,
+					       unsigned int priority)
+{
+	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
+	char *act_set;
+
+	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_WRITE_UPDATE,
+			     cregion->region->tcam_region_info,
+			     centry->parman_item.index, priority);
+
+	act_set = mlxsw_afa_block_first_set(afa_block);
+	mlxsw_reg_ptce2_flex_action_set_memcpy_to(ptce2_pl, act_set);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
+}
+
+
 static int mlxsw_sp_acl_ctcam_region_parman_resize(void *priv,
 						   unsigned long new_count)
 {
@@ -190,4 +211,16 @@ void mlxsw_sp_acl_ctcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_ctcam_region_entry_remove(mlxsw_sp, cregion, centry);
 	parman_item_remove(cregion->parman, &cchunk->parman_prio,
 			   &centry->parman_item);
+}
+
+int mlxsw_sp_acl_ctcam_entry_action_replace(struct mlxsw_sp *mlxsw_sp,
+					    struct mlxsw_sp_acl_ctcam_region *cregion,
+					    struct mlxsw_sp_acl_ctcam_chunk *cchunk,
+					    struct mlxsw_sp_acl_ctcam_entry *centry,
+					    struct mlxsw_sp_acl_rule_info *rulei)
+{
+	return mlxsw_sp_acl_ctcam_region_entry_action_replace(mlxsw_sp, cregion,
+							      centry,
+							      rulei->act_block,
+							      rulei->priority);
 }
