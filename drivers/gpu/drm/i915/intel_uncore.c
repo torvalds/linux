@@ -1567,13 +1567,13 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	dev_priv->uncore.pmic_bus_access_nb.notifier_call =
 		i915_pmic_bus_access_notifier;
 
-	if (IS_GEN(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
+	if (IS_GEN_RANGE(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen2);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen2);
 	} else if (IS_GEN5(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen5);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen5);
-	} else if (IS_GEN(dev_priv, 6, 7)) {
+	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen6);
 
 		if (IS_VALLEYVIEW(dev_priv)) {
@@ -1592,7 +1592,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 			ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen8);
 			ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen6);
 		}
-	} else if (IS_GEN(dev_priv, 9, 10)) {
+	} else if (IS_GEN_RANGE(dev_priv, 9, 10)) {
 		ASSIGN_FW_DOMAINS_TABLE(__gen9_fw_ranges);
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, fwtable);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, fwtable);
@@ -2321,7 +2321,7 @@ intel_uncore_forcewake_for_read(struct drm_i915_private *dev_priv,
 	} else if (INTEL_GEN(dev_priv) >= 6) {
 		fw_domains = __gen6_reg_read_fw_domains(offset);
 	} else {
-		WARN_ON(!IS_GEN(dev_priv, 2, 5));
+		WARN_ON(!IS_GEN_RANGE(dev_priv, 2, 5));
 		fw_domains = 0;
 	}
 
@@ -2343,10 +2343,10 @@ intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
 		fw_domains = __fwtable_reg_write_fw_domains(offset);
 	} else if (IS_GEN8(dev_priv)) {
 		fw_domains = __gen8_reg_write_fw_domains(offset);
-	} else if (IS_GEN(dev_priv, 6, 7)) {
+	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		fw_domains = FORCEWAKE_RENDER;
 	} else {
-		WARN_ON(!IS_GEN(dev_priv, 2, 5));
+		WARN_ON(!IS_GEN_RANGE(dev_priv, 2, 5));
 		fw_domains = 0;
 	}
 

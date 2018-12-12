@@ -2211,7 +2211,7 @@ intel_info(const struct drm_i915_private *dev_priv)
 	GENMASK((e) - 1, (s) - 1))
 
 /* Returns true if Gen is in inclusive range [Start, End] */
-#define IS_GEN(dev_priv, s, e) \
+#define IS_GEN_RANGE(dev_priv, s, e) \
 	(!!((dev_priv)->info.gen_mask & INTEL_GEN_MASK((s), (e))))
 
 /*

@@ -1796,7 +1796,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 	 * be read back from automatically triggered reports, as part of the
 	 * RPT_ID field.
 	 */
-	if (IS_GEN(dev_priv, 9, 11)) {
+	if (IS_GEN_RANGE(dev_priv, 9, 11)) {
 		I915_WRITE(GEN8_OA_DEBUG,
 			   _MASKED_BIT_ENABLE(GEN9_OA_DEBUG_DISABLE_CLK_RATIO_REPORTS |
 					      GEN9_OA_DEBUG_INCLUDE_CLK_RATIO));
@@ -3442,7 +3442,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 
 				dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<16);
 			}
-		} else if (IS_GEN(dev_priv, 10, 11)) {
+		} else if (IS_GEN_RANGE(dev_priv, 10, 11)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =

@@ -1248,7 +1248,7 @@ static void intel_engine_print_registers(const struct intel_engine_cs *engine,
 		&engine->execlists;
 	u64 addr;
 
-	if (engine->id == RCS && IS_GEN(dev_priv, 4, 7))
+	if (engine->id == RCS && IS_GEN_RANGE(dev_priv, 4, 7))
 		drm_printf(m, "\tCCID: 0x%08x\n", I915_READ(CCID));
 	drm_printf(m, "\tRING_START: 0x%08x\n",
 		   I915_READ(RING_START(engine->mmio_base)));

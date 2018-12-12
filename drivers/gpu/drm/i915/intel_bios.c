@@ -453,7 +453,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv, u8 bdb_version)
 	 * Only parse SDVO mappings on gens that could have SDVO. This isn't
 	 * accurate and doesn't have to be, as long as it's not too strict.
 	 */
-	if (!IS_GEN(dev_priv, 3, 7)) {
+	if (!IS_GEN_RANGE(dev_priv, 3, 7)) {
 		DRM_DEBUG_KMS("Skipping SDVO device mapping\n");
 		return;
 	}

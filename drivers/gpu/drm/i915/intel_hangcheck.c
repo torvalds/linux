@@ -252,7 +252,7 @@ engine_stuck(struct intel_engine_cs *engine, u64 acthd)
 		return ENGINE_WAIT_KICK;
 	}
 
-	if (IS_GEN(dev_priv, 6, 7) && tmp & RING_WAIT_SEMAPHORE) {
+	if (IS_GEN_RANGE(dev_priv, 6, 7) && tmp & RING_WAIT_SEMAPHORE) {
 		switch (semaphore_passed(engine)) {
 		default:
 			return ENGINE_DEAD;
