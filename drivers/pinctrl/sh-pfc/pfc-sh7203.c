@@ -1073,7 +1073,7 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("PBIORL", 0xfffe3886, 16, 1) {
+	{ PINMUX_CFG_REG("PBIORL", 0xfffe3886, 16, 1, GROUP(
 		0, 0,
 		0, 0,
 		0, 0,
@@ -1089,9 +1089,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0,
 		0, 0,
 		0, 0,
-		0, 0 }
+		0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PBCRL4", 0xfffe3890, 16, 4) {
+	{ PINMUX_CFG_REG("PBCRL4", 0xfffe3890, 16, 4, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1099,9 +1099,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PB12MD_00, PB12MD_01, PB12MD_10, PB12MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PBCRL3", 0xfffe3892, 16, 4) {
+	{ PINMUX_CFG_REG("PBCRL3", 0xfffe3892, 16, 4, GROUP(
 		PB11MD_0, PB11MD_1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1112,9 +1112,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PB8MD_00, PB8MD_01, PB8MD_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PBCRL2", 0xfffe3894, 16, 4) {
+	{ PINMUX_CFG_REG("PBCRL2", 0xfffe3894, 16, 4, GROUP(
 		PB7MD_00, PB7MD_01, PB7MD_10, PB7MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1125,9 +1125,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PB4MD_00, PB4MD_01, PB4MD_10, PB4MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PBCRL1", 0xfffe3896, 16, 4) {
+	{ PINMUX_CFG_REG("PBCRL1", 0xfffe3896, 16, 4, GROUP(
 		PB3MD_00, PB3MD_01, PB3MD_10, PB3MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1138,9 +1138,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PB0MD_00, PB0MD_01, PB0MD_10, PB0MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("IFCR", 0xfffe38a2, 16, 4) {
+	{ PINMUX_CFG_REG("IFCR", 0xfffe38a2, 16, 4, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -1148,9 +1148,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PB12IRQ_00, PB12IRQ_01, PB12IRQ_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PCIORL", 0xfffe3906, 16, 1) {
+	{ PINMUX_CFG_REG("PCIORL", 0xfffe3906, 16, 1, GROUP(
 		0, 0,
 		PC14_IN, PC14_OUT,
 		PC13_IN, PC13_OUT,
@@ -1166,9 +1166,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PC3_IN, PC3_OUT,
 		PC2_IN, PC2_OUT,
 		PC1_IN, PC1_OUT,
-		PC0_IN, PC0_OUT }
+		PC0_IN, PC0_OUT ))
 	},
-	{ PINMUX_CFG_REG("PCCRL4", 0xfffe3910, 16, 4) {
+	{ PINMUX_CFG_REG("PCCRL4", 0xfffe3910, 16, 4, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PC14MD_0, PC14MD_1,
@@ -1178,9 +1178,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PC12MD_0, PC12MD_1,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PCCRL3", 0xfffe3912, 16, 4) {
+	{ PINMUX_CFG_REG("PCCRL3", 0xfffe3912, 16, 4, GROUP(
 		PC11MD_00, PC11MD_01, PC11MD_10, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1191,9 +1191,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PC8MD_0, PC8MD_1,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PCCRL2", 0xfffe3914, 16, 4) {
+	{ PINMUX_CFG_REG("PCCRL2", 0xfffe3914, 16, 4, GROUP(
 		PC7MD_0, PC7MD_1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1204,9 +1204,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PC4MD_0, PC4MD_1,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PCCRL1", 0xfffe3916, 16, 4) {
+	{ PINMUX_CFG_REG("PCCRL1", 0xfffe3916, 16, 4, GROUP(
 		PC3MD_0, PC3MD_1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1217,9 +1217,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PC0MD_00, PC0MD_01, PC0MD_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PDIORL", 0xfffe3986, 16, 1) {
+	{ PINMUX_CFG_REG("PDIORL", 0xfffe3986, 16, 1, GROUP(
 		PD15_IN, PD15_OUT,
 		PD14_IN, PD14_OUT,
 		PD13_IN, PD13_OUT,
@@ -1235,9 +1235,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PD3_IN, PD3_OUT,
 		PD2_IN, PD2_OUT,
 		PD1_IN, PD1_OUT,
-		PD0_IN, PD0_OUT }
+		PD0_IN, PD0_OUT ))
 	},
-	{ PINMUX_CFG_REG("PDCRL4", 0xfffe3990, 16, 4) {
+	{ PINMUX_CFG_REG("PDCRL4", 0xfffe3990, 16, 4, GROUP(
 		PD15MD_000, PD15MD_001, PD15MD_010, 0,
 		PD15MD_100, PD15MD_101, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -1252,9 +1252,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 		PD12MD_000, PD12MD_001, PD12MD_010, 0,
 		PD12MD_100, PD12MD_101, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PDCRL3", 0xfffe3992, 16, 4) {
+	{ PINMUX_CFG_REG("PDCRL3", 0xfffe3992, 16, 4, GROUP(
 		PD11MD_000, PD11MD_001, PD11MD_010, 0,
 		PD11MD_100, PD11MD_101, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -1269,9 +1269,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 		PD8MD_000, PD8MD_001, PD8MD_010, 0,
 		PD8MD_100, PD8MD_101, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PDCRL2", 0xfffe3994, 16, 4) {
+	{ PINMUX_CFG_REG("PDCRL2", 0xfffe3994, 16, 4, GROUP(
 		PD7MD_000, PD7MD_001, PD7MD_010, PD7MD_011,
 		PD7MD_100, PD7MD_101, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -1286,9 +1286,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 		PD4MD_000, PD4MD_001, PD4MD_010, PD4MD_011,
 		PD4MD_100, PD4MD_101, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PDCRL1", 0xfffe3996, 16, 4) {
+	{ PINMUX_CFG_REG("PDCRL1", 0xfffe3996, 16, 4, GROUP(
 		PD3MD_000, PD3MD_001, PD3MD_010, PD3MD_011,
 		PD3MD_100, PD3MD_101, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -1303,9 +1303,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 		PD0MD_000, PD0MD_001, PD0MD_010, PD0MD_011,
 		PD0MD_100, PD0MD_101, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PEIORL", 0xfffe3a06, 16, 1) {
+	{ PINMUX_CFG_REG("PEIORL", 0xfffe3a06, 16, 1, GROUP(
 		PE15_IN, PE15_OUT,
 		PE14_IN, PE14_OUT,
 		PE13_IN, PE13_OUT,
@@ -1321,9 +1321,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PE3_IN, PE3_OUT,
 		PE2_IN, PE2_OUT,
 		PE1_IN, PE1_OUT,
-		PE0_IN, PE0_OUT }
+		PE0_IN, PE0_OUT ))
 	},
-	{ PINMUX_CFG_REG("PECRL4", 0xfffe3a10, 16, 4) {
+	{ PINMUX_CFG_REG("PECRL4", 0xfffe3a10, 16, 4, GROUP(
 		PE15MD_00, PE15MD_01, 0, PE15MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1334,9 +1334,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PE12MD_00, 0, 0, PE12MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PECRL3", 0xfffe3a12, 16, 4) {
+	{ PINMUX_CFG_REG("PECRL3", 0xfffe3a12, 16, 4, GROUP(
 		PE11MD_000, PE11MD_001, PE11MD_010, 0,
 		PE11MD_100, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -1349,9 +1349,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PE8MD_00, PE8MD_01, PE8MD_10, PE8MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PECRL2", 0xfffe3a14, 16, 4) {
+	{ PINMUX_CFG_REG("PECRL2", 0xfffe3a14, 16, 4, GROUP(
 		PE7MD_000, PE7MD_001, PE7MD_010, PE7MD_011,
 		PE7MD_100, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -1366,9 +1366,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 		PE4MD_000, PE4MD_001, PE4MD_010, PE4MD_011,
 		PE4MD_100, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PECRL1", 0xfffe3a16, 16, 4) {
+	{ PINMUX_CFG_REG("PECRL1", 0xfffe3a16, 16, 4, GROUP(
 		PE3MD_00, PE3MD_01, 0, PE3MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1380,9 +1380,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 
 		PE0MD_000, PE0MD_001, 0, PE0MD_011,
 		PE0MD_100, 0, 0, 0,
-		0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFIORH", 0xfffe3a84, 16, 1) {
+	{ PINMUX_CFG_REG("PFIORH", 0xfffe3a84, 16, 1, GROUP(
 		0, 0,
 		PF30_IN, PF30_OUT,
 		PF29_IN, PF29_OUT,
@@ -1398,9 +1398,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PF19_IN, PF19_OUT,
 		PF18_IN, PF18_OUT,
 		PF17_IN, PF17_OUT,
-		PF16_IN, PF16_OUT }
+		PF16_IN, PF16_OUT ))
 	},
-	{ PINMUX_CFG_REG("PFIORL", 0xfffe3a86, 16, 1) {
+	{ PINMUX_CFG_REG("PFIORL", 0xfffe3a86, 16, 1, GROUP(
 		PF15_IN, PF15_OUT,
 		PF14_IN, PF14_OUT,
 		PF13_IN, PF13_OUT,
@@ -1416,9 +1416,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		PF3_IN, PF3_OUT,
 		PF2_IN, PF2_OUT,
 		PF1_IN, PF1_OUT,
-		PF0_IN, PF0_OUT }
+		PF0_IN, PF0_OUT ))
 	},
-	{ PINMUX_CFG_REG("PFCRH4", 0xfffe3a88, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRH4", 0xfffe3a88, 16, 4, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF30MD_0, PF30MD_1,
@@ -1428,9 +1428,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF28MD_0, PF28MD_1,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRH3", 0xfffe3a8a, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRH3", 0xfffe3a8a, 16, 4, GROUP(
 		PF27MD_0, PF27MD_1,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1441,9 +1441,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF24MD_0, PF24MD_1,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRH2", 0xfffe3a8c, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRH2", 0xfffe3a8c, 16, 4, GROUP(
 		PF23MD_00, PF23MD_01, PF23MD_10, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1454,9 +1454,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF20MD_00, PF20MD_01, PF20MD_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRH1", 0xfffe3a8e, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRH1", 0xfffe3a8e, 16, 4, GROUP(
 		PF19MD_00, PF19MD_01, PF19MD_10, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1467,9 +1467,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF16MD_00, PF16MD_01, PF16MD_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRL4", 0xfffe3a90, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRL4", 0xfffe3a90, 16, 4, GROUP(
 		PF15MD_00, PF15MD_01, PF15MD_10, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1480,9 +1480,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF12MD_00, PF12MD_01, PF12MD_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRL3", 0xfffe3a92, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRL3", 0xfffe3a92, 16, 4, GROUP(
 		PF11MD_00, PF11MD_01, PF11MD_10, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1493,9 +1493,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF8MD_00, PF8MD_01, PF8MD_10, 0,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRL2", 0xfffe3a94, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRL2", 0xfffe3a94, 16, 4, GROUP(
 		PF7MD_00, PF7MD_01, PF7MD_10, PF7MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1506,9 +1506,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF4MD_00, PF4MD_01, PF4MD_10, PF4MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
-	{ PINMUX_CFG_REG("PFCRL1", 0xfffe3a96, 16, 4) {
+	{ PINMUX_CFG_REG("PFCRL1", 0xfffe3a96, 16, 4, GROUP(
 		PF3MD_00, PF3MD_01, PF3MD_10, PF3MD_11,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
@@ -1519,7 +1519,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 		PF0MD_00, PF0MD_01, PF0MD_10, PF0MD_11,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ))
 	},
 	{}
 };

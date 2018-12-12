@@ -1635,7 +1635,7 @@ static const struct pinmux_func pinmux_func_gpios[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("GPSR0", 0xFFFC0004, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR0", 0xFFFC0004, 32, 1, GROUP(
 		GP_0_31_FN, FN_IP2_2_0,
 		GP_0_30_FN, FN_IP1_31_29,
 		GP_0_29_FN, FN_IP1_28_26,
@@ -1667,9 +1667,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_0_3_FN, FN_IP1_15_14,
 		GP_0_2_FN, FN_IP1_13_12,
 		GP_0_1_FN, FN_IP1_11_10,
-		GP_0_0_FN, FN_IP1_9_8 }
+		GP_0_0_FN, FN_IP1_9_8 ))
 	},
-	{ PINMUX_CFG_REG("GPSR1", 0xFFFC0008, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR1", 0xFFFC0008, 32, 1, GROUP(
 		GP_1_31_FN, FN_IP11_25_23,
 		GP_1_30_FN, FN_IP2_13_11,
 		GP_1_29_FN, FN_IP2_10_8,
@@ -1701,9 +1701,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_1_3_FN, FN_IP11_22_21,
 		GP_1_2_FN, FN_IP11_20_19,
 		GP_1_1_FN, FN_IP3_29_27,
-		GP_1_0_FN, FN_IP3_20 }
+		GP_1_0_FN, FN_IP3_20 ))
 	},
-	{ PINMUX_CFG_REG("GPSR2", 0xFFFC000C, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR2", 0xFFFC000C, 32, 1, GROUP(
 		GP_2_31_FN, FN_IP4_31_30,
 		GP_2_30_FN, FN_IP5_2_0,
 		GP_2_29_FN, FN_IP5_5_3,
@@ -1735,9 +1735,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_2_3_FN, FN_IP4_2_0,
 		GP_2_2_FN, FN_IP11_11_10,
 		GP_2_1_FN, FN_IP11_9_7,
-		GP_2_0_FN, FN_IP11_6_4 }
+		GP_2_0_FN, FN_IP11_6_4 ))
 	},
-	{ PINMUX_CFG_REG("GPSR3", 0xFFFC0010, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR3", 0xFFFC0010, 32, 1, GROUP(
 		GP_3_31_FN, FN_IP9_1_0,
 		GP_3_30_FN, FN_IP8_19_18,
 		GP_3_29_FN, FN_IP8_17_16,
@@ -1769,10 +1769,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_3_3_FN, FN_IP6_9_8,
 		GP_3_2_FN, FN_IP6_7_6,
 		GP_3_1_FN, FN_IP6_5_3,
-		GP_3_0_FN, FN_IP6_2_0 }
+		GP_3_0_FN, FN_IP6_2_0 ))
 	},
 
-	{ PINMUX_CFG_REG("GPSR4", 0xFFFC0014, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR4", 0xFFFC0014, 32, 1, GROUP(
 		GP_4_31_FN, FN_IP10_24_23,
 		GP_4_30_FN, FN_IP10_22,
 		GP_4_29_FN, FN_IP11_18_16,
@@ -1804,9 +1804,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_4_3_FN, FN_IP9_25_24,
 		GP_4_2_FN, FN_IP9_23_22,
 		GP_4_1_FN, FN_IP9_21_20,
-		GP_4_0_FN, FN_IP9_19_18 }
+		GP_4_0_FN, FN_IP9_19_18 ))
 	},
-	{ PINMUX_CFG_REG("GPSR5", 0xFFFC0018, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR5", 0xFFFC0018, 32, 1, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0, /* 31 - 28 */
 		0, 0, 0, 0, 0, 0, 0, 0, /* 27 - 24 */
 		0, 0, 0, 0, 0, 0, 0, 0, /* 23 - 20 */
@@ -1819,7 +1819,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_5_3_FN, FN_IRQ3_B,
 		GP_5_2_FN, FN_IRQ2_B,
 		GP_5_1_FN, FN_IP11_3,
-		GP_5_0_FN, FN_IP10_25 }
+		GP_5_0_FN, FN_IP10_25 ))
 	},
 
 	{ PINMUX_CFG_REG_VAR("IPSR0", 0xFFFC001C, 32,
@@ -2378,12 +2378,17 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SEL_SCIF_CLK_0, FN_SEL_SCIF_CLK_1, FN_SEL_SCIF_CLK_2, 0  }
 	},
 	/* GPIO 0 - 5*/
-	{ PINMUX_CFG_REG("INOUTSEL0", 0xFFC40004, 32, 1) { GP_INOUTSEL(0) } },
-	{ PINMUX_CFG_REG("INOUTSEL1", 0xFFC41004, 32, 1) { GP_INOUTSEL(1) } },
-	{ PINMUX_CFG_REG("INOUTSEL2", 0xFFC42004, 32, 1) { GP_INOUTSEL(2) } },
-	{ PINMUX_CFG_REG("INOUTSEL3", 0xFFC43004, 32, 1) { GP_INOUTSEL(3) } },
-	{ PINMUX_CFG_REG("INOUTSEL4", 0xFFC44004, 32, 1) { GP_INOUTSEL(4) } },
-	{ PINMUX_CFG_REG("INOUTSEL5", 0xffc45004, 32, 1) {
+	{ PINMUX_CFG_REG("INOUTSEL0", 0xFFC40004, 32, 1, GROUP(GP_INOUTSEL(0)))
+	},
+	{ PINMUX_CFG_REG("INOUTSEL1", 0xFFC41004, 32, 1, GROUP(GP_INOUTSEL(1)))
+	},
+	{ PINMUX_CFG_REG("INOUTSEL2", 0xFFC42004, 32, 1, GROUP(GP_INOUTSEL(2)))
+	},
+	{ PINMUX_CFG_REG("INOUTSEL3", 0xFFC43004, 32, 1, GROUP(GP_INOUTSEL(3)))
+	},
+	{ PINMUX_CFG_REG("INOUTSEL4", 0xFFC44004, 32, 1, GROUP(GP_INOUTSEL(4)))
+	},
+	{ PINMUX_CFG_REG("INOUTSEL5", 0xffc45004, 32, 1, GROUP(
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 31 - 24 */
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 23 - 16 */
 		0, 0, 0, 0, 0, 0, 0, 0, /* 15 - 12 */
@@ -2398,7 +2403,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_5_3_IN, GP_5_3_OUT,
 		GP_5_2_IN, GP_5_2_OUT,
 		GP_5_1_IN, GP_5_1_OUT,
-		GP_5_0_IN, GP_5_0_OUT }
+		GP_5_0_IN, GP_5_0_OUT ))
 	},
 	{ },
 };

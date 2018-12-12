@@ -1433,7 +1433,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("GPSR0", 0xe0140200, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR0", 0xe0140200, 32, 1, GROUP(
 		0, PORT31_FN,				/* PIN: J18  */
 		0, PORT30_FN,				/* PIN: H18  */
 		0, PORT29_FN,				/* PIN: G18  */
@@ -1466,9 +1466,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_JT_SEL, PORT2_FN,			/* PIN: V9   */
 		0, PORT1_FN,				/* PIN: U10  */
 		0, PORT0_FN,				/* PIN: V10  */
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("GPSR1", 0xe0140204, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR1", 0xe0140204, 32, 1, GROUP(
 		FN_SDI1_CMD, PORT63_FN,			/* PIN: AC21 */
 		FN_SDI1_CKI, PORT62_FN,			/* PIN: AA23 */
 		FN_SDI1_CKO, PORT61_FN,			/* PIN: AB22 */
@@ -1501,9 +1501,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_LCD3_R2, PORT34_FN,			/* PIN: A19  */
 		FN_LCD3_R1, PORT33_FN,			/* PIN: B20  */
 		FN_LCD3_R0, PORT32_FN,			/* PIN: A20  */
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("GPSR2", 0xe0140208, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR2", 0xe0140208, 32, 1, GROUP(
 		FN_AB_1_0_PORT95, PORT95_FN,		/* PIN: L21  */
 		FN_AB_1_0_PORT94, PORT94_FN,		/* PIN: K21  */
 		FN_AB_1_0_PORT93, PORT93_FN,		/* PIN: J21  */
@@ -1536,9 +1536,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SDI1_DATA2, PORT66_FN,		/* PIN: AB19 */
 		FN_SDI1_DATA1, PORT65_FN,		/* PIN: AB20 */
 		FN_SDI1_DATA0, PORT64_FN,		/* PIN: AB21 */
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("GPSR3", 0xe014020c, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR3", 0xe014020c, 32, 1, GROUP(
 		FN_NTSC_DATA4, PORT127_FN,		/* PIN: T20  */
 		FN_NTSC_DATA3, PORT126_FN,		/* PIN: R18  */
 		FN_NTSC_DATA2, PORT125_FN,		/* PIN: R20  */
@@ -1571,9 +1571,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_AB_9_8_PORT98, PORT98_FN,		/* PIN: M20  */
 		FN_AB_9_8_PORT97, PORT97_FN,		/* PIN: N21  */
 		FN_AB_A20, PORT96_FN,			/* PIN: M21  */
-		}
+		))
 	},
-	{ PINMUX_CFG_REG("GPSR4", 0xe0140210, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR4", 0xe0140210, 32, 1, GROUP(
 		0, 0,
 		FN_UART_1_0_PORT158, PORT158_FN,	/* PIN: AB10 */
 		FN_UART_1_0_PORT157, PORT157_FN,	/* PIN: AA10 */
@@ -1606,7 +1606,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_NTSC_DATA7, PORT130_FN,		/* PIN: U18  */
 		FN_NTSC_DATA6, PORT129_FN,		/* PIN: U20  */
 		FN_NTSC_DATA5, PORT128_FN,		/* PIN: T18  */
-		}
+		))
 	},
 	{ PINMUX_CFG_REG_VAR("CHG_PINSEL_LCD3", 0xe0140284, 32,
 			1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,

@@ -4618,7 +4618,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("GPSR0", 0xE6060004, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR0", 0xE6060004, 32, 1, GROUP(
 		GP_0_31_FN, FN_IP2_17_16,
 		GP_0_30_FN, FN_IP2_15_14,
 		GP_0_29_FN, FN_IP2_13_12,
@@ -4650,9 +4650,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_0_3_FN, FN_IP0_27_26,
 		GP_0_2_FN, FN_IP0_25,
 		GP_0_1_FN, FN_IP0_24,
-		GP_0_0_FN, FN_IP0_23_22, }
+		GP_0_0_FN, FN_IP0_23_22, ))
 	},
-	{ PINMUX_CFG_REG("GPSR1", 0xE6060008, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR1", 0xE6060008, 32, 1, GROUP(
 		0, 0,
 		0, 0,
 		0, 0,
@@ -4684,9 +4684,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_1_3_FN, FN_IP2_29_27,
 		GP_1_2_FN, FN_IP2_26_24,
 		GP_1_1_FN, FN_IP2_23_21,
-		GP_1_0_FN, FN_IP2_20_18, }
+		GP_1_0_FN, FN_IP2_20_18, ))
 	},
-	{ PINMUX_CFG_REG("GPSR2", 0xE606000C, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR2", 0xE606000C, 32, 1, GROUP(
 		GP_2_31_FN, FN_IP6_7_6,
 		GP_2_30_FN, FN_IP6_5_4,
 		GP_2_29_FN, FN_IP6_3_2,
@@ -4718,9 +4718,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_2_3_FN, FN_IP4_11_10,
 		GP_2_2_FN, FN_IP4_9_8,
 		GP_2_1_FN, FN_IP4_7_5,
-		GP_2_0_FN, FN_IP4_4_2 }
+		GP_2_0_FN, FN_IP4_4_2 ))
 	},
-	{ PINMUX_CFG_REG("GPSR3", 0xE6060010, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR3", 0xE6060010, 32, 1, GROUP(
 		GP_3_31_FN, FN_IP8_22_20,
 		GP_3_30_FN, FN_IP8_19_17,
 		GP_3_29_FN, FN_IP8_16_15,
@@ -4752,9 +4752,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_3_3_FN, FN_IP6_11,
 		GP_3_2_FN, FN_IP6_10,
 		GP_3_1_FN, FN_IP6_9,
-		GP_3_0_FN, FN_IP6_8 }
+		GP_3_0_FN, FN_IP6_8 ))
 	},
-	{ PINMUX_CFG_REG("GPSR4", 0xE6060014, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR4", 0xE6060014, 32, 1, GROUP(
 		GP_4_31_FN, FN_IP11_17_16,
 		GP_4_30_FN, FN_IP11_15_14,
 		GP_4_29_FN, FN_IP11_13_11,
@@ -4786,9 +4786,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_4_3_FN, FN_IP9_2_0,
 		GP_4_2_FN, FN_IP8_31_29,
 		GP_4_1_FN, FN_IP8_28_26,
-		GP_4_0_FN, FN_IP8_25_23 }
+		GP_4_0_FN, FN_IP8_25_23 ))
 	},
-	{ PINMUX_CFG_REG("GPSR5", 0xE6060018, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR5", 0xE6060018, 32, 1, GROUP(
 		0, 0,
 		0, 0,
 		0, 0,
@@ -4820,9 +4820,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_5_3_FN, FN_IP11_29_27,
 		GP_5_2_FN, FN_IP11_26_24,
 		GP_5_1_FN, FN_IP11_23_21,
-		GP_5_0_FN, FN_IP11_20_18 }
+		GP_5_0_FN, FN_IP11_20_18 ))
 	},
-	{ PINMUX_CFG_REG("GPSR6", 0xE606001C, 32, 1) {
+	{ PINMUX_CFG_REG("GPSR6", 0xE606001C, 32, 1, GROUP(
 		0, 0,
 		0, 0,
 		0, 0,
@@ -4854,7 +4854,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_6_3_FN, FN_SD0_DATA1,
 		GP_6_2_FN, FN_SD0_DATA0,
 		GP_6_1_FN, FN_SD0_CMD,
-		GP_6_0_FN, FN_SD0_CLK }
+		GP_6_0_FN, FN_SD0_CLK ))
 	},
 	{ PINMUX_CFG_REG_VAR("IPSR0", 0xE6060020, 32,
 			     2, 2, 2, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1,

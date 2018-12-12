@@ -115,20 +115,24 @@ struct pinmux_cfg_reg {
 	const u8 *var_field_width;
 };
 
+#define GROUP(...)	__VA_ARGS__
+
 /*
  * Describe a config register consisting of several fields of the same width
  *   - name: Register name (unused, for documentation purposes only)
  *   - r: Physical register address
  *   - r_width: Width of the register (in bits)
  *   - f_width: Width of the fixed-width register fields (in bits)
- * This macro must be followed by initialization data: For each register field
- * (from left to right, i.e. MSB to LSB), 2^f_width enum IDs must be specified,
- * one for each possible combination of the register field bit values.
+ *   - ids: For each register field (from left to right, i.e. MSB to LSB),
+ *          2^f_width enum IDs must be specified, one for each possible
+ *          combination of the register field bit values, all wrapped using
+ *          the GROUP() macro.
  */
-#define PINMUX_CFG_REG(name, r, r_width, f_width) \
+#define PINMUX_CFG_REG(name, r, r_width, f_width, ids)			\
 	.reg = r, .reg_width = r_width,					\
 	.field_width = f_width + BUILD_BUG_ON_ZERO(r_width % f_width),	\
-	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])
+	.enum_ids = (const u16 [(r_width / f_width) * (1 << f_width)])	\
+		{ ids }
 
 /*
  * Describe a config register consisting of several fields of different widths
