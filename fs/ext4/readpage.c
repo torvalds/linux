@@ -49,7 +49,7 @@
 
 static inline bool ext4_bio_encrypted(struct bio *bio)
 {
-#ifdef CONFIG_EXT4_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 	return unlikely(bio->bi_private != NULL);
 #else
 	return false;

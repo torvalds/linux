@@ -343,9 +343,9 @@ FS_IOC_SET_ENCRYPTION_POLICY can fail with the following errors:
 - ``ENOTEMPTY``: the file is unencrypted and is a nonempty directory
 - ``ENOTTY``: this type of filesystem does not implement encryption
 - ``EOPNOTSUPP``: the kernel was not configured with encryption
-  support for this filesystem, or the filesystem superblock has not
+  support for filesystems, or the filesystem superblock has not
   had encryption enabled on it.  (For example, to use encryption on an
-  ext4 filesystem, CONFIG_EXT4_ENCRYPTION must be enabled in the
+  ext4 filesystem, CONFIG_FS_ENCRYPTION must be enabled in the
   kernel config, and the superblock must have had the "encrypt"
   feature flag enabled using ``tune2fs -O encrypt`` or ``mkfs.ext4 -O
   encrypt``.)
