@@ -46,13 +46,19 @@ static int psp_early_init(void *handle)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 		psp_v3_1_set_psp_funcs(psp);
+		psp->autoload_supported = false;
 		break;
 	case CHIP_RAVEN:
 		psp_v10_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
 		break;
 	case CHIP_VEGA20:
+		psp_v11_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
+		break;
 	case CHIP_NAVI10:
 		psp_v11_0_set_psp_funcs(psp);
+		psp->autoload_supported = true;
 		break;
 	default:
 		return -EINVAL;
