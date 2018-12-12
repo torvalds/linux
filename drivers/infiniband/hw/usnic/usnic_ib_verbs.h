@@ -80,7 +80,7 @@ struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 				 u32 flags,
 				 struct ib_udata *udata);
 
-int usnic_ib_destroy_ah(struct ib_ah *ah);
+int usnic_ib_destroy_ah(struct ib_ah *ah, u32 flags);
 int usnic_ib_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			const struct ib_send_wr **bad_wr);
 int usnic_ib_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,

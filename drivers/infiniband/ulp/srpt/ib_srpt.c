@@ -458,7 +458,7 @@ static void srpt_mgmt_method_get(struct srpt_port *sp, struct ib_mad *rq_mad,
 static void srpt_mad_send_handler(struct ib_mad_agent *mad_agent,
 				  struct ib_mad_send_wc *mad_wc)
 {
-	rdma_destroy_ah(mad_wc->send_buf->ah);
+	rdma_destroy_ah(mad_wc->send_buf->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(mad_wc->send_buf);
 }
 
@@ -525,7 +525,7 @@ static void srpt_mad_recv_handler(struct ib_mad_agent *mad_agent,
 	ib_free_send_mad(rsp);
 
 err_rsp:
-	rdma_destroy_ah(ah);
+	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 err:
 	ib_free_recv_mad(mad_wc);
 }

@@ -219,7 +219,7 @@ av_err:
 	return ERR_PTR(status);
 }
 
-int ocrdma_destroy_ah(struct ib_ah *ibah)
+int ocrdma_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct ocrdma_ah *ah = get_ocrdma_ah(ibah);
 	struct ocrdma_dev *dev = get_ocrdma_dev(ibah->device);

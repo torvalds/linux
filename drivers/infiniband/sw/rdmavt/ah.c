@@ -137,10 +137,11 @@ struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 /**
  * rvt_destory_ah - Destory an address handle
  * @ibah: address handle
+ * @destroy_flags: destroy address handle flags (see enum rdma_destroy_ah_flags)
  *
  * Return: 0 on success
  */
-int rvt_destroy_ah(struct ib_ah *ibah)
+int rvt_destroy_ah(struct ib_ah *ibah, u32 destroy_flags)
 {
 	struct rvt_dev_info *dev = ib_to_rvt(ibah->device);
 	struct rvt_ah *ah = ibah_to_rvtah(ibah);

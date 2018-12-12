@@ -2628,7 +2628,7 @@ struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
 	return &ah->ibah;
 }
 
-int qedr_destroy_ah(struct ib_ah *ibah)
+int qedr_destroy_ah(struct ib_ah *ibah, u32 flags)
 {
 	struct qedr_ah *ah = get_qedr_ah(ibah);
 

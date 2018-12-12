@@ -205,7 +205,7 @@ static void send_handler(struct ib_mad_agent *agent,
 	struct ib_umad_packet *packet = send_wc->send_buf->context[0];
 
 	dequeue_send(file, packet);
-	rdma_destroy_ah(packet->msg->ah);
+	rdma_destroy_ah(packet->msg->ah, RDMA_DESTROY_AH_SLEEPABLE);
 	ib_free_send_mad(packet->msg);
 
 	if (send_wc->status == IB_WC_RESP_TIMEOUT_ERR) {
@@ -621,7 +621,7 @@ err_send:
 err_msg:
 	ib_free_send_mad(packet->msg);
 err_ah:
-	rdma_destroy_ah(ah);
+	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
 err_up:
 	mutex_unlock(&file->mutex);
 err:

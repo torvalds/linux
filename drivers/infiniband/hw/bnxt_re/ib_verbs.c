@@ -647,7 +647,7 @@ fail:
 }
 
 /* Address Handles */
-int bnxt_re_destroy_ah(struct ib_ah *ib_ah)
+int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 {
 	struct bnxt_re_ah *ah = container_of(ib_ah, struct bnxt_re_ah, ib_ah);
 	struct bnxt_re_dev *rdev = ah->rdev;

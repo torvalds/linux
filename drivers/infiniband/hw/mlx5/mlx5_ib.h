@@ -1044,7 +1044,7 @@ int mlx5_MAD_IFC(struct mlx5_ib_dev *dev, int ignore_mkey, int ignore_bkey,
 struct ib_ah *mlx5_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 				u32 flags, struct ib_udata *udata);
 int mlx5_ib_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
-int mlx5_ib_destroy_ah(struct ib_ah *ah);
+int mlx5_ib_destroy_ah(struct ib_ah *ah, u32 flags);
 struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 				  struct ib_srq_init_attr *init_attr,
 				  struct ib_udata *udata);

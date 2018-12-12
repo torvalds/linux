@@ -2381,7 +2381,7 @@ struct ib_device_ops {
 				   struct ib_udata *udata);
 	int (*modify_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	int (*query_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
-	int (*destroy_ah)(struct ib_ah *ah);
+	int (*destroy_ah)(struct ib_ah *ah, u32 flags);
 	struct ib_srq *(*create_srq)(struct ib_pd *pd,
 				     struct ib_srq_init_attr *srq_init_attr,
 				     struct ib_udata *udata);
@@ -3256,11 +3256,17 @@ int rdma_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
  */
 int rdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 
+enum rdma_destroy_ah_flags {
+	/* In a sleepable context */
+	RDMA_DESTROY_AH_SLEEPABLE = BIT(0),
+};
+
 /**
  * rdma_destroy_ah - Destroys an address handle.
  * @ah: The address handle to destroy.
+ * @flags: Destroy address handle flags (see enum rdma_destroy_ah_flags).
  */
-int rdma_destroy_ah(struct ib_ah *ah);
+int rdma_destroy_ah(struct ib_ah *ah, u32 flags);
 
 /**
  * ib_create_srq - Creates a SRQ associated with the specified protection

@@ -1059,7 +1059,7 @@ struct ib_ah *hns_roce_create_ah(struct ib_pd *pd,
 				 u32 flags,
 				 struct ib_udata *udata);
 int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr);
-int hns_roce_destroy_ah(struct ib_ah *ah);
+int hns_roce_destroy_ah(struct ib_ah *ah, u32 flags);
 
 struct ib_pd *hns_roce_alloc_pd(struct ib_device *ib_dev,
 				struct ib_ucontext *context,

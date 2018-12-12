@@ -95,7 +95,7 @@ static void update_sm_ah(struct mthca_dev *dev,
 
 	spin_lock_irqsave(&dev->sm_lock, flags);
 	if (dev->sm_ah[port_num - 1])
-		rdma_destroy_ah(dev->sm_ah[port_num - 1]);
+		rdma_destroy_ah(dev->sm_ah[port_num - 1], 0);
 	dev->sm_ah[port_num - 1] = new_ah;
 	spin_unlock_irqrestore(&dev->sm_lock, flags);
 }
@@ -347,6 +347,7 @@ void mthca_free_agents(struct mthca_dev *dev)
 		}
 
 		if (dev->sm_ah[p])
-			rdma_destroy_ah(dev->sm_ah[p]);
+			rdma_destroy_ah(dev->sm_ah[p],
+					RDMA_DESTROY_AH_SLEEPABLE);
 	}
 }

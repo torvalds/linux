@@ -582,10 +582,11 @@ struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
 /**
  * pvrdma_destroy_ah - destroy an address handle
  * @ah: the address handle to destroyed
+ * @flags: destroy address handle flags (see enum rdma_destroy_ah_flags)
  *
  * @return: 0 on success.
  */
-int pvrdma_destroy_ah(struct ib_ah *ah)
+int pvrdma_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	struct pvrdma_dev *dev = to_vdev(ah->device);
 

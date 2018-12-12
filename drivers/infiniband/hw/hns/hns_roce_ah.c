@@ -111,7 +111,7 @@ int hns_roce_query_ah(struct ib_ah *ibah, struct rdma_ah_attr *ah_attr)
 	return 0;
 }
 
-int hns_roce_destroy_ah(struct ib_ah *ah)
+int hns_roce_destroy_ah(struct ib_ah *ah, u32 flags)
 {
 	kfree(to_hr_ah(ah));
 

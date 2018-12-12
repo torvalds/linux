@@ -432,7 +432,7 @@ static struct ib_ah *mthca_ah_create(struct ib_pd *pd,
 	return &ah->ibah;
 }
 
-static int mthca_ah_destroy(struct ib_ah *ah)
+static int mthca_ah_destroy(struct ib_ah *ah, u32 flags)
 {
 	mthca_destroy_ah(to_mdev(ah->device), to_mah(ah));
 	kfree(ah);
