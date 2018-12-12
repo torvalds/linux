@@ -48,6 +48,7 @@
 		interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
 		current-speed = <115200>;
+		power-domains = <&k3_pds 146>;
 	};
 
 	main_uart1: serial@2810000 {
@@ -57,7 +58,7 @@
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
+		power-domains = <&k3_pds 147>;
 	};
 
 	main_uart2: serial@2820000 {
@@ -67,7 +68,7 @@
 		reg-io-width = <4>;
 		interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
+		power-domains = <&k3_pds 148>;
 	};
 
 	main_pmx0: pinmux@11c000 {
