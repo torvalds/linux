@@ -700,7 +700,7 @@ static struct snd_soc_dai_driver byt_dai[] = {
 };
 
 /* baytrail ops */
-struct snd_sof_dsp_ops sof_byt_ops = {
+const struct snd_sof_dsp_ops sof_byt_ops = {
 	/* device init */
 	.probe		= byt_probe,
 
@@ -751,7 +751,7 @@ struct snd_sof_dsp_ops sof_byt_ops = {
 EXPORT_SYMBOL(sof_byt_ops);
 
 /* cherrytrail and braswell ops */
-struct snd_sof_dsp_ops sof_cht_ops = {
+const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* device init */
 	.probe		= byt_probe,
 

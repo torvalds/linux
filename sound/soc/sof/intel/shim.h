@@ -151,9 +151,9 @@
 #define PCI_PMCS		0x84
 #define PCI_PMCS_PS_MASK	0x3
 
-extern struct snd_sof_dsp_ops sof_byt_ops;
-extern struct snd_sof_dsp_ops sof_cht_ops;
-extern struct snd_sof_dsp_ops sof_hsw_ops;
-extern struct snd_sof_dsp_ops sof_bdw_ops;
+extern const struct snd_sof_dsp_ops sof_byt_ops;
+extern const struct snd_sof_dsp_ops sof_cht_ops;
+extern const struct snd_sof_dsp_ops sof_hsw_ops;
+extern const struct snd_sof_dsp_ops sof_bdw_ops;
 
 #endif

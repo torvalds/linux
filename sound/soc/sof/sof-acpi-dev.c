@@ -141,7 +141,7 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
 	struct sof_platform_priv *priv;
-	struct snd_sof_dsp_ops *ops;
+	const struct snd_sof_dsp_ops *ops;
 	int ret = 0;
 
 	dev_dbg(&pdev->dev, "ACPI DSP detected");
@@ -197,7 +197,13 @@ static int sof_acpi_probe(struct platform_device *pdev)
 	}
 #endif
 
-	mach->pdata = ops;
+	/*
+	 * save ops in pdata.
+	 * TODO: the explicit cast removes the const attribute, we'll need
+	 * to add a dedicated ops field in the generic soc-acpi structure
+	 * to avoid such issues
+	 */
+	mach->pdata = (void *)ops;
 	sof_pdata->machine = mach;
 	sof_pdata->desc = desc;
 	priv->sof_pdata = sof_pdata;

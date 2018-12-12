@@ -14,7 +14,7 @@
 #include <sound/sof.h>
 #include "sof-priv.h"
 
-int sof_bes_setup(struct device *dev, struct snd_sof_dsp_ops *ops,
+int sof_bes_setup(struct device *dev, const struct snd_sof_dsp_ops *ops,
 		  struct snd_soc_dai_link *links, int link_num,
 		  struct snd_soc_card *card)
 {

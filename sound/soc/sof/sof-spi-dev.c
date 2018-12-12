@@ -116,7 +116,16 @@ static int sof_spi_probe(struct spi_device *spi)
 	mach->sof_fw_filename = desc->nocodec_fw_filename;
 	mach->sof_tplg_filename = desc->nocodec_tplg_filename;
 	mach->asoc_plat_name = "sof-platform";
-	mach->pdata = sof_get_ops(desc, spi_mach_ops, ARRAY_SIZE(spi_mach_ops));
+
+	/*
+	 * save ops in pdata.
+	 * TODO: the explicit cast removes the const attribute, we'll need
+	 * to add a dedicated ops field in the generic soc-acpi structure
+	 * to avoid such issues
+	 */
+
+	mach->pdata = (void *)sof_get_ops(desc, spi_mach_ops,
+					  ARRAY_SIZE(spi_mach_ops));
 	if (!mach->pdata) {
 		dev_err(dev, "error: no matching SPI descriptor ops\n");
 		return -ENODEV;

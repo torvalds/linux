@@ -164,7 +164,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	struct snd_soc_acpi_mach *mach;
 	struct snd_sof_pdata *sof_pdata;
 	struct sof_platform_priv *priv;
-	struct snd_sof_dsp_ops *ops;
+	const struct snd_sof_dsp_ops *ops;
 	int ret = 0;
 
 	dev_dbg(&pci->dev, "PCI DSP detected");
@@ -244,7 +244,13 @@ static int sof_pci_probe(struct pci_dev *pci,
 		goto release_regions;
 	}
 
-	mach->pdata = ops;
+	/*
+	 * save ops in pdata.
+	 * TODO: the explicit cast removes the const attribute, we'll need
+	 * to add a dedicated ops field in the generic soc-acpi structure
+	 * to avoid such issues
+	 */
+	mach->pdata = (void *)ops;
 
 	sof_pdata->id = pci_id->device;
 	sof_pdata->name = pci_name(pci);

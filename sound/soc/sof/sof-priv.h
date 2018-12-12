@@ -177,7 +177,7 @@ struct sof_arch_ops {
 /* DSP device HW descriptor mapping between bus ID and ops */
 struct sof_ops_table {
 	const struct sof_dev_desc *desc;
-	struct snd_sof_dsp_ops *ops;
+	const struct snd_sof_dsp_ops *ops;
 };
 
 /* FS entry for debug files that can expose DSP memories, registers */

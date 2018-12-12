@@ -651,7 +651,7 @@ static struct snd_soc_dai_driver hsw_dai[] = {
 };
 
 /* haswell ops */
-struct snd_sof_dsp_ops sof_hsw_ops = {
+const struct snd_sof_dsp_ops sof_hsw_ops = {
 	/*Device init */
 	.probe          = hsw_probe,
 

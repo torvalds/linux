@@ -20,7 +20,7 @@ int sof_nocodec_setup(struct device *dev,
 		      struct snd_sof_pdata *sof_pdata,
 		      struct snd_soc_acpi_mach *mach,
 		      const struct sof_dev_desc *desc,
-		      struct snd_sof_dsp_ops *ops)
+		      const struct snd_sof_dsp_ops *ops)
 {
 	struct snd_soc_dai_link *links;
 	int ret;

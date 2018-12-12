@@ -353,7 +353,7 @@ struct sof_intel_dsp_desc {
 	int ipc_ack;
 	int ipc_ack_mask;
 	int ipc_ctl;
-	struct snd_sof_dsp_ops *ops;
+	const struct snd_sof_dsp_ops *ops;
 };
 
 #define SOF_HDA_PLAYBACK_STREAMS	16
@@ -530,8 +530,8 @@ extern struct snd_soc_dai_driver skl_dai[];
 /*
  * Platform Specific HW abstraction Ops.
  */
-extern struct snd_sof_dsp_ops sof_apl_ops;
-extern struct snd_sof_dsp_ops sof_cnl_ops;
-extern struct snd_sof_dsp_ops sof_skl_ops;
+extern const struct snd_sof_dsp_ops sof_apl_ops;
+extern const struct snd_sof_dsp_ops sof_cnl_ops;
+extern const struct snd_sof_dsp_ops sof_skl_ops;
 
 #endif

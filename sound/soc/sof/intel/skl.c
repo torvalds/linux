@@ -25,7 +25,7 @@ static const struct snd_sof_debugfs_map skl_dsp_debugfs[] = {
 };
 
 /* skylake ops */
-struct snd_sof_dsp_ops sof_skl_ops = {
+const struct snd_sof_dsp_ops sof_skl_ops = {
 	/* probe and remove */
 	.probe		= hda_dsp_probe,
 	.remove		= hda_dsp_remove,
