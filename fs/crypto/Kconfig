@@ -1,5 +1,5 @@
 config FS_ENCRYPTION
-	tristate "FS Encryption (Per-file encryption)"
+	bool "FS Encryption (Per-file encryption)"
 	select CRYPTO
 	select CRYPTO_AES
 	select CRYPTO_CBC
@@ -12,4 +12,5 @@ config FS_ENCRYPTION
 	  Enable encryption of files and directories.  This
 	  feature is similar to ecryptfs, but it is more memory
 	  efficient since it avoids caching the encrypted and
-	  decrypted pages in the page cache.
+	  decrypted pages in the page cache.  Currently Ext4,
+	  F2FS and UBIFS make use of this feature.
