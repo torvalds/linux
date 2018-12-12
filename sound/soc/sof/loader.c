@@ -18,8 +18,6 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 			   struct sof_ipc_ext_data_hdr *ext_hdr)
 {
 	struct sof_ipc_window *w = (struct sof_ipc_window *)ext_hdr;
-
-	int ret = 0;
 	size_t size;
 
 	if (w->num_windows == 0 || w->num_windows > SOF_IPC_MAX_ELEMS)
@@ -32,7 +30,7 @@ static int get_ext_windows(struct snd_sof_dev *sdev,
 	if (!sdev->info_window)
 		return -ENOMEM;
 
-	return ret;
+	return 0;
 }
 
 /* parse the extended FW boot data structures from FW boot message */
