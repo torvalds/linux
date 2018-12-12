@@ -15,8 +15,8 @@
 #include "ops.h"
 
 /* SOF defaults if not provided by the platform in ms */
-#define TIMEOUT_DEFAULT_IPC	5
-#define TIMEOUT_DEFAULT_BOOT	100
+#define TIMEOUT_DEFAULT_IPC_MS  5
+#define TIMEOUT_DEFAULT_BOOT_MS 100
 
 /*
  * Generic object lookup APIs.
@@ -107,10 +107,7 @@ struct snd_sof_dai *snd_sof_find_dai(struct snd_sof_dev *sdev,
 	struct snd_sof_dai *dai = NULL;
 
 	list_for_each_entry(dai, &sdev->dai_list, list) {
-		if (!dai->name)
-			continue;
-
-		if (strcmp(name, dai->name) == 0)
+		if (dai->name && (strcmp(name, dai->name) == 0))
 			return dai;
 	}
 
@@ -259,11 +256,11 @@ static int sof_probe(struct platform_device *pdev)
 
 	/* set default timeouts if none provided */
 	if (plat_data->desc->ipc_timeout == 0)
-		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC;
+		sdev->ipc_timeout = TIMEOUT_DEFAULT_IPC_MS;
 	else
 		sdev->ipc_timeout = plat_data->desc->ipc_timeout;
 	if (plat_data->desc->boot_timeout == 0)
-		sdev->boot_timeout = TIMEOUT_DEFAULT_BOOT;
+		sdev->boot_timeout = TIMEOUT_DEFAULT_BOOT_MS;
 	else
 		sdev->boot_timeout = plat_data->desc->boot_timeout;
 
