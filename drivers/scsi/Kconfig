@@ -665,7 +665,7 @@ config SCSI_DMX3191D
 
 config SCSI_GDTH
 	tristate "Intel/ICP (former GDT SCSI Disk Array) RAID Controller support"
-	depends on (ISA || EISA || PCI) && SCSI && ISA_DMA_API
+	depends on PCI && SCSI
 	---help---
 	  Formerly called GDT SCSI Disk Array Controller Support.
 
