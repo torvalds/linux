@@ -269,7 +269,7 @@ void rtw_set_rpwm(struct adapter *padapter, u8 pslv)
 
 	if (pwrpriv->brpwmtimeout == true) {
 		DBG_871X("%s: RPWM timeout, force to set RPWM(0x%02X) again!\n", __func__, pslv);
-	} else{
+	} else {
 		if ((pwrpriv->rpwm == pslv)
 			|| ((pwrpriv->rpwm >= PS_STATE_S2) && (pslv >= PS_STATE_S2))) {
 			RT_TRACE(_module_rtl871x_pwrctrl_c_, _drv_err_,
@@ -459,7 +459,7 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 
 			rtw_btcoex_LpsNotify(padapter, ps_mode);
 		}
-	} else{
+	} else {
 		if ((PS_RDY_CHECK(padapter) && check_fwstate(&padapter->mlmepriv, WIFI_ASOC_STATE))
 			|| ((rtw_btcoex_IsBtControlLps(padapter) == true)
 				&& (rtw_btcoex_IsLpsOn(padapter) == true))
@@ -635,7 +635,7 @@ void LeaveAllPowerSaveModeDirect(struct adapter *Adapter)
 		mutex_unlock(&pwrpriv->lock);
 
 		rtw_lps_ctrl_wk_cmd(pri_padapter, LPS_CTRL_LEAVE, 0);
-	} else{
+	} else {
 		if (pwrpriv->rf_pwrstate == rf_off)
 			if (false == ips_leave(pri_padapter))
 				DBG_871X("======> ips_leave fail.............\n");
