@@ -515,19 +515,19 @@
 					#address-cells = <1>;
 					#size-cells = <1>;
 					reg = <0x0 0x20>;
-					ranges = <0 0 0x4000>;
-					sata_phy: phy@4a096000 {
-						compatible = "ti,phy-pipe3-sata";
-						reg = <0x6000 0x80>, /* phy_rx */
-						      <0x4A096400 0x64>, /* phy_tx */
-						      <0x4A096800 0x40>; /* pll_ctrl */
-						reg-names = "phy_rx", "phy_tx", "pll_ctrl";
-						syscon-phy-power = <&scm_conf 0x374>;
-						clocks = <&sys_clkin>,
-							 <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
-						clock-names = "sysclk", "refclk";
-						#phy-cells = <0>;
-					};
+				};
+
+				sata_phy: phy@6000 {
+					compatible = "ti,phy-pipe3-sata";
+					reg = <0x6000 0x80>, /* phy_rx */
+					      <0x6400 0x64>, /* phy_tx */
+					      <0x6800 0x40>; /* pll_ctrl */
+					reg-names = "phy_rx", "phy_tx", "pll_ctrl";
+					syscon-phy-power = <&scm_conf 0x374>;
+					clocks = <&sys_clkin>,
+						 <&l3init_clkctrl OMAP5_SATA_CLKCTRL 8>;
+					clock-names = "sysclk", "refclk";
+					#phy-cells = <0>;
 				};
 		};
 
