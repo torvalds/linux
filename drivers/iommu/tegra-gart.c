@@ -19,22 +19,15 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
-#define pr_fmt(fmt)	"%s(): " fmt, __func__
-
 #include <linux/init.h>
-#include <linux/moduleparam.h>
-#include <linux/platform_device.h>
-#include <linux/spinlock.h>
-#include <linux/slab.h>
-#include <linux/vmalloc.h>
-#include <linux/mm.h>
-#include <linux/list.h>
-#include <linux/device.h>
 #include <linux/io.h>
 #include <linux/iommu.h>
-#include <linux/of.h>
-
-#include <asm/cacheflush.h>
+#include <linux/list.h>
+#include <linux/moduleparam.h>
+#include <linux/of_device.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/vmalloc.h>
 
 /* bitmap of the page sizes currently supported */
 #define GART_IOMMU_PGSIZES	(SZ_4K)
