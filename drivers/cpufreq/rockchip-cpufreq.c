@@ -136,6 +136,35 @@ out:
 	return ret;
 }
 
+static int rk3399_get_soc_info(struct device *dev, struct device_node *np,
+			       int *bin, int *process)
+{
+	int ret = 0, value = -EINVAL;
+
+	if (!bin)
+		goto out;
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "specification_serial_number") >= 0) {
+		ret = rockchip_get_efuse_value(np,
+					       "specification_serial_number",
+					       &value);
+		if (ret) {
+			dev_err(dev,
+				"Failed to get specification_serial_number\n");
+			goto out;
+		}
+		if (value == 0xb)
+			*bin = 0;
+		else
+			*bin = 1;
+	}
+
+	if (*bin >= 0)
+		dev_info(dev, "bin=%d\n", *bin);
+
+out:
+	return ret;
+}
 static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,px30",
@@ -152,6 +181,10 @@ static const struct of_device_id rockchip_cpufreq_of_match[] = {
 	{
 		.compatible = "rockchip,rk3326",
 		.data = (void *)&px30_get_soc_info,
+	},
+	{
+		.compatible = "rockchip,rk3399",
+		.data = (void *)&rk3399_get_soc_info,
 	},
 	{},
 };
