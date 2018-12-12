@@ -58,19 +58,11 @@ This binding for the SCU power domain providers uses the generic power
 domain binding[2].
 
 Required properties:
-- compatible:		Should be "fsl,scu-pd".
-- #address-cells:	Should be 1.
-- #size-cells:		Should be 0.
-
-Required properties for power domain sub nodes:
-- #power-domain-cells:	Must be 0.
-
-Optional Properties:
-- reg:			Resource ID of this power domain.
-			No exist means uncontrollable by user.
+- compatible:		Should be "fsl,imx8qxp-scu-pd".
+- #power-domain-cells:	Must be 1. Contains the Resource ID used by
+			SCU commands.
 			See detailed Resource ID list from:
-			include/dt-bindings/power/imx-rsrc.h
-- power-domains:	phandle pointing to the parent power domain.
+			include/dt-bindings/firmware/imx/rsrc.h
 
 Clock bindings based on SCU Message Protocol
 ------------------------------------------------------------
@@ -152,22 +144,9 @@ firmware {
 			...
 		};
 
-		imx8qx-pm {
-			compatible = "fsl,scu-pd";
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			pd_dma: dma-power-domain {
-				#power-domain-cells = <0>;
-
-				pd_dma_lpuart0: dma-lpuart0@57 {
-					reg = <SC_R_UART_0>;
-					#power-domain-cells = <0>;
-					power-domains = <&pd_dma>;
-				};
-				...
-			};
-			...
+		pd: imx8qx-pd {
+			compatible = "fsl,imx8qxp-scu-pd";
+			#power-domain-cells = <1>;
 		};
 	};
 };
@@ -179,5 +158,5 @@ serial@5a060000 {
 	clocks = <&clk IMX8QXP_UART0_CLK>,
 		 <&clk IMX8QXP_UART0_IPG_CLK>;
 	clock-names = "per", "ipg";
-	power-domains = <&pd_dma_lpuart0>;
+	power-domains = <&pd IMX_SC_R_UART_0>;
 };
