@@ -127,6 +127,7 @@
  */
 #define ADT7316_DA_2VREF_CH_MASK	0xF
 #define ADT7316_DA_EN_MODE_MASK		0x30
+#define ADT7316_DA_EN_MODE_SHIFT	4
 #define ADT7316_DA_EN_MODE_SINGLE	0x00
 #define ADT7316_DA_EN_MODE_AB_CD	0x10
 #define ADT7316_DA_EN_MODE_ABCD		0x20
@@ -884,11 +885,11 @@ static ssize_t adt7316_store_DAC_update_mode(struct device *dev,
 		return -EPERM;
 
 	ret = kstrtou8(buf, 10, &data);
-	if (ret || data > ADT7316_DA_EN_MODE_MASK)
+	if (ret || data > (ADT7316_DA_EN_MODE_MASK >> ADT7316_DA_EN_MODE_SHIFT))
 		return -EINVAL;
 
 	dac_config = chip->dac_config & (~ADT7316_DA_EN_MODE_MASK);
-	dac_config |= data;
+	dac_config |= data << ADT7316_DA_EN_MODE_SHIFT;
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_DAC_CONFIG, dac_config);
 	if (ret)
