@@ -835,7 +835,7 @@ static int cdns_i3c_master_i2c_xfers(struct i2c_dev_desc *dev,
 		return -ENOMEM;
 
 	for (i = 0; i < nxfers; i++) {
-		struct cdns_i3c_cmd *ccmd = &xfer->cmds[0];
+		struct cdns_i3c_cmd *ccmd = &xfer->cmds[i];
 
 		ccmd->cmd0 = CMD0_FIFO_DEV_ADDR(xfers[i].addr) |
 			CMD0_FIFO_PL_LEN(xfers[i].len) |
