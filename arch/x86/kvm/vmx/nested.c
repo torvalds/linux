@@ -700,45 +700,31 @@ static int nested_vmx_check_apicv_controls(struct kvm_vcpu *vcpu,
 }
 
 static int nested_vmx_check_msr_switch(struct kvm_vcpu *vcpu,
-				       unsigned long count_field,
-				       unsigned long addr_field)
+				       u32 count, u64 addr)
 {
-	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	int maxphyaddr;
-	u64 count, addr;
 
-	if (vmcs12_read_any(vmcs12, count_field, &count) ||
-	    vmcs12_read_any(vmcs12, addr_field, &addr)) {
-		WARN_ON(1);
-		return -EINVAL;
-	}
 	if (count == 0)
 		return 0;
 	maxphyaddr = cpuid_maxphyaddr(vcpu);
 	if (!IS_ALIGNED(addr, 16) || addr >> maxphyaddr ||
-	    (addr + count * sizeof(struct vmx_msr_entry) - 1) >> maxphyaddr) {
-		pr_debug_ratelimited(
-			"nVMX: invalid MSR switch (0x%lx, %d, %llu, 0x%08llx)",
-			addr_field, maxphyaddr, count, addr);
+	    (addr + count * sizeof(struct vmx_msr_entry) - 1) >> maxphyaddr)
 		return -EINVAL;
-	}
+
 	return 0;
 }
 
 static int nested_vmx_check_msr_switch_controls(struct kvm_vcpu *vcpu,
 						struct vmcs12 *vmcs12)
 {
-	if (vmcs12->vm_exit_msr_load_count == 0 &&
-	    vmcs12->vm_exit_msr_store_count == 0 &&
-	    vmcs12->vm_entry_msr_load_count == 0)
-		return 0; /* Fast path */
-	if (nested_vmx_check_msr_switch(vcpu, VM_EXIT_MSR_LOAD_COUNT,
-					VM_EXIT_MSR_LOAD_ADDR) ||
-	    nested_vmx_check_msr_switch(vcpu, VM_EXIT_MSR_STORE_COUNT,
-					VM_EXIT_MSR_STORE_ADDR) ||
-	    nested_vmx_check_msr_switch(vcpu, VM_ENTRY_MSR_LOAD_COUNT,
-					VM_ENTRY_MSR_LOAD_ADDR))
+	if (nested_vmx_check_msr_switch(vcpu, vmcs12->vm_exit_msr_load_count,
+					vmcs12->vm_exit_msr_load_addr) ||
+	    nested_vmx_check_msr_switch(vcpu, vmcs12->vm_exit_msr_store_count,
+					vmcs12->vm_exit_msr_store_addr) ||
+	    nested_vmx_check_msr_switch(vcpu, vmcs12->vm_entry_msr_load_count,
+					vmcs12->vm_entry_msr_load_addr))
 		return -EINVAL;
+
 	return 0;
 }
 
