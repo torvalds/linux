@@ -11,8 +11,6 @@
 #include "ops.h"
 #include "sof-priv.h"
 
-#define RUNTIME_PM 1
-
 static int sof_restore_kcontrols(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_control *scontrol = NULL;
@@ -198,48 +196,37 @@ static void sof_suspend_streams(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pcm *spcm;
 	struct snd_pcm_substream *substream;
-	int dir;
+	int dir, playback_dir, capture_dir;
 
 	/* suspend all running streams */
 	list_for_each_entry(spcm, &sdev->pcm_list, list) {
 
 		mutex_lock(&spcm->mutex);
 
-		/* suspend running playback stream */
-		dir = SNDRV_PCM_STREAM_PLAYBACK;
-		substream = spcm->stream[dir].substream;
+		playback_dir = SNDRV_PCM_STREAM_PLAYBACK;
+		capture_dir = SNDRV_PCM_STREAM_CAPTURE;
 
-		if (substream && substream->runtime) {
+		/* suspend running streams in both directions */
+		for (dir = playback_dir; dir <= capture_dir; dir++) {
+			substream = spcm->stream[dir].substream;
 
-			snd_pcm_suspend(substream);
+			if (substream && substream->runtime) {
 
-			/*
-			 * set restore_stream so that hw_params can be
-			 * restored during resume
-			 */
-			spcm->restore_stream[dir] = 1;
-		}
+				snd_pcm_suspend(substream);
 
-		/* suspend running capture stream */
-		dir = SNDRV_PCM_STREAM_CAPTURE;
-		substream = spcm->stream[dir].substream;
-
-		if (substream && substream->runtime) {
-
-			snd_pcm_suspend(substream);
-
-			/*
-			 * set restore_stream so that hw_params can be
-			 * restored during resume
-			 */
-			spcm->restore_stream[dir] = 1;
+				/*
+				 * set restore_stream so that hw_params can be
+				 * restored during resume
+				 */
+				spcm->restore_stream[dir] = 1;
+			}
 		}
 
 		mutex_unlock(&spcm->mutex);
 	}
 }
 
-static int sof_resume(struct device *dev, int runtime_resume)
+static int sof_resume(struct device *dev, bool runtime_resume)
 {
 	struct sof_platform_priv *priv = dev_get_drvdata(dev);
 	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
@@ -309,7 +296,7 @@ static int sof_resume(struct device *dev, int runtime_resume)
 	return ret;
 }
 
-static int sof_suspend(struct device *dev, int runtime_suspend)
+static int sof_suspend(struct device *dev, bool runtime_suspend)
 {
 	struct sof_platform_priv *priv = dev_get_drvdata(dev);
 	struct snd_sof_dev *sdev = dev_get_drvdata(&priv->pdev_pcm->dev);
@@ -358,19 +345,19 @@ static int sof_suspend(struct device *dev, int runtime_suspend)
 
 int snd_sof_runtime_suspend(struct device *dev)
 {
-	return sof_suspend(dev, RUNTIME_PM);
+	return sof_suspend(dev, true);
 }
 EXPORT_SYMBOL(snd_sof_runtime_suspend);
 
 int snd_sof_runtime_resume(struct device *dev)
 {
-	return sof_resume(dev, RUNTIME_PM);
+	return sof_resume(dev, true);
 }
 EXPORT_SYMBOL(snd_sof_runtime_resume);
 
 int snd_sof_resume(struct device *dev)
 {
-	return sof_resume(dev, !RUNTIME_PM);
+	return sof_resume(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_resume);
 
@@ -382,7 +369,7 @@ EXPORT_SYMBOL(snd_sof_suspend);
 
 int snd_sof_suspend_late(struct device *dev)
 {
-	return sof_suspend(dev, !RUNTIME_PM);
+	return sof_suspend(dev, false);
 }
 EXPORT_SYMBOL(snd_sof_suspend_late);
 
