@@ -31,7 +31,6 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
     int i, found;
     gdth_cmd_str    gdtcmd;
     gdth_cpar_str   *pcpar;
-    u64         paddr;
 
     char            cmnd[MAX_COMMAND_SIZE];
     memset(cmnd, 0xff, 12);
@@ -113,13 +112,23 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
     }
 
     if (wb_mode) {
-        if (!gdth_ioctl_alloc(ha, sizeof(gdth_cpar_str), TRUE, &paddr))
-            return(-EBUSY);
+	unsigned long flags;
+
+	BUILD_BUG_ON(sizeof(gdth_cpar_str) > GDTH_SCRATCH);
+
+	spin_lock_irqsave(&ha->smp_lock, flags);
+	if (ha->scratch_busy) {
+	    spin_unlock_irqrestore(&ha->smp_lock, flags);
+            return -EBUSY;
+	}
+	ha->scratch_busy = TRUE;
+	spin_unlock_irqrestore(&ha->smp_lock, flags);
+
         pcpar = (gdth_cpar_str *)ha->pscratch;
         memcpy( pcpar, &ha->cpar, sizeof(gdth_cpar_str) );
         gdtcmd.Service = CACHESERVICE;
         gdtcmd.OpCode = GDT_IOCTL;
-        gdtcmd.u.ioctl.p_param = paddr;
+        gdtcmd.u.ioctl.p_param = ha->scratch_phys;
         gdtcmd.u.ioctl.param_size = sizeof(gdth_cpar_str);
         gdtcmd.u.ioctl.subfunc = CACHE_CONFIG;
         gdtcmd.u.ioctl.channel = INVALID_CHANNEL;
@@ -127,7 +136,10 @@ static int gdth_set_asc_info(struct Scsi_Host *host, char *buffer,
 
         gdth_execute(host, &gdtcmd, cmnd, 30, NULL);
 
-        gdth_ioctl_free(ha, GDTH_SCRATCH, ha->pscratch, paddr);
+	spin_lock_irqsave(&ha->smp_lock, flags);
+	ha->scratch_busy = FALSE;
+	spin_unlock_irqrestore(&ha->smp_lock, flags);
+
         printk("Done.\n");
         return(orig_length);
     }
@@ -143,7 +155,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
     int id, i, j, k, sec, flag;
     int no_mdrv = 0, drv_no, is_mirr;
     u32 cnt;
-    u64 paddr;
+    dma_addr_t paddr;
     int rc = -ENOMEM;
 
     gdth_cmd_str *gdtcmd;
@@ -232,7 +244,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         seq_puts(m, "\nPhysical Devices:");
         flag = FALSE;
             
-        buf = gdth_ioctl_alloc(ha, size, FALSE, &paddr);
+        buf = pci_alloc_consistent(ha->pdev, size, &paddr);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < ha->bus_cnt; ++i) {
@@ -406,7 +418,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             seq_printf(m,
                            " To Array Drv.:\t%s\n", hrec);
         }       
-        
+
         if (!flag)
             seq_puts(m, "\n --\n");
 
@@ -500,7 +512,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 }
             }
         }
-        gdth_ioctl_free(ha, size, buf, paddr);
+	pci_free_consistent(ha->pdev, size, buf, paddr);
 
         for (i = 0; i < MAX_HDRIVES; ++i) {
             if (!(ha->hdr[i].present))
@@ -551,47 +563,6 @@ free_fail:
     kfree(gdtcmd);
     kfree(estr);
     return rc;
-}
-
-static char *gdth_ioctl_alloc(gdth_ha_str *ha, int size, int scratch,
-                              u64 *paddr)
-{
-    unsigned long flags;
-    char *ret_val;
-
-    if (size == 0)
-        return NULL;
-
-    spin_lock_irqsave(&ha->smp_lock, flags);
-
-    if (!ha->scratch_busy && size <= GDTH_SCRATCH) {
-        ha->scratch_busy = TRUE;
-        ret_val = ha->pscratch;
-        *paddr = ha->scratch_phys;
-    } else if (scratch) {
-        ret_val = NULL;
-    } else {
-        dma_addr_t dma_addr;
-
-        ret_val = pci_alloc_consistent(ha->pdev, size, &dma_addr);
-        *paddr = dma_addr;
-    }
-
-    spin_unlock_irqrestore(&ha->smp_lock, flags);
-    return ret_val;
-}
-
-static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, u64 paddr)
-{
-    unsigned long flags;
-
-    if (buf == ha->pscratch) {
-	spin_lock_irqsave(&ha->smp_lock, flags);
-        ha->scratch_busy = FALSE;
-	spin_unlock_irqrestore(&ha->smp_lock, flags);
-    } else {
-        pci_free_consistent(ha->pdev, size, buf, paddr);
-    }
 }
 
 #ifdef GDTH_IOCTL_PROC
