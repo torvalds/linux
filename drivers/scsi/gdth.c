@@ -4155,131 +4155,145 @@ static int ioc_resetdrv(void __user *arg, char *cmnd)
     return 0;
 }
 
+static void gdth_ioc_cacheservice(gdth_ha_str *ha, gdth_ioctl_general *gen,
+		u64 paddr)
+{
+	if (ha->cache_feat & GDT_64BIT) {
+		/* copy elements from 32-bit IOCTL structure */
+		gen->command.u.cache64.BlockCnt = gen->command.u.cache.BlockCnt;
+		gen->command.u.cache64.BlockNo = gen->command.u.cache.BlockNo;
+		gen->command.u.cache64.DeviceNo = gen->command.u.cache.DeviceNo;
+
+		if (ha->cache_feat & SCATTER_GATHER) {
+			gen->command.u.cache64.DestAddr = (u64)-1;
+			gen->command.u.cache64.sg_canz = 1;
+			gen->command.u.cache64.sg_lst[0].sg_ptr = paddr;
+			gen->command.u.cache64.sg_lst[0].sg_len = gen->data_len;
+			gen->command.u.cache64.sg_lst[1].sg_len = 0;
+		} else {
+			gen->command.u.cache64.DestAddr = paddr;
+			gen->command.u.cache64.sg_canz = 0;
+		}
+	} else {
+		if (ha->cache_feat & SCATTER_GATHER) {
+			gen->command.u.cache.DestAddr = 0xffffffff;
+				gen->command.u.cache.sg_canz = 1;
+			gen->command.u.cache.sg_lst[0].sg_ptr = (u32)paddr;
+			gen->command.u.cache.sg_lst[0].sg_len = gen->data_len;
+			gen->command.u.cache.sg_lst[1].sg_len = 0;
+		} else {
+			gen->command.u.cache.DestAddr = paddr;
+			gen->command.u.cache.sg_canz = 0;
+		}
+	}
+}
+
+static void gdth_ioc_scsiraw(gdth_ha_str *ha, gdth_ioctl_general *gen,
+		u64 paddr)
+{
+	if (ha->raw_feat & GDT_64BIT) {
+		/* copy elements from 32-bit IOCTL structure */
+		char cmd[16];
+
+		gen->command.u.raw64.sense_len = gen->command.u.raw.sense_len;
+		gen->command.u.raw64.bus = gen->command.u.raw.bus;
+		gen->command.u.raw64.lun = gen->command.u.raw.lun;
+		gen->command.u.raw64.target = gen->command.u.raw.target;
+		memcpy(cmd, gen->command.u.raw.cmd, 16);
+		memcpy(gen->command.u.raw64.cmd, cmd, 16);
+		gen->command.u.raw64.clen = gen->command.u.raw.clen;
+		gen->command.u.raw64.sdlen = gen->command.u.raw.sdlen;
+		gen->command.u.raw64.direction = gen->command.u.raw.direction;
+
+		/* addresses */
+		if (ha->raw_feat & SCATTER_GATHER) {
+			gen->command.u.raw64.sdata = (u64)-1;
+			gen->command.u.raw64.sg_ranz = 1;
+			gen->command.u.raw64.sg_lst[0].sg_ptr = paddr;
+			gen->command.u.raw64.sg_lst[0].sg_len = gen->data_len;
+			gen->command.u.raw64.sg_lst[1].sg_len = 0;
+		} else {
+			gen->command.u.raw64.sdata = paddr;
+			gen->command.u.raw64.sg_ranz = 0;
+                }
+
+		gen->command.u.raw64.sense_data = paddr + gen->data_len;
+	} else {
+		if (ha->raw_feat & SCATTER_GATHER) {
+			gen->command.u.raw.sdata = 0xffffffff;
+			gen->command.u.raw.sg_ranz = 1;
+			gen->command.u.raw.sg_lst[0].sg_ptr = (u32)paddr;
+			gen->command.u.raw.sg_lst[0].sg_len = gen->data_len;
+			gen->command.u.raw.sg_lst[1].sg_len = 0;
+		} else {
+			gen->command.u.raw.sdata = paddr;
+			gen->command.u.raw.sg_ranz = 0;
+                }
+
+		gen->command.u.raw.sense_data = (u32)paddr + gen->data_len;
+	}
+}
+
 static int ioc_general(void __user *arg, char *cmnd)
 {
-    gdth_ioctl_general gen;
-    char *buf = NULL;
-    u64 paddr; 
-    gdth_ha_str *ha;
-    int rval;
+	gdth_ioctl_general gen;
+	gdth_ha_str *ha;
+	char *buf = NULL;
+	u64 paddr;
+	int rval;
 
-    if (copy_from_user(&gen, arg, sizeof(gdth_ioctl_general)))
-        return -EFAULT;
-    ha = gdth_find_ha(gen.ionode);
-    if (!ha)
-        return -EFAULT;
+	if (copy_from_user(&gen, arg, sizeof(gdth_ioctl_general)))
+		return -EFAULT;
+	ha = gdth_find_ha(gen.ionode);
+	if (!ha)
+		return -EFAULT;
 
-    if (gen.data_len > INT_MAX)
-        return -EINVAL;
-    if (gen.sense_len > INT_MAX)
-        return -EINVAL;
-    if (gen.data_len + gen.sense_len > INT_MAX)
-        return -EINVAL;
+	if (gen.data_len > INT_MAX)
+		return -EINVAL;
+	if (gen.sense_len > INT_MAX)
+		return -EINVAL;
+	if (gen.data_len + gen.sense_len > INT_MAX)
+		return -EINVAL;
 
-    if (gen.data_len + gen.sense_len != 0) {
-        if (!(buf = gdth_ioctl_alloc(ha, gen.data_len + gen.sense_len,
-                                     FALSE, &paddr)))
-            return -EFAULT;
-        if (copy_from_user(buf, arg + sizeof(gdth_ioctl_general),  
-                           gen.data_len + gen.sense_len)) {
-            gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
-            return -EFAULT;
-        }
+	if (gen.data_len + gen.sense_len > 0) {
+		buf = gdth_ioctl_alloc(ha, gen.data_len + gen.sense_len, FALSE,
+				&paddr);
+		if (!buf)
+			return -EFAULT;
 
-        if (gen.command.OpCode == GDT_IOCTL) {
-            gen.command.u.ioctl.p_param = paddr;
-        } else if (gen.command.Service == CACHESERVICE) {
-            if (ha->cache_feat & GDT_64BIT) {
-                /* copy elements from 32-bit IOCTL structure */
-                gen.command.u.cache64.BlockCnt = gen.command.u.cache.BlockCnt;
-                gen.command.u.cache64.BlockNo = gen.command.u.cache.BlockNo;
-                gen.command.u.cache64.DeviceNo = gen.command.u.cache.DeviceNo;
-                /* addresses */
-                if (ha->cache_feat & SCATTER_GATHER) {
-                    gen.command.u.cache64.DestAddr = (u64)-1;
-                    gen.command.u.cache64.sg_canz = 1;
-                    gen.command.u.cache64.sg_lst[0].sg_ptr = paddr;
-                    gen.command.u.cache64.sg_lst[0].sg_len = gen.data_len;
-                    gen.command.u.cache64.sg_lst[1].sg_len = 0;
-                } else {
-                    gen.command.u.cache64.DestAddr = paddr;
-                    gen.command.u.cache64.sg_canz = 0;
-                }
-            } else {
-                if (ha->cache_feat & SCATTER_GATHER) {
-                    gen.command.u.cache.DestAddr = 0xffffffff;
-                    gen.command.u.cache.sg_canz = 1;
-                    gen.command.u.cache.sg_lst[0].sg_ptr = (u32)paddr;
-                    gen.command.u.cache.sg_lst[0].sg_len = gen.data_len;
-                    gen.command.u.cache.sg_lst[1].sg_len = 0;
-                } else {
-                    gen.command.u.cache.DestAddr = paddr;
-                    gen.command.u.cache.sg_canz = 0;
-                }
-            }
-        } else if (gen.command.Service == SCSIRAWSERVICE) {
-            if (ha->raw_feat & GDT_64BIT) {
-                /* copy elements from 32-bit IOCTL structure */
-                char cmd[16];
-                gen.command.u.raw64.sense_len = gen.command.u.raw.sense_len;
-                gen.command.u.raw64.bus = gen.command.u.raw.bus;
-                gen.command.u.raw64.lun = gen.command.u.raw.lun;
-                gen.command.u.raw64.target = gen.command.u.raw.target;
-                memcpy(cmd, gen.command.u.raw.cmd, 16);
-                memcpy(gen.command.u.raw64.cmd, cmd, 16);
-                gen.command.u.raw64.clen = gen.command.u.raw.clen;
-                gen.command.u.raw64.sdlen = gen.command.u.raw.sdlen;
-                gen.command.u.raw64.direction = gen.command.u.raw.direction;
-                /* addresses */
-                if (ha->raw_feat & SCATTER_GATHER) {
-                    gen.command.u.raw64.sdata = (u64)-1;
-                    gen.command.u.raw64.sg_ranz = 1;
-                    gen.command.u.raw64.sg_lst[0].sg_ptr = paddr;
-                    gen.command.u.raw64.sg_lst[0].sg_len = gen.data_len;
-                    gen.command.u.raw64.sg_lst[1].sg_len = 0;
-                } else {
-                    gen.command.u.raw64.sdata = paddr;
-                    gen.command.u.raw64.sg_ranz = 0;
-                }
-                gen.command.u.raw64.sense_data = paddr + gen.data_len;
-            } else {
-                if (ha->raw_feat & SCATTER_GATHER) {
-                    gen.command.u.raw.sdata = 0xffffffff;
-                    gen.command.u.raw.sg_ranz = 1;
-                    gen.command.u.raw.sg_lst[0].sg_ptr = (u32)paddr;
-                    gen.command.u.raw.sg_lst[0].sg_len = gen.data_len;
-                    gen.command.u.raw.sg_lst[1].sg_len = 0;
-                } else {
-                    gen.command.u.raw.sdata = paddr;
-                    gen.command.u.raw.sg_ranz = 0;
-                }
-                gen.command.u.raw.sense_data = (u32)paddr + gen.data_len;
-            }
-        } else {
-            gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
-            return -EFAULT;
-        }
-    }
+		rval = -EFAULT;
+		if (copy_from_user(buf, arg + sizeof(gdth_ioctl_general),
+				   gen.data_len + gen.sense_len))
+			goto out_free_buf;
 
-    rval = __gdth_execute(ha->sdev, &gen.command, cmnd, gen.timeout, &gen.info);
-    if (rval < 0) {
+		if (gen.command.OpCode == GDT_IOCTL)
+			gen.command.u.ioctl.p_param = paddr;
+		else if (gen.command.Service == CACHESERVICE)
+			gdth_ioc_cacheservice(ha, &gen, paddr);
+		else if (gen.command.Service == SCSIRAWSERVICE)
+			gdth_ioc_scsiraw(ha, &gen, paddr);
+		else
+			goto out_free_buf;
+	}
+
+	rval = __gdth_execute(ha->sdev, &gen.command, cmnd, gen.timeout,
+			&gen.info);
+	if (rval < 0)
+		goto out_free_buf;
+	gen.status = rval;
+
+	rval = -EFAULT;
+	if (copy_to_user(arg + sizeof(gdth_ioctl_general), buf,
+			 gen.data_len + gen.sense_len))
+		goto out_free_buf;
+	if (copy_to_user(arg, &gen,
+			sizeof(gdth_ioctl_general) - sizeof(gdth_cmd_str)))
+		goto out_free_buf;
+
+	rval = 0;
+out_free_buf:
 	gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
-        return rval;
-    }
-    gen.status = rval;
-
-    if (copy_to_user(arg + sizeof(gdth_ioctl_general), buf, 
-                     gen.data_len + gen.sense_len)) {
-        gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
-        return -EFAULT; 
-    } 
-    if (copy_to_user(arg, &gen, 
-        sizeof(gdth_ioctl_general) - sizeof(gdth_cmd_str))) {
-        gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
-        return -EFAULT;
-    }
-    gdth_ioctl_free(ha, gen.data_len+gen.sense_len, buf, paddr);
-    return 0;
+	return rval;
 }
  
 static int ioc_hdrlist(void __user *arg, char *cmnd)
