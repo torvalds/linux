@@ -1777,7 +1777,8 @@ static void mlxsw_sp_span_respin_schedule(struct mlxsw_sp *mlxsw_sp)
 
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
 				 const struct switchdev_obj *obj,
-				 struct switchdev_trans *trans)
+				 struct switchdev_trans *trans,
+				 struct netlink_ext_ack *extack)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	const struct switchdev_obj_port_vlan *vlan;

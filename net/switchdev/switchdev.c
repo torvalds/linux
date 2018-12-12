@@ -616,16 +616,21 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans))
+				      struct switchdev_trans *trans,
+				      struct netlink_ext_ack *extack))
 {
+	struct netlink_ext_ack *extack;
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
+	extack = switchdev_notifier_info_to_extack(&port_obj_info->info);
+
 	if (check_cb(dev)) {
 		/* This flag is only checked if the return value is success. */
 		port_obj_info->handled = true;
-		return add_cb(dev, port_obj_info->obj, port_obj_info->trans);
+		return add_cb(dev, port_obj_info->obj, port_obj_info->trans,
+			      extack);
 	}
 
 	/* Switch ports might be stacked under e.g. a LAG. Ignore the
@@ -650,7 +655,8 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans))
+				      struct switchdev_trans *trans,
+				      struct netlink_ext_ack *extack))
 {
 	int err;
 

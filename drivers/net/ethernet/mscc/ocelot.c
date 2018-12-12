@@ -1293,7 +1293,8 @@ static int ocelot_port_obj_del_mdb(struct net_device *dev,
 
 static int ocelot_port_obj_add(struct net_device *dev,
 			       const struct switchdev_obj *obj,
-			       struct switchdev_trans *trans)
+			       struct switchdev_trans *trans,
+			       struct netlink_ext_ack *extack)
 {
 	int ret = 0;
 
