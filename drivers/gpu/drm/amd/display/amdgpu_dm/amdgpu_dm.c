@@ -4683,7 +4683,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 		if (!new_crtc_state->active)
 			continue;
 
-		pflip_needed = !state->allow_modeset;
+		pflip_needed = old_plane_state->fb &&
+			old_plane_state->fb != new_plane_state->fb;
 
 		dc_plane = dm_new_plane_state->dc_state;
 
