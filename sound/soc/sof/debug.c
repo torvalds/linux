@@ -31,7 +31,8 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	int size;
 	u32 *buf;
 	loff_t pos = *ppos;
-	size_t ret;
+	size_t size_ret;
+	int ret;
 
 	size = dfse->size;
 
@@ -60,17 +61,17 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 	 */
 	ret = pm_runtime_put_sync_autosuspend(sdev->dev);
 	if (ret < 0)
-		dev_warn(sdev->dev, "warn: debugFS failed to autosuspend %zd\n",
+		dev_warn(sdev->dev, "warn: debugFS failed to autosuspend %d\n",
 			 ret);
 
 	/* copy to userspace */
-	ret = copy_to_user(buffer, buf, count);
+	size_ret = copy_to_user(buffer, buf, count);
 	kfree(buf);
 
 	/* update count & position if copy succeeded */
-	if (ret == count)
+	if (size_ret == count)
 		return -EFAULT;
-	count -= ret;
+	count -= size_ret;
 	*ppos = pos + count;
 
 	return count;
