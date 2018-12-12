@@ -723,7 +723,7 @@ static void kvmhv_remove_nest_rmap_list(struct kvm *kvm, unsigned long *rmapp,
 
 /* called with kvm->mmu_lock held */
 void kvmhv_remove_nest_rmap_range(struct kvm *kvm,
-				  struct kvm_memory_slot *memslot,
+				  const struct kvm_memory_slot *memslot,
 				  unsigned long gpa, unsigned long hpa,
 				  unsigned long nbytes)
 {

@@ -197,7 +197,8 @@ extern int kvmppc_mmu_radix_translate_table(struct kvm_vcpu *vcpu, gva_t eaddr,
 extern int kvmppc_mmu_radix_xlate(struct kvm_vcpu *vcpu, gva_t eaddr,
 			struct kvmppc_pte *gpte, bool data, bool iswrite);
 extern void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
-			unsigned int shift, struct kvm_memory_slot *memslot,
+			unsigned int shift,
+			const struct kvm_memory_slot *memslot,
 			unsigned int lpid);
 extern bool kvmppc_hv_handle_set_rc(struct kvm *kvm, pgd_t *pgtable,
 				    bool writing, unsigned long gpa,
@@ -215,10 +216,6 @@ extern int kvmppc_radix_init(void);
 extern void kvmppc_radix_exit(void);
 extern int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
-extern void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte,
-			     unsigned long gpa, unsigned int shift,
-			     struct kvm_memory_slot *memslot,
-			     unsigned int lpid);
 extern int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
 extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
@@ -242,7 +239,7 @@ extern kvm_pfn_t kvmppc_gpa_to_pfn(struct kvm_vcpu *vcpu, gpa_t gpa,
 			bool writing, bool *writable);
 extern void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 			unsigned long *rmap, long pte_index, int realmode);
-extern void kvmppc_update_dirty_map(struct kvm_memory_slot *memslot,
+extern void kvmppc_update_dirty_map(const struct kvm_memory_slot *memslot,
 			unsigned long gfn, unsigned long psize);
 extern void kvmppc_invalidate_hpte(struct kvm *kvm, __be64 *hptep,
 			unsigned long pte_index);

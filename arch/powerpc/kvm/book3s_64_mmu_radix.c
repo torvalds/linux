@@ -284,7 +284,8 @@ static void kvmppc_pmd_free(pmd_t *pmdp)
 
 /* Called with kvm->mmu_lock held */
 void kvmppc_unmap_pte(struct kvm *kvm, pte_t *pte, unsigned long gpa,
-		      unsigned int shift, struct kvm_memory_slot *memslot,
+		      unsigned int shift,
+		      const struct kvm_memory_slot *memslot,
 		      unsigned int lpid)
 
 {
@@ -861,7 +862,7 @@ int kvmppc_book3s_radix_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return ret;
 }
 
-/* Called with kvm->lock held */
+/* Called with kvm->mmu_lock held */
 int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		    unsigned long gfn)
 {
@@ -876,7 +877,7 @@ int kvm_unmap_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return 0;				
 }
 
-/* Called with kvm->lock held */
+/* Called with kvm->mmu_lock held */
 int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		  unsigned long gfn)
 {
@@ -895,7 +896,7 @@ int kvm_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 	return ref;
 }
 
-/* Called with kvm->lock held */
+/* Called with kvm->mmu_lock held */
 int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 		       unsigned long gfn)
 {
