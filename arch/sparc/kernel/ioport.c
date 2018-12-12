@@ -252,7 +252,7 @@ unsigned long sparc_dma_alloc_resource(struct device *dev, size_t len)
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!res)
 		return 0;
-	res->name = dev->of_node->name;
+	res->name = dev->of_node->full_name;
 
 	if (allocate_resource(&_sparc_dvma, res, len, _sparc_dvma.start,
 			      _sparc_dvma.end, PAGE_SIZE, NULL, NULL) != 0) {
