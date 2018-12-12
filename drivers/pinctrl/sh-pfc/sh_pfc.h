@@ -41,7 +41,8 @@ struct sh_pfc_pin {
 		.name = #alias,				\
 		.pins = n##_pins,			\
 		.mux = n##_mux,				\
-		.nr_pins = ARRAY_SIZE(n##_pins),	\
+		.nr_pins = ARRAY_SIZE(n##_pins) +	\
+		BUILD_BUG_ON_ZERO(sizeof(n##_pins) != sizeof(n##_mux)), \
 	}
 #define SH_PFC_PIN_GROUP(n)	SH_PFC_PIN_GROUP_ALIAS(n, n)
 
