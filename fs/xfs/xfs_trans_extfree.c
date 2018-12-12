@@ -18,6 +18,7 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_trace.h"
+#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate an "extent free done"
@@ -206,7 +207,7 @@ xfs_extent_free_cancel_item(
 	kmem_free(free);
 }
 
-static const struct xfs_defer_op_type xfs_extent_free_defer_type = {
+const struct xfs_defer_op_type xfs_extent_free_defer_type = {
 	.type		= XFS_DEFER_OPS_TYPE_FREE,
 	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_extent_free_diff_items,
@@ -274,7 +275,7 @@ xfs_agfl_free_finish_item(
 
 
 /* sub-type with special handling for AGFL deferred frees */
-static const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
+const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
 	.type		= XFS_DEFER_OPS_TYPE_AGFL_FREE,
 	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_extent_free_diff_items,
@@ -285,11 +286,3 @@ static const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
 	.finish_item	= xfs_agfl_free_finish_item,
 	.cancel_item	= xfs_extent_free_cancel_item,
 };
-
-/* Register the deferred op type. */
-void
-xfs_extent_free_init_defer_op(void)
-{
-	xfs_defer_init_op_type(&xfs_extent_free_defer_type);
-	xfs_defer_init_op_type(&xfs_agfl_free_defer_type);
-}

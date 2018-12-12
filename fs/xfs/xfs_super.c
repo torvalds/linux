@@ -38,6 +38,7 @@
 #include "xfs_refcount_item.h"
 #include "xfs_bmap_item.h"
 #include "xfs_reflink.h"
+#include "xfs_defer.h"
 
 #include <linux/namei.h>
 #include <linux/dax.h>
@@ -2084,11 +2085,6 @@ init_xfs_fs(void)
 
 	printk(KERN_INFO XFS_VERSION_STRING " with "
 			 XFS_BUILD_OPTIONS " enabled\n");
-
-	xfs_extent_free_init_defer_op();
-	xfs_rmap_update_init_defer_op();
-	xfs_refcount_update_init_defer_op();
-	xfs_bmap_update_init_defer_op();
 
 	xfs_dir_startup();
 

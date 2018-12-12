@@ -56,6 +56,10 @@ struct xfs_defer_op_type {
 	void (*log_item)(struct xfs_trans *, void *, struct list_head *);
 };
 
-void xfs_defer_init_op_type(const struct xfs_defer_op_type *type);
+extern const struct xfs_defer_op_type xfs_bmap_update_defer_type;
+extern const struct xfs_defer_op_type xfs_refcount_update_defer_type;
+extern const struct xfs_defer_op_type xfs_rmap_update_defer_type;
+extern const struct xfs_defer_op_type xfs_extent_free_defer_type;
+extern const struct xfs_defer_op_type xfs_agfl_free_defer_type;
 
 #endif /* __XFS_DEFER_H__ */

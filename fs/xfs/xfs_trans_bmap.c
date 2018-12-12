@@ -17,6 +17,7 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_inode.h"
+#include "xfs_defer.h"
 
 /*
  * This routine is called to allocate a "bmap update done"
@@ -220,7 +221,7 @@ xfs_bmap_update_cancel_item(
 	kmem_free(bmap);
 }
 
-static const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
+const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
 	.type		= XFS_DEFER_OPS_TYPE_BMAP,
 	.max_items	= XFS_BUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_bmap_update_diff_items,
@@ -231,10 +232,3 @@ static const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
 	.finish_item	= xfs_bmap_update_finish_item,
 	.cancel_item	= xfs_bmap_update_cancel_item,
 };
-
-/* Register the deferred op type. */
-void
-xfs_bmap_update_init_defer_op(void)
-{
-	xfs_defer_init_op_type(&xfs_bmap_update_defer_type);
-}

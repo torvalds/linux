@@ -223,7 +223,6 @@ void		xfs_trans_dirty_buf(struct xfs_trans *, struct xfs_buf *);
 bool		xfs_trans_buf_is_dirty(struct xfs_buf *bp);
 void		xfs_trans_log_inode(xfs_trans_t *, struct xfs_inode *, uint);
 
-void		xfs_extent_free_init_defer_op(void);
 struct xfs_efd_log_item	*xfs_trans_get_efd(struct xfs_trans *,
 				  struct xfs_efi_log_item *,
 				  uint);
@@ -248,7 +247,6 @@ extern kmem_zone_t	*xfs_trans_zone;
 /* rmap updates */
 enum xfs_rmap_intent_type;
 
-void xfs_rmap_update_init_defer_op(void);
 struct xfs_rud_log_item *xfs_trans_get_rud(struct xfs_trans *tp,
 		struct xfs_rui_log_item *ruip);
 int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,
@@ -260,7 +258,6 @@ int xfs_trans_log_finish_rmap_update(struct xfs_trans *tp,
 /* refcount updates */
 enum xfs_refcount_intent_type;
 
-void xfs_refcount_update_init_defer_op(void);
 struct xfs_cud_log_item *xfs_trans_get_cud(struct xfs_trans *tp,
 		struct xfs_cui_log_item *cuip);
 int xfs_trans_log_finish_refcount_update(struct xfs_trans *tp,
@@ -272,7 +269,6 @@ int xfs_trans_log_finish_refcount_update(struct xfs_trans *tp,
 /* mapping updates */
 enum xfs_bmap_intent_type;
 
-void xfs_bmap_update_init_defer_op(void);
 struct xfs_bud_log_item *xfs_trans_get_bud(struct xfs_trans *tp,
 		struct xfs_bui_log_item *buip);
 int xfs_trans_log_finish_bmap_update(struct xfs_trans *tp,

@@ -16,6 +16,7 @@
 #include "xfs_rmap_item.h"
 #include "xfs_alloc.h"
 #include "xfs_rmap.h"
+#include "xfs_defer.h"
 
 /* Set the map extent flags for this reverse mapping. */
 static void
@@ -244,7 +245,7 @@ xfs_rmap_update_cancel_item(
 	kmem_free(rmap);
 }
 
-static const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
+const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.type		= XFS_DEFER_OPS_TYPE_RMAP,
 	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_rmap_update_diff_items,
@@ -256,10 +257,3 @@ static const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
 	.finish_cleanup = xfs_rmap_update_finish_cleanup,
 	.cancel_item	= xfs_rmap_update_cancel_item,
 };
-
-/* Register the deferred op type. */
-void
-xfs_rmap_update_init_defer_op(void)
-{
-	xfs_defer_init_op_type(&xfs_rmap_update_defer_type);
-}

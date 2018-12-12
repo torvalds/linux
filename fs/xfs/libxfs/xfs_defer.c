@@ -172,7 +172,13 @@
  * reoccur.
  */
 
-static const struct xfs_defer_op_type *defer_op_types[XFS_DEFER_OPS_TYPE_MAX];
+static const struct xfs_defer_op_type *defer_op_types[] = {
+	[XFS_DEFER_OPS_TYPE_BMAP]	= &xfs_bmap_update_defer_type,
+	[XFS_DEFER_OPS_TYPE_REFCOUNT]	= &xfs_refcount_update_defer_type,
+	[XFS_DEFER_OPS_TYPE_RMAP]	= &xfs_rmap_update_defer_type,
+	[XFS_DEFER_OPS_TYPE_FREE]	= &xfs_extent_free_defer_type,
+	[XFS_DEFER_OPS_TYPE_AGFL_FREE]	= &xfs_agfl_free_defer_type,
+};
 
 /*
  * For each pending item in the intake list, log its intent item and the
@@ -488,6 +494,7 @@ xfs_defer_add(
 	struct xfs_defer_pending	*dfp = NULL;
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
+	BUILD_BUG_ON(ARRAY_SIZE(defer_op_types) != XFS_DEFER_OPS_TYPE_MAX);
 
 	/*
 	 * Add the item to a pending item at the end of the intake list.
@@ -515,14 +522,6 @@ xfs_defer_add(
 
 	list_add_tail(li, &dfp->dfp_work);
 	dfp->dfp_count++;
-}
-
-/* Initialize a deferred operation list. */
-void
-xfs_defer_init_op_type(
-	const struct xfs_defer_op_type	*type)
-{
-	defer_op_types[type->type] = type;
 }
 
 /*
