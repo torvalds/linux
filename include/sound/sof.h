@@ -42,7 +42,7 @@ struct snd_sof_pdata {
 	const struct sof_dev_desc *desc;
 
 	/* SPI data */
-	unsigned int gpio;
+	int gpio;
 	unsigned int active;
 
 	/* machine */
