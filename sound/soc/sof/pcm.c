@@ -64,7 +64,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: could not allocate %d bytes for PCM %d\n",
-			params_buffer_bytes(params), ret);
+			params_buffer_bytes(params), spcm->pcm.pcm_id);
 		return ret;
 	}
 
@@ -131,11 +131,21 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 					     substream,
 					     params,
 					     &pcm.params);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: platform hw params failed\n");
+		return ret;
+	}
+
 	dev_dbg(sdev->dev, "stream_tag %d", pcm.params.stream_tag);
 
 	/* send IPC to the DSP */
 	ret = sof_ipc_tx_message(sdev->ipc, pcm.hdr.cmd, &pcm, sizeof(pcm),
 				 &ipc_params_reply, sizeof(ipc_params_reply));
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: hw params ipc failed for stream %d\n",
+			pcm.params.stream_tag);
+		return ret;
+	}
 
 	/* validate offset */
 	posn_offset = ipc_params_reply.posn_offset;
@@ -144,8 +154,8 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (posn_offset > sdev->stream_box.size ||
 	    posn_offset % sizeof(struct sof_ipc_stream_posn) != 0) {
 		dev_err(sdev->dev, "error: got wrong posn offset 0x%x for PCM %d\n",
-			posn_offset, ret);
-		return ret;
+			posn_offset, spcm->pcm.pcm_id);
+		return -EINVAL;
 	}
 	spcm->posn_offset[substream->stream] =
 		sdev->stream_box.offset + posn_offset;
