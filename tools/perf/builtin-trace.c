@@ -908,6 +908,10 @@ struct syscall {
 	struct syscall_arg_fmt *arg_fmt;
 };
 
+struct bpf_map_syscall_entry {
+	bool	enabled;
+};
+
 /*
  * We need to have this 'calculated' boolean because in some cases we really
  * don't know what is the duration of a syscall, for instance, when we start
@@ -2583,7 +2587,9 @@ out_enomem:
 static int trace__set_ev_qualifier_bpf_filter(struct trace *trace)
 {
 	int fd = bpf_map__fd(trace->syscalls.map);
-	bool value = !trace->not_ev_qualifier;
+	struct bpf_map_syscall_entry value = {
+		.enabled = !trace->not_ev_qualifier,
+	};
 	int err = 0;
 	size_t i;
 
@@ -2601,10 +2607,13 @@ static int trace__set_ev_qualifier_bpf_filter(struct trace *trace)
 static int __trace__init_syscalls_bpf_map(struct trace *trace, bool enabled)
 {
 	int fd = bpf_map__fd(trace->syscalls.map);
+	struct bpf_map_syscall_entry value = {
+		.enabled = enabled,
+	};
 	int err = 0, key;
 
 	for (key = 0; key < trace->sctbl->syscalls.nr_entries; ++key) {
-		err = bpf_map_update_elem(fd, &key, &enabled, BPF_ANY);
+		err = bpf_map_update_elem(fd, &key, &value, BPF_ANY);
 		if (err)
 			break;
 	}
