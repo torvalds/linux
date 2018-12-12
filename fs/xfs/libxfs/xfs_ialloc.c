@@ -300,7 +300,7 @@ xfs_ialloc_inode_init(
 	 * blocks size.
 	 */
 	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
+	inodes_per_cluster = XFS_FSB_TO_INO(mp, blks_per_cluster);
 	nbufs = length / blks_per_cluster;
 
 	/*
@@ -312,7 +312,7 @@ xfs_ialloc_inode_init(
 	 *
 	 * For v3 inodes, we also need to write the inode number into the inode,
 	 * so calculate the first inode number of the chunk here as
-	 * XFS_OFFBNO_TO_AGINO() only works within a filesystem block, not
+	 * XFS_AGB_TO_AGINO() only works within a filesystem block, not
 	 * across multiple filesystem blocks (such as a cluster) and so cannot
 	 * be used in the cluster buffer loop below.
 	 *
@@ -324,8 +324,7 @@ xfs_ialloc_inode_init(
 	 */
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		version = 3;
-		ino = XFS_AGINO_TO_INO(mp, agno,
-				       XFS_OFFBNO_TO_AGINO(mp, agbno, 0));
+		ino = XFS_AGINO_TO_INO(mp, agno, XFS_AGB_TO_AGINO(mp, agbno));
 
 		/*
 		 * log the initialisation that is about to take place as an
@@ -445,7 +444,7 @@ xfs_align_sparse_ino(
 		return;
 
 	/* calculate the inode offset and align startino */
-	offset = mod << mp->m_sb.sb_inopblog;
+	offset = XFS_AGB_TO_AGINO(mp, mod);
 	*startino -= offset;
 
 	/*
@@ -797,7 +796,7 @@ sparse_alloc:
 		if (error)
 			return error;
 
-		newlen = args.len << args.mp->m_sb.sb_inopblog;
+		newlen = XFS_AGB_TO_AGINO(args.mp, args.len);
 		ASSERT(newlen <= XFS_INODES_PER_CHUNK);
 		allocmask = (1 << (newlen / XFS_INODES_PER_HOLEMASK_BIT)) - 1;
 	}
@@ -825,7 +824,7 @@ sparse_alloc:
 	/*
 	 * Convert the results.
 	 */
-	newino = XFS_OFFBNO_TO_AGINO(args.mp, args.agbno, 0);
+	newino = XFS_AGB_TO_AGINO(args.mp, args.agbno);
 
 	if (xfs_inobt_issparse(~allocmask)) {
 		/*
@@ -2724,8 +2723,8 @@ xfs_ialloc_has_inodes_at_extent(
 	xfs_agino_t		low;
 	xfs_agino_t		high;
 
-	low = XFS_OFFBNO_TO_AGINO(cur->bc_mp, bno, 0);
-	high = XFS_OFFBNO_TO_AGINO(cur->bc_mp, bno + len, 0) - 1;
+	low = XFS_AGB_TO_AGINO(cur->bc_mp, bno);
+	high = XFS_AGB_TO_AGINO(cur->bc_mp, bno + len) - 1;
 
 	return xfs_ialloc_has_inode_record(cur, low, high, exists);
 }

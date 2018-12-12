@@ -1083,6 +1083,8 @@ static inline void xfs_dinode_put_rdev(struct xfs_dinode *dip, xfs_dev_t rdev)
 	((i) & XFS_INO_MASK(XFS_INO_OFFSET_BITS(mp)))
 #define	XFS_OFFBNO_TO_AGINO(mp,b,o)	\
 	((xfs_agino_t)(((b) << XFS_INO_OFFSET_BITS(mp)) | (o)))
+#define	XFS_FSB_TO_INO(mp, b)	((xfs_ino_t)((b) << XFS_INO_OFFSET_BITS(mp)))
+#define	XFS_AGB_TO_AGINO(mp, b)	((xfs_agino_t)((b) << XFS_INO_OFFSET_BITS(mp)))
 
 #define	XFS_MAXINUMBER		((xfs_ino_t)((1ULL << 56) - 1ULL))
 #define	XFS_MAXINUMBER_32	((xfs_ino_t)((1ULL << 32) - 1ULL))

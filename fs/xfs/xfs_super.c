@@ -608,7 +608,7 @@ xfs_set_inode_alloc(
 	}
 
 	/* Get the last possible inode in the filesystem */
-	agino =	XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
+	agino =	XFS_AGB_TO_AGINO(mp, sbp->sb_agblocks - 1);
 	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
 
 	/*
@@ -1150,7 +1150,7 @@ xfs_fs_statfs(
 	statp->f_bfree = fdblocks - mp->m_alloc_set_aside;
 	statp->f_bavail = statp->f_bfree;
 
-	fakeinos = statp->f_bfree << sbp->sb_inopblog;
+	fakeinos = XFS_FSB_TO_INO(mp, statp->f_bfree);
 	statp->f_files = min(icount + fakeinos, (uint64_t)XFS_MAXINUMBER);
 	if (mp->m_maxicount)
 		statp->f_files = min_t(typeof(statp->f_files),

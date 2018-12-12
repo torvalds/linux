@@ -173,7 +173,7 @@ xfs_bulkstat_ichunk_ra(
 
 	agbno = XFS_AGINO_TO_AGBNO(mp, irec->ir_startino);
 	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	inodes_per_cluster = blks_per_cluster << mp->m_sb.sb_inopblog;
+	inodes_per_cluster = XFS_FSB_TO_INO(mp, blks_per_cluster);
 
 	blk_start_plug(&plug);
 	for (i = 0; i < XFS_INODES_PER_CHUNK;

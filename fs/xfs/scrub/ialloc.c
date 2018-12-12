@@ -200,7 +200,7 @@ xchk_iallocbt_check_freemask(
 
 	/* Make sure the freemask matches the inode records. */
 	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	nr_inodes = XFS_OFFBNO_TO_AGINO(mp, blks_per_cluster, 0);
+	nr_inodes = XFS_FSB_TO_INO(mp, blks_per_cluster);
 
 	for (agino = irec->ir_startino;
 	     agino < irec->ir_startino + XFS_INODES_PER_CHUNK;

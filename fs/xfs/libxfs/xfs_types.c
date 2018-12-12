@@ -89,14 +89,14 @@ xfs_agino_range(
 	 */
 	bno = round_up(XFS_AGFL_BLOCK(mp) + 1,
 			xfs_ialloc_cluster_alignment(mp));
-	*first = XFS_OFFBNO_TO_AGINO(mp, bno, 0);
+	*first = XFS_AGB_TO_AGINO(mp, bno);
 
 	/*
 	 * Calculate the last inode, which will be at the end of the
 	 * last (aligned) cluster that can be allocated in the AG.
 	 */
 	bno = round_down(eoag, xfs_ialloc_cluster_alignment(mp));
-	*last = XFS_OFFBNO_TO_AGINO(mp, bno, 0) - 1;
+	*last = XFS_AGB_TO_AGINO(mp, bno) - 1;
 }
 
 /*
