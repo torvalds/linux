@@ -215,13 +215,10 @@ static int pca953x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 
 static int pca957x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	int ret;
+	u32 regaddr = (reg << 1) | REG_ADDR_AI;
 
-	ret = i2c_smbus_write_byte_data(chip->client, reg << 1, val[0]);
-	if (ret < 0)
-		return ret;
-
-	return i2c_smbus_write_byte_data(chip->client, (reg << 1) + 1, val[1]);
+	return i2c_smbus_write_i2c_block_data(chip->client, regaddr,
+					      NBANK(chip), val);
 }
 
 static int pca953x_write_regs_24(struct pca953x_chip *chip, int reg, u8 *val)
@@ -408,6 +405,7 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 {
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
 	int bank_shift = pca953x_bank_shift(chip);
+	u32 regaddr = chip->regs->output << bank_shift;
 	unsigned int bank_mask, bank_val;
 	int bank;
 	u8 reg_val[MAX_BANK];
@@ -426,8 +424,13 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 		}
 	}
 
-	ret = i2c_smbus_write_i2c_block_data(chip->client,
-					     chip->regs->output << bank_shift,
+	/* PCA9575 needs address-increment on multi-byte writes */
+	if ((PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE) &&
+	    (NBANK(chip) > 1)) {
+		regaddr |= REG_ADDR_AI;
+	}
+
+	ret = i2c_smbus_write_i2c_block_data(chip->client, regaddr,
 					     NBANK(chip), reg_val);
 	if (ret)
 		goto exit;
