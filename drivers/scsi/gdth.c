@@ -115,10 +115,6 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-
-#ifdef GDTH_RTC
-#include <linux/mc146818rtc.h>
-#endif
 #include <linux/reboot.h>
 
 #include <asm/dma.h>
@@ -1197,11 +1193,6 @@ static int gdth_search_drives(gdth_ha_str *ha)
     gdth_perf_modes *pmod;
 #endif
 
-#ifdef GDTH_RTC
-    u8 rtc[12];
-    unsigned long flags;
-#endif     
-   
     TRACE(("gdth_search_drives() hanum %d\n", ha->hanum));
     ok = 0;
 
@@ -1221,29 +1212,6 @@ static int gdth_search_drives(gdth_ha_str *ha)
     }
     TRACE2(("gdth_search_drives(): SCREENSERVICE initialized\n"));
 
-#ifdef GDTH_RTC
-    /* read realtime clock info, send to controller */
-    /* 1. wait for the falling edge of update flag */
-    spin_lock_irqsave(&rtc_lock, flags);
-    for (j = 0; j < 1000000; ++j)
-        if (CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP)
-            break;
-    for (j = 0; j < 1000000; ++j)
-        if (!(CMOS_READ(RTC_FREQ_SELECT) & RTC_UIP))
-            break;
-    /* 2. read info */
-    do {
-        for (j = 0; j < 12; ++j) 
-            rtc[j] = CMOS_READ(j);
-    } while (rtc[0] != CMOS_READ(0));
-    spin_unlock_irqrestore(&rtc_lock, flags);
-    TRACE2(("gdth_search_drives(): RTC: %x/%x/%x\n",*(u32 *)&rtc[0],
-            *(u32 *)&rtc[4], *(u32 *)&rtc[8]));
-    /* 3. send to controller firmware */
-    gdth_internal_cmd(ha, SCREENSERVICE, GDT_REALTIME, *(u32 *)&rtc[0],
-                      *(u32 *)&rtc[4], *(u32 *)&rtc[8]);
-#endif  
- 
     /* unfreeze all IOs */
     gdth_internal_cmd(ha, CACHESERVICE, GDT_UNFREEZE_IO, 0, 0, 0);
  
