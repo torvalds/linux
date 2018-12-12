@@ -18,11 +18,10 @@
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_clock.h>
+#include <linux/pm_domain.h>
 #include <linux/slab.h>
 
 #include <asm/io.h>
-
-#include "pm-rmobile.h"
 
 /* SYSC */
 #define SPDCR		0x08	/* SYS Power Down Control Register */
@@ -31,6 +30,14 @@
 
 #define PSTR_RETRIES	100
 #define PSTR_DELAY_US	10
+
+struct rmobile_pm_domain {
+	struct generic_pm_domain genpd;
+	struct dev_power_governor *gov;
+	int (*suspend)(void);
+	void __iomem *base;
+	unsigned int bit_shift;
+};
 
 static inline
 struct rmobile_pm_domain *to_rmobile_pd(struct generic_pm_domain *d)
@@ -65,16 +72,13 @@ static int rmobile_pd_power_down(struct generic_pm_domain *genpd)
 		}
 	}
 
-	if (!rmobile_pd->no_debug)
-		pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n",
-			 genpd->name, mask,
-			 __raw_readl(rmobile_pd->base + PSTR));
+	pr_debug("%s: Power off, 0x%08x -> PSTR = 0x%08x\n", genpd->name, mask,
+		 __raw_readl(rmobile_pd->base + PSTR));
 
 	return 0;
 }
 
-static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd,
-				 bool do_resume)
+static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd)
 {
 	unsigned int mask;
 	unsigned int retry_count;
@@ -85,7 +89,7 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd,
 
 	mask = BIT(rmobile_pd->bit_shift);
 	if (__raw_readl(rmobile_pd->base + PSTR) & mask)
-		goto out;
+		return ret;
 
 	__raw_writel(mask, rmobile_pd->base + SWUCR);
 
@@ -100,21 +104,16 @@ static int __rmobile_pd_power_up(struct rmobile_pm_domain *rmobile_pd,
 	if (!retry_count)
 		ret = -EIO;
 
-	if (!rmobile_pd->no_debug)
-		pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
-			 rmobile_pd->genpd.name, mask,
-			 __raw_readl(rmobile_pd->base + PSTR));
-
-out:
-	if (ret == 0 && rmobile_pd->resume && do_resume)
-		rmobile_pd->resume();
+	pr_debug("%s: Power on, 0x%08x -> PSTR = 0x%08x\n",
+		 rmobile_pd->genpd.name, mask,
+		 __raw_readl(rmobile_pd->base + PSTR));
 
 	return ret;
 }
 
 static int rmobile_pd_power_up(struct generic_pm_domain *genpd)
 {
-	return __rmobile_pd_power_up(to_rmobile_pd(genpd), true);
+	return __rmobile_pd_power_up(to_rmobile_pd(genpd));
 }
 
 static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
@@ -127,7 +126,7 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 	genpd->power_on			= rmobile_pd_power_up;
 	genpd->attach_dev		= cpg_mstp_attach_dev;
 	genpd->detach_dev		= cpg_mstp_detach_dev;
-	__rmobile_pd_power_up(rmobile_pd, false);
+	__rmobile_pd_power_up(rmobile_pd);
 	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
 }
 
