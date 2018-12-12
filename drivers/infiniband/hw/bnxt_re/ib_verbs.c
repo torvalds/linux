@@ -723,7 +723,8 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	}
 
 	memcpy(ah->qplib_ah.dmac, ah_attr->roce.dmac, ETH_ALEN);
-	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah);
+	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah,
+				  !(flags & RDMA_CREATE_AH_SLEEPABLE));
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to allocate HW AH");
 		goto fail;
@@ -959,7 +960,7 @@ static struct bnxt_re_ah *bnxt_re_create_shadow_qp_ah
 	/* Have DMAC same as SMAC */
 	ether_addr_copy(ah->qplib_ah.dmac, rdev->netdev->dev_addr);
 
-	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah);
+	rc = bnxt_qplib_create_ah(&rdev->qplib_res, &ah->qplib_ah, false);
 	if (rc) {
 		dev_err(rdev_to_dev(rdev),
 			"Failed to allocate HW AH for Shadow QP");
