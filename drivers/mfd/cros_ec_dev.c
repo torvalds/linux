@@ -394,6 +394,7 @@ static const struct mfd_cell cros_usbpd_charger_cells[] = {
 };
 
 static const struct mfd_cell cros_ec_platform_cells[] = {
+	{ .name = "cros-ec-debugfs" },
 	{ .name = "cros-ec-lightbar" },
 	{ .name = "cros-ec-vbc" },
 };
@@ -489,9 +490,6 @@ static int ec_device_probe(struct platform_device *pdev)
 			 "failed to add cros-ec platform devices: %d\n",
 			 retval);
 
-	if (cros_ec_debugfs_init(ec))
-		dev_warn(dev, "failed to create debugfs directory\n");
-
 	return 0;
 
 failed:
@@ -503,20 +501,10 @@ static int ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
 
-	cros_ec_debugfs_remove(ec);
-
 	mfd_remove_devices(ec->dev);
 	cdev_del(&ec->cdev);
 	device_unregister(&ec->class_dev);
 	return 0;
-}
-
-static void ec_device_shutdown(struct platform_device *pdev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
-
-	/* Be sure to clear up debugfs delayed works */
-	cros_ec_debugfs_remove(ec);
 }
 
 static const struct platform_device_id cros_ec_id[] = {
@@ -525,40 +513,13 @@ static const struct platform_device_id cros_ec_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
-static __maybe_unused int ec_device_suspend(struct device *dev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(dev);
-
-	cros_ec_debugfs_suspend(ec);
-
-	return 0;
-}
-
-static __maybe_unused int ec_device_resume(struct device *dev)
-{
-	struct cros_ec_dev *ec = dev_get_drvdata(dev);
-
-	cros_ec_debugfs_resume(ec);
-
-	return 0;
-}
-
-static const struct dev_pm_ops cros_ec_dev_pm_ops = {
-#ifdef CONFIG_PM_SLEEP
-	.suspend = ec_device_suspend,
-	.resume = ec_device_resume,
-#endif
-};
-
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.pm = &cros_ec_dev_pm_ops,
 	},
 	.id_table = cros_ec_id,
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,
-	.shutdown = ec_device_shutdown,
 };
 
 static int __init cros_ec_dev_init(void)
