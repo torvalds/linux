@@ -650,7 +650,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	if (br_fdb_insert(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
-	err = nbp_vlan_init(p);
+	err = nbp_vlan_init(p, extack);
 	if (err) {
 		netdev_err(dev, "failed to initialize vlan filtering on this port\n");
 		goto err7;
