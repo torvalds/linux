@@ -157,8 +157,7 @@ static inline void snd_sof_dsp_write64(struct snd_sof_dev *sdev, u32 bar,
 				       u32 offset, u64 value)
 {
 	if (sdev->ops->write64)
-		sdev->ops->write64(sdev,
-			sdev->bar[bar] + offset, value);
+		sdev->ops->write64(sdev, sdev->bar[bar] + offset, value);
 }
 
 static inline u32 snd_sof_dsp_read(struct snd_sof_dev *sdev, u32 bar,
