@@ -1,0 +1,20 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2018 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+&cluster0_opp {
+	opp-1512000000 {
+		opp-hz = /bits/ 64 <1512000000>;
+		opp-microvolt = <1150000 1150000 1250000>;
+		clock-latency-ns = <40000>;
+	};
+};
+
+&cluster1_opp {
+	opp-2016000000 {
+		opp-hz = /bits/ 64 <2016000000>;
+		opp-microvolt = <1250000 1250000 1250000>;
+		clock-latency-ns = <40000>;
+	};
+};
