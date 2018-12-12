@@ -73,6 +73,12 @@
 #define KERNEL_START      _text
 #define KERNEL_END        _end
 
+#ifdef CONFIG_ARM64_USER_VA_BITS_52
+#define MAX_USER_VA_BITS	52
+#else
+#define MAX_USER_VA_BITS	VA_BITS
+#endif
+
 /*
  * KASAN requires 1/8th of the kernel virtual address space for the shadow
  * region. KASAN can bloat the stack significantly, so double the (minimum)

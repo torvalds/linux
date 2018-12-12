@@ -80,11 +80,7 @@
 #define PGDIR_SHIFT		ARM64_HW_PGTABLE_LEVEL_SHIFT(4 - CONFIG_PGTABLE_LEVELS)
 #define PGDIR_SIZE		(_AC(1, UL) << PGDIR_SHIFT)
 #define PGDIR_MASK		(~(PGDIR_SIZE-1))
-#ifdef CONFIG_ARM64_USER_VA_BITS_52
-#define PTRS_PER_PGD		(1 << (52 - PGDIR_SHIFT))
-#else
-#define PTRS_PER_PGD		(1 << (VA_BITS - PGDIR_SHIFT))
-#endif
+#define PTRS_PER_PGD		(1 << (MAX_USER_VA_BITS - PGDIR_SHIFT))
 
 /*
  * Section address mask and size definitions.
