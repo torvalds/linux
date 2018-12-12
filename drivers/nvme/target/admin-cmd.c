@@ -135,6 +135,7 @@ static void nvmet_execute_get_log_page_smart(struct nvmet_req *req)
 {
 	struct nvme_smart_log *log;
 	u16 status = NVME_SC_INTERNAL;
+	unsigned long flags;
 
 	if (req->data_len != sizeof(*log))
 		goto out;
@@ -149,6 +150,11 @@ static void nvmet_execute_get_log_page_smart(struct nvmet_req *req)
 		status = nvmet_get_smart_log_nsid(req, log);
 	if (status)
 		goto out_free_log;
+
+	spin_lock_irqsave(&req->sq->ctrl->error_lock, flags);
+	put_unaligned_le64(req->sq->ctrl->err_counter,
+			&log->num_err_log_entries);
+	spin_unlock_irqrestore(&req->sq->ctrl->error_lock, flags);
 
 	status = nvmet_copy_to_sgl(req, 0, log, sizeof(*log));
 out_free_log:
