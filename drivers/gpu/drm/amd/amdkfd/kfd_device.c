@@ -329,7 +329,7 @@ static const struct kfd_device_info arcturus_device_info = {
 	.supports_cwsr = true,
 	.needs_iommu_device = false,
 	.needs_pci_atomics = false,
-	.num_sdma_engines = 2,
+	.num_sdma_engines = 8,
 	.num_sdma_queues_per_engine = 8,
 };
 
