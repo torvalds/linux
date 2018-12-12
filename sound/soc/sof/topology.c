@@ -258,7 +258,6 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_mixer_control *mc =
 		(struct snd_soc_tplg_mixer_control *)hdr;
-	struct sof_ipc_ctrl_data *cdata;
 
 	/* validate topology data */
 	if (le32_to_cpu(mc->num_channels) > SND_SOC_TPLG_MAX_CHAN)
@@ -269,7 +268,6 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 			 sizeof(struct sof_ipc_ctrl_value_chan) *
 			 le32_to_cpu(mc->num_channels);
 	scontrol->control_data = kzalloc(scontrol->size, GFP_KERNEL);
-	cdata = scontrol->control_data;
 	if (!scontrol->control_data)
 		return -ENOMEM;
 
@@ -2708,7 +2706,6 @@ EXPORT_SYMBOL(snd_sof_init_topology);
 int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file)
 {
 	const struct firmware *fw;
-	struct snd_soc_tplg_hdr *hdr;
 	int ret;
 
 	if (sdev->tplg_loaded) {
@@ -2725,7 +2722,6 @@ int snd_sof_load_topology(struct snd_sof_dev *sdev, const char *file)
 		return ret;
 	}
 
-	hdr = (struct snd_soc_tplg_hdr *)fw->data;
 	ret = snd_soc_tplg_component_load(sdev->component,
 					  &sof_tplg_ops, fw,
 					  SND_SOC_TPLG_INDEX_ALL);
