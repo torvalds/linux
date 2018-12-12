@@ -185,79 +185,9 @@ static void gdth_scsi_done(struct scsi_cmnd *scp);
 
 #ifdef DEBUG_GDTH
 static u8   DebugState = DEBUG_GDTH;
-
-#ifdef __SERIAL__
-#define MAX_SERBUF 160
-static void ser_init(void);
-static void ser_puts(char *str);
-static void ser_putc(char c);
-static int  ser_printk(const char *fmt, ...);
-static char strbuf[MAX_SERBUF+1];
-#ifdef __COM2__
-#define COM_BASE 0x2f8
-#else
-#define COM_BASE 0x3f8
-#endif
-static void ser_init()
-{
-    unsigned port=COM_BASE;
-
-    outb(0x80,port+3);
-    outb(0,port+1);
-    /* 19200 Baud, if 9600: outb(12,port) */
-    outb(6, port);
-    outb(3,port+3);
-    outb(0,port+1);
-    /*
-    ser_putc('I');
-    ser_putc(' ');
-    */
-}
-
-static void ser_puts(char *str)
-{
-    char *ptr;
-
-    ser_init();
-    for (ptr=str;*ptr;++ptr)
-        ser_putc(*ptr);
-}
-
-static void ser_putc(char c)
-{
-    unsigned port=COM_BASE;
-
-    while ((inb(port+5) & 0x20)==0);
-    outb(c,port);
-    if (c==0x0a)
-    {
-        while ((inb(port+5) & 0x20)==0);
-        outb(0x0d,port);
-    }
-}
-
-static int ser_printk(const char *fmt, ...)
-{
-    va_list args;
-    int i;
-
-    va_start(args,fmt);
-    i = vsprintf(strbuf,fmt,args);
-    ser_puts(strbuf);
-    va_end(args);
-    return i;
-}
-
-#define TRACE(a)    {if (DebugState==1) {ser_printk a;}}
-#define TRACE2(a)   {if (DebugState==1 || DebugState==2) {ser_printk a;}}
-#define TRACE3(a)   {if (DebugState!=0) {ser_printk a;}}
-
-#else /* !__SERIAL__ */
 #define TRACE(a)    {if (DebugState==1) {printk a;}}
 #define TRACE2(a)   {if (DebugState==1 || DebugState==2) {printk a;}}
 #define TRACE3(a)   {if (DebugState!=0) {printk a;}}
-#endif
-
 #else /* !DEBUG */
 #define TRACE(a)
 #define TRACE2(a)
