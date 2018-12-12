@@ -54,10 +54,11 @@
 	};
 
 	clocks {
-		xo: xo {
+		xo: xo-board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <19200000>;
+			clock-output-names = "xo_board";
 		};
 
 		sleep_clk {
