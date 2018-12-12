@@ -89,14 +89,8 @@ static void rsnd_dvc_volume_parameter(struct rsnd_dai_stream *io,
 			val[i] = rsnd_kctrl_valm(dvc->volume, i);
 
 	/* Enable Digital Volume */
-	rsnd_mod_write(mod, DVC_VOL0R, val[0]);
-	rsnd_mod_write(mod, DVC_VOL1R, val[1]);
-	rsnd_mod_write(mod, DVC_VOL2R, val[2]);
-	rsnd_mod_write(mod, DVC_VOL3R, val[3]);
-	rsnd_mod_write(mod, DVC_VOL4R, val[4]);
-	rsnd_mod_write(mod, DVC_VOL5R, val[5]);
-	rsnd_mod_write(mod, DVC_VOL6R, val[6]);
-	rsnd_mod_write(mod, DVC_VOL7R, val[7]);
+	for (i = 0; i < RSND_MAX_CHANNELS; i++)
+		rsnd_mod_write(mod, DVC_VOLxR(i), val[i]);
 }
 
 static void rsnd_dvc_volume_init(struct rsnd_dai_stream *io,

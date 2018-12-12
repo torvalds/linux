@@ -26,8 +26,8 @@ struct rsnd_gen {
 	struct regmap *regmap[RSND_BASE_MAX];
 
 	/* RSND_REG_MAX base */
-	struct regmap_field *regs[RSND_REG_MAX];
-	const char *reg_name[RSND_REG_MAX];
+	struct regmap_field *regs[REG_MAX];
+	const char *reg_name[REG_MAX];
 };
 
 #define rsnd_priv_to_gen(p)	((struct rsnd_gen *)(p)->gen)
@@ -49,11 +49,11 @@ struct rsnd_regmap_field_conf {
 }
 /* single address mapping */
 #define RSND_GEN_S_REG(id, offset)	\
-	RSND_REG_SET(RSND_REG_##id, offset, 0, #id)
+	RSND_REG_SET(id, offset, 0, #id)
 
 /* multi address mapping */
 #define RSND_GEN_M_REG(id, offset, _id_offset)	\
-	RSND_REG_SET(RSND_REG_##id, offset, _id_offset, #id)
+	RSND_REG_SET(id, offset, _id_offset, #id)
 
 /*
  *		basic function
@@ -79,9 +79,9 @@ static int rsnd_mod_id_cmd(struct rsnd_mod *mod)
 	return rsnd_mod_id(mod);
 }
 
-u32 rsnd_read(struct rsnd_priv *priv,
-	      struct rsnd_mod *mod, enum rsnd_reg reg)
+u32 rsnd_mod_read(struct rsnd_mod *mod, enum rsnd_reg reg)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 	u32 val;
@@ -98,10 +98,10 @@ u32 rsnd_read(struct rsnd_priv *priv,
 	return val;
 }
 
-void rsnd_write(struct rsnd_priv *priv,
-		struct rsnd_mod *mod,
-		enum rsnd_reg reg, u32 data)
+void rsnd_mod_write(struct rsnd_mod *mod,
+		    enum rsnd_reg reg, u32 data)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 
@@ -115,9 +115,10 @@ void rsnd_write(struct rsnd_priv *priv,
 		rsnd_reg_name(gen, reg), reg, data);
 }
 
-void rsnd_bset(struct rsnd_priv *priv, struct rsnd_mod *mod,
-	       enum rsnd_reg reg, u32 mask, u32 data)
+void rsnd_mod_bset(struct rsnd_mod *mod,
+		   enum rsnd_reg reg, u32 mask, u32 data)
 {
+	struct rsnd_priv *priv = rsnd_mod_to_priv(mod);
 	struct device *dev = rsnd_priv_to_dev(priv);
 	struct rsnd_gen *gen = rsnd_priv_to_gen(priv);
 

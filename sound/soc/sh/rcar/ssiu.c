@@ -65,6 +65,7 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	int id = rsnd_mod_id(mod);
 	u32 mask1, val1;
 	u32 mask2, val2;
+	int i;
 
 	/* clear status */
 	switch (id) {
@@ -73,16 +74,12 @@ static int rsnd_ssiu_init(struct rsnd_mod *mod,
 	case 2:
 	case 3:
 	case 4:
-		rsnd_mod_write(mod, SSI_SYS_STATUS0, 0xf << (id * 4));
-		rsnd_mod_write(mod, SSI_SYS_STATUS2, 0xf << (id * 4));
-		rsnd_mod_write(mod, SSI_SYS_STATUS4, 0xf << (id * 4));
-		rsnd_mod_write(mod, SSI_SYS_STATUS6, 0xf << (id * 4));
+		for (i = 0; i < 4; i++)
+			rsnd_mod_write(mod, SSI_SYS_STATUS(i * 2), 0xf << (id * 4));
 		break;
 	case 9:
-		rsnd_mod_write(mod, SSI_SYS_STATUS1, 0xf << 4);
-		rsnd_mod_write(mod, SSI_SYS_STATUS3, 0xf << 4);
-		rsnd_mod_write(mod, SSI_SYS_STATUS5, 0xf << 4);
-		rsnd_mod_write(mod, SSI_SYS_STATUS7, 0xf << 4);
+		for (i = 0; i < 4; i++)
+			rsnd_mod_write(mod, SSI_SYS_STATUS((i * 2) + 1), 0xf << (id * 4));
 		break;
 	}
 
@@ -198,43 +195,15 @@ static int rsnd_ssiu_init_gen2(struct rsnd_mod *mod,
 				id, busif);
 		}
 
-#define RSND_WRITE_BUSIF(i)						\
-		rsnd_mod_write(mod, SSI_BUSIF##i##_ADINR,		\
-			       rsnd_get_adinr_bit(mod, io) |		\
-			       (rsnd_io_is_play(io) ?			\
-				rsnd_runtime_channel_after_ctu(io) :	\
-				rsnd_runtime_channel_original(io)));	\
-		rsnd_mod_write(mod, SSI_BUSIF##i##_MODE,		\
-			       rsnd_get_busif_shift(io, mod) | 1);	\
-		rsnd_mod_write(mod, SSI_BUSIF##i##_DALIGN,		\
-			       rsnd_get_dalign(mod, io))
-
-		switch (busif) {
-		case 0:
-			RSND_WRITE_BUSIF(0);
-			break;
-		case 1:
-			RSND_WRITE_BUSIF(1);
-			break;
-		case 2:
-			RSND_WRITE_BUSIF(2);
-			break;
-		case 3:
-			RSND_WRITE_BUSIF(3);
-			break;
-		case 4:
-			RSND_WRITE_BUSIF(4);
-			break;
-		case 5:
-			RSND_WRITE_BUSIF(5);
-			break;
-		case 6:
-			RSND_WRITE_BUSIF(6);
-			break;
-		case 7:
-			RSND_WRITE_BUSIF(7);
-			break;
-		}
+		rsnd_mod_write(mod, SSI_BUSIF_ADINR(busif),
+			       rsnd_get_adinr_bit(mod, io) |
+			       (rsnd_io_is_play(io) ?
+				rsnd_runtime_channel_after_ctu(io) :
+				rsnd_runtime_channel_original(io)));
+		rsnd_mod_write(mod, SSI_BUSIF_MODE(busif),
+			       rsnd_get_busif_shift(io, mod) | 1);
+		rsnd_mod_write(mod, SSI_BUSIF_DALIGN(busif),
+			       rsnd_get_dalign(mod, io));
 	}
 
 	if (has_hdmi0 || has_hdmi1) {
