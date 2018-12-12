@@ -24,12 +24,20 @@
 
 #include "amdgpu.h"
 
+struct smu_table_context
+{
+	void				*power_play_table;
+	uint32_t			power_play_table_size;
+};
+
 struct smu_context
 {
 	struct amdgpu_device            *adev;
 
 	const struct smu_funcs		*funcs;
 	struct mutex			mutex;
+
+	struct smu_table_context	smu_table;
 };
 
 struct smu_funcs
