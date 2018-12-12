@@ -396,16 +396,26 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)	{
 		struct dpg_pause_state new_state;
+		unsigned int fences = 0;
+		unsigned int i;
+
+		for (i = 0; i < adev->vcn.num_enc_rings; ++i) {
+			fences += amdgpu_fence_count_emitted(&adev->vcn.ring_enc[i]);
+		}
+		if (fences)
+			new_state.fw_based = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.fw_based = VCN_DPG_STATE__UNPAUSE;
+
+		if (amdgpu_fence_count_emitted(&adev->vcn.ring_jpeg))
+			new_state.jpeg = VCN_DPG_STATE__PAUSE;
+		else
+			new_state.jpeg = VCN_DPG_STATE__UNPAUSE;
 
 		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_ENC)
 			new_state.fw_based = VCN_DPG_STATE__PAUSE;
-		else
-			new_state.fw_based = adev->vcn.pause_state.fw_based;
-
-		if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
+		else if (ring->funcs->type == AMDGPU_RING_TYPE_VCN_JPEG)
 			new_state.jpeg = VCN_DPG_STATE__PAUSE;
-		else
-			new_state.jpeg = adev->vcn.pause_state.jpeg;
 
 		amdgpu_vcn_pause_dpg_mode(adev, &new_state);
 	}
