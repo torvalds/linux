@@ -1751,7 +1751,7 @@ static int nvme_rdma_map_queues(struct blk_mq_tag_set *set)
 {
 	struct nvme_rdma_ctrl *ctrl = set->driver_data;
 
-	return blk_mq_rdma_map_queues(set, ctrl->device->dev, 0);
+	return blk_mq_rdma_map_queues(&set->map[0], ctrl->device->dev, 0);
 }
 
 static const struct blk_mq_ops nvme_rdma_mq_ops = {
