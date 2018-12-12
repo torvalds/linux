@@ -695,11 +695,13 @@ static int tegra_mc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to register reset controller: %d\n",
 			err);
 
-	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU)) {
+	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_SMMU) && mc->soc->smmu) {
 		mc->smmu = tegra_smmu_probe(&pdev->dev, mc->soc->smmu, mc);
-		if (IS_ERR(mc->smmu))
+		if (IS_ERR(mc->smmu)) {
 			dev_err(&pdev->dev, "failed to probe SMMU: %ld\n",
 				PTR_ERR(mc->smmu));
+			mc->smmu = NULL;
+		}
 	}
 
 	if (IS_ENABLED(CONFIG_TEGRA_IOMMU_GART) && !mc->soc->smmu) {
