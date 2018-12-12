@@ -6,7 +6,7 @@
 
 /******************* Firmware file definitions *******************/
 
-#define IMGU_FW_NAME			"ipu3-fw.bin"
+#define IMGU_FW_NAME			"intel/ipu3-fw.bin"
 
 typedef u32 imgu_fw_ptr;
 
