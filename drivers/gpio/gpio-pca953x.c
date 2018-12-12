@@ -208,14 +208,11 @@ static int pca953x_write_regs_8(struct pca953x_chip *chip, int reg, u8 *val)
 
 static int pca953x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	u16 word = get_unaligned((u16 *)val);
+	u32 regaddr = (reg << 1);
 
-	return i2c_smbus_write_word_data(chip->client, reg << 1, word);
-}
-
-static int pca957x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
-{
-	u32 regaddr = (reg << 1) | REG_ADDR_AI;
+	/* PCA9575 needs address-increment on multi-byte writes */
+	if (PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE)
+		regaddr |= REG_ADDR_AI;
 
 	return i2c_smbus_write_i2c_block_data(chip->client, regaddr,
 					      NBANK(chip), val);
@@ -892,10 +889,7 @@ static int pca953x_probe(struct i2c_client *client,
 		chip->write_regs = pca953x_write_regs_24;
 		chip->read_regs = pca953x_read_regs_24;
 	} else {
-		if (PCA_CHIP_TYPE(chip->driver_data) == PCA953X_TYPE)
-			chip->write_regs = pca953x_write_regs_16;
-		else
-			chip->write_regs = pca957x_write_regs_16;
+		chip->write_regs = pca953x_write_regs_16;
 		chip->read_regs = pca953x_read_regs_16;
 	}
 
