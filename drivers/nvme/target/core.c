@@ -45,6 +45,44 @@ u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
 u64 nvmet_ana_chgcnt;
 DECLARE_RWSEM(nvmet_ana_sem);
 
+inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
+{
+	u16 status;
+
+	switch (errno) {
+	case -ENOSPC:
+		req->error_loc = offsetof(struct nvme_rw_command, length);
+		status = NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
+		break;
+	case -EREMOTEIO:
+		req->error_loc = offsetof(struct nvme_rw_command, slba);
+		status = NVME_SC_LBA_RANGE | NVME_SC_DNR;
+		break;
+	case -EOPNOTSUPP:
+		req->error_loc = offsetof(struct nvme_common_command, opcode);
+		switch (req->cmd->common.opcode) {
+		case nvme_cmd_dsm:
+		case nvme_cmd_write_zeroes:
+			status = NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
+			break;
+		default:
+			status = NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+		}
+		break;
+	case -ENODATA:
+		req->error_loc = offsetof(struct nvme_rw_command, nsid);
+		status = NVME_SC_ACCESS_DENIED;
+		break;
+	case -EIO:
+		/* FALLTHRU */
+	default:
+		req->error_loc = offsetof(struct nvme_common_command, opcode);
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+	}
+
+	return status;
+}
+
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn);
 

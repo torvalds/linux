@@ -494,4 +494,6 @@ static inline u32 nvmet_rw_len(struct nvmet_req *req)
 	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) <<
 			req->ns->blksize_shift;
 }
+
+u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
 #endif /* _NVMET_H */
