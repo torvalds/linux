@@ -267,6 +267,9 @@ static const struct key_entry dell_wmi_keymap_type_0010[] = {
 	/* Fn-lock switched to multimedia keys */
 	{ KE_IGNORE, 0x1, { KEY_RESERVED } },
 
+	/* Keyboard backlight change notification */
+	{ KE_IGNORE, 0x3f, { KEY_RESERVED } },
+
 	/* Mic mute */
 	{ KE_KEY, 0x150, { KEY_MICMUTE } },
 
