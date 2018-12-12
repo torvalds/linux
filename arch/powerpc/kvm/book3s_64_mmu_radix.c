@@ -683,6 +683,7 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	pte_t pte, *ptep;
 	unsigned int shift, level;
 	int ret;
+	bool large_enable;
 
 	/* used to check for invalidations in progress */
 	mmu_seq = kvm->mmu_notifier_seq;
@@ -732,12 +733,15 @@ int kvmppc_book3s_instantiate_page(struct kvm_vcpu *vcpu,
 	pte = *ptep;
 	local_irq_enable();
 
+	/* If we're logging dirty pages, always map single pages */
+	large_enable = !(memslot->flags & KVM_MEM_LOG_DIRTY_PAGES);
+
 	/* Get pte level from shift/size */
-	if (shift == PUD_SHIFT &&
+	if (large_enable && shift == PUD_SHIFT &&
 	    (gpa & (PUD_SIZE - PAGE_SIZE)) ==
 	    (hva & (PUD_SIZE - PAGE_SIZE))) {
 		level = 2;
-	} else if (shift == PMD_SHIFT &&
+	} else if (large_enable && shift == PMD_SHIFT &&
 		   (gpa & (PMD_SIZE - PAGE_SIZE)) ==
 		   (hva & (PMD_SIZE - PAGE_SIZE))) {
 		level = 1;
