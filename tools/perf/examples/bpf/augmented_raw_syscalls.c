@@ -26,10 +26,14 @@ struct bpf_map SEC("maps") __augmented_syscalls__ = {
 	.max_entries = __NR_CPUS__,
 };
 
+struct syscall {
+	bool	enabled;
+};
+
 struct bpf_map SEC("maps") syscalls = {
 	.type	     = BPF_MAP_TYPE_ARRAY,
 	.key_size    = sizeof(int),
-	.value_size  = sizeof(bool),
+	.value_size  = sizeof(struct syscall),
 	.max_entries = 512,
 };
 
@@ -63,7 +67,7 @@ int sys_enter(struct syscall_enter_args *args)
 		struct syscall_enter_args args;
 		struct augmented_filename filename;
 	} augmented_args;
-	bool *enabled;
+	struct syscall *syscall;
 	unsigned int len = sizeof(augmented_args);
 	const void *filename_arg = NULL;
 
@@ -72,8 +76,8 @@ int sys_enter(struct syscall_enter_args *args)
 
 	probe_read(&augmented_args.args, sizeof(augmented_args.args), args);
 
-	enabled = bpf_map_lookup_elem(&syscalls, &augmented_args.args.syscall_nr);
-	if (enabled == NULL || !*enabled)
+	syscall = bpf_map_lookup_elem(&syscalls, &augmented_args.args.syscall_nr);
+	if (syscall == NULL || !syscall->enabled)
 		return 0;
 	/*
 	 * Yonghong and Edward Cree sayz:
@@ -144,15 +148,15 @@ SEC("raw_syscalls:sys_exit")
 int sys_exit(struct syscall_exit_args *args)
 {
 	struct syscall_exit_args exit_args;
-	bool *enabled;
+	struct syscall *syscall;
 
 	if (pid_filter__has(&pids_filtered, getpid()))
 		return 0;
 
 	probe_read(&exit_args, sizeof(exit_args), args);
 
-	enabled = bpf_map_lookup_elem(&syscalls, &exit_args.syscall_nr);
-	if (enabled == NULL || !*enabled)
+	syscall = bpf_map_lookup_elem(&syscalls, &exit_args.syscall_nr);
+	if (syscall == NULL || !syscall->enabled)
 		return 0;
 
 	return 1;
