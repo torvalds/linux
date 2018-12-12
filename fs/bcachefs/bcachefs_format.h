@@ -74,6 +74,7 @@
 
 #include <asm/types.h>
 #include <asm/byteorder.h>
+#include <linux/kernel.h>
 #include <linux/uuid.h>
 
 #ifdef __KERNEL__
