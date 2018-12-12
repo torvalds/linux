@@ -22,13 +22,6 @@
 #include "hw-spi.h"
 #include "ops.h"
 
-static const struct dev_pm_ops spi_pm = {
-	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
-	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
-			   NULL)
-	.suspend_late = snd_sof_suspend_late,
-};
-
 /* FIXME: replace with some meaningful values */
 static struct snd_soc_acpi_mach spi_machines[] = {
 	{
