@@ -91,6 +91,7 @@ EXPORT_SYMBOL(rvt_check_ah);
  * rvt_create_ah - create an address handle
  * @pd: the protection domain
  * @ah_attr: the attributes of the AH
+ * @create_flags: create address handle flags (see enum rdma_create_ah_flags)
  * @udata: pointer to user's input output buffer information.
  *
  * This may be called from interrupt context.
@@ -99,6 +100,7 @@ EXPORT_SYMBOL(rvt_check_ah);
  */
 struct ib_ah *rvt_create_ah(struct ib_pd *pd,
 			    struct rdma_ah_attr *ah_attr,
+			    u32 create_flags,
 			    struct ib_udata *udata)
 {
 	struct rvt_ah *ah;

@@ -77,6 +77,7 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 			struct vm_area_struct *vma);
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 				 struct rdma_ah_attr *ah_attr,
+				 u32 flags,
 				 struct ib_udata *udata);
 
 int usnic_ib_destroy_ah(struct ib_ah *ah);

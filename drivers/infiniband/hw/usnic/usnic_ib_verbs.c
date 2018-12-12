@@ -760,6 +760,7 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
 				 struct rdma_ah_attr *ah_attr,
+				 u32 flags,
 				 struct ib_udata *udata)
 
 {

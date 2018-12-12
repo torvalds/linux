@@ -1362,7 +1362,7 @@ struct ib_ah *qib_create_qp0_ah(struct qib_ibport *ibp, u16 dlid)
 	rcu_read_lock();
 	qp0 = rcu_dereference(ibp->rvp.qp[0]);
 	if (qp0)
-		ah = rdma_create_ah(qp0->ibqp.pd, &attr);
+		ah = rdma_create_ah(qp0->ibqp.pd, &attr, 0);
 	rcu_read_unlock();
 	return ah;
 }

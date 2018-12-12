@@ -169,6 +169,7 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 int bnxt_re_dealloc_pd(struct ib_pd *pd);
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *pd,
 				struct rdma_ah_attr *ah_attr,
+				u32 flags,
 				struct ib_udata *udata);
 int bnxt_re_modify_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 int bnxt_re_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);

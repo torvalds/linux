@@ -664,6 +664,7 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah)
 
 struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 				struct rdma_ah_attr *ah_attr,
+				u32 flags,
 				struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);

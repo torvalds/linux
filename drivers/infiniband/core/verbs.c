@@ -487,14 +487,17 @@ rdma_update_sgid_attr(struct rdma_ah_attr *ah_attr,
 
 static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
 				     struct rdma_ah_attr *ah_attr,
+				     u32 flags,
 				     struct ib_udata *udata)
 {
 	struct ib_ah *ah;
 
+	might_sleep_if(flags & RDMA_CREATE_AH_SLEEPABLE);
+
 	if (!pd->device->ops.create_ah)
 		return ERR_PTR(-EOPNOTSUPP);
 
-	ah = pd->device->ops.create_ah(pd, ah_attr, udata);
+	ah = pd->device->ops.create_ah(pd, ah_attr, flags, udata);
 
 	if (!IS_ERR(ah)) {
 		ah->device  = pd->device;
@@ -514,12 +517,14 @@ static struct ib_ah *_rdma_create_ah(struct ib_pd *pd,
  * given address vector.
  * @pd: The protection domain associated with the address handle.
  * @ah_attr: The attributes of the address vector.
+ * @flags: Create address handle flags (see enum rdma_create_ah_flags).
  *
  * It returns 0 on success and returns appropriate error code on error.
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
+			     u32 flags)
 {
 	const struct ib_gid_attr *old_sgid_attr;
 	struct ib_ah *ah;
@@ -529,7 +534,7 @@ struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr)
 	if (ret)
 		return ERR_PTR(ret);
 
-	ah = _rdma_create_ah(pd, ah_attr, NULL);
+	ah = _rdma_create_ah(pd, ah_attr, flags, NULL);
 
 	rdma_unfill_sgid_attr(ah_attr, old_sgid_attr);
 	return ah;
@@ -569,7 +574,7 @@ struct ib_ah *rdma_create_user_ah(struct ib_pd *pd,
 		}
 	}
 
-	ah = _rdma_create_ah(pd, ah_attr, udata);
+	ah = _rdma_create_ah(pd, ah_attr, RDMA_CREATE_AH_SLEEPABLE, udata);
 
 out:
 	rdma_unfill_sgid_attr(ah_attr, old_sgid_attr);
@@ -881,7 +886,7 @@ struct ib_ah *ib_create_ah_from_wc(struct ib_pd *pd, const struct ib_wc *wc,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ah = rdma_create_ah(pd, &ah_attr);
+	ah = rdma_create_ah(pd, &ah_attr, RDMA_CREATE_AH_SLEEPABLE);
 
 	rdma_destroy_ah_attr(&ah_attr);
 	return ah;

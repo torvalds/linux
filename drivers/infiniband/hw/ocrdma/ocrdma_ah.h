@@ -52,7 +52,7 @@ enum {
 };
 
 struct ib_ah *ocrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-			       struct ib_udata *udata);
+			       u32 flags, struct ib_udata *udata);
 int ocrdma_destroy_ah(struct ib_ah *ah);
 int ocrdma_query_ah(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 

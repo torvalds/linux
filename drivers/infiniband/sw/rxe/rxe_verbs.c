@@ -219,6 +219,7 @@ static void rxe_init_av(struct rxe_dev *rxe, struct rdma_ah_attr *attr,
 
 static struct ib_ah *rxe_create_ah(struct ib_pd *ibpd,
 				   struct rdma_ah_attr *attr,
+				   u32 flags,
 				   struct ib_udata *udata)
 
 {

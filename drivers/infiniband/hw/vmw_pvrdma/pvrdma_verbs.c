@@ -533,11 +533,12 @@ int pvrdma_dealloc_pd(struct ib_pd *pd)
  * @pd: the protection domain
  * @ah_attr: the attributes of the AH
  * @udata: user data blob
+ * @flags: create address handle flags (see enum rdma_create_ah_flags)
  *
  * @return: the ib_ah pointer on success, otherwise errno.
  */
 struct ib_ah *pvrdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-			       struct ib_udata *udata)
+			       u32 flags, struct ib_udata *udata)
 {
 	struct pvrdma_dev *dev = to_vdev(pd->device);
 	struct pvrdma_ah *ah;

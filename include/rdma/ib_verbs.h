@@ -2377,7 +2377,7 @@ struct ib_device_ops {
 				  struct ib_udata *udata);
 	int (*dealloc_pd)(struct ib_pd *pd);
 	struct ib_ah *(*create_ah)(struct ib_pd *pd,
-				   struct rdma_ah_attr *ah_attr,
+				   struct rdma_ah_attr *ah_attr, u32 flags,
 				   struct ib_udata *udata);
 	int (*modify_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
 	int (*query_ah)(struct ib_ah *ah, struct rdma_ah_attr *ah_attr);
@@ -3151,15 +3151,22 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 	__ib_alloc_pd((device), (flags), KBUILD_MODNAME)
 void ib_dealloc_pd(struct ib_pd *pd);
 
+enum rdma_create_ah_flags {
+	/* In a sleepable context */
+	RDMA_CREATE_AH_SLEEPABLE = BIT(0),
+};
+
 /**
  * rdma_create_ah - Creates an address handle for the given address vector.
  * @pd: The protection domain associated with the address handle.
  * @ah_attr: The attributes of the address vector.
+ * @flags: Create address handle flags (see enum rdma_create_ah_flags).
  *
  * The address handle is used to reference a local or global destination
  * in all UD QP post sends.
  */
-struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr);
+struct ib_ah *rdma_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
+			     u32 flags);
 
 /**
  * rdma_create_user_ah - Creates an address handle for the given address vector.

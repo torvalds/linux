@@ -2615,7 +2615,7 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 }
 
 struct ib_ah *qedr_create_ah(struct ib_pd *ibpd, struct rdma_ah_attr *attr,
-			     struct ib_udata *udata)
+			     u32 flags, struct ib_udata *udata)
 {
 	struct qedr_ah *ah;
 

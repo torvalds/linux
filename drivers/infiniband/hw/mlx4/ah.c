@@ -144,7 +144,7 @@ static struct ib_ah *create_iboe_ah(struct ib_pd *pd,
 }
 
 struct ib_ah *mlx4_ib_create_ah(struct ib_pd *pd, struct rdma_ah_attr *ah_attr,
-				struct ib_udata *udata)
+				u32 flags, struct ib_udata *udata)
 
 {
 	struct mlx4_ib_ah *ah;
@@ -189,7 +189,7 @@ struct ib_ah *mlx4_ib_create_ah_slave(struct ib_pd *pd,
 
 	slave_attr.grh.sgid_attr = NULL;
 	slave_attr.grh.sgid_index = slave_sgid_index;
-	ah = mlx4_ib_create_ah(pd, &slave_attr, NULL);
+	ah = mlx4_ib_create_ah(pd, &slave_attr, 0, NULL);
 	if (IS_ERR(ah))
 		return ah;
 
