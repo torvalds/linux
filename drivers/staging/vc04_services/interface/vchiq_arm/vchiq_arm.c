@@ -56,7 +56,6 @@
 #include "vchiq_ioctl.h"
 #include "vchiq_arm.h"
 #include "vchiq_debugfs.h"
-#include "vchiq_killable.h"
 
 #define DEVICE_NAME "vchiq"
 
