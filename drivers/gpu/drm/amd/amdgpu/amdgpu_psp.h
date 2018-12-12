@@ -89,6 +89,7 @@ struct psp_funcs
 				      struct psp_xgmi_topology_info *topology);
 	int (*xgmi_set_topology_info)(struct psp_context *psp, int number_devices,
 				      struct psp_xgmi_topology_info *topology);
+	bool (*support_vmr_ring)(struct psp_context *psp);
 };
 
 struct psp_xgmi_context {
@@ -192,6 +193,8 @@ struct psp_xgmi_topology_info {
 		((psp)->funcs->bootloader_load_sos ? (psp)->funcs->bootloader_load_sos((psp)) : 0)
 #define psp_smu_reload_quirk(psp) \
 		((psp)->funcs->smu_reload_quirk ? (psp)->funcs->smu_reload_quirk((psp)) : false)
+#define psp_support_vmr_ring(psp) \
+		((psp)->funcs->support_vmr_ring ? (psp)->funcs->support_vmr_ring((psp)) : false)
 #define psp_mode1_reset(psp) \
 		((psp)->funcs->mode1_reset ? (psp)->funcs->mode1_reset((psp)) : false)
 #define psp_xgmi_get_node_id(psp) \
@@ -217,8 +220,6 @@ extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_xgmi_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
-bool psp_support_vmr_ring(struct psp_context *psp);
-
 extern const struct amdgpu_ip_block_version psp_v11_0_ip_block;
 
 #endif

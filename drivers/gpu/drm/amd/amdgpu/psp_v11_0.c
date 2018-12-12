@@ -291,6 +291,13 @@ static int psp_v11_0_ring_init(struct psp_context *psp,
 	return 0;
 }
 
+static bool psp_v11_0_support_vmr_ring(struct psp_context *psp)
+{
+	if (amdgpu_sriov_vf(psp->adev) && psp->sos_fw_version > 0x80045)
+		return true;
+	return false;
+}
+
 static int psp_v11_0_ring_create(struct psp_context *psp,
 				enum psp_ring_type ring_type)
 {
@@ -299,7 +306,7 @@ static int psp_v11_0_ring_create(struct psp_context *psp,
 	struct psp_ring *ring = &psp->km_ring;
 	struct amdgpu_device *adev = psp->adev;
 
-	if (psp_support_vmr_ring(psp)) {
+	if (psp_v11_0_support_vmr_ring(psp)) {
 		/* Write low address of the ring to C2PMSG_102 */
 		psp_ring_reg = lower_32_bits(ring->ring_mem_mc_addr);
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_ring_reg);
@@ -351,7 +358,7 @@ static int psp_v11_0_ring_stop(struct psp_context *psp,
 	struct amdgpu_device *adev = psp->adev;
 
 	/* Write the ring destroy command*/
-	if (psp_support_vmr_ring(psp))
+	if (psp_v11_0_support_vmr_ring(psp))
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101,
 				     GFX_CTRL_CMD_ID_DESTROY_GPCOM_RING);
 	else
@@ -362,7 +369,7 @@ static int psp_v11_0_ring_stop(struct psp_context *psp,
 	mdelay(20);
 
 	/* Wait for response flag (bit 31) */
-	if (psp_support_vmr_ring(psp))
+	if (psp_v11_0_support_vmr_ring(psp))
 		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, mmMP0_SMN_C2PMSG_101),
 				   0x80000000, 0x80000000, false);
 	else
@@ -406,7 +413,7 @@ static int psp_v11_0_cmd_submit(struct psp_context *psp,
 	uint32_t rb_frame_size_dw = sizeof(struct psp_gfx_rb_frame) / 4;
 
 	/* KM (GPCOM) prepare write pointer */
-	if (psp_support_vmr_ring(psp))
+	if (psp_v11_0_support_vmr_ring(psp))
 		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102);
 	else
 		psp_write_ptr_reg = RREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_67);
@@ -438,7 +445,7 @@ static int psp_v11_0_cmd_submit(struct psp_context *psp,
 
 	/* Update the write Pointer in DWORDs */
 	psp_write_ptr_reg = (psp_write_ptr_reg + rb_frame_size_dw) % ring_size_dw;
-	if (psp_support_vmr_ring(psp)) {
+	if (psp_v11_0_support_vmr_ring(psp)) {
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_102, psp_write_ptr_reg);
 		WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_101, GFX_CTRL_CMD_ID_CONSUME_CMD);
 	} else
@@ -732,6 +739,7 @@ static const struct psp_funcs psp_v11_0_funcs = {
 	.xgmi_set_topology_info = psp_v11_0_xgmi_set_topology_info,
 	.xgmi_get_hive_id = psp_v11_0_xgmi_get_hive_id,
 	.xgmi_get_node_id = psp_v11_0_xgmi_get_node_id,
+	.support_vmr_ring = psp_v11_0_support_vmr_ring,
 };
 
 void psp_v11_0_set_psp_funcs(struct psp_context *psp)
