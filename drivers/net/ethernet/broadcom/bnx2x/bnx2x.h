@@ -2520,6 +2520,7 @@ void bnx2x_update_mfw_dump(struct bnx2x *bp);
 void bnx2x_init_ptp(struct bnx2x *bp);
 int bnx2x_configure_ptp_filters(struct bnx2x *bp);
 void bnx2x_set_rx_ts(struct bnx2x *bp, struct sk_buff *skb);
+void bnx2x_register_phc(struct bnx2x *bp);
 
 #define BNX2X_MAX_PHC_DRIFT 31000000
 #define BNX2X_PTP_TX_TIMEOUT

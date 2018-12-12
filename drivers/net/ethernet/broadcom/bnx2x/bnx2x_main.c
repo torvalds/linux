@@ -7723,6 +7723,9 @@ static int bnx2x_init_hw_port(struct bnx2x *bp)
 		REG_WR(bp, reg_addr, val);
 	}
 
+	if (CHIP_IS_E3B0(bp))
+		bp->flags |= PTP_SUPPORTED;
+
 	return 0;
 }
 
@@ -9444,8 +9447,13 @@ unload_error:
 	 * function stop ramrod is sent, since as part of this ramrod FW access
 	 * PTP registers.
 	 */
-	if (bp->flags & PTP_SUPPORTED)
+	if (bp->flags & PTP_SUPPORTED) {
 		bnx2x_stop_ptp(bp);
+		if (bp->ptp_clock) {
+			ptp_clock_unregister(bp->ptp_clock);
+			bp->ptp_clock = NULL;
+		}
+	}
 
 	/* Disable HW interrupts, NAPI */
 	bnx2x_netif_stop(bp, 1);
@@ -12523,9 +12531,6 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 
 	bp->dump_preset_idx = 1;
 
-	if (CHIP_IS_E3B0(bp))
-		bp->flags |= PTP_SUPPORTED;
-
 	return rc;
 }
 
@@ -13917,7 +13922,7 @@ static int bnx2x_ptp_enable(struct ptp_clock_info *ptp,
 	return -ENOTSUPP;
 }
 
-static void bnx2x_register_phc(struct bnx2x *bp)
+void bnx2x_register_phc(struct bnx2x *bp)
 {
 	/* Fill the ptp_clock_info struct and register PTP clock*/
 	bp->ptp_clock_info.owner = THIS_MODULE;
@@ -14119,8 +14124,6 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	       dev->base_addr, bp->pdev->irq, dev->dev_addr);
 	pcie_print_link_status(bp->pdev);
 
-	bnx2x_register_phc(bp);
-
 	if (!IS_MF_SD_STORAGE_PERSONALITY_ONLY(bp))
 		bnx2x_set_os_driver_state(bp, OS_DRIVER_STATE_DISABLED);
 
@@ -14153,11 +14156,6 @@ static void __bnx2x_remove(struct pci_dev *pdev,
 			   struct bnx2x *bp,
 			   bool remove_netdev)
 {
-	if (bp->ptp_clock) {
-		ptp_clock_unregister(bp->ptp_clock);
-		bp->ptp_clock = NULL;
-	}
-
 	/* Delete storage MAC address */
 	if (!NO_FCOE(bp)) {
 		rtnl_lock();
