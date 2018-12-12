@@ -346,11 +346,11 @@ int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 			(mode_info->atom_context->bios + data_offset);
 		switch (crev) {
 		case 4:
-			adev->gfx.config.max_shader_engines = gfx_info->v24.gc_num_se;
-			adev->gfx.config.max_cu_per_sh = gfx_info->v24.gc_num_cu_per_sh;
-			adev->gfx.config.max_sh_per_se = gfx_info->v24.gc_num_sh_per_se;
-			adev->gfx.config.max_backends_per_se = gfx_info->v24.gc_num_rb_per_se;
-			adev->gfx.config.max_texture_channel_caches = gfx_info->v24.gc_num_tccs;
+			adev->gfx.config.max_shader_engines = gfx_info->v24.max_shader_engines;
+			adev->gfx.config.max_cu_per_sh = gfx_info->v24.max_cu_per_sh;
+			adev->gfx.config.max_sh_per_se = gfx_info->v24.max_sh_per_se;
+			adev->gfx.config.max_backends_per_se = gfx_info->v24.max_backends_per_se;
+			adev->gfx.config.max_texture_channel_caches = gfx_info->v24.max_texture_channel_caches;
 			adev->gfx.config.max_gprs = le16_to_cpu(gfx_info->v24.gc_num_gprs);
 			adev->gfx.config.max_gs_threads = gfx_info->v24.gc_num_max_gs_thds;
 			adev->gfx.config.gs_vgt_table_depth = gfx_info->v24.gc_gs_table_depth;
