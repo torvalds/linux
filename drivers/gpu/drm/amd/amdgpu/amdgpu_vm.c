@@ -821,9 +821,16 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		addr += ats_entries * 8;
 	}
 
-	if (entries)
+	if (entries) {
+		uint64_t value = 0;
+
+		/* Workaround for fault priority problem on GMC9 */
+		if (level == AMDGPU_VM_PTB && adev->asic_type >= CHIP_VEGA10)
+			value = AMDGPU_PTE_EXECUTABLE;
+
 		amdgpu_vm_set_pte_pde(adev, &job->ibs[0], addr, 0,
-				      entries, 0, 0);
+				      entries, 0, value);
+	}
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 
@@ -1525,20 +1532,27 @@ error:
 }
 
 /**
- * amdgpu_vm_update_huge - figure out parameters for PTE updates
+ * amdgpu_vm_update_flags - figure out flags for PTE updates
  *
  * Make sure to set the right flags for the PTEs at the desired level.
  */
-static void amdgpu_vm_update_huge(struct amdgpu_pte_update_params *params,
-				  struct amdgpu_bo *bo, unsigned level,
-				  uint64_t pe, uint64_t addr,
-				  unsigned count, uint32_t incr,
-				  uint64_t flags)
+static void amdgpu_vm_update_flags(struct amdgpu_pte_update_params *params,
+				   struct amdgpu_bo *bo, unsigned level,
+				   uint64_t pe, uint64_t addr,
+				   unsigned count, uint32_t incr,
+				   uint64_t flags)
 
 {
 	if (level != AMDGPU_VM_PTB) {
 		flags |= AMDGPU_PDE_PTE;
 		amdgpu_gmc_get_vm_pde(params->adev, level, &addr, &flags);
+
+	} else if (params->adev->asic_type >= CHIP_VEGA10 &&
+		   !(flags & AMDGPU_PTE_VALID) &&
+		   !(flags & AMDGPU_PTE_PRT)) {
+
+		/* Workaround for fault priority problem on GMC9 */
+		flags |= AMDGPU_PTE_EXECUTABLE;
 	}
 
 	amdgpu_vm_update_func(params, bo, pe, addr, count, incr, flags);
@@ -1695,9 +1709,9 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 			uint64_t upd_end = min(entry_end, frag_end);
 			unsigned nptes = (upd_end - frag_start) >> shift;
 
-			amdgpu_vm_update_huge(params, pt, cursor.level,
-					      pe_start, dst, nptes, incr,
-					      flags | AMDGPU_PTE_FRAG(frag));
+			amdgpu_vm_update_flags(params, pt, cursor.level,
+					       pe_start, dst, nptes, incr,
+					       flags | AMDGPU_PTE_FRAG(frag));
 
 			pe_start += nptes * 8;
 			dst += (uint64_t)nptes * AMDGPU_GPU_PAGE_SIZE << shift;
