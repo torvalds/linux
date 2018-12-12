@@ -8,7 +8,7 @@
 // Author: Keyon Jie <yang.jie@linux.intel.com>
 //
 
-#include <linux/io.h>
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/platform_device.h>
 #include <sound/soc.h>
 #include <sound/sof.h>
@@ -86,24 +86,13 @@ EXPORT_SYMBOL(sof_io_read);
 
 void sof_io_write64(struct snd_sof_dev *sdev, void __iomem *addr, u64 value)
 {
-#ifdef CONFIG_64BIT
 	writeq(value, addr);
-#else
-	memcpy_toio(addr, &value, sizeof(value));
-#endif
 }
 EXPORT_SYMBOL(sof_io_write64);
 
 u64 sof_io_read64(struct snd_sof_dev *sdev, void __iomem *addr)
 {
-#ifdef CONFIG_64BIT
 	return readq(addr);
-#else
-	u64 val;
-
-	memcpy_fromio(&val, addr, sizeof(val));
-	return val;
-#endif
 }
 EXPORT_SYMBOL(sof_io_read64);
 
