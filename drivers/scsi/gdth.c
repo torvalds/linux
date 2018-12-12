@@ -2126,12 +2126,6 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
                 cmdp->u.cache64.sg_canz = sgcnt;
                 scsi_for_each_sg(scp, sl, sgcnt, i) {
                     cmdp->u.cache64.sg_lst[i].sg_ptr = sg_dma_address(sl);
-#ifdef GDTH_DMA_STATISTICS
-                    if (cmdp->u.cache64.sg_lst[i].sg_ptr > (u64)0xffffffff)
-                        ha->dma64_cnt++;
-                    else
-                        ha->dma32_cnt++;
-#endif
                     cmdp->u.cache64.sg_lst[i].sg_len = sg_dma_len(sl);
                 }
             } else {
@@ -2141,9 +2135,6 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
                 cmdp->u.cache.sg_canz = sgcnt;
                 scsi_for_each_sg(scp, sl, sgcnt, i) {
                     cmdp->u.cache.sg_lst[i].sg_ptr = sg_dma_address(sl);
-#ifdef GDTH_DMA_STATISTICS
-                    ha->dma32_cnt++;
-#endif
                     cmdp->u.cache.sg_lst[i].sg_len = sg_dma_len(sl);
                 }
             }
@@ -2298,12 +2289,6 @@ static int gdth_fill_raw_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp, u8 b)
                 cmdp->u.raw64.sg_ranz = sgcnt;
                 scsi_for_each_sg(scp, sl, sgcnt, i) {
                     cmdp->u.raw64.sg_lst[i].sg_ptr = sg_dma_address(sl);
-#ifdef GDTH_DMA_STATISTICS
-                    if (cmdp->u.raw64.sg_lst[i].sg_ptr > (u64)0xffffffff)
-                        ha->dma64_cnt++;
-                    else
-                        ha->dma32_cnt++;
-#endif
                     cmdp->u.raw64.sg_lst[i].sg_len = sg_dma_len(sl);
                 }
             } else {
@@ -2313,9 +2298,6 @@ static int gdth_fill_raw_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp, u8 b)
                 cmdp->u.raw.sg_ranz = sgcnt;
                 scsi_for_each_sg(scp, sl, sgcnt, i) {
                     cmdp->u.raw.sg_lst[i].sg_ptr = sg_dma_address(sl);
-#ifdef GDTH_DMA_STATISTICS
-                    ha->dma32_cnt++;
-#endif
                     cmdp->u.raw.sg_lst[i].sg_len = sg_dma_len(sl);
                 }
             }

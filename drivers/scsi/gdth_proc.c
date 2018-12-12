@@ -229,14 +229,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                        " Serial No.:   \t0x%8X\tCache RAM size:\t%d KB\n",
                        ha->binfo.ser_no, ha->binfo.memsize / 1024);
 
-#ifdef GDTH_DMA_STATISTICS
-    /* controller statistics */
-    seq_puts(m, "\nController Statistics:\n");
-    seq_printf(m,
-                   " 32-bit DMA buffer:\t%lu\t64-bit DMA buffer:\t%lu\n",
-                   ha->dma32_cnt, ha->dma64_cnt);
-#endif
-
     if (ha->more_proc) {
         size_t size = max_t(size_t, GDTH_SCRATCH, sizeof(gdth_hget_str));
 
