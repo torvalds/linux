@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: (GPL-2.0+ or MIT)
 /*
- * Copyright (c) 2017 Icenowy Zheng <icenowy@aosc.io>
+ * Copyright (C) 2018 Amarula Solutions
+ * Author: Jagan Teki <jagan@amarulasolutions.com>
  */
 
 /dts-v1/;
@@ -10,11 +11,10 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	model = "Pine H64";
-	compatible = "pine64,pine-h64", "allwinner,sun50i-h6";
+	model = "OrangePi One Plus";
+	compatible = "xunlong,orangepi-one-plus", "allwinner,sun50i-h6";
 
 	aliases {
-		ethernet0 = &emac;
 		serial0 = &uart0;
 	};
 
@@ -22,76 +22,28 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	connector {
-		compatible = "hdmi-connector";
-		type = "a";
-
-		port {
-			hdmi_con_in: endpoint {
-				remote-endpoint = <&hdmi_out_con>;
-			};
-		};
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
-		heartbeat {
-			label = "pine-h64:green:heartbeat";
+		power {
+			label = "orangepi:red:power";
 			gpios = <&r_pio 0 4 GPIO_ACTIVE_HIGH>; /* PL4 */
-		};
-
-		link {
-			label = "pine-h64:white:link";
-			gpios = <&r_pio 0 3 GPIO_ACTIVE_HIGH>; /* PL3 */
+			default-state = "on";
 		};
 
 		status {
-			label = "pine-h64:blue:status";
+			label = "orangepi:green:status";
 			gpios = <&r_pio 0 7 GPIO_ACTIVE_HIGH>; /* PL7 */
 		};
 	};
 
-	reg_usb_vbus: vbus {
+	reg_vcc5v: vcc5v {
+		/* board wide 5V supply directly from the DC jack */
 		compatible = "regulator-fixed";
-		regulator-name = "usb-vbus";
+		regulator-name = "vcc-5v";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
-		startup-delay-us = <100000>;
-		gpio = <&r_pio 0 5 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
-	};
-};
-
-&emac {
-	pinctrl-names = "default";
-	pinctrl-0 = <&ext_rgmii_pins>;
-	phy-mode = "rgmii";
-	phy-handle = <&ext_rgmii_phy>;
-	phy-supply = <&reg_aldo2>;
-	allwinner,rx-delay-ps = <200>;
-	allwinner,tx-delay-ps = <200>;
-	status = "okay";
-};
-
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <1>;
-	};
-};
-
-&de {
-	status = "okay";
-};
-
-&hdmi {
-	status = "okay";
-};
-
-&hdmi_out {
-	hdmi_out_con: endpoint {
-		remote-endpoint = <&hdmi_con_in>;
+		regulator-always-on;
 	};
 };
 
@@ -109,17 +61,6 @@
 	vmmc-supply = <&reg_cldo1>;
 	cd-gpios = <&pio 5 6 GPIO_ACTIVE_LOW>;
 	bus-width = <4>;
-	status = "okay";
-};
-
-&mmc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc2_pins>;
-	vmmc-supply = <&reg_cldo1>;
-	vqmmc-supply = <&reg_bldo2>;
-	non-removable;
-	cap-mmc-hw-reset;
-	bus-width = <8>;
 	status = "okay";
 };
 
@@ -142,6 +83,14 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 		x-powers,self-working-mode;
+		vina-supply = <&reg_vcc5v>;
+		vinb-supply = <&reg_vcc5v>;
+		vinc-supply = <&reg_vcc5v>;
+		vind-supply = <&reg_vcc5v>;
+		vine-supply = <&reg_vcc5v>;
+		aldoin-supply = <&reg_vcc5v>;
+		bldoin-supply = <&reg_vcc5v>;
+		cldoin-supply = <&reg_vcc5v>;
 
 		regulators {
 			reg_aldo1: aldo1 {
@@ -155,15 +104,13 @@
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
 				regulator-name = "vcc-ac200";
-				regulator-enable-ramp-delay = <100000>;
 			};
 
 			reg_aldo3: aldo3 {
-				/* This regulator is connected with CLDO1 */
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc-3v3-1";
+				regulator-name = "vcc25-dram";
 			};
 
 			reg_bldo1: bldo1 {
@@ -192,11 +139,10 @@
 			};
 
 			reg_cldo1: cldo1 {
-				/* This regulator is connected with ALDO3 */
 				regulator-always-on;
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-name = "vcc-3v3-2";
+				regulator-name = "vcc-3v3";
 			};
 
 			reg_cldo2: cldo2 {
@@ -243,12 +189,6 @@
 			};
 		};
 	};
-
-	pcf8563: rtc@51 {
-		compatible = "nxp,pcf8563";
-		reg = <0x51>;
-		#clock-cells = <0>;
-	};
 };
 
 &uart0 {
@@ -258,12 +198,13 @@
 };
 
 &usb2otg {
-	dr_mode = "host";
+	dr_mode = "otg";
 	status = "okay";
 };
 
 &usb2phy {
-	usb0_vbus-supply = <&reg_usb_vbus>;
-	usb3_vbus-supply = <&reg_usb_vbus>;
+	usb0_id_det-gpios = <&pio 2 6 GPIO_ACTIVE_HIGH>; /* PC6 */
+	usb0_vbus-supply = <&reg_vcc5v>;
+	usb3_vbus-supply = <&reg_vcc5v>;
 	status = "okay";
 };
