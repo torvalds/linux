@@ -101,6 +101,10 @@ i.MX7 SabreSD Board
 Required root node properties:
     - compatible = "fsl,imx7d-sdb", "fsl,imx7d";
 
+i.MX7ULP Evaluation Kit
+Required root node properties:
+    - compatible = "fsl,imx7ulp-evk", "fsl,imx7ulp";
+
 Generic i.MX boards
 -------------------
 
@@ -122,6 +126,10 @@ Required root node properties:
 i.MX6q generic board
 Required root node properties:
     - compatible = "fsl,imx6q";
+
+i.MX7ULP generic board
+Required root node properties:
+    - compatible = "fsl,imx7ulp";
 
 Freescale Vybrid Platform Device Tree Bindings
 ----------------------------------------------
