@@ -164,17 +164,37 @@ static int pca953x_bank_shift(struct pca953x_chip *chip)
 	return fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
 }
 
+static u8 pca953x_recalc_addr(struct pca953x_chip *chip, int reg, int off,
+			      bool write, bool addrinc)
+{
+	int bank_shift = pca953x_bank_shift(chip);
+	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
+	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
+	u8 regaddr = pinctrl | addr | (off / BANK_SZ);
+
+	/* Single byte read doesn't need AI bit set. */
+	if (!addrinc)
+		return regaddr;
+
+	/* Chips with 24 and more GPIOs always support Auto Increment */
+	if (write && NBANK(chip) > 2)
+		regaddr |= REG_ADDR_AI;
+
+	/* PCA9575 needs address-increment on multi-byte writes */
+	if (PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE)
+		regaddr |= REG_ADDR_AI;
+
+	return regaddr;
+}
+
 static int pca953x_read_single(struct pca953x_chip *chip, int reg, u32 *val,
 				int off)
 {
+	u8 regaddr = pca953x_recalc_addr(chip, reg, off, false, false);
 	int ret;
-	int bank_shift = pca953x_bank_shift(chip);
-	int offset = off / BANK_SZ;
 
-	ret = i2c_smbus_read_byte_data(chip->client,
-				(reg << bank_shift) + offset);
+	ret = i2c_smbus_read_byte_data(chip->client, regaddr);
 	*val = ret;
-
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed reading register\n");
 		return ret;
@@ -186,13 +206,10 @@ static int pca953x_read_single(struct pca953x_chip *chip, int reg, u32 *val,
 static int pca953x_write_single(struct pca953x_chip *chip, int reg, u32 val,
 				int off)
 {
+	u8 regaddr = pca953x_recalc_addr(chip, reg, off, true, false);
 	int ret;
-	int bank_shift = pca953x_bank_shift(chip);
-	int offset = off / BANK_SZ;
 
-	ret = i2c_smbus_write_byte_data(chip->client,
-					(reg << bank_shift) + offset, val);
-
+	ret = i2c_smbus_write_byte_data(chip->client, regaddr, val);
 	if (ret < 0) {
 		dev_err(&chip->client->dev, "failed writing register\n");
 		return ret;
@@ -203,19 +220,8 @@ static int pca953x_write_single(struct pca953x_chip *chip, int reg, u32 val,
 
 static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	int bank_shift = pca953x_bank_shift(chip);
-	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
-	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
-	u8 regaddr = pinctrl | addr;
+	u8 regaddr = pca953x_recalc_addr(chip, reg, 0, true, true);
 	int ret;
-
-	/* Chips with 24 and more GPIOs always support Auto Increment */
-	if (NBANK(chip) > 2)
-		regaddr |= REG_ADDR_AI;
-
-	/* PCA9575 needs address-increment on multi-byte writes */
-	if (PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE)
-		regaddr |= REG_ADDR_AI;
 
 	ret = i2c_smbus_write_i2c_block_data(chip->client, regaddr,
 					     NBANK(chip), val);
@@ -229,15 +235,8 @@ static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 
 static int pca953x_read_regs(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	int bank_shift = pca953x_bank_shift(chip);
-	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
-	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
-	u8 regaddr = pinctrl | addr;
+	u8 regaddr = pca953x_recalc_addr(chip, reg, 0, false, true);
 	int ret;
-
-	/* Chips with 24 and more GPIOs always support Auto Increment */
-	if (NBANK(chip) > 2)
-		regaddr |= REG_ADDR_AI;
 
 	ret = i2c_smbus_read_i2c_block_data(chip->client, regaddr,
 					    NBANK(chip), val);
