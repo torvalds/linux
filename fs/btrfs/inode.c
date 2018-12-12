@@ -7005,7 +7005,7 @@ struct extent_map *btrfs_get_extent_fiemap(struct btrfs_inode *inode,
 
 	if (delalloc_len > 0) {
 		u64 hole_start;
-		u64 hole_len = len;
+		u64 hole_len;
 		const u64 hole_end = extent_map_end(hole_em);
 
 		em = alloc_extent_map();
