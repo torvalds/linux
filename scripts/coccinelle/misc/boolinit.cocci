@@ -150,19 +150,19 @@ cocci.print_main("WARNING: Comparison to bool",p)
 p << r2.p;
 @@
 
-cocci.print_main("WARNING: Comparison of bool to 0/1",p)
+cocci.print_main("WARNING: Comparison of 0/1 to bool variable",p)
 
 @script:python depends on org@
 p1 << r3.p1;
 @@
 
-cocci.print_main("WARNING: Assignment of bool to 0/1",p1)
+cocci.print_main("WARNING: Assignment of 0/1 to bool variable",p1)
 
 @script:python depends on org@
 p2 << r4.p2;
 @@
 
-cocci.print_main("ERROR: Assignment of bool to non-0/1 constant",p2)
+cocci.print_main("ERROR: Assignment of non-0/1 constant to bool variable",p2)
 
 @script:python depends on report@
 p << r1.p;
@@ -174,16 +174,16 @@ coccilib.report.print_report(p[0],"WARNING: Comparison to bool")
 p << r2.p;
 @@
 
-coccilib.report.print_report(p[0],"WARNING: Comparison of bool to 0/1")
+coccilib.report.print_report(p[0],"WARNING: Comparison of 0/1 to bool variable")
 
 @script:python depends on report@
 p1 << r3.p1;
 @@
 
-coccilib.report.print_report(p1[0],"WARNING: Assignment of bool to 0/1")
+coccilib.report.print_report(p1[0],"WARNING: Assignment of 0/1 to bool variable")
 
 @script:python depends on report@
 p2 << r4.p2;
 @@
 
-coccilib.report.print_report(p2[0],"ERROR: Assignment of bool to non-0/1 constant")
+coccilib.report.print_report(p2[0],"ERROR: Assignment of non-0/1 constant to bool variable")
