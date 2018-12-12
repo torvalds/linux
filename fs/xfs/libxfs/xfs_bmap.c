@@ -536,7 +536,7 @@ __xfs_bmap_add_free(
 	struct xfs_trans		*tp,
 	xfs_fsblock_t			bno,
 	xfs_filblks_t			len,
-	struct xfs_owner_info		*oinfo,
+	const struct xfs_owner_info	*oinfo,
 	bool				skip_discard)
 {
 	struct xfs_extent_free_item	*new;		/* new element */

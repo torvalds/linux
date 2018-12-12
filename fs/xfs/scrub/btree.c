@@ -583,31 +583,32 @@ xchk_btree_block_keys(
  */
 int
 xchk_btree(
-	struct xfs_scrub	*sc,
-	struct xfs_btree_cur	*cur,
-	xchk_btree_rec_fn	scrub_fn,
-	struct xfs_owner_info	*oinfo,
-	void			*private)
+	struct xfs_scrub		*sc,
+	struct xfs_btree_cur		*cur,
+	xchk_btree_rec_fn		scrub_fn,
+	const struct xfs_owner_info	*oinfo,
+	void				*private)
 {
-	struct xchk_btree	bs = { NULL };
-	union xfs_btree_ptr	ptr;
-	union xfs_btree_ptr	*pp;
-	union xfs_btree_rec	*recp;
-	struct xfs_btree_block	*block;
-	int			level;
-	struct xfs_buf		*bp;
-	struct check_owner	*co;
-	struct check_owner	*n;
-	int			i;
-	int			error = 0;
+	struct xchk_btree		bs = {
+		.cur			= cur,
+		.scrub_rec		= scrub_fn,
+		.oinfo			= oinfo,
+		.firstrec		= true,
+		.private		= private,
+		.sc			= sc,
+	};
+	union xfs_btree_ptr		ptr;
+	union xfs_btree_ptr		*pp;
+	union xfs_btree_rec		*recp;
+	struct xfs_btree_block		*block;
+	int				level;
+	struct xfs_buf			*bp;
+	struct check_owner		*co;
+	struct check_owner		*n;
+	int				i;
+	int				error = 0;
 
 	/* Initialize scrub state */
-	bs.cur = cur;
-	bs.scrub_rec = scrub_fn;
-	bs.oinfo = oinfo;
-	bs.firstrec = true;
-	bs.private = private;
-	bs.sc = sc;
 	for (i = 0; i < XFS_BTREE_MAXLEVELS; i++)
 		bs.firstkey[i] = true;
 	INIT_LIST_HEAD(&bs.to_check);

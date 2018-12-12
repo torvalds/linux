@@ -186,7 +186,7 @@ int	xfs_bmap_add_attrfork(struct xfs_inode *ip, int size, int rsvd);
 int	xfs_bmap_set_attrforkoff(struct xfs_inode *ip, int size, int *version);
 void	xfs_bmap_local_to_extents_empty(struct xfs_inode *ip, int whichfork);
 void	__xfs_bmap_add_free(struct xfs_trans *tp, xfs_fsblock_t bno,
-		xfs_filblks_t len, struct xfs_owner_info *oinfo,
+		xfs_filblks_t len, const struct xfs_owner_info *oinfo,
 		bool skip_discard);
 void	xfs_bmap_compute_maxlevels(struct xfs_mount *mp, int whichfork);
 int	xfs_bmap_first_unused(struct xfs_trans *tp, struct xfs_inode *ip,
@@ -234,7 +234,7 @@ xfs_bmap_add_free(
 	struct xfs_trans		*tp,
 	xfs_fsblock_t			bno,
 	xfs_filblks_t			len,
-	struct xfs_owner_info		*oinfo)
+	const struct xfs_owner_info	*oinfo)
 {
 	__xfs_bmap_add_free(tp, bno, len, oinfo, false);
 }

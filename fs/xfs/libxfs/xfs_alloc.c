@@ -1694,28 +1694,28 @@ error0:
  */
 STATIC int
 xfs_free_ag_extent(
-	xfs_trans_t		*tp,
-	xfs_buf_t		*agbp,
-	xfs_agnumber_t		agno,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	struct xfs_owner_info	*oinfo,
-	enum xfs_ag_resv_type	type)
+	struct xfs_trans		*tp,
+	struct xfs_buf			*agbp,
+	xfs_agnumber_t			agno,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type		type)
 {
-	xfs_btree_cur_t	*bno_cur;	/* cursor for by-block btree */
-	xfs_btree_cur_t	*cnt_cur;	/* cursor for by-size btree */
-	int		error;		/* error return value */
-	xfs_agblock_t	gtbno;		/* start of right neighbor block */
-	xfs_extlen_t	gtlen;		/* length of right neighbor block */
-	int		haveleft;	/* have a left neighbor block */
-	int		haveright;	/* have a right neighbor block */
-	int		i;		/* temp, result code */
-	xfs_agblock_t	ltbno;		/* start of left neighbor block */
-	xfs_extlen_t	ltlen;		/* length of left neighbor block */
-	xfs_mount_t	*mp;		/* mount point struct for filesystem */
-	xfs_agblock_t	nbno;		/* new starting block of freespace */
-	xfs_extlen_t	nlen;		/* new length of freespace */
-	xfs_perag_t	*pag;		/* per allocation group data */
+	struct xfs_mount		*mp;
+	struct xfs_perag		*pag;
+	struct xfs_btree_cur		*bno_cur;
+	struct xfs_btree_cur		*cnt_cur;
+	xfs_agblock_t			gtbno; /* start of right neighbor */
+	xfs_extlen_t			gtlen; /* length of right neighbor */
+	xfs_agblock_t			ltbno; /* start of left neighbor */
+	xfs_extlen_t			ltlen; /* length of left neighbor */
+	xfs_agblock_t			nbno; /* new starting block of freesp */
+	xfs_extlen_t			nlen; /* new length of freespace */
+	int				haveleft; /* have a left neighbor */
+	int				haveright; /* have a right neighbor */
+	int				i;
+	int				error;
 
 	bno_cur = cnt_cur = NULL;
 	mp = tp->t_mountp;
@@ -3008,21 +3008,21 @@ out:
  * Just break up the extent address and hand off to xfs_free_ag_extent
  * after fixing up the freelist.
  */
-int				/* error */
+int
 __xfs_free_extent(
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		bno,	/* starting block number of extent */
-	xfs_extlen_t		len,	/* length of extent */
-	struct xfs_owner_info	*oinfo,	/* extent owner */
-	enum xfs_ag_resv_type	type,	/* block reservation type */
-	bool			skip_discard)
+	struct xfs_trans		*tp,
+	xfs_fsblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo,
+	enum xfs_ag_resv_type		type,
+	bool				skip_discard)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_buf		*agbp;
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, bno);
-	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(mp, bno);
-	int			error;
-	unsigned int		busy_flags = 0;
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_buf			*agbp;
+	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp, bno);
+	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp, bno);
+	int				error;
+	unsigned int			busy_flags = 0;
 
 	ASSERT(len != 0);
 	ASSERT(type != XFS_AG_RESV_AGFL);

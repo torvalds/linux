@@ -53,19 +53,20 @@ xfs_trans_get_efd(struct xfs_trans		*tp,
  */
 int
 xfs_trans_free_extent(
-	struct xfs_trans	*tp,
-	struct xfs_efd_log_item	*efdp,
-	xfs_fsblock_t		start_block,
-	xfs_extlen_t		ext_len,
-	struct xfs_owner_info	*oinfo,
-	bool			skip_discard)
+	struct xfs_trans		*tp,
+	struct xfs_efd_log_item		*efdp,
+	xfs_fsblock_t			start_block,
+	xfs_extlen_t			ext_len,
+	const struct xfs_owner_info	*oinfo,
+	bool				skip_discard)
 {
-	struct xfs_mount	*mp = tp->t_mountp;
-	uint			next_extent;
-	xfs_agnumber_t		agno = XFS_FSB_TO_AGNO(mp, start_block);
-	xfs_agblock_t		agbno = XFS_FSB_TO_AGBNO(mp, start_block);
-	struct xfs_extent	*extp;
-	int			error;
+	struct xfs_mount		*mp = tp->t_mountp;
+	struct xfs_extent		*extp;
+	uint				next_extent;
+	xfs_agnumber_t			agno = XFS_FSB_TO_AGNO(mp, start_block);
+	xfs_agblock_t			agbno = XFS_FSB_TO_AGBNO(mp,
+								start_block);
+	int				error;
 
 	trace_xfs_bmap_free_deferred(tp->t_mountp, agno, 0, agbno, ext_len);
 

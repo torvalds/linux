@@ -184,14 +184,14 @@ xchk_rmapbt(
 /* xref check that the extent is owned by a given owner */
 static inline void
 xchk_xref_check_owner(
-	struct xfs_scrub	*sc,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	struct xfs_owner_info	*oinfo,
-	bool			should_have_rmap)
+	struct xfs_scrub		*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo,
+	bool				should_have_rmap)
 {
-	bool			has_rmap;
-	int			error;
+	bool				has_rmap;
+	int				error;
 
 	if (!sc->sa.rmap_cur || xchk_skip_xref(sc->sm))
 		return;
@@ -207,10 +207,10 @@ xchk_xref_check_owner(
 /* xref check that the extent is owned by a given owner */
 void
 xchk_xref_is_owned_by(
-	struct xfs_scrub	*sc,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_scrub		*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo)
 {
 	xchk_xref_check_owner(sc, bno, len, oinfo, true);
 }
@@ -218,10 +218,10 @@ xchk_xref_is_owned_by(
 /* xref check that the extent is not owned by a given owner */
 void
 xchk_xref_is_not_owned_by(
-	struct xfs_scrub	*sc,
-	xfs_agblock_t		bno,
-	xfs_extlen_t		len,
-	struct xfs_owner_info	*oinfo)
+	struct xfs_scrub		*sc,
+	xfs_agblock_t			bno,
+	xfs_extlen_t			len,
+	const struct xfs_owner_info	*oinfo)
 {
 	xchk_xref_check_owner(sc, bno, len, oinfo, false);
 }

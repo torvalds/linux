@@ -2405,7 +2405,7 @@ DEFINE_BMAP_FREE_DEFERRED_EVENT(xfs_agfl_free_deferred);
 DECLARE_EVENT_CLASS(xfs_rmap_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len, bool unwritten,
-		 struct xfs_owner_info *oinfo),
+		 const struct xfs_owner_info *oinfo),
 	TP_ARGS(mp, agno, agbno, len, unwritten, oinfo),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -2440,7 +2440,7 @@ DECLARE_EVENT_CLASS(xfs_rmap_class,
 DEFINE_EVENT(xfs_rmap_class, name, \
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
 		 xfs_agblock_t agbno, xfs_extlen_t len, bool unwritten, \
-		 struct xfs_owner_info *oinfo), \
+		 const struct xfs_owner_info *oinfo), \
 	TP_ARGS(mp, agno, agbno, len, unwritten, oinfo))
 
 /* simple AG-based error/%ip tracepoint class */
