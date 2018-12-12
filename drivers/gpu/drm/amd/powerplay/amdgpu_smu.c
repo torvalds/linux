@@ -27,6 +27,7 @@
 #include "amdgpu_smu.h"
 #include "soc15_common.h"
 #include "smu_v11_0.h"
+#include "atom.h"
 
 static int smu_set_funcs(struct amdgpu_device *adev)
 {
@@ -55,6 +56,22 @@ static int smu_early_init(void *handle)
 
 	smu->adev = adev;
 	mutex_init(&smu->mutex);
+
+	return 0;
+}
+
+int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
+			    uint16_t *size, uint8_t *frev, uint8_t *crev,
+			    uint8_t **addr)
+{
+	struct amdgpu_device *adev = smu->adev;
+	uint16_t data_start;
+
+	if (!amdgpu_atom_parse_data_header(adev->mode_info.atom_context, table,
+					   size, frev, crev, &data_start))
+		return -EINVAL;
+
+	*addr = (uint8_t *)adev->mode_info.atom_context->bios + data_start;
 
 	return 0;
 }

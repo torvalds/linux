@@ -106,6 +106,10 @@ struct smu_funcs
 #define smu_send_smc_msg_with_param(smu, msg, param) \
 	((smu)->funcs->send_smc_msg_with_param? (smu)->funcs->send_smc_msg_with_param((smu), (msg), (param)) : 0)
 
+extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
+				   uint16_t *size, uint8_t *frev, uint8_t *crev,
+				   uint8_t **addr);
+
 extern const struct amd_ip_funcs smu_ip_funcs;
 
 extern const struct amdgpu_ip_block_version smu_v11_0_ip_block;
