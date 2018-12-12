@@ -291,7 +291,6 @@ static int hda_suspend(struct snd_sof_dev *sdev, int state)
 
 static int hda_resume(struct snd_sof_dev *sdev)
 {
-	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_ext_link *hlink = NULL;
@@ -343,14 +342,6 @@ static int hda_resume(struct snd_sof_dev *sdev)
 	}
 #endif
 
-	/* power up the DSP */
-	ret = hda_dsp_core_power_up(sdev, chip->cores_mask);
-	if (ret < 0) {
-		dev_err(sdev->dev,
-			"error: failed to power up core after resume\n");
-		return ret;
-	}
-
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* turn off the links that were off before suspend */
 	list_for_each_entry(hlink, &bus->hlink_list, list) {
@@ -378,13 +369,13 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 		return ret;
 	}
 
-	/* init hda controller and power dsp up */
+	/* init hda controller. DSP cores will be powered up during fw boot */
 	return hda_resume(sdev);
 }
 
 int hda_dsp_runtime_resume(struct snd_sof_dev *sdev)
 {
-	/* init hda controller and power dsp up */
+	/* init hda controller. DSP cores will be powered up during fw boot */
 	return hda_resume(sdev);
 }
 
