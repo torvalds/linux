@@ -282,16 +282,6 @@ int cros_ec_cmd_xfer_status(struct cros_ec_device *ec_dev,
 			    struct cros_ec_command *msg);
 
 /**
- * cros_ec_remove() - Remove a ChromeOS EC.
- * @ec_dev: Device to register.
- *
- * Call this to deregister a ChromeOS EC, then clean up any private data.
- *
- * Return: 0 on success or negative error code.
- */
-int cros_ec_remove(struct cros_ec_device *ec_dev);
-
-/**
  * cros_ec_register() - Register a new ChromeOS EC, using the provided info.
  * @ec_dev: Device to register.
  *
