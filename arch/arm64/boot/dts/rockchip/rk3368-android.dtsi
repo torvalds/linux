@@ -41,7 +41,7 @@
  */
 
 / {
-	chosen {
+	chosen: chosen {
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 firmware_class.path=/system/vendor/firmware";
 	};
 
@@ -103,26 +103,7 @@
 	};
 
 	firmware {
-		android {
-			compatible = "android,firmware";
-			fstab {
-				compatible = "android,fstab";
-				system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/ff0f0000.dwmmc/by-name/system";
-					type = "ext4";
-					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-					fsmgr_flags = "wait,verify";
-				};
-				vendor {
-					compatible = "android,vendor";
-					dev = "/dev/block/platform/ff0f0000.dwmmc/by-name/vendor";
-					type = "ext4";
-					mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
-					fsmgr_flags = "wait,verify";
-				};
-			};
-		};
+		firmware_android: android {};
 	};
 
 	rga@ff920000 {
