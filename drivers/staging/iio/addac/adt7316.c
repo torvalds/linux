@@ -2092,7 +2092,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	struct iio_dev *indio_dev;
 	unsigned short *adt7316_platform_data = dev->platform_data;
 	int irq_type = IRQF_TRIGGER_LOW;
-	int ret = 0;
+	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
 	if (!indio_dev)
