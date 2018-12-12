@@ -17,9 +17,10 @@ config SND_SOC_SOF
           Say Y if you have such a device that is supported by SOF.
           If unsure select "N".
 
+if SND_SOC_SOF
+
 config SND_SOC_SOF_COMPRESS
 	bool "SOF ALSA Compressed API support"
-	depends on SND_SOC_SOF
 	help
           This adds support for the ALSA compressed API in SOF
 	  Say Y if you need this option
@@ -27,7 +28,6 @@ config SND_SOC_SOF_COMPRESS
 
 config SND_SOC_SOF_NOCODEC
 	tristate "SOF nocodec mode Support"
-	depends on SND_SOC_SOF
 	help
           This adds support for a dummy/nocodec machine driver fallback
 	  option if no known codec is detected. This is typically only
@@ -92,3 +92,6 @@ config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 
 source "sound/soc/sof/intel/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
+
+endif
+

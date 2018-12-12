@@ -1,6 +1,5 @@
 config SND_SOC_SOF_SPIDSP
 	tristate "SOF support over the SPI bus"
-	depends on SND_SOC_SOF
 	depends on SPI
 	select SND_SOC_SOF_SPI
 	help
@@ -11,7 +10,6 @@ config SND_SOC_SOF_SPIDSP
 
 config SND_SOC_SOF_INTEL
 	tristate "SOF support for Intel audio DSPs"
-	depends on SND_SOC_SOF
 	depends on SND_DMA_SGBUF
 	select SND_SOC_INTEL_MACH
 	select SND_SOC_SOF_XTENSA
@@ -44,7 +42,6 @@ config SND_SOC_SOF_HASWELL
 
 config SND_SOC_SOF_BROADWELL
 	tristate "SOF support for Broadwell"
-	depends on SND_SOC_SOF_INTEL
 	select SND_SOC_SOF_ACPI
 	select SND_SOC_ACPI_INTEL_MATCH
 	help
@@ -123,15 +120,14 @@ config SND_SOC_SOF_HDA_LINK
           Say Y if you want to enble HDA links with SOF.
           If unsure select "N".
 
-if SND_SOC_SOF_HDA_LINK
 config SND_SOC_SOF_HDA_AUDIO_CODEC
 	bool "SOF support for HDAudio codecs"
+	depends on SND_SOC_SOF_HDA_LINK
 	help
           This adds support for HDAudio codecs with Sound Open Firmware
 		  for Intel(R) platforms.
           Say Y if you want to enble HDAudio codecs with SOF.
           If unsure select "N".
-endif ## SND_SOC_SOF_HDA_LINK
 
 endif ## SND_SOC_SOF_HDA_COMMON
 
