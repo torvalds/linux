@@ -2553,7 +2553,7 @@ out_delete_sys_enter:
 	goto out;
 }
 
-static int trace__set_ev_qualifier_filter(struct trace *trace)
+static int trace__set_ev_qualifier_tp_filter(struct trace *trace)
 {
 	int err = -1;
 	struct perf_evsel *sys_exit;
@@ -2576,6 +2576,11 @@ out:
 out_enomem:
 	errno = ENOMEM;
 	goto out;
+}
+
+static int trace__set_ev_qualifier_filter(struct trace *trace)
+{
+	return trace__set_ev_qualifier_tp_filter(trace);
 }
 
 static int bpf_map__set_filter_pids(struct bpf_map *map __maybe_unused,
