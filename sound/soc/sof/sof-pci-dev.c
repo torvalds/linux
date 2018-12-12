@@ -263,7 +263,7 @@ static int sof_pci_probe(struct pci_dev *pci,
 	}
 
 	/* allow runtime_pm */
-	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY);
+	pm_runtime_set_autosuspend_delay(dev, SND_SOF_SUSPEND_DELAY_MS);
 	pm_runtime_use_autosuspend(dev);
 
 	/*
