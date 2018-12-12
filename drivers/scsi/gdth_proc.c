@@ -557,24 +557,6 @@ free_fail:
     return rc;
 }
 
-#ifdef GDTH_IOCTL_PROC
-static int gdth_ioctl_check_bin(gdth_ha_str *ha, u16 size)
-{
-    unsigned long flags;
-    int ret_val;
-
-    spin_lock_irqsave(&ha->smp_lock, flags);
-
-    ret_val = FALSE;
-    if (ha->scratch_busy) {
-        if (((gdth_iord_str *)ha->pscratch)->size == (u32)size)
-            ret_val = TRUE;
-    }
-    spin_unlock_irqrestore(&ha->smp_lock, flags);
-    return ret_val;
-}
-#endif
-
 static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id)
 {
     unsigned long flags;
