@@ -119,18 +119,21 @@ struct pca953x_reg_config {
 	int direction;
 	int output;
 	int input;
+	int invert;
 };
 
 static const struct pca953x_reg_config pca953x_regs = {
 	.direction = PCA953X_DIRECTION,
 	.output = PCA953X_OUTPUT,
 	.input = PCA953X_INPUT,
+	.invert = PCA953X_INVERT,
 };
 
 static const struct pca953x_reg_config pca957x_regs = {
 	.direction = PCA957X_CFG,
 	.output = PCA957X_OUT,
 	.input = PCA957X_IN,
+	.invert = PCA957X_INVRT,
 };
 
 struct pca953x_chip {
@@ -679,12 +682,10 @@ static int pca953x_irq_setup(struct pca953x_chip *chip,
 }
 #endif
 
-static int device_pca953x_init(struct pca953x_chip *chip, u32 invert)
+static int device_pca95xx_init(struct pca953x_chip *chip, u32 invert)
 {
 	int ret;
 	u8 val[MAX_BANK];
-
-	chip->regs = &pca953x_regs;
 
 	ret = pca953x_read_regs(chip, chip->regs->output, chip->reg_output);
 	if (ret)
@@ -701,7 +702,7 @@ static int device_pca953x_init(struct pca953x_chip *chip, u32 invert)
 	else
 		memset(val, 0, NBANK(chip));
 
-	ret = pca953x_write_regs(chip, PCA953X_INVERT, val);
+	ret = pca953x_write_regs(chip, chip->regs->invert, val);
 out:
 	return ret;
 }
@@ -711,22 +712,7 @@ static int device_pca957x_init(struct pca953x_chip *chip, u32 invert)
 	int ret;
 	u8 val[MAX_BANK];
 
-	chip->regs = &pca957x_regs;
-
-	ret = pca953x_read_regs(chip, chip->regs->output, chip->reg_output);
-	if (ret)
-		goto out;
-	ret = pca953x_read_regs(chip, chip->regs->direction,
-				chip->reg_direction);
-	if (ret)
-		goto out;
-
-	/* set platform specific polarity inversion */
-	if (invert)
-		memset(val, 0xFF, NBANK(chip));
-	else
-		memset(val, 0, NBANK(chip));
-	ret = pca953x_write_regs(chip, PCA957X_INVRT, val);
+	ret = device_pca95xx_init(chip, invert);
 	if (ret)
 		goto out;
 
@@ -842,10 +828,13 @@ static int pca953x_probe(struct i2c_client *client,
 	 */
 	pca953x_setup_gpio(chip, chip->driver_data & PCA_GPIO_MASK);
 
-	if (PCA_CHIP_TYPE(chip->driver_data) == PCA953X_TYPE)
-		ret = device_pca953x_init(chip, invert);
-	else
+	if (PCA_CHIP_TYPE(chip->driver_data) == PCA953X_TYPE) {
+		chip->regs = &pca953x_regs;
+		ret = device_pca95xx_init(chip, invert);
+	} else {
+		chip->regs = &pca957x_regs;
 		ret = device_pca957x_init(chip, invert);
+	}
 	if (ret)
 		goto err_exit;
 
