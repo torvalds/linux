@@ -681,10 +681,8 @@ static int atk_debugfs_gitm_get(void *p, u64 *val)
 	return err;
 }
 
-DEFINE_SIMPLE_ATTRIBUTE(atk_debugfs_gitm,
-			atk_debugfs_gitm_get,
-			NULL,
-			"0x%08llx\n");
+DEFINE_DEBUGFS_ATTRIBUTE(atk_debugfs_gitm, atk_debugfs_gitm_get, NULL,
+			 "0x%08llx\n");
 
 static int atk_acpi_print(char *buf, size_t sz, union acpi_object *obj)
 {
@@ -803,8 +801,8 @@ static void atk_debugfs_init(struct atk_data *data)
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
-	f = debugfs_create_file("gitm", 0400, d, data,
-				&atk_debugfs_gitm);
+	f = debugfs_create_file_unsafe("gitm", 0400, d, data,
+				       &atk_debugfs_gitm);
 	if (!f || IS_ERR(f))
 		goto cleanup;
 
