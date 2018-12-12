@@ -1088,7 +1088,8 @@ static int vcn_v1_0_start_dpg_mode(struct amdgpu_device *adev)
 	WREG32_P(SOC15_REG_OFFSET(UVD, 0, mmUVD_RBC_RB_CNTL), 0,
 			~UVD_RBC_RB_CNTL__RB_NO_FETCH_MASK);
 
-	/* initialize wptr */
+	/* initialize JPEG wptr */
+	ring = &adev->vcn.ring_jpeg;
 	ring->wptr = RREG32_SOC15(UVD, 0, mmUVD_JRBC_RB_WPTR);
 
 	/* copy patch commands to the jpeg ring */
