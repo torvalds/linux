@@ -2077,9 +2077,9 @@ static int gdth_fill_cache_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp,
 
         if (scsi_bufflen(scp)) {
             cmndinfo->dma_dir = (read_write == 1 ?
-                PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);   
-            sgcnt = pci_map_sg(ha->pdev, scsi_sglist(scp), scsi_sg_count(scp),
-                               cmndinfo->dma_dir);
+                DMA_TO_DEVICE : DMA_FROM_DEVICE);
+            sgcnt = dma_map_sg(&ha->pdev->dev, scsi_sglist(scp),
+			       scsi_sg_count(scp), cmndinfo->dma_dir);
             if (mode64) {
                 struct scatterlist *sl;
 
@@ -2153,8 +2153,6 @@ static int gdth_fill_raw_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp, u8 b)
     dma_addr_t sense_paddr;
     int cmd_index, sgcnt, mode64;
     u8 t,l;
-    struct page *page;
-    unsigned long offset;
     struct gdth_cmndinfo *cmndinfo;
 
     t = scp->device->id;
@@ -2196,10 +2194,8 @@ static int gdth_fill_raw_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp, u8 b)
         }
 
     } else {
-        page = virt_to_page(scp->sense_buffer);
-        offset = (unsigned long)scp->sense_buffer & ~PAGE_MASK;
-        sense_paddr = pci_map_page(ha->pdev,page,offset,
-                                   16,PCI_DMA_FROMDEVICE);
+        sense_paddr = dma_map_single(&ha->pdev->dev, scp->sense_buffer, 16,
+				     DMA_FROM_DEVICE);
 
 	cmndinfo->sense_paddr  = sense_paddr;
         cmdp->OpCode           = GDT_WRITE;             /* always */
@@ -2240,9 +2236,9 @@ static int gdth_fill_raw_cmd(gdth_ha_str *ha, struct scsi_cmnd *scp, u8 b)
         }
 
         if (scsi_bufflen(scp)) {
-            cmndinfo->dma_dir = PCI_DMA_BIDIRECTIONAL;
-            sgcnt = pci_map_sg(ha->pdev, scsi_sglist(scp), scsi_sg_count(scp),
-                               cmndinfo->dma_dir);
+            cmndinfo->dma_dir = DMA_BIDIRECTIONAL;
+            sgcnt = dma_map_sg(&ha->pdev->dev, scsi_sglist(scp),
+			       scsi_sg_count(scp), cmndinfo->dma_dir);
             if (mode64) {
                 struct scatterlist *sl;
 
@@ -2750,12 +2746,12 @@ static int gdth_sync_event(gdth_ha_str *ha, int service, u8 index,
             return 2;
         }
         if (scsi_bufflen(scp))
-            pci_unmap_sg(ha->pdev, scsi_sglist(scp), scsi_sg_count(scp),
+            dma_unmap_sg(&ha->pdev->dev, scsi_sglist(scp), scsi_sg_count(scp),
                          cmndinfo->dma_dir);
 
         if (cmndinfo->sense_paddr)
-            pci_unmap_page(ha->pdev, cmndinfo->sense_paddr, 16,
-                                                           PCI_DMA_FROMDEVICE);
+            dma_unmap_page(&ha->pdev->dev, cmndinfo->sense_paddr, 16,
+			   DMA_FROM_DEVICE);
 
         if (ha->status == S_OK) {
             cmndinfo->status = S_OK;
@@ -3664,8 +3660,9 @@ static int ioc_general(void __user *arg, char *cmnd)
 		return -EINVAL;
 
 	if (gen.data_len + gen.sense_len > 0) {
-		buf = pci_alloc_consistent(ha->pdev,
-				gen.data_len + gen.sense_len, &paddr);
+		buf = dma_alloc_coherent(&ha->pdev->dev,
+				gen.data_len + gen.sense_len, &paddr,
+				GFP_KERNEL);
 		if (!buf)
 			return -EFAULT;
 
@@ -3700,7 +3697,8 @@ static int ioc_general(void __user *arg, char *cmnd)
 
 	rval = 0;
 out_free_buf:
-	pci_free_consistent(ha->pdev, gen.data_len + gen.sense_len, buf, paddr);
+	dma_free_coherent(&ha->pdev->dev, gen.data_len + gen.sense_len, buf,
+			paddr);
 	return rval;
 }
  
@@ -4144,14 +4142,14 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 
 	error = -ENOMEM;
 
-	ha->pscratch = pci_alloc_consistent(ha->pdev, GDTH_SCRATCH,
-						&scratch_dma_handle);
+	ha->pscratch = dma_alloc_coherent(&ha->pdev->dev, GDTH_SCRATCH,
+				&scratch_dma_handle, GFP_KERNEL);
 	if (!ha->pscratch)
 		goto out_free_irq;
 	ha->scratch_phys = scratch_dma_handle;
 
-	ha->pmsg = pci_alloc_consistent(ha->pdev, sizeof(gdth_msg_str),
-					&scratch_dma_handle);
+	ha->pmsg = dma_alloc_coherent(&ha->pdev->dev, sizeof(gdth_msg_str),
+				&scratch_dma_handle, GFP_KERNEL);
 	if (!ha->pmsg)
 		goto out_free_pscratch;
 	ha->msg_phys = scratch_dma_handle;
@@ -4178,16 +4176,16 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 	/* 64-bit DMA only supported from FW >= x.43 */
 	if (!(ha->cache_feat & ha->raw_feat & ha->screen_feat & GDT_64BIT) ||
 	    !ha->dma64_support) {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+		if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "GDT-PCI %d: "
 				"Unable to set 32-bit DMA\n", ha->hanum);
 				goto out_free_pmsg;
 		}
 	} else {
 		shp->max_cmd_len = 16;
-		if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
+		if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
 			printk("GDT-PCI %d: 64-bit DMA enabled\n", ha->hanum);
-		} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+		} else if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "GDT-PCI %d: "
 				"Unable to set 64/32-bit DMA\n", ha->hanum);
 			goto out_free_pmsg;
@@ -4216,10 +4214,10 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 	return 0;
 
  out_free_pmsg:
-	pci_free_consistent(ha->pdev, sizeof(gdth_msg_str),
+	dma_free_coherent(&ha->pdev->dev, sizeof(gdth_msg_str),
 				ha->pmsg, ha->msg_phys);
  out_free_pscratch:
-	pci_free_consistent(ha->pdev, GDTH_SCRATCH,
+	dma_free_coherent(&ha->pdev->dev, GDTH_SCRATCH,
 				ha->pscratch, ha->scratch_phys);
  out_free_irq:
 	free_irq(ha->irq, ha);
@@ -4248,14 +4246,14 @@ static void gdth_remove_one(gdth_ha_str *ha)
 		free_irq(shp->irq,ha);
 
 	if (ha->pscratch)
-		pci_free_consistent(ha->pdev, GDTH_SCRATCH,
+		dma_free_coherent(&ha->pdev->dev, GDTH_SCRATCH,
 			ha->pscratch, ha->scratch_phys);
 	if (ha->pmsg)
-		pci_free_consistent(ha->pdev, sizeof(gdth_msg_str),
+		dma_free_coherent(&ha->pdev->dev, sizeof(gdth_msg_str),
 			ha->pmsg, ha->msg_phys);
 	if (ha->ccb_phys)
-		pci_unmap_single(ha->pdev,ha->ccb_phys,
-			sizeof(gdth_cmd_str),PCI_DMA_BIDIRECTIONAL);
+		dma_unmap_single(&ha->pdev->dev, ha->ccb_phys,
+			sizeof(gdth_cmd_str), DMA_BIDIRECTIONAL);
 
 	scsi_host_put(shp);
 }

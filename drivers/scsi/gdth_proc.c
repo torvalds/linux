@@ -236,7 +236,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         seq_puts(m, "\nPhysical Devices:");
         flag = FALSE;
             
-        buf = pci_alloc_consistent(ha->pdev, size, &paddr);
+        buf = dma_alloc_coherent(&ha->pdev->dev, size, &paddr, GFP_KERNEL);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < ha->bus_cnt; ++i) {
@@ -504,7 +504,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 }
             }
         }
-	pci_free_consistent(ha->pdev, size, buf, paddr);
+	dma_free_coherent(&ha->pdev->dev, size, buf, paddr);
 
         for (i = 0; i < MAX_HDRIVES; ++i) {
             if (!(ha->hdr[i].present))
