@@ -939,6 +939,11 @@ static int psp_np_fw_load(struct psp_context *psp)
 		    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G))
 			/*skip ucode loading in SRIOV VF */
 			continue;
+		if (psp->autoload_supported &&
+		    (ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC1_JT ||
+		     ucode->ucode_id == AMDGPU_UCODE_ID_CP_MEC2_JT))
+			/* skip mec JT when autoload is enabled */
+			continue;
 
 		ret = psp_prep_load_ip_fw_cmd_buf(ucode, psp->cmd);
 		if (ret)
