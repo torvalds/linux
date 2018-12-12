@@ -28,6 +28,7 @@
 #include "smu_v11_0_ppsmc.h"
 #include "smu11_driver_if.h"
 #include "soc15_common.h"
+#include "smu_v11_0_pptable.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
