@@ -103,6 +103,8 @@ typedef struct xfs_mount {
 	uint			m_inode_cluster_size;/* min inode buf size */
 	unsigned int		m_inodes_per_cluster;
 	unsigned int		m_blocks_per_cluster;
+	unsigned int		m_cluster_align;
+	unsigned int		m_cluster_align_inodes;
 	uint			m_blockmask;	/* sb_blocksize-1 */
 	uint			m_blockwsize;	/* sb_blocksize in words */
 	uint			m_blockwmask;	/* blockwsize-1 */

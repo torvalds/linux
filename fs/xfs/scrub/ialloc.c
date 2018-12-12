@@ -300,7 +300,7 @@ xchk_iallocbt_rec(
 
 	/* Make sure this record is aligned to cluster and inoalignmnt size. */
 	agbno = XFS_AGINO_TO_AGBNO(mp, irec.ir_startino);
-	if ((agbno & (xfs_ialloc_cluster_alignment(mp) - 1)) ||
+	if ((agbno & (mp->m_cluster_align - 1)) ||
 	    (agbno & (mp->m_blocks_per_cluster - 1)))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 

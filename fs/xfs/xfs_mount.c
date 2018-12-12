@@ -800,6 +800,8 @@ xfs_mountfs(
 	}
 	mp->m_blocks_per_cluster = xfs_icluster_size_fsb(mp);
 	mp->m_inodes_per_cluster = XFS_FSB_TO_INO(mp, mp->m_blocks_per_cluster);
+	mp->m_cluster_align = xfs_ialloc_cluster_alignment(mp);
+	mp->m_cluster_align_inodes = XFS_FSB_TO_INO(mp, mp->m_cluster_align);
 
 	/*
 	 * If enabled, sparse inode chunk alignment is expected to match the

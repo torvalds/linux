@@ -690,7 +690,7 @@ xfs_ialloc_ag_alloc(
 		 * but not to use them in the actual exact allocation.
 		 */
 		args.alignment = 1;
-		args.minalignslop = xfs_ialloc_cluster_alignment(args.mp) - 1;
+		args.minalignslop = args.mp->m_cluster_align - 1;
 
 		/* Allow space for the inode btree to split. */
 		args.minleft = args.mp->m_in_maxlevels - 1;
@@ -725,7 +725,7 @@ xfs_ialloc_ag_alloc(
 			args.alignment = args.mp->m_dalign;
 			isaligned = 1;
 		} else
-			args.alignment = xfs_ialloc_cluster_alignment(args.mp);
+			args.alignment = args.mp->m_cluster_align;
 		/*
 		 * Need to figure out where to allocate the inode blocks.
 		 * Ideally they should be spaced out through the a.g.
@@ -754,7 +754,7 @@ xfs_ialloc_ag_alloc(
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
 		args.agbno = be32_to_cpu(agi->agi_root);
 		args.fsbno = XFS_AGB_TO_FSB(args.mp, agno, args.agbno);
-		args.alignment = xfs_ialloc_cluster_alignment(args.mp);
+		args.alignment = args.mp->m_cluster_align;
 		if ((error = xfs_alloc_vextent(&args)))
 			return error;
 	}
@@ -1017,7 +1017,7 @@ xfs_ialloc_ag_select(
 		 */
 		ineed = mp->m_ialloc_min_blks;
 		if (flags && ineed > 1)
-			ineed += xfs_ialloc_cluster_alignment(mp);
+			ineed += mp->m_cluster_align;
 		longest = pag->pagf_longest;
 		if (!longest)
 			longest = pag->pagf_flcount > 0;
