@@ -187,6 +187,8 @@ struct psp_context
 
 	/* fence value associated with cmd buffer */
 	atomic_t			fence_value;
+	/* flag to mark whether gfx fw autoload is supported or not */
+	bool				autoload_supported;
 
 	/* xgmi ta firmware and buffer */
 	const struct firmware		*ta_fw;
