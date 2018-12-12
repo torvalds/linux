@@ -881,12 +881,14 @@ mt76x02_dfs_set_domain(struct mt76x02_dev *dev,
 {
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
 
+	mutex_lock(&dev->mt76.mutex);
 	if (dfs_pd->region != region) {
 		tasklet_disable(&dfs_pd->dfs_tasklet);
 		dfs_pd->region = region;
 		mt76x02_dfs_init_params(dev);
 		tasklet_enable(&dfs_pd->dfs_tasklet);
 	}
+	mutex_unlock(&dev->mt76.mutex);
 }
 
 void mt76x02_regd_notifier(struct wiphy *wiphy,
