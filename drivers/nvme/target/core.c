@@ -611,14 +611,44 @@ static void nvmet_update_sq_head(struct nvmet_req *req)
 	req->rsp->sq_head = cpu_to_le16(req->sq->sqhd & 0x0000FFFF);
 }
 
+static void nvmet_set_error(struct nvmet_req *req, u16 status)
+{
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	struct nvme_error_slot *new_error_slot;
+	unsigned long flags;
+
+	req->rsp->status = cpu_to_le16(status << 1);
+
+	if (!ctrl || req->error_loc == -1)
+		return;
+
+	spin_lock_irqsave(&ctrl->error_lock, flags);
+	ctrl->err_counter++;
+	new_error_slot =
+		&ctrl->slots[ctrl->err_counter % NVMET_ERROR_LOG_SLOTS];
+
+	new_error_slot->error_count = cpu_to_le64(ctrl->err_counter);
+	new_error_slot->sqid = cpu_to_le16(req->sq->qid);
+	new_error_slot->cmdid = cpu_to_le16(req->cmd->common.command_id);
+	new_error_slot->status_field = cpu_to_le16(status << 1);
+	new_error_slot->param_error_location = cpu_to_le16(req->error_loc);
+	new_error_slot->lba = cpu_to_le64(req->error_slba);
+	new_error_slot->nsid = req->cmd->common.nsid;
+	spin_unlock_irqrestore(&ctrl->error_lock, flags);
+
+	/* set the more bit for this request */
+	req->rsp->status |= cpu_to_le16(1 << 14);
+}
+
 static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 {
 	if (!req->sq->sqhd_disabled)
 		nvmet_update_sq_head(req);
 	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
+
 	if (unlikely(status))
-		nvmet_set_status(req, status);
+		nvmet_set_error(req, status);
 	if (req->ns)
 		nvmet_put_namespace(req->ns);
 	req->ops->queue_response(req);

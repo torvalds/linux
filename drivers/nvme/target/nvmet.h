@@ -327,11 +327,6 @@ struct nvmet_req {
 
 extern struct workqueue_struct *buffered_io_wq;
 
-static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
-{
-	req->rsp->status = cpu_to_le16(status << 1);
-}
-
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
 	req->rsp->result.u32 = cpu_to_le32(result);
