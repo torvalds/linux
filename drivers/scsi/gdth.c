@@ -89,10 +89,6 @@
  * phase:                   unused
  */
 
-
-/* interrupt coalescing */
-/* #define INT_COAL */
-
 /* statistics */
 #define GDTH_STATISTICS
 
@@ -192,9 +188,6 @@ static u8   DebugState = DEBUG_GDTH;
 
 #ifdef GDTH_STATISTICS
 static u32 max_rq=0, max_index=0, max_sg=0;
-#ifdef INT_COAL
-static u32 max_int_coal=0;
-#endif
 static u32 act_ints=0, act_ios=0, act_stats=0, act_rq=0;
 static struct timer_list gdth_timer;
 #endif
@@ -1189,9 +1182,6 @@ static int gdth_search_drives(gdth_ha_str *ha)
     gdth_arcdl_str *alst;
     gdth_alist_str *alst2;
     gdth_oem_str_ioctl *oemstr;
-#ifdef INT_COAL
-    gdth_perf_modes *pmod;
-#endif
 
     TRACE(("gdth_search_drives() hanum %d\n", ha->hanum));
     ok = 0;
@@ -1233,35 +1223,6 @@ static int gdth_search_drives(gdth_ha_str *ha)
     TRACE2(("gdth_search_drives(): CACHESERVICE initialized\n"));
     cdev_cnt = (u16)ha->info;
     ha->fw_vers = ha->service;
-
-#ifdef INT_COAL
-    if (ha->type == GDT_PCIMPR) {
-        /* set perf. modes */
-        pmod = (gdth_perf_modes *)ha->pscratch;
-        pmod->version          = 1;
-        pmod->st_mode          = 1;    /* enable one status buffer */
-        *((u64 *)&pmod->st_buff_addr1) = ha->coal_stat_phys;
-        pmod->st_buff_indx1    = COALINDEX;
-        pmod->st_buff_addr2    = 0;
-        pmod->st_buff_u_addr2  = 0;
-        pmod->st_buff_indx2    = 0;
-        pmod->st_buff_size     = sizeof(gdth_coal_status) * MAXOFFSETS;
-        pmod->cmd_mode         = 0;    // disable all cmd buffers
-        pmod->cmd_buff_addr1   = 0;
-        pmod->cmd_buff_u_addr1 = 0;
-        pmod->cmd_buff_indx1   = 0;
-        pmod->cmd_buff_addr2   = 0;
-        pmod->cmd_buff_u_addr2 = 0;
-        pmod->cmd_buff_indx2   = 0;
-        pmod->cmd_buff_size    = 0;
-        pmod->reserved1        = 0;            
-        pmod->reserved2        = 0;            
-        if (gdth_internal_cmd(ha, CACHESERVICE, GDT_IOCTL, SET_PERF_MODES,
-                              INVALID_CHANNEL,sizeof(gdth_perf_modes))) {
-            printk("GDT-HA %d: Interrupt coalescing activated\n", ha->hanum);
-        }
-    }
-#endif
 
     /* detect number of buses - try new IOCTL */
     iocr = (gdth_raw_iochan_str *)ha->pscratch;
@@ -2538,12 +2499,6 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
     u8 IStatus;
     u16 Service;
     unsigned long flags = 0;
-#ifdef INT_COAL
-    int coalesced = FALSE;
-    int next = FALSE;
-    gdth_coal_status *pcs = NULL;
-    int act_int_coal = 0;       
-#endif
 
     TRACE(("gdth_interrupt() IRQ %d\n", ha->irq));
 
@@ -2570,24 +2525,6 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
     ++act_ints;
 #endif
 
-#ifdef INT_COAL
-    /* See if the fw is returning coalesced status */
-    if (IStatus == COALINDEX) {
-        /* Coalesced status.  Setup the initial status 
-           buffer pointer and flags */
-        pcs = ha->coal_stat;
-        coalesced = TRUE;        
-        next = TRUE;
-    }
-
-    do {
-        if (coalesced) {
-            /* For coalesced requests all status
-               information is found in the status buffer */
-            IStatus = (u8)(pcs->status & 0xff);
-        }
-#endif
-    
         if (ha->type == GDT_PCI) {
             dp6_ptr = ha->brd;
             if (IStatus & 0x80) {                       /* error flag */
@@ -2620,28 +2557,15 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
             dp6m_ptr = ha->brd;
             if (IStatus & 0x80) {                       /* error flag */
                 IStatus &= ~0x80;
-#ifdef INT_COAL
-                if (coalesced)
-                    ha->status = pcs->ext_status & 0xffff;
-                else 
-#endif
-                    ha->status = readw(&dp6m_ptr->i960r.status);
+                ha->status = readw(&dp6m_ptr->i960r.status);
                 TRACE2(("gdth_interrupt() error %d/%d\n",IStatus,ha->status));
             } else                                      /* no error */
                 ha->status = S_OK;
-#ifdef INT_COAL
-            /* get information */
-            if (coalesced) {    
-                ha->info = pcs->info0;
-                ha->info2 = pcs->info1;
-                ha->service = (pcs->ext_status >> 16) & 0xffff;
-            } else
-#endif
-            {
-                ha->info = readl(&dp6m_ptr->i960r.info[0]);
-                ha->service = readw(&dp6m_ptr->i960r.service);
-                ha->info2 = readl(&dp6m_ptr->i960r.info[1]);
-            }
+
+            ha->info = readl(&dp6m_ptr->i960r.info[0]);
+            ha->service = readw(&dp6m_ptr->i960r.service);
+            ha->info2 = readl(&dp6m_ptr->i960r.info[1]);
+
             /* event string */
             if (IStatus == ASYNCINDEX) {
                 if (ha->service != SCREENSERVICE &&
@@ -2656,15 +2580,8 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
                     }
                 }
             }
-#ifdef INT_COAL
-            /* Make sure that non coalesced interrupts get cleared
-               before being handled by gdth_async_event/gdth_sync_event */
-            if (!coalesced)
-#endif                          
-            {
-                writeb(0xff, &dp6m_ptr->i960r.edoor_reg);
-                writeb(0, &dp6m_ptr->i960r.sema1_reg);
-            }
+            writeb(0xff, &dp6m_ptr->i960r.edoor_reg);
+            writeb(0, &dp6m_ptr->i960r.sema1_reg);
         } else {
             TRACE2(("gdth_interrupt() unknown controller type\n"));
             if (!gdth_polling)
@@ -2726,31 +2643,6 @@ static irqreturn_t __gdth_interrupt(gdth_ha_str *ha,
         } else if (rval == 1) {
             gdth_scsi_done(scp);
         }
-
-#ifdef INT_COAL
-        if (coalesced) {
-            /* go to the next status in the status buffer */
-            ++pcs;
-#ifdef GDTH_STATISTICS
-            ++act_int_coal;
-            if (act_int_coal > max_int_coal) {
-                max_int_coal = act_int_coal;
-                printk("GDT: max_int_coal = %d\n",(u16)max_int_coal);
-            }
-#endif      
-            /* see if there is another status */
-            if (pcs->status == 0)    
-                /* Stop the coalesce loop */
-                next = FALSE;
-        }
-    } while (next);
-
-    /* coalescing only for new GDT_PCIMPR controllers available */      
-    if (ha->type == GDT_PCIMPR && coalesced) {
-        writeb(0xff, &dp6m_ptr->i960r.edoor_reg);
-        writeb(0, &dp6m_ptr->i960r.sema1_reg);
-    }
-#endif
 
     gdth_next(ha);
     return IRQ_HANDLED;
@@ -4264,15 +4156,6 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 		goto out_free_pscratch;
 	ha->msg_phys = scratch_dma_handle;
 
-#ifdef INT_COAL
-	ha->coal_stat = pci_alloc_consistent(ha->pdev,
-			sizeof(gdth_coal_status) * MAXOFFSETS,
-			&scratch_dma_handle);
-	if (!ha->coal_stat)
-		goto out_free_pmsg;
-	ha->coal_stat_phys = scratch_dma_handle;
-#endif
-
 	ha->scratch_busy = FALSE;
 	ha->req_first = NULL;
 	ha->tid_cnt = pdev->device >= 0x200 ? MAXID : MAX_HDRIVES;
@@ -4285,7 +4168,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 	error = -ENODEV;
 	if (!gdth_search_drives(ha)) {
 		printk("GDT-PCI %d: Error during device scan\n", ha->hanum);
-		goto out_free_coal_stat;
+		goto out_free_pmsg;
 	}
 
 	if (hdr_channel < 0 || hdr_channel > ha->bus_cnt)
@@ -4298,7 +4181,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "GDT-PCI %d: "
 				"Unable to set 32-bit DMA\n", ha->hanum);
-				goto out_free_coal_stat;
+				goto out_free_pmsg;
 		}
 	} else {
 		shp->max_cmd_len = 16;
@@ -4307,7 +4190,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 		} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
 			printk(KERN_WARNING "GDT-PCI %d: "
 				"Unable to set 64/32-bit DMA\n", ha->hanum);
-			goto out_free_coal_stat;
+			goto out_free_pmsg;
 		}
 	}
 
@@ -4320,7 +4203,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 
 	error = scsi_add_host(shp, &pdev->dev);
 	if (error)
-		goto out_free_coal_stat;
+		goto out_free_pmsg;
 	list_add_tail(&ha->list, &gdth_instances);
 
 	pci_set_drvdata(ha->pdev, ha);
@@ -4332,12 +4215,7 @@ static int gdth_pci_probe_one(gdth_pci_str *pcistr, gdth_ha_str **ha_out)
 
 	return 0;
 
- out_free_coal_stat:
-#ifdef INT_COAL
-	pci_free_consistent(ha->pdev, sizeof(gdth_coal_status) * MAXOFFSETS,
-				ha->coal_stat, ha->coal_stat_phys);
  out_free_pmsg:
-#endif
 	pci_free_consistent(ha->pdev, sizeof(gdth_msg_str),
 				ha->pmsg, ha->msg_phys);
  out_free_pscratch:
@@ -4369,11 +4247,6 @@ static void gdth_remove_one(gdth_ha_str *ha)
 	if (shp->irq)
 		free_irq(shp->irq,ha);
 
-#ifdef INT_COAL
-	if (ha->coal_stat)
-		pci_free_consistent(ha->pdev, sizeof(gdth_coal_status) *
-			MAXOFFSETS, ha->coal_stat, ha->coal_stat_phys);
-#endif
 	if (ha->pscratch)
 		pci_free_consistent(ha->pdev, GDTH_SCRATCH,
 			ha->pscratch, ha->scratch_phys);
