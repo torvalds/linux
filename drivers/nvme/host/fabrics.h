@@ -88,6 +88,9 @@ enum {
  * @max_reconnects: maximum number of allowed reconnect attempts before removing
  *              the controller, (-1) means reconnect forever, zero means remove
  *              immediately;
+ * @disable_sqflow: disable controller sq flow control
+ * @hdr_digest: generate/verify header digest (TCP)
+ * @data_digest: generate/verify data digest (TCP)
  */
 struct nvmf_ctrl_options {
 	unsigned		mask;
