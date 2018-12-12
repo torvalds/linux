@@ -1484,10 +1484,8 @@ mlx5e_nic_rep_unload(struct mlx5_eswitch_rep *rep)
 static int
 mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 {
-	struct mlx5e_rep_priv *uplink_rpriv;
 	struct mlx5e_rep_priv *rpriv;
 	struct net_device *netdev;
-	struct mlx5e_priv *upriv;
 	int nch, err;
 
 	rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
@@ -1522,9 +1520,6 @@ mlx5e_vport_rep_load(struct mlx5_core_dev *dev, struct mlx5_eswitch_rep *rep)
 		goto err_detach_netdev;
 	}
 
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(dev->priv.eswitch, REP_ETH);
-	upriv = netdev_priv(uplink_rpriv->netdev);
-
 	err = register_netdev(netdev);
 	if (err) {
 		pr_warn("Failed to register representor netdev for vport %d\n",
@@ -1552,14 +1547,9 @@ mlx5e_vport_rep_unload(struct mlx5_eswitch_rep *rep)
 	struct mlx5e_rep_priv *rpriv = mlx5e_rep_to_rep_priv(rep);
 	struct net_device *netdev = rpriv->netdev;
 	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5e_rep_priv *uplink_rpriv;
 	void *ppriv = priv->ppriv;
-	struct mlx5e_priv *upriv;
 
 	unregister_netdev(netdev);
-	uplink_rpriv = mlx5_eswitch_get_uplink_priv(priv->mdev->priv.eswitch,
-						    REP_ETH);
-	upriv = netdev_priv(uplink_rpriv->netdev);
 	mlx5e_rep_neigh_cleanup(rpriv);
 	mlx5e_detach_netdev(priv);
 	mlx5e_destroy_netdev(priv);
