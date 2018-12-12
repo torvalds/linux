@@ -2585,25 +2585,18 @@ static int nested_check_vm_entry_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
-					    struct vmcs12 *vmcs12)
+/*
+ * Checks related to Host Control Registers and MSRs
+ */
+static int nested_check_host_control_regs(struct kvm_vcpu *vcpu,
+                                          struct vmcs12 *vmcs12)
 {
 	bool ia32e;
-
-	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
-	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
-
-	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
-	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
-	    nested_check_vm_entry_controls(vcpu, vmcs12))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (!nested_host_cr0_valid(vcpu, vmcs12->host_cr0) ||
 	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
 	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
-		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
-
+		return -EINVAL;
 	/*
 	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
 	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
@@ -2616,8 +2609,26 @@ static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
 		if (!kvm_valid_efer(vcpu, vmcs12->host_ia32_efer) ||
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA) ||
 		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
-			return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
+			return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
+					    struct vmcs12 *vmcs12)
+{
+	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
+	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
+	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
+	    nested_check_vm_entry_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_check_host_control_regs(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
 
 	return 0;
 }
