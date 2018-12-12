@@ -364,8 +364,6 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 				      unsigned long *mask, unsigned long *bits)
 {
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
-	int bank_shift = pca953x_bank_shift(chip);
-	u32 regaddr = chip->regs->output << bank_shift;
 	unsigned int bank_mask, bank_val;
 	int bank;
 	u8 reg_val[MAX_BANK];
@@ -384,14 +382,7 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 		}
 	}
 
-	/* PCA9575 needs address-increment on multi-byte writes */
-	if ((PCA_CHIP_TYPE(chip->driver_data) == PCA957X_TYPE) &&
-	    (NBANK(chip) > 1)) {
-		regaddr |= REG_ADDR_AI;
-	}
-
-	ret = i2c_smbus_write_i2c_block_data(chip->client, regaddr,
-					     NBANK(chip), reg_val);
+	ret = pca953x_write_regs(chip, chip->regs->output, reg_val);
 	if (ret)
 		goto exit;
 
