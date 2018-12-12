@@ -505,6 +505,7 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(irq_status),
 	POWER_SUPPLY_ATTR(parallel_output_mode),
 	POWER_SUPPLY_ATTR(alignment),
+	POWER_SUPPLY_ATTR(moisture_detection_enabled),
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_ATTR(charge_counter_ext),
 	POWER_SUPPLY_ATTR(charge_charger_state),
