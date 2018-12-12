@@ -661,7 +661,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 	snd_hdac_ext_bus_device_remove(bus);
 #endif
 
-	if (sdev->hda && (!IS_ERR(sdev->hda->dmic_dev)))
+	if (sdev->hda && (!IS_ERR_OR_NULL(sdev->hda->dmic_dev)))
 		platform_device_unregister(sdev->hda->dmic_dev);
 
 	/* disable DSP IRQ */
