@@ -3948,12 +3948,6 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		goto done;
 	}
 
-	if (CHECK(!info.func_info,
-		  "info.func_info == 0. kernel.kptr_restrict is set?")) {
-		err = -1;
-		goto done;
-	}
-
 	finfo = func_info;
 	for (i = 0; i < test->func_info_cnt; i++) {
 		if (CHECK(finfo->type_id != test->func_info[i][1],
@@ -4077,7 +4071,6 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 	 * Other fields are not the concern of this test.
 	 */
 	if (CHECK(err == -1 ||
-		  !info.line_info ||
 		  info.nr_line_info != cnt ||
 		  (jited_cnt && !info.jited_line_info) ||
 		  info.nr_jited_line_info != jited_cnt ||
