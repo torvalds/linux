@@ -3573,11 +3573,11 @@ static void ilk_write_wm_values(struct drm_i915_private *dev_priv,
 	_ilk_disable_lp_wm(dev_priv, dirty);
 
 	if (dirty & WM_DIRTY_PIPE(PIPE_A))
-		I915_WRITE(WM0_PIPEA_ILK, results->wm_pipe[0]);
+		I915_WRITE(WM0_PIPE_ILK(PIPE_A), results->wm_pipe[0]);
 	if (dirty & WM_DIRTY_PIPE(PIPE_B))
-		I915_WRITE(WM0_PIPEB_ILK, results->wm_pipe[1]);
+		I915_WRITE(WM0_PIPE_ILK(PIPE_B), results->wm_pipe[1]);
 	if (dirty & WM_DIRTY_PIPE(PIPE_C))
-		I915_WRITE(WM0_PIPEC_IVB, results->wm_pipe[2]);
+		I915_WRITE(WM0_PIPE_ILK(PIPE_C), results->wm_pipe[2]);
 
 	if (dirty & WM_DIRTY_DDB) {
 		if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv)) {
@@ -6287,13 +6287,8 @@ static void ilk_pipe_wm_get_hw_state(struct intel_crtc *crtc)
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 	struct intel_pipe_wm *active = &crtc_state->wm.ilk.optimal;
 	enum pipe pipe = crtc->pipe;
-	static const i915_reg_t wm0_pipe_reg[] = {
-		[PIPE_A] = WM0_PIPEA_ILK,
-		[PIPE_B] = WM0_PIPEB_ILK,
-		[PIPE_C] = WM0_PIPEC_IVB,
-	};
 
-	hw->wm_pipe[pipe] = I915_READ(wm0_pipe_reg[pipe]);
+	hw->wm_pipe[pipe] = I915_READ(WM0_PIPE_ILK(pipe));
 
 	memset(active, 0, sizeof(*active));
 
