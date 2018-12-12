@@ -212,4 +212,6 @@ int mt76x02_mac_set_beacon(struct mt76x02_dev *dev, u8 vif_idx,
 			   struct sk_buff *skb);
 void mt76x02_mac_set_beacon_enable(struct mt76x02_dev *dev, u8 vif_idx,
 				   bool val);
+
+void mt76x02_edcca_init(struct mt76x02_dev *dev);
 #endif

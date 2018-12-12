@@ -147,6 +147,7 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 		MT_CH_TIME_CFG_RX_AS_BUSY |
 		MT_CH_TIME_CFG_NAV_AS_BUSY |
 		MT_CH_TIME_CFG_EIFS_AS_BUSY |
+		MT_CH_CCA_RC_EN |
 		FIELD_PREP(MT_CH_TIME_CFG_CH_TIMER_CLR, 1));
 
 	err = mt76x0_register_device(dev);

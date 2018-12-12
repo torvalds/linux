@@ -101,6 +101,12 @@ struct mt76x02_dev {
 	u8 slottime;
 
 	struct mt76x02_dfs_pattern_detector dfs_pd;
+
+	/* edcca monitor */
+	bool ed_tx_blocked;
+	bool ed_monitor;
+	u8 ed_trigger;
+	u8 ed_silent;
 };
 
 extern struct ieee80211_rate mt76x02_rates[12];

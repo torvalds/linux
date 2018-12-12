@@ -847,6 +847,88 @@ static void mt76x02_check_mac_err(struct mt76x02_dev *dev)
 		MT_MAC_SYS_CTRL_ENABLE_TX | MT_MAC_SYS_CTRL_ENABLE_RX);
 }
 
+static void
+mt76x02_edcca_tx_enable(struct mt76x02_dev *dev, bool enable)
+{
+	if (enable) {
+		u32 data;
+
+		mt76_set(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
+		mt76_set(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_EN);
+		/* enable pa-lna */
+		data = mt76_rr(dev, MT_TX_PIN_CFG);
+		data |= MT_TX_PIN_CFG_TXANT |
+			MT_TX_PIN_CFG_RXANT |
+			MT_TX_PIN_RFTR_EN |
+			MT_TX_PIN_TRSW_EN;
+		mt76_wr(dev, MT_TX_PIN_CFG, data);
+	} else {
+		mt76_clear(dev, MT_MAC_SYS_CTRL, MT_MAC_SYS_CTRL_ENABLE_TX);
+		mt76_clear(dev, MT_AUTO_RSP_CFG, MT_AUTO_RSP_EN);
+		/* disable pa-lna */
+		mt76_clear(dev, MT_TX_PIN_CFG, MT_TX_PIN_CFG_TXANT);
+		mt76_clear(dev, MT_TX_PIN_CFG, MT_TX_PIN_CFG_RXANT);
+	}
+	dev->ed_tx_blocked = !enable;
+}
+
+void mt76x02_edcca_init(struct mt76x02_dev *dev)
+{
+	dev->ed_trigger = 0;
+	dev->ed_silent = 0;
+
+	if (dev->ed_monitor) {
+		struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+		u8 ed_th = chan->band == NL80211_BAND_5GHZ ? 0x0e : 0x20;
+
+		mt76_clear(dev, MT_TX_LINK_CFG, MT_TX_CFACK_EN);
+		mt76_set(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+		mt76_rmw(dev, MT_BBP(AGC, 2), GENMASK(15, 0),
+			 ed_th << 8 | ed_th);
+		if (!is_mt76x2(dev))
+			mt76_set(dev, MT_TXOP_HLDR_ET,
+				 MT_TXOP_HLDR_TX40M_BLK_EN);
+	} else {
+		mt76_set(dev, MT_TX_LINK_CFG, MT_TX_CFACK_EN);
+		mt76_clear(dev, MT_TXOP_CTRL_CFG, MT_TXOP_ED_CCA_EN);
+		if (is_mt76x2(dev)) {
+			mt76_wr(dev, MT_BBP(AGC, 2), 0x00007070);
+		} else {
+			mt76_wr(dev, MT_BBP(AGC, 2), 0x003a6464);
+			mt76_clear(dev, MT_TXOP_HLDR_ET,
+				   MT_TXOP_HLDR_TX40M_BLK_EN);
+		}
+	}
+	mt76x02_edcca_tx_enable(dev, true);
+}
+EXPORT_SYMBOL_GPL(mt76x02_edcca_init);
+
+#define MT_EDCCA_TH		90
+#define MT_EDCCA_BLOCK_TH	2
+static void mt76x02_edcca_check(struct mt76x02_dev *dev)
+{
+	u32 val, busy;
+
+	val = mt76_rr(dev, MT_ED_CCA_TIMER);
+	busy = (val * 100) / jiffies_to_usecs(MT_CALIBRATE_INTERVAL);
+	busy = min_t(u32, busy, 100);
+
+	if (busy > MT_EDCCA_TH) {
+		dev->ed_trigger++;
+		dev->ed_silent = 0;
+	} else {
+		dev->ed_silent++;
+		dev->ed_trigger = 0;
+	}
+
+	if (dev->ed_trigger > MT_EDCCA_BLOCK_TH &&
+	    !dev->ed_tx_blocked)
+		mt76x02_edcca_tx_enable(dev, false);
+	else if (dev->ed_silent > MT_EDCCA_BLOCK_TH &&
+		 dev->ed_tx_blocked)
+		mt76x02_edcca_tx_enable(dev, true);
+}
+
 void mt76x02_mac_work(struct work_struct *work)
 {
 	struct mt76x02_dev *dev = container_of(work, struct mt76x02_dev,
@@ -866,6 +948,9 @@ void mt76x02_mac_work(struct work_struct *work)
 	/* XXX: check beacon stuck for ap mode */
 	if (!dev->beacon_mask)
 		mt76x02_check_mac_err(dev);
+
+	if (dev->ed_monitor)
+		mt76x02_edcca_check(dev);
 
 	mutex_unlock(&dev->mt76.mutex);
 
