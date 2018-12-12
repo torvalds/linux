@@ -327,7 +327,6 @@ u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 
 /* sysfs stuff */
 extern struct attribute_group cros_ec_attr_group;
-extern struct attribute_group cros_ec_vbc_attr_group;
 
 /* debugfs stuff */
 int cros_ec_debugfs_init(struct cros_ec_dev *ec);

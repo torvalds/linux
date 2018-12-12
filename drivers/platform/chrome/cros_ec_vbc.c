@@ -22,7 +22,10 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/cros_ec.h>
 #include <linux/mfd/cros_ec_commands.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+
+#define DRV_NAME "cros-ec-vbc"
 
 static ssize_t vboot_context_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *att, char *buf,
@@ -132,4 +135,42 @@ struct attribute_group cros_ec_vbc_attr_group = {
 	.bin_attrs = cros_ec_vbc_bin_attrs,
 	.is_bin_visible = cros_ec_vbc_is_visible,
 };
-EXPORT_SYMBOL(cros_ec_vbc_attr_group);
+
+static int cros_ec_vbc_probe(struct platform_device *pd)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
+	struct device *dev = &pd->dev;
+	int ret;
+
+	ret = sysfs_create_group(&ec_dev->class_dev.kobj,
+				 &cros_ec_vbc_attr_group);
+	if (ret < 0)
+		dev_err(dev, "failed to create %s attributes. err=%d\n",
+			cros_ec_vbc_attr_group.name, ret);
+
+	return ret;
+}
+
+static int cros_ec_vbc_remove(struct platform_device *pd)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
+
+	sysfs_remove_group(&ec_dev->class_dev.kobj,
+			   &cros_ec_vbc_attr_group);
+
+	return 0;
+}
+
+static struct platform_driver cros_ec_vbc_driver = {
+	.driver = {
+		.name = DRV_NAME,
+	},
+	.probe = cros_ec_vbc_probe,
+	.remove = cros_ec_vbc_remove,
+};
+
+module_platform_driver(cros_ec_vbc_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Expose the vboot context nvram to userspace");
+MODULE_ALIAS("platform:" DRV_NAME);

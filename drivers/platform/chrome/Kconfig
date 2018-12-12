@@ -122,4 +122,15 @@ config CROS_EC_LIGHTBAR
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_lightbar.
 
+config CROS_EC_VBC
+	tristate "ChromeOS EC vboot context support"
+	depends on MFD_CROS_EC_CHARDEV && OF
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This option exposes the ChromeOS EC vboot context nvram to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_vbc.
+
 endif # CHROMEOS_PLATFORMS
