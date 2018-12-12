@@ -1186,7 +1186,7 @@ static void rcs_engine_wa_init(struct intel_engine_cs *engine)
 				    GEN7_DISABLE_SAMPLER_PREFETCH);
 	}
 
-	if (IS_GEN9(i915) || IS_CANNONLAKE(i915)) {
+	if (IS_GEN(i915, 9) || IS_CANNONLAKE(i915)) {
 		/* WaEnablePreemptionGranularityControlByUMD:skl,bxt,kbl,cfl,cnl */
 		wa_masked_en(wal,
 			     GEN7_FF_SLICE_CS_CHICKEN1,
@@ -1207,7 +1207,7 @@ static void rcs_engine_wa_init(struct intel_engine_cs *engine)
 			     GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE);
 	}
 
-	if (IS_GEN9(i915)) {
+	if (IS_GEN(i915, 9)) {
 		/* WaContextSwitchWithConcurrentTLBInvalidate:skl,bxt,kbl,glk,cfl */
 		wa_masked_en(wal,
 			     GEN9_CSFE_CHICKEN1_RCS,

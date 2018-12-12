@@ -735,7 +735,7 @@ static void __err_print_to_sgl(struct drm_i915_error_state_buf *m,
 		err_printf(m, "DONE_REG: 0x%08x\n", error->done_reg);
 	}
 
-	if (IS_GEN7(m->i915))
+	if (IS_GEN(m->i915, 7))
 		err_printf(m, "ERR_INT: 0x%08x\n", error->err_int);
 
 	for (i = 0; i < ARRAY_SIZE(error->engine); i++) {
@@ -1314,7 +1314,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 	if (!HWS_NEEDS_PHYSICAL(dev_priv)) {
 		i915_reg_t mmio;
 
-		if (IS_GEN7(dev_priv)) {
+		if (IS_GEN(dev_priv, 7)) {
 			switch (engine->id) {
 			default:
 			case RCS:
@@ -1330,7 +1330,7 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 				mmio = VEBOX_HWS_PGA_GEN7;
 				break;
 			}
-		} else if (IS_GEN6(engine->i915)) {
+		} else if (IS_GEN(engine->i915, 6)) {
 			mmio = RING_HWS_PGA_GEN6(engine->mmio_base);
 		} else {
 			/* XXX: gen8 returns to sanity */
@@ -1352,10 +1352,10 @@ static void error_record_engine_registers(struct i915_gpu_state *error,
 
 		ee->vm_info.gfx_mode = I915_READ(RING_MODE_GEN7(engine));
 
-		if (IS_GEN6(dev_priv))
+		if (IS_GEN(dev_priv, 6))
 			ee->vm_info.pp_dir_base =
 				I915_READ(RING_PP_DIR_BASE_READ(engine));
-		else if (IS_GEN7(dev_priv))
+		else if (IS_GEN(dev_priv, 7))
 			ee->vm_info.pp_dir_base =
 				I915_READ(RING_PP_DIR_BASE(engine));
 		else if (INTEL_GEN(dev_priv) >= 8)
@@ -1725,7 +1725,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->forcewake = I915_READ_FW(FORCEWAKE_VLV);
 	}
 
-	if (IS_GEN7(dev_priv))
+	if (IS_GEN(dev_priv, 7))
 		error->err_int = I915_READ(GEN7_ERR_INT);
 
 	if (INTEL_GEN(dev_priv) >= 8) {
@@ -1733,7 +1733,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->fault_data1 = I915_READ(GEN8_FAULT_TLB_DATA1);
 	}
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN(dev_priv, 6)) {
 		error->forcewake = I915_READ_FW(FORCEWAKE);
 		error->gab_ctl = I915_READ(GAB_CTL);
 		error->gfx_mode = I915_READ(GFX_MODE);
@@ -1753,7 +1753,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->ccid = I915_READ(CCID);
 
 	/* 3: Feature specific registers */
-	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
+	if (IS_GEN(dev_priv, 6) || IS_GEN(dev_priv, 7)) {
 		error->gam_ecochk = I915_READ(GAM_ECOCHK);
 		error->gac_eco = I915_READ(GAC_ECO_BITS);
 	}
@@ -1777,7 +1777,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->ier = I915_READ(DEIER);
 		error->gtier[0] = I915_READ(GTIER);
 		error->ngtier = 1;
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		error->ier = I915_READ16(IER);
 	} else if (!IS_VALLEYVIEW(dev_priv)) {
 		error->ier = I915_READ(IER);

@@ -1990,7 +1990,7 @@ static int gen8_emit_flush_render(struct i915_request *request,
 		 * On GEN9: before VF_CACHE_INVALIDATE we need to emit a NULL
 		 * pipe control.
 		 */
-		if (IS_GEN9(request->i915))
+		if (IS_GEN(request->i915, 9))
 			vf_flush_wa = true;
 
 		/* WaForGAMHang:kbl */
@@ -2341,7 +2341,7 @@ make_rpcs(struct drm_i915_private *dev_priv)
 	 * subslices are enabled, or a count between one and four on the first
 	 * slice.
 	 */
-	if (IS_GEN11(dev_priv) && slices == 1 && subslices >= 4) {
+	if (IS_GEN(dev_priv, 11) && slices == 1 && subslices >= 4) {
 		GEM_BUG_ON(subslices & 1);
 
 		subslice_pg = false;

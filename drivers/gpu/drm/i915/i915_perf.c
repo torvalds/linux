@@ -3415,7 +3415,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		dev_priv->perf.oa.ops.read = gen8_oa_read;
 		dev_priv->perf.oa.ops.oa_hw_tail_read = gen8_oa_hw_tail_read;
 
-		if (IS_GEN8(dev_priv) || IS_GEN9(dev_priv)) {
+		if (IS_GEN(dev_priv, 8) || IS_GEN(dev_priv, 9)) {
 			dev_priv->perf.oa.ops.is_valid_b_counter_reg =
 				gen7_is_valid_b_counter_addr;
 			dev_priv->perf.oa.ops.is_valid_mux_reg =
@@ -3431,7 +3431,7 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
 			dev_priv->perf.oa.ops.disable_metric_set = gen8_disable_metric_set;
 
-			if (IS_GEN8(dev_priv)) {
+			if (IS_GEN(dev_priv, 8)) {
 				dev_priv->perf.oa.ctx_oactxctrl_offset = 0x120;
 				dev_priv->perf.oa.ctx_flexeu0_offset = 0x2ce;
 

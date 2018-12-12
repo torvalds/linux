@@ -2271,7 +2271,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 
 	if (IS_I945GM(dev_priv))
 		wm_info = &i945_wm_info;
-	else if (!IS_GEN2(dev_priv))
+	else if (!IS_GEN(dev_priv, 2))
 		wm_info = &i915_wm_info;
 	else
 		wm_info = &i830_a_wm_info;
@@ -2285,7 +2285,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			crtc->base.primary->state->fb;
 		int cpp;
 
-		if (IS_GEN2(dev_priv))
+		if (IS_GEN(dev_priv, 2))
 			cpp = 4;
 		else
 			cpp = fb->format->cpp[0];
@@ -2300,7 +2300,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			planea_wm = wm_info->max_wm;
 	}
 
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		wm_info = &i830_bc_wm_info;
 
 	fifo_size = dev_priv->display.get_fifo_size(dev_priv, PLANE_B);
@@ -2312,7 +2312,7 @@ static void i9xx_update_wm(struct intel_crtc *unused_crtc)
 			crtc->base.primary->state->fb;
 		int cpp;
 
-		if (IS_GEN2(dev_priv))
+		if (IS_GEN(dev_priv, 2))
 			cpp = 4;
 		else
 			cpp = fb->format->cpp[0];
@@ -2923,7 +2923,7 @@ static void intel_fixup_spr_wm_latency(struct drm_i915_private *dev_priv,
 				       uint16_t wm[5])
 {
 	/* ILK sprite LP0 latency is 1300 ns */
-	if (IS_GEN5(dev_priv))
+	if (IS_GEN(dev_priv, 5))
 		wm[0] = 13;
 }
 
@@ -2931,7 +2931,7 @@ static void intel_fixup_cur_wm_latency(struct drm_i915_private *dev_priv,
 				       uint16_t wm[5])
 {
 	/* ILK cursor LP0 latency is 1300 ns */
-	if (IS_GEN5(dev_priv))
+	if (IS_GEN(dev_priv, 5))
 		wm[0] = 13;
 }
 
@@ -3058,7 +3058,7 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	intel_print_wm_latency(dev_priv, "Sprite", dev_priv->wm.spr_latency);
 	intel_print_wm_latency(dev_priv, "Cursor", dev_priv->wm.cur_latency);
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN(dev_priv, 6)) {
 		snb_wm_latency_quirk(dev_priv);
 		snb_wm_lp3_irq_quirk(dev_priv);
 	}
@@ -3314,7 +3314,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 	 * What we should check here is whether FBC can be
 	 * enabled sometime later.
 	 */
-	if (IS_GEN5(dev_priv) && !merged->fbc_wm_enabled &&
+	if (IS_GEN(dev_priv, 5) && !merged->fbc_wm_enabled &&
 	    intel_fbc_is_active(dev_priv)) {
 		for (level = 2; level <= max_level; level++) {
 			struct intel_wm_level *wm = &merged->wm[level];
@@ -3751,9 +3751,9 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	if (!intel_has_sagv(dev_priv))
 		return false;
 
-	if (IS_GEN9(dev_priv))
+	if (IS_GEN(dev_priv, 9))
 		sagv_block_time_us = 30;
-	else if (IS_GEN10(dev_priv))
+	else if (IS_GEN(dev_priv, 10))
 		sagv_block_time_us = 20;
 	else
 		sagv_block_time_us = 10;
@@ -4657,7 +4657,7 @@ skl_compute_plane_wm_params(const struct intel_crtc_state *cstate,
 
 		wp->plane_blocks_per_line = div_fixed16(interm_pbpl,
 							wp->y_min_scanlines);
-	} else if (wp->x_tiled && IS_GEN9(dev_priv)) {
+	} else if (wp->x_tiled && IS_GEN(dev_priv, 9)) {
 		interm_pbpl = DIV_ROUND_UP(wp->plane_bytes_per_line,
 					   wp->dbuf_block_size);
 		wp->plane_blocks_per_line = u32_to_fixed16(interm_pbpl);
@@ -4716,7 +4716,7 @@ static void skl_compute_plane_wm(const struct intel_crtc_state *cstate,
 		     (wp->plane_bytes_per_line / wp->dbuf_block_size < 1)) {
 			selected_result = method2;
 		} else if (latency >= wp->linetime_us) {
-			if (IS_GEN9(dev_priv) &&
+			if (IS_GEN(dev_priv, 9) &&
 			    !IS_GEMINILAKE(dev_priv))
 				selected_result = min_fixed16(method1, method2);
 			else
@@ -6908,7 +6908,7 @@ static void gen9_enable_rps(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
 	/* Program defaults and thresholds for RPS */
-	if (IS_GEN9(dev_priv))
+	if (IS_GEN(dev_priv, 9))
 		I915_WRITE(GEN6_RC_VIDEO_FREQ,
 			GEN9_FREQUENCY(dev_priv->gt_pm.rps.rp1_freq));
 
@@ -7144,9 +7144,9 @@ static void gen6_enable_rc6(struct drm_i915_private *dev_priv)
 
 	rc6vids = 0;
 	ret = sandybridge_pcode_read(dev_priv, GEN6_PCODE_READ_RC6VIDS, &rc6vids);
-	if (IS_GEN6(dev_priv) && ret) {
+	if (IS_GEN(dev_priv, 6) && ret) {
 		DRM_DEBUG_DRIVER("Couldn't check for BIOS workaround\n");
-	} else if (IS_GEN6(dev_priv) && (GEN6_DECODE_RC6_VID(rc6vids & 0xff) < 450)) {
+	} else if (IS_GEN(dev_priv, 6) && (GEN6_DECODE_RC6_VID(rc6vids & 0xff) < 450)) {
 		DRM_DEBUG_DRIVER("You should update your BIOS. Correcting minimum rc6 voltage (%dmV->%dmV)\n",
 			  GEN6_DECODE_RC6_VID(rc6vids & 0xff), 450);
 		rc6vids &= 0xffff00;
@@ -7846,7 +7846,7 @@ unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
 {
 	unsigned long val;
 
-	if (!IS_GEN5(dev_priv))
+	if (!IS_GEN(dev_priv, 5))
 		return 0;
 
 	spin_lock_irq(&mchdev_lock);
@@ -7930,7 +7930,7 @@ static void __i915_update_gfx_val(struct drm_i915_private *dev_priv)
 
 void i915_update_gfx_val(struct drm_i915_private *dev_priv)
 {
-	if (!IS_GEN5(dev_priv))
+	if (!IS_GEN(dev_priv, 5))
 		return;
 
 	spin_lock_irq(&mchdev_lock);
@@ -7981,7 +7981,7 @@ unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
 {
 	unsigned long val;
 
-	if (!IS_GEN5(dev_priv))
+	if (!IS_GEN(dev_priv, 5))
 		return 0;
 
 	spin_lock_irq(&mchdev_lock);
@@ -8269,7 +8269,7 @@ void intel_init_gt_powersave(struct drm_i915_private *dev_priv)
 			      intel_freq_opcode(dev_priv, 450));
 
 	/* After setting max-softlimit, find the overclock max freq */
-	if (IS_GEN6(dev_priv) ||
+	if (IS_GEN(dev_priv, 6) ||
 	    IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv)) {
 		u32 params = 0;
 
@@ -9339,9 +9339,9 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = ivb_init_clock_gating;
 	else if (IS_VALLEYVIEW(dev_priv))
 		dev_priv->display.init_clock_gating = vlv_init_clock_gating;
-	else if (IS_GEN6(dev_priv))
+	else if (IS_GEN(dev_priv, 6))
 		dev_priv->display.init_clock_gating = gen6_init_clock_gating;
-	else if (IS_GEN5(dev_priv))
+	else if (IS_GEN(dev_priv, 5))
 		dev_priv->display.init_clock_gating = ilk_init_clock_gating;
 	else if (IS_G4X(dev_priv))
 		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
@@ -9349,11 +9349,11 @@ void intel_init_clock_gating_hooks(struct drm_i915_private *dev_priv)
 		dev_priv->display.init_clock_gating = i965gm_init_clock_gating;
 	else if (IS_I965G(dev_priv))
 		dev_priv->display.init_clock_gating = i965g_init_clock_gating;
-	else if (IS_GEN3(dev_priv))
+	else if (IS_GEN(dev_priv, 3))
 		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	else if (IS_I85X(dev_priv) || IS_I865G(dev_priv))
 		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-	else if (IS_GEN2(dev_priv))
+	else if (IS_GEN(dev_priv, 2))
 		dev_priv->display.init_clock_gating = i830_init_clock_gating;
 	else {
 		MISSING_CASE(INTEL_DEVID(dev_priv));
@@ -9367,7 +9367,7 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	/* For cxsr */
 	if (IS_PINEVIEW(dev_priv))
 		i915_pineview_get_mem_freq(dev_priv);
-	else if (IS_GEN5(dev_priv))
+	else if (IS_GEN(dev_priv, 5))
 		i915_ironlake_get_mem_freq(dev_priv);
 
 	/* For FIFO watermark updates */
@@ -9379,9 +9379,9 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_setup_wm_latency(dev_priv);
 
-		if ((IS_GEN5(dev_priv) && dev_priv->wm.pri_latency[1] &&
+		if ((IS_GEN(dev_priv, 5) && dev_priv->wm.pri_latency[1] &&
 		     dev_priv->wm.spr_latency[1] && dev_priv->wm.cur_latency[1]) ||
-		    (!IS_GEN5(dev_priv) && dev_priv->wm.pri_latency[0] &&
+		    (!IS_GEN(dev_priv, 5) && dev_priv->wm.pri_latency[0] &&
 		     dev_priv->wm.spr_latency[0] && dev_priv->wm.cur_latency[0])) {
 			dev_priv->display.compute_pipe_wm = ilk_compute_pipe_wm;
 			dev_priv->display.compute_intermediate_wm =
@@ -9422,12 +9422,12 @@ void intel_init_pm(struct drm_i915_private *dev_priv)
 			dev_priv->display.update_wm = NULL;
 		} else
 			dev_priv->display.update_wm = pineview_update_wm;
-	} else if (IS_GEN4(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 4)) {
 		dev_priv->display.update_wm = i965_update_wm;
-	} else if (IS_GEN3(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 3)) {
 		dev_priv->display.update_wm = i9xx_update_wm;
 		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
-	} else if (IS_GEN2(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 2)) {
 		if (INTEL_INFO(dev_priv)->num_pipes == 1) {
 			dev_priv->display.update_wm = i845_update_wm;
 			dev_priv->display.get_fifo_size = i845_get_fifo_size;

@@ -133,7 +133,7 @@ gen4_render_ring_flush(struct i915_request *rq, u32 mode)
 	cmd = MI_FLUSH;
 	if (mode & EMIT_INVALIDATE) {
 		cmd |= MI_EXE_FLUSH;
-		if (IS_G4X(rq->i915) || IS_GEN5(rq->i915))
+		if (IS_G4X(rq->i915) || IS_GEN(rq->i915, 5))
 			cmd |= MI_INVALIDATE_ISP;
 	}
 
@@ -401,7 +401,7 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 	/* The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
-	if (IS_GEN7(dev_priv)) {
+	if (IS_GEN(dev_priv, 7)) {
 		switch (engine->id) {
 		/*
 		 * No more rings exist on Gen7. Default case is only to shut up
@@ -422,7 +422,7 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 			mmio = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
-	} else if (IS_GEN6(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 6)) {
 		mmio = RING_HWS_PGA_GEN6(engine->mmio_base);
 	} else {
 		mmio = RING_HWS_PGA(engine->mmio_base);
@@ -693,17 +693,17 @@ static int init_render_ring(struct intel_engine_cs *engine)
 
 	/* Required for the hardware to program scanline values for waiting */
 	/* WaEnableFlushTlbInvalidationMode:snb */
-	if (IS_GEN6(dev_priv))
+	if (IS_GEN(dev_priv, 6))
 		I915_WRITE(GFX_MODE,
 			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT));
 
 	/* WaBCSVCSTlbInvalidationMode:ivb,vlv,hsw */
-	if (IS_GEN7(dev_priv))
+	if (IS_GEN(dev_priv, 7))
 		I915_WRITE(GFX_MODE_GEN7,
 			   _MASKED_BIT_ENABLE(GFX_TLB_INVALIDATE_EXPLICIT) |
 			   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN(dev_priv, 6)) {
 		/* From the Sandybridge PRM, volume 1 part 3, page 24:
 		 * "If this bit is set, STCunit will have LRA as replacement
 		 *  policy. [...] This bit must be reset.  LRA replacement
@@ -1582,7 +1582,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	enum intel_engine_id id;
 	const int num_rings =
 		/* Use an extended w/a on gen7 if signalling from other rings */
-		(HAS_LEGACY_SEMAPHORES(i915) && IS_GEN7(i915)) ?
+		(HAS_LEGACY_SEMAPHORES(i915) && IS_GEN(i915, 7)) ?
 		INTEL_INFO(i915)->num_rings - 1 :
 		0;
 	bool force_restore = false;
@@ -1597,7 +1597,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		flags |= MI_SAVE_EXT_STATE_EN | MI_RESTORE_EXT_STATE_EN;
 
 	len = 4;
-	if (IS_GEN7(i915))
+	if (IS_GEN(i915, 7))
 		len += 2 + (num_rings ? 4*num_rings + 6 : 0);
 	if (flags & MI_FORCE_RESTORE) {
 		GEM_BUG_ON(flags & MI_RESTORE_INHIBIT);
@@ -1611,7 +1611,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 		return PTR_ERR(cs);
 
 	/* WaProgramMiArbOnOffAroundMiSetContext:ivb,vlv,hsw,bdw,chv */
-	if (IS_GEN7(i915)) {
+	if (IS_GEN(i915, 7)) {
 		*cs++ = MI_ARB_ON_OFF | MI_ARB_DISABLE;
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
@@ -1658,7 +1658,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 	 */
 	*cs++ = MI_NOOP;
 
-	if (IS_GEN7(i915)) {
+	if (IS_GEN(i915, 7)) {
 		if (num_rings) {
 			struct intel_engine_cs *signaller;
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
@@ -2283,9 +2283,9 @@ int intel_init_render_ring_buffer(struct intel_engine_cs *engine)
 	if (INTEL_GEN(dev_priv) >= 6) {
 		engine->init_context = intel_rcs_ctx_init;
 		engine->emit_flush = gen7_render_ring_flush;
-		if (IS_GEN6(dev_priv))
+		if (IS_GEN(dev_priv, 6))
 			engine->emit_flush = gen6_render_ring_flush;
-	} else if (IS_GEN5(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 5)) {
 		engine->emit_flush = gen4_render_ring_flush;
 	} else {
 		if (INTEL_GEN(dev_priv) < 4)
@@ -2315,13 +2315,13 @@ int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine)
 
 	if (INTEL_GEN(dev_priv) >= 6) {
 		/* gen6 bsd needs a special wa for tail updates */
-		if (IS_GEN6(dev_priv))
+		if (IS_GEN(dev_priv, 6))
 			engine->set_default_submission = gen6_bsd_set_default_submission;
 		engine->emit_flush = gen6_bsd_ring_flush;
 		engine->irq_enable_mask = GT_BSD_USER_INTERRUPT;
 	} else {
 		engine->emit_flush = bsd_ring_flush;
-		if (IS_GEN5(dev_priv))
+		if (IS_GEN(dev_priv, 5))
 			engine->irq_enable_mask = ILK_BSD_USER_INTERRUPT;
 		else
 			engine->irq_enable_mask = I915_BSD_USER_INTERRUPT;

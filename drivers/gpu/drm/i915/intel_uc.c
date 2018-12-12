@@ -354,7 +354,7 @@ int intel_uc_init_hw(struct drm_i915_private *i915)
 
 	/* WaEnableuKernelHeaderValidFix:skl */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt,kbl */
-	if (IS_GEN9(i915))
+	if (IS_GEN(i915, 9))
 		attempts = 3;
 	else
 		attempts = 1;

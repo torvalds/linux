@@ -748,7 +748,7 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 	if (INTEL_GEN(dev_priv) >= 10) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_scalers[pipe] = 2;
-	} else if (IS_GEN9(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 9)) {
 		info->num_scalers[PIPE_A] = 2;
 		info->num_scalers[PIPE_B] = 2;
 		info->num_scalers[PIPE_C] = 1;
@@ -756,10 +756,10 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 
 	BUILD_BUG_ON(I915_NUM_ENGINES > BITS_PER_TYPE(intel_ring_mask_t));
 
-	if (IS_GEN11(dev_priv))
+	if (IS_GEN(dev_priv, 11))
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 6;
-	else if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
+	else if (IS_GEN(dev_priv, 10) || IS_GEMINILAKE(dev_priv))
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
@@ -787,7 +787,7 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		DRM_INFO("Display disabled (module parameter)\n");
 		info->num_pipes = 0;
 	} else if (HAS_DISPLAY(dev_priv) &&
-		   (IS_GEN7(dev_priv) || IS_GEN8(dev_priv)) &&
+		   (IS_GEN(dev_priv, 7) || IS_GEN(dev_priv, 8)) &&
 		   HAS_PCH_SPLIT(dev_priv)) {
 		u32 fuse_strap = I915_READ(FUSE_STRAP);
 		u32 sfuse_strap = I915_READ(SFUSE_STRAP);
@@ -851,14 +851,14 @@ void intel_device_info_runtime_init(struct intel_device_info *info)
 		cherryview_sseu_info_init(dev_priv);
 	else if (IS_BROADWELL(dev_priv))
 		broadwell_sseu_info_init(dev_priv);
-	else if (IS_GEN9(dev_priv))
+	else if (IS_GEN(dev_priv, 9))
 		gen9_sseu_info_init(dev_priv);
-	else if (IS_GEN10(dev_priv))
+	else if (IS_GEN(dev_priv, 10))
 		gen10_sseu_info_init(dev_priv);
 	else if (INTEL_GEN(dev_priv) >= 11)
 		gen11_sseu_info_init(dev_priv);
 
-	if (IS_GEN6(dev_priv) && intel_vtd_active()) {
+	if (IS_GEN(dev_priv, 6) && intel_vtd_active()) {
 		DRM_INFO("Disabling ppGTT for VT-d support\n");
 		info->ppgtt = INTEL_PPGTT_NONE;
 	}

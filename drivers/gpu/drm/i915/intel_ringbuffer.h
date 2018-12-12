@@ -94,11 +94,11 @@ hangcheck_action_to_str(const enum intel_engine_hangcheck_action a)
 #define I915_MAX_SUBSLICES 8
 
 #define instdone_slice_mask(dev_priv__) \
-	(IS_GEN7(dev_priv__) ? \
+	(IS_GEN(dev_priv__, 7) ? \
 	 1 : INTEL_INFO(dev_priv__)->sseu.slice_mask)
 
 #define instdone_subslice_mask(dev_priv__) \
-	(IS_GEN7(dev_priv__) ? \
+	(IS_GEN(dev_priv__, 7) ? \
 	 1 : INTEL_INFO(dev_priv__)->sseu.subslice_mask[0])
 
 #define for_each_instdone_slice_subslice(dev_priv__, slice__, subslice__) \

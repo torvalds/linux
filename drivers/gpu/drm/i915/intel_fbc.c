@@ -84,7 +84,7 @@ static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
 	int lines;
 
 	intel_fbc_get_plane_source_size(cache, NULL, &lines);
-	if (IS_GEN7(dev_priv))
+	if (IS_GEN(dev_priv, 7))
 		lines = min(lines, 2048);
 	else if (INTEL_GEN(dev_priv) >= 8)
 		lines = min(lines, 2560);
@@ -127,7 +127,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 		cfb_pitch = params->fb.stride;
 
 	/* FBC_CTL wants 32B or 64B units */
-	if (IS_GEN2(dev_priv))
+	if (IS_GEN(dev_priv, 2))
 		cfb_pitch = (cfb_pitch / 32) - 1;
 	else
 		cfb_pitch = (cfb_pitch / 64) - 1;
@@ -136,7 +136,7 @@ static void i8xx_fbc_activate(struct drm_i915_private *dev_priv)
 	for (i = 0; i < (FBC_LL_SIZE / 32) + 1; i++)
 		I915_WRITE(FBC_TAG(i), 0);
 
-	if (IS_GEN4(dev_priv)) {
+	if (IS_GEN(dev_priv, 4)) {
 		u32 fbc_ctl2;
 
 		/* Set it up... */
@@ -233,9 +233,9 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 
 	if (params->flags & PLANE_HAS_FENCE) {
 		dpfc_ctl |= DPFC_CTL_FENCE_EN;
-		if (IS_GEN5(dev_priv))
+		if (IS_GEN(dev_priv, 5))
 			dpfc_ctl |= params->vma->fence->id;
-		if (IS_GEN6(dev_priv)) {
+		if (IS_GEN(dev_priv, 6)) {
 			I915_WRITE(SNB_DPFC_CTL_SA,
 				   SNB_CPU_FENCE_ENABLE |
 				   params->vma->fence->id);
@@ -243,7 +243,7 @@ static void ilk_fbc_activate(struct drm_i915_private *dev_priv)
 				   params->crtc.fence_y_offset);
 		}
 	} else {
-		if (IS_GEN6(dev_priv)) {
+		if (IS_GEN(dev_priv, 6)) {
 			I915_WRITE(SNB_DPFC_CTL_SA, 0);
 			I915_WRITE(DPFC_CPU_FENCE_OFFSET, 0);
 		}
@@ -282,7 +282,7 @@ static void gen7_fbc_activate(struct drm_i915_private *dev_priv)
 	int threshold = dev_priv->fbc.threshold;
 
 	/* Display WA #0529: skl, kbl, bxt. */
-	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv)) {
+	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv)) {
 		u32 val = I915_READ(CHICKEN_MISC_4);
 
 		val &= ~(FBC_STRIDE_OVERRIDE | FBC_STRIDE_MASK);
@@ -581,10 +581,10 @@ static bool stride_is_valid(struct drm_i915_private *dev_priv,
 	if (stride < 512)
 		return false;
 
-	if (IS_GEN2(dev_priv) || IS_GEN3(dev_priv))
+	if (IS_GEN(dev_priv, 2) || IS_GEN(dev_priv, 3))
 		return stride == 4096 || stride == 8192;
 
-	if (IS_GEN4(dev_priv) && !IS_G4X(dev_priv) && stride < 2048)
+	if (IS_GEN(dev_priv, 4) && !IS_G4X(dev_priv) && stride < 2048)
 		return false;
 
 	if (stride > 16384)
@@ -603,7 +603,7 @@ static bool pixel_format_is_valid(struct drm_i915_private *dev_priv,
 	case DRM_FORMAT_XRGB1555:
 	case DRM_FORMAT_RGB565:
 		/* 16bpp not supported on gen2 */
-		if (IS_GEN2(dev_priv))
+		if (IS_GEN(dev_priv, 2))
 			return false;
 		/* WaFbcOnly1to1Ratio:ctg */
 		if (IS_G4X(dev_priv))
@@ -842,7 +842,7 @@ static void intel_fbc_get_reg_params(struct intel_crtc *crtc,
 
 	params->cfb_size = intel_fbc_calculate_cfb_size(dev_priv, cache);
 
-	if (IS_GEN9(dev_priv) && !IS_GEMINILAKE(dev_priv))
+	if (IS_GEN(dev_priv, 9) && !IS_GEMINILAKE(dev_priv))
 		params->gen9_wa_cfb_stride = DIV_ROUND_UP(cache->plane.src_w,
 						32 * fbc->threshold) * 8;
 }

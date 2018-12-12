@@ -528,7 +528,7 @@ check_for_unclaimed_mmio(struct drm_i915_private *dev_priv)
 	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		ret |= vlv_check_for_unclaimed_mmio(dev_priv);
 
-	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv))
+	if (IS_GEN(dev_priv, 6) || IS_GEN(dev_priv, 7))
 		ret |= gen6_check_for_fifo_debug(dev_priv);
 
 	return ret;
@@ -556,7 +556,7 @@ static void __intel_uncore_early_sanitize(struct drm_i915_private *dev_priv,
 		dev_priv->uncore.funcs.force_wake_get(dev_priv,
 						      restore_forcewake);
 
-		if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv))
+		if (IS_GEN(dev_priv, 6) || IS_GEN(dev_priv, 7))
 			dev_priv->uncore.fifo_count =
 				fifo_free_entries(dev_priv);
 		spin_unlock_irq(&dev_priv->uncore.lock);
@@ -1398,7 +1398,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 	if (INTEL_GEN(dev_priv) <= 5 || intel_vgpu_active(dev_priv))
 		return;
 
-	if (IS_GEN6(dev_priv)) {
+	if (IS_GEN(dev_priv, 6)) {
 		dev_priv->uncore.fw_reset = 0;
 		dev_priv->uncore.fw_set = FORCEWAKE_KERNEL;
 		dev_priv->uncore.fw_clear = 0;
@@ -1437,7 +1437,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 				       FORCEWAKE_MEDIA_VEBOX_GEN11(i),
 				       FORCEWAKE_ACK_MEDIA_VEBOX_GEN11(i));
 		}
-	} else if (IS_GEN10(dev_priv) || IS_GEN9(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 10) || IS_GEN(dev_priv, 9)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_fallback;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
@@ -1503,7 +1503,7 @@ static void intel_uncore_fw_domains_init(struct drm_i915_private *dev_priv)
 			fw_domain_init(dev_priv, FW_DOMAIN_ID_RENDER,
 				       FORCEWAKE, FORCEWAKE_ACK);
 		}
-	} else if (IS_GEN6(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 6)) {
 		dev_priv->uncore.funcs.force_wake_get =
 			fw_domains_get_with_thread_status;
 		dev_priv->uncore.funcs.force_wake_put = fw_domains_put;
@@ -1570,7 +1570,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 	if (IS_GEN_RANGE(dev_priv, 2, 4) || intel_vgpu_active(dev_priv)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen2);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen2);
-	} else if (IS_GEN5(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 5)) {
 		ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, gen5);
 		ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen5);
 	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
@@ -1582,7 +1582,7 @@ void intel_uncore_init(struct drm_i915_private *dev_priv)
 		} else {
 			ASSIGN_READ_MMIO_VFUNCS(dev_priv, gen6);
 		}
-	} else if (IS_GEN8(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 8)) {
 		if (IS_CHERRYVIEW(dev_priv)) {
 			ASSIGN_FW_DOMAINS_TABLE(__chv_fw_ranges);
 			ASSIGN_WRITE_MMIO_VFUNCS(dev_priv, fwtable);
@@ -2173,7 +2173,7 @@ static reset_func intel_get_gpu_reset(struct drm_i915_private *dev_priv)
 		return gen8_reset_engines;
 	else if (INTEL_GEN(dev_priv) >= 6)
 		return gen6_reset_engines;
-	else if (IS_GEN5(dev_priv))
+	else if (IS_GEN(dev_priv, 5))
 		return ironlake_do_reset;
 	else if (IS_G4X(dev_priv))
 		return g4x_do_reset;
@@ -2341,7 +2341,7 @@ intel_uncore_forcewake_for_write(struct drm_i915_private *dev_priv,
 		fw_domains = __gen11_fwtable_reg_write_fw_domains(offset);
 	} else if (HAS_FWTABLE(dev_priv) && !IS_VALLEYVIEW(dev_priv)) {
 		fw_domains = __fwtable_reg_write_fw_domains(offset);
-	} else if (IS_GEN8(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 8)) {
 		fw_domains = __gen8_reg_write_fw_domains(offset);
 	} else if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		fw_domains = FORCEWAKE_RENDER;

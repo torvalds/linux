@@ -438,7 +438,7 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	 * the semaphore value, then when the seqno moves backwards all
 	 * future waits will complete instantly (causing rendering corruption).
 	 */
-	if (IS_GEN6(dev_priv) || IS_GEN7(dev_priv)) {
+	if (IS_GEN(dev_priv, 6) || IS_GEN(dev_priv, 7)) {
 		I915_WRITE(RING_SYNC_0(engine->mmio_base), 0);
 		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
 		if (HAS_VEBOX(dev_priv))
@@ -774,7 +774,7 @@ u32 intel_calculate_mcr_s_ss_select(struct drm_i915_private *dev_priv)
 	u32 slice = fls(sseu->slice_mask);
 	u32 subslice = fls(sseu->subslice_mask[slice]);
 
-	if (IS_GEN10(dev_priv))
+	if (IS_GEN(dev_priv, 10))
 		mcr_s_ss_select = GEN8_MCR_SLICE(slice) |
 				  GEN8_MCR_SUBSLICE(subslice);
 	else if (INTEL_GEN(dev_priv) >= 11)

@@ -115,7 +115,7 @@ static void guc_prepare_xfer(struct intel_guc *guc)
 	else
 		I915_WRITE(GEN9_GT_PM_CONFIG, GT_DOORBELL_ENABLE);
 
-	if (IS_GEN9(dev_priv)) {
+	if (IS_GEN(dev_priv, 9)) {
 		/* DOP Clock Gating Enable for GuC clocks */
 		I915_WRITE(GEN7_MISCCPCTL, (GEN8_DOP_CLOCK_GATE_GUC_ENABLE |
 					    I915_READ(GEN7_MISCCPCTL)));

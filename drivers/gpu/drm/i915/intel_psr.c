@@ -552,7 +552,7 @@ static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv)) {
 		psr_max_h = 4096;
 		psr_max_v = 2304;
-	} else if (IS_GEN9(dev_priv)) {
+	} else if (IS_GEN(dev_priv, 9)) {
 		psr_max_h = 3640;
 		psr_max_v = 2304;
 	}
@@ -686,7 +686,7 @@ static void intel_psr_enable_source(struct intel_dp *intel_dp,
 	if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
 		hsw_psr_setup_aux(intel_dp);
 
-	if (dev_priv->psr.psr2_enabled && (IS_GEN9(dev_priv) &&
+	if (dev_priv->psr.psr2_enabled && (IS_GEN(dev_priv, 9) &&
 					   !IS_GEMINILAKE(dev_priv))) {
 		i915_reg_t reg = gen9_chicken_trans_reg(dev_priv,
 							cpu_transcoder);
