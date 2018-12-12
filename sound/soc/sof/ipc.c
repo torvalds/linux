@@ -721,10 +721,10 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 	struct sof_ipc_fw_version *v = &ready->version;
 
 	dev_info(sdev->dev,
-		 " Firmware info: version %d:%d:%d-%s\n",  v->major, v->minor,
+		 "Firmware info: version %d:%d:%d-%s\n",  v->major, v->minor,
 		 v->micro, v->tag);
 	dev_info(sdev->dev,
-		 " Firmware: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
+		 "Firmware: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
 		 SOF_ABI_VERSION_MAJOR(v->abi_version),
 		 SOF_ABI_VERSION_MINOR(v->abi_version),
 		 SOF_ABI_VERSION_PATCH(v->abi_version),
@@ -737,15 +737,14 @@ int snd_sof_ipc_valid(struct snd_sof_dev *sdev)
 
 	if (ready->debug.bits.build) {
 		dev_info(sdev->dev,
-			 " Firmware debug build %d on %s-%s - options:\n"
-			 "  GDB: %s\n"
-			 "  lock debug: %s\n"
-			 "  lock vdebug: %s\n",
+			 "Firmware debug build %d on %s-%s - options:\n"
+			 " GDB: %s\n"
+			 " lock debug: %s\n"
+			 " lock vdebug: %s\n",
 			 v->build, v->date, v->time,
 			 ready->debug.bits.gdb ? "enabled" : "disabled",
 			 ready->debug.bits.locks ? "enabled" : "disabled",
-			 ready->debug.bits.locks_verbose ?
-			 "enabled" : "disabled");
+			 ready->debug.bits.locks_verbose ? "enabled" : "disabled");
 	}
 
 	/* copy the fw_version into debugfs at first boot */
