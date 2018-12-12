@@ -125,17 +125,14 @@ static int compute_score(struct sock *sk, struct net *net,
 	    sk->sk_family != PF_INET6)
 		return -1;
 
+	if (!ipv6_addr_equal(&sk->sk_v6_rcv_saddr, daddr))
+		return -1;
+
 	score = 0;
 	inet = inet_sk(sk);
 
 	if (inet->inet_dport) {
 		if (inet->inet_dport != sport)
-			return -1;
-		score++;
-	}
-
-	if (!ipv6_addr_any(&sk->sk_v6_rcv_saddr)) {
-		if (!ipv6_addr_equal(&sk->sk_v6_rcv_saddr, daddr))
 			return -1;
 		score++;
 	}
@@ -197,66 +194,32 @@ struct sock *__udp6_lib_lookup(struct net *net,
 			       int dif, int sdif, struct udp_table *udptable,
 			       struct sk_buff *skb)
 {
-	struct sock *sk, *result;
 	unsigned short hnum = ntohs(dport);
-	unsigned int hash2, slot2, slot = udp_hashfn(net, hnum, udptable->mask);
-	struct udp_hslot *hslot2, *hslot = &udptable->hash[slot];
+	unsigned int hash2, slot2;
+	struct udp_hslot *hslot2;
+	struct sock *result;
 	bool exact_dif = udp6_lib_exact_dif_match(net, skb);
-	int score, badness;
-	u32 hash = 0;
 
-	if (hslot->count > 10) {
-		hash2 = ipv6_portaddr_hash(net, daddr, hnum);
+	hash2 = ipv6_portaddr_hash(net, daddr, hnum);
+	slot2 = hash2 & udptable->mask;
+	hslot2 = &udptable->hash2[slot2];
+
+	result = udp6_lib_lookup2(net, saddr, sport,
+				  daddr, hnum, dif, sdif, exact_dif,
+				  hslot2, skb);
+	if (!result) {
+		hash2 = ipv6_portaddr_hash(net, &in6addr_any, hnum);
 		slot2 = hash2 & udptable->mask;
+
 		hslot2 = &udptable->hash2[slot2];
-		if (hslot->count < hslot2->count)
-			goto begin;
 
 		result = udp6_lib_lookup2(net, saddr, sport,
-					  daddr, hnum, dif, sdif, exact_dif,
-					  hslot2, skb);
-		if (!result) {
-			unsigned int old_slot2 = slot2;
-			hash2 = ipv6_portaddr_hash(net, &in6addr_any, hnum);
-			slot2 = hash2 & udptable->mask;
-			/* avoid searching the same slot again. */
-			if (unlikely(slot2 == old_slot2))
-				return result;
-
-			hslot2 = &udptable->hash2[slot2];
-			if (hslot->count < hslot2->count)
-				goto begin;
-
-			result = udp6_lib_lookup2(net, saddr, sport,
-						  daddr, hnum, dif, sdif,
-						  exact_dif, hslot2,
-						  skb);
-		}
-		if (unlikely(IS_ERR(result)))
-			return NULL;
-		return result;
+					  &in6addr_any, hnum, dif, sdif,
+					  exact_dif, hslot2,
+					  skb);
 	}
-begin:
-	result = NULL;
-	badness = -1;
-	sk_for_each_rcu(sk, &hslot->head) {
-		score = compute_score(sk, net, saddr, sport, daddr, hnum, dif,
-				      sdif, exact_dif);
-		if (score > badness) {
-			if (sk->sk_reuseport) {
-				hash = udp6_ehashfn(net, daddr, hnum,
-						    saddr, sport);
-				result = reuseport_select_sock(sk, hash, skb,
-							sizeof(struct udphdr));
-				if (unlikely(IS_ERR(result)))
-					return NULL;
-				if (result)
-					return result;
-			}
-			result = sk;
-			badness = score;
-		}
-	}
+	if (unlikely(IS_ERR(result)))
+		return NULL;
 	return result;
 }
 EXPORT_SYMBOL_GPL(__udp6_lib_lookup);
