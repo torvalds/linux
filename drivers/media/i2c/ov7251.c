@@ -23,51 +23,42 @@
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
-/* 80Mhz */
-#define OV7251_PIXEL_RATE		(80 * 1000 * 1000)
+/* 48Mhz */
+#define OV7251_PIXEL_RATE		(48 * 1000 * 1000)
 #define OV7251_XVCLK_FREQ		24000000
 
-#define CHIP_ID						0x007750
-#define OV7251_REG_CHIP_ID			0x300a
+#define CHIP_ID				0x007750
+#define OV7251_REG_CHIP_ID		0x300a
 #define OV7251_REG_MOD_VENDOR_ID	0x3d10
 #define OV7251_REG_OPT_LOAD_CTRL	0x3d81
 
 #define OV7251_REG_CTRL_MODE		0x0100
-#define OV7251_MODE_SW_STANDBY	0x0
+#define OV7251_MODE_SW_STANDBY		0x0
 #define OV7251_MODE_STREAMING		BIT(0)
 
 #define OV7251_REG_EXPOSURE		0x3500
-#define OV7251_EXPOSURE_MIN		1
-#define OV7251_EXPOSURE_STEP		1
-#define OV7251_VTS_MAX				0xffff		/* for test */
+#define OV7251_EXPOSURE_MIN		4
+#define OV7251_EXPOSURE_STEP		0xf
+#define OV7251_VTS_MAX			0xffff
 
-#define OV7251_REG_DIGI_GAIN_H		0x350a
-#define OV7251_REG_DIGI_GAIN_L		0x350b
-#define OV7251_DIGI_GAIN_L_MASK	0xff
-#define OV7251_DIGI_GAIN_H_SHIFT	3
-#define OV7251_DIGI_GAIN_MIN		0x10
-#define OV7251_DIGI_GAIN_MAX		0x3e0
-#define OV7251_DIGI_GAIN_STEP		1
-#define OV7251_DIGI_GAIN_DEFAULT	32			/* for test */
-/* #define OV7251_DIGI_GAIN_MIN		0
- *#define OV7251_DIGI_GAIN_MAX		(0x800 - 1)
- *#define OV7251_DIGI_GAIN_STEP		1
- *#define OV7251_DIGI_GAIN_DEFAULT	1024
- */
+#define OV7251_REG_ANALOG_GAIN		0x350a
+#define ANALOG_GAIN_MASK		0x3ff
+#define ANALOG_GAIN_MIN			0x10
+#define ANALOG_GAIN_MAX			0x3e0
+#define ANALOG_GAIN_STEP		1
+#define ANALOG_GAIN_DEFAULT		0x20
+
 #define OV7251_REG_TEST_PATTERN		0x5e00
 #define	OV7251_TEST_PATTERN_ENABLE	0x80
 #define	OV7251_TEST_PATTERN_DISABLE	0x0
 
-#define OV7251_REG_VTS				0x380e
+#define OV7251_REG_VTS			0x380e
 
-#define REG_NULL						0xFFFF
+#define REG_NULL			0xFFFF
 
 #define OV7251_REG_VALUE_08BIT		1
 #define OV7251_REG_VALUE_16BIT		2
 #define OV7251_REG_VALUE_24BIT		3
-
-#define OV7251_LANES				1
-#define OV7251_BITS_PER_SAMPLE		10
 
 static const char * const ov7251_supply_names[] = {
 	"avdd",		/* Analog power */
@@ -117,17 +108,20 @@ struct ov7251 {
 
 /*
  * Xclk 24Mhz
- * Pclk 80Mhz
+ * Pclk 48Mhz
+ * PCLK = HTS * VTS * FPS
  * linelength 928(0x3a0)
- * framelength 516(0x204)
+ * framelength 1720(0x6b8)
  * grabwindow_width 640
  * grabwindow_height 480
  * max_framerate 30fps
- * mipi_datarate per lane 800Mbps
+ * mipi_datarate per lane 640Mbps
  */
 static const struct regval ov7251_640x480_regs[] = {
-	{0x0103, 0x01},
 	{0x0100, 0x00},
+	{0x0103, 0x01},
+
+	{0x3001, 0x62},
 	{0x3005, 0x00},
 	{0x3012, 0xc0},
 	{0x3013, 0xd2},
@@ -137,7 +131,7 @@ static const struct regval ov7251_640x480_regs[] = {
 	{0x3018, 0x00},
 	{0x301a, 0x00},
 	{0x301b, 0x00},
-	{0x301c, 0x00},
+	{0x301c, 0x20},
 	{0x3023, 0x05},
 	{0x3037, 0xf0},
 	{0x3098, 0x04},
@@ -198,17 +192,12 @@ static const struct regval ov7251_640x480_regs[] = {
 	{0x380b, 0xe0},
 	{0x380c, 0x03},
 	{0x380d, 0xa0},
-	{0x380e, 0x02},
-	{0x380f, 0x04},
-/*	{0x380c, 0x03},
- *	{0x380d, 0x04},
- *	{0x380e, 0x02},
- *	{0x380f, 0x04},
- */
+	{0x380e, 0x06},
+	{0x380f, 0xb8},
 	{0x3810, 0x00},
-	{0x3811, 0x04},
+	{0x3811, 0x02},
 	{0x3812, 0x00},
-	{0x3813, 0x05},
+	{0x3813, 0x02},
 	{0x3814, 0x11},
 	{0x3815, 0x11},
 	{0x3820, 0x40},
@@ -272,7 +261,6 @@ static const struct regval ov7251_640x480_regs[] = {
 	{0x4a4b, 0x30},
 	{0x5000, 0x85},
 	{0x5001, 0x80},
-	{0x0100, 0x01},
 	{REG_NULL, 0x00},
 };
 
@@ -281,16 +269,16 @@ static const struct ov7251_mode supported_modes[] = {
 		.width = 640,
 		.height = 480,
 		.max_fps = 30,
-		.exp_def = 0x1f80,			/* 0x0080 */
-		.hts_def = 0x03a0,			/* 0x0974 */
-		.vts_def = 0x0204,			/* 0x044e */
+		.exp_def = 0x061c,
+		.hts_def = 0x03a0,
+		.vts_def = 0x06b8,
 		.reg_list = ov7251_640x480_regs,
 	},
 };
 
-#define OV7251_LINK_FREQ_800MHZ		400000000
+#define OV7251_LINK_FREQ_320MHZ		320000000
 static const s64 link_freq_menu_items[] = {
-	OV7251_LINK_FREQ_800MHZ
+	OV7251_LINK_FREQ_320MHZ
 };
 
 static const char * const ov7251_test_pattern_menu[] = {
@@ -509,6 +497,20 @@ static int ov7251_enable_test_pattern(struct ov7251 *ov7251, u32 pattern)
 				OV7251_REG_VALUE_08BIT, val);
 }
 
+static int ov7251_g_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct ov7251 *ov7251 = to_ov7251(sd);
+	const struct ov7251_mode *mode = ov7251->cur_mode;
+
+	mutex_lock(&ov7251->mutex);
+	fi->interval.numerator = 10000;
+	fi->interval.denominator = mode->max_fps * 10000;
+	mutex_unlock(&ov7251->mutex);
+
+	return 0;
+}
+
 static int __ov7251_start_stream(struct ov7251 *ov7251)
 {
 	int ret;
@@ -683,6 +685,7 @@ static const struct v4l2_subdev_internal_ops ov7251_internal_ops = {
 
 static const struct v4l2_subdev_video_ops ov7251_video_ops = {
 	.s_stream = ov7251_s_stream,
+	.g_frame_interval = ov7251_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops ov7251_pad_ops = {
@@ -709,7 +712,7 @@ static int ov7251_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
 		/* Update max exposure while meeting expected vblanking */
-		max = ov7251->cur_mode->height + ctrl->val - 4;
+		max = ov7251->cur_mode->height + ctrl->val - 20;
 		__v4l2_ctrl_modify_range(ov7251->exposure,
 					 ov7251->exposure->minimum, max,
 					 ov7251->exposure->step,
@@ -726,13 +729,10 @@ static int ov7251_set_ctrl(struct v4l2_ctrl *ctrl)
 		ret = ov7251_write_reg(ov7251->client, OV7251_REG_EXPOSURE,
 				       OV7251_REG_VALUE_24BIT, ctrl->val << 4);
 		break;
-	case V4L2_CID_DIGITAL_GAIN:
-		ret = ov7251_write_reg(ov7251->client, OV7251_REG_DIGI_GAIN_L,
-				       OV7251_REG_VALUE_08BIT,
-				       ctrl->val & OV7251_DIGI_GAIN_L_MASK);
-		ret |= ov7251_write_reg(ov7251->client, OV7251_REG_DIGI_GAIN_H,
-				       OV7251_REG_VALUE_08BIT,
-				       ctrl->val >> OV7251_DIGI_GAIN_H_SHIFT);
+	case V4L2_CID_ANALOGUE_GAIN:
+		ret = ov7251_write_reg(ov7251->client, OV7251_REG_ANALOG_GAIN,
+				       OV7251_REG_VALUE_16BIT,
+				       ctrl->val & ANALOG_GAIN_MASK);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = ov7251_write_reg(ov7251->client, OV7251_REG_VTS,
@@ -798,11 +798,11 @@ static int ov7251_initialize_controls(struct ov7251 *ov7251)
 				V4L2_CID_EXPOSURE, OV7251_EXPOSURE_MIN,
 				exposure_max, OV7251_EXPOSURE_STEP,
 				mode->exp_def);
-	/* Digital gain */
-	ov7251->digi_gain = v4l2_ctrl_new_std(handler, &ov7251_ctrl_ops,
-				V4L2_CID_DIGITAL_GAIN, OV7251_DIGI_GAIN_MIN,
-				OV7251_DIGI_GAIN_MAX, OV7251_DIGI_GAIN_STEP,
-				OV7251_DIGI_GAIN_DEFAULT);
+
+	ov7251->anal_gain = v4l2_ctrl_new_std(handler, &ov7251_ctrl_ops,
+				V4L2_CID_ANALOGUE_GAIN, ANALOG_GAIN_MIN,
+				ANALOG_GAIN_MAX, ANALOG_GAIN_STEP,
+				ANALOG_GAIN_DEFAULT);
 
 	ov7251->test_pattern = v4l2_ctrl_new_std_menu_items(handler,
 				&ov7251_ctrl_ops, V4L2_CID_TEST_PATTERN,
