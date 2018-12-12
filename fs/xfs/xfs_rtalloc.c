@@ -64,8 +64,12 @@ xfs_rtany_summary(
 	int		log;		/* loop counter, log2 of ext. size */
 	xfs_suminfo_t	sum;		/* summary data */
 
+	/* There are no extents at levels < m_rsum_cache[bbno]. */
+	if (mp->m_rsum_cache && low < mp->m_rsum_cache[bbno])
+		low = mp->m_rsum_cache[bbno];
+
 	/*
-	 * Loop over logs of extent sizes.  Order is irrelevant.
+	 * Loop over logs of extent sizes.
 	 */
 	for (log = low; log <= high; log++) {
 		/*
@@ -80,13 +84,17 @@ xfs_rtany_summary(
 		 */
 		if (sum) {
 			*stat = 1;
-			return 0;
+			goto out;
 		}
 	}
 	/*
 	 * Found nothing, return failure.
 	 */
 	*stat = 0;
+out:
+	/* There were no extents at levels < log. */
+	if (mp->m_rsum_cache && log > mp->m_rsum_cache[bbno])
+		mp->m_rsum_cache[bbno] = log;
 	return 0;
 }
 
@@ -1187,8 +1195,8 @@ xfs_rtmount_init(
 }
 
 /*
- * Get the bitmap and summary inodes into the mount structure
- * at mount time.
+ * Get the bitmap and summary inodes and the summary cache into the mount
+ * structure at mount time.
  */
 int					/* error */
 xfs_rtmount_inodes(
@@ -1211,6 +1219,14 @@ xfs_rtmount_inodes(
 		return error;
 	}
 	ASSERT(mp->m_rsumip != NULL);
+	/*
+	 * The rsum cache is initialized to all zeroes, which is trivially a
+	 * lower bound on the minimum level with any free extents. We can
+	 * continue without the cache if it couldn't be allocated.
+	 */
+	mp->m_rsum_cache = kmem_zalloc_large(sbp->sb_rbmblocks, KM_SLEEP);
+	if (!mp->m_rsum_cache)
+		xfs_warn(mp, "could not allocate realtime summary cache");
 	return 0;
 }
 
@@ -1218,6 +1234,7 @@ void
 xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
+	kmem_free(mp->m_rsum_cache);
 	if (mp->m_rbmip)
 		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)
