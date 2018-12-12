@@ -1405,7 +1405,10 @@
 	rkisp1: rkisp1@ffb50000 {
 		compatible = "rockchip,rk1808-rkisp1";
 		reg = <0x0 0xffb50000 0x0 0x8000>;
-		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq", "mi_irq", "mipi_irq";
 		clocks = <&cru ACLK_ISP>, <&cru HCLK_ISP>,
 			<&cru SCLK_ISP>, <&cru DCLK_CIF>;
 		clock-names = "aclk_isp", "hclk_isp",
