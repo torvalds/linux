@@ -153,6 +153,24 @@ static void neigh_update_gc_list(struct neighbour *n)
 	write_unlock_bh(&n->tbl->lock);
 }
 
+static void neigh_update_ext_learned(struct neighbour *neigh, u32 flags,
+				     int *notify)
+{
+	u8 ndm_flags;
+
+	if (!(flags & NEIGH_UPDATE_F_ADMIN))
+		return;
+
+	ndm_flags = (flags & NEIGH_UPDATE_F_EXT_LEARNED) ? NTF_EXT_LEARNED : 0;
+	if ((neigh->flags ^ ndm_flags) & NTF_EXT_LEARNED) {
+		if (ndm_flags & NTF_EXT_LEARNED)
+			neigh->flags |= NTF_EXT_LEARNED;
+		else
+			neigh->flags &= ~NTF_EXT_LEARNED;
+		*notify = 1;
+	}
+}
+
 static bool neigh_del(struct neighbour *n, struct neighbour __rcu **np,
 		      struct neigh_table *tbl)
 {
