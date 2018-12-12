@@ -3686,10 +3686,16 @@ static int modify_qp_rtr_to_rts(struct ib_qp *ibqp,
 		       V2_QPC_BYTE_212_LSN_S, 0);
 
 	if (attr_mask & IB_QP_TIMEOUT) {
-		roce_set_field(context->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
-			       V2_QPC_BYTE_28_AT_S, attr->timeout);
-		roce_set_field(qpc_mask->byte_28_at_fl, V2_QPC_BYTE_28_AT_M,
-			      V2_QPC_BYTE_28_AT_S, 0);
+		if (attr->timeout < 31) {
+			roce_set_field(context->byte_28_at_fl,
+				       V2_QPC_BYTE_28_AT_M, V2_QPC_BYTE_28_AT_S,
+				       attr->timeout);
+			roce_set_field(qpc_mask->byte_28_at_fl,
+				       V2_QPC_BYTE_28_AT_M, V2_QPC_BYTE_28_AT_S,
+				       0);
+		} else {
+			dev_warn(dev, "Local ACK timeout shall be 0 to 30.\n");
+		}
 	}
 
 	roce_set_field(context->byte_172_sq_psn, V2_QPC_BYTE_172_SQ_CUR_PSN_M,
