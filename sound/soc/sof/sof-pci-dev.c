@@ -258,7 +258,6 @@ static int sof_pci_probe(struct pci_dev *pci,
 	sof_pdata->desc = (struct sof_dev_desc *)pci_id->driver_data;
 	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = &pci->dev;
-	sof_pdata->type = SOF_DEVICE_PCI;
 	sof_pdata->platform = "sof-audio";
 
 	/* register sof-audio platform driver */

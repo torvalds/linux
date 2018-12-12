@@ -137,7 +137,6 @@ static int sof_spi_probe(struct spi_device *spi)
 	sof_pdata->desc = desc;
 	priv->sof_pdata = sof_pdata;
 	sof_pdata->dev = dev;
-	sof_pdata->type = SOF_DEVICE_SPI;
 
 	/* register sof-audio platform driver */
 	ret = sof_create_platform_device(priv);

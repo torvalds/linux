@@ -197,7 +197,14 @@ int snd_sof_create_page_table(struct snd_sof_dev *sdev,
 		dmab->area, size, pages);
 
 	for (i = 0; i < pages; i++) {
-		u32 idx = (((i << 2) + i)) >> 1;
+		/*
+		 * The number of valid address bits for each page is 20.
+		 * idx determines the byte position within page_table
+		 * where the current page's address is stored
+		 * in the compressed page_table.
+		 * This can be calculated by multiplying the page number by 2.5.
+		 */
+		u32 idx = (5 * i) >> 1;
 		u32 pfn = snd_sgbuf_get_addr(dmab, i * PAGE_SIZE) >> PAGE_SHIFT;
 		u32 *pg_table;
 
@@ -236,8 +243,8 @@ static int sof_probe(struct platform_device *pdev)
 	/* initialize sof device */
 	sdev->dev = &pdev->dev;
 	sdev->parent = plat_data->dev;
-	if (plat_data->type == SOF_DEVICE_PCI)
-		sdev->pci = container_of(plat_data->dev, struct pci_dev, dev);
+	if dev_is_pci(plat_data->dev)
+		sdev->pci = to_pci_dev(plat_data->dev);
 	sdev->ops = plat_data->machine->pdata;
 
 	sdev->pdata = plat_data;
