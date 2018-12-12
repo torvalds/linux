@@ -12368,6 +12368,7 @@ L:	linux-media@vger.kernel.org
 T:	git git://linuxtv.org/media_tree.git
 S:	Odd Fixes
 F:	drivers/media/usb/pwc/*
+F:	include/trace/events/pwc.h
 
 PWM FAN DRIVER
 M:	Kamil Debski <kamil@wypas.org>
