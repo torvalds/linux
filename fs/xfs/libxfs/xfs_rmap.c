@@ -2550,3 +2550,31 @@ xfs_rmap_has_other_keys(
 	*has_rmap = rks.has_rmap;
 	return error;
 }
+
+const struct xfs_owner_info XFS_RMAP_OINFO_SKIP_UPDATE = {
+	.oi_owner = XFS_RMAP_OWN_NULL,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_ANY_OWNER = {
+	.oi_owner = XFS_RMAP_OWN_UNKNOWN,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_FS = {
+	.oi_owner = XFS_RMAP_OWN_FS,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_LOG = {
+	.oi_owner = XFS_RMAP_OWN_LOG,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_AG = {
+	.oi_owner = XFS_RMAP_OWN_AG,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_INOBT = {
+	.oi_owner = XFS_RMAP_OWN_INOBT,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_INODES = {
+	.oi_owner = XFS_RMAP_OWN_INODES,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_REFC = {
+	.oi_owner = XFS_RMAP_OWN_REFC,
+};
+const struct xfs_owner_info XFS_RMAP_OINFO_COW = {
+	.oi_owner = XFS_RMAP_OWN_COW,
+};

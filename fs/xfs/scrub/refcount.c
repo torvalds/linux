@@ -385,7 +385,6 @@ xchk_refcount_xref_rmap(
 	struct xfs_scrub	*sc,
 	xfs_filblks_t		cow_blocks)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_extlen_t		refcbt_blocks = 0;
 	xfs_filblks_t		blocks;
 	int			error;
@@ -394,21 +393,19 @@ xchk_refcount_xref_rmap(
 		return;
 
 	/* Check that we saw as many refcbt blocks as the rmap knows about. */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_REFC);
 	error = xfs_btree_count_blocks(sc->sa.refc_cur, &refcbt_blocks);
 	if (!xchk_btree_process_error(sc, sc->sa.refc_cur, 0, &error))
 		return;
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, &oinfo,
-			&blocks);
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
+			&XFS_RMAP_OINFO_REFC, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (blocks != refcbt_blocks)
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 
 	/* Check that we saw as many cow blocks as the rmap knows about. */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_COW);
-	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur, &oinfo,
-			&blocks);
+	error = xchk_count_rmap_ownedby_ag(sc, sc->sa.rmap_cur,
+			&XFS_RMAP_OINFO_COW, &blocks);
 	if (!xchk_should_check_xref(sc, &error, &sc->sa.rmap_cur))
 		return;
 	if (blocks != cow_blocks)
@@ -420,13 +417,11 @@ int
 xchk_refcountbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
 	xfs_agblock_t		cow_blocks = 0;
 	int			error;
 
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_REFC);
 	error = xchk_btree(sc, sc->sa.refc_cur, xchk_refcountbt_rec,
-			&oinfo, &cow_blocks);
+			&XFS_RMAP_OINFO_REFC, &cow_blocks);
 	if (error)
 		return error;
 

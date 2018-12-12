@@ -505,7 +505,6 @@ xrep_put_freelist(
 	struct xfs_scrub	*sc,
 	xfs_agblock_t		agbno)
 {
-	struct xfs_owner_info	oinfo;
 	int			error;
 
 	/* Make sure there's space on the freelist. */
@@ -518,9 +517,8 @@ xrep_put_freelist(
 	 * create an rmap for the block prior to merging it or else other
 	 * parts will break.
 	 */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	error = xfs_rmap_alloc(sc->tp, sc->sa.agf_bp, sc->sa.agno, agbno, 1,
-			&oinfo);
+			&XFS_RMAP_OINFO_AG);
 	if (error)
 		return error;
 

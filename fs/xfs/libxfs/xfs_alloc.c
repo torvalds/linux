@@ -1594,7 +1594,6 @@ xfs_alloc_ag_vextent_small(
 	xfs_extlen_t	*flenp,	/* result length */
 	int		*stat)	/* status: 0-freelist, 1-normal/none */
 {
-	struct xfs_owner_info	oinfo;
 	int		error;
 	xfs_agblock_t	fbno;
 	xfs_extlen_t	flen;
@@ -1648,9 +1647,8 @@ xfs_alloc_ag_vextent_small(
 			 * doesn't live in the free space, we need to clear
 			 * out the OWN_AG rmap.
 			 */
-			xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 			error = xfs_rmap_free(args->tp, args->agbp, args->agno,
-					fbno, 1, &oinfo);
+					fbno, 1, &XFS_RMAP_OINFO_AG);
 			if (error)
 				goto error0;
 
@@ -2314,10 +2312,11 @@ xfs_alloc_fix_freelist(
 	 * repair/rmap.c in xfsprogs for details.
 	 */
 	memset(&targs, 0, sizeof(targs));
+	/* struct copy below */
 	if (flags & XFS_ALLOC_FLAG_NORMAP)
-		xfs_rmap_skip_owner_update(&targs.oinfo);
+		targs.oinfo = XFS_RMAP_OINFO_SKIP_UPDATE;
 	else
-		xfs_rmap_ag_owner(&targs.oinfo, XFS_RMAP_OWN_AG);
+		targs.oinfo = XFS_RMAP_OINFO_AG;
 	while (!(flags & XFS_ALLOC_FLAG_NOSHRINK) && pag->pagf_flcount > need) {
 		error = xfs_alloc_get_freelist(tp, agbp, &bno, 0);
 		if (error)

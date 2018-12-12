@@ -174,11 +174,8 @@ int
 xchk_rmapbt(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
-
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
 	return xchk_btree(sc, sc->sa.rmap_cur, xchk_rmapbt_rec,
-			&oinfo, NULL);
+			&XFS_RMAP_OINFO_AG, NULL);
 }
 
 /* xref check that the extent is owned by a given owner */

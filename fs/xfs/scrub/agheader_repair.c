@@ -646,7 +646,6 @@ int
 xrep_agfl(
 	struct xfs_scrub	*sc)
 {
-	struct xfs_owner_info	oinfo;
 	struct xfs_bitmap	agfl_extents;
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*agf_bp;
@@ -708,8 +707,8 @@ xrep_agfl(
 		goto err;
 
 	/* Dump any AGFL overflow. */
-	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_AG);
-	return xrep_reap_extents(sc, &agfl_extents, &oinfo, XFS_AG_RESV_AGFL);
+	return xrep_reap_extents(sc, &agfl_extents, &XFS_RMAP_OINFO_AG,
+			XFS_AG_RESV_AGFL);
 err:
 	xfs_bitmap_destroy(&agfl_extents);
 	return error;
