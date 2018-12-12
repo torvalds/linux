@@ -309,16 +309,16 @@ static inline void rcu_preempt_sleep_check(void) { }
  */
 
 #ifdef __CHECKER__
-#define rcu_dereference_sparse(p, space) \
+#define rcu_check_sparse(p, space) \
 	((void)(((typeof(*p) space *)p) == p))
 #else /* #ifdef __CHECKER__ */
-#define rcu_dereference_sparse(p, space)
+#define rcu_check_sparse(p, space)
 #endif /* #else #ifdef __CHECKER__ */
 
 #define __rcu_access_pointer(p, space) \
 ({ \
 	typeof(*p) *_________p1 = (typeof(*p) *__force)READ_ONCE(p); \
-	rcu_dereference_sparse(p, space); \
+	rcu_check_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(_________p1)); \
 })
 #define __rcu_dereference_check(p, c, space) \
@@ -326,13 +326,13 @@ static inline void rcu_preempt_sleep_check(void) { }
 	/* Dependency order vs. p above. */ \
 	typeof(*p) *________p1 = (typeof(*p) *__force)READ_ONCE(p); \
 	RCU_LOCKDEP_WARN(!(c), "suspicious rcu_dereference_check() usage"); \
-	rcu_dereference_sparse(p, space); \
+	rcu_check_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(________p1)); \
 })
 #define __rcu_dereference_protected(p, c, space) \
 ({ \
 	RCU_LOCKDEP_WARN(!(c), "suspicious rcu_dereference_protected() usage"); \
-	rcu_dereference_sparse(p, space); \
+	rcu_check_sparse(p, space); \
 	((typeof(*p) __force __kernel *)(p)); \
 })
 #define rcu_dereference_raw(p) \
@@ -382,6 +382,7 @@ static inline void rcu_preempt_sleep_check(void) { }
 #define rcu_assign_pointer(p, v)					      \
 ({									      \
 	uintptr_t _r_a_p__v = (uintptr_t)(v);				      \
+	rcu_check_sparse(p, __rcu);				      \
 									      \
 	if (__builtin_constant_p(v) && (_r_a_p__v) == (uintptr_t)NULL)	      \
 		WRITE_ONCE((p), (typeof(p))(_r_a_p__v));		      \
@@ -785,7 +786,7 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
  */
 #define RCU_INIT_POINTER(p, v) \
 	do { \
-		rcu_dereference_sparse(p, __rcu); \
+		rcu_check_sparse(p, __rcu); \
 		WRITE_ONCE(p, RCU_INITIALIZER(v)); \
 	} while (0)
 
