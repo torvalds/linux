@@ -379,33 +379,6 @@ static int create_debugfs_mirror(struct tegra_bpmp *bpmp, void *buf,
 	return err;
 }
 
-static int mrq_is_supported(struct tegra_bpmp *bpmp, unsigned int mrq)
-{
-	struct mrq_query_abi_request req = { .mrq = cpu_to_le32(mrq) };
-	struct mrq_query_abi_response resp;
-	struct tegra_bpmp_message msg = {
-		.mrq = MRQ_QUERY_ABI,
-		.tx = {
-			.data = &req,
-			.size = sizeof(req),
-		},
-		.rx = {
-			.data = &resp,
-			.size = sizeof(resp),
-		},
-	};
-	int ret;
-
-	ret = tegra_bpmp_transfer(bpmp, &msg);
-	if (ret < 0) {
-		/* something went wrong; assume not supported */
-		dev_warn(bpmp->dev, "tegra_bpmp_transfer failed (%d)\n", ret);
-		return 0;
-	}
-
-	return resp.status ? 0 : 1;
-}
-
 int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 {
 	dma_addr_t phys;
@@ -415,7 +388,7 @@ int tegra_bpmp_init_debugfs(struct tegra_bpmp *bpmp)
 	int ret;
 	struct dentry *root;
 
-	if (!mrq_is_supported(bpmp, MRQ_DEBUGFS))
+	if (!tegra_bpmp_mrq_is_supported(bpmp, MRQ_DEBUGFS))
 		return 0;
 
 	root = debugfs_create_dir("bpmp", NULL);
