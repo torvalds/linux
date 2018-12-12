@@ -118,19 +118,6 @@ static u32 si_ih_get_wptr(struct amdgpu_device *adev)
 	return (wptr & adev->irq.ih.ptr_mask);
 }
 
-/**
- * si_ih_prescreen_iv - prescreen an interrupt vector
- *
- * @adev: amdgpu_device pointer
- *
- * Returns true if the interrupt vector should be further processed.
- */
-static bool si_ih_prescreen_iv(struct amdgpu_device *adev)
-{
-	/* Process all interrupts */
-	return true;
-}
-
 static void si_ih_decode_iv(struct amdgpu_device *adev,
 			     struct amdgpu_iv_entry *entry)
 {
@@ -301,7 +288,6 @@ static const struct amd_ip_funcs si_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs si_ih_funcs = {
 	.get_wptr = si_ih_get_wptr,
-	.prescreen_iv = si_ih_prescreen_iv,
 	.decode_iv = si_ih_decode_iv,
 	.set_rptr = si_ih_set_rptr
 };

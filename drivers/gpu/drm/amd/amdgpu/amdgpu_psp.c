@@ -155,10 +155,22 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	return ret;
 }
 
-static void psp_prep_tmr_cmd_buf(struct psp_gfx_cmd_resp *cmd,
+bool psp_support_vmr_ring(struct psp_context *psp)
+{
+	if (amdgpu_sriov_vf(psp->adev) && psp->sos_fw_version > 0x80045)
+		return true;
+	else
+		return false;
+}
+
+static void psp_prep_tmr_cmd_buf(struct psp_context *psp,
+				 struct psp_gfx_cmd_resp *cmd,
 				 uint64_t tmr_mc, uint32_t size)
 {
-	cmd->cmd_id = GFX_CMD_ID_SETUP_TMR;
+	if (psp_support_vmr_ring(psp))
+		cmd->cmd_id = GFX_CMD_ID_SETUP_VMR;
+	else
+		cmd->cmd_id = GFX_CMD_ID_SETUP_TMR;
 	cmd->cmd.cmd_setup_tmr.buf_phy_addr_lo = lower_32_bits(tmr_mc);
 	cmd->cmd.cmd_setup_tmr.buf_phy_addr_hi = upper_32_bits(tmr_mc);
 	cmd->cmd.cmd_setup_tmr.buf_size = size;
@@ -192,7 +204,7 @@ static int psp_tmr_load(struct psp_context *psp)
 	if (!cmd)
 		return -ENOMEM;
 
-	psp_prep_tmr_cmd_buf(cmd, psp->tmr_mc_addr, PSP_TMR_SIZE);
+	psp_prep_tmr_cmd_buf(psp, cmd, psp->tmr_mc_addr, PSP_TMR_SIZE);
 	DRM_INFO("reserve 0x%x from 0x%llx for PSP TMR SIZE\n",
 			PSP_TMR_SIZE, psp->tmr_mc_addr);
 
@@ -536,8 +548,10 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	int ret;
 	struct psp_context *psp = &adev->psp;
 
-	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset != 0)
+	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
+		psp_ring_destroy(psp, PSP_RING_TYPE__KM);
 		goto skip_memalloc;
+	}
 
 	psp->cmd = kzalloc(sizeof(struct psp_gfx_cmd_resp), GFP_KERNEL);
 	if (!psp->cmd)

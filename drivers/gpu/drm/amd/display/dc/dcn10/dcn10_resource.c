@@ -202,7 +202,6 @@ enum dcn10_clk_src_array_id {
 #define MMHUB_SR(reg_name)\
 		.reg_name = MMHUB_BASE(mm ## reg_name ## _BASE_IDX) +  \
 					mm ## reg_name
-
 /* macros to expend register list macro defined in HW object header file
  * end *********************/
 
@@ -436,7 +435,6 @@ static const struct dcn_optc_mask tg_mask = {
 	TG_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
 
-
 static const struct bios_registers bios_regs = {
 		NBIO_SR(BIOS_SCRATCH_0),
 		NBIO_SR(BIOS_SCRATCH_3),
@@ -496,7 +494,6 @@ static const struct dce110_clk_src_shift cs_shift = {
 static const struct dce110_clk_src_mask cs_mask = {
 		CS_COMMON_MASK_SH_LIST_DCN1_0(_MASK)
 };
-
 
 static const struct resource_caps res_cap = {
 		.num_timing_generator = 4,
@@ -1277,7 +1274,6 @@ static bool construct(
 			goto fail;
 		}
 	}
-
 	pool->base.clk_mgr = dcn1_clk_mgr_create(ctx);
 	if (pool->base.clk_mgr == NULL) {
 		dm_error("DC: failed to create display clock!\n");

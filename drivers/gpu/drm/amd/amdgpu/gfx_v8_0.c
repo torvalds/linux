@@ -4068,6 +4068,11 @@ static void gfx_v8_0_rlc_start(struct amdgpu_device *adev)
 
 static int gfx_v8_0_rlc_resume(struct amdgpu_device *adev)
 {
+	if (amdgpu_sriov_vf(adev)) {
+		gfx_v8_0_init_csb(adev);
+		return 0;
+	}
+
 	adev->gfx.rlc.funcs->stop(adev);
 	adev->gfx.rlc.funcs->reset(adev);
 	gfx_v8_0_init_pg(adev);
@@ -4947,14 +4952,13 @@ static bool gfx_v8_0_check_soft_reset(void *handle)
 static int gfx_v8_0_pre_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 grbm_soft_reset = 0;
 
 	if ((!adev->gfx.grbm_soft_reset) &&
 	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;
-	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	/* stop the rlc */
 	adev->gfx.rlc.funcs->stop(adev);
@@ -5051,14 +5055,13 @@ static int gfx_v8_0_soft_reset(void *handle)
 static int gfx_v8_0_post_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	u32 grbm_soft_reset = 0, srbm_soft_reset = 0;
+	u32 grbm_soft_reset = 0;
 
 	if ((!adev->gfx.grbm_soft_reset) &&
 	    (!adev->gfx.srbm_soft_reset))
 		return 0;
 
 	grbm_soft_reset = adev->gfx.grbm_soft_reset;
-	srbm_soft_reset = adev->gfx.srbm_soft_reset;
 
 	if (REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CP) ||
 	    REG_GET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET, SOFT_RESET_CPF) ||

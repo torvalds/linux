@@ -2859,7 +2859,10 @@ static int smu7_vblank_too_short(struct pp_hwmgr *hwmgr,
 	case CHIP_POLARIS10:
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
-		switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
+		if (hwmgr->is_kicker)
+			switch_limit_us = data->is_memory_gddr5 ? 450 : 150;
+		else
+			switch_limit_us = data->is_memory_gddr5 ? 190 : 150;
 		break;
 	case CHIP_VEGAM:
 		switch_limit_us = 30;
@@ -4219,9 +4222,17 @@ static int smu7_check_mc_firmware(struct pp_hwmgr *hwmgr)
 	if (tmp & (1 << 23)) {
 		data->mem_latency_high = MEM_LATENCY_HIGH;
 		data->mem_latency_low = MEM_LATENCY_LOW;
+		if ((hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12))
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableFFC);
 	} else {
 		data->mem_latency_high = 330;
 		data->mem_latency_low = 330;
+		if ((hwmgr->chip_id == CHIP_POLARIS10) ||
+		    (hwmgr->chip_id == CHIP_POLARIS11) ||
+		    (hwmgr->chip_id == CHIP_POLARIS12))
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_DisableFFC);
 	}
 
 	return 0;

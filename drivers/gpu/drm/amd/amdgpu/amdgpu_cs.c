@@ -50,7 +50,8 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 	bo = amdgpu_bo_ref(gem_to_amdgpu_bo(gobj));
 	p->uf_entry.priority = 0;
 	p->uf_entry.tv.bo = &bo->tbo;
-	p->uf_entry.tv.shared = true;
+	/* One for TTM and one for the CS job */
+	p->uf_entry.tv.num_shared = 2;
 	p->uf_entry.user_pages = NULL;
 
 	drm_gem_object_put_unlocked(gobj);
@@ -598,6 +599,10 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 			return r;
 	}
 
+	/* One for TTM and one for the CS job */
+	amdgpu_bo_list_for_each_entry(e, p->bo_list)
+		e->tv.num_shared = 2;
+
 	amdgpu_bo_list_get_list(p->bo_list, &p->validated);
 	if (p->bo_list->first_userptr != p->bo_list->num_entries)
 		p->mn = amdgpu_mn_get(p->adev, AMDGPU_MN_TYPE_GFX);
@@ -717,8 +722,14 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	gws = p->bo_list->gws_obj;
 	oa = p->bo_list->oa_obj;
 
-	amdgpu_bo_list_for_each_entry(e, p->bo_list)
-		e->bo_va = amdgpu_vm_bo_find(vm, ttm_to_amdgpu_bo(e->tv.bo));
+	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
+		struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
+
+		/* Make sure we use the exclusive slot for shared BOs */
+		if (bo->prime_shared_count)
+			e->tv.num_shared = 0;
+		e->bo_va = amdgpu_vm_bo_find(vm, bo);
+	}
 
 	if (gds) {
 		p->job->gds_base = amdgpu_bo_gpu_offset(gds) >> PAGE_SHIFT;
@@ -952,10 +963,6 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 		return r;
 
 	r = amdgpu_sync_fence(adev, &p->job->sync, vm->last_update, false);
-	if (r)
-		return r;
-
-	r = reservation_object_reserve_shared(vm->root.base.bo->tbo.resv, 1);
 	if (r)
 		return r;
 

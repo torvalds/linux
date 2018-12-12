@@ -608,12 +608,12 @@ static void build_vrr_infopacket_data(const struct mod_vrr_params *vrr,
 static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 		struct dc_info_packet *infopacket)
 {
-	if (app_tf != transfer_func_unknown) {
+	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
 		infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
 
-		if (app_tf == transfer_func_gamma_22) {
+		if (app_tf == TRANSFER_FUNC_GAMMA_22) {
 			infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
@@ -688,11 +688,11 @@ void mod_freesync_build_vrr_infopacket(struct mod_freesync *mod_freesync,
 		return;
 
 	switch (packet_type) {
-	case packet_type_fs2:
+	case PACKET_TYPE_FS2:
 		build_vrr_infopacket_v2(stream->signal, vrr, app_tf, infopacket);
 		break;
-	case packet_type_vrr:
-	case packet_type_fs1:
+	case PACKET_TYPE_VRR:
+	case PACKET_TYPE_FS1:
 	default:
 		build_vrr_infopacket_v1(stream->signal, vrr, infopacket);
 	}

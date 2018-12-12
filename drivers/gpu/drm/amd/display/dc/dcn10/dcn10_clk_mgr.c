@@ -328,12 +328,10 @@ static void dcn1_update_clocks(struct clk_mgr *clk_mgr,
 
 	*smu_req_cur = smu_req;
 }
-
 static const struct clk_mgr_funcs dcn1_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.update_clocks = dcn1_update_clocks
 };
-
 struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx)
 {
 	struct dc_debug_options *debug = &ctx->dc->debug;
@@ -373,3 +371,5 @@ struct clk_mgr *dcn1_clk_mgr_create(struct dc_context *ctx)
 
 	return &clk_mgr_dce->base;
 }
+
+

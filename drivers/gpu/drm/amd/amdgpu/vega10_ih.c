@@ -220,90 +220,6 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev)
 }
 
 /**
- * vega10_ih_prescreen_iv - prescreen an interrupt vector
- *
- * @adev: amdgpu_device pointer
- *
- * Returns true if the interrupt vector should be further processed.
- */
-static bool vega10_ih_prescreen_iv(struct amdgpu_device *adev)
-{
-	u32 ring_index = adev->irq.ih.rptr >> 2;
-	u32 dw0, dw3, dw4, dw5;
-	u16 pasid;
-	u64 addr, key;
-	struct amdgpu_vm *vm;
-	int r;
-
-	dw0 = le32_to_cpu(adev->irq.ih.ring[ring_index + 0]);
-	dw3 = le32_to_cpu(adev->irq.ih.ring[ring_index + 3]);
-	dw4 = le32_to_cpu(adev->irq.ih.ring[ring_index + 4]);
-	dw5 = le32_to_cpu(adev->irq.ih.ring[ring_index + 5]);
-
-	/* Filter retry page faults, let only the first one pass. If
-	 * there are too many outstanding faults, ignore them until
-	 * some faults get cleared.
-	 */
-	switch (dw0 & 0xff) {
-	case SOC15_IH_CLIENTID_VMC:
-	case SOC15_IH_CLIENTID_UTCL2:
-		break;
-	default:
-		/* Not a VM fault */
-		return true;
-	}
-
-	pasid = dw3 & 0xffff;
-	/* No PASID, can't identify faulting process */
-	if (!pasid)
-		return true;
-
-	/* Not a retry fault, check fault credit */
-	if (!(dw5 & 0x80)) {
-		if (!amdgpu_vm_pasid_fault_credit(adev, pasid))
-			goto ignore_iv;
-		return true;
-	}
-
-	/* Track retry faults in per-VM fault FIFO. */
-	spin_lock(&adev->vm_manager.pasid_lock);
-	vm = idr_find(&adev->vm_manager.pasid_idr, pasid);
-	addr = ((u64)(dw5 & 0xf) << 44) | ((u64)dw4 << 12);
-	key = AMDGPU_VM_FAULT(pasid, addr);
-	if (!vm) {
-		/* VM not found, process it normally */
-		spin_unlock(&adev->vm_manager.pasid_lock);
-		return true;
-	} else {
-		r = amdgpu_vm_add_fault(vm->fault_hash, key);
-
-		/* Hash table is full or the fault is already being processed,
-		 * ignore further page faults
-		 */
-		if (r != 0) {
-			spin_unlock(&adev->vm_manager.pasid_lock);
-			goto ignore_iv;
-		}
-	}
-	/* No locking required with single writer and single reader */
-	r = kfifo_put(&vm->faults, key);
-	if (!r) {
-		/* FIFO is full. Ignore it until there is space */
-		amdgpu_vm_clear_fault(vm->fault_hash, key);
-		spin_unlock(&adev->vm_manager.pasid_lock);
-		goto ignore_iv;
-	}
-
-	spin_unlock(&adev->vm_manager.pasid_lock);
-	/* It's the first fault for this address, process it normally */
-	return true;
-
-ignore_iv:
-	adev->irq.ih.rptr += 32;
-	return false;
-}
-
-/**
  * vega10_ih_decode_iv - decode an interrupt vector
  *
  * @adev: amdgpu_device pointer
@@ -487,7 +403,6 @@ const struct amd_ip_funcs vega10_ih_ip_funcs = {
 
 static const struct amdgpu_ih_funcs vega10_ih_funcs = {
 	.get_wptr = vega10_ih_get_wptr,
-	.prescreen_iv = vega10_ih_prescreen_iv,
 	.decode_iv = vega10_ih_decode_iv,
 	.set_rptr = vega10_ih_set_rptr
 };

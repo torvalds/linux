@@ -39,8 +39,6 @@
 #include <drm/amdgpu_drm.h>
 #include <linux/dma-buf.h>
 
-static const struct dma_buf_ops amdgpu_dmabuf_ops;
-
 /**
  * amdgpu_gem_prime_get_sg_table - &drm_driver.gem_prime_get_sg_table
  * implementation
@@ -332,7 +330,7 @@ static int amdgpu_gem_begin_cpu_access(struct dma_buf *dma_buf,
 	return ret;
 }
 
-static const struct dma_buf_ops amdgpu_dmabuf_ops = {
+const struct dma_buf_ops amdgpu_dmabuf_ops = {
 	.attach = amdgpu_gem_map_attach,
 	.detach = amdgpu_gem_map_detach,
 	.map_dma_buf = drm_gem_map_dma_buf,

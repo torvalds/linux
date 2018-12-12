@@ -78,7 +78,7 @@ int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_dev
 			adev->gmc.xgmi.node_id,
 			adev->gmc.xgmi.hive_id, ret);
 	else
-		dev_info(adev->dev, "XGMI: Add node %d to hive 0x%llx.\n",
+		dev_info(adev->dev, "XGMI: Set topology for node %d, hive 0x%llx.\n",
 			 adev->gmc.xgmi.physical_node_id,
 				 adev->gmc.xgmi.hive_id);
 
@@ -94,9 +94,9 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 
 	int count = 0, ret = -EINVAL;
 
-	if ((adev->asic_type < CHIP_VEGA20) ||
-		(adev->flags & AMD_IS_APU) )
+	if (!adev->gmc.xgmi.supported)
 		return 0;
+
 	adev->gmc.xgmi.node_id = psp_xgmi_get_node_id(&adev->psp);
 	adev->gmc.xgmi.hive_id = psp_xgmi_get_hive_id(&adev->psp);
 
@@ -134,4 +134,24 @@ int amdgpu_xgmi_add_device(struct amdgpu_device *adev)
 exit:
 	mutex_unlock(&xgmi_mutex);
 	return ret;
+}
+
+void amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
+{
+	struct amdgpu_hive_info *hive;
+
+	if (!adev->gmc.xgmi.supported)
+		return;
+
+	mutex_lock(&xgmi_mutex);
+
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (!hive)
+		goto exit;
+
+	if (!(hive->number_devices--))
+		mutex_destroy(&hive->hive_lock);
+
+exit:
+	mutex_unlock(&xgmi_mutex);
 }

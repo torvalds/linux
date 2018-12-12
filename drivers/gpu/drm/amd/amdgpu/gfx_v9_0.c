@@ -86,6 +86,7 @@ MODULE_FIRMWARE("amdgpu/picasso_me.bin");
 MODULE_FIRMWARE("amdgpu/picasso_mec.bin");
 MODULE_FIRMWARE("amdgpu/picasso_mec2.bin");
 MODULE_FIRMWARE("amdgpu/picasso_rlc.bin");
+MODULE_FIRMWARE("amdgpu/picasso_rlc_am4.bin");
 
 MODULE_FIRMWARE("amdgpu/raven2_ce.bin");
 MODULE_FIRMWARE("amdgpu/raven2_pfp.bin");
@@ -645,7 +646,20 @@ static int gfx_v9_0_init_microcode(struct amdgpu_device *adev)
 	adev->gfx.ce_fw_version = le32_to_cpu(cp_hdr->header.ucode_version);
 	adev->gfx.ce_feature_version = le32_to_cpu(cp_hdr->ucode_feature_version);
 
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
+	/*
+	 * For Picasso && AM4 SOCKET board, we use picasso_rlc_am4.bin
+	 * instead of picasso_rlc.bin.
+	 * Judgment method:
+	 * PCO AM4: revision >= 0xC8 && revision <= 0xCF
+	 *          or revision >= 0xD8 && revision <= 0xDF
+	 * otherwise is PCO FP5
+	 */
+	if (!strcmp(chip_name, "picasso") &&
+		(((adev->pdev->revision >= 0xC8) && (adev->pdev->revision <= 0xCF)) ||
+		((adev->pdev->revision >= 0xD8) && (adev->pdev->revision <= 0xDF))))
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc_am4.bin", chip_name);
+	else
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_rlc.bin", chip_name);
 	err = request_firmware(&adev->gfx.rlc_fw, fw_name, adev->dev);
 	if (err)
 		goto out;

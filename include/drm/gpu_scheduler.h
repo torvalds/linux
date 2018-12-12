@@ -331,4 +331,8 @@ struct drm_sched_fence *drm_sched_fence_create(
 void drm_sched_fence_scheduled(struct drm_sched_fence *fence);
 void drm_sched_fence_finished(struct drm_sched_fence *fence);
 
+unsigned long drm_sched_suspend_timeout(struct drm_gpu_scheduler *sched);
+void drm_sched_resume_timeout(struct drm_gpu_scheduler *sched,
+		                unsigned long remaining);
+
 #endif

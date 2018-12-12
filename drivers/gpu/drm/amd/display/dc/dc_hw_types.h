@@ -358,15 +358,16 @@ union dc_tiling_info {
 	} gfx8;
 
 	struct {
+		enum swizzle_mode_values swizzle;
 		unsigned int num_pipes;
-		unsigned int num_banks;
+		unsigned int max_compressed_frags;
 		unsigned int pipe_interleave;
+
+		unsigned int num_banks;
 		unsigned int num_shader_engines;
 		unsigned int num_rb_per_se;
-		unsigned int max_compressed_frags;
 		bool shaderEnable;
 
-		enum swizzle_mode_values swizzle;
 		bool meta_linear;
 		bool rb_aligned;
 		bool pipe_aligned;

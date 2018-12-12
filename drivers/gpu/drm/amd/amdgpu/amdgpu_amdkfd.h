@@ -27,7 +27,6 @@
 
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/mmu_context.h>
 #include <linux/workqueue.h>
 #include <kgd_kfd_interface.h>
 #include <drm/ttm/ttm_execbuf_util.h>
@@ -35,6 +34,7 @@
 #include "amdgpu_vm.h"
 
 extern const struct kgd2kfd_calls *kgd2kfd;
+extern uint64_t amdgpu_amdkfd_total_mem_size;
 
 struct amdgpu_device;
 
@@ -75,6 +75,11 @@ struct amdgpu_amdkfd_fence {
 	struct mm_struct *mm;
 	spinlock_t lock;
 	char timeline_name[TASK_COMM_LEN];
+};
+
+struct amdgpu_kfd_dev {
+	struct kfd_dev *dev;
+	uint64_t vram_used;
 };
 
 struct amdgpu_amdkfd_fence *amdgpu_amdkfd_fence_create(u64 context,
@@ -144,6 +149,11 @@ uint64_t amdgpu_amdkfd_get_gpu_clock_counter(struct kgd_dev *kgd);
 
 uint32_t amdgpu_amdkfd_get_max_engine_clock_in_mhz(struct kgd_dev *kgd);
 void amdgpu_amdkfd_get_cu_info(struct kgd_dev *kgd, struct kfd_cu_info *cu_info);
+int amdgpu_amdkfd_get_dmabuf_info(struct kgd_dev *kgd, int dma_buf_fd,
+				  struct kgd_dev **dmabuf_kgd,
+				  uint64_t *bo_size, void *metadata_buffer,
+				  size_t buffer_size, uint32_t *metadata_size,
+				  uint32_t *flags);
 uint64_t amdgpu_amdkfd_get_vram_usage(struct kgd_dev *kgd);
 uint64_t amdgpu_amdkfd_get_hive_id(struct kgd_dev *kgd);
 
@@ -195,7 +205,13 @@ int amdgpu_amdkfd_gpuvm_restore_process_bos(void *process_info,
 int amdgpu_amdkfd_gpuvm_get_vm_fault_info(struct kgd_dev *kgd,
 					      struct kfd_vm_fault_info *info);
 
+int amdgpu_amdkfd_gpuvm_import_dmabuf(struct kgd_dev *kgd,
+				      struct dma_buf *dmabuf,
+				      uint64_t va, void *vm,
+				      struct kgd_mem **mem, uint64_t *size,
+				      uint64_t *mmap_offset);
+
 void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
-void amdgpu_amdkfd_unreserve_system_memory_limit(struct amdgpu_bo *bo);
+void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo);
 
 #endif /* AMDGPU_AMDKFD_H_INCLUDED */
