@@ -222,7 +222,6 @@ xfs_bmap_update_cancel_item(
 }
 
 const struct xfs_defer_op_type xfs_bmap_update_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_BMAP,
 	.max_items	= XFS_BUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_bmap_update_diff_items,
 	.create_intent	= xfs_bmap_update_create_intent,

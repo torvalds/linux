@@ -208,7 +208,6 @@ xfs_extent_free_cancel_item(
 }
 
 const struct xfs_defer_op_type xfs_extent_free_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_FREE,
 	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_extent_free_diff_items,
 	.create_intent	= xfs_extent_free_create_intent,
@@ -276,7 +275,6 @@ xfs_agfl_free_finish_item(
 
 /* sub-type with special handling for AGFL deferred frees */
 const struct xfs_defer_op_type xfs_agfl_free_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_AGFL_FREE,
 	.max_items	= XFS_EFI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_extent_free_diff_items,
 	.create_intent	= xfs_extent_free_create_intent,

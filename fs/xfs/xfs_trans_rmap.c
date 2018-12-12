@@ -246,7 +246,6 @@ xfs_rmap_update_cancel_item(
 }
 
 const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_RMAP,
 	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_rmap_update_diff_items,
 	.create_intent	= xfs_rmap_update_create_intent,

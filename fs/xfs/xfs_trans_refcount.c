@@ -229,7 +229,6 @@ xfs_refcount_update_cancel_item(
 }
 
 const struct xfs_defer_op_type xfs_refcount_update_defer_type = {
-	.type		= XFS_DEFER_OPS_TYPE_REFCOUNT,
 	.max_items	= XFS_CUI_MAX_FAST_EXTENTS,
 	.diff_items	= xfs_refcount_update_diff_items,
 	.create_intent	= xfs_refcount_update_create_intent,
