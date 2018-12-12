@@ -75,10 +75,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	/* number of pages should be rounded up */
-	if (runtime->dma_bytes % PAGE_SIZE)
-		pcm.params.buffer.pages = (runtime->dma_bytes / PAGE_SIZE) + 1;
-	else
-		pcm.params.buffer.pages = runtime->dma_bytes / PAGE_SIZE;
+	pcm.params.buffer.pages = DIV_ROUND_UP(runtime->dma_bytes, PAGE_SIZE);
 
 	/* set IPC PCM parameters */
 	pcm.hdr.size = sizeof(pcm);
