@@ -247,7 +247,7 @@ out:
 
 static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 {
-	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 stat;
 
 	switch (cdw10 & 0xff) {
@@ -268,7 +268,7 @@ static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 
 static void nvmet_execute_disc_get_features(struct nvmet_req *req)
 {
-	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 stat = 0;
 
 	switch (cdw10 & 0xff) {

@@ -349,7 +349,7 @@ struct nvmet_async_event {
 
 static inline void nvmet_clear_aen_bit(struct nvmet_req *req, u32 bn)
 {
-	int rae = le32_to_cpu(req->cmd->common.cdw10[0]) & 1 << 15;
+	int rae = le32_to_cpu(req->cmd->common.cdw10) & 1 << 15;
 
 	if (!rae)
 		clear_bit(bn, &req->sq->ctrl->aen_masked);

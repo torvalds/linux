@@ -937,9 +937,9 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 	/* cdw11-12 */
 	c.ph_rw.length = cpu_to_le16(vcmd.nppas);
 	c.ph_rw.control  = cpu_to_le16(vcmd.control);
-	c.common.cdw10[3] = cpu_to_le32(vcmd.cdw13);
-	c.common.cdw10[4] = cpu_to_le32(vcmd.cdw14);
-	c.common.cdw10[5] = cpu_to_le32(vcmd.cdw15);
+	c.common.cdw13 = cpu_to_le32(vcmd.cdw13);
+	c.common.cdw14 = cpu_to_le32(vcmd.cdw14);
+	c.common.cdw15 = cpu_to_le32(vcmd.cdw15);
 
 	if (vcmd.timeout_ms)
 		timeout = msecs_to_jiffies(vcmd.timeout_ms);

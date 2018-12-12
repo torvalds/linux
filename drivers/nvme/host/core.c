@@ -1283,12 +1283,12 @@ static int nvme_user_cmd(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	c.common.nsid = cpu_to_le32(cmd.nsid);
 	c.common.cdw2[0] = cpu_to_le32(cmd.cdw2);
 	c.common.cdw2[1] = cpu_to_le32(cmd.cdw3);
-	c.common.cdw10[0] = cpu_to_le32(cmd.cdw10);
-	c.common.cdw10[1] = cpu_to_le32(cmd.cdw11);
-	c.common.cdw10[2] = cpu_to_le32(cmd.cdw12);
-	c.common.cdw10[3] = cpu_to_le32(cmd.cdw13);
-	c.common.cdw10[4] = cpu_to_le32(cmd.cdw14);
-	c.common.cdw10[5] = cpu_to_le32(cmd.cdw15);
+	c.common.cdw10 = cpu_to_le32(cmd.cdw10);
+	c.common.cdw11 = cpu_to_le32(cmd.cdw11);
+	c.common.cdw12 = cpu_to_le32(cmd.cdw12);
+	c.common.cdw13 = cpu_to_le32(cmd.cdw13);
+	c.common.cdw14 = cpu_to_le32(cmd.cdw14);
+	c.common.cdw15 = cpu_to_le32(cmd.cdw15);
 
 	if (cmd.timeout_ms)
 		timeout = msecs_to_jiffies(cmd.timeout_ms);
@@ -1649,7 +1649,7 @@ static int nvme_pr_command(struct block_device *bdev, u32 cdw10,
 	memset(&c, 0, sizeof(c));
 	c.common.opcode = op;
 	c.common.nsid = cpu_to_le32(ns->head->ns_id);
-	c.common.cdw10[0] = cpu_to_le32(cdw10);
+	c.common.cdw10 = cpu_to_le32(cdw10);
 
 	ret = nvme_submit_sync_cmd(ns->queue, &c, data, 16);
 	nvme_put_ns_from_disk(head, srcu_idx);
@@ -1723,8 +1723,8 @@ int nvme_sec_submit(void *data, u16 spsp, u8 secp, void *buffer, size_t len,
 	else
 		cmd.common.opcode = nvme_admin_security_recv;
 	cmd.common.nsid = 0;
-	cmd.common.cdw10[0] = cpu_to_le32(((u32)secp) << 24 | ((u32)spsp) << 8);
-	cmd.common.cdw10[1] = cpu_to_le32(len);
+	cmd.common.cdw10 = cpu_to_le32(((u32)secp) << 24 | ((u32)spsp) << 8);
+	cmd.common.cdw11 = cpu_to_le32(len);
 
 	return __nvme_submit_sync_cmd(ctrl->admin_q, &cmd, NULL, buffer, len,
 				      ADMIN_TIMEOUT, NVME_QID_ANY, 1, 0);

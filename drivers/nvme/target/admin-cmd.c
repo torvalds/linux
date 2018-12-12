@@ -557,7 +557,7 @@ static u16 nvmet_write_protect_flush_sync(struct nvmet_req *req)
 
 static u16 nvmet_set_feat_write_protect(struct nvmet_req *req)
 {
-	u32 write_protect = le32_to_cpu(req->cmd->common.cdw10[1]);
+	u32 write_protect = le32_to_cpu(req->cmd->common.cdw11);
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
 	u16 status = NVME_SC_FEATURE_NOT_CHANGEABLE;
 
@@ -589,7 +589,7 @@ static u16 nvmet_set_feat_write_protect(struct nvmet_req *req)
 
 u16 nvmet_set_feat_kato(struct nvmet_req *req)
 {
-	u32 val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
+	u32 val32 = le32_to_cpu(req->cmd->common.cdw11);
 
 	req->sq->ctrl->kato = DIV_ROUND_UP(val32, 1000);
 
@@ -600,7 +600,7 @@ u16 nvmet_set_feat_kato(struct nvmet_req *req)
 
 u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask)
 {
-	u32 val32 = le32_to_cpu(req->cmd->common.cdw10[1]);
+	u32 val32 = le32_to_cpu(req->cmd->common.cdw11);
 
 	if (val32 & ~mask)
 		return NVME_SC_INVALID_FIELD | NVME_SC_DNR;
@@ -614,7 +614,7 @@ u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask)
 static void nvmet_execute_set_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
-	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 status = 0;
 
 	switch (cdw10 & 0xff) {
@@ -675,7 +675,7 @@ void nvmet_get_feat_async_event(struct nvmet_req *req)
 static void nvmet_execute_get_features(struct nvmet_req *req)
 {
 	struct nvmet_subsys *subsys = req->sq->ctrl->subsys;
-	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 status = 0;
 
 	switch (cdw10 & 0xff) {
@@ -715,7 +715,7 @@ static void nvmet_execute_get_features(struct nvmet_req *req)
 		break;
 	case NVME_FEAT_HOST_ID:
 		/* need 128-bit host identifier flag */
-		if (!(req->cmd->common.cdw10[1] & cpu_to_le32(1 << 0))) {
+		if (!(req->cmd->common.cdw11 & cpu_to_le32(1 << 0))) {
 			status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 			break;
 		}
