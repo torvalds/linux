@@ -117,7 +117,7 @@
  */
 #define ADT7316_ADCLK_22_5		0x1
 #define ADT7316_DA_HIGH_RESOLUTION	0x2
-#define ADT7316_DA_EN_VIA_DAC_LDCA	0x8
+#define ADT7316_DA_EN_VIA_DAC_LDAC	0x8
 #define ADT7516_AIN_IN_VREF		0x10
 #define ADT7316_EN_IN_TEMP_PROP_DACA	0x20
 #define ADT7316_EN_EX_TEMP_PROP_DACB	0x40
@@ -852,7 +852,7 @@ static ssize_t adt7316_show_DAC_update_mode(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA))
+	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDAC))
 		return sprintf(buf, "manual\n");
 
 	switch (chip->dac_config & ADT7316_DA_EN_MODE_MASK) {
@@ -881,7 +881,7 @@ static ssize_t adt7316_store_DAC_update_mode(struct device *dev,
 	u8 data;
 	int ret;
 
-	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA))
+	if (!(chip->config3 & ADT7316_DA_EN_VIA_DAC_LDAC))
 		return -EPERM;
 
 	ret = kstrtou8(buf, 10, &data);
@@ -912,7 +912,7 @@ static ssize_t adt7316_show_all_DAC_update_modes(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA)
+	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDAC)
 		return sprintf(buf, "0 - auto at any MSB DAC writing\n"
 				"1 - auto at MSB DAC AB and CD writing\n"
 				"2 - auto at MSB DAC ABCD writing\n"
@@ -934,7 +934,7 @@ static ssize_t adt7316_store_update_DAC(struct device *dev,
 	u8 data;
 	int ret;
 
-	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDCA) {
+	if (chip->config3 & ADT7316_DA_EN_VIA_DAC_LDAC) {
 		if ((chip->dac_config & ADT7316_DA_EN_MODE_MASK) !=
 			ADT7316_DA_EN_MODE_LDAC)
 			return -EPERM;
@@ -2118,7 +2118,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	}
 
 	if (!chip->ldac_pin) {
-		chip->config3 |= ADT7316_DA_EN_VIA_DAC_LDCA;
+		chip->config3 |= ADT7316_DA_EN_VIA_DAC_LDAC;
 		if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
 			chip->config1 |= ADT7516_SEL_AIN3;
 	}
