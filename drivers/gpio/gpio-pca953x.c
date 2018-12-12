@@ -159,11 +159,16 @@ struct pca953x_chip {
 	int (*read_regs)(struct pca953x_chip *, int, u8 *);
 };
 
+static int pca953x_bank_shift(struct pca953x_chip *chip)
+{
+	return fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+}
+
 static int pca953x_read_single(struct pca953x_chip *chip, int reg, u32 *val,
 				int off)
 {
 	int ret;
-	int bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+	int bank_shift = pca953x_bank_shift(chip);
 	int offset = off / BANK_SZ;
 
 	ret = i2c_smbus_read_byte_data(chip->client,
@@ -182,7 +187,7 @@ static int pca953x_write_single(struct pca953x_chip *chip, int reg, u32 val,
 				int off)
 {
 	int ret;
-	int bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+	int bank_shift = pca953x_bank_shift(chip);
 	int offset = off / BANK_SZ;
 
 	ret = i2c_smbus_write_byte_data(chip->client,
@@ -221,7 +226,7 @@ static int pca957x_write_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 
 static int pca953x_write_regs_24(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	int bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+	int bank_shift = pca953x_bank_shift(chip);
 	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
 	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
 
@@ -265,7 +270,7 @@ static int pca953x_read_regs_16(struct pca953x_chip *chip, int reg, u8 *val)
 
 static int pca953x_read_regs_24(struct pca953x_chip *chip, int reg, u8 *val)
 {
-	int bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
+	int bank_shift = pca953x_bank_shift(chip);
 	int addr = (reg & PCAL_GPIO_MASK) << bank_shift;
 	int pinctrl = (reg & PCAL_PINCTRL_MASK) << 1;
 
@@ -402,12 +407,11 @@ static void pca953x_gpio_set_multiple(struct gpio_chip *gc,
 				      unsigned long *mask, unsigned long *bits)
 {
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
+	int bank_shift = pca953x_bank_shift(chip);
 	unsigned int bank_mask, bank_val;
-	int bank_shift, bank;
+	int bank;
 	u8 reg_val[MAX_BANK];
 	int ret;
-
-	bank_shift = fls((chip->gpio_chip.ngpio - 1) / BANK_SZ);
 
 	mutex_lock(&chip->i2c_lock);
 	memcpy(reg_val, chip->reg_output, NBANK(chip));
