@@ -155,17 +155,7 @@ static int sunxi_sram_show(struct seq_file *s, void *data)
 	return 0;
 }
 
-static int sunxi_sram_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sunxi_sram_show, inode->i_private);
-}
-
-static const struct file_operations sunxi_sram_fops = {
-	.open = sunxi_sram_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(sunxi_sram);
 
 static inline struct sunxi_sram_desc *to_sram_desc(const struct sunxi_sram_data *data)
 {
@@ -300,6 +290,10 @@ static const struct sunxi_sramc_variant sun4i_a10_sramc_variant = {
 	/* Nothing special */
 };
 
+static const struct sunxi_sramc_variant sun8i_h3_sramc_variant = {
+	.has_emac_clock = true,
+};
+
 static const struct sunxi_sramc_variant sun50i_a64_sramc_variant = {
 	.has_emac_clock = true,
 };
@@ -379,7 +373,7 @@ static const struct of_device_id sunxi_sram_dt_match[] = {
 	},
 	{
 		.compatible = "allwinner,sun8i-h3-system-control",
-		.data = &sun4i_a10_sramc_variant,
+		.data = &sun8i_h3_sramc_variant,
 	},
 	{
 		.compatible = "allwinner,sun50i-a64-sram-controller",
@@ -387,6 +381,10 @@ static const struct of_device_id sunxi_sram_dt_match[] = {
 	},
 	{
 		.compatible = "allwinner,sun50i-a64-system-control",
+		.data = &sun50i_a64_sramc_variant,
+	},
+	{
+		.compatible = "allwinner,sun50i-h5-system-control",
 		.data = &sun50i_a64_sramc_variant,
 	},
 	{ },
