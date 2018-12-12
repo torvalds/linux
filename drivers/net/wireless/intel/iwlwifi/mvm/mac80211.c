@@ -4473,6 +4473,10 @@ static int iwl_mvm_schedule_client_csa(struct iwl_mvm *mvm,
 
 	lockdep_assert_held(&mvm->mutex);
 
+	if (chsw->delay)
+		cmd.cs_delayed_bcn_count =
+			DIV_ROUND_UP(chsw->delay, vif->bss_conf.beacon_int);
+
 	return iwl_mvm_send_cmd_pdu(mvm,
 				    WIDE_ID(MAC_CONF_GROUP,
 					    CHANNEL_SWITCH_TIME_EVENT_CMD),
