@@ -4365,6 +4365,7 @@ skl_allocate_pipe_ddb(struct intel_crtc_state *cstate,
 	 * requirement of active planes.
 	 */
 	for (level = ilk_wm_max_level(dev_priv); level >= 0; level--) {
+		blocks = 0;
 		for_each_plane_id_on_crtc(intel_crtc, plane_id) {
 			if (plane_id == PLANE_CURSOR)
 				continue;
