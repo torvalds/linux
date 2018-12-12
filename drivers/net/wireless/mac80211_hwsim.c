@@ -2751,17 +2751,18 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 		hw->wiphy->max_remain_on_channel_duration = 1000;
 		data->if_combination.radar_detect_widths = 0;
 		data->if_combination.num_different_channels = data->channels;
-	}
-
-	data->if_combination.n_limits = n_limits;
-	data->if_combination.max_interfaces = 2048;
-	data->if_combination.num_different_channels = 1;
-	data->if_combination.radar_detect_widths =
+	} else {
+		data->if_combination.num_different_channels = 1;
+		data->if_combination.radar_detect_widths =
 					BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 					BIT(NL80211_CHAN_WIDTH_20) |
 					BIT(NL80211_CHAN_WIDTH_40) |
 					BIT(NL80211_CHAN_WIDTH_80) |
 					BIT(NL80211_CHAN_WIDTH_160);
+	}
+
+	data->if_combination.n_limits = n_limits;
+	data->if_combination.max_interfaces = 2048;
 	data->if_combination.limits = data->if_limits;
 
 	hw->wiphy->iface_combinations = &data->if_combination;
