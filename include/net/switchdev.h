@@ -149,6 +149,7 @@ enum switchdev_notifier_type {
 
 struct switchdev_notifier_info {
 	struct net_device *dev;
+	struct netlink_ext_ack *extack;
 };
 
 struct switchdev_notifier_fdb_info {
@@ -172,6 +173,12 @@ switchdev_notifier_info_to_dev(const struct switchdev_notifier_info *info)
 	return info->dev;
 }
 
+static inline struct netlink_ext_ack *
+switchdev_notifier_info_to_extack(const struct switchdev_notifier_info *info)
+{
+	return info->extack;
+}
+
 #ifdef CONFIG_NET_SWITCHDEV
 
 void switchdev_deferred_process(void);
@@ -193,7 +200,8 @@ int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 int register_switchdev_blocking_notifier(struct notifier_block *nb);
 int unregister_switchdev_blocking_notifier(struct notifier_block *nb);
 int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
-				      struct switchdev_notifier_info *info);
+				      struct switchdev_notifier_info *info,
+				      struct netlink_ext_ack *extack);
 
 void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 struct net_device *group_dev,
@@ -278,7 +286,8 @@ unregister_switchdev_blocking_notifier(struct notifier_block *nb)
 static inline int
 call_switchdev_blocking_notifiers(unsigned long val,
 				  struct net_device *dev,
-				  struct switchdev_notifier_info *info)
+				  struct switchdev_notifier_info *info,
+				  struct netlink_ext_ack *extack)
 {
 	return NOTIFY_DONE;
 }

@@ -364,6 +364,7 @@ static void vxlan_fdb_switchdev_notifier_info(const struct vxlan_dev *vxlan,
 			    struct switchdev_notifier_vxlan_fdb_info *fdb_info)
 {
 	fdb_info->info.dev = vxlan->dev;
+	fdb_info->info.extack = NULL;
 	fdb_info->remote_ip = rd->remote_ip;
 	fdb_info->remote_port = rd->remote_port;
 	fdb_info->remote_vni = rd->remote_vni;

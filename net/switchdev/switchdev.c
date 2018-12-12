@@ -368,7 +368,7 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 		.handled = false,
 	};
 
-	rc = call_switchdev_blocking_notifiers(nt, dev, &obj_info.info);
+	rc = call_switchdev_blocking_notifiers(nt, dev, &obj_info.info, extack);
 	err = notifier_to_errno(rc);
 	if (err) {
 		WARN_ON(!obj_info.handled);
@@ -559,6 +559,7 @@ int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 			     struct switchdev_notifier_info *info)
 {
 	info->dev = dev;
+	info->extack = NULL;
 	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
@@ -580,9 +581,11 @@ int unregister_switchdev_blocking_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(unregister_switchdev_blocking_notifier);
 
 int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
-				      struct switchdev_notifier_info *info)
+				      struct switchdev_notifier_info *info,
+				      struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
+	info->extack = extack;
 	return blocking_notifier_call_chain(&switchdev_blocking_notif_chain,
 					    val, info);
 }
