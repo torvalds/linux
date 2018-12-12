@@ -1196,34 +1196,6 @@ static void cpu_enable_address_auth(struct arm64_cpu_capabilities const *cap)
 	sysreg_clear_set(sctlr_el1, 0, SCTLR_ELx_ENIA | SCTLR_ELx_ENIB |
 				       SCTLR_ELx_ENDA | SCTLR_ELx_ENDB);
 }
-
-static bool has_address_auth(const struct arm64_cpu_capabilities *entry,
-			     int __unused)
-{
-	u64 isar1 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR1_EL1);
-	bool api, apa;
-
-	apa = cpuid_feature_extract_unsigned_field(isar1,
-					ID_AA64ISAR1_APA_SHIFT) > 0;
-	api = cpuid_feature_extract_unsigned_field(isar1,
-					ID_AA64ISAR1_API_SHIFT) > 0;
-
-	return apa || api;
-}
-
-static bool has_generic_auth(const struct arm64_cpu_capabilities *entry,
-			     int __unused)
-{
-	u64 isar1 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR1_EL1);
-	bool gpi, gpa;
-
-	gpa = cpuid_feature_extract_unsigned_field(isar1,
-					ID_AA64ISAR1_GPA_SHIFT) > 0;
-	gpi = cpuid_feature_extract_unsigned_field(isar1,
-					ID_AA64ISAR1_GPI_SHIFT) > 0;
-
-	return gpa || gpi;
-}
 #endif /* CONFIG_ARM64_PTR_AUTH */
 
 static const struct arm64_cpu_capabilities arm64_features[] = {
@@ -1506,18 +1478,57 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 	{},
 };
 
-#define HWCAP_CAP(reg, field, s, min_value, cap_type, cap)	\
-	{							\
-		.desc = #cap,					\
-		.type = ARM64_CPUCAP_SYSTEM_FEATURE,		\
-		.matches = has_cpuid_feature,			\
-		.sys_reg = reg,					\
-		.field_pos = field,				\
-		.sign = s,					\
-		.min_field_value = min_value,			\
-		.hwcap_type = cap_type,				\
-		.hwcap = cap,					\
+#define HWCAP_CPUID_MATCH(reg, field, s, min_value)				\
+		.matches = has_cpuid_feature,					\
+		.sys_reg = reg,							\
+		.field_pos = field,						\
+		.sign = s,							\
+		.min_field_value = min_value,
+
+#define __HWCAP_CAP(name, cap_type, cap)					\
+		.desc = name,							\
+		.type = ARM64_CPUCAP_SYSTEM_FEATURE,				\
+		.hwcap_type = cap_type,						\
+		.hwcap = cap,							\
+
+#define HWCAP_CAP(reg, field, s, min_value, cap_type, cap)			\
+	{									\
+		__HWCAP_CAP(#cap, cap_type, cap)				\
+		HWCAP_CPUID_MATCH(reg, field, s, min_value)			\
 	}
+
+#define HWCAP_MULTI_CAP(list, cap_type, cap)					\
+	{									\
+		__HWCAP_CAP(#cap, cap_type, cap)				\
+		.matches = cpucap_multi_entry_cap_matches,			\
+		.match_list = list,						\
+	}
+
+#ifdef CONFIG_ARM64_PTR_AUTH
+static const struct arm64_cpu_capabilities ptr_auth_hwcap_addr_matches[] = {
+	{
+		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_APA_SHIFT,
+				  FTR_UNSIGNED, ID_AA64ISAR1_APA_ARCHITECTED)
+	},
+	{
+		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_API_SHIFT,
+				  FTR_UNSIGNED, ID_AA64ISAR1_API_IMP_DEF)
+	},
+	{},
+};
+
+static const struct arm64_cpu_capabilities ptr_auth_hwcap_gen_matches[] = {
+	{
+		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_GPA_SHIFT,
+				  FTR_UNSIGNED, ID_AA64ISAR1_GPA_ARCHITECTED)
+	},
+	{
+		HWCAP_CPUID_MATCH(SYS_ID_AA64ISAR1_EL1, ID_AA64ISAR1_GPI_SHIFT,
+				  FTR_UNSIGNED, ID_AA64ISAR1_GPI_IMP_DEF)
+	},
+	{},
+};
+#endif
 
 static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 	HWCAP_CAP(SYS_ID_AA64ISAR0_EL1, ID_AA64ISAR0_AES_SHIFT, FTR_UNSIGNED, 2, CAP_HWCAP, HWCAP_PMULL),
@@ -1551,10 +1562,8 @@ static const struct arm64_cpu_capabilities arm64_elf_hwcaps[] = {
 #endif
 	HWCAP_CAP(SYS_ID_AA64PFR1_EL1, ID_AA64PFR1_SSBS_SHIFT, FTR_UNSIGNED, ID_AA64PFR1_SSBS_PSTATE_INSNS, CAP_HWCAP, HWCAP_SSBS),
 #ifdef CONFIG_ARM64_PTR_AUTH
-	{ .desc = "HWCAP_PACA", .type = ARM64_CPUCAP_SYSTEM_FEATURE, .matches = has_address_auth,
-		.hwcap_type = CAP_HWCAP, .hwcap = HWCAP_PACA },
-	{ .desc = "HWCAP_PACG", .type = ARM64_CPUCAP_SYSTEM_FEATURE, .matches = has_generic_auth,
-		.hwcap_type = CAP_HWCAP, .hwcap = HWCAP_PACG },
+	HWCAP_MULTI_CAP(ptr_auth_hwcap_addr_matches, CAP_HWCAP, HWCAP_PACA),
+	HWCAP_MULTI_CAP(ptr_auth_hwcap_gen_matches, CAP_HWCAP, HWCAP_PACG),
 #endif
 	{},
 };
