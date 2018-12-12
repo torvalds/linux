@@ -3721,6 +3721,11 @@
 			This wake_up() will be accompanied by a
 			WARN_ONCE() splat and an ftrace_dump().
 
+	rcutree.sysrq_rcu= [KNL]
+			Commandeer a sysrq key to dump out Tree RCU's
+			rcu_node tree with an eye towards determining
+			why a new grace period has not yet started.
+
 	rcuperf.gp_async= [KNL]
 			Measure performance of asynchronous
 			grace-period primitives such as call_rcu().
