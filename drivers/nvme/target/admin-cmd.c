@@ -37,6 +37,34 @@ static void nvmet_execute_get_log_page_noop(struct nvmet_req *req)
 	nvmet_req_complete(req, nvmet_zero_sgl(req, 0, req->data_len));
 }
 
+static void nvmet_execute_get_log_page_error(struct nvmet_req *req)
+{
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	u16 status = NVME_SC_SUCCESS;
+	unsigned long flags;
+	off_t offset = 0;
+	u64 slot;
+	u64 i;
+
+	spin_lock_irqsave(&ctrl->error_lock, flags);
+	slot = ctrl->err_counter % NVMET_ERROR_LOG_SLOTS;
+
+	for (i = 0; i < NVMET_ERROR_LOG_SLOTS; i++) {
+		status = nvmet_copy_to_sgl(req, offset, &ctrl->slots[slot],
+				sizeof(struct nvme_error_slot));
+		if (status)
+			break;
+
+		if (slot == 0)
+			slot = NVMET_ERROR_LOG_SLOTS - 1;
+		else
+			slot--;
+		offset += sizeof(struct nvme_error_slot);
+	}
+	spin_unlock_irqrestore(&ctrl->error_lock, flags);
+	nvmet_req_complete(req, status);
+}
+
 static u16 nvmet_get_smart_log_nsid(struct nvmet_req *req,
 		struct nvme_smart_log *slog)
 {
@@ -789,13 +817,7 @@ u16 nvmet_parse_admin_cmd(struct nvmet_req *req)
 
 		switch (cmd->get_log_page.lid) {
 		case NVME_LOG_ERROR:
-			/*
-			 * We currently never set the More bit in the status
-			 * field, so all error log entries are invalid and can
-			 * be zeroed out.  This is called a minum viable
-			 * implementation (TM) of this mandatory log page.
-			 */
-			req->execute = nvmet_execute_get_log_page_noop;
+			req->execute = nvmet_execute_get_log_page_error;
 			return 0;
 		case NVME_LOG_SMART:
 			req->execute = nvmet_execute_get_log_page_smart;
