@@ -17,7 +17,9 @@ Defined in `RFC1213 ipInReceives`_
 
 The number of packets received by the IP layer. It gets increasing at the
 beginning of ip_rcv function, always be updated together with
-IpExtInOctets. It indicates the number of aggregated segments after
+IpExtInOctets. It will be increased even if the packet is dropped
+later (e.g. due to the IP header is invalid or the checksum is wrong
+and so on).  It indicates the number of aggregated segments after
 GRO/LRO.
 
 * IpInDelivers
@@ -56,6 +58,58 @@ These 4 counters calculate how many packets received per ECN
 status. They count the real frame number regardless the LRO/GRO. So
 for the same packet, you might find that IpInReceives count 1, but
 IpExtInNoECTPkts counts 2 or more.
+
+* IpInHdrErrors
+Defined in `RFC1213 ipInHdrErrors`_. It indicates the packet is
+dropped due to the IP header error. It might happen in both IP input
+and IP forward paths.
+
+.. _RFC1213 ipInHdrErrors: https://tools.ietf.org/html/rfc1213#page-27
+
+* IpInAddrErrors
+Defined in `RFC1213 ipInAddrErrors`_. It will be increased in two
+scenarios: (1) The IP address is invalid. (2) The destination IP
+address is not a local address and IP forwarding is not enabled
+
+.. _RFC1213 ipInAddrErrors: https://tools.ietf.org/html/rfc1213#page-27
+
+* IpExtInNoRoutes
+This counter means the packet is dropped when the IP stack receives a
+packet and can't find a route for it from the route table. It might
+happen when IP forwarding is enabled and the destination IP address is
+not a local address and there is no route for the destination IP
+address.
+
+* IpInUnknownProtos
+Defined in `RFC1213 ipInUnknownProtos`_. It will be increased if the
+layer 4 protocol is unsupported by kernel. If an application is using
+raw socket, kernel will always deliver the packet to the raw socket
+and this counter won't be increased.
+
+.. _RFC1213 ipInUnknownProtos: https://tools.ietf.org/html/rfc1213#page-27
+
+* IpExtInTruncatedPkts
+For IPv4 packet, it means the actual data size is smaller than the
+"Total Length" field in the IPv4 header.
+
+* IpInDiscards
+Defined in `RFC1213 ipInDiscards`_. It indicates the packet is dropped
+in the IP receiving path and due to kernel internal reasons (e.g. no
+enough memory).
+
+.. _RFC1213 ipInDiscards: https://tools.ietf.org/html/rfc1213#page-28
+
+* IpOutDiscards
+Defined in `RFC1213 ipOutDiscards`_. It indicates the packet is
+dropped in the IP sending path and due to kernel internal reasons.
+
+.. _RFC1213 ipOutDiscards: https://tools.ietf.org/html/rfc1213#page-28
+
+* IpOutNoRoutes
+Defined in `RFC1213 ipOutNoRoutes`_. It indicates the packet is
+dropped in the IP sending path and no route is found for it.
+
+.. _RFC1213 ipOutNoRoutes: https://tools.ietf.org/html/rfc1213#page-29
 
 ICMP counters
 ============
@@ -424,6 +478,100 @@ How many times the packet delay threshold is detected.
 The sum of CWND detected by packet delay. Dividing this value by
 TcpExtTCPHystartDelayDetect is the average CWND which detected by the
 packet delay.
+
+TCP retransmission and congestion control
+======================================
+The TCP protocol has two retransmission mechanisms: SACK and fast
+recovery. They are exclusive with each other. When SACK is enabled,
+the kernel TCP stack would use SACK, or kernel would use fast
+recovery. The SACK is a TCP option, which is defined in `RFC2018`_,
+the fast recovery is defined in `RFC6582`_, which is also called
+'Reno'.
+
+The TCP congestion control is a big and complex topic. To understand
+the related snmp counter, we need to know the states of the congestion
+control state machine. There are 5 states: Open, Disorder, CWR,
+Recovery and Loss. For details about these states, please refer page 5
+and page 6 of this document:
+https://pdfs.semanticscholar.org/0e9c/968d09ab2e53e24c4dca5b2d67c7f7140f8e.pdf
+
+.. _RFC2018: https://tools.ietf.org/html/rfc2018
+.. _RFC6582: https://tools.ietf.org/html/rfc6582
+
+* TcpExtTCPRenoRecovery and TcpExtTCPSackRecovery
+When the congestion control comes into Recovery state, if sack is
+used, TcpExtTCPSackRecovery increases 1, if sack is not used,
+TcpExtTCPRenoRecovery increases 1. These two counters mean the TCP
+stack begins to retransmit the lost packets.
+
+* TcpExtTCPSACKReneging
+A packet was acknowledged by SACK, but the receiver has dropped this
+packet, so the sender needs to retransmit this packet. In this
+situation, the sender adds 1 to TcpExtTCPSACKReneging. A receiver
+could drop a packet which has been acknowledged by SACK, although it is
+unusual, it is allowed by the TCP protocol. The sender doesn't really
+know what happened on the receiver side. The sender just waits until
+the RTO expires for this packet, then the sender assumes this packet
+has been dropped by the receiver.
+
+* TcpExtTCPRenoReorder
+The reorder packet is detected by fast recovery. It would only be used
+if SACK is disabled. The fast recovery algorithm detects recorder by
+the duplicate ACK number. E.g., if retransmission is triggered, and
+the original retransmitted packet is not lost, it is just out of
+order, the receiver would acknowledge multiple times, one for the
+retransmitted packet, another for the arriving of the original out of
+order packet. Thus the sender would find more ACks than its
+expectation, and the sender knows out of order occurs.
+
+* TcpExtTCPTSReorder
+The reorder packet is detected when a hole is filled. E.g., assume the
+sender sends packet 1,2,3,4,5, and the receiving order is
+1,2,4,5,3. When the sender receives the ACK of packet 3 (which will
+fill the hole), two conditions will let TcpExtTCPTSReorder increase
+1: (1) if the packet 3 is not re-retransmitted yet. (2) if the packet
+3 is retransmitted but the timestamp of the packet 3's ACK is earlier
+than the retransmission timestamp.
+
+* TcpExtTCPSACKReorder
+The reorder packet detected by SACK. The SACK has two methods to
+detect reorder: (1) DSACK is received by the sender. It means the
+sender sends the same packet more than one times. And the only reason
+is the sender believes an out of order packet is lost so it sends the
+packet again. (2) Assume packet 1,2,3,4,5 are sent by the sender, and
+the sender has received SACKs for packet 2 and 5, now the sender
+receives SACK for packet 4 and the sender doesn't retransmit the
+packet yet, the sender would know packet 4 is out of order. The TCP
+stack of kernel will increase TcpExtTCPSACKReorder for both of the
+above scenarios.
+
+
+DSACK
+=====
+The DSACK is defined in `RFC2883`_. The receiver uses DSACK to report
+duplicate packets to the sender. There are two kinds of
+duplications: (1) a packet which has been acknowledged is
+duplicate. (2) an out of order packet is duplicate. The TCP stack
+counts these two kinds of duplications on both receiver side and
+sender side.
+
+.. _RFC2883 : https://tools.ietf.org/html/rfc2883
+
+* TcpExtTCPDSACKOldSent
+The TCP stack receives a duplicate packet which has been acked, so it
+sends a DSACK to the sender.
+
+* TcpExtTCPDSACKOfoSent
+The TCP stack receives an out of order duplicate packet, so it sends a
+DSACK to the sender.
+
+* TcpExtTCPDSACKRecv
+The TCP stack receives a DSACK, which indicate an acknowledged
+duplicate packet is received.
+
+* TcpExtTCPDSACKOfoRecv
+The TCP stack receives a DSACK, which indicate an out of order
+duplciate packet is received.
 
 examples
 =======
@@ -945,3 +1093,98 @@ Both TcpExtListenOverflows and TcpExtListenDrops were 4. If the time
 between the 4th nc and the nstat was longer, the value of
 TcpExtListenOverflows and TcpExtListenDrops would be larger, because
 the SYN of the 4th nc was dropped, the client was retrying.
+
+IpInAddrErrors, IpExtInNoRoutes and IpOutNoRoutes
+----------------------------------------------
+server A IP address: 192.168.122.250
+server B IP address: 192.168.122.251
+Prepare on server A, add a route to server B::
+
+  $ sudo ip route add 8.8.8.8/32 via 192.168.122.251
+
+Prepare on server B, disable send_redirects for all interfaces::
+
+  $ sudo sysctl -w net.ipv4.conf.all.send_redirects=0
+  $ sudo sysctl -w net.ipv4.conf.ens3.send_redirects=0
+  $ sudo sysctl -w net.ipv4.conf.lo.send_redirects=0
+  $ sudo sysctl -w net.ipv4.conf.default.send_redirects=0
+
+We want to let sever A send a packet to 8.8.8.8, and route the packet
+to server B. When server B receives such packet, it might send a ICMP
+Redirect message to server A, set send_redirects to 0 will disable
+this behavior.
+
+First, generate InAddrErrors. On server B, we disable IP forwarding::
+
+  $ sudo sysctl -w net.ipv4.conf.all.forwarding=0
+
+On server A, we send packets to 8.8.8.8::
+
+  $ nc -v 8.8.8.8 53
+
+On server B, we check the output of nstat::
+
+  $ nstat
+  #kernel
+  IpInReceives                    3                  0.0
+  IpInAddrErrors                  3                  0.0
+  IpExtInOctets                   180                0.0
+  IpExtInNoECTPkts                3                  0.0
+
+As we have let server A route 8.8.8.8 to server B, and we disabled IP
+forwarding on server B, Server A sent packets to server B, then server B
+dropped packets and increased IpInAddrErrors. As the nc command would
+re-send the SYN packet if it didn't receive a SYN+ACK, we could find
+multiple IpInAddrErrors.
+
+Second, generate IpExtInNoRoutes. On server B, we enable IP
+forwarding::
+
+  $ sudo sysctl -w net.ipv4.conf.all.forwarding=1
+
+Check the route table of server B and remove the default route::
+
+  $ ip route show
+  default via 192.168.122.1 dev ens3 proto static
+  192.168.122.0/24 dev ens3 proto kernel scope link src 192.168.122.251
+  $ sudo ip route delete default via 192.168.122.1 dev ens3 proto static
+
+On server A, we contact 8.8.8.8 again::
+
+  $ nc -v 8.8.8.8 53
+  nc: connect to 8.8.8.8 port 53 (tcp) failed: Network is unreachable
+
+On server B, run nstat::
+
+  $ nstat
+  #kernel
+  IpInReceives                    1                  0.0
+  IpOutRequests                   1                  0.0
+  IcmpOutMsgs                     1                  0.0
+  IcmpOutDestUnreachs             1                  0.0
+  IcmpMsgOutType3                 1                  0.0
+  IpExtInNoRoutes                 1                  0.0
+  IpExtInOctets                   60                 0.0
+  IpExtOutOctets                  88                 0.0
+  IpExtInNoECTPkts                1                  0.0
+
+We enabled IP forwarding on server B, when server B received a packet
+which destination IP address is 8.8.8.8, server B will try to forward
+this packet. We have deleted the default route, there was no route for
+8.8.8.8, so server B increase IpExtInNoRoutes and sent the "ICMP
+Destination Unreachable" message to server A.
+
+Third, generate IpOutNoRoutes. Run ping command on server B::
+
+  $ ping -c 1 8.8.8.8
+  connect: Network is unreachable
+
+Run nstat on server B::
+
+  $ nstat
+  #kernel
+  IpOutNoRoutes                   1                  0.0
+
+We have deleted the default route on server B. Server B couldn't find
+a route for the 8.8.8.8 IP address, so server B increased
+IpOutNoRoutes.
