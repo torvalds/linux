@@ -127,30 +127,30 @@ static void neigh_mark_dead(struct neighbour *n)
 	}
 }
 
-static void neigh_change_state(struct neighbour *n, u8 new)
+static void neigh_update_gc_list(struct neighbour *n)
 {
-	bool on_gc_list = !list_empty(&n->gc_list);
-	bool new_is_perm = new & NUD_PERMANENT;
+	bool on_gc_list, new_is_perm;
 
-	n->nud_state = new;
+	write_lock_bh(&n->tbl->lock);
+	write_lock(&n->lock);
 
 	/* remove from the gc list if new state is permanent;
 	 * add to the gc list if new state is not permanent
 	 */
-	if (new_is_perm && on_gc_list) {
-		write_lock_bh(&n->tbl->lock);
-		list_del_init(&n->gc_list);
-		write_unlock_bh(&n->tbl->lock);
+	new_is_perm = n->nud_state & NUD_PERMANENT;
+	on_gc_list = !list_empty(&n->gc_list);
 
+	if (new_is_perm && on_gc_list) {
+		list_del_init(&n->gc_list);
 		atomic_dec(&n->tbl->gc_entries);
 	} else if (!new_is_perm && !on_gc_list) {
 		/* add entries to the tail; cleaning removes from the front */
-		write_lock_bh(&n->tbl->lock);
 		list_add_tail(&n->gc_list, &n->tbl->gc_list);
-		write_unlock_bh(&n->tbl->lock);
-
 		atomic_inc(&n->tbl->gc_entries);
 	}
+
+	write_unlock(&n->lock);
+	write_unlock_bh(&n->tbl->lock);
 }
 
 static bool neigh_del(struct neighbour *n, __u8 state, __u8 flags,
@@ -1220,7 +1220,7 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 		neigh_del_timer(neigh);
 		if (old & NUD_CONNECTED)
 			neigh_suspect(neigh);
-		neigh_change_state(neigh, new);
+		neigh->nud_state = new;
 		err = 0;
 		notify = old & NUD_VALID;
 		if ((old & (NUD_INCOMPLETE | NUD_PROBE)) &&
@@ -1299,7 +1299,7 @@ static int __neigh_update(struct neighbour *neigh, const u8 *lladdr,
 						((new & NUD_REACHABLE) ?
 						 neigh->parms->reachable_time :
 						 0)));
-		neigh_change_state(neigh, new);
+		neigh->nud_state = new;
 		notify = 1;
 	}
 
@@ -1359,6 +1359,9 @@ out:
 	if (update_isrouter)
 		neigh_update_is_router(neigh, flags, &notify);
 	write_unlock_bh(&neigh->lock);
+
+	if ((new ^ old) & NUD_PERMANENT)
+		neigh_update_gc_list(neigh);
 
 	if (notify)
 		neigh_update_notify(neigh, nlmsg_pid);
