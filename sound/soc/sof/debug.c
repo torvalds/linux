@@ -41,11 +41,10 @@ static ssize_t sof_dfsentry_read(struct file *file, char __user *buffer,
 		return -EINVAL;
 	if (pos >= size || !count)
 		return 0;
-	if (count > size - pos)
-		count = size - pos;
+	count = min(count, (size_t)(size - pos));
 
 	/* intermediate buffer size must be u32 multiple */
-	size = (count + 3) & ~3;
+	size = round_up(count, 4);
 	buf = kzalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;

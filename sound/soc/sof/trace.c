@@ -75,8 +75,7 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	lpos_64 = lpos;
 	lpos = do_div(lpos_64, buffer_size);
 
-	if (count > buffer_size - lpos)
-		count = buffer_size - lpos;
+	count = min(count, (size_t)(buffer_size - lpos));
 
 	/* get available count based on current host offset */
 	avail = sof_wait_trace_avail(sdev, lpos, buffer_size);
@@ -86,7 +85,7 @@ static ssize_t sof_dfsentry_trace_read(struct file *file, char __user *buffer,
 	}
 
 	/* make sure count is <= avail */
-	count = avail > count ? count : avail;
+	count = min(avail, count);
 
 	/* copy available trace data to debugfs */
 	rem = copy_to_user(buffer, dfse->buf + lpos, count);

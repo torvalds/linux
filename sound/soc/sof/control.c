@@ -297,7 +297,7 @@ int snd_sof_bytes_ext_put(struct snd_kcontrol *kcontrol,
 	/* The maximum length that can be copied is limited by IPC max
 	 * length and topology defined length for ext bytes control.
 	 */
-	max_size = (be->max < max_size) ? be->max : max_size;
+	max_size = min(be->max, max_size);
 	if (header.length > max_size) {
 		dev_err(sdev->dev, "error: Bytes data size %d exceeds max %d.\n",
 			header.length, max_size);
@@ -392,8 +392,7 @@ int snd_sof_bytes_ext_get(struct snd_kcontrol *kcontrol,
 
 	/* Prevent read of other kernel data or possibly corrupt response */
 	data_size = cdata->data->size + sizeof(const struct sof_abi_hdr);
-	max_size = (size < max_size) ? size : max_size;
-	max_size = (be->max < max_size) ? be->max : max_size;
+	max_size = min3(be->max, max_size, (int)size);
 	if (data_size > max_size) {
 		dev_err(sdev->dev, "error: user data size %d exceeds max size %d.\n",
 			data_size, max_size);
