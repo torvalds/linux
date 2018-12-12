@@ -726,8 +726,8 @@ static int nested_vmx_check_exit_msr_switch_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static int nested_vmx_check_msr_switch_controls(struct kvm_vcpu *vcpu,
-                                                struct vmcs12 *vmcs12)
+static int nested_vmx_check_entry_msr_switch_controls(struct kvm_vcpu *vcpu,
+                                                      struct vmcs12 *vmcs12)
 {
 	if (nested_vmx_check_msr_switch(vcpu, vmcs12->vm_entry_msr_load_count,
                                         vmcs12->vm_entry_msr_load_addr))
@@ -2510,47 +2510,18 @@ static int nested_check_vm_exit_controls(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
-					    struct vmcs12 *vmcs12)
+/*
+ * Checks related to VM-Entry Control Fields
+ */
+static int nested_check_vm_entry_controls(struct kvm_vcpu *vcpu,
+					  struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
-	bool ia32e;
-
-	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
-	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
-
-	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
-	    nested_check_vm_exit_controls(vcpu, vmcs12))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
-
-	if (nested_vmx_check_msr_switch_controls(vcpu, vmcs12))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
- 
-	if (!nested_host_cr0_valid(vcpu, vmcs12->host_cr0) ||
-	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
-	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
-		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
 
 	if (!vmx_control_verify(vmcs12->vm_entry_controls,
 				vmx->nested.msrs.entry_ctls_low,
 				vmx->nested.msrs.entry_ctls_high))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
-
-	/*
-	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
-	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
-	 * the values of the LMA and LME bits in the field must each be that of
-	 * the host address-space size VM-exit control.
-	 */
-	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER) {
-		ia32e = (vmcs12->vm_exit_controls &
-			 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
-		if (!kvm_valid_efer(vcpu, vmcs12->host_ia32_efer) ||
-		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA) ||
-		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
-			return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
-	}
+		return -EINVAL;
 
 	/*
 	 * From the Intel SDM, volume 3:
@@ -2572,29 +2543,29 @@ static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
 		if (intr_type == INTR_TYPE_RESERVED ||
 		    (intr_type == INTR_TYPE_OTHER_EVENT &&
 		     !nested_cpu_supports_monitor_trap_flag(vcpu)))
-			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+			return -EINVAL;
 
 		/* VM-entry interruption-info field: vector */
 		if ((intr_type == INTR_TYPE_NMI_INTR && vector != NMI_VECTOR) ||
 		    (intr_type == INTR_TYPE_HARD_EXCEPTION && vector > 31) ||
 		    (intr_type == INTR_TYPE_OTHER_EVENT && vector != 0))
-			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+			return -EINVAL;
 
 		/* VM-entry interruption-info field: deliver error code */
 		should_have_error_code =
 			intr_type == INTR_TYPE_HARD_EXCEPTION && prot_mode &&
 			x86_exception_has_error_code(vector);
 		if (has_error_code != should_have_error_code)
-			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+			return -EINVAL;
 
 		/* VM-entry exception error code */
 		if (has_error_code &&
 		    vmcs12->vm_entry_exception_error_code & GENMASK(31, 15))
-			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+			return -EINVAL;
 
 		/* VM-entry interruption-info field: reserved bits */
 		if (intr_info & INTR_INFO_RESVD_BITS_MASK)
-			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+			return -EINVAL;
 
 		/* VM-entry instruction length */
 		switch (intr_type) {
@@ -2604,8 +2575,48 @@ static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
 			if ((vmcs12->vm_entry_instruction_len > 15) ||
 			    (vmcs12->vm_entry_instruction_len == 0 &&
 			     !nested_cpu_has_zero_length_injection(vcpu)))
-				return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+				return -EINVAL;
 		}
+	}
+
+	if (nested_vmx_check_entry_msr_switch_controls(vcpu, vmcs12))
+		return -EINVAL;
+
+	return 0;
+}
+
+static int nested_vmx_check_vmentry_prereqs(struct kvm_vcpu *vcpu,
+					    struct vmcs12 *vmcs12)
+{
+	bool ia32e;
+
+	if (vmcs12->guest_activity_state != GUEST_ACTIVITY_ACTIVE &&
+	    vmcs12->guest_activity_state != GUEST_ACTIVITY_HLT)
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_check_vm_execution_controls(vcpu, vmcs12) ||
+	    nested_check_vm_exit_controls(vcpu, vmcs12) ||
+	    nested_check_vm_entry_controls(vcpu, vmcs12))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (!nested_host_cr0_valid(vcpu, vmcs12->host_cr0) ||
+	    !nested_host_cr4_valid(vcpu, vmcs12->host_cr4) ||
+	    !nested_cr3_valid(vcpu, vmcs12->host_cr3))
+		return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
+
+	/*
+	 * If the load IA32_EFER VM-exit control is 1, bits reserved in the
+	 * IA32_EFER MSR must be 0 in the field for that register. In addition,
+	 * the values of the LMA and LME bits in the field must each be that of
+	 * the host address-space size VM-exit control.
+	 */
+	if (vmcs12->vm_exit_controls & VM_EXIT_LOAD_IA32_EFER) {
+		ia32e = (vmcs12->vm_exit_controls &
+			 VM_EXIT_HOST_ADDR_SPACE_SIZE) != 0;
+		if (!kvm_valid_efer(vcpu, vmcs12->host_ia32_efer) ||
+		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LMA) ||
+		    ia32e != !!(vmcs12->host_ia32_efer & EFER_LME))
+			return VMXERR_ENTRY_INVALID_HOST_STATE_FIELD;
 	}
 
 	return 0;
