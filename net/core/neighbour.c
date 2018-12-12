@@ -204,7 +204,6 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 	unsigned long tref = jiffies - 5 * HZ;
 	u8 flags = NTF_EXT_LEARNED;
 	struct neighbour *n, *tmp;
-	u8 state = NUD_PERMANENT;
 	int shrunk = 0;
 
 	NEIGH_CACHE_STAT_INC(tbl, forced_gc_runs);
@@ -216,8 +215,8 @@ static int neigh_forced_gc(struct neigh_table *tbl)
 			bool remove = false;
 
 			write_lock(&n->lock);
-			if (!(n->nud_state & state) && !(n->flags & flags) &&
-			    time_after(tref, n->updated))
+			if ((n->nud_state == NUD_FAILED) ||
+			    (!(n->flags & flags) && time_after(tref, n->updated)))
 				remove = true;
 			write_unlock(&n->lock);
 
