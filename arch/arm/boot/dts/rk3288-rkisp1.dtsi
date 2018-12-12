@@ -8,6 +8,7 @@
 		compatible = "rockchip,rk3288-rkisp1";
 		reg = <0x0 0xff910000 0x0 0x4000>;
 		interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "isp_irq";
 		clocks = <&cru SCLK_ISP>, <&cru ACLK_ISP>,
 			 <&cru HCLK_ISP>, <&cru PCLK_ISP_IN>,
 			 <&cru SCLK_ISP_JPE>;
