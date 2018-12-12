@@ -1928,6 +1928,7 @@
 		compatible = "rockchip,rk3399-rkisp1";
 		reg = <0x0 0xff910000 0x0 0x4000>;
 		interrupts = <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "isp_irq";
 		clocks = <&cru SCLK_ISP0>,
 			 <&cru ACLK_ISP0>, <&cru HCLK_ISP0>,
 			 <&cru ACLK_ISP0_WRAPPER>, <&cru HCLK_ISP0_WRAPPER>;
@@ -1957,6 +1958,7 @@
 		compatible = "rockchip,rk3399-rkisp1";
 		reg = <0x0 0xff920000 0x0 0x4000>;
 		interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "isp_irq";
 		clocks = <&cru SCLK_ISP1>,
 			 <&cru ACLK_ISP1>, <&cru HCLK_ISP1>,
 			 <&cru ACLK_ISP1_WRAPPER>, <&cru HCLK_ISP1_WRAPPER>,
