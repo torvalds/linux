@@ -15,10 +15,10 @@
 #include "ops.h"
 
 /*
- * IPC message default size and timeout (msecs).
+ * IPC message default size and timeout (ms).
  * TODO: allow platforms to set size and timeout.
  */
-#define IPC_TIMEOUT_MSECS	300
+#define IPC_TIMEOUT_MS		300
 #define IPC_EMPTY_LIST_SIZE	8
 
 static void ipc_trace_message(struct snd_sof_dev *sdev, u32 msg_id);
@@ -202,7 +202,7 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 
 	/* wait for DSP IPC completion */
 	ret = wait_event_timeout(msg->waitq, msg->ipc_complete,
-				 msecs_to_jiffies(IPC_TIMEOUT_MSECS));
+				 msecs_to_jiffies(IPC_TIMEOUT_MS));
 
 	spin_lock_irqsave(&sdev->ipc_lock, flags);
 
