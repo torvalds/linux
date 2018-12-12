@@ -210,7 +210,6 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 	unsigned int stream_tag;
 	struct hdac_bus *bus;
 	struct hdac_ext_link *link;
-	struct snd_sof_dev *sdev;
 	struct hdac_stream *hstream;
 	struct hdac_ext_stream *stream;
 	struct snd_soc_pcm_runtime *rtd;
@@ -234,7 +233,6 @@ static int hda_link_hw_free(struct snd_pcm_substream *substream,
 		link_dev->link_prepared = 0;
 	} else {
 		/* release all hda streams when dai link is unloaded */
-		sdev = snd_soc_component_get_drvdata(dai->component);
 		pcm_substream.stream = SNDRV_PCM_STREAM_PLAYBACK;
 		stream = snd_soc_dai_get_dma_data(dai, &pcm_substream);
 		if (stream) {
