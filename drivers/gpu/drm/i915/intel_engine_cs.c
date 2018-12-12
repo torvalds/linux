@@ -438,7 +438,7 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno)
 	 * the semaphore value, then when the seqno moves backwards all
 	 * future waits will complete instantly (causing rendering corruption).
 	 */
-	if (IS_GEN(dev_priv, 6) || IS_GEN(dev_priv, 7)) {
+	if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		I915_WRITE(RING_SYNC_0(engine->mmio_base), 0);
 		I915_WRITE(RING_SYNC_1(engine->mmio_base), 0);
 		if (HAS_VEBOX(dev_priv))

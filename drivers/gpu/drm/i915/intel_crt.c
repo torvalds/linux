@@ -322,7 +322,7 @@ intel_crt_mode_valid(struct drm_connector *connector,
 		 * DAC limit supposedly 355 MHz.
 		 */
 		max_clock = 270000;
-	else if (IS_GEN(dev_priv, 3) || IS_GEN(dev_priv, 4))
+	else if (IS_GEN_RANGE(dev_priv, 3, 4))
 		max_clock = 400000;
 	else
 		max_clock = 350000;

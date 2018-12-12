@@ -433,7 +433,7 @@ static int get_new_crc_ctl_reg(struct drm_i915_private *dev_priv,
 		return i9xx_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_pipe_crc_ctl_reg(dev_priv, pipe, source, val);
-	else if (IS_GEN(dev_priv, 5) || IS_GEN(dev_priv, 6))
+	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_pipe_crc_ctl_reg(source, val);
 	else
 		return ivb_pipe_crc_ctl_reg(dev_priv, pipe, source, val, set_wa);
@@ -550,7 +550,7 @@ intel_is_valid_crc_source(struct drm_i915_private *dev_priv,
 		return i9xx_crc_source_valid(dev_priv, source);
 	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
 		return vlv_crc_source_valid(dev_priv, source);
-	else if (IS_GEN(dev_priv, 5) || IS_GEN(dev_priv, 6))
+	else if (IS_GEN_RANGE(dev_priv, 5, 6))
 		return ilk_crc_source_valid(dev_priv, source);
 	else
 		return ivb_crc_source_valid(dev_priv, source);

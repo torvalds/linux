@@ -10815,7 +10815,7 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 	 * the w/a on all three platforms.
 	 */
 	if (plane->id == PLANE_SPRITE0 &&
-	    (IS_GEN(dev_priv, 5) || IS_GEN(dev_priv, 6) ||
+	    (IS_GEN_RANGE(dev_priv, 5, 6) ||
 	     IS_IVYBRIDGE(dev_priv)) &&
 	    (turn_on || (!needs_scaling(old_plane_state) &&
 			 needs_scaling(to_intel_plane_state(plane_state)))))

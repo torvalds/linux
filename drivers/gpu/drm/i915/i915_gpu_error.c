@@ -1753,7 +1753,7 @@ static void capture_reg_state(struct i915_gpu_state *error)
 		error->ccid = I915_READ(CCID);
 
 	/* 3: Feature specific registers */
-	if (IS_GEN(dev_priv, 6) || IS_GEN(dev_priv, 7)) {
+	if (IS_GEN_RANGE(dev_priv, 6, 7)) {
 		error->gam_ecochk = I915_READ(GAM_ECOCHK);
 		error->gac_eco = I915_READ(GAC_ECO_BITS);
 	}
