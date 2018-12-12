@@ -495,7 +495,9 @@ static int mlxreg_hotplug_set_irq(struct mlxreg_hotplug_priv_data *priv)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct mlxreg_core_item *item;
-	int i, ret;
+	struct mlxreg_core_data *data;
+	u32 regval;
+	int i, j, ret;
 
 	pdata = dev_get_platdata(&priv->pdev->dev);
 	item = pdata->items;
@@ -506,6 +508,25 @@ static int mlxreg_hotplug_set_irq(struct mlxreg_hotplug_priv_data *priv)
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
 		if (ret)
 			goto out;
+
+		/*
+		 * Verify if hardware configuration requires to disable
+		 * interrupt capability for some of components.
+		 */
+		data = item->data;
+		for (j = 0; j < item->count; j++, data++) {
+			/* Verify if the attribute has capability register. */
+			if (data->capability) {
+				/* Read capability register. */
+				ret = regmap_read(priv->regmap,
+						  data->capability, &regval);
+				if (ret)
+					goto out;
+
+				if (!(regval & data->bit))
+					item->mask &= ~BIT(j);
+			}
+		}
 
 		/* Set group initial status as mask and unmask group event. */
 		if (item->inversed) {
