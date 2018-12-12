@@ -2130,7 +2130,7 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 		return ret;
 	}
 
-	if (chip->ldac_pin) {
+	if (!chip->ldac_pin) {
 		chip->config3 |= ADT7316_DA_EN_VIA_DAC_LDCA;
 		if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
 			chip->config1 |= ADT7516_SEL_AIN3;
