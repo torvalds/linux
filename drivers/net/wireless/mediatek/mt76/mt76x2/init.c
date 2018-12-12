@@ -143,6 +143,7 @@ void mt76_write_mac_initvals(struct mt76x02_dev *dev)
 		{ MT_VHT_HT_FBK_CFG1,		0xedcba980 },
 		{ MT_PROT_AUTO_TX_CFG,		0x00830083 },
 		{ MT_HT_CTRL_CFG,		0x000001ff },
+		{ MT_TX_LINK_CFG,		0x00001020 },
 	};
 	struct mt76_reg_pair prot_vals[] = {
 		{ MT_CCK_PROT_CFG,		DEFAULT_PROT_CFG_CCK },
