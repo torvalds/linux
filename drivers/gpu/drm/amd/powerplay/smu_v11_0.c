@@ -41,6 +41,8 @@
 
 MODULE_FIRMWARE("amdgpu/vega20_smc.bin");
 
+#define SMU11_TOOL_SIZE		0x19000
+
 static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 					      uint16_t msg)
 {
@@ -288,6 +290,8 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 	SMU_TABLE_INIT(tables, TABLE_OVERDRIVE, sizeof(OverDriveTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, TABLE_PMSTATUSLOG, SMU11_TOOL_SIZE, PAGE_SIZE,
+		       AMDGPU_GEM_DOMAIN_VRAM);
 
 	ret = smu_v11_0_init_dpm_context(smu);
 	if (ret)
@@ -630,6 +634,24 @@ static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
+{
+	int ret = 0;
+	struct smu_table *tool_table = &smu->smu_table.tables[TABLE_PMSTATUSLOG];
+
+	if (tool_table->mc_address) {
+		ret = smu_send_smc_msg_with_param(smu,
+				PPSMC_MSG_SetToolsDramAddrHigh,
+				upper_32_bits(tool_table->mc_address));
+		if (!ret)
+			ret = smu_send_smc_msg_with_param(smu,
+				PPSMC_MSG_SetToolsDramAddrLow,
+				lower_32_bits(tool_table->mc_address));
+	}
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -650,6 +672,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.populate_smc_pptable = smu_v11_0_populate_smc_pptable,
 	.write_pptable = smu_v11_0_write_pptable,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
+	.set_tool_table_location = smu_v11_0_set_tool_table_location,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
