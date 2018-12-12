@@ -1197,6 +1197,35 @@ static int bnxt_re_setup_qos(struct bnxt_re_dev *rdev)
 	return 0;
 }
 
+static void bnxt_re_query_hwrm_intf_version(struct bnxt_re_dev *rdev)
+{
+	struct bnxt_en_dev *en_dev = rdev->en_dev;
+	struct hwrm_ver_get_output resp = {0};
+	struct hwrm_ver_get_input req = {0};
+	struct bnxt_fw_msg fw_msg;
+	int rc = 0;
+
+	memset(&fw_msg, 0, sizeof(fw_msg));
+	bnxt_re_init_hwrm_hdr(rdev, (void *)&req,
+			      HWRM_VER_GET, -1, -1);
+	req.hwrm_intf_maj = HWRM_VERSION_MAJOR;
+	req.hwrm_intf_min = HWRM_VERSION_MINOR;
+	req.hwrm_intf_upd = HWRM_VERSION_UPDATE;
+	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
+			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
+	rc = en_dev->en_ops->bnxt_send_fw_msg(en_dev, BNXT_ROCE_ULP, &fw_msg);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev),
+			"Failed to query HW version, rc = 0x%x", rc);
+		return;
+	}
+	rdev->qplib_ctx.hwrm_intf_ver =
+		(u64)resp.hwrm_intf_major << 48 |
+		(u64)resp.hwrm_intf_minor << 32 |
+		(u64)resp.hwrm_intf_build << 16 |
+		resp.hwrm_intf_patch;
+}
+
 static void bnxt_re_ib_unreg(struct bnxt_re_dev *rdev)
 {
 	int rc;
@@ -1278,6 +1307,8 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 		goto fail;
 	}
 	set_bit(BNXT_RE_FLAG_GOT_MSIX, &rdev->flags);
+
+	bnxt_re_query_hwrm_intf_version(rdev);
 
 	/* Establish RCFW Communication Channel to initialize the context
 	 * memory for the function and all child VFs
