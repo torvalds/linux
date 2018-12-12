@@ -48,7 +48,7 @@ struct nsim_bpf_bound_map {
 	struct list_head l;
 };
 
-static int nsim_debugfs_bpf_string_read(struct seq_file *file, void *data)
+static int nsim_bpf_string_show(struct seq_file *file, void *data)
 {
 	const char **str = file->private;
 
@@ -57,19 +57,7 @@ static int nsim_debugfs_bpf_string_read(struct seq_file *file, void *data)
 
 	return 0;
 }
-
-static int nsim_debugfs_bpf_string_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, nsim_debugfs_bpf_string_read, inode->i_private);
-}
-
-static const struct file_operations nsim_bpf_string_fops = {
-	.owner = THIS_MODULE,
-	.open = nsim_debugfs_bpf_string_open,
-	.release = single_release,
-	.read = seq_read,
-	.llseek = seq_lseek
-};
+DEFINE_SHOW_ATTRIBUTE(nsim_bpf_string);
 
 static int
 nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
