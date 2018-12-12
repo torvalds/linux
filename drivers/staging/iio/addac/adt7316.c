@@ -969,9 +969,6 @@ static ssize_t adt7316_show_DA_AB_Vref_bypass(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-		return -EPERM;
-
 	return sprintf(buf, "%d\n",
 		!!(chip->dac_config & ADT7316_VREF_BYPASS_DAC_AB));
 }
@@ -985,9 +982,6 @@ static ssize_t adt7316_store_DA_AB_Vref_bypass(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 dac_config;
 	int ret;
-
-	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-		return -EPERM;
 
 	dac_config = chip->dac_config & (~ADT7316_VREF_BYPASS_DAC_AB);
 	if (buf[0] == '1')
@@ -1014,9 +1008,6 @@ static ssize_t adt7316_show_DA_CD_Vref_bypass(struct device *dev,
 	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 
-	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-		return -EPERM;
-
 	return sprintf(buf, "%d\n",
 		!!(chip->dac_config & ADT7316_VREF_BYPASS_DAC_CD));
 }
@@ -1030,9 +1021,6 @@ static ssize_t adt7316_store_DA_CD_Vref_bypass(struct device *dev,
 	struct adt7316_chip_info *chip = iio_priv(dev_info);
 	u8 dac_config;
 	int ret;
-
-	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
-		return -EPERM;
 
 	dac_config = chip->dac_config & (~ADT7316_VREF_BYPASS_DAC_CD);
 	if (buf[0] == '1')
@@ -1710,8 +1698,6 @@ static struct attribute *adt7516_attributes[] = {
 	&iio_dev_attr_DAC_update_mode.dev_attr.attr,
 	&iio_dev_attr_all_DAC_update_modes.dev_attr.attr,
 	&iio_dev_attr_update_DAC.dev_attr.attr,
-	&iio_dev_attr_DA_AB_Vref_bypass.dev_attr.attr,
-	&iio_dev_attr_DA_CD_Vref_bypass.dev_attr.attr,
 	&iio_dev_attr_DAC_internal_Vref.dev_attr.attr,
 	&iio_dev_attr_VDD.dev_attr.attr,
 	&iio_dev_attr_in_temp.dev_attr.attr,
