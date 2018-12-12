@@ -30,6 +30,7 @@
 #include <linux/platform_data/usb-davinci.h>
 #include <linux/platform_data/ti-aemif.h>
 #include <linux/regulator/machine.h>
+#include <linux/nvmem-provider.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -435,6 +436,27 @@ static inline void da830_evm_init_lcdc(int mux_mode)
 static inline void da830_evm_init_lcdc(int mux_mode) { }
 #endif
 
+static struct nvmem_cell_info da830_evm_nvmem_cells[] = {
+	{
+		.name		= "macaddr",
+		.offset		= 0x7f00,
+		.bytes		= ETH_ALEN,
+	}
+};
+
+static struct nvmem_cell_table da830_evm_nvmem_cell_table = {
+	.nvmem_name	= "1-00500",
+	.cells		= da830_evm_nvmem_cells,
+	.ncells		= ARRAY_SIZE(da830_evm_nvmem_cells),
+};
+
+static struct nvmem_cell_lookup da830_evm_nvmem_cell_lookup = {
+	.nvmem_name	= "1-00500",
+	.cell_name	= "macaddr",
+	.dev_id		= "davinci_emac.1",
+	.con_id		= "mac-address",
+};
+
 static struct at24_platform_data da830_evm_i2c_eeprom_info = {
 	.byte_len	= SZ_256K / 8,
 	.page_size	= 64,
@@ -620,6 +642,10 @@ static __init void da830_evm_init(void)
 			__func__, ret);
 
 	davinci_serial_init(da8xx_serial_device);
+
+	nvmem_add_cell_table(&da830_evm_nvmem_cell_table);
+	nvmem_add_cell_lookups(&da830_evm_nvmem_cell_lookup, 1);
+
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
 
