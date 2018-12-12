@@ -1314,6 +1314,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	 * memory for the function and all child VFs
 	 */
 	rc = bnxt_qplib_alloc_rcfw_channel(rdev->en_dev->pdev, &rdev->rcfw,
+					   &rdev->qplib_ctx,
 					   BNXT_RE_MAX_QPC_COUNT);
 	if (rc) {
 		pr_err("Failed to allocate RCFW Channel: %#x\n", rc);
