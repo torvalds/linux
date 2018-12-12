@@ -312,15 +312,11 @@ static struct snd_sof_ipc_msg *sof_ipc_reply_find_msg(struct snd_sof_ipc *ipc,
 
 	header = SOF_IPC_MESSAGE_ID(header);
 
-	if (list_empty(&ipc->reply_list))
-		goto err;
-
 	list_for_each_entry(msg, &ipc->reply_list, list) {
 		if (SOF_IPC_MESSAGE_ID(msg->header) == header)
 			return msg;
 	}
 
-err:
 	dev_err(sdev->dev, "error: rx list empty but received 0x%x\n",
 		header);
 	return NULL;
