@@ -3280,11 +3280,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	int ret;
 	u64 i, tail_len, chunk_count;
 
-	/* don't make the dst file partly checksummed */
-	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
-	    (BTRFS_I(dst)->flags & BTRFS_INODE_NODATASUM))
-		return -EINVAL;
-
 	tail_len = olen % BTRFS_MAX_DEDUPE_LEN;
 	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
 
@@ -3902,11 +3897,6 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	 *   be either compressed or non-compressed.
 	 */
 
-	/* don't make the dst file partly checksummed */
-	if ((BTRFS_I(src)->flags & BTRFS_INODE_NODATASUM) !=
-	    (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM))
-		return -EINVAL;
-
 	/*
 	 * VFS's generic_remap_file_range_prep() protects us from cloning the
 	 * eof block into the middle of a file, which would result in corruption
@@ -3981,6 +3971,13 @@ static int btrfs_remap_file_range_prep(struct file *file_in, loff_t pos_in,
 		inode_lock(inode_in);
 	else
 		btrfs_double_inode_lock(inode_in, inode_out);
+
+	/* don't make the dst file partly checksummed */
+	if ((BTRFS_I(inode_in)->flags & BTRFS_INODE_NODATASUM) !=
+	    (BTRFS_I(inode_out)->flags & BTRFS_INODE_NODATASUM)) {
+		ret = -EINVAL;
+		goto out_unlock;
+	}
 
 	/*
 	 * Now that the inodes are locked, we need to start writeback ourselves
