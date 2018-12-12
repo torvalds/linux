@@ -1061,10 +1061,10 @@ static ssize_t adt7316_show_DAC_internal_Vref(struct device *dev,
 
 	if ((chip->id & ID_FAMILY_MASK) == ID_ADT75XX)
 		return sprintf(buf, "0x%x\n",
-			(chip->dac_config & ADT7516_DAC_IN_VREF_MASK) >>
+			(chip->ldac_config & ADT7516_DAC_IN_VREF_MASK) >>
 			ADT7516_DAC_IN_VREF_OFFSET);
 	return sprintf(buf, "%d\n",
-		       !!(chip->dac_config & ADT7316_DAC_IN_VREF));
+		       !!(chip->ldac_config & ADT7316_DAC_IN_VREF));
 }
 
 static ssize_t adt7316_store_DAC_internal_Vref(struct device *dev,
