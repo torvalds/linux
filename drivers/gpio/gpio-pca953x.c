@@ -324,21 +324,6 @@ static u8 pca953x_recalc_addr(struct pca953x_chip *chip, int reg, int off,
 	return regaddr;
 }
 
-static int pca953x_read_single(struct pca953x_chip *chip, int reg, u32 *val,
-				int off)
-{
-	u8 regaddr = pca953x_recalc_addr(chip, reg, off, false, false);
-	int ret;
-
-	ret = regmap_read(chip->regmap, regaddr, val);
-	if (ret < 0) {
-		dev_err(&chip->client->dev, "failed reading register\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int pca953x_write_regs(struct pca953x_chip *chip, int reg, u8 *val)
 {
 	u8 regaddr = pca953x_recalc_addr(chip, reg, 0, true, true);
@@ -408,11 +393,14 @@ exit:
 static int pca953x_gpio_get_value(struct gpio_chip *gc, unsigned off)
 {
 	struct pca953x_chip *chip = gpiochip_get_data(gc);
+	u8 inreg = pca953x_recalc_addr(chip, chip->regs->input, off,
+				       true, false);
+	u8 bit = BIT(off % BANK_SZ);
 	u32 reg_val;
 	int ret;
 
 	mutex_lock(&chip->i2c_lock);
-	ret = pca953x_read_single(chip, chip->regs->input, &reg_val, off);
+	ret = regmap_read(chip->regmap, inreg, &reg_val);
 	mutex_unlock(&chip->i2c_lock);
 	if (ret < 0) {
 		/* NOTE:  diagnostic already emitted; that's all we should
@@ -422,7 +410,7 @@ static int pca953x_gpio_get_value(struct gpio_chip *gc, unsigned off)
 		return 0;
 	}
 
-	return (reg_val & (1u << (off % BANK_SZ))) ? 1 : 0;
+	return !!(reg_val & bit);
 }
 
 static void pca953x_gpio_set_value(struct gpio_chip *gc, unsigned off, int val)
