@@ -653,7 +653,8 @@ int bnxt_re_destroy_ah(struct ib_ah *ib_ah, u32 flags)
 	struct bnxt_re_dev *rdev = ah->rdev;
 	int rc;
 
-	rc = bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah);
+	rc = bnxt_qplib_destroy_ah(&rdev->qplib_res, &ah->qplib_ah,
+				   !(flags & RDMA_DESTROY_AH_SLEEPABLE));
 	if (rc) {
 		dev_err(rdev_to_dev(rdev), "Failed to destroy HW AH");
 		return rc;
@@ -820,7 +821,7 @@ int bnxt_re_destroy_qp(struct ib_qp *ib_qp)
 
 	if (ib_qp->qp_type == IB_QPT_GSI && rdev->qp1_sqp) {
 		rc = bnxt_qplib_destroy_ah(&rdev->qplib_res,
-					   &rdev->sqp_ah->qplib_ah);
+					   &rdev->sqp_ah->qplib_ah, false);
 		if (rc) {
 			dev_err(rdev_to_dev(rdev),
 				"Failed to destroy HW AH for shadow QP");
