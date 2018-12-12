@@ -226,11 +226,13 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
 #endif
 
     if (ha->more_proc) {
+        size_t size = max_t(size_t, GDTH_SCRATCH, sizeof(gdth_hget_str));
+
         /* more information: 2. about physical devices */
         seq_puts(m, "\nPhysical Devices:");
         flag = FALSE;
             
-        buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
+        buf = gdth_ioctl_alloc(ha, size, FALSE, &paddr);
         if (!buf) 
             goto stop_output;
         for (i = 0; i < ha->bus_cnt; ++i) {
@@ -323,7 +325,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 }
             }
         }
-        gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
 
         if (!flag)
             seq_puts(m, "\n --\n");
@@ -332,9 +333,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         seq_puts(m, "\nLogical Drives:");
         flag = FALSE;
 
-        buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
-        if (!buf) 
-            goto stop_output;
         for (i = 0; i < MAX_LDRIVES; ++i) {
             if (!ha->hdr[i].is_logdrv)
                 continue;
@@ -408,7 +406,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
             seq_printf(m,
                            " To Array Drv.:\t%s\n", hrec);
         }       
-        gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
         
         if (!flag)
             seq_puts(m, "\n --\n");
@@ -417,9 +414,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         seq_puts(m, "\nArray Drives:");
         flag = FALSE;
 
-        buf = gdth_ioctl_alloc(ha, GDTH_SCRATCH, FALSE, &paddr);
-        if (!buf) 
-            goto stop_output;
         for (i = 0; i < MAX_LDRIVES; ++i) {
             if (!(ha->hdr[i].is_arraydrv && ha->hdr[i].is_master))
                 continue;
@@ -468,8 +462,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                                hrec);
             }
         }
-        gdth_ioctl_free(ha, GDTH_SCRATCH, buf, paddr);
-        
+
         if (!flag)
             seq_puts(m, "\n --\n");
 
@@ -477,9 +470,6 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
         seq_puts(m, "\nHost Drives:");
         flag = FALSE;
 
-        buf = gdth_ioctl_alloc(ha, sizeof(gdth_hget_str), FALSE, &paddr);
-        if (!buf) 
-            goto stop_output;
         for (i = 0; i < MAX_LDRIVES; ++i) {
             if (!ha->hdr[i].is_logdrv || 
                 (ha->hdr[i].is_arraydrv && !ha->hdr[i].is_master))
@@ -510,7 +500,7 @@ int gdth_show_info(struct seq_file *m, struct Scsi_Host *host)
                 }
             }
         }
-        gdth_ioctl_free(ha, sizeof(gdth_hget_str), buf, paddr);
+        gdth_ioctl_free(ha, size, buf, paddr);
 
         for (i = 0; i < MAX_HDRIVES; ++i) {
             if (!(ha->hdr[i].present))
