@@ -288,7 +288,7 @@ xfs_ialloc_inode_init(
 {
 	struct xfs_buf		*fbuf;
 	struct xfs_dinode	*free;
-	int			nbufs, blks_per_cluster, inodes_per_cluster;
+	int			nbufs;
 	int			version;
 	int			i, j;
 	xfs_daddr_t		d;
@@ -299,9 +299,7 @@ xfs_ialloc_inode_init(
 	 * sizes, manipulate the inodes in buffers  which are multiples of the
 	 * blocks size.
 	 */
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	inodes_per_cluster = XFS_FSB_TO_INO(mp, blks_per_cluster);
-	nbufs = length / blks_per_cluster;
+	nbufs = length / mp->m_blocks_per_cluster;
 
 	/*
 	 * Figure out what version number to use in the inodes we create.  If
@@ -344,9 +342,10 @@ xfs_ialloc_inode_init(
 		/*
 		 * Get the block.
 		 */
-		d = XFS_AGB_TO_DADDR(mp, agno, agbno + (j * blks_per_cluster));
+		d = XFS_AGB_TO_DADDR(mp, agno, agbno +
+				(j * mp->m_blocks_per_cluster));
 		fbuf = xfs_trans_get_buf(tp, mp->m_ddev_targp, d,
-					 mp->m_bsize * blks_per_cluster,
+					 mp->m_bsize * mp->m_blocks_per_cluster,
 					 XBF_UNMAPPED);
 		if (!fbuf)
 			return -ENOMEM;
@@ -354,7 +353,7 @@ xfs_ialloc_inode_init(
 		/* Initialize the inode buffers and log them appropriately. */
 		fbuf->b_ops = &xfs_inode_buf_ops;
 		xfs_buf_zero(fbuf, 0, BBTOB(fbuf->b_length));
-		for (i = 0; i < inodes_per_cluster; i++) {
+		for (i = 0; i < mp->m_inodes_per_cluster; i++) {
 			int	ioffset = i << mp->m_sb.sb_inodelog;
 			uint	isize = xfs_dinode_size(version);
 
@@ -2289,7 +2288,6 @@ xfs_imap(
 	xfs_agblock_t	agbno;	/* block number of inode in the alloc group */
 	xfs_agino_t	agino;	/* inode number within alloc group */
 	xfs_agnumber_t	agno;	/* allocation group number */
-	int		blks_per_cluster; /* num blocks per inode cluster */
 	xfs_agblock_t	chunk_agbno;	/* first block in inode chunk */
 	xfs_agblock_t	cluster_agbno;	/* first block in inode cluster */
 	int		error;	/* error code */
@@ -2335,8 +2333,6 @@ xfs_imap(
 		return -EINVAL;
 	}
 
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-
 	/*
 	 * For bulkstat and handle lookups, we have an untrusted inode number
 	 * that we have to verify is valid. We cannot do this just by reading
@@ -2356,7 +2352,7 @@ xfs_imap(
 	 * If the inode cluster size is the same as the blocksize or
 	 * smaller we get to the buffer by simple arithmetics.
 	 */
-	if (blks_per_cluster == 1) {
+	if (mp->m_blocks_per_cluster == 1) {
 		offset = XFS_INO_TO_OFFSET(mp, ino);
 		ASSERT(offset < mp->m_sb.sb_inopblock);
 
@@ -2385,12 +2381,13 @@ xfs_imap(
 out_map:
 	ASSERT(agbno >= chunk_agbno);
 	cluster_agbno = chunk_agbno +
-		((offset_agbno / blks_per_cluster) * blks_per_cluster);
+		((offset_agbno / mp->m_blocks_per_cluster) *
+		 mp->m_blocks_per_cluster);
 	offset = ((agbno - cluster_agbno) * mp->m_sb.sb_inopblock) +
 		XFS_INO_TO_OFFSET(mp, ino);
 
 	imap->im_blkno = XFS_AGB_TO_DADDR(mp, agno, cluster_agbno);
-	imap->im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);
+	imap->im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
 	imap->im_boffset = (unsigned short)(offset << mp->m_sb.sb_inodelog);
 
 	/*

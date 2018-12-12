@@ -193,18 +193,16 @@ xchk_iallocbt_check_freemask(
 	xfs_agino_t			chunkino;
 	xfs_agino_t			clusterino;
 	xfs_agblock_t			agbno;
-	int				blks_per_cluster;
 	uint16_t			holemask;
 	uint16_t			ir_holemask;
 	int				error = 0;
 
 	/* Make sure the freemask matches the inode records. */
-	blks_per_cluster = xfs_icluster_size_fsb(mp);
-	nr_inodes = XFS_FSB_TO_INO(mp, blks_per_cluster);
+	nr_inodes = mp->m_inodes_per_cluster;
 
 	for (agino = irec->ir_startino;
 	     agino < irec->ir_startino + XFS_INODES_PER_CHUNK;
-	     agino += blks_per_cluster * mp->m_sb.sb_inopblock) {
+	     agino += mp->m_inodes_per_cluster) {
 		fsino = XFS_AGINO_TO_INO(mp, bs->cur->bc_private.a.agno, agino);
 		chunkino = agino - irec->ir_startino;
 		agbno = XFS_AGINO_TO_AGBNO(mp, agino);
@@ -225,18 +223,18 @@ xchk_iallocbt_check_freemask(
 		/* If any part of this is a hole, skip it. */
 		if (ir_holemask) {
 			xchk_xref_is_not_owned_by(bs->sc, agbno,
-					blks_per_cluster,
+					mp->m_blocks_per_cluster,
 					&XFS_RMAP_OINFO_INODES);
 			continue;
 		}
 
-		xchk_xref_is_owned_by(bs->sc, agbno, blks_per_cluster,
+		xchk_xref_is_owned_by(bs->sc, agbno, mp->m_blocks_per_cluster,
 				&XFS_RMAP_OINFO_INODES);
 
 		/* Grab the inode cluster buffer. */
 		imap.im_blkno = XFS_AGB_TO_DADDR(mp, bs->cur->bc_private.a.agno,
 				agbno);
-		imap.im_len = XFS_FSB_TO_BB(mp, blks_per_cluster);
+		imap.im_len = XFS_FSB_TO_BB(mp, mp->m_blocks_per_cluster);
 		imap.im_boffset = 0;
 
 		error = xfs_imap_to_bp(mp, bs->cur->bc_tp, &imap,
@@ -303,7 +301,7 @@ xchk_iallocbt_rec(
 	/* Make sure this record is aligned to cluster and inoalignmnt size. */
 	agbno = XFS_AGINO_TO_AGBNO(mp, irec.ir_startino);
 	if ((agbno & (xfs_ialloc_cluster_alignment(mp) - 1)) ||
-	    (agbno & (xfs_icluster_size_fsb(mp) - 1)))
+	    (agbno & (mp->m_blocks_per_cluster - 1)))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	*inode_blocks += XFS_B_TO_FSB(mp,
