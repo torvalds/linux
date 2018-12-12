@@ -4384,6 +4384,23 @@ static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
 	 */
 	if (npages)
 		atomic64_inc(&kvm->arch.mmio_update);
+
+	/*
+	 * For change == KVM_MR_MOVE or KVM_MR_DELETE, higher levels
+	 * have already called kvm_arch_flush_shadow_memslot() to
+	 * flush shadow mappings.  For KVM_MR_CREATE we have no
+	 * previous mappings.  So the only case to handle is
+	 * KVM_MR_FLAGS_ONLY when the KVM_MEM_LOG_DIRTY_PAGES bit
+	 * has been changed.
+	 * For radix guests, we flush on setting KVM_MEM_LOG_DIRTY_PAGES
+	 * to get rid of any THP PTEs in the partition-scoped page tables
+	 * so we can track dirtiness at the page level; we flush when
+	 * clearing KVM_MEM_LOG_DIRTY_PAGES so that we can go back to
+	 * using THP PTEs.
+	 */
+	if (change == KVM_MR_FLAGS_ONLY && kvm_is_radix(kvm) &&
+	    ((new->flags ^ old->flags) & KVM_MEM_LOG_DIRTY_PAGES))
+		kvmppc_radix_flush_memslot(kvm, old);
 }
 
 /*

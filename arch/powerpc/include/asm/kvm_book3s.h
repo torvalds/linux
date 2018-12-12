@@ -222,6 +222,8 @@ extern int kvm_test_age_radix(struct kvm *kvm, struct kvm_memory_slot *memslot,
 			unsigned long gfn);
 extern long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 			struct kvm_memory_slot *memslot, unsigned long *map);
+extern void kvmppc_radix_flush_memslot(struct kvm *kvm,
+			const struct kvm_memory_slot *memslot);
 extern int kvmhv_get_rmmu_info(struct kvm *kvm, struct kvm_ppc_rmmu_info *info);
 
 /* XXX remove this export when load_last_inst() is generic */

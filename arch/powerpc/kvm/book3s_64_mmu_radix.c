@@ -958,6 +958,26 @@ long kvmppc_hv_get_dirty_log_radix(struct kvm *kvm,
 	return 0;
 }
 
+void kvmppc_radix_flush_memslot(struct kvm *kvm,
+				const struct kvm_memory_slot *memslot)
+{
+	unsigned long n;
+	pte_t *ptep;
+	unsigned long gpa;
+	unsigned int shift;
+
+	gpa = memslot->base_gfn << PAGE_SHIFT;
+	spin_lock(&kvm->mmu_lock);
+	for (n = memslot->npages; n; --n) {
+		ptep = __find_linux_pte(kvm->arch.pgtable, gpa, NULL, &shift);
+		if (ptep && pte_present(*ptep))
+			kvmppc_unmap_pte(kvm, ptep, gpa, shift, memslot,
+					 kvm->arch.lpid);
+		gpa += PAGE_SIZE;
+	}
+	spin_unlock(&kvm->mmu_lock);
+}
+
 static void add_rmmu_ap_encoding(struct kvm_ppc_rmmu_info *info,
 				 int psize, int *indexp)
 {

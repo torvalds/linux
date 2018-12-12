@@ -899,11 +899,12 @@ void kvmppc_core_flush_memslot_hv(struct kvm *kvm,
 
 	gfn = memslot->base_gfn;
 	rmapp = memslot->arch.rmap;
+	if (kvm_is_radix(kvm)) {
+		kvmppc_radix_flush_memslot(kvm, memslot);
+		return;
+	}
+
 	for (n = memslot->npages; n; --n, ++gfn) {
-		if (kvm_is_radix(kvm)) {
-			kvm_unmap_radix(kvm, memslot, gfn);
-			continue;
-		}
 		/*
 		 * Testing the present bit without locking is OK because
 		 * the memslot has been marked invalid already, and hence
