@@ -613,6 +613,23 @@ static int smu_v11_0_write_pptable(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
+{
+	int ret = 0;
+	struct smu_table_context *table_context = &smu->smu_table;
+
+	if (!table_context)
+		return -EINVAL;
+
+	ret = smu_send_smc_msg_with_param(smu,
+					  PPSMC_MSG_SetMinDeepSleepDcefclk,
+					  table_context->boot_values.dcefclk / 100);
+	if (ret)
+		pr_err("SMU11 attempt to set divider for DCEFCLK Failed!");
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -632,6 +649,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.parse_pptable = smu_v11_0_parse_pptable,
 	.populate_smc_pptable = smu_v11_0_populate_smc_pptable,
 	.write_pptable = smu_v11_0_write_pptable,
+	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
