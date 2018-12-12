@@ -15,6 +15,7 @@
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 #include "intel_gpu_commands.h"
+#include "intel_workarounds.h"
 
 struct drm_printer;
 struct i915_sched_attr;
@@ -440,6 +441,7 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
+	struct i915_wa_list wa_list;
 	struct i915_vma *scratch;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
