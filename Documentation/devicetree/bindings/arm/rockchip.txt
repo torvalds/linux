@@ -33,6 +33,10 @@ Rockchip platforms device tree bindings
     Required root node properties:
       - compatible = "mundoreader,bq-curie2", "rockchip,rk3066a";
 
+- bq Edison 2 Quad-Core tablet:
+    Required root node properties:
+      - compatible = "mundoreader,bq-edison2qc", "rockchip,rk3188";
+
 - ChipSPARK Rayeager PX2 board:
     Required root node properties:
       - compatible = "chipspark,rayeager-px2", "rockchip,rk3066a";
