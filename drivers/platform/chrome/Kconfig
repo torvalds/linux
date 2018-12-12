@@ -49,9 +49,6 @@ config CHROMEOS_TBMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called chromeos_tbmc.
 
-config CROS_EC_CTL
-        tristate
-
 config CROS_EC_I2C
 	tristate "ChromeOS Embedded Controller (I2C)"
 	depends on MFD_CROS_EC && I2C
@@ -143,5 +140,16 @@ config CROS_EC_DEBUGFS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_debugfs.
+
+config CROS_EC_SYSFS
+	tristate "ChromeOS EC control and information through sysfs"
+	depends on MFD_CROS_EC_CHARDEV && SYSFS
+	default MFD_CROS_EC_CHARDEV
+	help
+	  This option exposes some sysfs attributes to control and get
+	  information from ChromeOS EC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_sysfs.
 
 endif # CHROMEOS_PLATFORMS

@@ -325,7 +325,4 @@ int cros_ec_get_next_event(struct cros_ec_device *ec_dev, bool *wake_event);
  */
 u32 cros_ec_get_host_event(struct cros_ec_device *ec_dev);
 
-/* sysfs stuff */
-extern struct attribute_group cros_ec_attr_group;
-
 #endif /* __LINUX_MFD_CROS_EC_H */

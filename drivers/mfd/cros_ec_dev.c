@@ -34,15 +34,9 @@
 #define CROS_MAX_DEV 128
 static int ec_major;
 
-static const struct attribute_group *cros_ec_groups[] = {
-	&cros_ec_attr_group,
-	NULL,
-};
-
 static struct class cros_class = {
 	.owner          = THIS_MODULE,
 	.name           = "chromeos",
-	.dev_groups     = cros_ec_groups,
 };
 
 /* Basic communication */
@@ -396,6 +390,7 @@ static const struct mfd_cell cros_usbpd_charger_cells[] = {
 static const struct mfd_cell cros_ec_platform_cells[] = {
 	{ .name = "cros-ec-debugfs" },
 	{ .name = "cros-ec-lightbar" },
+	{ .name = "cros-ec-sysfs" },
 	{ .name = "cros-ec-vbc" },
 };
 

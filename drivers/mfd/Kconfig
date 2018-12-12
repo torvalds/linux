@@ -215,7 +215,6 @@ config MFD_CROS_EC
 config MFD_CROS_EC_CHARDEV
         tristate "Chrome OS Embedded Controller userspace device interface"
         depends on MFD_CROS_EC
-        select CROS_EC_CTL
         ---help---
           This driver adds support to talk with the ChromeOS EC from userspace.
 
