@@ -26,6 +26,7 @@
 #include "amdgpu_smu.h"
 #include "smu_v11_0.h"
 #include "smu_v11_0_ppsmc.h"
+#include "smu11_driver_if.h"
 #include "soc15_common.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
@@ -41,6 +42,14 @@ static int smu_v11_0_send_msg_without_waiting(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
+	return 0;
+}
+
+static int smu_v11_0_read_arg(struct smu_context *smu, uint32_t *arg)
+{
+	struct amdgpu_device *adev = smu->adev;
+
+	*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
 	return 0;
 }
 
@@ -182,10 +191,30 @@ static int smu_v11_0_check_fw_status(struct smu_context *smu)
 	return -EIO;
 }
 
+static int smu_v11_0_check_fw_version(struct smu_context *smu)
+{
+	uint32_t smu_version = 0xff;
+	int ret = 0;
+
+	ret = smu_send_smc_msg(smu, PPSMC_MSG_GetDriverIfVersion);
+	if (ret)
+		goto err;
+
+	ret = smu_v11_0_read_arg(smu, &smu_version);
+	if (ret)
+		goto err;
+
+	if (smu_version == SMU11_DRIVER_IF_VERSION)
+		return 0;
+err:
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
 	.check_fw_status = smu_v11_0_check_fw_status,
+	.check_fw_version = smu_v11_0_check_fw_version,
 	.send_smc_msg = smu_v11_0_send_msg,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 };
