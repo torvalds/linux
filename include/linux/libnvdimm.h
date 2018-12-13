@@ -38,6 +38,10 @@ enum {
 	NDD_UNARMED = 1,
 	/* locked memory devices should not be accessed */
 	NDD_LOCKED = 2,
+	/* memory under security wipes should not be accessed */
+	NDD_SECURITY_OVERWRITE = 3,
+	/*  tracking whether or not there is a pending device reference */
+	NDD_WORK_PENDING = 4,
 
 	/* need to set a limit somewhere, but yes, this is likely overkill */
 	ND_IOCTL_MAX_BUFLEN = SZ_4M,
@@ -182,6 +186,9 @@ struct nvdimm_security_ops {
 			const struct nvdimm_key_data *key_data);
 	int (*erase)(struct nvdimm *nvdimm,
 			const struct nvdimm_key_data *key_data);
+	int (*overwrite)(struct nvdimm *nvdimm,
+			const struct nvdimm_key_data *key_data);
+	int (*query_overwrite)(struct nvdimm *nvdimm);
 };
 
 void badrange_init(struct badrange *badrange);
@@ -219,6 +226,7 @@ static inline struct nvdimm *nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 			cmd_mask, num_flush, flush_wpq, NULL, NULL);
 }
 
+int nvdimm_security_setup_events(struct nvdimm *nvdimm);
 const struct nd_cmd_desc *nd_cmd_dimm_desc(int cmd);
 const struct nd_cmd_desc *nd_cmd_bus_desc(int cmd);
 u32 nd_cmd_in_size(struct nvdimm *nvdimm, int cmd,
@@ -244,6 +252,7 @@ u64 nd_fletcher64(void *addr, size_t len, bool le);
 void nvdimm_flush(struct nd_region *nd_region);
 int nvdimm_has_flush(struct nd_region *nd_region);
 int nvdimm_has_cache(struct nd_region *nd_region);
+int nvdimm_in_overwrite(struct nvdimm *nvdimm);
 
 static inline int nvdimm_ctl(struct nvdimm *nvdimm, unsigned int cmd, void *buf,
 		unsigned int buf_len, int *cmd_rc)

@@ -143,6 +143,11 @@ static int __nvdimm_security_unlock(struct nvdimm *nvdimm)
 			|| nvdimm->sec.state < 0)
 		return -EIO;
 
+	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
+		dev_warn(dev, "Security operation in progress.\n");
+		return -EBUSY;
+	}
+
 	/*
 	 * If the pre-OS has unlocked the DIMM, attempt to send the key
 	 * from request_key() to the hardware for verification.  Failure
@@ -201,6 +206,11 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid)
 		dev_warn(dev, "Incorrect security state: %d\n",
 				nvdimm->sec.state);
 		return -EIO;
+	}
+
+	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
+		dev_warn(dev, "Security operation in progress.\n");
+		return -EBUSY;
 	}
 
 	key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
@@ -288,6 +298,11 @@ int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
 		return -EIO;
 	}
 
+	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
+		dev_warn(dev, "Security operation in progress.\n");
+		return -EBUSY;
+	}
+
 	key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
 	if (!key)
 		return -ENOKEY;
@@ -299,4 +314,122 @@ int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
 	nvdimm_put_key(key);
 	nvdimm->sec.state = nvdimm_security_state(nvdimm);
 	return rc;
+}
+
+int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid)
+{
+	struct device *dev = &nvdimm->dev;
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(dev);
+	struct key *key;
+	int rc;
+
+	/* The bus lock should be held at the top level of the call stack */
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+
+	if (!nvdimm->sec.ops || !nvdimm->sec.ops->overwrite
+			|| nvdimm->sec.state < 0)
+		return -EOPNOTSUPP;
+
+	if (atomic_read(&nvdimm->busy)) {
+		dev_warn(dev, "Unable to overwrite while DIMM active.\n");
+		return -EBUSY;
+	}
+
+	if (dev->driver == NULL) {
+		dev_warn(dev, "Unable to overwrite while DIMM active.\n");
+		return -EINVAL;
+	}
+
+	if (nvdimm->sec.state >= NVDIMM_SECURITY_FROZEN) {
+		dev_warn(dev, "Incorrect security state: %d\n",
+				nvdimm->sec.state);
+		return -EIO;
+	}
+
+	if (test_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags)) {
+		dev_warn(dev, "Security operation in progress.\n");
+		return -EBUSY;
+	}
+
+	if (keyid == 0)
+		key = NULL;
+	else {
+		key = nvdimm_lookup_user_key(nvdimm, keyid, NVDIMM_BASE_KEY);
+		if (!key)
+			return -ENOKEY;
+	}
+
+	rc = nvdimm->sec.ops->overwrite(nvdimm, key ? key_data(key) : NULL);
+	dev_dbg(dev, "key: %d overwrite submission: %s\n", key_serial(key),
+			rc == 0 ? "success" : "fail");
+
+	nvdimm_put_key(key);
+	if (rc == 0) {
+		set_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags);
+		set_bit(NDD_WORK_PENDING, &nvdimm->flags);
+		nvdimm->sec.state = NVDIMM_SECURITY_OVERWRITE;
+		/*
+		 * Make sure we don't lose device while doing overwrite
+		 * query.
+		 */
+		get_device(dev);
+		queue_delayed_work(system_wq, &nvdimm->dwork, 0);
+	}
+	return rc;
+}
+
+void __nvdimm_security_overwrite_query(struct nvdimm *nvdimm)
+{
+	struct nvdimm_bus *nvdimm_bus = walk_to_nvdimm_bus(&nvdimm->dev);
+	int rc;
+	unsigned int tmo;
+
+	/* The bus lock should be held at the top level of the call stack */
+	lockdep_assert_held(&nvdimm_bus->reconfig_mutex);
+
+	/*
+	 * Abort and release device if we no longer have the overwrite
+	 * flag set. It means the work has been canceled.
+	 */
+	if (!test_bit(NDD_WORK_PENDING, &nvdimm->flags))
+		return;
+
+	tmo = nvdimm->sec.overwrite_tmo;
+
+	if (!nvdimm->sec.ops || !nvdimm->sec.ops->query_overwrite
+			|| nvdimm->sec.state < 0)
+		return;
+
+	rc = nvdimm->sec.ops->query_overwrite(nvdimm);
+	if (rc == -EBUSY) {
+
+		/* setup delayed work again */
+		tmo += 10;
+		queue_delayed_work(system_wq, &nvdimm->dwork, tmo * HZ);
+		nvdimm->sec.overwrite_tmo = min(15U * 60U, tmo);
+		return;
+	}
+
+	if (rc < 0)
+		dev_warn(&nvdimm->dev, "overwrite failed\n");
+	else
+		dev_dbg(&nvdimm->dev, "overwrite completed\n");
+
+	if (nvdimm->sec.overwrite_state)
+		sysfs_notify_dirent(nvdimm->sec.overwrite_state);
+	nvdimm->sec.overwrite_tmo = 0;
+	clear_bit(NDD_SECURITY_OVERWRITE, &nvdimm->flags);
+	clear_bit(NDD_WORK_PENDING, &nvdimm->flags);
+	put_device(&nvdimm->dev);
+	nvdimm->sec.state = nvdimm_security_state(nvdimm);
+}
+
+void nvdimm_security_overwrite_query(struct work_struct *work)
+{
+	struct nvdimm *nvdimm =
+		container_of(work, typeof(*nvdimm), dwork.work);
+
+	nvdimm_bus_lock(&nvdimm->dev);
+	__nvdimm_security_overwrite_query(nvdimm);
+	nvdimm_bus_unlock(&nvdimm->dev);
 }

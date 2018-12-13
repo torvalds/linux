@@ -21,6 +21,7 @@
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
 extern int nvdimm_major;
+extern struct workqueue_struct *nvdimm_wq;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
@@ -45,7 +46,10 @@ struct nvdimm {
 	struct {
 		const struct nvdimm_security_ops *ops;
 		enum nvdimm_security_state state;
+		unsigned int overwrite_tmo;
+		struct kernfs_node *overwrite_state;
 	} sec;
+	struct delayed_work dwork;
 };
 
 static inline enum nvdimm_security_state nvdimm_security_state(
@@ -62,6 +66,8 @@ int nvdimm_security_disable(struct nvdimm *nvdimm, unsigned int keyid);
 int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int keyid,
 		unsigned int new_keyid);
 int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid);
+int nvdimm_security_overwrite(struct nvdimm *nvdimm, unsigned int keyid);
+void nvdimm_security_overwrite_query(struct work_struct *work);
 #else
 static inline int nvdimm_security_disable(struct nvdimm *nvdimm,
 		unsigned int keyid)
@@ -76,6 +82,14 @@ static inline int nvdimm_security_update(struct nvdimm *nvdimm, unsigned int key
 static inline int nvdimm_security_erase(struct nvdimm *nvdimm, unsigned int keyid)
 {
 	return -EOPNOTSUPP;
+}
+static inline int nvdimm_security_overwrite(struct nvdimm *nvdimm,
+		unsigned int keyid)
+{
+	return -EOPNOTSUPP;
+}
+static inline void nvdimm_security_overwrite_query(struct work_struct *work)
+{
 }
 #endif
 

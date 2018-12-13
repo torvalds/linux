@@ -28,6 +28,14 @@ static enum nvdimm_security_state intel_security_state(struct nvdimm *nvdimm)
 	if (!test_bit(NVDIMM_INTEL_GET_SECURITY_STATE, &nfit_mem->dsm_mask))
 		return -ENXIO;
 
+	/*
+	 * Short circuit the state retrieval while we are doing overwrite.
+	 * The DSM spec states that the security state is indeterminate
+	 * until the overwrite DSM completes.
+	 */
+	if (nvdimm_in_overwrite(nvdimm))
+		return NVDIMM_SECURITY_OVERWRITE;
+
 	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
 	if (rc < 0)
 		return rc;
@@ -249,6 +257,86 @@ static int intel_security_erase(struct nvdimm *nvdimm,
 	return 0;
 }
 
+static int intel_security_query_overwrite(struct nvdimm *nvdimm)
+{
+	int rc;
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	struct {
+		struct nd_cmd_pkg pkg;
+		struct nd_intel_query_overwrite cmd;
+	} nd_cmd = {
+		.pkg = {
+			.nd_command = NVDIMM_INTEL_QUERY_OVERWRITE,
+			.nd_family = NVDIMM_FAMILY_INTEL,
+			.nd_size_out = ND_INTEL_STATUS_SIZE,
+			.nd_fw_size = ND_INTEL_STATUS_SIZE,
+		},
+	};
+
+	if (!test_bit(NVDIMM_INTEL_QUERY_OVERWRITE, &nfit_mem->dsm_mask))
+		return -ENOTTY;
+
+	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
+	if (rc < 0)
+		return rc;
+
+	switch (nd_cmd.cmd.status) {
+	case 0:
+		break;
+	case ND_INTEL_STATUS_OQUERY_INPROGRESS:
+		return -EBUSY;
+	default:
+		return -ENXIO;
+	}
+
+	/* flush all cache before we make the nvdimms available */
+	nvdimm_invalidate_cache();
+	return 0;
+}
+
+static int intel_security_overwrite(struct nvdimm *nvdimm,
+		const struct nvdimm_key_data *nkey)
+{
+	int rc;
+	struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+	struct {
+		struct nd_cmd_pkg pkg;
+		struct nd_intel_overwrite cmd;
+	} nd_cmd = {
+		.pkg = {
+			.nd_command = NVDIMM_INTEL_OVERWRITE,
+			.nd_family = NVDIMM_FAMILY_INTEL,
+			.nd_size_in = ND_INTEL_PASSPHRASE_SIZE,
+			.nd_size_out = ND_INTEL_STATUS_SIZE,
+			.nd_fw_size = ND_INTEL_STATUS_SIZE,
+		},
+	};
+
+	if (!test_bit(NVDIMM_INTEL_OVERWRITE, &nfit_mem->dsm_mask))
+		return -ENOTTY;
+
+	/* flush all cache before we erase DIMM */
+	nvdimm_invalidate_cache();
+	if (nkey)
+		memcpy(nd_cmd.cmd.passphrase, nkey->data,
+				sizeof(nd_cmd.cmd.passphrase));
+	rc = nvdimm_ctl(nvdimm, ND_CMD_CALL, &nd_cmd, sizeof(nd_cmd), NULL);
+	if (rc < 0)
+		return rc;
+
+	switch (nd_cmd.cmd.status) {
+	case 0:
+		return 0;
+	case ND_INTEL_STATUS_OVERWRITE_UNSUPPORTED:
+		return -ENOTSUPP;
+	case ND_INTEL_STATUS_INVALID_PASS:
+		return -EINVAL;
+	case ND_INTEL_STATUS_INVALID_STATE:
+	default:
+		return -ENXIO;
+	}
+}
+
 /*
  * TODO: define a cross arch wbinvd equivalent when/if
  * NVDIMM_FAMILY_INTEL command support arrives on another arch.
@@ -273,6 +361,8 @@ static const struct nvdimm_security_ops __intel_security_ops = {
 #ifdef CONFIG_X86
 	.unlock = intel_security_unlock,
 	.erase = intel_security_erase,
+	.overwrite = intel_security_overwrite,
+	.query_overwrite = intel_security_query_overwrite,
 #endif
 };
 

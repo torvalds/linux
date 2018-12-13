@@ -393,9 +393,24 @@ static int child_unregister(struct device *dev, void *data)
 	 * i.e. remove classless children
 	 */
 	if (dev->class)
-		/* pass */;
-	else
-		nd_device_unregister(dev, ND_SYNC);
+		return 0;
+
+	if (is_nvdimm(dev)) {
+		struct nvdimm *nvdimm = to_nvdimm(dev);
+		bool dev_put = false;
+
+		/* We are shutting down. Make state frozen artificially. */
+		nvdimm_bus_lock(dev);
+		nvdimm->sec.state = NVDIMM_SECURITY_FROZEN;
+		if (test_and_clear_bit(NDD_WORK_PENDING, &nvdimm->flags))
+			dev_put = true;
+		nvdimm_bus_unlock(dev);
+		cancel_delayed_work_sync(&nvdimm->dwork);
+		if (dev_put)
+			put_device(dev);
+	}
+	nd_device_unregister(dev, ND_SYNC);
+
 	return 0;
 }
 
