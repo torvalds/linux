@@ -1724,7 +1724,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		gpio-keys,name = "gpio-keys";
 
 		power {
 			label = "Power";
