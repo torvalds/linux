@@ -521,6 +521,14 @@ diff.*::
 		Possible values are 'delta', 'delta-abs', 'ratio' and
 		'wdiff'.  Default is 'delta'.
 
+trace.*::
+	trace.add_events::
+		Allows adding a set of events to add to the ones specified
+		by the user, or use as a default one if none was specified.
+		The initial use case is to add augmented_raw_syscalls.o to
+		activate the 'perf trace' logic that looks for syscall
+		pointer contents after the normal tracepoint payload.
+
 SEE ALSO
 --------
 linkperf:perf[1]

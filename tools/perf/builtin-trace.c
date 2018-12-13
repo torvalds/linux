@@ -22,6 +22,7 @@
 #include "builtin.h"
 #include "util/cgroup.h"
 #include "util/color.h"
+#include "util/config.h"
 #include "util/debug.h"
 #include "util/env.h"
 #include "util/event.h"
@@ -3523,6 +3524,21 @@ static void trace__set_bpf_map_syscalls(struct trace *trace)
 	trace->syscalls.map = bpf__find_map_by_name("syscalls");
 }
 
+static int trace__config(const char *var, const char *value, void *arg)
+{
+	int err = 0;
+
+	if (!strcmp(var, "trace.add_events")) {
+		struct trace *trace = arg;
+		struct option o = OPT_CALLBACK('e', "event", &trace->evlist, "event",
+					       "event selector. use 'perf list' to list available events",
+					       parse_events_option);
+		err = parse_events_option(&o, value, 0);
+	}
+
+	return err;
+}
+
 int cmd_trace(int argc, const char **argv)
 {
 	const char *trace_usage[] = {
@@ -3644,6 +3660,10 @@ int cmd_trace(int argc, const char **argv)
 		err = -ENOMEM;
 		goto out;
 	}
+
+	err = perf_config(trace__config, &trace);
+	if (err)
+		goto out;
 
 	argc = parse_options_subcommand(argc, argv, trace_options, trace_subcommands,
 				 trace_usage, PARSE_OPT_STOP_AT_NON_OPTION);
