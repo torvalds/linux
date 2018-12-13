@@ -759,10 +759,13 @@ EXPORT_SYMBOL_GPL(ipvlan_link_register);
 static int ipvlan_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
 {
+	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
+	struct netdev_notifier_pre_changeaddr_info *prechaddr_info;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct ipvl_dev *ipvlan, *next;
 	struct ipvl_port *port;
 	LIST_HEAD(lst_kill);
+	int err;
 
 	if (!netif_is_ipvlan_port(dev))
 		return NOTIFY_DONE;
@@ -816,6 +819,17 @@ static int ipvlan_device_event(struct notifier_block *unused,
 	case NETDEV_CHANGEMTU:
 		list_for_each_entry(ipvlan, &port->ipvlans, pnode)
 			ipvlan_adjust_mtu(ipvlan, dev);
+		break;
+
+	case NETDEV_PRE_CHANGEADDR:
+		prechaddr_info = ptr;
+		list_for_each_entry(ipvlan, &port->ipvlans, pnode) {
+			err = dev_pre_changeaddr_notify(ipvlan->dev,
+						    prechaddr_info->dev_addr,
+						    extack);
+			if (err)
+				return notifier_from_errno(err);
+		}
 		break;
 
 	case NETDEV_CHANGEADDR:
