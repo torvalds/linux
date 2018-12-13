@@ -710,14 +710,18 @@ static int ov9640_probe(struct i2c_client *client,
 			V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->hdl, &ov9640_ctrl_ops,
 			V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	if (priv->hdl.error) {
+		ret = priv->hdl.error;
+		goto ectrlinit;
+	}
+
 	priv->subdev.ctrl_handler = &priv->hdl;
-	if (priv->hdl.error)
-		return priv->hdl.error;
 
 	priv->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
-		goto eclkget;
+		goto ectrlinit;
 	}
 
 	ret = ov9640_video_probe(client);
@@ -733,7 +737,7 @@ static int ov9640_probe(struct i2c_client *client,
 
 eprobe:
 	v4l2_clk_put(priv->clk);
-eclkget:
+ectrlinit:
 	v4l2_ctrl_handler_free(&priv->hdl);
 
 	return ret;
