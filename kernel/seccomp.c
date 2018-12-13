@@ -1169,8 +1169,7 @@ static __poll_t seccomp_notify_poll(struct file *file,
 
 	poll_wait(file, &filter->notif->wqh, poll_tab);
 
-	ret = mutex_lock_interruptible(&filter->notify_lock);
-	if (ret < 0)
+	if (mutex_lock_interruptible(&filter->notify_lock) < 0)
 		return EPOLLERR;
 
 	list_for_each_entry(cur, &filter->notif->notifications, list) {
