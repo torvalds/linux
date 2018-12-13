@@ -8,6 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+extern volatile int versatile_cpu_release;
 
 extern void versatile_secondary_startup(void);
 extern void versatile_secondary_init(unsigned int cpu);

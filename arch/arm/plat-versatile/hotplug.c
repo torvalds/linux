@@ -18,6 +18,8 @@
 #include <asm/smp_plat.h>
 #include <asm/cp15.h>
 
+#include <plat/platsmp.h>
+
 static inline void versatile_immitation_enter_lowpower(unsigned int actrl_mask)
 {
 	unsigned int v;
@@ -67,7 +69,7 @@ static inline void versatile_immitation_do_lowpower(unsigned int cpu, int *spuri
 	for (;;) {
 		wfi();
 
-		if (pen_release == cpu_logical_map(cpu)) {
+		if (versatile_cpu_release == cpu_logical_map(cpu)) {
 			/*
 			 * OK, proper wakeup, we're done
 			 */
