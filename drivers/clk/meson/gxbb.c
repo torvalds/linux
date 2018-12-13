@@ -216,10 +216,16 @@ static struct clk_regmap gxl_hdmi_pll_dco = {
 			.shift   = 9,
 			.width   = 5,
 		},
+		/*
+		 * On gxl, there is a register shift due to
+		 * HHI_HDMI_PLL_CNTL1 which does not exist on gxbb,
+		 * so we use the HHI_HDMI_PLL_CNTL2 define from GXBB
+		 * instead which is defined at the same offset.
+		 */
 		.frac = {
 			.reg_off = HHI_HDMI_PLL_CNTL2,
 			.shift   = 0,
-			.width   = 12,
+			.width   = 10,
 		},
 		.l = {
 			.reg_off = HHI_HDMI_PLL_CNTL,
