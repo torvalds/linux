@@ -2450,7 +2450,8 @@ enum netdev_cmd {
 	NETDEV_REGISTER,
 	NETDEV_UNREGISTER,
 	NETDEV_CHANGEMTU,	/* notify after mtu change happened */
-	NETDEV_CHANGEADDR,
+	NETDEV_CHANGEADDR,	/* notify after the address change */
+	NETDEV_PRE_CHANGEADDR,	/* notify before the address change */
 	NETDEV_GOING_DOWN,
 	NETDEV_CHANGENAME,
 	NETDEV_FEAT_CHANGE,
@@ -2510,6 +2511,11 @@ struct netdev_notifier_changeupper_info {
 struct netdev_notifier_changelowerstate_info {
 	struct netdev_notifier_info info; /* must be first */
 	void *lower_state_info; /* is lower dev state */
+};
+
+struct netdev_notifier_pre_changeaddr_info {
+	struct netdev_notifier_info info; /* must be first */
+	const unsigned char *dev_addr;
 };
 
 static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
