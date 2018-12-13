@@ -1036,13 +1036,23 @@ typedef struct dhd_pub {
 #if defined(STAT_REPORT)
 	void *stat_report_info;
 #endif
-	char		*clm_path;		/* module_param: path to clm vars file */
-	char		*conf_path;		/* module_param: path to config vars file */
+	char *clm_path;		/* module_param: path to clm vars file */
+	char *conf_path;		/* module_param: path to config vars file */
 	struct dhd_conf *conf;	/* Bus module handle */
 	void *adapter;			/* adapter information, interrupt, fw path etc. */
 #ifdef BCMDBUS
 	bool dhd_remove;
 #endif /* BCMDBUS */
+#if defined(WL_WIRELESS_EXT)
+#if defined(WL_ESCAN)
+	void *escan;
+#else
+	void *iscan;
+#endif
+#endif
+#ifdef WL_EXT_IAPSTA
+	void *iapsta_params;
+#endif
 } dhd_pub_t;
 
 typedef struct {

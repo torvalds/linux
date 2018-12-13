@@ -101,6 +101,35 @@ typedef struct mchan_params {
 	int miracast_mode;
 } mchan_params_t;
 
+enum in4way_flags {
+	NO_SCAN_IN4WAY	= (1 << (0)),
+	NO_BTC_IN4WAY	= (1 << (1)),
+	DONT_DELETE_GC_AFTER_WPS	= (1 << (2)),
+	WAIT_DISCONNECTED	= (1 << (3)),
+};
+
+enum eapol_status {
+	EAPOL_STATUS_NONE = 0,
+	EAPOL_STATUS_WPS_REQID,
+	EAPOL_STATUS_WPS_RSPID,
+	EAPOL_STATUS_WPS_WSC_START,
+	EAPOL_STATUS_WPS_M1,
+	EAPOL_STATUS_WPS_M2,
+	EAPOL_STATUS_WPS_M3,
+	EAPOL_STATUS_WPS_M4,
+	EAPOL_STATUS_WPS_M5,
+	EAPOL_STATUS_WPS_M6,
+	EAPOL_STATUS_WPS_M7,
+	EAPOL_STATUS_WPS_M8,
+	EAPOL_STATUS_WPS_DONE,
+	EAPOL_STATUS_WPA_START,
+	EAPOL_STATUS_WPA_M1,
+	EAPOL_STATUS_WPA_M2,
+	EAPOL_STATUS_WPA_M3,
+	EAPOL_STATUS_WPA_M4,
+	EAPOL_STATUS_WPA_END
+};
+
 typedef struct dhd_conf {
 	uint chip;
 	uint chiprev;
@@ -109,7 +138,6 @@ typedef struct dhd_conf {
 	wl_mac_list_ctrl_t nv_by_mac;
 	wl_chip_nv_path_list_ctrl_t nv_by_chip;
 	conf_country_list_t country_list;
-	conf_country_list_t country_list_nodfs;
 	int band;
 	int bw_cap[2];
 	wl_country_t cspec;
@@ -148,7 +176,6 @@ typedef struct dhd_conf {
 	int tx_max_offset;
 	uint txglomsize;
 	int txctl_tmo_fix;
-	bool tx_in_rx;
 	bool txglom_mode;
 	uint deferred_tx_len;
 	/*txglom_bucket_size:
@@ -176,7 +203,6 @@ typedef struct dhd_conf {
 	uint8 tcpack_sup_mode;
 #endif
 	int pktprio8021x;
-	int num_different_channels;
 	int xmit_in_suspend;
 	int ap_in_suspend;
 #ifdef SUSPEND_EVENT
@@ -202,6 +228,9 @@ typedef struct dhd_conf {
 	struct mchan_params mchan[MCHAN_MAX_NUM];
 	char *wl_preinit;
 	int tsq;
+	uint eapol_status;
+	uint in4way;
+	uint max_wait_gc_time;
 } dhd_conf_t;
 
 #ifdef BCMSDIO
@@ -227,7 +256,7 @@ int dhd_conf_set_bufiovar(dhd_pub_t *dhd, uint cmd, char *name, char *buf, int l
 uint dhd_conf_get_band(dhd_pub_t *dhd);
 int dhd_conf_set_country(dhd_pub_t *dhd, wl_country_t *cspec);
 int dhd_conf_get_country(dhd_pub_t *dhd, wl_country_t *cspec);
-int dhd_conf_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec, int nodfs);
+int dhd_conf_map_country_list(dhd_pub_t *dhd, wl_country_t *cspec);
 int dhd_conf_fix_country(dhd_pub_t *dhd);
 bool dhd_conf_match_channel(dhd_pub_t *dhd, uint32 channel);
 void dhd_conf_set_wme(dhd_pub_t *dhd, int mode);
@@ -240,6 +269,7 @@ int dhd_conf_set_chiprev(dhd_pub_t *dhd, uint chip, uint chiprev);
 uint dhd_conf_get_chip(void *context);
 uint dhd_conf_get_chiprev(void *context);
 int dhd_conf_get_pm(dhd_pub_t *dhd);
+
 #ifdef PROP_TXSTATUS
 int dhd_conf_get_disable_proptx(dhd_pub_t *dhd);
 #endif

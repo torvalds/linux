@@ -12,7 +12,6 @@ CONFIG_BCMDHD_PROPTXSTATUS := y
 CONFIG_BCMDHD_AG := y
 #CONFIG_DHD_USE_STATIC_BUF := y
 CONFIG_VTS_SUPPORT := y
-#CONFIG_LOGTRACE := y
 
 CONFIG_MACH_PLATFORM := y
 #CONFIG_BCMDHD_DTS := y
@@ -33,6 +32,7 @@ DHDOFILES = aiutils.o siutils.o sbutils.o bcmutils.o bcmwifi_channels.o   \
 	dhd_linux.o dhd_linux_platdev.o dhd_linux_sched.o dhd_pno.o           \
 	dhd_common.o dhd_ip.o dhd_linux_wq.o dhd_custom_gpio.o                \
 	bcmevent.o hndpmu.o linux_osl.o wldev_common.o wl_android.o           \
+	dhd_debug_linux.o dhd_debug.o dhd_mschdbg.o                           \
 	hnd_pktq.o hnd_pktpool.o dhd_config.o wl_android_ext.o
 
 #BCMDHD_SDIO
@@ -60,9 +60,6 @@ DHDCFLAGS += -DPCIE_FULL_DONGLE -DBCMPCIE -DCUSTOM_DPC_PRIO_SETTING=-1    \
 ifneq ($(CONFIG_PCI_MSI),)
 	DHDCFLAGS += -DDHD_USE_MSI
 endif
-ifeq ($(CONFIG_DHD_USE_STATIC_BUF),y)
-	DHDCFLAGS += -DDHD_USE_STATIC_CTRLBUF
-endif
 
 DHDOFILES += dhd_pcie.o dhd_pcie_linux.o pcie_core.o dhd_flowring.o       \
 	dhd_msgbuf.o
@@ -74,10 +71,15 @@ DHDCFLAGS += -DUSBOS_TX_THREAD -DBCMDBUS -DBCMTRXV2 -DDBUS_USB_LOOPBACK   \
 	-DBDC
 DHDCFLAGS += -DBCM_REQUEST_FW -DEXTERNAL_FW_PATH
 #DHDCFLAGS :=$(filter-out -DENABLE_INSMOD_NO_FW_LOAD,$(DHDCFLAGS))
+ifneq ($(CONFIG_BCMDHD_CUSB),)
+	DHDCFLAGS += -DBCMUSBDEV_COMPOSITE
+	DHDCFLAGS :=$(filter-out -DENABLE_INSMOD_NO_FW_LOAD,$(DHDCFLAGS))
+endif
 
 DHDOFILES += dbus.o dbus_usb.o dbus_usb_linux.o dhd_cdc.o dhd_wlfc.o
 endif
 
+#PROPTXSTATUS
 ifeq ($(CONFIG_BCMDHD_PROPTXSTATUS),y)
 ifneq ($(CONFIG_BCMDHD_USB),)
 	DHDCFLAGS += -DPROP_TXSTATUS
@@ -99,14 +101,7 @@ DHDCFLAGS += -DGSCAN_SUPPORT -DRTT_SUPPORT -DCUSTOM_FORCE_NODFS_FLAG      \
 	-DCUSTOM_COUNTRY_CODE -DDHD_FW_COREDUMP -DEXPLICIT_DISCIF_CLEANUP
 
 DHDOFILES += bcmxtlv.o dhd_rtt.o bcm_app_utils.o
-CONFIG_LOGTRACE := y
 endif
-endif
-
-#LOGTRACE
-ifeq ($(CONFIG_LOGTRACE),y)
-	DHDCFLAGS += -DSHOW_LOGTRACE
-	DHDOFILES += dhd_debug_linux.o dhd_debug.o dhd_mschdbg.o
 endif
 
 # MESH support for kernel 3.10 later

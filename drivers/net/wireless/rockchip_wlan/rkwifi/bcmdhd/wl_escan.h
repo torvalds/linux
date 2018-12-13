@@ -27,6 +27,11 @@ struct escan_event_q {
 	s8 edata[1];
 };
 
+struct pmk_list {
+	pmkid_list_t pmkids;
+	pmkid_t foo[MAXPMKID - 1];
+};
+
 /* donlge escan state */
 enum escan_state {
 	ESCAN_STATE_IDLE,
@@ -66,6 +71,8 @@ typedef struct wl_escan_info {
 #if defined(BSSCACHE)
 	wl_bss_cache_ctrl_t g_bss_cache_ctrl;
 #endif
+	struct pmk_list pmk_list;
+	wl_conn_info_t conn_info;
 } wl_escan_info_t;
 
 void wl_escan_event(struct net_device *dev, const wl_event_msg_t * e, void *data);

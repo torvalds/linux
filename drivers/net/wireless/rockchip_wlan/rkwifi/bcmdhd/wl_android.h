@@ -33,6 +33,8 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <wldev_common.h>
+#include <dngl_stats.h>
+#include <dhd.h>
 
 /* If any feature uses the Generic Netlink Interface, put it here to enable WL_GENL
  * automatically
@@ -67,6 +69,7 @@ typedef struct _compat_android_wifi_priv_cmd {
 #define ANDROID_ERROR_LEVEL	0x0001
 #define ANDROID_TRACE_LEVEL	0x0002
 #define ANDROID_INFO_LEVEL	0x0004
+#define ANDROID_EVENT_LEVEL	0x0008
 
 #define ANDROID_ERROR(x) \
 	do { \
@@ -89,6 +92,13 @@ typedef struct _compat_android_wifi_priv_cmd {
 			printk x; \
 		} \
 	} while (0)
+#define ANDROID_EVENT(x) \
+	do { \
+		if (android_msg_level & ANDROID_EVENT_LEVEL) { \
+			printk(KERN_ERR "ANDROID-EVENT) ");	\
+			printk x; \
+		} \
+	} while (0)
 
 /**
  * wl_android_init will be called from module init function (dhd_module_init now), similarly
@@ -104,17 +114,26 @@ int wl_handle_private_cmd(struct net_device *net, char *command, u32 cmd_len);
 
 s32 wl_netlink_send_msg(int pid, int type, int seq, const void *data, size_t size);
 #ifdef WL_EXT_IAPSTA
-int wl_ext_iapsta_attach_netdev(struct net_device *net, uint8 bssidx);
-int wl_ext_iapsta_attach_name(struct net_device *net, uint8 bssidx);
-int wl_ext_iapsta_dettach_netdev(void);
-u32 wl_ext_iapsta_disconnect_sta(struct net_device *dev, u32 channel);
+int wl_ext_iapsta_attach_netdev(struct net_device *net, int ifidx, uint8 bssidx);
+int wl_ext_iapsta_attach_name(struct net_device *net, int ifidx);
+int wl_ext_iapsta_dettach_netdev(struct net_device *net, int ifidx);
+u32 wl_ext_iapsta_update_channel(struct net_device *dev, u32 channel);
 int wl_ext_iapsta_alive_preinit(struct net_device *dev);
 int wl_ext_iapsta_alive_postinit(struct net_device *dev);
 int wl_ext_iapsta_event(struct net_device *dev, wl_event_msg_t *e, void* data);
+int wl_ext_iapsta_attach(dhd_pub_t *pub);
+void wl_ext_iapsta_dettach(dhd_pub_t *pub);
 extern int op_mode;
 #endif
 int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len,
 	int *bytes_written);
+typedef struct wl_conn_info {
+	uint8 bssidx;
+	wlc_ssid_t ssid;
+	struct ether_addr bssid;
+	uint16 channel;
+} wl_conn_info_t;
+s32 wl_ext_connect(struct net_device *dev, wl_conn_info_t *conn_info);
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 #define strnicmp(str1, str2, len) strncasecmp((str1), (str2), (len))
 #endif
@@ -231,6 +250,6 @@ int wl_ext_get_best_channel(struct net_device *net,
 #else
 	struct wl_scan_results *bss_list,
 #endif
-	int *best_2g_ch, int *best_5g_ch
+	int ioctl_ver, int *best_2g_ch, int *best_5g_ch
 );
 #endif /* _wl_android_ */

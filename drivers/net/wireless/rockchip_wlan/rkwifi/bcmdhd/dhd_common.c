@@ -4997,9 +4997,13 @@ void dhd_free_download_buffer(dhd_pub_t	*dhd, void *buffer, int length)
 #define EAP_PRINT(str) \
 	DHD_ERROR(("ETHER_TYPE_802_1X[%s] [%s]: " str "\n", \
 	ifname, direction ? "TX" : "RX"));
+#else
+#define EAP_PRINT(str)
+#endif /* DHD_8021X_DUMP */
 /* Parse EAPOL 4 way handshake messages */
 void
-dhd_dump_eapol_4way_message(char *ifname, char *dump_data, bool direction)
+dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
+	char *dump_data, bool direction)
 {
 	unsigned char type;
 	int pair, ack, mic, kerr, req, sec, install;
@@ -5008,31 +5012,43 @@ dhd_dump_eapol_4way_message(char *ifname, char *dump_data, bool direction)
 	type = dump_data[15];
 	if (type == 0) {
 		if ((dump_data[22] == 1) && (dump_data[18] == 1)) {
+			dhd->conf->eapol_status = EAPOL_STATUS_WPS_REQID;
 			EAP_PRINT("EAP Packet, Request, Identity");
 		} else if ((dump_data[22] == 1) && (dump_data[18] == 2)) {
+			dhd->conf->eapol_status = EAPOL_STATUS_WPS_RSPID;
 			EAP_PRINT("EAP Packet, Response, Identity");
 		} else if (dump_data[22] == 254) {
 			if (dump_data[30] == 1) {
+				dhd->conf->eapol_status = EAPOL_STATUS_WPS_WSC_START;
 				EAP_PRINT("EAP Packet, WSC Start");
 			} else if (dump_data[30] == 4) {
 				if (dump_data[41] == 4) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M1;
 					EAP_PRINT("EAP Packet, WPS M1");
 				} else if (dump_data[41] == 5) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M2;
 					EAP_PRINT("EAP Packet, WPS M2");
 				} else if (dump_data[41] == 7) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M3;
 					EAP_PRINT("EAP Packet, WPS M3");
 				} else if (dump_data[41] == 8) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M4;
 					EAP_PRINT("EAP Packet, WPS M4");
 				} else if (dump_data[41] == 9) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M5;
 					EAP_PRINT("EAP Packet, WPS M5");
 				} else if (dump_data[41] == 10) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M6;
 					EAP_PRINT("EAP Packet, WPS M6");
 				} else if (dump_data[41] == 11) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M7;
 					EAP_PRINT("EAP Packet, WPS M7");
 				} else if (dump_data[41] == 12) {
+					dhd->conf->eapol_status = EAPOL_STATUS_WPS_M8;
 					EAP_PRINT("EAP Packet, WPS M8");
 				}
 			} else if (dump_data[30] == 5) {
+				dhd->conf->eapol_status = EAPOL_STATUS_WPS_DONE;
 				EAP_PRINT("EAP Packet, WSC Done");
 			}
 		} else {
@@ -5051,12 +5067,16 @@ dhd_dump_eapol_4way_message(char *ifname, char *dump_data, bool direction)
 		install  = 0 != (us_tmp & 0x40);
 
 		if (!sec && !mic && ack && !install && pair && !kerr && !req) {
+			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M1;
 			EAP_PRINT("EAPOL Packet, 4-way handshake, M1");
 		} else if (pair && !install && !ack && mic && !sec && !kerr && !req) {
+			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M2;
 			EAP_PRINT("EAPOL Packet, 4-way handshake, M2");
 		} else if (pair && ack && mic && sec && !kerr && !req) {
+			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M3;
 			EAP_PRINT("EAPOL Packet, 4-way handshake, M3");
 		} else if (pair && !install && !ack && mic && sec && !req && !kerr) {
+			dhd->conf->eapol_status = EAPOL_STATUS_WPA_M4;
 			EAP_PRINT("EAPOL Packet, 4-way handshake, M4");
 		} else {
 			DHD_ERROR(("ETHER_TYPE_802_1X[%s] [%s]: ver %d, type %d, replay %d\n",
@@ -5069,7 +5089,6 @@ dhd_dump_eapol_4way_message(char *ifname, char *dump_data, bool direction)
 			dump_data[14], dump_data[15], dump_data[30]));
 	}
 }
-#endif /* DHD_8021X_DUMP */
 
 #ifdef REPORT_FATAL_TIMEOUTS
 void init_dhd_timeouts(dhd_pub_t *pub)

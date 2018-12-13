@@ -1711,7 +1711,7 @@ sdioh_gpio_init(sdioh_info_t *sd)
 uint
 sdmmc_get_clock_rate(sdioh_info_t *sd)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
 	return 0;
 #else
 	struct sdio_func *sdio_func = sd->func[0];
@@ -1724,7 +1724,7 @@ sdmmc_get_clock_rate(sdioh_info_t *sd)
 void
 sdmmc_set_clock_rate(sdioh_info_t *sd, uint hz)
 {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0)) || (LINUX_VERSION_CODE < KERNEL_VERSION(3, 4, 0))
 	return;
 #else
 	struct sdio_func *sdio_func = sd->func[0];

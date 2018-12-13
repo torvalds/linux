@@ -35,6 +35,8 @@
 #include <typedefs.h>
 #include <ethernet.h>
 #include <wlioctl.h>
+#include <dngl_stats.h>
+#include <dhd.h>
 
 #define WL_SCAN_PARAMS_SSID_MAX 	10
 #define GET_SSID			"SSID="
@@ -123,14 +125,14 @@ extern const struct iw_handler_def wl_iw_handler_def;
 extern int wl_iw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data);
 extern int wl_iw_get_wireless_stats(struct net_device *dev, struct iw_statistics *wstats);
-int wl_iw_attach(struct net_device *dev, void * dhdp);
 int wl_iw_send_priv_event(struct net_device *dev, char *flag);
 #ifdef WL_ESCAN
 int wl_iw_handle_scanresults_ies(char **event_p, char *end,
 	struct iw_request_info *info, wl_bss_info_t *bi);
+#else
+int wl_iw_attach(struct net_device *dev, dhd_pub_t *dhdp);
+void wl_iw_detach(dhd_pub_t *dhdp);
 #endif
-
-void wl_iw_detach(void);
 
 #define CSCAN_COMMAND				"CSCAN "
 #define CSCAN_TLV_PREFIX 			'S'

@@ -301,9 +301,10 @@ int dhd_wlan_init_gpio(void)
 
 	dhd_wlan_resources[0].start = dhd_wlan_resources[0].end = host_oob_irq;
 	dhd_wlan_resources[0].flags = host_oob_irq_flags;
-	printf("%s: WL_REG_ON=%d, WL_HOST_WAKE=%d\n", __FUNCTION__, gpio_wl_reg_on, gpio_wl_host_wake);
-	printf("%s: oob_irq=%d, oob_irq_flags=0x%x\n", __FUNCTION__, host_oob_irq, host_oob_irq_flags);
+	printf("%s: WL_HOST_WAKE=%d, oob_irq=%d, oob_irq_flags=0x%x\n", __FUNCTION__,
+		gpio_wl_host_wake, host_oob_irq, host_oob_irq_flags);
 #endif /* CUSTOMER_OOB */
+	printf("%s: WL_REG_ON=%d\n", __FUNCTION__, gpio_wl_reg_on);
 
 	return 0;
 }

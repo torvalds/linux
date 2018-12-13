@@ -341,6 +341,20 @@ enum wl_status {
 	WL_STATUS_NESTED_CONNECT
 };
 
+enum wl_ext_status {
+	WL_EXT_STATUS_DISCONNECTING = 0,
+	WL_EXT_STATUS_DISCONNECTED,
+	WL_EXT_STATUS_SCAN,
+	WL_EXT_STATUS_CONNECTING,
+	WL_EXT_STATUS_CONNECTED,
+	WL_EXT_STATUS_ADD_KEY,
+	WL_EXT_STATUS_AP_ENABLED,
+	WL_EXT_STATUS_DELETE_STA,
+	WL_EXT_STATUS_STA_DISCONNECTED,
+	WL_EXT_STATUS_STA_CONNECTED,
+	WL_EXT_STATUS_AP_DISABLED
+};
+
 /* wi-fi mode */
 enum wl_mode {
 	WL_MODE_BSS,
@@ -871,6 +885,11 @@ struct bcm_cfg80211 {
 	int autochannel;
 	int best_2g_ch;
 	int best_5g_ch;
+	uint handshaking;
+	bool wps_done;
+	wait_queue_head_t wps_done_event;
+	struct mutex in4way_sync;
+	ulong disconnected_jiffies;
 };
 
 #if defined(STRICT_GCC_WARNINGS) && defined(__GNUC__) && (__GNUC__ > 4 || (__GNUC__ == \

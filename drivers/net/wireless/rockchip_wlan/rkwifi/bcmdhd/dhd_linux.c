@@ -84,9 +84,6 @@
 #include <dhd_bus.h>
 #include <dhd_proto.h>
 #include <dhd_config.h>
-#ifdef WL_ESCAN
-#include <wl_escan.h>
-#endif
 #include <dhd_dbg.h>
 #include <dhd_debug.h>
 #ifdef CONFIG_HAS_WAKELOCK
@@ -259,9 +256,8 @@ extern bool ap_cfg_running;
 extern bool ap_fw_loaded;
 #endif
 
-#ifdef DHD_8021X_DUMP
-extern void dhd_dump_eapol_4way_message(char *ifname, char *dump_data, bool direction);
-#endif /* DHD_8021X_DUMP */
+extern void dhd_dump_eapol_4way_message(dhd_pub_t *dhd, char *ifname,
+	char *dump_data, bool direction);
 
 #ifdef FIX_CPU_MIN_CLOCK
 #include <linux/pm_qos.h>
@@ -294,6 +290,9 @@ static u32 vendor_oui = CONFIG_DHD_SET_RANDOM_MAC_VAL;
 #endif
 
 #include <wl_android.h>
+#ifdef WL_ESCAN
+#include <wl_escan.h>
+#endif
 
 /* Maximum STA per radio */
 #define DHD_MAX_STA     32
@@ -4094,11 +4093,6 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, uint8 *addr)
 	return ret;
 }
 
-#ifdef SOFTAP
-extern struct net_device *ap_net_dev;
-extern tsk_ctl_t ap_eth_ctl; /* ap netdev heper thread ctl */
-#endif
-
 #ifdef DHD_WMF
 void dhd_update_psta_interface_for_sta(dhd_pub_t* dhdp, char* ifname, void* ea,
 		void* event_data)
@@ -4475,22 +4469,6 @@ dhd_set_mac_addr_handler(void *handle, void *event_info, u8 event)
 	DHD_OS_WAKE_LOCK(&dhd->pub);
 	DHD_PERIM_LOCK(&dhd->pub);
 
-#ifdef SOFTAP
-	{
-		unsigned long flags;
-		bool in_ap = FALSE;
-		DHD_GENERAL_LOCK(&dhd->pub, flags);
-		in_ap = (ap_net_dev != NULL);
-		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-
-		if (in_ap)  {
-			DHD_ERROR(("attempt to set MAC for %s in AP Mode, blocked. \n",
-			           ifp->net->name));
-			goto done;
-		}
-	}
-#endif /* SOFTAP */
-
 	// terence 20160907: fix for not able to set mac when wlan0 is down
 	if (ifp == NULL || !ifp->set_macaddress) {
 		goto done;
@@ -4540,23 +4518,6 @@ dhd_set_mcast_list_handler(void *handle, void *event_info, u8 event)
 		DHD_ERROR(("%s: interface info not available/down \n", __FUNCTION__));
 		goto done;
 	}
-
-#ifdef SOFTAP
-	{
-		bool in_ap = FALSE;
-		unsigned long flags;
-		DHD_GENERAL_LOCK(&dhd->pub, flags);
-		in_ap = (ap_net_dev != NULL);
-		DHD_GENERAL_UNLOCK(&dhd->pub, flags);
-
-		if (in_ap)  {
-			DHD_ERROR(("set MULTICAST list for %s in AP Mode, blocked. \n",
-			           ifp->net->name));
-			ifp->set_multicast = FALSE;
-			goto done;
-		}
-	}
-#endif /* SOFTAP */
 
 	if (ifp == NULL || !dhd->pub.up) {
 		DHD_ERROR(("%s: interface info not available/down \n", __FUNCTION__));
@@ -4693,42 +4654,25 @@ static const char *_get_packet_type_str(uint16 type)
 
 	return packet_type_info[n].str;
 }
-#endif /* DHD_RX_DUMP || DHD_TX_DUMP */
 
-#if defined(DHD_TX_DUMP)
 void
-dhd_tx_dump(struct net_device *ndev, osl_t *osh, void *pkt)
+dhd_trx_dump(struct net_device *ndev, uint8 *dump_data, uint datalen, bool tx)
 {
-	uint8 *dump_data;
 	uint16 protocol;
 	char *ifname;
 
-	dump_data = PKTDATA(osh, pkt);
 	protocol = (dump_data[12] << 8) | dump_data[13];
 	ifname = ndev ? ndev->name : "N/A";
 
-	DHD_ERROR(("TX DUMP[%s] - %s\n", ifname, _get_packet_type_str(protocol)));
-
-	if (protocol == ETHER_TYPE_802_1X) {
-		dhd_dump_eapol_4way_message(ifname, dump_data, TRUE);
+	if (protocol != ETHER_TYPE_BRCM) {
+		DHD_ERROR(("%s DUMP[%s] - %s\n", tx?"Tx":"Rx", ifname,
+			_get_packet_type_str(protocol)));
+#if defined(DHD_TX_FULL_DUMP) || defined(DHD_RX_FULL_DUMP)
+		prhex("Data", dump_data, datalen);
+#endif /* DHD_TX_FULL_DUMP || DHD_RX_FULL_DUMP */
 	}
-
-#if defined(DHD_TX_FULL_DUMP)
-	{
-		int i;
-		uint datalen;
-		datalen = PKTLEN(osh, pkt);
-
-		for (i = 0; i < datalen; i++) {
-			printk("%02X ", dump_data[i]);
-			if ((i & 15) == 15)
-				printk("\n");
-		}
-		printk("\n");
-	}
-#endif /* DHD_TX_FULL_DUMP */
 }
-#endif /* DHD_TX_DUMP */
+#endif /* DHD_TX_DUMP || DHD_RX_DUMP */
 
 /*  This routine do not support Packet chain feature, Currently tested for
  *  proxy arp feature
@@ -4888,9 +4832,7 @@ __dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 #endif /* DHD_LOSSLESS_ROAMING */
 			DBG_EVENT_LOG(dhdp, WIFI_EVENT_DRIVER_EAPOL_FRAME_TRANSMIT_REQUESTED);
 			atomic_inc(&dhd->pend_8021x_cnt);
-#if defined(DHD_8021X_DUMP)
-			dhd_dump_eapol_4way_message(dhd_ifname(dhdp, ifidx), pktdata, TRUE);
-#endif /* DHD_8021X_DUMP */
+			dhd_dump_eapol_4way_message(dhdp, dhd_ifname(dhdp, ifidx), pktdata, TRUE);
 		}
 
 		if (ntoh16(eh->ether_type) == ETHER_TYPE_IP) {
@@ -4943,8 +4885,8 @@ __dhd_sendpkt(dhd_pub_t *dhdp, int ifidx, void *pktbuf)
 #endif
 
 #if defined(DHD_TX_DUMP)
-	ndev = dhd_idx2net(dhdp, ifidx);
-	dhd_tx_dump(ndev, dhdp->osh, pktbuf);
+	dhd_trx_dump(dhd_idx2net(dhdp, ifidx), PKTDATA(dhdp->osh, pktbuf),
+		PKTLEN(dhdp->osh, pktbuf), TRUE);
 #endif
 	/* terence 20150901: Micky add to ajust the 802.1X priority */
 	/* Set the 802.1X packet with the highest priority 7 */
@@ -5719,10 +5661,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 	void *skbhead = NULL;
 	void *skbprev = NULL;
 	uint16 protocol;
-#if defined(DHD_RX_DUMP) || defined(DHD_8021X_DUMP) || defined(DHD_DHCP_DUMP) || \
-	defined(DHD_ICMP_DUMP) || defined(DHD_WAKE_STATUS)
 	unsigned char *dump_data;
-#endif /* DHD_RX_DUMP || DHD_8021X_DUMP || DHD_DHCP_DUMP || DHD_ICMP_DUMP || DHD_WAKE_STATUS */
 #ifdef DHD_MCAST_REGEN
 	uint8 interface_role;
 	if_flow_lkup_t *if_flow_lkup;
@@ -5953,17 +5892,12 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 		eth = skb->data;
 		len = skb->len;
 
-#if defined(DHD_RX_DUMP) || defined(DHD_8021X_DUMP) || defined(DHD_DHCP_DUMP) || \
-	defined(DHD_ICMP_DUMP) || defined(DHD_WAKE_STATUS)
 		dump_data = skb->data;
-#endif /* DHD_RX_DUMP || DHD_8021X_DUMP || DHD_DHCP_DUMP || DHD_ICMP_DUMP || DHD_WAKE_STATUS */
 
 		protocol = (skb->data[12] << 8) | skb->data[13];
 		if (protocol == ETHER_TYPE_802_1X) {
 			DBG_EVENT_LOG(dhdp, WIFI_EVENT_DRIVER_EAPOL_FRAME_RECEIVED);
-#ifdef DHD_8021X_DUMP
-			dhd_dump_eapol_4way_message(dhd_ifname(dhdp, ifidx), dump_data, FALSE);
-#endif /* DHD_8021X_DUMP */
+			dhd_dump_eapol_4way_message(dhdp, dhd_ifname(dhdp, ifidx), dump_data, FALSE);
 		}
 
 		if (protocol != ETHER_TYPE_BRCM && protocol == ETHER_TYPE_IP) {
@@ -5975,33 +5909,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 #endif /* DHD_ICMP_DUMP */
 		}
 #ifdef DHD_RX_DUMP
-		DHD_ERROR(("RX DUMP[%s] - %s\n",
-			dhd_ifname(dhdp, ifidx), _get_packet_type_str(protocol)));
-		if (protocol != ETHER_TYPE_BRCM) {
-			if (dump_data[0] == 0xFF) {
-				DHD_ERROR(("%s: BROADCAST\n", __FUNCTION__));
-
-				if ((dump_data[12] == 8) &&
-					(dump_data[13] == 6)) {
-					DHD_ERROR(("%s: ARP %d\n",
-						__FUNCTION__, dump_data[0x15]));
-				}
-			} else if (dump_data[0] & 1) {
-				DHD_ERROR(("%s: MULTICAST: " MACDBG "\n",
-					__FUNCTION__, MAC2STRDBG(dump_data)));
-			}
-#ifdef DHD_RX_FULL_DUMP
-			{
-				int k;
-				for (k = 0; k < skb->len; k++) {
-					printk("%02X ", dump_data[k]);
-					if ((k & 15) == 15)
-						printk("\n");
-				}
-				printk("\n");
-			}
-#endif /* DHD_RX_FULL_DUMP */
-		}
+		dhd_trx_dump(dhd_idx2net(dhdp, ifidx), dump_data, skb->len, FALSE);
 #endif /* DHD_RX_DUMP */
 #if defined(DHD_WAKE_STATUS) && defined(DHD_WAKEPKT_DUMP)
 		if (pkt_wake) {
@@ -8376,7 +8284,7 @@ exit:
 #else
 		wl_android_wifi_off(net, TRUE);
 #ifdef WL_EXT_IAPSTA
-		wl_ext_iapsta_dettach_netdev();
+		wl_ext_iapsta_dettach_netdev(net, ifidx);
 #endif
 	} else {
 		if (dhd->pub.conf->deepsleep)
@@ -8550,7 +8458,7 @@ dhd_open(struct net_device *net)
 		if (!dhd_download_fw_on_driverload) {
 			DHD_ERROR(("\n%s\n", dhd_version));
 #ifdef WL_EXT_IAPSTA
-			wl_ext_iapsta_attach_netdev(net, ifidx);
+			wl_ext_iapsta_attach_netdev(net, ifidx, dhd->iflist[ifidx]->bssidx);
 #endif
 #if defined(USE_INITIAL_SHORT_DWELL_TIME)
 			g_first_broadcast_scan = TRUE;
@@ -9079,6 +8987,9 @@ dhd_remove_if(dhd_pub_t *dhdpub, int ifidx, bool need_rtnl_lock)
 					unregister_netdev(ifp->net);
 				else
 					unregister_netdevice(ifp->net);
+#ifdef WL_EXT_IAPSTA
+				wl_ext_iapsta_dettach_netdev(ifp->net, ifidx);
+#endif
 			}
 			ifp->net = NULL;
 		}
@@ -9428,6 +9339,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 #elif defined(BCMDBUS)
 	wifi_adapter_info_t *adapter = data;
 #endif
+#ifdef GET_CUSTOM_MAC_ENABLE
+	char hw_ether[62];
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
 	dhd_attach_states_t dhd_state = DHD_ATTACH_STATE_INIT;
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
@@ -9472,7 +9386,8 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 #endif /* BT_OVER_SDIO */
 
 #ifdef GET_CUSTOM_MAC_ENABLE
-	wifi_platform_get_mac_addr(dhd->adapter, dhd->pub.mac.octet);
+	wifi_platform_get_mac_addr(dhd->adapter, hw_ether);
+	bcopy(hw_ether, dhd->pub.mac.octet, sizeof(struct ether_addr));
 #endif /* GET_CUSTOM_MAC_ENABLE */
 #ifdef CUSTOM_FORCE_NODFS_FLAG
 	dhd->pub.dhd_cflags |= WLAN_PLAT_NODFS_FLAG;
@@ -9658,18 +9573,26 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 	dhd_log_dump_init(&dhd->pub);
 #endif /* DHD_LOG_DUMP */
 #if defined(WL_WIRELESS_EXT)
-	/* Attach and link in the iw */
-	if (!(dhd_state &  DHD_ATTACH_STATE_CFG80211)) {
-		if (wl_iw_attach(net, (void *)&dhd->pub) != 0) {
-			DHD_ERROR(("wl_iw_attach failed\n"));
-			goto fail;
-		}
-		dhd_state |= DHD_ATTACH_STATE_WL_ATTACH;
-	}
 #ifdef WL_ESCAN
-	wl_escan_attach(net, &dhd->pub);
+	if (wl_escan_attach(net, &dhd->pub) != 0) {
+		DHD_ERROR(("wl_escan_attach failed\n"));
+		goto fail;
+	}
+#else
+	/* Attach and link in the iw */
+	if (wl_iw_attach(net, &dhd->pub) != 0) {
+		DHD_ERROR(("wl_iw_attach failed\n"));
+		goto fail;
+	}
+	dhd_state |= DHD_ATTACH_STATE_WL_ATTACH;
 #endif /* WL_ESCAN */
 #endif /* defined(WL_WIRELESS_EXT) */
+#ifdef WL_EXT_IAPSTA
+	if (wl_ext_iapsta_attach(&dhd->pub) != 0) {
+		DHD_ERROR(("wl_ext_iapsta_attach failed\n"));
+		goto fail;
+	}
+#endif
 
 #ifdef SHOW_LOGTRACE
 	ret = dhd_init_logstrs_array(osh, &dhd->event_data);
@@ -11002,7 +10925,6 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	DHD_TRACE(("Enter %s\n", __FUNCTION__));
 
 #ifdef DHDTCPACK_SUPPRESS
-	printf("%s: Set tcpack_sup_mode %d\n", __FUNCTION__, dhd->conf->tcpack_sup_mode);
 	dhd_tcpack_suppress_set(dhd, dhd->conf->tcpack_sup_mode);
 #endif
 	dhd->op_mode = 0;
@@ -11946,7 +11868,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	} else if (ret >= 1) {
 		disable_proptx = 1;
 		wlfc_enable = FALSE;
-		/* terence 20161229: we should set ampdu_hostreorder=0 when disalbe_proptx=1 */
+		/* terence 20161229: we should set ampdu_hostreorder=0 when disable_proptx=1 */
 		hostreorder = 0;
 	}
 
@@ -12675,16 +12597,14 @@ dhd_register_if(dhd_pub_t *dhdp, int ifidx, bool need_rtnl_lock)
 		printf("%s\n", dhd_version);
 #ifdef WL_EXT_IAPSTA
 	else
-		wl_ext_iapsta_attach_netdev(net, ifidx);
+		wl_ext_iapsta_attach_netdev(net, ifidx, ifp->bssidx);
 #endif
-#ifdef WLMESH
-	if (ifidx != 0 && dhdp->conf->fw_type == FW_TYPE_MESH) {
-		if (_dhd_set_mac_address(dhd, ifidx, temp_addr) == 0)
+	if (ifidx != 0) {
+		if (_dhd_set_mac_address(dhd, ifidx, net->dev_addr) == 0)
 			DHD_INFO(("%s: MACID is overwritten\n", __FUNCTION__));
 		else
 			DHD_ERROR(("%s: _dhd_set_mac_address() failed\n", __FUNCTION__));
 	}
-#endif
 
 	if (need_rtnl_lock)
 		err = register_netdev(net);
@@ -12697,7 +12617,7 @@ dhd_register_if(dhd_pub_t *dhdp, int ifidx, bool need_rtnl_lock)
 	}
 #ifdef WL_EXT_IAPSTA
 	if (ifidx == 0)
-		wl_ext_iapsta_attach_netdev(net, ifidx);
+		wl_ext_iapsta_attach_netdev(net, ifidx, ifp->bssidx);
 	wl_ext_iapsta_attach_name(net, ifidx);
 #endif
 
@@ -12912,14 +12832,18 @@ void dhd_detach(dhd_pub_t *dhdp)
 #endif /* CONFIG_HAS_EARLYSUSPEND && DHD_USE_EARLYSUSPEND */
 
 #if defined(WL_WIRELESS_EXT)
-	if (dhd->dhd_state & DHD_ATTACH_STATE_WL_ATTACH) {
-		/* Detatch and unlink in the iw */
-		wl_iw_detach();
-	}
 #ifdef WL_ESCAN
 	wl_escan_detach(dhdp);
+#else
+	if (dhd->dhd_state & DHD_ATTACH_STATE_WL_ATTACH) {
+		/* Detatch and unlink in the iw */
+		wl_iw_detach(dhdp);
+	}
 #endif /* WL_ESCAN */
 #endif /* defined(WL_WIRELESS_EXT) */
+#ifdef WL_EXT_IAPSTA
+	wl_ext_iapsta_dettach(dhdp);
+#endif
 
 #ifdef DHD_ULP
 	dhd_ulp_deinit(dhd->pub.osh, dhdp);
