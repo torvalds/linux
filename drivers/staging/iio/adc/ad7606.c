@@ -334,7 +334,7 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 {
 	struct device *dev = st->dev;
 
-	st->gpio_convst = devm_gpiod_get(dev, "conversion-start",
+	st->gpio_convst = devm_gpiod_get(dev, "adi,conversion-start",
 					 GPIOD_OUT_LOW);
 	if (IS_ERR(st->gpio_convst))
 		return PTR_ERR(st->gpio_convst);
@@ -343,7 +343,8 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 	if (IS_ERR(st->gpio_reset))
 		return PTR_ERR(st->gpio_reset);
 
-	st->gpio_range = devm_gpiod_get_optional(dev, "range", GPIOD_OUT_LOW);
+	st->gpio_range = devm_gpiod_get_optional(dev, "adi,range",
+						 GPIOD_OUT_LOW);
 	if (IS_ERR(st->gpio_range))
 		return PTR_ERR(st->gpio_range);
 
@@ -352,7 +353,7 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 	if (IS_ERR(st->gpio_standby))
 		return PTR_ERR(st->gpio_standby);
 
-	st->gpio_frstdata = devm_gpiod_get_optional(dev, "first-data",
+	st->gpio_frstdata = devm_gpiod_get_optional(dev, "adi,first-data",
 						    GPIOD_IN);
 	if (IS_ERR(st->gpio_frstdata))
 		return PTR_ERR(st->gpio_frstdata);
@@ -360,7 +361,8 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 	if (!st->chip_info->has_oversampling)
 		return 0;
 
-	st->gpio_os = devm_gpiod_get_array_optional(dev, "oversampling-ratio",
+	st->gpio_os = devm_gpiod_get_array_optional(dev,
+						    "adi,oversampling-ratio",
 						    GPIOD_OUT_LOW);
 	return PTR_ERR_OR_ZERO(st->gpio_os);
 }
