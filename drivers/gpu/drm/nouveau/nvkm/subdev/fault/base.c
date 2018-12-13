@@ -23,21 +23,19 @@
 
 #include <core/memory.h>
 #include <core/notify.h>
-#include <subdev/bar.h>
-#include <subdev/mmu.h>
 
 static void
 nvkm_fault_ntfy_fini(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fault *fault = container_of(event, typeof(*fault), event);
-	fault->func->buffer.fini(fault->buffer[index]);
+	fault->func->buffer.intr(fault->buffer[index], false);
 }
 
 static void
 nvkm_fault_ntfy_init(struct nvkm_event *event, int type, int index)
 {
 	struct nvkm_fault *fault = container_of(event, typeof(*fault), event);
-	fault->func->buffer.init(fault->buffer[index]);
+	fault->func->buffer.intr(fault->buffer[index], true);
 }
 
 static int
@@ -91,7 +89,6 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 {
 	struct nvkm_subdev *subdev = &fault->subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_vmm *bar2 = nvkm_bar_bar2_vmm(device);
 	struct nvkm_fault_buffer *buffer;
 	int ret;
 
@@ -99,7 +96,7 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 		return -ENOMEM;
 	buffer->fault = fault;
 	buffer->id = id;
-	buffer->entries = fault->func->buffer.entries(buffer);
+	fault->func->buffer.info(buffer);
 	fault->buffer[id] = buffer;
 
 	nvkm_debug(subdev, "buffer %d: %d entries\n", id, buffer->entries);
@@ -110,12 +107,12 @@ nvkm_fault_oneinit_buffer(struct nvkm_fault *fault, int id)
 	if (ret)
 		return ret;
 
-	ret = nvkm_vmm_get(bar2, 12, nvkm_memory_size(buffer->mem),
-			   &buffer->vma);
-	if (ret)
-		return ret;
+	/* Pin fault buffer in BAR2. */
+	buffer->addr = nvkm_memory_bar2(buffer->mem);
+	if (buffer->addr == ~0ULL)
+		return -EFAULT;
 
-	return nvkm_memory_map(buffer->mem, 0, bar2, buffer->vma, NULL, 0);
+	return 0;
 }
 
 static int
@@ -146,7 +143,6 @@ nvkm_fault_oneinit(struct nvkm_subdev *subdev)
 static void *
 nvkm_fault_dtor(struct nvkm_subdev *subdev)
 {
-	struct nvkm_vmm *bar2 = nvkm_bar_bar2_vmm(subdev->device);
 	struct nvkm_fault *fault = nvkm_fault(subdev);
 	int i;
 
@@ -154,7 +150,6 @@ nvkm_fault_dtor(struct nvkm_subdev *subdev)
 
 	for (i = 0; i < fault->buffer_nr; i++) {
 		if (fault->buffer[i]) {
-			nvkm_vmm_put(bar2, &fault->buffer[i]->vma);
 			nvkm_memory_unref(&fault->buffer[i]->mem);
 			kfree(fault->buffer[i]);
 		}

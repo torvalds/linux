@@ -30,4 +30,5 @@ struct nvkm_fault_data {
 
 int gp100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 int gv100_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
+int tu104_fault_new(struct nvkm_device *, int, struct nvkm_fault **);
 #endif
