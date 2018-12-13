@@ -28,11 +28,6 @@
 #include <drm/drmP.h>
 #include "virtgpu_drv.h"
 
-static int virtio_gpu_fbdev = 1;
-
-MODULE_PARM_DESC(fbdev, "Disable/Enable framebuffer device & console");
-module_param_named(fbdev, virtio_gpu_fbdev, int, 0400);
-
 static void virtio_gpu_config_changed_work_func(struct work_struct *work)
 {
 	struct virtio_gpu_device *vgdev =
@@ -212,9 +207,6 @@ int virtio_gpu_driver_load(struct drm_device *dev, unsigned long flags)
 	virtio_gpu_cmd_get_display_info(vgdev);
 	wait_event_timeout(vgdev->resp_wq, !vgdev->display_info_pending,
 			   5 * HZ);
-	if (virtio_gpu_fbdev)
-		virtio_gpu_fbdev_init(vgdev);
-
 	return 0;
 
 err_modeset:

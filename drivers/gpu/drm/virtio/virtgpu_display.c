@@ -390,6 +390,5 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
 
 	for (i = 0 ; i < vgdev->num_scanouts; ++i)
 		kfree(vgdev->outputs[i].edid);
-	virtio_gpu_fbdev_fini(vgdev);
 	drm_mode_config_cleanup(vgdev->ddev);
 }

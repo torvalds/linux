@@ -42,13 +42,20 @@ module_param_named(modeset, virtio_gpu_modeset, int, 0400);
 
 static int virtio_gpu_probe(struct virtio_device *vdev)
 {
+	int ret;
+
 	if (vgacon_text_force() && virtio_gpu_modeset == -1)
 		return -EINVAL;
 
 	if (virtio_gpu_modeset == 0)
 		return -EINVAL;
 
-	return drm_virtio_init(&driver, vdev);
+	ret = drm_virtio_init(&driver, vdev);
+	if (ret)
+		return ret;
+
+	drm_fbdev_generic_setup(vdev->priv, 32);
+	return 0;
 }
 
 static void virtio_gpu_remove(struct virtio_device *vdev)
