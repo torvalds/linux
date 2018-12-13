@@ -147,6 +147,9 @@ psp_cmd_submit_buf(struct psp_context *psp,
 		return -EINVAL;
 	}
 
+	/* get xGMI session id from response buffer */
+	cmd->resp.session_id = psp->cmd_buf_mem->resp.session_id;
+
 	if (ucode) {
 		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
 		ucode->tmr_mc_addr_hi = psp->cmd_buf_mem->resp.fw_addr_hi;
