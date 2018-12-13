@@ -140,10 +140,13 @@ psp_cmd_submit_buf(struct psp_context *psp,
 	while (*((unsigned int *)psp->fence_buf) != index)
 		msleep(1);
 
-	/* the status field must be 0 after FW is loaded */
-	if (ucode && psp->cmd_buf_mem->resp.status) {
-		DRM_ERROR("failed loading with status (%d) and ucode id (%d)\n",
-			  psp->cmd_buf_mem->resp.status, ucode->ucode_id);
+	/* the status field must be 0 after psp command completion */
+	if (psp->cmd_buf_mem->resp.status) {
+		if (ucode)
+			DRM_ERROR("failed to load ucode id (%d) ",
+				  ucode->ucode_id);
+		DRM_ERROR("psp command failed and response status is (%d)\n",
+			  psp->cmd_buf_mem->resp.status);
 		return -EINVAL;
 	}
 
