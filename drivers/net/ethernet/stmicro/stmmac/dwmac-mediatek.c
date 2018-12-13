@@ -5,6 +5,7 @@
 #include <linux/bitfield.h>
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
@@ -406,3 +407,7 @@ static struct platform_driver mediatek_dwmac_driver = {
 	},
 };
 module_platform_driver(mediatek_dwmac_driver);
+
+MODULE_AUTHOR("Biao Huang <biao.huang@mediatek.com>");
+MODULE_DESCRIPTION("MediaTek DWMAC specific glue layer");
+MODULE_LICENSE("GPL v2");
