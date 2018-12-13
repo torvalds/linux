@@ -658,7 +658,11 @@ struct cache_set {
 
 	/*
 	 * A btree node on disk could have too many bsets for an iterator to fit
-	 * on the stack - have to dynamically allocate them
+	 * on the stack - have to dynamically allocate them.
+	 * bch_cache_set_alloc() will make sure the pool can allocate iterators
+	 * equipped with enough room that can host
+	 *     (sb.bucket_size / sb.block_size)
+	 * btree_iter_sets, which is more than static MAX_BSETS.
 	 */
 	mempool_t		fill_iter;
 
