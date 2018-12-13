@@ -1796,6 +1796,43 @@ static irqreturn_t adt7316_event_handler(int irq, void *private)
 	return IRQ_HANDLED;
 }
 
+static int adt7316_setup_irq(struct iio_dev *indio_dev)
+{
+	struct adt7316_chip_info *chip = iio_priv(indio_dev);
+	int irq_type, ret;
+
+	irq_type = irqd_get_trigger_type(irq_get_irq_data(chip->bus.irq));
+
+	switch (irq_type) {
+	case IRQF_TRIGGER_HIGH:
+	case IRQF_TRIGGER_RISING:
+		break;
+	case IRQF_TRIGGER_LOW:
+	case IRQF_TRIGGER_FALLING:
+		break;
+	default:
+		dev_info(&indio_dev->dev, "mode %d unsupported, using IRQF_TRIGGER_LOW\n",
+			 irq_type);
+		irq_type = IRQF_TRIGGER_LOW;
+		break;
+	}
+
+	ret = devm_request_threaded_irq(&indio_dev->dev, chip->bus.irq,
+					NULL, adt7316_event_handler,
+					irq_type | IRQF_ONESHOT,
+					indio_dev->name, indio_dev);
+	if (ret) {
+		dev_err(&indio_dev->dev, "failed to request irq %d\n",
+			chip->bus.irq);
+		return ret;
+	}
+
+	if (irq_type & IRQF_TRIGGER_HIGH)
+		chip->config1 |= ADT7316_INT_POLARITY;
+
+	return 0;
+}
+
 /*
  * Show mask of enabled interrupts in Hex.
  */
@@ -2090,8 +2127,6 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 {
 	struct adt7316_chip_info *chip;
 	struct iio_dev *indio_dev;
-	unsigned short *adt7316_platform_data = dev->platform_data;
-	int irq_type = IRQF_TRIGGER_LOW;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*chip));
@@ -2135,20 +2170,9 @@ int adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	if (chip->bus.irq > 0) {
-		if (adt7316_platform_data[0])
-			irq_type = adt7316_platform_data[0];
-
-		ret = devm_request_threaded_irq(dev, chip->bus.irq,
-						NULL,
-						adt7316_event_handler,
-						irq_type | IRQF_ONESHOT,
-						indio_dev->name,
-						indio_dev);
+		ret = adt7316_setup_irq(indio_dev);
 		if (ret)
 			return ret;
-
-		if (irq_type & IRQF_TRIGGER_HIGH)
-			chip->config1 |= ADT7316_INT_POLARITY;
 	}
 
 	ret = chip->bus.write(chip->bus.client, ADT7316_CONFIG1, chip->config1);
