@@ -202,6 +202,10 @@ struct nvmet_ctrl {
 
 	struct device		*p2p_client;
 	struct radix_tree_root	p2p_ns_map;
+
+	spinlock_t		error_lock;
+	u64			err_counter;
+	struct nvme_error_slot	slots[NVMET_ERROR_LOG_SLOTS];
 };
 
 struct nvmet_subsys {
@@ -279,6 +283,7 @@ struct nvmet_fabrics_ops {
 	void (*delete_ctrl)(struct nvmet_ctrl *ctrl);
 	void (*disc_traddr)(struct nvmet_req *req,
 			struct nvmet_port *port, char *traddr);
+	u16 (*install_queue)(struct nvmet_sq *nvme_sq);
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
@@ -316,14 +321,11 @@ struct nvmet_req {
 
 	struct pci_dev		*p2p_dev;
 	struct device		*p2p_client;
+	u16			error_loc;
+	u64			error_slba;
 };
 
 extern struct workqueue_struct *buffered_io_wq;
-
-static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
-{
-	req->rsp->status = cpu_to_le16(status << 1);
-}
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
@@ -348,7 +350,7 @@ struct nvmet_async_event {
 
 static inline void nvmet_clear_aen_bit(struct nvmet_req *req, u32 bn)
 {
-	int rae = le32_to_cpu(req->cmd->common.cdw10[0]) & 1 << 15;
+	int rae = le32_to_cpu(req->cmd->common.cdw10) & 1 << 15;
 
 	if (!rae)
 		clear_bit(bn, &req->sq->ctrl->aen_masked);
@@ -492,4 +494,6 @@ static inline u32 nvmet_rw_len(struct nvmet_req *req)
 	return ((u32)le16_to_cpu(req->cmd->rw.length) + 1) <<
 			req->ns->blksize_shift;
 }
+
+u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
 #endif /* _NVMET_H */

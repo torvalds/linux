@@ -247,7 +247,7 @@ out:
 
 static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 {
-	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 stat;
 
 	switch (cdw10 & 0xff) {
@@ -259,6 +259,8 @@ static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 						  NVMET_DISC_AEN_CFG_OPTIONAL);
 		break;
 	default:
+		req->error_loc =
+			offsetof(struct nvme_common_command, cdw10);
 		stat = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		break;
 	}
@@ -268,7 +270,7 @@ static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 
 static void nvmet_execute_disc_get_features(struct nvmet_req *req)
 {
-	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10[0]);
+	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 stat = 0;
 
 	switch (cdw10 & 0xff) {
@@ -279,6 +281,8 @@ static void nvmet_execute_disc_get_features(struct nvmet_req *req)
 		nvmet_get_feat_async_event(req);
 		break;
 	default:
+		req->error_loc =
+			offsetof(struct nvme_common_command, cdw10);
 		stat = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		break;
 	}
@@ -293,6 +297,8 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 	if (unlikely(!(req->sq->ctrl->csts & NVME_CSTS_RDY))) {
 		pr_err("got cmd %d while not ready\n",
 		       cmd->common.opcode);
+		req->error_loc =
+			offsetof(struct nvme_common_command, opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 
@@ -323,6 +329,8 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 		default:
 			pr_err("unsupported get_log_page lid %d\n",
 			       cmd->get_log_page.lid);
+			req->error_loc =
+				offsetof(struct nvme_get_log_page_command, lid);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	case nvme_admin_identify:
@@ -335,10 +343,12 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 		default:
 			pr_err("unsupported identify cns %d\n",
 			       cmd->identify.cns);
+			req->error_loc = offsetof(struct nvme_identify, cns);
 			return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 		}
 	default:
 		pr_err("unhandled cmd %d\n", cmd->common.opcode);
+		req->error_loc = offsetof(struct nvme_common_command, opcode);
 		return NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
 	}
 

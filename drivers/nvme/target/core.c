@@ -45,28 +45,72 @@ u32 nvmet_ana_group_enabled[NVMET_MAX_ANAGRPS + 1];
 u64 nvmet_ana_chgcnt;
 DECLARE_RWSEM(nvmet_ana_sem);
 
+inline u16 errno_to_nvme_status(struct nvmet_req *req, int errno)
+{
+	u16 status;
+
+	switch (errno) {
+	case -ENOSPC:
+		req->error_loc = offsetof(struct nvme_rw_command, length);
+		status = NVME_SC_CAP_EXCEEDED | NVME_SC_DNR;
+		break;
+	case -EREMOTEIO:
+		req->error_loc = offsetof(struct nvme_rw_command, slba);
+		status = NVME_SC_LBA_RANGE | NVME_SC_DNR;
+		break;
+	case -EOPNOTSUPP:
+		req->error_loc = offsetof(struct nvme_common_command, opcode);
+		switch (req->cmd->common.opcode) {
+		case nvme_cmd_dsm:
+		case nvme_cmd_write_zeroes:
+			status = NVME_SC_ONCS_NOT_SUPPORTED | NVME_SC_DNR;
+			break;
+		default:
+			status = NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
+		}
+		break;
+	case -ENODATA:
+		req->error_loc = offsetof(struct nvme_rw_command, nsid);
+		status = NVME_SC_ACCESS_DENIED;
+		break;
+	case -EIO:
+		/* FALLTHRU */
+	default:
+		req->error_loc = offsetof(struct nvme_common_command, opcode);
+		status = NVME_SC_INTERNAL | NVME_SC_DNR;
+	}
+
+	return status;
+}
+
 static struct nvmet_subsys *nvmet_find_get_subsys(struct nvmet_port *port,
 		const char *subsysnqn);
 
 u16 nvmet_copy_to_sgl(struct nvmet_req *req, off_t off, const void *buf,
 		size_t len)
 {
-	if (sg_pcopy_from_buffer(req->sg, req->sg_cnt, buf, len, off) != len)
+	if (sg_pcopy_from_buffer(req->sg, req->sg_cnt, buf, len, off) != len) {
+		req->error_loc = offsetof(struct nvme_common_command, dptr);
 		return NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR;
+	}
 	return 0;
 }
 
 u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf, size_t len)
 {
-	if (sg_pcopy_to_buffer(req->sg, req->sg_cnt, buf, len, off) != len)
+	if (sg_pcopy_to_buffer(req->sg, req->sg_cnt, buf, len, off) != len) {
+		req->error_loc = offsetof(struct nvme_common_command, dptr);
 		return NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR;
+	}
 	return 0;
 }
 
 u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len)
 {
-	if (sg_zero_buffer(req->sg, req->sg_cnt, len, off) != len)
+	if (sg_zero_buffer(req->sg, req->sg_cnt, len, off) != len) {
+		req->error_loc = offsetof(struct nvme_common_command, dptr);
 		return NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR;
+	}
 	return 0;
 }
 
@@ -611,14 +655,44 @@ static void nvmet_update_sq_head(struct nvmet_req *req)
 	req->rsp->sq_head = cpu_to_le16(req->sq->sqhd & 0x0000FFFF);
 }
 
+static void nvmet_set_error(struct nvmet_req *req, u16 status)
+{
+	struct nvmet_ctrl *ctrl = req->sq->ctrl;
+	struct nvme_error_slot *new_error_slot;
+	unsigned long flags;
+
+	req->rsp->status = cpu_to_le16(status << 1);
+
+	if (!ctrl || req->error_loc == -1)
+		return;
+
+	spin_lock_irqsave(&ctrl->error_lock, flags);
+	ctrl->err_counter++;
+	new_error_slot =
+		&ctrl->slots[ctrl->err_counter % NVMET_ERROR_LOG_SLOTS];
+
+	new_error_slot->error_count = cpu_to_le64(ctrl->err_counter);
+	new_error_slot->sqid = cpu_to_le16(req->sq->qid);
+	new_error_slot->cmdid = cpu_to_le16(req->cmd->common.command_id);
+	new_error_slot->status_field = cpu_to_le16(status << 1);
+	new_error_slot->param_error_location = cpu_to_le16(req->error_loc);
+	new_error_slot->lba = cpu_to_le64(req->error_slba);
+	new_error_slot->nsid = req->cmd->common.nsid;
+	spin_unlock_irqrestore(&ctrl->error_lock, flags);
+
+	/* set the more bit for this request */
+	req->rsp->status |= cpu_to_le16(1 << 14);
+}
+
 static void __nvmet_req_complete(struct nvmet_req *req, u16 status)
 {
 	if (!req->sq->sqhd_disabled)
 		nvmet_update_sq_head(req);
 	req->rsp->sq_id = cpu_to_le16(req->sq->qid);
 	req->rsp->command_id = req->cmd->common.command_id;
+
 	if (unlikely(status))
-		nvmet_set_status(req, status);
+		nvmet_set_error(req, status);
 	if (req->ns)
 		nvmet_put_namespace(req->ns);
 	req->ops->queue_response(req);
@@ -739,14 +813,20 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 		return ret;
 
 	req->ns = nvmet_find_namespace(req->sq->ctrl, cmd->rw.nsid);
-	if (unlikely(!req->ns))
+	if (unlikely(!req->ns)) {
+		req->error_loc = offsetof(struct nvme_common_command, nsid);
 		return NVME_SC_INVALID_NS | NVME_SC_DNR;
+	}
 	ret = nvmet_check_ana_state(req->port, req->ns);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		req->error_loc = offsetof(struct nvme_common_command, nsid);
 		return ret;
+	}
 	ret = nvmet_io_cmd_check_access(req);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		req->error_loc = offsetof(struct nvme_common_command, nsid);
 		return ret;
+	}
 
 	if (req->ns->file)
 		return nvmet_file_parse_io_cmd(req);
@@ -769,9 +849,12 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->rsp->status = 0;
 	req->rsp->sq_head = 0;
 	req->ns = NULL;
+	req->error_loc = -1;
+	req->error_slba = 0;
 
 	/* no support for fused commands yet */
 	if (unlikely(flags & (NVME_CMD_FUSE_FIRST | NVME_CMD_FUSE_SECOND))) {
+		req->error_loc = offsetof(struct nvme_common_command, flags);
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto fail;
 	}
@@ -782,6 +865,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	 * byte aligned.
 	 */
 	if (unlikely((flags & NVME_CMD_SGL_ALL) != NVME_CMD_SGL_METABUF)) {
+		req->error_loc = offsetof(struct nvme_common_command, flags);
 		status = NVME_SC_INVALID_FIELD | NVME_SC_DNR;
 		goto fail;
 	}
@@ -827,9 +911,10 @@ EXPORT_SYMBOL_GPL(nvmet_req_uninit);
 
 void nvmet_req_execute(struct nvmet_req *req)
 {
-	if (unlikely(req->data_len != req->transfer_len))
+	if (unlikely(req->data_len != req->transfer_len)) {
+		req->error_loc = offsetof(struct nvme_common_command, dptr);
 		nvmet_req_complete(req, NVME_SC_SGL_INVALID_DATA | NVME_SC_DNR);
-	else
+	} else
 		req->execute(req);
 }
 EXPORT_SYMBOL_GPL(nvmet_req_execute);
@@ -1173,6 +1258,9 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 
 	/* keep-alive timeout in seconds */
 	ctrl->kato = DIV_ROUND_UP(kato, 1000);
+
+	ctrl->err_counter = 0;
+	spin_lock_init(&ctrl->error_lock);
 
 	nvmet_start_keep_alive_timer(ctrl);
 
