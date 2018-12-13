@@ -188,7 +188,10 @@ enum opt_type {
 		NO_SB_OPT,			false)			\
 	BCH_OPT(version_upgrade,	u8,	OPT_MOUNT,		\
 		OPT_BOOL(),						\
-		NO_SB_OPT,			false)
+		NO_SB_OPT,			false)			\
+	BCH_OPT(project,		u8,	OPT_INTERNAL,		\
+		OPT_BOOL(),						\
+		NO_SB_OPT,			false)			\
 
 struct bch_opts {
 #define BCH_OPT(_name, _bits, ...)	unsigned _name##_defined:1;
@@ -280,16 +283,6 @@ int bch2_opts_check_may_set(struct bch_fs *);
 int bch2_parse_mount_opts(struct bch_opts *, char *);
 
 /* inode opts: */
-
-#define BCH_INODE_OPTS()			\
-	x(data_checksum,		8)	\
-	x(compression,			8)	\
-	x(background_compression,	8)	\
-	x(data_replicas,		8)	\
-	x(promote_target,		16)	\
-	x(foreground_target,		16)	\
-	x(background_target,		16)	\
-	x(erasure_code,			16)
 
 struct bch_io_opts {
 #define x(_name, _bits)	unsigned _name##_defined:1;

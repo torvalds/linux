@@ -716,16 +716,17 @@ struct bch_inode_generation {
 	x(bi_background_target,		16)	\
 	x(bi_erasure_code,		16)
 
-#define BCH_INODE_FIELDS_INHERIT()		\
-	x(bi_data_checksum)			\
-	x(bi_compression)			\
-	x(bi_project)				\
-	x(bi_background_compression)		\
-	x(bi_data_replicas)			\
-	x(bi_promote_target)			\
-	x(bi_foreground_target)			\
-	x(bi_background_target)			\
-	x(bi_erasure_code)
+/* subset of BCH_INODE_FIELDS */
+#define BCH_INODE_OPTS()			\
+	x(data_checksum,		8)	\
+	x(compression,			8)	\
+	x(project,			32)	\
+	x(background_compression,	8)	\
+	x(data_replicas,		8)	\
+	x(promote_target,		16)	\
+	x(foreground_target,		16)	\
+	x(background_target,		16)	\
+	x(erasure_code,			16)
 
 enum {
 	/*

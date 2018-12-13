@@ -265,8 +265,8 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 	inode_u->bi_otime	= now;
 
 	if (parent) {
-#define x(_name)	inode_u->_name = parent->_name;
-		BCH_INODE_FIELDS_INHERIT()
+#define x(_name, ...)	inode_u->bi_##_name = parent->bi_##_name;
+		BCH_INODE_OPTS()
 #undef x
 	}
 }
