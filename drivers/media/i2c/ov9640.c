@@ -271,19 +271,20 @@ static int ov9640_s_stream(struct v4l2_subdev *sd, int enable)
 /* Set status of additional camera capabilities */
 static int ov9640_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct ov9640_priv *priv = container_of(ctrl->handler, struct ov9640_priv, hdl);
+	struct ov9640_priv *priv = container_of(ctrl->handler,
+						struct ov9640_priv, hdl);
 	struct i2c_client *client = v4l2_get_subdevdata(&priv->subdev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_VFLIP:
 		if (ctrl->val)
 			return ov9640_reg_rmw(client, OV9640_MVFP,
-							OV9640_MVFP_V, 0);
+					      OV9640_MVFP_V, 0);
 		return ov9640_reg_rmw(client, OV9640_MVFP, 0, OV9640_MVFP_V);
 	case V4L2_CID_HFLIP:
 		if (ctrl->val)
 			return ov9640_reg_rmw(client, OV9640_MVFP,
-							OV9640_MVFP_H, 0);
+					      OV9640_MVFP_H, 0);
 		return ov9640_reg_rmw(client, OV9640_MVFP, 0, OV9640_MVFP_H);
 	}
 
@@ -471,7 +472,7 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 	/* write color matrix configuration into the module */
 	for (i = 0; i < matrix_regs_len; i++) {
 		ret = ov9640_reg_write(client, matrix_regs[i].reg,
-						matrix_regs[i].val);
+				       matrix_regs[i].val);
 		if (ret)
 			return ret;
 	}
@@ -487,7 +488,7 @@ static int ov9640_prog_dflt(struct i2c_client *client)
 
 	for (i = 0; i < ARRAY_SIZE(ov9640_regs_dflt); i++) {
 		ret = ov9640_reg_write(client, ov9640_regs_dflt[i].reg,
-						ov9640_regs_dflt[i].val);
+				       ov9640_regs_dflt[i].val);
 		if (ret)
 			return ret;
 	}
@@ -684,8 +685,7 @@ static int ov9640_probe(struct i2c_client *client,
 	struct ov9640_priv *priv;
 	int ret;
 
-	priv = devm_kzalloc(&client->dev, sizeof(*priv),
-			    GFP_KERNEL);
+	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
@@ -707,9 +707,9 @@ static int ov9640_probe(struct i2c_client *client,
 
 	v4l2_ctrl_handler_init(&priv->hdl, 2);
 	v4l2_ctrl_new_std(&priv->hdl, &ov9640_ctrl_ops,
-			V4L2_CID_VFLIP, 0, 1, 1, 0);
+			  V4L2_CID_VFLIP, 0, 1, 1, 0);
 	v4l2_ctrl_new_std(&priv->hdl, &ov9640_ctrl_ops,
-			V4L2_CID_HFLIP, 0, 1, 1, 0);
+			  V4L2_CID_HFLIP, 0, 1, 1, 0);
 
 	if (priv->hdl.error) {
 		ret = priv->hdl.error;
@@ -751,6 +751,7 @@ static int ov9640_remove(struct i2c_client *client)
 	v4l2_clk_put(priv->clk);
 	v4l2_async_unregister_subdev(&priv->subdev);
 	v4l2_ctrl_handler_free(&priv->hdl);
+
 	return 0;
 }
 
