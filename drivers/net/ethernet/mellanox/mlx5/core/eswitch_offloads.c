@@ -81,7 +81,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 {
 	struct mlx5_flow_destination dest[MLX5_MAX_FLOW_FWD_VPORTS + 1] = {};
 	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND, };
-	bool mirror = !!(attr->mirror_count);
+	bool split = !!(attr->split_count);
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_table *fdb;
 	int j, i = 0;
@@ -120,14 +120,21 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 			dest[i].ft = ft;
 			i++;
 		} else {
-			for (j = attr->mirror_count; j < attr->out_count; j++) {
+			for (j = attr->split_count; j < attr->out_count; j++) {
 				dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-				dest[i].vport.num = attr->out_rep[j]->vport;
+				dest[i].vport.num = attr->dests[j].rep->vport;
 				dest[i].vport.vhca_id =
-					MLX5_CAP_GEN(attr->out_mdev[j], vhca_id);
+					MLX5_CAP_GEN(attr->dests[j].mdev, vhca_id);
 				if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 					dest[i].vport.flags |=
 						MLX5_FLOW_DEST_VPORT_VHCA_ID;
+				if (attr->dests[j].flags & MLX5_ESW_DEST_ENCAP) {
+					flow_act.action |= MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT;
+					flow_act.reformat_id = attr->dests[j].encap_id;
+					dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
+					dest[i].vport.reformat_id =
+						attr->dests[j].encap_id;
+				}
 				i++;
 			}
 		}
@@ -164,10 +171,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_MOD_HDR)
 		flow_act.modify_id = attr->mod_hdr_id;
 
-	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_PACKET_REFORMAT)
-		flow_act.reformat_id = attr->encap_id;
-
-	fdb = esw_get_prio_table(esw, attr->chain, attr->prio, !!mirror);
+	fdb = esw_get_prio_table(esw, attr->chain, attr->prio, !!split);
 	if (IS_ERR(fdb)) {
 		rule = ERR_CAST(fdb);
 		goto err_esw_get;
@@ -182,7 +186,7 @@ mlx5_eswitch_add_offloaded_rule(struct mlx5_eswitch *esw,
 	return rule;
 
 err_add_rule:
-	esw_put_prio_table(esw, attr->chain, attr->prio, !!mirror);
+	esw_put_prio_table(esw, attr->chain, attr->prio, !!split);
 err_esw_get:
 	if (attr->dest_chain)
 		esw_put_prio_table(esw, attr->dest_chain, 1, 0);
@@ -216,13 +220,17 @@ mlx5_eswitch_add_fwd_rule(struct mlx5_eswitch *esw,
 	}
 
 	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	for (i = 0; i < attr->mirror_count; i++) {
+	for (i = 0; i < attr->split_count; i++) {
 		dest[i].type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
-		dest[i].vport.num = attr->out_rep[i]->vport;
+		dest[i].vport.num = attr->dests[i].rep->vport;
 		dest[i].vport.vhca_id =
-			MLX5_CAP_GEN(attr->out_mdev[i], vhca_id);
+			MLX5_CAP_GEN(attr->dests[i].mdev, vhca_id);
 		if (MLX5_CAP_ESW(esw->dev, merged_eswitch))
 			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_VHCA_ID;
+		if (attr->dests[i].flags & MLX5_ESW_DEST_ENCAP) {
+			dest[i].vport.flags |= MLX5_FLOW_DEST_VPORT_REFORMAT_ID;
+			dest[i].vport.reformat_id = attr->dests[i].encap_id;
+		}
 	}
 	dest[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
 	dest[i].ft = fwd_fdb,
@@ -270,7 +278,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 			struct mlx5_esw_flow_attr *attr,
 			bool fwd_rule)
 {
-	bool mirror = (attr->mirror_count > 0);
+	bool split = (attr->split_count > 0);
 
 	mlx5_del_flow_rules(rule);
 	esw->offloads.num_flows--;
@@ -279,7 +287,7 @@ __mlx5_eswitch_del_rule(struct mlx5_eswitch *esw,
 		esw_put_prio_table(esw, attr->chain, attr->prio, 1);
 		esw_put_prio_table(esw, attr->chain, attr->prio, 0);
 	} else {
-		esw_put_prio_table(esw, attr->chain, attr->prio, !!mirror);
+		esw_put_prio_table(esw, attr->chain, attr->prio, !!split);
 		if (attr->dest_chain)
 			esw_put_prio_table(esw, attr->dest_chain, 1, 0);
 	}
@@ -327,7 +335,7 @@ esw_vlan_action_get_vport(struct mlx5_esw_flow_attr *attr, bool push, bool pop)
 	struct mlx5_eswitch_rep *in_rep, *out_rep, *vport = NULL;
 
 	in_rep  = attr->in_rep;
-	out_rep = attr->out_rep[0];
+	out_rep = attr->dests[0].rep;
 
 	if (push)
 		vport = in_rep;
@@ -348,7 +356,7 @@ static int esw_add_vlan_action_check(struct mlx5_esw_flow_attr *attr,
 		goto out_notsupp;
 
 	in_rep  = attr->in_rep;
-	out_rep = attr->out_rep[0];
+	out_rep = attr->dests[0].rep;
 
 	if (push && in_rep->vport == FDB_UPLINK_VPORT)
 		goto out_notsupp;
@@ -400,7 +408,7 @@ int mlx5_eswitch_add_vlan_action(struct mlx5_eswitch *esw,
 
 	if (!push && !pop && fwd) {
 		/* tracks VF --> wire rules without vlan push action */
-		if (attr->out_rep[0]->vport == FDB_UPLINK_VPORT) {
+		if (attr->dests[0].rep->vport == FDB_UPLINK_VPORT) {
 			vport->vlan_refcount++;
 			attr->vlan_handled = true;
 		}
@@ -460,7 +468,7 @@ int mlx5_eswitch_del_vlan_action(struct mlx5_eswitch *esw,
 
 	if (!push && !pop && fwd) {
 		/* tracks VF --> wire rules without vlan push action */
-		if (attr->out_rep[0]->vport == FDB_UPLINK_VPORT)
+		if (attr->dests[0].rep->vport == FDB_UPLINK_VPORT)
 			vport->vlan_refcount--;
 
 		return 0;
