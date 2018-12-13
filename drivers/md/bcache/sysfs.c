@@ -88,6 +88,8 @@ read_attribute(writeback_keys_done);
 read_attribute(writeback_keys_failed);
 read_attribute(io_errors);
 read_attribute(congested);
+read_attribute(cutoff_writeback);
+read_attribute(cutoff_writeback_sync);
 rw_attribute(congested_read_threshold_us);
 rw_attribute(congested_write_threshold_us);
 
@@ -686,6 +688,9 @@ SHOW(__bch_cache_set)
 	sysfs_print(congested_write_threshold_us,
 		    c->congested_write_threshold_us);
 
+	sysfs_print(cutoff_writeback, bch_cutoff_writeback);
+	sysfs_print(cutoff_writeback_sync, bch_cutoff_writeback_sync);
+
 	sysfs_print(active_journal_entries,	fifo_used(&c->journal.pin));
 	sysfs_printf(verify,			"%i", c->verify);
 	sysfs_printf(key_merging_disabled,	"%i", c->key_merging_disabled);
@@ -883,6 +888,8 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_copy_gc_enabled,
 	&sysfs_gc_after_writeback,
 	&sysfs_io_disable,
+	&sysfs_cutoff_writeback,
+	&sysfs_cutoff_writeback_sync,
 	NULL
 };
 KTYPE(bch_cache_set_internal);
