@@ -1575,10 +1575,7 @@ err_firmware_needs_update:
 /* disconnect the device */
 static void ucan_disconnect(struct usb_interface *intf)
 {
-	struct usb_device *udev;
 	struct ucan_priv *up = usb_get_intfdata(intf);
-
-	udev = interface_to_usbdev(intf);
 
 	usb_set_intfdata(intf, NULL);
 

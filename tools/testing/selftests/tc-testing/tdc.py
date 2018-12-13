@@ -134,9 +134,9 @@ def exec_cmd(args, pm, stage, command):
     (rawout, serr) = proc.communicate()
 
     if proc.returncode != 0 and len(serr) > 0:
-        foutput = serr.decode("utf-8")
+        foutput = serr.decode("utf-8", errors="ignore")
     else:
-        foutput = rawout.decode("utf-8")
+        foutput = rawout.decode("utf-8", errors="ignore")
 
     proc.stdout.close()
     proc.stderr.close()
@@ -169,6 +169,8 @@ def prepare_env(args, pm, stage, prefix, cmdlist, output = None):
                   file=sys.stderr)
             print("\n{} *** Error message: \"{}\"".format(prefix, foutput),
                   file=sys.stderr)
+            print("returncode {}; expected {}".format(proc.returncode,
+                                                      exit_codes))
             print("\n{} *** Aborting test run.".format(prefix), file=sys.stderr)
             print("\n\n{} *** stdout ***".format(proc.stdout), file=sys.stderr)
             print("\n\n{} *** stderr ***".format(proc.stderr), file=sys.stderr)
@@ -195,12 +197,18 @@ def run_one_test(pm, args, index, tidx):
         print('-----> execute stage')
     pm.call_pre_execute()
     (p, procout) = exec_cmd(args, pm, 'execute', tidx["cmdUnderTest"])
-    exit_code = p.returncode
+    if p:
+        exit_code = p.returncode
+    else:
+        exit_code = None
+
     pm.call_post_execute()
 
-    if (exit_code != int(tidx["expExitCode"])):
+    if (exit_code is None or exit_code != int(tidx["expExitCode"])):
         result = False
-        print("exit:", exit_code, int(tidx["expExitCode"]))
+        print("exit: {!r}".format(exit_code))
+        print("exit: {}".format(int(tidx["expExitCode"])))
+        #print("exit: {!r} {}".format(exit_code, int(tidx["expExitCode"])))
         print(procout)
     else:
         if args.verbose > 0:
