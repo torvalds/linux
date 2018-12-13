@@ -119,12 +119,13 @@ static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch)
 	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
 
-	st->done = false;
 	gpiod_set_value(st->gpio_convst, 1);
-
-	ret = wait_event_interruptible(st->wq_data_avail, st->done);
-	if (ret)
+	ret = wait_for_completion_timeout(&st->completion,
+					  msecs_to_jiffies(1000));
+	if (!ret) {
+		ret = -ETIMEDOUT;
 		goto error_ret;
+	}
 
 	ret = ad7606_read_samples(st);
 	if (ret == 0)
@@ -389,8 +390,7 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 	if (iio_buffer_enabled(indio_dev)) {
 		schedule_work(&st->poll_work);
 	} else {
-		st->done = true;
-		wake_up_interruptible(&st->wq_data_avail);
+		complete(&st->completion);
 	}
 
 	return IRQ_HANDLED;
@@ -474,7 +474,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->num_channels = st->chip_info->num_channels;
 
-	init_waitqueue_head(&st->wq_data_avail);
+	init_completion(&st->completion);
 
 	ret = ad7606_reset(st);
 	if (ret)

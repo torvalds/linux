@@ -29,11 +29,9 @@ struct ad7606_chip_info {
  * @reg		regulator info for the the power supply of the device
  * @poll_work		work struct for continuously reading data from the device
  *			into an IIO triggered buffer
- * @wq_data_avail	wait queue struct for buffer mode
  * @bops		bus operations (SPI or parallel)
  * @range		voltage range selection, selects which scale to apply
  * @oversampling	oversampling selection
- * @done		marks whether reading data is done
  * @base_address	address from where to read data in parallel operation
  * @lock		protect sensor state from concurrent accesses to GPIOs
  * @gpio_convst	GPIO descriptor for conversion start signal (CONVST)
@@ -44,6 +42,7 @@ struct ad7606_chip_info {
  * @gpio_frstdata	GPIO descriptor for reading from device when data
  *			is being read on the first channel
  * @gpio_os		GPIO descriptors to control oversampling on the device
+ * @complete		completion to indicate end of conversion
  * @data		buffer for reading data from the device
  */
 
@@ -52,11 +51,9 @@ struct ad7606_state {
 	const struct ad7606_chip_info	*chip_info;
 	struct regulator		*reg;
 	struct work_struct		poll_work;
-	wait_queue_head_t		wq_data_avail;
 	const struct ad7606_bus_ops	*bops;
 	unsigned int			range;
 	unsigned int			oversampling;
-	bool				done;
 	void __iomem			*base_address;
 
 	struct mutex			lock; /* protect sensor state */
@@ -66,6 +63,7 @@ struct ad7606_state {
 	struct gpio_desc		*gpio_standby;
 	struct gpio_desc		*gpio_frstdata;
 	struct gpio_descs		*gpio_os;
+	struct completion		completion;
 
 	/*
 	 * DMA (thus cache coherency maintenance) requires the
