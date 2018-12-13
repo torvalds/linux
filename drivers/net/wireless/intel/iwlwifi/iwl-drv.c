@@ -1088,6 +1088,20 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 				return -ENOMEM;
 			break;
 			}
+		case IWL_UCODE_TLV_FW_RECOVERY_INFO: {
+			struct {
+				__le32 buf_addr;
+				__le32 buf_size;
+			} *recov_info = (void *)tlv_data;
+
+			if (tlv_len != sizeof(*recov_info))
+				goto invalid_tlv_len;
+			capa->error_log_addr =
+				le32_to_cpu(recov_info->buf_addr);
+			capa->error_log_size =
+				le32_to_cpu(recov_info->buf_size);
+			}
+			break;
 		case IWL_UCODE_TLV_UMAC_DEBUG_ADDRS: {
 			struct iwl_umac_debug_addrs *dbg_ptrs =
 				(void *)tlv_data;

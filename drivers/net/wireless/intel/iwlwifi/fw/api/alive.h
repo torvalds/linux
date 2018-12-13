@@ -197,4 +197,24 @@ struct iwl_card_state_notif {
 	__le32 flags;
 } __packed; /* CARD_STATE_NTFY_API_S_VER_1 */
 
+/**
+ * enum iwl_error_recovery_flags - flags for error recovery cmd
+ * @ERROR_RECOVERY_UPDATE_DB: update db from blob sent
+ * @ERROR_RECOVERY_END_OF_RECOVERY: end of recovery
+ */
+enum iwl_error_recovery_flags {
+	ERROR_RECOVERY_UPDATE_DB = BIT(0),
+	ERROR_RECOVERY_END_OF_RECOVERY = BIT(1),
+};
+
+/**
+ * struct iwl_fw_error_recovery_cmd - recovery cmd sent upon assert
+ * @flags: &enum iwl_error_recovery_flags
+ * @buf_size: db buffer size in bytes
+ */
+struct iwl_fw_error_recovery_cmd {
+	__le32 flags;
+	__le32 buf_size;
+} __packed; /* ERROR_RECOVERY_CMD_HDR_API_S_VER_1 */
+
 #endif /* __iwl_fw_api_alive_h__ */
