@@ -21,12 +21,6 @@ struct nf_nat_l4proto {
 			  const struct nf_conntrack_tuple *tuple,
 			  enum nf_nat_manip_type maniptype);
 
-	/* Is the manipable part of the tuple between min and max incl? */
-	bool (*in_range)(const struct nf_conntrack_tuple *tuple,
-			 enum nf_nat_manip_type maniptype,
-			 const union nf_conntrack_man_proto *min,
-			 const union nf_conntrack_man_proto *max);
-
 	int (*nlattr_to_range)(struct nlattr *tb[],
 			       struct nf_nat_range2 *range);
 };
@@ -53,11 +47,6 @@ extern const struct nf_nat_l4proto nf_nat_l4proto_sctp;
 #ifdef CONFIG_NF_NAT_PROTO_UDPLITE
 extern const struct nf_nat_l4proto nf_nat_l4proto_udplite;
 #endif
-
-bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,
-			     enum nf_nat_manip_type maniptype,
-			     const union nf_conntrack_man_proto *min,
-			     const union nf_conntrack_man_proto *max);
 
 int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
 				   struct nf_nat_range2 *range);

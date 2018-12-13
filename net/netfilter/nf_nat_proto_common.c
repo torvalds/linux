@@ -17,23 +17,6 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
 
-bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,
-			     enum nf_nat_manip_type maniptype,
-			     const union nf_conntrack_man_proto *min,
-			     const union nf_conntrack_man_proto *max)
-{
-	__be16 port;
-
-	if (maniptype == NF_NAT_MANIP_SRC)
-		port = tuple->src.u.all;
-	else
-		port = tuple->dst.u.all;
-
-	return ntohs(port) >= ntohs(min->all) &&
-	       ntohs(port) <= ntohs(max->all);
-}
-EXPORT_SYMBOL_GPL(nf_nat_l4proto_in_range);
-
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
 				   struct nf_nat_range2 *range)

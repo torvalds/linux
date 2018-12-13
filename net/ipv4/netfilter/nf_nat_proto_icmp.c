@@ -18,16 +18,6 @@
 #include <net/netfilter/nf_nat_l4proto.h>
 
 static bool
-icmp_in_range(const struct nf_conntrack_tuple *tuple,
-	      enum nf_nat_manip_type maniptype,
-	      const union nf_conntrack_man_proto *min,
-	      const union nf_conntrack_man_proto *max)
-{
-	return ntohs(tuple->src.u.icmp.id) >= ntohs(min->icmp.id) &&
-	       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
-}
-
-static bool
 icmp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_nat_l3proto *l3proto,
 	       unsigned int iphdroff, unsigned int hdroff,
@@ -49,7 +39,6 @@ icmp_manip_pkt(struct sk_buff *skb,
 const struct nf_nat_l4proto nf_nat_l4proto_icmp = {
 	.l4proto		= IPPROTO_ICMP,
 	.manip_pkt		= icmp_manip_pkt,
-	.in_range		= icmp_in_range,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif

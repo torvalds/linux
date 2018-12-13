@@ -64,7 +64,6 @@ tcp_manip_pkt(struct sk_buff *skb,
 const struct nf_nat_l4proto nf_nat_l4proto_tcp = {
 	.l4proto		= IPPROTO_TCP,
 	.manip_pkt		= tcp_manip_pkt,
-	.in_range		= nf_nat_l4proto_in_range,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif

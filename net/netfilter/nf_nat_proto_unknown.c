@@ -17,14 +17,6 @@
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_l4proto.h>
 
-static bool unknown_in_range(const struct nf_conntrack_tuple *tuple,
-			     enum nf_nat_manip_type manip_type,
-			     const union nf_conntrack_man_proto *min,
-			     const union nf_conntrack_man_proto *max)
-{
-	return true;
-}
-
 static bool
 unknown_manip_pkt(struct sk_buff *skb,
 		  const struct nf_nat_l3proto *l3proto,
@@ -37,5 +29,4 @@ unknown_manip_pkt(struct sk_buff *skb,
 
 const struct nf_nat_l4proto nf_nat_l4proto_unknown = {
 	.manip_pkt		= unknown_manip_pkt,
-	.in_range		= unknown_in_range,
 };

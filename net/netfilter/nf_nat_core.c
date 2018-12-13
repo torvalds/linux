@@ -183,11 +183,41 @@ static bool nf_nat_inet_in_range(const struct nf_conntrack_tuple *t,
 	       ipv6_addr_cmp(&t->src.u3.in6, &range->max_addr.in6) <= 0;
 }
 
+/* Is the manipable part of the tuple between min and max incl? */
+static bool l4proto_in_range(const struct nf_conntrack_tuple *tuple,
+			     enum nf_nat_manip_type maniptype,
+			     const union nf_conntrack_man_proto *min,
+			     const union nf_conntrack_man_proto *max)
+{
+	__be16 port;
+
+	switch (tuple->dst.protonum) {
+	case IPPROTO_ICMP: /* fallthrough */
+	case IPPROTO_ICMPV6:
+		return ntohs(tuple->src.u.icmp.id) >= ntohs(min->icmp.id) &&
+		       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
+	case IPPROTO_GRE: /* all fall though */
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+	case IPPROTO_UDPLITE:
+	case IPPROTO_DCCP:
+	case IPPROTO_SCTP:
+		if (maniptype == NF_NAT_MANIP_SRC)
+			port = tuple->src.u.all;
+		else
+			port = tuple->dst.u.all;
+
+		return ntohs(port) >= ntohs(min->all) &&
+		       ntohs(port) <= ntohs(max->all);
+	default:
+		return true;
+	}
+}
+
 /* If we source map this tuple so reply looks like reply_tuple, will
  * that meet the constraints of range.
  */
-static int in_range(const struct nf_nat_l4proto *l4proto,
-		    const struct nf_conntrack_tuple *tuple,
+static int in_range(const struct nf_conntrack_tuple *tuple,
 		    const struct nf_nat_range2 *range)
 {
 	/* If we are supposed to map IPs, then we must be in the
@@ -197,12 +227,11 @@ static int in_range(const struct nf_nat_l4proto *l4proto,
 	    !nf_nat_inet_in_range(tuple, range))
 		return 0;
 
-	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
-	    l4proto->in_range(tuple, NF_NAT_MANIP_SRC,
-			      &range->min_proto, &range->max_proto))
+	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED))
 		return 1;
 
-	return 0;
+	return l4proto_in_range(tuple, NF_NAT_MANIP_SRC,
+				&range->min_proto, &range->max_proto);
 }
 
 static inline int
@@ -221,7 +250,6 @@ same_src(const struct nf_conn *ct,
 static int
 find_appropriate_src(struct net *net,
 		     const struct nf_conntrack_zone *zone,
-		     const struct nf_nat_l4proto *l4proto,
 		     const struct nf_conntrack_tuple *tuple,
 		     struct nf_conntrack_tuple *result,
 		     const struct nf_nat_range2 *range)
@@ -238,7 +266,7 @@ find_appropriate_src(struct net *net,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 			result->dst = tuple->dst;
 
-			if (in_range(l4proto, result, range))
+			if (in_range(result, range))
 				return 1;
 		}
 	}
@@ -450,16 +478,9 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 enum nf_nat_manip_type maniptype)
 {
 	const struct nf_conntrack_zone *zone;
-	const struct nf_nat_l3proto *l3proto;
-	const struct nf_nat_l4proto *l4proto;
 	struct net *net = nf_ct_net(ct);
 
 	zone = nf_ct_zone(ct);
-
-	rcu_read_lock();
-	l3proto = __nf_nat_l3proto_find(orig_tuple->src.l3num);
-	l4proto = __nf_nat_l4proto_find(orig_tuple->src.l3num,
-					orig_tuple->dst.protonum);
 
 	/* 1) If this srcip/proto/src-proto-part is currently mapped,
 	 * and that same mapping gives a unique tuple within the given
@@ -472,16 +493,16 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
-		if (in_range(l4proto, orig_tuple, range)) {
+		if (in_range(orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
 				*tuple = *orig_tuple;
-				goto out;
+				return;
 			}
-		} else if (find_appropriate_src(net, zone, l4proto,
+		} else if (find_appropriate_src(net, zone,
 						orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
 			if (!nf_nat_used_tuple(tuple, ct))
-				goto out;
+				return;
 		}
 	}
 
@@ -497,21 +518,19 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (!(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		if (range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) {
 			if (!(range->flags & NF_NAT_RANGE_PROTO_OFFSET) &&
-			    l4proto->in_range(tuple, maniptype,
+			    l4proto_in_range(tuple, maniptype,
 			          &range->min_proto,
 			          &range->max_proto) &&
 			    (range->min_proto.all == range->max_proto.all ||
 			     !nf_nat_used_tuple(tuple, ct)))
-				goto out;
+				return;
 		} else if (!nf_nat_used_tuple(tuple, ct)) {
-			goto out;
+			return;
 		}
 	}
 
 	/* Last chance: get protocol to try to obtain unique tuple. */
 	nf_nat_l4proto_unique_tuple(tuple, range, maniptype, ct);
-out:
-	rcu_read_unlock();
 }
 
 struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct)
