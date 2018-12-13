@@ -429,6 +429,7 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		struct asoc_simple_card_info *cinfo;
 		struct snd_soc_dai_link_component *codecs;
 		struct snd_soc_dai_link_component *platform;
+		int dai_idx = 0;
 
 		cinfo = dev->platform_data;
 		if (!cinfo) {
@@ -445,6 +446,9 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 
+		dai_props->cpu_dai	= &priv->dais[dai_idx++];
+		dai_props->codec_dai	= &priv->dais[dai_idx++];
+
 		codecs			= dai_link->codecs;
 		codecs->name		= cinfo->codec;
 		codecs->dai_name	= cinfo->codec_dai.name;
@@ -458,10 +462,10 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 		dai_link->cpu_dai_name	= cinfo->cpu_dai.name;
 		dai_link->dai_fmt	= cinfo->daifmt;
 		dai_link->init		= asoc_simple_card_dai_init;
-		memcpy(&priv->dai_props->cpu_dai, &cinfo->cpu_dai,
-					sizeof(priv->dai_props->cpu_dai));
-		memcpy(&priv->dai_props->codec_dai, &cinfo->codec_dai,
-					sizeof(priv->dai_props->codec_dai));
+		memcpy(priv->dai_props->cpu_dai, &cinfo->cpu_dai,
+					sizeof(*priv->dai_props->cpu_dai));
+		memcpy(priv->dai_props->codec_dai, &cinfo->codec_dai,
+					sizeof(*priv->dai_props->codec_dai));
 	}
 
 	snd_soc_card_set_drvdata(card, priv);
