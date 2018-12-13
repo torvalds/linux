@@ -104,12 +104,12 @@ typedef enum {
    SVGA_3D_CMD_DEAD1                                      = 1083,
    SVGA_3D_CMD_DEAD2                                      = 1084,
 
-   SVGA_3D_CMD_LOGICOPS_BITBLT                            = 1085,
-   SVGA_3D_CMD_LOGICOPS_TRANSBLT                          = 1086,
-   SVGA_3D_CMD_LOGICOPS_STRETCHBLT                        = 1087,
-   SVGA_3D_CMD_LOGICOPS_COLORFILL                         = 1088,
-   SVGA_3D_CMD_LOGICOPS_ALPHABLEND                        = 1089,
-   SVGA_3D_CMD_LOGICOPS_CLEARTYPEBLEND                    = 1090,
+   SVGA_3D_CMD_DEAD12                                     = 1085,
+   SVGA_3D_CMD_DEAD13                                     = 1086,
+   SVGA_3D_CMD_DEAD14                                     = 1087,
+   SVGA_3D_CMD_DEAD15                                     = 1088,
+   SVGA_3D_CMD_DEAD16                                     = 1089,
+   SVGA_3D_CMD_DEAD17                                     = 1090,
 
    SVGA_3D_CMD_SET_OTABLE_BASE                            = 1091,
    SVGA_3D_CMD_READBACK_OTABLE                            = 1092,
