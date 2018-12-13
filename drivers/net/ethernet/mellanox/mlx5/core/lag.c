@@ -186,13 +186,11 @@ static void mlx5_infer_tx_affinity_mapping(struct lag_tracker *tracker,
 		*port2 = 1;
 }
 
-static void mlx5_activate_lag(struct mlx5_lag *ldev,
-			      struct lag_tracker *tracker)
+static int mlx5_create_lag(struct mlx5_lag *ldev,
+			   struct lag_tracker *tracker)
 {
 	struct mlx5_core_dev *dev0 = ldev->pf[0].dev;
 	int err;
-
-	ldev->flags |= MLX5_LAG_FLAG_BONDED;
 
 	mlx5_infer_tx_affinity_mapping(tracker, &ldev->v2p_map[0],
 				       &ldev->v2p_map[1]);
@@ -202,6 +200,14 @@ static void mlx5_activate_lag(struct mlx5_lag *ldev,
 		mlx5_core_err(dev0,
 			      "Failed to create LAG (%d)\n",
 			      err);
+	return err;
+}
+
+static void mlx5_activate_lag(struct mlx5_lag *ldev,
+			      struct lag_tracker *tracker)
+{
+	ldev->flags |= MLX5_LAG_FLAG_BONDED;
+	mlx5_create_lag(ldev, tracker);
 }
 
 static void mlx5_deactivate_lag(struct mlx5_lag *ldev)
