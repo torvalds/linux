@@ -4,11 +4,12 @@ Required properties:
 - compatible		: "renesas,thermal-<soctype>",
 			   "renesas,rcar-gen2-thermal" (with thermal-zone) or
 			   "renesas,rcar-thermal" (without thermal-zone) as
-                           fallback except R-Car V3M/D3.
+                           fallback except R-Car V3M/D3 and RZ/G2E.
 			  Examples with soctypes are:
 			    - "renesas,thermal-r8a73a4" (R-Mobile APE6)
 			    - "renesas,thermal-r8a7743" (RZ/G1M)
 			    - "renesas,thermal-r8a7744" (RZ/G1N)
+			    - "renesas,thermal-r8a774c0" (RZ/G2E)
 			    - "renesas,thermal-r8a7779" (R-Car H1)
 			    - "renesas,thermal-r8a7790" (R-Car H2)
 			    - "renesas,thermal-r8a7791" (R-Car M2-W)
@@ -23,7 +24,7 @@ Required properties:
 Option properties:
 
 - interrupts		: If present should contain 3 interrupts for
-                          R-Car V3M/D3 or 1 interrupt otherwise.
+                          R-Car V3M/D3 and RZ/G2E or 1 interrupt otherwise.
 
 Example (non interrupt support):
 
