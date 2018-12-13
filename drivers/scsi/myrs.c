@@ -1929,6 +1929,7 @@ struct scsi_host_template myrs_template = {
 	.shost_attrs		= myrs_shost_attrs,
 	.sdev_attrs		= myrs_sdev_attrs,
 	.this_id		= -1,
+	.use_clustering		= DISABLE_CLUSTERING,
 };
 
 static struct myrs_hba *myrs_alloc_host(struct pci_dev *pdev,

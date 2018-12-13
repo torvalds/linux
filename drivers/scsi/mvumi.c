@@ -2197,6 +2197,7 @@ static struct scsi_host_template mvumi_template = {
 	.eh_timed_out = mvumi_timed_out,
 	.eh_host_reset_handler = mvumi_host_reset,
 	.bios_param = mvumi_bios_param,
+	.use_clustering = DISABLE_CLUSTERING,
 	.this_id = -1,
 };
 

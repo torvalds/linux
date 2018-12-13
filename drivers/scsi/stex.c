@@ -1489,6 +1489,7 @@ static struct scsi_host_template driver_template = {
 	.eh_abort_handler		= stex_abort,
 	.eh_host_reset_handler		= stex_reset,
 	.this_id			= -1,
+	.use_clustering			= DISABLE_CLUSTERING,
 };
 
 static struct pci_device_id stex_pci_tbl[] = {
