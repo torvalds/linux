@@ -11,6 +11,8 @@ lib_dir=$(dirname $0)/../../../net/forwarding
 
 ALL_TESTS="
 	rif_set_addr_test
+	rif_inherit_bridge_addr_test
+	rif_non_inherit_bridge_addr_test
 "
 NUM_NETIFS=2
 source $lib_dir/lib.sh
@@ -79,6 +81,83 @@ rif_set_addr_test()
 
 	ip link set dev $swp2 addr $swp2_mac
 	ip link set dev $swp1 addr $swp1_mac
+}
+
+rif_inherit_bridge_addr_test()
+{
+	RET=0
+
+	# Create first RIF
+	ip addr add dev $swp1 192.0.2.1/28
+	check_err $?
+
+	# Create a FID RIF
+	ip link add name br1 up type bridge vlan_filtering 0
+	ip link set dev $swp2 master br1
+	ip addr add dev br1 192.0.2.17/28
+	check_err $?
+
+	# Prepare a device with a low MAC address
+	ip link add name d up type dummy
+	ip link set dev d addr 00:11:22:33:44:55
+
+	# Attach the device to br1. That prompts bridge address change, which
+	# should be vetoed, thus preventing the attachment.
+	ip link set dev d master br1 &>/dev/null
+	check_fail $? "Device with low MAC was permitted to attach a bridge with RIF"
+	ip link set dev d master br1 2>&1 >/dev/null \
+	    | grep -q mlxsw_spectrum
+	check_err $? "no extack for bridge attach rejection"
+
+	ip link set dev $swp2 addr 00:11:22:33:44:55 &>/dev/null
+	check_fail $? "Changing swp2's MAC address permitted"
+	ip link set dev $swp2 addr 00:11:22:33:44:55 2>&1 >/dev/null \
+	    | grep -q mlxsw_spectrum
+	check_err $? "no extack for bridge port MAC address change rejection"
+
+	log_test "RIF - attach port with bad MAC to bridge"
+
+	ip link del dev d
+	ip link del dev br1
+	ip addr del dev $swp1 192.0.2.1/28
+}
+
+rif_non_inherit_bridge_addr_test()
+{
+	local swp2_mac=$(mac_get $swp2)
+
+	RET=0
+
+	# Create first RIF
+	ip addr add dev $swp1 192.0.2.1/28
+	check_err $?
+
+	# Create a FID RIF
+	ip link add name br1 up type bridge vlan_filtering 0
+	ip link set dev br1 addr $swp2_mac
+	ip link set dev $swp2 master br1
+	ip addr add dev br1 192.0.2.17/28
+	check_err $?
+
+	# Prepare a device with a low MAC address
+	ip link add name d up type dummy
+	ip link set dev d addr 00:11:22:33:44:55
+
+	# Attach the device to br1. Since the bridge address was set, it should
+	# work.
+	ip link set dev d master br1 &>/dev/null
+	check_err $? "Could not attach a device with low MAC to a bridge with RIF"
+
+	# Port MAC address change should be allowed for a bridge with set MAC.
+	ip link set dev $swp2 addr 00:11:22:33:44:55
+	check_err $? "Changing swp2's MAC address not permitted"
+
+	log_test "RIF - attach port with bad MAC to bridge with set MAC"
+
+	ip link set dev $swp2 addr $swp2_mac
+	ip link del dev d
+	ip link del dev br1
+	ip addr del dev $swp1 192.0.2.1/28
 }
 
 trap cleanup EXIT
