@@ -266,14 +266,6 @@ struct kfd_dev {
 	bool pci_atomic_requested;
 };
 
-/* KGD2KFD callbacks */
-void kgd2kfd_exit(void);
-struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd,
-			struct pci_dev *pdev, const struct kfd2kgd_calls *f2g);
-bool kgd2kfd_device_init(struct kfd_dev *kfd,
-			const struct kgd2kfd_shared_resources *gpu_resources);
-void kgd2kfd_device_exit(struct kfd_dev *kfd);
-
 enum kfd_mempool {
 	KFD_MEMPOOL_SYSTEM_CACHEABLE = 1,
 	KFD_MEMPOOL_SYSTEM_WRITECOMBINE = 2,
@@ -541,11 +533,6 @@ struct qcm_process_device {
 /* Approx. time before evicting the process again */
 #define PROCESS_ACTIVE_TIME_MS 10
 
-int kgd2kfd_quiesce_mm(struct mm_struct *mm);
-int kgd2kfd_resume_mm(struct mm_struct *mm);
-int kgd2kfd_schedule_evict_and_restore_process(struct mm_struct *mm,
-					       struct dma_fence *fence);
-
 /* 8 byte handle containing GPU ID in the most significant 4 bytes and
  * idr_handle in the least significant 4 bytes
  */
@@ -800,19 +787,10 @@ int kfd_numa_node_to_apic_id(int numa_node_id);
 /* Interrupts */
 int kfd_interrupt_init(struct kfd_dev *dev);
 void kfd_interrupt_exit(struct kfd_dev *dev);
-void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 bool enqueue_ih_ring_entry(struct kfd_dev *kfd,	const void *ih_ring_entry);
 bool interrupt_is_wanted(struct kfd_dev *dev,
 				const uint32_t *ih_ring_entry,
 				uint32_t *patched_ihre, bool *flag);
-
-/* Power Management */
-void kgd2kfd_suspend(struct kfd_dev *kfd);
-int kgd2kfd_resume(struct kfd_dev *kfd);
-
-/* GPU reset */
-int kgd2kfd_pre_reset(struct kfd_dev *kfd);
-int kgd2kfd_post_reset(struct kfd_dev *kfd);
 
 /* amdkfd Apertures */
 int kfd_init_apertures(struct kfd_process *process);

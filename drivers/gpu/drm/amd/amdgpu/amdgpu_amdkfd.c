@@ -619,4 +619,47 @@ struct kfd2kgd_calls *amdgpu_amdkfd_gfx_9_0_get_functions(void)
 {
 	return NULL;
 }
+
+struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
+			      const struct kfd2kgd_calls *f2g)
+{
+	return NULL;
+}
+
+bool kgd2kfd_device_init(struct kfd_dev *kfd,
+			 const struct kgd2kfd_shared_resources *gpu_resources)
+{
+	return false;
+}
+
+void kgd2kfd_device_exit(struct kfd_dev *kfd)
+{
+}
+
+void kgd2kfd_exit(void)
+{
+}
+
+void kgd2kfd_suspend(struct kfd_dev *kfd)
+{
+}
+
+int kgd2kfd_resume(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+int kgd2kfd_pre_reset(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+int kgd2kfd_post_reset(struct kfd_dev *kfd)
+{
+	return 0;
+}
+
+void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry)
+{
+}
 #endif

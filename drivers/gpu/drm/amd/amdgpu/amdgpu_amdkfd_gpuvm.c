@@ -44,6 +44,8 @@
  */
 #define AMDGPU_USERPTR_RESTORE_DELAY_MS 1
 
+extern const struct kgd2kfd_calls *kgd2kfd;
+
 /* Impose limit on how much memory KFD can use */
 static struct {
 	uint64_t max_system_mem_limit;

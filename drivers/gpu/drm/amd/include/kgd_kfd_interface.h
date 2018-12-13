@@ -379,7 +379,4 @@ struct kgd2kfd_calls {
 	int  (*post_reset)(struct kfd_dev *kfd);
 };
 
-int kgd2kfd_init(unsigned interface_version,
-		const struct kgd2kfd_calls **g2f);
-
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */
