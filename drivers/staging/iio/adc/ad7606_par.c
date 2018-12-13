@@ -91,12 +91,22 @@ static const struct platform_device_id ad7606_driver_ids[] = {
 
 MODULE_DEVICE_TABLE(platform, ad7606_driver_ids);
 
+static const struct of_device_id ad7606_of_match[] = {
+	{ .compatible = "adi,ad7605-4" },
+	{ .compatible = "adi,ad7606-4" },
+	{ .compatible = "adi,ad7606-6" },
+	{ .compatible = "adi,ad7606-8" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ad7606_of_match);
+
 static struct platform_driver ad7606_driver = {
 	.probe = ad7606_par_probe,
 	.id_table = ad7606_driver_ids,
 	.driver = {
 		.name	 = "ad7606",
 		.pm	 = AD7606_PM_OPS,
+		.of_match_table = ad7606_of_match,
 	},
 };
 

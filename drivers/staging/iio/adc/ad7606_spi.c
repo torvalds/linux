@@ -58,9 +58,19 @@ static const struct spi_device_id ad7606_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ad7606_id);
 
+static const struct of_device_id ad7606_of_match[] = {
+	{ .compatible = "adi,ad7605-4" },
+	{ .compatible = "adi,ad7606-4" },
+	{ .compatible = "adi,ad7606-6" },
+	{ .compatible = "adi,ad7606-8" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ad7606_of_match);
+
 static struct spi_driver ad7606_driver = {
 	.driver = {
 		.name = "ad7606",
+		.of_match_table = ad7606_of_match,
 		.pm = AD7606_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,
