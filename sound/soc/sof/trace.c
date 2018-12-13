@@ -112,7 +112,7 @@ static int trace_debugfs_create(struct snd_sof_dev *sdev)
 	if (!sdev)
 		return -EINVAL;
 
-	dfse = kzalloc(sizeof(*dfse), GFP_KERNEL);
+	dfse = devm_kzalloc(sdev->dev, sizeof(*dfse), GFP_KERNEL);
 	if (!dfse)
 		return -ENOMEM;
 
@@ -125,7 +125,6 @@ static int trace_debugfs_create(struct snd_sof_dev *sdev)
 	if (!dfse->dfsentry) {
 		dev_err(sdev->dev,
 			"error: cannot create debugfs entry for trace\n");
-		kfree(dfse);
 		return -ENODEV;
 	}
 
