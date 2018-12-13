@@ -25,9 +25,6 @@
 #include <linux/reboot.h>
 #include <linux/sysfs.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
-
 static const char bcache_magic[] = {
 	0xc6, 0x85, 0x73, 0xf6, 0x4e, 0x1a, 0x45, 0xca,
 	0x82, 0x65, 0xf5, 0x7f, 0x48, 0xba, 0x6d, 0x81
@@ -2469,3 +2466,7 @@ err:
 
 module_exit(bcache_exit);
 module_init(bcache_init);
+
+MODULE_DESCRIPTION("Bcache: a Linux block layer cache");
+MODULE_AUTHOR("Kent Overstreet <kent.overstreet@gmail.com>");
+MODULE_LICENSE("GPL");
