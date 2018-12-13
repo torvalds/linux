@@ -236,6 +236,7 @@ struct hda_codec {
 	/* misc flags */
 	unsigned int in_freeing:1; /* being released */
 	unsigned int registered:1; /* codec was registered */
+	unsigned int display_power_control:1; /* needs display power */
 	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
 					     * status change
 					     * (e.g. Realtek codecs)
