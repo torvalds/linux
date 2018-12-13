@@ -461,7 +461,8 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 	u32 i;
 
 	/* Add all cotables to the validation list. */
-	if (dev_priv->has_dx && vmw_res_type(ctx) == vmw_res_dx_context) {
+	if (has_sm4_context(dev_priv) &&
+	    vmw_res_type(ctx) == vmw_res_dx_context) {
 		for (i = 0; i < SVGA_COTABLE_DX10_MAX; ++i) {
 			res = vmw_context_cotable(ctx, i);
 			if (IS_ERR(res))
@@ -489,7 +490,8 @@ static int vmw_resource_context_res_add(struct vmw_private *dev_priv,
 			break;
 	}
 
-	if (dev_priv->has_dx && vmw_res_type(ctx) == vmw_res_dx_context) {
+	if (has_sm4_context(dev_priv) &&
+	    vmw_res_type(ctx) == vmw_res_dx_context) {
 		struct vmw_buffer_object *dx_query_mob;
 
 		dx_query_mob = vmw_context_get_dx_query_mob(ctx);

@@ -449,7 +449,7 @@ static int vmw_request_device(struct vmw_private *dev_priv)
 	dev_priv->cman = vmw_cmdbuf_man_create(dev_priv);
 	if (IS_ERR(dev_priv->cman)) {
 		dev_priv->cman = NULL;
-		dev_priv->has_dx = false;
+		dev_priv->sm_type = VMW_SM_LEGACY;
 	}
 
 	ret = vmw_request_device_late(dev_priv);
@@ -886,11 +886,22 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (dev_priv->has_mob && (dev_priv->capabilities & SVGA_CAP_DX)) {
 		spin_lock(&dev_priv->cap_lock);
 		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_DXCONTEXT);
-		dev_priv->has_dx = !!vmw_read(dev_priv, SVGA_REG_DEV_CAP);
+		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+			dev_priv->sm_type = VMW_SM_4;
 		spin_unlock(&dev_priv->cap_lock);
 	}
 
 	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
+
+	/* SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1 support */
+	if (has_sm4_context(dev_priv) &&
+	    (dev_priv->capabilities2 & SVGA_CAP2_DX2)) {
+		vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_SM41);
+
+		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+			dev_priv->sm_type = VMW_SM_4_1;
+	}
+
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;
@@ -900,23 +911,12 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (ret)
 		goto out_no_fifo;
 
-	if (dev_priv->has_dx) {
-		/*
-		 * SVGA_CAP2_DX2 (DefineGBSurface_v3) is needed for SM4_1
-		 * support
-		 */
-		if ((dev_priv->capabilities2 & SVGA_CAP2_DX2) != 0) {
-			vmw_write(dev_priv, SVGA_REG_DEV_CAP,
-					SVGA3D_DEVCAP_SM41);
-			dev_priv->has_sm4_1 = vmw_read(dev_priv,
-							SVGA_REG_DEV_CAP);
-		}
-	}
-
-	DRM_INFO("DX: %s\n", dev_priv->has_dx ? "yes." : "no.");
 	DRM_INFO("Atomic: %s\n", (dev->driver->driver_features & DRIVER_ATOMIC)
 		 ? "yes." : "no.");
-	DRM_INFO("SM4_1: %s\n", dev_priv->has_sm4_1 ? "yes." : "no.");
+	if (dev_priv->sm_type == VMW_SM_4_1)
+		DRM_INFO("SM4_1 support available.\n");
+	if (dev_priv->sm_type == VMW_SM_4)
+		DRM_INFO("SM4 support available.\n");
 
 	snprintf(host_log, sizeof(host_log), "vmwgfx: %s-%s",
 		VMWGFX_REPO, VMWGFX_GIT_VERSION);

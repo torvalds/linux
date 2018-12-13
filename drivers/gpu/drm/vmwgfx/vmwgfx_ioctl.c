@@ -114,10 +114,10 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 			(dev_priv->active_display_unit == vmw_du_screen_target);
 		break;
 	case DRM_VMW_PARAM_DX:
-		param->value = dev_priv->has_dx;
+		param->value = has_sm4_context(dev_priv);
 		break;
 	case DRM_VMW_PARAM_SM4_1:
-		param->value = dev_priv->has_sm4_1;
+		param->value = has_sm4_1_context(dev_priv);
 		break;
 	default:
 		return -EINVAL;

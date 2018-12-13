@@ -731,7 +731,7 @@ static int vmw_context_define(struct drm_device *dev, void *data,
 	};
 	int ret;
 
-	if (!dev_priv->has_dx && dx) {
+	if (!has_sm4_context(dev_priv) && dx) {
 		VMW_DEBUG_USER("DX contexts not supported by device.\n");
 		return -EINVAL;
 	}

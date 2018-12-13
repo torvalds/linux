@@ -1092,12 +1092,12 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (dev_priv->has_sm4_1 && srf->array_size > 0) {
+	if (has_sm4_1_context(dev_priv) && srf->array_size > 0) {
 		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V3;
 		cmd_len = sizeof(cmd3->body);
 		submit_len = sizeof(*cmd3);
 	} else if (srf->array_size > 0) {
-		/* has_dx checked on creation time. */
+		/* VMW_SM_4 support verified at creation time. */
 		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V2;
 		cmd_len = sizeof(cmd2->body);
 		submit_len = sizeof(*cmd2);
@@ -1115,7 +1115,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (dev_priv->has_sm4_1 && srf->array_size > 0) {
+	if (has_sm4_1_context(dev_priv) && srf->array_size > 0) {
 		cmd3->header.id = cmd_id;
 		cmd3->header.size = cmd_len;
 		cmd3->body.sid = srf->res.id;
@@ -1443,7 +1443,7 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	}
 
 	/* array_size must be null for non-GL3 host. */
-	if (array_size > 0 && !dev_priv->has_dx) {
+	if (array_size > 0 && !has_sm4_context(dev_priv)) {
 		VMW_DEBUG_USER("Tried to create DX surface on non-DX host.\n");
 		return -EINVAL;
 	}
@@ -1601,7 +1601,7 @@ vmw_gb_surface_define_internal(struct drm_device *dev,
 		SVGA3D_FLAGS_64(req->svga3d_flags_upper_32_bits,
 				req->base.svga3d_flags);
 
-	if (!dev_priv->has_sm4_1) {
+	if (!has_sm4_1_context(dev_priv)) {
 		/*
 		 * If SM4_1 is not support then cannot send 64-bit flag to
 		 * device.
