@@ -206,9 +206,9 @@
 /*
  * Event filters for PMUv3
  */
-#define	ARMV8_PMU_EXCLUDE_EL1	(1 << 31)
-#define	ARMV8_PMU_EXCLUDE_EL0	(1 << 30)
-#define	ARMV8_PMU_INCLUDE_EL2	(1 << 27)
+#define	ARMV8_PMU_EXCLUDE_EL1	(1U << 31)
+#define	ARMV8_PMU_EXCLUDE_EL0	(1U << 30)
+#define	ARMV8_PMU_INCLUDE_EL2	(1U << 27)
 
 /*
  * PMUSERENR: user enable reg
