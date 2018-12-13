@@ -122,7 +122,14 @@ static int fssetxattr_inode_update_fn(struct bch_inode_info *inode,
 {
 	struct flags_set *s = p;
 
-	bi->bi_project = s->projid;
+	if (s->projid != bi->bi_project) {
+		if (s->projid)
+			bi->bi_fields_set |= 1U << Inode_opt_project;
+		else
+			bi->bi_fields_set &= ~(1U << Inode_opt_project);
+
+		bi->bi_project = s->projid;
+	}
 
 	return bch2_inode_flags_set(inode, bi, p);
 }

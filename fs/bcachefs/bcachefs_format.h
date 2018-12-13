@@ -714,7 +714,8 @@ struct bch_inode_generation {
 	x(bi_promote_target,		16)	\
 	x(bi_foreground_target,		16)	\
 	x(bi_background_target,		16)	\
-	x(bi_erasure_code,		16)
+	x(bi_erasure_code,		16)	\
+	x(bi_fields_set,		16)
 
 /* subset of BCH_INODE_FIELDS */
 #define BCH_INODE_OPTS()			\
@@ -727,6 +728,14 @@ struct bch_inode_generation {
 	x(foreground_target,		16)	\
 	x(background_target,		16)	\
 	x(erasure_code,			16)
+
+enum inode_opt_id {
+#define x(name, ...)				\
+	Inode_opt_##name,
+	BCH_INODE_OPTS()
+#undef  x
+	Inode_opt_nr,
+};
 
 enum {
 	/*
