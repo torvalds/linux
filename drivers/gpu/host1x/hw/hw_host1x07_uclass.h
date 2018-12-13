@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 NVIDIA Corporation.
+ * Copyright (c) 2018 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -48,8 +48,8 @@
   *         of register <x>.
   */
 
-#ifndef HOST1X_HW_HOST1X06_UCLASS_H
-#define HOST1X_HW_HOST1X06_UCLASS_H
+#ifndef HOST1X_HW_HOST1X07_UCLASS_H
+#define HOST1X_HW_HOST1X07_UCLASS_H
 
 static inline u32 host1x_uclass_incr_syncpt_r(void)
 {
