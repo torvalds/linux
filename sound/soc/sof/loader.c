@@ -94,13 +94,23 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 	struct snd_sof_blk_hdr *block;
 	int count;
 	u32 offset;
+	size_t remaining;
 
 	dev_dbg(sdev->dev, "new module size 0x%x blocks 0x%x type 0x%x\n",
 		module->size, module->num_blocks, module->type);
 
 	block = (void *)module + sizeof(*module);
 
+	/* module->size doesn't include header size */
+	remaining = module->size;
 	for (count = 0; count < module->num_blocks; count++) {
+		/* minus header size of block */
+		remaining -= sizeof(*block);
+		if (remaining < block->size) {
+			dev_err(sdev->dev, "error: not enough data remaining\n");
+			return -EINVAL;
+		}
+
 		if (block->size == 0) {
 			dev_warn(sdev->dev,
 				 "warning: block %d size zero\n", count);
@@ -134,6 +144,8 @@ int snd_sof_parse_module_memcpy(struct snd_sof_dev *sdev,
 					(void *)block + sizeof(*block),
 					block->size);
 
+		/* minus body size of block */
+		remaining -= block->size;
 		/* next block */
 		block = (void *)block + sizeof(*block) + block->size;
 	}
@@ -176,6 +188,7 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 	int (*load_module)(struct snd_sof_dev *sof_dev,
 			   struct snd_sof_mod_hdr *hdr);
 	int ret, count;
+	size_t remaining;
 
 	header = (struct snd_sof_fw_header *)fw->data;
 	load_module = sdev->ops->load_module;
@@ -184,13 +197,22 @@ static int load_modules(struct snd_sof_dev *sdev, const struct firmware *fw)
 
 	/* parse each module */
 	module = (void *)fw->data + sizeof(*header);
+	remaining = fw->size - sizeof(*header);
 	for (count = 0; count < header->num_modules; count++) {
+		/* minus header size of module */
+		remaining -= sizeof(*module);
+		if (remaining < module->size) {
+			dev_err(sdev->dev, "error: not enough data remaining\n");
+			return -EINVAL;
+		}
 		/* module */
 		ret = load_module(sdev, module);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: invalid module %d\n", count);
 			return ret;
 		}
+		/* minus body size of module */
+		remaining -=  module->size;
 		module = (void *)module + sizeof(*module) + module->size;
 	}
 
