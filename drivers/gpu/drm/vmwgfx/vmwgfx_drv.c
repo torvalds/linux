@@ -290,6 +290,8 @@ static void vmw_print_capabilities2(uint32_t capabilities2)
 		DRM_INFO("  Grow oTable.\n");
 	if (capabilities2 & SVGA_CAP2_INTRA_SURFACE_COPY)
 		DRM_INFO("  IntraSurface copy.\n");
+	if (capabilities2 & SVGA_CAP2_DX3)
+		DRM_INFO("  DX3.\n");
 }
 
 static void vmw_print_capabilities(uint32_t capabilities)
@@ -900,6 +902,13 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 		if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
 			dev_priv->sm_type = VMW_SM_4_1;
+
+		if (has_sm4_1_context(dev_priv) &&
+		    (dev_priv->capabilities2 & SVGA_CAP2_DX3)) {
+			vmw_write(dev_priv, SVGA_REG_DEV_CAP, SVGA3D_DEVCAP_SM5);
+			if (vmw_read(dev_priv, SVGA_REG_DEV_CAP))
+				dev_priv->sm_type = VMW_SM_5;
+		}
 	}
 
 	ret = vmw_kms_init(dev_priv);
@@ -913,6 +922,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	DRM_INFO("Atomic: %s\n", (dev->driver->driver_features & DRIVER_ATOMIC)
 		 ? "yes." : "no.");
+	if (dev_priv->sm_type == VMW_SM_5)
+		DRM_INFO("SM5 support available.\n");
 	if (dev_priv->sm_type == VMW_SM_4_1)
 		DRM_INFO("SM4_1 support available.\n");
 	if (dev_priv->sm_type == VMW_SM_4)
