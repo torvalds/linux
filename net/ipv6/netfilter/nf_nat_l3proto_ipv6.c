@@ -63,7 +63,6 @@ static void nf_nat_ipv6_decode_session(struct sk_buff *skb,
 
 static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
-				  const struct nf_nat_l4proto *l4proto,
 				  const struct nf_conntrack_tuple *target,
 				  enum nf_nat_manip_type maniptype)
 {
@@ -181,7 +180,6 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	} *inside;
 	enum ip_conntrack_dir dir = CTINFO2DIR(ctinfo);
 	enum nf_nat_manip_type manip = HOOK2MANIP(hooknum);
-	const struct nf_nat_l4proto *l4proto;
 	struct nf_conntrack_tuple target;
 	unsigned long statusbit;
 
@@ -212,9 +210,8 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	if (!(ct->status & statusbit))
 		return 1;
 
-	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV6, inside->ip6.nexthdr);
 	if (!nf_nat_ipv6_manip_pkt(skb, hdrlen + sizeof(inside->icmp6),
-				   l4proto, &ct->tuplehash[!dir].tuple, !manip))
+				   &ct->tuplehash[!dir].tuple, !manip))
 		return 0;
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
@@ -229,8 +226,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 	}
 
 	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
-	l4proto = __nf_nat_l4proto_find(NFPROTO_IPV6, IPPROTO_ICMPV6);
-	if (!nf_nat_ipv6_manip_pkt(skb, 0, l4proto, &target, manip))
+	if (!nf_nat_ipv6_manip_pkt(skb, 0, &target, manip))
 		return 0;
 
 	return 1;
@@ -400,26 +396,12 @@ EXPORT_SYMBOL_GPL(nf_nat_l3proto_ipv6_unregister_fn);
 
 static int __init nf_nat_l3proto_ipv6_init(void)
 {
-	int err;
-
-	err = nf_nat_l4proto_register(NFPROTO_IPV6, &nf_nat_l4proto_icmpv6);
-	if (err < 0)
-		goto err1;
-	err = nf_nat_l3proto_register(&nf_nat_l3proto_ipv6);
-	if (err < 0)
-		goto err2;
-	return err;
-
-err2:
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_icmpv6);
-err1:
-	return err;
+	return nf_nat_l3proto_register(&nf_nat_l3proto_ipv6);
 }
 
 static void __exit nf_nat_l3proto_ipv6_exit(void)
 {
 	nf_nat_l3proto_unregister(&nf_nat_l3proto_ipv6);
-	nf_nat_l4proto_unregister(NFPROTO_IPV6, &nf_nat_l4proto_icmpv6);
 }
 
 MODULE_LICENSE("GPL");

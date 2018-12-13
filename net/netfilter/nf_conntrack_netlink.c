@@ -47,7 +47,6 @@
 #include <net/netfilter/nf_conntrack_synproxy.h>
 #ifdef CONFIG_NF_NAT_NEEDED
 #include <net/netfilter/nf_nat_core.h>
-#include <net/netfilter/nf_nat_l4proto.h>
 #include <net/netfilter/nf_nat_helper.h>
 #endif
 

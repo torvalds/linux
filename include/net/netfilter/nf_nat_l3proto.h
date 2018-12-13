@@ -2,13 +2,11 @@
 #ifndef _NF_NAT_L3PROTO_H
 #define _NF_NAT_L3PROTO_H
 
-struct nf_nat_l4proto;
 struct nf_nat_l3proto {
 	u8	l3proto;
 
 	bool	(*manip_pkt)(struct sk_buff *skb,
 			     unsigned int iphdroff,
-			     const struct nf_nat_l4proto *l4proto,
 			     const struct nf_conntrack_tuple *target,
 			     enum nf_nat_manip_type maniptype);
 

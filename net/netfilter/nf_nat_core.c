@@ -23,7 +23,6 @@
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_nat.h>
 #include <net/netfilter/nf_nat_l3proto.h>
-#include <net/netfilter/nf_nat_l4proto.h>
 #include <net/netfilter/nf_nat_core.h>
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/nf_conntrack_helper.h>
@@ -37,8 +36,6 @@ static spinlock_t nf_nat_locks[CONNTRACK_LOCKS];
 
 static DEFINE_MUTEX(nf_nat_proto_mutex);
 static const struct nf_nat_l3proto __rcu *nf_nat_l3protos[NFPROTO_NUMPROTO]
-						__read_mostly;
-static const struct nf_nat_l4proto __rcu **nf_nat_l4protos[NFPROTO_NUMPROTO]
 						__read_mostly;
 static unsigned int nat_net_id __read_mostly;
 
@@ -66,13 +63,6 @@ __nf_nat_l3proto_find(u8 family)
 {
 	return rcu_dereference(nf_nat_l3protos[family]);
 }
-
-inline const struct nf_nat_l4proto *
-__nf_nat_l4proto_find(u8 family, u8 protonum)
-{
-	return rcu_dereference(nf_nat_l4protos[family][protonum]);
-}
-EXPORT_SYMBOL_GPL(__nf_nat_l4proto_find);
 
 #ifdef CONFIG_XFRM
 static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
@@ -646,16 +636,13 @@ static unsigned int nf_nat_manip_pkt(struct sk_buff *skb, struct nf_conn *ct,
 				     enum ip_conntrack_dir dir)
 {
 	const struct nf_nat_l3proto *l3proto;
-	const struct nf_nat_l4proto *l4proto;
 	struct nf_conntrack_tuple target;
 
 	/* We are aiming to look like inverse of other direction. */
 	nf_ct_invert_tuplepr(&target, &ct->tuplehash[!dir].tuple);
 
 	l3proto = __nf_nat_l3proto_find(target.src.l3num);
-	l4proto = __nf_nat_l4proto_find(target.src.l3num,
-					target.dst.protonum);
-	if (!l3proto->manip_pkt(skb, 0, l4proto, &target, mtype))
+	if (!l3proto->manip_pkt(skb, 0, &target, mtype))
 		return NF_DROP;
 
 	return NF_ACCEPT;
@@ -811,16 +798,6 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	return 0;
 }
 
-static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
-{
-	struct nf_nat_proto_clean clean = {
-		.l3proto = l3proto,
-		.l4proto = l4proto,
-	};
-
-	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
-}
-
 static void nf_nat_l3proto_clean(u8 l3proto)
 {
 	struct nf_nat_proto_clean clean = {
@@ -830,82 +807,8 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
-/* Protocol registration. */
-int nf_nat_l4proto_register(u8 l3proto, const struct nf_nat_l4proto *l4proto)
-{
-	const struct nf_nat_l4proto **l4protos;
-	unsigned int i;
-	int ret = 0;
-
-	mutex_lock(&nf_nat_proto_mutex);
-	if (nf_nat_l4protos[l3proto] == NULL) {
-		l4protos = kmalloc_array(IPPROTO_MAX,
-					 sizeof(struct nf_nat_l4proto *),
-					 GFP_KERNEL);
-		if (l4protos == NULL) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		for (i = 0; i < IPPROTO_MAX; i++)
-			RCU_INIT_POINTER(l4protos[i], &nf_nat_l4proto_unknown);
-
-		/* Before making proto_array visible to lockless readers,
-		 * we must make sure its content is committed to memory.
-		 */
-		smp_wmb();
-
-		nf_nat_l4protos[l3proto] = l4protos;
-	}
-
-	if (rcu_dereference_protected(
-			nf_nat_l4protos[l3proto][l4proto->l4proto],
-			lockdep_is_held(&nf_nat_proto_mutex)
-			) != &nf_nat_l4proto_unknown) {
-		ret = -EBUSY;
-		goto out;
-	}
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto][l4proto->l4proto], l4proto);
- out:
-	mutex_unlock(&nf_nat_proto_mutex);
-	return ret;
-}
-EXPORT_SYMBOL_GPL(nf_nat_l4proto_register);
-
-/* No one stores the protocol anywhere; simply delete it. */
-void nf_nat_l4proto_unregister(u8 l3proto, const struct nf_nat_l4proto *l4proto)
-{
-	mutex_lock(&nf_nat_proto_mutex);
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto][l4proto->l4proto],
-			 &nf_nat_l4proto_unknown);
-	mutex_unlock(&nf_nat_proto_mutex);
-	synchronize_rcu();
-
-	nf_nat_l4proto_clean(l3proto, l4proto->l4proto);
-}
-EXPORT_SYMBOL_GPL(nf_nat_l4proto_unregister);
-
 int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
 {
-	mutex_lock(&nf_nat_proto_mutex);
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_TCP],
-			 &nf_nat_l4proto_tcp);
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDP],
-			 &nf_nat_l4proto_udp);
-#ifdef CONFIG_NF_NAT_PROTO_DCCP
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_DCCP],
-			 &nf_nat_l4proto_dccp);
-#endif
-#ifdef CONFIG_NF_NAT_PROTO_SCTP
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_SCTP],
-			 &nf_nat_l4proto_sctp);
-#endif
-#ifdef CONFIG_NF_NAT_PROTO_UDPLITE
-	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDPLITE],
-			 &nf_nat_l4proto_udplite);
-#endif
-	mutex_unlock(&nf_nat_proto_mutex);
-
 	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], l3proto);
 	return 0;
 }
@@ -1236,7 +1139,6 @@ static int __init nf_nat_init(void)
 static void __exit nf_nat_cleanup(void)
 {
 	struct nf_nat_proto_clean clean = {};
-	unsigned int i;
 
 	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
 
@@ -1244,10 +1146,6 @@ static void __exit nf_nat_cleanup(void)
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nf_nat_hook, NULL);
 
-	synchronize_rcu();
-
-	for (i = 0; i < NFPROTO_NUMPROTO; i++)
-		kfree(nf_nat_l4protos[i]);
 	synchronize_net();
 	kvfree(nf_nat_bysource);
 	unregister_pernet_subsys(&nat_net_ops);

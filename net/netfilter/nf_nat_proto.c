@@ -341,13 +341,3 @@ bool nf_nat_l4proto_manip_pkt(struct sk_buff *skb,
 	return true;
 }
 EXPORT_SYMBOL_GPL(nf_nat_l4proto_manip_pkt);
-
-#ifdef CONFIG_NF_NAT_PROTO_UDPLITE
-const struct nf_nat_l4proto nf_nat_l4proto_udplite = {
-	.l4proto		= IPPROTO_UDPLITE,
-};
-#endif /* CONFIG_NF_NAT_PROTO_UDPLITE */
-
-const struct nf_nat_l4proto nf_nat_l4proto_udp = {
-	.l4proto		= IPPROTO_UDP,
-};
