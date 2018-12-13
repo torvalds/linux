@@ -81,7 +81,7 @@ static int _dpu_danger_signal_status(struct seq_file *s,
 	struct dpu_danger_safe_status status;
 	int i;
 
-	if (!kms || !kms->dev || !kms->dev->dev_private || !kms->hw_mdp) {
+	if (!kms->dev || !kms->dev->dev_private || !kms->hw_mdp) {
 		DPU_ERROR("invalid arg(s)\n");
 		return 0;
 	}
@@ -138,46 +138,29 @@ static int dpu_debugfs_safe_stats_show(struct seq_file *s, void *v)
 }
 DEFINE_DPU_DEBUGFS_SEQ_FOPS(dpu_debugfs_safe_stats);
 
-static void dpu_debugfs_danger_destroy(struct dpu_kms *dpu_kms)
-{
-	debugfs_remove_recursive(dpu_kms->debugfs_danger);
-	dpu_kms->debugfs_danger = NULL;
-}
-
-static int dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
+static void dpu_debugfs_danger_init(struct dpu_kms *dpu_kms,
 		struct dentry *parent)
 {
-	dpu_kms->debugfs_danger = debugfs_create_dir("danger",
-			parent);
-	if (!dpu_kms->debugfs_danger) {
-		DPU_ERROR("failed to create danger debugfs\n");
-		return -EINVAL;
-	}
+	struct dentry *entry = debugfs_create_dir("danger", parent);
+	if (IS_ERR_OR_NULL(entry))
+		return;
 
-	debugfs_create_file("danger_status", 0600, dpu_kms->debugfs_danger,
+	debugfs_create_file("danger_status", 0600, entry,
 			dpu_kms, &dpu_debugfs_danger_stats_fops);
-	debugfs_create_file("safe_status", 0600, dpu_kms->debugfs_danger,
+	debugfs_create_file("safe_status", 0600, entry,
 			dpu_kms, &dpu_debugfs_safe_stats_fops);
-
-	return 0;
 }
 
 static int _dpu_debugfs_show_regset32(struct seq_file *s, void *data)
 {
-	struct dpu_debugfs_regset32 *regset;
-	struct dpu_kms *dpu_kms;
+	struct dpu_debugfs_regset32 *regset = s->private;
+	struct dpu_kms *dpu_kms = regset->dpu_kms;
 	struct drm_device *dev;
 	struct msm_drm_private *priv;
 	void __iomem *base;
 	uint32_t i, addr;
 
-	if (!s || !s->private)
-		return 0;
-
-	regset = s->private;
-
-	dpu_kms = regset->dpu_kms;
-	if (!dpu_kms || !dpu_kms->mmio)
+	if (!dpu_kms->mmio)
 		return 0;
 
 	dev = dpu_kms->dev;
@@ -250,57 +233,24 @@ void *dpu_debugfs_create_regset32(const char *name, umode_t mode,
 
 static int _dpu_debugfs_init(struct dpu_kms *dpu_kms)
 {
-	void *p;
-	int rc;
+	void *p = dpu_hw_util_get_log_mask_ptr();
+	struct dentry *entry;
 
-	p = dpu_hw_util_get_log_mask_ptr();
-
-	if (!dpu_kms || !p)
+	if (!p)
 		return -EINVAL;
 
-	dpu_kms->debugfs_root = debugfs_create_dir("debug",
-					   dpu_kms->dev->primary->debugfs_root);
-	if (IS_ERR_OR_NULL(dpu_kms->debugfs_root)) {
-		DRM_ERROR("debugfs create_dir failed %ld\n",
-			  PTR_ERR(dpu_kms->debugfs_root));
-		return PTR_ERR(dpu_kms->debugfs_root);
-	}
-
-	rc = dpu_dbg_debugfs_register(dpu_kms->debugfs_root);
-	if (rc) {
-		DRM_ERROR("failed to reg dpu dbg debugfs: %d\n", rc);
-		return rc;
-	}
+	entry = debugfs_create_dir("debug", dpu_kms->dev->primary->debugfs_root);
+	if (IS_ERR_OR_NULL(entry))
+		return -ENODEV;
 
 	/* allow root to be NULL */
-	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, dpu_kms->debugfs_root, p);
+	debugfs_create_x32(DPU_DEBUGFS_HWMASKNAME, 0600, entry, p);
 
-	(void) dpu_debugfs_danger_init(dpu_kms, dpu_kms->debugfs_root);
-	(void) dpu_debugfs_vbif_init(dpu_kms, dpu_kms->debugfs_root);
-	(void) dpu_debugfs_core_irq_init(dpu_kms, dpu_kms->debugfs_root);
+	dpu_debugfs_danger_init(dpu_kms, entry);
+	dpu_debugfs_vbif_init(dpu_kms, entry);
+	dpu_debugfs_core_irq_init(dpu_kms, entry);
 
-	rc = dpu_core_perf_debugfs_init(&dpu_kms->perf, dpu_kms->debugfs_root);
-	if (rc) {
-		DPU_ERROR("failed to init perf %d\n", rc);
-		return rc;
-	}
-
-	return 0;
-}
-
-static void _dpu_debugfs_destroy(struct dpu_kms *dpu_kms)
-{
-	/* don't need to NULL check debugfs_root */
-	if (dpu_kms) {
-		dpu_debugfs_vbif_destroy(dpu_kms);
-		dpu_debugfs_danger_destroy(dpu_kms);
-		dpu_debugfs_core_irq_destroy(dpu_kms);
-		debugfs_remove_recursive(dpu_kms->debugfs_root);
-	}
-}
-#else
-static void _dpu_debugfs_destroy(struct dpu_kms *dpu_kms)
-{
+	return dpu_core_perf_debugfs_init(dpu_kms, entry);
 }
 #endif
 
@@ -320,7 +270,10 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	struct dpu_kms *dpu_kms;
 	struct msm_drm_private *priv;
 	struct drm_device *dev;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 	struct drm_encoder *encoder;
+	int i;
 
 	if (!kms)
 		return;
@@ -332,9 +285,13 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 	priv = dev->dev_private;
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
-		if (encoder->crtc != NULL)
+	/* Call prepare_commit for all affected encoders */
+	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
+		drm_for_each_encoder_mask(encoder, crtc->dev,
+					  crtc_state->encoder_mask) {
 			dpu_encoder_prepare_commit(encoder);
+		}
+	}
 }
 
 /*
@@ -344,15 +301,20 @@ static void dpu_kms_prepare_commit(struct msm_kms *kms,
 void dpu_kms_encoder_enable(struct drm_encoder *encoder)
 {
 	const struct drm_encoder_helper_funcs *funcs = encoder->helper_private;
-	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_device *dev = encoder->dev;
+	struct drm_crtc *crtc;
 
 	/* Forward this enable call to the commit hook */
 	if (funcs && funcs->commit)
 		funcs->commit(encoder);
 
-	if (crtc && crtc->state->active) {
+	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
+	drm_for_each_crtc(crtc, dev) {
+		if (!(crtc->state->encoder_mask & drm_encoder_mask(encoder)))
+			continue;
+
 		trace_dpu_kms_enc_enable(DRMID(crtc));
-		dpu_crtc_commit_kickoff(crtc);
+		dpu_crtc_commit_kickoff(crtc, false);
 	}
 }
 
@@ -369,7 +331,8 @@ static void dpu_kms_commit(struct msm_kms *kms, struct drm_atomic_state *state)
 
 		if (crtc->state->active) {
 			trace_dpu_kms_commit(DRMID(crtc));
-			dpu_crtc_commit_kickoff(crtc);
+			dpu_crtc_commit_kickoff(crtc,
+						state->legacy_cursor_update);
 		}
 	}
 }
@@ -613,22 +576,7 @@ fail:
 #ifdef CONFIG_DEBUG_FS
 static int dpu_kms_debugfs_init(struct msm_kms *kms, struct drm_minor *minor)
 {
-	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
-	struct drm_device *dev;
-	int rc;
-
-	if (!dpu_kms || !dpu_kms->dev || !dpu_kms->dev->dev) {
-		DPU_ERROR("invalid dpu_kms\n");
-		return -EINVAL;
-	}
-
-	dev = dpu_kms->dev;
-
-	rc = _dpu_debugfs_init(dpu_kms);
-	if (rc)
-		DPU_ERROR("dpu_debugfs init failed: %d\n", rc);
-
-	return rc;
+	return _dpu_debugfs_init(to_dpu_kms(kms));
 }
 #endif
 
@@ -651,12 +599,7 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 		dpu_hw_intr_destroy(dpu_kms->hw_intr);
 	dpu_kms->hw_intr = NULL;
 
-	if (dpu_kms->power_event)
-		dpu_power_handle_unregister_event(
-				&dpu_kms->phandle, dpu_kms->power_event);
-
 	/* safe to call these more than once during shutdown */
-	_dpu_debugfs_destroy(dpu_kms);
 	_dpu_kms_mmu_destroy(dpu_kms);
 
 	if (dpu_kms->catalog) {
@@ -675,11 +618,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 	if (dpu_kms->catalog)
 		dpu_hw_catalog_deinit(dpu_kms->catalog);
 	dpu_kms->catalog = NULL;
-
-	if (dpu_kms->core_client)
-		dpu_power_client_destroy(&dpu_kms->phandle,
-			dpu_kms->core_client);
-	dpu_kms->core_client = NULL;
 
 	if (dpu_kms->vbif[VBIF_NRT])
 		devm_iounmap(&dpu_kms->pdev->dev, dpu_kms->vbif[VBIF_NRT]);
@@ -705,129 +643,7 @@ static void dpu_kms_destroy(struct msm_kms *kms)
 
 	dpu_kms = to_dpu_kms(kms);
 
-	dpu_dbg_destroy();
 	_dpu_kms_hw_destroy(dpu_kms);
-}
-
-static int dpu_kms_pm_suspend(struct device *dev)
-{
-	struct drm_device *ddev;
-	struct drm_modeset_acquire_ctx ctx;
-	struct drm_atomic_state *state;
-	struct dpu_kms *dpu_kms;
-	int ret = 0, num_crtcs = 0;
-
-	if (!dev)
-		return -EINVAL;
-
-	ddev = dev_get_drvdata(dev);
-	if (!ddev || !ddev_to_msm_kms(ddev))
-		return -EINVAL;
-
-	dpu_kms = to_dpu_kms(ddev_to_msm_kms(ddev));
-
-	/* disable hot-plug polling */
-	drm_kms_helper_poll_disable(ddev);
-
-	/* acquire modeset lock(s) */
-	drm_modeset_acquire_init(&ctx, 0);
-
-retry:
-	DPU_ATRACE_BEGIN("kms_pm_suspend");
-
-	ret = drm_modeset_lock_all_ctx(ddev, &ctx);
-	if (ret)
-		goto unlock;
-
-	/* save current state for resume */
-	if (dpu_kms->suspend_state)
-		drm_atomic_state_put(dpu_kms->suspend_state);
-	dpu_kms->suspend_state = drm_atomic_helper_duplicate_state(ddev, &ctx);
-	if (IS_ERR_OR_NULL(dpu_kms->suspend_state)) {
-		DRM_ERROR("failed to back up suspend state\n");
-		dpu_kms->suspend_state = NULL;
-		goto unlock;
-	}
-
-	/* create atomic state to disable all CRTCs */
-	state = drm_atomic_state_alloc(ddev);
-	if (IS_ERR_OR_NULL(state)) {
-		DRM_ERROR("failed to allocate crtc disable state\n");
-		goto unlock;
-	}
-
-	state->acquire_ctx = &ctx;
-
-	/* check for nothing to do */
-	if (num_crtcs == 0) {
-		DRM_DEBUG("all crtcs are already in the off state\n");
-		drm_atomic_state_put(state);
-		goto suspended;
-	}
-
-	/* commit the "disable all" state */
-	ret = drm_atomic_commit(state);
-	if (ret < 0) {
-		DRM_ERROR("failed to disable crtcs, %d\n", ret);
-		drm_atomic_state_put(state);
-		goto unlock;
-	}
-
-suspended:
-	dpu_kms->suspend_block = true;
-
-unlock:
-	if (ret == -EDEADLK) {
-		drm_modeset_backoff(&ctx);
-		goto retry;
-	}
-	drm_modeset_drop_locks(&ctx);
-	drm_modeset_acquire_fini(&ctx);
-
-	DPU_ATRACE_END("kms_pm_suspend");
-	return 0;
-}
-
-static int dpu_kms_pm_resume(struct device *dev)
-{
-	struct drm_device *ddev;
-	struct dpu_kms *dpu_kms;
-	int ret;
-
-	if (!dev)
-		return -EINVAL;
-
-	ddev = dev_get_drvdata(dev);
-	if (!ddev || !ddev_to_msm_kms(ddev))
-		return -EINVAL;
-
-	dpu_kms = to_dpu_kms(ddev_to_msm_kms(ddev));
-
-	DPU_ATRACE_BEGIN("kms_pm_resume");
-
-	drm_mode_config_reset(ddev);
-
-	drm_modeset_lock_all(ddev);
-
-	dpu_kms->suspend_block = false;
-
-	if (dpu_kms->suspend_state) {
-		dpu_kms->suspend_state->acquire_ctx =
-			ddev->mode_config.acquire_ctx;
-		ret = drm_atomic_commit(dpu_kms->suspend_state);
-		if (ret < 0) {
-			DRM_ERROR("failed to restore state, %d\n", ret);
-			drm_atomic_state_put(dpu_kms->suspend_state);
-		}
-		dpu_kms->suspend_state = NULL;
-	}
-	drm_modeset_unlock_all(ddev);
-
-	/* enable hot-plug polling */
-	drm_kms_helper_poll_enable(ddev);
-
-	DPU_ATRACE_END("kms_pm_resume");
-	return 0;
 }
 
 static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
@@ -858,10 +674,30 @@ static void _dpu_kms_set_encoder_mode(struct msm_kms *kms,
 			encoder->base.id, rc);
 }
 
+static irqreturn_t dpu_irq(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+
+	return dpu_core_irq(dpu_kms);
+}
+
+static void dpu_irq_preinstall(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+
+	dpu_core_irq_preinstall(dpu_kms);
+}
+
+static void dpu_irq_uninstall(struct msm_kms *kms)
+{
+	struct dpu_kms *dpu_kms = to_dpu_kms(kms);
+
+	dpu_core_irq_uninstall(dpu_kms);
+}
+
 static const struct msm_kms_funcs kms_funcs = {
 	.hw_init         = dpu_kms_hw_init,
 	.irq_preinstall  = dpu_irq_preinstall,
-	.irq_postinstall = dpu_irq_postinstall,
 	.irq_uninstall   = dpu_irq_uninstall,
 	.irq             = dpu_irq,
 	.prepare_commit  = dpu_kms_prepare_commit,
@@ -873,20 +709,12 @@ static const struct msm_kms_funcs kms_funcs = {
 	.check_modified_format = dpu_format_check_modified_format,
 	.get_format      = dpu_get_msm_format,
 	.round_pixclk    = dpu_kms_round_pixclk,
-	.pm_suspend      = dpu_kms_pm_suspend,
-	.pm_resume       = dpu_kms_pm_resume,
 	.destroy         = dpu_kms_destroy,
 	.set_encoder_mode = _dpu_kms_set_encoder_mode,
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init    = dpu_kms_debugfs_init,
 #endif
 };
-
-/* the caller api needs to turn on clock before calling it */
-static inline void _dpu_kms_core_hw_rev_init(struct dpu_kms *dpu_kms)
-{
-	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
-}
 
 static int _dpu_kms_mmu_destroy(struct dpu_kms *dpu_kms)
 {
@@ -910,6 +738,9 @@ static int _dpu_kms_mmu_init(struct dpu_kms *dpu_kms)
 	domain = iommu_domain_alloc(&platform_bus_type);
 	if (!domain)
 		return 0;
+
+	domain->geometry.aperture_start = 0x1000;
+	domain->geometry.aperture_end = 0xffffffff;
 
 	aspace = msm_gem_address_space_create(dpu_kms->dev->dev,
 			domain, "dpu1");
@@ -960,16 +791,6 @@ u64 dpu_kms_get_clk_rate(struct dpu_kms *dpu_kms, char *clock_name)
 	return clk_get_rate(clk->clk);
 }
 
-static void dpu_kms_handle_power_event(u32 event_type, void *usr)
-{
-	struct dpu_kms *dpu_kms = usr;
-
-	if (!dpu_kms)
-		return;
-
-	dpu_vbif_init_memtypes(dpu_kms);
-}
-
 static int dpu_kms_hw_init(struct msm_kms *kms)
 {
 	struct dpu_kms *dpu_kms;
@@ -979,26 +800,20 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	if (!kms) {
 		DPU_ERROR("invalid kms\n");
-		goto end;
+		return rc;
 	}
 
 	dpu_kms = to_dpu_kms(kms);
 	dev = dpu_kms->dev;
 	if (!dev) {
 		DPU_ERROR("invalid device\n");
-		goto end;
-	}
-
-	rc = dpu_dbg_init(&dpu_kms->pdev->dev);
-	if (rc) {
-		DRM_ERROR("failed to init dpu dbg: %d\n", rc);
-		goto end;
+		return rc;
 	}
 
 	priv = dev->dev_private;
 	if (!priv) {
 		DPU_ERROR("invalid private data\n");
-		goto dbg_destroy;
+		return rc;
 	}
 
 	dpu_kms->mmio = msm_ioremap(dpu_kms->pdev, "mdp", "mdp");
@@ -1036,20 +851,9 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		dpu_kms->reg_dma_len = dpu_iomap_size(dpu_kms->pdev, "regdma");
 	}
 
-	dpu_kms->core_client = dpu_power_client_create(&dpu_kms->phandle,
-					"core");
-	if (IS_ERR_OR_NULL(dpu_kms->core_client)) {
-		rc = PTR_ERR(dpu_kms->core_client);
-		if (!dpu_kms->core_client)
-			rc = -EINVAL;
-		DPU_ERROR("dpu power client create failed: %d\n", rc);
-		dpu_kms->core_client = NULL;
-		goto error;
-	}
-
 	pm_runtime_get_sync(&dpu_kms->pdev->dev);
 
-	_dpu_kms_core_hw_rev_init(dpu_kms);
+	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
 
 	pr_info("dpu hardware revision:0x%x\n", dpu_kms->core_rev);
 
@@ -1062,8 +866,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 		dpu_kms->catalog = NULL;
 		goto power_error;
 	}
-
-	dpu_dbg_init_dbg_buses(dpu_kms->core_rev);
 
 	/*
 	 * Now we need to read the HW catalog and initialize resources such as
@@ -1110,7 +912,6 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	}
 
 	rc = dpu_core_perf_init(&dpu_kms->perf, dev, dpu_kms->catalog,
-			&dpu_kms->phandle,
 			_dpu_kms_get_clk(dpu_kms, "core"));
 	if (rc) {
 		DPU_ERROR("failed to init perf %d\n", rc);
@@ -1151,13 +952,7 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 	 */
 	dev->mode_config.allow_fb_modifiers = true;
 
-	/*
-	 * Handle (re)initializations during power enable
-	 */
-	dpu_kms_handle_power_event(DPU_POWER_EVENT_ENABLE, dpu_kms);
-	dpu_kms->power_event = dpu_power_handle_register_event(
-			&dpu_kms->phandle, DPU_POWER_EVENT_ENABLE,
-			dpu_kms_handle_power_event, dpu_kms, "kms");
+	dpu_vbif_init_memtypes(dpu_kms);
 
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 
@@ -1171,9 +966,7 @@ power_error:
 	pm_runtime_put_sync(&dpu_kms->pdev->dev);
 error:
 	_dpu_kms_hw_destroy(dpu_kms);
-dbg_destroy:
-	dpu_dbg_destroy();
-end:
+
 	return rc;
 }
 
@@ -1221,8 +1014,6 @@ static int dpu_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 	}
 
-	dpu_power_resource_init(pdev, &dpu_kms->phandle);
-
 	platform_set_drvdata(pdev, dpu_kms);
 
 	msm_kms_init(&dpu_kms->base, &kms_funcs);
@@ -1242,7 +1033,6 @@ static void dpu_unbind(struct device *dev, struct device *master, void *data)
 	struct dpu_kms *dpu_kms = platform_get_drvdata(pdev);
 	struct dss_module_power *mp = &dpu_kms->mp;
 
-	dpu_power_resource_deinit(pdev, &dpu_kms->phandle);
 	msm_dss_put_clk(mp->clk_config, mp->num_clk);
 	devm_kfree(&pdev->dev, mp->clk_config);
 	mp->num_clk = 0;
@@ -1278,19 +1068,13 @@ static int __maybe_unused dpu_runtime_suspend(struct device *dev)
 	ddev = dpu_kms->dev;
 	if (!ddev) {
 		DPU_ERROR("invalid drm_device\n");
-		goto exit;
+		return rc;
 	}
-
-	rc = dpu_power_resource_enable(&dpu_kms->phandle,
-			dpu_kms->core_client, false);
-	if (rc)
-		DPU_ERROR("resource disable failed: %d\n", rc);
 
 	rc = msm_dss_enable_clk(mp->clk_config, mp->num_clk, false);
 	if (rc)
 		DPU_ERROR("clock disable failed rc:%d\n", rc);
 
-exit:
 	return rc;
 }
 
@@ -1299,27 +1083,27 @@ static int __maybe_unused dpu_runtime_resume(struct device *dev)
 	int rc = -1;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dpu_kms *dpu_kms = platform_get_drvdata(pdev);
+	struct drm_encoder *encoder;
 	struct drm_device *ddev;
 	struct dss_module_power *mp = &dpu_kms->mp;
 
 	ddev = dpu_kms->dev;
 	if (!ddev) {
 		DPU_ERROR("invalid drm_device\n");
-		goto exit;
+		return rc;
 	}
 
 	rc = msm_dss_enable_clk(mp->clk_config, mp->num_clk, true);
 	if (rc) {
 		DPU_ERROR("clock enable failed rc:%d\n", rc);
-		goto exit;
+		return rc;
 	}
 
-	rc = dpu_power_resource_enable(&dpu_kms->phandle,
-			dpu_kms->core_client, true);
-	if (rc)
-		DPU_ERROR("resource enable failed: %d\n", rc);
+	dpu_vbif_init_memtypes(dpu_kms);
 
-exit:
+	drm_for_each_encoder(encoder, ddev)
+		dpu_encoder_virt_runtime_resume(encoder);
+
 	return rc;
 }
 

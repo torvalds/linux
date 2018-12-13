@@ -44,14 +44,7 @@
 
 #define DPU_ENC_WR_PTR_START_TIMEOUT_US 20000
 
-static inline int _dpu_encoder_phys_cmd_get_idle_timeout(
-		struct dpu_encoder_phys_cmd *cmd_enc)
-{
-	return KICKOFF_TIMEOUT_MS;
-}
-
-static inline bool dpu_encoder_phys_cmd_is_master(
-		struct dpu_encoder_phys *phys_enc)
+static bool dpu_encoder_phys_cmd_is_master(struct dpu_encoder_phys *phys_enc)
 {
 	return (phys_enc->split_role != ENC_ROLE_SLAVE) ? true : false;
 }
@@ -243,7 +236,6 @@ static int _dpu_encoder_phys_cmd_handle_ppdone_timeout(
 			  atomic_read(&phys_enc->pending_kickoff_cnt));
 
 		dpu_encoder_helper_unregister_irq(phys_enc, INTR_IDX_RDPTR);
-		dpu_dbg_dump(false, __func__, true, true);
 	}
 
 	atomic_add_unless(&phys_enc->pending_kickoff_cnt, -1, 0);
@@ -496,14 +488,11 @@ static void dpu_encoder_phys_cmd_enable_helper(
 	_dpu_encoder_phys_cmd_pingpong_config(phys_enc);
 
 	if (!dpu_encoder_phys_cmd_is_master(phys_enc))
-		goto skip_flush;
+		return;
 
 	ctl = phys_enc->hw_ctl;
 	ctl->ops.get_bitmask_intf(ctl, &flush_mask, phys_enc->intf_idx);
 	ctl->ops.update_pending_flush(ctl, flush_mask);
-
-skip_flush:
-	return;
 }
 
 static void dpu_encoder_phys_cmd_enable(struct dpu_encoder_phys *phys_enc)
@@ -727,7 +716,7 @@ static int dpu_encoder_phys_cmd_wait_for_vblank(
 
 	wait_info.wq = &cmd_enc->pending_vblank_wq;
 	wait_info.atomic_cnt = &cmd_enc->pending_vblank_cnt;
-	wait_info.timeout_ms = _dpu_encoder_phys_cmd_get_idle_timeout(cmd_enc);
+	wait_info.timeout_ms = KICKOFF_TIMEOUT_MS;
 
 	atomic_inc(&cmd_enc->pending_vblank_cnt);
 
@@ -776,7 +765,6 @@ static void dpu_encoder_phys_cmd_init_ops(
 	ops->wait_for_vblank = dpu_encoder_phys_cmd_wait_for_vblank;
 	ops->trigger_start = dpu_encoder_phys_cmd_trigger_start;
 	ops->needs_single_flush = dpu_encoder_phys_cmd_needs_single_flush;
-	ops->hw_reset = dpu_encoder_helper_hw_reset;
 	ops->irq_control = dpu_encoder_phys_cmd_irq_control;
 	ops->restore = dpu_encoder_phys_cmd_enable_helper;
 	ops->prepare_idle_pc = dpu_encoder_phys_cmd_prepare_idle_pc;
@@ -798,7 +786,7 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 	if (!cmd_enc) {
 		ret = -ENOMEM;
 		DPU_ERROR("failed to allocate\n");
-		goto fail;
+		return ERR_PTR(ret);
 	}
 	phys_enc = &cmd_enc->base;
 	phys_enc->hw_mdptop = p->dpu_kms->hw_mdp;
@@ -856,6 +844,5 @@ struct dpu_encoder_phys *dpu_encoder_phys_cmd_init(
 
 	return phys_enc;
 
-fail:
 	return ERR_PTR(ret);
 }

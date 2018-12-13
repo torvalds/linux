@@ -23,15 +23,13 @@
 #include "msm_kms.h"
 #include "msm_mmu.h"
 #include "msm_gem.h"
-#include "dpu_dbg.h"
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_ctl.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_interrupts.h"
 #include "dpu_hw_top.h"
+#include "dpu_io_util.h"
 #include "dpu_rm.h"
-#include "dpu_power_handle.h"
-#include "dpu_irq.h"
 #include "dpu_core_perf.h"
 
 #define DRMID(x) ((x) ? (x)->base.id : -1)
@@ -104,7 +102,6 @@ struct dpu_irq {
 	atomic_t *enable_counts;
 	atomic_t *irq_counts;
 	spinlock_t cb_lock;
-	struct dentry *debugfs_file;
 };
 
 struct dpu_kms {
@@ -112,15 +109,6 @@ struct dpu_kms {
 	struct drm_device *dev;
 	int core_rev;
 	struct dpu_mdss_cfg *catalog;
-
-	struct dpu_power_handle phandle;
-	struct dpu_power_client *core_client;
-	struct dpu_power_event *power_event;
-
-	/* directory entry for debugfs */
-	struct dentry *debugfs_root;
-	struct dentry *debugfs_danger;
-	struct dentry *debugfs_vbif;
 
 	/* io/register spaces: */
 	void __iomem *mmio, *vbif[VBIF_MAX], *reg_dma;
@@ -134,10 +122,6 @@ struct dpu_kms {
 	struct dpu_irq irq_obj;
 
 	struct dpu_core_perf perf;
-
-	/* saved atomic state during system suspend */
-	struct drm_atomic_state *suspend_state;
-	bool suspend_block;
 
 	struct dpu_rm rm;
 	bool rm_init;
@@ -162,33 +146,6 @@ struct vsync_info {
 /* get struct msm_kms * from drm_device * */
 #define ddev_to_msm_kms(D) ((D) && (D)->dev_private ? \
 		((struct msm_drm_private *)((D)->dev_private))->kms : NULL)
-
-/**
- * dpu_kms_is_suspend_state - whether or not the system is pm suspended
- * @dev: Pointer to drm device
- * Return: Suspend status
- */
-static inline bool dpu_kms_is_suspend_state(struct drm_device *dev)
-{
-	if (!ddev_to_msm_kms(dev))
-		return false;
-
-	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_state != NULL;
-}
-
-/**
- * dpu_kms_is_suspend_blocked - whether or not commits are blocked due to pm
- *				suspend status
- * @dev: Pointer to drm device
- * Return: True if commits should be rejected due to pm suspend
- */
-static inline bool dpu_kms_is_suspend_blocked(struct drm_device *dev)
-{
-	if (!dpu_kms_is_suspend_state(dev))
-		return false;
-
-	return to_dpu_kms(ddev_to_msm_kms(dev))->suspend_block;
-}
 
 /**
  * Debugfs functions - extra helper functions for debugfs support

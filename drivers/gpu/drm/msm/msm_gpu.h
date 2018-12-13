@@ -187,6 +187,7 @@ struct msm_gpu_state_bo {
 	u64 iova;
 	size_t size;
 	void *data;
+	bool encoded;
 };
 
 struct msm_gpu_state {
@@ -201,6 +202,7 @@ struct msm_gpu_state {
 		u32 wptr;
 		void *data;
 		int data_size;
+		bool encoded;
 	} ring[MSM_GPU_MAX_RINGS];
 
 	int nr_registers;

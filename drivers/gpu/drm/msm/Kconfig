@@ -2,7 +2,7 @@
 config DRM_MSM
 	tristate "MSM DRM"
 	depends on DRM
-	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
+	depends on ARCH_QCOM || SOC_IMX5 || (ARM && COMPILE_TEST)
 	depends on OF && COMMON_CLK
 	depends on MMU
 	select QCOM_MDT_LOADER if ARCH_QCOM
@@ -11,7 +11,7 @@ config DRM_MSM
 	select DRM_PANEL
 	select SHMEM
 	select TMPFS
-	select QCOM_SCM
+	select QCOM_SCM if ARCH_QCOM
 	select WANT_DEV_COREDUMP
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
