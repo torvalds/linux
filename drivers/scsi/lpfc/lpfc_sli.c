@@ -2512,10 +2512,12 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 			if ((ndlp->nlp_flag & NLP_UNREG_INP) &&
 			    (ndlp->nlp_defer_did != NLP_EVT_NOTHING_PENDING)) {
+				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 				ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 				lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
+			} else {
+				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 			}
-			ndlp->nlp_flag &= ~NLP_UNREG_INP;
 		}
 		pmb->ctx_ndlp = NULL;
 	}
@@ -2583,12 +2585,14 @@ lpfc_sli4_unreg_rpi_cmpl_clr(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 						"NPort x%x Data: x%x %p\n",
 						ndlp->nlp_rpi, ndlp->nlp_DID,
 						ndlp->nlp_defer_did, ndlp);
+					ndlp->nlp_flag &= ~NLP_UNREG_INP;
 					ndlp->nlp_defer_did =
 						NLP_EVT_NOTHING_PENDING;
 					lpfc_issue_els_plogi(
 						vport, ndlp->nlp_DID, 0);
+				} else {
+					ndlp->nlp_flag &= ~NLP_UNREG_INP;
 				}
-				ndlp->nlp_flag &= ~NLP_UNREG_INP;
 			}
 		}
 	}

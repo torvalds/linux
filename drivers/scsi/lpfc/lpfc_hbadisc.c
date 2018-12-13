@@ -4802,6 +4802,8 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		ndlp->nlp_flag &= ~NLP_UNREG_INP;
 		ndlp->nlp_defer_did = NLP_EVT_NOTHING_PENDING;
 		lpfc_issue_els_plogi(vport, ndlp->nlp_DID, 0);
+	} else {
+		ndlp->nlp_flag &= ~NLP_UNREG_INP;
 	}
 }
 
