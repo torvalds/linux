@@ -888,9 +888,15 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t          *mb;
 	int i;
 
-	if (phba->link_state == LPFC_LINK_DOWN)
+	if (phba->link_state == LPFC_LINK_DOWN) {
+		if (phba->sli4_hba.conf_trunk) {
+			phba->trunk_link.link0.state = 0;
+			phba->trunk_link.link1.state = 0;
+			phba->trunk_link.link2.state = 0;
+			phba->trunk_link.link3.state = 0;
+		}
 		return 0;
-
+	}
 	/* Block all SCSI stack I/Os */
 	lpfc_scsi_dev_block(phba);
 
@@ -901,6 +907,12 @@ lpfc_linkdown(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 	if (phba->link_state > LPFC_LINK_DOWN) {
 		phba->link_state = LPFC_LINK_DOWN;
+		if (phba->sli4_hba.conf_trunk) {
+			phba->trunk_link.link0.state = 0;
+			phba->trunk_link.link1.state = 0;
+			phba->trunk_link.link2.state = 0;
+			phba->trunk_link.link3.state = 0;
+		}
 		spin_lock_irq(shost->host_lock);
 		phba->pport->fc_flag &= ~FC_LBIT;
 		spin_unlock_irq(shost->host_lock);
