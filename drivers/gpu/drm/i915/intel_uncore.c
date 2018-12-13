@@ -1931,6 +1931,103 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 	return gen6_hw_domain_reset(dev_priv, hw_mask);
 }
 
+static u32 gen11_lock_sfc(struct drm_i915_private *dev_priv,
+			  struct intel_engine_cs *engine)
+{
+	u8 vdbox_sfc_access = INTEL_INFO(dev_priv)->vdbox_sfc_access;
+	i915_reg_t sfc_forced_lock, sfc_forced_lock_ack;
+	u32 sfc_forced_lock_bit, sfc_forced_lock_ack_bit;
+	i915_reg_t sfc_usage;
+	u32 sfc_usage_bit;
+	u32 sfc_reset_bit;
+
+	switch (engine->class) {
+	case VIDEO_DECODE_CLASS:
+		if ((BIT(engine->instance) & vdbox_sfc_access) == 0)
+			return 0;
+
+		sfc_forced_lock = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
+
+		sfc_forced_lock_ack = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_forced_lock_ack_bit  = GEN11_VCS_SFC_LOCK_ACK_BIT;
+
+		sfc_usage = GEN11_VCS_SFC_LOCK_STATUS(engine);
+		sfc_usage_bit = GEN11_VCS_SFC_USAGE_BIT;
+		sfc_reset_bit = GEN11_VCS_SFC_RESET_BIT(engine->instance);
+		break;
+
+	case VIDEO_ENHANCEMENT_CLASS:
+		sfc_forced_lock = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
+
+		sfc_forced_lock_ack = GEN11_VECS_SFC_LOCK_ACK(engine);
+		sfc_forced_lock_ack_bit  = GEN11_VECS_SFC_LOCK_ACK_BIT;
+
+		sfc_usage = GEN11_VECS_SFC_USAGE(engine);
+		sfc_usage_bit = GEN11_VECS_SFC_USAGE_BIT;
+		sfc_reset_bit = GEN11_VECS_SFC_RESET_BIT(engine->instance);
+		break;
+
+	default:
+		return 0;
+	}
+
+	/*
+	 * Tell the engine that a software reset is going to happen. The engine
+	 * will then try to force lock the SFC (if currently locked, it will
+	 * remain so until we tell the engine it is safe to unlock; if currently
+	 * unlocked, it will ignore this and all new lock requests). If SFC
+	 * ends up being locked to the engine we want to reset, we have to reset
+	 * it as well (we will unlock it once the reset sequence is completed).
+	 */
+	I915_WRITE_FW(sfc_forced_lock,
+		      I915_READ_FW(sfc_forced_lock) | sfc_forced_lock_bit);
+
+	if (__intel_wait_for_register_fw(dev_priv,
+					 sfc_forced_lock_ack,
+					 sfc_forced_lock_ack_bit,
+					 sfc_forced_lock_ack_bit,
+					 1000, 0, NULL)) {
+		DRM_DEBUG_DRIVER("Wait for SFC forced lock ack failed\n");
+		return 0;
+	}
+
+	if (I915_READ_FW(sfc_usage) & sfc_usage_bit)
+		return sfc_reset_bit;
+
+	return 0;
+}
+
+static void gen11_unlock_sfc(struct drm_i915_private *dev_priv,
+			     struct intel_engine_cs *engine)
+{
+	u8 vdbox_sfc_access = INTEL_INFO(dev_priv)->vdbox_sfc_access;
+	i915_reg_t sfc_forced_lock;
+	u32 sfc_forced_lock_bit;
+
+	switch (engine->class) {
+	case VIDEO_DECODE_CLASS:
+		if ((BIT(engine->instance) & vdbox_sfc_access) == 0)
+			return;
+
+		sfc_forced_lock = GEN11_VCS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VCS_SFC_FORCED_LOCK_BIT;
+		break;
+
+	case VIDEO_ENHANCEMENT_CLASS:
+		sfc_forced_lock = GEN11_VECS_SFC_FORCED_LOCK(engine);
+		sfc_forced_lock_bit = GEN11_VECS_SFC_FORCED_LOCK_BIT;
+		break;
+
+	default:
+		return;
+	}
+
+	I915_WRITE_FW(sfc_forced_lock,
+		      I915_READ_FW(sfc_forced_lock) & ~sfc_forced_lock_bit);
+}
+
 /**
  * gen11_reset_engines - reset individual engines
  * @dev_priv: i915 device
@@ -1947,7 +2044,6 @@ static int gen6_reset_engines(struct drm_i915_private *dev_priv,
 static int gen11_reset_engines(struct drm_i915_private *dev_priv,
 			       unsigned int engine_mask)
 {
-	struct intel_engine_cs *engine;
 	const u32 hw_engine_mask[I915_NUM_ENGINES] = {
 		[RCS] = GEN11_GRDOM_RENDER,
 		[BCS] = GEN11_GRDOM_BLT,
@@ -1958,21 +2054,30 @@ static int gen11_reset_engines(struct drm_i915_private *dev_priv,
 		[VECS] = GEN11_GRDOM_VECS,
 		[VECS2] = GEN11_GRDOM_VECS2,
 	};
+	struct intel_engine_cs *engine;
+	unsigned int tmp;
 	u32 hw_mask;
+	int ret;
 
 	BUILD_BUG_ON(VECS2 + 1 != I915_NUM_ENGINES);
 
 	if (engine_mask == ALL_ENGINES) {
 		hw_mask = GEN11_GRDOM_FULL;
 	} else {
-		unsigned int tmp;
-
 		hw_mask = 0;
-		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
 			hw_mask |= hw_engine_mask[engine->id];
+			hw_mask |= gen11_lock_sfc(dev_priv, engine);
+		}
 	}
 
-	return gen6_hw_domain_reset(dev_priv, hw_mask);
+	ret = gen6_hw_domain_reset(dev_priv, hw_mask);
+
+	if (engine_mask != ALL_ENGINES)
+		for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
+			gen11_unlock_sfc(dev_priv, engine);
+
+	return ret;
 }
 
 /**
