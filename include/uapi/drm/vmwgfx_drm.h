@@ -86,6 +86,9 @@ extern "C" {
  *
  * DRM_VMW_PARAM_SM4_1
  * SM4_1 support is enabled.
+ *
+ * DRM_VMW_PARAM_SM5
+ * SM5 support is enabled.
  */
 
 #define DRM_VMW_PARAM_NUM_STREAMS      0
@@ -103,6 +106,7 @@ extern "C" {
 #define DRM_VMW_PARAM_DX               12
 #define DRM_VMW_PARAM_HW_CAPS2         13
 #define DRM_VMW_PARAM_SM4_1            14
+#define DRM_VMW_PARAM_SM5              15
 
 /**
  * enum drm_vmw_handle_type - handle type for ref ioctls

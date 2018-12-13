@@ -119,6 +119,9 @@ int vmw_getparam_ioctl(struct drm_device *dev, void *data,
 	case DRM_VMW_PARAM_SM4_1:
 		param->value = has_sm4_1_context(dev_priv);
 		break;
+	case DRM_VMW_PARAM_SM5:
+		param->value = has_sm5_context(dev_priv);
+		break;
 	default:
 		return -EINVAL;
 	}
