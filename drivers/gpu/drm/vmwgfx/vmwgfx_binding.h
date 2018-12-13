@@ -33,6 +33,8 @@
 
 #define VMW_MAX_VIEW_BINDINGS 128
 
+#define VMW_MAX_UAV_BIND_TYPE 2
+
 struct vmw_private;
 struct vmw_ctx_binding_state;
 
@@ -51,6 +53,8 @@ enum vmw_ctx_binding_type {
 	vmw_ctx_binding_so,
 	vmw_ctx_binding_vb,
 	vmw_ctx_binding_ib,
+	vmw_ctx_binding_uav,
+	vmw_ctx_binding_cs_uav,
 	vmw_ctx_binding_max
 };
 
@@ -189,9 +193,21 @@ struct vmw_dx_shader_bindings {
 	unsigned long dirty;
 };
 
+/**
+ * struct vmw_ctx_bindinfo_uav - UAV context binding state.
+ * @views: UAV view bindings.
+ * @splice_index: The device splice index set by user-space.
+ */
+struct vmw_ctx_bindinfo_uav {
+	struct vmw_ctx_bindinfo_view views[SVGA3D_MAX_UAVIEWS];
+	uint32 index;
+};
+
 extern void vmw_binding_add(struct vmw_ctx_binding_state *cbs,
 			    const struct vmw_ctx_bindinfo *ci,
 			    u32 shader_slot, u32 slot);
+extern void vmw_binding_add_uav_index(struct vmw_ctx_binding_state *cbs,
+				      uint32 slot, uint32 splice_index);
 extern void
 vmw_binding_state_commit(struct vmw_ctx_binding_state *to,
 			 struct vmw_ctx_binding_state *from);
