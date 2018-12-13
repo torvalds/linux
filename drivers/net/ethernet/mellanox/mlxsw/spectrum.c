@@ -65,6 +65,13 @@ static const char mlxsw_sp1_driver_name[] = "mlxsw_spectrum";
 static const char mlxsw_sp2_driver_name[] = "mlxsw_spectrum2";
 static const char mlxsw_sp_driver_version[] = "1.0";
 
+static const unsigned char mlxsw_sp1_mac_mask[ETH_ALEN] = {
+	0xff, 0xff, 0xff, 0xff, 0xfc, 0x00
+};
+static const unsigned char mlxsw_sp2_mac_mask[ETH_ALEN] = {
+	0xff, 0xff, 0xff, 0xff, 0xf0, 0x00
+};
+
 /* tx_hdr_version
  * Tx header version.
  * Must be set to 1.
@@ -4083,6 +4090,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->mr_tcam_ops = &mlxsw_sp1_mr_tcam_ops;
 	mlxsw_sp->acl_tcam_ops = &mlxsw_sp1_acl_tcam_ops;
 	mlxsw_sp->nve_ops_arr = mlxsw_sp1_nve_ops_arr;
+	mlxsw_sp->mac_mask = mlxsw_sp1_mac_mask;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
 }
@@ -4098,6 +4106,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->mr_tcam_ops = &mlxsw_sp2_mr_tcam_ops;
 	mlxsw_sp->acl_tcam_ops = &mlxsw_sp2_acl_tcam_ops;
 	mlxsw_sp->nve_ops_arr = mlxsw_sp2_nve_ops_arr;
+	mlxsw_sp->mac_mask = mlxsw_sp2_mac_mask;
 
 	return mlxsw_sp_init(mlxsw_core, mlxsw_bus_info);
 }

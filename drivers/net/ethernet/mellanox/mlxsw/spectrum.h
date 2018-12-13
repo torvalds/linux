@@ -132,6 +132,7 @@ struct mlxsw_sp {
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
+	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
 	int *port_to_module;
 	struct mlxsw_sp_sb *sb;
