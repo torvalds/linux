@@ -130,7 +130,7 @@ static void fsm_io_request(struct vfio_ccw_private *private,
 	struct mdev_device *mdev = private->mdev;
 	char *errstr = "request";
 
-	private->state = VFIO_CCW_STATE_BOXED;
+	private->state = VFIO_CCW_STATE_BUSY;
 
 	memcpy(scsw, io_region->scsw_area, sizeof(*scsw));
 
@@ -214,11 +214,6 @@ fsm_func_t *vfio_ccw_jumptable[NR_VFIO_CCW_STATES][NR_VFIO_CCW_EVENTS] = {
 	[VFIO_CCW_STATE_IDLE] = {
 		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
 		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_request,
-		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
-	},
-	[VFIO_CCW_STATE_BOXED] = {
-		[VFIO_CCW_EVENT_NOT_OPER]	= fsm_notoper,
-		[VFIO_CCW_EVENT_IO_REQ]		= fsm_io_busy,
 		[VFIO_CCW_EVENT_INTERRUPT]	= fsm_irq,
 	},
 	[VFIO_CCW_STATE_BUSY] = {
