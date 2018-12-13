@@ -3,3 +3,7 @@
 config MXC_CLK
 	bool
 	def_bool ARCH_MXC
+
+config MXC_CLK_SCU
+	bool
+	depends on IMX_SCU
