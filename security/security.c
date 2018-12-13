@@ -386,16 +386,7 @@ void security_sb_free(struct super_block *sb)
 
 int security_sb_eat_lsm_opts(char *options, struct security_mnt_opts *opts)
 {
-	char *s = (char *)get_zeroed_page(GFP_KERNEL);
-	int err;
-
-	if (!s)
-		return -ENOMEM;
-	err = call_int_hook(sb_copy_data, 0, options, s);
-	if (!err)
-		err = call_int_hook(sb_parse_opts_str, 0, s, opts);
-	free_page((unsigned long)s);
-	return err;
+	return call_int_hook(sb_eat_lsm_opts, 0, options, opts);
 }
 EXPORT_SYMBOL(security_sb_eat_lsm_opts);
 

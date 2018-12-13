@@ -2810,6 +2810,20 @@ out:
 	return rc;
 }
 
+static int selinux_sb_eat_lsm_opts(char *options, struct security_mnt_opts *opts)
+{
+	char *s = (char *)get_zeroed_page(GFP_KERNEL);
+	int err;
+
+	if (!s)
+		return -ENOMEM;
+	err = selinux_sb_copy_data(options, s);
+	if (!err)
+		err = selinux_parse_opts_str(s, opts);
+	free_page((unsigned long)s);
+	return err;
+}
+
 static int selinux_sb_remount(struct super_block *sb,
 			      struct security_mnt_opts *opts)
 {
@@ -6863,7 +6877,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(sb_alloc_security, selinux_sb_alloc_security),
 	LSM_HOOK_INIT(sb_free_security, selinux_sb_free_security),
-	LSM_HOOK_INIT(sb_copy_data, selinux_sb_copy_data),
+	LSM_HOOK_INIT(sb_eat_lsm_opts, selinux_sb_eat_lsm_opts),
 	LSM_HOOK_INIT(sb_remount, selinux_sb_remount),
 	LSM_HOOK_INIT(sb_kern_mount, selinux_sb_kern_mount),
 	LSM_HOOK_INIT(sb_show_options, selinux_sb_show_options),

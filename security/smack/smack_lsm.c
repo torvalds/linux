@@ -739,6 +739,20 @@ out_err:
 	return rc;
 }
 
+static int smack_sb_eat_lsm_opts(char *options, struct security_mnt_opts *opts)
+{
+	char *s = (char *)get_zeroed_page(GFP_KERNEL);
+	int err;
+
+	if (!s)
+		return -ENOMEM;
+	err = smack_sb_copy_data(options, s);
+	if (!err)
+		err = smack_parse_opts_str(s, opts);
+	free_page((unsigned long)s);
+	return err;
+}
+
 /**
  * smack_set_mnt_opts - set Smack specific mount options
  * @sb: the file system superblock
@@ -4637,7 +4651,7 @@ static struct security_hook_list smack_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(sb_alloc_security, smack_sb_alloc_security),
 	LSM_HOOK_INIT(sb_free_security, smack_sb_free_security),
-	LSM_HOOK_INIT(sb_copy_data, smack_sb_copy_data),
+	LSM_HOOK_INIT(sb_eat_lsm_opts, smack_sb_eat_lsm_opts),
 	LSM_HOOK_INIT(sb_statfs, smack_sb_statfs),
 	LSM_HOOK_INIT(sb_set_mnt_opts, smack_set_mnt_opts),
 	LSM_HOOK_INIT(sb_parse_opts_str, smack_parse_opts_str),

@@ -1461,7 +1461,7 @@ union security_list_options {
 
 	int (*sb_alloc_security)(struct super_block *sb);
 	void (*sb_free_security)(struct super_block *sb);
-	int (*sb_copy_data)(char *orig, char *copy);
+	int (*sb_eat_lsm_opts)(char *orig, struct security_mnt_opts *opts);
 	int (*sb_remount)(struct super_block *sb,
 			  struct security_mnt_opts *opts);
 	int (*sb_kern_mount)(struct super_block *sb);
@@ -1801,7 +1801,7 @@ struct security_hook_heads {
 	struct hlist_head bprm_committed_creds;
 	struct hlist_head sb_alloc_security;
 	struct hlist_head sb_free_security;
-	struct hlist_head sb_copy_data;
+	struct hlist_head sb_eat_lsm_opts;
 	struct hlist_head sb_remount;
 	struct hlist_head sb_kern_mount;
 	struct hlist_head sb_show_options;
