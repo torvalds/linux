@@ -96,9 +96,22 @@
 			charge_logo,mode = "center";
 			connect = <&vop_out_lvds>;
 		};
+
+		route_rgb: route-rgb {
+			status = "disabled";
+			logo,uboot = "logo.bmp";
+			logo,kernel = "logo_kernel.bmp";
+			logo,mode = "center";
+			charge_logo,mode = "center";
+			connect = <&vop_out_rgb>;
+		};
 	};
 };
 
 &dmc {
+	status = "okay";
+};
+
+&video_phy {
 	status = "okay";
 };
