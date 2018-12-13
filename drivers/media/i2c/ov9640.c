@@ -286,6 +286,7 @@ static int ov9640_s_ctrl(struct v4l2_ctrl *ctrl)
 							OV9640_MVFP_H, 0);
 		return ov9640_reg_rmw(client, OV9640_MVFP, 0, OV9640_MVFP_H);
 	}
+
 	return -EINVAL;
 }
 
@@ -341,6 +342,7 @@ static int ov9640_s_power(struct v4l2_subdev *sd, int on)
 		usleep_range(1000, 2000);
 		gpiod_set_value(priv->gpio_power, 0);
 	}
+
 	return ret;
 }
 
@@ -545,6 +547,7 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 		return ov9640_s_fmt(sd, mf);
 
 	cfg->try_fmt = *mf;
+
 	return 0;
 }
 
@@ -556,6 +559,7 @@ static int ov9640_enum_mbus_code(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	code->code = ov9640_codes[code->index];
+
 	return 0;
 }
 
@@ -731,6 +735,7 @@ eprobe:
 	v4l2_clk_put(priv->clk);
 eclkget:
 	v4l2_ctrl_handler_free(&priv->hdl);
+
 	return ret;
 }
 
