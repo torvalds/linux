@@ -384,8 +384,25 @@ STORE(bch_cached_dev)
 	mutex_lock(&bch_register_lock);
 	size = __cached_dev_store(kobj, attr, buf, size);
 
-	if (attr == &sysfs_writeback_running)
-		bch_writeback_queue(dc);
+	if (attr == &sysfs_writeback_running) {
+		/* dc->writeback_running changed in __cached_dev_store() */
+		if (IS_ERR_OR_NULL(dc->writeback_thread)) {
+			/*
+			 * reject setting it to 1 via sysfs if writeback
+			 * kthread is not created yet.
+			 */
+			if (dc->writeback_running) {
+				dc->writeback_running = false;
+				pr_err("%s: failed to run non-existent writeback thread",
+						dc->disk.disk->disk_name);
+			}
+		} else
+			/*
+			 * writeback kthread will check if dc->writeback_running
+			 * is true or false.
+			 */
+			bch_writeback_queue(dc);
+	}
 
 	if (attr == &sysfs_writeback_percent)
 		if (!test_and_set_bit(BCACHE_DEV_WB_RUNNING, &dc->disk.flags))
