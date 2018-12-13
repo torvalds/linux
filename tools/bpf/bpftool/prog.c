@@ -596,13 +596,6 @@ static int do_dump(int argc, char **argv)
 		goto err_free;
 	}
 
-	if (func_info && !info.func_info) {
-		/* kernel.kptr_restrict is set.  No func_info available. */
-		free(func_info);
-		func_info = NULL;
-		nr_finfo = 0;
-	}
-
 	if (linfo && info.nr_line_info != nr_linfo) {
 		p_err("incorrect nr_line_info %u vs. expected %u",
 		      info.nr_line_info, nr_linfo);

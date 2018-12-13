@@ -107,11 +107,7 @@ struct bpf_prog_linfo *bpf_prog_linfo__new(const struct bpf_prog_info *info)
 
 	nr_linfo = info->nr_line_info;
 
-	/*
-	 * Test !info->line_info because the kernel may NULL
-	 * the ptr if kernel.kptr_restrict is set.
-	 */
-	if (!nr_linfo || !info->line_info)
+	if (!nr_linfo)
 		return NULL;
 
 	/*
