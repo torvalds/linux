@@ -335,7 +335,6 @@ out:
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
 {
 	unsigned long cl;
-	struct Qdisc *leaf;
 	const struct Qdisc_class_ops *cops = p->ops->cl_ops;
 
 	if (cops == NULL)
@@ -344,8 +343,7 @@ static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
 
 	if (cl == 0)
 		return NULL;
-	leaf = cops->leaf(p, cl);
-	return leaf;
+	return cops->leaf(p, cl);
 }
 
 /* Find queueing discipline by name */
