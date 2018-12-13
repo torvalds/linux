@@ -7,3 +7,10 @@ config MXC_CLK
 config MXC_CLK_SCU
 	bool
 	depends on IMX_SCU
+
+config CLK_IMX8QXP
+	bool "IMX8QXP SCU Clock"
+	depends on ARCH_MXC && IMX_SCU && ARM64
+	select MXC_CLK_SCU
+	help
+	  Build the driver for IMX8QXP SCU based clocks.
