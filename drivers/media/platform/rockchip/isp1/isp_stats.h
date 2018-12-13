@@ -36,7 +36,12 @@
 #define _RKISP1_ISP_STATS_H
 
 #include <linux/rkisp1-config.h>
+#include <linux/interrupt.h>
+#include <linux/kfifo.h>
 #include "common.h"
+
+#define RKISP1_READOUT_WORK_SIZE	\
+	(8 * sizeof(struct rkisp1_isp_readout_work))
 
 struct rkisp1_isp_stats_vdev;
 
@@ -46,13 +51,9 @@ enum rkisp1_isp_readout_cmd {
 };
 
 struct rkisp1_isp_readout_work {
-	struct work_struct work;
-	struct rkisp1_isp_stats_vdev *stats_vdev;
-
 	unsigned int frame_id;
 	unsigned int isp_ris;
 	enum rkisp1_isp_readout_cmd readout;
-	struct vb2_buffer *vb;
 };
 
 struct rkisp1_stats_ops {
@@ -91,8 +92,9 @@ struct rkisp1_isp_stats_vdev {
 	struct v4l2_format vdev_fmt;
 	bool streamon;
 
-	struct workqueue_struct *readout_wq;
-	struct mutex wq_lock;
+	spinlock_t rd_lock;
+	struct kfifo rd_kfifo;
+	struct tasklet_struct rd_tasklet;
 
 	struct rkisp1_stats_ops *ops;
 	struct rkisp1_stats_config *config;
