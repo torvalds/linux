@@ -346,6 +346,10 @@
 			interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&bpmp TEGRA194_CLK_SDMMC4>;
 			clock-names = "sdhci";
+			assigned-clocks = <&bpmp TEGRA194_CLK_SDMMC4>,
+					  <&bpmp TEGRA194_CLK_PLLC4>;
+			assigned-clock-parents =
+					  <&bpmp TEGRA194_CLK_PLLC4>;
 			resets = <&bpmp TEGRA194_RESET_SDMMC4>;
 			reset-names = "sdhci";
 			nvidia,pad-autocal-pull-up-offset-hs400 = <0x00>;
