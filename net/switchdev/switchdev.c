@@ -356,7 +356,8 @@ static size_t switchdev_obj_size(const struct switchdev_obj *obj)
 static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 				     struct net_device *dev,
 				     const struct switchdev_obj *obj,
-				     struct switchdev_trans *trans)
+				     struct switchdev_trans *trans,
+				     struct netlink_ext_ack *extack)
 {
 	int rc;
 	int err;
@@ -367,7 +368,7 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 		.handled = false,
 	};
 
-	rc = call_switchdev_blocking_notifiers(nt, dev, &obj_info.info);
+	rc = call_switchdev_blocking_notifiers(nt, dev, &obj_info.info, extack);
 	err = notifier_to_errno(rc);
 	if (err) {
 		WARN_ON(!obj_info.handled);
@@ -379,7 +380,8 @@ static int switchdev_port_obj_notify(enum switchdev_notifier_type nt,
 }
 
 static int switchdev_port_obj_add_now(struct net_device *dev,
-				      const struct switchdev_obj *obj)
+				      const struct switchdev_obj *obj,
+				      struct netlink_ext_ack *extack)
 {
 	struct switchdev_trans trans;
 	int err;
@@ -397,7 +399,7 @@ static int switchdev_port_obj_add_now(struct net_device *dev,
 
 	trans.ph_prepare = true;
 	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
-					dev, obj, &trans);
+					dev, obj, &trans, extack);
 	if (err) {
 		/* Prepare phase failed: abort the transaction.  Any
 		 * resources reserved in the prepare phase are
@@ -417,7 +419,7 @@ static int switchdev_port_obj_add_now(struct net_device *dev,
 
 	trans.ph_prepare = false;
 	err = switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_ADD,
-					dev, obj, &trans);
+					dev, obj, &trans, extack);
 	WARN(err, "%s: Commit of object (id=%d) failed.\n", dev->name, obj->id);
 	switchdev_trans_items_warn_destroy(dev, &trans);
 
@@ -430,7 +432,7 @@ static void switchdev_port_obj_add_deferred(struct net_device *dev,
 	const struct switchdev_obj *obj = data;
 	int err;
 
-	err = switchdev_port_obj_add_now(dev, obj);
+	err = switchdev_port_obj_add_now(dev, obj, NULL);
 	if (err && err != -EOPNOTSUPP)
 		netdev_err(dev, "failed (err=%d) to add object (id=%d)\n",
 			   err, obj->id);
@@ -460,12 +462,13 @@ static int switchdev_port_obj_add_defer(struct net_device *dev,
  *	in case SWITCHDEV_F_DEFER flag is not set.
  */
 int switchdev_port_obj_add(struct net_device *dev,
-			   const struct switchdev_obj *obj)
+			   const struct switchdev_obj *obj,
+			   struct netlink_ext_ack *extack)
 {
 	if (obj->flags & SWITCHDEV_F_DEFER)
 		return switchdev_port_obj_add_defer(dev, obj);
 	ASSERT_RTNL();
-	return switchdev_port_obj_add_now(dev, obj);
+	return switchdev_port_obj_add_now(dev, obj, extack);
 }
 EXPORT_SYMBOL_GPL(switchdev_port_obj_add);
 
@@ -473,7 +476,7 @@ static int switchdev_port_obj_del_now(struct net_device *dev,
 				      const struct switchdev_obj *obj)
 {
 	return switchdev_port_obj_notify(SWITCHDEV_PORT_OBJ_DEL,
-					 dev, obj, NULL);
+					 dev, obj, NULL, NULL);
 }
 
 static void switchdev_port_obj_del_deferred(struct net_device *dev,
@@ -556,6 +559,7 @@ int call_switchdev_notifiers(unsigned long val, struct net_device *dev,
 			     struct switchdev_notifier_info *info)
 {
 	info->dev = dev;
+	info->extack = NULL;
 	return atomic_notifier_call_chain(&switchdev_notif_chain, val, info);
 }
 EXPORT_SYMBOL_GPL(call_switchdev_notifiers);
@@ -577,9 +581,11 @@ int unregister_switchdev_blocking_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL_GPL(unregister_switchdev_blocking_notifier);
 
 int call_switchdev_blocking_notifiers(unsigned long val, struct net_device *dev,
-				      struct switchdev_notifier_info *info)
+				      struct switchdev_notifier_info *info,
+				      struct netlink_ext_ack *extack)
 {
 	info->dev = dev;
+	info->extack = extack;
 	return blocking_notifier_call_chain(&switchdev_blocking_notif_chain,
 					    val, info);
 }
@@ -610,16 +616,21 @@ static int __switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans))
+				      struct switchdev_trans *trans,
+				      struct netlink_ext_ack *extack))
 {
+	struct netlink_ext_ack *extack;
 	struct net_device *lower_dev;
 	struct list_head *iter;
 	int err = -EOPNOTSUPP;
 
+	extack = switchdev_notifier_info_to_extack(&port_obj_info->info);
+
 	if (check_cb(dev)) {
 		/* This flag is only checked if the return value is success. */
 		port_obj_info->handled = true;
-		return add_cb(dev, port_obj_info->obj, port_obj_info->trans);
+		return add_cb(dev, port_obj_info->obj, port_obj_info->trans,
+			      extack);
 	}
 
 	/* Switch ports might be stacked under e.g. a LAG. Ignore the
@@ -644,7 +655,8 @@ int switchdev_handle_port_obj_add(struct net_device *dev,
 			bool (*check_cb)(const struct net_device *dev),
 			int (*add_cb)(struct net_device *dev,
 				      const struct switchdev_obj *obj,
-				      struct switchdev_trans *trans))
+				      struct switchdev_trans *trans,
+				      struct netlink_ext_ack *extack))
 {
 	int err;
 

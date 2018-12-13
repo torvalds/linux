@@ -4955,7 +4955,7 @@ fw_exit:
 }
 
 static int be_ndo_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
-				 u16 flags)
+				 u16 flags, struct netlink_ext_ack *extack)
 {
 	struct be_adapter *adapter = netdev_priv(dev);
 	struct nlattr *attr, *br_spec;

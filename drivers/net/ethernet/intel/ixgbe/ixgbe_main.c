@@ -9979,7 +9979,8 @@ static int ixgbe_configure_bridge_mode(struct ixgbe_adapter *adapter,
 }
 
 static int ixgbe_ndo_bridge_setlink(struct net_device *dev,
-				    struct nlmsghdr *nlh, u16 flags)
+				    struct nlmsghdr *nlh, u16 flags,
+				    struct netlink_ext_ack *extack)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct nlattr *attr, *br_spec;

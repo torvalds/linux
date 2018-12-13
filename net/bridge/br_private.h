@@ -868,7 +868,7 @@ struct sk_buff *br_handle_vlan(struct net_bridge *br,
 			       struct net_bridge_vlan_group *vg,
 			       struct sk_buff *skb);
 int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags,
-		bool *changed);
+		bool *changed, struct netlink_ext_ack *extack);
 int br_vlan_delete(struct net_bridge *br, u16 vid);
 void br_vlan_flush(struct net_bridge *br);
 struct net_bridge_vlan *br_vlan_find(struct net_bridge_vlan_group *vg, u16 vid);
@@ -881,12 +881,13 @@ int br_vlan_set_stats(struct net_bridge *br, unsigned long val);
 int br_vlan_set_stats_per_port(struct net_bridge *br, unsigned long val);
 int br_vlan_init(struct net_bridge *br);
 int br_vlan_set_default_pvid(struct net_bridge *br, unsigned long val);
-int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid);
+int __br_vlan_set_default_pvid(struct net_bridge *br, u16 pvid,
+			       struct netlink_ext_ack *extack);
 int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags,
-		 bool *changed);
+		 bool *changed, struct netlink_ext_ack *extack);
 int nbp_vlan_delete(struct net_bridge_port *port, u16 vid);
 void nbp_vlan_flush(struct net_bridge_port *port);
-int nbp_vlan_init(struct net_bridge_port *port);
+int nbp_vlan_init(struct net_bridge_port *port, struct netlink_ext_ack *extack);
 int nbp_get_num_vlan_infos(struct net_bridge_port *p, u32 filter_mask);
 void br_vlan_get_stats(const struct net_bridge_vlan *v,
 		       struct br_vlan_stats *stats);
@@ -971,7 +972,7 @@ static inline struct sk_buff *br_handle_vlan(struct net_bridge *br,
 }
 
 static inline int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags,
-			      bool *changed)
+			      bool *changed, struct netlink_ext_ack *extack)
 {
 	*changed = false;
 	return -EOPNOTSUPP;
@@ -996,7 +997,7 @@ static inline int br_vlan_init(struct net_bridge *br)
 }
 
 static inline int nbp_vlan_add(struct net_bridge_port *port, u16 vid, u16 flags,
-			       bool *changed)
+			       bool *changed, struct netlink_ext_ack *extack)
 {
 	*changed = false;
 	return -EOPNOTSUPP;
@@ -1017,7 +1018,8 @@ static inline struct net_bridge_vlan *br_vlan_find(struct net_bridge_vlan_group 
 	return NULL;
 }
 
-static inline int nbp_vlan_init(struct net_bridge_port *port)
+static inline int nbp_vlan_init(struct net_bridge_port *port,
+				struct netlink_ext_ack *extack)
 {
 	return 0;
 }
@@ -1138,7 +1140,8 @@ int br_netlink_init(void);
 void br_netlink_fini(void);
 void br_ifinfo_notify(int event, const struct net_bridge *br,
 		      const struct net_bridge_port *port);
-int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags);
+int br_setlink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags,
+	       struct netlink_ext_ack *extack);
 int br_dellink(struct net_device *dev, struct nlmsghdr *nlmsg, u16 flags);
 int br_getlink(struct sk_buff *skb, u32 pid, u32 seq, struct net_device *dev,
 	       u32 filter_mask, int nlflags);
@@ -1173,7 +1176,8 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 			       unsigned long mask);
 void br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb,
 			     int type);
-int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags);
+int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags,
+			       struct netlink_ext_ack *extack);
 int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid);
 
 static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
@@ -1205,7 +1209,8 @@ static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
 }
 
 static inline int br_switchdev_port_vlan_add(struct net_device *dev,
-					     u16 vid, u16 flags)
+					     u16 vid, u16 flags,
+					     struct netlink_ext_ack *extack)
 {
 	return -EOPNOTSUPP;
 }

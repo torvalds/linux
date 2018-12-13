@@ -9618,7 +9618,7 @@ static int bnxt_bridge_getlink(struct sk_buff *skb, u32 pid, u32 seq,
 }
 
 static int bnxt_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
-			       u16 flags)
+			       u16 flags, struct netlink_ext_ack *extack)
 {
 	struct bnxt *bp = netdev_priv(dev);
 	struct nlattr *attr, *br_spec;
