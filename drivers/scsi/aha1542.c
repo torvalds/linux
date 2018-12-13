@@ -1011,7 +1011,6 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.sg_tablesize		= 16,
 	.unchecked_isa_dma	= 1, 
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static int aha1542_isa_match(struct device *pdev, unsigned int ndev)

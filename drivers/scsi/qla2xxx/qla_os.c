@@ -328,7 +328,6 @@ struct scsi_host_template qla2xxx_driver_template = {
 	.map_queues             = qla2xxx_map_queues,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= SG_ALL,
 
 	.max_sectors		= 0xFFFF,

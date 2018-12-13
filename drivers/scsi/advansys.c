@@ -10808,14 +10808,6 @@ static struct scsi_host_template advansys_template = {
 	 * for non-ISA adapters.
 	 */
 	.unchecked_isa_dma = true,
-	/*
-	 * All adapters controlled by this driver are capable of large
-	 * scatter-gather lists. According to the mid-level SCSI documentation
-	 * this obviates any performance gain provided by setting
-	 * 'use_clustering'. But empirically while CPU utilization is increased
-	 * by enabling clustering, I/O throughput increases as well.
-	 */
-	.use_clustering = ENABLE_CLUSTERING,
 };
 
 static int advansys_wide_init_chip(struct Scsi_Host *shost)

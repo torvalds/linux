@@ -135,7 +135,6 @@ enum {
 
 	ATA_SHT_EMULATED	= 1,
 	ATA_SHT_THIS_ID		= -1,
-	ATA_SHT_USE_CLUSTERING	= 1,
 
 	/* struct ata_taskfile flags */
 	ATA_TFLAG_LBA48		= (1 << 0), /* enable 48-bit LBA and "HOB" */
@@ -1360,7 +1359,6 @@ extern struct device_attribute *ata_common_sdev_attrs[];
 	.tag_alloc_policy	= BLK_TAG_ALLOC_RR,		\
 	.this_id		= ATA_SHT_THIS_ID,		\
 	.emulated		= ATA_SHT_EMULATED,		\
-	.use_clustering		= ATA_SHT_USE_CLUSTERING,	\
 	.proc_name		= drv_name,			\
 	.slave_configure	= ata_scsi_slave_config,	\
 	.slave_destroy		= ata_scsi_slave_destroy,	\

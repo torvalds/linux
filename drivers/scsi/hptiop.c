@@ -1180,7 +1180,6 @@ static struct scsi_host_template driver_template = {
 	.eh_host_reset_handler      = hptiop_reset,
 	.info                       = hptiop_info,
 	.emulated                   = 0,
-	.use_clustering             = ENABLE_CLUSTERING,
 	.proc_name                  = driver_name,
 	.shost_attrs                = hptiop_attrs,
 	.slave_configure            = hptiop_slave_config,

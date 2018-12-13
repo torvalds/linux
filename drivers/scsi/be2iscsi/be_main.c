@@ -405,7 +405,6 @@ static struct scsi_host_template beiscsi_sht = {
 	.this_id = -1,
 	.max_sectors = BEISCSI_MAX_SECTORS,
 	.cmd_per_lun = BEISCSI_CMD_PER_LUN,
-	.use_clustering = ENABLE_CLUSTERING,
 	.vendor_id = SCSI_NL_VID_TYPE_PCI | BE_VENDOR_ID,
 	.track_queue_depth = 1,
 };

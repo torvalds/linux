@@ -5779,7 +5779,6 @@ static struct scsi_host_template pqi_driver_template = {
 	.scan_start = pqi_scan_start,
 	.scan_finished = pqi_scan_finished,
 	.this_id = -1,
-	.use_clustering = ENABLE_CLUSTERING,
 	.eh_device_reset_handler = pqi_eh_device_reset_handler,
 	.ioctl = pqi_ioctl,
 	.slave_alloc = pqi_slave_alloc,

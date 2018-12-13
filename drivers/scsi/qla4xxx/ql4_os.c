@@ -205,7 +205,6 @@ static struct scsi_host_template qla4xxx_driver_template = {
 
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= SG_ALL,
 
 	.max_sectors		= 0xFFFF,

@@ -871,7 +871,6 @@ static struct scsi_host_template wd719x_template = {
 	.can_queue			= 255,
 	.this_id			= 7,
 	.sg_tablesize			= WD719X_SG,
-	.use_clustering			= ENABLE_CLUSTERING,
 };
 
 static int wd719x_pci_probe(struct pci_dev *pdev, const struct pci_device_id *d)

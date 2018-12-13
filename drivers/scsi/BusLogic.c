@@ -3858,7 +3858,6 @@ static struct scsi_host_template blogic_template = {
 #endif
 	.unchecked_isa_dma = 1,
 	.max_sectors = 128,
-	.use_clustering = ENABLE_CLUSTERING,
 };
 
 /*

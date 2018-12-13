@@ -785,7 +785,6 @@ static struct scsi_host_template qedf_host_template = {
 	.name 		= QEDF_MODULE_NAME,
 	.this_id 	= -1,
 	.cmd_per_lun	= 32,
-	.use_clustering = ENABLE_CLUSTERING,
 	.max_sectors 	= 0xffff,
 	.queuecommand 	= qedf_queuecommand,
 	.shost_attrs	= qedf_host_attrs,

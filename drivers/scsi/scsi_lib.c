@@ -2229,7 +2229,7 @@ void __scsi_init_queue(struct Scsi_Host *shost, struct request_queue *q)
 
 	blk_queue_max_segment_size(q, dma_get_max_seg_size(dev));
 
-	if (!shost->use_clustering)
+	if (shost->use_clustering == DISABLE_CLUSTERING)
 		q->limits.cluster = 0;
 
 	/*

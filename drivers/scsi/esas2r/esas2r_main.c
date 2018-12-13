@@ -250,7 +250,6 @@ static struct scsi_host_template driver_template = {
 		ESAS2R_DEFAULT_CMD_PER_LUN,
 	.present			= 0,
 	.unchecked_isa_dma		= 0,
-	.use_clustering			= ENABLE_CLUSTERING,
 	.emulated			= 0,
 	.proc_name			= ESAS2R_DRVR_NAME,
 	.change_queue_depth		= scsi_change_queue_depth,

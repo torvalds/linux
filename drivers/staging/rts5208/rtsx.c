@@ -237,12 +237,6 @@ static struct scsi_host_template rtsx_host_template = {
 	/* limit the total size of a transfer to 120 KB */
 	.max_sectors =                  240,
 
-	/* merge commands... this seems to help performance, but
-	 * periodically someone should test to see which setting is more
-	 * optimal.
-	 */
-	.use_clustering =		1,
-
 	/* emulated HBA */
 	.emulated =			1,
 

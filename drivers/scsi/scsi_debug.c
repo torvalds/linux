@@ -5851,7 +5851,6 @@ static struct scsi_host_template sdebug_driver_template = {
 	.sg_tablesize =		SG_MAX_SEGMENTS,
 	.cmd_per_lun =		DEF_CMD_PER_LUN,
 	.max_sectors =		-1U,
-	.use_clustering = 	DISABLE_CLUSTERING,
 	.module =		THIS_MODULE,
 	.track_queue_depth =	1,
 };
@@ -5866,8 +5865,8 @@ static int sdebug_driver_probe(struct device *dev)
 	sdbg_host = to_sdebug_host(dev);
 
 	sdebug_driver_template.can_queue = sdebug_max_queue;
-	if (sdebug_clustering)
-		sdebug_driver_template.use_clustering = ENABLE_CLUSTERING;
+	if (!sdebug_clustering)
+		sdebug_driver_template.use_clustering = DISABLE_CLUSTERING;
 	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
 	if (NULL == hpnt) {
 		pr_err("scsi_host_alloc failed\n");

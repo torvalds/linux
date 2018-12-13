@@ -3569,7 +3569,6 @@ static struct scsi_host_template driver_template = {
 	.slave_configure	= adpt_slave_configure,
 	.can_queue		= MAX_TO_IOP_MESSAGES,
 	.this_id		= 7,
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static int __init adpt_init(void)

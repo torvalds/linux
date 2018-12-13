@@ -639,13 +639,6 @@ static const struct scsi_host_template usb_stor_host_template = {
 	 */
 	.max_sectors =                  240,
 
-	/*
-	 * merge commands... this seems to help performance, but
-	 * periodically someone should test to see which setting is more
-	 * optimal.
-	 */
-	.use_clustering =		1,
-
 	/* emulated HBA */
 	.emulated =			1,
 
