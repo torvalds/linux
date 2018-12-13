@@ -5,7 +5,7 @@ git:
 
 before_install:
   - sudo apt-get update -qq
-  - sudo apt-get install python-ply python-git libelf-dev codespell sparse
+  - sudo apt-get install python-ply python-git libelf-dev codespell sparse fakeroot
   - git clone https://github.com/thesofproject/kconfig.git
 
 jobs:
@@ -29,6 +29,7 @@ jobs:
         - make defconfig
         - scripts/kconfig/merge_config.sh .config kconfig/base-defconfig kconfig/sof-defconfig
         - KCFLAGS="-Wall -Werror" make -j`getconf _NPROCESSORS_ONLN`
+        - make bindeb-pkg -j`getconf _NPROCESSORS_ONLN`
     - name: "BUILD SST Kernel x86_64"
       script:
         - export ARCH=x86_64
