@@ -78,7 +78,7 @@ static void usage(char *progname)
 	printf(" -T, --gettimeout    Get the timeout\n");
 	printf(" -n, --pretimeout=T  Set the pretimeout to T seconds\n");
 	printf(" -N, --getpretimeout Get the pretimeout\n");
-	printf(" -L, --gettimeleft   Get the time left until timer experies\n");
+	printf(" -L, --gettimeleft   Get the time left until timer expires\n");
 	printf("\n");
 	printf("Parameters are parsed left-to-right in real-time.\n");
 	printf("Example: %s -d -t 10 -p 5 -e\n", progname);
