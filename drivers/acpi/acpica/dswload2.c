@@ -371,10 +371,8 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *arg;
 	struct acpi_namespace_node *new_node;
-#ifndef ACPI_NO_METHOD_EXECUTION
 	u32 i;
 	u8 region_space;
-#endif
 
 	ACPI_FUNCTION_TRACE(ds_load2_end_op);
 
@@ -461,7 +459,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	arg = op->common.value.arg;
 
 	switch (walk_state->op_info->type) {
-#ifndef ACPI_NO_METHOD_EXECUTION
 
 	case AML_TYPE_CREATE_FIELD:
 		/*
@@ -558,12 +555,10 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		}
 
 		break;
-#endif				/* ACPI_NO_METHOD_EXECUTION */
 
 	case AML_TYPE_NAMED_COMPLEX:
 
 		switch (op->common.aml_opcode) {
-#ifndef ACPI_NO_METHOD_EXECUTION
 		case AML_REGION_OP:
 		case AML_DATA_REGION_OP:
 
@@ -650,8 +645,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				}
 			}
 			break;
-
-#endif				/* ACPI_NO_METHOD_EXECUTION */
 
 		default:
 
