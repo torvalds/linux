@@ -151,10 +151,23 @@
 #define PCI_PMCS		0x84
 #define PCI_PMCS_PS_MASK	0x3
 
+/* DSP hardware descriptor */
+struct sof_intel_dsp_desc {
+	int cores_num;
+	int cores_mask;
+	int ipc_req;
+	int ipc_req_mask;
+	int ipc_ack;
+	int ipc_ack_mask;
+	int ipc_ctl;
+	const struct snd_sof_dsp_ops *ops;
+};
+
 extern const struct snd_sof_dsp_ops sof_tng_ops;
 extern const struct snd_sof_dsp_ops sof_byt_ops;
 extern const struct snd_sof_dsp_ops sof_cht_ops;
 extern const struct snd_sof_dsp_ops sof_hsw_ops;
 extern const struct snd_sof_dsp_ops sof_bdw_ops;
 
+extern const struct sof_intel_dsp_desc tng_chip_info;
 #endif

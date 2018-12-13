@@ -97,3 +97,16 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 	.runtime_resume		= hda_dsp_runtime_resume,
 };
 EXPORT_SYMBOL(sof_apl_ops);
+
+const struct sof_intel_dsp_desc apl_chip_info = {
+	/* Apollolake */
+	.cores_num = 2,
+	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
+	.ipc_req = HDA_DSP_REG_HIPCI,
+	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,
+	.ipc_ack = HDA_DSP_REG_HIPCIE,
+	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
+	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
+	.ops = &sof_apl_ops,
+};
+EXPORT_SYMBOL(apl_chip_info);

@@ -66,6 +66,9 @@ struct sof_dev_desc {
 	int ipc_timeout;
 	int boot_timeout;
 
+	/* chip information for dsp */
+	const void *chip_info;
+
 	/* defaults for no codec mode */
 	const char *nocodec_fw_filename;
 	const char *nocodec_tplg_filename;

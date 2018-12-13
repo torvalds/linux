@@ -174,115 +174,6 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	}
 }
 
-/*
- * Supported devices.
- */
-
-static const struct sof_intel_dsp_desc chip_info[] = {
-{
-	/* Skylake */
-	.id = 0x9d70,
-	.cores_num = 2,
-	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
-	.ipc_req = HDA_DSP_REG_HIPCI,
-	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,
-	.ipc_ack = HDA_DSP_REG_HIPCIE,
-	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
-	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
-	.ops = &sof_skl_ops,
-},
-{
-	/* Kabylake */
-	.id = 0x9d71,
-	.cores_num = 2,
-	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
-	.ipc_req = HDA_DSP_REG_HIPCI,
-	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,
-	.ipc_ack = HDA_DSP_REG_HIPCIE,
-	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
-	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
-	.ops = &sof_skl_ops,
-},
-{
-	/* Apollolake - BXT-P */
-	.id = 0x5a98,
-	.cores_num = 2,
-	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
-	.ipc_req = HDA_DSP_REG_HIPCI,
-	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,
-	.ipc_ack = HDA_DSP_REG_HIPCIE,
-	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
-	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
-	.ops = &sof_apl_ops,
-},
-{
-	/* BXT-M */
-	.id = 0x1a98,
-	.cores_num = 2,
-	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
-	.ipc_req = HDA_DSP_REG_HIPCI,
-	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,
-	.ipc_ack = HDA_DSP_REG_HIPCIE,
-	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
-	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
-	.ops = &sof_apl_ops,
-},
-{
-	/* GeminiLake */
-	.id = 0x3198,
-	.cores_num = 2,
-	.cores_mask = HDA_DSP_CORE_MASK(0) | HDA_DSP_CORE_MASK(1),
-	.ipc_req = HDA_DSP_REG_HIPCI,
-	.ipc_req_mask = HDA_DSP_REG_HIPCI_BUSY,
-	.ipc_ack = HDA_DSP_REG_HIPCIE,
-	.ipc_ack_mask = HDA_DSP_REG_HIPCIE_DONE,
-	.ipc_ctl = HDA_DSP_REG_HIPCCTL,
-	.ops = &sof_apl_ops,
-},
-{
-	/* Cannonlake */
-	.id = 0x9dc8,
-	.cores_num = 4,
-	.cores_mask = HDA_DSP_CORE_MASK(0) |
-				HDA_DSP_CORE_MASK(1) |
-				HDA_DSP_CORE_MASK(2) |
-				HDA_DSP_CORE_MASK(3),
-	.ipc_req = CNL_DSP_REG_HIPCIDR,
-	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
-	.ipc_ack = CNL_DSP_REG_HIPCIDA,
-	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
-	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
-	.ops = &sof_cnl_ops,
-},
-{
-	/* Icelake */
-	.id = 0x34c8,
-	.cores_num = 4,
-	.cores_mask = HDA_DSP_CORE_MASK(0) |
-				HDA_DSP_CORE_MASK(1) |
-				HDA_DSP_CORE_MASK(2) |
-				HDA_DSP_CORE_MASK(3),
-	.ipc_req = CNL_DSP_REG_HIPCIDR,
-	.ipc_req_mask = CNL_DSP_REG_HIPCIDR_BUSY,
-	.ipc_ack = CNL_DSP_REG_HIPCIDA,
-	.ipc_ack_mask = CNL_DSP_REG_HIPCIDA_DONE,
-	.ipc_ctl = CNL_DSP_REG_HIPCCTL,
-	.ops = &sof_cnl_ops,
-},
-};
-
-static const struct sof_intel_dsp_desc *get_chip_info(int pci_id)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(chip_info); i++) {
-		if (chip_info[i].id == pci_id)
-			return &chip_info[i];
-	}
-
-	return NULL;
-}
-
 static int hda_init(struct snd_sof_dev *sdev)
 {
 	struct hda_bus *hbus;
@@ -405,6 +296,17 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 #endif
 
+static const struct sof_intel_dsp_desc
+	*get_chip_info(struct snd_sof_pdata *pdata)
+{
+	const struct sof_dev_desc *desc = pdata->desc;
+	const struct sof_intel_dsp_desc *chip_info;
+
+	chip_info = (struct sof_intel_dsp_desc *)desc->chip_info;
+
+	return chip_info;
+}
+
 int hda_dsp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = sdev->pci;
@@ -433,7 +335,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	/* set DSP arch ops */
 	sdev->arch_ops = &sof_xtensa_arch_ops;
 
-	chip = get_chip_info(pci->device);
+	chip = get_chip_info(sdev->pdata);
 	if (!chip) {
 		dev_err(sdev->dev, "error: no such device supported, chip id:%x\n",
 			pci->device);

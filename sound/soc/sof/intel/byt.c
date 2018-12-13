@@ -636,6 +636,14 @@ const struct snd_sof_dsp_ops sof_tng_ops = {
 };
 EXPORT_SYMBOL(sof_tng_ops);
 
+const struct sof_intel_dsp_desc tng_chip_info = {
+	/* Tng */
+	.cores_num = 1,
+	.cores_mask = 1,
+	.ops = &sof_tng_ops,
+};
+EXPORT_SYMBOL(tng_chip_info);
+
 #endif /* CONFIG_SND_SOC_SOF_EDISON */
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
