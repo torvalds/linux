@@ -347,10 +347,10 @@ static int ov9640_s_power(struct v4l2_subdev *sd, int on)
 /* select nearest higher resolution for capture */
 static void ov9640_res_roundup(u32 *width, u32 *height)
 {
-	int i;
+	unsigned int i;
 	enum { QQCIF, QQVGA, QCIF, QVGA, CIF, VGA, SXGA };
-	static const int res_x[] = { 88, 160, 176, 320, 352, 640, 1280 };
-	static const int res_y[] = { 72, 120, 144, 240, 288, 480, 960 };
+	static const u32 res_x[] = { 88, 160, 176, 320, 352, 640, 1280 };
+	static const u32 res_y[] = { 72, 120, 144, 240, 288, 480, 960 };
 
 	for (i = 0; i < ARRAY_SIZE(res_x); i++) {
 		if (res_x[i] >= *width && res_y[i] >= *height) {
@@ -393,8 +393,9 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 		u32 code, struct ov9640_reg_alt *alts)
 {
 	const struct ov9640_reg	*ov9640_regs, *matrix_regs;
-	int			ov9640_regs_len, matrix_regs_len;
-	int			i, ret;
+	unsigned int		ov9640_regs_len, matrix_regs_len;
+	unsigned int		i;
+	int			ret;
 	u8			val;
 
 	/* select register configuration for given resolution */
@@ -479,7 +480,8 @@ static int ov9640_write_regs(struct i2c_client *client, u32 width,
 /* program default register values */
 static int ov9640_prog_dflt(struct i2c_client *client)
 {
-	int i, ret;
+	unsigned int i;
+	int ret;
 
 	for (i = 0; i < ARRAY_SIZE(ov9640_regs_dflt); i++) {
 		ret = ov9640_reg_write(client, ov9640_regs_dflt[i].reg,
