@@ -14,7 +14,8 @@ obj-$(CONFIG_MXC_CLK) += \
 	clk-pfd.o
 
 obj-$(CONFIG_MXC_CLK_SCU) += \
-	clk-scu.o
+	clk-scu.o \
+	clk-lpcg-scu.o
 
 obj-$(CONFIG_CLK_IMX8QXP) += clk-imx8qxp.o
 
