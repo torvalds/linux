@@ -12957,6 +12957,7 @@ F:	drivers/reset/
 F:	Documentation/devicetree/bindings/reset/
 F:	include/dt-bindings/reset/
 F:	include/linux/reset.h
+F:	include/linux/reset/
 F:	include/linux/reset-controller.h
 
 RESTARTABLE SEQUENCES SUPPORT
