@@ -1604,6 +1604,7 @@ static int bpf_raw_tracepoint_release(struct inode *inode, struct file *filp)
 		bpf_probe_unregister(raw_tp->btp, raw_tp->prog);
 		bpf_prog_put(raw_tp->prog);
 	}
+	bpf_put_raw_tracepoint(raw_tp->btp);
 	kfree(raw_tp);
 	return 0;
 }
@@ -1629,13 +1630,15 @@ static int bpf_raw_tracepoint_open(const union bpf_attr *attr)
 		return -EFAULT;
 	tp_name[sizeof(tp_name) - 1] = 0;
 
-	btp = bpf_find_raw_tracepoint(tp_name);
+	btp = bpf_get_raw_tracepoint(tp_name);
 	if (!btp)
 		return -ENOENT;
 
 	raw_tp = kzalloc(sizeof(*raw_tp), GFP_USER);
-	if (!raw_tp)
-		return -ENOMEM;
+	if (!raw_tp) {
+		err = -ENOMEM;
+		goto out_put_btp;
+	}
 	raw_tp->btp = btp;
 
 	prog = bpf_prog_get_type(attr->raw_tracepoint.prog_fd,
@@ -1663,6 +1666,8 @@ out_put_prog:
 	bpf_prog_put(prog);
 out_free_tp:
 	kfree(raw_tp);
+out_put_btp:
+	bpf_put_raw_tracepoint(btp);
 	return err;
 }
 
