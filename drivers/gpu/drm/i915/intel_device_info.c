@@ -884,8 +884,9 @@ void intel_driver_caps_print(const struct intel_driver_caps *caps,
 void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 {
 	struct intel_device_info *info = mkwrite_device_info(dev_priv);
-	u32 media_fuse;
+	unsigned int logical_vdbox = 0;
 	unsigned int i;
+	u32 media_fuse;
 
 	if (INTEL_GEN(dev_priv) < 11)
 		return;
@@ -904,7 +905,15 @@ void intel_device_info_init_mmio(struct drm_i915_private *dev_priv)
 		if (!(BIT(i) & info->vdbox_enable)) {
 			info->ring_mask &= ~ENGINE_MASK(_VCS(i));
 			DRM_DEBUG_DRIVER("vcs%u fused off\n", i);
+			continue;
 		}
+
+		/*
+		 * In Gen11, only even numbered logical VDBOXes are
+		 * hooked up to an SFC (Scaler & Format Converter) unit.
+		 */
+		if (logical_vdbox++ % 2 == 0)
+			info->vdbox_sfc_access |= BIT(i);
 	}
 
 	DRM_DEBUG_DRIVER("vebox enable: %04x\n", info->vebox_enable);
