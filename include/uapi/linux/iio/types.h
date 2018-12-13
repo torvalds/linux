@@ -92,6 +92,8 @@ enum iio_modifier {
 	IIO_MOD_PM2P5,
 	IIO_MOD_PM4,
 	IIO_MOD_PM10,
+	IIO_MOD_ETHANOL,
+	IIO_MOD_H2,
 };
 
 enum iio_event_type {

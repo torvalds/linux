@@ -115,6 +115,8 @@ static const char * const iio_modifier_names[] = {
 	[IIO_MOD_I] = "i",
 	[IIO_MOD_Q] = "q",
 	[IIO_MOD_CO2] = "co2",
+	[IIO_MOD_ETHANOL] = "ethanol",
+	[IIO_MOD_H2] = "h2",
 	[IIO_MOD_VOC] = "voc",
 	[IIO_MOD_PM1] = "pm1",
 	[IIO_MOD_PM2P5] = "pm2p5",
@@ -205,6 +207,8 @@ static bool event_is_known(struct iio_event_data *event)
 	case IIO_MOD_I:
 	case IIO_MOD_Q:
 	case IIO_MOD_CO2:
+	case IIO_MOD_ETHANOL:
+	case IIO_MOD_H2:
 	case IIO_MOD_VOC:
 	case IIO_MOD_PM1:
 	case IIO_MOD_PM2P5:
