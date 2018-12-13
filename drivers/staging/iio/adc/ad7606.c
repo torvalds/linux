@@ -418,6 +418,13 @@ static const struct iio_info ad7606_info_range = {
 	.attrs = &ad7606_attribute_group_range,
 };
 
+static void ad7606_regulator_disable(void *data)
+{
+	struct ad7606_state *st = data;
+
+	regulator_disable(st->reg);
+}
+
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const char *name, unsigned int id,
 		 const struct ad7606_bus_ops *bops)
@@ -431,6 +438,7 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
+	dev_set_drvdata(dev, indio_dev);
 
 	st->dev = dev;
 	mutex_init(&st->lock);
@@ -451,11 +459,15 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		return ret;
 	}
 
+	ret = devm_add_action_or_reset(dev, ad7606_regulator_disable, st);
+	if (ret)
+		return ret;
+
 	st->chip_info = &ad7606_chip_info_tbl[id];
 
 	ret = ad7606_request_gpios(st);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
 	indio_dev->dev.parent = dev;
 	if (st->gpio_os) {
@@ -480,49 +492,20 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
-	ret = request_irq(irq, ad7606_interrupt, IRQF_TRIGGER_FALLING, name,
-			  indio_dev);
+	ret = devm_request_irq(dev, irq, ad7606_interrupt, IRQF_TRIGGER_FALLING,
+			       name, indio_dev);
 	if (ret)
-		goto error_disable_reg;
+		return ret;
 
-	ret = iio_triggered_buffer_setup(indio_dev, &ad7606_trigger_handler,
-					 NULL, NULL);
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      &ad7606_trigger_handler,
+					      NULL, NULL);
 	if (ret)
-		goto error_free_irq;
+		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unregister_ring;
-
-	dev_set_drvdata(dev, indio_dev);
-
-	return 0;
-error_unregister_ring:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-error_free_irq:
-	free_irq(irq, indio_dev);
-
-error_disable_reg:
-	regulator_disable(st->reg);
-	return ret;
+	return devm_iio_device_register(dev, indio_dev);
 }
 EXPORT_SYMBOL_GPL(ad7606_probe);
-
-int ad7606_remove(struct device *dev, int irq)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7606_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	free_irq(irq, indio_dev);
-	regulator_disable(st->reg);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ad7606_remove);
 
 #ifdef CONFIG_PM_SLEEP
 

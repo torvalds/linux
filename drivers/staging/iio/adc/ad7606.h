@@ -85,7 +85,6 @@ struct ad7606_bus_ops {
 int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 		 const char *name, unsigned int id,
 		 const struct ad7606_bus_ops *bops);
-int ad7606_remove(struct device *dev, int irq);
 
 enum ad7606_supported_device_ids {
 	ID_AD7605_4,

@@ -49,11 +49,6 @@ static int ad7606_spi_probe(struct spi_device *spi)
 			    &ad7606_spi_bops);
 }
 
-static int ad7606_spi_remove(struct spi_device *spi)
-{
-	return ad7606_remove(&spi->dev, spi->irq);
-}
-
 static const struct spi_device_id ad7606_id[] = {
 	{"ad7605-4", ID_AD7605_4},
 	{"ad7606-8", ID_AD7606_8},
@@ -69,7 +64,6 @@ static struct spi_driver ad7606_driver = {
 		.pm = AD7606_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,
-	.remove = ad7606_spi_remove,
 	.id_table = ad7606_id,
 };
 module_spi_driver(ad7606_driver);

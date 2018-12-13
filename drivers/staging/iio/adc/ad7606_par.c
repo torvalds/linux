@@ -72,11 +72,6 @@ static int ad7606_par_probe(struct platform_device *pdev)
 			    &ad7606_par8_bops);
 }
 
-static int ad7606_par_remove(struct platform_device *pdev)
-{
-	return ad7606_remove(&pdev->dev, platform_get_irq(pdev, 0));
-}
-
 static const struct platform_device_id ad7606_driver_ids[] = {
 	{
 		.name		= "ad7605-4",
@@ -98,7 +93,6 @@ MODULE_DEVICE_TABLE(platform, ad7606_driver_ids);
 
 static struct platform_driver ad7606_driver = {
 	.probe = ad7606_par_probe,
-	.remove	= ad7606_par_remove,
 	.id_table = ad7606_driver_ids,
 	.driver = {
 		.name	 = "ad7606",
