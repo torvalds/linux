@@ -242,7 +242,7 @@ int ieee802154_add_iface(struct sk_buff *skb, struct genl_info *info)
 		 * dev_set_mac_address require RTNL_LOCK
 		 */
 		rtnl_lock();
-		rc = dev_set_mac_address(dev, &addr);
+		rc = dev_set_mac_address(dev, &addr, NULL);
 		rtnl_unlock();
 		if (rc)
 			goto dev_unregister;
