@@ -1247,12 +1247,10 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 	struct dentry *root;
 	struct super_block *sb;
 	int error = -ENOMEM;
-	struct security_mnt_opts opts;
-
-	security_init_mnt_opts(&opts);
+	void *sec_opts = NULL;
 
 	if (data && !(type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		error = security_sb_eat_lsm_opts(data, &opts);
+		error = security_sb_eat_lsm_opts(data, &sec_opts);
 		if (error)
 			return ERR_PTR(error);
 	}
@@ -1275,7 +1273,7 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 	smp_wmb();
 	sb->s_flags |= SB_BORN;
 
-	error = security_sb_set_mnt_opts(sb, &opts, 0, NULL);
+	error = security_sb_set_mnt_opts(sb, sec_opts, 0, NULL);
 	if (error)
 		goto out_sb;
 
@@ -1295,13 +1293,13 @@ mount_fs(struct file_system_type *type, int flags, const char *name, void *data)
 		"negative value (%lld)\n", type->name, sb->s_maxbytes);
 
 	up_write(&sb->s_umount);
-	security_free_mnt_opts(&opts);
+	security_free_mnt_opts(&sec_opts);
 	return root;
 out_sb:
 	dput(root);
 	deactivate_locked_super(sb);
 out_free_secdata:
-	security_free_mnt_opts(&opts);
+	security_free_mnt_opts(&sec_opts);
 	return ERR_PTR(error);
 }
 

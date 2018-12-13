@@ -1472,14 +1472,13 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 	struct btrfs_device *device = NULL;
 	struct btrfs_fs_devices *fs_devices = NULL;
 	struct btrfs_fs_info *fs_info = NULL;
-	struct security_mnt_opts new_sec_opts;
+	void *new_sec_opts = NULL;
 	fmode_t mode = FMODE_READ;
 	int error = 0;
 
 	if (!(flags & SB_RDONLY))
 		mode |= FMODE_WRITE;
 
-	security_init_mnt_opts(&new_sec_opts);
 	if (data) {
 		error = security_sb_eat_lsm_opts(data, &new_sec_opts);
 		if (error)
@@ -1551,7 +1550,7 @@ static struct dentry *btrfs_mount_root(struct file_system_type *fs_type,
 		error = btrfs_fill_super(s, fs_devices, data);
 	}
 	if (!error)
-		error = security_sb_set_mnt_opts(s, &new_sec_opts, 0, NULL);
+		error = security_sb_set_mnt_opts(s, new_sec_opts, 0, NULL);
 	security_free_mnt_opts(&new_sec_opts);
 	if (error) {
 		deactivate_locked_super(s);
@@ -1724,12 +1723,11 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 	btrfs_remount_prepare(fs_info);
 
 	if (data) {
-		struct security_mnt_opts new_sec_opts;
+		void *new_sec_opts = NULL;
 
-		security_init_mnt_opts(&new_sec_opts);
 		ret = security_sb_eat_lsm_opts(data, &new_sec_opts);
 		if (!ret)
-			ret = security_sb_remount(sb, &new_sec_opts);
+			ret = security_sb_remount(sb, new_sec_opts);
 		security_free_mnt_opts(&new_sec_opts);
 		if (ret)
 			goto restore;

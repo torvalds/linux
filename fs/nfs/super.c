@@ -929,7 +929,7 @@ static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void)
 		data->minorversion	= 0;
 		data->need_mount	= true;
 		data->net		= current->nsproxy->net_ns;
-		security_init_mnt_opts(&data->lsm_opts);
+		data->lsm_opts		= NULL;
 	}
 	return data;
 }
@@ -2294,7 +2294,7 @@ nfs_remount(struct super_block *sb, int *flags, char *raw_data)
 	/* compare new mount options with old ones */
 	error = nfs_compare_remount_data(nfss, data);
 	if (!error)
-		error = security_sb_remount(sb, &data->lsm_opts);
+		error = security_sb_remount(sb, data->lsm_opts);
 out:
 	nfs_free_parsed_mount_data(data);
 	return error;
@@ -2534,7 +2534,7 @@ int nfs_set_sb_security(struct super_block *s, struct dentry *mntroot,
 	if (NFS_SB(s)->caps & NFS_CAP_SECURITY_LABEL)
 		kflags |= SECURITY_LSM_NATIVE_LABELS;
 
-	error = security_sb_set_mnt_opts(s, &mount_info->parsed->lsm_opts,
+	error = security_sb_set_mnt_opts(s, mount_info->parsed->lsm_opts,
 						kflags, &kflags_out);
 	if (error)
 		goto err;

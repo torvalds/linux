@@ -2299,7 +2299,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	int err;
 	struct super_block *sb = path->mnt->mnt_sb;
 	struct mount *mnt = real_mount(path->mnt);
-	struct security_mnt_opts opts;
+	void *sec_opts = NULL;
 
 	if (!check_mnt(mnt))
 		return -EINVAL;
@@ -2310,14 +2310,13 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
 	if (!can_change_locked_flags(mnt, mnt_flags))
 		return -EPERM;
 
-	security_init_mnt_opts(&opts);
 	if (data && !(sb->s_type->fs_flags & FS_BINARY_MOUNTDATA)) {
-		err = security_sb_eat_lsm_opts(data, &opts);
+		err = security_sb_eat_lsm_opts(data, &sec_opts);
 		if (err)
 			return err;
 	}
-	err = security_sb_remount(sb, &opts);
-	security_free_mnt_opts(&opts);
+	err = security_sb_remount(sb, sec_opts);
+	security_free_mnt_opts(&sec_opts);
 	if (err)
 		return err;
 
