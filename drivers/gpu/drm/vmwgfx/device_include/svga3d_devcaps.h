@@ -163,10 +163,15 @@ typedef enum {
    SVGA3D_DEVCAP_SURFACEFMT_A16B16G16R16           = 67,
    SVGA3D_DEVCAP_SURFACEFMT_UYVY                   = 68,
    SVGA3D_DEVCAP_SURFACEFMT_YUY2                   = 69,
-   SVGA3D_DEVCAP_MULTISAMPLE_NONMASKABLESAMPLES    = 70,
-   SVGA3D_DEVCAP_MULTISAMPLE_MASKABLESAMPLES       = 71,
-   SVGA3D_DEVCAP_ALPHATOCOVERAGE                   = 72,
-   SVGA3D_DEVCAP_SUPERSAMPLE                       = 73,
+
+   /*
+    * Deprecated.
+    */
+   SVGA3D_DEVCAP_DEAD4                             = 70,
+   SVGA3D_DEVCAP_DEAD5                             = 71,
+   SVGA3D_DEVCAP_DEAD7                             = 72,
+   SVGA3D_DEVCAP_DEAD6                             = 73,
+
    SVGA3D_DEVCAP_AUTOGENMIPMAPS                    = 74,
    SVGA3D_DEVCAP_SURFACEFMT_NV12                   = 75,
    SVGA3D_DEVCAP_SURFACEFMT_AYUV                   = 76,
