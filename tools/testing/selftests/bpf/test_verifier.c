@@ -76,7 +76,7 @@ struct bpf_test {
 	int fixup_percpu_cgroup_storage[MAX_FIXUPS];
 	const char *errstr;
 	const char *errstr_unpriv;
-	uint32_t retval, retval_unpriv;
+	uint32_t retval, retval_unpriv, insn_processed;
 	enum {
 		UNDEF,
 		ACCEPT,
@@ -14440,6 +14440,19 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		if (!strstr(bpf_vlog, expected_err)) {
 			printf("FAIL\nUnexpected error message!\n\tEXP: %s\n\tRES: %s\n",
 			      expected_err, bpf_vlog);
+			goto fail_log;
+		}
+	}
+
+	if (test->insn_processed) {
+		uint32_t insn_processed;
+		char *proc;
+
+		proc = strstr(bpf_vlog, "processed ");
+		insn_processed = atoi(proc + 10);
+		if (test->insn_processed != insn_processed) {
+			printf("FAIL\nUnexpected insn_processed %u vs %u\n",
+			       insn_processed, test->insn_processed);
 			goto fail_log;
 		}
 	}
