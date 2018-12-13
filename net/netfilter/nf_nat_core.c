@@ -172,11 +172,21 @@ nf_nat_used_tuple(const struct nf_conntrack_tuple *tuple,
 }
 EXPORT_SYMBOL(nf_nat_used_tuple);
 
+static bool nf_nat_inet_in_range(const struct nf_conntrack_tuple *t,
+				 const struct nf_nat_range2 *range)
+{
+	if (t->src.l3num == NFPROTO_IPV4)
+		return ntohl(t->src.u3.ip) >= ntohl(range->min_addr.ip) &&
+		       ntohl(t->src.u3.ip) <= ntohl(range->max_addr.ip);
+
+	return ipv6_addr_cmp(&t->src.u3.in6, &range->min_addr.in6) >= 0 &&
+	       ipv6_addr_cmp(&t->src.u3.in6, &range->max_addr.in6) <= 0;
+}
+
 /* If we source map this tuple so reply looks like reply_tuple, will
  * that meet the constraints of range.
  */
-static int in_range(const struct nf_nat_l3proto *l3proto,
-		    const struct nf_nat_l4proto *l4proto,
+static int in_range(const struct nf_nat_l4proto *l4proto,
 		    const struct nf_conntrack_tuple *tuple,
 		    const struct nf_nat_range2 *range)
 {
@@ -184,7 +194,7 @@ static int in_range(const struct nf_nat_l3proto *l3proto,
 	 * range specified, otherwise let this drag us onto a new src IP.
 	 */
 	if (range->flags & NF_NAT_RANGE_MAP_IPS &&
-	    !l3proto->in_range(tuple, range))
+	    !nf_nat_inet_in_range(tuple, range))
 		return 0;
 
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED) ||
@@ -211,7 +221,6 @@ same_src(const struct nf_conn *ct,
 static int
 find_appropriate_src(struct net *net,
 		     const struct nf_conntrack_zone *zone,
-		     const struct nf_nat_l3proto *l3proto,
 		     const struct nf_nat_l4proto *l4proto,
 		     const struct nf_conntrack_tuple *tuple,
 		     struct nf_conntrack_tuple *result,
@@ -229,7 +238,7 @@ find_appropriate_src(struct net *net,
 				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
 			result->dst = tuple->dst;
 
-			if (in_range(l3proto, l4proto, result, range))
+			if (in_range(l4proto, result, range))
 				return 1;
 		}
 	}
@@ -463,12 +472,12 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	if (maniptype == NF_NAT_MANIP_SRC &&
 	    !(range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL)) {
 		/* try the original tuple first */
-		if (in_range(l3proto, l4proto, orig_tuple, range)) {
+		if (in_range(l4proto, orig_tuple, range)) {
 			if (!nf_nat_used_tuple(orig_tuple, ct)) {
 				*tuple = *orig_tuple;
 				goto out;
 			}
-		} else if (find_appropriate_src(net, zone, l3proto, l4proto,
+		} else if (find_appropriate_src(net, zone, l4proto,
 						orig_tuple, tuple, range)) {
 			pr_debug("get_unique_tuple: Found current src map\n");
 			if (!nf_nat_used_tuple(tuple, ct))
