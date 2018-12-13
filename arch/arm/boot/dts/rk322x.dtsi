@@ -1087,6 +1087,7 @@
 		fifo-depth = <0x100>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_clk &sdmmc_cmd &sdmmc_bus4>;
+		cd-gpios = <&gpio1 RK_PC1 GPIO_ACTIVE_LOW>;
 		status = "disabled";
 	};
 
