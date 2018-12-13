@@ -464,7 +464,7 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 
 	inode = new_inode(sb);
 	if (!inode)
-		goto out;
+		return ERR_PTR(-ENOMEM);
 
 	inode->i_ino = get_next_ino();
 
@@ -474,8 +474,7 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	if (unlikely(head->unregistering)) {
 		spin_unlock(&sysctl_lock);
 		iput(inode);
-		inode = NULL;
-		goto out;
+		return ERR_PTR(-ENOENT);
 	}
 	ei->sysctl = head;
 	ei->sysctl_entry = table;
@@ -500,7 +499,6 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 	if (root->set_ownership)
 		root->set_ownership(head, table, &inode->i_uid, &inode->i_gid);
 
-out:
 	return inode;
 }
 
@@ -549,10 +547,11 @@ static struct dentry *proc_sys_lookup(struct inode *dir, struct dentry *dentry,
 			goto out;
 	}
 
-	err = ERR_PTR(-ENOMEM);
 	inode = proc_sys_make_inode(dir->i_sb, h ? h : head, p);
-	if (!inode)
+	if (IS_ERR(inode)) {
+		err = ERR_CAST(inode);
 		goto out;
+	}
 
 	d_set_d_op(dentry, &proc_sys_dentry_operations);
 	err = d_splice_alias(inode, dentry);
@@ -685,7 +684,7 @@ static bool proc_sys_fill_cache(struct file *file,
 		if (d_in_lookup(child)) {
 			struct dentry *res;
 			inode = proc_sys_make_inode(dir->d_sb, head, table);
-			if (!inode) {
+			if (IS_ERR(inode)) {
 				d_lookup_done(child);
 				dput(child);
 				return false;
