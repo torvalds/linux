@@ -14,7 +14,6 @@
  * code that will combine entry/exit in a strace like way.
  */
 
-#include <stdio.h>
 #include <unistd.h>
 #include <pid_filter.h>
 
