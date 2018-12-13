@@ -195,6 +195,9 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	mlx5_infer_tx_affinity_mapping(tracker, &ldev->v2p_map[0],
 				       &ldev->v2p_map[1]);
 
+	mlx5_core_info(dev0, "lag map port 1:%d port 2:%d",
+		       ldev->v2p_map[0], ldev->v2p_map[1]);
+
 	err = mlx5_cmd_create_lag(dev0, ldev->v2p_map[0], ldev->v2p_map[1]);
 	if (err)
 		mlx5_core_err(dev0,
