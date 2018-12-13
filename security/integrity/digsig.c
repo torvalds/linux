@@ -34,7 +34,6 @@ static const char * const keyring_name[INTEGRITY_KEYRING_MAX] = {
 	".evm",
 	".ima",
 #endif
-	"_module",
 	".platform",
 };
 

@@ -141,9 +141,8 @@ int integrity_kernel_read(struct file *file, loff_t offset,
 
 #define INTEGRITY_KEYRING_EVM		0
 #define INTEGRITY_KEYRING_IMA		1
-#define INTEGRITY_KEYRING_MODULE	2
-#define INTEGRITY_KEYRING_PLATFORM	3
-#define INTEGRITY_KEYRING_MAX		4
+#define INTEGRITY_KEYRING_PLATFORM	2
+#define INTEGRITY_KEYRING_MAX		3
 
 extern struct dentry *integrity_dir;
 
