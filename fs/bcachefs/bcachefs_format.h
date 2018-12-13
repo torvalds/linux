@@ -694,38 +694,38 @@ struct bch_inode_generation {
 	__le32			pad;
 } __attribute__((packed, aligned(8)));
 
-#define BCH_INODE_FIELDS()					\
-	BCH_INODE_FIELD(bi_atime,			64)	\
-	BCH_INODE_FIELD(bi_ctime,			64)	\
-	BCH_INODE_FIELD(bi_mtime,			64)	\
-	BCH_INODE_FIELD(bi_otime,			64)	\
-	BCH_INODE_FIELD(bi_size,			64)	\
-	BCH_INODE_FIELD(bi_sectors,			64)	\
-	BCH_INODE_FIELD(bi_uid,				32)	\
-	BCH_INODE_FIELD(bi_gid,				32)	\
-	BCH_INODE_FIELD(bi_nlink,			32)	\
-	BCH_INODE_FIELD(bi_generation,			32)	\
-	BCH_INODE_FIELD(bi_dev,				32)	\
-	BCH_INODE_FIELD(bi_data_checksum,		8)	\
-	BCH_INODE_FIELD(bi_compression,			8)	\
-	BCH_INODE_FIELD(bi_project,			32)	\
-	BCH_INODE_FIELD(bi_background_compression,	8)	\
-	BCH_INODE_FIELD(bi_data_replicas,		8)	\
-	BCH_INODE_FIELD(bi_promote_target,		16)	\
-	BCH_INODE_FIELD(bi_foreground_target,		16)	\
-	BCH_INODE_FIELD(bi_background_target,		16)	\
-	BCH_INODE_FIELD(bi_erasure_code,		16)
+#define BCH_INODE_FIELDS()			\
+	x(bi_atime,			64)	\
+	x(bi_ctime,			64)	\
+	x(bi_mtime,			64)	\
+	x(bi_otime,			64)	\
+	x(bi_size,			64)	\
+	x(bi_sectors,			64)	\
+	x(bi_uid,			32)	\
+	x(bi_gid,			32)	\
+	x(bi_nlink,			32)	\
+	x(bi_generation,		32)	\
+	x(bi_dev,			32)	\
+	x(bi_data_checksum,		8)	\
+	x(bi_compression,		8)	\
+	x(bi_project,			32)	\
+	x(bi_background_compression,	8)	\
+	x(bi_data_replicas,		8)	\
+	x(bi_promote_target,		16)	\
+	x(bi_foreground_target,		16)	\
+	x(bi_background_target,		16)	\
+	x(bi_erasure_code,		16)
 
-#define BCH_INODE_FIELDS_INHERIT()				\
-	BCH_INODE_FIELD(bi_data_checksum)			\
-	BCH_INODE_FIELD(bi_compression)				\
-	BCH_INODE_FIELD(bi_project)				\
-	BCH_INODE_FIELD(bi_background_compression)		\
-	BCH_INODE_FIELD(bi_data_replicas)			\
-	BCH_INODE_FIELD(bi_promote_target)			\
-	BCH_INODE_FIELD(bi_foreground_target)			\
-	BCH_INODE_FIELD(bi_background_target)			\
-	BCH_INODE_FIELD(bi_erasure_code)
+#define BCH_INODE_FIELDS_INHERIT()		\
+	x(bi_data_checksum)			\
+	x(bi_compression)			\
+	x(bi_project)				\
+	x(bi_background_compression)		\
+	x(bi_data_replicas)			\
+	x(bi_promote_target)			\
+	x(bi_foreground_target)			\
+	x(bi_background_target)			\
+	x(bi_erasure_code)
 
 enum {
 	/*

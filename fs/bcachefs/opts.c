@@ -377,40 +377,40 @@ no_val:
 struct bch_io_opts bch2_opts_to_inode_opts(struct bch_opts src)
 {
 	struct bch_io_opts ret = { 0 };
-#define BCH_INODE_OPT(_name, _bits)					\
+#define x(_name, _bits)					\
 	if (opt_defined(src, _name))					\
 		opt_set(ret, _name, src._name);
 	BCH_INODE_OPTS()
-#undef BCH_INODE_OPT
+#undef x
 	return ret;
 }
 
 struct bch_opts bch2_inode_opts_to_opts(struct bch_io_opts src)
 {
 	struct bch_opts ret = { 0 };
-#define BCH_INODE_OPT(_name, _bits)					\
+#define x(_name, _bits)					\
 	if (opt_defined(src, _name))					\
 		opt_set(ret, _name, src._name);
 	BCH_INODE_OPTS()
-#undef BCH_INODE_OPT
+#undef x
 	return ret;
 }
 
 void bch2_io_opts_apply(struct bch_io_opts *dst, struct bch_io_opts src)
 {
-#define BCH_INODE_OPT(_name, _bits)					\
+#define x(_name, _bits)					\
 	if (opt_defined(src, _name))					\
 		opt_set(*dst, _name, src._name);
 	BCH_INODE_OPTS()
-#undef BCH_INODE_OPT
+#undef x
 }
 
 bool bch2_opt_is_inode_opt(enum bch_opt_id id)
 {
 	static const enum bch_opt_id inode_opt_list[] = {
-#define BCH_INODE_OPT(_name, _bits)	Opt_##_name,
+#define x(_name, _bits)	Opt_##_name,
 	BCH_INODE_OPTS()
-#undef BCH_INODE_OPT
+#undef x
 	};
 	unsigned i;
 

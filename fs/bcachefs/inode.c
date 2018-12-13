@@ -98,7 +98,7 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 	packed->inode.v.bi_flags	= cpu_to_le32(inode->bi_flags);
 	packed->inode.v.bi_mode		= cpu_to_le16(inode->bi_mode);
 
-#define BCH_INODE_FIELD(_name, _bits)					\
+#define x(_name, _bits)					\
 	out += inode_encode_field(out, end, 0, inode->_name);		\
 	nr_fields++;							\
 									\
@@ -108,7 +108,7 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 	}
 
 	BCH_INODE_FIELDS()
-#undef  BCH_INODE_FIELD
+#undef  x
 
 	out = last_nonzero_field;
 	nr_fields = last_nonzero_fieldnr;
@@ -130,9 +130,9 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 		BUG_ON(unpacked.bi_hash_seed	!= inode->bi_hash_seed);
 		BUG_ON(unpacked.bi_mode		!= inode->bi_mode);
 
-#define BCH_INODE_FIELD(_name, _bits)	BUG_ON(unpacked._name != inode->_name);
+#define x(_name, _bits)	BUG_ON(unpacked._name != inode->_name);
 		BCH_INODE_FIELDS()
-#undef  BCH_INODE_FIELD
+#undef  x
 	}
 }
 
@@ -150,7 +150,7 @@ int bch2_inode_unpack(struct bkey_s_c_inode inode,
 	unpacked->bi_flags	= le32_to_cpu(inode.v->bi_flags);
 	unpacked->bi_mode	= le16_to_cpu(inode.v->bi_mode);
 
-#define BCH_INODE_FIELD(_name, _bits)					\
+#define x(_name, _bits)					\
 	if (fieldnr++ == INODE_NR_FIELDS(inode.v)) {			\
 		unsigned offset = offsetof(struct bch_inode_unpacked, _name);\
 		memset((void *) unpacked + offset, 0,			\
@@ -169,7 +169,7 @@ int bch2_inode_unpack(struct bkey_s_c_inode inode,
 	in += ret;
 
 	BCH_INODE_FIELDS()
-#undef  BCH_INODE_FIELD
+#undef  x
 
 	/* XXX: signal if there were more fields than expected? */
 
@@ -220,10 +220,10 @@ void bch2_inode_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-#define BCH_INODE_FIELD(_name, _bits)						\
+#define x(_name, _bits)						\
 	pr_buf(out, #_name ": %llu ", (u64) unpacked._name);
 	BCH_INODE_FIELDS()
-#undef  BCH_INODE_FIELD
+#undef  x
 }
 
 const char *bch2_inode_generation_invalid(const struct bch_fs *c,
@@ -265,9 +265,9 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 	inode_u->bi_otime	= now;
 
 	if (parent) {
-#define BCH_INODE_FIELD(_name)	inode_u->_name = parent->_name;
+#define x(_name)	inode_u->_name = parent->_name;
 		BCH_INODE_FIELDS_INHERIT()
-#undef BCH_INODE_FIELD
+#undef x
 	}
 }
 

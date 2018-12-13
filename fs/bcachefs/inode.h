@@ -30,17 +30,17 @@ struct bch_inode_unpacked {
 	u32			bi_flags;
 	u16			bi_mode;
 
-#define BCH_INODE_FIELD(_name, _bits)	u##_bits _name;
+#define x(_name, _bits)	u##_bits _name;
 	BCH_INODE_FIELDS()
-#undef  BCH_INODE_FIELD
+#undef  x
 };
 
 struct bkey_inode_buf {
 	struct bkey_i_inode	inode;
 
-#define BCH_INODE_FIELD(_name, _bits)		+ 8 + _bits / 8
+#define x(_name, _bits)		+ 8 + _bits / 8
 	u8		_pad[0 + BCH_INODE_FIELDS()];
-#undef  BCH_INODE_FIELD
+#undef  x
 } __attribute__((packed, aligned(8)));
 
 void bch2_inode_pack(struct bkey_inode_buf *, const struct bch_inode_unpacked *);
@@ -65,11 +65,11 @@ static inline struct bch_io_opts bch2_inode_opts_get(struct bch_inode_unpacked *
 {
 	struct bch_io_opts ret = { 0 };
 
-#define BCH_INODE_OPT(_name, _bits)					\
+#define x(_name, _bits)					\
 	if (inode->bi_##_name)						\
 		opt_set(ret, _name, inode->bi_##_name - 1);
 	BCH_INODE_OPTS()
-#undef BCH_INODE_OPT
+#undef x
 	return ret;
 }
 
@@ -77,12 +77,12 @@ static inline void __bch2_inode_opt_set(struct bch_inode_unpacked *inode,
 					enum bch_opt_id id, u64 v)
 {
 	switch (id) {
-#define BCH_INODE_OPT(_name, ...)					\
+#define x(_name, ...)					\
 	case Opt_##_name:						\
 		inode->bi_##_name = v;					\
 		break;
 	BCH_INODE_OPTS()
-#undef BCH_INODE_OPT
+#undef x
 	default:
 		BUG();
 	}
