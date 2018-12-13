@@ -267,7 +267,8 @@ STORE(__cached_dev)
 	d_strtoul(writeback_running);
 	d_strtoul(writeback_delay);
 
-	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent, 0, 40);
+	sysfs_strtoul_clamp(writeback_percent, dc->writeback_percent,
+			    0, bch_cutoff_writeback);
 
 	if (attr == &sysfs_writeback_rate) {
 		ssize_t ret;
