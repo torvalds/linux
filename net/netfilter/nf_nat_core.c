@@ -310,6 +310,77 @@ find_best_ips_proto(const struct nf_conntrack_zone *zone,
 	}
 }
 
+static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
+					const struct nf_nat_range2 *range,
+					enum nf_nat_manip_type maniptype,
+					const struct nf_conn *ct)
+{
+	unsigned int range_size, min, max, i, attempts;
+	__be16 *portptr;
+	u16 off;
+	static const unsigned int max_attempts = 128;
+
+	if (maniptype == NF_NAT_MANIP_SRC)
+		portptr = &tuple->src.u.all;
+	else
+		portptr = &tuple->dst.u.all;
+
+	/* If no range specified... */
+	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
+		/* If it's dst rewrite, can't change port */
+		if (maniptype == NF_NAT_MANIP_DST)
+			return;
+
+		if (ntohs(*portptr) < 1024) {
+			/* Loose convention: >> 512 is credential passing */
+			if (ntohs(*portptr) < 512) {
+				min = 1;
+				range_size = 511 - min + 1;
+			} else {
+				min = 600;
+				range_size = 1023 - min + 1;
+			}
+		} else {
+			min = 1024;
+			range_size = 65535 - 1024 + 1;
+		}
+	} else {
+		min = ntohs(range->min_proto.all);
+		max = ntohs(range->max_proto.all);
+		if (unlikely(max < min))
+			swap(max, min);
+		range_size = max - min + 1;
+	}
+
+	if (range->flags & NF_NAT_RANGE_PROTO_OFFSET)
+		off = (ntohs(*portptr) - ntohs(range->base_proto.all));
+	else
+		off = prandom_u32();
+
+	attempts = range_size;
+	if (attempts > max_attempts)
+		attempts = max_attempts;
+
+	/* We are in softirq; doing a search of the entire range risks
+	 * soft lockup when all tuples are already used.
+	 *
+	 * If we can't find any free port from first offset, pick a new
+	 * one and try again, with ever smaller search window.
+	 */
+another_round:
+	for (i = 0; i < attempts; i++, off++) {
+		*portptr = htons(min + off % range_size);
+		if (!nf_nat_used_tuple(tuple, ct))
+			return;
+	}
+
+	if (attempts >= range_size || attempts < 16)
+		return;
+	attempts /= 2;
+	off = prandom_u32();
+	goto another_round;
+}
+
 /* Manipulate the tuple into the range given. For NF_INET_POST_ROUTING,
  * we change the source to map into the range. For NF_INET_PRE_ROUTING
  * and NF_INET_LOCAL_OUT, we change the destination to map into the
@@ -383,7 +454,10 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	}
 
 	/* Last chance: get protocol to try to obtain unique tuple. */
-	l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
+	if (l4proto->unique_tuple)
+		l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
+	else
+		nf_nat_l4proto_unique_tuple(tuple, range, maniptype, ct);
 out:
 	rcu_read_unlock();
 }

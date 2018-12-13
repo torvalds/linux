@@ -18,16 +18,6 @@
 #include <net/netfilter/nf_nat_l4proto.h>
 
 static void
-udp_unique_tuple(const struct nf_nat_l3proto *l3proto,
-		 struct nf_conntrack_tuple *tuple,
-		 const struct nf_nat_range2 *range,
-		 enum nf_nat_manip_type maniptype,
-		 const struct nf_conn *ct)
-{
-	nf_nat_l4proto_unique_tuple(l3proto, tuple, range, maniptype, ct);
-}
-
-static void
 __udp_manip_pkt(struct sk_buff *skb,
 	        const struct nf_nat_l3proto *l3proto,
 	        unsigned int iphdroff, struct udphdr *hdr,
@@ -92,21 +82,10 @@ static bool udplite_manip_pkt(struct sk_buff *skb,
 	return true;
 }
 
-static void
-udplite_unique_tuple(const struct nf_nat_l3proto *l3proto,
-		     struct nf_conntrack_tuple *tuple,
-		     const struct nf_nat_range2 *range,
-		     enum nf_nat_manip_type maniptype,
-		     const struct nf_conn *ct)
-{
-	nf_nat_l4proto_unique_tuple(l3proto, tuple, range, maniptype, ct);
-}
-
 const struct nf_nat_l4proto nf_nat_l4proto_udplite = {
 	.l4proto		= IPPROTO_UDPLITE,
 	.manip_pkt		= udplite_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
-	.unique_tuple		= udplite_unique_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
@@ -117,7 +96,6 @@ const struct nf_nat_l4proto nf_nat_l4proto_udp = {
 	.l4proto		= IPPROTO_UDP,
 	.manip_pkt		= udp_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
-	.unique_tuple		= udp_unique_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif

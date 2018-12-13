@@ -12,16 +12,6 @@
 
 #include <net/netfilter/nf_nat_l4proto.h>
 
-static void
-sctp_unique_tuple(const struct nf_nat_l3proto *l3proto,
-		  struct nf_conntrack_tuple *tuple,
-		  const struct nf_nat_range2 *range,
-		  enum nf_nat_manip_type maniptype,
-		  const struct nf_conn *ct)
-{
-	nf_nat_l4proto_unique_tuple(l3proto, tuple, range, maniptype, ct);
-}
-
 static bool
 sctp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_nat_l3proto *l3proto,
@@ -67,7 +57,6 @@ const struct nf_nat_l4proto nf_nat_l4proto_sctp = {
 	.l4proto		= IPPROTO_SCTP,
 	.manip_pkt		= sctp_manip_pkt,
 	.in_range		= nf_nat_l4proto_in_range,
-	.unique_tuple		= sctp_unique_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif
