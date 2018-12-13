@@ -30,10 +30,6 @@ static int adt7316_i2c_read(void *client, u8 reg, u8 *data)
 	}
 
 	ret = i2c_smbus_read_byte(client);
-
-	if (!ret)
-		return -EIO;
-
 	if (ret < 0) {
 		dev_err(&cl->dev, "I2C read error\n");
 		return ret;
@@ -104,7 +100,6 @@ static int adt7316_i2c_probe(struct i2c_client *client,
 	struct adt7316_bus bus = {
 		.client = client,
 		.irq = client->irq,
-		.irq_flags = IRQF_TRIGGER_LOW,
 		.read = adt7316_i2c_read,
 		.write = adt7316_i2c_write,
 		.multi_read = adt7316_i2c_multi_read,
@@ -126,9 +121,22 @@ static const struct i2c_device_id adt7316_i2c_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, adt7316_i2c_id);
 
+static const struct of_device_id adt7316_of_match[] = {
+	{ .compatible = "adi,adt7316" },
+	{ .compatible = "adi,adt7317" },
+	{ .compatible = "adi,adt7318" },
+	{ .compatible = "adi,adt7516" },
+	{ .compatible = "adi,adt7517" },
+	{ .compatible = "adi,adt7519" },
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, adt7316_of_match);
+
 static struct i2c_driver adt7316_driver = {
 	.driver = {
 		.name = "adt7316",
+		.of_match_table = adt7316_of_match,
 		.pm = ADT7316_PM_OPS,
 	},
 	.probe = adt7316_i2c_probe,

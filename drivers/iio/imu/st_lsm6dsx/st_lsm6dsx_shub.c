@@ -432,8 +432,8 @@ st_lsm6dsx_shub_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 			     struct iio_chan_spec const *ch,
 			     int *val)
 {
-	int err, delay, len = ch->scan_type.realbits >> 3;
-	__le16 data;
+	int err, delay, len;
+	u8 data[4];
 
 	err = st_lsm6dsx_shub_set_enable(sensor, true);
 	if (err < 0)
@@ -442,15 +442,17 @@ st_lsm6dsx_shub_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	delay = 1000000 / sensor->odr;
 	usleep_range(delay, 2 * delay);
 
-	err = st_lsm6dsx_shub_read(sensor, ch->address, (u8 *)&data, len);
-	if (err < 0)
-		return err;
+	len = min_t(int, sizeof(data), ch->scan_type.realbits >> 3);
+	err = st_lsm6dsx_shub_read(sensor, ch->address, data, len);
 
 	st_lsm6dsx_shub_set_enable(sensor, false);
 
+	if (err < 0)
+		return err;
+
 	switch (len) {
 	case 2:
-		*val = (s16)le16_to_cpu(data);
+		*val = (s16)le16_to_cpu(*((__le16 *)data));
 		break;
 	default:
 		return -EINVAL;
