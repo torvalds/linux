@@ -633,6 +633,15 @@ static noinline void check_xa_alloc(void)
 				GFP_KERNEL) != -ENOSPC);
 	XA_BUG_ON(&xa0, id != 0xffffffffU);
 	xa_destroy(&xa0);
+
+	id = 10;
+	XA_BUG_ON(&xa0, xa_alloc(&xa0, &id, 5, xa_mk_index(id),
+				GFP_KERNEL) != -ENOSPC);
+	XA_BUG_ON(&xa0, xa_store_index(&xa0, 3, GFP_KERNEL) != 0);
+	XA_BUG_ON(&xa0, xa_alloc(&xa0, &id, 5, xa_mk_index(id),
+				GFP_KERNEL) != -ENOSPC);
+	xa_erase_index(&xa0, 3);
+	XA_BUG_ON(&xa0, !xa_empty(&xa0));
 }
 
 static noinline void __check_store_iter(struct xarray *xa, unsigned long start,
@@ -822,10 +831,34 @@ static noinline void check_find_2(struct xarray *xa)
 	xa_destroy(xa);
 }
 
+static noinline void check_find_3(struct xarray *xa)
+{
+	XA_STATE(xas, xa, 0);
+	unsigned long i, j, k;
+	void *entry;
+
+	for (i = 0; i < 100; i++) {
+		for (j = 0; j < 100; j++) {
+			for (k = 0; k < 100; k++) {
+				xas_set(&xas, j);
+				xas_for_each_marked(&xas, entry, k, XA_MARK_0)
+					;
+				if (j > k)
+					XA_BUG_ON(xa,
+						xas.xa_node != XAS_RESTART);
+			}
+		}
+		xa_store_index(xa, i, GFP_KERNEL);
+		xa_set_mark(xa, i, XA_MARK_0);
+	}
+	xa_destroy(xa);
+}
+
 static noinline void check_find(struct xarray *xa)
 {
 	check_find_1(xa);
 	check_find_2(xa);
+	check_find_3(xa);
 	check_multi_find(xa);
 	check_multi_find_2(xa);
 }
