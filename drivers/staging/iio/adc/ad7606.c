@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <linux/util_macros.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -30,8 +31,12 @@
  * Scales are computed as 5000/32768 and 10000/32768 respectively,
  * so that when applied to the raw values they provide mV values
  */
-static const unsigned int scale_avail[2][2] = {
-	{0, 152588}, {0, 305176}
+static const unsigned int scale_avail[2] = {
+	152588, 305176
+};
+
+static const unsigned int ad7606_oversampling_avail[7] = {
+	1, 2, 4, 8, 16, 32, 64,
 };
 
 static int ad7606_reset(struct ad7606_state *st)
@@ -160,8 +165,8 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 		*val = (short)ret;
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
-		*val = scale_avail[st->range][0];
-		*val2 = scale_avail[st->range][1];
+		*val = 0;
+		*val2 = scale_avail[st->range];
 		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		*val = st->oversampling;
@@ -177,8 +182,8 @@ static ssize_t in_voltage_scale_available_show(struct device *dev,
 	int i, len = 0;
 
 	for (i = 0; i < ARRAY_SIZE(scale_avail); i++)
-		len += scnprintf(buf + len, PAGE_SIZE - len, "%d.%06u ",
-				 scale_avail[i][0], scale_avail[i][1]);
+		len += scnprintf(buf + len, PAGE_SIZE - len, "0.%06u ",
+				 scale_avail[i]);
 
 	buf[len - 1] = '\n';
 
@@ -186,18 +191,6 @@ static ssize_t in_voltage_scale_available_show(struct device *dev,
 }
 
 static IIO_DEVICE_ATTR_RO(in_voltage_scale_available, 0);
-
-static int ad7606_oversampling_get_index(unsigned int val)
-{
-	unsigned char supported[] = {1, 2, 4, 8, 16, 32, 64};
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(supported); i++)
-		if (val == supported[i])
-			return i;
-
-	return -EINVAL;
-}
 
 static int ad7606_write_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan,
@@ -207,36 +200,29 @@ static int ad7606_write_raw(struct iio_dev *indio_dev,
 {
 	struct ad7606_state *st = iio_priv(indio_dev);
 	DECLARE_BITMAP(values, 3);
-	int ret, i;
+	int i;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
-		ret = -EINVAL;
 		mutex_lock(&st->lock);
-		for (i = 0; i < ARRAY_SIZE(scale_avail); i++)
-			if (val2 == scale_avail[i][1]) {
-				gpiod_set_value(st->gpio_range, i);
-				st->range = i;
-
-				ret = 0;
-				break;
-			}
+		i = find_closest(val2, scale_avail, ARRAY_SIZE(scale_avail));
+		gpiod_set_value(st->gpio_range, i);
+		st->range = i;
 		mutex_unlock(&st->lock);
 
-		return ret;
+		return 0;
 	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
 		if (val2)
 			return -EINVAL;
-		ret = ad7606_oversampling_get_index(val);
-		if (ret < 0)
-			return ret;
+		i = find_closest(val, ad7606_oversampling_avail,
+				 ARRAY_SIZE(ad7606_oversampling_avail));
 
-		values[0] = ret;
+		values[0] = i;
 
 		mutex_lock(&st->lock);
-		gpiod_set_array_value(3, st->gpio_os->desc, st->gpio_os->info,
-				      values);
-		st->oversampling = val;
+		gpiod_set_array_value(ARRAY_SIZE(values), st->gpio_os->desc,
+				      st->gpio_os->info, values);
+		st->oversampling = ad7606_oversampling_avail[i];
 		mutex_unlock(&st->lock);
 
 		return 0;
