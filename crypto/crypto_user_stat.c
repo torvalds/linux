@@ -336,37 +336,4 @@ drop_alg:
 	return nlmsg_unicast(crypto_nlsk, skb, NETLINK_CB(in_skb).portid);
 }
 
-int crypto_dump_reportstat(struct sk_buff *skb, struct netlink_callback *cb)
-{
-	struct crypto_alg *alg;
-	struct crypto_dump_info info;
-	int err;
-
-	if (cb->args[0])
-		goto out;
-
-	cb->args[0] = 1;
-
-	info.in_skb = cb->skb;
-	info.out_skb = skb;
-	info.nlmsg_seq = cb->nlh->nlmsg_seq;
-	info.nlmsg_flags = NLM_F_MULTI;
-
-	list_for_each_entry(alg, &crypto_alg_list, cra_list) {
-		err = crypto_reportstat_alg(alg, &info);
-		if (err)
-			goto out_err;
-	}
-
-out:
-	return skb->len;
-out_err:
-	return err;
-}
-
-int crypto_dump_reportstat_done(struct netlink_callback *cb)
-{
-	return 0;
-}
-
 MODULE_LICENSE("GPL");

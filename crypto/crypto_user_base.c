@@ -423,9 +423,7 @@ static const struct crypto_link {
 						       .dump = crypto_dump_report,
 						       .done = crypto_dump_report_done},
 	[CRYPTO_MSG_DELRNG	- CRYPTO_MSG_BASE] = { .doit = crypto_del_rng },
-	[CRYPTO_MSG_GETSTAT	- CRYPTO_MSG_BASE] = { .doit = crypto_reportstat,
-						       .dump = crypto_dump_reportstat,
-						       .done = crypto_dump_reportstat_done},
+	[CRYPTO_MSG_GETSTAT	- CRYPTO_MSG_BASE] = { .doit = crypto_reportstat},
 };
 
 static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
