@@ -27,6 +27,10 @@ conditions.
                   "qcom,msm8996-smmu-v2", "qcom,smmu-v2",
                   "qcom,sdm845-smmu-v2", "qcom,smmu-v2".
 
+                  Qcom SoCs implementing "arm,mmu-500" must also include,
+                  as below, SoC-specific compatibles:
+                  "qcom,sdm845-smmu-500", "arm,mmu-500"
+
 - reg           : Base address and size of the SMMU.
 
 - #global-interrupts : The number of global interrupts exposed by the
