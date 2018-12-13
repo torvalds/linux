@@ -756,6 +756,12 @@ static void sh_pfc_check_cfg_reg(const char *drvname,
 		       drvname, cfg_reg->reg, rw, cfg_reg->reg_width);
 		sh_pfc_errors++;
 	}
+
+	if (n != cfg_reg->nr_enum_ids) {
+		pr_err("%s: reg 0x%x: enum_ids[] has %u instead of %u values\n",
+		       drvname, cfg_reg->reg, cfg_reg->nr_enum_ids, n);
+		sh_pfc_errors++;
+	}
 }
 
 static void sh_pfc_check_info(const struct sh_pfc_soc_info *info)

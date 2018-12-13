@@ -111,6 +111,12 @@ struct pinmux_func {
 struct pinmux_cfg_reg {
 	u32 reg;
 	u8 reg_width, field_width;
+#ifdef DEBUG
+	u16 nr_enum_ids;	/* for variable width regs only */
+#define SET_NR_ENUM_IDS(n)	.nr_enum_ids = n,
+#else
+#define SET_NR_ENUM_IDS(n)
+#endif
 	const u16 *enum_ids;
 	const u8 *var_field_width;
 };
@@ -151,6 +157,7 @@ struct pinmux_cfg_reg {
 #define PINMUX_CFG_REG_VAR(name, r, r_width, f_widths, ids)		\
 	.reg = r, .reg_width = r_width,					\
 	.var_field_width = (const u8 []) { f_widths, 0 },		\
+	SET_NR_ENUM_IDS(sizeof((const u16 []) { ids }) / sizeof(u16))	\
 	.enum_ids = (const u16 []) { ids }
 
 struct pinmux_drive_reg_field {
