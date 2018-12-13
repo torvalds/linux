@@ -7757,6 +7757,27 @@ void dev_set_group(struct net_device *dev, int new_group)
 EXPORT_SYMBOL(dev_set_group);
 
 /**
+ *	dev_pre_changeaddr_notify - Call NETDEV_PRE_CHANGEADDR.
+ *	@dev: device
+ *	@addr: new address
+ *	@extack: netlink extended ack
+ */
+int dev_pre_changeaddr_notify(struct net_device *dev, const char *addr,
+			      struct netlink_ext_ack *extack)
+{
+	struct netdev_notifier_pre_changeaddr_info info = {
+		.info.dev = dev,
+		.info.extack = extack,
+		.dev_addr = addr,
+	};
+	int rc;
+
+	rc = call_netdevice_notifiers_info(NETDEV_PRE_CHANGEADDR, &info.info);
+	return notifier_to_errno(rc);
+}
+EXPORT_SYMBOL(dev_pre_changeaddr_notify);
+
+/**
  *	dev_set_mac_address - Change Media Access Control Address
  *	@dev: device
  *	@sa: new address
@@ -7776,6 +7797,9 @@ int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa,
 		return -EINVAL;
 	if (!netif_device_present(dev))
 		return -ENODEV;
+	err = dev_pre_changeaddr_notify(dev, sa->sa_data, extack);
+	if (err)
+		return err;
 	err = ops->ndo_set_mac_address(dev, sa);
 	if (err)
 		return err;
