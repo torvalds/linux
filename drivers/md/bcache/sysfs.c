@@ -128,6 +128,7 @@ rw_attribute(expensive_debug_checks);
 rw_attribute(cache_replacement_policy);
 rw_attribute(btree_shrinker_disabled);
 rw_attribute(copy_gc_enabled);
+rw_attribute(gc_after_writeback);
 rw_attribute(size);
 
 static ssize_t bch_snprint_string_list(char *buf,
@@ -693,6 +694,7 @@ SHOW(__bch_cache_set)
 	sysfs_printf(gc_always_rewrite,		"%i", c->gc_always_rewrite);
 	sysfs_printf(btree_shrinker_disabled,	"%i", c->shrinker_disabled);
 	sysfs_printf(copy_gc_enabled,		"%i", c->copy_gc_enabled);
+	sysfs_printf(gc_after_writeback,	"%i", c->gc_after_writeback);
 	sysfs_printf(io_disable,		"%i",
 		     test_bit(CACHE_SET_IO_DISABLE, &c->flags));
 
@@ -793,6 +795,12 @@ STORE(__bch_cache_set)
 	sysfs_strtoul(gc_always_rewrite,	c->gc_always_rewrite);
 	sysfs_strtoul(btree_shrinker_disabled,	c->shrinker_disabled);
 	sysfs_strtoul(copy_gc_enabled,		c->copy_gc_enabled);
+	/*
+	 * write gc_after_writeback here may overwrite an already set
+	 * BCH_DO_AUTO_GC, it doesn't matter because this flag will be
+	 * set in next chance.
+	 */
+	sysfs_strtoul_clamp(gc_after_writeback, c->gc_after_writeback, 0, 1);
 
 	return size;
 }
@@ -873,6 +881,7 @@ static struct attribute *bch_cache_set_internal_files[] = {
 	&sysfs_gc_always_rewrite,
 	&sysfs_btree_shrinker_disabled,
 	&sysfs_copy_gc_enabled,
+	&sysfs_gc_after_writeback,
 	&sysfs_io_disable,
 	NULL
 };

@@ -627,6 +627,20 @@ struct cache_set {
 	struct bkey		gc_done;
 
 	/*
+	 * For automatical garbage collection after writeback completed, this
+	 * varialbe is used as bit fields,
+	 * - 0000 0001b (BCH_ENABLE_AUTO_GC): enable gc after writeback
+	 * - 0000 0010b (BCH_DO_AUTO_GC):     do gc after writeback
+	 * This is an optimization for following write request after writeback
+	 * finished, but read hit rate dropped due to clean data on cache is
+	 * discarded. Unless user explicitly sets it via sysfs, it won't be
+	 * enabled.
+	 */
+#define BCH_ENABLE_AUTO_GC	1
+#define BCH_DO_AUTO_GC		2
+	uint8_t			gc_after_writeback;
+
+	/*
 	 * The allocation code needs gc_mark in struct bucket to be correct, but
 	 * it's not while a gc is in progress. Protected by bucket_lock.
 	 */
