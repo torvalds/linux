@@ -31,7 +31,6 @@
 
 static const struct dma_fence_ops amdkfd_fence_ops;
 static atomic_t fence_seq = ATOMIC_INIT(0);
-extern const struct kgd2kfd_calls *kgd2kfd;
 
 /* Eviction Fence
  * Fence helper functions to deal with KFD memory eviction.
@@ -123,7 +122,7 @@ static bool amdkfd_fence_enable_signaling(struct dma_fence *f)
 	if (dma_fence_is_signaled(f))
 		return true;
 
-	if (!kgd2kfd->schedule_evict_and_restore_process(fence->mm, f))
+	if (!kgd2kfd_schedule_evict_and_restore_process(fence->mm, f))
 		return true;
 
 	return false;
