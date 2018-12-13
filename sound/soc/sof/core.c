@@ -320,7 +320,7 @@ static int sof_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(sdev->dev,
 			"error: failed to register DSP DAI driver %d\n", ret);
-		goto comp_err;
+		goto fw_run_err;
 	}
 
 	drv_name = plat_data->machine->drv_name;
