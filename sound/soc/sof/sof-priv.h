@@ -520,10 +520,6 @@ int snd_sof_volume_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
 int snd_sof_volume_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol);
-int snd_sof_enum_get(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_value *ucontrol);
-int snd_sof_enum_put(struct snd_kcontrol *kcontrol,
-		     struct snd_ctl_elem_value *ucontrol);
 int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 		      struct snd_ctl_elem_value *ucontrol);
 int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
