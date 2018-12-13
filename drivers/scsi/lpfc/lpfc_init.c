@@ -4707,29 +4707,25 @@ lpfc_update_trunk_link_status(struct lpfc_hba *phba,
 		phba->trunk_link.link0.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port0, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
-		if (port_fault & 0x1)
-			phba->trunk_link.link0.fault = err;
+		phba->trunk_link.link0.fault = port_fault & 0x1 ? err : 0;
 	}
 	if (bf_get(lpfc_acqe_fc_la_trunk_config_port1, acqe_fc)) {
 		phba->trunk_link.link1.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port1, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
-		if (port_fault & 0x2)
-			phba->trunk_link.link1.fault = err;
+		phba->trunk_link.link1.fault = port_fault & 0x2 ? err : 0;
 	}
 	if (bf_get(lpfc_acqe_fc_la_trunk_config_port2, acqe_fc)) {
 		phba->trunk_link.link2.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port2, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
-		if (port_fault & 0x4)
-			phba->trunk_link.link2.fault = err;
+		phba->trunk_link.link2.fault = port_fault & 0x4 ? err : 0;
 	}
 	if (bf_get(lpfc_acqe_fc_la_trunk_config_port3, acqe_fc)) {
 		phba->trunk_link.link3.state =
 			bf_get(lpfc_acqe_fc_la_trunk_link_status_port3, acqe_fc)
 			? LPFC_LINK_UP : LPFC_LINK_DOWN;
-		if (port_fault & 0x8)
-			phba->trunk_link.link3.fault = err;
+		phba->trunk_link.link3.fault = port_fault & 0x8 ? err : 0;
 	}
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
