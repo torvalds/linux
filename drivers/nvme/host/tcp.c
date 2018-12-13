@@ -35,7 +35,7 @@ struct nvme_tcp_request {
 	u32			pdu_sent;
 	u16			ttag;
 	struct list_head	entry;
-	u32			ddgst;
+	__le32			ddgst;
 
 	struct bio		*curr_bio;
 	struct iov_iter		iter;
@@ -272,7 +272,8 @@ nvme_tcp_fetch_request(struct nvme_tcp_queue *queue)
 	return req;
 }
 
-static inline void nvme_tcp_ddgst_final(struct ahash_request *hash, u32 *dgst)
+static inline void nvme_tcp_ddgst_final(struct ahash_request *hash,
+		__le32 *dgst)
 {
 	ahash_request_set_crypt(hash, NULL, (u8 *)dgst, 0);
 	crypto_ahash_final(hash);
@@ -817,7 +818,7 @@ static void nvme_tcp_fail_request(struct nvme_tcp_request *req)
 	union nvme_result res = {};
 
 	nvme_end_request(blk_mq_rq_from_pdu(req),
-		NVME_SC_DATA_XFER_ERROR, res);
+		cpu_to_le16(NVME_SC_DATA_XFER_ERROR), res);
 }
 
 static int nvme_tcp_try_send_data(struct nvme_tcp_request *req)
@@ -1960,7 +1961,7 @@ nvme_tcp_timeout(struct request *rq, bool reserved)
 		union nvme_result res = {};
 
 		nvme_req(rq)->flags |= NVME_REQ_CANCELLED;
-		nvme_end_request(rq, NVME_SC_ABORT_REQ, res);
+		nvme_end_request(rq, cpu_to_le16(NVME_SC_ABORT_REQ), res);
 		return BLK_EH_DONE;
 	}
 
