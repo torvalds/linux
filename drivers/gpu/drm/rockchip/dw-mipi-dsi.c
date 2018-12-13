@@ -591,68 +591,6 @@ static int mipi_dphy_attach(struct dw_mipi_dsi *dsi)
 	return 0;
 }
 
-static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
-{
-	struct mipi_dphy *dphy = &dsi->dphy;
-	struct drm_display_mode *mode = &dsi->mode;
-	unsigned int i, pre;
-	unsigned long mpclk, pllref, tmp;
-	unsigned int m = 1, n = 1, target_mbps = 1000, max_mbps;
-	int bpp;
-
-	max_mbps = dsi->pdata->max_bit_rate_per_lane / USEC_PER_SEC;
-
-	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	if (bpp < 0) {
-		DRM_DEV_ERROR(dsi->dev,
-			      "failed to get bpp for pixel format %d\n",
-			      dsi->format);
-		return bpp;
-	}
-
-	mpclk = DIV_ROUND_UP(mode->clock, MSEC_PER_SEC);
-	if (mpclk) {
-		/* take 1 / 0.8, since mbps must big than bandwidth of RGB */
-		tmp = mpclk * (bpp / dsi->lanes) * 10 / 8;
-		if (tmp < max_mbps)
-			target_mbps = tmp;
-		else
-			DRM_DEV_ERROR(dsi->dev,
-				      "DPHY clock frequency is out of range\n");
-	}
-
-	pllref = DIV_ROUND_UP(clk_get_rate(dphy->ref_clk), USEC_PER_SEC);
-	tmp = pllref;
-
-	/*
-	 * The limits on the PLL divisor are:
-	 *
-	 *	5MHz <= (pllref / n) <= 40MHz
-	 *
-	 * we walk over these values in descreasing order so that if we hit
-	 * an exact match for target_mbps it is more likely that "m" will be
-	 * even.
-	 *
-	 * TODO: ensure that "m" is even after this loop.
-	 */
-	for (i = pllref / 5; i > (pllref / 40); i--) {
-		pre = pllref / i;
-		if ((tmp > (target_mbps % pre)) && (target_mbps / pre < 512)) {
-			tmp = target_mbps % pre;
-			n = i;
-			m = target_mbps / pre;
-		}
-		if (tmp == 0)
-			break;
-	}
-
-	dsi->lane_mbps = pllref / n * m;
-	dphy->input_div = n;
-	dphy->feedback_div = m;
-
-	return 0;
-}
-
 static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 				   struct mipi_dsi_device *device)
 {
@@ -1050,17 +988,117 @@ static void dw_mipi_dsi_vop_routing(struct dw_mipi_dsi *dsi)
 	grf_field_write(dsi, VOPSEL, pipe);
 }
 
+static unsigned long dw_mipi_dsi_get_lane_rate(struct dw_mipi_dsi *dsi)
+{
+	struct device *dev = dsi->dev;
+	const struct drm_display_mode *mode = &dsi->mode;
+	unsigned long max_lane_rate = dsi->pdata->max_bit_rate_per_lane;
+	unsigned long lane_rate;
+	unsigned int value;
+	int bpp, lanes;
+	u64 tmp;
+
+	/* optional override of the desired bandwidth */
+	if (!of_property_read_u32(dev->of_node, "rockchip,lane-rate", &value))
+		return value * USEC_PER_SEC;
+
+	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
+	if (bpp < 0)
+		bpp = 24;
+
+	lanes = dsi->lanes;
+	tmp = (u64)mode->clock * 1000 * bpp;
+	do_div(tmp, lanes);
+
+	/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
+	tmp *= 10;
+	do_div(tmp, 9);
+
+	if (tmp > max_lane_rate)
+		lane_rate = max_lane_rate;
+	else
+		lane_rate = tmp;
+
+	return lane_rate;
+}
+
+static void dw_mipi_dsi_calc_pll_cfg(struct dw_mipi_dsi *dsi,
+				     unsigned long rate)
+{
+	struct mipi_dphy *dphy = &dsi->dphy;
+	unsigned long fin, fout;
+	unsigned long fvco_min, fvco_max, best_freq = 984000000;
+	u8 min_prediv, max_prediv;
+	u8 _prediv, best_prediv = 2;
+	u16 _fbdiv, best_fbdiv = 82;
+	u32 min_delta = UINT_MAX;
+
+	fin = clk_get_rate(dphy->ref_clk);
+	fout = rate;
+
+	/* 5Mhz < Fref / N < 40MHz, 80MHz < Fvco < 1500Mhz */
+	min_prediv = DIV_ROUND_UP(fin, 40000000);
+	max_prediv = fin / 5000000;
+	fvco_min = 80000000;
+	fvco_max = 1500000000;
+
+	for (_prediv = min_prediv; _prediv <= max_prediv; _prediv++) {
+		u64 tmp, _fout;
+		u32 delta;
+
+		/* Fvco = Fref * M / N */
+		tmp = (u64)fout * _prediv;
+		do_div(tmp, fin);
+		_fbdiv = tmp;
+
+		/*
+		 * Due to the use of a "by 2 pre-scaler," the range of the
+		 * feedback multiplication value M is limited to even division
+		 * numbers, and m must be greater than 12, less than 1000.
+		 */
+		if (_fbdiv <= 12 || _fbdiv >= 1000)
+			continue;
+
+		if (_fbdiv % 2)
+			++_fbdiv;
+
+		_fout = (u64)_fbdiv * fin;
+		do_div(_fout, _prediv);
+
+		if (_fout < fvco_min || _fout > fvco_max)
+			continue;
+
+		delta = abs(fout - _fout);
+		if (!delta) {
+			best_prediv = _prediv;
+			best_fbdiv = _fbdiv;
+			best_freq = _fout;
+			break;
+		} else if (delta < min_delta) {
+			best_prediv = _prediv;
+			best_fbdiv = _fbdiv;
+			best_freq = _fout;
+			min_delta = delta;
+		}
+	}
+
+	dsi->lane_mbps = best_freq / USEC_PER_SEC;
+	dphy->input_div = best_prediv;
+	dphy->feedback_div = best_fbdiv;
+}
+
 static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
-	int ret;
-
-	ret = dw_mipi_dsi_get_lane_bps(dsi);
-	if (ret < 0)
-		return;
+	unsigned long lane_rate = dw_mipi_dsi_get_lane_rate(dsi);
 
 	if (dsi->dpms_mode == DRM_MODE_DPMS_ON)
 		return;
+
+	dw_mipi_dsi_calc_pll_cfg(dsi, lane_rate);
+
+	DRM_DEV_INFO(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
+		     dsi->lane_mbps, dsi->lanes);
 
 	dw_mipi_dsi_vop_routing(dsi);
 
