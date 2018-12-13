@@ -5204,9 +5204,11 @@ static bool stacksafe(struct bpf_func_state *old,
 	for (i = 0; i < old->allocated_stack; i++) {
 		spi = i / BPF_REG_SIZE;
 
-		if (!(old->stack[spi].spilled_ptr.live & REG_LIVE_READ))
+		if (!(old->stack[spi].spilled_ptr.live & REG_LIVE_READ)) {
+			i += BPF_REG_SIZE - 1;
 			/* explored state didn't use this */
 			continue;
+		}
 
 		if (old->stack[spi].slot_type[i % BPF_REG_SIZE] == STACK_INVALID)
 			continue;
