@@ -237,6 +237,10 @@
 	};
 };
 
+&route_dsi {
+	status = "okay";
+};
+
 &dmc {
 	center-supply = <&vdd_log>;
 };
@@ -513,10 +517,6 @@
 	status = "okay";
 };
 
-&mipi_dphy {
-	status = "okay";
-};
-
 &nandc {
 	status = "okay";
 };
@@ -576,10 +576,6 @@
 };
 
 &rga {
-	status = "okay";
-};
-
-&route_dsi {
 	status = "okay";
 };
 

@@ -61,15 +61,6 @@
 		status = "okay";
 	};
 
-	lvds_panel: lvds-panel {
-		status = "disabled";
-		ports {
-			panel_in_lvds: endpoint {
-				remote-endpoint = <&lvds_out_panel>;
-			};
-		};
-	};
-
 	clkin_gmac: external-gmac-clock {
 		compatible = "fixed-clock";
 		clock-frequency = <125000000>;
@@ -125,15 +116,6 @@
 
 &cpu0 {
 	cpu-supply = <&vdd_arm>;
-};
-
-&display_subsystem {
-	status = "okay";
-	route {
-		route_lvds: route-lvds {
-			status = "disabled";
-		};
-	};
 };
 
 &emmc {
@@ -358,50 +340,7 @@
 	};
 };
 
-&lvds {
-	status = "disabled";
-	pinctrl-names = "default";
-	pinctrl-0 = <&lcdc_lcdc>;
-	ports {
-		lvds_out: port@1 {
-			reg = <1>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			lvds_out_panel: endpoint@0 {
-				reg = <0>;
-				remote-endpoint = <&panel_in_lvds>;
-			};
-		};
-	};
-};
-
 &pinctrl {
-	lcdc {
-		lcdc_lcdc: lcdc-lcdc {
-			rockchip,pins =
-				/* depend on the hardware */
-				<2 RK_PB0 1 &pcfg_pull_none>, /* DCLK */
-				/* <2 RK_PB1 1 &pcfg_pull_none>, /* HSYNC */
-				/* <2 RK_PB2 1 &pcfg_pull_none>, /* VSYNC */
-				<2 RK_PB3 1 &pcfg_pull_none>, /* DEN */
-				<2 RK_PB4 1 &pcfg_pull_none>, /* DATA10 */
-				<2 RK_PB5 1 &pcfg_pull_none>, /* DATA11 */
-				<2 RK_PB6 1 &pcfg_pull_none>, /* DATA12 */
-				<2 RK_PB7 1 &pcfg_pull_none>, /* DATA13 */
-				<2 RK_PC0 1 &pcfg_pull_none>, /* DATA14 */
-				<2 RK_PC1 1 &pcfg_pull_none>, /* DATA15 */
-				<2 RK_PC2 1 &pcfg_pull_none>, /* DATA16 */
-				<2 RK_PC3 1 &pcfg_pull_none>; /* DATA17 */
-				/* <2 RK_PC4 1 &pcfg_pull_none>, /* DATA18 */
-				/* <2 RK_PC5 1 &pcfg_pull_none>, /* DATA19 */
-				/* <2 RK_PC6 1 &pcfg_pull_none>, /* DATA20 */
-				/* <2 RK_PC7 1 &pcfg_pull_none>, /* DATA21 */
-				/* <2 RK_PD0 1 &pcfg_pull_none>, /* DATA22 */
-				/* <2 RK_PD1 1 &pcfg_pull_none>; /* DATA23 */
-		};
-	};
-
 	pmic {
 		pmic_int_l: pmic-int-l {
 			rockchip,pins = <RK_GPIO3 22 RK_FUNC_GPIO &pcfg_pull_default>;

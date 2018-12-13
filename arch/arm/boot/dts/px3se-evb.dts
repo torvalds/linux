@@ -262,7 +262,7 @@
 		status = "okay";
 	};
 
-	lvds-panel {
+	panel {
 		compatible = "samsung,lsl070nl01", "simple-panel";
 		power-supply = <&vcc33_lcd>;
 		backlight = <&backlight>;
@@ -270,10 +270,11 @@
 		rockchip,data-mapping = "vesa";
 		rockchip,data-width = <24>;
 		rockchip,output = "lvds";
-		status = "okay";
 
 		display-timings {
-			timing {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
 				clock-frequency = <48000000>;
 				hactive = <1024>;
 				vactive = <600>;
