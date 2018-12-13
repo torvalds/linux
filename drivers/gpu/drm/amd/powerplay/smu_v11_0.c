@@ -554,6 +554,65 @@ static int smu_v11_0_populate_smc_pptable(struct smu_context *smu)
 	return -EINVAL;
 }
 
+static int smu_v11_0_copy_table_to_smc(struct smu_context *smu,
+				       uint32_t table_id)
+{
+	struct smu_table_context *table_context = &smu->smu_table;
+	struct smu_table *driver_pptable = &smu->smu_table.tables[table_id];
+	int ret = 0;
+
+	if (table_id >= TABLE_COUNT) {
+		pr_err("Invalid SMU Table ID for smu11!");
+		return -EINVAL;
+	}
+
+	if (!driver_pptable->cpu_addr) {
+		pr_err("Invalid virtual address for smu11!");
+		return -EINVAL;
+	}
+	if (!driver_pptable->mc_address) {
+		pr_err("Invalid MC address for smu11!");
+		return -EINVAL;
+	}
+	if (!driver_pptable->size) {
+		pr_err("Invalid SMU Table size for smu11!");
+		return -EINVAL;
+	}
+
+	memcpy(driver_pptable->cpu_addr, table_context->driver_pptable,
+	       driver_pptable->size);
+
+	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_SetDriverDramAddrHigh,
+			upper_32_bits(driver_pptable->mc_address));
+	if (ret) {
+		pr_err("[CopyTableToSMC] Attempt to Set Dram Addr High Failed!");
+		return ret;
+	}
+	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_SetDriverDramAddrLow,
+			lower_32_bits(driver_pptable->mc_address));
+	if (ret) {
+		pr_err("[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!");
+		return ret;
+	}
+	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_TransferTableDram2Smu,
+					  table_id);
+	if (ret) {
+		pr_err("[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int smu_v11_0_write_pptable(struct smu_context *smu)
+{
+	int ret = 0;
+
+	ret = smu_v11_0_copy_table_to_smc(smu, TABLE_PPTABLE);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -572,6 +631,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.check_pptable = smu_v11_0_check_pptable,
 	.parse_pptable = smu_v11_0_parse_pptable,
 	.populate_smc_pptable = smu_v11_0_populate_smc_pptable,
+	.write_pptable = smu_v11_0_write_pptable,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
