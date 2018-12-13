@@ -27,32 +27,6 @@ icmp_in_range(const struct nf_conntrack_tuple *tuple,
 	       ntohs(tuple->src.u.icmp.id) <= ntohs(max->icmp.id);
 }
 
-static void
-icmp_unique_tuple(const struct nf_nat_l3proto *l3proto,
-		  struct nf_conntrack_tuple *tuple,
-		  const struct nf_nat_range2 *range,
-		  enum nf_nat_manip_type maniptype,
-		  const struct nf_conn *ct)
-{
-	static u_int16_t id;
-	unsigned int range_size;
-	unsigned int i;
-
-	range_size = ntohs(range->max_proto.icmp.id) -
-		     ntohs(range->min_proto.icmp.id) + 1;
-	/* If no range specified... */
-	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED))
-		range_size = 0xFFFF;
-
-	for (i = 0; ; ++id) {
-		tuple->src.u.icmp.id = htons(ntohs(range->min_proto.icmp.id) +
-					     (id % range_size));
-		if (++i == range_size || !nf_nat_used_tuple(tuple, ct))
-			return;
-	}
-	return;
-}
-
 static bool
 icmp_manip_pkt(struct sk_buff *skb,
 	       const struct nf_nat_l3proto *l3proto,
@@ -76,7 +50,6 @@ const struct nf_nat_l4proto nf_nat_l4proto_icmp = {
 	.l4proto		= IPPROTO_ICMP,
 	.manip_pkt		= icmp_manip_pkt,
 	.in_range		= icmp_in_range,
-	.unique_tuple		= icmp_unique_tuple,
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
 #endif

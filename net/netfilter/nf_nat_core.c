@@ -310,20 +310,65 @@ find_best_ips_proto(const struct nf_conntrack_zone *zone,
 	}
 }
 
+/* Alter the per-proto part of the tuple (depending on maniptype), to
+ * give a unique tuple in the given range if possible.
+ *
+ * Per-protocol part of tuple is initialized to the incoming packet.
+ */
 static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 					const struct nf_nat_range2 *range,
 					enum nf_nat_manip_type maniptype,
 					const struct nf_conn *ct)
 {
 	unsigned int range_size, min, max, i, attempts;
-	__be16 *portptr;
+	__be16 *keyptr;
 	u16 off;
 	static const unsigned int max_attempts = 128;
 
-	if (maniptype == NF_NAT_MANIP_SRC)
-		portptr = &tuple->src.u.all;
-	else
-		portptr = &tuple->dst.u.all;
+	switch (tuple->dst.protonum) {
+	case IPPROTO_ICMP: /* fallthrough */
+	case IPPROTO_ICMPV6:
+		/* id is same for either direction... */
+		keyptr = &tuple->src.u.icmp.id;
+		min = range->min_proto.icmp.id;
+		range_size = ntohs(range->max_proto.icmp.id) -
+			     ntohs(range->min_proto.icmp.id) + 1;
+		goto find_free_id;
+#if IS_ENABLED(CONFIG_NF_CT_PROTO_GRE)
+	case IPPROTO_GRE:
+		/* If there is no master conntrack we are not PPTP,
+		   do not change tuples */
+		if (!ct->master)
+			return;
+
+		if (maniptype == NF_NAT_MANIP_SRC)
+			keyptr = &tuple->src.u.gre.key;
+		else
+			keyptr = &tuple->dst.u.gre.key;
+
+		if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
+			min = 1;
+			range_size = 65535;
+		} else {
+			min = ntohs(range->min_proto.gre.key);
+			range_size = ntohs(range->max_proto.gre.key) - min + 1;
+		}
+		goto find_free_id;
+#endif
+	case IPPROTO_UDP:	/* fallthrough */
+	case IPPROTO_UDPLITE:	/* fallthrough */
+	case IPPROTO_TCP:	/* fallthrough */
+	case IPPROTO_SCTP:	/* fallthrough */
+	case IPPROTO_DCCP:	/* fallthrough */
+		if (maniptype == NF_NAT_MANIP_SRC)
+			keyptr = &tuple->src.u.all;
+		else
+			keyptr = &tuple->dst.u.all;
+
+		break;
+	default:
+		return;
+	}
 
 	/* If no range specified... */
 	if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
@@ -331,9 +376,9 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 		if (maniptype == NF_NAT_MANIP_DST)
 			return;
 
-		if (ntohs(*portptr) < 1024) {
+		if (ntohs(*keyptr) < 1024) {
 			/* Loose convention: >> 512 is credential passing */
-			if (ntohs(*portptr) < 512) {
+			if (ntohs(*keyptr) < 512) {
 				min = 1;
 				range_size = 511 - min + 1;
 			} else {
@@ -352,8 +397,9 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 		range_size = max - min + 1;
 	}
 
+find_free_id:
 	if (range->flags & NF_NAT_RANGE_PROTO_OFFSET)
-		off = (ntohs(*portptr) - ntohs(range->base_proto.all));
+		off = (ntohs(*keyptr) - ntohs(range->base_proto.all));
 	else
 		off = prandom_u32();
 
@@ -369,7 +415,7 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	 */
 another_round:
 	for (i = 0; i < attempts; i++, off++) {
-		*portptr = htons(min + off % range_size);
+		*keyptr = htons(min + off % range_size);
 		if (!nf_nat_used_tuple(tuple, ct))
 			return;
 	}
@@ -454,10 +500,7 @@ get_unique_tuple(struct nf_conntrack_tuple *tuple,
 	}
 
 	/* Last chance: get protocol to try to obtain unique tuple. */
-	if (l4proto->unique_tuple)
-		l4proto->unique_tuple(l3proto, tuple, range, maniptype, ct);
-	else
-		nf_nat_l4proto_unique_tuple(tuple, range, maniptype, ct);
+	nf_nat_l4proto_unique_tuple(tuple, range, maniptype, ct);
 out:
 	rcu_read_unlock();
 }

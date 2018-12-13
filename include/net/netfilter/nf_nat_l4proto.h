@@ -27,17 +27,6 @@ struct nf_nat_l4proto {
 			 const union nf_conntrack_man_proto *min,
 			 const union nf_conntrack_man_proto *max);
 
-	/* Alter the per-proto part of the tuple (depending on
-	 * maniptype), to give a unique tuple in the given range if
-	 * possible.  Per-protocol part of tuple is initialized to the
-	 * incoming packet.
-	 */
-	void (*unique_tuple)(const struct nf_nat_l3proto *l3proto,
-			     struct nf_conntrack_tuple *tuple,
-			     const struct nf_nat_range2 *range,
-			     enum nf_nat_manip_type maniptype,
-			     const struct nf_conn *ct);
-
 	int (*nlattr_to_range)(struct nlattr *tb[],
 			       struct nf_nat_range2 *range);
 };
