@@ -540,7 +540,17 @@ lpfc_ns_rsp_audit_did(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	char *str;
 
+	if (phba->cfg_ns_query == LPFC_NS_QUERY_GID_FT)
+		str = "GID_FT";
+	else
+		str = "GID_PT";
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+			 "6430 Process %s rsp for %08x type %x %s %s\n",
+			 str, Did, fc4_type,
+			 (fc4_type == FC_TYPE_FCP) ?  "FCP" : " ",
+			 (fc4_type == FC_TYPE_NVME) ?  "NVME" : " ");
 	/*
 	 * To conserve rpi's, filter out addresses for other
 	 * vports on the same physical HBAs.
@@ -1049,6 +1059,13 @@ lpfc_cmpl_ct_cmd_gff_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		CTrsp = (struct lpfc_sli_ct_request *) outp->virt;
 		fbits = CTrsp->un.gff_acc.fbits[FCP_TYPE_FEATURE_OFFSET];
 
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "6431 Process GFF_ID rsp for %08x "
+				 "fbits %02x %s %s\n",
+				 did, fbits,
+				 (fbits & FC4_FEATURE_INIT) ? "Initiator" : " ",
+				 (fbits & FC4_FEATURE_TARGET) ? "Target" : " ");
+
 		if (CTrsp->CommandResponse.bits.CmdRsp ==
 		    be16_to_cpu(SLI_CT_RESPONSE_FS_ACC)) {
 			if ((fbits & FC4_FEATURE_INIT) &&
@@ -1171,9 +1188,15 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		CTrsp = (struct lpfc_sli_ct_request *)outp->virt;
 		fc4_data_0 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[0]);
 		fc4_data_1 = be32_to_cpu(CTrsp->un.gft_acc.fc4_types[1]);
+
 		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-				 "3062 DID x%06x GFT Wd0 x%08x Wd1 x%08x\n",
-				 did, fc4_data_0, fc4_data_1);
+				 "6432 Process GFT_ID rsp for %08x "
+				 "Data %08x %08x %s %s\n",
+				 did, fc4_data_0, fc4_data_1,
+				 (fc4_data_0 & LPFC_FC4_TYPE_BITMASK) ?
+				  "FCP" : " ",
+				 (fc4_data_1 & LPFC_FC4_TYPE_BITMASK) ?
+				  "NVME" : " ");
 
 		ndlp = lpfc_findnode_did(vport, did);
 		if (ndlp) {
@@ -1504,6 +1527,7 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 	struct ulp_bde64 *bpl;
 	void (*cmpl) (struct lpfc_hba *, struct lpfc_iocbq *,
 		      struct lpfc_iocbq *) = NULL;
+	uint32_t *ptr;
 	uint32_t rsp_size = 1024;
 	size_t   size;
 	int rc = 0;
@@ -1642,8 +1666,18 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		 */
 		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
 		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME))
-			CtReq->un.rft.rsvd[0] = cpu_to_be32(0x00000100);
+			CtReq->un.rft.rsvd[0] =
+				cpu_to_be32(LPFC_FC4_TYPE_BITMASK);
 
+		ptr = (uint32_t *)CtReq;
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "6433 Issue RFT (%s %s): %08x %08x %08x %08x "
+				 "%08x %08x %08x %08x\n",
+				 CtReq->un.rft.fcpReg ? "FCP" : " ",
+				 CtReq->un.rft.rsvd[0] ? "NVME" : " ",
+				 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3),
+				 *(ptr + 4), *(ptr + 5),
+				 *(ptr + 6), *(ptr + 7));
 		cmpl = lpfc_cmpl_ct_cmd_rft_id;
 		break;
 
@@ -1718,6 +1752,14 @@ lpfc_ns_cmd(struct lpfc_vport *vport, int cmdcode,
 		else
 			goto ns_cmd_free_bmpvirt;
 
+		ptr = (uint32_t *)CtReq;
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "6434 Issue RFF (%s): %08x %08x %08x %08x "
+				 "%08x %08x %08x %08x\n",
+				 (context == FC_TYPE_NVME) ? "NVME" : "FCP",
+				 *ptr, *(ptr + 1), *(ptr + 2), *(ptr + 3),
+				 *(ptr + 4), *(ptr + 5),
+				 *(ptr + 6), *(ptr + 7));
 		cmpl = lpfc_cmpl_ct_cmd_rff_id;
 		break;
 	}
