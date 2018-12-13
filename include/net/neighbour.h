@@ -140,8 +140,8 @@ struct neighbour {
 	unsigned long		updated;
 	rwlock_t		lock;
 	refcount_t		refcnt;
-	struct sk_buff_head	arp_queue;
 	unsigned int		arp_queue_len_bytes;
+	struct sk_buff_head	arp_queue;
 	struct timer_list	timer;
 	unsigned long		used;
 	atomic_t		probes;
@@ -150,7 +150,7 @@ struct neighbour {
 	__u8			type;
 	__u8			dead;
 	seqlock_t		ha_lock;
-	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))];
+	unsigned char		ha[ALIGN(MAX_ADDR_LEN, sizeof(unsigned long))] __aligned(8);
 	struct hh_cache		hh;
 	int			(*output)(struct neighbour *, struct sk_buff *);
 	const struct neigh_ops	*ops;
