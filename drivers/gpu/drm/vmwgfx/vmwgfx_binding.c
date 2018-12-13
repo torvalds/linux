@@ -98,7 +98,7 @@ struct vmw_ctx_binding_state {
 	struct vmw_ctx_bindinfo_so so_targets[SVGA3D_DX_MAX_SOTARGETS];
 	struct vmw_ctx_bindinfo_vb vertex_buffers[SVGA3D_DX_MAX_VERTEXBUFFERS];
 	struct vmw_ctx_bindinfo_ib index_buffer;
-	struct vmw_dx_shader_bindings per_shader[SVGA3D_NUM_SHADERTYPE_DX10];
+	struct vmw_dx_shader_bindings per_shader[SVGA3D_NUM_SHADERTYPE];
 
 	unsigned long dirty;
 	DECLARE_BITMAP(dirty_vb, SVGA3D_DX_MAX_VERTEXBUFFERS);
@@ -151,6 +151,9 @@ static const size_t vmw_binding_shader_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[0].shader),
 	offsetof(struct vmw_ctx_binding_state, per_shader[1].shader),
 	offsetof(struct vmw_ctx_binding_state, per_shader[2].shader),
+	offsetof(struct vmw_ctx_binding_state, per_shader[3].shader),
+	offsetof(struct vmw_ctx_binding_state, per_shader[4].shader),
+	offsetof(struct vmw_ctx_binding_state, per_shader[5].shader),
 };
 static const size_t vmw_binding_rt_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, render_targets),
@@ -162,6 +165,9 @@ static const size_t vmw_binding_cb_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[0].const_buffers),
 	offsetof(struct vmw_ctx_binding_state, per_shader[1].const_buffers),
 	offsetof(struct vmw_ctx_binding_state, per_shader[2].const_buffers),
+	offsetof(struct vmw_ctx_binding_state, per_shader[3].const_buffers),
+	offsetof(struct vmw_ctx_binding_state, per_shader[4].const_buffers),
+	offsetof(struct vmw_ctx_binding_state, per_shader[5].const_buffers),
 };
 static const size_t vmw_binding_dx_ds_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, ds_view),
@@ -170,6 +176,9 @@ static const size_t vmw_binding_sr_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[0].shader_res),
 	offsetof(struct vmw_ctx_binding_state, per_shader[1].shader_res),
 	offsetof(struct vmw_ctx_binding_state, per_shader[2].shader_res),
+	offsetof(struct vmw_ctx_binding_state, per_shader[3].shader_res),
+	offsetof(struct vmw_ctx_binding_state, per_shader[4].shader_res),
+	offsetof(struct vmw_ctx_binding_state, per_shader[5].shader_res),
 };
 static const size_t vmw_binding_so_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, so_targets),
