@@ -1472,6 +1472,177 @@ err_unlock:
 	return err;
 }
 
+static void __preempt_begin(void)
+{
+	preempt_disable();
+}
+
+static void __preempt_end(void)
+{
+	preempt_enable();
+}
+
+static void __softirq_begin(void)
+{
+	local_bh_disable();
+}
+
+static void __softirq_end(void)
+{
+	local_bh_enable();
+}
+
+static void __hardirq_begin(void)
+{
+	local_irq_disable();
+}
+
+static void __hardirq_end(void)
+{
+	local_irq_enable();
+}
+
+struct atomic_section {
+	const char *name;
+	void (*critical_section_begin)(void);
+	void (*critical_section_end)(void);
+};
+
+static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
+				     const struct atomic_section *p,
+				     const char *mode)
+{
+	struct tasklet_struct * const t = &engine->execlists.tasklet;
+	int err;
+
+	GEM_TRACE("i915_reset_engine(%s:%s) under %s\n",
+		  engine->name, mode, p->name);
+
+	tasklet_disable_nosync(t);
+	p->critical_section_begin();
+
+	err = i915_reset_engine(engine, NULL);
+
+	p->critical_section_end();
+	tasklet_enable(t);
+
+	if (err)
+		pr_err("i915_reset_engine(%s:%s) failed under %s\n",
+		       engine->name, mode, p->name);
+
+	return err;
+}
+
+static int igt_atomic_reset_engine(struct intel_engine_cs *engine,
+				   const struct atomic_section *p)
+{
+	struct drm_i915_private *i915 = engine->i915;
+	struct i915_request *rq;
+	struct hang h;
+	int err;
+
+	err = __igt_atomic_reset_engine(engine, p, "idle");
+	if (err)
+		return err;
+
+	err = hang_init(&h, i915);
+	if (err)
+		return err;
+
+	rq = hang_create_request(&h, engine);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto out;
+	}
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+
+	if (wait_until_running(&h, rq)) {
+		err = __igt_atomic_reset_engine(engine, p, "active");
+	} else {
+		pr_err("%s(%s): Failed to start request %llx, at %x\n",
+		       __func__, engine->name,
+		       rq->fence.seqno, hws_seqno(&h, rq));
+		err = -EIO;
+	}
+
+	if (err == 0) {
+		struct igt_wedge_me w;
+
+		igt_wedge_on_timeout(&w, i915, HZ / 20 /* 50ms timeout*/)
+			i915_request_wait(rq,
+					  I915_WAIT_LOCKED,
+					  MAX_SCHEDULE_TIMEOUT);
+		if (i915_terminally_wedged(&i915->gpu_error))
+			err = -EIO;
+	}
+
+	i915_request_put(rq);
+out:
+	hang_fini(&h);
+	return err;
+}
+
+static void force_reset(struct drm_i915_private *i915)
+{
+	i915_gem_set_wedged(i915);
+	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
+	i915_reset(i915, 0, NULL);
+}
+
+static int igt_atomic_reset(void *arg)
+{
+	static const struct atomic_section phases[] = {
+		{ "preempt", __preempt_begin, __preempt_end },
+		{ "softirq", __softirq_begin, __softirq_end },
+		{ "hardirq", __hardirq_begin, __hardirq_end },
+		{ }
+	};
+	struct drm_i915_private *i915 = arg;
+	int err = 0;
+
+	/* Check that the resets are usable from atomic context */
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0; /* guc is dead; long live the guc */
+
+	igt_global_reset_lock(i915);
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
+	/* Flush any requests before we get started and check basics */
+	force_reset(i915);
+	if (i915_terminally_wedged(&i915->gpu_error))
+		goto unlock;
+
+	if (intel_has_reset_engine(i915)) {
+		struct intel_engine_cs *engine;
+		enum intel_engine_id id;
+
+		for_each_engine(engine, i915, id) {
+			const typeof(*phases) *p;
+
+			for (p = phases; p->name; p++) {
+				err = igt_atomic_reset_engine(engine, p);
+				if (err)
+					goto out;
+			}
+		}
+	}
+
+out:
+	/* As we poke around the guts, do a full reset before continuing. */
+	force_reset(i915);
+
+unlock:
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	igt_global_reset_unlock(i915);
+
+	return err;
+}
+
 int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
@@ -1487,6 +1658,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_reset_evict_ppgtt),
 		SUBTEST(igt_reset_evict_fence),
 		SUBTEST(igt_handle_error),
+		SUBTEST(igt_atomic_reset),
 	};
 	bool saved_hangcheck;
 	int err;
