@@ -31,8 +31,6 @@
 #include <linux/phy/phy.h>
 #include <uapi/linux/videodev2.h>
 
-#include <video/display_timing.h>
-
 #include "rockchip_drm_drv.h"
 #include "rockchip_drm_vop.h"
 #include "rockchip_lvds.h"
@@ -45,6 +43,12 @@
 #define PX30_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
 #define PX30_LVDS_P2S_EN(x)		HIWORD_UPDATE(x, 10, 10)
 #define PX30_LVDS_VOP_SEL(x)		HIWORD_UPDATE(x,  1,  1)
+
+#define RK3126_GRF_LVDS_CON0		0x0150
+#define RK3126_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  9,  9)
+#define RK3126_LVDS_MODE_EN(x)		HIWORD_UPDATE(x,  6,  6)
+#define RK3126_LVDS_MSBSEL(x)		HIWORD_UPDATE(x,  3,  3)
+#define RK3126_LVDS_SELECT(x)		HIWORD_UPDATE(x,  2,  1)
 
 #define RK3368_GRF_SOC_CON7		0x041c
 #define RK3368_LVDS_SELECT(x)		HIWORD_UPDATE(x, 14, 13)
@@ -82,11 +86,8 @@ struct rockchip_lvds {
 	struct device *dev;
 	struct phy *phy;
 	void __iomem *regs;
-	void __iomem *regs_ctrl;
 	struct regmap *grf;
 	struct clk *pclk;
-	struct clk *pclk_ctrl;
-	struct clk *hclk_ctrl;
 	const struct rockchip_lvds_soc_data *soc_data;
 
 	int output;
@@ -106,29 +107,6 @@ static inline void lvds_writel(struct rockchip_lvds *lvds, u32 offset, u32 val)
 	    (lvds->soc_data->chip_type == RK3288))
 		writel_relaxed(val,
 			       lvds->regs + offset + RK3288_LVDS_CH1_OFFSET);
-}
-
-static inline void lvds_msk_reg(struct rockchip_lvds *lvds, u32 offset,
-				u32 msk, u32 val)
-{
-	u32 temp;
-
-	temp = readl_relaxed(lvds->regs + offset) & (0xFF - (msk));
-	writel_relaxed(temp | ((val) & (msk)), lvds->regs + offset);
-}
-
-static inline void lvds_dsi_writel(struct rockchip_lvds *lvds,
-				   u32 offset, u32 val)
-{
-	writel_relaxed(val, lvds->regs_ctrl + offset);
-}
-
-static inline u32 lvds_phy_lockon(struct rockchip_lvds *lvds)
-{
-	u32 val = 0;
-
-	val = readl_relaxed(lvds->regs_ctrl + MIPIC_PHY_STATUS);
-	return (val & m_PHY_LOCK_STATUS) ? 1 : 0;
 }
 
 static inline int lvds_name_to_format(const char *s)
@@ -254,101 +232,6 @@ static void innov2_lvds_power_off(struct rockchip_lvds *lvds)
 	       lvds->regs + RK3288_LVDS_CFG_REGC);
 }
 
-static int innov1_lvds_power_on(struct rockchip_lvds *lvds)
-{
-	u32 delay_times = 20;
-	u32 val;
-
-	if (lvds->output == DISPLAY_OUTPUT_RGB) {
-		/* enable lane */
-		lvds_msk_reg(lvds, MIPIPHY_REG0, 0x7c, 0x7c);
-		val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
-		      v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(1) |
-		      v_LVDS_BGPD(0);
-		lvds_writel(lvds, MIPIPHY_REGEB, val);
-
-		/* set ttl mode and reset phy config */
-		val = v_LVDS_MODE_EN(0) | v_TTL_MODE_EN(1) | v_MIPI_MODE_EN(0) |
-			v_MSB_SEL(1) | v_DIG_INTER_RST(1);
-		lvds_writel(lvds, MIPIPHY_REGE0, val);
-
-		lvds_msk_reg(lvds, MIPIPHY_REGE3,
-			     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
-			     v_MIPI_EN(0) | v_LVDS_EN(0) | v_TTL_EN(1));
-
-		/* set clock lane enable */
-		lvds_dsi_writel(lvds, MIPIC_PHY_RSTZ, m_PHY_ENABLE_CLK);
-	} else {
-		/* digital internal disable */
-		lvds_msk_reg(lvds, MIPIPHY_REGE1,
-			     m_DIG_INTER_EN, v_DIG_INTER_EN(0));
-
-		/* set pll prediv and fbdiv */
-		lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(2) | v_FBDIV_MSB(0));
-		lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(28));
-
-		lvds_writel(lvds, MIPIPHY_REGE8, 0xfc);
-
-		/* set lvds mode and reset phy config */
-		lvds_msk_reg(lvds, MIPIPHY_REGE0,
-			     m_MSB_SEL | m_DIG_INTER_RST,
-			     v_MSB_SEL(1) | v_DIG_INTER_RST(1));
-
-		/* set VOCM 900 mv and V-DIFF 350 mv */
-		lvds_msk_reg(lvds, MIPIPHY_REGE4, m_VOCM | m_DIFF_V,
-			     v_VOCM(0) | v_DIFF_V(2));
-		/* power up lvds pll and ldo */
-		lvds_msk_reg(lvds, MIPIPHY_REG1,
-			     m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,
-			     v_SYNC_RST(0) | v_LDO_PWR_DOWN(0) |
-			     v_PLL_PWR_DOWN(0));
-		/* enable lvds lane and power on pll */
-		lvds_writel(lvds, MIPIPHY_REGEB,
-			    v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
-			    v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(0) |
-			    v_LVDS_BGPD(0));
-
-		/* enable lvds */
-		lvds_msk_reg(lvds, MIPIPHY_REGE3,
-			     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
-			     v_MIPI_EN(0) | v_LVDS_EN(1) | v_TTL_EN(0));
-
-		/* delay for waitting pll lock on */
-		while (delay_times--) {
-			if (lvds_phy_lockon(lvds))
-				break;
-			usleep_range(100, 200);
-		}
-
-		if (delay_times <= 0)
-			dev_err(lvds->dev,
-				"wait phy lockon failed, please check hardware\n");
-
-		lvds_msk_reg(lvds, MIPIPHY_REGE1,
-			     m_DIG_INTER_EN, v_DIG_INTER_EN(1));
-	}
-
-	return 0;
-}
-
-static void innov1_lvds_power_off(struct rockchip_lvds *lvds)
-{
-	/* disable lvds lane and power off pll */
-	lvds_writel(lvds, MIPIPHY_REGEB,
-		    v_LANE0_EN(0) | v_LANE1_EN(0) | v_LANE2_EN(0) |
-		    v_LANE3_EN(0) | v_LANECLK_EN(0) | v_PLL_PWR_OFF(1) |
-		    v_LVDS_BGPD(1));
-
-	/* power down lvds pll and bandgap */
-	lvds_msk_reg(lvds, MIPIPHY_REG1,
-		     m_SYNC_RST | m_LDO_PWR_DOWN | m_PLL_PWR_DOWN,
-		     v_SYNC_RST(1) | v_LDO_PWR_DOWN(1) | v_PLL_PWR_DOWN(1));
-
-	/* disable lvds */
-	lvds_msk_reg(lvds, MIPIPHY_REGE3, m_LVDS_EN | m_TTL_EN,
-		     v_LVDS_EN(0) | v_TTL_EN(0));
-}
-
 static enum drm_connector_status
 rockchip_lvds_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -453,8 +336,6 @@ static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 	int ret;
 
 	clk_prepare_enable(lvds->pclk);
-	clk_prepare_enable(lvds->pclk_ctrl);
-	clk_prepare_enable(lvds->hclk_ctrl);
 	pm_runtime_get_sync(lvds->dev);
 
 	if (lvds->panel)
@@ -494,8 +375,6 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 		drm_panel_unprepare(lvds->panel);
 
 	pm_runtime_put(lvds->dev);
-	clk_disable_unprepare(lvds->hclk_ctrl);
-	clk_disable_unprepare(lvds->pclk_ctrl);
 	clk_disable_unprepare(lvds->pclk);
 }
 
@@ -772,29 +651,6 @@ static int rockchip_lvds_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int innov1_lvds_probe(struct rockchip_lvds *lvds)
-{
-	struct device *dev = lvds->dev;
-	struct resource *res;
-
-	/* pll lock on status reg that is MIPICTRL Register */
-	res = platform_get_resource(to_platform_device(dev), IORESOURCE_MEM, 1);
-	lvds->regs_ctrl = devm_ioremap_resource(dev, res);
-	if (IS_ERR(lvds->regs_ctrl)) {
-		dev_err(dev, "ioremap lvds ctl reg failed\n");
-		return PTR_ERR(lvds->regs_ctrl);
-	}
-
-	/* mipi ctrl clk for read lvds phy lock state */
-	lvds->pclk_ctrl = devm_clk_get(dev, "pclk_lvds_ctl");
-	if (IS_ERR(lvds->pclk_ctrl)) {
-		dev_err(dev, "could not get pclk_ctrl\n");
-		return PTR_ERR(lvds->pclk_ctrl);
-	}
-
-	return 0;
-}
-
 static int px30_lvds_power_on(struct rockchip_lvds *lvds)
 {
 	int pipe = drm_of_encoder_active_endpoint_id(lvds->dev->of_node,
@@ -820,65 +676,23 @@ static const struct rockchip_lvds_soc_data px30_lvds_soc_data = {
 	.power_off = px30_lvds_power_off,
 };
 
-static int rk3126_lvds_probe(struct rockchip_lvds *lvds)
-{
-	int ret;
-
-	ret = innov1_lvds_probe(lvds);
-	if (ret)
-		return ret;
-
-	lvds->hclk_ctrl = devm_clk_get(lvds->dev, "hclk_vio_h2p");
-	if (IS_ERR(lvds->hclk_ctrl)) {
-		dev_err(lvds->dev, "could not get hclk_vio_h2p\n");
-		return PTR_ERR(lvds->hclk_ctrl);
-	}
-
-	return 0;
-}
-
 static int rk3126_lvds_power_on(struct rockchip_lvds *lvds)
 {
-	u32 val;
+	regmap_write(lvds->grf, RK3126_GRF_LVDS_CON0,
+		     RK3126_LVDS_P2S_EN(1) | RK3126_LVDS_MODE_EN(1) |
+		     RK3126_LVDS_MSBSEL(1) | RK3126_LVDS_SELECT(lvds->format));
 
-	if (lvds->output == DISPLAY_OUTPUT_RGB) {
-		/* enable lvds mode */
-		val = v_RK3126_LVDSMODE_EN(0) | v_RK3126_MIPIPHY_TTL_EN(1) |
-		      v_RK3126_MIPIPHY_LANE0_EN(1) |
-		      v_RK3126_MIPIDPI_FORCEX_EN(1);
-		regmap_write(lvds->grf, RK3126_GRF_LVDS_CON0, val);
-		val = v_RK3126_MIPITTL_CLK_EN(1) |
-		      v_RK3126_MIPITTL_LANE0_EN(1) |
-		      v_RK3126_MIPITTL_LANE1_EN(1) |
-		      v_RK3126_MIPITTL_LANE2_EN(1) |
-		      v_RK3126_MIPITTL_LANE3_EN(1);
-		regmap_write(lvds->grf, RK3126_GRF_CON1, val);
-	} else if (lvds->output == DISPLAY_OUTPUT_LVDS) {
-		/* enable lvds mode */
-		val = v_RK3126_LVDSMODE_EN(1) | v_RK3126_MIPIPHY_TTL_EN(0);
-		/* config lvds_format */
-		val |= v_RK3126_LVDS_OUTPUT_FORMAT(lvds->format);
-		/* LSB receive mode */
-		val |= v_RK3126_LVDS_MSBSEL(LVDS_MSB_D7);
-		val |= v_RK3126_MIPIPHY_LANE0_EN(1) |
-		       v_RK3126_MIPIDPI_FORCEX_EN(1);
-		regmap_write(lvds->grf, RK3126_GRF_LVDS_CON0, val);
-	}
-
-	return innov1_lvds_power_on(lvds);
+	return 0;
 }
 
 static void rk3126_lvds_power_off(struct rockchip_lvds *lvds)
 {
 	regmap_write(lvds->grf, RK3126_GRF_LVDS_CON0,
-		     v_RK3126_LVDSMODE_EN(0) | v_RK3126_MIPIPHY_TTL_EN(0));
-
-	innov1_lvds_power_off(lvds);
+		     RK3126_LVDS_P2S_EN(0) | RK3126_LVDS_MODE_EN(0));
 }
 
 static const struct rockchip_lvds_soc_data rk3126_lvds_soc_data = {
 	.chip_type = RK3126,
-	.probe = rk3126_lvds_probe,
 	.power_on = rk3126_lvds_power_on,
 	.power_off = rk3126_lvds_power_off,
 };
