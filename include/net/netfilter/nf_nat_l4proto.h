@@ -20,9 +20,6 @@ struct nf_nat_l4proto {
 			  unsigned int iphdroff, unsigned int hdroff,
 			  const struct nf_conntrack_tuple *tuple,
 			  enum nf_nat_manip_type maniptype);
-
-	int (*nlattr_to_range)(struct nlattr *tb[],
-			       struct nf_nat_range2 *range);
 };
 
 /* Protocol registration. */
@@ -47,8 +44,5 @@ extern const struct nf_nat_l4proto nf_nat_l4proto_sctp;
 #ifdef CONFIG_NF_NAT_PROTO_UDPLITE
 extern const struct nf_nat_l4proto nf_nat_l4proto_udplite;
 #endif
-
-int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
-				   struct nf_nat_range2 *range);
 
 #endif /*_NF_NAT_L4PROTO_H*/

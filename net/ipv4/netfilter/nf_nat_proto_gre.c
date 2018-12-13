@@ -80,9 +80,6 @@ gre_manip_pkt(struct sk_buff *skb,
 static const struct nf_nat_l4proto gre = {
 	.l4proto		= IPPROTO_GRE,
 	.manip_pkt		= gre_manip_pkt,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
-#endif
 };
 
 static int __init nf_nat_proto_gre_init(void)

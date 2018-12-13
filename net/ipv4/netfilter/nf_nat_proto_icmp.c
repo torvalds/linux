@@ -39,7 +39,4 @@ icmp_manip_pkt(struct sk_buff *skb,
 const struct nf_nat_l4proto nf_nat_l4proto_icmp = {
 	.l4proto		= IPPROTO_ICMP,
 	.manip_pkt		= icmp_manip_pkt,
-#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
-	.nlattr_to_range	= nf_nat_l4proto_nlattr_to_range,
-#endif
 };

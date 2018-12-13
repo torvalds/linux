@@ -946,12 +946,26 @@ static const struct nla_policy protonat_nla_policy[CTA_PROTONAT_MAX+1] = {
 	[CTA_PROTONAT_PORT_MAX]	= { .type = NLA_U16 },
 };
 
+static int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
+					  struct nf_nat_range2 *range)
+{
+	if (tb[CTA_PROTONAT_PORT_MIN]) {
+		range->min_proto.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MIN]);
+		range->max_proto.all = range->min_proto.all;
+		range->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
+	}
+	if (tb[CTA_PROTONAT_PORT_MAX]) {
+		range->max_proto.all = nla_get_be16(tb[CTA_PROTONAT_PORT_MAX]);
+		range->flags |= NF_NAT_RANGE_PROTO_SPECIFIED;
+	}
+	return 0;
+}
+
 static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 				     const struct nf_conn *ct,
 				     struct nf_nat_range2 *range)
 {
 	struct nlattr *tb[CTA_PROTONAT_MAX+1];
-	const struct nf_nat_l4proto *l4proto;
 	int err;
 
 	err = nla_parse_nested(tb, CTA_PROTONAT_MAX, attr,
@@ -959,11 +973,7 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 	if (err < 0)
 		return err;
 
-	l4proto = __nf_nat_l4proto_find(nf_ct_l3num(ct), nf_ct_protonum(ct));
-	if (l4proto->nlattr_to_range)
-		err = l4proto->nlattr_to_range(tb, range);
-
-	return err;
+	return nf_nat_l4proto_nlattr_to_range(tb, range);
 }
 
 static const struct nla_policy nat_nla_policy[CTA_NAT_MAX+1] = {
