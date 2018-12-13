@@ -389,7 +389,6 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 
 	bio_set_flag(bio, BIO_SEG_VALID);
 }
-EXPORT_SYMBOL(blk_recount_segments);
 
 static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 				   struct bio *nxt)
