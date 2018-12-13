@@ -15,10 +15,10 @@
 
 #include <asm/ptrace.h>
 #include <asm/coprocessor.h>
+#include <linux/elf-em.h>
 
 /* Xtensa processor ELF architecture-magic number */
 
-#define EM_XTENSA	94
 #define EM_XTENSA_OLD	0xABC7
 
 /* Xtensa relocations defined by the ABIs */
