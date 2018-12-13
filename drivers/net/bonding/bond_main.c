@@ -609,14 +609,15 @@ static void bond_hw_addr_swap(struct bonding *bond, struct slave *new_active,
  *
  * Should be called with RTNL held.
  */
-static void bond_set_dev_addr(struct net_device *bond_dev,
-			      struct net_device *slave_dev)
+static int bond_set_dev_addr(struct net_device *bond_dev,
+			     struct net_device *slave_dev)
 {
 	netdev_dbg(bond_dev, "bond_dev=%p slave_dev=%p slave_dev->name=%s slave_dev->addr_len=%d\n",
 		   bond_dev, slave_dev, slave_dev->name, slave_dev->addr_len);
 	memcpy(bond_dev->dev_addr, slave_dev->dev_addr, slave_dev->addr_len);
 	bond_dev->addr_assign_type = NET_ADDR_STOLEN;
 	call_netdevice_notifiers(NETDEV_CHANGEADDR, bond_dev);
+	return 0;
 }
 
 static struct slave *bond_get_old_active(struct bonding *bond,
@@ -652,8 +653,12 @@ static void bond_do_fail_over_mac(struct bonding *bond,
 
 	switch (bond->params.fail_over_mac) {
 	case BOND_FOM_ACTIVE:
-		if (new_active)
-			bond_set_dev_addr(bond->dev, new_active->dev);
+		if (new_active) {
+			rv = bond_set_dev_addr(bond->dev, new_active->dev);
+			if (rv)
+				netdev_err(bond->dev, "Error %d setting MAC of slave %s\n",
+					   -rv, bond->dev->name);
+		}
 		break;
 	case BOND_FOM_FOLLOW:
 		/* if new_active && old_active, swap them
@@ -1489,8 +1494,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev,
 	 * address to be the same as the slave's.
 	 */
 	if (!bond_has_slaves(bond) &&
-	    bond->dev->addr_assign_type == NET_ADDR_RANDOM)
-		bond_set_dev_addr(bond->dev, slave_dev);
+	    bond->dev->addr_assign_type == NET_ADDR_RANDOM) {
+		res = bond_set_dev_addr(bond->dev, slave_dev);
+		if (res)
+			goto err_undo_flags;
+	}
 
 	new_slave = bond_alloc_slave(bond);
 	if (!new_slave) {
@@ -3545,8 +3553,7 @@ static int bond_do_ioctl(struct net_device *bond_dev, struct ifreq *ifr, int cmd
 		break;
 	case BOND_SETHWADDR_OLD:
 	case SIOCBONDSETHWADDR:
-		bond_set_dev_addr(bond_dev, slave_dev);
-		res = 0;
+		res = bond_set_dev_addr(bond_dev, slave_dev);
 		break;
 	case BOND_CHANGE_ACTIVE_OLD:
 	case SIOCBONDCHANGEACTIVE:
