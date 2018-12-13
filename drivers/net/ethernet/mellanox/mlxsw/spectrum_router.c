@@ -6863,20 +6863,14 @@ static int mlxsw_sp_rif_edit(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
-int mlxsw_sp_netdevice_router_port_event(struct net_device *dev)
+static int
+mlxsw_sp_router_port_change_event(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_rif *rif)
 {
-	struct mlxsw_sp *mlxsw_sp;
-	struct mlxsw_sp_rif *rif;
+	struct net_device *dev = rif->dev;
 	u16 fid_index;
 	int err;
 
-	mlxsw_sp = mlxsw_sp_lower_get(dev);
-	if (!mlxsw_sp)
-		return 0;
-
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!rif)
-		return 0;
 	fid_index = mlxsw_sp_fid_index(rif->fid);
 
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, rif->addr, fid_index, false);
@@ -6918,6 +6912,29 @@ err_rif_fdb_op:
 err_rif_edit:
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, rif->addr, fid_index, true);
 	return err;
+}
+
+int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
+					 unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *rif;
+
+	mlxsw_sp = mlxsw_sp_lower_get(dev);
+	if (!mlxsw_sp)
+		return 0;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!rif)
+		return 0;
+
+	switch (event) {
+	case NETDEV_CHANGEMTU: /* fall through */
+	case NETDEV_CHANGEADDR:
+		return mlxsw_sp_router_port_change_event(mlxsw_sp, rif);
+	}
+
+	return 0;
 }
 
 static int mlxsw_sp_port_vrf_join(struct mlxsw_sp *mlxsw_sp,
