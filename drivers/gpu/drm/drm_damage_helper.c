@@ -250,7 +250,7 @@ EXPORT_SYMBOL(drm_atomic_helper_dirtyfb);
  * drm_atomic_helper_damage_iter_init - Initialize the damage iterator.
  * @iter: The iterator to initialize.
  * @old_state: Old plane state for validation.
- * @new_state: Plane state from which to iterate the damage clips.
+ * @state: Plane state from which to iterate the damage clips.
  *
  * Initialize an iterator, which clips plane damage
  * &drm_plane_state.fb_damage_clips to plane &drm_plane_state.src. This iterator
