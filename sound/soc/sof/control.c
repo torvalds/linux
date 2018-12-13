@@ -121,6 +121,12 @@ int snd_sof_bytes_get(struct snd_kcontrol *kcontrol,
 	size_t size;
 	int ret, err;
 
+	if (be->max > sizeof(ucontrol->value.bytes.data)) {
+		dev_err_ratelimited(sdev->dev, "error: data max %d exceeds ucontrol data array size\n",
+				    be->max);
+		return -EINVAL;
+	}
+
 	ret = pm_runtime_get_sync(sdev->dev);
 	if (ret < 0) {
 		dev_err_ratelimited(sdev->dev, "error: bytes get failed to resume %d\n",
@@ -161,6 +167,12 @@ int snd_sof_bytes_put(struct snd_kcontrol *kcontrol,
 	struct sof_ipc_ctrl_data *cdata = scontrol->control_data;
 	struct sof_abi_hdr *data = cdata->data;
 	int ret, err;
+
+	if (be->max > sizeof(ucontrol->value.bytes.data)) {
+		dev_err_ratelimited(sdev->dev, "error: data max %d exceeds ucontrol data array size\n",
+				    be->max);
+		return -EINVAL;
+	}
 
 	if (data->size > be->max) {
 		dev_err_ratelimited(sdev->dev, "error: size too big %d bytes max is %d\n",
