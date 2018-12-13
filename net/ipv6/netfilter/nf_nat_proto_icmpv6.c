@@ -19,32 +19,6 @@
 #include <net/netfilter/nf_nat_l3proto.h>
 #include <net/netfilter/nf_nat_l4proto.h>
 
-static bool
-icmpv6_manip_pkt(struct sk_buff *skb,
-		 const struct nf_nat_l3proto *l3proto,
-		 unsigned int iphdroff, unsigned int hdroff,
-		 const struct nf_conntrack_tuple *tuple,
-		 enum nf_nat_manip_type maniptype)
-{
-	struct icmp6hdr *hdr;
-
-	if (!skb_make_writable(skb, hdroff + sizeof(*hdr)))
-		return false;
-
-	hdr = (struct icmp6hdr *)(skb->data + hdroff);
-	l3proto->csum_update(skb, iphdroff, &hdr->icmp6_cksum,
-			     tuple, maniptype);
-	if (hdr->icmp6_type == ICMPV6_ECHO_REQUEST ||
-	    hdr->icmp6_type == ICMPV6_ECHO_REPLY) {
-		inet_proto_csum_replace2(&hdr->icmp6_cksum, skb,
-					 hdr->icmp6_identifier,
-					 tuple->src.u.icmp.id, false);
-		hdr->icmp6_identifier = tuple->src.u.icmp.id;
-	}
-	return true;
-}
-
 const struct nf_nat_l4proto nf_nat_l4proto_icmpv6 = {
 	.l4proto		= IPPROTO_ICMPV6,
-	.manip_pkt		= icmpv6_manip_pkt,
 };

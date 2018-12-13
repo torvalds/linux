@@ -48,7 +48,7 @@ obj-$(CONFIG_NF_CONNTRACK_SIP) += nf_conntrack_sip.o
 obj-$(CONFIG_NF_CONNTRACK_TFTP) += nf_conntrack_tftp.o
 
 nf_nat-y	:= nf_nat_core.o nf_nat_proto_unknown.o \
-		   nf_nat_proto_udp.o nf_nat_proto_tcp.o nf_nat_helper.o
+		   nf_nat_proto.o nf_nat_proto_tcp.o nf_nat_helper.o
 
 # NAT protocols (nf_nat)
 nf_nat-$(CONFIG_NF_NAT_PROTO_DCCP) += nf_nat_proto_dccp.o

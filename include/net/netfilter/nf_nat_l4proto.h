@@ -12,14 +12,6 @@ struct nf_nat_l4proto {
 	/* Protocol number. */
 	u8 l4proto;
 
-	/* Translate a packet to the target according to manip type.
-	 * Return true if succeeded.
-	 */
-	bool (*manip_pkt)(struct sk_buff *skb,
-			  const struct nf_nat_l3proto *l3proto,
-			  unsigned int iphdroff, unsigned int hdroff,
-			  const struct nf_conntrack_tuple *tuple,
-			  enum nf_nat_manip_type maniptype);
 };
 
 /* Protocol registration. */
@@ -28,6 +20,13 @@ void nf_nat_l4proto_unregister(u8 l3proto,
 			       const struct nf_nat_l4proto *l4proto);
 
 const struct nf_nat_l4proto *__nf_nat_l4proto_find(u8 l3proto, u8 l4proto);
+
+/* Translate a packet to the target according to manip type.  Return on success. */
+bool nf_nat_l4proto_manip_pkt(struct sk_buff *skb,
+			      const struct nf_nat_l3proto *l3proto,
+			      unsigned int iphdroff, unsigned int hdroff,
+			      const struct nf_conntrack_tuple *tuple,
+			      enum nf_nat_manip_type maniptype);
 
 /* Built-in protocols. */
 extern const struct nf_nat_l4proto nf_nat_l4proto_tcp;
