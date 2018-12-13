@@ -430,6 +430,9 @@ archclean:
 	$(Q)$(MAKE) $(clean)=arch/mips/boot/tools
 	$(Q)$(MAKE) $(clean)=arch/mips/lasat
 
+archheaders:
+	$(Q)$(MAKE) $(build)=arch/mips/kernel/syscalls all
+
 define archhelp
 	echo '  install              - install kernel into $(INSTALL_PATH)'
 	echo '  vmlinux.ecoff        - ECOFF boot image'
