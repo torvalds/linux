@@ -175,4 +175,4 @@ video node in ``V4L2_BUF_TYPE_META_CAPTURE`` format.
 Intel IPU3 ImgU uAPI data types
 ===============================
 
-.. kernel-doc:: include/uapi/linux/intel-ipu3.h
+.. kernel-doc:: drivers/staging/media/ipu3/include/intel-ipu3.h
