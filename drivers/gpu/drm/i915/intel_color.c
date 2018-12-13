@@ -74,14 +74,17 @@
 #define ILK_CSC_COEFF_1_0		\
 	((7 << 12) | ILK_CSC_COEFF_FP(CTM_COEFF_1_0, 8))
 
+static bool lut_is_legacy(struct drm_property_blob *lut)
+{
+	return drm_color_lut_size(lut) == LEGACY_LUT_LENGTH;
+}
+
 static bool crtc_state_is_legacy_gamma(struct intel_crtc_state *crtc_state)
 {
-	int lut_length = drm_color_lut_size(crtc_state->base.gamma_lut);
-
 	return !crtc_state->base.degamma_lut &&
 		!crtc_state->base.ctm &&
 		crtc_state->base.gamma_lut &&
-		lut_length == LEGACY_LUT_LENGTH;
+		lut_is_legacy(crtc_state->base.gamma_lut);
 }
 
 /*
