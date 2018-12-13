@@ -13648,6 +13648,28 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
+		"allocated_stack",
+		.insns = {
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_6, BPF_REG_1),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_get_prandom_u32),
+			BPF_ALU64_REG(BPF_MOV, BPF_REG_7, BPF_REG_0),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 5),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_6, -8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_6, BPF_REG_10, -8),
+			BPF_STX_MEM(BPF_B, BPF_REG_10, BPF_REG_7, -9),
+			BPF_LDX_MEM(BPF_B, BPF_REG_7, BPF_REG_10, -9),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 0),
+			BPF_JMP_IMM(BPF_JNE, BPF_REG_0, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.result_unpriv = ACCEPT,
+		.insn_processed = 15,
+	},
+	{
 		"reference tracking in call: free reference in subprog and outside",
 		.insns = {
 			BPF_SK_LOOKUP,

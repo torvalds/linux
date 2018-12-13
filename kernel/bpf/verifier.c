@@ -5191,12 +5191,6 @@ static bool stacksafe(struct bpf_func_state *old,
 {
 	int i, spi;
 
-	/* if explored stack has more populated slots than current stack
-	 * such stacks are not equivalent
-	 */
-	if (old->allocated_stack > cur->allocated_stack)
-		return false;
-
 	/* walk slots of the explored stack and ignore any additional
 	 * slots in the current stack, since explored(safe) state
 	 * didn't use them
@@ -5212,6 +5206,13 @@ static bool stacksafe(struct bpf_func_state *old,
 
 		if (old->stack[spi].slot_type[i % BPF_REG_SIZE] == STACK_INVALID)
 			continue;
+
+		/* explored stack has more populated slots than current stack
+		 * and these slots were used
+		 */
+		if (i >= cur->allocated_stack)
+			return false;
+
 		/* if old state was safe with misc data in the stack
 		 * it will be safe with zero-initialized stack.
 		 * The opposite is not true
