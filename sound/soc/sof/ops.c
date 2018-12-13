@@ -18,10 +18,9 @@ int snd_sof_pci_update_bits_unlocked(struct snd_sof_dev *sdev, u32 offset,
 	u32 ret = ~0; /* explicit init to remove uninitialized use warnings */
 
 	pci_read_config_dword(sdev->pci, offset, &ret);
-	dev_dbg(sdev->dev, "Debug PCIR: %8.8x at  %8.8x\n",
-		pci_read_config_dword(sdev->pci, offset, &ret), offset);
-
 	old = ret;
+	dev_dbg(sdev->dev, "Debug PCIR: %8.8x at  %8.8x\n", old & mask, offset);
+
 	new = (old & (~mask)) | (value & mask);
 
 	if (old == new)
