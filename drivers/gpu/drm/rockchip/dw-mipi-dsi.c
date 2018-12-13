@@ -654,97 +654,112 @@ static void dw_mipi_dsi_phy_init(struct dw_mipi_dsi *dsi)
 		dw_mipi_dsi_phy_pll_init(dsi);
 }
 
-static unsigned long dw_mipi_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
+static unsigned long dw_mipi_dsi_get_lane_rate(struct dw_mipi_dsi *dsi)
 {
-	int bpp;
-	unsigned long mpclk, tmp;
-	unsigned long target_mbps = 1000;
+	struct device *dev = dsi->dev;
+	const struct drm_display_mode *mode = &dsi->mode;
+	unsigned long max_lane_rate = dsi->pdata->max_bit_rate_per_lane;
+	unsigned long lane_rate;
 	unsigned int value;
-	struct device_node *np = dsi->dev->of_node;
-	unsigned int max_mbps;
-	int lanes;
+	int bpp, lanes;
+	u64 tmp;
 
 	/* optional override of the desired bandwidth */
-	if (!of_property_read_u32(np, "rockchip,lane-rate", &value))
-		return value;
-
-	max_mbps = dsi->pdata->max_bit_rate_per_lane / USEC_PER_SEC;
+	if (!of_property_read_u32(dev->of_node, "rockchip,lane-rate", &value))
+		return value * USEC_PER_SEC;
 
 	bpp = mipi_dsi_pixel_format_to_bpp(dsi->format);
-	if (bpp < 0) {
-		dev_err(dsi->dev, "failed to get bpp for pixel format %d\n",
-			dsi->format);
+	if (bpp < 0)
 		bpp = 24;
-	}
 
 	lanes = dsi->slave ? dsi->lanes * 2 : dsi->lanes;
+	tmp = (u64)mode->clock * 1000 * bpp;
+	do_div(tmp, lanes);
 
-	mpclk = DIV_ROUND_UP(dsi->mode.clock, MSEC_PER_SEC);
-	if (mpclk) {
-		/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
-		tmp = mpclk * (bpp / lanes) * 10 / 9;
-		if (tmp < max_mbps)
-			target_mbps = tmp;
-		else
-			dev_err(dsi->dev, "DPHY clock frequency is out of range\n");
-	}
+	/* take 1 / 0.9, since mbps must big than bandwidth of RGB */
+	tmp *= 10;
+	do_div(tmp, 9);
 
-	return target_mbps;
+	if (tmp > max_lane_rate)
+		lane_rate = max_lane_rate;
+	else
+		lane_rate = tmp;
+
+	return lane_rate;
 }
 
-static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_set_pll(struct dw_mipi_dsi *dsi, unsigned long rate)
 {
-	unsigned int i, pre;
-	unsigned long pllref, tmp;
-	unsigned int m = 1, n = 1;
-	unsigned long target_mbps;
+	unsigned long fin, fout;
+	unsigned long fvco_min, fvco_max, best_freq = 984000000;
+	u8 min_prediv, max_prediv;
+	u8 _prediv, best_prediv = 2;
+	u16 _fbdiv, best_fbdiv = 82;
+	u32 min_delta = UINT_MAX;
 
-	if (dsi->master)
-		return 0;
+	fin = clk_get_rate(dsi->dphy.ref_clk);
+	fout = rate;
 
-	target_mbps = dw_mipi_dsi_calc_bandwidth(dsi);
+	/* 5Mhz < Fref / N < 40MHz, 80MHz < Fvco < 1500Mhz */
+	min_prediv = DIV_ROUND_UP(fin, 40000000);
+	max_prediv = fin / 5000000;
+	fvco_min = 80000000;
+	fvco_max = 1500000000;
 
-	pllref = DIV_ROUND_UP(clk_get_rate(dsi->dphy.ref_clk), USEC_PER_SEC);
-	tmp = pllref;
+	for (_prediv = min_prediv; _prediv <= max_prediv; _prediv++) {
+		u64 tmp, _fout;
+		u32 delta;
 
-	for (i = 1; i < 6; i++) {
-		pre = pllref / i;
-		if ((tmp > (target_mbps % pre)) && (target_mbps / pre < 512)) {
-			tmp = target_mbps % pre;
-			n = i;
-			m = target_mbps / pre;
-		}
-		if (tmp == 0)
+		/* Fvco = Fref * M / N */
+		tmp = (u64)fout * _prediv;
+		do_div(tmp, fin);
+		_fbdiv = tmp;
+
+		/*
+		 * Due to the use of a "by 2 pre-scaler," the range of the
+		 * feedback multiplication value M is limited to even division
+		 * numbers, and m must be greater than 12, less than 1000.
+		 */
+		if (_fbdiv <= 12 || _fbdiv >= 1000)
+			continue;
+
+		if (_fbdiv % 2)
+			++_fbdiv;
+
+		_fout = (u64)_fbdiv * fin;
+		do_div(_fout, _prediv);
+
+		if (_fout < fvco_min || _fout > fvco_max)
+			continue;
+
+		delta = abs(fout - _fout);
+		if (!delta) {
+			best_prediv = _prediv;
+			best_fbdiv = _fbdiv;
+			best_freq = _fout;
 			break;
+		} else if (delta < min_delta) {
+			best_prediv = _prediv;
+			best_fbdiv = _fbdiv;
+			best_freq = _fout;
+			min_delta = delta;
+		}
 	}
 
-	dsi->lane_mbps = pllref / n * m;
-	dsi->dphy.input_div = n;
-	dsi->dphy.feedback_div = m;
+	dsi->lane_mbps = best_freq / USEC_PER_SEC;
+	dsi->dphy.input_div = best_prediv;
+	dsi->dphy.feedback_div = best_fbdiv;
 	if (dsi->slave) {
 		dsi->slave->lane_mbps = dsi->lane_mbps;
-		dsi->slave->dphy.input_div = n;
-		dsi->slave->dphy.feedback_div = m;
+		dsi->slave->dphy.input_div = dsi->dphy.input_div;
+		dsi->slave->dphy.feedback_div = dsi->dphy.feedback_div;
 	}
-
-	return 0;
 }
 
-static void dw_mipi_dsi_set_hs_clk(struct dw_mipi_dsi *dsi)
+static void dw_mipi_dsi_set_hs_clk(struct dw_mipi_dsi *dsi, unsigned long rate)
 {
-	int ret;
-	unsigned long target_mbps;
-	unsigned long bw, rate;
-
-	target_mbps = dw_mipi_dsi_calc_bandwidth(dsi);
-	bw = target_mbps * USEC_PER_SEC;
-
-	rate = clk_round_rate(dsi->dphy.hs_clk, bw);
-	ret = clk_set_rate(dsi->dphy.hs_clk, rate);
-	if (ret)
-		dev_err(dsi->dev, "failed to set hs clock rate: %lu\n",
-			rate);
-
+	rate = clk_round_rate(dsi->dphy.hs_clk, rate);
+	clk_set_rate(dsi->dphy.hs_clk, rate);
 	dsi->lane_mbps = rate / USEC_PER_SEC;
 }
 
@@ -1260,17 +1275,6 @@ static void dw_mipi_dsi_encoder_disable(struct drm_encoder *encoder)
 	dw_mipi_dsi_post_disable(dsi);
 }
 
-static void dw_mipi_dsi_pre_init(struct dw_mipi_dsi *dsi)
-{
-	if (dsi->dphy.phy)
-		dw_mipi_dsi_set_hs_clk(dsi);
-	else
-		dw_mipi_dsi_get_lane_bps(dsi);
-
-	dev_info(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
-		 dsi->lane_mbps, dsi->lanes);
-}
-
 static void dw_mipi_dsi_host_init(struct dw_mipi_dsi *dsi)
 {
 	dw_mipi_dsi_init(dsi);
@@ -1290,8 +1294,6 @@ static void dw_mipi_dsi_host_init(struct dw_mipi_dsi *dsi)
 
 static void dw_mipi_dsi_pre_enable(struct dw_mipi_dsi *dsi)
 {
-	dw_mipi_dsi_pre_init(dsi);
-
 	pm_runtime_get_sync(dsi->dev);
 
 	/* MIPI DSI APB software reset request. */
@@ -1355,9 +1357,17 @@ static void dw_mipi_dsi_vop_routing(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct dw_mipi_dsi *dsi = encoder_to_dsi(encoder);
+	unsigned long lane_rate = dw_mipi_dsi_get_lane_rate(dsi);
+
+	if (dsi->dphy.phy)
+		dw_mipi_dsi_set_hs_clk(dsi, lane_rate);
+	else
+		dw_mipi_dsi_set_pll(dsi, lane_rate);
+
+	dev_info(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
+		 dsi->lane_mbps, dsi->slave ? dsi->lanes * 2 : dsi->lanes);
 
 	dw_mipi_dsi_vop_routing(dsi);
-
 	dw_mipi_dsi_pre_enable(dsi);
 
 	if (dsi->panel)
