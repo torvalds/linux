@@ -580,10 +580,12 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 	BUILD_BUG_ON(ARC_PERF_MAX_COUNTERS > 32);
-	BUG_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS);
+	if (WARN_ON(pct_bcr.c > ARC_PERF_MAX_COUNTERS))
+		return -EINVAL;
 
 	READ_BCR(ARC_REG_CC_BUILD, cc_bcr);
-	BUG_ON(!cc_bcr.v); /* Counters exist but No countable conditions ? */
+	if (WARN(!cc_bcr.v, "Counters exist but No countable conditions?"))
+		return -EINVAL;
 
 	arc_pmu = devm_kzalloc(&pdev->dev, sizeof(struct arc_pmu), GFP_KERNEL);
 	if (!arc_pmu)
