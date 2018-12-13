@@ -513,6 +513,47 @@ static int smu_v11_0_parse_pptable(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_populate_smc_pptable(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+
+	PPTable_t *driver_ppt = (PPTable_t *)&(smu->smu_table.tables[TABLE_PPTABLE]);
+	struct smu_11_0_dpm_context *dpm_context = (struct smu_11_0_dpm_context *)smu_dpm->dpm_context;
+
+	if (dpm_context && driver_ppt) {
+		dpm_context->dpm_tables.soc_table.min = driver_ppt->FreqTableSocclk[0];
+		dpm_context->dpm_tables.soc_table.max = driver_ppt->FreqTableSocclk[NUM_SOCCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.gfx_table.min = driver_ppt->FreqTableGfx[0];
+		dpm_context->dpm_tables.gfx_table.max = driver_ppt->FreqTableGfx[NUM_GFXCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.uclk_table.min = driver_ppt->FreqTableUclk[0];
+		dpm_context->dpm_tables.uclk_table.max = driver_ppt->FreqTableUclk[NUM_UCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.vclk_table.min = driver_ppt->FreqTableVclk[0];
+		dpm_context->dpm_tables.vclk_table.max = driver_ppt->FreqTableVclk[NUM_VCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.dclk_table.min = driver_ppt->FreqTableDclk[0];
+		dpm_context->dpm_tables.dclk_table.max = driver_ppt->FreqTableDclk[NUM_DCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.dcef_table.min = driver_ppt->FreqTableDcefclk[0];
+		dpm_context->dpm_tables.dcef_table.max = driver_ppt->FreqTableDcefclk[NUM_DCEFCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.pixel_table.min = driver_ppt->FreqTablePixclk[0];
+		dpm_context->dpm_tables.pixel_table.max = driver_ppt->FreqTablePixclk[NUM_PIXCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.display_table.min = driver_ppt->FreqTableDispclk[0];
+		dpm_context->dpm_tables.display_table.max = driver_ppt->FreqTableDispclk[NUM_DISPCLK_DPM_LEVELS - 1];
+
+		dpm_context->dpm_tables.phy_table.min = driver_ppt->FreqTablePhyclk[0];
+		dpm_context->dpm_tables.phy_table.max = driver_ppt->FreqTablePhyclk[NUM_PHYCLK_DPM_LEVELS - 1];
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -530,6 +571,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.check_pptable = smu_v11_0_check_pptable,
 	.parse_pptable = smu_v11_0_parse_pptable,
+	.populate_smc_pptable = smu_v11_0_populate_smc_pptable,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
