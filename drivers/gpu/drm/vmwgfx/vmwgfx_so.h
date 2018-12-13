@@ -129,6 +129,7 @@ static inline enum vmw_so_type vmw_so_cmd_to_type(u32 id)
 	case SVGA_3D_CMD_DX_DESTROY_SAMPLER_STATE:
 		return vmw_so_ss;
 	case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT:
+	case SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT_WITH_MOB:
 	case SVGA_3D_CMD_DX_DESTROY_STREAMOUTPUT:
 		return vmw_so_so;
 	default:

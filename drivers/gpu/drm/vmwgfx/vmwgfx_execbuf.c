@@ -2948,6 +2948,169 @@ static int vmw_cmd_set_cs_uav(struct vmw_private *dev_priv,
 	return ret;
 }
 
+static int vmw_cmd_dx_define_streamoutput(struct vmw_private *dev_priv,
+					  struct vmw_sw_context *sw_context,
+					  SVGA3dCmdHeader *header)
+{
+	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_resource *res;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXDefineStreamOutputWithMob body;
+	} *cmd = container_of(header, typeof(*cmd), header);
+	int ret;
+
+	if (!has_sm5_context(dev_priv))
+		return -EINVAL;
+
+	if (!ctx_node) {
+		DRM_ERROR("DX Context not set.\n");
+		return -EINVAL;
+	}
+
+	res = vmw_context_cotable(ctx_node->ctx, SVGA_COTABLE_STREAMOUTPUT);
+	ret = vmw_cotable_notify(res, cmd->body.soid);
+	if (ret)
+		return ret;
+
+	return vmw_dx_streamoutput_add(sw_context->man, ctx_node->ctx,
+				       cmd->body.soid,
+				       &sw_context->staged_cmd_res);
+}
+
+static int vmw_cmd_dx_destroy_streamoutput(struct vmw_private *dev_priv,
+					   struct vmw_sw_context *sw_context,
+					   SVGA3dCmdHeader *header)
+{
+	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_resource *res;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXDestroyStreamOutput body;
+	} *cmd = container_of(header, typeof(*cmd), header);
+
+	if (!ctx_node) {
+		DRM_ERROR("DX Context not set.\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * When device does not support SM5 then streamoutput with mob command is
+	 * not available to user-space. Simply return in this case.
+	 */
+	if (!has_sm5_context(dev_priv))
+		return 0;
+
+	/*
+	 * With SM5 capable device if lookup fails then user-space probably used
+	 * old streamoutput define command. Return without an error.
+	 */
+	res = vmw_dx_streamoutput_lookup(vmw_context_res_man(ctx_node->ctx),
+					 cmd->body.soid);
+	if (IS_ERR(res))
+		return 0;
+
+	return vmw_dx_streamoutput_remove(sw_context->man, cmd->body.soid,
+					  &sw_context->staged_cmd_res);
+}
+
+static int vmw_cmd_dx_bind_streamoutput(struct vmw_private *dev_priv,
+					struct vmw_sw_context *sw_context,
+					SVGA3dCmdHeader *header)
+{
+	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_resource *res;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXBindStreamOutput body;
+	} *cmd = container_of(header, typeof(*cmd), header);
+	int ret;
+
+	if (!has_sm5_context(dev_priv))
+		return -EINVAL;
+
+	if (!ctx_node) {
+		DRM_ERROR("DX Context not set.\n");
+		return -EINVAL;
+	}
+
+	res = vmw_dx_streamoutput_lookup(vmw_context_res_man(ctx_node->ctx),
+					 cmd->body.soid);
+	if (IS_ERR(res)) {
+		DRM_ERROR("Cound not find streamoutput to bind.\n");
+		return PTR_ERR(res);
+	}
+
+	vmw_dx_streamoutput_set_size(res, cmd->body.sizeInBytes);
+
+	ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+					    VMW_RES_DIRTY_NONE);
+	if (ret) {
+		DRM_ERROR("Error creating resource validation node.\n");
+		return ret;
+	}
+
+	return vmw_cmd_res_switch_backup(dev_priv, sw_context, res,
+					 &cmd->body.mobid,
+					 cmd->body.offsetInBytes);
+}
+
+static int vmw_cmd_dx_set_streamoutput(struct vmw_private *dev_priv,
+				       struct vmw_sw_context *sw_context,
+				       SVGA3dCmdHeader *header)
+{
+	struct vmw_ctx_validation_info *ctx_node = sw_context->dx_ctx_node;
+	struct vmw_resource *res;
+	struct vmw_ctx_bindinfo_so binding;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXSetStreamOutput body;
+	} *cmd = container_of(header, typeof(*cmd), header);
+	int ret;
+
+	if (!ctx_node) {
+		DRM_ERROR("DX Context not set.\n");
+		return -EINVAL;
+	}
+
+	if (cmd->body.soid == SVGA3D_INVALID_ID)
+		return 0;
+
+	/*
+	 * When device does not support SM5 then streamoutput with mob command is
+	 * not available to user-space. Simply return in this case.
+	 */
+	if (!has_sm5_context(dev_priv))
+		return 0;
+
+	/*
+	 * With SM5 capable device if lookup fails then user-space probably used
+	 * old streamoutput define command. Return without an error.
+	 */
+	res = vmw_dx_streamoutput_lookup(vmw_context_res_man(ctx_node->ctx),
+					 cmd->body.soid);
+	if (IS_ERR(res)) {
+		return 0;
+	}
+
+	ret = vmw_execbuf_res_noctx_val_add(sw_context, res,
+					    VMW_RES_DIRTY_NONE);
+	if (ret) {
+		DRM_ERROR("Error creating resource validation node.\n");
+		return ret;
+	}
+
+	binding.bi.ctx = ctx_node->ctx;
+	binding.bi.res = res;
+	binding.bi.bt = vmw_ctx_binding_so;
+	binding.slot = 0; /* Only one SO set to context at a time. */
+
+	vmw_binding_add(sw_context->dx_ctx_node->staged, &binding.bi, 0,
+			binding.slot);
+
+	return ret;
+}
+
 static int vmw_cmd_indexed_instanced_indirect(struct vmw_private *dev_priv,
 					      struct vmw_sw_context *sw_context,
 					      SVGA3dCmdHeader *header)
@@ -3330,9 +3493,9 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT,
 		    &vmw_cmd_dx_so_define, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DESTROY_STREAMOUTPUT,
-		    &vmw_cmd_dx_cid_check, true, false, true),
-	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_STREAMOUTPUT, &vmw_cmd_dx_cid_check,
-		    true, false, true),
+		    &vmw_cmd_dx_destroy_streamoutput, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_STREAMOUTPUT,
+		    &vmw_cmd_dx_set_streamoutput, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_SOTARGETS,
 		    &vmw_cmd_dx_set_so_targets, true, false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_SET_INPUT_LAYOUT,
@@ -3375,6 +3538,10 @@ static const struct vmw_cmd_entry vmw_cmd_entries[SVGA_3D_CMD_MAX] = {
 		    false, true),
 	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_DEPTHSTENCIL_VIEW_V2,
 		    &vmw_cmd_sm5_view_define, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_DEFINE_STREAMOUTPUT_WITH_MOB,
+		    &vmw_cmd_dx_define_streamoutput, true, false, true),
+	VMW_CMD_DEF(SVGA_3D_CMD_DX_BIND_STREAMOUTPUT,
+		    &vmw_cmd_dx_bind_streamoutput, true, false, true),
 };
 
 bool vmw_cmd_describe(const void *buf, u32 *size, char const **cmd)

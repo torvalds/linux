@@ -202,6 +202,7 @@ enum vmw_res_type {
 	vmw_res_dx_context,
 	vmw_res_cotable,
 	vmw_res_view,
+	vmw_res_streamoutput,
 	vmw_res_max
 };
 
@@ -210,7 +211,8 @@ enum vmw_res_type {
  */
 enum vmw_cmdbuf_res_type {
 	vmw_cmdbuf_res_shader,
-	vmw_cmdbuf_res_view
+	vmw_cmdbuf_res_view,
+	vmw_cmdbuf_res_streamoutput
 };
 
 struct vmw_cmdbuf_res_manager;
@@ -1306,6 +1308,24 @@ extern void vmw_dx_shader_cotable_list_scrub(struct vmw_private *dev_priv,
 extern struct vmw_resource *
 vmw_shader_lookup(struct vmw_cmdbuf_res_manager *man,
 		  u32 user_key, SVGA3dShaderType shader_type);
+
+/*
+ * Streamoutput management
+ */
+struct vmw_resource *
+vmw_dx_streamoutput_lookup(struct vmw_cmdbuf_res_manager *man,
+			   u32 user_key);
+int vmw_dx_streamoutput_add(struct vmw_cmdbuf_res_manager *man,
+			    struct vmw_resource *ctx,
+			    SVGA3dStreamOutputId user_key,
+			    struct list_head *list);
+void vmw_dx_streamoutput_set_size(struct vmw_resource *res, u32 size);
+int vmw_dx_streamoutput_remove(struct vmw_cmdbuf_res_manager *man,
+			       SVGA3dStreamOutputId user_key,
+			       struct list_head *list);
+void vmw_dx_streamoutput_cotable_list_scrub(struct vmw_private *dev_priv,
+					    struct list_head *list,
+					    bool readback);
 
 /*
  * Command buffer managed resources - vmwgfx_cmdbuf_res.c

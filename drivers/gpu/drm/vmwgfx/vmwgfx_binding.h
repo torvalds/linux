@@ -55,6 +55,7 @@ enum vmw_ctx_binding_type {
 	vmw_ctx_binding_ib,
 	vmw_ctx_binding_uav,
 	vmw_ctx_binding_cs_uav,
+	vmw_ctx_binding_so,
 	vmw_ctx_binding_max
 };
 
@@ -201,6 +202,16 @@ struct vmw_dx_shader_bindings {
 struct vmw_ctx_bindinfo_uav {
 	struct vmw_ctx_bindinfo_view views[SVGA3D_MAX_UAVIEWS];
 	uint32 index;
+};
+
+/**
+ * struct vmw_ctx_bindinfo_so - Stream output binding metadata.
+ * @bi: struct vmw_ctx_bindinfo we derive from.
+ * @slot: Device data used to reconstruct binding command.
+ */
+struct vmw_ctx_bindinfo_so {
+	struct vmw_ctx_bindinfo bi;
+	uint32 slot;
 };
 
 extern void vmw_binding_add(struct vmw_ctx_binding_state *cbs,

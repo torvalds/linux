@@ -78,6 +78,7 @@
  * @index_buffer: Index buffer binding.
  * @per_shader: Per shader-type bindings.
  * @ua_views: UAV bindings.
+ * @so_state: StreamOutput bindings.
  * @dirty: Bitmap tracking per binding-type changes that have not yet
  * been emitted to the device.
  * @dirty_vb: Bitmap tracking individual vertex buffer binding changes that
@@ -103,6 +104,7 @@ struct vmw_ctx_binding_state {
 	struct vmw_ctx_bindinfo_ib index_buffer;
 	struct vmw_dx_shader_bindings per_shader[SVGA3D_NUM_SHADERTYPE];
 	struct vmw_ctx_bindinfo_uav ua_views[VMW_MAX_UAV_BIND_TYPE];
+	struct vmw_ctx_bindinfo_so so_state;
 
 	unsigned long dirty;
 	DECLARE_BITMAP(dirty_vb, SVGA3D_DX_MAX_VERTEXBUFFERS);
@@ -127,6 +129,7 @@ static int vmw_binding_scrub_ib(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_vb(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_uav(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_cs_uav(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind);
 
 static void vmw_binding_build_asserts(void) __attribute__ ((unused));
 
@@ -202,6 +205,9 @@ static const size_t vmw_binding_uav_offsets[] = {
 static const size_t vmw_binding_cs_uav_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, ua_views[1].views),
 };
+static const size_t vmw_binding_so_offsets[] = {
+	offsetof(struct vmw_ctx_binding_state, so_state),
+};
 
 static const struct vmw_binding_info vmw_binding_infos[] = {
 	[vmw_ctx_binding_shader] = {
@@ -256,6 +262,10 @@ static const struct vmw_binding_info vmw_binding_infos[] = {
 		.size = sizeof(struct vmw_ctx_bindinfo_view),
 		.offsets = vmw_binding_cs_uav_offsets,
 		.scrub_func = vmw_binding_scrub_cs_uav},
+	[vmw_ctx_binding_so] = {
+		.size = sizeof(struct vmw_ctx_bindinfo_so),
+		.offsets = vmw_binding_so_offsets,
+		.scrub_func = vmw_binding_scrub_so},
 };
 
 /**
@@ -1291,6 +1301,33 @@ static int vmw_binding_scrub_cs_uav(struct vmw_ctx_bindinfo *bi, bool rebind)
 }
 
 /**
+ * vmw_binding_scrub_so - Scrub a streamoutput binding from context.
+ * @bi: Single binding information.
+ * @rebind: Whether to issue a bind instead of scrub command.
+ */
+static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
+{
+	struct vmw_ctx_bindinfo_so *binding =
+		container_of(bi, typeof(*binding), bi);
+	struct vmw_private *dev_priv = bi->ctx->dev_priv;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDXSetStreamOutput body;
+	} *cmd;
+
+	cmd = VMW_FIFO_RESERVE_DX(dev_priv, sizeof(*cmd), bi->ctx->id);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->header.id = SVGA_3D_CMD_DX_SET_STREAMOUTPUT;
+	cmd->header.size = sizeof(cmd->body);
+	cmd->body.soid = rebind ? bi->res->id : SVGA3D_INVALID_ID;
+	vmw_fifo_commit(dev_priv, sizeof(*cmd));
+
+	return 0;
+}
+
+/**
  * vmw_binding_state_alloc - Allocate a struct vmw_ctx_binding_state with
  * memory accounting.
  *
@@ -1393,7 +1430,7 @@ u32 vmw_binding_dirtying(enum vmw_ctx_binding_type binding_type)
 	};
 
 	/* Review this function as new bindings are added. */
-	BUILD_BUG_ON(vmw_ctx_binding_max != 13);
+	BUILD_BUG_ON(vmw_ctx_binding_max != 14);
 	return is_binding_dirtying[binding_type];
 }
 
