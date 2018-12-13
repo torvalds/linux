@@ -385,6 +385,30 @@ static int igt_global_reset(void *arg)
 	return err;
 }
 
+static int igt_wedged_reset(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+
+	/* Check that we can recover a wedged device with a GPU reset */
+
+	igt_global_reset_lock(i915);
+	mutex_lock(&i915->drm.struct_mutex);
+	intel_runtime_pm_get(i915);
+
+	i915_gem_set_wedged(i915);
+	GEM_BUG_ON(!i915_terminally_wedged(&i915->gpu_error));
+
+	set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
+	i915_reset(i915, ALL_ENGINES, NULL);
+	GEM_BUG_ON(test_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags));
+
+	intel_runtime_pm_put(i915);
+	mutex_unlock(&i915->drm.struct_mutex);
+	igt_global_reset_unlock(i915);
+
+	return i915_terminally_wedged(&i915->gpu_error) ? -EIO : 0;
+}
+
 static bool wait_for_idle(struct intel_engine_cs *engine)
 {
 	return wait_for(intel_engine_is_idle(engine), IGT_IDLE_TIMEOUT) == 0;
@@ -1452,6 +1476,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_global_reset), /* attempt to recover GPU first */
+		SUBTEST(igt_wedged_reset),
 		SUBTEST(igt_hang_sanitycheck),
 		SUBTEST(igt_reset_idle_engine),
 		SUBTEST(igt_reset_active_engine),

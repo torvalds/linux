@@ -2226,6 +2226,7 @@ void i915_reset(struct drm_i915_private *i915,
 
 	might_sleep();
 	lockdep_assert_held(&i915->drm.struct_mutex);
+	assert_rpm_wakelock_held(i915);
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
 	if (!test_bit(I915_RESET_HANDOFF, &error->flags))
