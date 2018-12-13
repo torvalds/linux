@@ -460,7 +460,6 @@ void bioset_integrity_free(struct bio_set *bs)
 	mempool_exit(&bs->bio_integrity_pool);
 	mempool_exit(&bs->bvec_integrity_pool);
 }
-EXPORT_SYMBOL(bioset_integrity_free);
 
 void __init bio_integrity_init(void)
 {
