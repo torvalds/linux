@@ -28,7 +28,6 @@
 struct task_struct;
 
 #include <asm/memory.h>
-#include <asm/pointer_auth.h>
 #include <asm/stack_pointer.h>
 #include <asm/types.h>
 
@@ -55,9 +54,6 @@ struct thread_info {
 #endif
 		} preempt;
 	};
-#ifdef CONFIG_ARM64_PTR_AUTH
-	struct ptrauth_keys	keys_user;
-#endif
 };
 
 #define thread_saved_pc(tsk)	\

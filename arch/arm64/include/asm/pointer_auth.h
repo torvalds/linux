@@ -80,12 +80,12 @@ static inline unsigned long ptrauth_strip_insn_pac(unsigned long ptr)
 #define ptrauth_thread_init_user(tsk)					\
 do {									\
 	struct task_struct *__ptiu_tsk = (tsk);				\
-	ptrauth_keys_init(&__ptiu_tsk->thread_info.keys_user);		\
-	ptrauth_keys_switch(&__ptiu_tsk->thread_info.keys_user);	\
+	ptrauth_keys_init(&__ptiu_tsk->thread.keys_user);		\
+	ptrauth_keys_switch(&__ptiu_tsk->thread.keys_user);		\
 } while (0)
 
 #define ptrauth_thread_switch(tsk)	\
-	ptrauth_keys_switch(&(tsk)->thread_info.keys_user)
+	ptrauth_keys_switch(&(tsk)->thread.keys_user)
 
 #else /* CONFIG_ARM64_PTR_AUTH */
 #define ptrauth_prctl_reset_keys(tsk, arg)	(-EINVAL)
