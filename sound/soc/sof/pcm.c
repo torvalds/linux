@@ -68,7 +68,7 @@ static int sof_pcm_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
-	/* craete compressed page table for audio firmware */
+	/* create compressed page table for audio firmware */
 	ret = create_page_table(substream, runtime->dma_area,
 				runtime->dma_bytes);
 	if (ret < 0)
