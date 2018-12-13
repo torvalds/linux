@@ -1089,15 +1089,15 @@ static int nvme_poll_irqdisable(struct nvme_queue *nvmeq, unsigned int tag)
 	 * using the CQ lock.  For normal interrupt driven threads we have
 	 * to disable the interrupt to avoid racing with it.
 	 */
-	if (nvmeq->cq_vector == -1)
+	if (nvmeq->cq_vector == -1) {
 		spin_lock(&nvmeq->cq_poll_lock);
-	else
-		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
-	found = nvme_process_cq(nvmeq, &start, &end, tag);
-	if (nvmeq->cq_vector == -1)
+		found = nvme_process_cq(nvmeq, &start, &end, tag);
 		spin_unlock(&nvmeq->cq_poll_lock);
-	else
+	} else {
+		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
+		found = nvme_process_cq(nvmeq, &start, &end, tag);
 		enable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
+	}
 
 	nvme_complete_cqes(nvmeq, start, end);
 	return found;
