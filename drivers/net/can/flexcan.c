@@ -275,6 +275,8 @@ struct flexcan_priv {
 	u8 tx_mb_idx;
 	u8 mb_count;
 	u8 mb_size;
+	u8 clk_src;	/* clock source of CAN Protocol Engine */
+
 	u32 reg_ctrl_default;
 	u32 reg_imask1_default;
 	u32 reg_imask2_default;
@@ -1369,7 +1371,10 @@ static int register_flexcandev(struct net_device *dev)
 		goto out_clks_disable;
 
 	reg = priv->read(&regs->ctrl);
-	reg |= FLEXCAN_CTRL_CLK_SRC;
+	if (priv->clk_src)
+		reg |= FLEXCAN_CTRL_CLK_SRC;
+	else
+		reg &= ~FLEXCAN_CTRL_CLK_SRC;
 	priv->write(reg, &regs->ctrl);
 
 	err = flexcan_chip_enable(priv);
@@ -1501,6 +1506,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	struct clk *clk_ipg = NULL, *clk_per = NULL;
 	struct flexcan_regs __iomem *regs;
 	int err, irq;
+	u8 clk_src = 1;
 	u32 clock_freq = 0;
 
 	reg_xceiver = devm_regulator_get(&pdev->dev, "xceiver");
@@ -1509,9 +1515,12 @@ static int flexcan_probe(struct platform_device *pdev)
 	else if (IS_ERR(reg_xceiver))
 		reg_xceiver = NULL;
 
-	if (pdev->dev.of_node)
+	if (pdev->dev.of_node) {
 		of_property_read_u32(pdev->dev.of_node,
 				     "clock-frequency", &clock_freq);
+		of_property_read_u8(pdev->dev.of_node,
+				    "fsl,clk-source", &clk_src);
+	}
 
 	if (!clock_freq) {
 		clk_ipg = devm_clk_get(&pdev->dev, "ipg");
@@ -1580,6 +1589,7 @@ static int flexcan_probe(struct platform_device *pdev)
 	priv->regs = regs;
 	priv->clk_ipg = clk_ipg;
 	priv->clk_per = clk_per;
+	priv->clk_src = clk_src;
 	priv->devtype_data = devtype_data;
 	priv->reg_xceiver = reg_xceiver;
 
