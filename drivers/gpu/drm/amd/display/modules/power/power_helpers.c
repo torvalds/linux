@@ -56,6 +56,7 @@ static const unsigned char abm_config[abm_defines_max_config][abm_defines_max_le
 #define NUM_AGGR_LEVEL    4
 #define NUM_POWER_FN_SEGS 8
 #define NUM_BL_CURVE_SEGS 16
+#define IRAM_RESERVE_AREA_START 0xF0  // reserve 0xF0~0xFF are write by DMCU only
 
 #pragma pack(push, 1)
 /* NOTE: iRAM is 256B in size */
@@ -324,5 +325,5 @@ bool dmcu_load_iram(struct dmcu *dmcu,
 			params, &ram_table);
 
 	return dmcu->funcs->load_iram(
-			dmcu, 0, (char *)(&ram_table), sizeof(ram_table));
+			dmcu, 0, (char *)(&ram_table), IRAM_RESERVE_AREA_START);
 }
