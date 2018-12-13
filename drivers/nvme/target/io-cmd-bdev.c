@@ -61,7 +61,6 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 	struct bio *bio;
 	struct scatterlist *sg;
 	sector_t sector;
-	blk_qc_t cookie;
 	int op, op_flags = 0, i;
 
 	if (!req->sg_cnt) {
@@ -114,7 +113,7 @@ static void nvmet_bdev_execute_rw(struct nvmet_req *req)
 		sg_cnt--;
 	}
 
-	cookie = submit_bio(bio);
+	submit_bio(bio);
 }
 
 static void nvmet_bdev_execute_flush(struct nvmet_req *req)
