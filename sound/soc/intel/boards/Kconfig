@@ -293,6 +293,16 @@ config SND_SOC_INTEL_KBL_DA7219_MAX98927_MACH
 	  Say Y if you have such a device.
 	  If unsure select "N".
 
+config SND_SOC_INTEL_KBL_RT5660_MACH
+	tristate "KBL with RT5660 in I2S Mode"
+	depends on MFD_INTEL_LPSS && I2C && ACPI
+	select SND_SOC_RT5660
+	select SND_SOC_HDAC_HDMI
+	help
+	  This adds support for ASoC Onboard Codec I2S machine driver. This will
+	  create an alsa sound card for RT5660 I2S audio codec.
+	  Say Y if you have such a device.
+
 config SND_SOC_INTEL_GLK_RT5682_MAX98357A_MACH
 	tristate "GLK with RT5682 and MAX98357A in I2S Mode"
 	depends on MFD_INTEL_LPSS && I2C && ACPI
