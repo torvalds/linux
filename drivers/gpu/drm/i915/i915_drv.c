@@ -1175,8 +1175,6 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 		return -EINVAL;
 	}
 
-	dram_info->valid_dimm = true;
-
 	/*
 	 * If any of the channel is single rank channel, worst case output
 	 * will be same as if single rank memory, so consider single rank
@@ -1193,8 +1191,7 @@ skl_dram_get_channels_info(struct drm_i915_private *dev_priv)
 		return -EINVAL;
 	}
 
-	if (ch0.is_16gb_dimm || ch1.is_16gb_dimm)
-		dram_info->is_16gb_dimm = true;
+	dram_info->is_16gb_dimm = ch0.is_16gb_dimm || ch1.is_16gb_dimm;
 
 	dev_priv->dram_info.symmetric_memory = intel_is_dram_symmetric(val_ch0,
 								       val_ch1,
@@ -1314,7 +1311,6 @@ bxt_get_dram_info(struct drm_i915_private *dev_priv)
 		return -EINVAL;
 	}
 
-	dram_info->valid_dimm = true;
 	dram_info->valid = true;
 	return 0;
 }
@@ -1327,11 +1323,16 @@ intel_get_dram_info(struct drm_i915_private *dev_priv)
 	int ret;
 
 	dram_info->valid = false;
-	dram_info->valid_dimm = false;
-	dram_info->is_16gb_dimm = false;
 	dram_info->rank = I915_DRAM_RANK_INVALID;
 	dram_info->bandwidth_kbps = 0;
 	dram_info->num_channels = 0;
+
+	/*
+	 * Assume 16Gb DIMMs are present until proven otherwise.
+	 * This is only used for the level 0 watermark latency
+	 * w/a which does not apply to bxt/glk.
+	 */
+	dram_info->is_16gb_dimm = !IS_GEN9_LP(dev_priv);
 
 	if (INTEL_GEN(dev_priv) < 9 || IS_GEMINILAKE(dev_priv))
 		return;

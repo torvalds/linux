@@ -34,23 +34,24 @@ __________________|____________|__________________|_________|___________________
 ____________________________________________________________|___________________________________________________________
                   |            |                  |         |
  ffff800000000000 | -128    TB | ffff87ffffffffff |    8 TB | ... guard hole, also reserved for hypervisor
- ffff880000000000 | -120    TB | ffffc7ffffffffff |   64 TB | direct mapping of all physical memory (page_offset_base)
- ffffc80000000000 |  -56    TB | ffffc8ffffffffff |    1 TB | ... unused hole
+ ffff880000000000 | -120    TB | ffff887fffffffff |  0.5 TB | LDT remap for PTI
+ ffff888000000000 | -119.5  TB | ffffc87fffffffff |   64 TB | direct mapping of all physical memory (page_offset_base)
+ ffffc88000000000 |  -55.5  TB | ffffc8ffffffffff |  0.5 TB | ... unused hole
  ffffc90000000000 |  -55    TB | ffffe8ffffffffff |   32 TB | vmalloc/ioremap space (vmalloc_base)
  ffffe90000000000 |  -23    TB | ffffe9ffffffffff |    1 TB | ... unused hole
  ffffea0000000000 |  -22    TB | ffffeaffffffffff |    1 TB | virtual memory map (vmemmap_base)
  ffffeb0000000000 |  -21    TB | ffffebffffffffff |    1 TB | ... unused hole
  ffffec0000000000 |  -20    TB | fffffbffffffffff |   16 TB | KASAN shadow memory
+__________________|____________|__________________|_________|____________________________________________________________
+                                                            |
+                                                            | Identical layout to the 56-bit one from here on:
+____________________________________________________________|____________________________________________________________
+                  |            |                  |         |
  fffffc0000000000 |   -4    TB | fffffdffffffffff |    2 TB | ... unused hole
                   |            |                  |         | vaddr_end for KASLR
  fffffe0000000000 |   -2    TB | fffffe7fffffffff |  0.5 TB | cpu_entry_area mapping
- fffffe8000000000 |   -1.5  TB | fffffeffffffffff |  0.5 TB | LDT remap for PTI
+ fffffe8000000000 |   -1.5  TB | fffffeffffffffff |  0.5 TB | ... unused hole
  ffffff0000000000 |   -1    TB | ffffff7fffffffff |  0.5 TB | %esp fixup stacks
-__________________|____________|__________________|_________|____________________________________________________________
-                                                            |
-                                                            | Identical layout to the 47-bit one from here on:
-____________________________________________________________|____________________________________________________________
-                  |            |                  |         |
  ffffff8000000000 | -512    GB | ffffffeeffffffff |  444 GB | ... unused hole
  ffffffef00000000 |  -68    GB | fffffffeffffffff |   64 GB | EFI region mapping space
  ffffffff00000000 |   -4    GB | ffffffff7fffffff |    2 GB | ... unused hole
@@ -83,7 +84,7 @@ Notes:
 __________________|____________|__________________|_________|___________________________________________________________
                   |            |                  |         |
  0000800000000000 |  +64    PB | ffff7fffffffffff | ~16K PB | ... huge, still almost 64 bits wide hole of non-canonical
-                  |            |                  |         |     virtual memory addresses up to the -128 TB
+                  |            |                  |         |     virtual memory addresses up to the -64 PB
                   |            |                  |         |     starting offset of kernel mappings.
 __________________|____________|__________________|_________|___________________________________________________________
                                                             |
@@ -91,23 +92,24 @@ __________________|____________|__________________|_________|___________________
 ____________________________________________________________|___________________________________________________________
                   |            |                  |         |
  ff00000000000000 |  -64    PB | ff0fffffffffffff |    4 PB | ... guard hole, also reserved for hypervisor
- ff10000000000000 |  -60    PB | ff8fffffffffffff |   32 PB | direct mapping of all physical memory (page_offset_base)
- ff90000000000000 |  -28    PB | ff9fffffffffffff |    4 PB | LDT remap for PTI
+ ff10000000000000 |  -60    PB | ff10ffffffffffff | 0.25 PB | LDT remap for PTI
+ ff11000000000000 |  -59.75 PB | ff90ffffffffffff |   32 PB | direct mapping of all physical memory (page_offset_base)
+ ff91000000000000 |  -27.75 PB | ff9fffffffffffff | 3.75 PB | ... unused hole
  ffa0000000000000 |  -24    PB | ffd1ffffffffffff | 12.5 PB | vmalloc/ioremap space (vmalloc_base)
  ffd2000000000000 |  -11.5  PB | ffd3ffffffffffff |  0.5 PB | ... unused hole
  ffd4000000000000 |  -11    PB | ffd5ffffffffffff |  0.5 PB | virtual memory map (vmemmap_base)
  ffd6000000000000 |  -10.5  PB | ffdeffffffffffff | 2.25 PB | ... unused hole
  ffdf000000000000 |   -8.25 PB | fffffdffffffffff |   ~8 PB | KASAN shadow memory
- fffffc0000000000 |   -4    TB | fffffdffffffffff |    2 TB | ... unused hole
-                  |            |                  |         | vaddr_end for KASLR
- fffffe0000000000 |   -2    TB | fffffe7fffffffff |  0.5 TB | cpu_entry_area mapping
- fffffe8000000000 |   -1.5  TB | fffffeffffffffff |  0.5 TB | ... unused hole
- ffffff0000000000 |   -1    TB | ffffff7fffffffff |  0.5 TB | %esp fixup stacks
 __________________|____________|__________________|_________|____________________________________________________________
                                                             |
                                                             | Identical layout to the 47-bit one from here on:
 ____________________________________________________________|____________________________________________________________
                   |            |                  |         |
+ fffffc0000000000 |   -4    TB | fffffdffffffffff |    2 TB | ... unused hole
+                  |            |                  |         | vaddr_end for KASLR
+ fffffe0000000000 |   -2    TB | fffffe7fffffffff |  0.5 TB | cpu_entry_area mapping
+ fffffe8000000000 |   -1.5  TB | fffffeffffffffff |  0.5 TB | ... unused hole
+ ffffff0000000000 |   -1    TB | ffffff7fffffffff |  0.5 TB | %esp fixup stacks
  ffffff8000000000 | -512    GB | ffffffeeffffffff |  444 GB | ... unused hole
  ffffffef00000000 |  -68    GB | fffffffeffffffff |   64 GB | EFI region mapping space
  ffffffff00000000 |   -4    GB | ffffffff7fffffff |    2 GB | ... unused hole

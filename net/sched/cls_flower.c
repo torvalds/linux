@@ -709,11 +709,23 @@ static int fl_set_enc_opt(struct nlattr **tb, struct fl_flow_key *key,
 			  struct netlink_ext_ack *extack)
 {
 	const struct nlattr *nla_enc_key, *nla_opt_key, *nla_opt_msk = NULL;
-	int option_len, key_depth, msk_depth = 0;
+	int err, option_len, key_depth, msk_depth = 0;
+
+	err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS],
+				  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+				  enc_opts_policy, extack);
+	if (err)
+		return err;
 
 	nla_enc_key = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS]);
 
 	if (tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]) {
+		err = nla_validate_nested(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK],
+					  TCA_FLOWER_KEY_ENC_OPTS_MAX,
+					  enc_opts_policy, extack);
+		if (err)
+			return err;
+
 		nla_opt_msk = nla_data(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 		msk_depth = nla_len(tb[TCA_FLOWER_KEY_ENC_OPTS_MASK]);
 	}

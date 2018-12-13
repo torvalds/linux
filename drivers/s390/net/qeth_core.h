@@ -87,6 +87,18 @@ struct qeth_dbf_info {
 #define SENSE_RESETTING_EVENT_BYTE 1
 #define SENSE_RESETTING_EVENT_FLAG 0x80
 
+static inline u32 qeth_get_device_id(struct ccw_device *cdev)
+{
+	struct ccw_dev_id dev_id;
+	u32 id;
+
+	ccw_device_get_id(cdev, &dev_id);
+	id = dev_id.devno;
+	id |= (u32) (dev_id.ssid << 16);
+
+	return id;
+}
+
 /*
  * Common IO related definitions
  */
@@ -97,7 +109,8 @@ struct qeth_dbf_info {
 #define CARD_RDEV_ID(card) dev_name(&card->read.ccwdev->dev)
 #define CARD_WDEV_ID(card) dev_name(&card->write.ccwdev->dev)
 #define CARD_DDEV_ID(card) dev_name(&card->data.ccwdev->dev)
-#define CHANNEL_ID(channel) dev_name(&channel->ccwdev->dev)
+#define CCW_DEVID(cdev)		(qeth_get_device_id(cdev))
+#define CARD_DEVID(card)	(CCW_DEVID(CARD_RDEV(card)))
 
 /**
  * card stuff
@@ -830,6 +843,11 @@ struct qeth_trap_id {
 /*some helper functions*/
 #define QETH_CARD_IFNAME(card) (((card)->dev)? (card)->dev->name : "")
 
+static inline bool qeth_netdev_is_registered(struct net_device *dev)
+{
+	return dev->netdev_ops != NULL;
+}
+
 static inline void qeth_scrub_qdio_buffer(struct qdio_buffer *buf,
 					  unsigned int elements)
 {
@@ -973,7 +991,7 @@ int qeth_wait_for_threads(struct qeth_card *, unsigned long);
 int qeth_do_run_thread(struct qeth_card *, unsigned long);
 void qeth_clear_thread_start_bit(struct qeth_card *, unsigned long);
 void qeth_clear_thread_running_bit(struct qeth_card *, unsigned long);
-int qeth_core_hardsetup_card(struct qeth_card *);
+int qeth_core_hardsetup_card(struct qeth_card *card, bool *carrier_ok);
 void qeth_print_status_message(struct qeth_card *);
 int qeth_init_qdio_queues(struct qeth_card *);
 int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
@@ -1028,11 +1046,6 @@ int qeth_configure_cq(struct qeth_card *, enum qeth_cq);
 int qeth_hw_trap(struct qeth_card *, enum qeth_diags_trap_action);
 void qeth_trace_features(struct qeth_card *);
 void qeth_close_dev(struct qeth_card *);
-int qeth_send_setassparms(struct qeth_card *, struct qeth_cmd_buffer *, __u16,
-			  long,
-			  int (*reply_cb)(struct qeth_card *,
-					  struct qeth_reply *, unsigned long),
-			  void *);
 int qeth_setassparms_cb(struct qeth_card *, struct qeth_reply *, unsigned long);
 struct qeth_cmd_buffer *qeth_get_setassparms_cmd(struct qeth_card *,
 						 enum qeth_ipa_funcs,

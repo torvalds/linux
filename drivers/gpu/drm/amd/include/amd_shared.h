@@ -133,6 +133,10 @@ enum PP_FEATURE_MASK {
 	PP_AVFS_MASK = 0x40000,
 };
 
+enum DC_FEATURE_MASK {
+	DC_FBC_MASK = 0x1,
+};
+
 /**
  * struct amd_ip_funcs - general hooks for managing amdgpu IP Blocks
  */

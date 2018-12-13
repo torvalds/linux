@@ -1362,7 +1362,8 @@ static bool construct(
 		pool->base.sw_i2cs[i] = NULL;
 	}
 
-	dc->fbc_compressor = dce110_compressor_create(ctx);
+	if (dc->config.fbc_support)
+		dc->fbc_compressor = dce110_compressor_create(ctx);
 
 	if (!underlay_create(ctx, &pool->base))
 		goto res_create_fail;

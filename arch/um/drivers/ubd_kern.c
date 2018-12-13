@@ -1305,6 +1305,7 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		io_req->fds[0] = dev->cow.fd;
 	else
 		io_req->fds[0] = dev->fd;
+	io_req->error = 0;
 
 	if (req_op(req) == REQ_OP_FLUSH) {
 		io_req->op = UBD_FLUSH;
@@ -1313,9 +1314,7 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 		io_req->cow_offset = -1;
 		io_req->offset = off;
 		io_req->length = bvec->bv_len;
-		io_req->error = 0;
 		io_req->sector_mask = 0;
-
 		io_req->op = rq_data_dir(req) == READ ? UBD_READ : UBD_WRITE;
 		io_req->offsets[0] = 0;
 		io_req->offsets[1] = dev->cow.data_offset;
@@ -1341,10 +1340,13 @@ static int ubd_queue_one_vec(struct blk_mq_hw_ctx *hctx, struct request *req,
 static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 				 const struct blk_mq_queue_data *bd)
 {
+	struct ubd *ubd_dev = hctx->queue->queuedata;
 	struct request *req = bd->rq;
 	int ret = 0;
 
 	blk_mq_start_request(req);
+
+	spin_lock_irq(&ubd_dev->lock);
 
 	if (req_op(req) == REQ_OP_FLUSH) {
 		ret = ubd_queue_one_vec(hctx, req, 0, NULL);
@@ -1361,9 +1363,11 @@ static blk_status_t ubd_queue_rq(struct blk_mq_hw_ctx *hctx,
 		}
 	}
 out:
-	if (ret < 0) {
+	spin_unlock_irq(&ubd_dev->lock);
+
+	if (ret < 0)
 		blk_mq_requeue_request(req, true);
-	}
+
 	return BLK_STS_OK;
 }
 

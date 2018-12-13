@@ -494,7 +494,7 @@ struct mvneta_port {
 #if defined(__LITTLE_ENDIAN)
 struct mvneta_tx_desc {
 	u32  command;		/* Options used by HW for packet transmitting.*/
-	u16  reserverd1;	/* csum_l4 (for future use)		*/
+	u16  reserved1;		/* csum_l4 (for future use)		*/
 	u16  data_size;		/* Data size of transmitted packet in bytes */
 	u32  buf_phys_addr;	/* Physical addr of transmitted buffer	*/
 	u32  reserved2;		/* hw_cmd - (for future use, PMT)	*/
@@ -519,7 +519,7 @@ struct mvneta_rx_desc {
 #else
 struct mvneta_tx_desc {
 	u16  data_size;		/* Data size of transmitted packet in bytes */
-	u16  reserverd1;	/* csum_l4 (for future use)		*/
+	u16  reserved1;		/* csum_l4 (for future use)		*/
 	u32  command;		/* Options used by HW for packet transmitting.*/
 	u32  reserved2;		/* hw_cmd - (for future use, PMT)	*/
 	u32  buf_phys_addr;	/* Physical addr of transmitted buffer	*/

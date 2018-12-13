@@ -100,12 +100,17 @@ static int hw_atl_b0_hw_reset(struct aq_hw_s *self)
 	return err;
 }
 
+static int hw_atl_b0_set_fc(struct aq_hw_s *self, u32 fc, u32 tc)
+{
+	hw_atl_rpb_rx_xoff_en_per_tc_set(self, !!(fc & AQ_NIC_FC_RX), tc);
+	return 0;
+}
+
 static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 {
 	u32 tc = 0U;
 	u32 buff_size = 0U;
 	unsigned int i_priority = 0U;
-	bool is_rx_flow_control = false;
 
 	/* TPS Descriptor rate init */
 	hw_atl_tps_tx_pkt_shed_desc_rate_curr_time_res_set(self, 0x0U);
@@ -138,7 +143,6 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 
 	/* QoS Rx buf size per TC */
 	tc = 0;
-	is_rx_flow_control = (AQ_NIC_FC_RX & self->aq_nic_cfg->flow_control);
 	buff_size = HW_ATL_B0_RXBUF_MAX;
 
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, buff_size, tc);
@@ -150,7 +154,8 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   (buff_size *
 						   (1024U / 32U) * 50U) /
 						   100U, tc);
-	hw_atl_rpb_rx_xoff_en_per_tc_set(self, is_rx_flow_control ? 1U : 0U, tc);
+
+	hw_atl_b0_set_fc(self, self->aq_nic_cfg->flow_control, tc);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
@@ -229,8 +234,10 @@ static int hw_atl_b0_hw_offload_set(struct aq_hw_s *self,
 	hw_atl_tpo_tcp_udp_crc_offload_en_set(self, 1);
 
 	/* RX checksums offloads*/
-	hw_atl_rpo_ipv4header_crc_offload_en_set(self, 1);
-	hw_atl_rpo_tcp_udp_crc_offload_en_set(self, 1);
+	hw_atl_rpo_ipv4header_crc_offload_en_set(self, !!(aq_nic_cfg->features &
+						 NETIF_F_RXCSUM));
+	hw_atl_rpo_tcp_udp_crc_offload_en_set(self, !!(aq_nic_cfg->features &
+					      NETIF_F_RXCSUM));
 
 	/* LSO offloads*/
 	hw_atl_tdm_large_send_offload_en_set(self, 0xFFFFFFFFU);
@@ -655,9 +662,9 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 		struct hw_atl_rxd_wb_s *rxd_wb = (struct hw_atl_rxd_wb_s *)
 			&ring->dx_ring[ring->hw_head * HW_ATL_B0_RXD_SIZE];
 
-		unsigned int is_err = 1U;
 		unsigned int is_rx_check_sum_enabled = 0U;
 		unsigned int pkt_type = 0U;
+		u8 rx_stat = 0U;
 
 		if (!(rxd_wb->status & 0x1U)) { /* RxD is not done */
 			break;
@@ -665,35 +672,35 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		buff = &ring->buff_ring[ring->hw_head];
 
-		is_err = (0x0000003CU & rxd_wb->status);
+		rx_stat = (0x0000003CU & rxd_wb->status) >> 2;
 
 		is_rx_check_sum_enabled = (rxd_wb->type) & (0x3U << 19);
-		is_err &= ~0x20U; /* exclude validity bit */
 
 		pkt_type = 0xFFU & (rxd_wb->type >> 4);
 
-		if (is_rx_check_sum_enabled) {
-			if (0x0U == (pkt_type & 0x3U))
-				buff->is_ip_cso = (is_err & 0x08U) ? 0U : 1U;
+		if (is_rx_check_sum_enabled & BIT(0) &&
+		    (0x0U == (pkt_type & 0x3U)))
+			buff->is_ip_cso = (rx_stat & BIT(1)) ? 0U : 1U;
 
+		if (is_rx_check_sum_enabled & BIT(1)) {
 			if (0x4U == (pkt_type & 0x1CU))
-				buff->is_udp_cso = buff->is_cso_err ? 0U : 1U;
+				buff->is_udp_cso = (rx_stat & BIT(2)) ? 0U :
+						   !!(rx_stat & BIT(3));
 			else if (0x0U == (pkt_type & 0x1CU))
-				buff->is_tcp_cso = buff->is_cso_err ? 0U : 1U;
-
-			/* Checksum offload workaround for small packets */
-			if (rxd_wb->pkt_len <= 60) {
-				buff->is_ip_cso = 0U;
-				buff->is_cso_err = 0U;
-			}
+				buff->is_tcp_cso = (rx_stat & BIT(2)) ? 0U :
+						   !!(rx_stat & BIT(3));
 		}
-
-		is_err &= ~0x18U;
+		buff->is_cso_err = !!(rx_stat & 0x6);
+		/* Checksum offload workaround for small packets */
+		if (unlikely(rxd_wb->pkt_len <= 60)) {
+			buff->is_ip_cso = 0U;
+			buff->is_cso_err = 0U;
+		}
 
 		dma_unmap_page(ndev, buff->pa, buff->len, DMA_FROM_DEVICE);
 
-		if (is_err || rxd_wb->type & 0x1000U) {
-			/* status error or DMA error */
+		if ((rx_stat & BIT(0)) || rxd_wb->type & 0x1000U) {
+			/* MAC error or DMA error */
 			buff->is_error = 1U;
 		} else {
 			if (self->aq_nic_cfg->is_rss) {
@@ -915,6 +922,12 @@ static int hw_atl_b0_hw_interrupt_moderation_set(struct aq_hw_s *self)
 static int hw_atl_b0_hw_stop(struct aq_hw_s *self)
 {
 	hw_atl_b0_hw_irq_disable(self, HW_ATL_B0_INT_MASK);
+
+	/* Invalidate Descriptor Cache to prevent writing to the cached
+	 * descriptors and to the data pointer of those descriptors
+	 */
+	hw_atl_rdm_rx_dma_desc_cache_init_set(self, 1);
+
 	return aq_hw_err_from_flags(self);
 }
 
@@ -963,4 +976,6 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
+	.hw_set_offload              = hw_atl_b0_hw_offload_set,
+	.hw_set_fc                   = hw_atl_b0_set_fc,
 };

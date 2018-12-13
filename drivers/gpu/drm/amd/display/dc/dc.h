@@ -169,6 +169,7 @@ struct link_training_settings;
 struct dc_config {
 	bool gpu_vm_support;
 	bool disable_disp_pll_sharing;
+	bool fbc_support;
 };
 
 enum visual_confirm {

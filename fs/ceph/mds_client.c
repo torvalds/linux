@@ -80,12 +80,8 @@ static int parse_reply_info_in(void **p, void *end,
 	info->symlink = *p;
 	*p += info->symlink_len;
 
-	if (features & CEPH_FEATURE_DIRLAYOUTHASH)
-		ceph_decode_copy_safe(p, end, &info->dir_layout,
-				      sizeof(info->dir_layout), bad);
-	else
-		memset(&info->dir_layout, 0, sizeof(info->dir_layout));
-
+	ceph_decode_copy_safe(p, end, &info->dir_layout,
+			      sizeof(info->dir_layout), bad);
 	ceph_decode_32_safe(p, end, info->xattr_len, bad);
 	ceph_decode_need(p, end, info->xattr_len, bad);
 	info->xattr_data = *p;
@@ -3182,10 +3178,8 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	recon_state.pagelist = pagelist;
 	if (session->s_con.peer_features & CEPH_FEATURE_MDSENC)
 		recon_state.msg_version = 3;
-	else if (session->s_con.peer_features & CEPH_FEATURE_FLOCK)
-		recon_state.msg_version = 2;
 	else
-		recon_state.msg_version = 1;
+		recon_state.msg_version = 2;
 	err = iterate_session_caps(session, encode_caps_cb, &recon_state);
 	if (err < 0)
 		goto fail;
