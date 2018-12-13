@@ -281,6 +281,11 @@ static int sof_probe(struct platform_device *pdev)
 	/* register any debug/trace capabilities */
 	ret = snd_sof_dbg_init(sdev);
 	if (ret < 0) {
+		/*
+		 * errors can only happen due to memory allocation.
+		 * we cannot rely on debugfs so debugfs issues are only
+		 * logged and we don't stop execution
+		 */
 		dev_err(sdev->dev, "error: failed to init DSP trace/debug %d\n",
 			ret);
 		goto dbg_err;

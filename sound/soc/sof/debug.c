@@ -105,8 +105,9 @@ int snd_sof_debugfs_io_create_item(struct snd_sof_dev *sdev,
 	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
 					     dfse, &sof_dfs_fops);
 	if (!dfse->dfsentry) {
-		dev_err(sdev->dev, "error: cannot create debugfs entry.\n");
-		return -ENODEV;
+		/* can't rely on debugfs, only log error and keep going */
+		dev_err(sdev->dev, "error: cannot create debugfs entry %s\n",
+			name);
 	}
 
 	return 0;
@@ -134,8 +135,9 @@ int snd_sof_debugfs_buf_create_item(struct snd_sof_dev *sdev,
 	dfse->dfsentry = debugfs_create_file(name, 0444, sdev->debugfs_root,
 					     dfse, &sof_dfs_fops);
 	if (!dfse->dfsentry) {
-		dev_err(sdev->dev, "error: cannot create debugfs entry.\n");
-		return -ENODEV;
+		/* can't rely on debugfs, only log error and keep going */
+		dev_err(sdev->dev, "error: cannot create debugfs entry %s\n",
+			name);
 	}
 
 	return 0;
@@ -152,7 +154,7 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 	sdev->debugfs_root = debugfs_create_dir("sof", NULL);
 	if (IS_ERR_OR_NULL(sdev->debugfs_root)) {
 		dev_err(sdev->dev, "error: failed to create debugfs directory\n");
-		return -EINVAL;
+		return 0;
 	}
 
 	/* create debugFS files for platform specific MMIO/DSP memories */
@@ -162,12 +164,12 @@ int snd_sof_dbg_init(struct snd_sof_dev *sdev)
 		err = snd_sof_debugfs_io_create_item(sdev, sdev->bar[map->bar] +
 						  map->offset, map->size,
 						  map->name);
+		/* errors are only due to memory allocation, not debugfs */
 		if (err < 0)
-			dev_err(sdev->dev, "error: cannot create debugfs for %s\n",
-				map->name);
+			return err;
 	}
 
-	return err;
+	return 0;
 }
 EXPORT_SYMBOL(snd_sof_dbg_init);
 

@@ -267,9 +267,9 @@ int snd_sof_run_firmware(struct snd_sof_dev *sdev)
 		ret = snd_sof_debugfs_buf_create_item(sdev, &sdev->fw_version,
 						      sizeof(sdev->fw_version),
 						      "fw_version");
-
+		/* errors are only due to memory allocation, not debugfs */
 		if (ret < 0) {
-			dev_err(sdev->dev, "error: cannot create debugfs for fw_version\n");
+			dev_err(sdev->dev, "error: snd_sof_debugfs_buf_create_item failed\n");
 			return ret;
 		}
 	}
