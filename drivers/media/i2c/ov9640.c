@@ -161,7 +161,7 @@ static const struct ov9640_reg ov9640_regs_rgb[] = {
 	{ OV9640_MTXS,	0x65 },
 };
 
-static u32 ov9640_codes[] = {
+static const u32 ov9640_codes[] = {
 	MEDIA_BUS_FMT_UYVY8_2X8,
 	MEDIA_BUS_FMT_RGB555_2X8_PADHI_LE,
 	MEDIA_BUS_FMT_RGB565_2X8_LE,
