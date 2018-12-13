@@ -1,0 +1,15 @@
+* Sensirion SGP30/SGPC3 multi-pixel Gas Sensor
+
+Required properties:
+
+  - compatible: must be one of
+    "sensirion,sgp30"
+    "sensirion,sgpc3"
+  - reg: the I2C address of the sensor
+
+Example:
+
+gas@58 {
+	compatible = "sensirion,sgp30";
+	reg = <0x58>;
+};
