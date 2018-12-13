@@ -21,7 +21,7 @@
 
 #include "mt76x02_mcu.h"
 
-struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len)
+static struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len)
 {
 	struct sk_buff *skb;
 
@@ -32,7 +32,6 @@ struct sk_buff *mt76x02_mcu_msg_alloc(const void *data, int len)
 
 	return skb;
 }
-EXPORT_SYMBOL_GPL(mt76x02_mcu_msg_alloc);
 
 static struct sk_buff *
 mt76x02_mcu_get_response(struct mt76x02_dev *dev, unsigned long expires)
@@ -80,16 +79,18 @@ mt76x02_tx_queue_mcu(struct mt76x02_dev *dev, enum mt76_txq_id qid,
 	return 0;
 }
 
-int mt76x02_mcu_msg_send(struct mt76_dev *mdev, struct sk_buff *skb,
-			 int cmd, bool wait_resp)
+int mt76x02_mcu_msg_send(struct mt76_dev *mdev, int cmd, const void *data,
+			 int len, bool wait_resp)
 {
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	unsigned long expires = jiffies + HZ;
+	struct sk_buff *skb;
 	int ret;
 	u8 seq;
 
+	skb = mt76x02_mcu_msg_alloc(data, len);
 	if (!skb)
-		return -EINVAL;
+		return -ENOMEM;
 
 	mutex_lock(&mdev->mmio.mcu.mutex);
 
@@ -131,11 +132,9 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_msg_send);
 
-int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
-				enum mcu_function func,
-				u32 val, bool wait_resp)
+int mt76x02_mcu_function_select(struct mt76x02_dev *dev, enum mcu_function func,
+				u32 val)
 {
-	struct sk_buff *skb;
 	struct {
 	    __le32 id;
 	    __le32 value;
@@ -143,16 +142,17 @@ int mt76x02_mcu_function_select(struct mt76x02_dev *dev,
 	    .id = cpu_to_le32(func),
 	    .value = cpu_to_le32(val),
 	};
+	bool wait = false;
 
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_FUN_SET_OP, wait_resp);
+	if (func != Q_SELECT)
+		wait = true;
+
+	return mt76_mcu_send_msg(dev, CMD_FUN_SET_OP, &msg, sizeof(msg), wait);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_function_select);
 
-int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
-				bool wait_resp)
+int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on)
 {
-	struct sk_buff *skb;
 	struct {
 		__le32 mode;
 		__le32 level;
@@ -161,15 +161,12 @@ int mt76x02_mcu_set_radio_state(struct mt76x02_dev *dev, bool on,
 		.level = cpu_to_le32(0),
 	};
 
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	return mt76_mcu_send_msg(dev, skb, CMD_POWER_SAVING_OP, wait_resp);
+	return mt76_mcu_send_msg(dev, CMD_POWER_SAVING_OP, &msg, sizeof(msg), false);
 }
 EXPORT_SYMBOL_GPL(mt76x02_mcu_set_radio_state);
 
-int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
-			  u32 param, bool wait)
+int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type, u32 param)
 {
-	struct sk_buff *skb;
 	struct {
 		__le32 id;
 		__le32 value;
@@ -177,17 +174,18 @@ int mt76x02_mcu_calibrate(struct mt76x02_dev *dev, int type,
 		.id = cpu_to_le32(type),
 		.value = cpu_to_le32(param),
 	};
+	bool is_mt76x2e = mt76_is_mmio(dev) && is_mt76x2(dev);
 	int ret;
 
-	if (wait)
+	if (is_mt76x2e)
 		mt76_rmw(dev, MT_MCU_COM_REG0, BIT(31), 0);
 
-	skb = mt76_mcu_msg_alloc(dev, &msg, sizeof(msg));
-	ret = mt76_mcu_send_msg(dev, skb, CMD_CALIBRATION_OP, true);
+	ret = mt76_mcu_send_msg(dev, CMD_CALIBRATION_OP, &msg, sizeof(msg),
+				true);
 	if (ret)
 		return ret;
 
-	if (wait &&
+	if (is_mt76x2e &&
 	    WARN_ON(!mt76_poll_msec(dev, MT_MCU_COM_REG0,
 				    BIT(31), BIT(31), 100)))
 		return -ETIMEDOUT;

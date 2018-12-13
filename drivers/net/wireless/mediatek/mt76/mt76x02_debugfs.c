@@ -15,10 +15,10 @@
  */
 
 #include <linux/debugfs.h>
-#include "mt76x2.h"
+#include "mt76x02.h"
 
 static int
-mt76x2_ampdu_stat_read(struct seq_file *file, void *data)
+mt76x02_ampdu_stat_read(struct seq_file *file, void *data)
 {
 	struct mt76x02_dev *dev = file->private;
 	int i, j;
@@ -42,9 +42,9 @@ mt76x2_ampdu_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt76x2_ampdu_stat_open(struct inode *inode, struct file *f)
+mt76x02_ampdu_stat_open(struct inode *inode, struct file *f)
 {
-	return single_open(f, mt76x2_ampdu_stat_read, inode->i_private);
+	return single_open(f, mt76x02_ampdu_stat_read, inode->i_private);
 }
 
 static int read_txpower(struct seq_file *file, void *data)
@@ -59,14 +59,14 @@ static int read_txpower(struct seq_file *file, void *data)
 }
 
 static const struct file_operations fops_ampdu_stat = {
-	.open = mt76x2_ampdu_stat_open,
+	.open = mt76x02_ampdu_stat_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
 };
 
 static int
-mt76x2_dfs_stat_read(struct seq_file *file, void *data)
+mt76x02_dfs_stat_read(struct seq_file *file, void *data)
 {
 	struct mt76x02_dev *dev = file->private;
 	struct mt76x02_dfs_pattern_detector *dfs_pd = &dev->dfs_pd;
@@ -92,13 +92,13 @@ mt76x2_dfs_stat_read(struct seq_file *file, void *data)
 }
 
 static int
-mt76x2_dfs_stat_open(struct inode *inode, struct file *f)
+mt76x02_dfs_stat_open(struct inode *inode, struct file *f)
 {
-	return single_open(f, mt76x2_dfs_stat_read, inode->i_private);
+	return single_open(f, mt76x02_dfs_stat_read, inode->i_private);
 }
 
 static const struct file_operations fops_dfs_stat = {
-	.open = mt76x2_dfs_stat_open,
+	.open = mt76x02_dfs_stat_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
 	.release = single_release,
@@ -116,7 +116,7 @@ static int read_agc(struct seq_file *file, void *data)
 	return 0;
 }
 
-void mt76x2_init_debugfs(struct mt76x02_dev *dev)
+void mt76x02_init_debugfs(struct mt76x02_dev *dev)
 {
 	struct dentry *dir;
 
@@ -134,4 +134,4 @@ void mt76x2_init_debugfs(struct mt76x02_dev *dev)
 
 	debugfs_create_devm_seqfile(dev->mt76.dev, "agc", dir, read_agc);
 }
-EXPORT_SYMBOL_GPL(mt76x2_init_debugfs);
+EXPORT_SYMBOL_GPL(mt76x02_init_debugfs);
