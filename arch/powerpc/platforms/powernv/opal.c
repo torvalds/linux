@@ -960,6 +960,9 @@ static int __init opal_init(void)
 	/* Initialise OPAL sensor groups */
 	opal_sensor_groups_init();
 
+	/* Initialise OPAL Power control interface */
+	opal_power_control_init();
+
 	return 0;
 }
 machine_subsys_initcall(powernv, opal_init);
