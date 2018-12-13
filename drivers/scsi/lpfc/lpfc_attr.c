@@ -1192,6 +1192,82 @@ out:
 }
 
 /**
+ * lpfc_reset_pci_bus - resets PCI bridge controller's secondary bus of an HBA
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * Issues a PCI secondary bus reset for the phba->pcidev.
+ *
+ * Notes:
+ * First walks the bus_list to ensure only PCI devices with Emulex
+ * vendor id, device ids that support hot reset, only one occurrence
+ * of function 0, and all ports on the bus are in offline mode to ensure the
+ * hot reset only affects one valid HBA.
+ *
+ * Returns:
+ * -ENOTSUPP, cfg_enable_hba_reset must be of value 2
+ * -ENODEV,   NULL ptr to pcidev
+ * -EBADSLT,  detected invalid device
+ * -EBUSY,    port is not in offline state
+ *      0,    successful
+ */
+int
+lpfc_reset_pci_bus(struct lpfc_hba *phba)
+{
+	struct pci_dev *pdev = phba->pcidev;
+	struct Scsi_Host *shost = NULL;
+	struct lpfc_hba *phba_other = NULL;
+	struct pci_dev *ptr = NULL;
+	int res;
+
+	if (phba->cfg_enable_hba_reset != 2)
+		return -ENOTSUPP;
+
+	if (!pdev) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT, "8345 pdev NULL!\n");
+		return -ENODEV;
+	}
+
+	res = lpfc_check_pci_resettable(phba);
+	if (res)
+		return res;
+
+	/* Walk the list of devices on the pci_dev's bus */
+	list_for_each_entry(ptr, &pdev->bus->devices, bus_list) {
+		/* Check port is offline */
+		shost = pci_get_drvdata(ptr);
+		if (shost) {
+			phba_other =
+				((struct lpfc_vport *)shost->hostdata)->phba;
+			if (!(phba_other->pport->fc_flag & FC_OFFLINE_MODE)) {
+				lpfc_printf_log(phba_other, KERN_INFO, LOG_INIT,
+						"8349 WWPN = 0x%02x%02x%02x%02x"
+						"%02x%02x%02x%02x is not "
+						"offline!\n",
+						phba_other->wwpn[0],
+						phba_other->wwpn[1],
+						phba_other->wwpn[2],
+						phba_other->wwpn[3],
+						phba_other->wwpn[4],
+						phba_other->wwpn[5],
+						phba_other->wwpn[6],
+						phba_other->wwpn[7]);
+				return -EBUSY;
+			}
+		}
+	}
+
+	/* Issue PCI bus reset */
+	res = pci_reset_bus(pdev);
+	if (res) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"8350 PCI reset bus failed: %d\n", res);
+	}
+
+	return res;
+}
+
+/**
  * lpfc_selective_reset - Offline then onlines the port
  * @phba: lpfc_hba pointer.
  *
@@ -1618,6 +1694,9 @@ lpfc_board_mode_store(struct device *dev, struct device_attribute *attr,
 		status = lpfc_sli4_pdev_reg_request(phba, LPFC_FW_RESET);
 	else if (strncmp(buf, "dv_reset", sizeof("dv_reset") - 1) == 0)
 		status = lpfc_sli4_pdev_reg_request(phba, LPFC_DV_RESET);
+	else if (strncmp(buf, "pci_bus_reset", sizeof("pci_bus_reset") - 1)
+		 == 0)
+		status = lpfc_reset_pci_bus(phba);
 	else if (strncmp(buf, "trunk", sizeof("trunk") - 1) == 0)
 		status = lpfc_set_trunking(phba, (char *)buf + sizeof("trunk"));
 	else
@@ -5376,9 +5455,10 @@ LPFC_ATTR_R(nvme_io_channel,
 # lpfc_enable_hba_reset: Allow or prevent HBA resets to the hardware.
 #       0  = HBA resets disabled
 #       1  = HBA resets enabled (default)
-# Value range is [0,1]. Default value is 1.
+#       2  = HBA reset via PCI bus reset enabled
+# Value range is [0,2]. Default value is 1.
 */
-LPFC_ATTR_R(enable_hba_reset, 1, 0, 1, "Enable HBA resets from the driver.");
+LPFC_ATTR_RW(enable_hba_reset, 1, 0, 2, "Enable HBA resets from the driver.");
 
 /*
 # lpfc_enable_hba_heartbeat: Disable HBA heartbeat timer..

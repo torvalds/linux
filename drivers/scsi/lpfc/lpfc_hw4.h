@@ -3850,6 +3850,9 @@ struct lpfc_mbx_wr_object {
 #define lpfc_wr_object_eof_SHIFT		31
 #define lpfc_wr_object_eof_MASK			0x00000001
 #define lpfc_wr_object_eof_WORD			word4
+#define lpfc_wr_object_eas_SHIFT		29
+#define lpfc_wr_object_eas_MASK			0x00000001
+#define lpfc_wr_object_eas_WORD			word4
 #define lpfc_wr_object_write_length_SHIFT	0
 #define lpfc_wr_object_write_length_MASK	0x00FFFFFF
 #define lpfc_wr_object_write_length_WORD	word4
@@ -3860,6 +3863,15 @@ struct lpfc_mbx_wr_object {
 		} request;
 		struct {
 			uint32_t actual_write_length;
+			uint32_t word5;
+#define lpfc_wr_object_change_status_SHIFT	0
+#define lpfc_wr_object_change_status_MASK	0x000000FF
+#define lpfc_wr_object_change_status_WORD	word5
+#define LPFC_CHANGE_STATUS_NO_RESET_NEEDED	0x00
+#define LPFC_CHANGE_STATUS_PHYS_DEV_RESET	0x01
+#define LPFC_CHANGE_STATUS_FW_RESET		0x02
+#define LPFC_CHANGE_STATUS_PORT_MIGRATION	0x04
+#define LPFC_CHANGE_STATUS_PCI_RESET		0x05
 		} response;
 	} u;
 };

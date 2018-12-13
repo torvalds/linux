@@ -4460,6 +4460,66 @@ lpfc_tskmgmt_def_cmpl(struct lpfc_hba *phba,
 }
 
 /**
+ * lpfc_check_pci_resettable - Walks list of devices on pci_dev's bus to check
+ *                             if issuing a pci_bus_reset is possibly unsafe
+ * @phba: lpfc_hba pointer.
+ *
+ * Description:
+ * Walks the bus_list to ensure only PCI devices with Emulex
+ * vendor id, device ids that support hot reset, and only one occurrence
+ * of function 0.
+ *
+ * Returns:
+ * -EBADSLT,  detected invalid device
+ *      0,    successful
+ */
+int
+lpfc_check_pci_resettable(const struct lpfc_hba *phba)
+{
+	const struct pci_dev *pdev = phba->pcidev;
+	struct pci_dev *ptr = NULL;
+	u8 counter = 0;
+
+	/* Walk the list of devices on the pci_dev's bus */
+	list_for_each_entry(ptr, &pdev->bus->devices, bus_list) {
+		/* Check for Emulex Vendor ID */
+		if (ptr->vendor != PCI_VENDOR_ID_EMULEX) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"8346 Non-Emulex vendor found: "
+					"0x%04x\n", ptr->vendor);
+			return -EBADSLT;
+		}
+
+		/* Check for valid Emulex Device ID */
+		switch (ptr->device) {
+		case PCI_DEVICE_ID_LANCER_FC:
+		case PCI_DEVICE_ID_LANCER_G6_FC:
+		case PCI_DEVICE_ID_LANCER_G7_FC:
+			break;
+		default:
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"8347 Invalid device found: "
+					"0x%04x\n", ptr->device);
+			return -EBADSLT;
+		}
+
+		/* Check for only one function 0 ID to ensure only one HBA on
+		 * secondary bus
+		 */
+		if (ptr->devfn == 0) {
+			if (++counter > 1) {
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"8348 More than one device on "
+						"secondary bus found\n");
+				return -EBADSLT;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
  * lpfc_info - Info entry point of scsi_host_template data structure
  * @host: The scsi host for which this call is being executed.
  *
@@ -4473,32 +4533,53 @@ lpfc_info(struct Scsi_Host *host)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) host->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-	int len, link_speed = 0;
-	static char  lpfcinfobuf[384];
+	int link_speed = 0;
+	static char lpfcinfobuf[384];
+	char tmp[384] = {0};
 
-	memset(lpfcinfobuf,0,384);
+	memset(lpfcinfobuf, 0, sizeof(lpfcinfobuf));
 	if (phba && phba->pcidev){
-		strncpy(lpfcinfobuf, phba->ModelDesc, 256);
-		len = strlen(lpfcinfobuf);
-		snprintf(lpfcinfobuf + len,
-			384-len,
-			" on PCI bus %02x device %02x irq %d",
-			phba->pcidev->bus->number,
-			phba->pcidev->devfn,
-			phba->pcidev->irq);
-		len = strlen(lpfcinfobuf);
+		/* Model Description */
+		scnprintf(tmp, sizeof(tmp), phba->ModelDesc);
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
+		/* PCI Info */
+		scnprintf(tmp, sizeof(tmp),
+			  " on PCI bus %02x device %02x irq %d",
+			  phba->pcidev->bus->number, phba->pcidev->devfn,
+			  phba->pcidev->irq);
+		if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+		    sizeof(lpfcinfobuf))
+			goto buffer_done;
+
+		/* Port Number */
 		if (phba->Port[0]) {
-			snprintf(lpfcinfobuf + len,
-				 384-len,
-				 " port %s",
-				 phba->Port);
+			scnprintf(tmp, sizeof(tmp), " port %s", phba->Port);
+			if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+			    sizeof(lpfcinfobuf))
+				goto buffer_done;
 		}
-		len = strlen(lpfcinfobuf);
+
+		/* Link Speed */
 		link_speed = lpfc_sli_port_speed_get(phba);
-		if (link_speed != 0)
-			snprintf(lpfcinfobuf + len, 384-len,
-				 " Logical Link Speed: %d Mbps", link_speed);
+		if (link_speed != 0) {
+			scnprintf(tmp, sizeof(tmp),
+				  " Logical Link Speed: %d Mbps", link_speed);
+			if (strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf)) >=
+			    sizeof(lpfcinfobuf))
+				goto buffer_done;
+		}
+
+		/* PCI resettable */
+		if (!lpfc_check_pci_resettable(phba)) {
+			scnprintf(tmp, sizeof(tmp), " PCI resettable");
+			strlcat(lpfcinfobuf, tmp, sizeof(lpfcinfobuf));
+		}
 	}
+
+buffer_done:
 	return lpfcinfobuf;
 }
 

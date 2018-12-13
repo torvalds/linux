@@ -19264,11 +19264,11 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 	struct lpfc_mbx_wr_object *wr_object;
 	LPFC_MBOXQ_t *mbox;
 	int rc = 0, i = 0;
-	uint32_t shdr_status, shdr_add_status;
+	uint32_t shdr_status, shdr_add_status, shdr_change_status;
 	uint32_t mbox_tmo;
-	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_dmabuf *dmabuf;
 	uint32_t written = 0;
+	bool check_change_status = false;
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
@@ -19296,6 +19296,8 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 				(size - written);
 			written += (size - written);
 			bf_set(lpfc_wr_object_eof, &wr_object->u.request, 1);
+			bf_set(lpfc_wr_object_eas, &wr_object->u.request, 1);
+			check_change_status = true;
 		} else {
 			wr_object->u.request.bde[i].tus.f.bdeSize =
 				SLI4_PAGE_SIZE;
@@ -19312,9 +19314,39 @@ lpfc_wr_object(struct lpfc_hba *phba, struct list_head *dmabuf_list,
 		rc = lpfc_sli_issue_mbox_wait(phba, mbox, mbox_tmo);
 	}
 	/* The IOCTL status is embedded in the mailbox subheader. */
-	shdr = (union lpfc_sli4_cfg_shdr *) &wr_object->header.cfg_shdr;
-	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
-	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
+	shdr_status = bf_get(lpfc_mbox_hdr_status,
+			     &wr_object->header.cfg_shdr.response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+				 &wr_object->header.cfg_shdr.response);
+	if (check_change_status) {
+		shdr_change_status = bf_get(lpfc_wr_object_change_status,
+					    &wr_object->u.response);
+		switch (shdr_change_status) {
+		case (LPFC_CHANGE_STATUS_PHYS_DEV_RESET):
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3198 Firmware write complete: System "
+					"reboot required to instantiate\n");
+			break;
+		case (LPFC_CHANGE_STATUS_FW_RESET):
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3199 Firmware write complete: Firmware"
+					" reset required to instantiate\n");
+			break;
+		case (LPFC_CHANGE_STATUS_PORT_MIGRATION):
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3200 Firmware write complete: Port "
+					"Migration or PCI Reset required to "
+					"instantiate\n");
+			break;
+		case (LPFC_CHANGE_STATUS_PCI_RESET):
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3201 Firmware write complete: PCI "
+					"Reset required to instantiate\n");
+			break;
+		default:
+			break;
+		}
+	}
 	if (rc != MBX_TIMEOUT)
 		mempool_free(mbox, phba->mbox_mem_pool);
 	if (shdr_status || shdr_add_status || rc) {
