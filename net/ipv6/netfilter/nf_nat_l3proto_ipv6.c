@@ -68,12 +68,6 @@ static bool nf_nat_ipv6_in_range(const struct nf_conntrack_tuple *t,
 	       ipv6_addr_cmp(&t->src.u3.in6, &range->max_addr.in6) <= 0;
 }
 
-static u32 nf_nat_ipv6_secure_port(const struct nf_conntrack_tuple *t,
-				   __be16 dport)
-{
-	return secure_ipv6_port_ephemeral(t->src.u3.ip6, t->dst.u3.ip6, dport);
-}
-
 static bool nf_nat_ipv6_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
 				  const struct nf_nat_l4proto *l4proto,
@@ -171,7 +165,6 @@ static int nf_nat_ipv6_nlattr_to_range(struct nlattr *tb[],
 
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv6 = {
 	.l3proto		= NFPROTO_IPV6,
-	.secure_port		= nf_nat_ipv6_secure_port,
 	.in_range		= nf_nat_ipv6_in_range,
 	.manip_pkt		= nf_nat_ipv6_manip_pkt,
 	.csum_update		= nf_nat_ipv6_csum_update,

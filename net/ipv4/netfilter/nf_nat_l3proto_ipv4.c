@@ -69,12 +69,6 @@ static bool nf_nat_ipv4_in_range(const struct nf_conntrack_tuple *t,
 	       ntohl(t->src.u3.ip) <= ntohl(range->max_addr.ip);
 }
 
-static u32 nf_nat_ipv4_secure_port(const struct nf_conntrack_tuple *t,
-				   __be16 dport)
-{
-	return secure_ipv4_port_ephemeral(t->src.u3.ip, t->dst.u3.ip, dport);
-}
-
 static bool nf_nat_ipv4_manip_pkt(struct sk_buff *skb,
 				  unsigned int iphdroff,
 				  const struct nf_nat_l4proto *l4proto,
@@ -162,7 +156,6 @@ static int nf_nat_ipv4_nlattr_to_range(struct nlattr *tb[],
 static const struct nf_nat_l3proto nf_nat_l3proto_ipv4 = {
 	.l3proto		= NFPROTO_IPV4,
 	.in_range		= nf_nat_ipv4_in_range,
-	.secure_port		= nf_nat_ipv4_secure_port,
 	.manip_pkt		= nf_nat_ipv4_manip_pkt,
 	.csum_update		= nf_nat_ipv4_csum_update,
 	.csum_recalc		= nf_nat_ipv4_csum_recalc,
