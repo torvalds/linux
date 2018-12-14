@@ -486,6 +486,14 @@ static int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_check_pptable(struct smu_context *smu)
+{
+	int ret;
+
+	ret = smu_check_powerplay_table(smu);
+	return ret;
+}
+
 static int smu_v11_0_parse_pptable(struct smu_context *smu)
 {
 	int ret;
@@ -520,6 +528,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 	.get_clk_info_from_vbios = smu_v11_0_get_clk_info_from_vbios,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.check_pptable = smu_v11_0_check_pptable,
 	.parse_pptable = smu_v11_0_parse_pptable,
 };
 

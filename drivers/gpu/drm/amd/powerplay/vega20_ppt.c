@@ -52,8 +52,29 @@ static int vega20_store_powerplay_table(struct smu_context *smu)
 	return 0;
 }
 
+static int vega20_check_powerplay_table(struct smu_context *smu)
+{
+	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
+	struct smu_table_context *table_context = &smu->smu_table;
+
+	powerplay_table = table_context->power_play_table;
+
+	if (powerplay_table->sHeader.format_revision < ATOM_VEGA20_TABLE_REVISION_VEGA20) {
+		pr_err("Unsupported PPTable format!");
+		return -EINVAL;
+	}
+
+	if (!powerplay_table->sHeader.structuresize) {
+		pr_err("Invalid PowerPlay Table!");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct pptable_funcs vega20_ppt_funcs = {
 	.store_powerplay_table = vega20_store_powerplay_table,
+	.check_powerplay_table = vega20_check_powerplay_table,
 };
 
 void vega20_set_ppt_funcs(struct smu_context *smu)

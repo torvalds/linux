@@ -102,6 +102,7 @@ struct smu_context
 
 struct pptable_funcs {
 	int (*store_powerplay_table)(struct smu_context *smu);
+	int (*check_powerplay_table)(struct smu_context *smu);
 };
 
 struct smu_funcs
@@ -180,6 +181,8 @@ struct smu_funcs
 	((smu)->funcs->send_smc_msg_with_param? (smu)->funcs->send_smc_msg_with_param((smu), (msg), (param)) : 0)
 #define smu_store_powerplay_table(smu) \
 	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
+#define smu_check_powerplay_table(smu) \
+	((smu)->ppt_funcs->check_powerplay_table ? (smu)->ppt_funcs->check_powerplay_table((smu)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
