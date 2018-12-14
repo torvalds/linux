@@ -214,8 +214,7 @@ void amdgpu_amdkfd_gpuvm_init_mem_limits(void);
 void amdgpu_amdkfd_unreserve_memory_limit(struct amdgpu_bo *bo);
 
 /* KGD2KFD callbacks */
-int kgd2kfd_init(unsigned interface_version,
-		 const struct kgd2kfd_calls **g2f);
+int kgd2kfd_init(void);
 void kgd2kfd_exit(void);
 struct kfd_dev *kgd2kfd_probe(struct kgd_dev *kgd, struct pci_dev *pdev,
 			      const struct kfd2kgd_calls *f2g);

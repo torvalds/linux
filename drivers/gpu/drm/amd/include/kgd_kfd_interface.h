@@ -34,7 +34,6 @@
 
 struct pci_dev;
 
-#define KFD_INTERFACE_VERSION 2
 #define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
@@ -328,55 +327,6 @@ struct kfd2kgd_calls {
 	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
 	uint64_t (*get_hive_id)(struct kgd_dev *kgd);
 
-};
-
-/**
- * struct kgd2kfd_calls
- *
- * @exit: Notifies amdkfd that kgd module is unloaded
- *
- * @probe: Notifies amdkfd about a probe done on a device in the kgd driver.
- *
- * @device_init: Initialize the newly probed device (if it is a device that
- * amdkfd supports)
- *
- * @device_exit: Notifies amdkfd about a removal of a kgd device
- *
- * @suspend: Notifies amdkfd about a suspend action done to a kgd device
- *
- * @resume: Notifies amdkfd about a resume action done to a kgd device
- *
- * @quiesce_mm: Quiesce all user queue access to specified MM address space
- *
- * @resume_mm: Resume user queue access to specified MM address space
- *
- * @schedule_evict_and_restore_process: Schedules work queue that will prepare
- * for safe eviction of KFD BOs that belong to the specified process.
- *
- * @pre_reset: Notifies amdkfd that amdgpu about to reset the gpu
- *
- * @post_reset: Notify amdkfd that amgpu successfully reseted the gpu
- *
- * This structure contains function callback pointers so the kgd driver
- * will notify to the amdkfd about certain status changes.
- *
- */
-struct kgd2kfd_calls {
-	void (*exit)(void);
-	struct kfd_dev* (*probe)(struct kgd_dev *kgd, struct pci_dev *pdev,
-		const struct kfd2kgd_calls *f2g);
-	bool (*device_init)(struct kfd_dev *kfd,
-			const struct kgd2kfd_shared_resources *gpu_resources);
-	void (*device_exit)(struct kfd_dev *kfd);
-	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
-	void (*suspend)(struct kfd_dev *kfd);
-	int (*resume)(struct kfd_dev *kfd);
-	int (*quiesce_mm)(struct mm_struct *mm);
-	int (*resume_mm)(struct mm_struct *mm);
-	int (*schedule_evict_and_restore_process)(struct mm_struct *mm,
-			struct dma_fence *fence);
-	int  (*pre_reset)(struct kfd_dev *kfd);
-	int  (*post_reset)(struct kfd_dev *kfd);
 };
 
 #endif	/* KGD_KFD_INTERFACE_H_INCLUDED */
