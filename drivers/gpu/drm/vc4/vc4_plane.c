@@ -675,20 +675,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		uint32_t param = fourcc_mod_broadcom_param(fb->modifier);
 		u32 tile_w, tile, x_off, pix_per_tile;
 
-		/* Column-based NV12 or RGBA.
-		 */
-		if (fb->format->num_planes > 1) {
-			if (hvs_format != HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE) {
-				DRM_DEBUG_KMS("SAND format only valid for NV12/21");
-				return -EINVAL;
-			}
-			hvs_format = HVS_PIXEL_FORMAT_H264;
-		} else {
-			if (base_format_mod == DRM_FORMAT_MOD_BROADCOM_SAND256) {
-				DRM_DEBUG_KMS("SAND256 format only valid for H.264");
-				return -EINVAL;
-			}
-		}
+		hvs_format = HVS_PIXEL_FORMAT_H264;
 
 		switch (base_format_mod) {
 		case DRM_FORMAT_MOD_BROADCOM_SAND64:
@@ -1151,8 +1138,6 @@ static bool vc4_format_mod_supported(struct drm_plane *plane,
 		switch (fourcc_mod_broadcom_mod(modifier)) {
 		case DRM_FORMAT_MOD_LINEAR:
 		case DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED:
-		case DRM_FORMAT_MOD_BROADCOM_SAND64:
-		case DRM_FORMAT_MOD_BROADCOM_SAND128:
 			return true;
 		default:
 			return false;
