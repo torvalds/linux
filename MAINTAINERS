@@ -4847,6 +4847,7 @@ F:	include/uapi/drm/vmwgfx_drm.h
 
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
+M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm
 B:	https://bugs.freedesktop.org/

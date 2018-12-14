@@ -124,13 +124,13 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, union drm_amdgpu_cs
 		goto free_chunk;
 	}
 
+	mutex_lock(&p->ctx->lock);
+
 	/* skip guilty context job */
 	if (atomic_read(&p->ctx->guilty) == 1) {
 		ret = -ECANCELED;
 		goto free_chunk;
 	}
-
-	mutex_lock(&p->ctx->lock);
 
 	/* get chunks */
 	chunk_array_user = u64_to_user_ptr(cs->in.chunks);
