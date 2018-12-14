@@ -250,7 +250,7 @@ typedef struct vchiq_bulk_struct {
 	int actual;
 } VCHIQ_BULK_T;
 
-typedef struct vchiq_bulk_queue_struct {
+struct vchiq_bulk_queue {
 	int local_insert;  /* Where to insert the next local bulk */
 	int remote_insert; /* Where to insert the next remote bulk (master) */
 	int process;       /* Bulk to transfer next */
@@ -258,7 +258,7 @@ typedef struct vchiq_bulk_queue_struct {
 	int remove;        /* Bulk to notify the local client of, and remove,
 			   ** next */
 	VCHIQ_BULK_T bulks[VCHIQ_NUM_SERVICE_BULKS];
-} VCHIQ_BULK_QUEUE_T;
+};
 
 struct remote_event {
 	int armed;
@@ -304,8 +304,8 @@ typedef struct vchiq_service_struct {
 
 	int service_use_count;
 
-	VCHIQ_BULK_QUEUE_T bulk_tx;
-	VCHIQ_BULK_QUEUE_T bulk_rx;
+	struct vchiq_bulk_queue bulk_tx;
+	struct vchiq_bulk_queue bulk_rx;
 
 	struct completion remove_event;
 	struct completion bulk_remove_event;
