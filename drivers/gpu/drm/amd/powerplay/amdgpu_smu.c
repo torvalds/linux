@@ -178,10 +178,63 @@ static int smu_sw_fini(void *handle)
 
 static int smu_init_fb_allocations(struct smu_context *smu)
 {
-	/* TODO */
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	uint32_t table_count = smu_table->table_count;
+	uint32_t i = 0;
+	int32_t ret = 0;
+
+	if (table_count <= 0)
+		return -EINVAL;
+
+	for (i = 0 ; i < table_count; i++) {
+		if (tables[i].size == 0)
+			continue;
+		ret = amdgpu_bo_create_kernel(adev,
+					      tables[i].size,
+					      tables[i].align,
+					      tables[i].domain,
+					      &tables[i].bo,
+					      &tables[i].mc_address,
+					      &tables[i].cpu_addr);
+		if (ret)
+			goto failed;
+	}
+
 	return 0;
+failed:
+	for (; i > 0; i--) {
+		if (tables[i].size == 0)
+			continue;
+		amdgpu_bo_free_kernel(&tables[i].bo,
+				      &tables[i].mc_address,
+				      &tables[i].cpu_addr);
+
+	}
+	return ret;
 }
 
+static int smu_fini_fb_allocations(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = smu_table->tables;
+	uint32_t table_count = smu_table->table_count;
+	uint32_t i = 0;
+
+	if (table_count == 0 || tables == NULL)
+		return -EINVAL;
+
+	for (i = 0 ; i < table_count; i++) {
+		if (tables[i].size == 0)
+			continue;
+		amdgpu_bo_free_kernel(&tables[i].bo,
+				      &tables[i].mc_address,
+				      &tables[i].cpu_addr);
+	}
+
+	return 0;
+}
 static int smu_smc_table_hw_init(struct smu_context *smu)
 {
 	int ret;
@@ -329,9 +382,14 @@ static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
+	int ret = 0;
 
 	if (adev->asic_type < CHIP_VEGA20)
 		return -EINVAL;
+
+	ret = smu_fini_fb_allocations(smu);
+	if (ret)
+		return ret;
 
 	return 0;
 }
