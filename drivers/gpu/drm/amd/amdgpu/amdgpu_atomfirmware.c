@@ -28,8 +28,6 @@
 #include "atom.h"
 #include "atombios.h"
 
-#define get_index_into_master_table(master_table, table_name) (offsetof(struct master_table, table_name) / sizeof(uint16_t))
-
 bool amdgpu_atomfirmware_gpu_supports_virtualization(struct amdgpu_device *adev)
 {
 	int index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
