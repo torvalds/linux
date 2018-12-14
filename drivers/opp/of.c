@@ -983,19 +983,19 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
  * Returns the performance state of the OPP pointed out by the "required-opps"
  * property at @index in @np.
  *
- * Return: Positive performance state on success, otherwise 0 on errors.
+ * Return: Zero or positive performance state on success, otherwise negative
+ * value on errors.
  */
-unsigned int of_get_required_opp_performance_state(struct device_node *np,
-						   int index)
+int of_get_required_opp_performance_state(struct device_node *np, int index)
 {
 	struct dev_pm_opp *opp;
 	struct device_node *required_np;
 	struct opp_table *opp_table;
-	unsigned int pstate = 0;
+	int pstate = -EINVAL;
 
 	required_np = of_parse_required_opp(np, index);
 	if (!required_np)
-		return 0;
+		return -EINVAL;
 
 	opp_table = _find_table_of_opp_np(required_np);
 	if (IS_ERR(opp_table)) {
