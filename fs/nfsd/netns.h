@@ -42,6 +42,9 @@ struct nfsd_net {
 	bool grace_ended;
 	time_t boot_time;
 
+	/* internal mount of the "nfsd" pseudofilesystem: */
+	struct vfsmount *nfsd_mnt;
+
 	/*
 	 * reclaim_str_hashtbl[] holds known client info from previous reset/reboot
 	 * used in reboot/reset lease grace period processing
