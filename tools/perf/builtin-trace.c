@@ -132,6 +132,7 @@ struct trace {
 	bool			show_duration;
 	bool			show_zeros;
 	bool			show_arg_names;
+	bool			show_string_prefix;
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
@@ -360,21 +361,21 @@ out_delete:
 	({ struct syscall_tp *fields = evsel->priv; \
 	   fields->name.pointer(&fields->name, sample); })
 
-size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val)
+size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_prefix, int val)
 {
 	int idx = val - sa->offset;
 
 	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL)
 		return scnprintf(bf, size, intfmt, val);
 
-	return scnprintf(bf, size, "%s", sa->entries[idx]);
+	return scnprintf(bf, size, "%s%s", show_prefix ? sa->prefix : "", sa->entries[idx]);
 }
 
 static size_t __syscall_arg__scnprintf_strarray(char *bf, size_t size,
 						const char *intfmt,
 					        struct syscall_arg *arg)
 {
-	return strarray__scnprintf(arg->parm, bf, size, intfmt, arg->val);
+	return strarray__scnprintf(arg->parm, bf, size, intfmt, arg->show_string_prefix, arg->val);
 }
 
 static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
@@ -408,7 +409,7 @@ size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
 		if (idx >= 0 && idx < sa->nr_entries) {
 			if (sa->entries[idx] == NULL)
 				break;
-			return scnprintf(bf, size, "%s", sa->entries[idx]);
+			return scnprintf(bf, size, "%s%s", arg->show_string_prefix ? sa->prefix : "", sa->entries[idx]);
 		}
 	}
 
@@ -423,10 +424,10 @@ static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
 					   struct syscall_arg *arg)
 {
 	int fd = arg->val;
-	/* char fd_at_prefix = "AT_FD"; */
+	const char *prefix = "AT_FD";
 
 	if (fd == AT_FDCWD)
-		return scnprintf(bf, size, "CWD");
+		return scnprintf(bf, size, "%s%s", arg->show_string_prefix ? prefix : "", "CWD");
 
 	return syscall_arg__scnprintf_fd(bf, size, arg);
 }
@@ -527,14 +528,16 @@ static DEFINE_STRARRAY(clockid, "CLOCK_");
 static size_t syscall_arg__scnprintf_access_mode(char *bf, size_t size,
 						 struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *suffix = "_OK";
 	size_t printed = 0;
 	int mode = arg->val;
 
 	if (mode == F_OK) /* 0 */
-		return scnprintf(bf, size, "F");
+		return scnprintf(bf, size, "F%s", show_prefix ? suffix : "");
 #define	P_MODE(n) \
 	if (mode & n##_OK) { \
-		printed += scnprintf(bf + printed, size - printed, "%s", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", #n, show_prefix ? suffix : ""); \
 		mode &= ~n##_OK; \
 	}
 
@@ -559,11 +562,13 @@ static size_t syscall_arg__scnprintf_filename(char *bf, size_t size,
 static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 						struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "O_";
 	int printed = 0, flags = arg->val;
 
 #define	P_FLAG(n) \
 	if (flags & O_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~O_##n; \
 	}
 
@@ -589,11 +594,13 @@ static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 						   struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "GRND_";
 	int printed = 0, flags = arg->val;
 
 #define	P_FLAG(n) \
 	if (flags & GRND_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~GRND_##n; \
 	}
 
@@ -1577,6 +1584,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		.mask	= 0,
 		.trace  = trace,
 		.thread = thread,
+		.show_string_prefix = trace->show_string_prefix,
 	};
 	struct thread_trace *ttrace = thread__priv(thread);
 
@@ -3563,6 +3571,8 @@ static int trace__config(const char *var, const char *value, void *arg)
 			goto out;
 		}
 		trace->show_zeros = new_show_zeros;
+	} else if (!strcmp(var, "trace.show_prefix")) {
+		trace->show_string_prefix = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.no_inherit")) {
 		trace->opts.no_inherit = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.args_alignment")) {

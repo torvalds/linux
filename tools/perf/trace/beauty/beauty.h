@@ -26,8 +26,8 @@ struct strarray {
 	.prefix = _prefix, \
 }
 
-size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val);
-size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, unsigned long flags);
+size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, bool show_prefix, int val);
+size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, bool show_prefix, unsigned long flags);
 
 struct trace;
 struct thread;
@@ -69,6 +69,7 @@ struct augmented_arg {
  * @parm: private area, may be an strarray, for instance
  * @idx: syscall arg idx (is this the first?)
  * @mask: a syscall arg may mask another arg, see syscall_arg__scnprintf_futex_op
+ * @show_string_prefix: When there is a common prefix in a string table, show it or not
  */
 
 struct syscall_arg {
@@ -83,6 +84,7 @@ struct syscall_arg {
 	void	      *parm;
 	u8	      idx;
 	u8	      mask;
+	bool	      show_string_prefix;
 };
 
 unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx);
@@ -162,7 +164,7 @@ size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_STATX_MASK syscall_arg__scnprintf_statx_mask
 
-size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size);
+size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix);
 
 void syscall_arg__set_ret_scnprintf(struct syscall_arg *arg,
 				    size_t (*ret_scnprintf)(char *bf, size_t size, struct syscall_arg *arg));

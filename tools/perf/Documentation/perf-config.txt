@@ -543,6 +543,10 @@ trace.*::
 	trace.show_duration::
 		Show syscall duration.
 
+	trace.show_prefix::
+		If set to 'yes' will show common string prefixes in tables. The default
+		is to remove the common prefix in things like "MAP_SHARED", showing just "SHARED".
+
 	trace.show_timestamp::
 		Show syscall start timestamp.
 

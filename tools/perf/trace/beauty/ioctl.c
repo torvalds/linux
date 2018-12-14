@@ -112,8 +112,9 @@ static size_t ioctl__scnprintf_perf_cmd(int nr, int dir, char *bf, size_t size)
 	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAE, nr, dir);
 }
 
-static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
+static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size, bool show_prefix)
 {
+	const char *prefix = "_IOC_";
 	int dir	 = _IOC_DIR(cmd),
 	    type = _IOC_TYPE(cmd),
 	    nr	 = _IOC_NR(cmd),
@@ -143,12 +144,14 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 	printed += scnprintf(bf + printed, size - printed, "%c", '(');
 
 	if (dir == _IOC_NONE) {
-		printed += scnprintf(bf + printed, size - printed, "%s", "NONE");
+		printed += scnprintf(bf + printed, size - printed, "%s%s", show_prefix ? prefix : "", "NONE");
 	} else {
 		if (dir & _IOC_READ)
-			printed += scnprintf(bf + printed, size - printed, "%s", "READ");
-		if (dir & _IOC_WRITE)
-			printed += scnprintf(bf + printed, size - printed, "%s%s", dir & _IOC_READ ? "|" : "", "WRITE");
+			printed += scnprintf(bf + printed, size - printed, "%s%s", show_prefix ? prefix : "", "READ");
+		if (dir & _IOC_WRITE) {
+			printed += scnprintf(bf + printed, size - printed, "%s%s%s", dir & _IOC_READ ? "|" : "",
+					     show_prefix ? prefix : "",  "WRITE");
+		}
 	}
 
 	return printed + scnprintf(bf + printed, size - printed, ", %#x, %#x, %#x)", type, nr, sz);
@@ -158,5 +161,5 @@ size_t syscall_arg__scnprintf_ioctl_cmd(char *bf, size_t size, struct syscall_ar
 {
 	unsigned long cmd = arg->val;
 
-	return ioctl__scnprintf_cmd(cmd, bf, size);
+	return ioctl__scnprintf_cmd(cmd, bf, size, arg->show_string_prefix);
 }
