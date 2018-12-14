@@ -178,6 +178,8 @@
 			     <GIC_SPI 89 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "sys", "legacy", "msg", "err";
 		linux,pci-domain = <0>;
+		num-ib-windows = <6>;
+		num-ob-windows = <2>;
 		msi-map = <0x0 &its 0x0 0x1000>;
 		num-lanes = <2>;
 		phys = <&combphy PHY_TYPE_PCIE>;
