@@ -1,23 +1,61 @@
-config SND_SOC_SOF_PCI
-	tristate
-
-config SND_SOC_SOF_ACPI
-	tristate
-
-config SND_SOC_SOF_SPI
-	tristate
-
-config SND_SOC_SOF
-	tristate "Sound Open Firmware Support"
-	select SND_SOC_TOPOLOGY
-	select SND_SOC_COMPRESS if SND_SOC_SOF_COMPRESS=y
+config SND_SOC_SOF_TOPLEVEL
+	bool "Sound Open Firmware Support"
 	help
           This adds support for Sound Open Firmware (SOF). SOF is a free and
 	  generic open source audio DSP firmware for multiple devices.
           Say Y if you have such a device that is supported by SOF.
           If unsure select "N".
 
-if SND_SOC_SOF
+if SND_SOC_SOF_TOPLEVEL
+
+config SND_SOC_SOF_PCI
+	tristate "SOF PCI enumeration support"
+	depends on PCI
+	select SND_SOC_SOF_OPTIONS
+	select SND_SOC_SOF_INTEL_PCI if SND_SOC_SOF_INTEL_TOPLEVEL
+	help
+          This adds support for PCI enumeration. This option is
+	  required to enable Intel Skylake+ devices
+	  Say Y if you need this option
+          If unsure select "N".
+
+config SND_SOC_SOF_ACPI
+	tristate "SOF ACPI enumeration support"
+	depends on ACPI || COMPILE_TEST
+	select SND_SOC_SOF_OPTIONS
+	select SND_SOC_SOF_INTEL_ACPI if SND_SOC_SOF_INTEL_TOPLEVEL
+	select IOSF_MBI if X86
+	help
+          This adds support for ACPI enumeration. This option is required
+	  to enable Intel Haswell/Broadwell/Baytrail/Cherrytrail devices
+	  Say Y if you need this option
+          If unsure select "N".
+
+config SND_SOC_SOF_SPI
+	tristate "SOF SPI support"
+	select SPI
+	select SPI_MASTER
+	select SND_SOC_SOF_OPTIONS
+	select SND_SOC_SOF_SPIDSP
+	help
+	  This adds support for Sound Open Firmware over SPI for Device
+	  Tree based systems.
+	  Say Y if you have such a device.
+	  If unsure select "N".
+
+config SND_SOC_SOF_SPIDSP
+	tristate
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
+config SND_SOC_SOF_OPTIONS
+	tristate
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
+if SND_SOC_SOF_OPTIONS
 
 config SND_SOC_SOF_COMPRESS
 	bool "SOF ALSA Compressed API support"
@@ -38,17 +76,17 @@ config SND_SOC_SOF_NOCODEC
 
 config SND_SOC_SOF_DEBUG
 	bool "SOF debugging features"
-	depends on SND_SOC_SOF
 	help
 	  This option can be used to enable or disable individual SOF firmware
 	  and driver debugging options.
 	  Say Y if you are debugging SOF FW or drivers.
           If unsure select "N".
 
+if SND_SOC_SOF_DEBUG
+
 config SND_SOC_SOF_FORCE_NOCODEC_MODE
 	bool "SOF force nocodec Mode"
 	depends on SND_SOC_SOF_NOCODEC
-	depends on SND_SOC_SOF_DEBUG
 	help
           This forces SOF to use dummy/nocodec as machine driver, even
 	  though there is a codec detected on the real platform. This is
@@ -60,7 +98,6 @@ config SND_SOC_SOF_FORCE_NOCODEC_MODE
 
 config SND_SOC_SOF_DEBUG_XRUN_STOP
 	bool "SOF stop on XRUN"
-	depends on SND_SOC_SOF_DEBUG
 	help
 	  This option forces PCMs to stop on any XRUN event. This is useful to
 	  preserve any trace data ond pipeline status prior to the XRUN.
@@ -69,7 +106,6 @@ config SND_SOC_SOF_DEBUG_XRUN_STOP
 
 config SND_SOC_SOF_DEBUG_VERBOSE_IPC
 	bool "SOF verbose IPC logs"
-	depends on SND_SOC_SOF_DEBUG
 	help
 	  This option enables more verbose IPC logs, with command types in
 	  human-readable form instead of just 32-bit hex dumps. This is useful
@@ -78,8 +114,6 @@ config SND_SOC_SOF_DEBUG_VERBOSE_IPC
 
 config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 	bool "SOF force to use IPC for position update on SKL+"
-	depends on SND_SOC_SOF_DEBUG
-	default n
 	help
 	  This option force to handle stream position update IPCs and run pcm
 	  elapse to inform ALSA about that, on platforms (e.g. Intel SKL+) that
@@ -89,6 +123,20 @@ config SND_SOC_SOF_DEBUG_FORCE_IPC_POSITION
 	  if you are trying to debug pointer update with position IPCs or where
 	  DPIB/posbuf is not ready, select "Y".
           If unsure select "N".
+
+endif ## SND_SOC_SOF_DEBUG
+
+endif ## SND_SOC_SOF_OPTIONS
+
+config SND_SOC_SOF
+	tristate
+	select SND_SOC_TOPOLOGY
+	select SND_SOC_COMPRESS if SND_SOC_SOF_COMPRESS=y
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+	  Due to module dependencies this option needs to be selected
+	  at the lowest level for each platform
 
 source "sound/soc/sof/intel/Kconfig"
 source "sound/soc/sof/xtensa/Kconfig"
