@@ -257,7 +257,6 @@ struct netsec_desc_ring {
 	dma_addr_t desc_dma;
 	struct netsec_desc *desc;
 	void *vaddr;
-	u16 pkt_cnt;
 	u16 head, tail;
 };
 
@@ -598,33 +597,26 @@ static void netsec_set_rx_de(struct netsec_priv *priv,
 	dring->desc[idx].len = desc->len;
 }
 
-static int netsec_clean_tx_dring(struct netsec_priv *priv, int budget)
+static bool netsec_clean_tx_dring(struct netsec_priv *priv)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
 	unsigned int pkts, bytes;
-
-	dring->pkt_cnt += netsec_read(priv, NETSEC_REG_NRM_TX_DONE_PKTCNT);
-
-	if (dring->pkt_cnt < budget)
-		budget = dring->pkt_cnt;
+	struct netsec_de *entry;
+	int tail = dring->tail;
+	int cnt = 0;
 
 	pkts = 0;
 	bytes = 0;
+	entry = dring->vaddr + DESC_SZ * tail;
 
-	while (pkts < budget) {
+	while (!(entry->attr & (1U << NETSEC_TX_SHIFT_OWN_FIELD)) &&
+	       cnt < DESC_NUM) {
 		struct netsec_desc *desc;
-		struct netsec_de *entry;
-		int tail, eop;
-
-		tail = dring->tail;
-
-		/* move tail ahead */
-		dring->tail = (tail + 1) % DESC_NUM;
+		int eop;
 
 		desc = &dring->desc[tail];
-		entry = dring->vaddr + DESC_SZ * tail;
-
 		eop = (entry->attr >> NETSEC_TX_LAST) & 1;
+		dma_rmb();
 
 		dma_unmap_single(priv->dev, desc->dma_addr, desc->len,
 				 DMA_TO_DEVICE);
@@ -633,38 +625,51 @@ static int netsec_clean_tx_dring(struct netsec_priv *priv, int budget)
 			bytes += desc->skb->len;
 			dev_kfree_skb(desc->skb);
 		}
+		/* clean up so netsec_uninit_pkt_dring() won't free the skb
+		 * again
+		 */
 		*desc = (struct netsec_desc){};
-	}
-	dring->pkt_cnt -= budget;
 
-	priv->ndev->stats.tx_packets += budget;
+		/* entry->attr is not going to be accessed by the NIC until
+		 * netsec_set_tx_de() is called. No need for a dma_wmb() here
+		 */
+		entry->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
+		/* move tail ahead */
+		dring->tail = (tail + 1) % DESC_NUM;
+
+		tail = dring->tail;
+		entry = dring->vaddr + DESC_SZ * tail;
+		cnt++;
+	}
+
+	if (!cnt)
+		return false;
+
+	/* reading the register clears the irq */
+	netsec_read(priv, NETSEC_REG_NRM_TX_DONE_PKTCNT);
+
+	priv->ndev->stats.tx_packets += cnt;
 	priv->ndev->stats.tx_bytes += bytes;
 
-	netdev_completed_queue(priv->ndev, budget, bytes);
+	netdev_completed_queue(priv->ndev, cnt, bytes);
 
-	return budget;
+	return true;
 }
 
-static int netsec_process_tx(struct netsec_priv *priv, int budget)
+static void netsec_process_tx(struct netsec_priv *priv)
 {
 	struct net_device *ndev = priv->ndev;
-	int new, done = 0;
+	bool cleaned;
 
-	do {
-		new = netsec_clean_tx_dring(priv, budget);
-		done += new;
-		budget -= new;
-	} while (new);
+	cleaned = netsec_clean_tx_dring(priv);
 
-	if (done && netif_queue_stopped(ndev)) {
+	if (cleaned && netif_queue_stopped(ndev)) {
 		/* Make sure we update the value, anyone stopping the queue
 		 * after this will read the proper consumer idx
 		 */
 		smp_wmb();
 		netif_wake_queue(ndev);
 	}
-
-	return done;
 }
 
 static void *netsec_alloc_rx_data(struct netsec_priv *priv,
@@ -813,24 +818,17 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 static int netsec_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct netsec_priv *priv;
-	int tx, rx, done, todo;
+	int rx, done, todo;
 
 	priv = container_of(napi, struct netsec_priv, napi);
 
+	netsec_process_tx(priv);
+
 	todo = budget;
 	do {
-		if (!todo)
-			break;
-
-		tx = netsec_process_tx(priv, todo);
-		todo -= tx;
-
-		if (!todo)
-			break;
-
 		rx = netsec_process_rx(priv, todo);
 		todo -= rx;
-	} while (rx || tx);
+	} while (rx);
 
 	done = budget - todo;
 
@@ -1007,7 +1005,6 @@ static void netsec_uninit_pkt_dring(struct netsec_priv *priv, int id)
 
 	dring->head = 0;
 	dring->tail = 0;
-	dring->pkt_cnt = 0;
 
 	if (id == NETSEC_RING_TX)
 		netdev_reset_queue(priv->ndev);
@@ -1030,6 +1027,7 @@ static void netsec_free_dring(struct netsec_priv *priv, int id)
 static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 {
 	struct netsec_desc_ring *dring = &priv->desc_ring[id];
+	int i;
 
 	dring->vaddr = dma_zalloc_coherent(priv->dev, DESC_SZ * DESC_NUM,
 					   &dring->desc_dma, GFP_KERNEL);
@@ -1039,6 +1037,19 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
 	if (!dring->desc)
 		goto err;
+
+	if (id == NETSEC_RING_TX) {
+		for (i = 0; i < DESC_NUM; i++) {
+			struct netsec_de *de;
+
+			de = dring->vaddr + (DESC_SZ * i);
+			/* de->attr is not going to be accessed by the NIC
+			 * until netsec_set_tx_de() is called.
+			 * No need for a dma_wmb() here
+			 */
+			de->attr = 1U << NETSEC_TX_SHIFT_OWN_FIELD;
+		}
+	}
 
 	return 0;
 err:
