@@ -532,6 +532,10 @@ trace.*::
 	trace.no_inherit::
 		Do not follow children threads.
 
+	trace.show_arg_names::
+		Should syscall argument names be printed? If not then trace.show_zeros
+		will be set.
+
 	trace.show_duration::
 		Show syscall duration.
 

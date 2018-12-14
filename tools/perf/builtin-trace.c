@@ -130,6 +130,7 @@ struct trace {
 	bool			show_tstamp;
 	bool			show_duration;
 	bool			show_zeros;
+	bool			show_arg_names;
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
@@ -1613,8 +1614,11 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 			      sc->arg_fmt[arg.idx].parm))
 				continue;
 
-			printed += scnprintf(bf + printed, size - printed,
-					     "%s%s: ", printed ? ", " : "", field->name);
+			printed += scnprintf(bf + printed, size - printed, "%s", printed ? ", " : "");
+
+			if (trace->show_arg_names)
+				printed += scnprintf(bf + printed, size - printed, "%s: ", field->name);
+
 			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
 		}
 	} else if (IS_ERR(sc->tp_format)) {
@@ -3546,12 +3550,21 @@ static int trace__config(const char *var, const char *value, void *arg)
 		trace->show_tstamp = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.show_duration")) {
 		trace->show_duration = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.show_arg_names")) {
+		trace->show_arg_names = perf_config_bool(var, value);
+		if (!trace->show_arg_names)
+			trace->show_zeros = true;
 	} else if (!strcmp(var, "trace.show_zeros")) {
-		trace->show_zeros = perf_config_bool(var, value);
+		bool new_show_zeros = perf_config_bool(var, value);
+		if (!trace->show_arg_names && !new_show_zeros) {
+			pr_warning("trace.show_zeros has to be set when trace.show_arg_names=no\n");
+			goto out;
+		}
+		trace->show_zeros = new_show_zeros;
 	} else if (!strcmp(var, "trace.no_inherit")) {
 		trace->opts.no_inherit = perf_config_bool(var, value);
 	}
-
+out:
 	return err;
 }
 
@@ -3582,6 +3595,7 @@ int cmd_trace(int argc, const char **argv)
 		.show_comm = true,
 		.show_tstamp = true,
 		.show_duration = true,
+		.show_arg_names = true,
 		.trace_syscalls = false,
 		.kernel_syscallchains = false,
 		.max_stack = UINT_MAX,
