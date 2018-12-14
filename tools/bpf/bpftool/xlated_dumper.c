@@ -81,7 +81,7 @@ struct kernel_sym *kernel_syms_search(struct dump_data *dd,
 		       sizeof(*dd->sym_mapping), kernel_syms_cmp) : NULL;
 }
 
-static void print_insn(void *private_data, const char *fmt, ...)
+static void __printf(2, 3) print_insn(void *private_data, const char *fmt, ...)
 {
 	va_list args;
 
@@ -90,7 +90,7 @@ static void print_insn(void *private_data, const char *fmt, ...)
 	va_end(args);
 }
 
-static void
+static void __printf(2, 3)
 print_insn_for_graph(void *private_data, const char *fmt, ...)
 {
 	char buf[64], *p;
@@ -121,7 +121,8 @@ print_insn_for_graph(void *private_data, const char *fmt, ...)
 	printf("%s", buf);
 }
 
-static void print_insn_json(void *private_data, const char *fmt, ...)
+static void __printf(2, 3)
+print_insn_json(void *private_data, const char *fmt, ...)
 {
 	unsigned int l = strlen(fmt);
 	char chomped_fmt[l];
