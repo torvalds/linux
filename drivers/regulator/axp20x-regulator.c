@@ -378,6 +378,7 @@ static int axp20x_set_ramp_delay(struct regulator_dev *rdev, int ramp)
 	switch (axp20x->variant) {
 	case AXP209_ID:
 		if (desc->id == AXP20X_DCDC2) {
+			slew_rates = axp209_dcdc2_ldo3_slew_rates;
 			rate_count = ARRAY_SIZE(axp209_dcdc2_ldo3_slew_rates);
 			reg = AXP20X_DCDC2_LDO3_V_RAMP;
 			mask = AXP20X_DCDC2_LDO3_V_RAMP_DCDC2_RATE_MASK |
