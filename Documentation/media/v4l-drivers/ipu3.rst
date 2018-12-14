@@ -358,7 +358,7 @@ The source can be located under hal/intel directory.
 References
 ==========
 
-.. [#f5] include/uapi/linux/intel-ipu3.h
+.. [#f5] drivers/staging/media/ipu3/include/intel-ipu3.h
 
 .. [#f1] https://github.com/intel/nvt
 
