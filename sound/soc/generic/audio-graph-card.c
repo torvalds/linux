@@ -35,7 +35,6 @@ struct graph_card_data {
 	struct asoc_simple_jack mic_jack;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dais;
-	struct asoc_simple_card_data adata;
 	struct snd_soc_codec_conf *codec_conf;
 	struct gpio_desc *pa_gpio;
 };
@@ -167,9 +166,6 @@ static int asoc_graph_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	asoc_simple_card_convert_fixup(&dai_props->adata, params);
 
-	/* overwrite by top level adata if exist */
-	asoc_simple_card_convert_fixup(&priv->adata, params);
-
 	return 0;
 }
 
@@ -197,6 +193,13 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 	of_property_read_u32(ports, "mclk-fs", &dai_props->mclk_fs);
 	of_property_read_u32(port,  "mclk-fs", &dai_props->mclk_fs);
 	of_property_read_u32(ep,    "mclk-fs", &dai_props->mclk_fs);
+
+	asoc_simple_card_parse_convert(dev, top,   NULL,   &dai_props->adata);
+	asoc_simple_card_parse_convert(dev, node,  PREFIX, &dai_props->adata);
+	asoc_simple_card_parse_convert(dev, ports, NULL,   &dai_props->adata);
+	asoc_simple_card_parse_convert(dev, port,  NULL,   &dai_props->adata);
+	asoc_simple_card_parse_convert(dev, ep,    NULL,   &dai_props->adata);
+
 	of_node_put(ports);
 	of_node_put(port);
 
@@ -275,8 +278,6 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 						     dai_link->codecs->of_node,
 						     PREFIX "prefix");
 	}
-
-	asoc_simple_card_parse_convert(dev, node, PREFIX, &dai_props->adata);
 
 	ret = asoc_simple_card_of_parse_tdm(ep, dai);
 	if (ret)
@@ -408,8 +409,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	ret = asoc_simple_card_of_parse_routing(card, NULL);
 	if (ret < 0)
 		return ret;
-
-	asoc_simple_card_parse_convert(dev, node, NULL, &priv->adata);
 
 	link_idx	= 0;
 	dai_idx		= 0;
