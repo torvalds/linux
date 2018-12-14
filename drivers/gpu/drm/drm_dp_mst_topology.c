@@ -1879,39 +1879,48 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 
 	mutex_lock(&mgr->payload_lock);
 	for (i = 0; i < mgr->max_payloads; i++) {
+		struct drm_dp_vcpi *vcpi = mgr->proposed_vcpis[i];
+		struct drm_dp_payload *payload = &mgr->payloads[i];
+
 		/* solve the current payloads - compare to the hw ones
 		   - update the hw view */
 		req_payload.start_slot = cur_slots;
-		if (mgr->proposed_vcpis[i]) {
-			port = container_of(mgr->proposed_vcpis[i], struct drm_dp_mst_port, vcpi);
+		if (vcpi) {
+			port = container_of(vcpi, struct drm_dp_mst_port,
+					    vcpi);
 			port = drm_dp_get_validated_port_ref(mgr, port);
 			if (!port) {
 				mutex_unlock(&mgr->payload_lock);
 				return -EINVAL;
 			}
-			req_payload.num_slots = mgr->proposed_vcpis[i]->num_slots;
-			req_payload.vcpi = mgr->proposed_vcpis[i]->vcpi;
+			req_payload.num_slots = vcpi->num_slots;
+			req_payload.vcpi = vcpi->vcpi;
 		} else {
 			port = NULL;
 			req_payload.num_slots = 0;
 		}
 
-		mgr->payloads[i].start_slot = req_payload.start_slot;
+		payload->start_slot = req_payload.start_slot;
 		/* work out what is required to happen with this payload */
-		if (mgr->payloads[i].num_slots != req_payload.num_slots) {
+		if (payload->num_slots != req_payload.num_slots) {
 
 			/* need to push an update for this payload */
 			if (req_payload.num_slots) {
-				drm_dp_create_payload_step1(mgr, mgr->proposed_vcpis[i]->vcpi, &req_payload);
-				mgr->payloads[i].num_slots = req_payload.num_slots;
-				mgr->payloads[i].vcpi = req_payload.vcpi;
-			} else if (mgr->payloads[i].num_slots) {
-				mgr->payloads[i].num_slots = 0;
-				drm_dp_destroy_payload_step1(mgr, port, mgr->payloads[i].vcpi, &mgr->payloads[i]);
-				req_payload.payload_state = mgr->payloads[i].payload_state;
-				mgr->payloads[i].start_slot = 0;
+				drm_dp_create_payload_step1(mgr, vcpi->vcpi,
+							    &req_payload);
+				payload->num_slots = req_payload.num_slots;
+				payload->vcpi = req_payload.vcpi;
+
+			} else if (payload->num_slots) {
+				payload->num_slots = 0;
+				drm_dp_destroy_payload_step1(mgr, port,
+							     payload->vcpi,
+							     payload);
+				req_payload.payload_state =
+					payload->payload_state;
+				payload->start_slot = 0;
 			}
-			mgr->payloads[i].payload_state = req_payload.payload_state;
+			payload->payload_state = req_payload.payload_state;
 		}
 		cur_slots += req_payload.num_slots;
 
@@ -1920,22 +1929,26 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 	}
 
 	for (i = 0; i < mgr->max_payloads; i++) {
-		if (mgr->payloads[i].payload_state == DP_PAYLOAD_DELETE_LOCAL) {
-			DRM_DEBUG_KMS("removing payload %d\n", i);
-			for (j = i; j < mgr->max_payloads - 1; j++) {
-				memcpy(&mgr->payloads[j], &mgr->payloads[j + 1], sizeof(struct drm_dp_payload));
-				mgr->proposed_vcpis[j] = mgr->proposed_vcpis[j + 1];
-				if (mgr->proposed_vcpis[j] && mgr->proposed_vcpis[j]->num_slots) {
-					set_bit(j + 1, &mgr->payload_mask);
-				} else {
-					clear_bit(j + 1, &mgr->payload_mask);
-				}
-			}
-			memset(&mgr->payloads[mgr->max_payloads - 1], 0, sizeof(struct drm_dp_payload));
-			mgr->proposed_vcpis[mgr->max_payloads - 1] = NULL;
-			clear_bit(mgr->max_payloads, &mgr->payload_mask);
+		if (mgr->payloads[i].payload_state != DP_PAYLOAD_DELETE_LOCAL)
+			continue;
 
+		DRM_DEBUG_KMS("removing payload %d\n", i);
+		for (j = i; j < mgr->max_payloads - 1; j++) {
+			mgr->payloads[j] = mgr->payloads[j + 1];
+			mgr->proposed_vcpis[j] = mgr->proposed_vcpis[j + 1];
+
+			if (mgr->proposed_vcpis[j] &&
+			    mgr->proposed_vcpis[j]->num_slots) {
+				set_bit(j + 1, &mgr->payload_mask);
+			} else {
+				clear_bit(j + 1, &mgr->payload_mask);
+			}
 		}
+
+		memset(&mgr->payloads[mgr->max_payloads - 1], 0,
+		       sizeof(struct drm_dp_payload));
+		mgr->proposed_vcpis[mgr->max_payloads - 1] = NULL;
+		clear_bit(mgr->max_payloads, &mgr->payload_mask);
 	}
 	mutex_unlock(&mgr->payload_lock);
 
