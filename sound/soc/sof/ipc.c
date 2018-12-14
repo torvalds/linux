@@ -197,14 +197,17 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct sof_ipc_cmd_hdr *hdr = (struct sof_ipc_cmd_hdr *)msg->msg_data;
-	unsigned long flags;
 	int ret;
 
 	/* wait for DSP IPC completion */
 	ret = wait_event_timeout(msg->waitq, msg->ipc_complete,
 				 msecs_to_jiffies(IPC_TIMEOUT_MS));
 
-	spin_lock_irqsave(&sdev->ipc_lock, flags);
+	/* ipc_lock is used to protect ipc message list shared by user
+	 * contexts and a workqueue. There is no need to save interrupt
+	 * status with spin_lock_irqsave.
+	 */
+	spin_lock_irq(&sdev->ipc_lock);
 
 	if (ret == 0) {
 		dev_err(sdev->dev, "error: ipc timed out for 0x%x size 0x%x\n",
@@ -227,7 +230,7 @@ static int tx_wait_done(struct snd_sof_ipc *ipc, struct snd_sof_ipc_msg *msg,
 	/* return message body to empty list */
 	list_move(&msg->list, &ipc->empty_list);
 
-	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+	spin_unlock_irq(&sdev->ipc_lock);
 
 	snd_sof_dsp_cmd_done(sdev, SOF_IPC_DSP_REPLY);
 
@@ -244,14 +247,13 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sdev->ipc_lock, flags);
+	spin_lock_irq(&sdev->ipc_lock);
 
 	/* get an empty message */
 	msg = msg_get_empty(ipc);
 	if (!msg) {
-		spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+		spin_unlock_irq(&sdev->ipc_lock);
 		return -EBUSY;
 	}
 
@@ -271,7 +273,7 @@ int sof_ipc_tx_message(struct snd_sof_ipc *ipc, u32 header,
 	if (snd_sof_dsp_is_ready(sdev))
 		schedule_work(&ipc->tx_kwork);
 
-	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+	spin_unlock_irq(&sdev->ipc_lock);
 
 	/* now wait for completion */
 	return tx_wait_done(ipc, msg, reply_data);
@@ -285,9 +287,8 @@ static void ipc_tx_next_msg(struct work_struct *work)
 		container_of(work, struct snd_sof_ipc, tx_kwork);
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&sdev->ipc_lock, flags);
+	spin_lock_irq(&sdev->ipc_lock);
 
 	/* send message if HW read and message in TX list */
 	if (list_empty(&ipc->tx_list) || !snd_sof_dsp_is_ready(sdev))
@@ -300,7 +301,7 @@ static void ipc_tx_next_msg(struct work_struct *work)
 
 	ipc_log_header(sdev->dev, "ipc tx", msg->header);
 out:
-	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+	spin_unlock_irq(&sdev->ipc_lock);
 }
 
 /* find original TX message from DSP reply */
@@ -335,10 +336,9 @@ void sof_ipc_drop_all(struct snd_sof_ipc *ipc)
 {
 	struct snd_sof_dev *sdev = ipc->sdev;
 	struct snd_sof_ipc_msg *msg, *tmp;
-	unsigned long flags;
 
 	/* drop all TX and Rx messages before we stall + reset DSP */
-	spin_lock_irqsave(&sdev->ipc_lock, flags);
+	spin_lock_irq(&sdev->ipc_lock);
 
 	list_for_each_entry_safe(msg, tmp, &ipc->tx_list, list) {
 		list_move(&msg->list, &ipc->empty_list);
@@ -350,7 +350,7 @@ void sof_ipc_drop_all(struct snd_sof_ipc *ipc)
 		dev_err(sdev->dev, "error: dropped reply %d\n", msg->header);
 	}
 
-	spin_unlock_irqrestore(&sdev->ipc_lock, flags);
+	spin_unlock_irq(&sdev->ipc_lock);
 }
 EXPORT_SYMBOL(sof_ipc_drop_all);
 
