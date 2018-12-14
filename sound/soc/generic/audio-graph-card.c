@@ -31,7 +31,6 @@ struct graph_card_data {
 		struct snd_soc_codec_conf *codec_conf;
 		unsigned int mclk_fs;
 	} *dai_props;
-	unsigned int mclk_fs;
 	struct asoc_simple_jack hp_jack;
 	struct asoc_simple_jack mic_jack;
 	struct snd_soc_dai_link *dai_link;
@@ -115,9 +114,7 @@ static int asoc_graph_card_hw_params(struct snd_pcm_substream *substream,
 	unsigned int mclk, mclk_fs = 0;
 	int ret = 0;
 
-	if (priv->mclk_fs)
-		mclk_fs = priv->mclk_fs;
-	else if (dai_props->mclk_fs)
+	if (dai_props->mclk_fs)
 		mclk_fs = dai_props->mclk_fs;
 
 	if (mclk_fs) {
@@ -176,7 +173,8 @@ static int asoc_graph_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int asoc_graph_card_dai_link_of_dpcm(struct device_node *cpu_ep,
+static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
+					    struct device_node *cpu_ep,
 					    struct device_node *codec_ep,
 					    struct graph_card_data *priv,
 					    int *dai_idx, int link_idx,
@@ -187,11 +185,20 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *cpu_ep,
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, link_idx);
 	struct snd_soc_card *card = graph_priv_to_card(priv);
 	struct device_node *ep = is_cpu ? cpu_ep : codec_ep;
+	struct device_node *port = of_get_parent(ep);
+	struct device_node *ports = of_get_parent(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 	struct asoc_simple_dai *dai;
 	int ret;
 
 	dev_dbg(dev, "link_of DPCM (for %s)\n", is_cpu ? "CPU" : "Codec");
+
+	of_property_read_u32(top,   "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ports, "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(port,  "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(ep,    "mclk-fs", &dai_props->mclk_fs);
+	of_node_put(ports);
+	of_node_put(port);
 
 	if (is_cpu) {
 		struct snd_soc_dai_link_component *codecs;
@@ -279,8 +286,6 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *cpu_ep,
 	if (ret < 0)
 		return ret;
 
-	of_property_read_u32(ep,   "mclk-fs", &dai_props->mclk_fs);
-
 	ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
 					    NULL, &dai_link->dai_fmt);
 	if (ret < 0)
@@ -294,7 +299,8 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *cpu_ep,
 	return 0;
 }
 
-static int asoc_graph_card_dai_link_of(struct device_node *cpu_ep,
+static int asoc_graph_card_dai_link_of(struct device_node *top,
+					struct device_node *cpu_ep,
 					struct device_node *codec_ep,
 					struct graph_card_data *priv,
 					int *dai_idx, int link_idx)
@@ -302,6 +308,10 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_ep,
 	struct device *dev = graph_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = graph_priv_to_link(priv, link_idx);
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, link_idx);
+	struct device_node *cpu_port = of_get_parent(cpu_ep);
+	struct device_node *codec_port = of_get_parent(codec_ep);
+	struct device_node *cpu_ports = of_get_parent(cpu_port);
+	struct device_node *codec_ports = of_get_parent(codec_port);
 	struct asoc_simple_dai *cpu_dai;
 	struct asoc_simple_dai *codec_dai;
 	int ret;
@@ -313,13 +323,23 @@ static int asoc_graph_card_dai_link_of(struct device_node *cpu_ep,
 	codec_dai		=
 	dai_props->codec_dai	= &priv->dais[(*dai_idx)++];
 
+	/* Factor to mclk, used in hw_params() */
+	of_property_read_u32(top,         "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(cpu_ports,   "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(codec_ports, "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(cpu_port,    "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(codec_port,  "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(cpu_ep,      "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(codec_ep,    "mclk-fs", &dai_props->mclk_fs);
+	of_node_put(cpu_port);
+	of_node_put(cpu_ports);
+	of_node_put(codec_port);
+	of_node_put(codec_ports);
+
 	ret = asoc_simple_card_parse_daifmt(dev, cpu_ep, codec_ep,
 					    NULL, &dai_link->dai_fmt);
 	if (ret < 0)
 		return ret;
-
-	of_property_read_u32(cpu_ep,   "mclk-fs", &dai_props->mclk_fs);
-	of_property_read_u32(codec_ep, "mclk-fs", &dai_props->mclk_fs);
 
 	ret = asoc_simple_card_parse_graph_cpu(cpu_ep, dai_link);
 	if (ret < 0)
@@ -370,7 +390,8 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 	struct of_phandle_iterator it;
 	struct device *dev = graph_priv_to_dev(priv);
 	struct snd_soc_card *card = graph_priv_to_card(priv);
-	struct device_node *node = dev->of_node;
+	struct device_node *top = dev->of_node;
+	struct device_node *node = top;
 	struct device_node *cpu_port;
 	struct device_node *cpu_ep		= NULL;
 	struct device_node *codec_ep		= NULL;
@@ -389,9 +410,6 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 		return ret;
 
 	asoc_simple_card_parse_convert(dev, node, NULL, &priv->adata);
-
-	/* Factor to mclk, used in hw_params() */
-	of_property_read_u32(node, "mclk-fs", &priv->mclk_fs);
 
 	link_idx	= 0;
 	dai_idx		= 0;
@@ -436,7 +454,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 						codec_port_old = codec_port;
 					}
 					ret = asoc_graph_card_dai_link_of_dpcm(
-						cpu_ep, codec_ep, priv,
+						top, cpu_ep, codec_ep, priv,
 						&dai_idx, link_idx++,
 						&conf_idx, cpu);
 				} else if (cpu) {
@@ -444,7 +462,7 @@ static int asoc_graph_card_parse_of(struct graph_card_data *priv)
 					 * for Normal sound
 					 */
 					ret = asoc_graph_card_dai_link_of(
-						cpu_ep, codec_ep, priv,
+						top, cpu_ep, codec_ep, priv,
 						&dai_idx, link_idx++);
 				}
 				if (ret < 0)
