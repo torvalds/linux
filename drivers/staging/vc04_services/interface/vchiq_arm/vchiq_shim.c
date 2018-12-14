@@ -382,7 +382,7 @@ EXPORT_SYMBOL(vchi_msg_dequeue);
 /***********************************************************
  * Name: vchi_held_msg_release
  *
- * Arguments:  VCHI_HELD_MSG_T *message
+ * Arguments:  struct vchi_held_msg *message
  *
  * Description: Routine to release a held message (after it has been read with
  *              vchi_msg_hold)
@@ -390,7 +390,7 @@ EXPORT_SYMBOL(vchi_msg_dequeue);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_held_msg_release(VCHI_HELD_MSG_T *message)
+int32_t vchi_held_msg_release(struct vchi_held_msg *message)
 {
 	/*
 	 * Convert the service field pointer back to an
@@ -414,7 +414,7 @@ EXPORT_SYMBOL(vchi_held_msg_release);
  *             void **data,
  *             uint32_t *msg_size,
  *             VCHI_FLAGS_T flags,
- *             VCHI_HELD_MSG_T *message_handle
+ *             struct vchi_held_msg *message_handle
  *
  * Description: Routine to return a pointer to the current message (to allow
  *              in place processing). The message is dequeued - don't forget
@@ -428,7 +428,7 @@ int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 	void **data,
 	uint32_t *msg_size,
 	VCHI_FLAGS_T flags,
-	VCHI_HELD_MSG_T *message_handle)
+	struct vchi_held_msg *message_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
 	VCHIQ_HEADER_T *header;

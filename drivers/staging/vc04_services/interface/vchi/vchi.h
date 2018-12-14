@@ -66,10 +66,10 @@ struct opaque_vchi_service_t;
 
 // Descriptor for a held message. Allocated by client, initialised by vchi_msg_hold,
 // vchi_msg_iter_hold or vchi_msg_iter_hold_next. Fields are for internal VCHI use only.
-typedef struct {
+struct vchi_held_msg {
    struct opaque_vchi_service_t *service;
    void *message;
-} VCHI_HELD_MSG_T;
+};
 
 // structure used to provide the information needed to open a server or a client
 struct service_creation {
@@ -176,7 +176,7 @@ extern int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 			     void **data,        // } may be NULL, as info can be
 			     uint32_t *msg_size, // } obtained from HELD_MSG_T
 			     VCHI_FLAGS_T flags,
-			     VCHI_HELD_MSG_T *message_descriptor);
+			     struct vchi_held_msg *message_descriptor);
 
 // Initialise an iterator to look through messages in place
 extern int32_t vchi_msg_look_ahead(VCHI_SERVICE_HANDLE_T handle,
@@ -188,19 +188,19 @@ extern int32_t vchi_msg_look_ahead(VCHI_SERVICE_HANDLE_T handle,
  *****************************************************************************/
 
 // Routine to get the address of a held message
-extern void *vchi_held_msg_ptr(const VCHI_HELD_MSG_T *message);
+extern void *vchi_held_msg_ptr(const struct vchi_held_msg *message);
 
 // Routine to get the size of a held message
-extern int32_t vchi_held_msg_size(const VCHI_HELD_MSG_T *message);
+extern int32_t vchi_held_msg_size(const struct vchi_held_msg *message);
 
 // Routine to get the transmit timestamp as written into the header by the peer
-extern uint32_t vchi_held_msg_tx_timestamp(const VCHI_HELD_MSG_T *message);
+extern uint32_t vchi_held_msg_tx_timestamp(const struct vchi_held_msg *message);
 
 // Routine to get the reception timestamp, written as we parsed the header
-extern uint32_t vchi_held_msg_rx_timestamp(const VCHI_HELD_MSG_T *message);
+extern uint32_t vchi_held_msg_rx_timestamp(const struct vchi_held_msg *message);
 
 // Routine to release a held message after it has been processed
-extern int32_t vchi_held_msg_release(VCHI_HELD_MSG_T *message);
+extern int32_t vchi_held_msg_release(struct vchi_held_msg *message);
 
 // Indicates whether the iterator has a next message.
 extern int32_t vchi_msg_iter_has_next(const VCHI_MSG_ITER_T *iter);
@@ -217,13 +217,13 @@ extern int32_t vchi_msg_iter_remove(VCHI_MSG_ITER_T *iter);
 // Hold the last message returned by vchi_msg_iter_next.
 // Can only be called once after each call to vchi_msg_iter_next.
 extern int32_t vchi_msg_iter_hold(VCHI_MSG_ITER_T *iter,
-				  VCHI_HELD_MSG_T *message);
+				  struct vchi_held_msg *message);
 
 // Return information for the next message, and hold it, advancing the iterator.
 extern int32_t vchi_msg_iter_hold_next(VCHI_MSG_ITER_T *iter,
 				       void **data,        // } may be NULL
 				       uint32_t *msg_size, // }
-				       VCHI_HELD_MSG_T *message);
+				       struct vchi_held_msg *message);
 
 /******************************************************************************
  Global bulk API
