@@ -325,7 +325,7 @@ void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		return NULL;
 
 	size = PAGE_ALIGN(size);
-	va = (void *) __get_free_pages(gfp, get_order(size));
+	va = (void *) __get_free_pages(gfp | __GFP_ZERO, get_order(size));
 	if (!va) {
 		printk("%s: no %zd pages\n", __func__, size >> PAGE_SHIFT);
 		return NULL;

@@ -344,7 +344,7 @@ static void *sbus_iommu_alloc(struct device *dev, size_t len,
 		return NULL;
 
 	len = PAGE_ALIGN(len);
-	va = __get_free_pages(gfp, get_order(len));
+	va = __get_free_pages(gfp | __GFP_ZERO, get_order(len));
 	if (va == 0)
 		return NULL;
 
