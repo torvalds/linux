@@ -341,7 +341,7 @@ struct vchiq_service_quota {
 	int previous_tx_index;
 };
 
-typedef struct vchiq_shared_state_struct {
+struct vchiq_shared_state {
 
 	/* A non-zero value here indicates that the content is valid. */
 	int initialised;
@@ -380,7 +380,7 @@ typedef struct vchiq_shared_state_struct {
 
 	/* Debugging state */
 	int debug[DEBUG_MAX];
-} VCHIQ_SHARED_STATE_T;
+};
 
 typedef struct vchiq_slot_zero_struct {
 	int magic;
@@ -391,8 +391,8 @@ typedef struct vchiq_slot_zero_struct {
 	int max_slots;
 	int max_slots_per_side;
 	int platform_data[2];
-	VCHIQ_SHARED_STATE_T master;
-	VCHIQ_SHARED_STATE_T slave;
+	struct vchiq_shared_state master;
+	struct vchiq_shared_state slave;
 	VCHIQ_SLOT_INFO_T slots[VCHIQ_MAX_SLOTS];
 } VCHIQ_SLOT_ZERO_T;
 
@@ -402,8 +402,8 @@ struct vchiq_state_struct {
 	VCHIQ_CONNSTATE_T conn_state;
 	short version_common;
 
-	VCHIQ_SHARED_STATE_T *local;
-	VCHIQ_SHARED_STATE_T *remote;
+	struct vchiq_shared_state *local;
+	struct vchiq_shared_state *remote;
 	VCHIQ_SLOT_T *slot_data;
 
 	unsigned short default_slot_quota;
