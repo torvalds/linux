@@ -2015,7 +2015,7 @@ static int stm32_register_hw_clk(struct device *dev,
 				 void __iomem *base, spinlock_t *lock,
 				 const struct clock_config *cfg)
 {
-	static struct clk_hw **hws;
+	struct clk_hw **hws;
 	struct clk_hw *hw = ERR_PTR(-ENOENT);
 
 	hws = clk_data->hws;
