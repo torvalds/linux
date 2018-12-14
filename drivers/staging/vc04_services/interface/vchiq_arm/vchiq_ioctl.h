@@ -76,12 +76,12 @@ struct vchiq_await_completion {
 	void **msgbufs;
 };
 
-typedef struct {
+struct vchiq_dequeue_message {
 	unsigned int handle;
 	int blocking;
 	unsigned int bufsize;
 	void *buf;
-} VCHIQ_DEQUEUE_MESSAGE_T;
+};
 
 typedef struct {
 	unsigned int config_size;
@@ -113,7 +113,7 @@ typedef struct {
 #define VCHIQ_IOC_AWAIT_COMPLETION \
 	_IOWR(VCHIQ_IOC_MAGIC, 7, struct vchiq_await_completion)
 #define VCHIQ_IOC_DEQUEUE_MESSAGE \
-	_IOWR(VCHIQ_IOC_MAGIC, 8, VCHIQ_DEQUEUE_MESSAGE_T)
+	_IOWR(VCHIQ_IOC_MAGIC, 8, struct vchiq_dequeue_message)
 #define VCHIQ_IOC_GET_CLIENT_ID        _IO(VCHIQ_IOC_MAGIC,   9)
 #define VCHIQ_IOC_GET_CONFIG \
 	_IOWR(VCHIQ_IOC_MAGIC, 10, VCHIQ_GET_CONFIG_T)

@@ -1318,7 +1318,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} break;
 
 	case VCHIQ_IOC_DEQUEUE_MESSAGE: {
-		VCHIQ_DEQUEUE_MESSAGE_T args;
+		struct vchiq_dequeue_message args;
 		struct user_service *user_service;
 		VCHIQ_HEADER_T *header;
 
@@ -1876,7 +1876,7 @@ vchiq_compat_ioctl_dequeue_message(struct file *file,
 				   unsigned int cmd,
 				   unsigned long arg)
 {
-	VCHIQ_DEQUEUE_MESSAGE_T __user *args;
+	struct vchiq_dequeue_message __user *args;
 	struct vchiq_dequeue_message32 args32;
 
 	args = compat_alloc_user_space(sizeof(*args));
