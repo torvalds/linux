@@ -1407,7 +1407,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} break;
 
 	case VCHIQ_IOC_GET_CONFIG: {
-		VCHIQ_GET_CONFIG_T args;
+		struct vchiq_get_config args;
 		struct vchiq_config config;
 
 		if (copy_from_user(&args, (const void __user *)arg,
@@ -1911,7 +1911,7 @@ vchiq_compat_ioctl_get_config(struct file *file,
 			      unsigned int cmd,
 			      unsigned long arg)
 {
-	VCHIQ_GET_CONFIG_T __user *args;
+	struct vchiq_get_config __user *args;
 	struct vchiq_get_config32 args32;
 
 	args = compat_alloc_user_space(sizeof(*args));

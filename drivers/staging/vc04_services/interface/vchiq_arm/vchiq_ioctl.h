@@ -83,10 +83,10 @@ struct vchiq_dequeue_message {
 	void *buf;
 };
 
-typedef struct {
+struct vchiq_get_config {
 	unsigned int config_size;
 	struct vchiq_config __user *pconfig;
-} VCHIQ_GET_CONFIG_T;
+};
 
 typedef struct {
 	unsigned int handle;
@@ -116,7 +116,7 @@ struct vchiq_dump_mem {
 	_IOWR(VCHIQ_IOC_MAGIC, 8, struct vchiq_dequeue_message)
 #define VCHIQ_IOC_GET_CLIENT_ID        _IO(VCHIQ_IOC_MAGIC,   9)
 #define VCHIQ_IOC_GET_CONFIG \
-	_IOWR(VCHIQ_IOC_MAGIC, 10, VCHIQ_GET_CONFIG_T)
+	_IOWR(VCHIQ_IOC_MAGIC, 10, struct vchiq_get_config)
 #define VCHIQ_IOC_CLOSE_SERVICE        _IO(VCHIQ_IOC_MAGIC,   11)
 #define VCHIQ_IOC_USE_SERVICE          _IO(VCHIQ_IOC_MAGIC,   12)
 #define VCHIQ_IOC_RELEASE_SERVICE      _IO(VCHIQ_IOC_MAGIC,   13)
