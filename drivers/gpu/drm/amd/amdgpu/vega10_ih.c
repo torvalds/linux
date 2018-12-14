@@ -192,22 +192,31 @@ static u32 vega10_ih_get_wptr(struct amdgpu_device *adev,
 
 	wptr = le32_to_cpu(*ih->wptr_cpu);
 
-	if (REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW)) {
-		wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
+	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
+		goto out;
 
-		/* When a ring buffer overflow happen start parsing interrupt
-		 * from the last not overwritten vector (wptr + 32). Hopefully
-		 * this should allow us to catchup.
-		 */
-		tmp = (wptr + 32) & ih->ptr_mask;
-		dev_warn(adev->dev, "IH ring buffer overflow (0x%08X, 0x%08X, 0x%08X)\n",
-			 wptr, ih->rptr, tmp);
-		ih->rptr = tmp;
+	/* Double check that the overflow wasn't already cleared. */
+	wptr = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_WPTR));
+	if (!REG_GET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW))
+		goto out;
 
-		tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
-		tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
-		WREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
-	}
+	wptr = REG_SET_FIELD(wptr, IH_RB_WPTR, RB_OVERFLOW, 0);
+
+	/* When a ring buffer overflow happen start parsing interrupt
+	 * from the last not overwritten vector (wptr + 32). Hopefully
+	 * this should allow us to catchup.
+	 */
+	tmp = (wptr + 32) & ih->ptr_mask;
+	dev_warn(adev->dev, "IH ring buffer overflow "
+		 "(0x%08X, 0x%08X, 0x%08X)\n",
+		 wptr, ih->rptr, tmp);
+	ih->rptr = tmp;
+
+	tmp = RREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL));
+	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
+	WREG32_NO_KIQ(SOC15_REG_OFFSET(OSSSYS, 0, mmIH_RB_CNTL), tmp);
+
+out:
 	return (wptr & ih->ptr_mask);
 }
 
