@@ -2444,7 +2444,7 @@ static int do_setlink(const struct sk_buff *skb,
 		sa->sa_family = dev->type;
 		memcpy(sa->sa_data, nla_data(tb[IFLA_ADDRESS]),
 		       dev->addr_len);
-		err = dev_set_mac_address(dev, sa);
+		err = dev_set_mac_address(dev, sa, extack);
 		kfree(sa);
 		if (err)
 			goto errout;

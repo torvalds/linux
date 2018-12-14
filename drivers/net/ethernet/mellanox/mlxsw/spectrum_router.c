@@ -6699,6 +6699,33 @@ static int mlxsw_sp_inetaddr_macvlan_event(struct net_device *macvlan_dev,
 	return 0;
 }
 
+static int mlxsw_sp_router_port_check_rif_addr(struct mlxsw_sp *mlxsw_sp,
+					       struct net_device *dev,
+					       const unsigned char *dev_addr,
+					       struct netlink_ext_ack *extack)
+{
+	struct mlxsw_sp_rif *rif;
+	int i;
+
+	/* A RIF is not created for macvlan netdevs. Their MAC is used to
+	 * populate the FDB
+	 */
+	if (netif_is_macvlan(dev))
+		return 0;
+
+	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++) {
+		rif = mlxsw_sp->router->rifs[i];
+		if (rif && rif->dev != dev &&
+		    !ether_addr_equal_masked(rif->dev->dev_addr, dev_addr,
+					     mlxsw_sp->mac_mask)) {
+			NL_SET_ERR_MSG_MOD(extack, "All router interface MAC addresses must have the same prefix");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 static int __mlxsw_sp_inetaddr_event(struct net_device *dev,
 				     unsigned long event,
 				     struct netlink_ext_ack *extack)
@@ -6758,6 +6785,11 @@ int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
 
 	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
+		goto out;
+
+	err = mlxsw_sp_router_port_check_rif_addr(mlxsw_sp, dev, dev->dev_addr,
+						  ivi->extack);
+	if (err)
 		goto out;
 
 	err = __mlxsw_sp_inetaddr_event(dev, event, ivi->extack);
@@ -6841,6 +6873,11 @@ int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
 	if (!mlxsw_sp_rif_should_config(rif, dev, event))
 		goto out;
 
+	err = mlxsw_sp_router_port_check_rif_addr(mlxsw_sp, dev, dev->dev_addr,
+						  i6vi->extack);
+	if (err)
+		goto out;
+
 	err = __mlxsw_sp_inetaddr_event(dev, event, i6vi->extack);
 out:
 	return notifier_from_errno(err);
@@ -6863,20 +6900,14 @@ static int mlxsw_sp_rif_edit(struct mlxsw_sp *mlxsw_sp, u16 rif_index,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ritr), ritr_pl);
 }
 
-int mlxsw_sp_netdevice_router_port_event(struct net_device *dev)
+static int
+mlxsw_sp_router_port_change_event(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_rif *rif)
 {
-	struct mlxsw_sp *mlxsw_sp;
-	struct mlxsw_sp_rif *rif;
+	struct net_device *dev = rif->dev;
 	u16 fid_index;
 	int err;
 
-	mlxsw_sp = mlxsw_sp_lower_get(dev);
-	if (!mlxsw_sp)
-		return 0;
-
-	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
-	if (!rif)
-		return 0;
 	fid_index = mlxsw_sp_fid_index(rif->fid);
 
 	err = mlxsw_sp_rif_fdb_op(mlxsw_sp, rif->addr, fid_index, false);
@@ -6918,6 +6949,41 @@ err_rif_fdb_op:
 err_rif_edit:
 	mlxsw_sp_rif_fdb_op(mlxsw_sp, rif->addr, fid_index, true);
 	return err;
+}
+
+static int mlxsw_sp_router_port_pre_changeaddr_event(struct mlxsw_sp_rif *rif,
+			    struct netdev_notifier_pre_changeaddr_info *info)
+{
+	struct netlink_ext_ack *extack;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+	return mlxsw_sp_router_port_check_rif_addr(rif->mlxsw_sp, rif->dev,
+						   info->dev_addr, extack);
+}
+
+int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
+					 unsigned long event, void *ptr)
+{
+	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_rif *rif;
+
+	mlxsw_sp = mlxsw_sp_lower_get(dev);
+	if (!mlxsw_sp)
+		return 0;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, dev);
+	if (!rif)
+		return 0;
+
+	switch (event) {
+	case NETDEV_CHANGEMTU: /* fall through */
+	case NETDEV_CHANGEADDR:
+		return mlxsw_sp_router_port_change_event(mlxsw_sp, rif);
+	case NETDEV_PRE_CHANGEADDR:
+		return mlxsw_sp_router_port_pre_changeaddr_event(rif, ptr);
+	}
+
+	return 0;
 }
 
 static int mlxsw_sp_port_vrf_join(struct mlxsw_sp *mlxsw_sp,

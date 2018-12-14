@@ -1247,7 +1247,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 		return -ENODEV;
 
 	if (vf_netdev) {
-		err = dev_set_mac_address(vf_netdev, addr);
+		err = dev_set_mac_address(vf_netdev, addr, NULL);
 		if (err)
 			return err;
 	}
@@ -1258,7 +1258,7 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	} else if (vf_netdev) {
 		/* rollback change on VF */
 		memcpy(addr->sa_data, ndev->dev_addr, ETH_ALEN);
-		dev_set_mac_address(vf_netdev, addr);
+		dev_set_mac_address(vf_netdev, addr, NULL);
 	}
 
 	return err;

@@ -31,6 +31,8 @@
  */
 static int br_device_event(struct notifier_block *unused, unsigned long event, void *ptr)
 {
+	struct netlink_ext_ack *extack = netdev_notifier_info_to_extack(ptr);
+	struct netdev_notifier_pre_changeaddr_info *prechaddr_info;
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net_bridge_port *p;
 	struct net_bridge *br;
@@ -54,6 +56,17 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	switch (event) {
 	case NETDEV_CHANGEMTU:
 		br_mtu_auto_adjust(br);
+		break;
+
+	case NETDEV_PRE_CHANGEADDR:
+		if (br->dev->addr_assign_type == NET_ADDR_SET)
+			break;
+		prechaddr_info = ptr;
+		err = dev_pre_changeaddr_notify(br->dev,
+						prechaddr_info->dev_addr,
+						extack);
+		if (err)
+			return notifier_from_errno(err);
 		break;
 
 	case NETDEV_CHANGEADDR:

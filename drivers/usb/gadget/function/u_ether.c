@@ -879,7 +879,7 @@ int gether_register_netdev(struct net_device *net)
 	sa.sa_family = net->type;
 	memcpy(sa.sa_data, dev->dev_mac, ETH_ALEN);
 	rtnl_lock();
-	status = dev_set_mac_address(net, &sa);
+	status = dev_set_mac_address(net, &sa, NULL);
 	rtnl_unlock();
 	if (status)
 		pr_warn("cannot set self ethernet address: %d\n", status);

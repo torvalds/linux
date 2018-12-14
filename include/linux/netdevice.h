@@ -2450,7 +2450,8 @@ enum netdev_cmd {
 	NETDEV_REGISTER,
 	NETDEV_UNREGISTER,
 	NETDEV_CHANGEMTU,	/* notify after mtu change happened */
-	NETDEV_CHANGEADDR,
+	NETDEV_CHANGEADDR,	/* notify after the address change */
+	NETDEV_PRE_CHANGEADDR,	/* notify before the address change */
 	NETDEV_GOING_DOWN,
 	NETDEV_CHANGENAME,
 	NETDEV_FEAT_CHANGE,
@@ -2510,6 +2511,11 @@ struct netdev_notifier_changeupper_info {
 struct netdev_notifier_changelowerstate_info {
 	struct netdev_notifier_info info; /* must be first */
 	void *lower_state_info; /* is lower dev state */
+};
+
+struct netdev_notifier_pre_changeaddr_info {
+	struct netdev_notifier_info info; /* must be first */
+	const unsigned char *dev_addr;
 };
 
 static inline void netdev_notifier_info_init(struct netdev_notifier_info *info,
@@ -3628,7 +3634,10 @@ int dev_set_mtu_ext(struct net_device *dev, int mtu,
 int dev_set_mtu(struct net_device *, int);
 int dev_change_tx_queue_len(struct net_device *, unsigned long);
 void dev_set_group(struct net_device *, int);
-int dev_set_mac_address(struct net_device *, struct sockaddr *);
+int dev_pre_changeaddr_notify(struct net_device *dev, const char *addr,
+			      struct netlink_ext_ack *extack);
+int dev_set_mac_address(struct net_device *dev, struct sockaddr *sa,
+			struct netlink_ext_ack *extack);
 int dev_change_carrier(struct net_device *, bool new_carrier);
 int dev_get_phys_port_id(struct net_device *dev,
 			 struct netdev_phys_item_id *ppid);

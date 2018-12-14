@@ -132,6 +132,7 @@ struct mlxsw_sp {
 	struct mlxsw_core *core;
 	const struct mlxsw_bus_info *bus_info;
 	unsigned char base_mac[ETH_ALEN];
+	const unsigned char *mac_mask;
 	struct mlxsw_sp_upper *lags;
 	int *port_to_module;
 	struct mlxsw_sp_sb *sb;
@@ -454,7 +455,8 @@ union mlxsw_sp_l3addr {
 
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
-int mlxsw_sp_netdevice_router_port_event(struct net_device *dev);
+int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
+					 unsigned long event, void *ptr);
 void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 			      const struct net_device *macvlan_dev);
 int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
