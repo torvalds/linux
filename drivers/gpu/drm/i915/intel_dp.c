@@ -5069,28 +5069,38 @@ static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
 	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
 }
 
+static const char *tc_type_name(enum tc_port_type type)
+{
+	static const char * const names[] = {
+		[TC_PORT_UNKNOWN] = "unknown",
+		[TC_PORT_LEGACY] = "legacy",
+		[TC_PORT_TYPEC] = "typec",
+		[TC_PORT_TBT] = "tbt",
+	};
+
+	if (WARN_ON(type >= ARRAY_SIZE(names)))
+		type = TC_PORT_UNKNOWN;
+
+	return names[type];
+}
+
 static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 				    struct intel_digital_port *intel_dig_port,
 				    bool is_legacy, bool is_typec, bool is_tbt)
 {
 	enum port port = intel_dig_port->base.port;
 	enum tc_port_type old_type = intel_dig_port->tc_type;
-	const char *type_str;
 
 	WARN_ON(is_legacy + is_typec + is_tbt != 1);
 
-	if (is_legacy) {
+	if (is_legacy)
 		intel_dig_port->tc_type = TC_PORT_LEGACY;
-		type_str = "legacy";
-	} else if (is_typec) {
+	else if (is_typec)
 		intel_dig_port->tc_type = TC_PORT_TYPEC;
-		type_str = "typec";
-	} else if (is_tbt) {
+	else if (is_tbt)
 		intel_dig_port->tc_type = TC_PORT_TBT;
-		type_str = "tbt";
-	} else {
+	else
 		return;
-	}
 
 	/* Types are not supposed to be changed at runtime. */
 	WARN_ON(old_type != TC_PORT_UNKNOWN &&
@@ -5098,7 +5108,7 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 
 	if (old_type != intel_dig_port->tc_type)
 		DRM_DEBUG_KMS("Port %c has TC type %s\n", port_name(port),
-			      type_str);
+			      tc_type_name(intel_dig_port->tc_type));
 }
 
 static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
@@ -5189,6 +5199,10 @@ static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
 		val &= ~DP_PHY_MODE_STATUS_NOT_SAFE(tc_port);
 		I915_WRITE(PORT_TX_DFLEXDPCSSS, val);
 	}
+
+	DRM_DEBUG_KMS("Port %c TC type %s disconnected\n",
+		      port_name(dig_port->base.port),
+		      tc_type_name(dig_port->tc_type));
 
 	dig_port->tc_type = TC_PORT_UNKNOWN;
 }
