@@ -5237,6 +5237,44 @@ static int kvmhv_enable_nested(struct kvm *kvm)
 	return 0;
 }
 
+static int kvmhv_load_from_eaddr(struct kvm_vcpu *vcpu, ulong *eaddr, void *ptr,
+				 int size)
+{
+	int rc = -EINVAL;
+
+	if (kvmhv_vcpu_is_radix(vcpu)) {
+		rc = kvmhv_copy_from_guest_radix(vcpu, *eaddr, ptr, size);
+
+		if (rc > 0)
+			rc = -EINVAL;
+	}
+
+	/* For now quadrants are the only way to access nested guest memory */
+	if (rc && vcpu->arch.nested)
+		rc = -EAGAIN;
+
+	return rc;
+}
+
+static int kvmhv_store_to_eaddr(struct kvm_vcpu *vcpu, ulong *eaddr, void *ptr,
+				int size)
+{
+	int rc = -EINVAL;
+
+	if (kvmhv_vcpu_is_radix(vcpu)) {
+		rc = kvmhv_copy_to_guest_radix(vcpu, *eaddr, ptr, size);
+
+		if (rc > 0)
+			rc = -EINVAL;
+	}
+
+	/* For now quadrants are the only way to access nested guest memory */
+	if (rc && vcpu->arch.nested)
+		rc = -EAGAIN;
+
+	return rc;
+}
+
 static struct kvmppc_ops kvm_ops_hv = {
 	.get_sregs = kvm_arch_vcpu_ioctl_get_sregs_hv,
 	.set_sregs = kvm_arch_vcpu_ioctl_set_sregs_hv,
@@ -5277,6 +5315,8 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.get_rmmu_info = kvmhv_get_rmmu_info,
 	.set_smt_mode = kvmhv_set_smt_mode,
 	.enable_nested = kvmhv_enable_nested,
+	.load_from_eaddr = kvmhv_load_from_eaddr,
+	.store_to_eaddr = kvmhv_store_to_eaddr,
 };
 
 static int kvm_init_subcore_bitmap(void)
