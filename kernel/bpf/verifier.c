@@ -26,6 +26,7 @@
 #include <linux/bsearch.h>
 #include <linux/sort.h>
 #include <linux/perf_event.h>
+#include <linux/ctype.h>
 
 #include "disasm.h"
 
@@ -216,6 +217,27 @@ struct bpf_call_arg_meta {
 
 static DEFINE_MUTEX(bpf_verifier_lock);
 
+static const struct bpf_line_info *
+find_linfo(const struct bpf_verifier_env *env, u32 insn_off)
+{
+	const struct bpf_line_info *linfo;
+	const struct bpf_prog *prog;
+	u32 i, nr_linfo;
+
+	prog = env->prog;
+	nr_linfo = prog->aux->nr_linfo;
+
+	if (!nr_linfo || insn_off >= prog->len)
+		return NULL;
+
+	linfo = prog->aux->linfo;
+	for (i = 1; i < nr_linfo; i++)
+		if (insn_off < linfo[i].insn_off)
+			break;
+
+	return &linfo[i - 1];
+}
+
 void bpf_verifier_vlog(struct bpf_verifier_log *log, const char *fmt,
 		       va_list args)
 {
@@ -264,6 +286,42 @@ __printf(2, 3) static void verbose(void *private_data, const char *fmt, ...)
 	va_start(args, fmt);
 	bpf_verifier_vlog(&env->log, fmt, args);
 	va_end(args);
+}
+
+static const char *ltrim(const char *s)
+{
+	while (isspace(*s))
+		s++;
+
+	return s;
+}
+
+__printf(3, 4) static void verbose_linfo(struct bpf_verifier_env *env,
+					 u32 insn_off,
+					 const char *prefix_fmt, ...)
+{
+	const struct bpf_line_info *linfo;
+
+	if (!bpf_verifier_log_needed(&env->log))
+		return;
+
+	linfo = find_linfo(env, insn_off);
+	if (!linfo || linfo == env->prev_linfo)
+		return;
+
+	if (prefix_fmt) {
+		va_list args;
+
+		va_start(args, prefix_fmt);
+		bpf_verifier_vlog(&env->log, prefix_fmt, args);
+		va_end(args);
+	}
+
+	verbose(env, "%s\n",
+		ltrim(btf_name_by_offset(env->prog->aux->btf,
+					 linfo->line_off)));
+
+	env->prev_linfo = linfo;
 }
 
 static bool type_is_pkt_pointer(enum bpf_reg_type type)
@@ -4561,6 +4619,7 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env)
 		return 0;
 
 	if (w < 0 || w >= env->prog->len) {
+		verbose_linfo(env, t, "%d: ", t);
 		verbose(env, "jump out of range from insn %d to %d\n", t, w);
 		return -EINVAL;
 	}
@@ -4578,6 +4637,8 @@ static int push_insn(int t, int w, int e, struct bpf_verifier_env *env)
 		insn_stack[cur_stack++] = w;
 		return 1;
 	} else if ((insn_state[w] & 0xF0) == DISCOVERED) {
+		verbose_linfo(env, t, "%d: ", t);
+		verbose_linfo(env, w, "%d: ", w);
 		verbose(env, "back-edge from insn %d to %d\n", t, w);
 		return -EINVAL;
 	} else if (insn_state[w] == EXPLORED) {
@@ -4599,10 +4660,6 @@ static int check_cfg(struct bpf_verifier_env *env)
 	int insn_cnt = env->prog->len;
 	int ret = 0;
 	int i, t;
-
-	ret = check_subprogs(env);
-	if (ret < 0)
-		return ret;
 
 	insn_state = kcalloc(insn_cnt, sizeof(int), GFP_KERNEL);
 	if (!insn_state)
@@ -4910,8 +4967,8 @@ static int check_btf_line(struct bpf_verifier_env *env,
 			goto err_free;
 		}
 
-		if (!btf_name_offset_valid(btf, linfo[i].line_off) ||
-		    !btf_name_offset_valid(btf, linfo[i].file_name_off)) {
+		if (!btf_name_by_offset(btf, linfo[i].line_off) ||
+		    !btf_name_by_offset(btf, linfo[i].file_name_off)) {
 			verbose(env, "Invalid line_info[%u].line_off or .file_name_off\n", i);
 			err = -EINVAL;
 			goto err_free;
@@ -5448,6 +5505,8 @@ static int do_check(struct bpf_verifier_env *env)
 	int insn_processed = 0;
 	bool do_print_state = false;
 
+	env->prev_linfo = NULL;
+
 	state = kzalloc(sizeof(struct bpf_verifier_state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
@@ -5521,6 +5580,7 @@ static int do_check(struct bpf_verifier_env *env)
 				.private_data	= env,
 			};
 
+			verbose_linfo(env, insn_idx, "; ");
 			verbose(env, "%d: ", insn_idx);
 			print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
 		}
@@ -6755,11 +6815,15 @@ int bpf_check(struct bpf_prog **prog, union bpf_attr *attr,
 
 	env->allow_ptr_leaks = capable(CAP_SYS_ADMIN);
 
-	ret = check_cfg(env);
+	ret = check_subprogs(env);
 	if (ret < 0)
 		goto skip_full_check;
 
 	ret = check_btf_info(env, attr, uattr);
+	if (ret < 0)
+		goto skip_full_check;
+
+	ret = check_cfg(env);
 	if (ret < 0)
 		goto skip_full_check;
 
