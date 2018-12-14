@@ -177,8 +177,9 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, link_idx);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, link_idx);
-	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct asoc_simple_dai *dai;
+	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
+
 	char prop[128];
 	char *prefix = "";
 	int ret;
@@ -189,10 +190,8 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
 
 	if (is_fe) {
 		int is_single_links = 0;
-		struct snd_soc_dai_link_component *codecs;
 
 		/* BE is dummy */
-		codecs			= dai_link->codecs;
 		codecs->of_node		= NULL;
 		codecs->dai_name	= "snd-soc-dummy-dai";
 		codecs->name		= "snd-soc-dummy";
@@ -248,19 +247,17 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
 
 		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
 							"be.%s",
-							dai_link->codecs->dai_name);
+							codecs->dai_name);
 		if (ret < 0)
 			return ret;
 
 		/* check "prefix" from top node */
-		snd_soc_of_parse_audio_prefix(card, cconf,
-					      dai_link->codecs->of_node,
+		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
 					      PREFIX "prefix");
-		/* check "prefix" from each node if top doesn't have */
-		if (!cconf->of_node)
-			snd_soc_of_parse_node_prefix(np, cconf,
-						     dai_link->codecs->of_node,
-						     "prefix");
+		snd_soc_of_parse_node_prefix(node, cconf, codecs->of_node,
+					     "prefix");
+		snd_soc_of_parse_node_prefix(np, cconf, codecs->of_node,
+					     "prefix");
 	}
 
 	asoc_simple_card_parse_convert(dev, top,  PREFIX, &dai_props->adata);
