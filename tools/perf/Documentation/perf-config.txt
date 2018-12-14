@@ -529,6 +529,10 @@ trace.*::
 		activate the 'perf trace' logic that looks for syscall
 		pointer contents after the normal tracepoint payload.
 
+	trace.args_alignment::
+		Number of columns to align the argument list, default is 70,
+		use 40 for the strace default, zero to no alignment.
+
 	trace.no_inherit::
 		Do not follow children threads.
 

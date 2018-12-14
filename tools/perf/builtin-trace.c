@@ -127,6 +127,7 @@ struct trace {
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
+	s16			args_alignment;
 	bool			show_tstamp;
 	bool			show_duration;
 	bool			show_zeros;
@@ -1731,7 +1732,7 @@ static int trace__printf_interrupted_entry(struct trace *trace)
 		return 0;
 
 	printed  = trace__fprintf_entry_head(trace, trace->current, 0, false, ttrace->entry_time, trace->output);
-	printed += fprintf(trace->output, "%-70s) ...\n", ttrace->entry_str);
+	printed += fprintf(trace->output, "%-*s) ...\n", trace->args_alignment, ttrace->entry_str);
 	ttrace->entry_pending = false;
 
 	++trace->nr_events_printed;
@@ -1838,7 +1839,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->failure_only || trace->min_stack)) {
 			trace__fprintf_entry_head(trace, thread, 0, false, ttrace->entry_time, trace->output);
-			fprintf(trace->output, "%-70s)\n", ttrace->entry_str);
+			fprintf(trace->output, "%-*s)\n", trace->args_alignment, ttrace->entry_str);
 		}
 	} else {
 		ttrace->entry_pending = true;
@@ -1981,7 +1982,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	trace__fprintf_entry_head(trace, thread, duration, duration_calculated, ttrace->entry_time, trace->output);
 
 	if (ttrace->entry_pending) {
-		fprintf(trace->output, "%-70s", ttrace->entry_str);
+		fprintf(trace->output, "%-*s", trace->args_alignment, ttrace->entry_str);
 	} else {
 		fprintf(trace->output, " ... [");
 		color_fprintf(trace->output, PERF_COLOR_YELLOW, "continued");
@@ -3563,6 +3564,10 @@ static int trace__config(const char *var, const char *value, void *arg)
 		trace->show_zeros = new_show_zeros;
 	} else if (!strcmp(var, "trace.no_inherit")) {
 		trace->opts.no_inherit = perf_config_bool(var, value);
+	} else if (!strcmp(var, "trace.args_alignment")) {
+		int args_alignment = 0;
+		if (perf_config_int(&args_alignment, var, value) == 0)
+			trace->args_alignment = args_alignment;
 	}
 out:
 	return err;
@@ -3596,6 +3601,7 @@ int cmd_trace(int argc, const char **argv)
 		.show_tstamp = true,
 		.show_duration = true,
 		.show_arg_names = true,
+		.args_alignment = 70,
 		.trace_syscalls = false,
 		.kernel_syscallchains = false,
 		.max_stack = UINT_MAX,
