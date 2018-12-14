@@ -94,10 +94,10 @@ typedef struct {
 	int value;
 } VCHIQ_SET_SERVICE_OPTION_T;
 
-typedef struct {
+struct vchiq_dump_mem {
 	void     *virt_addr;
 	size_t    num_bytes;
-} VCHIQ_DUMP_MEM_T;
+};
 
 #define VCHIQ_IOC_CONNECT              _IO(VCHIQ_IOC_MAGIC,   0)
 #define VCHIQ_IOC_SHUTDOWN             _IO(VCHIQ_IOC_MAGIC,   1)
@@ -123,7 +123,7 @@ typedef struct {
 #define VCHIQ_IOC_SET_SERVICE_OPTION \
 	_IOW(VCHIQ_IOC_MAGIC,  14, VCHIQ_SET_SERVICE_OPTION_T)
 #define VCHIQ_IOC_DUMP_PHYS_MEM \
-	_IOW(VCHIQ_IOC_MAGIC,  15, VCHIQ_DUMP_MEM_T)
+	_IOW(VCHIQ_IOC_MAGIC,  15, struct vchiq_dump_mem)
 #define VCHIQ_IOC_LIB_VERSION          _IO(VCHIQ_IOC_MAGIC,   16)
 #define VCHIQ_IOC_CLOSE_DELIVERED      _IO(VCHIQ_IOC_MAGIC,   17)
 #define VCHIQ_IOC_MAX                  17
