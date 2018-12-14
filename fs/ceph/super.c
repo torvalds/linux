@@ -563,8 +563,8 @@ static int ceph_show_options(struct seq_file *m, struct dentry *root)
 		seq_puts(m, ",noacl");
 #endif
 
-	if (fsopt->flags & CEPH_MOUNT_OPT_NOCOPYFROM)
-		seq_puts(m, ",nocopyfrom");
+	if ((fsopt->flags & CEPH_MOUNT_OPT_NOCOPYFROM) == 0)
+		seq_puts(m, ",copyfrom");
 
 	if (fsopt->mds_namespace)
 		seq_show_option(m, "mds_namespace", fsopt->mds_namespace);
