@@ -249,6 +249,7 @@ struct iwl_fw_error_dump_prph {
 enum iwl_fw_error_dump_mem_type {
 	IWL_FW_ERROR_DUMP_MEM_SRAM,
 	IWL_FW_ERROR_DUMP_MEM_SMEM,
+	IWL_FW_ERROR_DUMP_MEM_NAMED_MEM = 10,
 };
 
 /**
@@ -260,6 +261,22 @@ enum iwl_fw_error_dump_mem_type {
 struct iwl_fw_error_dump_mem {
 	__le32 type;
 	__le32 offset;
+	u8 data[];
+};
+
+/**
+ * struct iwl_fw_error_dump_named_mem - chunk of memory
+ * @type: &enum iwl_fw_error_dump_mem_type
+ * @offset: the offset from which the memory was read
+ * @name_len: name length
+ * @name: file name
+ * @data: the content of the memory
+ */
+struct iwl_fw_error_dump_named_mem {
+	__le32 type;
+	__le32 offset;
+	u8 name_len;
+	u8 name[32];
 	u8 data[];
 };
 
