@@ -180,7 +180,7 @@ extern int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 
 // Initialise an iterator to look through messages in place
 extern int32_t vchi_msg_look_ahead(VCHI_SERVICE_HANDLE_T handle,
-				   VCHI_MSG_ITER_T *iter,
+				   struct vchi_msg_iter *iter,
 				   VCHI_FLAGS_T flags);
 
 /******************************************************************************
@@ -203,24 +203,24 @@ extern uint32_t vchi_held_msg_rx_timestamp(const struct vchi_held_msg *message);
 extern int32_t vchi_held_msg_release(struct vchi_held_msg *message);
 
 // Indicates whether the iterator has a next message.
-extern int32_t vchi_msg_iter_has_next(const VCHI_MSG_ITER_T *iter);
+extern int32_t vchi_msg_iter_has_next(const struct vchi_msg_iter *iter);
 
 // Return the pointer and length for the next message and advance the iterator.
-extern int32_t vchi_msg_iter_next(VCHI_MSG_ITER_T *iter,
+extern int32_t vchi_msg_iter_next(struct vchi_msg_iter *iter,
 				  void **data,
 				  uint32_t *msg_size);
 
 // Remove the last message returned by vchi_msg_iter_next.
 // Can only be called once after each call to vchi_msg_iter_next.
-extern int32_t vchi_msg_iter_remove(VCHI_MSG_ITER_T *iter);
+extern int32_t vchi_msg_iter_remove(struct vchi_msg_iter *iter);
 
 // Hold the last message returned by vchi_msg_iter_next.
 // Can only be called once after each call to vchi_msg_iter_next.
-extern int32_t vchi_msg_iter_hold(VCHI_MSG_ITER_T *iter,
+extern int32_t vchi_msg_iter_hold(struct vchi_msg_iter *iter,
 				  struct vchi_held_msg *message);
 
 // Return information for the next message, and hold it, advancing the iterator.
-extern int32_t vchi_msg_iter_hold_next(VCHI_MSG_ITER_T *iter,
+extern int32_t vchi_msg_iter_hold_next(struct vchi_msg_iter *iter,
 				       void **data,        // } may be NULL
 				       uint32_t *msg_size, // }
 				       struct vchi_held_msg *message);

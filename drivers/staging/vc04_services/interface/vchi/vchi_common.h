@@ -154,11 +154,11 @@ typedef struct opaque_vchi_message_driver_t VCHI_MESSAGE_DRIVER_T;
 // will not proceed to messages received since. Behaviour is undefined if an iterator
 // is used again after messages for that service are removed/dequeued by any
 // means other than vchi_msg_iter_... calls on the iterator itself.
-typedef struct {
+struct vchi_msg_iter {
    struct opaque_vchi_service_t *service;
    void *last;
    void *next;
    void *remove;
-} VCHI_MSG_ITER_T;
+};
 
 #endif // VCHI_COMMON_H_
