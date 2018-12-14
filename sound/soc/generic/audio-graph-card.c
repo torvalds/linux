@@ -179,12 +179,12 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 	struct device *dev = graph_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = graph_priv_to_link(priv, link_idx);
 	struct graph_dai_props *dai_props = graph_priv_to_props(priv, link_idx);
-	struct snd_soc_card *card = graph_priv_to_card(priv);
 	struct device_node *ep = is_cpu ? cpu_ep : codec_ep;
 	struct device_node *port = of_get_parent(ep);
 	struct device_node *ports = of_get_parent(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 	struct asoc_simple_dai *dai;
+	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
 	int ret;
 
 	dev_dbg(dev, "link_of DPCM (for %s)\n", is_cpu ? "CPU" : "Codec");
@@ -204,10 +204,8 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 	of_node_put(port);
 
 	if (is_cpu) {
-		struct snd_soc_dai_link_component *codecs;
 
 		/* BE is dummy */
-		codecs			= dai_link->codecs;
 		codecs->of_node		= NULL;
 		codecs->dai_name	= "snd-soc-dummy-dai";
 		codecs->name		= "snd-soc-dummy";
@@ -264,19 +262,19 @@ static int asoc_graph_card_dai_link_of_dpcm(struct device_node *top,
 
 		ret = asoc_simple_card_set_dailink_name(dev, dai_link,
 							"be.%s",
-							dai_link->codecs->dai_name);
+							codecs->dai_name);
 		if (ret < 0)
 			return ret;
 
 		/* check "prefix" from top node */
-		snd_soc_of_parse_audio_prefix(card, cconf,
-					      dai_link->codecs->of_node,
+		snd_soc_of_parse_node_prefix(top, cconf, codecs->of_node,
 					      "prefix");
-		/* check "prefix" from each node if top doesn't have */
-		if (!cconf->of_node)
-			snd_soc_of_parse_node_prefix(node, cconf,
-						     dai_link->codecs->of_node,
-						     PREFIX "prefix");
+		snd_soc_of_parse_node_prefix(node, cconf, codecs->of_node,
+					     PREFIX "prefix");
+		snd_soc_of_parse_node_prefix(ports, cconf, codecs->of_node,
+					     "prefix");
+		snd_soc_of_parse_node_prefix(port, cconf, codecs->of_node,
+					     "prefix");
 	}
 
 	ret = asoc_simple_card_of_parse_tdm(ep, dai);
