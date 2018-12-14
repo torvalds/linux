@@ -679,7 +679,7 @@ static int sccb_check_status(struct gspca_dev *gspca_dev)
 	int i;
 
 	for (i = 0; i < 5; i++) {
-		msleep(10);
+		usleep_range(10000, 20000);
 		data = ov534_reg_read(gspca_dev, OV534_REG_STATUS);
 
 		switch (data) {
@@ -1277,7 +1277,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 
 	/* reset sensor */
 	sccb_reg_write(gspca_dev, 0x12, 0x80);
-	msleep(10);
+	usleep_range(10000, 20000);
 
 	/* probe the sensor */
 	sccb_reg_read(gspca_dev, 0x0a);
