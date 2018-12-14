@@ -503,7 +503,7 @@ void f2fs_destroy_stats(struct f2fs_sb_info *sbi)
 	list_del(&si->stat_list);
 	mutex_unlock(&f2fs_stat_mutex);
 
-	kfree(si);
+	kvfree(si);
 }
 
 int __init f2fs_create_root_stats(void)
