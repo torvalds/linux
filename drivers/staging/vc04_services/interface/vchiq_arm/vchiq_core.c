@@ -3271,7 +3271,7 @@ exit:
 	return status;
 }
 
-void vchiq_get_config(VCHIQ_CONFIG_T *config)
+void vchiq_get_config(struct vchiq_config *config)
 {
 	config->max_msg_size           = VCHIQ_MAX_MSG_SIZE;
 	config->bulk_threshold         = VCHIQ_MAX_MSG_SIZE;

@@ -110,7 +110,7 @@ typedef struct vchiq_service_params_struct {
 	short version_min;   /* Update for incompatible changes */
 } VCHIQ_SERVICE_PARAMS_T;
 
-typedef struct vchiq_config_struct {
+struct vchiq_config {
 	unsigned int max_msg_size;
 	unsigned int bulk_threshold; /* The message size above which it
 					is better to use a bulk transfer
@@ -119,7 +119,7 @@ typedef struct vchiq_config_struct {
 	unsigned int max_services;
 	short version;      /* The version of VCHIQ */
 	short version_min;  /* The minimum compatible version of VCHIQ */
-} VCHIQ_CONFIG_T;
+};
 
 typedef struct vchiq_instance_struct *VCHIQ_INSTANCE_T;
 typedef void (*VCHIQ_REMOTE_USE_CALLBACK_T)(void *cb_arg);
@@ -162,7 +162,7 @@ extern VCHIQ_STATUS_T vchiq_bulk_receive_handle(VCHIQ_SERVICE_HANDLE_T service,
 extern int   vchiq_get_client_id(VCHIQ_SERVICE_HANDLE_T service);
 extern void *vchiq_get_service_userdata(VCHIQ_SERVICE_HANDLE_T service);
 extern int   vchiq_get_service_fourcc(VCHIQ_SERVICE_HANDLE_T service);
-extern void vchiq_get_config(VCHIQ_CONFIG_T *config);
+extern void vchiq_get_config(struct vchiq_config *config);
 extern VCHIQ_STATUS_T vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T service,
 	VCHIQ_SERVICE_OPTION_T option, int value);
 

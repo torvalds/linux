@@ -85,7 +85,7 @@ typedef struct {
 
 typedef struct {
 	unsigned int config_size;
-	VCHIQ_CONFIG_T __user *pconfig;
+	struct vchiq_config __user *pconfig;
 } VCHIQ_GET_CONFIG_T;
 
 typedef struct {
