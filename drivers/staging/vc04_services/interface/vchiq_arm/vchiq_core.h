@@ -268,8 +268,6 @@ struct remote_event {
 
 typedef struct opaque_platform_state_t *VCHIQ_PLATFORM_STATE_T;
 
-typedef struct vchiq_state_struct VCHIQ_STATE_T;
-
 struct vchiq_slot {
 	char data[VCHIQ_SLOT_SIZE];
 };
@@ -299,7 +297,7 @@ struct vchiq_service {
 	short version_min;
 	short peer_version;
 
-	VCHIQ_STATE_T *state;
+	struct vchiq_state *state;
 	VCHIQ_INSTANCE_T instance;
 
 	int service_use_count;
@@ -396,7 +394,7 @@ struct vchiq_slot_zero {
 	struct vchiq_slot_info slots[VCHIQ_MAX_SLOTS];
 };
 
-struct vchiq_state_struct {
+struct vchiq_state {
 	int id;
 	int initialised;
 	VCHIQ_CONNSTATE_T conn_state;
@@ -515,7 +513,7 @@ extern int vchiq_core_log_level;
 extern int vchiq_core_msg_log_level;
 extern int vchiq_sync_log_level;
 
-extern VCHIQ_STATE_T *vchiq_states[VCHIQ_MAX_STATES];
+extern struct vchiq_state *vchiq_states[VCHIQ_MAX_STATES];
 
 extern const char *
 get_conn_state_name(VCHIQ_CONNSTATE_T conn_state);
@@ -524,15 +522,16 @@ extern struct vchiq_slot_zero *
 vchiq_init_slots(void *mem_base, int mem_size);
 
 extern VCHIQ_STATUS_T
-vchiq_init_state(VCHIQ_STATE_T *state, struct vchiq_slot_zero *slot_zero);
+vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero);
 
 extern VCHIQ_STATUS_T
-vchiq_connect_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);
+vchiq_connect_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance);
 
 extern struct vchiq_service *
-vchiq_add_service_internal(VCHIQ_STATE_T *state,
-	const struct vchiq_service_params *params, int srvstate,
-	VCHIQ_INSTANCE_T instance, VCHIQ_USERDATA_TERM_T userdata_term);
+vchiq_add_service_internal(struct vchiq_state *state,
+			   const struct vchiq_service_params *params,
+			   int srvstate, VCHIQ_INSTANCE_T instance,
+			   VCHIQ_USERDATA_TERM_T userdata_term);
 
 extern VCHIQ_STATUS_T
 vchiq_open_service_internal(struct vchiq_service *service, int client_id);
@@ -547,16 +546,16 @@ extern void
 vchiq_free_service_internal(struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
-vchiq_shutdown_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);
+vchiq_shutdown_internal(struct vchiq_state *state, VCHIQ_INSTANCE_T instance);
 
 extern VCHIQ_STATUS_T
-vchiq_pause_internal(VCHIQ_STATE_T *state);
+vchiq_pause_internal(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_resume_internal(VCHIQ_STATE_T *state);
+vchiq_resume_internal(struct vchiq_state *state);
 
 extern void
-remote_event_pollall(VCHIQ_STATE_T *state);
+remote_event_pollall(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
 vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *offset, int size,
@@ -564,7 +563,7 @@ vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *offset, int size,
 		    VCHIQ_BULK_DIR_T dir);
 
 extern void
-vchiq_dump_state(void *dump_context, VCHIQ_STATE_T *state);
+vchiq_dump_state(void *dump_context, struct vchiq_state *state);
 
 extern void
 vchiq_dump_service_state(void *dump_context, struct vchiq_service *service);
@@ -576,13 +575,13 @@ extern void
 vchiq_loud_error_footer(void);
 
 extern void
-request_poll(VCHIQ_STATE_T *state, struct vchiq_service *service,
+request_poll(struct vchiq_state *state, struct vchiq_service *service,
 	     int poll_type);
 
 static inline struct vchiq_service *
 handle_to_service(VCHIQ_SERVICE_HANDLE_T handle)
 {
-	VCHIQ_STATE_T *state = vchiq_states[(handle / VCHIQ_MAX_SERVICES) &
+	struct vchiq_state *state = vchiq_states[(handle / VCHIQ_MAX_SERVICES) &
 		(VCHIQ_MAX_STATES - 1)];
 	if (!state)
 		return NULL;
@@ -594,7 +593,7 @@ extern struct vchiq_service *
 find_service_by_handle(VCHIQ_SERVICE_HANDLE_T handle);
 
 extern struct vchiq_service *
-find_service_by_port(VCHIQ_STATE_T *state, int localport);
+find_service_by_port(struct vchiq_state *state, int localport);
 
 extern struct vchiq_service *
 find_service_for_instance(VCHIQ_INSTANCE_T instance,
@@ -605,8 +604,8 @@ find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
 	VCHIQ_SERVICE_HANDLE_T handle);
 
 extern struct vchiq_service *
-next_service_by_instance(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance,
-	int *pidx);
+next_service_by_instance(struct vchiq_state *state, VCHIQ_INSTANCE_T instance,
+			 int *pidx);
 
 extern void
 lock_service(struct vchiq_service *service);
@@ -628,16 +627,16 @@ extern void
 remote_event_signal(struct remote_event *event);
 
 void
-vchiq_platform_check_suspend(VCHIQ_STATE_T *state);
+vchiq_platform_check_suspend(struct vchiq_state *state);
 
 extern void
-vchiq_platform_paused(VCHIQ_STATE_T *state);
+vchiq_platform_paused(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_platform_resume(VCHIQ_STATE_T *state);
+vchiq_platform_resume(struct vchiq_state *state);
 
 extern void
-vchiq_platform_resumed(VCHIQ_STATE_T *state);
+vchiq_platform_resumed(struct vchiq_state *state);
 
 extern void
 vchiq_dump(void *dump_context, const char *str, int len);
@@ -659,38 +658,39 @@ extern VCHIQ_STATUS_T
 vchiq_release_service_internal(struct vchiq_service *service);
 
 extern void
-vchiq_on_remote_use(VCHIQ_STATE_T *state);
+vchiq_on_remote_use(struct vchiq_state *state);
 
 extern void
-vchiq_on_remote_release(VCHIQ_STATE_T *state);
+vchiq_on_remote_release(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_platform_init_state(VCHIQ_STATE_T *state);
+vchiq_platform_init_state(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
 vchiq_check_service(struct vchiq_service *service);
 
 extern void
-vchiq_on_remote_use_active(VCHIQ_STATE_T *state);
+vchiq_on_remote_use_active(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_send_remote_use(VCHIQ_STATE_T *state);
+vchiq_send_remote_use(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_send_remote_release(VCHIQ_STATE_T *state);
+vchiq_send_remote_release(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_send_remote_use_active(VCHIQ_STATE_T *state);
+vchiq_send_remote_use_active(struct vchiq_state *state);
 
 extern void
-vchiq_platform_conn_state_changed(VCHIQ_STATE_T *state,
-	VCHIQ_CONNSTATE_T oldstate, VCHIQ_CONNSTATE_T newstate);
+vchiq_platform_conn_state_changed(struct vchiq_state *state,
+				  VCHIQ_CONNSTATE_T oldstate,
+				  VCHIQ_CONNSTATE_T newstate);
 
 extern void
-vchiq_platform_handle_timeout(VCHIQ_STATE_T *state);
+vchiq_platform_handle_timeout(struct vchiq_state *state);
 
 extern void
-vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate);
+vchiq_set_conn_state(struct vchiq_state *state, VCHIQ_CONNSTATE_T newstate);
 
 extern void
 vchiq_log_dump_mem(const char *label, uint32_t addr, const void *voidMem,

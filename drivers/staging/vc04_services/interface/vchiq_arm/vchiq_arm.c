@@ -132,7 +132,7 @@ struct bulk_waiter_node {
 };
 
 struct vchiq_instance_struct {
-	VCHIQ_STATE_T *state;
+	struct vchiq_state *state;
 	struct vchiq_completion_data completions[MAX_COMPLETIONS];
 	int completion_insert;
 	int completion_remove;
@@ -162,7 +162,7 @@ struct dump_context {
 
 static struct cdev    vchiq_cdev;
 static dev_t          vchiq_devid;
-static VCHIQ_STATE_T g_state;
+static struct vchiq_state g_state;
 static struct class  *vchiq_class;
 static DEFINE_SPINLOCK(msg_queue_spinlock);
 static struct platform_device *bcm2835_camera;
@@ -208,7 +208,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *instance_out)
 {
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
-	VCHIQ_STATE_T *state;
+	struct vchiq_state *state;
 	VCHIQ_INSTANCE_T instance = NULL;
 	int i;
 
@@ -261,7 +261,7 @@ EXPORT_SYMBOL(vchiq_initialise);
 VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance)
 {
 	VCHIQ_STATUS_T status;
-	VCHIQ_STATE_T *state = instance->state;
+	struct vchiq_state *state = instance->state;
 
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
@@ -303,7 +303,7 @@ static int vchiq_is_connected(VCHIQ_INSTANCE_T instance)
 VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance)
 {
 	VCHIQ_STATUS_T status;
-	VCHIQ_STATE_T *state = instance->state;
+	struct vchiq_state *state = instance->state;
 
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
@@ -335,7 +335,7 @@ VCHIQ_STATUS_T vchiq_add_service(
 	VCHIQ_SERVICE_HANDLE_T       *phandle)
 {
 	VCHIQ_STATUS_T status;
-	VCHIQ_STATE_T *state = instance->state;
+	struct vchiq_state *state = instance->state;
 	struct vchiq_service *service = NULL;
 	int srvstate;
 
@@ -374,7 +374,7 @@ VCHIQ_STATUS_T vchiq_open_service(
 	VCHIQ_SERVICE_HANDLE_T       *phandle)
 {
 	VCHIQ_STATUS_T   status = VCHIQ_ERROR;
-	VCHIQ_STATE_T   *state = instance->state;
+	struct vchiq_state   *state = instance->state;
 	struct vchiq_service *service = NULL;
 
 	vchiq_log_trace(vchiq_core_log_level,
@@ -1956,7 +1956,7 @@ vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static int vchiq_open(struct inode *inode, struct file *file)
 {
-	VCHIQ_STATE_T *state = vchiq_get_state();
+	struct vchiq_state *state = vchiq_get_state();
 	VCHIQ_INSTANCE_T instance;
 
 	vchiq_log_info(vchiq_arm_log_level, "vchiq_open");
@@ -1990,7 +1990,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 static int vchiq_release(struct inode *inode, struct file *file)
 {
 	VCHIQ_INSTANCE_T instance = file->private_data;
-	VCHIQ_STATE_T *state = vchiq_get_state();
+	struct vchiq_state *state = vchiq_get_state();
 	struct vchiq_service *service;
 	int ret = 0;
 	int i;
@@ -2158,7 +2158,7 @@ vchiq_dump(void *dump_context, const char *str, int len)
 void
 vchiq_dump_platform_instances(void *dump_context)
 {
-	VCHIQ_STATE_T *state = vchiq_get_state();
+	struct vchiq_state *state = vchiq_get_state();
 	char buf[80];
 	int len;
 	int i;
@@ -2257,7 +2257,7 @@ vchiq_read(struct file *file, char __user *buf,
 	return context.actual;
 }
 
-VCHIQ_STATE_T *
+struct vchiq_state *
 vchiq_get_state(void)
 {
 
@@ -2288,7 +2288,7 @@ vchiq_fops = {
  */
 
 int
-vchiq_videocore_wanted(VCHIQ_STATE_T *state)
+vchiq_videocore_wanted(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
@@ -2322,7 +2322,7 @@ vchiq_keepalive_vchiq_callback(VCHIQ_REASON_T reason,
 static int
 vchiq_keepalive_thread_func(void *v)
 {
-	VCHIQ_STATE_T *state = (VCHIQ_STATE_T *) v;
+	struct vchiq_state *state = (struct vchiq_state *)v;
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
 	VCHIQ_STATUS_T status;
@@ -2401,7 +2401,8 @@ exit:
 }
 
 VCHIQ_STATUS_T
-vchiq_arm_init_state(VCHIQ_STATE_T *state, struct vchiq_arm_state *arm_state)
+vchiq_arm_init_state(struct vchiq_state *state,
+		     struct vchiq_arm_state *arm_state)
 {
 	if (arm_state) {
 		rwlock_init(&arm_state->susp_res_lock);
@@ -2583,7 +2584,7 @@ stop_suspend_timer(struct vchiq_arm_state *arm_state)
 }
 
 static inline int
-need_resume(VCHIQ_STATE_T *state)
+need_resume(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
@@ -2668,7 +2669,7 @@ unblock_resume(struct vchiq_arm_state *arm_state)
 /* Initiate suspend via slot handler. Should be called with the write lock
  * held */
 VCHIQ_STATUS_T
-vchiq_arm_vcsuspend(VCHIQ_STATE_T *state)
+vchiq_arm_vcsuspend(struct vchiq_state *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
@@ -2717,7 +2718,7 @@ out:
 }
 
 void
-vchiq_platform_check_suspend(VCHIQ_STATE_T *state)
+vchiq_platform_check_suspend(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	int susp = 0;
@@ -2744,7 +2745,7 @@ out:
 }
 
 static void
-output_timeout_error(VCHIQ_STATE_T *state)
+output_timeout_error(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	char err[50] = "";
@@ -2789,7 +2790,7 @@ output_msg:
 ** videocore failed to suspend in time or VCHIQ_ERROR if interrupted.
 */
 VCHIQ_STATUS_T
-vchiq_arm_force_suspend(VCHIQ_STATE_T *state)
+vchiq_arm_force_suspend(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	VCHIQ_STATUS_T status = VCHIQ_ERROR;
@@ -2900,7 +2901,7 @@ out:
 }
 
 void
-vchiq_check_suspend(VCHIQ_STATE_T *state)
+vchiq_check_suspend(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
@@ -2922,7 +2923,7 @@ out:
 }
 
 int
-vchiq_arm_allow_resume(VCHIQ_STATE_T *state)
+vchiq_arm_allow_resume(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	int resume = 0;
@@ -2966,7 +2967,7 @@ out:
 
 /* This function should be called with the write lock held */
 int
-vchiq_check_resume(VCHIQ_STATE_T *state)
+vchiq_check_resume(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	int resume = 0;
@@ -2988,7 +2989,7 @@ out:
 }
 
 VCHIQ_STATUS_T
-vchiq_use_internal(VCHIQ_STATE_T *state, struct vchiq_service *service,
+vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		   enum USE_TYPE_E use_type)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
@@ -3121,7 +3122,7 @@ out:
 }
 
 VCHIQ_STATUS_T
-vchiq_release_internal(VCHIQ_STATE_T *state, struct vchiq_service *service)
+vchiq_release_internal(struct vchiq_state *state, struct vchiq_service *service)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	VCHIQ_STATUS_T ret = VCHIQ_SUCCESS;
@@ -3183,7 +3184,7 @@ out:
 }
 
 void
-vchiq_on_remote_use(VCHIQ_STATE_T *state)
+vchiq_on_remote_use(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
@@ -3193,7 +3194,7 @@ vchiq_on_remote_use(VCHIQ_STATE_T *state)
 }
 
 void
-vchiq_on_remote_release(VCHIQ_STATE_T *state)
+vchiq_on_remote_release(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 
@@ -3266,7 +3267,7 @@ static void suspend_timer_callback(struct timer_list *t)
 {
 	struct vchiq_arm_state *arm_state =
 					from_timer(arm_state, t, suspend_timer);
-	VCHIQ_STATE_T *state = arm_state->state;
+	struct vchiq_state *state = arm_state->state;
 
 	vchiq_log_info(vchiq_susp_log_level,
 		"%s - suspend timer expired - check suspend", __func__);
@@ -3321,7 +3322,7 @@ struct service_data_struct {
 };
 
 void
-vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
+vchiq_dump_service_use_state(struct vchiq_state *state)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	struct service_data_struct *service_data;
@@ -3440,13 +3441,14 @@ out:
 }
 
 /* stub functions */
-void vchiq_on_remote_use_active(VCHIQ_STATE_T *state)
+void vchiq_on_remote_use_active(struct vchiq_state *state)
 {
 	(void)state;
 }
 
-void vchiq_platform_conn_state_changed(VCHIQ_STATE_T *state,
-	VCHIQ_CONNSTATE_T oldstate, VCHIQ_CONNSTATE_T newstate)
+void vchiq_platform_conn_state_changed(struct vchiq_state *state,
+				       VCHIQ_CONNSTATE_T oldstate,
+				       VCHIQ_CONNSTATE_T newstate)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 

@@ -83,7 +83,7 @@ struct vchiq_arm_state {
 
 	unsigned int wake_address;
 
-	VCHIQ_STATE_T *state;
+	struct vchiq_state *state;
 	struct timer_list suspend_timer;
 	int suspend_timer_timeout;
 	int suspend_timer_running;
@@ -131,31 +131,33 @@ struct vchiq_drvdata {
 extern int vchiq_arm_log_level;
 extern int vchiq_susp_log_level;
 
-int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state);
+int vchiq_platform_init(struct platform_device *pdev,
+			struct vchiq_state *state);
 
-extern VCHIQ_STATE_T *
+extern struct vchiq_state *
 vchiq_get_state(void);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_vcsuspend(VCHIQ_STATE_T *state);
+vchiq_arm_vcsuspend(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_force_suspend(VCHIQ_STATE_T *state);
+vchiq_arm_force_suspend(struct vchiq_state *state);
 
 extern int
-vchiq_arm_allow_resume(VCHIQ_STATE_T *state);
+vchiq_arm_allow_resume(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_vcresume(VCHIQ_STATE_T *state);
+vchiq_arm_vcresume(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_init_state(VCHIQ_STATE_T *state, struct vchiq_arm_state *arm_state);
+vchiq_arm_init_state(struct vchiq_state *state,
+		     struct vchiq_arm_state *arm_state);
 
 extern int
-vchiq_check_resume(VCHIQ_STATE_T *state);
+vchiq_check_resume(struct vchiq_state *state);
 
 extern void
-vchiq_check_suspend(VCHIQ_STATE_T *state);
+vchiq_check_suspend(struct vchiq_state *state);
 VCHIQ_STATUS_T
 vchiq_use_service(VCHIQ_SERVICE_HANDLE_T handle);
 
@@ -166,31 +168,32 @@ extern VCHIQ_STATUS_T
 vchiq_check_service(struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
-vchiq_platform_suspend(VCHIQ_STATE_T *state);
+vchiq_platform_suspend(struct vchiq_state *state);
 
 extern int
-vchiq_platform_videocore_wanted(VCHIQ_STATE_T *state);
+vchiq_platform_videocore_wanted(struct vchiq_state *state);
 
 extern int
 vchiq_platform_use_suspend_timer(void);
 
 extern void
-vchiq_dump_platform_use_state(VCHIQ_STATE_T *state);
+vchiq_dump_platform_use_state(struct vchiq_state *state);
 
 extern void
-vchiq_dump_service_use_state(VCHIQ_STATE_T *state);
+vchiq_dump_service_use_state(struct vchiq_state *state);
 
 extern struct vchiq_arm_state*
-vchiq_platform_get_arm_state(VCHIQ_STATE_T *state);
+vchiq_platform_get_arm_state(struct vchiq_state *state);
 
 extern int
-vchiq_videocore_wanted(VCHIQ_STATE_T *state);
+vchiq_videocore_wanted(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_use_internal(VCHIQ_STATE_T *state, struct vchiq_service *service,
+vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
 		   enum USE_TYPE_E use_type);
 extern VCHIQ_STATUS_T
-vchiq_release_internal(VCHIQ_STATE_T *state, struct vchiq_service *service);
+vchiq_release_internal(struct vchiq_state *state,
+		       struct vchiq_service *service);
 
 extern struct vchiq_debugfs_node *
 vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);

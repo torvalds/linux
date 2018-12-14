@@ -105,7 +105,7 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual);
 
-int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
+int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state *state)
 {
 	struct device *dev = &pdev->dev;
 	struct vchiq_drvdata *drvdata = platform_get_drvdata(pdev);
@@ -203,7 +203,7 @@ int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state)
 }
 
 VCHIQ_STATUS_T
-vchiq_platform_init_state(VCHIQ_STATE_T *state)
+vchiq_platform_init_state(struct vchiq_state *state)
 {
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
 	struct vchiq_2835_state *platform_state;
@@ -221,7 +221,7 @@ vchiq_platform_init_state(VCHIQ_STATE_T *state)
 }
 
 struct vchiq_arm_state*
-vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
+vchiq_platform_get_arm_state(struct vchiq_state *state)
 {
 	struct vchiq_2835_state *platform_state;
 
@@ -290,29 +290,29 @@ vchiq_dump_platform_state(void *dump_context)
 }
 
 VCHIQ_STATUS_T
-vchiq_platform_suspend(VCHIQ_STATE_T *state)
+vchiq_platform_suspend(struct vchiq_state *state)
 {
 	return VCHIQ_ERROR;
 }
 
 VCHIQ_STATUS_T
-vchiq_platform_resume(VCHIQ_STATE_T *state)
+vchiq_platform_resume(struct vchiq_state *state)
 {
 	return VCHIQ_SUCCESS;
 }
 
 void
-vchiq_platform_paused(VCHIQ_STATE_T *state)
+vchiq_platform_paused(struct vchiq_state *state)
 {
 }
 
 void
-vchiq_platform_resumed(VCHIQ_STATE_T *state)
+vchiq_platform_resumed(struct vchiq_state *state)
 {
 }
 
 int
-vchiq_platform_videocore_wanted(VCHIQ_STATE_T *state)
+vchiq_platform_videocore_wanted(struct vchiq_state *state)
 {
 	return 1; // autosuspend not supported - videocore always wanted
 }
@@ -323,12 +323,12 @@ vchiq_platform_use_suspend_timer(void)
 	return 0;
 }
 void
-vchiq_dump_platform_use_state(VCHIQ_STATE_T *state)
+vchiq_dump_platform_use_state(struct vchiq_state *state)
 {
 	vchiq_log_info(vchiq_arm_log_level, "Suspend timer not in use");
 }
 void
-vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
+vchiq_platform_handle_timeout(struct vchiq_state *state)
 {
 	(void)state;
 }
@@ -339,7 +339,7 @@ vchiq_platform_handle_timeout(VCHIQ_STATE_T *state)
 static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id)
 {
-	VCHIQ_STATE_T *state = dev_id;
+	struct vchiq_state *state = dev_id;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int status;
 
