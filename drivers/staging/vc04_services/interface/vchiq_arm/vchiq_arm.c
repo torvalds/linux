@@ -150,7 +150,7 @@ struct vchiq_instance_struct {
 	struct list_head bulk_waiter_list;
 	struct mutex bulk_waiter_list_mutex;
 
-	VCHIQ_DEBUGFS_NODE_T debugfs_node;
+	struct vchiq_debugfs_node debugfs_node;
 };
 
 struct dump_context {
@@ -3213,7 +3213,7 @@ vchiq_release_service_internal(VCHIQ_SERVICE_T *service)
 	return vchiq_release_internal(service->state, service);
 }
 
-VCHIQ_DEBUGFS_NODE_T *
+struct vchiq_debugfs_node *
 vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance)
 {
 	return &instance->debugfs_node;

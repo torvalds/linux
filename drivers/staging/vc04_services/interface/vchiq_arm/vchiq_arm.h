@@ -192,7 +192,7 @@ vchiq_use_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 extern VCHIQ_STATUS_T
 vchiq_release_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service);
 
-extern VCHIQ_DEBUGFS_NODE_T *
+extern struct vchiq_debugfs_node *
 vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);
 
 extern int

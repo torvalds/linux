@@ -231,7 +231,8 @@ void vchiq_debugfs_add_instance(VCHIQ_INSTANCE_T instance)
 
 void vchiq_debugfs_remove_instance(VCHIQ_INSTANCE_T instance)
 {
-	VCHIQ_DEBUGFS_NODE_T *node = vchiq_instance_get_debugfs_node(instance);
+	struct vchiq_debugfs_node *node =
+				vchiq_instance_get_debugfs_node(instance);
 
 	debugfs_remove_recursive(node->dentry);
 }
