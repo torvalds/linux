@@ -287,13 +287,8 @@ static int msm_drm_uninit(struct device *dev)
 		kfree(vbl_ev);
 	}
 
-	/* clean up display commit/event worker threads */
+	/* clean up event worker threads */
 	for (i = 0; i < priv->num_crtcs; i++) {
-		if (priv->disp_thread[i].thread) {
-			kthread_destroy_worker(&priv->disp_thread[i].worker);
-			priv->disp_thread[i].thread = NULL;
-		}
-
 		if (priv->event_thread[i].thread) {
 			kthread_destroy_worker(&priv->event_thread[i].worker);
 			priv->event_thread[i].thread = NULL;
@@ -551,27 +546,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	 */
 	param.sched_priority = 16;
 	for (i = 0; i < priv->num_crtcs; i++) {
-
-		/* initialize display thread */
-		priv->disp_thread[i].crtc_id = priv->crtcs[i]->base.id;
-		kthread_init_worker(&priv->disp_thread[i].worker);
-		priv->disp_thread[i].dev = ddev;
-		priv->disp_thread[i].thread =
-			kthread_run(kthread_worker_fn,
-				&priv->disp_thread[i].worker,
-				"crtc_commit:%d", priv->disp_thread[i].crtc_id);
-		if (IS_ERR(priv->disp_thread[i].thread)) {
-			DRM_DEV_ERROR(dev, "failed to create crtc_commit kthread\n");
-			priv->disp_thread[i].thread = NULL;
-			goto err_msm_uninit;
-		}
-
-		ret = sched_setscheduler(priv->disp_thread[i].thread,
-					 SCHED_FIFO, &param);
-		if (ret)
-			dev_warn(dev, "disp_thread set priority failed: %d\n",
-				 ret);
-
 		/* initialize event thread */
 		priv->event_thread[i].crtc_id = priv->crtcs[i]->base.id;
 		kthread_init_worker(&priv->event_thread[i].worker);
@@ -586,13 +560,6 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 			goto err_msm_uninit;
 		}
 
-		/**
-		 * event thread should also run at same priority as disp_thread
-		 * because it is handling frame_done events. A lower priority
-		 * event thread and higher priority disp_thread can causes
-		 * frame_pending counters beyond 2. This can lead to commit
-		 * failure at crtc commit level.
-		 */
 		ret = sched_setscheduler(priv->event_thread[i].thread,
 					 SCHED_FIFO, &param);
 		if (ret)
