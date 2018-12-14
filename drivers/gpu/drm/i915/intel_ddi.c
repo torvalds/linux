@@ -3834,9 +3834,50 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 
 }
 
+static void intel_ddi_encoder_suspend(struct intel_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(&encoder->base);
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+
+	intel_dp_encoder_suspend(encoder);
+
+	/*
+	 * TODO: disconnect also from USB DP alternate mode once we have a
+	 * way to handle the modeset restore in that mode during resume
+	 * even if the sink has disappeared while being suspended.
+	 */
+	if (dig_port->tc_legacy_port)
+		icl_tc_phy_disconnect(i915, dig_port);
+}
+
+static void intel_ddi_encoder_reset(struct drm_encoder *drm_encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(drm_encoder);
+	struct drm_i915_private *i915 = to_i915(drm_encoder->dev);
+
+	if (intel_port_is_tc(i915, dig_port->base.port))
+		intel_digital_port_connected(&dig_port->base);
+
+	intel_dp_encoder_reset(drm_encoder);
+}
+
+static void intel_ddi_encoder_destroy(struct drm_encoder *encoder)
+{
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	struct drm_i915_private *i915 = to_i915(encoder->dev);
+
+	intel_dp_encoder_flush_work(encoder);
+
+	if (intel_port_is_tc(i915, dig_port->base.port))
+		icl_tc_phy_disconnect(i915, dig_port);
+
+	drm_encoder_cleanup(encoder);
+	kfree(dig_port);
+}
+
 static const struct drm_encoder_funcs intel_ddi_funcs = {
-	.reset = intel_dp_encoder_reset,
-	.destroy = intel_dp_encoder_destroy,
+	.reset = intel_ddi_encoder_reset,
+	.destroy = intel_ddi_encoder_destroy,
 };
 
 static struct intel_connector *
@@ -4080,16 +4121,16 @@ intel_ddi_max_lanes(struct intel_digital_port *intel_dport)
 
 void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 {
+	struct ddi_vbt_port_info *port_info =
+		&dev_priv->vbt.ddi_port_info[port];
 	struct intel_digital_port *intel_dig_port;
 	struct intel_encoder *intel_encoder;
 	struct drm_encoder *encoder;
 	bool init_hdmi, init_dp, init_lspcon = false;
 	enum pipe pipe;
 
-
-	init_hdmi = (dev_priv->vbt.ddi_port_info[port].supports_dvi ||
-		     dev_priv->vbt.ddi_port_info[port].supports_hdmi);
-	init_dp = dev_priv->vbt.ddi_port_info[port].supports_dp;
+	init_hdmi = port_info->supports_dvi || port_info->supports_hdmi;
+	init_dp = port_info->supports_dp;
 
 	if (intel_bios_is_lspcon_present(dev_priv, port)) {
 		/*
@@ -4130,7 +4171,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_encoder->post_disable = intel_ddi_post_disable;
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
 	intel_encoder->get_config = intel_ddi_get_config;
-	intel_encoder->suspend = intel_dp_encoder_suspend;
+	intel_encoder->suspend = intel_ddi_encoder_suspend;
 	intel_encoder->get_power_domains = intel_ddi_get_power_domains;
 	intel_encoder->type = INTEL_OUTPUT_DDI;
 	intel_encoder->power_domain = intel_port_to_power_domain(port);
@@ -4148,6 +4189,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	intel_dig_port->dp.output_reg = INVALID_MMIO_REG;
 	intel_dig_port->max_lanes = intel_ddi_max_lanes(intel_dig_port);
 	intel_dig_port->aux_ch = intel_bios_port_aux_ch(dev_priv, port);
+
+	intel_dig_port->tc_legacy_port = intel_port_is_tc(dev_priv, port) &&
+					 !port_info->supports_typec_usb &&
+					 !port_info->supports_tbt;
 
 	switch (port) {
 	case PORT_A:
@@ -4207,6 +4252,10 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 	}
 
 	intel_infoframe_init(intel_dig_port);
+
+	if (intel_port_is_tc(dev_priv, port))
+		intel_digital_port_connected(intel_encoder);
+
 	return;
 
 err:

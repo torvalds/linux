@@ -5111,9 +5111,6 @@ static void icl_update_tc_port_type(struct drm_i915_private *dev_priv,
 			      tc_type_name(intel_dig_port->tc_type));
 }
 
-static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
-				  struct intel_digital_port *dig_port);
-
 /*
  * This function implements the first part of the Connect Flow described by our
  * specification, Gen11 TypeC Programming chapter. The rest of the flow (reading
@@ -5148,6 +5145,7 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
 	val = I915_READ(PORT_TX_DFLEXDPPMS);
 	if (!(val & DP_PHY_MODE_STATUS_COMPLETED(tc_port))) {
 		DRM_DEBUG_KMS("DP PHY for TC port %d not ready\n", tc_port);
+		WARN_ON(dig_port->tc_legacy_port);
 		return false;
 	}
 
@@ -5179,8 +5177,8 @@ static bool icl_tc_phy_connect(struct drm_i915_private *dev_priv,
  * See the comment at the connect function. This implements the Disconnect
  * Flow.
  */
-static void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
-				  struct intel_digital_port *dig_port)
+void icl_tc_phy_disconnect(struct drm_i915_private *dev_priv,
+			   struct intel_digital_port *dig_port)
 {
 	enum tc_port tc_port = intel_port_to_tc(dev_priv, dig_port->base.port);
 
@@ -5225,7 +5223,8 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 	bool is_legacy, is_typec, is_tbt;
 	u32 dpsp;
 
-	is_legacy = I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port);
+	is_legacy = intel_dig_port->tc_legacy_port ||
+		I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(tc_port);
 
 	/*
 	 * The spec says we shouldn't be using the ISR bits for detecting
@@ -5237,6 +5236,7 @@ static bool icl_tc_port_connected(struct drm_i915_private *dev_priv,
 
 	if (!is_legacy && !is_typec && !is_tbt) {
 		icl_tc_phy_disconnect(dev_priv, intel_dig_port);
+
 		return false;
 	}
 
@@ -5545,7 +5545,7 @@ intel_dp_connector_unregister(struct drm_connector *connector)
 	intel_connector_unregister(connector);
 }
 
-void intel_dp_encoder_destroy(struct drm_encoder *encoder)
+void intel_dp_encoder_flush_work(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
@@ -5568,9 +5568,14 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	}
 
 	intel_dp_aux_fini(intel_dp);
+}
+
+static void intel_dp_encoder_destroy(struct drm_encoder *encoder)
+{
+	intel_dp_encoder_flush_work(encoder);
 
 	drm_encoder_cleanup(encoder);
-	kfree(intel_dig_port);
+	kfree(enc_to_dig_port(encoder));
 }
 
 void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
