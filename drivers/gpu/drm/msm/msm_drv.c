@@ -291,14 +291,12 @@ static int msm_drm_uninit(struct device *dev)
 	/* clean up display commit/event worker threads */
 	for (i = 0; i < priv->num_crtcs; i++) {
 		if (priv->disp_thread[i].thread) {
-			kthread_flush_worker(&priv->disp_thread[i].worker);
-			kthread_stop(priv->disp_thread[i].thread);
+			kthread_destroy_worker(&priv->disp_thread[i].worker);
 			priv->disp_thread[i].thread = NULL;
 		}
 
 		if (priv->event_thread[i].thread) {
-			kthread_flush_worker(&priv->event_thread[i].worker);
-			kthread_stop(priv->event_thread[i].thread);
+			kthread_destroy_worker(&priv->event_thread[i].worker);
 			priv->event_thread[i].thread = NULL;
 		}
 	}
