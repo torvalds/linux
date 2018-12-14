@@ -1158,7 +1158,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} break;
 
 	case VCHIQ_IOC_AWAIT_COMPLETION: {
-		VCHIQ_AWAIT_COMPLETION_T args;
+		struct vchiq_await_completion args;
 
 		DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 		if (!instance->connected) {
@@ -1301,8 +1301,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			if (msgbufcount != args.msgbufcount) {
 				if (copy_to_user((void __user *)
-					&((VCHIQ_AWAIT_COMPLETION_T *)arg)->
-						msgbufcount,
+					&((struct vchiq_await_completion *)arg)
+						->msgbufcount,
 					&msgbufcount,
 					sizeof(msgbufcount)) != 0) {
 					ret = -EFAULT;
@@ -1725,7 +1725,7 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 				    unsigned int cmd,
 				    unsigned long arg)
 {
-	VCHIQ_AWAIT_COMPLETION_T __user *args;
+	struct vchiq_await_completion __user *args;
 	VCHIQ_COMPLETION_DATA_T __user *completion;
 	VCHIQ_COMPLETION_DATA_T completiontemp;
 	struct vchiq_await_completion32 args32;

@@ -68,13 +68,13 @@ typedef struct {
 	void *bulk_userdata;
 } VCHIQ_COMPLETION_DATA_T;
 
-typedef struct {
+struct vchiq_await_completion {
 	unsigned int count;
 	VCHIQ_COMPLETION_DATA_T *buf;
 	unsigned int msgbufsize;
 	unsigned int msgbufcount; /* IN/OUT */
 	void **msgbufs;
-} VCHIQ_AWAIT_COMPLETION_T;
+};
 
 typedef struct {
 	unsigned int handle;
@@ -111,7 +111,7 @@ typedef struct {
 #define VCHIQ_IOC_QUEUE_BULK_RECEIVE \
 	_IOWR(VCHIQ_IOC_MAGIC, 6, VCHIQ_QUEUE_BULK_TRANSFER_T)
 #define VCHIQ_IOC_AWAIT_COMPLETION \
-	_IOWR(VCHIQ_IOC_MAGIC, 7, VCHIQ_AWAIT_COMPLETION_T)
+	_IOWR(VCHIQ_IOC_MAGIC, 7, struct vchiq_await_completion)
 #define VCHIQ_IOC_DEQUEUE_MESSAGE \
 	_IOWR(VCHIQ_IOC_MAGIC, 8, VCHIQ_DEQUEUE_MESSAGE_T)
 #define VCHIQ_IOC_GET_CLIENT_ID        _IO(VCHIQ_IOC_MAGIC,   9)
