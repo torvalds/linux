@@ -41,7 +41,7 @@
 #define VCHIQ_INVALID_HANDLE (~0)
 
 struct vchiq_create_service {
-	VCHIQ_SERVICE_PARAMS_T params;
+	struct vchiq_service_params params;
 	int is_open;
 	int is_vchi;
 	unsigned int handle;       /* OUT */

@@ -531,7 +531,7 @@ vchiq_connect_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);
 
 extern VCHIQ_SERVICE_T *
 vchiq_add_service_internal(VCHIQ_STATE_T *state,
-	const VCHIQ_SERVICE_PARAMS_T *params, int srvstate,
+	const struct vchiq_service_params *params, int srvstate,
 	VCHIQ_INSTANCE_T instance, VCHIQ_USERDATA_TERM_T userdata_term);
 
 extern VCHIQ_STATUS_T

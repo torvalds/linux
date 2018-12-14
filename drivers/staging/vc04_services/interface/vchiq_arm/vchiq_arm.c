@@ -331,7 +331,7 @@ EXPORT_SYMBOL(vchiq_connect);
 
 VCHIQ_STATUS_T vchiq_add_service(
 	VCHIQ_INSTANCE_T              instance,
-	const VCHIQ_SERVICE_PARAMS_T *params,
+	const struct vchiq_service_params *params,
 	VCHIQ_SERVICE_HANDLE_T       *phandle)
 {
 	VCHIQ_STATUS_T status;
@@ -370,7 +370,7 @@ EXPORT_SYMBOL(vchiq_add_service);
 
 VCHIQ_STATUS_T vchiq_open_service(
 	VCHIQ_INSTANCE_T              instance,
-	const VCHIQ_SERVICE_PARAMS_T *params,
+	const struct vchiq_service_params *params,
 	VCHIQ_SERVICE_HANDLE_T       *phandle)
 {
 	VCHIQ_STATUS_T   status = VCHIQ_ERROR;
@@ -2328,7 +2328,7 @@ vchiq_keepalive_thread_func(void *v)
 	VCHIQ_INSTANCE_T instance;
 	VCHIQ_SERVICE_HANDLE_T ka_handle;
 
-	VCHIQ_SERVICE_PARAMS_T params = {
+	struct vchiq_service_params params = {
 		.fourcc      = VCHIQ_MAKE_FOURCC('K', 'E', 'E', 'P'),
 		.callback    = vchiq_keepalive_vchiq_callback,
 		.version     = KEEPALIVE_VER,

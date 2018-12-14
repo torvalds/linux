@@ -2303,7 +2303,7 @@ fail_free_handler_thread:
 /* Called from application thread when a client or server service is created. */
 VCHIQ_SERVICE_T *
 vchiq_add_service_internal(VCHIQ_STATE_T *state,
-	const VCHIQ_SERVICE_PARAMS_T *params, int srvstate,
+	const struct vchiq_service_params *params, int srvstate,
 	VCHIQ_INSTANCE_T instance, VCHIQ_USERDATA_TERM_T userdata_term)
 {
 	VCHIQ_SERVICE_T *service;

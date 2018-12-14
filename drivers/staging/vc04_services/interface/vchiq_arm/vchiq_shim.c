@@ -639,7 +639,7 @@ int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
 	*handle = (VCHI_SERVICE_HANDLE_T)service;
 
 	if (service) {
-		VCHIQ_SERVICE_PARAMS_T params;
+		struct vchiq_service_params params;
 		VCHIQ_STATUS_T status;
 
 		memset(&params, 0, sizeof(params));

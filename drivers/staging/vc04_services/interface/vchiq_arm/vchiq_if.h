@@ -103,13 +103,13 @@ struct vchiq_service_base {
 	void *userdata;
 };
 
-typedef struct vchiq_service_params_struct {
+struct vchiq_service_params {
 	int fourcc;
 	VCHIQ_CALLBACK_T callback;
 	void *userdata;
 	short version;       /* Increment for non-trivial changes */
 	short version_min;   /* Update for incompatible changes */
-} VCHIQ_SERVICE_PARAMS_T;
+};
 
 struct vchiq_config {
 	unsigned int max_msg_size;
@@ -129,10 +129,10 @@ extern VCHIQ_STATUS_T vchiq_initialise(VCHIQ_INSTANCE_T *pinstance);
 extern VCHIQ_STATUS_T vchiq_shutdown(VCHIQ_INSTANCE_T instance);
 extern VCHIQ_STATUS_T vchiq_connect(VCHIQ_INSTANCE_T instance);
 extern VCHIQ_STATUS_T vchiq_add_service(VCHIQ_INSTANCE_T instance,
-	const VCHIQ_SERVICE_PARAMS_T *params,
+	const struct vchiq_service_params *params,
 	VCHIQ_SERVICE_HANDLE_T *pservice);
 extern VCHIQ_STATUS_T vchiq_open_service(VCHIQ_INSTANCE_T instance,
-	const VCHIQ_SERVICE_PARAMS_T *params,
+	const struct vchiq_service_params *params,
 	VCHIQ_SERVICE_HANDLE_T *pservice);
 extern VCHIQ_STATUS_T vchiq_close_service(VCHIQ_SERVICE_HANDLE_T service);
 extern VCHIQ_STATUS_T vchiq_remove_service(VCHIQ_SERVICE_HANDLE_T service);
