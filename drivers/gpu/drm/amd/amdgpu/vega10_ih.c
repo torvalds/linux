@@ -234,7 +234,13 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_BASE_HI, (ih->gpu_addr >> 40) & 0xff);
 
 	ih_rb_cntl = RREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL);
+	ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
 	ih_rb_cntl = vega10_ih_rb_cntl(ih, ih_rb_cntl);
+	if (adev->irq.ih.use_bus_addr) {
+		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_GPA_ENABLE, 1);
+	} else {
+		ih_chicken = REG_SET_FIELD(ih_chicken, IH_CHICKEN, MC_SPACE_FBPA_ENABLE, 1);
+	}
 	ih_rb_cntl = REG_SET_FIELD(ih_rb_cntl, IH_RB_CNTL, RPTR_REARM,
 				   !!adev->irq.msi_enabled);
 
@@ -247,14 +253,10 @@ static int vega10_ih_irq_init(struct amdgpu_device *adev)
 		WREG32_SOC15(OSSSYS, 0, mmIH_RB_CNTL, ih_rb_cntl);
 	}
 
-	if ((adev->asic_type == CHIP_ARCTURUS || adev->asic_type == CHIP_RENOIR) &&
-		adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		if (adev->irq.ih.use_bus_addr) {
-			ih_chicken = RREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN);
-			ih_chicken |= 0x00000010;
-			WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
-		}
-	}
+	if ((adev->asic_type == CHIP_ARCTURUS
+		&& adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT)
+		|| adev->asic_type == CHIP_RENOIR)
+		WREG32_SOC15(OSSSYS, 0, mmIH_CHICKEN, ih_chicken);
 
 	/* set the writeback address whether it's enabled or not */
 	WREG32_SOC15(OSSSYS, 0, mmIH_RB_WPTR_ADDR_LO,
