@@ -274,11 +274,11 @@ typedef struct vchiq_slot_struct {
 	char data[VCHIQ_SLOT_SIZE];
 } VCHIQ_SLOT_T;
 
-typedef struct vchiq_slot_info_struct {
+struct vchiq_slot_info {
 	/* Use two counters rather than one to avoid the need for a mutex. */
 	short use_count;
 	short release_count;
-} VCHIQ_SLOT_INFO_T;
+};
 
 struct vchiq_service {
 	struct vchiq_service_base base;
@@ -393,7 +393,7 @@ typedef struct vchiq_slot_zero_struct {
 	int platform_data[2];
 	struct vchiq_shared_state master;
 	struct vchiq_shared_state slave;
-	VCHIQ_SLOT_INFO_T slots[VCHIQ_MAX_SLOTS];
+	struct vchiq_slot_info slots[VCHIQ_MAX_SLOTS];
 } VCHIQ_SLOT_ZERO_T;
 
 struct vchiq_state_struct {
@@ -439,7 +439,7 @@ struct vchiq_state_struct {
 
 	char *tx_data;
 	char *rx_data;
-	VCHIQ_SLOT_INFO_T *rx_info;
+	struct vchiq_slot_info *rx_info;
 
 	struct mutex slot_mutex;
 
@@ -498,7 +498,7 @@ struct vchiq_state_struct {
 
 	struct vchiq_service *services[VCHIQ_MAX_SERVICES];
 	struct vchiq_service_quota service_quotas[VCHIQ_MAX_SERVICES];
-	VCHIQ_SLOT_INFO_T slot_info[VCHIQ_MAX_SLOTS];
+	struct vchiq_slot_info slot_info[VCHIQ_MAX_SLOTS];
 
 	VCHIQ_PLATFORM_STATE_T platform_state;
 };

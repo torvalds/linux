@@ -1138,13 +1138,13 @@ queue_message_sync(VCHIQ_STATE_T *state, struct vchiq_service *service,
 }
 
 static inline void
-claim_slot(VCHIQ_SLOT_INFO_T *slot)
+claim_slot(struct vchiq_slot_info *slot)
 {
 	slot->use_count++;
 }
 
 static void
-release_slot(VCHIQ_STATE_T *state, VCHIQ_SLOT_INFO_T *slot_info,
+release_slot(VCHIQ_STATE_T *state, struct vchiq_slot_info *slot_info,
 	     struct vchiq_header *header, struct vchiq_service *service)
 {
 	int release_count;
@@ -2490,7 +2490,7 @@ release_service_messages(struct vchiq_service *service)
 	}
 
 	for (i = state->remote->slot_first; i <= slot_last; i++) {
-		VCHIQ_SLOT_INFO_T *slot_info =
+		struct vchiq_slot_info *slot_info =
 			SLOT_INFO_FROM_INDEX(state, i);
 		if (slot_info->release_count != slot_info->use_count) {
 			char *data =
@@ -3233,7 +3233,7 @@ vchiq_release_message(VCHIQ_SERVICE_HANDLE_T handle,
 		int msgid = header->msgid;
 
 		if (msgid & VCHIQ_MSGID_CLAIMED) {
-			VCHIQ_SLOT_INFO_T *slot_info =
+			struct vchiq_slot_info *slot_info =
 				SLOT_INFO_FROM_INDEX(state, slot_index);
 
 			release_slot(state, slot_info, header, service);
@@ -3389,7 +3389,8 @@ vchiq_dump_shared_state(void *dump_context, VCHIQ_STATE_T *state,
 	vchiq_dump(dump_context, buf, len + 1);
 
 	for (i = shared->slot_first; i <= shared->slot_last; i++) {
-		VCHIQ_SLOT_INFO_T slot_info = *SLOT_INFO_FROM_INDEX(state, i);
+		struct vchiq_slot_info slot_info =
+						*SLOT_INFO_FROM_INDEX(state, i);
 		if (slot_info.use_count != slot_info.release_count) {
 			len = snprintf(buf, sizeof(buf),
 				"      %d: %d/%d", i, slot_info.use_count,
