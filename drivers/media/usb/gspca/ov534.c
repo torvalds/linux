@@ -465,8 +465,6 @@ static const u8 bridge_init_772x[][2] = {
 	{ 0x1c, 0x0a },
 	{ 0x1d, 0x08 }, /* turn on UVC header */
 	{ 0x1d, 0x0e }, /* .. */
-
-	{ 0xe5, 0x04 },
 };
 static const u8 sensor_init_772x[][2] = {
 	{ 0x12, 0x80 },
