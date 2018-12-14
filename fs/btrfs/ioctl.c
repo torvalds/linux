@@ -4438,7 +4438,7 @@ static long btrfs_ioctl_get_dev_stats(struct btrfs_fs_info *fs_info,
 
 	ret = btrfs_get_dev_stats(fs_info, sa);
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
+	if (ret == 0 && copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;
 
 	kfree(sa);
