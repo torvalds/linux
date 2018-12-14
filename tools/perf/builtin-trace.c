@@ -127,6 +127,7 @@ struct trace {
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
+	bool			show_tstamp;
 	bool			show_duration;
 	bool			show_zeros;
 	bool			force;
@@ -1215,7 +1216,10 @@ static size_t trace__fprintf_comm_tid(struct trace *trace, struct thread *thread
 static size_t trace__fprintf_entry_head(struct trace *trace, struct thread *thread,
 					u64 duration, bool duration_calculated, u64 tstamp, FILE *fp)
 {
-	size_t printed = trace__fprintf_tstamp(trace, tstamp, fp);
+	size_t printed = 0;
+
+	if (trace->show_tstamp)
+		printed = trace__fprintf_tstamp(trace, tstamp, fp);
 	if (trace->show_duration)
 		printed += fprintf_duration(duration, duration_calculated, fp);
 	return printed + trace__fprintf_comm_tid(trace, thread, fp);
@@ -3538,6 +3542,8 @@ static int trace__config(const char *var, const char *value, void *arg)
 					       "event selector. use 'perf list' to list available events",
 					       parse_events_option);
 		err = parse_events_option(&o, value, 0);
+	} else if (!strcmp(var, "trace.show_timestamp")) {
+		trace->show_tstamp = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.show_duration")) {
 		trace->show_duration = perf_config_bool(var, value);
 	} else if (!strcmp(var, "trace.show_zeros")) {
@@ -3574,6 +3580,7 @@ int cmd_trace(int argc, const char **argv)
 		},
 		.output = stderr,
 		.show_comm = true,
+		.show_tstamp = true,
 		.show_duration = true,
 		.trace_syscalls = false,
 		.kernel_syscallchains = false,

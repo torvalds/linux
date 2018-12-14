@@ -535,6 +535,9 @@ trace.*::
 	trace.show_duration::
 		Show syscall duration.
 
+	trace.show_timestamp::
+		Show syscall start timestamp.
+
 	trace.show_zeros::
 		Do not suppress syscall arguments that are equal to zero.
 
