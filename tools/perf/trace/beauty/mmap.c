@@ -34,7 +34,7 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 static size_t mmap__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 {
 #include "trace/beauty/generated/mmap_flags_array.c"
-       static DEFINE_STRARRAY(mmap_flags);
+       static DEFINE_STRARRAY(mmap_flags, "MAP_");
 
        return strarray__scnprintf_flags(&strarray__mmap_flags, bf, size, flags);
 }
@@ -78,7 +78,7 @@ static size_t syscall_arg__scnprintf_mremap_flags(char *bf, size_t size,
 static size_t madvise__scnprintf_behavior(int behavior, char *bf, size_t size)
 {
 #include "trace/beauty/generated/madvise_behavior_array.c"
-       static DEFINE_STRARRAY(madvise_advices);
+       static DEFINE_STRARRAY(madvise_advices, "MADV_");
 
        if (behavior < strarray__madvise_advices.nr_entries && strarray__madvise_advices.entries[behavior] != NULL)
                return scnprintf(bf, size, "MADV_%s", strarray__madvise_advices.entries[behavior]);

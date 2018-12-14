@@ -14,7 +14,7 @@
 static size_t mount__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 {
 #include "trace/beauty/generated/mount_flags_array.c"
-	static DEFINE_STRARRAY(mount_flags);
+	static DEFINE_STRARRAY(mount_flags, "MS_");
 
 	return strarray__scnprintf_flags(&strarray__mount_flags, bf, size, flags);
 }

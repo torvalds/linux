@@ -22,7 +22,7 @@ static size_t syscall_arg__scnprintf_fcntl_getfd(char *bf, size_t size, struct s
 static size_t fcntl__scnprintf_getlease(unsigned long val, char *bf, size_t size)
 {
 	static const char *fcntl_setlease[] = { "RDLCK", "WRLCK", "UNLCK", };
-	static DEFINE_STRARRAY(fcntl_setlease);
+	static DEFINE_STRARRAY(fcntl_setlease, "F_");
 
 	return strarray__scnprintf(&strarray__fcntl_setlease, bf, size, "%x", val);
 }

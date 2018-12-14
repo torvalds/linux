@@ -15,7 +15,7 @@ static const char *socket_families[] = {
 	"BLUETOOTH", "IUCV", "RXRPC", "ISDN", "PHONET", "IEEE802154", "CAIF",
 	"ALG", "NFC", "VSOCK",
 };
-DEFINE_STRARRAY(socket_families);
+DEFINE_STRARRAY(socket_families, "PF_");
 
 static size_t af_inet__scnprintf(struct sockaddr *sa, char *bf, size_t size)
 {

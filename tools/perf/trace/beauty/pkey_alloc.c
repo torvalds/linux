@@ -41,7 +41,7 @@ size_t strarray__scnprintf_flags(struct strarray *sa, char *bf, size_t size, uns
 static size_t pkey_alloc__scnprintf_access_rights(int access_rights, char *bf, size_t size)
 {
 #include "trace/beauty/generated/pkey_alloc_access_rights_array.c"
-	static DEFINE_STRARRAY(pkey_alloc_access_rights);
+	static DEFINE_STRARRAY(pkey_alloc_access_rights, "PKEY_");
 
 	return strarray__scnprintf_flags(&strarray__pkey_alloc_access_rights, bf, size, access_rights);
 }

@@ -36,7 +36,7 @@ static size_t ioctl__scnprintf_tty_cmd(int nr, int dir, char *bf, size_t size)
 	"TIOCSERGWILD", "TIOCSERSWILD", "TIOCGLCKTRMIOS", "TIOCSLCKTRMIOS",
 	"TIOCSERGSTRUCT", "TIOCSERGETLSR", "TIOCSERGETMULTI", "TIOCSERSETMULTI",
 	"TIOCMIWAIT", "TIOCGICOUNT", };
-	static DEFINE_STRARRAY(ioctl_tty_cmd);
+	static DEFINE_STRARRAY(ioctl_tty_cmd, "");
 
 	if (nr < strarray__ioctl_tty_cmd.nr_entries && strarray__ioctl_tty_cmd.entries[nr] != NULL)
 		return scnprintf(bf, size, "%s", strarray__ioctl_tty_cmd.entries[nr]);
@@ -47,7 +47,7 @@ static size_t ioctl__scnprintf_tty_cmd(int nr, int dir, char *bf, size_t size)
 static size_t ioctl__scnprintf_drm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/drm_ioctl_array.c"
-	static DEFINE_STRARRAY(drm_ioctl_cmds);
+	static DEFINE_STRARRAY(drm_ioctl_cmds, "");
 
 	if (nr < strarray__drm_ioctl_cmds.nr_entries && strarray__drm_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "DRM_%s", strarray__drm_ioctl_cmds.entries[nr]);
@@ -58,7 +58,7 @@ static size_t ioctl__scnprintf_drm_cmd(int nr, int dir, char *bf, size_t size)
 static size_t ioctl__scnprintf_sndrv_pcm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/sndrv_pcm_ioctl_array.c"
-	static DEFINE_STRARRAY(sndrv_pcm_ioctl_cmds);
+	static DEFINE_STRARRAY(sndrv_pcm_ioctl_cmds, "");
 
 	if (nr < strarray__sndrv_pcm_ioctl_cmds.nr_entries && strarray__sndrv_pcm_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "SNDRV_PCM_%s", strarray__sndrv_pcm_ioctl_cmds.entries[nr]);
@@ -69,7 +69,7 @@ static size_t ioctl__scnprintf_sndrv_pcm_cmd(int nr, int dir, char *bf, size_t s
 static size_t ioctl__scnprintf_sndrv_ctl_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/sndrv_ctl_ioctl_array.c"
-	static DEFINE_STRARRAY(sndrv_ctl_ioctl_cmds);
+	static DEFINE_STRARRAY(sndrv_ctl_ioctl_cmds, "");
 
 	if (nr < strarray__sndrv_ctl_ioctl_cmds.nr_entries && strarray__sndrv_ctl_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "SNDRV_CTL_%s", strarray__sndrv_ctl_ioctl_cmds.entries[nr]);
@@ -80,7 +80,7 @@ static size_t ioctl__scnprintf_sndrv_ctl_cmd(int nr, int dir, char *bf, size_t s
 static size_t ioctl__scnprintf_kvm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/kvm_ioctl_array.c"
-	static DEFINE_STRARRAY(kvm_ioctl_cmds);
+	static DEFINE_STRARRAY(kvm_ioctl_cmds, "");
 
 	if (nr < strarray__kvm_ioctl_cmds.nr_entries && strarray__kvm_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "KVM_%s", strarray__kvm_ioctl_cmds.entries[nr]);
@@ -91,8 +91,8 @@ static size_t ioctl__scnprintf_kvm_cmd(int nr, int dir, char *bf, size_t size)
 static size_t ioctl__scnprintf_vhost_virtio_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/vhost_virtio_ioctl_array.c"
-	static DEFINE_STRARRAY(vhost_virtio_ioctl_cmds);
-	static DEFINE_STRARRAY(vhost_virtio_ioctl_read_cmds);
+	static DEFINE_STRARRAY(vhost_virtio_ioctl_cmds, "");
+	static DEFINE_STRARRAY(vhost_virtio_ioctl_read_cmds, "");
 	struct strarray *s = (dir & _IOC_READ) ? &strarray__vhost_virtio_ioctl_read_cmds : &strarray__vhost_virtio_ioctl_cmds;
 
 	if (nr < s->nr_entries && s->entries[nr] != NULL)
@@ -104,7 +104,7 @@ static size_t ioctl__scnprintf_vhost_virtio_cmd(int nr, int dir, char *bf, size_
 static size_t ioctl__scnprintf_perf_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/perf_ioctl_array.c"
-	static DEFINE_STRARRAY(perf_ioctl_cmds);
+	static DEFINE_STRARRAY(perf_ioctl_cmds, "");
 
 	if (nr < strarray__perf_ioctl_cmds.nr_entries && strarray__perf_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "PERF_%s", strarray__perf_ioctl_cmds.entries[nr]);

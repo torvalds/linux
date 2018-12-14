@@ -28,7 +28,7 @@ size_t syscall_arg__scnprintf_kcmp_idx(char *bf, size_t size, struct syscall_arg
 
 static size_t kcmp__scnprintf_type(int type, char *bf, size_t size)
 {
-	static DEFINE_STRARRAY(kcmp_types);
+	static DEFINE_STRARRAY(kcmp_types, "KCMP_");
 	return strarray__scnprintf(&strarray__kcmp_types, bf, size, "%d", type);
 }
 

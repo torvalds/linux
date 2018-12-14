@@ -7,7 +7,7 @@
 static size_t renameat2__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 {
 #include "trace/beauty/generated/rename_flags_array.c"
-       static DEFINE_STRARRAY(rename_flags);
+       static DEFINE_STRARRAY(rename_flags, "RENAME_");
 
        return strarray__scnprintf_flags(&strarray__rename_flags, bf, size, flags);
 }

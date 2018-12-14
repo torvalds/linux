@@ -9,18 +9,21 @@
 struct strarray {
 	int	    offset;
 	int	    nr_entries;
+	const char *prefix;
 	const char **entries;
 };
 
-#define DEFINE_STRARRAY(array) struct strarray strarray__##array = { \
+#define DEFINE_STRARRAY(array, _prefix) struct strarray strarray__##array = { \
 	.nr_entries = ARRAY_SIZE(array), \
 	.entries = array, \
+	.prefix = _prefix, \
 }
 
-#define DEFINE_STRARRAY_OFFSET(array, off) struct strarray strarray__##array = { \
+#define DEFINE_STRARRAY_OFFSET(array, _prefix, off) struct strarray strarray__##array = { \
 	.offset	    = off, \
 	.nr_entries = ARRAY_SIZE(array), \
 	.entries = array, \
+	.prefix = _prefix, \
 }
 
 size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const char *intfmt, int val);

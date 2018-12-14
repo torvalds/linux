@@ -13,13 +13,13 @@
 
 static size_t prctl__scnprintf_option(int option, char *bf, size_t size)
 {
-	static DEFINE_STRARRAY(prctl_options);
+	static DEFINE_STRARRAY(prctl_options, "PR_");
 	return strarray__scnprintf(&strarray__prctl_options, bf, size, "%d", option);
 }
 
 static size_t prctl__scnprintf_set_mm(int option, char *bf, size_t size)
 {
-	static DEFINE_STRARRAY(prctl_set_mm_options);
+	static DEFINE_STRARRAY(prctl_set_mm_options, "PR_SET_MM_");
 	return strarray__scnprintf(&strarray__prctl_set_mm_options, bf, size, "%d", option);
 }
 

@@ -423,6 +423,7 @@ static size_t syscall_arg__scnprintf_fd_at(char *bf, size_t size,
 					   struct syscall_arg *arg)
 {
 	int fd = arg->val;
+	/* char fd_at_prefix = "AT_FD"; */
 
 	if (fd == AT_FDCWD)
 		return scnprintf(bf, size, "CWD");
@@ -456,13 +457,13 @@ static const char *bpf_cmd[] = {
 	"MAP_CREATE", "MAP_LOOKUP_ELEM", "MAP_UPDATE_ELEM", "MAP_DELETE_ELEM",
 	"MAP_GET_NEXT_KEY", "PROG_LOAD",
 };
-static DEFINE_STRARRAY(bpf_cmd);
+static DEFINE_STRARRAY(bpf_cmd, "BPF_");
 
 static const char *epoll_ctl_ops[] = { "ADD", "DEL", "MOD", };
-static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, 1);
+static DEFINE_STRARRAY_OFFSET(epoll_ctl_ops, "EPOLL_CTL_", 1);
 
 static const char *itimers[] = { "REAL", "VIRTUAL", "PROF", };
-static DEFINE_STRARRAY(itimers);
+static DEFINE_STRARRAY(itimers, "ITIMER_");
 
 static const char *keyctl_options[] = {
 	"GET_KEYRING_ID", "JOIN_SESSION_KEYRING", "UPDATE", "REVOKE", "CHOWN",
@@ -471,7 +472,7 @@ static const char *keyctl_options[] = {
 	"ASSUME_AUTHORITY", "GET_SECURITY", "SESSION_TO_PARENT", "REJECT",
 	"INSTANTIATE_IOV", "INVALIDATE", "GET_PERSISTENT",
 };
-static DEFINE_STRARRAY(keyctl_options);
+static DEFINE_STRARRAY(keyctl_options, "KEYCTL_");
 
 static const char *whences[] = { "SET", "CUR", "END",
 #ifdef SEEK_DATA
@@ -481,7 +482,7 @@ static const char *whences[] = { "SET", "CUR", "END",
 "HOLE",
 #endif
 };
-static DEFINE_STRARRAY(whences);
+static DEFINE_STRARRAY(whences, "SEEK_");
 
 static const char *fcntl_cmds[] = {
 	"DUPFD", "GETFD", "SETFD", "GETFL", "SETFL", "GETLK", "SETLK",
@@ -489,7 +490,7 @@ static const char *fcntl_cmds[] = {
 	"SETLK64", "SETLKW64", "SETOWN_EX", "GETOWN_EX",
 	"GETOWNER_UIDS",
 };
-static DEFINE_STRARRAY(fcntl_cmds);
+static DEFINE_STRARRAY(fcntl_cmds, "F_");
 
 static const char *fcntl_linux_specific_cmds[] = {
 	"SETLEASE", "GETLEASE", "NOTIFY", [5] =	"CANCELLK", "DUPFD_CLOEXEC",
@@ -497,7 +498,7 @@ static const char *fcntl_linux_specific_cmds[] = {
 	"GET_RW_HINT", "SET_RW_HINT", "GET_FILE_RW_HINT", "SET_FILE_RW_HINT",
 };
 
-static DEFINE_STRARRAY_OFFSET(fcntl_linux_specific_cmds, F_LINUX_SPECIFIC_BASE);
+static DEFINE_STRARRAY_OFFSET(fcntl_linux_specific_cmds, "F_", F_LINUX_SPECIFIC_BASE);
 
 static struct strarray *fcntl_cmds_arrays[] = {
 	&strarray__fcntl_cmds,
@@ -511,17 +512,17 @@ static const char *rlimit_resources[] = {
 	"MEMLOCK", "AS", "LOCKS", "SIGPENDING", "MSGQUEUE", "NICE", "RTPRIO",
 	"RTTIME",
 };
-static DEFINE_STRARRAY(rlimit_resources);
+static DEFINE_STRARRAY(rlimit_resources, "RLIMIT_");
 
 static const char *sighow[] = { "BLOCK", "UNBLOCK", "SETMASK", };
-static DEFINE_STRARRAY(sighow);
+static DEFINE_STRARRAY(sighow, "SIG_");
 
 static const char *clockid[] = {
 	"REALTIME", "MONOTONIC", "PROCESS_CPUTIME_ID", "THREAD_CPUTIME_ID",
 	"MONOTONIC_RAW", "REALTIME_COARSE", "MONOTONIC_COARSE", "BOOTTIME",
 	"REALTIME_ALARM", "BOOTTIME_ALARM", "SGI_CYCLE", "TAI"
 };
-static DEFINE_STRARRAY(clockid);
+static DEFINE_STRARRAY(clockid, "CLOCK_");
 
 static size_t syscall_arg__scnprintf_access_mode(char *bf, size_t size,
 						 struct syscall_arg *arg)
