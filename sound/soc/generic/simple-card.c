@@ -30,7 +30,6 @@ struct simple_card_data {
 	struct asoc_simple_jack mic_jack;
 	struct snd_soc_dai_link *dai_link;
 	struct asoc_simple_dai *dais;
-	struct asoc_simple_card_data adata;
 	struct snd_soc_codec_conf *codec_conf;
 };
 
@@ -163,9 +162,6 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	asoc_simple_card_convert_fixup(&dai_props->adata, params);
 
-	/* overwrite by top level adata if exist */
-	asoc_simple_card_convert_fixup(&priv->adata, params);
-
 	return 0;
 }
 
@@ -267,7 +263,9 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
 						     "prefix");
 	}
 
+	asoc_simple_card_parse_convert(dev, top,  PREFIX, &dai_props->adata);
 	asoc_simple_card_parse_convert(dev, node, prefix, &dai_props->adata);
+	asoc_simple_card_parse_convert(dev, np,   NULL,   &dai_props->adata);
 
 	ret = asoc_simple_card_of_parse_tdm(np, dai);
 	if (ret)
@@ -459,8 +457,6 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	ret = asoc_simple_card_of_parse_routing(card, PREFIX);
 	if (ret < 0)
 		return ret;
-
-	asoc_simple_card_parse_convert(dev, top, PREFIX, &priv->adata);
 
 	/* Single/Muti DAI link(s) & New style of DT node */
 	loop		= 1;
