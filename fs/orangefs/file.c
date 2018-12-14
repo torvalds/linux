@@ -386,6 +386,7 @@ static int orangefs_file_release(struct inode *inode, struct file *file)
 			gossip_debug(GOSSIP_INODE_DEBUG,
 			    "flush_racache finished\n");
 		}
+
 	}
 	return 0;
 }
