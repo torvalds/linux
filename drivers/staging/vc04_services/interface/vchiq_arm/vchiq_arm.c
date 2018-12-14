@@ -484,7 +484,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	mutex_unlock(&instance->bulk_waiter_list_mutex);
 
 	if (waiter) {
-		VCHIQ_BULK_T *bulk = waiter->bulk_waiter.bulk;
+		struct vchiq_bulk *bulk = waiter->bulk_waiter.bulk;
 
 		if (bulk) {
 			/* This thread has an outstanding bulk transfer. */
@@ -514,7 +514,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 				     VCHIQ_BULK_MODE_BLOCKING, dir);
 	if ((status != VCHIQ_RETRY) || fatal_signal_pending(current) ||
 		!waiter->bulk_waiter.bulk) {
-		VCHIQ_BULK_T *bulk = waiter->bulk_waiter.bulk;
+		struct vchiq_bulk *bulk = waiter->bulk_waiter.bulk;
 
 		if (bulk) {
 			/* Cancel the signal when the transfer

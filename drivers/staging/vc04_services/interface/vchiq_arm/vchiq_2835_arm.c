@@ -246,7 +246,8 @@ remote_event_signal(struct remote_event *event)
 }
 
 VCHIQ_STATUS_T
-vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, void *offset, int size, int dir)
+vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, int size,
+			int dir)
 {
 	struct vchiq_pagelist_info *pagelistinfo;
 
@@ -270,7 +271,7 @@ vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, void *offset, int size, int dir)
 }
 
 void
-vchiq_complete_bulk(VCHIQ_BULK_T *bulk)
+vchiq_complete_bulk(struct vchiq_bulk *bulk)
 {
 	if (bulk && bulk->remote_data && bulk->actual)
 		free_pagelist((struct vchiq_pagelist_info *)bulk->remote_data,

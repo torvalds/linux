@@ -1216,7 +1216,7 @@ notify_bulks(VCHIQ_SERVICE_T *service, struct vchiq_bulk_queue *queue,
 
 	if (status == VCHIQ_SUCCESS) {
 		while (queue->remove != queue->remote_notify) {
-			VCHIQ_BULK_T *bulk =
+			struct vchiq_bulk *bulk =
 				&queue->bulks[BULK_INDEX(queue->remove)];
 
 			/* Only generate callbacks for non-dummy bulk
@@ -1367,7 +1367,8 @@ abort_outstanding_bulks(VCHIQ_SERVICE_T *service,
 
 	while ((queue->process != queue->local_insert) ||
 		(queue->process != queue->remote_insert)) {
-		VCHIQ_BULK_T *bulk = &queue->bulks[BULK_INDEX(queue->process)];
+		struct vchiq_bulk *bulk =
+				&queue->bulks[BULK_INDEX(queue->process)];
 
 		if (queue->process == queue->remote_insert) {
 			/* fabricate a matching dummy bulk */
@@ -1733,7 +1734,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 				&& (service->srvstate !=
 				VCHIQ_SRVSTATE_FREE)) {
 				struct vchiq_bulk_queue *queue;
-				VCHIQ_BULK_T *bulk;
+				struct vchiq_bulk *bulk;
 
 				queue = (type == VCHIQ_MSG_BULK_RX_DONE) ?
 					&service->bulk_rx : &service->bulk_tx;
@@ -3017,7 +3018,7 @@ VCHIQ_STATUS_T vchiq_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle,
 {
 	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
 	struct vchiq_bulk_queue *queue;
-	VCHIQ_BULK_T *bulk;
+	struct vchiq_bulk *bulk;
 	VCHIQ_STATE_T *state;
 	struct bulk_waiter *bulk_waiter = NULL;
 	const char dir_char = (dir == VCHIQ_BULK_TRANSMIT) ? 't' : 'r';

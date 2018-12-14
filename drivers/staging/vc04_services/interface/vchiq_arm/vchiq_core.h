@@ -239,7 +239,7 @@ typedef enum {
 
 typedef void (*VCHIQ_USERDATA_TERM_T)(void *userdata);
 
-typedef struct vchiq_bulk_struct {
+struct vchiq_bulk {
 	short mode;
 	short dir;
 	void *userdata;
@@ -248,7 +248,7 @@ typedef struct vchiq_bulk_struct {
 	void *remote_data;
 	int remote_size;
 	int actual;
-} VCHIQ_BULK_T;
+};
 
 struct vchiq_bulk_queue {
 	int local_insert;  /* Where to insert the next local bulk */
@@ -257,7 +257,7 @@ struct vchiq_bulk_queue {
 	int remote_notify; /* Bulk to notify the remote client of next (mstr) */
 	int remove;        /* Bulk to notify the local client of, and remove,
 			   ** next */
-	VCHIQ_BULK_T bulks[VCHIQ_NUM_SERVICE_BULKS];
+	struct vchiq_bulk bulks[VCHIQ_NUM_SERVICE_BULKS];
 };
 
 struct remote_event {
@@ -504,7 +504,7 @@ struct vchiq_state_struct {
 };
 
 struct bulk_waiter {
-	VCHIQ_BULK_T *bulk;
+	struct vchiq_bulk *bulk;
 	struct completion event;
 	int actual;
 };
@@ -617,10 +617,11 @@ unlock_service(VCHIQ_SERVICE_T *service);
 ** implementations must be provided. */
 
 extern VCHIQ_STATUS_T
-vchiq_prepare_bulk_data(VCHIQ_BULK_T *bulk, void *offset, int size, int dir);
+vchiq_prepare_bulk_data(struct vchiq_bulk *bulk, void *offset, int size,
+			int dir);
 
 extern void
-vchiq_complete_bulk(VCHIQ_BULK_T *bulk);
+vchiq_complete_bulk(struct vchiq_bulk *bulk);
 
 extern void
 remote_event_signal(struct remote_event *event);
