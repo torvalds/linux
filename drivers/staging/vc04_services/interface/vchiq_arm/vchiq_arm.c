@@ -109,7 +109,7 @@ static const char *const resume_state_names[] = {
 
 static void suspend_timer_callback(struct timer_list *t);
 
-typedef struct user_service_struct {
+struct user_service {
 	VCHIQ_SERVICE_T *service;
 	void *userdata;
 	VCHIQ_INSTANCE_T instance;
@@ -123,7 +123,7 @@ typedef struct user_service_struct {
 	struct completion remove_event;
 	struct completion close_event;
 	VCHIQ_HEADER_T * msg_queue[MSG_QUEUE_SIZE];
-} USER_SERVICE_T;
+};
 
 struct bulk_waiter_node {
 	struct bulk_waiter bulk_waiter;
@@ -545,7 +545,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 
 static VCHIQ_STATUS_T
 add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
-	VCHIQ_HEADER_T *header, USER_SERVICE_T *user_service,
+	VCHIQ_HEADER_T *header, struct user_service *user_service,
 	void *bulk_userdata)
 {
 	VCHIQ_COMPLETION_DATA_T *completion;
@@ -614,11 +614,11 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 	VCHIQ_SERVICE_HANDLE_T handle, void *bulk_userdata)
 {
 	/* How do we ensure the callback goes to the right client?
-	** The service_user data points to a USER_SERVICE_T record containing
-	** the original callback and the user state structure, which contains a
-	** circular buffer for completion records.
+	** The service_user data points to a user_service record
+	** containing the original callback and the user state structure, which
+	** contains a circular buffer for completion records.
 	*/
-	USER_SERVICE_T *user_service;
+	struct user_service *user_service;
 	VCHIQ_SERVICE_T *service;
 	VCHIQ_INSTANCE_T instance;
 	bool skip_completion = false;
@@ -629,7 +629,7 @@ service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
 
 	service = handle_to_service(handle);
 	BUG_ON(!service);
-	user_service = (USER_SERVICE_T *)service->base.userdata;
+	user_service = (struct user_service *)service->base.userdata;
 	instance = user_service->instance;
 
 	if (!instance || instance->closing)
@@ -733,7 +733,7 @@ user_service_free(void *userdata)
 *   close_delivered
 *
 ***************************************************************************/
-static void close_delivered(USER_SERVICE_T *user_service)
+static void close_delivered(struct user_service *user_service)
 {
 	vchiq_log_info(vchiq_arm_log_level,
 		"%s(handle=%x)",
@@ -897,7 +897,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case VCHIQ_IOC_CREATE_SERVICE: {
 		VCHIQ_CREATE_SERVICE_T args;
-		USER_SERVICE_T *user_service = NULL;
+		struct user_service *user_service = NULL;
 		void *userdata;
 		int srvstate;
 
@@ -908,7 +908,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		user_service = kmalloc(sizeof(USER_SERVICE_T), GFP_KERNEL);
+		user_service = kmalloc(sizeof(*user_service), GFP_KERNEL);
 		if (!user_service) {
 			ret = -ENOMEM;
 			break;
@@ -982,7 +982,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_CLOSE_SERVICE:
 	case VCHIQ_IOC_REMOVE_SERVICE: {
 		VCHIQ_SERVICE_HANDLE_T handle = (VCHIQ_SERVICE_HANDLE_T)arg;
-		USER_SERVICE_T *user_service;
+		struct user_service *user_service;
 
 		service = find_service_for_instance(instance, handle);
 		if (!service) {
@@ -1202,7 +1202,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			for (ret = 0; ret < args.count; ret++) {
 				VCHIQ_COMPLETION_DATA_T *completion;
 				VCHIQ_SERVICE_T *service;
-				USER_SERVICE_T *user_service;
+				struct user_service *user_service;
 				VCHIQ_HEADER_T *header;
 
 				if (remove == instance->completion_insert)
@@ -1318,7 +1318,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case VCHIQ_IOC_DEQUEUE_MESSAGE: {
 		VCHIQ_DEQUEUE_MESSAGE_T args;
-		USER_SERVICE_T *user_service;
+		struct user_service *user_service;
 		VCHIQ_HEADER_T *header;
 
 		DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
@@ -1333,7 +1333,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			ret = -EINVAL;
 			break;
 		}
-		user_service = (USER_SERVICE_T *)service->base.userdata;
+		user_service = (struct user_service *)service->base.userdata;
 		if (user_service->is_vchi == 0) {
 			ret = -EINVAL;
 			break;
@@ -1460,8 +1460,8 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 		service = find_closed_service_for_instance(instance, handle);
 		if (service != NULL) {
-			USER_SERVICE_T *user_service =
-				(USER_SERVICE_T *)service->base.userdata;
+			struct user_service *user_service =
+				(struct user_service *)service->base.userdata;
 			close_delivered(user_service);
 		} else
 			ret = -EINVAL;
@@ -2019,7 +2019,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	/* Mark all services for termination... */
 	i = 0;
 	while ((service = next_service_by_instance(state, instance, &i))) {
-		USER_SERVICE_T *user_service = service->base.userdata;
+		struct user_service *user_service = service->base.userdata;
 
 		/* Wake the slot handler if the msg queue is full. */
 		complete(&user_service->remove_event);
@@ -2031,7 +2031,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	/* ...and wait for them to die */
 	i = 0;
 	while ((service = next_service_by_instance(state, instance, &i))) {
-		USER_SERVICE_T *user_service = service->base.userdata;
+		struct user_service *user_service = service->base.userdata;
 
 		wait_for_completion(&service->remove_event);
 
@@ -2067,7 +2067,8 @@ static int vchiq_release(struct inode *inode, struct file *file)
 			instance->completion_remove & (MAX_COMPLETIONS - 1)];
 		service = completion->service_userdata;
 		if (completion->reason == VCHIQ_SERVICE_CLOSED) {
-			USER_SERVICE_T *user_service = service->base.userdata;
+			struct user_service *user_service =
+							service->base.userdata;
 
 			/* Wake any blocked user-thread */
 			if (instance->use_close_delivered)
@@ -2208,7 +2209,8 @@ vchiq_dump_platform_instances(void *dump_context)
 void
 vchiq_dump_platform_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 {
-	USER_SERVICE_T *user_service = (USER_SERVICE_T *)service->base.userdata;
+	struct user_service *user_service =
+			(struct user_service *)service->base.userdata;
 	char buf[80];
 	int len;
 
