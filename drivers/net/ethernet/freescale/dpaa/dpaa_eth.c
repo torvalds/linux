@@ -51,9 +51,9 @@
 #include <linux/percpu.h>
 #include <linux/dma-mapping.h>
 #include <linux/sort.h>
+#include <linux/phy_fixed.h>
 #include <soc/fsl/bman.h>
 #include <soc/fsl/qman.h>
-
 #include "fman.h"
 #include "fman_port.h"
 #include "mac.h"
@@ -2616,6 +2616,7 @@ static const struct net_device_ops dpaa_ops = {
 	.ndo_stop = dpaa_eth_stop,
 	.ndo_tx_timeout = dpaa_tx_timeout,
 	.ndo_get_stats64 = dpaa_get_stats64,
+	.ndo_change_carrier = fixed_phy_change_carrier,
 	.ndo_set_mac_address = dpaa_set_mac_address,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_set_rx_mode = dpaa_set_rx_mode,
