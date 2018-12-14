@@ -127,9 +127,9 @@ typedef void (*VCHI_CALLBACK_T)(void *callback_param, //my service local param
  * '-vec_len' elements. Thus to append a header onto an existing vector,
  * you can do this:
  *
- * void foo(const VCHI_MSG_VECTOR_T *v, int n)
+ * void foo(const struct vchi_msg_vector *v, int n)
  * {
- *    VCHI_MSG_VECTOR_T nv[2];
+ *    struct vchi_msg_vector nv[2];
  *    nv[0].vec_base = my_header;
  *    nv[0].vec_len = sizeof my_header;
  *    nv[1].vec_base = v;
@@ -137,10 +137,10 @@ typedef void (*VCHI_CALLBACK_T)(void *callback_param, //my service local param
  *    ...
  *
  */
-typedef struct vchi_msg_vector {
+struct vchi_msg_vector {
    const void *vec_base;
    int32_t vec_len;
-} VCHI_MSG_VECTOR_T;
+};
 
 // Opaque type for a connection API
 typedef struct opaque_vchi_connection_api_t VCHI_CONNECTION_API_T;
