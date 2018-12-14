@@ -127,6 +127,7 @@ struct trace {
 	bool			show_tool_stats;
 	bool			trace_syscalls;
 	bool			kernel_syscallchains;
+	bool			show_zeros;
 	bool			force;
 	bool			vfs_getname;
 	int			trace_pgfaults;
@@ -1598,6 +1599,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
  			 * strarray for it.
  			 */
 			if (val == 0 &&
+			    !trace->show_zeros &&
 			    !(sc->arg_fmt &&
 			      (sc->arg_fmt[arg.idx].show_zero ||
 			       sc->arg_fmt[arg.idx].scnprintf == SCA_STRARRAY ||
@@ -3526,14 +3528,16 @@ static void trace__set_bpf_map_syscalls(struct trace *trace)
 
 static int trace__config(const char *var, const char *value, void *arg)
 {
+	struct trace *trace = arg;
 	int err = 0;
 
 	if (!strcmp(var, "trace.add_events")) {
-		struct trace *trace = arg;
 		struct option o = OPT_CALLBACK('e', "event", &trace->evlist, "event",
 					       "event selector. use 'perf list' to list available events",
 					       parse_events_option);
 		err = parse_events_option(&o, value, 0);
+	} else if (!strcmp(var, "trace.show_zeros")) {
+		trace->show_zeros = perf_config_bool(var, value);
 	}
 
 	return err;
