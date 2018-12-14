@@ -269,6 +269,8 @@ static inline bool cmdq_full(struct nitrox_cmdq *cmdq, int qlen)
 		smp_mb__after_atomic();
 		return true;
 	}
+	/* sync with other cpus */
+	smp_mb__after_atomic();
 	return false;
 }
 
@@ -324,8 +326,6 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 	spin_lock_bh(&cmdq->backlog_qlock);
 
 	list_for_each_entry_safe(sr, tmp, &cmdq->backlog_head, backlog) {
-		struct skcipher_request *skreq;
-
 		/* submit until space available */
 		if (unlikely(cmdq_full(cmdq, ndev->qlen))) {
 			ret = -ENOSPC;
@@ -337,12 +337,8 @@ static int post_backlog_cmds(struct nitrox_cmdq *cmdq)
 		/* sync with other cpus */
 		smp_mb__after_atomic();
 
-		skreq = sr->skreq;
 		/* post the command */
 		post_se_instr(sr, cmdq);
-
-		/* backlog requests are posted, wakeup with -EINPROGRESS */
-		skcipher_request_complete(skreq, -EINPROGRESS);
 	}
 	spin_unlock_bh(&cmdq->backlog_qlock);
 
@@ -365,7 +361,7 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 		}
 		/* add to backlog list */
 		backlog_list_add(sr, cmdq);
-		return -EBUSY;
+		return -EINPROGRESS;
 	}
 	post_se_instr(sr, cmdq);
 
@@ -382,7 +378,7 @@ static int nitrox_enqueue_request(struct nitrox_softreq *sr)
 int nitrox_process_se_request(struct nitrox_device *ndev,
 			      struct se_crypto_request *req,
 			      completion_t callback,
-			      struct skcipher_request *skreq)
+			      void *cb_arg)
 {
 	struct nitrox_softreq *sr;
 	dma_addr_t ctx_handle = 0;
@@ -399,7 +395,7 @@ int nitrox_process_se_request(struct nitrox_device *ndev,
 	sr->flags = req->flags;
 	sr->gfp = req->gfp;
 	sr->callback = callback;
-	sr->skreq = skreq;
+	sr->cb_arg = cb_arg;
 
 	atomic_set(&sr->status, REQ_NOT_POSTED);
 
@@ -513,7 +509,20 @@ void backlog_qflush_work(struct work_struct *work)
 
 static bool sr_completed(struct nitrox_softreq *sr)
 {
-	return (READ_ONCE(*sr->resp.orh) != READ_ONCE(*sr->resp.completion));
+	u64 orh = READ_ONCE(*sr->resp.orh);
+	unsigned long timeout = jiffies + msecs_to_jiffies(1);
+
+	if ((orh != PENDING_SIG) && (orh & 0xff))
+		return true;
+
+	while (READ_ONCE(*sr->resp.completion) == PENDING_SIG) {
+		if (time_after(jiffies, timeout)) {
+			pr_err("comp not done\n");
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /**
@@ -527,8 +536,6 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 {
 	struct nitrox_device *ndev = cmdq->ndev;
 	struct nitrox_softreq *sr;
-	struct skcipher_request *skreq;
-	completion_t callback;
 	int req_completed = 0, err = 0, budget;
 
 	/* check all pending requests */
@@ -558,15 +565,12 @@ static void process_response_list(struct nitrox_cmdq *cmdq)
 		/* remove from response list */
 		response_list_del(sr, cmdq);
 
-		callback = sr->callback;
-		skreq = sr->skreq;
-
 		/* ORH error code */
 		err = READ_ONCE(*sr->resp.orh) & 0xff;
 		softreq_destroy(sr);
 
-		if (callback)
-			callback(skreq, err);
+		if (sr->callback)
+			sr->callback(sr->cb_arg, err);
 
 		req_completed++;
 	}
