@@ -896,7 +896,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case VCHIQ_IOC_CREATE_SERVICE: {
-		VCHIQ_CREATE_SERVICE_T args;
+		struct vchiq_create_service args;
 		struct user_service *user_service = NULL;
 		void *userdata;
 		int srvstate;
@@ -964,7 +964,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			}
 
 			if (copy_to_user((void __user *)
-				&(((VCHIQ_CREATE_SERVICE_T __user *)
+				&(((struct vchiq_create_service __user *)
 					arg)->handle),
 				(const void *)&service->handle,
 				sizeof(service->handle)) != 0) {
@@ -1530,7 +1530,7 @@ vchiq_compat_ioctl_create_service(
 	unsigned int cmd,
 	unsigned long arg)
 {
-	VCHIQ_CREATE_SERVICE_T __user *args;
+	struct vchiq_create_service __user *args;
 	struct vchiq_create_service32 __user *ptrargs32 =
 		(struct vchiq_create_service32 __user *)arg;
 	struct vchiq_create_service32 args32;

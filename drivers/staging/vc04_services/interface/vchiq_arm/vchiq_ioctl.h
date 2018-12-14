@@ -40,12 +40,12 @@
 #define VCHIQ_IOC_MAGIC 0xc4
 #define VCHIQ_INVALID_HANDLE (~0)
 
-typedef struct {
+struct vchiq_create_service {
 	VCHIQ_SERVICE_PARAMS_T params;
 	int is_open;
 	int is_vchi;
 	unsigned int handle;       /* OUT */
-} VCHIQ_CREATE_SERVICE_T;
+};
 
 typedef struct {
 	unsigned int handle;
@@ -102,7 +102,7 @@ typedef struct {
 #define VCHIQ_IOC_CONNECT              _IO(VCHIQ_IOC_MAGIC,   0)
 #define VCHIQ_IOC_SHUTDOWN             _IO(VCHIQ_IOC_MAGIC,   1)
 #define VCHIQ_IOC_CREATE_SERVICE \
-	_IOWR(VCHIQ_IOC_MAGIC, 2, VCHIQ_CREATE_SERVICE_T)
+	_IOWR(VCHIQ_IOC_MAGIC, 2, struct vchiq_create_service)
 #define VCHIQ_IOC_REMOVE_SERVICE       _IO(VCHIQ_IOC_MAGIC,   3)
 #define VCHIQ_IOC_QUEUE_MESSAGE \
 	_IOW(VCHIQ_IOC_MAGIC,  4, VCHIQ_QUEUE_MESSAGE_T)
