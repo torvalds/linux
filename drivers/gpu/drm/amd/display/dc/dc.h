@@ -39,7 +39,7 @@
 #include "inc/hw/dmcu.h"
 #include "dml/display_mode_lib.h"
 
-#define DC_VER "3.2.12"
+#define DC_VER "3.2.13"
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
