@@ -600,7 +600,6 @@ int tegra_powergate_sequence_power_up(unsigned int id, struct clk *clk,
 }
 EXPORT_SYMBOL(tegra_powergate_sequence_power_up);
 
-#ifdef CONFIG_SMP
 /**
  * tegra_get_cpu_powergate_id() - convert from CPU ID to partition ID
  * @cpuid: CPU partition ID
@@ -660,7 +659,6 @@ int tegra_pmc_cpu_remove_clamping(unsigned int cpuid)
 
 	return tegra_powergate_remove_clamping(id);
 }
-#endif /* CONFIG_SMP */
 
 static int tegra_pmc_restart_notify(struct notifier_block *this,
 				    unsigned long action, void *data)
