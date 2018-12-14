@@ -77,12 +77,6 @@ enum msm_mdp_plane_property {
 	PLANE_PROP_MAX_NUM
 };
 
-struct msm_vblank_ctrl {
-	struct work_struct work;
-	struct list_head event_list;
-	spinlock_t lock;
-};
-
 #define MSM_GPU_MAX_RINGS 4
 #define MAX_H_TILES_PER_DISPLAY 2
 
@@ -227,7 +221,6 @@ struct msm_drm_private {
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
 
-	struct msm_vblank_ctrl vblank_ctrl;
 	struct drm_atomic_state *pm_state;
 };
 
