@@ -61,16 +61,16 @@ typedef struct {
 	VCHIQ_BULK_MODE_T mode;
 } VCHIQ_QUEUE_BULK_TRANSFER_T;
 
-typedef struct {
+struct vchiq_completion_data {
 	VCHIQ_REASON_T reason;
 	VCHIQ_HEADER_T *header;
 	void *service_userdata;
 	void *bulk_userdata;
-} VCHIQ_COMPLETION_DATA_T;
+};
 
 struct vchiq_await_completion {
 	unsigned int count;
-	VCHIQ_COMPLETION_DATA_T *buf;
+	struct vchiq_completion_data *buf;
 	unsigned int msgbufsize;
 	unsigned int msgbufcount; /* IN/OUT */
 	void **msgbufs;

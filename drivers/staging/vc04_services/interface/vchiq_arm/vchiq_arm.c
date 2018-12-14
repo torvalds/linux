@@ -133,7 +133,7 @@ struct bulk_waiter_node {
 
 struct vchiq_instance_struct {
 	VCHIQ_STATE_T *state;
-	VCHIQ_COMPLETION_DATA_T completions[MAX_COMPLETIONS];
+	struct vchiq_completion_data completions[MAX_COMPLETIONS];
 	int completion_insert;
 	int completion_remove;
 	struct completion insert_event;
@@ -548,7 +548,7 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 	VCHIQ_HEADER_T *header, struct user_service *user_service,
 	void *bulk_userdata)
 {
-	VCHIQ_COMPLETION_DATA_T *completion;
+	struct vchiq_completion_data *completion;
 	int insert;
 
 	DEBUG_INITIALISE(g_state.local)
@@ -1200,7 +1200,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			int remove = instance->completion_remove;
 
 			for (ret = 0; ret < args.count; ret++) {
-				VCHIQ_COMPLETION_DATA_T *completion;
+				struct vchiq_completion_data *completion;
 				VCHIQ_SERVICE_T *service;
 				struct user_service *user_service;
 				VCHIQ_HEADER_T *header;
@@ -1281,10 +1281,11 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					unlock_service(service);
 
 				if (copy_to_user((void __user *)(
-					(size_t)args.buf +
-					ret * sizeof(VCHIQ_COMPLETION_DATA_T)),
+					(size_t)args.buf + ret *
+					sizeof(struct vchiq_completion_data)),
 					completion,
-					sizeof(VCHIQ_COMPLETION_DATA_T)) != 0) {
+					sizeof(struct vchiq_completion_data))
+									!= 0) {
 						if (ret == 0)
 							ret = -EFAULT;
 					break;
@@ -1726,8 +1727,8 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 				    unsigned long arg)
 {
 	struct vchiq_await_completion __user *args;
-	VCHIQ_COMPLETION_DATA_T __user *completion;
-	VCHIQ_COMPLETION_DATA_T completiontemp;
+	struct vchiq_completion_data __user *completion;
+	struct vchiq_completion_data completiontemp;
 	struct vchiq_await_completion32 args32;
 	struct vchiq_completion_data32 completion32;
 	unsigned int __user *msgbufcount32;
@@ -1743,7 +1744,7 @@ vchiq_compat_ioctl_await_completion(struct file *file,
 	if (!args)
 		return -EFAULT;
 
-	completion = (VCHIQ_COMPLETION_DATA_T __user *)(args + 1);
+	completion = (struct vchiq_completion_data __user *)(args + 1);
 	msgbufptr = (void * __user *)(completion + 1);
 
 	if (copy_from_user(&args32,
@@ -2060,7 +2061,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	/* Release any closed services */
 	while (instance->completion_remove !=
 		instance->completion_insert) {
-		VCHIQ_COMPLETION_DATA_T *completion;
+		struct vchiq_completion_data *completion;
 		VCHIQ_SERVICE_T *service;
 
 		completion = &instance->completions[
