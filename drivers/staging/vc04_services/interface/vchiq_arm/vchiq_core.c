@@ -357,7 +357,7 @@ static void
 mark_service_closing_internal(VCHIQ_SERVICE_T *service, int sh_thread)
 {
 	VCHIQ_STATE_T *state = service->state;
-	VCHIQ_SERVICE_QUOTA_T *service_quota;
+	struct vchiq_service_quota *service_quota;
 
 	service->closing = 1;
 
@@ -660,7 +660,7 @@ process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 
 			if (VCHIQ_MSG_TYPE(msgid) == VCHIQ_MSG_DATA) {
 				int port = VCHIQ_MSG_SRCPORT(msgid);
-				VCHIQ_SERVICE_QUOTA_T *service_quota =
+				struct vchiq_service_quota *service_quota =
 					&state->service_quotas[port];
 				int count;
 
@@ -808,7 +808,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 	int flags)
 {
 	VCHIQ_SHARED_STATE_T *local;
-	VCHIQ_SERVICE_QUOTA_T *service_quota = NULL;
+	struct vchiq_service_quota *service_quota = NULL;
 	struct vchiq_header *header;
 	int type = VCHIQ_MSG_TYPE(msgid);
 
@@ -2205,7 +2205,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 	state->slot_queue_available = 0;
 
 	for (i = 0; i < VCHIQ_MAX_SERVICES; i++) {
-		VCHIQ_SERVICE_QUOTA_T *service_quota =
+		struct vchiq_service_quota *service_quota =
 			&state->service_quotas[i];
 		init_completion(&service_quota->quota_event);
 	}
@@ -2308,7 +2308,7 @@ vchiq_add_service_internal(VCHIQ_STATE_T *state,
 {
 	VCHIQ_SERVICE_T *service;
 	VCHIQ_SERVICE_T **pservice = NULL;
-	VCHIQ_SERVICE_QUOTA_T *service_quota;
+	struct vchiq_service_quota *service_quota;
 	int i;
 
 	service = kmalloc(sizeof(VCHIQ_SERVICE_T), GFP_KERNEL);
@@ -3300,7 +3300,7 @@ vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T handle,
 			break;
 
 		case VCHIQ_SERVICE_OPTION_SLOT_QUOTA: {
-			VCHIQ_SERVICE_QUOTA_T *service_quota =
+			struct vchiq_service_quota *service_quota =
 				&service->state->service_quotas[
 					service->localport];
 			if (value == 0)
@@ -3320,7 +3320,7 @@ vchiq_set_service_option(VCHIQ_SERVICE_HANDLE_T handle,
 		} break;
 
 		case VCHIQ_SERVICE_OPTION_MESSAGE_QUOTA: {
-			VCHIQ_SERVICE_QUOTA_T *service_quota =
+			struct vchiq_service_quota *service_quota =
 				&service->state->service_quotas[
 					service->localport];
 			if (value == 0)
@@ -3482,7 +3482,7 @@ vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
 
 	if (service->srvstate != VCHIQ_SRVSTATE_FREE) {
 		char remoteport[30];
-		VCHIQ_SERVICE_QUOTA_T *service_quota =
+		struct vchiq_service_quota *service_quota =
 			&service->state->service_quotas[service->localport];
 		int fourcc = service->base.fourcc;
 		int tx_pending, rx_pending;

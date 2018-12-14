@@ -332,14 +332,14 @@ typedef struct vchiq_service_struct {
 	statically allocated, since for accounting reasons a service's slot
 	usage is carried over between users of the same port number.
  */
-typedef struct vchiq_service_quota_struct {
+struct vchiq_service_quota {
 	unsigned short slot_quota;
 	unsigned short slot_use_count;
 	unsigned short message_quota;
 	unsigned short message_use_count;
 	struct completion quota_event;
 	int previous_tx_index;
-} VCHIQ_SERVICE_QUOTA_T;
+};
 
 typedef struct vchiq_shared_state_struct {
 
@@ -497,7 +497,7 @@ struct vchiq_state_struct {
 	} stats;
 
 	VCHIQ_SERVICE_T * services[VCHIQ_MAX_SERVICES];
-	VCHIQ_SERVICE_QUOTA_T service_quotas[VCHIQ_MAX_SERVICES];
+	struct vchiq_service_quota service_quotas[VCHIQ_MAX_SERVICES];
 	VCHIQ_SLOT_INFO_T slot_info[VCHIQ_MAX_SLOTS];
 
 	VCHIQ_PLATFORM_STATE_T platform_state;
