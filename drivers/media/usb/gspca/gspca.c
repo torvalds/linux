@@ -912,13 +912,14 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 }
 
 static int wxh_to_mode(struct gspca_dev *gspca_dev,
-			int width, int height)
+			int width, int height, u32 pixelformat)
 {
 	int i;
 
 	for (i = 0; i < gspca_dev->cam.nmodes; i++) {
 		if (width == gspca_dev->cam.cam_mode[i].width
-		    && height == gspca_dev->cam.cam_mode[i].height)
+		    && height == gspca_dev->cam.cam_mode[i].height
+		    && pixelformat == gspca_dev->cam.cam_mode[i].pixelformat)
 			return i;
 	}
 	return -EINVAL;
@@ -1152,7 +1153,8 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 	int mode;
 	__u32 i;
 
-	mode = wxh_to_mode(gspca_dev, fival->width, fival->height);
+	mode = wxh_to_mode(gspca_dev, fival->width, fival->height,
+			   fival->pixel_format);
 	if (mode < 0)
 		return -EINVAL;
 
