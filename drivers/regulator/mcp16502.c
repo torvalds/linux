@@ -497,6 +497,37 @@ static int mcp16502_probe(struct i2c_client *client,
 	return 0;
 }
 
+#ifdef CONFIG_SUSPEND
+static int mcp16502_suspend_noirq(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mcp16502 *mcp = i2c_get_clientdata(client);
+
+	mcp16502_gpio_set_mode(mcp, MCP16502_OPMODE_LPM);
+
+	return 0;
+}
+
+static int mcp16502_resume_noirq(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct mcp16502 *mcp = i2c_get_clientdata(client);
+
+	mcp16502_gpio_set_mode(mcp, MCP16502_OPMODE_ACTIVE);
+
+	return 0;
+}
+#else /* !CONFIG_SUSPEND */
+#define mcp16502_suspend NULL
+#define mcp16502_resume NULL
+#endif /* !CONFIG_SUSPEND */
+
+#ifdef CONFIG_PM
+static const struct dev_pm_ops mcp16502_pm_ops = {
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mcp16502_suspend_noirq,
+				     mcp16502_resume_noirq)
+};
+#endif
 static const struct i2c_device_id mcp16502_i2c_id[] = {
 	{ "mcp16502", 0 },
 	{ }
@@ -508,6 +539,9 @@ static struct i2c_driver mcp16502_drv = {
 	.driver		= {
 		.name	= "mcp16502-regulator",
 		.of_match_table	= of_match_ptr(mcp16502_ids),
+#ifdef CONFIG_PM
+		.pm = &mcp16502_pm_ops,
+#endif
 	},
 	.id_table	= mcp16502_i2c_id,
 };
