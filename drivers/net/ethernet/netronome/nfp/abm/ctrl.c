@@ -17,6 +17,8 @@
 #define NFP_NUM_BANDS_SYM_NAME	"_abi_pci_dscp_num_band_%u"
 #define NFP_ACT_MASK_SYM_NAME	"_abi_nfd_out_q_actions_%u"
 
+#define NFP_RED_SUPPORT_SYM_NAME	"_abi_nfd_out_red_offload_%u"
+
 #define NFP_QLVL_SYM_NAME	"_abi_nfd_out_q_lvls_%u%s"
 #define NFP_QLVL_STRIDE		16
 #define NFP_QLVL_BLOG_BYTES	0
@@ -358,6 +360,12 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 
 	abm->pf_id = nfp_cppcore_pcie_unit(pf->cpp);
 
+	/* Check if Qdisc offloads are supported */
+	res = nfp_pf_rtsym_read_optional(pf, NFP_RED_SUPPORT_SYM_NAME, 1);
+	if (res < 0)
+		return res;
+	abm->red_support = res;
+
 	/* Read count of prios and prio bands */
 	res = nfp_pf_rtsym_read_optional(pf, NFP_NUM_BANDS_SYM_NAME, 1);
 	if (res < 0)
@@ -390,6 +398,9 @@ int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm)
 	}
 
 	/* Find level and stat symbols */
+	if (!abm->red_support)
+		return 0;
+
 	sym = nfp_abm_ctrl_find_q_rtsym(abm, NFP_QLVL_SYM_NAME,
 					NFP_QLVL_STRIDE);
 	if (IS_ERR(sym))

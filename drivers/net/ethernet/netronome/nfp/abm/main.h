@@ -40,6 +40,7 @@ enum nfp_abm_q_action {
  * @app:	back pointer to nfp_app
  * @pf_id:	ID of our PF link
  *
+ * @red_support:	is RED offload supported
  * @num_prios:	number of supported DSCP priorities
  * @num_bands:	number of supported DSCP priority bands
  * @action_mask:	bitmask of supported actions
@@ -63,6 +64,7 @@ struct nfp_abm {
 	struct nfp_app *app;
 	unsigned int pf_id;
 
+	unsigned int red_support;
 	unsigned int num_prios;
 	unsigned int num_bands;
 	unsigned int action_mask;
