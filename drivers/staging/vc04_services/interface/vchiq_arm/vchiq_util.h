@@ -54,7 +54,7 @@
 
 #include "vchiq_if.h"
 
-typedef struct {
+struct vchiu_queue {
 	int size;
 	int read;
 	int write;
@@ -64,17 +64,18 @@ typedef struct {
 	struct completion push;
 
 	struct vchiq_header **storage;
-} VCHIU_QUEUE_T;
+};
 
-extern int  vchiu_queue_init(VCHIU_QUEUE_T *queue, int size);
-extern void vchiu_queue_delete(VCHIU_QUEUE_T *queue);
+extern int  vchiu_queue_init(struct vchiu_queue *queue, int size);
+extern void vchiu_queue_delete(struct vchiu_queue *queue);
 
-extern int vchiu_queue_is_empty(VCHIU_QUEUE_T *queue);
-extern int vchiu_queue_is_full(VCHIU_QUEUE_T *queue);
+extern int vchiu_queue_is_empty(struct vchiu_queue *queue);
+extern int vchiu_queue_is_full(struct vchiu_queue *queue);
 
-extern void vchiu_queue_push(VCHIU_QUEUE_T *queue, struct vchiq_header *header);
+extern void vchiu_queue_push(struct vchiu_queue *queue,
+			     struct vchiq_header *header);
 
-extern struct vchiq_header *vchiu_queue_peek(VCHIU_QUEUE_T *queue);
-extern struct vchiq_header *vchiu_queue_pop(VCHIU_QUEUE_T *queue);
+extern struct vchiq_header *vchiu_queue_peek(struct vchiu_queue *queue);
+extern struct vchiq_header *vchiu_queue_pop(struct vchiu_queue *queue);
 
 #endif

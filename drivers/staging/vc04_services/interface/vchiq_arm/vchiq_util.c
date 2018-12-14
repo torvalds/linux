@@ -38,7 +38,7 @@ static inline int is_pow2(int i)
 	return i && !(i & (i - 1));
 }
 
-int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
+int vchiu_queue_init(struct vchiu_queue *queue, int size)
 {
 	WARN_ON(!is_pow2(size));
 
@@ -59,22 +59,22 @@ int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
 	return 1;
 }
 
-void vchiu_queue_delete(VCHIU_QUEUE_T *queue)
+void vchiu_queue_delete(struct vchiu_queue *queue)
 {
 	kfree(queue->storage);
 }
 
-int vchiu_queue_is_empty(VCHIU_QUEUE_T *queue)
+int vchiu_queue_is_empty(struct vchiu_queue *queue)
 {
 	return queue->read == queue->write;
 }
 
-int vchiu_queue_is_full(VCHIU_QUEUE_T *queue)
+int vchiu_queue_is_full(struct vchiu_queue *queue)
 {
 	return queue->write == queue->read + queue->size;
 }
 
-void vchiu_queue_push(VCHIU_QUEUE_T *queue, struct vchiq_header *header)
+void vchiu_queue_push(struct vchiu_queue *queue, struct vchiq_header *header)
 {
 	if (!queue->initialized)
 		return;
@@ -90,7 +90,7 @@ void vchiu_queue_push(VCHIU_QUEUE_T *queue, struct vchiq_header *header)
 	complete(&queue->push);
 }
 
-struct vchiq_header *vchiu_queue_peek(VCHIU_QUEUE_T *queue)
+struct vchiq_header *vchiu_queue_peek(struct vchiu_queue *queue)
 {
 	while (queue->write == queue->read) {
 		if (wait_for_completion_killable(&queue->push))
@@ -102,7 +102,7 @@ struct vchiq_header *vchiu_queue_peek(VCHIU_QUEUE_T *queue)
 	return queue->storage[queue->read & (queue->size - 1)];
 }
 
-struct vchiq_header *vchiu_queue_pop(VCHIU_QUEUE_T *queue)
+struct vchiq_header *vchiu_queue_pop(struct vchiu_queue *queue)
 {
 	struct vchiq_header *header;
 
