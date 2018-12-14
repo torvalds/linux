@@ -1069,7 +1069,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case VCHIQ_IOC_QUEUE_BULK_TRANSMIT:
 	case VCHIQ_IOC_QUEUE_BULK_RECEIVE: {
-		VCHIQ_QUEUE_BULK_TRANSFER_T args;
+		struct vchiq_queue_bulk_transfer args;
 		struct bulk_waiter_node *waiter = NULL;
 
 		VCHIQ_BULK_DIR_T dir =
@@ -1149,7 +1149,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				waiter, current->pid);
 
 			if (copy_to_user((void __user *)
-				&(((VCHIQ_QUEUE_BULK_TRANSFER_T __user *)
+				&(((struct vchiq_queue_bulk_transfer __user *)
 					arg)->mode),
 				(const void *)&mode_waiting,
 				sizeof(mode_waiting)) != 0)
@@ -1660,7 +1660,7 @@ vchiq_compat_ioctl_queue_bulk(struct file *file,
 			      unsigned int cmd,
 			      unsigned long arg)
 {
-	VCHIQ_QUEUE_BULK_TRANSFER_T __user *args;
+	struct vchiq_queue_bulk_transfer __user *args;
 	struct vchiq_queue_bulk_transfer32 args32;
 	struct vchiq_queue_bulk_transfer32 *ptrargs32 =
 		(struct vchiq_queue_bulk_transfer32 *)arg;

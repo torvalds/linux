@@ -53,13 +53,13 @@ typedef struct {
 	const struct vchiq_element __user *elements;
 } VCHIQ_QUEUE_MESSAGE_T;
 
-typedef struct {
+struct vchiq_queue_bulk_transfer {
 	unsigned int handle;
 	void *data;
 	unsigned int size;
 	void *userdata;
 	VCHIQ_BULK_MODE_T mode;
-} VCHIQ_QUEUE_BULK_TRANSFER_T;
+};
 
 struct vchiq_completion_data {
 	VCHIQ_REASON_T reason;
@@ -107,9 +107,9 @@ struct vchiq_dump_mem {
 #define VCHIQ_IOC_QUEUE_MESSAGE \
 	_IOW(VCHIQ_IOC_MAGIC,  4, VCHIQ_QUEUE_MESSAGE_T)
 #define VCHIQ_IOC_QUEUE_BULK_TRANSMIT \
-	_IOWR(VCHIQ_IOC_MAGIC, 5, VCHIQ_QUEUE_BULK_TRANSFER_T)
+	_IOWR(VCHIQ_IOC_MAGIC, 5, struct vchiq_queue_bulk_transfer)
 #define VCHIQ_IOC_QUEUE_BULK_RECEIVE \
-	_IOWR(VCHIQ_IOC_MAGIC, 6, VCHIQ_QUEUE_BULK_TRANSFER_T)
+	_IOWR(VCHIQ_IOC_MAGIC, 6, struct vchiq_queue_bulk_transfer)
 #define VCHIQ_IOC_AWAIT_COMPLETION \
 	_IOWR(VCHIQ_IOC_MAGIC, 7, struct vchiq_await_completion)
 #define VCHIQ_IOC_DEQUEUE_MESSAGE \
