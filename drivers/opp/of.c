@@ -114,19 +114,25 @@ static struct device_node *of_parse_required_opp(struct device_node *np,
 static struct opp_table *_find_table_of_opp_np(struct device_node *opp_np)
 {
 	struct opp_table *opp_table;
-	struct dev_pm_opp *opp;
+	struct device_node *opp_table_np;
 
 	lockdep_assert_held(&opp_table_lock);
 
+	opp_table_np = of_get_parent(opp_np);
+	if (!opp_table_np)
+		goto err;
+
+	/* It is safe to put the node now as all we need now is its address */
+	of_node_put(opp_table_np);
+
 	list_for_each_entry(opp_table, &opp_tables, node) {
-		opp = _find_opp_of_np(opp_table, opp_np);
-		if (opp) {
-			dev_pm_opp_put(opp);
+		if (opp_table_np == opp_table->np) {
 			_get_opp_table_kref(opp_table);
 			return opp_table;
 		}
 	}
 
+err:
 	return ERR_PTR(-ENODEV);
 }
 
@@ -385,11 +391,9 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 			      struct opp_table *opp_table)
 {
 	u32 *microvolt, *microamp = NULL;
-	int supplies, vcount, icount, ret, i, j;
+	int supplies = opp_table->regulator_count, vcount, icount, ret, i, j;
 	struct property *prop = NULL;
 	char name[NAME_MAX];
-
-	supplies = opp_table->regulator_count ? opp_table->regulator_count : 1;
 
 	/* Search for "opp-microvolt-<name>" */
 	if (opp_table->prop_name) {
@@ -405,13 +409,27 @@ static int opp_parse_supplies(struct dev_pm_opp *opp, struct device *dev,
 
 		/* Missing property isn't a problem, but an invalid entry is */
 		if (!prop) {
-			if (!opp_table->regulator_count)
+			if (unlikely(supplies == -1)) {
+				/* Initialize regulator_count */
+				opp_table->regulator_count = 0;
+				return 0;
+			}
+
+			if (!supplies)
 				return 0;
 
 			dev_err(dev, "%s: opp-microvolt missing although OPP managing regulators\n",
 				__func__);
 			return -EINVAL;
 		}
+	}
+
+	if (unlikely(supplies == -1)) {
+		/* Initialize regulator_count */
+		supplies = opp_table->regulator_count = 1;
+	} else if (unlikely(!supplies)) {
+		dev_err(dev, "%s: opp-microvolt wasn't expected\n", __func__);
+		return -EINVAL;
 	}
 
 	vcount = of_property_count_u32_elems(opp->np, name);
@@ -975,19 +993,19 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_get_sharing_cpus);
  * Returns the performance state of the OPP pointed out by the "required-opps"
  * property at @index in @np.
  *
- * Return: Positive performance state on success, otherwise 0 on errors.
+ * Return: Zero or positive performance state on success, otherwise negative
+ * value on errors.
  */
-unsigned int of_get_required_opp_performance_state(struct device_node *np,
-						   int index)
+int of_get_required_opp_performance_state(struct device_node *np, int index)
 {
 	struct dev_pm_opp *opp;
 	struct device_node *required_np;
 	struct opp_table *opp_table;
-	unsigned int pstate = 0;
+	int pstate = -EINVAL;
 
 	required_np = of_parse_required_opp(np, index);
 	if (!required_np)
-		return 0;
+		return -EINVAL;
 
 	opp_table = _find_table_of_opp_np(required_np);
 	if (IS_ERR(opp_table)) {
