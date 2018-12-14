@@ -1386,8 +1386,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	info->supports_dp = is_dp;
 	info->supports_edp = is_edp;
 
-	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d\n",
-		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt);
+	if (bdb_version >= 195)
+		info->supports_typec_usb = child->dp_usb_type_c;
+
+	if (bdb_version >= 209)
+		info->supports_tbt = child->tbt;
+
+	DRM_DEBUG_KMS("Port %c VBT info: DP:%d HDMI:%d DVI:%d EDP:%d CRT:%d TCUSB:%d TBT:%d\n",
+		      port_name(port), is_dp, is_hdmi, is_dvi, is_edp, is_crt,
+		      info->supports_typec_usb, info->supports_tbt);
 
 	if (is_edp && is_dvi)
 		DRM_DEBUG_KMS("Internal DP port %c is TMDS compatible\n",
