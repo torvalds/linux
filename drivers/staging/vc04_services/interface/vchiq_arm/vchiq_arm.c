@@ -153,12 +153,12 @@ struct vchiq_instance_struct {
 	VCHIQ_DEBUGFS_NODE_T debugfs_node;
 };
 
-typedef struct dump_context_struct {
+struct dump_context {
 	char __user *buf;
 	size_t actual;
 	size_t space;
 	loff_t offset;
-} DUMP_CONTEXT_T;
+};
 
 static struct cdev    vchiq_cdev;
 static dev_t          vchiq_devid;
@@ -2111,7 +2111,7 @@ out:
 void
 vchiq_dump(void *dump_context, const char *str, int len)
 {
-	DUMP_CONTEXT_T *context = (DUMP_CONTEXT_T *)dump_context;
+	struct dump_context *context = (struct dump_context *)dump_context;
 
 	if (context->actual < context->space) {
 		int copy_bytes;
@@ -2239,7 +2239,7 @@ static ssize_t
 vchiq_read(struct file *file, char __user *buf,
 	size_t count, loff_t *ppos)
 {
-	DUMP_CONTEXT_T context;
+	struct dump_context context;
 
 	context.buf = buf;
 	context.actual = 0;
