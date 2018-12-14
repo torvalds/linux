@@ -630,6 +630,7 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 		if (!(dpaa2_dq_flags(ret) & DPAA2_DQ_STAT_VALIDFRAME))
 			ret = NULL;
 	} else {
+		prefetch(&s->vaddr[s->idx]);
 		*is_last = 0;
 	}
 
