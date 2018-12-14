@@ -881,6 +881,15 @@ static int iwl_mvm_sar_geo_init(struct iwl_mvm *mvm)
 	int ret, i, j;
 	u16 cmd_wide_id =  WIDE_ID(PHY_OPS_GROUP, GEO_TX_POWER_LIMIT);
 
+	/*
+	 * This command is not supported on earlier firmware versions.
+	 * Unfortunately, we don't have a TLV API flag to rely on, so
+	 * rely on the major version which is in the first byte of
+	 * ucode_ver.
+	 */
+	if (IWL_UCODE_SERIAL(mvm->fw->ucode_ver) < 41)
+		return 0;
+
 	ret = iwl_mvm_sar_get_wgds_table(mvm);
 	if (ret < 0) {
 		IWL_DEBUG_RADIO(mvm,
