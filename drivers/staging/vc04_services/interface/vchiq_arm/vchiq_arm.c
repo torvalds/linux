@@ -1040,7 +1040,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} break;
 
 	case VCHIQ_IOC_QUEUE_MESSAGE: {
-		VCHIQ_QUEUE_MESSAGE_T args;
+		struct vchiq_queue_message args;
 
 		if (copy_from_user
 			 (&args, (const void __user *)arg,
@@ -1593,7 +1593,7 @@ vchiq_compat_ioctl_queue_message(struct file *file,
 				 unsigned int cmd,
 				 unsigned long arg)
 {
-	VCHIQ_QUEUE_MESSAGE_T *args;
+	struct vchiq_queue_message *args;
 	struct vchiq_element __user *elements;
 	struct vchiq_queue_message32 args32;
 	unsigned int count;

@@ -47,11 +47,11 @@ struct vchiq_create_service {
 	unsigned int handle;       /* OUT */
 };
 
-typedef struct {
+struct vchiq_queue_message {
 	unsigned int handle;
 	unsigned int count;
 	const struct vchiq_element __user *elements;
-} VCHIQ_QUEUE_MESSAGE_T;
+};
 
 struct vchiq_queue_bulk_transfer {
 	unsigned int handle;
@@ -105,7 +105,7 @@ struct vchiq_dump_mem {
 	_IOWR(VCHIQ_IOC_MAGIC, 2, struct vchiq_create_service)
 #define VCHIQ_IOC_REMOVE_SERVICE       _IO(VCHIQ_IOC_MAGIC,   3)
 #define VCHIQ_IOC_QUEUE_MESSAGE \
-	_IOW(VCHIQ_IOC_MAGIC,  4, VCHIQ_QUEUE_MESSAGE_T)
+	_IOW(VCHIQ_IOC_MAGIC,  4, struct vchiq_queue_message)
 #define VCHIQ_IOC_QUEUE_BULK_TRANSMIT \
 	_IOWR(VCHIQ_IOC_MAGIC, 5, struct vchiq_queue_bulk_transfer)
 #define VCHIQ_IOC_QUEUE_BULK_RECEIVE \
