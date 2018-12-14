@@ -97,11 +97,11 @@ typedef VCHIQ_STATUS_T (*VCHIQ_CALLBACK_T)(VCHIQ_REASON_T,
 					   struct vchiq_header *,
 					   VCHIQ_SERVICE_HANDLE_T, void *);
 
-typedef struct vchiq_service_base_struct {
+struct vchiq_service_base {
 	int fourcc;
 	VCHIQ_CALLBACK_T callback;
 	void *userdata;
-} VCHIQ_SERVICE_BASE_T;
+};
 
 typedef struct vchiq_service_params_struct {
 	int fourcc;

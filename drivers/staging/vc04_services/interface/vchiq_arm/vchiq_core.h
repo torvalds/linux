@@ -281,7 +281,7 @@ typedef struct vchiq_slot_info_struct {
 } VCHIQ_SLOT_INFO_T;
 
 typedef struct vchiq_service_struct {
-	VCHIQ_SERVICE_BASE_T base;
+	struct vchiq_service_base base;
 	VCHIQ_SERVICE_HANDLE_T handle;
 	unsigned int ref_count;
 	int srvstate;
