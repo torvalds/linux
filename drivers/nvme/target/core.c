@@ -663,7 +663,7 @@ static void nvmet_set_error(struct nvmet_req *req, u16 status)
 
 	req->rsp->status = cpu_to_le16(status << 1);
 
-	if (!ctrl || req->error_loc == -1)
+	if (!ctrl || req->error_loc == (u16)-1)
 		return;
 
 	spin_lock_irqsave(&ctrl->error_lock, flags);
