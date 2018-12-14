@@ -285,7 +285,7 @@ struct discard_cmd {
 	struct block_device *bdev;	/* bdev */
 	unsigned short ref;		/* reference count */
 	unsigned char state;		/* state */
-	unsigned char issuing;		/* issuing discard */
+	unsigned char queued;		/* queued discard */
 	int error;			/* bio error */
 	spinlock_t lock;		/* for state/bio_ref updating */
 	unsigned short bio_ref;		/* bio reference count */
@@ -327,7 +327,7 @@ struct discard_cmd_control {
 	unsigned int undiscard_blks;		/* # of undiscard blocks */
 	unsigned int next_pos;			/* next discard position */
 	atomic_t issued_discard;		/* # of issued discard */
-	atomic_t issing_discard;		/* # of issing discard */
+	atomic_t queued_discard;		/* # of queued discard */
 	atomic_t discard_cmd_cnt;		/* # of cached cmd count */
 	struct rb_root_cached root;		/* root of discard rb-tree */
 	bool rbtree_check;			/* config for consistence check */
@@ -892,7 +892,7 @@ struct flush_cmd_control {
 	struct task_struct *f2fs_issue_flush;	/* flush thread */
 	wait_queue_head_t flush_wait_queue;	/* waiting queue for wake-up */
 	atomic_t issued_flush;			/* # of issued flushes */
-	atomic_t issing_flush;			/* # of issing flushes */
+	atomic_t queued_flush;			/* # of queued flushes */
 	struct llist_head issue_list;		/* list for command issue */
 	struct llist_node *dispatch_list;	/* list for command dispatch */
 };
@@ -2166,8 +2166,8 @@ static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 		get_pages(sbi, F2FS_WB_CP_DATA) ||
 		get_pages(sbi, F2FS_DIO_READ) ||
 		get_pages(sbi, F2FS_DIO_WRITE) ||
-		atomic_read(&SM_I(sbi)->dcc_info->issing_discard) ||
-		atomic_read(&SM_I(sbi)->fcc_info->issing_flush))
+		atomic_read(&SM_I(sbi)->dcc_info->queued_discard) ||
+		atomic_read(&SM_I(sbi)->fcc_info->queued_flush))
 		return false;
 	return f2fs_time_over(sbi, type);
 }
