@@ -270,9 +270,9 @@ typedef struct opaque_platform_state_t *VCHIQ_PLATFORM_STATE_T;
 
 typedef struct vchiq_state_struct VCHIQ_STATE_T;
 
-typedef struct vchiq_slot_struct {
+struct vchiq_slot {
 	char data[VCHIQ_SLOT_SIZE];
-} VCHIQ_SLOT_T;
+};
 
 struct vchiq_slot_info {
 	/* Use two counters rather than one to avoid the need for a mutex. */
@@ -404,7 +404,7 @@ struct vchiq_state_struct {
 
 	struct vchiq_shared_state *local;
 	struct vchiq_shared_state *remote;
-	VCHIQ_SLOT_T *slot_data;
+	struct vchiq_slot *slot_data;
 
 	unsigned short default_slot_quota;
 	unsigned short default_message_quota;

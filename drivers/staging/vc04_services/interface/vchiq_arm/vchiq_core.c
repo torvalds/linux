@@ -2180,7 +2180,7 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 
 	state->local = local;
 	state->remote = remote;
-	state->slot_data = (VCHIQ_SLOT_T *)slot_zero;
+	state->slot_data = (struct vchiq_slot *)slot_zero;
 
 	/*
 		initialize events and mutexes
