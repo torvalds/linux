@@ -3,6 +3,7 @@ socket
 psock_fanout
 psock_snd
 psock_tpacket
+reuseport_addr_any
 reuseport_bpf
 reuseport_bpf_cpu
 reuseport_bpf_numa
