@@ -90,7 +90,7 @@ vchiq_static_assert(IS_POW2(VCHIQ_MAX_SLOTS_PER_SIDE));
 
 #define VCHIQ_SLOT_MASK        (VCHIQ_SLOT_SIZE - 1)
 #define VCHIQ_SLOT_QUEUE_MASK  (VCHIQ_MAX_SLOTS_PER_SIDE - 1)
-#define VCHIQ_SLOT_ZERO_SLOTS  ((sizeof(VCHIQ_SLOT_ZERO_T) + \
+#define VCHIQ_SLOT_ZERO_SLOTS  ((sizeof(struct vchiq_slot_zero) + \
 	VCHIQ_SLOT_SIZE - 1) / VCHIQ_SLOT_SIZE)
 
 #define VCHIQ_MSG_PADDING            0  /* -                                 */
@@ -382,7 +382,7 @@ struct vchiq_shared_state {
 	int debug[DEBUG_MAX];
 };
 
-typedef struct vchiq_slot_zero_struct {
+struct vchiq_slot_zero {
 	int magic;
 	short version;
 	short version_min;
@@ -394,7 +394,7 @@ typedef struct vchiq_slot_zero_struct {
 	struct vchiq_shared_state master;
 	struct vchiq_shared_state slave;
 	struct vchiq_slot_info slots[VCHIQ_MAX_SLOTS];
-} VCHIQ_SLOT_ZERO_T;
+};
 
 struct vchiq_state_struct {
 	int id;
@@ -520,11 +520,11 @@ extern VCHIQ_STATE_T *vchiq_states[VCHIQ_MAX_STATES];
 extern const char *
 get_conn_state_name(VCHIQ_CONNSTATE_T conn_state);
 
-extern VCHIQ_SLOT_ZERO_T *
+extern struct vchiq_slot_zero *
 vchiq_init_slots(void *mem_base, int mem_size);
 
 extern VCHIQ_STATUS_T
-vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero);
+vchiq_init_state(VCHIQ_STATE_T *state, struct vchiq_slot_zero *slot_zero);
 
 extern VCHIQ_STATUS_T
 vchiq_connect_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);

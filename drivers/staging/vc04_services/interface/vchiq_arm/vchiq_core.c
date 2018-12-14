@@ -1711,7 +1711,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 		case VCHIQ_MSG_CONNECT:
 			vchiq_log_info(vchiq_core_log_level,
 				"%d: prs CONNECT@%pK", state->id, header);
-			state->version_common = ((VCHIQ_SLOT_ZERO_T *)
+			state->version_common =	((struct vchiq_slot_zero *)
 						 state->slot_data)->version;
 			complete(&state->connect);
 			break;
@@ -2101,13 +2101,13 @@ get_conn_state_name(VCHIQ_CONNSTATE_T conn_state)
 	return conn_state_names[conn_state];
 }
 
-VCHIQ_SLOT_ZERO_T *
+struct vchiq_slot_zero *
 vchiq_init_slots(void *mem_base, int mem_size)
 {
 	int mem_align =
 		(int)((VCHIQ_SLOT_SIZE - (long)mem_base) & VCHIQ_SLOT_MASK);
-	VCHIQ_SLOT_ZERO_T *slot_zero =
-		(VCHIQ_SLOT_ZERO_T *)((char *)mem_base + mem_align);
+	struct vchiq_slot_zero *slot_zero =
+		(struct vchiq_slot_zero *)((char *)mem_base + mem_align);
 	int num_slots = (mem_size - mem_align)/VCHIQ_SLOT_SIZE;
 	int first_data_slot = VCHIQ_SLOT_ZERO_SLOTS;
 
@@ -2121,12 +2121,12 @@ vchiq_init_slots(void *mem_base, int mem_size)
 		return NULL;
 	}
 
-	memset(slot_zero, 0, sizeof(VCHIQ_SLOT_ZERO_T));
+	memset(slot_zero, 0, sizeof(struct vchiq_slot_zero));
 
 	slot_zero->magic = VCHIQ_MAGIC;
 	slot_zero->version = VCHIQ_VERSION;
 	slot_zero->version_min = VCHIQ_VERSION_MIN;
-	slot_zero->slot_zero_size = sizeof(VCHIQ_SLOT_ZERO_T);
+	slot_zero->slot_zero_size = sizeof(struct vchiq_slot_zero);
 	slot_zero->slot_size = VCHIQ_SLOT_SIZE;
 	slot_zero->max_slots = VCHIQ_MAX_SLOTS;
 	slot_zero->max_slots_per_side = VCHIQ_MAX_SLOTS_PER_SIDE;
@@ -2142,7 +2142,7 @@ vchiq_init_slots(void *mem_base, int mem_size)
 }
 
 VCHIQ_STATUS_T
-vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
+vchiq_init_state(VCHIQ_STATE_T *state, struct vchiq_slot_zero *slot_zero)
 {
 	struct vchiq_shared_state *local;
 	struct vchiq_shared_state *remote;
