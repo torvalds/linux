@@ -15,9 +15,11 @@
 #include "orangefs-kernel.h"
 #include "orangefs-bufmap.h"
 
-static int orangefs_writepage(struct page *page, struct writeback_control *wbc)
+static int orangefs_writepage_locked(struct page *page,
+    struct writeback_control *wbc)
 {
 	struct inode *inode = page->mapping->host;
+	struct orangefs_write_range *wr = NULL;
 	struct iov_iter iter;
 	struct bio_vec bv;
 	size_t len, wlen;
@@ -26,34 +28,52 @@ static int orangefs_writepage(struct page *page, struct writeback_control *wbc)
 
 	set_page_writeback(page);
 
-	off = page_offset(page);
 	len = i_size_read(inode);
-	if (off > len) {
-		/* The file was truncated; there is nothing to write. */
-		unlock_page(page);
-		end_page_writeback(page);
-		return 0;
+	if (PagePrivate(page)) {
+		wr = (struct orangefs_write_range *)page_private(page);
+		off = wr->pos;
+		if (off + wr->len > len)
+			wlen = len - off;
+		else
+			wlen = wr->len;
+	} else {
+		WARN_ON(1);
+		off = page_offset(page);
+		if (off + PAGE_SIZE > len)
+			wlen = len - off;
+		else
+			wlen = PAGE_SIZE;
 	}
-	if (off + PAGE_SIZE > len)
-		wlen = len - off;
-	else
-		wlen = PAGE_SIZE;
+	/* Should've been handled in orangefs_invalidatepage. */
+	WARN_ON(off == len || off + wlen > len);
 
 	bv.bv_page = page;
 	bv.bv_len = wlen;
 	bv.bv_offset = off % PAGE_SIZE;
-	if (wlen == 0)
-		dump_stack();
+	WARN_ON(wlen == 0);
 	iov_iter_bvec(&iter, WRITE, &bv, 1, wlen);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_WRITE, inode, &off, &iter, wlen,
-	    len);
+	    len, wr);
 	if (ret < 0) {
 		SetPageError(page);
 		mapping_set_error(page->mapping, ret);
 	} else {
 		ret = 0;
 	}
+	if (wr) {
+		kfree(wr);
+		set_page_private(page, 0);
+		ClearPagePrivate(page);
+		put_page(page);
+	}
+	return ret;
+}
+
+static int orangefs_writepage(struct page *page, struct writeback_control *wbc)
+{
+	int ret;
+	ret = orangefs_writepage_locked(page, wbc);
 	unlock_page(page);
 	end_page_writeback(page);
 	return ret;
@@ -74,7 +94,7 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	iov_iter_bvec(&iter, READ, &bv, 1, PAGE_SIZE);
 
 	ret = wait_for_direct_io(ORANGEFS_IO_READ, inode, &off, &iter,
-	    PAGE_SIZE, inode->i_size);
+	    PAGE_SIZE, inode->i_size, NULL);
 	/* this will only zero remaining unread portions of the page data */
 	iov_iter_zero(~0U, &iter);
 	/* takes care of potential aliasing */
@@ -92,6 +112,73 @@ static int orangefs_readpage(struct file *file, struct page *page)
 	return ret;
 }
 
+static int orangefs_launder_page(struct page *);
+
+static int orangefs_write_begin(struct file *file,
+    struct address_space *mapping,
+    loff_t pos, unsigned len, unsigned flags, struct page **pagep,
+    void **fsdata)
+{
+	struct orangefs_write_range *wr;
+	struct page *page;
+	pgoff_t index;
+	int ret;
+
+	index = pos >> PAGE_SHIFT;
+
+	page = grab_cache_page_write_begin(mapping, index, flags);
+	if (!page)
+		return -ENOMEM;
+
+	*pagep = page;
+
+	if (PageDirty(page) && !PagePrivate(page)) {
+		/*
+		 * Should be impossible.  If it happens, launder the page
+		 * since we don't know what's dirty.  This will WARN in
+		 * orangefs_writepage_locked.
+		 */
+		ret = orangefs_launder_page(page);
+		if (ret)
+			return ret;
+	}
+	if (PagePrivate(page)) {
+		struct orangefs_write_range *wr;
+		wr = (struct orangefs_write_range *)page_private(page);
+		if (wr->pos + wr->len == pos &&
+		    uid_eq(wr->uid, current_fsuid()) &&
+		    gid_eq(wr->gid, current_fsgid())) {
+			wr->len += len;
+			goto okay;
+		} else {
+			ret = orangefs_launder_page(page);
+			if (ret)
+				return ret;
+		}
+
+	}
+
+	wr = kmalloc(sizeof *wr, GFP_KERNEL);
+	if (!wr)
+		return -ENOMEM;
+
+	wr->pos = pos;
+	wr->len = len;
+	wr->uid = current_fsuid();
+	wr->gid = current_fsgid();
+	SetPagePrivate(page);
+	set_page_private(page, (unsigned long)wr);
+	get_page(page);
+okay:
+
+	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
+		unsigned from = pos & (PAGE_SIZE - 1);
+
+		zero_user_segments(page, 0, from, from + len, PAGE_SIZE);
+	}
+	return 0;
+}
+
 static int orangefs_write_end(struct file *file, struct address_space *mapping,
     loff_t pos, unsigned len, unsigned copied, struct page *page, void *fsdata)
 {
@@ -105,24 +192,96 @@ static void orangefs_invalidatepage(struct page *page,
 				 unsigned int offset,
 				 unsigned int length)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_invalidatepage called on page %p "
-		     "(offset is %u)\n",
-		     page,
-		     offset);
+	struct orangefs_write_range *wr;
+	wr = (struct orangefs_write_range *)page_private(page);
 
-	ClearPageUptodate(page);
-	ClearPageMappedToDisk(page);
-	return;
-
+	if (offset == 0 && length == PAGE_SIZE) {
+		kfree((struct orangefs_write_range *)page_private(page));
+		set_page_private(page, 0);
+		ClearPagePrivate(page);
+		put_page(page);
+	/* write range entirely within invalidate range (or equal) */
+	} else if (page_offset(page) + offset <= wr->pos &&
+	    wr->pos + wr->len <= page_offset(page) + offset + length) {
+		kfree((struct orangefs_write_range *)page_private(page));
+		set_page_private(page, 0);
+		ClearPagePrivate(page);
+		put_page(page);
+		/* XXX is this right? only caller in fs */
+		cancel_dirty_page(page);
+	/* invalidate range chops off end of write range */
+	} else if (wr->pos < page_offset(page) + offset &&
+	    wr->pos + wr->len <= page_offset(page) + offset + length &&
+	     page_offset(page) + offset < wr->pos + wr->len) {
+		size_t x;
+		x = wr->pos + wr->len - (page_offset(page) + offset);
+		WARN_ON(x > wr->len);
+		wr->len -= x;
+		wr->uid = current_fsuid();
+		wr->gid = current_fsgid();
+	/* invalidate range chops off beginning of write range */
+	} else if (page_offset(page) + offset <= wr->pos &&
+	    page_offset(page) + offset + length < wr->pos + wr->len &&
+	    wr->pos < page_offset(page) + offset + length) {
+		size_t x;
+		x = page_offset(page) + offset + length - wr->pos;
+		WARN_ON(x > wr->len);
+		wr->pos += x;
+		wr->len -= x;
+		wr->uid = current_fsuid();
+		wr->gid = current_fsgid();
+	/* invalidate range entirely within write range (punch hole) */
+	} else if (wr->pos < page_offset(page) + offset &&
+	    page_offset(page) + offset + length < wr->pos + wr->len) {
+		/* XXX what do we do here... should not WARN_ON */
+		WARN_ON(1);
+		/* punch hole */
+		/*
+		 * should we just ignore this and write it out anyway?
+		 * it hardly makes sense
+		 */
+	/* non-overlapping ranges */
+	} else {
+		/* WARN if they do overlap */
+		if (!((page_offset(page) + offset + length <= wr->pos) ^
+		    (wr->pos + wr->len <= page_offset(page) + offset))) {
+			WARN_ON(1);
+			printk("invalidate range offset %llu length %u\n",
+			    page_offset(page) + offset, length);
+			printk("write range offset %llu length %zu\n",
+			    wr->pos, wr->len);
+		}
+	}
 }
 
 static int orangefs_releasepage(struct page *page, gfp_t foo)
 {
-	gossip_debug(GOSSIP_INODE_DEBUG,
-		     "orangefs_releasepage called on page %p\n",
-		     page);
-	return 0;
+	return !PagePrivate(page);
+}
+
+static void orangefs_freepage(struct page *page)
+{
+	if (PagePrivate(page)) {
+		kfree((struct orangefs_write_range *)page_private(page));
+		set_page_private(page, 0);
+		ClearPagePrivate(page);
+		put_page(page);
+	}
+}
+
+static int orangefs_launder_page(struct page *page)
+{
+	int r = 0;
+	struct writeback_control wbc = {
+		.sync_mode = WB_SYNC_ALL,
+		.nr_to_write = 0,
+	};
+	wait_on_page_writeback(page);
+	if (clear_page_dirty_for_io(page)) {
+		r = orangefs_writepage_locked(page, &wbc);
+		end_page_writeback(page);
+	}
+	return r;
 }
 
 static ssize_t orangefs_direct_IO(struct kiocb *iocb,
@@ -145,7 +304,6 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
 	size_t count = iov_iter_count(iter);
-	size_t ORIGINALcount = iov_iter_count(iter);
 	ssize_t total_count = 0;
 	ssize_t ret = -EINVAL;
 	int i = 0;
@@ -192,7 +350,7 @@ static ssize_t orangefs_direct_IO(struct kiocb *iocb,
 			     (int)*offset);
 
 		ret = wait_for_direct_io(type, inode, offset, iter,
-				each_count, 0);
+				each_count, 0, NULL);
 		gossip_debug(GOSSIP_FILE_DEBUG,
 			     "%s(%pU): return from wait_for_io:%d\n",
 			     __func__,
@@ -247,12 +405,81 @@ static const struct address_space_operations orangefs_address_operations = {
 	.writepage = orangefs_writepage,
 	.readpage = orangefs_readpage,
 	.set_page_dirty = __set_page_dirty_nobuffers,
-	.write_begin = simple_write_begin,
+	.write_begin = orangefs_write_begin,
 	.write_end = orangefs_write_end,
 	.invalidatepage = orangefs_invalidatepage,
 	.releasepage = orangefs_releasepage,
+	.freepage = orangefs_freepage,
+	.launder_page = orangefs_launder_page,
 	.direct_IO = orangefs_direct_IO,
 };
+
+vm_fault_t orangefs_page_mkwrite(struct vm_fault *vmf)
+{
+	struct page *page = vmf->page;
+	struct inode *inode = file_inode(vmf->vma->vm_file);
+	vm_fault_t ret = VM_FAULT_LOCKED;
+	struct orangefs_write_range *wr;
+
+	lock_page(page);
+	if (PageDirty(page) && !PagePrivate(page)) {
+		/*
+		 * Should be impossible.  If it happens, launder the page
+		 * since we don't know what's dirty.  This will WARN in
+		 * orangefs_writepage_locked.
+		 */
+		if (orangefs_launder_page(page)) {
+			ret = VM_FAULT_RETRY;
+			goto out;
+		}
+	}
+	if (PagePrivate(page)) {
+		wr = (struct orangefs_write_range *)page_private(page);
+		if (uid_eq(wr->uid, current_fsuid()) &&
+		    gid_eq(wr->gid, current_fsgid())) {
+			wr->pos = page_offset(page);
+			wr->len = PAGE_SIZE;
+			goto okay;
+		} else {
+			if (orangefs_launder_page(page)) {
+				ret = VM_FAULT_RETRY;
+				goto out;
+			}
+		}
+	}
+	wr = kmalloc(sizeof *wr, GFP_KERNEL);
+	if (!wr) {
+		ret = VM_FAULT_RETRY;
+		goto out;
+	}
+	wr->pos = page_offset(page);
+	wr->len = PAGE_SIZE;
+	wr->uid = current_fsuid();
+	wr->gid = current_fsgid();
+	SetPagePrivate(page);
+	set_page_private(page, (unsigned long)wr);
+	get_page(page);
+okay:
+
+	sb_start_pagefault(inode->i_sb);
+	file_update_time(vmf->vma->vm_file);
+	if (page->mapping != inode->i_mapping) {
+		unlock_page(page);
+		ret = VM_FAULT_NOPAGE;
+		goto out;
+	}
+
+	/*
+	 * We mark the page dirty already here so that when freeze is in
+	 * progress, we are guaranteed that writeback during freezing will
+	 * see the dirty page and writeprotect it again.
+	 */
+	set_page_dirty(page);
+	wait_for_stable_page(page);
+out:
+	sb_end_pagefault(inode->i_sb);
+	return ret;
+}
 
 static int orangefs_setattr_size(struct inode *inode, struct iattr *iattr)
 {

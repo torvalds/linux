@@ -46,8 +46,8 @@ static int flush_racache(struct inode *inode)
  * Post and wait for the I/O upcall to finish
  */
 ssize_t wait_for_direct_io(enum ORANGEFS_io_type type, struct inode *inode,
-		loff_t *offset, struct iov_iter *iter,
-		size_t total_size, loff_t readahead_size)
+    loff_t *offset, struct iov_iter *iter, size_t total_size,
+    loff_t readahead_size, struct orangefs_write_range *wr)
 {
 	struct orangefs_inode_s *orangefs_inode = ORANGEFS_I(inode);
 	struct orangefs_khandle *handle = &orangefs_inode->refn.khandle;
@@ -85,6 +85,10 @@ populate_shared_memory:
 	new_op->upcall.req.io.buf_index = buffer_index;
 	new_op->upcall.req.io.count = total_size;
 	new_op->upcall.req.io.offset = *offset;
+	if (type == ORANGEFS_IO_WRITE && wr) {
+		new_op->upcall.uid = from_kuid(&init_user_ns, wr->uid);
+		new_op->upcall.gid = from_kgid(&init_user_ns, wr->gid);
+	}
 
 	gossip_debug(GOSSIP_FILE_DEBUG,
 		     "%s(%pU): offset: %llu total_size: %zd\n",
@@ -329,7 +333,7 @@ static vm_fault_t orangefs_fault(struct vm_fault *vmf)
 static const struct vm_operations_struct orangefs_file_vm_ops = {
 	.fault = orangefs_fault,
 	.map_pages = filemap_map_pages,
-	.page_mkwrite = filemap_page_mkwrite,
+	.page_mkwrite = orangefs_page_mkwrite,
 };
 
 /*
