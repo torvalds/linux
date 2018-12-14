@@ -60,7 +60,7 @@
 
 struct vchiq_2835_state {
 	int inited;
-	VCHIQ_ARM_STATE_T arm_state;
+	struct vchiq_arm_state arm_state;
 };
 
 struct vchiq_pagelist_info {
@@ -220,7 +220,7 @@ vchiq_platform_init_state(VCHIQ_STATE_T *state)
 	return status;
 }
 
-VCHIQ_ARM_STATE_T*
+struct vchiq_arm_state*
 vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 {
 	struct vchiq_2835_state *platform_state;

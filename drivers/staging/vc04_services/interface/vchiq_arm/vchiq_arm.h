@@ -66,7 +66,7 @@ enum USE_TYPE_E {
 	USE_TYPE_VCHIQ
 };
 
-typedef struct vchiq_arm_state_struct {
+struct vchiq_arm_state {
 	/* Keepalive-related data */
 	struct task_struct *ka_thread;
 	struct completion ka_evt;
@@ -121,7 +121,7 @@ typedef struct vchiq_arm_state_struct {
 	unsigned long long resume_start_time;
 	unsigned long long last_wake_time;
 
-} VCHIQ_ARM_STATE_T;
+};
 
 struct vchiq_drvdata {
 	const unsigned int cache_line_size;
@@ -149,7 +149,7 @@ extern VCHIQ_STATUS_T
 vchiq_arm_vcresume(VCHIQ_STATE_T *state);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state);
+vchiq_arm_init_state(VCHIQ_STATE_T *state, struct vchiq_arm_state *arm_state);
 
 extern int
 vchiq_check_resume(VCHIQ_STATE_T *state);
@@ -180,7 +180,7 @@ vchiq_dump_platform_use_state(VCHIQ_STATE_T *state);
 extern void
 vchiq_dump_service_use_state(VCHIQ_STATE_T *state);
 
-extern VCHIQ_ARM_STATE_T*
+extern struct vchiq_arm_state*
 vchiq_platform_get_arm_state(VCHIQ_STATE_T *state);
 
 extern int
@@ -208,14 +208,14 @@ extern void
 vchiq_instance_set_trace(VCHIQ_INSTANCE_T instance, int trace);
 
 extern void
-set_suspend_state(VCHIQ_ARM_STATE_T *arm_state,
-	enum vc_suspend_status new_state);
+set_suspend_state(struct vchiq_arm_state *arm_state,
+		  enum vc_suspend_status new_state);
 
 extern void
-set_resume_state(VCHIQ_ARM_STATE_T *arm_state,
-	enum vc_resume_status new_state);
+set_resume_state(struct vchiq_arm_state *arm_state,
+		 enum vc_resume_status new_state);
 
 extern void
-start_suspend_timer(VCHIQ_ARM_STATE_T *arm_state);
+start_suspend_timer(struct vchiq_arm_state *arm_state);
 
 #endif /* VCHIQ_ARM_H */
