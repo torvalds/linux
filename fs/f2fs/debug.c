@@ -64,7 +64,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->nr_flushed =
 			atomic_read(&SM_I(sbi)->fcc_info->issued_flush);
 		si->nr_flushing =
-			atomic_read(&SM_I(sbi)->fcc_info->issing_flush);
+			atomic_read(&SM_I(sbi)->fcc_info->queued_flush);
 		si->flush_list_empty =
 			llist_empty(&SM_I(sbi)->fcc_info->issue_list);
 	}
@@ -72,7 +72,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		si->nr_discarded =
 			atomic_read(&SM_I(sbi)->dcc_info->issued_discard);
 		si->nr_discarding =
-			atomic_read(&SM_I(sbi)->dcc_info->issing_discard);
+			atomic_read(&SM_I(sbi)->dcc_info->queued_discard);
 		si->nr_discard_cmd =
 			atomic_read(&SM_I(sbi)->dcc_info->discard_cmd_cnt);
 		si->undiscard_blks = SM_I(sbi)->dcc_info->undiscard_blks;
