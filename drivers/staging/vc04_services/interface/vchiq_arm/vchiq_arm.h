@@ -163,7 +163,7 @@ extern VCHIQ_STATUS_T
 vchiq_release_service(VCHIQ_SERVICE_HANDLE_T handle);
 
 extern VCHIQ_STATUS_T
-vchiq_check_service(VCHIQ_SERVICE_T *service);
+vchiq_check_service(struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
 vchiq_platform_suspend(VCHIQ_STATE_T *state);
@@ -187,10 +187,10 @@ extern int
 vchiq_videocore_wanted(VCHIQ_STATE_T *state);
 
 extern VCHIQ_STATUS_T
-vchiq_use_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
-		enum USE_TYPE_E use_type);
+vchiq_use_internal(VCHIQ_STATE_T *state, struct vchiq_service *service,
+		   enum USE_TYPE_E use_type);
 extern VCHIQ_STATUS_T
-vchiq_release_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service);
+vchiq_release_internal(VCHIQ_STATE_T *state, struct vchiq_service *service);
 
 extern struct vchiq_debugfs_node *
 vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);

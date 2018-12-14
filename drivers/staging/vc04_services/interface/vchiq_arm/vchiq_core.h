@@ -280,7 +280,7 @@ typedef struct vchiq_slot_info_struct {
 	short release_count;
 } VCHIQ_SLOT_INFO_T;
 
-typedef struct vchiq_service_struct {
+struct vchiq_service {
 	struct vchiq_service_base base;
 	VCHIQ_SERVICE_HANDLE_T handle;
 	unsigned int ref_count;
@@ -326,11 +326,11 @@ typedef struct vchiq_service_struct {
 		uint64_t bulk_tx_bytes;
 		uint64_t bulk_rx_bytes;
 	} stats;
-} VCHIQ_SERVICE_T;
+};
 
-/* The quota information is outside VCHIQ_SERVICE_T so that it can be
-	statically allocated, since for accounting reasons a service's slot
-	usage is carried over between users of the same port number.
+/* The quota information is outside struct vchiq_service so that it can
+ * be statically allocated, since for accounting reasons a service's slot
+ * usage is carried over between users of the same port number.
  */
 struct vchiq_service_quota {
 	unsigned short slot_quota;
@@ -496,7 +496,7 @@ struct vchiq_state_struct {
 		int error_count;
 	} stats;
 
-	VCHIQ_SERVICE_T * services[VCHIQ_MAX_SERVICES];
+	struct vchiq_service *services[VCHIQ_MAX_SERVICES];
 	struct vchiq_service_quota service_quotas[VCHIQ_MAX_SERVICES];
 	VCHIQ_SLOT_INFO_T slot_info[VCHIQ_MAX_SLOTS];
 
@@ -529,22 +529,22 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero);
 extern VCHIQ_STATUS_T
 vchiq_connect_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);
 
-extern VCHIQ_SERVICE_T *
+extern struct vchiq_service *
 vchiq_add_service_internal(VCHIQ_STATE_T *state,
 	const struct vchiq_service_params *params, int srvstate,
 	VCHIQ_INSTANCE_T instance, VCHIQ_USERDATA_TERM_T userdata_term);
 
 extern VCHIQ_STATUS_T
-vchiq_open_service_internal(VCHIQ_SERVICE_T *service, int client_id);
+vchiq_open_service_internal(struct vchiq_service *service, int client_id);
 
 extern VCHIQ_STATUS_T
-vchiq_close_service_internal(VCHIQ_SERVICE_T *service, int close_recvd);
+vchiq_close_service_internal(struct vchiq_service *service, int close_recvd);
 
 extern void
-vchiq_terminate_service_internal(VCHIQ_SERVICE_T *service);
+vchiq_terminate_service_internal(struct vchiq_service *service);
 
 extern void
-vchiq_free_service_internal(VCHIQ_SERVICE_T *service);
+vchiq_free_service_internal(struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
 vchiq_shutdown_internal(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance);
@@ -567,7 +567,7 @@ extern void
 vchiq_dump_state(void *dump_context, VCHIQ_STATE_T *state);
 
 extern void
-vchiq_dump_service_state(void *dump_context, VCHIQ_SERVICE_T *service);
+vchiq_dump_service_state(void *dump_context, struct vchiq_service *service);
 
 extern void
 vchiq_loud_error_header(void);
@@ -576,9 +576,10 @@ extern void
 vchiq_loud_error_footer(void);
 
 extern void
-request_poll(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service, int poll_type);
+request_poll(VCHIQ_STATE_T *state, struct vchiq_service *service,
+	     int poll_type);
 
-static inline VCHIQ_SERVICE_T *
+static inline struct vchiq_service *
 handle_to_service(VCHIQ_SERVICE_HANDLE_T handle)
 {
 	VCHIQ_STATE_T *state = vchiq_states[(handle / VCHIQ_MAX_SERVICES) &
@@ -589,29 +590,29 @@ handle_to_service(VCHIQ_SERVICE_HANDLE_T handle)
 	return state->services[handle & (VCHIQ_MAX_SERVICES - 1)];
 }
 
-extern VCHIQ_SERVICE_T *
+extern struct vchiq_service *
 find_service_by_handle(VCHIQ_SERVICE_HANDLE_T handle);
 
-extern VCHIQ_SERVICE_T *
+extern struct vchiq_service *
 find_service_by_port(VCHIQ_STATE_T *state, int localport);
 
-extern VCHIQ_SERVICE_T *
+extern struct vchiq_service *
 find_service_for_instance(VCHIQ_INSTANCE_T instance,
 	VCHIQ_SERVICE_HANDLE_T handle);
 
-extern VCHIQ_SERVICE_T *
+extern struct vchiq_service *
 find_closed_service_for_instance(VCHIQ_INSTANCE_T instance,
 	VCHIQ_SERVICE_HANDLE_T handle);
 
-extern VCHIQ_SERVICE_T *
+extern struct vchiq_service *
 next_service_by_instance(VCHIQ_STATE_T *state, VCHIQ_INSTANCE_T instance,
 	int *pidx);
 
 extern void
-lock_service(VCHIQ_SERVICE_T *service);
+lock_service(struct vchiq_service *service);
 
 extern void
-unlock_service(VCHIQ_SERVICE_T *service);
+unlock_service(struct vchiq_service *service);
 
 /* The following functions are called from vchiq_core, and external
 ** implementations must be provided. */
@@ -649,13 +650,13 @@ vchiq_dump_platform_instances(void *dump_context);
 
 extern void
 vchiq_dump_platform_service_state(void *dump_context,
-	VCHIQ_SERVICE_T *service);
+	struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
-vchiq_use_service_internal(VCHIQ_SERVICE_T *service);
+vchiq_use_service_internal(struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
-vchiq_release_service_internal(VCHIQ_SERVICE_T *service);
+vchiq_release_service_internal(struct vchiq_service *service);
 
 extern void
 vchiq_on_remote_use(VCHIQ_STATE_T *state);
@@ -667,7 +668,7 @@ extern VCHIQ_STATUS_T
 vchiq_platform_init_state(VCHIQ_STATE_T *state);
 
 extern VCHIQ_STATUS_T
-vchiq_check_service(VCHIQ_SERVICE_T *service);
+vchiq_check_service(struct vchiq_service *service);
 
 extern void
 vchiq_on_remote_use_active(VCHIQ_STATE_T *state);

@@ -110,7 +110,7 @@ static const char *const resume_state_names[] = {
 static void suspend_timer_callback(struct timer_list *t);
 
 struct user_service {
-	VCHIQ_SERVICE_T *service;
+	struct vchiq_service *service;
 	void *userdata;
 	VCHIQ_INSTANCE_T instance;
 	char is_vchi;
@@ -336,7 +336,7 @@ VCHIQ_STATUS_T vchiq_add_service(
 {
 	VCHIQ_STATUS_T status;
 	VCHIQ_STATE_T *state = instance->state;
-	VCHIQ_SERVICE_T *service = NULL;
+	struct vchiq_service *service = NULL;
 	int srvstate;
 
 	vchiq_log_trace(vchiq_core_log_level,
@@ -375,7 +375,7 @@ VCHIQ_STATUS_T vchiq_open_service(
 {
 	VCHIQ_STATUS_T   status = VCHIQ_ERROR;
 	VCHIQ_STATE_T   *state = instance->state;
-	VCHIQ_SERVICE_T *service = NULL;
+	struct vchiq_service *service = NULL;
 
 	vchiq_log_trace(vchiq_core_log_level,
 		"%s(%p) called", __func__, instance);
@@ -462,7 +462,7 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 	unsigned int size, VCHIQ_BULK_DIR_T dir)
 {
 	VCHIQ_INSTANCE_T instance;
-	VCHIQ_SERVICE_T *service;
+	struct vchiq_service *service;
 	VCHIQ_STATUS_T status;
 	struct bulk_waiter_node *waiter = NULL;
 
@@ -619,7 +619,7 @@ service_callback(VCHIQ_REASON_T reason, struct vchiq_header *header,
 	** contains a circular buffer for completion records.
 	*/
 	struct user_service *user_service;
-	VCHIQ_SERVICE_T *service;
+	struct vchiq_service *service;
 	VCHIQ_INSTANCE_T instance;
 	bool skip_completion = false;
 
@@ -834,7 +834,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	VCHIQ_INSTANCE_T instance = file->private_data;
 	VCHIQ_STATUS_T status = VCHIQ_SUCCESS;
-	VCHIQ_SERVICE_T *service = NULL;
+	struct vchiq_service *service = NULL;
 	long ret = 0;
 	int i, rc;
 
@@ -1201,7 +1201,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 			for (ret = 0; ret < args.count; ret++) {
 				struct vchiq_completion_data *completion;
-				VCHIQ_SERVICE_T *service;
+				struct vchiq_service *service;
 				struct user_service *user_service;
 				struct vchiq_header *header;
 
@@ -1991,7 +1991,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 {
 	VCHIQ_INSTANCE_T instance = file->private_data;
 	VCHIQ_STATE_T *state = vchiq_get_state();
-	VCHIQ_SERVICE_T *service;
+	struct vchiq_service *service;
 	int ret = 0;
 	int i;
 
@@ -2062,7 +2062,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 	while (instance->completion_remove !=
 		instance->completion_insert) {
 		struct vchiq_completion_data *completion;
-		VCHIQ_SERVICE_T *service;
+		struct vchiq_service *service;
 
 		completion = &instance->completions[
 			instance->completion_remove & (MAX_COMPLETIONS - 1)];
@@ -2167,7 +2167,7 @@ vchiq_dump_platform_instances(void *dump_context)
 		marking those that have been dumped. */
 
 	for (i = 0; i < state->unused_service; i++) {
-		VCHIQ_SERVICE_T *service = state->services[i];
+		struct vchiq_service *service = state->services[i];
 		VCHIQ_INSTANCE_T instance;
 
 		if (service && (service->base.callback == service_callback)) {
@@ -2178,7 +2178,7 @@ vchiq_dump_platform_instances(void *dump_context)
 	}
 
 	for (i = 0; i < state->unused_service; i++) {
-		VCHIQ_SERVICE_T *service = state->services[i];
+		struct vchiq_service *service = state->services[i];
 		VCHIQ_INSTANCE_T instance;
 
 		if (service && (service->base.callback == service_callback)) {
@@ -2208,7 +2208,8 @@ vchiq_dump_platform_instances(void *dump_context)
 ***************************************************************************/
 
 void
-vchiq_dump_platform_service_state(void *dump_context, VCHIQ_SERVICE_T *service)
+vchiq_dump_platform_service_state(void *dump_context,
+				  struct vchiq_service *service)
 {
 	struct user_service *user_service =
 			(struct user_service *)service->base.userdata;
@@ -2756,7 +2757,7 @@ output_timeout_error(VCHIQ_STATE_T *state)
 		goto output_msg;
 	}
 	for (i = 0; i < active_services; i++) {
-		VCHIQ_SERVICE_T *service_ptr = state->services[i];
+		struct vchiq_service *service_ptr = state->services[i];
 
 		if (service_ptr && service_ptr->service_use_count &&
 			(service_ptr->srvstate != VCHIQ_SRVSTATE_FREE)) {
@@ -2987,8 +2988,8 @@ out:
 }
 
 VCHIQ_STATUS_T
-vchiq_use_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
-		enum USE_TYPE_E use_type)
+vchiq_use_internal(VCHIQ_STATE_T *state, struct vchiq_service *service,
+		   enum USE_TYPE_E use_type)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	VCHIQ_STATUS_T ret = VCHIQ_SUCCESS;
@@ -3120,7 +3121,7 @@ out:
 }
 
 VCHIQ_STATUS_T
-vchiq_release_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service)
+vchiq_release_internal(VCHIQ_STATE_T *state, struct vchiq_service *service)
 {
 	struct vchiq_arm_state *arm_state = vchiq_platform_get_arm_state(state);
 	VCHIQ_STATUS_T ret = VCHIQ_SUCCESS;
@@ -3202,13 +3203,13 @@ vchiq_on_remote_release(VCHIQ_STATE_T *state)
 }
 
 VCHIQ_STATUS_T
-vchiq_use_service_internal(VCHIQ_SERVICE_T *service)
+vchiq_use_service_internal(struct vchiq_service *service)
 {
 	return vchiq_use_internal(service->state, service, USE_TYPE_SERVICE);
 }
 
 VCHIQ_STATUS_T
-vchiq_release_service_internal(VCHIQ_SERVICE_T *service)
+vchiq_release_service_internal(struct vchiq_service *service)
 {
 	return vchiq_release_internal(service->state, service);
 }
@@ -3222,7 +3223,7 @@ vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance)
 int
 vchiq_instance_get_use_count(VCHIQ_INSTANCE_T instance)
 {
-	VCHIQ_SERVICE_T *service;
+	struct vchiq_service *service;
 	int use_count = 0, i;
 
 	i = 0;
@@ -3249,7 +3250,7 @@ vchiq_instance_get_trace(VCHIQ_INSTANCE_T instance)
 void
 vchiq_instance_set_trace(VCHIQ_INSTANCE_T instance, int trace)
 {
-	VCHIQ_SERVICE_T *service;
+	struct vchiq_service *service;
 	int i;
 
 	i = 0;
@@ -3276,7 +3277,7 @@ VCHIQ_STATUS_T
 vchiq_use_service_no_resume(VCHIQ_SERVICE_HANDLE_T handle)
 {
 	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
-	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
+	struct vchiq_service *service = find_service_by_handle(handle);
 
 	if (service) {
 		ret = vchiq_use_internal(service->state, service,
@@ -3290,7 +3291,7 @@ VCHIQ_STATUS_T
 vchiq_use_service(VCHIQ_SERVICE_HANDLE_T handle)
 {
 	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
-	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
+	struct vchiq_service *service = find_service_by_handle(handle);
 
 	if (service) {
 		ret = vchiq_use_internal(service->state, service,
@@ -3304,7 +3305,7 @@ VCHIQ_STATUS_T
 vchiq_release_service(VCHIQ_SERVICE_HANDLE_T handle)
 {
 	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
-	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
+	struct vchiq_service *service = find_service_by_handle(handle);
 
 	if (service) {
 		ret = vchiq_release_internal(service->state, service);
@@ -3354,7 +3355,7 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 		only_nonzero = 1;
 
 	for (i = 0; i < active_services; i++) {
-		VCHIQ_SERVICE_T *service_ptr = state->services[i];
+		struct vchiq_service *service_ptr = state->services[i];
 
 		if (!service_ptr)
 			continue;
@@ -3406,7 +3407,7 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 }
 
 VCHIQ_STATUS_T
-vchiq_check_service(VCHIQ_SERVICE_T *service)
+vchiq_check_service(struct vchiq_service *service)
 {
 	struct vchiq_arm_state *arm_state;
 	VCHIQ_STATUS_T ret = VCHIQ_ERROR;
