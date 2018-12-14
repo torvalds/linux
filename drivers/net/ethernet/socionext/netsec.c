@@ -656,8 +656,13 @@ static int netsec_process_tx(struct netsec_priv *priv, int budget)
 		budget -= new;
 	} while (new);
 
-	if (done && netif_queue_stopped(ndev))
+	if (done && netif_queue_stopped(ndev)) {
+		/* Make sure we update the value, anyone stopping the queue
+		 * after this will read the proper consumer idx
+		 */
+		smp_wmb();
 		netif_wake_queue(ndev);
+	}
 
 	return done;
 }
@@ -877,6 +882,41 @@ static void netsec_set_tx_de(struct netsec_priv *priv,
 	dring->head = (dring->head + 1) % DESC_NUM;
 }
 
+static int netsec_desc_used(struct netsec_desc_ring *dring)
+{
+	int used;
+
+	if (dring->head >= dring->tail)
+		used = dring->head - dring->tail;
+	else
+		used = dring->head + DESC_NUM - dring->tail;
+
+	return used;
+}
+
+static int netsec_check_stop_tx(struct netsec_priv *priv, int used)
+{
+	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_TX];
+
+	/* keep tail from touching the queue */
+	if (DESC_NUM - used < 2) {
+		netif_stop_queue(priv->ndev);
+
+		/* Make sure we read the updated value in case
+		 * descriptors got freed
+		 */
+		smp_rmb();
+
+		used = netsec_desc_used(dring);
+		if (DESC_NUM - used < 2)
+			return NETDEV_TX_BUSY;
+
+		netif_wake_queue(priv->ndev);
+	}
+
+	return 0;
+}
+
 static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 					    struct net_device *ndev)
 {
@@ -887,16 +927,10 @@ static netdev_tx_t netsec_netdev_start_xmit(struct sk_buff *skb,
 	u16 tso_seg_len = 0;
 	int filled;
 
-	/* differentiate between full/emtpy ring */
-	if (dring->head >= dring->tail)
-		filled = dring->head - dring->tail;
-	else
-		filled = dring->head + DESC_NUM - dring->tail;
-
-	if (DESC_NUM - filled < 2) { /* if less than 2 available */
-		netif_err(priv, drv, priv->ndev, "%s: TxQFull!\n", __func__);
-		netif_stop_queue(priv->ndev);
-		dma_wmb();
+	filled = netsec_desc_used(dring);
+	if (netsec_check_stop_tx(priv, filled)) {
+		net_warn_ratelimited("%s %s Tx queue full\n",
+				     dev_name(priv->dev), ndev->name);
 		return NETDEV_TX_BUSY;
 	}
 
