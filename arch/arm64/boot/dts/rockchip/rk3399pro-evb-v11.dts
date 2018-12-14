@@ -253,6 +253,11 @@
 	cpu-supply = <&vdd_cpu_b>;
 };
 
+&dmc {
+	status = "okay";
+	center-supply = <&vdd_center>;
+};
+
 &dp_in_vopb {
 	status = "disabled";
 };
@@ -410,15 +415,15 @@
 		};
 
 		regulators {
-			vdd_log: DCDC_REG1 {
+			vdd_center: DCDC_REG1 {
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-min-microvolt = <750000>;
 				regulator-max-microvolt = <1350000>;
 				regulator-initial-mode = <0x2>;
-				regulator-name = "vdd_log";
+				regulator-name = "vdd_center";
 				regulator-state-mem {
-					regulator-on-in-suspend;
+					regulator-off-in-suspend;
 					regulator-suspend-microvolt = <900000>;
 				};
 			};
