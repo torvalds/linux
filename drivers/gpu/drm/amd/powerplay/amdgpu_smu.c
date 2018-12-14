@@ -115,6 +115,19 @@ static int smu_smc_table_sw_init(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_smc_table_sw_fini(struct smu_context *smu)
+{
+	int ret;
+
+	ret = smu_fini_smc_tables(smu);
+	if (ret) {
+		pr_err("Failed to smu_fini_smc_tables!\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int smu_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
@@ -142,9 +155,17 @@ static int smu_sw_init(void *handle)
 static int smu_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct smu_context *smu = &adev->smu;
+	int ret;
 
 	if (adev->asic_type < CHIP_VEGA20)
 		return -EINVAL;
+
+	ret = smu_smc_table_sw_fini(smu);
+	if (ret) {
+		pr_err("Failed to sw fini smc table!\n");
+		return ret;
+	}
 
 	return 0;
 }

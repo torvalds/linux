@@ -24,10 +24,29 @@
 
 #include "amdgpu.h"
 
+#define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
+	do {						\
+		tables[table_id].size = s;		\
+		tables[table_id].align = a;		\
+		tables[table_id].domain = d;		\
+	} while (0)
+
+struct smu_table {
+	uint64_t size;
+	uint32_t align;
+	uint8_t domain;
+	uint64_t mc_address;
+	void *cpu_addr;
+	struct amdgpu_bo *bo;
+
+};
+
 struct smu_table_context
 {
 	void				*power_play_table;
 	uint32_t			power_play_table_size;
+	struct smu_table		*tables;
+	uint32_t			table_count;
 };
 
 struct smu_context
@@ -44,6 +63,7 @@ struct smu_funcs
 {
 	int (*init_microcode)(struct smu_context *smu);
 	int (*init_smc_tables)(struct smu_context *smu);
+	int (*fini_smc_tables)(struct smu_context *smu);
 	int (*init_power)(struct smu_context *smu);
 	int (*load_microcode)(struct smu_context *smu);
 	int (*check_fw_status)(struct smu_context *smu);
@@ -69,6 +89,8 @@ struct smu_funcs
 	((smu)->funcs->init_microcode ? (smu)->funcs->init_microcode((smu)) : 0)
 #define smu_init_smc_tables(smu) \
 	((smu)->funcs->init_smc_tables ? (smu)->funcs->init_smc_tables((smu)) : 0)
+#define smu_fini_smc_tables(smu) \
+	((smu)->funcs->fini_smc_tables ? (smu)->funcs->fini_smc_tables((smu)) : 0)
 #define smu_init_power(smu) \
 	((smu)->funcs->init_power ? (smu)->funcs->init_power((smu)) : 0)
 #define smu_load_microcode(smu) \

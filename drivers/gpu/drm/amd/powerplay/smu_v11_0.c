@@ -234,6 +234,47 @@ static int smu_v11_0_read_pptable_from_vbios(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_init_smc_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *tables = NULL;
+
+	if (smu_table->tables || smu_table->table_count != 0)
+		return -EINVAL;
+
+	tables = kcalloc(TABLE_COUNT, sizeof(struct smu_table), GFP_KERNEL);
+	if (!tables)
+		return -ENOMEM;
+
+	smu_table->tables = tables;
+	smu_table->table_count = TABLE_COUNT;
+
+	SMU_TABLE_INIT(tables, TABLE_PPTABLE, sizeof(PPTable_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, TABLE_WATERMARKS, sizeof(Watermarks_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, TABLE_SMU_METRICS, sizeof(SmuMetrics_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+	SMU_TABLE_INIT(tables, TABLE_OVERDRIVE, sizeof(OverDriveTable_t),
+		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
+
+	return 0;
+}
+
+static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+
+	if (!smu_table->tables || smu_table->table_count == 0)
+		return -EINVAL;
+
+	kfree(smu_table->tables);
+	smu_table->tables = NULL;
+	smu_table->table_count = 0;
+
+	return 0;
+
+}
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -242,6 +283,8 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.send_smc_msg = smu_v11_0_send_msg,
 	.send_smc_msg_with_param = smu_v11_0_send_msg_with_param,
 	.read_pptable_from_vbios = smu_v11_0_read_pptable_from_vbios,
+	.init_smc_tables = smu_v11_0_init_smc_tables,
+	.fini_smc_tables = smu_v11_0_fini_smc_tables,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
