@@ -13,6 +13,7 @@ struct fixed_phy_status {
 struct device_node;
 
 #if IS_ENABLED(CONFIG_FIXED_PHY)
+extern int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier);
 extern int fixed_phy_add(unsigned int irq, int phy_id,
 			 struct fixed_phy_status *status,
 			 int link_gpio);
@@ -46,6 +47,10 @@ static inline int fixed_phy_set_link_update(struct phy_device *phydev,
 					   struct fixed_phy_status *))
 {
 	return -ENODEV;
+}
+static inline int fixed_phy_change_carrier(struct net_device *dev, bool new_carrier)
+{
+	return -EINVAL;
 }
 #endif /* CONFIG_FIXED_PHY */
 
