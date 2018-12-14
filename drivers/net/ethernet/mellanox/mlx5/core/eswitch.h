@@ -374,6 +374,30 @@ static inline u16 mlx5_eswitch_manager_vport(struct mlx5_core_dev *dev)
 		MLX5_VPORT_ECPF : MLX5_VPORT_PF;
 }
 
+static inline int mlx5_eswitch_uplink_idx(struct mlx5_eswitch *esw)
+{
+	/* Uplink always locate at the last element of the array.*/
+	return esw->total_vports - 1;
+}
+
+static inline int mlx5_eswitch_vport_num_to_index(struct mlx5_eswitch *esw,
+						  u16 vport_num)
+{
+	if (vport_num == MLX5_VPORT_UPLINK)
+		return mlx5_eswitch_uplink_idx(esw);
+
+	return vport_num;
+}
+
+static inline int mlx5_eswitch_index_to_vport_num(struct mlx5_eswitch *esw,
+						  int index)
+{
+	if (index == mlx5_eswitch_uplink_idx(esw))
+		return MLX5_VPORT_UPLINK;
+
+	return index;
+}
+
 #else  /* CONFIG_MLX5_ESWITCH */
 /* eswitch API stubs */
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }

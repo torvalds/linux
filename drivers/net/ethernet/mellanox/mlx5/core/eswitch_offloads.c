@@ -85,10 +85,7 @@ enum {
 static struct mlx5_eswitch_rep *mlx5_eswitch_get_rep(struct mlx5_eswitch *esw,
 						     u16 vport_num)
 {
-	u16 idx = vport_num;
-
-	if (vport_num == MLX5_VPORT_UPLINK)
-		idx = UPLINK_REP_INDEX;
+	u16 idx = mlx5_eswitch_vport_num_to_index(esw, vport_num);
 
 	WARN_ON(idx > esw->total_vports - 1);
 	return &esw->offloads.vport_reps[idx];
@@ -1254,7 +1251,6 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 {
 	int total_vfs = MLX5_TOTAL_VPORTS(esw->dev);
 	struct mlx5_core_dev *dev = esw->dev;
-	struct mlx5_esw_offload *offloads;
 	struct mlx5_eswitch_rep *rep;
 	u8 hw_id[ETH_ALEN], rep_type;
 	int vport;
@@ -1265,18 +1261,15 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 	if (!esw->offloads.vport_reps)
 		return -ENOMEM;
 
-	offloads = &esw->offloads;
 	mlx5_query_nic_vport_mac_address(dev, 0, hw_id);
 
 	mlx5_esw_for_all_reps(esw, vport, rep) {
-		rep->vport = vport;
+		rep->vport = mlx5_eswitch_index_to_vport_num(esw, vport);
 		ether_addr_copy(rep->hw_id, hw_id);
 
 		for (rep_type = 0; rep_type < NUM_REP_TYPES; rep_type++)
 			rep->rep_if[rep_type].state = REP_UNREGISTERED;
 	}
-
-	offloads->vport_reps[0].vport = MLX5_VPORT_UPLINK;
 
 	return 0;
 }

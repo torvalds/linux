@@ -84,8 +84,10 @@ enum {
 static struct mlx5_vport *mlx5_eswitch_get_vport(struct mlx5_eswitch *esw,
 						 u16 vport_num)
 {
+	u16 idx = mlx5_eswitch_vport_num_to_index(esw, vport_num);
+
 	WARN_ON(vport_num > esw->total_vports - 1);
-	return &esw->vports[vport_num];
+	return &esw->vports[idx];
 }
 
 static int arm_vport_context_events_cmd(struct mlx5_core_dev *dev, u16 vport,
@@ -1756,8 +1758,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	int total_vports = MLX5_TOTAL_VPORTS(dev);
 	struct mlx5_eswitch *esw;
 	struct mlx5_vport *vport;
-	int vport_num;
-	int err;
+	int err, i;
 
 	if (!MLX5_VPORT_MANAGER(dev))
 		return 0;
@@ -1798,8 +1799,8 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 	hash_init(esw->offloads.mod_hdr_tbl);
 	mutex_init(&esw->state_lock);
 
-	mlx5_esw_for_all_vports(esw, vport_num, vport) {
-		vport->vport = vport_num;
+	mlx5_esw_for_all_vports(esw, i, vport) {
+		vport->vport = mlx5_eswitch_index_to_vport_num(esw, i);
 		vport->info.link_state = MLX5_VPORT_ADMIN_STATE_AUTO;
 		vport->dev = dev;
 		INIT_WORK(&vport->vport_change_handler,
