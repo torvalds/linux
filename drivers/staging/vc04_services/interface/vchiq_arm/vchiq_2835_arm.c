@@ -64,7 +64,7 @@ struct vchiq_2835_state {
 };
 
 struct vchiq_pagelist_info {
-	PAGELIST_T *pagelist;
+	struct pagelist *pagelist;
 	size_t pagelist_buffer_size;
 	dma_addr_t dma_addr;
 	enum dma_data_direction dma_dir;
@@ -383,7 +383,7 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 static struct vchiq_pagelist_info *
 create_pagelist(char __user *buf, size_t count, unsigned short type)
 {
-	PAGELIST_T *pagelist;
+	struct pagelist *pagelist;
 	struct vchiq_pagelist_info *pagelistinfo;
 	struct page **pages;
 	u32 *addrs;
@@ -397,7 +397,7 @@ create_pagelist(char __user *buf, size_t count, unsigned short type)
 	offset = ((unsigned int)(unsigned long)buf & (PAGE_SIZE - 1));
 	num_pages = DIV_ROUND_UP(count + offset, PAGE_SIZE);
 
-	pagelist_size = sizeof(PAGELIST_T) +
+	pagelist_size = sizeof(struct pagelist) +
 			(num_pages * sizeof(u32)) +
 			(num_pages * sizeof(pages[0]) +
 			(num_pages * sizeof(struct scatterlist))) +
@@ -565,8 +565,8 @@ static void
 free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 	      int actual)
 {
-	PAGELIST_T *pagelist   = pagelistinfo->pagelist;
-	struct page **pages    = pagelistinfo->pages;
+	struct pagelist *pagelist = pagelistinfo->pagelist;
+	struct page **pages = pagelistinfo->pages;
 	unsigned int num_pages = pagelistinfo->num_pages;
 
 	vchiq_log_trace(vchiq_arm_log_level, "%s - %pK, %d",
