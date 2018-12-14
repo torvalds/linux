@@ -1896,9 +1896,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			req_payload.num_slots = 0;
 		}
 
-		if (mgr->payloads[i].start_slot != req_payload.start_slot) {
-			mgr->payloads[i].start_slot = req_payload.start_slot;
-		}
+		mgr->payloads[i].start_slot = req_payload.start_slot;
 		/* work out what is required to happen with this payload */
 		if (mgr->payloads[i].num_slots != req_payload.num_slots) {
 
