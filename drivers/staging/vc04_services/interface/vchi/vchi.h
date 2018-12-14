@@ -72,12 +72,12 @@ typedef struct {
 } VCHI_HELD_MSG_T;
 
 // structure used to provide the information needed to open a server or a client
-typedef struct {
+struct service_creation {
 	struct vchi_version version;
 	int32_t service_id;
 	VCHI_CALLBACK_T callback;
 	void *callback_param;
-} SERVICE_CREATION_T;
+};
 
 // Opaque handle for a VCHI instance
 typedef struct opaque_vchi_instance_handle_t *VCHI_INSTANCE_T;
@@ -117,7 +117,7 @@ extern int32_t vchi_service_destroy(const VCHI_SERVICE_HANDLE_T handle);
 
 // Routine to open a named service
 extern int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
-				 SERVICE_CREATION_T *setup,
+				 struct service_creation *setup,
 				 VCHI_SERVICE_HANDLE_T *handle);
 
 extern int32_t vchi_get_peer_version(const VCHI_SERVICE_HANDLE_T handle,

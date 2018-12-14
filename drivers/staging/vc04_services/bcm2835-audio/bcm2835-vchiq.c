@@ -122,7 +122,7 @@ static int
 vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 		   struct bcm2835_audio_instance *instance)
 {
-	SERVICE_CREATION_T params = {
+	struct service_creation params = {
 		.version		= VCHI_VERSION_EX(VC_AUDIOSERV_VER, VC_AUDIOSERV_MIN_VER),
 		.service_id		= VC_AUDIO_SERVER_NAME,
 		.callback		= audio_vchi_callback,

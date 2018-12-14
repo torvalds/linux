@@ -530,7 +530,7 @@ EXPORT_SYMBOL(vchi_disconnect);
  * Name: vchi_service_create
  *
  * Arguments: VCHI_INSTANCE_T *instance_handle
- *            SERVICE_CREATION_T *setup,
+ *            struct service_creation *setup,
  *            VCHI_SERVICE_HANDLE_T *handle
  *
  * Description: Routine to open a service
@@ -600,7 +600,7 @@ done:
 }
 
 static struct shim_service *service_alloc(VCHIQ_INSTANCE_T instance,
-	SERVICE_CREATION_T *setup)
+	struct service_creation *setup)
 {
 	struct shim_service *service = kzalloc(sizeof(struct shim_service), GFP_KERNEL);
 
@@ -628,7 +628,7 @@ static void service_free(struct shim_service *service)
 }
 
 int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
-	SERVICE_CREATION_T *setup,
+	struct service_creation *setup,
 	VCHI_SERVICE_HANDLE_T *handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
