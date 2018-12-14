@@ -528,6 +528,10 @@ trace.*::
 		The initial use case is to add augmented_raw_syscalls.o to
 		activate the 'perf trace' logic that looks for syscall
 		pointer contents after the normal tracepoint payload.
+
+	trace.show_duration::
+		Show syscall duration.
+
 	trace.show_zeros::
 		Do not suppress syscall arguments that are equal to zero.
 
