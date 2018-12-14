@@ -1652,6 +1652,10 @@ static int issue_discard_thread(void *data)
 		if (dcc->discard_wake)
 			dcc->discard_wake = 0;
 
+		/* clean up pending candidates before going to sleep */
+		if (atomic_read(&dcc->queued_discard))
+			__wait_all_discard_cmd(sbi, NULL);
+
 		if (try_to_freeze())
 			continue;
 		if (f2fs_readonly(sbi->sb))
