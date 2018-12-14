@@ -260,11 +260,11 @@ typedef struct vchiq_bulk_queue_struct {
 	VCHIQ_BULK_T bulks[VCHIQ_NUM_SERVICE_BULKS];
 } VCHIQ_BULK_QUEUE_T;
 
-typedef struct remote_event_struct {
+struct remote_event {
 	int armed;
 	int fired;
 	u32 __unused;
-} REMOTE_EVENT_T;
+};
 
 typedef struct opaque_platform_state_t *VCHIQ_PLATFORM_STATE_T;
 
@@ -355,7 +355,7 @@ typedef struct vchiq_shared_state_struct {
 
 	/* Signalling this event indicates that owner's slot handler thread
 	** should run. */
-	REMOTE_EVENT_T trigger;
+	struct remote_event trigger;
 
 	/* Indicates the byte position within the stream where the next message
 	** will be written. The least significant bits are an index into the
@@ -363,17 +363,17 @@ typedef struct vchiq_shared_state_struct {
 	int tx_pos;
 
 	/* This event should be signalled when a slot is recycled. */
-	REMOTE_EVENT_T recycle;
+	struct remote_event recycle;
 
 	/* The slot_queue index where the next recycled slot will be written. */
 	int slot_queue_recycle;
 
 	/* This event should be signalled when a synchronous message is sent. */
-	REMOTE_EVENT_T sync_trigger;
+	struct remote_event sync_trigger;
 
 	/* This event should be signalled when a synchronous message has been
 	** released. */
-	REMOTE_EVENT_T sync_release;
+	struct remote_event sync_release;
 
 	/* A circular buffer of slot indexes. */
 	int slot_queue[VCHIQ_MAX_SLOTS_PER_SIDE];
@@ -623,7 +623,7 @@ extern void
 vchiq_complete_bulk(VCHIQ_BULK_T *bulk);
 
 extern void
-remote_event_signal(REMOTE_EVENT_T *event);
+remote_event_signal(struct remote_event *event);
 
 void
 vchiq_platform_check_suspend(VCHIQ_STATE_T *state);

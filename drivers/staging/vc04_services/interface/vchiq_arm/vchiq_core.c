@@ -417,7 +417,7 @@ vchiq_set_conn_state(VCHIQ_STATE_T *state, VCHIQ_CONNSTATE_T newstate)
 }
 
 static inline void
-remote_event_create(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
+remote_event_create(wait_queue_head_t *wq, struct remote_event *event)
 {
 	event->armed = 0;
 	/* Don't clear the 'fired' flag because it may already have been set
@@ -426,7 +426,7 @@ remote_event_create(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
 }
 
 static inline int
-remote_event_wait(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
+remote_event_wait(wait_queue_head_t *wq, struct remote_event *event)
 {
 	if (!event->fired) {
 		event->armed = 1;
@@ -444,14 +444,14 @@ remote_event_wait(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
 }
 
 static inline void
-remote_event_signal_local(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
+remote_event_signal_local(wait_queue_head_t *wq, struct remote_event *event)
 {
 	event->armed = 0;
 	wake_up_all(wq);
 }
 
 static inline void
-remote_event_poll(wait_queue_head_t *wq, REMOTE_EVENT_T *event)
+remote_event_poll(wait_queue_head_t *wq, struct remote_event *event)
 {
 	if (event->fired && event->armed)
 		remote_event_signal_local(wq, event);

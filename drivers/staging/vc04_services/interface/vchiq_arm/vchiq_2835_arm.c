@@ -233,7 +233,7 @@ vchiq_platform_get_arm_state(VCHIQ_STATE_T *state)
 }
 
 void
-remote_event_signal(REMOTE_EVENT_T *event)
+remote_event_signal(struct remote_event *event)
 {
 	wmb();
 
