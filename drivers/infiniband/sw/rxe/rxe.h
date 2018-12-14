@@ -110,5 +110,6 @@ struct rxe_dev *get_rxe_by_name(const char *name);
 
 void rxe_port_up(struct rxe_dev *rxe);
 void rxe_port_down(struct rxe_dev *rxe);
+void rxe_set_port_state(struct rxe_dev *rxe);
 
 #endif /* RXE_H */

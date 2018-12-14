@@ -625,6 +625,14 @@ void rxe_port_down(struct rxe_dev *rxe)
 	dev_info(&rxe->ib_dev.dev, "set down\n");
 }
 
+void rxe_set_port_state(struct rxe_dev *rxe)
+{
+	if (netif_running(rxe->ndev) && netif_carrier_ok(rxe->ndev))
+		rxe_port_up(rxe);
+	else
+		rxe_port_down(rxe);
+}
+
 static int rxe_notify(struct notifier_block *not_blk,
 		      unsigned long event,
 		      void *arg)
@@ -651,10 +659,7 @@ static int rxe_notify(struct notifier_block *not_blk,
 		rxe_set_mtu(rxe, ndev->mtu);
 		break;
 	case NETDEV_CHANGE:
-		if (netif_running(ndev) && netif_carrier_ok(ndev))
-			rxe_port_up(rxe);
-		else
-			rxe_port_down(rxe);
+		rxe_set_port_state(rxe);
 		break;
 	case NETDEV_REBOOT:
 	case NETDEV_GOING_DOWN:
