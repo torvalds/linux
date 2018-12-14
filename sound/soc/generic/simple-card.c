@@ -26,7 +26,6 @@ struct simple_card_data {
 		struct snd_soc_codec_conf *codec_conf;
 		unsigned int mclk_fs;
 	} *dai_props;
-	unsigned int mclk_fs;
 	struct asoc_simple_jack hp_jack;
 	struct asoc_simple_jack mic_jack;
 	struct snd_soc_dai_link *dai_link;
@@ -102,9 +101,7 @@ static int asoc_simple_card_hw_params(struct snd_pcm_substream *substream,
 	unsigned int mclk, mclk_fs = 0;
 	int ret = 0;
 
-	if (priv->mclk_fs)
-		mclk_fs = priv->mclk_fs;
-	else if (dai_props->mclk_fs)
+	if (dai_props->mclk_fs)
 		mclk_fs = dai_props->mclk_fs;
 
 	if (mclk_fs) {
@@ -172,7 +169,8 @@ static int asoc_simple_card_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-static int asoc_simple_card_dai_link_of_dpcm(struct device_node *node,
+static int asoc_simple_card_dai_link_of_dpcm(struct device_node *top,
+					     struct device_node *node,
 					     struct device_node *np,
 					     struct device_node *codec,
 					     struct simple_card_data *priv,
@@ -185,6 +183,7 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *node,
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, link_idx);
 	struct snd_soc_card *card = simple_priv_to_card(priv);
 	struct asoc_simple_dai *dai;
+	char prop[128];
 	char *prefix = "";
 	int ret;
 
@@ -278,7 +277,10 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *node,
 	if (ret < 0)
 		return ret;
 
-	of_property_read_u32(np, "mclk-fs", &dai_props->mclk_fs);
+	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
+	of_property_read_u32(top,  PREFIX "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(node, prop, &dai_props->mclk_fs);
+	of_property_read_u32(np,   prop, &dai_props->mclk_fs);
 
 	ret = asoc_simple_card_parse_daifmt(dev, node, codec,
 					    prefix, &dai_link->dai_fmt);
@@ -293,7 +295,8 @@ static int asoc_simple_card_dai_link_of_dpcm(struct device_node *node,
 	return 0;
 }
 
-static int asoc_simple_card_dai_link_of(struct device_node *node,
+static int asoc_simple_card_dai_link_of(struct device_node *top,
+					struct device_node *node,
 					struct simple_card_data *priv,
 					int *dai_idx, int link_idx,
 					bool is_top_level_node)
@@ -345,7 +348,11 @@ static int asoc_simple_card_dai_link_of(struct device_node *node,
 	if (ret < 0)
 		goto dai_link_of_err;
 
-	of_property_read_u32(node, "mclk-fs", &dai_props->mclk_fs);
+	snprintf(prop, sizeof(prop), "%smclk-fs", prefix);
+	of_property_read_u32(top,  PREFIX "mclk-fs", &dai_props->mclk_fs);
+	of_property_read_u32(node,  prop, &dai_props->mclk_fs);
+	of_property_read_u32(cpu,   prop, &dai_props->mclk_fs);
+	of_property_read_u32(codec, prop, &dai_props->mclk_fs);
 
 	ret = asoc_simple_card_parse_cpu(cpu, dai_link,
 					 DAI, CELL, &single_cpu);
@@ -453,9 +460,6 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 	if (ret < 0)
 		return ret;
 
-	/* Factor to mclk, used in hw_params() */
-	of_property_read_u32(top, PREFIX "mclk-fs", &priv->mclk_fs);
-
 	asoc_simple_card_parse_convert(dev, top, PREFIX, &priv->adata);
 
 	/* Single/Muti DAI link(s) & New style of DT node */
@@ -482,13 +486,13 @@ static int asoc_simple_card_parse_of(struct simple_card_data *priv)
 				is_fe = (np != codec);
 
 				ret = asoc_simple_card_dai_link_of_dpcm(
-						node, np, codec, priv,
+						top, node, np, codec, priv,
 						&dai_idx, link_idx++, &conf_idx,
 						is_fe, !loop);
 			}
 		} else {
 			ret = asoc_simple_card_dai_link_of(
-						node, priv,
+						top, node, priv,
 						&dai_idx, link_idx++, !loop);
 		}
 		if (ret < 0)
