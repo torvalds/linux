@@ -4,9 +4,6 @@
  * Copyright 2018 Mesih Kilinc <mesihkilinc@gmail.com>
  */
 
-#include <dt-bindings/clock/suniv-ccu-f1c100s.h>
-#include <dt-bindings/reset/suniv-ccu-f1c100s.h>
-
 / {
 	#address-cells = <1>;
 	#size-cells = <1>;
