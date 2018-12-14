@@ -501,7 +501,7 @@ static int f2fs_move_rehashed_dirents(struct inode *dir, struct page *ipage,
 
 	stat_dec_inline_dir(dir);
 	clear_inode_flag(dir, FI_INLINE_DENTRY);
-	kfree(backup_dentry);
+	kvfree(backup_dentry);
 	return 0;
 recover:
 	lock_page(ipage);
@@ -512,7 +512,7 @@ recover:
 	set_page_dirty(ipage);
 	f2fs_put_page(ipage, 1);
 
-	kfree(backup_dentry);
+	kvfree(backup_dentry);
 	return err;
 }
 

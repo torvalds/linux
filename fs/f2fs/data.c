@@ -2573,7 +2573,7 @@ static void f2fs_dio_end_io(struct bio *bio)
 	bio->bi_private = dio->orig_private;
 	bio->bi_end_io = dio->orig_end_io;
 
-	kfree(dio);
+	kvfree(dio);
 
 	bio_endio(bio);
 }
