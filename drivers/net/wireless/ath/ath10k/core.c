@@ -2418,6 +2418,28 @@ static int ath10k_core_reset_rx_filter(struct ath10k *ar)
 	return 0;
 }
 
+static int ath10k_core_compat_services(struct ath10k *ar)
+{
+	struct ath10k_fw_file *fw_file = &ar->normal_mode_fw.fw_file;
+
+	/* all 10.x firmware versions support thermal throttling but don't
+	 * advertise the support via service flags so we have to hardcode
+	 * it here
+	 */
+	switch (fw_file->wmi_op_version) {
+	case ATH10K_FW_WMI_OP_VERSION_10_1:
+	case ATH10K_FW_WMI_OP_VERSION_10_2:
+	case ATH10K_FW_WMI_OP_VERSION_10_2_4:
+	case ATH10K_FW_WMI_OP_VERSION_10_4:
+		set_bit(WMI_SERVICE_THERM_THROT, ar->wmi.svc_map);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		      const struct ath10k_fw_components *fw)
 {
@@ -2614,6 +2636,12 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 	status = ath10k_wmi_wait_for_unified_ready(ar);
 	if (status) {
 		ath10k_err(ar, "wmi unified ready event not received\n");
+		goto err_hif_stop;
+	}
+
+	status = ath10k_core_compat_services(ar);
+	if (status) {
+		ath10k_err(ar, "compat services failed: %d\n", status);
 		goto err_hif_stop;
 	}
 
