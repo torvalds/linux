@@ -156,7 +156,7 @@ static int madera_wait_for_boot(struct madera *madera)
 		usleep_range(MADERA_BOOT_POLL_INTERVAL_USEC / 2,
 			     MADERA_BOOT_POLL_INTERVAL_USEC);
 		regmap_read(madera->regmap, MADERA_IRQ1_RAW_STATUS_1, &val);
-	};
+	}
 
 	if (!(val & MADERA_BOOT_DONE_STS1)) {
 		dev_err(madera->dev, "Polling BOOT_DONE_STS timed out\n");
