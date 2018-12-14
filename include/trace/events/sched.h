@@ -733,7 +733,8 @@ TRACE_EVENT(sched_load_se,
 		__entry->cpu		= __trace_sched_cpu(gcfs_rq, se);
 		__trace_sched_path(gcfs_rq, __get_dynamic_array(path),
 				   __get_dynamic_array_len(path));
-		memcpy(__entry->comm, p ? p->comm : "(null)", TASK_COMM_LEN);
+		memcpy(__entry->comm, p ? p->comm : "(null)",
+				      p ? TASK_COMM_LEN : sizeof("(null)"));
 		__entry->pid = p ? p->pid : -1;
 		__entry->load = se->avg.load_avg;
 		__entry->rbl_load = se->avg.runnable_load_avg;
