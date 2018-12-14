@@ -103,6 +103,16 @@ static const struct v4l2_pix_format ov772x_mode[] = {
 	 .sizeimage = 640 * 480 * 2,
 	 .colorspace = V4L2_COLORSPACE_SRGB,
 	 .priv = 0},
+	{320, 240, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+	 .bytesperline = 320,
+	 .sizeimage = 320 * 240,
+	 .colorspace = V4L2_COLORSPACE_SRGB,
+	 .priv = 1},
+	{640, 480, V4L2_PIX_FMT_SGRBG8, V4L2_FIELD_NONE,
+	 .bytesperline = 640,
+	 .sizeimage = 640 * 480,
+	 .colorspace = V4L2_COLORSPACE_SRGB,
+	 .priv = 0},
 };
 static const struct v4l2_pix_format ov767x_mode[] = {
 	{320, 240, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
@@ -124,6 +134,14 @@ static const struct framerates ov772x_framerates[] = {
 		.nrates = ARRAY_SIZE(qvga_rates),
 	},
 	{ /* 640x480 */
+		.rates = vga_rates,
+		.nrates = ARRAY_SIZE(vga_rates),
+	},
+	{ /* 320x240 SGBRG8 */
+		.rates = qvga_rates,
+		.nrates = ARRAY_SIZE(qvga_rates),
+	},
+	{ /* 640x480 SGBRG8 */
 		.rates = vga_rates,
 		.nrates = ARRAY_SIZE(vga_rates),
 	},
@@ -552,7 +570,7 @@ static const u8 sensor_init_772x[][2] = {
 	{ 0x8e, 0x00 },		/* De-noise threshold */
 	{ 0x0c, 0xd0 }
 };
-static const u8 bridge_start_vga_772x[][2] = {
+static const u8 bridge_start_vga_yuyv_772x[][2] = {
 	{0x88, 0x00},
 	{0x1c, 0x00},
 	{0x1d, 0x40},
@@ -568,7 +586,7 @@ static const u8 bridge_start_vga_772x[][2] = {
 	{0xc2, 0x0c},
 	{0xc3, 0x69},
 };
-static const u8 sensor_start_vga_772x[][2] = {
+static const u8 sensor_start_vga_yuyv_772x[][2] = {
 	{0x12, 0x00},
 	{0x17, 0x26},
 	{0x18, 0xa0},
@@ -577,8 +595,9 @@ static const u8 sensor_start_vga_772x[][2] = {
 	{0x29, 0xa0},
 	{0x2c, 0xf0},
 	{0x65, 0x20},
+	{0x67, 0x00},
 };
-static const u8 bridge_start_qvga_772x[][2] = {
+static const u8 bridge_start_qvga_yuyv_772x[][2] = {
 	{0x88, 0x00},
 	{0x1c, 0x00},
 	{0x1d, 0x40},
@@ -594,7 +613,7 @@ static const u8 bridge_start_qvga_772x[][2] = {
 	{0xc2, 0x0c},
 	{0xc3, 0x69},
 };
-static const u8 sensor_start_qvga_772x[][2] = {
+static const u8 sensor_start_qvga_yuyv_772x[][2] = {
 	{0x12, 0x40},
 	{0x17, 0x3f},
 	{0x18, 0x50},
@@ -603,6 +622,61 @@ static const u8 sensor_start_qvga_772x[][2] = {
 	{0x29, 0x50},
 	{0x2c, 0x78},
 	{0x65, 0x2f},
+	{0x67, 0x00},
+};
+static const u8 bridge_start_vga_gbrg_772x[][2] = {
+	{0x88, 0x08},
+	{0x1c, 0x00},
+	{0x1d, 0x00},
+	{0x1d, 0x02},
+	{0x1d, 0x00},
+	{0x1d, 0x01},
+	{0x1d, 0x2c},
+	{0x1d, 0x00},
+	{0x8d, 0x00},
+	{0x8e, 0x00},
+	{0xc0, 0x50},
+	{0xc1, 0x3c},
+	{0xc2, 0x01},
+	{0xc3, 0x01},
+};
+static const u8 sensor_start_vga_gbrg_772x[][2] = {
+	{0x12, 0x01},
+	{0x17, 0x26},
+	{0x18, 0xa0},
+	{0x19, 0x07},
+	{0x1a, 0xf0},
+	{0x29, 0xa0},
+	{0x2c, 0xf0},
+	{0x65, 0x20},
+	{0x67, 0x02},
+};
+static const u8 bridge_start_qvga_gbrg_772x[][2] = {
+	{0x88, 0x08},
+	{0x1c, 0x00},
+	{0x1d, 0x00},
+	{0x1d, 0x02},
+	{0x1d, 0x00},
+	{0x1d, 0x00},
+	{0x1d, 0x4b},
+	{0x1d, 0x00},
+	{0x8d, 0x00},
+	{0x8e, 0x00},
+	{0xc0, 0x28},
+	{0xc1, 0x1e},
+	{0xc2, 0x01},
+	{0xc3, 0x01},
+};
+static const u8 sensor_start_qvga_gbrg_772x[][2] = {
+	{0x12, 0x41},
+	{0x17, 0x3f},
+	{0x18, 0x50},
+	{0x19, 0x03},
+	{0x1a, 0x78},
+	{0x29, 0x50},
+	{0x2c, 0x78},
+	{0x65, 0x2f},
+	{0x67, 0x02},
 };
 
 static void ov534_reg_write(struct gspca_dev *gspca_dev, u16 reg, u8 val)
@@ -1316,25 +1390,33 @@ static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int mode;
-	static const struct reg_array bridge_start[NSENSORS][2] = {
+	static const struct reg_array bridge_start[NSENSORS][4] = {
 	[SENSOR_OV767x] = {{bridge_start_qvga_767x,
 					ARRAY_SIZE(bridge_start_qvga_767x)},
 			{bridge_start_vga_767x,
 					ARRAY_SIZE(bridge_start_vga_767x)}},
-	[SENSOR_OV772x] = {{bridge_start_qvga_772x,
-					ARRAY_SIZE(bridge_start_qvga_772x)},
-			{bridge_start_vga_772x,
-					ARRAY_SIZE(bridge_start_vga_772x)}},
+	[SENSOR_OV772x] = {{bridge_start_qvga_yuyv_772x,
+				ARRAY_SIZE(bridge_start_qvga_yuyv_772x)},
+			{bridge_start_vga_yuyv_772x,
+				ARRAY_SIZE(bridge_start_vga_yuyv_772x)},
+			{bridge_start_qvga_gbrg_772x,
+				ARRAY_SIZE(bridge_start_qvga_gbrg_772x)},
+			{bridge_start_vga_gbrg_772x,
+				ARRAY_SIZE(bridge_start_vga_gbrg_772x)} },
 	};
-	static const struct reg_array sensor_start[NSENSORS][2] = {
+	static const struct reg_array sensor_start[NSENSORS][4] = {
 	[SENSOR_OV767x] = {{sensor_start_qvga_767x,
 					ARRAY_SIZE(sensor_start_qvga_767x)},
 			{sensor_start_vga_767x,
 					ARRAY_SIZE(sensor_start_vga_767x)}},
-	[SENSOR_OV772x] = {{sensor_start_qvga_772x,
-					ARRAY_SIZE(sensor_start_qvga_772x)},
-			{sensor_start_vga_772x,
-					ARRAY_SIZE(sensor_start_vga_772x)}},
+	[SENSOR_OV772x] = {{sensor_start_qvga_yuyv_772x,
+				ARRAY_SIZE(sensor_start_qvga_yuyv_772x)},
+			{sensor_start_vga_yuyv_772x,
+				ARRAY_SIZE(sensor_start_vga_yuyv_772x)},
+			{sensor_start_qvga_gbrg_772x,
+				ARRAY_SIZE(sensor_start_qvga_gbrg_772x)},
+			{sensor_start_vga_gbrg_772x,
+				ARRAY_SIZE(sensor_start_vga_gbrg_772x)} },
 	};
 
 	/* (from ms-win trace) */
@@ -1440,10 +1522,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		/* If this packet is marked as EOF, end the frame */
 		} else if (data[1] & UVC_STREAM_EOF) {
 			sd->last_pts = 0;
-			if (gspca_dev->pixfmt.pixelformat == V4L2_PIX_FMT_YUYV
+			if (gspca_dev->pixfmt.pixelformat != V4L2_PIX_FMT_JPEG
 			 && gspca_dev->image_len + len - 12 !=
-				   gspca_dev->pixfmt.width *
-					gspca_dev->pixfmt.height * 2) {
+			    gspca_dev->pixfmt.sizeimage) {
 				gspca_dbg(gspca_dev, D_PACK, "wrong sized frame\n");
 				goto discard;
 			}
