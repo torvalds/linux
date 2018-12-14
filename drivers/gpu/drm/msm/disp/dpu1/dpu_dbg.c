@@ -1962,7 +1962,7 @@ static void _dpu_dbg_dump_dpu_dbg_bus(struct dpu_dbg_dpu_debug_bus *bus)
 	u32 *dump_addr = NULL;
 	u32 status = 0;
 	struct dpu_debug_bus_entry *head;
-	phys_addr_t phys = 0;
+	dma_addr_t dma = 0;
 	int list_size;
 	int i;
 	u32 offset;
@@ -2000,7 +2000,7 @@ static void _dpu_dbg_dump_dpu_dbg_bus(struct dpu_dbg_dpu_debug_bus *bus)
 	if (in_mem) {
 		if (!(*dump_mem))
 			*dump_mem = dma_alloc_coherent(dpu_dbg_base.dev,
-				list_size, &phys, GFP_KERNEL);
+				list_size, &dma, GFP_KERNEL);
 
 		if (*dump_mem) {
 			dump_addr = *dump_mem;
@@ -2101,7 +2101,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 	u32 value, d0, d1;
 	unsigned long reg, reg1, reg2;
 	struct vbif_debug_bus_entry *head;
-	phys_addr_t phys = 0;
+	dma_addr_t dma = 0;
 	int i, list_size = 0;
 	void __iomem *mem_base = NULL;
 	struct vbif_debug_bus_entry *dbg_bus;
@@ -2151,7 +2151,7 @@ static void _dpu_dbg_dump_vbif_dbg_bus(struct dpu_dbg_vbif_debug_bus *bus)
 	if (in_mem) {
 		if (!(*dump_mem))
 			*dump_mem = dma_alloc_coherent(dpu_dbg_base.dev,
-				list_size, &phys, GFP_KERNEL);
+				list_size, &dma, GFP_KERNEL);
 
 		if (*dump_mem) {
 			dump_addr = *dump_mem;
