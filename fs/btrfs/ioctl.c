@@ -4414,7 +4414,7 @@ static long btrfs_ioctl_scrub_progress(struct btrfs_fs_info *fs_info,
 
 	ret = btrfs_scrub_progress(fs_info, sa->devid, &sa->progress);
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
+	if (ret == 0 && copy_to_user(arg, sa, sizeof(*sa)))
 		ret = -EFAULT;
 
 	kfree(sa);
