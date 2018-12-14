@@ -16,6 +16,8 @@ obj-y += \
 	clk-pfd.o \
 	clk-sccg-pll.o
 
+obj-$(CONFIG_CLK_IMX8MQ) += clk-imx8mq.o
+
 obj-$(CONFIG_SOC_IMX1)   += clk-imx1.o
 obj-$(CONFIG_SOC_IMX21)  += clk-imx21.o
 obj-$(CONFIG_SOC_IMX25)  += clk-imx25.o
