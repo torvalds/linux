@@ -122,7 +122,7 @@ struct user_service {
 	struct completion insert_event;
 	struct completion remove_event;
 	struct completion close_event;
-	VCHIQ_HEADER_T * msg_queue[MSG_QUEUE_SIZE];
+	struct vchiq_header *msg_queue[MSG_QUEUE_SIZE];
 };
 
 struct bulk_waiter_node {
@@ -545,8 +545,8 @@ vchiq_blocking_bulk_transfer(VCHIQ_SERVICE_HANDLE_T handle, void *data,
 
 static VCHIQ_STATUS_T
 add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
-	VCHIQ_HEADER_T *header, struct user_service *user_service,
-	void *bulk_userdata)
+	       struct vchiq_header *header, struct user_service *user_service,
+	       void *bulk_userdata)
 {
 	struct vchiq_completion_data *completion;
 	int insert;
@@ -610,8 +610,8 @@ add_completion(VCHIQ_INSTANCE_T instance, VCHIQ_REASON_T reason,
 ***************************************************************************/
 
 static VCHIQ_STATUS_T
-service_callback(VCHIQ_REASON_T reason, VCHIQ_HEADER_T *header,
-	VCHIQ_SERVICE_HANDLE_T handle, void *bulk_userdata)
+service_callback(VCHIQ_REASON_T reason, struct vchiq_header *header,
+		 VCHIQ_SERVICE_HANDLE_T handle, void *bulk_userdata)
 {
 	/* How do we ensure the callback goes to the right client?
 	** The service_user data points to a user_service record
@@ -1203,7 +1203,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				struct vchiq_completion_data *completion;
 				VCHIQ_SERVICE_T *service;
 				struct user_service *user_service;
-				VCHIQ_HEADER_T *header;
+				struct vchiq_header *header;
 
 				if (remove == instance->completion_insert)
 					break;
@@ -1228,7 +1228,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 					int msglen;
 
 					msglen = header->size +
-						sizeof(VCHIQ_HEADER_T);
+						sizeof(struct vchiq_header);
 					/* This must be a VCHIQ-style service */
 					if (args.msgbufsize < msglen) {
 						vchiq_log_error(
@@ -1320,7 +1320,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VCHIQ_IOC_DEQUEUE_MESSAGE: {
 		struct vchiq_dequeue_message args;
 		struct user_service *user_service;
-		VCHIQ_HEADER_T *header;
+		struct vchiq_header *header;
 
 		DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
 		if (copy_from_user
@@ -2041,7 +2041,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 		spin_lock(&msg_queue_spinlock);
 
 		while (user_service->msg_remove != user_service->msg_insert) {
-			VCHIQ_HEADER_T *header;
+			struct vchiq_header *header;
 			int m = user_service->msg_remove & (MSG_QUEUE_SIZE - 1);
 
 			header = user_service->msg_queue[m];
@@ -2309,7 +2309,7 @@ vchiq_videocore_wanted(VCHIQ_STATE_T *state)
 
 static VCHIQ_STATUS_T
 vchiq_keepalive_vchiq_callback(VCHIQ_REASON_T reason,
-	VCHIQ_HEADER_T *header,
+	struct vchiq_header *header,
 	VCHIQ_SERVICE_HANDLE_T service_user,
 	void *bulk_user)
 {

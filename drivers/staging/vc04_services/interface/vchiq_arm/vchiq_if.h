@@ -37,7 +37,7 @@
 #define VCHIQ_SERVICE_HANDLE_INVALID 0
 
 #define VCHIQ_SLOT_SIZE     4096
-#define VCHIQ_MAX_MSG_SIZE  (VCHIQ_SLOT_SIZE - sizeof(VCHIQ_HEADER_T))
+#define VCHIQ_MAX_MSG_SIZE  (VCHIQ_SLOT_SIZE - sizeof(struct vchiq_header))
 #define VCHIQ_CHANNEL_SIZE  VCHIQ_MAX_MSG_SIZE /* For backwards compatibility */
 
 #define VCHIQ_MAKE_FOURCC(x0, x1, x2, x3) \
@@ -76,7 +76,7 @@ typedef enum {
 	VCHIQ_SERVICE_OPTION_TRACE
 } VCHIQ_SERVICE_OPTION_T;
 
-typedef struct vchiq_header_struct {
+struct vchiq_header {
 	/* The message identifier - opaque to applications. */
 	int msgid;
 
@@ -84,7 +84,7 @@ typedef struct vchiq_header_struct {
 	unsigned int size;
 
 	char data[0];           /* message */
-} VCHIQ_HEADER_T;
+};
 
 struct vchiq_element {
 	const void __user *data;
@@ -93,8 +93,9 @@ struct vchiq_element {
 
 typedef unsigned int VCHIQ_SERVICE_HANDLE_T;
 
-typedef VCHIQ_STATUS_T (*VCHIQ_CALLBACK_T)(VCHIQ_REASON_T, VCHIQ_HEADER_T *,
-	VCHIQ_SERVICE_HANDLE_T, void *);
+typedef VCHIQ_STATUS_T (*VCHIQ_CALLBACK_T)(VCHIQ_REASON_T,
+					   struct vchiq_header *,
+					   VCHIQ_SERVICE_HANDLE_T, void *);
 
 typedef struct vchiq_service_base_struct {
 	int fourcc;
@@ -146,7 +147,7 @@ vchiq_queue_message(VCHIQ_SERVICE_HANDLE_T handle,
 		    void *context,
 		    size_t size);
 extern void           vchiq_release_message(VCHIQ_SERVICE_HANDLE_T service,
-	VCHIQ_HEADER_T *header);
+	struct vchiq_header *header);
 extern VCHIQ_STATUS_T vchiq_bulk_transmit(VCHIQ_SERVICE_HANDLE_T service,
 	const void *data, unsigned int size, void *userdata,
 	VCHIQ_BULK_MODE_T mode);

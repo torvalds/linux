@@ -72,7 +72,7 @@ int32_t vchi_msg_peek(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
 		(flags != VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE));
@@ -104,7 +104,7 @@ EXPORT_SYMBOL(vchi_msg_peek);
 int32_t vchi_msg_remove(VCHI_SERVICE_HANDLE_T handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	header = vchiu_queue_pop(&service->queue);
 
@@ -357,7 +357,7 @@ int32_t vchi_msg_dequeue(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
 		(flags != VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE));
@@ -401,7 +401,7 @@ int32_t vchi_held_msg_release(struct vchi_held_msg *message)
 	 */
 
 	vchiq_release_message((VCHIQ_SERVICE_HANDLE_T)(long)message->service,
-			      (VCHIQ_HEADER_T *)message->message);
+			      (struct vchiq_header *)message->message);
 
 	return 0;
 }
@@ -431,7 +431,7 @@ int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 	struct vchi_held_msg *message_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
 		(flags != VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE));
@@ -540,7 +540,9 @@ EXPORT_SYMBOL(vchi_disconnect);
  ***********************************************************/
 
 static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
-	VCHIQ_HEADER_T *header, VCHIQ_SERVICE_HANDLE_T handle, void *bulk_user)
+				    struct vchiq_header *header,
+				    VCHIQ_SERVICE_HANDLE_T handle,
+				    void *bulk_user)
 {
 	struct shim_service *service =
 		(struct shim_service *)VCHIQ_GET_SERVICE_USERDATA(handle);

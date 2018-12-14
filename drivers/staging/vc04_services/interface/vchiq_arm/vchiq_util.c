@@ -50,7 +50,8 @@ int vchiu_queue_init(VCHIU_QUEUE_T *queue, int size)
 	init_completion(&queue->pop);
 	init_completion(&queue->push);
 
-	queue->storage = kcalloc(size, sizeof(VCHIQ_HEADER_T *), GFP_KERNEL);
+	queue->storage = kcalloc(size, sizeof(struct vchiq_header *),
+				 GFP_KERNEL);
 	if (!queue->storage) {
 		vchiu_queue_delete(queue);
 		return 0;
@@ -73,7 +74,7 @@ int vchiu_queue_is_full(VCHIU_QUEUE_T *queue)
 	return queue->write == queue->read + queue->size;
 }
 
-void vchiu_queue_push(VCHIU_QUEUE_T *queue, VCHIQ_HEADER_T *header)
+void vchiu_queue_push(VCHIU_QUEUE_T *queue, struct vchiq_header *header)
 {
 	if (!queue->initialized)
 		return;
@@ -89,7 +90,7 @@ void vchiu_queue_push(VCHIU_QUEUE_T *queue, VCHIQ_HEADER_T *header)
 	complete(&queue->push);
 }
 
-VCHIQ_HEADER_T *vchiu_queue_peek(VCHIU_QUEUE_T *queue)
+struct vchiq_header *vchiu_queue_peek(VCHIU_QUEUE_T *queue)
 {
 	while (queue->write == queue->read) {
 		if (wait_for_completion_killable(&queue->push))
@@ -101,9 +102,9 @@ VCHIQ_HEADER_T *vchiu_queue_peek(VCHIU_QUEUE_T *queue)
 	return queue->storage[queue->read & (queue->size - 1)];
 }
 
-VCHIQ_HEADER_T *vchiu_queue_pop(VCHIU_QUEUE_T *queue)
+struct vchiq_header *vchiu_queue_pop(VCHIU_QUEUE_T *queue)
 {
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	while (queue->write == queue->read) {
 		if (wait_for_completion_killable(&queue->push))

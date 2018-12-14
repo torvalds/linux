@@ -72,8 +72,8 @@ enum {
 };
 
 /* we require this for consistency between endpoints */
-vchiq_static_assert(sizeof(VCHIQ_HEADER_T) == 8);
-vchiq_static_assert(IS_POW2(sizeof(VCHIQ_HEADER_T)));
+vchiq_static_assert(sizeof(struct vchiq_header) == 8);
+vchiq_static_assert(IS_POW2(sizeof(struct vchiq_header)));
 vchiq_static_assert(IS_POW2(VCHIQ_NUM_CURRENT_BULKS));
 vchiq_static_assert(IS_POW2(VCHIQ_NUM_SERVICE_BULKS));
 vchiq_static_assert(IS_POW2(VCHIQ_MAX_SERVICES));
@@ -127,7 +127,7 @@ static const char *const conn_state_names[] = {
 };
 
 static void
-release_message_sync(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header);
+release_message_sync(VCHIQ_STATE_T *state, struct vchiq_header *header);
 
 static const char *msg_type_str(unsigned int msg_type)
 {
@@ -386,7 +386,7 @@ mark_service_closing(VCHIQ_SERVICE_T *service)
 
 static inline VCHIQ_STATUS_T
 make_service_callback(VCHIQ_SERVICE_T *service, VCHIQ_REASON_T reason,
-	VCHIQ_HEADER_T *header, void *bulk_userdata)
+	struct vchiq_header *header, void *bulk_userdata)
 {
 	VCHIQ_STATUS_T status;
 
@@ -474,11 +474,11 @@ static inline size_t
 calc_stride(size_t size)
 {
 	/* Allow room for the header */
-	size += sizeof(VCHIQ_HEADER_T);
+	size += sizeof(struct vchiq_header);
 
 	/* Round up */
-	return (size + sizeof(VCHIQ_HEADER_T) - 1) & ~(sizeof(VCHIQ_HEADER_T)
-		- 1);
+	return (size + sizeof(struct vchiq_header) - 1) &
+		~(sizeof(struct vchiq_header) - 1);
 }
 
 /* Called by the slot handler thread */
@@ -552,7 +552,7 @@ request_poll(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service, int poll_type)
 
 /* Called from queue_message, by the slot handler and application threads,
 ** with slot_mutex held */
-static VCHIQ_HEADER_T *
+static struct vchiq_header *
 reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 {
 	VCHIQ_SHARED_STATE_T *local = state->local;
@@ -560,13 +560,13 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 	int slot_space = VCHIQ_SLOT_SIZE - (tx_pos & VCHIQ_SLOT_MASK);
 
 	if (space > slot_space) {
-		VCHIQ_HEADER_T *header;
+		struct vchiq_header *header;
 		/* Fill the remaining space with padding */
 		WARN_ON(state->tx_data == NULL);
-		header = (VCHIQ_HEADER_T *)
+		header = (struct vchiq_header *)
 			(state->tx_data + (tx_pos & VCHIQ_SLOT_MASK));
 		header->msgid = VCHIQ_MSGID_PADDING;
-		header->size = slot_space - sizeof(VCHIQ_HEADER_T);
+		header->size = slot_space - sizeof(struct vchiq_header);
 
 		tx_pos += slot_space;
 	}
@@ -608,7 +608,8 @@ reserve_space(VCHIQ_STATE_T *state, size_t space, int is_blocking)
 
 	state->local_tx_pos = tx_pos + space;
 
-	return (VCHIQ_HEADER_T *)(state->tx_data + (tx_pos & VCHIQ_SLOT_MASK));
+	return (struct vchiq_header *)(state->tx_data +
+						(tx_pos & VCHIQ_SLOT_MASK));
 }
 
 /* Called by the recycle thread. */
@@ -653,8 +654,8 @@ process_free_queue(VCHIQ_STATE_T *state, BITSET_T *service_found, size_t length)
 		pos = 0;
 
 		while (pos < VCHIQ_SLOT_SIZE) {
-			VCHIQ_HEADER_T *header =
-				(VCHIQ_HEADER_T *)(data + pos);
+			struct vchiq_header *header =
+				(struct vchiq_header *)(data + pos);
 			int msgid = header->msgid;
 
 			if (VCHIQ_MSG_TYPE(msgid) == VCHIQ_MSG_DATA) {
@@ -808,7 +809,7 @@ queue_message(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 {
 	VCHIQ_SHARED_STATE_T *local;
 	VCHIQ_SERVICE_QUOTA_T *service_quota = NULL;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 	int type = VCHIQ_MSG_TYPE(msgid);
 
 	size_t stride;
@@ -1057,7 +1058,7 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 	int is_blocking)
 {
 	VCHIQ_SHARED_STATE_T *local;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 	ssize_t callback_result;
 
 	local = state->local;
@@ -1070,7 +1071,7 @@ queue_message_sync(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
 
 	rmb();
 
-	header = (VCHIQ_HEADER_T *)SLOT_DATA_FROM_INDEX(state,
+	header = (struct vchiq_header *)SLOT_DATA_FROM_INDEX(state,
 		local->slot_sync);
 
 	{
@@ -1149,7 +1150,7 @@ claim_slot(VCHIQ_SLOT_INFO_T *slot)
 
 static void
 release_slot(VCHIQ_STATE_T *state, VCHIQ_SLOT_INFO_T *slot_info,
-	VCHIQ_HEADER_T *header, VCHIQ_SERVICE_T *service)
+	struct vchiq_header *header, VCHIQ_SERVICE_T *service)
 {
 	int release_count;
 
@@ -1403,7 +1404,7 @@ abort_outstanding_bulks(VCHIQ_SERVICE_T *service,
 }
 
 static int
-parse_open(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
+parse_open(VCHIQ_STATE_T *state, struct vchiq_header *header)
 {
 	VCHIQ_SERVICE_T *service = NULL;
 	int msgid, size;
@@ -1536,7 +1537,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 	tx_pos = remote->tx_pos;
 
 	while (state->rx_pos != tx_pos) {
-		VCHIQ_HEADER_T *header;
+		struct vchiq_header *header;
 		int msgid, size;
 		int type;
 		unsigned int localport, remoteport;
@@ -1560,7 +1561,7 @@ parse_rx_slots(VCHIQ_STATE_T *state)
 			state->rx_info->release_count = 0;
 		}
 
-		header = (VCHIQ_HEADER_T *)(state->rx_data +
+		header = (struct vchiq_header *)(state->rx_data +
 			(state->rx_pos & VCHIQ_SLOT_MASK));
 		DEBUG_VALUE(PARSE_HEADER, (int)(long)header);
 		msgid = header->msgid;
@@ -1987,8 +1988,9 @@ sync_func(void *v)
 {
 	VCHIQ_STATE_T *state = (VCHIQ_STATE_T *) v;
 	VCHIQ_SHARED_STATE_T *local = state->local;
-	VCHIQ_HEADER_T *header = (VCHIQ_HEADER_T *)SLOT_DATA_FROM_INDEX(state,
-		state->remote->slot_sync);
+	struct vchiq_header *header =
+		(struct vchiq_header *)SLOT_DATA_FROM_INDEX(state,
+			state->remote->slot_sync);
 
 	while (1) {
 		VCHIQ_SERVICE_T *service;
@@ -2230,8 +2232,9 @@ vchiq_init_state(VCHIQ_STATE_T *state, VCHIQ_SLOT_ZERO_T *slot_zero)
 	remote_event_create(&state->sync_release_event, &local->sync_release);
 
 	/* At start-of-day, the slot is empty and available */
-	((VCHIQ_HEADER_T *)SLOT_DATA_FROM_INDEX(state, local->slot_sync))->msgid
-		= VCHIQ_MSGID_PADDING;
+	((struct vchiq_header *)
+		SLOT_DATA_FROM_INDEX(state, local->slot_sync))->msgid =
+							VCHIQ_MSGID_PADDING;
 	remote_event_signal_local(&state->sync_release_event, &local->sync_release);
 
 	local->debug[DEBUG_ENTRIES] = DEBUG_MAX;
@@ -2482,8 +2485,8 @@ release_service_messages(VCHIQ_SERVICE_T *service)
 	/* Release any claimed messages aimed at this service */
 
 	if (service->sync) {
-		VCHIQ_HEADER_T *header =
-			(VCHIQ_HEADER_T *)SLOT_DATA_FROM_INDEX(state,
+		struct vchiq_header *header =
+			(struct vchiq_header *)SLOT_DATA_FROM_INDEX(state,
 						state->remote->slot_sync);
 		if (VCHIQ_MSG_DSTPORT(header->msgid) == service->localport)
 			release_message_sync(state, header);
@@ -2508,8 +2511,8 @@ release_service_messages(VCHIQ_SERVICE_T *service)
 			pos = 0;
 
 			while (pos < end) {
-				VCHIQ_HEADER_T *header =
-					(VCHIQ_HEADER_T *)(data + pos);
+				struct vchiq_header *header =
+					(struct vchiq_header *)(data + pos);
 				int msgid = header->msgid;
 				int port = VCHIQ_MSG_DSTPORT(msgid);
 
@@ -3214,7 +3217,8 @@ error_exit:
 }
 
 void
-vchiq_release_message(VCHIQ_SERVICE_HANDLE_T handle, VCHIQ_HEADER_T *header)
+vchiq_release_message(VCHIQ_SERVICE_HANDLE_T handle,
+		      struct vchiq_header *header)
 {
 	VCHIQ_SERVICE_T *service = find_service_by_handle(handle);
 	VCHIQ_SHARED_STATE_T *remote;
@@ -3246,7 +3250,7 @@ vchiq_release_message(VCHIQ_SERVICE_HANDLE_T handle, VCHIQ_HEADER_T *header)
 }
 
 static void
-release_message_sync(VCHIQ_STATE_T *state, VCHIQ_HEADER_T *header)
+release_message_sync(VCHIQ_STATE_T *state, struct vchiq_header *header)
 {
 	header->msgid = VCHIQ_MSGID_PADDING;
 	remote_event_signal(&state->remote->sync_release);

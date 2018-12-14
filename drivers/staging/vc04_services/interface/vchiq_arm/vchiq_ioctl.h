@@ -63,7 +63,7 @@ typedef struct {
 
 struct vchiq_completion_data {
 	VCHIQ_REASON_T reason;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 	void *service_userdata;
 	void *bulk_userdata;
 };

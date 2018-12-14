@@ -63,7 +63,7 @@ typedef struct {
 	struct completion pop;
 	struct completion push;
 
-	VCHIQ_HEADER_T **storage;
+	struct vchiq_header **storage;
 } VCHIU_QUEUE_T;
 
 extern int  vchiu_queue_init(VCHIU_QUEUE_T *queue, int size);
@@ -72,9 +72,9 @@ extern void vchiu_queue_delete(VCHIU_QUEUE_T *queue);
 extern int vchiu_queue_is_empty(VCHIU_QUEUE_T *queue);
 extern int vchiu_queue_is_full(VCHIU_QUEUE_T *queue);
 
-extern void vchiu_queue_push(VCHIU_QUEUE_T *queue, VCHIQ_HEADER_T *header);
+extern void vchiu_queue_push(VCHIU_QUEUE_T *queue, struct vchiq_header *header);
 
-extern VCHIQ_HEADER_T *vchiu_queue_peek(VCHIU_QUEUE_T *queue);
-extern VCHIQ_HEADER_T *vchiu_queue_pop(VCHIU_QUEUE_T *queue);
+extern struct vchiq_header *vchiu_queue_peek(VCHIU_QUEUE_T *queue);
+extern struct vchiq_header *vchiu_queue_pop(VCHIU_QUEUE_T *queue);
 
 #endif
