@@ -29,6 +29,103 @@
  */
 static int p9_supported_radix_bits[4] = { 5, 9, 9, 13 };
 
+static unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
+					gva_t eaddr, void *to, void *from,
+					unsigned long n)
+{
+	unsigned long quadrant, ret = n;
+	int old_pid, old_lpid;
+	bool is_load = !!to;
+
+	/* Can't access quadrants 1 or 2 in non-HV mode */
+	if (kvmhv_on_pseries()) {
+		/* TODO h-call */
+		return -EPERM;
+	}
+
+	quadrant = 1;
+	if (!pid)
+		quadrant = 2;
+	if (is_load)
+		from = (void *) (eaddr | (quadrant << 62));
+	else
+		to = (void *) (eaddr | (quadrant << 62));
+
+	preempt_disable();
+
+	/* switch the lpid first to avoid running host with unallocated pid */
+	old_lpid = mfspr(SPRN_LPID);
+	if (old_lpid != lpid)
+		mtspr(SPRN_LPID, lpid);
+	if (quadrant == 1) {
+		old_pid = mfspr(SPRN_PID);
+		if (old_pid != pid)
+			mtspr(SPRN_PID, pid);
+	}
+	isync();
+
+	pagefault_disable();
+	if (is_load)
+		ret = raw_copy_from_user(to, from, n);
+	else
+		ret = raw_copy_to_user(to, from, n);
+	pagefault_enable();
+
+	/* switch the pid first to avoid running host with unallocated pid */
+	if (quadrant == 1 && pid != old_pid)
+		mtspr(SPRN_PID, old_pid);
+	if (lpid != old_lpid)
+		mtspr(SPRN_LPID, old_lpid);
+	isync();
+
+	preempt_enable();
+
+	return ret;
+}
+
+static long kvmhv_copy_tofrom_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr,
+					  void *to, void *from, unsigned long n)
+{
+	int lpid = vcpu->kvm->arch.lpid;
+	int pid = vcpu->arch.pid;
+
+	/* This would cause a data segment intr so don't allow the access */
+	if (eaddr & (0x3FFUL << 52))
+		return -EINVAL;
+
+	/* Should we be using the nested lpid */
+	if (vcpu->arch.nested)
+		lpid = vcpu->arch.nested->shadow_lpid;
+
+	/* If accessing quadrant 3 then pid is expected to be 0 */
+	if (((eaddr >> 62) & 0x3) == 0x3)
+		pid = 0;
+
+	eaddr &= ~(0xFFFUL << 52);
+
+	return __kvmhv_copy_tofrom_guest_radix(lpid, pid, eaddr, to, from, n);
+}
+
+long kvmhv_copy_from_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr, void *to,
+				 unsigned long n)
+{
+	long ret;
+
+	ret = kvmhv_copy_tofrom_guest_radix(vcpu, eaddr, to, NULL, n);
+	if (ret > 0)
+		memset(to + (n - ret), 0, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kvmhv_copy_from_guest_radix);
+
+long kvmhv_copy_to_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr, void *from,
+			       unsigned long n)
+{
+	return kvmhv_copy_tofrom_guest_radix(vcpu, eaddr, NULL, from, n);
+}
+EXPORT_SYMBOL_GPL(kvmhv_copy_to_guest_radix);
+
 int kvmppc_mmu_walk_radix_tree(struct kvm_vcpu *vcpu, gva_t eaddr,
 			       struct kvmppc_pte *gpte, u64 root,
 			       u64 *pte_ret_p)
