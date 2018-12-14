@@ -29,9 +29,9 @@
  */
 static int p9_supported_radix_bits[4] = { 5, 9, 9, 13 };
 
-static unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
-					gva_t eaddr, void *to, void *from,
-					unsigned long n)
+unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
+					      gva_t eaddr, void *to, void *from,
+					      unsigned long n)
 {
 	unsigned long quadrant, ret = n;
 	int old_pid, old_lpid;
@@ -82,6 +82,7 @@ static unsigned long __kvmhv_copy_tofrom_guest_radix(int lpid, int pid,
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(__kvmhv_copy_tofrom_guest_radix);
 
 static long kvmhv_copy_tofrom_guest_radix(struct kvm_vcpu *vcpu, gva_t eaddr,
 					  void *to, void *from, unsigned long n)
