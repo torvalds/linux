@@ -78,7 +78,7 @@ enum msm_mdp_plane_property {
 };
 
 struct msm_vblank_ctrl {
-	struct kthread_work work;
+	struct work_struct work;
 	struct list_head event_list;
 	spinlock_t lock;
 };
