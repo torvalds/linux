@@ -1428,7 +1428,7 @@ vchiq_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	} break;
 
 	case VCHIQ_IOC_SET_SERVICE_OPTION: {
-		VCHIQ_SET_SERVICE_OPTION_T args;
+		struct vchiq_set_service_option args;
 
 		if (copy_from_user(
 			&args, (const void __user *)arg,

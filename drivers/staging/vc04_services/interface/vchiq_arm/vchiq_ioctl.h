@@ -88,11 +88,11 @@ struct vchiq_get_config {
 	struct vchiq_config __user *pconfig;
 };
 
-typedef struct {
+struct vchiq_set_service_option {
 	unsigned int handle;
 	VCHIQ_SERVICE_OPTION_T option;
 	int value;
-} VCHIQ_SET_SERVICE_OPTION_T;
+};
 
 struct vchiq_dump_mem {
 	void     *virt_addr;
@@ -121,7 +121,7 @@ struct vchiq_dump_mem {
 #define VCHIQ_IOC_USE_SERVICE          _IO(VCHIQ_IOC_MAGIC,   12)
 #define VCHIQ_IOC_RELEASE_SERVICE      _IO(VCHIQ_IOC_MAGIC,   13)
 #define VCHIQ_IOC_SET_SERVICE_OPTION \
-	_IOW(VCHIQ_IOC_MAGIC,  14, VCHIQ_SET_SERVICE_OPTION_T)
+	_IOW(VCHIQ_IOC_MAGIC,  14, struct vchiq_set_service_option)
 #define VCHIQ_IOC_DUMP_PHYS_MEM \
 	_IOW(VCHIQ_IOC_MAGIC,  15, struct vchiq_dump_mem)
 #define VCHIQ_IOC_LIB_VERSION          _IO(VCHIQ_IOC_MAGIC,   16)
