@@ -3,22 +3,17 @@
  * Split spinlock implementation out into its own file, so it can be
  * compiled in a FTRACE-compatible way.
  */
-#include <linux/kernel_stat.h>
+#include <linux/kernel.h>
 #include <linux/spinlock.h>
-#include <linux/debugfs.h>
-#include <linux/log2.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/atomic.h>
 
 #include <asm/paravirt.h>
 #include <asm/qspinlock.h>
 
-#include <xen/interface/xen.h>
 #include <xen/events.h>
 
 #include "xen-ops.h"
-#include "debugfs.h"
 
 static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
 static DEFINE_PER_CPU(char *, irq_name);

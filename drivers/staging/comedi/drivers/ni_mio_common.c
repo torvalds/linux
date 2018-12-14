@@ -2843,7 +2843,8 @@ static int ni_ao_insn_config(struct comedi_device *dev,
 		return ni_ao_arm(dev, s);
 	case INSN_CONFIG_GET_CMD_TIMING_CONSTRAINTS:
 		/* we don't care about actual channels */
-		data[1] = board->ao_speed;
+		/* data[3] : chanlist_len */
+		data[1] = board->ao_speed * data[3];
 		data[2] = 0;
 		return 0;
 	default:

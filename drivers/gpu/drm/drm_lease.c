@@ -296,7 +296,7 @@ void drm_lease_destroy(struct drm_master *master)
 
 	if (master->lessor) {
 		/* Tell the master to check the lessee list */
-		drm_sysfs_hotplug_event(dev);
+		drm_sysfs_lease_event(dev);
 		drm_master_put(&master->lessor);
 	}
 

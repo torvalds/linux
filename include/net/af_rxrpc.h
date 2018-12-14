@@ -77,7 +77,8 @@ int rxrpc_kernel_retry_call(struct socket *, struct rxrpc_call *,
 			    struct sockaddr_rxrpc *, struct key *);
 int rxrpc_kernel_check_call(struct socket *, struct rxrpc_call *,
 			    enum rxrpc_call_completion *, u32 *);
-u32 rxrpc_kernel_check_life(struct socket *, struct rxrpc_call *);
+u32 rxrpc_kernel_check_life(const struct socket *, const struct rxrpc_call *);
+void rxrpc_kernel_probe_life(struct socket *, struct rxrpc_call *);
 u32 rxrpc_kernel_get_epoch(struct socket *, struct rxrpc_call *);
 bool rxrpc_kernel_get_reply_time(struct socket *, struct rxrpc_call *,
 				 ktime_t *);

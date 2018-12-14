@@ -1555,16 +1555,17 @@ static void tipc_sk_set_orig_addr(struct msghdr *m, struct sk_buff *skb)
 /**
  * tipc_sk_anc_data_recv - optionally capture ancillary data for received message
  * @m: descriptor for message info
- * @msg: received message header
+ * @skb: received message buffer
  * @tsk: TIPC port associated with message
  *
  * Note: Ancillary data is not captured if not requested by receiver.
  *
  * Returns 0 if successful, otherwise errno
  */
-static int tipc_sk_anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
+static int tipc_sk_anc_data_recv(struct msghdr *m, struct sk_buff *skb,
 				 struct tipc_sock *tsk)
 {
+	struct tipc_msg *msg;
 	u32 anc_data[3];
 	u32 err;
 	u32 dest_type;
@@ -1573,6 +1574,7 @@ static int tipc_sk_anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 
 	if (likely(m->msg_controllen == 0))
 		return 0;
+	msg = buf_msg(skb);
 
 	/* Optionally capture errored message object(s) */
 	err = msg ? msg_errcode(msg) : 0;
@@ -1583,6 +1585,9 @@ static int tipc_sk_anc_data_recv(struct msghdr *m, struct tipc_msg *msg,
 		if (res)
 			return res;
 		if (anc_data[1]) {
+			if (skb_linearize(skb))
+				return -ENOMEM;
+			msg = buf_msg(skb);
 			res = put_cmsg(m, SOL_TIPC, TIPC_RETDATA, anc_data[1],
 				       msg_data(msg));
 			if (res)
@@ -1744,9 +1749,10 @@ static int tipc_recvmsg(struct socket *sock, struct msghdr *m,
 
 	/* Collect msg meta data, including error code and rejected data */
 	tipc_sk_set_orig_addr(m, skb);
-	rc = tipc_sk_anc_data_recv(m, hdr, tsk);
+	rc = tipc_sk_anc_data_recv(m, skb, tsk);
 	if (unlikely(rc))
 		goto exit;
+	hdr = buf_msg(skb);
 
 	/* Capture data if non-error msg, otherwise just set return value */
 	if (likely(!err)) {
@@ -1856,9 +1862,10 @@ static int tipc_recvstream(struct socket *sock, struct msghdr *m,
 		/* Collect msg meta data, incl. error code and rejected data */
 		if (!copied) {
 			tipc_sk_set_orig_addr(m, skb);
-			rc = tipc_sk_anc_data_recv(m, hdr, tsk);
+			rc = tipc_sk_anc_data_recv(m, skb, tsk);
 			if (rc)
 				break;
+			hdr = buf_msg(skb);
 		}
 
 		/* Copy data if msg ok, otherwise return error/partial data */

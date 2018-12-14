@@ -3589,8 +3589,10 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	}
 
 	if (i >= sclk_table->count) {
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
-		sclk_table->dpm_levels[i-1].value = sclk;
+		if (sclk > sclk_table->dpm_levels[i-1].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+			sclk_table->dpm_levels[i-1].value = sclk;
+		}
 	} else {
 	/* TODO: Check SCLK in DAL's minimum clocks
 	 * in case DeepSleep divider update is required.
@@ -3607,8 +3609,10 @@ static int smu7_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, cons
 	}
 
 	if (i >= mclk_table->count) {
-		data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-		mclk_table->dpm_levels[i-1].value = mclk;
+		if (mclk > mclk_table->dpm_levels[i-1].value) {
+			data->need_update_smu7_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+			mclk_table->dpm_levels[i-1].value = mclk;
+		}
 	}
 
 	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
@@ -4525,12 +4529,12 @@ static int smu7_get_sclk_od(struct pp_hwmgr *hwmgr)
 	struct smu7_single_dpm_table *sclk_table = &(data->dpm_table.sclk_table);
 	struct smu7_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.sclk_table);
-	int value;
+	int value = sclk_table->dpm_levels[sclk_table->count - 1].value;
+	int golden_value = golden_sclk_table->dpm_levels
+			[golden_sclk_table->count - 1].value;
 
-	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
-			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
-			100 /
-			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+	value -= golden_value;
+	value = DIV_ROUND_UP(value * 100, golden_value);
 
 	return value;
 }
@@ -4567,12 +4571,12 @@ static int smu7_get_mclk_od(struct pp_hwmgr *hwmgr)
 	struct smu7_single_dpm_table *mclk_table = &(data->dpm_table.mclk_table);
 	struct smu7_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mclk_table);
-	int value;
+        int value = mclk_table->dpm_levels[mclk_table->count - 1].value;
+	int golden_value = golden_mclk_table->dpm_levels
+			[golden_mclk_table->count - 1].value;
 
-	value = (mclk_table->dpm_levels[mclk_table->count - 1].value -
-			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) *
-			100 /
-			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+	value -= golden_value;
+	value = DIV_ROUND_UP(value * 100, golden_value);
 
 	return value;
 }

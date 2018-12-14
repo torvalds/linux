@@ -20,7 +20,6 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <linux/cdev.h>
 #include <linux/list.h>
 
 #include <uapi/linux/fsi.h>
