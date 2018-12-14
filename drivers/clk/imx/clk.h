@@ -329,7 +329,8 @@ static inline struct clk *imx_clk_mux_flags(const char *name,
 }
 
 static inline struct clk *imx_clk_mux2_flags(const char *name,
-		void __iomem *reg, u8 shift, u8 width, const char **parents,
+		void __iomem *reg, u8 shift, u8 width,
+		const char * const *parents,
 		int num_parents, unsigned long flags)
 {
 	return clk_register_mux(NULL, name, parents, num_parents,
