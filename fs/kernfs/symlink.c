@@ -88,7 +88,7 @@ static int kernfs_get_target_path(struct kernfs_node *parent,
 		int slen = strlen(kn->name);
 
 		len -= slen;
-		strncpy(s + len, kn->name, slen);
+		memcpy(s + len, kn->name, slen);
 		if (len)
 			s[--len] = '/';
 
