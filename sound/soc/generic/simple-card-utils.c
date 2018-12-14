@@ -269,22 +269,46 @@ EXPORT_SYMBOL_GPL(asoc_simple_card_parse_dai);
 
 static int asoc_simple_card_get_dai_id(struct device_node *ep)
 {
+	struct device_node *node;
+	struct device_node *endpoint;
 	struct of_endpoint info;
+	int i, id;
 	int ret;
 
+	/* use driver specified DAI ID if exist */
 	ret = snd_soc_get_dai_id(ep);
 	if (ret != -ENOTSUPP)
 		return ret;
+
+	/* use endpoint/port reg if exist */
+	ret = of_graph_parse_endpoint(ep, &info);
+	if (ret == 0) {
+		if (info.id)
+			return info.id;
+		if (info.port)
+			return info.port;
+	}
+
+	node = of_graph_get_port_parent(ep);
 
 	/*
 	 * Non HDMI sound case, counting port/endpoint on its DT
 	 * is enough. Let's count it.
 	 */
-	ret = of_graph_parse_endpoint(ep, &info);
-	if (ret)
-		return -ENXIO;
+	i = 0;
+	id = -1;
+	for_each_endpoint_of_node(node, endpoint) {
+		if (endpoint == ep)
+			id = i;
+		i++;
+	}
 
-	return info.port;
+	of_node_put(node);
+
+	if (id < 0)
+		return -ENODEV;
+
+	return id;
 }
 
 int asoc_simple_card_parse_graph_dai(struct device_node *ep,
