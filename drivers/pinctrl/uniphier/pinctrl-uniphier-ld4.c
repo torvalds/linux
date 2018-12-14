@@ -713,7 +713,7 @@ static int uniphier_ld4_get_gpio_muxval(unsigned int pin,
 	}
 }
 
-static struct uniphier_pinctrl_socdata uniphier_ld4_pindata = {
+static const struct uniphier_pinctrl_socdata uniphier_ld4_pindata = {
 	.pins = uniphier_ld4_pins,
 	.npins = ARRAY_SIZE(uniphier_ld4_pins),
 	.groups = uniphier_ld4_groups,

@@ -961,7 +961,7 @@ static int uniphier_pxs3_get_gpio_muxval(unsigned int pin,
 	return 15;
 }
 
-static struct uniphier_pinctrl_socdata uniphier_pxs3_pindata = {
+static const struct uniphier_pinctrl_socdata uniphier_pxs3_pindata = {
 	.pins = uniphier_pxs3_pins,
 	.npins = ARRAY_SIZE(uniphier_pxs3_pins),
 	.groups = uniphier_pxs3_groups,

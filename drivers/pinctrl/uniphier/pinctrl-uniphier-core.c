@@ -36,7 +36,7 @@ struct uniphier_pinctrl_priv {
 	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct regmap *regmap;
-	struct uniphier_pinctrl_socdata *socdata;
+	const struct uniphier_pinctrl_socdata *socdata;
 	struct list_head reg_regions;
 };
 
@@ -859,7 +859,7 @@ const struct dev_pm_ops uniphier_pinctrl_pm_ops = {
 };
 
 int uniphier_pinctrl_probe(struct platform_device *pdev,
-			   struct uniphier_pinctrl_socdata *socdata)
+			   const struct uniphier_pinctrl_socdata *socdata)
 {
 	struct device *dev = &pdev->dev;
 	struct uniphier_pinctrl_priv *priv;

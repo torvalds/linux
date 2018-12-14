@@ -986,7 +986,7 @@ static int uniphier_pro5_get_gpio_muxval(unsigned int pin,
 	return 15;
 }
 
-static struct uniphier_pinctrl_socdata uniphier_pro5_pindata = {
+static const struct uniphier_pinctrl_socdata uniphier_pro5_pindata = {
 	.pins = uniphier_pro5_pins,
 	.npins = ARRAY_SIZE(uniphier_pro5_pins),
 	.groups = uniphier_pro5_groups,
