@@ -164,8 +164,8 @@ static int ipv6_exthdrs_len(struct ipv6hdr *iph,
 	return len;
 }
 
-static struct sk_buff *ipv6_gro_receive(struct list_head *head,
-					struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
+							 struct sk_buff *skb)
 {
 	const struct net_offload *ops;
 	struct sk_buff *pp = NULL;
@@ -301,7 +301,7 @@ static struct sk_buff *ip4ip6_gro_receive(struct list_head *head,
 	return inet_gro_receive(head, skb);
 }
 
-static int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
+INDIRECT_CALLABLE_SCOPE int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct net_offload *ops;
 	struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + nhoff);
