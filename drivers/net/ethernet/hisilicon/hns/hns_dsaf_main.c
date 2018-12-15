@@ -2285,237 +2285,237 @@ void hns_dsaf_get_regs(struct dsaf_device *ddev, u32 port, void *data)
 				DSAF_INODE_BD_ORDER_STATUS_0_REG + j * 4);
 		p[223 + i] = dsaf_read_dev(ddev,
 				DSAF_INODE_SW_VLAN_TAG_DISC_0_REG + j * 4);
-		p[224 + i] = dsaf_read_dev(ddev,
+		p[226 + i] = dsaf_read_dev(ddev,
 				DSAF_INODE_IN_DATA_STP_DISC_0_REG + j * 4);
 	}
 
-	p[227] = dsaf_read_dev(ddev, DSAF_INODE_GE_FC_EN_0_REG + port * 4);
+	p[229] = dsaf_read_dev(ddev, DSAF_INODE_GE_FC_EN_0_REG + port * 4);
 
 	for (i = 0; i < DSAF_INODE_NUM / DSAF_COMM_CHN; i++) {
 		j = i * DSAF_COMM_CHN + port;
-		p[228 + i] = dsaf_read_dev(ddev,
+		p[230 + i] = dsaf_read_dev(ddev,
 				DSAF_INODE_VC0_IN_PKT_NUM_0_REG + j * 4);
 	}
 
-	p[231] = dsaf_read_dev(ddev,
-		DSAF_INODE_VC1_IN_PKT_NUM_0_REG + port * 4);
+	p[233] = dsaf_read_dev(ddev,
+		DSAF_INODE_VC1_IN_PKT_NUM_0_REG + port * 0x80);
 
 	/* dsaf inode registers */
 	for (i = 0; i < HNS_DSAF_SBM_NUM(ddev) / DSAF_COMM_CHN; i++) {
 		j = i * DSAF_COMM_CHN + port;
-		p[232 + i] = dsaf_read_dev(ddev,
+		p[234 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_CFG_REG_0_REG + j * 0x80);
-		p[235 + i] = dsaf_read_dev(ddev,
+		p[237 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CFG_0_XGE_REG_0_REG + j * 0x80);
-		p[238 + i] = dsaf_read_dev(ddev,
+		p[240 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CFG_1_REG_0_REG + j * 0x80);
-		p[241 + i] = dsaf_read_dev(ddev,
+		p[243 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CFG_2_XGE_REG_0_REG + j * 0x80);
-		p[244 + i] = dsaf_read_dev(ddev,
+		p[246 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_FREE_CNT_0_0_REG + j * 0x80);
-		p[245 + i] = dsaf_read_dev(ddev,
+		p[249 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_FREE_CNT_1_0_REG + j * 0x80);
-		p[248 + i] = dsaf_read_dev(ddev,
+		p[252 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CNT_0_0_REG + j * 0x80);
-		p[251 + i] = dsaf_read_dev(ddev,
+		p[255 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CNT_1_0_REG + j * 0x80);
-		p[254 + i] = dsaf_read_dev(ddev,
+		p[258 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CNT_2_0_REG + j * 0x80);
-		p[257 + i] = dsaf_read_dev(ddev,
+		p[261 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CNT_3_0_REG + j * 0x80);
-		p[260 + i] = dsaf_read_dev(ddev,
+		p[264 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_INER_ST_0_REG + j * 0x80);
-		p[263 + i] = dsaf_read_dev(ddev,
+		p[267 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_MIB_REQ_FAILED_TC_0_REG + j * 0x80);
-		p[266 + i] = dsaf_read_dev(ddev,
+		p[270 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_CNT_0_REG + j * 0x80);
-		p[269 + i] = dsaf_read_dev(ddev,
+		p[273 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_DROP_CNT_0_REG + j * 0x80);
-		p[272 + i] = dsaf_read_dev(ddev,
+		p[276 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_INF_OUTPORT_CNT_0_REG + j * 0x80);
-		p[275 + i] = dsaf_read_dev(ddev,
+		p[279 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC0_CNT_0_REG + j * 0x80);
-		p[278 + i] = dsaf_read_dev(ddev,
+		p[282 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC1_CNT_0_REG + j * 0x80);
-		p[281 + i] = dsaf_read_dev(ddev,
+		p[285 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC2_CNT_0_REG + j * 0x80);
-		p[284 + i] = dsaf_read_dev(ddev,
+		p[288 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC3_CNT_0_REG + j * 0x80);
-		p[287 + i] = dsaf_read_dev(ddev,
+		p[291 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC4_CNT_0_REG + j * 0x80);
-		p[290 + i] = dsaf_read_dev(ddev,
+		p[294 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC5_CNT_0_REG + j * 0x80);
-		p[293 + i] = dsaf_read_dev(ddev,
+		p[297 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC6_CNT_0_REG + j * 0x80);
-		p[296 + i] = dsaf_read_dev(ddev,
+		p[300 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_INPORT_TC7_CNT_0_REG + j * 0x80);
-		p[299 + i] = dsaf_read_dev(ddev,
+		p[303 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_REQ_CNT_0_REG + j * 0x80);
-		p[302 + i] = dsaf_read_dev(ddev,
+		p[306 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_LNK_RELS_CNT_0_REG + j * 0x80);
-		p[305 + i] = dsaf_read_dev(ddev,
+		p[309 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CFG_3_REG_0_REG + j * 0x80);
-		p[308 + i] = dsaf_read_dev(ddev,
+		p[312 + i] = dsaf_read_dev(ddev,
 				DSAF_SBM_BP_CFG_4_REG_0_REG + j * 0x80);
 	}
 
 	/* dsaf onode registers */
 	for (i = 0; i < DSAF_XOD_NUM; i++) {
-		p[311 + i] = dsaf_read_dev(ddev,
+		p[315 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_ETS_TSA_TC0_TC3_CFG_0_REG + i * 0x90);
-		p[319 + i] = dsaf_read_dev(ddev,
+		p[323 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_ETS_TSA_TC4_TC7_CFG_0_REG + i * 0x90);
-		p[327 + i] = dsaf_read_dev(ddev,
+		p[331 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_ETS_BW_TC0_TC3_CFG_0_REG + i * 0x90);
-		p[335 + i] = dsaf_read_dev(ddev,
+		p[339 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_ETS_BW_TC4_TC7_CFG_0_REG + i * 0x90);
-		p[343 + i] = dsaf_read_dev(ddev,
+		p[347 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_ETS_BW_OFFSET_CFG_0_REG + i * 0x90);
-		p[351 + i] = dsaf_read_dev(ddev,
+		p[355 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_ETS_TOKEN_CFG_0_REG + i * 0x90);
 	}
 
-	p[359] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_0_0_REG + port * 0x90);
-	p[360] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_1_0_REG + port * 0x90);
-	p[361] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_2_0_REG + port * 0x90);
+	p[363] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_0_0_REG + port * 0x90);
+	p[364] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_1_0_REG + port * 0x90);
+	p[365] = dsaf_read_dev(ddev, DSAF_XOD_PFS_CFG_2_0_REG + port * 0x90);
 
 	for (i = 0; i < DSAF_XOD_BIG_NUM / DSAF_COMM_CHN; i++) {
 		j = i * DSAF_COMM_CHN + port;
-		p[362 + i] = dsaf_read_dev(ddev,
+		p[366 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_GNT_L_0_REG + j * 0x90);
-		p[365 + i] = dsaf_read_dev(ddev,
+		p[369 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_GNT_H_0_REG + j * 0x90);
-		p[368 + i] = dsaf_read_dev(ddev,
+		p[372 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_CONNECT_STATE_0_REG + j * 0x90);
-		p[371 + i] = dsaf_read_dev(ddev,
+		p[375 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVPKT_CNT_0_REG + j * 0x90);
-		p[374 + i] = dsaf_read_dev(ddev,
+		p[378 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVTC0_CNT_0_REG + j * 0x90);
-		p[377 + i] = dsaf_read_dev(ddev,
+		p[381 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVTC1_CNT_0_REG + j * 0x90);
-		p[380 + i] = dsaf_read_dev(ddev,
+		p[384 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVTC2_CNT_0_REG + j * 0x90);
-		p[383 + i] = dsaf_read_dev(ddev,
+		p[387 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVTC3_CNT_0_REG + j * 0x90);
-		p[386 + i] = dsaf_read_dev(ddev,
+		p[390 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVVC0_CNT_0_REG + j * 0x90);
-		p[389 + i] = dsaf_read_dev(ddev,
+		p[393 + i] = dsaf_read_dev(ddev,
 				DSAF_XOD_RCVVC1_CNT_0_REG + j * 0x90);
 	}
 
-	p[392] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN0_CNT_0_REG + port * 0x90);
-	p[393] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN1_CNT_0_REG + port * 0x90);
-	p[394] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN2_CNT_0_REG + port * 0x90);
-	p[395] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN3_CNT_0_REG + port * 0x90);
 	p[396] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN4_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN0_CNT_0_REG + port * 0x90);
 	p[397] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN5_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN1_CNT_0_REG + port * 0x90);
 	p[398] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN6_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN2_CNT_0_REG + port * 0x90);
 	p[399] = dsaf_read_dev(ddev,
-		DSAF_XOD_XGE_RCVIN7_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN3_CNT_0_REG + port * 0x90);
 	p[400] = dsaf_read_dev(ddev,
-		DSAF_XOD_PPE_RCVIN0_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN4_CNT_0_REG + port * 0x90);
 	p[401] = dsaf_read_dev(ddev,
-		DSAF_XOD_PPE_RCVIN1_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN5_CNT_0_REG + port * 0x90);
 	p[402] = dsaf_read_dev(ddev,
-		DSAF_XOD_ROCEE_RCVIN0_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN6_CNT_0_REG + port * 0x90);
 	p[403] = dsaf_read_dev(ddev,
-		DSAF_XOD_ROCEE_RCVIN1_CNT_0_REG + port * 0x90);
+		DSAF_XOD_XGE_RCVIN7_CNT_0_REG + port * 0x90);
 	p[404] = dsaf_read_dev(ddev,
+		DSAF_XOD_PPE_RCVIN0_CNT_0_REG + port * 0x90);
+	p[405] = dsaf_read_dev(ddev,
+		DSAF_XOD_PPE_RCVIN1_CNT_0_REG + port * 0x90);
+	p[406] = dsaf_read_dev(ddev,
+		DSAF_XOD_ROCEE_RCVIN0_CNT_0_REG + port * 0x90);
+	p[407] = dsaf_read_dev(ddev,
+		DSAF_XOD_ROCEE_RCVIN1_CNT_0_REG + port * 0x90);
+	p[408] = dsaf_read_dev(ddev,
 		DSAF_XOD_FIFO_STATUS_0_REG + port * 0x90);
 
 	/* dsaf voq registers */
 	for (i = 0; i < DSAF_VOQ_NUM / DSAF_COMM_CHN; i++) {
 		j = (i * DSAF_COMM_CHN + port) * 0x90;
-		p[405 + i] = dsaf_read_dev(ddev,
+		p[409 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_ECC_INVERT_EN_0_REG + j);
-		p[408 + i] = dsaf_read_dev(ddev,
+		p[412 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_SRAM_PKT_NUM_0_REG + j);
-		p[411 + i] = dsaf_read_dev(ddev, DSAF_VOQ_IN_PKT_NUM_0_REG + j);
-		p[414 + i] = dsaf_read_dev(ddev,
+		p[415 + i] = dsaf_read_dev(ddev, DSAF_VOQ_IN_PKT_NUM_0_REG + j);
+		p[418 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_OUT_PKT_NUM_0_REG + j);
-		p[417 + i] = dsaf_read_dev(ddev,
+		p[421 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_ECC_ERR_ADDR_0_REG + j);
-		p[420 + i] = dsaf_read_dev(ddev, DSAF_VOQ_BP_STATUS_0_REG + j);
-		p[423 + i] = dsaf_read_dev(ddev, DSAF_VOQ_SPUP_IDLE_0_REG + j);
-		p[426 + i] = dsaf_read_dev(ddev,
+		p[424 + i] = dsaf_read_dev(ddev, DSAF_VOQ_BP_STATUS_0_REG + j);
+		p[427 + i] = dsaf_read_dev(ddev, DSAF_VOQ_SPUP_IDLE_0_REG + j);
+		p[430 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_XGE_XOD_REQ_0_0_REG + j);
-		p[429 + i] = dsaf_read_dev(ddev,
+		p[433 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_XGE_XOD_REQ_1_0_REG + j);
-		p[432 + i] = dsaf_read_dev(ddev,
+		p[436 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_PPE_XOD_REQ_0_REG + j);
-		p[435 + i] = dsaf_read_dev(ddev,
+		p[439 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_ROCEE_XOD_REQ_0_REG + j);
-		p[438 + i] = dsaf_read_dev(ddev,
+		p[442 + i] = dsaf_read_dev(ddev,
 			DSAF_VOQ_BP_ALL_THRD_0_REG + j);
 	}
 
 	/* dsaf tbl registers */
-	p[441] = dsaf_read_dev(ddev, DSAF_TBL_CTRL_0_REG);
-	p[442] = dsaf_read_dev(ddev, DSAF_TBL_INT_MSK_0_REG);
-	p[443] = dsaf_read_dev(ddev, DSAF_TBL_INT_SRC_0_REG);
-	p[444] = dsaf_read_dev(ddev, DSAF_TBL_INT_STS_0_REG);
-	p[445] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_ADDR_0_REG);
-	p[446] = dsaf_read_dev(ddev, DSAF_TBL_LINE_ADDR_0_REG);
-	p[447] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_HIGH_0_REG);
-	p[448] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_LOW_0_REG);
-	p[449] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_4_0_REG);
-	p[450] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_3_0_REG);
-	p[451] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_2_0_REG);
-	p[452] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_1_0_REG);
-	p[453] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_0_0_REG);
-	p[454] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_UCAST_CFG_0_REG);
-	p[455] = dsaf_read_dev(ddev, DSAF_TBL_LIN_CFG_0_REG);
-	p[456] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RDATA_HIGH_0_REG);
-	p[457] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RDATA_LOW_0_REG);
-	p[458] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA4_0_REG);
-	p[459] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA3_0_REG);
-	p[460] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA2_0_REG);
-	p[461] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA1_0_REG);
-	p[462] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA0_0_REG);
-	p[463] = dsaf_read_dev(ddev, DSAF_TBL_LIN_RDATA_0_REG);
+	p[445] = dsaf_read_dev(ddev, DSAF_TBL_CTRL_0_REG);
+	p[446] = dsaf_read_dev(ddev, DSAF_TBL_INT_MSK_0_REG);
+	p[447] = dsaf_read_dev(ddev, DSAF_TBL_INT_SRC_0_REG);
+	p[448] = dsaf_read_dev(ddev, DSAF_TBL_INT_STS_0_REG);
+	p[449] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_ADDR_0_REG);
+	p[450] = dsaf_read_dev(ddev, DSAF_TBL_LINE_ADDR_0_REG);
+	p[451] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_HIGH_0_REG);
+	p[452] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_LOW_0_REG);
+	p[453] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_4_0_REG);
+	p[454] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_3_0_REG);
+	p[455] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_2_0_REG);
+	p[456] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_1_0_REG);
+	p[457] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_MCAST_CFG_0_0_REG);
+	p[458] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_UCAST_CFG_0_REG);
+	p[459] = dsaf_read_dev(ddev, DSAF_TBL_LIN_CFG_0_REG);
+	p[460] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RDATA_HIGH_0_REG);
+	p[461] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RDATA_LOW_0_REG);
+	p[462] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA4_0_REG);
+	p[463] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA3_0_REG);
+	p[464] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA2_0_REG);
+	p[465] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA1_0_REG);
+	p[466] = dsaf_read_dev(ddev, DSAF_TBL_TCAM_RAM_RDATA0_0_REG);
+	p[467] = dsaf_read_dev(ddev, DSAF_TBL_LIN_RDATA_0_REG);
 
 	for (i = 0; i < DSAF_SW_PORT_NUM; i++) {
 		j = i * 0x8;
-		p[464 + 2 * i] = dsaf_read_dev(ddev,
+		p[468 + 2 * i] = dsaf_read_dev(ddev,
 			DSAF_TBL_DA0_MIS_INFO1_0_REG + j);
-		p[465 + 2 * i] = dsaf_read_dev(ddev,
+		p[469 + 2 * i] = dsaf_read_dev(ddev,
 			DSAF_TBL_DA0_MIS_INFO0_0_REG + j);
 	}
 
-	p[480] = dsaf_read_dev(ddev, DSAF_TBL_SA_MIS_INFO2_0_REG);
-	p[481] = dsaf_read_dev(ddev, DSAF_TBL_SA_MIS_INFO1_0_REG);
-	p[482] = dsaf_read_dev(ddev, DSAF_TBL_SA_MIS_INFO0_0_REG);
-	p[483] = dsaf_read_dev(ddev, DSAF_TBL_PUL_0_REG);
-	p[484] = dsaf_read_dev(ddev, DSAF_TBL_OLD_RSLT_0_REG);
-	p[485] = dsaf_read_dev(ddev, DSAF_TBL_OLD_SCAN_VAL_0_REG);
-	p[486] = dsaf_read_dev(ddev, DSAF_TBL_DFX_CTRL_0_REG);
-	p[487] = dsaf_read_dev(ddev, DSAF_TBL_DFX_STAT_0_REG);
-	p[488] = dsaf_read_dev(ddev, DSAF_TBL_DFX_STAT_2_0_REG);
-	p[489] = dsaf_read_dev(ddev, DSAF_TBL_LKUP_NUM_I_0_REG);
-	p[490] = dsaf_read_dev(ddev, DSAF_TBL_LKUP_NUM_O_0_REG);
-	p[491] = dsaf_read_dev(ddev, DSAF_TBL_UCAST_BCAST_MIS_INFO_0_0_REG);
+	p[484] = dsaf_read_dev(ddev, DSAF_TBL_SA_MIS_INFO2_0_REG);
+	p[485] = dsaf_read_dev(ddev, DSAF_TBL_SA_MIS_INFO1_0_REG);
+	p[486] = dsaf_read_dev(ddev, DSAF_TBL_SA_MIS_INFO0_0_REG);
+	p[487] = dsaf_read_dev(ddev, DSAF_TBL_PUL_0_REG);
+	p[488] = dsaf_read_dev(ddev, DSAF_TBL_OLD_RSLT_0_REG);
+	p[489] = dsaf_read_dev(ddev, DSAF_TBL_OLD_SCAN_VAL_0_REG);
+	p[490] = dsaf_read_dev(ddev, DSAF_TBL_DFX_CTRL_0_REG);
+	p[491] = dsaf_read_dev(ddev, DSAF_TBL_DFX_STAT_0_REG);
+	p[492] = dsaf_read_dev(ddev, DSAF_TBL_DFX_STAT_2_0_REG);
+	p[493] = dsaf_read_dev(ddev, DSAF_TBL_LKUP_NUM_I_0_REG);
+	p[494] = dsaf_read_dev(ddev, DSAF_TBL_LKUP_NUM_O_0_REG);
+	p[495] = dsaf_read_dev(ddev, DSAF_TBL_UCAST_BCAST_MIS_INFO_0_0_REG);
 
 	/* dsaf other registers */
-	p[492] = dsaf_read_dev(ddev, DSAF_INODE_FIFO_WL_0_REG + port * 0x4);
-	p[493] = dsaf_read_dev(ddev, DSAF_ONODE_FIFO_WL_0_REG + port * 0x4);
-	p[494] = dsaf_read_dev(ddev, DSAF_XGE_GE_WORK_MODE_0_REG + port * 0x4);
-	p[495] = dsaf_read_dev(ddev,
+	p[496] = dsaf_read_dev(ddev, DSAF_INODE_FIFO_WL_0_REG + port * 0x4);
+	p[497] = dsaf_read_dev(ddev, DSAF_ONODE_FIFO_WL_0_REG + port * 0x4);
+	p[498] = dsaf_read_dev(ddev, DSAF_XGE_GE_WORK_MODE_0_REG + port * 0x4);
+	p[499] = dsaf_read_dev(ddev,
 		DSAF_XGE_APP_RX_LINK_UP_0_REG + port * 0x4);
-	p[496] = dsaf_read_dev(ddev, DSAF_NETPORT_CTRL_SIG_0_REG + port * 0x4);
-	p[497] = dsaf_read_dev(ddev, DSAF_XGE_CTRL_SIG_CFG_0_REG + port * 0x4);
+	p[500] = dsaf_read_dev(ddev, DSAF_NETPORT_CTRL_SIG_0_REG + port * 0x4);
+	p[501] = dsaf_read_dev(ddev, DSAF_XGE_CTRL_SIG_CFG_0_REG + port * 0x4);
 
 	if (!is_ver1)
-		p[498] = dsaf_read_dev(ddev, DSAF_PAUSE_CFG_REG + port * 0x4);
+		p[502] = dsaf_read_dev(ddev, DSAF_PAUSE_CFG_REG + port * 0x4);
 
 	/* mark end of dsaf regs */
-	for (i = 499; i < 504; i++)
+	for (i = 503; i < 504; i++)
 		p[i] = 0xdddddddd;
 }
 
