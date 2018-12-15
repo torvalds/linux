@@ -1629,9 +1629,9 @@ static void rgb_background(struct vc_data *vc, const struct rgb *c)
 
 /*
  * ITU T.416 Higher colour modes. They break the usual properties of SGR codes
- * and thus need to be detected and ignored by hand. Strictly speaking, that
- * standard also wants : rather than ; as separators, contrary to ECMA-48, but
- * no one produces such codes and almost no one accepts them.
+ * and thus need to be detected and ignored by hand. That standard also
+ * wants : rather than ; as separators but sequences containing : are currently
+ * completely ignored by the parser.
  *
  * Subcommands 3 (CMY) and 4 (CMYK) are so insane there's no point in
  * supporting them.
@@ -2261,7 +2261,7 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_par[vc->vc_npar] += c - '0';
 			return;
 		}
-		if (c >= 0x20 && c <= 0x2f) {
+		if (c >= 0x20 && c <= 0x3f) { /* 0x2x, 0x3a and 0x3c - 0x3f */
 			vc->vc_state = EScsiignore;
 			return;
 		}
