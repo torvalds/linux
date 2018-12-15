@@ -158,83 +158,94 @@ OPTIONS
 		  When showing BPF programs, show file names of pinned
 		  programs.
 
+	-m, --mapcompat
+		  Allow loading maps with unknown map definitions.
+
 EXAMPLES
 ========
 **# bpftool prog show**
+
 ::
 
-  10: xdp  name some_prog  tag 005a3d2123620c8b  gpl
-	loaded_at Sep 29/20:11  uid 0
-	xlated 528B  jited 370B  memlock 4096B  map_ids 10
+    10: xdp  name some_prog  tag 005a3d2123620c8b  gpl
+            loaded_at 2017-09-29T20:11:00+0000  uid 0
+            xlated 528B  jited 370B  memlock 4096B  map_ids 10
 
 **# bpftool --json --pretty prog show**
 
 ::
 
-    {
-        "programs": [{
-                "id": 10,
-                "type": "xdp",
-                "tag": "005a3d2123620c8b",
-                "gpl_compatible": true,
-                "loaded_at": "Sep 29/20:11",
-                "uid": 0,
-                "bytes_xlated": 528,
-                "jited": true,
-                "bytes_jited": 370,
-                "bytes_memlock": 4096,
-                "map_ids": [10
-                ]
-            }
-        ]
-    }
+    [{
+            "id": 10,
+            "type": "xdp",
+            "tag": "005a3d2123620c8b",
+            "gpl_compatible": true,
+            "loaded_at": 1506715860,
+            "uid": 0,
+            "bytes_xlated": 528,
+            "jited": true,
+            "bytes_jited": 370,
+            "bytes_memlock": 4096,
+            "map_ids": [10
+            ]
+        }
+    ]
 
 |
 | **# bpftool prog dump xlated id 10 file /tmp/t**
 | **# ls -l /tmp/t**
-|   -rw------- 1 root root 560 Jul 22 01:42 /tmp/t
-
-**# bpftool prog dum jited tag 005a3d2123620c8b**
 
 ::
 
-    push   %rbp
-    mov    %rsp,%rbp
-    sub    $0x228,%rsp
-    sub    $0x28,%rbp
-    mov    %rbx,0x0(%rbp)
+    -rw------- 1 root root 560 Jul 22 01:42 /tmp/t
+
+**# bpftool prog dump jited tag 005a3d2123620c8b**
+
+::
+
+    0:   push   %rbp
+    1:   mov    %rsp,%rbp
+    2:   sub    $0x228,%rsp
+    3:   sub    $0x28,%rbp
+    4:   mov    %rbx,0x0(%rbp)
 
 |
 | **# mount -t bpf none /sys/fs/bpf/**
 | **# bpftool prog pin id 10 /sys/fs/bpf/prog**
 | **# bpftool prog load ./my_prog.o /sys/fs/bpf/prog2**
 | **# ls -l /sys/fs/bpf/**
-|   -rw------- 1 root root 0 Jul 22 01:43 prog
-|   -rw------- 1 root root 0 Jul 22 01:44 prog2
-
-**# bpftool prog dum jited pinned /sys/fs/bpf/prog opcodes**
 
 ::
 
-    push   %rbp
-    55
-    mov    %rsp,%rbp
-    48 89 e5
-    sub    $0x228,%rsp
-    48 81 ec 28 02 00 00
-    sub    $0x28,%rbp
-    48 83 ed 28
-    mov    %rbx,0x0(%rbp)
-    48 89 5d 00
+    -rw------- 1 root root 0 Jul 22 01:43 prog
+    -rw------- 1 root root 0 Jul 22 01:44 prog2
+
+**# bpftool prog dump jited pinned /sys/fs/bpf/prog opcodes**
+
+::
+
+   0:   push   %rbp
+        55
+   1:   mov    %rsp,%rbp
+        48 89 e5
+   4:   sub    $0x228,%rsp
+        48 81 ec 28 02 00 00
+   b:   sub    $0x28,%rbp
+        48 83 ed 28
+   f:   mov    %rbx,0x0(%rbp)
+        48 89 5d 00
 
 |
 | **# bpftool prog load xdp1_kern.o /sys/fs/bpf/xdp1 type xdp map name rxcnt id 7**
 | **# bpftool prog show pinned /sys/fs/bpf/xdp1**
-|   9: xdp  name xdp_prog1  tag 539ec6ce11b52f98  gpl
-|	loaded_at 2018-06-25T16:17:31-0700  uid 0
-|	xlated 488B  jited 336B  memlock 4096B  map_ids 7
-| **# rm /sys/fs/bpf/xdp1**
-|
+
+::
+
+    9: xdp  name xdp_prog1  tag 539ec6ce11b52f98  gpl
+            loaded_at 2018-06-25T16:17:31-0700  uid 0
+            xlated 488B  jited 336B  memlock 4096B  map_ids 7
+
+**# rm /sys/fs/bpf/xdp1**
 
 SEE ALSO
 ========

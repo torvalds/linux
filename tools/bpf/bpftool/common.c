@@ -28,7 +28,7 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
-void p_err(const char *fmt, ...)
+void __printf(1, 2) p_err(const char *fmt, ...)
 {
 	va_list ap;
 
@@ -46,7 +46,7 @@ void p_err(const char *fmt, ...)
 	va_end(ap);
 }
 
-void p_info(const char *fmt, ...)
+void __printf(1, 2) p_info(const char *fmt, ...)
 {
 	va_list ap;
 
