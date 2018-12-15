@@ -3583,7 +3583,7 @@ begin:
 			skb_queue_splice_tail(&tx.skbs, &txqi->frags);
 	}
 
-	if (skb && skb_has_frag_list(skb) &&
+	if (skb_has_frag_list(skb) &&
 	    !ieee80211_hw_check(&local->hw, TX_FRAG_LIST)) {
 		if (skb_linearize(skb)) {
 			ieee80211_free_txskb(&local->hw, skb);
