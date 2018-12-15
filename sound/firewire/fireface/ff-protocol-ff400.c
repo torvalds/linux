@@ -152,7 +152,7 @@ static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
 	if (reg == NULL)
 		return -ENOMEM;
 
-	if (enable) {
+	if (!enable) {
 		/*
 		 * Each quadlet is corresponding to data channels in a data
 		 * blocks in reverse order. Precisely, quadlets for available
