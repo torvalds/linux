@@ -47,8 +47,8 @@ static struct sof_dev_desc glk_desc = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-static struct snd_soc_acpi_mach sof_byt_machines[] = {
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
+static struct snd_soc_acpi_mach sof_tng_machines[] = {
 	{
 		.id = "INT343A",
 		.drv_name = "edison",
@@ -59,8 +59,8 @@ static struct snd_soc_acpi_mach sof_byt_machines[] = {
 	{}
 };
 
-static const struct sof_dev_desc byt_desc = {
-	.machines		= sof_byt_machines,
+static const struct sof_dev_desc tng_desc = {
+	.machines		= sof_tng_machines,
 	.resindex_lpe_base	= 3,	/* IRAM, but subtract IRAM offset */
 	.resindex_pcicfg_base	= -1,
 	.resindex_imr_base	= 0,
@@ -133,14 +133,14 @@ static const struct dev_pm_ops sof_pci_pm = {
 };
 
 static const struct sof_ops_table pci_mach_ops[] = {
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
+	{&tng_desc, &sof_tng_ops},
+#endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{&bxt_desc, &sof_apl_ops},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
 	{&glk_desc, &sof_apl_ops},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	{&byt_desc, &sof_byt_ops},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
 	{&cnl_desc, &sof_cnl_ops},
@@ -310,6 +310,10 @@ static void sof_pci_remove(struct pci_dev *pci)
 
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_EDISON)
+	{ PCI_DEVICE(0x8086, 0x119a),
+		.driver_data = (unsigned long)&tng_desc},
+#endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	/* BXT-P & Apollolake */
 	{ PCI_DEVICE(0x8086, 0x5a98),
@@ -320,11 +324,6 @@ static const struct pci_device_id sof_pci_ids[] = {
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
 	{ PCI_DEVICE(0x8086, 0x3198),
 		.driver_data = (unsigned long)&glk_desc},
-#endif
-
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_BAYTRAIL)
-	{ PCI_DEVICE(0x8086, 0x119a),
-		.driver_data = (unsigned long)&byt_desc},
 #endif
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
 	{ PCI_DEVICE(0x8086, 0x9dc8),

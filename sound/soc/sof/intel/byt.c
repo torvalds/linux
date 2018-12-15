@@ -508,6 +508,132 @@ static struct snd_soc_dai_driver byt_dai[] = {
  * Probe and remove.
  */
 
+static int byt_pci_probe(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = pdata->desc;
+	struct pci_dev *pci = sdev->pci;
+	u32 base, size;
+	int ret = 0;
+
+	/* DSP DMA can only access low 31 bits of host memory */
+	ret = dma_coerce_mask_and_coherent(&pci->dev, DMA_BIT_MASK(31));
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to set DMA mask %d\n", ret);
+		return ret;
+	}
+
+	/* LPE base */
+	base = pci_resource_start(pci, desc->resindex_lpe_base) - IRAM_OFFSET;
+	size = BYT_PCI_BAR_SIZE;
+
+	dev_dbg(sdev->dev, "LPE PHY base at 0x%x size 0x%x", base, size);
+	sdev->bar[BYT_DSP_BAR] = devm_ioremap(sdev->dev, base, size);
+	if (!sdev->bar[BYT_DSP_BAR]) {
+		dev_err(sdev->dev, "error: failed to ioremap LPE base 0x%x size 0x%x\n",
+			base, size);
+		return -ENODEV;
+	}
+	dev_dbg(sdev->dev, "LPE VADDR %p\n", sdev->bar[BYT_DSP_BAR]);
+
+	/* IMR base - optional */
+	if (desc->resindex_imr_base == -1)
+		goto irq;
+
+	base = pci_resource_start(pci, desc->resindex_imr_base);
+	size = pci_resource_len(pci, desc->resindex_imr_base);
+
+	/* some BIOSes don't map IMR */
+	if (base == 0x55aa55aa || base == 0x0) {
+		dev_info(sdev->dev, "IMR not set by BIOS. Ignoring\n");
+		goto irq;
+	}
+
+	dev_dbg(sdev->dev, "IMR base at 0x%x size 0x%x", base, size);
+	sdev->bar[BYT_IMR_BAR] = devm_ioremap(sdev->dev, base, size);
+	if (!sdev->bar[BYT_IMR_BAR]) {
+		dev_err(sdev->dev, "error: failed to ioremap IMR base 0x%x size 0x%x\n",
+			base, size);
+		return -ENODEV;
+	}
+	dev_dbg(sdev->dev, "IMR VADDR %p\n", sdev->bar[BYT_IMR_BAR]);
+
+irq:
+	/* register our IRQ */
+	sdev->ipc_irq = pci->irq;
+	dev_dbg(sdev->dev, "using IRQ %d\n", sdev->ipc_irq);
+	ret = devm_request_threaded_irq(sdev->dev, sdev->ipc_irq,
+					byt_irq_handler, byt_irq_thread,
+					0, "AudioDSP", sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
+			sdev->ipc_irq);
+		return ret;
+	}
+
+	/* enable Interrupt from both sides */
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
+	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
+
+	/* set BARS */
+	sdev->cl_bar = BYT_DSP_BAR;
+
+	/* set default mailbox offset for FW ready message */
+	sdev->dsp_box.offset = MBOX_OFFSET;
+
+	return ret;
+}
+
+const struct snd_sof_dsp_ops sof_tng_ops = {
+	/* device init */
+	.probe		= byt_pci_probe,
+
+	/* DSP core boot / reset */
+	.run		= byt_run,
+	.reset		= byt_reset,
+
+	/* Register IO */
+	.write		= sof_io_write,
+	.read		= sof_io_read,
+	.write64	= sof_io_write64,
+	.read64		= sof_io_read64,
+
+	/* Block IO */
+	.block_read	= sof_block_read,
+	.block_write	= sof_block_write,
+
+	/* doorbell */
+	.irq_handler	= byt_irq_handler,
+	.irq_thread	= byt_irq_thread,
+
+	/* mailbox */
+	.mailbox_read	= sof_mailbox_read,
+	.mailbox_write	= sof_mailbox_write,
+
+	/* ipc */
+	.send_msg	= byt_send_msg,
+	.get_reply	= byt_get_reply,
+	.fw_ready	= byt_fw_ready,
+	.is_ready	= byt_is_ready,
+	.cmd_done	= byt_cmd_done,
+
+	/* debug */
+	.debug_map	= byt_debugfs,
+	.debug_map_count	= ARRAY_SIZE(byt_debugfs),
+	.dbg_dump	= byt_dump,
+
+	/* module loading */
+	.load_module	= snd_sof_parse_module_memcpy,
+
+	/*Firmware loading */
+	.load_firmware	= snd_sof_load_firmware_memcpy,
+
+	/* DAI drivers */
+	.drv = byt_dai,
+	.num_drv = 3, /* we have only 3 SSPs on byt*/
+};
+EXPORT_SYMBOL(sof_tng_ops);
+
 static int byt_acpi_probe(struct snd_sof_dev *sdev)
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
@@ -615,94 +741,10 @@ irq:
 	return ret;
 }
 
-static int byt_pci_probe(struct snd_sof_dev *sdev)
-{
-	struct snd_sof_pdata *pdata = sdev->pdata;
-	const struct sof_dev_desc *desc = pdata->desc;
-	struct pci_dev *pci = sdev->pci;
-	u32 base, size;
-	int ret = 0;
-
-	/* DSP DMA can only access low 31 bits of host memory */
-	ret = dma_coerce_mask_and_coherent(&pci->dev, DMA_BIT_MASK(31));
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to set DMA mask %d\n", ret);
-		return ret;
-	}
-
-	/* LPE base */
-	base = pci_resource_start(pci, desc->resindex_lpe_base) - IRAM_OFFSET;
-	size = BYT_PCI_BAR_SIZE;
-
-	dev_dbg(sdev->dev, "LPE PHY base at 0x%x size 0x%x", base, size);
-	sdev->bar[BYT_DSP_BAR] = devm_ioremap(sdev->dev, base, size);
-	if (!sdev->bar[BYT_DSP_BAR]) {
-		dev_err(sdev->dev, "error: failed to ioremap LPE base 0x%x size 0x%x\n",
-			base, size);
-		return -ENODEV;
-	}
-	dev_dbg(sdev->dev, "LPE VADDR %p\n", sdev->bar[BYT_DSP_BAR]);
-
-	/* IMR base - optional */
-	if (desc->resindex_imr_base == -1)
-		goto irq;
-
-	base = pci_resource_start(pci, desc->resindex_imr_base);
-	size = pci_resource_len(pci, desc->resindex_imr_base);
-
-	/* some BIOSes don't map IMR */
-	if (base == 0x55aa55aa || base == 0x0) {
-		dev_info(sdev->dev, "IMR not set by BIOS. Ignoring\n");
-		goto irq;
-	}
-
-	dev_dbg(sdev->dev, "IMR base at 0x%x size 0x%x", base, size);
-	sdev->bar[BYT_IMR_BAR] = devm_ioremap(sdev->dev, base, size);
-	if (!sdev->bar[BYT_IMR_BAR]) {
-		dev_err(sdev->dev, "error: failed to ioremap IMR base 0x%x size 0x%x\n",
-			base, size);
-		return -ENODEV;
-	}
-	dev_dbg(sdev->dev, "IMR VADDR %p\n", sdev->bar[BYT_IMR_BAR]);
-
-irq:
-	/* register our IRQ */
-	sdev->ipc_irq = pci->irq;
-	dev_dbg(sdev->dev, "using IRQ %d\n", sdev->ipc_irq);
-	ret = devm_request_threaded_irq(sdev->dev, sdev->ipc_irq,
-					byt_irq_handler, byt_irq_thread,
-					0, "AudioDSP", sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to register IRQ %d\n",
-			sdev->ipc_irq);
-		return ret;
-	}
-
-	/* enable Interrupt from both sides */
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRX, 0x3, 0x0);
-	snd_sof_dsp_update_bits64(sdev, BYT_DSP_BAR, SHIM_IMRD, 0x3, 0x0);
-
-	/* set BARS */
-	sdev->cl_bar = BYT_DSP_BAR;
-
-	/* set default mailbox offset for FW ready message */
-	sdev->dsp_box.offset = MBOX_OFFSET;
-
-	return ret;
-}
-
-static int byt_probe(struct snd_sof_dev *sdev)
-{
-	if (sdev->pci)
-		return byt_pci_probe(sdev);
-
-	return byt_acpi_probe(sdev);
-}
-
 /* baytrail ops */
 const struct snd_sof_dsp_ops sof_byt_ops = {
 	/* device init */
-	.probe		= byt_probe,
+	.probe		= byt_acpi_probe,
 
 	/* DSP core boot / reset */
 	.run		= byt_run,
@@ -753,7 +795,7 @@ EXPORT_SYMBOL(sof_byt_ops);
 /* cherrytrail and braswell ops */
 const struct snd_sof_dsp_ops sof_cht_ops = {
 	/* device init */
-	.probe		= byt_probe,
+	.probe		= byt_acpi_probe,
 
 	/* DSP core boot / reset */
 	.run		= byt_run,
