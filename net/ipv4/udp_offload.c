@@ -13,6 +13,7 @@
 #include <linux/skbuff.h>
 #include <net/udp.h>
 #include <net/protocol.h>
+#include <net/inet_common.h>
 
 static struct sk_buff *__skb_udp_tunnel_segment(struct sk_buff *skb,
 	netdev_features_t features,
@@ -391,6 +392,8 @@ static struct sk_buff *udp_gro_receive_segment(struct list_head *head,
 	return NULL;
 }
 
+INDIRECT_CALLABLE_DECLARE(struct sock *udp6_lib_lookup_skb(struct sk_buff *skb,
+						   __be16 sport, __be16 dport));
 struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 				struct udphdr *uh, udp_lookup_t lookup)
 {
@@ -402,7 +405,8 @@ struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 	struct sock *sk;
 
 	rcu_read_lock();
-	sk = (*lookup)(skb, uh->source, uh->dest);
+	sk = INDIRECT_CALL_INET(lookup, udp6_lib_lookup_skb,
+				udp4_lib_lookup_skb, skb, uh->source, uh->dest);
 	if (!sk)
 		goto out_unlock;
 
@@ -451,8 +455,8 @@ out_unlock:
 }
 EXPORT_SYMBOL(udp_gro_receive);
 
-static struct sk_buff *udp4_gro_receive(struct list_head *head,
-					struct sk_buff *skb)
+INDIRECT_CALLABLE_SCOPE
+struct sk_buff *udp4_gro_receive(struct list_head *head, struct sk_buff *skb)
 {
 	struct udphdr *uh = udp_gro_udphdr(skb);
 
@@ -502,7 +506,8 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff,
 	uh->len = newlen;
 
 	rcu_read_lock();
-	sk = (*lookup)(skb, uh->source, uh->dest);
+	sk = INDIRECT_CALL_INET(lookup, udp6_lib_lookup_skb,
+				udp4_lib_lookup_skb, skb, uh->source, uh->dest);
 	if (sk && udp_sk(sk)->gro_enabled) {
 		err = udp_gro_complete_segment(skb);
 	} else if (sk && udp_sk(sk)->gro_complete) {
@@ -525,7 +530,7 @@ int udp_gro_complete(struct sk_buff *skb, int nhoff,
 }
 EXPORT_SYMBOL(udp_gro_complete);
 
-static int udp4_gro_complete(struct sk_buff *skb, int nhoff)
+INDIRECT_CALLABLE_SCOPE int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct udphdr *uh = (struct udphdr *)(skb->data + nhoff);

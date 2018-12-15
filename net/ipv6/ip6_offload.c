@@ -20,6 +20,23 @@
 
 #include "ip6_offload.h"
 
+/* All GRO functions are always builtin, except UDP over ipv6, which lays in
+ * ipv6 module, as it depends on UDPv6 lookup function, so we need special care
+ * when ipv6 is built as a module
+ */
+#if IS_BUILTIN(CONFIG_IPV6)
+#define INDIRECT_CALL_L4(f, f2, f1, ...) INDIRECT_CALL_2(f, f2, f1, __VA_ARGS__)
+#else
+#define INDIRECT_CALL_L4(f, f2, f1, ...) INDIRECT_CALL_1(f, f2, __VA_ARGS__)
+#endif
+
+#define indirect_call_gro_receive_l4(f2, f1, cb, head, skb)	\
+({								\
+	unlikely(gro_recursion_inc_test(skb)) ?			\
+		NAPI_GRO_CB(skb)->flush |= 1, NULL :		\
+		INDIRECT_CALL_L4(cb, f2, f1, head, skb);	\
+})
+
 static int ipv6_gso_pull_exthdrs(struct sk_buff *skb, int proto)
 {
 	const struct net_offload *ops = NULL;
@@ -164,8 +181,12 @@ static int ipv6_exthdrs_len(struct ipv6hdr *iph,
 	return len;
 }
 
-static struct sk_buff *ipv6_gro_receive(struct list_head *head,
-					struct sk_buff *skb)
+INDIRECT_CALLABLE_DECLARE(struct sk_buff *tcp6_gro_receive(struct list_head *,
+							   struct sk_buff *));
+INDIRECT_CALLABLE_DECLARE(struct sk_buff *udp6_gro_receive(struct list_head *,
+							   struct sk_buff *));
+INDIRECT_CALLABLE_SCOPE struct sk_buff *ipv6_gro_receive(struct list_head *head,
+							 struct sk_buff *skb)
 {
 	const struct net_offload *ops;
 	struct sk_buff *pp = NULL;
@@ -260,7 +281,8 @@ not_same_flow:
 
 	skb_gro_postpull_rcsum(skb, iph, nlen);
 
-	pp = call_gro_receive(ops->callbacks.gro_receive, head, skb);
+	pp = indirect_call_gro_receive_l4(tcp6_gro_receive, udp6_gro_receive,
+					 ops->callbacks.gro_receive, head, skb);
 
 out_unlock:
 	rcu_read_unlock();
@@ -301,7 +323,9 @@ static struct sk_buff *ip4ip6_gro_receive(struct list_head *head,
 	return inet_gro_receive(head, skb);
 }
 
-static int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
+INDIRECT_CALLABLE_DECLARE(int tcp6_gro_complete(struct sk_buff *, int));
+INDIRECT_CALLABLE_DECLARE(int udp6_gro_complete(struct sk_buff *, int));
+INDIRECT_CALLABLE_SCOPE int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
 {
 	const struct net_offload *ops;
 	struct ipv6hdr *iph = (struct ipv6hdr *)(skb->data + nhoff);
@@ -320,7 +344,8 @@ static int ipv6_gro_complete(struct sk_buff *skb, int nhoff)
 	if (WARN_ON(!ops || !ops->callbacks.gro_complete))
 		goto out_unlock;
 
-	err = ops->callbacks.gro_complete(skb, nhoff);
+	err = INDIRECT_CALL_L4(ops->callbacks.gro_complete, tcp6_gro_complete,
+			       udp6_gro_complete, skb, nhoff);
 
 out_unlock:
 	rcu_read_unlock();
