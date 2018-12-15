@@ -226,6 +226,13 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 		" [rtc] [ppp] [rcb] [tqp <q_num>]]\n",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	dev_info(&h->pdev->dev, "%s", printf_buf);
+
+	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
+	strncat(printf_buf, "dump reg dcb [port_id] [pri_id] [pg_id]",
+		HNS3_DBG_BUF_LEN - 1);
+	strncat(printf_buf + strlen(printf_buf), " [rq_id] [nq_id] [qset_id]\n",
+		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
+	dev_info(&h->pdev->dev, "%s", printf_buf);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
