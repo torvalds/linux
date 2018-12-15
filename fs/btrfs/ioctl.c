@@ -3278,7 +3278,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 			     struct inode *dst, u64 dst_loff)
 {
 	int ret;
-	int num_pages = PAGE_ALIGN(BTRFS_MAX_DEDUPE_LEN) >> PAGE_SHIFT;
 	u64 i, tail_len, chunk_count;
 
 	/* don't make the dst file partly checksummed */
@@ -3291,8 +3290,6 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 
 	tail_len = olen % BTRFS_MAX_DEDUPE_LEN;
 	chunk_count = div_u64(olen, BTRFS_MAX_DEDUPE_LEN);
-	if (chunk_count == 0)
-		num_pages = PAGE_ALIGN(tail_len) >> PAGE_SHIFT;
 
 	for (i = 0; i < chunk_count; i++) {
 		ret = btrfs_extent_same_range(src, loff, BTRFS_MAX_DEDUPE_LEN,
