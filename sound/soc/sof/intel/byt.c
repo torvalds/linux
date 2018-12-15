@@ -455,6 +455,55 @@ static int byt_reset(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+#define BYT_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
+	SNDRV_PCM_FMTBIT_S32_LE)
+
+/* Baytrail DAIs */
+static struct snd_soc_dai_driver byt_dai[] = {
+{
+	.name = "ssp0-port",
+	.playback = SOF_DAI_STREAM("ssp0 Tx", 1, 8,
+				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+	.capture = SOF_DAI_STREAM("ssp0 Rx", 1, 8,
+				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+},
+{
+	.name = "ssp1-port",
+	.playback = SOF_DAI_STREAM("ssp1 Tx", 1, 8,
+				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+	.capture = SOF_DAI_STREAM("ssp1 Rx", 1, 8,
+				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+},
+{
+	.name = "ssp2-port",
+	.playback = SOF_DAI_STREAM("ssp2 Tx", 1, 8,
+				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+	.capture = SOF_DAI_STREAM("ssp2 Rx", 1, 8,
+				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+},
+{
+	.name = "ssp3-port",
+	.playback = SOF_DAI_STREAM("ssp3 Tx", 1, 8,
+				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+	.capture = SOF_DAI_STREAM("ssp3 Rx", 1, 8,
+				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+},
+{
+	.name = "ssp4-port",
+	.playback = SOF_DAI_STREAM("ssp4 Tx", 1, 8,
+				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+	.capture = SOF_DAI_STREAM("ssp4 Rx", 1, 8,
+				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+},
+{
+	.name = "ssp5-port",
+	.playback = SOF_DAI_STREAM("ssp5 Tx", 1, 8,
+				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+	.capture = SOF_DAI_STREAM("ssp5 Rx", 1, 8,
+				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
+},
+};
+
 /*
  * Probe and remove.
  */
@@ -649,55 +698,6 @@ static int byt_probe(struct snd_sof_dev *sdev)
 
 	return byt_acpi_probe(sdev);
 }
-
-#define BYT_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE | \
-	SNDRV_PCM_FMTBIT_S32_LE)
-
-/* Baytrail DAIs */
-static struct snd_soc_dai_driver byt_dai[] = {
-{
-	.name = "ssp0-port",
-	.playback = SOF_DAI_STREAM("ssp0 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp0 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-},
-{
-	.name = "ssp1-port",
-	.playback = SOF_DAI_STREAM("ssp1 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp1 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-},
-{
-	.name = "ssp2-port",
-	.playback = SOF_DAI_STREAM("ssp2 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp2 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-},
-{
-	.name = "ssp3-port",
-	.playback = SOF_DAI_STREAM("ssp3 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp3 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-},
-{
-	.name = "ssp4-port",
-	.playback = SOF_DAI_STREAM("ssp4 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp4 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-},
-{
-	.name = "ssp5-port",
-	.playback = SOF_DAI_STREAM("ssp5 Tx", 1, 8,
-				   SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-	.capture = SOF_DAI_STREAM("ssp5 Rx", 1, 8,
-				  SNDRV_PCM_RATE_8000_192000, BYT_FORMATS),
-},
-};
 
 /* baytrail ops */
 const struct snd_sof_dsp_ops sof_byt_ops = {
