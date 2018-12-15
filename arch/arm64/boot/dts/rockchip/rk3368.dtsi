@@ -1188,6 +1188,49 @@
 			status = "disabled";
 		};
 
+		lvds: lvds {
+			compatible = "rockchip,rk3368-lvds";
+			phys = <&video_phy>;
+			phy-names = "phy";
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					lvds_in_vop: endpoint {
+						remote-endpoint = <&vop_out_lvds>;
+					};
+				};
+			};
+		};
+
+		rgb: rgb {
+			compatible = "rockchip,rk3368-rgb";
+			phys = <&video_phy>;
+			phy-names = "phy";
+			pinctrl-names = "default", "sleep";
+			pinctrl-0 = <&lcdc_rgb_pins>;
+			pinctrl-1 = <&lcdc_sleep_pins>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+
+					rgb_in_vop: endpoint {
+						remote-endpoint = <&vop_out_rgb>;
+					};
+				};
+			};
+		};
+
 		u2phy: usb2-phy@700 {
 			compatible = "rockchip,rk3368-usb2phy";
 			reg = <0x700 0x2c>;
@@ -1457,6 +1500,11 @@
 				reg = <3>;
 				remote-endpoint = <&lvds_in_vop>;
 			};
+
+			vop_out_rgb: endpoint@4 {
+				reg = <4>;
+				remote-endpoint = <&rgb_in_vop>;
+			};
 		};
 	};
 
@@ -1513,14 +1561,11 @@
 		compatible = "rockchip,rk3368-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
 		interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&cru PCLK_MIPI_DSI0>, <&mipi_dphy>;
+		clocks = <&cru PCLK_MIPI_DSI0>, <&video_phy>;
 		clock-names = "pclk", "hs_clk";
 		resets = <&cru SRST_MIPIDSI0>;
 		reset-names = "apb";
-		pinctrl-names = "default", "sleep";
-		pinctrl-0 = <&state_video_phy_mipi>;
-		pinctrl-1 = <&state_video_phy_idle>;
-		phys = <&mipi_dphy>;
+		phys = <&video_phy>;
 		phy-names = "mipi_dphy";
 		rockchip,grf = <&grf>;
 		power-domains = <&power RK3368_PD_VIO>;
@@ -1537,62 +1582,19 @@
 		};
 	};
 
-	mipi_dphy: mipi-dphy@ff968000 {
-		compatible = "rockchip,rk3368-mipi-dphy";
-		reg = <0x0 0xff968000 0x0 0x4000>;
-		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>;
-		clock-names = "ref", "pclk";
-		clock-output-names = "mipi_dphy_pll";
+	video_phy: video-phy@ff968000 {
+		compatible = "rockchip,rk3368-video-phy";
+		reg = <0x0 0xff968000 0x0 0x4000>,
+		      <0x0 0xff960000 0x0 0x4000>;
+		clocks = <&cru SCLK_MIPIDSI_24M>, <&cru PCLK_DPHYTX0>,
+			 <&cru PCLK_MIPI_DSI0>;
+		clock-names = "ref", "pclk_phy", "pclk_host";
 		#clock-cells = <0>;
 		resets = <&cru SRST_MIPIDPHYTX>;
-		reset-names = "apb";
+		reset-names = "rst";
 		power-domains = <&power RK3368_PD_VIO>;
 		#phy-cells = <0>;
-		rockchip,grf = <&grf>;
 		status = "disabled";
-
-		state_video_phy_mipi: pinmux-mipi {
-			groups = "video-phy-io";
-			function = "mipi";
-		};
-
-		state_video_phy_lvds: pinmux-lvds {
-			groups = "video-phy-io";
-			function = "lvds";
-		};
-
-		state_video_phy_ttl: pinmux-ttl {
-			groups = "video-phy-io";
-			function = "ttl";
-		};
-
-		state_video_phy_idle: pinmux-idle {
-			groups = "video-phy-io";
-			function = "idle";
-		};
-	};
-
-	lvds: lvds@ff968000 {
-		compatible = "rockchip,rk3368-lvds";
-		reg = <0x0 0xff968000 0x0 0x4000>, <0x0 0xff960000 0x0 0x100>;
-		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
-		clocks = <&cru PCLK_DPHYTX0>, <&cru PCLK_MIPI_DSI0>;
-		clock-names = "pclk_lvds", "pclk_lvds_ctl";
-		power-domains = <&power RK3368_PD_VIO>;
-		rockchip,grf = <&grf>;
-		status = "disabled";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			lvds_in: port@0 {
-				reg = <0>;
-				lvds_in_vop: endpoint {
-					remote-endpoint = <&vop_out_lvds>;
-				};
-			};
-		};
 	};
 
 	edp: edp@ff970000 {
@@ -2352,7 +2354,7 @@
 		};
 
 		lcdc {
-			lcdc_lcdc: lcdc-lcdc {
+			lcdc_rgb_pins: lcdc-rgb-pins {
 				rockchip,pins =
 					<0 14 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D10 */
 					<0 15 RK_FUNC_1 &pcfg_pull_none>,  /* LCDC_D11 */
@@ -2371,10 +2373,10 @@
 					<0 31 RK_FUNC_1 &pcfg_pull_none>,  /* DCLK */
 					<0 30 RK_FUNC_1 &pcfg_pull_none>,  /* DEN */
 					<0 28 RK_FUNC_1 &pcfg_pull_none>,  /* HSYNC */
-					<0 29 RK_FUNC_1 &pcfg_pull_none>;  /* VSYN */
+					<0 29 RK_FUNC_1 &pcfg_pull_none>;  /* VSYNC */
 			};
 
-			lcdc_gpio: lcdc-gpio {
+			lcdc_sleep_pins: lcdc-sleep-pins {
 				rockchip,pins =
 					<0 14 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D10 */
 					<0 15 RK_FUNC_GPIO &pcfg_pull_none>,  /* LCDC_D11 */
@@ -2393,7 +2395,7 @@
 					<0 31 RK_FUNC_GPIO &pcfg_pull_none>,  /* DCLK */
 					<0 30 RK_FUNC_GPIO &pcfg_pull_none>,  /* DEN */
 					<0 28 RK_FUNC_GPIO &pcfg_pull_none>,  /* HSYNC */
-					<0 29 RK_FUNC_GPIO &pcfg_pull_none>;  /* VSYN */
+					<0 29 RK_FUNC_GPIO &pcfg_pull_none>;  /* VSYNC */
 			};
 		};
 	};
