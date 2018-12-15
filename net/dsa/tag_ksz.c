@@ -110,6 +110,10 @@ static struct sk_buff *ksz9477_xmit(struct sk_buff *skb,
 	addr = skb_mac_header(nskb);
 
 	*tag = BIT(dp->index);
+
+	if (is_link_local_ether_addr(addr))
+		*tag |= KSZ9477_TAIL_TAG_OVERRIDE;
+
 	*tag = cpu_to_be16(*tag);
 
 	return nskb;
