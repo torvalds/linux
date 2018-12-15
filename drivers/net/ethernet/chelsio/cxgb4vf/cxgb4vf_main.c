@@ -2323,19 +2323,7 @@ static int resources_show(struct seq_file *seq, void *v)
 
 	return 0;
 }
-
-static int resources_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, resources_show, inode->i_private);
-}
-
-static const struct file_operations resources_proc_fops = {
-	.owner   = THIS_MODULE,
-	.open    = resources_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(resources);
 
 /*
  * Show Virtual Interfaces.
@@ -2419,7 +2407,7 @@ static struct cxgb4vf_debugfs_entry debugfs_files[] = {
 	{ "mboxlog",    0444, &mboxlog_fops },
 	{ "sge_qinfo",  0444, &sge_qinfo_debugfs_fops },
 	{ "sge_qstats", 0444, &sge_qstats_proc_fops },
-	{ "resources",  0444, &resources_proc_fops },
+	{ "resources",  0444, &resources_fops },
 	{ "interfaces", 0444, &interfaces_proc_fops },
 };
 
