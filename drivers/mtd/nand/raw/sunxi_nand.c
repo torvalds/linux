@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2013 Boris BREZILLON <b.brezillon.dev@gmail.com>
  *
@@ -10,16 +11,6 @@
  *
  *	Copyright (C) 2013 Dmitriy B. <rzk333@gmail.com>
  *	Copyright (C) 2013 Sergey Lapin <slapin@ossfans.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/dma-mapping.h>
@@ -2107,7 +2098,7 @@ static struct platform_driver sunxi_nfc_driver = {
 };
 module_platform_driver(sunxi_nfc_driver);
 
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Boris BREZILLON");
 MODULE_DESCRIPTION("Allwinner NAND Flash Controller driver");
 MODULE_ALIAS("platform:sunxi_nand");
