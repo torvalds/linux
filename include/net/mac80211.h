@@ -496,6 +496,8 @@ struct ieee80211_ftm_responder_params {
  * @uora_ocw_range: UORA element's OCW Range field
  * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
  * @he_support: does this BSS support HE
+ * @twt_requester: does this BSS support TWT requester (relevant for managed
+ *	mode only, set if the AP advertises TWT responder role)
  * @assoc: association status
  * @ibss_joined: indicates whether this station is part of an IBSS
  *	or not
@@ -594,6 +596,7 @@ struct ieee80211_bss_conf {
 	u8 uora_ocw_range;
 	u16 frame_time_rts_th;
 	bool he_support;
+	bool twt_requester;
 	/* association related data */
 	bool assoc, ibss_joined;
 	bool ibss_creator;

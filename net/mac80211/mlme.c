@@ -3058,6 +3058,19 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 	}
 }
 
+static bool ieee80211_twt_req_supported(const struct sta_info *sta,
+					const struct ieee802_11_elems *elems)
+{
+	if (elems->ext_capab_len < 10)
+		return false;
+
+	if (!(elems->ext_capab[9] & WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT))
+		return false;
+
+	return sta->sta.he_cap.he_cap_elem.mac_cap_info[0] &
+		IEEE80211_HE_MAC_CAP0_TWT_RES;
+}
+
 static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				    struct cfg80211_bss *cbss,
 				    struct ieee80211_mgmt *mgmt, size_t len)
@@ -3247,8 +3260,11 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 						  sta);
 
 		bss_conf->he_support = sta->sta.he_cap.has_he;
+		bss_conf->twt_requester =
+			ieee80211_twt_req_supported(sta, &elems);
 	} else {
 		bss_conf->he_support = false;
+		bss_conf->twt_requester = false;
 	}
 
 	if (bss_conf->he_support) {
