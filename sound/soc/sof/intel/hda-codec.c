@@ -8,6 +8,7 @@
 // Authors: Keyon Jie <yang.jie@linux.intel.com>
 //
 
+#include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_i915.h>
