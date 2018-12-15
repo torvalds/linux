@@ -256,6 +256,23 @@ static int hclgevf_get_queue_info(struct hclgevf_dev *hdev)
 	return 0;
 }
 
+static u16 hclgevf_get_qid_global(struct hnae3_handle *handle, u16 queue_id)
+{
+	struct hclgevf_dev *hdev = hclgevf_ae_get_hdev(handle);
+	u8 msg_data[2], resp_data[2];
+	u16 qid_in_pf = 0;
+	int ret;
+
+	memcpy(&msg_data[0], &queue_id, sizeof(queue_id));
+
+	ret = hclgevf_send_mbx_msg(hdev, HCLGE_MBX_GET_QID_IN_PF, 0, msg_data,
+				   2, true, resp_data, 2);
+	if (!ret)
+		qid_in_pf = *(u16 *)resp_data;
+
+	return qid_in_pf;
+}
+
 static int hclgevf_alloc_tqps(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_tqp *tqp;
@@ -2642,6 +2659,7 @@ static const struct hnae3_ae_ops hclgevf_ops = {
 	.ae_dev_reset_cnt = hclgevf_ae_dev_reset_cnt,
 	.set_gro_en = hclgevf_gro_en,
 	.set_mtu = hclgevf_set_mtu,
+	.get_global_queue_id = hclgevf_get_qid_global,
 };
 
 static struct hnae3_ae_algo ae_algovf = {

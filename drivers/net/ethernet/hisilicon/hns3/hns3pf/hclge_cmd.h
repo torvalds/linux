@@ -86,6 +86,20 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QUERY_REG_NUM		= 0x0040,
 	HCLGE_OPC_QUERY_32_BIT_REG	= 0x0041,
 	HCLGE_OPC_QUERY_64_BIT_REG	= 0x0042,
+	HCLGE_OPC_DFX_BD_NUM		= 0x0043,
+	HCLGE_OPC_DFX_BIOS_COMMON_REG	= 0x0044,
+	HCLGE_OPC_DFX_SSU_REG_0		= 0x0045,
+	HCLGE_OPC_DFX_SSU_REG_1		= 0x0046,
+	HCLGE_OPC_DFX_IGU_EGU_REG	= 0x0047,
+	HCLGE_OPC_DFX_RPU_REG_0		= 0x0048,
+	HCLGE_OPC_DFX_RPU_REG_1		= 0x0049,
+	HCLGE_OPC_DFX_NCSI_REG		= 0x004A,
+	HCLGE_OPC_DFX_RTC_REG		= 0x004B,
+	HCLGE_OPC_DFX_PPP_REG		= 0x004C,
+	HCLGE_OPC_DFX_RCB_REG		= 0x004D,
+	HCLGE_OPC_DFX_TQP_REG		= 0x004E,
+	HCLGE_OPC_DFX_SSU_REG_2		= 0x004F,
+	HCLGE_OPC_DFX_QUERY_CHIP_CAP	= 0x0050,
 
 	/* MAC command */
 	HCLGE_OPC_CONFIG_MAC_MODE	= 0x0301,
@@ -126,6 +140,15 @@ enum hclge_opcode_type {
 	HCLGE_OPC_TM_QS_SCH_MODE_CFG    = 0x0814,
 	HCLGE_OPC_TM_BP_TO_QSET_MAPPING = 0x0815,
 	HCLGE_OPC_ETS_TC_WEIGHT		= 0x0843,
+	HCLGE_OPC_QSET_DFX_STS		= 0x0844,
+	HCLGE_OPC_PRI_DFX_STS		= 0x0845,
+	HCLGE_OPC_PG_DFX_STS		= 0x0846,
+	HCLGE_OPC_PORT_DFX_STS		= 0x0847,
+	HCLGE_OPC_SCH_NQ_CNT		= 0x0848,
+	HCLGE_OPC_SCH_RQ_CNT		= 0x0849,
+	HCLGE_OPC_TM_INTERNAL_STS	= 0x0850,
+	HCLGE_OPC_TM_INTERNAL_CNT	= 0x0851,
+	HCLGE_OPC_TM_INTERNAL_STS_1	= 0x0852,
 
 	/* Packet buffer allocate commands */
 	HCLGE_OPC_TX_BUFF_ALLOC		= 0x0901,
@@ -142,6 +165,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_CFG_TX_QUEUE		= 0x0B01,
 	HCLGE_OPC_QUERY_TX_POINTER	= 0x0B02,
 	HCLGE_OPC_QUERY_TX_STATUS	= 0x0B03,
+	HCLGE_OPC_TQP_TX_QUEUE_TC	= 0x0B04,
 	HCLGE_OPC_CFG_RX_QUEUE		= 0x0B11,
 	HCLGE_OPC_QUERY_RX_POINTER	= 0x0B12,
 	HCLGE_OPC_QUERY_RX_STATUS	= 0x0B13,
@@ -237,6 +261,7 @@ enum hclge_opcode_type {
 	HCLGE_TM_QCN_MEM_INT_CFG	= 0x1A14,
 	HCLGE_PPP_CMD0_INT_CMD		= 0x2100,
 	HCLGE_PPP_CMD1_INT_CMD		= 0x2101,
+	HCLGE_MAC_ETHERTYPE_IDX_RD      = 0x2105,
 	HCLGE_NCSI_INT_EN		= 0x2401,
 };
 
@@ -743,6 +768,24 @@ struct hclge_cfg_tx_queue_pointer_cmd {
 	__le16 ring_offset;
 	u8 rsv[14];
 };
+
+#pragma pack(1)
+struct hclge_mac_ethertype_idx_rd_cmd {
+	u8	flags;
+	u8	resp_code;
+	__le16  vlan_tag;
+	u8      mac_add[6];
+	__le16  index;
+	__le16	ethter_type;
+	__le16  egress_port;
+	__le16  egress_queue;
+	__le16  rev0;
+	u8	i_port_bitmap;
+	u8	i_port_direction;
+	u8	rev1[2];
+};
+
+#pragma pack()
 
 #define HCLGE_TSO_MSS_MIN_S	0
 #define HCLGE_TSO_MSS_MIN_M	GENMASK(13, 0)

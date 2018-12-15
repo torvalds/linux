@@ -39,6 +39,7 @@ enum HCLGE_MBX_OPCODE {
 	HCLGE_MBX_KEEP_ALIVE,		/* (VF -> PF) send keep alive cmd */
 	HCLGE_MBX_SET_ALIVE,		/* (VF -> PF) set alive state */
 	HCLGE_MBX_SET_MTU,		/* (VF -> PF) set mtu */
+	HCLGE_MBX_GET_QID_IN_PF,	/* (VF -> PF) get queue id in pf */
 };
 
 /* below are per-VF mac-vlan subcodes */
