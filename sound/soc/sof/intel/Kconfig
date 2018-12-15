@@ -19,12 +19,20 @@ config SND_SOC_SOF_INTEL_ACPI
 
 config SND_SOC_SOF_INTEL_PCI
 	tristate
+	select SND_SOC_SOF_EDISON      if SND_SOC_SOF_EDISON_SUPPORT
 	select SND_SOC_SOF_APOLLOLAKE  if SND_SOC_SOF_APOLLOLAKE_SUPPORT
 	select SND_SOC_SOF_GEMINILAKE  if SND_SOC_SOF_GEMINILAKE_SUPPORT
 	select SND_SOC_SOF_CANNONLAKE  if SND_SOC_SOF_CANNONLAKE_SUPPORT
 	select SND_SOC_SOF_KABYLAKE    if SND_SOC_SOF_KABYLAKE_SUPPORT
 	select SND_SOC_SOF_SKYLAKE     if SND_SOC_SOF_SKYLAKE_SUPPORT
 	select SND_SOC_SOF_ICELAKE     if SND_SOC_SOF_ICELAKE_SUPPORT
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
+
+config SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	tristate
+	select SND_SOC_INTEL_COMMON
 	help
           This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
@@ -51,7 +59,7 @@ config SND_SOC_SOF_BAYTRAIL_SUPPORT
 
 config SND_SOC_SOF_BAYTRAIL
 	tristate
-	select SND_SOC_INTEL_COMMON
+	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	help
           This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
@@ -89,6 +97,21 @@ config SND_SOC_SOF_BROADWELL
 endif ## SND_SOC_SOF_INTEL_ACPI
 
 if SND_SOC_SOF_INTEL_PCI
+
+config SND_SOC_SOF_EDISON_SUPPORT
+	bool "SOF support for Tangier/Edison"
+	help
+          This adds support for Sound Open Firmware for Intel(R) platforms
+          using the Baytrail, Braswell or Cherrytrail processors.
+          Say Y if you have such a device.
+          If unsure select "N".
+
+config SND_SOC_SOF_EDISON
+	tristate
+	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
+	help
+          This option is not user-selectable but automagically handled by
+	  'select' statements at a higher level
 
 config SND_SOC_SOF_APOLLOLAKE_SUPPORT
 	bool "SOF support for Apollolake"
