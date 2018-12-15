@@ -52,7 +52,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
 		    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 			return -EPERM;
 
-		ring = ring_data[i + h->kinfo.num_tqps].ring;
+		ring = ring_data[(u32)(i + h->kinfo.num_tqps)].ring;
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_RX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
@@ -125,10 +125,85 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
 	return 0;
 }
 
+static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
+{
+	struct hns3_nic_priv *priv = h->priv;
+	struct hns3_nic_ring_data *ring_data;
+	struct hns3_desc *rx_desc, *tx_desc;
+	struct device *dev = &h->pdev->dev;
+	struct hns3_enet_ring *ring;
+	u32 tx_index, rx_index;
+	u32 q_num, value;
+	int cnt;
+
+	cnt = sscanf(&cmd_buf[8], "%u %u", &q_num, &tx_index);
+	if (cnt == 2) {
+		rx_index = tx_index;
+	} else if (cnt != 1) {
+		dev_err(dev, "bd info: bad command string, cnt=%d\n", cnt);
+		return -EINVAL;
+	}
+
+	if (q_num >= h->kinfo.num_tqps) {
+		dev_err(dev, "Queue number(%u) is out of range(%u)\n", q_num,
+			h->kinfo.num_tqps - 1);
+		return -EINVAL;
+	}
+
+	ring_data = priv->ring_data;
+	ring  = ring_data[q_num].ring;
+	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
+	tx_index = (cnt == 1) ? value : tx_index;
+
+	if (tx_index >= ring->desc_num) {
+		dev_err(dev, "bd index (%u) is out of range(%u)\n", tx_index,
+			ring->desc_num - 1);
+		return -EINVAL;
+	}
+
+	tx_desc = &ring->desc[tx_index];
+	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
+	dev_info(dev, "(TX) addr: 0x%llx\n", tx_desc->addr);
+	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.vlan_tag);
+	dev_info(dev, "(TX)send_size: %u\n", tx_desc->tx.send_size);
+	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
+	dev_info(dev, "(TX)l2_len: %u\n", tx_desc->tx.l2_len);
+	dev_info(dev, "(TX)l3_len: %u\n", tx_desc->tx.l3_len);
+	dev_info(dev, "(TX)l4_len: %u\n", tx_desc->tx.l4_len);
+	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.outer_vlan_tag);
+	dev_info(dev, "(TX)tv: %u\n", tx_desc->tx.tv);
+	dev_info(dev, "(TX)vlan_msec: %u\n", tx_desc->tx.ol_type_vlan_msec);
+	dev_info(dev, "(TX)ol2_len: %u\n", tx_desc->tx.ol2_len);
+	dev_info(dev, "(TX)ol3_len: %u\n", tx_desc->tx.ol3_len);
+	dev_info(dev, "(TX)ol4_len: %u\n", tx_desc->tx.ol4_len);
+	dev_info(dev, "(TX)paylen: %u\n", tx_desc->tx.paylen);
+	dev_info(dev, "(TX)vld_ra_ri: %u\n", tx_desc->tx.bdtp_fe_sc_vld_ra_ri);
+	dev_info(dev, "(TX)mss: %u\n", tx_desc->tx.mss);
+
+	ring  = ring_data[q_num + h->kinfo.num_tqps].ring;
+	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
+	rx_index = (cnt == 1) ? value : tx_index;
+	rx_desc	 = &ring->desc[rx_index];
+
+	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
+	dev_info(dev, "(RX)addr: 0x%llx\n", rx_desc->addr);
+	dev_info(dev, "(RX)pkt_len: %u\n", rx_desc->rx.pkt_len);
+	dev_info(dev, "(RX)size: %u\n", rx_desc->rx.size);
+	dev_info(dev, "(RX)rss_hash: %u\n", rx_desc->rx.rss_hash);
+	dev_info(dev, "(RX)fd_id: %u\n", rx_desc->rx.fd_id);
+	dev_info(dev, "(RX)vlan_tag: %u\n", rx_desc->rx.vlan_tag);
+	dev_info(dev, "(RX)o_dm_vlan_id_fb: %u\n", rx_desc->rx.o_dm_vlan_id_fb);
+	dev_info(dev, "(RX)ot_vlan_tag: %u\n", rx_desc->rx.ot_vlan_tag);
+	dev_info(dev, "(RX)bd_base_info: %u\n", rx_desc->rx.bd_base_info);
+
+	return 0;
+}
+
 static void hns3_dbg_help(struct hnae3_handle *h)
 {
 	dev_info(&h->pdev->dev, "available commands\n");
 	dev_info(&h->pdev->dev, "queue info [number]\n");
+	dev_info(&h->pdev->dev, "bd info [q_num] <bd index>\n");
 	dev_info(&h->pdev->dev, "dump fd tcam\n");
 	dev_info(&h->pdev->dev, "dump tc\n");
 	dev_info(&h->pdev->dev, "dump tm\n");
@@ -205,6 +280,8 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		hns3_dbg_help(handle);
 	else if (strncmp(cmd_buf, "queue info", 10) == 0)
 		ret = hns3_dbg_queue_info(handle, cmd_buf);
+	else if (strncmp(cmd_buf, "bd info", 7) == 0)
+		ret = hns3_dbg_bd_info(handle, cmd_buf);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
 
