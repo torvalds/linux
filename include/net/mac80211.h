@@ -6103,6 +6103,14 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *sta, u8 tid);
  * @txq: pointer obtained from station or virtual interface
  *
  * Returns the skb if successful, %NULL if no frame was available.
+ *
+ * Note that this must be called in an rcu_read_lock() critical section,
+ * which can only be released after the SKB was handled. Some pointers in
+ * skb->cb, e.g. the key pointer, are protected by by RCU and thus the
+ * critical section must persist not just for the duration of this call
+ * but for the duration of the frame handling.
+ * However, also note that while in the wake_tx_queue() method,
+ * rcu_read_lock() is already held.
  */
 struct sk_buff *ieee80211_tx_dequeue(struct ieee80211_hw *hw,
 				     struct ieee80211_txq *txq);
