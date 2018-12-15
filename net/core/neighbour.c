@@ -1828,6 +1828,7 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	struct net_device *dev = NULL;
 	struct neighbour *neigh;
 	void *dst, *lladdr;
+	u8 protocol = 0;
 	int err;
 
 	ASSERT_RTNL();
@@ -1867,6 +1868,14 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	dst = nla_data(tb[NDA_DST]);
 	lladdr = tb[NDA_LLADDR] ? nla_data(tb[NDA_LLADDR]) : NULL;
 
+	if (tb[NDA_PROTOCOL]) {
+		if (nla_len(tb[NDA_PROTOCOL]) != sizeof(u8)) {
+			NL_SET_ERR_MSG(extack, "Invalid protocol attribute");
+			goto out;
+		}
+		protocol = nla_get_u8(tb[NDA_PROTOCOL]);
+	}
+
 	if (ndm->ndm_flags & NTF_PROXY) {
 		struct pneigh_entry *pn;
 
@@ -1874,6 +1883,8 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 		pn = pneigh_lookup(tbl, net, dst, dev, 1);
 		if (pn) {
 			pn->flags = ndm->ndm_flags;
+			if (protocol)
+				pn->protocol = protocol;
 			err = 0;
 		}
 		goto out;
@@ -1924,6 +1935,10 @@ static int neigh_add(struct sk_buff *skb, struct nlmsghdr *nlh,
 	} else
 		err = __neigh_update(neigh, lladdr, ndm->ndm_state, flags,
 				     NETLINK_CB(skb).portid, extack);
+
+	if (protocol)
+		neigh->protocol = protocol;
+
 	neigh_release(neigh);
 
 out:
@@ -2417,6 +2432,9 @@ static int neigh_fill_info(struct sk_buff *skb, struct neighbour *neigh,
 	    nla_put(skb, NDA_CACHEINFO, sizeof(ci), &ci))
 		goto nla_put_failure;
 
+	if (neigh->protocol && nla_put_u8(skb, NDA_PROTOCOL, neigh->protocol))
+		goto nla_put_failure;
+
 	nlmsg_end(skb, nlh);
 	return 0;
 
@@ -2446,6 +2464,9 @@ static int pneigh_fill_info(struct sk_buff *skb, struct pneigh_entry *pn,
 	ndm->ndm_state	 = NUD_NONE;
 
 	if (nla_put(skb, NDA_DST, tbl->key_len, pn->key))
+		goto nla_put_failure;
+
+	if (pn->protocol && nla_put_u8(skb, NDA_PROTOCOL, pn->protocol))
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -3103,7 +3124,8 @@ static inline size_t neigh_nlmsg_size(void)
 	       + nla_total_size(MAX_ADDR_LEN) /* NDA_DST */
 	       + nla_total_size(MAX_ADDR_LEN) /* NDA_LLADDR */
 	       + nla_total_size(sizeof(struct nda_cacheinfo))
-	       + nla_total_size(4); /* NDA_PROBES */
+	       + nla_total_size(4)  /* NDA_PROBES */
+	       + nla_total_size(1); /* NDA_PROTOCOL */
 }
 
 static void __neigh_notify(struct neighbour *n, int type, int flags,
