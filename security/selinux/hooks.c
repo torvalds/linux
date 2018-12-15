@@ -1049,40 +1049,33 @@ Einval:
 	return -EINVAL;
 }
 
-static int selinux_parse_opts_str(char *options,
-				  void **mnt_opts)
+static int selinux_add_mnt_opt(const char *option, const char *val, int len,
+			       void **mnt_opts)
 {
-	char *p = options, *next;
-	int rc;
+	int token = Opt_error;
+	int rc, i;
 
-	/* Standard string-based options. */
-	for (p = options; *p; p = next) {
-		int token, len;
-		char *arg = NULL;
-
-		next = strchr(p, '|');
-		if (next) {
-			len = next++ - p;
-		} else {
-			len = strlen(p);
-			next = p + len;
-		}
-
-		if (!len)
-			continue;
-
-		token = match_opt_prefix(p, len, &arg);
-		if (arg)
-			arg = kmemdup_nul(arg, p + len - arg, GFP_KERNEL);
-		rc = selinux_add_opt(token, arg, mnt_opts);
-		if (rc) {
-			kfree(arg);
-			selinux_free_mnt_opts(*mnt_opts);
-			*mnt_opts = NULL;
-			return rc;
+	for (i = 0; i < ARRAY_SIZE(tokens); i++) {
+		if (strcmp(option, tokens[i].name) == 0) {
+			token = tokens[i].opt;
+			break;
 		}
 	}
-	return 0;
+
+	if (token == Opt_error)
+		return -EINVAL;
+
+	if (token != Opt_seclabel)
+		val = kmemdup_nul(val, len, GFP_KERNEL);
+	rc = selinux_add_opt(token, val, mnt_opts);
+	if (unlikely(rc)) {
+		kfree(val);
+		if (*mnt_opts) {
+			selinux_free_mnt_opts(*mnt_opts);
+			*mnt_opts = NULL;
+		}
+	}
+	return rc;
 }
 
 static int show_sid(struct seq_file *m, u32 sid)
@@ -6726,7 +6719,7 @@ static struct security_hook_list selinux_hooks[] __lsm_ro_after_init = {
 	LSM_HOOK_INIT(sb_umount, selinux_umount),
 	LSM_HOOK_INIT(sb_set_mnt_opts, selinux_set_mnt_opts),
 	LSM_HOOK_INIT(sb_clone_mnt_opts, selinux_sb_clone_mnt_opts),
-	LSM_HOOK_INIT(sb_parse_opts_str, selinux_parse_opts_str),
+	LSM_HOOK_INIT(sb_add_mnt_opt, selinux_add_mnt_opt),
 
 	LSM_HOOK_INIT(dentry_init_security, selinux_dentry_init_security),
 	LSM_HOOK_INIT(dentry_create_files_as, selinux_dentry_create_files_as),

@@ -1479,7 +1479,8 @@ union security_list_options {
 					struct super_block *newsb,
 					unsigned long kern_flags,
 					unsigned long *set_kern_flags);
-	int (*sb_parse_opts_str)(char *options, void **mnt_opts);
+	int (*sb_add_mnt_opt)(const char *option, const char *val, int len,
+			      void **mnt_opts);
 	int (*dentry_init_security)(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
@@ -1812,7 +1813,7 @@ struct security_hook_heads {
 	struct hlist_head sb_pivotroot;
 	struct hlist_head sb_set_mnt_opts;
 	struct hlist_head sb_clone_mnt_opts;
-	struct hlist_head sb_parse_opts_str;
+	struct hlist_head sb_add_mnt_opt;
 	struct hlist_head dentry_init_security;
 	struct hlist_head dentry_create_files_as;
 #ifdef CONFIG_SECURITY_PATH

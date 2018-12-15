@@ -240,7 +240,8 @@ int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb,
 				unsigned long kern_flags,
 				unsigned long *set_kern_flags);
-int security_sb_parse_opts_str(char *options, void **mnt_opts);
+int security_add_mnt_opt(const char *option, const char *val,
+				int len, void **mnt_opts);
 int security_dentry_init_security(struct dentry *dentry, int mode,
 					const struct qstr *name, void **ctx,
 					u32 *ctxlen);
@@ -586,7 +587,8 @@ static inline int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 	return 0;
 }
 
-static inline int security_sb_parse_opts_str(char *options, void **mnt_opts)
+static inline int security_add_mnt_opt(const char *option, const char *val,
+					int len, void **mnt_opts)
 {
 	return 0;
 }

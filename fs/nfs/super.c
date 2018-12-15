@@ -2070,14 +2070,9 @@ static int nfs23_validate_mount_data(void *options,
 		if (data->context[0]){
 #ifdef CONFIG_SECURITY_SELINUX
 			int rc;
-			char *opts_str = kmalloc(sizeof(data->context) + 8, GFP_KERNEL);
-			if (!opts_str)
-				return -ENOMEM;
-			strcpy(opts_str, "context=");
 			data->context[NFS_MAX_CONTEXT_LEN] = '\0';
-			strcat(opts_str, &data->context[0]);
-			rc = security_sb_parse_opts_str(opts_str, &args->lsm_opts);
-			kfree(opts_str);
+			rc = security_add_mnt_opt("context", data->context,
+					strlen(data->context), &args->lsm_opts);
 			if (rc)
 				return rc;
 #else
