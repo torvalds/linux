@@ -5893,9 +5893,11 @@ enum nl80211_external_auth_action {
  * @__NL80211_FTM_RESP_ATTR_INVALID: Invalid
  * @NL80211_FTM_RESP_ATTR_ENABLED: FTM responder is enabled
  * @NL80211_FTM_RESP_ATTR_LCI: The content of Measurement Report Element
- *	(9.4.2.22 in 802.11-2016) with type 8 - LCI (9.4.2.22.10)
+ *	(9.4.2.22 in 802.11-2016) with type 8 - LCI (9.4.2.22.10),
+ *	i.e. starting with the measurement token
  * @NL80211_FTM_RESP_ATTR_CIVIC: The content of Measurement Report Element
- *	(9.4.2.22 in 802.11-2016) with type 11 - Civic (Section 9.4.2.22.13)
+ *	(9.4.2.22 in 802.11-2016) with type 11 - Civic (Section 9.4.2.22.13),
+ *	i.e. starting with the measurement token
  * @__NL80211_FTM_RESP_ATTR_LAST: Internal
  * @NL80211_FTM_RESP_ATTR_MAX: highest FTM responder attribute.
  */
@@ -6295,9 +6297,15 @@ enum nl80211_peer_measurement_ftm_failure_reasons {
  * @NL80211_PMSR_FTM_RESP_ATTR_DIST_VARIANCE: distance variance (u64, mm^2, note
  *	that standard deviation is the square root of variance, optional)
  * @NL80211_PMSR_FTM_RESP_ATTR_DIST_SPREAD: distance spread (u64, mm, optional)
- * @NL80211_PMSR_FTM_RESP_ATTR_LCI: LCI data from peer (binary, optional)
+ * @NL80211_PMSR_FTM_RESP_ATTR_LCI: LCI data from peer (binary, optional);
+ *	this is the contents of the Measurement Report Element (802.11-2016
+ *	9.4.2.22.1) starting with the Measurement Token, with Measurement
+ *	Type 8.
  * @NL80211_PMSR_FTM_RESP_ATTR_CIVICLOC: civic location data from peer
- *	(binary, optional)
+ *	(binary, optional);
+ *	this is the contents of the Measurement Report Element (802.11-2016
+ *	9.4.2.22.1) starting with the Measurement Token, with Measurement
+ *	Type 11.
  * @NL80211_PMSR_FTM_RESP_ATTR_PAD: ignore, for u64/s64 padding only
  *
  * @NUM_NL80211_PMSR_FTM_RESP_ATTR: internal

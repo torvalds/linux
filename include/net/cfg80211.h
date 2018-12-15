@@ -777,8 +777,10 @@ struct cfg80211_crypto_settings {
  * @probe_resp: probe response template (AP mode only)
  * @ftm_responder: enable FTM responder functionality; -1 for no change
  *	(which also implies no change in LCI/civic location data)
- * @lci: LCI subelement content
- * @civicloc: Civic location subelement content
+ * @lci: Measurement Report element content, starting with Measurement Token
+ *	(measurement type 8)
+ * @civicloc: Measurement Report element content, starting with Measurement
+ *	Token (measurement type 11)
  * @lci_len: LCI data length
  * @civicloc_len: Civic location data length
  */
