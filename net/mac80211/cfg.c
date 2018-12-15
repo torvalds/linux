@@ -800,8 +800,8 @@ static int ieee80211_set_ftm_responder_params(
 	u8 *pos;
 	int len;
 
-	if ((!lci || !lci_len) && (!civicloc || !civicloc_len))
-		return 1;
+	if (!lci_len && !civicloc_len)
+		return 0;
 
 	bss_conf = &sdata->vif.bss_conf;
 	old = bss_conf->ftmr_params;
