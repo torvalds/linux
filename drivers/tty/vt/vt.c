@@ -2023,7 +2023,7 @@ static void restore_cur(struct vc_data *vc)
 }
 
 enum { ESnormal, ESesc, ESsquare, ESgetpars, ESfunckey,
-	EShash, ESsetG0, ESsetG1, ESpercent, ESignore, ESnonstd,
+	EShash, ESsetG0, ESsetG1, ESpercent, EScsiignore, ESnonstd,
 	ESpalette, ESosc };
 
 /* console_lock is held (except via vc_init()) */
@@ -2261,6 +2261,10 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			vc->vc_par[vc->vc_npar] += c - '0';
 			return;
 		}
+		if (c >= 0x20 && c <= 0x2f) {
+			vc->vc_state = EScsiignore;
+			return;
+		}
 		vc->vc_state = ESnormal;
 		switch(c) {
 		case 'h':
@@ -2422,6 +2426,11 @@ static void do_con_trol(struct tty_struct *tty, struct vc_data *vc, int c)
 			setterm_command(vc);
 			return;
 		}
+		return;
+	case EScsiignore:
+		if (c >= 20 && c <= 0x3f)
+			return;
+		vc->vc_state = ESnormal;
 		return;
 	case ESpercent:
 		vc->vc_state = ESnormal;
