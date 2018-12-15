@@ -25,17 +25,8 @@
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
 #include <linux/mfd/syscon.h>
-#include <linux/pinctrl/pinconf-generic.h>
-#include <linux/pinctrl/pinctrl.h>
-#include <linux/pinctrl/pinmux.h>
-#include "../../pinctrl/pinctrl-utils.h"
 
 #define UPDATE(x, h, l)	(((x) << (l)) & GENMASK((h), (l)))
-#define HIWORD_UPDATE(v, h, l)	(((v) << (l)) | (GENMASK(h, l) << 16))
-
-#define RK3368_GRF_SOC_CON7		0x041c
-#define VIDEO_PHY_TTL_MODE_ENBALE	HIWORD_UPDATE(1, 15, 15)
-#define VIDEO_PHY_TTL_MODE_DISABLE	HIWORD_UPDATE(0, 15, 15)
 
 /*
  * The offset address[7:0] is distributed two parts, one from the bit7 to bit5
@@ -222,7 +213,6 @@ struct inno_mipi_dphy_timing {
 };
 
 struct inno_video_phy_socdata {
-	bool pinmux;
 	bool has_h2p_clk;
 	bool post_div_enable;
 	const struct inno_mipi_dphy_timing *timings;
@@ -237,8 +227,6 @@ struct inno_mipi_dphy {
 	struct regmap *regmap;
 	struct reset_control *rst;
 	struct regmap *grf;
-	struct pinctrl_dev *pinctrl;
-	struct pinctrl_desc desc;
 
 	unsigned int lanes;
 	unsigned long lane_rate;
@@ -297,142 +285,6 @@ struct inno_mipi_dphy_timing inno_mipi_dphy_gf22fdx_timing_table[] = {
 	{2200, 0x13, 0x64, 0x7e, 0x15, 0x0b},
 	{2400, 0x13, 0x33, 0x7f, 0x15, 0x6a},
 	{2500, 0x15, 0x54, 0x7f, 0x15, 0x6a},
-};
-
-static const struct pinctrl_pin_desc inno_video_phy_pins[] = {
-	PINCTRL_PIN(0, "DATAP0"),	/* pin_ttl_data[0] */
-	PINCTRL_PIN(1, "DATAN0"),	/* pin_ttl_data[1] */
-	PINCTRL_PIN(2, "DATAP1"),	/* pin_ttl_data[2] */
-	PINCTRL_PIN(3, "DATAN1"),	/* pin_ttl_data[3] */
-	PINCTRL_PIN(4, "DATAP2"),	/* pin_ttl_data[4] */
-	PINCTRL_PIN(5, "DATAN2"),	/* pin_ttl_data[5] */
-	PINCTRL_PIN(6, "DATAP3"),	/* pin_ttl_data[6] */
-	PINCTRL_PIN(7, "DATAN3"),	/* pin_ttl_data[7] */
-	PINCTRL_PIN(8, "CLKP"),		/* pin_ttl_data[8] */
-	PINCTRL_PIN(9, "CLKN"),		/* pin_ttl_data[9] */
-};
-
-static const char * const inno_video_phy_groups[] = {
-	"video-phy-io",
-};
-
-static const unsigned int inno_video_phy_pin_numbers[] = {
-	0, 1, 2, 3, 4, 5, 6, 7, 8, 9
-};
-
-static const char * const inno_video_phy_functions[] = {
-	"mipi",
-	"lvds",
-	"ttl",
-	"idle",
-};
-
-static int
-inno_video_phy_pad_config(struct inno_mipi_dphy *inno, unsigned int function)
-{
-	switch (function) {
-	case INNO_PHY_PADCTL_FUNC_TTL:
-		pm_runtime_get_sync(inno->dev);
-		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
-			     VIDEO_PHY_TTL_MODE_ENBALE);
-		regmap_write(inno->regmap, 0x38c, 0x04);
-		/* Enable analog driver */
-		regmap_write(inno->regmap, 0x3ac, 0xfd);
-		break;
-	case INNO_PHY_PADCTL_FUNC_MIPI:
-		pm_runtime_get_sync(inno->dev);
-		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
-			     VIDEO_PHY_TTL_MODE_DISABLE);
-		regmap_write(inno->regmap, 0x38c, 0x01);
-		break;
-	case INNO_PHY_PADCTL_FUNC_LVDS:
-		pm_runtime_get_sync(inno->dev);
-		regmap_write(inno->grf, RK3368_GRF_SOC_CON7,
-			     VIDEO_PHY_TTL_MODE_DISABLE);
-		regmap_write(inno->regmap, 0x38c, 0x02);
-		/* Enable LVDS analog driver */
-		regmap_write(inno->regmap, 0x3ac, 0xf8);
-		break;
-	case INNO_PHY_PADCTL_FUNC_IDLE:
-		/* Disable analog driver */
-		regmap_write(inno->regmap, 0x3ac, 0x04);
-		regmap_write(inno->regmap, 0x38c, 0x00);
-		pm_runtime_put(inno->dev);
-		break;
-	default:
-		return -ENOTSUPP;
-	}
-
-	return 0;
-}
-
-static int inno_video_phy_get_groups_count(struct pinctrl_dev *pinctrl)
-{
-	return ARRAY_SIZE(inno_video_phy_groups);
-}
-
-static const char *
-inno_video_phy_get_group_name(struct pinctrl_dev *pinctrl, unsigned int group)
-{
-	return inno_video_phy_groups[group];
-}
-
-static int
-inno_video_phy_get_group_pins(struct pinctrl_dev *pinctrl, unsigned int group,
-			      const unsigned int **pins, unsigned int *num_pins)
-{
-	*pins = inno_video_phy_pin_numbers;
-	*num_pins = ARRAY_SIZE(inno_video_phy_pin_numbers);
-
-	return 0;
-}
-
-static const struct pinctrl_ops inno_video_phy_pinctrl_ops = {
-	.get_groups_count = inno_video_phy_get_groups_count,
-	.get_group_name = inno_video_phy_get_group_name,
-	.get_group_pins = inno_video_phy_get_group_pins,
-	.dt_node_to_map = pinconf_generic_dt_node_to_map_group,
-	.dt_free_map = pinctrl_utils_free_map,
-};
-
-static int inno_video_phy_get_functions_count(struct pinctrl_dev *pinctrl)
-{
-	return ARRAY_SIZE(inno_video_phy_functions);
-}
-
-static const char *
-inno_video_phy_get_function_name(struct pinctrl_dev *pinctrl,
-				 unsigned int function)
-{
-	return inno_video_phy_functions[function];
-}
-
-static int
-inno_video_phy_get_function_groups(struct pinctrl_dev *pinctrl,
-				   unsigned int function,
-				   const char * const **groups,
-				   unsigned * const num_groups)
-{
-	*num_groups = ARRAY_SIZE(inno_video_phy_groups);
-	*groups = inno_video_phy_groups;
-
-	return 0;
-}
-
-static int
-inno_video_phy_set_mux(struct pinctrl_dev *pinctrl, unsigned int function,
-		       unsigned int group)
-{
-	struct inno_mipi_dphy *inno = pinctrl_dev_get_drvdata(pinctrl);
-
-	return inno_video_phy_pad_config(inno, function);
-}
-
-static const struct pinmux_ops inno_video_phy_pinmux_ops = {
-	.get_functions_count = inno_video_phy_get_functions_count,
-	.get_function_name = inno_video_phy_get_function_name,
-	.get_function_groups = inno_video_phy_get_function_groups,
-	.set_mux = inno_video_phy_set_mux,
 };
 
 static inline struct inno_mipi_dphy *hw_to_inno(struct clk_hw *hw)
@@ -973,21 +825,6 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (inno->socdata->pinmux) {
-		inno->desc.name = dev_name(dev);
-		inno->desc.pins = inno_video_phy_pins;
-		inno->desc.npins = ARRAY_SIZE(inno_video_phy_pins);
-		inno->desc.pctlops = &inno_video_phy_pinctrl_ops;
-		inno->desc.pmxops = &inno_video_phy_pinmux_ops;
-		inno->desc.owner = THIS_MODULE;
-
-		inno->pinctrl = pinctrl_register(&inno->desc, dev, inno);
-		if (IS_ERR(inno->pinctrl)) {
-			dev_err(dev, "failed to register pincontrol\n");
-			return PTR_ERR(inno->pinctrl);
-		}
-	}
-
 	pm_runtime_enable(dev);
 
 	return 0;
@@ -997,9 +834,6 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 {
 	struct inno_mipi_dphy *inno = platform_get_drvdata(pdev);
 
-	if (inno->socdata->pinmux)
-		pinctrl_unregister(inno->pinctrl);
-
 	inno_mipi_dphy_pll_unregister(inno);
 	pm_runtime_disable(inno->dev);
 
@@ -1008,7 +842,6 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 
 static const struct inno_video_phy_socdata rk1808_socdata = {
 	.has_h2p_clk = false,
-	.pinmux = false,
 	.post_div_enable = true,
 	.timings = inno_mipi_dphy_gf22fdx_timing_table,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_gf22fdx_timing_table),
@@ -1016,7 +849,6 @@ static const struct inno_video_phy_socdata rk1808_socdata = {
 
 static const struct inno_video_phy_socdata rk3128_socdata = {
 	.has_h2p_clk = true,
-	.pinmux = false,
 	.post_div_enable = false,
 	.timings = inno_mipi_dphy_timing_table,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
@@ -1024,15 +856,6 @@ static const struct inno_video_phy_socdata rk3128_socdata = {
 
 static const struct inno_video_phy_socdata rk3366_socdata = {
 	.has_h2p_clk = false,
-	.pinmux = false,
-	.post_div_enable = false,
-	.timings = inno_mipi_dphy_timing_table,
-	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
-};
-
-static const struct inno_video_phy_socdata rk3368_socdata = {
-	.has_h2p_clk = false,
-	.pinmux = true,
 	.post_div_enable = false,
 	.timings = inno_mipi_dphy_timing_table,
 	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
@@ -1042,7 +865,6 @@ static const struct of_device_id inno_mipi_dphy_of_match[] = {
 	{ .compatible = "rockchip,rk1808-mipi-dphy", .data = &rk1808_socdata },
 	{ .compatible = "rockchip,rk3128-mipi-dphy", .data = &rk3128_socdata },
 	{ .compatible = "rockchip,rk3366-mipi-dphy", .data = &rk3366_socdata },
-	{ .compatible = "rockchip,rk3368-mipi-dphy", .data = &rk3368_socdata },
 	{ /* Sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, inno_mipi_dphy_of_match);
