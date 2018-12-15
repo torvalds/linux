@@ -154,37 +154,36 @@
 
 #define NFC_MAX_CS		7
 
-/*
- * Chip Select structure: stores information related to NAND Chip Select
+/**
+ * struct sunxi_nand_chip_sel - stores information related to NAND Chip Select
  *
- * @cs:		the NAND CS id used to communicate with a NAND Chip
- * @rb:		the Ready/Busy pin ID. -1 means no R/B pin connected to the
- *		NFC
+ * @cs: the NAND CS id used to communicate with a NAND Chip
+ * @rb: the Ready/Busy pin ID. -1 means no R/B pin connected to the NFC
  */
 struct sunxi_nand_chip_sel {
 	u8 cs;
 	s8 rb;
 };
 
-/*
- * sunxi HW ECC infos: stores information related to HW ECC support
+/**
+ * struct sunxi_nand_hw_ecc - stores information related to HW ECC support
  *
- * @mode:	the sunxi ECC mode field deduced from ECC requirements
+ * @mode: the sunxi ECC mode field deduced from ECC requirements
  */
 struct sunxi_nand_hw_ecc {
 	int mode;
 };
 
-/*
- * NAND chip structure: stores NAND chip device related information
+/**
+ * struct sunxi_nand_chip - stores NAND chip device related information
  *
- * @node:		used to store NAND chips into a list
- * @nand:		base NAND chip structure
- * @mtd:		base MTD structure
- * @clk_rate:		clk_rate required for this NAND chip
- * @timing_cfg		TIMING_CFG register value for this NAND chip
- * @nsels:		number of CS lines required by the NAND chip
- * @sels:		array of CS lines descriptions
+ * @node: used to store NAND chips into a list
+ * @nand: base NAND chip structure
+ * @clk_rate: clk_rate required for this NAND chip
+ * @timing_cfg: TIMING_CFG register value for this NAND chip
+ * @timing_ctl: TIMING_CTL register value for this NAND chip
+ * @nsels: number of CS lines required by the NAND chip
+ * @sels: array of CS lines descriptions
  */
 struct sunxi_nand_chip {
 	struct list_head node;
@@ -201,20 +200,21 @@ static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
 	return container_of(nand, struct sunxi_nand_chip, nand);
 }
 
-/*
- * NAND Controller structure: stores sunxi NAND controller information
+/**
+ * struct sunxi_nfc - stores sunxi NAND controller information
  *
- * @controller:		base controller structure
- * @dev:		parent device (used to print error messages)
- * @regs:		NAND controller registers
- * @ahb_clk:		NAND Controller AHB clock
- * @mod_clk:		NAND Controller mod clock
- * @assigned_cs:	bitmask describing already assigned CS lines
- * @clk_rate:		NAND controller current clock rate
- * @chips:		a list containing all the NAND chips attached to
- *			this NAND controller
- * @complete:		a completion object used to wait for NAND
- *			controller events
+ * @controller: base controller structure
+ * @dev: parent device (used to print error messages)
+ * @regs: NAND controller registers
+ * @ahb_clk: NAND controller AHB clock
+ * @mod_clk: NAND controller mod clock
+ * @reset: NAND controller reset line
+ * @assigned_cs: bitmask describing already assigned CS lines
+ * @clk_rate: NAND controller current clock rate
+ * @chips: a list containing all the NAND chips attached to this NAND
+ *	   controller
+ * @complete: a completion object used to wait for NAND controller events
+ * @dmac: the DMA channel attached to the NAND controller
  */
 struct sunxi_nfc {
 	struct nand_controller controller;
