@@ -220,15 +220,6 @@
 	status = "ok";
 };
 
-&dsi0 {
-	status = "disabled";
-	mipi_panel: mipi-panel {
-		compatible ="asus,tc358762";
-		reg = <0>;
-		status = "okay";
-	};
-};
-
 &gpu {
 	mali-supply = <&vdd_gpu>;
 	status = "okay";
