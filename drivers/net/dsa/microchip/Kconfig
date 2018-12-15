@@ -4,7 +4,7 @@ config NET_DSA_MICROCHIP_KSZ_COMMON
 menuconfig NET_DSA_MICROCHIP_KSZ9477
 	tristate "Microchip KSZ9477 series switch support"
 	depends on NET_DSA
-	select NET_DSA_TAG_KSZ
+	select NET_DSA_TAG_KSZ9477
 	select NET_DSA_MICROCHIP_KSZ_COMMON
 	help
 	  This driver adds support for Microchip KSZ9477 switch chips.
