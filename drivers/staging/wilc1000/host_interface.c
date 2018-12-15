@@ -246,27 +246,29 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 
 	hif_drv->usr_scan_req.ch_cnt = 0;
 
-	wid_list[index].id = WID_SSID_PROBE_REQ;
-	wid_list[index].type = WID_STR;
+	if (hidden_net) {
+		wid_list[index].id = WID_SSID_PROBE_REQ;
+		wid_list[index].type = WID_STR;
 
-	for (i = 0; i < hidden_net->n_ssids; i++)
-		valuesize += ((hidden_net->net_info[i].ssid_len) + 1);
-	hdn_ntwk_wid_val = kmalloc(valuesize + 1, GFP_KERNEL);
-	wid_list[index].val = hdn_ntwk_wid_val;
-	if (wid_list[index].val) {
-		buffer = wid_list[index].val;
+		for (i = 0; i < hidden_net->n_ssids; i++)
+			valuesize += ((hidden_net->net_info[i].ssid_len) + 1);
+		hdn_ntwk_wid_val = kmalloc(valuesize + 1, GFP_KERNEL);
+		wid_list[index].val = hdn_ntwk_wid_val;
+		if (wid_list[index].val) {
+			buffer = wid_list[index].val;
 
-		*buffer++ = hidden_net->n_ssids;
+			*buffer++ = hidden_net->n_ssids;
 
-		for (i = 0; i < hidden_net->n_ssids; i++) {
-			*buffer++ = hidden_net->net_info[i].ssid_len;
-			memcpy(buffer, hidden_net->net_info[i].ssid,
-			       hidden_net->net_info[i].ssid_len);
-			buffer += hidden_net->net_info[i].ssid_len;
+			for (i = 0; i < hidden_net->n_ssids; i++) {
+				*buffer++ = hidden_net->net_info[i].ssid_len;
+				memcpy(buffer, hidden_net->net_info[i].ssid,
+				       hidden_net->net_info[i].ssid_len);
+				buffer += hidden_net->net_info[i].ssid_len;
+			}
+
+			wid_list[index].size = (s32)(valuesize + 1);
+			index++;
 		}
-
-		wid_list[index].size = (s32)(valuesize + 1);
-		index++;
 	}
 
 	wid_list[index].id = WID_INFO_ELEMENT_PROBE;
@@ -316,8 +318,10 @@ int wilc_scan(struct wilc_vif *vif, u8 scan_source, u8 scan_type,
 		  jiffies + msecs_to_jiffies(HOST_IF_SCAN_TIMEOUT));
 
 error:
-	kfree(hidden_net->net_info);
-	kfree(hdn_ntwk_wid_val);
+	if (hidden_net) {
+		kfree(hidden_net->net_info);
+		kfree(hdn_ntwk_wid_val);
+	}
 
 	return result;
 }
