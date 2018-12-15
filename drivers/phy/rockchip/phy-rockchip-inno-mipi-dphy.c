@@ -212,18 +212,10 @@ struct inno_mipi_dphy_timing {
 	u8 hs_trail;
 };
 
-struct inno_video_phy_socdata {
-	bool has_h2p_clk;
-	bool post_div_enable;
-	const struct inno_mipi_dphy_timing *timings;
-	unsigned int num_timings;
-};
-
 struct inno_mipi_dphy {
 	struct device *dev;
 	struct clk *ref_clk;
 	struct clk *pclk;
-	struct clk *h2p_clk;
 	struct regmap *regmap;
 	struct reset_control *rst;
 	struct regmap *grf;
@@ -236,8 +228,6 @@ struct inno_mipi_dphy {
 		u8 prediv;
 		u16 fbdiv;
 	} pll;
-
-	const struct inno_video_phy_socdata *socdata;
 };
 
 enum {
@@ -250,22 +240,8 @@ enum {
 	REGISTER_PART_DATA3_LANE,
 };
 
-static const struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table[] = {
-	{ 110, 0x00, 0x20, 0x16, 0x02, 0x22},
-	{ 150, 0x00, 0x06, 0x16, 0x03, 0x45},
-	{ 200, 0x00, 0x18, 0x17, 0x04, 0x0b},
-	{ 250, 0x00, 0x05, 0x17, 0x05, 0x16},
-	{ 300, 0x00, 0x51, 0x18, 0x06, 0x2c},
-	{ 400, 0x00, 0x64, 0x19, 0x07, 0x33},
-	{ 500, 0x00, 0x20, 0x1b, 0x07, 0x4e},
-	{ 600, 0x00, 0x6a, 0x1d, 0x08, 0x3a},
-	{ 700, 0x00, 0x3e, 0x1e, 0x08, 0x6a},
-	{ 800, 0x00, 0x21, 0x1f, 0x09, 0x29},
-	{1000, 0x00, 0x09, 0x20, 0x09, 0x27},
-};
-
 static const
-struct inno_mipi_dphy_timing inno_mipi_dphy_gf22fdx_timing_table[] = {
+struct inno_mipi_dphy_timing inno_mipi_dphy_timing_table[] = {
 	{ 110, 0x02, 0x7f, 0x16, 0x02, 0x02},
 	{ 150, 0x02, 0x7f, 0x16, 0x03, 0x02},
 	{ 200, 0x02, 0x7f, 0x17, 0x04, 0x02},
@@ -376,9 +352,8 @@ static void inno_mipi_dphy_pll_enable(struct inno_mipi_dphy *inno)
 			 REG_FBDIV_HI_MASK, REG_FBDIV_HI(inno->pll.fbdiv >> 8));
 	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x04,
 			 REG_FBDIV_LO_MASK, REG_FBDIV_LO(inno->pll.fbdiv));
-	if (inno->socdata->post_div_enable)
-		inno_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
-				 PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
+	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x08,
+			 PLL_POST_DIV_ENABLE_MASK, PLL_POST_DIV_ENABLE);
 	inno_update_bits(inno, REGISTER_PART_ANALOG, 0x01,
 			 REG_LDOPD_MASK | REG_PLLPD_MASK,
 			 REG_LDOPD_POWER_ON | REG_PLLPD_POWER_ON);
@@ -423,17 +398,22 @@ static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 static const struct inno_mipi_dphy_timing *
 inno_mipi_dphy_get_timing(struct inno_mipi_dphy *inno)
 {
+	const struct inno_mipi_dphy_timing *timings;
+	unsigned int num_timings;
 	unsigned int lane_mbps = inno->lane_rate / USEC_PER_SEC;
 	unsigned int i;
 
-	for (i = 0; i < inno->socdata->num_timings; i++)
-		if (lane_mbps <= inno->socdata->timings[i].max_lane_mbps)
+	timings = inno_mipi_dphy_timing_table;
+	num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table);
+
+	for (i = 0; i < num_timings; i++)
+		if (lane_mbps <= timings[i].max_lane_mbps)
 			break;
 
-	if (i == inno->socdata->num_timings)
+	if (i == num_timings)
 		--i;
 
-	return &inno->socdata->timings[i];
+	return &timings[i];
 }
 
 static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
@@ -468,19 +448,11 @@ static void inno_mipi_dphy_timing_init(struct inno_mipi_dphy *inno)
 	if (wakeup > 0x3ff)
 		wakeup = 0x3ff;
 
-	if (timing->lpx) {
-		lpx = timing->lpx;
-	} else {
-		/* Tlpx = Tpin_txbyteclkhs * (2 + value) */
-		lpx = DIV_ROUND_UP(txbyteclk * gotp.lpx, NSEC_PER_SEC);
-		if (lpx >= 2)
-			lpx -= 2;
-	}
-
 	ta_go = DIV_ROUND_UP(gotp.tago * txclkesc, NSEC_PER_SEC);
 	ta_sure = DIV_ROUND_UP(gotp.tasure * txclkesc, NSEC_PER_SEC);
 	ta_wait = DIV_ROUND_UP(gotp.taget * txclkesc, NSEC_PER_SEC);
 
+	lpx = timing->lpx;
 	hs_prepare = timing->hs_prepare;
 	hs_trail = timing->hs_trail;
 
@@ -537,14 +509,17 @@ static unsigned long inno_mipi_dphy_pll_round_rate(struct inno_mipi_dphy *inno,
 						   unsigned long rate,
 						   u8 *prediv, u16 *fbdiv)
 {
-	const struct inno_mipi_dphy_timing *timings = inno->socdata->timings;
-	unsigned int num_timings = inno->socdata->num_timings;
+	const struct inno_mipi_dphy_timing *timings;
+	unsigned int num_timings;
 	unsigned long best_freq = 0;
 	unsigned int fin, fout, max_fout;
 	u8 min_prediv, max_prediv;
 	u8 _prediv, best_prediv = 1;
 	u16 _fbdiv, best_fbdiv = 1;
 	u32 min_delta = UINT_MAX;
+
+	timings = inno_mipi_dphy_timing_table;
+	num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table);
 
 	/*
 	 * The PLL output frequency can be calculated using a simple formula:
@@ -594,7 +569,6 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 {
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
 
-	clk_prepare_enable(inno->h2p_clk);
 	clk_prepare_enable(inno->pclk);
 	pm_runtime_get_sync(inno->dev);
 	inno_mipi_dphy_bandgap_power_enable(inno);
@@ -618,7 +592,6 @@ static int inno_mipi_dphy_power_off(struct phy *phy)
 	inno_mipi_dphy_bandgap_power_disable(inno);
 	pm_runtime_put(inno->dev);
 	clk_disable_unprepare(inno->pclk);
-	clk_disable_unprepare(inno->h2p_clk);
 
 	return 0;
 }
@@ -752,7 +725,6 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	inno->dev = dev;
-	inno->socdata = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, inno);
 
 	ret = inno_mipi_dphy_parse_dt(inno);
@@ -784,14 +756,6 @@ static int inno_mipi_dphy_probe(struct platform_device *pdev)
 	if (IS_ERR(inno->pclk)) {
 		dev_err(dev, "failed to get pclk\n");
 		return PTR_ERR(inno->pclk);
-	}
-
-	if (inno->socdata->has_h2p_clk) {
-		inno->h2p_clk = devm_clk_get(dev, "h2p");
-		if (IS_ERR(inno->h2p_clk)) {
-			dev_err(dev, "failed to get h2p clock\n");
-			return PTR_ERR(inno->h2p_clk);
-		}
 	}
 
 	inno->rst = devm_reset_control_get(dev, "apb");
@@ -840,24 +804,9 @@ static int inno_mipi_dphy_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct inno_video_phy_socdata rk1808_socdata = {
-	.has_h2p_clk = false,
-	.post_div_enable = true,
-	.timings = inno_mipi_dphy_gf22fdx_timing_table,
-	.num_timings = ARRAY_SIZE(inno_mipi_dphy_gf22fdx_timing_table),
-};
-
-static const struct inno_video_phy_socdata rk3128_socdata = {
-	.has_h2p_clk = true,
-	.post_div_enable = false,
-	.timings = inno_mipi_dphy_timing_table,
-	.num_timings = ARRAY_SIZE(inno_mipi_dphy_timing_table),
-};
-
 static const struct of_device_id inno_mipi_dphy_of_match[] = {
-	{ .compatible = "rockchip,rk1808-mipi-dphy", .data = &rk1808_socdata },
-	{ .compatible = "rockchip,rk3128-mipi-dphy", .data = &rk3128_socdata },
-	{ /* Sentinel */ }
+	{ .compatible = "rockchip,rk1808-mipi-dphy", },
+	{}
 };
 MODULE_DEVICE_TABLE(of, inno_mipi_dphy_of_match);
 
