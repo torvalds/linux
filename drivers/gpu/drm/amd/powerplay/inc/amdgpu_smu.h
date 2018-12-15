@@ -38,13 +38,29 @@ struct smu_table {
 	uint64_t mc_address;
 	void *cpu_addr;
 	struct amdgpu_bo *bo;
+};
 
+struct smu_bios_boot_up_values
+{
+	uint32_t			revision;
+	uint32_t			gfxclk;
+	uint32_t			uclk;
+	uint32_t			socclk;
+	uint32_t			dcefclk;
+	uint16_t			vddc;
+	uint16_t			vddci;
+	uint16_t			mvddc;
+	uint16_t			vdd_gfx;
+	uint8_t				cooling_id;
+	uint32_t			pp_table_id;
 };
 
 struct smu_table_context
 {
 	void				*power_play_table;
 	uint32_t			power_play_table_size;
+
+	struct smu_bios_boot_up_values	boot_values;
 	struct smu_table		*tables;
 	uint32_t			table_count;
 };
