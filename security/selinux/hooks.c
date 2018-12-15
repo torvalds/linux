@@ -459,19 +459,41 @@ enum {
 	Opt_defcontext = 3,
 	Opt_rootcontext = 4,
 	Opt_labelsupport = 5,
-	Opt_nextmntopt = 6,
 };
 
-#define NUM_SEL_MNT_OPTS	(Opt_nextmntopt - 1)
-
-static const match_table_t tokens = {
-	{Opt_context, CONTEXT_STR "%s"},
-	{Opt_fscontext, FSCONTEXT_STR "%s"},
-	{Opt_defcontext, DEFCONTEXT_STR "%s"},
-	{Opt_rootcontext, ROOTCONTEXT_STR "%s"},
-	{Opt_labelsupport, LABELSUPP_STR},
-	{Opt_error, NULL},
+#define A(s, opt, has_arg) {s, sizeof(s) - 1, opt, has_arg}
+static struct {
+	const char *name;
+	int len;
+	int opt;
+	bool has_arg;
+} tokens[] = {
+	A("context", Opt_context, true),
+	A("fscontext", Opt_fscontext, true),
+	A("defcontext", Opt_defcontext, true),
+	A("rootcontext", Opt_rootcontext, true),
+	A("seclabel", Opt_labelsupport, false),
 };
+#undef A
+
+static int match_opt_prefix(char *s, int l, char **arg)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(tokens); i++) {
+		size_t len = tokens[i].len;
+		if (len > l || memcmp(s, tokens[i].name, len))
+			continue;
+		if (tokens[i].has_arg) {
+			if (len == l || s[len] != '=')
+				continue;
+			*arg = s + len + 1;
+		} else if (len != l)
+			continue;
+		return tokens[i].opt;
+	}
+	return Opt_error;
+}
 
 #define SEL_MOUNT_FAIL_MSG "SELinux:  duplicate or incompatible mount options\n"
 
@@ -988,6 +1010,9 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct selinux_mnt_opts *opts = *mnt_opts;
 
+	if (token == Opt_labelsupport)	/* eaten and completely ignored */
+		return 0;
+
 	if (!opts) {
 		opts = kzalloc(sizeof(struct selinux_mnt_opts), GFP_KERNEL);
 		if (!opts)
@@ -1021,36 +1046,39 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 	return 0;
 Einval:
 	pr_warn(SEL_MOUNT_FAIL_MSG);
-	kfree(s);
 	return -EINVAL;
 }
 
 static int selinux_parse_opts_str(char *options,
 				  void **mnt_opts)
 {
-	char *p;
+	char *p = options, *next;
+	int rc;
 
 	/* Standard string-based options. */
-	while ((p = strsep(&options, "|")) != NULL) {
-		int token, rc;
-		substring_t args[MAX_OPT_ARGS];
-		const char *arg;
+	for (p = options; *p; p = next) {
+		int token, len;
+		char *arg = NULL;
 
-		if (!*p)
+		next = strchr(p, '|');
+		if (next) {
+			len = next++ - p;
+		} else {
+			len = strlen(p);
+			next = p + len;
+		}
+
+		if (!len)
 			continue;
 
-		token = match_token(p, tokens, args);
-
-		if (token == Opt_labelsupport)	/* eaten and completely ignored */
-			continue;
-		arg = match_strdup(&args[0]);
+		token = match_opt_prefix(p, len, &arg);
+		if (arg)
+			arg = kmemdup_nul(arg, p + len - arg, GFP_KERNEL);
 		rc = selinux_add_opt(token, arg, mnt_opts);
-		if (unlikely(rc)) {
+		if (rc) {
 			kfree(arg);
-			if (*mnt_opts) {
-				selinux_free_mnt_opts(*mnt_opts);
-				*mnt_opts = NULL;
-			}
+			selinux_free_mnt_opts(*mnt_opts);
+			*mnt_opts = NULL;
 			return rc;
 		}
 	}
