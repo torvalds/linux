@@ -8,7 +8,6 @@
 // Author: Liam Girdwood <liam.r.girdwood@linux.intel.com>
 //
 
-#include <asm/iosf_mbi.h>
 #include <linux/acpi.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
@@ -16,6 +15,9 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
 #include <sound/sof.h>
+#ifdef CONFIG_X86
+#include <asm/iosf_mbi.h>
+#endif
 
 #include "ops.h"
 
@@ -69,12 +71,13 @@ static struct sof_dev_desc sof_acpi_baytrail_desc = {
 	.nocodec_tplg_filename = "intel/sof-byt-nocodec.tplg"
 };
 
+#ifdef CONFIG_X86 /* TODO: move this to common helper */
 static int is_byt_cr(struct device *dev)
 {
 	u32 bios_status;
 	int status;
 
-	if (!IS_ENABLED(CONFIG_IOSF_MBI) || !iosf_mbi_available()) {
+	if (!iosf_mbi_available()) {
 		dev_info(dev, "IOSF_MBI not enabled - can't determine CPU variant\n");
 		return -EIO;
 	}
@@ -100,6 +103,12 @@ static int is_byt_cr(struct device *dev)
 	dev_info(dev, "BYT-CR not detected\n");
 	return 0;
 }
+#else
+static int is_byt_cr(struct device *dev)
+{
+	return 0;
+}
+#endif
 
 static struct sof_dev_desc sof_acpi_cherrytrail_desc = {
 	.machines = snd_soc_acpi_intel_cherrytrail_machines,
