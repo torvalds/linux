@@ -474,6 +474,8 @@ int skcipher_walk_virt(struct skcipher_walk *walk,
 {
 	int err;
 
+	might_sleep_if(req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP);
+
 	walk->flags &= ~SKCIPHER_WALK_PHYS;
 
 	err = skcipher_walk_skcipher(walk, req);
