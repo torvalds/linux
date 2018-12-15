@@ -201,6 +201,10 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
 
 static void hns3_dbg_help(struct hnae3_handle *h)
 {
+#define HNS3_DBG_BUF_LEN 256
+
+	char printf_buf[HNS3_DBG_BUF_LEN];
+
 	dev_info(&h->pdev->dev, "available commands\n");
 	dev_info(&h->pdev->dev, "queue info [number]\n");
 	dev_info(&h->pdev->dev, "bd info [q_num] <bd index>\n");
@@ -211,6 +215,17 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qos pri map\n");
 	dev_info(&h->pdev->dev, "dump qos buf cfg\n");
 	dev_info(&h->pdev->dev, "dump mng tbl\n");
+
+	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
+	strncat(printf_buf, "dump reg [[bios common] [ssu <prt_id>]",
+		HNS3_DBG_BUF_LEN - 1);
+	strncat(printf_buf + strlen(printf_buf),
+		" [igu egu <prt_id>] [rpu <tc_queue_num>]",
+		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
+	strncat(printf_buf + strlen(printf_buf),
+		" [rtc] [ppp] [rcb] [tqp <q_num>]]\n",
+		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
+	dev_info(&h->pdev->dev, "%s", printf_buf);
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,

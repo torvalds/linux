@@ -9,6 +9,198 @@
 #include "hclge_tm.h"
 #include "hnae3.h"
 
+static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset)
+{
+	struct hclge_desc desc[4];
+	int ret;
+
+	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_DFX_BD_NUM, true);
+	desc[0].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[1], HCLGE_OPC_DFX_BD_NUM, true);
+	desc[1].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[2], HCLGE_OPC_DFX_BD_NUM, true);
+	desc[2].flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+	hclge_cmd_setup_basic_desc(&desc[3], HCLGE_OPC_DFX_BD_NUM, true);
+
+	ret = hclge_cmd_send(&hdev->hw, desc, 4);
+	if (ret != HCLGE_CMD_EXEC_SUCCESS) {
+		dev_err(&hdev->pdev->dev,
+			"get dfx bdnum fail, status is %d.\n", ret);
+		return ret;
+	}
+
+	return (int)desc[offset / 6].data[offset % 6];
+}
+
+static int hclge_dbg_cmd_send(struct hclge_dev *hdev,
+			      struct hclge_desc *desc_src,
+			      int index, int bd_num,
+			      enum hclge_opcode_type cmd)
+{
+	struct hclge_desc *desc = desc_src;
+	int ret, i;
+
+	hclge_cmd_setup_basic_desc(desc, cmd, true);
+	desc->data[0] = cpu_to_le32(index);
+
+	for (i = 1; i < bd_num; i++) {
+		desc->flag |= cpu_to_le16(HCLGE_CMD_FLAG_NEXT);
+		desc++;
+		hclge_cmd_setup_basic_desc(desc, cmd, true);
+	}
+
+	ret = hclge_cmd_send(&hdev->hw, desc_src, bd_num);
+	if (ret) {
+		dev_err(&hdev->pdev->dev,
+			"read reg cmd send fail, status is %d.\n", ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static void hclge_dbg_dump_reg_common(struct hclge_dev *hdev,
+				      struct hclge_dbg_dfx_message *dfx_message,
+				      char *cmd_buf, int msg_num, int offset,
+				      enum hclge_opcode_type cmd)
+{
+	struct hclge_desc *desc_src;
+	struct hclge_desc *desc;
+	int bd_num, buf_len;
+	int ret, i;
+	int index;
+	int max;
+
+	ret = kstrtouint(cmd_buf, 10, &index);
+	index = (ret != 0) ? 0 : index;
+
+	bd_num = hclge_dbg_get_dfx_bd_num(hdev, offset);
+	if (bd_num <= 0)
+		return;
+
+	buf_len	 = sizeof(struct hclge_desc) * bd_num;
+	desc_src = kzalloc(buf_len, GFP_KERNEL);
+	if (!desc_src) {
+		dev_err(&hdev->pdev->dev, "call kzalloc failed\n");
+		return;
+	}
+
+	desc = desc_src;
+	ret  = hclge_dbg_cmd_send(hdev, desc, index, bd_num, cmd);
+	if (ret != HCLGE_CMD_EXEC_SUCCESS) {
+		kfree(desc_src);
+		return;
+	}
+
+	max = (bd_num * 6) <= msg_num ? (bd_num * 6) : msg_num;
+
+	desc = desc_src;
+	for (i = 0; i < max; i++) {
+		(((i / 6) > 0) && ((i % 6) == 0)) ? desc++ : desc;
+		if (dfx_message->flag)
+			dev_info(&hdev->pdev->dev, "%s: 0x%x\n",
+				 dfx_message->message, desc->data[i % 6]);
+
+		dfx_message++;
+	}
+
+	kfree(desc_src);
+}
+
+static void hclge_dbg_dump_reg_cmd(struct hclge_dev *hdev, char *cmd_buf)
+{
+	int msg_num;
+
+	if (strncmp(&cmd_buf[9], "bios common", 11) == 0) {
+		msg_num = sizeof(hclge_dbg_bios_common_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_bios_common_reg,
+					  &cmd_buf[21], msg_num,
+					  HCLGE_DBG_DFX_BIOS_OFFSET,
+					  HCLGE_OPC_DFX_BIOS_COMMON_REG);
+	} else if (strncmp(&cmd_buf[9], "ssu", 3) == 0) {
+		msg_num = sizeof(hclge_dbg_ssu_reg_0) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_ssu_reg_0,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_SSU_0_OFFSET,
+					  HCLGE_OPC_DFX_SSU_REG_0);
+
+		msg_num = sizeof(hclge_dbg_ssu_reg_1) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_ssu_reg_1,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_SSU_1_OFFSET,
+					  HCLGE_OPC_DFX_SSU_REG_1);
+
+		msg_num = sizeof(hclge_dbg_ssu_reg_2) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_ssu_reg_2,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_SSU_2_OFFSET,
+					  HCLGE_OPC_DFX_SSU_REG_2);
+	} else if (strncmp(&cmd_buf[9], "igu egu", 7) == 0) {
+		msg_num = sizeof(hclge_dbg_igu_egu_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_igu_egu_reg,
+					  &cmd_buf[17], msg_num,
+					  HCLGE_DBG_DFX_IGU_OFFSET,
+					  HCLGE_OPC_DFX_IGU_EGU_REG);
+	} else if (strncmp(&cmd_buf[9], "rpu", 3) == 0) {
+		msg_num = sizeof(hclge_dbg_rpu_reg_0) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_rpu_reg_0,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_RPU_0_OFFSET,
+					  HCLGE_OPC_DFX_RPU_REG_0);
+
+		msg_num = sizeof(hclge_dbg_rpu_reg_1) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_rpu_reg_1,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_RPU_1_OFFSET,
+					  HCLGE_OPC_DFX_RPU_REG_1);
+	} else if (strncmp(&cmd_buf[9], "ncsi", 4) == 0) {
+		msg_num = sizeof(hclge_dbg_ncsi_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_ncsi_reg,
+					  &cmd_buf[14], msg_num,
+					  HCLGE_DBG_DFX_NCSI_OFFSET,
+					  HCLGE_OPC_DFX_NCSI_REG);
+	} else if (strncmp(&cmd_buf[9], "rtc", 3) == 0) {
+		msg_num = sizeof(hclge_dbg_rtc_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_rtc_reg,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_RTC_OFFSET,
+					  HCLGE_OPC_DFX_RTC_REG);
+	} else if (strncmp(&cmd_buf[9], "ppp", 3) == 0) {
+		msg_num = sizeof(hclge_dbg_ppp_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_ppp_reg,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_PPP_OFFSET,
+					  HCLGE_OPC_DFX_PPP_REG);
+	} else if (strncmp(&cmd_buf[9], "rcb", 3) == 0) {
+		msg_num = sizeof(hclge_dbg_rcb_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_rcb_reg,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_RCB_OFFSET,
+					  HCLGE_OPC_DFX_RCB_REG);
+	} else if (strncmp(&cmd_buf[9], "tqp", 3) == 0) {
+		msg_num = sizeof(hclge_dbg_tqp_reg) /
+			  sizeof(struct hclge_dbg_dfx_message);
+		hclge_dbg_dump_reg_common(hdev, hclge_dbg_tqp_reg,
+					  &cmd_buf[13], msg_num,
+					  HCLGE_DBG_DFX_TQP_OFFSET,
+					  HCLGE_OPC_DFX_TQP_REG);
+	} else {
+		dev_info(&hdev->pdev->dev, "unknown command\n");
+		return;
+	}
+}
+
 static void hclge_title_idx_print(struct hclge_dev *hdev, bool flag, int index,
 				  char *title_buf, char *true_buf,
 				  char *false_buf)
@@ -544,6 +736,8 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		hclge_dbg_dump_qos_buf_cfg(hdev);
 	} else if (strncmp(cmd_buf, "dump mng tbl", 12) == 0) {
 		hclge_dbg_dump_mng_table(hdev);
+	} else if (strncmp(cmd_buf, "dump reg", 8) == 0) {
+		hclge_dbg_dump_reg_cmd(hdev, cmd_buf);
 	} else {
 		dev_info(&hdev->pdev->dev, "unknown command\n");
 		return -EINVAL;
