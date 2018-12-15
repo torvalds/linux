@@ -172,6 +172,9 @@ module_param_array(beep_mode, bool, NULL, 0444);
 MODULE_PARM_DESC(beep_mode, "Select HDA Beep registration mode "
 			    "(0=off, 1=on) (default=1).");
 #endif
+static int skl_pci_binding;
+module_param_named(pci_binding, skl_pci_binding, int, 0444);
+MODULE_PARM_DESC(pci_binding, "PCI binding (0=auto, 1=only legacy, 2=only asoc");
 
 #ifdef CONFIG_PM
 static int param_set_xint(const char *val, const struct kernel_param *kp);
@@ -2050,9 +2053,26 @@ static int azx_probe(struct pci_dev *pci,
 	int err;
 
 	/* check if this driver can be used on SKL+ Intel platforms */
-	if ((pci_id->driver_data & AZX_DCAPS_INTEL_SHARED) &&
-	    pci->class != 0x040300)
-		return -ENODEV;
+	if (pci_id->driver_data & AZX_DCAPS_INTEL_SHARED) {
+		switch (skl_pci_binding) {
+		case SND_SKL_PCI_BIND_AUTO:
+			if (pci->class != 0x040300) {
+				dev_info(&pci->dev, "The DSP is enabled on this platform, aborting probe\n");
+				return -ENODEV;
+			}
+			dev_info(&pci->dev, "No DSP detected, continuing HDaudio legacy probe\n");
+			break;
+		case SND_SKL_PCI_BIND_LEGACY:
+			dev_info(&pci->dev, "Module parameter forced binding with HDaudio legacy, bypassed detection logic\n");
+			break;
+		case SND_SKL_PCI_BIND_ASOC:
+			dev_info(&pci->dev, "Module parameter forced binding with SKL+ ASoC driver, aborting probe\n");
+			return -ENODEV;
+		default:
+			dev_err(&pci->dev, "invalid value for skl_pci_binding module parameter, ignored\n");
+			break;
+		}
+	}
 
 	if (dev >= SNDRV_CARDS)
 		return -ENODEV;

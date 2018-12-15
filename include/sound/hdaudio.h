@@ -98,6 +98,12 @@ enum {
 	HDA_DEV_ASOC,
 };
 
+enum {
+	SND_SKL_PCI_BIND_AUTO,	/* automatic selection based on pci class */
+	SND_SKL_PCI_BIND_LEGACY,/* bind only with legacy driver */
+	SND_SKL_PCI_BIND_ASOC	/* bind only with ASoC driver */
+};
+
 /* direction */
 enum {
 	HDA_INPUT, HDA_OUTPUT
