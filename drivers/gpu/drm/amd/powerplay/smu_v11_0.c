@@ -313,6 +313,37 @@ static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	return 0;
 
 }
+
+static int smu_v11_0_init_power(struct smu_context *smu)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+
+	if (smu_power->power_context || smu_power->power_context_size != 0)
+		return -EINVAL;
+
+	smu_power->power_context = kzalloc(sizeof(struct smu_11_0_dpm_context),
+					   GFP_KERNEL);
+	if (!smu_power->power_context)
+		return -ENOMEM;
+	smu_power->power_context_size = sizeof(struct smu_11_0_dpm_context);
+
+	return 0;
+}
+
+static int smu_v11_0_fini_power(struct smu_context *smu)
+{
+	struct smu_power_context *smu_power = &smu->smu_power;
+
+	if (!smu_power->power_context || smu_power->power_context_size == 0)
+		return -EINVAL;
+
+	kfree(smu_power->power_context);
+	smu_power->power_context = NULL;
+	smu_power->power_context_size = 0;
+
+	return 0;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -323,6 +354,8 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.read_pptable_from_vbios = smu_v11_0_read_pptable_from_vbios,
 	.init_smc_tables = smu_v11_0_init_smc_tables,
 	.fini_smc_tables = smu_v11_0_fini_smc_tables,
+	.init_power = smu_v11_0_init_power,
+	.fini_power = smu_v11_0_fini_power,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

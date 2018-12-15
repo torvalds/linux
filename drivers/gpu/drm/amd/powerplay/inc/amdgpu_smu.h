@@ -54,6 +54,11 @@ struct smu_dpm_context {
 	uint32_t dpm_context_size;
 };
 
+struct smu_power_context {
+	void *power_context;
+	uint32_t power_context_size;
+};
+
 struct smu_context
 {
 	struct amdgpu_device            *adev;
@@ -63,6 +68,7 @@ struct smu_context
 
 	struct smu_table_context	smu_table;
 	struct smu_dpm_context		smu_dpm;
+	struct smu_power_context	smu_power;
 };
 
 struct smu_funcs
@@ -71,6 +77,7 @@ struct smu_funcs
 	int (*init_smc_tables)(struct smu_context *smu);
 	int (*fini_smc_tables)(struct smu_context *smu);
 	int (*init_power)(struct smu_context *smu);
+	int (*fini_power)(struct smu_context *smu);
 	int (*load_microcode)(struct smu_context *smu);
 	int (*check_fw_status)(struct smu_context *smu);
 	int (*read_pptable_from_vbios)(struct smu_context *smu);
@@ -99,6 +106,8 @@ struct smu_funcs
 	((smu)->funcs->fini_smc_tables ? (smu)->funcs->fini_smc_tables((smu)) : 0)
 #define smu_init_power(smu) \
 	((smu)->funcs->init_power ? (smu)->funcs->init_power((smu)) : 0)
+#define smu_fini_power(smu) \
+	((smu)->funcs->fini_power ? (smu)->funcs->fini_power((smu)) : 0)
 #define smu_load_microcode(smu) \
 	((smu)->funcs->load_microcode ? (smu)->funcs->load_microcode((smu)) : 0)
 #define smu_check_fw_status(smu) \

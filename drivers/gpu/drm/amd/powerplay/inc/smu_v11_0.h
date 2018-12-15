@@ -62,6 +62,20 @@ struct smu_11_0_dpm_context {
 	uint32_t                    dcef_min_ds_clk;
 };
 
+enum smu_11_0_power_state {
+	SMU_11_0_POWER_STATE__D0 = 0,
+	SMU_11_0_POWER_STATE__D1,
+	SMU_11_0_POWER_STATE__D3, /* Sleep*/
+	SMU_11_0_POWER_STATE__D4, /* Hibernate*/
+	SMU_11_0_POWER_STATE__D5, /* Power off*/
+};
+
+struct smu_11_0_power_context {
+	uint32_t	power_source;
+	uint8_t		in_power_limit_boost_mode;
+	enum smu_11_0_power_state power_state;
+};
+
 void smu_v11_0_set_smu_funcs(struct smu_context *smu);
 
 #endif

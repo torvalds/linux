@@ -167,6 +167,12 @@ static int smu_sw_fini(void *handle)
 		return ret;
 	}
 
+	ret = smu_fini_power(smu);
+	if (ret) {
+		pr_err("Failed to init smu_fini_power!\n");
+		return ret;
+	}
+
 	return 0;
 }
 
