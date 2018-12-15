@@ -261,7 +261,8 @@ static int __init imx_gpcv2_irqchip_init(struct device_node *node,
 		case 4:
 			writel_relaxed(~0, reg + GPC_IMR1_CORE2);
 			writel_relaxed(~0, reg + GPC_IMR1_CORE3);
-		case 2:	      /* FALLTHROUGH */
+			/* fall through */
+		case 2:
 			writel_relaxed(~0, reg + GPC_IMR1_CORE0);
 			writel_relaxed(~0, reg + GPC_IMR1_CORE1);
 		}
