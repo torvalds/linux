@@ -46,6 +46,12 @@
 #define PX30_LVDS_P2S_EN(x)		HIWORD_UPDATE(x, 10, 10)
 #define PX30_LVDS_VOP_SEL(x)		HIWORD_UPDATE(x,  1,  1)
 
+#define RK3368_GRF_SOC_CON7		0x041c
+#define RK3368_LVDS_SELECT(x)		HIWORD_UPDATE(x, 14, 13)
+#define RK3368_LVDS_MODE_EN(x)		HIWORD_UPDATE(x, 12, 12)
+#define RK3368_LVDS_MSBSEL(x)		HIWORD_UPDATE(x, 11, 11)
+#define RK3368_LVDS_P2S_EN(x)		HIWORD_UPDATE(x,  6,  6)
+
 #define DISPLAY_OUTPUT_RGB		0
 #define DISPLAY_OUTPUT_LVDS		1
 #define DISPLAY_OUTPUT_DUAL_LVDS	2
@@ -980,42 +986,22 @@ static const struct rockchip_lvds_soc_data rk3366_lvds_soc_data = {
 
 static int rk3368_lvds_power_on(struct rockchip_lvds *lvds)
 {
-	u32 val;
+	regmap_write(lvds->grf, RK3368_GRF_SOC_CON7,
+		     RK3368_LVDS_SELECT(lvds->format) |
+		     RK3368_LVDS_MODE_EN(1) | RK3368_LVDS_MSBSEL(1) |
+		     RK3368_LVDS_P2S_EN(1));
 
-	if (lvds->output == DISPLAY_OUTPUT_RGB) {
-		/* enable lvds mode */
-		val = v_RK336X_LVDSMODE_EN(0) | v_RK336X_MIPIPHY_TTL_EN(1) |
-		      v_RK336X_MIPIPHY_LANE0_EN(1) |
-		      v_RK336X_MIPIDPI_FORCEX_EN(1);
-		regmap_write(lvds->grf, RK3368_GRF_SOC_CON7, val);
-		val = v_RK336X_FORCE_JETAG(0);
-		regmap_write(lvds->grf, RK3368_GRF_SOC_CON15, val);
-	} else if (lvds->output == DISPLAY_OUTPUT_LVDS) {
-		/* enable lvds mode */
-		val = v_RK336X_LVDSMODE_EN(1) | v_RK336X_MIPIPHY_TTL_EN(0);
-		/* config lvds_format */
-		val |= v_RK336X_LVDS_OUTPUT_FORMAT(lvds->format);
-		/* LSB receive mode */
-		val |= v_RK336X_LVDS_MSBSEL(LVDS_MSB_D7);
-		val |= v_RK336X_MIPIPHY_LANE0_EN(1) |
-		       v_RK336X_MIPIDPI_FORCEX_EN(1);
-		regmap_write(lvds->grf, RK3368_GRF_SOC_CON7, val);
-	}
-
-	return innov1_lvds_power_on(lvds);
+	return 0;
 }
 
 static void rk3368_lvds_power_off(struct rockchip_lvds *lvds)
 {
 	regmap_write(lvds->grf, RK3368_GRF_SOC_CON7,
-		     v_RK336X_LVDSMODE_EN(0) | v_RK336X_MIPIPHY_TTL_EN(0));
-
-	innov1_lvds_power_off(lvds);
+		     RK3368_LVDS_MODE_EN(0) | RK3368_LVDS_P2S_EN(0));
 }
 
 static const struct rockchip_lvds_soc_data rk3368_lvds_soc_data = {
 	.chip_type = RK3368,
-	.probe = innov1_lvds_probe,
 	.power_on = rk3368_lvds_power_on,
 	.power_off = rk3368_lvds_power_off,
 };
