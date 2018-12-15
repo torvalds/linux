@@ -40,6 +40,13 @@ struct hclge_nq_to_qs_link_cmd {
 	__le16 qset_id;
 };
 
+struct hclge_tqp_tx_queue_tc_cmd {
+	__le16 queue_id;
+	__le16 rsvd;
+	u8 tc_id;
+	u8 rev[3];
+};
+
 struct hclge_pg_weight_cmd {
 	u8 pg_id;
 	u8 dwrr;

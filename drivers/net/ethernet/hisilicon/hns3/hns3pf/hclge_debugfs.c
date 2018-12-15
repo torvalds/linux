@@ -537,6 +537,88 @@ err_tm_cmd_send:
 		cmd, ret);
 }
 
+static void hclge_dbg_dump_tm_map(struct hclge_dev *hdev, char *cmd_buf)
+{
+	struct hclge_bp_to_qs_map_cmd *bp_to_qs_map_cmd;
+	struct hclge_nq_to_qs_link_cmd *nq_to_qs_map;
+	struct hclge_qs_to_pri_link_cmd *map;
+	struct hclge_tqp_tx_queue_tc_cmd *tc;
+	enum hclge_opcode_type cmd;
+	struct hclge_desc desc;
+	int queue_id, group_id;
+	u32 qset_maping[32];
+	int tc_id, qset_id;
+	int pri_id, ret;
+	u32 i;
+
+	ret = kstrtouint(&cmd_buf[12], 10, &queue_id);
+	queue_id = (ret != 0) ? 0 : queue_id;
+
+	cmd = HCLGE_OPC_TM_NQ_TO_QS_LINK;
+	nq_to_qs_map = (struct hclge_nq_to_qs_link_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, cmd, true);
+	nq_to_qs_map->nq_id = cpu_to_le16(queue_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		goto err_tm_map_cmd_send;
+	qset_id = nq_to_qs_map->qset_id & 0x3FF;
+
+	cmd = HCLGE_OPC_TM_QS_TO_PRI_LINK;
+	map = (struct hclge_qs_to_pri_link_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, cmd, true);
+	map->qs_id = cpu_to_le16(qset_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		goto err_tm_map_cmd_send;
+	pri_id = map->priority;
+
+	cmd = HCLGE_OPC_TQP_TX_QUEUE_TC;
+	tc = (struct hclge_tqp_tx_queue_tc_cmd *)desc.data;
+	hclge_cmd_setup_basic_desc(&desc, cmd, true);
+	tc->queue_id = cpu_to_le16(queue_id);
+	ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+	if (ret)
+		goto err_tm_map_cmd_send;
+	tc_id = tc->tc_id & 0x7;
+
+	dev_info(&hdev->pdev->dev, "queue_id | qset_id | pri_id | tc_id\n");
+	dev_info(&hdev->pdev->dev, "%04d     | %04d    | %02d     | %02d\n",
+		 queue_id, qset_id, pri_id, tc_id);
+
+	cmd = HCLGE_OPC_TM_BP_TO_QSET_MAPPING;
+	bp_to_qs_map_cmd = (struct hclge_bp_to_qs_map_cmd *)desc.data;
+	for (group_id = 0; group_id < 32; group_id++) {
+		hclge_cmd_setup_basic_desc(&desc, cmd, true);
+		bp_to_qs_map_cmd->tc_id = tc_id;
+		bp_to_qs_map_cmd->qs_group_id = group_id;
+		ret = hclge_cmd_send(&hdev->hw, &desc, 1);
+		if (ret)
+			goto err_tm_map_cmd_send;
+
+		qset_maping[group_id] = bp_to_qs_map_cmd->qs_bit_map;
+	}
+
+	dev_info(&hdev->pdev->dev, "index | tm bp qset maping:\n");
+
+	i = 0;
+	for (group_id = 0; group_id < 4; group_id++) {
+		dev_info(&hdev->pdev->dev,
+			 "%04d  | %08x:%08x:%08x:%08x:%08x:%08x:%08x:%08x\n",
+			 group_id * 256, qset_maping[(u32)(i + 7)],
+			 qset_maping[(u32)(i + 6)], qset_maping[(u32)(i + 5)],
+			 qset_maping[(u32)(i + 4)], qset_maping[(u32)(i + 3)],
+			 qset_maping[(u32)(i + 2)], qset_maping[(u32)(i + 1)],
+			 qset_maping[i]);
+		i += 8;
+	}
+
+	return;
+
+err_tm_map_cmd_send:
+	dev_err(&hdev->pdev->dev, "dump tqp map fail(0x%x), status is %d\n",
+		cmd, ret);
+}
+
 static void hclge_dbg_dump_qos_pause_cfg(struct hclge_dev *hdev)
 {
 	struct hclge_cfg_pause_param_cmd *pause_param;
@@ -828,6 +910,8 @@ int hclge_dbg_run_cmd(struct hnae3_handle *handle, char *cmd_buf)
 		hclge_dbg_fd_tcam(hdev);
 	} else if (strncmp(cmd_buf, "dump tc", 7) == 0) {
 		hclge_dbg_dump_tc(hdev);
+	} else if (strncmp(cmd_buf, "dump tm map", 11) == 0) {
+		hclge_dbg_dump_tm_map(hdev, cmd_buf);
 	} else if (strncmp(cmd_buf, "dump tm", 7) == 0) {
 		hclge_dbg_dump_tm(hdev);
 	} else if (strncmp(cmd_buf, "dump qos pause cfg", 18) == 0) {
