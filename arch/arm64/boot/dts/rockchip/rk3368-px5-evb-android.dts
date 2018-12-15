@@ -308,18 +308,21 @@
 		};
 	};
 
-	lvds-panel {
+	panel {
 		compatible = "samsung,lsl070nl01", "simple-panel";
 		power-supply = <&vcc33_lcd>;
 		backlight = <&backlight>;
+		prepare-delay-ms = <120>;
+		unprepare-delay-ms = <120>;
 
 		rockchip,data-mapping = "vesa";
 		rockchip,data-width = <24>;
 		rockchip,output = "lvds";
-		status = "okay";
 
 		display-timings {
-			timing {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
 				clock-frequency = <48000000>;
 				hactive = <1024>;
 				vactive = <600>;
@@ -339,38 +342,6 @@
 		port {
 			panel_in_lvds: endpoint {
 				remote-endpoint = <&lvds_out_panel>;
-			};
-		};
-	};
-
-	edp-panel {
-		compatible = "lg,lp079qx1-sp0v", "simple-panel";
-		power-supply = <&vcc33_lcd>;
-		backlight = <&backlight>;
-		prepare-delay-ms = <120>;
-		status = "disabled";
-
-		display-timings {
-			timing {
-				clock-frequency = <200000000>;
-				hactive = <1536>;
-				vactive = <2048>;
-				hback-porch = <48>;
-				hfront-porch = <12>;
-				hsync-len = <16>;
-				vback-porch = <8>;
-				vfront-porch = <8>;
-				vsync-len = <4>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-
-		port {
-			panel_in_edp: endpoint {
-				remote-endpoint = <&edp_out_panel>;
 			};
 		};
 	};
@@ -900,276 +871,6 @@
 	otg_drv_gpio = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
 };
 
-&dsi {
-	status = "disabled";
-
-	panel@0 {
-		compatible = "kingdisplay,kd080d34-40ni-b6", "simple-panel-dsi";
-		reg = <0>;
-		power-supply = <&vcc33_lcd>;
-		backlight = <&backlight>;
-		reset-gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
-		prepare-delay-ms = <20>;
-		reset-delay-ms = <20>;
-		init-delay-ms = <20>;
-		enable-delay-ms = <20>;
-		disable-delay-ms = <20>;
-		unprepare-delay-ms = <20>;
-
-		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
-			      MIPI_DSI_MODE_LPM | MIPI_DSI_MODE_EOT_PACKET)>;
-		dsi,format = <MIPI_DSI_FMT_RGB888>;
-		dsi,lanes = <4>;
-
-		panel-init-sequence = [
-			15 00 02 e0 00
-			15 00 02 e1 93
-			15 00 02 e2 65
-			15 00 02 e3 f8
-			15 00 02 80 03
-			15 00 02 e0 04
-			15 00 02 2d 03
-			15 00 02 e0 01
-			15 00 02 00 00
-			15 00 02 01 6f
-			15 00 02 03 00
-			15 00 02 04 6f
-			15 00 02 17 00
-			15 00 02 18 d7
-			15 00 02 19 05
-			15 00 02 1a 00
-			15 00 02 1b d7
-			15 00 02 1c 05
-			15 00 02 1f 79
-			15 00 02 20 2d
-			15 00 02 21 2d
-			15 00 02 22 4f
-			15 00 02 26 f1
-			15 00 02 37 09
-			15 00 02 38 04
-			15 00 02 39 08
-			15 00 02 3a 12
-			15 00 02 3c 78
-			15 00 02 3e 80
-			15 00 02 3f 80
-			15 00 02 40 06
-			15 00 02 41 a0
-			15 00 02 55 0f
-			15 00 02 56 01
-			15 00 02 57 a8
-			15 00 02 58 0a
-			15 00 02 59 2a
-			15 00 02 5a 37
-			15 00 02 5b 19
-			15 00 02 5d 70
-			15 00 02 5e 50
-			15 00 02 5f 3f
-			15 00 02 60 31
-			15 00 02 61 2d
-			15 00 02 62 1d
-			15 00 02 63 22
-			15 00 02 64 0c
-			15 00 02 65 25
-			15 00 02 66 24
-			15 00 02 67 24
-			15 00 02 68 41
-			15 00 02 69 2f
-			15 00 02 6a 36
-			15 00 02 6b 28
-			15 00 02 6c 26
-			15 00 02 6d 1c
-			15 00 02 6e 08
-			15 00 02 6f 02
-			15 00 02 70 70
-			15 00 02 71 50
-			15 00 02 72 3f
-			15 00 02 73 31
-			15 00 02 74 2d
-			15 00 02 75 1d
-			15 00 02 76 22
-			15 00 02 77 0c
-			15 00 02 78 25
-			15 00 02 79 24
-			15 00 02 7a 24
-			15 00 02 7b 41
-			15 00 02 7c 2f
-			15 00 02 7d 36
-			15 00 02 7e 28
-			15 00 02 7f 26
-			15 00 02 80 1c
-			15 00 02 81 08
-			15 00 02 82 02
-			15 00 02 e0 02
-			15 00 02 00 00
-			15 00 02 01 04
-			15 00 02 02 06
-			15 00 02 03 08
-			15 00 02 04 0a
-			15 00 02 05 0c
-			15 00 02 06 0e
-			15 00 02 07 17
-			15 00 02 08 37
-			15 00 02 09 1f
-			15 00 02 0a 10
-			15 00 02 0b 1f
-			15 00 02 0c 1f
-			15 00 02 0d 1f
-			15 00 02 0e 1f
-			15 00 02 0f 1f
-			15 00 02 10 1f
-			15 00 02 11 1f
-			15 00 02 12 1f
-			15 00 02 13 12
-			15 00 02 14 1f
-			15 00 02 15 1f
-			15 00 02 16 01
-			15 00 02 17 05
-			15 00 02 18 07
-			15 00 02 19 09
-			15 00 02 1a 0b
-			15 00 02 1b 0d
-			15 00 02 1c 0f
-			15 00 02 1d 17
-			15 00 02 1e 37
-			15 00 02 1f 1f
-			15 00 02 20 11
-			15 00 02 21 1f
-			15 00 02 22 1f
-			15 00 02 23 1f
-			15 00 02 24 1f
-			15 00 02 25 1f
-			15 00 02 26 1f
-			15 00 02 27 1f
-			15 00 02 28 1f
-			15 00 02 29 13
-			15 00 02 2a 1f
-			15 00 02 2b 1f
-			15 00 02 2c 11
-			15 00 02 2d 0f
-			15 00 02 2e 00
-			15 00 02 2f 0b
-			15 00 02 30 09
-			15 00 02 31 07
-			15 00 02 32 05
-			15 00 02 33 37
-			15 00 02 34 17
-			15 00 02 35 1f
-			15 00 02 36 01
-			15 00 02 37 1f
-			15 00 02 38 1f
-			15 00 02 39 1f
-			15 00 02 3a 1f
-			15 00 02 3b 1f
-			15 00 02 3c 1f
-			15 00 02 3d 1f
-			15 00 02 3e 1f
-			15 00 02 3f 13
-			15 00 02 40 1f
-			15 00 02 41 1f
-			15 00 02 42 10
-			15 00 02 43 0e
-			15 00 02 44 0c
-			15 00 02 45 0a
-			15 00 02 46 08
-			15 00 02 47 06
-			15 00 02 48 04
-			15 00 02 49 37
-			15 00 02 4a 17
-			15 00 02 4b 1f
-			15 00 02 4c 00
-			15 00 02 4d 1f
-			15 00 02 4e 1f
-			15 00 02 4f 1f
-			15 00 02 50 1f
-			15 00 02 51 1f
-			15 00 02 52 1f
-			15 00 02 53 1f
-			15 00 02 54 1f
-			15 00 02 55 12
-			15 00 02 56 1f
-			15 00 02 57 1f
-			15 00 02 58 10
-			15 00 02 59 00
-			15 00 02 5a 00
-			15 00 02 5b 10
-			15 00 02 5c 07
-			15 00 02 5d 30
-			15 00 02 5e 00
-			15 00 02 5f 00
-			15 00 02 60 30
-			15 00 02 61 03
-			15 00 02 62 04
-			15 00 02 63 03
-			15 00 02 64 6a
-			15 00 02 65 75
-			15 00 02 66 0d
-			15 00 02 67 b3
-			15 00 02 68 09
-			15 00 02 69 06
-			15 00 02 6a 6a
-			15 00 02 6b 04
-			15 00 02 6c 00
-			15 00 02 6d 04
-			15 00 02 6e 04
-			15 00 02 6f 88
-			15 00 02 70 00
-			15 00 02 71 00
-			15 00 02 72 06
-			15 00 02 73 7b
-			15 00 02 74 00
-			15 00 02 75 bc
-			15 00 02 76 00
-			15 00 02 77 0d
-			15 00 02 78 2c
-			15 00 02 79 00
-			15 00 02 7a 00
-			15 00 02 7b 00
-			15 00 02 7c 00
-			15 00 02 7d 03
-			15 00 02 7e 7b
-			15 00 02 e0 04
-			15 00 02 2b 2b
-			15 00 02 2e 44
-			15 00 02 e0 00
-			15 00 02 e6 02
-			15 00 02 e7 02
-			05 78 01 11
-			05 14 01 29
-		];
-
-		panel-exit-sequence = [
-			05 00 01 28
-			05 78 01 10
-		];
-
-		display-timings {
-			timing {
-				clock-frequency = <74000000>;
-				hactive = <800>;
-				hfront-porch = <68>;
-				hsync-len = <18>;
-				hback-porch = <68>;
-				vactive = <1280>;
-				vfront-porch = <20>;
-				vsync-len = <4>;
-				vback-porch = <10>;
-				hsync-active = <0>;
-				vsync-active = <0>;
-				de-active = <0>;
-				pixelclk-active = <0>;
-			};
-		};
-	};
-};
-
-&mipi_dphy {
-	status = "disabled";
-};
-
-&route_dsi {
-	status = "disabled";
-};
-
 &lvds {
 	status = "okay";
 
@@ -1186,29 +887,6 @@
 
 &route_lvds {
 	status = "okay";
-};
-
-&edp {
-	force-hpd;
-	status = "disabled";
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			edp_out_panel: endpoint {
-				remote-endpoint = <&panel_in_edp>;
-			};
-		};
-	};
-};
-
-&edp_phy {
-	status = "disabled";
-};
-
-&route_edp {
-	status = "disabled";
 };
 
 &mailbox {

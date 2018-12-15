@@ -517,9 +517,6 @@
 };
 
 &lvds {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&lcdc_lcdc>;
-	pinctrl-1 = <&lcdc_gpio>;
 	status = "okay";
 
 	ports {
