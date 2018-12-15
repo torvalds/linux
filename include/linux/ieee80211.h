@@ -2687,6 +2687,10 @@ enum ieee80211_tdls_actioncode {
  */
 #define WLAN_EXT_CAPA9_FTM_INITIATOR	BIT(7)
 
+/* Defines support for TWT Requester and TWT Responder */
+#define WLAN_EXT_CAPA10_TWT_REQUESTER_SUPPORT	BIT(5)
+#define WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT	BIT(6)
+
 /* TDLS specific payload type in the LLC/SNAP header */
 #define WLAN_TDLS_SNAP_RFTYPE	0x2
 
