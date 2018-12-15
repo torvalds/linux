@@ -4680,8 +4680,10 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
-	    ieee80211_get_he_sta_cap(sband)) {
+	if (!ieee80211_get_he_sta_cap(sband))
+		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
+
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE)) {
 		const struct cfg80211_bss_ies *ies;
 		const u8 *he_oper_ie;
 
