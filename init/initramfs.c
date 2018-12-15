@@ -513,6 +513,17 @@ static int __init retain_initrd_param(char *str)
 }
 __setup("retain_initrd", retain_initrd_param);
 
+static int __initdata do_dump_initrd;
+
+static int __init dump_initrd_param(char *str)
+{
+	if (*str)
+		return 0;
+	do_dump_initrd = 1;
+	return 1;
+}
+__setup("dump_initrd", dump_initrd_param);
+
 extern char __initramfs_start[];
 extern unsigned long __initramfs_size;
 #include <linux/initrd.h>
@@ -612,14 +623,19 @@ static int __init populate_rootfs(void)
 		printk(KERN_INFO "Trying to unpack rootfs image as initramfs...\n");
 		err = unpack_to_rootfs((char *)initrd_start,
 			initrd_end - initrd_start);
-		if (!err)
+		if (!err) {
+			if (do_dump_initrd)
+				goto dump;
+
 			goto done;
+		}
 
 		clean_rootfs();
 		unpack_to_rootfs(__initramfs_start, __initramfs_size);
 
 		printk(KERN_INFO "rootfs image is not initramfs (%s)"
 				"; looks like an initrd\n", err);
+	dump:
 		fd = ksys_open("/initrd.image",
 			      O_WRONLY|O_CREAT, 0700);
 		if (fd >= 0) {
