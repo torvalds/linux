@@ -413,6 +413,19 @@ static int hclge_set_vf_mtu(struct hclge_vport *vport,
 	return hclge_gen_resp_to_vf(vport, mbx_req, ret, NULL, 0);
 }
 
+static int hclge_get_queue_id_in_pf(struct hclge_vport *vport,
+				    struct hclge_mbx_vf_to_pf_cmd *mbx_req)
+{
+	u16 queue_id, qid_in_pf;
+	u8 resp_data[2];
+
+	memcpy(&queue_id, &mbx_req->msg[2], sizeof(queue_id));
+	qid_in_pf = hclge_covert_handle_qid_global(&vport->nic, queue_id);
+	memcpy(resp_data, &qid_in_pf, sizeof(qid_in_pf));
+
+	return hclge_gen_resp_to_vf(vport, mbx_req, 0, resp_data, 2);
+}
+
 static bool hclge_cmd_crq_empty(struct hclge_hw *hw)
 {
 	u32 tail = hclge_read_dev(hw, HCLGE_NIC_CRQ_TAIL_REG);
@@ -532,6 +545,13 @@ void hclge_mbx_handler(struct hclge_dev *hdev)
 			if (ret)
 				dev_err(&hdev->pdev->dev,
 					"VF fail(%d) to set mtu\n", ret);
+			break;
+		case HCLGE_MBX_GET_QID_IN_PF:
+			ret = hclge_get_queue_id_in_pf(vport, req);
+			if (ret)
+				dev_err(&hdev->pdev->dev,
+					"PF failed(%d) to get qid for VF\n",
+					ret);
 			break;
 		default:
 			dev_err(&hdev->pdev->dev,

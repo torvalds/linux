@@ -125,6 +125,36 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
 	return 0;
 }
 
+static int hns3_dbg_queue_map(struct hnae3_handle *h)
+{
+	struct hns3_nic_priv *priv = h->priv;
+	struct hns3_nic_ring_data *ring_data;
+	int i;
+
+	if (!h->ae_algo->ops->get_global_queue_id)
+		return -EOPNOTSUPP;
+
+	dev_info(&h->pdev->dev, "map info for queue id and vector id\n");
+	dev_info(&h->pdev->dev,
+		 "local queue id | global queue id | vector id\n");
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		u16 global_qid;
+
+		global_qid = h->ae_algo->ops->get_global_queue_id(h, i);
+		ring_data = &priv->ring_data[i];
+		if (!ring_data || !ring_data->ring ||
+		    !ring_data->ring->tqp_vector)
+			continue;
+
+		dev_info(&h->pdev->dev,
+			 "      %4d            %4d            %4d\n",
+			 i, global_qid,
+			 ring_data->ring->tqp_vector->vector_irq);
+	}
+
+	return 0;
+}
+
 static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
@@ -207,6 +237,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 
 	dev_info(&h->pdev->dev, "available commands\n");
 	dev_info(&h->pdev->dev, "queue info [number]\n");
+	dev_info(&h->pdev->dev, "queue map\n");
 	dev_info(&h->pdev->dev, "bd info [q_num] <bd index>\n");
 	dev_info(&h->pdev->dev, "dump fd tcam\n");
 	dev_info(&h->pdev->dev, "dump tc\n");
@@ -303,6 +334,8 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		hns3_dbg_help(handle);
 	else if (strncmp(cmd_buf, "queue info", 10) == 0)
 		ret = hns3_dbg_queue_info(handle, cmd_buf);
+	else if (strncmp(cmd_buf, "queue map", 9) == 0)
+		ret = hns3_dbg_queue_map(handle);
 	else if (strncmp(cmd_buf, "bd info", 7) == 0)
 		ret = hns3_dbg_bd_info(handle, cmd_buf);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
