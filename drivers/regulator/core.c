@@ -5278,23 +5278,8 @@ static int supply_map_show(struct seq_file *sf, void *data)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(supply_map);
 
-static int supply_map_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, supply_map_show, inode->i_private);
-}
-#endif
-
-static const struct file_operations supply_map_fops = {
-#ifdef CONFIG_DEBUG_FS
-	.open = supply_map_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-#endif
-};
-
-#ifdef CONFIG_DEBUG_FS
 struct summary_data {
 	struct seq_file *s;
 	struct regulator_dev *parent;
@@ -5516,21 +5501,8 @@ static int regulator_summary_show(struct seq_file *s, void *data)
 
 	return 0;
 }
-
-static int regulator_summary_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, regulator_summary_show, inode->i_private);
-}
-#endif
-
-static const struct file_operations regulator_summary_fops = {
-#ifdef CONFIG_DEBUG_FS
-	.open		= regulator_summary_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-#endif
-};
+DEFINE_SHOW_ATTRIBUTE(regulator_summary);
+#endif /* CONFIG_DEBUG_FS */
 
 static int __init regulator_init(void)
 {
@@ -5542,12 +5514,13 @@ static int __init regulator_init(void)
 	if (!debugfs_root)
 		pr_warn("regulator: Failed to create debugfs directory\n");
 
+#ifdef CONFIG_DEBUG_FS
 	debugfs_create_file("supply_map", 0444, debugfs_root, NULL,
 			    &supply_map_fops);
 
 	debugfs_create_file("regulator_summary", 0444, debugfs_root,
 			    NULL, &regulator_summary_fops);
-
+#endif
 	regulator_dummy_init();
 
 	return ret;
