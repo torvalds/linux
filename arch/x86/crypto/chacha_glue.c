@@ -127,30 +127,27 @@ static void chacha_dosimd(u32 *state, u8 *dst, const u8 *src,
 	}
 }
 
-static int chacha_simd_stream_xor(struct skcipher_request *req,
+static int chacha_simd_stream_xor(struct skcipher_walk *walk,
 				  struct chacha_ctx *ctx, u8 *iv)
 {
 	u32 *state, state_buf[16 + 2] __aligned(8);
-	struct skcipher_walk walk;
 	int next_yield = 4096; /* bytes until next FPU yield */
-	int err;
+	int err = 0;
 
 	BUILD_BUG_ON(CHACHA_STATE_ALIGN != 16);
 	state = PTR_ALIGN(state_buf + 0, CHACHA_STATE_ALIGN);
 
-	err = skcipher_walk_virt(&walk, req, true);
-
 	crypto_chacha_init(state, ctx, iv);
 
-	while (walk.nbytes > 0) {
-		unsigned int nbytes = walk.nbytes;
+	while (walk->nbytes > 0) {
+		unsigned int nbytes = walk->nbytes;
 
-		if (nbytes < walk.total) {
-			nbytes = round_down(nbytes, walk.stride);
+		if (nbytes < walk->total) {
+			nbytes = round_down(nbytes, walk->stride);
 			next_yield -= nbytes;
 		}
 
-		chacha_dosimd(state, walk.dst.virt.addr, walk.src.virt.addr,
+		chacha_dosimd(state, walk->dst.virt.addr, walk->src.virt.addr,
 			      nbytes, ctx->nrounds);
 
 		if (next_yield <= 0) {
@@ -160,7 +157,7 @@ static int chacha_simd_stream_xor(struct skcipher_request *req,
 			next_yield = 4096;
 		}
 
-		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		err = skcipher_walk_done(walk, walk->nbytes - nbytes);
 	}
 
 	return err;
@@ -170,13 +167,18 @@ static int chacha_simd(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	int err;
 
 	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
 		return crypto_chacha_crypt(req);
 
+	err = skcipher_walk_virt(&walk, req, true);
+	if (err)
+		return err;
+
 	kernel_fpu_begin();
-	err = chacha_simd_stream_xor(req, ctx, req->iv);
+	err = chacha_simd_stream_xor(&walk, ctx, req->iv);
 	kernel_fpu_end();
 	return err;
 }
@@ -185,6 +187,7 @@ static int xchacha_simd(struct skcipher_request *req)
 {
 	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
 	struct chacha_ctx *ctx = crypto_skcipher_ctx(tfm);
+	struct skcipher_walk walk;
 	struct chacha_ctx subctx;
 	u32 *state, state_buf[16 + 2] __aligned(8);
 	u8 real_iv[16];
@@ -192,6 +195,10 @@ static int xchacha_simd(struct skcipher_request *req)
 
 	if (req->cryptlen <= CHACHA_BLOCK_SIZE || !irq_fpu_usable())
 		return crypto_xchacha_crypt(req);
+
+	err = skcipher_walk_virt(&walk, req, true);
+	if (err)
+		return err;
 
 	BUILD_BUG_ON(CHACHA_STATE_ALIGN != 16);
 	state = PTR_ALIGN(state_buf + 0, CHACHA_STATE_ALIGN);
@@ -204,7 +211,7 @@ static int xchacha_simd(struct skcipher_request *req)
 
 	memcpy(&real_iv[0], req->iv + 24, 8);
 	memcpy(&real_iv[8], req->iv + 16, 8);
-	err = chacha_simd_stream_xor(req, &subctx, real_iv);
+	err = chacha_simd_stream_xor(&walk, &subctx, real_iv);
 
 	kernel_fpu_end();
 
