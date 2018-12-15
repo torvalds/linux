@@ -4,21 +4,47 @@
 #include <linux/ftrace.h>
 #include <linux/uaccess.h>
 
-extern void (*ftrace_trace_function)(unsigned long, unsigned long,
-				     struct ftrace_ops*, struct pt_regs*);
-
-
-noinline void __naked ftrace_stub(unsigned long ip, unsigned long parent_ip,
-				  struct ftrace_ops *op, struct pt_regs *regs)
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
+			   unsigned long frame_pointer)
 {
-	asm volatile ("\n");
-}
+	unsigned long return_hooker = (unsigned long)&return_to_handler;
+	unsigned long old;
 
-noinline void csky_mcount(unsigned long from_pc, unsigned long self_pc)
-{
-	if (ftrace_trace_function != ftrace_stub)
-		ftrace_trace_function(self_pc, from_pc, NULL, NULL);
+	if (unlikely(atomic_read(&current->tracing_graph_pause)))
+		return;
+
+	old = *parent;
+
+	if (!function_graph_enter(old, self_addr,
+			*(unsigned long *)frame_pointer, parent)) {
+		/*
+		 * For csky-gcc function has sub-call:
+		 * subi	sp,	sp, 8
+		 * stw	r8,	(sp, 0)
+		 * mov	r8,	sp
+		 * st.w r15,	(sp, 0x4)
+		 * push	r15
+		 * jl	_mcount
+		 * We only need set *parent for resume
+		 *
+		 * For csky-gcc function has no sub-call:
+		 * subi	sp,	sp, 4
+		 * stw	r8,	(sp, 0)
+		 * mov	r8,	sp
+		 * push	r15
+		 * jl	_mcount
+		 * We need set *parent and *(frame_pointer + 4) for resume,
+		 * because lr is resumed twice.
+		 */
+		*parent = return_hooker;
+		frame_pointer += 4;
+		if (*(unsigned long *)frame_pointer == old)
+			*(unsigned long *)frame_pointer = return_hooker;
+	}
 }
+#endif
 
 /* _mcount is defined in abi's mcount.S */
+extern void _mcount(void);
 EXPORT_SYMBOL(_mcount);

@@ -4,6 +4,10 @@
 #ifndef __ASM_CSKY_FTRACE_H
 #define __ASM_CSKY_FTRACE_H
 
-extern void _mcount(unsigned long from_pc);
+#define MCOUNT_INSN_SIZE 4
+
+#define HAVE_FUNCTION_GRAPH_FP_TEST
+
+#define HAVE_FUNCTION_GRAPH_RET_ADDR_PTR
 
 #endif /* __ASM_CSKY_FTRACE_H */
