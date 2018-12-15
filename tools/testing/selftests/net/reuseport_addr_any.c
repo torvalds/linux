@@ -9,6 +9,7 @@
 #include <arpa/inet.h>
 #include <errno.h>
 #include <error.h>
+#include <linux/dccp.h>
 #include <linux/in.h>
 #include <linux/unistd.h>
 #include <stdbool.h>
@@ -75,7 +76,16 @@ static void build_rcv_fd(int family, int proto, int *rcv_fds, int count,
 			error(1, errno, "failed to bind receive socket");
 
 		if (proto == SOCK_STREAM && listen(rcv_fds[i], 10))
-			error(1, errno, "failed to listen on receive port");
+			error(1, errno, "tcp: failed to listen on receive port");
+		else if (proto == SOCK_DCCP) {
+			if (setsockopt(rcv_fds[i], SOL_DCCP,
+					DCCP_SOCKOPT_SERVICE,
+					&(int) {htonl(42)}, sizeof(int)))
+				error(1, errno, "failed to setsockopt");
+
+			if (listen(rcv_fds[i], 10))
+				error(1, errno, "dccp: failed to listen on receive port");
+		}
 	}
 }
 
@@ -124,6 +134,11 @@ static int connect_and_send(int family, int proto)
 	if (fd < 0)
 		error(1, errno, "failed to create send socket");
 
+	if (proto == SOCK_DCCP &&
+		setsockopt(fd, SOL_DCCP, DCCP_SOCKOPT_SERVICE,
+				&(int){htonl(42)}, sizeof(int)))
+		error(1, errno, "failed to setsockopt");
+
 	if (bind(fd, saddr, sz))
 		error(1, errno, "failed to bind send socket");
 
@@ -146,7 +161,7 @@ static int receive_once(int epfd, int proto)
 	if (i < 0)
 		error(1, errno, "epoll_wait failed");
 
-	if (proto == SOCK_STREAM) {
+	if (proto == SOCK_STREAM || proto == SOCK_DCCP) {
 		fd = accept(ev.data.fd, NULL, NULL);
 		if (fd < 0)
 			error(1, errno, "failed to accept");
@@ -256,6 +271,36 @@ int main(void)
 	build_rcv_fd(AF_INET, SOCK_STREAM, rcv_fds + 5, 2, NULL);
 	build_rcv_fd(AF_INET6, SOCK_STREAM, rcv_fds + 7, 2, NULL);
 	test(rcv_fds, 9, AF_INET, SOCK_STREAM, rcv_fds[4]);
+	for (i = 0; i < 9; ++i)
+		close(rcv_fds[i]);
+
+	fprintf(stderr, "---- DCCP IPv4 ----\n");
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 2, 2, NULL);
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 4, 1, IP4_ADDR);
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 5, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 7, 2, NULL);
+	test(rcv_fds, 9, AF_INET, SOCK_DCCP, rcv_fds[4]);
+	for (i = 0; i < 9; ++i)
+		close(rcv_fds[i]);
+
+	fprintf(stderr, "---- DCCP IPv6 ----\n");
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 2, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 4, 1, IP6_ADDR);
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 5, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 7, 2, NULL);
+	test(rcv_fds, 9, AF_INET6, SOCK_DCCP, rcv_fds[4]);
+	for (i = 0; i < 9; ++i)
+		close(rcv_fds[i]);
+
+	fprintf(stderr, "---- DCCP IPv4 mapped to IPv6 ----\n");
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 2, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 4, 1, IP4_MAPPED6);
+	build_rcv_fd(AF_INET, SOCK_DCCP, rcv_fds + 5, 2, NULL);
+	build_rcv_fd(AF_INET6, SOCK_DCCP, rcv_fds + 7, 2, NULL);
+	test(rcv_fds, 9, AF_INET, SOCK_DCCP, rcv_fds[4]);
 	for (i = 0; i < 9; ++i)
 		close(rcv_fds[i]);
 
