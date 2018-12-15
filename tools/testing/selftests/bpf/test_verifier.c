@@ -1001,13 +1001,43 @@ static struct bpf_test tests[] = {
 			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1, -8),
 			/* mess up with R1 pointer on stack */
 			BPF_ST_MEM(BPF_B, BPF_REG_10, -7, 0x23),
-			/* fill back into R0 should fail */
+			/* fill back into R0 is fine for priv.
+			 * R0 now becomes SCALAR_VALUE.
+			 */
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+			/* Load from R0 should fail. */
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 8),
+			BPF_EXIT_INSN(),
+		},
+		.errstr_unpriv = "attempt to corrupt spilled",
+		.errstr = "R0 invalid mem access 'inv",
+		.result = REJECT,
+	},
+	{
+		"check corrupted spill/fill, LSB",
+		.insns = {
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1, -8),
+			BPF_ST_MEM(BPF_H, BPF_REG_10, -8, 0xcafe),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
 			BPF_EXIT_INSN(),
 		},
 		.errstr_unpriv = "attempt to corrupt spilled",
-		.errstr = "corrupted spill",
-		.result = REJECT,
+		.result_unpriv = REJECT,
+		.result = ACCEPT,
+		.retval = POINTER_VALUE,
+	},
+	{
+		"check corrupted spill/fill, MSB",
+		.insns = {
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1, -8),
+			BPF_ST_MEM(BPF_W, BPF_REG_10, -4, 0x12345678),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+			BPF_EXIT_INSN(),
+		},
+		.errstr_unpriv = "attempt to corrupt spilled",
+		.result_unpriv = REJECT,
+		.result = ACCEPT,
+		.retval = POINTER_VALUE,
 	},
 	{
 		"invalid src register in STX",
