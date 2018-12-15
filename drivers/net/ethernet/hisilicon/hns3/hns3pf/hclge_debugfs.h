@@ -4,6 +4,18 @@
 #ifndef __HCLGE_DEBUGFS_H
 #define __HCLGE_DEBUGFS_H
 
+#define HCLGE_DBG_BUF_LEN	   256
+#define HCLGE_DBG_MNG_TBL_MAX	   64
+
+#define HCLGE_DBG_MNG_VLAN_MASK_B  BIT(0)
+#define HCLGE_DBG_MNG_MAC_MASK_B   BIT(1)
+#define HCLGE_DBG_MNG_ETHER_MASK_B BIT(2)
+#define HCLGE_DBG_MNG_E_TYPE_B	   BIT(11)
+#define HCLGE_DBG_MNG_DROP_B	   BIT(13)
+#define HCLGE_DBG_MNG_VLAN_TAG	   0x0FFF
+#define HCLGE_DBG_MNG_PF_ID	   0x0007
+#define HCLGE_DBG_MNG_VF_ID	   0x00FF
+
 #pragma pack(1)
 
 struct hclge_qos_pri_map_cmd {

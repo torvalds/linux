@@ -237,6 +237,7 @@ enum hclge_opcode_type {
 	HCLGE_TM_QCN_MEM_INT_CFG	= 0x1A14,
 	HCLGE_PPP_CMD0_INT_CMD		= 0x2100,
 	HCLGE_PPP_CMD1_INT_CMD		= 0x2101,
+	HCLGE_MAC_ETHERTYPE_IDX_RD      = 0x2105,
 	HCLGE_NCSI_INT_EN		= 0x2401,
 };
 
@@ -743,6 +744,24 @@ struct hclge_cfg_tx_queue_pointer_cmd {
 	__le16 ring_offset;
 	u8 rsv[14];
 };
+
+#pragma pack(1)
+struct hclge_mac_ethertype_idx_rd_cmd {
+	u8	flags;
+	u8	resp_code;
+	__le16  vlan_tag;
+	u8      mac_add[6];
+	__le16  index;
+	__le16	ethter_type;
+	__le16  egress_port;
+	__le16  egress_queue;
+	__le16  rev0;
+	u8	i_port_bitmap;
+	u8	i_port_direction;
+	u8	rev1[2];
+};
+
+#pragma pack()
 
 #define HCLGE_TSO_MSS_MIN_S	0
 #define HCLGE_TSO_MSS_MIN_M	GENMASK(13, 0)

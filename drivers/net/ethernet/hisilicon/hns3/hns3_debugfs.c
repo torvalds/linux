@@ -48,7 +48,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
 		 * to prevent reference to invalid memory. And need to ensure
 		 * that the following code is executed within 100ms.
 		 */
-		if (test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
+		if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
 		    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 			return -EPERM;
 
@@ -210,6 +210,7 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	dev_info(&h->pdev->dev, "dump qos pause cfg\n");
 	dev_info(&h->pdev->dev, "dump qos pri map\n");
 	dev_info(&h->pdev->dev, "dump qos buf cfg\n");
+	dev_info(&h->pdev->dev, "dump mng tbl\n");
 }
 
 static ssize_t hns3_dbg_cmd_read(struct file *filp, char __user *buffer,
@@ -254,7 +255,7 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		return 0;
 
 	/* Judge if the instance is being reset. */
-	if (test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
+	if (!test_bit(HNS3_NIC_STATE_INITED, &priv->state) ||
 	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 		return 0;
 
