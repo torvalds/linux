@@ -1174,7 +1174,7 @@ static int tw_setfeature(TW_Device_Extension *tw_dev, int parm, int param_size,
   	command_que_value = tw_dev->command_packet_physical_address[request_id];
 	if (command_que_value == 0) {
 		printk(KERN_WARNING "3w-xxxx: tw_setfeature(): Bad command packet physical address.\n");
-	return 1;
+		return 1;
 	}
 
 	/* Send command packet to the board */
