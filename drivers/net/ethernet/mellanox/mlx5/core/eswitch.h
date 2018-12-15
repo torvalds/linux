@@ -143,6 +143,8 @@ struct mlx5_eswitch_fdb {
 		struct offloads_fdb {
 			struct mlx5_flow_table *slow_fdb;
 			struct mlx5_flow_group *send_to_vport_grp;
+			struct mlx5_flow_group *peer_miss_grp;
+			struct mlx5_flow_handle **peer_miss_rules;
 			struct mlx5_flow_group *miss_grp;
 			struct mlx5_flow_handle *miss_rule_uni;
 			struct mlx5_flow_handle *miss_rule_multi;
@@ -165,6 +167,8 @@ struct mlx5_esw_offload {
 	struct mlx5_flow_table *ft_offloads;
 	struct mlx5_flow_group *vport_rx_group;
 	struct mlx5_eswitch_rep *vport_reps;
+	struct list_head peer_flows;
+	struct mutex peer_mutex;
 	DECLARE_HASHTABLE(encap_tbl, 8);
 	DECLARE_HASHTABLE(mod_hdr_tbl, 8);
 	u8 inline_mode;
@@ -289,6 +293,7 @@ enum {
 struct mlx5_esw_flow_attr {
 	struct mlx5_eswitch_rep *in_rep;
 	struct mlx5_core_dev	*in_mdev;
+	struct mlx5_core_dev    *counter_dev;
 
 	int split_count;
 	int out_count;
@@ -346,6 +351,9 @@ static inline bool mlx5_eswitch_vlan_actions_supported(struct mlx5_core_dev *dev
 		MLX5_CAP_ESW_FLOWTABLE_FDB(dev, push_vlan_2);
 }
 
+bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0,
+			 struct mlx5_core_dev *dev1);
+
 #define MLX5_DEBUG_ESWITCH_MASK BIT(3)
 
 #define esw_info(dev, format, ...)				\
@@ -362,6 +370,7 @@ static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
 static inline void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw) {}
 static inline int  mlx5_eswitch_enable_sriov(struct mlx5_eswitch *esw, int nvfs, int mode) { return 0; }
 static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw) {}
+static inline bool mlx5_esw_lag_prereq(struct mlx5_core_dev *dev0, struct mlx5_core_dev *dev1) { return true; }
 
 #define FDB_MAX_CHAIN 1
 #define FDB_SLOW_PATH_CHAIN (FDB_MAX_CHAIN + 1)
