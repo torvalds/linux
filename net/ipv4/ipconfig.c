@@ -1361,18 +1361,7 @@ static int ntp_servers_seq_show(struct seq_file *seq, void *v)
 	}
 	return 0;
 }
-
-static int ntp_servers_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ntp_servers_seq_show, NULL);
-}
-
-static const struct file_operations ntp_servers_seq_fops = {
-	.open		= ntp_servers_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ntp_servers_seq);
 #endif /* CONFIG_PROC_FS */
 
 /*
