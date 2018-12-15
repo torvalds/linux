@@ -143,6 +143,15 @@
 				charge_logo,mode = "center";
 				connect = <&vopl_out_lvds>;
 			};
+
+			route_rgb: route-rgb {
+				status = "disabled";
+				logo,uboot = "logo.bmp";
+				logo,kernel = "logo_kernel.bmp";
+				logo,mode = "center";
+				charge_logo,mode = "center";
+				connect = <&vopl_out_rgb>;
+			};
 		};
 	};
 };
@@ -170,4 +179,8 @@
 
 &efuse {
 	compatible = "rockchip,rk3288-secure-efuse";
+};
+
+&video_phy {
+	status = "okay";
 };
