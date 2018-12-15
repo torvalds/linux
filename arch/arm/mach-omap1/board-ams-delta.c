@@ -603,7 +603,7 @@ static void __init modem_assign_irq(struct gpio_chip *chip)
 	struct gpio_desc *gpiod;
 
 	gpiod = gpiochip_request_own_desc(chip, AMS_DELTA_GPIO_PIN_MODEM_IRQ,
-					  "modem_irq");
+					  "modem_irq", 0);
 	if (IS_ERR(gpiod)) {
 		pr_err("%s: modem IRQ GPIO request failed (%ld)\n", __func__,
 		       PTR_ERR(gpiod));
