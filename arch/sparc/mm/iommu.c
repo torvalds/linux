@@ -241,32 +241,31 @@ static dma_addr_t sbus_iommu_map_page_pflush(struct device *dev,
 	return __sbus_iommu_map_page(dev, page, offset, len);
 }
 
-static int sbus_iommu_map_sg_gflush(struct device *dev, struct scatterlist *sg,
-		int sz, enum dma_data_direction dir, unsigned long attrs)
+static int sbus_iommu_map_sg_gflush(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
-	int n;
+	struct scatterlist *sg;
+	int i, n;
 
 	flush_page_for_dma(0);
-	while (sz != 0) {
-		--sz;
+
+	for_each_sg(sgl, sg, nents, i) {
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
 		sg->dma_length = sg->length;
-		sg = sg_next(sg);
 	}
 
-	return sz;
+	return nents;
 }
 
-static int sbus_iommu_map_sg_pflush(struct device *dev, struct scatterlist *sg,
-		int sz, enum dma_data_direction dir, unsigned long attrs)
+static int sbus_iommu_map_sg_pflush(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	unsigned long page, oldpage = 0;
-	int n, i;
+	struct scatterlist *sg;
+	int i, j, n;
 
-	while(sz != 0) {
-		--sz;
-
+	for_each_sg(sgl, sg, nents, j) {
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 
 		/*
@@ -286,10 +285,9 @@ static int sbus_iommu_map_sg_pflush(struct device *dev, struct scatterlist *sg,
 
 		sg->dma_address = iommu_get_one(dev, sg_page(sg), n) + sg->offset;
 		sg->dma_length = sg->length;
-		sg = sg_next(sg);
 	}
 
-	return sz;
+	return nents;
 }
 
 static void iommu_release_one(struct device *dev, u32 busa, int npages)
@@ -318,17 +316,16 @@ static void sbus_iommu_unmap_page(struct device *dev, dma_addr_t dma_addr,
 	iommu_release_one(dev, dma_addr & PAGE_MASK, npages);
 }
 
-static void sbus_iommu_unmap_sg(struct device *dev, struct scatterlist *sg,
-		int sz, enum dma_data_direction dir, unsigned long attrs)
+static void sbus_iommu_unmap_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
-	int n;
+	struct scatterlist *sg;
+	int i, n;
 
-	while(sz != 0) {
-		--sz;
+	for_each_sg(sgl, sg, nents, i) {
 		n = (sg->length + sg->offset + PAGE_SIZE-1) >> PAGE_SHIFT;
 		iommu_release_one(dev, sg->dma_address & PAGE_MASK, n);
 		sg->dma_address = 0x21212121;
-		sg = sg_next(sg);
 	}
 }
 
