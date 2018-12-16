@@ -6511,6 +6511,7 @@ static int bnxt_hwrm_port_qstats(struct bnxt *bp)
 static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 {
 	struct hwrm_port_qstats_ext_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_queue_pri2cos_qcfg_input req2 = {0};
 	struct hwrm_port_qstats_ext_input req = {0};
 	struct bnxt_pf_info *pf = &bp->pf;
 	int rc;
@@ -6532,6 +6533,34 @@ static int bnxt_hwrm_port_qstats_ext(struct bnxt *bp)
 	} else {
 		bp->fw_rx_stats_ext_size = 0;
 		bp->fw_tx_stats_ext_size = 0;
+	}
+	if (bp->fw_tx_stats_ext_size <=
+	    offsetof(struct tx_port_stats_ext, pfc_pri0_tx_duration_us) / 8) {
+		mutex_unlock(&bp->hwrm_cmd_lock);
+		bp->pri2cos_valid = 0;
+		return rc;
+	}
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req2, HWRM_QUEUE_PRI2COS_QCFG, -1, -1);
+	req2.flags = cpu_to_le32(QUEUE_PRI2COS_QCFG_REQ_FLAGS_IVLAN);
+
+	rc = _hwrm_send_message(bp, &req2, sizeof(req2), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		struct hwrm_queue_pri2cos_qcfg_output *resp2;
+		u8 *pri2cos;
+		int i, j;
+
+		resp2 = bp->hwrm_cmd_resp_addr;
+		pri2cos = &resp2->pri0_cos_queue_id;
+		for (i = 0; i < 8; i++) {
+			u8 queue_id = pri2cos[i];
+
+			for (j = 0; j < bp->max_q; j++) {
+				if (bp->q_ids[j] == queue_id)
+					bp->pri2cos[i] = j;
+			}
+		}
+		bp->pri2cos_valid = 1;
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 	return rc;

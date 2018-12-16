@@ -207,6 +207,34 @@ reset_coalesce:
 	BNXT_TX_STATS_EXT_COS_ENTRY(6),				\
 	BNXT_TX_STATS_EXT_COS_ENTRY(7)				\
 
+#define BNXT_RX_STATS_PRI_ENTRY(counter, n)		\
+	{ BNXT_RX_STATS_EXT_OFFSET(counter##_cos0),	\
+	  __stringify(counter##_pri##n) }
+
+#define BNXT_TX_STATS_PRI_ENTRY(counter, n)		\
+	{ BNXT_TX_STATS_EXT_OFFSET(counter##_cos0),	\
+	  __stringify(counter##_pri##n) }
+
+#define BNXT_RX_STATS_PRI_ENTRIES(counter)		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 0),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 1),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 2),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 3),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 4),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 5),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 6),		\
+	BNXT_RX_STATS_PRI_ENTRY(counter, 7)
+
+#define BNXT_TX_STATS_PRI_ENTRIES(counter)		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 0),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 1),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 2),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 3),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 4),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 5),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 6),		\
+	BNXT_TX_STATS_PRI_ENTRY(counter, 7)
+
 enum {
 	RX_TOTAL_DISCARDS,
 	TX_TOTAL_DISCARDS,
@@ -327,8 +355,41 @@ static const struct {
 	BNXT_TX_STATS_EXT_PFC_ENTRIES,
 };
 
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_rx_bytes_pri_arr[] = {
+	BNXT_RX_STATS_PRI_ENTRIES(rx_bytes),
+};
+
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_rx_pkts_pri_arr[] = {
+	BNXT_RX_STATS_PRI_ENTRIES(rx_packets),
+};
+
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_tx_bytes_pri_arr[] = {
+	BNXT_TX_STATS_PRI_ENTRIES(tx_bytes),
+};
+
+static const struct {
+	long base_off;
+	char string[ETH_GSTRING_LEN];
+} bnxt_tx_pkts_pri_arr[] = {
+	BNXT_TX_STATS_PRI_ENTRIES(tx_packets),
+};
+
 #define BNXT_NUM_SW_FUNC_STATS	ARRAY_SIZE(bnxt_sw_func_stats)
 #define BNXT_NUM_PORT_STATS ARRAY_SIZE(bnxt_port_stats_arr)
+#define BNXT_NUM_STATS_PRI			\
+	(ARRAY_SIZE(bnxt_rx_bytes_pri_arr) +	\
+	 ARRAY_SIZE(bnxt_rx_pkts_pri_arr) +	\
+	 ARRAY_SIZE(bnxt_tx_bytes_pri_arr) +	\
+	 ARRAY_SIZE(bnxt_tx_pkts_pri_arr))
 
 static int bnxt_get_num_stats(struct bnxt *bp)
 {
@@ -339,9 +400,12 @@ static int bnxt_get_num_stats(struct bnxt *bp)
 	if (bp->flags & BNXT_FLAG_PORT_STATS)
 		num_stats += BNXT_NUM_PORT_STATS;
 
-	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT)
+	if (bp->flags & BNXT_FLAG_PORT_STATS_EXT) {
 		num_stats += bp->fw_rx_stats_ext_size +
 			     bp->fw_tx_stats_ext_size;
+		if (bp->pri2cos_valid)
+			num_stats += BNXT_NUM_STATS_PRI;
+	}
 
 	return num_stats;
 }
@@ -414,6 +478,32 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 		for (i = 0; i < bp->fw_tx_stats_ext_size; i++, j++) {
 			buf[j] = le64_to_cpu(*(tx_port_stats_ext +
 					bnxt_tx_port_stats_ext_arr[i].offset));
+		}
+		if (bp->pri2cos_valid) {
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_rx_bytes_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(rx_port_stats_ext + n));
+			}
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_rx_pkts_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(rx_port_stats_ext + n));
+			}
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_tx_bytes_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(tx_port_stats_ext + n));
+			}
+			for (i = 0; i < 8; i++, j++) {
+				long n = bnxt_tx_pkts_pri_arr[i].base_off +
+					 bp->pri2cos[i];
+
+				buf[j] = le64_to_cpu(*(tx_port_stats_ext + n));
+			}
 		}
 	}
 }
@@ -492,6 +582,28 @@ static void bnxt_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 				strcpy(buf,
 				       bnxt_tx_port_stats_ext_arr[i].string);
 				buf += ETH_GSTRING_LEN;
+			}
+			if (bp->pri2cos_valid) {
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_rx_bytes_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_rx_pkts_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_tx_bytes_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
+				for (i = 0; i < 8; i++) {
+					strcpy(buf,
+					       bnxt_tx_pkts_pri_arr[i].string);
+					buf += ETH_GSTRING_LEN;
+				}
 			}
 		}
 		break;
