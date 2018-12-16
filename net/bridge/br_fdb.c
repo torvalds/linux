@@ -773,6 +773,32 @@ skip:
 	return err;
 }
 
+int br_fdb_get(struct sk_buff *skb,
+	       struct nlattr *tb[],
+	       struct net_device *dev,
+	       const unsigned char *addr,
+	       u16 vid, u32 portid, u32 seq,
+	       struct netlink_ext_ack *extack)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_fdb_entry *f;
+	int err = 0;
+
+	rcu_read_lock();
+	f = br_fdb_find_rcu(br, addr, vid);
+	if (!f) {
+		NL_SET_ERR_MSG(extack, "Fdb entry not found");
+		err = -ENOENT;
+		goto errout;
+	}
+
+	err = fdb_fill_info(skb, br, f, portid, seq,
+			    RTM_NEWNEIGH, 0);
+errout:
+	rcu_read_unlock();
+	return err;
+}
+
 /* Update (create or replace) forwarding database entry */
 static int fdb_add_entry(struct net_bridge *br, struct net_bridge_port *source,
 			 const u8 *addr, u16 state, u16 flags, u16 vid,
