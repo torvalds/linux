@@ -2582,6 +2582,32 @@ static int parse_tc_vlan_action(struct mlx5e_priv *priv,
 	return 0;
 }
 
+static int add_vlan_push_action(struct mlx5e_priv *priv,
+				struct mlx5_esw_flow_attr *attr,
+				struct net_device **out_dev,
+				u32 *action)
+{
+	struct net_device *vlan_dev = *out_dev;
+	struct flow_action_entry vlan_act = {
+		.id = FLOW_ACTION_VLAN_PUSH,
+		.vlan.vid = vlan_dev_vlan_id(vlan_dev),
+		.vlan.proto = vlan_dev_vlan_proto(vlan_dev),
+		.vlan.prio = 0,
+	};
+	int err;
+
+	err = parse_tc_vlan_action(priv, &vlan_act, attr, action);
+	if (err)
+		return err;
+
+	*out_dev = dev_get_by_index_rcu(dev_net(vlan_dev),
+					dev_get_iflink(vlan_dev));
+	if (is_vlan_dev(*out_dev))
+		err = add_vlan_push_action(priv, attr, out_dev, action);
+
+	return err;
+}
+
 static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				struct flow_action *flow_action,
 				struct mlx5e_tc_flow *flow,
@@ -2661,6 +2687,14 @@ static int parse_tc_fdb_actions(struct mlx5e_priv *priv,
 				    netif_is_lag_master(uplink_upper) &&
 				    uplink_upper == out_dev)
 					out_dev = uplink_dev;
+
+				if (is_vlan_dev(out_dev)) {
+					err = add_vlan_push_action(priv, attr,
+								   &out_dev,
+								   &action);
+					if (err)
+						return err;
+				}
 
 				if (!mlx5e_eswitch_rep(out_dev))
 					return -EOPNOTSUPP;
