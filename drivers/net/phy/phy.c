@@ -730,6 +730,8 @@ void phy_stop_machine(struct phy_device *phydev)
  */
 static void phy_error(struct phy_device *phydev)
 {
+	WARN_ON(1);
+
 	mutex_lock(&phydev->lock);
 	phydev->state = PHY_HALTED;
 	mutex_unlock(&phydev->lock);
