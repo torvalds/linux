@@ -1714,12 +1714,6 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 	struct phy_device *phy_dev = ndev->phydev;
 	int status_change = 0;
 
-	/* Prevent a state halted on mii error */
-	if (fep->mii_timeout && phy_dev->state == PHY_HALTED) {
-		phy_dev->state = PHY_RESUMING;
-		return;
-	}
-
 	/*
 	 * If the netdev is down, or is going down, we're not interested
 	 * in link state events, so just mark our idea of the link as down
@@ -1779,7 +1773,6 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	if (ret < 0)
 		return ret;
 
-	fep->mii_timeout = 0;
 	reinit_completion(&fep->mdio_done);
 
 	/* start a read op */
@@ -1791,7 +1784,6 @@ static int fec_enet_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	time_left = wait_for_completion_timeout(&fep->mdio_done,
 			usecs_to_jiffies(FEC_MII_TIMEOUT));
 	if (time_left == 0) {
-		fep->mii_timeout = 1;
 		netdev_err(fep->netdev, "MDIO read timeout\n");
 		ret = -ETIMEDOUT;
 		goto out;
@@ -1820,7 +1812,6 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	else
 		ret = 0;
 
-	fep->mii_timeout = 0;
 	reinit_completion(&fep->mdio_done);
 
 	/* start a write op */
@@ -1833,7 +1824,6 @@ static int fec_enet_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	time_left = wait_for_completion_timeout(&fep->mdio_done,
 			usecs_to_jiffies(FEC_MII_TIMEOUT));
 	if (time_left == 0) {
-		fep->mii_timeout = 1;
 		netdev_err(fep->netdev, "MDIO write timeout\n");
 		ret  = -ETIMEDOUT;
 	}
@@ -2000,8 +1990,6 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 		}
 		return -ENOENT;
 	}
-
-	fep->mii_timeout = 0;
 
 	/*
 	 * Set MII speed to 2.5 MHz (= clk_get_rate() / 2 * phy_speed)
