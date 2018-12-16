@@ -7045,7 +7045,7 @@ unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 	return bp->hw_resc.max_cp_rings;
 }
 
-unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp)
+static unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp)
 {
 	unsigned int cp = bp->hw_resc.max_cp_rings;
 
@@ -7068,6 +7068,17 @@ static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 static void bnxt_set_max_func_irqs(struct bnxt *bp, unsigned int max_irqs)
 {
 	bp->hw_resc.max_irqs = max_irqs;
+}
+
+unsigned int bnxt_get_avail_cp_rings_for_en(struct bnxt *bp)
+{
+	unsigned int cp;
+
+	cp = bnxt_get_max_func_cp_rings_for_en(bp);
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		return cp - bp->rx_nr_rings - bp->tx_nr_rings;
+	else
+		return cp - bp->cp_nr_rings;
 }
 
 int bnxt_get_avail_msix(struct bnxt *bp, int num)
