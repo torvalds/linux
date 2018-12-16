@@ -707,7 +707,7 @@ void mlx5_eq_update_ci(struct mlx5_eq *eq, u32 cc, bool arm)
 
 	__raw_writel((__force u32)cpu_to_be32(val), addr);
 	/* We still want ordering, just not swabbing, so add a barrier */
-	mb();
+	wmb();
 }
 EXPORT_SYMBOL(mlx5_eq_update_ci);
 
