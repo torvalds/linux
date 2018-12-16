@@ -785,6 +785,7 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 		h->lhash2[i].count = 0;
 	}
 }
+EXPORT_SYMBOL_GPL(inet_hashinfo2_init);
 
 int inet_ehash_locks_alloc(struct inet_hashinfo *hashinfo)
 {
