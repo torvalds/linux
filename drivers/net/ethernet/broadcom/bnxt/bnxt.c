@@ -7035,11 +7035,6 @@ unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp)
 	return bp->hw_resc.max_stat_ctxs;
 }
 
-void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max)
-{
-	bp->hw_resc.max_stat_ctxs = max;
-}
-
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp)
 {
 	return bp->hw_resc.max_cp_rings;
