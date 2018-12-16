@@ -6221,7 +6221,7 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all)
 	if (bp->flags & BNXT_FLAG_CHIP_P5) {
 		u16 max_msix = le16_to_cpu(resp->max_msix);
 
-		hw_resc->max_irqs = min_t(u16, hw_resc->max_irqs, max_msix);
+		hw_resc->max_nqs = max_msix;
 		hw_resc->max_hw_ring_grps = hw_resc->max_rx_rings;
 	}
 
@@ -7058,6 +7058,9 @@ unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp)
 static unsigned int bnxt_get_max_func_irqs(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
+
+	if (bp->flags & BNXT_FLAG_CHIP_P5)
+		return min_t(unsigned int, hw_resc->max_irqs, hw_resc->max_nqs);
 
 	return min_t(unsigned int, hw_resc->max_irqs, hw_resc->max_cp_rings);
 }
