@@ -188,7 +188,7 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		sst_byt_stream_start(byt, pcm_data->stream, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (pdata->restore_stream == true)
+		if (pdata->restore_stream)
 			schedule_work(&pcm_data->work);
 		else
 			sst_byt_stream_resume(byt, pcm_data->stream);
