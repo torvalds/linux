@@ -3816,7 +3816,6 @@ static struct chcr_alg_template driver_algs[] = {
 				.setkey		= chcr_aes_rfc3686_setkey,
 				.encrypt	= chcr_aes_encrypt,
 				.decrypt	= chcr_aes_decrypt,
-				.geniv          = "seqiv",
 			}
 		}
 	},

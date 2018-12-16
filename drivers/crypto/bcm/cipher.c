@@ -3868,7 +3868,6 @@ static struct iproc_alg_s driver_algs[] = {
 			.cra_driver_name = "ctr-aes-iproc",
 			.cra_blocksize = AES_BLOCK_SIZE,
 			.cra_ablkcipher = {
-					   /* .geniv = "chainiv", */
 					   .min_keysize = AES_MIN_KEY_SIZE,
 					   .max_keysize = AES_MAX_KEY_SIZE,
 					   .ivsize = AES_BLOCK_SIZE,

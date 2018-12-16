@@ -49,7 +49,6 @@
 #define CRYPTO_ALG_TYPE_BLKCIPHER	0x00000004
 #define CRYPTO_ALG_TYPE_ABLKCIPHER	0x00000005
 #define CRYPTO_ALG_TYPE_SKCIPHER	0x00000005
-#define CRYPTO_ALG_TYPE_GIVCIPHER	0x00000006
 #define CRYPTO_ALG_TYPE_KPP		0x00000008
 #define CRYPTO_ALG_TYPE_ACOMPRESS	0x0000000a
 #define CRYPTO_ALG_TYPE_SCOMPRESS	0x0000000b
@@ -75,12 +74,6 @@
  * the same type to handle corner cases.
  */
 #define CRYPTO_ALG_NEED_FALLBACK	0x00000100
-
-/*
- * This bit is set for symmetric key ciphers that have already been wrapped
- * with a generic IV generator to prevent them from being wrapped again.
- */
-#define CRYPTO_ALG_GENIV		0x00000200
 
 /*
  * Set if the algorithm has passed automated run-time testing.  Note that
@@ -157,7 +150,6 @@ struct crypto_async_request;
 struct crypto_blkcipher;
 struct crypto_tfm;
 struct crypto_type;
-struct skcipher_givcrypt_request;
 
 typedef void (*crypto_completion_t)(struct crypto_async_request *req, int err);
 
@@ -246,31 +238,16 @@ struct cipher_desc {
  *	     be called in parallel with the same transformation object.
  * @decrypt: Decrypt a single block. This is a reverse counterpart to @encrypt
  *	     and the conditions are exactly the same.
- * @givencrypt: Update the IV for encryption. With this function, a cipher
- *	        implementation may provide the function on how to update the IV
- *	        for encryption.
- * @givdecrypt: Update the IV for decryption. This is the reverse of
- *	        @givencrypt .
- * @geniv: The transformation implementation may use an "IV generator" provided
- *	   by the kernel crypto API. Several use cases have a predefined
- *	   approach how IVs are to be updated. For such use cases, the kernel
- *	   crypto API provides ready-to-use implementations that can be
- *	   referenced with this variable.
  * @ivsize: IV size applicable for transformation. The consumer must provide an
  *	    IV of exactly that size to perform the encrypt or decrypt operation.
  *
- * All fields except @givencrypt , @givdecrypt , @geniv and @ivsize are
- * mandatory and must be filled.
+ * All fields except @ivsize are mandatory and must be filled.
  */
 struct ablkcipher_alg {
 	int (*setkey)(struct crypto_ablkcipher *tfm, const u8 *key,
 	              unsigned int keylen);
 	int (*encrypt)(struct ablkcipher_request *req);
 	int (*decrypt)(struct ablkcipher_request *req);
-	int (*givencrypt)(struct skcipher_givcrypt_request *req);
-	int (*givdecrypt)(struct skcipher_givcrypt_request *req);
-
-	const char *geniv;
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -284,10 +261,9 @@ struct ablkcipher_alg {
  * @setkey: see struct ablkcipher_alg
  * @encrypt: see struct ablkcipher_alg
  * @decrypt: see struct ablkcipher_alg
- * @geniv: see struct ablkcipher_alg
  * @ivsize: see struct ablkcipher_alg
  *
- * All fields except @geniv and @ivsize are mandatory and must be filled.
+ * All fields except @ivsize are mandatory and must be filled.
  */
 struct blkcipher_alg {
 	int (*setkey)(struct crypto_tfm *tfm, const u8 *key,
@@ -298,8 +274,6 @@ struct blkcipher_alg {
 	int (*decrypt)(struct blkcipher_desc *desc,
 		       struct scatterlist *dst, struct scatterlist *src,
 		       unsigned int nbytes);
-
-	const char *geniv;
 
 	unsigned int min_keysize;
 	unsigned int max_keysize;
@@ -931,14 +905,14 @@ static inline struct crypto_ablkcipher *__crypto_ablkcipher_cast(
 
 static inline u32 crypto_skcipher_type(u32 type)
 {
-	type &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
+	type &= ~CRYPTO_ALG_TYPE_MASK;
 	type |= CRYPTO_ALG_TYPE_BLKCIPHER;
 	return type;
 }
 
 static inline u32 crypto_skcipher_mask(u32 mask)
 {
-	mask &= ~(CRYPTO_ALG_TYPE_MASK | CRYPTO_ALG_GENIV);
+	mask &= ~CRYPTO_ALG_TYPE_MASK;
 	mask |= CRYPTO_ALG_TYPE_BLKCIPHER_MASK;
 	return mask;
 }

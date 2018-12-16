@@ -115,7 +115,6 @@ struct aead_request {
  * @setkey: see struct skcipher_alg
  * @encrypt: see struct skcipher_alg
  * @decrypt: see struct skcipher_alg
- * @geniv: see struct skcipher_alg
  * @ivsize: see struct skcipher_alg
  * @chunksize: see struct skcipher_alg
  * @init: Initialize the cryptographic transformation object. This function
@@ -141,8 +140,6 @@ struct aead_alg {
 	int (*decrypt)(struct aead_request *req);
 	int (*init)(struct crypto_aead *tfm);
 	void (*exit)(struct crypto_aead *tfm);
-
-	const char *geniv;
 
 	unsigned int ivsize;
 	unsigned int maxauthsize;

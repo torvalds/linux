@@ -39,19 +39,6 @@ struct skcipher_request {
 	void *__ctx[] CRYPTO_MINALIGN_ATTR;
 };
 
-/**
- *	struct skcipher_givcrypt_request - Crypto request with IV generation
- *	@seq: Sequence number for IV generation
- *	@giv: Space for generated IV
- *	@creq: The crypto request itself
- */
-struct skcipher_givcrypt_request {
-	u64 seq;
-	u8 *giv;
-
-	struct ablkcipher_request creq;
-};
-
 struct crypto_skcipher {
 	int (*setkey)(struct crypto_skcipher *tfm, const u8 *key,
 	              unsigned int keylen);

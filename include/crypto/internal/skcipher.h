@@ -70,8 +70,6 @@ struct skcipher_walk {
 	unsigned int alignmask;
 };
 
-extern const struct crypto_type crypto_givcipher_type;
-
 static inline struct crypto_instance *skcipher_crypto_instance(
 	struct skcipher_instance *inst)
 {

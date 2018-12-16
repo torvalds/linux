@@ -749,7 +749,6 @@ static struct crypto_alg algs_ctr[] = {
 	.cra_u.ablkcipher = {
 		.min_keysize	= AES_MIN_KEY_SIZE,
 		.max_keysize	= AES_MAX_KEY_SIZE,
-		.geniv		= "eseqiv",
 		.ivsize		= AES_BLOCK_SIZE,
 		.setkey		= omap_aes_setkey,
 		.encrypt	= omap_aes_ctr_encrypt,

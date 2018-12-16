@@ -579,8 +579,7 @@ static unsigned int crypto_skcipher_extsize(struct crypto_alg *alg)
 	if (alg->cra_type == &crypto_blkcipher_type)
 		return sizeof(struct crypto_blkcipher *);
 
-	if (alg->cra_type == &crypto_ablkcipher_type ||
-	    alg->cra_type == &crypto_givcipher_type)
+	if (alg->cra_type == &crypto_ablkcipher_type)
 		return sizeof(struct crypto_ablkcipher *);
 
 	return crypto_alg_extsize(alg);
@@ -844,8 +843,7 @@ static int crypto_skcipher_init_tfm(struct crypto_tfm *tfm)
 	if (tfm->__crt_alg->cra_type == &crypto_blkcipher_type)
 		return crypto_init_skcipher_ops_blkcipher(tfm);
 
-	if (tfm->__crt_alg->cra_type == &crypto_ablkcipher_type ||
-	    tfm->__crt_alg->cra_type == &crypto_givcipher_type)
+	if (tfm->__crt_alg->cra_type == &crypto_ablkcipher_type)
 		return crypto_init_skcipher_ops_ablkcipher(tfm);
 
 	skcipher->setkey = skcipher_setkey;
