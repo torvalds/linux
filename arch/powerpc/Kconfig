@@ -375,9 +375,9 @@ config PPC_ADV_DEBUG_DAC_RANGE
 	depends on PPC_ADV_DEBUG_REGS && 44x
 	default y
 
-config ZONE_DMA32
+config ZONE_DMA
 	bool
-	default y if PPC64
+	default y if PPC_BOOK3E_64
 
 config PGTABLE_LEVELS
 	int
@@ -869,10 +869,6 @@ config ISA
 	  inside your box.  If you have an Apple machine, say N here; if you
 	  have an IBM RS/6000 or pSeries machine, say Y.  If you have an
 	  embedded board, consult your board documentation.
-
-config ZONE_DMA
-	bool
-	default y
 
 config GENERIC_ISA_DMA
 	bool
