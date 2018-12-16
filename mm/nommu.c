@@ -215,8 +215,8 @@ long __get_user_pages_unlocked(struct task_struct *tsk, struct mm_struct *mm,
 {
 	long ret;
 	down_read(&mm->mmap_sem);
-	ret = get_user_pages(tsk, mm, start, nr_pages, write, force,
-			     pages, NULL);
+	ret = __get_user_pages(tsk, mm, start, nr_pages, gup_flags, pages,
+			       NULL, NULL);
 	up_read(&mm->mmap_sem);
 	return ret;
 }
