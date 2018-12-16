@@ -31,8 +31,7 @@ static void ff_card_free(struct snd_card *card)
 {
 	struct snd_ff *ff = card->private_data;
 
-	if (ff->spec->protocol->begin_session)
-		snd_ff_stream_destroy_duplex(ff);
+	snd_ff_stream_destroy_duplex(ff);
 	snd_ff_transaction_unregister(ff);
 }
 
@@ -57,11 +56,9 @@ static void do_registration(struct work_struct *work)
 
 	name_card(ff);
 
-	if (ff->spec->protocol->begin_session) {
-		err = snd_ff_stream_init_duplex(ff);
-		if (err < 0)
-			goto error;
-	}
+	err = snd_ff_stream_init_duplex(ff);
+	if (err < 0)
+		goto error;
 
 	snd_ff_proc_init(ff);
 
@@ -69,15 +66,13 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	if (ff->spec->protocol->begin_session) {
-		err = snd_ff_create_pcm_devices(ff);
-		if (err < 0)
-			goto error;
+	err = snd_ff_create_pcm_devices(ff);
+	if (err < 0)
+		goto error;
 
-		err = snd_ff_create_hwdep_devices(ff);
-		if (err < 0)
-			goto error;
-	}
+	err = snd_ff_create_hwdep_devices(ff);
+	if (err < 0)
+		goto error;
 
 	err = snd_card_register(ff->card);
 	if (err < 0)
@@ -126,7 +121,7 @@ static void snd_ff_update(struct fw_unit *unit)
 
 	snd_ff_transaction_reregister(ff);
 
-	if (ff->registered && ff->spec->protocol->begin_session)
+	if (ff->registered)
 		snd_ff_stream_update_duplex(ff);
 }
 
@@ -152,6 +147,8 @@ static void snd_ff_remove(struct fw_unit *unit)
 
 static const struct snd_ff_spec spec_ff800 = {
 	.name = "Fireface800",
+	.pcm_capture_channels = {28, 20, 12},
+	.pcm_playback_channels = {28, 20, 12},
 	.midi_in_ports = 1,
 	.midi_out_ports = 1,
 	.protocol = &snd_ff_protocol_ff800,
