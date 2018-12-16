@@ -158,22 +158,22 @@ static dma_addr_t iounit_map_page(struct device *dev, struct page *page,
 	return ret;
 }
 
-static int iounit_map_sg(struct device *dev, struct scatterlist *sg, int sz,
+static int iounit_map_sg(struct device *dev, struct scatterlist *sgl, int nents,
 		enum dma_data_direction dir, unsigned long attrs)
 {
 	struct iounit_struct *iounit = dev->archdata.iommu;
+	struct scatterlist *sg;
 	unsigned long flags;
+	int i;
 
 	/* FIXME: Cache some resolved pages - often several sg entries are to the same page */
 	spin_lock_irqsave(&iounit->lock, flags);
-	while (sz != 0) {
-		--sz;
+	for_each_sg(sgl, sg, nents, i) {
 		sg->dma_address = iounit_get_area(iounit, (unsigned long) sg_virt(sg), sg->length);
 		sg->dma_length = sg->length;
-		sg = sg_next(sg);
 	}
 	spin_unlock_irqrestore(&iounit->lock, flags);
-	return sz;
+	return nents;
 }
 
 static void iounit_unmap_page(struct device *dev, dma_addr_t vaddr, size_t len,
@@ -191,22 +191,21 @@ static void iounit_unmap_page(struct device *dev, dma_addr_t vaddr, size_t len,
 	spin_unlock_irqrestore(&iounit->lock, flags);
 }
 
-static void iounit_unmap_sg(struct device *dev, struct scatterlist *sg, int sz,
-		enum dma_data_direction dir, unsigned long attrs)
+static void iounit_unmap_sg(struct device *dev, struct scatterlist *sgl,
+		int nents, enum dma_data_direction dir, unsigned long attrs)
 {
 	struct iounit_struct *iounit = dev->archdata.iommu;
-	unsigned long flags;
-	unsigned long vaddr, len;
+	unsigned long flags, vaddr, len;
+	struct scatterlist *sg;
+	int i;
 
 	spin_lock_irqsave(&iounit->lock, flags);
-	while (sz != 0) {
-		--sz;
+	for_each_sg(sgl, sg, nents, i) {
 		len = ((sg->dma_address & ~PAGE_MASK) + sg->length + (PAGE_SIZE-1)) >> PAGE_SHIFT;
 		vaddr = (sg->dma_address - IOUNIT_DMA_BASE) >> PAGE_SHIFT;
 		IOD(("iounit_release %08lx-%08lx\n", (long)vaddr, (long)len+vaddr));
 		for (len += vaddr; vaddr < len; vaddr++)
 			clear_bit(vaddr, iounit->bmap);
-		sg = sg_next(sg);
 	}
 	spin_unlock_irqrestore(&iounit->lock, flags);
 }
