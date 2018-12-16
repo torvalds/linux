@@ -210,10 +210,15 @@ static int dma_nommu_map_sg(struct device *dev, struct scatterlist *sgl,
 	return nents;
 }
 
-static void dma_nommu_unmap_sg(struct device *dev, struct scatterlist *sg,
+static void dma_nommu_unmap_sg(struct device *dev, struct scatterlist *sgl,
 				int nents, enum dma_data_direction direction,
 				unsigned long attrs)
 {
+	struct scatterlist *sg;
+	int i;
+
+	for_each_sg(sgl, sg, nents, i)
+		__dma_sync_page(sg_page(sg), sg->offset, sg->length, direction);
 }
 
 static u64 dma_nommu_get_required_mask(struct device *dev)
@@ -247,6 +252,8 @@ static inline void dma_nommu_unmap_page(struct device *dev,
 					 enum dma_data_direction direction,
 					 unsigned long attrs)
 {
+	if (!(attrs & DMA_ATTR_SKIP_CPU_SYNC))
+		__dma_sync(bus_to_virt(dma_address), size, direction);
 }
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
