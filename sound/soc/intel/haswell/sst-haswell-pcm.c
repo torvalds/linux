@@ -861,7 +861,7 @@ static int hsw_pcm_close(struct snd_pcm_substream *substream)
 		dev_dbg(rtd->dev, "error: free stream failed %d\n", ret);
 		goto out;
 	}
-	pcm_data->allocated = 0;
+	pcm_data->allocated = false;
 	pcm_data->stream = NULL;
 
 out:
