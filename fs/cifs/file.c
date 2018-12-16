@@ -2617,11 +2617,13 @@ cifs_write_from_iter(loff_t offset, size_t len, struct iov_iter *from,
 		if (rc)
 			break;
 
+		cur_len = min_t(const size_t, len, wsize);
+
 		if (ctx->direct_io) {
 			ssize_t result;
 
 			result = iov_iter_get_pages_alloc(
-				from, &pagevec, wsize, &start);
+				from, &pagevec, cur_len, &start);
 			if (result < 0) {
 				cifs_dbg(VFS,
 					"direct_writev couldn't get user pages "
