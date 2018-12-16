@@ -73,20 +73,17 @@ static int btf_dumper_array(const struct btf_dumper *d, __u32 type_id,
 	return ret;
 }
 
-static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
+static void btf_dumper_bitfield(__u32 nr_bits, __u8 bit_offset,
 				const void *data, json_writer_t *jw,
 				bool is_plain_text)
 {
 	int left_shift_bits, right_shift_bits;
-	int nr_bits = BTF_INT_BITS(int_type);
-	int total_bits_offset;
 	int bytes_to_copy;
 	int bits_to_copy;
 	__u64 print_num;
 
-	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
-	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
-	bit_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	data += BITS_ROUNDDOWN_BYTES(bit_offset);
+	bit_offset = BITS_PER_BYTE_MASKED(bit_offset);
 	bits_to_copy = bit_offset + nr_bits;
 	bytes_to_copy = BITS_ROUNDUP_BYTES(bits_to_copy);
 
@@ -107,6 +104,22 @@ static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
 		jsonw_printf(jw, "0x%llx", print_num);
 	else
 		jsonw_printf(jw, "%llu", print_num);
+}
+
+
+static void btf_dumper_int_bits(__u32 int_type, __u8 bit_offset,
+				const void *data, json_writer_t *jw,
+				bool is_plain_text)
+{
+	int nr_bits = BTF_INT_BITS(int_type);
+	int total_bits_offset;
+
+	/* bits_offset is at most 7.
+	 * BTF_INT_OFFSET() cannot exceed 64 bits.
+	 */
+	total_bits_offset = bit_offset + BTF_INT_OFFSET(int_type);
+	btf_dumper_bitfield(nr_bits, total_bits_offset, data, jw,
+			    is_plain_text);
 }
 
 static int btf_dumper_int(const struct btf_type *t, __u8 bit_offset,
