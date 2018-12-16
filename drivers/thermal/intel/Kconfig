@@ -55,7 +55,7 @@ config INTEL_QUARK_DTS_THERMAL
 	  underlying BIOS/Firmware.
 
 menu "ACPI INT340X thermal drivers"
-source drivers/thermal/intel/int340x_thermal/Kconfig
+source "drivers/thermal/intel/int340x_thermal/Kconfig"
 endmenu
 
 config INTEL_BXT_PMIC_THERMAL
