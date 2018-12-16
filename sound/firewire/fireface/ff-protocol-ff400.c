@@ -15,18 +15,59 @@
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
-static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
+/*
+ * Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
+ * we can allocate between 0 and 7 channel.
+ */
+static int keep_resources(struct snd_ff *ff, unsigned int rate)
 {
-	__le32 reg;
-	int i, err;
+	enum snd_ff_stream_mode mode;
+	int i;
+	int err;
 
-	/* Check whether the given value is supported or not. */
+	// Check whether the given value is supported or not.
 	for (i = 0; i < CIP_SFC_COUNT; i++) {
 		if (amdtp_rate_table[i] == rate)
 			break;
 	}
-	if (i == CIP_SFC_COUNT)
+	if (i >= CIP_SFC_COUNT)
 		return -EINVAL;
+
+	err = snd_ff_stream_get_multiplier_mode(i, &mode);
+	if (err < 0)
+		return err;
+
+	/* Keep resources for in-stream. */
+	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
+	err = fw_iso_resources_allocate(&ff->tx_resources,
+			amdtp_stream_get_max_payload(&ff->tx_stream),
+			fw_parent_device(ff->unit)->max_speed);
+	if (err < 0)
+		return err;
+
+	/* Keep resources for out-stream. */
+	err = amdtp_ff_set_parameters(&ff->rx_stream, rate,
+				      ff->spec->pcm_playback_channels[mode]);
+	if (err < 0)
+		return err;
+	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
+	err = fw_iso_resources_allocate(&ff->rx_resources,
+			amdtp_stream_get_max_payload(&ff->rx_stream),
+			fw_parent_device(ff->unit)->max_speed);
+	if (err < 0)
+		fw_iso_resources_free(&ff->tx_resources);
+
+	return err;
+}
+
+static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
+{
+	__le32 reg;
+	int err;
+
+	err = keep_resources(ff, rate);
+	if (err < 0)
+		return err;
 
 	/* Set the number of data blocks transferred in a second. */
 	reg = cpu_to_le32(rate);

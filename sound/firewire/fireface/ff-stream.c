@@ -31,54 +31,6 @@ int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
 	return 0;
 }
 
-/*
- * Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
- * we can allocate between 0 and 7 channel.
- */
-static int keep_resources(struct snd_ff *ff, unsigned int rate)
-{
-	enum snd_ff_stream_mode mode;
-	int i;
-	int err;
-
-	for (i = 0; i < CIP_SFC_COUNT; ++i) {
-		if (amdtp_rate_table[i] == rate)
-			break;
-	}
-	if (i == CIP_SFC_COUNT)
-		return -EINVAL;
-
-	err = snd_ff_stream_get_multiplier_mode(i, &mode);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for in-stream. */
-	err = amdtp_ff_set_parameters(&ff->tx_stream, rate,
-				      ff->spec->pcm_capture_channels[mode]);
-	if (err < 0)
-		return err;
-	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
-	err = fw_iso_resources_allocate(&ff->tx_resources,
-			amdtp_stream_get_max_payload(&ff->tx_stream),
-			fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		return err;
-
-	/* Keep resources for out-stream. */
-	err = amdtp_ff_set_parameters(&ff->rx_stream, rate,
-				      ff->spec->pcm_playback_channels[mode]);
-	if (err < 0)
-		return err;
-	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
-	err = fw_iso_resources_allocate(&ff->rx_resources,
-			amdtp_stream_get_max_payload(&ff->rx_stream),
-			fw_parent_device(ff->unit)->max_speed);
-	if (err < 0)
-		fw_iso_resources_free(&ff->tx_resources);
-
-	return err;
-}
-
 static void release_resources(struct snd_ff *ff)
 {
 	fw_iso_resources_free(&ff->tx_resources);
@@ -214,9 +166,29 @@ int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate)
 	 * packets. Then, the device transfers packets.
 	 */
 	if (!amdtp_stream_running(&ff->rx_stream)) {
-		err = keep_resources(ff, rate);
+		enum snd_ff_stream_mode mode;
+		int i;
+
+		for (i = 0; i < CIP_SFC_COUNT; ++i) {
+			if (amdtp_rate_table[i] == rate)
+				break;
+		}
+		if (i >= CIP_SFC_COUNT)
+			return -EINVAL;
+
+		err = snd_ff_stream_get_multiplier_mode(i, &mode);
 		if (err < 0)
-			goto error;
+			return err;
+
+		err = amdtp_ff_set_parameters(&ff->tx_stream, rate,
+					ff->spec->pcm_capture_channels[mode]);
+		if (err < 0)
+			return err;
+
+		err = amdtp_ff_set_parameters(&ff->rx_stream, rate,
+					ff->spec->pcm_playback_channels[mode]);
+		if (err < 0)
+			return err;
 
 		err = ff->spec->protocol->begin_session(ff, rate);
 		if (err < 0)
