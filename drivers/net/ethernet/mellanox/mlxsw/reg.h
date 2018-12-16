@@ -2743,7 +2743,7 @@ mlxsw_reg_perpt_pack(char *payload, u8 erpt_bank, u8 erpt_index,
 	mlxsw_reg_perpt_erpt_bank_set(payload, erpt_bank);
 	mlxsw_reg_perpt_erpt_index_set(payload, erpt_index);
 	mlxsw_reg_perpt_key_size_set(payload, key_size);
-	mlxsw_reg_perpt_bf_bypass_set(payload, true);
+	mlxsw_reg_perpt_bf_bypass_set(payload, false);
 	mlxsw_reg_perpt_erp_id_set(payload, erp_id);
 	mlxsw_reg_perpt_erpt_base_bank_set(payload, erpt_base_bank);
 	mlxsw_reg_perpt_erpt_base_index_set(payload, erpt_base_index);
@@ -3006,7 +3006,7 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 	mlxsw_reg_percr_region_id_set(payload, region_id);
 	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
 	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
-	mlxsw_reg_percr_bf_bypass_set(payload, true);
+	mlxsw_reg_percr_bf_bypass_set(payload, false);
 }
 
 /* PERERP - Policy-Engine Region eRP Register
