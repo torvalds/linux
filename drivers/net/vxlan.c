@@ -1152,6 +1152,39 @@ out:
 	return err;
 }
 
+static int vxlan_fdb_get(struct sk_buff *skb,
+			 struct nlattr *tb[],
+			 struct net_device *dev,
+			 const unsigned char *addr,
+			 u16 vid, u32 portid, u32 seq,
+			 struct netlink_ext_ack *extack)
+{
+	struct vxlan_dev *vxlan = netdev_priv(dev);
+	struct vxlan_fdb *f;
+	__be32 vni;
+	int err;
+
+	if (tb[NDA_VNI])
+		vni = cpu_to_be32(nla_get_u32(tb[NDA_VNI]));
+	else
+		vni = vxlan->default_dst.remote_vni;
+
+	rcu_read_lock();
+
+	f = __vxlan_find_mac(vxlan, addr, vni);
+	if (!f) {
+		NL_SET_ERR_MSG(extack, "Fdb entry not found");
+		err = -ENOENT;
+		goto errout;
+	}
+
+	err = vxlan_fdb_info(skb, vxlan, f, portid, seq,
+			     RTM_NEWNEIGH, 0, first_remote_rcu(f));
+errout:
+	rcu_read_unlock();
+	return err;
+}
+
 /* Watch incoming packets to learn mapping between Ethernet address
  * and Tunnel endpoint.
  * Return true if packet is bogus and should be dropped.
@@ -2805,6 +2838,7 @@ static const struct net_device_ops vxlan_netdev_ether_ops = {
 	.ndo_fdb_add		= vxlan_fdb_add,
 	.ndo_fdb_del		= vxlan_fdb_delete,
 	.ndo_fdb_dump		= vxlan_fdb_dump,
+	.ndo_fdb_get		= vxlan_fdb_get,
 	.ndo_fill_metadata_dst	= vxlan_fill_metadata_dst,
 };
 

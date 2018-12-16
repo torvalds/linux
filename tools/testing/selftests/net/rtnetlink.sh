@@ -955,6 +955,58 @@ kci_test_ip6erspan()
 	ip netns del "$testns"
 }
 
+kci_test_fdb_get()
+{
+	IP="ip -netns testns"
+	BRIDGE="bridge -netns testns"
+	brdev="test-br0"
+	vxlandev="vxlan10"
+	test_mac=de:ad:be:ef:13:37
+	localip="10.0.2.2"
+	dstip="10.0.2.3"
+	ret=0
+
+	bridge fdb help 2>&1 |grep -q 'bridge fdb get'
+	if [ $? -ne 0 ];then
+		echo "SKIP: fdb get tests: iproute2 too old"
+		return $ksft_skip
+	fi
+
+	ip netns add testns
+	if [ $? -ne 0 ]; then
+		echo "SKIP fdb get tests: cannot add net namespace $testns"
+		return $ksft_skip
+	fi
+
+	$IP link add "$vxlandev" type vxlan id 10 local $localip \
+                dstport 4789 2>/dev/null
+	check_err $?
+	$IP link add name "$brdev" type bridge &>/dev/null
+	check_err $?
+	$IP link set dev "$vxlandev" master "$brdev" &>/dev/null
+	check_err $?
+	$BRIDGE fdb add $test_mac dev "$vxlandev" master &>/dev/null
+	check_err $?
+	$BRIDGE fdb add $test_mac dev "$vxlandev" dst $dstip self &>/dev/null
+	check_err $?
+
+	$BRIDGE fdb get $test_mac brport "$vxlandev" 2>/dev/null | grep -q "dev $vxlandev master $brdev"
+	check_err $?
+	$BRIDGE fdb get $test_mac br "$brdev" 2>/dev/null | grep -q "dev $vxlandev master $brdev"
+	check_err $?
+	$BRIDGE fdb get $test_mac dev "$vxlandev" self 2>/dev/null | grep -q "dev $vxlandev dst $dstip"
+	check_err $?
+
+	ip netns del testns &>/dev/null
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: bridge fdb get"
+		return 1
+	fi
+
+	echo "PASS: bridge fdb get"
+}
+
 kci_test_rtnl()
 {
 	kci_add_dummy
@@ -979,6 +1031,7 @@ kci_test_rtnl()
 	kci_test_macsec
 	kci_test_ipsec
 	kci_test_ipsec_offload
+	kci_test_fdb_get
 
 	kci_del_dummy
 }
