@@ -3528,7 +3528,8 @@ struct pprint_mapv {
 	} aenum;
 };
 
-static struct btf_raw_test pprint_test_template = {
+static struct btf_raw_test pprint_test_template[] = {
+{
 	.raw_types = {
 		/* unsighed char */			/* [1] */
 		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 8, 1),
@@ -3578,13 +3579,140 @@ static struct btf_raw_test pprint_test_template = {
 		BTF_MEMBER_ENC(NAME_TBD, 15, 192),	/* aenum */
 		BTF_END_RAW,
 	},
-	.str_sec = "\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum",
-	.str_sec_size = sizeof("\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum"),
+	BTF_STR_SEC("\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum"),
 	.key_size = sizeof(unsigned int),
 	.value_size = sizeof(struct pprint_mapv),
 	.key_type_id = 3,	/* unsigned int */
 	.value_type_id = 16,	/* struct pprint_mapv */
 	.max_entries = 128 * 1024,
+},
+
+{
+	/* this type will have the same type as the
+	 * first .raw_types definition, but struct type will
+	 * be encoded with kind_flag set.
+	 */
+	.raw_types = {
+		/* unsighed char */			/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 8, 1),
+		/* unsigned short */			/* [2] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 16, 2),
+		/* unsigned int */			/* [3] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),
+		/* int */				/* [4] */
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
+		/* unsigned long long */		/* [5] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 64, 8),
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),	/* [6] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),	/* [7] */
+		/* uint8_t[8] */			/* [8] */
+		BTF_TYPE_ARRAY_ENC(9, 1, 8),
+		/* typedef unsigned char uint8_t */	/* [9] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 1),
+		/* typedef unsigned short uint16_t */	/* [10] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 2),
+		/* typedef unsigned int uint32_t */	/* [11] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),
+		/* typedef int int32_t */		/* [12] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),
+		/* typedef unsigned long long uint64_t *//* [13] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 5),
+		/* union (anon) */			/* [14] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 0, 2), 8),
+		BTF_MEMBER_ENC(NAME_TBD, 13, 0),/* uint64_t ui64; */
+		BTF_MEMBER_ENC(NAME_TBD, 8, 0),	/* uint8_t ui8a[8]; */
+		/* enum (anon) */			/* [15] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 4), 4),
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_ENUM_ENC(NAME_TBD, 1),
+		BTF_ENUM_ENC(NAME_TBD, 2),
+		BTF_ENUM_ENC(NAME_TBD, 3),
+		/* struct pprint_mapv */		/* [16] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 8), 32),
+		BTF_MEMBER_ENC(NAME_TBD, 11, BTF_MEMBER_OFFSET(0, 0)),	/* uint32_t ui32 */
+		BTF_MEMBER_ENC(NAME_TBD, 10, BTF_MEMBER_OFFSET(0, 32)),	/* uint16_t ui16 */
+		BTF_MEMBER_ENC(NAME_TBD, 12, BTF_MEMBER_OFFSET(0, 64)),	/* int32_t si32 */
+		BTF_MEMBER_ENC(NAME_TBD, 6, BTF_MEMBER_OFFSET(2, 96)),	/* unused_bits2a */
+		BTF_MEMBER_ENC(NAME_TBD, 7, BTF_MEMBER_OFFSET(28, 98)),	/* bits28 */
+		BTF_MEMBER_ENC(NAME_TBD, 6, BTF_MEMBER_OFFSET(2, 126)),	/* unused_bits2b */
+		BTF_MEMBER_ENC(0, 14, BTF_MEMBER_OFFSET(0, 128)),	/* union (anon) */
+		BTF_MEMBER_ENC(NAME_TBD, 15, BTF_MEMBER_OFFSET(0, 192)),	/* aenum */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum"),
+	.key_size = sizeof(unsigned int),
+	.value_size = sizeof(struct pprint_mapv),
+	.key_type_id = 3,	/* unsigned int */
+	.value_type_id = 16,	/* struct pprint_mapv */
+	.max_entries = 128 * 1024,
+},
+
+{
+	/* this type will have the same layout as the
+	 * first .raw_types definition. The struct type will
+	 * be encoded with kind_flag set, bitfield members
+	 * are added typedef/const/volatile, and bitfield members
+	 * will have both int and enum types.
+	 */
+	.raw_types = {
+		/* unsighed char */			/* [1] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 8, 1),
+		/* unsigned short */			/* [2] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 16, 2),
+		/* unsigned int */			/* [3] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 32, 4),
+		/* int */				/* [4] */
+		BTF_TYPE_INT_ENC(NAME_TBD, BTF_INT_SIGNED, 0, 32, 4),
+		/* unsigned long long */		/* [5] */
+		BTF_TYPE_INT_ENC(NAME_TBD, 0, 0, 64, 8),
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),	/* [6] */
+		BTF_TYPE_INT_ENC(0, 0, 0, 32, 4),	/* [7] */
+		/* uint8_t[8] */			/* [8] */
+		BTF_TYPE_ARRAY_ENC(9, 1, 8),
+		/* typedef unsigned char uint8_t */	/* [9] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 1),
+		/* typedef unsigned short uint16_t */	/* [10] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 2),
+		/* typedef unsigned int uint32_t */	/* [11] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 3),
+		/* typedef int int32_t */		/* [12] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 4),
+		/* typedef unsigned long long uint64_t *//* [13] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 5),
+		/* union (anon) */			/* [14] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 0, 2), 8),
+		BTF_MEMBER_ENC(NAME_TBD, 13, 0),/* uint64_t ui64; */
+		BTF_MEMBER_ENC(NAME_TBD, 8, 0),	/* uint8_t ui8a[8]; */
+		/* enum (anon) */			/* [15] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 4), 4),
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_ENUM_ENC(NAME_TBD, 1),
+		BTF_ENUM_ENC(NAME_TBD, 2),
+		BTF_ENUM_ENC(NAME_TBD, 3),
+		/* struct pprint_mapv */		/* [16] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 8), 32),
+		BTF_MEMBER_ENC(NAME_TBD, 11, BTF_MEMBER_OFFSET(0, 0)),	/* uint32_t ui32 */
+		BTF_MEMBER_ENC(NAME_TBD, 10, BTF_MEMBER_OFFSET(0, 32)),	/* uint16_t ui16 */
+		BTF_MEMBER_ENC(NAME_TBD, 12, BTF_MEMBER_OFFSET(0, 64)),	/* int32_t si32 */
+		BTF_MEMBER_ENC(NAME_TBD, 17, BTF_MEMBER_OFFSET(2, 96)),	/* unused_bits2a */
+		BTF_MEMBER_ENC(NAME_TBD, 7, BTF_MEMBER_OFFSET(28, 98)),	/* bits28 */
+		BTF_MEMBER_ENC(NAME_TBD, 19, BTF_MEMBER_OFFSET(2, 126)),/* unused_bits2b */
+		BTF_MEMBER_ENC(0, 14, BTF_MEMBER_OFFSET(0, 128)),	/* union (anon) */
+		BTF_MEMBER_ENC(NAME_TBD, 15, BTF_MEMBER_OFFSET(0, 192)),	/* aenum */
+		/* typedef unsigned int ___int */	/* [17] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 18),
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_VOLATILE, 0, 0), 6),	/* [18] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 0, 0), 15),	/* [19] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0unsigned char\0unsigned short\0unsigned int\0int\0unsigned long long\0uint8_t\0uint16_t\0uint32_t\0int32_t\0uint64_t\0ui64\0ui8a\0ENUM_ZERO\0ENUM_ONE\0ENUM_TWO\0ENUM_THREE\0pprint_mapv\0ui32\0ui16\0si32\0unused_bits2a\0bits28\0unused_bits2b\0aenum\0___int"),
+	.key_size = sizeof(unsigned int),
+	.value_size = sizeof(struct pprint_mapv),
+	.key_type_id = 3,	/* unsigned int */
+	.value_type_id = 16,	/* struct pprint_mapv */
+	.max_entries = 128 * 1024,
+},
+
 };
 
 static struct btf_pprint_test_meta {
@@ -3687,9 +3815,9 @@ static int check_line(const char *expected_line, int nexpected_line,
 }
 
 
-static int do_test_pprint(void)
+static int do_test_pprint(int test_num)
 {
-	const struct btf_raw_test *test = &pprint_test_template;
+	const struct btf_raw_test *test = &pprint_test_template[test_num];
 	struct bpf_create_map_attr create_attr = {};
 	bool ordered_map, lossless_map, percpu_map;
 	int err, ret, num_cpus, rounded_value_size;
@@ -3705,7 +3833,7 @@ static int do_test_pprint(void)
 	uint8_t *raw_btf;
 	ssize_t nread;
 
-	fprintf(stderr, "%s......", test->descr);
+	fprintf(stderr, "%s(#%d)......", test->descr, test_num);
 	raw_btf = btf_raw_create(&hdr_tmpl, test->raw_types,
 				 test->str_sec, test->str_sec_size,
 				 &raw_btf_size, NULL);
@@ -3898,15 +4026,27 @@ static int test_pprint(void)
 	unsigned int i;
 	int err = 0;
 
+	/* test various maps with the first test template */
 	for (i = 0; i < ARRAY_SIZE(pprint_tests_meta); i++) {
-		pprint_test_template.descr = pprint_tests_meta[i].descr;
-		pprint_test_template.map_type = pprint_tests_meta[i].map_type;
-		pprint_test_template.map_name = pprint_tests_meta[i].map_name;
-		pprint_test_template.ordered_map = pprint_tests_meta[i].ordered_map;
-		pprint_test_template.lossless_map = pprint_tests_meta[i].lossless_map;
-		pprint_test_template.percpu_map = pprint_tests_meta[i].percpu_map;
+		pprint_test_template[0].descr = pprint_tests_meta[i].descr;
+		pprint_test_template[0].map_type = pprint_tests_meta[i].map_type;
+		pprint_test_template[0].map_name = pprint_tests_meta[i].map_name;
+		pprint_test_template[0].ordered_map = pprint_tests_meta[i].ordered_map;
+		pprint_test_template[0].lossless_map = pprint_tests_meta[i].lossless_map;
+		pprint_test_template[0].percpu_map = pprint_tests_meta[i].percpu_map;
 
-		err |= count_result(do_test_pprint());
+		err |= count_result(do_test_pprint(0));
+	}
+
+	/* test rest test templates with the first map */
+	for (i = 1; i < ARRAY_SIZE(pprint_test_template); i++) {
+		pprint_test_template[i].descr = pprint_tests_meta[0].descr;
+		pprint_test_template[i].map_type = pprint_tests_meta[0].map_type;
+		pprint_test_template[i].map_name = pprint_tests_meta[0].map_name;
+		pprint_test_template[i].ordered_map = pprint_tests_meta[0].ordered_map;
+		pprint_test_template[i].lossless_map = pprint_tests_meta[0].lossless_map;
+		pprint_test_template[i].percpu_map = pprint_tests_meta[0].percpu_map;
+		err |= count_result(do_test_pprint(i));
 	}
 
 	return err;
