@@ -65,8 +65,8 @@ static int __base_pr(const char *format, ...)
 	return err;
 }
 
-#define BTF_INFO_ENC(kind, root, vlen)			\
-	((!!(root) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
+#define BTF_INFO_ENC(kind, kind_flag, vlen)			\
+	((!!(kind_flag) << 31) | ((kind) << 24) | ((vlen) & BTF_MAX_VLEN))
 
 #define BTF_TYPE_ENC(name, info, size_or_type)	\
 	(name), (info), (size_or_type)
@@ -86,6 +86,8 @@ static int __base_pr(const char *format, ...)
 #define BTF_MEMBER_ENC(name, type, bits_offset)	\
 	(name), (type), (bits_offset)
 #define BTF_ENUM_ENC(name, val) (name), (val)
+#define BTF_MEMBER_OFFSET(bitfield_size, bits_offset) \
+	((bitfield_size) << 24 | (bits_offset))
 
 #define BTF_TYPEDEF_ENC(name, type) \
 	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_TYPEDEF, 0, 0), type)
@@ -2213,6 +2215,496 @@ static struct btf_raw_test raw_tests[] = {
 	.max_entries = 4,
 	.btf_load_err = true,
 	.err_str = "Invalid type_id",
+},
+
+{
+	.descr = "invalid int kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_INT, 1, 0), 4),	/* [2] */
+		BTF_INT_ENC(0, 0, 32),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "int_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid ptr kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 1, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "ptr_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid array kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ARRAY, 1, 0), 0),	/* [2] */
+		BTF_ARRAY_ENC(1, 1, 1),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "array_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid enum kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 1, 1), 4),	/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "enum_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "valid fwd kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_FWD, 1, 0), 0),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "fwd_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "invalid typedef kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(NAME_TBD,
+			     BTF_INFO_ENC(BTF_KIND_TYPEDEF, 1, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "typedef_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid volatile kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_VOLATILE, 1, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "volatile_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid const kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_CONST, 1, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "const_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid restrict kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_RESTRICT, 1, 0), 1),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "restrict_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid func kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 0, 0), 0),	/* [2] */
+		BTF_TYPE_ENC(NAME_TBD, BTF_INFO_ENC(BTF_KIND_FUNC, 1, 0), 2),	/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "invalid func_proto kind_flag",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 1, 0), 0),	/* [2] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC(""),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "func_proto_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid btf_info kind_flag",
+},
+
+{
+	.descr = "valid struct, kind_flag, bitfield_size = 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 8),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(0, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(0, 32)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "valid struct, kind_flag, int member, bitfield_size != 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(4, 4)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "valid union, kind_flag, int member, bitfield_size != 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 1, 2), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "union_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "valid struct, kind_flag, enum member, bitfield_size != 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),	/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 4),/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(4, 4)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B\0C"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "valid union, kind_flag, enum member, bitfield_size != 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),	/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 1, 2), 4),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B\0C"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "union_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "valid struct, kind_flag, typedef member, bitfield_size != 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),	/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 4),/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 4, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 5, BTF_MEMBER_OFFSET(4, 4)),
+		BTF_TYPEDEF_ENC(NAME_TBD, 1),				/* [4] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 2),				/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B\0C\0D\0E"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "valid union, kind_flag, typedef member, bitfield_size != 0",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),	/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 1, 2), 4),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 4, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 5, BTF_MEMBER_OFFSET(4, 0)),
+		BTF_TYPEDEF_ENC(NAME_TBD, 1),				/* [4] */
+		BTF_TYPEDEF_ENC(NAME_TBD, 2),				/* [5] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B\0C\0D\0E"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "union_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+},
+
+{
+	.descr = "invalid struct, kind_flag, bitfield_size greater than struct size",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 4),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(20, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(20, 20)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Member exceeds struct_size",
+},
+
+{
+	.descr = "invalid struct, kind_flag, bitfield base_type int not regular",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 20, 4),			/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 4),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(20, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(20, 20)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid member base type",
+},
+
+{
+	.descr = "invalid struct, kind_flag, base_type int not regular",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 12, 4),			/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 4),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(8, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(8, 8)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid member base type",
+},
+
+{
+	.descr = "invalid union, kind_flag, bitfield_size greater than struct size",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_UNION, 1, 2), 2),	/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(8, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 1, BTF_MEMBER_OFFSET(20, 0)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "union_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Member exceeds struct_size",
+},
+
+{
+	.descr = "invalid struct, kind_flag, int member, bitfield_size = 0, wrong byte alignment",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 12),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 36)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid member offset",
+},
+
+{
+	.descr = "invalid struct, kind_flag, enum member, bitfield_size = 0, wrong byte alignment",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [1] */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),			/* [2] */
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 0, 1), 4),	/* [2] */
+		BTF_ENUM_ENC(NAME_TBD, 0),
+		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_STRUCT, 1, 2), 12),	/* [3] */
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 0)),
+		BTF_MEMBER_ENC(NAME_TBD, 2, BTF_MEMBER_OFFSET(0, 36)),
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0A\0B\0C"),
+	.map_type = BPF_MAP_TYPE_ARRAY,
+	.map_name = "struct_type_check_btf",
+	.key_size = sizeof(int),
+	.value_size = sizeof(int),
+	.key_type_id = 1,
+	.value_type_id = 1,
+	.max_entries = 4,
+	.btf_load_err = true,
+	.err_str = "Invalid member offset",
 },
 
 }; /* struct btf_raw_test raw_tests[] */
