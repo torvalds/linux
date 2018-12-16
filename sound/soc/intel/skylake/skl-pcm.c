@@ -1423,7 +1423,7 @@ static int skl_platform_soc_probe(struct snd_soc_component *component)
 		if (!ops)
 			return -EIO;
 
-		if (skl->skl_sst->is_first_boot == false) {
+		if (!skl->skl_sst->is_first_boot) {
 			dev_err(component->dev, "DSP reports first boot done!!!\n");
 			return -EIO;
 		}
