@@ -629,6 +629,54 @@ static int smack_sb_copy_data(char *orig, char *smackopts)
 	return 0;
 }
 
+static int smack_add_opt(int token, const char *s, void **mnt_opts)
+{
+	struct smack_mnt_opts *opts = *mnt_opts;
+
+	if (!opts) {
+		opts = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
+		if (!opts)
+			return -ENOMEM;
+		*mnt_opts = opts;
+	}
+
+	if (!s)
+		return -ENOMEM;
+
+	switch (token) {
+	case Opt_fsdefault:
+		if (opts->fsdefault)
+			goto out_opt_err;
+		opts->fsdefault = s;
+		break;
+	case Opt_fsfloor:
+		if (opts->fsfloor)
+			goto out_opt_err;
+		opts->fsfloor = s;
+		break;
+	case Opt_fshat:
+		if (opts->fshat)
+			goto out_opt_err;
+		opts->fshat = s;
+		break;
+	case Opt_fsroot:
+		if (opts->fsroot)
+			goto out_opt_err;
+		opts->fsroot = s;
+		break;
+	case Opt_fstransmute:
+		if (opts->fstransmute)
+			goto out_opt_err;
+		opts->fstransmute = s;
+		break;
+	}
+	return 0;
+
+out_opt_err:
+	pr_warn("Smack: duplicate mount options\n");
+	return -EINVAL;
+}
+
 /**
  * smack_parse_opts_str - parse Smack specific mount options
  * @options: mount options string
@@ -641,7 +689,6 @@ static int smack_sb_copy_data(char *orig, char *smackopts)
 static int smack_parse_opts_str(char *options,
 		void **mnt_opts)
 {
-	struct smack_mnt_opts *opts = *mnt_opts;
 	char *p;
 	int rc = -ENOMEM;
 	int token;
@@ -651,71 +698,24 @@ static int smack_parse_opts_str(char *options,
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		substring_t args[MAX_OPT_ARGS];
+		const char *arg;
 
 		if (!*p)
 			continue;
 
 		token = match_token(p, smk_mount_tokens, args);
 
-		if (!opts) {
-			opts = kzalloc(sizeof(struct smack_mnt_opts), GFP_KERNEL);
-			if (!opts)
-				return -ENOMEM;
-		}
-
-		switch (token) {
-		case Opt_fsdefault:
-			if (opts->fsdefault)
-				goto out_opt_err;
-			opts->fsdefault = match_strdup(&args[0]);
-			if (!opts->fsdefault)
-				goto out_err;
-			break;
-		case Opt_fsfloor:
-			if (opts->fsfloor)
-				goto out_opt_err;
-			opts->fsfloor = match_strdup(&args[0]);
-			if (!opts->fsfloor)
-				goto out_err;
-			break;
-		case Opt_fshat:
-			if (opts->fshat)
-				goto out_opt_err;
-			opts->fshat = match_strdup(&args[0]);
-			if (!opts->fshat)
-				goto out_err;
-			break;
-		case Opt_fsroot:
-			if (opts->fsroot)
-				goto out_opt_err;
-			opts->fsroot = match_strdup(&args[0]);
-			if (!opts->fsroot)
-				goto out_err;
-			break;
-		case Opt_fstransmute:
-			if (opts->fstransmute)
-				goto out_opt_err;
-			opts->fstransmute = match_strdup(&args[0]);
-			if (!opts->fstransmute)
-				goto out_err;
-			break;
-		default:
-			rc = -EINVAL;
-			pr_warn("Smack:  unknown mount option\n");
-			goto out_err;
+		arg = match_strdup(&args[0]);
+		rc = smack_add_opt(token, arg, mnt_opts);
+		if (unlikely(rc)) {
+			kfree(arg);
+			if (*mnt_opts)
+				smack_free_mnt_opts(*mnt_opts);
+			*mnt_opts = NULL;
+			return rc;
 		}
 	}
-	*mnt_opts = opts;
 	return 0;
-
-out_opt_err:
-	rc = -EINVAL;
-	pr_warn("Smack: duplicate mount options\n");
-
-out_err:
-	if (opts)
-		smack_free_mnt_opts(opts);
-	return rc;
 }
 
 static int smack_sb_eat_lsm_opts(char *options, void **mnt_opts)
