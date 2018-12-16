@@ -62,18 +62,12 @@ static int dma_nommu_dma_supported(struct device *dev, u64 mask)
 #endif
 }
 
+#ifndef CONFIG_NOT_COHERENT_CACHE
 void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
 				  dma_addr_t *dma_handle, gfp_t flag,
 				  unsigned long attrs)
 {
 	void *ret;
-#ifdef CONFIG_NOT_COHERENT_CACHE
-	ret = __dma_alloc_coherent(dev, size, dma_handle, flag);
-	if (ret == NULL)
-		return NULL;
-	*dma_handle += get_dma_offset(dev);
-	return ret;
-#else
 	struct page *page;
 	int node = dev_to_node(dev);
 #ifdef CONFIG_FSL_SOC
@@ -113,19 +107,15 @@ void *__dma_nommu_alloc_coherent(struct device *dev, size_t size,
 	*dma_handle = __pa(ret) + get_dma_offset(dev);
 
 	return ret;
-#endif
 }
 
 void __dma_nommu_free_coherent(struct device *dev, size_t size,
 				void *vaddr, dma_addr_t dma_handle,
 				unsigned long attrs)
 {
-#ifdef CONFIG_NOT_COHERENT_CACHE
-	__dma_free_coherent(size, vaddr);
-#else
 	free_pages((unsigned long)vaddr, get_order(size));
-#endif
 }
+#endif /* !CONFIG_NOT_COHERENT_CACHE */
 
 static void *dma_nommu_alloc_coherent(struct device *dev, size_t size,
 				       dma_addr_t *dma_handle, gfp_t flag,
