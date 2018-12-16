@@ -193,6 +193,7 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 	const struct btf_type *t;
 	struct btf_member *m;
 	const void *data_off;
+	int kind_flag;
 	int ret = 0;
 	int i, vlen;
 
@@ -200,18 +201,32 @@ static int btf_dumper_struct(const struct btf_dumper *d, __u32 type_id,
 	if (!t)
 		return -EINVAL;
 
+	kind_flag = BTF_INFO_KFLAG(t->info);
 	vlen = BTF_INFO_VLEN(t->info);
 	jsonw_start_object(d->jw);
 	m = (struct btf_member *)(t + 1);
 
 	for (i = 0; i < vlen; i++) {
-		data_off = data + BITS_ROUNDDOWN_BYTES(m[i].offset);
+		__u32 bit_offset = m[i].offset;
+		__u32 bitfield_size = 0;
+
+		if (kind_flag) {
+			bitfield_size = BTF_MEMBER_BITFIELD_SIZE(bit_offset);
+			bit_offset = BTF_MEMBER_BIT_OFFSET(bit_offset);
+		}
+
 		jsonw_name(d->jw, btf__name_by_offset(d->btf, m[i].name_off));
-		ret = btf_dumper_do_type(d, m[i].type,
-					 BITS_PER_BYTE_MASKED(m[i].offset),
-					 data_off);
-		if (ret)
-			break;
+		if (bitfield_size) {
+			btf_dumper_bitfield(bitfield_size, bit_offset,
+					    data, d->jw, d->is_plain_text);
+		} else {
+			data_off = data + BITS_ROUNDDOWN_BYTES(bit_offset);
+			ret = btf_dumper_do_type(d, m[i].type,
+						 BITS_PER_BYTE_MASKED(bit_offset),
+						 data_off);
+			if (ret)
+				break;
+		}
 	}
 
 	jsonw_end_object(d->jw);
@@ -298,6 +313,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 
 	switch (BTF_INFO_KIND(t->info)) {
 	case BTF_KIND_INT:
+	case BTF_KIND_TYPEDEF:
 		BTF_PRINT_ARG("%s ", btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_STRUCT:
@@ -321,10 +337,11 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 		BTF_PRINT_TYPE(t->type);
 		BTF_PRINT_ARG("* ");
 		break;
-	case BTF_KIND_UNKN:
 	case BTF_KIND_FWD:
-	case BTF_KIND_TYPEDEF:
-		return -1;
+		BTF_PRINT_ARG("%s %s ",
+			      BTF_INFO_KFLAG(t->info) ? "union" : "struct",
+			      btf__name_by_offset(btf, t->name_off));
+		break;
 	case BTF_KIND_VOLATILE:
 		BTF_PRINT_ARG("volatile ");
 		BTF_PRINT_TYPE(t->type);
@@ -348,6 +365,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 		if (pos == -1)
 			return -1;
 		break;
+	case BTF_KIND_UNKN:
 	default:
 		return -1;
 	}
