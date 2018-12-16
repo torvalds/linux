@@ -7081,6 +7081,15 @@ unsigned int bnxt_get_avail_cp_rings_for_en(struct bnxt *bp)
 		return cp - bp->cp_nr_rings;
 }
 
+unsigned int bnxt_get_avail_stat_ctxs_for_en(struct bnxt *bp)
+{
+	unsigned int stat;
+
+	stat = bnxt_get_max_func_stat_ctxs(bp) - bnxt_get_ulp_stat_ctxs(bp);
+	stat -= bp->cp_nr_rings;
+	return stat;
+}
+
 int bnxt_get_avail_msix(struct bnxt *bp, int num)
 {
 	int max_cp = bnxt_get_max_func_cp_rings(bp);
@@ -7242,7 +7251,6 @@ int bnxt_reserve_rings(struct bnxt *bp)
 		bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 		return -ENOMEM;
 	}
-	bp->num_stat_ctxs = bp->cp_nr_rings;
 	return 0;
 }
 
@@ -9309,7 +9317,6 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	bp->tx_nr_rings += bp->tx_nr_rings_xdp;
 	bp->cp_nr_rings = sh ? max_t(int, bp->tx_nr_rings, bp->rx_nr_rings) :
 			       bp->tx_nr_rings + bp->rx_nr_rings;
-	bp->num_stat_ctxs = bp->cp_nr_rings;
 
 	if (netif_running(bp->dev))
 		return bnxt_open_nic(bp, true, false);
@@ -9849,7 +9856,7 @@ static void _bnxt_get_max_rings(struct bnxt *bp, int *max_rx, int *max_tx,
 	*max_cp = bnxt_get_max_func_cp_rings_for_en(bp);
 	max_irq = min_t(int, bnxt_get_max_func_irqs(bp) -
 			bnxt_get_ulp_msix_num(bp),
-			bnxt_get_max_func_stat_ctxs(bp));
+			hw_resc->max_stat_ctxs - bnxt_get_ulp_stat_ctxs(bp));
 	if (!(bp->flags & BNXT_FLAG_CHIP_P5))
 		*max_cp = min_t(int, *max_cp, max_irq);
 	max_ring_grps = hw_resc->max_hw_ring_grps;
@@ -9980,7 +9987,6 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 			netdev_warn(bp->dev, "2nd rings reservation failed.\n");
 		bp->tx_nr_rings_per_tc = bp->tx_nr_rings;
 	}
-	bp->num_stat_ctxs = bp->cp_nr_rings;
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp)) {
 		bp->rx_nr_rings++;
 		bp->cp_nr_rings++;
