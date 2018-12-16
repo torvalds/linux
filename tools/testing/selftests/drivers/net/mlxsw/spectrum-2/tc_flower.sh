@@ -9,7 +9,7 @@ lib_dir=$(dirname $0)/../../../../net/forwarding
 
 ALL_TESTS="single_mask_test identical_filters_test two_masks_test \
 	multiple_masks_test ctcam_edge_cases_test delta_simple_test \
-	bloom_simple_test bloom_complex_test"
+	bloom_simple_test bloom_complex_test bloom_delta_test"
 NUM_NETIFS=2
 source $lib_dir/tc_common.sh
 source $lib_dir/lib.sh
@@ -540,6 +540,41 @@ bloom_complex_test()
 	done
 
 	log_test "bloom complex test ($tcflags)"
+}
+
+
+bloom_delta_test()
+{
+	# When multiple masks are used, the eRP table is activated. When
+	# masks are close enough (delta) the masks reside on the same
+	# eRP table. This test verifies that the eRP table is correctly
+	# allocated and used in delta condition and that Bloom filter is
+	# still functional with delta.
+
+	RET=0
+
+	tc filter add dev $h2 ingress protocol ip pref 3 handle 103 flower \
+		$tcflags dst_ip 192.1.0.0/16 action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.1.2.1 -B 192.1.2.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 103 1
+	check_err $? "Single filter - did not match"
+
+	tc filter add dev $h2 ingress protocol ip pref 2 handle 102 flower \
+		$tcflags dst_ip 192.2.1.0/24 action drop
+
+	$MZ $h1 -c 1 -p 64 -a $h1mac -b $h2mac -A 192.2.1.1 -B 192.2.1.2 \
+		-t ip -q
+
+	tc_check_packets "dev $h2 ingress" 102 1
+	check_err $? "Delta filters - did not match second filter"
+
+	tc filter del dev $h2 ingress protocol ip pref 3 handle 103 flower
+	tc filter del dev $h2 ingress protocol ip pref 2 handle 102 flower
+
+	log_test "bloom delta test ($tcflags)"
 }
 
 setup_prepare()
