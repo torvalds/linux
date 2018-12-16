@@ -10,19 +10,23 @@
 
 #define CALLBACK_TIMEOUT_MS	200
 
-static int get_rate_mode(unsigned int rate, unsigned int *mode)
+int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
+				      enum snd_ff_stream_mode *mode)
 {
-	int i;
+	static const enum snd_ff_stream_mode modes[] = {
+		[CIP_SFC_32000] = SND_FF_STREAM_MODE_LOW,
+		[CIP_SFC_44100] = SND_FF_STREAM_MODE_LOW,
+		[CIP_SFC_48000] = SND_FF_STREAM_MODE_LOW,
+		[CIP_SFC_88200] = SND_FF_STREAM_MODE_MID,
+		[CIP_SFC_96000] = SND_FF_STREAM_MODE_MID,
+		[CIP_SFC_176400] = SND_FF_STREAM_MODE_HIGH,
+		[CIP_SFC_192000] = SND_FF_STREAM_MODE_HIGH,
+	};
 
-	for (i = 0; i < CIP_SFC_COUNT; i++) {
-		if (amdtp_rate_table[i] == rate)
-			break;
-	}
-
-	if (i == CIP_SFC_COUNT)
+	if (sfc >= CIP_SFC_COUNT)
 		return -EINVAL;
 
-	*mode = ((int)i - 1) / 2;
+	*mode = modes[sfc];
 
 	return 0;
 }
@@ -33,10 +37,18 @@ static int get_rate_mode(unsigned int rate, unsigned int *mode)
  */
 static int keep_resources(struct snd_ff *ff, unsigned int rate)
 {
-	int mode;
+	enum snd_ff_stream_mode mode;
+	int i;
 	int err;
 
-	err = get_rate_mode(rate, &mode);
+	for (i = 0; i < CIP_SFC_COUNT; ++i) {
+		if (amdtp_rate_table[i] == rate)
+			break;
+	}
+	if (i == CIP_SFC_COUNT)
+		return -EINVAL;
+
+	err = snd_ff_stream_get_multiplier_mode(i, &mode);
 	if (err < 0)
 		return err;
 
@@ -81,7 +93,7 @@ static int switch_fetching_mode(struct snd_ff *ff, bool enable)
 	int err;
 
 	count = 0;
-	for (i = 0; i < SND_FF_STREAM_MODES; ++i)
+	for (i = 0; i < SND_FF_STREAM_MODE_COUNT; ++i)
 		count = max(count, ff->spec->pcm_playback_channels[i]);
 
 	reg = kcalloc(count, sizeof(__le32), GFP_KERNEL);

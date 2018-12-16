@@ -31,8 +31,6 @@
 #include "../amdtp-stream.h"
 #include "../iso-resources.h"
 
-#define SND_FF_STREAM_MODES		3
-
 #define SND_FF_MAXIMIM_MIDI_QUADS	9
 #define SND_FF_IN_MIDI_PORTS		2
 #define SND_FF_OUT_MIDI_PORTS		2
@@ -41,6 +39,13 @@
 /* For block wriet request. */
 #define SND_FF_REG_FETCH_PCM_FRAMES	0x0000801c0000ull
 #define SND_FF_REG_CLOCK_CONFIG		0x0000801c0004ull
+
+enum snd_ff_stream_mode {
+	SND_FF_STREAM_MODE_LOW = 0,
+	SND_FF_STREAM_MODE_MID,
+	SND_FF_STREAM_MODE_HIGH,
+	SND_FF_STREAM_MODE_COUNT,
+};
 
 enum snd_ff_reg_type {
 	SND_FF_REG_TYPE_MIDI_HIGH_ADDR = 0,
@@ -51,8 +56,8 @@ struct snd_ff_protocol;
 struct snd_ff_spec {
 	const char *const name;
 
-	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODES];
-	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODES];
+	const unsigned int pcm_capture_channels[SND_FF_STREAM_MODE_COUNT];
+	const unsigned int pcm_playback_channels[SND_FF_STREAM_MODE_COUNT];
 
 	unsigned int midi_in_ports;
 	unsigned int midi_out_ports;
@@ -129,6 +134,8 @@ int amdtp_ff_add_pcm_hw_constraints(struct amdtp_stream *s,
 int amdtp_ff_init(struct amdtp_stream *s, struct fw_unit *unit,
 		  enum amdtp_stream_direction dir);
 
+int snd_ff_stream_get_multiplier_mode(enum cip_sfc sfc,
+				      enum snd_ff_stream_mode *mode);
 int snd_ff_stream_init_duplex(struct snd_ff *ff);
 void snd_ff_stream_destroy_duplex(struct snd_ff *ff);
 int snd_ff_stream_start_duplex(struct snd_ff *ff, unsigned int rate);
