@@ -596,7 +596,7 @@ static void crypto4xx_aead_done(struct crypto4xx_device *dev,
 					  pd->pd_ctl_len.bf.pkt_len,
 					  dst);
 	} else {
-		__dma_sync_page(sg_page(dst), dst->offset, dst->length,
+		dma_unmap_page(dev->core_dev->device, pd->dest, dst->length,
 				DMA_FROM_DEVICE);
 	}
 
