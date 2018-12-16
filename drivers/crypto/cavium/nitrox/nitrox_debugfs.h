@@ -13,9 +13,8 @@ static inline int nitrox_debugfs_init(struct nitrox_device *ndev)
 	return 0;
 }
 
-static inline int nitrox_sriov_debugfs_init(struct nitrox_device *ndev)
+static inline void nitrox_debugfs_exit(struct nitrox_device *ndev)
 {
-	return 0;
 }
 #endif /* !CONFIG_DEBUG_FS */
 
