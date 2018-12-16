@@ -184,6 +184,11 @@
 		status = "disabled";
 	};
 
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupts = <3>;
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
