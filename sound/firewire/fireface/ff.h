@@ -111,7 +111,6 @@ struct snd_ff_protocol {
 	void (*handle_midi_msg)(struct snd_ff *ff, __le32 *buf, size_t length);
 	int (*begin_session)(struct snd_ff *ff, unsigned int rate);
 	void (*finish_session)(struct snd_ff *ff);
-	int (*switch_fetching_mode)(struct snd_ff *ff, bool enable);
 };
 
 extern const struct snd_ff_protocol snd_ff_protocol_ff800;

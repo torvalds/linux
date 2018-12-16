@@ -76,35 +76,6 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
-static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
-{
-	__le32 *reg;
-	int i;
-	int err;
-
-	reg = kcalloc(18, sizeof(__le32), GFP_KERNEL);
-	if (reg == NULL)
-		return -ENOMEM;
-
-	if (!enable) {
-		/*
-		 * Each quadlet is corresponding to data channels in a data
-		 * blocks in reverse order. Precisely, quadlets for available
-		 * data channels should be enabled. Here, I take second best
-		 * to fetch PCM frames from all of data channels regardless of
-		 * stf.
-		 */
-		for (i = 0; i < 18; ++i)
-			reg[i] = cpu_to_le32(0x00000001);
-	}
-
-	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
-				 SND_FF_REG_FETCH_PCM_FRAMES, reg,
-				 sizeof(__le32) * 18, 0);
-	kfree(reg);
-	return err;
-}
-
 static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 {
 	int i;
@@ -146,5 +117,4 @@ const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.handle_midi_msg	= ff400_handle_midi_msg,
 	.begin_session		= ff400_begin_session,
 	.finish_session		= ff400_finish_session,
-	.switch_fetching_mode	= ff400_switch_fetching_mode,
 };
