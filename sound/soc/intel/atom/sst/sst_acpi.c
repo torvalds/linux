@@ -334,7 +334,7 @@ static int sst_acpi_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = is_byt_cr(dev, &bytcr);
-	if (!((ret < 0) || (bytcr == false))) {
+	if (!(ret < 0 || !bytcr)) {
 		dev_info(dev, "Detected Baytrail-CR platform\n");
 
 		/* override resource info */
