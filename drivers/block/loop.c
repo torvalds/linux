@@ -1915,7 +1915,7 @@ static int loop_add(struct loop_device **l, int i)
 		goto out_free_idr;
 
 	lo->lo_queue = blk_mq_init_queue(&lo->tag_set);
-	if (IS_ERR_OR_NULL(lo->lo_queue)) {
+	if (IS_ERR(lo->lo_queue)) {
 		err = PTR_ERR(lo->lo_queue);
 		goto out_cleanup_tags;
 	}
