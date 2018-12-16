@@ -258,4 +258,10 @@ int mlxsw_sp_acl_erps_init(struct mlxsw_sp *mlxsw_sp,
 void mlxsw_sp_acl_erps_fini(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_atcam *atcam);
 
+struct mlxsw_sp_acl_bf;
+
+struct mlxsw_sp_acl_bf *
+mlxsw_sp_acl_bf_init(struct mlxsw_sp *mlxsw_sp, unsigned int num_erp_banks);
+void mlxsw_sp_acl_bf_fini(struct mlxsw_sp_acl_bf *bf);
+
 #endif

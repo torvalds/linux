@@ -24,6 +24,7 @@ struct mlxsw_sp_acl_erp_core {
 	unsigned int erpt_entries_size[MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX + 1];
 	struct gen_pool *erp_tables;
 	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_acl_bf *bf;
 	unsigned int num_erp_banks;
 };
 
@@ -1320,6 +1321,12 @@ static int mlxsw_sp_acl_erp_tables_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_gen_pool_add;
 
+	erp_core->bf = mlxsw_sp_acl_bf_init(mlxsw_sp, erp_core->num_erp_banks);
+	if (IS_ERR(erp_core->bf)) {
+		err = PTR_ERR(erp_core->bf);
+		goto err_bf_init;
+	}
+
 	/* Different regions require masks of different sizes */
 	err = mlxsw_sp_acl_erp_tables_sizes_query(mlxsw_sp, erp_core);
 	if (err)
@@ -1328,6 +1335,8 @@ static int mlxsw_sp_acl_erp_tables_init(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_erp_tables_sizes_query:
+	mlxsw_sp_acl_bf_fini(erp_core->bf);
+err_bf_init:
 err_gen_pool_add:
 	gen_pool_destroy(erp_core->erp_tables);
 	return err;
@@ -1336,6 +1345,7 @@ err_gen_pool_add:
 static void mlxsw_sp_acl_erp_tables_fini(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_erp_core *erp_core)
 {
+	mlxsw_sp_acl_bf_fini(erp_core->bf);
 	gen_pool_destroy(erp_core->erp_tables);
 }
 
