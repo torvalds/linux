@@ -120,25 +120,21 @@ EXPORT_SYMBOL(hda_codec_probe_bus);
 
 #if IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)
 
-int hda_codec_i915_get(struct snd_sof_dev *sdev)
+void hda_codec_i915_get(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
 	dev_dbg(bus->dev, "Turning i915 HDAC power on\n");
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, true);
-
-	return 0;
 }
 EXPORT_SYMBOL(hda_codec_i915_get);
 
-int hda_codec_i915_put(struct snd_sof_dev *sdev)
+void hda_codec_i915_put(struct snd_sof_dev *sdev)
 {
 	struct hdac_bus *bus = sof_to_bus(sdev);
 
 	dev_dbg(bus->dev, "Turning i915 HDAC power off\n");
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
-
-	return 0;
 }
 EXPORT_SYMBOL(hda_codec_i915_put);
 
@@ -152,9 +148,9 @@ int hda_codec_i915_init(struct snd_sof_dev *sdev)
 	if (ret < 0)
 		return ret;
 
-	ret = hda_codec_i915_get(sdev);
+	hda_codec_i915_get(sdev);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(hda_codec_i915_init);
 
@@ -163,11 +159,7 @@ int hda_codec_i915_exit(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	int ret;
 
-	/*
-	 * we don't need to decrease the refcount with
-	 * hda_codec_i915_put() on exit since the device cannot be
-	 *  active
-	 */
+	hda_codec_i915_put(sdev);
 
 	ret = snd_hdac_i915_exit(bus);
 
