@@ -59,14 +59,31 @@ static LIST_HEAD(smk_ipv6_port_list);
 static struct kmem_cache *smack_inode_cache;
 int smack_enabled;
 
-static const match_table_t smk_mount_tokens = {
-	{Opt_fsdefault, SMK_FSDEFAULT "%s"},
-	{Opt_fsfloor, SMK_FSFLOOR "%s"},
-	{Opt_fshat, SMK_FSHAT "%s"},
-	{Opt_fsroot, SMK_FSROOT "%s"},
-	{Opt_fstransmute, SMK_FSTRANS "%s"},
-	{Opt_error, NULL},
+#define A(s) {"smack"#s, sizeof("smack"#s) - 1, Opt_##s}
+static struct {
+	const char *name;
+	int len;
+	int opt;
+} smk_mount_opts[] = {
+	A(fsdefault), A(fsfloor), A(fshat), A(fsroot), A(fstransmute)
 };
+#undef A
+
+static int match_opt_prefix(char *s, int l, char **arg)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(smk_mount_opts); i++) {
+		size_t len = smk_mount_opts[i].len;
+		if (len > l || memcmp(s, smk_mount_opts[i].name, len))
+			continue;
+		if (len == l || s[len] != '=')
+			continue;
+		*arg = s + len + 1;
+		return smk_mount_opts[i].opt;
+	}
+	return Opt_error;
+}
 
 #ifdef CONFIG_SECURITY_SMACK_BRINGUP
 static char *smk_bu_mess[] = {
@@ -689,23 +706,23 @@ out_opt_err:
 static int smack_parse_opts_str(char *options,
 		void **mnt_opts)
 {
-	char *p;
-	int rc = -ENOMEM;
-	int token;
+	char *from = options;
 
 	if (!options)
 		return 0;
 
-	while ((p = strsep(&options, ",")) != NULL) {
-		substring_t args[MAX_OPT_ARGS];
-		const char *arg;
+	while (1) {
+		char *next = strchr(from, ',');
+		int token, len, rc;
+		char *arg = NULL;
 
-		if (!*p)
-			continue;
+		if (next)
+			len = next - from;
+		else
+			len = strlen(from);
 
-		token = match_token(p, smk_mount_tokens, args);
-
-		arg = match_strdup(&args[0]);
+		token = match_opt_prefix(from, len, &arg);
+		arg = kmemdup_nul(arg, from + len - arg, GFP_KERNEL);
 		rc = smack_add_opt(token, arg, mnt_opts);
 		if (unlikely(rc)) {
 			kfree(arg);
@@ -714,6 +731,9 @@ static int smack_parse_opts_str(char *options,
 			*mnt_opts = NULL;
 			return rc;
 		}
+		if (!from[len])
+			break;
+		from += len + 1;
 	}
 	return 0;
 }
