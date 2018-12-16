@@ -262,7 +262,7 @@ static int ksz9477_reset_switch(struct ksz_device *dev)
 static enum dsa_tag_protocol ksz9477_get_tag_protocol(struct dsa_switch *ds,
 						      int port)
 {
-	return DSA_TAG_PROTO_KSZ;
+	return DSA_TAG_PROTO_KSZ9477;
 }
 
 static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
