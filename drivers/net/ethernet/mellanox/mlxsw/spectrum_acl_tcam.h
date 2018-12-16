@@ -152,6 +152,7 @@ struct mlxsw_sp_acl_atcam {
 
 struct mlxsw_sp_acl_atcam_region {
 	struct rhashtable entries_ht; /* A-TCAM only */
+	struct list_head entries_list; /* A-TCAM only */
 	struct mlxsw_sp_acl_ctcam_region cregion;
 	const struct mlxsw_sp_acl_atcam_region_ops *ops;
 	struct mlxsw_sp_acl_tcam_region *region;
@@ -174,6 +175,7 @@ struct mlxsw_sp_acl_atcam_chunk {
 
 struct mlxsw_sp_acl_atcam_entry {
 	struct rhash_head ht_node;
+	struct list_head list; /* Member in entries_list */
 	struct mlxsw_sp_acl_atcam_entry_ht_key ht_key;
 	char full_enc_key[MLXSW_REG_PTCEX_FLEX_KEY_BLOCKS_LEN]; /* Encoded key */
 	struct {
