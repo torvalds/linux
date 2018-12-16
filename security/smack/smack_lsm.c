@@ -599,53 +599,6 @@ static void smack_free_mnt_opts(void *mnt_opts)
 	kfree(opts);
 }
 
-/**
- * smack_sb_copy_data - copy mount options data for processing
- * @orig: where to start
- * @smackopts: mount options string
- *
- * Returns 0 on success or -ENOMEM on error.
- *
- * Copy the Smack specific mount options out of the mount
- * options list.
- */
-static int smack_sb_copy_data(char *orig, char *smackopts)
-{
-	char *cp, *commap, *otheropts, *dp;
-
-	otheropts = (char *)get_zeroed_page(GFP_KERNEL);
-	if (otheropts == NULL)
-		return -ENOMEM;
-
-	for (cp = orig, commap = orig; commap != NULL; cp = commap + 1) {
-		if (strstr(cp, SMK_FSDEFAULT) == cp)
-			dp = smackopts;
-		else if (strstr(cp, SMK_FSFLOOR) == cp)
-			dp = smackopts;
-		else if (strstr(cp, SMK_FSHAT) == cp)
-			dp = smackopts;
-		else if (strstr(cp, SMK_FSROOT) == cp)
-			dp = smackopts;
-		else if (strstr(cp, SMK_FSTRANS) == cp)
-			dp = smackopts;
-		else
-			dp = otheropts;
-
-		commap = strchr(cp, ',');
-		if (commap != NULL)
-			*commap = '\0';
-
-		if (*dp != '\0')
-			strcat(dp, ",");
-		strcat(dp, cp);
-	}
-
-	strcpy(orig, otheropts);
-	free_page((unsigned long)otheropts);
-
-	return 0;
-}
-
 static int smack_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct smack_mnt_opts *opts = *mnt_opts;
@@ -656,7 +609,6 @@ static int smack_add_opt(int token, const char *s, void **mnt_opts)
 			return -ENOMEM;
 		*mnt_opts = opts;
 	}
-
 	if (!s)
 		return -ENOMEM;
 
@@ -694,22 +646,10 @@ out_opt_err:
 	return -EINVAL;
 }
 
-/**
- * smack_parse_opts_str - parse Smack specific mount options
- * @options: mount options string
- * @opts: where to store converted mount opts
- *
- * Returns 0 on success or -ENOMEM on error.
- *
- * converts Smack specific mount options to generic security option format
- */
-static int smack_parse_opts_str(char *options,
-		void **mnt_opts)
+static int smack_sb_eat_lsm_opts(char *options, void **mnt_opts)
 {
-	char *from = options;
-
-	if (!options)
-		return 0;
+	char *from = options, *to = options;
+	bool first = true;
 
 	while (1) {
 		char *next = strchr(from, ',');
@@ -722,34 +662,32 @@ static int smack_parse_opts_str(char *options,
 			len = strlen(from);
 
 		token = match_opt_prefix(from, len, &arg);
-		arg = kmemdup_nul(arg, from + len - arg, GFP_KERNEL);
-		rc = smack_add_opt(token, arg, mnt_opts);
-		if (unlikely(rc)) {
-			kfree(arg);
-			if (*mnt_opts)
-				smack_free_mnt_opts(*mnt_opts);
-			*mnt_opts = NULL;
-			return rc;
+		if (token != Opt_error) {
+			arg = kmemdup_nul(arg, from + len - arg, GFP_KERNEL);
+			rc = smack_add_opt(token, arg, mnt_opts);
+			if (unlikely(rc)) {
+				kfree(arg);
+				if (*mnt_opts)
+					smack_free_mnt_opts(*mnt_opts);
+				*mnt_opts = NULL;
+				return rc;
+			}
+		} else {
+			if (!first) {	// copy with preceding comma
+				from--;
+				len++;
+			}
+			if (to != from)
+				memmove(to, from, len);
+			to += len;
+			first = false;
 		}
 		if (!from[len])
 			break;
 		from += len + 1;
 	}
+	*to = '\0';
 	return 0;
-}
-
-static int smack_sb_eat_lsm_opts(char *options, void **mnt_opts)
-{
-	char *s = (char *)get_zeroed_page(GFP_KERNEL);
-	int err;
-
-	if (!s)
-		return -ENOMEM;
-	err = smack_sb_copy_data(options, s);
-	if (!err)
-		err = smack_parse_opts_str(s, mnt_opts);
-	free_page((unsigned long)s);
-	return err;
 }
 
 /**
