@@ -433,8 +433,10 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	u32 stat_fields = sizeof(struct ctx_hw_stats) / 8;
 
-	if (!bp->bnapi)
-		return;
+	if (!bp->bnapi) {
+		j += BNXT_NUM_STATS * bp->cp_nr_rings + BNXT_NUM_SW_FUNC_STATS;
+		goto skip_ring_stats;
+	}
 
 	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++)
 		bnxt_sw_func_stats[i].counter = 0;
@@ -459,6 +461,7 @@ static void bnxt_get_ethtool_stats(struct net_device *dev,
 	for (i = 0; i < BNXT_NUM_SW_FUNC_STATS; i++, j++)
 		buf[j] = bnxt_sw_func_stats[i].counter;
 
+skip_ring_stats:
 	if (bp->flags & BNXT_FLAG_PORT_STATS) {
 		__le64 *port_stats = (__le64 *)bp->hw_rx_port_stats;
 
