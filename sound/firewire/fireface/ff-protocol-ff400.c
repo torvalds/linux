@@ -15,18 +15,59 @@
 #define FF400_TX_PACKET_FORMAT	0x00008010050cull
 #define FF400_ISOC_COMM_STOP	0x000080100510ull
 
-static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
+/*
+ * Fireface 400 manages isochronous channel number in 3 bit field. Therefore,
+ * we can allocate between 0 and 7 channel.
+ */
+static int keep_resources(struct snd_ff *ff, unsigned int rate)
 {
-	__le32 reg;
-	int i, err;
+	enum snd_ff_stream_mode mode;
+	int i;
+	int err;
 
-	/* Check whether the given value is supported or not. */
+	// Check whether the given value is supported or not.
 	for (i = 0; i < CIP_SFC_COUNT; i++) {
 		if (amdtp_rate_table[i] == rate)
 			break;
 	}
-	if (i == CIP_SFC_COUNT)
+	if (i >= CIP_SFC_COUNT)
 		return -EINVAL;
+
+	err = snd_ff_stream_get_multiplier_mode(i, &mode);
+	if (err < 0)
+		return err;
+
+	/* Keep resources for in-stream. */
+	ff->tx_resources.channels_mask = 0x00000000000000ffuLL;
+	err = fw_iso_resources_allocate(&ff->tx_resources,
+			amdtp_stream_get_max_payload(&ff->tx_stream),
+			fw_parent_device(ff->unit)->max_speed);
+	if (err < 0)
+		return err;
+
+	/* Keep resources for out-stream. */
+	err = amdtp_ff_set_parameters(&ff->rx_stream, rate,
+				      ff->spec->pcm_playback_channels[mode]);
+	if (err < 0)
+		return err;
+	ff->rx_resources.channels_mask = 0x00000000000000ffuLL;
+	err = fw_iso_resources_allocate(&ff->rx_resources,
+			amdtp_stream_get_max_payload(&ff->rx_stream),
+			fw_parent_device(ff->unit)->max_speed);
+	if (err < 0)
+		fw_iso_resources_free(&ff->tx_resources);
+
+	return err;
+}
+
+static int ff400_begin_session(struct snd_ff *ff, unsigned int rate)
+{
+	__le32 reg;
+	int err;
+
+	err = keep_resources(ff, rate);
+	if (err < 0)
+		return err;
 
 	/* Set the number of data blocks transferred in a second. */
 	reg = cpu_to_le32(rate);
@@ -76,35 +117,6 @@ static void ff400_finish_session(struct snd_ff *ff)
 			   FF400_ISOC_COMM_STOP, &reg, sizeof(reg), 0);
 }
 
-static int ff400_switch_fetching_mode(struct snd_ff *ff, bool enable)
-{
-	__le32 *reg;
-	int i;
-	int err;
-
-	reg = kcalloc(18, sizeof(__le32), GFP_KERNEL);
-	if (reg == NULL)
-		return -ENOMEM;
-
-	if (enable) {
-		/*
-		 * Each quadlet is corresponding to data channels in a data
-		 * blocks in reverse order. Precisely, quadlets for available
-		 * data channels should be enabled. Here, I take second best
-		 * to fetch PCM frames from all of data channels regardless of
-		 * stf.
-		 */
-		for (i = 0; i < 18; ++i)
-			reg[i] = cpu_to_le32(0x00000001);
-	}
-
-	err = snd_fw_transaction(ff->unit, TCODE_WRITE_BLOCK_REQUEST,
-				 SND_FF_REG_FETCH_PCM_FRAMES, reg,
-				 sizeof(__le32) * 18, 0);
-	kfree(reg);
-	return err;
-}
-
 static void ff400_handle_midi_msg(struct snd_ff *ff, __le32 *buf, size_t length)
 {
 	int i;
@@ -146,5 +158,4 @@ const struct snd_ff_protocol snd_ff_protocol_ff400 = {
 	.handle_midi_msg	= ff400_handle_midi_msg,
 	.begin_session		= ff400_begin_session,
 	.finish_session		= ff400_finish_session,
-	.switch_fetching_mode	= ff400_switch_fetching_mode,
 };

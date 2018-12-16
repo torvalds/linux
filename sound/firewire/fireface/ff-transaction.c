@@ -278,7 +278,7 @@ int snd_ff_transaction_reregister(struct snd_ff *ff)
 	addr = (fw_card->node_id << 16) | (ff->async_handler.offset >> 32);
 	reg = cpu_to_le32(addr);
 	return snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
-				  ff->spec->regs[SND_FF_REG_TYPE_MIDI_HIGH_ADDR],
+				  ff->spec->midi_high_addr,
 				  &reg, sizeof(reg), 0);
 }
 
@@ -319,7 +319,7 @@ void snd_ff_transaction_unregister(struct snd_ff *ff)
 	/* Release higher 4 bytes of address. */
 	reg = cpu_to_le32(0x00000000);
 	snd_fw_transaction(ff->unit, TCODE_WRITE_QUADLET_REQUEST,
-			   ff->spec->regs[SND_FF_REG_TYPE_MIDI_HIGH_ADDR],
+			   ff->spec->midi_high_addr,
 			   &reg, sizeof(reg), 0);
 
 	fw_core_remove_address_handler(&ff->async_handler);
