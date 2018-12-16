@@ -2743,7 +2743,7 @@ mlxsw_reg_perpt_pack(char *payload, u8 erpt_bank, u8 erpt_index,
 	mlxsw_reg_perpt_erpt_bank_set(payload, erpt_bank);
 	mlxsw_reg_perpt_erpt_index_set(payload, erpt_index);
 	mlxsw_reg_perpt_key_size_set(payload, key_size);
-	mlxsw_reg_perpt_bf_bypass_set(payload, true);
+	mlxsw_reg_perpt_bf_bypass_set(payload, false);
 	mlxsw_reg_perpt_erp_id_set(payload, erp_id);
 	mlxsw_reg_perpt_erpt_base_bank_set(payload, erpt_base_bank);
 	mlxsw_reg_perpt_erpt_base_index_set(payload, erpt_base_index);
@@ -3006,7 +3006,7 @@ static inline void mlxsw_reg_percr_pack(char *payload, u16 region_id)
 	mlxsw_reg_percr_region_id_set(payload, region_id);
 	mlxsw_reg_percr_atcam_ignore_prune_set(payload, false);
 	mlxsw_reg_percr_ctcam_ignore_prune_set(payload, false);
-	mlxsw_reg_percr_bf_bypass_set(payload, true);
+	mlxsw_reg_percr_bf_bypass_set(payload, false);
 }
 
 /* PERERP - Policy-Engine Region eRP Register
@@ -3093,6 +3093,72 @@ static inline void mlxsw_reg_pererp_pack(char *payload, u16 region_id,
 	mlxsw_reg_pererp_erpt_bank_pointer_set(payload, erpt_bank_pointer);
 	mlxsw_reg_pererp_erpt_pointer_set(payload, erpt_pointer);
 	mlxsw_reg_pererp_master_rp_id_set(payload, master_rp_id);
+}
+
+/* PEABFE - Policy-Engine Algorithmic Bloom Filter Entries Register
+ * ----------------------------------------------------------------
+ * This register configures the Bloom filter entries.
+ */
+#define MLXSW_REG_PEABFE_ID 0x3022
+#define MLXSW_REG_PEABFE_BASE_LEN 0x10
+#define MLXSW_REG_PEABFE_BF_REC_LEN 0x4
+#define MLXSW_REG_PEABFE_BF_REC_MAX_COUNT 256
+#define MLXSW_REG_PEABFE_LEN (MLXSW_REG_PEABFE_BASE_LEN + \
+			      MLXSW_REG_PEABFE_BF_REC_LEN * \
+			      MLXSW_REG_PEABFE_BF_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(peabfe, MLXSW_REG_PEABFE_ID, MLXSW_REG_PEABFE_LEN);
+
+/* reg_peabfe_size
+ * Number of BF entries to be updated.
+ * Range 1..256
+ * Access: Op
+ */
+MLXSW_ITEM32(reg, peabfe, size, 0x00, 0, 9);
+
+/* reg_peabfe_bf_entry_state
+ * Bloom filter state
+ * 0 - Clear
+ * 1 - Set
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_state,
+		     MLXSW_REG_PEABFE_BASE_LEN,	31, 1,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+/* reg_peabfe_bf_entry_bank
+ * Bloom filter bank ID
+ * Range 0..cap_max_erp_table_banks-1
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_bank,
+		     MLXSW_REG_PEABFE_BASE_LEN,	24, 4,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+/* reg_peabfe_bf_entry_index
+ * Bloom filter entry index
+ * Range 0..2^cap_max_bf_log-1
+ * Access: Index
+ */
+MLXSW_ITEM32_INDEXED(reg, peabfe, bf_entry_index,
+		     MLXSW_REG_PEABFE_BASE_LEN,	0, 24,
+		     MLXSW_REG_PEABFE_BF_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_peabfe_pack(char *payload)
+{
+	MLXSW_REG_ZERO(peabfe, payload);
+}
+
+static inline void mlxsw_reg_peabfe_rec_pack(char *payload, int rec_index,
+					     u8 state, u8 bank, u32 bf_index)
+{
+	u8 num_rec = mlxsw_reg_peabfe_size_get(payload);
+
+	if (rec_index >= num_rec)
+		mlxsw_reg_peabfe_size_set(payload, rec_index + 1);
+	mlxsw_reg_peabfe_bf_entry_state_set(payload, rec_index, state);
+	mlxsw_reg_peabfe_bf_entry_bank_set(payload, rec_index, bank);
+	mlxsw_reg_peabfe_bf_entry_index_set(payload, rec_index, bf_index);
 }
 
 /* IEDR - Infrastructure Entry Delete Register
@@ -9608,6 +9674,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(pemrbt),
 	MLXSW_REG(ptce2),
 	MLXSW_REG(perpt),
+	MLXSW_REG(peabfe),
 	MLXSW_REG(perar),
 	MLXSW_REG(ptce3),
 	MLXSW_REG(percr),

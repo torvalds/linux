@@ -323,6 +323,7 @@ mlxsw_sp_acl_atcam_region_init(struct mlxsw_sp *mlxsw_sp,
 	aregion->region = region;
 	aregion->atcam = atcam;
 	mlxsw_sp_acl_atcam_region_type_init(aregion);
+	INIT_LIST_HEAD(&aregion->entries_list);
 
 	err = rhashtable_init(&aregion->entries_ht,
 			      &mlxsw_sp_acl_atcam_entries_ht_params);
@@ -356,6 +357,7 @@ void mlxsw_sp_acl_atcam_region_fini(struct mlxsw_sp_acl_atcam_region *aregion)
 	mlxsw_sp_acl_erp_region_fini(aregion);
 	aregion->ops->fini(aregion);
 	rhashtable_destroy(&aregion->entries_ht);
+	WARN_ON(!list_empty(&aregion->entries_list));
 }
 
 void mlxsw_sp_acl_atcam_chunk_init(struct mlxsw_sp_acl_atcam_region *aregion,
@@ -499,6 +501,12 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_acl_erp_delta_value(delta, aentry->full_enc_key);
 	mlxsw_sp_acl_erp_delta_clear(delta, aentry->ht_key.enc_key);
 
+	/* Add rule to the list of A-TCAM rules, assuming this
+	 * rule is intended to A-TCAM. In case this rule does
+	 * not fit into A-TCAM it will be removed from the list.
+	 */
+	list_add(&aentry->list, &aregion->entries_list);
+
 	/* We can't insert identical rules into the A-TCAM, so fail and
 	 * let the rule spill into C-TCAM
 	 */
@@ -508,6 +516,13 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_rhashtable_insert;
 
+	/* Bloom filter must be updated here, before inserting the rule into
+	 * the A-TCAM.
+	 */
+	err = mlxsw_sp_acl_erp_bf_insert(mlxsw_sp, aregion, erp_mask, aentry);
+	if (err)
+		goto err_bf_insert;
+
 	err = mlxsw_sp_acl_atcam_region_entry_insert(mlxsw_sp, aregion, aentry,
 						     rulei);
 	if (err)
@@ -516,9 +531,12 @@ __mlxsw_sp_acl_atcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_rule_insert:
+	mlxsw_sp_acl_erp_bf_remove(mlxsw_sp, aregion, erp_mask, aentry);
+err_bf_insert:
 	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
 err_rhashtable_insert:
+	list_del(&aentry->list);
 	mlxsw_sp_acl_erp_mask_put(aregion, erp_mask);
 	return err;
 }
@@ -529,8 +547,10 @@ __mlxsw_sp_acl_atcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_acl_atcam_entry *aentry)
 {
 	mlxsw_sp_acl_atcam_region_entry_remove(mlxsw_sp, aregion, aentry);
+	mlxsw_sp_acl_erp_bf_remove(mlxsw_sp, aregion, aentry->erp_mask, aentry);
 	rhashtable_remove_fast(&aregion->entries_ht, &aentry->ht_node,
 			       mlxsw_sp_acl_atcam_entries_ht_params);
+	list_del(&aentry->list);
 	mlxsw_sp_acl_erp_mask_put(aregion, aentry->erp_mask);
 }
 

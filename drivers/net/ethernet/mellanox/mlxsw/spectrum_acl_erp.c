@@ -24,6 +24,7 @@ struct mlxsw_sp_acl_erp_core {
 	unsigned int erpt_entries_size[MLXSW_SP_ACL_ATCAM_REGION_TYPE_MAX + 1];
 	struct gen_pool *erp_tables;
 	struct mlxsw_sp *mlxsw_sp;
+	struct mlxsw_sp_acl_bf *bf;
 	unsigned int num_erp_banks;
 };
 
@@ -113,6 +114,19 @@ static const struct mlxsw_sp_acl_erp_table_ops erp_no_mask_ops = {
 	.erp_create = mlxsw_sp_acl_erp_first_mask_create,
 	.erp_destroy = mlxsw_sp_acl_erp_no_mask_destroy,
 };
+
+static bool
+mlxsw_sp_acl_erp_table_is_used(const struct mlxsw_sp_acl_erp_table *erp_table)
+{
+	return erp_table->ops != &erp_single_mask_ops &&
+	       erp_table->ops != &erp_no_mask_ops;
+}
+
+static unsigned int
+mlxsw_sp_acl_erp_bank_get(const struct mlxsw_sp_acl_erp *erp)
+{
+	return erp->index % erp->erp_table->erp_core->num_erp_banks;
+}
 
 static unsigned int
 mlxsw_sp_acl_erp_table_entry_size(const struct mlxsw_sp_acl_erp_table *erp_table)
@@ -504,6 +518,48 @@ err_table_relocate:
 }
 
 static int
+mlxsw_acl_erp_table_bf_add(struct mlxsw_sp_acl_erp_table *erp_table,
+			   struct mlxsw_sp_acl_erp *erp)
+{
+	struct mlxsw_sp_acl_atcam_region *aregion = erp_table->aregion;
+	unsigned int erp_bank = mlxsw_sp_acl_erp_bank_get(erp);
+	struct mlxsw_sp_acl_atcam_entry *aentry;
+	int err;
+
+	list_for_each_entry(aentry, &aregion->entries_list, list) {
+		err = mlxsw_sp_acl_bf_entry_add(aregion->region->mlxsw_sp,
+						erp_table->erp_core->bf,
+						aregion, erp_bank, aentry);
+		if (err)
+			goto bf_entry_add_err;
+	}
+
+	return 0;
+
+bf_entry_add_err:
+	list_for_each_entry_continue_reverse(aentry, &aregion->entries_list,
+					     list)
+		mlxsw_sp_acl_bf_entry_del(aregion->region->mlxsw_sp,
+					  erp_table->erp_core->bf,
+					  aregion, erp_bank, aentry);
+	return err;
+}
+
+static void
+mlxsw_acl_erp_table_bf_del(struct mlxsw_sp_acl_erp_table *erp_table,
+			   struct mlxsw_sp_acl_erp *erp)
+{
+	struct mlxsw_sp_acl_atcam_region *aregion = erp_table->aregion;
+	unsigned int erp_bank = mlxsw_sp_acl_erp_bank_get(erp);
+	struct mlxsw_sp_acl_atcam_entry *aentry;
+
+	list_for_each_entry_reverse(aentry, &aregion->entries_list, list)
+		mlxsw_sp_acl_bf_entry_del(aregion->region->mlxsw_sp,
+					  erp_table->erp_core->bf,
+					  aregion, erp_bank, aentry);
+}
+
+static int
 mlxsw_sp_acl_erp_region_table_trans(struct mlxsw_sp_acl_erp_table *erp_table)
 {
 	struct mlxsw_sp_acl_erp_core *erp_core = erp_table->erp_core;
@@ -527,15 +583,23 @@ mlxsw_sp_acl_erp_region_table_trans(struct mlxsw_sp_acl_erp_table *erp_table)
 		goto err_table_master_rp;
 	}
 
-	/* Maintain the same eRP bank for the master RP, so that we
-	 * wouldn't need to update the bloom filter
+	/* Make sure the master RP is using a valid index, as
+	 * only a single eRP row is currently allocated.
 	 */
-	master_rp->index = master_rp->index % erp_core->num_erp_banks;
+	master_rp->index = 0;
 	__set_bit(master_rp->index, erp_table->erp_index_bitmap);
 
 	err = mlxsw_sp_acl_erp_table_erp_add(erp_table, master_rp);
 	if (err)
 		goto err_table_master_rp_add;
+
+	/* Update Bloom filter before enabling eRP table, as rules
+	 * on the master RP were not set to Bloom filter up to this
+	 * point.
+	 */
+	err = mlxsw_acl_erp_table_bf_add(erp_table, master_rp);
+	if (err)
+		goto err_table_bf_add;
 
 	err = mlxsw_sp_acl_erp_table_enable(erp_table, false);
 	if (err)
@@ -544,6 +608,8 @@ mlxsw_sp_acl_erp_region_table_trans(struct mlxsw_sp_acl_erp_table *erp_table)
 	return 0;
 
 err_table_enable:
+	mlxsw_acl_erp_table_bf_del(erp_table, master_rp);
+err_table_bf_add:
 	mlxsw_sp_acl_erp_table_erp_del(master_rp);
 err_table_master_rp_add:
 	__clear_bit(master_rp->index, erp_table->erp_index_bitmap);
@@ -564,6 +630,7 @@ mlxsw_sp_acl_erp_region_master_mask_trans(struct mlxsw_sp_acl_erp_table *erp_tab
 	master_rp = mlxsw_sp_acl_erp_table_master_rp(erp_table);
 	if (!master_rp)
 		return;
+	mlxsw_acl_erp_table_bf_del(erp_table, master_rp);
 	mlxsw_sp_acl_erp_table_erp_del(master_rp);
 	__clear_bit(master_rp->index, erp_table->erp_index_bitmap);
 	mlxsw_sp_acl_erp_table_free(erp_core, erp_table->num_max_atcam_erps,
@@ -635,8 +702,7 @@ __mlxsw_sp_acl_erp_table_other_inc(struct mlxsw_sp_acl_erp_table *erp_table,
 	/* If there are C-TCAM eRP or deltas in use we need to transition
 	 * the region to use eRP table, if it is not already done
 	 */
-	if (erp_table->ops != &erp_two_masks_ops &&
-	    erp_table->ops != &erp_multiple_masks_ops) {
+	if (!mlxsw_sp_acl_erp_table_is_used(erp_table)) {
 		err = mlxsw_sp_acl_erp_region_table_trans(erp_table);
 		if (err)
 			return err;
@@ -958,6 +1024,44 @@ void mlxsw_sp_acl_erp_mask_put(struct mlxsw_sp_acl_atcam_region *aregion,
 
 	ASSERT_RTNL();
 	objagg_obj_put(aregion->erp_table->objagg, objagg_obj);
+}
+
+int mlxsw_sp_acl_erp_bf_insert(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_atcam_region *aregion,
+			       struct mlxsw_sp_acl_erp_mask *erp_mask,
+			       struct mlxsw_sp_acl_atcam_entry *aentry)
+{
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	const struct mlxsw_sp_acl_erp *erp = objagg_obj_root_priv(objagg_obj);
+	unsigned int erp_bank;
+
+	ASSERT_RTNL();
+	if (!mlxsw_sp_acl_erp_table_is_used(erp->erp_table))
+		return 0;
+
+	erp_bank = mlxsw_sp_acl_erp_bank_get(erp);
+	return mlxsw_sp_acl_bf_entry_add(mlxsw_sp,
+					erp->erp_table->erp_core->bf,
+					aregion, erp_bank, aentry);
+}
+
+void mlxsw_sp_acl_erp_bf_remove(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_atcam_region *aregion,
+				struct mlxsw_sp_acl_erp_mask *erp_mask,
+				struct mlxsw_sp_acl_atcam_entry *aentry)
+{
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	const struct mlxsw_sp_acl_erp *erp = objagg_obj_root_priv(objagg_obj);
+	unsigned int erp_bank;
+
+	ASSERT_RTNL();
+	if (!mlxsw_sp_acl_erp_table_is_used(erp->erp_table))
+		return;
+
+	erp_bank = mlxsw_sp_acl_erp_bank_get(erp);
+	mlxsw_sp_acl_bf_entry_del(mlxsw_sp,
+				  erp->erp_table->erp_core->bf,
+				  aregion, erp_bank, aentry);
 }
 
 bool
@@ -1320,6 +1424,12 @@ static int mlxsw_sp_acl_erp_tables_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_gen_pool_add;
 
+	erp_core->bf = mlxsw_sp_acl_bf_init(mlxsw_sp, erp_core->num_erp_banks);
+	if (IS_ERR(erp_core->bf)) {
+		err = PTR_ERR(erp_core->bf);
+		goto err_bf_init;
+	}
+
 	/* Different regions require masks of different sizes */
 	err = mlxsw_sp_acl_erp_tables_sizes_query(mlxsw_sp, erp_core);
 	if (err)
@@ -1328,6 +1438,8 @@ static int mlxsw_sp_acl_erp_tables_init(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_erp_tables_sizes_query:
+	mlxsw_sp_acl_bf_fini(erp_core->bf);
+err_bf_init:
 err_gen_pool_add:
 	gen_pool_destroy(erp_core->erp_tables);
 	return err;
@@ -1336,6 +1448,7 @@ err_gen_pool_add:
 static void mlxsw_sp_acl_erp_tables_fini(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_erp_core *erp_core)
 {
+	mlxsw_sp_acl_bf_fini(erp_core->bf);
 	gen_pool_destroy(erp_core->erp_tables);
 }
 
