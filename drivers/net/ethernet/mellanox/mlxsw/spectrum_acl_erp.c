@@ -115,6 +115,19 @@ static const struct mlxsw_sp_acl_erp_table_ops erp_no_mask_ops = {
 	.erp_destroy = mlxsw_sp_acl_erp_no_mask_destroy,
 };
 
+static bool
+mlxsw_sp_acl_erp_table_is_used(const struct mlxsw_sp_acl_erp_table *erp_table)
+{
+	return erp_table->ops != &erp_single_mask_ops &&
+	       erp_table->ops != &erp_no_mask_ops;
+}
+
+static unsigned int
+mlxsw_sp_acl_erp_bank_get(const struct mlxsw_sp_acl_erp *erp)
+{
+	return erp->index % erp->erp_table->erp_core->num_erp_banks;
+}
+
 static unsigned int
 mlxsw_sp_acl_erp_table_entry_size(const struct mlxsw_sp_acl_erp_table *erp_table)
 {
@@ -636,8 +649,7 @@ __mlxsw_sp_acl_erp_table_other_inc(struct mlxsw_sp_acl_erp_table *erp_table,
 	/* If there are C-TCAM eRP or deltas in use we need to transition
 	 * the region to use eRP table, if it is not already done
 	 */
-	if (erp_table->ops != &erp_two_masks_ops &&
-	    erp_table->ops != &erp_multiple_masks_ops) {
+	if (!mlxsw_sp_acl_erp_table_is_used(erp_table)) {
 		err = mlxsw_sp_acl_erp_region_table_trans(erp_table);
 		if (err)
 			return err;
@@ -959,6 +971,44 @@ void mlxsw_sp_acl_erp_mask_put(struct mlxsw_sp_acl_atcam_region *aregion,
 
 	ASSERT_RTNL();
 	objagg_obj_put(aregion->erp_table->objagg, objagg_obj);
+}
+
+int mlxsw_sp_acl_erp_bf_insert(struct mlxsw_sp *mlxsw_sp,
+			       struct mlxsw_sp_acl_atcam_region *aregion,
+			       struct mlxsw_sp_acl_erp_mask *erp_mask,
+			       struct mlxsw_sp_acl_atcam_entry *aentry)
+{
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	const struct mlxsw_sp_acl_erp *erp = objagg_obj_root_priv(objagg_obj);
+	unsigned int erp_bank;
+
+	ASSERT_RTNL();
+	if (!mlxsw_sp_acl_erp_table_is_used(erp->erp_table))
+		return 0;
+
+	erp_bank = mlxsw_sp_acl_erp_bank_get(erp);
+	return mlxsw_sp_acl_bf_entry_add(mlxsw_sp,
+					erp->erp_table->erp_core->bf,
+					aregion, erp_bank, aentry);
+}
+
+void mlxsw_sp_acl_erp_bf_remove(struct mlxsw_sp *mlxsw_sp,
+				struct mlxsw_sp_acl_atcam_region *aregion,
+				struct mlxsw_sp_acl_erp_mask *erp_mask,
+				struct mlxsw_sp_acl_atcam_entry *aentry)
+{
+	struct objagg_obj *objagg_obj = (struct objagg_obj *) erp_mask;
+	const struct mlxsw_sp_acl_erp *erp = objagg_obj_root_priv(objagg_obj);
+	unsigned int erp_bank;
+
+	ASSERT_RTNL();
+	if (!mlxsw_sp_acl_erp_table_is_used(erp->erp_table))
+		return;
+
+	erp_bank = mlxsw_sp_acl_erp_bank_get(erp);
+	mlxsw_sp_acl_bf_entry_del(mlxsw_sp,
+				  erp->erp_table->erp_core->bf,
+				  aregion, erp_bank, aentry);
 }
 
 bool
