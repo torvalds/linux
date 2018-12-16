@@ -3460,6 +3460,18 @@ void rtmsg_ifinfo_newnet(int type, struct net_device *dev, unsigned int change,
 			   new_nsid, new_ifindex);
 }
 
+static const struct nla_policy nda_policy[NDA_MAX+1] = {
+	[NDA_DST]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[NDA_LLADDR]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[NDA_CACHEINFO]		= { .len = sizeof(struct nda_cacheinfo) },
+	[NDA_PROBES]		= { .type = NLA_U32 },
+	[NDA_VLAN]		= { .type = NLA_U16 },
+	[NDA_PORT]		= { .type = NLA_U16 },
+	[NDA_VNI]		= { .type = NLA_U32 },
+	[NDA_IFINDEX]		= { .type = NLA_U32 },
+	[NDA_MASTER]		= { .type = NLA_U32 },
+};
+
 static int nlmsg_populate_fdb_fill(struct sk_buff *skb,
 				   struct net_device *dev,
 				   u8 *addr, u16 vid, u32 pid, u32 seq,
@@ -4019,6 +4031,160 @@ out:
 	cb->args[2] = fidx;
 
 	return skb->len;
+}
+
+static int valid_fdb_get_strict(const struct nlmsghdr *nlh,
+				struct nlattr **tb, u8 *ndm_flags,
+				int *br_idx, int *brport_idx, u8 **addr,
+				u16 *vid, struct netlink_ext_ack *extack)
+{
+	struct ndmsg *ndm;
+	int err, i;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndm))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for fdb get request");
+		return -EINVAL;
+	}
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
+	    ndm->ndm_type) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for fdb get request");
+		return -EINVAL;
+	}
+
+	if (ndm->ndm_flags & ~(NTF_MASTER | NTF_SELF)) {
+		NL_SET_ERR_MSG(extack, "Invalid flags in header for fdb get request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct ndmsg), tb, NDA_MAX,
+				 nda_policy, extack);
+	if (err < 0)
+		return err;
+
+	*ndm_flags = ndm->ndm_flags;
+	*brport_idx = ndm->ndm_ifindex;
+	for (i = 0; i <= NDA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case NDA_MASTER:
+			*br_idx = nla_get_u32(tb[i]);
+			break;
+		case NDA_LLADDR:
+			if (nla_len(tb[i]) != ETH_ALEN) {
+				NL_SET_ERR_MSG(extack, "Invalid address in fdb get request");
+				return -EINVAL;
+			}
+			*addr = nla_data(tb[i]);
+			break;
+		case NDA_VLAN:
+			err = fdb_vid_parse(tb[i], vid, extack);
+			if (err)
+				return err;
+			break;
+		case NDA_VNI:
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Unsupported attribute in fdb get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static int rtnl_fdb_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
+			struct netlink_ext_ack *extack)
+{
+	struct net_device *dev = NULL, *br_dev = NULL;
+	const struct net_device_ops *ops = NULL;
+	struct net *net = sock_net(in_skb->sk);
+	struct nlattr *tb[NDA_MAX + 1];
+	struct sk_buff *skb;
+	int brport_idx = 0;
+	u8 ndm_flags = 0;
+	int br_idx = 0;
+	u8 *addr = NULL;
+	u16 vid = 0;
+	int err;
+
+	err = valid_fdb_get_strict(nlh, tb, &ndm_flags, &br_idx,
+				   &brport_idx, &addr, &vid, extack);
+	if (err < 0)
+		return err;
+
+	if (brport_idx) {
+		dev = __dev_get_by_index(net, brport_idx);
+		if (!dev) {
+			NL_SET_ERR_MSG(extack, "Unknown device ifindex");
+			return -ENODEV;
+		}
+	}
+
+	if (br_idx) {
+		if (dev) {
+			NL_SET_ERR_MSG(extack, "Master and device are mutually exclusive");
+			return -EINVAL;
+		}
+
+		br_dev = __dev_get_by_index(net, br_idx);
+		if (!br_dev) {
+			NL_SET_ERR_MSG(extack, "Invalid master ifindex");
+			return -EINVAL;
+		}
+		ops = br_dev->netdev_ops;
+	}
+
+	if (dev) {
+		if (!ndm_flags || (ndm_flags & NTF_MASTER)) {
+			if (!(dev->priv_flags & IFF_BRIDGE_PORT)) {
+				NL_SET_ERR_MSG(extack, "Device is not a bridge port");
+				return -EINVAL;
+			}
+			br_dev = netdev_master_upper_dev_get(dev);
+			if (!br_dev) {
+				NL_SET_ERR_MSG(extack, "Master of device not found");
+				return -EINVAL;
+			}
+			ops = br_dev->netdev_ops;
+		} else {
+			if (!(ndm_flags & NTF_SELF)) {
+				NL_SET_ERR_MSG(extack, "Missing NTF_SELF");
+				return -EINVAL;
+			}
+			ops = dev->netdev_ops;
+		}
+	}
+
+	if (!br_dev && !dev) {
+		NL_SET_ERR_MSG(extack, "No device specified");
+		return -ENODEV;
+	}
+
+	if (!ops || !ops->ndo_fdb_get) {
+		NL_SET_ERR_MSG(extack, "Fdb get operation not supported by device");
+		return -EOPNOTSUPP;
+	}
+
+	skb = nlmsg_new(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (br_dev)
+		dev = br_dev;
+	err = ops->ndo_fdb_get(skb, tb, dev, addr, vid,
+			       NETLINK_CB(in_skb).portid,
+			       nlh->nlmsg_seq, extack);
+	if (err)
+		goto out;
+
+	return rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
+out:
+	kfree_skb(skb);
+	return err;
 }
 
 static int brport_nla_put_flag(struct sk_buff *skb, u32 flags, u32 mask,
@@ -5081,7 +5247,7 @@ void __init rtnetlink_init(void)
 
 	rtnl_register(PF_BRIDGE, RTM_NEWNEIGH, rtnl_fdb_add, NULL, 0);
 	rtnl_register(PF_BRIDGE, RTM_DELNEIGH, rtnl_fdb_del, NULL, 0);
-	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, NULL, rtnl_fdb_dump, 0);
+	rtnl_register(PF_BRIDGE, RTM_GETNEIGH, rtnl_fdb_get, rtnl_fdb_dump, 0);
 
 	rtnl_register(PF_BRIDGE, RTM_GETLINK, NULL, rtnl_bridge_getlink, 0);
 	rtnl_register(PF_BRIDGE, RTM_DELLINK, rtnl_bridge_dellink, NULL, 0);
