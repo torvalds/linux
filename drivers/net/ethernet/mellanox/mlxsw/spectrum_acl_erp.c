@@ -583,10 +583,10 @@ mlxsw_sp_acl_erp_region_table_trans(struct mlxsw_sp_acl_erp_table *erp_table)
 		goto err_table_master_rp;
 	}
 
-	/* Maintain the same eRP bank for the master RP, so that we
-	 * wouldn't need to update the bloom filter
+	/* Make sure the master RP is using a valid index, as
+	 * only a single eRP row is currently allocated.
 	 */
-	master_rp->index = master_rp->index % erp_core->num_erp_banks;
+	master_rp->index = 0;
 	__set_bit(master_rp->index, erp_table->erp_index_bitmap);
 
 	err = mlxsw_sp_acl_erp_table_erp_add(erp_table, master_rp);
