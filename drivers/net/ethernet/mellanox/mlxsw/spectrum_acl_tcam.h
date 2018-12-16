@@ -260,6 +260,18 @@ void mlxsw_sp_acl_erps_fini(struct mlxsw_sp *mlxsw_sp,
 
 struct mlxsw_sp_acl_bf;
 
+int
+mlxsw_sp_acl_bf_entry_add(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_acl_bf *bf,
+			  struct mlxsw_sp_acl_atcam_region *aregion,
+			  unsigned int erp_bank,
+			  struct mlxsw_sp_acl_atcam_entry *aentry);
+void
+mlxsw_sp_acl_bf_entry_del(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_acl_bf *bf,
+			  struct mlxsw_sp_acl_atcam_region *aregion,
+			  unsigned int erp_bank,
+			  struct mlxsw_sp_acl_atcam_entry *aentry);
 struct mlxsw_sp_acl_bf *
 mlxsw_sp_acl_bf_init(struct mlxsw_sp *mlxsw_sp, unsigned int num_erp_banks);
 void mlxsw_sp_acl_bf_fini(struct mlxsw_sp_acl_bf *bf);
