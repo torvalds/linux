@@ -1068,26 +1068,16 @@ static void btf_int_log(struct btf_verifier_env *env,
 			 btf_int_encoding_str(BTF_INT_ENCODING(int_data)));
 }
 
-static void btf_int_bits_seq_show(const struct btf *btf,
-				  const struct btf_type *t,
-				  void *data, u8 bits_offset,
-				  struct seq_file *m)
+static void btf_bitfield_seq_show(void *data, u8 bits_offset,
+				  u8 nr_bits, struct seq_file *m)
 {
 	u16 left_shift_bits, right_shift_bits;
-	u32 int_data = btf_type_int(t);
-	u8 nr_bits = BTF_INT_BITS(int_data);
-	u8 total_bits_offset;
 	u8 nr_copy_bytes;
 	u8 nr_copy_bits;
 	u64 print_num;
 
-	/*
-	 * bits_offset is at most 7.
-	 * BTF_INT_OFFSET() cannot exceed 64 bits.
-	 */
-	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
-	data += BITS_ROUNDDOWN_BYTES(total_bits_offset);
-	bits_offset = BITS_PER_BYTE_MASKED(total_bits_offset);
+	data += BITS_ROUNDDOWN_BYTES(bits_offset);
+	bits_offset = BITS_PER_BYTE_MASKED(bits_offset);
 	nr_copy_bits = nr_bits + bits_offset;
 	nr_copy_bytes = BITS_ROUNDUP_BYTES(nr_copy_bits);
 
@@ -1105,6 +1095,23 @@ static void btf_int_bits_seq_show(const struct btf *btf,
 	print_num >>= right_shift_bits;
 
 	seq_printf(m, "0x%llx", print_num);
+}
+
+static void btf_int_bits_seq_show(const struct btf *btf,
+				  const struct btf_type *t,
+				  void *data, u8 bits_offset,
+				  struct seq_file *m)
+{
+	u32 int_data = btf_type_int(t);
+	u8 nr_bits = BTF_INT_BITS(int_data);
+	u8 total_bits_offset;
+
+	/*
+	 * bits_offset is at most 7.
+	 * BTF_INT_OFFSET() cannot exceed 64 bits.
+	 */
+	total_bits_offset = bits_offset + BTF_INT_OFFSET(int_data);
+	btf_bitfield_seq_show(data, total_bits_offset, nr_bits, m);
 }
 
 static void btf_int_seq_show(const struct btf *btf, const struct btf_type *t,
