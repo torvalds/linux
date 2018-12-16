@@ -190,7 +190,7 @@ int sst_fill_stream_params(void *substream,
 	map = ctx->pdata->pdev_strm_map;
 	map_size = ctx->pdata->strm_map_size;
 
-	if (is_compress == true)
+	if (is_compress)
 		cstream = (struct snd_compr_stream *)substream;
 	else
 		pstream = (struct snd_pcm_substream *)substream;
