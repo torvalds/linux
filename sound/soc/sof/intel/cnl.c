@@ -238,5 +238,11 @@ const struct snd_sof_dsp_ops sof_cnl_ops = {
 	/* DAI drivers */
 	.drv		= skl_dai,
 	.num_drv	= SOF_SKL_NUM_DAIS,
+
+	/* PM */
+	.suspend		= hda_dsp_suspend,
+	.resume			= hda_dsp_resume,
+	.runtime_suspend	= hda_dsp_runtime_suspend,
+	.runtime_resume		= hda_dsp_runtime_resume,
 };
 EXPORT_SYMBOL(sof_cnl_ops);
