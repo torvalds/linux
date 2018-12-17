@@ -379,7 +379,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 	srq->event = hns_roce_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->srqn;
 
-	if (pd->uobject) {
+	if (udata) {
 		if (ib_copy_to_udata(udata, &srq->srqn, sizeof(__u32))) {
 			ret = -EFAULT;
 			goto err_wrid;

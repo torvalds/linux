@@ -2163,7 +2163,7 @@ struct ib_qp *c4iw_create_qp(struct ib_pd *pd, struct ib_qp_init_attr *attrs,
 	if (sqsize < 8)
 		sqsize = 8;
 
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
+	ucontext = udata ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
 	qhp = kzalloc(sizeof(*qhp), GFP_KERNEL);
 	if (!qhp)
@@ -2712,7 +2712,7 @@ struct ib_srq *c4iw_create_srq(struct ib_pd *pd, struct ib_srq_init_attr *attrs,
 	rqsize = attrs->attr.max_wr + 1;
 	rqsize = roundup_pow_of_two(max_t(u16, rqsize, 16));
 
-	ucontext = pd->uobject ? to_c4iw_ucontext(pd->uobject->context) : NULL;
+	ucontext = udata ? to_c4iw_ucontext(pd->uobject->context) : NULL;
 
 	srq = kzalloc(sizeof(*srq), GFP_KERNEL);
 	if (!srq)

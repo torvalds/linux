@@ -1904,7 +1904,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		qp->flags |= MLX5_IB_QP_CVLAN_STRIPPING;
 	}
 
-	if (pd && pd->uobject) {
+	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			mlx5_ib_dbg(dev, "copy failed\n");
 			return -EFAULT;
@@ -1986,14 +1986,14 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	qp->has_rq = qp_has_rq(init_attr);
 	err = set_rq_size(dev, &init_attr->cap, qp->has_rq,
-			  qp, (pd && pd->uobject) ? &ucmd : NULL);
+			  qp, udata ? &ucmd : NULL);
 	if (err) {
 		mlx5_ib_dbg(dev, "err %d\n", err);
 		return err;
 	}
 
 	if (pd) {
-		if (pd->uobject) {
+		if (udata) {
 			__u32 max_wqes =
 				1 << MLX5_CAP_GEN(mdev, log_max_qp_sz);
 			mlx5_ib_dbg(dev, "requested sq_wqe_count (%d)\n", ucmd.sq_wqe_count);
@@ -2064,7 +2064,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 	if (qp->scat_cqe && is_connected(init_attr->qp_type)) {
 		configure_responder_scat_cqe(init_attr, qpc);
 		configure_requester_scat_cqe(dev, init_attr,
-					     (pd && pd->uobject) ? &ucmd : NULL,
+					     udata ? &ucmd : NULL,
 					     qpc);
 	}
 
@@ -2504,7 +2504,7 @@ struct ib_qp *mlx5_ib_create_qp(struct ib_pd *pd,
 		dev = to_mdev(pd->device);
 
 		if (init_attr->qp_type == IB_QPT_RAW_PACKET) {
-			if (!pd->uobject) {
+			if (!udata) {
 				mlx5_ib_dbg(dev, "Raw Packet QP is not supported for kernel consumers\n");
 				return ERR_PTR(-EINVAL);
 			} else if (!to_mucontext(pd->uobject->context)->cqe_version) {

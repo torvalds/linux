@@ -260,14 +260,14 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	}
 	in.type = init_attr->srq_type;
 
-	if (pd->uobject)
+	if (udata)
 		err = create_srq_user(pd, srq, &in, udata, buf_size);
 	else
 		err = create_srq_kernel(dev, srq, &in, buf_size);
 
 	if (err) {
 		mlx5_ib_warn(dev, "create srq %s failed, err %d\n",
-			     pd->uobject ? "user" : "kernel", err);
+			     udata ? "user" : "kernel", err);
 		goto err_srq;
 	}
 
@@ -312,7 +312,7 @@ struct ib_srq *mlx5_ib_create_srq(struct ib_pd *pd,
 	srq->msrq.event = mlx5_ib_srq_event;
 	srq->ibsrq.ext.xrc.srq_num = srq->msrq.srqn;
 
-	if (pd->uobject)
+	if (udata)
 		if (ib_copy_to_udata(udata, &srq->msrq.srqn, sizeof(__u32))) {
 			mlx5_ib_dbg(dev, "copy to user failed\n");
 			err = -EFAULT;
@@ -327,7 +327,7 @@ err_core:
 	mlx5_cmd_destroy_srq(dev, &srq->msrq);
 
 err_usr_kern_srq:
-	if (pd->uobject)
+	if (udata)
 		destroy_srq_user(pd, srq);
 	else
 		destroy_srq_kernel(dev, srq);

@@ -249,7 +249,7 @@ struct ib_qp *pvrdma_create_qp(struct ib_pd *pd,
 		init_completion(&qp->free);
 
 		qp->state = IB_QPS_RESET;
-		qp->is_kernel = !(pd->uobject && udata);
+		qp->is_kernel = !udata;
 
 		if (!qp->is_kernel) {
 			dev_dbg(&dev->pdev->dev,

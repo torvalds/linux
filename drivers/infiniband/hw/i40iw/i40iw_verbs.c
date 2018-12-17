@@ -673,28 +673,26 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 			goto error;
 		}
 		iwqp->ctx_info.qp_compl_ctx = req.user_compl_ctx;
-		if (ibpd->uobject && ibpd->uobject->context) {
-			iwqp->user_mode = 1;
-			ucontext = to_ucontext(ibpd->uobject->context);
+		iwqp->user_mode = 1;
+		ucontext = to_ucontext(ibpd->uobject->context);
 
-			if (req.user_wqe_buffers) {
-				struct i40iw_pbl *iwpbl;
+		if (req.user_wqe_buffers) {
+			struct i40iw_pbl *iwpbl;
 
-				spin_lock_irqsave(
-				    &ucontext->qp_reg_mem_list_lock, flags);
-				iwpbl = i40iw_get_pbl(
-				    (unsigned long)req.user_wqe_buffers,
-				    &ucontext->qp_reg_mem_list);
-				spin_unlock_irqrestore(
-				    &ucontext->qp_reg_mem_list_lock, flags);
+			spin_lock_irqsave(
+			    &ucontext->qp_reg_mem_list_lock, flags);
+			iwpbl = i40iw_get_pbl(
+			    (unsigned long)req.user_wqe_buffers,
+			    &ucontext->qp_reg_mem_list);
+			spin_unlock_irqrestore(
+			    &ucontext->qp_reg_mem_list_lock, flags);
 
-				if (!iwpbl) {
-					err_code = -ENODATA;
-					i40iw_pr_err("no pbl info\n");
-					goto error;
-				}
-				memcpy(&iwqp->iwpbl, iwpbl, sizeof(iwqp->iwpbl));
+			if (!iwpbl) {
+				err_code = -ENODATA;
+				i40iw_pr_err("no pbl info\n");
+				goto error;
 			}
+			memcpy(&iwqp->iwpbl, iwpbl, sizeof(iwqp->iwpbl));
 		}
 		err_code = i40iw_setup_virt_qp(iwdev, iwqp, &init_info);
 	} else {
@@ -768,7 +766,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 	iwdev->qp_table[qp_num] = iwqp;
 	i40iw_add_pdusecount(iwqp->iwpd);
 	i40iw_add_devusecount(iwdev);
-	if (ibpd->uobject && udata) {
+	if (udata) {
 		memset(&uresp, 0, sizeof(uresp));
 		uresp.actual_sq_size = sq_size;
 		uresp.actual_rq_size = rq_size;
@@ -2092,7 +2090,8 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 		ib_umem_release(iwmr->region);
 
 	if (iwmr->type != IW_MEMREG_TYPE_MEM) {
-		if (ibpd->uobject) {
+		/* region is released. only test for userness. */
+		if (iwmr->region) {
 			struct i40iw_ucontext *ucontext;
 
 			ucontext = to_ucontext(ibpd->uobject->context);

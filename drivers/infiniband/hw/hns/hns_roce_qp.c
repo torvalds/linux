@@ -280,7 +280,7 @@ void hns_roce_release_range_qp(struct hns_roce_dev *hr_dev, int base_qpn,
 EXPORT_SYMBOL_GPL(hns_roce_release_range_qp);
 
 static int hns_roce_set_rq_size(struct hns_roce_dev *hr_dev,
-				struct ib_qp_cap *cap, int is_user, int has_rq,
+				struct ib_qp_cap *cap, bool is_user, int has_rq,
 				struct hns_roce_qp *hr_qp)
 {
 	struct device *dev = hr_dev->dev;
@@ -560,7 +560,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->sq_signal_bits = cpu_to_le32(IB_SIGNAL_REQ_WR);
 
-	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, !!ib_pd->uobject,
+	ret = hns_roce_set_rq_size(hr_dev, &init_attr->cap, udata,
 				   hns_roce_qp_has_rq(init_attr), hr_qp);
 	if (ret) {
 		dev_err(dev, "hns_roce_set_rq_size failed\n");
@@ -598,7 +598,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 				init_attr->cap.max_recv_sge];
 	}
 
-	if (ib_pd->uobject) {
+	if (udata) {
 		if (ib_copy_from_udata(&ucmd, udata, sizeof(ucmd))) {
 			dev_err(dev, "ib_copy_from_udata error for create qp\n");
 			ret = -EFAULT;
@@ -783,7 +783,7 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 	else
 		hr_qp->doorbell_qpn = cpu_to_le64(hr_qp->qpn);
 
-	if (ib_pd->uobject && (udata->outlen >= sizeof(resp)) &&
+	if (udata && (udata->outlen >= sizeof(resp)) &&
 		(hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB)) {
 
 		/* indicate kernel supports rq record db */
@@ -810,7 +810,7 @@ err_qpn:
 		hns_roce_release_range_qp(hr_dev, qpn, 1);
 
 err_wrid:
-	if (ib_pd->uobject) {
+	if (udata) {
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB) &&
 		    (udata->outlen >= sizeof(resp)) &&
 		    hns_roce_qp_has_rq(init_attr))
@@ -823,7 +823,7 @@ err_wrid:
 	}
 
 err_sq_dbmap:
-	if (ib_pd->uobject)
+	if (udata)
 		if ((hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_SQ_RECORD_DB) &&
 		    (udata->inlen >= sizeof(ucmd)) &&
 		    (udata->outlen >= sizeof(resp)) &&
@@ -836,13 +836,13 @@ err_mtt:
 	hns_roce_mtt_cleanup(hr_dev, &hr_qp->mtt);
 
 err_buf:
-	if (ib_pd->uobject)
+	if (hr_qp->umem)
 		ib_umem_release(hr_qp->umem);
 	else
 		hns_roce_buf_free(hr_dev, hr_qp->buff_size, &hr_qp->hr_buf);
 
 err_db:
-	if (!ib_pd->uobject && hns_roce_qp_has_rq(init_attr) &&
+	if (!udata && hns_roce_qp_has_rq(init_attr) &&
 	    (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_RECORD_DB))
 		hns_roce_free_db(hr_dev, &hr_qp->rdb);
 
@@ -888,7 +888,7 @@ struct ib_qp *hns_roce_create_qp(struct ib_pd *pd,
 	}
 	case IB_QPT_GSI: {
 		/* Userspace is not allowed to create special QPs: */
-		if (pd->uobject) {
+		if (udata) {
 			dev_err(dev, "not support usr space GSI\n");
 			return ERR_PTR(-EINVAL);
 		}

@@ -698,7 +698,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	ah->qplib_ah.flow_label = grh->flow_label;
 	ah->qplib_ah.hop_limit = grh->hop_limit;
 	ah->qplib_ah.sl = rdma_ah_get_sl(ah_attr);
-	if (ib_pd->uobject &&
+	if (udata &&
 	    !rdma_is_multicast_addr((struct in6_addr *)
 				    grh->dgid.raw) &&
 	    !rdma_link_local_addr((struct in6_addr *)
@@ -729,7 +729,7 @@ struct ib_ah *bnxt_re_create_ah(struct ib_pd *ib_pd,
 	}
 
 	/* Write AVID to shared page. */
-	if (ib_pd->uobject) {
+	if (udata) {
 		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
 		struct bnxt_re_ucontext *uctx;
 		unsigned long flag;

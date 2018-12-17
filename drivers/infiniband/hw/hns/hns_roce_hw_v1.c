@@ -3926,7 +3926,7 @@ int hns_roce_v1_destroy_qp(struct ib_qp *ibqp)
 	struct hns_roce_qp_work *qp_work;
 	struct hns_roce_v1_priv *priv;
 	struct hns_roce_cq *send_cq, *recv_cq;
-	int is_user = !!ibqp->pd->uobject;
+	bool is_user = ibqp->uobject;
 	int is_timeout = 0;
 	int ret;
 

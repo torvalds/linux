@@ -455,7 +455,7 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	if (!srq)
 		return ERR_PTR(-ENOMEM);
 
-	if (pd->uobject) {
+	if (udata) {
 		context = to_mucontext(pd->uobject->context);
 
 		if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
@@ -475,9 +475,9 @@ static struct ib_srq *mthca_create_srq(struct ib_pd *pd,
 	}
 
 	err = mthca_alloc_srq(to_mdev(pd->device), to_mpd(pd),
-			      &init_attr->attr, srq);
+			      &init_attr->attr, srq, udata);
 
-	if (err && pd->uobject)
+	if (err && udata)
 		mthca_unmap_user_db(to_mdev(pd->device), &context->uar,
 				    context->db_tab, ucmd.db_index);
 
@@ -537,7 +537,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 		if (!qp)
 			return ERR_PTR(-ENOMEM);
 
-		if (pd->uobject) {
+		if (udata) {
 			context = to_mucontext(pd->uobject->context);
 
 			if (ib_copy_from_udata(&ucmd, udata, sizeof ucmd)) {
@@ -574,9 +574,9 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				     to_mcq(init_attr->send_cq),
 				     to_mcq(init_attr->recv_cq),
 				     init_attr->qp_type, init_attr->sq_sig_type,
-				     &init_attr->cap, qp);
+				     &init_attr->cap, qp, udata);
 
-		if (err && pd->uobject) {
+		if (err && udata) {
 			context = to_mucontext(pd->uobject->context);
 
 			mthca_unmap_user_db(to_mdev(pd->device),
@@ -596,7 +596,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 	case IB_QPT_GSI:
 	{
 		/* Don't allow userspace to create special QPs */
-		if (pd->uobject)
+		if (udata)
 			return ERR_PTR(-EINVAL);
 
 		qp = kmalloc(sizeof (struct mthca_sqp), GFP_KERNEL);
@@ -610,7 +610,7 @@ static struct ib_qp *mthca_create_qp(struct ib_pd *pd,
 				      to_mcq(init_attr->recv_cq),
 				      init_attr->sq_sig_type, &init_attr->cap,
 				      qp->ibqp.qp_num, init_attr->port_num,
-				      to_msqp(qp));
+				      to_msqp(qp), udata);
 		break;
 	}
 	default:
