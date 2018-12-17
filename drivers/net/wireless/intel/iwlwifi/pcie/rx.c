@@ -540,7 +540,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	struct list_head local_empty;
 	int pending = atomic_read(&rba->req_pending);
 
-	IWL_DEBUG_RX(trans, "Pending allocation requests = %d\n", pending);
+	IWL_DEBUG_TPT(trans, "Pending allocation requests = %d\n", pending);
 
 	/* If we were scheduled - there is at least one request */
 	spin_lock(&rba->lock);
@@ -598,9 +598,10 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 
 		if (!pending) {
 			pending = atomic_read(&rba->req_pending);
-			IWL_DEBUG_RX(trans,
-				     "Got more pending allocation requests = %d\n",
-				     pending);
+			if (pending)
+				IWL_DEBUG_TPT(trans,
+					      "Got more pending allocation requests = %d\n",
+					      pending);
 		}
 
 		spin_lock(&rba->lock);
@@ -619,7 +620,7 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 	list_splice_tail(&local_empty, &rba->rbd_empty);
 	spin_unlock(&rba->lock);
 
-	IWL_DEBUG_RX(trans, "%s, exit.\n", __func__);
+	IWL_DEBUG_TPT(trans, "%s, exit.\n", __func__);
 }
 
 /*
@@ -1429,6 +1430,9 @@ restart:
 			     !emergency)) {
 			iwl_pcie_rx_move_to_allocator(rxq, rba);
 			emergency = true;
+			IWL_DEBUG_TPT(trans,
+				      "RX path is in emergency. Pending allocations %d\n",
+				      rb_pending_alloc);
 		}
 
 		IWL_DEBUG_RX(trans, "Q %d: HW = %d, SW = %d\n", rxq->id, r, i);
@@ -1458,8 +1462,12 @@ restart:
 			count++;
 			if (count == 8) {
 				count = 0;
-				if (rb_pending_alloc < rxq->queue_size / 3)
+				if (rb_pending_alloc < rxq->queue_size / 3) {
+					IWL_DEBUG_TPT(trans,
+						      "RX path exited emergency. Pending allocations %d\n",
+						      rb_pending_alloc);
 					emergency = false;
+				}
 
 				rxq->read = i;
 				spin_unlock(&rxq->lock);
