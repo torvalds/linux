@@ -326,7 +326,7 @@ static int act8945a_pmic_probe(struct platform_device *pdev)
 	return regmap_write(act8945a->regmap, ACT8945A_SYS_UNLK_REGS, 0xef);
 }
 
-static int act8945a_suspend(struct device *pdev)
+static int __maybe_unused act8945a_suspend(struct device *pdev)
 {
 	struct act8945a_pmic *act8945a = dev_get_drvdata(pdev);
 
