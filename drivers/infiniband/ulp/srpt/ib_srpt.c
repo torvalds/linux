@@ -2942,10 +2942,8 @@ static int srpt_alloc_srq(struct srpt_device *sdev)
 		srpt_alloc_ioctx_ring(sdev, sdev->srq_size,
 				      sizeof(*sdev->ioctx_ring[0]),
 				      srp_max_req_size, DMA_FROM_DEVICE);
-	if (!sdev->ioctx_ring) {
-		ib_destroy_srq(srq);
-		return -ENOMEM;
-	}
+	if (!sdev->ioctx_ring)
+		goto free_srq;
 
 	sdev->use_srq = true;
 	sdev->srq = srq;
@@ -2956,6 +2954,10 @@ static int srpt_alloc_srq(struct srpt_device *sdev)
 	}
 
 	return 0;
+
+free_srq:
+	ib_destroy_srq(srq);
+	return -ENOMEM;
 }
 
 static int srpt_use_srq(struct srpt_device *sdev, bool use_srq)
