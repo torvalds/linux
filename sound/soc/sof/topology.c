@@ -1850,7 +1850,10 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai)
 {
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct snd_soc_tplg_stream_caps *caps;
 	struct snd_sof_pcm *spcm;
+	int stream = SNDRV_PCM_STREAM_PLAYBACK;
+	int ret = 0;
 
 	/* don't need to do anything for BEs atm */
 	if (!pcm)
@@ -1871,7 +1874,47 @@ static int sof_dai_load(struct snd_soc_component *scomp, int index,
 	mutex_init(&spcm->mutex);
 	list_add(&spcm->list, &sdev->pcm_list);
 
-	return 0;
+	/* do we need to allocate playback PCM DMA pages */
+	if (!spcm->pcm.playback)
+		goto capture;
+
+	caps = &spcm->pcm.caps[stream];
+
+	/* allocate playback page table buffer */
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->parent,
+				  PAGE_SIZE, &spcm->stream[stream].page_table);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
+			caps->name, ret);
+
+		return ret;
+	}
+
+capture:
+	stream = SNDRV_PCM_STREAM_CAPTURE;
+
+	/* do we need to allocate capture PCM DMA pages */
+	if (!spcm->pcm.capture)
+		return ret;
+
+	caps = &spcm->pcm.caps[stream];
+
+	/* allocate capture page table buffer */
+	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->parent,
+				  PAGE_SIZE, &spcm->stream[stream].page_table);
+	if (ret < 0) {
+		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
+			caps->name, ret);
+		goto free_playback_tables;
+	}
+
+	return ret;
+
+free_playback_tables:
+	if (spcm->pcm.playback)
+		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].page_table);
+
+	return ret;
 }
 
 static int sof_dai_unload(struct snd_soc_component *scomp,
@@ -1879,6 +1922,14 @@ static int sof_dai_unload(struct snd_soc_component *scomp,
 {
 	struct snd_sof_pcm *spcm = dobj->private;
 
+	/* free PCM DMA pages */
+	if (spcm->pcm.playback)
+		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].page_table);
+
+	if (spcm->pcm.capture)
+		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_CAPTURE].page_table);
+
+	/* remove from list and free spcm */
 	list_del(&spcm->list);
 	kfree(spcm);
 

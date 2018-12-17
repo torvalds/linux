@@ -470,6 +470,11 @@ static struct snd_pcm_ops sof_pcm_ops = {
 	.page		= snd_pcm_sgbuf_ops_page,
 };
 
+/*
+ * Pre-allocate playback/capture audio buffer pages.
+ * no need to explicitly release memory preallocated by sof_pcm_new in pcm_free
+ * snd_pcm_lib_preallocate_free_for_all() is called by the core.
+ */
 static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component =
@@ -492,7 +497,7 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 
 	dev_dbg(sdev->dev, "creating new PCM %s\n", spcm->pcm.pcm_name);
 
-	/* do we need to allocate playback PCM DMA pages */
+	/* do we need to pre-allocate playback audio buffer pages */
 	if (!spcm->pcm.playback)
 		goto capture;
 
@@ -513,19 +518,10 @@ static int sof_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
-	/* allocate playback page table buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->parent,
-				  PAGE_SIZE, &spcm->stream[stream].page_table);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
-			caps->name, ret);
-		goto free_playback_dma_buffer;
-	}
-
 capture:
 	stream = SNDRV_PCM_STREAM_CAPTURE;
 
-	/* do we need to allocate capture PCM DMA pages */
+	/* do we need to pre-allocate capture audio buffer pages */
 	if (!spcm->pcm.capture)
 		return ret;
 
@@ -539,65 +535,12 @@ capture:
 					    SNDRV_DMA_TYPE_DEV_SG, sdev->parent,
 					    le32_to_cpu(caps->buffer_size_min),
 					    le32_to_cpu(caps->buffer_size_max));
-	if (ret) {
+	if (ret)
 		dev_err(sdev->dev, "error: can't alloc DMA buffer size 0x%x/0x%x for %s %d\n",
 			caps->buffer_size_min, caps->buffer_size_max,
 			caps->name, ret);
-		goto free_playback_tables;
-	}
-
-	/* allocate capture page table buffer */
-	ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, sdev->parent,
-				  PAGE_SIZE, &spcm->stream[stream].page_table);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: can't alloc page table for %s %d\n",
-			caps->name, ret);
-		goto free_playback_tables;
-	}
-
-	/* TODO: assign channel maps from topology */
 
 	return ret;
-
-free_playback_tables:
-	if (spcm->pcm.playback)
-		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].page_table);
-
-free_playback_dma_buffer:
-	/*
-	 * no need to explicitly release preallocated memory,
-	 * snd_pcm_lib_preallocate_free_for_all() is called by the core
-	 */
-
-	return ret;
-}
-
-static void sof_pcm_free(struct snd_pcm *pcm)
-{
-	struct snd_sof_pcm *spcm;
-	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
-	struct snd_soc_component *component =
-		snd_soc_rtdcom_lookup(rtd, DRV_NAME);
-	struct snd_sof_dev *sdev =
-		snd_soc_component_get_drvdata(component);
-
-	spcm = snd_sof_find_spcm_dai(sdev, rtd);
-	if (!spcm) {
-		dev_warn(sdev->dev, "warn: can't find PCM with DAI ID %d\n",
-			 rtd->dai_link->id);
-		return;
-	}
-
-	if (spcm->pcm.playback)
-		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_PLAYBACK].page_table);
-
-	if (spcm->pcm.capture)
-		snd_dma_free_pages(&spcm->stream[SNDRV_PCM_STREAM_CAPTURE].page_table);
-
-	/*
-	 * no need to explicitly release preallocated memory,
-	 * snd_pcm_lib_preallocate_free_for_all() is called by the core
-	 */
 }
 
 /* fixup the BE DAI link to match any values from topology */
@@ -752,7 +695,6 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev)
 	pd->compr_ops = &sof_compressed_ops;
 #endif
 	pd->pcm_new = sof_pcm_new;
-	pd->pcm_free = sof_pcm_free;
 	pd->ignore_machine = drv_name;
 	pd->be_hw_params_fixup = sof_pcm_dai_link_fixup;
 	pd->be_pcm_base = SOF_BE_PCM_BASE;
