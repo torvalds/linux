@@ -2722,8 +2722,9 @@ static int lan743x_mdiobus_init(struct lan743x_adapter *adapter)
 	snprintf(adapter->mdiobus->id, MII_BUS_ID_SIZE,
 		 "pci-%s", pci_name(adapter->pdev));
 
-	/* set to internal PHY id */
-	adapter->mdiobus->phy_mask = ~(u32)BIT(1);
+	if ((adapter->csr.id_rev & ID_REV_ID_MASK_) == ID_REV_ID_LAN7430_)
+		/* LAN7430 uses internal phy at address 1 */
+		adapter->mdiobus->phy_mask = ~(u32)BIT(1);
 
 	/* register mdiobus */
 	ret = mdiobus_register(adapter->mdiobus);
