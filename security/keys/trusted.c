@@ -711,7 +711,7 @@ static int key_unseal(struct trusted_key_payload *p,
 }
 
 enum {
-	Opt_err = -1,
+	Opt_err,
 	Opt_new, Opt_load, Opt_update,
 	Opt_keyhandle, Opt_keyauth, Opt_blobauth,
 	Opt_pcrinfo, Opt_pcrlock, Opt_migratable,
