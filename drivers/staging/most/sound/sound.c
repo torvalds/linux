@@ -625,7 +625,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	ret = snd_card_new(&iface->dev, -1, card_name, THIS_MODULE,
 			   sizeof(*channel), &adpt->card);
 	if (ret < 0)
-		goto err_free_card;
+		goto err_free_adpt;
 	snprintf(adpt->card->driver, sizeof(adpt->card->driver),
 		 "%s", DRIVER_NAME);
 	snprintf(adpt->card->shortname, sizeof(adpt->card->shortname),
@@ -650,7 +650,7 @@ skip_adpt_alloc:
 	channel = kzalloc(sizeof(*channel), GFP_KERNEL);
 	if (!channel) {
 		ret = -ENOMEM;
-		goto err_free_card;
+		goto err_free_adpt;
 	}
 	channel->card = adpt->card;
 	channel->cfg = cfg;
@@ -662,13 +662,13 @@ skip_adpt_alloc:
 	ret = audio_set_hw_params(&channel->pcm_hardware, ch_num, sample_res,
 				  cfg);
 	if (ret)
-		goto err_free_card;
+		goto err_free_adpt;
 
 	ret = snd_pcm_new(adpt->card, card_name, adpt->pcm_dev_idx,
 			  playback_count, capture_count, &pcm);
 
 	if (ret < 0)
-		goto err_free_card;
+		goto err_free_adpt;
 
 	pcm->private_data = channel;
 	snprintf(pcm->name, sizeof(pcm->name), card_name);
@@ -677,12 +677,12 @@ skip_adpt_alloc:
 	if (create) {
 		ret = snd_card_register(adpt->card);
 		if (ret < 0)
-			goto err_free_card;
+			goto err_free_adpt;
 		adpt->registered = true;
 	}
 	return 0;
 
-err_free_card:
+err_free_adpt:
 	release_adapter(adpt);
 	return ret;
 }
