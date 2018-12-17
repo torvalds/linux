@@ -98,12 +98,6 @@ static void *dax_make_entry(pfn_t pfn, unsigned long flags)
 	return xa_mk_value(flags | (pfn_t_to_pfn(pfn) << DAX_SHIFT));
 }
 
-static void *dax_make_page_entry(struct page *page)
-{
-	pfn_t pfn = page_to_pfn_t(page);
-	return dax_make_entry(pfn, PageHead(page) ? DAX_PMD : 0);
-}
-
 static bool dax_is_locked(void *entry)
 {
 	return xa_to_value(entry) & DAX_LOCKED;
@@ -116,12 +110,12 @@ static unsigned int dax_entry_order(void *entry)
 	return 0;
 }
 
-static int dax_is_pmd_entry(void *entry)
+static unsigned long dax_is_pmd_entry(void *entry)
 {
 	return xa_to_value(entry) & DAX_PMD;
 }
 
-static int dax_is_pte_entry(void *entry)
+static bool dax_is_pte_entry(void *entry)
 {
 	return !(xa_to_value(entry) & DAX_PMD);
 }
@@ -222,9 +216,8 @@ static void *get_unlocked_entry(struct xa_state *xas)
 	ewait.wait.func = wake_exceptional_entry_func;
 
 	for (;;) {
-		entry = xas_load(xas);
-		if (!entry || xa_is_internal(entry) ||
-				WARN_ON_ONCE(!xa_is_value(entry)) ||
+		entry = xas_find_conflict(xas);
+		if (!entry || WARN_ON_ONCE(!xa_is_value(entry)) ||
 				!dax_is_locked(entry))
 			return entry;
 
@@ -255,6 +248,7 @@ static void dax_unlock_entry(struct xa_state *xas, void *entry)
 {
 	void *old;
 
+	BUG_ON(dax_is_locked(entry));
 	xas_reset(xas);
 	xas_lock_irq(xas);
 	old = xas_store(xas, entry);
@@ -352,16 +346,27 @@ static struct page *dax_busy_page(void *entry)
 	return NULL;
 }
 
+/*
+ * dax_lock_mapping_entry - Lock the DAX entry corresponding to a page
+ * @page: The page whose entry we want to lock
+ *
+ * Context: Process context.
+ * Return: %true if the entry was locked or does not need to be locked.
+ */
 bool dax_lock_mapping_entry(struct page *page)
 {
 	XA_STATE(xas, NULL, 0);
 	void *entry;
+	bool locked;
 
+	/* Ensure page->mapping isn't freed while we look at it */
+	rcu_read_lock();
 	for (;;) {
 		struct address_space *mapping = READ_ONCE(page->mapping);
 
+		locked = false;
 		if (!dax_mapping(mapping))
-			return false;
+			break;
 
 		/*
 		 * In the device-dax case there's no need to lock, a
@@ -370,8 +375,9 @@ bool dax_lock_mapping_entry(struct page *page)
 		 * otherwise we would not have a valid pfn_to_page()
 		 * translation.
 		 */
+		locked = true;
 		if (S_ISCHR(mapping->host->i_mode))
-			return true;
+			break;
 
 		xas.xa = &mapping->i_pages;
 		xas_lock_irq(&xas);
@@ -382,28 +388,35 @@ bool dax_lock_mapping_entry(struct page *page)
 		xas_set(&xas, page->index);
 		entry = xas_load(&xas);
 		if (dax_is_locked(entry)) {
+			rcu_read_unlock();
 			entry = get_unlocked_entry(&xas);
-			/* Did the page move while we slept? */
-			if (dax_to_pfn(entry) != page_to_pfn(page)) {
-				xas_unlock_irq(&xas);
-				continue;
-			}
+			xas_unlock_irq(&xas);
+			put_unlocked_entry(&xas, entry);
+			rcu_read_lock();
+			continue;
 		}
 		dax_lock_entry(&xas, entry);
 		xas_unlock_irq(&xas);
-		return true;
+		break;
 	}
+	rcu_read_unlock();
+	return locked;
 }
 
 void dax_unlock_mapping_entry(struct page *page)
 {
 	struct address_space *mapping = page->mapping;
 	XA_STATE(xas, &mapping->i_pages, page->index);
+	void *entry;
 
 	if (S_ISCHR(mapping->host->i_mode))
 		return;
 
-	dax_unlock_entry(&xas, dax_make_page_entry(page));
+	rcu_read_lock();
+	entry = xas_load(&xas);
+	rcu_read_unlock();
+	entry = dax_make_entry(page_to_pfn_t(page), dax_is_pmd_entry(entry));
+	dax_unlock_entry(&xas, entry);
 }
 
 /*
@@ -445,11 +458,9 @@ static void *grab_mapping_entry(struct xa_state *xas,
 retry:
 	xas_lock_irq(xas);
 	entry = get_unlocked_entry(xas);
-	if (xa_is_internal(entry))
-		goto fallback;
 
 	if (entry) {
-		if (WARN_ON_ONCE(!xa_is_value(entry))) {
+		if (!xa_is_value(entry)) {
 			xas_set_err(xas, EIO);
 			goto out_unlock;
 		}
@@ -1628,8 +1639,7 @@ dax_insert_pfn_mkwrite(struct vm_fault *vmf, pfn_t pfn, unsigned int order)
 	/* Did we race with someone splitting entry or so? */
 	if (!entry ||
 	    (order == 0 && !dax_is_pte_entry(entry)) ||
-	    (order == PMD_ORDER && (xa_is_internal(entry) ||
-				    !dax_is_pmd_entry(entry)))) {
+	    (order == PMD_ORDER && !dax_is_pmd_entry(entry))) {
 		put_unlocked_entry(&xas, entry);
 		xas_unlock_irq(&xas);
 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,

@@ -501,8 +501,11 @@ void amdgpu_amdkfd_set_compute_idle(struct kgd_dev *kgd, bool idle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)kgd;
 
-	amdgpu_dpm_switch_power_profile(adev,
-					PP_SMC_POWER_PROFILE_COMPUTE, !idle);
+	if (adev->powerplay.pp_funcs &&
+	    adev->powerplay.pp_funcs->switch_power_profile)
+		amdgpu_dpm_switch_power_profile(adev,
+						PP_SMC_POWER_PROFILE_COMPUTE,
+						!idle);
 }
 
 bool amdgpu_amdkfd_is_kfd_vmid(struct amdgpu_device *adev, u32 vmid)

@@ -538,15 +538,18 @@ xfs_inobt_rec_check_count(
 
 static xfs_extlen_t
 xfs_inobt_max_size(
-	struct xfs_mount	*mp)
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
 {
+	xfs_agblock_t		agblocks = xfs_ag_block_count(mp, agno);
+
 	/* Bail out if we're uninitialized, which can happen in mkfs. */
 	if (mp->m_inobt_mxr[0] == 0)
 		return 0;
 
 	return xfs_btree_calc_size(mp->m_inobt_mnr,
-		(uint64_t)mp->m_sb.sb_agblocks * mp->m_sb.sb_inopblock /
-				XFS_INODES_PER_CHUNK);
+				(uint64_t)agblocks * mp->m_sb.sb_inopblock /
+					XFS_INODES_PER_CHUNK);
 }
 
 static int
@@ -594,7 +597,7 @@ xfs_finobt_calc_reserves(
 	if (error)
 		return error;
 
-	*ask += xfs_inobt_max_size(mp);
+	*ask += xfs_inobt_max_size(mp, agno);
 	*used += tree_len;
 	return 0;
 }

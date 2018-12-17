@@ -635,9 +635,13 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 
 	hdmi->dss = dss;
 
-	r = hdmi_pll_init(dss, hdmi->pdev, &hdmi->pll, &hdmi->wp);
+	r = hdmi_runtime_get(hdmi);
 	if (r)
 		return r;
+
+	r = hdmi_pll_init(dss, hdmi->pdev, &hdmi->pll, &hdmi->wp);
+	if (r)
+		goto err_runtime_put;
 
 	r = hdmi4_cec_init(hdmi->pdev, &hdmi->core, &hdmi->wp);
 	if (r)
@@ -652,12 +656,16 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	hdmi->debugfs = dss_debugfs_create_file(dss, "hdmi", hdmi_dump_regs,
 					       hdmi);
 
+	hdmi_runtime_put(hdmi);
+
 	return 0;
 
 err_cec_uninit:
 	hdmi4_cec_uninit(&hdmi->core);
 err_pll_uninit:
 	hdmi_pll_uninit(&hdmi->pll);
+err_runtime_put:
+	hdmi_runtime_put(hdmi);
 	return r;
 }
 
@@ -833,32 +841,6 @@ static int hdmi4_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int hdmi_runtime_suspend(struct device *dev)
-{
-	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
-
-	dispc_runtime_put(hdmi->dss->dispc);
-
-	return 0;
-}
-
-static int hdmi_runtime_resume(struct device *dev)
-{
-	struct omap_hdmi *hdmi = dev_get_drvdata(dev);
-	int r;
-
-	r = dispc_runtime_get(hdmi->dss->dispc);
-	if (r < 0)
-		return r;
-
-	return 0;
-}
-
-static const struct dev_pm_ops hdmi_pm_ops = {
-	.runtime_suspend = hdmi_runtime_suspend,
-	.runtime_resume = hdmi_runtime_resume,
-};
-
 static const struct of_device_id hdmi_of_match[] = {
 	{ .compatible = "ti,omap4-hdmi", },
 	{},
@@ -869,7 +851,6 @@ struct platform_driver omapdss_hdmi4hw_driver = {
 	.remove		= hdmi4_remove,
 	.driver         = {
 		.name   = "omapdss_hdmi",
-		.pm	= &hdmi_pm_ops,
 		.of_match_table = hdmi_of_match,
 		.suppress_bind_attrs = true,
 	},

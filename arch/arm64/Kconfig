@@ -497,6 +497,24 @@ config ARM64_ERRATUM_1188873
 
 	  If unsure, say Y.
 
+config ARM64_ERRATUM_1286807
+	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation"
+	default y
+	select ARM64_WORKAROUND_REPEAT_TLBI
+	help
+	  This option adds workaround for ARM Cortex-A76 erratum 1286807
+
+	  On the affected Cortex-A76 cores (r0p0 to r3p0), if a virtual
+	  address for a cacheable mapping of a location is being
+	  accessed by a core while another core is remapping the virtual
+	  address to a new physical page using the recommended
+	  break-before-make sequence, then under very rare circumstances
+	  TLBI+DSB completes before a read using the translation being
+	  invalidated has been observed by other observers. The
+	  workaround repeats the TLBI+DSB operation.
+
+	  If unsure, say Y.
+
 config CAVIUM_ERRATUM_22375
 	bool "Cavium erratum 22375, 24313"
 	default y
@@ -566,9 +584,16 @@ config QCOM_FALKOR_ERRATUM_1003
 	  is unchanged. Work around the erratum by invalidating the walk cache
 	  entries for the trampoline before entering the kernel proper.
 
+config ARM64_WORKAROUND_REPEAT_TLBI
+	bool
+	help
+	  Enable the repeat TLBI workaround for Falkor erratum 1009 and
+	  Cortex-A76 erratum 1286807.
+
 config QCOM_FALKOR_ERRATUM_1009
 	bool "Falkor E1009: Prematurely complete a DSB after a TLBI"
 	default y
+	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  On Falkor v1, the CPU may prematurely complete a DSB following a
 	  TLBI xxIS invalidate maintenance operation. Repeat the TLBI operation

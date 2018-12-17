@@ -512,7 +512,7 @@ config CRC_PMIC_OPREGION
 
 config XPOWER_PMIC_OPREGION
 	bool "ACPI operation region support for XPower AXP288 PMIC"
-	depends on MFD_AXP20X_I2C && IOSF_MBI
+	depends on MFD_AXP20X_I2C && IOSF_MBI=y
 	help
 	  This config adds ACPI operation region support for XPower AXP288 PMIC.
 

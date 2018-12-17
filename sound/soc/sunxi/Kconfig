@@ -31,7 +31,7 @@ config SND_SUN8I_CODEC_ANALOG
 config SND_SUN50I_CODEC_ANALOG
 	tristate "Allwinner sun50i Codec Analog Controls Support"
 	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
-	select SND_SUNXI_ADDA_PR_REGMAP
+	select SND_SUN8I_ADDA_PR_REGMAP
 	help
 	  Say Y or M if you want to add support for the analog controls for
 	  the codec embedded in Allwinner A64 SoC.

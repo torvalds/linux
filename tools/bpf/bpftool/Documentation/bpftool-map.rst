@@ -171,4 +171,10 @@ The following three commands are equivalent:
 
 SEE ALSO
 ========
-	**bpftool**\ (8), **bpftool-prog**\ (8), **bpftool-cgroup**\ (8)
+	**bpf**\ (2),
+	**bpf-helpers**\ (7),
+	**bpftool**\ (8),
+	**bpftool-prog**\ (8),
+	**bpftool-cgroup**\ (8),
+	**bpftool-net**\ (8),
+	**bpftool-perf**\ (8)

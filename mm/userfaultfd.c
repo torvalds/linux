@@ -33,6 +33,8 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 	void *page_kaddr;
 	int ret;
 	struct page *page;
+	pgoff_t offset, max_off;
+	struct inode *inode;
 
 	if (!*pagep) {
 		ret = -ENOMEM;
@@ -48,7 +50,7 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 
 		/* fallback to copy_from_user outside mmap_sem */
 		if (unlikely(ret)) {
-			ret = -EFAULT;
+			ret = -ENOENT;
 			*pagep = page;
 			/* don't free the page */
 			goto out;
@@ -73,8 +75,17 @@ static int mcopy_atomic_pte(struct mm_struct *dst_mm,
 	if (dst_vma->vm_flags & VM_WRITE)
 		_dst_pte = pte_mkwrite(pte_mkdirty(_dst_pte));
 
-	ret = -EEXIST;
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+	if (dst_vma->vm_file) {
+		/* the shmem MAP_PRIVATE case requires checking the i_size */
+		inode = dst_vma->vm_file->f_inode;
+		offset = linear_page_index(dst_vma, dst_addr);
+		max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+		ret = -EFAULT;
+		if (unlikely(offset >= max_off))
+			goto out_release_uncharge_unlock;
+	}
+	ret = -EEXIST;
 	if (!pte_none(*dst_pte))
 		goto out_release_uncharge_unlock;
 
@@ -108,11 +119,22 @@ static int mfill_zeropage_pte(struct mm_struct *dst_mm,
 	pte_t _dst_pte, *dst_pte;
 	spinlock_t *ptl;
 	int ret;
+	pgoff_t offset, max_off;
+	struct inode *inode;
 
 	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
 					 dst_vma->vm_page_prot));
-	ret = -EEXIST;
 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
+	if (dst_vma->vm_file) {
+		/* the shmem MAP_PRIVATE case requires checking the i_size */
+		inode = dst_vma->vm_file->f_inode;
+		offset = linear_page_index(dst_vma, dst_addr);
+		max_off = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+		ret = -EFAULT;
+		if (unlikely(offset >= max_off))
+			goto out_unlock;
+	}
+	ret = -EEXIST;
 	if (!pte_none(*dst_pte))
 		goto out_unlock;
 	set_pte_at(dst_mm, dst_addr, dst_pte, _dst_pte);
@@ -205,8 +227,9 @@ retry:
 		if (!dst_vma || !is_vm_hugetlb_page(dst_vma))
 			goto out_unlock;
 		/*
-		 * Only allow __mcopy_atomic_hugetlb on userfaultfd
-		 * registered ranges.
+		 * Check the vma is registered in uffd, this is
+		 * required to enforce the VM_MAYWRITE check done at
+		 * uffd registration time.
 		 */
 		if (!dst_vma->vm_userfaultfd_ctx.ctx)
 			goto out_unlock;
@@ -274,7 +297,7 @@ retry:
 
 		cond_resched();
 
-		if (unlikely(err == -EFAULT)) {
+		if (unlikely(err == -ENOENT)) {
 			up_read(&dst_mm->mmap_sem);
 			BUG_ON(!page);
 
@@ -380,7 +403,17 @@ static __always_inline ssize_t mfill_atomic_pte(struct mm_struct *dst_mm,
 {
 	ssize_t err;
 
-	if (vma_is_anonymous(dst_vma)) {
+	/*
+	 * The normal page fault path for a shmem will invoke the
+	 * fault, fill the hole in the file and COW it right away. The
+	 * result generates plain anonymous memory. So when we are
+	 * asked to fill an hole in a MAP_PRIVATE shmem mapping, we'll
+	 * generate anonymous memory directly without actually filling
+	 * the hole. For the MAP_PRIVATE case the robustness check
+	 * only happens in the pagetable (to verify it's still none)
+	 * and not in the radix tree.
+	 */
+	if (!(dst_vma->vm_flags & VM_SHARED)) {
 		if (!zeropage)
 			err = mcopy_atomic_pte(dst_mm, dst_pmd, dst_vma,
 					       dst_addr, src_addr, page);
@@ -449,13 +482,9 @@ retry:
 	if (!dst_vma)
 		goto out_unlock;
 	/*
-	 * Be strict and only allow __mcopy_atomic on userfaultfd
-	 * registered ranges to prevent userland errors going
-	 * unnoticed. As far as the VM consistency is concerned, it
-	 * would be perfectly safe to remove this check, but there's
-	 * no useful usage for __mcopy_atomic ouside of userfaultfd
-	 * registered ranges. This is after all why these are ioctls
-	 * belonging to the userfaultfd and not syscalls.
+	 * Check the vma is registered in uffd, this is required to
+	 * enforce the VM_MAYWRITE check done at uffd registration
+	 * time.
 	 */
 	if (!dst_vma->vm_userfaultfd_ctx.ctx)
 		goto out_unlock;
@@ -489,7 +518,8 @@ retry:
 	 * dst_vma.
 	 */
 	err = -ENOMEM;
-	if (vma_is_anonymous(dst_vma) && unlikely(anon_vma_prepare(dst_vma)))
+	if (!(dst_vma->vm_flags & VM_SHARED) &&
+	    unlikely(anon_vma_prepare(dst_vma)))
 		goto out_unlock;
 
 	while (src_addr < src_start + len) {
@@ -530,7 +560,7 @@ retry:
 				       src_addr, &page, zeropage);
 		cond_resched();
 
-		if (unlikely(err == -EFAULT)) {
+		if (unlikely(err == -ENOENT)) {
 			void *page_kaddr;
 
 			up_read(&dst_mm->mmap_sem);

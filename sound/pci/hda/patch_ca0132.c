@@ -1177,6 +1177,7 @@ static const struct snd_pci_quirk ca0132_quirks[] = {
 	SND_PCI_QUIRK(0x1028, 0x0708, "Alienware 15 R2 2016", QUIRK_ALIENWARE),
 	SND_PCI_QUIRK(0x1102, 0x0010, "Sound Blaster Z", QUIRK_SBZ),
 	SND_PCI_QUIRK(0x1102, 0x0023, "Sound Blaster Z", QUIRK_SBZ),
+	SND_PCI_QUIRK(0x1102, 0x0033, "Sound Blaster ZxR", QUIRK_SBZ),
 	SND_PCI_QUIRK(0x1458, 0xA016, "Recon3Di", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1458, 0xA026, "Gigabyte G1.Sniper Z97", QUIRK_R3DI),
 	SND_PCI_QUIRK(0x1458, 0xA036, "Gigabyte GA-Z170X-Gaming 7", QUIRK_R3DI),
@@ -8413,7 +8414,7 @@ static void ca0132_free(struct hda_codec *codec)
 
 	snd_hda_power_down(codec);
 	if (spec->mem_base)
-		iounmap(spec->mem_base);
+		pci_iounmap(codec->bus->pci, spec->mem_base);
 	kfree(spec->spec_init_verbs);
 	kfree(codec->spec);
 }
@@ -8488,7 +8489,7 @@ static void ca0132_config(struct hda_codec *codec)
 		break;
 	case QUIRK_AE5:
 		codec_dbg(codec, "%s: QUIRK_AE5 applied.\n", __func__);
-		snd_hda_apply_pincfgs(codec, r3di_pincfgs);
+		snd_hda_apply_pincfgs(codec, ae5_pincfgs);
 		break;
 	}
 

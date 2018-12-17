@@ -794,6 +794,7 @@ static void __init arch_mem_init(char **cmdline_p)
 
 	/* call board setup routine */
 	plat_mem_setup();
+	memblock_set_bottom_up(true);
 
 	/*
 	 * Make sure all kernel memory is in the maps.  The "UP" and

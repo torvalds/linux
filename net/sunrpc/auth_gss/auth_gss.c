@@ -1239,36 +1239,59 @@ gss_create(const struct rpc_auth_create_args *args, struct rpc_clnt *clnt)
 	return &gss_auth->rpc_auth;
 }
 
+static struct gss_cred *
+gss_dup_cred(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
+{
+	struct gss_cred *new;
+
+	/* Make a copy of the cred so that we can reference count it */
+	new = kzalloc(sizeof(*gss_cred), GFP_NOIO);
+	if (new) {
+		struct auth_cred acred = {
+			.uid = gss_cred->gc_base.cr_uid,
+		};
+		struct gss_cl_ctx *ctx =
+			rcu_dereference_protected(gss_cred->gc_ctx, 1);
+
+		rpcauth_init_cred(&new->gc_base, &acred,
+				&gss_auth->rpc_auth,
+				&gss_nullops);
+		new->gc_base.cr_flags = 1UL << RPCAUTH_CRED_UPTODATE;
+		new->gc_service = gss_cred->gc_service;
+		new->gc_principal = gss_cred->gc_principal;
+		kref_get(&gss_auth->kref);
+		rcu_assign_pointer(new->gc_ctx, ctx);
+		gss_get_ctx(ctx);
+	}
+	return new;
+}
+
 /*
- * gss_destroying_context will cause the RPCSEC_GSS to send a NULL RPC call
+ * gss_send_destroy_context will cause the RPCSEC_GSS to send a NULL RPC call
  * to the server with the GSS control procedure field set to
  * RPC_GSS_PROC_DESTROY. This should normally cause the server to release
  * all RPCSEC_GSS state associated with that context.
  */
-static int
-gss_destroying_context(struct rpc_cred *cred)
+static void
+gss_send_destroy_context(struct rpc_cred *cred)
 {
 	struct gss_cred *gss_cred = container_of(cred, struct gss_cred, gc_base);
 	struct gss_auth *gss_auth = container_of(cred->cr_auth, struct gss_auth, rpc_auth);
 	struct gss_cl_ctx *ctx = rcu_dereference_protected(gss_cred->gc_ctx, 1);
+	struct gss_cred *new;
 	struct rpc_task *task;
 
-	if (test_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) == 0)
-		return 0;
+	new = gss_dup_cred(gss_auth, gss_cred);
+	if (new) {
+		ctx->gc_proc = RPC_GSS_PROC_DESTROY;
 
-	ctx->gc_proc = RPC_GSS_PROC_DESTROY;
-	cred->cr_ops = &gss_nullops;
+		task = rpc_call_null(gss_auth->client, &new->gc_base,
+				RPC_TASK_ASYNC|RPC_TASK_SOFT);
+		if (!IS_ERR(task))
+			rpc_put_task(task);
 
-	/* Take a reference to ensure the cred will be destroyed either
-	 * by the RPC call or by the put_rpccred() below */
-	get_rpccred(cred);
-
-	task = rpc_call_null(gss_auth->client, cred, RPC_TASK_ASYNC|RPC_TASK_SOFT);
-	if (!IS_ERR(task))
-		rpc_put_task(task);
-
-	put_rpccred(cred);
-	return 1;
+		put_rpccred(&new->gc_base);
+	}
 }
 
 /* gss_destroy_cred (and gss_free_ctx) are used to clean up after failure
@@ -1330,8 +1353,8 @@ static void
 gss_destroy_cred(struct rpc_cred *cred)
 {
 
-	if (gss_destroying_context(cred))
-		return;
+	if (test_and_clear_bit(RPCAUTH_CRED_UPTODATE, &cred->cr_flags) != 0)
+		gss_send_destroy_context(cred);
 	gss_destroy_nullcred(cred);
 }
 

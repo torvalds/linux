@@ -1167,6 +1167,8 @@ static inline bool efi_enabled(int feature)
 extern void efi_reboot(enum reboot_mode reboot_mode, const char *__unused);
 
 extern bool efi_is_table_address(unsigned long phys_addr);
+
+extern int efi_apply_persistent_mem_reservations(void);
 #else
 static inline bool efi_enabled(int feature)
 {
@@ -1184,6 +1186,11 @@ efi_capsule_pending(int *reset_type)
 static inline bool efi_is_table_address(unsigned long phys_addr)
 {
 	return false;
+}
+
+static inline int efi_apply_persistent_mem_reservations(void)
+{
+	return 0;
 }
 #endif
 

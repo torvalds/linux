@@ -1056,18 +1056,23 @@ The kernel interface functions are as follows:
 
 	u32 rxrpc_kernel_check_life(struct socket *sock,
 				    struct rxrpc_call *call);
+	void rxrpc_kernel_probe_life(struct socket *sock,
+				     struct rxrpc_call *call);
 
-     This returns a number that is updated when ACKs are received from the peer
-     (notably including PING RESPONSE ACKs which we can elicit by sending PING
-     ACKs to see if the call still exists on the server).  The caller should
-     compare the numbers of two calls to see if the call is still alive after
-     waiting for a suitable interval.
+     The first function returns a number that is updated when ACKs are received
+     from the peer (notably including PING RESPONSE ACKs which we can elicit by
+     sending PING ACKs to see if the call still exists on the server).  The
+     caller should compare the numbers of two calls to see if the call is still
+     alive after waiting for a suitable interval.
 
      This allows the caller to work out if the server is still contactable and
      if the call is still alive on the server whilst waiting for the server to
      process a client operation.
 
-     This function may transmit a PING ACK.
+     The second function causes a ping ACK to be transmitted to try to provoke
+     the peer into responding, which would then cause the value returned by the
+     first function to change.  Note that this must be called in TASK_RUNNING
+     state.
 
  (*) Get reply timestamp.
 
