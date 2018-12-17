@@ -72,7 +72,8 @@
  * @btpu: Apple ACPI method to drive BT_REG_ON pin high ("Bluetooth Power Up")
  * @btpd: Apple ACPI method to drive BT_REG_ON pin low ("Bluetooth Power Down")
  * @txco_clk: external reference frequency clock used by Bluetooth device
- * @clk_enabled: whether @txco_clk is prepared and enabled
+ * @lpo_clk: external LPO clock used by Bluetooth device
+ * @clk_enabled: whether clocks are prepared and enabled
  * @init_speed: default baudrate of Bluetooth device;
  *	the host UART is initially set to this baudrate so that
  *	it can configure the Bluetooth device for @oper_speed
@@ -103,6 +104,7 @@ struct bcm_device {
 #endif
 
 	struct clk		*txco_clk;
+	struct clk		*lpo_clk;
 	bool			clk_enabled;
 
 	u32			init_speed;
@@ -215,21 +217,34 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 	int err;
 
 	if (powered && !dev->clk_enabled) {
-		err = clk_prepare_enable(dev->txco_clk);
+		/* LPO clock needs to be 32.768 kHz */
+		err = clk_set_rate(dev->lpo_clk, 32768);
+		if (err) {
+			dev_err(dev->dev, "Could not set LPO clock rate\n");
+			return err;
+		}
+
+		err = clk_prepare_enable(dev->lpo_clk);
 		if (err)
 			return err;
+
+		err = clk_prepare_enable(dev->txco_clk);
+		if (err)
+			goto err_lpo_clk_disable;
 	}
 
 	err = dev->set_shutdown(dev, powered);
 	if (err)
-		goto err_clk_disable;
+		goto err_txco_clk_disable;
 
 	err = dev->set_device_wakeup(dev, powered);
 	if (err)
 		goto err_revert_shutdown;
 
-	if (!powered && dev->clk_enabled)
+	if (!powered && dev->clk_enabled) {
 		clk_disable_unprepare(dev->txco_clk);
+		clk_disable_unprepare(dev->lpo_clk);
+	}
 
 	dev->clk_enabled = powered;
 
@@ -237,9 +252,12 @@ static int bcm_gpio_set_power(struct bcm_device *dev, bool powered)
 
 err_revert_shutdown:
 	dev->set_shutdown(dev, !powered);
-err_clk_disable:
+err_txco_clk_disable:
 	if (powered && !dev->clk_enabled)
 		clk_disable_unprepare(dev->txco_clk);
+err_lpo_clk_disable:
+	if (powered && !dev->clk_enabled)
+		clk_disable_unprepare(dev->lpo_clk);
 	return err;
 }
 
@@ -933,6 +951,19 @@ static int bcm_get_resources(struct bcm_device *dev)
 	/* Ignore all other errors as before */
 	if (IS_ERR(dev->txco_clk))
 		dev->txco_clk = NULL;
+
+	dev->lpo_clk = devm_clk_get(dev->dev, "lpo");
+	if (dev->lpo_clk == ERR_PTR(-EPROBE_DEFER))
+		return PTR_ERR(dev->lpo_clk);
+
+	if (IS_ERR(dev->lpo_clk))
+		dev->lpo_clk = NULL;
+
+	/* Check if we accidentally fetched the lpo clock twice */
+	if (dev->lpo_clk && clk_is_match(dev->lpo_clk, dev->txco_clk)) {
+		devm_clk_put(dev->dev, dev->txco_clk);
+		dev->txco_clk = NULL;
+	}
 
 	dev->device_wakeup = devm_gpiod_get_optional(dev->dev, "device-wakeup",
 						     GPIOD_OUT_LOW);
