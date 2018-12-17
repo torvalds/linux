@@ -146,6 +146,13 @@ struct srp_login_req_rdma {
 	u8	target_port_id[16];
 };
 
+/* srp_login_rsp.rsp_flags */
+enum {
+	SRP_LOGIN_RSP_MULTICHAN_NO_CHAN	   = 0x0,
+	SRP_LOGIN_RSP_MULTICHAN_TERMINATED = 0x1,
+	SRP_LOGIN_RSP_MULTICHAN_MAINTAINED = 0x2,
+};
+
 /*
  * The SRP spec defines the size of the LOGIN_RSP structure to be 52
  * bytes, so it needs to be packed to avoid having it padded to 56

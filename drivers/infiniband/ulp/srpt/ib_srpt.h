@@ -104,10 +104,6 @@ enum {
 	SRP_CMD_ORDERED_Q = 0x2,
 	SRP_CMD_ACA = 0x4,
 
-	SRP_LOGIN_RSP_MULTICHAN_NO_CHAN = 0x0,
-	SRP_LOGIN_RSP_MULTICHAN_TERMINATED = 0x1,
-	SRP_LOGIN_RSP_MULTICHAN_MAINTAINED = 0x2,
-
 	SRPT_DEF_SG_TABLESIZE = 128,
 	/*
 	 * An experimentally determined value that avoids that QP creation
