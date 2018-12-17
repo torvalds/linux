@@ -241,7 +241,10 @@ enum rdma_ch_state {
  * struct srpt_rdma_ch - RDMA channel
  * @nexus:         I_T nexus this channel is associated with.
  * @qp:            IB queue pair used for communicating over this channel.
- * @cm_id:         IB CM ID associated with the channel.
+ * @ib_cm:	   See below.
+ * @ib_cm.cm_id:   IB CM ID associated with the channel.
+ * @rdma_cm:	   See below.
+ * @rdma_cm.cm_id: RDMA CM ID associated with the channel.
  * @cq:            IB completion queue for this channel.
  * @zw_cqe:	   Zero-length write CQE.
  * @rcu:           RCU head.
