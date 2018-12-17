@@ -410,11 +410,6 @@ static int hda_init_caps(struct snd_sof_dev *sdev)
 
 #endif
 
-/*
- * We don't need to do a full HDA codec probe as external HDA codec mode is
- * considered legacy and will not be supported under SOF. HDMI/DP HDA will
- * be supported in the DSP.
- */
 int hda_dsp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = sdev->pci;
