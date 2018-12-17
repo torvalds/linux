@@ -275,7 +275,7 @@ static int spi_cmd_done(struct snd_sof_dev *sof_dev __maybe_unused, int dir __ma
 }
 
 /* SPI SOF ops */
-struct snd_sof_dsp_ops snd_sof_spi_ops = {
+const struct snd_sof_dsp_ops snd_sof_spi_ops = {
 	/* device init */
 	.probe		= spi_sof_probe,
 	.remove		= spi_sof_remove,

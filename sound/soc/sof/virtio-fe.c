@@ -100,7 +100,7 @@ static int virtio_fe_remove(struct snd_sof_dev *sdev)
 }
 
 /* baytrail ops */
-struct snd_sof_dsp_ops snd_sof_virtio_fe_ops = {
+const struct snd_sof_dsp_ops snd_sof_virtio_fe_ops = {
 	/* device init */
 	.probe		= virtio_fe_probe,
 	.remove		= virtio_fe_remove,
