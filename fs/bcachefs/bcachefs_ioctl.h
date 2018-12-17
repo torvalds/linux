@@ -71,7 +71,11 @@ struct bch_ioctl_incremental {
 #define BCH_IOCTL_USAGE		_IOWR(0xbc,	11, struct bch_ioctl_usage)
 #define BCH_IOCTL_READ_SUPER	_IOW(0xbc,	12, struct bch_ioctl_read_super)
 #define BCH_IOCTL_DISK_GET_IDX	_IOW(0xbc,	13,  struct bch_ioctl_disk_get_idx)
-#define BCH_IOCTL_DISK_RESIZE	_IOW(0xbc,	13,  struct bch_ioctl_disk_resize)
+#define BCH_IOCTL_DISK_RESIZE	_IOW(0xbc,	14,  struct bch_ioctl_disk_resize)
+
+/* ioctl below act on a particular file, not the filesystem as a whole: */
+
+#define BCHFS_IOC_REINHERIT_ATTRS	_IOR(0xbc, 64, const char __user *)
 
 /*
  * BCH_IOCTL_QUERY_UUID: get filesystem UUID
@@ -306,7 +310,5 @@ struct bch_ioctl_disk_resize {
 	__u64			dev;
 	__u64			nbuckets;
 };
-
-#define BCHFS_IOC_REINHERIT_ATTRS	_IOR(0xbc, 14, const char __user *)
 
 #endif /* _BCACHEFS_IOCTL_H */
