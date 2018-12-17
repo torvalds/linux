@@ -29,7 +29,7 @@
 
 static const unsigned int udp_timeouts[UDP_CT_MAX] = {
 	[UDP_CT_UNREPLIED]	= 30*HZ,
-	[UDP_CT_REPLIED]	= 180*HZ,
+	[UDP_CT_REPLIED]	= 120*HZ,
 };
 
 static unsigned int *udp_get_timeouts(struct net *net)
