@@ -160,16 +160,6 @@ extra-$(CONFIG_ALTIVEC)		+= vector.o
 extra-$(CONFIG_PPC64)		+= entry_64.o
 extra-$(CONFIG_PPC_OF_BOOT_TRAMPOLINE)	+= prom_init.o
 
-extra-y				+= systbl_chk.i
-$(obj)/systbl.o:		systbl_chk
-
-quiet_cmd_systbl_chk = CALL    $<
-      cmd_systbl_chk = $(CONFIG_SHELL) $< $(obj)/systbl_chk.i
-
-PHONY += systbl_chk
-systbl_chk: $(src)/systbl_chk.sh $(obj)/systbl_chk.i
-	$(call cmd,systbl_chk)
-
 ifdef CONFIG_PPC_OF_BOOT_TRAMPOLINE
 $(obj)/built-in.a:		prom_init_check
 
