@@ -362,6 +362,7 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	case CHIP_VEGA20:
 	case CHIP_NAVI10:
 	case CHIP_NAVI14:
+	case CHIP_NAVI12:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
 		else
