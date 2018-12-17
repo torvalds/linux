@@ -2845,44 +2845,28 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 	struct spu_hw *spu = &iproc_priv.spu;
 	struct iproc_ctx_s *ctx = crypto_aead_ctx(cipher);
 	struct crypto_tfm *tfm = crypto_aead_tfm(cipher);
-	struct rtattr *rta = (void *)key;
-	struct crypto_authenc_key_param *param;
-	const u8 *origkey = key;
-	const unsigned int origkeylen = keylen;
-
-	int ret = 0;
+	struct crypto_authenc_keys keys;
+	int ret;
 
 	flow_log("%s() aead:%p key:%p keylen:%u\n", __func__, cipher, key,
 		 keylen);
 	flow_dump("  key: ", key, keylen);
 
-	if (!RTA_OK(rta, keylen))
-		goto badkey;
-	if (rta->rta_type != CRYPTO_AUTHENC_KEYA_PARAM)
-		goto badkey;
-	if (RTA_PAYLOAD(rta) < sizeof(*param))
+	ret = crypto_authenc_extractkeys(&keys, key, keylen);
+	if (ret)
 		goto badkey;
 
-	param = RTA_DATA(rta);
-	ctx->enckeylen = be32_to_cpu(param->enckeylen);
-
-	key += RTA_ALIGN(rta->rta_len);
-	keylen -= RTA_ALIGN(rta->rta_len);
-
-	if (keylen < ctx->enckeylen)
-		goto badkey;
-	if (ctx->enckeylen > MAX_KEY_SIZE)
+	if (keys.enckeylen > MAX_KEY_SIZE ||
+	    keys.authkeylen > MAX_KEY_SIZE)
 		goto badkey;
 
-	ctx->authkeylen = keylen - ctx->enckeylen;
+	ctx->enckeylen = keys.enckeylen;
+	ctx->authkeylen = keys.authkeylen;
 
-	if (ctx->authkeylen > MAX_KEY_SIZE)
-		goto badkey;
-
-	memcpy(ctx->enckey, key + ctx->authkeylen, ctx->enckeylen);
+	memcpy(ctx->enckey, keys.enckey, keys.enckeylen);
 	/* May end up padding auth key. So make sure it's zeroed. */
 	memset(ctx->authkey, 0, sizeof(ctx->authkey));
-	memcpy(ctx->authkey, key, ctx->authkeylen);
+	memcpy(ctx->authkey, keys.authkey, keys.authkeylen);
 
 	switch (ctx->alg->cipher_info.alg) {
 	case CIPHER_ALG_DES:
@@ -2890,7 +2874,7 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 			u32 tmp[DES_EXPKEY_WORDS];
 			u32 flags = CRYPTO_TFM_RES_WEAK_KEY;
 
-			if (des_ekey(tmp, key) == 0) {
+			if (des_ekey(tmp, keys.enckey) == 0) {
 				if (crypto_aead_get_flags(cipher) &
 				    CRYPTO_TFM_REQ_WEAK_KEY) {
 					crypto_aead_set_flags(cipher, flags);
@@ -2905,7 +2889,7 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 		break;
 	case CIPHER_ALG_3DES:
 		if (ctx->enckeylen == (DES_KEY_SIZE * 3)) {
-			const u32 *K = (const u32 *)key;
+			const u32 *K = (const u32 *)keys.enckey;
 			u32 flags = CRYPTO_TFM_RES_BAD_KEY_SCHED;
 
 			if (!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
@@ -2956,9 +2940,7 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 		ctx->fallback_cipher->base.crt_flags &= ~CRYPTO_TFM_REQ_MASK;
 		ctx->fallback_cipher->base.crt_flags |=
 		    tfm->crt_flags & CRYPTO_TFM_REQ_MASK;
-		ret =
-		    crypto_aead_setkey(ctx->fallback_cipher, origkey,
-				       origkeylen);
+		ret = crypto_aead_setkey(ctx->fallback_cipher, key, keylen);
 		if (ret) {
 			flow_log("  fallback setkey() returned:%d\n", ret);
 			tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
