@@ -749,6 +749,7 @@ static int do_load(int argc, char **argv)
 			}
 			NEXT_ARG();
 		} else if (is_prefix(*argv, "map")) {
+			void *new_map_replace;
 			char *endptr, *name;
 			int fd;
 
@@ -782,12 +783,15 @@ static int do_load(int argc, char **argv)
 			if (fd < 0)
 				goto err_free_reuse_maps;
 
-			map_replace = reallocarray(map_replace, old_map_fds + 1,
-						   sizeof(*map_replace));
-			if (!map_replace) {
+			new_map_replace = reallocarray(map_replace,
+						       old_map_fds + 1,
+						       sizeof(*map_replace));
+			if (!new_map_replace) {
 				p_err("mem alloc failed");
 				goto err_free_reuse_maps;
 			}
+			map_replace = new_map_replace;
+
 			map_replace[old_map_fds].idx = idx;
 			map_replace[old_map_fds].name = name;
 			map_replace[old_map_fds].fd = fd;

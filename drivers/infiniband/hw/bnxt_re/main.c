@@ -1252,6 +1252,7 @@ static int bnxt_re_ib_reg(struct bnxt_re_dev *rdev)
 	/* Registered a new RoCE device instance to netdev */
 	rc = bnxt_re_register_netdev(rdev);
 	if (rc) {
+		rtnl_unlock();
 		pr_err("Failed to register with netedev: %#x\n", rc);
 		return -EINVAL;
 	}
@@ -1461,6 +1462,7 @@ static void bnxt_re_task(struct work_struct *work)
 				"Failed to register with IB: %#x", rc);
 			bnxt_re_remove_one(rdev);
 			bnxt_re_dev_unreg(rdev);
+			goto exit;
 		}
 		break;
 	case NETDEV_UP:
@@ -1484,6 +1486,7 @@ static void bnxt_re_task(struct work_struct *work)
 	}
 	smp_mb__before_atomic();
 	atomic_dec(&rdev->sched_count);
+exit:
 	kfree(re_work);
 }
 

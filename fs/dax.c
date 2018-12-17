@@ -423,7 +423,7 @@ bool dax_lock_mapping_entry(struct page *page)
 	for (;;) {
 		mapping = READ_ONCE(page->mapping);
 
-		if (!dax_mapping(mapping))
+		if (!mapping || !dax_mapping(mapping))
 			break;
 
 		/*
