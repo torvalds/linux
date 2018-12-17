@@ -518,14 +518,14 @@ static int mcp16502_resume_noirq(struct device *dev)
 	return 0;
 }
 #else /* !CONFIG_SUSPEND */
-#define mcp16502_suspend NULL
-#define mcp16502_resume NULL
+#define mcp16502_suspend_noirq NULL
+#define mcp16502_resume_noirq NULL
 #endif /* !CONFIG_SUSPEND */
 
 #ifdef CONFIG_PM
 static const struct dev_pm_ops mcp16502_pm_ops = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mcp16502_suspend_noirq,
-				     mcp16502_resume_noirq)
+				      mcp16502_resume_noirq)
 };
 #endif
 static const struct i2c_device_id mcp16502_i2c_id[] = {
