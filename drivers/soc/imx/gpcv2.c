@@ -8,6 +8,7 @@
  * Copyright 2015-2017 Pengutronix, Lucas Stach <kernel@pengutronix.de>
  */
 
+#include <linux/clk.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
@@ -98,10 +99,14 @@
 
 #define GPC_PGC_CTRL_PCR		BIT(0)
 
+#define GPC_CLK_MAX		6
+
 struct imx_pgc_domain {
 	struct generic_pm_domain genpd;
 	struct regmap *regmap;
 	struct regulator *regulator;
+	struct clk *clk[GPC_CLK_MAX];
+	int num_clks;
 
 	unsigned int pgc;
 
@@ -132,7 +137,7 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 	const bool enable_power_control = !on;
 	const bool has_regulator = !IS_ERR(domain->regulator);
 	unsigned long deadline;
-	int ret = 0;
+	int i, ret = 0;
 
 	regmap_update_bits(domain->regmap, GPC_PGC_CPU_MAPPING,
 			   domain->bits.map, domain->bits.map);
@@ -144,6 +149,10 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 			goto unmap;
 		}
 	}
+
+	/* Enable reset clocks for all devices in the domain */
+	for (i = 0; i < domain->num_clks; i++)
+		clk_prepare_enable(domain->clk[i]);
 
 	if (enable_power_control)
 		regmap_update_bits(domain->regmap, GPC_PGC_CTRL(domain->pgc),
@@ -189,6 +198,10 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 	if (enable_power_control)
 		regmap_update_bits(domain->regmap, GPC_PGC_CTRL(domain->pgc),
 				   GPC_PGC_CTRL_PCR, 0);
+
+	/* Disable reset clocks for all devices in the domain */
+	for (i = 0; i < domain->num_clks; i++)
+		clk_disable_unprepare(domain->clk[i]);
 
 	if (has_regulator && !on) {
 		int err;
@@ -440,6 +453,41 @@ static const struct imx_pgc_domain_data imx8m_pgc_domain_data = {
 	.reg_access_table = &imx8m_access_table,
 };
 
+static int imx_pgc_get_clocks(struct imx_pgc_domain *domain)
+{
+	int i, ret;
+
+	for (i = 0; ; i++) {
+		struct clk *clk = of_clk_get(domain->dev->of_node, i);
+		if (IS_ERR(clk))
+			break;
+		if (i >= GPC_CLK_MAX) {
+			dev_err(domain->dev, "more than %d clocks\n",
+				GPC_CLK_MAX);
+			ret = -EINVAL;
+			goto clk_err;
+		}
+		domain->clk[i] = clk;
+	}
+	domain->num_clks = i;
+
+	return 0;
+
+clk_err:
+	while (i--)
+		clk_put(domain->clk[i]);
+
+	return ret;
+}
+
+static void imx_pgc_put_clocks(struct imx_pgc_domain *domain)
+{
+	int i;
+
+	for (i = domain->num_clks - 1; i >= 0; i--)
+		clk_put(domain->clk[i]);
+}
+
 static int imx_pgc_domain_probe(struct platform_device *pdev)
 {
 	struct imx_pgc_domain *domain = pdev->dev.platform_data;
@@ -459,9 +507,17 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 				      domain->voltage, domain->voltage);
 	}
 
+	ret = imx_pgc_get_clocks(domain);
+	if (ret) {
+		if (ret != -EPROBE_DEFER)
+			dev_err(domain->dev, "Failed to get domain's clocks\n");
+		return ret;
+	}
+
 	ret = pm_genpd_init(&domain->genpd, NULL, true);
 	if (ret) {
 		dev_err(domain->dev, "Failed to init power domain\n");
+		imx_pgc_put_clocks(domain);
 		return ret;
 	}
 
@@ -470,6 +526,7 @@ static int imx_pgc_domain_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(domain->dev, "Failed to add genpd provider\n");
 		pm_genpd_remove(&domain->genpd);
+		imx_pgc_put_clocks(domain);
 	}
 
 	return ret;
@@ -481,6 +538,7 @@ static int imx_pgc_domain_remove(struct platform_device *pdev)
 
 	of_genpd_del_provider(domain->dev->of_node);
 	pm_genpd_remove(&domain->genpd);
+	imx_pgc_put_clocks(domain);
 
 	return 0;
 }
