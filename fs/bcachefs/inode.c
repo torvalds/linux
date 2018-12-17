@@ -13,7 +13,12 @@
 
 #include <asm/unaligned.h>
 
-#define FIELD_BYTES()						\
+const char * const bch2_inode_opts[] = {
+#define x(name, ...)	#name,
+	BCH_INODE_OPTS()
+#undef  x
+	NULL,
+};
 
 static const u8 byte_table[8] = { 1, 2, 3, 4, 6, 8, 10, 13 };
 static const u8 bits_table[8] = {

@@ -198,40 +198,83 @@ int bch2_xattr_set(struct btree_trans *trans, u64 inum,
 	return ret;
 }
 
-static size_t bch2_xattr_emit(struct dentry *dentry,
-			     const struct bch_xattr *xattr,
-			     char *buffer, size_t buffer_size)
+static void __bch2_xattr_emit(const char *prefix,
+			      const char *name, size_t name_len,
+			      char **buffer, size_t *buffer_size,
+			      ssize_t *ret)
+{
+	const size_t prefix_len = strlen(prefix);
+	const size_t total_len = prefix_len + name_len + 1;
+
+	if (*buffer) {
+		if (total_len > *buffer_size) {
+			*ret = -ERANGE;
+			return;
+		}
+
+		memcpy(*buffer, prefix, prefix_len);
+		memcpy(*buffer + prefix_len,
+		       name, name_len);
+		(*buffer)[prefix_len + name_len] = '\0';
+
+		*buffer		+= total_len;
+		*buffer_size	-= total_len;
+	}
+
+	*ret += total_len;
+}
+
+static void bch2_xattr_emit(struct dentry *dentry,
+			    const struct bch_xattr *xattr,
+			    char **buffer, size_t *buffer_size,
+			    ssize_t *ret)
 {
 	const struct xattr_handler *handler =
 		bch2_xattr_type_to_handler(xattr->x_type);
 
-	if (handler && (!handler->list || handler->list(dentry))) {
-		const char *prefix = handler->prefix ?: handler->name;
-		const size_t prefix_len = strlen(prefix);
-		const size_t total_len = prefix_len + xattr->x_name_len + 1;
+	if (handler && (!handler->list || handler->list(dentry)))
+		__bch2_xattr_emit(handler->prefix ?: handler->name,
+				  xattr->x_name, xattr->x_name_len,
+				  buffer, buffer_size, ret);
+}
 
-		if (buffer && total_len <= buffer_size) {
-			memcpy(buffer, prefix, prefix_len);
-			memcpy(buffer + prefix_len,
-			       xattr->x_name, xattr->x_name_len);
-			buffer[prefix_len + xattr->x_name_len] = '\0';
-		}
+static void bch2_xattr_list_bcachefs(struct bch_fs *c,
+				     struct bch_inode_info *inode,
+				     char **buffer,
+				     size_t *buffer_size,
+				     ssize_t *ret,
+				     bool all)
+{
+	const char *prefix = all ? "bcachefs_effective." : "bcachefs.";
+	unsigned id;
+	u64 v;
 
-		return total_len;
-	} else {
-		return 0;
+	for (id = 0; id < Inode_opt_nr; id++) {
+		v = bch2_inode_opt_get(&inode->ei_inode, id);
+		if (!v)
+			continue;
+
+		if (!all &&
+		    !(inode->ei_inode.bi_fields_set & (1 << id)))
+			continue;
+
+		__bch2_xattr_emit(prefix,
+				  bch2_inode_opts[id],
+				  strlen(bch2_inode_opts[id]),
+				  buffer, buffer_size, ret);
+		if (*ret < 0)
+			break;
 	}
 }
 
 ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	struct bch_fs *c = dentry->d_sb->s_fs_info;
+	struct bch_inode_info *inode = to_bch_ei(dentry->d_inode);
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	const struct bch_xattr *xattr;
 	u64 inum = dentry->d_inode->i_ino;
 	ssize_t ret = 0;
-	size_t len;
 
 	for_each_btree_key(&iter, c, BTREE_ID_XATTRS, POS(inum, 0), 0, k) {
 		BUG_ON(k.k->p.inode < inum);
@@ -242,23 +285,25 @@ ssize_t bch2_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 		if (k.k->type != KEY_TYPE_xattr)
 			continue;
 
-		xattr = bkey_s_c_to_xattr(k).v;
-
-		len = bch2_xattr_emit(dentry, xattr, buffer, buffer_size);
-		if (buffer) {
-			if (len > buffer_size) {
-				bch2_btree_iter_unlock(&iter);
-				return -ERANGE;
-			}
-
-			buffer += len;
-			buffer_size -= len;
-		}
-
-		ret += len;
-
+		bch2_xattr_emit(dentry, bkey_s_c_to_xattr(k).v,
+				&buffer, &buffer_size, &ret);
+		if (ret < 0)
+			break;
 	}
 	bch2_btree_iter_unlock(&iter);
+
+	if (ret < 0)
+		return ret;
+
+	bch2_xattr_list_bcachefs(c, inode, &buffer,
+				 &buffer_size, &ret, false);
+	if (ret < 0)
+		return ret;
+
+	bch2_xattr_list_bcachefs(c, inode, &buffer,
+				 &buffer_size, &ret, true);
+	if (ret < 0)
+		return ret;
 
 	return ret;
 }
@@ -318,25 +363,46 @@ static const struct xattr_handler bch_xattr_security_handler = {
 
 #ifndef NO_BCACHEFS_FS
 
-static int bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
-				   struct dentry *dentry, struct inode *vinode,
-				   const char *name, void *buffer, size_t size)
+static int opt_to_inode_opt(int id)
+{
+	switch (id) {
+#define x(name, ...)				\
+	case Opt_##name: return Inode_opt_##name;
+	BCH_INODE_OPTS()
+#undef  x
+	default:
+		return -1;
+	}
+}
+
+static int __bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
+				struct dentry *dentry, struct inode *vinode,
+				const char *name, void *buffer, size_t size,
+				bool all)
 {
 	struct bch_inode_info *inode = to_bch_ei(vinode);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	struct bch_opts opts =
 		bch2_inode_opts_to_opts(bch2_inode_opts_get(&inode->ei_inode));
 	const struct bch_option *opt;
-	int id;
+	int id, inode_opt_id;
 	u64 v;
 
 	id = bch2_opt_lookup(name);
 	if (id < 0 || !bch2_opt_is_inode_opt(id))
 		return -EINVAL;
 
+	inode_opt_id = opt_to_inode_opt(id);
+	if (inode_opt_id < 0)
+		return -EINVAL;
+
 	opt = bch2_opt_table + id;
 
 	if (!bch2_opt_defined_by_id(&opts, id))
+		return -ENODATA;
+
+	if (!all &&
+	    !(inode->ei_inode.bi_fields_set & (1 << inode_opt_id)))
 		return -ENODATA;
 
 	v = bch2_opt_get_by_id(&opts, id);
@@ -359,6 +425,14 @@ static int bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
 	}
 }
 
+static int bch2_xattr_bcachefs_get(const struct xattr_handler *handler,
+				   struct dentry *dentry, struct inode *vinode,
+				   const char *name, void *buffer, size_t size)
+{
+	return __bch2_xattr_bcachefs_get(handler, dentry, vinode,
+					 name, buffer, size, false);
+}
+
 struct inode_opt_set {
 	int			id;
 	u64			v;
@@ -372,9 +446,12 @@ static int inode_opt_set_fn(struct bch_inode_info *inode,
 	struct inode_opt_set *s = p;
 
 	if (s->defined)
-		bch2_inode_opt_set(bi, s->id, s->v);
+		bi->bi_fields_set |= 1U << s->id;
 	else
-		bch2_inode_opt_clear(bi, s->id);
+		bi->bi_fields_set &= ~(1U << s->id);
+
+	bch2_inode_opt_set(bi, s->id, s->v);
+
 	return 0;
 }
 
@@ -389,33 +466,51 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 	const struct bch_option *opt;
 	char *buf;
 	struct inode_opt_set s;
-	int ret;
+	int opt_id, inode_opt_id, ret;
 
-	s.id = bch2_opt_lookup(name);
-	if (s.id < 0 || !bch2_opt_is_inode_opt(s.id))
+	opt_id = bch2_opt_lookup(name);
+	if (opt_id < 0)
 		return -EINVAL;
 
-	opt = bch2_opt_table + s.id;
+	opt = bch2_opt_table + opt_id;
+
+	inode_opt_id = opt_to_inode_opt(opt_id);
+	if (inode_opt_id < 0)
+		return -EINVAL;
+
+	s.id = inode_opt_id;
 
 	if (value) {
+		u64 v = 0;
+
 		buf = kmalloc(size + 1, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 		memcpy(buf, value, size);
 		buf[size] = '\0';
 
-		ret = bch2_opt_parse(c, opt, buf, &s.v);
+		ret = bch2_opt_parse(c, opt, buf, &v);
 		kfree(buf);
 
 		if (ret < 0)
 			return ret;
 
-		ret = bch2_opt_check_may_set(c, s.id, s.v);
+		ret = bch2_opt_check_may_set(c, opt_id, v);
 		if (ret < 0)
 			return ret;
 
+		s.v = v + 1;
 		s.defined = true;
 	} else {
+		if (!IS_ROOT(dentry)) {
+			struct bch_inode_info *dir =
+				to_bch_ei(d_inode(dentry->d_parent));
+
+			s.v = bch2_inode_opt_get(&dir->ei_inode, inode_opt_id);
+		} else {
+			s.v = 0;
+		}
+
 		s.defined = false;
 	}
 
@@ -424,8 +519,8 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 	mutex_unlock(&inode->ei_update_lock);
 
 	if (value &&
-	    (s.id == Opt_background_compression ||
-	     s.id == Opt_background_target))
+	    (opt_id == Opt_background_compression ||
+	     opt_id == Opt_background_target))
 		bch2_rebalance_add_work(c, inode->v.i_blocks);
 
 	return ret;
@@ -434,6 +529,21 @@ static int bch2_xattr_bcachefs_set(const struct xattr_handler *handler,
 static const struct xattr_handler bch_xattr_bcachefs_handler = {
 	.prefix	= "bcachefs.",
 	.get	= bch2_xattr_bcachefs_get,
+	.set	= bch2_xattr_bcachefs_set,
+};
+
+static int bch2_xattr_bcachefs_get_effective(
+				const struct xattr_handler *handler,
+				struct dentry *dentry, struct inode *vinode,
+				const char *name, void *buffer, size_t size)
+{
+	return __bch2_xattr_bcachefs_get(handler, dentry, vinode,
+					 name, buffer, size, true);
+}
+
+static const struct xattr_handler bch_xattr_bcachefs_effective_handler = {
+	.prefix	= "bcachefs_effective.",
+	.get	= bch2_xattr_bcachefs_get_effective,
 	.set	= bch2_xattr_bcachefs_set,
 };
 
@@ -447,6 +557,7 @@ const struct xattr_handler *bch2_xattr_handlers[] = {
 	&bch_xattr_security_handler,
 #ifndef NO_BCACHEFS_FS
 	&bch_xattr_bcachefs_handler,
+	&bch_xattr_bcachefs_effective_handler,
 #endif
 	NULL
 };
