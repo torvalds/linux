@@ -5,25 +5,25 @@
  * Copyright 2011 Analog Devices Inc.
  */
 
-#include <linux/interrupt.h>
+#include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/sysfs.h>
-#include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/gpio/consumer.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
+#include <linux/sched.h>
+#include <linux/slab.h>
+#include <linux/sysfs.h>
 #include <linux/util_macros.h>
 
 #include <linux/iio/iio.h>
-#include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
-#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad7606.h"
 
@@ -249,8 +249,7 @@ static const struct attribute_group ad7606_attribute_group_range = {
 	.attrs = ad7606_attributes_range,
 };
 
-#define AD760X_CHANNEL(num, mask)				\
-	{							\
+#define AD760X_CHANNEL(num, mask) {				\
 		.type = IIO_VOLTAGE,				\
 		.indexed = 1,					\
 		.channel = num,					\
@@ -265,7 +264,7 @@ static const struct attribute_group ad7606_attribute_group_range = {
 			.storagebits = 16,			\
 			.endianness = IIO_CPU,			\
 		},						\
-	}
+}
 
 #define AD7605_CHANNEL(num)	\
 	AD760X_CHANNEL(num, 0)
@@ -294,9 +293,7 @@ static const struct iio_chan_spec ad7606_channels[] = {
 };
 
 static const struct ad7606_chip_info ad7606_chip_info_tbl[] = {
-	/*
-	 * More devices added in future
-	 */
+	/* More devices added in future */
 	[ID_AD7605_4] = {
 		.channels = ad7605_channels,
 		.num_channels = 5,

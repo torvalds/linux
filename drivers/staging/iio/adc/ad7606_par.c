@@ -26,7 +26,7 @@ static int ad7606_par16_read_block(struct device *dev,
 }
 
 static const struct ad7606_bus_ops ad7606_par16_bops = {
-	.read_block	= ad7606_par16_read_block,
+	.read_block = ad7606_par16_read_block,
 };
 
 static int ad7606_par8_read_block(struct device *dev,
@@ -41,7 +41,7 @@ static int ad7606_par8_read_block(struct device *dev,
 }
 
 static const struct ad7606_bus_ops ad7606_par8_bops = {
-	.read_block	= ad7606_par8_read_block,
+	.read_block = ad7606_par8_read_block,
 };
 
 static int ad7606_par_probe(struct platform_device *pdev)
@@ -72,22 +72,12 @@ static int ad7606_par_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id ad7606_driver_ids[] = {
-	{
-		.name		= "ad7605-4",
-		.driver_data	= ID_AD7605_4,
-	}, {
-		.name		= "ad7606-8",
-		.driver_data	= ID_AD7606_8,
-	}, {
-		.name		= "ad7606-6",
-		.driver_data	= ID_AD7606_6,
-	}, {
-		.name		= "ad7606-4",
-		.driver_data	= ID_AD7606_4,
-	},
+	{ .name	= "ad7605-4", .driver_data = ID_AD7605_4, },
+	{ .name	= "ad7606-4", .driver_data = ID_AD7606_4, },
+	{ .name	= "ad7606-6", .driver_data = ID_AD7606_6, },
+	{ .name	= "ad7606-8", .driver_data = ID_AD7606_8, },
 	{ }
 };
-
 MODULE_DEVICE_TABLE(platform, ad7606_driver_ids);
 
 static const struct of_device_id ad7606_of_match[] = {
@@ -103,12 +93,11 @@ static struct platform_driver ad7606_driver = {
 	.probe = ad7606_par_probe,
 	.id_table = ad7606_driver_ids,
 	.driver = {
-		.name	 = "ad7606",
-		.pm	 = AD7606_PM_OPS,
+		.name = "ad7606",
+		.pm = AD7606_PM_OPS,
 		.of_match_table = ad7606_of_match,
 	},
 };
-
 module_platform_driver(ad7606_driver);
 
 MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");

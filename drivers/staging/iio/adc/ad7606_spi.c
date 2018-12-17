@@ -36,7 +36,7 @@ static int ad7606_spi_read_block(struct device *dev,
 }
 
 static const struct ad7606_bus_ops ad7606_spi_bops = {
-	.read_block	= ad7606_spi_read_block,
+	.read_block = ad7606_spi_read_block,
 };
 
 static int ad7606_spi_probe(struct spi_device *spi)
@@ -48,14 +48,14 @@ static int ad7606_spi_probe(struct spi_device *spi)
 			    &ad7606_spi_bops);
 }
 
-static const struct spi_device_id ad7606_id[] = {
-	{"ad7605-4", ID_AD7605_4},
-	{"ad7606-8", ID_AD7606_8},
-	{"ad7606-6", ID_AD7606_6},
-	{"ad7606-4", ID_AD7606_4},
+static const struct spi_device_id ad7606_id_table[] = {
+	{ "ad7605-4", ID_AD7605_4 },
+	{ "ad7606-4", ID_AD7606_4 },
+	{ "ad7606-6", ID_AD7606_6 },
+	{ "ad7606-8", ID_AD7606_8 },
 	{}
 };
-MODULE_DEVICE_TABLE(spi, ad7606_id);
+MODULE_DEVICE_TABLE(spi, ad7606_id_table);
 
 static const struct of_device_id ad7606_of_match[] = {
 	{ .compatible = "adi,ad7605-4" },
@@ -73,7 +73,7 @@ static struct spi_driver ad7606_driver = {
 		.pm = AD7606_PM_OPS,
 	},
 	.probe = ad7606_spi_probe,
-	.id_table = ad7606_id,
+	.id_table = ad7606_id_table,
 };
 module_spi_driver(ad7606_driver);
 

@@ -14,7 +14,6 @@
  * @num_channels:	number of channels
  * @has_oversampling:   whether the device has oversampling support
  */
-
 struct ad7606_chip_info {
 	const struct iio_chan_spec	*channels;
 	unsigned int			num_channels;
