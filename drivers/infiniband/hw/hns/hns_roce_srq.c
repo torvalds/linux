@@ -286,6 +286,7 @@ struct ib_srq *hns_roce_create_srq(struct ib_pd *pd,
 		if (IS_ERR(srq->idx_que.umem)) {
 			dev_err(hr_dev->dev,
 				"ib_umem_get error for index queue\n");
+			ret = PTR_ERR(srq->idx_que.umem);
 			goto err_srq_mtt;
 		}
 
