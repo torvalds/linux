@@ -579,8 +579,12 @@ xfs_file_compat_ioctl(
 	case FS_IOC_GETFSMAP:
 	case XFS_IOC_SCRUB_METADATA:
 		return xfs_file_ioctl(filp, cmd, p);
-#ifndef BROKEN_X86_ALIGNMENT
-	/* These are handled fine if no alignment issues */
+#if !defined(BROKEN_X86_ALIGNMENT) || defined(CONFIG_X86_X32)
+	/*
+	 * These are handled fine if no alignment issues.  To support x32
+	 * which uses native 64-bit alignment we must emit these cases in
+	 * addition to the ia-32 compat set below.
+	 */
 	case XFS_IOC_ALLOCSP:
 	case XFS_IOC_FREESP:
 	case XFS_IOC_RESVSP:
@@ -593,8 +597,16 @@ xfs_file_compat_ioctl(
 	case XFS_IOC_FSGROWFSDATA:
 	case XFS_IOC_FSGROWFSRT:
 	case XFS_IOC_ZERO_RANGE:
+#ifdef CONFIG_X86_X32
+	/*
+	 * x32 special: this gets a different cmd number from the ia-32 compat
+	 * case below; the associated data will match native 64-bit alignment.
+	 */
+	case XFS_IOC_SWAPEXT:
+#endif
 		return xfs_file_ioctl(filp, cmd, p);
-#else
+#endif
+#if defined(BROKEN_X86_ALIGNMENT)
 	case XFS_IOC_ALLOCSP_32:
 	case XFS_IOC_FREESP_32:
 	case XFS_IOC_ALLOCSP64_32:
