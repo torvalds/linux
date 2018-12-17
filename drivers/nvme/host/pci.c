@@ -496,11 +496,7 @@ static int nvme_pci_map_queues(struct blk_mq_tag_set *set)
 		map->nr_queues = dev->io_queues[i];
 		if (!map->nr_queues) {
 			BUG_ON(i == HCTX_TYPE_DEFAULT);
-
-			/* shared set, resuse read set parameters */
-			map->nr_queues = dev->io_queues[HCTX_TYPE_DEFAULT];
-			qoff = 0;
-			offset = queue_irq_offset(dev);
+			continue;
 		}
 
 		/*
