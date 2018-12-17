@@ -11009,7 +11009,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {
-		if (mode_changed)
+		if (mode_changed || pipe_config->update_pipe)
 			ret = skl_update_scaler_crtc(pipe_config);
 
 		if (!ret)
