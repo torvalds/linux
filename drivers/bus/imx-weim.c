@@ -46,6 +46,7 @@ static const struct imx_weim_devtype imx51_weim_devtype = {
 };
 
 #define MAX_CS_REGS_COUNT	6
+#define OF_REG_SIZE		3
 
 static const struct of_device_id weim_id_table[] = {
 	/* i.MX1/21 */
@@ -116,16 +117,9 @@ static int __init weim_timing_setup(struct device_node *np, void __iomem *base,
 {
 	u32 cs_idx, value[MAX_CS_REGS_COUNT];
 	int i, ret;
+	int reg_idx, num_regs;
 
 	if (WARN_ON(devtype->cs_regs_count > MAX_CS_REGS_COUNT))
-		return -EINVAL;
-
-	/* get the CS index from this child node's "reg" property. */
-	ret = of_property_read_u32(np, "reg", &cs_idx);
-	if (ret)
-		return ret;
-
-	if (cs_idx >= devtype->cs_count)
 		return -EINVAL;
 
 	ret = of_property_read_u32_array(np, "fsl,weim-cs-timing",
@@ -133,9 +127,30 @@ static int __init weim_timing_setup(struct device_node *np, void __iomem *base,
 	if (ret)
 		return ret;
 
-	/* set the timing for WEIM */
-	for (i = 0; i < devtype->cs_regs_count; i++)
-		writel(value[i], base + cs_idx * devtype->cs_stride + i * 4);
+	/*
+	 * the child node's "reg" property may contain multiple address ranges,
+	 * extract the chip select for each.
+	 */
+	num_regs = of_property_count_elems_of_size(np, "reg", OF_REG_SIZE);
+	if (num_regs < 0)
+		return num_regs;
+	if (!num_regs)
+		return -EINVAL;
+	for (reg_idx = 0; reg_idx < num_regs; reg_idx++) {
+		/* get the CS index from this child node's "reg" property. */
+		ret = of_property_read_u32_index(np, "reg",
+					reg_idx * OF_REG_SIZE, &cs_idx);
+		if (ret)
+			break;
+
+		if (cs_idx >= devtype->cs_count)
+			return -EINVAL;
+
+		/* set the timing for WEIM */
+		for (i = 0; i < devtype->cs_regs_count; i++)
+			writel(value[i],
+				base + cs_idx * devtype->cs_stride + i * 4);
+	}
 
 	return 0;
 }
