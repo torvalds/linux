@@ -95,6 +95,8 @@ static void megasas_free_reply_fusion(struct megasas_instance *instance);
 static inline
 void megasas_configure_queue_sizes(struct megasas_instance *instance);
 static void megasas_fusion_crash_dump(struct megasas_instance *instance);
+extern u32 megasas_readl(struct megasas_instance *instance,
+			 const volatile void __iomem *addr);
 
 /**
  * megasas_check_same_4gb_region -	check if allocation
@@ -267,7 +269,8 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 	/* ventura FW does not fill outbound_scratch_pad_2 with queue depth */
 	if (instance->adapter_type < VENTURA_SERIES)
 		cur_max_fw_cmds =
-		readl(&instance->reg_set->outbound_scratch_pad_2) & 0x00FFFF;
+		megasas_readl(instance,
+			      &instance->reg_set->outbound_scratch_pad_2) & 0x00FFFF;
 
 	if (dual_qdepth_disable || !cur_max_fw_cmds)
 		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(instance) & 0x00FFFF;
@@ -984,8 +987,8 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 
 	cmd = fusion->ioc_init_cmd;
 
-	scratch_pad_1 = readl
-		(&instance->reg_set->outbound_scratch_pad_1);
+	scratch_pad_1 = megasas_readl
+		(instance, &instance->reg_set->outbound_scratch_pad_1);
 
 	cur_rdpq_mode = (scratch_pad_1 & MR_RDPQ_MODE_OFFSET) ? 1 : 0;
 
@@ -1104,7 +1107,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	instance->instancet->disable_intr(instance);
 
 	for (i = 0; i < (10 * 1000); i += 20) {
-		if (readl(&instance->reg_set->doorbell) & 1)
+		if (megasas_readl(instance, &instance->reg_set->doorbell) & 1)
 			msleep(20);
 		else
 			break;
@@ -1653,7 +1656,8 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	megasas_configure_queue_sizes(instance);
 
-	scratch_pad_1 = readl(&instance->reg_set->outbound_scratch_pad_1);
+	scratch_pad_1 = megasas_readl(instance,
+				      &instance->reg_set->outbound_scratch_pad_1);
 	/* If scratch_pad_1 & MEGASAS_MAX_CHAIN_SIZE_UNITS_MASK is set,
 	 * Firmware support extended IO chain frame which is 4 times more than
 	 * legacy Firmware.
@@ -3731,7 +3735,7 @@ megasas_release_fusion(struct megasas_instance *instance)
 static u32
 megasas_read_fw_status_reg_fusion(struct megasas_instance *instance)
 {
-	return readl(&instance->reg_set->outbound_scratch_pad_0);
+	return megasas_readl(instance, &instance->reg_set->outbound_scratch_pad_0);
 }
 
 /**
@@ -3793,11 +3797,12 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	writel(MPI2_WRSEQ_6TH_KEY_VALUE, &instance->reg_set->fusion_seq_offset);
 
 	/* Check that the diag write enable (DRWE) bit is on */
-	host_diag = readl(&instance->reg_set->fusion_host_diag);
+	host_diag = megasas_readl(instance, &instance->reg_set->fusion_host_diag);
 	retry = 0;
 	while (!(host_diag & HOST_DIAG_WRITE_ENABLE)) {
 		msleep(100);
-		host_diag = readl(&instance->reg_set->fusion_host_diag);
+		host_diag = megasas_readl(instance,
+					  &instance->reg_set->fusion_host_diag);
 		if (retry++ == 100) {
 			dev_warn(&instance->pdev->dev,
 				"Host diag unlock failed from %s %d\n",
@@ -3814,11 +3819,12 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	msleep(3000);
 
 	/* Make sure reset adapter bit is cleared */
-	host_diag = readl(&instance->reg_set->fusion_host_diag);
+	host_diag = megasas_readl(instance, &instance->reg_set->fusion_host_diag);
 	retry = 0;
 	while (host_diag & HOST_DIAG_RESET_ADAPTER) {
 		msleep(100);
-		host_diag = readl(&instance->reg_set->fusion_host_diag);
+		host_diag = megasas_readl(instance,
+					  &instance->reg_set->fusion_host_diag);
 		if (retry++ == 1000) {
 			dev_warn(&instance->pdev->dev,
 				"Diag reset adapter never cleared %s %d\n",
@@ -4607,7 +4613,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		dev_info(&instance->pdev->dev, "IO/DCMD timeout is detected, "
 			"forcibly FAULT Firmware\n");
 		atomic_set(&instance->adprecovery, MEGASAS_ADPRESET_SM_INFAULT);
-		status_reg = readl(&instance->reg_set->doorbell);
+		status_reg = megasas_readl(instance, &instance->reg_set->doorbell);
 		writel(status_reg | MFI_STATE_FORCE_OCR,
 			&instance->reg_set->doorbell);
 		readl(&instance->reg_set->doorbell);
