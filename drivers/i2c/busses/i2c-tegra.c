@@ -154,6 +154,16 @@ enum msg_end_type {
  * @clk_divisor_std_fast_mode: Clock divisor in standard/fast mode. It is
  *		applicable if there is no fast clock source i.e. single clock
  *		source.
+ * @clk_divisor_fast_plus_mode: Clock divisor in fast mode plus. It is
+ *		applicable if there is no fast clock source (i.e. single
+ *		clock source).
+ * @has_multi_master_mode: The I2C controller supports running in single-master
+ *		or multi-master mode.
+ * @has_slcg_override_reg: The I2C controller supports a register that
+ *		overrides the second level clock gating.
+ * @has_mst_fifo: The I2C controller contains the new MST FIFO interface that
+ *		provides additional features and allows for longer messages to
+ *		be transferred in one go.
  */
 struct tegra_i2c_hw_feature {
 	bool has_continue_xfer_support;
@@ -175,9 +185,11 @@ struct tegra_i2c_hw_feature {
  * @adapter: core I2C layer adapter information
  * @div_clk: clock reference for div clock of I2C controller
  * @fast_clk: clock reference for fast clock of I2C controller
+ * @rst: reset control for the I2C controller
  * @base: ioremapped registers cookie
  * @cont_id: I2C controller ID, used for packet header
  * @irq: IRQ number of transfer complete interrupt
+ * @irq_disabled: used to track whether or not the interrupt is enabled
  * @is_dvc: identifies the DVC I2C controller, has a different register layout
  * @msg_complete: transfer completion notifier
  * @msg_err: error code for completed message
@@ -185,6 +197,9 @@ struct tegra_i2c_hw_feature {
  * @msg_buf_remaining: size of unsent data in the message buffer
  * @msg_read: identifies read transfers
  * @bus_clk_rate: current I2C bus clock rate
+ * @clk_divisor_non_hs_mode: clock divider for non-high-speed modes
+ * @is_multimaster_mode: track if I2C controller is in multi-master mode
+ * @xfer_lock: lock to serialize transfer submission and processing
  */
 struct tegra_i2c_dev {
 	struct device *dev;
