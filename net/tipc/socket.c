@@ -1007,7 +1007,7 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	struct sock *sk = sock->sk;
 	struct net *net = sock_net(sk);
 	struct tipc_sock *tsk = tipc_sk(sk);
-	struct tipc_nlist *dsts = tipc_group_dests(tsk->group);
+	struct tipc_nlist *dsts;
 	struct tipc_mc_method *method = &tsk->mc_method;
 	bool ack = method->mandatory && method->rcast;
 	int blks = tsk_blocks(MCAST_H_SIZE + dlen);
@@ -1016,15 +1016,16 @@ static int tipc_send_group_bcast(struct socket *sock, struct msghdr *m,
 	struct sk_buff_head pkts;
 	int rc = -EHOSTUNREACH;
 
-	if (!dsts->local && !dsts->remote)
-		return -EHOSTUNREACH;
-
 	/* Block or return if any destination link or member is congested */
 	rc = tipc_wait_for_cond(sock, &timeout,
 				!tsk->cong_link_cnt && tsk->group &&
 				!tipc_group_bc_cong(tsk->group, blks));
 	if (unlikely(rc))
 		return rc;
+
+	dsts = tipc_group_dests(tsk->group);
+	if (!dsts->local && !dsts->remote)
+		return -EHOSTUNREACH;
 
 	/* Complete message header */
 	if (dest) {
