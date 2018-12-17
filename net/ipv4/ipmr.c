@@ -1820,8 +1820,7 @@ static bool ipmr_forward_offloaded(struct sk_buff *skb, struct mr_table *mrt,
 /* Processing handlers for ipmr_forward */
 
 static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
-			    int in_vifi, struct sk_buff *skb,
-			    struct mfc_cache *c, int vifi)
+			    int in_vifi, struct sk_buff *skb, int vifi)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct vif_device *vif = &mrt->vif_table[vifi];
@@ -2027,7 +2026,7 @@ forward:
 
 				if (skb2)
 					ipmr_queue_xmit(net, mrt, true_vifi,
-							skb2, c, psend);
+							skb2, psend);
 			}
 			psend = ct;
 		}
@@ -2039,9 +2038,9 @@ last_forward:
 
 			if (skb2)
 				ipmr_queue_xmit(net, mrt, true_vifi, skb2,
-						c, psend);
+						psend);
 		} else {
-			ipmr_queue_xmit(net, mrt, true_vifi, skb, c, psend);
+			ipmr_queue_xmit(net, mrt, true_vifi, skb, psend);
 			return;
 		}
 	}
