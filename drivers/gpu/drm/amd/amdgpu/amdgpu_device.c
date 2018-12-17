@@ -1544,6 +1544,7 @@ static int amdgpu_device_ip_early_init(struct amdgpu_device *adev)
 			return r;
 		break;
 	case  CHIP_NAVI10:
+	case  CHIP_NAVI14:
 		adev->family = AMDGPU_FAMILY_NV;
 
 		r = nv_set_ip_blocks(adev);
