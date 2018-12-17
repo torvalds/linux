@@ -138,7 +138,6 @@ vc_vchi_audio_init(VCHI_INSTANCE_T vchi_instance,
 		dev_err(instance->dev,
 			"failed to open VCHI service connection (status=%d)\n",
 			status);
-		kfree(instance);
 		return -EPERM;
 	}
 
