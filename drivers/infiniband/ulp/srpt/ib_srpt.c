@@ -2010,6 +2010,14 @@ static void srpt_free_ch(struct kref *kref)
 	kfree_rcu(ch, rcu);
 }
 
+/*
+ * Shut down the SCSI target session, tell the connection manager to
+ * disconnect the associated RDMA channel, transition the QP to the error
+ * state and remove the channel from the channel list. This function is
+ * typically called from inside srpt_zerolength_write_done(). Concurrent
+ * srpt_zerolength_write() calls from inside srpt_close_ch() are possible
+ * as long as the channel is on sport->nexus_list.
+ */
 static void srpt_release_channel_work(struct work_struct *w)
 {
 	struct srpt_rdma_ch *ch;
@@ -2037,6 +2045,11 @@ static void srpt_release_channel_work(struct work_struct *w)
 	else
 		ib_destroy_cm_id(ch->ib_cm.cm_id);
 
+	sport = ch->sport;
+	mutex_lock(&sport->mutex);
+	list_del_rcu(&ch->list);
+	mutex_unlock(&sport->mutex);
+
 	srpt_destroy_ch_ib(ch);
 
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_ring,
@@ -2046,11 +2059,6 @@ static void srpt_release_channel_work(struct work_struct *w)
 	srpt_free_ioctx_ring((struct srpt_ioctx **)ch->ioctx_recv_ring,
 			     sdev, ch->rq_size,
 			     srp_max_req_size, DMA_FROM_DEVICE);
-
-	sport = ch->sport;
-	mutex_lock(&sport->mutex);
-	list_del_rcu(&ch->list);
-	mutex_unlock(&sport->mutex);
 
 	wake_up(&sport->ch_releaseQ);
 
