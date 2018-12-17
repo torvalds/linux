@@ -631,8 +631,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	snprintf(adpt->card->shortname, sizeof(adpt->card->shortname),
 		 "Microchip INIC");
 	snprintf(adpt->card->longname, sizeof(adpt->card->longname),
-		 "%s at %s, ch %d", adpt->card->shortname, iface->description,
-		 channel_id);
+		 "%s at %s", adpt->card->shortname, iface->description);
 skip_adpt_alloc:
 	if (get_channel(iface, channel_id)) {
 		pr_err("channel (%s:%d) is already linked\n",
