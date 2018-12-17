@@ -39,6 +39,7 @@
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_gem.h"
 #include "amdgpu_display.h"
+#include "amdgpu_ras.h"
 
 static void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
@@ -919,6 +920,15 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 	case AMDGPU_INFO_VRAM_LOST_COUNTER:
 		ui32 = atomic_read(&adev->vram_lost_counter);
 		return copy_to_user(out, &ui32, min(size, 4u)) ? -EFAULT : 0;
+	case AMDGPU_INFO_RAS_ENABLED_FEATURES: {
+		struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+		if (!ras)
+			return -EINVAL;
+		return copy_to_user(out, &ras->features,
+				min_t(u32, size, sizeof(ras->features))) ?
+			-EFAULT : 0;
+	}
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->query);
 		return -EINVAL;
