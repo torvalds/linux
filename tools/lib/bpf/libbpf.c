@@ -266,6 +266,7 @@ void bpf_program__unload(struct bpf_program *prog)
 
 	zclose(prog->btf_fd);
 	zfree(&prog->func_info);
+	zfree(&prog->line_info);
 }
 
 static void bpf_program__exit(struct bpf_program *prog)
