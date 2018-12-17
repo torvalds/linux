@@ -106,6 +106,7 @@ int asymmetric_verify(struct key *keyring, const char *sig,
 
 	pks.pkey_algo = "rsa";
 	pks.hash_algo = hash_algo_name[hdr->hash_algo];
+	pks.encoding = "pkcs1";
 	pks.digest = (u8 *)data;
 	pks.digest_size = datalen;
 	pks.s = hdr->sig;

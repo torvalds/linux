@@ -153,7 +153,7 @@
 };
 
 &pcie0 {
-	ep-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_LOW>;
+	ep-gpios = <&gpio4 RK_PC6 GPIO_ACTIVE_HIGH>;
 	num-lanes = <4>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_clkreqn_cpm>;

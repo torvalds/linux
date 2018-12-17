@@ -174,6 +174,7 @@ module_param_named(preemption_timer, enable_preemption_timer, bool, S_IRUGO);
  * refer SDM volume 3b section 21.6.13 & 22.1.3.
  */
 static unsigned int ple_gap = KVM_DEFAULT_PLE_GAP;
+module_param(ple_gap, uint, 0444);
 
 static unsigned int ple_window = KVM_VMX_DEFAULT_PLE_WINDOW;
 module_param(ple_window, uint, 0444);
@@ -984,6 +985,7 @@ struct vcpu_vmx {
 	struct shared_msr_entry *guest_msrs;
 	int                   nmsrs;
 	int                   save_nmsrs;
+	bool                  guest_msrs_dirty;
 	unsigned long	      host_idt_base;
 #ifdef CONFIG_X86_64
 	u64 		      msr_host_kernel_gs_base;
@@ -1306,7 +1308,7 @@ static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
 static bool nested_vmx_is_page_fault_vmexit(struct vmcs12 *vmcs12,
 					    u16 error_code);
 static void vmx_update_msr_bitmap(struct kvm_vcpu *vcpu);
-static void __always_inline vmx_disable_intercept_for_msr(unsigned long *msr_bitmap,
+static __always_inline void vmx_disable_intercept_for_msr(unsigned long *msr_bitmap,
 							  u32 msr, int type);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
@@ -1610,12 +1612,6 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	/* We don't support disabling the feature for simplicity. */
-	if (vmx->nested.enlightened_vmcs_enabled)
-		return 0;
-
-	vmx->nested.enlightened_vmcs_enabled = true;
-
 	/*
 	 * vmcs_version represents the range of supported Enlightened VMCS
 	 * versions: lower 8 bits is the minimal version, higher 8 bits is the
@@ -1624,6 +1620,12 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
 	 */
 	if (vmcs_version)
 		*vmcs_version = (KVM_EVMCS_VERSION << 8) | 1;
+
+	/* We don't support disabling the feature for simplicity. */
+	if (vmx->nested.enlightened_vmcs_enabled)
+		return 0;
+
+	vmx->nested.enlightened_vmcs_enabled = true;
 
 	vmx->nested.msrs.pinbased_ctls_high &= ~EVMCS1_UNSUPPORTED_PINCTRL;
 	vmx->nested.msrs.entry_ctls_high &= ~EVMCS1_UNSUPPORTED_VMENTRY_CTRL;
@@ -2897,6 +2899,20 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 
 	vmx->req_immediate_exit = false;
 
+	/*
+	 * Note that guest MSRs to be saved/restored can also be changed
+	 * when guest state is loaded. This happens when guest transitions
+	 * to/from long-mode by setting MSR_EFER.LMA.
+	 */
+	if (!vmx->loaded_cpu_state || vmx->guest_msrs_dirty) {
+		vmx->guest_msrs_dirty = false;
+		for (i = 0; i < vmx->save_nmsrs; ++i)
+			kvm_set_shared_msr(vmx->guest_msrs[i].index,
+					   vmx->guest_msrs[i].data,
+					   vmx->guest_msrs[i].mask);
+
+	}
+
 	if (vmx->loaded_cpu_state)
 		return;
 
@@ -2957,11 +2973,6 @@ static void vmx_prepare_switch_to_guest(struct kvm_vcpu *vcpu)
 		vmcs_writel(HOST_GS_BASE, gs_base);
 		host_state->gs_base = gs_base;
 	}
-
-	for (i = 0; i < vmx->save_nmsrs; ++i)
-		kvm_set_shared_msr(vmx->guest_msrs[i].index,
-				   vmx->guest_msrs[i].data,
-				   vmx->guest_msrs[i].mask);
 }
 
 static void vmx_prepare_switch_to_host(struct vcpu_vmx *vmx)
@@ -3436,6 +3447,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		move_msr_up(vmx, index, save_nmsrs++);
 
 	vmx->save_nmsrs = save_nmsrs;
+	vmx->guest_msrs_dirty = true;
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmx_update_msr_bitmap(&vmx->vcpu);
@@ -3452,11 +3464,9 @@ static u64 vmx_read_l1_tsc_offset(struct kvm_vcpu *vcpu)
 	return vcpu->arch.tsc_offset;
 }
 
-/*
- * writes 'offset' into guest's timestamp counter offset register
- */
-static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
+static u64 vmx_write_l1_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 {
+	u64 active_offset = offset;
 	if (is_guest_mode(vcpu)) {
 		/*
 		 * We're here if L1 chose not to trap WRMSR to TSC. According
@@ -3464,17 +3474,16 @@ static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 		 * set for L2 remains unchanged, and still needs to be added
 		 * to the newly set TSC to get L2's TSC.
 		 */
-		struct vmcs12 *vmcs12;
-		/* recalculate vmcs02.TSC_OFFSET: */
-		vmcs12 = get_vmcs12(vcpu);
-		vmcs_write64(TSC_OFFSET, offset +
-			(nested_cpu_has(vmcs12, CPU_BASED_USE_TSC_OFFSETING) ?
-			 vmcs12->tsc_offset : 0));
+		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+		if (nested_cpu_has(vmcs12, CPU_BASED_USE_TSC_OFFSETING))
+			active_offset += vmcs12->tsc_offset;
 	} else {
 		trace_kvm_write_tsc_offset(vcpu->vcpu_id,
 					   vmcs_read64(TSC_OFFSET), offset);
-		vmcs_write64(TSC_OFFSET, offset);
 	}
+
+	vmcs_write64(TSC_OFFSET, active_offset);
+	return active_offset;
 }
 
 /*
@@ -5944,7 +5953,7 @@ static void free_vpid(int vpid)
 	spin_unlock(&vmx_vpid_lock);
 }
 
-static void __always_inline vmx_disable_intercept_for_msr(unsigned long *msr_bitmap,
+static __always_inline void vmx_disable_intercept_for_msr(unsigned long *msr_bitmap,
 							  u32 msr, int type)
 {
 	int f = sizeof(unsigned long);
@@ -5982,7 +5991,7 @@ static void __always_inline vmx_disable_intercept_for_msr(unsigned long *msr_bit
 	}
 }
 
-static void __always_inline vmx_enable_intercept_for_msr(unsigned long *msr_bitmap,
+static __always_inline void vmx_enable_intercept_for_msr(unsigned long *msr_bitmap,
 							 u32 msr, int type)
 {
 	int f = sizeof(unsigned long);
@@ -6020,7 +6029,7 @@ static void __always_inline vmx_enable_intercept_for_msr(unsigned long *msr_bitm
 	}
 }
 
-static void __always_inline vmx_set_intercept_for_msr(unsigned long *msr_bitmap,
+static __always_inline void vmx_set_intercept_for_msr(unsigned long *msr_bitmap,
 			     			      u32 msr, int type, bool value)
 {
 	if (value)
@@ -8664,8 +8673,6 @@ static int copy_enlightened_to_vmcs12(struct vcpu_vmx *vmx)
 	struct vmcs12 *vmcs12 = vmx->nested.cached_vmcs12;
 	struct hv_enlightened_vmcs *evmcs = vmx->nested.hv_evmcs;
 
-	vmcs12->hdr.revision_id = evmcs->revision_id;
-
 	/* HV_VMX_ENLIGHTENED_CLEAN_FIELD_NONE */
 	vmcs12->tpr_threshold = evmcs->tpr_threshold;
 	vmcs12->guest_rip = evmcs->guest_rip;
@@ -9369,7 +9376,30 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 
 		vmx->nested.hv_evmcs = kmap(vmx->nested.hv_evmcs_page);
 
-		if (vmx->nested.hv_evmcs->revision_id != VMCS12_REVISION) {
+		/*
+		 * Currently, KVM only supports eVMCS version 1
+		 * (== KVM_EVMCS_VERSION) and thus we expect guest to set this
+		 * value to first u32 field of eVMCS which should specify eVMCS
+		 * VersionNumber.
+		 *
+		 * Guest should be aware of supported eVMCS versions by host by
+		 * examining CPUID.0x4000000A.EAX[0:15]. Host userspace VMM is
+		 * expected to set this CPUID leaf according to the value
+		 * returned in vmcs_version from nested_enable_evmcs().
+		 *
+		 * However, it turns out that Microsoft Hyper-V fails to comply
+		 * to their own invented interface: When Hyper-V use eVMCS, it
+		 * just sets first u32 field of eVMCS to revision_id specified
+		 * in MSR_IA32_VMX_BASIC. Instead of used eVMCS version number
+		 * which is one of the supported versions specified in
+		 * CPUID.0x4000000A.EAX[0:15].
+		 *
+		 * To overcome Hyper-V bug, we accept here either a supported
+		 * eVMCS version or VMCS12 revision_id as valid values for first
+		 * u32 field of eVMCS.
+		 */
+		if ((vmx->nested.hv_evmcs->revision_id != KVM_EVMCS_VERSION) &&
+		    (vmx->nested.hv_evmcs->revision_id != VMCS12_REVISION)) {
 			nested_release_evmcs(vcpu);
 			return 0;
 		}
@@ -9390,9 +9420,11 @@ static int nested_vmx_handle_enlightened_vmptrld(struct kvm_vcpu *vcpu,
 		 * present in struct hv_enlightened_vmcs, ...). Make sure there
 		 * are no leftovers.
 		 */
-		if (from_launch)
-			memset(vmx->nested.cached_vmcs12, 0,
-			       sizeof(*vmx->nested.cached_vmcs12));
+		if (from_launch) {
+			struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+			memset(vmcs12, 0, sizeof(*vmcs12));
+			vmcs12->hdr.revision_id = VMCS12_REVISION;
+		}
 
 	}
 	return 1;
@@ -15062,7 +15094,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
 	.has_wbinvd_exit = cpu_has_vmx_wbinvd_exit,
 
 	.read_l1_tsc_offset = vmx_read_l1_tsc_offset,
-	.write_tsc_offset = vmx_write_tsc_offset,
+	.write_l1_tsc_offset = vmx_write_l1_tsc_offset,
 
 	.set_tdp_cr3 = vmx_set_cr3,
 

@@ -1179,7 +1179,7 @@ void __init_memblock __next_mem_range_rev(u64 *idx, int nid,
 
 #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
 /*
- * Common iterator interface used to define for_each_mem_range().
+ * Common iterator interface used to define for_each_mem_pfn_range().
  */
 void __init_memblock __next_mem_pfn_range(int *idx, int nid,
 				unsigned long *out_start_pfn,
@@ -1727,7 +1727,7 @@ static int __init_memblock memblock_search(struct memblock_type *type, phys_addr
 	return -1;
 }
 
-bool __init memblock_is_reserved(phys_addr_t addr)
+bool __init_memblock memblock_is_reserved(phys_addr_t addr)
 {
 	return memblock_search(&memblock.reserved, addr) != -1;
 }

@@ -122,7 +122,6 @@ static struct snd_pcm_hardware q6asm_dai_hardware_playback = {
 			.rate_max =	48000,				\
 		},							\
 		.name = "MultiMedia"#num,				\
-		.probe = fe_dai_probe,					\
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA##num,			\
 	}
 
@@ -510,38 +509,6 @@ static void q6asm_dai_pcm_free(struct snd_pcm *pcm)
 		}
 	}
 }
-
-static const struct snd_soc_dapm_route afe_pcm_routes[] = {
-	{"MM_DL1",  NULL, "MultiMedia1 Playback" },
-	{"MM_DL2",  NULL, "MultiMedia2 Playback" },
-	{"MM_DL3",  NULL, "MultiMedia3 Playback" },
-	{"MM_DL4",  NULL, "MultiMedia4 Playback" },
-	{"MM_DL5",  NULL, "MultiMedia5 Playback" },
-	{"MM_DL6",  NULL, "MultiMedia6 Playback" },
-	{"MM_DL7",  NULL, "MultiMedia7 Playback" },
-	{"MM_DL7",  NULL, "MultiMedia8 Playback" },
-	{"MultiMedia1 Capture", NULL, "MM_UL1"},
-	{"MultiMedia2 Capture", NULL, "MM_UL2"},
-	{"MultiMedia3 Capture", NULL, "MM_UL3"},
-	{"MultiMedia4 Capture", NULL, "MM_UL4"},
-	{"MultiMedia5 Capture", NULL, "MM_UL5"},
-	{"MultiMedia6 Capture", NULL, "MM_UL6"},
-	{"MultiMedia7 Capture", NULL, "MM_UL7"},
-	{"MultiMedia8 Capture", NULL, "MM_UL8"},
-
-};
-
-static int fe_dai_probe(struct snd_soc_dai *dai)
-{
-	struct snd_soc_dapm_context *dapm;
-
-	dapm = snd_soc_component_get_dapm(dai->component);
-	snd_soc_dapm_add_routes(dapm, afe_pcm_routes,
-				ARRAY_SIZE(afe_pcm_routes));
-
-	return 0;
-}
-
 
 static const struct snd_soc_component_driver q6asm_fe_dai_component = {
 	.name		= DRV_NAME,

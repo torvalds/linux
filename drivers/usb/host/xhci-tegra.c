@@ -1303,6 +1303,7 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
+	xhci->shared_hcd = NULL;
 	usb_remove_hcd(tegra->hcd);
 	usb_put_hcd(tegra->hcd);
 

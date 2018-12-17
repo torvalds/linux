@@ -2358,7 +2358,14 @@ static void update_stream_scaling_settings(const struct drm_display_mode *mode,
 static enum dc_color_depth
 convert_color_depth_from_display_info(const struct drm_connector *connector)
 {
+	struct dm_connector_state *dm_conn_state =
+		to_dm_connector_state(connector->state);
 	uint32_t bpc = connector->display_info.bpc;
+
+	/* TODO: Remove this when there's support for max_bpc in drm */
+	if (dm_conn_state && bpc > dm_conn_state->max_bpc)
+		/* Round down to nearest even number. */
+		bpc = dm_conn_state->max_bpc - (dm_conn_state->max_bpc & 1);
 
 	switch (bpc) {
 	case 0:
@@ -2547,9 +2554,9 @@ static void fill_audio_info(struct audio_info *audio_info,
 
 	cea_revision = drm_connector->display_info.cea_rev;
 
-	strncpy(audio_info->display_name,
+	strscpy(audio_info->display_name,
 		edid_caps->display_name,
-		AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS - 1);
+		AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS);
 
 	if (cea_revision >= 3) {
 		audio_info->mode_count = edid_caps->audio_mode_count;
@@ -2943,6 +2950,9 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
+	} else if (property == adev->mode_info.max_bpc_property) {
+		dm_new_state->max_bpc = val;
+		ret = 0;
 	}
 
 	return ret;
@@ -2984,6 +2994,9 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 		ret = 0;
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
+		ret = 0;
+	} else if (property == adev->mode_info.max_bpc_property) {
+		*val = dm_state->max_bpc;
 		ret = 0;
 	}
 	return ret;
@@ -3029,6 +3042,7 @@ void amdgpu_dm_connector_funcs_reset(struct drm_connector *connector)
 		state->underscan_enable = false;
 		state->underscan_hborder = 0;
 		state->underscan_vborder = 0;
+		state->max_bpc = 8;
 
 		__drm_atomic_helper_connector_reset(connector, &state->base);
 	}
@@ -3050,6 +3064,7 @@ amdgpu_dm_connector_atomic_duplicate_state(struct drm_connector *connector)
 
 	new_state->freesync_capable = state->freesync_capable;
 	new_state->freesync_enable = state->freesync_enable;
+	new_state->max_bpc = state->max_bpc;
 
 	return &new_state->base;
 }
@@ -3637,7 +3652,7 @@ amdgpu_dm_create_common_mode(struct drm_encoder *encoder,
 	mode->hdisplay = hdisplay;
 	mode->vdisplay = vdisplay;
 	mode->type &= ~DRM_MODE_TYPE_PREFERRED;
-	strncpy(mode->name, name, DRM_DISPLAY_MODE_LEN);
+	strscpy(mode->name, name, DRM_DISPLAY_MODE_LEN);
 
 	return mode;
 
@@ -3794,6 +3809,9 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 				0);
 	drm_object_attach_property(&aconnector->base.base,
 				adev->mode_info.underscan_vborder_property,
+				0);
+	drm_object_attach_property(&aconnector->base.base,
+				adev->mode_info.max_bpc_property,
 				0);
 
 }

@@ -585,10 +585,12 @@ static void nicvf_free_snd_queue(struct nicvf *nic, struct snd_queue *sq)
 	if (!sq->dmem.base)
 		return;
 
-	if (sq->tso_hdrs)
+	if (sq->tso_hdrs) {
 		dma_free_coherent(&nic->pdev->dev,
 				  sq->dmem.q_len * TSO_HEADER_SIZE,
 				  sq->tso_hdrs, sq->tso_hdrs_phys);
+		sq->tso_hdrs = NULL;
+	}
 
 	/* Free pending skbs in the queue */
 	smp_rmb();

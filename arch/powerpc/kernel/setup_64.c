@@ -636,6 +636,8 @@ static void *__init alloc_stack(unsigned long limit, int cpu)
 {
 	unsigned long pa;
 
+	BUILD_BUG_ON(STACK_INT_FRAME_SIZE % 16);
+
 	pa = memblock_alloc_base_nid(THREAD_SIZE, THREAD_SIZE, limit,
 					early_cpu_to_node(cpu), MEMBLOCK_NONE);
 	if (!pa) {

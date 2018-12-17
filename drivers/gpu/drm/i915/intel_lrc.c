@@ -424,7 +424,8 @@ static u64 execlists_update_context(struct i915_request *rq)
 
 	reg_state[CTX_RING_TAIL+1] = intel_ring_set_tail(rq->ring, rq->tail);
 
-	/* True 32b PPGTT with dynamic page allocation: update PDP
+	/*
+	 * True 32b PPGTT with dynamic page allocation: update PDP
 	 * registers and point the unallocated PDPs to scratch page.
 	 * PML4 is allocated during ppgtt init, so this is not needed
 	 * in 48-bit mode.
@@ -432,6 +433,22 @@ static u64 execlists_update_context(struct i915_request *rq)
 	if (ppgtt && !i915_vm_is_48bit(&ppgtt->vm))
 		execlists_update_context_pdps(ppgtt, reg_state);
 
+	/*
+	 * Make sure the context image is complete before we submit it to HW.
+	 *
+	 * Ostensibly, writes (including the WCB) should be flushed prior to
+	 * an uncached write such as our mmio register access, the empirical
+	 * evidence (esp. on Braswell) suggests that the WC write into memory
+	 * may not be visible to the HW prior to the completion of the UC
+	 * register write and that we may begin execution from the context
+	 * before its image is complete leading to invalid PD chasing.
+	 *
+	 * Furthermore, Braswell, at least, wants a full mb to be sure that
+	 * the writes are coherent in memory (visible to the GPU) prior to
+	 * execution, and not just visible to other CPUs (as is the result of
+	 * wmb).
+	 */
+	mb();
 	return ce->lrc_desc;
 }
 
@@ -1431,9 +1448,10 @@ static int execlists_request_alloc(struct i915_request *request)
 static u32 *
 gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 {
+	/* NB no one else is allowed to scribble over scratch + 256! */
 	*batch++ = MI_STORE_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
-	*batch++ = i915_ggtt_offset(engine->scratch) + 256;
+	*batch++ = i915_scratch_offset(engine->i915) + 256;
 	*batch++ = 0;
 
 	*batch++ = MI_LOAD_REGISTER_IMM(1);
@@ -1447,7 +1465,7 @@ gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine, u32 *batch)
 
 	*batch++ = MI_LOAD_REGISTER_MEM_GEN8 | MI_SRM_LRM_GLOBAL_GTT;
 	*batch++ = i915_mmio_reg_offset(GEN8_L3SQCREG4);
-	*batch++ = i915_ggtt_offset(engine->scratch) + 256;
+	*batch++ = i915_scratch_offset(engine->i915) + 256;
 	*batch++ = 0;
 
 	return batch;
@@ -1484,7 +1502,7 @@ static u32 *gen8_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 				       PIPE_CONTROL_GLOBAL_GTT_IVB |
 				       PIPE_CONTROL_CS_STALL |
 				       PIPE_CONTROL_QW_WRITE,
-				       i915_ggtt_offset(engine->scratch) +
+				       i915_scratch_offset(engine->i915) +
 				       2 * CACHELINE_BYTES);
 
 	*batch++ = MI_ARB_ON_OFF | MI_ARB_ENABLE;
@@ -1561,7 +1579,7 @@ static u32 *gen9_init_indirectctx_bb(struct intel_engine_cs *engine, u32 *batch)
 					       PIPE_CONTROL_GLOBAL_GTT_IVB |
 					       PIPE_CONTROL_CS_STALL |
 					       PIPE_CONTROL_QW_WRITE,
-					       i915_ggtt_offset(engine->scratch)
+					       i915_scratch_offset(engine->i915)
 					       + 2 * CACHELINE_BYTES);
 	}
 
@@ -1781,6 +1799,8 @@ static bool unexpected_starting_state(struct intel_engine_cs *engine)
 
 static int gen8_init_common_ring(struct intel_engine_cs *engine)
 {
+	intel_engine_apply_workarounds(engine);
+
 	intel_mocs_init_engine(engine);
 
 	intel_engine_reset_breadcrumbs(engine);
@@ -2127,7 +2147,7 @@ static int gen8_emit_flush_render(struct i915_request *request,
 {
 	struct intel_engine_cs *engine = request->engine;
 	u32 scratch_addr =
-		i915_ggtt_offset(engine->scratch) + 2 * CACHELINE_BYTES;
+		i915_scratch_offset(engine->i915) + 2 * CACHELINE_BYTES;
 	bool vf_flush_wa = false, dc_flush_wa = false;
 	u32 *cs, flags = 0;
 	int len;
@@ -2464,10 +2484,6 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 	if (ret)
 		return ret;
 
-	ret = intel_engine_create_scratch(engine, PAGE_SIZE);
-	if (ret)
-		goto err_cleanup_common;
-
 	ret = intel_init_workaround_bb(engine);
 	if (ret) {
 		/*
@@ -2479,11 +2495,9 @@ int logical_render_ring_init(struct intel_engine_cs *engine)
 			  ret);
 	}
 
-	return 0;
+	intel_engine_init_workarounds(engine);
 
-err_cleanup_common:
-	intel_engine_cleanup_common(engine);
-	return ret;
+	return 0;
 }
 
 int logical_xcs_ring_init(struct intel_engine_cs *engine)

@@ -108,17 +108,6 @@ static int cedrus_request_validate(struct media_request *req)
 	unsigned int count;
 	unsigned int i;
 
-	count = vb2_request_buffer_cnt(req);
-	if (!count) {
-		v4l2_info(&ctx->dev->v4l2_dev,
-			  "No buffer was provided with the request\n");
-		return -ENOENT;
-	} else if (count > 1) {
-		v4l2_info(&ctx->dev->v4l2_dev,
-			  "More than one buffer was provided with the request\n");
-		return -EINVAL;
-	}
-
 	list_for_each_entry(obj, &req->objects, list) {
 		struct vb2_buffer *vb;
 
@@ -132,6 +121,17 @@ static int cedrus_request_validate(struct media_request *req)
 
 	if (!ctx)
 		return -ENOENT;
+
+	count = vb2_request_buffer_cnt(req);
+	if (!count) {
+		v4l2_info(&ctx->dev->v4l2_dev,
+			  "No buffer was provided with the request\n");
+		return -ENOENT;
+	} else if (count > 1) {
+		v4l2_info(&ctx->dev->v4l2_dev,
+			  "More than one buffer was provided with the request\n");
+		return -EINVAL;
+	}
 
 	parent_hdl = &ctx->hdl;
 
@@ -253,7 +253,7 @@ static const struct v4l2_m2m_ops cedrus_m2m_ops = {
 
 static const struct media_device_ops cedrus_m2m_media_ops = {
 	.req_validate	= cedrus_request_validate,
-	.req_queue	= vb2_m2m_request_queue,
+	.req_queue	= v4l2_m2m_request_queue,
 };
 
 static int cedrus_probe(struct platform_device *pdev)

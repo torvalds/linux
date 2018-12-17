@@ -15,6 +15,7 @@
 #include "i915_selftest.h"
 #include "i915_timeline.h"
 #include "intel_gpu_commands.h"
+#include "intel_workarounds.h"
 
 struct drm_printer;
 struct i915_sched_attr;
@@ -440,7 +441,7 @@ struct intel_engine_cs {
 
 	struct intel_hw_status_page status_page;
 	struct i915_ctx_workarounds wa_ctx;
-	struct i915_vma *scratch;
+	struct i915_wa_list wa_list;
 
 	u32             irq_keep_mask; /* always keep these interrupts */
 	u32		irq_enable_mask; /* bitmask to enable ring interrupt */
@@ -897,10 +898,6 @@ void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 void intel_engine_setup_common(struct intel_engine_cs *engine);
 int intel_engine_init_common(struct intel_engine_cs *engine);
 void intel_engine_cleanup_common(struct intel_engine_cs *engine);
-
-int intel_engine_create_scratch(struct intel_engine_cs *engine,
-				unsigned int size);
-void intel_engine_cleanup_scratch(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);

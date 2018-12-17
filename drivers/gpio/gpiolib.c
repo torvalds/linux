@@ -1295,7 +1295,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *chip, void *data,
 	gdev->descs = kcalloc(chip->ngpio, sizeof(gdev->descs[0]), GFP_KERNEL);
 	if (!gdev->descs) {
 		status = -ENOMEM;
-		goto err_free_gdev;
+		goto err_free_ida;
 	}
 
 	if (chip->ngpio == 0) {
@@ -1427,8 +1427,9 @@ err_free_label:
 	kfree_const(gdev->label);
 err_free_descs:
 	kfree(gdev->descs);
-err_free_gdev:
+err_free_ida:
 	ida_simple_remove(&gpio_ida, gdev->id);
+err_free_gdev:
 	/* failures here can mean systems won't boot... */
 	pr_err("%s: GPIOs %d..%d (%s) failed to register, %d\n", __func__,
 	       gdev->base, gdev->base + gdev->ngpio - 1,

@@ -435,6 +435,7 @@ void __init prom_meminit(void)
 
 	mlreset();
 	szmem();
+	max_low_pfn = PHYS_PFN(memblock_end_of_DRAM());
 
 	for (node = 0; node < MAX_COMPACT_NODES; node++) {
 		if (node_online(node)) {
@@ -455,18 +456,8 @@ extern void setup_zero_pages(void);
 void __init paging_init(void)
 {
 	unsigned long zones_size[MAX_NR_ZONES] = {0, };
-	unsigned node;
 
 	pagetable_init();
-
-	for_each_online_node(node) {
-		unsigned long start_pfn, end_pfn;
-
-		get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
-
-		if (end_pfn > max_low_pfn)
-			max_low_pfn = end_pfn;
-	}
 	zones_size[ZONE_NORMAL] = max_low_pfn;
 	free_area_init_nodes(zones_size);
 }

@@ -7,6 +7,7 @@ LDLIBS+= -lpthread -lurcu
 TARGETS = main idr-test multiorder xarray
 CORE_OFILES := xarray.o radix-tree.o idr.o linux.o test.o find_bit.o bitmap.o
 OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
+	 regression4.o \
 	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
 
 ifndef SHIFT

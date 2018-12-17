@@ -807,7 +807,7 @@ void vc4_plane_async_set_fb(struct drm_plane *plane, struct drm_framebuffer *fb)
 static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 					  struct drm_plane_state *state)
 {
-	struct vc4_plane_state *vc4_state = to_vc4_plane_state(plane->state);
+	struct vc4_plane_state *vc4_state, *new_vc4_state;
 
 	if (plane->state->fb != state->fb) {
 		vc4_plane_async_set_fb(plane, state->fb);
@@ -828,7 +828,18 @@ static void vc4_plane_atomic_async_update(struct drm_plane *plane,
 	plane->state->src_y = state->src_y;
 
 	/* Update the display list based on the new crtc_x/y. */
-	vc4_plane_atomic_check(plane, plane->state);
+	vc4_plane_atomic_check(plane, state);
+
+	new_vc4_state = to_vc4_plane_state(state);
+	vc4_state = to_vc4_plane_state(plane->state);
+
+	/* Update the current vc4_state pos0, pos2 and ptr0 dlist entries. */
+	vc4_state->dlist[vc4_state->pos0_offset] =
+		new_vc4_state->dlist[vc4_state->pos0_offset];
+	vc4_state->dlist[vc4_state->pos2_offset] =
+		new_vc4_state->dlist[vc4_state->pos2_offset];
+	vc4_state->dlist[vc4_state->ptr0_offset] =
+		new_vc4_state->dlist[vc4_state->ptr0_offset];
 
 	/* Note that we can't just call vc4_plane_write_dlist()
 	 * because that would smash the context data that the HVS is

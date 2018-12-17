@@ -1012,7 +1012,10 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 			container_of(entity, struct bfq_group, entity);
 		struct bfq_data *bfqd = bfqg->bfqd;
 
-		bfqd->num_active_groups++;
+		if (!entity->in_groups_with_pending_reqs) {
+			entity->in_groups_with_pending_reqs = true;
+			bfqd->num_groups_with_pending_reqs++;
+		}
 	}
 #endif
 

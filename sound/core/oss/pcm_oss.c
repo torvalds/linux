@@ -1062,8 +1062,8 @@ static int snd_pcm_oss_change_params_locked(struct snd_pcm_substream *substream)
 	runtime->oss.channels = params_channels(params);
 	runtime->oss.rate = params_rate(params);
 
-	vfree(runtime->oss.buffer);
-	runtime->oss.buffer = vmalloc(runtime->oss.period_bytes);
+	kvfree(runtime->oss.buffer);
+	runtime->oss.buffer = kvzalloc(runtime->oss.period_bytes, GFP_KERNEL);
 	if (!runtime->oss.buffer) {
 		err = -ENOMEM;
 		goto failure;
@@ -2328,7 +2328,7 @@ static void snd_pcm_oss_release_substream(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
 	runtime = substream->runtime;
-	vfree(runtime->oss.buffer);
+	kvfree(runtime->oss.buffer);
 	runtime->oss.buffer = NULL;
 #ifdef CONFIG_SND_PCM_OSS_PLUGINS
 	snd_pcm_oss_plugin_clear(substream);
