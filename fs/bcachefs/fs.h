@@ -66,6 +66,27 @@ static inline unsigned nlink_bias(umode_t mode)
 	return S_ISDIR(mode) ? 2 : 1;
 }
 
+static inline bool inode_attr_changing(struct bch_inode_info *dir,
+				struct bch_inode_info *inode,
+				enum inode_opt_id id)
+{
+	return !(inode->ei_inode.bi_fields_set & (1 << id)) &&
+		bch2_inode_opt_get(&dir->ei_inode, id) !=
+		bch2_inode_opt_get(&inode->ei_inode, id);
+}
+
+static inline bool inode_attrs_changing(struct bch_inode_info *dir,
+				 struct bch_inode_info *inode)
+{
+	unsigned id;
+
+	for (id = 0; id < Inode_opt_nr; id++)
+		if (inode_attr_changing(dir, inode, id))
+			return true;
+
+	return false;
+}
+
 struct bch_inode_unpacked;
 
 #ifndef NO_BCACHEFS_FS
@@ -90,6 +111,10 @@ int __must_check bch2_write_inode_trans(struct btree_trans *,
 				inode_set_fn, void *);
 int __must_check bch2_write_inode(struct bch_fs *, struct bch_inode_info *,
 				  inode_set_fn, void *, unsigned);
+
+int bch2_reinherit_attrs_fn(struct bch_inode_info *,
+			    struct bch_inode_unpacked *,
+			    void *);
 
 void bch2_vfs_exit(void);
 int bch2_vfs_init(void);

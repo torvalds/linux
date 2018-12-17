@@ -282,6 +282,32 @@ int bch2_fs_quota_transfer(struct bch_fs *c,
 	return ret;
 }
 
+int bch2_reinherit_attrs_fn(struct bch_inode_info *inode,
+			    struct bch_inode_unpacked *bi,
+			    void *p)
+{
+	struct bch_inode_info *dir = p;
+	u64 src, dst;
+	unsigned id;
+	int ret = 1;
+
+	for (id = 0; id < Inode_opt_nr; id++) {
+		if (bi->bi_fields_set & (1 << id))
+			continue;
+
+		src = bch2_inode_opt_get(&dir->ei_inode, id);
+		dst = bch2_inode_opt_get(bi, id);
+
+		if (src == dst)
+			continue;
+
+		bch2_inode_opt_set(bi, id, src);
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static struct inode *bch2_vfs_inode_get(struct bch_fs *c, u64 inum)
 {
 	struct bch_inode_unpacked inode_u;
@@ -765,6 +791,7 @@ static int inode_update_for_rename_fn(struct bch_inode_info *inode,
 				      void *p)
 {
 	struct rename_info *info = p;
+	int ret;
 
 	if (inode == info->src_dir) {
 		bi->bi_nlink -= S_ISDIR(info->src_inode->v.i_mode);
@@ -777,6 +804,19 @@ static int inode_update_for_rename_fn(struct bch_inode_info *inode,
 		bi->bi_nlink += S_ISDIR(info->src_inode->v.i_mode);
 		bi->bi_nlink -= info->dst_inode &&
 			S_ISDIR(info->dst_inode->v.i_mode);
+	}
+
+	if (inode == info->src_inode) {
+		ret = bch2_reinherit_attrs_fn(inode, bi, info->dst_dir);
+
+		BUG_ON(!ret && S_ISDIR(info->src_inode->v.i_mode));
+	}
+
+	if (inode == info->dst_inode &&
+	    info->mode == BCH_RENAME_EXCHANGE) {
+		ret = bch2_reinherit_attrs_fn(inode, bi, info->src_dir);
+
+		BUG_ON(!ret && S_ISDIR(info->dst_inode->v.i_mode));
 	}
 
 	if (inode == info->dst_inode &&
@@ -844,6 +884,39 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			 i.dst_inode);
 
 	bch2_trans_init(&trans, c);
+
+	if (S_ISDIR(i.src_inode->v.i_mode) &&
+	    inode_attrs_changing(i.dst_dir, i.src_inode)) {
+		ret = -EXDEV;
+		goto err;
+	}
+
+	if (i.mode == BCH_RENAME_EXCHANGE &&
+	    S_ISDIR(i.dst_inode->v.i_mode) &&
+	    inode_attrs_changing(i.src_dir, i.dst_inode)) {
+		ret = -EXDEV;
+		goto err;
+	}
+
+	if (inode_attr_changing(i.dst_dir, i.src_inode, Inode_opt_project)) {
+		ret = bch2_fs_quota_transfer(c, i.src_inode,
+					     i.dst_dir->ei_qid,
+					     1 << QTYP_PRJ,
+					     KEY_TYPE_QUOTA_PREALLOC);
+		if (ret)
+			goto err;
+	}
+
+	if (i.mode == BCH_RENAME_EXCHANGE &&
+	    inode_attr_changing(i.src_dir, i.dst_inode, Inode_opt_project)) {
+		ret = bch2_fs_quota_transfer(c, i.dst_inode,
+					     i.src_dir->ei_qid,
+					     1 << QTYP_PRJ,
+					     KEY_TYPE_QUOTA_PREALLOC);
+		if (ret)
+			goto err;
+	}
+
 retry:
 	bch2_trans_begin(&trans);
 	i.now = bch2_current_time(c);
@@ -894,6 +967,17 @@ retry:
 					      ATTR_CTIME);
 err:
 	bch2_trans_exit(&trans);
+
+	bch2_fs_quota_transfer(c, i.src_inode,
+			       bch_qid(&i.src_inode->ei_inode),
+			       1 << QTYP_PRJ,
+			       KEY_TYPE_QUOTA_NOCHECK);
+	if (i.dst_inode)
+		bch2_fs_quota_transfer(c, i.dst_inode,
+				       bch_qid(&i.dst_inode->ei_inode),
+				       1 << QTYP_PRJ,
+				       KEY_TYPE_QUOTA_NOCHECK);
+
 	bch2_unlock_inodes(i.src_dir,
 			   i.dst_dir,
 			   i.src_inode,
