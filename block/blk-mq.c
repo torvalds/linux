@@ -2438,6 +2438,9 @@ static void blk_mq_map_swqueue(struct request_queue *q)
 
 		ctx = per_cpu_ptr(q->queue_ctx, i);
 		for (j = 0; j < set->nr_maps; j++) {
+			if (!set->map[j].nr_queues)
+				continue;
+
 			hctx = blk_mq_map_queue_type(q, j, i);
 
 			/*
