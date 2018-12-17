@@ -170,7 +170,7 @@ static struct snd_soc_dai_link dm355_evm_dai = {
 };
 
 static struct snd_soc_dai_link dm365_evm_dai = {
-#ifdef CONFIG_SND_DM365_AIC3X_CODEC
+#ifdef CONFIG_SND_SOC_DM365_AIC3X_CODEC
 	.name = "TLV320AIC3X",
 	.stream_name = "AIC3X",
 	.cpu_dai_name = "davinci-mcbsp",
@@ -181,7 +181,7 @@ static struct snd_soc_dai_link dm365_evm_dai = {
 	.ops = &evm_ops,
 	.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_CBM_CFM |
 		   SND_SOC_DAIFMT_IB_NF,
-#elif defined(CONFIG_SND_DM365_VOICE_CODEC)
+#elif defined(CONFIG_SND_SOC_DM365_VOICE_CODEC)
 	.name = "Voice Codec - CQ93VC",
 	.stream_name = "CQ93",
 	.cpu_dai_name = "davinci-vcif",

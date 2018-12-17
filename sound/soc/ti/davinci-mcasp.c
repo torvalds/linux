@@ -39,7 +39,7 @@
 #include <sound/dmaengine_pcm.h>
 
 #include "edma-pcm.h"
-#include "../omap/sdma-pcm.h"
+#include "sdma-pcm.h"
 #include "davinci-mcasp.h"
 
 #define MCASP_MAX_AFIFO_DEPTH	64
@@ -2149,9 +2149,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = davinci_mcasp_get_dma_type(mcasp);
 	switch (ret) {
 	case PCM_EDMA:
-#if IS_BUILTIN(CONFIG_SND_EDMA_SOC) || \
-	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
-	 IS_MODULE(CONFIG_SND_EDMA_SOC))
+#if IS_BUILTIN(CONFIG_SND_SOC_TI_EDMA_PCM) || \
+	(IS_MODULE(CONFIG_SND_SOC_DAVINCI_MCASP) && \
+	 IS_MODULE(CONFIG_SND_SOC_TI_EDMA_PCM))
 		ret = edma_pcm_platform_register(&pdev->dev);
 #else
 		dev_err(&pdev->dev, "Missing SND_EDMA_SOC\n");
@@ -2160,9 +2160,9 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 #endif
 		break;
 	case PCM_SDMA:
-#if IS_BUILTIN(CONFIG_SND_SDMA_SOC) || \
-	(IS_MODULE(CONFIG_SND_DAVINCI_SOC_MCASP) && \
-	 IS_MODULE(CONFIG_SND_SDMA_SOC))
+#if IS_BUILTIN(CONFIG_SND_SOC_TI_SDMA_PCM) || \
+	(IS_MODULE(CONFIG_SND_SOC_DAVINCI_MCASP) && \
+	 IS_MODULE(CONFIG_SND_SOC_TI_SDMA_PCM))
 		ret = sdma_pcm_platform_register(&pdev->dev, NULL, NULL);
 #else
 		dev_err(&pdev->dev, "Missing SND_SDMA_SOC\n");
