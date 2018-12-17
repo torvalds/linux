@@ -4,7 +4,7 @@
 #include "replicas.h"
 #include "super-io.h"
 
-struct bch_replicas_entry_padded {
+struct bch_replicas_padded {
 	struct bch_replicas_entry	e;
 	u8				pad[BCH_SB_MEMBERS_MAX];
 };
@@ -270,7 +270,7 @@ int bch2_mark_replicas(struct bch_fs *c,
 		       enum bch_data_type data_type,
 		       struct bch_devs_list devs)
 {
-	struct bch_replicas_entry_padded search;
+	struct bch_replicas_padded search;
 
 	if (!devs.nr)
 		return 0;
@@ -286,7 +286,7 @@ int bch2_mark_replicas(struct bch_fs *c,
 
 int bch2_mark_bkey_replicas(struct bch_fs *c, struct bkey_s_c k)
 {
-	struct bch_replicas_entry_padded search;
+	struct bch_replicas_padded search;
 	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
 	unsigned i;
 	int ret;
@@ -682,7 +682,7 @@ bool bch2_replicas_marked(struct bch_fs *c,
 			  struct bch_devs_list devs,
 			  bool check_gc_replicas)
 {
-	struct bch_replicas_entry_padded search;
+	struct bch_replicas_padded search;
 
 	if (!devs.nr)
 		return true;
@@ -698,7 +698,7 @@ bool bch2_bkey_replicas_marked(struct bch_fs *c,
 			       struct bkey_s_c k,
 			       bool check_gc_replicas)
 {
-	struct bch_replicas_entry_padded search;
+	struct bch_replicas_padded search;
 	struct bch_devs_list cached = bch2_bkey_cached_devs(k);
 	unsigned i;
 
