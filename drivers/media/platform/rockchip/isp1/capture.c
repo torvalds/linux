@@ -1174,18 +1174,25 @@ static void rkisp1_stream_stop(struct rkisp1_stream *stream)
 
 	stream->stopping = true;
 	stream->ops->stop_mi(stream);
-	ret = wait_event_timeout(stream->done,
-				 !stream->streaming,
-				 msecs_to_jiffies(1000));
-	if (!ret) {
-		v4l2_warn(v4l2_dev, "waiting on event return error %d\n", ret);
+	if (dev->isp_state == ISP_START) {
+		ret = wait_event_timeout(stream->done,
+					 !stream->streaming,
+					 msecs_to_jiffies(1000));
+		if (!ret) {
+			v4l2_warn(v4l2_dev, "waiting on event return error %d\n", ret);
+			stream->stopping = false;
+			stream->streaming = false;
+		}
+	} else {
 		stream->stopping = false;
 		stream->streaming = false;
 	}
+
 	if (stream->id != RKISP1_STREAM_RAW) {
 		disable_dcrop(stream, true);
 		disable_rsz(stream, true);
 	}
+
 	stream->burst =
 		CIF_MI_CTRL_BURST_LEN_LUM_16 |
 		CIF_MI_CTRL_BURST_LEN_CHROM_16;

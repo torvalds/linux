@@ -60,6 +60,8 @@
 #define RKISP1_MEDIA_BUS_FMT_MASK	0xF000
 #define RKISP1_MEDIA_BUS_FMT_BAYER	0x3000
 
+#define RKISP1_CONTI_ERR_MAX		50
+
 /* ISP_V10_1 for only support MP */
 enum rkisp1_isp_ver {
 	ISP_V10 = 0x00,
@@ -67,6 +69,12 @@ enum rkisp1_isp_ver {
 	ISP_V11 = 0x10,
 	ISP_V12 = 0x20,
 	ISP_V13 = 0x30,
+};
+
+enum rkisp1_isp_state {
+	ISP_STOP = 0,
+	ISP_START,
+	ISP_ERROR
 };
 
 /*
@@ -142,6 +150,8 @@ struct rkisp1_device {
 	int vs_irq;
 	struct gpio_desc *vs_irq_gpio;
 	struct v4l2_subdev *hdr_sensor;
+	enum rkisp1_isp_state isp_state;
+	unsigned int isp_err_cnt;
 };
 
 #endif
