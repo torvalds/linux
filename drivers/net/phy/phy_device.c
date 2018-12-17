@@ -2138,7 +2138,6 @@ static int phy_probe(struct device *dev)
 	struct phy_device *phydev = to_phy_device(dev);
 	struct device_driver *drv = phydev->mdio.dev.driver;
 	struct phy_driver *phydrv = to_phy_driver(drv);
-	u32 features;
 	int err = 0;
 
 	phydev->drv = phydrv;
@@ -2158,7 +2157,6 @@ static int phy_probe(struct device *dev)
 	 * a controller will attach, and may modify one
 	 * or both of these values
 	 */
-	ethtool_convert_link_mode_to_legacy_u32(&features, phydrv->features);
 	linkmode_copy(phydev->supported, phydrv->features);
 	of_set_phy_supported(phydev);
 	linkmode_copy(phydev->advertising, phydev->supported);
