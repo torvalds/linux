@@ -3019,7 +3019,7 @@ int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set)
 	ret = -ENOMEM;
 	for (i = 0; i < set->nr_maps; i++) {
 		set->map[i].mq_map = kcalloc_node(nr_cpu_ids,
-						  sizeof(struct blk_mq_queue_map),
+						  sizeof(set->map[i].mq_map[0]),
 						  GFP_KERNEL, set->numa_node);
 		if (!set->map[i].mq_map)
 			goto out_free_mq_map;
