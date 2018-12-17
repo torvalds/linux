@@ -27,8 +27,10 @@ size_t open__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool sh
 	const char *prefix = "O_";
 	int printed = 0;
 
+	if ((flags & O_ACCMODE) == O_RDONLY)
+		printed = scnprintf(bf, size, "%s%s", show_prefix ? prefix : "", "RDONLY");
 	if (flags == 0)
-		return scnprintf(bf, size, "%s%s", show_prefix ? prefix : "", "RDONLY");
+		return printed;
 #define	P_FLAG(n) \
 	if (flags & O_##n) { \
 		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
