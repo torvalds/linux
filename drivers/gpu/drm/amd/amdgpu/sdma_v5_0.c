@@ -98,6 +98,9 @@ static const struct soc15_reg_golden golden_settings_sdma_nv14[] = {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, mmSDMA1_RLC3_RB_WPTR_POLL_CNTL, 0xfffffff7, 0x00403000),
 };
 
+static const struct soc15_reg_golden golden_settings_sdma_nv12[] = {
+};
+
 static u32 sdma_v5_0_get_reg_offset(struct amdgpu_device *adev, u32 instance, u32 internal_offset)
 {
 	u32 base;
@@ -134,6 +137,14 @@ static void sdma_v5_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_sdma_nv14,
 						(const u32)ARRAY_SIZE(golden_settings_sdma_nv14));
+		break;
+	case CHIP_NAVI12:
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_5,
+						(const u32)ARRAY_SIZE(golden_settings_sdma_5));
+		soc15_program_register_sequence(adev,
+						golden_settings_sdma_nv12,
+						(const u32)ARRAY_SIZE(golden_settings_sdma_nv12));
 		break;
 	default:
 		break;
