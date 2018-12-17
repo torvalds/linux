@@ -458,21 +458,21 @@ enum {
 	Opt_fscontext = 2,
 	Opt_defcontext = 3,
 	Opt_rootcontext = 4,
-	Opt_labelsupport = 5,
+	Opt_seclabel = 5,
 };
 
-#define A(s, opt, has_arg) {s, sizeof(s) - 1, opt, has_arg}
+#define A(s, has_arg) {#s, sizeof(#s) - 1, Opt_##s, has_arg}
 static struct {
 	const char *name;
 	int len;
 	int opt;
 	bool has_arg;
 } tokens[] = {
-	A("context", Opt_context, true),
-	A("fscontext", Opt_fscontext, true),
-	A("defcontext", Opt_defcontext, true),
-	A("rootcontext", Opt_rootcontext, true),
-	A("seclabel", Opt_labelsupport, false),
+	A(context, true),
+	A(fscontext, true),
+	A(defcontext, true),
+	A(rootcontext, true),
+	A(seclabel, false),
 };
 #undef A
 
@@ -1010,7 +1010,7 @@ static int selinux_add_opt(int token, const char *s, void **mnt_opts)
 {
 	struct selinux_mnt_opts *opts = *mnt_opts;
 
-	if (token == Opt_labelsupport)	/* eaten and completely ignored */
+	if (token == Opt_seclabel)	/* eaten and completely ignored */
 		return 0;
 
 	if (!opts) {
