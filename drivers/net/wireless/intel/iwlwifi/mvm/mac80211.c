@@ -1500,6 +1500,91 @@ static int iwl_mvm_set_tx_power(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	return iwl_mvm_send_cmd_pdu(mvm, REDUCE_TX_POWER_CMD, 0, len, &cmd);
 }
 
+static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
+
+	mutex_lock(&mvm->mutex);
+
+	if (mvmvif->csa_failed) {
+		mvmvif->csa_failed = false;
+		ret = -EIO;
+		goto out_unlock;
+	}
+
+	if (vif->type == NL80211_IFTYPE_STATION) {
+		struct iwl_mvm_sta *mvmsta;
+
+		mvmvif->csa_bcn_pending = false;
+		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
+							  mvmvif->ap_sta_id);
+
+		if (WARN_ON(!mvmsta)) {
+			ret = -EIO;
+			goto out_unlock;
+		}
+
+		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
+
+		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
+
+		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+		if (ret)
+			goto out_unlock;
+
+		iwl_mvm_stop_session_protection(mvm, vif);
+	}
+
+	mvmvif->ps_disabled = false;
+
+	ret = iwl_mvm_power_update_ps(mvm);
+
+out_unlock:
+	mutex_unlock(&mvm->mutex);
+
+	return ret;
+}
+
+static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
+					 struct ieee80211_vif *vif)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_chan_switch_te_cmd cmd = {
+		.mac_id = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
+							  mvmvif->color)),
+		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
+	};
+
+	IWL_DEBUG_MAC80211(mvm, "Abort CSA on mac %d\n", mvmvif->id);
+
+	mutex_lock(&mvm->mutex);
+	WARN_ON(iwl_mvm_send_cmd_pdu(mvm,
+				     WIDE_ID(MAC_CONF_GROUP,
+					     CHANNEL_SWITCH_TIME_EVENT_CMD),
+				     0, sizeof(cmd), &cmd));
+	mutex_unlock(&mvm->mutex);
+
+	WARN_ON(iwl_mvm_post_channel_switch(hw, vif));
+}
+
+static void iwl_mvm_channel_switch_disconnect_wk(struct work_struct *wk)
+{
+	struct iwl_mvm *mvm;
+	struct iwl_mvm_vif *mvmvif;
+	struct ieee80211_vif *vif;
+
+	mvmvif = container_of(wk, struct iwl_mvm_vif, csa_work.work);
+	vif = container_of((void *)mvmvif, struct ieee80211_vif, drv_priv);
+	mvm = mvmvif->mvm;
+
+	iwl_mvm_abort_channel_switch(mvm->hw, vif);
+	ieee80211_chswitch_done(vif, false);
+}
+
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
@@ -1626,6 +1711,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	}
 
 	iwl_mvm_tcm_add_vif(mvm, vif);
+	INIT_DELAYED_WORK(&mvmvif->csa_work,
+			  iwl_mvm_channel_switch_disconnect_wk);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		mvm->monitor_on = true;
@@ -4484,6 +4571,7 @@ static int iwl_mvm_schedule_client_csa(struct iwl_mvm *mvm,
 				    0, sizeof(cmd), &cmd);
 }
 
+#define IWL_MAX_CSA_BLOCK_TX 1500
 static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_channel_switch *chsw)
@@ -4548,8 +4636,18 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 				((vif->bss_conf.beacon_int * (chsw->count - 1) -
 				  IWL_MVM_CHANNEL_SWITCH_TIME_CLIENT) * 1024);
 
-		if (chsw->block_tx)
+		if (chsw->block_tx) {
 			iwl_mvm_csa_client_absent(mvm, vif);
+			/*
+			 * In case of undetermined / long time with immediate
+			 * quiet monitor status to gracefully disconnect
+			 */
+			if (!chsw->count ||
+			    chsw->count * vif->bss_conf.beacon_int >
+			    IWL_MAX_CSA_BLOCK_TX)
+				schedule_delayed_work(&mvmvif->csa_work,
+						      msecs_to_jiffies(IWL_MAX_CSA_BLOCK_TX));
+		}
 
 		if (mvmvif->bf_data.bf_enabled) {
 			ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
@@ -4584,54 +4682,6 @@ out_unlock:
 	return ret;
 }
 
-static int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	int ret;
-
-	mutex_lock(&mvm->mutex);
-
-	if (mvmvif->csa_failed) {
-		mvmvif->csa_failed = false;
-		ret = -EIO;
-		goto out_unlock;
-	}
-
-	if (vif->type == NL80211_IFTYPE_STATION) {
-		struct iwl_mvm_sta *mvmsta;
-
-		mvmvif->csa_bcn_pending = false;
-		mvmsta = iwl_mvm_sta_from_staid_protected(mvm,
-							  mvmvif->ap_sta_id);
-
-		if (WARN_ON(!mvmsta)) {
-			ret = -EIO;
-			goto out_unlock;
-		}
-
-		iwl_mvm_sta_modify_disable_tx(mvm, mvmsta, false);
-
-		iwl_mvm_mac_ctxt_changed(mvm, vif, false, NULL);
-
-		ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
-		if (ret)
-			goto out_unlock;
-
-		iwl_mvm_stop_session_protection(mvm, vif);
-	}
-
-	mvmvif->ps_disabled = false;
-
-	ret = iwl_mvm_power_update_ps(mvm);
-
-out_unlock:
-	mutex_unlock(&mvm->mutex);
-
-	return ret;
-}
-
 static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
 					     struct ieee80211_channel_switch *chsw)
@@ -4656,29 +4706,6 @@ static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 				     WIDE_ID(MAC_CONF_GROUP,
 					     CHANNEL_SWITCH_TIME_EVENT_CMD),
 				     CMD_ASYNC, sizeof(cmd), &cmd));
-}
-
-static void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
-					 struct ieee80211_vif *vif)
-{
-	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_chan_switch_te_cmd cmd = {
-		.mac_id = cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
-							  mvmvif->color)),
-		.action = cpu_to_le32(FW_CTXT_ACTION_REMOVE),
-	};
-
-	IWL_DEBUG_MAC80211(mvm, "Abort CSA on mac %d\n", mvmvif->id);
-
-	mutex_lock(&mvm->mutex);
-	WARN_ON(iwl_mvm_send_cmd_pdu(mvm,
-				     WIDE_ID(MAC_CONF_GROUP,
-					     CHANNEL_SWITCH_TIME_EVENT_CMD),
-				     0, sizeof(cmd), &cmd));
-	mutex_unlock(&mvm->mutex);
-
-	WARN_ON(iwl_mvm_post_channel_switch(hw, vif));
 }
 
 static void iwl_mvm_flush_no_vif(struct iwl_mvm *mvm, u32 queues, bool drop)
