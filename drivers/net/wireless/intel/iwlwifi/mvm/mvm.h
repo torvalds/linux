@@ -490,6 +490,8 @@ struct iwl_mvm_vif {
 	bool csa_countdown;
 	bool csa_failed;
 	u16 csa_target_freq;
+	u16 csa_count;
+	u16 csa_misbehave;
 	struct delayed_work csa_work;
 
 	/* Indicates that we are waiting for a beacon on a new channel */

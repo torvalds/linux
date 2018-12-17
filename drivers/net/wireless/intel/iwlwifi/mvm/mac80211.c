@@ -4662,6 +4662,9 @@ static int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 			iwl_mvm_schedule_csa_period(mvm, vif,
 						    vif->bss_conf.beacon_int,
 						    apply_time);
+
+		mvmvif->csa_count = chsw->count;
+		mvmvif->csa_misbehave = false;
 		break;
 	default:
 		break;
@@ -4699,6 +4702,18 @@ static void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 
 	if (!fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_CS_MODIFY))
 		return;
+
+	if (chsw->count >= mvmvif->csa_count && chsw->block_tx) {
+		if (mvmvif->csa_misbehave) {
+			/* Second time, give up on this AP*/
+			iwl_mvm_abort_channel_switch(hw, vif);
+			ieee80211_chswitch_done(vif, false);
+			mvmvif->csa_misbehave = false;
+			return;
+		}
+		mvmvif->csa_misbehave = true;
+	}
+	mvmvif->csa_count = chsw->count;
 
 	IWL_DEBUG_MAC80211(mvm, "Modify CSA on mac %d\n", mvmvif->id);
 
