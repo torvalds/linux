@@ -42,6 +42,9 @@
 MODULE_FIRMWARE("amdgpu/navi10_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navi10_sdma1.bin");
 
+MODULE_FIRMWARE("amdgpu/navi14_sdma.bin");
+MODULE_FIRMWARE("amdgpu/navi14_sdma1.bin");
+
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA0_HYP_DEC_REG_START 0x5880
 #define SDMA0_HYP_DEC_REG_END 0x5893
@@ -142,6 +145,9 @@ static int sdma_v5_0_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 		chip_name = "navi10";
+		break;
+	case CHIP_NAVI14:
+		chip_name = "navi14";
 		break;
 	default:
 		BUG();
