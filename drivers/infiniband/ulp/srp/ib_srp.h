@@ -132,6 +132,7 @@ struct srp_request {
 /**
  * struct srp_rdma_ch
  * @comp_vector: Completion vector used by this RDMA channel.
+ * @max_ti_iu_len: Maximum target-to-initiator information unit length.
  */
 struct srp_rdma_ch {
 	/* These are RW in the hot path, and commonly used together */
@@ -148,6 +149,7 @@ struct srp_rdma_ch {
 		struct ib_fmr_pool     *fmr_pool;
 		struct srp_fr_pool     *fr_pool;
 	};
+	uint32_t		max_ti_iu_len;
 
 	/* Everything above this point is used in the hot path of
 	 * command processing. Try to keep them packed into cachelines.
@@ -171,7 +173,6 @@ struct srp_rdma_ch {
 	struct srp_iu	      **tx_ring;
 	struct srp_iu	      **rx_ring;
 	struct srp_request     *req_ring;
-	int			max_ti_iu_len;
 	int			comp_vector;
 
 	u64			tsk_mgmt_tag;
