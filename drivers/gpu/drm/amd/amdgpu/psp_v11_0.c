@@ -687,7 +687,7 @@ static int psp_v11_0_xgmi_set_topology_info(struct psp_context *psp,
 	return psp_xgmi_invoke(psp, TA_COMMAND_XGMI__SET_TOPOLOGY_INFO);
 }
 
-static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
+static int psp_v11_0_xgmi_get_hive_id(struct psp_context *psp, uint64_t *hive_id)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -700,12 +700,14 @@ static u64 psp_v11_0_xgmi_get_hive_id(struct psp_context *psp)
 	/* Invoke xgmi ta to get hive id */
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 	if (ret)
-		return 0;
-	else
-		return xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
+		return ret;
+
+	*hive_id = xgmi_cmd->xgmi_out_message.get_hive_id.hive_id;
+
+	return 0;
 }
 
-static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
+static int psp_v11_0_xgmi_get_node_id(struct psp_context *psp, uint64_t *node_id)
 {
 	struct ta_xgmi_shared_memory *xgmi_cmd;
 	int ret;
@@ -718,9 +720,11 @@ static u64 psp_v11_0_xgmi_get_node_id(struct psp_context *psp)
 	/* Invoke xgmi ta to get the node id */
 	ret = psp_xgmi_invoke(psp, xgmi_cmd->cmd_id);
 	if (ret)
-		return 0;
-	else
-		return xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+		return ret;
+
+	*node_id = xgmi_cmd->xgmi_out_message.get_node_id.node_id;
+
+	return 0;
 }
 
 static const struct psp_funcs psp_v11_0_funcs = {
