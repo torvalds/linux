@@ -98,6 +98,7 @@ struct smu_funcs
 	int (*check_fw_status)(struct smu_context *smu);
 	int (*read_pptable_from_vbios)(struct smu_context *smu);
 	int (*get_vbios_bootup_values)(struct smu_context *smu);
+	int (*get_clk_info_from_vbios)(struct smu_context *smu);
 	int (*check_pptable)(struct smu_context *smu);
 	int (*parse_pptable)(struct smu_context *smu);
 	int (*populate_smc_pptable)(struct smu_context *smu);
@@ -132,6 +133,8 @@ struct smu_funcs
 	((smu)->funcs->read_pptable_from_vbios ? (smu)->funcs->read_pptable_from_vbios((smu)) : 0)
 #define smu_get_vbios_bootup_values(smu) \
 	((smu)->funcs->get_vbios_bootup_values ? (smu)->funcs->get_vbios_bootup_values((smu)) : 0)
+#define smu_get_clk_info_from_vbios(smu) \
+	((smu)->funcs->get_clk_info_from_vbios ? (smu)->funcs->get_clk_info_from_vbios((smu)) : 0)
 #define smu_check_pptable(smu) \
 	((smu)->funcs->check_pptable ? (smu)->funcs->check_pptable((smu)) : 0)
 #define smu_parse_pptable(smu) \
