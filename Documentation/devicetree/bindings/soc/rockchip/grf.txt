@@ -25,6 +25,7 @@ Required Properties:
    - "rockchip,rk1808-pmugrf", "syscon": for rk1808
    - "rockchip,rk3368-pmugrf", "syscon": for rk3368
    - "rockchip,rk3399-pmugrf", "syscon": for rk3399
+   - "rockchip,rv1108-pmugrf", "syscon": for rv1108
 - compatible: USBGRF should be one of the following
    - "rockchip,rv1108-usbgrf", "syscon": for rv1108
 - reg: physical base address of the controller and length of memory mapped
