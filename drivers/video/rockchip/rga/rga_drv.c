@@ -1285,8 +1285,15 @@ static struct rga_reg *rga_reg_init_2(rga_session *session, struct rga_req *req0
 				break;
 			}
 		}
-
 		RGA_gen_reg_info(req1, (uint8_t *)reg1->cmd_reg);
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 4, 0))
+		reg1->sg_src = req1->sg_src;
+		reg1->sg_dst = req1->sg_dst;
+		reg1->attach_src = req1->attach_src;
+		reg1->attach_dst = req1->attach_dst;
+#endif
+
 		mutex_lock(&rga_service.lock);
 		list_add_tail(&reg0->status_link, &rga_service.waiting);
 		list_add_tail(&reg0->session_link, &session->waiting);
@@ -1403,10 +1410,8 @@ static int rga_blit(rga_session *session, struct rga_req *req)
 		reg = rga_reg_init_2(session, req, &req2);
 		if (!reg) {
 			pr_err("init2 reg fail\n");
-			rga_put_dma_buf(&req2, NULL);
 			goto err_put_dma_buf;
 		}
-		rga_put_dma_buf(&req2, NULL);
 		num = 2;
 	} else {
 		/* check value if legal */
