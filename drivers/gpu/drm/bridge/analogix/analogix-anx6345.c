@@ -233,11 +233,28 @@ static int anx6345_dp_link_training(struct anx6345 *anx6345)
 
 static int anx6345_tx_initialization(struct anx6345 *anx6345)
 {
+	struct drm_display_info *di = &anx6345->connector.display_info;
 	int err, i;
+	u32 color_depth;
 
-	/* FIXME: hardcode color depth now */
+	switch (di->bpc) {
+	case 12:
+		color_depth = SP_IN_BPC_12BIT;
+		break;
+	case 10:
+		color_depth = SP_IN_BPC_10BIT;
+		break;
+	case 6:
+		color_depth = SP_IN_BPC_6BIT;
+		break;
+	case 8:
+	default:
+		color_depth = SP_IN_BPC_8BIT;
+		break;
+	}
+
 	err = regmap_write(anx6345->map[I2C_IDX_TXCOM], SP_VID_CTRL2_REG,
-			   SP_IN_BPC_6BIT << SP_IN_BPC_SHIFT);
+			   color_depth << SP_IN_BPC_SHIFT);
 	if (err)
 		return err;
 
