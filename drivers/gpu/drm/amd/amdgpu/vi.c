@@ -1726,8 +1726,8 @@ void legacy_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.mec_ring6 = AMDGPU_DOORBELL_MEC_RING6;
 	adev->doorbell_index.mec_ring7 = AMDGPU_DOORBELL_MEC_RING7;
 	adev->doorbell_index.gfx_ring0 = AMDGPU_DOORBELL_GFX_RING0;
-	adev->doorbell_index.sdma_engine0 = AMDGPU_DOORBELL_sDMA_ENGINE0;
-	adev->doorbell_index.sdma_engine1 = AMDGPU_DOORBELL_sDMA_ENGINE1;
+	adev->doorbell_index.sdma_engine[0] = AMDGPU_DOORBELL_sDMA_ENGINE0;
+	adev->doorbell_index.sdma_engine[1] = AMDGPU_DOORBELL_sDMA_ENGINE1;
 	adev->doorbell_index.ih = AMDGPU_DOORBELL_IH;
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_MAX_ASSIGNMENT;
 }

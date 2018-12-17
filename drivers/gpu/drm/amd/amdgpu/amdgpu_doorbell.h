@@ -51,14 +51,7 @@ struct amdgpu_doorbell_index {
 	uint32_t userqueue_start;
 	uint32_t userqueue_end;
 	uint32_t gfx_ring0;
-	uint32_t sdma_engine0;
-	uint32_t sdma_engine1;
-	uint32_t sdma_engine2;
-	uint32_t sdma_engine3;
-	uint32_t sdma_engine4;
-	uint32_t sdma_engine5;
-	uint32_t sdma_engine6;
-	uint32_t sdma_engine7;
+	uint32_t sdma_engine[8];
 	uint32_t ih;
 	union {
 		struct {

@@ -70,8 +70,8 @@ void vega10_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.userqueue_start = AMDGPU_DOORBELL64_USERQUEUE_START;
 	adev->doorbell_index.userqueue_end = AMDGPU_DOORBELL64_USERQUEUE_END;
 	adev->doorbell_index.gfx_ring0 = AMDGPU_DOORBELL64_GFX_RING0;
-	adev->doorbell_index.sdma_engine0 = AMDGPU_DOORBELL64_sDMA_ENGINE0;
-	adev->doorbell_index.sdma_engine1 = AMDGPU_DOORBELL64_sDMA_ENGINE1;
+	adev->doorbell_index.sdma_engine[0] = AMDGPU_DOORBELL64_sDMA_ENGINE0;
+	adev->doorbell_index.sdma_engine[1] = AMDGPU_DOORBELL64_sDMA_ENGINE1;
 	adev->doorbell_index.ih = AMDGPU_DOORBELL64_IH;
 	adev->doorbell_index.uvd_vce.uvd_ring0_1 = AMDGPU_DOORBELL64_UVD_RING0_1;
 	adev->doorbell_index.uvd_vce.uvd_ring2_3 = AMDGPU_DOORBELL64_UVD_RING2_3;

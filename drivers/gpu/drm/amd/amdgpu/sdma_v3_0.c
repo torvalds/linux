@@ -1145,8 +1145,7 @@ static int sdma_v3_0_sw_init(void *handle)
 		ring->ring_obj = NULL;
 		if (!amdgpu_sriov_vf(adev)) {
 			ring->use_doorbell = true;
-			ring->doorbell_index = (i == 0) ?
-				adev->doorbell_index.sdma_engine0 : adev->doorbell_index.sdma_engine1;
+			ring->doorbell_index = adev->doorbell_index.sdma_engine[i];
 		} else {
 			ring->use_pollmem = true;
 		}

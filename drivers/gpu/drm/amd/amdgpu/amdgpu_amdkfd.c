@@ -188,13 +188,13 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 			 * can use each doorbell assignment twice.
 			 */
 			gpu_resources.sdma_doorbell[0][i] =
-				adev->doorbell_index.sdma_engine0 + (i >> 1);
+				adev->doorbell_index.sdma_engine[0] + (i >> 1);
 			gpu_resources.sdma_doorbell[0][i+1] =
-				adev->doorbell_index.sdma_engine0 + 0x200 + (i >> 1);
+				adev->doorbell_index.sdma_engine[0] + 0x200 + (i >> 1);
 			gpu_resources.sdma_doorbell[1][i] =
-				adev->doorbell_index.sdma_engine1 + (i >> 1);
+				adev->doorbell_index.sdma_engine[1] + (i >> 1);
 			gpu_resources.sdma_doorbell[1][i+1] =
-				adev->doorbell_index.sdma_engine1 + 0x200 + (i >> 1);
+				adev->doorbell_index.sdma_engine[1] + 0x200 + (i >> 1);
 		}
 		/* Doorbells 0x0e0-0ff and 0x2e0-2ff are reserved for
 		 * SDMA, IH and VCN. So don't use them for the CP.
