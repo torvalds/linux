@@ -434,10 +434,15 @@ static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
+	struct smu_table_context *table_context = &smu->smu_table;
 	int ret = 0;
 
 	if (adev->asic_type < CHIP_VEGA20)
 		return -EINVAL;
+
+	if (!table_context->driver_pptable)
+		return -EINVAL;
+	kfree(table_context->driver_pptable);
 
 	ret = smu_fini_fb_allocations(smu);
 	if (ret)
