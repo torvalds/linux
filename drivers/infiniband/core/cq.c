@@ -162,7 +162,7 @@ struct ib_cq *__ib_alloc_cq(struct ib_device *dev, void *private,
 
 	cq->res.type = RDMA_RESTRACK_CQ;
 	rdma_restrack_set_task(&cq->res, caller);
-	rdma_restrack_add(&cq->res);
+	rdma_restrack_kadd(&cq->res);
 
 	switch (cq->poll_ctx) {
 	case IB_POLL_DIRECT:

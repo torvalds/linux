@@ -262,7 +262,7 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	fd_install(resp.async_fd, filp);
 
 	ucontext->res.type = RDMA_RESTRACK_CTX;
-	rdma_restrack_add(&ucontext->res);
+	rdma_restrack_uadd(&ucontext->res);
 
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
@@ -472,7 +472,7 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
 	pd->res.type = RDMA_RESTRACK_PD;
-	rdma_restrack_add(&pd->res);
+	rdma_restrack_uadd(&pd->res);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
@@ -788,7 +788,7 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
-	rdma_restrack_add(&mr->res);
+	rdma_restrack_uadd(&mr->res);
 
 	uobj->object = mr;
 
@@ -1066,7 +1066,7 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	resp.response_length = uverbs_response_length(attrs, sizeof(resp));
 
 	cq->res.type = RDMA_RESTRACK_CQ;
-	rdma_restrack_add(&cq->res);
+	rdma_restrack_uadd(&cq->res);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
