@@ -103,7 +103,7 @@ static inline bool cache_entry_expired(const struct dfs_cache_entry *ce)
 {
 	struct timespec64 ts;
 
-	ts = current_kernel_time64();
+	ktime_get_coarse_real_ts64(&ts);
 	return timespec64_compare(&ts, &ce->ce_etime) >= 0;
 }
 
@@ -338,8 +338,10 @@ static inline struct timespec64 get_expire_time(int ttl)
 		.tv_sec = ttl,
 		.tv_nsec = 0,
 	};
+	struct timespec64 now;
 
-	return timespec64_add(current_kernel_time64(), ts);
+	ktime_get_coarse_real_ts64(&now);
+	return timespec64_add(now, ts);
 }
 
 /* Allocate a new DFS target */
