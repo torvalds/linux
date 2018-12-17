@@ -70,6 +70,12 @@ struct bch_inode_unpacked;
 
 #ifndef NO_BCACHEFS_FS
 
+int bch2_fs_quota_transfer(struct bch_fs *,
+			   struct bch_inode_info *,
+			   struct bch_qid,
+			   unsigned,
+			   enum quota_acct_mode);
+
 /* returns 0 if we want to do the update, or error is passed up */
 typedef int (*inode_set_fn)(struct bch_inode_info *,
 			    struct bch_inode_unpacked *, void *);

@@ -270,7 +270,8 @@ static void __bch2_quota_transfer(struct bch_memquota *src_q,
 
 int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 			struct bch_qid dst,
-			struct bch_qid src, u64 space)
+			struct bch_qid src, u64 space,
+			enum quota_acct_mode mode)
 {
 	struct bch_memquota_type *q;
 	struct bch_memquota *src_q[3], *dst_q[3];
@@ -296,13 +297,13 @@ int bch2_quota_transfer(struct bch_fs *c, unsigned qtypes,
 
 		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_SPC,
 					     dst_q[i]->c[Q_SPC].v + space,
-					     KEY_TYPE_QUOTA_PREALLOC);
+					     mode);
 		if (ret)
 			goto err;
 
 		ret = bch2_quota_check_limit(c, i, dst_q[i], &msgs, Q_INO,
 					     dst_q[i]->c[Q_INO].v + 1,
-					     KEY_TYPE_QUOTA_PREALLOC);
+					     mode);
 		if (ret)
 			goto err;
 	}

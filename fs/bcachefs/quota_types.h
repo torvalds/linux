@@ -8,6 +8,12 @@ struct bch_qid {
 	u32		q[QTYP_NR];
 };
 
+enum quota_acct_mode {
+	KEY_TYPE_QUOTA_PREALLOC,
+	KEY_TYPE_QUOTA_WARN,
+	KEY_TYPE_QUOTA_NOCHECK,
+};
+
 struct memquota_counter {
 	u64				v;
 	u64				hardlimit;

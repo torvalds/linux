@@ -108,21 +108,12 @@ static int bch2_set_projid(struct bch_fs *c,
 			   u32 projid)
 {
 	struct bch_qid qid = inode->ei_qid;
-	int ret;
-
-	if (projid == inode->ei_qid.q[QTYP_PRJ])
-		return 0;
 
 	qid.q[QTYP_PRJ] = projid;
 
-	return bch2_quota_transfer(c, 1 << QTYP_PRJ, qid, inode->ei_qid,
-				   inode->v.i_blocks +
-				   inode->ei_quota_reserved);
-	if (ret)
-		return ret;
-
-	inode->ei_qid.q[QTYP_PRJ] = projid;
-	return 0;
+	return bch2_fs_quota_transfer(c, inode, qid,
+				      1 << QTYP_PRJ,
+				      KEY_TYPE_QUOTA_PREALLOC);
 }
 
 static int fssetxattr_inode_update_fn(struct bch_inode_info *inode,

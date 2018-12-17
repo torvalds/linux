@@ -170,7 +170,6 @@ void bch2_inode_update_after_write(struct bch_fs *c,
 		inode_set_ctime_to_ts(&inode->v, bch2_time_to_timespec(c, bi->bi_ctime));
 
 	inode->ei_inode		= *bi;
-	inode->ei_qid		= bch_qid(bi);
 
 	bch2_inode_flags_to_vfs(inode);
 }
@@ -246,6 +245,41 @@ retry:
 
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
+}
+
+int bch2_fs_quota_transfer(struct bch_fs *c,
+			   struct bch_inode_info *inode,
+			   struct bch_qid new_qid,
+			   unsigned qtypes,
+			   enum quota_acct_mode mode)
+{
+	unsigned i;
+	int ret;
+
+	qtypes &= enabled_qtypes(c);
+
+	for (i = 0; i < QTYP_NR; i++)
+		if (new_qid.q[i] == inode->ei_qid.q[i])
+			qtypes &= ~(1U << i);
+
+	if (!qtypes)
+		return 0;
+
+	mutex_lock(&inode->ei_quota_lock);
+
+	ret = bch2_quota_transfer(c, qtypes, new_qid,
+				  inode->ei_qid,
+				  inode->v.i_blocks +
+				  inode->ei_quota_reserved,
+				  mode);
+	if (!ret)
+		for (i = 0; i < QTYP_NR; i++)
+			if (qtypes & (1 << i))
+				inode->ei_qid.q[i] = new_qid.q[i];
+
+	mutex_unlock(&inode->ei_quota_lock);
+
+	return ret;
 }
 
 static struct inode *bch2_vfs_inode_get(struct bch_fs *c, u64 inum)
@@ -913,37 +947,27 @@ static int bch2_setattr_nonsize(struct mnt_idmap *idmap,
 				struct iattr *iattr)
 {
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	struct bch_qid qid = inode->ei_qid;
+	struct bch_qid qid;
 	struct btree_trans trans;
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *acl = NULL;
 	struct inode_write_setattr s = { iattr, idmap };
-	unsigned qtypes = 0;
 	int ret;
 
 	mutex_lock(&inode->ei_update_lock);
 
-	if (c->opts.usrquota &&
-	    (iattr->ia_valid & ATTR_UID) &&
-	    !uid_eq(iattr->ia_uid, inode->v.i_uid)) {
-		qid.q[QTYP_USR] = from_kuid(i_user_ns(&inode->v), iattr->ia_uid),
-		qtypes |= 1 << QTYP_USR;
-	}
+	qid = inode->ei_qid;
 
-	if (c->opts.grpquota &&
-	    (iattr->ia_valid & ATTR_GID) &&
-	    !gid_eq(iattr->ia_gid, inode->v.i_gid)) {
+	if (iattr->ia_valid & ATTR_UID)
+		qid.q[QTYP_USR] = from_kuid(i_user_ns(&inode->v), iattr->ia_uid);
+
+	if (iattr->ia_valid & ATTR_GID)
 		qid.q[QTYP_GRP] = from_kgid(i_user_ns(&inode->v), iattr->ia_gid);
-		qtypes |= 1 << QTYP_GRP;
-	}
 
-	if (qtypes) {
-		ret = bch2_quota_transfer(c, qtypes, qid, inode->ei_qid,
-					  inode->v.i_blocks +
-					  inode->ei_quota_reserved);
-		if (ret)
-			goto err;
-	}
+	ret = bch2_fs_quota_transfer(c, inode, qid, ~0,
+				     KEY_TYPE_QUOTA_PREALLOC);
+	if (ret)
+		goto err;
 
 	bch2_trans_init(&trans, c);
 retry:
@@ -1312,6 +1336,7 @@ static void bch2_vfs_inode_init(struct bch_fs *c,
 	inode->ei_journal_seq	= 0;
 	inode->ei_quota_reserved = 0;
 	inode->ei_str_hash	= bch2_hash_info_init(c, bi);
+	inode->ei_qid		= bch_qid(bi);
 
 	inode->v.i_mapping->a_ops = &bch_address_space_operations;
 
