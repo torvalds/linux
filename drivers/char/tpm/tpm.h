@@ -134,22 +134,31 @@ enum tpm2_algorithms {
 };
 
 enum tpm2_command_codes {
-	TPM2_CC_FIRST		= 0x011F,
-	TPM2_CC_CREATE_PRIMARY  = 0x0131,
-	TPM2_CC_SELF_TEST	= 0x0143,
-	TPM2_CC_STARTUP		= 0x0144,
-	TPM2_CC_SHUTDOWN	= 0x0145,
-	TPM2_CC_CREATE		= 0x0153,
-	TPM2_CC_LOAD		= 0x0157,
-	TPM2_CC_UNSEAL		= 0x015E,
-	TPM2_CC_CONTEXT_LOAD	= 0x0161,
-	TPM2_CC_CONTEXT_SAVE	= 0x0162,
-	TPM2_CC_FLUSH_CONTEXT	= 0x0165,
-	TPM2_CC_GET_CAPABILITY	= 0x017A,
-	TPM2_CC_GET_RANDOM	= 0x017B,
-	TPM2_CC_PCR_READ	= 0x017E,
-	TPM2_CC_PCR_EXTEND	= 0x0182,
-	TPM2_CC_LAST		= 0x018F,
+	TPM2_CC_FIRST		        = 0x011F,
+	TPM2_CC_HIERARCHY_CONTROL       = 0x0121,
+	TPM2_CC_HIERARCHY_CHANGE_AUTH   = 0x0129,
+	TPM2_CC_CREATE_PRIMARY          = 0x0131,
+	TPM2_CC_SEQUENCE_COMPLETE       = 0x013E,
+	TPM2_CC_SELF_TEST	        = 0x0143,
+	TPM2_CC_STARTUP		        = 0x0144,
+	TPM2_CC_SHUTDOWN	        = 0x0145,
+	TPM2_CC_NV_READ                 = 0x014E,
+	TPM2_CC_CREATE		        = 0x0153,
+	TPM2_CC_LOAD		        = 0x0157,
+	TPM2_CC_SEQUENCE_UPDATE         = 0x015C,
+	TPM2_CC_UNSEAL		        = 0x015E,
+	TPM2_CC_CONTEXT_LOAD	        = 0x0161,
+	TPM2_CC_CONTEXT_SAVE	        = 0x0162,
+	TPM2_CC_FLUSH_CONTEXT	        = 0x0165,
+	TPM2_CC_VERIFY_SIGNATURE        = 0x0177,
+	TPM2_CC_GET_CAPABILITY	        = 0x017A,
+	TPM2_CC_GET_RANDOM	        = 0x017B,
+	TPM2_CC_PCR_READ	        = 0x017E,
+	TPM2_CC_PCR_EXTEND	        = 0x0182,
+	TPM2_CC_EVENT_SEQUENCE_COMPLETE = 0x0185,
+	TPM2_CC_HASH_SEQUENCE_START     = 0x0186,
+	TPM2_CC_CREATE_LOADED           = 0x0191,
+	TPM2_CC_LAST		        = 0x0193, /* Spec 1.36 */
 };
 
 enum tpm2_permanent_handles {
@@ -368,46 +377,12 @@ enum tpm_sub_capabilities {
 	TPM_CAP_PROP_TIS_DURATION = 0x120,
 };
 
-typedef union {
-	struct	tpm_input_header in;
-	struct	tpm_output_header out;
-} tpm_cmd_header;
-
-struct tpm_pcrread_out {
-	u8	pcr_result[TPM_DIGEST_SIZE];
-} __packed;
-
-struct tpm_pcrread_in {
-	__be32	pcr_idx;
-} __packed;
 
 /* 128 bytes is an arbitrary cap. This could be as large as TPM_BUFSIZE - 18
  * bytes, but 128 is still a relatively large number of random bytes and
  * anything much bigger causes users of struct tpm_cmd_t to start getting
  * compiler warnings about stack frame size. */
 #define TPM_MAX_RNG_DATA	128
-
-struct tpm_getrandom_out {
-	__be32 rng_data_len;
-	u8     rng_data[TPM_MAX_RNG_DATA];
-} __packed;
-
-struct tpm_getrandom_in {
-	__be32 num_bytes;
-} __packed;
-
-typedef union {
-	struct	tpm_pcrread_in	pcrread_in;
-	struct	tpm_pcrread_out	pcrread_out;
-	struct	tpm_getrandom_in getrandom_in;
-	struct	tpm_getrandom_out getrandom_out;
-} tpm_cmd_params;
-
-struct tpm_cmd_t {
-	tpm_cmd_header	header;
-	tpm_cmd_params	params;
-} __packed;
-
 
 /* A string buffer type for constructing TPM commands. This is based on the
  * ideas of string buffer code in security/keys/trusted.h but is heap based
@@ -531,12 +506,20 @@ ssize_t tpm_transmit_cmd(struct tpm_chip *chip, struct tpm_space *space,
 			 void *buf, size_t bufsiz,
 			 size_t min_rsp_body_length, unsigned int flags,
 			 const char *desc);
-int tpm_startup(struct tpm_chip *chip);
-ssize_t tpm_getcap(struct tpm_chip *chip, u32 subcap_id, cap_t *cap,
-		   const char *desc, size_t min_cap_length);
 int tpm_get_timeouts(struct tpm_chip *);
+int tpm_auto_startup(struct tpm_chip *chip);
+
+int tpm1_pm_suspend(struct tpm_chip *chip, u32 tpm_suspend_pcr);
 int tpm1_auto_startup(struct tpm_chip *chip);
-int tpm_do_selftest(struct tpm_chip *chip);
+int tpm1_do_selftest(struct tpm_chip *chip);
+int tpm1_get_timeouts(struct tpm_chip *chip);
+unsigned long tpm1_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
+int tpm1_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, const u8 *hash,
+		    const char *log_msg);
+int tpm1_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf);
+ssize_t tpm1_getcap(struct tpm_chip *chip, u32 subcap_id, cap_t *cap,
+		    const char *desc, size_t min_cap_length);
+int tpm1_get_random(struct tpm_chip *chip, u8 *out, size_t max);
 unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal);
 int tpm_pm_suspend(struct device *dev);
 int tpm_pm_resume(struct device *dev);
@@ -560,7 +543,6 @@ void tpm_chip_unregister(struct tpm_chip *chip);
 
 void tpm_sysfs_add_device(struct tpm_chip *chip);
 
-int tpm_pcr_read_dev(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
 
 #ifdef CONFIG_ACPI
 extern void tpm_add_ppi(struct tpm_chip *chip);
@@ -575,8 +557,9 @@ static inline u32 tpm2_rc_value(u32 rc)
 	return (rc & BIT(7)) ? rc & 0xff : rc;
 }
 
-int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf);
-int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, u32 count,
+int tpm2_get_timeouts(struct tpm_chip *chip);
+int tpm2_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf);
+int tpm2_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, u32 count,
 		    struct tpm2_digest *digests);
 int tpm2_get_random(struct tpm_chip *chip, u8 *dest, size_t max);
 void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,

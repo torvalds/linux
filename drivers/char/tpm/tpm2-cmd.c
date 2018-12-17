@@ -40,129 +40,121 @@ static struct tpm2_hash tpm2_hash_map[] = {
 	{HASH_ALGO_SM3_256, TPM2_ALG_SM3_256},
 };
 
-/*
- * Array with one entry per ordinal defining the maximum amount
- * of time the chip could take to return the result. The values
- * of the SHORT, MEDIUM, and LONG durations are taken from the
- * PC Client Profile (PTP) specification.
- * LONG_LONG is for commands that generates keys which empirically
- * takes longer time on some systems.
+int tpm2_get_timeouts(struct tpm_chip *chip)
+{
+	/* Fixed timeouts for TPM2 */
+	chip->timeout_a = msecs_to_jiffies(TPM2_TIMEOUT_A);
+	chip->timeout_b = msecs_to_jiffies(TPM2_TIMEOUT_B);
+	chip->timeout_c = msecs_to_jiffies(TPM2_TIMEOUT_C);
+	chip->timeout_d = msecs_to_jiffies(TPM2_TIMEOUT_D);
+
+	/* PTP spec timeouts */
+	chip->duration[TPM_SHORT] = msecs_to_jiffies(TPM2_DURATION_SHORT);
+	chip->duration[TPM_MEDIUM] = msecs_to_jiffies(TPM2_DURATION_MEDIUM);
+	chip->duration[TPM_LONG] = msecs_to_jiffies(TPM2_DURATION_LONG);
+
+	/* Key creation commands long timeouts */
+	chip->duration[TPM_LONG_LONG] =
+		msecs_to_jiffies(TPM2_DURATION_LONG_LONG);
+
+	chip->flags |= TPM_CHIP_FLAG_HAVE_TIMEOUTS;
+
+	return 0;
+}
+
+/**
+ * tpm2_ordinal_duration_index() - returns an index to the chip duration table
+ * @ordinal: TPM command ordinal.
+ *
+ * The function returns an index to the chip duration table
+ * (enum tpm_duration), that describes the maximum amount of
+ * time the chip could take to return the result for a  particular ordinal.
+ *
+ * The values of the MEDIUM, and LONG durations are taken
+ * from the PC Client Profile (PTP) specification (750, 2000 msec)
+ *
+ * LONG_LONG is for commands that generates keys which empirically takes
+ * a longer time on some systems.
+ *
+ * Return:
+ * * TPM_MEDIUM
+ * * TPM_LONG
+ * * TPM_LONG_LONG
+ * * TPM_UNDEFINED
  */
-static const u8 tpm2_ordinal_duration[TPM2_CC_LAST - TPM2_CC_FIRST + 1] = {
-	TPM_UNDEFINED,		/* 11F */
-	TPM_UNDEFINED,		/* 120 */
-	TPM_LONG,		/* 121 */
-	TPM_UNDEFINED,		/* 122 */
-	TPM_UNDEFINED,		/* 123 */
-	TPM_UNDEFINED,		/* 124 */
-	TPM_UNDEFINED,		/* 125 */
-	TPM_UNDEFINED,		/* 126 */
-	TPM_UNDEFINED,		/* 127 */
-	TPM_UNDEFINED,		/* 128 */
-	TPM_LONG,		/* 129 */
-	TPM_UNDEFINED,		/* 12a */
-	TPM_UNDEFINED,		/* 12b */
-	TPM_UNDEFINED,		/* 12c */
-	TPM_UNDEFINED,		/* 12d */
-	TPM_UNDEFINED,		/* 12e */
-	TPM_UNDEFINED,		/* 12f */
-	TPM_UNDEFINED,		/* 130 */
-	TPM_LONG_LONG,		/* 131 */
-	TPM_UNDEFINED,		/* 132 */
-	TPM_UNDEFINED,		/* 133 */
-	TPM_UNDEFINED,		/* 134 */
-	TPM_UNDEFINED,		/* 135 */
-	TPM_UNDEFINED,		/* 136 */
-	TPM_UNDEFINED,		/* 137 */
-	TPM_UNDEFINED,		/* 138 */
-	TPM_UNDEFINED,		/* 139 */
-	TPM_UNDEFINED,		/* 13a */
-	TPM_UNDEFINED,		/* 13b */
-	TPM_UNDEFINED,		/* 13c */
-	TPM_UNDEFINED,		/* 13d */
-	TPM_MEDIUM,		/* 13e */
-	TPM_UNDEFINED,		/* 13f */
-	TPM_UNDEFINED,		/* 140 */
-	TPM_UNDEFINED,		/* 141 */
-	TPM_UNDEFINED,		/* 142 */
-	TPM_LONG,		/* 143 */
-	TPM_MEDIUM,		/* 144 */
-	TPM_UNDEFINED,		/* 145 */
-	TPM_UNDEFINED,		/* 146 */
-	TPM_UNDEFINED,		/* 147 */
-	TPM_UNDEFINED,		/* 148 */
-	TPM_UNDEFINED,		/* 149 */
-	TPM_UNDEFINED,		/* 14a */
-	TPM_UNDEFINED,		/* 14b */
-	TPM_UNDEFINED,		/* 14c */
-	TPM_UNDEFINED,		/* 14d */
-	TPM_LONG,		/* 14e */
-	TPM_UNDEFINED,		/* 14f */
-	TPM_UNDEFINED,		/* 150 */
-	TPM_UNDEFINED,		/* 151 */
-	TPM_UNDEFINED,		/* 152 */
-	TPM_LONG_LONG,		/* 153 */
-	TPM_UNDEFINED,		/* 154 */
-	TPM_UNDEFINED,		/* 155 */
-	TPM_UNDEFINED,		/* 156 */
-	TPM_UNDEFINED,		/* 157 */
-	TPM_UNDEFINED,		/* 158 */
-	TPM_UNDEFINED,		/* 159 */
-	TPM_UNDEFINED,		/* 15a */
-	TPM_UNDEFINED,		/* 15b */
-	TPM_MEDIUM,		/* 15c */
-	TPM_UNDEFINED,		/* 15d */
-	TPM_UNDEFINED,		/* 15e */
-	TPM_UNDEFINED,		/* 15f */
-	TPM_UNDEFINED,		/* 160 */
-	TPM_UNDEFINED,		/* 161 */
-	TPM_UNDEFINED,		/* 162 */
-	TPM_UNDEFINED,		/* 163 */
-	TPM_UNDEFINED,		/* 164 */
-	TPM_UNDEFINED,		/* 165 */
-	TPM_UNDEFINED,		/* 166 */
-	TPM_UNDEFINED,		/* 167 */
-	TPM_UNDEFINED,		/* 168 */
-	TPM_UNDEFINED,		/* 169 */
-	TPM_UNDEFINED,		/* 16a */
-	TPM_UNDEFINED,		/* 16b */
-	TPM_UNDEFINED,		/* 16c */
-	TPM_UNDEFINED,		/* 16d */
-	TPM_UNDEFINED,		/* 16e */
-	TPM_UNDEFINED,		/* 16f */
-	TPM_UNDEFINED,		/* 170 */
-	TPM_UNDEFINED,		/* 171 */
-	TPM_UNDEFINED,		/* 172 */
-	TPM_UNDEFINED,		/* 173 */
-	TPM_UNDEFINED,		/* 174 */
-	TPM_UNDEFINED,		/* 175 */
-	TPM_UNDEFINED,		/* 176 */
-	TPM_LONG,		/* 177 */
-	TPM_UNDEFINED,		/* 178 */
-	TPM_UNDEFINED,		/* 179 */
-	TPM_MEDIUM,		/* 17a */
-	TPM_LONG,		/* 17b */
-	TPM_UNDEFINED,		/* 17c */
-	TPM_UNDEFINED,		/* 17d */
-	TPM_UNDEFINED,		/* 17e */
-	TPM_UNDEFINED,		/* 17f */
-	TPM_UNDEFINED,		/* 180 */
-	TPM_UNDEFINED,		/* 181 */
-	TPM_MEDIUM,		/* 182 */
-	TPM_UNDEFINED,		/* 183 */
-	TPM_UNDEFINED,		/* 184 */
-	TPM_MEDIUM,		/* 185 */
-	TPM_MEDIUM,		/* 186 */
-	TPM_UNDEFINED,		/* 187 */
-	TPM_UNDEFINED,		/* 188 */
-	TPM_UNDEFINED,		/* 189 */
-	TPM_UNDEFINED,		/* 18a */
-	TPM_UNDEFINED,		/* 18b */
-	TPM_UNDEFINED,		/* 18c */
-	TPM_UNDEFINED,		/* 18d */
-	TPM_UNDEFINED,		/* 18e */
-	TPM_UNDEFINED		/* 18f */
-};
+static u8 tpm2_ordinal_duration_index(u32 ordinal)
+{
+	switch (ordinal) {
+	/* Startup */
+	case TPM2_CC_STARTUP:                 /* 144 */
+		return TPM_MEDIUM;
+
+	case TPM2_CC_SELF_TEST:               /* 143 */
+		return TPM_LONG;
+
+	case TPM2_CC_GET_RANDOM:              /* 17B */
+		return TPM_LONG;
+
+	case TPM2_CC_SEQUENCE_UPDATE:         /* 15C */
+		return TPM_MEDIUM;
+	case TPM2_CC_SEQUENCE_COMPLETE:       /* 13E */
+		return TPM_MEDIUM;
+	case TPM2_CC_EVENT_SEQUENCE_COMPLETE: /* 185 */
+		return TPM_MEDIUM;
+	case TPM2_CC_HASH_SEQUENCE_START:     /* 186 */
+		return TPM_MEDIUM;
+
+	case TPM2_CC_VERIFY_SIGNATURE:        /* 177 */
+		return TPM_LONG;
+
+	case TPM2_CC_PCR_EXTEND:              /* 182 */
+		return TPM_MEDIUM;
+
+	case TPM2_CC_HIERARCHY_CONTROL:       /* 121 */
+		return TPM_LONG;
+	case TPM2_CC_HIERARCHY_CHANGE_AUTH:   /* 129 */
+		return TPM_LONG;
+
+	case TPM2_CC_GET_CAPABILITY:          /* 17A */
+		return TPM_MEDIUM;
+
+	case TPM2_CC_NV_READ:                 /* 14E */
+		return TPM_LONG;
+
+	case TPM2_CC_CREATE_PRIMARY:          /* 131 */
+		return TPM_LONG_LONG;
+	case TPM2_CC_CREATE:                  /* 153 */
+		return TPM_LONG_LONG;
+	case TPM2_CC_CREATE_LOADED:           /* 191 */
+		return TPM_LONG_LONG;
+
+	default:
+		return TPM_UNDEFINED;
+	}
+}
+
+/**
+ * tpm2_calc_ordinal_duration() - calculate the maximum command duration
+ * @chip:    TPM chip to use.
+ * @ordinal: TPM command ordinal.
+ *
+ * The function returns the maximum amount of time the chip could take
+ * to return the result for a particular ordinal in jiffies.
+ *
+ * Return: A maximal duration time for an ordinal in jiffies.
+ */
+unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
+{
+	unsigned int index;
+
+	index = tpm2_ordinal_duration_index(ordinal);
+
+	if (index != TPM_UNDEFINED)
+		return chip->duration[index];
+	else
+		return msecs_to_jiffies(TPM2_DURATION_DEFAULT);
+}
+
 
 struct tpm2_pcr_read_out {
 	__be32	update_cnt;
@@ -183,7 +175,7 @@ struct tpm2_pcr_read_out {
  *
  * Return: Same as with tpm_transmit_cmd.
  */
-int tpm2_pcr_read(struct tpm_chip *chip, int pcr_idx, u8 *res_buf)
+int tpm2_pcr_read(struct tpm_chip *chip, u32 pcr_idx, u8 *res_buf)
 {
 	int rc;
 	struct tpm_buf buf;
@@ -233,7 +225,7 @@ struct tpm2_null_auth_area {
  *
  * Return: Same as with tpm_transmit_cmd.
  */
-int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, u32 count,
+int tpm2_pcr_extend(struct tpm_chip *chip, u32 pcr_idx, u32 count,
 		    struct tpm2_digest *digests)
 {
 	struct tpm_buf buf;
@@ -279,7 +271,6 @@ int tpm2_pcr_extend(struct tpm_chip *chip, int pcr_idx, u32 count,
 
 	return rc;
 }
-
 
 struct tpm2_get_random_out {
 	__be16 size;
@@ -351,11 +342,10 @@ out:
 
 /**
  * tpm2_flush_context_cmd() - execute a TPM2_FlushContext command
- * @chip: TPM chip to use
- * @payload: the key data in clear and encrypted form
- * @options: authentication values and other options
+ * @chip:	TPM chip to use
+ * @handle:	context handle
+ * @flags:	tpm transmit flags - bitmap
  *
- * Return: same as with tpm_transmit_cmd
  */
 void tpm2_flush_context_cmd(struct tpm_chip *chip, u32 handle,
 			    unsigned int flags)
@@ -748,32 +738,6 @@ void tpm2_shutdown(struct tpm_chip *chip, u16 shutdown_type)
 	tpm_buf_destroy(&buf);
 }
 
-/*
- * tpm2_calc_ordinal_duration() - maximum duration for a command
- *
- * @chip:	TPM chip to use.
- * @ordinal:	command code number.
- *
- * Return: maximum duration for a command
- */
-unsigned long tpm2_calc_ordinal_duration(struct tpm_chip *chip, u32 ordinal)
-{
-	int index = TPM_UNDEFINED;
-	int duration = 0;
-
-	if (ordinal >= TPM2_CC_FIRST && ordinal <= TPM2_CC_LAST)
-		index = tpm2_ordinal_duration[ordinal - TPM2_CC_FIRST];
-
-	if (index != TPM_UNDEFINED)
-		duration = chip->duration[index];
-
-	if (duration <= 0)
-		duration = msecs_to_jiffies(TPM2_DURATION_DEFAULT);
-
-	return duration;
-}
-EXPORT_SYMBOL_GPL(tpm2_calc_ordinal_duration);
-
 /**
  * tpm2_do_selftest() - ensure that all self tests have passed
  *
@@ -983,6 +947,36 @@ out:
 }
 
 /**
+ * tpm2_startup - turn on the TPM
+ * @chip: TPM chip to use
+ *
+ * Normally the firmware should start the TPM. This function is provided as a
+ * workaround if this does not happen. A legal case for this could be for
+ * example when a TPM emulator is used.
+ *
+ * Return: same as tpm_transmit_cmd()
+ */
+
+static int tpm2_startup(struct tpm_chip *chip)
+{
+	struct tpm_buf buf;
+	int rc;
+
+	dev_info(&chip->dev, "starting up the TPM manually\n");
+
+	rc = tpm_buf_init(&buf, TPM2_ST_NO_SESSIONS, TPM2_CC_STARTUP);
+	if (rc < 0)
+		return rc;
+
+	tpm_buf_append_u16(&buf, TPM2_SU_CLEAR);
+	rc = tpm_transmit_cmd(chip, NULL, buf.data, PAGE_SIZE, 0, 0,
+			      "attempting to start the TPM");
+	tpm_buf_destroy(&buf);
+
+	return rc;
+}
+
+/**
  * tpm2_auto_startup - Perform the standard automatic TPM initialization
  *                     sequence
  * @chip: TPM chip to use
@@ -993,7 +987,7 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 {
 	int rc;
 
-	rc = tpm_get_timeouts(chip);
+	rc = tpm2_get_timeouts(chip);
 	if (rc)
 		goto out;
 
@@ -1002,7 +996,7 @@ int tpm2_auto_startup(struct tpm_chip *chip)
 		goto out;
 
 	if (rc == TPM2_RC_INITIALIZE) {
-		rc = tpm_startup(chip);
+		rc = tpm2_startup(chip);
 		if (rc)
 			goto out;
 
