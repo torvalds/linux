@@ -1960,7 +1960,7 @@ EXPORT_SYMBOL(drm_mode_get_tile_group);
  * identifier for the tile group.
  *
  * RETURNS:
- * new tile group or error.
+ * new tile group or NULL.
  */
 struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 						  char topology[8])
@@ -1970,7 +1970,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 
 	tg = kzalloc(sizeof(*tg), GFP_KERNEL);
 	if (!tg)
-		return ERR_PTR(-ENOMEM);
+		return NULL;
 
 	kref_init(&tg->refcount);
 	memcpy(tg->group_data, topology, 8);
@@ -1982,7 +1982,7 @@ struct drm_tile_group *drm_mode_create_tile_group(struct drm_device *dev,
 		tg->id = ret;
 	} else {
 		kfree(tg);
-		tg = ERR_PTR(ret);
+		tg = NULL;
 	}
 
 	mutex_unlock(&dev->mode_config.idr_mutex);
