@@ -51,8 +51,6 @@
 
 /* Name of this kernel module. */
 #define DRV_NAME		"ib_srpt"
-#define DRV_VERSION		"2.0.0"
-#define DRV_RELDATE		"2011-02-14"
 
 #define SRPT_ID_STRING	"Linux SRP target"
 
@@ -60,8 +58,7 @@
 #define pr_fmt(fmt) DRV_NAME " " fmt
 
 MODULE_AUTHOR("Vu Pham and Bart Van Assche");
-MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol target "
-		   "v" DRV_VERSION " (" DRV_RELDATE ")");
+MODULE_DESCRIPTION("SCSI RDMA Protocol target driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 /*
@@ -3671,7 +3668,7 @@ static void srpt_drop_tport(struct se_wwn *wwn)
 
 static ssize_t srpt_wwn_version_show(struct config_item *item, char *buf)
 {
-	return scnprintf(buf, PAGE_SIZE, "%s\n", DRV_VERSION);
+	return scnprintf(buf, PAGE_SIZE, "\n");
 }
 
 CONFIGFS_ATTR_RO(srpt_wwn_, version);
