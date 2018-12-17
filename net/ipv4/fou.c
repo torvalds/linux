@@ -1061,6 +1061,13 @@ static int gue_err(struct sk_buff *skb, u32 info)
 	if (validate_gue_flags(guehdr, optlen))
 		return -EINVAL;
 
+	/* Handling exceptions for direct UDP encapsulation in GUE would lead to
+	 * recursion. Besides, this kind of encapsulation can't even be
+	 * configured currently. Discard this.
+	 */
+	if (guehdr->proto_ctype == IPPROTO_UDP)
+		return -EOPNOTSUPP;
+
 	skb_set_transport_header(skb, -(int)sizeof(struct icmphdr));
 	ret = gue_err_proto_handler(guehdr->proto_ctype, skb, info);
 
