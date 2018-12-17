@@ -1131,6 +1131,56 @@ static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_st
 	return DC_OK;
 }
 
+static enum dc_status dcn10_validate_global(struct dc *dc, struct dc_state *context)
+{
+	int i, j;
+	bool video_down_scaled = false;
+	bool video_large = false;
+	bool desktop_large = false;
+	bool dcc_disabled = false;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->stream_status[i].plane_count == 0)
+			continue;
+
+		if (context->stream_status[i].plane_count > 2)
+			return false;
+
+		for (j = 0; j < context->stream_status[i].plane_count; j++) {
+			struct dc_plane_state *plane =
+				context->stream_status[i].plane_states[j];
+
+
+			if (plane->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
+
+				if (plane->src_rect.width > plane->dst_rect.width ||
+						plane->src_rect.height > plane->dst_rect.height)
+					video_down_scaled = true;
+
+				if (plane->src_rect.width >= 3840)
+					video_large = true;
+
+			} else {
+				if (plane->src_rect.width >= 3840)
+					desktop_large = true;
+				if (!plane->dcc.enable)
+					dcc_disabled = true;
+			}
+		}
+	}
+
+	/*
+	 * Workaround: On DCN10 there is UMC issue that causes underflow when
+	 * playing 4k video on 4k desktop with video downscaled and single channel
+	 * memory
+	 */
+	if (video_large && desktop_large && video_down_scaled && dcc_disabled &&
+			dc->dcn_soc->number_of_channels == 1)
+		return DC_FAIL_SURFACE_VALIDATE;
+
+	return DC_OK;
+}
+
 static enum dc_status dcn10_get_default_swizzle_mode(struct dc_plane_state *plane_state)
 {
 	enum dc_status result = DC_OK;
@@ -1159,6 +1209,7 @@ static const struct resource_funcs dcn10_res_pool_funcs = {
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
 	.validate_plane = dcn10_validate_plane,
+	.validate_global = dcn10_validate_global,
 	.add_stream_to_ctx = dcn10_add_stream_to_ctx,
 	.get_default_swizzle_mode = dcn10_get_default_swizzle_mode
 };
