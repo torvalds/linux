@@ -103,6 +103,7 @@ static const char *amdgpu_asic_name[] = {
 	"ARCTURUS",
 	"NAVI10",
 	"NAVI14",
+	"NAVI12",
 	"LAST",
 };
 
