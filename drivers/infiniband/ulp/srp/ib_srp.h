@@ -132,6 +132,7 @@ struct srp_request {
 /**
  * struct srp_rdma_ch
  * @comp_vector: Completion vector used by this RDMA channel.
+ * @max_it_iu_len: Maximum initiator-to-target information unit length.
  * @max_ti_iu_len: Maximum target-to-initiator information unit length.
  */
 struct srp_rdma_ch {
@@ -149,6 +150,7 @@ struct srp_rdma_ch {
 		struct ib_fmr_pool     *fmr_pool;
 		struct srp_fr_pool     *fr_pool;
 	};
+	uint32_t		max_it_iu_len;
 	uint32_t		max_ti_iu_len;
 
 	/* Everything above this point is used in the hot path of
@@ -197,7 +199,6 @@ struct srp_target_port {
 	u32			ch_count;
 	u32			lkey;
 	enum srp_target_state	state;
-	unsigned int		max_iu_len;
 	unsigned int		cmd_sg_cnt;
 	unsigned int		indirect_size;
 	bool			allow_ext_sg;
