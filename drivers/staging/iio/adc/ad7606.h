@@ -26,8 +26,6 @@ struct ad7606_chip_info {
  * @dev		pointer to kernel device
  * @chip_info		entry in the table of chips that describes this device
  * @reg		regulator info for the the power supply of the device
- * @poll_work		work struct for continuously reading data from the device
- *			into an IIO triggered buffer
  * @bops		bus operations (SPI or parallel)
  * @range		voltage range selection, selects which scale to apply
  * @oversampling	oversampling selection
@@ -42,14 +40,13 @@ struct ad7606_chip_info {
  *			is being read on the first channel
  * @gpio_os		GPIO descriptors to control oversampling on the device
  * @complete		completion to indicate end of conversion
+ * @trig		The IIO trigger associated with the device.
  * @data		buffer for reading data from the device
  */
-
 struct ad7606_state {
 	struct device			*dev;
 	const struct ad7606_chip_info	*chip_info;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
 	const struct ad7606_bus_ops	*bops;
 	unsigned int			range;
 	unsigned int			oversampling;
@@ -62,6 +59,7 @@ struct ad7606_state {
 	struct gpio_desc		*gpio_standby;
 	struct gpio_desc		*gpio_frstdata;
 	struct gpio_descs		*gpio_os;
+	struct iio_trigger		*trig;
 	struct completion		completion;
 
 	/*

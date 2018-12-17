@@ -22,6 +22,7 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger_consumer.h>
+#include <linux/iio/trigger.h>
 #include <linux/iio/triggered_buffer.h>
 
 #include "ad7606.h"
@@ -86,36 +87,24 @@ static int ad7606_read_samples(struct ad7606_state *st)
 static irqreturn_t ad7606_trigger_handler(int irq, void *p)
 {
 	struct iio_poll_func *pf = p;
-	struct ad7606_state *st = iio_priv(pf->indio_dev);
-
-	gpiod_set_value(st->gpio_convst, 1);
-
-	return IRQ_HANDLED;
-}
-
-/**
- * ad7606_poll_bh_to_ring() bh of trigger launched polling to ring buffer
- * @work_s:	the work struct through which this was scheduled
- *
- * Currently there is no option in this driver to disable the saving of
- * timestamps within the ring.
- * I think the one copy of this at a time was to avoid problems if the
- * trigger was set far too high and the reads then locked up the computer.
- **/
-static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
-{
-	struct ad7606_state *st = container_of(work_s, struct ad7606_state,
-						poll_work);
-	struct iio_dev *indio_dev = iio_priv_to_dev(st);
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct ad7606_state *st = iio_priv(indio_dev);
 	int ret;
+
+	mutex_lock(&st->lock);
 
 	ret = ad7606_read_samples(st);
 	if (ret == 0)
 		iio_push_to_buffers_with_timestamp(indio_dev, st->data,
 						   iio_get_time_ns(indio_dev));
 
-	gpiod_set_value(st->gpio_convst, 0);
 	iio_trigger_notify_done(indio_dev->trig);
+	/* The rising edge of the CONVST signal starts a new conversion. */
+	gpiod_set_value(st->gpio_convst, 1);
+
+	mutex_unlock(&st->lock);
+
+	return IRQ_HANDLED;
 }
 
 static int ad7606_scan_direct(struct iio_dev *indio_dev, unsigned int ch)
@@ -366,8 +355,11 @@ static int ad7606_request_gpios(struct ad7606_state *st)
 	return PTR_ERR_OR_ZERO(st->gpio_os);
 }
 
-/**
- *  Interrupt handler
+/*
+ * The BUSY signal indicates when conversions are in progress, so when a rising
+ * edge of CONVST is applied, BUSY goes logic high and transitions low at the
+ * end of the entire conversion process. The falling edge of the BUSY signal
+ * triggers this interrupt.
  */
 static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 {
@@ -375,7 +367,8 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	if (iio_buffer_enabled(indio_dev)) {
-		schedule_work(&st->poll_work);
+		gpiod_set_value(st->gpio_convst, 0);
+		iio_trigger_poll_chained(st->trig);
 	} else {
 		complete(&st->completion);
 	}
@@ -383,26 +376,69 @@ static irqreturn_t ad7606_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 };
 
+static int ad7606_validate_trigger(struct iio_dev *indio_dev,
+				   struct iio_trigger *trig)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	if (st->trig != trig)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ad7606_buffer_postenable(struct iio_dev *indio_dev)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	iio_triggered_buffer_postenable(indio_dev);
+	gpiod_set_value(st->gpio_convst, 1);
+
+	return 0;
+}
+
+static int ad7606_buffer_predisable(struct iio_dev *indio_dev)
+{
+	struct ad7606_state *st = iio_priv(indio_dev);
+
+	gpiod_set_value(st->gpio_convst, 0);
+
+	return iio_triggered_buffer_predisable(indio_dev);
+}
+
+static const struct iio_buffer_setup_ops ad7606_buffer_ops = {
+	.postenable = &ad7606_buffer_postenable,
+	.predisable = &ad7606_buffer_predisable,
+};
+
 static const struct iio_info ad7606_info_no_os_or_range = {
 	.read_raw = &ad7606_read_raw,
+	.validate_trigger = &ad7606_validate_trigger,
 };
 
 static const struct iio_info ad7606_info_os_and_range = {
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.attrs = &ad7606_attribute_group_os_and_range,
+	.validate_trigger = &ad7606_validate_trigger,
 };
 
 static const struct iio_info ad7606_info_os = {
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.attrs = &ad7606_attribute_group_os,
+	.validate_trigger = &ad7606_validate_trigger,
 };
 
 static const struct iio_info ad7606_info_range = {
 	.read_raw = &ad7606_read_raw,
 	.write_raw = &ad7606_write_raw,
 	.attrs = &ad7606_attribute_group_range,
+	.validate_trigger = &ad7606_validate_trigger,
+};
+
+static const struct iio_trigger_ops ad7606_trigger_ops = {
+	.validate_device = iio_trigger_validate_own_device,
 };
 
 static void ad7606_regulator_disable(void *data)
@@ -434,7 +470,6 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	/* tied to logic low, analog input range is +/- 5V */
 	st->range = 0;
 	st->oversampling = 1;
-	INIT_WORK(&st->poll_work, &ad7606_poll_bh_to_ring);
 
 	st->reg = devm_regulator_get(dev, "avcc");
 	if (IS_ERR(st->reg))
@@ -479,14 +514,32 @@ int ad7606_probe(struct device *dev, int irq, void __iomem *base_address,
 	if (ret)
 		dev_warn(st->dev, "failed to RESET: no RESET GPIO specified\n");
 
-	ret = devm_request_irq(dev, irq, ad7606_interrupt, IRQF_TRIGGER_FALLING,
-			       name, indio_dev);
+	st->trig = devm_iio_trigger_alloc(dev, "%s-dev%d",
+					  indio_dev->name, indio_dev->id);
+	if (!st->trig)
+		return -ENOMEM;
+
+	st->trig->ops = &ad7606_trigger_ops;
+	st->trig->dev.parent = dev;
+	iio_trigger_set_drvdata(st->trig, indio_dev);
+	ret = devm_iio_trigger_register(dev, st->trig);
+	if (ret)
+		return ret;
+
+	indio_dev->trig = iio_trigger_get(st->trig);
+
+	ret = devm_request_threaded_irq(dev, irq,
+					NULL,
+					&ad7606_interrupt,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					name, indio_dev);
 	if (ret)
 		return ret;
 
 	ret = devm_iio_triggered_buffer_setup(dev, indio_dev,
+					      &iio_pollfunc_store_time,
 					      &ad7606_trigger_handler,
-					      NULL, NULL);
+					      &ad7606_buffer_ops);
 	if (ret)
 		return ret;
 
