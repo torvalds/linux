@@ -304,7 +304,8 @@ restart:
 		for (; p < p_out + sz; p++) {
 			u32 copy;
 
-			p = memchr(p, magic[ctx->comp_magic_cnt], sz);
+			p = memchr(p, magic[ctx->comp_magic_cnt],
+				   p_out + sz - p);
 			if (!p) {
 				ctx->comp_magic_cnt = 0;
 				break;
@@ -996,11 +997,18 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 
 	q_data->sequence = 0;
 
-	if (!V4L2_TYPE_IS_OUTPUT(q->type))
+	if (!V4L2_TYPE_IS_OUTPUT(q->type)) {
+		if (!ctx->is_enc) {
+			state->width = q_data->width;
+			state->height = q_data->height;
+		}
 		return 0;
+	}
 
-	state->width = q_data->width;
-	state->height = q_data->height;
+	if (ctx->is_enc) {
+		state->width = q_data->width;
+		state->height = q_data->height;
+	}
 	state->ref_frame.width = state->ref_frame.height = 0;
 	state->ref_frame.luma = kvmalloc(size + 2 * size / chroma_div,
 					 GFP_KERNEL);

@@ -674,7 +674,7 @@ static int hw_atl_b0_hw_ring_rx_receive(struct aq_hw_s *self,
 
 		rx_stat = (0x0000003CU & rxd_wb->status) >> 2;
 
-		is_rx_check_sum_enabled = (rxd_wb->type) & (0x3U << 19);
+		is_rx_check_sum_enabled = (rxd_wb->type >> 19) & 0x3U;
 
 		pkt_type = 0xFFU & (rxd_wb->type >> 4);
 

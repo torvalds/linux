@@ -301,6 +301,16 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 	connector->kdev = NULL;
 }
 
+void drm_sysfs_lease_event(struct drm_device *dev)
+{
+	char *event_string = "LEASE=1";
+	char *envp[] = { event_string, NULL };
+
+	DRM_DEBUG("generating lease event\n");
+
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
+}
+
 /**
  * drm_sysfs_hotplug_event - generate a DRM uevent
  * @dev: DRM device

@@ -297,7 +297,7 @@ static struct clk_alpha_pll gpll0_out_main = {
 		.hw.init = &(struct clk_init_data){
 			.name = "gpll0_out_main",
 			.parent_names = (const char *[])
-					{ "gpll0_sleep_clk_src" },
+					{ "cxo" },
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
 		},

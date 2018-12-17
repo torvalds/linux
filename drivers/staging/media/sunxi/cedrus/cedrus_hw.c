@@ -255,10 +255,10 @@ int cedrus_hw_probe(struct cedrus_dev *dev)
 
 	res = platform_get_resource(dev->pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(dev->dev, res);
-	if (!dev->base) {
+	if (IS_ERR(dev->base)) {
 		v4l2_err(&dev->v4l2_dev, "Failed to map registers\n");
 
-		ret = -ENOMEM;
+		ret = PTR_ERR(dev->base);
 		goto err_sram;
 	}
 
