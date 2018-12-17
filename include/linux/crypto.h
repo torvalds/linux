@@ -188,14 +188,6 @@ struct blkcipher_desc {
 	u32 flags;
 };
 
-struct cipher_desc {
-	struct crypto_tfm *tfm;
-	void (*crfn)(struct crypto_tfm *tfm, u8 *dst, const u8 *src);
-	unsigned int (*prfn)(const struct cipher_desc *desc, u8 *dst,
-			     const u8 *src, unsigned int nbytes);
-	void *info;
-};
-
 /**
  * DOC: Block Cipher Algorithm Definitions
  *
