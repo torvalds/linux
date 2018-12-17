@@ -1884,6 +1884,10 @@ enum i915_power_well_id {
 
 #define CNL_PORT_TX_DW7_GRP(port)	_MMIO(_CNL_PORT_TX_DW_GRP((port), 7))
 #define CNL_PORT_TX_DW7_LN0(port)	_MMIO(_CNL_PORT_TX_DW_LN0((port), 7))
+#define ICL_PORT_TX_DW7_AUX(port)	_MMIO(_ICL_PORT_TX_DW_AUX(7, port))
+#define ICL_PORT_TX_DW7_GRP(port)	_MMIO(_ICL_PORT_TX_DW_GRP(7, port))
+#define ICL_PORT_TX_DW7_LN0(port)	_MMIO(_ICL_PORT_TX_DW_LN(7, 0, port))
+#define ICL_PORT_TX_DW7_LN(port, ln)	_MMIO(_ICL_PORT_TX_DW_LN(7, ln, port))
 #define   N_SCALAR(x)			((x) << 24)
 #define   N_SCALAR_MASK			(0x7F << 24)
 
