@@ -559,6 +559,11 @@ static int nv_common_early_init(void *handle)
 			AMD_PG_SUPPORT_ATHUB;
 		adev->external_rev_id = adev->rev_id + 0x1;
 		break;
+	case CHIP_NAVI14:
+		adev->cg_flags = 0;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x1; /* ??? */
+		break;
 	default:
 		/* FIXME: not supported yet */
 		return -EINVAL;
@@ -751,6 +756,7 @@ static int nv_common_set_clockgating_state(void *handle,
 
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
+	case CHIP_NAVI14:
 		adev->nbio_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		adev->nbio_funcs->update_medium_grain_light_sleep(adev,
