@@ -355,7 +355,6 @@ static int sof_probe(struct platform_device *pdev)
 
 comp_err:
 	snd_soc_unregister_component(&pdev->dev);
-	snd_sof_free_topology(sdev);
 fw_run_err:
 	snd_sof_fw_unload(sdev);
 fw_load_err:
