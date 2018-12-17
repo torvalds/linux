@@ -318,10 +318,17 @@ static int sof_suspend(struct device *dev, bool runtime_suspend)
 	/* notify DSP of upcoming power down */
 	ret = sof_send_pm_ipc(sdev, SOF_IPC_PM_CTX_SAVE);
 	if (ret < 0) {
+
+		/*
+		 * FIXME: CTX_SAVE ipc should not time-out.
+		 * But if it happens, just report the error
+		 * and continue powering off the DSP for now.
+		 * This will allow the DSP to power up
+		 * normally upon system resume.
+		 */
 		dev_err(sdev->dev,
 			"error: ctx_save ipc error during suspend %d\n",
 			ret);
-		return ret;
 	}
 
 	/* drop all ipc */
