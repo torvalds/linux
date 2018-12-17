@@ -65,6 +65,12 @@
 
 #define GPC_M4_PU_PDN_FLG		0x1bc
 
+#define GPC_PU_PWRHSK			0x1fc
+
+#define IMX8M_GPU_HSK_PWRDNREQN			BIT(6)
+#define IMX8M_VPU_HSK_PWRDNREQN			BIT(5)
+#define IMX8M_DISP_HSK_PWRDNREQN		BIT(4)
+
 /*
  * The PGC offset values in Reference Manual
  * (Rev. 1, 01/2018 and the older ones) GPC chapter's
@@ -102,6 +108,7 @@ struct imx_pgc_domain {
 	const struct {
 		u32 pxx;
 		u32 map;
+		u32 hsk;
 	} bits;
 
 	const int voltage;
@@ -141,6 +148,10 @@ static int imx_gpc_pu_pgc_sw_pxx_req(struct generic_pm_domain *genpd,
 	if (enable_power_control)
 		regmap_update_bits(domain->regmap, GPC_PGC_CTRL(domain->pgc),
 				   GPC_PGC_CTRL_PCR, GPC_PGC_CTRL_PCR);
+
+	if (domain->bits.hsk)
+		regmap_update_bits(domain->regmap, GPC_PU_PWRHSK,
+				   domain->bits.hsk, on ? domain->bits.hsk : 0);
 
 	regmap_update_bits(domain->regmap, offset,
 			   domain->bits.pxx, domain->bits.pxx);
@@ -328,6 +339,7 @@ static const struct imx_pgc_domain imx8m_pgc_domains[] = {
 		.bits  = {
 			.pxx = IMX8M_GPU_SW_Pxx_REQ,
 			.map = IMX8M_GPU_A53_DOMAIN,
+			.hsk = IMX8M_GPU_HSK_PWRDNREQN,
 		},
 		.pgc   = IMX8M_PGC_GPU,
 	},
@@ -339,6 +351,7 @@ static const struct imx_pgc_domain imx8m_pgc_domains[] = {
 		.bits  = {
 			.pxx = IMX8M_VPU_SW_Pxx_REQ,
 			.map = IMX8M_VPU_A53_DOMAIN,
+			.hsk = IMX8M_VPU_HSK_PWRDNREQN,
 		},
 		.pgc   = IMX8M_PGC_VPU,
 	},
@@ -350,6 +363,7 @@ static const struct imx_pgc_domain imx8m_pgc_domains[] = {
 		.bits  = {
 			.pxx = IMX8M_DISP_SW_Pxx_REQ,
 			.map = IMX8M_DISP_A53_DOMAIN,
+			.hsk = IMX8M_DISP_HSK_PWRDNREQN,
 		},
 		.pgc   = IMX8M_PGC_DISP,
 	},
@@ -390,7 +404,7 @@ static const struct imx_pgc_domain imx8m_pgc_domains[] = {
 
 static const struct regmap_range imx8m_yes_ranges[] = {
 		regmap_reg_range(GPC_LPCR_A_CORE_BSC,
-				 GPC_M4_PU_PDN_FLG),
+				 GPC_PU_PWRHSK),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_MIPI),
 				 GPC_PGC_SR(IMX8M_PGC_MIPI)),
 		regmap_reg_range(GPC_PGC_CTRL(IMX8M_PGC_PCIE1),
