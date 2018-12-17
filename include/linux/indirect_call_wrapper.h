@@ -28,8 +28,8 @@
 #define INDIRECT_CALLABLE_SCOPE
 
 #else
-#define INDIRECT_CALL_1(f, name, ...) f(__VA_ARGS__)
-#define INDIRECT_CALL_2(f, name, ...) f(__VA_ARGS__)
+#define INDIRECT_CALL_1(f, f1, ...) f(__VA_ARGS__)
+#define INDIRECT_CALL_2(f, f2, f1, ...) f(__VA_ARGS__)
 #define INDIRECT_CALLABLE_DECLARE(f)
 #define INDIRECT_CALLABLE_SCOPE		static
 #endif
