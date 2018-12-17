@@ -132,6 +132,15 @@ MODULE_PARM_DESC(dev_loss_tmo,
 		 " if fast_io_fail_tmo has not been set. \"off\" means that"
 		 " this functionality is disabled.");
 
+static bool srp_use_imm_data = true;
+module_param_named(use_imm_data, srp_use_imm_data, bool, 0644);
+MODULE_PARM_DESC(use_imm_data,
+		 "Whether or not to request permission to use immediate data during SRP login.");
+
+static unsigned int srp_max_imm_data = 8 * 1024;
+module_param_named(max_imm_data, srp_max_imm_data, uint, 0644);
+MODULE_PARM_DESC(max_imm_data, "Maximum immediate data size.");
+
 static unsigned ch_count;
 module_param(ch_count, uint, 0444);
 MODULE_PARM_DESC(ch_count,
@@ -573,7 +582,7 @@ static int srp_create_ch_ib(struct srp_rdma_ch *ch)
 	init_attr->cap.max_send_wr     = m * target->queue_size;
 	init_attr->cap.max_recv_wr     = target->queue_size + 1;
 	init_attr->cap.max_recv_sge    = 1;
-	init_attr->cap.max_send_sge    = 1;
+	init_attr->cap.max_send_sge    = SRP_MAX_SGE;
 	init_attr->sq_sig_type         = IB_SIGNAL_REQ_WR;
 	init_attr->qp_type             = IB_QPT_RC;
 	init_attr->send_cq             = send_cq;
@@ -858,6 +867,10 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 					      SRP_BUF_FORMAT_INDIRECT);
 	req->ib_req.req_flags = (multich ? SRP_MULTICHAN_MULTI :
 				 SRP_MULTICHAN_SINGLE);
+	if (srp_use_imm_data) {
+		req->ib_req.req_flags |= SRP_IMMED_REQUESTED;
+		req->ib_req.imm_data_offset = cpu_to_be16(SRP_IMM_DATA_OFFSET);
+	}
 
 	if (target->using_rdma_cm) {
 		req->rdma_param.flow_control = req->ib_param.flow_control;
@@ -874,6 +887,7 @@ static int srp_send_req(struct srp_rdma_ch *ch, uint32_t max_iu_len,
 		req->rdma_req.req_it_iu_len = req->ib_req.req_it_iu_len;
 		req->rdma_req.req_buf_fmt = req->ib_req.req_buf_fmt;
 		req->rdma_req.req_flags	= req->ib_req.req_flags;
+		req->rdma_req.imm_data_offset = req->ib_req.imm_data_offset;
 
 		ipi = req->rdma_req.initiator_port_id;
 		tpi = req->rdma_req.target_port_id;
@@ -1347,11 +1361,15 @@ static void srp_terminate_io(struct srp_rport *rport)
 }
 
 /* Calculate maximum initiator to target information unit length. */
-static uint32_t srp_max_it_iu_len(int cmd_sg_cnt)
+static uint32_t srp_max_it_iu_len(int cmd_sg_cnt, bool use_imm_data)
 {
 	uint32_t max_iu_len = sizeof(struct srp_cmd) + SRP_MAX_ADD_CDB_LEN +
 		sizeof(struct srp_indirect_buf) +
 		cmd_sg_cnt * sizeof(struct srp_direct_buf);
+
+	if (use_imm_data)
+		max_iu_len = max(max_iu_len, SRP_IMM_DATA_OFFSET +
+				 srp_max_imm_data);
 
 	return max_iu_len;
 }
@@ -1369,7 +1387,8 @@ static int srp_rport_reconnect(struct srp_rport *rport)
 {
 	struct srp_target_port *target = rport->lld_data;
 	struct srp_rdma_ch *ch;
-	uint32_t max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt);
+	uint32_t max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
+						srp_use_imm_data);
 	int i, j, ret = 0;
 	bool multich = false;
 
@@ -1777,22 +1796,26 @@ static void srp_check_mapping(struct srp_map_state *state,
  * @req: SRP request
  *
  * Returns the length in bytes of the SRP_CMD IU or a negative value if
- * mapping failed.
+ * mapping failed. The size of any immediate data is not included in the
+ * return value.
  */
 static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 			struct srp_request *req)
 {
 	struct srp_target_port *target = ch->target;
-	struct scatterlist *scat;
+	struct scatterlist *scat, *sg;
 	struct srp_cmd *cmd = req->cmd->buf;
-	int len, nents, count, ret;
+	int i, len, nents, count, ret;
 	struct srp_device *dev;
 	struct ib_device *ibdev;
 	struct srp_map_state state;
 	struct srp_indirect_buf *indirect_hdr;
+	u64 data_len;
 	u32 idb_len, table_len;
 	__be32 idb_rkey;
 	u8 fmt;
+
+	req->cmd->num_sge = 1;
 
 	if (!scsi_sglist(scmnd) || scmnd->sc_data_direction == DMA_NONE)
 		return sizeof(struct srp_cmd) + cmd->add_cdb_len;
@@ -1807,6 +1830,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 
 	nents = scsi_sg_count(scmnd);
 	scat  = scsi_sglist(scmnd);
+	data_len = scsi_bufflen(scmnd);
 
 	dev = target->srp_host->srp_dev;
 	ibdev = dev->dev;
@@ -1814,6 +1838,28 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	count = ib_dma_map_sg(ibdev, scat, nents, scmnd->sc_data_direction);
 	if (unlikely(count == 0))
 		return -EIO;
+
+	if (ch->use_imm_data &&
+	    count <= SRP_MAX_IMM_SGE &&
+	    SRP_IMM_DATA_OFFSET + data_len <= ch->max_it_iu_len &&
+	    scmnd->sc_data_direction == DMA_TO_DEVICE) {
+		struct srp_imm_buf *buf;
+		struct ib_sge *sge = &req->cmd->sge[1];
+
+		fmt = SRP_DATA_DESC_IMM;
+		len = SRP_IMM_DATA_OFFSET;
+		req->nmdesc = 0;
+		buf = (void *)cmd->add_data + cmd->add_cdb_len;
+		buf->len = cpu_to_be32(data_len);
+		WARN_ON_ONCE((void *)(buf + 1) > (void *)cmd + len);
+		for_each_sg(scat, sg, count, i) {
+			sge[i].addr   = ib_sg_dma_address(ibdev, sg);
+			sge[i].length = ib_sg_dma_len(ibdev, sg);
+			sge[i].lkey   = target->lkey;
+		}
+		req->cmd->num_sge += count;
+		goto map_complete;
+	}
 
 	fmt = SRP_DATA_DESC_DIRECT;
 	len = sizeof(struct srp_cmd) + cmd->add_cdb_len +
@@ -2018,22 +2064,30 @@ static void srp_send_done(struct ib_cq *cq, struct ib_wc *wc)
 	list_add(&iu->list, &ch->free_tx);
 }
 
+/**
+ * srp_post_send() - send an SRP information unit
+ * @ch: RDMA channel over which to send the information unit.
+ * @iu: Information unit to send.
+ * @len: Length of the information unit excluding immediate data.
+ */
 static int srp_post_send(struct srp_rdma_ch *ch, struct srp_iu *iu, int len)
 {
 	struct srp_target_port *target = ch->target;
-	struct ib_sge list;
 	struct ib_send_wr wr;
 
-	list.addr   = iu->dma;
-	list.length = len;
-	list.lkey   = target->lkey;
+	if (WARN_ON_ONCE(iu->num_sge > SRP_MAX_SGE))
+		return -EINVAL;
+
+	iu->sge[0].addr   = iu->dma;
+	iu->sge[0].length = len;
+	iu->sge[0].lkey   = target->lkey;
 
 	iu->cqe.done = srp_send_done;
 
 	wr.next       = NULL;
 	wr.wr_cqe     = &iu->cqe;
-	wr.sg_list    = &list;
-	wr.num_sge    = 1;
+	wr.sg_list    = &iu->sge[0];
+	wr.num_sge    = iu->num_sge;
 	wr.opcode     = IB_WR_SEND;
 	wr.send_flags = IB_SEND_SIGNALED;
 
@@ -2146,6 +2200,7 @@ static int srp_response_common(struct srp_rdma_ch *ch, s32 req_delta,
 		return 1;
 	}
 
+	iu->num_sge = 1;
 	ib_dma_sync_single_for_cpu(dev, iu->dma, len, DMA_TO_DEVICE);
 	memcpy(iu->buf, rsp, len);
 	ib_dma_sync_single_for_device(dev, iu->dma, len, DMA_TO_DEVICE);
@@ -2500,9 +2555,15 @@ static void srp_cm_rep_handler(struct ib_cm_id *cm_id,
 	if (lrsp->opcode == SRP_LOGIN_RSP) {
 		ch->max_ti_iu_len = be32_to_cpu(lrsp->max_ti_iu_len);
 		ch->req_lim       = be32_to_cpu(lrsp->req_lim_delta);
-		ch->max_it_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt);
+		ch->use_imm_data  = lrsp->rsp_flags & SRP_LOGIN_RSP_IMMED_SUPP;
+		ch->max_it_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt,
+						      ch->use_imm_data);
 		WARN_ON_ONCE(ch->max_it_iu_len >
 			     be32_to_cpu(lrsp->max_it_iu_len));
+
+		if (ch->use_imm_data)
+			shost_printk(KERN_DEBUG, target->scsi_host,
+				     PFX "using immediate data\n");
 
 		/*
 		 * Reserve credits for task management so we don't
@@ -2890,6 +2951,8 @@ static int srp_send_tsk_mgmt(struct srp_rdma_ch *ch, u64 req_tag, u64 lun,
 
 		return -1;
 	}
+
+	iu->num_sge = 1;
 
 	ib_dma_sync_single_for_cpu(dev, iu->dma, sizeof *tsk_mgmt,
 				   DMA_TO_DEVICE);
@@ -3856,7 +3919,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target->mr_per_cmd = mr_per_cmd;
 	target->indirect_size = target->sg_tablesize *
 				sizeof (struct srp_direct_buf);
-	max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt);
+	max_iu_len = srp_max_it_iu_len(target->cmd_sg_cnt, srp_use_imm_data);
 
 	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);

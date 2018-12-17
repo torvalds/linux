@@ -69,6 +69,15 @@ enum {
 	SRP_MAX_PAGES_PER_MR	= 512,
 
 	SRP_MAX_ADD_CDB_LEN	= 16,
+
+	SRP_MAX_IMM_SGE		= 2,
+	SRP_MAX_SGE		= SRP_MAX_IMM_SGE + 1,
+	/*
+	 * Choose the immediate data offset such that a 32 byte CDB still fits.
+	 */
+	SRP_IMM_DATA_OFFSET	= sizeof(struct srp_cmd) +
+				  SRP_MAX_ADD_CDB_LEN +
+				  sizeof(struct srp_imm_buf),
 };
 
 enum srp_target_state {
@@ -152,6 +161,7 @@ struct srp_rdma_ch {
 	};
 	uint32_t		max_it_iu_len;
 	uint32_t		max_ti_iu_len;
+	bool			use_imm_data;
 
 	/* Everything above this point is used in the hot path of
 	 * command processing. Try to keep them packed into cachelines.
@@ -263,6 +273,8 @@ struct srp_iu {
 	void		       *buf;
 	size_t			size;
 	enum dma_data_direction	direction;
+	u32			num_sge;
+	struct ib_sge		sge[SRP_MAX_SGE];
 	struct ib_cqe		cqe;
 };
 
