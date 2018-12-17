@@ -116,6 +116,12 @@ iomap_page_create(struct inode *inode, struct page *page)
 	atomic_set(&iop->read_count, 0);
 	atomic_set(&iop->write_count, 0);
 	bitmap_zero(iop->uptodate, PAGE_SIZE / SECTOR_SIZE);
+
+	/*
+	 * migrate_page_move_mapping() assumes that pages with private data have
+	 * their count elevated by 1.
+	 */
+	get_page(page);
 	set_page_private(page, (unsigned long)iop);
 	SetPagePrivate(page);
 	return iop;
@@ -132,6 +138,7 @@ iomap_page_release(struct page *page)
 	WARN_ON_ONCE(atomic_read(&iop->write_count));
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
+	put_page(page);
 	kfree(iop);
 }
 
@@ -1877,15 +1884,6 @@ iomap_dio_rw(struct kiocb *iocb, struct iov_iter *iter,
 				dio->wait_for_completion = true;
 				ret = 0;
 			}
-
-			/*
-			 * Splicing to pipes can fail on a full pipe. We have to
-			 * swallow this to make it look like a short IO
-			 * otherwise the higher splice layers will completely
-			 * mishandle the error and stop moving data.
-			 */
-			if (ret == -EFAULT)
-				ret = 0;
 			break;
 		}
 		pos += ret;

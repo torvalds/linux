@@ -1472,6 +1472,7 @@ F:	drivers/clk/sirf/
 F:	drivers/clocksource/timer-prima2.c
 F:	drivers/clocksource/timer-atlas7.c
 N:	[^a-z]sirf
+X:	drivers/gnss
 
 ARM/EBSA110 MACHINE SUPPORT
 M:	Russell King <linux@armlinux.org.uk>
@@ -1738,13 +1739,17 @@ ARM/Mediatek SoC support
 M:	Matthias Brugger <matthias.bgg@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
+W:	https://mtk.bcnfs.org/
+C:	irc://chat.freenode.net/linux-mediatek
 S:	Maintained
 F:	arch/arm/boot/dts/mt6*
 F:	arch/arm/boot/dts/mt7*
 F:	arch/arm/boot/dts/mt8*
 F:	arch/arm/mach-mediatek/
 F:	arch/arm64/boot/dts/mediatek/
+F:	drivers/soc/mediatek/
 N:	mtk
+N:	mt[678]
 K:	mediatek
 
 ARM/Mediatek USB3 PHY DRIVER
@@ -3278,11 +3283,16 @@ S:	Maintained
 F:	sound/pci/oxygen/
 
 C-SKY ARCHITECTURE
-M:	Guo Ren <ren_guo@c-sky.com>
+M:	Guo Ren <guoren@kernel.org>
 T:	git https://github.com/c-sky/csky-linux.git
 S:	Supported
 F:	arch/csky/
 F:	Documentation/devicetree/bindings/csky/
+F:	drivers/irqchip/irq-csky-*
+F:	Documentation/devicetree/bindings/interrupt-controller/csky,*
+F:	drivers/clocksource/timer-gx6605s.c
+F:	drivers/clocksource/timer-mp-csky.c
+F:	Documentation/devicetree/bindings/timer/csky,*
 K:	csky
 N:	csky
 
@@ -4851,6 +4861,7 @@ F:	include/uapi/drm/vmwgfx_drm.h
 
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
+M:	Daniel Vetter <daniel@ffwll.ch>
 L:	dri-devel@lists.freedesktop.org
 T:	git git://anongit.freedesktop.org/drm/drm
 B:	https://bugs.freedesktop.org/
@@ -6330,6 +6341,7 @@ F:	include/uapi/linux/gigaset_dev.h
 
 GNSS SUBSYSTEM
 M:	Johan Hovold <johan@kernel.org>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/johan/gnss.git
 S:	Maintained
 F:	Documentation/ABI/testing/sysfs-class-gnss
 F:	Documentation/devicetree/bindings/gnss/
@@ -10012,12 +10024,9 @@ S:	Odd Fixes
 F:	drivers/media/radio/radio-miropcm20*
 
 MMP SUPPORT
-M:	Eric Miao <eric.y.miao@gmail.com>
-M:	Haojian Zhuang <haojian.zhuang@gmail.com>
+R:	Lubomir Rintel <lkundrak@v3.sk>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://github.com/hzhuang1/linux.git
-T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
 
@@ -13909,6 +13918,13 @@ F:	drivers/md/md*
 F:	drivers/md/raid*
 F:	include/linux/raid/
 F:	include/uapi/linux/raid/
+
+SOCIONEXT (SNI) AVE NETWORK DRIVER
+M:	Kunihiko Hayashi <hayashi.kunihiko@socionext.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/socionext/sni_ave.c
+F:	Documentation/devicetree/bindings/net/socionext,uniphier-ave4.txt
 
 SOCIONEXT (SNI) NETSEC NETWORK DRIVER
 M:	Jassi Brar <jaswinder.singh@linaro.org>

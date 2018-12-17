@@ -891,6 +891,55 @@ cond_branch:
 	return 0;
 }
 
+/* Fix the branch target addresses for subprog calls */
+static int bpf_jit_fixup_subprog_calls(struct bpf_prog *fp, u32 *image,
+				       struct codegen_context *ctx, u32 *addrs)
+{
+	const struct bpf_insn *insn = fp->insnsi;
+	bool func_addr_fixed;
+	u64 func_addr;
+	u32 tmp_idx;
+	int i, ret;
+
+	for (i = 0; i < fp->len; i++) {
+		/*
+		 * During the extra pass, only the branch target addresses for
+		 * the subprog calls need to be fixed. All other instructions
+		 * can left untouched.
+		 *
+		 * The JITed image length does not change because we already
+		 * ensure that the JITed instruction sequence for these calls
+		 * are of fixed length by padding them with NOPs.
+		 */
+		if (insn[i].code == (BPF_JMP | BPF_CALL) &&
+		    insn[i].src_reg == BPF_PSEUDO_CALL) {
+			ret = bpf_jit_get_func_addr(fp, &insn[i], true,
+						    &func_addr,
+						    &func_addr_fixed);
+			if (ret < 0)
+				return ret;
+
+			/*
+			 * Save ctx->idx as this would currently point to the
+			 * end of the JITed image and set it to the offset of
+			 * the instruction sequence corresponding to the
+			 * subprog call temporarily.
+			 */
+			tmp_idx = ctx->idx;
+			ctx->idx = addrs[i] / 4;
+			bpf_jit_emit_func_call_rel(image, ctx, func_addr);
+
+			/*
+			 * Restore ctx->idx here. This is safe as the length
+			 * of the JITed sequence remains unchanged.
+			 */
+			ctx->idx = tmp_idx;
+		}
+	}
+
+	return 0;
+}
+
 struct powerpc64_jit_data {
 	struct bpf_binary_header *header;
 	u32 *addrs;
@@ -989,6 +1038,22 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 skip_init_ctx:
 	code_base = (u32 *)(image + FUNCTION_DESCR_SIZE);
 
+	if (extra_pass) {
+		/*
+		 * Do not touch the prologue and epilogue as they will remain
+		 * unchanged. Only fix the branch target address for subprog
+		 * calls in the body.
+		 *
+		 * This does not change the offsets and lengths of the subprog
+		 * call instruction sequences and hence, the size of the JITed
+		 * image as well.
+		 */
+		bpf_jit_fixup_subprog_calls(fp, code_base, &cgctx, addrs);
+
+		/* There is no need to perform the usual passes. */
+		goto skip_codegen_passes;
+	}
+
 	/* Code generation passes 1-2 */
 	for (pass = 1; pass < 3; pass++) {
 		/* Now build the prologue, body code & epilogue for real. */
@@ -1002,6 +1067,7 @@ skip_init_ctx:
 				proglen - (cgctx.idx * 4), cgctx.seen);
 	}
 
+skip_codegen_passes:
 	if (bpf_jit_enable > 1)
 		/*
 		 * Note that we output the base address of the code_base

@@ -128,7 +128,7 @@ static const struct zynqmp_eemi_ops *eemi_ops;
  */
 static inline int zynqmp_is_valid_clock(u32 clk_id)
 {
-	if (clk_id > clock_max_idx)
+	if (clk_id >= clock_max_idx)
 		return -ENODEV;
 
 	return clock[clk_id].valid;
@@ -279,6 +279,9 @@ struct clk_hw *zynqmp_clk_register_fixed_factor(const char *name, u32 clk_id,
 	qdata.arg1 = clk_id;
 
 	ret = eemi_ops->query_data(qdata, ret_payload);
+	if (ret)
+		return ERR_PTR(ret);
+
 	mult = ret_payload[1];
 	div = ret_payload[2];
 

@@ -1006,11 +1006,18 @@ static int vicodec_start_streaming(struct vb2_queue *q,
 
 	q_data->sequence = 0;
 
-	if (!V4L2_TYPE_IS_OUTPUT(q->type))
+	if (!V4L2_TYPE_IS_OUTPUT(q->type)) {
+		if (!ctx->is_enc) {
+			state->width = q_data->width;
+			state->height = q_data->height;
+		}
 		return 0;
+	}
 
-	state->width = q_data->width;
-	state->height = q_data->height;
+	if (ctx->is_enc) {
+		state->width = q_data->width;
+		state->height = q_data->height;
+	}
 	state->ref_frame.width = state->ref_frame.height = 0;
 	state->ref_frame.luma = kvmalloc(total_planes_size, GFP_KERNEL);
 	ctx->comp_max_size = total_planes_size + sizeof(struct fwht_cframe_hdr);
