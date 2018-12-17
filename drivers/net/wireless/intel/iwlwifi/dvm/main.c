@@ -1881,7 +1881,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		return pos;
 	}
 
-	if (!(iwl_have_debug_level(IWL_DL_FW_ERRORS)) && !full_log)
+	if (!(iwl_have_debug_level(IWL_DL_FW)) && !full_log)
 		size = (size > DEFAULT_DUMP_EVENT_LOG_ENTRIES)
 			? DEFAULT_DUMP_EVENT_LOG_ENTRIES : size;
 	IWL_ERR(priv, "Start IWL Event Log Dump: display last %u entries\n",
@@ -1897,7 +1897,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 		if (!*buf)
 			return -ENOMEM;
 	}
-	if (iwl_have_debug_level(IWL_DL_FW_ERRORS) || full_log) {
+	if (iwl_have_debug_level(IWL_DL_FW) || full_log) {
 		/*
 		 * if uCode has wrapped back to top of log,
 		 * start at the oldest entry,
@@ -1927,7 +1927,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;
 
-	if (iwl_have_debug_level(IWL_DL_FW_ERRORS))
+	if (iwl_have_debug_level(IWL_DL_FW))
 		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
 
 	/* uCode is no longer loaded. */
@@ -1965,12 +1965,12 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 
 	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
 		if (iwlwifi_mod_params.fw_restart) {
-			IWL_DEBUG_FW_ERRORS(priv,
-				  "Restarting adapter due to uCode error.\n");
+			IWL_DEBUG_FW(priv,
+				     "Restarting adapter due to uCode error.\n");
 			queue_work(priv->workqueue, &priv->restart);
 		} else
-			IWL_DEBUG_FW_ERRORS(priv,
-				  "Detected FW error, but not restarting\n");
+			IWL_DEBUG_FW(priv,
+				     "Detected FW error, but not restarting\n");
 	}
 }
 
