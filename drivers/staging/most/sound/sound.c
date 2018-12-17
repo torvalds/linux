@@ -471,14 +471,14 @@ static const struct snd_pcm_ops pcm_ops = {
 	.page       = snd_pcm_lib_get_vmalloc_page,
 };
 
-static int split_arg_list(char *buf, char **card_name, u16 *ch_num,
+static int split_arg_list(char *buf, char **device_name, u16 *ch_num,
 			  char **sample_res, u8 *create)
 {
 	char *num;
 	int ret;
 
-	*card_name = strsep(&buf, ".");
-	if (!*card_name) {
+	*device_name = strsep(&buf, ".");
+	if (!*device_name) {
 		pr_err("Missing sound card name\n");
 		return -EIO;
 	}
@@ -588,7 +588,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	int capture_count = 0;
 	int ret;
 	int direction;
-	char *card_name;
+	char *device_name;
 	u16 ch_num;
 	u8 create = 0;
 	char *sample_res;
@@ -601,7 +601,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 		return -EINVAL;
 	}
 
-	ret = split_arg_list(arg_list, &card_name, &ch_num, &sample_res,
+	ret = split_arg_list(arg_list, &device_name, &ch_num, &sample_res,
 			     &create);
 	if (ret < 0)
 		return ret;
@@ -622,7 +622,7 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	INIT_LIST_HEAD(&adpt->dev_list);
 	iface->priv = adpt;
 	list_add_tail(&adpt->list, &adpt_list);
-	ret = snd_card_new(&iface->dev, -1, card_name, THIS_MODULE,
+	ret = snd_card_new(&iface->dev, -1, device_name, THIS_MODULE,
 			   sizeof(*channel), &adpt->card);
 	if (ret < 0)
 		goto err_free_adpt;
@@ -664,14 +664,14 @@ skip_adpt_alloc:
 	if (ret)
 		goto err_free_adpt;
 
-	ret = snd_pcm_new(adpt->card, card_name, adpt->pcm_dev_idx,
+	ret = snd_pcm_new(adpt->card, device_name, adpt->pcm_dev_idx,
 			  playback_count, capture_count, &pcm);
 
 	if (ret < 0)
 		goto err_free_adpt;
 
 	pcm->private_data = channel;
-	snprintf(pcm->name, sizeof(pcm->name), card_name);
+	snprintf(pcm->name, sizeof(pcm->name), device_name);
 	snd_pcm_set_ops(pcm, direction, &pcm_ops);
 
 	if (create) {
