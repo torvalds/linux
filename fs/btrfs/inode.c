@@ -6795,9 +6795,7 @@ struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 	if (ret < 0) {
 		err = ret;
 		goto out;
-	}
-
-	if (ret != 0) {
+	} else if (ret > 0) {
 		if (path->slots[0] == 0)
 			goto not_found;
 		path->slots[0]--;
@@ -6847,9 +6845,9 @@ next:
 			if (ret < 0) {
 				err = ret;
 				goto out;
-			}
-			if (ret > 0)
+			} else if (ret > 0) {
 				goto not_found;
+			}
 			leaf = path->nodes[0];
 		}
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
