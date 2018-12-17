@@ -49,6 +49,11 @@ struct smu_table_context
 	uint32_t			table_count;
 };
 
+struct smu_dpm_context {
+	void *dpm_context;
+	uint32_t dpm_context_size;
+};
+
 struct smu_context
 {
 	struct amdgpu_device            *adev;
@@ -57,6 +62,7 @@ struct smu_context
 	struct mutex			mutex;
 
 	struct smu_table_context	smu_table;
+	struct smu_dpm_context		smu_dpm;
 };
 
 struct smu_funcs

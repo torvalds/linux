@@ -234,10 +234,40 @@ static int smu_v11_0_read_pptable_from_vbios(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_init_dpm_context(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+
+	if (smu_dpm->dpm_context || smu_dpm->dpm_context_size != 0)
+		return -EINVAL;
+
+	smu_dpm->dpm_context = kzalloc(sizeof(struct smu_11_0_dpm_context), GFP_KERNEL);
+	if (!smu_dpm->dpm_context)
+		return -ENOMEM;
+	smu_dpm->dpm_context_size = sizeof(struct smu_11_0_dpm_context);
+
+	return 0;
+}
+
+static int smu_v11_0_fini_dpm_context(struct smu_context *smu)
+{
+	struct smu_dpm_context *smu_dpm = &smu->smu_dpm;
+
+	if (!smu_dpm->dpm_context || smu_dpm->dpm_context_size == 0)
+		return -EINVAL;
+
+	kfree(smu_dpm->dpm_context);
+	smu_dpm->dpm_context = NULL;
+	smu_dpm->dpm_context_size = 0;
+
+	return 0;
+}
+
 static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
 	struct smu_table *tables = NULL;
+	int ret = 0;
 
 	if (smu_table->tables || smu_table->table_count != 0)
 		return -EINVAL;
@@ -258,12 +288,17 @@ static int smu_v11_0_init_smc_tables(struct smu_context *smu)
 	SMU_TABLE_INIT(tables, TABLE_OVERDRIVE, sizeof(OverDriveTable_t),
 		       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM);
 
+	ret = smu_v11_0_init_dpm_context(smu);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
 static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 {
 	struct smu_table_context *smu_table = &smu->smu_table;
+	int ret = 0;
 
 	if (!smu_table->tables || smu_table->table_count == 0)
 		return -EINVAL;
@@ -272,6 +307,9 @@ static int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	smu_table->tables = NULL;
 	smu_table->table_count = 0;
 
+	ret = smu_v11_0_fini_dpm_context(smu);
+	if (ret)
+		return ret;
 	return 0;
 
 }

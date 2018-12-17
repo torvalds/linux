@@ -36,6 +36,32 @@
 #define smnMP0_FW_INTF			0x30101c0
 #define smnMP1_PUB_CTRL			0x3010b14
 
+
+struct smu_11_0_dpm_table {
+	uint32_t    min;        /* MHz */
+	uint32_t    max;        /* MHz */
+};
+
+struct smu_11_0_dpm_tables {
+	struct smu_11_0_dpm_table        soc_table;
+	struct smu_11_0_dpm_table        gfx_table;
+	struct smu_11_0_dpm_table        uclk_table;
+	struct smu_11_0_dpm_table        eclk_table;
+	struct smu_11_0_dpm_table        vclk_table;
+	struct smu_11_0_dpm_table        dclk_table;
+	struct smu_11_0_dpm_table        dcef_table;
+	struct smu_11_0_dpm_table        pixel_table;
+	struct smu_11_0_dpm_table        display_table;
+	struct smu_11_0_dpm_table        phy_table;
+	struct smu_11_0_dpm_table        fclk_table;
+};
+
+struct smu_11_0_dpm_context {
+	struct smu_11_0_dpm_tables  dpm_tables;
+	uint32_t                    workload_policy_mask;
+	uint32_t                    dcef_min_ds_clk;
+};
+
 void smu_v11_0_set_smu_funcs(struct smu_context *smu);
 
 #endif
