@@ -23,6 +23,7 @@
 #include "blk-mq.h"
 #include "blk-mq-debugfs.h"
 #include "blk-mq-tag.h"
+#include "blk-rq-qos.h"
 
 static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
 {
@@ -856,6 +857,15 @@ int blk_mq_debugfs_register(struct request_queue *q)
 			goto err;
 	}
 
+	if (q->rq_qos) {
+		struct rq_qos *rqos = q->rq_qos;
+
+		while (rqos) {
+			blk_mq_debugfs_register_rqos(rqos);
+			rqos = rqos->next;
+		}
+	}
+
 	return 0;
 
 err:
@@ -976,6 +986,50 @@ void blk_mq_debugfs_unregister_sched(struct request_queue *q)
 {
 	debugfs_remove_recursive(q->sched_debugfs_dir);
 	q->sched_debugfs_dir = NULL;
+}
+
+void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos)
+{
+	debugfs_remove_recursive(rqos->debugfs_dir);
+	rqos->debugfs_dir = NULL;
+}
+
+int blk_mq_debugfs_register_rqos(struct rq_qos *rqos)
+{
+	struct request_queue *q = rqos->q;
+	const char *dir_name = rq_qos_id_to_name(rqos->id);
+
+	if (!q->debugfs_dir)
+		return -ENOENT;
+
+	if (rqos->debugfs_dir || !rqos->ops->debugfs_attrs)
+		return 0;
+
+	if (!q->rqos_debugfs_dir) {
+		q->rqos_debugfs_dir = debugfs_create_dir("rqos",
+							 q->debugfs_dir);
+		if (!q->rqos_debugfs_dir)
+			return -ENOMEM;
+	}
+
+	rqos->debugfs_dir = debugfs_create_dir(dir_name,
+					       rqos->q->rqos_debugfs_dir);
+	if (!rqos->debugfs_dir)
+		return -ENOMEM;
+
+	if (!debugfs_create_files(rqos->debugfs_dir, rqos,
+				  rqos->ops->debugfs_attrs))
+		goto err;
+	return 0;
+ err:
+	blk_mq_debugfs_unregister_rqos(rqos);
+	return -ENOMEM;
+}
+
+void blk_mq_debugfs_unregister_queue_rqos(struct request_queue *q)
+{
+	debugfs_remove_recursive(q->rqos_debugfs_dir);
+	q->rqos_debugfs_dir = NULL;
 }
 
 int blk_mq_debugfs_register_sched_hctx(struct request_queue *q,
