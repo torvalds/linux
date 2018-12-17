@@ -210,6 +210,9 @@ union drm_amdgpu_bo_list {
 #define AMDGPU_CTX_QUERY2_FLAGS_VRAMLOST (1<<1)
 /* indicate some job from this context once cause gpu hang */
 #define AMDGPU_CTX_QUERY2_FLAGS_GUILTY   (1<<2)
+/* indicate some errors are detected by RAS */
+#define AMDGPU_CTX_QUERY2_FLAGS_RAS_CE   (1<<3)
+#define AMDGPU_CTX_QUERY2_FLAGS_RAS_UE   (1<<4)
 
 /* Context priority level */
 #define AMDGPU_CTX_PRIORITY_UNSET       -2048

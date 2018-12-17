@@ -26,6 +26,7 @@
 #include <drm/drm_auth.h>
 #include "amdgpu.h"
 #include "amdgpu_sched.h"
+#include "amdgpu_ras.h"
 
 #define to_amdgpu_ctx_entity(e)	\
 	container_of((e), struct amdgpu_ctx_entity, entity)
@@ -344,6 +345,7 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 {
 	struct amdgpu_ctx *ctx;
 	struct amdgpu_ctx_mgr *mgr;
+	uint32_t ras_counter;
 
 	if (!fpriv)
 		return -EINVAL;
@@ -367,6 +369,21 @@ static int amdgpu_ctx_query2(struct amdgpu_device *adev,
 
 	if (atomic_read(&ctx->guilty))
 		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_GUILTY;
+
+	/*query ue count*/
+	ras_counter = amdgpu_ras_query_error_count(adev, false);
+	/*ras counter is monotonic increasing*/
+	if (ras_counter != ctx->ras_counter_ue) {
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_UE;
+		ctx->ras_counter_ue = ras_counter;
+	}
+
+	/*query ce count*/
+	ras_counter = amdgpu_ras_query_error_count(adev, true);
+	if (ras_counter != ctx->ras_counter_ce) {
+		out->state.flags |= AMDGPU_CTX_QUERY2_FLAGS_RAS_CE;
+		ctx->ras_counter_ce = ras_counter;
+	}
 
 	mutex_unlock(&mgr->lock);
 	return 0;
