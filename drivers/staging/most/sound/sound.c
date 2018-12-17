@@ -622,14 +622,14 @@ static int audio_probe_channel(struct most_interface *iface, int channel_id,
 	INIT_LIST_HEAD(&adpt->dev_list);
 	iface->priv = adpt;
 	list_add_tail(&adpt->list, &adpt_list);
-	ret = snd_card_new(&iface->dev, -1, device_name, THIS_MODULE,
+	ret = snd_card_new(&iface->dev, -1, "INIC", THIS_MODULE,
 			   sizeof(*channel), &adpt->card);
 	if (ret < 0)
 		goto err_free_adpt;
 	snprintf(adpt->card->driver, sizeof(adpt->card->driver),
 		 "%s", DRIVER_NAME);
 	snprintf(adpt->card->shortname, sizeof(adpt->card->shortname),
-		 "Microchip MOST:%d", adpt->card->number);
+		 "Microchip INIC");
 	snprintf(adpt->card->longname, sizeof(adpt->card->longname),
 		 "%s at %s, ch %d", adpt->card->shortname, iface->description,
 		 channel_id);
