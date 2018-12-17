@@ -2024,10 +2024,10 @@ errno_print: {
 		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
 			   *e = errno_to_name(evsel, -ret);
 
-		fprintf(trace->output, "-1 %s %s", e, emsg);
+		fprintf(trace->output, "-1 %s (%s)", e, emsg);
 	}
 	} else if (ret == 0 && sc->fmt->timeout)
-		fprintf(trace->output, "0 Timeout");
+		fprintf(trace->output, "0 (Timeout)");
 	else if (ttrace->ret_scnprintf) {
 		char bf[1024];
 		struct syscall_arg arg = {
