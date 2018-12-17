@@ -307,4 +307,6 @@ struct bch_ioctl_disk_resize {
 	__u64			nbuckets;
 };
 
+#define BCHFS_IOC_REINHERIT_ATTRS	_IOR(0xbc, 14, const char __user *)
+
 #endif /* _BCACHEFS_IOCTL_H */

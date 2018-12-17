@@ -258,7 +258,8 @@ void bch2_inode_init(struct bch_fs *c, struct bch_inode_unpacked *inode_u,
 
 	/* ick */
 	inode_u->bi_flags |= c->opts.str_hash << INODE_STR_HASH_OFFSET;
-	get_random_bytes(&inode_u->bi_hash_seed, sizeof(inode_u->bi_hash_seed));
+	get_random_bytes(&inode_u->bi_hash_seed,
+			 sizeof(inode_u->bi_hash_seed));
 
 	inode_u->bi_mode	= mode;
 	inode_u->bi_uid		= uid;

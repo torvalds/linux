@@ -3,6 +3,7 @@
 
 #include "bcachefs.h"
 #include "chardev.h"
+#include "dirent.h"
 #include "fs.h"
 #include "fs-ioctl.h"
 #include "quota.h"
@@ -177,6 +178,75 @@ err:
 	return ret;
 }
 
+static int bch2_ioc_reinherit_attrs(struct bch_fs *c,
+				    struct file *file,
+				    struct bch_inode_info *src,
+				    const char __user *name)
+{
+	struct bch_inode_info *dst;
+	struct inode *vinode = NULL;
+	char *kname = NULL;
+	struct qstr qstr;
+	int ret = 0;
+	u64 inum;
+
+	kname = kmalloc(BCH_NAME_MAX + 1, GFP_KERNEL);
+	if (!kname)
+		return -ENOMEM;
+
+	ret = strncpy_from_user(kname, name, BCH_NAME_MAX);
+	if (unlikely(ret < 0))
+		goto err1;
+
+	qstr.hash_len	= ret;
+	qstr.name	= kname;
+
+	ret = -ENOENT;
+	inum = bch2_dirent_lookup(c, src->v.i_ino,
+				  &src->ei_str_hash,
+				  &qstr);
+	if (!inum)
+		goto err1;
+
+	vinode = bch2_vfs_inode_get(c, inum);
+	ret = PTR_ERR_OR_ZERO(vinode);
+	if (ret)
+		goto err1;
+
+	dst = to_bch_ei(vinode);
+
+	ret = mnt_want_write_file(file);
+	if (ret)
+		goto err2;
+
+	bch2_lock_inodes(src, dst);
+
+	if (inode_attr_changing(src, dst, Inode_opt_project)) {
+		ret = bch2_fs_quota_transfer(c, dst,
+					     src->ei_qid,
+					     1 << QTYP_PRJ,
+					     KEY_TYPE_QUOTA_PREALLOC);
+		if (ret)
+			goto err3;
+	}
+
+	ret = bch2_write_inode(c, dst, bch2_reinherit_attrs_fn, src, 0);
+err3:
+	bch2_unlock_inodes(src, dst);
+
+	/* return true if we did work */
+	if (ret >= 0)
+		ret = !ret;
+
+	mnt_drop_write_file(file);
+err2:
+	iput(vinode);
+err1:
+	kfree(kname);
+
+	return ret;
+}
+
 long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
@@ -193,7 +263,12 @@ long bch2_fs_file_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	case FS_IOC_FSGETXATTR:
 		return bch2_ioc_fsgetxattr(inode, (void __user *) arg);
 	case FS_IOC_FSSETXATTR:
-		return bch2_ioc_fssetxattr(c, file, inode, (void __user *) arg);
+		return bch2_ioc_fssetxattr(c, file, inode,
+					   (void __user *) arg);
+
+	case BCHFS_IOC_REINHERIT_ATTRS:
+		return bch2_ioc_reinherit_attrs(c, file, inode,
+						(void __user *) arg);
 
 	case FS_IOC_GETVERSION:
 		return -ENOTTY;

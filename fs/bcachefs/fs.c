@@ -51,30 +51,6 @@ static void journal_seq_copy(struct bch_inode_info *dst,
 	} while ((v = cmpxchg(&dst->ei_journal_seq, old, journal_seq)) != old);
 }
 
-static inline int ptrcmp(void *l, void *r)
-{
-	return (l > r) - (l < r);
-}
-
-#define __bch2_lock_inodes(_lock, ...)					\
-do {									\
-	struct bch_inode_info *a[] = { NULL, __VA_ARGS__ };		\
-	unsigned i;							\
-									\
-	bubble_sort(&a[1], ARRAY_SIZE(a) - 1 , ptrcmp);			\
-									\
-	for (i = ARRAY_SIZE(a) - 1; a[i]; --i)				\
-		if (a[i] != a[i - 1]) {					\
-			if (_lock)					\
-				mutex_lock_nested(&a[i]->ei_update_lock, i);\
-			else						\
-				mutex_unlock(&a[i]->ei_update_lock);	\
-		}							\
-} while (0)
-
-#define bch2_lock_inodes(...)	__bch2_lock_inodes(true, __VA_ARGS__)
-#define bch2_unlock_inodes(...)	__bch2_lock_inodes(false, __VA_ARGS__)
-
 static void __pagecache_lock_put(struct pagecache_lock *lock, long i)
 {
 	BUG_ON(atomic_long_read(&lock->v) == 0);
@@ -308,7 +284,7 @@ int bch2_reinherit_attrs_fn(struct bch_inode_info *inode,
 	return ret;
 }
 
-static struct inode *bch2_vfs_inode_get(struct bch_fs *c, u64 inum)
+struct inode *bch2_vfs_inode_get(struct bch_fs *c, u64 inum)
 {
 	struct bch_inode_unpacked inode_u;
 	struct bch_inode_info *inode;
@@ -393,14 +369,13 @@ __bch2_create(struct mnt_idmap *idmap,
 	bch2_inode_init(c, &inode_u, 0, 0, 0, rdev, &dir->ei_inode);
 	bch2_inode_init_owner(&inode_u, &dir->v, mode);
 
-	inode_u.bi_project = dir->ei_qid.q[QTYP_PRJ];
-
 	hash_info = bch2_hash_info_init(c, &inode_u);
 
 	if (tmpfile)
 		inode_u.bi_flags |= BCH_INODE_UNLINKED;
 
-	ret = bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, 1, KEY_TYPE_QUOTA_PREALLOC);
+	ret = bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, 1,
+			      KEY_TYPE_QUOTA_PREALLOC);
 	if (ret)
 		return ERR_PTR(ret);
 

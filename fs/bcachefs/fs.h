@@ -51,6 +51,30 @@ struct bch_inode_info {
 #define to_bch_ei(_inode)					\
 	container_of_or_null(_inode, struct bch_inode_info, v)
 
+static inline int ptrcmp(void *l, void *r)
+{
+	return (l > r) - (l < r);
+}
+
+#define __bch2_lock_inodes(_lock, ...)					\
+do {									\
+	struct bch_inode_info *a[] = { NULL, __VA_ARGS__ };		\
+	unsigned i;							\
+									\
+	bubble_sort(&a[1], ARRAY_SIZE(a) - 1 , ptrcmp);			\
+									\
+	for (i = ARRAY_SIZE(a) - 1; a[i]; --i)				\
+		if (a[i] != a[i - 1]) {					\
+			if (_lock)					\
+				mutex_lock_nested(&a[i]->ei_update_lock, i);\
+			else						\
+				mutex_unlock(&a[i]->ei_update_lock);	\
+		}							\
+} while (0)
+
+#define bch2_lock_inodes(...)	__bch2_lock_inodes(true, __VA_ARGS__)
+#define bch2_unlock_inodes(...)	__bch2_lock_inodes(false, __VA_ARGS__)
+
 static inline struct bch_inode_info *file_bch_inode(struct file *file)
 {
 	return to_bch_ei(file_inode(file));
@@ -96,6 +120,8 @@ int bch2_fs_quota_transfer(struct bch_fs *,
 			   struct bch_qid,
 			   unsigned,
 			   enum quota_acct_mode);
+
+struct inode *bch2_vfs_inode_get(struct bch_fs *, u64);
 
 /* returns 0 if we want to do the update, or error is passed up */
 typedef int (*inode_set_fn)(struct bch_inode_info *,
