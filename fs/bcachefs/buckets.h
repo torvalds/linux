@@ -180,7 +180,6 @@ static inline bool bucket_needs_journal_commit(struct bucket_mark m,
 
 /* Device usage: */
 
-struct bch_dev_usage __bch2_dev_usage_read(struct bch_dev *, bool);
 struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *, struct bch_dev *);
 
 static inline u64 __dev_buckets_available(struct bch_dev *ca,
@@ -219,7 +218,6 @@ static inline u64 dev_buckets_free(struct bch_fs *c, struct bch_dev *ca)
 
 /* Filesystem usage: */
 
-struct bch_fs_usage __bch2_fs_usage_read(struct bch_fs *, bool);
 struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *);
 
 u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);

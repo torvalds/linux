@@ -78,77 +78,6 @@
 
 static inline u64 __bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage);
 
-#ifdef DEBUG_BUCKETS
-
-#define lg_local_lock	lg_global_lock
-#define lg_local_unlock	lg_global_unlock
-
-static void bch2_fs_stats_verify(struct bch_fs *c)
-{
-	struct bch_fs_usage stats =_bch2_fs_usage_read(c);
-	unsigned i, j;
-
-	for (i = 0; i < ARRAY_SIZE(stats.replicas); i++) {
-		for (j = 0; j < ARRAY_SIZE(stats.replicas[i].data); j++)
-			if ((s64) stats.replicas[i].data[j] < 0)
-				panic("replicas %u %s sectors underflow: %lli\n",
-				      i + 1, bch_data_types[j],
-				      stats.replicas[i].data[j]);
-
-		if ((s64) stats.replicas[i].persistent_reserved < 0)
-			panic("replicas %u reserved underflow: %lli\n",
-			      i + 1, stats.replicas[i].persistent_reserved);
-	}
-
-	for (j = 0; j < ARRAY_SIZE(stats.buckets); j++)
-		if ((s64) stats.replicas[i].data_buckets[j] < 0)
-			panic("%s buckets underflow: %lli\n",
-			      bch_data_types[j],
-			      stats.buckets[j]);
-
-	if ((s64) stats.s.online_reserved < 0)
-		panic("sectors_online_reserved underflow: %lli\n",
-		      stats.s.online_reserved);
-}
-
-static void bch2_dev_stats_verify(struct bch_dev *ca)
-{
-	struct bch_dev_usage stats =
-		__bch2_dev_usage_read(ca);
-	u64 n = ca->mi.nbuckets - ca->mi.first_bucket;
-	unsigned i;
-
-	for (i = 0; i < ARRAY_SIZE(stats.buckets); i++)
-		BUG_ON(stats.buckets[i]		> n);
-	BUG_ON(stats.buckets_alloc		> n);
-	BUG_ON(stats.buckets_unavailable	> n);
-}
-
-static void bch2_disk_reservations_verify(struct bch_fs *c, int flags)
-{
-	if (!(flags & BCH_DISK_RESERVATION_NOFAIL)) {
-		u64 used = __bch2_fs_sectors_used(c);
-		u64 cached = 0;
-		u64 avail = atomic64_read(&c->sectors_available);
-		int cpu;
-
-		for_each_possible_cpu(cpu)
-			cached += per_cpu_ptr(c->usage_percpu, cpu)->available_cache;
-
-		if (used + avail + cached > c->capacity)
-			panic("used %llu avail %llu cached %llu capacity %llu\n",
-			      used, avail, cached, c->capacity);
-	}
-}
-
-#else
-
-static void bch2_fs_stats_verify(struct bch_fs *c) {}
-static void bch2_dev_stats_verify(struct bch_dev *ca) {}
-static void bch2_disk_reservations_verify(struct bch_fs *c, int flags) {}
-
-#endif
-
 /*
  * Clear journal_seq_valid for buckets for which it's not needed, to prevent
  * wraparound:
@@ -186,41 +115,21 @@ void bch2_bucket_seq_cleanup(struct bch_fs *c)
 	}
 }
 
-#define bch2_usage_add(_acc, _stats)					\
-do {									\
-	typeof(_acc) _a = (_acc), _s = (_stats);			\
-	unsigned i;							\
-									\
-	for (i = 0; i < sizeof(*_a) / sizeof(u64); i++)			\
-		((u64 *) (_a))[i] += ((u64 *) (_s))[i];			\
-} while (0)
-
 #define bch2_usage_read_raw(_stats)					\
 ({									\
 	typeof(*this_cpu_ptr(_stats)) _acc;				\
-	int cpu;							\
 									\
 	memset(&_acc, 0, sizeof(_acc));					\
-									\
-	for_each_possible_cpu(cpu)					\
-		bch2_usage_add(&_acc, per_cpu_ptr((_stats), cpu));	\
+	acc_u64s_percpu((u64 *) &_acc,					\
+			(u64 __percpu *) _stats,			\
+			sizeof(_acc) / sizeof(u64));			\
 									\
 	_acc;								\
 })
 
-struct bch_dev_usage __bch2_dev_usage_read(struct bch_dev *ca, bool gc)
-{
-	return bch2_usage_read_raw(ca->usage[gc]);
-}
-
 struct bch_dev_usage bch2_dev_usage_read(struct bch_fs *c, struct bch_dev *ca)
 {
 	return bch2_usage_read_raw(ca->usage[0]);
-}
-
-struct bch_fs_usage __bch2_fs_usage_read(struct bch_fs *c, bool gc)
-{
-	return bch2_usage_read_raw(c->usage[gc]);
 }
 
 struct bch_fs_usage bch2_fs_usage_read(struct bch_fs *c)
@@ -326,12 +235,16 @@ void bch2_fs_usage_apply(struct bch_fs *c,
 	}
 
 	preempt_disable();
-	bch2_usage_add(this_cpu_ptr(c->usage[0]), fs_usage);
+	acc_u64s((u64 *) this_cpu_ptr(c->usage[0]),
+		 (u64 *) fs_usage,
+		 sizeof(*fs_usage) / sizeof(u64));
 
-	if (gc_visited(c, gc_pos))
-		bch2_usage_add(this_cpu_ptr(c->usage[1]), fs_usage);
-
-	bch2_fs_stats_verify(c);
+	if (gc_visited(c, gc_pos)) {
+		BUG_ON(!c->usage[1]);
+		acc_u64s((u64 *) this_cpu_ptr(c->usage[1]),
+			 (u64 *) fs_usage,
+			 sizeof(*fs_usage) / sizeof(u64));
+	}
 	preempt_enable();
 
 	memset(fs_usage, 0, sizeof(*fs_usage));
@@ -392,8 +305,6 @@ static void bch2_dev_usage_update(struct bch_fs *c, struct bch_dev *ca,
 
 	if (!is_available_bucket(old) && is_available_bucket(new))
 		bch2_wake_allocator(ca);
-
-	bch2_dev_stats_verify(ca);
 }
 
 void bch2_dev_usage_from_buckets(struct bch_fs *c, struct bch_dev *ca)
@@ -1011,8 +922,6 @@ void __bch2_disk_reservation_put(struct bch_fs *c, struct disk_reservation *res)
 {
 	percpu_down_read(&c->mark_lock);
 	this_cpu_sub(c->usage[0]->s.online_reserved, res->sectors);
-
-	bch2_fs_stats_verify(c);
 	percpu_up_read(&c->mark_lock);
 
 	res->sectors = 0;
@@ -1055,8 +964,6 @@ out:
 	this_cpu_add(c->usage[0]->s.online_reserved, sectors);
 	res->sectors			+= sectors;
 
-	bch2_disk_reservations_verify(c, flags);
-	bch2_fs_stats_verify(c);
 	preempt_enable();
 	percpu_up_read(&c->mark_lock);
 	return 0;
@@ -1089,14 +996,11 @@ recalculate:
 		this_cpu_add(c->usage[0]->s.online_reserved, sectors);
 		res->sectors			+= sectors;
 		ret = 0;
-
-		bch2_disk_reservations_verify(c, flags);
 	} else {
 		atomic64_set(&c->sectors_available, sectors_available);
 		ret = -ENOSPC;
 	}
 
-	bch2_fs_stats_verify(c);
 	percpu_up_write(&c->mark_lock);
 
 	if (!(flags & BCH_DISK_RESERVATION_GC_LOCK_HELD))

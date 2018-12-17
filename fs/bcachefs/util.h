@@ -700,4 +700,21 @@ do {									\
 	}								\
 } while (0)
 
+static inline void acc_u64s(u64 *acc, const u64 *src, unsigned nr)
+{
+	unsigned i;
+
+	for (i = 0; i < nr; i++)
+		acc[i] += src[i];
+}
+
+static inline void acc_u64s_percpu(u64 *acc, const u64 __percpu *src,
+				   unsigned nr)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		acc_u64s(acc, per_cpu_ptr(src, cpu), nr);
+}
+
 #endif /* _BCACHEFS_UTIL_H */
