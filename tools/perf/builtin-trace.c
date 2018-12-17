@@ -1741,7 +1741,7 @@ static int trace__printf_interrupted_entry(struct trace *trace)
 		return 0;
 
 	printed  = trace__fprintf_entry_head(trace, trace->current, 0, false, ttrace->entry_time, trace->output);
-	printed += fprintf(trace->output, "%-*s) ...\n", trace->args_alignment, ttrace->entry_str);
+	printed += fprintf(trace->output, ")%-*s ...\n", trace->args_alignment, ttrace->entry_str);
 	ttrace->entry_pending = false;
 
 	++trace->nr_events_printed;
@@ -1798,7 +1798,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 {
 	char *msg;
 	void *args;
-	size_t printed = 0;
+	int printed = 0;
 	struct thread *thread;
 	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1;
 	int augmented_args_size = 0;
@@ -1847,8 +1847,13 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 
 	if (sc->is_exit) {
 		if (!(trace->duration_filter || trace->summary_only || trace->failure_only || trace->min_stack)) {
+			int alignment = 0;
+
 			trace__fprintf_entry_head(trace, thread, 0, false, ttrace->entry_time, trace->output);
-			fprintf(trace->output, "%-*s)\n", trace->args_alignment, ttrace->entry_str);
+			printed = fprintf(trace->output, "%s)", ttrace->entry_str);
+			if (trace->args_alignment > printed)
+				alignment = trace->args_alignment - printed;
+			fprintf(trace->output, "%*s= ?\n", alignment, " ");
 		}
 	} else {
 		ttrace->entry_pending = true;
@@ -1943,7 +1948,8 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	u64 duration = 0;
 	bool duration_calculated = false;
 	struct thread *thread;
-	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1, callchain_ret = 0;
+	int id = perf_evsel__sc_tp_uint(evsel, id, sample), err = -1, callchain_ret = 0, printed = 0;
+	int alignment = trace->args_alignment;
 	struct syscall *sc = trace__syscall_info(trace, evsel, id);
 	struct thread_trace *ttrace;
 
@@ -1991,28 +1997,37 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 	trace__fprintf_entry_head(trace, thread, duration, duration_calculated, ttrace->entry_time, trace->output);
 
 	if (ttrace->entry_pending) {
-		fprintf(trace->output, "%-*s", trace->args_alignment, ttrace->entry_str);
+		printed = fprintf(trace->output, "%s", ttrace->entry_str);
 	} else {
 		fprintf(trace->output, " ... [");
 		color_fprintf(trace->output, PERF_COLOR_YELLOW, "continued");
 		fprintf(trace->output, "]: %s()", sc->name);
 	}
 
+	printed++; /* the closing ')' */
+
+	if (alignment > printed)
+		alignment -= printed;
+	else
+		alignment = 0;
+
+	fprintf(trace->output, ")%*s= ", alignment, " ");
+
 	if (sc->fmt == NULL) {
 		if (ret < 0)
 			goto errno_print;
 signed_print:
-		fprintf(trace->output, ") = %ld", ret);
+		fprintf(trace->output, "%ld", ret);
 	} else if (ret < 0) {
 errno_print: {
 		char bf[STRERR_BUFSIZE];
 		const char *emsg = str_error_r(-ret, bf, sizeof(bf)),
 			   *e = errno_to_name(evsel, -ret);
 
-		fprintf(trace->output, ") = -1 %s %s", e, emsg);
+		fprintf(trace->output, "-1 %s %s", e, emsg);
 	}
 	} else if (ret == 0 && sc->fmt->timeout)
-		fprintf(trace->output, ") = 0 Timeout");
+		fprintf(trace->output, "0 Timeout");
 	else if (ttrace->ret_scnprintf) {
 		char bf[1024];
 		struct syscall_arg arg = {
@@ -2022,14 +2037,14 @@ errno_print: {
 		};
 		ttrace->ret_scnprintf(bf, sizeof(bf), &arg);
 		ttrace->ret_scnprintf = NULL;
-		fprintf(trace->output, ") = %s", bf);
+		fprintf(trace->output, "%s", bf);
 	} else if (sc->fmt->hexret)
-		fprintf(trace->output, ") = %#lx", ret);
+		fprintf(trace->output, "%#lx", ret);
 	else if (sc->fmt->errpid) {
 		struct thread *child = machine__find_thread(trace->host, ret, ret);
 
 		if (child != NULL) {
-			fprintf(trace->output, ") = %ld", ret);
+			fprintf(trace->output, "%ld", ret);
 			if (child->comm_set)
 				fprintf(trace->output, " (%s)", thread__comm_str(child));
 			thread__put(child);
