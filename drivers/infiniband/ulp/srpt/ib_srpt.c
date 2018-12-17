@@ -716,8 +716,8 @@ static struct srpt_ioctx **srpt_alloc_ioctx_ring(struct srpt_device *sdev,
 	struct srpt_ioctx **ring;
 	int i;
 
-	WARN_ON(ioctx_size != sizeof(struct srpt_recv_ioctx)
-		&& ioctx_size != sizeof(struct srpt_send_ioctx));
+	WARN_ON(ioctx_size != sizeof(struct srpt_recv_ioctx) &&
+		ioctx_size != sizeof(struct srpt_send_ioctx));
 
 	ring = kvmalloc_array(ring_size, sizeof(ring[0]), GFP_KERNEL);
 	if (!ring)
@@ -1025,7 +1025,7 @@ static int srpt_get_desc_tbl(struct srpt_send_ioctx *ioctx,
 
 	if (((srp_cmd->buf_fmt & 0xf) == SRP_DATA_DESC_DIRECT) ||
 	    ((srp_cmd->buf_fmt >> 4) == SRP_DATA_DESC_DIRECT)) {
-	    	struct srp_direct_buf *db = srpt_get_desc_buf(srp_cmd);
+		struct srp_direct_buf *db = srpt_get_desc_buf(srp_cmd);
 
 		*data_len = be32_to_cpu(db->len);
 		return srpt_alloc_rw_ctxs(ioctx, db, 1, sg, sg_cnt);
@@ -3580,7 +3580,7 @@ static ssize_t srpt_tpg_enable_show(struct config_item *item, char *page)
 	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 
-	return snprintf(page, PAGE_SIZE, "%d\n", (sport->enabled) ? 1: 0);
+	return snprintf(page, PAGE_SIZE, "%d\n", sport->enabled);
 }
 
 static ssize_t srpt_tpg_enable_store(struct config_item *item,
@@ -3589,7 +3589,7 @@ static ssize_t srpt_tpg_enable_store(struct config_item *item,
 	struct se_portal_group *se_tpg = to_tpg(item);
 	struct srpt_port *sport = srpt_tpg_to_sport(se_tpg);
 	unsigned long tmp;
-        int ret;
+	int ret;
 
 	ret = kstrtoul(page, 0, &tmp);
 	if (ret < 0) {

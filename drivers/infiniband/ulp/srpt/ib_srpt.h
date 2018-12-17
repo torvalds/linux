@@ -179,7 +179,7 @@ struct srpt_recv_ioctx {
 	struct srpt_ioctx	ioctx;
 	struct list_head	wait_list;
 };
-	
+
 struct srpt_rw_ctx {
 	struct rdma_rw_ctx	rw;
 	struct scatterlist	*sg;
