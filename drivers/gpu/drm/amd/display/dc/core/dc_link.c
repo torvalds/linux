@@ -2457,10 +2457,10 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx, int option)
 {
 	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
+	core_dc->hwss.blank_stream(pipe_ctx);
+
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
-
-	core_dc->hwss.blank_stream(pipe_ctx);
 
 	core_dc->hwss.disable_stream(pipe_ctx, option);
 
