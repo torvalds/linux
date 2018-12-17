@@ -190,7 +190,7 @@ void
 megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		     u8 alt_status);
 static u32
-megasas_read_fw_status_reg_gen2(struct megasas_register_set __iomem *regs);
+megasas_read_fw_status_reg_gen2(struct megasas_instance *instance);
 static int
 megasas_adp_reset_gen2(struct megasas_instance *instance,
 		       struct megasas_register_set __iomem *reg_set);
@@ -420,19 +420,21 @@ megasas_disable_intr_xscale(struct megasas_instance *instance)
  * @regs:			MFI register set
  */
 static u32
-megasas_read_fw_status_reg_xscale(struct megasas_register_set __iomem * regs)
+megasas_read_fw_status_reg_xscale(struct megasas_instance *instance)
 {
-	return readl(&(regs)->outbound_msg_0);
+	return readl(&instance->reg_set->outbound_msg_0);
 }
 /**
  * megasas_clear_interrupt_xscale -	Check & clear interrupt
  * @regs:				MFI register set
  */
 static int
-megasas_clear_intr_xscale(struct megasas_register_set __iomem * regs)
+megasas_clear_intr_xscale(struct megasas_instance *instance)
 {
 	u32 status;
 	u32 mfiStatus = 0;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 
 	/*
 	 * Check if it is our interrupt
@@ -597,9 +599,9 @@ megasas_disable_intr_ppc(struct megasas_instance *instance)
  * @regs:			MFI register set
  */
 static u32
-megasas_read_fw_status_reg_ppc(struct megasas_register_set __iomem * regs)
+megasas_read_fw_status_reg_ppc(struct megasas_instance *instance)
 {
-	return readl(&(regs)->outbound_scratch_pad_0);
+	return readl(&instance->reg_set->outbound_scratch_pad_0);
 }
 
 /**
@@ -607,9 +609,11 @@ megasas_read_fw_status_reg_ppc(struct megasas_register_set __iomem * regs)
  * @regs:				MFI register set
  */
 static int
-megasas_clear_intr_ppc(struct megasas_register_set __iomem * regs)
+megasas_clear_intr_ppc(struct megasas_instance *instance)
 {
 	u32 status, mfiStatus = 0;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 
 	/*
 	 * Check if it is our interrupt
@@ -722,9 +726,9 @@ megasas_disable_intr_skinny(struct megasas_instance *instance)
  * @regs:			MFI register set
  */
 static u32
-megasas_read_fw_status_reg_skinny(struct megasas_register_set __iomem *regs)
+megasas_read_fw_status_reg_skinny(struct megasas_instance *instance)
 {
-	return readl(&(regs)->outbound_scratch_pad_0);
+	return readl(&instance->reg_set->outbound_scratch_pad_0);
 }
 
 /**
@@ -732,10 +736,12 @@ megasas_read_fw_status_reg_skinny(struct megasas_register_set __iomem *regs)
  * @regs:				MFI register set
  */
 static int
-megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
+megasas_clear_intr_skinny(struct megasas_instance *instance)
 {
 	u32 status;
 	u32 mfiStatus = 0;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 
 	/*
 	 * Check if it is our interrupt
@@ -749,7 +755,7 @@ megasas_clear_intr_skinny(struct megasas_register_set __iomem *regs)
 	/*
 	 * Check if it is our interrupt
 	 */
-	if ((megasas_read_fw_status_reg_skinny(regs) & MFI_STATE_MASK) ==
+	if ((megasas_read_fw_status_reg_skinny(instance) & MFI_STATE_MASK) ==
 	    MFI_STATE_FAULT) {
 		mfiStatus = MFI_INTR_FLAG_FIRMWARE_STATE_CHANGE;
 	} else
@@ -867,9 +873,9 @@ megasas_disable_intr_gen2(struct megasas_instance *instance)
  * @regs:                      MFI register set
  */
 static u32
-megasas_read_fw_status_reg_gen2(struct megasas_register_set __iomem *regs)
+megasas_read_fw_status_reg_gen2(struct megasas_instance *instance)
 {
-	return readl(&(regs)->outbound_scratch_pad_0);
+	return readl(&instance->reg_set->outbound_scratch_pad_0);
 }
 
 /**
@@ -877,10 +883,12 @@ megasas_read_fw_status_reg_gen2(struct megasas_register_set __iomem *regs)
  * @regs:                              MFI register set
  */
 static int
-megasas_clear_intr_gen2(struct megasas_register_set __iomem *regs)
+megasas_clear_intr_gen2(struct megasas_instance *instance)
 {
 	u32 status;
 	u32 mfiStatus = 0;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 
 	/*
 	 * Check if it is our interrupt
@@ -2685,7 +2693,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 
 	i = 0;
 	outstanding = atomic_read(&instance->fw_outstanding);
-	fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
+	fw_state = instance->instancet->read_fw_status_reg(instance) & MFI_STATE_MASK;
 
 	if ((!outstanding && (fw_state == MFI_STATE_OPERATIONAL)))
 		goto no_outstanding;
@@ -2714,7 +2722,7 @@ static int megasas_wait_for_outstanding(struct megasas_instance *instance)
 
 			outstanding = atomic_read(&instance->fw_outstanding);
 
-			fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
+			fw_state = instance->instancet->read_fw_status_reg(instance) & MFI_STATE_MASK;
 			if ((!outstanding && (fw_state == MFI_STATE_OPERATIONAL)))
 				goto no_outstanding;
 		}
@@ -3668,9 +3676,8 @@ megasas_deplete_reply_queue(struct megasas_instance *instance,
 		return IRQ_HANDLED;
 	}
 
-	if ((mfiStatus = instance->instancet->clear_intr(
-						instance->reg_set)
-						) == 0) {
+	mfiStatus = instance->instancet->clear_intr(instance);
+	if (mfiStatus == 0) {
 		/* Hardware may not set outbound_intr_status in MSI-X mode */
 		if (!instance->msix_vectors)
 			return IRQ_NONE;
@@ -3680,7 +3687,7 @@ megasas_deplete_reply_queue(struct megasas_instance *instance,
 
 	if ((mfiStatus & MFI_INTR_FLAG_FIRMWARE_STATE_CHANGE)) {
 		fw_state = instance->instancet->read_fw_status_reg(
-				instance->reg_set) & MFI_STATE_MASK;
+				instance) & MFI_STATE_MASK;
 
 		if (fw_state != MFI_STATE_FAULT) {
 			dev_notice(&instance->pdev->dev, "fw state:%x\n",
@@ -3763,7 +3770,7 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 	u32 cur_state;
 	u32 abs_state, curr_abs_state;
 
-	abs_state = instance->instancet->read_fw_status_reg(instance->reg_set);
+	abs_state = instance->instancet->read_fw_status_reg(instance);
 	fw_state = abs_state & MFI_STATE_MASK;
 
 	if (fw_state != MFI_STATE_READY)
@@ -3896,7 +3903,7 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 		 */
 		for (i = 0; i < max_wait; i++) {
 			curr_abs_state = instance->instancet->
-				read_fw_status_reg(instance->reg_set);
+				read_fw_status_reg(instance);
 
 			if (abs_state == curr_abs_state) {
 				msleep(1000);
@@ -5032,16 +5039,13 @@ fail_fw_init:
 static u32
 megasas_init_adapter_mfi(struct megasas_instance *instance)
 {
-	struct megasas_register_set __iomem *reg_set;
 	u32 context_sz;
 	u32 reply_q_sz;
-
-	reg_set = instance->reg_set;
 
 	/*
 	 * Get various operational parameters from status register
 	 */
-	instance->max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
+	instance->max_fw_cmds = instance->instancet->read_fw_status_reg(instance) & 0x00FFFF;
 	/*
 	 * Reduce the max supported cmds by 1. This is to ensure that the
 	 * reply_q_sz (1 more than the max cmd that driver may send)
@@ -5049,7 +5053,7 @@ megasas_init_adapter_mfi(struct megasas_instance *instance)
 	 */
 	instance->max_fw_cmds = instance->max_fw_cmds-1;
 	instance->max_mfi_cmds = instance->max_fw_cmds;
-	instance->max_num_sge = (instance->instancet->read_fw_status_reg(reg_set) & 0xFF0000) >>
+	instance->max_num_sge = (instance->instancet->read_fw_status_reg(instance) & 0xFF0000) >>
 					0x10;
 	/*
 	 * For MFI skinny adapters, MEGASAS_SKINNY_INT_CMDS commands
@@ -5105,7 +5109,7 @@ megasas_init_adapter_mfi(struct megasas_instance *instance)
 
 	instance->fw_support_ieee = 0;
 	instance->fw_support_ieee =
-		(instance->instancet->read_fw_status_reg(reg_set) &
+		(instance->instancet->read_fw_status_reg(instance) &
 		0x04000000);
 
 	dev_notice(&instance->pdev->dev, "megasas_init_mfi: fw_support_ieee=%d",
@@ -5305,7 +5309,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	u32 max_sectors_2, tmp_sectors, msix_enable;
 	u32 scratch_pad_1, scratch_pad_2, scratch_pad_3, status_reg;
 	resource_size_t base_addr;
-	struct megasas_register_set __iomem *reg_set;
 	struct megasas_ctrl_info *ctrl_info = NULL;
 	unsigned long bar_list;
 	int i, j, loop, fw_msix_count = 0;
@@ -5331,8 +5334,6 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		dev_printk(KERN_DEBUG, &instance->pdev->dev, "Failed to map IO mem\n");
 		goto fail_ioremap;
 	}
-
-	reg_set = instance->reg_set;
 
 	if (instance->adapter_type != MFI_SERIES)
 		instance->instancet = &megasas_instance_template_fusion;
@@ -5362,7 +5363,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (megasas_transition_to_ready(instance, 0)) {
 		if (instance->adapter_type >= INVADER_SERIES) {
 			status_reg = instance->instancet->read_fw_status_reg(
-					instance->reg_set);
+					instance);
 			do_adp_reset = status_reg & MFI_RESET_ADAPTER;
 		}
 
@@ -5407,7 +5408,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	}
 
 	/* Check if MSI-X is supported while in ready state */
-	msix_enable = (instance->instancet->read_fw_status_reg(reg_set) &
+	msix_enable = (instance->instancet->read_fw_status_reg(instance) &
 		       0x4000000) >> 0x1a;
 	if (msix_enable && !msix_disable) {
 		int irq_flags = PCI_IRQ_MSIX;

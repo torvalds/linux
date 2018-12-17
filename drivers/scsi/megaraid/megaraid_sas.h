@@ -2413,9 +2413,9 @@ struct megasas_instance_template {
 	void (*enable_intr)(struct megasas_instance *);
 	void (*disable_intr)(struct megasas_instance *);
 
-	int (*clear_intr)(struct megasas_register_set __iomem *);
+	int (*clear_intr)(struct megasas_instance *);
 
-	u32 (*read_fw_status_reg)(struct megasas_register_set __iomem *);
+	u32 (*read_fw_status_reg)(struct megasas_instance *);
 	int (*adp_reset)(struct megasas_instance *, \
 		struct megasas_register_set __iomem *);
 	int (*check_reset)(struct megasas_instance *, \

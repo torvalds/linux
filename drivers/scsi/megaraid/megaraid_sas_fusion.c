@@ -73,7 +73,7 @@ void
 megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd);
 int megasas_alloc_cmds(struct megasas_instance *instance);
 int
-megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs);
+megasas_clear_intr_fusion(struct megasas_instance *instance);
 int
 megasas_issue_polled(struct megasas_instance *instance,
 		     struct megasas_cmd *cmd);
@@ -165,9 +165,11 @@ megasas_disable_intr_fusion(struct megasas_instance *instance)
 }
 
 int
-megasas_clear_intr_fusion(struct megasas_register_set __iomem *regs)
+megasas_clear_intr_fusion(struct megasas_instance *instance)
 {
 	u32 status;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 	/*
 	 * Check if it is our interrupt
 	 */
@@ -268,10 +270,10 @@ megasas_fusion_update_can_queue(struct megasas_instance *instance, int fw_boot_c
 		readl(&instance->reg_set->outbound_scratch_pad_2) & 0x00FFFF;
 
 	if (dual_qdepth_disable || !cur_max_fw_cmds)
-		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF;
+		cur_max_fw_cmds = instance->instancet->read_fw_status_reg(instance) & 0x00FFFF;
 	else
 		ldio_threshold =
-			(instance->instancet->read_fw_status_reg(reg_set) & 0x00FFFF) - MEGASAS_FUSION_IOCTL_CMDS;
+			(instance->instancet->read_fw_status_reg(instance) & 0x00FFFF) - MEGASAS_FUSION_IOCTL_CMDS;
 
 	dev_info(&instance->pdev->dev,
 		 "Current firmware supports maximum commands: %d\t LDIO threshold: %d\n",
@@ -1764,12 +1766,12 @@ megasas_fault_detect_work(struct work_struct *work)
 	u32 fw_state, dma_state, status;
 
 	/* Check the fw state */
-	fw_state = instance->instancet->read_fw_status_reg(instance->reg_set) &
+	fw_state = instance->instancet->read_fw_status_reg(instance) &
 			MFI_STATE_MASK;
 
 	if (fw_state == MFI_STATE_FAULT) {
-		dma_state = instance->instancet->read_fw_status_reg(
-				instance->reg_set) & MFI_STATE_DMADONE;
+		dma_state = instance->instancet->read_fw_status_reg(instance) &
+				MFI_STATE_DMADONE;
 		/* Start collecting crash, if DMA bit is done */
 		if (instance->crash_dump_drv_support &&
 		    instance->crash_dump_app_support && dma_state) {
@@ -3590,14 +3592,14 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 		return IRQ_NONE;
 
 	if (!instance->msix_vectors) {
-		mfiStatus = instance->instancet->clear_intr(instance->reg_set);
+		mfiStatus = instance->instancet->clear_intr(instance);
 		if (!mfiStatus)
 			return IRQ_NONE;
 	}
 
 	/* If we are resetting, bail */
 	if (test_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags)) {
-		instance->instancet->clear_intr(instance->reg_set);
+		instance->instancet->clear_intr(instance);
 		return IRQ_HANDLED;
 	}
 
@@ -3727,9 +3729,9 @@ megasas_release_fusion(struct megasas_instance *instance)
  * @regs:			MFI register set
  */
 static u32
-megasas_read_fw_status_reg_fusion(struct megasas_register_set __iomem *regs)
+megasas_read_fw_status_reg_fusion(struct megasas_instance *instance)
 {
-	return readl(&(regs)->outbound_scratch_pad_0);
+	return readl(&instance->reg_set->outbound_scratch_pad_0);
 }
 
 /**
@@ -3827,14 +3829,14 @@ megasas_adp_reset_fusion(struct megasas_instance *instance,
 	if (host_diag & HOST_DIAG_RESET_ADAPTER)
 		return -1;
 
-	abs_state = instance->instancet->read_fw_status_reg(instance->reg_set)
+	abs_state = instance->instancet->read_fw_status_reg(instance)
 			& MFI_STATE_MASK;
 	retry = 0;
 
 	while ((abs_state <= MFI_STATE_FW_INIT) && (retry++ < 1000)) {
 		msleep(100);
 		abs_state = instance->instancet->
-			read_fw_status_reg(instance->reg_set) & MFI_STATE_MASK;
+			read_fw_status_reg(instance) & MFI_STATE_MASK;
 	}
 	if (abs_state <= MFI_STATE_FW_INIT) {
 		dev_warn(&instance->pdev->dev,
@@ -3874,8 +3876,8 @@ static inline void megasas_trigger_snap_dump(struct megasas_instance *instance)
 	}
 
 	for (j = 0; j < instance->snapdump_wait_time; j++) {
-		fw_state = instance->instancet->read_fw_status_reg(
-			instance->reg_set) & MFI_STATE_MASK;
+		fw_state = instance->instancet->read_fw_status_reg(instance) &
+				MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT) {
 			dev_err(&instance->pdev->dev,
 				"Found FW in FAULT state, after snap dump trigger\n");
@@ -3909,8 +3911,8 @@ int megasas_wait_for_outstanding_fusion(struct megasas_instance *instance,
 
 	for (i = 0; i < waittime_for_io_completion; i++) {
 		/* Check if firmware is in fault state */
-		fw_state = instance->instancet->read_fw_status_reg(
-			instance->reg_set) & MFI_STATE_MASK;
+		fw_state = instance->instancet->read_fw_status_reg(instance) &
+				MFI_STATE_MASK;
 		if (fw_state == MFI_STATE_FAULT) {
 			dev_warn(&instance->pdev->dev, "Found FW in FAULT state,"
 			       " will reset adapter scsi%d.\n",
@@ -4596,7 +4598,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 		mutex_unlock(&instance->reset_mutex);
 		return FAILED;
 	}
-	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
+	status_reg = instance->instancet->read_fw_status_reg(instance);
 	abs_state = status_reg & MFI_STATE_MASK;
 
 	/* IO timeout detected, forcibly put FW in FAULT state */
@@ -4683,8 +4685,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 
 		atomic_set(&instance->fw_outstanding, 0);
 
-		status_reg = instance->instancet->read_fw_status_reg(
-			instance->reg_set);
+		status_reg = instance->instancet->read_fw_status_reg(instance);
 		abs_state = status_reg & MFI_STATE_MASK;
 		reset_adapter = status_reg & MFI_RESET_ADAPTER;
 		if (instance->disableOnlineCtrlReset ||
@@ -4845,7 +4846,7 @@ void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 	int wait = 0;
 
 
-	status_reg = instance->instancet->read_fw_status_reg(instance->reg_set);
+	status_reg = instance->instancet->read_fw_status_reg(instance);
 
 	/*
 	 * Allocate host crash buffers to copy data from 1 MB DMA crash buffer
@@ -4881,7 +4882,7 @@ void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 			wait++;
 			msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
 			status_reg = instance->instancet->read_fw_status_reg(
-					instance->reg_set);
+					instance);
 			continue;
 		}
 
@@ -4904,8 +4905,7 @@ void  megasas_fusion_crash_dump(struct megasas_instance *instance)
 		readl(&instance->reg_set->outbound_scratch_pad_0);
 
 		msleep(MEGASAS_WAIT_FOR_NEXT_DMA_MSECS);
-		status_reg = instance->instancet->read_fw_status_reg(
-				instance->reg_set);
+		status_reg = instance->instancet->read_fw_status_reg(instance);
 	}
 
 	if (status_reg & MFI_STATE_CRASH_DUMP_DONE) {
