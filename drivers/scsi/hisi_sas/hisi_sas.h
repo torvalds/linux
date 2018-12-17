@@ -69,6 +69,12 @@
 #define HISI_SAS_SATA_PROTOCOL_FPDMA		0x8
 #define HISI_SAS_SATA_PROTOCOL_ATAPI		0x10
 
+#define HISI_SAS_DIF_PROT_MASK (SHOST_DIF_TYPE1_PROTECTION | \
+				SHOST_DIF_TYPE2_PROTECTION | \
+				SHOST_DIF_TYPE3_PROTECTION)
+
+#define HISI_SAS_PROT_MASK (HISI_SAS_DIF_PROT_MASK)
+
 struct hisi_hba;
 
 enum {
@@ -267,6 +273,8 @@ struct hisi_hba {
 	struct platform_device *platform_dev;
 	struct pci_dev *pci_dev;
 	struct device *dev;
+
+	int prot_mask;
 
 	void __iomem *regs;
 	void __iomem *sgpio_regs;
