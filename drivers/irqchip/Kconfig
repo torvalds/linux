@@ -398,6 +398,14 @@ config CSKY_APB_INTC
 	  by C-SKY single core SOC system. It use mmio map apb-bus to visit
 	  the controller's register.
 
+config IMX_IRQSTEER
+	bool "i.MX IRQSTEER support"
+	depends on ARCH_MXC || COMPILE_TEST
+	default ARCH_MXC
+	select IRQ_DOMAIN
+	help
+	  Support for the i.MX IRQSTEER interrupt multiplexer/remapper.
+
 endmenu
 
 config SIFIVE_PLIC
