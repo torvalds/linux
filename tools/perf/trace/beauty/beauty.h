@@ -98,6 +98,9 @@ size_t syscall_arg__scnprintf_fd(char *bf, size_t size, struct syscall_arg *arg)
 size_t syscall_arg__scnprintf_hex(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_HEX syscall_arg__scnprintf_hex
 
+size_t syscall_arg__scnprintf_ptr(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_PTR syscall_arg__scnprintf_ptr
+
 size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_INT syscall_arg__scnprintf_int
 

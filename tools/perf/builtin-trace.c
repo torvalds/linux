@@ -444,6 +444,13 @@ size_t syscall_arg__scnprintf_hex(char *bf, size_t size, struct syscall_arg *arg
 	return scnprintf(bf, size, "%#lx", arg->val);
 }
 
+size_t syscall_arg__scnprintf_ptr(char *bf, size_t size, struct syscall_arg *arg)
+{
+	if (arg->val == 0)
+		return scnprintf(bf, size, "NULL");
+	return syscall_arg__scnprintf_hex(bf, size, arg);
+}
+
 size_t syscall_arg__scnprintf_int(char *bf, size_t size, struct syscall_arg *arg)
 {
 	return scnprintf(bf, size, "%d", arg->val);
@@ -660,7 +667,7 @@ static struct syscall_fmt {
 	{ .name	    = "bpf",
 	  .arg = { [0] = STRARRAY(cmd, bpf_cmd), }, },
 	{ .name	    = "brk",	    .hexret = true,
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* brk */ }, }, },
+	  .arg = { [0] = { .scnprintf = SCA_PTR, /* brk */ }, }, },
 	{ .name     = "clock_gettime",
 	  .arg = { [0] = STRARRAY(clk_id, clockid), }, },
 	{ .name	    = "clone",	    .errpid = true, .nr_args = 5,
@@ -738,17 +745,12 @@ static struct syscall_fmt {
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
 	{ .name	    = "mknodat",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* fd */ }, }, },
-	{ .name	    = "mlock",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
-	{ .name	    = "mlockall",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
 	{ .name	    = "mmap",	    .hexret = true,
 /* The standard mmap maps to old_mmap on s390x */
 #if defined(__s390x__)
 	.alias = "old_mmap",
 #endif
-	  .arg = { [0] = { .scnprintf = SCA_HEX,	/* addr */ },
-		   [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
+	  .arg = { [2] = { .scnprintf = SCA_MMAP_PROT,	/* prot */ },
 		   [3] = { .scnprintf = SCA_MMAP_FLAGS,	/* flags */ }, }, },
 	{ .name	    = "mount",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* dev_name */ },
@@ -760,13 +762,7 @@ static struct syscall_fmt {
 	{ .name	    = "mq_unlink",
 	  .arg = { [0] = { .scnprintf = SCA_FILENAME, /* u_name */ }, }, },
 	{ .name	    = "mremap",	    .hexret = true,
-	  .arg = { [0] = { .scnprintf = SCA_HEX,	  /* addr */ },
-		   [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ },
-		   [4] = { .scnprintf = SCA_HEX,	  /* new_addr */ }, }, },
-	{ .name	    = "munlock",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
-	{ .name	    = "munmap",
-	  .arg = { [0] = { .scnprintf = SCA_HEX, /* addr */ }, }, },
+	  .arg = { [3] = { .scnprintf = SCA_MREMAP_FLAGS, /* flags */ }, }, },
 	{ .name	    = "name_to_handle_at",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT, /* dfd */ }, }, },
 	{ .name	    = "newfstatat",
@@ -1350,8 +1346,8 @@ static int syscall__set_arg_fmts(struct syscall *sc)
 			  strcmp(field->name, "path") == 0 ||
 			  strcmp(field->name, "pathname") == 0))
 			sc->arg_fmt[idx].scnprintf = SCA_FILENAME;
-		else if (field->flags & TEP_FIELD_IS_POINTER)
-			sc->arg_fmt[idx].scnprintf = syscall_arg__scnprintf_hex;
+		else if ((field->flags & TEP_FIELD_IS_POINTER) || strstr(field->name, "addr"))
+			sc->arg_fmt[idx].scnprintf = SCA_PTR;
 		else if (strcmp(field->type, "pid_t") == 0)
 			sc->arg_fmt[idx].scnprintf = SCA_PID;
 		else if (strcmp(field->type, "umode_t") == 0)
