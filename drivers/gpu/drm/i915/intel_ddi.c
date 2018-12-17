@@ -1296,6 +1296,9 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	dco_freq += (((cfgcr1_val & DPLL_CFGCR1_DCO_FRACTION_MASK) >> 9) * 24 *
 		1000) / 0x8000;
 
+	if (WARN_ON(p0 == 0 || p1 == 0 || p2 == 0))
+		return 0;
+
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
