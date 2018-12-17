@@ -357,6 +357,9 @@ struct printk_log {
 	u8 facility;		/* syslog facility */
 	u8 flags:5;		/* internal record flags */
 	u8 level:3;		/* syslog level */
+#ifdef CONFIG_PRINTK_CALLER
+	u32 caller_id;            /* thread id or processor id */
+#endif
 }
 #ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 __packed __aligned(4)
@@ -423,7 +426,11 @@ static u64 exclusive_console_stop_seq;
 static u64 clear_seq;
 static u32 clear_idx;
 
+#ifdef CONFIG_PRINTK_CALLER
+#define PREFIX_MAX		48
+#else
 #define PREFIX_MAX		32
+#endif
 #define LOG_LINE_MAX		(1024 - PREFIX_MAX)
 
 #define LOG_LEVEL(v)		((v) & 0x07)
@@ -626,6 +633,12 @@ static int log_store(int facility, int level,
 		msg->ts_nsec = ts_nsec;
 	else
 		msg->ts_nsec = local_clock();
+#ifdef CONFIG_PRINTK_CALLER
+	if (in_task())
+		msg->caller_id = task_pid_nr(current);
+	else
+		msg->caller_id = 0x80000000 + raw_smp_processor_id();
+#endif
 	memset(log_dict(msg) + dict_len, 0, pad_len);
 	msg->len = size;
 
@@ -689,12 +702,21 @@ static ssize_t msg_print_ext_header(char *buf, size_t size,
 				    struct printk_log *msg, u64 seq)
 {
 	u64 ts_usec = msg->ts_nsec;
+	char caller[20];
+#ifdef CONFIG_PRINTK_CALLER
+	u32 id = msg->caller_id;
+
+	snprintf(caller, sizeof(caller), ",caller=%c%u",
+		 id & 0x80000000 ? 'C' : 'T', id & ~0x80000000);
+#else
+	caller[0] = '\0';
+#endif
 
 	do_div(ts_usec, 1000);
 
-	return scnprintf(buf, size, "%u,%llu,%llu,%c;",
-		       (msg->facility << 3) | msg->level, seq, ts_usec,
-		       msg->flags & LOG_CONT ? 'c' : '-');
+	return scnprintf(buf, size, "%u,%llu,%llu,%c%s;",
+			 (msg->facility << 3) | msg->level, seq, ts_usec,
+			 msg->flags & LOG_CONT ? 'c' : '-', caller);
 }
 
 static ssize_t msg_print_ext_body(char *buf, size_t size,
@@ -1039,6 +1061,9 @@ void log_buf_vmcoreinfo_setup(void)
 	VMCOREINFO_OFFSET(printk_log, len);
 	VMCOREINFO_OFFSET(printk_log, text_len);
 	VMCOREINFO_OFFSET(printk_log, dict_len);
+#ifdef CONFIG_PRINTK_CALLER
+	VMCOREINFO_OFFSET(printk_log, caller_id);
+#endif
 }
 #endif
 
@@ -1237,9 +1262,22 @@ static size_t print_time(u64 ts, char *buf)
 {
 	unsigned long rem_nsec = do_div(ts, 1000000000);
 
-	return sprintf(buf, "[%5lu.%06lu] ",
+	return sprintf(buf, "[%5lu.%06lu]",
 		       (unsigned long)ts, rem_nsec / 1000);
 }
+
+#ifdef CONFIG_PRINTK_CALLER
+static size_t print_caller(u32 id, char *buf)
+{
+	char caller[12];
+
+	snprintf(caller, sizeof(caller), "%c%u",
+		 id & 0x80000000 ? 'C' : 'T', id & ~0x80000000);
+	return sprintf(buf, "[%6s]", caller);
+}
+#else
+#define print_caller(id, buf) 0
+#endif
 
 static size_t print_prefix(const struct printk_log *msg, bool syslog,
 			   bool time, char *buf)
@@ -1248,8 +1286,17 @@ static size_t print_prefix(const struct printk_log *msg, bool syslog,
 
 	if (syslog)
 		len = print_syslog((msg->facility << 3) | msg->level, buf);
+
 	if (time)
 		len += print_time(msg->ts_nsec, buf + len);
+
+	len += print_caller(msg->caller_id, buf + len);
+
+	if (IS_ENABLED(CONFIG_PRINTK_CALLER) || time) {
+		buf[len++] = ' ';
+		buf[len] = '\0';
+	}
+
 	return len;
 }
 
