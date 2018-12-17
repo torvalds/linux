@@ -137,6 +137,8 @@ static int smu_sw_init(void *handle)
 	if (adev->asic_type < CHIP_VEGA20)
 		return -EINVAL;
 
+	smu->pool_size = adev->pm.smu_prv_buffer_size;
+
 	ret = smu_init_microcode(smu);
 	if (ret) {
 		pr_err("Failed to load smu firmware!\n");
@@ -333,9 +335,56 @@ static int smu_smc_table_hw_init(struct smu_context *smu)
  */
 static int smu_alloc_memory_pool(struct smu_context *smu)
 {
-	return 0;
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *memory_pool = &smu_table->memory_pool;
+	uint64_t pool_size = smu->pool_size;
+	int ret = 0;
+
+	if (pool_size == SMU_MEMORY_POOL_SIZE_ZERO)
+		return ret;
+
+	memory_pool->size = pool_size;
+	memory_pool->align = PAGE_SIZE;
+	memory_pool->domain = AMDGPU_GEM_DOMAIN_GTT;
+
+	switch (pool_size) {
+	case SMU_MEMORY_POOL_SIZE_256_MB:
+	case SMU_MEMORY_POOL_SIZE_512_MB:
+	case SMU_MEMORY_POOL_SIZE_1_GB:
+	case SMU_MEMORY_POOL_SIZE_2_GB:
+		ret = amdgpu_bo_create_kernel(adev,
+					      memory_pool->size,
+					      memory_pool->align,
+					      memory_pool->domain,
+					      &memory_pool->bo,
+					      &memory_pool->mc_address,
+					      &memory_pool->cpu_addr);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
 
+static int smu_free_memory_pool(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *memory_pool = &smu_table->memory_pool;
+	int ret = 0;
+
+	if (memory_pool->size == SMU_MEMORY_POOL_SIZE_ZERO)
+		return ret;
+
+	amdgpu_bo_free_kernel(&memory_pool->bo,
+			      &memory_pool->mc_address,
+			      &memory_pool->cpu_addr);
+
+	memset(memory_pool, 0, sizeof(struct smu_table));
+
+	return ret;
+}
 static int smu_hw_init(void *handle)
 {
 	int ret;
@@ -396,6 +445,10 @@ static int smu_hw_fini(void *handle)
 		return -EINVAL;
 
 	ret = smu_fini_fb_allocations(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_free_memory_pool(smu);
 	if (ret)
 		return ret;
 

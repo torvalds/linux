@@ -24,6 +24,15 @@
 
 #include "amdgpu.h"
 
+enum smu_memory_pool_size
+{
+    SMU_MEMORY_POOL_SIZE_ZERO   = 0,
+    SMU_MEMORY_POOL_SIZE_256_MB = 0x10000000,
+    SMU_MEMORY_POOL_SIZE_512_MB = 0x20000000,
+    SMU_MEMORY_POOL_SIZE_1_GB   = 0x40000000,
+    SMU_MEMORY_POOL_SIZE_2_GB   = 0x80000000,
+};
+
 #define SMU_TABLE_INIT(tables, table_id, s, a, d)	\
 	do {						\
 		tables[table_id].size = s;		\
@@ -63,6 +72,7 @@ struct smu_table_context
 	struct smu_bios_boot_up_values	boot_values;
 	struct smu_table		*tables;
 	uint32_t			table_count;
+	struct smu_table		memory_pool;
 };
 
 struct smu_dpm_context {
@@ -81,6 +91,7 @@ struct smu_context
 
 	const struct smu_funcs		*funcs;
 	struct mutex			mutex;
+	uint64_t pool_size;
 
 	struct smu_table_context	smu_table;
 	struct smu_dpm_context		smu_dpm;
