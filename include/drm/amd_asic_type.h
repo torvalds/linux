@@ -50,6 +50,7 @@ enum amd_asic_type {
 	CHIP_VEGA20,
 	CHIP_RAVEN,
 	CHIP_NAVI10,
+	CHIP_NAVI14,
 	CHIP_LAST,
 };
 
