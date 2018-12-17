@@ -18,8 +18,8 @@ struct blk_mq_ctxs {
 struct blk_mq_ctx {
 	struct {
 		spinlock_t		lock;
-		struct list_head	rq_list;
-	}  ____cacheline_aligned_in_smp;
+		struct list_head	rq_lists[HCTX_MAX_TYPES];
+	} ____cacheline_aligned_in_smp;
 
 	unsigned int		cpu;
 	unsigned short		index_hw[HCTX_MAX_TYPES];
