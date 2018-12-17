@@ -357,7 +357,7 @@ static noinline void check_cmpxchg(struct xarray *xa)
 static noinline void check_reserve(struct xarray *xa)
 {
 	void *entry;
-	unsigned long index = 0;
+	unsigned long index;
 
 	/* An array with a reserved entry is not empty */
 	XA_BUG_ON(xa, !xa_empty(xa));
@@ -393,7 +393,7 @@ static noinline void check_reserve(struct xarray *xa)
 	xa_reserve(xa, 6, GFP_KERNEL);
 	xa_store_index(xa, 7, GFP_KERNEL);
 
-	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+	xa_for_each(xa, index, entry) {
 		XA_BUG_ON(xa, index != 5 && index != 7);
 	}
 	xa_destroy(xa);
@@ -812,17 +812,16 @@ static noinline void check_find_1(struct xarray *xa)
 static noinline void check_find_2(struct xarray *xa)
 {
 	void *entry;
-	unsigned long i, j, index = 0;
+	unsigned long i, j, index;
 
-	xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+	xa_for_each(xa, index, entry) {
 		XA_BUG_ON(xa, true);
 	}
 
 	for (i = 0; i < 1024; i++) {
 		xa_store_index(xa, index, GFP_KERNEL);
 		j = 0;
-		index = 0;
-		xa_for_each(xa, entry, index, ULONG_MAX, XA_PRESENT) {
+		xa_for_each(xa, index, entry) {
 			XA_BUG_ON(xa, xa_mk_index(index) != entry);
 			XA_BUG_ON(xa, index != j++);
 		}

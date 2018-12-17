@@ -359,20 +359,45 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
 }
 
 /**
- * xa_for_each() - Iterate over a portion of an XArray.
+ * xa_for_each_start() - Iterate over a portion of an XArray.
  * @xa: XArray.
- * @entry: Entry retrieved from array.
  * @index: Index of @entry.
- * @max: Maximum index to retrieve from array.
- * @filter: Selection criterion.
+ * @entry: Entry retrieved from array.
+ * @start: First index to retrieve from array.
  *
- * Initialise @index to the lowest index you want to retrieve from the
- * array.  During the iteration, @entry will have the value of the entry
- * stored in @xa at @index.  The iteration will skip all entries in the
- * array which do not match @filter.  You may modify @index during the
- * iteration if you want to skip or reprocess indices.  It is safe to modify
- * the array during the iteration.  At the end of the iteration, @entry will
- * be set to NULL and @index will have a value less than or equal to max.
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  You may modify @index during the iteration if you
+ * want to skip or reprocess indices.  It is safe to modify the array
+ * during the iteration.  At the end of the iteration, @entry will be set
+ * to NULL and @index will have a value less than or equal to max.
+ *
+ * xa_for_each_start() is O(n.log(n)) while xas_for_each() is O(n).  You have
+ * to handle your own locking with xas_for_each(), and if you have to unlock
+ * after each iteration, it will also end up being O(n.log(n)).
+ * xa_for_each_start() will spin if it hits a retry entry; if you intend to
+ * see retry entries, you should use the xas_for_each() iterator instead.
+ * The xas_for_each() iterator will expand into more inline code than
+ * xa_for_each_start().
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ */
+#define xa_for_each_start(xa, index, entry, start)			\
+	for (index = start,						\
+	     entry = xa_find(xa, &index, ULONG_MAX, XA_PRESENT);	\
+	     entry;							\
+	     entry = xa_find_after(xa, &index, ULONG_MAX, XA_PRESENT))
+
+/**
+ * xa_for_each() - Iterate over present entries in an XArray.
+ * @xa: XArray.
+ * @index: Index of @entry.
+ * @entry: Entry retrieved from array.
+ *
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  You may modify @index during the iteration if you want
+ * to skip or reprocess indices.  It is safe to modify the array during the
+ * iteration.  At the end of the iteration, @entry will be set to NULL and
+ * @index will have a value less than or equal to max.
  *
  * xa_for_each() is O(n.log(n)) while xas_for_each() is O(n).  You have
  * to handle your own locking with xas_for_each(), and if you have to unlock
@@ -383,9 +408,36 @@ static inline bool xa_marked(const struct xarray *xa, xa_mark_t mark)
  *
  * Context: Any context.  Takes and releases the RCU lock.
  */
-#define xa_for_each(xa, entry, index, max, filter) \
-	for (entry = xa_find(xa, &index, max, filter); entry; \
-	     entry = xa_find_after(xa, &index, max, filter))
+#define xa_for_each(xa, index, entry) \
+	xa_for_each_start(xa, index, entry, 0)
+
+/**
+ * xa_for_each_marked() - Iterate over marked entries in an XArray.
+ * @xa: XArray.
+ * @index: Index of @entry.
+ * @entry: Entry retrieved from array.
+ * @filter: Selection criterion.
+ *
+ * During the iteration, @entry will have the value of the entry stored
+ * in @xa at @index.  The iteration will skip all entries in the array
+ * which do not match @filter.  You may modify @index during the iteration
+ * if you want to skip or reprocess indices.  It is safe to modify the array
+ * during the iteration.  At the end of the iteration, @entry will be set to
+ * NULL and @index will have a value less than or equal to max.
+ *
+ * xa_for_each_marked() is O(n.log(n)) while xas_for_each_marked() is O(n).
+ * You have to handle your own locking with xas_for_each(), and if you have
+ * to unlock after each iteration, it will also end up being O(n.log(n)).
+ * xa_for_each_marked() will spin if it hits a retry entry; if you intend to
+ * see retry entries, you should use the xas_for_each_marked() iterator
+ * instead.  The xas_for_each_marked() iterator will expand into more inline
+ * code than xa_for_each_marked().
+ *
+ * Context: Any context.  Takes and releases the RCU lock.
+ */
+#define xa_for_each_marked(xa, index, entry, filter) \
+	for (index = 0, entry = xa_find(xa, &index, ULONG_MAX, filter); \
+	     entry; entry = xa_find_after(xa, &index, ULONG_MAX, filter))
 
 #define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
 #define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
