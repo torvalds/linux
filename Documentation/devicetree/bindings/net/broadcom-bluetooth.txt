@@ -10,6 +10,7 @@ device the slave device is attached to.
 Required properties:
 
  - compatible: should contain one of the following:
+   * "brcm,bcm20702a1"
    * "brcm,bcm43438-bt"
 
 Optional properties:
