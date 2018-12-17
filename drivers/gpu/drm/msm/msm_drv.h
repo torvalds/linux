@@ -126,7 +126,7 @@ struct msm_display_topology {
 
 /**
  * struct msm_display_info - defines display properties
- * @intf_type:          DRM_MODE_CONNECTOR_ display type
+ * @intf_type:          DRM_MODE_ENCODER_ type
  * @capabilities:       Bitmask of display flags
  * @num_of_h_tiles:     Number of horizontal tiles in case of split interface
  * @h_tile_instance:    Controller instance used per tile. Number of elements is
