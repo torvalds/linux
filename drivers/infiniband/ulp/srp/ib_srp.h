@@ -67,6 +67,8 @@ enum {
 	SRP_TAG_TSK_MGMT	= 1U << 31,
 
 	SRP_MAX_PAGES_PER_MR	= 512,
+
+	SRP_MAX_ADD_CDB_LEN	= 16,
 };
 
 enum srp_target_state {

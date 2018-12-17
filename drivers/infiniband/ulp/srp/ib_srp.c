@@ -1782,7 +1782,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	u8 fmt;
 
 	if (!scsi_sglist(scmnd) || scmnd->sc_data_direction == DMA_NONE)
-		return sizeof (struct srp_cmd);
+		return sizeof(struct srp_cmd) + cmd->add_cdb_len;
 
 	if (scmnd->sc_data_direction != DMA_FROM_DEVICE &&
 	    scmnd->sc_data_direction != DMA_TO_DEVICE) {
@@ -1803,7 +1803,8 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		return -EIO;
 
 	fmt = SRP_DATA_DESC_DIRECT;
-	len = sizeof (struct srp_cmd) +	sizeof (struct srp_direct_buf);
+	len = sizeof(struct srp_cmd) + cmd->add_cdb_len +
+		sizeof(struct srp_direct_buf);
 
 	if (count == 1 && target->global_rkey) {
 		/*
@@ -1812,8 +1813,9 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		 * single entry.  So a direct descriptor along with
 		 * the DMA MR suffices.
 		 */
-		struct srp_direct_buf *buf = (void *) cmd->add_data;
+		struct srp_direct_buf *buf;
 
+		buf = (void *)cmd->add_data + cmd->add_cdb_len;
 		buf->va  = cpu_to_be64(ib_sg_dma_address(ibdev, scat));
 		buf->key = cpu_to_be32(target->global_rkey);
 		buf->len = cpu_to_be32(ib_sg_dma_len(ibdev, scat));
@@ -1826,7 +1828,7 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	 * We have more than one scatter/gather entry, so build our indirect
 	 * descriptor table, trying to merge as many entries as we can.
 	 */
-	indirect_hdr = (void *) cmd->add_data;
+	indirect_hdr = (void *)cmd->add_data + cmd->add_cdb_len;
 
 	ib_dma_sync_single_for_cpu(ibdev, req->indirect_dma_addr,
 				   target->indirect_size, DMA_TO_DEVICE);
@@ -1861,8 +1863,9 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 		 * Memory registration collapsed the sg-list into one entry,
 		 * so use a direct descriptor.
 		 */
-		struct srp_direct_buf *buf = (void *) cmd->add_data;
+		struct srp_direct_buf *buf;
 
+		buf = (void *)cmd->add_data + cmd->add_cdb_len;
 		*buf = req->indirect_desc[0];
 		goto map_complete;
 	}
@@ -1880,7 +1883,8 @@ static int srp_map_data(struct scsi_cmnd *scmnd, struct srp_rdma_ch *ch,
 	idb_len = sizeof(struct srp_indirect_buf) + table_len;
 
 	fmt = SRP_DATA_DESC_INDIRECT;
-	len = sizeof(struct srp_cmd) + sizeof (struct srp_indirect_buf);
+	len = sizeof(struct srp_cmd) + cmd->add_cdb_len +
+		sizeof(struct srp_indirect_buf);
 	len += count * sizeof (struct srp_direct_buf);
 
 	memcpy(indirect_hdr->desc_list, req->indirect_desc,
@@ -2324,6 +2328,12 @@ static int srp_queuecommand(struct Scsi_Host *shost, struct scsi_cmnd *scmnd)
 	int_to_scsilun(scmnd->device->lun, &cmd->lun);
 	cmd->tag    = tag;
 	memcpy(cmd->cdb, scmnd->cmnd, scmnd->cmd_len);
+	if (unlikely(scmnd->cmd_len > sizeof(cmd->cdb))) {
+		cmd->add_cdb_len = round_up(scmnd->cmd_len - sizeof(cmd->cdb),
+					    4);
+		if (WARN_ON_ONCE(cmd->add_cdb_len > SRP_MAX_ADD_CDB_LEN))
+			goto err_iu;
+	}
 
 	req->scmnd    = scmnd;
 	req->cmd      = iu;
@@ -3829,6 +3839,7 @@ static ssize_t srp_create_target(struct device *dev,
 	target->indirect_size = target->sg_tablesize *
 				sizeof (struct srp_direct_buf);
 	target->max_iu_len = sizeof (struct srp_cmd) +
+			     SRP_MAX_ADD_CDB_LEN +
 			     sizeof (struct srp_indirect_buf) +
 			     target->cmd_sg_cnt * sizeof (struct srp_direct_buf);
 
