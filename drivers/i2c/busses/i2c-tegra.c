@@ -145,8 +145,8 @@ enum msg_end_type {
  * @has_continue_xfer_support: Continue transfer supports.
  * @has_per_pkt_xfer_complete_irq: Has enable/disable capability for transfer
  *		complete interrupt per packet basis.
- * @has_single_clk_source: The i2c controller has single clock source. Tegra30
- *		and earlier Socs has two clock sources i.e. div-clk and
+ * @has_single_clk_source: The I2C controller has single clock source. Tegra30
+ *		and earlier SoCs have two clock sources i.e. div-clk and
  *		fast-clk.
  * @has_config_load_reg: Has the config load register to load the new
  *		configuration.
@@ -155,7 +155,6 @@ enum msg_end_type {
  *		applicable if there is no fast clock source i.e. single clock
  *		source.
  */
-
 struct tegra_i2c_hw_feature {
 	bool has_continue_xfer_support;
 	bool has_per_pkt_xfer_complete_irq;
@@ -170,22 +169,22 @@ struct tegra_i2c_hw_feature {
 };
 
 /**
- * struct tegra_i2c_dev	- per device i2c context
+ * struct tegra_i2c_dev - per device I2C context
  * @dev: device reference for power management
- * @hw: Tegra i2c hw feature.
- * @adapter: core i2c layer adapter information
- * @div_clk: clock reference for div clock of i2c controller.
- * @fast_clk: clock reference for fast clock of i2c controller.
+ * @hw: Tegra I2C HW feature
+ * @adapter: core I2C layer adapter information
+ * @div_clk: clock reference for div clock of I2C controller
+ * @fast_clk: clock reference for fast clock of I2C controller
  * @base: ioremapped registers cookie
- * @cont_id: i2c controller id, used for for packet header
- * @irq: irq number of transfer complete interrupt
- * @is_dvc: identifies the DVC i2c controller, has a different register layout
+ * @cont_id: I2C controller ID, used for packet header
+ * @irq: IRQ number of transfer complete interrupt
+ * @is_dvc: identifies the DVC I2C controller, has a different register layout
  * @msg_complete: transfer completion notifier
  * @msg_err: error code for completed message
  * @msg_buf: pointer to current message data
  * @msg_buf_remaining: size of unsent data in the message buffer
  * @msg_read: identifies read transfers
- * @bus_clk_rate: current i2c bus clock rate
+ * @bus_clk_rate: current I2C bus clock rate
  */
 struct tegra_i2c_dev {
 	struct device *dev;
