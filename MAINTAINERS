@@ -15801,6 +15801,7 @@ F:	drivers/media/usb/zr364xx/
 USER-MODE LINUX (UML)
 M:	Jeff Dike <jdike@addtoit.com>
 M:	Richard Weinberger <richard@nod.at>
+M:	Anton Ivanov <anton.ivanov@cambridgegreys.com>
 L:	linux-um@lists.infradead.org
 W:	http://user-mode-linux.sourceforge.net
 Q:	https://patchwork.ozlabs.org/project/linux-um/list/
