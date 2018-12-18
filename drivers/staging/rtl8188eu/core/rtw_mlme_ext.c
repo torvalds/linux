@@ -4025,7 +4025,7 @@ static u8 init_channel_set(struct adapter *padapter, u8 ChannelPlan,
 	return chanset_size;
 }
 
-int	init_mlme_ext_priv(struct adapter *padapter)
+int init_mlme_ext_priv(struct adapter *padapter)
 {
 	struct registry_priv *pregistrypriv = &padapter->registrypriv;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
@@ -5205,7 +5205,7 @@ u8 setauth_hdl(struct adapter *padapter, unsigned char *pbuf)
 
 	if (pparm->mode < 4)
 		pmlmeinfo->auth_algo = pparm->mode;
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 u8 setkey_hdl(struct adapter *padapter, u8 *pbuf)
@@ -5310,7 +5310,7 @@ u8 add_ba_hdl(struct adapter *padapter, unsigned char *pbuf)
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, pparm->addr);
 
 	if (!psta)
-		return	H2C_SUCCESS;
+		return H2C_SUCCESS;
 
 	if (((pmlmeinfo->state & WIFI_FW_ASSOC_SUCCESS) && (pmlmeinfo->HT_enable)) ||
 	    ((pmlmeinfo->state&0x03) == WIFI_FW_AP_STATE)) {
@@ -5320,7 +5320,7 @@ u8 add_ba_hdl(struct adapter *padapter, unsigned char *pbuf)
 	} else {
 		psta->htpriv.candidate_tid_bitmap &= ~BIT(pparm->tid);
 	}
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 u8 set_tx_beacon_cmd(struct adapter *padapter)
@@ -5471,7 +5471,7 @@ u8 set_ch_hdl(struct adapter *padapter, u8 *pbuf)
 
 	set_channel_bwmode(padapter, set_ch_parm->ch, set_ch_parm->ch_offset, set_ch_parm->bw);
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
 
 u8 set_chplan_hdl(struct adapter *padapter, unsigned char *pbuf)
@@ -5487,5 +5487,5 @@ u8 set_chplan_hdl(struct adapter *padapter, unsigned char *pbuf)
 	pmlmeext->max_chan_nums = init_channel_set(padapter, setChannelPlan_param->channel_plan, pmlmeext->channel_set);
 	init_channel_list(padapter, pmlmeext->channel_set, pmlmeext->max_chan_nums, &pmlmeext->channel_list);
 
-	return	H2C_SUCCESS;
+	return H2C_SUCCESS;
 }
