@@ -98,6 +98,8 @@ void usage(void) __noreturn;
 
 void set_max_rlimit(void);
 
+int mount_tracefs(const char *target);
+
 struct pinned_obj_table {
 	DECLARE_HASHTABLE(table, 16);
 };
