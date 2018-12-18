@@ -155,6 +155,9 @@ size_t syscall_arg__scnprintf_pkey_alloc_access_rights(char *bf, size_t size, st
 size_t syscall_arg__scnprintf_open_flags(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_OPEN_FLAGS syscall_arg__scnprintf_open_flags
 
+size_t syscall_arg__scnprintf_x86_arch_prctl_code(char *bf, size_t size, struct syscall_arg *arg);
+#define SCA_X86_ARCH_PRCTL_CODE syscall_arg__scnprintf_x86_arch_prctl_code
+
 size_t syscall_arg__scnprintf_prctl_option(char *bf, size_t size, struct syscall_arg *arg);
 #define SCA_PRCTL_OPTION syscall_arg__scnprintf_prctl_option
 
