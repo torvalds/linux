@@ -365,8 +365,9 @@
 		pinctrl-0 = <&pmic_int_l>;
 		pinctrl-1 = <&soc_slppin_slp>, <&rk809_slppin_slp>;
 		pinctrl-2 = <&soc_slppin_gpio>, <&rk809_slppin_pwrdn>;
-		pinctrl-3 = <&soc_slppin_rst>, <&rk809_slppin_rst>;
+		pinctrl-3 = <&soc_slppin_gpio>,<&rk809_slppin_rst>;
 		rockchip,system-power-controller;
+		pmic-reset-func = <0>;
 		wakeup-source;
 		#clock-cells = <1>;
 		clock-output-names = "rk808-clkout1", "rk808-clkout2";
@@ -1008,11 +1009,6 @@
 		soc_slppin_slp: soc-slppin-slp {
 			rockchip,pins =
 				<1 RK_PA5 1 &pcfg_pull_none>;
-		};
-
-		soc_slppin_rst: soc-slppin-rst {
-			rockchip,pins =
-				<1 RK_PA5 2 &pcfg_pull_none>;
 		};
 	};
 
