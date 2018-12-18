@@ -1843,10 +1843,20 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SK_SKB,
 	},
 	{
-		"invalid 64B read of family in SK_MSG",
+		"valid access size in SK_MSG",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct sk_msg_md, size)),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SK_MSG,
+	},
+	{
+		"invalid 64B read of size in SK_MSG",
 		.insns = {
 			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_1,
-				    offsetof(struct sk_msg_md, family)),
+				    offsetof(struct sk_msg_md, size)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -1857,7 +1867,7 @@ static struct bpf_test tests[] = {
 		"invalid read past end of SK_MSG",
 		.insns = {
 			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
-				    offsetof(struct sk_msg_md, local_port) + 4),
+				    offsetof(struct sk_msg_md, size) + 4),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "R0 !read_ok",
