@@ -91,6 +91,9 @@ static bool get_tracefs_pipe(char *mnt)
 	if (found && validate_tracefs_mnt(mnt, TRACEFS_MAGIC))
 		goto exit_found;
 
+	if (block_mount)
+		return false;
+
 	p_info("could not find tracefs, attempting to mount it now");
 	/* Most of the time, tracefs is automatically mounted by debugfs at
 	 * /sys/kernel/debug/tracing when we try to access it. If we could not

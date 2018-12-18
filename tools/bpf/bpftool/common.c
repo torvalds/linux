@@ -177,6 +177,12 @@ int mount_bpffs_for_pin(const char *name)
 		/* nothing to do if already mounted */
 		goto out_free;
 
+	if (block_mount) {
+		p_err("no BPF file system found, not mounting it due to --nomount option");
+		err = -1;
+		goto out_free;
+	}
+
 	err = mnt_fs(dir, "bpf", err_str, ERR_MAX_LEN);
 	if (err) {
 		err_str[ERR_MAX_LEN - 1] = '\0';

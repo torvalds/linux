@@ -24,6 +24,7 @@ json_writer_t *json_wtr;
 bool pretty_output;
 bool json_output;
 bool show_pinned;
+bool block_mount;
 int bpf_flags;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
@@ -313,6 +314,7 @@ int main(int argc, char **argv)
 		{ "version",	no_argument,	NULL,	'V' },
 		{ "bpffs",	no_argument,	NULL,	'f' },
 		{ "mapcompat",	no_argument,	NULL,	'm' },
+		{ "nomount",	no_argument,	NULL,	'n' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -321,13 +323,14 @@ int main(int argc, char **argv)
 	pretty_output = false;
 	json_output = false;
 	show_pinned = false;
+	block_mount = false;
 	bin_name = argv[0];
 
 	hash_init(prog_table.table);
 	hash_init(map_table.table);
 
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "Vhpjfm",
+	while ((opt = getopt_long(argc, argv, "Vhpjfmn",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -353,6 +356,9 @@ int main(int argc, char **argv)
 			break;
 		case 'm':
 			bpf_flags = MAPS_RELAX_COMPAT;
+			break;
+		case 'n':
+			block_mount = true;
 			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
