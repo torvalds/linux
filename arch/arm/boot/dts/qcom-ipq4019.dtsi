@@ -13,12 +13,14 @@
 
 /dts-v1/;
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/qcom,gcc-ipq4019.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	model = "Qualcomm Technologies, Inc. IPQ4019";
 	compatible = "qcom,ipq4019";
 	interrupt-parent = <&intc>;
