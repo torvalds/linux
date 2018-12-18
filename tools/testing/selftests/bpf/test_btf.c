@@ -3408,7 +3408,7 @@ static int do_test_file(unsigned int test_num)
 		goto done;
 	}
 	rec_size = info.func_info_rec_size;
-	if (CHECK(rec_size < 4,
+	if (CHECK(rec_size != sizeof(struct bpf_func_info),
 		  "incorrect info.func_info_rec_size (1st) %d\n", rec_size)) {
 		err = -1;
 		goto done;
@@ -4544,7 +4544,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 	}
 
 	rec_size = info.func_info_rec_size;
-	if (CHECK(rec_size < 8,
+	if (CHECK(rec_size != sizeof(struct bpf_func_info),
 		  "incorrect info.func_info_rec_size (1st) %d", rec_size)) {
 		return -1;
 	}
@@ -4573,7 +4573,7 @@ static int test_get_finfo(const struct prog_info_raw_test *test,
 		err = -1;
 		goto done;
 	}
-	if (CHECK(info.func_info_rec_size < 8,
+	if (CHECK(info.func_info_rec_size != rec_size,
 		  "incorrect info.func_info_rec_size (2nd) %d",
 		  info.func_info_rec_size)) {
 		err = -1;
@@ -4649,8 +4649,8 @@ static int test_get_linfo(const struct prog_info_raw_test *test,
 		goto done;
 	}
 
-	if (CHECK(info.line_info_rec_size < 16 ||
-		  info.jited_line_info_rec_size < 8,
+	if (CHECK(info.line_info_rec_size != sizeof(struct bpf_line_info) ||
+		  info.jited_line_info_rec_size != sizeof(__u64),
 		  "info: line_info_rec_size:%u(userspace expected:%u) jited_line_info_rec_size:%u(userspace expected:%u)",
 		  info.line_info_rec_size, rec_size,
 		  info.jited_line_info_rec_size, jited_rec_size)) {
