@@ -251,7 +251,7 @@ static int xfrmi_rcv_cb(struct sk_buff *skb, int err)
 	struct xfrm_if *xi;
 	bool xnet;
 
-	if (err && !skb->sp)
+	if (err && !secpath_exists(skb))
 		return 0;
 
 	x = xfrm_input_state(skb);
