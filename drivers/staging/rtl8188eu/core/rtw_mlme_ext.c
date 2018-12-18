@@ -333,7 +333,7 @@ static void issue_beacon(struct adapter *padapter, int timeout_ms)
 	}
 #if defined(CONFIG_88EU_AP_MODE)
 	spin_lock_bh(&pmlmepriv->bcn_update_lock);
-#endif /* if defined (CONFIG_88EU_AP_MODE) */
+#endif
 
 	/* update attribute */
 	pattrib = &pmgntframe->attrib;
@@ -436,7 +436,7 @@ _issue_bcn:
 	pmlmepriv->update_bcn = false;
 
 	spin_unlock_bh(&pmlmepriv->bcn_update_lock);
-#endif /* if defined (CONFIG_88EU_AP_MODE) */
+#endif
 
 	if ((pattrib->pktlen + TXDESC_SIZE) > 512) {
 		DBG_88E("beacon frame too large\n");
@@ -465,7 +465,7 @@ static void issue_probersp(struct adapter *padapter, unsigned char *da)
 	u8 *pwps_ie;
 	uint wps_ielen;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-#endif /* if defined (CONFIG_88EU_AP_MODE) */
+#endif
 	struct mlme_ext_priv *pmlmeext = &(padapter->mlmeextpriv);
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	struct wlan_bssid_ex *cur_network = &(pmlmeinfo->network);
@@ -4087,7 +4087,7 @@ void mgt_dispatcher(struct adapter *padapter, struct recv_frame *precv_frame)
 	struct mlme_handler *ptable;
 #ifdef CONFIG_88EU_AP_MODE
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-#endif /* CONFIG_88EU_AP_MODE */
+#endif
 	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	u8 *pframe = precv_frame->pkt->data;
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, GetAddr2Ptr(pframe));
