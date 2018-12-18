@@ -50,6 +50,7 @@ static const struct mfd_cell rk618_devs[] = {
 
 static int rk618_power_on(struct rk618 *rk618)
 {
+	u32 reg;
 	int ret;
 
 	ret = regulator_enable(rk618->supply);
@@ -62,11 +63,15 @@ static int rk618_power_on(struct rk618 *rk618)
 		gpiod_direction_output(rk618->enable_gpio, 1);
 
 	usleep_range(1000, 2000);
-	gpiod_direction_output(rk618->reset_gpio, 0);
-	usleep_range(2000, 4000);
-	gpiod_direction_output(rk618->reset_gpio, 1);
-	usleep_range(50000, 60000);
-	gpiod_direction_output(rk618->reset_gpio, 0);
+
+	ret = regmap_read(rk618->regmap, 0x0000, &reg);
+	if (ret) {
+		gpiod_direction_output(rk618->reset_gpio, 0);
+		usleep_range(2000, 4000);
+		gpiod_direction_output(rk618->reset_gpio, 1);
+		usleep_range(50000, 60000);
+		gpiod_direction_output(rk618->reset_gpio, 0);
+	}
 
 	return 0;
 }
@@ -136,16 +141,16 @@ rk618_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	ret = rk618_power_on(rk618);
-	if (ret)
-		goto err_clk_disable;
-
 	rk618->regmap = devm_regmap_init_i2c(client, &rk618_regmap_config);
 	if (IS_ERR(rk618->regmap)) {
 		ret = PTR_ERR(rk618->regmap);
 		dev_err(dev, "failed to allocate register map: %d\n", ret);
 		goto err_clk_disable;
 	}
+
+	ret = rk618_power_on(rk618);
+	if (ret)
+		goto err_clk_disable;
 
 	ret = mfd_add_devices(dev, -1, rk618_devs, ARRAY_SIZE(rk618_devs),
 			      NULL, 0, NULL);
