@@ -3592,6 +3592,7 @@ static unsigned int OnAction_back(struct adapter *padapter,
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 	u8 *pframe = precv_frame->pkt->data;
 	struct sta_priv *pstapriv = &padapter->stapriv;
+
 	/* check RA matches or not */
 	if (memcmp(myid(&(padapter->eeprompriv)), GetAddr1Ptr(pframe),
 		   ETH_ALEN))/* for if1, sta/ap mode */
