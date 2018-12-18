@@ -33,8 +33,8 @@ config SND_SOC_SOF_INTEL_COMMON
 	tristate
 	select SND_SOC_ACPI_INTEL_MATCH
 	select SND_SOC_SOF_XTENSA
-	select SND_SOC_SOF
 	select SND_SOC_INTEL_MACH
+	select SND_SOC_ACPI if ACPI
 	help
           This option is not user-selectable but automagically handled by
 	  'select' statements at a higher level
