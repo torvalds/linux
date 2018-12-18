@@ -670,7 +670,7 @@ skip_adpt_alloc:
 		goto err_free_adpt;
 
 	pcm->private_data = channel;
-	snprintf(pcm->name, sizeof(pcm->name), device_name);
+	strscpy(pcm->name, device_name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, direction, &pcm_ops);
 
 	if (create) {
