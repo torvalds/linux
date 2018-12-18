@@ -439,6 +439,52 @@ static int smu_v11_0_get_clk_info_from_vbios(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
+{
+	struct smu_table_context *smu_table = &smu->smu_table;
+	struct smu_table *memory_pool = &smu_table->memory_pool;
+	int ret = 0;
+	uint64_t address;
+	uint32_t address_low, address_high;
+
+	if (memory_pool->size == 0 || memory_pool->cpu_addr == NULL)
+		return ret;
+
+	address = (uint64_t)memory_pool->cpu_addr;
+	address_high = (uint32_t)upper_32_bits(address);
+	address_low  = (uint32_t)lower_32_bits(address);
+
+	ret = smu_send_smc_msg_with_param(smu,
+					  PPSMC_MSG_SetSystemVirtualDramAddrHigh,
+					  address_high);
+	if (ret)
+		return ret;
+	ret = smu_send_smc_msg_with_param(smu,
+					  PPSMC_MSG_SetSystemVirtualDramAddrLow,
+					  address_low);
+	if (ret)
+		return ret;
+
+	address = memory_pool->mc_address;
+	address_high = (uint32_t)upper_32_bits(address);
+	address_low  = (uint32_t)lower_32_bits(address);
+
+	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_DramLogSetDramAddrHigh,
+					  address_high);
+	if (ret)
+		return ret;
+	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_DramLogSetDramAddrLow,
+					  address_low);
+	if (ret)
+		return ret;
+	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_DramLogSetDramSize,
+					  (uint32_t)memory_pool->size);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -453,6 +499,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.fini_power = smu_v11_0_fini_power,
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 	.get_clk_info_from_vbios = smu_v11_0_get_clk_info_from_vbios,
+	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
