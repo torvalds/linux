@@ -853,6 +853,51 @@ static void vsc85xx_tr_write(struct phy_device *phydev, u16 addr, u32 val)
 	__phy_write(phydev, MSCC_PHY_TR_CNTL, TR_WRITE | TR_ADDR(addr));
 }
 
+static int vsc8531_pre_init_seq_set(struct phy_device *phydev)
+{
+	int rc;
+	const struct reg_val init_seq[] = {
+		{0x0f90, 0x00688980},
+		{0x0696, 0x00000003},
+		{0x07fa, 0x0050100f},
+		{0x1686, 0x00000004},
+	};
+	unsigned int i;
+	int oldpage;
+
+	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_STANDARD,
+			      MSCC_PHY_EXT_CNTL_STATUS, SMI_BROADCAST_WR_EN,
+			      SMI_BROADCAST_WR_EN);
+	if (rc < 0)
+		return rc;
+	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_TEST,
+			      MSCC_PHY_TEST_PAGE_24, 0, 0x0400);
+	if (rc < 0)
+		return rc;
+	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_TEST,
+			      MSCC_PHY_TEST_PAGE_5, 0x0a00, 0x0e00);
+	if (rc < 0)
+		return rc;
+	rc = phy_modify_paged(phydev, MSCC_PHY_PAGE_TEST,
+			      MSCC_PHY_TEST_PAGE_8, 0x8000, 0x8000);
+	if (rc < 0)
+		return rc;
+
+	mutex_lock(&phydev->lock);
+	oldpage = phy_select_page(phydev, MSCC_PHY_PAGE_TR);
+	if (oldpage < 0)
+		goto out_unlock;
+
+	for (i = 0; i < ARRAY_SIZE(init_seq); i++)
+		vsc85xx_tr_write(phydev, init_seq[i].reg, init_seq[i].val);
+
+out_unlock:
+	oldpage = phy_restore_page(phydev, oldpage, oldpage);
+	mutex_unlock(&phydev->lock);
+
+	return oldpage;
+}
+
 static int vsc85xx_eee_init_seq_set(struct phy_device *phydev)
 {
 	const struct reg_val init_eee[] = {
@@ -1650,7 +1695,7 @@ err:
 
 static int vsc85xx_config_init(struct phy_device *phydev)
 {
-	int rc, i;
+	int rc, i, phy_id;
 	struct vsc8531_private *vsc8531 = phydev->priv;
 
 	rc = vsc85xx_default_config(phydev);
@@ -1664,6 +1709,14 @@ static int vsc85xx_config_init(struct phy_device *phydev)
 	rc = vsc85xx_edge_rate_cntl_set(phydev, vsc8531->rate_magic);
 	if (rc)
 		return rc;
+
+	phy_id = phydev->drv->phy_id & phydev->drv->phy_id_mask;
+	if (PHY_ID_VSC8531 == phy_id || PHY_ID_VSC8541 == phy_id ||
+	    PHY_ID_VSC8530 == phy_id || PHY_ID_VSC8540 == phy_id) {
+		rc = vsc8531_pre_init_seq_set(phydev);
+		if (rc)
+			return rc;
+	}
 
 	rc = vsc85xx_eee_init_seq_set(phydev);
 	if (rc)
