@@ -57,7 +57,7 @@
 
 #define VMW_BINDING_RT_BIT     0
 #define VMW_BINDING_PS_BIT     1
-#define VMW_BINDING_SO_BIT     2
+#define VMW_BINDING_SO_T_BIT   2
 #define VMW_BINDING_VB_BIT     3
 #define VMW_BINDING_UAV_BIT    4
 #define VMW_BINDING_CS_UAV_BIT 5
@@ -98,7 +98,7 @@ struct vmw_ctx_binding_state {
 	struct vmw_ctx_bindinfo_view render_targets[SVGA3D_RT_MAX];
 	struct vmw_ctx_bindinfo_tex texture_units[SVGA3D_NUM_TEXTURE_UNITS];
 	struct vmw_ctx_bindinfo_view ds_view;
-	struct vmw_ctx_bindinfo_so so_targets[SVGA3D_DX_MAX_SOTARGETS];
+	struct vmw_ctx_bindinfo_so_target so_targets[SVGA3D_DX_MAX_SOTARGETS];
 	struct vmw_ctx_bindinfo_vb vertex_buffers[SVGA3D_DX_MAX_VERTEXBUFFERS];
 	struct vmw_ctx_bindinfo_ib index_buffer;
 	struct vmw_dx_shader_bindings per_shader[SVGA3D_NUM_SHADERTYPE];
@@ -119,7 +119,7 @@ static int vmw_binding_scrub_texture(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_cb(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_dx_rt(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_scrub_sr(struct vmw_ctx_bindinfo *bi, bool rebind);
-static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind);
+static int vmw_binding_scrub_so_target(struct vmw_ctx_bindinfo *bi, bool rebind);
 static int vmw_binding_emit_dirty(struct vmw_ctx_binding_state *cbs);
 static int vmw_binding_scrub_dx_shader(struct vmw_ctx_bindinfo *bi,
 				       bool rebind);
@@ -187,7 +187,7 @@ static const size_t vmw_binding_sr_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, per_shader[4].shader_res),
 	offsetof(struct vmw_ctx_binding_state, per_shader[5].shader_res),
 };
-static const size_t vmw_binding_so_offsets[] = {
+static const size_t vmw_binding_so_target_offsets[] = {
 	offsetof(struct vmw_ctx_binding_state, so_targets),
 };
 static const size_t vmw_binding_vb_offsets[] = {
@@ -236,10 +236,10 @@ static const struct vmw_binding_info vmw_binding_infos[] = {
 		.size = sizeof(struct vmw_ctx_bindinfo_view),
 		.offsets = vmw_binding_dx_ds_offsets,
 		.scrub_func = vmw_binding_scrub_dx_rt},
-	[vmw_ctx_binding_so] = {
-		.size = sizeof(struct vmw_ctx_bindinfo_so),
-		.offsets = vmw_binding_so_offsets,
-		.scrub_func = vmw_binding_scrub_so},
+	[vmw_ctx_binding_so_target] = {
+		.size = sizeof(struct vmw_ctx_bindinfo_so_target),
+		.offsets = vmw_binding_so_target_offsets,
+		.scrub_func = vmw_binding_scrub_so_target},
 	[vmw_ctx_binding_vb] = {
 		.size = sizeof(struct vmw_ctx_bindinfo_vb),
 		.offsets = vmw_binding_vb_offsets,
@@ -874,8 +874,8 @@ static void vmw_collect_so_targets(struct vmw_ctx_binding_state *cbs,
 				   const struct vmw_ctx_bindinfo *bi,
 				   u32 max_num)
 {
-	const struct vmw_ctx_bindinfo_so *biso =
-		container_of(bi, struct vmw_ctx_bindinfo_so, bi);
+	const struct vmw_ctx_bindinfo_so_target *biso =
+		container_of(bi, struct vmw_ctx_bindinfo_so_target, bi);
 	unsigned long i;
 	SVGA3dSoTarget *so_buffer = (SVGA3dSoTarget *) cbs->bind_cmd_buffer;
 
@@ -900,11 +900,11 @@ static void vmw_collect_so_targets(struct vmw_ctx_binding_state *cbs,
 }
 
 /**
- * vmw_binding_emit_set_so - Issue delayed streamout binding commands
+ * vmw_emit_set_so_target - Issue delayed streamout binding commands
  *
  * @cbs: Pointer to the context's struct vmw_ctx_binding_state
  */
-static int vmw_emit_set_so(struct vmw_ctx_binding_state *cbs)
+static int vmw_emit_set_so_target(struct vmw_ctx_binding_state *cbs)
 {
 	const struct vmw_ctx_bindinfo *loc = &cbs->so_targets[0].bi;
 	struct {
@@ -1136,8 +1136,8 @@ static int vmw_binding_emit_dirty(struct vmw_ctx_binding_state *cbs)
 		case VMW_BINDING_PS_BIT:
 			ret = vmw_binding_emit_dirty_ps(cbs);
 			break;
-		case VMW_BINDING_SO_BIT:
-			ret = vmw_emit_set_so(cbs);
+		case VMW_BINDING_SO_T_BIT:
+			ret = vmw_emit_set_so_target(cbs);
 			break;
 		case VMW_BINDING_VB_BIT:
 			ret = vmw_emit_set_vb(cbs);
@@ -1201,18 +1201,18 @@ static int vmw_binding_scrub_dx_rt(struct vmw_ctx_bindinfo *bi, bool rebind)
 }
 
 /**
- * vmw_binding_scrub_so - Schedule a dx streamoutput buffer binding
+ * vmw_binding_scrub_so_target - Schedule a dx streamoutput buffer binding
  * scrub from a context
  *
  * @bi: single binding information.
  * @rebind: Whether to issue a bind instead of scrub command.
  */
-static int vmw_binding_scrub_so(struct vmw_ctx_bindinfo *bi, bool rebind)
+static int vmw_binding_scrub_so_target(struct vmw_ctx_bindinfo *bi, bool rebind)
 {
 	struct vmw_ctx_binding_state *cbs =
 		vmw_context_binding_state(bi->ctx);
 
-	__set_bit(VMW_BINDING_SO_BIT, &cbs->dirty);
+	__set_bit(VMW_BINDING_SO_T_BIT, &cbs->dirty);
 
 	return 0;
 }
@@ -1387,7 +1387,7 @@ u32 vmw_binding_dirtying(enum vmw_ctx_binding_type binding_type)
 		[vmw_ctx_binding_rt] = VMW_RES_DIRTY_SET,
 		[vmw_ctx_binding_dx_rt] = VMW_RES_DIRTY_SET,
 		[vmw_ctx_binding_ds] = VMW_RES_DIRTY_SET,
-		[vmw_ctx_binding_so] = VMW_RES_DIRTY_SET,
+		[vmw_ctx_binding_so_target] = VMW_RES_DIRTY_SET,
 		[vmw_ctx_binding_uav] = VMW_RES_DIRTY_SET,
 		[vmw_ctx_binding_cs_uav] = VMW_RES_DIRTY_SET,
 	};

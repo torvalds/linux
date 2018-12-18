@@ -2479,7 +2479,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 				     SVGA3dCmdHeader *header)
 {
 	struct vmw_ctx_validation_info *ctx_node = VMW_GET_CTX_NODE(sw_context);
-	struct vmw_ctx_bindinfo_so binding;
+	struct vmw_ctx_bindinfo_so_target binding;
 	struct vmw_resource *res;
 	struct {
 		SVGA3dCmdHeader header;
@@ -2509,7 +2509,7 @@ static int vmw_cmd_dx_set_so_targets(struct vmw_private *dev_priv,
 
 		binding.bi.ctx = ctx_node->ctx;
 		binding.bi.res = res;
-		binding.bi.bt = vmw_ctx_binding_so,
+		binding.bi.bt = vmw_ctx_binding_so_target,
 		binding.offset = cmd->targets[i].offset;
 		binding.size = cmd->targets[i].sizeInBytes;
 		binding.slot = i;

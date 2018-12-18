@@ -50,7 +50,7 @@ enum vmw_ctx_binding_type {
 	vmw_ctx_binding_dx_rt,
 	vmw_ctx_binding_sr,
 	vmw_ctx_binding_ds,
-	vmw_ctx_binding_so,
+	vmw_ctx_binding_so_target,
 	vmw_ctx_binding_vb,
 	vmw_ctx_binding_ib,
 	vmw_ctx_binding_uav,
@@ -132,14 +132,14 @@ struct vmw_ctx_bindinfo_view {
 };
 
 /**
- * struct vmw_ctx_bindinfo_so - StreamOutput binding metadata
+ * struct vmw_ctx_bindinfo_so_target - StreamOutput binding metadata
  *
  * @bi: struct vmw_ctx_bindinfo we derive from.
  * @offset: Device data used to reconstruct binding command.
  * @size: Device data used to reconstruct binding command.
  * @slot: Device data used to reconstruct binding command.
  */
-struct vmw_ctx_bindinfo_so {
+struct vmw_ctx_bindinfo_so_target {
 	struct vmw_ctx_bindinfo bi;
 	uint32 offset;
 	uint32 size;
