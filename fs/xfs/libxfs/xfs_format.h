@@ -916,6 +916,9 @@ static inline uint xfs_dinode_size(int version)
 
 /*
  * Values for di_format
+ *
+ * This enum is used in string mapping in xfs_trace.h; please keep the
+ * TRACE_DEFINE_ENUMs for it up to date.
  */
 typedef enum xfs_dinode_fmt {
 	XFS_DINODE_FMT_DEV,		/* xfs_dev_t */
@@ -924,6 +927,13 @@ typedef enum xfs_dinode_fmt {
 	XFS_DINODE_FMT_BTREE,		/* struct xfs_bmdr_block */
 	XFS_DINODE_FMT_UUID		/* added long ago, but never used */
 } xfs_dinode_fmt_t;
+
+#define XFS_INODE_FORMAT_STR \
+	{ XFS_DINODE_FMT_DEV,		"dev" }, \
+	{ XFS_DINODE_FMT_LOCAL,		"local" }, \
+	{ XFS_DINODE_FMT_EXTENTS,	"extent" }, \
+	{ XFS_DINODE_FMT_BTREE,		"btree" }, \
+	{ XFS_DINODE_FMT_UUID,		"uuid" }
 
 /*
  * Inode minimum and maximum sizes.

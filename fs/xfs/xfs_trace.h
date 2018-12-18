@@ -1901,11 +1901,11 @@ TRACE_EVENT(xfs_dir2_leafn_moveents,
 	{ 0,	"target" }, \
 	{ 1,	"temp" }
 
-#define XFS_INODE_FORMAT_STR \
-	{ 0,	"invalid" }, \
-	{ 1,	"local" }, \
-	{ 2,	"extent" }, \
-	{ 3,	"btree" }
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_DEV);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_LOCAL);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_EXTENTS);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_BTREE);
+TRACE_DEFINE_ENUM(XFS_DINODE_FMT_UUID);
 
 DECLARE_EVENT_CLASS(xfs_swap_extent_class,
 	TP_PROTO(struct xfs_inode *ip, int which),
