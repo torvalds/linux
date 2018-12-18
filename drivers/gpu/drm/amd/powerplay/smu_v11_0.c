@@ -486,6 +486,25 @@ static int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_parse_pptable(struct smu_context *smu)
+{
+	int ret;
+
+	struct smu_table_context *table_context = &smu->smu_table;
+
+	if (table_context->driver_pptable)
+		return -EINVAL;
+
+	table_context->driver_pptable = kzalloc(sizeof(PPTable_t), GFP_KERNEL);
+
+	if (!table_context->driver_pptable)
+		return -ENOMEM;
+
+	ret = smu_store_powerplay_table(smu);
+
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -501,6 +520,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.get_vbios_bootup_values = smu_v11_0_get_vbios_bootup_values,
 	.get_clk_info_from_vbios = smu_v11_0_get_clk_info_from_vbios,
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
+	.parse_pptable = smu_v11_0_parse_pptable,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

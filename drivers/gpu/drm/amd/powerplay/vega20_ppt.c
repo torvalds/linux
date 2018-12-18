@@ -38,6 +38,17 @@
 
 static int vega20_store_powerplay_table(struct smu_context *smu)
 {
+	ATOM_Vega20_POWERPLAYTABLE *powerplay_table = NULL;
+	struct smu_table_context *table_context = &smu->smu_table;
+
+	if (!table_context->power_play_table)
+		return -EINVAL;
+
+	powerplay_table = table_context->power_play_table;
+
+	memcpy(table_context->driver_pptable, &powerplay_table->smcPPTable,
+	       sizeof(PPTable_t));
+
 	return 0;
 }
 
