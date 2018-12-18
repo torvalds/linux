@@ -81,12 +81,12 @@
 #define		_54M_RATE_	11
 
 
-extern u8 RTW_WPA_OUI[];
-extern u8 WMM_OUI[];
-extern u8 WPS_OUI[];
-extern u8 P2P_OUI[];
+extern const u8 RTW_WPA_OUI[];
+extern const u8 WMM_OUI[];
+extern const u8 WPS_OUI[];
+extern const u8 P2P_OUI[];
 
-extern u8 WMM_PARA_OUI[];
+extern const u8 WMM_PARA_OUI[];
 
 /*  Channel Plan Type. */
 /*  Note: */

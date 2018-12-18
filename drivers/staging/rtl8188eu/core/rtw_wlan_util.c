@@ -12,18 +12,18 @@
 #include <drv_types.h>
 #include <wifi.h>
 
-static u8 ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
-static u8 ARTHEROS_OUI2[] = {0x00, 0x13, 0x74};
+static const u8 ARTHEROS_OUI1[] = {0x00, 0x03, 0x7f};
+static const u8 ARTHEROS_OUI2[] = {0x00, 0x13, 0x74};
 
-static u8 BROADCOM_OUI1[] = {0x00, 0x10, 0x18};
-static u8 BROADCOM_OUI2[] = {0x00, 0x0a, 0xf7};
+static const u8 BROADCOM_OUI1[] = {0x00, 0x10, 0x18};
+static const u8 BROADCOM_OUI2[] = {0x00, 0x0a, 0xf7};
 
-static u8 CISCO_OUI[] = {0x00, 0x40, 0x96};
-static u8 MARVELL_OUI[] = {0x00, 0x50, 0x43};
-static u8 RALINK_OUI[] = {0x00, 0x0c, 0x43};
-static u8 REALTEK_OUI[] = {0x00, 0xe0, 0x4c};
-static u8 AIRGOCAP_OUI[] = {0x00, 0x0a, 0xf5};
-static u8 EPIGRAM_OUI[] = {0x00, 0x90, 0x4c};
+static const u8 CISCO_OUI[] = {0x00, 0x40, 0x96};
+static const u8 MARVELL_OUI[] = {0x00, 0x50, 0x43};
+static const u8 RALINK_OUI[] = {0x00, 0x0c, 0x43};
+static const u8 REALTEK_OUI[] = {0x00, 0xe0, 0x4c};
+static const u8 AIRGOCAP_OUI[] = {0x00, 0x0a, 0xf5};
+static const u8 EPIGRAM_OUI[] = {0x00, 0x90, 0x4c};
 
 u8 REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 
@@ -33,20 +33,20 @@ u8 REALTEK_96B_IE[] = {0x00, 0xe0, 0x4c, 0x02, 0x01, 0x20};
 #define WAIT_FOR_BCN_TO_MIN	(6000)
 #define WAIT_FOR_BCN_TO_MAX	(20000)
 
-static u8 rtw_basic_rate_cck[4] = {
+static const u8 rtw_basic_rate_cck[4] = {
 	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_11MB | IEEE80211_BASIC_RATE_MASK
 };
 
-static u8 rtw_basic_rate_ofdm[3] = {
+static const u8 rtw_basic_rate_ofdm[3] = {
 	IEEE80211_OFDM_RATE_6MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_OFDM_RATE_12MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_OFDM_RATE_24MB | IEEE80211_BASIC_RATE_MASK
 };
 
-static u8 rtw_basic_rate_mix[7] = {
+static const u8 rtw_basic_rate_mix[7] = {
 	IEEE80211_CCK_RATE_1MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_2MB | IEEE80211_BASIC_RATE_MASK,
 	IEEE80211_CCK_RATE_5MB | IEEE80211_BASIC_RATE_MASK,

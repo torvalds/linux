@@ -211,8 +211,8 @@ int hostapd_mode_init(struct adapter *padapter);
 void hostapd_mode_unload(struct adapter *padapter);
 #endif
 
-extern u8 WPA_TKIP_CIPHER[4];
-extern u8 RSN_TKIP_CIPHER[4];
+extern const u8 WPA_TKIP_CIPHER[4];
+extern const u8 RSN_TKIP_CIPHER[4];
 extern u8 REALTEK_96B_IE[];
 extern const u8 MCS_rate_1R[16];
 
