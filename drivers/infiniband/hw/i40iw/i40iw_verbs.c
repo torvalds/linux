@@ -2816,6 +2816,7 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.iwcm->destroy_listen = i40iw_destroy_listen;
 	memcpy(iwibdev->ibdev.iwcm->ifname, netdev->name,
 	       sizeof(iwibdev->ibdev.iwcm->ifname));
+	ib_set_device_ops(&iwibdev->ibdev, &i40iw_dev_ops);
 
 	return iwibdev;
 }
