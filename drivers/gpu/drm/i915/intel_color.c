@@ -609,9 +609,25 @@ int intel_color_check(struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
 	size_t gamma_length, degamma_length;
+	uint32_t tests = DRM_COLOR_LUT_NON_DECREASING;
 
 	degamma_length = INTEL_INFO(dev_priv)->color.degamma_lut_size;
 	gamma_length = INTEL_INFO(dev_priv)->color.gamma_lut_size;
+
+	/*
+	 * All of our platforms mandate that the degamma curve be
+	 * non-decreasing.  Additionally, GLK and gen11 only accept a single
+	 * value for red, green, and blue in the degamma table.  Make sure
+	 * userspace didn't try to pass us something we can't handle.
+	 *
+	 * We don't have any extra hardware constraints on the gamma table,
+	 * so no need to explicitly check it.
+	 */
+	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10)
+		tests |= DRM_COLOR_LUT_EQUAL_CHANNELS;
+
+	if (drm_color_lut_check(crtc_state->base.degamma_lut, tests) != 0)
+		return -EINVAL;
 
 	/*
 	 * We allow both degamma & gamma luts at the right size or
