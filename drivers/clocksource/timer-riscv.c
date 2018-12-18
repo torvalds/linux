@@ -8,6 +8,7 @@
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/irq.h>
+#include <linux/sched_clock.h>
 #include <asm/smp.h>
 #include <asm/sbi.h>
 
@@ -45,6 +46,11 @@ static DEFINE_PER_CPU(struct clock_event_device, riscv_clock_event) = {
  * backwards when hopping between CPUs, practically it won't happen.
  */
 static unsigned long long riscv_clocksource_rdtime(struct clocksource *cs)
+{
+	return get_cycles64();
+}
+
+static u64 riscv_sched_clock(void)
 {
 	return get_cycles64();
 }
@@ -96,6 +102,9 @@ static int __init riscv_timer_init_dt(struct device_node *n)
 
 	cs = per_cpu_ptr(&riscv_clocksource, cpuid);
 	clocksource_register_hz(cs, riscv_timebase);
+
+	sched_clock_register(riscv_sched_clock,
+			BITS_PER_LONG, riscv_timebase);
 
 	error = cpuhp_setup_state(CPUHP_AP_RISCV_TIMER_STARTING,
 			 "clockevents/riscv/timer:starting",
