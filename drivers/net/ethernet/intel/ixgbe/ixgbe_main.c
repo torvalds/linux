@@ -8695,7 +8695,8 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 #endif /* IXGBE_FCOE */
 
 #ifdef CONFIG_IXGBE_IPSEC
-	if (skb->sp && !ixgbe_ipsec_tx(tx_ring, first, &ipsec_tx))
+	if (secpath_exists(skb) &&
+	    !ixgbe_ipsec_tx(tx_ring, first, &ipsec_tx))
 		goto out_drop;
 #endif
 	tso = ixgbe_tso(tx_ring, first, &hdr_len, &ipsec_tx);
@@ -10192,7 +10193,7 @@ ixgbe_features_check(struct sk_buff *skb, struct net_device *dev,
 	 */
 	if (skb->encapsulation && !(features & NETIF_F_TSO_MANGLEID)) {
 #ifdef CONFIG_IXGBE_IPSEC
-		if (!skb->sp)
+		if (!secpath_exists(skb))
 #endif
 			features &= ~NETIF_F_TSO;
 	}

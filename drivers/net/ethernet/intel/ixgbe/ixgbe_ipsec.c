@@ -1065,11 +1065,13 @@ int ixgbe_ipsec_tx(struct ixgbe_ring *tx_ring,
 	struct ixgbe_adapter *adapter = netdev_priv(tx_ring->netdev);
 	struct ixgbe_ipsec *ipsec = adapter->ipsec;
 	struct xfrm_state *xs;
+	struct sec_path *sp;
 	struct tx_sa *tsa;
 
-	if (unlikely(!first->skb->sp->len)) {
+	sp = skb_sec_path(first->skb);
+	if (unlikely(!sp->len)) {
 		netdev_err(tx_ring->netdev, "%s: no xfrm state len = %d\n",
-			   __func__, first->skb->sp->len);
+			   __func__, sp->len);
 		return 0;
 	}
 
