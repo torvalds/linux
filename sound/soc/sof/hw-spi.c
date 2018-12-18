@@ -155,12 +155,14 @@ static irqreturn_t spi_irq_handler(int irq __maybe_unused, void *context)
 	const struct platform_device *pdev =
 		container_of(sdev->parent, struct platform_device, dev);
 	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
+	struct sof_spi_dev *sof_spi =
+		(struct sof_spi_dev *)sof_pdata->hw_pdata;
 
 	// on SPI based devices this will likely come via a SoC GPIO IRQ
 
 	// check if GPIO is assetred and if so run thread.
-	if (sof_pdata->gpio >= 0 &&
-	    gpio_get_value(sof_pdata->gpio) == sof_pdata->active)
+	if (sof_spi->gpio >= 0 &&
+	    gpio_get_value(sof_spi->gpio) == sof_spi->active)
 		return IRQ_WAKE_THREAD;
 
 	return IRQ_NONE;
@@ -237,6 +239,8 @@ static int spi_sof_probe(struct snd_sof_dev *sdev)
 	struct platform_device *pdev =
 		container_of(sdev->parent, struct platform_device, dev);
 	struct snd_sof_pdata *sof_pdata = dev_get_platdata(&pdev->dev);
+	struct sof_spi_dev *sof_spi =
+                (struct sof_spi_dev *)sof_pdata->hw_pdata;
 	/* get IRQ from Device tree or ACPI - register our IRQ */
 	struct irq_data *irqd;
 	struct spi_device *spi = to_spi_device(pdev->dev.parent);
@@ -251,7 +255,7 @@ static int spi_sof_probe(struct snd_sof_dev *sdev)
 
 	irq_trigger = irqd_get_trigger_type(irqd);
 	irq_sense = irq_trigger & IRQ_TYPE_SENSE_MASK;
-	sof_pdata->active = irq_sense == IRQ_TYPE_EDGE_RISING ||
+	sof_spi->active = irq_sense == IRQ_TYPE_EDGE_RISING ||
 		irq_sense == IRQ_TYPE_LEVEL_HIGH;
 
 	ret = devm_request_threaded_irq(sdev->dev, sdev->ipc_irq,

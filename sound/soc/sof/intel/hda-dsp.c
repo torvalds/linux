@@ -246,7 +246,9 @@ int hda_dsp_core_reset_power_down(struct snd_sof_dev *sdev,
 
 static int hda_suspend(struct snd_sof_dev *sdev, int state)
 {
-	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 #endif

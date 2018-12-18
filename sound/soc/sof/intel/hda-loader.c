@@ -82,7 +82,9 @@ static int cl_dsp_init(struct snd_sof_dev *sdev, const void *fwdata,
 {
 	int tag, ret, i;
 	u32 hipcie;
-	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 
 	/* prepare DMA for code loader stream */
 	tag = cl_stream_prepare(sdev, 0x40, fwsize, &sdev->dmab,

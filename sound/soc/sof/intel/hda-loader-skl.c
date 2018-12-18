@@ -308,7 +308,9 @@ static void cl_cleanup_skl(struct snd_sof_dev *sdev)
 
 static int cl_dsp_init_skl(struct snd_sof_dev *sdev)
 {
-	const struct sof_intel_dsp_desc *chip = sdev->hda->desc;
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip = hda->desc;
 	int ret;
 
 	/* check if the core is already enabled, if yes, reset and make it run,

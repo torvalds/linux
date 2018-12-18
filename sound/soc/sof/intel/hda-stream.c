@@ -80,6 +80,8 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 			     struct snd_dma_buffer *dmab,
 			     struct hdac_stream *stream)
 {
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct sof_intel_dsp_bdl *bdl;
 	int i, offset, period_bytes, periods;
 	int remain, ioc;
@@ -106,7 +108,7 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 	 * set IOC if don't use position IPC
 	 * and period_wakeup needed.
 	 */
-	ioc = sdev->hda->no_ipc_position ?
+	ioc = hda->no_ipc_position ?
 	      !stream->no_period_wakeup : 0;
 
 	for (i = 0; i < periods; i++) {

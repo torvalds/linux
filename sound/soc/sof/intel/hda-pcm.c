@@ -88,6 +88,8 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct hdac_ext_stream *stream = stream_to_hdac_ext_stream(hstream);
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct snd_dma_buffer *dmab;
 	int ret;
 	u32 size, rate, bits;
@@ -117,7 +119,7 @@ int hda_dsp_pcm_hw_params(struct snd_sof_dev *sdev,
 	hda_dsp_stream_spib_config(sdev, stream, HDA_DSP_SPIB_DISABLE, 0);
 
 	/* set host_period_bytes to 0 if no IPC position */
-	if (sdev->hda && sdev->hda->no_ipc_position)
+	if (hda && hda->no_ipc_position)
 		ipc_params->host_period_bytes = 0;
 
 	ipc_params->stream_tag = hstream->stream_tag;
@@ -139,10 +141,12 @@ snd_pcm_uframes_t hda_dsp_pcm_pointer(struct snd_sof_dev *sdev,
 {
 	struct hdac_stream *hstream = substream->runtime->private_data;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct snd_sof_pcm *spcm = rtd->private;
 	snd_pcm_uframes_t pos = 0;
 
-	if (!sdev->hda->no_ipc_position) {
+	if (hda && !hda->no_ipc_position) {
 		/* read position from IPC position */
 		pos = spcm->stream[substream->stream].posn.host_posn;
 		goto found;

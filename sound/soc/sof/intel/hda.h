@@ -369,6 +369,20 @@ struct sof_intel_hda_dev {
 	struct platform_device *dmic_dev;
 };
 
+static inline struct hdac_bus *sof_to_bus(struct snd_sof_dev *s)
+{
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)s->pdata->hw_pdata;
+	return &hda->hbus.core;
+}
+
+static inline struct hda_bus *sof_to_hbus(struct snd_sof_dev *s)
+{
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)s->pdata->hw_pdata;
+	return &hda->hbus;
+}
+
 #define bus_to_sof_hda(bus) \
 	container_of(bus, struct sof_intel_hda_dev, hbus.core)
 

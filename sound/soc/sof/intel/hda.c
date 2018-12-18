@@ -346,7 +346,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 	hdev = devm_kzalloc(&pci->dev, sizeof(*hdev), GFP_KERNEL);
 	if (!hdev)
 		return -ENOMEM;
-	sdev->hda = hdev;
+	sdev->pdata->hw_pdata = hdev;
 	hdev->desc = chip;
 
 	hdev->dmic_dev = platform_device_register_data(&pci->dev, "dmic-codec",
@@ -419,24 +419,24 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 		 * in IO-APIC mode, hda->irq and ipc_irq are using the same
 		 * irq number of pci->irq
 		 */
-		sdev->hda->irq = pci->irq;
+		hdev->irq = pci->irq;
 		sdev->ipc_irq = pci->irq;
 		sdev->msi_enabled = 0;
 	} else {
 		dev_info(sdev->dev, "use msi interrupt mode\n");
-		sdev->hda->irq = pci_irq_vector(pci, 0);
+		hdev->irq = pci_irq_vector(pci, 0);
 		/* ipc irq number is the same of hda irq */
-		sdev->ipc_irq = sdev->hda->irq;
+		sdev->ipc_irq = hdev->irq;
 		sdev->msi_enabled = 1;
 	}
 
-	dev_dbg(sdev->dev, "using HDA IRQ %d\n", sdev->hda->irq);
-	ret = request_threaded_irq(sdev->hda->irq, hda_dsp_stream_interrupt,
+	dev_dbg(sdev->dev, "using HDA IRQ %d\n", hdev->irq);
+	ret = request_threaded_irq(hdev->irq, hda_dsp_stream_interrupt,
 				   hda_dsp_stream_threaded_handler,
 				   IRQF_SHARED, "AudioHDA", bus);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: failed to register HDA IRQ %d\n",
-			sdev->hda->irq);
+			hdev->irq);
 		goto free_irq_vector;
 	}
 
@@ -526,7 +526,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
 free_hda_irq:
-	free_irq(sdev->hda->irq, bus);
+	free_irq(hdev->irq, bus);
 free_irq_vector:
 	if (sdev->msi_enabled)
 		pci_free_irq_vectors(pci);
@@ -542,20 +542,22 @@ err:
 
 int hda_dsp_remove(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct pci_dev *pci = sdev->pci;
 	const struct sof_intel_dsp_desc *chip = NULL;
 
-	if (sdev->hda)
-		chip = sdev->hda->desc;
+	if (hda)
+		chip = hda->desc;
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 	/* codec removal, invoke bus_device_remove */
 	snd_hdac_ext_bus_device_remove(bus);
 #endif
 
-	if (sdev->hda && (!IS_ERR_OR_NULL(sdev->hda->dmic_dev)))
-		platform_device_unregister(sdev->hda->dmic_dev);
+	if (hda && (!IS_ERR_OR_NULL(hda->dmic_dev)))
+		platform_device_unregister(hda->dmic_dev);
 
 	/* disable DSP IRQ */
 	snd_sof_dsp_update_bits(sdev, HDA_DSP_PP_BAR, SOF_HDA_REG_PP_PPCTL,
@@ -574,7 +576,7 @@ int hda_dsp_remove(struct snd_sof_dev *sdev)
 				SOF_HDA_PPCTL_GPROCEN, 0);
 
 	free_irq(sdev->ipc_irq, sdev);
-	free_irq(sdev->hda->irq, bus);
+	free_irq(hda->irq, bus);
 	if (sdev->msi_enabled)
 		pci_free_irq_vectors(pci);
 

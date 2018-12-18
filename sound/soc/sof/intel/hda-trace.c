@@ -21,7 +21,9 @@
 
 static int hda_dsp_trace_prepare(struct snd_sof_dev *sdev)
 {
-	struct hdac_ext_stream *stream = sdev->hda->dtrace_stream;
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+	struct hdac_ext_stream *stream = hda->dtrace_stream;
 	struct hdac_stream *hstream = &stream->hstream;
 	struct snd_dma_buffer *dmab = &sdev->dmatb;
 	int ret;
@@ -38,16 +40,19 @@ static int hda_dsp_trace_prepare(struct snd_sof_dev *sdev)
 
 int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *tag)
 {
-	sdev->hda->dtrace_stream = hda_dsp_stream_get(sdev,
-						      SNDRV_PCM_STREAM_CAPTURE);
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 
-	if (!sdev->hda->dtrace_stream) {
+	hda->dtrace_stream = hda_dsp_stream_get(sdev,
+						SNDRV_PCM_STREAM_CAPTURE);
+
+	if (hda && !hda->dtrace_stream) {
 		dev_err(sdev->dev,
 			"error: no available capture stream for DMA trace\n");
 		return -ENODEV;
 	}
 
-	*tag = sdev->hda->dtrace_stream->hstream.stream_tag;
+	*tag = hda->dtrace_stream->hstream.stream_tag;
 
 	/*
 	 * initialize capture stream, set BDL address and return corresponding
@@ -58,14 +63,16 @@ int hda_dsp_trace_init(struct snd_sof_dev *sdev, u32 *tag)
 
 int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 {
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
 	struct hdac_stream *hstream;
 
-	if (sdev->hda->dtrace_stream) {
-		hstream = &sdev->hda->dtrace_stream->hstream;
+	if (hda->dtrace_stream) {
+		hstream = &hda->dtrace_stream->hstream;
 		hda_dsp_stream_put(sdev,
 				   SNDRV_PCM_STREAM_CAPTURE,
 				   hstream->stream_tag);
-		sdev->hda->dtrace_stream = NULL;
+		hda->dtrace_stream = NULL;
 		return 0;
 	}
 
@@ -75,5 +82,8 @@ int hda_dsp_trace_release(struct snd_sof_dev *sdev)
 
 int hda_dsp_trace_trigger(struct snd_sof_dev *sdev, int cmd)
 {
-	return hda_dsp_stream_trigger(sdev, sdev->hda->dtrace_stream, cmd);
+	struct sof_intel_hda_dev *hda =
+		(struct sof_intel_hda_dev *)sdev->pdata->hw_pdata;
+
+	return hda_dsp_stream_trigger(sdev, hda->dtrace_stream, cmd);
 }
