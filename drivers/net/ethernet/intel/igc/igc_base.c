@@ -54,22 +54,6 @@ out:
 }
 
 /**
- * igc_check_for_link_base - Check for link
- * @hw: pointer to the HW structure
- *
- * If sgmii is enabled, then use the pcs register to determine link, otherwise
- * use the generic interface for determining link.
- */
-static s32 igc_check_for_link_base(struct igc_hw *hw)
-{
-	s32 ret_val = 0;
-
-	ret_val = igc_check_for_copper_link(hw);
-
-	return ret_val;
-}
-
-/**
  * igc_reset_hw_base - Reset hardware
  * @hw: pointer to the HW structure
  *
@@ -265,7 +249,7 @@ static s32 igc_init_phy_params_base(struct igc_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	igc_check_for_link_base(hw);
+	igc_check_for_copper_link(hw);
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
@@ -512,7 +496,7 @@ void igc_rx_fifo_flush_base(struct igc_hw *hw)
 
 static struct igc_mac_operations igc_mac_ops_base = {
 	.init_hw		= igc_init_hw_base,
-	.check_for_link		= igc_check_for_link_base,
+	.check_for_link		= igc_check_for_copper_link,
 	.rar_set		= igc_rar_set,
 	.read_mac_addr		= igc_read_mac_addr_base,
 	.get_speed_and_duplex	= igc_get_link_up_info_base,

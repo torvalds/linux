@@ -90,9 +90,6 @@ union igc_adv_rx_desc {
 	} wb;  /* writeback */
 };
 
-/* Adv Transmit Descriptor Config Masks */
-#define IGC_ADVTXD_PAYLEN_SHIFT	14 /* Adv desc PAYLEN shift */
-
 /* Additional Transmit Descriptor Control definitions */
 #define IGC_TXDCTL_QUEUE_ENABLE	0x02000000 /* Ena specific Tx Queue */
 
