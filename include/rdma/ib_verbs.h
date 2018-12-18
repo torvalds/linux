@@ -2504,6 +2504,12 @@ struct ib_device_ops {
 	 */
 	int (*get_hw_stats)(struct ib_device *device,
 			    struct rdma_hw_stats *stats, u8 port, int index);
+	/*
+	 * This function is called once for each port when a ib device is
+	 * registered.
+	 */
+	int (*init_port)(struct ib_device *device, u8 port_num,
+			 struct kobject *port_sysfs);
 };
 
 struct ib_device {
@@ -2620,9 +2626,7 @@ void ib_dealloc_device(struct ib_device *device);
 
 void ib_get_device_fw_str(struct ib_device *device, char *str);
 
-int ib_register_device(struct ib_device *device, const char *name,
-		       int (*port_callback)(struct ib_device *, u8,
-					    struct kobject *));
+int ib_register_device(struct ib_device *device, const char *name);
 void ib_unregister_device(struct ib_device *device);
 
 int ib_register_client   (struct ib_client *client);

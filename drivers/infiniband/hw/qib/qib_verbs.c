@@ -1494,6 +1494,7 @@ static void qib_fill_device_attr(struct qib_devdata *dd)
 }
 
 static const struct ib_device_ops qib_dev_ops = {
+	.init_port = qib_create_port_files,
 	.modify_device = qib_modify_device,
 	.process_mad = qib_process_mad,
 };
@@ -1567,7 +1568,6 @@ int qib_register_ib_device(struct qib_devdata *dd)
 	/*
 	 * Fill in rvt info object.
 	 */
-	dd->verbs_dev.rdi.driver_f.port_callback = qib_create_port_files;
 	dd->verbs_dev.rdi.driver_f.get_pci_dev = qib_get_pci_dev;
 	dd->verbs_dev.rdi.driver_f.check_ah = qib_check_ah;
 	dd->verbs_dev.rdi.driver_f.setup_wqe = qib_check_send_wqe;

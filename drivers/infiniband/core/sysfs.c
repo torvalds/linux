@@ -1015,9 +1015,7 @@ err_free_stats:
 	return;
 }
 
-static int add_port(struct ib_device *device, int port_num,
-		    int (*port_callback)(struct ib_device *,
-					 u8, struct kobject *))
+static int add_port(struct ib_device *device, int port_num)
 {
 	struct ib_port *p;
 	struct ib_port_attr attr;
@@ -1113,8 +1111,8 @@ static int add_port(struct ib_device *device, int port_num,
 	if (ret)
 		goto err_free_pkey;
 
-	if (port_callback) {
-		ret = port_callback(device, port_num, &p->kobj);
+	if (device->ops.init_port) {
+		ret = device->ops.init_port(device, port_num, &p->kobj);
 		if (ret)
 			goto err_remove_pkey;
 	}
@@ -1308,9 +1306,7 @@ static void free_port_list_attributes(struct ib_device *device)
 	kobject_put(device->ports_kobj);
 }
 
-int ib_device_register_sysfs(struct ib_device *device,
-			     int (*port_callback)(struct ib_device *,
-						  u8, struct kobject *))
+int ib_device_register_sysfs(struct ib_device *device)
 {
 	struct device *class_dev = &device->dev;
 	int ret;
@@ -1330,12 +1326,12 @@ int ib_device_register_sysfs(struct ib_device *device,
 	}
 
 	if (rdma_cap_ib_switch(device)) {
-		ret = add_port(device, 0, port_callback);
+		ret = add_port(device, 0);
 		if (ret)
 			goto err_put;
 	} else {
 		for (i = 1; i <= device->phys_port_cnt; ++i) {
-			ret = add_port(device, i, port_callback);
+			ret = add_port(device, i);
 			if (ret)
 				goto err_put;
 		}

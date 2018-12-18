@@ -3801,7 +3801,7 @@ int nes_register_ofa_device(struct nes_ib_device *nesibdev)
 
 	rdma_set_device_sysfs_group(&nesvnic->nesibdev->ibdev, &nes_attr_group);
 	nesvnic->nesibdev->ibdev.driver_id = RDMA_DRIVER_NES;
-	ret = ib_register_device(&nesvnic->nesibdev->ibdev, "nes%d", NULL);
+	ret = ib_register_device(&nesvnic->nesibdev->ibdev, "nes%d");
 	if (ret) {
 		return ret;
 	}

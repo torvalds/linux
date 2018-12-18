@@ -564,7 +564,7 @@ static int hns_roce_register_device(struct hns_roce_dev *hr_dev)
 	ib_dev->driver_id = RDMA_DRIVER_HNS;
 	ib_set_device_ops(ib_dev, hr_dev->hw->hns_roce_dev_ops);
 	ib_set_device_ops(ib_dev, &hns_roce_dev_ops);
-	ret = ib_register_device(ib_dev, "hns_%d", NULL);
+	ret = ib_register_device(ib_dev, "hns_%d");
 	if (ret) {
 		dev_err(dev, "ib_register_device failed!\n");
 		return ret;

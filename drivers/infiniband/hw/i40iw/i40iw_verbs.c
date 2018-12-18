@@ -2868,7 +2868,7 @@ int i40iw_register_rdma_device(struct i40iw_device *iwdev)
 	iwibdev = iwdev->iwibdev;
 	rdma_set_device_sysfs_group(&iwibdev->ibdev, &i40iw_attr_group);
 	iwibdev->ibdev.driver_id = RDMA_DRIVER_I40IW;
-	ret = ib_register_device(&iwibdev->ibdev, "i40iw%d", NULL);
+	ret = ib_register_device(&iwibdev->ibdev, "i40iw%d");
 	if (ret)
 		goto error;
 

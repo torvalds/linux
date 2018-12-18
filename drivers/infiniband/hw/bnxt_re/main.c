@@ -662,7 +662,7 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	rdma_set_device_sysfs_group(ibdev, &bnxt_re_dev_attr_group);
 	ibdev->driver_id = RDMA_DRIVER_BNXT_RE;
 	ib_set_device_ops(ibdev, &bnxt_re_dev_ops);
-	return ib_register_device(ibdev, "bnxt_re%d", NULL);
+	return ib_register_device(ibdev, "bnxt_re%d");
 }
 
 static void bnxt_re_dev_remove(struct bnxt_re_dev *rdev)

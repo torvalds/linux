@@ -54,9 +54,7 @@ struct pkey_index_qp_list {
 	struct list_head    qp_list;
 };
 
-int  ib_device_register_sysfs(struct ib_device *device,
-			      int (*port_callback)(struct ib_device *,
-						   u8, struct kobject *));
+int ib_device_register_sysfs(struct ib_device *device);
 void ib_device_unregister_sysfs(struct ib_device *device);
 int ib_device_rename(struct ib_device *ibdev, const char *name);
 

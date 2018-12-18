@@ -1338,7 +1338,7 @@ int mthca_register_device(struct mthca_dev *dev)
 
 	rdma_set_device_sysfs_group(&dev->ib_dev, &mthca_attr_group);
 	dev->ib_dev.driver_id = RDMA_DRIVER_MTHCA;
-	ret = ib_register_device(&dev->ib_dev, "mthca%d", NULL);
+	ret = ib_register_device(&dev->ib_dev, "mthca%d");
 	if (ret)
 		return ret;
 

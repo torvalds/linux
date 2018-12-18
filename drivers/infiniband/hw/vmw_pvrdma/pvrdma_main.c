@@ -278,7 +278,7 @@ static int pvrdma_register_device(struct pvrdma_dev *dev)
 	spin_lock_init(&dev->srq_tbl_lock);
 	rdma_set_device_sysfs_group(&dev->ib_dev, &pvrdma_attr_group);
 
-	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d", NULL);
+	ret = ib_register_device(&dev->ib_dev, "vmw_pvrdma%d");
 	if (ret)
 		goto err_srq_free;
 

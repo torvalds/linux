@@ -574,9 +574,7 @@ port_cleanup:
  * callback for each device that is added. @device must be allocated
  * with ib_alloc_device().
  */
-int ib_register_device(struct ib_device *device, const char *name,
-		       int (*port_callback)(struct ib_device *, u8,
-					    struct kobject *))
+int ib_register_device(struct ib_device *device, const char *name)
 {
 	int ret;
 	struct ib_client *client;
@@ -613,7 +611,7 @@ int ib_register_device(struct ib_device *device, const char *name,
 		goto dev_cleanup;
 	}
 
-	ret = ib_device_register_sysfs(device, port_callback);
+	ret = ib_device_register_sysfs(device);
 	if (ret) {
 		dev_warn(&device->dev,
 			 "Couldn't register device with driver model\n");
@@ -1283,6 +1281,7 @@ void ib_set_device_ops(struct ib_device *dev, const struct ib_device_ops *ops)
 	SET_DEVICE_OP(dev_ops, get_vector_affinity);
 	SET_DEVICE_OP(dev_ops, get_vf_config);
 	SET_DEVICE_OP(dev_ops, get_vf_stats);
+	SET_DEVICE_OP(dev_ops, init_port);
 	SET_DEVICE_OP(dev_ops, map_mr_sg);
 	SET_DEVICE_OP(dev_ops, map_phys_fmr);
 	SET_DEVICE_OP(dev_ops, mmap);

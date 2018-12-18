@@ -250,9 +250,6 @@ struct rvt_driver_provided {
 	 */
 	void (*do_send)(struct rvt_qp *qp);
 
-	/* Passed to ib core registration. Callback to create syfs files */
-	int (*port_callback)(struct ib_device *, u8, struct kobject *);
-
 	/*
 	 * Returns a pointer to the undelying hardware's PCI device. This is
 	 * used to display information as to what hardware is being referenced
