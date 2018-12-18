@@ -31,7 +31,6 @@ struct msm_gpu_state;
 
 struct msm_gpu_config {
 	const char *ioname;
-	const char *irqname;
 	uint64_t va_start;
 	uint64_t va_end;
 	unsigned int nr_rings;
