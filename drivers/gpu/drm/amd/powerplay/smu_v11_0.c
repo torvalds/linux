@@ -30,7 +30,6 @@
 #include "smu_v11_0_ppsmc.h"
 #include "smu11_driver_if.h"
 #include "soc15_common.h"
-#include "smu_v11_0_pptable.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -218,7 +217,7 @@ static int smu_v11_0_read_pptable_from_vbios(struct smu_context *smu)
 	int ret, index;
 	uint16_t size;
 	uint8_t frev, crev;
-	struct smu_11_0_powerplay_table *table;
+	void *table;
 
 	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 					    powerplayinfo);
