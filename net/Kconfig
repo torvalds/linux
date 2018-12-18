@@ -51,6 +51,9 @@ config NET_INGRESS
 config NET_EGRESS
 	bool
 
+config SKB_EXTENSIONS
+	bool
+
 menu "Networking options"
 
 source "net/packet/Kconfig"
