@@ -261,6 +261,31 @@ static void __sprint_engine_name(char *name, const struct engine_info *info)
 			 info->instance) >= INTEL_ENGINE_CS_MAX_NAME);
 }
 
+void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	i915_reg_t hwstam;
+
+	/*
+	 * Though they added more rings on g4x/ilk, they did not add
+	 * per-engine HWSTAM until gen6.
+	 */
+	if (INTEL_GEN(dev_priv) < 6 && engine->class != RENDER_CLASS)
+		return;
+
+	hwstam = RING_HWSTAM(engine->mmio_base);
+	if (INTEL_GEN(dev_priv) >= 3)
+		I915_WRITE(hwstam, mask);
+	else
+		I915_WRITE16(hwstam, mask);
+}
+
+static void intel_engine_sanitize_mmio(struct intel_engine_cs *engine)
+{
+	/* Mask off all writes into the unknown HWSP */
+	intel_engine_set_hwsp_writemask(engine, ~0u);
+}
+
 static int
 intel_engine_setup(struct drm_i915_private *dev_priv,
 		   enum intel_engine_id id)
@@ -311,6 +336,9 @@ intel_engine_setup(struct drm_i915_private *dev_priv,
 	seqlock_init(&engine->stats.lock);
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&engine->context_status_notifier);
+
+	/* Scrub mmio state on takeover */
+	intel_engine_sanitize_mmio(engine);
 
 	dev_priv->engine_class[info->class][info->instance] = engine;
 	dev_priv->engine[id] = engine;
@@ -495,6 +523,9 @@ void intel_engine_setup_common(struct intel_engine_cs *engine)
 
 static void cleanup_status_page(struct intel_engine_cs *engine)
 {
+	/* Prevent writes into HWSP after returning the page to the system */
+	intel_engine_set_hwsp_writemask(engine, ~0u);
+
 	if (HWS_NEEDS_PHYSICAL(engine->i915)) {
 		void *addr = fetch_and_zero(&engine->status_page.page_addr);
 

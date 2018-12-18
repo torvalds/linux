@@ -3586,9 +3586,6 @@ static void ironlake_irq_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 
-	if (IS_GEN(dev_priv, 5))
-		I915_WRITE(HWSTAM, 0xffffffff);
-
 	GEN3_IRQ_RESET(DE);
 	if (IS_GEN(dev_priv, 7))
 		I915_WRITE(GEN7_ERR_INT, 0xffffffff);
@@ -4368,8 +4365,6 @@ static void i8xx_irq_reset(struct drm_device *dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE16(HWSTAM, 0xffff);
-
 	GEN2_IRQ_RESET();
 }
 
@@ -4537,8 +4532,6 @@ static void i915_irq_reset(struct drm_device *dev)
 
 	i9xx_pipestat_irq_reset(dev_priv);
 
-	I915_WRITE(HWSTAM, 0xffffffff);
-
 	GEN3_IRQ_RESET();
 }
 
@@ -4647,8 +4640,6 @@ static void i965_irq_reset(struct drm_device *dev)
 	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	i9xx_pipestat_irq_reset(dev_priv);
-
-	I915_WRITE(HWSTAM, 0xffffffff);
 
 	GEN3_IRQ_RESET();
 }

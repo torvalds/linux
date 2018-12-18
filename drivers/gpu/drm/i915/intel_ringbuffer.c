@@ -379,11 +379,25 @@ gen7_render_ring_flush(struct i915_request *rq, u32 mode)
 	return 0;
 }
 
-static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
+static void set_hwstam(struct intel_engine_cs *engine, u32 mask)
+{
+	/*
+	 * Keep the render interrupt unmasked as this papers over
+	 * lost interrupts following a reset.
+	 */
+	if (engine->class == RENDER_CLASS) {
+		if (INTEL_GEN(engine->i915) >= 6)
+			mask &= ~BIT(0);
+		else
+			mask &= ~I915_USER_INTERRUPT;
+	}
+
+	intel_engine_set_hwsp_writemask(engine, mask);
+}
+
+static void set_hws_pga(struct intel_engine_cs *engine, phys_addr_t phys)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	struct page *page = virt_to_page(engine->status_page.page_addr);
-	phys_addr_t phys = PFN_PHYS(page_to_pfn(page));
 	u32 addr;
 
 	addr = lower_32_bits(phys);
@@ -393,12 +407,22 @@ static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
 	I915_WRITE(HWS_PGA, addr);
 }
 
-static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
+static void ring_setup_phys_status_page(struct intel_engine_cs *engine)
+{
+	struct page *page = virt_to_page(engine->status_page.page_addr);
+	phys_addr_t phys = PFN_PHYS(page_to_pfn(page));
+
+	set_hws_pga(engine, phys);
+	set_hwstam(engine, ~0u);
+}
+
+static void set_hwsp(struct intel_engine_cs *engine, u32 offset)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
-	i915_reg_t mmio;
+	i915_reg_t hwsp;
 
-	/* The ring status page addresses are no longer next to the rest of
+	/*
+	 * The ring status page addresses are no longer next to the rest of
 	 * the ring registers as of gen7.
 	 */
 	if (IS_GEN(dev_priv, 7)) {
@@ -410,56 +434,55 @@ static void intel_ring_setup_status_page(struct intel_engine_cs *engine)
 		default:
 			GEM_BUG_ON(engine->id);
 		case RCS:
-			mmio = RENDER_HWS_PGA_GEN7;
+			hwsp = RENDER_HWS_PGA_GEN7;
 			break;
 		case BCS:
-			mmio = BLT_HWS_PGA_GEN7;
+			hwsp = BLT_HWS_PGA_GEN7;
 			break;
 		case VCS:
-			mmio = BSD_HWS_PGA_GEN7;
+			hwsp = BSD_HWS_PGA_GEN7;
 			break;
 		case VECS:
-			mmio = VEBOX_HWS_PGA_GEN7;
+			hwsp = VEBOX_HWS_PGA_GEN7;
 			break;
 		}
 	} else if (IS_GEN(dev_priv, 6)) {
-		mmio = RING_HWS_PGA_GEN6(engine->mmio_base);
+		hwsp = RING_HWS_PGA_GEN6(engine->mmio_base);
 	} else {
-		mmio = RING_HWS_PGA(engine->mmio_base);
+		hwsp = RING_HWS_PGA(engine->mmio_base);
 	}
 
-	if (INTEL_GEN(dev_priv) >= 6) {
-		u32 mask = ~0u;
+	I915_WRITE(hwsp, offset);
+	POSTING_READ(hwsp);
+}
 
-		/*
-		 * Keep the render interrupt unmasked as this papers over
-		 * lost interrupts following a reset.
-		 */
-		if (engine->id == RCS)
-			mask &= ~BIT(0);
+static void flush_cs_tlb(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->i915;
+	i915_reg_t instpm = RING_INSTPM(engine->mmio_base);
 
-		I915_WRITE(RING_HWSTAM(engine->mmio_base), mask);
-	}
+	if (!IS_GEN_RANGE(dev_priv, 6, 7))
+		return;
 
-	I915_WRITE(mmio, engine->status_page.ggtt_offset);
-	POSTING_READ(mmio);
+	/* ring should be idle before issuing a sync flush*/
+	WARN_ON((I915_READ_MODE(engine) & MODE_IDLE) == 0);
 
-	/* Flush the TLB for this page */
-	if (IS_GEN_RANGE(dev_priv, 6, 7)) {
-		i915_reg_t reg = RING_INSTPM(engine->mmio_base);
+	I915_WRITE(instpm,
+		   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
+				      INSTPM_SYNC_FLUSH));
+	if (intel_wait_for_register(dev_priv,
+				    instpm, INSTPM_SYNC_FLUSH, 0,
+				    1000))
+		DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
+			  engine->name);
+}
 
-		/* ring should be idle before issuing a sync flush*/
-		WARN_ON((I915_READ_MODE(engine) & MODE_IDLE) == 0);
+static void ring_setup_status_page(struct intel_engine_cs *engine)
+{
+	set_hwsp(engine, engine->status_page.ggtt_offset);
+	set_hwstam(engine, ~0u);
 
-		I915_WRITE(reg,
-			   _MASKED_BIT_ENABLE(INSTPM_TLB_INVALIDATE |
-					      INSTPM_SYNC_FLUSH));
-		if (intel_wait_for_register(dev_priv,
-					    reg, INSTPM_SYNC_FLUSH, 0,
-					    1000))
-			DRM_ERROR("%s: wait for SyncFlush to complete for TLB invalidation timed out\n",
-				  engine->name);
-	}
+	flush_cs_tlb(engine);
 }
 
 static bool stop_ring(struct intel_engine_cs *engine)
@@ -529,7 +552,7 @@ static int init_ring_common(struct intel_engine_cs *engine)
 	if (HWS_NEEDS_PHYSICAL(dev_priv))
 		ring_setup_phys_status_page(engine);
 	else
-		intel_ring_setup_status_page(engine);
+		ring_setup_status_page(engine);
 
 	intel_engine_reset_breadcrumbs(engine);
 

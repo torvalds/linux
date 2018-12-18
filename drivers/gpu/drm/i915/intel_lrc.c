@@ -1655,7 +1655,7 @@ static void enable_execlists(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 
-	I915_WRITE(RING_HWSTAM(engine->mmio_base), 0xffffffff);
+	intel_engine_set_hwsp_writemask(engine, ~0u); /* HWSTAM */
 
 	/*
 	 * Make sure we're not enabling the new 12-deep CSB

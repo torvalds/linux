@@ -903,6 +903,8 @@ int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 int intel_engine_stop_cs(struct intel_engine_cs *engine);
 void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine);
 
+void intel_engine_set_hwsp_writemask(struct intel_engine_cs *engine, u32 mask);
+
 u64 intel_engine_get_active_head(const struct intel_engine_cs *engine);
 u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine);
 
