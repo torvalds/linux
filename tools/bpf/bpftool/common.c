@@ -76,7 +76,8 @@ void set_max_rlimit(void)
 	setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
-static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
+static int
+mnt_fs(const char *target, const char *type, char *buff, size_t bufflen)
 {
 	bool bind_done = false;
 
@@ -98,13 +99,27 @@ static int mnt_bpffs(const char *target, char *buff, size_t bufflen)
 		bind_done = true;
 	}
 
-	if (mount("bpf", target, "bpf", 0, "mode=0700")) {
-		snprintf(buff, bufflen, "mount -t bpf bpf %s failed: %s",
-			 target, strerror(errno));
+	if (mount(type, target, type, 0, "mode=0700")) {
+		snprintf(buff, bufflen, "mount -t %s %s %s failed: %s",
+			 type, type, target, strerror(errno));
 		return -1;
 	}
 
 	return 0;
+}
+
+int mount_tracefs(const char *target)
+{
+	char err_str[ERR_MAX_LEN];
+	int err;
+
+	err = mnt_fs(target, "tracefs", err_str, ERR_MAX_LEN);
+	if (err) {
+		err_str[ERR_MAX_LEN - 1] = '\0';
+		p_err("can't mount tracefs: %s", err_str);
+	}
+
+	return err;
 }
 
 int open_obj_pinned(char *path, bool quiet)
@@ -162,7 +177,13 @@ int mount_bpffs_for_pin(const char *name)
 		/* nothing to do if already mounted */
 		goto out_free;
 
-	err = mnt_bpffs(dir, err_str, ERR_MAX_LEN);
+	if (block_mount) {
+		p_err("no BPF file system found, not mounting it due to --nomount option");
+		err = -1;
+		goto out_free;
+	}
+
+	err = mnt_fs(dir, "bpf", err_str, ERR_MAX_LEN);
 	if (err) {
 		err_str[ERR_MAX_LEN - 1] = '\0';
 		p_err("can't mount BPF file system to pin the object (%s): %s",
