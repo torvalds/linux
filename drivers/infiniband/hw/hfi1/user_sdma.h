@@ -105,9 +105,10 @@ static inline int ahg_header_set(u32 *arr, int idx, size_t array_size,
 #define TXREQ_FLAGS_REQ_ACK   BIT(0)      /* Set the ACK bit in the header */
 #define TXREQ_FLAGS_REQ_DISABLE_SH BIT(1) /* Disable header suppression */
 
-#define SDMA_PKT_Q_INACTIVE BIT(0)
-#define SDMA_PKT_Q_ACTIVE   BIT(1)
-#define SDMA_PKT_Q_DEFERRED BIT(2)
+enum pkt_q_sdma_state {
+	SDMA_PKT_Q_ACTIVE,
+	SDMA_PKT_Q_DEFERRED,
+};
 
 /*
  * Maximum retry attempts to submit a TX request
@@ -133,7 +134,7 @@ struct hfi1_user_sdma_pkt_q {
 	struct user_sdma_request *reqs;
 	unsigned long *req_in_use;
 	struct iowait busy;
-	unsigned state;
+	enum pkt_q_sdma_state state;
 	wait_queue_head_t wait;
 	unsigned long unpinned;
 	struct mmu_rb_handler *handler;
