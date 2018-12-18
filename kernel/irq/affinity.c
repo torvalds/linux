@@ -95,11 +95,11 @@ static int get_nodes_in_cpumask(cpumask_var_t *node_to_cpumask,
 }
 
 static int __irq_build_affinity_masks(const struct irq_affinity *affd,
-				    int startvec, int numvecs, int firstvec,
-				    cpumask_var_t *node_to_cpumask,
-				    const struct cpumask *cpu_mask,
-				    struct cpumask *nmsk,
-				    struct cpumask *masks)
+				      int startvec, int numvecs, int firstvec,
+				      cpumask_var_t *node_to_cpumask,
+				      const struct cpumask *cpu_mask,
+				      struct cpumask *nmsk,
+				      struct cpumask *masks)
 {
 	int n, nodes, cpus_per_vec, extra_vecs, done = 0;
 	int last_affv = firstvec + numvecs;
@@ -180,10 +180,10 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
 	cpumask_var_t nmsk, npresmsk;
 
 	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
-			return ret;
+		return ret;
 
 	if (!zalloc_cpumask_var(&npresmsk, GFP_KERNEL))
-			goto fail;
+		goto fail;
 
 	ret = 0;
 	/* Stabilize the cpumasks */
@@ -212,7 +212,7 @@ static int irq_build_affinity_masks(const struct irq_affinity *affd,
 	put_online_cpus();
 
 	if (nr_present < numvecs)
-			WARN_ON(nr_present + nr_others < numvecs);
+		WARN_ON(nr_present + nr_others < numvecs);
 
 	free_cpumask_var(npresmsk);
 
@@ -271,9 +271,9 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 		ret = irq_build_affinity_masks(affd, curvec, this_vecs,
 						curvec, node_to_cpumask, masks);
 		if (ret) {
-				kfree(masks);
-				masks = NULL;
-				goto outnodemsk;
+			kfree(masks);
+			masks = NULL;
+			goto outnodemsk;
 		}
 		curvec += this_vecs;
 		usedvecs += this_vecs;
