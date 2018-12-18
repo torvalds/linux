@@ -639,7 +639,7 @@ struct amdgpu_nbio_funcs {
 	void (*hdp_flush)(struct amdgpu_device *adev, struct amdgpu_ring *ring);
 	u32 (*get_memsize)(struct amdgpu_device *adev);
 	void (*sdma_doorbell_range)(struct amdgpu_device *adev, int instance,
-				    bool use_doorbell, int doorbell_index);
+			bool use_doorbell, int doorbell_index, int doorbell_size);
 	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
 					 bool enable);
 	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,

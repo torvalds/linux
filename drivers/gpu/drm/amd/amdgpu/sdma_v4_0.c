@@ -835,7 +835,8 @@ static void sdma_v4_0_gfx_resume(struct amdgpu_device *adev, unsigned int i)
 	WREG32_SDMA(i, mmSDMA0_GFX_DOORBELL, doorbell);
 	WREG32_SDMA(i, mmSDMA0_GFX_DOORBELL_OFFSET, doorbell_offset);
 	adev->nbio_funcs->sdma_doorbell_range(adev, i, ring->use_doorbell,
-					      ring->doorbell_index);
+					      ring->doorbell_index,
+					      adev->doorbell_index.sdma_doorbell_range);
 
 	sdma_v4_0_ring_set_wptr(ring);
 
