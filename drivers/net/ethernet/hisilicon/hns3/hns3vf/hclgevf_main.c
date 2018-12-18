@@ -1342,6 +1342,9 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 
 	rtnl_unlock();
 
+	hdev->last_reset_time = jiffies;
+	ae_dev->reset_type = HNAE3_NONE_RESET;
+
 	return ret;
 err_reset_lock:
 	rtnl_unlock();

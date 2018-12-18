@@ -2810,7 +2810,6 @@ static void hclge_reset(struct hclge_dev *hdev)
 	 */
 	ae_dev->reset_type = hdev->reset_type;
 	hdev->reset_count++;
-	hdev->last_reset_time = jiffies;
 	/* perform reset of the stack & ae device for a client */
 	ret = hclge_notify_roce_client(hdev, HNAE3_DOWN_CLIENT);
 	if (ret)
@@ -2872,6 +2871,10 @@ static void hclge_reset(struct hclge_dev *hdev)
 	ret = hclge_notify_roce_client(hdev, HNAE3_UP_CLIENT);
 	if (ret)
 		goto err_reset;
+
+	hdev->last_reset_time = jiffies;
+	hdev->reset_fail_cnt = 0;
+	ae_dev->reset_type = HNAE3_NONE_RESET;
 
 	return;
 
