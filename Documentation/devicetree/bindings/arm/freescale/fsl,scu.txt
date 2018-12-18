@@ -58,7 +58,10 @@ This binding for the SCU power domain providers uses the generic power
 domain binding[2].
 
 Required properties:
-- compatible:		Should be "fsl,imx8qxp-scu-pd".
+- compatible:		Should be one of:
+			  "fsl,imx8qxp-scu-pd"
+			followed by "fsl,scu-pd"
+
 - #power-domain-cells:	Must be 1. Contains the Resource ID used by
 			SCU commands.
 			See detailed Resource ID list from:
@@ -154,7 +157,7 @@ firmware {
 		};
 
 		pd: imx8qx-pd {
-			compatible = "fsl,imx8qxp-scu-pd";
+			compatible = "fsl,imx8qxp-scu-pd", "fsl,scu-pd";
 			#power-domain-cells = <1>;
 		};
 
