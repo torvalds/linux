@@ -160,21 +160,22 @@ static void
 aoe_failip(struct aoedev *d)
 {
 	struct request *rq;
+	struct aoe_req *req;
 	struct bio *bio;
-	unsigned long n;
 
 	aoe_failbuf(d, d->ip.buf);
-
 	rq = d->ip.rq;
 	if (rq == NULL)
 		return;
+
+	req = blk_mq_rq_to_pdu(rq);
 	while ((bio = d->ip.nxbio)) {
 		bio->bi_status = BLK_STS_IOERR;
 		d->ip.nxbio = bio->bi_next;
-		n = (unsigned long) rq->special;
-		rq->special = (void *) --n;
+		req->nr_bios--;
 	}
-	if ((unsigned long) rq->special == 0)
+
+	if (!req->nr_bios)
 		aoe_end_request(d, rq, 0);
 }
 

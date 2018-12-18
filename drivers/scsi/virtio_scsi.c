@@ -719,8 +719,9 @@ static void virtscsi_target_destroy(struct scsi_target *starget)
 static int virtscsi_map_queues(struct Scsi_Host *shost)
 {
 	struct virtio_scsi *vscsi = shost_priv(shost);
+	struct blk_mq_queue_map *qmap = &shost->tag_set.map[0];
 
-	return blk_mq_virtio_map_queues(&shost->tag_set, vscsi->vdev, 2);
+	return blk_mq_virtio_map_queues(qmap, vscsi->vdev, 2);
 }
 
 /*

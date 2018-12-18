@@ -244,7 +244,7 @@ Description:
 
 What:		/sys/block/<disk>/queue/zoned
 Date:		September 2016
-Contact:	Damien Le Moal <damien.lemoal@hgst.com>
+Contact:	Damien Le Moal <damien.lemoal@wdc.com>
 Description:
 		zoned indicates if the device is a zoned block device
 		and the zone model of the device if it is indeed zoned.
@@ -259,6 +259,14 @@ Description:
 		zone commands, they will be treated as regular block
 		devices and zoned will report "none".
 
+What:		/sys/block/<disk>/queue/nr_zones
+Date:		November 2018
+Contact:	Damien Le Moal <damien.lemoal@wdc.com>
+Description:
+		nr_zones indicates the total number of zones of a zoned block
+		device ("host-aware" or "host-managed" zone model). For regular
+		block devices, the value is always 0.
+
 What:		/sys/block/<disk>/queue/chunk_sectors
 Date:		September 2016
 Contact:	Hannes Reinecke <hare@suse.com>
@@ -268,6 +276,6 @@ Description:
 		indicates the size in 512B sectors of the RAID volume
 		stripe segment. For a zoned block device, either
 		host-aware or host-managed, chunk_sectors indicates the
-		size of 512B sectors of the zones of the device, with
+		size in 512B sectors of the zones of the device, with
 		the eventual exception of the last zone of the device
 		which may be smaller.

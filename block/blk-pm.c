@@ -89,12 +89,12 @@ int blk_pre_runtime_suspend(struct request_queue *q)
 	/* Switch q_usage_counter back to per-cpu mode. */
 	blk_mq_unfreeze_queue(q);
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	if (ret < 0)
 		pm_runtime_mark_last_busy(q->dev);
 	else
 		q->rpm_status = RPM_SUSPENDING;
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 
 	if (ret)
 		blk_clear_pm_only(q);
@@ -121,14 +121,14 @@ void blk_post_runtime_suspend(struct request_queue *q, int err)
 	if (!q->dev)
 		return;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_SUSPENDED;
 	} else {
 		q->rpm_status = RPM_ACTIVE;
 		pm_runtime_mark_last_busy(q->dev);
 	}
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 
 	if (err)
 		blk_clear_pm_only(q);
@@ -151,9 +151,9 @@ void blk_pre_runtime_resume(struct request_queue *q)
 	if (!q->dev)
 		return;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	q->rpm_status = RPM_RESUMING;
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 }
 EXPORT_SYMBOL(blk_pre_runtime_resume);
 
@@ -176,7 +176,7 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 	if (!q->dev)
 		return;
 
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	if (!err) {
 		q->rpm_status = RPM_ACTIVE;
 		pm_runtime_mark_last_busy(q->dev);
@@ -184,7 +184,7 @@ void blk_post_runtime_resume(struct request_queue *q, int err)
 	} else {
 		q->rpm_status = RPM_SUSPENDED;
 	}
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 
 	if (!err)
 		blk_clear_pm_only(q);
@@ -207,10 +207,10 @@ EXPORT_SYMBOL(blk_post_runtime_resume);
  */
 void blk_set_runtime_active(struct request_queue *q)
 {
-	spin_lock_irq(q->queue_lock);
+	spin_lock_irq(&q->queue_lock);
 	q->rpm_status = RPM_ACTIVE;
 	pm_runtime_mark_last_busy(q->dev);
 	pm_request_autosuspend(q->dev);
-	spin_unlock_irq(q->queue_lock);
+	spin_unlock_irq(&q->queue_lock);
 }
 EXPORT_SYMBOL(blk_set_runtime_active);

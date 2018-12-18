@@ -262,29 +262,25 @@ static inline void iolat_update_total_lat_avg(struct iolatency_grp *iolat,
 				   stat->rqs.mean);
 }
 
-static inline bool iolatency_may_queue(struct iolatency_grp *iolat,
-				       wait_queue_entry_t *wait,
-				       bool first_block)
+static void iolat_cleanup_cb(struct rq_wait *rqw, void *private_data)
 {
-	struct rq_wait *rqw = &iolat->rq_wait;
+	atomic_dec(&rqw->inflight);
+	wake_up(&rqw->wait);
+}
 
-	if (first_block && waitqueue_active(&rqw->wait) &&
-	    rqw->wait.head.next != &wait->entry)
-		return false;
+static bool iolat_acquire_inflight(struct rq_wait *rqw, void *private_data)
+{
+	struct iolatency_grp *iolat = private_data;
 	return rq_wait_inc_below(rqw, iolat->rq_depth.max_depth);
 }
 
 static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 				       struct iolatency_grp *iolat,
-				       spinlock_t *lock, bool issue_as_root,
+				       bool issue_as_root,
 				       bool use_memdelay)
-	__releases(lock)
-	__acquires(lock)
 {
 	struct rq_wait *rqw = &iolat->rq_wait;
 	unsigned use_delay = atomic_read(&lat_to_blkg(iolat)->use_delay);
-	DEFINE_WAIT(wait);
-	bool first_block = true;
 
 	if (use_delay)
 		blkcg_schedule_throttle(rqos->q, use_memdelay);
@@ -301,27 +297,7 @@ static void __blkcg_iolatency_throttle(struct rq_qos *rqos,
 		return;
 	}
 
-	if (iolatency_may_queue(iolat, &wait, first_block))
-		return;
-
-	do {
-		prepare_to_wait_exclusive(&rqw->wait, &wait,
-					  TASK_UNINTERRUPTIBLE);
-
-		if (iolatency_may_queue(iolat, &wait, first_block))
-			break;
-		first_block = false;
-
-		if (lock) {
-			spin_unlock_irq(lock);
-			io_schedule();
-			spin_lock_irq(lock);
-		} else {
-			io_schedule();
-		}
-	} while (1);
-
-	finish_wait(&rqw->wait, &wait);
+	rq_qos_wait(rqw, iolat, iolat_acquire_inflight, iolat_cleanup_cb);
 }
 
 #define SCALE_DOWN_FACTOR 2
@@ -478,38 +454,15 @@ static void check_scale_change(struct iolatency_grp *iolat)
 	scale_change(iolat, direction > 0);
 }
 
-static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio,
-				     spinlock_t *lock)
+static void blkcg_iolatency_throttle(struct rq_qos *rqos, struct bio *bio)
 {
 	struct blk_iolatency *blkiolat = BLKIOLATENCY(rqos);
-	struct blkcg *blkcg;
-	struct blkcg_gq *blkg;
-	struct request_queue *q = rqos->q;
+	struct blkcg_gq *blkg = bio->bi_blkg;
 	bool issue_as_root = bio_issue_as_root_blkg(bio);
 
 	if (!blk_iolatency_enabled(blkiolat))
 		return;
 
-	rcu_read_lock();
-	blkcg = bio_blkcg(bio);
-	bio_associate_blkcg(bio, &blkcg->css);
-	blkg = blkg_lookup(blkcg, q);
-	if (unlikely(!blkg)) {
-		if (!lock)
-			spin_lock_irq(q->queue_lock);
-		blkg = blkg_lookup_create(blkcg, q);
-		if (IS_ERR(blkg))
-			blkg = NULL;
-		if (!lock)
-			spin_unlock_irq(q->queue_lock);
-	}
-	if (!blkg)
-		goto out;
-
-	bio_issue_init(&bio->bi_issue, bio_sectors(bio));
-	bio_associate_blkg(bio, blkg);
-out:
-	rcu_read_unlock();
 	while (blkg && blkg->parent) {
 		struct iolatency_grp *iolat = blkg_to_lat(blkg);
 		if (!iolat) {
@@ -518,7 +471,7 @@ out:
 		}
 
 		check_scale_change(iolat);
-		__blkcg_iolatency_throttle(rqos, iolat, lock, issue_as_root,
+		__blkcg_iolatency_throttle(rqos, iolat, issue_as_root,
 				     (bio->bi_opf & REQ_SWAP) == REQ_SWAP);
 		blkg = blkg->parent;
 	}
@@ -640,7 +593,7 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 	bool enabled = false;
 
 	blkg = bio->bi_blkg;
-	if (!blkg)
+	if (!blkg || !bio_flagged(bio, BIO_TRACKED))
 		return;
 
 	iolat = blkg_to_lat(bio->bi_blkg);
@@ -730,7 +683,7 @@ static void blkiolatency_timer_fn(struct timer_list *t)
 		 * We could be exiting, don't access the pd unless we have a
 		 * ref on the blkg.
 		 */
-		if (!blkg_try_get(blkg))
+		if (!blkg_tryget(blkg))
 			continue;
 
 		iolat = blkg_to_lat(blkg);

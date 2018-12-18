@@ -140,7 +140,7 @@ out:
 	unlock_page(page);
 	WRITE_ONCE(bio->bi_private, NULL);
 	bio_put(bio);
-	wake_up_process(waiter);
+	blk_wake_io_task(waiter);
 	put_task_struct(waiter);
 }
 
@@ -339,7 +339,7 @@ int __swap_writepage(struct page *page, struct writeback_control *wbc,
 		goto out;
 	}
 	bio->bi_opf = REQ_OP_WRITE | REQ_SWAP | wbc_to_write_flags(wbc);
-	bio_associate_blkcg_from_page(bio, page);
+	bio_associate_blkg_from_page(bio, page);
 	count_swpout_vm_event(page);
 	set_page_writeback(page);
 	unlock_page(page);
@@ -405,11 +405,12 @@ int swap_readpage(struct page *page, bool synchronous)
 	bio_get(bio);
 	qc = submit_bio(bio);
 	while (synchronous) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
+		__set_current_state(TASK_UNINTERRUPTIBLE);
+
 		if (!READ_ONCE(bio->bi_private))
 			break;
 
-		if (!blk_poll(disk->queue, qc))
+		if (!blk_poll(disk->queue, qc, true))
 			break;
 	}
 	__set_current_state(TASK_RUNNING);

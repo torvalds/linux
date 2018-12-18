@@ -403,7 +403,6 @@ struct nvme_fc_port_template {
 				void **handle);
 	void	(*delete_queue)(struct nvme_fc_local_port *,
 				unsigned int qidx, void *handle);
-	void	(*poll_queue)(struct nvme_fc_local_port *, void *handle);
 	int	(*ls_req)(struct nvme_fc_local_port *,
 				struct nvme_fc_remote_port *,
 				struct nvmefc_ls_req *);
@@ -648,22 +647,6 @@ enum {
 		 * sends (the last) Read Data sequence followed by the RSP
 		 * sequence in one LLDD operation. Errors during Data
 		 * sequence transmit must not allow RSP sequence to be sent.
-		 */
-	NVMET_FCTGTFEAT_CMD_IN_ISR = (1 << 1),
-		/* Bit 2: When 0, the LLDD is calling the cmd rcv handler
-		 * in a non-isr context, allowing the transport to finish
-		 * op completion in the calling context. When 1, the LLDD
-		 * is calling the cmd rcv handler in an ISR context,
-		 * requiring the transport to transition to a workqueue
-		 * for op completion.
-		 */
-	NVMET_FCTGTFEAT_OPDONE_IN_ISR = (1 << 2),
-		/* Bit 3: When 0, the LLDD is calling the op done handler
-		 * in a non-isr context, allowing the transport to finish
-		 * op completion in the calling context. When 1, the LLDD
-		 * is calling the op done handler in an ISR context,
-		 * requiring the transport to transition to a workqueue
-		 * for op completion.
 		 */
 };
 

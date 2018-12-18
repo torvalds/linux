@@ -2274,7 +2274,7 @@ fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 		return SCSI_NO_TAG;
 
 	sc->tag = sc->request->tag = dummy->tag;
-	sc->request->special = sc;
+	sc->host_scribble = (unsigned char *)dummy;
 
 	return dummy->tag;
 }
@@ -2286,7 +2286,7 @@ fnic_scsi_host_start_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 static inline void
 fnic_scsi_host_end_tag(struct fnic *fnic, struct scsi_cmnd *sc)
 {
-	struct request *dummy = sc->request->special;
+	struct request *dummy = (struct request *)sc->host_scribble;
 
 	blk_mq_free_request(dummy);
 }

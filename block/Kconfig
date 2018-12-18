@@ -155,12 +155,6 @@ config BLK_CGROUP_IOLATENCY
 
 	Note, this is an experimental interface and could be changed someday.
 
-config BLK_WBT_SQ
-	bool "Single queue writeback throttling"
-	depends on BLK_WBT
-	---help---
-	Enable writeback throttling by default on legacy single queue devices
-
 config BLK_WBT_MQ
 	bool "Multiqueue writeback throttling"
 	default y

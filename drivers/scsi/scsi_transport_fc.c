@@ -3592,7 +3592,7 @@ fc_bsg_job_timeout(struct request *req)
 
 	/* the blk_end_sync_io() doesn't check the error */
 	if (inflight)
-		__blk_complete_request(req);
+		blk_mq_end_request(req, BLK_STS_IOERR);
 	return BLK_EH_DONE;
 }
 
@@ -3684,14 +3684,9 @@ static void
 fc_bsg_goose_queue(struct fc_rport *rport)
 {
 	struct request_queue *q = rport->rqst_q;
-	unsigned long flags;
 
-	if (!q)
-		return;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	blk_run_queue_async(q);
-	spin_unlock_irqrestore(q->queue_lock, flags);
+	if (q)
+		blk_mq_run_hw_queues(q, true);
 }
 
 /**
@@ -3759,6 +3754,37 @@ static int fc_bsg_dispatch(struct bsg_job *job)
 		return fc_bsg_host_dispatch(shost, job);
 }
 
+static blk_status_t fc_bsg_rport_prep(struct fc_rport *rport)
+{
+	if (rport->port_state == FC_PORTSTATE_BLOCKED &&
+	    !(rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT))
+		return BLK_STS_RESOURCE;
+
+	if (rport->port_state != FC_PORTSTATE_ONLINE)
+		return BLK_STS_IOERR;
+
+	return BLK_STS_OK;
+}
+
+
+static int fc_bsg_dispatch_prep(struct bsg_job *job)
+{
+	struct fc_rport *rport = fc_bsg_to_rport(job);
+	blk_status_t ret;
+
+	ret = fc_bsg_rport_prep(rport);
+	switch (ret) {
+	case BLK_STS_OK:
+		break;
+	case BLK_STS_RESOURCE:
+		return -EAGAIN;
+	default:
+		return -EIO;
+	}
+
+	return fc_bsg_dispatch(job);
+}
+
 /**
  * fc_bsg_hostadd - Create and add the bsg hooks so we can receive requests
  * @shost:	shost for fc_host
@@ -3780,7 +3806,8 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 	snprintf(bsg_name, sizeof(bsg_name),
 		 "fc_host%d", shost->host_no);
 
-	q = bsg_setup_queue(dev, bsg_name, fc_bsg_dispatch, i->f->dd_bsg_size);
+	q = bsg_setup_queue(dev, bsg_name, fc_bsg_dispatch, fc_bsg_job_timeout,
+				i->f->dd_bsg_size);
 	if (IS_ERR(q)) {
 		dev_err(dev,
 			"fc_host%d: bsg interface failed to initialize - setup queue\n",
@@ -3788,24 +3815,9 @@ fc_bsg_hostadd(struct Scsi_Host *shost, struct fc_host_attrs *fc_host)
 		return PTR_ERR(q);
 	}
 	__scsi_init_queue(shost, q);
-	blk_queue_rq_timed_out(q, fc_bsg_job_timeout);
 	blk_queue_rq_timeout(q, FC_DEFAULT_BSG_TIMEOUT);
 	fc_host->rqst_q = q;
 	return 0;
-}
-
-static int fc_bsg_rport_prep(struct request_queue *q, struct request *req)
-{
-	struct fc_rport *rport = dev_to_rport(q->queuedata);
-
-	if (rport->port_state == FC_PORTSTATE_BLOCKED &&
-	    !(rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT))
-		return BLKPREP_DEFER;
-
-	if (rport->port_state != FC_PORTSTATE_ONLINE)
-		return BLKPREP_KILL;
-
-	return BLKPREP_OK;
 }
 
 /**
@@ -3825,15 +3837,13 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 	if (!i->f->bsg_request)
 		return -ENOTSUPP;
 
-	q = bsg_setup_queue(dev, dev_name(dev), fc_bsg_dispatch,
-			i->f->dd_bsg_size);
+	q = bsg_setup_queue(dev, dev_name(dev), fc_bsg_dispatch_prep,
+				fc_bsg_job_timeout, i->f->dd_bsg_size);
 	if (IS_ERR(q)) {
 		dev_err(dev, "failed to setup bsg queue\n");
 		return PTR_ERR(q);
 	}
 	__scsi_init_queue(shost, q);
-	blk_queue_prep_rq(q, fc_bsg_rport_prep);
-	blk_queue_rq_timed_out(q, fc_bsg_job_timeout);
 	blk_queue_rq_timeout(q, BLK_DEFAULT_SG_TIMEOUT);
 	rport->rqst_q = q;
 	return 0;
@@ -3852,10 +3862,7 @@ fc_bsg_rportadd(struct Scsi_Host *shost, struct fc_rport *rport)
 static void
 fc_bsg_remove(struct request_queue *q)
 {
-	if (q) {
-		bsg_unregister_queue(q);
-		blk_cleanup_queue(q);
-	}
+	bsg_remove_queue(q);
 }
 
 

@@ -577,7 +577,8 @@ static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
 	struct ppa_addr ppa;
 	size_t left = nchks * sizeof(struct nvme_nvm_chk_meta);
 	size_t log_pos, offset, len;
-	int ret, i, max_len;
+	int i, max_len;
+	int ret = 0;
 
 	/*
 	 * limit requests to maximum 256K to avoid issuing arbitrary large
@@ -731,11 +732,12 @@ static int nvme_nvm_submit_io_sync(struct nvm_dev *dev, struct nvm_rq *rqd)
 	return ret;
 }
 
-static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
+static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name,
+					int size)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
 
-	return dma_pool_create(name, ns->ctrl->dev, PAGE_SIZE, PAGE_SIZE, 0);
+	return dma_pool_create(name, ns->ctrl->dev, size, PAGE_SIZE, 0);
 }
 
 static void nvme_nvm_destroy_dma_pool(void *pool)
@@ -935,9 +937,9 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 	/* cdw11-12 */
 	c.ph_rw.length = cpu_to_le16(vcmd.nppas);
 	c.ph_rw.control  = cpu_to_le16(vcmd.control);
-	c.common.cdw10[3] = cpu_to_le32(vcmd.cdw13);
-	c.common.cdw10[4] = cpu_to_le32(vcmd.cdw14);
-	c.common.cdw10[5] = cpu_to_le32(vcmd.cdw15);
+	c.common.cdw13 = cpu_to_le32(vcmd.cdw13);
+	c.common.cdw14 = cpu_to_le32(vcmd.cdw14);
+	c.common.cdw15 = cpu_to_le32(vcmd.cdw15);
 
 	if (vcmd.timeout_ms)
 		timeout = msecs_to_jiffies(vcmd.timeout_ms);
@@ -972,28 +974,23 @@ int nvme_nvm_ioctl(struct nvme_ns *ns, unsigned int cmd, unsigned long arg)
 	}
 }
 
-void nvme_nvm_update_nvm_info(struct nvme_ns *ns)
-{
-	struct nvm_dev *ndev = ns->ndev;
-	struct nvm_geo *geo = &ndev->geo;
-
-	if (geo->version == NVM_OCSSD_SPEC_12)
-		return;
-
-	geo->csecs = 1 << ns->lba_shift;
-	geo->sos = ns->ms;
-}
-
 int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 {
 	struct request_queue *q = ns->queue;
 	struct nvm_dev *dev;
+	struct nvm_geo *geo;
 
 	_nvme_nvm_check_size();
 
 	dev = nvm_alloc_dev(node);
 	if (!dev)
 		return -ENOMEM;
+
+	/* Note that csecs and sos will be overridden if it is a 1.2 drive. */
+	geo = &dev->geo;
+	geo->csecs = 1 << ns->lba_shift;
+	geo->sos = ns->ms;
+	geo->ext = ns->ext;
 
 	dev->q = q;
 	memcpy(dev->name, disk_name, DISK_NAME_LEN);

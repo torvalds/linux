@@ -53,9 +53,6 @@ static void __init handle_initrd(void)
 	ksys_mkdir("/old", 0700);
 	ksys_chdir("/old");
 
-	/* try loading default modules from initrd */
-	load_default_modules();
-
 	/*
 	 * In case that a resume from disk is carried out by linuxrc or one of
 	 * its children, we need to tell the freezer not to wait for us.

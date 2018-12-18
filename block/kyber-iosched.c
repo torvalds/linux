@@ -576,7 +576,7 @@ static bool kyber_bio_merge(struct blk_mq_hw_ctx *hctx, struct bio *bio)
 {
 	struct kyber_hctx_data *khd = hctx->sched_data;
 	struct blk_mq_ctx *ctx = blk_mq_get_ctx(hctx->queue);
-	struct kyber_ctx_queue *kcq = &khd->kcqs[ctx->index_hw];
+	struct kyber_ctx_queue *kcq = &khd->kcqs[ctx->index_hw[hctx->type]];
 	unsigned int sched_domain = kyber_sched_domain(bio->bi_opf);
 	struct list_head *rq_list = &kcq->rq_list[sched_domain];
 	bool merged;
@@ -602,7 +602,7 @@ static void kyber_insert_requests(struct blk_mq_hw_ctx *hctx,
 
 	list_for_each_entry_safe(rq, next, rq_list, queuelist) {
 		unsigned int sched_domain = kyber_sched_domain(rq->cmd_flags);
-		struct kyber_ctx_queue *kcq = &khd->kcqs[rq->mq_ctx->index_hw];
+		struct kyber_ctx_queue *kcq = &khd->kcqs[rq->mq_ctx->index_hw[hctx->type]];
 		struct list_head *head = &kcq->rq_list[sched_domain];
 
 		spin_lock(&kcq->lock);
@@ -611,7 +611,7 @@ static void kyber_insert_requests(struct blk_mq_hw_ctx *hctx,
 		else
 			list_move_tail(&rq->queuelist, head);
 		sbitmap_set_bit(&khd->kcq_map[sched_domain],
-				rq->mq_ctx->index_hw);
+				rq->mq_ctx->index_hw[hctx->type]);
 		blk_mq_sched_request_inserted(rq);
 		spin_unlock(&kcq->lock);
 	}
@@ -1017,7 +1017,7 @@ static const struct blk_mq_debugfs_attr kyber_hctx_debugfs_attrs[] = {
 #endif
 
 static struct elevator_type kyber_sched = {
-	.ops.mq = {
+	.ops = {
 		.init_sched = kyber_init_sched,
 		.exit_sched = kyber_exit_sched,
 		.init_hctx = kyber_init_hctx,
@@ -1032,7 +1032,6 @@ static struct elevator_type kyber_sched = {
 		.dispatch_request = kyber_dispatch_request,
 		.has_work = kyber_has_work,
 	},
-	.uses_mq = true,
 #ifdef CONFIG_BLK_DEBUG_FS
 	.queue_debugfs_attrs = kyber_queue_debugfs_attrs,
 	.hctx_debugfs_attrs = kyber_hctx_debugfs_attrs,
