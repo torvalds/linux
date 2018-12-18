@@ -1436,7 +1436,9 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 
 	if (hr_dev->pci_dev->revision == 0x21) {
 		caps->flags |= HNS_ROCE_CAP_FLAG_ATOMIC |
-			       HNS_ROCE_CAP_FLAG_SRQ;
+			       HNS_ROCE_CAP_FLAG_SRQ |
+			       HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL;
+
 		caps->sccc_entry_sz	= HNS_ROCE_V2_SCCC_ENTRY_SZ;
 		caps->sccc_ba_pg_sz	= 0;
 		caps->sccc_buf_pg_sz    = 0;
@@ -4277,6 +4279,60 @@ static int hns_roce_v2_destroy_qp(struct ib_qp *ibqp)
 	return 0;
 }
 
+static int hns_roce_v2_qp_flow_control_init(struct hns_roce_dev *hr_dev,
+						struct hns_roce_qp *hr_qp)
+{
+	struct hns_roce_sccc_clr_done *rst, *resp;
+	struct hns_roce_sccc_clr *clr;
+	struct hns_roce_cmq_desc desc;
+	int ret, i;
+
+	mutex_lock(&hr_dev->qp_table.scc_mutex);
+
+	/* set scc ctx clear done flag */
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_RESET_SCCC, false);
+	rst = (struct hns_roce_sccc_clr_done *)desc.data;
+	ret =  hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret) {
+		dev_err(hr_dev->dev, "Reset SCC ctx  failed(%d)\n", ret);
+		goto out;
+	}
+
+	/* clear scc context */
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CLR_SCCC, false);
+	clr = (struct hns_roce_sccc_clr *)desc.data;
+	clr->qpn = cpu_to_le32(hr_qp->qpn);
+	ret =  hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret) {
+		dev_err(hr_dev->dev, "Clear SCC ctx failed(%d)\n", ret);
+		goto out;
+	}
+
+	/* query scc context clear is done or not */
+	resp = (struct hns_roce_sccc_clr_done *)desc.data;
+	for (i = 0; i <= HNS_ROCE_CMQ_SCC_CLR_DONE_CNT; i++) {
+		hns_roce_cmq_setup_basic_desc(&desc,
+					      HNS_ROCE_OPC_QUERY_SCCC, true);
+		ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+		if (ret) {
+			dev_err(hr_dev->dev, "Query clr cmq failed(%d)\n", ret);
+			goto out;
+		}
+
+		if (resp->clr_done)
+			goto out;
+
+		msleep(20);
+	}
+
+	dev_err(hr_dev->dev, "Query SCC clr done flag overtime.\n");
+	ret = -ETIMEDOUT;
+
+out:
+	mutex_unlock(&hr_dev->qp_table.scc_mutex);
+	return ret;
+}
+
 static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 {
 	struct hns_roce_dev *hr_dev = to_hr_dev(cq->device);
@@ -5835,6 +5891,7 @@ static const struct hns_roce_hw hns_roce_hw_v2 = {
 	.modify_qp = hns_roce_v2_modify_qp,
 	.query_qp = hns_roce_v2_query_qp,
 	.destroy_qp = hns_roce_v2_destroy_qp,
+	.qp_flow_control_init = hns_roce_v2_qp_flow_control_init,
 	.modify_cq = hns_roce_v2_modify_cq,
 	.post_send = hns_roce_v2_post_send,
 	.post_recv = hns_roce_v2_post_recv,
