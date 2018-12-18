@@ -178,9 +178,9 @@ static struct rtc_device *rtc_allocate_device(void)
 	timerqueue_init_head(&rtc->timerqueue);
 	INIT_WORK(&rtc->irqwork, rtc_timer_do_work);
 	/* Init aie timer */
-	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, (void *)rtc);
+	rtc_timer_init(&rtc->aie_timer, rtc_aie_update_irq, rtc);
 	/* Init uie timer */
-	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, (void *)rtc);
+	rtc_timer_init(&rtc->uie_rtctimer, rtc_uie_update_irq, rtc);
 	/* Init pie timer */
 	hrtimer_init(&rtc->pie_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	rtc->pie_timer.function = rtc_pie_update_irq;
