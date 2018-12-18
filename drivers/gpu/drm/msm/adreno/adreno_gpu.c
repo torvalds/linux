@@ -765,7 +765,6 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	adreno_gpu->rev = config->rev;
 
 	adreno_gpu_config.ioname = "kgsl_3d0_reg_memory";
-	adreno_gpu_config.irqname = "kgsl_3d0_irq";
 
 	adreno_gpu_config.va_start = SZ_16M;
 	adreno_gpu_config.va_end = 0xffffffff;
