@@ -597,7 +597,7 @@
 	};
 
 	i2c@7000c000 {
-		compatible = "nvidia,tegra210-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra210-i2c", "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c000 0x0 0x100>;
 		interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -612,7 +612,7 @@
 	};
 
 	i2c@7000c400 {
-		compatible = "nvidia,tegra210-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra210-i2c", "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c400 0x0 0x100>;
 		interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -627,7 +627,7 @@
 	};
 
 	i2c@7000c500 {
-		compatible = "nvidia,tegra210-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra210-i2c", "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c500 0x0 0x100>;
 		interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -642,7 +642,7 @@
 	};
 
 	i2c@7000c700 {
-		compatible = "nvidia,tegra210-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra210-i2c", "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000c700 0x0 0x100>;
 		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -660,7 +660,7 @@
 	};
 
 	i2c@7000d000 {
-		compatible = "nvidia,tegra210-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra210-i2c", "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000d000 0x0 0x100>;
 		interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
@@ -675,7 +675,7 @@
 	};
 
 	i2c@7000d100 {
-		compatible = "nvidia,tegra210-i2c", "nvidia,tegra114-i2c";
+		compatible = "nvidia,tegra210-i2c", "nvidia,tegra124-i2c";
 		reg = <0x0 0x7000d100 0x0 0x100>;
 		interrupts = <GIC_SPI 63 IRQ_TYPE_LEVEL_HIGH>;
 		#address-cells = <1>;
