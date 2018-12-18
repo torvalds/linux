@@ -403,7 +403,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 	const char *i2c_name;
 	int i;
 
-	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
+	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
 		return -ENOMEM;
 

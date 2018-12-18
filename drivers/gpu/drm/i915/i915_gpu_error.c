@@ -648,6 +648,9 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		return 0;
 	}
 
+	if (IS_ERR(error))
+		return PTR_ERR(error);
+
 	if (*error->error_msg)
 		err_printf(m, "%s\n", error->error_msg);
 	err_printf(m, "Kernel: " UTS_RELEASE "\n");
@@ -1492,7 +1495,7 @@ static void gem_record_rings(struct i915_gpu_state *error)
 			if (HAS_BROKEN_CS_TLB(i915))
 				ee->wa_batchbuffer =
 					i915_error_object_create(i915,
-								 engine->scratch);
+								 i915->gt.scratch);
 			request_record_user_bo(request, ee);
 
 			ee->ctx =
@@ -1859,6 +1862,7 @@ void i915_capture_error_state(struct drm_i915_private *i915,
 	error = i915_capture_gpu_state(i915);
 	if (!error) {
 		DRM_DEBUG_DRIVER("out of memory, not capturing error state\n");
+		i915_disable_error_state(i915, -ENOMEM);
 		return;
 	}
 
@@ -1914,5 +1918,14 @@ void i915_reset_error_state(struct drm_i915_private *i915)
 	i915->gpu_error.first_error = NULL;
 	spin_unlock_irq(&i915->gpu_error.lock);
 
-	i915_gpu_state_put(error);
+	if (!IS_ERR(error))
+		i915_gpu_state_put(error);
+}
+
+void i915_disable_error_state(struct drm_i915_private *i915, int err)
+{
+	spin_lock_irq(&i915->gpu_error.lock);
+	if (!i915->gpu_error.first_error)
+		i915->gpu_error.first_error = ERR_PTR(err);
+	spin_unlock_irq(&i915->gpu_error.lock);
 }

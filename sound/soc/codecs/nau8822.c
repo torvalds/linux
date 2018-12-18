@@ -1,18 +1,14 @@
-/*
- * nau8822.c  --  NAU8822 ALSA Soc Audio Codec driver
- *
- * Copyright 2017 Nuvoton Technology Corp.
- *
- * Author: David Lin <ctlin0@nuvoton.com>
- * Co-author: John Hsu <kchsu0@nuvoton.com>
- * Co-author: Seven Li <wtli@nuvoton.com>
- *
- * Based on WM8974.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// nau8822.c  --  NAU8822 ALSA Soc Audio driver
+//
+// Copyright 2017 Nuvoton Technology Crop.
+//
+// Author: David Lin <ctlin0@nuvoton.com>
+// Co-author: John Hsu <kchsu0@nuvoton.com>
+// Co-author: Seven Li <wtli@nuvoton.com>
+//
+// Based on WM8974.c
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>

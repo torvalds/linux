@@ -95,7 +95,9 @@ Optional CPU/CODEC subnodes properties:
 					  initialization. It is useful for some aCPUs with
 					  fixed clocks.
 
+-------------------------------------------
 Example 1 - single DAI link:
+-------------------------------------------
 
 sound {
 	compatible = "simple-audio-card";
@@ -138,7 +140,9 @@ sh_fsi2: sh_fsi2@ec230000 {
 	interrupts = <0 146 0x4>;
 };
 
+-------------------------------------------
 Example 2 - many DAI links:
+-------------------------------------------
 
 sound {
 	compatible = "simple-audio-card";
@@ -176,8 +180,10 @@ sound {
 	};
 };
 
+-------------------------------------------
 Example 3 - route audio from IMX6 SSI2 through TLV320DAC3100 codec
 through TPA6130A2 amplifier to headphones:
+-------------------------------------------
 
 &i2c0 {
 	codec: tlv320dac3100@18 {
@@ -208,5 +214,136 @@ sound {
 	simple-audio-card,codec {
 		sound-dai = <&codec>;
 		clocks = ...
+	};
+};
+
+-------------------------------------------
+Example 4. Sampling Rate Conversion
+-------------------------------------------
+
+sound {
+	compatible = "simple-audio-card";
+
+	simple-audio-card,name = "rsnd-ak4643";
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&sndcodec>;
+	simple-audio-card,frame-master = <&sndcodec>;
+
+	simple-audio-card,convert-rate = <48000>;
+
+	simple-audio-card,prefix = "ak4642";
+	simple-audio-card,routing = "ak4642 Playback", "DAI0 Playback",
+			"DAI0 Capture", "ak4642 Capture";
+
+	sndcpu: simple-audio-card,cpu {
+		sound-dai = <&rcar_sound>;
+	};
+
+	sndcodec: simple-audio-card,codec {
+		sound-dai = <&ak4643>;
+		system-clock-frequency = <11289600>;
+	};
+};
+
+-------------------------------------------
+Example 5. 2 CPU 1 Codec (Mixing)
+-------------------------------------------
+sound {
+	compatible = "simple-audio-card";
+
+	simple-audio-card,name = "rsnd-ak4643";
+	simple-audio-card,format = "left_j";
+	simple-audio-card,bitclock-master = <&dpcmcpu>;
+	simple-audio-card,frame-master = <&dpcmcpu>;
+
+	simple-audio-card,routing = "ak4642 Playback", "DAI0 Playback",
+			"ak4642 Playback", "DAI1 Playback";
+
+	dpcmcpu: cpu@0 {
+		sound-dai = <&rcar_sound 0>;
+	};
+
+	cpu@1 {
+		sound-dai = <&rcar_sound 1>;
+	};
+
+	codec {
+		prefix = "ak4642";
+		sound-dai = <&ak4643>;
+		clocks = <&audio_clock>;
+	};
+};
+
+-------------------------------------------
+Example 6 - many DAI links with DPCM:
+-------------------------------------------
+
+CPU0 ------ ak4613
+CPU1 ------ PCM3168A-p  /* DPCM 1ch/2ch */
+CPU2 --/                /* DPCM 3ch/4ch */
+CPU3 --/                /* DPCM 5ch/6ch */
+CPU4 --/                /* DPCM 7ch/8ch */
+CPU5 ------ PCM3168A-c
+
+sound {
+	compatible = "simple-audio-card";
+
+	simple-audio-card,routing =
+		  "pcm3168a Playback", "DAI1 Playback",
+		  "pcm3168a Playback", "DAI2 Playback",
+		  "pcm3168a Playback", "DAI3 Playback",
+		  "pcm3168a Playback", "DAI4 Playback";
+
+	simple-audio-card,dai-link@0 {
+		format = "left_j";
+		bitclock-master = <&sndcpu0>;
+		frame-master = <&sndcpu0>;
+
+		sndcpu0: cpu {
+			sound-dai = <&rcar_sound 0>;
+		};
+		codec {
+			sound-dai = <&ak4613>;
+		};
+	};
+	simple-audio-card,dai-link@1 {
+		format = "i2s";
+		bitclock-master = <&sndcpu1>;
+		frame-master = <&sndcpu1>;
+
+		convert-channels = <8>; /* TDM Split */
+
+		sndcpu1: cpu@0 {
+			sound-dai = <&rcar_sound 1>;
+		};
+		cpu@1 {
+			sound-dai = <&rcar_sound 2>;
+		};
+		cpu@2 {
+			sound-dai = <&rcar_sound 3>;
+		};
+		cpu@3 {
+			sound-dai = <&rcar_sound 4>;
+		};
+		codec {
+			mclk-fs = <512>;
+			prefix = "pcm3168a";
+			dai-tdm-slot-num = <8>;
+			sound-dai = <&pcm3168a 0>;
+		};
+	};
+	simple-audio-card,dai-link@2 {
+		format = "i2s";
+		bitclock-master = <&sndcpu2>;
+		frame-master = <&sndcpu2>;
+
+		sndcpu2: cpu {
+			sound-dai = <&rcar_sound 5>;
+		};
+		codec {
+			mclk-fs = <512>;
+			prefix = "pcm3168a";
+			sound-dai = <&pcm3168a 1>;
+		};
 	};
 };

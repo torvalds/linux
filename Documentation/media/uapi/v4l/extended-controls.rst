@@ -1505,6 +1505,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
     configuring a stateless hardware decoding pipeline for MPEG-2.
     The bitstream parameters are defined according to :ref:`mpeg2part2`.
 
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
+
 .. c:type:: v4l2_ctrl_mpeg2_slice_params
 
 .. cssclass:: longtable
@@ -1624,6 +1629,11 @@ enum v4l2_mpeg_video_h264_hierarchical_coding_type -
 ``V4L2_CID_MPEG_VIDEO_MPEG2_QUANTIZATION (struct)``
     Specifies quantization matrices (as extracted from the bitstream) for the
     associated MPEG-2 slice data.
+
+    .. note::
+
+       This compound control is not yet part of the public kernel API and
+       it is expected to change.
 
 .. c:type:: v4l2_ctrl_mpeg2_quantization
 

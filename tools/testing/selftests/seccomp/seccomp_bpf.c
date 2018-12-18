@@ -2731,9 +2731,14 @@ TEST(syscall_restart)
 	ASSERT_EQ(child_pid, waitpid(child_pid, &status, 0));
 	ASSERT_EQ(true, WIFSTOPPED(status));
 	ASSERT_EQ(SIGSTOP, WSTOPSIG(status));
-	/* Verify signal delivery came from parent now. */
 	ASSERT_EQ(0, ptrace(PTRACE_GETSIGINFO, child_pid, NULL, &info));
-	EXPECT_EQ(getpid(), info.si_pid);
+	/*
+	 * There is no siginfo on SIGSTOP any more, so we can't verify
+	 * signal delivery came from parent now (getpid() == info.si_pid).
+	 * https://lkml.kernel.org/r/CAGXu5jJaZAOzP1qFz66tYrtbuywqb+UN2SOA1VLHpCCOiYvYeg@mail.gmail.com
+	 * At least verify the SIGSTOP via PTRACE_GETSIGINFO.
+	 */
+	EXPECT_EQ(SIGSTOP, info.si_signo);
 
 	/* Restart nanosleep with SIGCONT, which triggers restart_syscall. */
 	ASSERT_EQ(0, kill(child_pid, SIGCONT));

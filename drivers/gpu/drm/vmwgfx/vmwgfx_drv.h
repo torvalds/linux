@@ -606,6 +606,9 @@ struct vmw_private {
 
 	struct vmw_cmdbuf_man *cman;
 	DECLARE_BITMAP(irqthread_pending, VMW_IRQTHREAD_MAX);
+
+	/* Validation memory reservation */
+	struct vmw_validation_mem vvm;
 };
 
 static inline struct vmw_surface *vmw_res_to_srf(struct vmw_resource *res)
@@ -846,6 +849,8 @@ extern int vmw_ttm_global_init(struct vmw_private *dev_priv);
 extern void vmw_ttm_global_release(struct vmw_private *dev_priv);
 extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
+extern void vmw_validation_mem_init_ttm(struct vmw_private *dev_priv,
+					size_t gran);
 /**
  * TTM buffer object driver - vmwgfx_ttm_buffer.c
  */

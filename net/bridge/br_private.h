@@ -102,12 +102,18 @@ struct br_tunnel_info {
 	struct metadata_dst	*tunnel_dst;
 };
 
+/* private vlan flags */
+enum {
+	BR_VLFLAG_PER_PORT_STATS = BIT(0),
+};
+
 /**
  * struct net_bridge_vlan - per-vlan entry
  *
  * @vnode: rhashtable member
  * @vid: VLAN id
  * @flags: bridge vlan flags
+ * @priv_flags: private (in-kernel) bridge vlan flags
  * @stats: per-cpu VLAN statistics
  * @br: if MASTER flag set, this points to a bridge struct
  * @port: if MASTER flag unset, this points to a port struct
@@ -127,6 +133,7 @@ struct net_bridge_vlan {
 	struct rhash_head		tnode;
 	u16				vid;
 	u16				flags;
+	u16				priv_flags;
 	struct br_vlan_stats __percpu	*stats;
 	union {
 		struct net_bridge	*br;

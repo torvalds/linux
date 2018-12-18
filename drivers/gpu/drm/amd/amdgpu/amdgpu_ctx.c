@@ -39,6 +39,7 @@ const unsigned int amdgpu_ctx_num_entities[AMDGPU_HW_IP_NUM] = {
 	[AMDGPU_HW_IP_UVD_ENC]	=	1,
 	[AMDGPU_HW_IP_VCN_DEC]	=	1,
 	[AMDGPU_HW_IP_VCN_ENC]	=	1,
+	[AMDGPU_HW_IP_VCN_JPEG]	=	1,
 };
 
 static int amdgput_ctx_total_num_entities(void)

@@ -347,6 +347,7 @@ static int seg6_output(struct net *net, struct sock *sk, struct sk_buff *skb)
 		struct ipv6hdr *hdr = ipv6_hdr(skb);
 		struct flowi6 fl6;
 
+		memset(&fl6, 0, sizeof(fl6));
 		fl6.daddr = hdr->daddr;
 		fl6.saddr = hdr->saddr;
 		fl6.flowlabel = ip6_flowinfo(hdr);

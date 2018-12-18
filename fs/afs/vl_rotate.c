@@ -71,8 +71,9 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 {
 	struct afs_addr_list *alist;
 	struct afs_vlserver *vlserver;
+	struct afs_error e;
 	u32 rtt;
-	int error = vc->ac.error, abort_code, i;
+	int error = vc->ac.error, i;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
 	       vc->untried, vc->index,
@@ -119,8 +120,11 @@ bool afs_select_vlserver(struct afs_vl_cursor *vc)
 			goto failed;
 		}
 
+	case -ERFKILL:
+	case -EADDRNOTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
@@ -235,49 +239,14 @@ no_more_servers:
 	if (vc->flags & AFS_VL_CURSOR_RETRY)
 		goto restart_from_beginning;
 
-	abort_code = 0;
-	error = -EDESTADDRREQ;
+	e.error = -EDESTADDRREQ;
+	e.responded = false;
 	for (i = 0; i < vc->server_list->nr_servers; i++) {
 		struct afs_vlserver *s = vc->server_list->servers[i].server;
-		int probe_error = READ_ONCE(s->probe.error);
 
-		switch (probe_error) {
-		case 0:
-			continue;
-		default:
-			if (error == -ETIMEDOUT ||
-			    error == -ETIME)
-				continue;
-		case -ETIMEDOUT:
-		case -ETIME:
-			if (error == -ENOMEM ||
-			    error == -ENONET)
-				continue;
-		case -ENOMEM:
-		case -ENONET:
-			if (error == -ENETUNREACH)
-				continue;
-		case -ENETUNREACH:
-			if (error == -EHOSTUNREACH)
-				continue;
-		case -EHOSTUNREACH:
-			if (error == -ECONNREFUSED)
-				continue;
-		case -ECONNREFUSED:
-			if (error == -ECONNRESET)
-				continue;
-		case -ECONNRESET: /* Responded, but call expired. */
-			if (error == -ECONNABORTED)
-				continue;
-		case -ECONNABORTED:
-			abort_code = s->probe.abort_code;
-			error = probe_error;
-			continue;
-		}
+		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
+				     s->probe.abort_code);
 	}
-
-	if (error == -ECONNABORTED)
-		error = afs_abort_to_error(abort_code);
 
 failed_set_error:
 	vc->error = error;
@@ -341,6 +310,7 @@ int afs_end_vlserver_operation(struct afs_vl_cursor *vc)
 	struct afs_net *net = vc->cell->net;
 
 	if (vc->error == -EDESTADDRREQ ||
+	    vc->error == -EADDRNOTAVAIL ||
 	    vc->error == -ENETUNREACH ||
 	    vc->error == -EHOSTUNREACH)
 		afs_vl_dump_edestaddrreq(vc);

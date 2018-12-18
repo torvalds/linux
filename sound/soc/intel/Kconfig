@@ -102,15 +102,74 @@ config SND_SST_ATOM_HIFI2_PLATFORM_ACPI
 	  recommended option
 
 config SND_SOC_INTEL_SKYLAKE
-	tristate "SKL/BXT/KBL/GLK/CNL... Platforms"
+	tristate "All Skylake/SST Platforms"
 	depends on PCI && ACPI
-	select SND_SOC_INTEL_SKYLAKE_COMMON
+	select SND_SOC_INTEL_SKL
+	select SND_SOC_INTEL_APL
+	select SND_SOC_INTEL_KBL
+	select SND_SOC_INTEL_GLK
+	select SND_SOC_INTEL_CNL
+	select SND_SOC_INTEL_CFL
 	help
-	  If you have a Intel Skylake/Broxton/ApolloLake/KabyLake/
-	  GeminiLake or CannonLake platform with the DSP enabled in the BIOS
-	  then enable this option by saying Y or m.
+          This is a backwards-compatible option to select all devices
+	  supported by the Intel SST/Skylake driver. This option is no
+	  longer recommended and will be deprecated when the SOF
+	  driver is introduced.  Distributions should explicitly
+	  select which platform uses this driver.
 
-if  SND_SOC_INTEL_SKYLAKE
+config SND_SOC_INTEL_SKL
+	tristate "Skylake Platforms"
+	depends on PCI && ACPI
+	select SND_SOC_INTEL_SKYLAKE_FAMILY
+	help
+	  If you have a Intel Skylake platform with the DSP enabled
+	  in the BIOS then enable this option by saying Y or m.
+
+config SND_SOC_INTEL_APL
+	tristate "Broxton/ApolloLake Platforms"
+	depends on PCI && ACPI
+	select SND_SOC_INTEL_SKYLAKE_FAMILY
+	help
+	  If you have a Intel Broxton/ApolloLake platform with the DSP
+	  enabled in the BIOS then enable this option by saying Y or m.
+
+config SND_SOC_INTEL_KBL
+	tristate "Kabylake Platforms"
+	depends on PCI && ACPI
+	select SND_SOC_INTEL_SKYLAKE_FAMILY
+	help
+	  If you have a Intel Kabylake platform with the DSP
+	  enabled in the BIOS then enable this option by saying Y or m.
+
+config SND_SOC_INTEL_GLK
+	tristate "GeminiLake Platforms"
+	depends on PCI && ACPI
+	select SND_SOC_INTEL_SKYLAKE_FAMILY
+	help
+	  If you have a Intel GeminiLake platform with the DSP
+	  enabled in the BIOS then enable this option by saying Y or m.
+
+config SND_SOC_INTEL_CNL
+	tristate "CannonLake/WhiskyLake Platforms"
+	depends on PCI && ACPI
+	select SND_SOC_INTEL_SKYLAKE_FAMILY
+	help
+	  If you have a Intel CNL/WHL platform with the DSP
+	  enabled in the BIOS then enable this option by saying Y or m.
+
+config SND_SOC_INTEL_CFL
+	tristate "CoffeeLake Platforms"
+	depends on PCI && ACPI
+	select SND_SOC_INTEL_SKYLAKE_FAMILY
+	help
+	  If you have a Intel CoffeeLake platform with the DSP
+	  enabled in the BIOS then enable this option by saying Y or m.
+
+config SND_SOC_INTEL_SKYLAKE_FAMILY
+	tristate
+	select SND_SOC_INTEL_SKYLAKE_COMMON
+
+if SND_SOC_INTEL_SKYLAKE_FAMILY
 
 config SND_SOC_INTEL_SKYLAKE_SSP_CLK
 	tristate
@@ -135,7 +194,7 @@ config SND_SOC_INTEL_SKYLAKE_COMMON
 	  GeminiLake or CannonLake platform with the DSP enabled in the BIOS
 	  then enable this option by saying Y or m.
 
-endif ## SND_SOC_INTEL_SKYLAKE
+endif ## SND_SOC_INTEL_SKYLAKE_FAMILY
 
 config SND_SOC_ACPI_INTEL_MATCH
 	tristate

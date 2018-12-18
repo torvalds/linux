@@ -1421,6 +1421,8 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 							  ies[pos + ext],
 							  ext == 2))
 					pos = skip_ie(ies, ielen, pos);
+				else
+					break;
 			}
 		} else {
 			pos = skip_ie(ies, ielen, pos);

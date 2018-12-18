@@ -45,4 +45,5 @@ int smc_ism_register_dmb(struct smc_link_group *lgr, int buf_size,
 int smc_ism_unregister_dmb(struct smcd_dev *dev, struct smc_buf_desc *dmb_desc);
 int smc_ism_write(struct smcd_dev *dev, const struct smc_ism_position *pos,
 		  void *data, size_t len);
+int smc_ism_signal_shutdown(struct smc_link_group *lgr);
 #endif

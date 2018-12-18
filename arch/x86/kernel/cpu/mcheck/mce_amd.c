@@ -56,7 +56,7 @@
 /* Threshold LVT offset is at MSR0xC0000410[15:12] */
 #define SMCA_THR_LVT_OFF	0xF000
 
-static bool thresholding_en;
+static bool thresholding_irq_en;
 
 static const char * const th_names[] = {
 	"load_store",
@@ -534,9 +534,8 @@ prepare_threshold_block(unsigned int bank, unsigned int block, u32 addr,
 
 set_offset:
 	offset = setup_APIC_mce_threshold(offset, new);
-
-	if ((offset == new) && (mce_threshold_vector != amd_threshold_interrupt))
-		mce_threshold_vector = amd_threshold_interrupt;
+	if (offset == new)
+		thresholding_irq_en = true;
 
 done:
 	mce_threshold_block_init(&b, offset);
@@ -1357,9 +1356,6 @@ int mce_threshold_remove_device(unsigned int cpu)
 {
 	unsigned int bank;
 
-	if (!thresholding_en)
-		return 0;
-
 	for (bank = 0; bank < mca_cfg.banks; ++bank) {
 		if (!(per_cpu(bank_map, cpu) & (1 << bank)))
 			continue;
@@ -1376,9 +1372,6 @@ int mce_threshold_create_device(unsigned int cpu)
 	unsigned int bank;
 	struct threshold_bank **bp;
 	int err = 0;
-
-	if (!thresholding_en)
-		return 0;
 
 	bp = per_cpu(threshold_banks, cpu);
 	if (bp)
@@ -1408,9 +1401,6 @@ static __init int threshold_init_device(void)
 {
 	unsigned lcpu = 0;
 
-	if (mce_threshold_vector == amd_threshold_interrupt)
-		thresholding_en = true;
-
 	/* to hit CPUs online before the notifier is up */
 	for_each_online_cpu(lcpu) {
 		int err = mce_threshold_create_device(lcpu);
@@ -1418,6 +1408,9 @@ static __init int threshold_init_device(void)
 		if (err)
 			return err;
 	}
+
+	if (thresholding_irq_en)
+		mce_threshold_vector = amd_threshold_interrupt;
 
 	return 0;
 }
