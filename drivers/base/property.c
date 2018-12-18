@@ -864,7 +864,7 @@ int fwnode_irq_get(struct fwnode_handle *fwnode, unsigned int index)
 EXPORT_SYMBOL(fwnode_irq_get);
 
 /**
- * device_graph_get_next_endpoint - Get next endpoint firmware node
+ * fwnode_graph_get_next_endpoint - Get next endpoint firmware node
  * @fwnode: Pointer to the parent firmware node
  * @prev: Previous endpoint node or %NULL to get the first
  *
