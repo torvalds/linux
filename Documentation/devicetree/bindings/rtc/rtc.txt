@@ -49,6 +49,7 @@ isil,isl1208		Intersil ISL1208 Low Power RTC with Battery Backed SRAM
 isil,isl1218		Intersil ISL1218 Low Power RTC with Battery Backed SRAM
 isil,isl12022		Intersil ISL12022 Real-time Clock
 microcrystal,rv3029	Real Time Clock Module with I2C-Bus
+microcrystal,rv8523	Real Time Clock
 nxp,pcf2127		Real-time clock
 nxp,pcf2129		Real-time clock
 nxp,pcf8523		Real-time Clock
