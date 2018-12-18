@@ -311,14 +311,12 @@ static irqreturn_t davinci_musb_interrupt(int irq, void *__hci)
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (drvvbus) {
 			MUSB_HST_MODE(musb);
-			otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&musb->dev_timer);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
-			otg->default_a = 0;
 			musb->xceiv->otg->state = OTG_STATE_B_IDLE;
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
@@ -425,6 +423,9 @@ unregister:
 
 static int davinci_musb_exit(struct musb *musb)
 {
+	int	maxdelay = 30;
+	u8	devctl, warn = 0;
+
 	del_timer_sync(&musb->dev_timer);
 
 	/* force VBUS off */
@@ -438,31 +439,27 @@ static int davinci_musb_exit(struct musb *musb)
 
 	davinci_musb_source_power(musb, 0 /*off*/, 1);
 
-	/* delay, to avoid problems with module reload */
-	if (musb->xceiv->otg->default_a) {
-		int	maxdelay = 30;
-		u8	devctl, warn = 0;
+	/*
+	 * delay, to avoid problems with module reload.
+	 * if there's no peripheral connected, this can take a
+	 * long time to fall, especially on EVM with huge C133.
+	 */
+	do {
+		devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
+		if (!(devctl & MUSB_DEVCTL_VBUS))
+			break;
+		if ((devctl & MUSB_DEVCTL_VBUS) != warn) {
+			warn = devctl & MUSB_DEVCTL_VBUS;
+			dev_dbg(musb->controller, "VBUS %d\n",
+				warn >> MUSB_DEVCTL_VBUS_SHIFT);
+		}
+		msleep(1000);
+		maxdelay--;
+	} while (maxdelay > 0);
 
-		/* if there's no peripheral connected, this can take a
-		 * long time to fall, especially on EVM with huge C133.
-		 */
-		do {
-			devctl = musb_readb(musb->mregs, MUSB_DEVCTL);
-			if (!(devctl & MUSB_DEVCTL_VBUS))
-				break;
-			if ((devctl & MUSB_DEVCTL_VBUS) != warn) {
-				warn = devctl & MUSB_DEVCTL_VBUS;
-				dev_dbg(musb->controller, "VBUS %d\n",
-					warn >> MUSB_DEVCTL_VBUS_SHIFT);
-			}
-			msleep(1000);
-			maxdelay--;
-		} while (maxdelay > 0);
-
-		/* in OTG mode, another host might be connected */
-		if (devctl & MUSB_DEVCTL_VBUS)
-			dev_dbg(musb->controller, "VBUS off timeout (devctl %02x)\n", devctl);
-	}
+	/* in OTG mode, another host might be connected */
+	if (devctl & MUSB_DEVCTL_VBUS)
+		dev_dbg(musb->controller, "VBUS off timeout (devctl %02x)\n", devctl);
 
 	phy_off();
 

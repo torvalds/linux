@@ -136,11 +136,15 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function,
 gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__);
 
 
-int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *function, char *file, unsigned int line);
+void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			const char *function, char *file, unsigned int line,
+			bool withdraw);
+
+#define gfs2_io_error_bh_wd(sdp, bh) \
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, true);
 
 #define gfs2_io_error_bh(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__);
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, false);
 
 
 extern struct kmem_cache *gfs2_glock_cachep;

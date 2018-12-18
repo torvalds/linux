@@ -103,6 +103,12 @@
 	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
 };
 
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_gpio40 &pwm1_gpio45>;
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_gpio14>;

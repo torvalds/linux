@@ -14,8 +14,6 @@ Optional properties:
 
   - reset-gpios : gpio used to reset the amplifier
 
-  - interrupt-parent : Specifies the phandle of the interrupt controller to
-    which the IRQs from CS35L33 are delivered to.
  -  interrupts : IRQ line info CS35L33.
     (See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
     for further information relating to interrupt properties)

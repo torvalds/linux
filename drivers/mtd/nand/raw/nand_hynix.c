@@ -100,6 +100,16 @@ static int hynix_nand_reg_write_op(struct nand_chip *chip, u8 addr, u8 val)
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	u16 column = ((u16)addr << 8) | addr;
 
+	if (chip->exec_op) {
+		struct nand_op_instr instrs[] = {
+			NAND_OP_ADDR(1, &addr, 0),
+			NAND_OP_8BIT_DATA_OUT(1, &val, 0),
+		};
+		struct nand_operation op = NAND_OPERATION(instrs);
+
+		return nand_exec_op(chip, &op);
+	}
+
 	chip->cmdfunc(mtd, NAND_CMD_NONE, column, -1);
 	chip->write_byte(mtd, val);
 
@@ -473,6 +483,19 @@ static void hynix_nand_extract_oobsize(struct nand_chip *chip,
 			WARN(1, "Invalid OOB size");
 			break;
 		}
+
+		/*
+		 * The datasheet of H27UCG8T2BTR mentions that the "Redundant
+		 * Area Size" is encoded "per 8KB" (page size). This chip uses
+		 * a page size of 16KiB. The datasheet mentions an OOB size of
+		 * 1.280 bytes, but the OOB size encoded in the ID bytes (using
+		 * the existing logic above) is 640 bytes.
+		 * Update the OOB size for this chip by taking the value
+		 * determined above and scaling it to the actual page size (so
+		 * the actual OOB size for this chip is: 640 * 16k / 8k).
+		 */
+		if (chip->id.data[1] == 0xde)
+			mtd->oobsize *= mtd->writesize / SZ_8K;
 	}
 }
 

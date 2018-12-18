@@ -309,7 +309,7 @@ static inline void acpi_processor_ppc_exit(void)
 {
 	return;
 }
-static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr,
+static inline void acpi_processor_ppc_has_changed(struct acpi_processor *pr,
 								int event_flag)
 {
 	static unsigned int printout = 1;
@@ -320,7 +320,6 @@ static inline int acpi_processor_ppc_has_changed(struct acpi_processor *pr,
 		       "Consider compiling CPUfreq support into your kernel.\n");
 		printout = 0;
 	}
-	return 0;
 }
 static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 {

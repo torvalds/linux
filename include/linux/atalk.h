@@ -145,7 +145,12 @@ extern rwlock_t atalk_interfaces_lock;
 
 extern struct atalk_route atrtr_default;
 
-extern const struct file_operations atalk_seq_arp_fops;
+struct aarp_iter_state {
+	int bucket;
+	struct aarp_entry **table;
+};
+
+extern const struct seq_operations aarp_seq_ops;
 
 extern int sysctl_aarp_expiry_time;
 extern int sysctl_aarp_tick_time;

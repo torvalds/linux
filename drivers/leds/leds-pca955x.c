@@ -390,8 +390,8 @@ pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->leds = devm_kzalloc(&client->dev,
-				   sizeof(struct pca955x_led) * chip->bits,
+	pdata->leds = devm_kcalloc(&client->dev,
+				   chip->bits, sizeof(struct pca955x_led),
 				   GFP_KERNEL);
 	if (!pdata->leds)
 		return ERR_PTR(-ENOMEM);
@@ -494,8 +494,8 @@ static int pca955x_probe(struct i2c_client *client,
 	if (!pca955x)
 		return -ENOMEM;
 
-	pca955x->leds = devm_kzalloc(&client->dev,
-			sizeof(*pca955x_led) * chip->bits, GFP_KERNEL);
+	pca955x->leds = devm_kcalloc(&client->dev,
+			chip->bits, sizeof(*pca955x_led), GFP_KERNEL);
 	if (!pca955x->leds)
 		return -ENOMEM;
 

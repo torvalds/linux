@@ -12,8 +12,6 @@ Required properties:
 - interrupt-controller : Identifies the node as an interrupt controller.
 - #interrupt-cells : Specifies the number of cells needed to encode an
   interrupt source. The value must be 3.
-- interrupt-parent : a phandle to the GIC these interrupts are routed
-  to.
 
 Notes:
 

@@ -128,7 +128,7 @@ static int ns_cmp(struct aa_ns *a, struct aa_ns *b)
 }
 
 /**
- * profile_cmp - profile comparision for set ordering
+ * profile_cmp - profile comparison for set ordering
  * @a: profile to compare (NOT NULL)
  * @b: profile to compare (NOT NULL)
  *
@@ -157,7 +157,7 @@ static int profile_cmp(struct aa_profile *a, struct aa_profile *b)
 }
 
 /**
- * vec_cmp - label comparision for set ordering
+ * vec_cmp - label comparison for set ordering
  * @a: label to compare (NOT NULL)
  * @vec: vector of profiles to compare (NOT NULL)
  * @n: length of @vec
@@ -402,13 +402,12 @@ static void label_free_or_put_new(struct aa_label *label, struct aa_label *new)
 		aa_put_label(new);
 }
 
-bool aa_label_init(struct aa_label *label, int size)
+bool aa_label_init(struct aa_label *label, int size, gfp_t gfp)
 {
 	AA_BUG(!label);
 	AA_BUG(size < 1);
 
-	label->secid = aa_alloc_secid();
-	if (label->secid == AA_SECID_INVALID)
+	if (aa_alloc_secid(label, gfp) < 0)
 		return false;
 
 	label->size = size;			/* doesn't include null */
@@ -441,7 +440,7 @@ struct aa_label *aa_label_alloc(int size, struct aa_proxy *proxy, gfp_t gfp)
 	if (!new)
 		goto fail;
 
-	if (!aa_label_init(new, size))
+	if (!aa_label_init(new, size, gfp))
 		goto fail;
 
 	if (!proxy) {
@@ -463,7 +462,7 @@ fail:
 
 
 /**
- * label_cmp - label comparision for set ordering
+ * label_cmp - label comparison for set ordering
  * @a: label to compare (NOT NULL)
  * @b: label to compare (NOT NULL)
  *
@@ -2011,7 +2010,7 @@ out:
 
 /**
  * __label_update - insert updated version of @label into labelset
- * @label - the label to update/repace
+ * @label - the label to update/replace
  *
  * Returns: new label that is up to date
  *     else NULL on failure

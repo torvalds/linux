@@ -491,7 +491,7 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int rc = 0;
 	int i;
 
-	qp = idr_find(&dev->qpidr, conn_param->qpn);
+	qp = idr_find(&dev->qpidr.idr, conn_param->qpn);
 
 	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
 	raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
@@ -679,7 +679,7 @@ int qedr_iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	DP_DEBUG(dev, QEDR_MSG_IWARP, "Accept on qpid=%d\n", conn_param->qpn);
 
-	qp = idr_find(&dev->qpidr, conn_param->qpn);
+	qp = idr_find(&dev->qpidr.idr, conn_param->qpn);
 	if (!qp) {
 		DP_ERR(dev, "Invalid QP number %d\n", conn_param->qpn);
 		return -EINVAL;
@@ -737,9 +737,9 @@ void qedr_iw_qp_rem_ref(struct ib_qp *ibqp)
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 
 	if (atomic_dec_and_test(&qp->refcnt)) {
-		spin_lock_irq(&qp->dev->idr_lock);
-		idr_remove(&qp->dev->qpidr, qp->qp_id);
-		spin_unlock_irq(&qp->dev->idr_lock);
+		spin_lock_irq(&qp->dev->qpidr.idr_lock);
+		idr_remove(&qp->dev->qpidr.idr, qp->qp_id);
+		spin_unlock_irq(&qp->dev->qpidr.idr_lock);
 		kfree(qp);
 	}
 }
@@ -748,5 +748,5 @@ struct ib_qp *qedr_iw_get_qp(struct ib_device *ibdev, int qpn)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 
-	return idr_find(&dev->qpidr, qpn);
+	return idr_find(&dev->qpidr.idr, qpn);
 }

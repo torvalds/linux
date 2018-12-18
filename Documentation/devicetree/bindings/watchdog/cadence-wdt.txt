@@ -5,7 +5,6 @@ Required properties:
 - compatible		: Should be "cdns,wdt-r1p2".
 - clocks		: This is pclk (APB clock).
 - interrupts		: This is wd_irq - watchdog timeout interrupt.
-- interrupt-parent	: Must be core interrupt controller.
 
 Optional properties
 - reset-on-timeout	: If this property exists, then a reset is done

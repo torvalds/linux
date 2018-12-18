@@ -30,7 +30,7 @@ Required properties:
 
 			  Board connectors:
 			  * Headset Mic
-			  * Secondary Mic",
+			  * Secondary Mic
 			  * DMIC
 			  * Ext Spk
 

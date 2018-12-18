@@ -278,6 +278,7 @@ static void force_sig_info_umip_fault(void __user *addr, struct pt_regs *regs)
 	tsk->thread.error_code	= X86_PF_USER | X86_PF_WRITE;
 	tsk->thread.trap_nr	= X86_TRAP_PF;
 
+	clear_siginfo(&info);
 	info.si_signo	= SIGSEGV;
 	info.si_errno	= 0;
 	info.si_code	= SEGV_MAPERR;

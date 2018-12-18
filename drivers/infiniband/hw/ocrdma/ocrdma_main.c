@@ -176,7 +176,6 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 	dev->ibdev.create_ah = ocrdma_create_ah;
 	dev->ibdev.destroy_ah = ocrdma_destroy_ah;
 	dev->ibdev.query_ah = ocrdma_query_ah;
-	dev->ibdev.modify_ah = ocrdma_modify_ah;
 
 	dev->ibdev.poll_cq = ocrdma_poll_cq;
 	dev->ibdev.post_send = ocrdma_post_send;
@@ -221,19 +220,20 @@ static int ocrdma_register_device(struct ocrdma_dev *dev)
 static int ocrdma_alloc_resources(struct ocrdma_dev *dev)
 {
 	mutex_init(&dev->dev_lock);
-	dev->cq_tbl = kzalloc(sizeof(struct ocrdma_cq *) *
-			      OCRDMA_MAX_CQ, GFP_KERNEL);
+	dev->cq_tbl = kcalloc(OCRDMA_MAX_CQ, sizeof(struct ocrdma_cq *),
+			      GFP_KERNEL);
 	if (!dev->cq_tbl)
 		goto alloc_err;
 
 	if (dev->attr.max_qp) {
-		dev->qp_tbl = kzalloc(sizeof(struct ocrdma_qp *) *
-				      OCRDMA_MAX_QP, GFP_KERNEL);
+		dev->qp_tbl = kcalloc(OCRDMA_MAX_QP,
+				      sizeof(struct ocrdma_qp *),
+				      GFP_KERNEL);
 		if (!dev->qp_tbl)
 			goto alloc_err;
 	}
 
-	dev->stag_arr = kzalloc(sizeof(u64) * OCRDMA_MAX_STAG, GFP_KERNEL);
+	dev->stag_arr = kcalloc(OCRDMA_MAX_STAG, sizeof(u64), GFP_KERNEL);
 	if (dev->stag_arr == NULL)
 		goto alloc_err;
 

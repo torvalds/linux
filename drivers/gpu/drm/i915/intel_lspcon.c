@@ -116,7 +116,7 @@ static int lspcon_change_mode(struct intel_lspcon *lspcon,
 
 static bool lspcon_wake_native_aux_ch(struct intel_lspcon *lspcon)
 {
-	uint8_t rev;
+	u8 rev;
 
 	if (drm_dp_dpcd_readb(&lspcon_to_intel_dp(lspcon)->aux, DP_DPCD_REV,
 			      &rev) != 1) {

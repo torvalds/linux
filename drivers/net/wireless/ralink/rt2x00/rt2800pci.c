@@ -311,8 +311,8 @@ static const struct ieee80211_ops rt2800pci_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.get_key_seq		= rt2800_get_key_seq,
 	.set_rts_threshold	= rt2800_set_rts_threshold,
-	.sta_add		= rt2x00mac_sta_add,
-	.sta_remove		= rt2x00mac_sta_remove,
+	.sta_add		= rt2800_sta_add,
+	.sta_remove		= rt2800_sta_remove,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2800_conf_tx,
 	.get_tsf		= rt2800_get_tsf,
@@ -377,8 +377,6 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.config_erp		= rt2800_config_erp,
 	.config_ant		= rt2800_config_ant,
 	.config			= rt2800_config,
-	.sta_add		= rt2800_sta_add,
-	.sta_remove		= rt2800_sta_remove,
 };
 
 static const struct rt2x00_ops rt2800pci_ops = {

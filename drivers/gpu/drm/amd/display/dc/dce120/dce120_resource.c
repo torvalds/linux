@@ -53,6 +53,7 @@
 #include "dce/dce_hwseq.h"
 #include "dce/dce_abm.h"
 #include "dce/dce_dmcu.h"
+#include "dce/dce_aux.h"
 
 #include "dce/dce_12_0_offset.h"
 #include "dce/dce_12_0_sh_mask.h"
@@ -297,6 +298,20 @@ static const struct dce_opp_shift opp_shift = {
 static const struct dce_opp_mask opp_mask = {
 	OPP_COMMON_MASK_SH_LIST_DCE_120(_MASK)
 };
+ #define aux_engine_regs(id)\
+[id] = {\
+	AUX_COMMON_REG_LIST(id), \
+	.AUX_RESET_MASK = 0 \
+}
+
+static const struct dce110_aux_registers aux_engine_regs[] = {
+		aux_engine_regs(0),
+		aux_engine_regs(1),
+		aux_engine_regs(2),
+		aux_engine_regs(3),
+		aux_engine_regs(4),
+		aux_engine_regs(5)
+};
 
 #define audio_regs(id)\
 [id] = {\
@@ -361,6 +376,22 @@ struct output_pixel_processor *dce120_opp_create(
 			     ctx, inst, &opp_regs[inst], &opp_shift, &opp_mask);
 	return &opp->base;
 }
+struct aux_engine *dce120_aux_engine_create(
+	struct dc_context *ctx,
+	uint32_t inst)
+{
+	struct aux_engine_dce110 *aux_engine =
+		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
+
+	if (!aux_engine)
+		return NULL;
+
+	dce110_aux_engine_construct(aux_engine, ctx, inst,
+				    SW_AUX_TIMEOUT_PERIOD_MULTIPLIER * AUX_TIMEOUT_PERIOD,
+				    &aux_engine_regs[inst]);
+
+	return &aux_engine->base;
+}
 
 static const struct bios_registers bios_regs = {
 	.BIOS_SCRATCH_6 = mmBIOS_SCRATCH_6 + NBIO_BASE(mmBIOS_SCRATCH_6_BASE_IDX)
@@ -373,7 +404,7 @@ static const struct resource_caps res_cap = {
 		.num_pll = 6,
 };
 
-static const struct dc_debug debug_defaults = {
+static const struct dc_debug_options debug_defaults = {
 		.disable_clock_gate = true,
 };
 
@@ -467,6 +498,10 @@ static void destruct(struct dce110_resource_pool *pool)
 			kfree(DCE110TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
 		}
+
+		if (pool->base.engines[i] != NULL)
+			dce110_engine_destroy(&pool->base.engines[i]);
+
 	}
 
 	for (i = 0; i < pool->base.audio_count; i++) {
@@ -494,8 +529,8 @@ static void destruct(struct dce110_resource_pool *pool)
 	if (pool->base.dmcu != NULL)
 		dce_dmcu_destroy(&pool->base.dmcu);
 
-	if (pool->base.display_clock != NULL)
-		dce_disp_clk_destroy(&pool->base.display_clock);
+	if (pool->base.dccg != NULL)
+		dce_dccg_destroy(&pool->base.dccg);
 }
 
 static void read_dce_straps(
@@ -652,7 +687,7 @@ static struct mem_input *dce120_mem_input_create(
 		return NULL;
 	}
 
-	dce112_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
+	dce120_mem_input_construct(dce_mi, ctx, inst, &mi_regs[inst], &mi_shifts, &mi_masks);
 	return &dce_mi->base;
 }
 
@@ -684,7 +719,6 @@ static void dce120_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce120_res_pool_funcs = {
 	.destroy = dce120_destroy_resource_pool,
 	.link_enc_create = dce120_link_encoder_create,
-	.validate_guaranteed = dce112_validate_guaranteed,
 	.validate_bandwidth = dce112_validate_bandwidth,
 	.validate_plane = dce100_validate_plane,
 	.add_stream_to_ctx = dce112_add_stream_to_ctx
@@ -776,7 +810,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[0].wm_max_eng_clk_in_khz =
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz - 1;
-	clk_ranges.wm_clk_ranges[0].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[0].wm_min_mem_clk_in_khz =
 			mem_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[0].wm_max_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz - 1;
@@ -786,7 +820,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz;
 	/* 5 GHz instead of data[7].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[1].wm_max_eng_clk_in_khz = 5000000;
-	clk_ranges.wm_clk_ranges[1].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[1].wm_min_mem_clk_in_khz =
 			mem_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[1].wm_max_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz - 1;
@@ -796,7 +830,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[0].clocks_in_khz;
 	clk_ranges.wm_clk_ranges[2].wm_max_eng_clk_in_khz =
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz - 1;
-	clk_ranges.wm_clk_ranges[2].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[2].wm_min_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz;
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[2].wm_max_mem_clk_in_khz = 5000000;
@@ -806,7 +840,7 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 			eng_clks.data[eng_clks.num_levels*3/8].clocks_in_khz;
 	/* 5 GHz instead of data[7].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_eng_clk_in_khz = 5000000;
-	clk_ranges.wm_clk_ranges[3].wm_min_memg_clk_in_khz =
+	clk_ranges.wm_clk_ranges[3].wm_min_mem_clk_in_khz =
 			mem_clks.data[mem_clks.num_levels>>1].clocks_in_khz;
 	/* 5 GHz instead of data[2].clockInKHz to cover Overdrive */
 	clk_ranges.wm_clk_ranges[3].wm_max_mem_clk_in_khz = 5000000;
@@ -815,14 +849,25 @@ static void bw_calcs_data_update_from_pplib(struct dc *dc)
 	dm_pp_notify_wm_clock_changes(dc->ctx, &clk_ranges);
 }
 
+static uint32_t read_pipe_fuses(struct dc_context *ctx)
+{
+	uint32_t value = dm_read_reg_soc15(ctx, mmCC_DC_PIPE_DIS, 0);
+	/* VG20 support max 6 pipes */
+	value = value & 0x3f;
+	return value;
+}
+
 static bool construct(
 	uint8_t num_virtual_links,
 	struct dc *dc,
 	struct dce110_resource_pool *pool)
 {
 	unsigned int i;
+	int j;
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data irq_init_data;
+	bool harvest_enabled = ASICREV_IS_VEGA20_P(ctx->asic_id.hw_internal_rev);
+	uint32_t pipe_fuses;
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -838,6 +883,7 @@ static bool construct(
 	dc->caps.i2c_speed_in_khz = 100;
 	dc->caps.max_cursor_size = 128;
 	dc->caps.dual_link_dvi = true;
+	dc->caps.psp_setup_panel_mode = true;
 
 	dc->debug = debug_defaults;
 
@@ -884,11 +930,11 @@ static bool construct(
 		}
 	}
 
-	pool->base.display_clock = dce120_disp_clk_create(ctx);
-	if (pool->base.display_clock == NULL) {
+	pool->base.dccg = dce120_dccg_create(ctx);
+	if (pool->base.dccg == NULL) {
 		dm_error("DC: failed to create display clock!\n");
 		BREAK_TO_DEBUGGER();
-		goto disp_clk_create_fail;
+		goto dccg_create_fail;
 	}
 
 	pool->base.dmcu = dce_dmcu_create(ctx,
@@ -916,28 +962,41 @@ static bool construct(
 	if (!pool->base.irqs)
 		goto irqs_create_fail;
 
+	/* retrieve valid pipe fuses */
+	if (harvest_enabled)
+		pipe_fuses = read_pipe_fuses(ctx);
+
+	/* index to valid pipe resource */
+	j = 0;
 	for (i = 0; i < pool->base.pipe_count; i++) {
-		pool->base.timing_generators[i] =
+		if (harvest_enabled) {
+			if ((pipe_fuses & (1 << i)) != 0) {
+				dm_error("DC: skip invalid pipe %d!\n", i);
+				continue;
+			}
+		}
+
+		pool->base.timing_generators[j] =
 				dce120_timing_generator_create(
 					ctx,
 					i,
 					&dce120_tg_offsets[i]);
-		if (pool->base.timing_generators[i] == NULL) {
+		if (pool->base.timing_generators[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error("DC: failed to create tg!\n");
 			goto controller_create_fail;
 		}
 
-		pool->base.mis[i] = dce120_mem_input_create(ctx, i);
+		pool->base.mis[j] = dce120_mem_input_create(ctx, i);
 
-		if (pool->base.mis[i] == NULL) {
+		if (pool->base.mis[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create memory input!\n");
 			goto controller_create_fail;
 		}
 
-		pool->base.ipps[i] = dce120_ipp_create(ctx, i);
+		pool->base.ipps[j] = dce120_ipp_create(ctx, i);
 		if (pool->base.ipps[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
@@ -945,7 +1004,7 @@ static bool construct(
 			goto controller_create_fail;
 		}
 
-		pool->base.transforms[i] = dce120_transform_create(ctx, i);
+		pool->base.transforms[j] = dce120_transform_create(ctx, i);
 		if (pool->base.transforms[i] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
@@ -953,15 +1012,29 @@ static bool construct(
 			goto res_create_fail;
 		}
 
-		pool->base.opps[i] = dce120_opp_create(
+		pool->base.opps[j] = dce120_opp_create(
 			ctx,
 			i);
-		if (pool->base.opps[i] == NULL) {
+		if (pool->base.opps[j] == NULL) {
 			BREAK_TO_DEBUGGER();
 			dm_error(
 				"DC: failed to create output pixel processor!\n");
 		}
+		pool->base.engines[i] = dce120_aux_engine_create(ctx, i);
+				if (pool->base.engines[i] == NULL) {
+					BREAK_TO_DEBUGGER();
+					dm_error(
+						"DC:failed to create aux engine!!\n");
+					goto res_create_fail;
+				}
+
+		/* check next valid pipe */
+		j++;
 	}
+
+	/* valid pipe num */
+	pool->base.pipe_count = j;
+	pool->base.timing_generator_count = j;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			 &res_create_funcs))
@@ -981,7 +1054,7 @@ static bool construct(
 
 irqs_create_fail:
 controller_create_fail:
-disp_clk_create_fail:
+dccg_create_fail:
 clk_src_create_fail:
 res_create_fail:
 

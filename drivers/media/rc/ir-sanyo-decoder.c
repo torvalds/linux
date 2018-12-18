@@ -210,6 +210,7 @@ static struct ir_raw_handler sanyo_handler = {
 	.decode		= ir_sanyo_decode,
 	.encode		= ir_sanyo_encode,
 	.carrier	= 38000,
+	.min_timeout	= SANYO_TRAILER_SPACE,
 };
 
 static int __init ir_sanyo_decode_init(void)

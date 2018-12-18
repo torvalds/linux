@@ -311,7 +311,7 @@ iser_set_dif_domain(struct scsi_cmnd *sc, struct ib_sig_attrs *sig_attrs,
 {
 	domain->sig_type = IB_SIG_TYPE_T10_DIF;
 	domain->sig.dif.pi_interval = scsi_prot_interval(sc);
-	domain->sig.dif.ref_tag = scsi_prot_ref_tag(sc);
+	domain->sig.dif.ref_tag = t10_pi_ref_tag(sc->request);
 	/*
 	 * At the moment we hard code those, but in the future
 	 * we will take them from sc.
@@ -362,9 +362,9 @@ iser_set_prot_checks(struct scsi_cmnd *sc, u8 *mask)
 {
 	*mask = 0;
 	if (sc->prot_flags & SCSI_PROT_REF_CHECK)
-		*mask |= ISER_CHECK_REFTAG;
+		*mask |= IB_SIG_CHECK_REFTAG;
 	if (sc->prot_flags & SCSI_PROT_GUARD_CHECK)
-		*mask |= ISER_CHECK_GUARD;
+		*mask |= IB_SIG_CHECK_GUARD;
 }
 
 static inline void
@@ -405,7 +405,8 @@ iser_reg_sig_mr(struct iscsi_iser_task *iser_task,
 
 	ib_update_fast_reg_key(mr, ib_inc_rkey(mr->rkey));
 
-	wr = sig_handover_wr(iser_tx_next_wr(tx_desc));
+	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_sig_handover_wr,
+			  wr);
 	wr->wr.opcode = IB_WR_REG_SIG_MR;
 	wr->wr.wr_cqe = cqe;
 	wr->wr.sg_list = &data_reg->sge;
@@ -457,7 +458,7 @@ static int iser_fast_reg_mr(struct iscsi_iser_task *iser_task,
 		return n < 0 ? n : -EINVAL;
 	}
 
-	wr = reg_wr(iser_tx_next_wr(tx_desc));
+	wr = container_of(iser_tx_next_wr(tx_desc), struct ib_reg_wr, wr);
 	wr->wr.opcode = IB_WR_REG_MR;
 	wr->wr.wr_cqe = cqe;
 	wr->wr.send_flags = 0;

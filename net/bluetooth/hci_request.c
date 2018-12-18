@@ -122,7 +122,6 @@ void hci_req_sync_cancel(struct hci_dev *hdev, int err)
 struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 				  const void *param, u8 event, u32 timeout)
 {
-	DECLARE_WAITQUEUE(wait, current);
 	struct hci_request req;
 	struct sk_buff *skb;
 	int err = 0;
@@ -135,21 +134,14 @@ struct sk_buff *__hci_cmd_sync_ev(struct hci_dev *hdev, u16 opcode, u32 plen,
 
 	hdev->req_status = HCI_REQ_PEND;
 
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	err = hci_req_run_skb(&req, hci_req_sync_complete);
-	if (err < 0) {
-		remove_wait_queue(&hdev->req_wait_q, &wait);
-		set_current_state(TASK_RUNNING);
+	if (err < 0)
 		return ERR_PTR(err);
-	}
 
-	schedule_timeout(timeout);
+	err = wait_event_interruptible_timeout(hdev->req_wait_q,
+			hdev->req_status != HCI_REQ_PEND, timeout);
 
-	remove_wait_queue(&hdev->req_wait_q, &wait);
-
-	if (signal_pending(current))
+	if (err == -ERESTARTSYS)
 		return ERR_PTR(-EINTR);
 
 	switch (hdev->req_status) {
@@ -197,7 +189,6 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		   unsigned long opt, u32 timeout, u8 *hci_status)
 {
 	struct hci_request req;
-	DECLARE_WAITQUEUE(wait, current);
 	int err = 0;
 
 	BT_DBG("%s start", hdev->name);
@@ -213,15 +204,9 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		return err;
 	}
 
-	add_wait_queue(&hdev->req_wait_q, &wait);
-	set_current_state(TASK_INTERRUPTIBLE);
-
 	err = hci_req_run_skb(&req, hci_req_sync_complete);
 	if (err < 0) {
 		hdev->req_status = 0;
-
-		remove_wait_queue(&hdev->req_wait_q, &wait);
-		set_current_state(TASK_RUNNING);
 
 		/* ENODATA means the HCI request command queue is empty.
 		 * This can happen when a request with conditionals doesn't
@@ -240,11 +225,10 @@ int __hci_req_sync(struct hci_dev *hdev, int (*func)(struct hci_request *req,
 		return err;
 	}
 
-	schedule_timeout(timeout);
+	err = wait_event_interruptible_timeout(hdev->req_wait_q,
+			hdev->req_status != HCI_REQ_PEND, timeout);
 
-	remove_wait_queue(&hdev->req_wait_q, &wait);
-
-	if (signal_pending(current))
+	if (err == -ERESTARTSYS)
 		return -EINTR;
 
 	switch (hdev->req_status) {
@@ -663,11 +647,22 @@ void __hci_req_update_eir(struct hci_request *req)
 
 void hci_req_add_le_scan_disable(struct hci_request *req)
 {
-	struct hci_cp_le_set_scan_enable cp;
+	struct hci_dev *hdev = req->hdev;
 
-	memset(&cp, 0, sizeof(cp));
-	cp.enable = LE_SCAN_DISABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	if (use_ext_scan(hdev)) {
+		struct hci_cp_le_set_ext_scan_enable cp;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.enable = LE_SCAN_DISABLE;
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_ENABLE, sizeof(cp),
+			    &cp);
+	} else {
+		struct hci_cp_le_set_scan_enable cp;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.enable = LE_SCAN_DISABLE;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	}
 }
 
 static void add_to_white_list(struct hci_request *req,
@@ -783,10 +778,86 @@ static bool scan_use_rpa(struct hci_dev *hdev)
 	return hci_dev_test_flag(hdev, HCI_PRIVACY);
 }
 
+static void hci_req_start_scan(struct hci_request *req, u8 type, u16 interval,
+			       u16 window, u8 own_addr_type, u8 filter_policy)
+{
+	struct hci_dev *hdev = req->hdev;
+
+	/* Use ext scanning if set ext scan param and ext scan enable is
+	 * supported
+	 */
+	if (use_ext_scan(hdev)) {
+		struct hci_cp_le_set_ext_scan_params *ext_param_cp;
+		struct hci_cp_le_set_ext_scan_enable ext_enable_cp;
+		struct hci_cp_le_scan_phy_params *phy_params;
+		u8 data[sizeof(*ext_param_cp) + sizeof(*phy_params) * 2];
+		u32 plen;
+
+		ext_param_cp = (void *)data;
+		phy_params = (void *)ext_param_cp->data;
+
+		memset(ext_param_cp, 0, sizeof(*ext_param_cp));
+		ext_param_cp->own_addr_type = own_addr_type;
+		ext_param_cp->filter_policy = filter_policy;
+
+		plen = sizeof(*ext_param_cp);
+
+		if (scan_1m(hdev) || scan_2m(hdev)) {
+			ext_param_cp->scanning_phys |= LE_SCAN_PHY_1M;
+
+			memset(phy_params, 0, sizeof(*phy_params));
+			phy_params->type = type;
+			phy_params->interval = cpu_to_le16(interval);
+			phy_params->window = cpu_to_le16(window);
+
+			plen += sizeof(*phy_params);
+			phy_params++;
+		}
+
+		if (scan_coded(hdev)) {
+			ext_param_cp->scanning_phys |= LE_SCAN_PHY_CODED;
+
+			memset(phy_params, 0, sizeof(*phy_params));
+			phy_params->type = type;
+			phy_params->interval = cpu_to_le16(interval);
+			phy_params->window = cpu_to_le16(window);
+
+			plen += sizeof(*phy_params);
+			phy_params++;
+		}
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_PARAMS,
+			    plen, ext_param_cp);
+
+		memset(&ext_enable_cp, 0, sizeof(ext_enable_cp));
+		ext_enable_cp.enable = LE_SCAN_ENABLE;
+		ext_enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_ENABLE,
+			    sizeof(ext_enable_cp), &ext_enable_cp);
+	} else {
+		struct hci_cp_le_set_scan_param param_cp;
+		struct hci_cp_le_set_scan_enable enable_cp;
+
+		memset(&param_cp, 0, sizeof(param_cp));
+		param_cp.type = type;
+		param_cp.interval = cpu_to_le16(interval);
+		param_cp.window = cpu_to_le16(window);
+		param_cp.own_address_type = own_addr_type;
+		param_cp.filter_policy = filter_policy;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
+			    &param_cp);
+
+		memset(&enable_cp, 0, sizeof(enable_cp));
+		enable_cp.enable = LE_SCAN_ENABLE;
+		enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
+			    &enable_cp);
+	}
+}
+
 void hci_req_add_le_passive_scan(struct hci_request *req)
 {
-	struct hci_cp_le_set_scan_param param_cp;
-	struct hci_cp_le_set_scan_enable enable_cp;
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
 	u8 filter_policy;
@@ -820,20 +891,26 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
 		filter_policy |= 0x02;
 
-	memset(&param_cp, 0, sizeof(param_cp));
-	param_cp.type = LE_SCAN_PASSIVE;
-	param_cp.interval = cpu_to_le16(hdev->le_scan_interval);
-	param_cp.window = cpu_to_le16(hdev->le_scan_window);
-	param_cp.own_address_type = own_addr_type;
-	param_cp.filter_policy = filter_policy;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
-		    &param_cp);
+	hci_req_start_scan(req, LE_SCAN_PASSIVE, hdev->le_scan_interval,
+			   hdev->le_scan_window, own_addr_type, filter_policy);
+}
 
-	memset(&enable_cp, 0, sizeof(enable_cp));
-	enable_cp.enable = LE_SCAN_ENABLE;
-	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
-		    &enable_cp);
+static u8 get_adv_instance_scan_rsp_len(struct hci_dev *hdev, u8 instance)
+{
+	struct adv_info *adv_instance;
+
+	/* Ignore instance 0 */
+	if (instance == 0x00)
+		return 0;
+
+	adv_instance = hci_find_adv_instance(hdev, instance);
+	if (!adv_instance)
+		return 0;
+
+	/* TODO: Take into account the "appearance" and "local-name" flags here.
+	 * These are currently being ignored as they are not supported.
+	 */
+	return adv_instance->scan_rsp_len;
 }
 
 static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
@@ -857,9 +934,19 @@ static u8 get_cur_adv_instance_scan_rsp_len(struct hci_dev *hdev)
 
 void __hci_req_disable_advertising(struct hci_request *req)
 {
-	u8 enable = 0x00;
+	if (ext_adv_capable(req->hdev)) {
+		struct hci_cp_le_set_ext_adv_enable cp;
 
-	hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+		cp.enable = 0x00;
+		/* Disable all sets since we only support one set at the moment */
+		cp.num_of_sets = 0x00;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_ENABLE, sizeof(cp), &cp);
+	} else {
+		u8 enable = 0x00;
+
+		hci_req_add(req, HCI_OP_LE_SET_ADV_ENABLE, sizeof(enable), &enable);
+	}
 }
 
 static u32 get_adv_instance_flags(struct hci_dev *hdev, u8 instance)
@@ -1097,29 +1184,58 @@ static u8 create_instance_scan_rsp_data(struct hci_dev *hdev, u8 instance,
 void __hci_req_update_scan_rsp_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_scan_rsp_data cp;
 	u8 len;
 
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
-	memset(&cp, 0, sizeof(cp));
+	if (ext_adv_capable(hdev)) {
+		struct hci_cp_le_set_ext_scan_rsp_data cp;
 
-	if (instance)
-		len = create_instance_scan_rsp_data(hdev, instance, cp.data);
-	else
-		len = create_default_scan_rsp_data(hdev, cp.data);
+		memset(&cp, 0, sizeof(cp));
 
-	if (hdev->scan_rsp_data_len == len &&
-	    !memcmp(cp.data, hdev->scan_rsp_data, len))
-		return;
+		if (instance)
+			len = create_instance_scan_rsp_data(hdev, instance,
+							    cp.data);
+		else
+			len = create_default_scan_rsp_data(hdev, cp.data);
 
-	memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
-	hdev->scan_rsp_data_len = len;
+		if (hdev->scan_rsp_data_len == len &&
+		    !memcmp(cp.data, hdev->scan_rsp_data, len))
+			return;
 
-	cp.length = len;
+		memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
+		hdev->scan_rsp_data_len = len;
 
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_RSP_DATA, sizeof(cp), &cp);
+		cp.handle = 0;
+		cp.length = len;
+		cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
+		cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_RSP_DATA, sizeof(cp),
+			    &cp);
+	} else {
+		struct hci_cp_le_set_scan_rsp_data cp;
+
+		memset(&cp, 0, sizeof(cp));
+
+		if (instance)
+			len = create_instance_scan_rsp_data(hdev, instance,
+							    cp.data);
+		else
+			len = create_default_scan_rsp_data(hdev, cp.data);
+
+		if (hdev->scan_rsp_data_len == len &&
+		    !memcmp(cp.data, hdev->scan_rsp_data, len))
+			return;
+
+		memcpy(hdev->scan_rsp_data, cp.data, sizeof(cp.data));
+		hdev->scan_rsp_data_len = len;
+
+		cp.length = len;
+
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_RSP_DATA, sizeof(cp), &cp);
+	}
 }
 
 static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
@@ -1176,15 +1292,27 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 		ptr += adv_instance->adv_data_len;
 	}
 
-	/* Provide Tx Power only if we can provide a valid value for it */
-	if (hdev->adv_tx_power != HCI_TX_POWER_INVALID &&
-	    (instance_flags & MGMT_ADV_FLAG_TX_POWER)) {
-		ptr[0] = 0x02;
-		ptr[1] = EIR_TX_POWER;
-		ptr[2] = (u8)hdev->adv_tx_power;
+	if (instance_flags & MGMT_ADV_FLAG_TX_POWER) {
+		s8 adv_tx_power;
 
-		ad_len += 3;
-		ptr += 3;
+		if (ext_adv_capable(hdev)) {
+			if (adv_instance)
+				adv_tx_power = adv_instance->tx_power;
+			else
+				adv_tx_power = hdev->adv_tx_power;
+		} else {
+			adv_tx_power = hdev->adv_tx_power;
+		}
+
+		/* Provide Tx Power only if we can provide a valid value for it */
+		if (adv_tx_power != HCI_TX_POWER_INVALID) {
+			ptr[0] = 0x02;
+			ptr[1] = EIR_TX_POWER;
+			ptr[2] = (u8)adv_tx_power;
+
+			ad_len += 3;
+			ptr += 3;
+		}
 	}
 
 	return ad_len;
@@ -1193,27 +1321,51 @@ static u8 create_instance_adv_data(struct hci_dev *hdev, u8 instance, u8 *ptr)
 void __hci_req_update_adv_data(struct hci_request *req, u8 instance)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_adv_data cp;
 	u8 len;
 
 	if (!hci_dev_test_flag(hdev, HCI_LE_ENABLED))
 		return;
 
-	memset(&cp, 0, sizeof(cp));
+	if (ext_adv_capable(hdev)) {
+		struct hci_cp_le_set_ext_adv_data cp;
 
-	len = create_instance_adv_data(hdev, instance, cp.data);
+		memset(&cp, 0, sizeof(cp));
 
-	/* There's nothing to do if the data hasn't changed */
-	if (hdev->adv_data_len == len &&
-	    memcmp(cp.data, hdev->adv_data, len) == 0)
-		return;
+		len = create_instance_adv_data(hdev, instance, cp.data);
 
-	memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
-	hdev->adv_data_len = len;
+		/* There's nothing to do if the data hasn't changed */
+		if (hdev->adv_data_len == len &&
+		    memcmp(cp.data, hdev->adv_data, len) == 0)
+			return;
 
-	cp.length = len;
+		memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+		hdev->adv_data_len = len;
 
-	hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
+		cp.length = len;
+		cp.handle = 0;
+		cp.operation = LE_SET_ADV_DATA_OP_COMPLETE;
+		cp.frag_pref = LE_SET_ADV_DATA_NO_FRAG;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_DATA, sizeof(cp), &cp);
+	} else {
+		struct hci_cp_le_set_adv_data cp;
+
+		memset(&cp, 0, sizeof(cp));
+
+		len = create_instance_adv_data(hdev, instance, cp.data);
+
+		/* There's nothing to do if the data hasn't changed */
+		if (hdev->adv_data_len == len &&
+		    memcmp(cp.data, hdev->adv_data, len) == 0)
+			return;
+
+		memcpy(hdev->adv_data, cp.data, sizeof(cp.data));
+		hdev->adv_data_len = len;
+
+		cp.length = len;
+
+		hci_req_add(req, HCI_OP_LE_SET_ADV_DATA, sizeof(cp), &cp);
+	}
 }
 
 int hci_req_update_adv_data(struct hci_dev *hdev, u8 instance)
@@ -1245,9 +1397,13 @@ void hci_req_reenable_advertising(struct hci_dev *hdev)
 		__hci_req_schedule_adv_instance(&req, hdev->cur_adv_instance,
 						true);
 	} else {
-		__hci_req_update_adv_data(&req, 0x00);
-		__hci_req_update_scan_rsp_data(&req, 0x00);
-		__hci_req_enable_advertising(&req);
+		if (ext_adv_capable(hdev)) {
+			__hci_req_start_ext_adv(&req, 0x00);
+		} else {
+			__hci_req_update_adv_data(&req, 0x00);
+			__hci_req_update_scan_rsp_data(&req, 0x00);
+			__hci_req_enable_advertising(&req);
+		}
 	}
 
 	hci_req_run(&req, adv_enable_complete);
@@ -1282,6 +1438,245 @@ static void adv_timeout_expire(struct work_struct *work)
 
 unlock:
 	hci_dev_unlock(hdev);
+}
+
+int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
+			   bool use_rpa, struct adv_info *adv_instance,
+			   u8 *own_addr_type, bdaddr_t *rand_addr)
+{
+	int err;
+
+	bacpy(rand_addr, BDADDR_ANY);
+
+	/* If privacy is enabled use a resolvable private address. If
+	 * current RPA has expired then generate a new one.
+	 */
+	if (use_rpa) {
+		int to;
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+
+		if (adv_instance) {
+			if (!adv_instance->rpa_expired &&
+			    !bacmp(&adv_instance->random_addr, &hdev->rpa))
+				return 0;
+
+			adv_instance->rpa_expired = false;
+		} else {
+			if (!hci_dev_test_and_clear_flag(hdev, HCI_RPA_EXPIRED) &&
+			    !bacmp(&hdev->random_addr, &hdev->rpa))
+				return 0;
+		}
+
+		err = smp_generate_rpa(hdev, hdev->irk, &hdev->rpa);
+		if (err < 0) {
+			BT_ERR("%s failed to generate new RPA", hdev->name);
+			return err;
+		}
+
+		bacpy(rand_addr, &hdev->rpa);
+
+		to = msecs_to_jiffies(hdev->rpa_timeout * 1000);
+		if (adv_instance)
+			queue_delayed_work(hdev->workqueue,
+					   &adv_instance->rpa_expired_cb, to);
+		else
+			queue_delayed_work(hdev->workqueue,
+					   &hdev->rpa_expired, to);
+
+		return 0;
+	}
+
+	/* In case of required privacy without resolvable private address,
+	 * use an non-resolvable private address. This is useful for
+	 * non-connectable advertising.
+	 */
+	if (require_privacy) {
+		bdaddr_t nrpa;
+
+		while (true) {
+			/* The non-resolvable private address is generated
+			 * from random six bytes with the two most significant
+			 * bits cleared.
+			 */
+			get_random_bytes(&nrpa, 6);
+			nrpa.b[5] &= 0x3f;
+
+			/* The non-resolvable private address shall not be
+			 * equal to the public address.
+			 */
+			if (bacmp(&hdev->bdaddr, &nrpa))
+				break;
+		}
+
+		*own_addr_type = ADDR_LE_DEV_RANDOM;
+		bacpy(rand_addr, &nrpa);
+
+		return 0;
+	}
+
+	/* No privacy so use a public address. */
+	*own_addr_type = ADDR_LE_DEV_PUBLIC;
+
+	return 0;
+}
+
+void __hci_req_clear_ext_adv_sets(struct hci_request *req)
+{
+	hci_req_add(req, HCI_OP_LE_CLEAR_ADV_SETS, 0, NULL);
+}
+
+int __hci_req_setup_ext_adv_instance(struct hci_request *req, u8 instance)
+{
+	struct hci_cp_le_set_ext_adv_params cp;
+	struct hci_dev *hdev = req->hdev;
+	bool connectable;
+	u32 flags;
+	bdaddr_t random_addr;
+	u8 own_addr_type;
+	int err;
+	struct adv_info *adv_instance;
+	bool secondary_adv;
+	/* In ext adv set param interval is 3 octets */
+	const u8 adv_interval[3] = { 0x00, 0x08, 0x00 };
+
+	if (instance > 0) {
+		adv_instance = hci_find_adv_instance(hdev, instance);
+		if (!adv_instance)
+			return -EINVAL;
+	} else {
+		adv_instance = NULL;
+	}
+
+	flags = get_adv_instance_flags(hdev, instance);
+
+	/* If the "connectable" instance flag was not set, then choose between
+	 * ADV_IND and ADV_NONCONN_IND based on the global connectable setting.
+	 */
+	connectable = (flags & MGMT_ADV_FLAG_CONNECTABLE) ||
+		      mgmt_get_connectable(hdev);
+
+	 if (!is_advertising_allowed(hdev, connectable))
+		return -EPERM;
+
+	/* Set require_privacy to true only when non-connectable
+	 * advertising is used. In that case it is fine to use a
+	 * non-resolvable private address.
+	 */
+	err = hci_get_random_address(hdev, !connectable,
+				     adv_use_rpa(hdev, flags), adv_instance,
+				     &own_addr_type, &random_addr);
+	if (err < 0)
+		return err;
+
+	memset(&cp, 0, sizeof(cp));
+
+	memcpy(cp.min_interval, adv_interval, sizeof(cp.min_interval));
+	memcpy(cp.max_interval, adv_interval, sizeof(cp.max_interval));
+
+	secondary_adv = (flags & MGMT_ADV_FLAG_SEC_MASK);
+
+	if (connectable) {
+		if (secondary_adv)
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_CONN_IND);
+		else
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_IND);
+	} else if (get_adv_instance_scan_rsp_len(hdev, instance)) {
+		if (secondary_adv)
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_SCAN_IND);
+		else
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_ADV_SCAN_IND);
+	} else {
+		if (secondary_adv)
+			cp.evt_properties = cpu_to_le16(LE_EXT_ADV_NON_CONN_IND);
+		else
+			cp.evt_properties = cpu_to_le16(LE_LEGACY_NONCONN_IND);
+	}
+
+	cp.own_addr_type = own_addr_type;
+	cp.channel_map = hdev->le_adv_channel_map;
+	cp.tx_power = 127;
+	cp.handle = 0;
+
+	if (flags & MGMT_ADV_FLAG_SEC_2M) {
+		cp.primary_phy = HCI_ADV_PHY_1M;
+		cp.secondary_phy = HCI_ADV_PHY_2M;
+	} else if (flags & MGMT_ADV_FLAG_SEC_CODED) {
+		cp.primary_phy = HCI_ADV_PHY_CODED;
+		cp.secondary_phy = HCI_ADV_PHY_CODED;
+	} else {
+		/* In all other cases use 1M */
+		cp.primary_phy = HCI_ADV_PHY_1M;
+		cp.secondary_phy = HCI_ADV_PHY_1M;
+	}
+
+	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_PARAMS, sizeof(cp), &cp);
+
+	if (own_addr_type == ADDR_LE_DEV_RANDOM &&
+	    bacmp(&random_addr, BDADDR_ANY)) {
+		struct hci_cp_le_set_adv_set_rand_addr cp;
+
+		/* Check if random address need to be updated */
+		if (adv_instance) {
+			if (!bacmp(&random_addr, &adv_instance->random_addr))
+				return 0;
+		} else {
+			if (!bacmp(&random_addr, &hdev->random_addr))
+				return 0;
+		}
+
+		memset(&cp, 0, sizeof(cp));
+
+		cp.handle = 0;
+		bacpy(&cp.bdaddr, &random_addr);
+
+		hci_req_add(req,
+			    HCI_OP_LE_SET_ADV_SET_RAND_ADDR,
+			    sizeof(cp), &cp);
+	}
+
+	return 0;
+}
+
+void __hci_req_enable_ext_advertising(struct hci_request *req)
+{
+	struct hci_cp_le_set_ext_adv_enable *cp;
+	struct hci_cp_ext_adv_set *adv_set;
+	u8 data[sizeof(*cp) + sizeof(*adv_set) * 1];
+
+	cp = (void *) data;
+	adv_set = (void *) cp->data;
+
+	memset(cp, 0, sizeof(*cp));
+
+	cp->enable = 0x01;
+	cp->num_of_sets = 0x01;
+
+	memset(adv_set, 0, sizeof(*adv_set));
+
+	adv_set->handle = 0;
+
+	hci_req_add(req, HCI_OP_LE_SET_EXT_ADV_ENABLE,
+		    sizeof(*cp) + sizeof(*adv_set) * cp->num_of_sets,
+		    data);
+}
+
+int __hci_req_start_ext_adv(struct hci_request *req, u8 instance)
+{
+	struct hci_dev *hdev = req->hdev;
+	int err;
+
+	if (hci_dev_test_flag(hdev, HCI_LE_ADV))
+		__hci_req_disable_advertising(req);
+
+	err = __hci_req_setup_ext_adv_instance(req, instance);
+	if (err < 0)
+		return err;
+
+	__hci_req_update_scan_rsp_data(req, instance);
+	__hci_req_enable_ext_advertising(req);
+
+	return 0;
 }
 
 int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
@@ -1337,9 +1732,13 @@ int __hci_req_schedule_adv_instance(struct hci_request *req, u8 instance,
 		return 0;
 
 	hdev->cur_adv_instance = instance;
-	__hci_req_update_adv_data(req, instance);
-	__hci_req_update_scan_rsp_data(req, instance);
-	__hci_req_enable_advertising(req);
+	if (ext_adv_capable(hdev)) {
+		__hci_req_start_ext_adv(req, instance);
+	} else {
+		__hci_req_update_adv_data(req, instance);
+		__hci_req_update_scan_rsp_data(req, instance);
+		__hci_req_enable_advertising(req);
+	}
 
 	return 0;
 }
@@ -1610,8 +2009,12 @@ static int connectable_update(struct hci_request *req, unsigned long opt)
 
 	/* Update the advertising parameters if necessary */
 	if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
-	    !list_empty(&hdev->adv_instances))
-		__hci_req_enable_advertising(req);
+	    !list_empty(&hdev->adv_instances)) {
+		if (ext_adv_capable(hdev))
+			__hci_req_start_ext_adv(req, hdev->cur_adv_instance);
+		else
+			__hci_req_enable_advertising(req);
+	}
 
 	__hci_update_background_scan(req);
 
@@ -1720,8 +2123,12 @@ static int discoverable_update(struct hci_request *req, unsigned long opt)
 		/* Discoverable mode affects the local advertising
 		 * address in limited privacy mode.
 		 */
-		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY))
-			__hci_req_enable_advertising(req);
+		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY)) {
+			if (ext_adv_capable(hdev))
+				__hci_req_start_ext_adv(req, 0x00);
+			else
+				__hci_req_enable_advertising(req);
+		}
 	}
 
 	hci_dev_unlock(hdev);
@@ -1956,7 +2363,6 @@ discov_stopped:
 static int le_scan_restart(struct hci_request *req, unsigned long opt)
 {
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_scan_enable cp;
 
 	/* If controller is not scanning we are done. */
 	if (!hci_dev_test_flag(hdev, HCI_LE_SCAN))
@@ -1964,10 +2370,23 @@ static int le_scan_restart(struct hci_request *req, unsigned long opt)
 
 	hci_req_add_le_scan_disable(req);
 
-	memset(&cp, 0, sizeof(cp));
-	cp.enable = LE_SCAN_ENABLE;
-	cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	if (use_ext_scan(hdev)) {
+		struct hci_cp_le_set_ext_scan_enable ext_enable_cp;
+
+		memset(&ext_enable_cp, 0, sizeof(ext_enable_cp));
+		ext_enable_cp.enable = LE_SCAN_ENABLE;
+		ext_enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+
+		hci_req_add(req, HCI_OP_LE_SET_EXT_SCAN_ENABLE,
+			    sizeof(ext_enable_cp), &ext_enable_cp);
+	} else {
+		struct hci_cp_le_set_scan_enable cp;
+
+		memset(&cp, 0, sizeof(cp));
+		cp.enable = LE_SCAN_ENABLE;
+		cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
+		hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(cp), &cp);
+	}
 
 	return 0;
 }
@@ -2026,8 +2445,6 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 {
 	uint16_t interval = opt;
 	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_le_set_scan_param param_cp;
-	struct hci_cp_le_set_scan_enable enable_cp;
 	u8 own_addr_type;
 	int err;
 
@@ -2066,22 +2483,8 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	if (err < 0)
 		own_addr_type = ADDR_LE_DEV_PUBLIC;
 
-	memset(&param_cp, 0, sizeof(param_cp));
-	param_cp.type = LE_SCAN_ACTIVE;
-	param_cp.interval = cpu_to_le16(interval);
-	param_cp.window = cpu_to_le16(DISCOV_LE_SCAN_WIN);
-	param_cp.own_address_type = own_addr_type;
-
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_PARAM, sizeof(param_cp),
-		    &param_cp);
-
-	memset(&enable_cp, 0, sizeof(enable_cp));
-	enable_cp.enable = LE_SCAN_ENABLE;
-	enable_cp.filter_dup = LE_SCAN_FILTER_DUP_ENABLE;
-
-	hci_req_add(req, HCI_OP_LE_SET_SCAN_ENABLE, sizeof(enable_cp),
-		    &enable_cp);
-
+	hci_req_start_scan(req, LE_SCAN_ACTIVE, interval, DISCOV_LE_SCAN_WIN,
+			   own_addr_type, 0);
 	return 0;
 }
 
@@ -2318,11 +2721,26 @@ static int powered_update_hci(struct hci_request *req, unsigned long opt)
 		 */
 		if (hci_dev_test_flag(hdev, HCI_ADVERTISING) ||
 		    list_empty(&hdev->adv_instances)) {
-			__hci_req_update_adv_data(req, 0x00);
-			__hci_req_update_scan_rsp_data(req, 0x00);
+			int err;
 
-			if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
-				__hci_req_enable_advertising(req);
+			if (ext_adv_capable(hdev)) {
+				err = __hci_req_setup_ext_adv_instance(req,
+								       0x00);
+				if (!err)
+					__hci_req_update_scan_rsp_data(req,
+								       0x00);
+			} else {
+				err = 0;
+				__hci_req_update_adv_data(req, 0x00);
+				__hci_req_update_scan_rsp_data(req, 0x00);
+			}
+
+			if (hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
+				if (!ext_adv_capable(hdev))
+					__hci_req_enable_advertising(req);
+				else if (!err)
+					__hci_req_enable_ext_advertising(req);
+			}
 		} else if (!list_empty(&hdev->adv_instances)) {
 			struct adv_info *adv_instance;
 

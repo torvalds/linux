@@ -80,53 +80,72 @@ static void log_dpcd(uint8_t type,
 static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 				  struct drm_dp_aux_msg *msg)
 {
-	enum i2c_mot_mode mot = (msg->request & DP_AUX_I2C_MOT) ?
-		I2C_MOT_TRUE : I2C_MOT_FALSE;
-	enum ddc_result res;
-	ssize_t read_bytes;
+	ssize_t result = 0;
+	enum i2caux_transaction_action action;
+	enum aux_transaction_type type;
 
 	if (WARN_ON(msg->size > 16))
 		return -E2BIG;
 
 	switch (msg->request & ~DP_AUX_I2C_MOT) {
 	case DP_AUX_NATIVE_READ:
-		read_bytes = dal_ddc_service_read_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				false,
-				I2C_MOT_UNDEF,
-				msg->address,
-				msg->buffer,
-				msg->size);
-		return read_bytes;
+		type = AUX_TRANSACTION_TYPE_DP;
+		action = I2CAUX_TRANSACTION_ACTION_DP_READ;
+
+		result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+					      msg->address,
+					      &msg->reply,
+					      msg->buffer,
+					      msg->size,
+					      type,
+					      action);
+		break;
 	case DP_AUX_NATIVE_WRITE:
-		res = dal_ddc_service_write_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				false,
-				I2C_MOT_UNDEF,
-				msg->address,
-				msg->buffer,
-				msg->size);
+		type = AUX_TRANSACTION_TYPE_DP;
+		action = I2CAUX_TRANSACTION_ACTION_DP_WRITE;
+
+		dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+				     msg->address,
+				     &msg->reply,
+				     msg->buffer,
+				     msg->size,
+				     type,
+				     action);
+		result = msg->size;
 		break;
 	case DP_AUX_I2C_READ:
-		read_bytes = dal_ddc_service_read_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				true,
-				mot,
-				msg->address,
-				msg->buffer,
-				msg->size);
-		return read_bytes;
+		type = AUX_TRANSACTION_TYPE_I2C;
+		if (msg->request & DP_AUX_I2C_MOT)
+			action = I2CAUX_TRANSACTION_ACTION_I2C_READ_MOT;
+		else
+			action = I2CAUX_TRANSACTION_ACTION_I2C_READ;
+
+		result = dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+					      msg->address,
+					      &msg->reply,
+					      msg->buffer,
+					      msg->size,
+					      type,
+					      action);
+		break;
 	case DP_AUX_I2C_WRITE:
-		res = dal_ddc_service_write_dpcd_data(
-				TO_DM_AUX(aux)->ddc_service,
-				true,
-				mot,
-				msg->address,
-				msg->buffer,
-				msg->size);
+		type = AUX_TRANSACTION_TYPE_I2C;
+		if (msg->request & DP_AUX_I2C_MOT)
+			action = I2CAUX_TRANSACTION_ACTION_I2C_WRITE_MOT;
+		else
+			action = I2CAUX_TRANSACTION_ACTION_I2C_WRITE;
+
+		dc_link_aux_transfer(TO_DM_AUX(aux)->ddc_service,
+				     msg->address,
+				     &msg->reply,
+				     msg->buffer,
+				     msg->size,
+				     type,
+				     action);
+		result = msg->size;
 		break;
 	default:
-		return 0;
+		return -EINVAL;
 	}
 
 #ifdef TRACE_DPCD
@@ -137,7 +156,10 @@ static ssize_t dm_dp_aux_transfer(struct drm_dp_aux *aux,
 		 r == DDC_RESULT_SUCESSFULL);
 #endif
 
-	return msg->size;
+	if (result < 0) /* DC doesn't know about kernel error codes */
+		result = -EIO;
+
+	return result;
 }
 
 static enum drm_connector_status
@@ -161,6 +183,11 @@ dm_dp_mst_connector_destroy(struct drm_connector *connector)
 	struct amdgpu_dm_connector *amdgpu_dm_connector = to_amdgpu_dm_connector(connector);
 	struct amdgpu_encoder *amdgpu_encoder = amdgpu_dm_connector->mst_encoder;
 
+	if (amdgpu_dm_connector->edid) {
+		kfree(amdgpu_dm_connector->edid);
+		amdgpu_dm_connector->edid = NULL;
+	}
+
 	drm_encoder_cleanup(&amdgpu_encoder->base);
 	kfree(amdgpu_encoder);
 	drm_connector_cleanup(connector);
@@ -181,11 +208,14 @@ static const struct drm_connector_funcs dm_dp_mst_connector_funcs = {
 void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 {
 	struct amdgpu_dm_connector *aconnector = to_amdgpu_dm_connector(connector);
-	struct edid *edid;
 	struct dc_sink *dc_sink;
 	struct dc_sink_init_data init_params = {
 			.link = aconnector->dc_link,
 			.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
+
+	/* FIXME none of this is safe. we shouldn't touch aconnector here in
+	 * atomic_check
+	 */
 
 	/*
 	 * TODO: Need to further figure out why ddc.algo is NULL while MST port exists
@@ -193,16 +223,7 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 	if (!aconnector->port || !aconnector->port->aux.ddc.algo)
 		return;
 
-	edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
-
-	if (!edid) {
-		drm_mode_connector_update_edid_property(
-			&aconnector->base,
-			NULL);
-		return;
-	}
-
-	aconnector->edid = edid;
+	ASSERT(aconnector->edid);
 
 	dc_sink = dc_link_add_remote_sink(
 		aconnector->dc_link,
@@ -215,9 +236,6 @@ void dm_dp_mst_dc_sink_create(struct drm_connector *connector)
 
 	amdgpu_dm_add_sink_to_freesync_module(
 			connector, aconnector->edid);
-
-	drm_mode_connector_update_edid_property(
-					&aconnector->base, aconnector->edid);
 }
 
 static int dm_dp_mst_get_modes(struct drm_connector *connector)
@@ -230,25 +248,27 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 	if (!aconnector->edid) {
 		struct edid *edid;
-		struct dc_sink *dc_sink;
-		struct dc_sink_init_data init_params = {
-				.link = aconnector->dc_link,
-				.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
 		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 
 		if (!edid) {
-			drm_mode_connector_update_edid_property(
+			drm_connector_update_edid_property(
 				&aconnector->base,
 				NULL);
 			return ret;
 		}
 
 		aconnector->edid = edid;
+	}
 
+	if (!aconnector->dc_sink) {
+		struct dc_sink *dc_sink;
+		struct dc_sink_init_data init_params = {
+				.link = aconnector->dc_link,
+				.sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST };
 		dc_sink = dc_link_add_remote_sink(
 			aconnector->dc_link,
-			(uint8_t *)edid,
-			(edid->extensions + 1) * EDID_LENGTH,
+			(uint8_t *)aconnector->edid,
+			(aconnector->edid->extensions + 1) * EDID_LENGTH,
 			&init_params);
 
 		dc_sink->priv = aconnector;
@@ -256,11 +276,11 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 
 		if (aconnector->dc_sink)
 			amdgpu_dm_add_sink_to_freesync_module(
-					connector, edid);
-
-		drm_mode_connector_update_edid_property(
-						&aconnector->base, edid);
+					connector, aconnector->edid);
 	}
+
+	drm_connector_update_edid_property(
+					&aconnector->base, aconnector->edid);
 
 	ret = drm_add_edid_modes(connector, aconnector->edid);
 
@@ -343,7 +363,7 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 						aconnector, connector->base.id, aconnector->mst_port);
 
 			aconnector->port = port;
-			drm_mode_connector_set_path_property(connector, pathprop);
+			drm_connector_set_path_property(connector, pathprop);
 
 			drm_connector_list_iter_end(&conn_iter);
 			aconnector->mst_connected = true;
@@ -391,7 +411,7 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 		dev->mode_config.tile_property,
 		0);
 
-	drm_mode_connector_set_path_property(connector, pathprop);
+	drm_connector_set_path_property(connector, pathprop);
 
 	/*
 	 * Initialize connector state before adding the connectror to drm and
@@ -424,14 +444,6 @@ static void dm_dp_destroy_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
 	}
-	if (aconnector->edid) {
-		kfree(aconnector->edid);
-		aconnector->edid = NULL;
-	}
-
-	drm_mode_connector_update_edid_property(
-			&aconnector->base,
-			NULL);
 
 	aconnector->mst_connected = false;
 }
@@ -447,7 +459,7 @@ static void dm_dp_mst_hotplug(struct drm_dp_mst_topology_mgr *mgr)
 static void dm_dp_mst_link_status_reset(struct drm_connector *connector)
 {
 	mutex_lock(&connector->dev->mode_config.mutex);
-	drm_mode_connector_set_link_status_property(connector, DRM_MODE_LINK_STATUS_BAD);
+	drm_connector_set_link_status_property(connector, DRM_MODE_LINK_STATUS_BAD);
 	mutex_unlock(&connector->dev->mode_config.mutex);
 }
 

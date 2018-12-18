@@ -290,13 +290,6 @@ static netdev_tx_t xlr_net_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static u16 xlr_net_select_queue(struct net_device *ndev, struct sk_buff *skb,
-				void *accel_priv,
-				select_queue_fallback_t fallback)
-{
-	return (u16)smp_processor_id();
-}
-
 static void xlr_hw_set_mac_addr(struct net_device *ndev)
 {
 	struct xlr_net_priv *priv = netdev_priv(ndev);
@@ -403,7 +396,7 @@ static const struct net_device_ops xlr_netdev_ops = {
 	.ndo_open = xlr_net_open,
 	.ndo_stop = xlr_net_stop,
 	.ndo_start_xmit = xlr_net_start_xmit,
-	.ndo_select_queue = xlr_net_select_queue,
+	.ndo_select_queue = dev_pick_tx_cpu_id,
 	.ndo_set_mac_address = xlr_net_set_mac_addr,
 	.ndo_set_rx_mode = xlr_set_rx_mode,
 	.ndo_get_stats64 = xlr_stats,

@@ -120,6 +120,7 @@ enum {
 	IPMRA_TABLE_MROUTE_DO_ASSERT,
 	IPMRA_TABLE_MROUTE_DO_PIM,
 	IPMRA_TABLE_VIFS,
+	IPMRA_TABLE_MROUTE_DO_WRVIFWHOLE,
 	__IPMRA_TABLE_MAX
 };
 #define IPMRA_TABLE_MAX (__IPMRA_TABLE_MAX - 1)
@@ -173,5 +174,6 @@ enum {
 #define IGMPMSG_NOCACHE		1		/* Kern cache fill request to mrouted */
 #define IGMPMSG_WRONGVIF	2		/* For PIM assert processing (unused) */
 #define IGMPMSG_WHOLEPKT	3		/* For PIM Register processing */
+#define IGMPMSG_WRVIFWHOLE	4		/* For PIM Register and assert processing */
 
 #endif /* _UAPI__LINUX_MROUTE_H */

@@ -22,14 +22,14 @@ static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
 	struct drm_gem_object *obj;
 	struct cirrus_bo *bo;
 	int src_offset, dst_offset;
-	int bpp = afbdev->gfb.base.format->cpp[0];
+	int bpp = afbdev->gfb.format->cpp[0];
 	int ret = -EBUSY;
 	bool unmap = false;
 	bool store_for_later = false;
 	int x2, y2;
 	unsigned long flags;
 
-	obj = afbdev->gfb.obj;
+	obj = afbdev->gfb.obj[0];
 	bo = gem_to_cirrus_bo(obj);
 
 	/*
@@ -82,7 +82,7 @@ static void cirrus_dirty_update(struct cirrus_fbdev *afbdev,
 	}
 	for (i = y; i < y + height; i++) {
 		/* assume equal stride for now */
-		src_offset = dst_offset = i * afbdev->gfb.base.pitches[0] + (x * bpp);
+		src_offset = dst_offset = i * afbdev->gfb.pitches[0] + (x * bpp);
 		memcpy_toio(bo->kmap.virtual + src_offset, afbdev->sysram + src_offset, width * bpp);
 
 	}
@@ -204,7 +204,7 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 	gfbdev->sysram = sysram;
 	gfbdev->size = size;
 
-	fb = &gfbdev->gfb.base;
+	fb = &gfbdev->gfb;
 	if (!fb) {
 		DRM_INFO("fb is NULL\n");
 		return -EINVAL;
@@ -246,19 +246,19 @@ static int cirrusfb_create(struct drm_fb_helper *helper,
 static int cirrus_fbdev_destroy(struct drm_device *dev,
 				struct cirrus_fbdev *gfbdev)
 {
-	struct cirrus_framebuffer *gfb = &gfbdev->gfb;
+	struct drm_framebuffer *gfb = &gfbdev->gfb;
 
 	drm_fb_helper_unregister_fbi(&gfbdev->helper);
 
-	if (gfb->obj) {
-		drm_gem_object_put_unlocked(gfb->obj);
-		gfb->obj = NULL;
+	if (gfb->obj[0]) {
+		drm_gem_object_put_unlocked(gfb->obj[0]);
+		gfb->obj[0] = NULL;
 	}
 
 	vfree(gfbdev->sysram);
 	drm_fb_helper_fini(&gfbdev->helper);
-	drm_framebuffer_unregister_private(&gfb->base);
-	drm_framebuffer_cleanup(&gfb->base);
+	drm_framebuffer_unregister_private(gfb);
+	drm_framebuffer_cleanup(gfb);
 
 	return 0;
 }

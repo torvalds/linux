@@ -1,3 +1,4 @@
+generic-y += compat.h
 generic-y += current.h
 generic-y += early_ioremap.h
 generic-y += emergency-restart.h

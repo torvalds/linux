@@ -30,16 +30,11 @@ static int gem_show(struct seq_file *m, void *arg)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct omap_drm_private *priv = dev->dev_private;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
 
 	seq_printf(m, "All Objects:\n");
+	mutex_lock(&priv->list_lock);
 	omap_gem_describe_objects(&priv->obj_list, m);
-
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&priv->list_lock);
 
 	return 0;
 }

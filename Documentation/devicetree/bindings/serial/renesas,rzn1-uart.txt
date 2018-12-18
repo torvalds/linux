@@ -1,0 +1,10 @@
+Renesas RZ/N1 UART
+
+This controller is based on the Synopsys DesignWare ABP UART and inherits all
+properties defined in snps-dw-apb-uart.txt except for the compatible property.
+
+Required properties:
+- compatible : The device specific string followed by the generic RZ/N1 string.
+   Therefore it must be one of:
+   "renesas,r9a06g032-uart", "renesas,rzn1-uart"
+   "renesas,r9a06g033-uart", "renesas,rzn1-uart"

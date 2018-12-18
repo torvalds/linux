@@ -58,11 +58,6 @@ struct proc_dir_entry * proc_runway_root __read_mostly = NULL;
 struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
 struct proc_dir_entry * proc_mckinley_root __read_mostly = NULL;
 
-#if !defined(CONFIG_PA20) && (defined(CONFIG_IOMMU_CCIO) || defined(CONFIG_IOMMU_SBA))
-int parisc_bus_is_phys __read_mostly = 1;	/* Assume no IOMMU is present */
-EXPORT_SYMBOL(parisc_bus_is_phys);
-#endif
-
 void __init setup_cmdline(char **cmdline_p)
 {
 	extern unsigned int boot_args[];
@@ -102,14 +97,12 @@ void __init dma_ops_init(void)
 		panic(	"PA-RISC Linux currently only supports machines that conform to\n"
 			"the PA-RISC 1.1 or 2.0 architecture specification.\n");
 
-	case pcxs:
-	case pcxt:
-		hppa_dma_ops = &pcx_dma_ops;
-		break;
 	case pcxl2:
 		pa7300lc_init();
 	case pcxl: /* falls through */
-		hppa_dma_ops = &pcxl_dma_ops;
+	case pcxs:
+	case pcxt:
+		hppa_dma_ops = &dma_noncoherent_ops;
 		break;
 	default:
 		break;

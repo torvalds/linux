@@ -609,7 +609,7 @@ static const struct driver_info cdc_mbim_info_ndp_to_end = {
  */
 static const struct driver_info cdc_mbim_info_avoid_altsetting_toggle = {
 	.description = "CDC MBIM",
-	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN,
+	.flags = FLAG_NO_SETINT | FLAG_MULTI_PACKET | FLAG_WWAN | FLAG_SEND_ZLP,
 	.bind = cdc_mbim_bind,
 	.unbind = cdc_mbim_unbind,
 	.manage_power = cdc_mbim_manage_power,

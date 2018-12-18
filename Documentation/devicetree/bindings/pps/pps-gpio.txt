@@ -20,5 +20,4 @@ Example:
 		assert-falling-edge;
 
 		compatible = "pps-gpio";
-		status = "okay";
 	};

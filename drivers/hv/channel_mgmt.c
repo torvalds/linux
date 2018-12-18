@@ -527,10 +527,8 @@ static void vmbus_process_offer(struct vmbus_channel *newchannel)
 		struct hv_device *dev
 			= newchannel->primary_channel->device_obj;
 
-		if (vmbus_add_channel_kobj(dev, newchannel)) {
-			atomic_dec(&vmbus_connection.offer_in_progress);
+		if (vmbus_add_channel_kobj(dev, newchannel))
 			goto err_free_chan;
-		}
 
 		if (channel->sc_creation_callback != NULL)
 			channel->sc_creation_callback(newchannel);
@@ -893,6 +891,12 @@ static void vmbus_onoffer_rescind(struct vmbus_channel_message_header *hdr)
 		 */
 		return;
 	}
+
+	/*
+	 * Before setting channel->rescind in vmbus_rescind_cleanup(), we
+	 * should make sure the channel callback is not running any more.
+	 */
+	vmbus_reset_channel_cb(channel);
 
 	/*
 	 * Now wait for offer handling to complete.

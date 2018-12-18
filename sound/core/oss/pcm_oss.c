@@ -1851,7 +1851,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 	format_mask = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	for (fmt = 0; fmt < 32; ++fmt) {
 		if (snd_mask_test(format_mask, fmt)) {
-			int f = snd_pcm_oss_format_to(fmt);
+			int f = snd_pcm_oss_format_to((__force snd_pcm_format_t)fmt);
 			if (f >= 0)
 				formats |= f;
 		}
@@ -3045,7 +3045,7 @@ static void snd_pcm_oss_proc_init(struct snd_pcm *pcm)
 			continue;
 		if ((entry = snd_info_create_card_entry(pcm->card, "oss", pstr->proc_root)) != NULL) {
 			entry->content = SNDRV_INFO_CONTENT_TEXT;
-			entry->mode = S_IFREG | S_IRUGO | S_IWUSR;
+			entry->mode = S_IFREG | 0644;
 			entry->c.text.read = snd_pcm_oss_proc_read;
 			entry->c.text.write = snd_pcm_oss_proc_write;
 			entry->private_data = pstr;

@@ -32,7 +32,7 @@ icmpv6_in_range(const struct nf_conntrack_tuple *tuple,
 static void
 icmpv6_unique_tuple(const struct nf_nat_l3proto *l3proto,
 		    struct nf_conntrack_tuple *tuple,
-		    const struct nf_nat_range *range,
+		    const struct nf_nat_range2 *range,
 		    enum nf_nat_manip_type maniptype,
 		    const struct nf_conn *ct)
 {

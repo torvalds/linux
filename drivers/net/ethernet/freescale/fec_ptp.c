@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Fast Ethernet Controller (ENET) PTP driver for MX6x.
  *
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -111,7 +99,6 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 {
 	unsigned long flags;
 	u32 val, tempval;
-	int inc;
 	struct timespec64 ts;
 	u64 ns;
 	val = 0;
@@ -126,7 +113,6 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 
 	fep->pps_channel = DEFAULT_PPS_CHANNEL;
 	fep->reload_period = PPS_OUPUT_RELOAD_PERIOD;
-	inc = fep->ptp_inc;
 
 	spin_lock_irqsave(&fep->tmreg_lock, flags);
 
@@ -466,12 +452,6 @@ static int fec_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
-/**
- * fec_ptp_hwtstamp_ioctl - control hardware time stamping
- * @ndev: pointer to net_device
- * @ifreq: ioctl data
- * @cmd: particular ioctl requested
- */
 int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);

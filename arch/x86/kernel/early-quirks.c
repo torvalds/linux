@@ -28,8 +28,6 @@
 #include <asm/irq_remapping.h>
 #include <asm/early_ioremap.h>
 
-#define dev_err(msg)  pr_err("pci 0000:%02x:%02x.%d: %s", bus, slot, func, msg)
-
 static void __init fix_hypertransport_config(int num, int slot, int func)
 {
 	u32 htcfg;
@@ -340,6 +338,18 @@ static resource_size_t __init gen3_stolen_base(int num, int slot, int func,
 	return bsm & INTEL_BSM_MASK;
 }
 
+static resource_size_t __init gen11_stolen_base(int num, int slot, int func,
+						resource_size_t stolen_size)
+{
+	u64 bsm;
+
+	bsm = read_pci_config(num, slot, func, INTEL_GEN11_BSM_DW0);
+	bsm &= INTEL_BSM_MASK;
+	bsm |= (u64)read_pci_config(num, slot, func, INTEL_GEN11_BSM_DW1) << 32;
+
+	return bsm;
+}
+
 static resource_size_t __init i830_stolen_size(int num, int slot, int func)
 {
 	u16 gmch_ctrl;
@@ -500,6 +510,11 @@ static const struct intel_early_ops chv_early_ops __initconst = {
 	.stolen_size = chv_stolen_size,
 };
 
+static const struct intel_early_ops gen11_early_ops __initconst = {
+	.stolen_base = gen11_stolen_base,
+	.stolen_size = gen9_stolen_size,
+};
+
 static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_I830_IDS(&i830_early_ops),
 	INTEL_I845G_IDS(&i845_early_ops),
@@ -531,6 +546,7 @@ static const struct pci_device_id intel_early_ids[] __initconst = {
 	INTEL_CFL_IDS(&gen9_early_ops),
 	INTEL_GLK_IDS(&gen9_early_ops),
 	INTEL_CNL_IDS(&gen9_early_ops),
+	INTEL_ICL_11_IDS(&gen11_early_ops),
 };
 
 struct resource intel_graphics_stolen_res __ro_after_init = DEFINE_RES_MEM(0, 0);
@@ -617,7 +633,8 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 		pmcsr = read_pci_config_16(bus, slot, func, BCM4331_PM_CAP + PCI_PM_CTRL);
 		if ((pmcsr & PCI_PM_CTRL_STATE_MASK) != PCI_D0) {
-			dev_err("Cannot power up Apple AirPort card\n");
+			pr_err("pci 0000:%02x:%02x.%d: Cannot power up Apple AirPort card\n",
+			       bus, slot, func);
 			return;
 		}
 	}
@@ -628,7 +645,8 @@ static void __init apple_airport_reset(int bus, int slot, int func)
 
 	mmio = early_ioremap(addr, BCM4331_MMIO_SIZE);
 	if (!mmio) {
-		dev_err("Cannot iomap Apple AirPort card\n");
+		pr_err("pci 0000:%02x:%02x.%d: Cannot iomap Apple AirPort card\n",
+		       bus, slot, func);
 		return;
 	}
 

@@ -594,8 +594,7 @@ int trace_print_context(struct trace_iterator *iter)
 
 	trace_find_cmdline(entry->pid, comm);
 
-	trace_seq_printf(s, "%16s-%-5d [%03d] ",
-			       comm, entry->pid, iter->cpu);
+	trace_seq_printf(s, "%16s-%-5d ", comm, entry->pid);
 
 	if (tr->trace_flags & TRACE_ITER_RECORD_TGID) {
 		unsigned int tgid = trace_find_tgid(entry->pid);
@@ -605,6 +604,8 @@ int trace_print_context(struct trace_iterator *iter)
 		else
 			trace_seq_printf(s, "(%5d) ", tgid);
 	}
+
+	trace_seq_printf(s, "[%03d] ", iter->cpu);
 
 	if (tr->trace_flags & TRACE_ITER_IRQ_INFO)
 		trace_print_lat_fmt(s, entry);

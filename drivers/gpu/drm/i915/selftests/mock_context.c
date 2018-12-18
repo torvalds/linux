@@ -30,6 +30,7 @@ mock_context(struct drm_i915_private *i915,
 	     const char *name)
 {
 	struct i915_gem_context *ctx;
+	unsigned int n;
 	int ret;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -42,6 +43,12 @@ mock_context(struct drm_i915_private *i915,
 
 	INIT_RADIX_TREE(&ctx->handles_vma, GFP_KERNEL);
 	INIT_LIST_HEAD(&ctx->handles_list);
+
+	for (n = 0; n < ARRAY_SIZE(ctx->__engine); n++) {
+		struct intel_context *ce = &ctx->__engine[n];
+
+		ce->gem_context = ctx;
+	}
 
 	ret = ida_simple_get(&i915->contexts.hw_ida,
 			     0, MAX_CONTEXT_HW_ID, GFP_KERNEL);

@@ -23,9 +23,27 @@
 	compatible = "qcom,ipq4019";
 	interrupt-parent = <&intc>;
 
+	reserved-memory {
+		#address-cells = <0x1>;
+		#size-cells = <0x1>;
+		ranges;
+
+		smem_region: smem@87e00000 {
+			reg = <0x87e00000 0x080000>;
+			no-map;
+		};
+
+		tz@87e80000 {
+			reg = <0x87e80000 0x180000>;
+			no-map;
+		};
+	};
+
 	aliases {
-		spi0 = &spi_0;
-		i2c0 = &i2c_0;
+		spi0 = &blsp1_spi1;
+		spi1 = &blsp1_spi2;
+		i2c0 = &blsp1_i2c3;
+		i2c1 = &blsp1_i2c4;
 	};
 
 	cpus {
@@ -45,7 +63,7 @@
 				48000	1100000
 				200000	1100000
 				500000	1100000
-				666000	1100000
+				716000  1100000
 			>;
 			clock-latency = <256000>;
 		};
@@ -104,6 +122,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-ipq4019";
+		};
+	};
+
 	timer {
 		compatible = "arm,armv7-timer";
 		interrupts = <1 2 0xf08>,
@@ -149,13 +173,13 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			interrupts = <0 208 0>;
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
 		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x23000>;
-			interrupts = <GIC_SPI 238 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -163,7 +187,7 @@
 			status = "disabled";
 		};
 
-		spi_0: spi@78b5000 {
+		blsp1_spi1: spi@78b5000 { /* BLSP1 QUP1 */
 			compatible = "qcom,spi-qup-v2.2.1";
 			reg = <0x78b5000 0x600>;
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
@@ -172,10 +196,26 @@
 			clock-names = "core", "iface";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			dmas = <&blsp_dma 5>, <&blsp_dma 4>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
-		i2c_0: i2c@78b7000 {
+		blsp1_spi2: spi@78b6000 { /* BLSP1 QUP2 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			reg = <0x78b6000 0x600>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_QUP2_SPI_APPS_CLK>,
+				<&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			dmas = <&blsp_dma 7>, <&blsp_dma 6>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+
+		blsp1_i2c3: i2c@78b7000 { /* BLSP1 QUP3 */
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x78b7000 0x600>;
 			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
@@ -184,14 +224,29 @@
 			clock-names = "iface", "core";
 			#address-cells = <1>;
 			#size-cells = <0>;
+			dmas = <&blsp_dma 9>, <&blsp_dma 8>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
+		blsp1_i2c4: i2c@78b8000 { /* BLSP1 QUP4 */
+			compatible = "qcom,i2c-qup-v2.2.1";
+			reg = <0x78b8000 0x600>;
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
+				 <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
+			clock-names = "iface", "core";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			dmas = <&blsp_dma 11>, <&blsp_dma 10>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
 
 		cryptobam: dma@8e04000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x08e04000 0x20000>;
-			interrupts = <GIC_SPI 207 0>;
+			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_CRYPTO_AHB_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -256,10 +311,10 @@
                         regulator;
                 };
 
-		serial@78af000 {
+		blsp1_uart1: serial@78af000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78af000 0x200>;
-			interrupts = <0 107 0>;
+			interrupts = <GIC_SPI 107 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&gcc GCC_BLSP1_UART1_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
@@ -268,10 +323,10 @@
 			dma-names = "rx", "tx";
 		};
 
-		serial@78b0000 {
+		blsp1_uart2: serial@78b0000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78b0000 0x200>;
-			interrupts = <0 108 0>;
+			interrupts = <GIC_SPI 108 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
 			clocks = <&gcc GCC_BLSP1_UART2_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
@@ -291,6 +346,101 @@
 		restart@4ab000 {
 			compatible = "qcom,pshold";
 			reg = <0x4ab000 0x4>;
+		};
+
+		pcie0: pci@40000000 {
+			compatible = "qcom,pcie-ipq4019", "snps,dw-pcie";
+			reg =  <0x40000000 0xf1d
+				0x40000f20 0xa8
+				0x80000 0x2000
+				0x40100000 0x1000>;
+			reg-names = "dbi", "elbi", "parf", "config";
+			device_type = "pci";
+			linux,pci-domain = <0>;
+			bus-range = <0x00 0xff>;
+			num-lanes = <1>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+
+			ranges = <0x81000000 0 0x40200000 0x40200000 0 0x00100000
+				  0x82000000 0 0x48000000 0x48000000 0 0x10000000>;
+
+			interrupts = <GIC_SPI 141 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "msi";
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 0x7>;
+			interrupt-map = <0 0 0 1 &intc 0 142 IRQ_TYPE_LEVEL_HIGH>, /* int_a */
+					<0 0 0 2 &intc 0 143 IRQ_TYPE_LEVEL_HIGH>, /* int_b */
+					<0 0 0 3 &intc 0 144 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
+					<0 0 0 4 &intc 0 145 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
+			clocks = <&gcc GCC_PCIE_AHB_CLK>,
+				 <&gcc GCC_PCIE_AXI_M_CLK>,
+				 <&gcc GCC_PCIE_AXI_S_CLK>;
+			clock-names = "aux",
+				      "master_bus",
+				      "slave_bus";
+
+			resets = <&gcc PCIE_AXI_M_ARES>,
+				 <&gcc PCIE_AXI_S_ARES>,
+				 <&gcc PCIE_PIPE_ARES>,
+				 <&gcc PCIE_AXI_M_VMIDMT_ARES>,
+				 <&gcc PCIE_AXI_S_XPU_ARES>,
+				 <&gcc PCIE_PARF_XPU_ARES>,
+				 <&gcc PCIE_PHY_ARES>,
+				 <&gcc PCIE_AXI_M_STICKY_ARES>,
+				 <&gcc PCIE_PIPE_STICKY_ARES>,
+				 <&gcc PCIE_PWR_ARES>,
+				 <&gcc PCIE_AHB_ARES>,
+				 <&gcc PCIE_PHY_AHB_ARES>;
+			reset-names = "axi_m",
+				      "axi_s",
+				      "pipe",
+				      "axi_m_vmid",
+				      "axi_s_xpu",
+				      "parf",
+				      "phy",
+				      "axi_m_sticky",
+				      "pipe_sticky",
+				      "pwr",
+				      "ahb",
+				      "phy_ahb";
+
+			status = "disabled";
+		};
+
+		qpic_bam: dma@7984000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x7984000 0x1a000>;
+			interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_QPIC_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+			status = "disabled";
+		};
+
+		nand: qpic-nand@79b0000 {
+			compatible = "qcom,ipq4019-nand";
+			reg = <0x79b0000 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&gcc GCC_QPIC_CLK>,
+				 <&gcc GCC_QPIC_AHB_CLK>;
+			clock-names = "core", "aon";
+
+			dmas = <&qpic_bam 0>,
+			       <&qpic_bam 1>,
+			       <&qpic_bam 2>;
+			dma-names = "tx", "rx", "cmd";
+			status = "disabled";
+
+			nand@0 {
+				reg = <0>;
+
+				nand-ecc-strength = <4>;
+				nand-ecc-step-size = <512>;
+				nand-bus-width = <8>;
+			};
 		};
 
 		wifi0: wifi@a000000 {
@@ -326,7 +476,7 @@
 				     <GIC_SPI 45 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 46 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 47 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 168 IRQ_TYPE_NONE>;
+				     <GIC_SPI 168 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names =  "msi0",  "msi1",  "msi2",  "msi3",
 					   "msi4",  "msi5",  "msi6",  "msi7",
 					   "msi8",  "msi9", "msi10", "msi11",
@@ -368,7 +518,7 @@
 				     <GIC_SPI 61 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 62 IRQ_TYPE_EDGE_RISING>,
 				     <GIC_SPI 63 IRQ_TYPE_EDGE_RISING>,
-				     <GIC_SPI 169 IRQ_TYPE_NONE>;
+				     <GIC_SPI 169 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names =  "msi0",  "msi1",  "msi2",  "msi3",
 					   "msi4",  "msi5",  "msi6",  "msi7",
 					   "msi8",  "msi9", "msi10", "msi11",

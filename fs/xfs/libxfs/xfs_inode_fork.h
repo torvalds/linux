@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_INODE_FORK_H__
 #define	__XFS_INODE_FORK_H__
@@ -24,9 +12,9 @@ struct xfs_dinode;
 /*
  * File incore extent information, present for each of data & attr forks.
  */
-typedef struct xfs_ifork {
+struct xfs_ifork {
 	int			if_bytes;	/* bytes in if_u1 */
-	int			if_real_bytes;	/* bytes allocated in if_u1 */
+	unsigned int		if_seq;		/* cow fork mod counter */
 	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
@@ -35,7 +23,7 @@ typedef struct xfs_ifork {
 		void		*if_root;	/* extent tree root */
 		char		*if_data;	/* inline file data */
 	} if_u1;
-} xfs_ifork_t;
+};
 
 /*
  * Per-fork incore inode flags.

@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: (GPL-2.0+)
+/*
+ * Copyright (C) 2015 DH electronics GmbH
+ * Copyright (C) 2018 Marek Vasut <marex@denx.de>
+ */
+
+/dts-v1/;
+
+#include "imx6q-dhcom-som.dtsi"
+
+/ {
+	model = "Freescale i.MX6 Quad DHCOM Premium Developer Kit (2)";
+	compatible = "dh,imx6q-dhcom-pdk2", "dh,imx6q-dhcom-som", "fsl,imx6q";
+
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	clk_ext_audio_codec: clock-codec {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24000000>;
+	};
+
+	sound {
+		compatible = "fsl,imx-audio-sgtl5000";
+		model = "imx-sgtl5000";
+		ssi-controller = <&ssi1>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"LINE_IN", "Line In Jack",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <1>;
+		mux-ext-port = <3>;
+	};
+};
+
+&audmux {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_ext>;
+	status = "okay";
+};
+
+&hdmi {
+	ddc-i2c-bus = <&i2c2>;
+	status = "okay";
+};
+
+&i2c2 {
+	sgtl5000: codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		#sound-dai-cells = <0>;
+		clocks = <&clk_ext_audio_codec>;
+		VDDA-supply = <&reg_3p3v>;
+		VDDIO-supply = <&reg_3p3v>;
+	};
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog_base &pinctrl_hog>;
+
+	pinctrl_hog: hog-grp {
+		fsl,pins = <
+			MX6QDL_PAD_GPIO_2__GPIO1_IO02		0x400120b0
+			MX6QDL_PAD_GPIO_4__GPIO1_IO04		0x400120b0
+			MX6QDL_PAD_GPIO_5__GPIO1_IO05		0x400120b0
+			MX6QDL_PAD_CSI0_DAT17__GPIO6_IO03	0x400120b0
+			MX6QDL_PAD_GPIO_19__GPIO4_IO05		0x120b0
+			MX6QDL_PAD_DI0_PIN4__GPIO4_IO20		0x400120b0
+			MX6QDL_PAD_EIM_D27__GPIO3_IO27		0x120b0
+			MX6QDL_PAD_KEY_ROW0__GPIO4_IO07		0x120b0
+			MX6QDL_PAD_KEY_COL1__GPIO4_IO08		0x400120b0
+			MX6QDL_PAD_NANDF_CS1__GPIO6_IO14	0x400120b0
+			MX6QDL_PAD_NANDF_CS2__GPIO6_IO15	0x400120b0
+			MX6QDL_PAD_KEY_ROW1__GPIO4_IO09		0x400120b0
+			MX6QDL_PAD_SD3_DAT5__GPIO7_IO00		0x400120b0
+			MX6QDL_PAD_SD3_DAT4__GPIO7_IO01		0x400120b0
+			MX6QDL_PAD_CSI0_VSYNC__GPIO5_IO21	0x400120b0
+			MX6QDL_PAD_GPIO_18__GPIO7_IO13		0x400120b0
+			MX6QDL_PAD_SD1_CMD__GPIO1_IO18		0x400120b0
+			MX6QDL_PAD_SD1_DAT0__GPIO1_IO16		0x400120b0
+			MX6QDL_PAD_SD1_DAT1__GPIO1_IO17		0x400120b0
+			MX6QDL_PAD_SD1_DAT2__GPIO1_IO19		0x400120b0
+			MX6QDL_PAD_SD1_CLK__GPIO1_IO20		0x400120b0
+			MX6QDL_PAD_CSI0_PIXCLK__GPIO5_IO18	0x400120b0
+			MX6QDL_PAD_CSI0_MCLK__GPIO5_IO19	0x400120b0
+			MX6QDL_PAD_KEY_COL0__GPIO4_IO06		0x400120b0
+		>;
+	};
+
+	pinctrl_audmux_ext: audmux-ext-grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT7__AUD3_RXD		0x130b0
+			MX6QDL_PAD_CSI0_DAT4__AUD3_TXC		0x130b0
+			MX6QDL_PAD_CSI0_DAT5__AUD3_TXD		0x110b0
+			MX6QDL_PAD_CSI0_DAT6__AUD3_TXFS		0x130b0
+		>;
+	};
+
+	pinctrl_enet_1G: enet-1G-grp {
+		fsl,pins = <
+			MX6QDL_PAD_ENET_MDIO__ENET_MDIO		0x100b0
+			MX6QDL_PAD_ENET_MDC__ENET_MDC		0x100b0
+			MX6QDL_PAD_RGMII_TXC__RGMII_TXC		0x100b0
+			MX6QDL_PAD_RGMII_TD0__RGMII_TD0		0x100b0
+			MX6QDL_PAD_RGMII_TD1__RGMII_TD1		0x100b0
+			MX6QDL_PAD_RGMII_TD2__RGMII_TD2		0x100b0
+			MX6QDL_PAD_RGMII_TD3__RGMII_TD3		0x100b0
+			MX6QDL_PAD_RGMII_TX_CTL__RGMII_TX_CTL	0x100b0
+			MX6QDL_PAD_ENET_REF_CLK__ENET_TX_CLK	0x100b0
+			MX6QDL_PAD_RGMII_RXC__RGMII_RXC		0x1b0b0
+			MX6QDL_PAD_RGMII_RD0__RGMII_RD0		0x1b0b0
+			MX6QDL_PAD_RGMII_RD1__RGMII_RD1		0x1b0b0
+			MX6QDL_PAD_RGMII_RD2__RGMII_RD2		0x1b0b0
+			MX6QDL_PAD_RGMII_RD3__RGMII_RD3		0x1b0b0
+			MX6QDL_PAD_RGMII_RX_CTL__RGMII_RX_CTL	0x1b0b0
+			MX6QDL_PAD_EIM_D29__GPIO3_IO29		0x000b0
+			MX6QDL_PAD_GPIO_0__GPIO1_IO00		0x000b1
+			MX6QDL_PAD_EIM_D26__GPIO3_IO26		0x000b1
+		>;
+	};
+
+	pinctrl_pcie: pcie-grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DATA_EN__GPIO5_IO20	0x1b0b1
+		>;
+	};
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie>;
+	reset-gpio = <&gpio6 14 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
+&ssi1 {
+	status = "okay";
+};
+
+&sata {
+	status = "okay";
+};
+
+&usdhc3 {
+	status = "okay";
+};

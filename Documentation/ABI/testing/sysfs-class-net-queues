@@ -42,6 +42,17 @@ Description:
 		network device transmit queue. Possible vaules depend on the
 		number of available CPU(s) in the system.
 
+What:		/sys/class/<iface>/queues/tx-<queue>/xps_rxqs
+Date:		June 2018
+KernelVersion:	4.18.0
+Contact:	netdev@vger.kernel.org
+Description:
+		Mask of the receive queue(s) currently enabled to participate
+		into the Transmit Packet Steering packet processing flow for this
+		network device transmit queue. Possible values depend on the
+		number of available receive queue(s) in the network device.
+		Default is disabled.
+
 What:		/sys/class/<iface>/queues/tx-<queue>/byte_queue_limits/hold_time
 Date:		November 2011
 KernelVersion:	3.3

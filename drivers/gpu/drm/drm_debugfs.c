@@ -28,6 +28,7 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
+#include <drm/drm_client.h>
 #include <drm/drm_debugfs.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_atomic.h>
@@ -162,6 +163,12 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		ret = drm_framebuffer_debugfs_init(minor);
 		if (ret) {
 			DRM_ERROR("Failed to create framebuffer debugfs file\n");
+			return ret;
+		}
+
+		ret = drm_client_debugfs_init(minor);
+		if (ret) {
+			DRM_ERROR("Failed to create client debugfs file\n");
 			return ret;
 		}
 	}
@@ -307,13 +314,13 @@ static ssize_t edid_write(struct file *file, const char __user *ubuf,
 
 	if (len == 5 && !strncmp(buf, "reset", 5)) {
 		connector->override_edid = false;
-		ret = drm_mode_connector_update_edid_property(connector, NULL);
+		ret = drm_connector_update_edid_property(connector, NULL);
 	} else if (len < EDID_LENGTH ||
 		   EDID_LENGTH * (1 + edid->extensions) > len)
 		ret = -EINVAL;
 	else {
 		connector->override_edid = false;
-		ret = drm_mode_connector_update_edid_property(connector, edid);
+		ret = drm_connector_update_edid_property(connector, edid);
 		if (!ret)
 			connector->override_edid = true;
 	}

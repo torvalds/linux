@@ -1,0 +1,20 @@
+* Synopsys DesignWare Cores Mobile Storage Host Controller
+
+Required properties:
+- compatible: should be one of the following:
+    "snps,dwcmshc-sdhci"
+- reg: offset and length of the register set for the device.
+- interrupts: a single interrupt specifier.
+- clocks: Array of clocks required for SDHCI; requires at least one for
+    core clock.
+- clock-names: Array of names corresponding to clocks property; shall be
+    "core" for core clock and "bus" for optional bus clock.
+
+Example:
+	sdhci2: sdhci@aa0000 {
+		compatible = "snps,dwcmshc-sdhci";
+		reg = <0xaa0000 0x1000>;
+		interrupts = <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&emmcclk>;
+		bus-width = <8>;
+	}

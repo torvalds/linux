@@ -1,0 +1,588 @@
+[
+    {
+        "id": "9784",
+        "name": "Add valid sample action with mandatory arguments",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 10 group 1 index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 2",
+        "matchPattern": "action order [0-9]+: sample rate 1/10 group 1.*index 2 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "5c91",
+        "name": "Add valid sample action with mandatory arguments and continue control action",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 700 group 2 continue index 2",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 2",
+        "matchPattern": "action order [0-9]+: sample rate 1/700 group 2 continue.*index 2 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "334b",
+        "name": "Add valid sample action with mandatory arguments and drop control action",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 10000 group 11 drop index 22",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/10000 group 11 drop.*index 22 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "da69",
+        "name": "Add valid sample action with mandatory arguments and reclassify control action",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 20000 group 72 reclassify index 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/20000 group 72 reclassify.*index 100 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "13ce",
+        "name": "Add valid sample action with mandatory arguments and pipe control action",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 20 group 2 pipe index 100",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/20 group 2 pipe.*index 100 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "1886",
+        "name": "Add valid sample action with mandatory arguments and jump control action",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 700 group 25 jump 4 index 200",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 200",
+        "matchPattern": "action order [0-9]+: sample rate 1/700 group 25 jump 4.*index 200 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "b6d4",
+        "name": "Add sample action with mandatory arguments and invalid control action",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 200000 group 52 foo index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/200000 group 52 foo.*index 1 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "a874",
+        "name": "Add invalid sample action without mandatory arguments",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample.*index 1 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "ac01",
+        "name": "Add invalid sample action without mandatory argument rate",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample group 10 index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample.*group 10.*index 1 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "4203",
+        "name": "Add invalid sample action without mandatory argument group",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 100 index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 10",
+        "matchPattern": "action order [0-9]+: sample rate 1/100.*index 10 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "14a7",
+        "name": "Add invalid sample action without mandatory argument group",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 100 index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 10",
+        "matchPattern": "action order [0-9]+: sample rate 1/100.*index 10 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "8f2e",
+        "name": "Add valid sample action with trunc argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 1024 group 4 trunc 1024 index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 10",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 trunc_size 1024 pipe.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "45f8",
+        "name": "Add sample action with maximum rate argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 4294967295 group 4 index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 10",
+        "matchPattern": "action order [0-9]+: sample rate 1/4294967295 group 4 pipe.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "ad0c",
+        "name": "Add sample action with maximum trunc argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 16000 group 4 trunc 4294967295 index 10",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 10",
+        "matchPattern": "action order [0-9]+: sample rate 1/16000 group 4 trunc_size 4294967295 pipe.*index 10 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "83a9",
+        "name": "Add sample action with maximum group argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 4294 group 4294967295 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 1",
+        "matchPattern": "action order [0-9]+: sample rate 1/4294 group 4294967295 pipe.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "ed27",
+        "name": "Add sample action with invalid rate argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 4294967296 group 4 index 10",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 10",
+        "matchPattern": "action order [0-9]+: sample rate 1/4294967296 group 4 pipe.*index 10 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "2eae",
+        "name": "Add sample action with invalid group argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 4098 group 5294967299 continue index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 1",
+        "matchPattern": "action order [0-9]+: sample rate 1/4098 group 5294967299 continue.*index 1 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "6ff3",
+        "name": "Add sample action with invalid trunc size",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 1024 group 4 trunc 112233445566 index 11",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 11",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 trunc_size 112233445566.*index 11 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "2b2a",
+        "name": "Add sample action with invalid index",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 1024 group 4 index 5294967299",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action sample index 5294967299",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 pipe.*index 5294967299 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "dee2",
+        "name": "Add sample action with maximum allowed index",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 1024 group 4 index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 4294967295",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 pipe.*index 4294967295 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "560e",
+        "name": "Add sample action with cookie",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action sample rate 1024 group 4 index 45 cookie aabbccdd",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action sample index 45",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 4 pipe.*index 45.*cookie aabbccdd",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "704a",
+        "name": "Replace existing sample action with new rate argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action sample rate 1024 group 4 index 4"
+        ],
+        "cmdUnderTest": "$TC actions replace action sample rate 2048 group 4 index 4",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/2048 group 4 pipe.*index 4",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "60eb",
+        "name": "Replace existing sample action with new group argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action sample rate 1024 group 4 index 4"
+        ],
+        "cmdUnderTest": "$TC actions replace action sample rate 1024 group 7 index 4",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 7 pipe.*index 4",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "2cce",
+        "name": "Replace existing sample action with new trunc argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action sample rate 1024 group 4 trunc 48 index 4"
+        ],
+        "cmdUnderTest": "$TC actions replace action sample rate 1024 group 7 trunc 64 index 4",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 7 trunc_size 64 pipe.*index 4",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    },
+    {
+        "id": "59d1",
+        "name": "Replace existing sample action with new control argument",
+        "category": [
+            "actions",
+            "sample"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action sample",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action sample rate 1024 group 4 reclassify index 4"
+        ],
+        "cmdUnderTest": "$TC actions replace action sample rate 1024 group 7 pipe index 4",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action sample",
+        "matchPattern": "action order [0-9]+: sample rate 1/1024 group 7 pipe.*index 4",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action sample"
+        ]
+    }
+]

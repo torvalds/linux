@@ -46,9 +46,6 @@ This file details changes in 2.6 which affect PCMCIA card driver authors:
    - use pcmcia_request_irq(p_dev, handler_t); the PCMCIA core will
      clean up automatically on calls to pcmcia_disable_device() or
      device ejection.
-   - drivers still not capable of IRQF_SHARED (or not telling us so) may
-     use the deprecated pcmcia_request_exclusive_irq() for the time
-     being; they might receive a shared IRQ nonetheless.
 
 * no cs_error / CS_CHECK / CONFIG_PCMCIA_DEBUG (as of 2.6.33)
    Instead of the cs_error() callback or the CS_CHECK() macro, please use

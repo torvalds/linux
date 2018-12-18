@@ -266,7 +266,7 @@ void rxrpc_kill_connection(struct rxrpc_connection *conn)
 bool rxrpc_queue_conn(struct rxrpc_connection *conn)
 {
 	const void *here = __builtin_return_address(0);
-	int n = __atomic_add_unless(&conn->usage, 1, 0);
+	int n = atomic_fetch_add_unless(&conn->usage, 1, 0);
 	if (n == 0)
 		return false;
 	if (rxrpc_queue_work(&conn->processor))
@@ -309,7 +309,7 @@ rxrpc_get_connection_maybe(struct rxrpc_connection *conn)
 	const void *here = __builtin_return_address(0);
 
 	if (conn) {
-		int n = __atomic_add_unless(&conn->usage, 1, 0);
+		int n = atomic_fetch_add_unless(&conn->usage, 1, 0);
 		if (n > 0)
 			trace_rxrpc_conn(conn, rxrpc_conn_got, n + 1, here);
 		else

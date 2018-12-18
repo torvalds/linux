@@ -61,8 +61,7 @@ static void __init exynos_clkout_init(struct device_node *node, u32 mux_mask)
 	int ret;
 	int i;
 
-	clkout = kzalloc(sizeof(*clkout) +
-			 sizeof(*clkout->data.hws) * EXYNOS_CLKOUT_NR_CLKS,
+	clkout = kzalloc(struct_size(clkout, data.hws, EXYNOS_CLKOUT_NR_CLKS),
 			 GFP_KERNEL);
 	if (!clkout)
 		return;

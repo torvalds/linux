@@ -57,6 +57,20 @@ Optional
   occupied by the redistributors. Required if more than one such
   region is present.
 
+- msi-controller: Boolean property. Identifies the node as an MSI
+  controller. Only present if the Message Based Interrupt
+  functionnality is being exposed by the HW, and the mbi-ranges
+  property present.
+
+- mbi-ranges: A list of pairs <intid span>, where "intid" is the first
+  SPI of a range that can be used an MBI, and "span" the size of that
+  range. Multiple ranges can be provided. Requires "msi-controller" to
+  be set.
+
+- mbi-alias: Address property. Base address of an alias of the GICD
+  region containing only the {SET,CLR}SPI registers to be used if
+  isolation is required, and if supported by the HW.
+
 Sub-nodes:
 
 PPI affinity can be expressed as a single "ppi-partitions" node,
@@ -98,6 +112,9 @@ Examples:
 		      <0x0 0x2c010000 0 0x2000>,	// GICH
 		      <0x0 0x2c020000 0 0x2000>;	// GICV
 		interrupts = <1 9 4>;
+
+		msi-controller;
+		mbi-ranges = <256 128>;
 
 		gic-its@2c200000 {
 			compatible = "arm,gic-v3-its";

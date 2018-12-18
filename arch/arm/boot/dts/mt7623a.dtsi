@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2017-2018 MediaTek Inc.
+ * Author: Sean Wang <sean.wang@mediatek.com>
+ *
+ */
+
+/dts-v1/;
+#include <dt-bindings/power/mt7623a-power.h>
+#include "mt7623.dtsi"
+
+&afe {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_IFR_MSC>;
+};
+
+&crypto {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_ETH>;
+};
+
+&eth {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_ETH>;
+};
+
+&nandc {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_IFR_MSC>;
+};
+
+&pcie {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_HIF>;
+};
+
+&scpsys {
+	compatible = "mediatek,mt7623a-scpsys";
+	clocks = <&topckgen CLK_TOP_ETHIF_SEL>;
+	clock-names = "ethif";
+};
+
+&usb1 {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_HIF>;
+};
+
+&usb2 {
+	power-domains = <&scpsys MT7623A_POWER_DOMAIN_HIF>;
+};

@@ -23,6 +23,7 @@
 
 /* Layer specific register offsets */
 #define MALIDP_LAYER_FORMAT		0x000
+#define   LAYER_FORMAT_MASK		0x3f
 #define MALIDP_LAYER_CONTROL		0x004
 #define   LAYER_ENABLE			(1 << 0)
 #define   LAYER_FLOWCFG_MASK		7
@@ -235,8 +236,8 @@ static int malidp_de_plane_check(struct drm_plane *plane,
 	if (state->rotation & MALIDP_ROTATED_MASK) {
 		int val;
 
-		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_h,
-						     state->crtc_w,
+		val = mp->hwdev->hw->rotmem_required(mp->hwdev, state->crtc_w,
+						     state->crtc_h,
 						     fb->format->format);
 		if (val < 0)
 			return val;
@@ -337,7 +338,9 @@ static void malidp_de_plane_update(struct drm_plane *plane,
 	dest_w = plane->state->crtc_w;
 	dest_h = plane->state->crtc_h;
 
-	malidp_hw_write(mp->hwdev, ms->format, mp->layer->base);
+	val = malidp_hw_read(mp->hwdev, mp->layer->base);
+	val = (val & ~LAYER_FORMAT_MASK) | ms->format;
+	malidp_hw_write(mp->hwdev, val, mp->layer->base);
 
 	for (i = 0; i < ms->n_planes; i++) {
 		/* calculate the offset for the layer's plane registers */

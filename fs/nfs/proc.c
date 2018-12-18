@@ -99,7 +99,8 @@ nfs_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
  */
 static int
 nfs_proc_getattr(struct nfs_server *server, struct nfs_fh *fhandle,
-		struct nfs_fattr *fattr, struct nfs4_label *label)
+		struct nfs_fattr *fattr, struct nfs4_label *label,
+		struct inode *inode)
 {
 	struct rpc_message msg = {
 		.rpc_proc	= &nfs_procedures[NFSPROC_GETATTR],
@@ -321,7 +322,9 @@ nfs_proc_remove(struct inode *dir, struct dentry *dentry)
 }
 
 static void
-nfs_proc_unlink_setup(struct rpc_message *msg, struct dentry *dentry)
+nfs_proc_unlink_setup(struct rpc_message *msg,
+		struct dentry *dentry,
+		struct inode *inode)
 {
 	msg->rpc_proc = &nfs_procedures[NFSPROC_REMOVE];
 }
@@ -618,7 +621,8 @@ static int nfs_write_done(struct rpc_task *task, struct nfs_pgio_header *hdr)
 }
 
 static void nfs_proc_write_setup(struct nfs_pgio_header *hdr,
-				 struct rpc_message *msg)
+				 struct rpc_message *msg,
+				 struct rpc_clnt **clnt)
 {
 	/* Note: NFSv2 ignores @stable and always uses NFS_FILE_SYNC */
 	hdr->args.stable = NFS_FILE_SYNC;
@@ -631,7 +635,8 @@ static void nfs_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit
 }
 
 static void
-nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
+nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg,
+			struct rpc_clnt **clnt)
 {
 	BUG();
 }

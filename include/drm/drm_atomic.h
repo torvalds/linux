@@ -160,6 +160,14 @@ struct __drm_crtcs_state {
 struct __drm_connnectors_state {
 	struct drm_connector *ptr;
 	struct drm_connector_state *state, *old_state, *new_state;
+	/**
+	 * @out_fence_ptr:
+	 *
+	 * User-provided pointer which the kernel uses to return a sync_file
+	 * file descriptor. Used by writeback connectors to signal completion of
+	 * the writeback.
+	 */
+	s32 __user *out_fence_ptr;
 };
 
 struct drm_private_obj;
@@ -594,15 +602,15 @@ void drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
 int __must_check
 drm_atomic_set_crtc_for_connector(struct drm_connector_state *conn_state,
 				  struct drm_crtc *crtc);
+int drm_atomic_set_writeback_fb_for_connector(
+		struct drm_connector_state *conn_state,
+		struct drm_framebuffer *fb);
 int __must_check
 drm_atomic_add_affected_connectors(struct drm_atomic_state *state,
 				   struct drm_crtc *crtc);
 int __must_check
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
-
-void
-drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
 
 int __must_check drm_atomic_check_only(struct drm_atomic_state *state);
 int __must_check drm_atomic_commit(struct drm_atomic_state *state);

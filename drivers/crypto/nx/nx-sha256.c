@@ -288,7 +288,6 @@ struct shash_alg nx_shash_sha256_alg = {
 		.cra_name        = "sha256",
 		.cra_driver_name = "sha256-nx",
 		.cra_priority    = 300,
-		.cra_flags       = CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize   = SHA256_BLOCK_SIZE,
 		.cra_module      = THIS_MODULE,
 		.cra_ctxsize     = sizeof(struct nx_crypto_ctx),

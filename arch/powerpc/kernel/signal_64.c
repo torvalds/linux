@@ -24,6 +24,7 @@
 #include <linux/elf.h>
 #include <linux/ptrace.h>
 #include <linux/ratelimit.h>
+#include <linux/syscalls.h>
 
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
@@ -624,16 +625,13 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 /*
  * Handle {get,set,swap}_context operations
  */
-int sys_swapcontext(struct ucontext __user *old_ctx,
-		    struct ucontext __user *new_ctx,
-		    long ctx_size, long r6, long r7, long r8, struct pt_regs *regs)
+SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
+		struct ucontext __user *, new_ctx, long, ctx_size)
 {
 	unsigned char tmp;
 	sigset_t set;
 	unsigned long new_msr = 0;
 	int ctx_has_vsx_region = 0;
-
-	BUG_ON(regs != current->thread.regs);
 
 	if (new_ctx &&
 	    get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
@@ -698,17 +696,14 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
  * Do a signal return; undo the signal stack.
  */
 
-int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
-		     unsigned long r6, unsigned long r7, unsigned long r8,
-		     struct pt_regs *regs)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct ucontext __user *uc = (struct ucontext __user *)regs->gpr[1];
 	sigset_t set;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	unsigned long msr;
 #endif
-
-	BUG_ON(current->thread.regs != regs);
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;

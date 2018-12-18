@@ -346,7 +346,7 @@ static int altera_ci_slot_reset(struct dvb_ca_en50221 *en50221, int slot)
 	mutex_unlock(&inter->fpga_mutex);
 
 	for (;;) {
-		mdelay(50);
+		msleep(50);
 
 		mutex_lock(&inter->fpga_mutex);
 

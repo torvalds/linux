@@ -33,6 +33,7 @@ enum {
 	DE_GRAPHICS2 = BIT(2), /* used only in DP500 */
 	DE_VIDEO2 = BIT(3),
 	DE_SMART = BIT(4),
+	SE_MEMWRITE = BIT(5),
 };
 
 struct malidp_format_id {
@@ -52,6 +53,7 @@ struct malidp_format_id {
 struct malidp_irq_map {
 	u32 irq_mask;		/* mask of IRQs that can be enabled in the block */
 	u32 vsync_irq;		/* IRQ bit used for signaling during VSYNC */
+	u32 err_mask;		/* mask of bits that represent errors */
 };
 
 struct malidp_layer {
@@ -151,12 +153,13 @@ struct malidp_hw {
 	bool (*in_config_mode)(struct malidp_hw_device *hwdev);
 
 	/*
-	 * Set configuration valid flag for hardware parameters that can
-	 * be changed outside the configuration mode. Hardware will use
-	 * the new settings when config valid is set after the end of the
-	 * current buffer scanout
+	 * Set/clear configuration valid flag for hardware parameters that can
+	 * be changed outside the configuration mode to the given value.
+	 * Hardware will use the new settings when config valid is set,
+	 * after the end of the current buffer scanout, and will ignore
+	 * any new values for those parameters if config valid flag is cleared
 	 */
-	void (*set_config_valid)(struct malidp_hw_device *hwdev);
+	void (*set_config_valid)(struct malidp_hw_device *hwdev, u8 value);
 
 	/*
 	 * Set a new mode in hardware. Requires the hardware to be in
@@ -177,6 +180,23 @@ struct malidp_hw {
 	long (*se_calc_mclk)(struct malidp_hw_device *hwdev,
 			     struct malidp_se_config *se_config,
 			     struct videomode *vm);
+	/*
+	 * Enable writing to memory the content of the next frame
+	 * @param hwdev - malidp_hw_device structure containing the HW description
+	 * @param addrs - array of addresses for each plane
+	 * @param pitches - array of pitches for each plane
+	 * @param num_planes - number of planes to be written
+	 * @param w - width of the output frame
+	 * @param h - height of the output frame
+	 * @param fmt_id - internal format ID of output buffer
+	 */
+	int (*enable_memwrite)(struct malidp_hw_device *hwdev, dma_addr_t *addrs,
+			       s32 *pitches, int num_planes, u16 w, u16 h, u32 fmt_id);
+
+	/*
+	 * Disable the writing to memory of the next frame's content.
+	 */
+	void (*disable_memwrite)(struct malidp_hw_device *hwdev);
 
 	u8 features;
 };
@@ -210,9 +230,13 @@ struct malidp_hw_device {
 
 	u8 min_line_size;
 	u16 max_line_size;
+	u32 output_color_depth;
 
 	/* track the device PM state */
 	bool pm_suspended;
+
+	/* track the SE memory writeback state */
+	u8 mw_state;
 
 	/* size of memory used for rotating layers, up to two banks available */
 	u32 rotation_memory[2];
@@ -279,9 +303,11 @@ static inline void malidp_hw_enable_irq(struct malidp_hw_device *hwdev,
 }
 
 int malidp_de_irq_init(struct drm_device *drm, int irq);
-void malidp_de_irq_fini(struct drm_device *drm);
+void malidp_se_irq_hw_init(struct malidp_hw_device *hwdev);
+void malidp_de_irq_hw_init(struct malidp_hw_device *hwdev);
+void malidp_de_irq_fini(struct malidp_hw_device *hwdev);
 int malidp_se_irq_init(struct drm_device *drm, int irq);
-void malidp_se_irq_fini(struct drm_device *drm);
+void malidp_se_irq_fini(struct malidp_hw_device *hwdev);
 
 u8 malidp_hw_get_format_id(const struct malidp_hw_regmap *map,
 			   u8 layer_id, u32 format);

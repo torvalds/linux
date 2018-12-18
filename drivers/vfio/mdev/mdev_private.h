@@ -20,7 +20,6 @@ struct mdev_parent {
 	struct device *dev;
 	const struct mdev_parent_ops *ops;
 	struct kref ref;
-	struct mutex lock;
 	struct list_head next;
 	struct kset *mdev_types_kset;
 	struct list_head type_list;
@@ -34,6 +33,7 @@ struct mdev_device {
 	struct kref ref;
 	struct list_head next;
 	struct kobject *type_kobj;
+	bool active;
 };
 
 #define to_mdev_device(dev)	container_of(dev, struct mdev_device, dev)

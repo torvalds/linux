@@ -52,6 +52,7 @@
 		compatible = "fsi-master-gpio", "fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
+		no-gpio-delays;
 
 		clock-gpios = <&gpio ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>;
 		data-gpios = <&gpio ASPEED_GPIO(AA, 2) GPIO_ACTIVE_HIGH>;
@@ -67,6 +68,12 @@
 			label = "checkstop";
 			gpios = <&gpio ASPEED_GPIO(J, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(J, 2)>;
+		};
+
+		id-button {
+			label = "id-button";
+			gpios = <&gpio ASPEED_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(Q, 7)>;
 		};
 	};
 };

@@ -19,6 +19,7 @@
 #include <linux/dax.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/mman.h>
 #include "dax-private.h"
 #include "dax.h"
 
@@ -188,14 +189,16 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 
 	/* prevent private mappings from being established */
 	if ((vma->vm_flags & VM_MAYSHARE) != VM_MAYSHARE) {
-		dev_info(dev, "%s: %s: fail, attempted private mapping\n",
+		dev_info_ratelimited(dev,
+				"%s: %s: fail, attempted private mapping\n",
 				current->comm, func);
 		return -EINVAL;
 	}
 
 	mask = dax_region->align - 1;
 	if (vma->vm_start & mask || vma->vm_end & mask) {
-		dev_info(dev, "%s: %s: fail, unaligned vma (%#lx - %#lx, %#lx)\n",
+		dev_info_ratelimited(dev,
+				"%s: %s: fail, unaligned vma (%#lx - %#lx, %#lx)\n",
 				current->comm, func, vma->vm_start, vma->vm_end,
 				mask);
 		return -EINVAL;
@@ -203,13 +206,15 @@ static int check_vma(struct dev_dax *dev_dax, struct vm_area_struct *vma,
 
 	if ((dax_region->pfn_flags & (PFN_DEV|PFN_MAP)) == PFN_DEV
 			&& (vma->vm_flags & VM_DONTCOPY) == 0) {
-		dev_info(dev, "%s: %s: fail, dax range requires MADV_DONTFORK\n",
+		dev_info_ratelimited(dev,
+				"%s: %s: fail, dax range requires MADV_DONTFORK\n",
 				current->comm, func);
 		return -EINVAL;
 	}
 
 	if (!vma_is_dax(vma)) {
-		dev_info(dev, "%s: %s: fail, vma is not DAX capable\n",
+		dev_info_ratelimited(dev,
+				"%s: %s: fail, vma is not DAX capable\n",
 				current->comm, func);
 		return -EINVAL;
 	}
@@ -469,7 +474,7 @@ static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
 		return rc;
 
 	vma->vm_ops = &dax_vm_ops;
-	vma->vm_flags |= VM_MIXEDMAP | VM_HUGEPAGE;
+	vma->vm_flags |= VM_HUGEPAGE;
 	return 0;
 }
 
@@ -540,6 +545,7 @@ static const struct file_operations dax_fops = {
 	.release = dax_release,
 	.get_unmapped_area = dax_get_unmapped_area,
 	.mmap = dax_mmap,
+	.mmap_supported_flags = MAP_SYNC,
 };
 
 static void dev_dax_release(struct device *dev)
@@ -592,7 +598,7 @@ struct dev_dax *devm_create_dev_dax(struct dax_region *dax_region,
 	if (!count)
 		return ERR_PTR(-EINVAL);
 
-	dev_dax = kzalloc(sizeof(*dev_dax) + sizeof(*res) * count, GFP_KERNEL);
+	dev_dax = kzalloc(struct_size(dev_dax, res, count), GFP_KERNEL);
 	if (!dev_dax)
 		return ERR_PTR(-ENOMEM);
 

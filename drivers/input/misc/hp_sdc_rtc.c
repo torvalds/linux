@@ -509,18 +509,6 @@ static int hp_sdc_rtc_proc_show(struct seq_file *m, void *v)
 #undef NY
 }
 
-static int hp_sdc_rtc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hp_sdc_rtc_proc_show, NULL);
-}
-
-static const struct file_operations hp_sdc_rtc_proc_fops = {
-	.open		= hp_sdc_rtc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int hp_sdc_rtc_ioctl(struct file *file, 
 			    unsigned int cmd, unsigned long arg)
 {
@@ -713,7 +701,7 @@ static int __init hp_sdc_rtc_init(void)
 	if (misc_register(&hp_sdc_rtc_dev) != 0)
 		printk(KERN_INFO "Could not register misc. dev for i8042 rtc\n");
 
-        proc_create("driver/rtc", 0, NULL, &hp_sdc_rtc_proc_fops);
+        proc_create_single("driver/rtc", 0, NULL, hp_sdc_rtc_proc_show);
 
 	printk(KERN_INFO "HP i8042 SDC + MSM-58321 RTC support loaded "
 			 "(RTC v " RTC_VERSION ")\n");

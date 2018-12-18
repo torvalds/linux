@@ -76,7 +76,7 @@ static int qtnf_netdev_close(struct net_device *ndev)
 
 /* Netdev handler for data transmission.
  */
-static int
+static netdev_tx_t
 qtnf_netdev_hard_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct qtnf_vif *vif;
@@ -179,6 +179,30 @@ static void qtnf_netdev_tx_timeout(struct net_device *ndev)
 	}
 }
 
+static int qtnf_netdev_set_mac_address(struct net_device *ndev, void *addr)
+{
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(ndev);
+	struct sockaddr *sa = addr;
+	int ret;
+	unsigned char old_addr[ETH_ALEN];
+
+	memcpy(old_addr, sa->sa_data, sizeof(old_addr));
+
+	ret = eth_mac_addr(ndev, sa);
+	if (ret)
+		return ret;
+
+	qtnf_scan_done(vif->mac, true);
+
+	ret = qtnf_cmd_send_change_intf_type(vif, vif->wdev.iftype,
+					     sa->sa_data);
+
+	if (ret)
+		memcpy(ndev->dev_addr, old_addr, ETH_ALEN);
+
+	return ret;
+}
+
 /* Network device ops handlers */
 const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_open = qtnf_netdev_open,
@@ -186,6 +210,7 @@ const struct net_device_ops qtnf_netdev_ops = {
 	.ndo_start_xmit = qtnf_netdev_hard_start_xmit,
 	.ndo_tx_timeout = qtnf_netdev_tx_timeout,
 	.ndo_get_stats64 = qtnf_netdev_get_stats64,
+	.ndo_set_mac_address = qtnf_netdev_set_mac_address,
 };
 
 static int qtnf_mac_init_single_band(struct wiphy *wiphy,
@@ -394,7 +419,6 @@ int qtnf_core_net_attach(struct qtnf_wmac *mac, struct qtnf_vif *vif,
 	dev = alloc_netdev_mqs(sizeof(struct qtnf_vif *), name,
 			       name_assign_type, ether_setup, 1, 1);
 	if (!dev) {
-		memset(&vif->wdev, 0, sizeof(vif->wdev));
 		vif->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
 		return -ENOMEM;
 	}
@@ -471,6 +495,7 @@ static void qtnf_core_mac_detach(struct qtnf_bus *bus, unsigned int macid)
 	qtnf_mac_iface_comb_free(mac);
 	kfree(mac->macinfo.extended_capabilities);
 	kfree(mac->macinfo.extended_capabilities_mask);
+	kfree(mac->macinfo.wowlan);
 	wiphy_free(wiphy);
 	bus->mac[macid] = NULL;
 }
@@ -629,7 +654,7 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 	if (bus->fw_state == QTNF_FW_STATE_ACTIVE)
 		qtnf_cmd_send_deinit_fw(bus);
 
-	bus->fw_state = QTNF_FW_STATE_DEAD;
+	bus->fw_state = QTNF_FW_STATE_DETACHED;
 
 	if (bus->workqueue) {
 		flush_workqueue(bus->workqueue);

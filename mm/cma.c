@@ -39,7 +39,6 @@
 #include <trace/events/cma.h>
 
 #include "cma.h"
-#include "internal.h"
 
 struct cma cma_areas[MAX_CMA_AREAS];
 unsigned cma_area_count;
@@ -110,25 +109,23 @@ static int __init cma_activate_area(struct cma *cma)
 	if (!cma->bitmap)
 		return -ENOMEM;
 
+	WARN_ON_ONCE(!pfn_valid(pfn));
+	zone = page_zone(pfn_to_page(pfn));
+
 	do {
 		unsigned j;
 
 		base_pfn = pfn;
-		if (!pfn_valid(base_pfn))
-			goto err;
-
-		zone = page_zone(pfn_to_page(base_pfn));
 		for (j = pageblock_nr_pages; j; --j, pfn++) {
-			if (!pfn_valid(pfn))
-				goto err;
-
+			WARN_ON_ONCE(!pfn_valid(pfn));
 			/*
-			 * In init_cma_reserved_pageblock(), present_pages
-			 * is adjusted with assumption that all pages in
-			 * the pageblock come from a single zone.
+			 * alloc_contig_range requires the pfn range
+			 * specified to be in the same zone. Make this
+			 * simple by forcing the entire CMA resv range
+			 * to be in the same zone.
 			 */
 			if (page_zone(pfn_to_page(pfn)) != zone)
-				goto err;
+				goto not_in_zone;
 		}
 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
 	} while (--i);
@@ -142,7 +139,7 @@ static int __init cma_activate_area(struct cma *cma)
 
 	return 0;
 
-err:
+not_in_zone:
 	pr_err("CMA area %s could not be activated\n", cma->name);
 	kfree(cma->bitmap);
 	cma->count = 0;
@@ -152,41 +149,6 @@ err:
 static int __init cma_init_reserved_areas(void)
 {
 	int i;
-	struct zone *zone;
-	pg_data_t *pgdat;
-
-	if (!cma_area_count)
-		return 0;
-
-	for_each_online_pgdat(pgdat) {
-		unsigned long start_pfn = UINT_MAX, end_pfn = 0;
-
-		zone = &pgdat->node_zones[ZONE_MOVABLE];
-
-		/*
-		 * In this case, we cannot adjust the zone range
-		 * since it is now maximum node span and we don't
-		 * know original zone range.
-		 */
-		if (populated_zone(zone))
-			continue;
-
-		for (i = 0; i < cma_area_count; i++) {
-			if (pfn_to_nid(cma_areas[i].base_pfn) !=
-				pgdat->node_id)
-				continue;
-
-			start_pfn = min(start_pfn, cma_areas[i].base_pfn);
-			end_pfn = max(end_pfn, cma_areas[i].base_pfn +
-						cma_areas[i].count);
-		}
-
-		if (!end_pfn)
-			continue;
-
-		zone->zone_start_pfn = start_pfn;
-		zone->spanned_pages = end_pfn - start_pfn;
-	}
 
 	for (i = 0; i < cma_area_count; i++) {
 		int ret = cma_activate_area(&cma_areas[i]);
@@ -195,32 +157,9 @@ static int __init cma_init_reserved_areas(void)
 			return ret;
 	}
 
-	/*
-	 * Reserved pages for ZONE_MOVABLE are now activated and
-	 * this would change ZONE_MOVABLE's managed page counter and
-	 * the other zones' present counter. We need to re-calculate
-	 * various zone information that depends on this initialization.
-	 */
-	build_all_zonelists(NULL);
-	for_each_populated_zone(zone) {
-		if (zone_idx(zone) == ZONE_MOVABLE) {
-			zone_pcp_reset(zone);
-			setup_zone_pageset(zone);
-		} else
-			zone_pcp_update(zone);
-
-		set_zone_contiguous(zone);
-	}
-
-	/*
-	 * We need to re-init per zone wmark by calling
-	 * init_per_zone_wmark_min() but doesn't call here because it is
-	 * registered on core_initcall and it will be called later than us.
-	 */
-
 	return 0;
 }
-pure_initcall(cma_init_reserved_areas);
+core_initcall(cma_init_reserved_areas);
 
 /**
  * cma_init_reserved_mem() - create custom contiguous area from reserved memory
@@ -456,13 +395,13 @@ static inline void cma_debug_show_areas(struct cma *cma) { }
  * @cma:   Contiguous memory region for which the allocation is performed.
  * @count: Requested number of pages.
  * @align: Requested alignment of pages (in PAGE_SIZE order).
- * @gfp_mask:  GFP mask to use during compaction
+ * @no_warn: Avoid printing message about failed allocation
  *
  * This function allocates part of contiguous memory on specific
  * contiguous memory area.
  */
 struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
-		       gfp_t gfp_mask)
+		       bool no_warn)
 {
 	unsigned long mask, offset;
 	unsigned long pfn = -1;
@@ -508,7 +447,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 		pfn = cma->base_pfn + (bitmap_no << cma->order_per_bit);
 		mutex_lock(&cma_mutex);
 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA,
-					 gfp_mask);
+				     GFP_KERNEL | (no_warn ? __GFP_NOWARN : 0));
 		mutex_unlock(&cma_mutex);
 		if (ret == 0) {
 			page = pfn_to_page(pfn);
@@ -527,7 +466,7 @@ struct page *cma_alloc(struct cma *cma, size_t count, unsigned int align,
 
 	trace_cma_alloc(pfn, page, count, align);
 
-	if (ret && !(gfp_mask & __GFP_NOWARN)) {
+	if (ret && !no_warn) {
 		pr_err("%s: alloc failed, req-size: %zu pages, ret: %d\n",
 			__func__, count, ret);
 		cma_debug_show_areas(cma);

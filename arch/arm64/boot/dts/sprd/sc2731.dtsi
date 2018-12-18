@@ -24,6 +24,17 @@
 			interrupts = <2 IRQ_TYPE_LEVEL_HIGH>;
 		};
 
+		pmic_eic: gpio@300 {
+			compatible = "sprd,sc27xx-eic";
+			reg = <0x300>;
+			interrupt-parent = <&sc2731_pmic>;
+			interrupts = <5 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		regulators {
 			compatible = "sprd,sc27xx-regulator";
 

@@ -768,6 +768,30 @@ static const struct snd_kcontrol_new da7219_st_out_filtr_mix_controls[] = {
  * DAPM Events
  */
 
+static int da7219_mic_pga_event(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct da7219_priv *da7219 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (da7219->micbias_on_event) {
+			/*
+			 * Delay only for first capture after bias enabled to
+			 * avoid possible DC offset related noise.
+			 */
+			da7219->micbias_on_event = false;
+			msleep(da7219->mic_pga_delay);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int da7219_dai_event(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
@@ -937,12 +961,12 @@ static const struct snd_soc_dapm_widget da7219_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC"),
 
 	/* Input PGAs */
-	SND_SOC_DAPM_PGA("Mic PGA", DA7219_MIC_1_CTRL,
-			 DA7219_MIC_1_AMP_EN_SHIFT, DA7219_NO_INVERT,
-			 NULL, 0),
-	SND_SOC_DAPM_PGA("Mixin PGA", DA7219_MIXIN_L_CTRL,
-			 DA7219_MIXIN_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
-			 NULL, 0),
+	SND_SOC_DAPM_PGA_E("Mic PGA", DA7219_MIC_1_CTRL,
+			   DA7219_MIC_1_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   NULL, 0, da7219_mic_pga_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_E("Mixin PGA", DA7219_MIXIN_L_CTRL,
+			   DA7219_MIXIN_L_AMP_EN_SHIFT, DA7219_NO_INVERT,
+			   NULL, 0, da7219_settling_event, SND_SOC_DAPM_POST_PMU),
 
 	/* Input Filters */
 	SND_SOC_DAPM_ADC("ADC", NULL, DA7219_ADC_L_CTRL, DA7219_ADC_L_EN_SHIFT,
@@ -1847,6 +1871,14 @@ static void da7219_handle_pdata(struct snd_soc_component *component)
 
 		snd_soc_component_write(component, DA7219_MICBIAS_CTRL, micbias_lvl);
 
+		/*
+		 * Calculate delay required to compensate for DC offset in
+		 * Mic PGA, based on Mic Bias voltage.
+		 */
+		da7219->mic_pga_delay =  DA7219_MIC_PGA_BASE_DELAY +
+					(pdata->micbias_lvl *
+					 DA7219_MIC_PGA_OFFSET_DELAY);
+
 		/* Mic */
 		switch (pdata->mic_amp_in_sel) {
 		case DA7219_MIC_AMP_IN_SEL_DIFF:
@@ -2143,9 +2175,9 @@ static bool da7219_volatile_register(struct device *dev, unsigned int reg)
 	case DA7219_ACCDET_IRQ_EVENT_B:
 	case DA7219_ACCDET_CONFIG_8:
 	case DA7219_SYSTEM_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 

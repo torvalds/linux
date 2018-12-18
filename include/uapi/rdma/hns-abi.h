@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2016 Hisilicon Limited.
  *
@@ -53,6 +53,7 @@ struct hns_roce_ib_create_qp {
 	__u8    log_sq_stride;
 	__u8    sq_no_prefetch;
 	__u8    reserved[5];
+	__aligned_u64 sdb_addr;
 };
 
 struct hns_roce_ib_create_qp_resp {

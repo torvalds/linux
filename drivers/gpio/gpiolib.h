@@ -92,7 +92,7 @@ struct acpi_gpio_info {
 };
 
 /* gpio suffixes used for ACPI and device tree lookup */
-static const char * const gpio_suffixes[] = { "gpios", "gpio" };
+static __maybe_unused const char * const gpio_suffixes[] = { "gpios", "gpio" };
 
 #ifdef CONFIG_OF_GPIO
 struct gpio_desc *of_find_gpio(struct device *dev,
@@ -188,7 +188,7 @@ int gpiod_get_array_value_complex(bool raw, bool can_sleep,
 				  unsigned int array_size,
 				  struct gpio_desc **desc_array,
 				  int *value_array);
-void gpiod_set_array_value_complex(bool raw, bool can_sleep,
+int gpiod_set_array_value_complex(bool raw, bool can_sleep,
 				   unsigned int array_size,
 				   struct gpio_desc **desc_array,
 				   int *value_array);

@@ -891,8 +891,7 @@ e_clkput:
 
 static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 
@@ -921,8 +920,7 @@ static int s5pcsis_pm_suspend(struct device *dev, bool runtime)
 
 static int s5pcsis_pm_resume(struct device *dev, bool runtime)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csis_state *state = sd_to_csis_state(sd);
 	int ret = 0;
 

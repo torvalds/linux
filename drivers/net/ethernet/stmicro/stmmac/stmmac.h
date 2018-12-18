@@ -76,11 +76,43 @@ struct stmmac_rx_queue {
 	struct napi_struct napi ____cacheline_aligned_in_smp;
 };
 
+struct stmmac_tc_entry {
+	bool in_use;
+	bool in_hw;
+	bool is_last;
+	bool is_frag;
+	void *frag_ptr;
+	unsigned int table_pos;
+	u32 handle;
+	u32 prio;
+	struct {
+		u32 match_data;
+		u32 match_en;
+		u8 af:1;
+		u8 rf:1;
+		u8 im:1;
+		u8 nc:1;
+		u8 res1:4;
+		u8 frame_offset;
+		u8 ok_index;
+		u8 dma_ch_no;
+		u32 res2;
+	} __packed val;
+};
+
+#define STMMAC_PPS_MAX		4
+struct stmmac_pps_cfg {
+	bool available;
+	struct timespec64 start;
+	struct timespec64 period;
+};
+
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
 	u32 tx_count_frames;
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
+	bool tx_timer_armed;
 
 	int tx_coalesce;
 	int hwts_tx_en;
@@ -97,7 +129,8 @@ struct stmmac_priv {
 	struct net_device *dev;
 	struct device *device;
 	struct mac_device_info *hw;
-	spinlock_t lock;
+	int (*hwif_quirks)(struct stmmac_priv *priv);
+	struct mutex lock;
 
 	/* RX Queue */
 	struct stmmac_rx_queue rx_queue[MTL_MAX_RX_QUEUES];
@@ -130,10 +163,13 @@ struct stmmac_priv {
 	int eee_active;
 	int tx_lpi_timer;
 	unsigned int mode;
+	unsigned int chain_mode;
 	int extend_desc;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
+	u32 sub_second_inc;
+	u32 systime_flags;
 	u32 adv_ts;
 	int use_riwt;
 	int irq_wake;
@@ -150,6 +186,14 @@ struct stmmac_priv {
 	unsigned long state;
 	struct workqueue_struct *wq;
 	struct work_struct service_task;
+
+	/* TC Handling */
+	unsigned int tc_entries_max;
+	unsigned int tc_off_max;
+	struct stmmac_tc_entry *tc_entries;
+
+	/* Pulse Per Second output */
+	struct stmmac_pps_cfg pps[STMMAC_PPS_MAX];
 };
 
 enum stmmac_state {

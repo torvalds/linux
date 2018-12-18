@@ -385,7 +385,7 @@ void opp1_destroy(struct output_pixel_processor **opp)
 	*opp = NULL;
 }
 
-static struct opp_funcs dcn10_opp_funcs = {
+static const struct opp_funcs dcn10_opp_funcs = {
 		.opp_set_dyn_expansion = opp1_set_dyn_expansion,
 		.opp_program_fmt = opp1_program_fmt,
 		.opp_program_bit_depth_reduction = opp1_program_bit_depth_reduction,

@@ -31,13 +31,15 @@ Required properties:
 			  it. This property is optional depending on the SoC
 			  design.
 
-   - big-endian		: If this property is absent, the little endian mode
-			  will be in use as default. Otherwise, the big endian
-			  mode will be in use for all the device registers.
-
    - fsl,asrc-rate	: Defines a mutual sample rate used by DPCM Back Ends.
 
    - fsl,asrc-width	: Defines a mutual sample width used by DPCM Back Ends.
+
+Optional properties:
+
+   - big-endian		: If this property is absent, the little endian mode
+			  will be in use as default. Otherwise, the big endian
+			  mode will be in use for all the device registers.
 
 Example:
 

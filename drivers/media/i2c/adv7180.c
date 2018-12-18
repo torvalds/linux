@@ -461,6 +461,22 @@ static int adv7180_g_std(struct v4l2_subdev *sd, v4l2_std_id *norm)
 	return 0;
 }
 
+static int adv7180_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct adv7180_state *state = to_state(sd);
+
+	if (state->curr_norm & V4L2_STD_525_60) {
+		fi->interval.numerator = 1001;
+		fi->interval.denominator = 30000;
+	} else {
+		fi->interval.numerator = 1;
+		fi->interval.denominator = 25;
+	}
+
+	return 0;
+}
+
 static void adv7180_set_power_pin(struct adv7180_state *state, bool on)
 {
 	if (!state->pwdn_gpio)
@@ -644,6 +660,9 @@ static int adv7180_mbus_fmt(struct v4l2_subdev *sd,
 	fmt->width = 720;
 	fmt->height = state->curr_norm & V4L2_STD_525_60 ? 480 : 576;
 
+	if (state->field == V4L2_FIELD_ALTERNATE)
+		fmt->height /= 2;
+
 	return 0;
 }
 
@@ -711,11 +730,11 @@ static int adv7180_set_pad_format(struct v4l2_subdev *sd,
 
 	switch (format->format.field) {
 	case V4L2_FIELD_NONE:
-		if (!(state->chip_info->flags & ADV7180_FLAG_I2P))
-			format->format.field = V4L2_FIELD_INTERLACED;
-		break;
+		if (state->chip_info->flags & ADV7180_FLAG_I2P)
+			break;
+		/* fall through */
 	default:
-		format->format.field = V4L2_FIELD_INTERLACED;
+		format->format.field = V4L2_FIELD_ALTERNATE;
 		break;
 	}
 
@@ -817,6 +836,7 @@ static int adv7180_subscribe_event(struct v4l2_subdev *sd,
 static const struct v4l2_subdev_video_ops adv7180_video_ops = {
 	.s_std = adv7180_s_std,
 	.g_std = adv7180_g_std,
+	.g_frame_interval = adv7180_g_frame_interval,
 	.querystd = adv7180_querystd,
 	.g_input_status = adv7180_g_input_status,
 	.s_routing = adv7180_s_routing,
@@ -1291,7 +1311,7 @@ static int adv7180_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	state->client = client;
-	state->field = V4L2_FIELD_INTERLACED;
+	state->field = V4L2_FIELD_ALTERNATE;
 	state->chip_info = (struct adv7180_chip_info *)id->driver_data;
 
 	state->pwdn_gpio = devm_gpiod_get_optional(&client->dev, "powerdown",
@@ -1335,7 +1355,7 @@ static int adv7180_probe(struct i2c_client *client,
 		goto err_unregister_vpp_client;
 
 	state->pad.flags = MEDIA_PAD_FL_SOURCE;
-	sd->entity.flags |= MEDIA_ENT_F_ATV_DECODER;
+	sd->entity.function = MEDIA_ENT_F_ATV_DECODER;
 	ret = media_entity_pads_init(&sd->entity, 1, &state->pad);
 	if (ret)
 		goto err_free_ctrl;

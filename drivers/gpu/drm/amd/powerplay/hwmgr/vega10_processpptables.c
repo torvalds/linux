@@ -52,7 +52,7 @@ static const void *get_powerplay_table(struct pp_hwmgr *hwmgr)
 
 	if (!table_address) {
 		table_address = (ATOM_Vega10_POWERPLAYTABLE *)
-				cgs_atom_get_data_table(hwmgr->device, index,
+				smu_atom_get_data_table(hwmgr->adev, index,
 						&size, &frev, &crev);
 
 		hwmgr->soft_pp_table = table_address;	/*Cache the result in RAM.*/
@@ -266,12 +266,6 @@ static int init_over_drive_limits(
 	hwmgr->platform_descriptor.minOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.maxOverdriveVDDC = 0;
 	hwmgr->platform_descriptor.overdriveVDDCStep = 0;
-
-	if (hwmgr->platform_descriptor.overdriveLimit.engineClock == 0 ||
-		hwmgr->platform_descriptor.overdriveLimit.memoryClock == 0) {
-		hwmgr->od_enabled = false;
-		pr_debug("OverDrive feature not support by VBIOS\n");
-	}
 
 	return 0;
 }

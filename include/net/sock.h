@@ -139,6 +139,7 @@ typedef __u64 __bitwise __addrpair;
  *	@skc_node: main hash linkage for various protocol lookup tables
  *	@skc_nulls_node: main hash linkage for TCP/UDP/UDP-Lite protocol
  *	@skc_tx_queue_mapping: tx queue number for this connection
+ *	@skc_rx_queue_mapping: rx queue number for this connection
  *	@skc_flags: place holder for sk_flags
  *		%SO_LINGER (l_onoff), %SO_BROADCAST, %SO_KEEPALIVE,
  *		%SO_OOBINLINE settings, %SO_TIMESTAMPING settings
@@ -214,7 +215,10 @@ struct sock_common {
 		struct hlist_node	skc_node;
 		struct hlist_nulls_node skc_nulls_node;
 	};
-	int			skc_tx_queue_mapping;
+	unsigned short		skc_tx_queue_mapping;
+#ifdef CONFIG_XPS
+	unsigned short		skc_rx_queue_mapping;
+#endif
 	union {
 		int		skc_incoming_cpu;
 		u32		skc_rcv_wnd;
@@ -315,6 +319,9 @@ struct sock_common {
   *	@sk_destruct: called at sock freeing time, i.e. when all refcnt == 0
   *	@sk_reuseport_cb: reuseport group container
   *	@sk_rcu: used during RCU grace period
+  *	@sk_clockid: clockid used by time-based scheduling (SO_TXTIME)
+  *	@sk_txtime_deadline_mode: set deadline mode for SO_TXTIME
+  *	@sk_txtime_unused: unused txtime flags
   */
 struct sock {
 	/*
@@ -326,6 +333,9 @@ struct sock {
 #define sk_nulls_node		__sk_common.skc_nulls_node
 #define sk_refcnt		__sk_common.skc_refcnt
 #define sk_tx_queue_mapping	__sk_common.skc_tx_queue_mapping
+#ifdef CONFIG_XPS
+#define sk_rx_queue_mapping	__sk_common.skc_rx_queue_mapping
+#endif
 
 #define sk_dontcopy_begin	__sk_common.skc_dontcopy_begin
 #define sk_dontcopy_end		__sk_common.skc_dontcopy_end
@@ -468,6 +478,12 @@ struct sock {
 	u8			sk_shutdown;
 	u32			sk_tskey;
 	atomic_t		sk_zckey;
+
+	u8			sk_clockid;
+	u8			sk_txtime_deadline_mode : 1,
+				sk_txtime_report_errors : 1,
+				sk_txtime_unused : 6;
+
 	struct socket		*sk_socket;
 	void			*sk_user_data;
 #ifdef CONFIG_SECURITY
@@ -481,6 +497,11 @@ struct sock {
 	void			(*sk_error_report)(struct sock *sk);
 	int			(*sk_backlog_rcv)(struct sock *sk,
 						  struct sk_buff *skb);
+#ifdef CONFIG_SOCK_VALIDATE_XMIT
+	struct sk_buff*		(*sk_validate_xmit_skb)(struct sock *sk,
+							struct net_device *dev,
+							struct sk_buff *skb);
+#endif
 	void                    (*sk_destruct)(struct sock *sk);
 	struct sock_reuseport __rcu	*sk_reuseport_cb;
 	struct rcu_head		sk_rcu;
@@ -778,6 +799,7 @@ enum sock_flags {
 	SOCK_FILTER_LOCKED, /* Filter cannot be changed anymore */
 	SOCK_SELECT_ERR_QUEUE, /* Wake select on error queue */
 	SOCK_RCU_FREE, /* wait rcu grace period in sk_destruct() */
+	SOCK_TXTIME,
 };
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
@@ -803,10 +825,10 @@ static inline bool sock_flag(const struct sock *sk, enum sock_flags flag)
 }
 
 #ifdef CONFIG_NET
-extern struct static_key memalloc_socks;
+DECLARE_STATIC_KEY_FALSE(memalloc_socks_key);
 static inline int sk_memalloc_socks(void)
 {
-	return static_key_false(&memalloc_socks);
+	return static_branch_unlikely(&memalloc_socks_key);
 }
 #else
 
@@ -1573,9 +1595,16 @@ void sock_kzfree_s(struct sock *sk, void *mem, int size);
 void sk_send_sigurg(struct sock *sk);
 
 struct sockcm_cookie {
+	u64 transmit_time;
 	u32 mark;
 	u16 tsflags;
 };
+
+static inline void sockcm_init(struct sockcm_cookie *sockc,
+			       const struct sock *sk)
+{
+	*sockc = (struct sockcm_cookie) { .tsflags = sk->sk_tsflags };
+}
 
 int __sock_cmsg_send(struct sock *sk, struct msghdr *msg, struct cmsghdr *cmsg,
 		     struct sockcm_cookie *sockc);
@@ -1591,8 +1620,6 @@ int sock_no_connect(struct socket *, struct sockaddr *, int, int);
 int sock_no_socketpair(struct socket *, struct socket *);
 int sock_no_accept(struct socket *, struct socket *, int, bool);
 int sock_no_getname(struct socket *, struct sockaddr *, int);
-__poll_t sock_no_poll(struct file *, struct socket *,
-			  struct poll_table_struct *);
 int sock_no_ioctl(struct socket *, unsigned int, unsigned long);
 int sock_no_listen(struct socket *, int);
 int sock_no_shutdown(struct socket *, int);
@@ -1678,18 +1705,57 @@ static inline int sk_receive_skb(struct sock *sk, struct sk_buff *skb,
 
 static inline void sk_tx_queue_set(struct sock *sk, int tx_queue)
 {
+	/* sk_tx_queue_mapping accept only upto a 16-bit value */
+	if (WARN_ON_ONCE((unsigned short)tx_queue >= USHRT_MAX))
+		return;
 	sk->sk_tx_queue_mapping = tx_queue;
 }
 
+#define NO_QUEUE_MAPPING	USHRT_MAX
+
 static inline void sk_tx_queue_clear(struct sock *sk)
 {
-	sk->sk_tx_queue_mapping = -1;
+	sk->sk_tx_queue_mapping = NO_QUEUE_MAPPING;
 }
 
 static inline int sk_tx_queue_get(const struct sock *sk)
 {
-	return sk ? sk->sk_tx_queue_mapping : -1;
+	if (sk && sk->sk_tx_queue_mapping != NO_QUEUE_MAPPING)
+		return sk->sk_tx_queue_mapping;
+
+	return -1;
 }
+
+static inline void sk_rx_queue_set(struct sock *sk, const struct sk_buff *skb)
+{
+#ifdef CONFIG_XPS
+	if (skb_rx_queue_recorded(skb)) {
+		u16 rx_queue = skb_get_rx_queue(skb);
+
+		if (WARN_ON_ONCE(rx_queue == NO_QUEUE_MAPPING))
+			return;
+
+		sk->sk_rx_queue_mapping = rx_queue;
+	}
+#endif
+}
+
+static inline void sk_rx_queue_clear(struct sock *sk)
+{
+#ifdef CONFIG_XPS
+	sk->sk_rx_queue_mapping = NO_QUEUE_MAPPING;
+#endif
+}
+
+#ifdef CONFIG_XPS
+static inline int sk_rx_queue_get(const struct sock *sk)
+{
+	if (sk && sk->sk_rx_queue_mapping != NO_QUEUE_MAPPING)
+		return sk->sk_rx_queue_mapping;
+
+	return -1;
+}
+#endif
 
 static inline void sk_set_socket(struct sock *sk, struct socket *sock)
 {
@@ -1722,7 +1788,7 @@ static inline void sock_graft(struct sock *sk, struct socket *parent)
 {
 	WARN_ON(parent->sk);
 	write_lock_bh(&sk->sk_callback_lock);
-	sk->sk_wq = parent->wq;
+	rcu_assign_pointer(sk->sk_wq, parent->wq);
 	parent->sk = sk;
 	sk_set_socket(sk, parent);
 	sk->sk_uid = SOCK_INODE(parent)->i_uid;
@@ -1991,16 +2057,16 @@ static inline bool skwq_has_sleeper(struct socket_wq *wq)
 /**
  * sock_poll_wait - place memory barrier behind the poll_wait call.
  * @filp:           file
- * @wait_address:   socket wait queue
  * @p:              poll_table
  *
  * See the comments in the wq_has_sleeper function.
  */
-static inline void sock_poll_wait(struct file *filp,
-		wait_queue_head_t *wait_address, poll_table *p)
+static inline void sock_poll_wait(struct file *filp, poll_table *p)
 {
-	if (!poll_does_not_wait(p) && wait_address) {
-		poll_wait(filp, wait_address, p);
+	struct socket *sock = filp->private_data;
+
+	if (!poll_does_not_wait(p)) {
+		poll_wait(filp, &sock->wq->wait, p);
 		/* We need to be sure we are in sync with the
 		 * socket flags modification.
 		 *
@@ -2330,6 +2396,22 @@ static inline struct sock *skb_steal_sock(struct sk_buff *skb)
 static inline bool sk_fullsock(const struct sock *sk)
 {
 	return (1 << sk->sk_state) & ~(TCPF_TIME_WAIT | TCPF_NEW_SYN_RECV);
+}
+
+/* Checks if this SKB belongs to an HW offloaded socket
+ * and whether any SW fallbacks are required based on dev.
+ */
+static inline struct sk_buff *sk_validate_xmit_skb(struct sk_buff *skb,
+						   struct net_device *dev)
+{
+#ifdef CONFIG_SOCK_VALIDATE_XMIT
+	struct sock *sk = skb->sk;
+
+	if (sk && sk_fullsock(sk) && sk->sk_validate_xmit_skb)
+		skb = sk->sk_validate_xmit_skb(sk, dev, skb);
+#endif
+
+	return skb;
 }
 
 /* This helper checks if a socket is a LISTEN or NEW_SYN_RECV

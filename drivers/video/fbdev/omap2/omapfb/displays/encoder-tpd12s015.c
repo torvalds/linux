@@ -12,6 +12,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>

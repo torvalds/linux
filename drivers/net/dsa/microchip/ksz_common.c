@@ -439,14 +439,21 @@ static void ksz_disable_port(struct dsa_switch *ds, int port,
 	ksz_port_cfg(dev, port, REG_PORT_CTRL_0, PORT_MAC_LOOPBACK, true);
 }
 
-static int ksz_sset_count(struct dsa_switch *ds, int port)
+static int ksz_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return TOTAL_SWITCH_COUNTER_NUM;
 }
 
-static void ksz_get_strings(struct dsa_switch *ds, int port, uint8_t *buf)
+static void ksz_get_strings(struct dsa_switch *ds, int port,
+			    u32 stringset, uint8_t *buf)
 {
 	int i;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (i = 0; i < TOTAL_SWITCH_COUNTER_NUM; i++) {
 		memcpy(buf + i * ETH_GSTRING_LEN, mib_names[i].string,
@@ -1089,6 +1096,15 @@ static const struct ksz_chip_data ksz_switch_chips[] = {
 	{
 		.chip_id = 0x00947700,
 		.dev_name = "KSZ9477",
+		.num_vlans = 4096,
+		.num_alus = 4096,
+		.num_statics = 16,
+		.cpu_ports = 0x7F,	/* can be configured as cpu port */
+		.port_cnt = 7,		/* total physical port count */
+	},
+	{
+		.chip_id = 0x00989700,
+		.dev_name = "KSZ9897",
 		.num_vlans = 4096,
 		.num_alus = 4096,
 		.num_statics = 16,

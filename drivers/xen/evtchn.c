@@ -322,7 +322,7 @@ static int evtchn_resize_ring(struct per_user_data *u)
 	else
 		new_size = 2 * u->ring_size;
 
-	new_ring = kvmalloc(new_size * sizeof(*new_ring), GFP_KERNEL);
+	new_ring = kvmalloc_array(new_size, sizeof(*new_ring), GFP_KERNEL);
 	if (!new_ring)
 		return -ENOMEM;
 

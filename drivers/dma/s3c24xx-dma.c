@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/clk.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
 #include <linux/platform_data/dma-s3c24xx.h>
 
@@ -1223,9 +1224,9 @@ static int s3c24xx_dma_probe(struct platform_device *pdev)
 	if (IS_ERR(s3cdma->base))
 		return PTR_ERR(s3cdma->base);
 
-	s3cdma->phy_chans = devm_kzalloc(&pdev->dev,
-					      sizeof(struct s3c24xx_dma_phy) *
-							pdata->num_phy_channels,
+	s3cdma->phy_chans = devm_kcalloc(&pdev->dev,
+					      pdata->num_phy_channels,
+					      sizeof(struct s3c24xx_dma_phy),
 					      GFP_KERNEL);
 	if (!s3cdma->phy_chans)
 		return -ENOMEM;

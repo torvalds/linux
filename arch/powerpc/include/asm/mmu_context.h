@@ -35,9 +35,9 @@ extern struct mm_iommu_table_group_mem_t *mm_iommu_lookup_rm(
 extern struct mm_iommu_table_group_mem_t *mm_iommu_find(struct mm_struct *mm,
 		unsigned long ua, unsigned long entries);
 extern long mm_iommu_ua_to_hpa(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned long *hpa);
+		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
 extern long mm_iommu_ua_to_hpa_rm(struct mm_iommu_table_group_mem_t *mem,
-		unsigned long ua, unsigned long *hpa);
+		unsigned long ua, unsigned int pageshift, unsigned long *hpa);
 extern long mm_iommu_mapped_inc(struct mm_iommu_table_group_mem_t *mem);
 extern void mm_iommu_mapped_dec(struct mm_iommu_table_group_mem_t *mem);
 #endif
@@ -143,24 +143,33 @@ static inline void mm_context_remove_copro(struct mm_struct *mm)
 {
 	int c;
 
-	c = atomic_dec_if_positive(&mm->context.copros);
-
-	/* Detect imbalance between add and remove */
-	WARN_ON(c < 0);
-
 	/*
-	 * Need to broadcast a global flush of the full mm before
-	 * decrementing active_cpus count, as the next TLBI may be
-	 * local and the nMMU and/or PSL need to be cleaned up.
-	 * Should be rare enough so that it's acceptable.
+	 * When removing the last copro, we need to broadcast a global
+	 * flush of the full mm, as the next TLBI may be local and the
+	 * nMMU and/or PSL need to be cleaned up.
+	 *
+	 * Both the 'copros' and 'active_cpus' counts are looked at in
+	 * flush_all_mm() to determine the scope (local/global) of the
+	 * TLBIs, so we need to flush first before decrementing
+	 * 'copros'. If this API is used by several callers for the
+	 * same context, it can lead to over-flushing. It's hopefully
+	 * not common enough to be a problem.
 	 *
 	 * Skip on hash, as we don't know how to do the proper flush
 	 * for the time being. Invalidations will remain global if
-	 * used on hash.
+	 * used on hash. Note that we can't drop 'copros' either, as
+	 * it could make some invalidations local with no flush
+	 * in-between.
 	 */
-	if (c == 0 && radix_enabled()) {
+	if (radix_enabled()) {
 		flush_all_mm(mm);
-		dec_mm_active_cpus(mm);
+
+		c = atomic_dec_if_positive(&mm->context.copros);
+		/* Detect imbalance between add and remove */
+		WARN_ON(c < 0);
+
+		if (c == 0)
+			dec_mm_active_cpus(mm);
 	}
 }
 #else
@@ -249,11 +258,6 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
 #define thread_pkey_regs_save(thread)
 #define thread_pkey_regs_restore(new_thread, old_thread)
 #define thread_pkey_regs_init(thread)
-
-static inline int vma_pkey(struct vm_area_struct *vma)
-{
-	return 0;
-}
 
 static inline u64 pte_to_hpte_pkey_bits(u64 pteflags)
 {

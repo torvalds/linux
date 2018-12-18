@@ -208,10 +208,10 @@ int ath10k_htt_tx_alloc_msdu_id(struct ath10k_htt *htt, struct sk_buff *skb)
 	struct ath10k *ar = htt->ar;
 	int ret;
 
-	lockdep_assert_held(&htt->tx_lock);
-
+	spin_lock_bh(&htt->tx_lock);
 	ret = idr_alloc(&htt->pending_tx, skb, 0,
 			htt->max_num_pending_tx, GFP_ATOMIC);
+	spin_unlock_bh(&htt->tx_lock);
 
 	ath10k_dbg(ar, ATH10K_DBG_HTT, "htt tx alloc msdu_id %d\n", ret);
 
@@ -443,13 +443,13 @@ static int ath10k_htt_tx_alloc_buf(struct ath10k_htt *htt)
 	struct ath10k *ar = htt->ar;
 	int ret;
 
-	ret = htt->tx_ops->htt_alloc_txbuff(htt);
+	ret = ath10k_htt_alloc_txbuff(htt);
 	if (ret) {
 		ath10k_err(ar, "failed to alloc cont tx buffer: %d\n", ret);
 		return ret;
 	}
 
-	ret = htt->tx_ops->htt_alloc_frag_desc(htt);
+	ret = ath10k_htt_alloc_frag_desc(htt);
 	if (ret) {
 		ath10k_err(ar, "failed to alloc cont frag desc: %d\n", ret);
 		goto free_txbuf;
@@ -473,10 +473,10 @@ free_txq:
 	ath10k_htt_tx_free_txq(htt);
 
 free_frag_desc:
-	htt->tx_ops->htt_free_frag_desc(htt);
+	ath10k_htt_free_frag_desc(htt);
 
 free_txbuf:
-	htt->tx_ops->htt_free_txbuff(htt);
+	ath10k_htt_free_txbuff(htt);
 
 	return ret;
 }
@@ -530,9 +530,9 @@ void ath10k_htt_tx_destroy(struct ath10k_htt *htt)
 	if (!htt->tx_mem_allocated)
 		return;
 
-	htt->tx_ops->htt_free_txbuff(htt);
+	ath10k_htt_free_txbuff(htt);
 	ath10k_htt_tx_free_txq(htt);
-	htt->tx_ops->htt_free_frag_desc(htt);
+	ath10k_htt_free_frag_desc(htt);
 	ath10k_htt_tx_free_txdone_fifo(htt);
 	htt->tx_mem_allocated = false;
 }
@@ -1056,7 +1056,7 @@ static u8 ath10k_htt_tx_get_tid(struct sk_buff *skb, bool is_eth)
 	if (!is_eth && ieee80211_is_mgmt(hdr->frame_control))
 		return HTT_DATA_TX_EXT_TID_MGMT;
 	else if (cb->flags & ATH10K_SKB_F_QOS)
-		return skb->priority % IEEE80211_QOS_CTL_TID_MASK;
+		return skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	else
 		return HTT_DATA_TX_EXT_TID_NON_QOS_MCAST_BCAST;
 }
@@ -1077,9 +1077,7 @@ int ath10k_htt_mgmt_tx(struct ath10k_htt *htt, struct sk_buff *msdu)
 	len += sizeof(cmd->hdr);
 	len += sizeof(cmd->mgmt_tx);
 
-	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
-	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
 		goto err;
 
@@ -1161,9 +1159,7 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 	struct htt_msdu_ext_desc *ext_desc = NULL;
 	struct htt_msdu_ext_desc *ext_desc_t = NULL;
 
-	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
-	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
 		goto err;
 
@@ -1202,7 +1198,7 @@ static int ath10k_htt_tx_32(struct ath10k_htt *htt,
 	case ATH10K_HW_TXRX_RAW:
 	case ATH10K_HW_TXRX_NATIVE_WIFI:
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
-		/* pass through */
+		/* fall through */
 	case ATH10K_HW_TXRX_ETHERNET:
 		if (ar->hw_params.continuous_frag_desc) {
 			ext_desc_t = htt->frag_desc.vaddr_desc_32;
@@ -1363,9 +1359,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	struct htt_msdu_ext_desc_64 *ext_desc = NULL;
 	struct htt_msdu_ext_desc_64 *ext_desc_t = NULL;
 
-	spin_lock_bh(&htt->tx_lock);
 	res = ath10k_htt_tx_alloc_msdu_id(htt, msdu);
-	spin_unlock_bh(&htt->tx_lock);
 	if (res < 0)
 		goto err;
 
@@ -1404,7 +1398,7 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	case ATH10K_HW_TXRX_RAW:
 	case ATH10K_HW_TXRX_NATIVE_WIFI:
 		flags0 |= HTT_DATA_TX_DESC_FLAGS0_MAC_HDR_PRESENT;
-		/* pass through */
+		/* fall through */
 	case ATH10K_HW_TXRX_ETHERNET:
 		if (ar->hw_params.continuous_frag_desc) {
 			ext_desc_t = htt->frag_desc.vaddr_desc_64;
@@ -1475,8 +1469,11 @@ static int ath10k_htt_tx_64(struct ath10k_htt *htt,
 	    !test_bit(ATH10K_FLAG_RAW_MODE, &ar->dev_flags)) {
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L3_OFFLOAD;
 		flags1 |= HTT_DATA_TX_DESC_FLAGS1_CKSUM_L4_OFFLOAD;
-		if (ar->hw_params.continuous_frag_desc)
-			ext_desc->flags |= HTT_MSDU_CHECKSUM_ENABLE;
+		if (ar->hw_params.continuous_frag_desc) {
+			memset(ext_desc->tso_flag, 0, sizeof(ext_desc->tso_flag));
+			ext_desc->tso_flag[3] |=
+				__cpu_to_le32(HTT_MSDU_CHECKSUM_ENABLE_64);
+		}
 	}
 
 	/* Prevent firmware from sending up tx inspection requests. There's

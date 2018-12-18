@@ -378,7 +378,7 @@ static bool ldm_validate_tocblocks(struct parsed_partitions *state,
 	BUG_ON(!state || !ldb);
 	ph = &ldb->ph;
 	tb[0] = &ldb->toc;
-	tb[1] = kmalloc(sizeof(*tb[1]) * 3, GFP_KERNEL);
+	tb[1] = kmalloc_array(3, sizeof(*tb[1]), GFP_KERNEL);
 	if (!tb[1]) {
 		ldm_crit("Out of memory.");
 		goto err;
@@ -830,7 +830,6 @@ static bool ldm_parse_dgr4 (const u8 *buffer, int buflen, struct vblk *vb)
 {
 	char buf[64];
 	int r_objid, r_name, r_id1, r_id2, len;
-	struct vblk_dgrp *dgrp;
 
 	BUG_ON (!buffer || !vb);
 
@@ -852,8 +851,6 @@ static bool ldm_parse_dgr4 (const u8 *buffer, int buflen, struct vblk *vb)
 	len += VBLK_SIZE_DGR4;
 	if (len != get_unaligned_be32(buffer + 0x14))
 		return false;
-
-	dgrp = &vb->vblk.dgrp;
 
 	ldm_get_vstr (buffer + 0x18 + r_objid, buf, sizeof (buf));
 	return true;

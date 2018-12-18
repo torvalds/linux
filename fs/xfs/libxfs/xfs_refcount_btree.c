@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -41,8 +27,7 @@ xfs_refcountbt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
 	return xfs_refcountbt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_private.a.agbp, cur->bc_private.a.agno,
-			cur->bc_private.a.dfops);
+			cur->bc_private.a.agbp, cur->bc_private.a.agno);
 }
 
 STATIC void
@@ -85,7 +70,6 @@ xfs_refcountbt_alloc_block(
 	args.type = XFS_ALLOCTYPE_NEAR_BNO;
 	args.fsbno = XFS_AGB_TO_FSB(cur->bc_mp, cur->bc_private.a.agno,
 			xfs_refc_block(args.mp));
-	args.firstblock = args.fsbno;
 	xfs_rmap_ag_owner(&args.oinfo, XFS_RMAP_OWN_REFC);
 	args.minlen = args.maxlen = args.prod = 1;
 	args.resv = XFS_AG_RESV_METADATA;
@@ -192,7 +176,6 @@ xfs_refcountbt_init_ptr_from_cur(
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(cur->bc_private.a.agbp);
 
 	ASSERT(cur->bc_private.a.agno == be32_to_cpu(agf->agf_seqno));
-	ASSERT(agf->agf_refcount_root != 0);
 
 	ptr->s = agf->agf_refcount_root;
 }
@@ -338,8 +321,7 @@ xfs_refcountbt_init_cursor(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
-	xfs_agnumber_t		agno,
-	struct xfs_defer_ops	*dfops)
+	xfs_agnumber_t		agno)
 {
 	struct xfs_agf		*agf = XFS_BUF_TO_AGF(agbp);
 	struct xfs_btree_cur	*cur;
@@ -359,7 +341,6 @@ xfs_refcountbt_init_cursor(
 
 	cur->bc_private.a.agbp = agbp;
 	cur->bc_private.a.agno = agno;
-	cur->bc_private.a.dfops = dfops;
 	cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
 	cur->bc_private.a.priv.refc.nr_ops = 0;
@@ -423,6 +404,7 @@ xfs_refcountbt_max_size(
 int
 xfs_refcountbt_calc_reserves(
 	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_extlen_t		*ask,
 	xfs_extlen_t		*used)
@@ -437,14 +419,14 @@ xfs_refcountbt_calc_reserves(
 		return 0;
 
 
-	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
+	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
 	if (error)
 		return error;
 
 	agf = XFS_BUF_TO_AGF(agbp);
 	agblocks = be32_to_cpu(agf->agf_length);
 	tree_len = be32_to_cpu(agf->agf_refcount_blocks);
-	xfs_buf_relse(agbp);
+	xfs_trans_brelse(tp, agbp);
 
 	*ask += xfs_refcountbt_max_size(mp, agblocks);
 	*used += tree_len;

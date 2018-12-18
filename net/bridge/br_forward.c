@@ -30,7 +30,8 @@ static inline int should_deliver(const struct net_bridge_port *p,
 	vg = nbp_vlan_group_rcu(p);
 	return ((p->flags & BR_HAIRPIN_MODE) || skb->dev != p->dev) &&
 		br_allowed_egress(vg, skb) && p->state == BR_STATE_FORWARDING &&
-		nbp_switchdev_allowed_egress(p, skb);
+		nbp_switchdev_allowed_egress(p, skb) &&
+		!br_skb_isolated(p, skb);
 }
 
 int br_dev_queue_push_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
@@ -141,7 +142,20 @@ static int deliver_clone(const struct net_bridge_port *prev,
 void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb, bool local_rcv, bool local_orig)
 {
-	if (to && should_deliver(to, skb)) {
+	if (unlikely(!to))
+		goto out;
+
+	/* redirect to backup link if the destination port is down */
+	if (rcu_access_pointer(to->backup_port) && !netif_carrier_ok(to->dev)) {
+		struct net_bridge_port *backup_port;
+
+		backup_port = rcu_dereference(to->backup_port);
+		if (unlikely(!backup_port))
+			goto out;
+		to = backup_port;
+	}
+
+	if (should_deliver(to, skb)) {
 		if (local_rcv)
 			deliver_clone(to, skb, local_orig);
 		else
@@ -149,6 +163,7 @@ void br_forward(const struct net_bridge_port *to,
 		return;
 	}
 
+out:
 	if (!local_rcv)
 		kfree_skb(skb);
 }
@@ -274,8 +289,7 @@ void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
 		struct net_bridge_port *port, *lport, *rport;
 
 		lport = p ? p->port : NULL;
-		rport = rp ? hlist_entry(rp, struct net_bridge_port, rlist) :
-			     NULL;
+		rport = hlist_entry_safe(rp, struct net_bridge_port, rlist);
 
 		if ((unsigned long)lport > (unsigned long)rport) {
 			port = lport;

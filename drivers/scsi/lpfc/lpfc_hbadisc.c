@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -708,8 +708,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 								HA_RXMASK));
 			}
 		}
-		if ((phba->sli_rev == LPFC_SLI_REV4) &&
-				 (!list_empty(&pring->txq)))
+		if (phba->sli_rev == LPFC_SLI_REV4)
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
@@ -3876,10 +3875,6 @@ int
 lpfc_issue_gidft(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
-	struct lpfc_nodelist *ndlp;
-
-	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
-		ndlp->nlp_fc4_type &= ~(NLP_FC4_FCP | NLP_FC4_NVME);
 
 	/* Good status, issue CT Request to NameServer */
 	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||

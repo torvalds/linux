@@ -38,7 +38,7 @@ CFLAGS_dcn_calc_math.o := $(calcs_ccflags) -Wno-tautological-compare
 
 BW_CALCS = dce_calcs.o bw_fixed.o custom_float.o
 
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_X86
 BW_CALCS += dcn_calcs.o dcn_calc_math.o dcn_calc_auto.o
 endif
 

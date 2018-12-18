@@ -47,6 +47,17 @@ enum kfd_preempt_type {
 	KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 };
 
+struct kfd_vm_fault_info {
+	uint64_t	page_addr;
+	uint32_t	vmid;
+	uint32_t	mc_id;
+	uint32_t	status;
+	bool		prot_valid;
+	bool		prot_read;
+	bool		prot_write;
+	bool		prot_exec;
+};
+
 struct kfd_cu_info {
 	uint32_t num_shader_engines;
 	uint32_t num_shader_arrays_per_engine;
@@ -99,6 +110,21 @@ struct kgd2kfd_shared_resources {
 
 	/* Bit n == 1 means Queue n is available for KFD */
 	DECLARE_BITMAP(queue_bitmap, KGD_MAX_QUEUES);
+
+	/* Doorbell assignments (SOC15 and later chips only). Only
+	 * specific doorbells are routed to each SDMA engine. Others
+	 * are routed to IH and VCN. They are not usable by the CP.
+	 *
+	 * Any doorbell number D that satisfies the following condition
+	 * is reserved: (D & reserved_doorbell_mask) == reserved_doorbell_val
+	 *
+	 * KFD currently uses 1024 (= 0x3ff) doorbells per process. If
+	 * doorbells 0x0f0-0x0f7 and 0x2f-0x2f7 are reserved, that means
+	 * mask would be set to 0x1f8 and val set to 0x0f0.
+	 */
+	unsigned int sdma_doorbell[2][2];
+	unsigned int reserved_doorbell_mask;
+	unsigned int reserved_doorbell_val;
 
 	/* Base address of doorbell aperture. */
 	phys_addr_t doorbell_physical_address;
@@ -173,8 +199,6 @@ struct tile_config {
  * @set_pasid_vmid_mapping: Exposes pasid/vmid pair to the H/W for no cp
  * scheduling mode. Only used for no cp scheduling mode.
  *
- * @init_pipeline: Initialized the compute pipelines.
- *
  * @hqd_load: Loads the mqd structure to a H/W hqd slot. used only for no cp
  * sceduling mode.
  *
@@ -246,6 +270,21 @@ struct tile_config {
  * IB to the corresponding ring (ring type). The IB is executed with the
  * specified VMID in a user mode context.
  *
+ * @get_vm_fault_info: Return information about a recent VM fault on
+ * GFXv7 and v8. If multiple VM faults occurred since the last call of
+ * this function, it will return information about the first of those
+ * faults. On GFXv9 VM fault information is fully contained in the IH
+ * packet and this function is not needed.
+ *
+ * @read_vmid_from_vmfault_reg: On Hawaii the VMID is not set in the
+ * IH ring entry. This function allows the KFD ISR to get the VMID
+ * from the fault status register as early as possible.
+ *
+ * @gpu_recover: let kgd reset gpu after kfd detect CPC hang
+ *
+ * @set_compute_idle: Indicates that compute is idle on a device. This
+ * can be used to change power profiles depending on compute activity.
+ *
  * This structure contains function pointers to services that the kgd driver
  * provides to amdkfd driver.
  *
@@ -273,9 +312,6 @@ struct kfd2kgd_calls {
 
 	int (*set_pasid_vmid_mapping)(struct kgd_dev *kgd, unsigned int pasid,
 					unsigned int vmid);
-
-	int (*init_pipeline)(struct kgd_dev *kgd, uint32_t pipe_id,
-				uint32_t hpd_size, uint64_t hpd_gpu_addr);
 
 	int (*init_interrupts)(struct kgd_dev *kgd, uint32_t pipe_id);
 
@@ -364,6 +400,14 @@ struct kfd2kgd_calls {
 	int (*submit_ib)(struct kgd_dev *kgd, enum kgd_engine_type engine,
 			uint32_t vmid, uint64_t gpu_addr,
 			uint32_t *ib_cmd, uint32_t ib_len);
+
+	int (*get_vm_fault_info)(struct kgd_dev *kgd,
+			struct kfd_vm_fault_info *info);
+	uint32_t (*read_vmid_from_vmfault_reg)(struct kgd_dev *kgd);
+
+	void (*gpu_recover)(struct kgd_dev *kgd);
+
+	void (*set_compute_idle)(struct kgd_dev *kgd, bool idle);
 };
 
 /**
@@ -382,8 +426,16 @@ struct kfd2kgd_calls {
  *
  * @resume: Notifies amdkfd about a resume action done to a kgd device
  *
+ * @quiesce_mm: Quiesce all user queue access to specified MM address space
+ *
+ * @resume_mm: Resume user queue access to specified MM address space
+ *
  * @schedule_evict_and_restore_process: Schedules work queue that will prepare
  * for safe eviction of KFD BOs that belong to the specified process.
+ *
+ * @pre_reset: Notifies amdkfd that amdgpu about to reset the gpu
+ *
+ * @post_reset: Notify amdkfd that amgpu successfully reseted the gpu
  *
  * This structure contains function callback pointers so the kgd driver
  * will notify to the amdkfd about certain status changes.
@@ -399,8 +451,12 @@ struct kgd2kfd_calls {
 	void (*interrupt)(struct kfd_dev *kfd, const void *ih_ring_entry);
 	void (*suspend)(struct kfd_dev *kfd);
 	int (*resume)(struct kfd_dev *kfd);
+	int (*quiesce_mm)(struct mm_struct *mm);
+	int (*resume_mm)(struct mm_struct *mm);
 	int (*schedule_evict_and_restore_process)(struct mm_struct *mm,
 			struct dma_fence *fence);
+	int  (*pre_reset)(struct kfd_dev *kfd);
+	int  (*post_reset)(struct kfd_dev *kfd);
 };
 
 int kgd2kfd_init(unsigned interface_version,

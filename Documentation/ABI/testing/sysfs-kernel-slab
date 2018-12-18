@@ -37,7 +37,7 @@ Description:
 		The alloc_calls file is read-only and lists the kernel code
 		locations from which allocations for this cache were performed.
 		The alloc_calls file only contains information if debugging is
-		enabled for that cache (see Documentation/vm/slub.txt).
+		enabled for that cache (see Documentation/vm/slub.rst).
 
 What:		/sys/kernel/slab/cache/alloc_fastpath
 Date:		February 2008
@@ -219,7 +219,7 @@ Contact:	Pekka Enberg <penberg@cs.helsinki.fi>,
 Description:
 		The free_calls file is read-only and lists the locations of
 		object frees if slab debugging is enabled (see
-		Documentation/vm/slub.txt).
+		Documentation/vm/slub.rst).
 
 What:		/sys/kernel/slab/cache/free_fastpath
 Date:		February 2008

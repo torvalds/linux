@@ -479,6 +479,7 @@ static size_t nbpf_xfer_size(struct nbpf_device *nbpf,
 
 	default:
 		pr_warn("%s(): invalid bus width %u\n", __func__, width);
+		/* fall through */
 	case DMA_SLAVE_BUSWIDTH_1_BYTE:
 		size = burst;
 	}
@@ -1305,8 +1306,8 @@ static int nbpf_probe(struct platform_device *pdev)
 	cfg = of_device_get_match_data(dev);
 	num_channels = cfg->num_channels;
 
-	nbpf = devm_kzalloc(dev, sizeof(*nbpf) + num_channels *
-			    sizeof(nbpf->chan[0]), GFP_KERNEL);
+	nbpf = devm_kzalloc(dev, struct_size(nbpf, chan, num_channels),
+			    GFP_KERNEL);
 	if (!nbpf)
 		return -ENOMEM;
 

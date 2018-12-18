@@ -27,6 +27,15 @@
 #define BNXT_FID_INVALID			0xffff
 #define VLAN_TCI(vid, prio)	((vid) | ((prio) << VLAN_PRIO_SHIFT))
 
+#define is_vlan_pcp_wildcarded(vlan_tci_mask)	\
+	((ntohs(vlan_tci_mask) & VLAN_PRIO_MASK) == 0x0000)
+#define is_vlan_pcp_exactmatch(vlan_tci_mask)	\
+	((ntohs(vlan_tci_mask) & VLAN_PRIO_MASK) == VLAN_PRIO_MASK)
+#define is_vlan_pcp_zero(vlan_tci)	\
+	((ntohs(vlan_tci) & VLAN_PRIO_MASK) == 0x0000)
+#define is_vid_exactmatch(vlan_tci_mask)	\
+	((ntohs(vlan_tci_mask) & VLAN_VID_MASK) == VLAN_VID_MASK)
+
 /* Return the dst fid of the func for flow forwarding
  * For PFs: src_fid is the fid of the PF
  * For VF-reps: src_fid the fid of the VF
@@ -387,6 +396,21 @@ static bool is_exactmatch(void *mask, int len)
 			return false;
 
 	return true;
+}
+
+static bool is_vlan_tci_allowed(__be16  vlan_tci_mask,
+				__be16  vlan_tci)
+{
+	/* VLAN priority must be either exactly zero or fully wildcarded and
+	 * VLAN id must be exact match.
+	 */
+	if (is_vid_exactmatch(vlan_tci_mask) &&
+	    ((is_vlan_pcp_exactmatch(vlan_tci_mask) &&
+	      is_vlan_pcp_zero(vlan_tci)) ||
+	     is_vlan_pcp_wildcarded(vlan_tci_mask)))
+		return true;
+
+	return false;
 }
 
 static bool bits_set(void *key, int len)
@@ -803,9 +827,9 @@ static bool bnxt_tc_can_offload(struct bnxt *bp, struct bnxt_tc_flow *flow)
 	/* Currently VLAN fields cannot be partial wildcard */
 	if (bits_set(&flow->l2_key.inner_vlan_tci,
 		     sizeof(flow->l2_key.inner_vlan_tci)) &&
-	    !is_exactmatch(&flow->l2_mask.inner_vlan_tci,
-			   sizeof(flow->l2_mask.inner_vlan_tci))) {
-		netdev_info(bp->dev, "Wildcard match unsupported for VLAN TCI\n");
+	    !is_vlan_tci_allowed(flow->l2_mask.inner_vlan_tci,
+				 flow->l2_key.inner_vlan_tci)) {
+		netdev_info(bp->dev, "Unsupported VLAN TCI\n");
 		return false;
 	}
 	if (bits_set(&flow->l2_key.inner_vlan_tpid,
@@ -1544,22 +1568,16 @@ void bnxt_tc_flow_stats_work(struct bnxt *bp)
 int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
 			 struct tc_cls_flower_offload *cls_flower)
 {
-	int rc = 0;
-
 	switch (cls_flower->command) {
 	case TC_CLSFLOWER_REPLACE:
-		rc = bnxt_tc_add_flow(bp, src_fid, cls_flower);
-		break;
-
+		return bnxt_tc_add_flow(bp, src_fid, cls_flower);
 	case TC_CLSFLOWER_DESTROY:
-		rc = bnxt_tc_del_flow(bp, cls_flower);
-		break;
-
+		return bnxt_tc_del_flow(bp, cls_flower);
 	case TC_CLSFLOWER_STATS:
-		rc = bnxt_tc_get_flow_stats(bp, cls_flower);
-		break;
+		return bnxt_tc_get_flow_stats(bp, cls_flower);
+	default:
+		return -EOPNOTSUPP;
 	}
-	return rc;
 }
 
 static const struct rhashtable_params bnxt_tc_flow_ht_params = {

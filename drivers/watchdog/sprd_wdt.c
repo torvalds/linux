@@ -279,10 +279,8 @@ static int sprd_wdt_probe(struct platform_device *pdev)
 
 	wdt_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	wdt->base = devm_ioremap_resource(&pdev->dev, wdt_res);
-	if (IS_ERR(wdt->base)) {
-		dev_err(&pdev->dev, "failed to map memory resource\n");
+	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
-	}
 
 	wdt->enable = devm_clk_get(&pdev->dev, "enable");
 	if (IS_ERR(wdt->enable)) {

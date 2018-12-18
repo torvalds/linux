@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -566,6 +566,7 @@ struct lpfc_register {
 
 /* The following BAR0 register sets are defined for if_type 0 and 2 UCNAs. */
 #define LPFC_SLI_INTF			0x0058
+#define LPFC_SLI_ASIC_VER		0x009C
 
 #define LPFC_CTL_PORT_SEM_OFFSET	0x400
 #define lpfc_port_smphr_perr_SHIFT	31
@@ -1789,9 +1790,12 @@ struct lpfc_mbx_set_beacon_config {
 #define lpfc_mbx_set_beacon_duration_SHIFT		16
 #define lpfc_mbx_set_beacon_duration_MASK		0x000000FF
 #define lpfc_mbx_set_beacon_duration_WORD		word4
-#define lpfc_mbx_set_beacon_status_duration_SHIFT	24
-#define lpfc_mbx_set_beacon_status_duration_MASK	0x000000FF
-#define lpfc_mbx_set_beacon_status_duration_WORD	word4
+
+/* COMMON_SET_BEACON_CONFIG_V1 */
+#define lpfc_mbx_set_beacon_duration_v1_SHIFT		16
+#define lpfc_mbx_set_beacon_duration_v1_MASK		0x0000FFFF
+#define lpfc_mbx_set_beacon_duration_v1_WORD		word4
+	uint32_t word5;  /* RESERVED  */
 };
 
 struct lpfc_id_range {
@@ -2242,6 +2246,7 @@ struct lpfc_mbx_redisc_fcf_tbl {
  */
 #define ADD_STATUS_OPERATION_ALREADY_ACTIVE		0x67
 #define ADD_STATUS_FW_NOT_SUPPORTED			0xEB
+#define ADD_STATUS_INVALID_REQUEST			0x4B
 
 struct lpfc_mbx_sli4_config {
 	struct mbox_header header;
@@ -3391,7 +3396,41 @@ struct lpfc_sli4_parameters {
 #define cfg_nosr_SHIFT				9
 #define cfg_nosr_MASK				0x00000001
 #define cfg_nosr_WORD				word19
-#define LPFC_NODELAY_MAX_IO		32
+
+#define cfg_bv1s_SHIFT                          10
+#define cfg_bv1s_MASK                           0x00000001
+#define cfg_bv1s_WORD                           word19
+
+	uint32_t word20;
+#define cfg_max_tow_xri_SHIFT			0
+#define cfg_max_tow_xri_MASK			0x0000ffff
+#define cfg_max_tow_xri_WORD			word20
+
+	uint32_t word21;                        /* RESERVED */
+	uint32_t word22;                        /* RESERVED */
+	uint32_t word23;                        /* RESERVED */
+
+	uint32_t word24;
+#define cfg_frag_field_offset_SHIFT		0
+#define cfg_frag_field_offset_MASK		0x0000ffff
+#define cfg_frag_field_offset_WORD		word24
+
+#define cfg_frag_field_size_SHIFT		16
+#define cfg_frag_field_size_MASK		0x0000ffff
+#define cfg_frag_field_size_WORD		word24
+
+	uint32_t word25;
+#define cfg_sgl_field_offset_SHIFT		0
+#define cfg_sgl_field_offset_MASK		0x0000ffff
+#define cfg_sgl_field_offset_WORD		word25
+
+#define cfg_sgl_field_size_SHIFT		16
+#define cfg_sgl_field_size_MASK			0x0000ffff
+#define cfg_sgl_field_size_WORD			word25
+
+	uint32_t word26;	/* Chain SGE initial value LOW  */
+	uint32_t word27;	/* Chain SGE initial value HIGH */
+#define LPFC_NODELAY_MAX_IO			32
 };
 
 #define LPFC_SET_UE_RECOVERY		0x10
@@ -3912,6 +3951,7 @@ struct lpfc_acqe_link {
 #define LPFC_ASYNC_LINK_FAULT_NONE	0x0
 #define LPFC_ASYNC_LINK_FAULT_LOCAL	0x1
 #define LPFC_ASYNC_LINK_FAULT_REMOTE	0x2
+#define LPFC_ASYNC_LINK_FAULT_LR_LRR	0x3
 #define lpfc_acqe_logical_link_speed_SHIFT	16
 #define lpfc_acqe_logical_link_speed_MASK	0x0000FFFF
 #define lpfc_acqe_logical_link_speed_WORD	word1
@@ -4615,6 +4655,9 @@ union lpfc_wqe128 {
 	struct fcp_treceive64_wqe fcp_treceive;
 	struct send_frame_wqe send_frame;
 };
+
+#define MAGIC_NUMER_G6 0xFEAA0003
+#define MAGIC_NUMER_G7 0xFEAA0005
 
 struct lpfc_grp_hdr {
 	uint32_t size;

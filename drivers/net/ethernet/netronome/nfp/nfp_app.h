@@ -57,11 +57,13 @@ enum nfp_app_id {
 	NFP_APP_CORE_NIC	= 0x1,
 	NFP_APP_BPF_NIC		= 0x2,
 	NFP_APP_FLOWER_NIC	= 0x3,
+	NFP_APP_ACTIVE_BUFFER_MGMT_NIC = 0x4,
 };
 
 extern const struct nfp_app_type app_nic;
 extern const struct nfp_app_type app_bpf;
 extern const struct nfp_app_type app_flower;
+extern const struct nfp_app_type app_abm;
 
 /**
  * struct nfp_app_type - application definition
@@ -76,6 +78,8 @@ extern const struct nfp_app_type app_flower;
  * @init:	perform basic app checks and init
  * @clean:	clean app state
  * @extra_cap:	extra capabilities string
+ * @ndo_init:	vNIC and repr netdev .ndo_init
+ * @ndo_uninit:	vNIC and repr netdev .ndo_unint
  * @vnic_alloc:	allocate vNICs (assign port types, etc.)
  * @vnic_free:	free up app's vNIC state
  * @vnic_init:	vNIC netdev was registered
@@ -88,13 +92,18 @@ extern const struct nfp_app_type app_flower;
  * @repr_stop:	representor netdev stop callback
  * @check_mtu:	MTU change request on a netdev (verify it is valid)
  * @repr_change_mtu:	MTU change request on repr (make and verify change)
+ * @port_get_stats:		get extra ethtool statistics for a port
+ * @port_get_stats_count:	get count of extra statistics for a port
+ * @port_get_stats_strings:	get strings for extra statistics
  * @start:	start application logic
  * @stop:	stop application logic
  * @ctrl_msg_rx:    control message handler
+ * @ctrl_msg_rx_raw:	handler for control messages from data queues
  * @setup_tc:	setup TC ndo
  * @bpf:	BPF ndo offload-related calls
  * @xdp_offload:    offload an XDP program
  * @eswitch_mode_get:    get SR-IOV eswitch mode
+ * @eswitch_mode_set:    set SR-IOV eswitch mode (under pf->lock)
  * @sriov_enable: app-specific sriov initialisation
  * @sriov_disable: app-specific sriov clean-up
  * @repr_get:	get representor netdev
@@ -110,6 +119,9 @@ struct nfp_app_type {
 	void (*clean)(struct nfp_app *app);
 
 	const char *(*extra_cap)(struct nfp_app *app, struct nfp_net *nn);
+
+	int (*ndo_init)(struct nfp_app *app, struct net_device *netdev);
+	void (*ndo_uninit)(struct nfp_app *app, struct net_device *netdev);
 
 	int (*vnic_alloc)(struct nfp_app *app, struct nfp_net *nn,
 			  unsigned int id);
@@ -129,10 +141,18 @@ struct nfp_app_type {
 	int (*repr_change_mtu)(struct nfp_app *app, struct net_device *netdev,
 			       int new_mtu);
 
+	u64 *(*port_get_stats)(struct nfp_app *app,
+			       struct nfp_port *port, u64 *data);
+	int (*port_get_stats_count)(struct nfp_app *app, struct nfp_port *port);
+	u8 *(*port_get_stats_strings)(struct nfp_app *app,
+				      struct nfp_port *port, u8 *data);
+
 	int (*start)(struct nfp_app *app);
 	void (*stop)(struct nfp_app *app);
 
 	void (*ctrl_msg_rx)(struct nfp_app *app, struct sk_buff *skb);
+	void (*ctrl_msg_rx_raw)(struct nfp_app *app, const void *data,
+				unsigned int len);
 
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
 			enum tc_setup_type type, void *type_data);
@@ -146,6 +166,7 @@ struct nfp_app_type {
 	void (*sriov_disable)(struct nfp_app *app);
 
 	enum devlink_eswitch_mode (*eswitch_mode_get)(struct nfp_app *app);
+	int (*eswitch_mode_set)(struct nfp_app *app, u16 mode);
 	struct net_device *(*repr_get)(struct nfp_app *app, u32 id);
 };
 
@@ -186,6 +207,9 @@ static inline void nfp_app_clean(struct nfp_app *app)
 	if (app->type->clean)
 		app->type->clean(app);
 }
+
+int nfp_app_ndo_init(struct net_device *netdev);
+void nfp_app_ndo_uninit(struct net_device *netdev);
 
 static inline int nfp_app_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 				     unsigned int id)
@@ -297,6 +321,11 @@ static inline bool nfp_app_ctrl_has_meta(struct nfp_app *app)
 	return app->type->ctrl_has_meta;
 }
 
+static inline bool nfp_app_ctrl_uses_data_vnics(struct nfp_app *app)
+{
+	return app && app->type->ctrl_msg_rx_raw;
+}
+
 static inline const char *nfp_app_extra_cap(struct nfp_app *app,
 					    struct nfp_net *nn)
 {
@@ -360,6 +389,16 @@ static inline void nfp_app_ctrl_rx(struct nfp_app *app, struct sk_buff *skb)
 	app->type->ctrl_msg_rx(app, skb);
 }
 
+static inline void
+nfp_app_ctrl_rx_raw(struct nfp_app *app, const void *data, unsigned int len)
+{
+	if (!app || !app->type->ctrl_msg_rx_raw)
+		return;
+
+	trace_devlink_hwmsg(priv_to_devlink(app->pf), true, 0, data, len);
+	app->type->ctrl_msg_rx_raw(app, data, len);
+}
+
 static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 {
 	if (!app->type->eswitch_mode_get)
@@ -368,6 +407,13 @@ static inline int nfp_app_eswitch_mode_get(struct nfp_app *app, u16 *mode)
 	*mode = app->type->eswitch_mode_get(app);
 
 	return 0;
+}
+
+static inline int nfp_app_eswitch_mode_set(struct nfp_app *app, u16 mode)
+{
+	if (!app->type->eswitch_mode_set)
+		return -EOPNOTSUPP;
+	return app->type->eswitch_mode_set(app, mode);
 }
 
 static inline int nfp_app_sriov_enable(struct nfp_app *app, int num_vfs)
@@ -393,6 +439,10 @@ static inline struct net_device *nfp_app_repr_get(struct nfp_app *app, u32 id)
 
 struct nfp_app *nfp_app_from_netdev(struct net_device *netdev);
 
+u64 *nfp_app_port_get_stats(struct nfp_port *port, u64 *data);
+int nfp_app_port_get_stats_count(struct nfp_port *port);
+u8 *nfp_app_port_get_stats_strings(struct nfp_port *port, u8 *data);
+
 struct nfp_reprs *
 nfp_reprs_get_locked(struct nfp_app *app, enum nfp_repr_type type);
 struct nfp_reprs *
@@ -410,5 +460,7 @@ void nfp_app_free(struct nfp_app *app);
 
 int nfp_app_nic_vnic_alloc(struct nfp_app *app, struct nfp_net *nn,
 			   unsigned int id);
+int nfp_app_nic_vnic_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
+				   struct nfp_net *nn, unsigned int id);
 
 #endif

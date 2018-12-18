@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -100,18 +100,19 @@ static void rds_ib_remove_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 		kfree_rcu(to_free, rcu);
 }
 
-int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
+int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev,
+			 struct in6_addr *ipaddr)
 {
 	struct rds_ib_device *rds_ibdev_old;
 
-	rds_ibdev_old = rds_ib_get_device(ipaddr);
+	rds_ibdev_old = rds_ib_get_device(ipaddr->s6_addr32[3]);
 	if (!rds_ibdev_old)
-		return rds_ib_add_ipaddr(rds_ibdev, ipaddr);
+		return rds_ib_add_ipaddr(rds_ibdev, ipaddr->s6_addr32[3]);
 
 	if (rds_ibdev_old != rds_ibdev) {
-		rds_ib_remove_ipaddr(rds_ibdev_old, ipaddr);
+		rds_ib_remove_ipaddr(rds_ibdev_old, ipaddr->s6_addr32[3]);
 		rds_ib_dev_put(rds_ibdev_old);
-		return rds_ib_add_ipaddr(rds_ibdev, ipaddr);
+		return rds_ib_add_ipaddr(rds_ibdev, ipaddr->s6_addr32[3]);
 	}
 	rds_ib_dev_put(rds_ibdev_old);
 
@@ -178,6 +179,17 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 	iinfo->rdma_mr_max = pool_1m->max_items;
 	iinfo->rdma_mr_size = pool_1m->fmr_attr.max_pages;
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
+			 struct rds6_info_rdma_connection *iinfo6)
+{
+	struct rds_ib_mr_pool *pool_1m = rds_ibdev->mr_1m_pool;
+
+	iinfo6->rdma_mr_max = pool_1m->max_items;
+	iinfo6->rdma_mr_size = pool_1m->fmr_attr.max_pages;
+}
+#endif
 
 struct rds_ib_mr *rds_ib_reuse_mr(struct rds_ib_mr_pool *pool)
 {
@@ -537,18 +549,22 @@ void rds_ib_flush_mrs(void)
 }
 
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
-		    struct rds_sock *rs, u32 *key_ret)
+		    struct rds_sock *rs, u32 *key_ret,
+		    struct rds_connection *conn)
 {
 	struct rds_ib_device *rds_ibdev;
 	struct rds_ib_mr *ibmr = NULL;
-	struct rds_ib_connection *ic = rs->rs_conn->c_transport_data;
+	struct rds_ib_connection *ic = NULL;
 	int ret;
 
-	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr);
+	rds_ibdev = rds_ib_get_device(rs->rs_bound_addr.s6_addr32[3]);
 	if (!rds_ibdev) {
 		ret = -ENODEV;
 		goto out;
 	}
+
+	if (conn)
+		ic = conn->c_transport_data;
 
 	if (!rds_ibdev->mr_8k_pool || !rds_ibdev->mr_1m_pool) {
 		ret = -ENODEV;
@@ -559,17 +575,18 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		ibmr = rds_ib_reg_frmr(rds_ibdev, ic, sg, nents, key_ret);
 	else
 		ibmr = rds_ib_reg_fmr(rds_ibdev, sg, nents, key_ret);
-	if (ibmr)
-		rds_ibdev = NULL;
+	if (IS_ERR(ibmr)) {
+		ret = PTR_ERR(ibmr);
+		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
+	} else {
+		return ibmr;
+	}
 
  out:
-	if (!ibmr)
-		pr_warn("RDS/IB: rds_ib_get_mr failed (errno=%d)\n", ret);
-
 	if (rds_ibdev)
 		rds_ib_dev_put(rds_ibdev);
 
-	return ibmr;
+	return ERR_PTR(ret);
 }
 
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *pool)

@@ -29,14 +29,12 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/rawnand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/dmaengine.h>
-#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/iopoll.h>
 #include <linux/reset.h>
@@ -127,7 +125,7 @@
 #define NFC_CMD_TYPE_MSK	GENMASK(31, 30)
 #define NFC_NORMAL_OP		(0 << 30)
 #define NFC_ECC_OP		(1 << 30)
-#define NFC_PAGE_OP		(2 << 30)
+#define NFC_PAGE_OP		(2U << 30)
 
 /* define bit use in NFC_RCMD_SET */
 #define NFC_READ_CMD_MSK	GENMASK(7, 0)
@@ -166,48 +164,15 @@
 #define NFC_MAX_CS		7
 
 /*
- * Ready/Busy detection type: describes the Ready/Busy detection modes
- *
- * @RB_NONE:	no external detection available, rely on STATUS command
- *		and software timeouts
- * @RB_NATIVE:	use sunxi NAND controller Ready/Busy support. The Ready/Busy
- *		pin of the NAND flash chip must be connected to one of the
- *		native NAND R/B pins (those which can be muxed to the NAND
- *		Controller)
- * @RB_GPIO:	use a simple GPIO to handle Ready/Busy status. The Ready/Busy
- *		pin of the NAND flash chip must be connected to a GPIO capable
- *		pin.
- */
-enum sunxi_nand_rb_type {
-	RB_NONE,
-	RB_NATIVE,
-	RB_GPIO,
-};
-
-/*
- * Ready/Busy structure: stores information related to Ready/Busy detection
- *
- * @type:	the Ready/Busy detection mode
- * @info:	information related to the R/B detection mode. Either a gpio
- *		id or a native R/B id (those supported by the NAND controller).
- */
-struct sunxi_nand_rb {
-	enum sunxi_nand_rb_type type;
-	union {
-		int gpio;
-		int nativeid;
-	} info;
-};
-
-/*
  * Chip Select structure: stores information related to NAND Chip Select
  *
  * @cs:		the NAND CS id used to communicate with a NAND Chip
- * @rb:		the Ready/Busy description
+ * @rb:		the Ready/Busy pin ID. -1 means no R/B pin connected to the
+ *		NFC
  */
 struct sunxi_nand_chip_sel {
 	u8 cs;
-	struct sunxi_nand_rb rb;
+	s8 rb;
 };
 
 /*
@@ -267,7 +232,7 @@ static inline struct sunxi_nand_chip *to_sunxi_nand(struct nand_chip *nand)
  *			controller events
  */
 struct sunxi_nfc {
-	struct nand_hw_control controller;
+	struct nand_controller controller;
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *ahb_clk;
@@ -280,7 +245,7 @@ struct sunxi_nfc {
 	struct dma_chan *dmac;
 };
 
-static inline struct sunxi_nfc *to_sunxi_nfc(struct nand_hw_control *ctrl)
+static inline struct sunxi_nfc *to_sunxi_nfc(struct nand_controller *ctrl)
 {
 	return container_of(ctrl, struct sunxi_nfc, controller);
 }
@@ -440,30 +405,19 @@ static int sunxi_nfc_dev_ready(struct mtd_info *mtd)
 	struct nand_chip *nand = mtd_to_nand(mtd);
 	struct sunxi_nand_chip *sunxi_nand = to_sunxi_nand(nand);
 	struct sunxi_nfc *nfc = to_sunxi_nfc(sunxi_nand->nand.controller);
-	struct sunxi_nand_rb *rb;
-	int ret;
+	u32 mask;
 
 	if (sunxi_nand->selected < 0)
 		return 0;
 
-	rb = &sunxi_nand->sels[sunxi_nand->selected].rb;
-
-	switch (rb->type) {
-	case RB_NATIVE:
-		ret = !!(readl(nfc->regs + NFC_REG_ST) &
-			 NFC_RB_STATE(rb->info.nativeid));
-		break;
-	case RB_GPIO:
-		ret = gpio_get_value(rb->info.gpio);
-		break;
-	case RB_NONE:
-	default:
-		ret = 0;
+	if (sunxi_nand->sels[sunxi_nand->selected].rb < 0) {
 		dev_err(nfc->dev, "cannot check R/B NAND status!\n");
-		break;
+		return 0;
 	}
 
-	return ret;
+	mask = NFC_RB_STATE(sunxi_nand->sels[sunxi_nand->selected].rb);
+
+	return !!(readl(nfc->regs + NFC_REG_ST) & mask);
 }
 
 static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
@@ -488,12 +442,11 @@ static void sunxi_nfc_select_chip(struct mtd_info *mtd, int chip)
 
 		ctl |= NFC_CE_SEL(sel->cs) | NFC_EN |
 		       NFC_PAGE_SHIFT(nand->page_shift);
-		if (sel->rb.type == RB_NONE) {
+		if (sel->rb < 0) {
 			nand->dev_ready = NULL;
 		} else {
 			nand->dev_ready = sunxi_nfc_dev_ready;
-			if (sel->rb.type == RB_NATIVE)
-				ctl |= NFC_RB_SEL(sel->rb.info.nativeid);
+			ctl |= NFC_RB_SEL(sel->rb);
 		}
 
 		writel(mtd->writesize, nfc->regs + NFC_REG_SPARE_AREA);
@@ -589,7 +542,7 @@ static void sunxi_nfc_write_buf(struct mtd_info *mtd, const uint8_t *buf,
 
 static uint8_t sunxi_nfc_read_byte(struct mtd_info *mtd)
 {
-	uint8_t ret;
+	uint8_t ret = 0;
 
 	sunxi_nfc_read_buf(mtd, &ret, 1);
 
@@ -1861,11 +1814,20 @@ static void sunxi_nand_ecc_cleanup(struct nand_ecc_ctrl *ecc)
 	}
 }
 
-static int sunxi_nand_ecc_init(struct mtd_info *mtd, struct nand_ecc_ctrl *ecc,
-			       struct device_node *np)
+static int sunxi_nand_attach_chip(struct nand_chip *nand)
 {
-	struct nand_chip *nand = mtd_to_nand(mtd);
+	struct mtd_info *mtd = nand_to_mtd(nand);
+	struct nand_ecc_ctrl *ecc = &nand->ecc;
+	struct device_node *np = nand_get_flash_node(nand);
 	int ret;
+
+	if (nand->bbt_options & NAND_BBT_USE_FLASH)
+		nand->bbt_options |= NAND_BBT_NO_OOB;
+
+	if (nand->options & NAND_NEED_SCRAMBLING)
+		nand->options |= NAND_NO_SUBPAGE_WRITE;
+
+	nand->options |= NAND_SUBPAGE_READ;
 
 	if (!ecc->size) {
 		ecc->size = nand->ecc_step_ds;
@@ -1890,6 +1852,10 @@ static int sunxi_nand_ecc_init(struct mtd_info *mtd, struct nand_ecc_ctrl *ecc,
 
 	return 0;
 }
+
+static const struct nand_controller_ops sunxi_nand_controller_ops = {
+	.attach_chip = sunxi_nand_attach_chip,
+};
 
 static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 				struct device_node *np)
@@ -1946,32 +1912,18 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 		chip->sels[i].cs = tmp;
 
 		if (!of_property_read_u32_index(np, "allwinner,rb", i, &tmp) &&
-		    tmp < 2) {
-			chip->sels[i].rb.type = RB_NATIVE;
-			chip->sels[i].rb.info.nativeid = tmp;
-		} else {
-			ret = of_get_named_gpio(np, "rb-gpios", i);
-			if (ret >= 0) {
-				tmp = ret;
-				chip->sels[i].rb.type = RB_GPIO;
-				chip->sels[i].rb.info.gpio = tmp;
-				ret = devm_gpio_request(dev, tmp, "nand-rb");
-				if (ret)
-					return ret;
-
-				ret = gpio_direction_input(tmp);
-				if (ret)
-					return ret;
-			} else {
-				chip->sels[i].rb.type = RB_NONE;
-			}
-		}
+		    tmp < 2)
+			chip->sels[i].rb = tmp;
+		else
+			chip->sels[i].rb = -1;
 	}
 
 	nand = &chip->nand;
 	/* Default tR value specified in the ONFI spec (chapter 4.15.1) */
 	nand->chip_delay = 200;
 	nand->controller = &nfc->controller;
+	nand->controller->ops = &sunxi_nand_controller_ops;
+
 	/*
 	 * Set the ECC mode to the default value in case nothing is specified
 	 * in the DT.
@@ -1988,29 +1940,9 @@ static int sunxi_nand_chip_init(struct device *dev, struct sunxi_nfc *nfc,
 	mtd = nand_to_mtd(nand);
 	mtd->dev.parent = dev;
 
-	ret = nand_scan_ident(mtd, nsels, NULL);
+	ret = nand_scan(mtd, nsels);
 	if (ret)
 		return ret;
-
-	if (nand->bbt_options & NAND_BBT_USE_FLASH)
-		nand->bbt_options |= NAND_BBT_NO_OOB;
-
-	if (nand->options & NAND_NEED_SCRAMBLING)
-		nand->options |= NAND_NO_SUBPAGE_WRITE;
-
-	nand->options |= NAND_SUBPAGE_READ;
-
-	ret = sunxi_nand_ecc_init(mtd, &nand->ecc, np);
-	if (ret) {
-		dev_err(dev, "ECC init failed: %d\n", ret);
-		return ret;
-	}
-
-	ret = nand_scan_tail(mtd);
-	if (ret) {
-		dev_err(dev, "nand_scan_tail failed: %d\n", ret);
-		return ret;
-	}
 
 	ret = mtd_device_register(mtd, NULL, 0);
 	if (ret) {
@@ -2073,7 +2005,7 @@ static int sunxi_nfc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	nfc->dev = dev;
-	nand_hw_control_init(&nfc->controller);
+	nand_controller_init(&nfc->controller);
 	INIT_LIST_HEAD(&nfc->chips);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);

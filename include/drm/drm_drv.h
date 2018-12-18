@@ -624,6 +624,8 @@ void drm_dev_get(struct drm_device *dev);
 void drm_dev_put(struct drm_device *dev);
 void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
+bool drm_dev_enter(struct drm_device *dev, int *idx);
+void drm_dev_exit(int idx);
 void drm_dev_unplug(struct drm_device *dev);
 
 /**
@@ -635,11 +637,45 @@ void drm_dev_unplug(struct drm_device *dev);
  * unplugged, these two functions guarantee that any store before calling
  * drm_dev_unplug() is visible to callers of this function after it completes
  */
-static inline int drm_dev_is_unplugged(struct drm_device *dev)
+static inline bool drm_dev_is_unplugged(struct drm_device *dev)
 {
-	int ret = atomic_read(&dev->unplugged);
-	smp_rmb();
-	return ret;
+	int idx;
+
+	if (drm_dev_enter(dev, &idx)) {
+		drm_dev_exit(idx);
+		return false;
+	}
+
+	return true;
+}
+
+/**
+ * drm_core_check_feature - check driver feature flags
+ * @dev: DRM device to check
+ * @feature: feature flag
+ *
+ * This checks @dev for driver features, see &drm_driver.driver_features and the
+ * various DRIVER_\* flags.
+ *
+ * Returns true if the @feature is supported, false otherwise.
+ */
+static inline bool drm_core_check_feature(struct drm_device *dev, int feature)
+{
+	return dev->driver->driver_features & feature;
+}
+
+/**
+ * drm_drv_uses_atomic_modeset - check if the driver implements
+ * atomic_commit()
+ * @dev: DRM device
+ *
+ * This check is useful if drivers do not have DRIVER_ATOMIC set but
+ * have atomic modesetting internally implemented.
+ */
+static inline bool drm_drv_uses_atomic_modeset(struct drm_device *dev)
+{
+	return drm_core_check_feature(dev, DRIVER_ATOMIC) ||
+		dev->mode_config.funcs->atomic_commit != NULL;
 }
 
 

@@ -11,7 +11,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/io.h>

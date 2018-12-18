@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>.
+ */
+
+#include "meson8.dtsi"
+
+/ {
+	model = "Amlogic Meson8m2 SoC";
+	compatible = "amlogic,meson8m2";
+}; /* end of / */
+
+&clkc {
+	compatible = "amlogic,meson8m2-clkc", "amlogic,meson8-clkc";
+};
+
+&ethmac {
+	compatible = "amlogic,meson8m2-dwmac", "snps,dwmac";
+	reg = <0xc9410000 0x10000
+		0xc1108140 0x8>;
+	clocks = <&clkc CLKID_ETH>,
+		 <&clkc CLKID_MPLL2>,
+		 <&clkc CLKID_MPLL2>;
+	clock-names = "stmmaceth", "clkin0", "clkin1";
+	resets = <&reset RESET_ETHERNET>;
+	reset-names = "stmmaceth";
+};
+
+&pinctrl_aobus {
+	compatible = "amlogic,meson8m2-aobus-pinctrl",
+		     "amlogic,meson8-aobus-pinctrl";
+};
+
+&pinctrl_cbus {
+	compatible = "amlogic,meson8m2-cbus-pinctrl",
+		     "amlogic,meson8-cbus-pinctrl";
+
+	eth_rgmii_pins: ethernet {
+		mux {
+			groups = "eth_tx_clk_50m", "eth_tx_en",
+				 "eth_txd3", "eth_txd2",
+				 "eth_txd1", "eth_txd0",
+				 "eth_rx_clk_in", "eth_rx_dv",
+				 "eth_rxd3", "eth_rxd2",
+				 "eth_rxd1", "eth_rxd0",
+				 "eth_mdio", "eth_mdc";
+			function = "ethernet";
+		};
+	};
+};
+
+&wdt {
+	compatible = "amlogic,meson8m2-wdt", "amlogic,meson8b-wdt";
+};

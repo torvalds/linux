@@ -4,6 +4,8 @@
 
 #include "ui/browser.h"
 
+struct annotation_options;
+
 struct hist_browser {
 	struct ui_browser   b;
 	struct hists	    *hists;
@@ -12,6 +14,7 @@ struct hist_browser {
 	struct hist_browser_timer *hbt;
 	struct pstack	    *pstack;
 	struct perf_env	    *env;
+	struct annotation_options *annotation_opts;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;

@@ -163,7 +163,7 @@ static int adf_dev_aer_schedule_reset(struct adf_accel_dev *accel_dev,
 		return 0;
 
 	set_bit(ADF_STATUS_RESTARTING, &accel_dev->status);
-	reset_data = kzalloc(sizeof(*reset_data), GFP_ATOMIC);
+	reset_data = kzalloc(sizeof(*reset_data), GFP_KERNEL);
 	if (!reset_data)
 		return -ENOMEM;
 	reset_data->accel_dev = accel_dev;

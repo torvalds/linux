@@ -755,7 +755,7 @@ struct cpl_abort_req_rss {
 struct cpl_abort_req_rss6 {
 	WR_HDR;
 	union opcode_tid ot;
-	__u32 srqidx_status;
+	__be32 srqidx_status;
 };
 
 #define ABORT_RSS_STATUS_S    0
@@ -785,7 +785,7 @@ struct cpl_abort_rpl_rss {
 
 struct cpl_abort_rpl_rss6 {
 	union opcode_tid ot;
-	__u32 srqidx_status;
+	__be32 srqidx_status;
 };
 
 struct cpl_abort_rpl {
@@ -1232,6 +1232,11 @@ struct cpl_rx_pkt {
 #define T6_COMPR_RXERR_SUM_S    4
 #define T6_COMPR_RXERR_SUM_V(x) ((x) << T6_COMPR_RXERR_SUM_S)
 #define T6_COMPR_RXERR_SUM_F    T6_COMPR_RXERR_SUM_V(1U)
+
+#define T6_RX_TNLHDR_LEN_S    8
+#define T6_RX_TNLHDR_LEN_M    0xFF
+#define T6_RX_TNLHDR_LEN_V(x) ((x) << T6_RX_TNLHDR_LEN_S)
+#define T6_RX_TNLHDR_LEN_G(x) (((x) >> T6_RX_TNLHDR_LEN_S) & T6_RX_TNLHDR_LEN_M)
 
 struct cpl_trace_pkt {
 	u8 opcode;

@@ -9,9 +9,6 @@ Required properties:
 
 - reg: physical base address and length of the DECON registers set.
 
-- interrupt-parent: should be the phandle of the decon controller's
-		parent interrupt controller.
-
 - interrupts: should contain a list of all DECON IP block interrupts in the
 		 order: FIFO Level, VSYNC, LCD_SYSTEM. The interrupt specifier
 		 format depends on the interrupt controller used.

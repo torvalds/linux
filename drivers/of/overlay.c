@@ -102,12 +102,28 @@ static DEFINE_IDR(ovcs_idr);
 
 static BLOCKING_NOTIFIER_HEAD(overlay_notify_chain);
 
+/**
+ * of_overlay_notifier_register() - Register notifier for overlay operations
+ * @nb:		Notifier block to register
+ *
+ * Register for notification on overlay operations on device tree nodes. The
+ * reported actions definied by @of_reconfig_change. The notifier callback
+ * furthermore receives a pointer to the affected device tree node.
+ *
+ * Note that a notifier callback is not supposed to store pointers to a device
+ * tree node or its content beyond @OF_OVERLAY_POST_REMOVE corresponding to the
+ * respective node it received.
+ */
 int of_overlay_notifier_register(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_register(&overlay_notify_chain, nb);
 }
 EXPORT_SYMBOL_GPL(of_overlay_notifier_register);
 
+/**
+ * of_overlay_notifier_register() - Unregister notifier for overlay operations
+ * @nb:		Notifier block to unregister
+ */
 int of_overlay_notifier_unregister(struct notifier_block *nb)
 {
 	return blocking_notifier_chain_unregister(&overlay_notify_chain, nb);
@@ -671,17 +687,13 @@ static void free_overlay_changeset(struct overlay_changeset *ovcs)
 		of_node_put(ovcs->fragments[i].overlay);
 	}
 	kfree(ovcs->fragments);
-
 	/*
-	 * TODO
-	 *
-	 * would like to: kfree(ovcs->overlay_tree);
-	 * but can not since drivers may have pointers into this data
-	 *
-	 * would like to: kfree(ovcs->fdt);
-	 * but can not since drivers may have pointers into this data
+	 * There should be no live pointers into ovcs->overlay_tree and
+	 * ovcs->fdt due to the policy that overlay notifiers are not allowed
+	 * to retain pointers into the overlay devicetree.
 	 */
-
+	kfree(ovcs->overlay_tree);
+	kfree(ovcs->fdt);
 	kfree(ovcs);
 }
 
@@ -791,6 +803,8 @@ static int of_overlay_apply(const void *fdt, struct device_node *tree,
 		}
 		goto err_free_overlay_changeset;
 	}
+
+	of_populate_phandle_cache();
 
 	ret = __of_changeset_apply_notify(&ovcs->cset);
 	if (ret)
@@ -1034,8 +1048,17 @@ int of_overlay_remove(int *ovcs_id)
 
 	list_del(&ovcs->ovcs_list);
 
+	/*
+	 * Disable phandle cache.  Avoids race condition that would arise
+	 * from removing cache entry when the associated node is deleted.
+	 */
+	of_free_phandle_cache();
+
 	ret_apply = 0;
 	ret = __of_changeset_revert_entries(&ovcs->cset, &ret_apply);
+
+	of_populate_phandle_cache();
+
 	if (ret) {
 		if (ret_apply)
 			devicetree_state_flags |= DTSF_REVERT_FAIL;

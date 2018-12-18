@@ -4,8 +4,6 @@ Required properties:
  - compatible		: must be "cypress,cyttsp-i2c" or "cypress,cyttsp-spi"
  - reg			: Device I2C address or SPI chip select number
  - spi-max-frequency	: Maximum SPI clocking speed of the device (for cyttsp-spi)
- - interrupt-parent	: the phandle for the gpio controller
-			  (see interrupt binding[0]).
  - interrupts		: (gpio) interrupt to which the chip is connected
 			  (see interrupt binding[0]).
  - bootloader-key	: the 8-byte bootloader key that is required to switch

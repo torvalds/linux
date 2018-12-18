@@ -83,9 +83,6 @@
 #define AUDIT_INITIALIZED	1
 static int	audit_initialized;
 
-#define AUDIT_OFF	0
-#define AUDIT_ON	1
-#define AUDIT_LOCKED	2
 u32		audit_enabled = AUDIT_OFF;
 bool		audit_ever_enabled = !!AUDIT_OFF;
 
@@ -1099,8 +1096,7 @@ static void audit_log_feature_change(int which, u32 old_feature, u32 new_feature
 
 	if (audit_enabled == AUDIT_OFF)
 		return;
-
-	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_FEATURE_CHANGE);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_FEATURE_CHANGE);
 	if (!ab)
 		return;
 	audit_log_task_info(ab, current);
@@ -1725,7 +1721,7 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 				   struct timespec64 *t, unsigned int *serial)
 {
 	if (!ctx || !auditsc_get_stamp(ctx, t, serial)) {
-		*t = current_kernel_time64();
+		ktime_get_coarse_real_ts64(t);
 		*serial = audit_serial();
 	}
 }
@@ -1755,7 +1751,7 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 	if (audit_initialized != AUDIT_INITIALIZED)
 		return NULL;
 
-	if (unlikely(!audit_filter(type, AUDIT_FILTER_TYPE)))
+	if (unlikely(!audit_filter(type, AUDIT_FILTER_EXCLUDE)))
 		return NULL;
 
 	/* NOTE: don't ever fail/sleep on these two conditions:
@@ -2317,8 +2313,7 @@ void audit_log_link_denied(const char *operation)
 		return;
 
 	/* Generate AUDIT_ANOM_LINK with subject, operation, outcome. */
-	ab = audit_log_start(current->audit_context, GFP_KERNEL,
-			     AUDIT_ANOM_LINK);
+	ab = audit_log_start(audit_context(), GFP_KERNEL, AUDIT_ANOM_LINK);
 	if (!ab)
 		return;
 	audit_log_format(ab, "op=%s", operation);

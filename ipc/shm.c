@@ -43,6 +43,7 @@
 #include <linux/nsproxy.h>
 #include <linux/mount.h>
 #include <linux/ipc_namespace.h>
+#include <linux/rhashtable.h>
 
 #include <linux/uaccess.h>
 
@@ -408,7 +409,7 @@ void exit_shm(struct task_struct *task)
 	up_write(&shm_ids(ns).rwsem);
 }
 
-static int shm_fault(struct vm_fault *vmf)
+static vm_fault_t shm_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct shm_file_data *sfd = shm_file_data(file);
@@ -425,6 +426,17 @@ static int shm_split(struct vm_area_struct *vma, unsigned long addr)
 		return sfd->vm_ops->split(vma, addr);
 
 	return 0;
+}
+
+static unsigned long shm_pagesize(struct vm_area_struct *vma)
+{
+	struct file *file = vma->vm_file;
+	struct shm_file_data *sfd = shm_file_data(file);
+
+	if (sfd->vm_ops->pagesize)
+		return sfd->vm_ops->pagesize(vma);
+
+	return PAGE_SIZE;
 }
 
 #ifdef CONFIG_NUMA
@@ -554,6 +566,7 @@ static const struct vm_operations_struct shm_vm_ops = {
 	.close	= shm_close,	/* callback for when the vm-area is released */
 	.fault	= shm_fault,
 	.split	= shm_split,
+	.pagesize = shm_pagesize,
 #if defined(CONFIG_NUMA)
 	.set_policy = shm_set_policy,
 	.get_policy = shm_get_policy,
@@ -1002,6 +1015,11 @@ static int shmctl_stat(struct ipc_namespace *ns, int shmid,
 	tbuf->shm_atime	= shp->shm_atim;
 	tbuf->shm_dtime	= shp->shm_dtim;
 	tbuf->shm_ctime	= shp->shm_ctim;
+#ifndef CONFIG_64BIT
+	tbuf->shm_atime_high = shp->shm_atim >> 32;
+	tbuf->shm_dtime_high = shp->shm_dtim >> 32;
+	tbuf->shm_ctime_high = shp->shm_ctim >> 32;
+#endif
 	tbuf->shm_cpid	= pid_vnr(shp->shm_cprid);
 	tbuf->shm_lpid	= pid_vnr(shp->shm_lprid);
 	tbuf->shm_nattch = shp->shm_nattch;
@@ -1233,9 +1251,12 @@ static int copy_compat_shmid_to_user(void __user *buf, struct shmid64_ds *in,
 		struct compat_shmid64_ds v;
 		memset(&v, 0, sizeof(v));
 		to_compat_ipc64_perm(&v.shm_perm, &in->shm_perm);
-		v.shm_atime = in->shm_atime;
-		v.shm_dtime = in->shm_dtime;
-		v.shm_ctime = in->shm_ctime;
+		v.shm_atime	 = lower_32_bits(in->shm_atime);
+		v.shm_atime_high = upper_32_bits(in->shm_atime);
+		v.shm_dtime	 = lower_32_bits(in->shm_dtime);
+		v.shm_dtime_high = upper_32_bits(in->shm_dtime);
+		v.shm_ctime	 = lower_32_bits(in->shm_ctime);
+		v.shm_ctime_high = upper_32_bits(in->shm_ctime);
 		v.shm_segsz = in->shm_segsz;
 		v.shm_nattch = in->shm_nattch;
 		v.shm_cpid = in->shm_cpid;
@@ -1346,15 +1367,14 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	struct shmid_kernel *shp;
 	unsigned long addr = (unsigned long)shmaddr;
 	unsigned long size;
-	struct file *file;
+	struct file *file, *base;
 	int    err;
 	unsigned long flags = MAP_SHARED;
 	unsigned long prot;
 	int acc_mode;
 	struct ipc_namespace *ns;
 	struct shm_file_data *sfd;
-	struct path path;
-	fmode_t f_mode;
+	int f_flags;
 	unsigned long populate = 0;
 
 	err = -EINVAL;
@@ -1363,14 +1383,17 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 
 	if (addr) {
 		if (addr & (shmlba - 1)) {
-			/*
-			 * Round down to the nearest multiple of shmlba.
-			 * For sane do_mmap_pgoff() parameters, avoid
-			 * round downs that trigger nil-page and MAP_FIXED.
-			 */
-			if ((shmflg & SHM_RND) && addr >= shmlba)
-				addr &= ~(shmlba - 1);
-			else
+			if (shmflg & SHM_RND) {
+				addr &= ~(shmlba - 1);  /* round down */
+
+				/*
+				 * Ensure that the round-down is non-nil
+				 * when remapping. This can happen for
+				 * cases when addr < shmlba.
+				 */
+				if (!addr && (shmflg & SHM_REMAP))
+					goto out;
+			} else
 #ifndef __ARCH_FORCE_SHMLBA
 				if (addr & ~PAGE_MASK)
 #endif
@@ -1384,11 +1407,11 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	if (shmflg & SHM_RDONLY) {
 		prot = PROT_READ;
 		acc_mode = S_IRUGO;
-		f_mode = FMODE_READ;
+		f_flags = O_RDONLY;
 	} else {
 		prot = PROT_READ | PROT_WRITE;
 		acc_mode = S_IRUGO | S_IWUGO;
-		f_mode = FMODE_READ | FMODE_WRITE;
+		f_flags = O_RDWR;
 	}
 	if (shmflg & SHM_EXEC) {
 		prot |= PROT_EXEC;
@@ -1424,35 +1447,6 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 		goto out_unlock;
 	}
 
-	path = shp->shm_file->f_path;
-	path_get(&path);
-	shp->shm_nattch++;
-	size = i_size_read(d_inode(path.dentry));
-	ipc_unlock_object(&shp->shm_perm);
-	rcu_read_unlock();
-
-	err = -ENOMEM;
-	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
-	if (!sfd) {
-		path_put(&path);
-		goto out_nattch;
-	}
-
-	file = alloc_file(&path, f_mode,
-			  is_file_hugepages(shp->shm_file) ?
-				&shm_file_operations_huge :
-				&shm_file_operations);
-	err = PTR_ERR(file);
-	if (IS_ERR(file)) {
-		kfree(sfd);
-		path_put(&path);
-		goto out_nattch;
-	}
-
-	file->private_data = sfd;
-	file->f_mapping = shp->shm_file->f_mapping;
-	sfd->id = shp->shm_perm.id;
-	sfd->ns = get_ipc_ns(ns);
 	/*
 	 * We need to take a reference to the real shm file to prevent the
 	 * pointer from becoming stale in cases where the lifetime of the outer
@@ -1462,8 +1456,35 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg,
 	 * We'll deny the ->mmap() if the shm segment was since removed, but to
 	 * detect shm ID reuse we need to compare the file pointers.
 	 */
-	sfd->file = get_file(shp->shm_file);
+	base = get_file(shp->shm_file);
+	shp->shm_nattch++;
+	size = i_size_read(file_inode(base));
+	ipc_unlock_object(&shp->shm_perm);
+	rcu_read_unlock();
+
+	err = -ENOMEM;
+	sfd = kzalloc(sizeof(*sfd), GFP_KERNEL);
+	if (!sfd) {
+		fput(base);
+		goto out_nattch;
+	}
+
+	file = alloc_file_clone(base, f_flags,
+			  is_file_hugepages(base) ?
+				&shm_file_operations_huge :
+				&shm_file_operations);
+	err = PTR_ERR(file);
+	if (IS_ERR(file)) {
+		kfree(sfd);
+		fput(base);
+		goto out_nattch;
+	}
+
+	sfd->id = shp->shm_perm.id;
+	sfd->ns = get_ipc_ns(ns);
+	sfd->file = base;
 	sfd->vm_ops = NULL;
+	file->private_data = sfd;
 
 	err = security_mmap_file(file, prot, flags);
 	if (err)

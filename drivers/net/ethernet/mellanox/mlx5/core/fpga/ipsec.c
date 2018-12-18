@@ -43,9 +43,6 @@
 #include "fpga/sdk.h"
 #include "fpga/core.h"
 
-#define SBU_QP_QUEUE_SIZE 8
-#define MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC	(60 * 1000)
-
 enum mlx5_fpga_ipsec_cmd_status {
 	MLX5_FPGA_IPSEC_CMD_PENDING,
 	MLX5_FPGA_IPSEC_CMD_SEND_FAIL,
@@ -237,19 +234,17 @@ static void *mlx5_fpga_ipsec_cmd_exec(struct mlx5_core_dev *mdev,
 	context->buf.sg[0].data = &context->command;
 
 	spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
-	list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
+	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
+	if (!res)
+		list_add_tail(&context->list, &fdev->ipsec->pending_cmds);
 	spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
 
-	res = mlx5_fpga_sbu_conn_sendmsg(fdev->ipsec->conn, &context->buf);
 	if (res) {
-		mlx5_fpga_warn(fdev, "Failure sending IPSec command: %d\n",
-			       res);
-		spin_lock_irqsave(&fdev->ipsec->pending_cmds_lock, flags);
-		list_del(&context->list);
-		spin_unlock_irqrestore(&fdev->ipsec->pending_cmds_lock, flags);
+		mlx5_fpga_warn(fdev, "Failed to send IPSec command: %d\n", res);
 		kfree(context);
 		return ERR_PTR(res);
 	}
+
 	/* Context will be freed by wait func after completion */
 	return context;
 }
@@ -258,7 +253,7 @@ static int mlx5_fpga_ipsec_cmd_wait(void *ctx)
 {
 	struct mlx5_fpga_ipsec_cmd_context *context = ctx;
 	unsigned long timeout =
-		msecs_to_jiffies(MLX5_FPGA_IPSEC_CMD_TIMEOUT_MSEC);
+		msecs_to_jiffies(MLX5_FPGA_CMD_TIMEOUT_MSEC);
 	int res;
 
 	res = wait_for_completion_timeout(&context->complete, timeout);
@@ -386,7 +381,7 @@ int mlx5_fpga_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 
 	count = mlx5_fpga_ipsec_counters_count(mdev);
 
-	data = kzalloc(sizeof(*data) * count * 2, GFP_KERNEL);
+	data = kzalloc(array3_size(sizeof(*data), count, 2), GFP_KERNEL);
 	if (!data) {
 		ret = -ENOMEM;
 		goto out;

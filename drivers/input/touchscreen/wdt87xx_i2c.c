@@ -1142,7 +1142,7 @@ static int __maybe_unused wdt87xx_resume(struct device *dev)
 	 * The chip may have been reset while system is resuming,
 	 * give it some time to settle.
 	 */
-	mdelay(100);
+	msleep(100);
 
 	error = wdt87xx_send_command(client, VND_CMD_START, 0);
 	if (error)

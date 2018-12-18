@@ -56,6 +56,72 @@ pset_prop_get(const struct property_set *pset, const char *name)
 	return NULL;
 }
 
+static const void *property_get_pointer(const struct property_entry *prop)
+{
+	switch (prop->type) {
+	case DEV_PROP_U8:
+		if (prop->is_array)
+			return prop->pointer.u8_data;
+		return &prop->value.u8_data;
+	case DEV_PROP_U16:
+		if (prop->is_array)
+			return prop->pointer.u16_data;
+		return &prop->value.u16_data;
+	case DEV_PROP_U32:
+		if (prop->is_array)
+			return prop->pointer.u32_data;
+		return &prop->value.u32_data;
+	case DEV_PROP_U64:
+		if (prop->is_array)
+			return prop->pointer.u64_data;
+		return &prop->value.u64_data;
+	case DEV_PROP_STRING:
+		if (prop->is_array)
+			return prop->pointer.str;
+		return &prop->value.str;
+	default:
+		return NULL;
+	}
+}
+
+static void property_set_pointer(struct property_entry *prop, const void *pointer)
+{
+	switch (prop->type) {
+	case DEV_PROP_U8:
+		if (prop->is_array)
+			prop->pointer.u8_data = pointer;
+		else
+			prop->value.u8_data = *((u8 *)pointer);
+		break;
+	case DEV_PROP_U16:
+		if (prop->is_array)
+			prop->pointer.u16_data = pointer;
+		else
+			prop->value.u16_data = *((u16 *)pointer);
+		break;
+	case DEV_PROP_U32:
+		if (prop->is_array)
+			prop->pointer.u32_data = pointer;
+		else
+			prop->value.u32_data = *((u32 *)pointer);
+		break;
+	case DEV_PROP_U64:
+		if (prop->is_array)
+			prop->pointer.u64_data = pointer;
+		else
+			prop->value.u64_data = *((u64 *)pointer);
+		break;
+	case DEV_PROP_STRING:
+		if (prop->is_array)
+			prop->pointer.str = pointer;
+		else
+			prop->value.str = pointer;
+		break;
+	default:
+		break;
+	}
+}
+
 static const void *pset_prop_find(const struct property_set *pset,
 				  const char *propname, size_t length)
 {
@@ -65,10 +131,7 @@ static const void *pset_prop_find(const struct property_set *pset,
 	prop = pset_prop_get(pset, propname);
 	if (!prop)
 		return ERR_PTR(-EINVAL);
-	if (prop->is_array)
-		pointer = prop->pointer.raw_data;
-	else
-		pointer = &prop->value.raw_data;
+	pointer = property_get_pointer(prop);
 	if (!pointer)
 		return ERR_PTR(-ENODATA);
 	if (length > prop->length)
@@ -698,16 +761,17 @@ EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
 
 static void property_entry_free_data(const struct property_entry *p)
 {
+	const void *pointer = property_get_pointer(p);
 	size_t i, nval;
 
 	if (p->is_array) {
-		if (p->is_string && p->pointer.str) {
+		if (p->type == DEV_PROP_STRING && p->pointer.str) {
 			nval = p->length / sizeof(const char *);
 			for (i = 0; i < nval; i++)
 				kfree(p->pointer.str[i]);
 		}
-		kfree(p->pointer.raw_data);
-	} else if (p->is_string) {
+		kfree(pointer);
+	} else if (p->type == DEV_PROP_STRING) {
 		kfree(p->value.str);
 	}
 	kfree(p->name);
@@ -716,7 +780,7 @@ static void property_entry_free_data(const struct property_entry *p)
 static int property_copy_string_array(struct property_entry *dst,
 				      const struct property_entry *src)
 {
-	char **d;
+	const char **d;
 	size_t nval = src->length / sizeof(*d);
 	int i;
 
@@ -734,40 +798,44 @@ static int property_copy_string_array(struct property_entry *dst,
 		}
 	}
 
-	dst->pointer.raw_data = d;
+	dst->pointer.str = d;
 	return 0;
 }
 
 static int property_entry_copy_data(struct property_entry *dst,
 				    const struct property_entry *src)
 {
+	const void *pointer = property_get_pointer(src);
+	const void *new;
 	int error;
 
 	if (src->is_array) {
 		if (!src->length)
 			return -ENODATA;
 
-		if (src->is_string) {
+		if (src->type == DEV_PROP_STRING) {
 			error = property_copy_string_array(dst, src);
 			if (error)
 				return error;
+			new = dst->pointer.str;
 		} else {
-			dst->pointer.raw_data = kmemdup(src->pointer.raw_data,
-							src->length, GFP_KERNEL);
-			if (!dst->pointer.raw_data)
+			new = kmemdup(pointer, src->length, GFP_KERNEL);
+			if (!new)
 				return -ENOMEM;
 		}
-	} else if (src->is_string) {
-		dst->value.str = kstrdup(src->value.str, GFP_KERNEL);
-		if (!dst->value.str && src->value.str)
+	} else if (src->type == DEV_PROP_STRING) {
+		new = kstrdup(src->value.str, GFP_KERNEL);
+		if (!new && src->value.str)
 			return -ENOMEM;
 	} else {
-		dst->value.raw_data = src->value.raw_data;
+		new = pointer;
 	}
 
 	dst->length = src->length;
 	dst->is_array = src->is_array;
-	dst->is_string = src->is_string;
+	dst->type = src->type;
+
+	property_set_pointer(dst, new);
 
 	dst->name = kstrdup(src->name, GFP_KERNEL);
 	if (!dst->name)

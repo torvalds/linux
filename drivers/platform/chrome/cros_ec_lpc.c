@@ -435,7 +435,13 @@ static int __init cros_ec_lpc_init(void)
 	int ret;
 	acpi_status status;
 
-	if (!dmi_check_system(cros_ec_lpc_dmi_table)) {
+	status = acpi_get_devices(ACPI_DRV_NAME, cros_ec_lpc_parse_device,
+				  &cros_ec_lpc_acpi_device_found, NULL);
+	if (ACPI_FAILURE(status))
+		pr_warn(DRV_NAME ": Looking for %s failed\n", ACPI_DRV_NAME);
+
+	if (!cros_ec_lpc_acpi_device_found &&
+	    !dmi_check_system(cros_ec_lpc_dmi_table)) {
 		pr_err(DRV_NAME ": unsupported system.\n");
 		return -ENODEV;
 	}
@@ -449,11 +455,6 @@ static int __init cros_ec_lpc_init(void)
 		cros_ec_lpc_reg_destroy();
 		return ret;
 	}
-
-	status = acpi_get_devices(ACPI_DRV_NAME, cros_ec_lpc_parse_device,
-				  &cros_ec_lpc_acpi_device_found, NULL);
-	if (ACPI_FAILURE(status))
-		pr_warn(DRV_NAME ": Looking for %s failed\n", ACPI_DRV_NAME);
 
 	if (!cros_ec_lpc_acpi_device_found) {
 		/* Register the device, and it'll get hooked up automatically */

@@ -678,25 +678,14 @@ static int sparc_io_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int sparc_io_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sparc_io_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations sparc_io_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sparc_io_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_PROC_FS */
 
 static void register_proc_sparc_ioport(void)
 {
 #ifdef CONFIG_PROC_FS
-	proc_create_data("io_map", 0, NULL, &sparc_io_proc_fops, &sparc_iomap);
-	proc_create_data("dvma_map", 0, NULL, &sparc_io_proc_fops, &_sparc_dvma);
+	proc_create_single_data("io_map", 0, NULL, sparc_io_proc_show,
+			&sparc_iomap);
+	proc_create_single_data("dvma_map", 0, NULL, sparc_io_proc_show,
+			&_sparc_dvma);
 #endif
 }

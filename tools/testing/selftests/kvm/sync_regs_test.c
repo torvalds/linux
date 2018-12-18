@@ -85,6 +85,9 @@ static void compare_vcpu_events(struct kvm_vcpu_events *left,
 {
 }
 
+#define TEST_SYNC_FIELDS   (KVM_SYNC_X86_REGS|KVM_SYNC_X86_SREGS|KVM_SYNC_X86_EVENTS)
+#define INVALID_SYNC_FIELD 0x80000000
+
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
@@ -98,9 +101,14 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
-	TEST_ASSERT((unsigned long)cap == KVM_SYNC_X86_VALID_FIELDS,
-		    "KVM_CAP_SYNC_REGS (0x%x) != KVM_SYNC_X86_VALID_FIELDS (0x%lx)\n",
-		    cap, KVM_SYNC_X86_VALID_FIELDS);
+	if ((cap & TEST_SYNC_FIELDS) != TEST_SYNC_FIELDS) {
+		fprintf(stderr, "KVM_CAP_SYNC_REGS not supported, skipping test\n");
+		exit(KSFT_SKIP);
+	}
+	if ((cap & INVALID_SYNC_FIELD) != 0) {
+		fprintf(stderr, "The \"invalid\" field is not invalid, skipping test\n");
+		exit(KSFT_SKIP);
+	}
 
 	/* Create VM */
 	vm = vm_create_default(VCPU_ID, guest_code);
@@ -108,7 +116,14 @@ int main(int argc, char *argv[])
 	run = vcpu_state(vm, VCPU_ID);
 
 	/* Request reading invalid register set from VCPU. */
-	run->kvm_valid_regs = KVM_SYNC_X86_VALID_FIELDS << 1;
+	run->kvm_valid_regs = INVALID_SYNC_FIELD;
+	rv = _vcpu_run(vm, VCPU_ID);
+	TEST_ASSERT(rv < 0 && errno == EINVAL,
+		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
+		    rv);
+	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
+
+	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
@@ -116,7 +131,14 @@ int main(int argc, char *argv[])
 	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
 
 	/* Request setting invalid register set into VCPU. */
-	run->kvm_dirty_regs = KVM_SYNC_X86_VALID_FIELDS << 1;
+	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
+	rv = _vcpu_run(vm, VCPU_ID);
+	TEST_ASSERT(rv < 0 && errno == EINVAL,
+		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
+		    rv);
+	vcpu_state(vm, VCPU_ID)->kvm_dirty_regs = 0;
+
+	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
@@ -125,7 +147,7 @@ int main(int argc, char *argv[])
 
 	/* Request and verify all valid register sets. */
 	/* TODO: BUILD TIME CHECK: TEST_ASSERT(KVM_SYNC_X86_NUM_FIELDS != 3); */
-	run->kvm_valid_regs = KVM_SYNC_X86_VALID_FIELDS;
+	run->kvm_valid_regs = TEST_SYNC_FIELDS;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Unexpected exit reason: %u (%s),\n",
@@ -146,7 +168,7 @@ int main(int argc, char *argv[])
 	run->s.regs.sregs.apic_base = 1 << 11;
 	/* TODO run->s.regs.events.XYZ = ABC; */
 
-	run->kvm_valid_regs = KVM_SYNC_X86_VALID_FIELDS;
+	run->kvm_valid_regs = TEST_SYNC_FIELDS;
 	run->kvm_dirty_regs = KVM_SYNC_X86_REGS | KVM_SYNC_X86_SREGS;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
@@ -172,7 +194,7 @@ int main(int argc, char *argv[])
 	/* Clear kvm_dirty_regs bits, verify new s.regs values are
 	 * overwritten with existing guest values.
 	 */
-	run->kvm_valid_regs = KVM_SYNC_X86_VALID_FIELDS;
+	run->kvm_valid_regs = TEST_SYNC_FIELDS;
 	run->kvm_dirty_regs = 0;
 	run->s.regs.regs.r11 = 0xDEADBEEF;
 	rv = _vcpu_run(vm, VCPU_ID);
@@ -211,7 +233,7 @@ int main(int argc, char *argv[])
 	 * with kvm_sync_regs values.
 	 */
 	run->kvm_valid_regs = 0;
-	run->kvm_dirty_regs = KVM_SYNC_X86_VALID_FIELDS;
+	run->kvm_dirty_regs = TEST_SYNC_FIELDS;
 	run->s.regs.regs.r11 = 0xBBBB;
 	rv = _vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,

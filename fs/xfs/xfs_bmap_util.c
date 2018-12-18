@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2006 Silicon Graphics, Inc.
  * Copyright (c) 2012 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -92,6 +80,7 @@ xfs_bmap_rtalloc(
 	int		error;		/* error return value */
 	xfs_mount_t	*mp;		/* mount point structure */
 	xfs_extlen_t	prod = 0;	/* product factor for allocators */
+	xfs_extlen_t	mod = 0;	/* product factor for allocators */
 	xfs_extlen_t	ralen = 0;	/* realtime allocation length */
 	xfs_extlen_t	align;		/* minimum allocation alignment */
 	xfs_rtblock_t	rtb;
@@ -111,7 +100,8 @@ xfs_bmap_rtalloc(
 	 * If the offset & length are not perfectly aligned
 	 * then kill prod, it will just get us in trouble.
 	 */
-	if (do_mod(ap->offset, align) || ap->length % align)
+	div_u64_rem(ap->offset, align, &mod);
+	if (mod || ap->length % align)
 		prod = 1;
 	/*
 	 * Set ralen to be the actual requested length in rtextents.
@@ -695,12 +685,10 @@ out_unlock_iolock:
 }
 
 /*
- * dead simple method of punching delalyed allocation blocks from a range in
- * the inode. Walks a block at a time so will be slow, but is only executed in
- * rare error cases so the overhead is not critical. This will always punch out
- * both the start and end blocks, even if the ranges only partially overlap
- * them, so it is up to the caller to ensure that partial blocks are not
- * passed in.
+ * Dead simple method of punching delalyed allocation blocks from a range in
+ * the inode.  This will always punch out both the start and end blocks, even
+ * if the ranges only partially overlap them, so it is up to the caller to
+ * ensure that partial blocks are not passed in.
  */
 int
 xfs_bmap_punch_delalloc_range(
@@ -708,64 +696,46 @@ xfs_bmap_punch_delalloc_range(
 	xfs_fileoff_t		start_fsb,
 	xfs_fileoff_t		length)
 {
-	xfs_fileoff_t		remaining = length;
+	struct xfs_ifork	*ifp = &ip->i_df;
+	xfs_fileoff_t		end_fsb = start_fsb + length;
+	struct xfs_bmbt_irec	got, del;
+	struct xfs_iext_cursor	icur;
 	int			error = 0;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	do {
-		int		done;
-		xfs_bmbt_irec_t	imap;
-		int		nimaps = 1;
-		xfs_fsblock_t	firstblock;
-		struct xfs_defer_ops dfops;
-
-		/*
-		 * Map the range first and check that it is a delalloc extent
-		 * before trying to unmap the range. Otherwise we will be
-		 * trying to remove a real extent (which requires a
-		 * transaction) or a hole, which is probably a bad idea...
-		 */
-		error = xfs_bmapi_read(ip, start_fsb, 1, &imap, &nimaps,
-				       XFS_BMAPI_ENTIRE);
-
-		if (error) {
-			/* something screwed, just bail */
-			if (!XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-				xfs_alert(ip->i_mount,
-			"Failed delalloc mapping lookup ino %lld fsb %lld.",
-						ip->i_ino, start_fsb);
-			}
-			break;
-		}
-		if (!nimaps) {
-			/* nothing there */
-			goto next_block;
-		}
-		if (imap.br_startblock != DELAYSTARTBLOCK) {
-			/* been converted, ignore */
-			goto next_block;
-		}
-		WARN_ON(imap.br_blockcount == 0);
-
-		/*
-		 * Note: while we initialise the firstblock/dfops pair, they
-		 * should never be used because blocks should never be
-		 * allocated or freed for a delalloc extent and hence we need
-		 * don't cancel or finish them after the xfs_bunmapi() call.
-		 */
-		xfs_defer_init(&dfops, &firstblock);
-		error = xfs_bunmapi(NULL, ip, start_fsb, 1, 0, 1, &firstblock,
-					&dfops, &done);
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	if (!(ifp->if_flags & XFS_IFEXTENTS)) {
+		error = xfs_iread_extents(NULL, ip, XFS_DATA_FORK);
 		if (error)
+			goto out_unlock;
+	}
+
+	if (!xfs_iext_lookup_extent_before(ip, ifp, &end_fsb, &icur, &got))
+		goto out_unlock;
+
+	while (got.br_startoff + got.br_blockcount > start_fsb) {
+		del = got;
+		xfs_trim_extent(&del, start_fsb, length);
+
+		/*
+		 * A delete can push the cursor forward. Step back to the
+		 * previous extent on non-delalloc or extents outside the
+		 * target range.
+		 */
+		if (!del.br_blockcount ||
+		    !isnullstartblock(del.br_startblock)) {
+			if (!xfs_iext_prev_extent(ifp, &icur, &got))
+				break;
+			continue;
+		}
+
+		error = xfs_bmap_del_extent_delay(ip, XFS_DATA_FORK, &icur,
+						  &got, &del);
+		if (error || !xfs_iext_get_extent(ifp, &icur, &got))
 			break;
+	}
 
-		ASSERT(!xfs_defer_has_unfinished_work(&dfops));
-next_block:
-		start_fsb++;
-		remaining--;
-	} while(remaining > 0);
-
+out_unlock:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 }
 
@@ -848,7 +818,7 @@ xfs_free_eofblocks(
 		/*
 		 * Attach the dquots to the inode up front.
 		 */
-		error = xfs_qm_dqattach(ip, 0);
+		error = xfs_qm_dqattach(ip);
 		if (error)
 			return error;
 
@@ -871,8 +841,8 @@ xfs_free_eofblocks(
 		 * contents of the file are flushed to disk then the files
 		 * may be full of holes (ie NULL files bug).
 		 */
-		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK,
-					      XFS_ISIZE(ip));
+		error = xfs_itruncate_extents_flags(&tp, ip, XFS_DATA_FORK,
+					XFS_ISIZE(ip), XFS_BMAPI_NODISCARD);
 		if (error) {
 			/*
 			 * If we get an error at this point we simply don't
@@ -903,13 +873,11 @@ xfs_alloc_file_space(
 	xfs_filblks_t		allocatesize_fsb;
 	xfs_extlen_t		extsz, temp;
 	xfs_fileoff_t		startoffset_fsb;
-	xfs_fsblock_t		firstfsb;
 	int			nimaps;
 	int			quota_flag;
 	int			rt;
 	xfs_trans_t		*tp;
 	xfs_bmbt_irec_t		imaps[1], *imapp;
-	struct xfs_defer_ops	dfops;
 	uint			qblocks, resblks, resrtextents;
 	int			error;
 
@@ -918,7 +886,7 @@ xfs_alloc_file_space(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -948,9 +916,11 @@ xfs_alloc_file_space(
 			do_div(s, extsz);
 			s *= extsz;
 			e = startoffset_fsb + allocatesize_fsb;
-			if ((temp = do_mod(startoffset_fsb, extsz)))
+			div_u64_rem(startoffset_fsb, extsz, &temp);
+			if (temp)
 				e += temp;
-			if ((temp = do_mod(e, extsz)))
+			div_u64_rem(e, extsz, &temp);
+			if (temp)
 				e += extsz - temp;
 		} else {
 			s = 0;
@@ -1000,20 +970,15 @@ xfs_alloc_file_space(
 
 		xfs_trans_ijoin(tp, ip, 0);
 
-		xfs_defer_init(&dfops, &firstfsb);
 		error = xfs_bmapi_write(tp, ip, startoffset_fsb,
-					allocatesize_fsb, alloc_type, &firstfsb,
-					resblks, imapp, &nimaps, &dfops);
+					allocatesize_fsb, alloc_type, resblks,
+					imapp, &nimaps);
 		if (error)
 			goto error0;
 
 		/*
 		 * Complete the transaction
 		 */
-		error = xfs_defer_finish(&tp, &dfops);
-		if (error)
-			goto error0;
-
 		error = xfs_trans_commit(tp);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
@@ -1032,8 +997,7 @@ xfs_alloc_file_space(
 
 	return error;
 
-error0:	/* Cancel bmap, unlock inode, unreserve quota blocks, cancel trans */
-	xfs_defer_cancel(&dfops);
+error0:	/* unlock inode, unreserve quota blocks, cancel trans */
 	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
 
 error1:	/* Just cancel transaction */
@@ -1051,8 +1015,6 @@ xfs_unmap_extent(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
-	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		firstfsb;
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
 	int			error;
 
@@ -1070,24 +1032,15 @@ xfs_unmap_extent(
 
 	xfs_trans_ijoin(tp, ip, 0);
 
-	xfs_defer_init(&dfops, &firstfsb);
-	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, &firstfsb,
-			&dfops, done);
+	error = xfs_bunmapi(tp, ip, startoffset_fsb, len_fsb, 0, 2, done);
 	if (error)
-		goto out_bmap_cancel;
-
-	xfs_defer_ijoin(&dfops, ip);
-	error = xfs_defer_finish(&tp, &dfops);
-	if (error)
-		goto out_bmap_cancel;
+		goto out_trans_cancel;
 
 	error = xfs_trans_commit(tp);
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
 
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	goto out_unlock;
@@ -1111,7 +1064,7 @@ xfs_adjust_extent_unmap_boundaries(
 
 	if (nimap && imap.br_startblock != HOLESTARTBLOCK) {
 		ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
-		mod = do_mod(imap.br_startblock, mp->m_sb.sb_rextsize);
+		div_u64_rem(imap.br_startblock, mp->m_sb.sb_rextsize, &mod);
 		if (mod)
 			*startoffset_fsb += mp->m_sb.sb_rextsize - mod;
 	}
@@ -1169,7 +1122,7 @@ xfs_free_file_space(
 
 	trace_xfs_free_file_space(ip);
 
-	error = xfs_qm_dqattach(ip, 0);
+	error = xfs_qm_dqattach(ip);
 	if (error)
 		return error;
 
@@ -1216,7 +1169,22 @@ xfs_free_file_space(
 		return 0;
 	if (offset + len > XFS_ISIZE(ip))
 		len = XFS_ISIZE(ip) - offset;
-	return iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
+	error = iomap_zero_range(VFS_I(ip), offset, len, NULL, &xfs_iomap_ops);
+	if (error)
+		return error;
+
+	/*
+	 * If we zeroed right up to EOF and EOF straddles a page boundary we
+	 * must make sure that the post-EOF area is also zeroed because the
+	 * page could be mmap'd and iomap_zero_range doesn't do that for us.
+	 * Writeback of the eof page will do this, albeit clumsily.
+	 */
+	if (offset + len >= XFS_ISIZE(ip) && ((offset + len) & PAGE_MASK)) {
+		error = filemap_write_and_wait_range(VFS_I(ip)->i_mapping,
+				(offset + len) & ~PAGE_MASK, LLONG_MAX);
+	}
+
+	return error;
 }
 
 /*
@@ -1293,7 +1261,7 @@ xfs_prepare_shift(
 	 * we've flushed all the dirty data out to disk to avoid having
 	 * CoW extents at the wrong offsets.
 	 */
-	if (xfs_is_reflink_inode(ip)) {
+	if (xfs_inode_has_cow_data(ip)) {
 		error = xfs_reflink_cancel_cow_range(ip, offset, NULLFILEOFF,
 				true);
 		if (error)
@@ -1324,8 +1292,6 @@ xfs_collapse_file_space(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
-	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		next_fsb = XFS_B_TO_FSB(mp, offset + len);
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
 	uint			resblks = XFS_DIOSTRAT_SPACE_RES(mp, 0);
@@ -1358,22 +1324,16 @@ xfs_collapse_file_space(
 			goto out_trans_cancel;
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
-		xfs_defer_init(&dfops, &first_block);
 		error = xfs_bmap_collapse_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, &first_block, &dfops);
+				&done);
 		if (error)
-			goto out_bmap_cancel;
+			goto out_trans_cancel;
 
-		error = xfs_defer_finish(&tp, &dfops);
-		if (error)
-			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
 	}
 
 	return error;
 
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
 out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;
@@ -1400,8 +1360,6 @@ xfs_insert_file_space(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_trans	*tp;
 	int			error;
-	struct xfs_defer_ops	dfops;
-	xfs_fsblock_t		first_block;
 	xfs_fileoff_t		stop_fsb = XFS_B_TO_FSB(mp, offset);
 	xfs_fileoff_t		next_fsb = NULLFSBLOCK;
 	xfs_fileoff_t		shift_fsb = XFS_B_TO_FSB(mp, len);
@@ -1411,6 +1369,10 @@ xfs_insert_file_space(
 	ASSERT(xfs_isilocked(ip, XFS_MMAPLOCK_EXCL));
 
 	trace_xfs_insert_file_space(ip);
+
+	error = xfs_bmap_can_insert_extents(ip, stop_fsb, shift_fsb);
+	if (error)
+		return error;
 
 	error = xfs_prepare_shift(ip, offset);
 	if (error)
@@ -1433,22 +1395,17 @@ xfs_insert_file_space(
 
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-		xfs_defer_init(&dfops, &first_block);
 		error = xfs_bmap_insert_extents(tp, ip, &next_fsb, shift_fsb,
-				&done, stop_fsb, &first_block, &dfops);
+				&done, stop_fsb);
 		if (error)
-			goto out_bmap_cancel;
+			goto out_trans_cancel;
 
-		error = xfs_defer_finish(&tp, &dfops);
-		if (error)
-			goto out_bmap_cancel;
 		error = xfs_trans_commit(tp);
 	}
 
 	return error;
 
-out_bmap_cancel:
-	xfs_defer_cancel(&dfops);
+out_trans_cancel:
 	xfs_trans_cancel(tp);
 	return error;
 }
@@ -1576,14 +1533,13 @@ xfs_swap_extent_rmap(
 	struct xfs_inode		*ip,
 	struct xfs_inode		*tip)
 {
+	struct xfs_trans		*tp = *tpp;
 	struct xfs_bmbt_irec		irec;
 	struct xfs_bmbt_irec		uirec;
 	struct xfs_bmbt_irec		tirec;
 	xfs_fileoff_t			offset_fsb;
 	xfs_fileoff_t			end_fsb;
 	xfs_filblks_t			count_fsb;
-	xfs_fsblock_t			firstfsb;
-	struct xfs_defer_ops		dfops;
 	int				error;
 	xfs_filblks_t			ilen;
 	xfs_filblks_t			rlen;
@@ -1619,7 +1575,7 @@ xfs_swap_extent_rmap(
 
 		/* Unmap the old blocks in the source file. */
 		while (tirec.br_blockcount) {
-			xfs_defer_init(&dfops, &firstfsb);
+			ASSERT(tp->t_firstblock == NULLFSBLOCK);
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &tirec);
 
 			/* Read extent from the source file */
@@ -1641,33 +1597,29 @@ xfs_swap_extent_rmap(
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &uirec);
 
 			/* Remove the mapping from the donor file. */
-			error = xfs_bmap_unmap_extent((*tpp)->t_mountp, &dfops,
-					tip, &uirec);
+			error = xfs_bmap_unmap_extent(tp, tip, &uirec);
 			if (error)
 				goto out_defer;
 
 			/* Remove the mapping from the source file. */
-			error = xfs_bmap_unmap_extent((*tpp)->t_mountp, &dfops,
-					ip, &irec);
+			error = xfs_bmap_unmap_extent(tp, ip, &irec);
 			if (error)
 				goto out_defer;
 
 			/* Map the donor file's blocks into the source file. */
-			error = xfs_bmap_map_extent((*tpp)->t_mountp, &dfops,
-					ip, &uirec);
+			error = xfs_bmap_map_extent(tp, ip, &uirec);
 			if (error)
 				goto out_defer;
 
 			/* Map the source file's blocks into the donor file. */
-			error = xfs_bmap_map_extent((*tpp)->t_mountp, &dfops,
-					tip, &irec);
+			error = xfs_bmap_map_extent(tp, tip, &irec);
 			if (error)
 				goto out_defer;
 
-			xfs_defer_ijoin(&dfops, ip);
-			error = xfs_defer_finish(tpp, &dfops);
+			error = xfs_defer_finish(tpp);
+			tp = *tpp;
 			if (error)
-				goto out_defer;
+				goto out;
 
 			tirec.br_startoff += rlen;
 			if (tirec.br_startblock != HOLESTARTBLOCK &&
@@ -1685,7 +1637,7 @@ xfs_swap_extent_rmap(
 	return 0;
 
 out_defer:
-	xfs_defer_cancel(&dfops);
+	xfs_defer_cancel(tp);
 out:
 	trace_xfs_swap_extent_rmap_error(ip, error, _RET_IP_);
 	tip->i_d.di_flags2 = tip_flags2;
@@ -1701,7 +1653,6 @@ xfs_swap_extent_forks(
 	int			*src_log_flags,
 	int			*target_log_flags)
 {
-	struct xfs_ifork	tempifp, *ifp, *tifp;
 	xfs_filblks_t		aforkblks = 0;
 	xfs_filblks_t		taforkblks = 0;
 	xfs_extnum_t		junk;
@@ -1743,11 +1694,7 @@ xfs_swap_extent_forks(
 	/*
 	 * Swap the data forks of the inodes
 	 */
-	ifp = &ip->i_df;
-	tifp = &tip->i_df;
-	tempifp = *ifp;		/* struct copy */
-	*ifp = *tifp;		/* struct copy */
-	*tifp = tempifp;	/* struct copy */
+	swap(ip->i_df, tip->i_df);
 
 	/*
 	 * Fix the on-disk inode values
@@ -1756,13 +1703,8 @@ xfs_swap_extent_forks(
 	ip->i_d.di_nblocks = tip->i_d.di_nblocks - taforkblks + aforkblks;
 	tip->i_d.di_nblocks = tmp + taforkblks - aforkblks;
 
-	tmp = (uint64_t) ip->i_d.di_nextents;
-	ip->i_d.di_nextents = tip->i_d.di_nextents;
-	tip->i_d.di_nextents = tmp;
-
-	tmp = (uint64_t) ip->i_d.di_format;
-	ip->i_d.di_format = tip->i_d.di_format;
-	tip->i_d.di_format = tmp;
+	swap(ip->i_d.di_nextents, tip->i_d.di_nextents);
+	swap(ip->i_d.di_format, tip->i_d.di_format);
 
 	/*
 	 * The extents in the source inode could still contain speculative
@@ -1856,7 +1798,6 @@ xfs_swap_extents(
 	int			src_log_flags, target_log_flags;
 	int			error = 0;
 	int			lock_flags;
-	struct xfs_ifork	*cowfp;
 	uint64_t		f;
 	int			resblks = 0;
 
@@ -1997,18 +1938,11 @@ xfs_swap_extents(
 
 	/* Swap the cow forks. */
 	if (xfs_sb_version_hasreflink(&mp->m_sb)) {
-		xfs_extnum_t	extnum;
-
 		ASSERT(ip->i_cformat == XFS_DINODE_FMT_EXTENTS);
 		ASSERT(tip->i_cformat == XFS_DINODE_FMT_EXTENTS);
 
-		extnum = ip->i_cnextents;
-		ip->i_cnextents = tip->i_cnextents;
-		tip->i_cnextents = extnum;
-
-		cowfp = ip->i_cowfp;
-		ip->i_cowfp = tip->i_cowfp;
-		tip->i_cowfp = cowfp;
+		swap(ip->i_cnextents, tip->i_cnextents);
+		swap(ip->i_cowfp, tip->i_cowfp);
 
 		if (ip->i_cowfp && ip->i_cowfp->if_bytes)
 			xfs_inode_set_cowblocks_tag(ip);

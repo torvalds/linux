@@ -536,7 +536,7 @@ static int ingenic_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 		ingenic_config_pin(jzpc, pin, JZ4770_GPIO_PAT1, input);
 	} else {
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_SELECT, false);
-		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_DIR, input);
+		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_DIR, !input);
 		ingenic_config_pin(jzpc, pin, JZ4740_GPIO_FUNC, false);
 	}
 
@@ -770,8 +770,8 @@ static int ingenic_pinctrl_probe(struct platform_device *pdev)
 	pctl_desc->pmxops = &ingenic_pmxops;
 	pctl_desc->confops = &ingenic_confops;
 	pctl_desc->npins = chip_info->num_chips * PINS_PER_GPIO_CHIP;
-	pctl_desc->pins = jzpc->pdesc = devm_kzalloc(&pdev->dev,
-			sizeof(*jzpc->pdesc) * pctl_desc->npins, GFP_KERNEL);
+	pctl_desc->pins = jzpc->pdesc = devm_kcalloc(&pdev->dev,
+			pctl_desc->npins, sizeof(*jzpc->pdesc), GFP_KERNEL);
 	if (!jzpc->pdesc)
 		return -ENOMEM;
 

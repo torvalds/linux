@@ -2,8 +2,6 @@
 #ifndef __ASM_S390_PCI_H
 #define __ASM_S390_PCI_H
 
-/* must be set before including asm-generic/pci.h */
-#define PCI_DMA_BUS_IS_PHYS (0)
 /* must be set before including pci_clp.h */
 #define PCI_BAR_COUNT	6
 
@@ -53,6 +51,10 @@ struct zpci_fmb_fmt2 {
 	u64 max_work_units;
 };
 
+struct zpci_fmb_fmt3 {
+	u64 tx_bytes;
+};
+
 struct zpci_fmb {
 	u32 format	: 8;
 	u32 fmt_ind	: 24;
@@ -68,6 +70,7 @@ struct zpci_fmb {
 		struct zpci_fmb_fmt0 fmt0;
 		struct zpci_fmb_fmt1 fmt1;
 		struct zpci_fmb_fmt2 fmt2;
+		struct zpci_fmb_fmt3 fmt3;
 	};
 } __packed __aligned(128);
 

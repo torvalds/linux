@@ -1,0 +1,56 @@
+// SPDX-License-Identifier: GPL-2.0 OR X11
+/* Copyright (c) 2016 FUKAUMI Naoki <naobsd@gmail.com> */
+
+/dts-v1/;
+#include "sun8i-a33.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+/ {
+	model = "Nintendo NES Classic Edition";
+	compatible = "nintendo,nes-classic", "allwinner,sun8i-r16",
+		     "allwinner,sun8i-a33";
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&uart0 {
+	/*
+	 * UART0 is available on two ports: PB and PF, both are accessible.
+	 * PF can also be used for the SD card so PB is preferred.
+	 */
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_pins_a>;
+	status = "okay";
+};
+
+&nfc {
+	status = "okay";
+
+	/* 2Gb Macronix MX30LF2G18AC (3V) */
+	nand@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0>;
+		allwinner,rb = <0>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <16>;
+		nand-ecc-step-size = <1024>;
+	};
+};
+
+&usb_otg {
+	status = "okay";
+	dr_mode = "otg";
+};
+
+&usbphy {
+	/* VBUS is always on because it is wired to the power supply */
+	usb1_vbus-supply = <&reg_vcc5v0>;
+	status = "okay";
+};

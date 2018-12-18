@@ -575,8 +575,9 @@ static int read_domain_devices(struct acpi_power_meter_resource *resource)
 	if (!pss->package.count)
 		goto end;
 
-	resource->domain_devices = kzalloc(sizeof(struct acpi_device *) *
-					   pss->package.count, GFP_KERNEL);
+	resource->domain_devices = kcalloc(pss->package.count,
+					   sizeof(struct acpi_device *),
+					   GFP_KERNEL);
 	if (!resource->domain_devices) {
 		res = -ENOMEM;
 		goto end;
@@ -796,7 +797,7 @@ static int read_capabilities(struct acpi_power_meter_resource *resource)
 			goto error;
 		}
 
-		*str = kzalloc(sizeof(u8) * (element->string.length + 1),
+		*str = kcalloc(element->string.length + 1, sizeof(u8),
 			       GFP_KERNEL);
 		if (!*str) {
 			res = -ENOMEM;

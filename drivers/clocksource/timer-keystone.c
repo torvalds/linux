@@ -211,7 +211,7 @@ static int __init keystone_timer_init(struct device_node *np)
 	event_dev->set_state_shutdown = keystone_shutdown;
 	event_dev->set_state_periodic = keystone_set_periodic;
 	event_dev->set_state_oneshot = keystone_shutdown;
-	event_dev->cpumask = cpu_all_mask;
+	event_dev->cpumask = cpu_possible_mask;
 	event_dev->owner = THIS_MODULE;
 	event_dev->name = TIMER_NAME;
 	event_dev->irq = irq;

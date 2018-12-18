@@ -2586,8 +2586,10 @@ static int vpfe_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(&pdev->dev);
 
-	vpfe->sd = devm_kzalloc(&pdev->dev, sizeof(struct v4l2_subdev *) *
-				ARRAY_SIZE(vpfe->cfg->asd), GFP_KERNEL);
+	vpfe->sd = devm_kcalloc(&pdev->dev,
+				ARRAY_SIZE(vpfe->cfg->asd),
+				sizeof(struct v4l2_subdev *),
+				GFP_KERNEL);
 	if (!vpfe->sd) {
 		ret = -ENOMEM;
 		goto probe_out_v4l2_unregister;
@@ -2662,8 +2664,7 @@ static void vpfe_save_context(struct vpfe_ccdc *ccdc)
 
 static int vpfe_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct vpfe_device *vpfe = platform_get_drvdata(pdev);
+	struct vpfe_device *vpfe = dev_get_drvdata(dev);
 	struct vpfe_ccdc *ccdc = &vpfe->ccdc;
 
 	/* if streaming has not started we don't care */
@@ -2720,8 +2721,7 @@ static void vpfe_restore_context(struct vpfe_ccdc *ccdc)
 
 static int vpfe_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct vpfe_device *vpfe = platform_get_drvdata(pdev);
+	struct vpfe_device *vpfe = dev_get_drvdata(dev);
 	struct vpfe_ccdc *ccdc = &vpfe->ccdc;
 
 	/* if streaming has not started we don't care */

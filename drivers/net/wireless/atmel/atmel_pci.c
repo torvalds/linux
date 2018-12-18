@@ -61,8 +61,10 @@ static int atmel_pci_probe(struct pci_dev *pdev,
 	dev = init_atmel_card(pdev->irq, pdev->resource[1].start,
 			      ATMEL_FW_TYPE_506,
 			      &pdev->dev, NULL, NULL);
-	if (!dev)
+	if (!dev) {
+		pci_disable_device(pdev);
 		return -ENODEV;
+	}
 
 	pci_set_drvdata(pdev, dev);
 	return 0;

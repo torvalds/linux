@@ -877,7 +877,7 @@ static struct irq_chip gic_eoimode1_chip = {
 	.flags			= IRQCHIP_SET_TYPE_MASKED,
 };
 
-#define GIC_ID_NR		(1U << gic_data.rdists.id_bits)
+#define GIC_ID_NR	(1U << GICD_TYPER_ID_BITS(gic_data.rdists.gicd_typer))
 
 static int gic_irq_domain_map(struct irq_domain *d, unsigned int irq,
 			      irq_hw_number_t hw)
@@ -1091,7 +1091,7 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	 * The GIC only supports up to 1020 interrupt sources (SGI+PPI+SPI)
 	 */
 	typer = readl_relaxed(gic_data.dist_base + GICD_TYPER);
-	gic_data.rdists.id_bits = GICD_TYPER_ID_BITS(typer);
+	gic_data.rdists.gicd_typer = typer;
 	gic_irqs = GICD_TYPER_IRQS(typer);
 	if (gic_irqs > 1020)
 		gic_irqs = 1020;
@@ -1099,6 +1099,7 @@ static int __init gic_init_bases(void __iomem *dist_base,
 
 	gic_data.domain = irq_domain_create_tree(handle, &gic_irq_domain_ops,
 						 &gic_data);
+	irq_domain_update_bus_token(gic_data.domain, DOMAIN_BUS_WIRED);
 	gic_data.rdists.rdist = alloc_percpu(typeof(*gic_data.rdists.rdist));
 	gic_data.rdists.has_vlpis = true;
 	gic_data.rdists.has_direct_lpi = true;
@@ -1111,6 +1112,12 @@ static int __init gic_init_bases(void __iomem *dist_base,
 	gic_data.has_rss = !!(typer & GICD_TYPER_RSS);
 	pr_info("Distributor has %sRange Selector support\n",
 		gic_data.has_rss ? "" : "no ");
+
+	if (typer & GICD_TYPER_MBIS) {
+		err = mbi_init(handle, gic_data.domain);
+		if (err)
+			pr_err("Failed to initialize MBIs\n");
+	}
 
 	set_handle_irq(gic_handle_irq);
 
@@ -1160,7 +1167,7 @@ static void __init gic_populate_ppi_partitions(struct device_node *gic_node)
 	if (!nr_parts)
 		goto out_put_node;
 
-	parts = kzalloc(sizeof(*parts) * nr_parts, GFP_KERNEL);
+	parts = kcalloc(nr_parts, sizeof(*parts), GFP_KERNEL);
 	if (WARN_ON(!parts))
 		goto out_put_node;
 
@@ -1282,7 +1289,8 @@ static int __init gic_of_init(struct device_node *node, struct device_node *pare
 	if (of_property_read_u32(node, "#redistributor-regions", &nr_redist_regions))
 		nr_redist_regions = 1;
 
-	rdist_regs = kzalloc(sizeof(*rdist_regs) * nr_redist_regions, GFP_KERNEL);
+	rdist_regs = kcalloc(nr_redist_regions, sizeof(*rdist_regs),
+			     GFP_KERNEL);
 	if (!rdist_regs) {
 		err = -ENOMEM;
 		goto out_unmap_dist;

@@ -17,7 +17,6 @@
 #include <drm/drm_encoder.h>
 #include <drm/drm_modes.h>
 #include <drm/drm_of.h>
-#include <drm/drm_panel.h>
 
 #include <uapi/drm/drm_mode.h>
 
@@ -35,6 +34,7 @@
 #include "sun4i_lvds.h"
 #include "sun4i_rgb.h"
 #include "sun4i_tcon.h"
+#include "sun6i_mipi_dsi.h"
 #include "sunxi_engine.h"
 
 static struct drm_connector *sun4i_tcon_get_connector(const struct drm_encoder *encoder)
@@ -169,6 +169,7 @@ void sun4i_tcon_set_status(struct sun4i_tcon *tcon,
 	case DRM_MODE_ENCODER_LVDS:
 		is_lvds = true;
 		/* Fallthrough */
+	case DRM_MODE_ENCODER_DSI:
 	case DRM_MODE_ENCODER_NONE:
 		channel = 0;
 		break;
@@ -201,7 +202,8 @@ void sun4i_tcon_enable_vblank(struct sun4i_tcon *tcon, bool enable)
 	DRM_DEBUG_DRIVER("%sabling VBLANK interrupt\n", enable ? "En" : "Dis");
 
 	mask = SUN4I_TCON_GINT0_VBLANK_ENABLE(0) |
-	       SUN4I_TCON_GINT0_VBLANK_ENABLE(1);
+		SUN4I_TCON_GINT0_VBLANK_ENABLE(1) |
+		SUN4I_TCON_GINT0_TCON0_TRI_FINISH_ENABLE;
 
 	if (enable)
 		val = mask;
@@ -271,6 +273,71 @@ static void sun4i_tcon0_mode_set_common(struct sun4i_tcon *tcon,
 	regmap_write(tcon->regs, SUN4I_TCON0_BASIC0_REG,
 		     SUN4I_TCON0_BASIC0_X(mode->crtc_hdisplay) |
 		     SUN4I_TCON0_BASIC0_Y(mode->crtc_vdisplay));
+}
+
+static void sun4i_tcon0_mode_set_cpu(struct sun4i_tcon *tcon,
+				     struct mipi_dsi_device *device,
+				     const struct drm_display_mode *mode)
+{
+	u8 bpp = mipi_dsi_pixel_format_to_bpp(device->format);
+	u8 lanes = device->lanes;
+	u32 block_space, start_delay;
+	u32 tcon_div;
+
+	tcon->dclk_min_div = 4;
+	tcon->dclk_max_div = 127;
+
+	sun4i_tcon0_mode_set_common(tcon, mode);
+
+	regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
+			   SUN4I_TCON0_CTL_IF_MASK,
+			   SUN4I_TCON0_CTL_IF_8080);
+
+	regmap_write(tcon->regs, SUN4I_TCON_ECC_FIFO_REG,
+		     SUN4I_TCON_ECC_FIFO_EN);
+
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_IF_REG,
+		     SUN4I_TCON0_CPU_IF_MODE_DSI |
+		     SUN4I_TCON0_CPU_IF_TRI_FIFO_FLUSH |
+		     SUN4I_TCON0_CPU_IF_TRI_FIFO_EN |
+		     SUN4I_TCON0_CPU_IF_TRI_EN);
+
+	/*
+	 * This looks suspicious, but it works...
+	 *
+	 * The datasheet says that this should be set higher than 20 *
+	 * pixel cycle, but it's not clear what a pixel cycle is.
+	 */
+	regmap_read(tcon->regs, SUN4I_TCON0_DCLK_REG, &tcon_div);
+	tcon_div &= GENMASK(6, 0);
+	block_space = mode->htotal * bpp / (tcon_div * lanes);
+	block_space -= mode->hdisplay + 40;
+
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_TRI0_REG,
+		     SUN4I_TCON0_CPU_TRI0_BLOCK_SPACE(block_space) |
+		     SUN4I_TCON0_CPU_TRI0_BLOCK_SIZE(mode->hdisplay));
+
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_TRI1_REG,
+		     SUN4I_TCON0_CPU_TRI1_BLOCK_NUM(mode->vdisplay));
+
+	start_delay = (mode->crtc_vtotal - mode->crtc_vdisplay - 10 - 1);
+	start_delay = start_delay * mode->crtc_htotal * 149;
+	start_delay = start_delay / (mode->crtc_clock / 1000) / 8;
+	regmap_write(tcon->regs, SUN4I_TCON0_CPU_TRI2_REG,
+		     SUN4I_TCON0_CPU_TRI2_TRANS_START_SET(10) |
+		     SUN4I_TCON0_CPU_TRI2_START_DELAY(start_delay));
+
+	/*
+	 * The Allwinner BSP has a comment that the period should be
+	 * the display clock * 15, but uses an hardcoded 3000...
+	 */
+	regmap_write(tcon->regs, SUN4I_TCON_SAFE_PERIOD_REG,
+		     SUN4I_TCON_SAFE_PERIOD_NUM(3000) |
+		     SUN4I_TCON_SAFE_PERIOD_MODE(3));
+
+	/* Enable the output on the pins */
+	regmap_write(tcon->regs, SUN4I_TCON0_IO_TRI_REG,
+		     0xe0000000);
 }
 
 static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
@@ -350,9 +417,6 @@ static void sun4i_tcon0_mode_set_lvds(struct sun4i_tcon *tcon,
 static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 				     const struct drm_display_mode *mode)
 {
-	struct drm_panel *panel = tcon->panel;
-	struct drm_connector *connector = panel->connector;
-	struct drm_display_info display_info = connector->display_info;
 	unsigned int bp, hsync, vsync;
 	u8 clk_delay;
 	u32 val = 0;
@@ -409,27 +473,6 @@ static void sun4i_tcon0_mode_set_rgb(struct sun4i_tcon *tcon,
 
 	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		val |= SUN4I_TCON0_IO_POL_VSYNC_POSITIVE;
-
-	/*
-	 * On A20 and similar SoCs, the only way to achieve Positive Edge
-	 * (Rising Edge), is setting dclk clock phase to 2/3(240°).
-	 * By default TCON works in Negative Edge(Falling Edge),
-	 * this is why phase is set to 0 in that case.
-	 * Unfortunately there's no way to logically invert dclk through
-	 * IO_POL register.
-	 * The only acceptable way to work, triple checked with scope,
-	 * is using clock phase set to 0° for Negative Edge and set to 240°
-	 * for Positive Edge.
-	 * On A33 and similar SoCs there would be a 90° phase option,
-	 * but it divides also dclk by 2.
-	 * Following code is a way to avoid quirks all around TCON
-	 * and DOTCLOCK drivers.
-	 */
-	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_POSEDGE)
-		clk_set_phase(tcon->dclk, 240);
-
-	if (display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
-		clk_set_phase(tcon->dclk, 0);
 
 	regmap_update_bits(tcon->regs, SUN4I_TCON0_IO_POL_REG,
 			   SUN4I_TCON0_IO_POL_HSYNC_POSITIVE | SUN4I_TCON0_IO_POL_VSYNC_POSITIVE,
@@ -538,7 +581,17 @@ void sun4i_tcon_mode_set(struct sun4i_tcon *tcon,
 			 const struct drm_encoder *encoder,
 			 const struct drm_display_mode *mode)
 {
+	struct sun6i_dsi *dsi;
+
 	switch (encoder->encoder_type) {
+	case DRM_MODE_ENCODER_DSI:
+		/*
+		 * This is not really elegant, but it's the "cleaner"
+		 * way I could think of...
+		 */
+		dsi = encoder_to_sun6i_dsi(encoder);
+		sun4i_tcon0_mode_set_cpu(tcon, dsi->device, mode);
+		break;
 	case DRM_MODE_ENCODER_LVDS:
 		sun4i_tcon0_mode_set_lvds(tcon, encoder, mode);
 		break;
@@ -582,7 +635,8 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 	regmap_read(tcon->regs, SUN4I_TCON_GINT0_REG, &status);
 
 	if (!(status & (SUN4I_TCON_GINT0_VBLANK_INT(0) |
-			SUN4I_TCON_GINT0_VBLANK_INT(1))))
+			SUN4I_TCON_GINT0_VBLANK_INT(1) |
+			SUN4I_TCON_GINT0_TCON0_TRI_FINISH_INT)))
 		return IRQ_NONE;
 
 	drm_crtc_handle_vblank(&scrtc->crtc);
@@ -591,7 +645,8 @@ static irqreturn_t sun4i_tcon_handler(int irq, void *private)
 	/* Acknowledge the interrupt */
 	regmap_update_bits(tcon->regs, SUN4I_TCON_GINT0_REG,
 			   SUN4I_TCON_GINT0_VBLANK_INT(0) |
-			   SUN4I_TCON_GINT0_VBLANK_INT(1),
+			   SUN4I_TCON_GINT0_VBLANK_INT(1) |
+			   SUN4I_TCON_GINT0_TCON0_TRI_FINISH_INT,
 			   0);
 
 	if (engine->ops->vblank_quirk)
@@ -711,12 +766,14 @@ static int sun4i_tcon_init_regmap(struct device *dev,
  */
 static struct sunxi_engine *
 sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
-				struct device_node *node)
+				struct device_node *node,
+				u32 port_id)
 {
 	struct device_node *port, *ep, *remote;
 	struct sunxi_engine *engine = ERR_PTR(-EINVAL);
+	u32 reg = 0;
 
-	port = of_graph_get_port_by_id(node, 0);
+	port = of_graph_get_port_by_id(node, port_id);
 	if (!port)
 		return ERR_PTR(-EINVAL);
 
@@ -746,8 +803,21 @@ sun4i_tcon_find_engine_traverse(struct sun4i_drv *drv,
 		if (remote == engine->node)
 			goto out_put_remote;
 
+	/*
+	 * According to device tree binding input ports have even id
+	 * number and output ports have odd id. Since component with
+	 * more than one input and one output (TCON TOP) exits, correct
+	 * remote input id has to be calculated by subtracting 1 from
+	 * remote output id. If this for some reason can't be done, 0
+	 * is used as input port id.
+	 */
+	of_node_put(port);
+	port = of_graph_get_remote_port(ep);
+	if (!of_property_read_u32(port, "reg", &reg) && reg > 0)
+		reg -= 1;
+
 	/* keep looking through upstream ports */
-	engine = sun4i_tcon_find_engine_traverse(drv, remote);
+	engine = sun4i_tcon_find_engine_traverse(drv, remote, reg);
 
 out_put_remote:
 	of_node_put(remote);
@@ -870,7 +940,7 @@ static struct sunxi_engine *sun4i_tcon_find_engine(struct sun4i_drv *drv,
 
 	/* Fallback to old method by traversing input endpoints */
 	of_node_put(port);
-	return sun4i_tcon_find_engine_traverse(drv, node);
+	return sun4i_tcon_find_engine_traverse(drv, node, 0);
 }
 
 static int sun4i_tcon_bind(struct device *dev, struct device *master,
@@ -1012,23 +1082,25 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_dotclock;
 	}
 
-	/*
-	 * If we have an LVDS panel connected to the TCON, we should
-	 * just probe the LVDS connector. Otherwise, just probe RGB as
-	 * we used to.
-	 */
-	remote = of_graph_get_remote_node(dev->of_node, 1, 0);
-	if (of_device_is_compatible(remote, "panel-lvds"))
-		if (can_lvds)
-			ret = sun4i_lvds_init(drm, tcon);
+	if (tcon->quirks->has_channel_0) {
+		/*
+		 * If we have an LVDS panel connected to the TCON, we should
+		 * just probe the LVDS connector. Otherwise, just probe RGB as
+		 * we used to.
+		 */
+		remote = of_graph_get_remote_node(dev->of_node, 1, 0);
+		if (of_device_is_compatible(remote, "panel-lvds"))
+			if (can_lvds)
+				ret = sun4i_lvds_init(drm, tcon);
+			else
+				ret = -EINVAL;
 		else
-			ret = -EINVAL;
-	else
-		ret = sun4i_rgb_init(drm, tcon);
-	of_node_put(remote);
+			ret = sun4i_rgb_init(drm, tcon);
+		of_node_put(remote);
 
-	if (ret < 0)
-		goto err_free_dotclock;
+		if (ret < 0)
+			goto err_free_dotclock;
+	}
 
 	if (tcon->quirks->needs_de_be_mux) {
 		/*
@@ -1082,13 +1154,19 @@ static const struct component_ops sun4i_tcon_ops = {
 static int sun4i_tcon_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	const struct sun4i_tcon_quirks *quirks;
 	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(node, 1, 0, &panel, &bridge);
-	if (ret == -EPROBE_DEFER)
-		return ret;
+	quirks = of_device_get_match_data(&pdev->dev);
+
+	/* panels and bridges are present only on TCONs with channel 0 */
+	if (quirks->has_channel_0) {
+		ret = drm_of_find_panel_or_bridge(node, 1, 0, &panel, &bridge);
+		if (ret == -EPROBE_DEFER)
+			return ret;
+	}
 
 	return component_add(&pdev->dev, &sun4i_tcon_ops);
 }

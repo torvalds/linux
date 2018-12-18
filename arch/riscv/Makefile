@@ -8,7 +8,6 @@
 # for more details.
 #
 
-LDFLAGS         :=
 OBJCOPYFLAGS    := -O binary
 LDFLAGS_vmlinux :=
 ifeq ($(CONFIG_DYNAMIC_FTRACE),y)
@@ -26,6 +25,9 @@ ifeq ($(CONFIG_ARCH_RV64I),y)
 
 	KBUILD_CFLAGS += -mabi=lp64
 	KBUILD_AFLAGS += -mabi=lp64
+	
+	KBUILD_CFLAGS	+= $(call cc-ifversion, -ge, 0500, -DCONFIG_ARCH_SUPPORTS_INT128)
+
 	KBUILD_MARCH = rv64im
 	LDFLAGS += -melf64lriscv
 else
@@ -70,6 +72,9 @@ KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-relax)
 # RISC-V ISA, they're emulated by machine mode traps on all extant
 # architectures.  It's faster to have GCC emit only aligned accesses.
 KBUILD_CFLAGS += $(call cc-option,-mstrict-align)
+
+# arch specific predefines for sparse
+CHECKFLAGS += -D__riscv -D__riscv_xlen=$(BITS)
 
 head-y := arch/riscv/kernel/head.o
 

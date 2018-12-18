@@ -210,8 +210,8 @@ int start_spu_profiling_cycles(unsigned int cycles_reset)
 	timer.function = profile_spus;
 
 	/* Allocate arrays for collecting SPU PC samples */
-	samples = kzalloc(SPUS_PER_NODE *
-			  TRACE_ARRAY_SIZE * sizeof(u32), GFP_KERNEL);
+	samples = kcalloc(SPUS_PER_NODE * TRACE_ARRAY_SIZE, sizeof(u32),
+			  GFP_KERNEL);
 
 	if (!samples)
 		return -ENOMEM;

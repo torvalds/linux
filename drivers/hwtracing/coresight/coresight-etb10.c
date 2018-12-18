@@ -1,15 +1,8 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * Description: CoreSight Embedded Trace Buffer driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <asm/local.h>
@@ -202,7 +195,6 @@ static void etb_dump_hw(struct etb_drvdata *drvdata)
 	bool lost = false;
 	int i;
 	u8 *buf_ptr;
-	const u32 *barrier;
 	u32 read_data, depth;
 	u32 read_ptr, write_ptr;
 	u32 frame_off, frame_endoff;
@@ -233,18 +225,15 @@ static void etb_dump_hw(struct etb_drvdata *drvdata)
 
 	depth = drvdata->buffer_depth;
 	buf_ptr = drvdata->buf;
-	barrier = barrier_pkt;
 	for (i = 0; i < depth; i++) {
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
-		if (lost && *barrier) {
-			read_data = *barrier;
-			barrier++;
-		}
-
 		*(u32 *)buf_ptr = read_data;
 		buf_ptr += 4;
 	}
+
+	if (lost)
+		coresight_insert_barrier_packet(drvdata->buf);
 
 	if (frame_off) {
 		buf_ptr -= (frame_endoff * 4);
@@ -454,7 +443,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		buf_ptr = buf->data_pages[cur] + offset;
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
-		if (lost && *barrier) {
+		if (lost && i < CORESIGHT_BARRIER_PKT_SIZE) {
 			read_data = *barrier;
 			barrier++;
 		}
@@ -690,8 +679,8 @@ static int etb_probe(struct amba_device *adev, const struct amba_id *id)
 	if (drvdata->buffer_depth & 0x80000000)
 		return -EINVAL;
 
-	drvdata->buf = devm_kzalloc(dev,
-				    drvdata->buffer_depth * 4, GFP_KERNEL);
+	drvdata->buf = devm_kcalloc(dev,
+				    drvdata->buffer_depth, 4, GFP_KERNEL);
 	if (!drvdata->buf)
 		return -ENOMEM;
 

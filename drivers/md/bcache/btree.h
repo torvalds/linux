@@ -152,7 +152,7 @@ static inline bool btree_node_ ## flag(struct btree *b)			\
 {	return test_bit(BTREE_NODE_ ## flag, &b->flags); }		\
 									\
 static inline void set_btree_node_ ## flag(struct btree *b)		\
-{	set_bit(BTREE_NODE_ ## flag, &b->flags); }			\
+{	set_bit(BTREE_NODE_ ## flag, &b->flags); }
 
 enum btree_flags {
 	BTREE_NODE_io_error,

@@ -348,11 +348,11 @@ static void kernfs_vma_open(struct vm_area_struct *vma)
 	kernfs_put_active(of->kn);
 }
 
-static int kernfs_vma_fault(struct vm_fault *vmf)
+static vm_fault_t kernfs_vma_fault(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct kernfs_open_file *of = kernfs_of(file);
-	int ret;
+	vm_fault_t ret;
 
 	if (!of->vm_ops)
 		return VM_FAULT_SIGBUS;
@@ -368,11 +368,11 @@ static int kernfs_vma_fault(struct vm_fault *vmf)
 	return ret;
 }
 
-static int kernfs_vma_page_mkwrite(struct vm_fault *vmf)
+static vm_fault_t kernfs_vma_page_mkwrite(struct vm_fault *vmf)
 {
 	struct file *file = vmf->vma->vm_file;
 	struct kernfs_open_file *of = kernfs_of(file);
-	int ret;
+	vm_fault_t ret;
 
 	if (!of->vm_ops)
 		return VM_FAULT_SIGBUS;
@@ -965,6 +965,8 @@ const struct file_operations kernfs_file_fops = {
  * @parent: directory to create the file in
  * @name: name of the file
  * @mode: mode of the file
+ * @uid: uid of the file
+ * @gid: gid of the file
  * @size: size of the file
  * @ops: kernfs operations for the file
  * @priv: private data for the file
@@ -975,7 +977,8 @@ const struct file_operations kernfs_file_fops = {
  */
 struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 					 const char *name,
-					 umode_t mode, loff_t size,
+					 umode_t mode, kuid_t uid, kgid_t gid,
+					 loff_t size,
 					 const struct kernfs_ops *ops,
 					 void *priv, const void *ns,
 					 struct lock_class_key *key)
@@ -986,7 +989,8 @@ struct kernfs_node *__kernfs_create_file(struct kernfs_node *parent,
 
 	flags = KERNFS_FILE;
 
-	kn = kernfs_new_node(parent, name, (mode & S_IALLUGO) | S_IFREG, flags);
+	kn = kernfs_new_node(parent, name, (mode & S_IALLUGO) | S_IFREG,
+			     uid, gid, flags);
 	if (!kn)
 		return ERR_PTR(-ENOMEM);
 

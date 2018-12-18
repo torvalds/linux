@@ -180,7 +180,7 @@ static int pwm_fan_of_get_cooling_data(struct device *dev,
 	}
 
 	num = ret;
-	ctx->pwm_fan_cooling_levels = devm_kzalloc(dev, num * sizeof(u32),
+	ctx->pwm_fan_cooling_levels = devm_kcalloc(dev, num, sizeof(u32),
 						   GFP_KERNEL);
 	if (!ctx->pwm_fan_cooling_levels)
 		return -ENOMEM;

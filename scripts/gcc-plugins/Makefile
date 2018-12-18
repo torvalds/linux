@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
+PLUGINCC := $(CONFIG_PLUGIN_HOSTCC:"%"=%)
 GCC_PLUGINS_DIR := $(shell $(CC) -print-file-name=plugin)
 
 ifeq ($(PLUGINCC),$(HOSTCC))
@@ -13,12 +14,6 @@ else
   export HOST_EXTRACXXFLAGS
 endif
 
-ifneq ($(CFLAGS_KCOV), $(SANCOV_PLUGIN))
-  GCC_PLUGIN := $(filter-out $(SANCOV_PLUGIN), $(GCC_PLUGIN))
-endif
-
-export HOSTLIBS
-
 $(obj)/randomize_layout_plugin.o: $(objtree)/$(obj)/randomize_layout_seed.h
 quiet_cmd_create_randomize_layout_seed = GENSEED $@
 cmd_create_randomize_layout_seed = \
@@ -31,8 +26,5 @@ $(HOSTLIBS)-y := $(foreach p,$(GCC_PLUGIN),$(if $(findstring /,$(p)),,$(p)))
 always := $($(HOSTLIBS)-y)
 
 $(foreach p,$($(HOSTLIBS)-y:%.so=%),$(eval $(p)-objs := $(p).o))
-
-subdir-y := $(GCC_PLUGIN_SUBDIR)
-subdir-  += $(GCC_PLUGIN_SUBDIR)
 
 clean-files += *.so

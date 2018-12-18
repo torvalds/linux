@@ -53,7 +53,6 @@ struct vgpu_sched_data {
 	bool active;
 
 	ktime_t sched_in_time;
-	ktime_t sched_out_time;
 	ktime_t sched_time;
 	ktime_t left_ts;
 	ktime_t allocated_ts;
@@ -66,17 +65,22 @@ struct gvt_sched_data {
 	struct hrtimer timer;
 	unsigned long period;
 	struct list_head lru_runq_head;
+	ktime_t expire_time;
 };
 
-static void vgpu_update_timeslice(struct intel_vgpu *pre_vgpu)
+static void vgpu_update_timeslice(struct intel_vgpu *vgpu, ktime_t cur_time)
 {
 	ktime_t delta_ts;
-	struct vgpu_sched_data *vgpu_data = pre_vgpu->sched_data;
+	struct vgpu_sched_data *vgpu_data;
 
-	delta_ts = vgpu_data->sched_out_time - vgpu_data->sched_in_time;
+	if (!vgpu || vgpu == vgpu->gvt->idle_vgpu)
+		return;
 
-	vgpu_data->sched_time += delta_ts;
-	vgpu_data->left_ts -= delta_ts;
+	vgpu_data = vgpu->sched_data;
+	delta_ts = ktime_sub(cur_time, vgpu_data->sched_in_time);
+	vgpu_data->sched_time = ktime_add(vgpu_data->sched_time, delta_ts);
+	vgpu_data->left_ts = ktime_sub(vgpu_data->left_ts, delta_ts);
+	vgpu_data->sched_in_time = cur_time;
 }
 
 #define GVT_TS_BALANCE_PERIOD_MS 100
@@ -150,11 +154,7 @@ static void try_to_schedule_next_vgpu(struct intel_gvt *gvt)
 	}
 
 	cur_time = ktime_get();
-	if (scheduler->current_vgpu) {
-		vgpu_data = scheduler->current_vgpu->sched_data;
-		vgpu_data->sched_out_time = cur_time;
-		vgpu_update_timeslice(scheduler->current_vgpu);
-	}
+	vgpu_update_timeslice(scheduler->current_vgpu, cur_time);
 	vgpu_data = scheduler->next_vgpu->sched_data;
 	vgpu_data->sched_in_time = cur_time;
 
@@ -226,20 +226,25 @@ out:
 void intel_gvt_schedule(struct intel_gvt *gvt)
 {
 	struct gvt_sched_data *sched_data = gvt->scheduler.sched_data;
-	static uint64_t timer_check;
+	ktime_t cur_time;
 
-	mutex_lock(&gvt->lock);
+	mutex_lock(&gvt->sched_lock);
+	cur_time = ktime_get();
 
 	if (test_and_clear_bit(INTEL_GVT_REQUEST_SCHED,
 				(void *)&gvt->service_request)) {
-		if (!(timer_check++ % GVT_TS_BALANCE_PERIOD_MS))
+		if (cur_time >= sched_data->expire_time) {
 			gvt_balance_timeslice(sched_data);
+			sched_data->expire_time = ktime_add_ms(
+				cur_time, GVT_TS_BALANCE_PERIOD_MS);
+		}
 	}
 	clear_bit(INTEL_GVT_REQUEST_EVENT_SCHED, (void *)&gvt->service_request);
 
+	vgpu_update_timeslice(gvt->scheduler.current_vgpu, cur_time);
 	tbs_sched_func(sched_data);
 
-	mutex_unlock(&gvt->lock);
+	mutex_unlock(&gvt->sched_lock);
 }
 
 static enum hrtimer_restart tbs_timer_fn(struct hrtimer *timer_data)
@@ -354,39 +359,65 @@ static struct intel_gvt_sched_policy_ops tbs_schedule_ops = {
 
 int intel_gvt_init_sched_policy(struct intel_gvt *gvt)
 {
-	gvt->scheduler.sched_ops = &tbs_schedule_ops;
+	int ret;
 
-	return gvt->scheduler.sched_ops->init(gvt);
+	mutex_lock(&gvt->sched_lock);
+	gvt->scheduler.sched_ops = &tbs_schedule_ops;
+	ret = gvt->scheduler.sched_ops->init(gvt);
+	mutex_unlock(&gvt->sched_lock);
+
+	return ret;
 }
 
 void intel_gvt_clean_sched_policy(struct intel_gvt *gvt)
 {
+	mutex_lock(&gvt->sched_lock);
 	gvt->scheduler.sched_ops->clean(gvt);
+	mutex_unlock(&gvt->sched_lock);
 }
+
+/* for per-vgpu scheduler policy, there are 2 per-vgpu data:
+ * sched_data, and sched_ctl. We see these 2 data as part of
+ * the global scheduler which are proteced by gvt->sched_lock.
+ * Caller should make their decision if the vgpu_lock should
+ * be hold outside.
+ */
 
 int intel_vgpu_init_sched_policy(struct intel_vgpu *vgpu)
 {
-	return vgpu->gvt->scheduler.sched_ops->init_vgpu(vgpu);
+	int ret;
+
+	mutex_lock(&vgpu->gvt->sched_lock);
+	ret = vgpu->gvt->scheduler.sched_ops->init_vgpu(vgpu);
+	mutex_unlock(&vgpu->gvt->sched_lock);
+
+	return ret;
 }
 
 void intel_vgpu_clean_sched_policy(struct intel_vgpu *vgpu)
 {
+	mutex_lock(&vgpu->gvt->sched_lock);
 	vgpu->gvt->scheduler.sched_ops->clean_vgpu(vgpu);
+	mutex_unlock(&vgpu->gvt->sched_lock);
 }
 
 void intel_vgpu_start_schedule(struct intel_vgpu *vgpu)
 {
 	struct vgpu_sched_data *vgpu_data = vgpu->sched_data;
 
+	mutex_lock(&vgpu->gvt->sched_lock);
 	if (!vgpu_data->active) {
 		gvt_dbg_core("vgpu%d: start schedule\n", vgpu->id);
 		vgpu->gvt->scheduler.sched_ops->start_schedule(vgpu);
 	}
+	mutex_unlock(&vgpu->gvt->sched_lock);
 }
 
 void intel_gvt_kick_schedule(struct intel_gvt *gvt)
 {
+	mutex_lock(&gvt->sched_lock);
 	intel_gvt_request_service(gvt, INTEL_GVT_REQUEST_EVENT_SCHED);
+	mutex_unlock(&gvt->sched_lock);
 }
 
 void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
@@ -401,6 +432,7 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 
 	gvt_dbg_core("vgpu%d: stop schedule\n", vgpu->id);
 
+	mutex_lock(&vgpu->gvt->sched_lock);
 	scheduler->sched_ops->stop_schedule(vgpu);
 
 	if (scheduler->next_vgpu == vgpu)
@@ -420,4 +452,5 @@ void intel_vgpu_stop_schedule(struct intel_vgpu *vgpu)
 		}
 	}
 	spin_unlock_bh(&scheduler->mmio_context_lock);
+	mutex_unlock(&vgpu->gvt->sched_lock);
 }

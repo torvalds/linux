@@ -460,13 +460,10 @@ static void finish_one_item(struct btrfs_delayed_root *delayed_root)
 {
 	int seq = atomic_inc_return(&delayed_root->items_seq);
 
-	/*
-	 * atomic_dec_return implies a barrier for waitqueue_active
-	 */
+	/* atomic_dec_return implies a barrier */
 	if ((atomic_dec_return(&delayed_root->items) <
-	    BTRFS_DELAYED_BACKGROUND || seq % BTRFS_DELAYED_BATCH == 0) &&
-	    waitqueue_active(&delayed_root->wait))
-		wake_up(&delayed_root->wait);
+	    BTRFS_DELAYED_BACKGROUND || seq % BTRFS_DELAYED_BATCH == 0))
+		cond_wake_up_nomb(&delayed_root->wait);
 }
 
 static void __btrfs_remove_delayed_item(struct btrfs_delayed_item *delayed_item)
@@ -556,6 +553,12 @@ static int btrfs_delayed_item_reserve_metadata(struct btrfs_trans_handle *trans,
 	dst_rsv = &fs_info->delayed_block_rsv;
 
 	num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
+
+	/*
+	 * Here we migrate space rsv from transaction rsv, since have already
+	 * reserved space when starting a transaction.  So no need to reserve
+	 * qgroup space here.
+	 */
 	ret = btrfs_block_rsv_migrate(src_rsv, dst_rsv, num_bytes, 1);
 	if (!ret) {
 		trace_btrfs_space_reservation(fs_info, "delayed_item",
@@ -577,7 +580,10 @@ static void btrfs_delayed_item_release_metadata(struct btrfs_root *root,
 		return;
 
 	rsv = &fs_info->delayed_block_rsv;
-	btrfs_qgroup_convert_reserved_meta(root, item->bytes_reserved);
+	/*
+	 * Check btrfs_delayed_item_reserve_metadata() to see why we don't need
+	 * to release/reserve qgroup space.
+	 */
 	trace_btrfs_space_reservation(fs_info, "delayed_item",
 				      item->key.objectid, item->bytes_reserved,
 				      0);
@@ -602,9 +608,6 @@ static int btrfs_delayed_inode_reserve_metadata(
 
 	num_bytes = btrfs_calc_trans_metadata_size(fs_info, 1);
 
-	ret = btrfs_qgroup_reserve_meta_prealloc(root, num_bytes, true);
-	if (ret < 0)
-		return ret;
 	/*
 	 * btrfs_dirty_inode will update the inode under btrfs_join_transaction
 	 * which doesn't reserve space for speed.  This is a problem since we
@@ -616,6 +619,10 @@ static int btrfs_delayed_inode_reserve_metadata(
 	 */
 	if (!src_rsv || (!trans->bytes_reserved &&
 			 src_rsv->type != BTRFS_BLOCK_RSV_DELALLOC)) {
+		ret = btrfs_qgroup_reserve_meta_prealloc(root,
+				fs_info->nodesize, true);
+		if (ret < 0)
+			return ret;
 		ret = btrfs_block_rsv_add(root, dst_rsv, num_bytes,
 					  BTRFS_RESERVE_NO_FLUSH);
 		/*
@@ -634,6 +641,8 @@ static int btrfs_delayed_inode_reserve_metadata(
 						      "delayed_inode",
 						      btrfs_ino(inode),
 						      num_bytes, 1);
+		} else {
+			btrfs_qgroup_free_meta_prealloc(root, fs_info->nodesize);
 		}
 		return ret;
 	}
@@ -1213,7 +1222,7 @@ int btrfs_commit_inode_delayed_items(struct btrfs_trans_handle *trans,
 
 int btrfs_commit_inode_delayed_inode(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_delayed_node *delayed_node = btrfs_get_delayed_node(inode);
 	struct btrfs_path *path;
@@ -1409,7 +1418,6 @@ void btrfs_balance_delayed_items(struct btrfs_fs_info *fs_info)
 
 /* Will return 0 or -ENOMEM */
 int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   const char *name, int name_len,
 				   struct btrfs_inode *dir,
 				   struct btrfs_disk_key *disk_key, u8 type,
@@ -1449,11 +1457,10 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 	 */
 	BUG_ON(ret);
 
-
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
 	if (unlikely(ret)) {
-		btrfs_err(fs_info,
+		btrfs_err(trans->fs_info,
 			  "err add delayed dir index item(name: %.*s) into the insertion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
 			  name_len, name, delayed_node->root->objectid,
 			  delayed_node->inode_id, ret);
@@ -1486,7 +1493,6 @@ static int btrfs_delete_delayed_insertion_item(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
-				   struct btrfs_fs_info *fs_info,
 				   struct btrfs_inode *dir, u64 index)
 {
 	struct btrfs_delayed_node *node;
@@ -1502,7 +1508,8 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	item_key.type = BTRFS_DIR_INDEX_KEY;
 	item_key.offset = index;
 
-	ret = btrfs_delete_delayed_insertion_item(fs_info, node, &item_key);
+	ret = btrfs_delete_delayed_insertion_item(trans->fs_info, node,
+						  &item_key);
 	if (!ret)
 		goto end;
 
@@ -1524,7 +1531,7 @@ int btrfs_delete_delayed_dir_index(struct btrfs_trans_handle *trans,
 	mutex_lock(&node->mutex);
 	ret = __btrfs_add_delayed_deletion_item(node, item);
 	if (unlikely(ret)) {
-		btrfs_err(fs_info,
+		btrfs_err(trans->fs_info,
 			  "err add delayed dir index item(index: %llu) into the deletion tree of the delayed node(root id: %llu, inode id: %llu, errno: %d)",
 			  index, node->root->objectid, node->inode_id, ret);
 		BUG();
@@ -1828,7 +1835,7 @@ release_node:
 
 int btrfs_delayed_delete_inode_ref(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_delayed_node *delayed_node;
 
 	/*

@@ -1,13 +1,10 @@
-/*
- * Renesas R-Car Audio DMAC support
- *
- * Copyright (C) 2015 Renesas Electronics Corp.
- * Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car Audio DMAC support
+//
+// Copyright (C) 2015 Renesas Electronics Corp.
+// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include <linux/delay.h>
 #include <linux/of_dma.h>
 #include "rsnd.h"
@@ -252,6 +249,13 @@ static int rsnd_dmaen_attach(struct rsnd_dai_stream *io,
 		 */
 		return -EAGAIN;
 	}
+
+	/*
+	 * use it for IPMMU if needed
+	 * see
+	 *	rsnd_preallocate_pages()
+	 */
+	io->dmac_dev = chan->device->dev;
 
 	dma_release_channel(chan);
 
@@ -695,7 +699,7 @@ static int rsnd_dma_alloc(struct rsnd_dai_stream *io, struct rsnd_mod *mod,
 
 	rsnd_dma_of_path(mod, io, is_play, &mod_from, &mod_to);
 
-	/* for Gen2 */
+	/* for Gen2 or later */
 	if (mod_from && mod_to) {
 		ops	= &rsnd_dmapp_ops;
 		attach	= rsnd_dmapp_attach;
@@ -773,7 +777,7 @@ int rsnd_dma_probe(struct rsnd_priv *priv)
 		return 0;
 
 	/*
-	 * for Gen2
+	 * for Gen2 or later
 	 */
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "audmapp");
 	dmac = devm_kzalloc(dev, sizeof(*dmac), GFP_KERNEL);

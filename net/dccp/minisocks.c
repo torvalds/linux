@@ -53,7 +53,6 @@ void dccp_time_wait(struct sock *sk, int state, int timeo)
 		if (timeo < rto)
 			timeo = rto;
 
-		tw->tw_timeout = DCCP_TIMEWAIT_LEN;
 		if (state == DCCP_TIME_WAIT)
 			timeo = DCCP_TIMEWAIT_LEN;
 

@@ -9,10 +9,9 @@
 #include "hclgevf_cmd.h"
 #include "hnae3.h"
 
-#define HCLGEVF_MOD_VERSION "v1.0"
+#define HCLGEVF_MOD_VERSION "1.0"
 #define HCLGEVF_DRIVER_NAME "hclgevf"
 
-#define HCLGEVF_ROCEE_VECTOR_NUM	0
 #define HCLGEVF_MISC_VECTOR_NUM		0
 
 #define HCLGEVF_INVALID_VPORT		0xffff
@@ -47,6 +46,9 @@
 #define HCLGEVF_RSS_HASH_ALGO_MASK	0xf
 #define HCLGEVF_RSS_CFG_TBL_NUM \
 	(HCLGEVF_RSS_IND_TBL_SIZE / HCLGEVF_RSS_CFG_TBL_SIZE)
+
+#define HCLGEVF_MTA_TBL_SIZE		4096
+#define HCLGEVF_MTA_TYPE_SEL_MAX	4
 
 /* states of hclgevf device & tasks */
 enum hclgevf_states {
@@ -147,11 +149,15 @@ struct hclgevf_dev {
 	u16 num_msi;
 	u16 num_msi_left;
 	u16 num_msi_used;
+	u16 num_roce_msix;	/* Num of roce vectors for this VF */
+	u16 roce_base_msix_offset;
+	int roce_base_vector;
 	u32 base_msi_vector;
 	u16 *vector_status;
 	int *vector_irq;
 
 	bool accept_mta_mc; /* whether to accept mta filter multicast */
+	u8 mta_mac_sel_type;
 	bool mbx_event_pending;
 	struct hclgevf_mbx_resp_status mbx_resp; /* mailbox response */
 	struct hclgevf_mbx_arq_ring arq; /* mailbox async rx queue */

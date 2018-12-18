@@ -594,7 +594,7 @@ static void stm32_dma_start_transfer(struct stm32_dma_chan *chan)
 
 	chan->busy = true;
 
-	dev_dbg(chan2dev(chan), "vchan %p: started\n", &chan->vchan);
+	dev_dbg(chan2dev(chan), "vchan %pK: started\n", &chan->vchan);
 }
 
 static void stm32_dma_configure_next_sg(struct stm32_dma_chan *chan)
@@ -693,7 +693,7 @@ static void stm32_dma_issue_pending(struct dma_chan *c)
 
 	spin_lock_irqsave(&chan->vchan.lock, flags);
 	if (vchan_issue_pending(&chan->vchan) && !chan->desc && !chan->busy) {
-		dev_dbg(chan2dev(chan), "vchan %p: issued\n", &chan->vchan);
+		dev_dbg(chan2dev(chan), "vchan %pK: issued\n", &chan->vchan);
 		stm32_dma_start_transfer(chan);
 
 	}

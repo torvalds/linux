@@ -35,6 +35,8 @@
 #include "mft.h"
 #include "ntfs.h"
 
+#define MAX_BHS	(PAGE_SIZE / NTFS_BLOCK_SIZE)
+
 /**
  * map_mft_record_page - map the page in which a specific mft record resides
  * @ni:		ntfs inode whose mft record page to map
@@ -469,7 +471,7 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 	struct page *page;
 	unsigned int blocksize = vol->sb->s_blocksize;
 	int max_bhs = vol->mft_record_size / blocksize;
-	struct buffer_head *bhs[max_bhs];
+	struct buffer_head *bhs[MAX_BHS];
 	struct buffer_head *bh, *head;
 	u8 *kmirr;
 	runlist_element *rl;
@@ -479,6 +481,8 @@ int ntfs_sync_mft_mirror(ntfs_volume *vol, const unsigned long mft_no,
 
 	ntfs_debug("Entering for inode 0x%lx.", mft_no);
 	BUG_ON(!max_bhs);
+	if (WARN_ON(max_bhs > MAX_BHS))
+		return -EINVAL;
 	if (unlikely(!vol->mftmirr_ino)) {
 		/* This could happen during umount... */
 		err = ntfs_sync_mft_mirror_umount(vol, mft_no, m);
@@ -674,7 +678,7 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	unsigned int blocksize = vol->sb->s_blocksize;
 	unsigned char blocksize_bits = vol->sb->s_blocksize_bits;
 	int max_bhs = vol->mft_record_size / blocksize;
-	struct buffer_head *bhs[max_bhs];
+	struct buffer_head *bhs[MAX_BHS];
 	struct buffer_head *bh, *head;
 	runlist_element *rl;
 	unsigned int block_start, block_end, m_start, m_end;
@@ -684,6 +688,10 @@ int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync)
 	BUG_ON(NInoAttr(ni));
 	BUG_ON(!max_bhs);
 	BUG_ON(!PageLocked(page));
+	if (WARN_ON(max_bhs > MAX_BHS)) {
+		err = -EINVAL;
+		goto err_out;
+	}
 	/*
 	 * If the ntfs_inode is clean no need to do anything.  If it is dirty,
 	 * mark it as clean now so that it can be redirtied later on if needed.

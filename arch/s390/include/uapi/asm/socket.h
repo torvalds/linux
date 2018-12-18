@@ -111,4 +111,7 @@
 
 #define SO_ZEROCOPY		60
 
+#define SO_TXTIME		61
+#define SCM_TXTIME		SO_TXTIME
+
 #endif /* _ASM_SOCKET_H */

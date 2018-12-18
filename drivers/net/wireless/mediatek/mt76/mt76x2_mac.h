@@ -157,7 +157,6 @@ mt76x2_skb_tx_info(struct sk_buff *skb)
 	return (void *) info->status.status_driver_data;
 }
 
-int mt76x2_mac_reset(struct mt76x2_dev *dev, bool hard);
 int mt76x2_mac_start(struct mt76x2_dev *dev);
 void mt76x2_mac_stop(struct mt76x2_dev *dev, bool force);
 void mt76x2_mac_resume(struct mt76x2_dev *dev);
@@ -167,7 +166,7 @@ int mt76x2_mac_process_rx(struct mt76x2_dev *dev, struct sk_buff *skb,
 			  void *rxi);
 void mt76x2_mac_write_txwi(struct mt76x2_dev *dev, struct mt76x2_txwi *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
-			   struct ieee80211_sta *sta);
+			   struct ieee80211_sta *sta, int len);
 void mt76x2_mac_wcid_setup(struct mt76x2_dev *dev, u8 idx, u8 vif_idx, u8 *mac);
 int mt76x2_mac_wcid_set_key(struct mt76x2_dev *dev, u8 idx,
 			    struct ieee80211_key_conf *key);

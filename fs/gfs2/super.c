@@ -1097,7 +1097,7 @@ static int gfs2_statfs_slow(struct gfs2_sbd *sdp, struct gfs2_statfs_change_host
 	int error = 0, err;
 
 	memset(sc, 0, sizeof(struct gfs2_statfs_change_host));
-	gha = kmalloc(slots * sizeof(struct gfs2_holder), GFP_KERNEL);
+	gha = kmalloc_array(slots, sizeof(struct gfs2_holder), GFP_KERNEL);
 	if (!gha)
 		return -ENOMEM;
 	for (x = 0; x < slots; x++)
@@ -1729,7 +1729,6 @@ static struct inode *gfs2_alloc_inode(struct super_block *sb)
 	if (ip) {
 		ip->i_flags = 0;
 		ip->i_gl = NULL;
-		ip->i_rgd = NULL;
 		memset(&ip->i_res, 0, sizeof(ip->i_res));
 		RB_CLEAR_NODE(&ip->i_res.rs_node);
 		ip->i_rahead = 0;

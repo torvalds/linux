@@ -47,19 +47,15 @@ static ssize_t __name ## _write(struct file *file,			      \
 				 size_t count, loff_t *ppos)		      \
 {									      \
 	struct hci_dev *hdev = file->private_data;			      \
-	char buf[32];							      \
-	size_t buf_size = min(count, (sizeof(buf) - 1));		      \
 	bool enable;							      \
+	int err;							      \
 									      \
 	if (test_bit(HCI_UP, &hdev->flags))				      \
 		return -EBUSY;						      \
 									      \
-	if (copy_from_user(buf, user_buf, buf_size))			      \
-		return -EFAULT;						      \
-									      \
-	buf[buf_size] = '\0';						      \
-	if (strtobool(buf, &enable))					      \
-		return -EINVAL;						      \
+	err = kstrtobool_from_user(user_buf, count, &enable);		      \
+	if (err)							      \
+		return err;						      \
 									      \
 	if (enable == test_bit(__quirk, &hdev->quirks))			      \
 		return -EALREADY;					      \
@@ -658,19 +654,15 @@ static ssize_t force_static_address_write(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct hci_dev *hdev = file->private_data;
-	char buf[32];
-	size_t buf_size = min(count, (sizeof(buf)-1));
 	bool enable;
+	int err;
 
 	if (test_bit(HCI_UP, &hdev->flags))
 		return -EBUSY;
 
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
-		return -EINVAL;
+	err = kstrtobool_from_user(user_buf, count, &enable);
+	if (err)
+		return err;
 
 	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_STATIC_ADDR))
 		return -EALREADY;
@@ -701,6 +693,21 @@ static int white_list_show(struct seq_file *f, void *ptr)
 }
 
 DEFINE_SHOW_ATTRIBUTE(white_list);
+
+static int resolv_list_show(struct seq_file *f, void *ptr)
+{
+	struct hci_dev *hdev = f->private;
+	struct bdaddr_list *b;
+
+	hci_dev_lock(hdev);
+	list_for_each_entry(b, &hdev->le_resolv_list, list)
+		seq_printf(f, "%pMR (type %u)\n", &b->bdaddr, b->bdaddr_type);
+	hci_dev_unlock(hdev);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(resolv_list);
 
 static int identity_resolving_keys_show(struct seq_file *f, void *ptr)
 {
@@ -963,6 +970,10 @@ void hci_debugfs_create_le(struct hci_dev *hdev)
 			  &hdev->le_white_list_size);
 	debugfs_create_file("white_list", 0444, hdev->debugfs, hdev,
 			    &white_list_fops);
+	debugfs_create_u8("resolv_list_size", 0444, hdev->debugfs,
+			  &hdev->le_resolv_list_size);
+	debugfs_create_file("resolv_list", 0444, hdev->debugfs, hdev,
+			    &resolv_list_fops);
 	debugfs_create_file("identity_resolving_keys", 0400, hdev->debugfs,
 			    hdev, &identity_resolving_keys_fops);
 	debugfs_create_file("long_term_keys", 0400, hdev->debugfs, hdev,

@@ -56,6 +56,22 @@
 	status = "okay";
 };
 
+&ehci3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&hsusb3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&sound_card {
+	dais = <&rsnd_port0	/* ak4613 */
+		&rsnd_port1	/* HDMI0  */
+		&rsnd_port2>;	/* HDMI1  */
+};
+
 &hdmi0 {
 	status = "okay";
 
@@ -64,6 +80,12 @@
 			reg = <1>;
 			rcar_dw_hdmi0_out: endpoint {
 				remote-endpoint = <&hdmi0_con>;
+			};
+		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi0_snd_in: endpoint {
+				remote-endpoint = <&rsnd_endpoint1>;
 			};
 		};
 	};
@@ -83,6 +105,12 @@
 				remote-endpoint = <&hdmi1_con>;
 			};
 		};
+		port@2 {
+			reg = <2>;
+			dw_hdmi1_snd_in: endpoint {
+				remote-endpoint = <&rsnd_endpoint2>;
+			};
+		};
 	};
 };
 
@@ -94,15 +122,72 @@
 	status = "okay";
 };
 
+&ohci3 {
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&rcar_sound {
+	ports {
+		/* rsnd_port0 is on salvator-common */
+		rsnd_port1: port@1 {
+			rsnd_endpoint1: endpoint {
+				remote-endpoint = <&dw_hdmi0_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint1>;
+				frame-master = <&rsnd_endpoint1>;
+
+				playback = <&ssi2>;
+			};
+		};
+		rsnd_port2: port@2 {
+			rsnd_endpoint2: endpoint {
+				remote-endpoint = <&dw_hdmi1_snd_in>;
+
+				dai-format = "i2s";
+				bitclock-master = <&rsnd_endpoint2>;
+				frame-master = <&rsnd_endpoint2>;
+
+				playback = <&ssi3>;
+			};
+		};
+	};
+};
+
 &pfc {
 	usb2_pins: usb2 {
 		groups = "usb2";
 		function = "usb2";
 	};
+
+	/*
+	 * - On Salvator-X[S], GP6_3[01] are connected to ADV7482 as irq pins
+	 *   (when SW31 is the default setting on Salvator-XS).
+	 * - If SW31 is the default setting, you cannot use USB2.0 ch3 on
+	 *   r8a7795 with Salvator-XS.
+	 *   Hence the SW31 setting must be changed like 2) below.
+	 *   1) Default setting of SW31: ON-ON-OFF-OFF-OFF-OFF:
+	 *	- Connect GP6_3[01] to ADV7842.
+	 *   2) Changed setting of SW31: OFF-OFF-ON-ON-ON-ON:
+	 *	- Connect GP6_3[01] to BD082065 (USB2.0 ch3's host power).
+	 *	- Connect GP6_{04,21} to ADV7842.
+	 */
+	usb2_ch3_pins: usb2_ch3 {
+		groups = "usb2_ch3";
+		function = "usb2_ch3";
+	};
 };
 
 &usb2_phy2 {
 	pinctrl-0 = <&usb2_pins>;
+	pinctrl-names = "default";
+
+	status = "okay";
+};
+
+&usb2_phy3 {
+	pinctrl-0 = <&usb2_ch3_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";

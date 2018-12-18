@@ -142,24 +142,12 @@ static int bw_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int bw_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, bw_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations bw_proc_fops = {
-	.open		= bw_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void create_proc_decoder(struct bw_stats_struct *stats)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create_data("bus_watcher", S_IWUSR | S_IRUGO, NULL,
-			       &bw_proc_fops, stats);
+	ent = proc_create_single_data("bus_watcher", S_IWUSR | S_IRUGO, NULL,
+			bw_proc_show, stats);
 	if (!ent) {
 		printk(KERN_INFO "Unable to initialize bus_watcher /proc entry\n");
 		return;

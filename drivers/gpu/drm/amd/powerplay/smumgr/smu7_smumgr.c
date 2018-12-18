@@ -167,24 +167,25 @@ int smu7_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg)
 {
 	int ret;
 
-	if (!smu7_is_smc_ram_running(hwmgr))
-		return -EINVAL;
-
-
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
-	if (ret != 1)
-		pr_info("\n failed to send pre message %x ret is %d \n",  msg, ret);
+	if (ret == 0xFE)
+		pr_debug("last message was not supported\n");
+	else if (ret != 1)
+		pr_info("\n last message was failed ret is %d\n", ret);
 
+	cgs_write_register(hwmgr->device, mmSMC_RESP_0, 0);
 	cgs_write_register(hwmgr->device, mmSMC_MESSAGE_0, msg);
 
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	ret = PHM_READ_FIELD(hwmgr->device, SMC_RESP_0, SMC_RESP);
 
-	if (ret != 1)
+	if (ret == 0xFE)
+		pr_debug("message %x was not supported\n", msg);
+	else if (ret != 1)
 		pr_info("\n failed to send message %x ret is %d \n",  msg, ret);
 
 	return 0;
@@ -199,10 +200,6 @@ int smu7_send_msg_to_smc_without_waiting(struct pp_hwmgr *hwmgr, uint16_t msg)
 
 int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg, uint32_t parameter)
 {
-	if (!smu7_is_smc_ram_running(hwmgr)) {
-		return -EINVAL;
-	}
-
 	PHM_WAIT_FIELD_UNEQUAL(hwmgr, SMC_RESP_0, SMC_RESP, 0);
 
 	cgs_write_register(hwmgr->device, mmSMC_MSG_ARG_0, parameter);
@@ -230,16 +227,6 @@ int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr)
 
 	return 0;
 }
-
-int smu7_wait_for_smc_inactive(struct pp_hwmgr *hwmgr)
-{
-	if (!smu7_is_smc_ram_running(hwmgr))
-		return -EINVAL;
-
-	PHM_WAIT_VFPF_INDIRECT_FIELD(hwmgr, SMC_IND, SMC_SYSCON_CLOCK_CNTL_0, cken, 0);
-	return 0;
-}
-
 
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type)
 {
@@ -296,11 +283,9 @@ int smu7_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr, uint32_t
 
 	result = smu7_set_smc_sram_address(hwmgr, smc_addr, limit);
 
-	if (result)
-		return result;
+	*value = result ? 0 : cgs_read_register(hwmgr->device, mmSMC_IND_DATA_11);
 
-	*value = cgs_read_register(hwmgr->device, mmSMC_IND_DATA_11);
-	return 0;
+	return result;
 }
 
 int smu7_write_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr, uint32_t value, uint32_t limit)
@@ -375,7 +360,7 @@ static int smu7_populate_single_firmware_entry(struct pp_hwmgr *hwmgr,
 		entry->meta_data_addr_low = 0;
 
 		/* digest need be excluded out */
-		if (cgs_is_virtualization_enabled(hwmgr->device))
+		if (!hwmgr->not_vf)
 			info.image_size -= 20;
 		entry->data_size_byte = info.image_size;
 		entry->num_register_entries = 0;
@@ -394,8 +379,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
 	uint32_t fw_to_load;
-	int result = 0;
-	struct SMU_DRAMData_TOC *toc;
+	int r = 0;
 
 	if (!hwmgr->reload_fw) {
 		pr_info("skip reloading...\n");
@@ -409,7 +393,7 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 					0x0);
 
 	if (hwmgr->chip_id > CHIP_TOPAZ) { /* add support for Topaz */
-		if (!cgs_is_virtualization_enabled(hwmgr->device)) {
+		if (hwmgr->not_vf) {
 			smu7_send_msg_to_smc_with_parameter(hwmgr,
 						PPSMC_MSG_SMU_DRAM_ADDR_HI,
 						upper_32_bits(smu_data->smu_buffer.mc_addr));
@@ -436,49 +420,62 @@ int smu7_request_smu_load_fw(struct pp_hwmgr *hwmgr)
 			   + UCODE_ID_CP_MEC_JT2_MASK;
 	}
 
-	toc = (struct SMU_DRAMData_TOC *)smu_data->header;
-	toc->num_entries = 0;
-	toc->structure_version = 1;
+	if (!smu_data->toc) {
+		struct SMU_DRAMData_TOC *toc;
 
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_RLC_G, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_CP_CE, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_CP_PFP, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_CP_ME, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_CP_MEC, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_CP_MEC_JT1, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_CP_MEC_JT2, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_SDMA0, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
-				UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-	if (cgs_is_virtualization_enabled(hwmgr->device))
+		smu_data->toc = kzalloc(sizeof(struct SMU_DRAMData_TOC), GFP_KERNEL);
+		if (!smu_data->toc)
+			return -ENOMEM;
+		toc = smu_data->toc;
+		toc->num_entries = 0;
+		toc->structure_version = 1;
+
 		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_RLC_G, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_CP_CE, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_CP_PFP, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_CP_ME, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_CP_MEC, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_CP_MEC_JT1, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_CP_MEC_JT2, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_SDMA0, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
+				UCODE_ID_SDMA1, &toc->entry[toc->num_entries++]),
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+		if (!hwmgr->not_vf)
+			PP_ASSERT_WITH_CODE(0 == smu7_populate_single_firmware_entry(hwmgr,
 				UCODE_ID_MEC_STORAGE, &toc->entry[toc->num_entries++]),
-				"Failed to Get Firmware Entry.", return -EINVAL);
-
+				"Failed to Get Firmware Entry.", r = -EINVAL; goto failed);
+	}
+	memcpy_toio(smu_data->header_buffer.kaddr, smu_data->toc,
+		    sizeof(struct SMU_DRAMData_TOC));
 	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_HI, upper_32_bits(smu_data->header_buffer.mc_addr));
 	smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_DRV_DRAM_ADDR_LO, lower_32_bits(smu_data->header_buffer.mc_addr));
 
 	if (smu7_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_LoadUcodes, fw_to_load))
 		pr_err("Fail to Request SMU Load uCode");
 
-	return result;
+	return r;
+
+failed:
+	kfree(smu_data->toc);
+	smu_data->toc = NULL;
+	return r;
 }
 
 /* Check if the FW has been loaded, SMU will not return if loading has not finished. */
@@ -585,7 +582,6 @@ int smu7_setup_pwr_virus(struct pp_hwmgr *hwmgr)
 int smu7_init(struct pp_hwmgr *hwmgr)
 {
 	struct smu7_smumgr *smu_data;
-	uint64_t mc_addr = 0;
 	int r;
 	/* Allocate memory for backend private data */
 	smu_data = (struct smu7_smumgr *)(hwmgr->smu_backend);
@@ -599,16 +595,13 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 		PAGE_SIZE,
 		AMDGPU_GEM_DOMAIN_VRAM,
 		&smu_data->header_buffer.handle,
-		&mc_addr,
+		&smu_data->header_buffer.mc_addr,
 		&smu_data->header_buffer.kaddr);
 
 	if (r)
 		return -EINVAL;
 
-	smu_data->header = smu_data->header_buffer.kaddr;
-	smu_data->header_buffer.mc_addr = mc_addr;
-
-	if (cgs_is_virtualization_enabled(hwmgr->device))
+	if (!hwmgr->not_vf)
 		return 0;
 
 	smu_data->smu_buffer.data_size = 200*4096;
@@ -617,7 +610,7 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 		PAGE_SIZE,
 		AMDGPU_GEM_DOMAIN_VRAM,
 		&smu_data->smu_buffer.handle,
-		&mc_addr,
+		&smu_data->smu_buffer.mc_addr,
 		&smu_data->smu_buffer.kaddr);
 
 	if (r) {
@@ -626,7 +619,6 @@ int smu7_init(struct pp_hwmgr *hwmgr)
 					&smu_data->header_buffer.kaddr);
 		return -EINVAL;
 	}
-	smu_data->smu_buffer.mc_addr = mc_addr;
 
 	if (smum_is_hw_avfs_present(hwmgr))
 		hwmgr->avfs_supported = true;
@@ -643,13 +635,15 @@ int smu7_smu_fini(struct pp_hwmgr *hwmgr)
 					&smu_data->header_buffer.mc_addr,
 					&smu_data->header_buffer.kaddr);
 
-	if (!cgs_is_virtualization_enabled(hwmgr->device))
+	if (hwmgr->not_vf)
 		amdgpu_bo_free_kernel(&smu_data->smu_buffer.handle,
 					&smu_data->smu_buffer.mc_addr,
 					&smu_data->smu_buffer.kaddr);
 
+
+	kfree(smu_data->toc);
+	smu_data->toc = NULL;
 	kfree(hwmgr->smu_backend);
 	hwmgr->smu_backend = NULL;
-	cgs_rel_firmware(hwmgr->device, CGS_UCODE_ID_SMU);
 	return 0;
 }

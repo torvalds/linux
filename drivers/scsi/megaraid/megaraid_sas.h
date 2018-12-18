@@ -35,8 +35,8 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.704.04.00-rc1"
-#define MEGASAS_RELDATE				"December 7, 2017"
+#define MEGASAS_VERSION				"07.706.03.00-rc1"
+#define MEGASAS_RELDATE				"May 21, 2018"
 
 /*
  * Device IDs
@@ -709,7 +709,8 @@ struct MR_TARGET_PROPERTIES {
 	u32    max_io_size_kb;
 	u32    device_qdepth;
 	u32    sector_size;
-	u8     reserved[500];
+	u8     reset_tmo;
+	u8     reserved[499];
 } __packed;
 
  /*
@@ -1400,6 +1401,19 @@ struct megasas_ctrl_info {
 	#endif
 		} adapter_operations4;
 	u8 pad[0x800 - 0x7FE]; /* 0x7FE pad to 2K for expansion */
+
+	u32 size;
+	u32 pad1;
+
+	u8 reserved6[64];
+
+	u32 rsvdForAdptOp[64];
+
+	u8 reserved7[3];
+
+	u8 TaskAbortTO;	/* Timeout value in seconds used by Abort Task TM */
+	u8 MaxResetTO;	/* Max Supported Reset timeout in seconds. */
+	u8 reserved8[3];
 } __packed;
 
 /*
@@ -1472,6 +1486,7 @@ enum FW_BOOT_CONTEXT {
 #define MEGASAS_DEFAULT_CMD_TIMEOUT		90
 #define MEGASAS_THROTTLE_QUEUE_DEPTH		16
 #define MEGASAS_BLOCKED_CMD_TIMEOUT		60
+#define MEGASAS_DEFAULT_TM_TIMEOUT		50
 /*
  * FW reports the maximum of number of commands that it can accept (maximum
  * commands that can be outstanding) at any time. The driver must report a
@@ -1915,7 +1930,9 @@ struct MR_PRIV_DEVICE {
 	bool is_tm_capable;
 	bool tm_busy;
 	atomic_t r1_ldio_hint;
-	u8   interface_type;
+	u8 interface_type;
+	u8 task_abort_tmo;
+	u8 target_reset_tmo;
 };
 struct megasas_cmd;
 
@@ -2291,6 +2308,8 @@ struct megasas_instance {
 	u8 adapter_type;
 	bool consistent_mask_64bit;
 	bool support_nvme_passthru;
+	u8 task_abort_tmo;
+	u8 max_reset_tmo;
 };
 struct MR_LD_VF_MAP {
 	u32 size;
@@ -2512,7 +2531,11 @@ int megasas_get_ctrl_info(struct megasas_instance *instance);
 /* PD sequence */
 int
 megasas_sync_pd_seq_num(struct megasas_instance *instance, bool pend);
-void megasas_set_dynamic_target_properties(struct scsi_device *sdev);
+void megasas_set_dynamic_target_properties(struct scsi_device *sdev,
+					   bool is_target_prop);
+int megasas_get_target_prop(struct megasas_instance *instance,
+			    struct scsi_device *sdev);
+
 int megasas_set_crash_dump_params(struct megasas_instance *instance,
 	u8 crash_buf_state);
 void megasas_free_host_crash_buffer(struct megasas_instance *instance);

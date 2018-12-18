@@ -114,7 +114,7 @@ enum intel_platform {
 	func(has_ipc);
 
 #define GEN_MAX_SLICES		(6) /* CNL upper bound */
-#define GEN_MAX_SUBSLICES	(7)
+#define GEN_MAX_SUBSLICES	(8) /* ICL upper bound */
 
 struct sseu_dev_info {
 	u8 slice_mask;
@@ -186,6 +186,7 @@ struct intel_device_info {
 
 struct intel_driver_caps {
 	unsigned int scheduler;
+	bool has_logical_contexts:1;
 };
 
 static inline unsigned int sseu_subslice_total(const struct sseu_dev_info *sseu)
@@ -246,6 +247,8 @@ void intel_device_info_dump_runtime(const struct intel_device_info *info,
 				    struct drm_printer *p);
 void intel_device_info_dump_topology(const struct sseu_dev_info *sseu,
 				     struct drm_printer *p);
+
+void intel_device_info_init_mmio(struct drm_i915_private *dev_priv);
 
 void intel_driver_caps_print(const struct intel_driver_caps *caps,
 			     struct drm_printer *p);

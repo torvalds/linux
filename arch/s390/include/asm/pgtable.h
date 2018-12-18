@@ -171,7 +171,6 @@ static inline int is_module_addr(void *addr)
 #define _PAGE_WRITE	0x020		/* SW pte write bit */
 #define _PAGE_SPECIAL	0x040		/* SW associated with special page */
 #define _PAGE_UNUSED	0x080		/* SW bit for pgste usage state */
-#define __HAVE_ARCH_PTE_SPECIAL
 
 #ifdef CONFIG_MEM_SOFT_DIRTY
 #define _PAGE_SOFT_DIRTY 0x002		/* SW pte soft dirty bit */
@@ -269,8 +268,10 @@ static inline int is_module_addr(void *addr)
 #define _REGION_ENTRY_BITS_LARGE 0xffffffff8000fe2fUL
 
 /* Bits in the segment table entry */
-#define _SEGMENT_ENTRY_BITS	0xfffffffffffffe33UL
-#define _SEGMENT_ENTRY_BITS_LARGE 0xfffffffffff0ff33UL
+#define _SEGMENT_ENTRY_BITS			0xfffffffffffffe33UL
+#define _SEGMENT_ENTRY_BITS_LARGE		0xfffffffffff0ff33UL
+#define _SEGMENT_ENTRY_HARDWARE_BITS		0xfffffffffffffe30UL
+#define _SEGMENT_ENTRY_HARDWARE_BITS_LARGE	0xfffffffffff00730UL
 #define _SEGMENT_ENTRY_ORIGIN_LARGE ~0xfffffUL /* large page address	    */
 #define _SEGMENT_ENTRY_ORIGIN	~0x7ffUL/* page table origin		    */
 #define _SEGMENT_ENTRY_PROTECT	0x200	/* segment protection bit	    */
@@ -507,10 +508,10 @@ static inline int mm_alloc_pgste(struct mm_struct *mm)
  * faults should no longer be backed by zero pages
  */
 #define mm_forbids_zeropage mm_has_pgste
-static inline int mm_use_skey(struct mm_struct *mm)
+static inline int mm_uses_skeys(struct mm_struct *mm)
 {
 #ifdef CONFIG_PGSTE
-	if (mm->context.use_skey)
+	if (mm->context.uses_skeys)
 		return 1;
 #endif
 	return 0;
@@ -1102,7 +1103,8 @@ int ptep_shadow_pte(struct mm_struct *mm, unsigned long saddr,
 		    pte_t *sptep, pte_t *tptep, pte_t pte);
 void ptep_unshadow_pte(struct mm_struct *mm, unsigned long saddr, pte_t *ptep);
 
-bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long address);
+bool ptep_test_and_clear_uc(struct mm_struct *mm, unsigned long address,
+			    pte_t *ptep);
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned char key, bool nq);
 int cond_set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
@@ -1117,6 +1119,10 @@ int set_pgste_bits(struct mm_struct *mm, unsigned long addr,
 int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep);
 int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
 			unsigned long *oldpte, unsigned long *oldpgste);
+void gmap_pmdp_csp(struct mm_struct *mm, unsigned long vmaddr);
+void gmap_pmdp_invalidate(struct mm_struct *mm, unsigned long vmaddr);
+void gmap_pmdp_idte_local(struct mm_struct *mm, unsigned long vmaddr);
+void gmap_pmdp_idte_global(struct mm_struct *mm, unsigned long vmaddr);
 
 /*
  * Certain architectures need to do special things when PTEs

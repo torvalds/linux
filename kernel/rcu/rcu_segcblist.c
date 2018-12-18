@@ -404,24 +404,6 @@ bool rcu_segcblist_accelerate(struct rcu_segcblist *rsclp, unsigned long seq)
 }
 
 /*
- * Scan the specified rcu_segcblist structure for callbacks that need
- * a grace period later than the one specified by "seq".  We don't look
- * at the RCU_DONE_TAIL or RCU_NEXT_TAIL segments because they don't
- * have a grace-period sequence number.
- */
-bool rcu_segcblist_future_gp_needed(struct rcu_segcblist *rsclp,
-				    unsigned long seq)
-{
-	int i;
-
-	for (i = RCU_WAIT_TAIL; i < RCU_NEXT_TAIL; i++)
-		if (rsclp->tails[i - 1] != rsclp->tails[i] &&
-		    ULONG_CMP_LT(seq, rsclp->gp_seq[i]))
-			return true;
-	return false;
-}
-
-/*
  * Merge the source rcu_segcblist structure into the destination
  * rcu_segcblist structure, then initialize the source.  Any pending
  * callbacks from the source get to start over.  It is best to

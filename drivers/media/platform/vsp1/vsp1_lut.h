@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * vsp1_lut.h  --  R-Car VSP1 Look-Up Table
  *
  * Copyright (C) 2013 Renesas Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef __VSP1_LUT_H__
 #define __VSP1_LUT_H__
@@ -33,6 +29,7 @@ struct vsp1_lut {
 
 	spinlock_t lock;
 	struct vsp1_dl_body *lut;
+	struct vsp1_dl_body_pool *pool;
 };
 
 static inline struct vsp1_lut *to_lut(struct v4l2_subdev *subdev)

@@ -156,8 +156,6 @@
 
 	stdp2690@72 {
 		compatible = "megachips,stdp2690-ge-b850v3-fw";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x72>;
 
 		ports {
@@ -184,8 +182,6 @@
 
 	stdp4028@73 {
 		compatible = "megachips,stdp4028-ge-b850v3-fw";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x73>;
 		interrupt-parent = <&gpio2>;
 		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;

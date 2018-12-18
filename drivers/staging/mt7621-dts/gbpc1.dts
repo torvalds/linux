@@ -24,15 +24,12 @@
 		};
 	};
 
-	gpio-keys-polled {
-		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		poll-interval = <20>;
+	gpio-keys {
+		compatible = "gpio-keys";
 
 		reset {
 			label = "reset";
-			gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpio 18 GPIO_ACTIVE_HIGH>;
 			linux,code = <KEY_RESTART>;
 		};
 	};
@@ -42,22 +39,22 @@
 
 		system {
 			label = "gb-pc1:green:system";
-			gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 6 GPIO_ACTIVE_LOW>;
 		};
 
 		status {
 			label = "gb-pc1:green:status";
-			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 8 GPIO_ACTIVE_LOW>;
 		};
 
 		lan1 {
 			label = "gb-pc1:green:lan1";
-			gpios = <&gpio0 24 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 24 GPIO_ACTIVE_LOW>;
 		};
 
 		lan2 {
 			label = "gb-pc1:green:lan2";
-			gpios = <&gpio0 25 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio 25 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
@@ -74,8 +71,7 @@
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <10000000>;
-		m25p,chunked-io = <32>;
+		spi-max-frequency = <50000000>;
 
 		partition@0 {
 			label = "u-boot";
@@ -97,7 +93,7 @@
 
 		partition@50000 {
 			label = "firmware";
-			reg = <0x50000 0xFB0000>;
+			reg = <0x50000 0x1FB0000>;
 		};
 
 	};
@@ -105,7 +101,8 @@
 
 &sysclock {
 			compatible = "fixed-clock";
-			clock-frequency = <90000000>;
+			/* This is normally 1/4 of cpuclock */
+			clock-frequency = <225000000>;
 };
 
 &cpuclock {
@@ -114,6 +111,8 @@
 };
 
 &pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_pins>;
 	status = "okay";
 };
 

@@ -1206,7 +1206,6 @@ struct ubifs_debug_info;
  * @replay_list: temporary list used during journal replay
  * @replay_buds: list of buds to replay
  * @cs_sqnum: sequence number of first node in the log (commit start node)
- * @replay_sqnum: sequence number of node currently being replayed
  * @unclean_leb_list: LEBs to recover when re-mounting R/O mounted FS to R/W
  *                    mode
  * @rcvrd_mst_node: recovered master node to write when re-mounting R/O mounted
@@ -1438,7 +1437,6 @@ struct ubifs_info {
 	struct list_head replay_list;
 	struct list_head replay_buds;
 	unsigned long long cs_sqnum;
-	unsigned long long replay_sqnum;
 	struct list_head unclean_leb_list;
 	struct ubifs_mst_node *rcvrd_mst_node;
 	struct rb_root size_tree;
@@ -1740,7 +1738,7 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr);
 #ifdef CONFIG_UBIFS_ATIME_SUPPORT
-int ubifs_update_time(struct inode *inode, struct timespec *time, int flags);
+int ubifs_update_time(struct inode *inode, struct timespec64 *time, int flags);
 #endif
 
 /* dir.c */

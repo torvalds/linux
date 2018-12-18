@@ -54,7 +54,7 @@ static int grow(rh_info_t * info, int max_blocks)
 
 	new_blocks = max_blocks - info->max_blocks;
 
-	block = kmalloc(sizeof(rh_block_t) * max_blocks, GFP_ATOMIC);
+	block = kmalloc_array(max_blocks, sizeof(rh_block_t), GFP_ATOMIC);
 	if (block == NULL)
 		return -ENOMEM;
 

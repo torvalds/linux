@@ -85,7 +85,7 @@ static void bump_cpu_timer(struct k_itimer *timer, u64 now)
 			continue;
 
 		timer->it.cpu.expires += incr;
-		timer->it_overrun += 1 << i;
+		timer->it_overrun += 1LL << i;
 		delta -= incr;
 	}
 }
@@ -604,7 +604,6 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int timer_flags,
 	/*
 	 * Disarm any old timer after extracting its expiry time.
 	 */
-	lockdep_assert_irqs_disabled();
 
 	ret = 0;
 	old_incr = timer->it.cpu.incr;
@@ -1049,7 +1048,6 @@ static void posix_cpu_timer_rearm(struct k_itimer *timer)
 	/*
 	 * Now re-arm for the new expiry time.
 	 */
-	lockdep_assert_irqs_disabled();
 	arm_timer(timer);
 unlock:
 	unlock_task_sighand(p, &flags);
@@ -1205,10 +1203,12 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 			   u64 *newval, u64 *oldval)
 {
 	u64 now;
+	int ret;
 
 	WARN_ON_ONCE(clock_idx == CPUCLOCK_SCHED);
+	ret = cpu_timer_sample_group(clock_idx, tsk, &now);
 
-	if (oldval && cpu_timer_sample_group(clock_idx, tsk, &now) != -EINVAL) {
+	if (oldval && ret != -EINVAL) {
 		/*
 		 * We are setting itimer. The *oldval is absolute and we update
 		 * it to be relative, *newval argument is relative and we update

@@ -291,7 +291,7 @@ size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const cha
 {
 	int idx = val - sa->offset;
 
-	if (idx < 0 || idx >= sa->nr_entries)
+	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL)
 		return scnprintf(bf, size, intfmt, val);
 
 	return scnprintf(bf, size, "%s", sa->entries[idx]);
@@ -761,10 +761,12 @@ static struct syscall_fmt {
 	  .arg = { [0] = STRARRAY(resource, rlimit_resources), }, },
 	{ .name	    = "socket",
 	  .arg = { [0] = STRARRAY(family, socket_families),
-		   [1] = { .scnprintf = SCA_SK_TYPE, /* type */ }, }, },
+		   [1] = { .scnprintf = SCA_SK_TYPE, /* type */ },
+		   [2] = { .scnprintf = SCA_SK_PROTO, /* protocol */ }, }, },
 	{ .name	    = "socketpair",
 	  .arg = { [0] = STRARRAY(family, socket_families),
-		   [1] = { .scnprintf = SCA_SK_TYPE, /* type */ }, }, },
+		   [1] = { .scnprintf = SCA_SK_TYPE, /* type */ },
+		   [2] = { .scnprintf = SCA_SK_PROTO, /* protocol */ }, }, },
 	{ .name	    = "stat", .alias = "newstat", },
 	{ .name	    = "statx",
 	  .arg = { [0] = { .scnprintf = SCA_FDAT,	 /* fdat */ },
@@ -2024,8 +2026,7 @@ static int trace__pgfault(struct trace *trace,
 	if (trace->summary_only)
 		goto out;
 
-	thread__find_addr_location(thread, sample->cpumode, MAP__FUNCTION,
-			      sample->ip, &al);
+	thread__find_symbol(thread, sample->cpumode, sample->ip, &al);
 
 	trace__fprintf_entry_head(trace, thread, 0, true, sample->time, trace->output);
 
@@ -2037,12 +2038,10 @@ static int trace__pgfault(struct trace *trace,
 
 	fprintf(trace->output, "] => ");
 
-	thread__find_addr_location(thread, sample->cpumode, MAP__VARIABLE,
-				   sample->addr, &al);
+	thread__find_symbol(thread, sample->cpumode, sample->addr, &al);
 
 	if (!al.map) {
-		thread__find_addr_location(thread, sample->cpumode,
-					   MAP__FUNCTION, sample->addr, &al);
+		thread__find_symbol(thread, sample->cpumode, sample->addr, &al);
 
 		if (al.map)
 			map_type = 'x';
@@ -2494,7 +2493,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	 * to override an explicitely set --max-stack global setting.
 	 */
 	evlist__for_each_entry(evlist, evsel) {
-		if ((evsel->attr.sample_type & PERF_SAMPLE_CALLCHAIN) &&
+		if (evsel__has_callchain(evsel) &&
 		    evsel->attr.sample_max_stack == 0)
 			evsel->attr.sample_max_stack = trace->max_stack;
 	}
@@ -2993,6 +2992,7 @@ static int trace__parse_events_option(const struct option *opt, const char *str,
 
 		if (trace__validate_ev_qualifier(trace))
 			goto out;
+		trace->trace_syscalls = true;
 	}
 
 	err = 0;
@@ -3048,7 +3048,7 @@ int cmd_trace(int argc, const char **argv)
 		},
 		.output = stderr,
 		.show_comm = true,
-		.trace_syscalls = true,
+		.trace_syscalls = false,
 		.kernel_syscallchains = false,
 		.max_stack = UINT_MAX,
 	};
@@ -3165,7 +3165,7 @@ int cmd_trace(int argc, const char **argv)
 		mmap_pages_user_set = false;
 
 	if (trace.max_stack == UINT_MAX) {
-		trace.max_stack = input_name ? PERF_MAX_STACK_DEPTH : sysctl_perf_event_max_stack;
+		trace.max_stack = input_name ? PERF_MAX_STACK_DEPTH : sysctl__max_stack();
 		max_stack_user_set = false;
 	}
 
@@ -3194,13 +3194,7 @@ int cmd_trace(int argc, const char **argv)
 
 	if (!trace.trace_syscalls && !trace.trace_pgfaults &&
 	    trace.evlist->nr_entries == 0 /* Was --events used? */) {
-		pr_err("Please specify something to trace.\n");
-		return -1;
-	}
-
-	if (!trace.trace_syscalls && trace.ev_qualifier) {
-		pr_err("The -e option can't be used with --no-syscalls.\n");
-		goto out;
+		trace.trace_syscalls = true;
 	}
 
 	if (output_name != NULL) {

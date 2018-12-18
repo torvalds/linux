@@ -742,7 +742,7 @@ static int __init coretemp_init(void)
 		return -ENODEV;
 
 	max_packages = topology_max_packages();
-	pkg_devices = kzalloc(max_packages * sizeof(struct platform_device *),
+	pkg_devices = kcalloc(max_packages, sizeof(struct platform_device *),
 			      GFP_KERNEL);
 	if (!pkg_devices)
 		return -ENOMEM;

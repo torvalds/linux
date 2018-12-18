@@ -721,7 +721,7 @@ config KEYBOARD_CROS_EC
 	help
 	  Say Y here to enable the matrix keyboard used by ChromeOS devices
 	  and implemented on the ChromeOS EC. You must enable one bus option
-	  (MFD_CROS_EC_I2C or MFD_CROS_EC_SPI) to use this.
+	  (CROS_EC_I2C or CROS_EC_SPI) to use this.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_keyb.
@@ -746,5 +746,14 @@ config KEYBOARD_BCM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm-keypad.
+
+config KEYBOARD_MTK_PMIC
+	tristate "MediaTek PMIC keys support"
+	depends on MFD_MT6397
+	help
+	  Say Y here if you want to use the pmic keys (powerkey/homekey).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic-keys.
 
 endif

@@ -212,6 +212,24 @@ probably use drm_fb_helper_fbdev_teardown().
 
 Contact: Maintainer of the driver you plan to convert
 
+Clean up mmap forwarding
+------------------------
+
+A lot of drivers forward gem mmap calls to dma-buf mmap for imported buffers.
+And also a lot of them forward dma-buf mmap to the gem mmap implementations.
+Would be great to refactor this all into a set of small common helpers.
+
+Contact: Daniel Vetter
+
+Put a reservation_object into drm_gem_object
+--------------------------------------------
+
+This would remove the need for the ->gem_prime_res_obj callback. It would also
+allow us to implement generic helpers for waiting for a bo, allowing for quite a
+bit of refactoring in the various wait ioctl implementations.
+
+Contact: Daniel Vetter
+
 idr_init_base()
 ---------------
 

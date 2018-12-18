@@ -9,6 +9,8 @@
 #ifndef ASM_KVM_BOOKE_HV_ASM_H
 #define ASM_KVM_BOOKE_HV_ASM_H
 
+#include <asm/feature-fixups.h>
+
 #ifdef __ASSEMBLY__
 
 /*

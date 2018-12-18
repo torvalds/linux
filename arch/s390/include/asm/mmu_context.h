@@ -30,8 +30,9 @@ static inline int init_new_context(struct task_struct *tsk,
 		test_thread_flag(TIF_PGSTE) ||
 		(current->mm && current->mm->context.alloc_pgste);
 	mm->context.has_pgste = 0;
-	mm->context.use_skey = 0;
+	mm->context.uses_skeys = 0;
 	mm->context.uses_cmm = 0;
+	mm->context.allow_gmap_hpage_1m = 0;
 #endif
 	switch (mm->context.asce_limit) {
 	case _REGION2_SIZE:

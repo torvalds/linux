@@ -16,7 +16,6 @@
 #include <linux/init.h>
 
 #include <linux/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 
 static int

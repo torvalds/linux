@@ -541,7 +541,9 @@ static int ufs_read_cylinder_structures(struct super_block *sb)
 	 * Read cylinder group (we read only first fragment from block
 	 * at this time) and prepare internal data structures for cg caching.
 	 */
-	if (!(sbi->s_ucg = kmalloc (sizeof(struct buffer_head *) * uspi->s_ncg, GFP_NOFS)))
+	sbi->s_ucg = kmalloc_array(uspi->s_ncg, sizeof(struct buffer_head *),
+				   GFP_NOFS);
+	if (!sbi->s_ucg)
 		goto failed;
 	for (i = 0; i < uspi->s_ncg; i++) 
 		sbi->s_ucg[i] = NULL;
@@ -696,7 +698,7 @@ static int ufs_sync_fs(struct super_block *sb, int wait)
 	usb1 = ubh_get_usb_first(uspi);
 	usb3 = ubh_get_usb_third(uspi);
 
-	usb1->fs_time = cpu_to_fs32(sb, get_seconds());
+	usb1->fs_time = ufs_get_seconds(sb);
 	if ((flags & UFS_ST_MASK) == UFS_ST_SUN  ||
 	    (flags & UFS_ST_MASK) == UFS_ST_SUNOS ||
 	    (flags & UFS_ST_MASK) == UFS_ST_SUNx86)
@@ -1340,7 +1342,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	 */
 	if (*mount_flags & SB_RDONLY) {
 		ufs_put_super_internal(sb);
-		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
+		usb1->fs_time = ufs_get_seconds(sb);
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNOS
 		  || (flags & UFS_ST_MASK) == UFS_ST_SUNx86) 

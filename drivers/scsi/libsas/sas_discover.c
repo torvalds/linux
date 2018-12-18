@@ -314,7 +314,10 @@ void sas_free_device(struct kref *kref)
 		kfree(dev->ex_dev.ex_phy);
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
+		ata_sas_tport_delete(dev->sata_dev.ap);
 		ata_sas_port_destroy(dev->sata_dev.ap);
+		ata_host_put(dev->sata_dev.ata_host);
+		dev->sata_dev.ata_host = NULL;
 		dev->sata_dev.ap = NULL;
 	}
 

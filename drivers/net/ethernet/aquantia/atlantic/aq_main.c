@@ -135,17 +135,10 @@ err_exit:
 static void aq_ndev_set_multicast_settings(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
-	int err = 0;
 
-	err = aq_nic_set_packet_filter(aq_nic, ndev->flags);
-	if (err < 0)
-		return;
+	aq_nic_set_packet_filter(aq_nic, ndev->flags);
 
-	if (netdev_mc_count(ndev)) {
-		err = aq_nic_set_multicast_list(aq_nic, ndev);
-		if (err < 0)
-			return;
-	}
+	aq_nic_set_multicast_list(aq_nic, ndev);
 }
 
 static const struct net_device_ops aq_ndev_ops = {

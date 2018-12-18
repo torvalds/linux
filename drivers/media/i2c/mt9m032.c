@@ -793,6 +793,7 @@ static int mt9m032_probe(struct i2c_client *client,
 	v4l2_ctrl_cluster(2, &sensor->hflip);
 
 	sensor->subdev.ctrl_handler = &sensor->ctrls;
+	sensor->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&sensor->subdev.entity, 1, &sensor->pad);
 	if (ret < 0)

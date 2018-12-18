@@ -1,4 +1,4 @@
-
+/* SPDX-License-Identifier: GPL-2.0 */
 /**
  * xhci-dbgcap.h - xHCI debug capability support
  *

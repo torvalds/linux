@@ -237,6 +237,7 @@ struct net_bridge_port {
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	struct net_bridge_vlan_group	__rcu *vlgrp;
 #endif
+	struct net_bridge_port		__rcu *backup_port;
 
 	/* STP */
 	u8				priority;
@@ -281,7 +282,10 @@ struct net_bridge_port {
 	int				offload_fwd_mark;
 #endif
 	u16				group_fwd_mask;
+	u16				backup_redirected_cnt;
 };
+
+#define kobj_to_brport(obj)	container_of(obj, struct net_bridge_port, kobj)
 
 #define br_auto_port(p) ((p)->flags & BR_AUTO_MASK)
 #define br_promisc_port(p) ((p)->flags & BR_PROMISC)
@@ -423,6 +427,7 @@ struct br_input_skb_cb {
 #endif
 
 	bool proxyarp_replied;
+	bool src_port_isolated;
 
 #ifdef CONFIG_BRIDGE_VLAN_FILTERING
 	bool vlan_filtered;
@@ -553,9 +558,11 @@ int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
 int br_fdb_sync_static(struct net_bridge *br, struct net_bridge_port *p);
 void br_fdb_unsync_static(struct net_bridge *br, struct net_bridge_port *p);
 int br_fdb_external_learn_add(struct net_bridge *br, struct net_bridge_port *p,
-			      const unsigned char *addr, u16 vid);
+			      const unsigned char *addr, u16 vid,
+			      bool swdev_notify);
 int br_fdb_external_learn_del(struct net_bridge *br, struct net_bridge_port *p,
-			      const unsigned char *addr, u16 vid);
+			      const unsigned char *addr, u16 vid,
+			      bool swdev_notify);
 void br_fdb_offloaded_set(struct net_bridge *br, struct net_bridge_port *p,
 			  const unsigned char *addr, u16 vid);
 
@@ -572,8 +579,16 @@ int br_forward_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
 void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	      enum br_pkt_type pkt_type, bool local_rcv, bool local_orig);
 
+/* return true if both source port and dest port are isolated */
+static inline bool br_skb_isolated(const struct net_bridge_port *to,
+				   const struct sk_buff *skb)
+{
+	return BR_INPUT_SKB_CB(skb)->src_port_isolated &&
+	       (to->flags & BR_ISOLATED);
+}
+
 /* br_if.c */
-void br_port_carrier_check(struct net_bridge_port *p);
+void br_port_carrier_check(struct net_bridge_port *p, bool *notified);
 int br_add_bridge(struct net *net, const char *name);
 int br_del_bridge(struct net *net, const char *name);
 int br_add_if(struct net_bridge *br, struct net_device *dev,
@@ -584,6 +599,7 @@ netdev_features_t br_features_recompute(struct net_bridge *br,
 					netdev_features_t features);
 void br_port_flags_change(struct net_bridge_port *port, unsigned long mask);
 void br_manage_promisc(struct net_bridge *br);
+int nbp_backup_change(struct net_bridge_port *p, struct net_device *backup_dev);
 
 /* br_input.c */
 int br_handle_frame_finish(struct net *net, struct sock *sk, struct sk_buff *skb);
@@ -594,9 +610,20 @@ static inline bool br_rx_handler_check_rcu(const struct net_device *dev)
 	return rcu_dereference(dev->rx_handler) == br_handle_frame;
 }
 
+static inline bool br_rx_handler_check_rtnl(const struct net_device *dev)
+{
+	return rcu_dereference_rtnl(dev->rx_handler) == br_handle_frame;
+}
+
 static inline struct net_bridge_port *br_port_get_check_rcu(const struct net_device *dev)
 {
 	return br_rx_handler_check_rcu(dev) ? br_port_get_rcu(dev) : NULL;
+}
+
+static inline struct net_bridge_port *
+br_port_get_check_rtnl(const struct net_device *dev)
+{
+	return br_rx_handler_check_rtnl(dev) ? br_port_get_rtnl_rcu(dev) : NULL;
 }
 
 /* br_ioctl.c */
@@ -1117,6 +1144,8 @@ int br_switchdev_set_port_flag(struct net_bridge_port *p,
 			       unsigned long mask);
 void br_switchdev_fdb_notify(const struct net_bridge_fdb_entry *fdb,
 			     int type);
+int br_switchdev_port_vlan_add(struct net_device *dev, u16 vid, u16 flags);
+int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid);
 
 static inline void br_switchdev_frame_unmark(struct sk_buff *skb)
 {
@@ -1144,6 +1173,17 @@ static inline int br_switchdev_set_port_flag(struct net_bridge_port *p,
 					     unsigned long mask)
 {
 	return 0;
+}
+
+static inline int br_switchdev_port_vlan_add(struct net_device *dev,
+					     u16 vid, u16 flags)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int br_switchdev_port_vlan_del(struct net_device *dev, u16 vid)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline void

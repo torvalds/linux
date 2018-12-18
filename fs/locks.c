@@ -202,10 +202,6 @@ static DEFINE_HASHTABLE(blocked_hash, BLOCKED_HASH_BITS);
  * we often hold the flc_lock as well. In certain cases, when reading the fields
  * protected by this lock, we can skip acquiring it iff we already hold the
  * flc_lock.
- *
- * In particular, adding an entry to the fl_block list requires that you hold
- * both the flc_lock and the blocked_lock_lock (acquired in that order).
- * Deleting an entry from the list however only requires the file_lock_lock.
  */
 static DEFINE_SPINLOCK(blocked_lock_lock);
 
@@ -990,6 +986,7 @@ out:
 	if (new_fl)
 		locks_free_lock(new_fl);
 	locks_dispose_list(&dispose);
+	trace_flock_lock_inode(inode, request, error);
 	return error;
 }
 
@@ -1562,7 +1559,7 @@ EXPORT_SYMBOL(__break_lease);
  * exclusive leases.  The justification is that if someone has an
  * exclusive lease, then they could be modifying it.
  */
-void lease_get_mtime(struct inode *inode, struct timespec *time)
+void lease_get_mtime(struct inode *inode, struct timespec64 *time)
 {
 	bool has_lease = false;
 	struct file_lock_context *ctx;
@@ -2072,6 +2069,13 @@ static pid_t locks_translate_pid(struct file_lock *fl, struct pid_namespace *ns)
 		return -1;
 	if (IS_REMOTELCK(fl))
 		return fl->fl_pid;
+	/*
+	 * If the flock owner process is dead and its pid has been already
+	 * freed, the translation below won't work, but we still want to show
+	 * flock owner pid number in init pidns.
+	 */
+	if (ns == &init_pid_ns)
+		return (pid_t)fl->fl_pid;
 
 	rcu_read_lock();
 	pid = find_pid_ns(fl->fl_pid, &init_pid_ns);
@@ -2626,12 +2630,10 @@ static void lock_get_status(struct seq_file *f, struct file_lock *fl,
 
 	fl_pid = locks_translate_pid(fl, proc_pidns);
 	/*
-	 * If there isn't a fl_pid don't display who is waiting on
-	 * the lock if we are called from locks_show, or if we are
-	 * called from __show_fd_info - skip lock entirely
+	 * If lock owner is dead (and pid is freed) or not visible in current
+	 * pidns, zero is shown as a pid value. Check lock info from
+	 * init_pid_ns to get saved lock pid value.
 	 */
-	if (fl_pid == 0)
-		return;
 
 	if (fl->fl_file != NULL)
 		inode = locks_inode(fl->fl_file);
@@ -2788,22 +2790,10 @@ static const struct seq_operations locks_seq_operations = {
 	.show	= locks_show,
 };
 
-static int locks_open(struct inode *inode, struct file *filp)
-{
-	return seq_open_private(filp, &locks_seq_operations,
-					sizeof(struct locks_iterator));
-}
-
-static const struct file_operations proc_locks_operations = {
-	.open		= locks_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_private,
-};
-
 static int __init proc_locks_init(void)
 {
-	proc_create("locks", 0, NULL, &proc_locks_operations);
+	proc_create_seq_private("locks", 0, NULL, &locks_seq_operations,
+			sizeof(struct locks_iterator), NULL);
 	return 0;
 }
 fs_initcall(proc_locks_init);

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #include <linux/spinlock.h>
@@ -180,31 +169,30 @@ int etnaviv_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 	return obj->ops->mmap(obj, vma);
 }
 
-int etnaviv_gem_fault(struct vm_fault *vmf)
+vm_fault_t etnaviv_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct etnaviv_gem_object *etnaviv_obj = to_etnaviv_bo(obj);
 	struct page **pages, *page;
 	pgoff_t pgoff;
-	int ret;
+	int err;
 
 	/*
 	 * Make sure we don't parallel update on a fault, nor move or remove
-	 * something from beneath our feet.  Note that vm_insert_page() is
+	 * something from beneath our feet.  Note that vmf_insert_page() is
 	 * specifically coded to take care of this, so we don't have to.
 	 */
-	ret = mutex_lock_interruptible(&etnaviv_obj->lock);
-	if (ret)
-		goto out;
-
+	err = mutex_lock_interruptible(&etnaviv_obj->lock);
+	if (err)
+		return VM_FAULT_NOPAGE;
 	/* make sure we have pages attached now */
 	pages = etnaviv_gem_get_pages(etnaviv_obj);
 	mutex_unlock(&etnaviv_obj->lock);
 
 	if (IS_ERR(pages)) {
-		ret = PTR_ERR(pages);
-		goto out;
+		err = PTR_ERR(pages);
+		return vmf_error(err);
 	}
 
 	/* We don't use vmf->pgoff since that has the fake offset: */
@@ -215,25 +203,7 @@ int etnaviv_gem_fault(struct vm_fault *vmf)
 	VERB("Inserting %p pfn %lx, pa %lx", (void *)vmf->address,
 	     page_to_pfn(page), page_to_pfn(page) << PAGE_SHIFT);
 
-	ret = vm_insert_page(vma, vmf->address, page);
-
-out:
-	switch (ret) {
-	case -EAGAIN:
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-	case -EBUSY:
-		/*
-		 * EBUSY is ok: this just means that another thread
-		 * already did the job.
-		 */
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return vmf_insert_page(vma, vmf->address, page);
 }
 
 int etnaviv_gem_mmap_offset(struct drm_gem_object *obj, u64 *offset)

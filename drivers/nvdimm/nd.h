@@ -396,16 +396,15 @@ static inline bool nd_iostat_start(struct bio *bio, unsigned long *start)
 		return false;
 
 	*start = jiffies;
-	generic_start_io_acct(disk->queue, bio_data_dir(bio),
-			      bio_sectors(bio), &disk->part0);
+	generic_start_io_acct(disk->queue, bio_op(bio), bio_sectors(bio),
+			      &disk->part0);
 	return true;
 }
 static inline void nd_iostat_end(struct bio *bio, unsigned long start)
 {
 	struct gendisk *disk = bio->bi_disk;
 
-	generic_end_io_acct(disk->queue, bio_data_dir(bio), &disk->part0,
-				start);
+	generic_end_io_acct(disk->queue, bio_op(bio), &disk->part0, start);
 }
 static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 		unsigned int len)

@@ -57,7 +57,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 		return -EINVAL;
 
 	/* Allocate memory windows and IRQs arrays. */
-	windows = devm_kzalloc(pfc->dev, num_windows * sizeof(*windows),
+	windows = devm_kcalloc(pfc->dev, num_windows, sizeof(*windows),
 			       GFP_KERNEL);
 	if (windows == NULL)
 		return -ENOMEM;
@@ -66,7 +66,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 	pfc->windows = windows;
 
 	if (num_irqs) {
-		irqs = devm_kzalloc(pfc->dev, num_irqs * sizeof(*irqs),
+		irqs = devm_kcalloc(pfc->dev, num_irqs, sizeof(*irqs),
 				    GFP_KERNEL);
 		if (irqs == NULL)
 			return -ENOMEM;
@@ -444,7 +444,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	}
 
 	pfc->nr_ranges = nr_ranges;
-	pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges) * nr_ranges,
+	pfc->ranges = devm_kcalloc(pfc->dev, nr_ranges, sizeof(*pfc->ranges),
 				   GFP_KERNEL);
 	if (pfc->ranges == NULL)
 		return -ENOMEM;
@@ -501,6 +501,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 	{
 		.compatible = "renesas,pfc-r8a7745",
 		.data = &r8a7745_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77470
+	{
+		.compatible = "renesas,pfc-r8a77470",
+		.data = &r8a77470_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7778
@@ -573,6 +579,12 @@ static const struct of_device_id sh_pfc_of_table[] = {
 	{
 		.compatible = "renesas,pfc-r8a77980",
 		.data = &r8a77980_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77990
+	{
+		.compatible = "renesas,pfc-r8a77990",
+		.data = &r8a77990_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77995

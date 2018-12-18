@@ -612,7 +612,7 @@ static int ovl_get_index_name_fh(struct ovl_fh *fh, struct qstr *name)
 {
 	char *n, *s;
 
-	n = kzalloc(fh->len * 2, GFP_KERNEL);
+	n = kcalloc(fh->len, 2, GFP_KERNEL);
 	if (!n)
 		return -ENOMEM;
 
@@ -1004,8 +1004,14 @@ struct dentry *ovl_lookup(struct inode *dir, struct dentry *dentry,
 		upperdentry = dget(index);
 
 	if (upperdentry || ctr) {
-		inode = ovl_get_inode(dentry->d_sb, upperdentry, stack, index,
-				      ctr);
+		struct ovl_inode_params oip = {
+			.upperdentry = upperdentry,
+			.lowerpath = stack,
+			.index = index,
+			.numlower = ctr,
+		};
+
+		inode = ovl_get_inode(dentry->d_sb, &oip);
 		err = PTR_ERR(inode);
 		if (IS_ERR(inode))
 			goto out_free_oe;

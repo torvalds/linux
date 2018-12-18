@@ -36,6 +36,19 @@ config NFP_APP_FLOWER
 	  either directly, with Open vSwitch, or any other way.  Note that
 	  TC Flower offload requires specific FW to work.
 
+config NFP_APP_ABM_NIC
+	bool "NFP4000/NFP6000 Advanced buffer management NIC support"
+	depends on NFP
+	depends on NET_SWITCHDEV
+	default y
+	help
+	  Enable driver support for Advanced buffer management NIC on NFP.
+	  ABM NIC allows advanced configuration of queuing and scheduling
+	  of packets, including ECN marking. Say Y, if you are planning to
+	  use one of the NFP4000 and NFP6000 platforms which support this
+	  functionality.
+	  Code will be built into the nfp.ko driver.
+
 config NFP_DEBUG
 	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"
 	depends on NFP

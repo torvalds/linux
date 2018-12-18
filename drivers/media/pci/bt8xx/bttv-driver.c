@@ -13,7 +13,7 @@
     (c) 2005-2006 Nickolay V. Shmyrev <nshmyrev@yandex.ru>
 
     Fixes to be fully V4L2 compliant by
-    (c) 2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+    (c) 2006 Mauro Carvalho Chehab <mchehab@kernel.org>
 
     Cropping and overscan support
     Copyright (C) 2005, 2006 Michael H. Schimek <mschimek@gmx.at>
@@ -3511,7 +3511,7 @@ static void bttv_irq_debug_low_latency(struct bttv *btv, u32 rc)
 	}
 	pr_notice("%d: Uhm. Looks like we have unusual high IRQ latencies\n",
 		  btv->c.nr);
-	pr_notice("%d: Lets try to catch the culpit red-handed ...\n",
+	pr_notice("%d: Lets try to catch the culprit red-handed ...\n",
 		  btv->c.nr);
 	dump_stack();
 }

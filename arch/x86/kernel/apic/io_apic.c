@@ -33,6 +33,7 @@
 
 #include <linux/mm.h>
 #include <linux/interrupt.h>
+#include <linux/irq.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -1851,7 +1852,7 @@ static void ioapic_ir_ack_level(struct irq_data *irq_data)
 	 * intr-remapping table entry. Hence for the io-apic
 	 * EOI we use the pin number.
 	 */
-	ack_APIC_irq();
+	apic_ack_irq(irq_data);
 	eoi_ioapic_pin(data->entry.vector, data);
 }
 

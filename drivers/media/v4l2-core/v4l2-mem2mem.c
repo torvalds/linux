@@ -17,9 +17,11 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
+#include <media/media-device.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 
@@ -50,9 +52,38 @@ module_param(debug, bool, 0644);
  * offsets but for different queues */
 #define DST_QUEUE_OFF_BASE	(1 << 30)
 
+enum v4l2_m2m_entity_type {
+	MEM2MEM_ENT_TYPE_SOURCE,
+	MEM2MEM_ENT_TYPE_SINK,
+	MEM2MEM_ENT_TYPE_PROC
+};
+
+static const char * const m2m_entity_name[] = {
+	"source",
+	"sink",
+	"proc"
+};
 
 /**
  * struct v4l2_m2m_dev - per-device context
+ * @source:		&struct media_entity pointer with the source entity
+ *			Used only when the M2M device is registered via
+ *			v4l2_m2m_unregister_media_controller().
+ * @source_pad:		&struct media_pad with the source pad.
+ *			Used only when the M2M device is registered via
+ *			v4l2_m2m_unregister_media_controller().
+ * @sink:		&struct media_entity pointer with the sink entity
+ *			Used only when the M2M device is registered via
+ *			v4l2_m2m_unregister_media_controller().
+ * @sink_pad:		&struct media_pad with the sink pad.
+ *			Used only when the M2M device is registered via
+ *			v4l2_m2m_unregister_media_controller().
+ * @proc:		&struct media_entity pointer with the M2M device itself.
+ * @proc_pads:		&struct media_pad with the @proc pads.
+ *			Used only when the M2M device is registered via
+ *			v4l2_m2m_unregister_media_controller().
+ * @intf_devnode:	&struct media_intf devnode pointer with the interface
+ *			with controls the M2M device.
  * @curr_ctx:		currently running instance
  * @job_queue:		instances queued to run
  * @job_spinlock:	protects job_queue
@@ -60,6 +91,15 @@ module_param(debug, bool, 0644);
  */
 struct v4l2_m2m_dev {
 	struct v4l2_m2m_ctx	*curr_ctx;
+#ifdef CONFIG_MEDIA_CONTROLLER
+	struct media_entity	*source;
+	struct media_pad	source_pad;
+	struct media_entity	sink;
+	struct media_pad	sink_pad;
+	struct media_entity	proc;
+	struct media_pad	proc_pads[2];
+	struct media_intf_devnode *intf_devnode;
+#endif
 
 	struct list_head	job_queue;
 	spinlock_t		job_spinlock;
@@ -106,6 +146,24 @@ void *v4l2_m2m_next_buf(struct v4l2_m2m_queue_ctx *q_ctx)
 	return &b->vb;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_next_buf);
+
+void *v4l2_m2m_last_buf(struct v4l2_m2m_queue_ctx *q_ctx)
+{
+	struct v4l2_m2m_buffer *b;
+	unsigned long flags;
+
+	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
+
+	if (list_empty(&q_ctx->rdy_queue)) {
+		spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+		return NULL;
+	}
+
+	b = list_last_entry(&q_ctx->rdy_queue, struct v4l2_m2m_buffer, list);
+	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+	return &b->vb;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_last_buf);
 
 void *v4l2_m2m_buf_remove(struct v4l2_m2m_queue_ctx *q_ctx)
 {
@@ -209,15 +267,24 @@ static void v4l2_m2m_try_run(struct v4l2_m2m_dev *m2m_dev)
 	m2m_dev->curr_ctx->job_flags |= TRANS_RUNNING;
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
 
+	dprintk("Running job on m2m_ctx: %p\n", m2m_dev->curr_ctx);
 	m2m_dev->m2m_ops->device_run(m2m_dev->curr_ctx->priv);
 }
 
-void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
+/*
+ * __v4l2_m2m_try_queue() - queue a job
+ * @m2m_dev: m2m device
+ * @m2m_ctx: m2m context
+ *
+ * Check if this context is ready to queue a job.
+ *
+ * This function can run in interrupt context.
+ */
+static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
+				 struct v4l2_m2m_ctx *m2m_ctx)
 {
-	struct v4l2_m2m_dev *m2m_dev;
 	unsigned long flags_job, flags_out, flags_cap;
 
-	m2m_dev = m2m_ctx->m2m_dev;
 	dprintk("Trying to schedule a job for m2m_ctx: %p\n", m2m_ctx);
 
 	if (!m2m_ctx->out_q_ctx.q.streaming
@@ -275,7 +342,25 @@ void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 	m2m_ctx->job_flags |= TRANS_QUEUED;
 
 	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
+}
 
+/**
+ * v4l2_m2m_try_schedule() - schedule and possibly run a job for any context
+ * @m2m_ctx: m2m context
+ *
+ * Check if this context is ready to queue a job. If suitable,
+ * run the next queued job on the mem2mem device.
+ *
+ * This function shouldn't run in interrupt context.
+ *
+ * Note that v4l2_m2m_try_schedule() can schedule one job for this context,
+ * and then run another job for another context.
+ */
+void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
+{
+	struct v4l2_m2m_dev *m2m_dev = m2m_ctx->m2m_dev;
+
+	__v4l2_m2m_try_queue(m2m_dev, m2m_ctx);
 	v4l2_m2m_try_run(m2m_dev);
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_try_schedule);
@@ -300,7 +385,8 @@ static void v4l2_m2m_cancel_job(struct v4l2_m2m_ctx *m2m_ctx)
 	m2m_ctx->job_flags |= TRANS_ABORT;
 	if (m2m_ctx->job_flags & TRANS_RUNNING) {
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
-		m2m_dev->m2m_ops->job_abort(m2m_ctx->priv);
+		if (m2m_dev->m2m_ops->job_abort)
+			m2m_dev->m2m_ops->job_abort(m2m_ctx->priv);
 		dprintk("m2m_ctx %p running, will wait to complete", m2m_ctx);
 		wait_event(m2m_ctx->finished,
 				!(m2m_ctx->job_flags & TRANS_RUNNING));
@@ -339,7 +425,6 @@ void v4l2_m2m_job_finish(struct v4l2_m2m_dev *m2m_dev,
 	 * allow more than one job on the job_queue per instance, each has
 	 * to be scheduled separately after the previous one finishes. */
 	v4l2_m2m_try_schedule(m2m_ctx);
-	v4l2_m2m_try_run(m2m_dev);
 }
 EXPORT_SYMBOL(v4l2_m2m_job_finish);
 
@@ -595,12 +680,179 @@ int v4l2_m2m_mmap(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 }
 EXPORT_SYMBOL(v4l2_m2m_mmap);
 
+#if defined(CONFIG_MEDIA_CONTROLLER)
+void v4l2_m2m_unregister_media_controller(struct v4l2_m2m_dev *m2m_dev)
+{
+	media_remove_intf_links(&m2m_dev->intf_devnode->intf);
+	media_devnode_remove(m2m_dev->intf_devnode);
+
+	media_entity_remove_links(m2m_dev->source);
+	media_entity_remove_links(&m2m_dev->sink);
+	media_entity_remove_links(&m2m_dev->proc);
+	media_device_unregister_entity(m2m_dev->source);
+	media_device_unregister_entity(&m2m_dev->sink);
+	media_device_unregister_entity(&m2m_dev->proc);
+	kfree(m2m_dev->source->name);
+	kfree(m2m_dev->sink.name);
+	kfree(m2m_dev->proc.name);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_unregister_media_controller);
+
+static int v4l2_m2m_register_entity(struct media_device *mdev,
+	struct v4l2_m2m_dev *m2m_dev, enum v4l2_m2m_entity_type type,
+	struct video_device *vdev, int function)
+{
+	struct media_entity *entity;
+	struct media_pad *pads;
+	char *name;
+	unsigned int len;
+	int num_pads;
+	int ret;
+
+	switch (type) {
+	case MEM2MEM_ENT_TYPE_SOURCE:
+		entity = m2m_dev->source;
+		pads = &m2m_dev->source_pad;
+		pads[0].flags = MEDIA_PAD_FL_SOURCE;
+		num_pads = 1;
+		break;
+	case MEM2MEM_ENT_TYPE_SINK:
+		entity = &m2m_dev->sink;
+		pads = &m2m_dev->sink_pad;
+		pads[0].flags = MEDIA_PAD_FL_SINK;
+		num_pads = 1;
+		break;
+	case MEM2MEM_ENT_TYPE_PROC:
+		entity = &m2m_dev->proc;
+		pads = m2m_dev->proc_pads;
+		pads[0].flags = MEDIA_PAD_FL_SINK;
+		pads[1].flags = MEDIA_PAD_FL_SOURCE;
+		num_pads = 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	entity->obj_type = MEDIA_ENTITY_TYPE_BASE;
+	if (type != MEM2MEM_ENT_TYPE_PROC) {
+		entity->info.dev.major = VIDEO_MAJOR;
+		entity->info.dev.minor = vdev->minor;
+	}
+	len = strlen(vdev->name) + 2 + strlen(m2m_entity_name[type]);
+	name = kmalloc(len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+	snprintf(name, len, "%s-%s", vdev->name, m2m_entity_name[type]);
+	entity->name = name;
+	entity->function = function;
+
+	ret = media_entity_pads_init(entity, num_pads, pads);
+	if (ret)
+		return ret;
+	ret = media_device_register_entity(mdev, entity);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int v4l2_m2m_register_media_controller(struct v4l2_m2m_dev *m2m_dev,
+		struct video_device *vdev, int function)
+{
+	struct media_device *mdev = vdev->v4l2_dev->mdev;
+	struct media_link *link;
+	int ret;
+
+	if (!mdev)
+		return 0;
+
+	/* A memory-to-memory device consists in two
+	 * DMA engine and one video processing entities.
+	 * The DMA engine entities are linked to a V4L interface
+	 */
+
+	/* Create the three entities with their pads */
+	m2m_dev->source = &vdev->entity;
+	ret = v4l2_m2m_register_entity(mdev, m2m_dev,
+			MEM2MEM_ENT_TYPE_SOURCE, vdev, MEDIA_ENT_F_IO_V4L);
+	if (ret)
+		return ret;
+	ret = v4l2_m2m_register_entity(mdev, m2m_dev,
+			MEM2MEM_ENT_TYPE_PROC, vdev, function);
+	if (ret)
+		goto err_rel_entity0;
+	ret = v4l2_m2m_register_entity(mdev, m2m_dev,
+			MEM2MEM_ENT_TYPE_SINK, vdev, MEDIA_ENT_F_IO_V4L);
+	if (ret)
+		goto err_rel_entity1;
+
+	/* Connect the three entities */
+	ret = media_create_pad_link(m2m_dev->source, 0, &m2m_dev->proc, 1,
+			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
+	if (ret)
+		goto err_rel_entity2;
+
+	ret = media_create_pad_link(&m2m_dev->proc, 0, &m2m_dev->sink, 0,
+			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
+	if (ret)
+		goto err_rm_links0;
+
+	/* Create video interface */
+	m2m_dev->intf_devnode = media_devnode_create(mdev,
+			MEDIA_INTF_T_V4L_VIDEO, 0,
+			VIDEO_MAJOR, vdev->minor);
+	if (!m2m_dev->intf_devnode) {
+		ret = -ENOMEM;
+		goto err_rm_links1;
+	}
+
+	/* Connect the two DMA engines to the interface */
+	link = media_create_intf_link(m2m_dev->source,
+			&m2m_dev->intf_devnode->intf,
+			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
+	if (!link) {
+		ret = -ENOMEM;
+		goto err_rm_devnode;
+	}
+
+	link = media_create_intf_link(&m2m_dev->sink,
+			&m2m_dev->intf_devnode->intf,
+			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
+	if (!link) {
+		ret = -ENOMEM;
+		goto err_rm_intf_link;
+	}
+	return 0;
+
+err_rm_intf_link:
+	media_remove_intf_links(&m2m_dev->intf_devnode->intf);
+err_rm_devnode:
+	media_devnode_remove(m2m_dev->intf_devnode);
+err_rm_links1:
+	media_entity_remove_links(&m2m_dev->sink);
+err_rm_links0:
+	media_entity_remove_links(&m2m_dev->proc);
+	media_entity_remove_links(m2m_dev->source);
+err_rel_entity2:
+	media_device_unregister_entity(&m2m_dev->proc);
+	kfree(m2m_dev->proc.name);
+err_rel_entity1:
+	media_device_unregister_entity(&m2m_dev->sink);
+	kfree(m2m_dev->sink.name);
+err_rel_entity0:
+	media_device_unregister_entity(m2m_dev->source);
+	kfree(m2m_dev->source->name);
+	return ret;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_register_media_controller);
+#endif
+
 struct v4l2_m2m_dev *v4l2_m2m_init(const struct v4l2_m2m_ops *m2m_ops)
 {
 	struct v4l2_m2m_dev *m2m_dev;
 
-	if (!m2m_ops || WARN_ON(!m2m_ops->device_run) ||
-			WARN_ON(!m2m_ops->job_abort))
+	if (!m2m_ops || WARN_ON(!m2m_ops->device_run))
 		return ERR_PTR(-EINVAL);
 
 	m2m_dev = kzalloc(sizeof *m2m_dev, GFP_KERNEL);

@@ -199,11 +199,16 @@ static const struct file_operations debug_ops = {
 	.release	= single_release
 };
 
-int __init closure_debug_init(void)
+void  __init closure_debug_init(void)
 {
-	closure_debug = debugfs_create_file("closures",
-				0400, bcache_debug, NULL, &debug_ops);
-	return IS_ERR_OR_NULL(closure_debug);
+	if (!IS_ERR_OR_NULL(bcache_debug))
+		/*
+		 * it is unnecessary to check return value of
+		 * debugfs_create_file(), we should not care
+		 * about this.
+		 */
+		closure_debug = debugfs_create_file(
+			"closures", 0400, bcache_debug, NULL, &debug_ops);
 }
 #endif
 

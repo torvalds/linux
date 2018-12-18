@@ -58,6 +58,14 @@ struct rcu_dynticks {
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 };
 
+/* Communicate arguments to a workqueue handler. */
+struct rcu_exp_work {
+	smp_call_func_t rew_func;
+	struct rcu_state *rew_rsp;
+	unsigned long rew_s;
+	struct work_struct rew_work;
+};
+
 /* RCU's kthread states for tracing. */
 #define RCU_KTHREAD_STOPPED  0
 #define RCU_KTHREAD_RUNNING  1
@@ -73,18 +81,16 @@ struct rcu_node {
 	raw_spinlock_t __private lock;	/* Root rcu_node's lock protects */
 					/*  some rcu_state fields as well as */
 					/*  following. */
-	unsigned long gpnum;	/* Current grace period for this node. */
-				/*  This will either be equal to or one */
-				/*  behind the root rcu_node's gpnum. */
-	unsigned long completed; /* Last GP completed for this node. */
-				/*  This will either be equal to or one */
-				/*  behind the root rcu_node's gpnum. */
+	unsigned long gp_seq;	/* Track rsp->rcu_gp_seq. */
+	unsigned long gp_seq_needed; /* Track rsp->rcu_gp_seq_needed. */
+	unsigned long completedqs; /* All QSes done for this node. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
 				/*  order for current grace period to proceed.*/
 				/*  In leaf rcu_node, each bit corresponds to */
 				/*  an rcu_data structure, otherwise, each */
 				/*  bit corresponds to a child rcu_node */
 				/*  structure. */
+	unsigned long rcu_gp_init_mask;	/* Mask of offline CPUs at GP init. */
 	unsigned long qsmaskinit;
 				/* Per-GP initial value for qsmask. */
 				/*  Initialized from ->qsmaskinitnext at the */
@@ -150,13 +156,13 @@ struct rcu_node {
 	struct swait_queue_head nocb_gp_wq[2];
 				/* Place for rcu_nocb_kthread() to wait GP. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
-	int need_future_gp[2];
-				/* Counts of upcoming no-CB GP requests. */
 	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
 
 	spinlock_t exp_lock ____cacheline_internodealigned_in_smp;
 	unsigned long exp_seq_rq;
 	wait_queue_head_t exp_wq[4];
+	struct rcu_exp_work rew;
+	bool exp_need_flush;	/* Need to flush workitem? */
 } ____cacheline_internodealigned_in_smp;
 
 /*
@@ -181,16 +187,14 @@ union rcu_noqs {
 /* Per-CPU data for read-copy update. */
 struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
-	unsigned long	completed;	/* Track rsp->completed gp number */
-					/*  in order to detect GP end. */
-	unsigned long	gpnum;		/* Highest gp number that this CPU */
-					/*  is aware of having started. */
+	unsigned long	gp_seq;		/* Track rsp->rcu_gp_seq counter. */
+	unsigned long	gp_seq_needed;	/* Track rsp->rcu_gp_seq_needed ctr. */
 	unsigned long	rcu_qs_ctr_snap;/* Snapshot of rcu_qs_ctr to check */
 					/*  for rcu_all_qs() invocations. */
 	union rcu_noqs	cpu_no_qs;	/* No QSes yet for this CPU. */
 	bool		core_needs_qs;	/* Core waits for quiesc state. */
 	bool		beenonline;	/* CPU online at least once. */
-	bool		gpwrap;		/* Possible gpnum/completed wrap. */
+	bool		gpwrap;		/* Possible ->gp_seq wrap. */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
 	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
@@ -214,7 +218,6 @@ struct rcu_data {
 
 	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
 	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
-	unsigned long offline_fqs;	/* Kicked due to being offline. */
 	unsigned long cond_resched_completed;
 					/* Grace period that needs help */
 					/*  from cond_resched(). */
@@ -224,10 +227,6 @@ struct rcu_data {
 #ifdef CONFIG_RCU_FAST_NO_HZ
 	struct rcu_head oom_head;
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
-	atomic_long_t exp_workdone0;	/* # done by workqueue. */
-	atomic_long_t exp_workdone1;	/* # done by others #1. */
-	atomic_long_t exp_workdone2;	/* # done by others #2. */
-	atomic_long_t exp_workdone3;	/* # done by others #3. */
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
 	/* 6) Callback offloading. */
@@ -257,12 +256,16 @@ struct rcu_data {
 					/* Leader CPU takes GP-end wakeups. */
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
-	/* 7) RCU CPU stall data. */
+	/* 7) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
 	/* ->rcu_iw* fields protected by leaf rcu_node ->lock. */
 	struct irq_work rcu_iw;		/* Check for non-irq activity. */
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
-	unsigned long rcu_iw_gpnum;	/* ->gpnum associated with ->rcu_iw. */
+	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
+	unsigned long rcu_ofl_gp_seq;	/* ->gp_seq at last offline. */
+	short rcu_ofl_gp_flags;		/* ->gp_flags at last offline. */
+	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
+	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
 
 	int cpu;
 	struct rcu_state *rsp;
@@ -319,8 +322,7 @@ struct rcu_state {
 
 	u8	boost ____cacheline_internodealigned_in_smp;
 						/* Subject to priority boost. */
-	unsigned long gpnum;			/* Current gp number. */
-	unsigned long completed;		/* # of last completed gp. */
+	unsigned long gp_seq;			/* Grace-period sequence #. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
 	struct swait_queue_head gp_wq;		/* Where GP task waits. */
 	short gp_flags;				/* Commands for GP task. */
@@ -352,6 +354,8 @@ struct rcu_state {
 						/*  but in jiffies. */
 	unsigned long gp_activity;		/* Time of last GP kthread */
 						/*  activity in jiffies. */
+	unsigned long gp_req_activity;		/* Time of last GP request */
+						/*  in jiffies. */
 	unsigned long jiffies_stall;		/* Time at which to check */
 						/*  for CPU stalls. */
 	unsigned long jiffies_resched;		/* Time at which to resched */
@@ -363,6 +367,10 @@ struct rcu_state {
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
 	struct list_head flavors;		/* List of RCU flavors. */
+
+	spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
+						/* Synchronize offline with */
+						/*  GP pre-initialization. */
 };
 
 /* Values for rcu_state structure's gp_flags field. */
@@ -373,16 +381,20 @@ struct rcu_state {
 #define RCU_GP_IDLE	 0	/* Initial state and no GP in progress. */
 #define RCU_GP_WAIT_GPS  1	/* Wait for grace-period start. */
 #define RCU_GP_DONE_GPS  2	/* Wait done for grace-period start. */
-#define RCU_GP_WAIT_FQS  3	/* Wait for force-quiescent-state time. */
-#define RCU_GP_DOING_FQS 4	/* Wait done for force-quiescent-state time. */
-#define RCU_GP_CLEANUP   5	/* Grace-period cleanup started. */
-#define RCU_GP_CLEANED   6	/* Grace-period cleanup complete. */
+#define RCU_GP_ONOFF     3	/* Grace-period initialization hotplug. */
+#define RCU_GP_INIT      4	/* Grace-period initialization. */
+#define RCU_GP_WAIT_FQS  5	/* Wait for force-quiescent-state time. */
+#define RCU_GP_DOING_FQS 6	/* Wait done for force-quiescent-state time. */
+#define RCU_GP_CLEANUP   7	/* Grace-period cleanup started. */
+#define RCU_GP_CLEANED   8	/* Grace-period cleanup complete. */
 
 #ifndef RCU_TREE_NONCORE
 static const char * const gp_state_names[] = {
 	"RCU_GP_IDLE",
 	"RCU_GP_WAIT_GPS",
 	"RCU_GP_DONE_GPS",
+	"RCU_GP_ONOFF",
+	"RCU_GP_INIT",
 	"RCU_GP_WAIT_FQS",
 	"RCU_GP_DOING_FQS",
 	"RCU_GP_CLEANUP",
@@ -408,7 +420,6 @@ extern struct rcu_state rcu_preempt_state;
 #endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 int rcu_dynticks_snap(struct rcu_dynticks *rdtp);
-bool rcu_eqs_special_set(int cpu);
 
 #ifdef CONFIG_RCU_BOOST
 DECLARE_PER_CPU(unsigned int, rcu_cpu_kthread_status);
@@ -429,16 +440,18 @@ static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 static void rcu_print_detail_task_stall(struct rcu_state *rsp);
 static int rcu_print_task_stall(struct rcu_node *rnp);
 static int rcu_print_task_exp_stall(struct rcu_node *rnp);
-static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
+static void rcu_preempt_check_blocked_tasks(struct rcu_state *rsp,
+					    struct rcu_node *rnp);
 static void rcu_preempt_check_callbacks(void);
 void call_rcu(struct rcu_head *head, rcu_callback_t func);
 static void __init __rcu_init_preempt(void);
+static void dump_blkd_tasks(struct rcu_state *rsp, struct rcu_node *rnp,
+			    int ncheck);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
 static void invoke_rcu_callbacks_kthread(void);
 static bool rcu_is_callbacks_kthread(void);
 #ifdef CONFIG_RCU_BOOST
-static void rcu_preempt_do_callbacks(void);
 static int rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_RCU_BOOST */
@@ -454,7 +467,6 @@ static void print_cpu_stall_info_end(void);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
 static void increment_cpu_stall_ticks(void);
 static bool rcu_nocb_cpu_needs_barrier(struct rcu_state *rsp, int cpu);
-static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq);
 static struct swait_queue_head *rcu_nocb_gp_get(struct rcu_node *rnp);
 static void rcu_nocb_gp_cleanup(struct swait_queue_head *sq);
 static void rcu_init_one_nocb(struct rcu_node *rnp);
@@ -471,7 +483,6 @@ static void __init rcu_spawn_nocb_kthreads(void);
 #ifdef CONFIG_RCU_NOCB_CPU
 static void __init rcu_organize_nocb_kthreads(struct rcu_state *rsp);
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
-static void __maybe_unused rcu_kick_nohz_cpu(int cpu);
 static bool init_nocb_callback_list(struct rcu_data *rdp);
 static void rcu_bind_gp_kthread(void);
 static bool rcu_nohz_full_cpu(struct rcu_state *rsp);

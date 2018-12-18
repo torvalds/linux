@@ -30,6 +30,7 @@
 #include <linux/radix-tree.h>
 
 #include "i915_gem.h"
+#include "i915_scheduler.h"
 
 struct pid;
 
@@ -44,6 +45,13 @@ struct i915_vma;
 struct intel_ring;
 
 #define DEFAULT_CONTEXT_HANDLE 0
+
+struct intel_context;
+
+struct intel_context_ops {
+	void (*unpin)(struct intel_context *ce);
+	void (*destroy)(struct intel_context *ce);
+};
 
 /**
  * struct i915_gem_context - client state
@@ -137,30 +145,22 @@ struct i915_gem_context {
 	 */
 	u32 user_handle;
 
-	/**
-	 * @priority: execution and service priority
-	 *
-	 * All clients are equal, but some are more equal than others!
-	 *
-	 * Requests from a context with a greater (more positive) value of
-	 * @priority will be executed before those with a lower @priority
-	 * value, forming a simple QoS.
-	 *
-	 * The &drm_i915_private.kernel_context is assigned the lowest priority.
-	 */
-	int priority;
+	struct i915_sched_attr sched;
 
 	/** ggtt_offset_bias: placement restriction for context objects */
 	u32 ggtt_offset_bias;
 
 	/** engine: per-engine logical HW state */
 	struct intel_context {
+		struct i915_gem_context *gem_context;
 		struct i915_vma *state;
 		struct intel_ring *ring;
 		u32 *lrc_reg_state;
 		u64 lrc_desc;
 		int pin_count;
-	} engine[I915_NUM_ENGINES];
+
+		const struct intel_context_ops *ops;
+	} __engine[I915_NUM_ENGINES];
 
 	/** ring_size: size for allocating the per-engine ring buffer */
 	u32 ring_size;
@@ -265,6 +265,35 @@ static inline bool i915_gem_context_is_default(const struct i915_gem_context *c)
 static inline bool i915_gem_context_is_kernel(struct i915_gem_context *ctx)
 {
 	return !ctx->file_priv;
+}
+
+static inline struct intel_context *
+to_intel_context(struct i915_gem_context *ctx,
+		 const struct intel_engine_cs *engine)
+{
+	return &ctx->__engine[engine->id];
+}
+
+static inline struct intel_context *
+intel_context_pin(struct i915_gem_context *ctx, struct intel_engine_cs *engine)
+{
+	return engine->context_pin(engine, ctx);
+}
+
+static inline void __intel_context_pin(struct intel_context *ce)
+{
+	GEM_BUG_ON(!ce->pin_count);
+	ce->pin_count++;
+}
+
+static inline void intel_context_unpin(struct intel_context *ce)
+{
+	GEM_BUG_ON(!ce->pin_count);
+	if (--ce->pin_count)
+		return;
+
+	GEM_BUG_ON(!ce->ops);
+	ce->ops->unpin(ce);
 }
 
 /* i915_gem_context.c */

@@ -168,8 +168,8 @@ ENTRY(handle_exception)
 
 	/* Handle interrupts */
 	move a0, sp /* pt_regs */
-	REG_L a1, handle_arch_irq
-	jr a1
+	move a1, s4 /* scause */
+	tail do_IRQ
 1:
 	/* Exceptions run with interrupts enabled */
 	csrs sstatus, SR_SIE

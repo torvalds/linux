@@ -873,8 +873,8 @@ static void qed_iscsi_release_connection(struct qed_hwfn *p_hwfn,
 	spin_unlock_bh(&p_hwfn->p_iscsi_info->lock);
 }
 
-void qed_iscsi_free_connection(struct qed_hwfn *p_hwfn,
-			       struct qed_iscsi_conn *p_conn)
+static void qed_iscsi_free_connection(struct qed_hwfn *p_hwfn,
+				      struct qed_iscsi_conn *p_conn)
 {
 	qed_chain_free(p_hwfn->cdev, &p_conn->xhq);
 	qed_chain_free(p_hwfn->cdev, &p_conn->uhq);

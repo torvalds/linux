@@ -26,6 +26,7 @@ int test_tar(void)
 	int i;
 
 	SKIP_IF(!have_htm());
+	SKIP_IF(!is_ppc64le());
 
 	for (i = 0; i < num_loops; i++)
 	{

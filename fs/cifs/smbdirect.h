@@ -292,7 +292,7 @@ void smbd_destroy(struct smbd_connection *info);
 
 /* Interface for carrying upper layer I/O through send/recv */
 int smbd_recv(struct smbd_connection *info, struct msghdr *msg);
-int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst);
+int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst);
 
 enum mr_state {
 	MR_READY,
@@ -321,7 +321,7 @@ struct smbd_mr {
 /* Interfaces to register and deregister MR for RDMA read/write */
 struct smbd_mr *smbd_register_mr(
 	struct smbd_connection *info, struct page *pages[], int num_pages,
-	int tailsz, bool writing, bool need_invalidate);
+	int offset, int tailsz, bool writing, bool need_invalidate);
 int smbd_deregister_mr(struct smbd_mr *mr);
 
 #else
@@ -332,7 +332,7 @@ static inline void *smbd_get_connection(
 static inline int smbd_reconnect(struct TCP_Server_Info *server) {return -1; }
 static inline void smbd_destroy(struct smbd_connection *info) {}
 static inline int smbd_recv(struct smbd_connection *info, struct msghdr *msg) {return -1; }
-static inline int smbd_send(struct smbd_connection *info, struct smb_rqst *rqst) {return -1; }
+static inline int smbd_send(struct TCP_Server_Info *server, struct smb_rqst *rqst) {return -1; }
 #endif
 
 #endif

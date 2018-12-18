@@ -496,7 +496,7 @@ next_subpacket:
 			return rxrpc_proto_abort("LSA", call, seq);
 	}
 
-	trace_rxrpc_rx_data(call, seq, serial, flags, annotation);
+	trace_rxrpc_rx_data(call->debug_id, seq, serial, flags, annotation);
 	if (before_eq(seq, hard_ack)) {
 		ack = RXRPC_ACK_DUPLICATE;
 		ack_serial = serial;
@@ -592,9 +592,15 @@ ack:
 		rxrpc_propose_ACK(call, ack, skew, ack_serial,
 				  immediate_ack, true,
 				  rxrpc_propose_ack_input_data);
+	else
+		rxrpc_propose_ACK(call, RXRPC_ACK_DELAY, skew, serial,
+				  false, true,
+				  rxrpc_propose_ack_input_data);
 
-	if (sp->hdr.seq == READ_ONCE(call->rx_hard_ack) + 1)
+	if (sp->hdr.seq == READ_ONCE(call->rx_hard_ack) + 1) {
+		trace_rxrpc_notify_socket(call->debug_id, serial);
 		rxrpc_notify_socket(call);
+	}
 	_leave(" [queued]");
 }
 
@@ -971,7 +977,7 @@ static void rxrpc_input_call_packet(struct rxrpc_call *call,
 	if (timo) {
 		unsigned long now = jiffies, expect_rx_by;
 
-		expect_rx_by = jiffies + timo;
+		expect_rx_by = now + timo;
 		WRITE_ONCE(call->expect_rx_by, expect_rx_by);
 		rxrpc_reduce_call_timer(call, expect_rx_by, now,
 					rxrpc_timer_set_for_normal);
@@ -1262,6 +1268,11 @@ void rxrpc_data_ready(struct sock *udp_sk)
 			/* But otherwise we need to retransmit the final packet
 			 * from data cached in the connection record.
 			 */
+			if (sp->hdr.type == RXRPC_PACKET_TYPE_DATA)
+				trace_rxrpc_rx_data(chan->call_debug_id,
+						    sp->hdr.seq,
+						    sp->hdr.serial,
+						    sp->hdr.flags, 0);
 			rxrpc_post_packet_to_conn(conn, skb);
 			goto out_unlock;
 		}
@@ -1278,8 +1289,14 @@ void rxrpc_data_ready(struct sock *udp_sk)
 			call = NULL;
 		}
 
-		if (call && sp->hdr.serviceId != call->service_id)
-			call->service_id = sp->hdr.serviceId;
+		if (call) {
+			if (sp->hdr.serviceId != call->service_id)
+				call->service_id = sp->hdr.serviceId;
+			if ((int)sp->hdr.serial - (int)call->rx_serial > 0)
+				call->rx_serial = sp->hdr.serial;
+			if (!test_bit(RXRPC_CALL_RX_HEARD, &call->flags))
+				set_bit(RXRPC_CALL_RX_HEARD, &call->flags);
+		}
 	} else {
 		skew = 0;
 		call = NULL;

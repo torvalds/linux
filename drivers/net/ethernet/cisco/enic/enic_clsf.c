@@ -79,7 +79,6 @@ void enic_rfs_flw_tbl_init(struct enic *enic)
 	enic->rfs_h.max = enic->config.num_arfs;
 	enic->rfs_h.free = enic->rfs_h.max;
 	enic->rfs_h.toclean = 0;
-	enic_rfs_timer_start(enic);
 }
 
 void enic_rfs_flw_tbl_free(struct enic *enic)
@@ -88,7 +87,6 @@ void enic_rfs_flw_tbl_free(struct enic *enic)
 
 	enic_rfs_timer_stop(enic);
 	spin_lock_bh(&enic->rfs_h.lock);
-	enic->rfs_h.free = 0;
 	for (i = 0; i < (1 << ENIC_RFS_FLW_BITSHIFT); i++) {
 		struct hlist_head *hhead;
 		struct hlist_node *tmp;
@@ -99,6 +97,7 @@ void enic_rfs_flw_tbl_free(struct enic *enic)
 			enic_delfltr(enic, n->fltr_id);
 			hlist_del(&n->node);
 			kfree(n);
+			enic->rfs_h.free++;
 		}
 	}
 	spin_unlock_bh(&enic->rfs_h.lock);

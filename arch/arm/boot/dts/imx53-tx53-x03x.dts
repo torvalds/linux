@@ -245,6 +245,7 @@
 		interrupts = <15 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpio2 22 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpio2 21 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
 	};
 
 	touchscreen: tsc2007@48 {

@@ -23,12 +23,9 @@
  * may not be completely printed.  This function does not actually dump the
  * message, it just ensures that OPAL completely flushes the console buffer.
  */
-static void force_opal_console_flush(struct kmsg_dumper *dumper,
+static void kmsg_dump_opal_console_flush(struct kmsg_dumper *dumper,
 				     enum kmsg_dump_reason reason)
 {
-	int i;
-	int64_t ret;
-
 	/*
 	 * Outside of a panic context the pollers will continue to run,
 	 * so we don't need to do any special flushing.
@@ -36,32 +33,11 @@ static void force_opal_console_flush(struct kmsg_dumper *dumper,
 	if (reason != KMSG_DUMP_PANIC)
 		return;
 
-	if (opal_check_token(OPAL_CONSOLE_FLUSH)) {
-		ret = opal_console_flush(0);
-
-		if (ret == OPAL_UNSUPPORTED || ret == OPAL_PARAMETER)
-			return;
-
-		/* Incrementally flush until there's nothing left */
-		while (opal_console_flush(0) != OPAL_SUCCESS);
-	} else {
-		/*
-		 * If OPAL_CONSOLE_FLUSH is not implemented in the firmware,
-		 * the console can still be flushed by calling the polling
-		 * function enough times to flush the buffer.  We don't know
-		 * how much output still needs to be flushed, but we can be
-		 * generous since the kernel is in panic and doesn't need
-		 * to do much else.
-		 */
-		printk(KERN_NOTICE "opal: OPAL_CONSOLE_FLUSH missing.\n");
-		for (i = 0; i < 1024; i++) {
-			opal_poll_events(NULL);
-		}
-	}
+	opal_flush_console(0);
 }
 
 static struct kmsg_dumper opal_kmsg_dumper = {
-	.dump = force_opal_console_flush
+	.dump = kmsg_dump_opal_console_flush
 };
 
 void __init opal_kmsg_init(void)

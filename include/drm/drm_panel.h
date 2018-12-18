@@ -89,6 +89,7 @@ struct drm_panel {
 	struct drm_device *drm;
 	struct drm_connector *connector;
 	struct device *dev;
+	struct device_link *link;
 
 	const struct drm_panel_funcs *funcs;
 
@@ -199,7 +200,7 @@ struct drm_panel *of_drm_find_panel(const struct device_node *np);
 #else
 static inline struct drm_panel *of_drm_find_panel(const struct device_node *np)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 #endif
 

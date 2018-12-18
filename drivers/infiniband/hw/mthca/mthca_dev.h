@@ -519,10 +519,10 @@ int mthca_max_srq_sge(struct mthca_dev *dev);
 void mthca_srq_event(struct mthca_dev *dev, u32 srqn,
 		     enum ib_event_type event_type);
 void mthca_free_srq_wqe(struct mthca_srq *srq, u32 wqe_addr);
-int mthca_tavor_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
-			      struct ib_recv_wr **bad_wr);
-int mthca_arbel_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *wr,
-			      struct ib_recv_wr **bad_wr);
+int mthca_tavor_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *wr,
+			      const struct ib_recv_wr **bad_wr);
+int mthca_arbel_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *wr,
+			      const struct ib_recv_wr **bad_wr);
 
 void mthca_qp_event(struct mthca_dev *dev, u32 qpn,
 		    enum ib_event_type event_type);
@@ -530,14 +530,14 @@ int mthca_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *qp_attr, int qp_attr_m
 		   struct ib_qp_init_attr *qp_init_attr);
 int mthca_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr, int attr_mask,
 		    struct ib_udata *udata);
-int mthca_tavor_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			  struct ib_send_wr **bad_wr);
-int mthca_tavor_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-			     struct ib_recv_wr **bad_wr);
-int mthca_arbel_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-			  struct ib_send_wr **bad_wr);
-int mthca_arbel_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-			     struct ib_recv_wr **bad_wr);
+int mthca_tavor_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			  const struct ib_send_wr **bad_wr);
+int mthca_tavor_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+			     const struct ib_recv_wr **bad_wr);
+int mthca_arbel_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+			  const struct ib_send_wr **bad_wr);
+int mthca_arbel_post_receive(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+			     const struct ib_recv_wr **bad_wr);
 void mthca_free_err_wqe(struct mthca_dev *dev, struct mthca_qp *qp, int is_send,
 			int index, int *dbd, __be32 *new_wqe);
 int mthca_alloc_qp(struct mthca_dev *dev,

@@ -19,6 +19,8 @@ Optional properties:
 - wp-gpios: Specify GPIOs for write protection, see gpio binding
 - cd-inverted: when present, polarity on the CD line is inverted. See the note
   below for the case, when a GPIO is used for the CD line
+- cd-debounce-delay-ms: Set delay time before detecting card after card insert interrupt.
+  It's only valid when cd-gpios is present.
 - wp-inverted: when present, polarity on the WP line is inverted. See the note
   below for the case, when a GPIO is used for the WP line
 - disable-wp: When set no physical WP line is present. This property should
@@ -56,6 +58,10 @@ Optional properties:
 - fixed-emmc-driver-type: for non-removable eMMC, enforce this driver type.
   The value <n> is the driver type as specified in the eMMC specification
   (table 206 in spec version 5.1).
+- post-power-on-delay-ms : It was invented for MMC pwrseq-simple which could
+  be referred to mmc-pwrseq-simple.txt. But now it's reused as a tunable delay
+  waiting for I/O signalling and card power supply to be stable, regardless of
+  whether pwrseq-simple is used. Default to 10ms if no available.
 
 *NOTE* on CD and WP polarity. To use common for all SD/MMC host controllers line
 polarity properties, we have to fix the meaning of the "normal" and "inverted"

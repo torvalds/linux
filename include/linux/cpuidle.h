@@ -258,6 +258,7 @@ struct cpuidle_governor {
 
 #ifdef CONFIG_CPU_IDLE
 extern int cpuidle_register_governor(struct cpuidle_governor *gov);
+extern int cpuidle_governor_latency_req(unsigned int cpu);
 #else
 static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 {return 0;}

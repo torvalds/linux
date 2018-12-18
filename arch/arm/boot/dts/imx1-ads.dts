@@ -23,17 +23,6 @@
 	memory@8000000 {
 		reg = <0x08000000 0x04000000>;
 	};
-
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		clk32 {
-			compatible = "fsl,imx-clk32", "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32000>;
-		};
-	};
 };
 
 &cspi1 {

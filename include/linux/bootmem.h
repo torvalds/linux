@@ -27,9 +27,20 @@ extern unsigned long max_pfn;
 extern unsigned long long max_possible_pfn;
 
 #ifndef CONFIG_NO_BOOTMEM
-/*
- * node_bootmem_map is a map pointer - the bits represent all physical 
- * memory pages (including holes) on the node.
+/**
+ * struct bootmem_data - per-node information used by the bootmem allocator
+ * @node_min_pfn: the starting physical address of the node's memory
+ * @node_low_pfn: the end physical address of the directly addressable memory
+ * @node_bootmem_map: is a bitmap pointer - the bits represent all physical
+ *		      memory pages (including holes) on the node.
+ * @last_end_off: the offset within the page of the end of the last allocation;
+ *                if 0, the page used is full
+ * @hint_idx: the PFN of the page used with the last allocation;
+ *            together with using this with the @last_end_offset field,
+ *            a test can be made to see if allocations can be merged
+ *            with the page used for the last allocation rather than
+ *            using up a full new page.
+ * @list: list entry in the linked list ordered by the memory addresses
  */
 typedef struct bootmem_data {
 	unsigned long node_min_pfn;

@@ -57,4 +57,6 @@ int gp100_mc_new_(const struct nvkm_mc_func *, struct nvkm_device *, int,
 
 extern const struct nvkm_mc_map gk104_mc_intr[];
 extern const struct nvkm_mc_map gk104_mc_reset[];
+
+extern const struct nvkm_mc_map gp100_mc_intr[];
 #endif

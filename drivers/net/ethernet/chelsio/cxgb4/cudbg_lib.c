@@ -349,6 +349,11 @@ int cudbg_fill_meminfo(struct adapter *padap,
 	meminfo_buff->up_extmem2_hi = hi;
 
 	lo = t4_read_reg(padap, TP_PMM_RX_MAX_PAGE_A);
+	for (i = 0, meminfo_buff->free_rx_cnt = 0; i < 2; i++)
+		meminfo_buff->free_rx_cnt +=
+			FREERXPAGECOUNT_G(t4_read_reg(padap,
+						      TP_FLM_FREE_RX_CNT_A));
+
 	meminfo_buff->rx_pages_data[0] =  PMRXMAXPAGE_G(lo);
 	meminfo_buff->rx_pages_data[1] =
 		t4_read_reg(padap, TP_PMM_RX_PAGE_SIZE_A) >> 10;
@@ -356,6 +361,11 @@ int cudbg_fill_meminfo(struct adapter *padap,
 
 	lo = t4_read_reg(padap, TP_PMM_TX_MAX_PAGE_A);
 	hi = t4_read_reg(padap, TP_PMM_TX_PAGE_SIZE_A);
+	for (i = 0, meminfo_buff->free_tx_cnt = 0; i < 4; i++)
+		meminfo_buff->free_tx_cnt +=
+			FREETXPAGECOUNT_G(t4_read_reg(padap,
+						      TP_FLM_FREE_TX_CNT_A));
+
 	meminfo_buff->tx_pages_data[0] = PMTXMAXPAGE_G(lo);
 	meminfo_buff->tx_pages_data[1] =
 		hi >= (1 << 20) ? (hi >> 20) : (hi >> 10);
@@ -364,6 +374,8 @@ int cudbg_fill_meminfo(struct adapter *padap,
 	meminfo_buff->tx_pages_data[3] = 1 << PMTXNUMCHN_G(lo);
 
 	meminfo_buff->p_structs = t4_read_reg(padap, TP_CMM_MM_MAX_PSTRUCT_A);
+	meminfo_buff->p_structs_free_cnt =
+		FREEPSTRUCTCOUNT_G(t4_read_reg(padap, TP_FLM_FREE_PS_CNT_A));
 
 	for (i = 0; i < 4; i++) {
 		if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5)
@@ -1339,16 +1351,39 @@ int cudbg_collect_tp_indirect(struct cudbg_init *pdbg_init,
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 
+static void cudbg_read_sge_qbase_indirect_reg(struct adapter *padap,
+					      struct sge_qbase_reg_field *qbase,
+					      u32 func, bool is_pf)
+{
+	u32 *buff, i;
+
+	if (is_pf) {
+		buff = qbase->pf_data_value[func];
+	} else {
+		buff = qbase->vf_data_value[func];
+		/* In SGE_QBASE_INDEX,
+		 * Entries 0->7 are PF0->7, Entries 8->263 are VFID0->256.
+		 */
+		func += 8;
+	}
+
+	t4_write_reg(padap, qbase->reg_addr, func);
+	for (i = 0; i < SGE_QBASE_DATA_REG_NUM; i++, buff++)
+		*buff = t4_read_reg(padap, qbase->reg_data[i]);
+}
+
 int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 			       struct cudbg_buffer *dbg_buff,
 			       struct cudbg_error *cudbg_err)
 {
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
+	struct sge_qbase_reg_field *sge_qbase;
 	struct ireg_buf *ch_sge_dbg;
 	int i, rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(*ch_sge_dbg) * 2,
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(*ch_sge_dbg) * 2 + sizeof(*sge_qbase),
 			    &temp_buff);
 	if (rc)
 		return rc;
@@ -1370,6 +1405,28 @@ int cudbg_collect_sge_indirect(struct cudbg_init *pdbg_init,
 				 sge_pio->ireg_local_offset);
 		ch_sge_dbg++;
 	}
+
+	if (CHELSIO_CHIP_VERSION(padap->params.chip) > CHELSIO_T5) {
+		sge_qbase = (struct sge_qbase_reg_field *)ch_sge_dbg;
+		/* 1 addr reg SGE_QBASE_INDEX and 4 data reg
+		 * SGE_QBASE_MAP[0-3]
+		 */
+		sge_qbase->reg_addr = t6_sge_qbase_index_array[0];
+		for (i = 0; i < SGE_QBASE_DATA_REG_NUM; i++)
+			sge_qbase->reg_data[i] =
+				t6_sge_qbase_index_array[i + 1];
+
+		for (i = 0; i <= PCIE_FW_MASTER_M; i++)
+			cudbg_read_sge_qbase_indirect_reg(padap, sge_qbase,
+							  i, true);
+
+		for (i = 0; i < padap->params.arch.vfcount; i++)
+			cudbg_read_sge_qbase_indirect_reg(padap, sge_qbase,
+							  i, false);
+
+		sge_qbase->vfcount = padap->params.arch.vfcount;
+	}
+
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 
@@ -1420,14 +1477,23 @@ int cudbg_collect_meminfo(struct cudbg_init *pdbg_init,
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
 	struct cudbg_meminfo *meminfo_buff;
+	struct cudbg_ver_hdr *ver_hdr;
 	int rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_meminfo),
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(struct cudbg_ver_hdr) +
+			    sizeof(struct cudbg_meminfo),
 			    &temp_buff);
 	if (rc)
 		return rc;
 
-	meminfo_buff = (struct cudbg_meminfo *)temp_buff.data;
+	ver_hdr = (struct cudbg_ver_hdr *)temp_buff.data;
+	ver_hdr->signature = CUDBG_ENTITY_SIGNATURE;
+	ver_hdr->revision = CUDBG_MEMINFO_REV;
+	ver_hdr->size = sizeof(struct cudbg_meminfo);
+
+	meminfo_buff = (struct cudbg_meminfo *)(temp_buff.data +
+						sizeof(*ver_hdr));
 	rc = cudbg_fill_meminfo(padap, meminfo_buff);
 	if (rc) {
 		cudbg_err->sys_err = rc;
@@ -2366,8 +2432,11 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 	value = t4_read_reg(padap, LE_DB_ROUTING_TABLE_INDEX_A);
 	tcam_region->routing_start = value;
 
-	/*Get clip table index */
-	value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
+	/* Get clip table index. For T6 there is separate CLIP TCAM */
+	if (is_t6(padap->params.chip))
+		value = t4_read_reg(padap, LE_DB_CLCAM_TID_BASE_A);
+	else
+		value = t4_read_reg(padap, LE_DB_CLIP_TABLE_INDEX_A);
 	tcam_region->clip_start = value;
 
 	/* Get filter table index */
@@ -2392,8 +2461,16 @@ void cudbg_fill_le_tcam_info(struct adapter *padap,
 					       tcam_region->tid_hash_base;
 		}
 	} else { /* hash not enabled */
-		tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
+		if (is_t6(padap->params.chip))
+			tcam_region->max_tid = (value & ASLIPCOMPEN_F) ?
+					       CUDBG_MAX_TID_COMP_EN :
+					       CUDBG_MAX_TID_COMP_DIS;
+		else
+			tcam_region->max_tid = CUDBG_MAX_TCAM_TID;
 	}
+
+	if (is_t6(padap->params.chip))
+		tcam_region->max_tid += CUDBG_T6_CLIP;
 }
 
 int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
@@ -2423,18 +2500,31 @@ int cudbg_collect_le_tcam(struct cudbg_init *pdbg_init,
 	for (i = 0; i < tcam_region.max_tid; ) {
 		rc = cudbg_read_tid(pdbg_init, i, tid_data);
 		if (rc) {
-			cudbg_err->sys_err = rc;
-			cudbg_put_buff(pdbg_init, &temp_buff);
-			return rc;
+			cudbg_err->sys_warn = CUDBG_STATUS_PARTIAL_DATA;
+			/* Update tcam header and exit */
+			tcam_region.max_tid = i;
+			memcpy(temp_buff.data, &tcam_region,
+			       sizeof(struct cudbg_tcam));
+			goto out;
 		}
 
-		/* ipv6 takes two tids */
-		cudbg_is_ipv6_entry(tid_data, tcam_region) ? i += 2 : i++;
+		if (cudbg_is_ipv6_entry(tid_data, tcam_region)) {
+			/* T6 CLIP TCAM: ipv6 takes 4 entries */
+			if (is_t6(padap->params.chip) &&
+			    i >= tcam_region.clip_start &&
+			    i < tcam_region.clip_start + CUDBG_T6_CLIP)
+				i += 4;
+			else /* Main TCAM: ipv6 takes two tids */
+				i += 2;
+		} else {
+			i++;
+		}
 
 		tid_data++;
 		bytes += sizeof(struct cudbg_tid_data);
 	}
 
+out:
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 
@@ -2517,15 +2607,24 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 	struct adapter *padap = pdbg_init->adap;
 	struct cudbg_buffer temp_buff = { 0 };
 	struct cudbg_ulptx_la *ulptx_la_buff;
+	struct cudbg_ver_hdr *ver_hdr;
 	u32 i, j;
 	int rc;
 
-	rc = cudbg_get_buff(pdbg_init, dbg_buff, sizeof(struct cudbg_ulptx_la),
+	rc = cudbg_get_buff(pdbg_init, dbg_buff,
+			    sizeof(struct cudbg_ver_hdr) +
+			    sizeof(struct cudbg_ulptx_la),
 			    &temp_buff);
 	if (rc)
 		return rc;
 
-	ulptx_la_buff = (struct cudbg_ulptx_la *)temp_buff.data;
+	ver_hdr = (struct cudbg_ver_hdr *)temp_buff.data;
+	ver_hdr->signature = CUDBG_ENTITY_SIGNATURE;
+	ver_hdr->revision = CUDBG_ULPTX_LA_REV;
+	ver_hdr->size = sizeof(struct cudbg_ulptx_la);
+
+	ulptx_la_buff = (struct cudbg_ulptx_la *)(temp_buff.data +
+						  sizeof(*ver_hdr));
 	for (i = 0; i < CUDBG_NUM_ULPTX; i++) {
 		ulptx_la_buff->rdptr[i] = t4_read_reg(padap,
 						      ULP_TX_LA_RDPTR_0_A +
@@ -2541,6 +2640,25 @@ int cudbg_collect_ulptx_la(struct cudbg_init *pdbg_init,
 				t4_read_reg(padap,
 					    ULP_TX_LA_RDDATA_0_A + 0x10 * i);
 	}
+
+	for (i = 0; i < CUDBG_NUM_ULPTX_ASIC_READ; i++) {
+		t4_write_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A, 0x1);
+		ulptx_la_buff->rdptr_asic[i] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_CTRL_A);
+		ulptx_la_buff->rddata_asic[i][0] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_0_A);
+		ulptx_la_buff->rddata_asic[i][1] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_1_A);
+		ulptx_la_buff->rddata_asic[i][2] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_2_A);
+		ulptx_la_buff->rddata_asic[i][3] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_3_A);
+		ulptx_la_buff->rddata_asic[i][4] =
+				t4_read_reg(padap, ULP_TX_ASIC_DEBUG_4_A);
+		ulptx_la_buff->rddata_asic[i][5] =
+				t4_read_reg(padap, PM_RX_BASE_ADDR);
+	}
+
 	return cudbg_write_and_release_buff(pdbg_init, &temp_buff, dbg_buff);
 }
 

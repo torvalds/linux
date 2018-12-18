@@ -735,7 +735,7 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 				return -ENOMEM;
 
 			if (copy_from_user(fpc_new.addr,
-					   (__force void __user *)fpc.fpcaddr,
+					   (__force void __user *)(long)fpc.fpcaddr,
 					   size)) {
 				dma_free_coherent(isp->dev, size, fpc_new.addr,
 						  fpc_new.dma);

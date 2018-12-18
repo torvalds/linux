@@ -75,3 +75,11 @@ NOKPROBE_SYMBOL(_mcount);
 	/* arm-smccc */
 EXPORT_SYMBOL(__arm_smccc_smc);
 EXPORT_SYMBOL(__arm_smccc_hvc);
+
+	/* tishift.S */
+extern long long __ashlti3(long long a, int b);
+EXPORT_SYMBOL(__ashlti3);
+extern long long __ashrti3(long long a, int b);
+EXPORT_SYMBOL(__ashrti3);
+extern long long __lshrti3(long long a, int b);
+EXPORT_SYMBOL(__lshrti3);

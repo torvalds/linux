@@ -5,8 +5,6 @@ Required properties:
 - reg: Address range of the DMAC registers. This should include
   all of the per-channel registers.
 - interrupt: Should contain the DMAC interrupt number.
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device.
 - dma-channels: Number of channels supported by hardware.
 - snps,dma-masters: Number of AXI masters supported by the hardware.
 - snps,data-width: Maximum AXI data width supported by hardware.

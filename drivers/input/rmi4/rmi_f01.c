@@ -681,9 +681,9 @@ static int rmi_f01_resume(struct rmi_function *fn)
 	return 0;
 }
 
-static int rmi_f01_attention(struct rmi_function *fn,
-			     unsigned long *irq_bits)
+static irqreturn_t rmi_f01_attention(int irq, void *ctx)
 {
+	struct rmi_function *fn = ctx;
 	struct rmi_device *rmi_dev = fn->rmi_dev;
 	int error;
 	u8 device_status;
@@ -692,7 +692,7 @@ static int rmi_f01_attention(struct rmi_function *fn,
 	if (error) {
 		dev_err(&fn->dev,
 			"Failed to read device status: %d.\n", error);
-		return error;
+		return IRQ_RETVAL(error);
 	}
 
 	if (RMI_F01_STATUS_BOOTLOADER(device_status))
@@ -704,11 +704,11 @@ static int rmi_f01_attention(struct rmi_function *fn,
 		error = rmi_dev->driver->reset_handler(rmi_dev);
 		if (error) {
 			dev_err(&fn->dev, "Device reset failed: %d\n", error);
-			return error;
+			return IRQ_RETVAL(error);
 		}
 	}
 
-	return 0;
+	return IRQ_HANDLED;
 }
 
 struct rmi_function_handler rmi_f01_handler = {

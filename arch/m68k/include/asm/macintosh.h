@@ -57,7 +57,6 @@ struct mac_model
 #define MAC_SCSI_IIFX		5
 #define MAC_SCSI_DUO		6
 #define MAC_SCSI_LC		7
-#define MAC_SCSI_LATE		8
 
 #define MAC_IDE_NONE		0
 #define MAC_IDE_QUADRA		1

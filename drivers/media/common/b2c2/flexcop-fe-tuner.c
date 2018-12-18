@@ -495,7 +495,6 @@ static int airstar_atsc2_attach(struct flexcop_device *fc,
 /* AirStar ATSC 3rd generation */
 #if FE_SUPPORTED(LGDT330X)
 static struct lgdt330x_config air2pc_atsc_hd5000_config = {
-	.demod_address       = 0x59,
 	.demod_chip          = LGDT3303,
 	.serial_mpeg         = 0x04,
 	.clock_polarity_flip = 1,
@@ -504,7 +503,8 @@ static struct lgdt330x_config air2pc_atsc_hd5000_config = {
 static int airstar_atsc3_attach(struct flexcop_device *fc,
 	struct i2c_adapter *i2c)
 {
-	fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config, i2c);
+	fc->fe = dvb_attach(lgdt330x_attach, &air2pc_atsc_hd5000_config,
+			    0x59, i2c);
 	if (!fc->fe)
 		return 0;
 

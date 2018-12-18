@@ -792,7 +792,6 @@ err_config_video:
 
 int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
 {
-	u32 val;
 	int ret;
 
 	ret = cdn_dp_reg_write(dp, AUDIO_PACK_CONTROL, 0);
@@ -801,11 +800,7 @@ int cdn_dp_audio_stop(struct cdn_dp_device *dp, struct audio_info *audio)
 		return ret;
 	}
 
-	val = SPDIF_AVG_SEL | SPDIF_JITTER_BYPASS;
-	val |= SPDIF_FIFO_MID_RANGE(0xe0);
-	val |= SPDIF_JITTER_THRSH(0xe0);
-	val |= SPDIF_JITTER_AVG_WIN(7);
-	writel(val, dp->regs + SPDIF_CTRL_ADDR);
+	writel(0, dp->regs + SPDIF_CTRL_ADDR);
 
 	/* clearn the audio config and reset */
 	writel(0, dp->regs + AUDIO_SRC_CNTL);
@@ -929,12 +924,6 @@ static void cdn_dp_audio_config_spdif(struct cdn_dp_device *dp)
 {
 	u32 val;
 
-	val = SPDIF_AVG_SEL | SPDIF_JITTER_BYPASS;
-	val |= SPDIF_FIFO_MID_RANGE(0xe0);
-	val |= SPDIF_JITTER_THRSH(0xe0);
-	val |= SPDIF_JITTER_AVG_WIN(7);
-	writel(val, dp->regs + SPDIF_CTRL_ADDR);
-
 	writel(SYNC_WR_TO_CH_ZERO, dp->regs + FIFO_CNTL);
 
 	val = MAX_NUM_CH(2) | AUDIO_TYPE_LPCM | CFG_SUB_PCKT_NUM(4);
@@ -942,9 +931,6 @@ static void cdn_dp_audio_config_spdif(struct cdn_dp_device *dp)
 	writel(SMPL2PKT_EN, dp->regs + SMPL2PKT_CNTL);
 
 	val = SPDIF_ENABLE | SPDIF_AVG_SEL | SPDIF_JITTER_BYPASS;
-	val |= SPDIF_FIFO_MID_RANGE(0xe0);
-	val |= SPDIF_JITTER_THRSH(0xe0);
-	val |= SPDIF_JITTER_AVG_WIN(7);
 	writel(val, dp->regs + SPDIF_CTRL_ADDR);
 
 	clk_prepare_enable(dp->spdif_clk);

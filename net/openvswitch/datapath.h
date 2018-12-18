@@ -144,6 +144,9 @@ struct dp_upcall_info {
 struct ovs_net {
 	struct list_head dps;
 	struct work_struct dp_notify_work;
+#if	IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
+	struct ovs_ct_limit_info *ct_limit_info;
+#endif
 
 	/* Module reference for configuring conntrack. */
 	bool xt_label;

@@ -174,6 +174,7 @@ struct mv_xor_v2_device {
 	int desc_size;
 	unsigned int npendings;
 	unsigned int hw_queue_idx;
+	struct msi_desc *msi_desc;
 };
 
 /**
@@ -588,11 +589,9 @@ static void mv_xor_v2_tasklet(unsigned long data)
 			 */
 			dma_cookie_complete(&next_pending_sw_desc->async_tx);
 
-			if (next_pending_sw_desc->async_tx.callback)
-				next_pending_sw_desc->async_tx.callback(
-				next_pending_sw_desc->async_tx.callback_param);
-
 			dma_descriptor_unmap(&next_pending_sw_desc->async_tx);
+			dmaengine_desc_get_callback_invoke(
+					&next_pending_sw_desc->async_tx, NULL);
 		}
 
 		dma_run_dependencies(&next_pending_sw_desc->async_tx);
@@ -643,9 +642,9 @@ static int mv_xor_v2_descq_init(struct mv_xor_v2_device *xor_dev)
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_SIZE_OFF);
 
 	/* write the DESQ address to the DMA enngine*/
-	writel(xor_dev->hw_desq & 0xFFFFFFFF,
+	writel(lower_32_bits(xor_dev->hw_desq),
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BALR_OFF);
-	writel((xor_dev->hw_desq & 0xFFFF00000000) >> 32,
+	writel(upper_32_bits(xor_dev->hw_desq),
 	       xor_dev->dma_base + MV_XOR_V2_DMA_DESQ_BAHR_OFF);
 
 	/*
@@ -780,6 +779,7 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	msi_desc = first_msi_entry(&pdev->dev);
 	if (!msi_desc)
 		goto free_msi_irqs;
+	xor_dev->msi_desc = msi_desc;
 
 	ret = devm_request_irq(&pdev->dev, msi_desc->irq,
 			       mv_xor_v2_interrupt_handler, 0,
@@ -809,8 +809,9 @@ static int mv_xor_v2_probe(struct platform_device *pdev)
 	}
 
 	/* alloc memory for the SW descriptors */
-	xor_dev->sw_desq = devm_kzalloc(&pdev->dev, sizeof(*sw_desc) *
-					MV_XOR_V2_DESC_NUM, GFP_KERNEL);
+	xor_dev->sw_desq = devm_kcalloc(&pdev->dev,
+					MV_XOR_V2_DESC_NUM, sizeof(*sw_desc),
+					GFP_KERNEL);
 	if (!xor_dev->sw_desq) {
 		ret = -ENOMEM;
 		goto free_hw_desq;
@@ -896,7 +897,11 @@ static int mv_xor_v2_remove(struct platform_device *pdev)
 			  xor_dev->desc_size * MV_XOR_V2_DESC_NUM,
 			  xor_dev->hw_desq_virt, xor_dev->hw_desq);
 
+	devm_free_irq(&pdev->dev, xor_dev->msi_desc->irq, xor_dev);
+
 	platform_msi_domain_free_irqs(&pdev->dev);
+
+	tasklet_kill(&xor_dev->irq_tasklet);
 
 	clk_disable_unprepare(xor_dev->clk);
 

@@ -239,8 +239,10 @@ static int as3711_regulator_probe(struct platform_device *pdev)
 		}
 	}
 
-	regs = devm_kzalloc(&pdev->dev, AS3711_REGULATOR_NUM *
-			sizeof(struct as3711_regulator), GFP_KERNEL);
+	regs = devm_kcalloc(&pdev->dev,
+			    AS3711_REGULATOR_NUM,
+			    sizeof(struct as3711_regulator),
+			    GFP_KERNEL);
 	if (!regs)
 		return -ENOMEM;
 

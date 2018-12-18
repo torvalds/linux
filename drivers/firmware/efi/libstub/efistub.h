@@ -36,9 +36,6 @@ extern int __pure is_quiet(void);
 
 void efi_char16_printk(efi_system_table_t *, efi_char16_t *);
 
-efi_status_t efi_open_volume(efi_system_table_t *sys_table_arg, void *__image,
-			     void **__fh);
-
 unsigned long get_dram_base(efi_system_table_t *sys_table_arg);
 
 efi_status_t allocate_new_fdt_and_exit_boot(efi_system_table_t *sys_table,

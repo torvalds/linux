@@ -16,6 +16,7 @@
  */
 
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/regmap.h>

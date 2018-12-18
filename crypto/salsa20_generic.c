@@ -21,8 +21,16 @@
 
 #include <asm/unaligned.h>
 #include <crypto/internal/skcipher.h>
-#include <crypto/salsa20.h>
 #include <linux/module.h>
+
+#define SALSA20_IV_SIZE        8
+#define SALSA20_MIN_KEY_SIZE  16
+#define SALSA20_MAX_KEY_SIZE  32
+#define SALSA20_BLOCK_SIZE    64
+
+struct salsa20_ctx {
+	u32 initial_state[16];
+};
 
 static void salsa20_block(u32 *state, __le32 *stream)
 {
@@ -93,16 +101,15 @@ static void salsa20_docrypt(u32 *state, u8 *dst, const u8 *src,
 	}
 }
 
-void crypto_salsa20_init(u32 *state, const struct salsa20_ctx *ctx,
+static void salsa20_init(u32 *state, const struct salsa20_ctx *ctx,
 			 const u8 *iv)
 {
 	memcpy(state, ctx->initial_state, sizeof(ctx->initial_state));
 	state[6] = get_unaligned_le32(iv + 0);
 	state[7] = get_unaligned_le32(iv + 4);
 }
-EXPORT_SYMBOL_GPL(crypto_salsa20_init);
 
-int crypto_salsa20_setkey(struct crypto_skcipher *tfm, const u8 *key,
+static int salsa20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			  unsigned int keysize)
 {
 	static const char sigma[16] = "expand 32-byte k";
@@ -143,7 +150,6 @@ int crypto_salsa20_setkey(struct crypto_skcipher *tfm, const u8 *key,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(crypto_salsa20_setkey);
 
 static int salsa20_crypt(struct skcipher_request *req)
 {
@@ -155,7 +161,7 @@ static int salsa20_crypt(struct skcipher_request *req)
 
 	err = skcipher_walk_virt(&walk, req, true);
 
-	crypto_salsa20_init(state, ctx, walk.iv);
+	salsa20_init(state, ctx, walk.iv);
 
 	while (walk.nbytes > 0) {
 		unsigned int nbytes = walk.nbytes;
@@ -183,7 +189,7 @@ static struct skcipher_alg alg = {
 	.max_keysize		= SALSA20_MAX_KEY_SIZE,
 	.ivsize			= SALSA20_IV_SIZE,
 	.chunksize		= SALSA20_BLOCK_SIZE,
-	.setkey			= crypto_salsa20_setkey,
+	.setkey			= salsa20_setkey,
 	.encrypt		= salsa20_crypt,
 	.decrypt		= salsa20_crypt,
 };

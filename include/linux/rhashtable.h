@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *
@@ -17,37 +18,18 @@
 #ifndef _LINUX_RHASHTABLE_H
 #define _LINUX_RHASHTABLE_H
 
-#include <linux/atomic.h>
-#include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/jhash.h>
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
-#include <linux/mutex.h>
 #include <linux/rculist.h>
 
+#include <linux/rhashtable-types.h>
 /*
  * The end of the chain is marked with a special nulls marks which has
- * the following format:
- *
- * +-------+-----------------------------------------------------+-+
- * | Base  |                      Hash                           |1|
- * +-------+-----------------------------------------------------+-+
- *
- * Base (4 bits) : Reserved to distinguish between multiple tables.
- *                 Specified via &struct rhashtable_params.nulls_base.
- * Hash (27 bits): Full hash (unmasked) of first element added to bucket
- * 1 (1 bit)     : Nulls marker (always set)
- *
- * The remaining bits of the next pointer remain unused for now.
+ * the least significant bit set.
  */
-#define RHT_BASE_BITS		4
-#define RHT_HASH_BITS		27
-#define RHT_BASE_SHIFT		RHT_HASH_BITS
-
-/* Base bits plus 1 bit for nulls marker */
-#define RHT_HASH_RESERVED_SPACE	(RHT_BASE_BITS + 1)
 
 /* Maximum chain length before rehash
  *
@@ -63,15 +45,6 @@
  * any real effect on the system.
  */
 #define RHT_ELASTICITY	16u
-
-struct rhash_head {
-	struct rhash_head __rcu		*next;
-};
-
-struct rhlist_head {
-	struct rhash_head		rhead;
-	struct rhlist_head __rcu	*next;
-};
 
 /**
  * struct bucket_table - Table of hash buckets
@@ -102,130 +75,12 @@ struct bucket_table {
 	struct rhash_head __rcu *buckets[] ____cacheline_aligned_in_smp;
 };
 
-/**
- * struct rhashtable_compare_arg - Key for the function rhashtable_compare
- * @ht: Hash table
- * @key: Key to compare against
- */
-struct rhashtable_compare_arg {
-	struct rhashtable *ht;
-	const void *key;
-};
-
-typedef u32 (*rht_hashfn_t)(const void *data, u32 len, u32 seed);
-typedef u32 (*rht_obj_hashfn_t)(const void *data, u32 len, u32 seed);
-typedef int (*rht_obj_cmpfn_t)(struct rhashtable_compare_arg *arg,
-			       const void *obj);
-
-struct rhashtable;
-
-/**
- * struct rhashtable_params - Hash table construction parameters
- * @nelem_hint: Hint on number of elements, should be 75% of desired size
- * @key_len: Length of key
- * @key_offset: Offset of key in struct to be hashed
- * @head_offset: Offset of rhash_head in struct to be hashed
- * @max_size: Maximum size while expanding
- * @min_size: Minimum size while shrinking
- * @locks_mul: Number of bucket locks to allocate per cpu (default: 32)
- * @automatic_shrinking: Enable automatic shrinking of tables
- * @nulls_base: Base value to generate nulls marker
- * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
- * @obj_hashfn: Function to hash object
- * @obj_cmpfn: Function to compare key with object
- */
-struct rhashtable_params {
-	u16			nelem_hint;
-	u16			key_len;
-	u16			key_offset;
-	u16			head_offset;
-	unsigned int		max_size;
-	u16			min_size;
-	bool			automatic_shrinking;
-	u8			locks_mul;
-	u32			nulls_base;
-	rht_hashfn_t		hashfn;
-	rht_obj_hashfn_t	obj_hashfn;
-	rht_obj_cmpfn_t		obj_cmpfn;
-};
-
-/**
- * struct rhashtable - Hash table handle
- * @tbl: Bucket table
- * @key_len: Key length for hashfn
- * @max_elems: Maximum number of elements in table
- * @p: Configuration parameters
- * @rhlist: True if this is an rhltable
- * @run_work: Deferred worker to expand/shrink asynchronously
- * @mutex: Mutex to protect current/future table swapping
- * @lock: Spin lock to protect walker list
- * @nelems: Number of elements in table
- */
-struct rhashtable {
-	struct bucket_table __rcu	*tbl;
-	unsigned int			key_len;
-	unsigned int			max_elems;
-	struct rhashtable_params	p;
-	bool				rhlist;
-	struct work_struct		run_work;
-	struct mutex                    mutex;
-	spinlock_t			lock;
-	atomic_t			nelems;
-};
-
-/**
- * struct rhltable - Hash table with duplicate objects in a list
- * @ht: Underlying rhtable
- */
-struct rhltable {
-	struct rhashtable ht;
-};
-
-/**
- * struct rhashtable_walker - Hash table walker
- * @list: List entry on list of walkers
- * @tbl: The table that we were walking over
- */
-struct rhashtable_walker {
-	struct list_head list;
-	struct bucket_table *tbl;
-};
-
-/**
- * struct rhashtable_iter - Hash table iterator
- * @ht: Table to iterate through
- * @p: Current pointer
- * @list: Current hash list pointer
- * @walker: Associated rhashtable walker
- * @slot: Current slot
- * @skip: Number of entries to skip in slot
- */
-struct rhashtable_iter {
-	struct rhashtable *ht;
-	struct rhash_head *p;
-	struct rhlist_head *list;
-	struct rhashtable_walker walker;
-	unsigned int slot;
-	unsigned int skip;
-	bool end_of_table;
-};
-
-static inline unsigned long rht_marker(const struct rhashtable *ht, u32 hash)
-{
-	return NULLS_MARKER(ht->p.nulls_base + hash);
-}
-
-#define INIT_RHT_NULLS_HEAD(ptr, ht, hash) \
-	((ptr) = (typeof(ptr)) rht_marker(ht, hash))
+#define INIT_RHT_NULLS_HEAD(ptr)	\
+	((ptr) = (typeof(ptr)) NULLS_MARKER(0))
 
 static inline bool rht_is_a_nulls(const struct rhash_head *ptr)
 {
 	return ((unsigned long) ptr & 1);
-}
-
-static inline unsigned long rht_get_nulls_value(const struct rhash_head *ptr)
-{
-	return ((unsigned long) ptr) >> 1;
 }
 
 static inline void *rht_obj(const struct rhashtable *ht,
@@ -237,7 +92,7 @@ static inline void *rht_obj(const struct rhashtable *ht,
 static inline unsigned int rht_bucket_index(const struct bucket_table *tbl,
 					    unsigned int hash)
 {
-	return (hash >> RHT_HASH_RESERVED_SPACE) & (tbl->size - 1);
+	return hash & (tbl->size - 1);
 }
 
 static inline unsigned int rht_key_get_hash(struct rhashtable *ht,
@@ -375,11 +230,6 @@ static inline int lockdep_rht_bucket_is_held(const struct bucket_table *tbl,
 	return 1;
 }
 #endif /* CONFIG_PROVE_LOCKING */
-
-int rhashtable_init(struct rhashtable *ht,
-		    const struct rhashtable_params *params);
-int rhltable_init(struct rhltable *hlt,
-		  const struct rhashtable_params *params);
 
 void *rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			     struct rhash_head *obj);
@@ -745,7 +595,7 @@ static inline void *__rhashtable_insert_fast(
 	lock = rht_bucket_lock(tbl, hash);
 	spin_lock_bh(lock);
 
-	if (unlikely(rht_dereference_bucket(tbl->future_tbl, tbl, hash))) {
+	if (unlikely(rcu_access_pointer(tbl->future_tbl))) {
 slow_path:
 		spin_unlock_bh(lock);
 		rcu_read_unlock();
@@ -836,9 +686,8 @@ out:
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhashtable_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
@@ -866,9 +715,8 @@ static inline int rhashtable_insert_fast(
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhltable_insert_key(
 	struct rhltable *hlt, const void *key, struct rhlist_head *list,
@@ -890,9 +738,8 @@ static inline int rhltable_insert_key(
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhltable_insert(
 	struct rhltable *hlt, struct rhlist_head *list,
@@ -922,9 +769,8 @@ static inline int rhltable_insert(
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhashtable_lookup_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
@@ -981,9 +827,8 @@ static inline void *rhashtable_lookup_get_insert_fast(
  *
  * Lookups may occur in parallel with hashtable mutations and resizing.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  *
  * Returns zero on success.
  */
@@ -1134,8 +979,8 @@ static inline int __rhashtable_remove_fast(
  * walk the bucket chain upon removal. The removal operation is thus
  * considerable slow if the hash table is not correctly sized.
  *
- * Will automatically shrink the table via rhashtable_expand() if the
- * shrink_decision function specified at rhashtable_init() returns true.
+ * Will automatically shrink the table if permitted when residency drops
+ * below 30%.
  *
  * Returns zero on success, -ENOENT if the entry could not be found.
  */
@@ -1156,8 +1001,8 @@ static inline int rhashtable_remove_fast(
  * walk the bucket chain upon removal. The removal operation is thus
  * considerable slow if the hash table is not correctly sized.
  *
- * Will automatically shrink the table via rhashtable_expand() if the
- * shrink_decision function specified at rhashtable_init() returns true.
+ * Will automatically shrink the table if permitted when residency drops
+ * below 30%
  *
  * Returns zero on success, -ENOENT if the entry could not be found.
  */
@@ -1273,8 +1118,9 @@ static inline int rhashtable_walk_init(struct rhashtable *ht,
  * For a completely stable walk you should construct your own data
  * structure outside the hash table.
  *
- * This function may sleep so you must not call it from interrupt
- * context or with spin locks held.
+ * This function may be called from any process context, including
+ * non-preemptable context, but cannot be called from softirq or
+ * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
  */

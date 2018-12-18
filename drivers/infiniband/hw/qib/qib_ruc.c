@@ -38,156 +38,6 @@
 #include "qib_mad.h"
 
 /*
- * Validate a RWQE and fill in the SGE state.
- * Return 1 if OK.
- */
-static int qib_init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
-{
-	int i, j, ret;
-	struct ib_wc wc;
-	struct rvt_lkey_table *rkt;
-	struct rvt_pd *pd;
-	struct rvt_sge_state *ss;
-
-	rkt = &to_idev(qp->ibqp.device)->rdi.lkey_table;
-	pd = ibpd_to_rvtpd(qp->ibqp.srq ? qp->ibqp.srq->pd : qp->ibqp.pd);
-	ss = &qp->r_sge;
-	ss->sg_list = qp->r_sg_list;
-	qp->r_len = 0;
-	for (i = j = 0; i < wqe->num_sge; i++) {
-		if (wqe->sg_list[i].length == 0)
-			continue;
-		/* Check LKEY */
-		ret = rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				  NULL, &wqe->sg_list[i],
-				  IB_ACCESS_LOCAL_WRITE);
-		if (unlikely(ret <= 0))
-			goto bad_lkey;
-		qp->r_len += wqe->sg_list[i].length;
-		j++;
-	}
-	ss->num_sge = j;
-	ss->total_len = qp->r_len;
-	ret = 1;
-	goto bail;
-
-bad_lkey:
-	while (j) {
-		struct rvt_sge *sge = --j ? &ss->sg_list[j - 1] : &ss->sge;
-
-		rvt_put_mr(sge->mr);
-	}
-	ss->num_sge = 0;
-	memset(&wc, 0, sizeof(wc));
-	wc.wr_id = wqe->wr_id;
-	wc.status = IB_WC_LOC_PROT_ERR;
-	wc.opcode = IB_WC_RECV;
-	wc.qp = &qp->ibqp;
-	/* Signal solicited completion event. */
-	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
-	ret = 0;
-bail:
-	return ret;
-}
-
-/**
- * qib_get_rwqe - copy the next RWQE into the QP's RWQE
- * @qp: the QP
- * @wr_id_only: update qp->r_wr_id only, not qp->r_sge
- *
- * Return -1 if there is a local error, 0 if no RWQE is available,
- * otherwise return 1.
- *
- * Can be called from interrupt level.
- */
-int qib_get_rwqe(struct rvt_qp *qp, int wr_id_only)
-{
-	unsigned long flags;
-	struct rvt_rq *rq;
-	struct rvt_rwq *wq;
-	struct rvt_srq *srq;
-	struct rvt_rwqe *wqe;
-	void (*handler)(struct ib_event *, void *);
-	u32 tail;
-	int ret;
-
-	if (qp->ibqp.srq) {
-		srq = ibsrq_to_rvtsrq(qp->ibqp.srq);
-		handler = srq->ibsrq.event_handler;
-		rq = &srq->rq;
-	} else {
-		srq = NULL;
-		handler = NULL;
-		rq = &qp->r_rq;
-	}
-
-	spin_lock_irqsave(&rq->lock, flags);
-	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)) {
-		ret = 0;
-		goto unlock;
-	}
-
-	wq = rq->wq;
-	tail = wq->tail;
-	/* Validate tail before using it since it is user writable. */
-	if (tail >= rq->size)
-		tail = 0;
-	if (unlikely(tail == wq->head)) {
-		ret = 0;
-		goto unlock;
-	}
-	/* Make sure entry is read after head index is read. */
-	smp_rmb();
-	wqe = rvt_get_rwqe_ptr(rq, tail);
-	/*
-	 * Even though we update the tail index in memory, the verbs
-	 * consumer is not supposed to post more entries until a
-	 * completion is generated.
-	 */
-	if (++tail >= rq->size)
-		tail = 0;
-	wq->tail = tail;
-	if (!wr_id_only && !qib_init_sge(qp, wqe)) {
-		ret = -1;
-		goto unlock;
-	}
-	qp->r_wr_id = wqe->wr_id;
-
-	ret = 1;
-	set_bit(RVT_R_WRID_VALID, &qp->r_aflags);
-	if (handler) {
-		u32 n;
-
-		/*
-		 * Validate head pointer value and compute
-		 * the number of remaining WQEs.
-		 */
-		n = wq->head;
-		if (n >= rq->size)
-			n = 0;
-		if (n < tail)
-			n += rq->size - tail;
-		else
-			n -= tail;
-		if (n < srq->limit) {
-			struct ib_event ev;
-
-			srq->limit = 0;
-			spin_unlock_irqrestore(&rq->lock, flags);
-			ev.device = qp->ibqp.device;
-			ev.element.srq = qp->ibqp.srq;
-			ev.event = IB_EVENT_SRQ_LIMIT_REACHED;
-			handler(&ev, srq->ibsrq.srq_context);
-			goto bail;
-		}
-	}
-unlock:
-	spin_unlock_irqrestore(&rq->lock, flags);
-bail:
-	return ret;
-}
-
-/*
  * Switch to alternate path.
  * The QP s_lock should be held and interrupts disabled.
  */
@@ -419,7 +269,7 @@ again:
 		wc.ex.imm_data = wqe->wr.ex.imm_data;
 		/* FALLTHROUGH */
 	case IB_WR_SEND:
-		ret = qib_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0)
 			goto op_err;
 		if (!ret)
@@ -431,7 +281,7 @@ again:
 			goto inv_err;
 		wc.wc_flags = IB_WC_WITH_IMM;
 		wc.ex.imm_data = wqe->wr.ex.imm_data;
-		ret = qib_get_rwqe(qp, 1);
+		ret = rvt_get_rwqe(qp, true);
 		if (ret < 0)
 			goto op_err;
 		if (!ret)

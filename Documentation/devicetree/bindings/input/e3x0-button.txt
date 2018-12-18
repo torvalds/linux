@@ -7,8 +7,6 @@ This module provides a simple power button event via two interrupts.
 Required properties:
 - compatible: should be one of the following
   - "ettus,e3x0-button": For devices such as the NI Ettus Research USRP E3x0
-- interrupt-parent:
-  - a phandle to the interrupt controller that it is attached to.
 - interrupts: should be one of the following
   - <0 30 1>, <0 31 1>: For devices such as the NI Ettus Research USRP E3x0
 - interrupt-names: should be one of the following

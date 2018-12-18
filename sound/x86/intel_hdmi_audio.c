@@ -290,7 +290,6 @@ static void had_reset_audio(struct snd_intelhad *intelhaddata)
 static int had_prog_status_reg(struct snd_pcm_substream *substream,
 			struct snd_intelhad *intelhaddata)
 {
-	union aud_cfg cfg_val = {.regval = 0};
 	union aud_ch_status_0 ch_stat0 = {.regval = 0};
 	union aud_ch_status_1 ch_stat1 = {.regval = 0};
 
@@ -298,7 +297,6 @@ static int had_prog_status_reg(struct snd_pcm_substream *substream,
 					  IEC958_AES0_NONAUDIO) >> 1;
 	ch_stat0.regx.clk_acc = (intelhaddata->aes_bits &
 					  IEC958_AES3_CON_CLOCK) >> 4;
-	cfg_val.regx.val_bit = ch_stat0.regx.lpcm_id;
 
 	switch (substream->runtime->rate) {
 	case AUD_SAMPLE_RATE_32:
@@ -1854,7 +1852,7 @@ static int hdmi_lpe_audio_probe(struct platform_device *pdev)
 		/* setup private data which can be retrieved when required */
 		pcm->private_data = ctx;
 		pcm->info_flags = 0;
-		strncpy(pcm->name, card->shortname, strlen(card->shortname));
+		strlcpy(pcm->name, card->shortname, strlen(card->shortname));
 		/* setup the ops for playabck */
 		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &had_pcm_ops);
 

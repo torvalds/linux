@@ -12,10 +12,8 @@
 #undef CONFIG_PARAVIRT_SPINLOCKS
 #undef CONFIG_KASAN
 
-#ifdef CONFIG_X86_5LEVEL
-/* cpu_feature_enabled() cannot be used that early */
-#define pgtable_l5_enabled __pgtable_l5_enabled
-#endif
+/* cpu_feature_enabled() cannot be used this early */
+#define USE_EARLY_PGTABLE_L5
 
 #include <linux/linkage.h>
 #include <linux/screen_info.h>

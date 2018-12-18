@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef	__XFS_LOG_FORMAT_H__
 #define __XFS_LOG_FORMAT_H__
@@ -88,6 +76,19 @@ static inline uint xlog_get_cycle(char *ptr)
 #define XFS_LOG			0xaa
 
 #define XLOG_UNMOUNT_TYPE	0x556e	/* Un for Unmount */
+
+/*
+ * Log item for unmount records.
+ *
+ * The unmount record used to have a string "Unmount filesystem--" in the
+ * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
+ * We just write the magic number now; see xfs_log_unmount_write.
+ */
+struct xfs_unmount_log_format {
+	uint16_t	magic;	/* XLOG_UNMOUNT_TYPE */
+	uint16_t	pad1;
+	uint32_t	pad2;	/* may as well make it 64 bits */
+};
 
 /* Region types for iovec's i_type */
 #define XLOG_REG_TYPE_BFORMAT		1

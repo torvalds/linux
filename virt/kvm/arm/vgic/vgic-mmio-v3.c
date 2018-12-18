@@ -184,12 +184,17 @@ static unsigned long vgic_mmio_read_v3r_typer(struct kvm_vcpu *vcpu,
 					      gpa_t addr, unsigned int len)
 {
 	unsigned long mpidr = kvm_vcpu_get_mpidr_aff(vcpu);
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
+	struct vgic_redist_region *rdreg = vgic_cpu->rdreg;
 	int target_vcpu_id = vcpu->vcpu_id;
+	gpa_t last_rdist_typer = rdreg->base + GICR_TYPER +
+			(rdreg->free_index - 1) * KVM_VGIC_V3_REDIST_SIZE;
 	u64 value;
 
 	value = (u64)(mpidr & GENMASK(23, 0)) << 32;
 	value |= ((target_vcpu_id & 0xffff) << 8);
-	if (target_vcpu_id == atomic_read(&vcpu->kvm->online_vcpus) - 1)
+
+	if (addr == last_rdist_typer)
 		value |= GICR_TYPER_LAST;
 	if (vgic_has_its(vcpu->kvm))
 		value |= GICR_TYPER_PLPIS;
@@ -580,10 +585,15 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 {
 	struct kvm *kvm = vcpu->kvm;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
+	struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 	struct vgic_io_device *rd_dev = &vcpu->arch.vgic_cpu.rd_iodev;
 	struct vgic_io_device *sgi_dev = &vcpu->arch.vgic_cpu.sgi_iodev;
+	struct vgic_redist_region *rdreg;
 	gpa_t rd_base, sgi_base;
 	int ret;
+
+	if (!IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr))
+		return 0;
 
 	/*
 	 * We may be creating VCPUs before having set the base address for the
@@ -591,13 +601,16 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	 * function for all VCPUs when the base address is set.  Just return
 	 * without doing any work for now.
 	 */
-	if (IS_VGIC_ADDR_UNDEF(vgic->vgic_redist_base))
+	rdreg = vgic_v3_rdist_free_slot(&vgic->rd_regions);
+	if (!rdreg)
 		return 0;
 
 	if (!vgic_v3_check_base(kvm))
 		return -EINVAL;
 
-	rd_base = vgic->vgic_redist_base + vgic->vgic_redist_free_offset;
+	vgic_cpu->rdreg = rdreg;
+
+	rd_base = rdreg->base + rdreg->free_index * KVM_VGIC_V3_REDIST_SIZE;
 	sgi_base = rd_base + SZ_64K;
 
 	kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
@@ -631,7 +644,7 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-	vgic->vgic_redist_free_offset += 2 * SZ_64K;
+	rdreg->free_index++;
 out:
 	mutex_unlock(&kvm->slots_lock);
 	return ret;
@@ -670,21 +683,94 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 	return ret;
 }
 
-int vgic_v3_set_redist_base(struct kvm *kvm, u64 addr)
+/**
+ * vgic_v3_insert_redist_region - Insert a new redistributor region
+ *
+ * Performs various checks before inserting the rdist region in the list.
+ * Those tests depend on whether the size of the rdist region is known
+ * (ie. count != 0). The list is sorted by rdist region index.
+ *
+ * @kvm: kvm handle
+ * @index: redist region index
+ * @base: base of the new rdist region
+ * @count: number of redistributors the region is made of (0 in the old style
+ * single region, whose size is induced from the number of vcpus)
+ *
+ * Return 0 on success, < 0 otherwise
+ */
+static int vgic_v3_insert_redist_region(struct kvm *kvm, uint32_t index,
+					gpa_t base, uint32_t count)
 {
-	struct vgic_dist *vgic = &kvm->arch.vgic;
+	struct vgic_dist *d = &kvm->arch.vgic;
+	struct vgic_redist_region *rdreg;
+	struct list_head *rd_regions = &d->rd_regions;
+	size_t size = count * KVM_VGIC_V3_REDIST_SIZE;
 	int ret;
 
-	/* vgic_check_ioaddr makes sure we don't do this twice */
-	ret = vgic_check_ioaddr(kvm, &vgic->vgic_redist_base, addr, SZ_64K);
+	/* single rdist region already set ?*/
+	if (!count && !list_empty(rd_regions))
+		return -EINVAL;
+
+	/* cross the end of memory ? */
+	if (base + size < base)
+		return -EINVAL;
+
+	if (list_empty(rd_regions)) {
+		if (index != 0)
+			return -EINVAL;
+	} else {
+		rdreg = list_last_entry(rd_regions,
+					struct vgic_redist_region, list);
+		if (index != rdreg->index + 1)
+			return -EINVAL;
+
+		/* Cannot add an explicitly sized regions after legacy region */
+		if (!rdreg->count)
+			return -EINVAL;
+	}
+
+	/*
+	 * For legacy single-region redistributor regions (!count),
+	 * check that the redistributor region does not overlap with the
+	 * distributor's address space.
+	 */
+	if (!count && !IS_VGIC_ADDR_UNDEF(d->vgic_dist_base) &&
+		vgic_dist_overlap(kvm, base, size))
+		return -EINVAL;
+
+	/* collision with any other rdist region? */
+	if (vgic_v3_rdist_overlap(kvm, base, size))
+		return -EINVAL;
+
+	rdreg = kzalloc(sizeof(*rdreg), GFP_KERNEL);
+	if (!rdreg)
+		return -ENOMEM;
+
+	rdreg->base = VGIC_ADDR_UNDEF;
+
+	ret = vgic_check_ioaddr(kvm, &rdreg->base, base, SZ_64K);
+	if (ret)
+		goto free;
+
+	rdreg->base = base;
+	rdreg->count = count;
+	rdreg->free_index = 0;
+	rdreg->index = index;
+
+	list_add_tail(&rdreg->list, rd_regions);
+	return 0;
+free:
+	kfree(rdreg);
+	return ret;
+}
+
+int vgic_v3_set_redist_base(struct kvm *kvm, u32 index, u64 addr, u32 count)
+{
+	int ret;
+
+	ret = vgic_v3_insert_redist_region(kvm, index, addr, count);
 	if (ret)
 		return ret;
-
-	vgic->vgic_redist_base = addr;
-	if (!vgic_v3_check_base(kvm)) {
-		vgic->vgic_redist_base = VGIC_ADDR_UNDEF;
-		return -EINVAL;
-	}
 
 	/*
 	 * Register iodevs for each existing VCPU.  Adding more VCPUs

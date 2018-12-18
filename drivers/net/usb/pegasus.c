@@ -1067,7 +1067,7 @@ static inline void setup_pegasus_II(pegasus_t *pegasus)
 
 	set_register(pegasus, Reg1d, 0);
 	set_register(pegasus, Reg7b, 1);
-	mdelay(100);
+	msleep(100);
 	if ((pegasus->features & HAS_HOME_PNA) && mii_mode)
 		set_register(pegasus, Reg7b, 0);
 	else

@@ -273,33 +273,8 @@ out_rcu_unlock:
 	goto out;
 }
 
-
-/* bind for INET6 API */
-int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
-{
-	struct sock *sk = sock->sk;
-	int err = 0;
-
-	/* If the socket has its own bind function then use it. */
-	if (sk->sk_prot->bind)
-		return sk->sk_prot->bind(sk, uaddr, addr_len);
-
-	if (addr_len < SIN6_LEN_RFC2133)
-		return -EINVAL;
-
-	/* BPF prog is run before any checks are done so that if the prog
-	 * changes context in a wrong way it will be caught.
-	 */
-	err = BPF_CGROUP_RUN_PROG_INET6_BIND(sk, uaddr);
-	if (err)
-		return err;
-
-	return __inet6_bind(sk, uaddr, addr_len, false, true);
-}
-EXPORT_SYMBOL(inet6_bind);
-
-int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
-		 bool force_bind_address_no_port, bool with_lock)
+static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
+			bool force_bind_address_no_port, bool with_lock)
 {
 	struct sockaddr_in6 *addr = (struct sockaddr_in6 *)uaddr;
 	struct inet_sock *inet = inet_sk(sk);
@@ -347,8 +322,7 @@ int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		/* Reproduce AF_INET checks to make the bindings consistent */
 		v4addr = addr->sin6_addr.s6_addr32[3];
 		chk_addr_ret = inet_addr_type(net, v4addr);
-		if (!net->ipv4.sysctl_ip_nonlocal_bind &&
-		    !(inet->freebind || inet->transparent) &&
+		if (!inet_can_nonlocal_bind(net, inet) &&
 		    v4addr != htonl(INADDR_ANY) &&
 		    chk_addr_ret != RTN_LOCAL &&
 		    chk_addr_ret != RTN_MULTICAST &&
@@ -387,8 +361,7 @@ int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 			 */
 			v4addr = LOOPBACK4_IPV6;
 			if (!(addr_type & IPV6_ADDR_MULTICAST))	{
-				if (!net->ipv6.sysctl.ip_nonlocal_bind &&
-				    !(inet->freebind || inet->transparent) &&
+				if (!ipv6_can_nonlocal_bind(net, inet) &&
 				    !ipv6_chk_addr(net, &addr->sin6_addr,
 						   dev, 0)) {
 					err = -EADDRNOTAVAIL;
@@ -443,6 +416,30 @@ out_unlock:
 	rcu_read_unlock();
 	goto out;
 }
+
+/* bind for INET6 API */
+int inet6_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
+{
+	struct sock *sk = sock->sk;
+	int err = 0;
+
+	/* If the socket has its own bind function then use it. */
+	if (sk->sk_prot->bind)
+		return sk->sk_prot->bind(sk, uaddr, addr_len);
+
+	if (addr_len < SIN6_LEN_RFC2133)
+		return -EINVAL;
+
+	/* BPF prog is run before any checks are done so that if the prog
+	 * changes context in a wrong way it will be caught.
+	 */
+	err = BPF_CGROUP_RUN_PROG_INET6_BIND(sk, uaddr);
+	if (err)
+		return err;
+
+	return __inet6_bind(sk, uaddr, addr_len, false, true);
+}
+EXPORT_SYMBOL(inet6_bind);
 
 int inet6_release(struct socket *sock)
 {
@@ -579,7 +576,9 @@ const struct proto_ops inet6_stream_ops = {
 	.getsockopt	   = sock_common_getsockopt,	/* ok		*/
 	.sendmsg	   = inet_sendmsg,		/* ok		*/
 	.recvmsg	   = inet_recvmsg,		/* ok		*/
-	.mmap		   = sock_no_mmap,
+#ifdef CONFIG_MMU
+	.mmap		   = tcp_mmap,
+#endif
 	.sendpage	   = inet_sendpage,
 	.sendmsg_locked    = tcp_sendmsg_locked,
 	.sendpage_locked   = tcp_sendpage_locked,
@@ -590,6 +589,7 @@ const struct proto_ops inet6_stream_ops = {
 	.compat_setsockopt = compat_sock_common_setsockopt,
 	.compat_getsockopt = compat_sock_common_getsockopt,
 #endif
+	.set_rcvlowat	   = tcp_set_rcvlowat,
 };
 
 const struct proto_ops inet6_dgram_ops = {
@@ -762,6 +762,7 @@ EXPORT_SYMBOL_GPL(ipv6_opt_accepted);
 static struct packet_type ipv6_packet_type __read_mostly = {
 	.type = cpu_to_be16(ETH_P_IPV6),
 	.func = ipv6_rcv,
+	.list_func = ipv6_list_rcv,
 };
 
 static int __init ipv6_packet_init(void)
@@ -831,6 +832,7 @@ static int __net_init inet6_net_init(struct net *net)
 
 	net->ipv6.sysctl.bindv6only = 0;
 	net->ipv6.sysctl.icmpv6_time = 1*HZ;
+	net->ipv6.sysctl.icmpv6_echo_ignore_all = 0;
 	net->ipv6.sysctl.flowlabel_consistency = 1;
 	net->ipv6.sysctl.auto_flowlabels = IP6_DEFAULT_AUTO_FLOW_LABELS;
 	net->ipv6.sysctl.idgen_retries = 3;
@@ -887,7 +889,12 @@ static struct pernet_operations inet6_net_ops = {
 static const struct ipv6_stub ipv6_stub_impl = {
 	.ipv6_sock_mc_join = ipv6_sock_mc_join,
 	.ipv6_sock_mc_drop = ipv6_sock_mc_drop,
-	.ipv6_dst_lookup = ip6_dst_lookup,
+	.ipv6_dst_lookup   = ip6_dst_lookup,
+	.fib6_get_table	   = fib6_get_table,
+	.fib6_table_lookup = fib6_table_lookup,
+	.fib6_lookup       = fib6_lookup,
+	.fib6_multipath_select = fib6_multipath_select,
+	.ip6_mtu_from_fib6 = ip6_mtu_from_fib6,
 	.udpv6_encap_enable = udpv6_encap_enable,
 	.ndisc_send_na = ndisc_send_na,
 	.nd_tbl	= &nd_tbl,

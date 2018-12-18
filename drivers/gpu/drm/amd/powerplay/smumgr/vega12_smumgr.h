@@ -48,7 +48,6 @@ struct vega12_smumgr {
 #define SMU_FEATURES_HIGH_MASK       0xFFFFFFFF00000000
 #define SMU_FEATURES_HIGH_SHIFT      32
 
-int vega12_read_arg_from_smc(struct pp_hwmgr *hwmgr, uint32_t *arg);
 int vega12_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 		uint8_t *table, int16_t table_id);
 int vega12_copy_table_to_smc(struct pp_hwmgr *hwmgr,

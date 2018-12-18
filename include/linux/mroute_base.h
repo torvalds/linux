@@ -2,7 +2,7 @@
 #define __LINUX_MROUTE_BASE_H
 
 #include <linux/netdevice.h>
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 #include <linux/spinlock.h>
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -254,6 +254,7 @@ struct mr_table {
 	atomic_t		cache_resolve_queue_len;
 	bool			mroute_do_assert;
 	bool			mroute_do_pim;
+	bool			mroute_do_wrvifwhole;
 	int			mroute_reg_vif_num;
 };
 
@@ -305,16 +306,6 @@ static inline void vif_device_init(struct vif_device *v,
 				   unsigned short flags,
 				   unsigned short get_iflink_mask)
 {
-}
-
-static inline void *
-mr_table_alloc(struct net *net, u32 id,
-	       struct mr_table_ops *ops,
-	       void (*expire_func)(struct timer_list *t),
-	       void (*table_set)(struct mr_table *mrt,
-				 struct net *net))
-{
-	return NULL;
 }
 
 static inline void *mr_mfc_find_parent(struct mr_table *mrt,

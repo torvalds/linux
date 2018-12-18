@@ -32,7 +32,7 @@
 #define OXNAS_NAND_MAX_CHIPS	1
 
 struct oxnas_nand_ctrl {
-	struct nand_hw_control base;
+	struct nand_controller base;
 	void __iomem *io_base;
 	struct clk *clk;
 	struct nand_chip *chips[OXNAS_NAND_MAX_CHIPS];
@@ -96,7 +96,7 @@ static int oxnas_nand_probe(struct platform_device *pdev)
 	if (!oxnas)
 		return -ENOMEM;
 
-	nand_hw_control_init(&oxnas->base);
+	nand_controller_init(&oxnas->base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	oxnas->io_base = devm_ioremap_resource(&pdev->dev, res);

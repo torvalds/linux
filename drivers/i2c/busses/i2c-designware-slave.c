@@ -75,7 +75,7 @@ static int i2c_dw_init_slave(struct dw_i2c_dev *dev)
 	comp_param1 = dw_readl(dev, DW_IC_COMP_PARAM_1);
 
 	/* Disable the adapter. */
-	__i2c_dw_enable_and_wait(dev, false);
+	__i2c_dw_disable(dev);
 
 	/* Configure SDA Hold Time if required. */
 	reg = dw_readl(dev, DW_IC_COMP_VERSION);
@@ -119,11 +119,11 @@ static int i2c_dw_reg_slave(struct i2c_client *slave)
 	 * Set slave address in the IC_SAR register,
 	 * the address to which the DW_apb_i2c responds.
 	 */
-	__i2c_dw_enable(dev, false);
+	__i2c_dw_disable_nowait(dev);
 	dw_writel(dev, slave->addr, DW_IC_SAR);
 	dev->slave = slave;
 
-	__i2c_dw_enable(dev, true);
+	__i2c_dw_enable(dev);
 
 	dev->cmd_err = 0;
 	dev->msg_write_idx = 0;

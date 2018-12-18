@@ -265,14 +265,10 @@ void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault)
  */
 static noinline void do_sigsegv(struct pt_regs *regs, int si_code)
 {
-	struct siginfo si;
-
 	report_user_fault(regs, SIGSEGV, 1);
-	si.si_signo = SIGSEGV;
-	si.si_errno = 0;
-	si.si_code = si_code;
-	si.si_addr = (void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK);
-	force_sig_info(SIGSEGV, &si, current);
+	force_sig_fault(SIGSEGV, si_code,
+			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK),
+			current);
 }
 
 static noinline void do_no_context(struct pt_regs *regs)
@@ -316,18 +312,13 @@ static noinline void do_low_address(struct pt_regs *regs)
 
 static noinline void do_sigbus(struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
-	struct siginfo si;
-
 	/*
 	 * Send a sigbus, regardless of whether we were in kernel
 	 * or user mode.
 	 */
-	si.si_signo = SIGBUS;
-	si.si_errno = 0;
-	si.si_code = BUS_ADRERR;
-	si.si_addr = (void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK);
-	force_sig_info(SIGBUS, &si, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR,
+			(void __user *)(regs->int_parm_long & __FAIL_ADDR_MASK),
+			current);
 }
 
 static noinline int signal_return(struct pt_regs *regs)
@@ -350,7 +341,8 @@ static noinline int signal_return(struct pt_regs *regs)
 	return -EACCES;
 }
 
-static noinline void do_fault_error(struct pt_regs *regs, int access, int fault)
+static noinline void do_fault_error(struct pt_regs *regs, int access,
+					vm_fault_t fault)
 {
 	int si_code;
 
@@ -410,7 +402,7 @@ static noinline void do_fault_error(struct pt_regs *regs, int access, int fault)
  *   11       Page translation     ->  Not present       (nullification)
  *   3b       Region third trans.  ->  Not present       (nullification)
  */
-static inline int do_exception(struct pt_regs *regs, int access)
+static inline vm_fault_t do_exception(struct pt_regs *regs, int access)
 {
 	struct gmap *gmap;
 	struct task_struct *tsk;
@@ -420,7 +412,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	unsigned long trans_exc_code;
 	unsigned long address;
 	unsigned int flags;
-	int fault;
+	vm_fault_t fault;
 
 	tsk = current;
 	/*
@@ -511,6 +503,8 @@ retry:
 	/* No reason to continue if interrupted by SIGKILL. */
 	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current)) {
 		fault = VM_FAULT_SIGNAL;
+		if (flags & FAULT_FLAG_RETRY_NOWAIT)
+			goto out_up;
 		goto out;
 	}
 	if (unlikely(fault & VM_FAULT_ERROR))
@@ -571,7 +565,8 @@ out:
 void do_protection_exception(struct pt_regs *regs)
 {
 	unsigned long trans_exc_code;
-	int access, fault;
+	int access;
+	vm_fault_t fault;
 
 	trans_exc_code = regs->int_parm_long;
 	/*
@@ -606,7 +601,8 @@ NOKPROBE_SYMBOL(do_protection_exception);
 
 void do_dat_exception(struct pt_regs *regs)
 {
-	int access, fault;
+	int access;
+	vm_fault_t fault;
 
 	access = VM_READ | VM_EXEC | VM_WRITE;
 	fault = do_exception(regs, access);

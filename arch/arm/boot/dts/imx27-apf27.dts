@@ -22,17 +22,10 @@
 	memory@a0000000 {
 		reg = <0xa0000000 0x04000000>;
 	};
+};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		osc26m {
-			compatible = "fsl,imx-osc26m", "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <0>;
-		};
-	};
+&clk_osc26m {
+	clock-frequency = <0>;
 };
 
 &iomuxc {

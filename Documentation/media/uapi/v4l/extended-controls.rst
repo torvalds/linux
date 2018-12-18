@@ -1955,9 +1955,51 @@ enum v4l2_vp8_golden_frame_sel -
 ``V4L2_CID_MPEG_VIDEO_VPX_P_FRAME_QP (integer)``
     Quantization parameter for a P frame for VP8.
 
-``V4L2_CID_MPEG_VIDEO_VPX_PROFILE (integer)``
-    Select the desired profile for VPx encoder. Acceptable values are 0,
-    1, 2 and 3 corresponding to encoder profiles 0, 1, 2 and 3.
+.. _v4l2-mpeg-video-vp8-profile:
+
+``V4L2_CID_MPEG_VIDEO_VP8_PROFILE``
+    (enum)
+
+enum v4l2_mpeg_video_vp8_profile -
+    This control allows selecting the profile for VP8 encoder.
+    This is also used to enumerate supported profiles by VP8 encoder or decoder.
+    Possible values are:
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_VIDEO_VP8_PROFILE_0``
+      - Profile 0
+    * - ``V4L2_MPEG_VIDEO_VP8_PROFILE_1``
+      - Profile 1
+    * - ``V4L2_MPEG_VIDEO_VP8_PROFILE_2``
+      - Profile 2
+    * - ``V4L2_MPEG_VIDEO_VP8_PROFILE_3``
+      - Profile 3
+
+.. _v4l2-mpeg-video-vp9-profile:
+
+``V4L2_CID_MPEG_VIDEO_VP9_PROFILE``
+    (enum)
+
+enum v4l2_mpeg_video_vp9_profile -
+    This control allows selecting the profile for VP9 encoder.
+    This is also used to enumerate supported profiles by VP9 encoder or decoder.
+    Possible values are:
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+
+    * - ``V4L2_MPEG_VIDEO_VP9_PROFILE_0``
+      - Profile 0
+    * - ``V4L2_MPEG_VIDEO_VP9_PROFILE_1``
+      - Profile 1
+    * - ``V4L2_MPEG_VIDEO_VP9_PROFILE_2``
+      - Profile 2
+    * - ``V4L2_MPEG_VIDEO_VP9_PROFILE_3``
+      - Profile 3
 
 
 High Efficiency Video Coding (HEVC/H.265) Control Reference

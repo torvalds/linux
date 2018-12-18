@@ -146,6 +146,23 @@ struct mt76x2_tssi_comp {
 	u8 offset1;
 } __packed __aligned(4);
 
+struct mt76x2_fw_header {
+	__le32 ilm_len;
+	__le32 dlm_len;
+	__le16 build_ver;
+	__le16 fw_ver;
+	u8 pad[4];
+	char build_time[16];
+};
+
+struct mt76x2_patch_header {
+	char build_time[16];
+	char platform[4];
+	char hw_version[4];
+	char patch_version[4];
+	u8 pad[2];
+};
+
 int mt76x2_mcu_calibrate(struct mt76x2_dev *dev, enum mcu_calibration type,
 			 u32 param);
 int mt76x2_mcu_tssi_comp(struct mt76x2_dev *dev, struct mt76x2_tssi_comp *tssi_data);

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom Northstar NAND.
  *
  * Copyright (C) 2015 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 / {

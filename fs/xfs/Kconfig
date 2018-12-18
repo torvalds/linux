@@ -85,6 +85,24 @@ config XFS_ONLINE_SCRUB
 
 	  If unsure, say N.
 
+config XFS_ONLINE_REPAIR
+	bool "XFS online metadata repair support"
+	default n
+	depends on XFS_FS && XFS_ONLINE_SCRUB
+	help
+	  If you say Y here you will be able to repair metadata on a
+	  mounted XFS filesystem.  This feature is intended to reduce
+	  filesystem downtime by fixing minor problems before they cause the
+	  filesystem to go down.  However, it requires that the filesystem be
+	  formatted with secondary metadata, such as reverse mappings and inode
+	  parent pointers.
+
+	  This feature is considered EXPERIMENTAL.  Use with caution!
+
+	  See the xfs_scrub man page in section 8 for additional information.
+
+	  If unsure, say N.
+
 config XFS_WARN
 	bool "XFS Verbose Warnings"
 	depends on XFS_FS && !XFS_DEBUG

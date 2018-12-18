@@ -1800,6 +1800,8 @@ static void ar9003_hw_spectral_scan_config(struct ath_hw *ah,
 
 static void ar9003_hw_spectral_scan_trigger(struct ath_hw *ah)
 {
+	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
+		    AR_PHY_SPECTRAL_SCAN_ENABLE);
 	/* Activate spectral scan */
 	REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN,
 		    AR_PHY_SPECTRAL_SCAN_ACTIVE);

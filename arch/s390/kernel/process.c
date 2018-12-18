@@ -29,6 +29,7 @@
 #include <linux/random.h>
 #include <linux/export.h>
 #include <linux/init_task.h>
+#include <asm/cpu_mf.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
@@ -46,6 +47,15 @@ extern void kernel_thread_starter(void);
 
 void flush_thread(void)
 {
+}
+
+void arch_setup_new_exec(void)
+{
+	if (S390_lowcore.current_pid != current->pid) {
+		S390_lowcore.current_pid = current->pid;
+		if (test_facility(40))
+			lpp(&S390_lowcore.lpp);
+	}
 }
 
 void arch_release_task_struct(struct task_struct *tsk)

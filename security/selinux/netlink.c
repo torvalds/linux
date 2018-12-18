@@ -94,7 +94,7 @@ out:
 out_kfree_skb:
 	kfree_skb(skb);
 oom:
-	printk(KERN_ERR "SELinux:  OOM in %s\n", __func__);
+	pr_err("SELinux:  OOM in %s\n", __func__);
 	goto out;
 }
 

@@ -684,7 +684,8 @@ int tipc_nl_monitor_get_threshold(struct net *net)
 	return tn->mon_threshold;
 }
 
-int __tipc_nl_add_monitor_peer(struct tipc_peer *peer, struct tipc_nl_msg *msg)
+static int __tipc_nl_add_monitor_peer(struct tipc_peer *peer,
+				      struct tipc_nl_msg *msg)
 {
 	struct tipc_mon_domain *dom = peer->domain;
 	struct nlattr *attrs;
@@ -777,7 +778,7 @@ int __tipc_nl_add_monitor(struct net *net, struct tipc_nl_msg *msg,
 
 	ret = tipc_bearer_get_name(net, bearer_name, bearer_id);
 	if (ret || !mon)
-		return -EINVAL;
+		return 0;
 
 	hdr = genlmsg_put(msg->skb, msg->portid, msg->seq, &tipc_genl_family,
 			  NLM_F_MULTI, TIPC_NL_MON_GET);

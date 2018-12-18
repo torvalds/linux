@@ -163,6 +163,17 @@
 
 /* Bit fields */
 
+/* Global SoC Bus Configuration INCRx Register 0 */
+#define DWC3_GSBUSCFG0_INCR256BRSTENA	(1 << 7) /* INCR256 burst */
+#define DWC3_GSBUSCFG0_INCR128BRSTENA	(1 << 6) /* INCR128 burst */
+#define DWC3_GSBUSCFG0_INCR64BRSTENA	(1 << 5) /* INCR64 burst */
+#define DWC3_GSBUSCFG0_INCR32BRSTENA	(1 << 4) /* INCR32 burst */
+#define DWC3_GSBUSCFG0_INCR16BRSTENA	(1 << 3) /* INCR16 burst */
+#define DWC3_GSBUSCFG0_INCR8BRSTENA	(1 << 2) /* INCR8 burst */
+#define DWC3_GSBUSCFG0_INCR4BRSTENA	(1 << 1) /* INCR4 burst */
+#define DWC3_GSBUSCFG0_INCRBRSTENA	(1 << 0) /* undefined length enable */
+#define DWC3_GSBUSCFG0_INCRBRST_MASK	0xff
+
 /* Global Debug Queue/FIFO Space Available Register */
 #define DWC3_GDBGFIFOSPACE_NUM(n)	((n) & 0x1f)
 #define DWC3_GDBGFIFOSPACE_TYPE(n)	(((n) << 5) & 0x1e0)
@@ -226,6 +237,9 @@
 #define DWC3_GCTL_U2EXIT_LFPS		BIT(2)
 #define DWC3_GCTL_GBLHIBERNATIONEN	BIT(1)
 #define DWC3_GCTL_DSBLCLKGTNG		BIT(0)
+
+/* Global User Control Register */
+#define DWC3_GUCTL_HSTINAUTORETRY	BIT(14)
 
 /* Global User Control 1 Register */
 #define DWC3_GUCTL1_TX_IPGAP_LINECHECK_DIS	BIT(28)
@@ -639,8 +653,6 @@ struct dwc3_event_buffer {
  * @resource_index: Resource transfer index
  * @frame_number: set to the frame number we want this transfer to start (ISOC)
  * @interval: the interval on which the ISOC transfer is started
- * @allocated_requests: number of requests allocated
- * @queued_requests: number of requests queued for transfer
  * @name: a human readable name e.g. ep1out-bulk
  * @direction: true for TX, false for RX
  * @stream_capable: true when streams are enabled
@@ -664,11 +676,9 @@ struct dwc3_ep {
 #define DWC3_EP_ENABLED		BIT(0)
 #define DWC3_EP_STALL		BIT(1)
 #define DWC3_EP_WEDGE		BIT(2)
-#define DWC3_EP_BUSY		BIT(4)
+#define DWC3_EP_TRANSFER_STARTED BIT(3)
 #define DWC3_EP_PENDING_REQUEST	BIT(5)
-#define DWC3_EP_MISSED_ISOC	BIT(6)
 #define DWC3_EP_END_TRANSFER_PENDING	BIT(7)
-#define DWC3_EP_TRANSFER_STARTED BIT(8)
 
 	/* This last one is specific to EP0 */
 #define DWC3_EP0_DIR_IN		BIT(31)
@@ -688,8 +698,6 @@ struct dwc3_ep {
 	u8			number;
 	u8			type;
 	u8			resource_index;
-	u32			allocated_requests;
-	u32			queued_requests;
 	u32			frame_number;
 	u32			interval;
 
@@ -832,7 +840,9 @@ struct dwc3_hwparams {
  * @list: a list_head used for request queueing
  * @dep: struct dwc3_ep owning this request
  * @sg: pointer to first incomplete sg
+ * @start_sg: pointer to the sg which should be queued next
  * @num_pending_sgs: counter to pending sgs
+ * @num_queued_sgs: counter to the number of sgs which already got queued
  * @remaining: amount of data remaining
  * @epnum: endpoint number to which this request refers
  * @trb: pointer to struct dwc3_trb
@@ -848,8 +858,10 @@ struct dwc3_request {
 	struct list_head	list;
 	struct dwc3_ep		*dep;
 	struct scatterlist	*sg;
+	struct scatterlist	*start_sg;
 
 	unsigned		num_pending_sgs;
+	unsigned int		num_queued_sgs;
 	unsigned		remaining;
 	u8			epnum;
 	struct dwc3_trb		*trb;
@@ -891,6 +903,9 @@ struct dwc3_scratchpad_array {
  * @eps: endpoint array
  * @gadget: device side representation of the peripheral controller
  * @gadget_driver: pointer to the gadget driver
+ * @clks: array of clocks
+ * @num_clks: number of clocks
+ * @reset: reset control
  * @regs: base address for our registers
  * @regs_size: address space size
  * @fladj: frame length adjustment
@@ -1012,6 +1027,11 @@ struct dwc3 {
 
 	struct usb_gadget	gadget;
 	struct usb_gadget_driver *gadget_driver;
+
+	struct clk_bulk_data	*clks;
+	int			num_clks;
+
+	struct reset_control	*reset;
 
 	struct usb_phy		*usb2_phy;
 	struct usb_phy		*usb3_phy;
@@ -1151,6 +1171,9 @@ struct dwc3 {
 	u16			imod_interval;
 };
 
+#define INCRX_BURST_MODE 0
+#define INCRX_UNDEF_LENGTH_BURST_MODE 1
+
 #define work_to_dwc(w)		(container_of((w), struct dwc3, drd_work))
 
 /* -------------------------------------------------------------------------- */
@@ -1197,11 +1220,12 @@ struct dwc3_event_depevt {
 /* Within XferNotReady */
 #define DEPEVT_STATUS_TRANSFER_ACTIVE	BIT(3)
 
-/* Within XferComplete */
+/* Within XferComplete or XferInProgress */
 #define DEPEVT_STATUS_BUSERR	BIT(0)
 #define DEPEVT_STATUS_SHORT	BIT(1)
 #define DEPEVT_STATUS_IOC	BIT(2)
-#define DEPEVT_STATUS_LST	BIT(3)
+#define DEPEVT_STATUS_LST	BIT(3) /* XferComplete */
+#define DEPEVT_STATUS_MISSED_ISOC BIT(3) /* XferInProgress */
 
 /* Stream event only */
 #define DEPEVT_STREAMEVT_FOUND		1

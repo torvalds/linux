@@ -50,6 +50,8 @@ static inline void *memset64(uint64_t *p, uint64_t v, __kernel_size_t n)
 	return __memset64(p, v, n * 8);
 }
 #else
+#define __HAVE_ARCH_STRLEN
+
 extern void *memset16(uint16_t *, uint16_t, __kernel_size_t);
 #endif
 #endif /* __KERNEL__ */

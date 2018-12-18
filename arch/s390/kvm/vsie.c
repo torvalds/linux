@@ -2,7 +2,7 @@
 /*
  * kvm nested virtualization support for s390x
  *
- * Copyright IBM Corp. 2016
+ * Copyright IBM Corp. 2016, 2018
  *
  *    Author(s): David Hildenbrand <dahi@linux.vnet.ibm.com>
  */
@@ -378,6 +378,10 @@ static int shadow_scb(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	if (test_kvm_facility(vcpu->kvm, 139))
 		scb_s->ecd |= scb_o->ecd & ECD_MEF;
 
+	/* etoken */
+	if (test_kvm_facility(vcpu->kvm, 156))
+		scb_s->ecd |= scb_o->ecd & ECD_ETOKENF;
+
 	prepare_ibc(vcpu, vsie_page);
 	rc = shadow_crycb(vcpu, vsie_page);
 out:
@@ -557,7 +561,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	if (test_kvm_cpu_feat(vcpu->kvm, KVM_S390_VM_CPU_FEAT_64BSCAO))
 		gpa |= (u64) READ_ONCE(scb_o->scaoh) << 32;
 	if (gpa) {
-		if (!(gpa & ~0x1fffUL))
+		if (gpa < 2 * PAGE_SIZE)
 			rc = set_validity_icpt(scb_s, 0x0038U);
 		else if ((gpa & ~0x1fffUL) == kvm_s390_get_prefix(vcpu))
 			rc = set_validity_icpt(scb_s, 0x0011U);
@@ -578,7 +582,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	gpa = READ_ONCE(scb_o->itdba) & ~0xffUL;
 	if (gpa && (scb_s->ecb & ECB_TE)) {
-		if (!(gpa & ~0x1fffU)) {
+		if (gpa < 2 * PAGE_SIZE) {
 			rc = set_validity_icpt(scb_s, 0x0080U);
 			goto unpin;
 		}
@@ -594,7 +598,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	gpa = READ_ONCE(scb_o->gvrd) & ~0x1ffUL;
 	if (gpa && (scb_s->eca & ECA_VX) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
-		if (!(gpa & ~0x1fffUL)) {
+		if (gpa < 2 * PAGE_SIZE) {
 			rc = set_validity_icpt(scb_s, 0x1310U);
 			goto unpin;
 		}
@@ -613,7 +617,7 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 
 	gpa = READ_ONCE(scb_o->riccbd) & ~0x3fUL;
 	if (gpa && (scb_s->ecb3 & ECB3_RI)) {
-		if (!(gpa & ~0x1fffUL)) {
+		if (gpa < 2 * PAGE_SIZE) {
 			rc = set_validity_icpt(scb_s, 0x0043U);
 			goto unpin;
 		}
@@ -627,12 +631,13 @@ static int pin_blocks(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 		vsie_page->riccbd_gpa = gpa;
 		scb_s->riccbd = hpa;
 	}
-	if ((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) {
+	if (((scb_s->ecb & ECB_GS) && !(scb_s->ecd & ECD_HOSTREGMGMT)) ||
+	    (scb_s->ecd & ECD_ETOKENF)) {
 		unsigned long sdnxc;
 
 		gpa = READ_ONCE(scb_o->sdnxo) & ~0xfUL;
 		sdnxc = READ_ONCE(scb_o->sdnxo) & 0xfUL;
-		if (!gpa || !(gpa & ~0x1fffUL)) {
+		if (!gpa || gpa < 2 * PAGE_SIZE) {
 			rc = set_validity_icpt(scb_s, 0x10b0U);
 			goto unpin;
 		}
@@ -818,6 +823,8 @@ static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
  *          - < 0 if an error occurred
  */
 static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
+	__releases(vcpu->kvm->srcu)
+	__acquires(vcpu->kvm->srcu)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
 	struct kvm_s390_sie_block *scb_o = vsie_page->scb_o;

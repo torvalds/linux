@@ -58,6 +58,7 @@
 #define QEDR_MSG_RQ   "  RQ"
 #define QEDR_MSG_SQ   "  SQ"
 #define QEDR_MSG_QP   "  QP"
+#define QEDR_MSG_SRQ  " SRQ"
 #define QEDR_MSG_GSI  " GSI"
 #define QEDR_MSG_IWARP  " IW"
 
@@ -122,6 +123,11 @@ struct qedr_device_attr {
 
 #define QEDR_ENET_STATE_BIT	(0)
 
+struct qedr_idr {
+	spinlock_t idr_lock; /* Protect idr data-structure */
+	struct idr idr;
+};
+
 struct qedr_dev {
 	struct ib_device	ibdev;
 	struct qed_dev		*cdev;
@@ -165,8 +171,8 @@ struct qedr_dev {
 	struct qedr_cq		*gsi_rqcq;
 	struct qedr_qp		*gsi_qp;
 	enum qed_rdma_type	rdma_type;
-	spinlock_t		idr_lock; /* Protect qpidr data-structure */
-	struct idr		qpidr;
+	struct qedr_idr		qpidr;
+	struct qedr_idr		srqidr;
 	struct workqueue_struct *iwarp_wq;
 	u16			iwarp_max_mtu;
 
@@ -336,6 +342,34 @@ struct qedr_qp_hwq_info {
 		p_info->index = (p_info->index + 1) &			\
 				qed_chain_get_capacity(p_info->pbl)	\
 	} while (0)
+
+struct qedr_srq_hwq_info {
+	u32 max_sges;
+	u32 max_wr;
+	struct qed_chain pbl;
+	u64 p_phys_addr_tbl;
+	u32 wqe_prod;
+	u32 sge_prod;
+	u32 wr_prod_cnt;
+	u32 wr_cons_cnt;
+	u32 num_elems;
+
+	u32 *virt_prod_pair_addr;
+	dma_addr_t phy_prod_pair_addr;
+};
+
+struct qedr_srq {
+	struct ib_srq ibsrq;
+	struct qedr_dev *dev;
+
+	struct qedr_userq	usrq;
+	struct qedr_srq_hwq_info hw_srq;
+	struct ib_umem *prod_umem;
+	u16 srq_id;
+	u32 srq_limit;
+	/* lock to protect srq recv post */
+	spinlock_t lock;
+};
 
 enum qedr_qp_err_bitmap {
 	QEDR_QP_ERR_SQ_FULL = 1,
@@ -537,5 +571,10 @@ static inline struct qedr_ah *get_qedr_ah(struct ib_ah *ibah)
 static inline struct qedr_mr *get_qedr_mr(struct ib_mr *ibmr)
 {
 	return container_of(ibmr, struct qedr_mr, ibmr);
+}
+
+static inline struct qedr_srq *get_qedr_srq(struct ib_srq *ibsrq)
+{
+	return container_of(ibsrq, struct qedr_srq, ibsrq);
 }
 #endif

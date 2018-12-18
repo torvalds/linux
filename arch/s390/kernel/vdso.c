@@ -47,7 +47,7 @@ static struct page **vdso64_pagelist;
  */
 unsigned int __read_mostly vdso_enabled = 1;
 
-static int vdso_fault(const struct vm_special_mapping *sm,
+static vm_fault_t vdso_fault(const struct vm_special_mapping *sm,
 		      struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct page **vdso_pagelist;
@@ -285,7 +285,7 @@ static int __init vdso_init(void)
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
 
 	/* Make sure pages are in the correct state */
-	vdso32_pagelist = kzalloc(sizeof(struct page *) * (vdso32_pages + 1),
+	vdso32_pagelist = kcalloc(vdso32_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
 	BUG_ON(vdso32_pagelist == NULL);
 	for (i = 0; i < vdso32_pages - 1; i++) {
@@ -303,7 +303,7 @@ static int __init vdso_init(void)
 			 + PAGE_SIZE - 1) >> PAGE_SHIFT) + 1;
 
 	/* Make sure pages are in the correct state */
-	vdso64_pagelist = kzalloc(sizeof(struct page *) * (vdso64_pages + 1),
+	vdso64_pagelist = kcalloc(vdso64_pages + 1, sizeof(struct page *),
 				  GFP_KERNEL);
 	BUG_ON(vdso64_pagelist == NULL);
 	for (i = 0; i < vdso64_pages - 1; i++) {

@@ -44,4 +44,8 @@ static inline unsigned int bpf_num_possible_cpus(void)
 		name[bpf_num_possible_cpus()]
 #define bpf_percpu(name, cpu) name[(cpu)].v
 
+#ifndef ARRAY_SIZE
+# define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#endif
+
 #endif /* __BPF_UTIL__ */

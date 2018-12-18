@@ -12,13 +12,13 @@
 #define _PLATFORM_DEVICE_H_
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
 
 #define PLATFORM_DEVID_NONE	(-1)
 #define PLATFORM_DEVID_AUTO	(-2)
 
 struct mfd_cell;
 struct property_entry;
+struct platform_device_id;
 
 struct platform_device {
 	const char	*name;
@@ -355,6 +355,8 @@ extern int platform_pm_restore(struct device *dev);
 #define platform_pm_poweroff		NULL
 #define platform_pm_restore		NULL
 #endif
+
+extern int platform_dma_configure(struct device *dev);
 
 #ifdef CONFIG_PM_SLEEP
 #define USE_PLATFORM_PM_SLEEP_OPS \

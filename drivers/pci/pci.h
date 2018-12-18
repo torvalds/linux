@@ -7,6 +7,7 @@
 #define PCI_VSEC_ID_INTEL_TBT	0x1234	/* Thunderbolt */
 
 extern const unsigned char pcie_link_speed[];
+extern bool pci_early_dump;
 
 bool pcie_cap_has_lnkctl(const struct pci_dev *dev);
 
@@ -33,6 +34,7 @@ int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vmai,
 		  enum pci_mmap_api mmap_api);
 
 int pci_probe_reset_function(struct pci_dev *dev);
+int pci_bridge_secondary_bus_reset(struct pci_dev *dev);
 
 /**
  * struct pci_platform_pm_ops - Firmware PM callbacks
@@ -225,6 +227,10 @@ enum pci_bar_type {
 int pci_configure_extended_tags(struct pci_dev *dev, void *ign);
 bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
 				int crs_timeout);
+bool pci_bus_generic_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *pl,
+					int crs_timeout);
+int pci_idt_bus_quirk(struct pci_bus *bus, int devfn, u32 *pl, int crs_timeout);
+
 int pci_setup_device(struct pci_dev *dev);
 int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		    struct resource *res, unsigned int reg);
@@ -259,6 +265,7 @@ enum pci_bus_speed pcie_get_speed_cap(struct pci_dev *dev);
 enum pcie_link_width pcie_get_width_cap(struct pci_dev *dev);
 u32 pcie_bandwidth_capable(struct pci_dev *dev, enum pci_bus_speed *speed,
 			   enum pcie_link_width *width);
+void __pcie_print_link_status(struct pci_dev *dev, bool verbose);
 
 /* Single Root I/O Virtualization */
 struct pci_sriov {
@@ -288,6 +295,7 @@ struct pci_sriov {
 
 /* pci_dev priv_flags */
 #define PCI_DEV_DISCONNECTED 0
+#define PCI_DEV_ADDED 1
 
 static inline int pci_dev_set_disconnected(struct pci_dev *dev, void *unused)
 {
@@ -300,6 +308,44 @@ static inline bool pci_dev_is_disconnected(const struct pci_dev *dev)
 	return test_bit(PCI_DEV_DISCONNECTED, &dev->priv_flags);
 }
 
+static inline void pci_dev_assign_added(struct pci_dev *dev, bool added)
+{
+	assign_bit(PCI_DEV_ADDED, &dev->priv_flags, added);
+}
+
+static inline bool pci_dev_is_added(const struct pci_dev *dev)
+{
+	return test_bit(PCI_DEV_ADDED, &dev->priv_flags);
+}
+
+#ifdef CONFIG_PCIEAER
+#include <linux/aer.h>
+
+#define AER_MAX_MULTI_ERR_DEVICES	5	/* Not likely to have more */
+
+struct aer_err_info {
+	struct pci_dev *dev[AER_MAX_MULTI_ERR_DEVICES];
+	int error_dev_num;
+
+	unsigned int id:16;
+
+	unsigned int severity:2;	/* 0:NONFATAL | 1:FATAL | 2:COR */
+	unsigned int __pad1:5;
+	unsigned int multi_error_valid:1;
+
+	unsigned int first_error:5;
+	unsigned int __pad2:2;
+	unsigned int tlp_header_valid:1;
+
+	unsigned int status;		/* COR/UNCOR Error Status */
+	unsigned int mask;		/* COR/UNCOR Error Mask */
+	struct aer_header_log_regs tlp;	/* TLP Header */
+};
+
+int aer_get_device_error_info(struct pci_dev *dev, struct aer_err_info *info);
+void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);
+#endif	/* CONFIG_PCIEAER */
+
 #ifdef CONFIG_PCI_ATS
 void pci_restore_ats_state(struct pci_dev *dev);
 #else
@@ -311,6 +357,7 @@ static inline void pci_restore_ats_state(struct pci_dev *dev)
 #ifdef CONFIG_PCI_IOV
 int pci_iov_init(struct pci_dev *dev);
 void pci_iov_release(struct pci_dev *dev);
+void pci_iov_remove(struct pci_dev *dev);
 void pci_iov_update_resource(struct pci_dev *dev, int resno);
 resource_size_t pci_sriov_resource_alignment(struct pci_dev *dev, int resno);
 void pci_restore_iov_state(struct pci_dev *dev);
@@ -323,6 +370,9 @@ static inline int pci_iov_init(struct pci_dev *dev)
 }
 static inline void pci_iov_release(struct pci_dev *dev)
 
+{
+}
+static inline void pci_iov_remove(struct pci_dev *dev)
 {
 }
 static inline void pci_restore_iov_state(struct pci_dev *dev)
@@ -352,7 +402,31 @@ static inline resource_size_t pci_resource_alignment(struct pci_dev *dev,
 }
 
 void pci_enable_acs(struct pci_dev *dev);
+#ifdef CONFIG_PCI_QUIRKS
+int pci_dev_specific_acs_enabled(struct pci_dev *dev, u16 acs_flags);
+int pci_dev_specific_enable_acs(struct pci_dev *dev);
+int pci_dev_specific_disable_acs_redir(struct pci_dev *dev);
+#else
+static inline int pci_dev_specific_acs_enabled(struct pci_dev *dev,
+					       u16 acs_flags)
+{
+	return -ENOTTY;
+}
+static inline int pci_dev_specific_enable_acs(struct pci_dev *dev)
+{
+	return -ENOTTY;
+}
+static inline int pci_dev_specific_disable_acs_redir(struct pci_dev *dev)
+{
+	return -ENOTTY;
+}
+#endif
 
+/* PCI error reporting and recovery */
+void pcie_do_fatal_recovery(struct pci_dev *dev, u32 service);
+void pcie_do_nonfatal_recovery(struct pci_dev *dev);
+
+bool pcie_wait_for_link(struct pci_dev *pdev, bool active);
 #ifdef CONFIG_PCIEASPM
 void pcie_aspm_init_link_state(struct pci_dev *pdev);
 void pcie_aspm_exit_link_state(struct pci_dev *pdev);
@@ -406,5 +480,60 @@ static inline u64 pci_rebar_size_to_bytes(int size)
 {
 	return 1ULL << (size + 20);
 }
+
+struct device_node;
+
+#ifdef CONFIG_OF
+int of_pci_parse_bus_range(struct device_node *node, struct resource *res);
+int of_get_pci_domain_nr(struct device_node *node);
+int of_pci_get_max_link_speed(struct device_node *node);
+
+#else
+static inline int
+of_pci_parse_bus_range(struct device_node *node, struct resource *res)
+{
+	return -EINVAL;
+}
+
+static inline int
+of_get_pci_domain_nr(struct device_node *node)
+{
+	return -1;
+}
+
+static inline int
+of_pci_get_max_link_speed(struct device_node *node)
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_OF */
+
+#if defined(CONFIG_OF_ADDRESS)
+int devm_of_pci_get_host_bridge_resources(struct device *dev,
+			unsigned char busno, unsigned char bus_max,
+			struct list_head *resources, resource_size_t *io_base);
+#else
+static inline int devm_of_pci_get_host_bridge_resources(struct device *dev,
+			unsigned char busno, unsigned char bus_max,
+			struct list_head *resources, resource_size_t *io_base)
+{
+	return -EINVAL;
+}
+#endif
+
+#ifdef CONFIG_PCIEAER
+void pci_no_aer(void);
+void pci_aer_init(struct pci_dev *dev);
+void pci_aer_exit(struct pci_dev *dev);
+extern const struct attribute_group aer_stats_attr_group;
+void pci_aer_clear_fatal_status(struct pci_dev *dev);
+void pci_aer_clear_device_status(struct pci_dev *dev);
+#else
+static inline void pci_no_aer(void) { }
+static inline int pci_aer_init(struct pci_dev *d) { return -ENODEV; }
+static inline void pci_aer_exit(struct pci_dev *d) { }
+static inline void pci_aer_clear_fatal_status(struct pci_dev *dev) { }
+static inline void pci_aer_clear_device_status(struct pci_dev *dev) { }
+#endif
 
 #endif /* DRIVERS_PCI_H */

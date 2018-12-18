@@ -977,9 +977,13 @@ static const struct lan9303_mib_desc lan9303_mib[] = {
 	{ .offset = LAN9303_MAC_TX_LATECOL_0, .name = "TxLateCol", },
 };
 
-static void lan9303_get_strings(struct dsa_switch *ds, int port, uint8_t *data)
+static void lan9303_get_strings(struct dsa_switch *ds, int port,
+				u32 stringset, uint8_t *data)
 {
 	unsigned int u;
+
+	if (stringset != ETH_SS_STATS)
+		return;
 
 	for (u = 0; u < ARRAY_SIZE(lan9303_mib); u++) {
 		strncpy(data + u * ETH_GSTRING_LEN, lan9303_mib[u].name,
@@ -1007,8 +1011,11 @@ static void lan9303_get_ethtool_stats(struct dsa_switch *ds, int port,
 	}
 }
 
-static int lan9303_get_sset_count(struct dsa_switch *ds, int port)
+static int lan9303_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
+	if (sset != ETH_SS_STATS)
+		return 0;
+
 	return ARRAY_SIZE(lan9303_mib);
 }
 

@@ -78,8 +78,7 @@ static struct ti_32k ti_32k_timer = {
 		.rating		= 250,
 		.read		= ti_32k_read_cycles,
 		.mask		= CLOCKSOURCE_MASK(32),
-		.flags		= CLOCK_SOURCE_IS_CONTINUOUS |
-				CLOCK_SOURCE_SUSPEND_NONSTOP,
+		.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	},
 };
 

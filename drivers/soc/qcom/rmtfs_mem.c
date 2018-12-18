@@ -184,6 +184,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	device_initialize(&rmtfs_mem->dev);
 	rmtfs_mem->dev.parent = &pdev->dev;
 	rmtfs_mem->dev.groups = qcom_rmtfs_mem_groups;
+	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
 
 	rmtfs_mem->base = devm_memremap(&rmtfs_mem->dev, rmtfs_mem->addr,
 					rmtfs_mem->size, MEMREMAP_WC);
@@ -205,8 +206,6 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to add cdev: %d\n", ret);
 		goto put_device;
 	}
-
-	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
 
 	ret = of_property_read_u32(node, "qcom,vmid", &vmid);
 	if (ret < 0 && ret != -EINVAL) {

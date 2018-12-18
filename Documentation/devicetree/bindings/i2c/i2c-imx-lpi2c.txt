@@ -5,7 +5,6 @@ Required properties:
   - "fsl,imx7ulp-lpi2c" for LPI2C compatible with the one integrated on i.MX7ULP soc
   - "fsl,imx8dv-lpi2c" for LPI2C compatible with the one integrated on i.MX8DV soc
 - reg : address and length of the lpi2c master registers
-- interrupt-parent : core interrupt controller
 - interrupts : lpi2c interrupt
 - clocks : lpi2c clock specifier
 

@@ -7,7 +7,6 @@
 #include <linux/tc_act/tc_csum.h>
 
 struct tcf_csum_params {
-	int action;
 	u32 update_flags;
 	struct rcu_head rcu;
 };

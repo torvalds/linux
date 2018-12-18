@@ -797,7 +797,7 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 	unsigned long flags;
 	u16 tx_bytes, tx_header_size, tx_body_size, current_rate, duration_id;
 	u8 pkt_type, fb_option = AUTO_FB_NONE;
-	bool need_rts = false, is_pspoll = false;
+	bool need_rts = false;
 	bool need_mic = false;
 
 	hdr = (struct ieee80211_hdr *)(skb->data);
@@ -887,9 +887,6 @@ int vnt_tx_packet(struct vnt_private *priv, struct sk_buff *skb)
 
 	if (ieee80211_has_a4(hdr->frame_control))
 		tx_buffer_head->fifo_ctl |= cpu_to_le16(FIFOCTL_LHEAD);
-
-	if (info->flags & IEEE80211_TX_CTL_NO_PS_BUFFER)
-		is_pspoll = true;
 
 	tx_buffer_head->frag_ctl =
 			cpu_to_le16(ieee80211_get_hdrlen_from_skb(skb) << 10);

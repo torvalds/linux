@@ -49,7 +49,7 @@ void gfs2_pin(struct gfs2_sbd *sdp, struct buffer_head *bh)
 	if (test_set_buffer_pinned(bh))
 		gfs2_assert_withdraw(sdp, 0);
 	if (!buffer_uptodate(bh))
-		gfs2_io_error_bh(sdp, bh);
+		gfs2_io_error_bh_wd(sdp, bh);
 	bd = bh->b_private;
 	/* If this buffer is in the AIL and it has already been written
 	 * to in-place disk block, remove it from the AIL.

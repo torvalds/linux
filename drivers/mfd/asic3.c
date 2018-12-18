@@ -31,6 +31,8 @@
 #include <linux/mfd/ds1wm.h>
 #include <linux/mfd/tmio.h>
 
+#include <linux/mmc/host.h>
+
 enum {
 	ASIC3_CLOCK_SPI,
 	ASIC3_CLOCK_OWM,
@@ -719,6 +721,7 @@ static void asic3_mmc_clk_div(struct platform_device *pdev, int state)
 
 static struct tmio_mmc_data asic3_mmc_data = {
 	.hclk           = 24576000,
+	.ocr_mask	= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.set_pwr        = asic3_mmc_pwr,
 	.set_clk_div    = asic3_mmc_clk_div,
 };

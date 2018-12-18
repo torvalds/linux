@@ -8,12 +8,13 @@
  * version 2 as published by the Free Software Foundation.
  */
 
+#include <linux/pm_runtime.h>
+
 #include <net/mac80211.h>
 #include <net/netlink.h>
 
 #include "wlcore.h"
 #include "debug.h"
-#include "ps.h"
 #include "hw_ops.h"
 #include "vendor_cmd.h"
 
@@ -55,14 +56,17 @@ wlcore_vendor_cmd_smart_config_start(struct wiphy *wiphy,
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
 		goto out;
+	}
 
 	ret = wlcore_smart_config_start(wl,
 			nla_get_u32(tb[WLCORE_VENDOR_ATTR_GROUP_ID]));
 
-	wl1271_ps_elp_sleep(wl);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -87,13 +91,16 @@ wlcore_vendor_cmd_smart_config_stop(struct wiphy *wiphy,
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
 		goto out;
+	}
 
 	ret = wlcore_smart_config_stop(wl);
 
-	wl1271_ps_elp_sleep(wl);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 out:
 	mutex_unlock(&wl->mutex);
 
@@ -131,16 +138,19 @@ wlcore_vendor_cmd_smart_config_set_group_key(struct wiphy *wiphy,
 		goto out;
 	}
 
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
+	ret = pm_runtime_get_sync(wl->dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(wl->dev);
 		goto out;
+	}
 
 	ret = wlcore_smart_config_set_group_key(wl,
 			nla_get_u32(tb[WLCORE_VENDOR_ATTR_GROUP_ID]),
 			nla_len(tb[WLCORE_VENDOR_ATTR_GROUP_KEY]),
 			nla_data(tb[WLCORE_VENDOR_ATTR_GROUP_KEY]));
 
-	wl1271_ps_elp_sleep(wl);
+	pm_runtime_mark_last_busy(wl->dev);
+	pm_runtime_put_autosuspend(wl->dev);
 out:
 	mutex_unlock(&wl->mutex);
 

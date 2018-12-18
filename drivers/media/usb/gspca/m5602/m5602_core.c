@@ -342,7 +342,7 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 		data += 4;
 		len -= 4;
 
-		if (cur_frame_len + len <= gspca_dev->frsz) {
+		if (cur_frame_len + len <= gspca_dev->pixfmt.sizeimage) {
 			gspca_dbg(gspca_dev, D_FRAM, "Continuing frame %d copying %d bytes\n",
 				  sd->frame_count, len);
 
@@ -351,7 +351,7 @@ static void m5602_urb_complete(struct gspca_dev *gspca_dev,
 		} else {
 			/* Add the remaining data up to frame size */
 			gspca_frame_add(gspca_dev, INTER_PACKET, data,
-				    gspca_dev->frsz - cur_frame_len);
+				gspca_dev->pixfmt.sizeimage - cur_frame_len);
 		}
 	}
 }

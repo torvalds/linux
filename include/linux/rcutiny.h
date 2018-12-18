@@ -93,7 +93,7 @@ static inline void kfree_call_rcu(struct rcu_head *head,
 #define rcu_note_context_switch(preempt) \
 	do { \
 		rcu_sched_qs(); \
-		rcu_note_voluntary_context_switch_lite(current); \
+		rcu_tasks_qs(current); \
 	} while (0)
 
 static inline int rcu_needs_cpu(u64 basemono, u64 *nextevt)
@@ -132,5 +132,6 @@ static inline void rcu_all_qs(void) { barrier(); }
 #define rcutree_offline_cpu      NULL
 #define rcutree_dead_cpu         NULL
 #define rcutree_dying_cpu        NULL
+static inline void rcu_cpu_starting(unsigned int cpu) { }
 
 #endif /* __LINUX_RCUTINY_H */

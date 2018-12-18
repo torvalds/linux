@@ -39,12 +39,12 @@ struct dma_buf_attachment;
 
 /**
  * struct dma_buf_ops - operations possible on struct dma_buf
- * @map_atomic: maps a page from the buffer into kernel address
+ * @map_atomic: [optional] maps a page from the buffer into kernel address
  *		space, users may not block until the subsequent unmap call.
  *		This callback must not sleep.
  * @unmap_atomic: [optional] unmaps a atomically mapped page from the buffer.
  *		  This Callback must not sleep.
- * @map: maps a page from the buffer into kernel address space.
+ * @map: [optional] maps a page from the buffer into kernel address space.
  * @unmap: [optional] unmaps a page from the buffer.
  * @vmap: [optional] creates a virtual mapping for the buffer into kernel
  *	  address space. Same restrictions as for vmap and friends apply.
@@ -55,11 +55,11 @@ struct dma_buf_ops {
 	 * @attach:
 	 *
 	 * This is called from dma_buf_attach() to make sure that a given
-	 * &device can access the provided &dma_buf. Exporters which support
-	 * buffer objects in special locations like VRAM or device-specific
-	 * carveout areas should check whether the buffer could be move to
-	 * system memory (or directly accessed by the provided device), and
-	 * otherwise need to fail the attach operation.
+	 * &dma_buf_attachment.dev can access the provided &dma_buf. Exporters
+	 * which support buffer objects in special locations like VRAM or
+	 * device-specific carveout areas should check whether the buffer could
+	 * be move to system memory (or directly accessed by the provided
+	 * device), and otherwise need to fail the attach operation.
 	 *
 	 * The exporter should also in general check whether the current
 	 * allocation fullfills the DMA constraints of the new device. If this
@@ -77,8 +77,7 @@ struct dma_buf_ops {
 	 * to signal that backing storage is already allocated and incompatible
 	 * with the requirements of requesting device.
 	 */
-	int (*attach)(struct dma_buf *, struct device *,
-		      struct dma_buf_attachment *);
+	int (*attach)(struct dma_buf *, struct dma_buf_attachment *);
 
 	/**
 	 * @detach:
@@ -206,8 +205,6 @@ struct dma_buf_ops {
 	 * to be restarted.
 	 */
 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
-	void *(*map_atomic)(struct dma_buf *, unsigned long);
-	void (*unmap_atomic)(struct dma_buf *, unsigned long, void *);
 	void *(*map)(struct dma_buf *, unsigned long);
 	void (*unmap)(struct dma_buf *, unsigned long, void *);
 
@@ -395,8 +392,6 @@ int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 			     enum dma_data_direction dir);
 int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 			   enum dma_data_direction dir);
-void *dma_buf_kmap_atomic(struct dma_buf *, unsigned long);
-void dma_buf_kunmap_atomic(struct dma_buf *, unsigned long, void *);
 void *dma_buf_kmap(struct dma_buf *, unsigned long);
 void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
 

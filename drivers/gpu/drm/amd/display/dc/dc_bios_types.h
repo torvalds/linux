@@ -198,6 +198,10 @@ struct dc_vbios_funcs {
 	void (*post_init)(struct dc_bios *bios);
 
 	void (*bios_parser_destroy)(struct dc_bios **dcb);
+
+	enum bp_result (*get_board_layout_info)(
+		struct dc_bios *dcb,
+		struct board_layout_info *board_layout_info);
 };
 
 struct bios_registers {

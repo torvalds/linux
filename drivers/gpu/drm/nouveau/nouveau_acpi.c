@@ -193,7 +193,7 @@ static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
 	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dhandle, state);
 }
 
-static int nouveau_dsm_get_client_id(struct pci_dev *pdev)
+static enum vga_switcheroo_client_id nouveau_dsm_get_client_id(struct pci_dev *pdev)
 {
 	/* easy option one - intel vendor ID means Integrated */
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL)

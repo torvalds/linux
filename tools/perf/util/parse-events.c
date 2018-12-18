@@ -156,13 +156,12 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 		    (strcmp(sys_dirent->d_name, ".")) &&	\
 		    (strcmp(sys_dirent->d_name, "..")))
 
-static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
+static int tp_event_has_id(const char *dir_path, struct dirent *evt_dir)
 {
 	char evt_path[MAXPATHLEN];
 	int fd;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s/%s/id", tracing_events_path,
-			sys_dir->d_name, evt_dir->d_name);
+	snprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path, evt_dir->d_name);
 	fd = open(evt_path, O_RDONLY);
 	if (fd < 0)
 		return -EINVAL;
@@ -171,12 +170,12 @@ static int tp_event_has_id(struct dirent *sys_dir, struct dirent *evt_dir)
 	return 0;
 }
 
-#define for_each_event(sys_dirent, evt_dir, evt_dirent)		\
+#define for_each_event(dir_path, evt_dir, evt_dirent)		\
 	while ((evt_dirent = readdir(evt_dir)) != NULL)		\
 		if (evt_dirent->d_type == DT_DIR &&		\
 		    (strcmp(evt_dirent->d_name, ".")) &&	\
 		    (strcmp(evt_dirent->d_name, "..")) &&	\
-		    (!tp_event_has_id(sys_dirent, evt_dirent)))
+		    (!tp_event_has_id(dir_path, evt_dirent)))
 
 #define MAX_EVENT_LENGTH 512
 
@@ -190,21 +189,21 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	int fd;
 	u64 id;
 	char evt_path[MAXPATHLEN];
-	char dir_path[MAXPATHLEN];
+	char *dir_path;
 
-	sys_dir = opendir(tracing_events_path);
+	sys_dir = tracing_events__opendir();
 	if (!sys_dir)
 		return NULL;
 
 	for_each_subsystem(sys_dir, sys_dirent) {
-
-		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
-			 sys_dirent->d_name);
+		dir_path = get_events_file(sys_dirent->d_name);
+		if (!dir_path)
+			continue;
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
-			continue;
+			goto next;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(dir_path, evt_dir, evt_dirent) {
 
 			scnprintf(evt_path, MAXPATHLEN, "%s/%s/id", dir_path,
 				  evt_dirent->d_name);
@@ -218,6 +217,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 			close(fd);
 			id = atoll(id_buf);
 			if (id == config) {
+				put_events_file(dir_path);
 				closedir(evt_dir);
 				closedir(sys_dir);
 				path = zalloc(sizeof(*path));
@@ -242,6 +242,8 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 			}
 		}
 		closedir(evt_dir);
+next:
+		put_events_file(dir_path);
 	}
 
 	closedir(sys_dir);
@@ -512,14 +514,19 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 				      struct parse_events_error *err,
 				      struct list_head *head_config)
 {
-	char evt_path[MAXPATHLEN];
+	char *evt_path;
 	struct dirent *evt_ent;
 	DIR *evt_dir;
 	int ret = 0, found = 0;
 
-	snprintf(evt_path, MAXPATHLEN, "%s/%s", tracing_events_path, sys_name);
+	evt_path = get_events_file(sys_name);
+	if (!evt_path) {
+		tracepoint_error(err, errno, sys_name, evt_name);
+		return -1;
+	}
 	evt_dir = opendir(evt_path);
 	if (!evt_dir) {
+		put_events_file(evt_path);
 		tracepoint_error(err, errno, sys_name, evt_name);
 		return -1;
 	}
@@ -545,6 +552,7 @@ static int add_tracepoint_multi_event(struct list_head *list, int *idx,
 		ret = -1;
 	}
 
+	put_events_file(evt_path);
 	closedir(evt_dir);
 	return ret;
 }
@@ -570,7 +578,7 @@ static int add_tracepoint_multi_sys(struct list_head *list, int *idx,
 	DIR *events_dir;
 	int ret = 0;
 
-	events_dir = opendir(tracing_events_path);
+	events_dir = tracing_events__opendir();
 	if (!events_dir) {
 		tracepoint_error(err, errno, sys_name, evt_name);
 		return -1;
@@ -1219,13 +1227,16 @@ int parse_events_add_numeric(struct parse_events_state *parse_state,
 
 int parse_events_add_pmu(struct parse_events_state *parse_state,
 			 struct list_head *list, char *name,
-			 struct list_head *head_config, bool auto_merge_stats)
+			 struct list_head *head_config,
+			 bool auto_merge_stats,
+			 bool use_alias)
 {
 	struct perf_event_attr attr;
 	struct perf_pmu_info info;
 	struct perf_pmu *pmu;
 	struct perf_evsel *evsel;
 	struct parse_events_error *err = parse_state->error;
+	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
 	pmu = perf_pmu__find(name);
@@ -1244,11 +1255,14 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		memset(&attr, 0, sizeof(attr));
 	}
 
+	use_uncore_alias = (pmu->is_uncore && use_alias);
+
 	if (!head_config) {
 		attr.type = pmu->type;
 		evsel = __add_event(list, &parse_state->idx, &attr, NULL, pmu, NULL, auto_merge_stats);
 		if (evsel) {
 			evsel->pmu_name = name;
+			evsel->use_uncore_alias = use_uncore_alias;
 			return 0;
 		} else {
 			return -ENOMEM;
@@ -1282,6 +1296,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		evsel->metric_expr = info.metric_expr;
 		evsel->metric_name = info.metric_name;
 		evsel->pmu_name = name;
+		evsel->use_uncore_alias = use_uncore_alias;
 	}
 
 	return evsel ? 0 : -ENOMEM;
@@ -1317,7 +1332,8 @@ int parse_events_multi_pmu_add(struct parse_events_state *parse_state,
 				list_add_tail(&term->list, head);
 
 				if (!parse_events_add_pmu(parse_state, list,
-							  pmu->name, head, true)) {
+							  pmu->name, head,
+							  true, true)) {
 					pr_debug("%s -> %s/%s/\n", str,
 						 pmu->name, alias->str);
 					ok++;
@@ -1339,7 +1355,120 @@ int parse_events__modifier_group(struct list_head *list,
 	return parse_events__modifier_event(list, event_mod, true);
 }
 
-void parse_events__set_leader(char *name, struct list_head *list)
+/*
+ * Check if the two uncore PMUs are from the same uncore block
+ * The format of the uncore PMU name is uncore_#blockname_#pmuidx
+ */
+static bool is_same_uncore_block(const char *pmu_name_a, const char *pmu_name_b)
+{
+	char *end_a, *end_b;
+
+	end_a = strrchr(pmu_name_a, '_');
+	end_b = strrchr(pmu_name_b, '_');
+
+	if (!end_a || !end_b)
+		return false;
+
+	if ((end_a - pmu_name_a) != (end_b - pmu_name_b))
+		return false;
+
+	return (strncmp(pmu_name_a, pmu_name_b, end_a - pmu_name_a) == 0);
+}
+
+static int
+parse_events__set_leader_for_uncore_aliase(char *name, struct list_head *list,
+					   struct parse_events_state *parse_state)
+{
+	struct perf_evsel *evsel, *leader;
+	uintptr_t *leaders;
+	bool is_leader = true;
+	int i, nr_pmu = 0, total_members, ret = 0;
+
+	leader = list_first_entry(list, struct perf_evsel, node);
+	evsel = list_last_entry(list, struct perf_evsel, node);
+	total_members = evsel->idx - leader->idx + 1;
+
+	leaders = calloc(total_members, sizeof(uintptr_t));
+	if (WARN_ON(!leaders))
+		return 0;
+
+	/*
+	 * Going through the whole group and doing sanity check.
+	 * All members must use alias, and be from the same uncore block.
+	 * Also, storing the leader events in an array.
+	 */
+	__evlist__for_each_entry(list, evsel) {
+
+		/* Only split the uncore group which members use alias */
+		if (!evsel->use_uncore_alias)
+			goto out;
+
+		/* The events must be from the same uncore block */
+		if (!is_same_uncore_block(leader->pmu_name, evsel->pmu_name))
+			goto out;
+
+		if (!is_leader)
+			continue;
+		/*
+		 * If the event's PMU name starts to repeat, it must be a new
+		 * event. That can be used to distinguish the leader from
+		 * other members, even they have the same event name.
+		 */
+		if ((leader != evsel) && (leader->pmu_name == evsel->pmu_name)) {
+			is_leader = false;
+			continue;
+		}
+		/* The name is always alias name */
+		WARN_ON(strcmp(leader->name, evsel->name));
+
+		/* Store the leader event for each PMU */
+		leaders[nr_pmu++] = (uintptr_t) evsel;
+	}
+
+	/* only one event alias */
+	if (nr_pmu == total_members) {
+		parse_state->nr_groups--;
+		goto handled;
+	}
+
+	/*
+	 * An uncore event alias is a joint name which means the same event
+	 * runs on all PMUs of a block.
+	 * Perf doesn't support mixed events from different PMUs in the same
+	 * group. The big group has to be split into multiple small groups
+	 * which only include the events from the same PMU.
+	 *
+	 * Here the uncore event aliases must be from the same uncore block.
+	 * The number of PMUs must be same for each alias. The number of new
+	 * small groups equals to the number of PMUs.
+	 * Setting the leader event for corresponding members in each group.
+	 */
+	i = 0;
+	__evlist__for_each_entry(list, evsel) {
+		if (i >= nr_pmu)
+			i = 0;
+		evsel->leader = (struct perf_evsel *) leaders[i++];
+	}
+
+	/* The number of members and group name are same for each group */
+	for (i = 0; i < nr_pmu; i++) {
+		evsel = (struct perf_evsel *) leaders[i];
+		evsel->nr_members = total_members / nr_pmu;
+		evsel->group_name = name ? strdup(name) : NULL;
+	}
+
+	/* Take the new small groups into account */
+	parse_state->nr_groups += nr_pmu - 1;
+
+handled:
+	ret = 1;
+out:
+	free(leaders);
+	return ret;
+}
+
+void parse_events__set_leader(char *name, struct list_head *list,
+			      struct parse_events_state *parse_state)
 {
 	struct perf_evsel *leader;
 
@@ -1347,6 +1476,9 @@ void parse_events__set_leader(char *name, struct list_head *list)
 		WARN_ONCE(true, "WARNING: failed to set leader: empty list");
 		return;
 	}
+
+	if (parse_events__set_leader_for_uncore_aliase(name, list, parse_state))
+		return;
 
 	__perf_evlist__set_leader(list);
 	leader = list_entry(list->next, struct perf_evsel, node);
@@ -1715,7 +1847,7 @@ int parse_events(struct perf_evlist *evlist, const char *str,
 		struct perf_evsel *last;
 
 		if (list_empty(&parse_state.list)) {
-			WARN_ONCE(true, "WARNING: event parser found nothing");
+			WARN_ONCE(true, "WARNING: event parser found nothing\n");
 			return -1;
 		}
 
@@ -1968,13 +2100,13 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob,
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_dirent, *evt_dirent;
 	char evt_path[MAXPATHLEN];
-	char dir_path[MAXPATHLEN];
+	char *dir_path;
 	char **evt_list = NULL;
 	unsigned int evt_i = 0, evt_num = 0;
 	bool evt_num_known = false;
 
 restart:
-	sys_dir = opendir(tracing_events_path);
+	sys_dir = tracing_events__opendir();
 	if (!sys_dir)
 		return;
 
@@ -1989,13 +2121,14 @@ restart:
 		    !strglobmatch(sys_dirent->d_name, subsys_glob))
 			continue;
 
-		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
-			 sys_dirent->d_name);
+		dir_path = get_events_file(sys_dirent->d_name);
+		if (!dir_path)
+			continue;
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
-			continue;
+			goto next;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(dir_path, evt_dir, evt_dirent) {
 			if (event_glob != NULL &&
 			    !strglobmatch(evt_dirent->d_name, event_glob))
 				continue;
@@ -2009,11 +2142,15 @@ restart:
 				 sys_dirent->d_name, evt_dirent->d_name);
 
 			evt_list[evt_i] = strdup(evt_path);
-			if (evt_list[evt_i] == NULL)
+			if (evt_list[evt_i] == NULL) {
+				put_events_file(dir_path);
 				goto out_close_evt_dir;
+			}
 			evt_i++;
 		}
 		closedir(evt_dir);
+next:
+		put_events_file(dir_path);
 	}
 	closedir(sys_dir);
 
@@ -2061,21 +2198,21 @@ int is_valid_tracepoint(const char *event_string)
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_dirent, *evt_dirent;
 	char evt_path[MAXPATHLEN];
-	char dir_path[MAXPATHLEN];
+	char *dir_path;
 
-	sys_dir = opendir(tracing_events_path);
+	sys_dir = tracing_events__opendir();
 	if (!sys_dir)
 		return 0;
 
 	for_each_subsystem(sys_dir, sys_dirent) {
-
-		snprintf(dir_path, MAXPATHLEN, "%s/%s", tracing_events_path,
-			 sys_dirent->d_name);
+		dir_path = get_events_file(sys_dirent->d_name);
+		if (!dir_path)
+			continue;
 		evt_dir = opendir(dir_path);
 		if (!evt_dir)
-			continue;
+			goto next;
 
-		for_each_event(sys_dirent, evt_dir, evt_dirent) {
+		for_each_event(dir_path, evt_dir, evt_dirent) {
 			snprintf(evt_path, MAXPATHLEN, "%s:%s",
 				 sys_dirent->d_name, evt_dirent->d_name);
 			if (!strcmp(evt_path, event_string)) {
@@ -2085,6 +2222,8 @@ int is_valid_tracepoint(const char *event_string)
 			}
 		}
 		closedir(evt_dir);
+next:
+		put_events_file(dir_path);
 	}
 	closedir(sys_dir);
 	return 0;

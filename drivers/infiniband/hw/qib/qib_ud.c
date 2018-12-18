@@ -139,7 +139,7 @@ static void qib_ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 	else {
 		int ret;
 
-		ret = qib_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0) {
 			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			goto bail_unlock;
@@ -534,7 +534,7 @@ void qib_ud_rcv(struct qib_ibport *ibp, struct ib_header *hdr,
 	else {
 		int ret;
 
-		ret = qib_get_rwqe(qp, 0);
+		ret = rvt_get_rwqe(qp, false);
 		if (ret < 0) {
 			rvt_rc_error(qp, IB_WC_LOC_QP_OP_ERR);
 			return;

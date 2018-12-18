@@ -139,6 +139,7 @@ static inline size_t br_port_info_size(void)
 		+ nla_total_size(1)	/* IFLA_BRPORT_PROXYARP_WIFI */
 		+ nla_total_size(1)	/* IFLA_BRPORT_VLAN_TUNNEL */
 		+ nla_total_size(1)	/* IFLA_BRPORT_NEIGH_SUPPRESS */
+		+ nla_total_size(1)	/* IFLA_BRPORT_ISOLATED */
 		+ nla_total_size(sizeof(struct ifla_bridge_id))	/* IFLA_BRPORT_ROOT_ID */
 		+ nla_total_size(sizeof(struct ifla_bridge_id))	/* IFLA_BRPORT_BRIDGE_ID */
 		+ nla_total_size(sizeof(u16))	/* IFLA_BRPORT_DESIGNATED_PORT */
@@ -168,13 +169,15 @@ static inline size_t br_nlmsg_size(struct net_device *dev, u32 filter_mask)
 		+ nla_total_size(1) /* IFLA_OPERSTATE */
 		+ nla_total_size(br_port_info_size()) /* IFLA_PROTINFO */
 		+ nla_total_size(br_get_link_af_size_filtered(dev,
-				 filter_mask)); /* IFLA_AF_SPEC */
+				 filter_mask)) /* IFLA_AF_SPEC */
+		+ nla_total_size(4); /* IFLA_BRPORT_BACKUP_PORT */
 }
 
 static int br_port_fill_attrs(struct sk_buff *skb,
 			      const struct net_bridge_port *p)
 {
 	u8 mode = !!(p->flags & BR_HAIRPIN_MODE);
+	struct net_bridge_port *backup_p;
 	u64 timerval;
 
 	if (nla_put_u8(skb, IFLA_BRPORT_STATE, p->state) ||
@@ -213,7 +216,8 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 							BR_VLAN_TUNNEL)) ||
 	    nla_put_u16(skb, IFLA_BRPORT_GROUP_FWD_MASK, p->group_fwd_mask) ||
 	    nla_put_u8(skb, IFLA_BRPORT_NEIGH_SUPPRESS,
-		       !!(p->flags & BR_NEIGH_SUPPRESS)))
+		       !!(p->flags & BR_NEIGH_SUPPRESS)) ||
+	    nla_put_u8(skb, IFLA_BRPORT_ISOLATED, !!(p->flags & BR_ISOLATED)))
 		return -EMSGSIZE;
 
 	timerval = br_timer_value(&p->message_age_timer);
@@ -234,6 +238,14 @@ static int br_port_fill_attrs(struct sk_buff *skb,
 		       p->multicast_router))
 		return -EMSGSIZE;
 #endif
+
+	/* we might be called only with br->lock */
+	rcu_read_lock();
+	backup_p = rcu_dereference(p->backup_port);
+	if (backup_p)
+		nla_put_u32(skb, IFLA_BRPORT_BACKUP_PORT,
+			    backup_p->dev->ifindex);
+	rcu_read_unlock();
 
 	return 0;
 }
@@ -660,6 +672,8 @@ static const struct nla_policy br_port_policy[IFLA_BRPORT_MAX + 1] = {
 	[IFLA_BRPORT_VLAN_TUNNEL] = { .type = NLA_U8 },
 	[IFLA_BRPORT_GROUP_FWD_MASK] = { .type = NLA_U16 },
 	[IFLA_BRPORT_NEIGH_SUPPRESS] = { .type = NLA_U8 },
+	[IFLA_BRPORT_ISOLATED]	= { .type = NLA_U8 },
+	[IFLA_BRPORT_BACKUP_PORT] = { .type = NLA_U32 },
 };
 
 /* Change the state of the port and notify spanning tree */
@@ -809,6 +823,27 @@ static int br_setport(struct net_bridge_port *p, struct nlattr *tb[])
 			       BR_NEIGH_SUPPRESS);
 	if (err)
 		return err;
+
+	err = br_set_port_flag(p, tb, IFLA_BRPORT_ISOLATED, BR_ISOLATED);
+	if (err)
+		return err;
+
+	if (tb[IFLA_BRPORT_BACKUP_PORT]) {
+		struct net_device *backup_dev = NULL;
+		u32 backup_ifindex;
+
+		backup_ifindex = nla_get_u32(tb[IFLA_BRPORT_BACKUP_PORT]);
+		if (backup_ifindex) {
+			backup_dev = __dev_get_by_index(dev_net(p->dev),
+							backup_ifindex);
+			if (!backup_dev)
+				return -ENOENT;
+		}
+
+		err = nbp_backup_change(p, backup_dev);
+		if (err)
+			return err;
+	}
 
 	br_port_flags_change(p, old_flags ^ p->flags);
 	return 0;

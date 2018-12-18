@@ -51,19 +51,15 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 		if (!pxa25x_ssp_comp(drv_data))
 			pxa2xx_spi_write(drv_data, SSTO, 0);
 
-		if (!error) {
-			msg->actual_length += drv_data->len;
-			msg->state = pxa2xx_spi_next_transfer(drv_data);
-		} else {
+		if (error) {
 			/* In case we got an error we disable the SSP now */
 			pxa2xx_spi_write(drv_data, SSCR0,
 					 pxa2xx_spi_read(drv_data, SSCR0)
 					 & ~SSCR0_SSE);
-
-			msg->state = ERROR_STATE;
+			msg->status = -EIO;
 		}
 
-		tasklet_schedule(&drv_data->pump_transfers);
+		spi_finalize_current_transfer(drv_data->master);
 	}
 }
 
@@ -74,11 +70,11 @@ static void pxa2xx_spi_dma_callback(void *data)
 
 static struct dma_async_tx_descriptor *
 pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
-			   enum dma_transfer_direction dir)
+			   enum dma_transfer_direction dir,
+			   struct spi_transfer *xfer)
 {
 	struct chip_data *chip =
 		spi_get_ctldata(drv_data->master->cur_msg->spi);
-	struct spi_transfer *xfer = drv_data->cur_transfer;
 	enum dma_slave_buswidth width;
 	struct dma_slave_config cfg;
 	struct dma_chan *chan;
@@ -144,12 +140,13 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	return IRQ_NONE;
 }
 
-int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
+int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
+			   struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *tx_desc, *rx_desc;
 	int err;
 
-	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV);
+	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV, xfer);
 	if (!tx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA TX descriptor\n");
@@ -157,7 +154,7 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 		goto err_tx;
 	}
 
-	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM);
+	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM, xfer);
 	if (!rx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA RX descriptor\n");
@@ -185,6 +182,13 @@ void pxa2xx_spi_dma_start(struct driver_data *drv_data)
 	dma_async_issue_pending(drv_data->master->dma_tx);
 
 	atomic_set(&drv_data->dma_running, 1);
+}
+
+void pxa2xx_spi_dma_stop(struct driver_data *drv_data)
+{
+	atomic_set(&drv_data->dma_running, 0);
+	dmaengine_terminate_sync(drv_data->master->dma_rx);
+	dmaengine_terminate_sync(drv_data->master->dma_tx);
 }
 
 int pxa2xx_spi_dma_setup(struct driver_data *drv_data)

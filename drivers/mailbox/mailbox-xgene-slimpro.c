@@ -195,9 +195,9 @@ static int slimpro_mbox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ctx);
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mb_base = devm_ioremap(&pdev->dev, regs->start, resource_size(regs));
-	if (!mb_base)
-		return -ENOMEM;
+	mb_base = devm_ioremap_resource(&pdev->dev, regs);
+	if (IS_ERR(mb_base))
+		return PTR_ERR(mb_base);
 
 	/* Setup mailbox links */
 	for (i = 0; i < MBOX_CNT; i++) {

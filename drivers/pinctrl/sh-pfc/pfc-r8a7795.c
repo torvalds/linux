@@ -1493,10 +1493,10 @@ static const u16 pinmux_data[] = {
 
 /*
  * Static pins can not be muxed between different functions but
- * still needs a mark entry in the pinmux list. Add each static
+ * still need mark entries in the pinmux list. Add each static
  * pin to the list without an associated function. The sh-pfc
- * core will do the right thing and skip trying to mux then pin
- * while still applying configuration to it
+ * core will do the right thing and skip trying to mux the pin
+ * while still applying configuration to it.
  */
 #define FM(x)	PINMUX_DATA(x##_MARK, 0),
 	PINMUX_STATIC
@@ -3122,7 +3122,7 @@ static const unsigned int msiof3_ss1_e_mux[] = {
 	MSIOF3_SS1_E_MARK,
 };
 static const unsigned int msiof3_ss2_e_pins[] = {
-	/* SS1 */
+	/* SS2 */
 	RCAR_GP_PIN(2, 0),
 };
 static const unsigned int msiof3_ss2_e_mux[] = {

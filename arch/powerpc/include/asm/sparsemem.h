@@ -6,13 +6,20 @@
 #ifdef CONFIG_SPARSEMEM
 /*
  * SECTION_SIZE_BITS		2^N: how big each section will be
- * MAX_PHYSADDR_BITS		2^N: how much physical address space we have
  * MAX_PHYSMEM_BITS		2^N: how much memory we can have in that space
  */
 #define SECTION_SIZE_BITS       24
-
-#define MAX_PHYSADDR_BITS       46
+/*
+ * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
+ * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
+ * page_to_nid does a page->section->node lookup
+ * Hence only increase for VMEMMAP.
+ */
+#ifdef CONFIG_SPARSEMEM_VMEMMAP
+#define MAX_PHYSMEM_BITS        47
+#else
 #define MAX_PHYSMEM_BITS        46
+#endif
 
 #endif /* CONFIG_SPARSEMEM */
 

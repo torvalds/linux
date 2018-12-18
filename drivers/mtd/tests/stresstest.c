@@ -199,7 +199,7 @@ static int __init mtd_stresstest_init(void)
 	err = -ENOMEM;
 	readbuf = vmalloc(bufsize);
 	writebuf = vmalloc(bufsize);
-	offsets = kmalloc(ebcnt * sizeof(int), GFP_KERNEL);
+	offsets = kmalloc_array(ebcnt, sizeof(int), GFP_KERNEL);
 	if (!readbuf || !writebuf || !offsets)
 		goto out;
 	for (i = 0; i < ebcnt; i++)

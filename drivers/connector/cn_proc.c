@@ -262,6 +262,8 @@ void proc_coredump_connector(struct task_struct *task)
 	ev->what = PROC_EVENT_COREDUMP;
 	ev->event_data.coredump.process_pid = task->pid;
 	ev->event_data.coredump.process_tgid = task->tgid;
+	ev->event_data.coredump.parent_pid = task->real_parent->pid;
+	ev->event_data.coredump.parent_tgid = task->real_parent->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */
@@ -288,6 +290,8 @@ void proc_exit_connector(struct task_struct *task)
 	ev->event_data.exit.process_tgid = task->tgid;
 	ev->event_data.exit.exit_code = task->exit_code;
 	ev->event_data.exit.exit_signal = task->exit_signal;
+	ev->event_data.exit.parent_pid = task->real_parent->pid;
+	ev->event_data.exit.parent_tgid = task->real_parent->tgid;
 
 	memcpy(&msg->id, &cn_proc_event_id, sizeof(msg->id));
 	msg->ack = 0; /* not used */

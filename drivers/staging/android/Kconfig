@@ -6,13 +6,22 @@ config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n
 	depends on SHMEM
-	---help---
+	help
 	  The ashmem subsystem is a new shared memory allocator, similar to
 	  POSIX SHM but with different behavior and sporting a simpler
 	  file-based API.
 
 	  It is, in theory, a good memory allocator for low-memory devices,
 	  because it can discard shared memory units when under memory pressure.
+
+config ANDROID_VSOC
+	tristate "Android Virtual SoC support"
+	default n
+	depends on PCI_MSI
+	help
+	  This option adds support for the Virtual SoC driver needed to boot
+	  a 'cuttlefish' Android image inside QEmu. The driver interacts with
+	  a QEmu ivshmem device. If built as a module, it will be called vsoc.
 
 source "drivers/staging/android/ion/Kconfig"
 

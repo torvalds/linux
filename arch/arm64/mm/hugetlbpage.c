@@ -108,7 +108,6 @@ static pte_t get_clear_flush(struct mm_struct *mm,
 			     unsigned long pgsize,
 			     unsigned long ncontig)
 {
-	struct vm_area_struct vma = { .vm_mm = mm };
 	pte_t orig_pte = huge_ptep_get(ptep);
 	bool valid = pte_valid(orig_pte);
 	unsigned long i, saddr = addr;
@@ -125,8 +124,10 @@ static pte_t get_clear_flush(struct mm_struct *mm,
 			orig_pte = pte_mkdirty(orig_pte);
 	}
 
-	if (valid)
+	if (valid) {
+		struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
 		flush_tlb_range(&vma, saddr, addr);
+	}
 	return orig_pte;
 }
 
@@ -145,7 +146,7 @@ static void clear_flush(struct mm_struct *mm,
 			     unsigned long pgsize,
 			     unsigned long ncontig)
 {
-	struct vm_area_struct vma = { .vm_mm = mm };
+	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, 0);
 	unsigned long i, saddr = addr;
 
 	for (i = 0; i < ncontig; i++, addr += pgsize, ptep++)

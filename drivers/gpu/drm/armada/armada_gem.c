@@ -13,25 +13,14 @@
 #include <drm/armada_drm.h>
 #include "armada_ioctlP.h"
 
-static int armada_gem_vm_fault(struct vm_fault *vmf)
+static vm_fault_t armada_gem_vm_fault(struct vm_fault *vmf)
 {
 	struct drm_gem_object *gobj = vmf->vma->vm_private_data;
 	struct armada_gem_object *obj = drm_to_armada_gem(gobj);
 	unsigned long pfn = obj->phys_addr >> PAGE_SHIFT;
-	int ret;
 
 	pfn += (vmf->address - vmf->vma->vm_start) >> PAGE_SHIFT;
-	ret = vm_insert_pfn(vmf->vma, vmf->address, pfn);
-
-	switch (ret) {
-	case 0:
-	case -EBUSY:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+	return vmf_insert_pfn(vmf->vma, vmf->address, pfn);
 }
 
 const struct vm_operations_struct armada_gem_vm_ops = {
@@ -490,8 +479,6 @@ static const struct dma_buf_ops armada_gem_prime_dmabuf_ops = {
 	.map_dma_buf	= armada_gem_prime_map_dma_buf,
 	.unmap_dma_buf	= armada_gem_prime_unmap_dma_buf,
 	.release	= drm_gem_dmabuf_release,
-	.map_atomic	= armada_gem_dmabuf_no_kmap,
-	.unmap_atomic	= armada_gem_dmabuf_no_kunmap,
 	.map		= armada_gem_dmabuf_no_kmap,
 	.unmap		= armada_gem_dmabuf_no_kunmap,
 	.mmap		= armada_gem_dmabuf_mmap,

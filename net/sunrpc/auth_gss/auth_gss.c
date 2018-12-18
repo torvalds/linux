@@ -517,7 +517,7 @@ gss_alloc_msg(struct gss_auth *gss_auth,
 		err = gss_encode_v1_msg(gss_msg, service_name, gss_auth->target_name);
 		if (err)
 			goto err_put_pipe_version;
-	};
+	}
 	kref_get(&gss_auth->kref);
 	return gss_msg;
 err_put_pipe_version:
@@ -1753,7 +1753,8 @@ alloc_enc_pages(struct rpc_rqst *rqstp)
 	last = (snd_buf->page_base + snd_buf->page_len - 1) >> PAGE_SHIFT;
 	rqstp->rq_enc_pages_num = last - first + 1 + 1;
 	rqstp->rq_enc_pages
-		= kmalloc(rqstp->rq_enc_pages_num * sizeof(struct page *),
+		= kmalloc_array(rqstp->rq_enc_pages_num,
+				sizeof(struct page *),
 				GFP_NOFS);
 	if (!rqstp->rq_enc_pages)
 		goto out;

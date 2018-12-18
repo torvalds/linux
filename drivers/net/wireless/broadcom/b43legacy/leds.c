@@ -101,7 +101,7 @@ static int b43legacy_register_led(struct b43legacy_wldev *dev,
 	led->dev = dev;
 	led->index = led_index;
 	led->activelow = activelow;
-	strncpy(led->name, name, sizeof(led->name));
+	strlcpy(led->name, name, sizeof(led->name));
 
 	led->led_dev.name = led->name;
 	led->led_dev.default_trigger = default_trigger;

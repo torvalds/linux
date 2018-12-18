@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * fsl_ssi.h - ALSA SSI interface for the Freescale MPC8610 and i.MX SoC
  *
  * Author: Timur Tabi <timur@freescale.com>
  *
- * Copyright 2007-2008 Freescale Semiconductor, Inc.  This file is licensed
- * under the terms of the GNU General Public License version 2.  This
- * program is licensed "as is" without any warranty of any kind, whether
- * express or implied.
+ * Copyright 2007-2008 Freescale Semiconductor, Inc.
  */
 
 #ifndef _MPC8610_I2S_H

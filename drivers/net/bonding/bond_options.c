@@ -395,7 +395,7 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.id = BOND_OPT_TLB_DYNAMIC_LB,
 		.name = "tlb_dynamic_lb",
 		.desc = "Enable dynamic flow shuffling",
-		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_TLB)),
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_TLB) | BIT(BOND_MODE_ALB)),
 		.values = bond_tlb_dynamic_lb_tbl,
 		.flags = BOND_OPTFLAG_IFDOWN,
 		.set = bond_option_tlb_dynamic_lb_set,
@@ -743,15 +743,20 @@ const struct bond_option *bond_opt_get(unsigned int option)
 static int bond_option_mode_set(struct bonding *bond,
 				const struct bond_opt_value *newval)
 {
-	if (!bond_mode_uses_arp(newval->value) && bond->params.arp_interval) {
-		netdev_dbg(bond->dev, "%s mode is incompatible with arp monitoring, start mii monitoring\n",
-			   newval->string);
-		/* disable arp monitoring */
-		bond->params.arp_interval = 0;
-		/* set miimon to default value */
-		bond->params.miimon = BOND_DEFAULT_MIIMON;
-		netdev_dbg(bond->dev, "Setting MII monitoring interval to %d\n",
-			   bond->params.miimon);
+	if (!bond_mode_uses_arp(newval->value)) {
+		if (bond->params.arp_interval) {
+			netdev_dbg(bond->dev, "%s mode is incompatible with arp monitoring, start mii monitoring\n",
+				   newval->string);
+			/* disable arp monitoring */
+			bond->params.arp_interval = 0;
+		}
+
+		if (!bond->params.miimon) {
+			/* set miimon to default value */
+			bond->params.miimon = BOND_DEFAULT_MIIMON;
+			netdev_dbg(bond->dev, "Setting MII monitoring interval to %d\n",
+				   bond->params.miimon);
+		}
 	}
 
 	if (newval->value == BOND_MODE_ALB)
@@ -1142,6 +1147,7 @@ static int bond_option_primary_set(struct bonding *bond,
 				   slave->dev->name);
 			rcu_assign_pointer(bond->primary_slave, slave);
 			strcpy(bond->params.primary, slave->dev->name);
+			bond->force_primary = true;
 			bond_select_active_slave(bond);
 			goto out;
 		}

@@ -460,8 +460,8 @@ static int nsp_pinmux_enable(struct pinctrl_dev *pctrl_dev,
 	const struct nsp_pin_function *func;
 	const struct nsp_pin_group *grp;
 
-	if (grp_select > pinctrl->num_groups ||
-		func_select > pinctrl->num_functions)
+	if (grp_select >= pinctrl->num_groups ||
+	    func_select >= pinctrl->num_functions)
 		return -EINVAL;
 
 	func = &pinctrl->functions[func_select];
@@ -577,6 +577,8 @@ static int nsp_pinmux_probe(struct platform_device *pdev)
 		return PTR_ERR(pinctrl->base0);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+	if (!res)
+		return -EINVAL;
 	pinctrl->base1 = devm_ioremap_nocache(&pdev->dev, res->start,
 					      resource_size(res));
 	if (!pinctrl->base1) {

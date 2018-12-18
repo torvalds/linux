@@ -1,7 +1,7 @@
 [
     {
         "id": "6f5a",
-        "name": "Add vlan pop action",
+        "name": "Add vlan pop action with pipe opcode",
         "category": [
             "actions",
             "vlan"
@@ -14,18 +14,18 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action vlan pop index 8",
+        "cmdUnderTest": "$TC actions add action vlan pop pipe index 8",
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action vlan",
-        "matchPattern": "action order [0-9]+: vlan.*pop.*index 8 ref",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*pipe.*index 8 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action vlan"
         ]
     },
     {
-        "id": "ee6f",
-        "name": "Add vlan pop action with large index",
+        "id": "df35",
+        "name": "Add vlan pop action with pass opcode",
         "category": [
             "actions",
             "vlan"
@@ -38,10 +38,82 @@
                 255
             ]
         ],
-        "cmdUnderTest": "$TC actions add action vlan pop index 4294967295",
+        "cmdUnderTest": "$TC actions add action vlan pop pass index 8",
         "expExitCode": "0",
-        "verifyCmd": "$TC actions list action vlan",
-        "matchPattern": "action order [0-9]+: vlan.*pop.*index 4294967295 ref",
+        "verifyCmd": "$TC actions get action vlan index 8",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*pass.*index 8 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "b0d4",
+        "name": "Add vlan pop action with drop opcode",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop drop index 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 8",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*drop.*index 8 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "95ee",
+        "name": "Add vlan pop action with reclassify opcode",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop reclassify index 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 8",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*reclassify.*index 8 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "0283",
+        "name": "Add vlan pop action with continue opcode",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop continue index 8",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 8",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*continue.*index 8 ref",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action vlan"
@@ -96,6 +168,74 @@
         ]
     },
     {
+        "id": "a178",
+        "name": "Add vlan pop action with invalid opcode",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop foo index 8",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action vlan",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*foo.*index 8 ref",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "ee6f",
+        "name": "Add vlan pop action with index at 32-bit maximum",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop index 4294967295",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action vlan",
+        "matchPattern": "action order [0-9]+: vlan.*pop.*index 4294967295 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "0dfa",
+        "name": "Add vlan pop action with index exceeding 32-bit maximum",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan pop reclassify index 429496729599",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions get action vlan index 429496729599",
+        "matchPattern": "action order [0-9]+: vlan.*pop.reclassify.*index 429496729599",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
         "id": "2b91",
         "name": "Add vlan invalid action",
         "category": [
@@ -115,13 +255,11 @@
         "verifyCmd": "$TC actions list action vlan",
         "matchPattern": "action order [0-9]+: vlan.*bad_mode",
         "matchCount": "0",
-        "teardown": [
-            "$TC actions flush action vlan"
-        ]
+        "teardown": []
     },
     {
         "id": "57fc",
-        "name": "Add vlan action with invalid protocol type",
+        "name": "Add vlan push action with invalid protocol type",
         "category": [
             "actions",
             "vlan"
@@ -139,9 +277,7 @@
         "verifyCmd": "$TC actions list action vlan",
         "matchPattern": "action order [0-9]+: vlan.*push",
         "matchCount": "0",
-        "teardown": [
-            "$TC actions flush action vlan"
-        ]
+        "teardown": []
     },
     {
         "id": "3989",
@@ -216,6 +352,30 @@
         ]
     },
     {
+        "id": "1f4b",
+        "name": "Add vlan push action with maximum 12-bit vlan ID",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan push id 4094 index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 1",
+        "matchPattern": "action order [0-9]+: vlan.*push id 4094.*protocol 802.1Q.*priority 0.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
         "id": "1f7b",
         "name": "Add vlan push action with invalid vlan ID",
         "category": [
@@ -240,6 +400,30 @@
         ]
     },
     {
+        "id": "fe40",
+        "name": "Add vlan push action with maximum 3-bit IEEE 802.1p priority",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action vlan push id 4 priority 7 reclassify index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 1",
+        "matchPattern": "action order [0-9]+: vlan.*push id 4.*protocol 802.1Q.*priority 7.*reclassify.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
         "id": "5d02",
         "name": "Add vlan push action with invalid IEEE 802.1p priority",
         "category": [
@@ -259,9 +443,7 @@
         "verifyCmd": "$TC actions list action vlan",
         "matchPattern": "action order [0-9]+: vlan.*push id 5.*index 1 ref",
         "matchCount": "0",
-        "teardown": [
-            "$TC actions flush action vlan"
-        ]
+        "teardown": []
     },
     {
         "id": "6812",
@@ -306,6 +488,106 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions get action vlan index 12",
         "matchPattern": "action order [0-9]+: vlan.*modify id 500 protocol 802.1ad priority 0 reclassify.*index 12 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "3deb",
+        "name": "Replace existing vlan push action with new ID",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action vlan push id 500 pipe index 12"
+        ],
+        "cmdUnderTest": "$TC actions replace action vlan push id 700 pipe index 12",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 12",
+        "matchPattern": "action order [0-9]+: vlan.*push id 700 protocol 802.1Q priority 0 pipe.*index 12 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "9e76",
+        "name": "Replace existing vlan push action with new protocol",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action vlan push id 1 protocol 802.1Q pipe index 1"
+        ],
+        "cmdUnderTest": "$TC actions replace action vlan push id 1 protocol 802.1ad pipe index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 1",
+        "matchPattern": "action order [0-9]+: vlan.*push id 1 protocol 802.1ad priority 0 pipe.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "ede4",
+        "name": "Replace existing vlan push action with new priority",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action vlan push id 1 protocol 802.1Q priority 3 reclassify index 1"
+        ],
+        "cmdUnderTest": "$TC actions replace action vlan push id 1 priority 4 reclassify index 1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 1",
+        "matchPattern": "action order [0-9]+: vlan.*push id 1 protocol 802.1Q priority 4 reclassify.*index 1 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action vlan"
+        ]
+    },
+    {
+        "id": "d413",
+        "name": "Replace existing vlan pop action with new cookie",
+        "category": [
+            "actions",
+            "vlan"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action vlan",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action vlan pop continue index 1 cookie 22334455"
+        ],
+        "cmdUnderTest": "$TC actions replace action vlan pop continue index 1 cookie a1b1c2d1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions get action vlan index 1",
+        "matchPattern": "action order [0-9]+: vlan.*pop continue.*index 1 ref.*cookie a1b1c2d1",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action vlan"
@@ -385,7 +667,7 @@
     },
     {
         "id": "1d78",
-        "name": "Add vlan action with cookie",
+        "name": "Add vlan push action with cookie",
         "category": [
             "actions",
             "vlan"

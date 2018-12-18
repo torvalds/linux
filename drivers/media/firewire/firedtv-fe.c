@@ -152,7 +152,7 @@ static int fdtv_set_frontend(struct dvb_frontend *fe)
 void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 {
 	struct dvb_frontend_ops *ops = &fdtv->fe.ops;
-	struct dvb_frontend_info *fi = &ops->info;
+	struct dvb_frontend_internal_info *fi = &ops->info;
 
 	ops->init			= fdtv_dvb_init;
 	ops->sleep			= fdtv_sleep;
@@ -174,9 +174,9 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	case FIREDTV_DVB_S:
 		ops->delsys[0]		= SYS_DVBS;
 
-		fi->frequency_min	= 950000;
-		fi->frequency_max	= 2150000;
-		fi->frequency_stepsize	= 125;
+		fi->frequency_min_hz	=   950 * MHz;
+		fi->frequency_max_hz	=  2150 * MHz;
+		fi->frequency_stepsize_hz = 125 * kHz;
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
 
@@ -194,9 +194,9 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 		ops->delsys[0]		= SYS_DVBS;
 		ops->delsys[1]		= SYS_DVBS2;
 
-		fi->frequency_min	= 950000;
-		fi->frequency_max	= 2150000;
-		fi->frequency_stepsize	= 125;
+		fi->frequency_min_hz	=   950 * MHz;
+		fi->frequency_max_hz	=  2150 * MHz;
+		fi->frequency_stepsize_hz = 125 * kHz;
 		fi->symbol_rate_min	= 1000000;
 		fi->symbol_rate_max	= 40000000;
 
@@ -214,9 +214,9 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	case FIREDTV_DVB_C:
 		ops->delsys[0]		= SYS_DVBC_ANNEX_A;
 
-		fi->frequency_min	= 47000000;
-		fi->frequency_max	= 866000000;
-		fi->frequency_stepsize	= 62500;
+		fi->frequency_min_hz	=      47 * MHz;
+		fi->frequency_max_hz	=     866 * MHz;
+		fi->frequency_stepsize_hz = 62500;
 		fi->symbol_rate_min	= 870000;
 		fi->symbol_rate_max	= 6900000;
 
@@ -232,9 +232,9 @@ void fdtv_frontend_init(struct firedtv *fdtv, const char *name)
 	case FIREDTV_DVB_T:
 		ops->delsys[0]		= SYS_DVBT;
 
-		fi->frequency_min	= 49000000;
-		fi->frequency_max	= 861000000;
-		fi->frequency_stepsize	= 62500;
+		fi->frequency_min_hz	=  49 * MHz;
+		fi->frequency_max_hz	= 861 * MHz;
+		fi->frequency_stepsize_hz = 62500;
 
 		fi->caps		= FE_CAN_INVERSION_AUTO		|
 					  FE_CAN_FEC_2_3		|

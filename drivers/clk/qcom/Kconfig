@@ -59,6 +59,15 @@ config QCOM_CLK_SMD_RPM
 	  Say Y if you want to support the clocks exposed by the RPM on
 	  platforms such as apq8016, apq8084, msm8974 etc.
 
+config QCOM_CLK_RPMH
+	tristate "RPMh Clock Driver"
+	depends on COMMON_CLK_QCOM && QCOM_RPMH
+	help
+	 RPMh manages shared resources on some Qualcomm Technologies, Inc.
+	 SoCs. It accepts requests from other hardware subsystems via RSC.
+	 Say Y if you want to support the clocks exposed by RPMh on
+	 platforms such as SDM845.
+
 config APQ_GCC_8084
 	tristate "APQ8084 Global Clock Controller"
 	select QCOM_GDSC
@@ -217,6 +226,43 @@ config MSM_MMCC_8996
 	  Support for the multimedia clock controller on msm8996 devices.
 	  Say Y if you want to support multimedia devices such as display,
 	  graphics, video encode/decode, camera, etc.
+
+config MSM_GCC_8998
+	tristate "MSM8998 Global Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on msm8998 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2c, USB, UFS, SD/eMMC, PCIe, etc.
+
+config SDM_GCC_845
+	tristate "SDM845 Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SDM845 devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  i2C, USB, UFS, SDDC, PCIe, etc.
+
+config SDM_VIDEOCC_845
+	tristate "SDM845 Video Clock Controller"
+	depends on COMMON_CLK_QCOM
+	select SDM_GCC_845
+	select QCOM_GDSC
+	help
+	  Support for the video clock controller on SDM845 devices.
+	  Say Y if you want to support video devices and functionality such as
+	  video encode and decode.
+
+config SDM_DISPCC_845
+	tristate "SDM845 Display Clock Controller"
+	select SDM_GCC_845
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  SDM845 devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
 
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"

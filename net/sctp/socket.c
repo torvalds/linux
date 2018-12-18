@@ -66,6 +66,7 @@
 #include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/compat.h>
+#include <linux/rhashtable.h>
 
 #include <net/ip.h>
 #include <net/icmp.h>
@@ -644,16 +645,15 @@ static int sctp_send_asconf_add_ip(struct sock		*sk,
 
 			list_for_each_entry(trans,
 			    &asoc->peer.transport_addr_list, transports) {
-				/* Clear the source and route cache */
-				sctp_transport_dst_release(trans);
 				trans->cwnd = min(4*asoc->pathmtu, max_t(__u32,
 				    2*asoc->pathmtu, 4380));
 				trans->ssthresh = asoc->peer.i.a_rwnd;
 				trans->rto = asoc->rto_initial;
 				sctp_max_rto(asoc, trans);
 				trans->rtt = trans->srtt = trans->rttvar = 0;
+				/* Clear the source and route cache */
 				sctp_transport_route(trans, NULL,
-				    sctp_sk(asoc->base.sk));
+						     sctp_sk(asoc->base.sk));
 			}
 		}
 		retval = sctp_send_asconf(asoc, chunk);
@@ -896,7 +896,6 @@ skip_mkasconf:
 		 */
 		list_for_each_entry(transport, &asoc->peer.transport_addr_list,
 					transports) {
-			sctp_transport_dst_release(transport);
 			sctp_transport_route(transport, NULL,
 					     sctp_sk(asoc->base.sk));
 		}
@@ -1086,7 +1085,7 @@ out:
  */
 static int __sctp_connect(struct sock *sk,
 			  struct sockaddr *kaddrs,
-			  int addrs_size,
+			  int addrs_size, int flags,
 			  sctp_assoc_t *assoc_id)
 {
 	struct net *net = sock_net(sk);
@@ -1104,7 +1103,6 @@ static int __sctp_connect(struct sock *sk,
 	union sctp_addr *sa_addr = NULL;
 	void *addr_buf;
 	unsigned short port;
-	unsigned int f_flags = 0;
 
 	sp = sctp_sk(sk);
 	ep = sp->ep;
@@ -1254,13 +1252,7 @@ static int __sctp_connect(struct sock *sk,
 	sp->pf->to_sk_daddr(sa_addr, sk);
 	sk->sk_err = 0;
 
-	/* in-kernel sockets don't generally have a file allocated to them
-	 * if all they do is call sock_create_kern().
-	 */
-	if (sk->sk_socket->file)
-		f_flags = sk->sk_socket->file->f_flags;
-
-	timeo = sock_sndtimeo(sk, f_flags & O_NONBLOCK);
+	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
 	if (assoc_id)
 		*assoc_id = asoc->assoc_id;
@@ -1348,7 +1340,7 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 				      sctp_assoc_t *assoc_id)
 {
 	struct sockaddr *kaddrs;
-	int err = 0;
+	int err = 0, flags = 0;
 
 	pr_debug("%s: sk:%p addrs:%p addrs_size:%d\n",
 		 __func__, sk, addrs, addrs_size);
@@ -1367,7 +1359,13 @@ static int __sctp_setsockopt_connectx(struct sock *sk,
 	if (err)
 		goto out_free;
 
-	err = __sctp_connect(sk, kaddrs, addrs_size, assoc_id);
+	/* in-kernel sockets don't generally have a file allocated to them
+	 * if all they do is call sock_create_kern().
+	 */
+	if (sk->sk_socket->file)
+		flags = sk->sk_socket->file->f_flags;
+
+	err = __sctp_connect(sk, kaddrs, addrs_size, flags, assoc_id);
 
 out_free:
 	kvfree(kaddrs);
@@ -1699,6 +1697,7 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 	struct sctp_association *asoc;
 	enum sctp_scope scope;
 	struct cmsghdr *cmsg;
+	__be32 flowinfo = 0;
 	struct sctp_af *af;
 	int err;
 
@@ -1783,6 +1782,9 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 	if (!cmsgs->addrs_msg)
 		return 0;
 
+	if (daddr->sa.sa_family == AF_INET6)
+		flowinfo = daddr->v6.sin6_flowinfo;
+
 	/* sendv addr list parse */
 	for_each_cmsghdr(cmsg, cmsgs->addrs_msg) {
 		struct sctp_transport *transport;
@@ -1815,6 +1817,7 @@ static int sctp_sendmsg_new_asoc(struct sock *sk, __u16 sflags,
 			}
 
 			dlen = sizeof(struct in6_addr);
+			daddr->v6.sin6_flowinfo = flowinfo;
 			daddr->v6.sin6_family = AF_INET6;
 			daddr->v6.sin6_port = htons(asoc->peer.port);
 			memcpy(&daddr->v6.sin6_addr, CMSG_DATA(cmsg), dlen);
@@ -1895,6 +1898,7 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 				struct sctp_sndrcvinfo *sinfo)
 {
 	struct sock *sk = asoc->base.sk;
+	struct sctp_sock *sp = sctp_sk(sk);
 	struct net *net = sock_net(sk);
 	struct sctp_datamsg *datamsg;
 	bool wait_connect = false;
@@ -1907,19 +1911,22 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		goto err;
 	}
 
-	if (unlikely(!asoc->stream.out[sinfo->sinfo_stream].ext)) {
+	if (unlikely(!SCTP_SO(&asoc->stream, sinfo->sinfo_stream)->ext)) {
 		err = sctp_stream_init_ext(&asoc->stream, sinfo->sinfo_stream);
 		if (err)
 			goto err;
 	}
 
-	if (sctp_sk(sk)->disable_fragments && msg_len > asoc->frag_point) {
+	if (sp->disable_fragments && msg_len > asoc->frag_point) {
 		err = -EMSGSIZE;
 		goto err;
 	}
 
-	if (asoc->pmtu_pending)
-		sctp_assoc_pending_pmtu(asoc);
+	if (asoc->pmtu_pending) {
+		if (sp->param_flags & SPP_PMTUD_ENABLE)
+			sctp_assoc_sync_pmtu(asoc);
+		asoc->pmtu_pending = 0;
+	}
 
 	if (sctp_wspace(asoc) < msg_len)
 		sctp_prsctp_prune(asoc, sinfo, msg_len - sctp_wspace(asoc));
@@ -1936,7 +1943,7 @@ static int sctp_sendmsg_to_asoc(struct sctp_association *asoc,
 		if (err)
 			goto err;
 
-		if (sctp_sk(sk)->strm_interleave) {
+		if (sp->strm_interleave) {
 			timeo = sock_sndtimeo(sk, 0);
 			err = sctp_wait_for_connect(asoc, &timeo);
 			if (err)
@@ -2391,6 +2398,8 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *     uint32_t                spp_pathmtu;
  *     uint32_t                spp_sackdelay;
  *     uint32_t                spp_flags;
+ *     uint32_t                spp_ipv6_flowlabel;
+ *     uint8_t                 spp_dscp;
  * };
  *
  *   spp_assoc_id    - (one-to-many style socket) This is filled in the
@@ -2470,6 +2479,45 @@ static int sctp_setsockopt_autoclose(struct sock *sk, char __user *optval,
  *                     also that this field is mutually exclusive to
  *                     SPP_SACKDELAY_ENABLE, setting both will have undefined
  *                     results.
+ *
+ *                     SPP_IPV6_FLOWLABEL:  Setting this flag enables the
+ *                     setting of the IPV6 flow label value.  The value is
+ *                     contained in the spp_ipv6_flowlabel field.
+ *                     Upon retrieval, this flag will be set to indicate that
+ *                     the spp_ipv6_flowlabel field has a valid value returned.
+ *                     If a specific destination address is set (in the
+ *                     spp_address field), then the value returned is that of
+ *                     the address.  If just an association is specified (and
+ *                     no address), then the association's default flow label
+ *                     is returned.  If neither an association nor a destination
+ *                     is specified, then the socket's default flow label is
+ *                     returned.  For non-IPv6 sockets, this flag will be left
+ *                     cleared.
+ *
+ *                     SPP_DSCP:  Setting this flag enables the setting of the
+ *                     Differentiated Services Code Point (DSCP) value
+ *                     associated with either the association or a specific
+ *                     address.  The value is obtained in the spp_dscp field.
+ *                     Upon retrieval, this flag will be set to indicate that
+ *                     the spp_dscp field has a valid value returned.  If a
+ *                     specific destination address is set when called (in the
+ *                     spp_address field), then that specific destination
+ *                     address's DSCP value is returned.  If just an association
+ *                     is specified, then the association's default DSCP is
+ *                     returned.  If neither an association nor a destination is
+ *                     specified, then the socket's default DSCP is returned.
+ *
+ *   spp_ipv6_flowlabel
+ *                   - This field is used in conjunction with the
+ *                     SPP_IPV6_FLOWLABEL flag and contains the IPv6 flow label.
+ *                     The 20 least significant bits are used for the flow
+ *                     label.  This setting has precedence over any IPv6-layer
+ *                     setting.
+ *
+ *   spp_dscp        - This field is used in conjunction with the SPP_DSCP flag
+ *                     and contains the DSCP.  The 6 most significant bits are
+ *                     used for the DSCP.  This setting has precedence over any
+ *                     IPv4- or IPv6- layer setting.
  */
 static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 				       struct sctp_transport   *trans,
@@ -2539,7 +2587,7 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 			trans->pathmtu = params->spp_pathmtu;
 			sctp_assoc_sync_pmtu(asoc);
 		} else if (asoc) {
-			asoc->pathmtu = params->spp_pathmtu;
+			sctp_assoc_set_pmtu(asoc, params->spp_pathmtu);
 		} else {
 			sp->pathmtu = params->spp_pathmtu;
 		}
@@ -2609,6 +2657,51 @@ static int sctp_apply_peer_addr_params(struct sctp_paddrparams *params,
 		}
 	}
 
+	if (params->spp_flags & SPP_IPV6_FLOWLABEL) {
+		if (trans && trans->ipaddr.sa.sa_family == AF_INET6) {
+			trans->flowlabel = params->spp_ipv6_flowlabel &
+					   SCTP_FLOWLABEL_VAL_MASK;
+			trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+		} else if (asoc) {
+			list_for_each_entry(trans,
+					    &asoc->peer.transport_addr_list,
+					    transports) {
+				if (trans->ipaddr.sa.sa_family != AF_INET6)
+					continue;
+				trans->flowlabel = params->spp_ipv6_flowlabel &
+						   SCTP_FLOWLABEL_VAL_MASK;
+				trans->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+			}
+			asoc->flowlabel = params->spp_ipv6_flowlabel &
+					  SCTP_FLOWLABEL_VAL_MASK;
+			asoc->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+		} else if (sctp_opt2sk(sp)->sk_family == AF_INET6) {
+			sp->flowlabel = params->spp_ipv6_flowlabel &
+					SCTP_FLOWLABEL_VAL_MASK;
+			sp->flowlabel |= SCTP_FLOWLABEL_SET_MASK;
+		}
+	}
+
+	if (params->spp_flags & SPP_DSCP) {
+		if (trans) {
+			trans->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
+			trans->dscp |= SCTP_DSCP_SET_MASK;
+		} else if (asoc) {
+			list_for_each_entry(trans,
+					    &asoc->peer.transport_addr_list,
+					    transports) {
+				trans->dscp = params->spp_dscp &
+					      SCTP_DSCP_VAL_MASK;
+				trans->dscp |= SCTP_DSCP_SET_MASK;
+			}
+			asoc->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
+			asoc->dscp |= SCTP_DSCP_SET_MASK;
+		} else {
+			sp->dscp = params->spp_dscp & SCTP_DSCP_VAL_MASK;
+			sp->dscp |= SCTP_DSCP_SET_MASK;
+		}
+	}
+
 	return 0;
 }
 
@@ -2623,11 +2716,18 @@ static int sctp_setsockopt_peer_addr_params(struct sock *sk,
 	int error;
 	int hb_change, pmtud_change, sackdelay_change;
 
-	if (optlen != sizeof(struct sctp_paddrparams))
+	if (optlen == sizeof(params)) {
+		if (copy_from_user(&params, optval, optlen))
+			return -EFAULT;
+	} else if (optlen == ALIGN(offsetof(struct sctp_paddrparams,
+					    spp_ipv6_flowlabel), 4)) {
+		if (copy_from_user(&params, optval, optlen))
+			return -EFAULT;
+		if (params.spp_flags & (SPP_DSCP | SPP_IPV6_FLOWLABEL))
+			return -EINVAL;
+	} else {
 		return -EINVAL;
-
-	if (copy_from_user(&params, optval, optlen))
-		return -EFAULT;
+	}
 
 	/* Validate flags and value parameters. */
 	hb_change        = params.spp_flags & SPP_HB;
@@ -3209,7 +3309,6 @@ static int sctp_setsockopt_mappedv4(struct sock *sk, char __user *optval, unsign
 static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned int optlen)
 {
 	struct sctp_sock *sp = sctp_sk(sk);
-	struct sctp_af *af = sp->pf->af;
 	struct sctp_assoc_value params;
 	struct sctp_association *asoc;
 	int val;
@@ -3231,30 +3330,24 @@ static int sctp_setsockopt_maxseg(struct sock *sk, char __user *optval, unsigned
 		return -EINVAL;
 	}
 
+	asoc = sctp_id2assoc(sk, params.assoc_id);
+
 	if (val) {
 		int min_len, max_len;
+		__u16 datasize = asoc ? sctp_datachk_len(&asoc->stream) :
+				 sizeof(struct sctp_data_chunk);
 
-		min_len = SCTP_DEFAULT_MINSEGMENT - af->net_header_len;
-		min_len -= af->ip_options_len(sk);
-		min_len -= sizeof(struct sctphdr) +
-			   sizeof(struct sctp_data_chunk);
-
-		max_len = SCTP_MAX_CHUNK_LEN - sizeof(struct sctp_data_chunk);
+		min_len = sctp_mtu_payload(sp, SCTP_DEFAULT_MINSEGMENT,
+					   datasize);
+		max_len = SCTP_MAX_CHUNK_LEN - datasize;
 
 		if (val < min_len || val > max_len)
 			return -EINVAL;
 	}
 
-	asoc = sctp_id2assoc(sk, params.assoc_id);
 	if (asoc) {
-		if (val == 0) {
-			val = asoc->pathmtu - af->net_header_len;
-			val -= af->ip_options_len(sk);
-			val -= sizeof(struct sctphdr) +
-			       sctp_datachk_len(&asoc->stream);
-		}
 		asoc->user_frag = val;
-		asoc->frag_point = sctp_frag_point(asoc, asoc->pathmtu);
+		sctp_assoc_update_frag_point(asoc);
 	} else {
 		if (params.assoc_id && sctp_style(sk, UDP))
 			return -EINVAL;
@@ -4175,6 +4268,28 @@ out:
 	return retval;
 }
 
+static int sctp_setsockopt_reuse_port(struct sock *sk, char __user *optval,
+				      unsigned int optlen)
+{
+	int val;
+
+	if (!sctp_style(sk, TCP))
+		return -EOPNOTSUPP;
+
+	if (sctp_sk(sk)->ep->base.bind_addr.port)
+		return -EFAULT;
+
+	if (optlen < sizeof(int))
+		return -EINVAL;
+
+	if (get_user(val, (int __user *)optval))
+		return -EFAULT;
+
+	sctp_sk(sk)->reuse = !!val;
+
+	return 0;
+}
+
 /* API 6.2 setsockopt(), getsockopt()
  *
  * Applications use setsockopt() and getsockopt() to set or retrieve
@@ -4369,6 +4484,9 @@ static int sctp_setsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_setsockopt_interleaving_supported(sk, optval,
 								optlen);
 		break;
+	case SCTP_REUSE_PORT:
+		retval = sctp_setsockopt_reuse_port(sk, optval, optlen);
+		break;
 	default:
 		retval = -ENOPROTOOPT;
 		break;
@@ -4397,15 +4515,25 @@ out_nounlock:
  * len: the size of the address.
  */
 static int sctp_connect(struct sock *sk, struct sockaddr *addr,
-			int addr_len)
+			int addr_len, int flags)
 {
-	int err = 0;
+	struct inet_sock *inet = inet_sk(sk);
 	struct sctp_af *af;
+	int err = 0;
 
 	lock_sock(sk);
 
 	pr_debug("%s: sk:%p, sockaddr:%p, addr_len:%d\n", __func__, sk,
 		 addr, addr_len);
+
+	/* We may need to bind the socket. */
+	if (!inet->inet_num) {
+		if (sk->sk_prot->get_port(sk, 0)) {
+			release_sock(sk);
+			return -EAGAIN;
+		}
+		inet->inet_sport = htons(inet->inet_num);
+	}
 
 	/* Validate addr_len before calling common connect/connectx routine. */
 	af = sctp_get_af_specific(addr->sa_family);
@@ -4415,11 +4543,23 @@ static int sctp_connect(struct sock *sk, struct sockaddr *addr,
 		/* Pass correct addr len to common routine (so it knows there
 		 * is only one address being passed.
 		 */
-		err = __sctp_connect(sk, addr, af->sockaddr_len, NULL);
+		err = __sctp_connect(sk, addr, af->sockaddr_len, flags, NULL);
 	}
 
 	release_sock(sk);
 	return err;
+}
+
+int sctp_inet_connect(struct socket *sock, struct sockaddr *uaddr,
+		      int addr_len, int flags)
+{
+	if (addr_len < sizeof(uaddr->sa_family))
+		return -EINVAL;
+
+	if (uaddr->sa_family == AF_UNSPEC)
+		return -EOPNOTSUPP;
+
+	return sctp_connect(sock->sk, uaddr, addr_len, flags);
 }
 
 /* FIXME: Write comments. */
@@ -5411,6 +5551,45 @@ out:
  *                     also that this field is mutually exclusive to
  *                     SPP_SACKDELAY_ENABLE, setting both will have undefined
  *                     results.
+ *
+ *                     SPP_IPV6_FLOWLABEL:  Setting this flag enables the
+ *                     setting of the IPV6 flow label value.  The value is
+ *                     contained in the spp_ipv6_flowlabel field.
+ *                     Upon retrieval, this flag will be set to indicate that
+ *                     the spp_ipv6_flowlabel field has a valid value returned.
+ *                     If a specific destination address is set (in the
+ *                     spp_address field), then the value returned is that of
+ *                     the address.  If just an association is specified (and
+ *                     no address), then the association's default flow label
+ *                     is returned.  If neither an association nor a destination
+ *                     is specified, then the socket's default flow label is
+ *                     returned.  For non-IPv6 sockets, this flag will be left
+ *                     cleared.
+ *
+ *                     SPP_DSCP:  Setting this flag enables the setting of the
+ *                     Differentiated Services Code Point (DSCP) value
+ *                     associated with either the association or a specific
+ *                     address.  The value is obtained in the spp_dscp field.
+ *                     Upon retrieval, this flag will be set to indicate that
+ *                     the spp_dscp field has a valid value returned.  If a
+ *                     specific destination address is set when called (in the
+ *                     spp_address field), then that specific destination
+ *                     address's DSCP value is returned.  If just an association
+ *                     is specified, then the association's default DSCP is
+ *                     returned.  If neither an association nor a destination is
+ *                     specified, then the socket's default DSCP is returned.
+ *
+ *   spp_ipv6_flowlabel
+ *                   - This field is used in conjunction with the
+ *                     SPP_IPV6_FLOWLABEL flag and contains the IPv6 flow label.
+ *                     The 20 least significant bits are used for the flow
+ *                     label.  This setting has precedence over any IPv6-layer
+ *                     setting.
+ *
+ *   spp_dscp        - This field is used in conjunction with the SPP_DSCP flag
+ *                     and contains the DSCP.  The 6 most significant bits are
+ *                     used for the DSCP.  This setting has precedence over any
+ *                     IPv4- or IPv6- layer setting.
  */
 static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 					    char __user *optval, int __user *optlen)
@@ -5420,9 +5599,15 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 	struct sctp_association *asoc = NULL;
 	struct sctp_sock        *sp = sctp_sk(sk);
 
-	if (len < sizeof(struct sctp_paddrparams))
+	if (len >= sizeof(params))
+		len = sizeof(params);
+	else if (len >= ALIGN(offsetof(struct sctp_paddrparams,
+				       spp_ipv6_flowlabel), 4))
+		len = ALIGN(offsetof(struct sctp_paddrparams,
+				     spp_ipv6_flowlabel), 4);
+	else
 		return -EINVAL;
-	len = sizeof(struct sctp_paddrparams);
+
 	if (copy_from_user(&params, optval, len))
 		return -EFAULT;
 
@@ -5457,6 +5642,15 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 
 		/*draft-11 doesn't say what to return in spp_flags*/
 		params.spp_flags      = trans->param_flags;
+		if (trans->flowlabel & SCTP_FLOWLABEL_SET_MASK) {
+			params.spp_ipv6_flowlabel = trans->flowlabel &
+						    SCTP_FLOWLABEL_VAL_MASK;
+			params.spp_flags |= SPP_IPV6_FLOWLABEL;
+		}
+		if (trans->dscp & SCTP_DSCP_SET_MASK) {
+			params.spp_dscp	= trans->dscp & SCTP_DSCP_VAL_MASK;
+			params.spp_flags |= SPP_DSCP;
+		}
 	} else if (asoc) {
 		/* Fetch association values. */
 		params.spp_hbinterval = jiffies_to_msecs(asoc->hbinterval);
@@ -5466,6 +5660,15 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 
 		/*draft-11 doesn't say what to return in spp_flags*/
 		params.spp_flags      = asoc->param_flags;
+		if (asoc->flowlabel & SCTP_FLOWLABEL_SET_MASK) {
+			params.spp_ipv6_flowlabel = asoc->flowlabel &
+						    SCTP_FLOWLABEL_VAL_MASK;
+			params.spp_flags |= SPP_IPV6_FLOWLABEL;
+		}
+		if (asoc->dscp & SCTP_DSCP_SET_MASK) {
+			params.spp_dscp	= asoc->dscp & SCTP_DSCP_VAL_MASK;
+			params.spp_flags |= SPP_DSCP;
+		}
 	} else {
 		/* Fetch socket values. */
 		params.spp_hbinterval = sp->hbinterval;
@@ -5475,6 +5678,15 @@ static int sctp_getsockopt_peer_addr_params(struct sock *sk, int len,
 
 		/*draft-11 doesn't say what to return in spp_flags*/
 		params.spp_flags      = sp->param_flags;
+		if (sp->flowlabel & SCTP_FLOWLABEL_SET_MASK) {
+			params.spp_ipv6_flowlabel = sp->flowlabel &
+						    SCTP_FLOWLABEL_VAL_MASK;
+			params.spp_flags |= SPP_IPV6_FLOWLABEL;
+		}
+		if (sp->dscp & SCTP_DSCP_SET_MASK) {
+			params.spp_dscp	= sp->dscp & SCTP_DSCP_VAL_MASK;
+			params.spp_flags |= SPP_DSCP;
+		}
 	}
 
 	if (copy_to_user(optval, &params, len))
@@ -6942,7 +7154,7 @@ static int sctp_getsockopt_pr_streamstatus(struct sock *sk, int len,
 	if (!asoc || params.sprstat_sid >= asoc->stream.outcnt)
 		goto out;
 
-	streamoute = asoc->stream.out[params.sprstat_sid].ext;
+	streamoute = SCTP_SO(&asoc->stream, params.sprstat_sid)->ext;
 	if (!streamoute) {
 		/* Not allocated yet, means all stats are 0 */
 		params.sprstat_abandoned_unsent = 0;
@@ -7180,6 +7392,26 @@ out:
 	return retval;
 }
 
+static int sctp_getsockopt_reuse_port(struct sock *sk, int len,
+				      char __user *optval,
+				      int __user *optlen)
+{
+	int val;
+
+	if (len < sizeof(int))
+		return -EINVAL;
+
+	len = sizeof(int);
+	val = sctp_sk(sk)->reuse;
+	if (put_user(len, optlen))
+		return -EFAULT;
+
+	if (copy_to_user(optval, &val, len))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int sctp_getsockopt(struct sock *sk, int level, int optname,
 			   char __user *optval, int __user *optlen)
 {
@@ -7375,6 +7607,9 @@ static int sctp_getsockopt(struct sock *sk, int level, int optname,
 		retval = sctp_getsockopt_interleaving_supported(sk, len, optval,
 								optlen);
 		break;
+	case SCTP_REUSE_PORT:
+		retval = sctp_getsockopt_reuse_port(sk, len, optval, optlen);
+		break;
 	default:
 		retval = -ENOPROTOOPT;
 		break;
@@ -7412,6 +7647,7 @@ static struct sctp_bind_bucket *sctp_bucket_create(
 
 static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 {
+	bool reuse = (sk->sk_reuse || sctp_sk(sk)->reuse);
 	struct sctp_bind_hashbucket *head; /* hash list */
 	struct sctp_bind_bucket *pp;
 	unsigned short snum;
@@ -7484,13 +7720,11 @@ pp_found:
 		 * used by other socket (pp->owner not empty); that other
 		 * socket is going to be sk2.
 		 */
-		int reuse = sk->sk_reuse;
 		struct sock *sk2;
 
 		pr_debug("%s: found a possible match\n", __func__);
 
-		if (pp->fastreuse && sk->sk_reuse &&
-			sk->sk_state != SCTP_SS_LISTENING)
+		if (pp->fastreuse && reuse && sk->sk_state != SCTP_SS_LISTENING)
 			goto success;
 
 		/* Run through the list of sockets bound to the port
@@ -7508,7 +7742,7 @@ pp_found:
 			ep2 = sctp_sk(sk2)->ep;
 
 			if (sk == sk2 ||
-			    (reuse && sk2->sk_reuse &&
+			    (reuse && (sk2->sk_reuse || sctp_sk(sk2)->reuse) &&
 			     sk2->sk_state != SCTP_SS_LISTENING))
 				continue;
 
@@ -7532,12 +7766,12 @@ pp_not_found:
 	 * SO_REUSEADDR on this socket -sk-).
 	 */
 	if (hlist_empty(&pp->owner)) {
-		if (sk->sk_reuse && sk->sk_state != SCTP_SS_LISTENING)
+		if (reuse && sk->sk_state != SCTP_SS_LISTENING)
 			pp->fastreuse = 1;
 		else
 			pp->fastreuse = 0;
 	} else if (pp->fastreuse &&
-		(!sk->sk_reuse || sk->sk_state == SCTP_SS_LISTENING))
+		   (!reuse || sk->sk_state == SCTP_SS_LISTENING))
 		pp->fastreuse = 0;
 
 	/* We are set, so fill up all the data in the hash table
@@ -7668,7 +7902,7 @@ int sctp_inet_listen(struct socket *sock, int backlog)
 		err = 0;
 		sctp_unhash_endpoint(ep);
 		sk->sk_state = SCTP_SS_CLOSED;
-		if (sk->sk_reuse)
+		if (sk->sk_reuse || sctp_sk(sk)->reuse)
 			sctp_sk(sk)->bind_hash->fastreuse = 1;
 		goto out;
 	}
@@ -8535,6 +8769,7 @@ void sctp_copy_sock(struct sock *newsk, struct sock *sk,
 	newsk->sk_no_check_tx = sk->sk_no_check_tx;
 	newsk->sk_no_check_rx = sk->sk_no_check_rx;
 	newsk->sk_reuse = sk->sk_reuse;
+	sctp_sk(newsk)->reuse = sp->reuse;
 
 	newsk->sk_shutdown = sk->sk_shutdown;
 	newsk->sk_destruct = sctp_destruct_sock;
@@ -8724,7 +8959,6 @@ struct proto sctp_prot = {
 	.name        =	"SCTP",
 	.owner       =	THIS_MODULE,
 	.close       =	sctp_close,
-	.connect     =	sctp_connect,
 	.disconnect  =	sctp_disconnect,
 	.accept      =	sctp_accept,
 	.ioctl       =	sctp_ioctl,
@@ -8767,7 +9001,6 @@ struct proto sctpv6_prot = {
 	.name		= "SCTPv6",
 	.owner		= THIS_MODULE,
 	.close		= sctp_close,
-	.connect	= sctp_connect,
 	.disconnect	= sctp_disconnect,
 	.accept		= sctp_accept,
 	.ioctl		= sctp_ioctl,

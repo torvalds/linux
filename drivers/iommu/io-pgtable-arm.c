@@ -231,12 +231,17 @@ static void *__arm_lpae_alloc_pages(size_t size, gfp_t gfp,
 				    struct io_pgtable_cfg *cfg)
 {
 	struct device *dev = cfg->iommu_dev;
+	int order = get_order(size);
+	struct page *p;
 	dma_addr_t dma;
-	void *pages = alloc_pages_exact(size, gfp | __GFP_ZERO);
+	void *pages;
 
-	if (!pages)
+	VM_BUG_ON((gfp & __GFP_HIGHMEM));
+	p = alloc_pages_node(dev_to_node(dev), gfp | __GFP_ZERO, order);
+	if (!p)
 		return NULL;
 
+	pages = page_address(p);
 	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA)) {
 		dma = dma_map_single(dev, pages, size, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, dma))
@@ -256,7 +261,7 @@ out_unmap:
 	dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
 	dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
 out_free:
-	free_pages_exact(pages, size);
+	__free_pages(p, order);
 	return NULL;
 }
 
@@ -266,7 +271,7 @@ static void __arm_lpae_free_pages(void *pages, size_t size,
 	if (!(cfg->quirks & IO_PGTABLE_QUIRK_NO_DMA))
 		dma_unmap_single(cfg->iommu_dev, __arm_lpae_dma_addr(pages),
 				 size, DMA_TO_DEVICE);
-	free_pages_exact(pages, size);
+	free_pages((unsigned long)pages, get_order(size));
 }
 
 static void __arm_lpae_sync_pte(arm_lpae_iopte *ptep,
@@ -1120,8 +1125,7 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 
 		/* Full unmap */
 		iova = 0;
-		j = find_first_bit(&cfg->pgsize_bitmap, BITS_PER_LONG);
-		while (j != BITS_PER_LONG) {
+		for_each_set_bit(j, &cfg->pgsize_bitmap, BITS_PER_LONG) {
 			size = 1UL << j;
 
 			if (ops->unmap(ops, iova, size) != size)
@@ -1138,8 +1142,6 @@ static int __init arm_lpae_run_tests(struct io_pgtable_cfg *cfg)
 				return __FAIL(ops, i);
 
 			iova += SZ_1G;
-			j++;
-			j = find_next_bit(&cfg->pgsize_bitmap, BITS_PER_LONG, j);
 		}
 
 		free_io_pgtable_ops(ops);

@@ -742,11 +742,13 @@ static int gtp_hashtable_new(struct gtp_dev *gtp, int hsize)
 {
 	int i;
 
-	gtp->addr_hash = kmalloc(sizeof(struct hlist_head) * hsize, GFP_KERNEL);
+	gtp->addr_hash = kmalloc_array(hsize, sizeof(struct hlist_head),
+				       GFP_KERNEL);
 	if (gtp->addr_hash == NULL)
 		return -ENOMEM;
 
-	gtp->tid_hash = kmalloc(sizeof(struct hlist_head) * hsize, GFP_KERNEL);
+	gtp->tid_hash = kmalloc_array(hsize, sizeof(struct hlist_head),
+				      GFP_KERNEL);
 	if (gtp->tid_hash == NULL)
 		goto err1;
 
@@ -1253,7 +1255,7 @@ out:
 	return skb->len;
 }
 
-static struct nla_policy gtp_genl_policy[GTPA_MAX + 1] = {
+static const struct nla_policy gtp_genl_policy[GTPA_MAX + 1] = {
 	[GTPA_LINK]		= { .type = NLA_U32, },
 	[GTPA_VERSION]		= { .type = NLA_U32, },
 	[GTPA_TID]		= { .type = NLA_U64, },

@@ -180,7 +180,6 @@ EXPORT_SYMBOL_GPL(ide_dma_unmap_sg);
 void ide_dma_off_quietly(ide_drive_t *drive)
 {
 	drive->dev_flags &= ~IDE_DFLAG_USING_DMA;
-	ide_toggle_bounce(drive, 0);
 
 	drive->hwif->dma_ops->dma_host_set(drive, 0);
 }
@@ -211,7 +210,6 @@ EXPORT_SYMBOL(ide_dma_off);
 void ide_dma_on(ide_drive_t *drive)
 {
 	drive->dev_flags |= IDE_DFLAG_USING_DMA;
-	ide_toggle_bounce(drive, 1);
 
 	drive->hwif->dma_ops->dma_host_set(drive, 1);
 }

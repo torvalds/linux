@@ -227,4 +227,40 @@ static inline void iwl_fw_cancel_dump(struct iwl_fw_runtime *fwrt)
 	cancel_delayed_work_sync(&fwrt->dump.wk);
 }
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
+{
+	fwrt->timestamp.delay = 0;
+	cancel_delayed_work_sync(&fwrt->timestamp.wk);
+}
+
+void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt, u32 delay);
+
+static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt)
+{
+	cancel_delayed_work_sync(&fwrt->timestamp.wk);
+}
+
+static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt)
+{
+	if (!fwrt->timestamp.delay)
+		return;
+
+	schedule_delayed_work(&fwrt->timestamp.wk,
+			      round_jiffies_relative(fwrt->timestamp.delay));
+}
+
+#else
+
+static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+static inline void iwl_fw_trigger_timestamp(struct iwl_fw_runtime *fwrt,
+					    u32 delay) {}
+
+static inline void iwl_fw_suspend_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+static inline void iwl_fw_resume_timestamp(struct iwl_fw_runtime *fwrt) {}
+
+#endif /* CONFIG_IWLWIFI_DEBUGFS */
+
 #endif  /* __iwl_fw_dbg_h__ */

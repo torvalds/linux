@@ -279,10 +279,10 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
 		       const struct ceph_osds *new_acting,
 		       bool any_change);
 
-int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
-				const struct ceph_object_id *oid,
-				const struct ceph_object_locator *oloc,
-				struct ceph_pg *raw_pgid);
+void __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				 const struct ceph_object_id *oid,
+				 const struct ceph_object_locator *oloc,
+				 struct ceph_pg *raw_pgid);
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 			      const struct ceph_object_id *oid,
 			      const struct ceph_object_locator *oloc,

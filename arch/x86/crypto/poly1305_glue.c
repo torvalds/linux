@@ -169,7 +169,6 @@ static struct shash_alg alg = {
 		.cra_name		= "poly1305",
 		.cra_driver_name	= "poly1305-simd",
 		.cra_priority		= 300,
-		.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize		= POLY1305_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	},

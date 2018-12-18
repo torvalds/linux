@@ -39,9 +39,6 @@ unsigned long __phys_offset;	/*  physical kernel offset >> 12  */
 /*  Set as variable to limit PMD copies  */
 int max_kernel_seg = 0x303;
 
-/*  think this should be (page_size-1) the way it's used...*/
-unsigned long zero_page_mask;
-
 /*  indicate pfn's of high memory  */
 unsigned long highstart_pfn, highend_pfn;
 

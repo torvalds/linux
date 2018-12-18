@@ -1227,20 +1227,10 @@ static u8 get_src_path_mask(struct ib_device *device, u8 port_num)
 	return src_path_mask;
 }
 
-static int
-roce_resolve_route_from_path(struct ib_device *device, u8 port_num,
-			     struct sa_path_rec *rec)
+static int roce_resolve_route_from_path(struct sa_path_rec *rec,
+					const struct ib_gid_attr *attr)
 {
-	struct net_device *resolved_dev;
-	struct net_device *ndev;
-	struct net_device *idev;
-	struct rdma_dev_addr dev_addr = {
-		.bound_dev_if = ((sa_path_get_ifindex(rec) >= 0) ?
-				 sa_path_get_ifindex(rec) : 0),
-		.net = sa_path_get_ndev(rec) ?
-			sa_path_get_ndev(rec) :
-			&init_net
-	};
+	struct rdma_dev_addr dev_addr = {};
 	union {
 		struct sockaddr     _sockaddr;
 		struct sockaddr_in  _sockaddr_in;
@@ -1250,9 +1240,14 @@ roce_resolve_route_from_path(struct ib_device *device, u8 port_num,
 
 	if (rec->roce.route_resolved)
 		return 0;
+	if (!attr || !attr->ndev)
+		return -EINVAL;
 
-	if (!device->get_netdev)
-		return -EOPNOTSUPP;
+	dev_addr.bound_dev_if = attr->ndev->ifindex;
+	/* TODO: Use net from the ib_gid_attr once it is added to it,
+	 * until than, limit itself to init_net.
+	 */
+	dev_addr.net = &init_net;
 
 	rdma_gid2ip(&sgid_addr._sockaddr, &rec->sgid);
 	rdma_gid2ip(&dgid_addr._sockaddr, &rec->dgid);
@@ -1268,60 +1263,52 @@ roce_resolve_route_from_path(struct ib_device *device, u8 port_num,
 	    rec->rec_type != SA_PATH_REC_TYPE_ROCE_V2)
 		return -EINVAL;
 
-	idev = device->get_netdev(device, port_num);
-	if (!idev)
-		return -ENODEV;
-
-	resolved_dev = dev_get_by_index(dev_addr.net,
-					dev_addr.bound_dev_if);
-	if (!resolved_dev) {
-		ret = -ENODEV;
-		goto done;
-	}
-	ndev = ib_get_ndev_from_path(rec);
-	rcu_read_lock();
-	if ((ndev && ndev != resolved_dev) ||
-	    (resolved_dev != idev &&
-	     !rdma_is_upper_dev_rcu(idev, resolved_dev)))
-		ret = -EHOSTUNREACH;
-	rcu_read_unlock();
-	dev_put(resolved_dev);
-	if (ndev)
-		dev_put(ndev);
-done:
-	dev_put(idev);
-	if (!ret)
-		rec->roce.route_resolved = true;
-	return ret;
+	rec->roce.route_resolved = true;
+	return 0;
 }
 
 static int init_ah_attr_grh_fields(struct ib_device *device, u8 port_num,
 				   struct sa_path_rec *rec,
-				   struct rdma_ah_attr *ah_attr)
+				   struct rdma_ah_attr *ah_attr,
+				   const struct ib_gid_attr *gid_attr)
 {
 	enum ib_gid_type type = sa_conv_pathrec_to_gid_type(rec);
-	struct net_device *ndev;
-	u16 gid_index;
-	int ret;
 
-	ndev = ib_get_ndev_from_path(rec);
-	ret = ib_find_cached_gid_by_port(device, &rec->sgid, type,
-					 port_num, ndev, &gid_index);
-	if (ndev)
-		dev_put(ndev);
-	if (ret)
-		return ret;
+	if (!gid_attr) {
+		gid_attr = rdma_find_gid_by_port(device, &rec->sgid, type,
+						 port_num, NULL);
+		if (IS_ERR(gid_attr))
+			return PTR_ERR(gid_attr);
+	} else
+		rdma_hold_gid_attr(gid_attr);
 
-	rdma_ah_set_grh(ah_attr, &rec->dgid,
-			be32_to_cpu(rec->flow_label),
-			gid_index, rec->hop_limit,
-			rec->traffic_class);
+	rdma_move_grh_sgid_attr(ah_attr, &rec->dgid,
+				be32_to_cpu(rec->flow_label),
+				rec->hop_limit,	rec->traffic_class,
+				gid_attr);
 	return 0;
 }
 
+/**
+ * ib_init_ah_attr_from_path - Initialize address handle attributes based on
+ *   an SA path record.
+ * @device: Device associated ah attributes initialization.
+ * @port_num: Port on the specified device.
+ * @rec: path record entry to use for ah attributes initialization.
+ * @ah_attr: address handle attributes to initialization from path record.
+ * @sgid_attr: SGID attribute to consider during initialization.
+ *
+ * When ib_init_ah_attr_from_path() returns success,
+ * (a) for IB link layer it optionally contains a reference to SGID attribute
+ * when GRH is present for IB link layer.
+ * (b) for RoCE link layer it contains a reference to SGID attribute.
+ * User must invoke rdma_destroy_ah_attr() to release reference to SGID
+ * attributes which are initialized using ib_init_ah_attr_from_path().
+ */
 int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
 			      struct sa_path_rec *rec,
-			      struct rdma_ah_attr *ah_attr)
+			      struct rdma_ah_attr *ah_attr,
+			      const struct ib_gid_attr *gid_attr)
 {
 	int ret = 0;
 
@@ -1332,7 +1319,7 @@ int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
 	rdma_ah_set_static_rate(ah_attr, rec->rate);
 
 	if (sa_path_is_roce(rec)) {
-		ret = roce_resolve_route_from_path(device, port_num, rec);
+		ret = roce_resolve_route_from_path(rec, gid_attr);
 		if (ret)
 			return ret;
 
@@ -1349,7 +1336,8 @@ int ib_init_ah_attr_from_path(struct ib_device *device, u8 port_num,
 	}
 
 	if (rec->hop_limit > 0 || sa_path_is_roce(rec))
-		ret = init_ah_attr_grh_fields(device, port_num, rec, ah_attr);
+		ret = init_ah_attr_grh_fields(device, port_num,
+					      rec, ah_attr, gid_attr);
 	return ret;
 }
 EXPORT_SYMBOL(ib_init_ah_attr_from_path);
@@ -1557,8 +1545,6 @@ static void ib_sa_path_rec_callback(struct ib_sa_query *sa_query,
 				  ARRAY_SIZE(path_rec_table),
 				  mad->data, &rec);
 			rec.rec_type = SA_PATH_REC_TYPE_IB;
-			sa_path_set_ndev(&rec, NULL);
-			sa_path_set_ifindex(&rec, 0);
 			sa_path_set_dmac_zero(&rec);
 
 			if (query->conv_pr) {
@@ -2290,6 +2276,7 @@ static void update_sm_ah(struct work_struct *work)
 	struct ib_sa_sm_ah *new_ah;
 	struct ib_port_attr port_attr;
 	struct rdma_ah_attr   ah_attr;
+	bool grh_required;
 
 	if (ib_query_port(port->agent->device, port->port_num, &port_attr)) {
 		pr_warn("Couldn't query port\n");
@@ -2314,16 +2301,27 @@ static void update_sm_ah(struct work_struct *work)
 	rdma_ah_set_dlid(&ah_attr, port_attr.sm_lid);
 	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
-	if (port_attr.grh_required) {
-		if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA) {
-			rdma_ah_set_make_grd(&ah_attr, true);
-		} else {
-			rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
-			rdma_ah_set_subnet_prefix(&ah_attr,
-						  cpu_to_be64(port_attr.subnet_prefix));
-			rdma_ah_set_interface_id(&ah_attr,
-						 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
-		}
+
+	grh_required = rdma_is_grh_required(port->agent->device,
+					    port->port_num);
+
+	/*
+	 * The OPA sm_lid of 0xFFFF needs special handling so that it can be
+	 * differentiated from a permissive LID of 0xFFFF.  We set the
+	 * grh_required flag here so the SA can program the DGID in the
+	 * address handle appropriately
+	 */
+	if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA &&
+	    (grh_required ||
+	     port_attr.sm_lid == be16_to_cpu(IB_LID_PERMISSIVE)))
+		rdma_ah_set_make_grd(&ah_attr, true);
+
+	if (ah_attr.type == RDMA_AH_ATTR_TYPE_IB && grh_required) {
+		rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
+		rdma_ah_set_subnet_prefix(&ah_attr,
+					  cpu_to_be64(port_attr.subnet_prefix));
+		rdma_ah_set_interface_id(&ah_attr,
+					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
 	}
 
 	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);

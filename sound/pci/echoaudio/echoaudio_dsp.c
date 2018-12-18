@@ -679,7 +679,7 @@ static int restore_dsp_rettings(struct echoaudio *chip)
 	/* Gina20/Darla20 only. Should be harmless for other cards. */
 	chip->comm_page->gd_clock_state = GD_CLOCK_UNDEF;
 	chip->comm_page->gd_spdif_status = GD_SPDIF_STATUS_UNDEF;
-	chip->comm_page->handshake = 0xffffffff;
+	chip->comm_page->handshake = cpu_to_le32(0xffffffff);
 
 	/* Restore output busses */
 	for (i = 0; i < num_busses_out(chip); i++) {
@@ -989,7 +989,7 @@ static int init_dsp_comm_page(struct echoaudio *chip)
 	/* Init the comm page */
 	chip->comm_page->comm_size =
 		cpu_to_le32(sizeof(struct comm_page));
-	chip->comm_page->handshake = 0xffffffff;
+	chip->comm_page->handshake = cpu_to_le32(0xffffffff);
 	chip->comm_page->midi_out_free_count =
 		cpu_to_le32(DSP_MIDI_OUT_FIFO_SIZE);
 	chip->comm_page->sample_rate = cpu_to_le32(44100);
@@ -1087,7 +1087,7 @@ static int allocate_pipes(struct echoaudio *chip, struct audiopipe *pipe,
 	/* The counter register is where the DSP writes the 32 bit DMA
 	position for a pipe.  The DSP is constantly updating this value as
 	it moves data. The DMA counter is in units of bytes, not samples. */
-	pipe->dma_counter = &chip->comm_page->position[pipe_index];
+	pipe->dma_counter = (__le32 *)&chip->comm_page->position[pipe_index];
 	*pipe->dma_counter = 0;
 	return pipe_index;
 }

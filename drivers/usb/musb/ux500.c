@@ -62,7 +62,6 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 
 		} else {
 			musb->is_active = 1;
-			musb->xceiv->otg->default_a = 1;
 			musb->xceiv->otg->state = OTG_STATE_A_WAIT_VRISE;
 			devctl |= MUSB_DEVCTL_SESSION;
 			MUSB_HST_MODE(musb);
@@ -73,7 +72,6 @@ static void ux500_musb_set_vbus(struct musb *musb, int is_on)
 		/* NOTE: we're skipping A_WAIT_VFALL -> A_IDLE and jumping
 		 * right to B_IDLE...
 		 */
-		musb->xceiv->otg->default_a = 0;
 		devctl &= ~MUSB_DEVCTL_SESSION;
 		MUSB_DEV_MODE(musb);
 	}

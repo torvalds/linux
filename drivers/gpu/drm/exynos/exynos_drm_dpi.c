@@ -113,7 +113,7 @@ static int exynos_dpi_create_connector(struct drm_encoder *encoder)
 	}
 
 	drm_connector_helper_add(connector, &exynos_dpi_connector_helper_funcs);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }
@@ -240,8 +240,8 @@ struct drm_encoder *exynos_dpi_probe(struct device *dev)
 
 	if (ctx->panel_node) {
 		ctx->panel = of_drm_find_panel(ctx->panel_node);
-		if (!ctx->panel)
-			return ERR_PTR(-EPROBE_DEFER);
+		if (IS_ERR(ctx->panel))
+			return ERR_CAST(ctx->panel);
 	}
 
 	return &ctx->encoder;

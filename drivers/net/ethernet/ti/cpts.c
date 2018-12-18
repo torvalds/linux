@@ -114,7 +114,10 @@ static bool cpts_match_tx_ts(struct cpts *cpts, struct cpts_event *event)
 			dev_consume_skb_any(skb);
 			dev_dbg(cpts->dev, "match tx timestamp mtype %u seqid %04x\n",
 				mtype, seqid);
-		} else if (time_after(jiffies, skb_cb->tmo)) {
+			break;
+		}
+
+		if (time_after(jiffies, skb_cb->tmo)) {
 			/* timeout any expired skbs over 1s */
 			dev_dbg(cpts->dev,
 				"expiring tx timestamp mtype %u seqid %04x\n",
@@ -158,6 +161,7 @@ static int cpts_fifo_read(struct cpts *cpts, int match)
 				 */
 				break;
 			}
+			/* fall through */
 		case CPTS_EV_PUSH:
 		case CPTS_EV_RX:
 			list_del_init(&event->list);
@@ -294,7 +298,8 @@ static long cpts_overflow_check(struct ptp_clock_info *ptp)
 		delay = CPTS_SKB_TX_WORK_TIMEOUT;
 	spin_unlock_irqrestore(&cpts->lock, flags);
 
-	pr_debug("cpts overflow check at %lld.%09lu\n", ts.tv_sec, ts.tv_nsec);
+	pr_debug("cpts overflow check at %lld.%09ld\n",
+		 (long long)ts.tv_sec, ts.tv_nsec);
 	return (long)delay;
 }
 
@@ -564,7 +569,7 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->refclk = devm_clk_get(dev, "cpts");
 	if (IS_ERR(cpts->refclk)) {
 		dev_err(dev, "Failed to get cpts refclk\n");
-		return ERR_PTR(PTR_ERR(cpts->refclk));
+		return ERR_CAST(cpts->refclk);
 	}
 
 	clk_prepare(cpts->refclk);

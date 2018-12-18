@@ -21,12 +21,12 @@ static int msm_hdmi_phy_resource_init(struct hdmi_phy *phy)
 	struct device *dev = &phy->pdev->dev;
 	int i, ret;
 
-	phy->regs = devm_kzalloc(dev, sizeof(phy->regs[0]) * cfg->num_regs,
+	phy->regs = devm_kcalloc(dev, cfg->num_regs, sizeof(phy->regs[0]),
 				 GFP_KERNEL);
 	if (!phy->regs)
 		return -ENOMEM;
 
-	phy->clks = devm_kzalloc(dev, sizeof(phy->clks[0]) * cfg->num_clks,
+	phy->clks = devm_kcalloc(dev, cfg->num_clks, sizeof(phy->clks[0]),
 				 GFP_KERNEL);
 	if (!phy->clks)
 		return -ENOMEM;

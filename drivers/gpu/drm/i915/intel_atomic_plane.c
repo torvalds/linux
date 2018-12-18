@@ -120,12 +120,6 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 		&crtc_state->base.adjusted_mode;
 	int ret;
 
-	/*
-	 * Both crtc and plane->crtc could be NULL if we're updating a
-	 * property while the plane is disabled.  We don't actually have
-	 * anything driver-specific we need to test in that case, so
-	 * just return success.
-	 */
 	if (!intel_state->base.crtc && !old_plane_state->base.crtc)
 		return 0;
 
@@ -183,10 +177,15 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	}
 
 	/* FIXME pre-g4x don't work like this */
-	if (intel_state->base.visible)
+	if (state->visible)
 		crtc_state->active_planes |= BIT(intel_plane->id);
 	else
 		crtc_state->active_planes &= ~BIT(intel_plane->id);
+
+	if (state->visible && state->fb->format->format == DRM_FORMAT_NV12)
+		crtc_state->nv12_planes |= BIT(intel_plane->id);
+	else
+		crtc_state->nv12_planes &= ~BIT(intel_plane->id);
 
 	return intel_plane_atomic_calc_changes(old_crtc_state,
 					       &crtc_state->base,
@@ -204,12 +203,6 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	const struct drm_crtc_state *old_crtc_state;
 	struct drm_crtc_state *new_crtc_state;
 
-	/*
-	 * Both crtc and plane->crtc could be NULL if we're updating a
-	 * property while the plane is disabled.  We don't actually have
-	 * anything driver-specific we need to test in that case, so
-	 * just return success.
-	 */
 	if (!crtc)
 		return 0;
 
@@ -272,7 +265,8 @@ intel_plane_atomic_get_property(struct drm_plane *plane,
 				struct drm_property *property,
 				uint64_t *val)
 {
-	DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
+		      property->base.id, property->name);
 	return -EINVAL;
 }
 
@@ -294,6 +288,7 @@ intel_plane_atomic_set_property(struct drm_plane *plane,
 				struct drm_property *property,
 				uint64_t val)
 {
-	DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+	DRM_DEBUG_KMS("Unknown property [PROP:%d:%s]\n",
+		      property->base.id, property->name);
 	return -EINVAL;
 }

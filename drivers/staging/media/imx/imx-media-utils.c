@@ -78,6 +78,7 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		.codes  = {MEDIA_BUS_FMT_RGB565_2X8_LE},
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 16,
+		.cycles = 2,
 	}, {
 		.fourcc	= V4L2_PIX_FMT_RGB24,
 		.codes  = {
@@ -167,6 +168,15 @@ static const struct imx_media_pixfmt rgb_formats[] = {
 		.codes = {MEDIA_BUS_FMT_Y8_1X8},
 		.cs     = IPUV3_COLORSPACE_RGB,
 		.bpp    = 8,
+		.bayer  = true,
+	}, {
+		.fourcc = V4L2_PIX_FMT_Y16,
+		.codes = {
+			MEDIA_BUS_FMT_Y10_1X10,
+			MEDIA_BUS_FMT_Y12_1X12,
+		},
+		.cs     = IPUV3_COLORSPACE_RGB,
+		.bpp    = 16,
 		.bayer  = true,
 	},
 	/***

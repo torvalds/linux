@@ -62,16 +62,14 @@ struct tc_u_knode {
 	struct tc_u32_pcnt __percpu *pf;
 #endif
 	u32			flags;
+	unsigned int		in_hw_count;
 #ifdef CONFIG_CLS_U32_MARK
 	u32			val;
 	u32			mask;
 	u32 __percpu		*pcpu_success;
 #endif
 	struct tcf_proto	*tp;
-	union {
-		struct work_struct	work;
-		struct rcu_head		rcu;
-	};
+	struct rcu_work		rwork;
 	/* The 'sel' field MUST be the last field in structure to allow for
 	 * tc_u32_keys allocated at end of structure.
 	 */
@@ -436,19 +434,12 @@ static int u32_destroy_key(struct tcf_proto *tp, struct tc_u_knode *n,
  */
 static void u32_delete_key_work(struct work_struct *work)
 {
-	struct tc_u_knode *key = container_of(work, struct tc_u_knode, work);
-
+	struct tc_u_knode *key = container_of(to_rcu_work(work),
+					      struct tc_u_knode,
+					      rwork);
 	rtnl_lock();
 	u32_destroy_key(key->tp, key, false);
 	rtnl_unlock();
-}
-
-static void u32_delete_key_rcu(struct rcu_head *rcu)
-{
-	struct tc_u_knode *key = container_of(rcu, struct tc_u_knode, rcu);
-
-	INIT_WORK(&key->work, u32_delete_key_work);
-	tcf_queue_work(&key->work);
 }
 
 /* u32_delete_key_freepf_rcu is the rcu callback variant
@@ -460,19 +451,12 @@ static void u32_delete_key_rcu(struct rcu_head *rcu)
  */
 static void u32_delete_key_freepf_work(struct work_struct *work)
 {
-	struct tc_u_knode *key = container_of(work, struct tc_u_knode, work);
-
+	struct tc_u_knode *key = container_of(to_rcu_work(work),
+					      struct tc_u_knode,
+					      rwork);
 	rtnl_lock();
 	u32_destroy_key(key->tp, key, true);
 	rtnl_unlock();
-}
-
-static void u32_delete_key_freepf_rcu(struct rcu_head *rcu)
-{
-	struct tc_u_knode *key = container_of(rcu, struct tc_u_knode, rcu);
-
-	INIT_WORK(&key->work, u32_delete_key_freepf_work);
-	tcf_queue_work(&key->work);
 }
 
 static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
@@ -491,7 +475,7 @@ static int u32_delete_key(struct tcf_proto *tp, struct tc_u_knode *key)
 				tcf_unbind_filter(tp, &key->res);
 				idr_remove(&ht->handle_idr, key->handle);
 				tcf_exts_get_net(&key->exts);
-				call_rcu(&key->rcu, u32_delete_key_freepf_rcu);
+				tcf_queue_work(&key->rwork, u32_delete_key_freepf_work);
 				return 0;
 			}
 		}
@@ -588,6 +572,7 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 		u32_remove_hw_knode(tp, n, NULL);
 		return err;
 	} else if (err > 0) {
+		n->in_hw_count = err;
 		tcf_block_offload_inc(block, &n->flags);
 	}
 
@@ -611,7 +596,7 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
 			u32_remove_hw_knode(tp, n, extack);
 			idr_remove(&ht->handle_idr, n->handle);
 			if (tcf_exts_get_net(&n->exts))
-				call_rcu(&n->rcu, u32_delete_key_freepf_rcu);
+				tcf_queue_work(&n->rwork, u32_delete_key_freepf_work);
 			else
 				u32_destroy_key(n->tp, n, true);
 		}
@@ -995,7 +980,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 		u32_replace_knode(tp, tp_c, new);
 		tcf_unbind_filter(tp, &n->res);
 		tcf_exts_get_net(&n->exts);
-		call_rcu(&n->rcu, u32_delete_key_rcu);
+		tcf_queue_work(&n->rwork, u32_delete_key_work);
 		return 0;
 	}
 
@@ -1216,6 +1201,114 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
+static int u32_reoffload_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht,
+			       bool add, tc_setup_cb_t *cb, void *cb_priv,
+			       struct netlink_ext_ack *extack)
+{
+	struct tc_cls_u32_offload cls_u32 = {};
+	int err;
+
+	tc_cls_common_offload_init(&cls_u32.common, tp, ht->flags, extack);
+	cls_u32.command = add ? TC_CLSU32_NEW_HNODE : TC_CLSU32_DELETE_HNODE;
+	cls_u32.hnode.divisor = ht->divisor;
+	cls_u32.hnode.handle = ht->handle;
+	cls_u32.hnode.prio = ht->prio;
+
+	err = cb(TC_SETUP_CLSU32, &cls_u32, cb_priv);
+	if (err && add && tc_skip_sw(ht->flags))
+		return err;
+
+	return 0;
+}
+
+static int u32_reoffload_knode(struct tcf_proto *tp, struct tc_u_knode *n,
+			       bool add, tc_setup_cb_t *cb, void *cb_priv,
+			       struct netlink_ext_ack *extack)
+{
+	struct tc_u_hnode *ht = rtnl_dereference(n->ht_down);
+	struct tcf_block *block = tp->chain->block;
+	struct tc_cls_u32_offload cls_u32 = {};
+	int err;
+
+	tc_cls_common_offload_init(&cls_u32.common, tp, n->flags, extack);
+	cls_u32.command = add ?
+		TC_CLSU32_REPLACE_KNODE : TC_CLSU32_DELETE_KNODE;
+	cls_u32.knode.handle = n->handle;
+
+	if (add) {
+		cls_u32.knode.fshift = n->fshift;
+#ifdef CONFIG_CLS_U32_MARK
+		cls_u32.knode.val = n->val;
+		cls_u32.knode.mask = n->mask;
+#else
+		cls_u32.knode.val = 0;
+		cls_u32.knode.mask = 0;
+#endif
+		cls_u32.knode.sel = &n->sel;
+		cls_u32.knode.exts = &n->exts;
+		if (n->ht_down)
+			cls_u32.knode.link_handle = ht->handle;
+	}
+
+	err = cb(TC_SETUP_CLSU32, &cls_u32, cb_priv);
+	if (err) {
+		if (add && tc_skip_sw(n->flags))
+			return err;
+		return 0;
+	}
+
+	tc_cls_offload_cnt_update(block, &n->in_hw_count, &n->flags, add);
+
+	return 0;
+}
+
+static int u32_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
+			 void *cb_priv, struct netlink_ext_ack *extack)
+{
+	struct tc_u_common *tp_c = tp->data;
+	struct tc_u_hnode *ht;
+	struct tc_u_knode *n;
+	unsigned int h;
+	int err;
+
+	for (ht = rtnl_dereference(tp_c->hlist);
+	     ht;
+	     ht = rtnl_dereference(ht->next)) {
+		if (ht->prio != tp->prio)
+			continue;
+
+		/* When adding filters to a new dev, try to offload the
+		 * hashtable first. When removing, do the filters before the
+		 * hashtable.
+		 */
+		if (add && !tc_skip_hw(ht->flags)) {
+			err = u32_reoffload_hnode(tp, ht, add, cb, cb_priv,
+						  extack);
+			if (err)
+				return err;
+		}
+
+		for (h = 0; h <= ht->divisor; h++) {
+			for (n = rtnl_dereference(ht->ht[h]);
+			     n;
+			     n = rtnl_dereference(n->next)) {
+				if (tc_skip_hw(n->flags))
+					continue;
+
+				err = u32_reoffload_knode(tp, n, add, cb,
+							  cb_priv, extack);
+				if (err)
+					return err;
+			}
+		}
+
+		if (!add && !tc_skip_hw(ht->flags))
+			u32_reoffload_hnode(tp, ht, add, cb, cb_priv, extack);
+	}
+
+	return 0;
+}
+
 static void u32_bind_class(void *fh, u32 classid, unsigned long cl)
 {
 	struct tc_u_knode *n = fh;
@@ -1353,6 +1446,7 @@ static struct tcf_proto_ops cls_u32_ops __read_mostly = {
 	.change		=	u32_change,
 	.delete		=	u32_delete,
 	.walk		=	u32_walk,
+	.reoffload	=	u32_reoffload,
 	.dump		=	u32_dump,
 	.bind_class	=	u32_bind_class,
 	.owner		=	THIS_MODULE,

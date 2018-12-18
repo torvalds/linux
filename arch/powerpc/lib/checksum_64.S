@@ -429,3 +429,31 @@ dstnr;	stb	r6,0(r4)
 	stw	r6,0(r8)
 	blr
 EXPORT_SYMBOL(csum_partial_copy_generic)
+
+/*
+ * __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
+ *			   const struct in6_addr *daddr,
+ *			   __u32 len, __u8 proto, __wsum sum)
+ */
+
+_GLOBAL(csum_ipv6_magic)
+	ld	r8, 0(r3)
+	ld	r9, 8(r3)
+	add	r5, r5, r6
+	addc	r0, r8, r9
+	ld	r10, 0(r4)
+	ld	r11, 8(r4)
+	adde	r0, r0, r10
+	add	r5, r5, r7
+	adde	r0, r0, r11
+	adde	r0, r0, r5
+	addze	r0, r0
+	rotldi  r3, r0, 32		/* fold two 32 bit halves together */
+	add	r3, r0, r3
+	srdi	r0, r3, 32
+	rotlwi	r3, r0, 16		/* fold two 16 bit halves together */
+	add	r3, r0, r3
+	not	r3, r3
+	rlwinm	r3, r3, 16, 16, 31
+	blr
+EXPORT_SYMBOL(csum_ipv6_magic)

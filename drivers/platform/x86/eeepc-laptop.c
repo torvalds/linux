@@ -726,12 +726,6 @@ static int eeepc_get_adapter_status(struct hotplug_slot *hotplug_slot,
 	return 0;
 }
 
-static void eeepc_cleanup_pci_hotplug(struct hotplug_slot *hotplug_slot)
-{
-	kfree(hotplug_slot->info);
-	kfree(hotplug_slot);
-}
-
 static struct hotplug_slot_ops eeepc_hotplug_slot_ops = {
 	.owner = THIS_MODULE,
 	.get_adapter_status = eeepc_get_adapter_status,
@@ -758,7 +752,6 @@ static int eeepc_setup_pci_hotplug(struct eeepc_laptop *eeepc)
 		goto error_info;
 
 	eeepc->hotplug_slot->private = eeepc;
-	eeepc->hotplug_slot->release = &eeepc_cleanup_pci_hotplug;
 	eeepc->hotplug_slot->ops = &eeepc_hotplug_slot_ops;
 	eeepc_get_adapter_status(eeepc->hotplug_slot,
 				 &eeepc->hotplug_slot->info->adapter_status);
@@ -837,8 +830,11 @@ static void eeepc_rfkill_exit(struct eeepc_laptop *eeepc)
 		eeepc->wlan_rfkill = NULL;
 	}
 
-	if (eeepc->hotplug_slot)
+	if (eeepc->hotplug_slot) {
 		pci_hp_deregister(eeepc->hotplug_slot);
+		kfree(eeepc->hotplug_slot->info);
+		kfree(eeepc->hotplug_slot);
+	}
 
 	if (eeepc->bluetooth_rfkill) {
 		rfkill_unregister(eeepc->bluetooth_rfkill);

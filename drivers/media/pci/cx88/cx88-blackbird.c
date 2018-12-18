@@ -5,7 +5,7 @@
  *    (c) 2004 Jelle Foks <jelle@foks.us>
  *    (c) 2004 Gerd Knorr <kraxel@bytesex.org>
  *
- *    (c) 2005-2006 Mauro Carvalho Chehab <mchehab@infradead.org>
+ *    (c) 2005-2006 Mauro Carvalho Chehab <mchehab@kernel.org>
  *        - video_ioctl2 conversion
  *
  *  Includes parts from the ivtv driver <http://sourceforge.net/projects/ivtv/>

@@ -16,7 +16,7 @@
 	"	.popsection\n"					\
 	"	.pushsection .fixup,\"ax\"\n"			\
 	"4:	move	%0, " err_reg "\n"			\
-	"	j	3b\n"					\
+	"	b	3b\n"					\
 	"	.popsection"
 
 #define __futex_atomic_op(insn, ret, oldval, tmp, uaddr, oparg)	\

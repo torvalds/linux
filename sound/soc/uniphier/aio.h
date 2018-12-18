@@ -3,19 +3,6 @@
  * Socionext UniPhier AIO ALSA driver.
  *
  * Copyright (c) 2016-2018 Socionext Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef SND_UNIPHIER_AIO_H__
@@ -143,12 +130,19 @@ enum IEC61937_PC {
 #define AUD_PLLDIV_1_1    2
 #define AUD_PLLDIV_2_3    3
 
+#define AUD_VOL_INIT         0x4000 /* +0dB */
+#define AUD_VOL_MAX          0xffff /* +6dB */
+#define AUD_VOL_FADE_TIME    20 /* 20ms */
+
 #define AUD_RING_SIZE            (128 * 1024)
 
 #define AUD_MIN_FRAGMENT         4
 #define AUD_MAX_FRAGMENT         8
 #define AUD_MIN_FRAGMENT_SIZE    (4 * 1024)
 #define AUD_MAX_FRAGMENT_SIZE    (16 * 1024)
+
+/* max 5 slots, 10 channels, 2 channel in 1 slot */
+#define AUD_MAX_SLOTSEL    5
 
 /*
  * This is a selector for virtual register map of AIO.
@@ -244,6 +238,7 @@ struct uniphier_aio_sub {
 	/* For PCM audio */
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_hw_params params;
+	int vol;
 
 	/* For compress audio */
 	struct snd_compr_stream *cstream;
@@ -330,12 +325,11 @@ int aio_chip_set_pll(struct uniphier_aio_chip *chip, int pll_id,
 void aio_chip_init(struct uniphier_aio_chip *chip);
 int aio_init(struct uniphier_aio_sub *sub);
 void aio_port_reset(struct uniphier_aio_sub *sub);
-int aio_port_set_rate(struct uniphier_aio_sub *sub, int rate);
-int aio_port_set_fmt(struct uniphier_aio_sub *sub);
-int aio_port_set_clk(struct uniphier_aio_sub *sub);
 int aio_port_set_param(struct uniphier_aio_sub *sub, int pass_through,
 		       const struct snd_pcm_hw_params *params);
 void aio_port_set_enable(struct uniphier_aio_sub *sub, int enable);
+int aio_port_get_volume(struct uniphier_aio_sub *sub);
+void aio_port_set_volume(struct uniphier_aio_sub *sub, int vol);
 int aio_if_set_param(struct uniphier_aio_sub *sub, int pass_through);
 int aio_oport_set_stream_type(struct uniphier_aio_sub *sub,
 			      enum IEC61937_PC pc);

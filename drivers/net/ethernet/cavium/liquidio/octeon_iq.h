@@ -62,8 +62,8 @@ struct oct_iq_stats {
 	u64 tx_tot_bytes;/**< Total count of bytes sento to network. */
 	u64 tx_gso;  /* count of tso */
 	u64 tx_vxlan; /* tunnel */
-	u64 tx_dmamap_fail;
-	u64 tx_restart;
+	u64 tx_dmamap_fail; /* Number of times dma mapping failed */
+	u64 tx_restart; /* Number of times this queue restarted */
 };
 
 #define OCT_IQ_STATS_SIZE   (sizeof(struct oct_iq_stats))
@@ -81,6 +81,16 @@ struct octeon_instr_queue {
 
 	/** A spinlock to protect while posting on the ring.  */
 	spinlock_t post_lock;
+
+	/** This flag indicates if the queue can be used for soft commands.
+	 *  If this flag is set, post_lock must be acquired before posting
+	 *  a command to the queue.
+	 *  If this flag is clear, post_lock is invalid for the queue.
+	 *  All control commands (soft commands) will go through only Queue 0
+	 *  (control and data queue). So only queue-0 needs post_lock,
+	 *  other queues are only data queues and does not need post_lock
+	 */
+	bool allow_soft_cmds;
 
 	u32 pkt_in_done;
 

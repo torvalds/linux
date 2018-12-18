@@ -37,8 +37,6 @@
 #include <acpi/ghes.h>
 #include <ras/ras_event.h>
 
-#define INDENT_SP	" "
-
 static char rcd_decode_str[CPER_REC_LEN];
 
 /*
@@ -50,8 +48,21 @@ u64 cper_next_record_id(void)
 {
 	static atomic64_t seq;
 
-	if (!atomic64_read(&seq))
-		atomic64_set(&seq, ((u64)get_seconds()) << 32);
+	if (!atomic64_read(&seq)) {
+		time64_t time = ktime_get_real_seconds();
+
+		/*
+		 * This code is unlikely to still be needed in year 2106,
+		 * but just in case, let's use a few more bits for timestamps
+		 * after y2038 to be sure they keep increasing monotonically
+		 * for the next few hundred years...
+		 */
+		if (time < 0x80000000)
+			atomic64_set(&seq, (ktime_get_real_seconds()) << 32);
+		else
+			atomic64_set(&seq, 0x8000000000000000ull |
+					   ktime_get_real_seconds() << 24);
+	}
 
 	return atomic64_inc_return(&seq);
 }
@@ -433,7 +444,7 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 	if (gdata->validation_bits & CPER_SEC_VALID_FRU_TEXT)
 		printk("%s""fru_text: %.20s\n", pfx, gdata->fru_text);
 
-	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
+	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 	if (guid_equal(sec_type, &CPER_SEC_PROC_GENERIC)) {
 		struct cper_sec_proc_generic *proc_err = acpi_hest_get_payload(gdata);
 
@@ -461,12 +472,22 @@ cper_estatus_print_section(const char *pfx, struct acpi_hest_generic_data *gdata
 		else
 			goto err_section_too_small;
 #if defined(CONFIG_ARM64) || defined(CONFIG_ARM)
-	} else if (!uuid_le_cmp(*sec_type, CPER_SEC_PROC_ARM)) {
+	} else if (guid_equal(sec_type, &CPER_SEC_PROC_ARM)) {
 		struct cper_sec_proc_arm *arm_err = acpi_hest_get_payload(gdata);
 
 		printk("%ssection_type: ARM processor error\n", newpfx);
 		if (gdata->error_data_length >= sizeof(*arm_err))
 			cper_print_proc_arm(newpfx, arm_err);
+		else
+			goto err_section_too_small;
+#endif
+#if defined(CONFIG_UEFI_CPER_X86)
+	} else if (guid_equal(sec_type, &CPER_SEC_PROC_IA)) {
+		struct cper_sec_proc_ia *ia_err = acpi_hest_get_payload(gdata);
+
+		printk("%ssection_type: IA32/X64 processor error\n", newpfx);
+		if (gdata->error_data_length >= sizeof(*ia_err))
+			cper_print_proc_ia(newpfx, ia_err);
 		else
 			goto err_section_too_small;
 #endif
@@ -500,7 +521,7 @@ void cper_estatus_print(const char *pfx,
 		       "It has been corrected by h/w "
 		       "and requires no further action");
 	printk("%s""event severity: %s\n", pfx, cper_severity_str(severity));
-	snprintf(newpfx, sizeof(newpfx), "%s%s", pfx, INDENT_SP);
+	snprintf(newpfx, sizeof(newpfx), "%s ", pfx);
 
 	apei_estatus_for_each_section(estatus, gdata) {
 		cper_estatus_print_section(newpfx, gdata, sec_no);

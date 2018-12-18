@@ -28,7 +28,7 @@
  * difficult to estimate the time it takes for the system to process the command
  * before it is actually passed to the PPM.
  */
-#define UCSI_TIMEOUT_MS		1000
+#define UCSI_TIMEOUT_MS		5000
 
 /*
  * UCSI_SWAP_TIMEOUT_MS - Timeout for role swap requests
@@ -350,6 +350,19 @@ static void ucsi_connector_change(struct work_struct *work)
 	}
 
 	if (con->status.change & UCSI_CONSTAT_CONNECT_CHANGE) {
+		typec_set_pwr_role(con->port, con->status.pwr_dir);
+
+		switch (con->status.partner_type) {
+		case UCSI_CONSTAT_PARTNER_TYPE_UFP:
+			typec_set_data_role(con->port, TYPEC_HOST);
+			break;
+		case UCSI_CONSTAT_PARTNER_TYPE_DFP:
+			typec_set_data_role(con->port, TYPEC_DEVICE);
+			break;
+		default:
+			break;
+		}
+
 		if (con->status.connected)
 			ucsi_register_partner(con);
 		else

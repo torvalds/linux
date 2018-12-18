@@ -1,7 +1,7 @@
 Console Drivers
 ===============
 
-The linux kernel has 2 general types of console drivers.  The first type is
+The Linux kernel has 2 general types of console drivers.  The first type is
 assigned by the kernel to all the virtual consoles during the boot process.
 This type will be called 'system driver', and only one system driver is allowed
 to exist. The system driver is persistent and it can never be unloaded, though
@@ -17,10 +17,11 @@ of driver occupying the consoles.) They can only take over the console that is
 occupied by the system driver. In the same token, if the modular driver is
 released by the console, the system driver will take over.
 
-Modular drivers, from the programmer's point of view, has to call:
+Modular drivers, from the programmer's point of view, have to call:
 
 	 do_take_over_console() - load and bind driver to console layer
-	 give_up_console() - unload driver, it will only work if driver is fully unbond
+	 give_up_console() - unload driver; it will only work if driver
+			     is fully unbound
 
 In newer kernels, the following are also available:
 
@@ -56,7 +57,7 @@ What do these files signify?
 	cat /sys/class/vtconsole/vtcon0/name
 	(S) VGA+
 
-	    '(S)' stands for a (S)ystem driver, ie, it cannot be directly
+	    '(S)' stands for a (S)ystem driver, i.e., it cannot be directly
 	    commanded to bind or unbind
 
 	    'VGA+' is the name of the driver
@@ -89,7 +90,7 @@ driver, make changes, recompile, reload and rebind the driver without any need
 for rebooting the kernel. For regular users who may want to switch from
 framebuffer console to VGA console and vice versa, this feature also makes
 this possible. (NOTE NOTE NOTE: Please read fbcon.txt under Documentation/fb
-for more details).
+for more details.)
 
 Notes for developers:
 =====================
@@ -110,8 +111,8 @@ In order for binding to and unbinding from the console to properly work,
 console drivers must follow these guidelines:
 
 1. All drivers, except system drivers, must call either do_register_con_driver()
-   or do_take_over_console(). do_register_con_driver() will just add the driver to
-   the console's internal list. It won't take over the
+   or do_take_over_console(). do_register_con_driver() will just add the driver
+   to the console's internal list. It won't take over the
    console. do_take_over_console(), as it name implies, will also take over (or
    bind to) the console.
 

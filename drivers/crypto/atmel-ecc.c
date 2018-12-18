@@ -186,7 +186,10 @@ static int atmel_ecc_init_ecdh_cmd(struct atmel_ecc_cmd *cmd,
 	 * always be the same. Use a macro for the key size to avoid unnecessary
 	 * computations.
 	 */
-	copied = sg_copy_to_buffer(pubkey, 1, cmd->data, ATMEL_ECC_PUBKEY_SIZE);
+	copied = sg_copy_to_buffer(pubkey,
+				   sg_nents_for_len(pubkey,
+						    ATMEL_ECC_PUBKEY_SIZE),
+				   cmd->data, ATMEL_ECC_PUBKEY_SIZE);
 	if (copied != ATMEL_ECC_PUBKEY_SIZE)
 		return -EINVAL;
 
@@ -268,15 +271,17 @@ static void atmel_ecdh_done(struct atmel_ecc_work_data *work_data, void *areq,
 	struct kpp_request *req = areq;
 	struct atmel_ecdh_ctx *ctx = work_data->ctx;
 	struct atmel_ecc_cmd *cmd = &work_data->cmd;
-	size_t copied;
-	size_t n_sz = ctx->n_sz;
+	size_t copied, n_sz;
 
 	if (status)
 		goto free_work_data;
 
+	/* might want less than we've got */
+	n_sz = min_t(size_t, ctx->n_sz, req->dst_len);
+
 	/* copy the shared secret */
-	copied = sg_copy_from_buffer(req->dst, 1, &cmd->data[RSP_DATA_IDX],
-				     n_sz);
+	copied = sg_copy_from_buffer(req->dst, sg_nents_for_len(req->dst, n_sz),
+				     &cmd->data[RSP_DATA_IDX], n_sz);
 	if (copied != n_sz)
 		status = -EINVAL;
 
@@ -440,7 +445,7 @@ static int atmel_ecdh_generate_public_key(struct kpp_request *req)
 {
 	struct crypto_kpp *tfm = crypto_kpp_reqtfm(req);
 	struct atmel_ecdh_ctx *ctx = kpp_tfm_ctx(tfm);
-	size_t copied;
+	size_t copied, nbytes;
 	int ret = 0;
 
 	if (ctx->do_fallback) {
@@ -448,10 +453,14 @@ static int atmel_ecdh_generate_public_key(struct kpp_request *req)
 		return crypto_kpp_generate_public_key(req);
 	}
 
+	/* might want less than we've got */
+	nbytes = min_t(size_t, ATMEL_ECC_PUBKEY_SIZE, req->dst_len);
+
 	/* public key was saved at private key generation */
-	copied = sg_copy_from_buffer(req->dst, 1, ctx->public_key,
-				     ATMEL_ECC_PUBKEY_SIZE);
-	if (copied != ATMEL_ECC_PUBKEY_SIZE)
+	copied = sg_copy_from_buffer(req->dst,
+				     sg_nents_for_len(req->dst, nbytes),
+				     ctx->public_key, nbytes);
+	if (copied != nbytes)
 		ret = -EINVAL;
 
 	return ret;
@@ -469,6 +478,10 @@ static int atmel_ecdh_compute_shared_secret(struct kpp_request *req)
 		kpp_request_set_tfm(req, ctx->fallback);
 		return crypto_kpp_compute_shared_secret(req);
 	}
+
+	/* must have exactly two points to be on the curve */
+	if (req->src_len != ATMEL_ECC_PUBKEY_SIZE)
+		return -EINVAL;
 
 	gfp = (req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP) ? GFP_KERNEL :
 							     GFP_ATOMIC;
@@ -554,10 +567,6 @@ static int atmel_ecdh_init_tfm(struct crypto_kpp *tfm)
 	}
 
 	crypto_kpp_set_flags(fallback, crypto_kpp_get_flags(tfm));
-
-	dev_info(&ctx->client->dev, "Using '%s' as fallback implementation.\n",
-		 crypto_tfm_alg_driver_name(crypto_kpp_tfm(fallback)));
-
 	ctx->fallback = fallback;
 
 	return 0;

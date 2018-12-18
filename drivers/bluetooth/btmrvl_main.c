@@ -358,12 +358,6 @@ int btmrvl_prepare_command(struct btmrvl_private *priv)
 	return ret;
 }
 
-void btmrvl_firmware_dump(struct btmrvl_private *priv)
-{
-	if (priv->firmware_dump)
-		priv->firmware_dump(priv);
-}
-
 static int btmrvl_tx_pkt(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	int ret = 0;

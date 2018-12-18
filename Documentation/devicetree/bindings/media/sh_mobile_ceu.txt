@@ -2,7 +2,6 @@ Bindings, specific for the sh_mobile_ceu_camera.c driver:
  - compatible: Should be "renesas,sh-mobile-ceu"
  - reg: register base and size
  - interrupts: the interrupt number
- - interrupt-parent: the interrupt controller
  - renesas,max-width: maximum image width, supported on this SoC
  - renesas,max-height: maximum image height, supported on this SoC
 

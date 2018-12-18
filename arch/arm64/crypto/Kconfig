@@ -47,6 +47,12 @@ config CRYPTO_SM3_ARM64_CE
 	select CRYPTO_HASH
 	select CRYPTO_SM3
 
+config CRYPTO_SM4_ARM64_CE
+	tristate "SM4 symmetric cipher (ARMv8.2 Crypto Extensions)"
+	depends on KERNEL_MODE_NEON
+	select CRYPTO_ALGAPI
+	select CRYPTO_SM4
+
 config CRYPTO_GHASH_ARM64_CE
 	tristate "GHASH/AES-GCM using ARMv8 Crypto Extensions"
 	depends on KERNEL_MODE_NEON

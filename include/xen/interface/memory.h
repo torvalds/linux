@@ -265,4 +265,70 @@ struct xen_remove_from_physmap {
 };
 DEFINE_GUEST_HANDLE_STRUCT(xen_remove_from_physmap);
 
+/*
+ * Get the pages for a particular guest resource, so that they can be
+ * mapped directly by a tools domain.
+ */
+#define XENMEM_acquire_resource 28
+struct xen_mem_acquire_resource {
+    /* IN - The domain whose resource is to be mapped */
+    domid_t domid;
+    /* IN - the type of resource */
+    uint16_t type;
+
+#define XENMEM_resource_ioreq_server 0
+#define XENMEM_resource_grant_table 1
+
+    /*
+     * IN - a type-specific resource identifier, which must be zero
+     *      unless stated otherwise.
+     *
+     * type == XENMEM_resource_ioreq_server -> id == ioreq server id
+     * type == XENMEM_resource_grant_table -> id defined below
+     */
+    uint32_t id;
+
+#define XENMEM_resource_grant_table_id_shared 0
+#define XENMEM_resource_grant_table_id_status 1
+
+    /* IN/OUT - As an IN parameter number of frames of the resource
+     *          to be mapped. However, if the specified value is 0 and
+     *          frame_list is NULL then this field will be set to the
+     *          maximum value supported by the implementation on return.
+     */
+    uint32_t nr_frames;
+    /*
+     * OUT - Must be zero on entry. On return this may contain a bitwise
+     *       OR of the following values.
+     */
+    uint32_t flags;
+
+    /* The resource pages have been assigned to the calling domain */
+#define _XENMEM_rsrc_acq_caller_owned 0
+#define XENMEM_rsrc_acq_caller_owned (1u << _XENMEM_rsrc_acq_caller_owned)
+
+    /*
+     * IN - the index of the initial frame to be mapped. This parameter
+     *      is ignored if nr_frames is 0.
+     */
+    uint64_t frame;
+
+#define XENMEM_resource_ioreq_server_frame_bufioreq 0
+#define XENMEM_resource_ioreq_server_frame_ioreq(n) (1 + (n))
+
+    /*
+     * IN/OUT - If the tools domain is PV then, upon return, frame_list
+     *          will be populated with the MFNs of the resource.
+     *          If the tools domain is HVM then it is expected that, on
+     *          entry, frame_list will be populated with a list of GFNs
+     *          that will be mapped to the MFNs of the resource.
+     *          If -EIO is returned then the frame_list has only been
+     *          partially mapped and it is up to the caller to unmap all
+     *          the GFNs.
+     *          This parameter may be NULL if nr_frames is 0.
+     */
+    GUEST_HANDLE(xen_pfn_t) frame_list;
+};
+DEFINE_GUEST_HANDLE_STRUCT(xen_mem_acquire_resource);
+
 #endif /* __XEN_PUBLIC_MEMORY_H__ */

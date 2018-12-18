@@ -41,6 +41,8 @@
 #include <linux/phy.h>
 #include <linux/sort.h>
 #include <linux/if_vlan.h>
+#include <linux/of_platform.h>
+#include <linux/fsl/ptp_qoriq.h>
 
 #include "gianfar.h"
 
@@ -738,7 +740,6 @@ static void ethflow_to_filer_rules (struct gfar_private *priv, u64 ethflow)
 static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 				       u64 class)
 {
-	unsigned int last_rule_idx = priv->cur_filer_idx;
 	unsigned int cmp_rqfpr;
 	unsigned int *local_rqfpr;
 	unsigned int *local_rqfcr;
@@ -817,7 +818,6 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 	}
 
 	priv->cur_filer_idx = l - 1;
-	last_rule_idx = l;
 
 	/* hash rules */
 	ethflow_to_filer_rules(priv, ethflow);
@@ -1509,24 +1509,35 @@ static int gfar_get_nfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 	return ret;
 }
 
-int gfar_phc_index = -1;
-EXPORT_SYMBOL(gfar_phc_index);
-
 static int gfar_get_ts_info(struct net_device *dev,
 			    struct ethtool_ts_info *info)
 {
 	struct gfar_private *priv = netdev_priv(dev);
+	struct platform_device *ptp_dev;
+	struct device_node *ptp_node;
+	struct qoriq_ptp *ptp = NULL;
+
+	info->phc_index = -1;
 
 	if (!(priv->device_flags & FSL_GIANFAR_DEV_HAS_TIMER)) {
 		info->so_timestamping = SOF_TIMESTAMPING_RX_SOFTWARE |
 					SOF_TIMESTAMPING_SOFTWARE;
-		info->phc_index = -1;
 		return 0;
 	}
+
+	ptp_node = of_find_compatible_node(NULL, NULL, "fsl,etsec-ptp");
+	if (ptp_node) {
+		ptp_dev = of_find_device_by_node(ptp_node);
+		if (ptp_dev)
+			ptp = platform_get_drvdata(ptp_dev);
+	}
+
+	if (ptp)
+		info->phc_index = ptp->phc_index;
+
 	info->so_timestamping = SOF_TIMESTAMPING_TX_HARDWARE |
 				SOF_TIMESTAMPING_RX_HARDWARE |
 				SOF_TIMESTAMPING_RAW_HARDWARE;
-	info->phc_index = gfar_phc_index;
 	info->tx_types = (1 << HWTSTAMP_TX_OFF) |
 			 (1 << HWTSTAMP_TX_ON);
 	info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2017 Netronome Systems, Inc.
+ * Copyright (C) 2016-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -39,12 +39,15 @@
 #include <linux/bpf_verifier.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/rhashtable.h>
 #include <linux/skbuff.h>
 #include <linux/types.h>
 #include <linux/wait.h>
 
 #include "../nfp_asm.h"
 #include "fw.h"
+
+#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
 
 /* For relocation logic use up-most byte of branch instruction as scratch
  * area.  Remember to clear this before sending instructions to HW!
@@ -81,10 +84,16 @@ enum static_regs {
 enum pkt_vec {
 	PKT_VEC_PKT_LEN		= 0,
 	PKT_VEC_PKT_PTR		= 2,
+	PKT_VEC_QSEL_SET	= 4,
+	PKT_VEC_QSEL_VAL	= 6,
 };
+
+#define PKT_VEL_QSEL_SET_BIT	4
 
 #define pv_len(np)	reg_lm(1, PKT_VEC_PKT_LEN)
 #define pv_ctm_ptr(np)	reg_lm(1, PKT_VEC_PKT_PTR)
+#define pv_qsel_set(np)	reg_lm(1, PKT_VEC_QSEL_SET)
+#define pv_qsel_val(np)	reg_lm(1, PKT_VEC_QSEL_VAL)
 
 #define stack_reg(np)	reg_a(STATIC_REG_STACK)
 #define stack_imm(np)	imm_b(np)
@@ -103,6 +112,8 @@ enum pkt_vec {
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
  *
+ * @bpf_dev:		BPF offload device handle
+ *
  * @tag_allocator:	bitmap of control message tags in use
  * @tag_alloc_next:	next tag bit to allocate
  * @tag_alloc_last:	next tag bit to be freed
@@ -113,6 +124,8 @@ enum pkt_vec {
  * @map_list:		list of offloaded maps
  * @maps_in_use:	number of currently offloaded maps
  * @map_elems_in_use:	number of elements allocated to offloaded maps
+ *
+ * @maps_neutral:	hash table of offload-neutral maps (on pointer)
  *
  * @adjust_head:	adjust head capability
  * @adjust_head.flags:		extra flags for adjust head
@@ -133,11 +146,16 @@ enum pkt_vec {
  * @helpers.map_lookup:		map lookup helper address
  * @helpers.map_update:		map update helper address
  * @helpers.map_delete:		map delete helper address
+ * @helpers.perf_event_output:	output perf event to a ring buffer
  *
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
+ * @queue_select:	BPF can set the RX queue ID in packet vector
+ * @adjust_tail:	BPF can simply trunc packet size for adjust tail
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+
+	struct bpf_offload_dev *bpf_dev;
 
 	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
 	u16 tag_alloc_next;
@@ -149,6 +167,8 @@ struct nfp_app_bpf {
 	struct list_head map_list;
 	unsigned int maps_in_use;
 	unsigned int map_elems_in_use;
+
+	struct rhashtable maps_neutral;
 
 	struct nfp_bpf_cap_adjust_head {
 		u32 flags;
@@ -171,9 +191,12 @@ struct nfp_app_bpf {
 		u32 map_lookup;
 		u32 map_update;
 		u32 map_delete;
+		u32 perf_event_output;
 	} helpers;
 
 	bool pseudo_random;
+	bool queue_select;
+	bool adjust_tail;
 };
 
 enum nfp_bpf_map_use {
@@ -198,6 +221,15 @@ struct nfp_bpf_map {
 	struct list_head l;
 	enum nfp_bpf_map_use use_map[];
 };
+
+struct nfp_bpf_neutral_map {
+	struct rhash_head l;
+	struct bpf_map *ptr;
+	u32 map_id;
+	u32 count;
+};
+
+extern const struct rhashtable_params nfp_bpf_maps_neutral_params;
 
 struct nfp_prog;
 struct nfp_insn_meta;
@@ -236,9 +268,14 @@ struct nfp_bpf_reg_state {
  * @xadd_over_16bit: 16bit immediate is not guaranteed
  * @xadd_maybe_16bit: 16bit immediate is possible
  * @jmp_dst: destination info for jump instructions
+ * @jump_neg_op: jump instruction has inverted immediate, use ADD instead of SUB
  * @func_id: function id for call instructions
  * @arg1: arg1 for call instructions
  * @arg2: arg2 for call instructions
+ * @umin_src: copy of core verifier umin_value for src opearnd.
+ * @umax_src: copy of core verifier umax_value for src operand.
+ * @umin_dst: copy of core verifier umin_value for dst opearnd.
+ * @umax_dst: copy of core verifier umax_value for dst operand.
  * @off: index of first generated machine instruction (in nfp_prog.prog)
  * @n: eBPF instruction number
  * @flags: eBPF instruction extra optimization flags
@@ -264,12 +301,25 @@ struct nfp_insn_meta {
 			bool xadd_maybe_16bit;
 		};
 		/* jump */
-		struct nfp_insn_meta *jmp_dst;
+		struct {
+			struct nfp_insn_meta *jmp_dst;
+			bool jump_neg_op;
+		};
 		/* function calls */
 		struct {
 			u32 func_id;
 			struct bpf_reg_state arg1;
 			struct nfp_bpf_reg_state arg2;
+		};
+		/* We are interested in range info for operands of ALU
+		 * operations. For example, shift amount, multiplicand and
+		 * multiplier etc.
+		 */
+		struct {
+			u64 umin_src;
+			u64 umax_src;
+			u64 umin_dst;
+			u64 umax_dst;
 		};
 	};
 	unsigned int off;
@@ -301,6 +351,11 @@ static inline u8 mbpf_op(const struct nfp_insn_meta *meta)
 static inline u8 mbpf_mode(const struct nfp_insn_meta *meta)
 {
 	return BPF_MODE(meta->insn.code);
+}
+
+static inline bool is_mbpf_alu(const struct nfp_insn_meta *meta)
+{
+	return mbpf_class(meta) == BPF_ALU64 || mbpf_class(meta) == BPF_ALU;
 }
 
 static inline bool is_mbpf_load(const struct nfp_insn_meta *meta)
@@ -348,6 +403,16 @@ static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
 	return (meta->insn.code & ~BPF_SIZE_MASK) == (BPF_STX | BPF_XADD);
 }
 
+static inline bool is_mbpf_mul(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_MUL;
+}
+
+static inline bool is_mbpf_div(const struct nfp_insn_meta *meta)
+{
+	return is_mbpf_alu(meta) && mbpf_op(meta) == BPF_DIV;
+}
+
 /**
  * struct nfp_prog - nfp BPF program
  * @bpf: backpointer to the bpf app priv structure
@@ -363,6 +428,8 @@ static inline bool is_mbpf_xadd(const struct nfp_insn_meta *meta)
  * @error: error code if something went wrong
  * @stack_depth: max stack depth from the verifier
  * @adjust_head_location: if program has single adjust head call - the insn no.
+ * @map_records_cnt: the number of map pointers recorded for this prog
+ * @map_records: the map record pointers from bpf->maps_neutral
  * @insns: list of BPF instruction wrappers (struct nfp_insn_meta)
  */
 struct nfp_prog {
@@ -385,6 +452,9 @@ struct nfp_prog {
 
 	unsigned int stack_depth;
 	unsigned int adjust_head_location;
+
+	unsigned int map_records_cnt;
+	struct nfp_bpf_neutral_map **map_records;
 
 	struct list_head insns;
 };
@@ -436,5 +506,11 @@ int nfp_bpf_ctrl_lookup_entry(struct bpf_offloaded_map *offmap,
 int nfp_bpf_ctrl_getnext_entry(struct bpf_offloaded_map *offmap,
 			       void *key, void *next_key);
 
+int nfp_bpf_event_output(struct nfp_app_bpf *bpf, const void *data,
+			 unsigned int len);
+
 void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb);
+void
+nfp_bpf_ctrl_msg_rx_raw(struct nfp_app *app, const void *data,
+			unsigned int len);
 #endif

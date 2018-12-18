@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
 	def_bool DEBUG_OCD
@@ -30,5 +27,3 @@ config DEBUG_OCD
 	help
 	  Say Y here if you want the debug print routines to direct their
 	  output to the UniCore On-Chip-Debugger channel using CP #1.
-
-endmenu

@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -187,8 +175,6 @@ xfs_bmbt_dup_cursor(
 	 * Copy the firstblock, dfops, and flags values,
 	 * since init cursor doesn't get them.
 	 */
-	new->bc_private.b.firstblock = cur->bc_private.b.firstblock;
-	new->bc_private.b.dfops = cur->bc_private.b.dfops;
 	new->bc_private.b.flags = cur->bc_private.b.flags;
 
 	return new;
@@ -199,12 +185,11 @@ xfs_bmbt_update_cursor(
 	struct xfs_btree_cur	*src,
 	struct xfs_btree_cur	*dst)
 {
-	ASSERT((dst->bc_private.b.firstblock != NULLFSBLOCK) ||
+	ASSERT((dst->bc_tp->t_firstblock != NULLFSBLOCK) ||
 	       (dst->bc_private.b.ip->i_d.di_flags & XFS_DIFLAG_REALTIME));
-	ASSERT(dst->bc_private.b.dfops == src->bc_private.b.dfops);
 
 	dst->bc_private.b.allocated += src->bc_private.b.allocated;
-	dst->bc_private.b.firstblock = src->bc_private.b.firstblock;
+	dst->bc_tp->t_firstblock = src->bc_tp->t_firstblock;
 
 	src->bc_private.b.allocated = 0;
 }
@@ -222,8 +207,7 @@ xfs_bmbt_alloc_block(
 	memset(&args, 0, sizeof(args));
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
-	args.fsbno = cur->bc_private.b.firstblock;
-	args.firstblock = args.fsbno;
+	args.fsbno = cur->bc_tp->t_firstblock;
 	xfs_rmap_ino_bmbt_owner(&args.oinfo, cur->bc_private.b.ip->i_ino,
 			cur->bc_private.b.whichfork);
 
@@ -242,7 +226,7 @@ xfs_bmbt_alloc_block(
 		 * block allocation here and corrupt the filesystem.
 		 */
 		args.minleft = args.tp->t_blk_res;
-	} else if (cur->bc_private.b.dfops->dop_low) {
+	} else if (cur->bc_tp->t_flags & XFS_TRANS_LOWMODE) {
 		args.type = XFS_ALLOCTYPE_START_BNO;
 	} else {
 		args.type = XFS_ALLOCTYPE_NEAR_BNO;
@@ -269,7 +253,7 @@ xfs_bmbt_alloc_block(
 		error = xfs_alloc_vextent(&args);
 		if (error)
 			goto error0;
-		cur->bc_private.b.dfops->dop_low = true;
+		cur->bc_tp->t_flags |= XFS_TRANS_LOWMODE;
 	}
 	if (WARN_ON_ONCE(args.fsbno == NULLFSBLOCK)) {
 		*stat = 0;
@@ -277,7 +261,7 @@ xfs_bmbt_alloc_block(
 	}
 
 	ASSERT(args.len == 1);
-	cur->bc_private.b.firstblock = args.fsbno;
+	cur->bc_tp->t_firstblock = args.fsbno;
 	cur->bc_private.b.allocated++;
 	cur->bc_private.b.ip->i_d.di_nblocks++;
 	xfs_trans_log_inode(args.tp, cur->bc_private.b.ip, XFS_ILOG_CORE);
@@ -305,7 +289,7 @@ xfs_bmbt_free_block(
 	struct xfs_owner_info	oinfo;
 
 	xfs_rmap_ino_bmbt_owner(&oinfo, ip->i_ino, cur->bc_private.b.whichfork);
-	xfs_bmap_add_free(mp, cur->bc_private.b.dfops, fsbno, 1, &oinfo);
+	xfs_bmap_add_free(cur->bc_tp, fsbno, 1, &oinfo);
 	ip->i_d.di_nblocks--;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
@@ -576,8 +560,6 @@ xfs_bmbt_init_cursor(
 
 	cur->bc_private.b.forksize = XFS_IFORK_SIZE(ip, whichfork);
 	cur->bc_private.b.ip = ip;
-	cur->bc_private.b.firstblock = NULLFSBLOCK;
-	cur->bc_private.b.dfops = NULL;
 	cur->bc_private.b.allocated = 0;
 	cur->bc_private.b.flags = 0;
 	cur->bc_private.b.whichfork = whichfork;
@@ -657,6 +639,15 @@ xfs_bmbt_change_owner(
 	cur->bc_private.b.flags |= XFS_BTCUR_BPRV_INVALID_OWNER;
 
 	error = xfs_btree_change_owner(cur, new_owner, buffer_list);
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	return error;
+}
+
+/* Calculate the bmap btree size for some records. */
+unsigned long long
+xfs_bmbt_calc_size(
+	struct xfs_mount	*mp,
+	unsigned long long	len)
+{
+	return xfs_btree_calc_size(mp->m_bmap_dmnr, len);
 }

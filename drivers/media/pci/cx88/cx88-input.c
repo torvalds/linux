@@ -180,7 +180,8 @@ static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 	struct cx88_IR *ir = container_of(timer, struct cx88_IR, timer);
 
 	cx88_ir_handle_key(ir);
-	missed = hrtimer_forward_now(&ir->timer, ir->polling * 1000000LL);
+	missed = hrtimer_forward_now(&ir->timer,
+				     ktime_set(0, ir->polling * 1000000));
 	if (missed > 1)
 		ir_dprintk("Missed ticks %ld\n", missed - 1);
 
@@ -200,7 +201,8 @@ static int __cx88_ir_start(void *priv)
 	if (ir->polling) {
 		hrtimer_init(&ir->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		ir->timer.function = cx88_ir_work;
-		hrtimer_start(&ir->timer, ir->polling * 1000000LL,
+		hrtimer_start(&ir->timer,
+			      ktime_set(0, ir->polling * 1000000),
 			      HRTIMER_MODE_REL);
 	}
 	if (ir->sampling) {
@@ -632,8 +634,9 @@ void cx88_i2c_init_ir(struct cx88_core *core)
 		memset(&core->init_data, 0, sizeof(core->init_data));
 
 		if (*addrp == 0x71) {
-			/* Hauppauge XVR */
-			core->init_data.name = "cx88 Hauppauge XVR remote";
+			/* Hauppauge Z8F0811 */
+			strlcpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
+			core->init_data.name = core->board.name;
 			core->init_data.ir_codes = RC_MAP_HAUPPAUGE;
 			core->init_data.type = RC_PROTO_BIT_RC5 |
 				RC_PROTO_BIT_RC6_MCE | RC_PROTO_BIT_RC6_6A_32;

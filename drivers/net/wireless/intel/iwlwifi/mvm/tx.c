@@ -484,13 +484,15 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	/* Make sure we zero enough of dev_cmd */
 	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen2) > sizeof(*tx_cmd));
+	BUILD_BUG_ON(sizeof(struct iwl_tx_cmd_gen3) > sizeof(*tx_cmd));
 
 	memset(dev_cmd, 0, sizeof(dev_cmd->hdr) + sizeof(*tx_cmd));
 	dev_cmd->hdr.cmd = TX_CMD;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
-		struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
 		u16 offload_assist = 0;
+		u32 rate_n_flags = 0;
+		u16 flags = 0;
 
 		if (ieee80211_is_data_qos(hdr->frame_control)) {
 			u8 *qc = ieee80211_get_qos_ctl(hdr);
@@ -507,25 +509,43 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		    !(offload_assist & BIT(TX_CMD_OFFLD_AMSDU)))
 			offload_assist |= BIT(TX_CMD_OFFLD_PAD);
 
-		cmd->offload_assist |= cpu_to_le16(offload_assist);
-
-		/* Total # bytes to be transmitted */
-		cmd->len = cpu_to_le16((u16)skb->len);
-
-		/* Copy MAC header from skb into command buffer */
-		memcpy(cmd->hdr, hdr, hdrlen);
-
 		if (!info->control.hw_key)
-			cmd->flags |= cpu_to_le32(IWL_TX_FLAGS_ENCRYPT_DIS);
+			flags |= IWL_TX_FLAGS_ENCRYPT_DIS;
 
 		/* For data packets rate info comes from the fw */
-		if (ieee80211_is_data(hdr->frame_control) && sta)
-			goto out;
+		if (!(ieee80211_is_data(hdr->frame_control) && sta)) {
+			flags |= IWL_TX_FLAGS_CMD_RATE;
+			rate_n_flags = iwl_mvm_get_tx_rate(mvm, info, sta);
+		}
 
-		cmd->flags |= cpu_to_le32(IWL_TX_FLAGS_CMD_RATE);
-		cmd->rate_n_flags =
-			cpu_to_le32(iwl_mvm_get_tx_rate(mvm, info, sta));
+		if (mvm->trans->cfg->device_family >=
+		    IWL_DEVICE_FAMILY_22560) {
+			struct iwl_tx_cmd_gen3 *cmd = (void *)dev_cmd->payload;
 
+			cmd->offload_assist |= cpu_to_le32(offload_assist);
+
+			/* Total # bytes to be transmitted */
+			cmd->len = cpu_to_le16((u16)skb->len);
+
+			/* Copy MAC header from skb into command buffer */
+			memcpy(cmd->hdr, hdr, hdrlen);
+
+			cmd->flags = cpu_to_le16(flags);
+			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+		} else {
+			struct iwl_tx_cmd_gen2 *cmd = (void *)dev_cmd->payload;
+
+			cmd->offload_assist |= cpu_to_le16(offload_assist);
+
+			/* Total # bytes to be transmitted */
+			cmd->len = cpu_to_le16((u16)skb->len);
+
+			/* Copy MAC header from skb into command buffer */
+			memcpy(cmd->hdr, hdr, hdrlen);
+
+			cmd->flags = cpu_to_le32(flags);
+			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
+		}
 		goto out;
 	}
 
@@ -767,16 +787,16 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	u16 snap_ip_tcp, pad;
 	unsigned int dbg_max_amsdu_len;
 	netdev_features_t netdev_flags = NETIF_F_CSUM_MASK | NETIF_F_SG;
-	u8 *qc, tid, txf;
+	u8 tid, txf;
 
 	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
 		tcp_hdrlen(skb);
 
 	dbg_max_amsdu_len = READ_ONCE(mvm->max_amsdu_len);
 
-	if (!sta->max_amsdu_len ||
+	if (!mvmsta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||
-	    (!mvmsta->tlc_amsdu && !dbg_max_amsdu_len))
+	    (!mvmsta->amsdu_enabled && !dbg_max_amsdu_len))
 		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
 	/*
@@ -790,8 +810,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 	}
 
-	qc = ieee80211_get_qos_ctl(hdr);
-	tid = *qc & IEEE80211_QOS_CTL_TID_MASK;
+	tid = ieee80211_get_tid(hdr);
 	if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 		return -EINVAL;
 
@@ -803,7 +822,11 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	    !mvmsta->tid_data[tid].amsdu_in_ampdu_allowed)
 		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
 
-	max_amsdu_len = sta->max_amsdu_len;
+	if (iwl_mvm_vif_low_latency(iwl_mvm_vif_from_mac80211(mvmsta->vif)) ||
+	    !(mvmsta->amsdu_enabled & BIT(tid)))
+		return iwl_mvm_tx_tso_segment(skb, 1, netdev_flags, mpdus_skb);
+
+	max_amsdu_len = mvmsta->max_amsdu_len;
 
 	/* the Tx FIFO to which this A-MSDU will be routed */
 	txf = iwl_mvm_mac_ac_to_tx_fifo(mvm, tid_to_mac80211_ac[tid]);
@@ -840,8 +863,10 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * N * subf_len + (N - 1) * pad.
 	 */
 	num_subframes = (max_amsdu_len + pad) / (subf_len + pad);
-	if (num_subframes > 1)
-		*qc |= IEEE80211_QOS_CTL_A_MSDU_PRESENT;
+
+	if (sta->max_amsdu_subframes &&
+	    num_subframes > sta->max_amsdu_subframes)
+		num_subframes = sta->max_amsdu_subframes;
 
 	tcp_payload_len = skb_tail_pointer(skb) - skb_transport_header(skb) -
 		tcp_hdrlen(skb) + skb->data_len;
@@ -852,10 +877,12 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 *	1 more for each fragment
 	 *	1 more for the potential data in the header
 	 */
-	num_subframes =
-		min_t(unsigned int, num_subframes,
-		      (mvm->trans->max_skb_frags - 1 -
-		       skb_shinfo(skb)->nr_frags) / 2);
+	if ((num_subframes * 2 + skb_shinfo(skb)->nr_frags + 1) >
+	    mvm->trans->max_skb_frags)
+		num_subframes = 1;
+
+	if (num_subframes > 1)
+		*ieee80211_get_qos_ctl(hdr) |= IEEE80211_QOS_CTL_A_MSDU_PRESENT;
 
 	/* This skb fits in one single A-MSDU */
 	if (num_subframes * mss >= tcp_payload_len) {
@@ -930,6 +957,32 @@ static bool iwl_mvm_txq_should_update(struct iwl_mvm *mvm, int txq_id)
 	return false;
 }
 
+static void iwl_mvm_tx_airtime(struct iwl_mvm *mvm,
+			       struct iwl_mvm_sta *mvmsta,
+			       int airtime)
+{
+	int mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
+	struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+
+	if (mvm->tcm.paused)
+		return;
+
+	if (time_after(jiffies, mvm->tcm.ts + MVM_TCM_PERIOD))
+		schedule_delayed_work(&mvm->tcm.work, 0);
+
+	mdata->tx.airtime += airtime;
+}
+
+static void iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvmsta, int tid)
+{
+	u32 ac = tid_to_mac80211_ac[tid];
+	int mac = mvmsta->mac_id_n_color & FW_CTXT_ID_MSK;
+	struct iwl_mvm_tcm_mac *mdata = &mvm->tcm.data[mac];
+
+	mdata->tx.pkts[ac]++;
+}
+
 /*
  * Sets the fields in the Tx cmd that are crypto related
  */
@@ -976,9 +1029,7 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 	 * assignment of MGMT TID
 	 */
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc)) {
-		u8 *qc = NULL;
-		qc = ieee80211_get_qos_ctl(hdr);
-		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+		tid = ieee80211_get_tid(hdr);
 		if (WARN_ON_ONCE(tid >= IWL_MAX_TID_COUNT))
 			goto drop_unlock_sta;
 
@@ -1066,6 +1117,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		mvmsta->tid_data[tid].seq_number = seq_number + 0x10;
 
 	spin_unlock(&mvmsta->lock);
+
+	iwl_mvm_tx_pkt_queued(mvm, mvmsta, tid == IWL_MAX_TID_COUNT ? 0 : tid);
 
 	return 0;
 
@@ -1469,6 +1522,9 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	if (!IS_ERR(sta)) {
 		mvmsta = iwl_mvm_sta_from_mac80211(sta);
 
+		iwl_mvm_tx_airtime(mvm, mvmsta,
+				   le16_to_cpu(tx_resp->wireless_media_time));
+
 		if (tid != IWL_TID_NON_QOS && tid != IWL_MGMT_TID) {
 			struct iwl_mvm_tid_data *tid_data =
 				&mvmsta->tid_data[tid];
@@ -1610,6 +1666,8 @@ static void iwl_mvm_rx_tx_cmd_agg(struct iwl_mvm *mvm,
 			le16_to_cpu(tx_resp->wireless_media_time);
 		mvmsta->tid_data[tid].lq_color =
 			TX_RES_RATE_TABLE_COL_GET(tx_resp->tlc_info);
+		iwl_mvm_tx_airtime(mvm, mvmsta,
+				   le16_to_cpu(tx_resp->wireless_media_time));
 	}
 
 	rcu_read_unlock();
@@ -1800,6 +1858,8 @@ void iwl_mvm_rx_ba_notif(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
 					   le32_to_cpu(ba_res->tx_rate));
 		}
 
+		iwl_mvm_tx_airtime(mvm, mvmsta,
+				   le32_to_cpu(ba_res->wireless_time));
 out_unlock:
 		rcu_read_unlock();
 out:

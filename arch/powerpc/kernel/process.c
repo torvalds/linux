@@ -154,6 +154,7 @@ unsigned long msr_check_and_set(unsigned long bits)
 
 	return newmsr;
 }
+EXPORT_SYMBOL_GPL(msr_check_and_set);
 
 void __msr_check_and_clear(unsigned long bits)
 {
@@ -582,6 +583,7 @@ static void save_all(struct task_struct *tsk)
 		__giveup_spe(tsk);
 
 	msr_check_and_clear(msr_all_available);
+	thread_pkey_regs_save(&tsk->thread);
 }
 
 void flush_all_to_thread(struct task_struct *tsk)
@@ -632,6 +634,7 @@ void do_break (struct pt_regs *regs, unsigned long address,
 	hw_breakpoint_disable();
 
 	/* Deliver the signal to userspace */
+	clear_siginfo(&info);
 	info.si_signo = SIGTRAP;
 	info.si_errno = 0;
 	info.si_code = TRAP_HWBKPT;
@@ -714,6 +717,13 @@ void switch_booke_debug_regs(struct debug_reg *new_debug)
 EXPORT_SYMBOL_GPL(switch_booke_debug_regs);
 #else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
 #ifndef CONFIG_HAVE_HW_BREAKPOINT
+static void set_breakpoint(struct arch_hw_breakpoint *brk)
+{
+	preempt_disable();
+	__set_breakpoint(brk);
+	preempt_enable();
+}
+
 static void set_debug_reg_defaults(struct thread_struct *thread)
 {
 	thread->hw_brk.address = 0;
@@ -826,13 +836,6 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 		WARN_ON_ONCE(1);
 }
 
-void set_breakpoint(struct arch_hw_breakpoint *brk)
-{
-	preempt_disable();
-	__set_breakpoint(brk);
-	preempt_enable();
-}
-
 /* Check if we have DAWR or DABR hardware */
 bool ppc_breakpoint_available(void)
 {
@@ -844,10 +847,6 @@ bool ppc_breakpoint_available(void)
 	return true;
 }
 EXPORT_SYMBOL_GPL(ppc_breakpoint_available);
-
-#ifdef CONFIG_PPC64
-DEFINE_PER_CPU(struct cpu_usage, cpu_usage_array);
-#endif
 
 static inline bool hw_brk_match(struct arch_hw_breakpoint *a,
 			      struct arch_hw_breakpoint *b)
@@ -868,8 +867,7 @@ static inline bool tm_enabled(struct task_struct *tsk)
 	return tsk && tsk->thread.regs && (tsk->thread.regs->msr & MSR_TM);
 }
 
-static void tm_reclaim_thread(struct thread_struct *thr,
-			      struct thread_info *ti, uint8_t cause)
+static void tm_reclaim_thread(struct thread_struct *thr, uint8_t cause)
 {
 	/*
 	 * Use the current MSR TM suspended bit to track if we have
@@ -916,7 +914,7 @@ static void tm_reclaim_thread(struct thread_struct *thr,
 void tm_reclaim_current(uint8_t cause)
 {
 	tm_enable();
-	tm_reclaim_thread(&current->thread, current_thread_info(), cause);
+	tm_reclaim_thread(&current->thread, cause);
 }
 
 static inline void tm_reclaim_task(struct task_struct *tsk)
@@ -947,7 +945,7 @@ static inline void tm_reclaim_task(struct task_struct *tsk)
 		 thr->regs->ccr, thr->regs->msr,
 		 thr->regs->trap);
 
-	tm_reclaim_thread(thr, task_thread_info(tsk), TM_CAUSE_RESCHED);
+	tm_reclaim_thread(thr, TM_CAUSE_RESCHED);
 
 	TM_DEBUG("--- tm_reclaim on pid %d complete\n",
 		 tsk->pid);
@@ -1154,7 +1152,7 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 			mtspr(SPRN_TAR, new_thread->tar);
 	}
 
-	if (cpu_has_feature(CPU_FTR_ARCH_300) &&
+	if (cpu_has_feature(CPU_FTR_P9_TIDR) &&
 	    old_thread->tidr != new_thread->tidr)
 		mtspr(SPRN_TIDR, new_thread->tidr);
 #endif
@@ -1180,20 +1178,6 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	old_thread = &current->thread;
 
 	WARN_ON(!irqs_disabled());
-
-#ifdef CONFIG_PPC64
-	/*
-	 * Collect processor utilization data per process
-	 */
-	if (firmware_has_feature(FW_FEATURE_SPLPAR)) {
-		struct cpu_usage *cu = this_cpu_ptr(&cpu_usage_array);
-		long unsigned start_tb, current_tb;
-		start_tb = old_thread->start_tb;
-		cu->current_tb = current_tb = mfspr(SPRN_PURR);
-		old_thread->accum_tb += (current_tb - start_tb);
-		new_thread->start_tb = current_tb;
-	}
-#endif /* CONFIG_PPC64 */
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	batch = this_cpu_ptr(&ppc64_tlb_batch);
@@ -1266,17 +1250,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		 * mappings. If the new process has the foreign real address
 		 * mappings, we must issue a cp_abort to clear any state and
 		 * prevent snooping, corruption or a covert channel.
-		 *
-		 * DD1 allows paste into normal system memory so we do an
-		 * unpaired copy, rather than cp_abort, to clear the buffer,
-		 * since cp_abort is quite expensive.
 		 */
-		if (current_thread_info()->task->thread.used_vas) {
+		if (current_thread_info()->task->thread.used_vas)
 			asm volatile(PPC_CP_ABORT);
-		} else if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-			asm volatile(PPC_COPY(%0, %1)
-					: : "r"(dummy_copy_buffer), "r"(0));
-		}
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
 
@@ -1309,6 +1285,38 @@ static void show_instructions(struct pt_regs *regs)
 
 		if (!__kernel_text_address(pc) ||
 		     probe_kernel_address((unsigned int __user *)pc, instr)) {
+			pr_cont("XXXXXXXX ");
+		} else {
+			if (regs->nip == pc)
+				pr_cont("<%08x> ", instr);
+			else
+				pr_cont("%08x ", instr);
+		}
+
+		pc += sizeof(int);
+	}
+
+	pr_cont("\n");
+}
+
+void show_user_instructions(struct pt_regs *regs)
+{
+	unsigned long pc;
+	int i;
+
+	pc = regs->nip - (instructions_to_print * 3 / 4 * sizeof(int));
+
+	pr_info("%s[%d]: code: ", current->comm, current->pid);
+
+	for (i = 0; i < instructions_to_print; i++) {
+		int instr;
+
+		if (!(i % 8) && (i > 0)) {
+			pr_cont("\n");
+			pr_info("%s[%d]: code: ", current->comm, current->pid);
+		}
+
+		if (probe_kernel_address((unsigned int __user *)pc, instr)) {
 			pr_cont("XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
@@ -1437,7 +1445,7 @@ void show_regs(struct pt_regs * regs)
 		pr_cont("DAR: "REG" DSISR: %08lx ", regs->dar, regs->dsisr);
 #endif
 #ifdef CONFIG_PPC64
-	pr_cont("SOFTE: %ld ", regs->softe);
+	pr_cont("IRQMASK: %lx ", regs->softe);
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	if (MSR_TM_ACTIVE(regs->msr))
@@ -1496,104 +1504,42 @@ int set_thread_uses_vas(void)
 }
 
 #ifdef CONFIG_PPC64
-static DEFINE_SPINLOCK(vas_thread_id_lock);
-static DEFINE_IDA(vas_thread_ida);
-
-/*
- * We need to assign a unique thread id to each thread in a process.
- *
- * This thread id, referred to as TIDR, and separate from the Linux's tgid,
- * is intended to be used to direct an ASB_Notify from the hardware to the
- * thread, when a suitable event occurs in the system.
- *
- * One such event is a "paste" instruction in the context of Fast Thread
- * Wakeup (aka Core-to-core wake up in the Virtual Accelerator Switchboard
- * (VAS) in POWER9.
- *
- * To get a unique TIDR per process we could simply reuse task_pid_nr() but
- * the problem is that task_pid_nr() is not yet available copy_thread() is
- * called. Fixing that would require changing more intrusive arch-neutral
- * code in code path in copy_process()?.
- *
- * Further, to assign unique TIDRs within each process, we need an atomic
- * field (or an IDR) in task_struct, which again intrudes into the arch-
- * neutral code. So try to assign globally unique TIDRs for now.
- *
- * NOTE: TIDR 0 indicates that the thread does not need a TIDR value.
- *	 For now, only threads that expect to be notified by the VAS
- *	 hardware need a TIDR value and we assign values > 0 for those.
- */
-#define MAX_THREAD_CONTEXT	((1 << 16) - 1)
-static int assign_thread_tidr(void)
-{
-	int index;
-	int err;
-	unsigned long flags;
-
-again:
-	if (!ida_pre_get(&vas_thread_ida, GFP_KERNEL))
-		return -ENOMEM;
-
-	spin_lock_irqsave(&vas_thread_id_lock, flags);
-	err = ida_get_new_above(&vas_thread_ida, 1, &index);
-	spin_unlock_irqrestore(&vas_thread_id_lock, flags);
-
-	if (err == -EAGAIN)
-		goto again;
-	else if (err)
-		return err;
-
-	if (index > MAX_THREAD_CONTEXT) {
-		spin_lock_irqsave(&vas_thread_id_lock, flags);
-		ida_remove(&vas_thread_ida, index);
-		spin_unlock_irqrestore(&vas_thread_id_lock, flags);
-		return -ENOMEM;
-	}
-
-	return index;
-}
-
-static void free_thread_tidr(int id)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&vas_thread_id_lock, flags);
-	ida_remove(&vas_thread_ida, id);
-	spin_unlock_irqrestore(&vas_thread_id_lock, flags);
-}
-
-/*
- * Clear any TIDR value assigned to this thread.
- */
-void clear_thread_tidr(struct task_struct *t)
-{
-	if (!t->thread.tidr)
-		return;
-
-	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-
-	mtspr(SPRN_TIDR, 0);
-	free_thread_tidr(t->thread.tidr);
-	t->thread.tidr = 0;
-}
-
-void arch_release_task_struct(struct task_struct *t)
-{
-	clear_thread_tidr(t);
-}
-
-/*
- * Assign a unique TIDR (thread id) for task @t and set it in the thread
+/**
+ * Assign a TIDR (thread ID) for task @t and set it in the thread
  * structure. For now, we only support setting TIDR for 'current' task.
+ *
+ * Since the TID value is a truncated form of it PID, it is possible
+ * (but unlikely) for 2 threads to have the same TID. In the unlikely event
+ * that 2 threads share the same TID and are waiting, one of the following
+ * cases will happen:
+ *
+ * 1. The correct thread is running, the wrong thread is not
+ * In this situation, the correct thread is woken and proceeds to pass it's
+ * condition check.
+ *
+ * 2. Neither threads are running
+ * In this situation, neither thread will be woken. When scheduled, the waiting
+ * threads will execute either a wait, which will return immediately, followed
+ * by a condition check, which will pass for the correct thread and fail
+ * for the wrong thread, or they will execute the condition check immediately.
+ *
+ * 3. The wrong thread is running, the correct thread is not
+ * The wrong thread will be woken, but will fail it's condition check and
+ * re-execute wait. The correct thread, when scheduled, will execute either
+ * it's condition check (which will pass), or wait, which returns immediately
+ * when called the first time after the thread is scheduled, followed by it's
+ * condition check (which will pass).
+ *
+ * 4. Both threads are running
+ * Both threads will be woken. The wrong thread will fail it's condition check
+ * and execute another wait, while the correct thread will pass it's condition
+ * check.
+ *
+ * @t: the task to set the thread ID for
  */
 int set_thread_tidr(struct task_struct *t)
 {
-	int rc;
-
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+	if (!cpu_has_feature(CPU_FTR_P9_TIDR))
 		return -EINVAL;
 
 	if (t != current)
@@ -1602,11 +1548,7 @@ int set_thread_tidr(struct task_struct *t)
 	if (t->thread.tidr)
 		return 0;
 
-	rc = assign_thread_tidr();
-	if (rc < 0)
-		return rc;
-
-	t->thread.tidr = rc;
+	t->thread.tidr = (u16)task_pid_nr(t);
 	mtspr(SPRN_TIDR, t->thread.tidr);
 
 	return 0;

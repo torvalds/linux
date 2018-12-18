@@ -64,7 +64,7 @@ static void cdv_intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	REG_WRITE(reg, temp);
 }
 
-static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status cdv_intel_crt_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)

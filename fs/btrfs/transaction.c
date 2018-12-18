@@ -241,7 +241,7 @@ loop:
 	refcount_set(&cur_trans->use_count, 2);
 	atomic_set(&cur_trans->pending_ordered, 0);
 	cur_trans->flags = 0;
-	cur_trans->start_time = get_seconds();
+	cur_trans->start_time = ktime_get_seconds();
 
 	memset(&cur_trans->delayed_refs, 0, sizeof(cur_trans->delayed_refs));
 
@@ -680,7 +680,7 @@ btrfs_attach_transaction_barrier(struct btrfs_root *root)
 
 	trans = start_transaction(root, 0, TRANS_ATTACH,
 				  BTRFS_RESERVE_NO_FLUSH, true);
-	if (IS_ERR(trans) && PTR_ERR(trans) == -ENOENT)
+	if (trans == ERR_PTR(-ENOENT))
 		btrfs_wait_for_commit(root->fs_info, 0);
 
 	return trans;
@@ -877,12 +877,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	atomic_dec(&cur_trans->num_writers);
 	extwriter_counter_dec(cur_trans, trans->type);
 
-	/*
-	 * Make sure counter is updated before we wake up waiters.
-	 */
-	smp_mb();
-	if (waitqueue_active(&cur_trans->writer_wait))
-		wake_up(&cur_trans->writer_wait);
+	cond_wake_up(&cur_trans->writer_wait);
 	btrfs_put_transaction(cur_trans);
 
 	if (current->journal_info == trans)
@@ -1157,7 +1152,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans)
 	ret = btrfs_run_dev_replace(trans, fs_info);
 	if (ret)
 		return ret;
-	ret = btrfs_run_qgroups(trans, fs_info);
+	ret = btrfs_run_qgroups(trans);
 	if (ret)
 		return ret;
 
@@ -1250,7 +1245,6 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans)
 
 			btrfs_free_log(trans, root);
 			btrfs_update_reloc_root(trans, root);
-			btrfs_orphan_commit_root(trans, root);
 
 			btrfs_save_ino_cache(root, trans);
 
@@ -1361,8 +1355,7 @@ static int qgroup_account_snapshot(struct btrfs_trans_handle *trans,
 		goto out;
 
 	/* Now qgroup are all updated, we can inherit it to new qgroups */
-	ret = btrfs_qgroup_inherit(trans, fs_info,
-				   src->root_key.objectid, dst_objectid,
+	ret = btrfs_qgroup_inherit(trans, src->root_key.objectid, dst_objectid,
 				   inherit);
 	if (ret < 0)
 		goto out;
@@ -1428,7 +1421,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct dentry *dentry;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
-	struct timespec cur_time;
+	struct timespec64 cur_time;
 	int ret = 0;
 	u64 to_reserve = 0;
 	u64 index = 0;
@@ -1580,7 +1573,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	/*
 	 * insert root back/forward references
 	 */
-	ret = btrfs_add_root_ref(trans, fs_info, objectid,
+	ret = btrfs_add_root_ref(trans, objectid,
 				 parent_root->root_key.objectid,
 				 btrfs_ino(BTRFS_I(parent_inode)), index,
 				 dentry->d_name.name, dentry->d_name.len);
@@ -1640,15 +1633,14 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
-	ret = btrfs_uuid_tree_add(trans, fs_info, new_uuid.b,
-				  BTRFS_UUID_KEY_SUBVOL, objectid);
+	ret = btrfs_uuid_tree_add(trans, new_uuid.b, BTRFS_UUID_KEY_SUBVOL,
+				  objectid);
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		goto fail;
 	}
 	if (!btrfs_is_empty_uuid(new_root_item->received_uuid)) {
-		ret = btrfs_uuid_tree_add(trans, fs_info,
-					  new_root_item->received_uuid,
+		ret = btrfs_uuid_tree_add(trans, new_root_item->received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
 					  objectid);
 		if (ret && ret != -EEXIST) {
@@ -2267,6 +2259,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	 */
 	cur_trans->state = TRANS_STATE_COMPLETED;
 	wake_up(&cur_trans->commit_wait);
+	clear_bit(BTRFS_FS_NEED_ASYNC_COMMIT, &fs_info->flags);
 
 	spin_lock(&fs_info->trans_lock);
 	list_del_init(&cur_trans->list);

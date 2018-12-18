@@ -14,7 +14,6 @@
 #include <linux/init.h>
 #include <linux/irqchip.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/bootinfo.h>
 #include <asm/fw/fw.h>
@@ -204,21 +203,10 @@ void __init arch_init_irq(void)
 					    "mti,cpu-interrupt-controller");
 	if (!cpu_has_veic && !intc_node)
 		mips_cpu_irq_init();
+	of_node_put(intc_node);
 
 	irqchip_init();
 }
-
-static int __init publish_devices(void)
-{
-	if (!of_have_populated_dt())
-		panic("Device-tree not present");
-
-	if (of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL))
-		panic("Failed to populate DT");
-
-	return 0;
-}
-arch_initcall(publish_devices);
 
 void __init prom_free_prom_memory(void)
 {

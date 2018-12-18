@@ -41,9 +41,6 @@
    - #interrupt-cells: specifies the number of cells needed to encode an
      interrupt source. The value must be 1.
 
-   - interrupt-parent: the phandle for the interrupt controller that
-     services interrupts for this device.
-
    - interrupts: specifies the interrupt source of the parent interrupt
      controller. The format of the interrupt specifier depends on the
      parent interrupt controller.

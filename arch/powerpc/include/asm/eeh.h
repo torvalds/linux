@@ -36,13 +36,14 @@ struct pci_dn;
 #ifdef CONFIG_EEH
 
 /* EEH subsystem flags */
-#define EEH_ENABLED		0x01	/* EEH enabled		*/
-#define EEH_FORCE_DISABLED	0x02	/* EEH disabled		*/
-#define EEH_PROBE_MODE_DEV	0x04	/* From PCI device	*/
-#define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree	*/
-#define EEH_VALID_PE_ZERO	0x10	/* PE#0 is valid	*/
-#define EEH_ENABLE_IO_FOR_LOG	0x20	/* Enable IO for log	*/
-#define EEH_EARLY_DUMP_LOG	0x40	/* Dump log immediately	*/
+#define EEH_ENABLED		0x01	/* EEH enabled			     */
+#define EEH_FORCE_DISABLED	0x02	/* EEH disabled			     */
+#define EEH_PROBE_MODE_DEV	0x04	/* From PCI device		     */
+#define EEH_PROBE_MODE_DEVTREE	0x08	/* From device tree		     */
+#define EEH_VALID_PE_ZERO	0x10	/* PE#0 is valid		     */
+#define EEH_ENABLE_IO_FOR_LOG	0x20	/* Enable IO for log		     */
+#define EEH_EARLY_DUMP_LOG	0x40	/* Dump log immediately		     */
+#define EEH_POSTPONED_PROBE	0x80    /* Powernv may postpone device probe */
 
 /*
  * Delay for PE reset, all in ms
@@ -105,6 +106,9 @@ struct eeh_pe {
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
 		list_for_each_entry_safe(edev, tmp, &pe->edevs, list)
+
+#define eeh_for_each_pe(root, pe) \
+	for (pe = root; pe; pe = eeh_pe_next(pe, root))
 
 static inline bool eeh_pe_passed(struct eeh_pe *pe)
 {
@@ -262,19 +266,21 @@ static inline bool eeh_state_active(int state)
 	== (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 }
 
-typedef void *(*eeh_traverse_func)(void *data, void *flag);
+typedef void *(*eeh_edev_traverse_func)(struct eeh_dev *edev, void *flag);
+typedef void *(*eeh_pe_traverse_func)(struct eeh_pe *pe, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
 struct eeh_pe *eeh_phb_pe_get(struct pci_controller *phb);
+struct eeh_pe *eeh_pe_next(struct eeh_pe *pe, struct eeh_pe *root);
 struct eeh_pe *eeh_pe_get(struct pci_controller *phb,
 			  int pe_no, int config_addr);
 int eeh_add_to_parent_pe(struct eeh_dev *edev);
 int eeh_rmv_from_parent_pe(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);
 void *eeh_pe_traverse(struct eeh_pe *root,
-		eeh_traverse_func fn, void *flag);
+		      eeh_pe_traverse_func fn, void *flag);
 void *eeh_pe_dev_traverse(struct eeh_pe *root,
-		eeh_traverse_func fn, void *flag);
+			  eeh_edev_traverse_func fn, void *flag);
 void eeh_pe_restore_bars(struct eeh_pe *pe);
 const char *eeh_pe_loc_get(struct eeh_pe *pe);
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);

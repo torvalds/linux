@@ -268,6 +268,7 @@ static void recv_handler(struct ib_mad_agent *agent,
 		packet->mad.hdr.traffic_class = grh->traffic_class;
 		memcpy(packet->mad.hdr.gid, &grh->dgid, 16);
 		packet->mad.hdr.flow_label = cpu_to_be32(grh->flow_label);
+		rdma_destroy_ah_attr(&ah_attr);
 	}
 
 	if (queue_packet(file, agent, packet))

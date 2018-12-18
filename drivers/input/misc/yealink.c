@@ -894,12 +894,12 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	/* allocate usb buffers */
 	yld->irq_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->irq_dma);
+					   GFP_KERNEL, &yld->irq_dma);
 	if (yld->irq_data == NULL)
 		return usb_cleanup(yld, -ENOMEM);
 
 	yld->ctl_data = usb_alloc_coherent(udev, USB_PKT_LEN,
-					   GFP_ATOMIC, &yld->ctl_dma);
+					   GFP_KERNEL, &yld->ctl_dma);
 	if (!yld->ctl_data)
 		return usb_cleanup(yld, -ENOMEM);
 

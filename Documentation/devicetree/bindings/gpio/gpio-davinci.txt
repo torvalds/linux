@@ -15,8 +15,6 @@ Required Properties:
   - first cell is the pin number
   - second cell is used to specify optional parameters (unused)
 
-- interrupt-parent: phandle of the parent interrupt controller.
-
 - interrupts: Array of GPIO interrupt number. Only banked or unbanked IRQs are
 	      supported at a time.
 

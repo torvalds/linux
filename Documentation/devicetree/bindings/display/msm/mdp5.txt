@@ -41,8 +41,6 @@ Required properties:
 - reg-names: The names of register regions. The following regions are required:
   * "mdp_phys"
 - interrupts: Interrupt line from MDP5 to MDSS interrupt controller.
-- interrupt-parent: phandle to the MDSS block
-  through MDP block
 - clocks: device clocks. See ../clocks/clock-bindings.txt for details.
 - clock-names: the following clocks are required.
 -   * "bus"

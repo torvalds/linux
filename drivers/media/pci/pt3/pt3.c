@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Earthsoft PT3 driver
  *
  * Copyright (C) 2014 Akihiro Tsukada <tskd08@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/freezer.h>
@@ -376,25 +367,22 @@ static int pt3_fe_init(struct pt3_board *pt3)
 
 static int pt3_attach_fe(struct pt3_board *pt3, int i)
 {
-	struct i2c_board_info info;
+	const struct i2c_board_info *info;
 	struct tc90522_config cfg;
 	struct i2c_client *cl;
 	struct dvb_adapter *dvb_adap;
 	int ret;
 
-	info = adap_conf[i].demod_info;
+	info = &adap_conf[i].demod_info;
 	cfg = adap_conf[i].demod_cfg;
 	cfg.tuner_i2c = NULL;
-	info.platform_data = &cfg;
 
 	ret = -ENODEV;
-	request_module("tc90522");
-	cl = i2c_new_device(&pt3->i2c_adap, &info);
-	if (!cl || !cl->dev.driver)
+	cl = dvb_module_probe("tc90522", info->type, &pt3->i2c_adap,
+			      info->addr, &cfg);
+	if (!cl)
 		return -ENODEV;
 	pt3->adaps[i]->i2c_demod = cl;
-	if (!try_module_get(cl->dev.driver->owner))
-		goto err_demod_i2c_unregister_device;
 
 	if (!strncmp(cl->name, TC90522_I2C_DEV_SAT,
 		     strlen(TC90522_I2C_DEV_SAT))) {
@@ -402,41 +390,33 @@ static int pt3_attach_fe(struct pt3_board *pt3, int i)
 
 		tcfg = adap_conf[i].tuner_cfg.qm1d1c0042;
 		tcfg.fe = cfg.fe;
-		info = adap_conf[i].tuner_info;
-		info.platform_data = &tcfg;
-		request_module("qm1d1c0042");
-		cl = i2c_new_device(cfg.tuner_i2c, &info);
+		info = &adap_conf[i].tuner_info;
+		cl = dvb_module_probe("qm1d1c0042", info->type, cfg.tuner_i2c,
+				      info->addr, &tcfg);
 	} else {
 		struct mxl301rf_config tcfg;
 
 		tcfg = adap_conf[i].tuner_cfg.mxl301rf;
 		tcfg.fe = cfg.fe;
-		info = adap_conf[i].tuner_info;
-		info.platform_data = &tcfg;
-		request_module("mxl301rf");
-		cl = i2c_new_device(cfg.tuner_i2c, &info);
+		info = &adap_conf[i].tuner_info;
+		cl = dvb_module_probe("mxl301rf", info->type, cfg.tuner_i2c,
+				      info->addr, &tcfg);
 	}
-	if (!cl || !cl->dev.driver)
-		goto err_demod_module_put;
+	if (!cl)
+		goto err_demod_module_release;
 	pt3->adaps[i]->i2c_tuner = cl;
-	if (!try_module_get(cl->dev.driver->owner))
-		goto err_tuner_i2c_unregister_device;
 
 	dvb_adap = &pt3->adaps[one_adapter ? 0 : i]->dvb_adap;
 	ret = dvb_register_frontend(dvb_adap, cfg.fe);
 	if (ret < 0)
-		goto err_tuner_module_put;
+		goto err_tuner_module_release;
 	pt3->adaps[i]->fe = cfg.fe;
 	return 0;
 
-err_tuner_module_put:
-	module_put(pt3->adaps[i]->i2c_tuner->dev.driver->owner);
-err_tuner_i2c_unregister_device:
-	i2c_unregister_device(pt3->adaps[i]->i2c_tuner);
-err_demod_module_put:
-	module_put(pt3->adaps[i]->i2c_demod->dev.driver->owner);
-err_demod_i2c_unregister_device:
-	i2c_unregister_device(pt3->adaps[i]->i2c_demod);
+err_tuner_module_release:
+	dvb_module_release(pt3->adaps[i]->i2c_tuner);
+err_demod_module_release:
+	dvb_module_release(pt3->adaps[i]->i2c_demod);
 
 	return ret;
 }
@@ -464,7 +444,7 @@ static int pt3_fetch_thread(void *data)
 
 		pt3_proc_dma(adap);
 
-		delay = PT3_FETCH_DELAY * NSEC_PER_MSEC;
+		delay = ktime_set(0, PT3_FETCH_DELAY * NSEC_PER_MSEC);
 		set_current_state(TASK_UNINTERRUPTIBLE);
 		freezable_schedule_hrtimeout_range(&delay,
 					PT3_FETCH_DELAY_DELTA * NSEC_PER_MSEC,
@@ -630,14 +610,8 @@ static void pt3_cleanup_adapter(struct pt3_board *pt3, int index)
 		adap->fe->callback = NULL;
 		if (adap->fe->frontend_priv)
 			dvb_unregister_frontend(adap->fe);
-		if (adap->i2c_tuner) {
-			module_put(adap->i2c_tuner->dev.driver->owner);
-			i2c_unregister_device(adap->i2c_tuner);
-		}
-		if (adap->i2c_demod) {
-			module_put(adap->i2c_demod->dev.driver->owner);
-			i2c_unregister_device(adap->i2c_demod);
-		}
+		dvb_module_release(adap->i2c_tuner);
+		dvb_module_release(adap->i2c_demod);
 	}
 	pt3_free_dmabuf(adap);
 	dvb_dmxdev_release(&adap->dmxdev);

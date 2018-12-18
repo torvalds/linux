@@ -130,6 +130,31 @@ const struct mv88e6xxx_avb_ops mv88e6352_avb_ops = {
 	.tai_write		= mv88e6352_g2_avb_tai_write,
 };
 
+static int mv88e6165_g2_avb_tai_read(struct mv88e6xxx_chip *chip, int addr,
+				     u16 *data, int len)
+{
+	return mv88e6352_g2_avb_port_ptp_read(chip,
+					MV88E6165_G2_AVB_CMD_PORT_PTPGLOBAL,
+					addr, data, len);
+}
+
+static int mv88e6165_g2_avb_tai_write(struct mv88e6xxx_chip *chip, int addr,
+				      u16 data)
+{
+	return mv88e6352_g2_avb_port_ptp_write(chip,
+					MV88E6165_G2_AVB_CMD_PORT_PTPGLOBAL,
+					addr, data);
+}
+
+const struct mv88e6xxx_avb_ops mv88e6165_avb_ops = {
+	.port_ptp_read		= mv88e6352_g2_avb_port_ptp_read,
+	.port_ptp_write		= mv88e6352_g2_avb_port_ptp_write,
+	.ptp_read		= mv88e6352_g2_avb_ptp_read,
+	.ptp_write		= mv88e6352_g2_avb_ptp_write,
+	.tai_read		= mv88e6165_g2_avb_tai_read,
+	.tai_write		= mv88e6165_g2_avb_tai_write,
+};
+
 static int mv88e6390_g2_avb_port_ptp_read(struct mv88e6xxx_chip *chip,
 					  int port, int addr, u16 *data,
 					  int len)

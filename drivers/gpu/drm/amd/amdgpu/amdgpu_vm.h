@@ -75,11 +75,12 @@ struct amdgpu_bo_list_entry;
 /* PDE Block Fragment Size for VEGA10 */
 #define AMDGPU_PDE_BFS(a)	((uint64_t)a << 59)
 
-/* VEGA10 only */
+
+/* For GFX9 */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
 
-/* For Raven */
+#define AMDGPU_MTYPE_NC 0
 #define AMDGPU_MTYPE_CC 2
 
 #define AMDGPU_PTE_DEFAULT_ATC  (AMDGPU_PTE_SYSTEM      \
@@ -163,12 +164,17 @@ struct amdgpu_vm_pt {
 #define AMDGPU_VM_FAULT_PASID(fault) ((u64)(fault) >> 48)
 #define AMDGPU_VM_FAULT_ADDR(fault)  ((u64)(fault) & 0xfffffffff000ULL)
 
+
+struct amdgpu_task_info {
+	char	process_name[TASK_COMM_LEN];
+	char	task_name[TASK_COMM_LEN];
+	pid_t	pid;
+	pid_t	tgid;
+};
+
 struct amdgpu_vm {
 	/* tree of virtual addresses mapped */
 	struct rb_root_cached	va;
-
-	/* protecting invalidated */
-	spinlock_t		status_lock;
 
 	/* BOs who needs a validation */
 	struct list_head	evicted;
@@ -178,6 +184,10 @@ struct amdgpu_vm {
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
+	spinlock_t		moved_lock;
+
+	/* All BOs of this VM not currently in the state machine */
+	struct list_head	idle;
 
 	/* BO mappings freed, but not yet updated in the PT */
 	struct list_head	freed;
@@ -185,9 +195,6 @@ struct amdgpu_vm {
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_update;
-
-	/* protecting freed */
-	spinlock_t		freed_lock;
 
 	/* Scheduler entity for page table updates */
 	struct drm_sched_entity	entity;
@@ -216,6 +223,9 @@ struct amdgpu_vm {
 
 	/* Valid while the PD is reserved or fenced */
 	uint64_t		pd_phys_addr;
+
+	/* Some basic info about the task */
+	struct amdgpu_task_info task_info;
 };
 
 struct amdgpu_vm_manager {
@@ -308,6 +318,7 @@ int amdgpu_vm_bo_clear_mappings(struct amdgpu_device *adev,
 				uint64_t saddr, uint64_t size);
 struct amdgpu_bo_va_mapping *amdgpu_vm_bo_lookup_mapping(struct amdgpu_vm *vm,
 							 uint64_t addr);
+void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket);
 void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va);
 void amdgpu_vm_adjust_size(struct amdgpu_device *adev, uint32_t vm_size,
@@ -317,5 +328,10 @@ int amdgpu_vm_ioctl(struct drm_device *dev, void *data, struct drm_file *filp);
 bool amdgpu_vm_need_pipeline_sync(struct amdgpu_ring *ring,
 				  struct amdgpu_job *job);
 void amdgpu_vm_check_compute_bug(struct amdgpu_device *adev);
+
+void amdgpu_vm_get_task_info(struct amdgpu_device *adev, unsigned int pasid,
+			 struct amdgpu_task_info *task_info);
+
+void amdgpu_vm_set_task_info(struct amdgpu_vm *vm);
 
 #endif

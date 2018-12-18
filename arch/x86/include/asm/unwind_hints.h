@@ -26,7 +26,7 @@
  * the debuginfo as necessary.  It will also warn if it sees any
  * inconsistencies.
  */
-.macro UNWIND_HINT sp_reg=ORC_REG_SP sp_offset=0 type=ORC_TYPE_CALL
+.macro UNWIND_HINT sp_reg=ORC_REG_SP sp_offset=0 type=ORC_TYPE_CALL end=0
 #ifdef CONFIG_STACK_VALIDATION
 .Lunwind_hint_ip_\@:
 	.pushsection .discard.unwind_hints
@@ -35,12 +35,14 @@
 		.short \sp_offset
 		.byte \sp_reg
 		.byte \type
+		.byte \end
+		.balign 4
 	.popsection
 #endif
 .endm
 
 .macro UNWIND_HINT_EMPTY
-	UNWIND_HINT sp_reg=ORC_REG_UNDEFINED
+	UNWIND_HINT sp_reg=ORC_REG_UNDEFINED end=1
 .endm
 
 .macro UNWIND_HINT_REGS base=%rsp offset=0 indirect=0 extra=1 iret=0
@@ -86,19 +88,21 @@
 
 #else /* !__ASSEMBLY__ */
 
-#define UNWIND_HINT(sp_reg, sp_offset, type)			\
+#define UNWIND_HINT(sp_reg, sp_offset, type, end)		\
 	"987: \n\t"						\
 	".pushsection .discard.unwind_hints\n\t"		\
 	/* struct unwind_hint */				\
 	".long 987b - .\n\t"					\
-	".short " __stringify(sp_offset) "\n\t"		\
+	".short " __stringify(sp_offset) "\n\t"			\
 	".byte " __stringify(sp_reg) "\n\t"			\
 	".byte " __stringify(type) "\n\t"			\
+	".byte " __stringify(end) "\n\t"			\
+	".balign 4 \n\t"					\
 	".popsection\n\t"
 
-#define UNWIND_HINT_SAVE UNWIND_HINT(0, 0, UNWIND_HINT_TYPE_SAVE)
+#define UNWIND_HINT_SAVE UNWIND_HINT(0, 0, UNWIND_HINT_TYPE_SAVE, 0)
 
-#define UNWIND_HINT_RESTORE UNWIND_HINT(0, 0, UNWIND_HINT_TYPE_RESTORE)
+#define UNWIND_HINT_RESTORE UNWIND_HINT(0, 0, UNWIND_HINT_TYPE_RESTORE, 0)
 
 #endif /* __ASSEMBLY__ */
 

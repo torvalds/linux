@@ -4,10 +4,18 @@
 
 #include <nvif/object.h>
 #include <nvif/cl0080.h>
+#include <nvif/user.h>
 
 struct nvif_device {
 	struct nvif_object object;
 	struct nv_device_info_v0 info;
+
+	struct nvif_fifo_runlist {
+		u64 engines;
+	} *runlist;
+	int runlists;
+
+	struct nvif_user user;
 };
 
 int  nvif_device_init(struct nvif_object *, u32 handle, s32 oclass, void *, u32,
@@ -67,6 +75,5 @@ u64  nvif_device_time(struct nvif_device *);
 #include <engine/fifo.h>
 #include <engine/gr.h>
 
-#define nvxx_fifo(a) nvxx_device(a)->fifo
 #define nvxx_gr(a) nvxx_device(a)->gr
 #endif

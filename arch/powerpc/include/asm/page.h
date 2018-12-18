@@ -16,8 +16,7 @@
 #else
 #include <asm/types.h>
 #endif
-#include <asm/asm-compat.h>
-#include <asm/kdump.h>
+#include <asm/asm-const.h>
 
 /*
  * On regular PPC32 page size is 4K (but we support 4K/16K/64K/256K pages
@@ -39,6 +38,7 @@
 
 #ifndef __ASSEMBLY__
 #ifdef CONFIG_HUGETLB_PAGE
+extern bool hugetlb_disabled;
 extern unsigned int HPAGE_SHIFT;
 #else
 #define HPAGE_SHIFT PAGE_SHIFT

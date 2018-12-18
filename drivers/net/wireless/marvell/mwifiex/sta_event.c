@@ -224,7 +224,8 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	adapter->tx_lock_flag = false;
 	adapter->pps_uapsd_mode = false;
 
-	if (adapter->is_cmd_timedout && adapter->curr_cmd)
+	if (test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags) &&
+	    adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
 	mwifiex_dbg(adapter, MSG,
@@ -240,6 +241,9 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
+
+	if (!ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		return;
 
 	mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
 			 HostCmd_ACT_GEN_REMOVE, 0, NULL, false);

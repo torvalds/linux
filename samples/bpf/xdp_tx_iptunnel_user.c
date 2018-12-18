@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <time.h>
 #include "bpf_load.h"
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_util.h"
 #include "xdp_tx_iptunnel_common.h"
 

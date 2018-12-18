@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * vsp1_clu.h  --  R-Car VSP1 Cubic Look-Up Table
  *
  * Copyright (C) 2015 Renesas Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef __VSP1_CLU_H__
 #define __VSP1_CLU_H__
@@ -36,6 +32,7 @@ struct vsp1_clu {
 	spinlock_t lock;
 	unsigned int mode;
 	struct vsp1_dl_body *clu;
+	struct vsp1_dl_body_pool *pool;
 };
 
 static inline struct vsp1_clu *to_clu(struct v4l2_subdev *subdev)

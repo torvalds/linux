@@ -404,7 +404,7 @@ static struct drm_connector *vc4_vec_connector_init(struct drm_device *dev,
 				   VC4_VEC_TV_MODE_NTSC);
 	vec->tv_mode = &vc4_vec_tv_modes[VC4_VEC_TV_MODE_NTSC];
 
-	drm_mode_connector_attach_encoder(connector, vec->encoder);
+	drm_connector_attach_encoder(connector, vec->encoder);
 
 	return connector;
 }

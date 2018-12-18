@@ -304,13 +304,13 @@ static int altera_execute(struct altera_state *astate,
 	if (sym_count <= 0)
 		goto exit_done;
 
-	vars = kzalloc(sym_count * sizeof(long), GFP_KERNEL);
+	vars = kcalloc(sym_count, sizeof(long), GFP_KERNEL);
 
 	if (vars == NULL)
 		status = -ENOMEM;
 
 	if (status == 0) {
-		var_size = kzalloc(sym_count * sizeof(s32), GFP_KERNEL);
+		var_size = kcalloc(sym_count, sizeof(s32), GFP_KERNEL);
 
 		if (var_size == NULL)
 			status = -ENOMEM;
@@ -1136,7 +1136,7 @@ exit_done:
 				/* Allocate a writable buffer for this array */
 				count = var_size[variable_id];
 				long_tmp = vars[variable_id];
-				longptr_tmp = kzalloc(count * sizeof(long),
+				longptr_tmp = kcalloc(count, sizeof(long),
 								GFP_KERNEL);
 				vars[variable_id] = (long)longptr_tmp;
 

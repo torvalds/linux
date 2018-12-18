@@ -68,6 +68,7 @@ enum psmouse_type {
 	PSMOUSE_VMMOUSE,
 	PSMOUSE_BYD,
 	PSMOUSE_SYNAPTICS_SMBUS,
+	PSMOUSE_ELANTECH_SMBUS,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
@@ -224,6 +225,7 @@ struct i2c_board_info;
 int psmouse_smbus_init(struct psmouse *psmouse,
 		       const struct i2c_board_info *board,
 		       const void *pdata, size_t pdata_size,
+		       bool need_deactivate,
 		       bool leave_breadcrumbs);
 void psmouse_smbus_cleanup(struct psmouse *psmouse);
 

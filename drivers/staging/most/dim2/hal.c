@@ -760,7 +760,8 @@ static u8 init_ctrl_async(struct dim_channel *ch, u8 type, u8 is_tx,
 	if (!check_channel_address(ch_address))
 		return DIM_INIT_ERR_CHANNEL_ADDRESS;
 
-	ch->dbr_size = ROUND_UP_TO(hw_buffer_size, DBR_BLOCK_SIZE);
+	if (!ch->dbr_size)
+		ch->dbr_size = ROUND_UP_TO(hw_buffer_size, DBR_BLOCK_SIZE);
 	ch->dbr_addr = alloc_dbr(ch->dbr_size);
 	if (ch->dbr_addr >= DBR_SIZE)
 		return DIM_INIT_ERR_OUT_OF_MEMORY;
@@ -846,7 +847,8 @@ u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	if (!check_packet_length(packet_length))
 		return DIM_ERR_BAD_CONFIG;
 
-	ch->dbr_size = packet_length * ISOC_DBR_FACTOR;
+	if (!ch->dbr_size)
+		ch->dbr_size = packet_length * ISOC_DBR_FACTOR;
 	ch->dbr_addr = alloc_dbr(ch->dbr_size);
 	if (ch->dbr_addr >= DBR_SIZE)
 		return DIM_INIT_ERR_OUT_OF_MEMORY;
@@ -873,7 +875,8 @@ u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
 	if (!check_bytes_per_frame(bytes_per_frame))
 		return DIM_ERR_BAD_CONFIG;
 
-	ch->dbr_size = bytes_per_frame << bd_factor;
+	if (!ch->dbr_size)
+		ch->dbr_size = bytes_per_frame << bd_factor;
 	ch->dbr_addr = alloc_dbr(ch->dbr_size);
 	if (ch->dbr_addr >= DBR_SIZE)
 		return DIM_INIT_ERR_OUT_OF_MEMORY;

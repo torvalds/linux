@@ -171,7 +171,7 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 {
 	int i;
 
-	pool->free_map = kmalloc(sizeof(u16) * pool->size, GFP_KERNEL);
+	pool->free_map = kmalloc_array(pool->size, sizeof(u16), GFP_KERNEL);
 
 	if (!pool->free_map)
 		return -1;

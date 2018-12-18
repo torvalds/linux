@@ -30,9 +30,6 @@ Required properties:
 - mediatek,pctl: phandle to the syscon node that handles the ports slew rate
 	and driver current: only for MT2701 and MT7623 SoC
 
-Optional properties:
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 * Ethernet MAC node
 
 Required properties:

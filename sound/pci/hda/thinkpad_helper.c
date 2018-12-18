@@ -27,17 +27,11 @@ static void update_tpacpi_mute_led(void *private_data, int enabled)
 		led_set_func(TPACPI_LED_MUTE, !enabled);
 }
 
-static void update_tpacpi_micmute_led(struct hda_codec *codec,
-				      struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
+static void update_tpacpi_micmute(struct hda_codec *codec)
 {
-	if (!ucontrol || !led_set_func)
-		return;
-	if (strcmp("Capture Switch", ucontrol->id.name) == 0 && ucontrol->id.index == 0) {
-		/* TODO: How do I verify if it's a mono or stereo here? */
-		bool val = ucontrol->value.integer.value[0] || ucontrol->value.integer.value[1];
-		led_set_func(TPACPI_LED_MICMUTE, !val);
-	}
+	struct hda_gen_spec *spec = codec->spec;
+
+	led_set_func(TPACPI_LED_MICMUTE, spec->micmute_led.led_value);
 }
 
 static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
@@ -63,15 +57,10 @@ static void hda_fixup_thinkpad_acpi(struct hda_codec *codec,
 			spec->vmaster_mute.hook = update_tpacpi_mute_led;
 			removefunc = false;
 		}
-		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0) {
-			if (spec->num_adc_nids > 1 && !spec->dyn_adc_switch)
-				codec_dbg(codec,
-					  "Skipping micmute LED control due to several ADCs");
-			else {
-				spec->cap_sync_hook = update_tpacpi_micmute_led;
-				removefunc = false;
-			}
-		}
+		if (led_set_func(TPACPI_LED_MICMUTE, false) >= 0 &&
+		    snd_hda_gen_add_micmute_led(codec,
+						update_tpacpi_micmute) > 0)
+			removefunc = false;
 	}
 
 	if (led_set_func && (action == HDA_FIXUP_ACT_FREE || removefunc)) {

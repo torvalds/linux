@@ -350,7 +350,7 @@ static ssize_t asd_store_update_bios(struct device *dev,
 	int flash_command = FLASH_CMD_NONE;
 	int err = 0;
 
-	cmd_ptr = kzalloc(count*2, GFP_KERNEL);
+	cmd_ptr = kcalloc(count, 2, GFP_KERNEL);
 
 	if (!cmd_ptr) {
 		err = FAIL_OUT_MEMORY;
@@ -1030,8 +1030,10 @@ static int __init aic94xx_init(void)
 
 	aic94xx_transport_template =
 		sas_domain_attach_transport(&aic94xx_transport_functions);
-	if (!aic94xx_transport_template)
+	if (!aic94xx_transport_template) {
+		err = -ENOMEM;
 		goto out_destroy_caches;
+	}
 
 	err = pci_register_driver(&aic94xx_pci_driver);
 	if (err)

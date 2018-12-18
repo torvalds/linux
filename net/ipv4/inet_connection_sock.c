@@ -27,11 +27,6 @@
 #include <net/sock_reuseport.h>
 #include <net/addrconf.h>
 
-#ifdef INET_CSK_DEBUG
-const char inet_csk_timer_bug_msg[] = "inet_csk BUG: unknown timer value\n";
-EXPORT_SYMBOL(inet_csk_timer_bug_msg);
-#endif
-
 #if IS_ENABLED(CONFIG_IPV6)
 /* match_wildcard == true:  IPV6_ADDR_ANY equals to any IPv6 addresses if IPv6
  *                          only, and any IPv4 addresses if not IPv6 only
@@ -111,6 +106,15 @@ bool inet_rcv_saddr_equal(const struct sock *sk, const struct sock *sk2,
 				    ipv6_only_sock(sk2), match_wildcard);
 }
 EXPORT_SYMBOL(inet_rcv_saddr_equal);
+
+bool inet_rcv_saddr_any(const struct sock *sk)
+{
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		return ipv6_addr_any(&sk->sk_v6_rcv_saddr);
+#endif
+	return !sk->sk_rcv_saddr;
+}
 
 void inet_get_local_port_range(struct net *net, int *low, int *high)
 {

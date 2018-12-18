@@ -465,8 +465,8 @@ static int acpi_cpufreq_target(struct cpufreq_policy *policy,
 	return result;
 }
 
-unsigned int acpi_cpufreq_fast_switch(struct cpufreq_policy *policy,
-				      unsigned int target_freq)
+static unsigned int acpi_cpufreq_fast_switch(struct cpufreq_policy *policy,
+					     unsigned int target_freq)
 {
 	struct acpi_cpufreq_data *data = policy->driver_data;
 	struct acpi_processor_performance *perf;
@@ -759,8 +759,8 @@ static int acpi_cpufreq_cpu_init(struct cpufreq_policy *policy)
 		goto err_unreg;
 	}
 
-	freq_table = kzalloc(sizeof(*freq_table) *
-		    (perf->state_count+1), GFP_KERNEL);
+	freq_table = kcalloc(perf->state_count + 1, sizeof(*freq_table),
+			     GFP_KERNEL);
 	if (!freq_table) {
 		result = -ENOMEM;
 		goto err_unreg;

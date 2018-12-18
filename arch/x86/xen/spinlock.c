@@ -130,6 +130,10 @@ PV_CALLEE_SAVE_REGS_THUNK(xen_vcpu_stolen);
 void __init xen_init_spinlocks(void)
 {
 
+	/*  Don't need to use pvqspinlock code if there is only 1 vCPU. */
+	if (num_possible_cpus() == 1)
+		xen_pvspin = false;
+
 	if (!xen_pvspin) {
 		printk(KERN_DEBUG "xen: PV spinlocks disabled\n");
 		return;

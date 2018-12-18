@@ -309,13 +309,13 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 	unsigned n;
 
 	if (!fio->rs)
-		fio->rs = mempool_alloc(v->fec->rs_pool, GFP_NOIO);
+		fio->rs = mempool_alloc(&v->fec->rs_pool, GFP_NOIO);
 
 	fec_for_each_prealloc_buffer(n) {
 		if (fio->bufs[n])
 			continue;
 
-		fio->bufs[n] = mempool_alloc(v->fec->prealloc_pool, GFP_NOWAIT);
+		fio->bufs[n] = mempool_alloc(&v->fec->prealloc_pool, GFP_NOWAIT);
 		if (unlikely(!fio->bufs[n])) {
 			DMERR("failed to allocate FEC buffer");
 			return -ENOMEM;
@@ -327,7 +327,7 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 		if (fio->bufs[n])
 			continue;
 
-		fio->bufs[n] = mempool_alloc(v->fec->extra_pool, GFP_NOWAIT);
+		fio->bufs[n] = mempool_alloc(&v->fec->extra_pool, GFP_NOWAIT);
 		/* we can manage with even one buffer if necessary */
 		if (unlikely(!fio->bufs[n]))
 			break;
@@ -335,7 +335,7 @@ static int fec_alloc_bufs(struct dm_verity *v, struct dm_verity_fec_io *fio)
 	fio->nbufs = n;
 
 	if (!fio->output)
-		fio->output = mempool_alloc(v->fec->output_pool, GFP_NOIO);
+		fio->output = mempool_alloc(&v->fec->output_pool, GFP_NOIO);
 
 	return 0;
 }
@@ -493,15 +493,15 @@ void verity_fec_finish_io(struct dm_verity_io *io)
 	if (!verity_fec_is_enabled(io->v))
 		return;
 
-	mempool_free(fio->rs, f->rs_pool);
+	mempool_free(fio->rs, &f->rs_pool);
 
 	fec_for_each_prealloc_buffer(n)
-		mempool_free(fio->bufs[n], f->prealloc_pool);
+		mempool_free(fio->bufs[n], &f->prealloc_pool);
 
 	fec_for_each_extra_buffer(fio, n)
-		mempool_free(fio->bufs[n], f->extra_pool);
+		mempool_free(fio->bufs[n], &f->extra_pool);
 
-	mempool_free(fio->output, f->output_pool);
+	mempool_free(fio->output, &f->output_pool);
 }
 
 /*
@@ -549,9 +549,9 @@ void verity_fec_dtr(struct dm_verity *v)
 	if (!verity_fec_is_enabled(v))
 		goto out;
 
-	mempool_destroy(f->rs_pool);
-	mempool_destroy(f->prealloc_pool);
-	mempool_destroy(f->extra_pool);
+	mempool_exit(&f->rs_pool);
+	mempool_exit(&f->prealloc_pool);
+	mempool_exit(&f->extra_pool);
 	kmem_cache_destroy(f->cache);
 
 	if (f->data_bufio)
@@ -570,7 +570,7 @@ static void *fec_rs_alloc(gfp_t gfp_mask, void *pool_data)
 {
 	struct dm_verity *v = (struct dm_verity *)pool_data;
 
-	return init_rs(8, 0x11d, 0, 1, v->fec->roots);
+	return init_rs_gfp(8, 0x11d, 0, 1, v->fec->roots, gfp_mask);
 }
 
 static void fec_rs_free(void *element, void *pool_data)
@@ -675,6 +675,7 @@ int verity_fec_ctr(struct dm_verity *v)
 	struct dm_verity_fec *f = v->fec;
 	struct dm_target *ti = v->ti;
 	u64 hash_blocks;
+	int ret;
 
 	if (!verity_fec_is_enabled(v)) {
 		verity_fec_dtr(v);
@@ -770,11 +771,11 @@ int verity_fec_ctr(struct dm_verity *v)
 	}
 
 	/* Preallocate an rs_control structure for each worker thread */
-	f->rs_pool = mempool_create(num_online_cpus(), fec_rs_alloc,
-				    fec_rs_free, (void *) v);
-	if (!f->rs_pool) {
+	ret = mempool_init(&f->rs_pool, num_online_cpus(), fec_rs_alloc,
+			   fec_rs_free, (void *) v);
+	if (ret) {
 		ti->error = "Cannot allocate RS pool";
-		return -ENOMEM;
+		return ret;
 	}
 
 	f->cache = kmem_cache_create("dm_verity_fec_buffers",
@@ -786,26 +787,26 @@ int verity_fec_ctr(struct dm_verity *v)
 	}
 
 	/* Preallocate DM_VERITY_FEC_BUF_PREALLOC buffers for each thread */
-	f->prealloc_pool = mempool_create_slab_pool(num_online_cpus() *
-						    DM_VERITY_FEC_BUF_PREALLOC,
-						    f->cache);
-	if (!f->prealloc_pool) {
+	ret = mempool_init_slab_pool(&f->prealloc_pool, num_online_cpus() *
+				     DM_VERITY_FEC_BUF_PREALLOC,
+				     f->cache);
+	if (ret) {
 		ti->error = "Cannot allocate FEC buffer prealloc pool";
-		return -ENOMEM;
+		return ret;
 	}
 
-	f->extra_pool = mempool_create_slab_pool(0, f->cache);
-	if (!f->extra_pool) {
+	ret = mempool_init_slab_pool(&f->extra_pool, 0, f->cache);
+	if (ret) {
 		ti->error = "Cannot allocate FEC buffer extra pool";
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* Preallocate an output buffer for each thread */
-	f->output_pool = mempool_create_kmalloc_pool(num_online_cpus(),
-						     1 << v->data_dev_block_bits);
-	if (!f->output_pool) {
+	ret = mempool_init_kmalloc_pool(&f->output_pool, num_online_cpus(),
+					1 << v->data_dev_block_bits);
+	if (ret) {
 		ti->error = "Cannot allocate FEC output pool";
-		return -ENOMEM;
+		return ret;
 	}
 
 	/* Reserve space for our per-bio data */

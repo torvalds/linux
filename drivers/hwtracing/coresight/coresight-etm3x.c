@@ -1,15 +1,8 @@
-/* Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2011-2012, The Linux Foundation. All rights reserved.
  *
  * Description: CoreSight Program Flow Trace driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -237,10 +230,8 @@ void etm_set_default(struct etm_config *config)
 
 	config->seq_curr_state = 0x0;
 	config->ctxid_idx = 0x0;
-	for (i = 0; i < ETM_MAX_CTXID_CMP; i++) {
+	for (i = 0; i < ETM_MAX_CTXID_CMP; i++)
 		config->ctxid_pid[i] = 0x0;
-		config->ctxid_vpid[i] = 0x0;
-	}
 
 	config->ctxid_mask = 0x0;
 	/* Setting default to 1024 as per TRM recommendation */

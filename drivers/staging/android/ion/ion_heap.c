@@ -25,11 +25,12 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	pgprot_t pgprot;
 	struct sg_table *table = buffer->sg_table;
 	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	struct page **pages = vmalloc(sizeof(struct page *) * npages);
+	struct page **pages = vmalloc(array_size(npages,
+						 sizeof(struct page *)));
 	struct page **tmp = pages;
 
 	if (!pages)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (buffer->flags & ION_FLAG_CACHED)
 		pgprot = PAGE_KERNEL;

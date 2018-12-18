@@ -2213,7 +2213,8 @@ static void ena_netpoll(struct net_device *netdev)
 #endif /* CONFIG_NET_POLL_CONTROLLER */
 
 static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
-			    void *accel_priv, select_queue_fallback_t fallback)
+			    struct net_device *sb_dev,
+			    select_queue_fallback_t fallback)
 {
 	u16 qid;
 	/* we suspect that this is good for in--kernel network services that
@@ -2223,7 +2224,7 @@ static u16 ena_select_queue(struct net_device *dev, struct sk_buff *skb,
 	if (skb_rx_queue_recorded(skb))
 		qid = skb_get_rx_queue(skb);
 	else
-		qid = fallback(dev, skb);
+		qid = fallback(dev, skb, NULL);
 
 	return qid;
 }
@@ -3386,32 +3387,6 @@ err_disable_device:
 }
 
 /*****************************************************************************/
-static int ena_sriov_configure(struct pci_dev *dev, int numvfs)
-{
-	int rc;
-
-	if (numvfs > 0) {
-		rc = pci_enable_sriov(dev, numvfs);
-		if (rc != 0) {
-			dev_err(&dev->dev,
-				"pci_enable_sriov failed to enable: %d vfs with the error: %d\n",
-				numvfs, rc);
-			return rc;
-		}
-
-		return numvfs;
-	}
-
-	if (numvfs == 0) {
-		pci_disable_sriov(dev);
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-/*****************************************************************************/
-/*****************************************************************************/
 
 /* ena_remove - Device Removal Routine
  * @pdev: PCI device information struct
@@ -3526,7 +3501,7 @@ static struct pci_driver ena_pci_driver = {
 	.suspend    = ena_suspend,
 	.resume     = ena_resume,
 #endif
-	.sriov_configure = ena_sriov_configure,
+	.sriov_configure = pci_sriov_configure_simple,
 };
 
 static int __init ena_init(void)

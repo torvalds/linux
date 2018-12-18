@@ -35,6 +35,10 @@
 		EM(TCP_CLOSING)			\
 		EMe(TCP_NEW_SYN_RECV)
 
+#define skmem_kind_names			\
+		EM(SK_MEM_SEND)			\
+		EMe(SK_MEM_RECV)
+
 /* enums need to be exported to user space */
 #undef EM
 #undef EMe
@@ -44,6 +48,7 @@
 family_names
 inet_protocol_names
 tcp_state_names
+skmem_kind_names
 
 #undef EM
 #undef EMe
@@ -58,6 +63,9 @@ tcp_state_names
 
 #define show_tcp_state_name(val)        \
 	__print_symbolic(val, tcp_state_names)
+
+#define show_skmem_kind_names(val)	\
+	__print_symbolic(val, skmem_kind_names)
 
 TRACE_EVENT(sock_rcvqueue_full,
 
@@ -83,9 +91,9 @@ TRACE_EVENT(sock_rcvqueue_full,
 
 TRACE_EVENT(sock_exceed_buf_limit,
 
-	TP_PROTO(struct sock *sk, struct proto *prot, long allocated),
+	TP_PROTO(struct sock *sk, struct proto *prot, long allocated, int kind),
 
-	TP_ARGS(sk, prot, allocated),
+	TP_ARGS(sk, prot, allocated, kind),
 
 	TP_STRUCT__entry(
 		__array(char, name, 32)
@@ -93,6 +101,10 @@ TRACE_EVENT(sock_exceed_buf_limit,
 		__field(long, allocated)
 		__field(int, sysctl_rmem)
 		__field(int, rmem_alloc)
+		__field(int, sysctl_wmem)
+		__field(int, wmem_alloc)
+		__field(int, wmem_queued)
+		__field(int, kind)
 	),
 
 	TP_fast_assign(
@@ -101,17 +113,25 @@ TRACE_EVENT(sock_exceed_buf_limit,
 		__entry->allocated = allocated;
 		__entry->sysctl_rmem = sk_get_rmem0(sk, prot);
 		__entry->rmem_alloc = atomic_read(&sk->sk_rmem_alloc);
+		__entry->sysctl_wmem = sk_get_wmem0(sk, prot);
+		__entry->wmem_alloc = refcount_read(&sk->sk_wmem_alloc);
+		__entry->wmem_queued = sk->sk_wmem_queued;
+		__entry->kind = kind;
 	),
 
-	TP_printk("proto:%s sysctl_mem=%ld,%ld,%ld allocated=%ld "
-		"sysctl_rmem=%d rmem_alloc=%d",
+	TP_printk("proto:%s sysctl_mem=%ld,%ld,%ld allocated=%ld sysctl_rmem=%d rmem_alloc=%d sysctl_wmem=%d wmem_alloc=%d wmem_queued=%d kind=%s",
 		__entry->name,
 		__entry->sysctl_mem[0],
 		__entry->sysctl_mem[1],
 		__entry->sysctl_mem[2],
 		__entry->allocated,
 		__entry->sysctl_rmem,
-		__entry->rmem_alloc)
+		__entry->rmem_alloc,
+		__entry->sysctl_wmem,
+		__entry->wmem_alloc,
+		__entry->wmem_queued,
+		show_skmem_kind_names(__entry->kind)
+	)
 );
 
 TRACE_EVENT(inet_sock_set_state,

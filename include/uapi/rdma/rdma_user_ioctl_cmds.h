@@ -62,7 +62,12 @@ struct ib_uverbs_attr {
 		} enum_data;
 		__u16 reserved;
 	} attr_data;
-	__aligned_u64 data;	/* ptr to command, inline data or idr/fd */
+	union {
+		/* Used by PTR_IN/OUT, ENUM_IN and IDR */
+		__aligned_u64 data;
+		/* Used by FD_IN and FD_OUT */
+		__s64 data_s64;
+	};
 };
 
 struct ib_uverbs_ioctl_hdr {

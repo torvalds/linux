@@ -59,6 +59,10 @@ config ATARI_ROM_ISA
 config GENERIC_ISA_DMA
 	def_bool ISA
 
+source "drivers/zorro/Kconfig"
+
+endif
+
 config PCI
 	bool "PCI support"
 	depends on M54xx
@@ -66,10 +70,8 @@ config PCI
 	  Enable the PCI bus. Support for the PCI bus hardware built into the
 	  ColdFire 547x and 548x processors.
 
+if PCI
 source "drivers/pci/Kconfig"
-
-source "drivers/zorro/Kconfig"
-
 endif
 
 if !MMU

@@ -133,6 +133,7 @@ int __meminit arch_add_memory(int nid, u64 start, u64 size, struct vmem_altmap *
 			start, start + size, rc);
 		return -EFAULT;
 	}
+	flush_inval_dcache_range(start, start + size);
 
 	return __add_pages(nid, start_pfn, nr_pages, altmap, want_memblock);
 }
@@ -159,6 +160,7 @@ int __meminit arch_remove_memory(u64 start, u64 size, struct vmem_altmap *altmap
 
 	/* Remove htab bolted mappings for this section of memory */
 	start = (unsigned long)__va(start);
+	flush_inval_dcache_range(start, start + size);
 	ret = remove_section_mapping(start, start + size);
 
 	/* Ensure all vmalloc mappings are flushed in case they also
@@ -213,7 +215,7 @@ void __init mem_topology_setup(void)
 	/* Place all memblock_regions in the same node and merge contiguous
 	 * memblock_regions
 	 */
-	memblock_set_node(0, (phys_addr_t)ULLONG_MAX, &memblock.memory, 0);
+	memblock_set_node(0, PHYS_ADDR_MAX, &memblock.memory, 0);
 }
 
 void __init initmem_init(void)
@@ -507,8 +509,10 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 	 */
 	unsigned long access, trap;
 
-	if (radix_enabled())
+	if (radix_enabled()) {
+		prefetch((void *)address);
 		return;
+	}
 
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
 	if (!pte_young(*ptep) || address >= TASK_SIZE)

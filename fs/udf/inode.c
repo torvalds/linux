@@ -1147,8 +1147,7 @@ static void udf_update_extents(struct inode *inode, struct kernel_long_ad *laarr
 
 	if (startnum > endnum) {
 		for (i = 0; i < (startnum - endnum); i++)
-			udf_delete_aext(inode, *epos, laarr[i].extLocation,
-					laarr[i].extLength);
+			udf_delete_aext(inode, *epos);
 	} else if (startnum < endnum) {
 		for (i = 0; i < (endnum - startnum); i++) {
 			udf_insert_aext(inode, *epos, laarr[i].extLocation,
@@ -1443,15 +1442,9 @@ reread:
 		inode->i_blocks = le64_to_cpu(fe->logicalBlocksRecorded) <<
 			(inode->i_sb->s_blocksize_bits - 9);
 
-		if (!udf_disk_stamp_to_time(&inode->i_atime, fe->accessTime))
-			inode->i_atime = sbi->s_record_time;
-
-		if (!udf_disk_stamp_to_time(&inode->i_mtime,
-					    fe->modificationTime))
-			inode->i_mtime = sbi->s_record_time;
-
-		if (!udf_disk_stamp_to_time(&inode->i_ctime, fe->attrTime))
-			inode->i_ctime = sbi->s_record_time;
+		udf_disk_stamp_to_time(&inode->i_atime, fe->accessTime);
+		udf_disk_stamp_to_time(&inode->i_mtime, fe->modificationTime);
+		udf_disk_stamp_to_time(&inode->i_ctime, fe->attrTime);
 
 		iinfo->i_unique = le64_to_cpu(fe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(fe->lengthExtendedAttr);
@@ -1461,18 +1454,10 @@ reread:
 		inode->i_blocks = le64_to_cpu(efe->logicalBlocksRecorded) <<
 		    (inode->i_sb->s_blocksize_bits - 9);
 
-		if (!udf_disk_stamp_to_time(&inode->i_atime, efe->accessTime))
-			inode->i_atime = sbi->s_record_time;
-
-		if (!udf_disk_stamp_to_time(&inode->i_mtime,
-					    efe->modificationTime))
-			inode->i_mtime = sbi->s_record_time;
-
-		if (!udf_disk_stamp_to_time(&iinfo->i_crtime, efe->createTime))
-			iinfo->i_crtime = sbi->s_record_time;
-
-		if (!udf_disk_stamp_to_time(&inode->i_ctime, efe->attrTime))
-			inode->i_ctime = sbi->s_record_time;
+		udf_disk_stamp_to_time(&inode->i_atime, efe->accessTime);
+		udf_disk_stamp_to_time(&inode->i_mtime, efe->modificationTime);
+		udf_disk_stamp_to_time(&iinfo->i_crtime, efe->createTime);
+		udf_disk_stamp_to_time(&inode->i_ctime, efe->attrTime);
 
 		iinfo->i_unique = le64_to_cpu(efe->uniqueID);
 		iinfo->i_lenEAttr = le32_to_cpu(efe->lengthExtendedAttr);
@@ -1609,7 +1594,7 @@ static int udf_sync_inode(struct inode *inode)
 	return udf_update_inode(inode, 1);
 }
 
-static void udf_adjust_time(struct udf_inode_info *iinfo, struct timespec time)
+static void udf_adjust_time(struct udf_inode_info *iinfo, struct timespec64 time)
 {
 	if (iinfo->i_crtime.tv_sec > time.tv_sec ||
 	    (iinfo->i_crtime.tv_sec == time.tv_sec &&
@@ -2177,14 +2162,15 @@ static int8_t udf_insert_aext(struct inode *inode, struct extent_position epos,
 	return (nelen >> 30);
 }
 
-int8_t udf_delete_aext(struct inode *inode, struct extent_position epos,
-		       struct kernel_lb_addr eloc, uint32_t elen)
+int8_t udf_delete_aext(struct inode *inode, struct extent_position epos)
 {
 	struct extent_position oepos;
 	int adsize;
 	int8_t etype;
 	struct allocExtDesc *aed;
 	struct udf_inode_info *iinfo;
+	struct kernel_lb_addr eloc;
+	uint32_t elen;
 
 	if (epos.bh) {
 		get_bh(epos.bh);

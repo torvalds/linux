@@ -51,12 +51,6 @@ The following are the mandatory properties:
 			Documentation/devicetree/bindings/reset/ti,sci-reset.txt
 			    for 66AK2G SoCs
 
-- interrupt-parent:	Should contain a phandle to the Keystone 2 IRQ controller
-			IP node that is used by the ARM CorePac processor to
-			receive interrupts from the DSP remote processors. See
-			Documentation/devicetree/bindings/interrupt-controller/ti,keystone-irq.txt
-			for details.
-
 - interrupts: 		Should contain an entry for each value in 'interrupt-names'.
 			Each entry should have the interrupt source number used by
 			the remote processor to the host processor. The values should

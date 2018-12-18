@@ -494,6 +494,28 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_SUBDEV_S_DV_TIMINGS:
 		return v4l2_subdev_call(sd, video, s_dv_timings, arg);
+
+	case VIDIOC_SUBDEV_G_STD:
+		return v4l2_subdev_call(sd, video, g_std, arg);
+
+	case VIDIOC_SUBDEV_S_STD: {
+		v4l2_std_id *std = arg;
+
+		return v4l2_subdev_call(sd, video, s_std, *std);
+	}
+
+	case VIDIOC_SUBDEV_ENUMSTD: {
+		struct v4l2_standard *p = arg;
+		v4l2_std_id id;
+
+		if (v4l2_subdev_call(sd, video, g_tvnorms, &id))
+			return -EINVAL;
+
+		return v4l_video_std_enumstd(p, id);
+	}
+
+	case VIDIOC_SUBDEV_QUERYSTD:
+		return v4l2_subdev_call(sd, video, querystd, arg);
 #endif
 	default:
 		return v4l2_subdev_call(sd, core, ioctl, cmd, arg);
@@ -502,10 +524,25 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	return 0;
 }
 
+static long subdev_do_ioctl_lock(struct file *file, unsigned int cmd, void *arg)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct mutex *lock = vdev->lock;
+	long ret = -ENODEV;
+
+	if (lock && mutex_lock_interruptible(lock))
+		return -ERESTARTSYS;
+	if (video_is_registered(vdev))
+		ret = subdev_do_ioctl(file, cmd, arg);
+	if (lock)
+		mutex_unlock(lock);
+	return ret;
+}
+
 static long subdev_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
-	return video_usercopy(file, cmd, arg, subdev_do_ioctl);
+	return video_usercopy(file, cmd, arg, subdev_do_ioctl_lock);
 }
 
 #ifdef CONFIG_COMPAT

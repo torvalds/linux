@@ -25,9 +25,6 @@
 #ifdef CONFIG_SMP
 
 /* SMP initialization hook for setup_arch */
-void __init init_clockevent(void);
-
-/* SMP initialization hook for setup_arch */
 void __init setup_smp(void);
 
 /* Hook for the generic smp_call_function_many() routine. */
@@ -43,9 +40,6 @@ void arch_send_call_function_single_ipi(int cpu);
  * ID.
  */
 #define raw_smp_processor_id() (*((int*)((char*)get_current() + TASK_TI_CPU)))
-
-/* Interprocessor interrupt handler */
-irqreturn_t handle_ipi(void);
 
 #endif /* CONFIG_SMP */
 

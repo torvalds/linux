@@ -1,16 +1,12 @@
-/*
- * Renesas R-Car SRU/SCU/SSIU/SSI support
- *
- * Copyright (C) 2013 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * Based on fsi.c
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SRU/SCU/SSIU/SSI support
+//
+// Copyright (C) 2013 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//
+// Based on fsi.c
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
 
 /*
  * Renesas R-Car sound device structure
@@ -111,7 +107,7 @@
 static const struct of_device_id rsnd_of_match[] = {
 	{ .compatible = "renesas,rcar_sound-gen1", .data = (void *)RSND_GEN1 },
 	{ .compatible = "renesas,rcar_sound-gen2", .data = (void *)RSND_GEN2 },
-	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN2 }, /* gen2 compatible */
+	{ .compatible = "renesas,rcar_sound-gen3", .data = (void *)RSND_GEN3 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, rsnd_of_match);
@@ -550,6 +546,15 @@ struct rsnd_dai *rsnd_rdai_get(struct rsnd_priv *priv, int id)
 		return NULL;
 
 	return priv->rdai + id;
+}
+
+static struct snd_soc_dai_driver
+*rsnd_daidrv_get(struct rsnd_priv *priv, int id)
+{
+	if ((id < 0) || (id >= rsnd_rdai_nr(priv)))
+		return NULL;
+
+	return priv->daidrv + id;
 }
 
 #define rsnd_dai_to_priv(dai) snd_soc_dai_get_drvdata(dai)
@@ -1037,7 +1042,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	int io_i;
 
 	rdai		= rsnd_rdai_get(priv, dai_i);
-	drv		= priv->daidrv + dai_i;
+	drv		= rsnd_daidrv_get(priv, dai_i);
 	io_playback	= &rdai->playback;
 	io_capture	= &rdai->capture;
 
@@ -1085,6 +1090,12 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 		of_node_put(capture);
 	}
 
+	if (rsnd_ssi_is_pin_sharing(io_capture) ||
+	    rsnd_ssi_is_pin_sharing(io_playback)) {
+		/* should have symmetric_rates if pin sharing */
+		drv->symmetric_rates = 1;
+	}
+
 	dev_dbg(dev, "%s (%s/%s)\n", rdai->name,
 		rsnd_io_to_mod_ssi(io_playback) ? "play"    : " -- ",
 		rsnd_io_to_mod_ssi(io_capture) ? "capture" : "  --   ");
@@ -1110,8 +1121,8 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 	if (!nr)
 		return -EINVAL;
 
-	rdrv = devm_kzalloc(dev, sizeof(*rdrv) * nr, GFP_KERNEL);
-	rdai = devm_kzalloc(dev, sizeof(*rdai) * nr, GFP_KERNEL);
+	rdrv = devm_kcalloc(dev, nr, sizeof(*rdrv), GFP_KERNEL);
+	rdai = devm_kcalloc(dev, nr, sizeof(*rdai), GFP_KERNEL);
 	if (!rdrv || !rdai)
 		return -ENOMEM;
 
@@ -1352,6 +1363,37 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 #define PREALLOC_BUFFER		(32 * 1024)
 #define PREALLOC_BUFFER_MAX	(32 * 1024)
 
+static int rsnd_preallocate_pages(struct snd_soc_pcm_runtime *rtd,
+				  struct rsnd_dai_stream *io,
+				  int stream)
+{
+	struct rsnd_priv *priv = rsnd_io_to_priv(io);
+	struct device *dev = rsnd_priv_to_dev(priv);
+	struct snd_pcm_substream *substream;
+	int err;
+
+	/*
+	 * use Audio-DMAC dev if we can use IPMMU
+	 * see
+	 *	rsnd_dmaen_attach()
+	 */
+	if (io->dmac_dev)
+		dev = io->dmac_dev;
+
+	for (substream = rtd->pcm->streams[stream].substream;
+	     substream;
+	     substream = substream->next) {
+		err = snd_pcm_lib_preallocate_pages(substream,
+					SNDRV_DMA_TYPE_DEV,
+					dev,
+					PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
+}
+
 static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_dai *dai = rtd->cpu_dai;
@@ -1366,11 +1408,17 @@ static int rsnd_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	return snd_pcm_lib_preallocate_pages_for_all(
-		rtd->pcm,
-		SNDRV_DMA_TYPE_DEV,
-		rtd->card->snd_card->dev,
-		PREALLOC_BUFFER, PREALLOC_BUFFER_MAX);
+	ret = rsnd_preallocate_pages(rtd, &rdai->playback,
+				     SNDRV_PCM_STREAM_PLAYBACK);
+	if (ret)
+		return ret;
+
+	ret = rsnd_preallocate_pages(rtd, &rdai->capture,
+				     SNDRV_PCM_STREAM_CAPTURE);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static const struct snd_soc_component_driver rsnd_soc_component = {
@@ -1536,7 +1584,7 @@ static int rsnd_remove(struct platform_device *pdev)
 	return ret;
 }
 
-static int rsnd_suspend(struct device *dev)
+static int __maybe_unused rsnd_suspend(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
@@ -1545,7 +1593,7 @@ static int rsnd_suspend(struct device *dev)
 	return 0;
 }
 
-static int rsnd_resume(struct device *dev)
+static int __maybe_unused rsnd_resume(struct device *dev)
 {
 	struct rsnd_priv *priv = dev_get_drvdata(dev);
 
@@ -1569,7 +1617,7 @@ static struct platform_driver rsnd_driver = {
 };
 module_platform_driver(rsnd_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Renesas R-Car audio driver");
 MODULE_AUTHOR("Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>");
 MODULE_ALIAS("platform:rcar-pcm-audio");

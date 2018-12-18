@@ -64,7 +64,8 @@ u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max)
 	return max ? entry->max : entry->num;
 }
 
-int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val)
+int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
+		     struct netlink_ext_ack *extack)
 {
 	struct nsim_fib_data *fib_data = net_generic(net, nsim_fib_net_id);
 	struct nsim_fib_entry *entry;
@@ -90,10 +91,12 @@ int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val)
 	/* not allowing a new max to be less than curren occupancy
 	 * --> no means of evicting entries
 	 */
-	if (val < entry->num)
+	if (val < entry->num) {
+		NL_SET_ERR_MSG_MOD(extack, "New size is less than current occupancy");
 		err = -EINVAL;
-	else
+	} else {
 		entry->max = val;
+	}
 
 	return err;
 }

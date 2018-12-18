@@ -36,6 +36,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
@@ -373,7 +374,6 @@ static int pca954x_probe(struct i2c_client *client,
 	int num, force, class;
 	struct i2c_mux_core *muxc;
 	struct pca954x *data;
-	const struct of_device_id *match;
 	int ret;
 
 	if (!i2c_check_functionality(adap, I2C_FUNC_SMBUS_BYTE))
@@ -389,15 +389,19 @@ static int pca954x_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, muxc);
 	data->client = client;
 
-	/* Get the mux out of reset if a reset GPIO is specified. */
-	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_LOW);
+	/* Reset the mux if a reset GPIO is specified. */
+	gpio = devm_gpiod_get_optional(&client->dev, "reset", GPIOD_OUT_HIGH);
 	if (IS_ERR(gpio))
 		return PTR_ERR(gpio);
+	if (gpio) {
+		udelay(1);
+		gpiod_set_value_cansleep(gpio, 0);
+		/* Give the chip some time to recover. */
+		udelay(1);
+	}
 
-	match = of_match_device(of_match_ptr(pca954x_of_match), &client->dev);
-	if (match)
-		data->chip = of_device_get_match_data(&client->dev);
-	else
+	data->chip = of_device_get_match_data(&client->dev);
+	if (!data->chip)
 		data->chip = &chips[id->driver_data];
 
 	if (data->chip->id.manufacturer_id != I2C_DEVICE_ID_NONE) {

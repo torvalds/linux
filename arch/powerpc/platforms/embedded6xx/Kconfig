@@ -48,16 +48,6 @@ config PPC_HOLLY
 	  Select PPC_HOLLY if configuring for an IBM 750GX/CL Eval
 	  Board with TSI108/9 bridge (Hickory/Holly)
 
-config PPC_C2K
-	bool "SBS/GEFanuc C2K board"
-	depends on EMBEDDED6xx
-	select MV64X60
-	select NOT_COHERENT_CACHE
-	select MTD_CFI_I4
-	help
-	  This option enables support for the GE Fanuc C2K board (formerly
-	  an SBS board).
-
 config MVME5100
 	bool "Motorola/Emerson MVME5100"
 	depends on EMBEDDED6xx

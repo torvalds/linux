@@ -30,9 +30,9 @@ void __init driver_init(void)
 	/* These are also core pieces, but must come after the
 	 * core core pieces.
 	 */
+	of_core_init();
 	platform_bus_init();
 	cpu_dev_init();
 	memory_dev_init();
 	container_dev_init();
-	of_core_init();
 }

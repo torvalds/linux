@@ -367,6 +367,11 @@ static inline void __raw_writeq(unsigned long v, volatile void __iomem *addr)
 	*(volatile unsigned long __force *)PCI_FIX_ADDR(addr) = v;
 }
 
+static inline void __raw_writeq_be(unsigned long v, volatile void __iomem *addr)
+{
+	__raw_writeq((__force unsigned long)cpu_to_be64(v), addr);
+}
+
 /*
  * Real mode versions of the above. Those instructions are only supposed
  * to be used in hypervisor real mode as per the architecture spec.
@@ -393,6 +398,11 @@ static inline void __raw_rm_writeq(u64 val, volatile void __iomem *paddr)
 {
 	__asm__ __volatile__("stdcix %0,0,%1"
 		: : "r" (val), "r" (paddr) : "memory");
+}
+
+static inline void __raw_rm_writeq_be(u64 val, volatile void __iomem *paddr)
+{
+	__raw_rm_writeq((__force u64)cpu_to_be64(val), paddr);
 }
 
 static inline u8 __raw_rm_readb(volatile void __iomem *paddr)

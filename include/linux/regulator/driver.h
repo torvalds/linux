@@ -15,6 +15,8 @@
 #ifndef __LINUX_REGULATOR_DRIVER_H_
 #define __LINUX_REGULATOR_DRIVER_H_
 
+#define MAX_COUPLED		4
+
 #include <linux/device.h>
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
@@ -44,7 +46,7 @@ enum regulator_status {
 /**
  * struct regulator_linear_range - specify linear voltage ranges
  *
- * Specify a range of voltages for regulator_map_linar_range() and
+ * Specify a range of voltages for regulator_map_linear_range() and
  * regulator_list_linear_range().
  *
  * @min_uV:  Lowest voltage in range
@@ -81,9 +83,12 @@ struct regulator_linear_range {
  * @set_voltage_sel: Set the voltage for the regulator using the specified
  *                   selector.
  * @map_voltage: Convert a voltage into a selector
- * @get_voltage: Return the currently configured voltage for the regulator.
+ * @get_voltage: Return the currently configured voltage for the regulator;
+ *                   return -ENOTRECOVERABLE if regulator can't be read at
+ *                   bootup and hasn't been set yet.
  * @get_voltage_sel: Return the currently configured voltage selector for the
- *                   regulator.
+ *                   regulator; return -ENOTRECOVERABLE if regulator can't
+ *                   be read at bootup and hasn't been set yet.
  * @list_voltage: Return one of the supported voltages, in microvolts; zero
  *	if the selector indicates a voltage that is unusable on this system;
  *	or negative errno.  Selectors range from zero to one less than
@@ -215,7 +220,7 @@ struct regulator_ops {
 	/* set regulator suspend operating mode (defined in consumer.h) */
 	int (*set_suspend_mode) (struct regulator_dev *, unsigned int mode);
 
-	int (*resume_early)(struct regulator_dev *rdev);
+	int (*resume)(struct regulator_dev *rdev);
 
 	int (*set_pull_down) (struct regulator_dev *);
 };
@@ -407,6 +412,20 @@ struct regulator_config {
 };
 
 /*
+ * struct coupling_desc
+ *
+ * Describes coupling of regulators. Each regulator should have
+ * at least a pointer to itself in coupled_rdevs array.
+ * When a new coupled regulator is resolved, n_resolved is
+ * incremented.
+ */
+struct coupling_desc {
+	struct regulator_dev *coupled_rdevs[MAX_COUPLED];
+	int n_resolved;
+	int n_coupled;
+};
+
+/*
  * struct regulator_dev
  *
  * Voltage / Current regulator class device. One for each
@@ -429,8 +448,12 @@ struct regulator_dev {
 	/* lists we own */
 	struct list_head consumer_list; /* consumers we supply */
 
+	struct coupling_desc coupling_desc;
+
 	struct blocking_notifier_head notifier;
 	struct mutex mutex; /* consumer lock */
+	struct task_struct *mutex_owner;
+	int ref_cnt;
 	struct module *owner;
 	struct device dev;
 	struct regulation_constraints *constraints;

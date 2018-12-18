@@ -1735,8 +1735,8 @@ static void ftgmac100_ncsi_handler(struct ncsi_dev *nd)
 	if (unlikely(nd->state != ncsi_dev_state_functional))
 		return;
 
-	netdev_info(nd->dev, "NCSI interface %s\n",
-		    nd->link_up ? "up" : "down");
+	netdev_dbg(nd->dev, "NCSI interface %s\n",
+		   nd->link_up ? "up" : "down");
 }
 
 static void ftgmac100_setup_clk(struct ftgmac100 *priv)

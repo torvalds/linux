@@ -80,15 +80,12 @@ struct hotplug_slot_info {
  * @ops: pointer to the &struct hotplug_slot_ops to be used for this slot
  * @info: pointer to the &struct hotplug_slot_info for the initial values for
  * this slot.
- * @release: called during pci_hp_deregister to free memory allocated in a
- * hotplug_slot structure.
  * @private: used by the hotplug pci controller driver to store whatever it
  * needs.
  */
 struct hotplug_slot {
 	struct hotplug_slot_ops		*ops;
 	struct hotplug_slot_info	*info;
-	void (*release) (struct hotplug_slot *slot);
 	void				*private;
 
 	/* Variables below this are for use only by the hotplug pci core. */
@@ -104,13 +101,23 @@ static inline const char *hotplug_slot_name(const struct hotplug_slot *slot)
 int __pci_hp_register(struct hotplug_slot *slot, struct pci_bus *pbus, int nr,
 		      const char *name, struct module *owner,
 		      const char *mod_name);
-int pci_hp_deregister(struct hotplug_slot *slot);
+int __pci_hp_initialize(struct hotplug_slot *slot, struct pci_bus *bus, int nr,
+			const char *name, struct module *owner,
+			const char *mod_name);
+int pci_hp_add(struct hotplug_slot *slot);
+
+void pci_hp_del(struct hotplug_slot *slot);
+void pci_hp_destroy(struct hotplug_slot *slot);
+void pci_hp_deregister(struct hotplug_slot *slot);
+
 int __must_check pci_hp_change_slot_info(struct hotplug_slot *slot,
 					 struct hotplug_slot_info *info);
 
 /* use a define to avoid include chaining to get THIS_MODULE & friends */
 #define pci_hp_register(slot, pbus, devnr, name) \
 	__pci_hp_register(slot, pbus, devnr, name, THIS_MODULE, KBUILD_MODNAME)
+#define pci_hp_initialize(slot, bus, nr, name) \
+	__pci_hp_initialize(slot, bus, nr, name, THIS_MODULE, KBUILD_MODNAME)
 
 /* PCI Setting Record (Type 0) */
 struct hpp_type0 {
@@ -162,8 +169,9 @@ struct hotplug_params {
 #ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp);
-bool pciehp_is_native(struct pci_dev *pdev);
-int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags);
+bool pciehp_is_native(struct pci_dev *bridge);
+int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge);
+bool shpchp_is_native(struct pci_dev *bridge);
 int acpi_pci_check_ejectable(struct pci_bus *pbus, acpi_handle handle);
 int acpi_pci_detect_ejectable(acpi_handle handle);
 #else
@@ -172,6 +180,17 @@ static inline int pci_get_hp_params(struct pci_dev *dev,
 {
 	return -ENODEV;
 }
-static inline bool pciehp_is_native(struct pci_dev *pdev) { return true; }
+
+static inline int acpi_get_hp_hw_control_from_firmware(struct pci_dev *bridge)
+{
+	return 0;
+}
+static inline bool pciehp_is_native(struct pci_dev *bridge) { return true; }
+static inline bool shpchp_is_native(struct pci_dev *bridge) { return true; }
 #endif
+
+static inline bool hotplug_is_native(struct pci_dev *bridge)
+{
+	return pciehp_is_native(bridge) || shpchp_is_native(bridge);
+}
 #endif

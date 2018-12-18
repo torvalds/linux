@@ -41,19 +41,6 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 
-bool intel_format_is_yuv(u32 format)
-{
-	switch (format) {
-	case DRM_FORMAT_YUYV:
-	case DRM_FORMAT_UYVY:
-	case DRM_FORMAT_VYUY:
-	case DRM_FORMAT_YVYU:
-		return true;
-	default:
-		return false;
-	}
-}
-
 int intel_usecs_to_scanlines(const struct drm_display_mode *adjusted_mode,
 			     int usecs)
 {
@@ -106,13 +93,21 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 						      VBLANK_EVASION_TIME_US);
 	max = vblank_start - 1;
 
-	local_irq_disable();
-
 	if (min <= 0 || max <= 0)
-		return;
+		goto irq_disable;
 
 	if (WARN_ON(drm_crtc_vblank_get(&crtc->base)))
-		return;
+		goto irq_disable;
+
+	/*
+	 * Wait for psr to idle out after enabling the VBL interrupts
+	 * VBL interrupts will start the PSR exit and prevent a PSR
+	 * re-entry as well.
+	 */
+	if (intel_psr_wait_for_idle(new_crtc_state))
+		DRM_ERROR("PSR idle timed out, atomic update may fail\n");
+
+	local_irq_disable();
 
 	crtc->debug.min_vbl = min;
 	crtc->debug.max_vbl = max;
@@ -130,7 +125,7 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 		if (scanline < min || scanline > max)
 			break;
 
-		if (timeout <= 0) {
+		if (!timeout) {
 			DRM_ERROR("Potential atomic update failure on pipe %c\n",
 				  pipe_name(crtc->pipe));
 			break;
@@ -170,6 +165,10 @@ void intel_pipe_update_start(const struct intel_crtc_state *new_crtc_state)
 	crtc->debug.start_vbl_count = intel_crtc_get_vblank_counter(crtc);
 
 	trace_i915_pipe_update_vblank_evaded(crtc);
+	return;
+
+irq_disable:
+	local_irq_disable();
 }
 
 /**
@@ -283,13 +282,35 @@ skl_update_plane(struct intel_plane *plane,
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
 		int scaler_id = plane_state->scaler_id;
-		const struct intel_scaler *scaler;
+		const struct intel_scaler *scaler =
+			&crtc_state->scaler_state.scalers[scaler_id];
+		u16 y_hphase, uv_rgb_hphase;
+		u16 y_vphase, uv_rgb_vphase;
 
-		scaler = &crtc_state->scaler_state.scalers[scaler_id];
+		/* TODO: handle sub-pixel coordinates */
+		if (fb->format->format == DRM_FORMAT_NV12) {
+			y_hphase = skl_scaler_calc_phase(1, false);
+			y_vphase = skl_scaler_calc_phase(1, false);
+
+			/* MPEG2 chroma siting convention */
+			uv_rgb_hphase = skl_scaler_calc_phase(2, true);
+			uv_rgb_vphase = skl_scaler_calc_phase(2, false);
+		} else {
+			/* not used */
+			y_hphase = 0;
+			y_vphase = 0;
+
+			uv_rgb_hphase = skl_scaler_calc_phase(1, false);
+			uv_rgb_vphase = skl_scaler_calc_phase(1, false);
+		}
 
 		I915_WRITE_FW(SKL_PS_CTRL(pipe, scaler_id),
 			      PS_SCALER_EN | PS_PLANE_SEL(plane_id) | scaler->mode);
 		I915_WRITE_FW(SKL_PS_PWR_GATE(pipe, scaler_id), 0);
+		I915_WRITE_FW(SKL_PS_VPHASE(pipe, scaler_id),
+			      PS_Y_PHASE(y_vphase) | PS_UV_RGB_PHASE(uv_rgb_vphase));
+		I915_WRITE_FW(SKL_PS_HPHASE(pipe, scaler_id),
+			      PS_Y_PHASE(y_hphase) | PS_UV_RGB_PHASE(uv_rgb_hphase));
 		I915_WRITE_FW(SKL_PS_WIN_POS(pipe, scaler_id), (crtc_x << 16) | crtc_y);
 		I915_WRITE_FW(SKL_PS_WIN_SZ(pipe, scaler_id),
 			      ((crtc_w + 1) << 16)|(crtc_h + 1));
@@ -326,19 +347,21 @@ skl_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 bool
-skl_plane_get_hw_state(struct intel_plane *plane)
+skl_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(PLANE_CTL(pipe, plane_id)) & PLANE_CTL_ENABLE;
+	ret = I915_READ(PLANE_CTL(plane->pipe, plane_id)) & PLANE_CTL_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -379,7 +402,7 @@ chv_update_csc(const struct intel_plane_state *plane_state)
 	const s16 *csc = csc_matrix[plane_state->base.color_encoding];
 
 	/* Seems RGB data bypasses the CSC always */
-	if (!intel_format_is_yuv(fb->format->format))
+	if (!fb->format->is_yuv)
 		return;
 
 	I915_WRITE_FW(SPCSCYGOFF(plane_id), SPCSC_OOFF(0) | SPCSC_IOFF(0));
@@ -414,7 +437,7 @@ vlv_update_clrc(const struct intel_plane_state *plane_state)
 	enum plane_id plane_id = plane->id;
 	int contrast, brightness, sh_scale, sh_sin, sh_cos;
 
-	if (intel_format_is_yuv(fb->format->format) &&
+	if (fb->format->is_yuv &&
 	    plane_state->base.color_range == DRM_COLOR_YCBCR_LIMITED_RANGE) {
 		/*
 		 * Expand limited range to full range:
@@ -587,19 +610,21 @@ vlv_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-vlv_plane_get_hw_state(struct intel_plane *plane)
+vlv_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
 	enum plane_id plane_id = plane->id;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(SPCNTR(pipe, plane_id)) & SP_ENABLE;
+	ret = I915_READ(SPCNTR(plane->pipe, plane_id)) & SP_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -753,18 +778,20 @@ ivb_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-ivb_plane_get_hw_state(struct intel_plane *plane)
+ivb_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret =  I915_READ(SPRCTL(pipe)) & SPRITE_ENABLE;
+	ret =  I915_READ(SPRCTL(plane->pipe)) & SPRITE_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -909,18 +936,20 @@ g4x_disable_plane(struct intel_plane *plane, struct intel_crtc *crtc)
 }
 
 static bool
-g4x_plane_get_hw_state(struct intel_plane *plane)
+g4x_plane_get_hw_state(struct intel_plane *plane,
+		       enum pipe *pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	enum intel_display_power_domain power_domain;
-	enum pipe pipe = plane->pipe;
 	bool ret;
 
-	power_domain = POWER_DOMAIN_PIPE(pipe);
+	power_domain = POWER_DOMAIN_PIPE(plane->pipe);
 	if (!intel_display_power_get_if_enabled(dev_priv, power_domain))
 		return false;
 
-	ret = I915_READ(DVSCNTR(pipe)) & DVS_ENABLE;
+	ret = I915_READ(DVSCNTR(plane->pipe)) & DVS_ENABLE;
+
+	*pipe = plane->pipe;
 
 	intel_display_power_put(dev_priv, power_domain);
 
@@ -935,20 +964,11 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = state->base.fb;
-	int crtc_x, crtc_y;
-	unsigned int crtc_w, crtc_h;
-	uint32_t src_x, src_y, src_w, src_h;
-	struct drm_rect *src = &state->base.src;
-	struct drm_rect *dst = &state->base.dst;
-	struct drm_rect clip = {};
 	int max_stride = INTEL_GEN(dev_priv) >= 9 ? 32768 : 16384;
-	int hscale, vscale;
 	int max_scale, min_scale;
 	bool can_scale;
 	int ret;
-
-	*src = drm_plane_state_src(&state->base);
-	*dst = drm_plane_state_dest(&state->base);
+	uint32_t pixel_format = 0;
 
 	if (!fb) {
 		state->base.visible = false;
@@ -969,11 +989,14 @@ intel_check_sprite_plane(struct intel_plane *plane,
 
 	/* setup can_scale, min_scale, max_scale */
 	if (INTEL_GEN(dev_priv) >= 9) {
+		if (state->base.fb)
+			pixel_format = state->base.fb->format->format;
 		/* use scaler when colorkey is not required */
 		if (!state->ckey.flags) {
 			can_scale = 1;
 			min_scale = 1;
-			max_scale = skl_max_scale(crtc, crtc_state);
+			max_scale =
+				skl_max_scale(crtc, crtc_state, pixel_format);
 		} else {
 			can_scale = 0;
 			min_scale = DRM_PLANE_HELPER_NO_SCALING;
@@ -985,64 +1008,19 @@ intel_check_sprite_plane(struct intel_plane *plane,
 		min_scale = plane->can_scale ? 1 : (1 << 16);
 	}
 
-	/*
-	 * FIXME the following code does a bunch of fuzzy adjustments to the
-	 * coordinates and sizes. We probably need some way to decide whether
-	 * more strict checking should be done instead.
-	 */
-	drm_rect_rotate(src, fb->width << 16, fb->height << 16,
-			state->base.rotation);
-
-	hscale = drm_rect_calc_hscale_relaxed(src, dst, min_scale, max_scale);
-	BUG_ON(hscale < 0);
-
-	vscale = drm_rect_calc_vscale_relaxed(src, dst, min_scale, max_scale);
-	BUG_ON(vscale < 0);
-
-	if (crtc_state->base.enable)
-		drm_mode_get_hv_timing(&crtc_state->base.mode,
-				       &clip.x2, &clip.y2);
-
-	state->base.visible = drm_rect_clip_scaled(src, dst, &clip, hscale, vscale);
-
-	crtc_x = dst->x1;
-	crtc_y = dst->y1;
-	crtc_w = drm_rect_width(dst);
-	crtc_h = drm_rect_height(dst);
+	ret = drm_atomic_helper_check_plane_state(&state->base,
+						  &crtc_state->base,
+						  min_scale, max_scale,
+						  true, true);
+	if (ret)
+		return ret;
 
 	if (state->base.visible) {
-		/* check again in case clipping clamped the results */
-		hscale = drm_rect_calc_hscale(src, dst, min_scale, max_scale);
-		if (hscale < 0) {
-			DRM_DEBUG_KMS("Horizontal scaling factor out of limits\n");
-			drm_rect_debug_print("src: ", src, true);
-			drm_rect_debug_print("dst: ", dst, false);
-
-			return hscale;
-		}
-
-		vscale = drm_rect_calc_vscale(src, dst, min_scale, max_scale);
-		if (vscale < 0) {
-			DRM_DEBUG_KMS("Vertical scaling factor out of limits\n");
-			drm_rect_debug_print("src: ", src, true);
-			drm_rect_debug_print("dst: ", dst, false);
-
-			return vscale;
-		}
-
-		/* Make the source viewport size an exact multiple of the scaling factors. */
-		drm_rect_adjust_size(src,
-				     drm_rect_width(dst) * hscale - drm_rect_width(src),
-				     drm_rect_height(dst) * vscale - drm_rect_height(src));
-
-		drm_rect_rotate_inv(src, fb->width << 16, fb->height << 16,
-				    state->base.rotation);
-
-		/* sanity check to make sure the src viewport wasn't enlarged */
-		WARN_ON(src->x1 < (int) state->base.src_x ||
-			src->y1 < (int) state->base.src_y ||
-			src->x2 > (int) state->base.src_x + state->base.src_w ||
-			src->y2 > (int) state->base.src_y + state->base.src_h);
+		struct drm_rect *src = &state->base.src;
+		struct drm_rect *dst = &state->base.dst;
+		unsigned int crtc_w = drm_rect_width(dst);
+		unsigned int crtc_h = drm_rect_height(dst);
+		uint32_t src_x, src_y, src_w, src_h;
 
 		/*
 		 * Hardware doesn't handle subpixel coordinates.
@@ -1055,57 +1033,39 @@ intel_check_sprite_plane(struct intel_plane *plane,
 		src_y = src->y1 >> 16;
 		src_h = drm_rect_height(src) >> 16;
 
-		if (intel_format_is_yuv(fb->format->format)) {
-			src_x &= ~1;
-			src_w &= ~1;
-
-			/*
-			 * Must keep src and dst the
-			 * same if we can't scale.
-			 */
-			if (!can_scale)
-				crtc_w &= ~1;
-
-			if (crtc_w == 0)
-				state->base.visible = false;
-		}
-	}
-
-	/* Check size restrictions when scaling */
-	if (state->base.visible && (src_w != crtc_w || src_h != crtc_h)) {
-		unsigned int width_bytes;
-		int cpp = fb->format->cpp[0];
-
-		WARN_ON(!can_scale);
-
-		/* FIXME interlacing min height is 6 */
-
-		if (crtc_w < 3 || crtc_h < 3)
-			state->base.visible = false;
-
-		if (src_w < 3 || src_h < 3)
-			state->base.visible = false;
-
-		width_bytes = ((src_x * cpp) & 63) + src_w * cpp;
-
-		if (INTEL_GEN(dev_priv) < 9 && (src_w > 2048 || src_h > 2048 ||
-		    width_bytes > 4096 || fb->pitches[0] > 4096)) {
-			DRM_DEBUG_KMS("Source dimensions exceed hardware limits\n");
-			return -EINVAL;
-		}
-	}
-
-	if (state->base.visible) {
 		src->x1 = src_x << 16;
 		src->x2 = (src_x + src_w) << 16;
 		src->y1 = src_y << 16;
 		src->y2 = (src_y + src_h) << 16;
-	}
 
-	dst->x1 = crtc_x;
-	dst->x2 = crtc_x + crtc_w;
-	dst->y1 = crtc_y;
-	dst->y2 = crtc_y + crtc_h;
+		if (fb->format->is_yuv &&
+    		    fb->format->format != DRM_FORMAT_NV12 &&
+		    (src_x % 2 || src_w % 2)) {
+			DRM_DEBUG_KMS("src x/w (%u, %u) must be a multiple of 2 for YUV planes\n",
+				      src_x, src_w);
+			return -EINVAL;
+		}
+
+		/* Check size restrictions when scaling */
+		if (src_w != crtc_w || src_h != crtc_h) {
+			unsigned int width_bytes;
+			int cpp = fb->format->cpp[0];
+
+			WARN_ON(!can_scale);
+
+			width_bytes = ((src_x * cpp) & 63) + src_w * cpp;
+
+			/* FIXME interlacing min height is 6 */
+			if (INTEL_GEN(dev_priv) < 9 && (
+			     src_w < 3 || src_h < 3 ||
+			     src_w > 2048 || src_h > 2048 ||
+			     crtc_w < 3 || crtc_h < 3 ||
+			     width_bytes > 4096 || fb->pitches[0] > 4096)) {
+				DRM_DEBUG_KMS("Source dimensions exceed hardware limits\n");
+				return -EINVAL;
+			}
+		}
+	}
 
 	if (INTEL_GEN(dev_priv) >= 9) {
 		ret = skl_check_plane_surface(crtc_state, state);
@@ -1139,6 +1099,37 @@ intel_check_sprite_plane(struct intel_plane *plane,
 	return 0;
 }
 
+static bool has_dst_key_in_primary_plane(struct drm_i915_private *dev_priv)
+{
+	return INTEL_GEN(dev_priv) >= 9;
+}
+
+static void intel_plane_set_ckey(struct intel_plane_state *plane_state,
+				 const struct drm_intel_sprite_colorkey *set)
+{
+	struct intel_plane *plane = to_intel_plane(plane_state->base.plane);
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	struct drm_intel_sprite_colorkey *key = &plane_state->ckey;
+
+	*key = *set;
+
+	/*
+	 * We want src key enabled on the
+	 * sprite and not on the primary.
+	 */
+	if (plane->id == PLANE_PRIMARY &&
+	    set->flags & I915_SET_COLORKEY_SOURCE)
+		key->flags = 0;
+
+	/*
+	 * On SKL+ we want dst key enabled on
+	 * the primary and not on the sprite.
+	 */
+	if (INTEL_GEN(dev_priv) >= 9 && plane->id != PLANE_PRIMARY &&
+	    set->flags & I915_SET_COLORKEY_DESTINATION)
+		key->flags = 0;
+}
+
 int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv)
 {
@@ -1168,6 +1159,16 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 	if (!plane || plane->type != DRM_PLANE_TYPE_OVERLAY)
 		return -ENOENT;
 
+	/*
+	 * SKL+ only plane 2 can do destination keying against plane 1.
+	 * Also multiple planes can't do destination keying on the same
+	 * pipe simultaneously.
+	 */
+	if (INTEL_GEN(dev_priv) >= 9 &&
+	    to_intel_plane(plane)->id >= PLANE_SPRITE1 &&
+	    set->flags & I915_SET_COLORKEY_DESTINATION)
+		return -EINVAL;
+
 	drm_modeset_acquire_init(&ctx, 0);
 
 	state = drm_atomic_state_alloc(plane->dev);
@@ -1180,10 +1181,27 @@ int intel_sprite_set_colorkey_ioctl(struct drm_device *dev, void *data,
 	while (1) {
 		plane_state = drm_atomic_get_plane_state(state, plane);
 		ret = PTR_ERR_OR_ZERO(plane_state);
-		if (!ret) {
-			to_intel_plane_state(plane_state)->ckey = *set;
-			ret = drm_atomic_commit(state);
+		if (!ret)
+			intel_plane_set_ckey(to_intel_plane_state(plane_state), set);
+
+		/*
+		 * On some platforms we have to configure
+		 * the dst colorkey on the primary plane.
+		 */
+		if (!ret && has_dst_key_in_primary_plane(dev_priv)) {
+			struct intel_crtc *crtc =
+				intel_get_crtc_for_pipe(dev_priv,
+							to_intel_plane(plane)->pipe);
+
+			plane_state = drm_atomic_get_plane_state(state,
+								 crtc->base.primary);
+			ret = PTR_ERR_OR_ZERO(plane_state);
+			if (!ret)
+				intel_plane_set_ckey(to_intel_plane_state(plane_state), set);
 		}
+
+		if (!ret)
+			ret = drm_atomic_commit(state);
 
 		if (ret != -EDEADLK)
 			break;
@@ -1248,6 +1266,19 @@ static uint32_t skl_plane_formats[] = {
 	DRM_FORMAT_VYUY,
 };
 
+static uint32_t skl_planar_formats[] = {
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_NV12,
+};
+
 static const uint64_t skl_plane_format_modifiers_noccs[] = {
 	I915_FORMAT_MOD_Yf_TILED,
 	I915_FORMAT_MOD_Y_TILED,
@@ -1266,8 +1297,17 @@ static const uint64_t skl_plane_format_modifiers_ccs[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
-static bool g4x_mod_supported(uint32_t format, uint64_t modifier)
+static bool g4x_sprite_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_YUYV:
@@ -1283,8 +1323,17 @@ static bool g4x_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool snb_mod_supported(uint32_t format, uint64_t modifier)
+static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -1301,8 +1350,17 @@ static bool snb_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool vlv_mod_supported(uint32_t format, uint64_t modifier)
+static bool vlv_sprite_format_mod_supported(struct drm_plane *_plane,
+					    u32 format, u64 modifier)
 {
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_ABGR8888:
@@ -1324,8 +1382,26 @@ static bool vlv_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool skl_mod_supported(uint32_t format, uint64_t modifier)
+static bool skl_plane_format_mod_supported(struct drm_plane *_plane,
+					   u32 format, u64 modifier)
 {
+	struct intel_plane *plane = to_intel_plane(_plane);
+
+	switch (modifier) {
+	case DRM_FORMAT_MOD_LINEAR:
+	case I915_FORMAT_MOD_X_TILED:
+	case I915_FORMAT_MOD_Y_TILED:
+	case I915_FORMAT_MOD_Yf_TILED:
+		break;
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		if (!plane->has_ccs)
+			return false;
+		break;
+	default:
+		return false;
+	}
+
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
@@ -1342,6 +1418,7 @@ static bool skl_mod_supported(uint32_t format, uint64_t modifier)
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
 	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_NV12:
 		if (modifier == I915_FORMAT_MOD_Yf_TILED)
 			return true;
 		/* fall through */
@@ -1356,38 +1433,48 @@ static bool skl_mod_supported(uint32_t format, uint64_t modifier)
 	}
 }
 
-static bool intel_sprite_plane_format_mod_supported(struct drm_plane *plane,
-                                                    uint32_t format,
-                                                    uint64_t modifier)
-{
-	struct drm_i915_private *dev_priv = to_i915(plane->dev);
+static const struct drm_plane_funcs g4x_sprite_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = g4x_sprite_format_mod_supported,
+};
 
-	if (WARN_ON(modifier == DRM_FORMAT_MOD_INVALID))
-		return false;
+static const struct drm_plane_funcs snb_sprite_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = snb_sprite_format_mod_supported,
+};
 
-	if ((modifier >> 56) != DRM_FORMAT_MOD_VENDOR_INTEL &&
-	    modifier != DRM_FORMAT_MOD_LINEAR)
-		return false;
+static const struct drm_plane_funcs vlv_sprite_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = vlv_sprite_format_mod_supported,
+};
 
-	if (INTEL_GEN(dev_priv) >= 9)
-		return skl_mod_supported(format, modifier);
-	else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return vlv_mod_supported(format, modifier);
-	else if (INTEL_GEN(dev_priv) >= 6)
-		return snb_mod_supported(format, modifier);
-	else
-		return g4x_mod_supported(format, modifier);
-}
-
-static const struct drm_plane_funcs intel_sprite_plane_funcs = {
-        .update_plane = drm_atomic_helper_update_plane,
-        .disable_plane = drm_atomic_helper_disable_plane,
-        .destroy = intel_plane_destroy,
-        .atomic_get_property = intel_plane_atomic_get_property,
-        .atomic_set_property = intel_plane_atomic_set_property,
-        .atomic_duplicate_state = intel_plane_duplicate_state,
-        .atomic_destroy_state = intel_plane_destroy_state,
-        .format_mod_supported = intel_sprite_plane_format_mod_supported,
+static const struct drm_plane_funcs skl_plane_funcs = {
+	.update_plane = drm_atomic_helper_update_plane,
+	.disable_plane = drm_atomic_helper_disable_plane,
+	.destroy = intel_plane_destroy,
+	.atomic_get_property = intel_plane_atomic_get_property,
+	.atomic_set_property = intel_plane_atomic_set_property,
+	.atomic_duplicate_state = intel_plane_duplicate_state,
+	.atomic_destroy_state = intel_plane_destroy_state,
+	.format_mod_supported = skl_plane_format_mod_supported,
 };
 
 bool skl_plane_has_ccs(struct drm_i915_private *dev_priv,
@@ -1413,6 +1500,7 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 {
 	struct intel_plane *intel_plane = NULL;
 	struct intel_plane_state *state = NULL;
+	const struct drm_plane_funcs *plane_funcs;
 	unsigned long possible_crtcs;
 	const uint32_t *plane_formats;
 	const uint64_t *modifiers;
@@ -1437,17 +1525,28 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		intel_plane->can_scale = true;
 		state->scaler_id = -1;
 
+		intel_plane->has_ccs = skl_plane_has_ccs(dev_priv, pipe,
+							 PLANE_SPRITE0 + plane);
+
 		intel_plane->update_plane = skl_update_plane;
 		intel_plane->disable_plane = skl_disable_plane;
 		intel_plane->get_hw_state = skl_plane_get_hw_state;
 
-		plane_formats = skl_plane_formats;
-		num_plane_formats = ARRAY_SIZE(skl_plane_formats);
+		if (skl_plane_has_planar(dev_priv, pipe,
+					 PLANE_SPRITE0 + plane)) {
+			plane_formats = skl_planar_formats;
+			num_plane_formats = ARRAY_SIZE(skl_planar_formats);
+		} else {
+			plane_formats = skl_plane_formats;
+			num_plane_formats = ARRAY_SIZE(skl_plane_formats);
+		}
 
-		if (skl_plane_has_ccs(dev_priv, pipe, PLANE_SPRITE0 + plane))
+		if (intel_plane->has_ccs)
 			modifiers = skl_plane_format_modifiers_ccs;
 		else
 			modifiers = skl_plane_format_modifiers_noccs;
+
+		plane_funcs = &skl_plane_funcs;
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		intel_plane->can_scale = false;
 		intel_plane->max_downscale = 1;
@@ -1459,6 +1558,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane_formats = vlv_plane_formats;
 		num_plane_formats = ARRAY_SIZE(vlv_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
+
+		plane_funcs = &vlv_sprite_funcs;
 	} else if (INTEL_GEN(dev_priv) >= 7) {
 		if (IS_IVYBRIDGE(dev_priv)) {
 			intel_plane->can_scale = true;
@@ -1475,6 +1576,8 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		plane_formats = snb_plane_formats;
 		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
 		modifiers = i9xx_plane_format_modifiers;
+
+		plane_funcs = &snb_sprite_funcs;
 	} else {
 		intel_plane->can_scale = true;
 		intel_plane->max_downscale = 16;
@@ -1487,9 +1590,13 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		if (IS_GEN6(dev_priv)) {
 			plane_formats = snb_plane_formats;
 			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+
+			plane_funcs = &snb_sprite_funcs;
 		} else {
 			plane_formats = g4x_plane_formats;
 			num_plane_formats = ARRAY_SIZE(g4x_plane_formats);
+
+			plane_funcs = &g4x_sprite_funcs;
 		}
 	}
 
@@ -1516,14 +1623,14 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 
 	if (INTEL_GEN(dev_priv) >= 9)
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
-					       possible_crtcs, &intel_sprite_plane_funcs,
+					       possible_crtcs, plane_funcs,
 					       plane_formats, num_plane_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_OVERLAY,
 					       "plane %d%c", plane + 2, pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
-					       possible_crtcs, &intel_sprite_plane_funcs,
+					       possible_crtcs, plane_funcs,
 					       plane_formats, num_plane_formats,
 					       modifiers,
 					       DRM_PLANE_TYPE_OVERLAY,

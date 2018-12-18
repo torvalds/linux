@@ -100,7 +100,7 @@ ATOMIC_OP(xor)
  *
  * This is often used through atomic_inc_not_zero()
  */
-static inline int __atomic_add_unless(atomic_t *v, int a, int u)
+static inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
 	int old, tmp;
 
@@ -119,7 +119,7 @@ static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 
 	return old;
 }
-#define __atomic_add_unless	__atomic_add_unless
+#define atomic_fetch_add_unless	atomic_fetch_add_unless
 
 #include <asm-generic/atomic.h>
 

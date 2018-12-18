@@ -120,7 +120,7 @@ A typical out of bounds access report looks like this::
 
 The header of the report discribe what kind of bug happened and what kind of
 access caused it. It's followed by the description of the accessed slub object
-(see 'SLUB Debug output' section in Documentation/vm/slub.txt for details) and
+(see 'SLUB Debug output' section in Documentation/vm/slub.rst for details) and
 the description of the accessed memory page.
 
 In the last section the report shows memory state around the accessed address.

@@ -43,6 +43,29 @@
 #include "bios_parser_interface.h"
 
 #include "bios_parser_common.h"
+
+/* Temporarily add in defines until ObjectID.h patch is updated in a few days */
+#ifndef GENERIC_OBJECT_ID_BRACKET_LAYOUT
+#define GENERIC_OBJECT_ID_BRACKET_LAYOUT          0x05
+#endif /* GENERIC_OBJECT_ID_BRACKET_LAYOUT */
+
+#ifndef GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID1
+#define GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID1	\
+	(GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+	GRAPH_OBJECT_ENUM_ID1 << ENUM_ID_SHIFT |\
+	GENERIC_OBJECT_ID_BRACKET_LAYOUT << OBJECT_ID_SHIFT)
+#endif /* GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID1 */
+
+#ifndef GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2
+#define GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2	\
+	(GRAPH_OBJECT_TYPE_GENERIC << OBJECT_TYPE_SHIFT |\
+	GRAPH_OBJECT_ENUM_ID2 << ENUM_ID_SHIFT |\
+	GENERIC_OBJECT_ID_BRACKET_LAYOUT << OBJECT_ID_SHIFT)
+#endif /* GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2 */
+
+#define DC_LOGGER \
+	bp->base.ctx->logger
+
 #define LAST_RECORD_TYPE 0xff
 #define SMU9_SYSPLL0_ID  0
 
@@ -70,6 +93,10 @@ static enum bp_result get_firmware_info_v3_1(
 	struct bios_parser *bp,
 	struct dc_firmware_info *info);
 
+static enum bp_result get_firmware_info_v3_2(
+	struct bios_parser *bp,
+	struct dc_firmware_info *info);
+
 static struct atom_hpd_int_record *get_hpd_record(struct bios_parser *bp,
 		struct atom_display_object_path_v2 *object);
 
@@ -81,7 +108,6 @@ static struct atom_encoder_caps_record *get_encoder_cap_record(
 #define BIOS_IMAGE_SIZE_UNIT 512
 
 #define DATA_TABLES(table) (bp->master_data_tbl->listOfdatatables.table)
-
 
 static void destruct(struct bios_parser *bp)
 {
@@ -652,7 +678,7 @@ static enum bp_result bios_parser_get_gpio_pin_info(
 		return BP_RESULT_BADBIOSTABLE;
 
 	if (sizeof(struct atom_common_table_header) +
-			sizeof(struct atom_gpio_pin_lut_v2_1)
+			sizeof(struct atom_gpio_pin_assignment)
 			> le16_to_cpu(header->table_header.structuresize))
 		return BP_RESULT_BADBIOSTABLE;
 
@@ -1321,8 +1347,13 @@ static enum bp_result bios_parser_get_firmware_info(
 		case 3:
 			switch (revision.minor) {
 			case 1:
-			case 2:
 				result = get_firmware_info_v3_1(bp, info);
+				break;
+			case 2:
+				result = get_firmware_info_v3_2(bp, info);
+				break;
+			case 3:
+				result = get_firmware_info_v3_2(bp, info);
 				break;
 			default:
 				break;
@@ -1378,6 +1409,84 @@ static enum bp_result get_firmware_info_v3_1(
 		/* VBIOS gives in 10KHz */
 		info->smu_gpu_pll_output_freq =
 				bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
+	}
+
+	return BP_RESULT_OK;
+}
+
+static enum bp_result get_firmware_info_v3_2(
+	struct bios_parser *bp,
+	struct dc_firmware_info *info)
+{
+	struct atom_firmware_info_v3_2 *firmware_info;
+	struct atom_display_controller_info_v4_1 *dce_info = NULL;
+	struct atom_common_table_header *header;
+	struct atom_data_revision revision;
+	struct atom_smu_info_v3_2 *smu_info_v3_2 = NULL;
+	struct atom_smu_info_v3_3 *smu_info_v3_3 = NULL;
+
+	if (!info)
+		return BP_RESULT_BADINPUT;
+
+	firmware_info = GET_IMAGE(struct atom_firmware_info_v3_2,
+			DATA_TABLES(firmwareinfo));
+
+	dce_info = GET_IMAGE(struct atom_display_controller_info_v4_1,
+			DATA_TABLES(dce_info));
+
+	if (!firmware_info || !dce_info)
+		return BP_RESULT_BADBIOSTABLE;
+
+	memset(info, 0, sizeof(*info));
+
+	header = GET_IMAGE(struct atom_common_table_header,
+					DATA_TABLES(smu_info));
+	get_atom_data_table_revision(header, &revision);
+
+	if (revision.minor == 2) {
+		/* Vega12 */
+		smu_info_v3_2 = GET_IMAGE(struct atom_smu_info_v3_2,
+							DATA_TABLES(smu_info));
+
+		if (!smu_info_v3_2)
+			return BP_RESULT_BADBIOSTABLE;
+
+		info->default_engine_clk = smu_info_v3_2->bootup_dcefclk_10khz * 10;
+	} else if (revision.minor == 3) {
+		/* Vega20 */
+		smu_info_v3_3 = GET_IMAGE(struct atom_smu_info_v3_3,
+							DATA_TABLES(smu_info));
+
+		if (!smu_info_v3_3)
+			return BP_RESULT_BADBIOSTABLE;
+
+		info->default_engine_clk = smu_info_v3_3->bootup_dcefclk_10khz * 10;
+	}
+
+	 // We need to convert from 10KHz units into KHz units.
+	info->default_memory_clk = firmware_info->bootup_mclk_in10khz * 10;
+
+	 /* 27MHz for Vega10 & Vega12; 100MHz for Vega20 */
+	info->pll_info.crystal_frequency = dce_info->dce_refclk_10khz * 10;
+	/* Hardcode frequency if BIOS gives no DCE Ref Clk */
+	if (info->pll_info.crystal_frequency == 0) {
+		if (revision.minor == 2)
+			info->pll_info.crystal_frequency = 27000;
+		else if (revision.minor == 3)
+			info->pll_info.crystal_frequency = 100000;
+	}
+	/*dp_phy_ref_clk is not correct for atom_display_controller_info_v4_2, but we don't use it*/
+	info->dp_phy_ref_clk     = dce_info->dpphy_refclk_10khz * 10;
+	info->i2c_engine_ref_clk = dce_info->i2c_engine_refclk_10khz * 10;
+
+	/* Get GPU PLL VCO Clock */
+	if (bp->cmd_tbl.get_smu_clock_info != NULL) {
+		if (revision.minor == 2)
+			info->smu_gpu_pll_output_freq =
+					bp->cmd_tbl.get_smu_clock_info(bp, SMU9_SYSPLL0_ID) * 10;
+		else if (revision.minor == 3)
+			info->smu_gpu_pll_output_freq =
+					bp->cmd_tbl.get_smu_clock_info(bp, SMU11_SYSPLL3_0_ID) * 10;
 	}
 
 	return BP_RESULT_OK;
@@ -1767,6 +1876,198 @@ static struct integrated_info *bios_parser_create_integrated_info(
 	return NULL;
 }
 
+static enum bp_result update_slot_layout_info(
+	struct dc_bios *dcb,
+	unsigned int i,
+	struct slot_layout_info *slot_layout_info)
+{
+	unsigned int record_offset;
+	unsigned int j;
+	struct atom_display_object_path_v2 *object;
+	struct atom_bracket_layout_record *record;
+	struct atom_common_record_header *record_header;
+	enum bp_result result;
+	struct bios_parser *bp;
+	struct object_info_table *tbl;
+	struct display_object_info_table_v1_4 *v1_4;
+
+	record = NULL;
+	record_header = NULL;
+	result = BP_RESULT_NORECORD;
+
+	bp = BP_FROM_DCB(dcb);
+	tbl = &bp->object_info_tbl;
+	v1_4 = tbl->v1_4;
+
+	object = &v1_4->display_path[i];
+	record_offset = (unsigned int)
+		(object->disp_recordoffset) +
+		(unsigned int)(bp->object_info_tbl_offset);
+
+	for (;;) {
+
+		record_header = (struct atom_common_record_header *)
+			GET_IMAGE(struct atom_common_record_header,
+			record_offset);
+		if (record_header == NULL) {
+			result = BP_RESULT_BADBIOSTABLE;
+			break;
+		}
+
+		/* the end of the list */
+		if (record_header->record_type == 0xff ||
+			record_header->record_size == 0)	{
+			break;
+		}
+
+		if (record_header->record_type ==
+			ATOM_BRACKET_LAYOUT_RECORD_TYPE &&
+			sizeof(struct atom_bracket_layout_record)
+			<= record_header->record_size) {
+			record = (struct atom_bracket_layout_record *)
+				(record_header);
+			result = BP_RESULT_OK;
+			break;
+		}
+
+		record_offset += record_header->record_size;
+	}
+
+	/* return if the record not found */
+	if (result != BP_RESULT_OK)
+		return result;
+
+	/* get slot sizes */
+	slot_layout_info->length = record->bracketlen;
+	slot_layout_info->width = record->bracketwidth;
+
+	/* get info for each connector in the slot */
+	slot_layout_info->num_of_connectors = record->conn_num;
+	for (j = 0; j < slot_layout_info->num_of_connectors; ++j) {
+		slot_layout_info->connectors[j].connector_type =
+			(enum connector_layout_type)
+			(record->conn_info[j].connector_type);
+		switch (record->conn_info[j].connector_type) {
+		case CONNECTOR_TYPE_DVI_D:
+			slot_layout_info->connectors[j].connector_type =
+				CONNECTOR_LAYOUT_TYPE_DVI_D;
+			slot_layout_info->connectors[j].length =
+				CONNECTOR_SIZE_DVI;
+			break;
+
+		case CONNECTOR_TYPE_HDMI:
+			slot_layout_info->connectors[j].connector_type =
+				CONNECTOR_LAYOUT_TYPE_HDMI;
+			slot_layout_info->connectors[j].length =
+				CONNECTOR_SIZE_HDMI;
+			break;
+
+		case CONNECTOR_TYPE_DISPLAY_PORT:
+			slot_layout_info->connectors[j].connector_type =
+				CONNECTOR_LAYOUT_TYPE_DP;
+			slot_layout_info->connectors[j].length =
+				CONNECTOR_SIZE_DP;
+			break;
+
+		case CONNECTOR_TYPE_MINI_DISPLAY_PORT:
+			slot_layout_info->connectors[j].connector_type =
+				CONNECTOR_LAYOUT_TYPE_MINI_DP;
+			slot_layout_info->connectors[j].length =
+				CONNECTOR_SIZE_MINI_DP;
+			break;
+
+		default:
+			slot_layout_info->connectors[j].connector_type =
+				CONNECTOR_LAYOUT_TYPE_UNKNOWN;
+			slot_layout_info->connectors[j].length =
+				CONNECTOR_SIZE_UNKNOWN;
+		}
+
+		slot_layout_info->connectors[j].position =
+			record->conn_info[j].position;
+		slot_layout_info->connectors[j].connector_id =
+			object_id_from_bios_object_id(
+				record->conn_info[j].connectorobjid);
+	}
+	return result;
+}
+
+
+static enum bp_result get_bracket_layout_record(
+	struct dc_bios *dcb,
+	unsigned int bracket_layout_id,
+	struct slot_layout_info *slot_layout_info)
+{
+	unsigned int i;
+	struct bios_parser *bp = BP_FROM_DCB(dcb);
+	enum bp_result result;
+	struct object_info_table *tbl;
+	struct display_object_info_table_v1_4 *v1_4;
+
+	if (slot_layout_info == NULL) {
+		DC_LOG_DETECTION_EDID_PARSER("Invalid slot_layout_info\n");
+		return BP_RESULT_BADINPUT;
+	}
+	tbl = &bp->object_info_tbl;
+	v1_4 = tbl->v1_4;
+
+	result = BP_RESULT_NORECORD;
+	for (i = 0; i < v1_4->number_of_path; ++i)	{
+
+		if (bracket_layout_id ==
+			v1_4->display_path[i].display_objid) {
+			result = update_slot_layout_info(dcb, i,
+				slot_layout_info);
+			break;
+		}
+	}
+	return result;
+}
+
+static enum bp_result bios_get_board_layout_info(
+	struct dc_bios *dcb,
+	struct board_layout_info *board_layout_info)
+{
+	unsigned int i;
+	struct bios_parser *bp;
+	enum bp_result record_result;
+
+	const unsigned int slot_index_to_vbios_id[MAX_BOARD_SLOTS] = {
+		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID1,
+		GENERICOBJECT_BRACKET_LAYOUT_ENUM_ID2,
+		0, 0
+	};
+
+	bp = BP_FROM_DCB(dcb);
+	if (board_layout_info == NULL) {
+		DC_LOG_DETECTION_EDID_PARSER("Invalid board_layout_info\n");
+		return BP_RESULT_BADINPUT;
+	}
+
+	board_layout_info->num_of_slots = 0;
+
+	for (i = 0; i < MAX_BOARD_SLOTS; ++i) {
+		record_result = get_bracket_layout_record(dcb,
+			slot_index_to_vbios_id[i],
+			&board_layout_info->slots[i]);
+
+		if (record_result == BP_RESULT_NORECORD && i > 0)
+			break; /* no more slots present in bios */
+		else if (record_result != BP_RESULT_OK)
+			return record_result;  /* fail */
+
+		++board_layout_info->num_of_slots;
+	}
+
+	/* all data is valid */
+	board_layout_info->is_number_of_slots_valid = 1;
+	board_layout_info->is_slots_size_valid = 1;
+	board_layout_info->is_connector_offsets_valid = 1;
+	board_layout_info->is_connector_lengths_valid = 1;
+
+	return BP_RESULT_OK;
+}
+
 static const struct dc_vbios_funcs vbios_funcs = {
 	.get_connectors_number = bios_parser_get_connectors_number,
 
@@ -1838,6 +2139,8 @@ static const struct dc_vbios_funcs vbios_funcs = {
 	.bios_parser_destroy = firmware_parser_destroy,
 
 	.get_smu_clock_info = bios_parser_get_smu_clock_info,
+
+	.get_board_layout_info = bios_get_board_layout_info,
 };
 
 static bool bios_parser_construct(

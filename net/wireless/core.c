@@ -3,7 +3,7 @@
  *
  * Copyright 2006-2010		Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2015	Intel Deutschland GmbH
+ * Copyright 2015-2017	Intel Deutschland GmbH
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -94,6 +94,9 @@ static int cfg80211_dev_check_name(struct cfg80211_registered_device *rdev,
 	int wiphy_idx, taken = -1, digits;
 
 	ASSERT_RTNL();
+
+	if (strlen(newname) > NL80211_WIPHY_NAME_MAXLEN)
+		return -EINVAL;
 
 	/* prohibit calling the thing phy%d when %d is not its number */
 	sscanf(newname, PHY_NAME "%d%n", &wiphy_idx, &taken);
@@ -722,6 +725,10 @@ int wiphy_register(struct wiphy *wiphy)
 		    (!rdev->ops->set_pmk || !rdev->ops->del_pmk)))
 		return -EINVAL;
 
+	if (WARN_ON(!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_FW_ROAM) &&
+		    rdev->ops->update_connect_params))
+		return -EINVAL;
+
 	if (wiphy->addresses)
 		memcpy(wiphy->perm_addr, wiphy->addresses[0].addr, ETH_ALEN);
 
@@ -737,6 +744,8 @@ int wiphy_register(struct wiphy *wiphy)
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		u16 types = 0;
+
 		sband = wiphy->bands[band];
 		if (!sband)
 			continue;
@@ -779,6 +788,23 @@ int wiphy_register(struct wiphy *wiphy)
 			sband->channels[i].orig_mpwr =
 				sband->channels[i].max_power;
 			sband->channels[i].band = band;
+		}
+
+		for (i = 0; i < sband->n_iftype_data; i++) {
+			const struct ieee80211_sband_iftype_data *iftd;
+
+			iftd = &sband->iftype_data[i];
+
+			if (WARN_ON(!iftd->types_mask))
+				return -EINVAL;
+			if (WARN_ON(types & iftd->types_mask))
+				return -EINVAL;
+
+			/* at least one piece of information must be present */
+			if (WARN_ON(!iftd->he_cap.has_he))
+				return -EINVAL;
+
+			types |= iftd->types_mask;
 		}
 
 		have_band = true;
@@ -1005,6 +1031,7 @@ void cfg80211_unregister_wdev(struct wireless_dev *wdev)
 	nl80211_notify_iface(rdev, wdev, NL80211_CMD_DEL_INTERFACE);
 
 	list_del_rcu(&wdev->list);
+	synchronize_rcu();
 	rdev->devlist_generation++;
 
 	switch (wdev->iftype) {

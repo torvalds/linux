@@ -26,9 +26,6 @@ extern unsigned long tb_ticks_per_usec;
 extern unsigned long tb_ticks_per_sec;
 extern struct clock_event_device decrementer_clockevent;
 
-struct rtc_time;
-extern void to_tm(int tim, struct rtc_time * tm);
-extern void tick_broadcast_ipi_handler(void);
 
 extern void generic_calibrate_decr(void);
 extern void hdec_interrupt(struct pt_regs *regs);
@@ -195,14 +192,6 @@ extern u64 mulhdu(u64, u64);
 
 extern void div128_by_32(u64 dividend_high, u64 dividend_low,
 			 unsigned divisor, struct div_result *dr);
-
-/* Used to store Processor Utilization register (purr) values */
-
-struct cpu_usage {
-        u64 current_tb;  /* Holds the current purr register values */
-};
-
-DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
 
 extern void secondary_cpu_time_init(void);
 extern void __init time_init(void);

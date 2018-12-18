@@ -22,13 +22,9 @@ Audio Function Calls
     audio-set-bypass-mode
     audio-channel-select
     audio-bilingual-channel-select
-    audio-get-pts
     audio-get-status
     audio-get-capabilities
     audio-clear-buffer
     audio-set-id
     audio-set-mixer
     audio-set-streamtype
-    audio-set-ext-id
-    audio-set-attributes
-    audio-set-karaoke

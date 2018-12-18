@@ -11,6 +11,10 @@ Optional properties:
  - trans-gpios = <gpio-descriptor>;	: GPIO for voltage translator enable
  - mux-gpios = <gpio-descriptor>;	: GPIO for pin multiplexing with other
                                           functions (eg, external FSI masters)
+ - no-gpio-delays;			: Don't add extra delays between GPIO
+                                          accesses. This is useful when the HW
+					  GPIO block is running at a low enough
+					  frequency.
 
 Examples:
 

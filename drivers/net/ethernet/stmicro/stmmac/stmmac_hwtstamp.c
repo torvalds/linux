@@ -24,13 +24,13 @@
 #include "common.h"
 #include "stmmac_ptp.h"
 
-static void stmmac_config_hw_tstamping(void __iomem *ioaddr, u32 data)
+static void config_hw_tstamping(void __iomem *ioaddr, u32 data)
 {
 	writel(data, ioaddr + PTP_TCR);
 }
 
-static u32 stmmac_config_sub_second_increment(void __iomem *ioaddr,
-					      u32 ptp_clock, int gmac4)
+static void config_sub_second_increment(void __iomem *ioaddr,
+		u32 ptp_clock, int gmac4, u32 *ssinc)
 {
 	u32 value = readl(ioaddr + PTP_TCR);
 	unsigned long data;
@@ -57,10 +57,11 @@ static u32 stmmac_config_sub_second_increment(void __iomem *ioaddr,
 
 	writel(reg_value, ioaddr + PTP_SSIR);
 
-	return data;
+	if (ssinc)
+		*ssinc = data;
 }
 
-static int stmmac_init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
+static int init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 {
 	int limit;
 	u32 value;
@@ -85,7 +86,7 @@ static int stmmac_init_systime(void __iomem *ioaddr, u32 sec, u32 nsec)
 	return 0;
 }
 
-static int stmmac_config_addend(void __iomem *ioaddr, u32 addend)
+static int config_addend(void __iomem *ioaddr, u32 addend)
 {
 	u32 value;
 	int limit;
@@ -109,8 +110,8 @@ static int stmmac_config_addend(void __iomem *ioaddr, u32 addend)
 	return 0;
 }
 
-static int stmmac_adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
-				 int add_sub, int gmac4)
+static int adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
+		int add_sub, int gmac4)
 {
 	u32 value;
 	int limit;
@@ -152,7 +153,7 @@ static int stmmac_adjust_systime(void __iomem *ioaddr, u32 sec, u32 nsec,
 	return 0;
 }
 
-static u64 stmmac_get_systime(void __iomem *ioaddr)
+static void get_systime(void __iomem *ioaddr, u64 *systime)
 {
 	u64 ns;
 
@@ -161,14 +162,15 @@ static u64 stmmac_get_systime(void __iomem *ioaddr)
 	/* Get the TSS and convert sec time value to nanosecond */
 	ns += readl(ioaddr + PTP_STSR) * 1000000000ULL;
 
-	return ns;
+	if (systime)
+		*systime = ns;
 }
 
 const struct stmmac_hwtimestamp stmmac_ptp = {
-	.config_hw_tstamping = stmmac_config_hw_tstamping,
-	.init_systime = stmmac_init_systime,
-	.config_sub_second_increment = stmmac_config_sub_second_increment,
-	.config_addend = stmmac_config_addend,
-	.adjust_systime = stmmac_adjust_systime,
-	.get_systime = stmmac_get_systime,
+	.config_hw_tstamping = config_hw_tstamping,
+	.init_systime = init_systime,
+	.config_sub_second_increment = config_sub_second_increment,
+	.config_addend = config_addend,
+	.adjust_systime = adjust_systime,
+	.get_systime = get_systime,
 };

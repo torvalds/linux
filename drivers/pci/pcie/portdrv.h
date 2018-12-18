@@ -11,8 +11,6 @@
 
 #include <linux/compiler.h>
 
-extern bool pcie_ports_native;
-
 /* Service Type */
 #define PCIE_PORT_SERVICE_PME_SHIFT	0	/* Power Management Event */
 #define PCIE_PORT_SERVICE_PME		(1 << PCIE_PORT_SERVICE_PME_SHIFT)
@@ -52,6 +50,7 @@ struct pcie_port_service_driver {
 	int (*probe) (struct pcie_device *dev);
 	void (*remove) (struct pcie_device *dev);
 	int (*suspend) (struct pcie_device *dev);
+	int (*resume_noirq) (struct pcie_device *dev);
 	int (*resume) (struct pcie_device *dev);
 
 	/* Device driver may resume normal operations */
@@ -84,6 +83,7 @@ extern struct bus_type pcie_port_bus_type;
 int pcie_port_device_register(struct pci_dev *dev);
 #ifdef CONFIG_PM
 int pcie_port_device_suspend(struct device *dev);
+int pcie_port_device_resume_noirq(struct device *dev);
 int pcie_port_device_resume(struct device *dev);
 #endif
 void pcie_port_device_remove(struct pci_dev *dev);
@@ -112,4 +112,22 @@ static inline bool pcie_pme_no_msi(void) { return false; }
 static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
+#ifdef CONFIG_ACPI_APEI
+int pcie_aer_get_firmware_first(struct pci_dev *pci_dev);
+#else
+static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
+{
+	if (pci_dev->__aer_firmware_first_valid)
+		return pci_dev->__aer_firmware_first;
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_PCIEAER
+irqreturn_t aer_irq(int irq, void *context);
+#endif
+
+struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,
+							u32 service);
+struct device *pcie_port_find_device(struct pci_dev *dev, u32 service);
 #endif /* _PORTDRV_H_ */

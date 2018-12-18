@@ -50,7 +50,7 @@ void dot11d_init(struct rtllib_device *ieee)
 
 	pDot11dInfo->State = DOT11D_STATE_NONE;
 	pDot11dInfo->CountryIeLen = 0;
-	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER+1);
+	memset(pDot11dInfo->channel_map, 0, MAX_CHANNEL_NUMBER + 1);
 	memset(pDot11dInfo->MaxTxPwrDbmList, 0xFF, MAX_CHANNEL_NUMBER + 1);
 	RESET_CIE_WATCHDOG(ieee);
 }

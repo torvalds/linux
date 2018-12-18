@@ -33,7 +33,7 @@
  * characters (which are also widely used in C strings).
  */
 int
-usb_gadget_get_string (struct usb_gadget_strings *table, int id, u8 *buf)
+usb_gadget_get_string (const struct usb_gadget_strings *table, int id, u8 *buf)
 {
 	struct usb_string	*s;
 	int			len;

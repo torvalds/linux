@@ -609,22 +609,6 @@ static int __rpc_rmdir(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-int rpc_rmdir(struct dentry *dentry)
-{
-	struct dentry *parent;
-	struct inode *dir;
-	int error;
-
-	parent = dget_parent(dentry);
-	dir = d_inode(parent);
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	error = __rpc_rmdir(dir, dentry);
-	inode_unlock(dir);
-	dput(parent);
-	return error;
-}
-EXPORT_SYMBOL_GPL(rpc_rmdir);
-
 static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int ret;
@@ -1375,6 +1359,7 @@ rpc_gssd_dummy_depopulate(struct dentry *pipe_dentry)
 	struct dentry *clnt_dir = pipe_dentry->d_parent;
 	struct dentry *gssd_dir = clnt_dir->d_parent;
 
+	dget(pipe_dentry);
 	__rpc_rmpipe(d_inode(clnt_dir), pipe_dentry);
 	__rpc_depopulate(clnt_dir, gssd_dummy_info_file, 0, 1);
 	__rpc_depopulate(gssd_dir, gssd_dummy_clnt_dir, 0, 1);

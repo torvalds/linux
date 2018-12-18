@@ -17,6 +17,10 @@ REQUIREMENTS
 *  The kernel must have veth support available, as a veth pair is created
    prior to running the tests.
 
+*  The kernel must have the appropriate infrastructure enabled to run all tdc
+   unit tests. See the config file in this directory for minimum required
+   features. As new tests will be added, config options list will be updated.
+
 *  All tc-related features being tested must be built in or available as
    modules.  To check what is required in current setup run:
    ./tdc.py -c
@@ -109,8 +113,8 @@ COMMAND LINE ARGUMENTS
 Run tdc.py -h to see the full list of available arguments.
 
 usage: tdc.py [-h] [-p PATH] [-D DIR [DIR ...]] [-f FILE [FILE ...]]
-              [-c [CATG [CATG ...]]] [-e ID [ID ...]] [-l] [-s] [-i] [-v]
-              [-d DEVICE] [-n NS] [-V]
+              [-c [CATG [CATG ...]]] [-e ID [ID ...]] [-l] [-s] [-i] [-v] [-N]
+              [-d DEVICE] [-P] [-n] [-V]
 
 Linux TC unit tests
 
@@ -118,8 +122,10 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PATH, --path PATH  The full path to the tc executable to use
   -v, --verbose         Show the commands that are being run
+  -N, --notap           Suppress tap results for command under test
   -d DEVICE, --device DEVICE
                         Execute the test case in flower category
+  -P, --pause           Pause execution just before post-suite stage
 
 selection:
   select which test cases: files plus directories; filtered by categories
@@ -146,10 +152,10 @@ action:
   -i, --id              Generate ID numbers for new test cases
 
 netns:
-  options for nsPlugin(run commands in net namespace)
+  options for nsPlugin (run commands in net namespace)
 
-  -n NS, --namespace NS
-                        Run commands in namespace NS
+  -n, --namespace
+                        Run commands in namespace as specified in tdc_config.py
 
 valgrind:
   options for valgrindPlugin (run command under test under Valgrind)

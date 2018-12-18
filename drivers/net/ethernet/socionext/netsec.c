@@ -232,8 +232,7 @@
 #define NETSEC_EEPROM_PKT_ME_ADDRESS		0x20
 #define NETSEC_EEPROM_PKT_ME_SIZE		0x24
 
-#define DESC_NUM	128
-#define NAPI_BUDGET	(DESC_NUM / 2)
+#define DESC_NUM	256
 
 #define DESC_SZ	sizeof(struct netsec_de)
 
@@ -642,8 +641,6 @@ static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
 
 	tmp_skb = netsec_alloc_skb(priv, &td);
 
-	dma_rmb();
-
 	tail = dring->tail;
 
 	if (!tmp_skb) {
@@ -656,8 +653,6 @@ static struct sk_buff *netsec_get_rx_pkt_data(struct netsec_priv *priv,
 
 	/* move tail ahead */
 	dring->tail = (dring->tail + 1) % DESC_NUM;
-
-	dring->pkt_cnt--;
 
 	return skb;
 }
@@ -731,25 +726,24 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 	struct netsec_desc_ring *dring = &priv->desc_ring[NETSEC_RING_RX];
 	struct net_device *ndev = priv->ndev;
 	struct netsec_rx_pkt_info rx_info;
-	int done = 0, rx_num = 0;
+	int done = 0;
 	struct netsec_desc desc;
 	struct sk_buff *skb;
 	u16 len;
 
 	while (done < budget) {
-		if (!rx_num) {
-			rx_num = netsec_read(priv, NETSEC_REG_NRM_RX_PKTCNT);
-			dring->pkt_cnt += rx_num;
+		u16 idx = dring->tail;
+		struct netsec_de *de = dring->vaddr + (DESC_SZ * idx);
 
-			/* move head 'rx_num' */
-			dring->head = (dring->head + rx_num) % DESC_NUM;
+		if (de->attr & (1U << NETSEC_RX_PKT_OWN_FIELD))
+			break;
 
-			rx_num = dring->pkt_cnt;
-			if (!rx_num)
-				break;
-		}
+		/* This  barrier is needed to keep us from reading
+		 * any other fields out of the netsec_de until we have
+		 * verified the descriptor has been written back
+		 */
+		dma_rmb();
 		done++;
-		rx_num--;
 		skb = netsec_get_rx_pkt_data(priv, &rx_info, &desc, &len);
 		if (unlikely(!skb) || rx_info.err_flag) {
 			netif_err(priv, drv, priv->ndev,
@@ -780,11 +774,9 @@ static int netsec_process_rx(struct netsec_priv *priv, int budget)
 static int netsec_napi_poll(struct napi_struct *napi, int budget)
 {
 	struct netsec_priv *priv;
-	struct net_device *ndev;
 	int tx, rx, done, todo;
 
 	priv = container_of(napi, struct netsec_priv, napi);
-	ndev = priv->ndev;
 
 	todo = budget;
 	do {
@@ -973,7 +965,7 @@ static int netsec_alloc_dring(struct netsec_priv *priv, enum ring_id id)
 		goto err;
 	}
 
-	dring->desc = kzalloc(DESC_NUM * sizeof(*dring->desc), GFP_KERNEL);
+	dring->desc = kcalloc(DESC_NUM, sizeof(*dring->desc), GFP_KERNEL);
 	if (!dring->desc) {
 		ret = -ENOMEM;
 		goto err;
@@ -1057,7 +1049,8 @@ static int netsec_netdev_load_microcode(struct netsec_priv *priv)
 	return 0;
 }
 
-static int netsec_reset_hardware(struct netsec_priv *priv)
+static int netsec_reset_hardware(struct netsec_priv *priv,
+				 bool load_ucode)
 {
 	u32 value;
 	int err;
@@ -1102,11 +1095,14 @@ static int netsec_reset_hardware(struct netsec_priv *priv)
 	netsec_write(priv, NETSEC_REG_NRM_RX_CONFIG,
 		     1 << NETSEC_REG_DESC_ENDIAN);
 
-	err = netsec_netdev_load_microcode(priv);
-	if (err) {
-		netif_err(priv, probe, priv->ndev,
-			  "%s: failed to load microcode (%d)\n", __func__, err);
-		return err;
+	if (load_ucode) {
+		err = netsec_netdev_load_microcode(priv);
+		if (err) {
+			netif_err(priv, probe, priv->ndev,
+				  "%s: failed to load microcode (%d)\n",
+				  __func__, err);
+			return err;
+		}
 	}
 
 	/* start DMA engines */
@@ -1313,8 +1309,8 @@ static int netsec_netdev_open(struct net_device *ndev)
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
-	/* Enable RX intr. */
-	netsec_write(priv, NETSEC_REG_INTEN_SET, NETSEC_IRQ_RX);
+	/* Enable TX+RX intr. */
+	netsec_write(priv, NETSEC_REG_INTEN_SET, NETSEC_IRQ_RX | NETSEC_IRQ_TX);
 
 	return 0;
 err3:
@@ -1328,6 +1324,7 @@ err1:
 
 static int netsec_netdev_stop(struct net_device *ndev)
 {
+	int ret;
 	struct netsec_priv *priv = netdev_priv(ndev);
 
 	netif_stop_queue(priv->ndev);
@@ -1343,12 +1340,14 @@ static int netsec_netdev_stop(struct net_device *ndev)
 	netsec_uninit_pkt_dring(priv, NETSEC_RING_TX);
 	netsec_uninit_pkt_dring(priv, NETSEC_RING_RX);
 
+	ret = netsec_reset_hardware(priv, false);
+
 	phy_stop(ndev->phydev);
 	phy_disconnect(ndev->phydev);
 
 	pm_runtime_put_sync(priv->dev);
 
-	return 0;
+	return ret;
 }
 
 static int netsec_netdev_init(struct net_device *ndev)
@@ -1364,7 +1363,7 @@ static int netsec_netdev_init(struct net_device *ndev)
 	if (ret)
 		goto err1;
 
-	ret = netsec_reset_hardware(priv);
+	ret = netsec_reset_hardware(priv, true);
 	if (ret)
 		goto err2;
 
@@ -1659,7 +1658,7 @@ static int netsec_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "hardware revision %d.%d\n",
 		 hw_ver >> 16, hw_ver & 0xffff);
 
-	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_BUDGET);
+	netif_napi_add(ndev, &priv->napi, netsec_napi_poll, NAPI_POLL_WEIGHT);
 
 	ndev->netdev_ops = &netsec_netdev_ops;
 	ndev->ethtool_ops = &netsec_ethtool_ops;
@@ -1674,8 +1673,8 @@ static int netsec_probe(struct platform_device *pdev)
 	if (ret)
 		goto unreg_napi;
 
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)))
-		dev_warn(&pdev->dev, "Failed to enable 64-bit DMA\n");
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(40)))
+		dev_warn(&pdev->dev, "Failed to set DMA mask\n");
 
 	ret = register_netdev(ndev);
 	if (ret) {

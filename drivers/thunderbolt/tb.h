@@ -67,6 +67,7 @@ struct tb_switch_nvm {
  * @no_nvm_upgrade: Prevent NVM upgrade of this switch
  * @safe_mode: The switch is in safe-mode
  * @boot: Whether the switch was already authorized on boot or not
+ * @rpm: The switch supports runtime PM
  * @authorized: Whether the switch is authorized by user or policy
  * @work: Work used to automatically authorize a switch
  * @security_level: Switch supported security level
@@ -101,6 +102,7 @@ struct tb_switch {
 	bool no_nvm_upgrade;
 	bool safe_mode;
 	bool boot;
+	bool rpm;
 	unsigned int authorized;
 	struct work_struct work;
 	enum tb_security_level security_level;
@@ -199,6 +201,8 @@ struct tb_path {
  * @resume_noirq: Connection manager specific resume_noirq
  * @suspend: Connection manager specific suspend
  * @complete: Connection manager specific complete
+ * @runtime_suspend: Connection manager specific runtime_suspend
+ * @runtime_resume: Connection manager specific runtime_resume
  * @handle_event: Handle thunderbolt event
  * @get_boot_acl: Get boot ACL list
  * @set_boot_acl: Set boot ACL list
@@ -217,6 +221,8 @@ struct tb_cm_ops {
 	int (*resume_noirq)(struct tb *tb);
 	int (*suspend)(struct tb *tb);
 	void (*complete)(struct tb *tb);
+	int (*runtime_suspend)(struct tb *tb);
+	int (*runtime_resume)(struct tb *tb);
 	void (*handle_event)(struct tb *tb, enum tb_cfg_pkg_type,
 			     const void *buf, size_t size);
 	int (*get_boot_acl)(struct tb *tb, uuid_t *uuids, size_t nuuids);
@@ -234,6 +240,8 @@ static inline void *tb_priv(struct tb *tb)
 {
 	return (void *)tb->privdata;
 }
+
+#define TB_AUTOSUSPEND_DELAY		15000 /* ms */
 
 /* helper functions & macros */
 
@@ -364,6 +372,8 @@ int tb_domain_suspend_noirq(struct tb *tb);
 int tb_domain_resume_noirq(struct tb *tb);
 int tb_domain_suspend(struct tb *tb);
 void tb_domain_complete(struct tb *tb);
+int tb_domain_runtime_suspend(struct tb *tb);
+int tb_domain_runtime_resume(struct tb *tb);
 int tb_domain_approve_switch(struct tb *tb, struct tb_switch *sw);
 int tb_domain_approve_switch_key(struct tb *tb, struct tb_switch *sw);
 int tb_domain_challenge_switch_key(struct tb *tb, struct tb_switch *sw);

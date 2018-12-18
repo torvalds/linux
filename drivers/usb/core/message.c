@@ -269,10 +269,11 @@ static void sg_clean(struct usb_sg_request *io)
 
 static void sg_complete(struct urb *urb)
 {
+	unsigned long flags;
 	struct usb_sg_request *io = urb->context;
 	int status = urb->status;
 
-	spin_lock(&io->lock);
+	spin_lock_irqsave(&io->lock, flags);
 
 	/* In 2.5 we require hcds' endpoint queues not to progress after fault
 	 * reports, until the completion callback (this!) returns.  That lets
@@ -306,7 +307,7 @@ static void sg_complete(struct urb *urb)
 		 * unlink pending urbs so they won't rx/tx bad data.
 		 * careful: unlink can sometimes be synchronous...
 		 */
-		spin_unlock(&io->lock);
+		spin_unlock_irqrestore(&io->lock, flags);
 		for (i = 0, found = 0; i < io->entries; i++) {
 			if (!io->urbs[i])
 				continue;
@@ -323,7 +324,7 @@ static void sg_complete(struct urb *urb)
 			} else if (urb == io->urbs[i])
 				found = 1;
 		}
-		spin_lock(&io->lock);
+		spin_lock_irqsave(&io->lock, flags);
 	}
 
 	/* on the last completion, signal usb_sg_wait() */
@@ -332,7 +333,7 @@ static void sg_complete(struct urb *urb)
 	if (!io->count)
 		complete(&io->complete);
 
-	spin_unlock(&io->lock);
+	spin_unlock_irqrestore(&io->lock, flags);
 }
 
 
@@ -390,7 +391,7 @@ int usb_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 	}
 
 	/* initialize all the urbs we'll use */
-	io->urbs = kmalloc(io->entries * sizeof(*io->urbs), mem_flags);
+	io->urbs = kmalloc_array(io->entries, sizeof(*io->urbs), mem_flags);
 	if (!io->urbs)
 		goto nomem;
 
@@ -940,7 +941,7 @@ int usb_set_isoch_delay(struct usb_device *dev)
 	return usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			USB_REQ_SET_ISOCH_DELAY,
 			USB_DIR_OUT | USB_TYPE_STANDARD | USB_RECIP_DEVICE,
-			cpu_to_le16(dev->hub_delay), 0, NULL, 0,
+			dev->hub_delay, 0, NULL, 0,
 			USB_CTRL_SET_TIMEOUT);
 }
 
@@ -1824,8 +1825,8 @@ int usb_set_configuration(struct usb_device *dev, int configuration)
 	n = nintf = 0;
 	if (cp) {
 		nintf = cp->desc.bNumInterfaces;
-		new_interfaces = kmalloc(nintf * sizeof(*new_interfaces),
-				GFP_NOIO);
+		new_interfaces = kmalloc_array(nintf, sizeof(*new_interfaces),
+					       GFP_NOIO);
 		if (!new_interfaces)
 			return -ENOMEM;
 

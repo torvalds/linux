@@ -88,14 +88,11 @@ int  ib_device_register_sysfs(struct ib_device *device,
 						   u8, struct kobject *));
 void ib_device_unregister_sysfs(struct ib_device *device);
 
-void ib_cache_setup(void);
-void ib_cache_cleanup(void);
-
 typedef void (*roce_netdev_callback)(struct ib_device *device, u8 port,
 	      struct net_device *idev, void *cookie);
 
-typedef int (*roce_netdev_filter)(struct ib_device *device, u8 port,
-	     struct net_device *idev, void *cookie);
+typedef bool (*roce_netdev_filter)(struct ib_device *device, u8 port,
+				   struct net_device *idev, void *cookie);
 
 void ib_enum_roce_netdev(struct ib_device *ib_dev,
 			 roce_netdev_filter filter,

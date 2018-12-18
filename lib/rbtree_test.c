@@ -247,7 +247,7 @@ static int __init rbtree_test_init(void)
 	cycles_t time1, time2, time;
 	struct rb_node *node;
 
-	nodes = kmalloc(nnodes * sizeof(*nodes), GFP_KERNEL);
+	nodes = kmalloc_array(nnodes, sizeof(*nodes), GFP_KERNEL);
 	if (!nodes)
 		return -ENOMEM;
 

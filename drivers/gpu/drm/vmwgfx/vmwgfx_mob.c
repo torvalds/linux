@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2012-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2012-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -225,7 +225,7 @@ static void vmw_takedown_otable_base(struct vmw_private *dev_priv,
 		ret = ttm_bo_reserve(bo, false, true, NULL);
 		BUG_ON(ret != 0);
 
-		vmw_fence_single_bo(bo, NULL);
+		vmw_bo_fence_single(bo, NULL);
 		ttm_bo_unreserve(bo);
 	}
 
@@ -362,7 +362,7 @@ static void vmw_otable_batch_takedown(struct vmw_private *dev_priv,
 	ret = ttm_bo_reserve(bo, false, true, NULL);
 	BUG_ON(ret != 0);
 
-	vmw_fence_single_bo(bo, NULL);
+	vmw_bo_fence_single(bo, NULL);
 	ttm_bo_unreserve(bo);
 
 	ttm_bo_unref(&batch->otable_bo);
@@ -620,7 +620,7 @@ void vmw_mob_unbind(struct vmw_private *dev_priv,
 		vmw_fifo_commit(dev_priv, sizeof(*cmd));
 	}
 	if (bo) {
-		vmw_fence_single_bo(bo, NULL);
+		vmw_bo_fence_single(bo, NULL);
 		ttm_bo_unreserve(bo);
 	}
 	vmw_fifo_resource_dec(dev_priv);

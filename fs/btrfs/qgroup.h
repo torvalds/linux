@@ -141,24 +141,19 @@ struct btrfs_qgroup {
 #define QGROUP_RELEASE		(1<<1)
 #define QGROUP_FREE		(1<<2)
 
-int btrfs_quota_enable(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info);
-int btrfs_quota_disable(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info);
+int btrfs_quota_enable(struct btrfs_fs_info *fs_info);
+int btrfs_quota_disable(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
 void btrfs_qgroup_rescan_resume(struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info,
 				     bool interruptible);
-int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
-int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
-int btrfs_create_qgroup(struct btrfs_trans_handle *trans,
-			struct btrfs_fs_info *fs_info, u64 qgroupid);
-int btrfs_remove_qgroup(struct btrfs_trans_handle *trans,
-			      struct btrfs_fs_info *fs_info, u64 qgroupid);
-int btrfs_limit_qgroup(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info, u64 qgroupid,
+int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
+			      u64 dst);
+int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans, u64 src,
+			      u64 dst);
+int btrfs_create_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
+int btrfs_remove_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid);
+int btrfs_limit_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid,
 		       struct btrfs_qgroup_limit *limit);
 int btrfs_read_qgroup_config(struct btrfs_fs_info *fs_info);
 void btrfs_free_qgroup_config(struct btrfs_fs_info *fs_info);
@@ -217,9 +212,8 @@ int btrfs_qgroup_trace_extent_post(struct btrfs_fs_info *fs_info,
  * Return <0 for error, like memory allocation failure or invalid parameter
  * (NULL trans)
  */
-int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
-		struct btrfs_fs_info *fs_info, u64 bytenr, u64 num_bytes,
-		gfp_t gfp_flag);
+int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans, u64 bytenr,
+			      u64 num_bytes, gfp_t gfp_flag);
 
 /*
  * Inform qgroup to trace all leaf items of data
@@ -228,7 +222,6 @@ int btrfs_qgroup_trace_extent(struct btrfs_trans_handle *trans,
  * Return <0 for error(ENOMEM)
  */
 int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
-				  struct btrfs_fs_info *fs_info,
 				  struct extent_buffer *eb);
 /*
  * Inform qgroup to trace a whole subtree, including all its child tree
@@ -241,20 +234,15 @@ int btrfs_qgroup_trace_leaf_items(struct btrfs_trans_handle *trans,
  * Return <0 for error(ENOMEM or tree search error)
  */
 int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
 			       struct extent_buffer *root_eb,
 			       u64 root_gen, int root_level);
-int
-btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans,
-			    struct btrfs_fs_info *fs_info,
-			    u64 bytenr, u64 num_bytes,
-			    struct ulist *old_roots, struct ulist *new_roots);
+int btrfs_qgroup_account_extent(struct btrfs_trans_handle *trans, u64 bytenr,
+				u64 num_bytes, struct ulist *old_roots,
+				struct ulist *new_roots);
 int btrfs_qgroup_account_extents(struct btrfs_trans_handle *trans);
-int btrfs_run_qgroups(struct btrfs_trans_handle *trans,
-		      struct btrfs_fs_info *fs_info);
-int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans,
-			 struct btrfs_fs_info *fs_info, u64 srcid, u64 objectid,
-			 struct btrfs_qgroup_inherit *inherit);
+int btrfs_run_qgroups(struct btrfs_trans_handle *trans);
+int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
+			 u64 objectid, struct btrfs_qgroup_inherit *inherit);
 void btrfs_qgroup_free_refroot(struct btrfs_fs_info *fs_info,
 			       u64 ref_root, u64 num_bytes,
 			       enum btrfs_qgroup_rsv_type type);

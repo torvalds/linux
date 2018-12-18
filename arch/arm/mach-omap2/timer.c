@@ -50,7 +50,6 @@
 #include "omap_device.h"
 #include <plat/counter-32k.h>
 #include <clocksource/timer-ti-dm.h>
-#include "omap-pm.h"
 
 #include "soc.h"
 #include "common.h"
@@ -70,6 +69,9 @@ static struct clock_event_device clockevent_gpt;
 
 /* Clockevent hwmod for am335x and am437x suspend */
 static struct omap_hwmod *clockevent_gpt_hwmod;
+
+/* Clockesource hwmod for am437x suspend */
+static struct omap_hwmod *clocksource_gpt_hwmod;
 
 #ifdef CONFIG_SOC_HAS_REALTIME_COUNTER
 static unsigned long arch_timer_freq;
@@ -168,6 +170,43 @@ static const struct of_device_id omap_timer_match[] __initconst = {
 	{ }
 };
 
+static int omap_timer_add_disabled_property(struct device_node *np)
+{
+	struct property *prop;
+
+	prop = kzalloc(sizeof(*prop), GFP_KERNEL);
+	if (!prop)
+		return -ENOMEM;
+
+	prop->name = "status";
+	prop->value = "disabled";
+	prop->length = strlen(prop->value);
+
+	return of_add_property(np, prop);
+}
+
+static int omap_timer_update_dt(struct device_node *np)
+{
+	int error = 0;
+
+	if (!of_device_is_compatible(np, "ti,omap-counter32k")) {
+		error = omap_timer_add_disabled_property(np);
+		if (error)
+			return error;
+	}
+
+	/* No parent interconnect target module configured? */
+	if (of_get_property(np, "ti,hwmods", NULL))
+		return error;
+
+	/* Tag parent interconnect target module disabled */
+	error = omap_timer_add_disabled_property(np->parent);
+	if (error)
+		return error;
+
+	return 0;
+}
+
 /**
  * omap_get_timer_dt - get a timer using device-tree
  * @match	- device-tree match structure for matching a device type
@@ -183,6 +222,7 @@ static struct device_node * __init omap_get_timer_dt(const struct of_device_id *
 						     const char *property)
 {
 	struct device_node *np;
+	int error;
 
 	for_each_matching_node(np, match) {
 		if (!of_device_is_available(np))
@@ -197,17 +237,9 @@ static struct device_node * __init omap_get_timer_dt(const struct of_device_id *
 				  of_get_property(np, "ti,timer-secure", NULL)))
 			continue;
 
-		if (!of_device_is_compatible(np, "ti,omap-counter32k")) {
-			struct property *prop;
+		error = omap_timer_update_dt(np);
+		WARN(error, "%s: Could not update dt: %i\n", __func__, error);
 
-			prop = kzalloc(sizeof(*prop), GFP_KERNEL);
-			if (!prop)
-				return NULL;
-			prop->name = "status";
-			prop->value = "disabled";
-			prop->length = strlen(prop->value);
-			of_add_property(np, prop);
-		}
 		return np;
 	}
 
@@ -266,8 +298,12 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 		return -ENODEV;
 
 	of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
-	if (!oh_name)
-		return -ENODEV;
+	if (!oh_name) {
+		of_property_read_string_index(np->parent, "ti,hwmods", 0,
+					      &oh_name);
+		if (!oh_name)
+			return -ENODEV;
+	}
 
 	timer->irq = irq_of_parse_and_map(np, 0);
 	if (!timer->irq)
@@ -419,9 +455,12 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 	if (!np)
 		return -ENODEV;
 
-	of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
-	if (!oh_name)
-		return -ENODEV;
+	of_property_read_string_index(np->parent, "ti,hwmods", 0, &oh_name);
+	if (!oh_name) {
+		of_property_read_string_index(np, "ti,hwmods", 0, &oh_name);
+		if (!oh_name)
+			return -ENODEV;
+	}
 
 	/*
 	 * First check hwmod data is available for sync32k counter
@@ -442,6 +481,26 @@ static int __init __maybe_unused omap2_sync32k_clocksource_init(void)
 	return ret;
 }
 
+static unsigned int omap2_gptimer_clksrc_load;
+
+static void omap2_gptimer_clksrc_suspend(struct clocksource *unused)
+{
+	omap2_gptimer_clksrc_load =
+		__omap_dm_timer_read_counter(&clksrc, OMAP_TIMER_NONPOSTED);
+
+	omap_hwmod_idle(clocksource_gpt_hwmod);
+}
+
+static void omap2_gptimer_clksrc_resume(struct clocksource *unused)
+{
+	omap_hwmod_enable(clocksource_gpt_hwmod);
+
+	__omap_dm_timer_load_start(&clksrc,
+				   OMAP_TIMER_CTRL_ST | OMAP_TIMER_CTRL_AR,
+				   omap2_gptimer_clksrc_load,
+				   OMAP_TIMER_NONPOSTED);
+}
+
 static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 						  const char *fck_source,
 						  const char *property)
@@ -454,6 +513,15 @@ static void __init omap2_gptimer_clocksource_init(int gptimer_id,
 	res = omap_dm_timer_init_one(&clksrc, fck_source, property,
 				     &clocksource_gpt.name,
 				     OMAP_TIMER_NONPOSTED);
+
+	if (soc_is_am43xx()) {
+		clocksource_gpt.suspend = omap2_gptimer_clksrc_suspend;
+		clocksource_gpt.resume = omap2_gptimer_clksrc_resume;
+
+		clocksource_gpt_hwmod =
+			omap_hwmod_lookup(clocksource_gpt.name);
+	}
+
 	BUG_ON(res);
 
 	__omap_dm_timer_load_start(&clksrc,

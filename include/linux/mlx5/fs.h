@@ -89,9 +89,14 @@ struct mlx5_flow_destination {
 	enum mlx5_flow_destination_type	type;
 	union {
 		u32			tir_num;
+		u32			ft_num;
 		struct mlx5_flow_table	*ft;
-		u32			vport_num;
 		struct mlx5_fc		*counter;
+		struct {
+			u16		num;
+			u16		vhca_id;
+			bool		vhca_id_valid;
+		} vport;
 	};
 };
 
@@ -148,6 +153,8 @@ struct mlx5_fs_vlan {
         u8  prio;
 };
 
+#define MLX5_FS_VLAN_DEPTH	2
+
 struct mlx5_flow_act {
 	u32 action;
 	bool has_flow_tag;
@@ -155,7 +162,8 @@ struct mlx5_flow_act {
 	u32 encap_id;
 	u32 modify_id;
 	uintptr_t esp_id;
-	struct mlx5_fs_vlan vlan;
+	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
+	struct ib_counters *counters;
 };
 
 #define MLX5_DECLARE_FLOW_ACT(name) \
@@ -170,7 +178,7 @@ mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 		    struct mlx5_flow_spec *spec,
 		    struct mlx5_flow_act *flow_act,
 		    struct mlx5_flow_destination *dest,
-		    int dest_num);
+		    int num_dest);
 void mlx5_del_flow_rules(struct mlx5_flow_handle *fr);
 
 int mlx5_modify_rule_destination(struct mlx5_flow_handle *handler,
@@ -182,6 +190,9 @@ struct mlx5_fc *mlx5_fc_create(struct mlx5_core_dev *dev, bool aging);
 void mlx5_fc_destroy(struct mlx5_core_dev *dev, struct mlx5_fc *counter);
 void mlx5_fc_query_cached(struct mlx5_fc *counter,
 			  u64 *bytes, u64 *packets, u64 *lastuse);
+int mlx5_fc_query(struct mlx5_core_dev *dev, struct mlx5_fc *counter,
+		  u64 *packets, u64 *bytes);
+
 int mlx5_fs_add_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn);
 int mlx5_fs_remove_rx_underlay_qpn(struct mlx5_core_dev *dev, u32 underlay_qpn);
 

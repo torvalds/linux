@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -422,7 +410,7 @@ out_error:
 }
 
 /*
- * Reserve log space and return a ticket corresponding the reservation.
+ * Reserve log space and return a ticket corresponding to the reservation.
  *
  * Each reservation is going to reserve extra space for a log record header.
  * When writes happen to the on-disk log, we don't subtract the length of the
@@ -838,6 +826,88 @@ xfs_log_mount_cancel(
  * deallocation must not be done until source-end.
  */
 
+/* Actually write the unmount record to disk. */
+static void
+xfs_log_write_unmount_record(
+	struct xfs_mount	*mp)
+{
+	/* the data section must be 32 bit size aligned */
+	struct xfs_unmount_log_format magic = {
+		.magic = XLOG_UNMOUNT_TYPE,
+	};
+	struct xfs_log_iovec reg = {
+		.i_addr = &magic,
+		.i_len = sizeof(magic),
+		.i_type = XLOG_REG_TYPE_UNMOUNT,
+	};
+	struct xfs_log_vec vec = {
+		.lv_niovecs = 1,
+		.lv_iovecp = &reg,
+	};
+	struct xlog		*log = mp->m_log;
+	struct xlog_in_core	*iclog;
+	struct xlog_ticket	*tic = NULL;
+	xfs_lsn_t		lsn;
+	uint			flags = XLOG_UNMOUNT_TRANS;
+	int			error;
+
+	error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
+	if (error)
+		goto out_err;
+
+	/*
+	 * If we think the summary counters are bad, clear the unmount header
+	 * flag in the unmount record so that the summary counters will be
+	 * recalculated during log recovery at next mount.  Refer to
+	 * xlog_check_unmount_rec for more details.
+	 */
+	if (XFS_TEST_ERROR((mp->m_flags & XFS_MOUNT_BAD_SUMMARY), mp,
+			XFS_ERRTAG_FORCE_SUMMARY_RECALC)) {
+		xfs_alert(mp, "%s: will fix summary counters at next mount",
+				__func__);
+		flags &= ~XLOG_UNMOUNT_TRANS;
+	}
+
+	/* remove inited flag, and account for space used */
+	tic->t_flags = 0;
+	tic->t_curr_res -= sizeof(magic);
+	error = xlog_write(log, &vec, tic, &lsn, NULL, flags);
+	/*
+	 * At this point, we're umounting anyway, so there's no point in
+	 * transitioning log state to IOERROR. Just continue...
+	 */
+out_err:
+	if (error)
+		xfs_alert(mp, "%s: unmount record failed", __func__);
+
+	spin_lock(&log->l_icloglock);
+	iclog = log->l_iclog;
+	atomic_inc(&iclog->ic_refcnt);
+	xlog_state_want_sync(log, iclog);
+	spin_unlock(&log->l_icloglock);
+	error = xlog_state_release_iclog(log, iclog);
+
+	spin_lock(&log->l_icloglock);
+	switch (iclog->ic_state) {
+	default:
+		if (!XLOG_FORCED_SHUTDOWN(log)) {
+			xlog_wait(&iclog->ic_force_wait, &log->l_icloglock);
+			break;
+		}
+		/* fall through */
+	case XLOG_STATE_ACTIVE:
+	case XLOG_STATE_DIRTY:
+		spin_unlock(&log->l_icloglock);
+		break;
+	}
+
+	if (tic) {
+		trace_xfs_log_umount_write(log, tic);
+		xlog_ungrant_log_space(log, tic);
+		xfs_log_ticket_put(tic);
+	}
+}
+
 /*
  * Unmount record used to have a string "Unmount filesystem--" in the
  * data section where the "Un" was really a magic number (XLOG_UNMOUNT_TYPE).
@@ -854,8 +924,6 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 #ifdef DEBUG
 	xlog_in_core_t	 *first_iclog;
 #endif
-	xlog_ticket_t	*tic = NULL;
-	xfs_lsn_t	 lsn;
 	int		 error;
 
 	/*
@@ -882,66 +950,7 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	} while (iclog != first_iclog);
 #endif
 	if (! (XLOG_FORCED_SHUTDOWN(log))) {
-		error = xfs_log_reserve(mp, 600, 1, &tic, XFS_LOG, 0);
-		if (!error) {
-			/* the data section must be 32 bit size aligned */
-			struct {
-			    uint16_t magic;
-			    uint16_t pad1;
-			    uint32_t pad2; /* may as well make it 64 bits */
-			} magic = {
-				.magic = XLOG_UNMOUNT_TYPE,
-			};
-			struct xfs_log_iovec reg = {
-				.i_addr = &magic,
-				.i_len = sizeof(magic),
-				.i_type = XLOG_REG_TYPE_UNMOUNT,
-			};
-			struct xfs_log_vec vec = {
-				.lv_niovecs = 1,
-				.lv_iovecp = &reg,
-			};
-
-			/* remove inited flag, and account for space used */
-			tic->t_flags = 0;
-			tic->t_curr_res -= sizeof(magic);
-			error = xlog_write(log, &vec, tic, &lsn,
-					   NULL, XLOG_UNMOUNT_TRANS);
-			/*
-			 * At this point, we're umounting anyway,
-			 * so there's no point in transitioning log state
-			 * to IOERROR. Just continue...
-			 */
-		}
-
-		if (error)
-			xfs_alert(mp, "%s: unmount record failed", __func__);
-
-
-		spin_lock(&log->l_icloglock);
-		iclog = log->l_iclog;
-		atomic_inc(&iclog->ic_refcnt);
-		xlog_state_want_sync(log, iclog);
-		spin_unlock(&log->l_icloglock);
-		error = xlog_state_release_iclog(log, iclog);
-
-		spin_lock(&log->l_icloglock);
-		if (!(iclog->ic_state == XLOG_STATE_ACTIVE ||
-		      iclog->ic_state == XLOG_STATE_DIRTY)) {
-			if (!XLOG_FORCED_SHUTDOWN(log)) {
-				xlog_wait(&iclog->ic_force_wait,
-							&log->l_icloglock);
-			} else {
-				spin_unlock(&log->l_icloglock);
-			}
-		} else {
-			spin_unlock(&log->l_icloglock);
-		}
-		if (tic) {
-			trace_xfs_log_umount_write(log, tic);
-			xlog_ungrant_log_space(log, tic);
-			xfs_log_ticket_put(tic);
-		}
+		xfs_log_write_unmount_record(mp);
 	} else {
 		/*
 		 * We're already in forced_shutdown mode, couldn't
@@ -1047,6 +1056,7 @@ xfs_log_item_init(
 	INIT_LIST_HEAD(&item->li_ail);
 	INIT_LIST_HEAD(&item->li_cil);
 	INIT_LIST_HEAD(&item->li_bio_list);
+	INIT_LIST_HEAD(&item->li_trans);
 }
 
 /*
@@ -1640,8 +1650,8 @@ xlog_grant_push_ail(
 	 * log, and 256 blocks.
 	 */
 	free_threshold = BTOBB(need_bytes);
-	free_threshold = MAX(free_threshold, (log->l_logBBsize >> 2));
-	free_threshold = MAX(free_threshold, 256);
+	free_threshold = max(free_threshold, (log->l_logBBsize >> 2));
+	free_threshold = max(free_threshold, 256);
 	if (free_blocks >= free_threshold)
 		return;
 
@@ -2110,10 +2120,10 @@ xlog_print_tic_res(
  */
 void
 xlog_print_trans(
-	struct xfs_trans		*tp)
+	struct xfs_trans	*tp)
 {
-	struct xfs_mount		*mp = tp->t_mountp;
-	struct xfs_log_item_desc	*lidp;
+	struct xfs_mount	*mp = tp->t_mountp;
+	struct xfs_log_item	*lip;
 
 	/* dump core transaction and ticket info */
 	xfs_warn(mp, "transaction summary:");
@@ -2124,15 +2134,14 @@ xlog_print_trans(
 	xlog_print_tic_res(mp, tp->t_ticket);
 
 	/* dump each log item */
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item	*lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec	*lv = lip->li_lv;
 		struct xfs_log_iovec	*vec;
 		int			i;
 
 		xfs_warn(mp, "log item: ");
 		xfs_warn(mp, "  type	= 0x%x", lip->li_type);
-		xfs_warn(mp, "  flags	= 0x%x", lip->li_flags);
+		xfs_warn(mp, "  flags	= 0x%lx", lip->li_flags);
 		if (!lv)
 			continue;
 		xfs_warn(mp, "  niovecs	= %d", lv->lv_niovecs);
@@ -4094,4 +4103,13 @@ xfs_log_check_lsn(
 	}
 
 	return valid;
+}
+
+bool
+xfs_log_in_recovery(
+	struct xfs_mount	*mp)
+{
+	struct xlog		*log = mp->m_log;
+
+	return log->l_flags & XLOG_ACTIVE_RECOVERY;
 }

@@ -491,6 +491,7 @@ static void dn_nsp_disc_conf(struct sock *sk, struct sk_buff *skb)
 		break;
 	case DN_RUN:
 		sk->sk_shutdown |= SHUTDOWN_MASK;
+		/* fall through */
 	case DN_CC:
 		scp->state = DN_CN;
 	}
@@ -911,4 +912,3 @@ free_out:
 
 	return NET_RX_SUCCESS;
 }
-

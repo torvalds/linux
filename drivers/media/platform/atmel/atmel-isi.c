@@ -1106,23 +1106,20 @@ static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 	struct device_node *ep = NULL;
 	struct device_node *remote;
 
-	while (1) {
-		ep = of_graph_get_next_endpoint(node, ep);
-		if (!ep)
-			return -EINVAL;
+	ep = of_graph_get_next_endpoint(node, ep);
+	if (!ep)
+		return -EINVAL;
 
-		remote = of_graph_get_remote_port_parent(ep);
-		if (!remote) {
-			of_node_put(ep);
-			return -EINVAL;
-		}
+	remote = of_graph_get_remote_port_parent(ep);
+	of_node_put(ep);
+	if (!remote)
+		return -EINVAL;
 
-		/* Remote node to connect */
-		isi->entity.node = remote;
-		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-		isi->entity.asd.match.fwnode = of_fwnode_handle(remote);
-		return 0;
-	}
+	/* Remote node to connect */
+	isi->entity.node = remote;
+	isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+	isi->entity.asd.match.fwnode = of_fwnode_handle(remote);
+	return 0;
 }
 
 static int isi_graph_init(struct atmel_isi *isi)

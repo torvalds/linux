@@ -2,7 +2,7 @@
 #ifndef _PASEMI_PASEMI_H
 #define _PASEMI_PASEMI_H
 
-extern unsigned long pas_get_boot_time(void);
+extern time64_t pas_get_boot_time(void);
 extern void pas_pci_init(void);
 extern void pas_pci_irq_fixup(struct pci_dev *dev);
 extern void pas_pci_dma_dev_setup(struct pci_dev *dev);

@@ -250,6 +250,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(TX_CMD, iwl_mvm_rx_tx_cmd, RX_HANDLER_SYNC),
 	RX_HANDLER(BA_NOTIF, iwl_mvm_rx_ba_notif, RX_HANDLER_SYNC),
 
+	RX_HANDLER_GRP(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF,
+		       iwl_mvm_tlc_update_notif, RX_HANDLER_SYNC),
+
 	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif,
 		   RX_HANDLER_ASYNC_LOCKED),
 	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif,
@@ -445,6 +448,8 @@ static const struct iwl_hcmd_names iwl_mvm_data_path_names[] = {
 	HCMD_NAME(DQA_ENABLE_CMD),
 	HCMD_NAME(UPDATE_MU_GROUPS_CMD),
 	HCMD_NAME(TRIGGER_RX_QUEUES_NOTIF_CMD),
+	HCMD_NAME(STA_HE_CTXT_CMD),
+	HCMD_NAME(RFH_QUEUE_CONFIG_CMD),
 	HCMD_NAME(STA_PM_NOTIF),
 	HCMD_NAME(MU_GROUP_MGMT_NOTIF),
 	HCMD_NAME(RX_QUEUES_NOTIFICATION),
@@ -617,7 +622,11 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	if (iwl_mvm_has_new_rx_api(mvm)) {
 		op_mode->ops = &iwl_mvm_ops_mq;
-		trans->rx_mpdu_cmd_hdr_size = sizeof(struct iwl_rx_mpdu_desc);
+		trans->rx_mpdu_cmd_hdr_size =
+			(trans->cfg->device_family >=
+			 IWL_DEVICE_FAMILY_22560) ?
+			sizeof(struct iwl_rx_mpdu_desc) :
+			IWL_RX_DESC_SIZE_V1;
 	} else {
 		op_mode->ops = &iwl_mvm_ops;
 		trans->rx_mpdu_cmd_hdr_size =
@@ -667,6 +676,12 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	SET_IEEE80211_DEV(mvm->hw, mvm->trans->dev);
 
+	spin_lock_init(&mvm->tcm.lock);
+	INIT_DELAYED_WORK(&mvm->tcm.work, iwl_mvm_tcm_work);
+	mvm->tcm.ts = jiffies;
+	mvm->tcm.ll_ts = jiffies;
+	mvm->tcm.uapsd_nonagg_ts = jiffies;
+
 	INIT_DELAYED_WORK(&mvm->cs_tx_unblock_dwork, iwl_mvm_tx_unblock_dwork);
 
 	/*
@@ -694,11 +709,17 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	}
 
 	/* the hardware splits the A-MSDU */
-	if (mvm->cfg->mq_rx_supported)
+	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22560) {
+		trans_cfg.rx_buf_size = IWL_AMSDU_2K;
+		/* TODO: remove when balanced power mode is fw supported */
+		iwlmvm_mod_params.power_scheme = IWL_POWER_SCHEME_CAM;
+	} else if (mvm->cfg->mq_rx_supported) {
 		trans_cfg.rx_buf_size = IWL_AMSDU_4K;
+	}
 
 	trans->wide_cmd_header = true;
-	trans_cfg.bc_table_dword = true;
+	trans_cfg.bc_table_dword =
+		mvm->trans->cfg->device_family < IWL_DEVICE_FAMILY_22560;
 
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
@@ -729,6 +750,10 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	memcpy(trans->dbg_conf_tlv, mvm->fw->dbg_conf_tlv,
 	       sizeof(trans->dbg_conf_tlv));
 	trans->dbg_trigger_tlv = mvm->fw->dbg_trigger_tlv;
+	trans->dbg_dump_mask = mvm->fw->dbg_dump_mask;
+
+	trans->iml = mvm->fw->iml;
+	trans->iml_len = mvm->fw->iml_len;
 
 	/* set up notification wait support */
 	iwl_notification_wait_init(&mvm->notif_wait);
@@ -858,6 +883,8 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	kfree(mvm->nvm_data);
 	for (i = 0; i < NVM_MAX_NUM_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
+
+	cancel_delayed_work_sync(&mvm->tcm.work);
 
 	iwl_mvm_tof_clean(mvm);
 
@@ -989,10 +1016,8 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 		list_add_tail(&entry->list, &mvm->async_handlers_list);
 		spin_unlock(&mvm->async_handlers_lock);
 		schedule_work(&mvm->async_handlers_wk);
-		return;
+		break;
 	}
-
-	iwl_fwrt_handle_notification(&mvm->fwrt, rxb);
 }
 
 static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
@@ -1026,8 +1051,6 @@ static void iwl_mvm_rx_mq(struct iwl_op_mode *op_mode,
 		iwl_mvm_rx_queue_notif(mvm, rxb, 0);
 	else if (cmd == WIDE_ID(LEGACY_GROUP, FRAME_RELEASE))
 		iwl_mvm_rx_frame_release(mvm, napi, rxb, 0);
-	else if (cmd == WIDE_ID(DATA_PATH_GROUP, TLC_MNG_UPDATE_NOTIF))
-		iwl_mvm_tlc_update_notif(mvm, pkt);
 	else
 		iwl_mvm_rx_common(mvm, rxb, pkt);
 }
@@ -1432,6 +1455,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 		mvm->d0i3_offloading = false;
 	}
 
+	iwl_mvm_pause_tcm(mvm, true);
 	/* make sure we have no running tx while configuring the seqno */
 	synchronize_net();
 
@@ -1615,6 +1639,7 @@ out:
 	/* the FW might have updated the regdomain */
 	iwl_mvm_update_changed_regdom(mvm);
 
+	iwl_mvm_resume_tcm(mvm);
 	iwl_mvm_unref(mvm, IWL_MVM_REF_EXIT_WORK);
 	mutex_unlock(&mvm->mutex);
 }

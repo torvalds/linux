@@ -1113,7 +1113,7 @@ route_lookup:
 			dst = NULL;
 			goto tx_err_link_failure;
 		}
-		if (t->parms.collect_md &&
+		if (t->parms.collect_md && ipv6_addr_any(&fl6->saddr) &&
 		    ipv6_dev_get_saddr(net, ip6_dst_idev(dst)->dev,
 				       &fl6->daddr, 0, &fl6->saddr))
 			goto tx_err_link_failure;
@@ -1133,12 +1133,8 @@ route_lookup:
 		max_headroom += 8;
 		mtu -= 8;
 	}
-	if (skb->protocol == htons(ETH_P_IPV6)) {
-		if (mtu < IPV6_MIN_MTU)
-			mtu = IPV6_MIN_MTU;
-	} else if (mtu < 576) {
-		mtu = 576;
-	}
+	mtu = max(mtu, skb->protocol == htons(ETH_P_IPV6) ?
+		       IPV6_MIN_MTU : IPV4_MIN_MTU);
 
 	skb_dst_update_pmtu(skb, mtu);
 	if (skb->len - t->tun_hlen - eth_hlen > mtu && !skb_is_gso(skb)) {
@@ -1255,6 +1251,7 @@ ip4ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		key = &tun_info->key;
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_proto = IPPROTO_IPIP;
+		fl6.saddr = key->u.ipv6.src;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
 		dsfield =  key->tos;
@@ -1326,6 +1323,7 @@ ip6ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 		key = &tun_info->key;
 		memset(&fl6, 0, sizeof(fl6));
 		fl6.flowi6_proto = IPPROTO_IPV6;
+		fl6.saddr = key->u.ipv6.src;
 		fl6.daddr = key->u.ipv6.dst;
 		fl6.flowlabel = key->label;
 		dsfield = key->tos;
@@ -1692,8 +1690,13 @@ int ip6_tnl_change_mtu(struct net_device *dev, int new_mtu)
 		if (new_mtu < ETH_MIN_MTU)
 			return -EINVAL;
 	}
-	if (new_mtu > 0xFFF8 - dev->hard_header_len)
-		return -EINVAL;
+	if (tnl->parms.proto == IPPROTO_IPV6 || tnl->parms.proto == 0) {
+		if (new_mtu > IP6_MAX_MTU - dev->hard_header_len)
+			return -EINVAL;
+	} else {
+		if (new_mtu > IP_MAX_MTU - dev->hard_header_len)
+			return -EINVAL;
+	}
 	dev->mtu = new_mtu;
 	return 0;
 }
@@ -1841,7 +1844,7 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	if (!(t->parms.flags & IP6_TNL_F_IGN_ENCAP_LIMIT))
 		dev->mtu -= 8;
 	dev->min_mtu = ETH_MIN_MTU;
-	dev->max_mtu = 0xFFF8 - dev->hard_header_len;
+	dev->max_mtu = IP6_MAX_MTU - dev->hard_header_len;
 
 	return 0;
 

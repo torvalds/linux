@@ -2094,7 +2094,8 @@ static int fore200e_alloc_rx_buf(struct fore200e *fore200e)
 	    DPRINTK(2, "rx buffers %d / %d are being allocated\n", scheme, magn);
 
 	    /* allocate the array of receive buffers */
-	    buffer = bsq->buffer = kzalloc(nbr * sizeof(struct buffer), GFP_KERNEL);
+	    buffer = bsq->buffer = kcalloc(nbr, sizeof(struct buffer),
+                                           GFP_KERNEL);
 
 	    if (buffer == NULL)
 		return -ENOMEM;

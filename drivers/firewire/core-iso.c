@@ -45,8 +45,8 @@ int fw_iso_buffer_alloc(struct fw_iso_buffer *buffer, int page_count)
 
 	buffer->page_count = 0;
 	buffer->page_count_mapped = 0;
-	buffer->pages = kmalloc(page_count * sizeof(buffer->pages[0]),
-				GFP_KERNEL);
+	buffer->pages = kmalloc_array(page_count, sizeof(buffer->pages[0]),
+				      GFP_KERNEL);
 	if (buffer->pages == NULL)
 		return -ENOMEM;
 

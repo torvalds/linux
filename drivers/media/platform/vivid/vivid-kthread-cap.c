@@ -477,7 +477,7 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 
 	/* Updates stream time, only update at the start of a new frame. */
 	if (dev->field_cap != V4L2_FIELD_ALTERNATE ||
-			(buf->vb.sequence & 1) == 0)
+			(dev->vid_cap_seq_count & 1) == 0)
 		dev->ms_vid_cap =
 			jiffies_to_msecs(jiffies - dev->jiffies_vid_cap);
 

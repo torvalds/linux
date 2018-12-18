@@ -25,8 +25,8 @@ static void __init efm32gg_cmu_init(struct device_node *np)
 	void __iomem *base;
 	struct clk_hw **hws;
 
-	clk_data = kzalloc(sizeof(*clk_data) +
-			   sizeof(*clk_data->hws) * CMU_MAX_CLKS, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, CMU_MAX_CLKS),
+			   GFP_KERNEL);
 
 	if (!clk_data)
 		return;

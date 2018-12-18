@@ -49,7 +49,7 @@
 #include <asm/debugreg.h>
 #include <asm/kvm_para.h>
 #include <asm/irq_remapping.h>
-#include <asm/nospec-branch.h>
+#include <asm/spec-ctrl.h>
 
 #include <asm/virtext.h>
 #include "trace.h"
@@ -213,6 +213,12 @@ struct vcpu_svm {
 	} host;
 
 	u64 spec_ctrl;
+	/*
+	 * Contains guest-controlled bits of VIRT_SPEC_CTRL, which will be
+	 * translated into the appropriate L2_CFG bits on the host to
+	 * perform speculative control.
+	 */
+	u64 virt_spec_ctrl;
 
 	u32 *msrpm;
 
@@ -995,7 +1001,9 @@ static int svm_cpu_init(int cpu)
 
 	if (svm_sev_enabled()) {
 		r = -ENOMEM;
-		sd->sev_vmcbs = kmalloc((max_sev_asid + 1) * sizeof(void *), GFP_KERNEL);
+		sd->sev_vmcbs = kmalloc_array(max_sev_asid + 1,
+					      sizeof(void *),
+					      GFP_KERNEL);
 		if (!sd->sev_vmcbs)
 			goto err_1;
 	}
@@ -1762,7 +1770,10 @@ static struct page **sev_pin_memory(struct kvm *kvm, unsigned long uaddr,
 	unsigned long npages, npinned, size;
 	unsigned long locked, lock_limit;
 	struct page **pages;
-	int first, last;
+	unsigned long first, last;
+
+	if (ulen == 0 || uaddr + ulen < uaddr)
+		return NULL;
 
 	/* Calculate number of pages. */
 	first = (uaddr & PAGE_MASK) >> PAGE_SHIFT;
@@ -1849,13 +1860,13 @@ static void __unregister_enc_region_locked(struct kvm *kvm,
 
 static struct kvm *svm_vm_alloc(void)
 {
-	struct kvm_svm *kvm_svm = kzalloc(sizeof(struct kvm_svm), GFP_KERNEL);
+	struct kvm_svm *kvm_svm = vzalloc(sizeof(struct kvm_svm));
 	return &kvm_svm->kvm;
 }
 
 static void svm_vm_free(struct kvm *kvm)
 {
-	kfree(to_kvm_svm(kvm));
+	vfree(to_kvm_svm(kvm));
 }
 
 static void sev_vm_destroy(struct kvm *kvm)
@@ -2060,6 +2071,7 @@ static void svm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 
 	vcpu->arch.microcode_version = 0x01000065;
 	svm->spec_ctrl = 0;
+	svm->virt_spec_ctrl = 0;
 
 	if (!init_event) {
 		svm->vcpu.arch.apic_base = APIC_DEFAULT_PHYS_BASE |
@@ -2872,7 +2884,6 @@ static void nested_svm_set_tdp_cr3(struct kvm_vcpu *vcpu,
 
 	svm->vmcb->control.nested_cr3 = __sme_set(root);
 	mark_dirty(svm->vmcb, VMCB_NPT);
-	svm_flush_tlb(vcpu, true);
 }
 
 static void nested_svm_inject_npf_exit(struct kvm_vcpu *vcpu,
@@ -4108,10 +4119,18 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_SPEC_CTRL:
 		if (!msr_info->host_initiated &&
-		    !guest_cpuid_has(vcpu, X86_FEATURE_IBRS))
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBRS) &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_SSBD))
 			return 1;
 
 		msr_info->data = svm->spec_ctrl;
+		break;
+	case MSR_AMD64_VIRT_SPEC_CTRL:
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_VIRT_SSBD))
+			return 1;
+
+		msr_info->data = svm->virt_spec_ctrl;
 		break;
 	case MSR_F15H_IC_CFG: {
 
@@ -4203,11 +4222,12 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		break;
 	case MSR_IA32_SPEC_CTRL:
 		if (!msr->host_initiated &&
-		    !guest_cpuid_has(vcpu, X86_FEATURE_IBRS))
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBRS) &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_SSBD))
 			return 1;
 
 		/* The STIBP bit doesn't fault even if it's not advertised */
-		if (data & ~(SPEC_CTRL_IBRS | SPEC_CTRL_STIBP))
+		if (data & ~(SPEC_CTRL_IBRS | SPEC_CTRL_STIBP | SPEC_CTRL_SSBD))
 			return 1;
 
 		svm->spec_ctrl = data;
@@ -4230,7 +4250,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		break;
 	case MSR_IA32_PRED_CMD:
 		if (!msr->host_initiated &&
-		    !guest_cpuid_has(vcpu, X86_FEATURE_IBPB))
+		    !guest_cpuid_has(vcpu, X86_FEATURE_AMD_IBPB))
 			return 1;
 
 		if (data & ~PRED_CMD_IBPB)
@@ -4243,6 +4263,16 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
 		if (is_guest_mode(vcpu))
 			break;
 		set_msr_interception(svm->msrpm, MSR_IA32_PRED_CMD, 0, 1);
+		break;
+	case MSR_AMD64_VIRT_SPEC_CTRL:
+		if (!msr->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_VIRT_SSBD))
+			return 1;
+
+		if (data & ~SPEC_CTRL_SSBD)
+			return 1;
+
+		svm->virt_spec_ctrl = data;
 		break;
 	case MSR_STAR:
 		svm->vmcb->save.star = data;
@@ -5036,7 +5066,7 @@ static void update_cr8_intercept(struct kvm_vcpu *vcpu, int tpr, int irr)
 		set_cr_intercept(svm, INTERCEPT_CR8_WRITE);
 }
 
-static void svm_set_virtual_x2apic_mode(struct kvm_vcpu *vcpu, bool set)
+static void svm_set_virtual_apic_mode(struct kvm_vcpu *vcpu)
 {
 	return;
 }
@@ -5404,6 +5434,13 @@ static void svm_flush_tlb(struct kvm_vcpu *vcpu, bool invalidate_gpa)
 		svm->asid_generation--;
 }
 
+static void svm_flush_tlb_gva(struct kvm_vcpu *vcpu, gva_t gva)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	invlpga(gva, svm->vmcb->control.asid);
+}
+
 static void svm_prepare_guest_switch(struct kvm_vcpu *vcpu)
 {
 }
@@ -5557,8 +5594,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	 * is no need to worry about the conditional branch over the wrmsr
 	 * being speculatively taken.
 	 */
-	if (svm->spec_ctrl)
-		native_wrmsrl(MSR_IA32_SPEC_CTRL, svm->spec_ctrl);
+	x86_spec_ctrl_set_guest(svm->spec_ctrl, svm->virt_spec_ctrl);
 
 	asm volatile (
 		"push %%" _ASM_BP "; \n\t"
@@ -5652,6 +5688,18 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 #endif
 		);
 
+	/* Eliminate branch target predictions from guest mode */
+	vmexit_fill_RSB();
+
+#ifdef CONFIG_X86_64
+	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
+#else
+	loadsegment(fs, svm->host.fs);
+#ifndef CONFIG_X86_32_LAZY_GS
+	loadsegment(gs, svm->host.gs);
+#endif
+#endif
+
 	/*
 	 * We do not use IBRS in the kernel. If this vCPU has used the
 	 * SPEC_CTRL MSR it may have left it on; save the value and
@@ -5670,20 +5718,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(!msr_write_intercepted(vcpu, MSR_IA32_SPEC_CTRL)))
 		svm->spec_ctrl = native_read_msr(MSR_IA32_SPEC_CTRL);
 
-	if (svm->spec_ctrl)
-		native_wrmsrl(MSR_IA32_SPEC_CTRL, 0);
-
-	/* Eliminate branch target predictions from guest mode */
-	vmexit_fill_RSB();
-
-#ifdef CONFIG_X86_64
-	wrmsrl(MSR_GS_BASE, svm->host.gs_base);
-#else
-	loadsegment(fs, svm->host.fs);
-#ifndef CONFIG_X86_32_LAZY_GS
-	loadsegment(gs, svm->host.gs);
-#endif
-#endif
+	x86_spec_ctrl_restore_host(svm->spec_ctrl, svm->virt_spec_ctrl);
 
 	reload_tss(vcpu);
 
@@ -5737,7 +5772,6 @@ static void svm_set_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 
 	svm->vmcb->save.cr3 = __sme_set(root);
 	mark_dirty(svm->vmcb, VMCB_CR);
-	svm_flush_tlb(vcpu, true);
 }
 
 static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
@@ -5750,8 +5784,6 @@ static void set_tdp_cr3(struct kvm_vcpu *vcpu, unsigned long root)
 	/* Also sync guest cr3 here in case we live migrate */
 	svm->vmcb->save.cr3 = kvm_read_cr3(vcpu);
 	mark_dirty(svm->vmcb, VMCB_CR);
-
-	svm_flush_tlb(vcpu, true);
 }
 
 static int is_disabled(void)
@@ -5786,7 +5818,7 @@ static bool svm_cpu_has_accelerated_tpr(void)
 	return false;
 }
 
-static bool svm_has_high_real_mode_segbase(void)
+static bool svm_has_emulated_msr(int index)
 {
 	return true;
 }
@@ -6925,6 +6957,9 @@ static int svm_register_enc_region(struct kvm *kvm,
 	if (!sev_guest(kvm))
 		return -ENOTTY;
 
+	if (range->addr > ULONG_MAX || range->size > ULONG_MAX)
+		return -EINVAL;
+
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
 	if (!region)
 		return -ENOMEM;
@@ -7012,7 +7047,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.hardware_enable = svm_hardware_enable,
 	.hardware_disable = svm_hardware_disable,
 	.cpu_has_accelerated_tpr = svm_cpu_has_accelerated_tpr,
-	.cpu_has_high_real_mode_segbase = svm_has_high_real_mode_segbase,
+	.has_emulated_msr = svm_has_emulated_msr,
 
 	.vcpu_create = svm_create_vcpu,
 	.vcpu_free = svm_free_vcpu,
@@ -7058,6 +7093,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.set_rflags = svm_set_rflags,
 
 	.tlb_flush = svm_flush_tlb,
+	.tlb_flush_gva = svm_flush_tlb_gva,
 
 	.run = svm_vcpu_run,
 	.handle_exit = handle_exit,
@@ -7076,7 +7112,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
 	.enable_nmi_window = enable_nmi_window,
 	.enable_irq_window = enable_irq_window,
 	.update_cr8_intercept = update_cr8_intercept,
-	.set_virtual_x2apic_mode = svm_set_virtual_x2apic_mode,
+	.set_virtual_apic_mode = svm_set_virtual_apic_mode,
 	.get_enable_apicv = svm_get_enable_apicv,
 	.refresh_apicv_exec_ctrl = svm_refresh_apicv_exec_ctrl,
 	.load_eoi_exitmap = svm_load_eoi_exitmap,

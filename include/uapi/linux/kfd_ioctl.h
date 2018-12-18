@@ -76,6 +76,12 @@ struct kfd_ioctl_update_queue_args {
 	__u32 queue_priority;	/* to KFD */
 };
 
+struct kfd_ioctl_set_cu_mask_args {
+	__u32 queue_id;		/* to KFD */
+	__u32 num_cu_mask;		/* to KFD */
+	__u64 cu_mask_ptr;		/* to KFD */
+};
+
 /* For kfd_ioctl_set_memory_policy_args.default_policy and alternate_policy */
 #define KFD_IOC_CACHE_POLICY_COHERENT 0
 #define KFD_IOC_CACHE_POLICY_NONCOHERENT 1
@@ -189,6 +195,15 @@ struct kfd_ioctl_dbg_wave_control_args {
 
 #define KFD_SIGNAL_EVENT_LIMIT			4096
 
+/* For kfd_event_data.hw_exception_data.reset_type. */
+#define KFD_HW_EXCEPTION_WHOLE_GPU_RESET	0
+#define KFD_HW_EXCEPTION_PER_ENGINE_RESET	1
+
+/* For kfd_event_data.hw_exception_data.reset_cause. */
+#define KFD_HW_EXCEPTION_GPU_HANG	0
+#define KFD_HW_EXCEPTION_ECC		1
+
+
 struct kfd_ioctl_create_event_args {
 	__u64 event_page_offset;	/* from KFD */
 	__u32 event_trigger_data;	/* from KFD - signal events only */
@@ -219,7 +234,7 @@ struct kfd_memory_exception_failure {
 	__u32 NotPresent;	/* Page not present or supervisor privilege */
 	__u32 ReadOnly;	/* Write access to a read-only page */
 	__u32 NoExecute;	/* Execute access to a page marked NX */
-	__u32 pad;
+	__u32 imprecise;	/* Can't determine the	exact fault address */
 };
 
 /* memory exception data*/
@@ -230,10 +245,19 @@ struct kfd_hsa_memory_exception_data {
 	__u32 pad;
 };
 
-/* Event data*/
+/* hw exception data */
+struct kfd_hsa_hw_exception_data {
+	uint32_t reset_type;
+	uint32_t reset_cause;
+	uint32_t memory_lost;
+	uint32_t gpu_id;
+};
+
+/* Event data */
 struct kfd_event_data {
 	union {
 		struct kfd_hsa_memory_exception_data memory_exception_data;
+		struct kfd_hsa_hw_exception_data hw_exception_data;
 	};				/* From KFD */
 	__u64 kfd_event_data_ext;	/* pointer to an extension structure
 					   for future exception types */
@@ -448,7 +472,10 @@ struct kfd_ioctl_unmap_memory_from_gpu_args {
 #define AMDKFD_IOC_UNMAP_MEMORY_FROM_GPU	\
 		AMDKFD_IOWR(0x19, struct kfd_ioctl_unmap_memory_from_gpu_args)
 
+#define AMDKFD_IOC_SET_CU_MASK		\
+		AMDKFD_IOW(0x1A, struct kfd_ioctl_set_cu_mask_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x1A
+#define AMDKFD_COMMAND_END		0x1B
 
 #endif

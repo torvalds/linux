@@ -380,6 +380,30 @@ static inline int vmptrld(uint64_t vmcs_pa)
 	return ret;
 }
 
+static inline int vmptrst(uint64_t *value)
+{
+	uint64_t tmp;
+	uint8_t ret;
+
+	__asm__ __volatile__("vmptrst %[value]; setna %[ret]"
+		: [value]"=m"(tmp), [ret]"=rm"(ret)
+		: : "cc", "memory");
+
+	*value = tmp;
+	return ret;
+}
+
+/*
+ * A wrapper around vmptrst that ignores errors and returns zero if the
+ * vmptrst instruction fails.
+ */
+static inline uint64_t vmptrstz(void)
+{
+	uint64_t value = 0;
+	vmptrst(&value);
+	return value;
+}
+
 /*
  * No guest state (e.g. GPRs) is established by this vmlaunch.
  */
@@ -444,6 +468,15 @@ static inline int vmresume(void)
 	return ret;
 }
 
+static inline void vmcall(void)
+{
+	/* Currently, L1 destroys our GPRs during vmexits.  */
+	__asm__ __volatile__("push %%rbp; vmcall; pop %%rbp" : : :
+			     "rax", "rbx", "rcx", "rdx",
+			     "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
+			     "r13", "r14", "r15");
+}
+
 static inline int vmread(uint64_t encoding, uint64_t *value)
 {
 	uint64_t tmp;
@@ -486,9 +519,34 @@ static inline uint32_t vmcs_revision(void)
 	return rdmsr(MSR_IA32_VMX_BASIC);
 }
 
-void prepare_for_vmx_operation(void);
-void prepare_vmcs(void *guest_rip, void *guest_rsp);
-struct kvm_vm *vm_create_default_vmx(uint32_t vcpuid,
-				     vmx_guest_code_t guest_code);
+struct vmx_pages {
+	void *vmxon_hva;
+	uint64_t vmxon_gpa;
+	void *vmxon;
+
+	void *vmcs_hva;
+	uint64_t vmcs_gpa;
+	void *vmcs;
+
+	void *msr_hva;
+	uint64_t msr_gpa;
+	void *msr;
+
+	void *shadow_vmcs_hva;
+	uint64_t shadow_vmcs_gpa;
+	void *shadow_vmcs;
+
+	void *vmread_hva;
+	uint64_t vmread_gpa;
+	void *vmread;
+
+	void *vmwrite_hva;
+	uint64_t vmwrite_gpa;
+	void *vmwrite;
+};
+
+struct vmx_pages *vcpu_alloc_vmx(struct kvm_vm *vm, vm_vaddr_t *p_vmx_gva);
+bool prepare_for_vmx_operation(struct vmx_pages *vmx);
+void prepare_vmcs(struct vmx_pages *vmx, void *guest_rip, void *guest_rsp);
 
 #endif /* !SELFTEST_KVM_VMX_H */

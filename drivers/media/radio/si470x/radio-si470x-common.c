@@ -110,8 +110,6 @@
 /* kernel includes */
 #include "radio-si470x.h"
 
-
-
 /**************************************************************************
  * Module Parameters
  **************************************************************************/
@@ -195,7 +193,7 @@ static int si470x_set_band(struct si470x_device *radio, int band)
 	radio->band = band;
 	radio->registers[SYSCONFIG2] &= ~SYSCONFIG2_BAND;
 	radio->registers[SYSCONFIG2] |= radio->band << 6;
-	return si470x_set_register(radio, SYSCONFIG2);
+	return radio->set_register(radio, SYSCONFIG2);
 }
 
 /*
@@ -207,7 +205,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 	unsigned long time_left;
 	bool timed_out = false;
 
-	retval = si470x_get_register(radio, POWERCFG);
+	retval = radio->get_register(radio, POWERCFG);
 	if (retval)
 		return retval;
 
@@ -219,7 +217,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 	/* start tuning */
 	radio->registers[CHANNEL] &= ~CHANNEL_CHAN;
 	radio->registers[CHANNEL] |= CHANNEL_TUNE | chan;
-	retval = si470x_set_register(radio, CHANNEL);
+	retval = radio->set_register(radio, CHANNEL);
 	if (retval < 0)
 		goto done;
 
@@ -238,7 +236,7 @@ static int si470x_set_chan(struct si470x_device *radio, unsigned short chan)
 
 	/* stop tuning */
 	radio->registers[CHANNEL] &= ~CHANNEL_TUNE;
-	retval = si470x_set_register(radio, CHANNEL);
+	retval = radio->set_register(radio, CHANNEL);
 
 done:
 	return retval;
@@ -272,7 +270,7 @@ static int si470x_get_freq(struct si470x_device *radio, unsigned int *freq)
 	int chan, retval;
 
 	/* read channel */
-	retval = si470x_get_register(radio, READCHAN);
+	retval = radio->get_register(radio, READCHAN);
 	chan = radio->registers[READCHAN] & READCHAN_READCHAN;
 
 	/* Frequency (MHz) = Spacing (kHz) x Channel + Bottom of Band (MHz) */
@@ -296,6 +294,7 @@ int si470x_set_freq(struct si470x_device *radio, unsigned int freq)
 
 	return si470x_set_chan(radio, chan);
 }
+EXPORT_SYMBOL_GPL(si470x_set_freq);
 
 
 /*
@@ -343,7 +342,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 		radio->registers[POWERCFG] |= POWERCFG_SEEKUP;
 	else
 		radio->registers[POWERCFG] &= ~POWERCFG_SEEKUP;
-	retval = si470x_set_register(radio, POWERCFG);
+	retval = radio->set_register(radio, POWERCFG);
 	if (retval < 0)
 		return retval;
 
@@ -362,7 +361,7 @@ static int si470x_set_seek(struct si470x_device *radio,
 
 	/* stop seeking */
 	radio->registers[POWERCFG] &= ~POWERCFG_SEEK;
-	retval = si470x_set_register(radio, POWERCFG);
+	retval = radio->set_register(radio, POWERCFG);
 
 	/* try again, if timed out */
 	if (retval == 0 && timed_out)
@@ -381,7 +380,7 @@ int si470x_start(struct si470x_device *radio)
 	/* powercfg */
 	radio->registers[POWERCFG] =
 		POWERCFG_DMUTE | POWERCFG_ENABLE | POWERCFG_RDSM;
-	retval = si470x_set_register(radio, POWERCFG);
+	retval = radio->set_register(radio, POWERCFG);
 	if (retval < 0)
 		goto done;
 
@@ -392,7 +391,7 @@ int si470x_start(struct si470x_device *radio)
 	radio->registers[SYSCONFIG1] |= SYSCONFIG1_GPIO2_INT;
 	if (de)
 		radio->registers[SYSCONFIG1] |= SYSCONFIG1_DE;
-	retval = si470x_set_register(radio, SYSCONFIG1);
+	retval = radio->set_register(radio, SYSCONFIG1);
 	if (retval < 0)
 		goto done;
 
@@ -402,7 +401,7 @@ int si470x_start(struct si470x_device *radio)
 		((radio->band << 6) & SYSCONFIG2_BAND) |/* BAND */
 		((space << 4) & SYSCONFIG2_SPACE) |	/* SPACE */
 		15;					/* VOLUME (max) */
-	retval = si470x_set_register(radio, SYSCONFIG2);
+	retval = radio->set_register(radio, SYSCONFIG2);
 	if (retval < 0)
 		goto done;
 
@@ -413,6 +412,7 @@ int si470x_start(struct si470x_device *radio)
 done:
 	return retval;
 }
+EXPORT_SYMBOL_GPL(si470x_start);
 
 
 /*
@@ -424,7 +424,7 @@ int si470x_stop(struct si470x_device *radio)
 
 	/* sysconfig 1 */
 	radio->registers[SYSCONFIG1] &= ~SYSCONFIG1_RDS;
-	retval = si470x_set_register(radio, SYSCONFIG1);
+	retval = radio->set_register(radio, SYSCONFIG1);
 	if (retval < 0)
 		goto done;
 
@@ -432,11 +432,12 @@ int si470x_stop(struct si470x_device *radio)
 	radio->registers[POWERCFG] &= ~POWERCFG_DMUTE;
 	/* POWERCFG_ENABLE has to automatically go low */
 	radio->registers[POWERCFG] |= POWERCFG_ENABLE |	POWERCFG_DISABLE;
-	retval = si470x_set_register(radio, POWERCFG);
+	retval = radio->set_register(radio, POWERCFG);
 
 done:
 	return retval;
 }
+EXPORT_SYMBOL_GPL(si470x_stop);
 
 
 /*
@@ -448,7 +449,7 @@ static int si470x_rds_on(struct si470x_device *radio)
 
 	/* sysconfig 1 */
 	radio->registers[SYSCONFIG1] |= SYSCONFIG1_RDS;
-	retval = si470x_set_register(radio, SYSCONFIG1);
+	retval = radio->set_register(radio, SYSCONFIG1);
 	if (retval < 0)
 		radio->registers[SYSCONFIG1] &= ~SYSCONFIG1_RDS;
 
@@ -542,6 +543,25 @@ static __poll_t si470x_fops_poll(struct file *file,
 }
 
 
+static int si470x_fops_open(struct file *file)
+{
+	struct si470x_device *radio = video_drvdata(file);
+
+	return radio->fops_open(file);
+}
+
+
+/*
+ * si470x_fops_release - file release
+ */
+static int si470x_fops_release(struct file *file)
+{
+	struct si470x_device *radio = video_drvdata(file);
+
+	return radio->fops_release(file);
+}
+
+
 /*
  * si470x_fops - file operations interface
  */
@@ -570,13 +590,13 @@ static int si470x_s_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_AUDIO_VOLUME:
 		radio->registers[SYSCONFIG2] &= ~SYSCONFIG2_VOLUME;
 		radio->registers[SYSCONFIG2] |= ctrl->val;
-		return si470x_set_register(radio, SYSCONFIG2);
+		return radio->set_register(radio, SYSCONFIG2);
 	case V4L2_CID_AUDIO_MUTE:
 		if (ctrl->val)
 			radio->registers[POWERCFG] &= ~POWERCFG_DMUTE;
 		else
 			radio->registers[POWERCFG] |= POWERCFG_DMUTE;
-		return si470x_set_register(radio, POWERCFG);
+		return radio->set_register(radio, POWERCFG);
 	default:
 		return -EINVAL;
 	}
@@ -596,7 +616,7 @@ static int si470x_vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	if (!radio->status_rssi_auto_update) {
-		retval = si470x_get_register(radio, STATUSRSSI);
+		retval = radio->get_register(radio, STATUSRSSI);
 		if (retval < 0)
 			return retval;
 	}
@@ -665,7 +685,7 @@ static int si470x_vidioc_s_tuner(struct file *file, void *priv,
 		break;
 	}
 
-	return si470x_set_register(radio, POWERCFG);
+	return radio->set_register(radio, POWERCFG);
 }
 
 
@@ -742,6 +762,15 @@ static int si470x_vidioc_enum_freq_bands(struct file *file, void *priv,
 const struct v4l2_ctrl_ops si470x_ctrl_ops = {
 	.s_ctrl = si470x_s_ctrl,
 };
+EXPORT_SYMBOL_GPL(si470x_ctrl_ops);
+
+static int si470x_vidioc_querycap(struct file *file, void *priv,
+		struct v4l2_capability *capability)
+{
+	struct si470x_device *radio = video_drvdata(file);
+
+	return radio->vidioc_querycap(file, priv, capability);
+};
 
 /*
  * si470x_ioctl_ops - video device ioctl operations
@@ -768,3 +797,6 @@ const struct video_device si470x_viddev_template = {
 	.release		= video_device_release_empty,
 	.ioctl_ops		= &si470x_ioctl_ops,
 };
+EXPORT_SYMBOL_GPL(si470x_viddev_template);
+
+MODULE_LICENSE("GPL");

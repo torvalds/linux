@@ -8,13 +8,13 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/ssb/ssb.h>
 #include <linux/pci.h>
 #include <linux/export.h>
 #include <linux/delay.h>
 #include <linux/ssb/ssb_embedded.h>
-
-#include "ssb_private.h"
 
 static u32 ssb_pcie_read(struct ssb_pcicore *pc, u32 address);
 static void ssb_pcie_write(struct ssb_pcicore *pc, u32 address, u32 data);
@@ -115,7 +115,7 @@ static int ssb_extpci_read_config(struct ssb_pcicore *pc,
 	u32 addr, val;
 	void __iomem *mmio;
 
-	SSB_WARN_ON(!pc->hostmode);
+	WARN_ON(!pc->hostmode);
 	if (unlikely(len != 1 && len != 2 && len != 4))
 		goto out;
 	addr = get_cfgspace_addr(pc, bus, dev, func, off);
@@ -161,7 +161,7 @@ static int ssb_extpci_write_config(struct ssb_pcicore *pc,
 	u32 addr, val = 0;
 	void __iomem *mmio;
 
-	SSB_WARN_ON(!pc->hostmode);
+	WARN_ON(!pc->hostmode);
 	if (unlikely(len != 1 && len != 2 && len != 4))
 		goto out;
 	addr = get_cfgspace_addr(pc, bus, dev, func, off);
@@ -263,7 +263,7 @@ int ssb_pcicore_plat_dev_init(struct pci_dev *d)
 		return -ENODEV;
 	}
 
-	ssb_info("PCI: Fixing up device %s\n", pci_name(d));
+	dev_info(&d->dev, "PCI: Fixing up device %s\n", pci_name(d));
 
 	/* Fix up interrupt lines */
 	d->irq = ssb_mips_irq(extpci_core->dev) + 2;
@@ -284,12 +284,12 @@ static void ssb_pcicore_fixup_pcibridge(struct pci_dev *dev)
 	if (dev->bus->number != 0 || PCI_SLOT(dev->devfn) != 0)
 		return;
 
-	ssb_info("PCI: Fixing up bridge %s\n", pci_name(dev));
+	dev_info(&dev->dev, "PCI: Fixing up bridge %s\n", pci_name(dev));
 
 	/* Enable PCI bridge bus mastering and memory space */
 	pci_set_master(dev);
 	if (pcibios_enable_device(dev, ~0) < 0) {
-		ssb_err("PCI: SSB bridge enable failed\n");
+		dev_err(&dev->dev, "PCI: SSB bridge enable failed\n");
 		return;
 	}
 
@@ -298,7 +298,8 @@ static void ssb_pcicore_fixup_pcibridge(struct pci_dev *dev)
 
 	/* Make sure our latency is high enough to handle the devices behind us */
 	lat = 168;
-	ssb_info("PCI: Fixing latency timer of device %s to %u\n",
+	dev_info(&dev->dev,
+		 "PCI: Fixing latency timer of device %s to %u\n",
 		 pci_name(dev), lat);
 	pci_write_config_byte(dev, PCI_LATENCY_TIMER, lat);
 }
@@ -322,7 +323,7 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 		return;
 	extpci_core = pc;
 
-	ssb_dbg("PCIcore in host mode found\n");
+	dev_dbg(pc->dev->dev, "PCIcore in host mode found\n");
 	/* Reset devices on the external PCI bus */
 	val = SSB_PCICORE_CTL_RST_OE;
 	val |= SSB_PCICORE_CTL_CLK_OE;
@@ -337,7 +338,7 @@ static void ssb_pcicore_init_hostmode(struct ssb_pcicore *pc)
 	udelay(1); /* Assertion time demanded by the PCI standard */
 
 	if (pc->dev->bus->has_cardbus_slot) {
-		ssb_dbg("CardBus slot detected\n");
+		dev_dbg(pc->dev->dev, "CardBus slot detected\n");
 		pc->cardbusmode = 1;
 		/* GPIO 1 resets the bridge */
 		ssb_gpio_out(pc->dev->bus, 1, 1);
@@ -701,7 +702,7 @@ int ssb_pcicore_dev_irqvecs_enable(struct ssb_pcicore *pc,
 		/* Calculate the "coremask" for the device. */
 		coremask = (1 << dev->core_index);
 
-		SSB_WARN_ON(bus->bustype != SSB_BUSTYPE_PCI);
+		WARN_ON(bus->bustype != SSB_BUSTYPE_PCI);
 		err = pci_read_config_dword(bus->host_pci, SSB_PCI_IRQMASK, &tmp);
 		if (err)
 			goto out;

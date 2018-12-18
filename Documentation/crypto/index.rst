@@ -20,5 +20,6 @@ for cryptographic use cases, as well as programming examples.
    architecture
    devel-algos
    userspace-if
+   crypto_engine
    api
    api-samples

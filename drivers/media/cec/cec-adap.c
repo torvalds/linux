@@ -74,7 +74,7 @@ void cec_queue_event_fh(struct cec_fh *fh,
 			const struct cec_event *new_ev, u64 ts)
 {
 	static const u16 max_events[CEC_NUM_EVENTS] = {
-		1, 1, 800, 800, 8, 8,
+		1, 1, 800, 800, 8, 8, 8, 8
 	};
 	struct cec_event_entry *entry;
 	unsigned int ev_idx = new_ev->event - 1;
@@ -175,6 +175,22 @@ void cec_queue_pin_hpd_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
 	mutex_unlock(&adap->devnode.lock);
 }
 EXPORT_SYMBOL_GPL(cec_queue_pin_hpd_event);
+
+/* Notify userspace that the 5V pin changed state at the given time. */
+void cec_queue_pin_5v_event(struct cec_adapter *adap, bool is_high, ktime_t ts)
+{
+	struct cec_event ev = {
+		.event = is_high ? CEC_EVENT_PIN_5V_HIGH :
+				   CEC_EVENT_PIN_5V_LOW,
+	};
+	struct cec_fh *fh;
+
+	mutex_lock(&adap->devnode.lock);
+	list_for_each_entry(fh, &adap->devnode.fhs, list)
+		cec_queue_event_fh(fh, &ev, ktime_to_ns(ts));
+	mutex_unlock(&adap->devnode.lock);
+}
+EXPORT_SYMBOL_GPL(cec_queue_pin_5v_event);
 
 /*
  * Queue a new message for this filehandle.
@@ -339,12 +355,19 @@ static void cec_data_cancel(struct cec_data *data)
 			data->adap->transmit_queue_sz--;
 	}
 
-	/* Mark it as an error */
-	data->msg.tx_ts = ktime_get_ns();
-	data->msg.tx_status |= CEC_TX_STATUS_ERROR |
-			       CEC_TX_STATUS_MAX_RETRIES;
-	data->msg.tx_error_cnt++;
-	data->attempts = 0;
+	if (data->msg.tx_status & CEC_TX_STATUS_OK) {
+		/* Mark the canceled RX as a timeout */
+		data->msg.rx_ts = ktime_get_ns();
+		data->msg.rx_status = CEC_RX_STATUS_TIMEOUT;
+	} else {
+		/* Mark the canceled TX as an error */
+		data->msg.tx_ts = ktime_get_ns();
+		data->msg.tx_status |= CEC_TX_STATUS_ERROR |
+				       CEC_TX_STATUS_MAX_RETRIES;
+		data->msg.tx_error_cnt++;
+		data->attempts = 0;
+	}
+
 	/* Queue transmitted message for monitoring purposes */
 	cec_queue_msg_monitor(data->adap, &data->msg, 1);
 

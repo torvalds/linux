@@ -61,7 +61,6 @@ Example of the RCU bindings on a xRX200 SoC:
 		usb_phy0: usb2-phy@18 {
 			compatible = "lantiq,xrx200-usb2-phy";
 			reg = <0x18 4>, <0x38 4>;
-			status = "disabled";
 
 			resets = <&reset1 4 4>, <&reset0 4 4>;
 			reset-names = "phy", "ctrl";
@@ -71,7 +70,6 @@ Example of the RCU bindings on a xRX200 SoC:
 		usb_phy1: usb2-phy@34 {
 			compatible = "lantiq,xrx200-usb2-phy";
 			reg = <0x34 4>, <0x3C 4>;
-			status = "disabled";
 
 			resets = <&reset1 5 4>, <&reset0 4 4>;
 			reset-names = "phy", "ctrl";

@@ -111,21 +111,10 @@ struct ftrace_likely_data {
 #endif /* __ASSEMBLY__ */
 
 #ifdef __KERNEL__
-/*
- * Allow us to mark functions as 'deprecated' and have gcc emit a nice
- * warning for each use, in hopes of speeding the functions removal.
- * Usage is:
- * 		int __deprecated foo(void)
- */
-#ifndef __deprecated
-# define __deprecated		/* unimplemented */
-#endif
 
-#ifdef MODULE
-#define __deprecated_for_modules __deprecated
-#else
+/* Don't. Just don't. */
+#define __deprecated
 #define __deprecated_for_modules
-#endif
 
 #ifndef __must_check
 #define __must_check
@@ -134,12 +123,6 @@ struct ftrace_likely_data {
 #ifndef CONFIG_ENABLE_MUST_CHECK
 #undef __must_check
 #define __must_check
-#endif
-#ifndef CONFIG_ENABLE_WARN_DEPRECATED
-#undef __deprecated
-#undef __deprecated_for_modules
-#define __deprecated
-#define __deprecated_for_modules
 #endif
 
 #ifndef __malloc
@@ -270,5 +253,23 @@ struct ftrace_likely_data {
 #ifndef __native_word
 # define __native_word(t) (sizeof(t) == sizeof(char) || sizeof(t) == sizeof(short) || sizeof(t) == sizeof(int) || sizeof(t) == sizeof(long))
 #endif
+
+#ifndef __diag
+#define __diag(string)
+#endif
+
+#ifndef __diag_GCC
+#define __diag_GCC(version, severity, string)
+#endif
+
+#define __diag_push()	__diag(push)
+#define __diag_pop()	__diag(pop)
+
+#define __diag_ignore(compiler, version, option, comment) \
+	__diag_ ## compiler(version, ignore, option)
+#define __diag_warn(compiler, version, option, comment) \
+	__diag_ ## compiler(version, warn, option)
+#define __diag_error(compiler, version, option, comment) \
+	__diag_ ## compiler(version, error, option)
 
 #endif /* __LINUX_COMPILER_TYPES_H */

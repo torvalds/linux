@@ -116,45 +116,26 @@ static struct ad5933_platform_data ad5933_default_pdata  = {
 	.vref_mv = 3300,
 };
 
+#define AD5933_CHANNEL(_type, _extend_name, _info_mask_separate, _address, \
+		_scan_index, _realbits) { \
+	.type = (_type), \
+	.extend_name = (_extend_name), \
+	.info_mask_separate = (_info_mask_separate), \
+	.address = (_address), \
+	.scan_index = (_scan_index), \
+	.scan_type = { \
+		.sign = 's', \
+		.realbits = (_realbits), \
+		.storagebits = 16, \
+	}, \
+}
+
 static const struct iio_chan_spec ad5933_channels[] = {
-	{
-		.type = IIO_TEMP,
-		.indexed = 1,
-		.channel = 0,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_SCALE),
-		.address = AD5933_REG_TEMP_DATA,
-		.scan_index = -1,
-		.scan_type = {
-			.sign = 's',
-			.realbits = 14,
-			.storagebits = 16,
-		},
-	}, { /* Ring Channels */
-		.type = IIO_VOLTAGE,
-		.indexed = 1,
-		.channel = 0,
-		.extend_name = "real",
-		.address = AD5933_REG_REAL_DATA,
-		.scan_index = 0,
-		.scan_type = {
-			.sign = 's',
-			.realbits = 16,
-			.storagebits = 16,
-		},
-	}, {
-		.type = IIO_VOLTAGE,
-		.indexed = 1,
-		.channel = 0,
-		.extend_name = "imag",
-		.address = AD5933_REG_IMAG_DATA,
-		.scan_index = 1,
-		.scan_type = {
-			.sign = 's',
-			.realbits = 16,
-			.storagebits = 16,
-		},
-	},
+	AD5933_CHANNEL(IIO_TEMP, NULL, BIT(IIO_CHAN_INFO_RAW) |
+		BIT(IIO_CHAN_INFO_SCALE), AD5933_REG_TEMP_DATA, -1, 14),
+	/* Ring Channels */
+	AD5933_CHANNEL(IIO_VOLTAGE, "real", 0, AD5933_REG_REAL_DATA, 0, 16),
+	AD5933_CHANNEL(IIO_VOLTAGE, "imag", 0, AD5933_REG_IMAG_DATA, 1, 16),
 };
 
 static int ad5933_i2c_write(struct i2c_client *client, u8 reg, u8 len, u8 *data)

@@ -57,13 +57,10 @@
 
 #define DRV_NAME	"ib_srp"
 #define PFX		DRV_NAME ": "
-#define DRV_VERSION	"2.0"
-#define DRV_RELDATE	"July 26, 2015"
 
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand SCSI RDMA Protocol initiator");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_INFO(release_date, DRV_RELDATE);
 
 #if !defined(CONFIG_DYNAMIC_DEBUG)
 #define DEFINE_DYNAMIC_DEBUG_METADATA(name, fmt)
@@ -145,7 +142,8 @@ static void srp_remove_one(struct ib_device *device, void *client_data);
 static void srp_recv_done(struct ib_cq *cq, struct ib_wc *wc);
 static void srp_handle_qp_err(struct ib_cq *cq, struct ib_wc *wc,
 		const char *opname);
-static int srp_ib_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event);
+static int srp_ib_cm_handler(struct ib_cm_id *cm_id,
+			     const struct ib_cm_event *event);
 static int srp_rdma_cm_handler(struct rdma_cm_id *cm_id,
 			       struct rdma_cm_event *event);
 
@@ -1035,16 +1033,17 @@ static int srp_alloc_req_data(struct srp_rdma_ch *ch)
 
 	for (i = 0; i < target->req_ring_size; ++i) {
 		req = &ch->req_ring[i];
-		mr_list = kmalloc(target->mr_per_cmd * sizeof(void *),
-				  GFP_KERNEL);
+		mr_list = kmalloc_array(target->mr_per_cmd, sizeof(void *),
+					GFP_KERNEL);
 		if (!mr_list)
 			goto out;
 		if (srp_dev->use_fast_reg) {
 			req->fr_list = mr_list;
 		} else {
 			req->fmr_list = mr_list;
-			req->map_page = kmalloc(srp_dev->max_pages_per_mr *
-						sizeof(void *), GFP_KERNEL);
+			req->map_page = kmalloc_array(srp_dev->max_pages_per_mr,
+						      sizeof(void *),
+						      GFP_KERNEL);
 			if (!req->map_page)
 				goto out;
 		}
@@ -1210,7 +1209,6 @@ static void srp_inv_rkey_err_done(struct ib_cq *cq, struct ib_wc *wc)
 static int srp_inv_rkey(struct srp_request *req, struct srp_rdma_ch *ch,
 		u32 rkey)
 {
-	struct ib_send_wr *bad_wr;
 	struct ib_send_wr wr = {
 		.opcode		    = IB_WR_LOCAL_INV,
 		.next		    = NULL,
@@ -1221,7 +1219,7 @@ static int srp_inv_rkey(struct srp_request *req, struct srp_rdma_ch *ch,
 
 	wr.wr_cqe = &req->reg_cqe;
 	req->reg_cqe.done = srp_inv_rkey_err_done;
-	return ib_post_send(ch->qp, &wr, &bad_wr);
+	return ib_post_send(ch->qp, &wr, NULL);
 }
 
 static void srp_unmap_data(struct scsi_cmnd *scmnd,
@@ -1502,7 +1500,6 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 {
 	struct srp_target_port *target = ch->target;
 	struct srp_device *dev = target->srp_host->srp_dev;
-	struct ib_send_wr *bad_wr;
 	struct ib_reg_wr wr;
 	struct srp_fr_desc *desc;
 	u32 rkey;
@@ -1566,7 +1563,7 @@ static int srp_map_finish_fr(struct srp_map_state *state,
 	srp_map_desc(state, desc->mr->iova,
 		     desc->mr->length, desc->mr->rkey);
 
-	err = ib_post_send(ch->qp, &wr.wr, &bad_wr);
+	err = ib_post_send(ch->qp, &wr.wr, NULL);
 	if (unlikely(err)) {
 		WARN_ON_ONCE(err == -ENOMEM);
 		return err;
@@ -2017,7 +2014,7 @@ static int srp_post_send(struct srp_rdma_ch *ch, struct srp_iu *iu, int len)
 {
 	struct srp_target_port *target = ch->target;
 	struct ib_sge list;
-	struct ib_send_wr wr, *bad_wr;
+	struct ib_send_wr wr;
 
 	list.addr   = iu->dma;
 	list.length = len;
@@ -2032,13 +2029,13 @@ static int srp_post_send(struct srp_rdma_ch *ch, struct srp_iu *iu, int len)
 	wr.opcode     = IB_WR_SEND;
 	wr.send_flags = IB_SEND_SIGNALED;
 
-	return ib_post_send(ch->qp, &wr, &bad_wr);
+	return ib_post_send(ch->qp, &wr, NULL);
 }
 
 static int srp_post_recv(struct srp_rdma_ch *ch, struct srp_iu *iu)
 {
 	struct srp_target_port *target = ch->target;
-	struct ib_recv_wr wr, *bad_wr;
+	struct ib_recv_wr wr;
 	struct ib_sge list;
 
 	list.addr   = iu->dma;
@@ -2052,7 +2049,7 @@ static int srp_post_recv(struct srp_rdma_ch *ch, struct srp_iu *iu)
 	wr.sg_list  = &list;
 	wr.num_sge  = 1;
 
-	return ib_post_recv(ch->qp, &wr, &bad_wr);
+	return ib_post_recv(ch->qp, &wr, NULL);
 }
 
 static void srp_process_rsp(struct srp_rdma_ch *ch, struct srp_rsp *rsp)
@@ -2557,7 +2554,7 @@ error:
 }
 
 static void srp_ib_cm_rej_handler(struct ib_cm_id *cm_id,
-				  struct ib_cm_event *event,
+				  const struct ib_cm_event *event,
 				  struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
@@ -2642,7 +2639,8 @@ static void srp_ib_cm_rej_handler(struct ib_cm_id *cm_id,
 	}
 }
 
-static int srp_ib_cm_handler(struct ib_cm_id *cm_id, struct ib_cm_event *event)
+static int srp_ib_cm_handler(struct ib_cm_id *cm_id,
+			     const struct ib_cm_event *event)
 {
 	struct srp_rdma_ch *ch = cm_id->context;
 	struct srp_target_port *target = ch->target;
@@ -3842,7 +3840,7 @@ static ssize_t srp_create_target(struct device *dev,
 	INIT_WORK(&target->tl_err_work, srp_tl_err_work);
 	INIT_WORK(&target->remove_work, srp_remove_work);
 	spin_lock_init(&target->lock);
-	ret = ib_query_gid(ibdev, host->port, 0, &target->sgid, NULL);
+	ret = rdma_query_gid(ibdev, host->port, 0, &target->sgid);
 	if (ret)
 		goto out;
 

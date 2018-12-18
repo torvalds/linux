@@ -28,13 +28,6 @@ config TADPOLE_TS102_UCTRL
 	  events, and can also notice the attachment/detachment of external
 	  monitors and mice.
 
-config SUN_JSFLASH
-	tristate "JavaStation OS Flash SIMM"
-	depends on SPARC32
-	help
-	  If you say Y here, you will be able to boot from your JavaStation's
-	  Flash memory.
-
 config BBC_I2C
 	tristate "UltraSPARC-III bootbus i2c controller driver"
 	depends on PCI && SPARC64

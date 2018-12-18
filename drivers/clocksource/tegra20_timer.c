@@ -230,7 +230,7 @@ static int __init tegra20_init_timer(struct device_node *np)
 		return ret;
 	}
 
-	tegra_clockevent.cpumask = cpu_all_mask;
+	tegra_clockevent.cpumask = cpu_possible_mask;
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_config_and_register(&tegra_clockevent, 1000000,
 					0x1, 0x1fffffff);
@@ -259,6 +259,6 @@ static int __init tegra20_init_rtc(struct device_node *np)
 	else
 		clk_prepare_enable(clk);
 
-	return register_persistent_clock(NULL, tegra_read_persistent_clock64);
+	return register_persistent_clock(tegra_read_persistent_clock64);
 }
 TIMER_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);

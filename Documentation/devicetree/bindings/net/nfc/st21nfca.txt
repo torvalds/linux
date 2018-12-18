@@ -4,8 +4,6 @@ Required properties:
 - compatible: Should be "st,st21nfca-i2c".
 - clock-frequency: I²C work frequency.
 - reg: address on the bus
-- interrupt-parent: phandle for the interrupt gpio controller
-- interrupts: GPIO interrupt to which the chip is connected
 - enable-gpios: Output GPIO pin used for enabling/disabling the ST21NFCA
 
 Optional SoC Specific Properties:

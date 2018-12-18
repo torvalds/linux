@@ -52,6 +52,7 @@ static int psp_sw_init(void *handle)
 	switch (adev->asic_type) {
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
+	case CHIP_VEGA20:
 		psp_v3_1_set_psp_funcs(psp);
 		break;
 	case CHIP_RAVEN:
@@ -128,6 +129,11 @@ psp_cmd_submit_buf(struct psp_context *psp,
 
 	while (*((unsigned int *)psp->fence_buf) != index) {
 		msleep(1);
+	}
+
+	if (ucode) {
+		ucode->tmr_mc_addr_lo = psp->cmd_buf_mem->resp.fw_addr_lo;
+		ucode->tmr_mc_addr_hi = psp->cmd_buf_mem->resp.fw_addr_hi;
 	}
 
 	return ret;

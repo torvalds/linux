@@ -7,6 +7,7 @@ include/uapi/drm/i915_drm.h
 include/uapi/linux/fcntl.h
 include/uapi/linux/kcmp.h
 include/uapi/linux/kvm.h
+include/uapi/linux/in.h
 include/uapi/linux/perf_event.h
 include/uapi/linux/prctl.h
 include/uapi/linux/sched.h
@@ -35,6 +36,7 @@ arch/s390/include/uapi/asm/ptrace.h
 arch/s390/include/uapi/asm/sie.h
 arch/arm/include/uapi/asm/kvm.h
 arch/arm64/include/uapi/asm/kvm.h
+arch/arm64/include/uapi/asm/unistd.h
 arch/alpha/include/uapi/asm/errno.h
 arch/mips/include/asm/errno.h
 arch/mips/include/uapi/asm/errno.h
@@ -53,24 +55,29 @@ include/uapi/asm-generic/errno.h
 include/uapi/asm-generic/errno-base.h
 include/uapi/asm-generic/ioctls.h
 include/uapi/asm-generic/mman-common.h
+include/uapi/asm-generic/unistd.h
 '
+
+check_2 () {
+  file1=$1
+  file2=$2
+
+  shift
+  shift
+
+  cmd="diff $* $file1 $file2 > /dev/null"
+
+  test -f $file2 &&
+  eval $cmd || echo "Warning: Kernel ABI header at 'tools/$file' differs from latest version at '$file'" >&2
+}
 
 check () {
   file=$1
 
   shift
-  opts=
-  while [ -n "$*" ]; do
-    opts="$opts \"$1\""
-    shift
-  done
 
-  cmd="diff $opts ../$file ../../$file > /dev/null"
-
-  test -f ../../$file &&
-  eval $cmd || echo "Warning: Kernel ABI header at 'tools/$file' differs from latest version at '$file'" >&2
+  check_2 ../$file ../../$file $*
 }
-
 
 # Check if we have the kernel headers (tools/perf/../../include), else
 # we're probably on a detached tarball, so no point in trying to check
@@ -83,7 +90,7 @@ for i in $HEADERS; do
 done
 
 # diff with extra ignore lines
-check arch/x86/lib/memcpy_64.S        -I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>"
-check arch/x86/lib/memset_64.S        -I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>"
-check include/uapi/asm-generic/mman.h -I "^#include <\(uapi/\)*asm-generic/mman-common.h>"
-check include/uapi/linux/mman.h       -I "^#include <\(uapi/\)*asm/mman.h>"
+check arch/x86/lib/memcpy_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>"'
+check arch/x86/lib/memset_64.S        '-I "^EXPORT_SYMBOL" -I "^#include <asm/export.h>"'
+check include/uapi/asm-generic/mman.h '-I "^#include <\(uapi/\)*asm-generic/mman-common.h>"'
+check include/uapi/linux/mman.h       '-I "^#include <\(uapi/\)*asm/mman.h>"'

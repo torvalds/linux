@@ -71,7 +71,11 @@ static void rxrpc_send_version_request(struct rxrpc_local *local,
 
 	ret = kernel_sendmsg(local->socket, &msg, iov, 2, len);
 	if (ret < 0)
-		_debug("sendmsg failed: %d", ret);
+		trace_rxrpc_tx_fail(local->debug_id, 0, ret,
+				    rxrpc_tx_point_version_reply);
+	else
+		trace_rxrpc_tx_packet(local->debug_id, &whdr,
+				      rxrpc_tx_point_version_reply);
 
 	_leave("");
 }

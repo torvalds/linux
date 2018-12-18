@@ -421,7 +421,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 	if (nr >= 1)
 		return 0;
 
-	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
+	res = kcalloc(2, sizeof(*res), GFP_KERNEL);
 	if (res == NULL) {
 		/* 
 		 * If we're out of memory this early, something is wrong,

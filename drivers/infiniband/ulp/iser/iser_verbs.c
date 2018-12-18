@@ -703,19 +703,34 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 		      unsigned int max_sectors)
 {
 	struct iser_device *device = iser_conn->ib_conn.device;
+	struct ib_device_attr *attr = &device->ib_device->attrs;
 	unsigned short sg_tablesize, sup_sg_tablesize;
+	unsigned short reserved_mr_pages;
+
+	/*
+	 * FRs without SG_GAPS or FMRs can only map up to a (device) page per
+	 * entry, but if the first entry is misaligned we'll end up using two
+	 * entries (head and tail) for a single page worth data, so one
+	 * additional entry is required.
+	 */
+	if ((attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) &&
+	    (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+		reserved_mr_pages = 0;
+	else
+		reserved_mr_pages = 1;
 
 	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
-	if (device->ib_device->attrs.device_cap_flags &
-			IB_DEVICE_MEM_MGT_EXTENSIONS)
+	if (attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)
 		sup_sg_tablesize =
 			min_t(
 			 uint, ISCSI_ISER_MAX_SG_TABLESIZE,
-			 device->ib_device->attrs.max_fast_reg_page_list_len);
+			 attr->max_fast_reg_page_list_len - reserved_mr_pages);
 	else
 		sup_sg_tablesize = ISCSI_ISER_MAX_SG_TABLESIZE;
 
 	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
+	iser_conn->pages_per_mr =
+		iser_conn->scsi_sg_tablesize + reserved_mr_pages;
 }
 
 /**
@@ -1007,7 +1022,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_login_desc *desc = &iser_conn->login_desc;
-	struct ib_recv_wr wr, *wr_failed;
+	struct ib_recv_wr wr;
 	int ib_ret;
 
 	desc->sge.addr = desc->rsp_dma;
@@ -1021,7 +1036,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	wr.next = NULL;
 
 	ib_conn->post_recv_buf_count++;
-	ib_ret = ib_post_recv(ib_conn->qp, &wr, &wr_failed);
+	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count--;
@@ -1035,7 +1050,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	unsigned int my_rx_head = iser_conn->rx_desc_head;
 	struct iser_rx_desc *rx_desc;
-	struct ib_recv_wr *wr, *wr_failed;
+	struct ib_recv_wr *wr;
 	int i, ib_ret;
 
 	for (wr = ib_conn->rx_wr, i = 0; i < count; i++, wr++) {
@@ -1052,7 +1067,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 	wr->next = NULL; /* mark end of work requests list */
 
 	ib_conn->post_recv_buf_count += count;
-	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, &wr_failed);
+	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, NULL);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count -= count;
@@ -1071,7 +1086,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		   bool signal)
 {
-	struct ib_send_wr *bad_wr, *wr = iser_tx_next_wr(tx_desc);
+	struct ib_send_wr *wr = iser_tx_next_wr(tx_desc);
 	int ib_ret;
 
 	ib_dma_sync_single_for_device(ib_conn->device->ib_device,
@@ -1085,10 +1100,10 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->opcode = IB_WR_SEND;
 	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, &bad_wr);
+	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, NULL);
 	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
-			 ib_ret, bad_wr->opcode);
+			 ib_ret, wr->opcode);
 
 	return ib_ret;
 }

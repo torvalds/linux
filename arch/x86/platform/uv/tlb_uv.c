@@ -615,7 +615,7 @@ static int uv2_3_wait_completion(struct bau_desc *bau_desc,
 
 	/* spin on the status MMR, waiting for it to go idle */
 	while (descriptor_stat != UV2H_DESC_IDLE) {
-		if ((descriptor_stat == UV2H_DESC_SOURCE_TIMEOUT)) {
+		if (descriptor_stat == UV2H_DESC_SOURCE_TIMEOUT) {
 			/*
 			 * A h/w bug on the destination side may
 			 * have prevented the message being marked
@@ -1285,6 +1285,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 	struct msg_desc msgdesc;
 
 	ack_APIC_irq();
+	kvm_set_cpu_l1tf_flush_l1d();
 	time_start = get_cycles();
 
 	bcp = &per_cpu(bau_control, smp_processor_id());
@@ -1607,8 +1608,6 @@ static int parse_tunables_write(struct bau_control *bcp, char *instr,
 				*tunables[cnt].tunp = val;
 			continue;
 		}
-		if (q == p)
-			break;
 	}
 	return 0;
 }
@@ -2142,7 +2141,7 @@ static int __init init_per_cpu(int nuvhubs, int base_part_pnode)
 	if (is_uv3_hub() || is_uv2_hub() || is_uv1_hub())
 		timeout_us = calculate_destination_timeout();
 
-	vp = kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
+	vp = kmalloc_array(nuvhubs, sizeof(struct uvhub_desc), GFP_KERNEL);
 	uvhub_descs = (struct uvhub_desc *)vp;
 	memset(uvhub_descs, 0, nuvhubs * sizeof(struct uvhub_desc));
 	uvhub_mask = kzalloc((nuvhubs+7)/8, GFP_KERNEL);

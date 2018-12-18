@@ -72,7 +72,7 @@ static const struct clk_corediv_desc mvebu_corediv_desc[] = {
 };
 
 static const struct clk_corediv_desc mv98dx3236_corediv_desc[] = {
-	{ .mask = 0x0f, .offset = 6, .fieldbit = 26 }, /* NAND clock */
+	{ .mask = 0x0f, .offset = 6, .fieldbit = 27 }, /* NAND clock */
 };
 
 #define to_corediv_clk(p) container_of(p, struct clk_corediv, hw)

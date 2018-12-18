@@ -141,7 +141,7 @@ void acpi_ut_repair_name(char *name)
 	 * Special case for the root node. This can happen if we get an
 	 * error during the execution of module-level code.
 	 */
-	if (ACPI_COMPARE_NAME(name, "\\___")) {
+	if (ACPI_COMPARE_NAME(name, ACPI_ROOT_PATHNAME)) {
 		return;
 	}
 

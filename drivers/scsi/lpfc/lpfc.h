@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -64,8 +64,6 @@ struct lpfc_sli2_slim;
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 #define LPFC_VNAME_LEN		100	/* vport symbolic name length */
-#define LPFC_TGTQ_INTERVAL	40000	/* Min amount of time between tgt
-					   queue depth change in millisecs */
 #define LPFC_TGTQ_RAMPUP_PCENT	5	/* Target queue rampup in percentage */
 #define LPFC_MIN_TGT_QDEPTH	10
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
@@ -784,6 +782,7 @@ struct lpfc_hba {
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_embed_cmd;
 	uint32_t cfg_nvme_io_channel;
+	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_nvmet_mrq;
 	uint32_t cfg_enable_nvmet;
 	uint32_t cfg_nvme_enable_fb;
@@ -841,8 +840,7 @@ struct lpfc_hba {
 #define LPFC_ENABLE_FCP  1
 #define LPFC_ENABLE_NVME 2
 #define LPFC_ENABLE_BOTH 3
-	uint32_t nvme_embed_pbde;
-	uint32_t fcp_embed_pbde;
+	uint32_t cfg_enable_pbde;
 	uint32_t io_channel_irqs;	/* number of irqs for io channels */
 	struct nvmet_fc_target_port *targetport;
 	lpfc_vpd_t vpd;		/* vital product data */
@@ -922,12 +920,6 @@ struct lpfc_hba {
 	atomic_t fc4ScsiOutputRequests;
 	atomic_t fc4ScsiControlRequests;
 	atomic_t fc4ScsiIoCmpls;
-	atomic_t fc4NvmeInputRequests;
-	atomic_t fc4NvmeOutputRequests;
-	atomic_t fc4NvmeControlRequests;
-	atomic_t fc4NvmeIoCmpls;
-	atomic_t fc4NvmeLsRequests;
-	atomic_t fc4NvmeLsCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;

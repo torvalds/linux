@@ -43,7 +43,8 @@ static inline bool
 ingenic_cgu_gate_get(struct ingenic_cgu *cgu,
 		     const struct ingenic_cgu_gate_info *info)
 {
-	return readl(cgu->base + info->reg) & BIT(info->bit);
+	return !!(readl(cgu->base + info->reg) & BIT(info->bit))
+		^ info->clear_to_gate;
 }
 
 /**
@@ -62,7 +63,7 @@ ingenic_cgu_gate_set(struct ingenic_cgu *cgu,
 {
 	u32 clkgr = readl(cgu->base + info->reg);
 
-	if (val)
+	if (val ^ info->clear_to_gate)
 		clkgr |= BIT(info->bit);
 	else
 		clkgr &= ~BIT(info->bit);
@@ -511,6 +512,9 @@ static int ingenic_clk_enable(struct clk_hw *hw)
 		spin_lock_irqsave(&cgu->lock, flags);
 		ingenic_cgu_gate_set(cgu, &clk_info->gate, false);
 		spin_unlock_irqrestore(&cgu->lock, flags);
+
+		if (clk_info->gate.delay_us)
+			udelay(clk_info->gate.delay_us);
 	}
 
 	return 0;

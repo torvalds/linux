@@ -64,8 +64,11 @@ static u64 parse_audio_format_i_type(struct snd_usb_audio *chip,
 		sample_width = fmt->bBitResolution;
 		sample_bytes = fmt->bSubslotSize;
 
-		if (format & UAC2_FORMAT_TYPE_I_RAW_DATA)
+		if (format & UAC2_FORMAT_TYPE_I_RAW_DATA) {
 			pcm_formats |= SNDRV_PCM_FMTBIT_SPECIAL;
+			/* flag potentially raw DSD capable altsettings */
+			fp->dsd_raw = true;
+		}
 
 		format <<= 1;
 		break;
@@ -188,7 +191,8 @@ static int parse_audio_format_rates_v1(struct snd_usb_audio *chip, struct audiof
 		 */
 		int r, idx;
 
-		fp->rate_table = kmalloc(sizeof(int) * nr_rates, GFP_KERNEL);
+		fp->rate_table = kmalloc_array(nr_rates, sizeof(int),
+					       GFP_KERNEL);
 		if (fp->rate_table == NULL)
 			return -ENOMEM;
 
@@ -362,7 +366,7 @@ static int parse_audio_format_rates_v2v3(struct snd_usb_audio *chip,
 		goto err_free;
 	}
 
-	fp->rate_table = kmalloc(sizeof(int) * fp->nr_rates, GFP_KERNEL);
+	fp->rate_table = kmalloc_array(fp->nr_rates, sizeof(int), GFP_KERNEL);
 	if (!fp->rate_table) {
 		ret = -ENOMEM;
 		goto err_free;

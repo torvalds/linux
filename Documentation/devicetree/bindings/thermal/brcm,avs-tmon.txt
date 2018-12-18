@@ -7,7 +7,6 @@ Required properties:
 - reg: address range for the AVS TMON registers
 - interrupts: temperature monitor interrupt, for high/low threshold triggers
 - interrupt-names: should be "tmon"
-- interrupt-parent: the parent interrupt controller
 
 Example:
 

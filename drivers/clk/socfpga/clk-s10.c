@@ -28,7 +28,7 @@ static const char * const emaca_free_mux[] = {"peri_emaca_clk", "boot_clk"};
 static const char * const emacb_free_mux[] = {"peri_emacb_clk", "boot_clk"};
 static const char * const emac_ptp_free_mux[] = {"peri_emac_ptp_clk", "boot_clk"};
 static const char * const gpio_db_free_mux[] = {"peri_gpio_db_clk", "boot_clk"};
-static const char * const sdmmc_free_mux[] = {"peri_sdmmc_clk", "boot_clk"};
+static const char * const sdmmc_free_mux[] = {"main_sdmmc_clk", "boot_clk"};
 static const char * const s2f_usr1_free_mux[] = {"peri_s2f_usr1_clk", "boot_clk"};
 static const char * const psi_ref_free_mux[] = {"peri_psi_ref_clk", "boot_clk"};
 static const char * const mpu_mux[] = { "mpu_free_clk", "boot_clk",};
@@ -36,6 +36,11 @@ static const char * const mpu_mux[] = { "mpu_free_clk", "boot_clk",};
 static const char * const s2f_usr0_mux[] = {"f2s_free_clk", "boot_clk"};
 static const char * const emac_mux[] = {"emaca_free_clk", "emacb_free_clk"};
 static const char * const noc_mux[] = {"noc_free_clk", "boot_clk"};
+
+static const char * const mpu_free_mux[] = {"main_mpu_base_clk",
+					    "peri_mpu_base_clk",
+					    "osc1", "cb_intosc_hs_div2_clk",
+					    "f2s_free_clk"};
 
 /* clocks in AO (always on) controller */
 static const struct stratix10_pll_clock s10_pll_clks[] = {
@@ -57,7 +62,7 @@ static const struct stratix10_perip_c_clock s10_main_perip_c_clks[] = {
 };
 
 static const struct stratix10_perip_cnt_clock s10_main_perip_cnt_clks[] = {
-	{ STRATIX10_MPU_FREE_CLK, "mpu_free_clk", NULL, cntr_mux, ARRAY_SIZE(cntr_mux),
+	{ STRATIX10_MPU_FREE_CLK, "mpu_free_clk", NULL, mpu_free_mux, ARRAY_SIZE(mpu_free_mux),
 	   0, 0x48, 0, 0, 0},
 	{ STRATIX10_NOC_FREE_CLK, "noc_free_clk", NULL, noc_free_mux, ARRAY_SIZE(noc_free_mux),
 	  0, 0x4C, 0, 0, 0},
@@ -260,46 +265,45 @@ static int s10_clk_register_pll(const struct stratix10_pll_clock *clks,
 	return 0;
 }
 
-static struct stratix10_clock_data *__socfpga_s10_clk_init(struct device_node *np,
+static struct stratix10_clock_data *__socfpga_s10_clk_init(struct platform_device *pdev,
 						    int nr_clks)
 {
+	struct device_node *np = pdev->dev.of_node;
+	struct device *dev = &pdev->dev;
 	struct stratix10_clock_data *clk_data;
 	struct clk **clk_table;
+	struct resource *res;
 	void __iomem *base;
 
-	base = of_iomap(np, 0);
-	if (!base) {
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base)) {
 		pr_err("%s: failed to map clock registers\n", __func__);
-		goto err;
+		return ERR_CAST(base);
 	}
 
-	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
+	clk_data = devm_kzalloc(dev, sizeof(*clk_data), GFP_KERNEL);
 	if (!clk_data)
-		goto err;
+		return ERR_PTR(-ENOMEM);
 
 	clk_data->base = base;
-	clk_table = kcalloc(nr_clks, sizeof(*clk_table), GFP_KERNEL);
+	clk_table = devm_kcalloc(dev, nr_clks, sizeof(*clk_table), GFP_KERNEL);
 	if (!clk_table)
-		goto err_data;
+		return ERR_PTR(-ENOMEM);
 
 	clk_data->clk_data.clks = clk_table;
 	clk_data->clk_data.clk_num = nr_clks;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data->clk_data);
 	return clk_data;
-
-err_data:
-	kfree(clk_data);
-err:
-	return NULL;
 }
 
-static int s10_clkmgr_init(struct device_node *np)
+static int s10_clkmgr_init(struct platform_device *pdev)
 {
 	struct stratix10_clock_data *clk_data;
 
-	clk_data = __socfpga_s10_clk_init(np, STRATIX10_NUM_CLKS);
-	if (!clk_data)
-		return -ENOMEM;
+	clk_data = __socfpga_s10_clk_init(pdev, STRATIX10_NUM_CLKS);
+	if (IS_ERR(clk_data))
+		return PTR_ERR(clk_data);
 
 	s10_clk_register_pll(s10_pll_clks, ARRAY_SIZE(s10_pll_clks), clk_data);
 
@@ -317,11 +321,7 @@ static int s10_clkmgr_init(struct device_node *np)
 
 static int s10_clkmgr_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-
-	s10_clkmgr_init(np);
-
-	return 0;
+	return	s10_clkmgr_init(pdev);
 }
 
 static const struct of_device_id stratix10_clkmgr_match_table[] = {
@@ -334,6 +334,7 @@ static struct platform_driver stratix10_clkmgr_driver = {
 	.probe		= s10_clkmgr_probe,
 	.driver		= {
 		.name	= "stratix10-clkmgr",
+		.suppress_bind_attrs = true,
 		.of_match_table = stratix10_clkmgr_match_table,
 	},
 };

@@ -24,7 +24,7 @@ Required properties:
     - Must contain two elements for the extended variant of the IP
       (marvell,armada-3700-uart-ext): "uart-tx" and "uart-rx",
       respectively the UART TX interrupt and the UART RX interrupt. A
-      corresponding interrupts-names property must be defined.
+      corresponding interrupt-names property must be defined.
     - For backward compatibility reasons, a single element interrupts
       property is also supported for the standard variant of the IP,
       containing only the UART sum interrupt. This form is deprecated

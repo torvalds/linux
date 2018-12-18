@@ -268,7 +268,7 @@ static int max8997_led_probe(struct platform_device *pdev)
 		mode = pdata->led_pdata->mode[led->id];
 		brightness = pdata->led_pdata->brightness[led->id];
 
-		max8997_led_set_mode(led, pdata->led_pdata->mode[led->id]);
+		max8997_led_set_mode(led, mode);
 
 		if (brightness > led->cdev.max_brightness)
 			brightness = led->cdev.max_brightness;

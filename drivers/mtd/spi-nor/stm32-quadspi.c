@@ -355,7 +355,7 @@ static int stm32_qspi_read_reg(struct spi_nor *nor,
 	struct device *dev = flash->qspi->dev;
 	struct stm32_qspi_cmd cmd;
 
-	dev_dbg(dev, "read_reg: cmd:%#.2x buf:%p len:%#x\n", opcode, buf, len);
+	dev_dbg(dev, "read_reg: cmd:%#.2x buf:%pK len:%#x\n", opcode, buf, len);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = opcode;
@@ -376,7 +376,7 @@ static int stm32_qspi_write_reg(struct spi_nor *nor, u8 opcode,
 	struct device *dev = flash->qspi->dev;
 	struct stm32_qspi_cmd cmd;
 
-	dev_dbg(dev, "write_reg: cmd:%#.2x buf:%p len:%#x\n", opcode, buf, len);
+	dev_dbg(dev, "write_reg: cmd:%#.2x buf:%pK len:%#x\n", opcode, buf, len);
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.opcode = opcode;
@@ -398,7 +398,7 @@ static ssize_t stm32_qspi_read(struct spi_nor *nor, loff_t from, size_t len,
 	struct stm32_qspi_cmd cmd;
 	int err;
 
-	dev_dbg(qspi->dev, "read(%#.2x): buf:%p from:%#.8x len:%#zx\n",
+	dev_dbg(qspi->dev, "read(%#.2x): buf:%pK from:%#.8x len:%#zx\n",
 		nor->read_opcode, buf, (u32)from, len);
 
 	memset(&cmd, 0, sizeof(cmd));
@@ -656,7 +656,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rstc = devm_reset_control_get(dev, NULL);
+	rstc = devm_reset_control_get_exclusive(dev, NULL);
 	if (!IS_ERR(rstc)) {
 		reset_control_assert(rstc);
 		udelay(2);

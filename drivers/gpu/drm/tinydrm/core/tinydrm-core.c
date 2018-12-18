@@ -91,7 +91,7 @@ EXPORT_SYMBOL(tinydrm_gem_cma_prime_import_sg_table);
  * GEM object state and frees the memory used to store the object itself using
  * drm_gem_cma_free_object(). It also handles PRIME buffers which has the kernel
  * virtual address set by tinydrm_gem_cma_prime_import_sg_table(). Drivers
- * can use this as their &drm_driver->gem_free_object callback.
+ * can use this as their &drm_driver->gem_free_object_unlocked callback.
  */
 void tinydrm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
@@ -204,7 +204,7 @@ static int tinydrm_register(struct tinydrm_device *tdev)
 	if (ret)
 		return ret;
 
-	ret = drm_fb_cma_fbdev_init_with_funcs(drm, 0, 0, tdev->fb_funcs);
+	ret = drm_fbdev_generic_setup(drm, 0);
 	if (ret)
 		DRM_ERROR("Failed to initialize fbdev: %d\n", ret);
 
@@ -214,7 +214,6 @@ static int tinydrm_register(struct tinydrm_device *tdev)
 static void tinydrm_unregister(struct tinydrm_device *tdev)
 {
 	drm_atomic_helper_shutdown(tdev->drm);
-	drm_fb_cma_fbdev_fini(tdev->drm);
 	drm_dev_unregister(tdev->drm);
 }
 

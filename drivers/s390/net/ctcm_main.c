@@ -1379,7 +1379,7 @@ static int add_channel(struct ccw_device *cdev, enum ctcm_channel_types type,
 	} else
 		ccw_num = 8;
 
-	ch->ccw = kzalloc(ccw_num * sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
+	ch->ccw = kcalloc(ccw_num, sizeof(struct ccw1), GFP_KERNEL | GFP_DMA);
 	if (ch->ccw == NULL)
 					goto nomem_return;
 

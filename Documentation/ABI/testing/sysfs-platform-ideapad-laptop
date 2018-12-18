@@ -25,3 +25,16 @@ Description:
 		Control touchpad mode.
 			* 1 -> Switched On
 			* 0 -> Switched Off
+
+What:		/sys/bus/pci/devices/<bdf>/<device>/VPC2004:00/fn_lock
+Date:		May 2018
+KernelVersion:	4.18
+Contact:	"Oleg Keri <ezhi99@gmail.com>"
+Description:
+		Control fn-lock mode.
+			* 1 -> Switched On
+			* 0 -> Switched Off
+
+		For example:
+		# echo "0" >	\
+		/sys/bus/pci/devices/0000:00:1f.0/PNP0C09:00/VPC2004:00/fn_lock

@@ -334,6 +334,9 @@ struct ubi_eba_leb_desc {
  * @changing_leb: %1 if the atomic LEB change ioctl command is in progress
  * @direct_writes: %1 if direct writes are enabled for this volume
  *
+ * @checkmap: bitmap to remember which PEB->LEB mappings got checked,
+ *            protected by UBI LEB lock tree.
+ *
  * The @corrupted field indicates that the volume's contents is corrupted.
  * Since UBI protects only static volumes, this field is not relevant to
  * dynamic volumes - it is user's responsibility to assure their data
@@ -377,6 +380,10 @@ struct ubi_volume {
 	unsigned int updating:1;
 	unsigned int changing_leb:1;
 	unsigned int direct_writes:1;
+
+#ifdef CONFIG_MTD_UBI_FASTMAP
+	unsigned long *checkmap;
+#endif
 };
 
 /**
@@ -965,8 +972,12 @@ size_t ubi_calc_fm_size(struct ubi_device *ubi);
 int ubi_update_fastmap(struct ubi_device *ubi);
 int ubi_scan_fastmap(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		     struct ubi_attach_info *scan_ai);
+int ubi_fastmap_init_checkmap(struct ubi_volume *vol, int leb_count);
+void ubi_fastmap_destroy_checkmap(struct ubi_volume *vol);
 #else
 static inline int ubi_update_fastmap(struct ubi_device *ubi) { return 0; }
+int static inline ubi_fastmap_init_checkmap(struct ubi_volume *vol, int leb_count) { return 0; }
+static inline void ubi_fastmap_destroy_checkmap(struct ubi_volume *vol) {}
 #endif
 
 /* block.c */

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /**************************************************************************
  *
  * Copyright (c) 2006-2009 VMware, Inc., Palo Alto, CA., USA
@@ -37,9 +38,7 @@
 #include <drm/drm_cache.h>
 #include <drm/ttm/ttm_bo_driver.h>
 #include <drm/ttm/ttm_page_alloc.h>
-#ifdef CONFIG_X86
-#include <asm/set_memory.h>
-#endif
+#include <drm/ttm/ttm_set_memory.h>
 
 /**
  * Allocates a ttm structure for the given BO.
@@ -114,10 +113,9 @@ static int ttm_sg_tt_alloc_page_directory(struct ttm_dma_tt *ttm)
 	return 0;
 }
 
-#ifdef CONFIG_X86
-static inline int ttm_tt_set_page_caching(struct page *p,
-					  enum ttm_caching_state c_old,
-					  enum ttm_caching_state c_new)
+static int ttm_tt_set_page_caching(struct page *p,
+				   enum ttm_caching_state c_old,
+				   enum ttm_caching_state c_new)
 {
 	int ret = 0;
 
@@ -128,26 +126,18 @@ static inline int ttm_tt_set_page_caching(struct page *p,
 		/* p isn't in the default caching state, set it to
 		 * writeback first to free its current memtype. */
 
-		ret = set_pages_wb(p, 1);
+		ret = ttm_set_pages_wb(p, 1);
 		if (ret)
 			return ret;
 	}
 
 	if (c_new == tt_wc)
-		ret = set_memory_wc((unsigned long) page_address(p), 1);
+		ret = ttm_set_pages_wc(p, 1);
 	else if (c_new == tt_uncached)
-		ret = set_pages_uc(p, 1);
+		ret = ttm_set_pages_uc(p, 1);
 
 	return ret;
 }
-#else /* CONFIG_X86 */
-static inline int ttm_tt_set_page_caching(struct page *p,
-					  enum ttm_caching_state c_old,
-					  enum ttm_caching_state c_new)
-{
-	return 0;
-}
-#endif /* CONFIG_X86 */
 
 /*
  * Change caching policy for the linear kernel map

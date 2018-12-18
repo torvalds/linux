@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -173,7 +161,7 @@ xfs_qm_dquot_logitem_push(
 	 * The buffer containing this item failed to be written back
 	 * previously. Resubmit the buffer for IO
 	 */
-	if (lip->li_flags & XFS_LI_FAILED) {
+	if (test_bit(XFS_LI_FAILED, &lip->li_flags)) {
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 
@@ -209,10 +197,7 @@ xfs_qm_dquot_logitem_push(
 	spin_unlock(&lip->li_ailp->ail_lock);
 
 	error = xfs_qm_dqflush(dqp, &bp);
-	if (error) {
-		xfs_warn(dqp->q_mount, "%s: push error %d on dqp "PTR_FMT,
-			__func__, error, dqp);
-	} else {
+	if (!error) {
 		if (!xfs_buf_delwri_queue(bp, buffer_list))
 			rval = XFS_ITEM_FLUSHING;
 		xfs_buf_relse(bp);

@@ -31,7 +31,7 @@ Optional properties for child nodes:
      "backlight" - LED will act as a back-light, controlled by the framebuffer
 		   system
      "default-on" - LED will turn on (but for leds-gpio see "default-state"
-		    property in Documentation/devicetree/bindings/gpio/led.txt)
+		    property in Documentation/devicetree/bindings/leds/leds-gpio.txt)
      "heartbeat" - LED "double" flashes at a load average based rate
      "disk-activity" - LED indicates disk activity
      "ide-disk" - LED indicates IDE disk activity (deprecated),

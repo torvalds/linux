@@ -352,7 +352,7 @@ static int wmt_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	if (num_pulls)
 		maps_per_pin++;
 
-	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
+	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
 				 GFP_KERNEL);
 	if (!maps)
 		return -ENOMEM;

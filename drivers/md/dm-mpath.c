@@ -520,7 +520,8 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 
 	bdev = pgpath->path.dev->bdev;
 	q = bdev_get_queue(bdev);
-	clone = blk_get_request(q, rq->cmd_flags | REQ_NOMERGE, GFP_ATOMIC);
+	clone = blk_get_request(q, rq->cmd_flags | REQ_NOMERGE,
+			BLK_MQ_REQ_NOWAIT);
 	if (IS_ERR(clone)) {
 		/* EBUSY, ENODEV or EWOULDBLOCK: requeue */
 		if (blk_queue_dying(q)) {

@@ -74,12 +74,12 @@ struct scsi_disk {
 	struct gendisk	*disk;
 	struct opal_dev *opal_dev;
 #ifdef CONFIG_BLK_DEV_ZONED
-	unsigned int	nr_zones;
-	unsigned int	zone_blocks;
-	unsigned int	zone_shift;
-	unsigned int	zones_optimal_open;
-	unsigned int	zones_optimal_nonseq;
-	unsigned int	zones_max_open;
+	u32		nr_zones;
+	u32		zone_blocks;
+	u32		zone_shift;
+	u32		zones_optimal_open;
+	u32		zones_optimal_nonseq;
+	u32		zones_max_open;
 #endif
 	atomic_t	openers;
 	sector_t	capacity;	/* size in logical blocks */
@@ -254,19 +254,10 @@ static inline unsigned int sd_prot_flag_mask(unsigned int prot_op)
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 
 extern void sd_dif_config_host(struct scsi_disk *);
-extern void sd_dif_prepare(struct scsi_cmnd *scmd);
-extern void sd_dif_complete(struct scsi_cmnd *, unsigned int);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
 static inline void sd_dif_config_host(struct scsi_disk *disk)
-{
-}
-static inline int sd_dif_prepare(struct scsi_cmnd *scmd)
-{
-	return 0;
-}
-static inline void sd_dif_complete(struct scsi_cmnd *cmd, unsigned int a)
 {
 }
 

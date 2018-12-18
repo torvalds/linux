@@ -1,7 +1,7 @@
 #ifndef _HFI1_DEBUGFS_H
 #define _HFI1_DEBUGFS_H
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015, 2016, 2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -48,51 +48,59 @@
  */
 
 struct hfi1_ibdev;
+
+#define DEBUGFS_FILE_CREATE(name, parent, data, ops, mode)	\
+do { \
+	struct dentry *ent; \
+	const char *__name = name; \
+	ent = debugfs_create_file(__name, mode, parent, \
+		data, ops); \
+	if (!ent) \
+		pr_warn("create of %s failed\n", __name); \
+} while (0)
+
+#define DEBUGFS_SEQ_FILE_OPS(name) \
+static const struct seq_operations _##name##_seq_ops = { \
+	.start = _##name##_seq_start, \
+	.next  = _##name##_seq_next, \
+	.stop  = _##name##_seq_stop, \
+	.show  = _##name##_seq_show \
+}
+
+#define DEBUGFS_SEQ_FILE_OPEN(name) \
+static int _##name##_open(struct inode *inode, struct file *s) \
+{ \
+	struct seq_file *seq; \
+	int ret; \
+	ret =  seq_open(s, &_##name##_seq_ops); \
+	if (ret) \
+		return ret; \
+	seq = s->private_data; \
+	seq->private = inode->i_private; \
+	return 0; \
+}
+
+#define DEBUGFS_FILE_OPS(name) \
+static const struct file_operations _##name##_file_ops = { \
+	.owner   = THIS_MODULE, \
+	.open    = _##name##_open, \
+	.read    = hfi1_seq_read, \
+	.llseek  = hfi1_seq_lseek, \
+	.release = seq_release \
+}
+
+#define DEBUGFS_SEQ_FILE_CREATE(name, parent, data) \
+	DEBUGFS_FILE_CREATE(#name, parent, data, &_##name##_file_ops, 0444)
+
+ssize_t hfi1_seq_read(struct file *file, char __user *buf, size_t size,
+		      loff_t *ppos);
+loff_t hfi1_seq_lseek(struct file *file, loff_t offset, int whence);
+
 #ifdef CONFIG_DEBUG_FS
 void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd);
 void hfi1_dbg_ibdev_exit(struct hfi1_ibdev *ibd);
 void hfi1_dbg_init(void);
 void hfi1_dbg_exit(void);
-
-#ifdef CONFIG_FAULT_INJECTION
-#include <linux/fault-inject.h>
-struct fault_opcode {
-	struct fault_attr attr;
-	struct dentry *dir;
-	bool fault_by_opcode;
-	u64 n_rxfaults[256];
-	u64 n_txfaults[256];
-	u8 opcode;
-	u8 mask;
-};
-
-struct fault_packet {
-	struct fault_attr attr;
-	struct dentry *dir;
-	bool fault_by_packet;
-	u64 n_faults;
-};
-
-bool hfi1_dbg_fault_opcode(struct rvt_qp *qp, u32 opcode, bool rx);
-bool hfi1_dbg_fault_packet(struct hfi1_packet *packet);
-bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd);
-#else
-static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_opcode(struct rvt_qp *qp,
-					 u32 opcode, bool rx)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
-{
-	return false;
-}
-#endif
 
 #else
 static inline void hfi1_dbg_ibdev_init(struct hfi1_ibdev *ibd)
@@ -109,22 +117,6 @@ static inline void hfi1_dbg_init(void)
 
 static inline void hfi1_dbg_exit(void)
 {
-}
-
-static inline bool hfi1_dbg_fault_packet(struct hfi1_packet *packet)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_opcode(struct rvt_qp *qp,
-					 u32 opcode, bool rx)
-{
-	return false;
-}
-
-static inline bool hfi1_dbg_fault_suppress_err(struct hfi1_ibdev *ibd)
-{
-	return false;
 }
 #endif
 

@@ -911,15 +911,3 @@ int snd_akm4xxx_build_controls(struct snd_akm4xxx *ak)
 	return 0;
 }
 EXPORT_SYMBOL(snd_akm4xxx_build_controls);
-
-static int __init alsa_akm4xxx_module_init(void)
-{
-	return 0;
-}
-        
-static void __exit alsa_akm4xxx_module_exit(void)
-{
-}
-        
-module_init(alsa_akm4xxx_module_init)
-module_exit(alsa_akm4xxx_module_exit)

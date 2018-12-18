@@ -267,7 +267,7 @@ static void parport_ieee1284_terminate (struct parport *port)
 			port->ieee1284.phase = IEEE1284_PH_FWD_IDLE;
 		}
 
-		/* fall-though.. */
+		/* fall through */
 
 	default:
 		/* Terminate from all other modes. */
@@ -615,6 +615,7 @@ ssize_t parport_write (struct parport *port, const void *buffer, size_t len)
 	case IEEE1284_MODE_NIBBLE:
 	case IEEE1284_MODE_BYTE:
 		parport_negotiate (port, IEEE1284_MODE_COMPAT);
+		/* fall through */
 	case IEEE1284_MODE_COMPAT:
 		DPRINTK (KERN_DEBUG "%s: Using compatibility mode\n",
 			 port->name);

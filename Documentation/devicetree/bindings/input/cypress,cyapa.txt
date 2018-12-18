@@ -3,8 +3,6 @@ Cypress I2C Touchpad
 Required properties:
 - compatible: must be "cypress,cyapa".
 - reg: I2C address of the chip.
-- interrupt-parent: a phandle for the interrupt controller (see interrupt
-	binding[0]).
 - interrupts: interrupt to which the chip is connected (see interrupt
 	binding[0]).
 

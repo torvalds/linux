@@ -224,6 +224,8 @@ TRACE_EVENT(rpc_stats_latency,
 	TP_ARGS(task, backlog, rtt, execute),
 
 	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
 		__field(u32, xid)
 		__field(int, version)
 		__string(progname, task->tk_client->cl_program->name)
@@ -231,13 +233,11 @@ TRACE_EVENT(rpc_stats_latency,
 		__field(unsigned long, backlog)
 		__field(unsigned long, rtt)
 		__field(unsigned long, execute)
-		__string(addr,
-			 task->tk_xprt->address_strings[RPC_DISPLAY_ADDR])
-		__string(port,
-			 task->tk_xprt->address_strings[RPC_DISPLAY_PORT])
 	),
 
 	TP_fast_assign(
+		__entry->client_id = task->tk_client->cl_clid;
+		__entry->task_id = task->tk_pid;
 		__entry->xid = be32_to_cpu(task->tk_rqstp->rq_xid);
 		__entry->version = task->tk_client->cl_vers;
 		__assign_str(progname, task->tk_client->cl_program->name)
@@ -245,14 +245,10 @@ TRACE_EVENT(rpc_stats_latency,
 		__entry->backlog = ktime_to_us(backlog);
 		__entry->rtt = ktime_to_us(rtt);
 		__entry->execute = ktime_to_us(execute);
-		__assign_str(addr,
-			     task->tk_xprt->address_strings[RPC_DISPLAY_ADDR]);
-		__assign_str(port,
-			     task->tk_xprt->address_strings[RPC_DISPLAY_PORT]);
 	),
 
-	TP_printk("peer=[%s]:%s xid=0x%08x %sv%d %s backlog=%lu rtt=%lu execute=%lu",
-		__get_str(addr), __get_str(port), __entry->xid,
+	TP_printk("task:%u@%d xid=0x%08x %sv%d %s backlog=%lu rtt=%lu execute=%lu",
+		__entry->task_id, __entry->client_id, __entry->xid,
 		__get_str(progname), __entry->version, __get_str(procname),
 		__entry->backlog, __entry->rtt, __entry->execute)
 );

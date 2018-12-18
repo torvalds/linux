@@ -102,6 +102,9 @@ struct sdhci_arasan_data {
 
 /* Controller does not have CD wired and will not function normally without */
 #define SDHCI_ARASAN_QUIRK_FORCE_CDTEST	BIT(0)
+/* Controller immediately reports SDHCI_CLOCK_INT_STABLE after enabling the
+ * internal clock even when the clock isn't stable */
+#define SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE BIT(1)
 };
 
 static const struct sdhci_arasan_soc_ctl_map rk3399_soc_ctl_map = {
@@ -207,6 +210,16 @@ static void sdhci_arasan_set_clock(struct sdhci_host *host, unsigned int clock)
 
 	sdhci_set_clock(host, clock);
 
+	if (sdhci_arasan->quirks & SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE)
+		/*
+		 * Some controllers immediately report SDHCI_CLOCK_INT_STABLE
+		 * after enabling the clock even though the clock is not
+		 * stable. Trying to use a clock without waiting here results
+		 * in EILSEQ while detecting some older/slower cards. The
+		 * chosen delay is the maximum delay from sdhci_set_clock.
+		 */
+		msleep(20);
+
 	if (ctrl_phy) {
 		phy_power_on(sdhci_arasan->phy);
 		sdhci_arasan->is_phy_on = true;
@@ -290,7 +303,8 @@ static const struct sdhci_pltfm_data sdhci_arasan_pdata = {
 	.ops = &sdhci_arasan_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
-			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
+			SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN |
+			SDHCI_QUIRK2_STOP_WITH_TC,
 };
 
 static u32 sdhci_arasan_cqhci_irq(struct sdhci_host *host, u32 intmask)
@@ -359,8 +373,7 @@ static const struct sdhci_pltfm_data sdhci_arasan_cqe_pdata = {
  */
 static int sdhci_arasan_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sdhci_host *host = platform_get_drvdata(pdev);
+	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
 	int ret;
@@ -403,8 +416,7 @@ static int sdhci_arasan_suspend(struct device *dev)
  */
 static int sdhci_arasan_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sdhci_host *host = platform_get_drvdata(pdev);
+	struct sdhci_host *host = dev_get_drvdata(dev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_arasan_data *sdhci_arasan = sdhci_pltfm_priv(pltfm_host);
 	int ret;
@@ -758,6 +770,9 @@ static int sdhci_arasan_probe(struct platform_device *pdev)
 
 	if (of_property_read_bool(np, "xlnx,fails-without-test-cd"))
 		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_FORCE_CDTEST;
+
+	if (of_property_read_bool(np, "xlnx,int-clock-stable-broken"))
+		sdhci_arasan->quirks |= SDHCI_ARASAN_QUIRK_CLOCK_UNSTABLE;
 
 	pltfm_host->clk = clk_xin;
 

@@ -31,6 +31,8 @@ int create_orc(struct objtool_file *file)
 		struct cfi_reg *cfa = &insn->state.cfa;
 		struct cfi_reg *bp = &insn->state.regs[CFI_BP];
 
+		orc->end = insn->state.end;
+
 		if (cfa->base == CFI_UNDEFINED) {
 			orc->sp_reg = ORC_REG_UNDEFINED;
 			continue;

@@ -25,6 +25,13 @@
 #define MX51_AUDMUX_PORT6		5
 #define MX51_AUDMUX_PORT7		6
 
+/*
+ * TFCSEL/RFCSEL (i.MX27) or TFSEL/TCSEL/RFSEL/RCSEL (i.MX31/51/53/6Q)
+ * can be sourced from Rx/Tx.
+ */
+#define IMX_AUDMUX_RXFS			0x8
+#define IMX_AUDMUX_RXCLK		0x8
+
 /* Register definitions for the i.MX21/27 Digital Audio Multiplexer */
 #define IMX_AUDMUX_V1_PCR_INMMASK(x)	((x) & 0xff)
 #define IMX_AUDMUX_V1_PCR_INMEN		(1 << 8)

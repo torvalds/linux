@@ -365,11 +365,6 @@ ssize_t bch_hprint(char *buf, int64_t v);
 bool bch_is_zero(const char *p, size_t n);
 int bch_parse_uuid(const char *s, char *uuid);
 
-ssize_t bch_snprint_string_list(char *buf, size_t size, const char * const list[],
-			    size_t selected);
-
-ssize_t bch_read_string_list(const char *buf, const char * const list[]);
-
 struct time_stats {
 	spinlock_t	lock;
 	/*
@@ -447,7 +442,7 @@ struct bch_ratelimit {
 	 * Rate at which we want to do work, in units per second
 	 * The units here correspond to the units passed to bch_next_delay()
 	 */
-	uint32_t		rate;
+	atomic_long_t		rate;
 };
 
 static inline void bch_ratelimit_reset(struct bch_ratelimit *d)

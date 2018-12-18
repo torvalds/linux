@@ -94,8 +94,6 @@ static int i2c_opal_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	 */
 	memset(&req, 0, sizeof(req));
 	switch(num) {
-	case 0:
-		return 0;
 	case 1:
 		req.type = (msgs[0].flags & I2C_M_RD) ?
 			OPAL_I2C_RAW_READ : OPAL_I2C_RAW_WRITE;
@@ -114,8 +112,6 @@ static int i2c_opal_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 		req.size = cpu_to_be32(msgs[1].len);
 		req.buffer_ra = cpu_to_be64(__pa(msgs[1].buf));
 		break;
-	default:
-		return -EOPNOTSUPP;
 	}
 
 	rc = i2c_opal_send_request(opal_id, &req);

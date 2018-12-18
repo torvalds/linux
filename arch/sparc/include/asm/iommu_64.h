@@ -17,7 +17,7 @@
 #define IOPTE_WRITE   0x0000000000000002UL
 
 #define IOMMU_NUM_CTXS	4096
-#include <linux/iommu-common.h>
+#include <asm/iommu-common.h>
 
 struct iommu_arena {
 	unsigned long	*map;

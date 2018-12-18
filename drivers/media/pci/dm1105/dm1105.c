@@ -986,6 +986,9 @@ static int dm1105_probe(struct pci_dev *pdev,
 	int ret = -ENOMEM;
 	int i;
 
+	if (dm1105_devcount >= ARRAY_SIZE(card))
+		return -ENODEV;
+
 	dev = kzalloc(sizeof(struct dm1105_dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;

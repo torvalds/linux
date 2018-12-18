@@ -57,6 +57,7 @@ static void mtk_phy_link_adjust(struct net_device *dev)
 			}
 		}
 	}
+	spin_unlock_irqrestore(&eth->phy->lock, flags);
 }
 
 int mtk_connect_phy_node(struct mtk_eth *eth, struct mtk_mac *mac,
@@ -130,6 +131,7 @@ static int mtk_phy_connect(struct mtk_mac *mac)
 			}
 		} else if (eth->mii_bus) {
 			struct phy_device *phy;
+
 			phy = mdiobus_get_phy(eth->mii_bus, i);
 			if (phy) {
 				phy_init(eth, mac, phy);
@@ -160,7 +162,9 @@ static void mtk_phy_disconnect(struct mtk_mac *mac)
 		} else if (eth->phy->phy[i]) {
 			phy_disconnect(eth->phy->phy[i]);
 		} else if (eth->mii_bus) {
-			struct phy_device *phy = mdiobus_get_phy(eth->mii_bus, i);
+			struct phy_device *phy =
+				mdiobus_get_phy(eth->mii_bus, i);
+
 			if (phy)
 				phy_detach(phy);
 		}

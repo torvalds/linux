@@ -140,15 +140,10 @@
 		regulator-boot-on;
 	};
 
-	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		mclk: clock@0 {
-			compatible = "fixed-clock";
-			reg = <0>;
-			#clock-cells = <0>;
-			clock-frequency = <26000000>;
-		};
+	mclk: clock-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <26000000>;
 	};
 
 	sound {
@@ -345,6 +340,7 @@
 		interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpio2 6 GPIO_ACTIVE_LOW>;
 		wake-gpios = <&gpio4 9 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
 	};
 
 	touchscreen: tsc2007@48 {

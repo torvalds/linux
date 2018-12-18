@@ -38,7 +38,6 @@ struct perf_config_set *perf_config_set__new(void);
 void perf_config_set__delete(struct perf_config_set *set);
 int perf_config_set__collect(struct perf_config_set *set, const char *file_name,
 			     const char *var, const char *value);
-void perf_config__init(void);
 void perf_config__exit(void);
 void perf_config__refresh(void);
 

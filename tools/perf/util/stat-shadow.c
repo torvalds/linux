@@ -913,11 +913,10 @@ void perf_stat__print_shadow_stats(struct perf_evsel *evsel,
 			ratio = total / avg;
 
 		print_metric(ctxp, NULL, "%8.0f", "cycles / elision", ratio);
-	} else if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK) ||
-		   perf_evsel__match(evsel, SOFTWARE, SW_CPU_CLOCK)) {
+	} else if (perf_evsel__is_clock(evsel)) {
 		if ((ratio = avg_stats(&walltime_nsecs_stats)) != 0)
 			print_metric(ctxp, NULL, "%8.3f", "CPUs utilized",
-				     avg / ratio);
+				     avg / (ratio * evsel->scale));
 		else
 			print_metric(ctxp, NULL, NULL, "CPUs utilized", 0);
 	} else if (perf_stat_evsel__is(evsel, TOPDOWN_FETCH_BUBBLES)) {

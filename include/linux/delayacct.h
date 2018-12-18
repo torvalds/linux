@@ -29,7 +29,7 @@
 
 #ifdef CONFIG_TASK_DELAY_ACCT
 struct task_delay_info {
-	spinlock_t	lock;
+	raw_spinlock_t	lock;
 	unsigned int	flags;	/* Private per-task flags */
 
 	/* For each stat XXX, add following, aligned appropriately
@@ -124,7 +124,7 @@ static inline void delayacct_blkio_start(void)
 
 static inline void delayacct_blkio_end(struct task_struct *p)
 {
-	if (current->delays)
+	if (p->delays)
 		__delayacct_blkio_end(p);
 	delayacct_clear_flag(DELAYACCT_PF_BLKIO);
 }

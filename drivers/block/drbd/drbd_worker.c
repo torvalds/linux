@@ -282,8 +282,8 @@ void drbd_request_endio(struct bio *bio)
 		what = COMPLETED_OK;
 	}
 
-	bio_put(req->private_bio);
 	req->private_bio = ERR_PTR(blk_status_to_errno(bio->bi_status));
+	bio_put(bio);
 
 	/* not req_mod(), we need irqsave here! */
 	spin_lock_irqsave(&device->resource->req_lock, flags);
@@ -1690,9 +1690,7 @@ void drbd_rs_controller_reset(struct drbd_device *device)
 	atomic_set(&device->rs_sect_in, 0);
 	atomic_set(&device->rs_sect_ev, 0);
 	device->rs_in_flight = 0;
-	device->rs_last_events =
-		(int)part_stat_read(&disk->part0, sectors[0]) +
-		(int)part_stat_read(&disk->part0, sectors[1]);
+	device->rs_last_events = (int)part_stat_read_accum(&disk->part0, sectors);
 
 	/* Updating the RCU protected object in place is necessary since
 	   this function gets called from atomic context.

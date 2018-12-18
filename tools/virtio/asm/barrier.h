@@ -13,8 +13,8 @@
 } while (0);
 /* Weak barriers should be used. If not - it's a bug */
 # define mb() abort()
-# define rmb() abort()
-# define wmb() abort()
+# define dma_rmb() abort()
+# define dma_wmb() abort()
 #else
 #error Please fill in barrier macros
 #endif

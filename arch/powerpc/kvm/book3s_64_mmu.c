@@ -23,7 +23,6 @@
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/book3s/64/mmu-hash.h>
@@ -38,7 +37,16 @@
 
 static void kvmppc_mmu_book3s_64_reset_msr(struct kvm_vcpu *vcpu)
 {
-	kvmppc_set_msr(vcpu, vcpu->arch.intr_msr);
+	unsigned long msr = vcpu->arch.intr_msr;
+	unsigned long cur_msr = kvmppc_get_msr(vcpu);
+
+	/* If transactional, change to suspend mode on IRQ delivery */
+	if (MSR_TM_TRANSACTIONAL(cur_msr))
+		msr |= MSR_TS_S;
+	else
+		msr |= cur_msr & MSR_TS_MASK;
+
+	kvmppc_set_msr(vcpu, msr);
 }
 
 static struct kvmppc_slb *kvmppc_mmu_book3s_64_find_slbe(

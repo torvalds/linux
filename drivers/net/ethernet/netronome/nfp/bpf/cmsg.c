@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -42,8 +42,6 @@
 #include "../nfp_net.h"
 #include "fw.h"
 #include "main.h"
-
-#define cmsg_warn(bpf, msg...)	nn_dp_warn(&(bpf)->app->ctrl->dp, msg)
 
 #define NFP_BPF_TAG_ALLOC_SPAN	(U16_MAX / 4)
 
@@ -100,6 +98,15 @@ nfp_bpf_cmsg_map_req_alloc(struct nfp_app_bpf *bpf, unsigned int n)
 	size += sizeof(struct cmsg_key_value_pair) * n;
 
 	return nfp_bpf_cmsg_alloc(bpf, size);
+}
+
+static u8 nfp_bpf_cmsg_get_type(struct sk_buff *skb)
+{
+	struct cmsg_hdr *hdr;
+
+	hdr = (struct cmsg_hdr *)skb->data;
+
+	return hdr->type;
 }
 
 static unsigned int nfp_bpf_cmsg_get_tag(struct sk_buff *skb)
@@ -431,6 +438,14 @@ void nfp_bpf_ctrl_msg_rx(struct nfp_app *app, struct sk_buff *skb)
 		goto err_free;
 	}
 
+	if (nfp_bpf_cmsg_get_type(skb) == CMSG_TYPE_BPF_EVENT) {
+		if (!nfp_bpf_event_output(bpf, skb->data, skb->len))
+			dev_consume_skb_any(skb);
+		else
+			dev_kfree_skb_any(skb);
+		return;
+	}
+
 	nfp_ctrl_lock(bpf->app->ctrl);
 
 	tag = nfp_bpf_cmsg_get_tag(skb);
@@ -450,4 +465,22 @@ err_unlock:
 	nfp_ctrl_unlock(bpf->app->ctrl);
 err_free:
 	dev_kfree_skb_any(skb);
+}
+
+void
+nfp_bpf_ctrl_msg_rx_raw(struct nfp_app *app, const void *data, unsigned int len)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+	const struct cmsg_hdr *hdr = data;
+
+	if (unlikely(len < sizeof(struct cmsg_reply_map_simple))) {
+		cmsg_warn(bpf, "cmsg drop - too short %d!\n", len);
+		return;
+	}
+
+	if (hdr->type == CMSG_TYPE_BPF_EVENT)
+		nfp_bpf_event_output(bpf, data, len);
+	else
+		cmsg_warn(bpf, "cmsg drop - msg type %d with raw buffer!\n",
+			  hdr->type);
 }

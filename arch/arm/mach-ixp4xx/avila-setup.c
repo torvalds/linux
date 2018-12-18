@@ -51,7 +51,7 @@ static struct platform_device avila_flash = {
 };
 
 static struct gpiod_lookup_table avila_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio",
+	.dev_id		= "i2c-gpio.0",
 	.table		= {
 		GPIO_LOOKUP_IDX("IXP4XX_GPIO_CHIP", AVILA_SDA_PIN,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),

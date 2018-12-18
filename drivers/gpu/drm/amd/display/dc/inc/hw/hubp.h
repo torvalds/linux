@@ -43,10 +43,9 @@ enum cursor_lines_per_chunk {
 };
 
 struct hubp {
-	struct hubp_funcs *funcs;
+	const struct hubp_funcs *funcs;
 	struct dc_context *ctx;
 	struct dc_plane_address request_address;
-	struct dc_plane_address current_address;
 	int inst;
 
 	/* run time states */
@@ -55,7 +54,6 @@ struct hubp {
 	struct dc_cursor_attributes curs_attr;
 	bool power_gated;
 };
-
 
 struct hubp_funcs {
 	void (*hubp_setup)(
@@ -121,6 +119,9 @@ struct hubp_funcs {
 
 	void (*hubp_clk_cntl)(struct hubp *hubp, bool enable);
 	void (*hubp_vtg_sel)(struct hubp *hubp, uint32_t otg_inst);
+	void (*hubp_read_state)(struct hubp *hubp);
+	void (*hubp_disable_control)(struct hubp *hubp, bool disable_hubp);
+	unsigned int (*hubp_get_underflow_status)(struct hubp *hubp);
 
 };
 

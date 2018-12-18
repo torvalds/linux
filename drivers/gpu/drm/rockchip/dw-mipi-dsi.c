@@ -595,7 +595,7 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	dsi->format = device->format;
 	dsi->mode_flags = device->mode_flags;
 	dsi->panel = of_drm_find_panel(device->dev.of_node);
-	if (dsi->panel)
+	if (!IS_ERR(dsi->panel))
 		return drm_panel_attach(dsi->panel, &dsi->connector);
 
 	return -EINVAL;
@@ -1129,7 +1129,7 @@ static int dw_mipi_dsi_register(struct drm_device *drm,
 			   &dw_mipi_dsi_atomic_connector_funcs,
 			   DRM_MODE_CONNECTOR_DSI);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

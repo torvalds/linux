@@ -49,6 +49,7 @@ struct intel_opregion {
 	u32 vbt_size;
 	u32 *lid_state;
 	struct work_struct asle_work;
+	struct notifier_block acpi_notifier;
 };
 
 #define OPREGION_SIZE            (8 * 1024)

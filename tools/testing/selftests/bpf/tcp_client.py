@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 #
 # SPDX-License-Identifier: GPL-2.0
 #
@@ -9,11 +9,11 @@ import subprocess
 import select
 
 def read(sock, n):
-    buf = ''
+    buf = b''
     while len(buf) < n:
         rem = n - len(buf)
         try: s = sock.recv(rem)
-        except (socket.error), e: return ''
+        except (socket.error) as e: return b''
         buf += s
     return buf
 
@@ -22,7 +22,7 @@ def send(sock, s):
     count = 0
     while count < total:
         try: n = sock.send(s)
-        except (socket.error), e: n = 0
+        except (socket.error) as e: n = 0
         if n == 0:
             return count;
         count += n
@@ -39,10 +39,10 @@ try:
 except socket.error as e:
     sys.exit(1)
 
-buf = ''
+buf = b''
 n = 0
 while n < 1000:
-    buf += '+'
+    buf += b'+'
     n += 1
 
 sock.settimeout(1);

@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2009-2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2009-2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -33,6 +33,10 @@
 #include "vmwgfx_binding.h"
 #include "device_include/svga3d_surfacedefs.h"
 
+#define SVGA3D_FLAGS_64(upper32, lower32) (((uint64_t)upper32 << 32) | lower32)
+#define SVGA3D_FLAGS_UPPER_32(svga3d_flags) (svga3d_flags >> 32)
+#define SVGA3D_FLAGS_LOWER_32(svga3d_flags) \
+	(svga3d_flags & ((uint64_t)U32_MAX))
 
 /**
  * struct vmw_user_surface - User-space visible surface resource
@@ -81,7 +85,16 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 				 bool readback,
 				 struct ttm_validate_buffer *val_buf);
 static int vmw_gb_surface_destroy(struct vmw_resource *res);
-
+static int
+vmw_gb_surface_define_internal(struct drm_device *dev,
+			       struct drm_vmw_gb_surface_create_ext_req *req,
+			       struct drm_vmw_gb_surface_create_rep *rep,
+			       struct drm_file *file_priv);
+static int
+vmw_gb_surface_reference_internal(struct drm_device *dev,
+				  struct drm_vmw_surface_arg *req,
+				  struct drm_vmw_gb_surface_ref_ext_rep *rep,
+				  struct drm_file *file_priv);
 
 static const struct vmw_user_resource_conv user_surface_conv = {
 	.object_type = VMW_RES_SURFACE,
@@ -224,7 +237,12 @@ static void vmw_surface_define_encode(const struct vmw_surface *srf,
 	cmd->header.id = SVGA_3D_CMD_SURFACE_DEFINE;
 	cmd->header.size = cmd_len;
 	cmd->body.sid = srf->res.id;
-	cmd->body.surfaceFlags = srf->flags;
+	/*
+	 * Downcast of surfaceFlags, was upcasted when received from user-space,
+	 * since driver internally stores as 64 bit.
+	 * For legacy surface define only 32 bit flag is supported.
+	 */
+	cmd->body.surfaceFlags = (SVGA3dSurface1Flags)srf->flags;
 	cmd->body.format = srf->format;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
 		cmd->body.face[i].numMipLevels = srf->mip_levels[i];
@@ -468,7 +486,7 @@ static int vmw_legacy_srf_dma(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(val_buf->bo, fence);
+	vmw_bo_fence_single(val_buf->bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -760,7 +778,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	srf = &user_srf->srf;
 	res = &srf->res;
 
-	srf->flags = req->flags;
+	/* Driver internally stores as 64-bit flags */
+	srf->flags = (SVGA3dSurfaceAllFlags)req->flags;
 	srf->format = req->format;
 	srf->scanout = req->scanout;
 
@@ -785,6 +804,8 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	srf->base_size = *srf->sizes;
 	srf->autogen_filter = SVGA3D_TEX_FILTER_NONE;
 	srf->multisample_count = 0;
+	srf->multisample_pattern = SVGA3D_MS_PATTERN_NONE;
+	srf->quality_level = SVGA3D_MS_QUALITY_NONE;
 
 	cur_bo_offset = 0;
 	cur_offset = srf->offsets;
@@ -842,12 +863,12 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (dev_priv->has_mob && req->shareable) {
 		uint32_t backup_handle;
 
-		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
-					    res->backup_size,
-					    true,
-					    &backup_handle,
-					    &res->backup,
-					    &user_srf->backup_base);
+		ret = vmw_user_bo_alloc(dev_priv, tfile,
+					res->backup_size,
+					true,
+					&backup_handle,
+					&res->backup,
+					&user_srf->backup_base);
 		if (unlikely(ret != 0)) {
 			vmw_resource_unreference(&res);
 			goto out_unlock;
@@ -990,7 +1011,8 @@ int vmw_surface_reference_ioctl(struct drm_device *dev, void *data,
 	user_srf = container_of(base, struct vmw_user_surface, prime.base);
 	srf = &user_srf->srf;
 
-	rep->flags = srf->flags;
+	/* Downcast of flags when sending back to user space */
+	rep->flags = (uint32_t)srf->flags;
 	rep->format = srf->format;
 	memcpy(rep->mip_levels, srf->mip_levels, sizeof(srf->mip_levels));
 	user_sizes = (struct drm_vmw_size __user *)(unsigned long)
@@ -1031,6 +1053,10 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		SVGA3dCmdHeader header;
 		SVGA3dCmdDefineGBSurface_v2 body;
 	} *cmd2;
+	struct {
+		SVGA3dCmdHeader header;
+		SVGA3dCmdDefineGBSurface_v3 body;
+	} *cmd3;
 
 	if (likely(res->id != -1))
 		return 0;
@@ -1047,7 +1073,11 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (srf->array_size > 0) {
+	if (dev_priv->has_sm4_1 && srf->array_size > 0) {
+		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V3;
+		cmd_len = sizeof(cmd3->body);
+		submit_len = sizeof(*cmd3);
+	} else if (srf->array_size > 0) {
 		/* has_dx checked on creation time. */
 		cmd_id = SVGA_3D_CMD_DEFINE_GB_SURFACE_V2;
 		cmd_len = sizeof(cmd2->body);
@@ -1060,6 +1090,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 
 	cmd = vmw_fifo_reserve(dev_priv, submit_len);
 	cmd2 = (typeof(cmd2))cmd;
+	cmd3 = (typeof(cmd3))cmd;
 	if (unlikely(!cmd)) {
 		DRM_ERROR("Failed reserving FIFO space for surface "
 			  "creation.\n");
@@ -1067,12 +1098,27 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		goto out_no_fifo;
 	}
 
-	if (srf->array_size > 0) {
+	if (dev_priv->has_sm4_1 && srf->array_size > 0) {
+		cmd3->header.id = cmd_id;
+		cmd3->header.size = cmd_len;
+		cmd3->body.sid = srf->res.id;
+		cmd3->body.surfaceFlags = srf->flags;
+		cmd3->body.format = srf->format;
+		cmd3->body.numMipLevels = srf->mip_levels[0];
+		cmd3->body.multisampleCount = srf->multisample_count;
+		cmd3->body.multisamplePattern = srf->multisample_pattern;
+		cmd3->body.qualityLevel = srf->quality_level;
+		cmd3->body.autogenFilter = srf->autogen_filter;
+		cmd3->body.size.width = srf->base_size.width;
+		cmd3->body.size.height = srf->base_size.height;
+		cmd3->body.size.depth = srf->base_size.depth;
+		cmd3->body.arraySize = srf->array_size;
+	} else if (srf->array_size > 0) {
 		cmd2->header.id = cmd_id;
 		cmd2->header.size = cmd_len;
 		cmd2->body.sid = srf->res.id;
 		cmd2->body.surfaceFlags = srf->flags;
-		cmd2->body.format = cpu_to_le32(srf->format);
+		cmd2->body.format = srf->format;
 		cmd2->body.numMipLevels = srf->mip_levels[0];
 		cmd2->body.multisampleCount = srf->multisample_count;
 		cmd2->body.autogenFilter = srf->autogen_filter;
@@ -1085,7 +1131,7 @@ static int vmw_gb_surface_create(struct vmw_resource *res)
 		cmd->header.size = cmd_len;
 		cmd->body.sid = srf->res.id;
 		cmd->body.surfaceFlags = srf->flags;
-		cmd->body.format = cpu_to_le32(srf->format);
+		cmd->body.format = srf->format;
 		cmd->body.numMipLevels = srf->mip_levels[0];
 		cmd->body.multisampleCount = srf->multisample_count;
 		cmd->body.autogenFilter = srf->autogen_filter;
@@ -1210,7 +1256,7 @@ static int vmw_gb_surface_unbind(struct vmw_resource *res,
 	(void) vmw_execbuf_fence_commands(NULL, dev_priv,
 					  &fence, NULL);
 
-	vmw_fence_single_bo(val_buf->bo, fence);
+	vmw_bo_fence_single(val_buf->bo, fence);
 
 	if (likely(fence != NULL))
 		vmw_fence_obj_unreference(&fence);
@@ -1256,194 +1302,55 @@ static int vmw_gb_surface_destroy(struct vmw_resource *res)
 
 /**
  * vmw_gb_surface_define_ioctl - Ioctl function implementing
- *                               the user surface define functionality.
+ * the user surface define functionality.
  *
- * @dev:            Pointer to a struct drm_device.
- * @data:           Pointer to data copied from / to user-space.
- * @file_priv:      Pointer to a drm file private structure.
+ * @dev: Pointer to a struct drm_device.
+ * @data: Pointer to data copied from / to user-space.
+ * @file_priv: Pointer to a drm file private structure.
  */
 int vmw_gb_surface_define_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct vmw_user_surface *user_srf;
-	struct vmw_surface *srf;
-	struct vmw_resource *res;
-	struct vmw_resource *tmp;
 	union drm_vmw_gb_surface_create_arg *arg =
 	    (union drm_vmw_gb_surface_create_arg *)data;
-	struct drm_vmw_gb_surface_create_req *req = &arg->req;
 	struct drm_vmw_gb_surface_create_rep *rep = &arg->rep;
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	int ret;
-	uint32_t size;
-	uint32_t backup_handle = 0;
+	struct drm_vmw_gb_surface_create_ext_req req_ext;
 
-	if (req->multisample_count != 0)
-		return -EINVAL;
+	req_ext.base = arg->req;
+	req_ext.version = drm_vmw_gb_surface_v1;
+	req_ext.svga3d_flags_upper_32_bits = 0;
+	req_ext.multisample_pattern = SVGA3D_MS_PATTERN_NONE;
+	req_ext.quality_level = SVGA3D_MS_QUALITY_NONE;
+	req_ext.must_be_zero = 0;
 
-	if (req->mip_levels > DRM_VMW_MAX_MIP_LEVELS)
-		return -EINVAL;
-
-	if (unlikely(vmw_user_surface_size == 0))
-		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
-			128;
-
-	size = vmw_user_surface_size + 128;
-
-	/* Define a surface based on the parameters. */
-	ret = vmw_surface_gb_priv_define(dev,
-			size,
-			req->svga3d_flags,
-			req->format,
-			req->drm_surface_flags & drm_vmw_surface_flag_scanout,
-			req->mip_levels,
-			req->multisample_count,
-			req->array_size,
-			req->base_size,
-			&srf);
-	if (unlikely(ret != 0))
-		return ret;
-
-	user_srf = container_of(srf, struct vmw_user_surface, srf);
-	if (drm_is_primary_client(file_priv))
-		user_srf->master = drm_master_get(file_priv->master);
-
-	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
-	if (unlikely(ret != 0))
-		return ret;
-
-	res = &user_srf->srf.res;
-
-
-	if (req->buffer_handle != SVGA3D_INVALID_ID) {
-		ret = vmw_user_dmabuf_lookup(tfile, req->buffer_handle,
-					     &res->backup,
-					     &user_srf->backup_base);
-		if (ret == 0) {
-			if (res->backup->base.num_pages * PAGE_SIZE <
-			    res->backup_size) {
-				DRM_ERROR("Surface backup buffer is too small.\n");
-				vmw_dmabuf_unreference(&res->backup);
-				ret = -EINVAL;
-				goto out_unlock;
-			} else {
-				backup_handle = req->buffer_handle;
-			}
-		}
-	} else if (req->drm_surface_flags & drm_vmw_surface_flag_create_buffer)
-		ret = vmw_user_dmabuf_alloc(dev_priv, tfile,
-					    res->backup_size,
-					    req->drm_surface_flags &
-					    drm_vmw_surface_flag_shareable,
-					    &backup_handle,
-					    &res->backup,
-					    &user_srf->backup_base);
-
-	if (unlikely(ret != 0)) {
-		vmw_resource_unreference(&res);
-		goto out_unlock;
-	}
-
-	tmp = vmw_resource_reference(res);
-	ret = ttm_prime_object_init(tfile, res->backup_size, &user_srf->prime,
-				    req->drm_surface_flags &
-				    drm_vmw_surface_flag_shareable,
-				    VMW_RES_SURFACE,
-				    &vmw_user_surface_base_release, NULL);
-
-	if (unlikely(ret != 0)) {
-		vmw_resource_unreference(&tmp);
-		vmw_resource_unreference(&res);
-		goto out_unlock;
-	}
-
-	rep->handle      = user_srf->prime.base.hash.key;
-	rep->backup_size = res->backup_size;
-	if (res->backup) {
-		rep->buffer_map_handle =
-			drm_vma_node_offset_addr(&res->backup->base.vma_node);
-		rep->buffer_size = res->backup->base.num_pages * PAGE_SIZE;
-		rep->buffer_handle = backup_handle;
-	} else {
-		rep->buffer_map_handle = 0;
-		rep->buffer_size = 0;
-		rep->buffer_handle = SVGA3D_INVALID_ID;
-	}
-
-	vmw_resource_unreference(&res);
-
-out_unlock:
-	ttm_read_unlock(&dev_priv->reservation_sem);
-	return ret;
+	return vmw_gb_surface_define_internal(dev, &req_ext, rep, file_priv);
 }
 
 /**
  * vmw_gb_surface_reference_ioctl - Ioctl function implementing
- *                                  the user surface reference functionality.
+ * the user surface reference functionality.
  *
- * @dev:            Pointer to a struct drm_device.
- * @data:           Pointer to data copied from / to user-space.
- * @file_priv:      Pointer to a drm file private structure.
+ * @dev: Pointer to a struct drm_device.
+ * @data: Pointer to data copied from / to user-space.
+ * @file_priv: Pointer to a drm file private structure.
  */
 int vmw_gb_surface_reference_ioctl(struct drm_device *dev, void *data,
 				   struct drm_file *file_priv)
 {
-	struct vmw_private *dev_priv = vmw_priv(dev);
 	union drm_vmw_gb_surface_reference_arg *arg =
 	    (union drm_vmw_gb_surface_reference_arg *)data;
 	struct drm_vmw_surface_arg *req = &arg->req;
 	struct drm_vmw_gb_surface_ref_rep *rep = &arg->rep;
-	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	struct vmw_surface *srf;
-	struct vmw_user_surface *user_srf;
-	struct ttm_base_object *base;
-	uint32_t backup_handle;
-	int ret = -EINVAL;
+	struct drm_vmw_gb_surface_ref_ext_rep rep_ext;
+	int ret;
 
-	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
-					   req->handle_type, &base);
+	ret = vmw_gb_surface_reference_internal(dev, req, &rep_ext, file_priv);
+
 	if (unlikely(ret != 0))
 		return ret;
 
-	user_srf = container_of(base, struct vmw_user_surface, prime.base);
-	srf = &user_srf->srf;
-	if (!srf->res.backup) {
-		DRM_ERROR("Shared GB surface is missing a backup buffer.\n");
-		goto out_bad_resource;
-	}
-
-	mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
-	ret = vmw_user_dmabuf_reference(tfile, srf->res.backup,
-					&backup_handle);
-	mutex_unlock(&dev_priv->cmdbuf_mutex);
-
-	if (unlikely(ret != 0)) {
-		DRM_ERROR("Could not add a reference to a GB surface "
-			  "backup buffer.\n");
-		(void) ttm_ref_object_base_unref(tfile, base->hash.key,
-						 TTM_REF_USAGE);
-		goto out_bad_resource;
-	}
-
-	rep->creq.svga3d_flags = srf->flags;
-	rep->creq.format = srf->format;
-	rep->creq.mip_levels = srf->mip_levels[0];
-	rep->creq.drm_surface_flags = 0;
-	rep->creq.multisample_count = srf->multisample_count;
-	rep->creq.autogen_filter = srf->autogen_filter;
-	rep->creq.array_size = srf->array_size;
-	rep->creq.buffer_handle = backup_handle;
-	rep->creq.base_size = srf->base_size;
-	rep->crep.handle = user_srf->prime.base.hash.key;
-	rep->crep.backup_size = srf->res.backup_size;
-	rep->crep.buffer_handle = backup_handle;
-	rep->crep.buffer_map_handle =
-		drm_vma_node_offset_addr(&srf->res.backup->base.vma_node);
-	rep->crep.buffer_size = srf->res.backup->base.num_pages * PAGE_SIZE;
-
-out_bad_resource:
-	ttm_base_object_unref(&base);
+	rep->creq = rep_ext.creq.base;
+	rep->crep = rep_ext.crep;
 
 	return ret;
 }
@@ -1461,6 +1368,8 @@ out_bad_resource:
  * @multisample_count:
  * @array_size: Surface array size.
  * @size: width, heigh, depth of the surface requested
+ * @multisample_pattern: Multisampling pattern when msaa is supported
+ * @quality_level: Precision settings
  * @user_srf_out: allocated user_srf.  Set to NULL on failure.
  *
  * GB surfaces allocated by this function will not have a user mode handle, and
@@ -1470,13 +1379,15 @@ out_bad_resource:
  */
 int vmw_surface_gb_priv_define(struct drm_device *dev,
 			       uint32_t user_accounting_size,
-			       uint32_t svga3d_flags,
+			       SVGA3dSurfaceAllFlags svga3d_flags,
 			       SVGA3dSurfaceFormat format,
 			       bool for_scanout,
 			       uint32_t num_mip_levels,
 			       uint32_t multisample_count,
 			       uint32_t array_size,
 			       struct drm_vmw_size size,
+			       SVGA3dMSPattern multisample_pattern,
+			       SVGA3dMSQualityLevel quality_level,
 			       struct vmw_surface **srf_out)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
@@ -1487,7 +1398,8 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	};
 	struct vmw_surface *srf;
 	int ret;
-	u32 num_layers;
+	u32 num_layers = 1;
+	u32 sample_count = 1;
 
 	*srf_out = NULL;
 
@@ -1562,19 +1474,23 @@ int vmw_surface_gb_priv_define(struct drm_device *dev,
 	srf->autogen_filter    = SVGA3D_TEX_FILTER_NONE;
 	srf->array_size        = array_size;
 	srf->multisample_count = multisample_count;
+	srf->multisample_pattern = multisample_pattern;
+	srf->quality_level = quality_level;
 
 	if (array_size)
 		num_layers = array_size;
 	else if (svga3d_flags & SVGA3D_SURFACE_CUBEMAP)
 		num_layers = SVGA3D_MAX_SURFACE_FACES;
-	else
-		num_layers = 1;
+
+	if (srf->flags & SVGA3D_SURFACE_MULTISAMPLE)
+		sample_count = srf->multisample_count;
 
 	srf->res.backup_size   =
-		svga3dsurface_get_serialized_size(srf->format,
-						  srf->base_size,
-						  srf->mip_levels[0],
-						  num_layers);
+		svga3dsurface_get_serialized_size_extended(srf->format,
+							   srf->base_size,
+							   srf->mip_levels[0],
+							   num_layers,
+							   sample_count);
 
 	if (srf->flags & SVGA3D_SURFACE_BIND_STREAM_OUTPUT)
 		srf->res.backup_size += sizeof(SVGA3dDXSOState);
@@ -1597,5 +1513,268 @@ out_no_user_srf:
 
 out_unlock:
 	ttm_read_unlock(&dev_priv->reservation_sem);
+	return ret;
+}
+
+/**
+ * vmw_gb_surface_define_ext_ioctl - Ioctl function implementing
+ * the user surface define functionality.
+ *
+ * @dev: Pointer to a struct drm_device.
+ * @data: Pointer to data copied from / to user-space.
+ * @file_priv: Pointer to a drm file private structure.
+ */
+int vmw_gb_surface_define_ext_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	union drm_vmw_gb_surface_create_ext_arg *arg =
+	    (union drm_vmw_gb_surface_create_ext_arg *)data;
+	struct drm_vmw_gb_surface_create_ext_req *req = &arg->req;
+	struct drm_vmw_gb_surface_create_rep *rep = &arg->rep;
+
+	return vmw_gb_surface_define_internal(dev, req, rep, file_priv);
+}
+
+/**
+ * vmw_gb_surface_reference_ext_ioctl - Ioctl function implementing
+ * the user surface reference functionality.
+ *
+ * @dev: Pointer to a struct drm_device.
+ * @data: Pointer to data copied from / to user-space.
+ * @file_priv: Pointer to a drm file private structure.
+ */
+int vmw_gb_surface_reference_ext_ioctl(struct drm_device *dev, void *data,
+				   struct drm_file *file_priv)
+{
+	union drm_vmw_gb_surface_reference_ext_arg *arg =
+	    (union drm_vmw_gb_surface_reference_ext_arg *)data;
+	struct drm_vmw_surface_arg *req = &arg->req;
+	struct drm_vmw_gb_surface_ref_ext_rep *rep = &arg->rep;
+
+	return vmw_gb_surface_reference_internal(dev, req, rep, file_priv);
+}
+
+/**
+ * vmw_gb_surface_define_internal - Ioctl function implementing
+ * the user surface define functionality.
+ *
+ * @dev: Pointer to a struct drm_device.
+ * @req: Request argument from user-space.
+ * @rep: Response argument to user-space.
+ * @file_priv: Pointer to a drm file private structure.
+ */
+static int
+vmw_gb_surface_define_internal(struct drm_device *dev,
+			       struct drm_vmw_gb_surface_create_ext_req *req,
+			       struct drm_vmw_gb_surface_create_rep *rep,
+			       struct drm_file *file_priv)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct vmw_user_surface *user_srf;
+	struct vmw_surface *srf;
+	struct vmw_resource *res;
+	struct vmw_resource *tmp;
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	int ret;
+	uint32_t size;
+	uint32_t backup_handle = 0;
+	SVGA3dSurfaceAllFlags svga3d_flags_64 =
+		SVGA3D_FLAGS_64(req->svga3d_flags_upper_32_bits,
+				req->base.svga3d_flags);
+
+	if (!dev_priv->has_sm4_1) {
+		/*
+		 * If SM4_1 is not support then cannot send 64-bit flag to
+		 * device.
+		 */
+		if (req->svga3d_flags_upper_32_bits != 0)
+			return -EINVAL;
+
+		if (req->base.multisample_count != 0)
+			return -EINVAL;
+
+		if (req->multisample_pattern != SVGA3D_MS_PATTERN_NONE)
+			return -EINVAL;
+
+		if (req->quality_level != SVGA3D_MS_QUALITY_NONE)
+			return -EINVAL;
+	}
+
+	if ((svga3d_flags_64 & SVGA3D_SURFACE_MULTISAMPLE) &&
+	    req->base.multisample_count == 0)
+		return -EINVAL;
+
+	if (req->base.mip_levels > DRM_VMW_MAX_MIP_LEVELS)
+		return -EINVAL;
+
+	if (unlikely(vmw_user_surface_size == 0))
+		vmw_user_surface_size = ttm_round_pot(sizeof(*user_srf)) +
+			128;
+
+	size = vmw_user_surface_size + 128;
+
+	/* Define a surface based on the parameters. */
+	ret = vmw_surface_gb_priv_define(dev,
+					 size,
+					 svga3d_flags_64,
+					 req->base.format,
+					 req->base.drm_surface_flags &
+					 drm_vmw_surface_flag_scanout,
+					 req->base.mip_levels,
+					 req->base.multisample_count,
+					 req->base.array_size,
+					 req->base.base_size,
+					 req->multisample_pattern,
+					 req->quality_level,
+					 &srf);
+	if (unlikely(ret != 0))
+		return ret;
+
+	user_srf = container_of(srf, struct vmw_user_surface, srf);
+	if (drm_is_primary_client(file_priv))
+		user_srf->master = drm_master_get(file_priv->master);
+
+	ret = ttm_read_lock(&dev_priv->reservation_sem, true);
+	if (unlikely(ret != 0))
+		return ret;
+
+	res = &user_srf->srf.res;
+
+	if (req->base.buffer_handle != SVGA3D_INVALID_ID) {
+		ret = vmw_user_bo_lookup(tfile, req->base.buffer_handle,
+					 &res->backup,
+					 &user_srf->backup_base);
+		if (ret == 0) {
+			if (res->backup->base.num_pages * PAGE_SIZE <
+			    res->backup_size) {
+				DRM_ERROR("Surface backup buffer too small.\n");
+				vmw_bo_unreference(&res->backup);
+				ret = -EINVAL;
+				goto out_unlock;
+			} else {
+				backup_handle = req->base.buffer_handle;
+			}
+		}
+	} else if (req->base.drm_surface_flags &
+		   drm_vmw_surface_flag_create_buffer)
+		ret = vmw_user_bo_alloc(dev_priv, tfile,
+					res->backup_size,
+					req->base.drm_surface_flags &
+					drm_vmw_surface_flag_shareable,
+					&backup_handle,
+					&res->backup,
+					&user_srf->backup_base);
+
+	if (unlikely(ret != 0)) {
+		vmw_resource_unreference(&res);
+		goto out_unlock;
+	}
+
+	tmp = vmw_resource_reference(res);
+	ret = ttm_prime_object_init(tfile, res->backup_size, &user_srf->prime,
+				    req->base.drm_surface_flags &
+				    drm_vmw_surface_flag_shareable,
+				    VMW_RES_SURFACE,
+				    &vmw_user_surface_base_release, NULL);
+
+	if (unlikely(ret != 0)) {
+		vmw_resource_unreference(&tmp);
+		vmw_resource_unreference(&res);
+		goto out_unlock;
+	}
+
+	rep->handle      = user_srf->prime.base.hash.key;
+	rep->backup_size = res->backup_size;
+	if (res->backup) {
+		rep->buffer_map_handle =
+			drm_vma_node_offset_addr(&res->backup->base.vma_node);
+		rep->buffer_size = res->backup->base.num_pages * PAGE_SIZE;
+		rep->buffer_handle = backup_handle;
+	} else {
+		rep->buffer_map_handle = 0;
+		rep->buffer_size = 0;
+		rep->buffer_handle = SVGA3D_INVALID_ID;
+	}
+
+	vmw_resource_unreference(&res);
+
+out_unlock:
+	ttm_read_unlock(&dev_priv->reservation_sem);
+	return ret;
+}
+
+/**
+ * vmw_gb_surface_reference_internal - Ioctl function implementing
+ * the user surface reference functionality.
+ *
+ * @dev: Pointer to a struct drm_device.
+ * @req: Pointer to user-space request surface arg.
+ * @rep: Pointer to response to user-space.
+ * @file_priv: Pointer to a drm file private structure.
+ */
+static int
+vmw_gb_surface_reference_internal(struct drm_device *dev,
+				  struct drm_vmw_surface_arg *req,
+				  struct drm_vmw_gb_surface_ref_ext_rep *rep,
+				  struct drm_file *file_priv)
+{
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	struct vmw_surface *srf;
+	struct vmw_user_surface *user_srf;
+	struct ttm_base_object *base;
+	uint32_t backup_handle;
+	int ret = -EINVAL;
+
+	ret = vmw_surface_handle_reference(dev_priv, file_priv, req->sid,
+					   req->handle_type, &base);
+	if (unlikely(ret != 0))
+		return ret;
+
+	user_srf = container_of(base, struct vmw_user_surface, prime.base);
+	srf = &user_srf->srf;
+	if (!srf->res.backup) {
+		DRM_ERROR("Shared GB surface is missing a backup buffer.\n");
+		goto out_bad_resource;
+	}
+
+	mutex_lock(&dev_priv->cmdbuf_mutex); /* Protect res->backup */
+	ret = vmw_user_bo_reference(tfile, srf->res.backup, &backup_handle);
+	mutex_unlock(&dev_priv->cmdbuf_mutex);
+
+	if (unlikely(ret != 0)) {
+		DRM_ERROR("Could not add a reference to a GB surface "
+			  "backup buffer.\n");
+		(void) ttm_ref_object_base_unref(tfile, base->hash.key,
+						 TTM_REF_USAGE);
+		goto out_bad_resource;
+	}
+
+	rep->creq.base.svga3d_flags = SVGA3D_FLAGS_LOWER_32(srf->flags);
+	rep->creq.base.format = srf->format;
+	rep->creq.base.mip_levels = srf->mip_levels[0];
+	rep->creq.base.drm_surface_flags = 0;
+	rep->creq.base.multisample_count = srf->multisample_count;
+	rep->creq.base.autogen_filter = srf->autogen_filter;
+	rep->creq.base.array_size = srf->array_size;
+	rep->creq.base.buffer_handle = backup_handle;
+	rep->creq.base.base_size = srf->base_size;
+	rep->crep.handle = user_srf->prime.base.hash.key;
+	rep->crep.backup_size = srf->res.backup_size;
+	rep->crep.buffer_handle = backup_handle;
+	rep->crep.buffer_map_handle =
+		drm_vma_node_offset_addr(&srf->res.backup->base.vma_node);
+	rep->crep.buffer_size = srf->res.backup->base.num_pages * PAGE_SIZE;
+
+	rep->creq.version = drm_vmw_gb_surface_v1;
+	rep->creq.svga3d_flags_upper_32_bits =
+		SVGA3D_FLAGS_UPPER_32(srf->flags);
+	rep->creq.multisample_pattern = srf->multisample_pattern;
+	rep->creq.quality_level = srf->quality_level;
+	rep->creq.must_be_zero = 0;
+
+out_bad_resource:
+	ttm_base_object_unref(&base);
+
 	return ret;
 }

@@ -96,6 +96,7 @@ struct kvmppc_vcore {
 	struct kvm_vcpu *runner;
 	struct kvm *kvm;
 	u64 tb_offset;		/* guest timebase - host timebase */
+	u64 tb_offset_applied;	/* timebase offset currently in force */
 	ulong lpcr;
 	u32 arch_compat;
 	ulong pcr;
@@ -103,6 +104,7 @@ struct kvmppc_vcore {
 	ulong vtb;		/* virtual timebase */
 	ulong conferring_threads;
 	unsigned int halt_poll_ns;
+	atomic_t online_count;
 };
 
 struct kvmppc_vcpu_book3s {
@@ -208,6 +210,7 @@ extern void kvmppc_book3s_queue_irqprio(struct kvm_vcpu *vcpu, unsigned int vec)
 extern void kvmppc_book3s_dequeue_irqprio(struct kvm_vcpu *vcpu,
 					  unsigned int vec);
 extern void kvmppc_inject_interrupt(struct kvm_vcpu *vcpu, int vec, u64 flags);
+extern void kvmppc_trigger_fac_interrupt(struct kvm_vcpu *vcpu, ulong fac);
 extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 			   bool upper, u32 val);
 extern void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr);
@@ -255,6 +258,21 @@ extern int kvmppc_hcall_impl_pr(unsigned long cmd);
 extern int kvmppc_hcall_impl_hv_realmode(unsigned long cmd);
 extern void kvmppc_copy_to_svcpu(struct kvm_vcpu *vcpu);
 extern void kvmppc_copy_from_svcpu(struct kvm_vcpu *vcpu);
+
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu);
+void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu);
+void kvmppc_save_tm_sprs(struct kvm_vcpu *vcpu);
+void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu);
+#else
+static inline void kvmppc_save_tm_pr(struct kvm_vcpu *vcpu) {}
+static inline void kvmppc_restore_tm_pr(struct kvm_vcpu *vcpu) {}
+static inline void kvmppc_save_tm_sprs(struct kvm_vcpu *vcpu) {}
+static inline void kvmppc_restore_tm_sprs(struct kvm_vcpu *vcpu) {}
+#endif
+
+void kvmppc_giveup_fac(struct kvm_vcpu *vcpu, ulong fac);
+
 extern int kvm_irq_bypass;
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
@@ -273,12 +291,12 @@ static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 
 static inline void kvmppc_set_gpr(struct kvm_vcpu *vcpu, int num, ulong val)
 {
-	vcpu->arch.gpr[num] = val;
+	vcpu->arch.regs.gpr[num] = val;
 }
 
 static inline ulong kvmppc_get_gpr(struct kvm_vcpu *vcpu, int num)
 {
-	return vcpu->arch.gpr[num];
+	return vcpu->arch.regs.gpr[num];
 }
 
 static inline void kvmppc_set_cr(struct kvm_vcpu *vcpu, u32 val)
@@ -293,42 +311,42 @@ static inline u32 kvmppc_get_cr(struct kvm_vcpu *vcpu)
 
 static inline void kvmppc_set_xer(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.xer = val;
+	vcpu->arch.regs.xer = val;
 }
 
 static inline ulong kvmppc_get_xer(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.xer;
+	return vcpu->arch.regs.xer;
 }
 
 static inline void kvmppc_set_ctr(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.ctr = val;
+	vcpu->arch.regs.ctr = val;
 }
 
 static inline ulong kvmppc_get_ctr(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.ctr;
+	return vcpu->arch.regs.ctr;
 }
 
 static inline void kvmppc_set_lr(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.lr = val;
+	vcpu->arch.regs.link = val;
 }
 
 static inline ulong kvmppc_get_lr(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.lr;
+	return vcpu->arch.regs.link;
 }
 
 static inline void kvmppc_set_pc(struct kvm_vcpu *vcpu, ulong val)
 {
-	vcpu->arch.pc = val;
+	vcpu->arch.regs.nip = val;
 }
 
 static inline ulong kvmppc_get_pc(struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.pc;
+	return vcpu->arch.regs.nip;
 }
 
 static inline u64 kvmppc_get_msr(struct kvm_vcpu *vcpu);
@@ -371,5 +389,52 @@ extern int kvmppc_h_logical_ci_store(struct kvm_vcpu *vcpu);
 
 #define SPLIT_HACK_MASK			0xff000000
 #define SPLIT_HACK_OFFS			0xfb000000
+
+/*
+ * This packs a VCPU ID from the [0..KVM_MAX_VCPU_ID) space down to the
+ * [0..KVM_MAX_VCPUS) space, using knowledge of the guest's core stride
+ * (but not its actual threading mode, which is not available) to avoid
+ * collisions.
+ *
+ * The implementation leaves VCPU IDs from the range [0..KVM_MAX_VCPUS) (block
+ * 0) unchanged: if the guest is filling each VCORE completely then it will be
+ * using consecutive IDs and it will fill the space without any packing.
+ *
+ * For higher VCPU IDs, the packed ID is based on the VCPU ID modulo
+ * KVM_MAX_VCPUS (effectively masking off the top bits) and then an offset is
+ * added to avoid collisions.
+ *
+ * VCPU IDs in the range [KVM_MAX_VCPUS..(KVM_MAX_VCPUS*2)) (block 1) are only
+ * possible if the guest is leaving at least 1/2 of each VCORE empty, so IDs
+ * can be safely packed into the second half of each VCORE by adding an offset
+ * of (stride / 2).
+ *
+ * Similarly, if VCPU IDs in the range [(KVM_MAX_VCPUS*2)..(KVM_MAX_VCPUS*4))
+ * (blocks 2 and 3) are seen, the guest must be leaving at least 3/4 of each
+ * VCORE empty so packed IDs can be offset by (stride / 4) and (stride * 3 / 4).
+ *
+ * Finally, VCPU IDs from blocks 5..7 will only be seen if the guest is using a
+ * stride of 8 and 1 thread per core so the remaining offsets of 1, 5, 3 and 7
+ * must be free to use.
+ *
+ * (The offsets for each block are stored in block_offsets[], indexed by the
+ * block number if the stride is 8. For cases where the guest's stride is less
+ * than 8, we can re-use the block_offsets array by multiplying the block
+ * number by (MAX_SMT_THREADS / stride) to reach the correct entry.)
+ */
+static inline u32 kvmppc_pack_vcpu_id(struct kvm *kvm, u32 id)
+{
+	const int block_offsets[MAX_SMT_THREADS] = {0, 4, 2, 6, 1, 5, 3, 7};
+	int stride = kvm->arch.emul_smt_mode;
+	int block = (id / KVM_MAX_VCPUS) * (MAX_SMT_THREADS / stride);
+	u32 packed_id;
+
+	if (WARN_ONCE(block >= MAX_SMT_THREADS, "VCPU ID too large to pack"))
+		return 0;
+	packed_id = (id % KVM_MAX_VCPUS) + block_offsets[block];
+	if (WARN_ONCE(packed_id >= KVM_MAX_VCPUS, "VCPU ID packing failed"))
+		return 0;
+	return packed_id;
+}
 
 #endif /* __ASM_KVM_BOOK3S_H__ */

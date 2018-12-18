@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/uaccess.h>
+#include <linux/seq_file.h>
 
 #include "internal.h"
 
@@ -256,8 +257,7 @@ struct dentry *proc_lookup_de(struct inode *dir, struct dentry *dentry,
 		if (!inode)
 			return ERR_PTR(-ENOMEM);
 		d_set_d_op(dentry, &proc_misc_dentry_ops);
-		d_add(dentry, inode);
-		return NULL;
+		return d_splice_alias(inode, dentry);
 	}
 	read_unlock(&proc_subdir_lock);
 	return ERR_PTR(-ENOENT);
@@ -346,13 +346,12 @@ static const struct inode_operations proc_dir_inode_operations = {
 	.setattr	= proc_notify_change,
 };
 
-static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp)
+/* returns the registered entry, or frees dp and returns NULL on failure */
+struct proc_dir_entry *proc_register(struct proc_dir_entry *dir,
+		struct proc_dir_entry *dp)
 {
-	int ret;
-
-	ret = proc_alloc_inum(&dp->low_ino);
-	if (ret)
-		return ret;
+	if (proc_alloc_inum(&dp->low_ino))
+		goto out_free_entry;
 
 	write_lock(&proc_subdir_lock);
 	dp->parent = dir;
@@ -360,12 +359,16 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 		WARN(1, "proc_dir_entry '%s/%s' already registered\n",
 		     dir->name, dp->name);
 		write_unlock(&proc_subdir_lock);
-		proc_free_inum(dp->low_ino);
-		return -EEXIST;
+		goto out_free_inum;
 	}
 	write_unlock(&proc_subdir_lock);
 
-	return 0;
+	return dp;
+out_free_inum:
+	proc_free_inum(dp->low_ino);
+out_free_entry:
+	pde_free(dp);
+	return NULL;
 }
 
 static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
@@ -406,7 +409,7 @@ static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 	if (!ent)
 		goto out;
 
-	if (qstr.len + 1 <= sizeof(ent->inline_name)) {
+	if (qstr.len + 1 <= SIZEOF_PDE_INLINE_NAME) {
 		ent->name = ent->inline_name;
 	} else {
 		ent->name = kmalloc(qstr.len + 1, GFP_KERNEL);
@@ -443,10 +446,7 @@ struct proc_dir_entry *proc_symlink(const char *name,
 		if (ent->data) {
 			strcpy((char*)ent->data,dest);
 			ent->proc_iops = &proc_link_inode_operations;
-			if (proc_register(parent, ent) < 0) {
-				pde_free(ent);
-				ent = NULL;
-			}
+			ent = proc_register(parent, ent);
 		} else {
 			pde_free(ent);
 			ent = NULL;
@@ -470,11 +470,9 @@ struct proc_dir_entry *proc_mkdir_data(const char *name, umode_t mode,
 		ent->proc_fops = &proc_dir_operations;
 		ent->proc_iops = &proc_dir_inode_operations;
 		parent->nlink++;
-		if (proc_register(parent, ent) < 0) {
-			pde_free(ent);
+		ent = proc_register(parent, ent);
+		if (!ent)
 			parent->nlink--;
-			ent = NULL;
-		}
 	}
 	return ent;
 }
@@ -505,47 +503,47 @@ struct proc_dir_entry *proc_create_mount_point(const char *name)
 		ent->proc_fops = NULL;
 		ent->proc_iops = NULL;
 		parent->nlink++;
-		if (proc_register(parent, ent) < 0) {
-			pde_free(ent);
+		ent = proc_register(parent, ent);
+		if (!ent)
 			parent->nlink--;
-			ent = NULL;
-		}
 	}
 	return ent;
 }
 EXPORT_SYMBOL(proc_create_mount_point);
 
-struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
-					struct proc_dir_entry *parent,
-					const struct file_operations *proc_fops,
-					void *data)
+struct proc_dir_entry *proc_create_reg(const char *name, umode_t mode,
+		struct proc_dir_entry **parent, void *data)
 {
-	struct proc_dir_entry *pde;
+	struct proc_dir_entry *p;
+
 	if ((mode & S_IFMT) == 0)
 		mode |= S_IFREG;
-
-	if (!S_ISREG(mode)) {
-		WARN_ON(1);	/* use proc_mkdir() */
+	if ((mode & S_IALLUGO) == 0)
+		mode |= S_IRUGO;
+	if (WARN_ON_ONCE(!S_ISREG(mode)))
 		return NULL;
+
+	p = __proc_create(parent, name, mode, 1);
+	if (p) {
+		p->proc_iops = &proc_file_inode_operations;
+		p->data = data;
 	}
+	return p;
+}
+
+struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent,
+		const struct file_operations *proc_fops, void *data)
+{
+	struct proc_dir_entry *p;
 
 	BUG_ON(proc_fops == NULL);
 
-	if ((mode & S_IALLUGO) == 0)
-		mode |= S_IRUGO;
-	pde = __proc_create(&parent, name, mode, 1);
-	if (!pde)
-		goto out;
-	pde->proc_fops = proc_fops;
-	pde->data = data;
-	pde->proc_iops = &proc_file_inode_operations;
-	if (proc_register(parent, pde) < 0)
-		goto out_free;
-	return pde;
-out_free:
-	pde_free(pde);
-out:
-	return NULL;
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = proc_fops;
+	return proc_register(parent, p);
 }
 EXPORT_SYMBOL(proc_create_data);
  
@@ -556,6 +554,76 @@ struct proc_dir_entry *proc_create(const char *name, umode_t mode,
 	return proc_create_data(name, mode, parent, proc_fops, NULL);
 }
 EXPORT_SYMBOL(proc_create);
+
+static int proc_seq_open(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	if (de->state_size)
+		return seq_open_private(file, de->seq_ops, de->state_size);
+	return seq_open(file, de->seq_ops);
+}
+
+static int proc_seq_release(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	if (de->state_size)
+		return seq_release_private(inode, file);
+	return seq_release(inode, file);
+}
+
+static const struct file_operations proc_seq_fops = {
+	.open		= proc_seq_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= proc_seq_release,
+};
+
+struct proc_dir_entry *proc_create_seq_private(const char *name, umode_t mode,
+		struct proc_dir_entry *parent, const struct seq_operations *ops,
+		unsigned int state_size, void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_seq_fops;
+	p->seq_ops = ops;
+	p->state_size = state_size;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL(proc_create_seq_private);
+
+static int proc_single_open(struct inode *inode, struct file *file)
+{
+	struct proc_dir_entry *de = PDE(inode);
+
+	return single_open(file, de->single_show, de->data);
+}
+
+static const struct file_operations proc_single_fops = {
+	.open		= proc_single_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+struct proc_dir_entry *proc_create_single_data(const char *name, umode_t mode,
+		struct proc_dir_entry *parent,
+		int (*show)(struct seq_file *, void *), void *data)
+{
+	struct proc_dir_entry *p;
+
+	p = proc_create_reg(name, mode, &parent, data);
+	if (!p)
+		return NULL;
+	p->proc_fops = &proc_single_fops;
+	p->single_show = show;
+	return proc_register(parent, p);
+}
+EXPORT_SYMBOL(proc_create_single_data);
 
 void proc_set_size(struct proc_dir_entry *de, loff_t size)
 {
@@ -681,3 +749,27 @@ void *PDE_DATA(const struct inode *inode)
 	return __PDE_DATA(inode);
 }
 EXPORT_SYMBOL(PDE_DATA);
+
+/*
+ * Pull a user buffer into memory and pass it to the file's write handler if
+ * one is supplied.  The ->write() method is permitted to modify the
+ * kernel-side buffer.
+ */
+ssize_t proc_simple_write(struct file *f, const char __user *ubuf, size_t size,
+			  loff_t *_pos)
+{
+	struct proc_dir_entry *pde = PDE(file_inode(f));
+	char *buf;
+	int ret;
+
+	if (!pde->write)
+		return -EACCES;
+	if (size == 0 || size > PAGE_SIZE - 1)
+		return -EINVAL;
+	buf = memdup_user_nul(ubuf, size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+	ret = pde->write(f, buf, size);
+	kfree(buf);
+	return ret == 0 ? size : ret;
+}

@@ -313,7 +313,7 @@ struct rxrpc_call *rxrpc_kernel_begin_call(struct socket *sock,
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
 	cp.key			= key;
-	cp.security_level	= 0;
+	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= false;
 	cp.upgrade		= upgrade;
 	cp.service_id		= srx->srx_service;
@@ -741,7 +741,7 @@ static __poll_t rxrpc_poll(struct file *file, struct socket *sock,
 	struct rxrpc_sock *rx = rxrpc_sk(sk);
 	__poll_t mask;
 
-	sock_poll_wait(file, sk_sleep(sk), wait);
+	sock_poll_wait(file, wait);
 	mask = 0;
 
 	/* the socket is readable if there are any messages waiting on the Rx

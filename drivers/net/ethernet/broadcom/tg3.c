@@ -6,11 +6,15 @@
  * Copyright (C) 2004 Sun Microsystems Inc.
  * Copyright (C) 2005-2016 Broadcom Corporation.
  * Copyright (C) 2016-2017 Broadcom Limited.
+ * Copyright (C) 2018 Broadcom. All Rights Reserved. The term "Broadcom"
+ * refers to Broadcom Inc. and/or its subsidiaries.
  *
  * Firmware is:
  *	Derived from proprietary unpublished source code,
  *	Copyright (C) 2000-2016 Broadcom Corporation.
  *	Copyright (C) 2016-2017 Broadcom Ltd.
+ *	Copyright (C) 2018 Broadcom. All Rights Reserved. The term "Broadcom"
+ *	refers to Broadcom Inc. and/or its subsidiaries.
  *
  *	Permission is hereby granted for the distribution of this firmware
  *	data in hexadecimal or equivalent format, provided this copyright
@@ -50,6 +54,7 @@
 #include <linux/ssb/ssb_driver_gige.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/crc32poly.h>
 
 #include <net/checksum.h>
 #include <net/ip.h>
@@ -721,6 +726,7 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 	case TG3_APE_LOCK_GPIO:
 		if (tg3_asic_rev(tp) == ASIC_REV_5761)
 			return 0;
+		/* else: fall through */
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		if (!tp->pci_fn)
@@ -781,6 +787,7 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 	case TG3_APE_LOCK_GPIO:
 		if (tg3_asic_rev(tp) == ASIC_REV_5761)
 			return;
+		/* else: fall through */
 	case TG3_APE_LOCK_GRC:
 	case TG3_APE_LOCK_MEM:
 		if (!tp->pci_fn)
@@ -8631,8 +8638,9 @@ static int tg3_mem_tx_acquire(struct tg3 *tp)
 		tnapi++;
 
 	for (i = 0; i < tp->txq_cnt; i++, tnapi++) {
-		tnapi->tx_buffers = kzalloc(sizeof(struct tg3_tx_ring_info) *
-					    TG3_TX_RING_SIZE, GFP_KERNEL);
+		tnapi->tx_buffers = kcalloc(TG3_TX_RING_SIZE,
+					    sizeof(struct tg3_tx_ring_info),
+					    GFP_KERNEL);
 		if (!tnapi->tx_buffers)
 			goto err_out;
 
@@ -8733,14 +8741,15 @@ static void tg3_free_consistent(struct tg3 *tp)
 	tg3_mem_rx_release(tp);
 	tg3_mem_tx_release(tp);
 
-	/* Protect tg3_get_stats64() from reading freed tp->hw_stats. */
-	tg3_full_lock(tp, 0);
+	/* tp->hw_stats can be referenced safely:
+	 *     1. under rtnl_lock
+	 *     2. or under tp->lock if TG3_FLAG_INIT_COMPLETE is set.
+	 */
 	if (tp->hw_stats) {
 		dma_free_coherent(&tp->pdev->dev, sizeof(struct tg3_hw_stats),
 				  tp->hw_stats, tp->stats_mapping);
 		tp->hw_stats = NULL;
 	}
-	tg3_full_unlock(tp);
 }
 
 /*
@@ -9288,6 +9297,15 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_restore_clk(tp);
 
+	/* Increase the core clock speed to fix tx timeout issue for 5762
+	 * with 100Mbps link speed.
+	 */
+	if (tg3_asic_rev(tp) == ASIC_REV_5762) {
+		val = tr32(TG3_CPMU_CLCK_ORIDE_ENABLE);
+		tw32(TG3_CPMU_CLCK_ORIDE_ENABLE, val |
+		     TG3_CPMU_MAC_ORIDE_ENABLE);
+	}
+
 	/* Reprobe ASF enable state.  */
 	tg3_flag_clear(tp, ENABLE_ASF);
 	tp->phy_flags &= ~(TG3_PHYFLG_1G_ON_VAUX_OK |
@@ -9705,7 +9723,7 @@ static inline u32 calc_crc(unsigned char *buf, int len)
 			reg >>= 1;
 
 			if (tmp)
-				reg ^= 0xedb88320;
+				reg ^= CRC32_POLY_LE;
 		}
 	}
 
@@ -10704,28 +10722,40 @@ static int tg3_reset_hw(struct tg3 *tp, bool reset_phy)
 	switch (limit) {
 	case 16:
 		tw32(MAC_RCV_RULE_15,  0); tw32(MAC_RCV_VALUE_15,  0);
+		/* fall through */
 	case 15:
 		tw32(MAC_RCV_RULE_14,  0); tw32(MAC_RCV_VALUE_14,  0);
+		/* fall through */
 	case 14:
 		tw32(MAC_RCV_RULE_13,  0); tw32(MAC_RCV_VALUE_13,  0);
+		/* fall through */
 	case 13:
 		tw32(MAC_RCV_RULE_12,  0); tw32(MAC_RCV_VALUE_12,  0);
+		/* fall through */
 	case 12:
 		tw32(MAC_RCV_RULE_11,  0); tw32(MAC_RCV_VALUE_11,  0);
+		/* fall through */
 	case 11:
 		tw32(MAC_RCV_RULE_10,  0); tw32(MAC_RCV_VALUE_10,  0);
+		/* fall through */
 	case 10:
 		tw32(MAC_RCV_RULE_9,  0); tw32(MAC_RCV_VALUE_9,  0);
+		/* fall through */
 	case 9:
 		tw32(MAC_RCV_RULE_8,  0); tw32(MAC_RCV_VALUE_8,  0);
+		/* fall through */
 	case 8:
 		tw32(MAC_RCV_RULE_7,  0); tw32(MAC_RCV_VALUE_7,  0);
+		/* fall through */
 	case 7:
 		tw32(MAC_RCV_RULE_6,  0); tw32(MAC_RCV_VALUE_6,  0);
+		/* fall through */
 	case 6:
 		tw32(MAC_RCV_RULE_5,  0); tw32(MAC_RCV_VALUE_5,  0);
+		/* fall through */
 	case 5:
 		tw32(MAC_RCV_RULE_4,  0); tw32(MAC_RCV_VALUE_4,  0);
+		/* fall through */
 	case 4:
 		/* tw32(MAC_RCV_RULE_3,  0); tw32(MAC_RCV_VALUE_3,  0); */
 	case 3:
@@ -14178,7 +14208,7 @@ static void tg3_get_stats64(struct net_device *dev,
 	struct tg3 *tp = netdev_priv(dev);
 
 	spin_lock_bh(&tp->lock);
-	if (!tp->hw_stats) {
+	if (!tp->hw_stats || !tg3_flag(tp, INIT_COMPLETE)) {
 		*stats = tp->net_stats_prev;
 		spin_unlock_bh(&tp->lock);
 		return;

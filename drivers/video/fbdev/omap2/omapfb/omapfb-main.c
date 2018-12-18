@@ -287,7 +287,7 @@ static bool cmp_var_to_colormode(struct fb_var_screeninfo *var,
 			var->red.length == 0 ||
 			var->blue.length == 0 ||
 			var->green.length == 0)
-		return 0;
+		return false;
 
 	return var->bits_per_pixel == color->bits_per_pixel &&
 		cmp_component(&var->red, &color->red) &&

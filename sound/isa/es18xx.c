@@ -1024,6 +1024,7 @@ static int snd_es18xx_put_mux(struct snd_kcontrol *kcontrol, struct snd_ctl_elem
 			val = 3;
 		} else
 			retVal = snd_es18xx_mixer_bits(chip, 0x7a, 0x08, 0x00) != 0x00;
+		/* fall through */
  /* 4 source chips */
 	case 0x1868:
 	case 0x1878:

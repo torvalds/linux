@@ -12,6 +12,7 @@
 #include "acparser.h"
 #include "amlcode.h"
 #include "acconvert.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psobject")
@@ -549,6 +550,21 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 
 		do {
 			if (*op) {
+				/*
+				 * These Opcodes need to be removed from the namespace because they
+				 * get created even if these opcodes cannot be created due to
+				 * errors.
+				 */
+				if (((*op)->common.aml_opcode == AML_REGION_OP)
+				    || ((*op)->common.aml_opcode ==
+					AML_DATA_REGION_OP)) {
+					acpi_ns_delete_children((*op)->common.
+								node);
+					acpi_ns_remove_node((*op)->common.node);
+					(*op)->common.node = NULL;
+					acpi_ps_delete_parse_tree(*op);
+				}
+
 				status2 =
 				    acpi_ps_complete_this_op(walk_state, *op);
 				if (ACPI_FAILURE(status2)) {
@@ -574,6 +590,20 @@ acpi_ps_complete_op(struct acpi_walk_state *walk_state,
 #endif
 		walk_state->prev_op = NULL;
 		walk_state->prev_arg_types = walk_state->arg_types;
+
+		if (walk_state->parse_flags & ACPI_PARSE_MODULE_LEVEL) {
+			/*
+			 * There was something that went wrong while executing code at the
+			 * module-level. We need to skip parsing whatever caused the
+			 * error and keep going. One runtime error during the table load
+			 * should not cause the entire table to not be loaded. This is
+			 * because there could be correct AML beyond the parts that caused
+			 * the runtime error.
+			 */
+			ACPI_ERROR((AE_INFO,
+				    "Ignore error and continue table load"));
+			return_ACPI_STATUS(AE_OK);
+		}
 		return_ACPI_STATUS(status);
 	}
 

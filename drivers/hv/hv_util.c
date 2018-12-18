@@ -487,6 +487,9 @@ static  struct hv_driver util_drv = {
 	.id_table = id_table,
 	.probe =  util_probe,
 	.remove =  util_remove,
+	.driver = {
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
+	},
 };
 
 static int hv_ptp_enable(struct ptp_clock_info *info,

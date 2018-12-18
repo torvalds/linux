@@ -159,13 +159,7 @@
 
 		dais = <&mcbsp2_port>, <&mcbsp3_port>;
 	};
-};
 
-&dss {
-	status = "okay";
-};
-
-&gpio6 {
 	pwm8: dmtimer-pwm-8 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&vibrator_direction_pin>;
@@ -192,7 +186,10 @@
 		pwm-names = "enable", "direction";
 		direction-duty-cycle-ns = <10000000>;
 	};
+};
 
+&dss {
+	status = "okay";
 };
 
 &dsi1 {

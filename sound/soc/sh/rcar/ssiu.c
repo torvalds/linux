@@ -1,12 +1,9 @@
-/*
- * Renesas R-Car SSIU support
- *
- * Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Renesas R-Car SSIU support
+//
+// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include "rsnd.h"
 
 #define SSIU_NAME "ssiu"
@@ -258,7 +255,7 @@ int rsnd_ssiu_probe(struct rsnd_priv *priv)
 
 	/* same number to SSI */
 	nr	= priv->ssi_nr;
-	ssiu	= devm_kzalloc(dev, sizeof(*ssiu) * nr, GFP_KERNEL);
+	ssiu	= devm_kcalloc(dev, nr, sizeof(*ssiu), GFP_KERNEL);
 	if (!ssiu)
 		return -ENOMEM;
 

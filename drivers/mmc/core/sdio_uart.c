@@ -1008,19 +1008,6 @@ static int sdio_uart_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int sdio_uart_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, sdio_uart_proc_show, NULL);
-}
-
-static const struct file_operations sdio_uart_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= sdio_uart_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static const struct tty_port_operations sdio_uart_port_ops = {
 	.dtr_rts = uart_dtr_rts,
 	.carrier_raised = uart_carrier_raised,
@@ -1045,7 +1032,7 @@ static const struct tty_operations sdio_uart_ops = {
 	.tiocmset		= sdio_uart_tiocmset,
 	.install		= sdio_uart_install,
 	.cleanup		= sdio_uart_cleanup,
-	.proc_fops		= &sdio_uart_proc_fops,
+	.proc_show		= sdio_uart_proc_show,
 };
 
 static struct tty_driver *sdio_uart_tty_driver;

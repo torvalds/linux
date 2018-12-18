@@ -79,7 +79,7 @@ static int scmi_sensor_attributes_get(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_sensor_attributes *attr;
 
-	ret = scmi_one_xfer_init(handle, PROTOCOL_ATTRIBUTES,
+	ret = scmi_xfer_get_init(handle, PROTOCOL_ATTRIBUTES,
 				 SCMI_PROTOCOL_SENSOR, 0, sizeof(*attr), &t);
 	if (ret)
 		return ret;
@@ -95,7 +95,7 @@ static int scmi_sensor_attributes_get(const struct scmi_handle *handle,
 		si->reg_size = le32_to_cpu(attr->reg_size);
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -108,7 +108,7 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_sensor_description *buf;
 
-	ret = scmi_one_xfer_init(handle, SENSOR_DESCRIPTION_GET,
+	ret = scmi_xfer_get_init(handle, SENSOR_DESCRIPTION_GET,
 				 SCMI_PROTOCOL_SENSOR, sizeof(__le32), 0, &t);
 	if (ret)
 		return ret;
@@ -150,7 +150,7 @@ static int scmi_sensor_description_get(const struct scmi_handle *handle,
 		 */
 	} while (num_returned && num_remaining);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -162,7 +162,7 @@ scmi_sensor_configuration_set(const struct scmi_handle *handle, u32 sensor_id)
 	struct scmi_xfer *t;
 	struct scmi_msg_set_sensor_config *cfg;
 
-	ret = scmi_one_xfer_init(handle, SENSOR_CONFIG_SET,
+	ret = scmi_xfer_get_init(handle, SENSOR_CONFIG_SET,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*cfg), 0, &t);
 	if (ret)
 		return ret;
@@ -173,7 +173,7 @@ scmi_sensor_configuration_set(const struct scmi_handle *handle, u32 sensor_id)
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -185,7 +185,7 @@ static int scmi_sensor_trip_point_set(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_set_sensor_trip_point *trip;
 
-	ret = scmi_one_xfer_init(handle, SENSOR_TRIP_POINT_SET,
+	ret = scmi_xfer_get_init(handle, SENSOR_TRIP_POINT_SET,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*trip), 0, &t);
 	if (ret)
 		return ret;
@@ -198,7 +198,7 @@ static int scmi_sensor_trip_point_set(const struct scmi_handle *handle,
 
 	ret = scmi_do_xfer(handle, t);
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 
@@ -209,7 +209,7 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 	struct scmi_xfer *t;
 	struct scmi_msg_sensor_reading_get *sensor;
 
-	ret = scmi_one_xfer_init(handle, SENSOR_READING_GET,
+	ret = scmi_xfer_get_init(handle, SENSOR_READING_GET,
 				 SCMI_PROTOCOL_SENSOR, sizeof(*sensor),
 				 sizeof(u64), &t);
 	if (ret)
@@ -227,7 +227,7 @@ static int scmi_sensor_reading_get(const struct scmi_handle *handle,
 		*value |= (u64)le32_to_cpu(*(pval + 1)) << 32;
 	}
 
-	scmi_one_xfer_put(handle, t);
+	scmi_xfer_put(handle, t);
 	return ret;
 }
 

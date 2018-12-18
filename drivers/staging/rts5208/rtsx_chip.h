@@ -644,19 +644,6 @@ struct spi_info {
 	int spi_clock;
 };
 
-#ifdef _MSG_TRACE
-struct trace_msg_t {
-	u16 line;
-#define MSG_FUNC_LEN 64
-	char func[MSG_FUNC_LEN];
-#define MSG_FILE_LEN 32
-	char file[MSG_FILE_LEN];
-#define TIME_VAL_LEN 16
-	u8 timeval_buf[TIME_VAL_LEN];
-	u8 valid;
-};
-#endif
-
 /************/
 /* LUN mode */
 /************/
@@ -797,11 +784,6 @@ struct rtsx_chip {
 	struct ms_info		ms_card;
 
 	struct spi_info		spi;
-
-#ifdef _MSG_TRACE
-	struct trace_msg_t	trace_msg[TRACE_ITEM_CNT];
-	int			msg_idx;
-#endif
 
 	int			auto_delink_cnt;
 	int			auto_delink_allowed;

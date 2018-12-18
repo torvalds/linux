@@ -239,25 +239,6 @@ void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 		vm_paddr_t paddr = vm_phy_page_alloc(vm,
 			KVM_GUEST_PAGE_TABLE_MIN_PADDR, pgd_memslot);
 		vm->pgd = paddr;
-
-		/* Set pointer to pgd tables in all the VCPUs that
-		 * have already been created.  Future VCPUs will have
-		 * the value set as each one is created.
-		 */
-		for (struct vcpu *vcpu = vm->vcpu_head; vcpu;
-			vcpu = vcpu->next) {
-			struct kvm_sregs sregs;
-
-			/* Obtain the current system register settings */
-			vcpu_sregs_get(vm, vcpu->id, &sregs);
-
-			/* Set and store the pointer to the start of the
-			 * pgd tables.
-			 */
-			sregs.cr3 = vm->pgd;
-			vcpu_sregs_set(vm, vcpu->id, &sregs);
-		}
-
 		vm->pgd_created = true;
 	}
 }
@@ -460,9 +441,32 @@ static void kvm_seg_set_unusable(struct kvm_segment *segp)
 	segp->unusable = true;
 }
 
+static void kvm_seg_fill_gdt_64bit(struct kvm_vm *vm, struct kvm_segment *segp)
+{
+	void *gdt = addr_gva2hva(vm, vm->gdt);
+	struct desc64 *desc = gdt + (segp->selector >> 3) * 8;
+
+	desc->limit0 = segp->limit & 0xFFFF;
+	desc->base0 = segp->base & 0xFFFF;
+	desc->base1 = segp->base >> 16;
+	desc->s = segp->s;
+	desc->type = segp->type;
+	desc->dpl = segp->dpl;
+	desc->p = segp->present;
+	desc->limit1 = segp->limit >> 16;
+	desc->l = segp->l;
+	desc->db = segp->db;
+	desc->g = segp->g;
+	desc->base2 = segp->base >> 24;
+	if (!segp->s)
+		desc->base3 = segp->base >> 32;
+}
+
+
 /* Set Long Mode Flat Kernel Code Segment
  *
  * Input Args:
+ *   vm - VM whose GDT is being filled, or NULL to only write segp
  *   selector - selector value
  *
  * Output Args:
@@ -473,7 +477,7 @@ static void kvm_seg_set_unusable(struct kvm_segment *segp)
  * Sets up the KVM segment pointed to by segp, to be a code segment
  * with the selector value given by selector.
  */
-static void kvm_seg_set_kernel_code_64bit(uint16_t selector,
+static void kvm_seg_set_kernel_code_64bit(struct kvm_vm *vm, uint16_t selector,
 	struct kvm_segment *segp)
 {
 	memset(segp, 0, sizeof(*segp));
@@ -486,11 +490,14 @@ static void kvm_seg_set_kernel_code_64bit(uint16_t selector,
 	segp->g = true;
 	segp->l = true;
 	segp->present = 1;
+	if (vm)
+		kvm_seg_fill_gdt_64bit(vm, segp);
 }
 
 /* Set Long Mode Flat Kernel Data Segment
  *
  * Input Args:
+ *   vm - VM whose GDT is being filled, or NULL to only write segp
  *   selector - selector value
  *
  * Output Args:
@@ -501,7 +508,7 @@ static void kvm_seg_set_kernel_code_64bit(uint16_t selector,
  * Sets up the KVM segment pointed to by segp, to be a data segment
  * with the selector value given by selector.
  */
-static void kvm_seg_set_kernel_data_64bit(uint16_t selector,
+static void kvm_seg_set_kernel_data_64bit(struct kvm_vm *vm, uint16_t selector,
 	struct kvm_segment *segp)
 {
 	memset(segp, 0, sizeof(*segp));
@@ -513,6 +520,8 @@ static void kvm_seg_set_kernel_data_64bit(uint16_t selector,
 					  */
 	segp->g = true;
 	segp->present = true;
+	if (vm)
+		kvm_seg_fill_gdt_64bit(vm, segp);
 }
 
 /* Address Guest Virtual to Guest Physical
@@ -575,12 +584,44 @@ unmapped_gva:
 		    "gva: 0x%lx", gva);
 }
 
-void vcpu_setup(struct kvm_vm *vm, int vcpuid)
+static void kvm_setup_gdt(struct kvm_vm *vm, struct kvm_dtable *dt, int gdt_memslot,
+			  int pgd_memslot)
+{
+	if (!vm->gdt)
+		vm->gdt = vm_vaddr_alloc(vm, getpagesize(),
+			KVM_UTIL_MIN_VADDR, gdt_memslot, pgd_memslot);
+
+	dt->base = vm->gdt;
+	dt->limit = getpagesize();
+}
+
+static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
+				int selector, int gdt_memslot,
+				int pgd_memslot)
+{
+	if (!vm->tss)
+		vm->tss = vm_vaddr_alloc(vm, getpagesize(),
+			KVM_UTIL_MIN_VADDR, gdt_memslot, pgd_memslot);
+
+	memset(segp, 0, sizeof(*segp));
+	segp->base = vm->tss;
+	segp->limit = 0x67;
+	segp->selector = selector;
+	segp->type = 0xb;
+	segp->present = 1;
+	kvm_seg_fill_gdt_64bit(vm, segp);
+}
+
+void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 {
 	struct kvm_sregs sregs;
 
 	/* Set mode specific system register values. */
 	vcpu_sregs_get(vm, vcpuid, &sregs);
+
+	sregs.idt.limit = 0;
+
+	kvm_setup_gdt(vm, &sregs.gdt, gdt_memslot, pgd_memslot);
 
 	switch (vm->mode) {
 	case VM_MODE_FLAT48PG:
@@ -589,30 +630,18 @@ void vcpu_setup(struct kvm_vm *vm, int vcpuid)
 		sregs.efer |= (EFER_LME | EFER_LMA | EFER_NX);
 
 		kvm_seg_set_unusable(&sregs.ldt);
-		kvm_seg_set_kernel_code_64bit(0x8, &sregs.cs);
-		kvm_seg_set_kernel_data_64bit(0x10, &sregs.ds);
-		kvm_seg_set_kernel_data_64bit(0x10, &sregs.es);
+		kvm_seg_set_kernel_code_64bit(vm, 0x8, &sregs.cs);
+		kvm_seg_set_kernel_data_64bit(vm, 0x10, &sregs.ds);
+		kvm_seg_set_kernel_data_64bit(vm, 0x10, &sregs.es);
+		kvm_setup_tss_64bit(vm, &sregs.tr, 0x18, gdt_memslot, pgd_memslot);
 		break;
 
 	default:
 		TEST_ASSERT(false, "Unknown guest mode, mode: 0x%x", vm->mode);
 	}
+
+	sregs.cr3 = vm->pgd;
 	vcpu_sregs_set(vm, vcpuid, &sregs);
-
-	/* If virtual translation table have been setup, set system register
-	 * to point to the tables.  It's okay if they haven't been setup yet,
-	 * in that the code that sets up the virtual translation tables, will
-	 * go back through any VCPUs that have already been created and set
-	 * their values.
-	 */
-	if (vm->pgd_created) {
-		struct kvm_sregs sregs;
-
-		vcpu_sregs_get(vm, vcpuid, &sregs);
-
-		sregs.cr3 = vm->pgd;
-		vcpu_sregs_set(vm, vcpuid, &sregs);
-	}
 }
 /* Adds a vCPU with reasonable defaults (i.e., a stack)
  *
@@ -629,7 +658,7 @@ void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
 				     DEFAULT_GUEST_STACK_VADDR_MIN, 0, 0);
 
 	/* Create VCPU */
-	vm_vcpu_add(vm, vcpuid);
+	vm_vcpu_add(vm, vcpuid, 0, 0);
 
 	/* Setup guest general purpose registers */
 	vcpu_regs_get(vm, vcpuid, &regs);
@@ -697,4 +726,149 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, void *guest_code)
 	vm_vcpu_add_default(vm, vcpuid, guest_code);
 
 	return vm;
+}
+
+struct kvm_x86_state {
+	struct kvm_vcpu_events events;
+	struct kvm_mp_state mp_state;
+	struct kvm_regs regs;
+	struct kvm_xsave xsave;
+	struct kvm_xcrs xcrs;
+	struct kvm_sregs sregs;
+	struct kvm_debugregs debugregs;
+	union {
+		struct kvm_nested_state nested;
+		char nested_[16384];
+	};
+	struct kvm_msrs msrs;
+};
+
+static int kvm_get_num_msrs(struct kvm_vm *vm)
+{
+	struct kvm_msr_list nmsrs;
+	int r;
+
+	nmsrs.nmsrs = 0;
+	r = ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
+	TEST_ASSERT(r == -1 && errno == E2BIG, "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i",
+		r);
+
+	return nmsrs.nmsrs;
+}
+
+struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	struct kvm_msr_list *list;
+	struct kvm_x86_state *state;
+	int nmsrs, r, i;
+	static int nested_size = -1;
+
+	if (nested_size == -1) {
+		nested_size = kvm_check_cap(KVM_CAP_NESTED_STATE);
+		TEST_ASSERT(nested_size <= sizeof(state->nested_),
+			    "Nested state size too big, %i > %zi",
+			    nested_size, sizeof(state->nested_));
+	}
+
+	nmsrs = kvm_get_num_msrs(vm);
+	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
+	list->nmsrs = nmsrs;
+	r = ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MSR_INDEX_LIST, r: %i",
+                r);
+
+	state = malloc(sizeof(*state) + nmsrs * sizeof(state->msrs.entries[0]));
+	r = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, &state->events);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_VCPU_EVENTS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_MP_STATE, &state->mp_state);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_MP_STATE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_REGS, &state->regs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_REGS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_XSAVE, &state->xsave);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_XSAVE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_XCRS, &state->xcrs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_XCRS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_GET_SREGS, &state->sregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_SREGS, r: %i",
+                r);
+
+	if (nested_size) {
+		state->nested.size = sizeof(state->nested_);
+		r = ioctl(vcpu->fd, KVM_GET_NESTED_STATE, &state->nested);
+		TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_NESTED_STATE, r: %i",
+			r);
+		TEST_ASSERT(state->nested.size <= nested_size,
+			"Nested state size too big, %i (KVM_CHECK_CAP gave %i)",
+			state->nested.size, nested_size);
+	} else
+		state->nested.size = 0;
+
+	state->msrs.nmsrs = nmsrs;
+	for (i = 0; i < nmsrs; i++)
+		state->msrs.entries[i].index = list->indices[i];
+	r = ioctl(vcpu->fd, KVM_GET_MSRS, &state->msrs);
+        TEST_ASSERT(r == nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed at %x)",
+                r, r == nmsrs ? -1 : list->indices[r]);
+
+	r = ioctl(vcpu->fd, KVM_GET_DEBUGREGS, &state->debugregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEBUGREGS, r: %i",
+                r);
+
+	free(list);
+	return state;
+}
+
+void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state)
+{
+	struct vcpu *vcpu = vcpu_find(vm, vcpuid);
+	int r;
+
+	if (state->nested.size) {
+		r = ioctl(vcpu->fd, KVM_SET_NESTED_STATE, &state->nested);
+		TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_NESTED_STATE, r: %i",
+			r);
+	}
+
+	r = ioctl(vcpu->fd, KVM_SET_XSAVE, &state->xsave);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XSAVE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_XCRS, &state->xcrs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_XCRS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_SREGS, &state->sregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_SREGS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_MSRS, &state->msrs);
+        TEST_ASSERT(r == state->msrs.nmsrs, "Unexpected result from KVM_SET_MSRS, r: %i (failed at %x)",
+                r, r == state->msrs.nmsrs ? -1 : state->msrs.entries[r].index);
+
+	r = ioctl(vcpu->fd, KVM_SET_VCPU_EVENTS, &state->events);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_VCPU_EVENTS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_MP_STATE, &state->mp_state);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_MP_STATE, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_DEBUGREGS, &state->debugregs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_DEBUGREGS, r: %i",
+                r);
+
+	r = ioctl(vcpu->fd, KVM_SET_REGS, &state->regs);
+        TEST_ASSERT(r == 0, "Unexpected result from KVM_SET_REGS, r: %i",
+                r);
 }

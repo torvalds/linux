@@ -307,7 +307,7 @@ struct scsi_host_template {
 	 * EH_HANDLED:		I fixed the error, please complete the command
 	 * EH_RESET_TIMER:	I need more time, reset the timer and
 	 *			begin counting again
-	 * EH_NOT_HANDLED	Begin normal error recovery
+	 * EH_DONE:		Begin normal error recovery
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -758,6 +758,7 @@ extern void scsi_scan_host(struct Scsi_Host *);
 extern void scsi_rescan_device(struct device *);
 extern void scsi_remove_host(struct Scsi_Host *);
 extern struct Scsi_Host *scsi_host_get(struct Scsi_Host *);
+extern int scsi_host_busy(struct Scsi_Host *shost);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
 extern const char *scsi_host_state_name(enum scsi_host_state);

@@ -61,7 +61,7 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	select MII
 	select PHYLIB
 	select FIXED_PHY
@@ -157,7 +157,6 @@ config BGMAC
 config BGMAC_BCMA
 	tristate "Broadcom iProc GBit BCMA support"
 	depends on BCMA && BCMA_HOST_SOC
-	depends on HAS_DMA
 	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
 	select BGMAC
 	select PHYLIB
@@ -170,7 +169,6 @@ config BGMAC_BCMA
 
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
-	depends on HAS_DMA
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on OF
 	select BGMAC
@@ -183,7 +181,7 @@ config BGMAC_PLATFORM
 
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
-	depends on OF
+	depends on HAS_IOMEM
 	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
@@ -231,5 +229,13 @@ config BNXT_DCB
 	  driver.
 
 	  If unsure, say N.
+
+config BNXT_HWMON
+	bool "Broadcom NetXtreme-C/E HWMON support"
+	default y
+	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
+	  devices, via the hwmon sysfs interface.
 
 endif # NET_VENDOR_BROADCOM

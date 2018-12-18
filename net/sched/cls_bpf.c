@@ -43,16 +43,14 @@ struct cls_bpf_prog {
 	struct tcf_result res;
 	bool exts_integrated;
 	u32 gen_flags;
+	unsigned int in_hw_count;
 	struct tcf_exts exts;
 	u32 handle;
 	u16 bpf_num_ops;
 	struct sock_filter *bpf_ops;
 	const char *bpf_name;
 	struct tcf_proto *tp;
-	union {
-		struct work_struct work;
-		struct rcu_head rcu;
-	};
+	struct rcu_work rwork;
 };
 
 static const struct nla_policy bpf_policy[TCA_BPF_MAX + 1] = {
@@ -177,6 +175,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			cls_bpf_offload_cmd(tp, oldprog, prog, extack);
 			return err;
 		} else if (err > 0) {
+			prog->in_hw_count = err;
 			tcf_block_offload_inc(block, &prog->gen_flags);
 		}
 	}
@@ -275,19 +274,12 @@ static void __cls_bpf_delete_prog(struct cls_bpf_prog *prog)
 
 static void cls_bpf_delete_prog_work(struct work_struct *work)
 {
-	struct cls_bpf_prog *prog = container_of(work, struct cls_bpf_prog, work);
-
+	struct cls_bpf_prog *prog = container_of(to_rcu_work(work),
+						 struct cls_bpf_prog,
+						 rwork);
 	rtnl_lock();
 	__cls_bpf_delete_prog(prog);
 	rtnl_unlock();
-}
-
-static void cls_bpf_delete_prog_rcu(struct rcu_head *rcu)
-{
-	struct cls_bpf_prog *prog = container_of(rcu, struct cls_bpf_prog, rcu);
-
-	INIT_WORK(&prog->work, cls_bpf_delete_prog_work);
-	tcf_queue_work(&prog->work);
 }
 
 static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog,
@@ -300,7 +292,7 @@ static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	list_del_rcu(&prog->link);
 	tcf_unbind_filter(tp, &prog->res);
 	if (tcf_exts_get_net(&prog->exts))
-		call_rcu(&prog->rcu, cls_bpf_delete_prog_rcu);
+		tcf_queue_work(&prog->rwork, cls_bpf_delete_prog_work);
 	else
 		__cls_bpf_delete_prog(prog);
 }
@@ -357,11 +349,9 @@ static int cls_bpf_prog_from_ops(struct nlattr **tb, struct cls_bpf_prog *prog)
 	if (bpf_size != nla_len(tb[TCA_BPF_OPS]))
 		return -EINVAL;
 
-	bpf_ops = kzalloc(bpf_size, GFP_KERNEL);
+	bpf_ops = kmemdup(nla_data(tb[TCA_BPF_OPS]), bpf_size, GFP_KERNEL);
 	if (bpf_ops == NULL)
 		return -ENOMEM;
-
-	memcpy(bpf_ops, nla_data(tb[TCA_BPF_OPS]), bpf_size);
 
 	fprog_tmp.len = bpf_num_ops;
 	fprog_tmp.filter = bpf_ops;
@@ -526,7 +516,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 		list_replace_rcu(&oldprog->link, &prog->link);
 		tcf_unbind_filter(tp, &oldprog->res);
 		tcf_exts_get_net(&oldprog->exts);
-		call_rcu(&oldprog->rcu, cls_bpf_delete_prog_rcu);
+		tcf_queue_work(&oldprog->rwork, cls_bpf_delete_prog_work);
 	} else {
 		list_add_rcu(&prog->link, &head->plist);
 	}
@@ -662,6 +652,42 @@ skip:
 	}
 }
 
+static int cls_bpf_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
+			     void *cb_priv, struct netlink_ext_ack *extack)
+{
+	struct cls_bpf_head *head = rtnl_dereference(tp->root);
+	struct tcf_block *block = tp->chain->block;
+	struct tc_cls_bpf_offload cls_bpf = {};
+	struct cls_bpf_prog *prog;
+	int err;
+
+	list_for_each_entry(prog, &head->plist, link) {
+		if (tc_skip_hw(prog->gen_flags))
+			continue;
+
+		tc_cls_common_offload_init(&cls_bpf.common, tp, prog->gen_flags,
+					   extack);
+		cls_bpf.command = TC_CLSBPF_OFFLOAD;
+		cls_bpf.exts = &prog->exts;
+		cls_bpf.prog = add ? prog->filter : NULL;
+		cls_bpf.oldprog = add ? NULL : prog->filter;
+		cls_bpf.name = prog->bpf_name;
+		cls_bpf.exts_integrated = prog->exts_integrated;
+
+		err = cb(TC_SETUP_CLSBPF, &cls_bpf, cb_priv);
+		if (err) {
+			if (add && tc_skip_sw(prog->gen_flags))
+				return err;
+			continue;
+		}
+
+		tc_cls_offload_cnt_update(block, &prog->in_hw_count,
+					  &prog->gen_flags, add);
+	}
+
+	return 0;
+}
+
 static struct tcf_proto_ops cls_bpf_ops __read_mostly = {
 	.kind		=	"bpf",
 	.owner		=	THIS_MODULE,
@@ -672,6 +698,7 @@ static struct tcf_proto_ops cls_bpf_ops __read_mostly = {
 	.change		=	cls_bpf_change,
 	.delete		=	cls_bpf_delete,
 	.walk		=	cls_bpf_walk,
+	.reoffload	=	cls_bpf_reoffload,
 	.dump		=	cls_bpf_dump,
 	.bind_class	=	cls_bpf_bind_class,
 };

@@ -8,6 +8,7 @@ compatible: "renesas,pcie-r8a7743" for the R8A7743 SoC;
 	    "renesas,pcie-r8a7793" for the R8A7793 SoC;
 	    "renesas,pcie-r8a7795" for the R8A7795 SoC;
 	    "renesas,pcie-r8a7796" for the R8A7796 SoC;
+	    "renesas,pcie-r8a77980" for the R8A77980 SoC;
 	    "renesas,pcie-rcar-gen2" for a generic R-Car Gen2 or
 				     RZ/G1 compatible device.
 	    "renesas,pcie-rcar-gen3" for a generic R-Car Gen3 compatible device.
@@ -31,6 +32,11 @@ compatible: "renesas,pcie-r8a7743" for the R8A7743 SoC;
 - clocks: from common clock binding: clock specifiers for the PCIe controller
 	and PCIe bus clocks.
 - clock-names: from common clock binding: should be "pcie" and "pcie_bus".
+
+Optional properties:
+- phys: from common PHY binding: PHY phandle and specifier (only make sense
+	for R-Car gen3 SoCs where the PCIe PHYs have their own register blocks).
+- phy-names: from common PHY binding: should be "pcie".
 
 Example:
 

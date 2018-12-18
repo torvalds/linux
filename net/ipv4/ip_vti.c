@@ -438,7 +438,8 @@ static int __net_init vti_init_net(struct net *net)
 	if (err)
 		return err;
 	itn = net_generic(net, vti_net_id);
-	vti_fb_tunnel_init(itn->fb_tunnel_dev);
+	if (itn->fb_tunnel_dev)
+		vti_fb_tunnel_init(itn->fb_tunnel_dev);
 	return 0;
 }
 

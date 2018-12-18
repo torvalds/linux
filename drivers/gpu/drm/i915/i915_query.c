@@ -4,6 +4,8 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include <linux/nospec.h>
+
 #include "i915_drv.h"
 #include "i915_query.h"
 #include <uapi/drm/i915_drm.h>
@@ -100,7 +102,7 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	for (i = 0; i < args->num_items; i++, user_item_ptr++) {
 		struct drm_i915_query_item item;
-		u64 func_idx;
+		unsigned long func_idx;
 		int ret;
 
 		if (copy_from_user(&item, user_item_ptr, sizeof(item)))
@@ -109,12 +111,17 @@ int i915_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 		if (item.query_id == 0)
 			return -EINVAL;
 
+		if (overflows_type(item.query_id - 1, unsigned long))
+			return -EINVAL;
+
 		func_idx = item.query_id - 1;
 
-		if (func_idx < ARRAY_SIZE(i915_query_funcs))
+		ret = -EINVAL;
+		if (func_idx < ARRAY_SIZE(i915_query_funcs)) {
+			func_idx = array_index_nospec(func_idx,
+						      ARRAY_SIZE(i915_query_funcs));
 			ret = i915_query_funcs[func_idx](dev_priv, &item);
-		else
-			ret = -EINVAL;
+		}
 
 		/* Only write the length back to userspace if they differ. */
 		if (ret != item.length && put_user(ret, &user_item_ptr->length))

@@ -159,18 +159,8 @@ static void queue_delete(struct snd_seq_queue *q)
 
 /*----------------------------------------------------------------*/
 
-/* setup queues */
-int __init snd_seq_queues_init(void)
-{
-	/*
-	memset(queue_list, 0, sizeof(queue_list));
-	num_queues = 0;
-	*/
-	return 0;
-}
-
 /* delete all existing queues */
-void __exit snd_seq_queues_delete(void)
+void snd_seq_queues_delete(void)
 {
 	int i;
 

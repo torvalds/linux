@@ -251,7 +251,7 @@ static void aac_sa_start_adapter(struct aac_dev *dev)
 	 * Fill in the remaining pieces of the init.
 	 */
 	init = dev->init;
-	init->r7.host_elapsed_seconds = cpu_to_le32(get_seconds());
+	init->r7.host_elapsed_seconds = cpu_to_le32(ktime_get_real_seconds());
 	/* We can only use a 32 bit address here */
 	sa_sync_cmd(dev, INIT_STRUCT_BASE_ADDRESS, 
 			(u32)(ulong)dev->init_pa, 0, 0, 0, 0, 0,

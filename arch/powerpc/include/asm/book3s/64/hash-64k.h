@@ -46,6 +46,13 @@
 #define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3 + 1)
 #define H_PTE_FRAG_NR	(PAGE_SIZE >> H_PTE_FRAG_SIZE_SHIFT)
 
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3 + 1)
+#else
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3)
+#endif
+#define H_PMD_FRAG_NR	(PAGE_SIZE >> H_PMD_FRAG_SIZE_SHIFT)
+
 #ifndef __ASSEMBLY__
 #include <asm/errno.h>
 
@@ -130,10 +137,9 @@ extern bool __rpte_sub_valid(real_pte_t rpte, unsigned long index);
 		shift = mmu_psize_defs[psize].shift;			\
 		for (index = 0; vpn < __end; index++,			\
 			     vpn += (1L << (shift - VPN_SHIFT))) {	\
-			if (!__split || __rpte_sub_valid(rpte, index))	\
-				do {
+		if (!__split || __rpte_sub_valid(rpte, index))
 
-#define pte_iterate_hashed_end() } while(0); } } while(0)
+#define pte_iterate_hashed_end()  } } while(0)
 
 #define pte_pagesize_index(mm, addr, pte)	\
 	(((pte) & H_PAGE_COMBO)? MMU_PAGE_4K: MMU_PAGE_64K)

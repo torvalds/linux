@@ -14,6 +14,11 @@ extern const struct attribute_group *qeth_l2_attr_groups[];
 int qeth_l2_create_device_attributes(struct device *);
 void qeth_l2_remove_device_attributes(struct device *);
 void qeth_l2_setup_bridgeport_attrs(struct qeth_card *card);
+int qeth_bridgeport_query_ports(struct qeth_card *card,
+				enum qeth_sbp_roles *role,
+				enum qeth_sbp_states *state);
+int qeth_bridgeport_setrole(struct qeth_card *card, enum qeth_sbp_roles role);
+int qeth_bridgeport_an_set(struct qeth_card *card, int enable);
 
 int qeth_l2_vnicc_set_state(struct qeth_card *card, u32 vnicc, bool state);
 int qeth_l2_vnicc_get_state(struct qeth_card *card, u32 vnicc, bool *state);

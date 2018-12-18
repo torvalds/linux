@@ -501,6 +501,32 @@ enum atom_cooling_solution_id{
   LIQUID_COOLING = 0x01
 };
 
+struct atom_firmware_info_v3_2 {
+  struct atom_common_table_header table_header;
+  uint32_t firmware_revision;
+  uint32_t bootup_sclk_in10khz;
+  uint32_t bootup_mclk_in10khz;
+  uint32_t firmware_capability;             // enum atombios_firmware_capability
+  uint32_t main_call_parser_entry;          /* direct address of main parser call in VBIOS binary. */
+  uint32_t bios_scratch_reg_startaddr;      // 1st bios scratch register dword address
+  uint16_t bootup_vddc_mv;
+  uint16_t bootup_vddci_mv;
+  uint16_t bootup_mvddc_mv;
+  uint16_t bootup_vddgfx_mv;
+  uint8_t  mem_module_id;
+  uint8_t  coolingsolution_id;              /*0: Air cooling; 1: Liquid cooling ... */
+  uint8_t  reserved1[2];
+  uint32_t mc_baseaddr_high;
+  uint32_t mc_baseaddr_low;
+  uint8_t  board_i2c_feature_id;            // enum of atom_board_i2c_feature_id_def
+  uint8_t  board_i2c_feature_gpio_id;       // i2c id find in gpio_lut data table gpio_id
+  uint8_t  board_i2c_feature_slave_addr;
+  uint8_t  reserved3;
+  uint16_t bootup_mvddq_mv;
+  uint16_t bootup_mvpp_mv;
+  uint32_t zfbstartaddrin16mb;
+  uint32_t reserved2[3];
+};
 
 /* 
   ***************************************************************************
@@ -1048,7 +1074,7 @@ struct atom_integrated_system_info_v1_11
   uint16_t  dpphy_override;                   // bit vector, enum of atom_sysinfo_dpphy_override_def
   uint16_t  lvds_misc;                        // enum of atom_sys_info_lvds_misc_def
   uint16_t  backlight_pwm_hz;                 // pwm frequency in hz
-  uint8_t   memorytype;                       // enum of atom_sys_mem_type
+  uint8_t   memorytype;                       // enum of atom_dmi_t17_mem_type_def, APU memory type indication.
   uint8_t   umachannelnumber;                 // number of memory channels
   uint8_t   pwr_on_digon_to_de;               /* all pwr sequence numbers below are in uint of 4ms */
   uint8_t   pwr_on_de_to_vary_bl;
@@ -1058,18 +1084,25 @@ struct atom_integrated_system_info_v1_11
   uint8_t   pwr_on_vary_bl_to_blon;
   uint8_t   pwr_down_bloff_to_vary_bloff;
   uint8_t   min_allowed_bl_level;
+  uint8_t   htc_hyst_limit;
+  uint8_t   htc_tmp_limit;
+  uint8_t   reserved1;
+  uint8_t   reserved2;
   struct atom_external_display_connection_info extdispconninfo;
   struct atom_14nm_dpphy_dvihdmi_tuningset dvi_tuningset;
   struct atom_14nm_dpphy_dvihdmi_tuningset hdmi_tuningset;
   struct atom_14nm_dpphy_dvihdmi_tuningset hdmi6g_tuningset;
-  struct atom_14nm_dpphy_dp_tuningset dp_tuningset;
-  struct atom_14nm_dpphy_dp_tuningset dp_hbr3_tuningset;
+  struct atom_14nm_dpphy_dp_tuningset dp_tuningset;        // rbr 1.62G dp tuning set
+  struct atom_14nm_dpphy_dp_tuningset dp_hbr3_tuningset;   // HBR3 dp tuning set
   struct atom_camera_data  camera_info;
   struct atom_hdmi_retimer_redriver_set dp0_retimer_set;   //for DP0
   struct atom_hdmi_retimer_redriver_set dp1_retimer_set;   //for DP1
   struct atom_hdmi_retimer_redriver_set dp2_retimer_set;   //for DP2
   struct atom_hdmi_retimer_redriver_set dp3_retimer_set;   //for DP3
-  uint32_t  reserved[108];
+  struct atom_14nm_dpphy_dp_tuningset dp_hbr_tuningset;    //hbr 2.7G dp tuning set
+  struct atom_14nm_dpphy_dp_tuningset dp_hbr2_tuningset;   //hbr2 5.4G dp turnig set
+  struct atom_14nm_dpphy_dp_tuningset edp_tuningset;       //edp tuning set
+  uint32_t  reserved[66];
 };
 
 
@@ -1169,7 +1202,64 @@ struct  atom_gfx_info_v2_2
   uint32_t rlc_gpu_timer_refclk; 
 };
 
+struct  atom_gfx_info_v2_3 {
+  struct  atom_common_table_header  table_header;
+  uint8_t gfxip_min_ver;
+  uint8_t gfxip_max_ver;
+  uint8_t max_shader_engines;
+  uint8_t max_tile_pipes;
+  uint8_t max_cu_per_sh;
+  uint8_t max_sh_per_se;
+  uint8_t max_backends_per_se;
+  uint8_t max_texture_channel_caches;
+  uint32_t regaddr_cp_dma_src_addr;
+  uint32_t regaddr_cp_dma_src_addr_hi;
+  uint32_t regaddr_cp_dma_dst_addr;
+  uint32_t regaddr_cp_dma_dst_addr_hi;
+  uint32_t regaddr_cp_dma_command;
+  uint32_t regaddr_cp_status;
+  uint32_t regaddr_rlc_gpu_clock_32;
+  uint32_t rlc_gpu_timer_refclk;
+  uint8_t active_cu_per_sh;
+  uint8_t active_rb_per_se;
+  uint16_t gcgoldenoffset;
+  uint32_t rm21_sram_vmin_value;
+};
 
+struct  atom_gfx_info_v2_4 {
+  struct  atom_common_table_header  table_header;
+  uint8_t gfxip_min_ver;
+  uint8_t gfxip_max_ver;
+  uint8_t gc_num_se;
+  uint8_t max_tile_pipes;
+  uint8_t gc_num_cu_per_sh;
+  uint8_t gc_num_sh_per_se;
+  uint8_t gc_num_rb_per_se;
+  uint8_t gc_num_tccs;
+  uint32_t regaddr_cp_dma_src_addr;
+  uint32_t regaddr_cp_dma_src_addr_hi;
+  uint32_t regaddr_cp_dma_dst_addr;
+  uint32_t regaddr_cp_dma_dst_addr_hi;
+  uint32_t regaddr_cp_dma_command;
+  uint32_t regaddr_cp_status;
+  uint32_t regaddr_rlc_gpu_clock_32;
+  uint32_t rlc_gpu_timer_refclk;
+  uint8_t active_cu_per_sh;
+  uint8_t active_rb_per_se;
+  uint16_t gcgoldenoffset;
+  uint16_t gc_num_gprs;
+  uint16_t gc_gsprim_buff_depth;
+  uint16_t gc_parameter_cache_depth;
+  uint16_t gc_wave_size;
+  uint16_t gc_max_waves_per_simd;
+  uint16_t gc_lds_size;
+  uint8_t gc_num_max_gs_thds;
+  uint8_t gc_gs_table_depth;
+  uint8_t gc_double_offchip_lds_buffer;
+  uint8_t gc_max_scratch_slots_per_cu;
+  uint32_t sram_rm_fuses_val;
+  uint32_t sram_custom_rm_fuses_val;
+};
 
 /* 
   ***************************************************************************
@@ -1196,6 +1286,76 @@ struct atom_smu_info_v3_1
   uint8_t  vr1hot_polarity;         // GPIO polarity for VR1 HOT event 
   uint8_t  fw_ctf_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A configured for CTF, =0xff means invalid
   uint8_t  fw_ctf_polarity;         // GPIO polarity for CTF
+};
+
+struct atom_smu_info_v3_2 {
+  struct   atom_common_table_header  table_header;
+  uint8_t  smuip_min_ver;
+  uint8_t  smuip_max_ver;
+  uint8_t  smu_rsd1;
+  uint8_t  gpuclk_ss_mode;
+  uint16_t sclk_ss_percentage;
+  uint16_t sclk_ss_rate_10hz;
+  uint16_t gpuclk_ss_percentage;    // in unit of 0.001%
+  uint16_t gpuclk_ss_rate_10hz;
+  uint32_t core_refclk_10khz;
+  uint8_t  ac_dc_gpio_bit;          // GPIO bit shift in SMU_GPIOPAD_A  configured for AC/DC switching, =0xff means invalid
+  uint8_t  ac_dc_polarity;          // GPIO polarity for AC/DC switching
+  uint8_t  vr0hot_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A  configured for VR0 HOT event, =0xff means invalid
+  uint8_t  vr0hot_polarity;         // GPIO polarity for VR0 HOT event
+  uint8_t  vr1hot_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A configured for VR1 HOT event , =0xff means invalid
+  uint8_t  vr1hot_polarity;         // GPIO polarity for VR1 HOT event
+  uint8_t  fw_ctf_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A configured for CTF, =0xff means invalid
+  uint8_t  fw_ctf_polarity;         // GPIO polarity for CTF
+  uint8_t  pcc_gpio_bit;            // GPIO bit shift in SMU_GPIOPAD_A configured for PCC, =0xff means invalid
+  uint8_t  pcc_gpio_polarity;       // GPIO polarity for CTF
+  uint16_t smugoldenoffset;
+  uint32_t gpupll_vco_freq_10khz;
+  uint32_t bootup_smnclk_10khz;
+  uint32_t bootup_socclk_10khz;
+  uint32_t bootup_mp0clk_10khz;
+  uint32_t bootup_mp1clk_10khz;
+  uint32_t bootup_lclk_10khz;
+  uint32_t bootup_dcefclk_10khz;
+  uint32_t ctf_threshold_override_value;
+  uint32_t reserved[5];
+};
+
+struct atom_smu_info_v3_3 {
+  struct   atom_common_table_header  table_header;
+  uint8_t  smuip_min_ver;
+  uint8_t  smuip_max_ver;
+  uint8_t  smu_rsd1;
+  uint8_t  gpuclk_ss_mode;
+  uint16_t sclk_ss_percentage;
+  uint16_t sclk_ss_rate_10hz;
+  uint16_t gpuclk_ss_percentage;    // in unit of 0.001%
+  uint16_t gpuclk_ss_rate_10hz;
+  uint32_t core_refclk_10khz;
+  uint8_t  ac_dc_gpio_bit;          // GPIO bit shift in SMU_GPIOPAD_A  configured for AC/DC switching, =0xff means invalid
+  uint8_t  ac_dc_polarity;          // GPIO polarity for AC/DC switching
+  uint8_t  vr0hot_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A  configured for VR0 HOT event, =0xff means invalid
+  uint8_t  vr0hot_polarity;         // GPIO polarity for VR0 HOT event
+  uint8_t  vr1hot_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A configured for VR1 HOT event , =0xff means invalid
+  uint8_t  vr1hot_polarity;         // GPIO polarity for VR1 HOT event
+  uint8_t  fw_ctf_gpio_bit;         // GPIO bit shift in SMU_GPIOPAD_A configured for CTF, =0xff means invalid
+  uint8_t  fw_ctf_polarity;         // GPIO polarity for CTF
+  uint8_t  pcc_gpio_bit;            // GPIO bit shift in SMU_GPIOPAD_A configured for PCC, =0xff means invalid
+  uint8_t  pcc_gpio_polarity;       // GPIO polarity for CTF
+  uint16_t smugoldenoffset;
+  uint32_t gpupll_vco_freq_10khz;
+  uint32_t bootup_smnclk_10khz;
+  uint32_t bootup_socclk_10khz;
+  uint32_t bootup_mp0clk_10khz;
+  uint32_t bootup_mp1clk_10khz;
+  uint32_t bootup_lclk_10khz;
+  uint32_t bootup_dcefclk_10khz;
+  uint32_t ctf_threshold_override_value;
+  uint32_t syspll3_0_vco_freq_10khz;
+  uint32_t syspll3_1_vco_freq_10khz;
+  uint32_t bootup_fclk_10khz;
+  uint32_t bootup_waflclk_10khz;
+  uint32_t reserved[3];
 };
 
 /*
@@ -1280,9 +1440,11 @@ struct atom_smc_dpm_info_v4_1
 	uint8_t  acggfxclkspreadpercent;
 	uint16_t acggfxclkspreadfreq;
 
-	uint32_t boardreserved[10];
-};
+	uint8_t Vr2_I2C_address;
+	uint8_t padding_vr2[3];
 
+	uint32_t boardreserved[9];
+};
 
 /* 
   ***************************************************************************
@@ -1862,6 +2024,53 @@ enum atom_smu9_syspll0_clock_id
   SMU9_SYSPLL0_DCEFCLK_ID  = 8,       //	DCEFCLK
   SMU9_SYSPLL0_DPREFCLK_ID = 10,      //	DPREFCLK
   SMU9_SYSPLL0_DISPCLK_ID  = 11,      //	DISPCLK
+};
+
+enum atom_smu11_syspll_id {
+  SMU11_SYSPLL0_ID            = 0,
+  SMU11_SYSPLL1_0_ID          = 1,
+  SMU11_SYSPLL1_1_ID          = 2,
+  SMU11_SYSPLL1_2_ID          = 3,
+  SMU11_SYSPLL2_ID            = 4,
+  SMU11_SYSPLL3_0_ID          = 5,
+  SMU11_SYSPLL3_1_ID          = 6,
+};
+
+enum atom_smu11_syspll0_clock_id {
+  SMU11_SYSPLL0_ECLK_ID     = 0,       //	ECLK
+  SMU11_SYSPLL0_SOCCLK_ID   = 1,       //	SOCCLK
+  SMU11_SYSPLL0_MP0CLK_ID   = 2,       //	MP0CLK
+  SMU11_SYSPLL0_DCLK_ID     = 3,       //	DCLK
+  SMU11_SYSPLL0_VCLK_ID     = 4,       //	VCLK
+  SMU11_SYSPLL0_DCEFCLK_ID  = 5,       //	DCEFCLK
+};
+
+enum atom_smu11_syspll1_0_clock_id {
+  SMU11_SYSPLL1_0_UCLKA_ID   = 0,       // UCLK_a
+};
+
+enum atom_smu11_syspll1_1_clock_id {
+  SMU11_SYSPLL1_0_UCLKB_ID   = 0,       // UCLK_b
+};
+
+enum atom_smu11_syspll1_2_clock_id {
+  SMU11_SYSPLL1_0_FCLK_ID   = 0,        // FCLK
+};
+
+enum atom_smu11_syspll2_clock_id {
+  SMU11_SYSPLL2_GFXCLK_ID   = 0,        // GFXCLK
+};
+
+enum atom_smu11_syspll3_0_clock_id {
+  SMU11_SYSPLL3_0_WAFCLK_ID = 0,       //	WAFCLK
+  SMU11_SYSPLL3_0_DISPCLK_ID = 1,      //	DISPCLK
+  SMU11_SYSPLL3_0_DPREFCLK_ID = 2,     //	DPREFCLK
+};
+
+enum atom_smu11_syspll3_1_clock_id {
+  SMU11_SYSPLL3_1_MP1CLK_ID = 0,       //	MP1CLK
+  SMU11_SYSPLL3_1_SMNCLK_ID = 1,       //	SMNCLK
+  SMU11_SYSPLL3_1_LCLK_ID = 2,         //	LCLK
 };
 
 struct  atom_get_smu_clock_info_output_parameters_v3_1

@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016-2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #ifndef __HNAE3_H
 #define __HNAE3_H
@@ -36,6 +30,8 @@
 #include <linux/pci.h>
 #include <linux/types.h>
 
+#define HNAE3_MOD_VERSION "1.0"
+
 /* Device IDs */
 #define HNAE3_DEV_ID_GE				0xA220
 #define HNAE3_DEV_ID_25GE			0xA221
@@ -52,15 +48,18 @@
 #define HNAE3_DEV_INITED_B			0x0
 #define HNAE3_DEV_SUPPORT_ROCE_B		0x1
 #define HNAE3_DEV_SUPPORT_DCB_B			0x2
+#define HNAE3_KNIC_CLIENT_INITED_B		0x3
+#define HNAE3_UNIC_CLIENT_INITED_B		0x4
+#define HNAE3_ROCE_CLIENT_INITED_B		0x5
 
 #define HNAE3_DEV_SUPPORT_ROCE_DCB_BITS (BIT(HNAE3_DEV_SUPPORT_DCB_B) |\
 		BIT(HNAE3_DEV_SUPPORT_ROCE_B))
 
 #define hnae3_dev_roce_supported(hdev) \
-	hnae_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B)
+	hnae3_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_ROCE_B)
 
 #define hnae3_dev_dcb_supported(hdev) \
-	hnae_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
+	hnae3_get_bit(hdev->ae_dev->flag, HNAE3_DEV_SUPPORT_DCB_B)
 
 #define ring_ptr_move_fw(ring, p) \
 	((ring)->p = ((ring)->p + 1) % (ring)->desc_num)
@@ -162,7 +161,6 @@ struct hnae3_client_ops {
 #define HNAE3_CLIENT_NAME_LENGTH 16
 struct hnae3_client {
 	char name[HNAE3_CLIENT_NAME_LENGTH];
-	u16 version;
 	unsigned long state;
 	enum hnae3_client_type type;
 	const struct hnae3_client_ops *ops;
@@ -273,10 +271,6 @@ struct hnae3_ae_dev {
  *   Map rings to vector
  * unmap_ring_from_vector()
  *   Unmap rings from vector
- * add_tunnel_udp()
- *   Add tunnel information to hardware
- * del_tunnel_udp()
- *   Delete tunnel information from hardware
  * reset_queue()
  *   Reset queue
  * get_fw_version()
@@ -315,7 +309,8 @@ struct hnae3_ae_ops {
 	int (*set_loopback)(struct hnae3_handle *handle,
 			    enum hnae3_loop loop_mode, bool en);
 
-	void (*set_promisc_mode)(struct hnae3_handle *handle, u32 en);
+	void (*set_promisc_mode)(struct hnae3_handle *handle, bool en_uc_pmc,
+				 bool en_mc_pmc);
 	int (*set_mtu)(struct hnae3_handle *handle, int new_mtu);
 
 	void (*get_pauseparam)(struct hnae3_handle *handle,
@@ -351,6 +346,7 @@ struct hnae3_ae_ops {
 			   const unsigned char *addr);
 	int (*rm_mc_addr)(struct hnae3_handle *handle,
 			  const unsigned char *addr);
+	int (*update_mta_status)(struct hnae3_handle *handle);
 
 	void (*set_tso_stats)(struct hnae3_handle *handle, int enable);
 	void (*update_stats)(struct hnae3_handle *handle,
@@ -387,9 +383,6 @@ struct hnae3_ae_ops {
 	int (*unmap_ring_from_vector)(struct hnae3_handle *handle,
 				      int vector_num,
 				      struct hnae3_ring_chain_node *vr_chain);
-
-	int (*add_tunnel_udp)(struct hnae3_handle *handle, u16 port_num);
-	int (*del_tunnel_udp)(struct hnae3_handle *handle, u16 port_num);
 
 	void (*reset_queue)(struct hnae3_handle *handle, u16 queue_id);
 	u32 (*get_fw_version)(struct hnae3_handle *handle);
@@ -436,7 +429,6 @@ struct hnae3_dcb_ops {
 struct hnae3_ae_algo {
 	const struct hnae3_ae_ops *ops;
 	struct list_head node;
-	char name[HNAE3_CLASS_NAME_SIZE];
 	const struct pci_device_id *pdev_id_table;
 };
 
@@ -509,23 +501,23 @@ struct hnae3_handle {
 	u32 numa_node_mask;	/* for multi-chip support */
 };
 
-#define hnae_set_field(origin, mask, shift, val) \
+#define hnae3_set_field(origin, mask, shift, val) \
 	do { \
 		(origin) &= (~(mask)); \
 		(origin) |= ((val) << (shift)) & (mask); \
 	} while (0)
-#define hnae_get_field(origin, mask, shift) (((origin) & (mask)) >> (shift))
+#define hnae3_get_field(origin, mask, shift) (((origin) & (mask)) >> (shift))
 
-#define hnae_set_bit(origin, shift, val) \
-	hnae_set_field((origin), (0x1 << (shift)), (shift), (val))
-#define hnae_get_bit(origin, shift) \
-	hnae_get_field((origin), (0x1 << (shift)), (shift))
+#define hnae3_set_bit(origin, shift, val) \
+	hnae3_set_field((origin), (0x1 << (shift)), (shift), (val))
+#define hnae3_get_bit(origin, shift) \
+	hnae3_get_field((origin), (0x1 << (shift)), (shift))
 
-int hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
+void hnae3_register_ae_dev(struct hnae3_ae_dev *ae_dev);
 void hnae3_unregister_ae_dev(struct hnae3_ae_dev *ae_dev);
 
 void hnae3_unregister_ae_algo(struct hnae3_ae_algo *ae_algo);
-int hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo);
+void hnae3_register_ae_algo(struct hnae3_ae_algo *ae_algo);
 
 void hnae3_unregister_client(struct hnae3_client *client);
 int hnae3_register_client(struct hnae3_client *client);

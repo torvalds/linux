@@ -54,15 +54,11 @@ struct btrfs_ordered_sum {
 #define BTRFS_ORDERED_UPDATED_ISIZE 7 /* indicates whether this ordered extent
 				       * has done its due diligence in updating
 				       * the isize. */
-#define BTRFS_ORDERED_LOGGED_CSUM 8 /* We've logged the csums on this ordered
-				       ordered extent */
-#define BTRFS_ORDERED_TRUNCATED 9 /* Set when we have to truncate an extent */
+#define BTRFS_ORDERED_TRUNCATED 8 /* Set when we have to truncate an extent */
 
-#define BTRFS_ORDERED_LOGGED 10 /* Set when we've waited on this ordered extent
-				 * in the logging code. */
-#define BTRFS_ORDERED_PENDING 11 /* We are waiting for this ordered extent to
+#define BTRFS_ORDERED_PENDING 9 /* We are waiting for this ordered extent to
 				  * complete in the current transaction. */
-#define BTRFS_ORDERED_REGULAR 12 /* Regular IO for COW */
+#define BTRFS_ORDERED_REGULAR 10 /* Regular IO for COW */
 
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
@@ -182,9 +178,6 @@ struct btrfs_ordered_extent *btrfs_lookup_ordered_range(
 		struct btrfs_inode *inode,
 		u64 file_offset,
 		u64 len);
-bool btrfs_have_ordered_extents_in_range(struct inode *inode,
-					 u64 file_offset,
-					 u64 len);
 int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				struct btrfs_ordered_extent *ordered);
 int btrfs_find_ordered_sum(struct inode *inode, u64 offset, u64 disk_bytenr,
@@ -193,16 +186,6 @@ u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 			       const u64 range_start, const u64 range_len);
 u64 btrfs_wait_ordered_roots(struct btrfs_fs_info *fs_info, u64 nr,
 			      const u64 range_start, const u64 range_len);
-void btrfs_get_logged_extents(struct btrfs_inode *inode,
-			      struct list_head *logged_list,
-			      const loff_t start,
-			      const loff_t end);
-void btrfs_put_logged_extents(struct list_head *logged_list);
-void btrfs_submit_logged_extents(struct list_head *logged_list,
-				 struct btrfs_root *log);
-void btrfs_wait_logged_extents(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *log, u64 transid);
-void btrfs_free_logged_extents(struct btrfs_root *log, u64 transid);
 int __init ordered_data_init(void);
 void __cold ordered_data_exit(void);
 

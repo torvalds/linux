@@ -9,7 +9,7 @@
 extern u64 btrfs_debugfs_test;
 
 enum btrfs_feature_set {
-	FEAT_COMPAT,
+	FEAT_COMPAT = 0,
 	FEAT_COMPAT_RO,
 	FEAT_INCOMPAT,
 	FEAT_MAX
@@ -77,7 +77,7 @@ attr_to_btrfs_feature_attr(struct attribute *attr)
 }
 
 char *btrfs_printable_features(enum btrfs_feature_set set, u64 flags);
-extern const char * const btrfs_feature_set_names[3];
+extern const char * const btrfs_feature_set_names[FEAT_MAX];
 extern struct kobj_type space_info_ktype;
 extern struct kobj_type btrfs_raid_ktype;
 int btrfs_sysfs_add_device_link(struct btrfs_fs_devices *fs_devices,

@@ -501,8 +501,9 @@ static int ti_adpll_init_dco(struct ti_adpll_data *d)
 	const char *postfix;
 	int width, err;
 
-	d->outputs.clks = devm_kzalloc(d->dev, sizeof(struct clk *) *
+	d->outputs.clks = devm_kcalloc(d->dev,
 				       MAX_ADPLL_OUTPUTS,
+				       sizeof(struct clk *),
 				       GFP_KERNEL);
 	if (!d->outputs.clks)
 		return -ENOMEM;
@@ -915,8 +916,9 @@ static int ti_adpll_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	d->clocks = devm_kzalloc(d->dev, sizeof(struct ti_adpll_clock) *
+	d->clocks = devm_kcalloc(d->dev,
 				 TI_ADPLL_NR_CLOCKS,
+				 sizeof(struct ti_adpll_clock),
 				 GFP_KERNEL);
 	if (!d->clocks)
 		return -ENOMEM;

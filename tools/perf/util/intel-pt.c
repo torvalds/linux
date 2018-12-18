@@ -442,8 +442,7 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	}
 
 	while (1) {
-		thread__find_addr_map(thread, cpumode, MAP__FUNCTION, *ip, &al);
-		if (!al.map || !al.map->dso)
+		if (!thread__find_map(thread, cpumode, *ip, &al) || !al.map->dso)
 			return -EINVAL;
 
 		if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR &&
@@ -596,8 +595,7 @@ static int __intel_pt_pgd_ip(uint64_t ip, void *data)
 	if (!thread)
 		return -EINVAL;
 
-	thread__find_addr_map(thread, cpumode, MAP__FUNCTION, ip, &al);
-	if (!al.map || !al.map->dso)
+	if (!thread__find_map(thread, cpumode, ip, &al) || !al.map->dso)
 		return -EINVAL;
 
 	offset = al.map->map_ip(al.map, ip);
@@ -751,6 +749,7 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 						   unsigned int queue_nr)
 {
 	struct intel_pt_params params = { .get_trace = 0, };
+	struct perf_env *env = pt->machine->env;
 	struct intel_pt_queue *ptq;
 
 	ptq = zalloc(sizeof(struct intel_pt_queue));
@@ -831,6 +830,9 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 			params.period = 1;
 		}
 	}
+
+	if (env->cpuid && !strncmp(env->cpuid, "GenuineIntel,6,92,", 18))
+		params.flags |= INTEL_PT_FUP_WITH_NLIP;
 
 	ptq->decoder = intel_pt_decoder_new(&params);
 	if (!ptq->decoder)
@@ -1523,6 +1525,7 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	if (intel_pt_is_switch_ip(ptq, state->to_ip)) {
 		switch (ptq->switch_state) {
+		case INTEL_PT_SS_NOT_TRACING:
 		case INTEL_PT_SS_UNKNOWN:
 		case INTEL_PT_SS_EXPECTING_SWITCH_IP:
 			err = intel_pt_next_tid(pt, ptq);
@@ -1565,7 +1568,7 @@ static u64 intel_pt_switch_ip(struct intel_pt *pt, u64 *ptss_ip)
 	if (map__load(map))
 		return 0;
 
-	start = dso__first_symbol(map->dso, MAP__FUNCTION);
+	start = dso__first_symbol(map->dso);
 
 	for (sym = start; sym; sym = dso__next_symbol(sym)) {
 		if (sym->binding == STB_GLOBAL &&

@@ -43,10 +43,13 @@
 #include <net/pkt_cls.h>
 #include <net/tcp.h>
 #include <linux/workqueue.h>
+#include <linux/idr.h>
 
+struct nfp_fl_pre_lag;
 struct net_device;
 struct nfp_app;
 
+#define NFP_FL_STATS_CTX_DONT_CARE	cpu_to_be32(0xffffffff)
 #define NFP_FL_STATS_ENTRY_RS		BIT(20)
 #define NFP_FL_STATS_ELEM_RS		4
 #define NFP_FL_REPEATED_HASH_MAX	BIT(17)
@@ -66,10 +69,12 @@ struct nfp_app;
 /* Extra features bitmap. */
 #define NFP_FL_FEATS_GENEVE		BIT(0)
 #define NFP_FL_NBI_MTU_SETTING		BIT(1)
+#define NFP_FL_FEATS_GENEVE_OPT		BIT(2)
+#define NFP_FL_FEATS_LAG		BIT(31)
 
 struct nfp_fl_mask_id {
 	struct circ_buf mask_id_free_list;
-	struct timespec64 *last_used;
+	ktime_t *last_used;
 	u8 init_unallocated;
 };
 
@@ -96,6 +101,33 @@ struct nfp_mtu_conf {
 };
 
 /**
+ * struct nfp_fl_lag - Flower APP priv data for link aggregation
+ * @lag_nb:		Notifier to track master/slave events
+ * @work:		Work queue for writing configs to the HW
+ * @lock:		Lock to protect lag_group_list
+ * @group_list:		List of all master/slave groups offloaded
+ * @ida_handle:		IDA to handle group ids
+ * @pkt_num:		Incremented for each config packet sent
+ * @batch_ver:		Incremented for each batch of config packets
+ * @global_inst:	Instance allocator for groups
+ * @rst_cfg:		Marker to reset HW LAG config
+ * @retrans_skbs:	Cmsgs that could not be processed by HW and require
+ *			retransmission
+ */
+struct nfp_fl_lag {
+	struct notifier_block lag_nb;
+	struct delayed_work work;
+	struct mutex lock;
+	struct list_head group_list;
+	struct ida ida_handle;
+	unsigned int pkt_num;
+	unsigned int batch_ver;
+	u8 global_inst;
+	bool rst_cfg;
+	struct sk_buff_head retrans_skbs;
+};
+
+/**
  * struct nfp_flower_priv - Flower APP per-vNIC priv data
  * @app:		Back pointer to app
  * @nn:			Pointer to vNIC
@@ -107,7 +139,10 @@ struct nfp_mtu_conf {
  * @mask_table:		Hash table used to store masks
  * @flow_table:		Hash table used to store flower rules
  * @cmsg_work:		Workqueue for control messages processing
- * @cmsg_skbs:		List of skbs for control message processing
+ * @cmsg_skbs_high:	List of higher priority skbs for control message
+ *			processing
+ * @cmsg_skbs_low:	List of lower priority skbs for control message
+ *			processing
  * @nfp_mac_off_list:	List of MAC addresses to offload
  * @nfp_mac_index_list:	List of unique 8-bit indexes for non NFP netdevs
  * @nfp_ipv4_off_list:	List of IPv4 addresses to offload
@@ -124,6 +159,7 @@ struct nfp_mtu_conf {
  *			from firmware for repr reify
  * @reify_wait_queue:	wait queue for repr reify response counting
  * @mtu_conf:		Configuration of repr MTU value
+ * @nfp_lag:		Link aggregation data block
  */
 struct nfp_flower_priv {
 	struct nfp_app *app;
@@ -136,7 +172,8 @@ struct nfp_flower_priv {
 	DECLARE_HASHTABLE(mask_table, NFP_FLOWER_MASK_HASH_BITS);
 	DECLARE_HASHTABLE(flow_table, NFP_FLOWER_HASH_BITS);
 	struct work_struct cmsg_work;
-	struct sk_buff_head cmsg_skbs;
+	struct sk_buff_head cmsg_skbs_high;
+	struct sk_buff_head cmsg_skbs_low;
 	struct list_head nfp_mac_off_list;
 	struct list_head nfp_mac_index_list;
 	struct list_head nfp_ipv4_off_list;
@@ -152,6 +189,15 @@ struct nfp_flower_priv {
 	atomic_t reify_replies;
 	wait_queue_head_t reify_wait_queue;
 	struct nfp_mtu_conf mtu_conf;
+	struct nfp_fl_lag nfp_lag;
+};
+
+/**
+ * struct nfp_flower_repr_priv - Flower APP per-repr priv data
+ * @lag_port_flags:	Extended port flags to record lag state of repr
+ */
+struct nfp_flower_repr_priv {
+	unsigned long lag_port_flags;
 };
 
 struct nfp_fl_key_ls {
@@ -185,9 +231,11 @@ struct nfp_fl_payload {
 	spinlock_t lock; /* lock stats */
 	struct nfp_fl_stats stats;
 	__be32 nfp_tun_ipv4_addr;
+	struct net_device *ingress_dev;
 	char *unmasked_data;
 	char *mask_data;
 	char *action_data;
+	bool ingress_offload;
 };
 
 struct nfp_fl_stats_frame {
@@ -207,17 +255,20 @@ int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct net_device *netdev,
 				  struct nfp_fl_payload *nfp_flow,
 				  enum nfp_flower_tun_type tun_type);
-int nfp_flower_compile_action(struct tc_cls_flower_offload *flow,
+int nfp_flower_compile_action(struct nfp_app *app,
+			      struct tc_cls_flower_offload *flow,
 			      struct net_device *netdev,
 			      struct nfp_fl_payload *nfp_flow);
 int nfp_compile_flow_metadata(struct nfp_app *app,
 			      struct tc_cls_flower_offload *flow,
-			      struct nfp_fl_payload *nfp_flow);
+			      struct nfp_fl_payload *nfp_flow,
+			      struct net_device *netdev);
 int nfp_modify_flow_metadata(struct nfp_app *app,
 			     struct nfp_fl_payload *nfp_flow);
 
 struct nfp_fl_payload *
-nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
+nfp_flower_search_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie,
+			   struct net_device *netdev, __be32 host_ctx);
 struct nfp_fl_payload *
 nfp_flower_remove_fl_table(struct nfp_app *app, unsigned long tc_flower_cookie);
 
@@ -232,5 +283,14 @@ void nfp_tunnel_request_route(struct nfp_app *app, struct sk_buff *skb);
 void nfp_tunnel_keep_alive(struct nfp_app *app, struct sk_buff *skb);
 int nfp_flower_setup_tc_egress_cb(enum tc_setup_type type, void *type_data,
 				  void *cb_priv);
+void nfp_flower_lag_init(struct nfp_fl_lag *lag);
+void nfp_flower_lag_cleanup(struct nfp_fl_lag *lag);
+int nfp_flower_lag_reset(struct nfp_fl_lag *lag);
+bool nfp_flower_lag_unprocessed_msg(struct nfp_app *app, struct sk_buff *skb);
+int nfp_flower_lag_populate_pre_action(struct nfp_app *app,
+				       struct net_device *master,
+				       struct nfp_fl_pre_lag *pre_act);
+int nfp_flower_lag_get_output_id(struct nfp_app *app,
+				 struct net_device *master);
 
 #endif

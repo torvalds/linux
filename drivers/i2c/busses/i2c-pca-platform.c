@@ -20,7 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-algo-pca.h>
-#include <linux/i2c-pca-platform.h>
+#include <linux/platform_data/i2c-pca-platform.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/io.h>

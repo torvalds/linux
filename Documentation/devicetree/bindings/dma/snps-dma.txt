@@ -23,8 +23,6 @@ Deprecated properties:
 
 
 Optional properties:
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - is_private: The device channels should be marked as private and not for by the
   general purpose DMA channel allocator. False if not passed.
 - multi-block: Multi block transfers supported by hardware. Array property with

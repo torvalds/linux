@@ -353,7 +353,7 @@ static ssize_t wakeup_count_show(struct device *dev,
 
 	spin_lock_irq(&dev->power.lock);
 	if (dev->power.wakeup) {
-		count = dev->power.wakeup->event_count;
+		count = dev->power.wakeup->wakeup_count;
 		enabled = true;
 	}
 	spin_unlock_irq(&dev->power.lock);

@@ -43,6 +43,13 @@
 #define  OCTEON_CN23XX_REV_1_1        0x01
 #define  OCTEON_CN23XX_REV_2_0        0x80
 
+/**SubsystemId for the chips */
+#define	 OCTEON_CN2350_10GB_SUBSYS_ID_1	0X3177d
+#define	 OCTEON_CN2350_10GB_SUBSYS_ID_2	0X4177d
+#define	 OCTEON_CN2360_10GB_SUBSYS_ID	0X5177d
+#define	 OCTEON_CN2350_25GB_SUBSYS_ID	0X7177d
+#define	 OCTEON_CN2360_25GB_SUBSYS_ID	0X6177d
+
 /** Endian-swap modes supported by Octeon. */
 enum octeon_pci_swap_mode {
 	OCTEON_PCI_PASSTHROUGH = 0,
@@ -281,7 +288,16 @@ struct oct_fw_info {
 	 */
 	u32 app_mode;
 	char   liquidio_firmware_version[32];
+	/* Fields extracted from legacy string 'liquidio_firmware_version' */
+	struct {
+		u8  maj;
+		u8  min;
+		u8  rev;
+	} ver;
 };
+
+#define OCT_FW_VER(maj, min, rev) \
+	(((u32)(maj) << 16) | ((u32)(min) << 8) | ((u32)(rev)))
 
 /* wrappers around work structs */
 struct cavium_wk {
@@ -429,6 +445,8 @@ struct octeon_device {
 	u16 chip_id;
 
 	u16 rev_id;
+
+	u32 subsystem_id;
 
 	u16 pf_num;
 
@@ -584,6 +602,11 @@ struct octeon_device {
 	struct lio_vf_rep_list vf_rep_list;
 	struct devlink *devlink;
 	enum devlink_eswitch_mode eswitch_mode;
+
+	/* for 25G NIC speed change */
+	u8  speed_boot;
+	u8  speed_setting;
+	u8  no_speed_setting;
 };
 
 #define  OCT_DRV_ONLINE 1
@@ -867,7 +890,7 @@ void *oct_get_config_info(struct octeon_device *oct, u16 card_type);
 struct octeon_config *octeon_get_conf(struct octeon_device *oct);
 
 void octeon_free_ioq_vector(struct octeon_device *oct);
-int octeon_allocate_ioq_vector(struct octeon_device  *oct);
+int octeon_allocate_ioq_vector(struct octeon_device  *oct, u32 num_ioqs);
 void lio_enable_irq(struct octeon_droq *droq, struct octeon_instr_queue *iq);
 
 /* LiquidIO driver pivate flags */

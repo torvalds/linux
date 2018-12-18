@@ -130,6 +130,10 @@ enum {
 
 /* HSSRR HSCIF */
 #define HSCIF_SRE	BIT(15)	/* Sampling Rate Register Enable */
+#define HSCIF_SRDE	BIT(14) /* Sampling Point Register Enable */
+
+#define HSCIF_SRHP_SHIFT	8
+#define HSCIF_SRHP_MASK		0x0f00
 
 /* SCPCR (Serial Port Control Register), SCIFA/SCIFB only */
 #define SCPCR_RTSC	BIT(4)	/* Serial Port RTS# Pin / Output Pin */

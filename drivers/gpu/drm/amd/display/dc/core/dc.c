@@ -169,6 +169,22 @@ failed_alloc:
 	return false;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_stream_adjust_vmin_vmax
+ *
+ *  @brief
+ *     Looks up the pipe context of dc_stream_state and updates the
+ *     vertical_total_min and vertical_total_max of the DRR, Dynamic Refresh
+ *     Rate, which is a power-saving feature that targets reducing panel
+ *     refresh rate while the screen is static
+ *
+ *  @param [in] dc: dc reference
+ *  @param [in] stream: Initial dc stream state
+ *  @param [in] adjust: Updated parameters for vertical_total_min and
+ *  vertical_total_max
+ *****************************************************************************
+ */
 bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_stream_state **streams, int num_streams,
 		int vmin, int vmax)
@@ -368,6 +384,71 @@ void dc_stream_set_static_screen_events(struct dc *dc,
 	dc->hwss.set_static_screen_control(pipes_affected, num_pipes_affected, events);
 }
 
+void dc_link_set_drive_settings(struct dc *dc,
+				struct link_training_settings *lt_settings,
+				const struct dc_link *link)
+{
+
+	int i;
+
+	for (i = 0; i < dc->link_count; i++) {
+		if (dc->links[i] == link)
+			break;
+	}
+
+	if (i >= dc->link_count)
+		ASSERT_CRITICAL(false);
+
+	dc_link_dp_set_drive_settings(dc->links[i], lt_settings);
+}
+
+void dc_link_perform_link_training(struct dc *dc,
+				   struct dc_link_settings *link_setting,
+				   bool skip_video_pattern)
+{
+	int i;
+
+	for (i = 0; i < dc->link_count; i++)
+		dc_link_dp_perform_link_training(
+			dc->links[i],
+			link_setting,
+			skip_video_pattern);
+}
+
+void dc_link_set_preferred_link_settings(struct dc *dc,
+					 struct dc_link_settings *link_setting,
+					 struct dc_link *link)
+{
+	link->preferred_link_setting = *link_setting;
+	dp_retrain_link_dp_test(link, link_setting, false);
+}
+
+void dc_link_enable_hpd(const struct dc_link *link)
+{
+	dc_link_dp_enable_hpd(link);
+}
+
+void dc_link_disable_hpd(const struct dc_link *link)
+{
+	dc_link_dp_disable_hpd(link);
+}
+
+
+void dc_link_set_test_pattern(struct dc_link *link,
+			      enum dp_test_pattern test_pattern,
+			      const struct link_training_settings *p_link_settings,
+			      const unsigned char *p_custom_pattern,
+			      unsigned int cust_pattern_size)
+{
+	if (link != NULL)
+		dc_link_dp_set_test_pattern(
+			link,
+			test_pattern,
+			p_link_settings,
+			p_custom_pattern,
+			cust_pattern_size);
+}
+
 static void destruct(struct dc *dc)
 {
 	dc_release_state(dc->current_state);
@@ -386,9 +467,6 @@ static void destruct(struct dc *dc)
 	if (dc->ctx->created_bios)
 		dal_bios_parser_destroy(&dc->ctx->dc_bios);
 
-	if (dc->ctx->logger)
-		dal_logger_destroy(&dc->ctx->logger);
-
 	kfree(dc->ctx);
 	dc->ctx = NULL;
 
@@ -398,7 +476,7 @@ static void destruct(struct dc *dc)
 	kfree(dc->bw_dceip);
 	dc->bw_dceip = NULL;
 
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	kfree(dc->dcn_soc);
 	dc->dcn_soc = NULL;
 
@@ -411,11 +489,10 @@ static void destruct(struct dc *dc)
 static bool construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
-	struct dal_logger *logger;
 	struct dc_context *dc_ctx;
 	struct bw_calcs_dceip *dc_dceip;
 	struct bw_calcs_vbios *dc_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 #endif
@@ -437,7 +514,7 @@ static bool construct(struct dc *dc,
 	}
 
 	dc->bw_vbios = dc_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+#ifdef CONFIG_X86
 	dcn_soc = kzalloc(sizeof(*dcn_soc), GFP_KERNEL);
 	if (!dcn_soc) {
 		dm_error("%s: failed to create dcn_soc\n", __func__);
@@ -465,6 +542,7 @@ static bool construct(struct dc *dc,
 	dc_ctx->driver_context = init_params->driver;
 	dc_ctx->dc = dc;
 	dc_ctx->asic_id = init_params->asic_id;
+	dc_ctx->dc_sink_id_count = 0;
 	dc->ctx = dc_ctx;
 
 	dc->current_state = dc_create_state();
@@ -475,14 +553,7 @@ static bool construct(struct dc *dc,
 	}
 
 	/* Create logger */
-	logger = dal_logger_create(dc_ctx, init_params->log_mask);
 
-	if (!logger) {
-		/* can *not* call logger. call base driver 'print error' */
-		dm_error("%s: failed to create Logger!\n", __func__);
-		goto fail;
-	}
-	dc_ctx->logger = logger;
 	dc_ctx->dce_environment = init_params->dce_environment;
 
 	dc_version = resource_parse_asic_id(init_params->asic_id);
@@ -901,9 +972,7 @@ bool dc_commit_state(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < context->stream_count; i++) {
 		struct dc_stream_state *stream = context->streams[i];
 
-		dc_stream_log(stream,
-				dc->ctx->logger,
-				LOG_DC);
+		dc_stream_log(dc, stream);
 	}
 
 	result = dc_commit_state_no_check(dc, context);
@@ -927,101 +996,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	dc->optimized_required = false;
 
-	/* 3rd param should be true, temp w/a for RV*/
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	dc->hwss.set_bandwidth(dc, context, dc->ctx->dce_version < DCN_VERSION_1_0);
-#else
 	dc->hwss.set_bandwidth(dc, context, true);
-#endif
-	return true;
-}
-
-/*
- * TODO this whole function needs to go
- *
- * dc_surface_update is needlessly complex. See if we can just replace this
- * with a dc_plane_state and follow the atomic model a bit more closely here.
- */
-bool dc_commit_planes_to_stream(
-		struct dc *dc,
-		struct dc_plane_state **plane_states,
-		uint8_t new_plane_count,
-		struct dc_stream_state *dc_stream,
-		struct dc_state *state)
-{
-	/* no need to dynamically allocate this. it's pretty small */
-	struct dc_surface_update updates[MAX_SURFACES];
-	struct dc_flip_addrs *flip_addr;
-	struct dc_plane_info *plane_info;
-	struct dc_scaling_info *scaling_info;
-	int i;
-	struct dc_stream_update *stream_update =
-			kzalloc(sizeof(struct dc_stream_update), GFP_KERNEL);
-
-	if (!stream_update) {
-		BREAK_TO_DEBUGGER();
-		return false;
-	}
-
-	flip_addr = kcalloc(MAX_SURFACES, sizeof(struct dc_flip_addrs),
-			    GFP_KERNEL);
-	plane_info = kcalloc(MAX_SURFACES, sizeof(struct dc_plane_info),
-			     GFP_KERNEL);
-	scaling_info = kcalloc(MAX_SURFACES, sizeof(struct dc_scaling_info),
-			       GFP_KERNEL);
-
-	if (!flip_addr || !plane_info || !scaling_info) {
-		kfree(flip_addr);
-		kfree(plane_info);
-		kfree(scaling_info);
-		kfree(stream_update);
-		return false;
-	}
-
-	memset(updates, 0, sizeof(updates));
-
-	stream_update->src = dc_stream->src;
-	stream_update->dst = dc_stream->dst;
-	stream_update->out_transfer_func = dc_stream->out_transfer_func;
-
-	for (i = 0; i < new_plane_count; i++) {
-		updates[i].surface = plane_states[i];
-		updates[i].gamma =
-			(struct dc_gamma *)plane_states[i]->gamma_correction;
-		updates[i].in_transfer_func = plane_states[i]->in_transfer_func;
-		flip_addr[i].address = plane_states[i]->address;
-		flip_addr[i].flip_immediate = plane_states[i]->flip_immediate;
-		plane_info[i].color_space = plane_states[i]->color_space;
-		plane_info[i].input_tf = plane_states[i]->input_tf;
-		plane_info[i].format = plane_states[i]->format;
-		plane_info[i].plane_size = plane_states[i]->plane_size;
-		plane_info[i].rotation = plane_states[i]->rotation;
-		plane_info[i].horizontal_mirror = plane_states[i]->horizontal_mirror;
-		plane_info[i].stereo_format = plane_states[i]->stereo_format;
-		plane_info[i].tiling_info = plane_states[i]->tiling_info;
-		plane_info[i].visible = plane_states[i]->visible;
-		plane_info[i].per_pixel_alpha = plane_states[i]->per_pixel_alpha;
-		plane_info[i].dcc = plane_states[i]->dcc;
-		scaling_info[i].scaling_quality = plane_states[i]->scaling_quality;
-		scaling_info[i].src_rect = plane_states[i]->src_rect;
-		scaling_info[i].dst_rect = plane_states[i]->dst_rect;
-		scaling_info[i].clip_rect = plane_states[i]->clip_rect;
-
-		updates[i].flip_addr = &flip_addr[i];
-		updates[i].plane_info = &plane_info[i];
-		updates[i].scaling_info = &scaling_info[i];
-	}
-
-	dc_commit_updates_for_stream(
-			dc,
-			updates,
-			new_plane_count,
-			dc_stream, stream_update, plane_states, state);
-
-	kfree(flip_addr);
-	kfree(plane_info);
-	kfree(scaling_info);
-	kfree(stream_update);
 	return true;
 }
 
@@ -1106,9 +1081,6 @@ static enum surface_update_type get_plane_info_update_type(const struct dc_surfa
 
 	if (u->plane_info->color_space != u->surface->color_space)
 		update_flags->bits.color_space_change = 1;
-
-	if (u->plane_info->input_tf != u->surface->input_tf)
-		update_flags->bits.input_tf_change = 1;
 
 	if (u->plane_info->horizontal_mirror != u->surface->horizontal_mirror)
 		update_flags->bits.horizontal_mirror_change = 1;
@@ -1243,9 +1215,17 @@ static enum surface_update_type det_surface_update(const struct dc *dc,
 	if (u->input_csc_color_matrix)
 		update_flags->bits.input_csc_change = 1;
 
-	if (update_flags->bits.in_transfer_func_change
-			|| update_flags->bits.input_csc_change) {
+	if (u->coeff_reduction_factor)
+		update_flags->bits.coeff_reduction_change = 1;
+
+	if (update_flags->bits.in_transfer_func_change) {
 		type = UPDATE_TYPE_MED;
+		elevate_update_type(&overall_type, type);
+	}
+
+	if (update_flags->bits.input_csc_change
+			|| update_flags->bits.coeff_reduction_change) {
+		type = UPDATE_TYPE_FULL;
 		elevate_update_type(&overall_type, type);
 	}
 
@@ -1297,7 +1277,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	type = check_update_surfaces_for_stream(dc, updates, surface_count, stream_update, stream_status);
 	if (type == UPDATE_TYPE_FULL)
 		for (i = 0; i < surface_count; i++)
-			updates[i].surface->update_flags.bits.full_update = 1;
+			updates[i].surface->update_flags.raw = 0xFFFFFFFF;
 
 	return type;
 }
@@ -1375,6 +1355,12 @@ static void commit_planes_for_stream(struct dc *dc,
 					pipe_ctx->stream_res.abm->funcs->set_abm_level(
 							pipe_ctx->stream_res.abm, stream->abm_level);
 			}
+
+			if (stream_update && stream_update->periodic_fn_vsync_delta &&
+					pipe_ctx->stream_res.tg->funcs->program_vline_interrupt)
+				pipe_ctx->stream_res.tg->funcs->program_vline_interrupt(
+						pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing,
+						pipe_ctx->stream->periodic_fn_vsync_delta);
 		}
 	}
 
@@ -1626,7 +1612,7 @@ struct dc_sink *dc_link_add_remote_sink(
 	struct dc_sink *dc_sink;
 	enum dc_edid_status edid_status;
 
-	if (len > MAX_EDID_BUFFER_SIZE) {
+	if (len > DC_MAX_EDID_BUFFER_SIZE) {
 		dm_error("Max EDID buffer size breached!\n");
 		return NULL;
 	}

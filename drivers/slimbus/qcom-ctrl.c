@@ -439,13 +439,12 @@ static int slim_get_current_rxbuf(struct qcom_slim_ctrl *ctrl, void *buf)
 static void qcom_slim_rxwq(struct work_struct *work)
 {
 	u8 buf[SLIM_MSGQ_BUF_LEN];
-	u8 mc, mt, len;
+	u8 mc, mt;
 	int ret;
 	struct qcom_slim_ctrl *ctrl = container_of(work, struct qcom_slim_ctrl,
 						 wd);
 
 	while ((slim_get_current_rxbuf(ctrl, buf)) != -ENODATA) {
-		len = SLIM_HEADER_GET_RL(buf[0]);
 		mt = SLIM_HEADER_GET_MT(buf[0]);
 		mc = SLIM_HEADER_GET_MC(buf[1]);
 		if (mt == SLIM_MSG_MT_CORE &&
@@ -541,7 +540,7 @@ static int qcom_slim_probe(struct platform_device *pdev)
 	ctrl->tx.sl_sz = SLIM_MSGQ_BUF_LEN;
 	ctrl->rx.n = QCOM_RX_MSGS;
 	ctrl->rx.sl_sz = SLIM_MSGQ_BUF_LEN;
-	ctrl->wr_comp = kzalloc(sizeof(struct completion *) * QCOM_TX_MSGS,
+	ctrl->wr_comp = kcalloc(QCOM_TX_MSGS, sizeof(struct completion *),
 				GFP_KERNEL);
 	if (!ctrl->wr_comp)
 		return -ENOMEM;

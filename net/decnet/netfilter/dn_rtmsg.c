@@ -158,4 +158,3 @@ MODULE_ALIAS_NET_PF_PROTO(PF_NETLINK, NETLINK_DNRTMSG);
 
 module_init(dn_rtmsg_init);
 module_exit(dn_rtmsg_fini);
-

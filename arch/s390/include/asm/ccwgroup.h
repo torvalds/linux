@@ -73,4 +73,14 @@ extern void ccwgroup_remove_ccwdev(struct ccw_device *cdev);
 
 #define to_ccwgroupdev(x) container_of((x), struct ccwgroup_device, dev)
 #define to_ccwgroupdrv(x) container_of((x), struct ccwgroup_driver, driver)
+
+#if IS_ENABLED(CONFIG_CCWGROUP)
+bool dev_is_ccwgroup(struct device *dev);
+#else /* CONFIG_CCWGROUP */
+static inline bool dev_is_ccwgroup(struct device *dev)
+{
+	return false;
+}
+#endif /* CONFIG_CCWGROUP */
+
 #endif

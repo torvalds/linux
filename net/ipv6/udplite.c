@@ -12,6 +12,7 @@
  *		2 of the License, or (at your option) any later version.
  */
 #include <linux/export.h>
+#include <linux/proc_fs.h>
 #include "udp_impl.h"
 
 static int udplitev6_rcv(struct sk_buff *skb)
@@ -92,32 +93,23 @@ void udplitev6_exit(void)
 }
 
 #ifdef CONFIG_PROC_FS
-
-static const struct file_operations udplite6_afinfo_seq_fops = {
-	.open     = udp_seq_open,
-	.read     = seq_read,
-	.llseek   = seq_lseek,
-	.release  = seq_release_net
-};
-
 static struct udp_seq_afinfo udplite6_seq_afinfo = {
-	.name		= "udplite6",
 	.family		= AF_INET6,
 	.udp_table	= &udplite_table,
-	.seq_fops	= &udplite6_afinfo_seq_fops,
-	.seq_ops	= {
-		.show		= udp6_seq_show,
-	},
 };
 
 static int __net_init udplite6_proc_init_net(struct net *net)
 {
-	return udp_proc_register(net, &udplite6_seq_afinfo);
+	if (!proc_create_net_data("udplite6", 0444, net->proc_net,
+			&udp6_seq_ops, sizeof(struct udp_iter_state),
+			&udplite6_seq_afinfo))
+		return -ENOMEM;
+	return 0;
 }
 
 static void __net_exit udplite6_proc_exit_net(struct net *net)
 {
-	udp_proc_unregister(net, &udplite6_seq_afinfo);
+	remove_proc_entry("udplite6", net->proc_net);
 }
 
 static struct pernet_operations udplite6_net_ops = {

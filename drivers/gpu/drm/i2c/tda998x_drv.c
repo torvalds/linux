@@ -16,8 +16,10 @@
  */
 
 #include <linux/component.h>
+#include <linux/gpio/consumer.h>
 #include <linux/hdmi.h>
 #include <linux/module.h>
+#include <linux/platform_data/tda9950.h>
 #include <linux/irq.h>
 #include <sound/asoundef.h>
 #include <sound/hdmi-codec.h>
@@ -28,6 +30,8 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_of.h>
 #include <drm/i2c/tda998x.h>
+
+#include <media/cec-notifier.h>
 
 #define DBG(fmt, ...) DRM_DEBUG(fmt"\n", ##__VA_ARGS__)
 
@@ -55,6 +59,7 @@ struct tda998x_priv {
 	struct platform_device *audio_pdev;
 	struct mutex audio_mutex;
 
+	struct mutex edid_mutex;
 	wait_queue_head_t wq_edid;
 	volatile int wq_edid_wait;
 
@@ -64,16 +69,21 @@ struct tda998x_priv {
 	bool edid_delay_active;
 
 	struct drm_encoder encoder;
+	struct drm_bridge bridge;
 	struct drm_connector connector;
 
 	struct tda998x_audio_port audio_port[2];
+	struct tda9950_glue cec_glue;
+	struct gpio_desc *calib;
+	struct cec_notifier *cec_notify;
 };
 
 #define conn_to_tda998x_priv(x) \
 	container_of(x, struct tda998x_priv, connector)
-
 #define enc_to_tda998x_priv(x) \
 	container_of(x, struct tda998x_priv, encoder)
+#define bridge_to_tda998x_priv(x) \
+	container_of(x, struct tda998x_priv, bridge)
 
 /* The TDA9988 series of devices use a paged register scheme.. to simplify
  * things we encode the page # in upper bits of the register #.  To read/
@@ -345,6 +355,12 @@ struct tda998x_priv {
 #define REG_CEC_INTSTATUS	  0xee		      /* read */
 # define CEC_INTSTATUS_CEC	  (1 << 0)
 # define CEC_INTSTATUS_HDMI	  (1 << 1)
+#define REG_CEC_CAL_XOSC_CTRL1    0xf2
+# define CEC_CAL_XOSC_CTRL1_ENA_CAL	BIT(0)
+#define REG_CEC_DES_FREQ2         0xf5
+# define CEC_DES_FREQ2_DIS_AUTOCAL BIT(7)
+#define REG_CEC_CLK               0xf6
+# define CEC_CLK_FRO              0x11
 #define REG_CEC_FRO_IM_CLK_CTRL   0xfb                /* read/write */
 # define CEC_FRO_IM_CLK_CTRL_GHOST_DIS (1 << 7)
 # define CEC_FRO_IM_CLK_CTRL_ENA_OTP   (1 << 6)
@@ -359,6 +375,7 @@ struct tda998x_priv {
 # define CEC_RXSHPDLEV_HPD        (1 << 1)
 
 #define REG_CEC_ENAMODS           0xff                /* read/write */
+# define CEC_ENAMODS_EN_CEC_CLK   (1 << 7)
 # define CEC_ENAMODS_DIS_FRO      (1 << 6)
 # define CEC_ENAMODS_DIS_CCLK     (1 << 5)
 # define CEC_ENAMODS_EN_RXSENS    (1 << 2)
@@ -417,6 +434,114 @@ cec_read(struct tda998x_priv *priv, u8 addr)
 	return val;
 }
 
+static void cec_enamods(struct tda998x_priv *priv, u8 mods, bool enable)
+{
+	int val = cec_read(priv, REG_CEC_ENAMODS);
+
+	if (val < 0)
+		return;
+
+	if (enable)
+		val |= mods;
+	else
+		val &= ~mods;
+
+	cec_write(priv, REG_CEC_ENAMODS, val);
+}
+
+static void tda998x_cec_set_calibration(struct tda998x_priv *priv, bool enable)
+{
+	if (enable) {
+		u8 val;
+
+		cec_write(priv, 0xf3, 0xc0);
+		cec_write(priv, 0xf4, 0xd4);
+
+		/* Enable automatic calibration mode */
+		val = cec_read(priv, REG_CEC_DES_FREQ2);
+		val &= ~CEC_DES_FREQ2_DIS_AUTOCAL;
+		cec_write(priv, REG_CEC_DES_FREQ2, val);
+
+		/* Enable free running oscillator */
+		cec_write(priv, REG_CEC_CLK, CEC_CLK_FRO);
+		cec_enamods(priv, CEC_ENAMODS_DIS_FRO, false);
+
+		cec_write(priv, REG_CEC_CAL_XOSC_CTRL1,
+			  CEC_CAL_XOSC_CTRL1_ENA_CAL);
+	} else {
+		cec_write(priv, REG_CEC_CAL_XOSC_CTRL1, 0);
+	}
+}
+
+/*
+ * Calibration for the internal oscillator: we need to set calibration mode,
+ * and then pulse the IRQ line low for a 10ms ± 1% period.
+ */
+static void tda998x_cec_calibration(struct tda998x_priv *priv)
+{
+	struct gpio_desc *calib = priv->calib;
+
+	mutex_lock(&priv->edid_mutex);
+	if (priv->hdmi->irq > 0)
+		disable_irq(priv->hdmi->irq);
+	gpiod_direction_output(calib, 1);
+	tda998x_cec_set_calibration(priv, true);
+
+	local_irq_disable();
+	gpiod_set_value(calib, 0);
+	mdelay(10);
+	gpiod_set_value(calib, 1);
+	local_irq_enable();
+
+	tda998x_cec_set_calibration(priv, false);
+	gpiod_direction_input(calib);
+	if (priv->hdmi->irq > 0)
+		enable_irq(priv->hdmi->irq);
+	mutex_unlock(&priv->edid_mutex);
+}
+
+static int tda998x_cec_hook_init(void *data)
+{
+	struct tda998x_priv *priv = data;
+	struct gpio_desc *calib;
+
+	calib = gpiod_get(&priv->hdmi->dev, "nxp,calib", GPIOD_ASIS);
+	if (IS_ERR(calib)) {
+		dev_warn(&priv->hdmi->dev, "failed to get calibration gpio: %ld\n",
+			 PTR_ERR(calib));
+		return PTR_ERR(calib);
+	}
+
+	priv->calib = calib;
+
+	return 0;
+}
+
+static void tda998x_cec_hook_exit(void *data)
+{
+	struct tda998x_priv *priv = data;
+
+	gpiod_put(priv->calib);
+	priv->calib = NULL;
+}
+
+static int tda998x_cec_hook_open(void *data)
+{
+	struct tda998x_priv *priv = data;
+
+	cec_enamods(priv, CEC_ENAMODS_EN_CEC_CLK | CEC_ENAMODS_EN_CEC, true);
+	tda998x_cec_calibration(priv);
+
+	return 0;
+}
+
+static void tda998x_cec_hook_release(void *data)
+{
+	struct tda998x_priv *priv = data;
+
+	cec_enamods(priv, CEC_ENAMODS_EN_CEC_CLK | CEC_ENAMODS_EN_CEC, false);
+}
+
 static int
 set_page(struct tda998x_priv *priv, u16 reg)
 {
@@ -466,12 +591,21 @@ out:
 	return ret;
 }
 
+#define MAX_WRITE_RANGE_BUF 32
+
 static void
 reg_write_range(struct tda998x_priv *priv, u16 reg, u8 *p, int cnt)
 {
 	struct i2c_client *client = priv->hdmi;
-	u8 buf[cnt+1];
+	/* This is the maximum size of the buffer passed in */
+	u8 buf[MAX_WRITE_RANGE_BUF + 1];
 	int ret;
+
+	if (cnt > MAX_WRITE_RANGE_BUF) {
+		dev_err(&client->dev, "Fixed write buffer too small (%d)\n",
+				MAX_WRITE_RANGE_BUF);
+		return;
+	}
 
 	buf[0] = REG2ADDR(reg);
 	memcpy(&buf[1], p, cnt);
@@ -630,7 +764,7 @@ static void tda998x_detect_work(struct work_struct *work)
 {
 	struct tda998x_priv *priv =
 		container_of(work, struct tda998x_priv, detect_work);
-	struct drm_device *dev = priv->encoder.dev;
+	struct drm_device *dev = priv->connector.dev;
 
 	if (dev)
 		drm_kms_helper_hotplug_event(dev);
@@ -657,10 +791,13 @@ static irqreturn_t tda998x_irq_thread(int irq, void *data)
 			sta, cec, lvl, flag0, flag1, flag2);
 
 		if (cec & CEC_RXSHPDINT_HPD) {
-			if (lvl & CEC_RXSHPDLEV_HPD)
+			if (lvl & CEC_RXSHPDLEV_HPD) {
 				tda998x_edid_delay_start(priv);
-			else
+			} else {
 				schedule_work(&priv->detect_work);
+				cec_notifier_set_phys_addr(priv->cec_notify,
+						   CEC_PHYS_ADDR_INVALID);
+			}
 
 			handled = true;
 		}
@@ -679,7 +816,7 @@ static void
 tda998x_write_if(struct tda998x_priv *priv, u8 bit, u16 addr,
 		 union hdmi_infoframe *frame)
 {
-	u8 buf[32];
+	u8 buf[MAX_WRITE_RANGE_BUF];
 	ssize_t len;
 
 	len = hdmi_infoframe_pack(frame, buf, sizeof(buf));
@@ -969,27 +1106,6 @@ static int tda998x_audio_codec_init(struct tda998x_priv *priv,
 
 /* DRM connector functions */
 
-static int tda998x_connector_fill_modes(struct drm_connector *connector,
-					uint32_t maxX, uint32_t maxY)
-{
-	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
-	int ret;
-
-	mutex_lock(&priv->audio_mutex);
-	ret = drm_helper_probe_single_connector_modes(connector, maxX, maxY);
-
-	if (connector->edid_blob_ptr) {
-		struct edid *edid = (void *)connector->edid_blob_ptr->data;
-
-		priv->sink_has_audio = drm_detect_monitor_audio(edid);
-	} else {
-		priv->sink_has_audio = false;
-	}
-	mutex_unlock(&priv->audio_mutex);
-
-	return ret;
-}
-
 static enum drm_connector_status
 tda998x_connector_detect(struct drm_connector *connector, bool force)
 {
@@ -1008,7 +1124,7 @@ static void tda998x_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs tda998x_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = tda998x_connector_fill_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = tda998x_connector_detect,
 	.destroy = tda998x_connector_destroy,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -1023,6 +1139,8 @@ static int read_edid_block(void *data, u8 *buf, unsigned int blk, size_t length)
 
 	offset = (blk & 1) ? 128 : 0;
 	segptr = blk / 2;
+
+	mutex_lock(&priv->edid_mutex);
 
 	reg_write(priv, REG_DDC_ADDR, 0xa0);
 	reg_write(priv, REG_DDC_OFFS, offset);
@@ -1043,14 +1161,15 @@ static int read_edid_block(void *data, u8 *buf, unsigned int blk, size_t length)
 					msecs_to_jiffies(100));
 		if (i < 0) {
 			dev_err(&priv->hdmi->dev, "read edid wait err %d\n", i);
-			return i;
+			ret = i;
+			goto failed;
 		}
 	} else {
 		for (i = 100; i > 0; i--) {
 			msleep(1);
 			ret = reg_read(priv, REG_INT_FLAGS_2);
 			if (ret < 0)
-				return ret;
+				goto failed;
 			if (ret & INT_FLAGS_2_EDID_BLK_RD)
 				break;
 		}
@@ -1058,17 +1177,22 @@ static int read_edid_block(void *data, u8 *buf, unsigned int blk, size_t length)
 
 	if (i == 0) {
 		dev_err(&priv->hdmi->dev, "read edid timeout\n");
-		return -ETIMEDOUT;
+		ret = -ETIMEDOUT;
+		goto failed;
 	}
 
 	ret = reg_read_range(priv, REG_EDID_DATA_0, buf, length);
 	if (ret != length) {
 		dev_err(&priv->hdmi->dev, "failed to read edid block %d: %d\n",
 			blk, ret);
-		return ret;
+		goto failed;
 	}
 
-	return 0;
+	ret = 0;
+
+ failed:
+	mutex_unlock(&priv->edid_mutex);
+	return ret;
 }
 
 static int tda998x_connector_get_modes(struct drm_connector *connector)
@@ -1098,27 +1222,17 @@ static int tda998x_connector_get_modes(struct drm_connector *connector)
 		return 0;
 	}
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
+	cec_notifier_set_phys_addr_from_edid(priv->cec_notify, edid);
+
+	mutex_lock(&priv->audio_mutex);
 	n = drm_add_edid_modes(connector, edid);
+	priv->sink_has_audio = drm_detect_monitor_audio(edid);
+	mutex_unlock(&priv->audio_mutex);
 
 	kfree(edid);
 
 	return n;
-}
-
-static int tda998x_connector_mode_valid(struct drm_connector *connector,
-					struct drm_display_mode *mode)
-{
-	/* TDA19988 dotclock can go up to 165MHz */
-	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
-
-	if (mode->clock > ((priv->rev == TDA19988) ? 165000 : 150000))
-		return MODE_CLOCK_HIGH;
-	if (mode->htotal >= BIT(13))
-		return MODE_BAD_HVALUE;
-	if (mode->vtotal >= BIT(11))
-		return MODE_BAD_VVALUE;
-	return MODE_OK;
 }
 
 static struct drm_encoder *
@@ -1126,13 +1240,12 @@ tda998x_connector_best_encoder(struct drm_connector *connector)
 {
 	struct tda998x_priv *priv = conn_to_tda998x_priv(connector);
 
-	return &priv->encoder;
+	return priv->bridge.encoder;
 }
 
 static
 const struct drm_connector_helper_funcs tda998x_connector_helper_funcs = {
 	.get_modes = tda998x_connector_get_modes,
-	.mode_valid = tda998x_connector_mode_valid,
 	.best_encoder = tda998x_connector_best_encoder,
 };
 
@@ -1156,25 +1269,48 @@ static int tda998x_connector_init(struct tda998x_priv *priv,
 	if (ret)
 		return ret;
 
-	drm_mode_connector_attach_encoder(&priv->connector, &priv->encoder);
+	drm_connector_attach_encoder(&priv->connector,
+				     priv->bridge.encoder);
 
 	return 0;
 }
 
-/* DRM encoder functions */
+/* DRM bridge functions */
 
-static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
+static int tda998x_bridge_attach(struct drm_bridge *bridge)
 {
-	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
-	bool on;
+	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
 
-	/* we only care about on or off: */
-	on = mode == DRM_MODE_DPMS_ON;
+	return tda998x_connector_init(priv, bridge->dev);
+}
 
-	if (on == priv->is_on)
-		return;
+static void tda998x_bridge_detach(struct drm_bridge *bridge)
+{
+	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
 
-	if (on) {
+	drm_connector_cleanup(&priv->connector);
+}
+
+static enum drm_mode_status tda998x_bridge_mode_valid(struct drm_bridge *bridge,
+				     const struct drm_display_mode *mode)
+{
+	/* TDA19988 dotclock can go up to 165MHz */
+	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+
+	if (mode->clock > ((priv->rev == TDA19988) ? 165000 : 150000))
+		return MODE_CLOCK_HIGH;
+	if (mode->htotal >= BIT(13))
+		return MODE_BAD_HVALUE;
+	if (mode->vtotal >= BIT(11))
+		return MODE_BAD_VVALUE;
+	return MODE_OK;
+}
+
+static void tda998x_bridge_enable(struct drm_bridge *bridge)
+{
+	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+
+	if (!priv->is_on) {
 		/* enable video ports, audio will be enabled later */
 		reg_write(priv, REG_ENA_VP_0, 0xff);
 		reg_write(priv, REG_ENA_VP_1, 0xff);
@@ -1185,7 +1321,14 @@ static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 		reg_write(priv, REG_VIP_CNTRL_2, priv->vip_cntrl_2);
 
 		priv->is_on = true;
-	} else {
+	}
+}
+
+static void tda998x_bridge_disable(struct drm_bridge *bridge)
+{
+	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+
+	if (priv->is_on) {
 		/* disable video ports */
 		reg_write(priv, REG_ENA_VP_0, 0x00);
 		reg_write(priv, REG_ENA_VP_1, 0x00);
@@ -1195,12 +1338,12 @@ static void tda998x_encoder_dpms(struct drm_encoder *encoder, int mode)
 	}
 }
 
-static void
-tda998x_encoder_mode_set(struct drm_encoder *encoder,
-			 struct drm_display_mode *mode,
-			 struct drm_display_mode *adjusted_mode)
+static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
+				    struct drm_display_mode *mode,
+				    struct drm_display_mode *adjusted_mode)
 {
-	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
+	struct tda998x_priv *priv = bridge_to_tda998x_priv(bridge);
+	unsigned long tmds_clock;
 	u16 ref_pix, ref_line, n_pix, n_line;
 	u16 hs_pix_s, hs_pix_e;
 	u16 vs1_pix_s, vs1_pix_e, vs1_line_s, vs1_line_e;
@@ -1271,12 +1414,19 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 			       (mode->vsync_end - mode->vsync_start)/2;
 	}
 
-	div = 148500 / mode->clock;
-	if (div != 0) {
-		div--;
-		if (div > 3)
-			div = 3;
-	}
+	tmds_clock = mode->clock;
+
+	/*
+	 * The divisor is power-of-2. The TDA9983B datasheet gives
+	 * this as ranges of Msample/s, which is 10x the TMDS clock:
+	 *   0 - 800 to 1500 Msample/s
+	 *   1 - 400 to 800 Msample/s
+	 *   2 - 200 to 400 Msample/s
+	 *   3 - as 2 above
+	 */
+	for (div = 0; div < 3; div++)
+		if (80000 >> div <= tmds_clock)
+			break;
 
 	mutex_lock(&priv->audio_mutex);
 
@@ -1407,23 +1557,14 @@ tda998x_encoder_mode_set(struct drm_encoder *encoder,
 	mutex_unlock(&priv->audio_mutex);
 }
 
-static void tda998x_destroy(struct tda998x_priv *priv)
-{
-	/* disable all IRQs and free the IRQ handler */
-	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
-	reg_clear(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
-
-	if (priv->audio_pdev)
-		platform_device_unregister(priv->audio_pdev);
-
-	if (priv->hdmi->irq)
-		free_irq(priv->hdmi->irq, priv);
-
-	del_timer_sync(&priv->edid_delay_timer);
-	cancel_work_sync(&priv->detect_work);
-
-	i2c_unregister_device(priv->cec);
-}
+static const struct drm_bridge_funcs tda998x_bridge_funcs = {
+	.attach = tda998x_bridge_attach,
+	.detach = tda998x_bridge_detach,
+	.mode_valid = tda998x_bridge_mode_valid,
+	.disable = tda998x_bridge_disable,
+	.mode_set = tda998x_bridge_mode_set,
+	.enable = tda998x_bridge_enable,
+};
 
 /* I2C driver functions */
 
@@ -1469,170 +1610,6 @@ static int tda998x_get_audio_ports(struct tda998x_priv *priv,
 	return 0;
 }
 
-static int tda998x_create(struct i2c_client *client, struct tda998x_priv *priv)
-{
-	struct device_node *np = client->dev.of_node;
-	u32 video;
-	int rev_lo, rev_hi, ret;
-
-	mutex_init(&priv->audio_mutex); /* Protect access from audio thread */
-
-	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
-	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
-	priv->vip_cntrl_2 = VIP_CNTRL_2_SWAP_E(4) | VIP_CNTRL_2_SWAP_F(5);
-
-	/* CEC I2C address bound to TDA998x I2C addr by configuration pins */
-	priv->cec_addr = 0x34 + (client->addr & 0x03);
-	priv->current_page = 0xff;
-	priv->hdmi = client;
-	priv->cec = i2c_new_dummy(client->adapter, priv->cec_addr);
-	if (!priv->cec)
-		return -ENODEV;
-
-	mutex_init(&priv->mutex);	/* protect the page access */
-	init_waitqueue_head(&priv->edid_delay_waitq);
-	timer_setup(&priv->edid_delay_timer, tda998x_edid_delay_done, 0);
-	INIT_WORK(&priv->detect_work, tda998x_detect_work);
-
-	/* wake up the device: */
-	cec_write(priv, REG_CEC_ENAMODS,
-			CEC_ENAMODS_EN_RXSENS | CEC_ENAMODS_EN_HDMI);
-
-	tda998x_reset(priv);
-
-	/* read version: */
-	rev_lo = reg_read(priv, REG_VERSION_LSB);
-	rev_hi = reg_read(priv, REG_VERSION_MSB);
-	if (rev_lo < 0 || rev_hi < 0) {
-		ret = rev_lo < 0 ? rev_lo : rev_hi;
-		goto fail;
-	}
-
-	priv->rev = rev_lo | rev_hi << 8;
-
-	/* mask off feature bits: */
-	priv->rev &= ~0x30; /* not-hdcp and not-scalar bit */
-
-	switch (priv->rev) {
-	case TDA9989N2:
-		dev_info(&client->dev, "found TDA9989 n2");
-		break;
-	case TDA19989:
-		dev_info(&client->dev, "found TDA19989");
-		break;
-	case TDA19989N2:
-		dev_info(&client->dev, "found TDA19989 n2");
-		break;
-	case TDA19988:
-		dev_info(&client->dev, "found TDA19988");
-		break;
-	default:
-		dev_err(&client->dev, "found unsupported device: %04x\n",
-			priv->rev);
-		goto fail;
-	}
-
-	/* after reset, enable DDC: */
-	reg_write(priv, REG_DDC_DISABLE, 0x00);
-
-	/* set clock on DDC channel: */
-	reg_write(priv, REG_TX3, 39);
-
-	/* if necessary, disable multi-master: */
-	if (priv->rev == TDA19989)
-		reg_set(priv, REG_I2C_MASTER, I2C_MASTER_DIS_MM);
-
-	cec_write(priv, REG_CEC_FRO_IM_CLK_CTRL,
-			CEC_FRO_IM_CLK_CTRL_GHOST_DIS | CEC_FRO_IM_CLK_CTRL_IMCLK_SEL);
-
-	/* initialize the optional IRQ */
-	if (client->irq) {
-		unsigned long irq_flags;
-
-		/* init read EDID waitqueue and HDP work */
-		init_waitqueue_head(&priv->wq_edid);
-
-		/* clear pending interrupts */
-		reg_read(priv, REG_INT_FLAGS_0);
-		reg_read(priv, REG_INT_FLAGS_1);
-		reg_read(priv, REG_INT_FLAGS_2);
-
-		irq_flags =
-			irqd_get_trigger_type(irq_get_irq_data(client->irq));
-		irq_flags |= IRQF_SHARED | IRQF_ONESHOT;
-		ret = request_threaded_irq(client->irq, NULL,
-					   tda998x_irq_thread, irq_flags,
-					   "tda998x", priv);
-		if (ret) {
-			dev_err(&client->dev,
-				"failed to request IRQ#%u: %d\n",
-				client->irq, ret);
-			goto fail;
-		}
-
-		/* enable HPD irq */
-		cec_write(priv, REG_CEC_RXSHPDINTENA, CEC_RXSHPDLEV_HPD);
-	}
-
-	/* enable EDID read irq: */
-	reg_set(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
-
-	if (!np)
-		return 0;		/* non-DT */
-
-	/* get the device tree parameters */
-	ret = of_property_read_u32(np, "video-ports", &video);
-	if (ret == 0) {
-		priv->vip_cntrl_0 = video >> 16;
-		priv->vip_cntrl_1 = video >> 8;
-		priv->vip_cntrl_2 = video;
-	}
-
-	ret = tda998x_get_audio_ports(priv, np);
-	if (ret)
-		goto fail;
-
-	if (priv->audio_port[0].format != AFMT_UNUSED)
-		tda998x_audio_codec_init(priv, &client->dev);
-
-	return 0;
-fail:
-	/* if encoder_init fails, the encoder slave is never registered,
-	 * so cleanup here:
-	 */
-	i2c_unregister_device(priv->cec);
-	return -ENXIO;
-}
-
-static void tda998x_encoder_prepare(struct drm_encoder *encoder)
-{
-	tda998x_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-static void tda998x_encoder_commit(struct drm_encoder *encoder)
-{
-	tda998x_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
-static const struct drm_encoder_helper_funcs tda998x_encoder_helper_funcs = {
-	.dpms = tda998x_encoder_dpms,
-	.prepare = tda998x_encoder_prepare,
-	.commit = tda998x_encoder_commit,
-	.mode_set = tda998x_encoder_mode_set,
-};
-
-static void tda998x_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct tda998x_priv *priv = enc_to_tda998x_priv(encoder);
-
-	tda998x_destroy(priv);
-	drm_encoder_cleanup(encoder);
-}
-
-static const struct drm_encoder_funcs tda998x_encoder_funcs = {
-	.destroy = tda998x_encoder_destroy,
-};
-
 static void tda998x_set_config(struct tda998x_priv *priv,
 			       const struct tda998x_encoder_params *p)
 {
@@ -1652,20 +1629,239 @@ static void tda998x_set_config(struct tda998x_priv *priv,
 	priv->audio_params = p->audio_params;
 }
 
-static int tda998x_bind(struct device *dev, struct device *master, void *data)
+static void tda998x_destroy(struct device *dev)
 {
-	struct tda998x_encoder_params *params = dev->platform_data;
+	struct tda998x_priv *priv = dev_get_drvdata(dev);
+
+	drm_bridge_remove(&priv->bridge);
+
+	/* disable all IRQs and free the IRQ handler */
+	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
+	reg_clear(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
+
+	if (priv->audio_pdev)
+		platform_device_unregister(priv->audio_pdev);
+
+	if (priv->hdmi->irq)
+		free_irq(priv->hdmi->irq, priv);
+
+	del_timer_sync(&priv->edid_delay_timer);
+	cancel_work_sync(&priv->detect_work);
+
+	i2c_unregister_device(priv->cec);
+
+	if (priv->cec_notify)
+		cec_notifier_put(priv->cec_notify);
+}
+
+static int tda998x_create(struct device *dev)
+{
 	struct i2c_client *client = to_i2c_client(dev);
-	struct drm_device *drm = data;
+	struct device_node *np = client->dev.of_node;
+	struct i2c_board_info cec_info;
 	struct tda998x_priv *priv;
-	u32 crtcs = 0;
-	int ret;
+	u32 video;
+	int rev_lo, rev_hi, ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	dev_set_drvdata(dev, priv);
+
+	mutex_init(&priv->mutex);	/* protect the page access */
+	mutex_init(&priv->audio_mutex); /* protect access from audio thread */
+	mutex_init(&priv->edid_mutex);
+	INIT_LIST_HEAD(&priv->bridge.list);
+	init_waitqueue_head(&priv->edid_delay_waitq);
+	timer_setup(&priv->edid_delay_timer, tda998x_edid_delay_done, 0);
+	INIT_WORK(&priv->detect_work, tda998x_detect_work);
+
+	priv->vip_cntrl_0 = VIP_CNTRL_0_SWAP_A(2) | VIP_CNTRL_0_SWAP_B(3);
+	priv->vip_cntrl_1 = VIP_CNTRL_1_SWAP_C(0) | VIP_CNTRL_1_SWAP_D(1);
+	priv->vip_cntrl_2 = VIP_CNTRL_2_SWAP_E(4) | VIP_CNTRL_2_SWAP_F(5);
+
+	/* CEC I2C address bound to TDA998x I2C addr by configuration pins */
+	priv->cec_addr = 0x34 + (client->addr & 0x03);
+	priv->current_page = 0xff;
+	priv->hdmi = client;
+
+	/* wake up the device: */
+	cec_write(priv, REG_CEC_ENAMODS,
+			CEC_ENAMODS_EN_RXSENS | CEC_ENAMODS_EN_HDMI);
+
+	tda998x_reset(priv);
+
+	/* read version: */
+	rev_lo = reg_read(priv, REG_VERSION_LSB);
+	if (rev_lo < 0) {
+		dev_err(dev, "failed to read version: %d\n", rev_lo);
+		return rev_lo;
+	}
+
+	rev_hi = reg_read(priv, REG_VERSION_MSB);
+	if (rev_hi < 0) {
+		dev_err(dev, "failed to read version: %d\n", rev_hi);
+		return rev_hi;
+	}
+
+	priv->rev = rev_lo | rev_hi << 8;
+
+	/* mask off feature bits: */
+	priv->rev &= ~0x30; /* not-hdcp and not-scalar bit */
+
+	switch (priv->rev) {
+	case TDA9989N2:
+		dev_info(dev, "found TDA9989 n2");
+		break;
+	case TDA19989:
+		dev_info(dev, "found TDA19989");
+		break;
+	case TDA19989N2:
+		dev_info(dev, "found TDA19989 n2");
+		break;
+	case TDA19988:
+		dev_info(dev, "found TDA19988");
+		break;
+	default:
+		dev_err(dev, "found unsupported device: %04x\n", priv->rev);
+		return -ENXIO;
+	}
+
+	/* after reset, enable DDC: */
+	reg_write(priv, REG_DDC_DISABLE, 0x00);
+
+	/* set clock on DDC channel: */
+	reg_write(priv, REG_TX3, 39);
+
+	/* if necessary, disable multi-master: */
+	if (priv->rev == TDA19989)
+		reg_set(priv, REG_I2C_MASTER, I2C_MASTER_DIS_MM);
+
+	cec_write(priv, REG_CEC_FRO_IM_CLK_CTRL,
+			CEC_FRO_IM_CLK_CTRL_GHOST_DIS | CEC_FRO_IM_CLK_CTRL_IMCLK_SEL);
+
+	/* ensure interrupts are disabled */
+	cec_write(priv, REG_CEC_RXSHPDINTENA, 0);
+
+	/* clear pending interrupts */
+	cec_read(priv, REG_CEC_RXSHPDINT);
+	reg_read(priv, REG_INT_FLAGS_0);
+	reg_read(priv, REG_INT_FLAGS_1);
+	reg_read(priv, REG_INT_FLAGS_2);
+
+	/* initialize the optional IRQ */
+	if (client->irq) {
+		unsigned long irq_flags;
+
+		/* init read EDID waitqueue and HDP work */
+		init_waitqueue_head(&priv->wq_edid);
+
+		irq_flags =
+			irqd_get_trigger_type(irq_get_irq_data(client->irq));
+
+		priv->cec_glue.irq_flags = irq_flags;
+
+		irq_flags |= IRQF_SHARED | IRQF_ONESHOT;
+		ret = request_threaded_irq(client->irq, NULL,
+					   tda998x_irq_thread, irq_flags,
+					   "tda998x", priv);
+		if (ret) {
+			dev_err(dev, "failed to request IRQ#%u: %d\n",
+				client->irq, ret);
+			goto err_irq;
+		}
+
+		/* enable HPD irq */
+		cec_write(priv, REG_CEC_RXSHPDINTENA, CEC_RXSHPDLEV_HPD);
+	}
+
+	priv->cec_notify = cec_notifier_get(dev);
+	if (!priv->cec_notify) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	priv->cec_glue.parent = dev;
+	priv->cec_glue.data = priv;
+	priv->cec_glue.init = tda998x_cec_hook_init;
+	priv->cec_glue.exit = tda998x_cec_hook_exit;
+	priv->cec_glue.open = tda998x_cec_hook_open;
+	priv->cec_glue.release = tda998x_cec_hook_release;
+
+	/*
+	 * Some TDA998x are actually two I2C devices merged onto one piece
+	 * of silicon: TDA9989 and TDA19989 combine the HDMI transmitter
+	 * with a slightly modified TDA9950 CEC device.  The CEC device
+	 * is at the TDA9950 address, with the address pins strapped across
+	 * to the TDA998x address pins.  Hence, it always has the same
+	 * offset.
+	 */
+	memset(&cec_info, 0, sizeof(cec_info));
+	strlcpy(cec_info.type, "tda9950", sizeof(cec_info.type));
+	cec_info.addr = priv->cec_addr;
+	cec_info.platform_data = &priv->cec_glue;
+	cec_info.irq = client->irq;
+
+	priv->cec = i2c_new_device(client->adapter, &cec_info);
+	if (!priv->cec) {
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	/* enable EDID read irq: */
+	reg_set(priv, REG_INT_FLAGS_2, INT_FLAGS_2_EDID_BLK_RD);
+
+	if (np) {
+		/* get the device tree parameters */
+		ret = of_property_read_u32(np, "video-ports", &video);
+		if (ret == 0) {
+			priv->vip_cntrl_0 = video >> 16;
+			priv->vip_cntrl_1 = video >> 8;
+			priv->vip_cntrl_2 = video;
+		}
+
+		ret = tda998x_get_audio_ports(priv, np);
+		if (ret)
+			goto fail;
+
+		if (priv->audio_port[0].format != AFMT_UNUSED)
+			tda998x_audio_codec_init(priv, &client->dev);
+	} else if (dev->platform_data) {
+		tda998x_set_config(priv, dev->platform_data);
+	}
+
+	priv->bridge.funcs = &tda998x_bridge_funcs;
+#ifdef CONFIG_OF
+	priv->bridge.of_node = dev->of_node;
+#endif
+
+	drm_bridge_add(&priv->bridge);
+
+	return 0;
+
+fail:
+	tda998x_destroy(dev);
+err_irq:
+	return ret;
+}
+
+/* DRM encoder functions */
+
+static void tda998x_encoder_destroy(struct drm_encoder *encoder)
+{
+	drm_encoder_cleanup(encoder);
+}
+
+static const struct drm_encoder_funcs tda998x_encoder_funcs = {
+	.destroy = tda998x_encoder_destroy,
+};
+
+static int tda998x_encoder_init(struct device *dev, struct drm_device *drm)
+{
+	struct tda998x_priv *priv = dev_get_drvdata(dev);
+	u32 crtcs = 0;
+	int ret;
 
 	if (dev->of_node)
 		crtcs = drm_of_find_possible_crtcs(drm, dev->of_node);
@@ -1678,30 +1874,28 @@ static int tda998x_bind(struct device *dev, struct device *master, void *data)
 
 	priv->encoder.possible_crtcs = crtcs;
 
-	ret = tda998x_create(client, priv);
-	if (ret)
-		return ret;
-
-	if (!dev->of_node && params)
-		tda998x_set_config(priv, params);
-
-	drm_encoder_helper_add(&priv->encoder, &tda998x_encoder_helper_funcs);
 	ret = drm_encoder_init(drm, &priv->encoder, &tda998x_encoder_funcs,
 			       DRM_MODE_ENCODER_TMDS, NULL);
 	if (ret)
 		goto err_encoder;
 
-	ret = tda998x_connector_init(priv, drm);
+	ret = drm_bridge_attach(&priv->encoder, &priv->bridge, NULL);
 	if (ret)
-		goto err_connector;
+		goto err_bridge;
 
 	return 0;
 
-err_connector:
+err_bridge:
 	drm_encoder_cleanup(&priv->encoder);
 err_encoder:
-	tda998x_destroy(priv);
 	return ret;
+}
+
+static int tda998x_bind(struct device *dev, struct device *master, void *data)
+{
+	struct drm_device *drm = data;
+
+	return tda998x_encoder_init(dev, drm);
 }
 
 static void tda998x_unbind(struct device *dev, struct device *master,
@@ -1709,9 +1903,7 @@ static void tda998x_unbind(struct device *dev, struct device *master,
 {
 	struct tda998x_priv *priv = dev_get_drvdata(dev);
 
-	drm_connector_cleanup(&priv->connector);
 	drm_encoder_cleanup(&priv->encoder);
-	tda998x_destroy(priv);
 }
 
 static const struct component_ops tda998x_ops = {
@@ -1722,16 +1914,27 @@ static const struct component_ops tda998x_ops = {
 static int
 tda998x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
+	int ret;
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_warn(&client->dev, "adapter does not support I2C\n");
 		return -EIO;
 	}
-	return component_add(&client->dev, &tda998x_ops);
+
+	ret = tda998x_create(&client->dev);
+	if (ret)
+		return ret;
+
+	ret = component_add(&client->dev, &tda998x_ops);
+	if (ret)
+		tda998x_destroy(&client->dev);
+	return ret;
 }
 
 static int tda998x_remove(struct i2c_client *client)
 {
 	component_del(&client->dev, &tda998x_ops);
+	tda998x_destroy(&client->dev);
 	return 0;
 }
 

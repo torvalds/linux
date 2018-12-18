@@ -29,8 +29,8 @@ config PCMCIA_AXNET
 	  called axnet_cs.  If unsure, say N.
 
 config AX88796
-	tristate "ASIX AX88796 NE2000 clone support"
-	depends on (ARM || MIPS || SUPERH)
+	tristate "ASIX AX88796 NE2000 clone support" if !ZORRO
+	depends on (ARM || MIPS || SUPERH || ZORRO || COMPILE_TEST)
 	select CRC32
 	select PHYLIB
 	select MDIO_BITBANG
@@ -44,6 +44,19 @@ config AX88796_93CX6
 	select EEPROM_93CX6
 	---help---
 	  Select this if your platform comes with an external 93CX6 eeprom.
+
+config XSURF100
+	tristate "Amiga XSurf 100 AX88796/NE2000 clone support"
+	depends on ZORRO
+	select AX88796
+	select ASIX_PHY
+	help
+	  This driver is for the Individual Computers X-Surf 100 Ethernet
+	  card (based on the Asix AX88796 chip). If you have such a card,
+	  say Y. Otherwise, say N.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called xsurf100.
 
 config HYDRA
 	tristate "Hydra support"

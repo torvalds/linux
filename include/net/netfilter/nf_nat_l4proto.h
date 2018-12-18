@@ -34,12 +34,12 @@ struct nf_nat_l4proto {
 	 */
 	void (*unique_tuple)(const struct nf_nat_l3proto *l3proto,
 			     struct nf_conntrack_tuple *tuple,
-			     const struct nf_nat_range *range,
+			     const struct nf_nat_range2 *range,
 			     enum nf_nat_manip_type maniptype,
 			     const struct nf_conn *ct);
 
 	int (*nlattr_to_range)(struct nlattr *tb[],
-			       struct nf_nat_range *range);
+			       struct nf_nat_range2 *range);
 };
 
 /* Protocol registration. */
@@ -72,11 +72,11 @@ bool nf_nat_l4proto_in_range(const struct nf_conntrack_tuple *tuple,
 
 void nf_nat_l4proto_unique_tuple(const struct nf_nat_l3proto *l3proto,
 				 struct nf_conntrack_tuple *tuple,
-				 const struct nf_nat_range *range,
+				 const struct nf_nat_range2 *range,
 				 enum nf_nat_manip_type maniptype,
 				 const struct nf_conn *ct, u16 *rover);
 
 int nf_nat_l4proto_nlattr_to_range(struct nlattr *tb[],
-				   struct nf_nat_range *range);
+				   struct nf_nat_range2 *range);
 
 #endif /*_NF_NAT_L4PROTO_H*/

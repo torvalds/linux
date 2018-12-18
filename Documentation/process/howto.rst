@@ -85,7 +85,7 @@ linux-api@vger.kernel.org.
 Here is a list of files that are in the kernel source tree that are
 required reading:
 
-  README
+  :ref:`Documentation/admin-guide/README.rst <readme>`
     This file gives a short background on the Linux kernel and describes
     what is necessary to do to configure and build the kernel.  People
     who are new to the kernel should start here.

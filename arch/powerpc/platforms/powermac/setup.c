@@ -152,7 +152,7 @@ static void pmac_show_cpuinfo(struct seq_file *m)
 			of_get_property(np, "d-cache-size", NULL);
 		seq_printf(m, "L2 cache\t:");
 		has_l2cache = 1;
-		if (of_get_property(np, "cache-unified", NULL) != 0 && dc) {
+		if (of_get_property(np, "cache-unified", NULL) && dc) {
 			seq_printf(m, " %dK unified", *dc / 1024);
 		} else {
 			if (ic)
@@ -244,12 +244,12 @@ static void __init l2cr_init(void)
 	/* Checks "l2cr-value" property in the registry */
 	if (cpu_has_feature(CPU_FTR_L2CR)) {
 		struct device_node *np = of_find_node_by_name(NULL, "cpus");
-		if (np == 0)
+		if (!np)
 			np = of_find_node_by_type(NULL, "cpu");
-		if (np != 0) {
+		if (np) {
 			const unsigned int *l2cr =
 				of_get_property(np, "l2cr-value", NULL);
-			if (l2cr != 0) {
+			if (l2cr) {
 				ppc_override_l2cr = 1;
 				ppc_override_l2cr_value = *l2cr;
 				_set_L2CR(0);
@@ -352,6 +352,7 @@ static int pmac_late_init(void)
 }
 machine_late_initcall(powermac, pmac_late_init);
 
+void note_bootable_part(dev_t dev, int part, int goodness);
 /*
  * This is __ref because we check for "initializing" before
  * touching any of the __init sensitive things and "initializing"

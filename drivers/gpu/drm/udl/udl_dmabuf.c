@@ -29,7 +29,6 @@ struct udl_drm_dmabuf_attachment {
 };
 
 static int udl_attach_dma_buf(struct dma_buf *dmabuf,
-			      struct device *dev,
 			      struct dma_buf_attachment *attach)
 {
 	struct udl_drm_dmabuf_attachment *udl_attach;
@@ -76,6 +75,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 	struct udl_drm_dmabuf_attachment *udl_attach = attach->priv;
 	struct udl_gem_object *obj = to_udl_bo(attach->dmabuf->priv);
 	struct drm_device *dev = obj->base.dev;
+	struct udl_device *udl = dev->dev_private;
 	struct scatterlist *rd, *wr;
 	struct sg_table *sgt = NULL;
 	unsigned int i;
@@ -112,7 +112,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	mutex_lock(&dev->struct_mutex);
+	mutex_lock(&udl->gem_lock);
 
 	rd = obj->sg->sgl;
 	wr = sgt->sgl;
@@ -137,7 +137,7 @@ static struct sg_table *udl_map_dma_buf(struct dma_buf_attachment *attach,
 	attach->priv = udl_attach;
 
 err_unlock:
-	mutex_unlock(&dev->struct_mutex);
+	mutex_unlock(&udl->gem_lock);
 	return sgt;
 }
 
@@ -157,23 +157,8 @@ static void *udl_dmabuf_kmap(struct dma_buf *dma_buf, unsigned long page_num)
 	return NULL;
 }
 
-static void *udl_dmabuf_kmap_atomic(struct dma_buf *dma_buf,
-				    unsigned long page_num)
-{
-	/* TODO */
-
-	return NULL;
-}
-
 static void udl_dmabuf_kunmap(struct dma_buf *dma_buf,
 			      unsigned long page_num, void *addr)
-{
-	/* TODO */
-}
-
-static void udl_dmabuf_kunmap_atomic(struct dma_buf *dma_buf,
-				     unsigned long page_num,
-				     void *addr)
 {
 	/* TODO */
 }
@@ -192,9 +177,7 @@ static const struct dma_buf_ops udl_dmabuf_ops = {
 	.map_dma_buf		= udl_map_dma_buf,
 	.unmap_dma_buf		= udl_unmap_dma_buf,
 	.map			= udl_dmabuf_kmap,
-	.map_atomic		= udl_dmabuf_kmap_atomic,
 	.unmap			= udl_dmabuf_kunmap,
-	.unmap_atomic		= udl_dmabuf_kunmap_atomic,
 	.mmap			= udl_dmabuf_mmap,
 	.release		= drm_gem_dmabuf_release,
 };

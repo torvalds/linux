@@ -796,19 +796,13 @@ EXPORT_SYMBOL_GPL(debugfs_read_file_bool);
 ssize_t debugfs_write_file_bool(struct file *file, const char __user *user_buf,
 				size_t count, loff_t *ppos)
 {
-	char buf[32];
-	size_t buf_size;
 	bool bv;
 	int r;
 	bool *val = file->private_data;
 	struct dentry *dentry = F_DENTRY(file);
 
-	buf_size = min(count, (sizeof(buf)-1));
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-
-	buf[buf_size] = '\0';
-	if (strtobool(buf, &bv) == 0) {
+	r = kstrtobool_from_user(user_buf, count, &bv);
+	if (!r) {
 		r = debugfs_file_get(dentry);
 		if (unlikely(r))
 			return r;

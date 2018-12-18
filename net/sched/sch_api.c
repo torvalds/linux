@@ -596,11 +596,18 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
-void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
+void qdisc_watchdog_init_clockid(struct qdisc_watchdog *wd, struct Qdisc *qdisc,
+				 clockid_t clockid)
 {
-	hrtimer_init(&wd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_PINNED);
+	hrtimer_init(&wd->timer, clockid, HRTIMER_MODE_ABS_PINNED);
 	wd->timer.function = qdisc_watchdog;
 	wd->qdisc = qdisc;
+}
+EXPORT_SYMBOL(qdisc_watchdog_init_clockid);
+
+void qdisc_watchdog_init(struct qdisc_watchdog *wd, struct Qdisc *qdisc)
+{
+	qdisc_watchdog_init_clockid(wd, qdisc, CLOCK_MONOTONIC);
 }
 EXPORT_SYMBOL(qdisc_watchdog_init);
 
@@ -2092,23 +2099,11 @@ static int psched_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int psched_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, psched_show, NULL);
-}
-
-static const struct file_operations psched_fops = {
-	.open = psched_open,
-	.read  = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static int __net_init psched_net_init(struct net *net)
 {
 	struct proc_dir_entry *e;
 
-	e = proc_create("psched", 0, net->proc_net, &psched_fops);
+	e = proc_create_single("psched", 0, net->proc_net, psched_show);
 	if (e == NULL)
 		return -ENOMEM;
 

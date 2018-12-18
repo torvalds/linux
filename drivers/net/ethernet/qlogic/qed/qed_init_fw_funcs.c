@@ -1225,19 +1225,6 @@ void qed_gft_disable(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt, u16 pf_id)
 	       0);
 }
 
-void qed_set_gft_event_id_cm_hdr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
-{
-	u32 rfs_cm_hdr_event_id;
-
-	/* Set RFS event ID to be awakened i Tstorm By Prs */
-	rfs_cm_hdr_event_id = qed_rd(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT);
-	rfs_cm_hdr_event_id |= T_ETH_PACKET_ACTION_GFT_EVENTID <<
-			       PRS_REG_CM_HDR_GFT_EVENT_ID_SHIFT;
-	rfs_cm_hdr_event_id |= PARSER_ETH_CONN_GFT_ACTION_CM_HDR <<
-			       PRS_REG_CM_HDR_GFT_CM_HDR_SHIFT;
-	qed_wr(p_hwfn, p_ptt, PRS_REG_CM_HDR_GFT, rfs_cm_hdr_event_id);
-}
-
 void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    u16 pf_id,
@@ -1245,7 +1232,7 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		    bool udp,
 		    bool ipv4, bool ipv6, enum gft_profile_type profile_type)
 {
-	u32 reg_val, cam_line, ram_line_lo, ram_line_hi;
+	u32 reg_val, cam_line, ram_line_lo, ram_line_hi, search_non_ip_as_gft;
 
 	if (!ipv6 && !ipv4)
 		DP_NOTICE(p_hwfn,
@@ -1314,6 +1301,9 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 	ram_line_lo = 0;
 	ram_line_hi = 0;
 
+	/* Search no IP as GFT */
+	search_non_ip_as_gft = 0;
+
 	/* Tunnel type */
 	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_DST_PORT, 1);
 	SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_OVER_IP_PROTOCOL, 1);
@@ -1337,8 +1327,13 @@ void qed_gft_config(struct qed_hwfn *p_hwfn,
 		SET_FIELD(ram_line_lo, GFT_RAM_LINE_ETHERTYPE, 1);
 	} else if (profile_type == GFT_PROFILE_TYPE_TUNNEL_TYPE) {
 		SET_FIELD(ram_line_lo, GFT_RAM_LINE_TUNNEL_ETHERTYPE, 1);
+
+		/* Allow tunneled traffic without inner IP */
+		search_non_ip_as_gft = 1;
 	}
 
+	qed_wr(p_hwfn,
+	       p_ptt, PRS_REG_SEARCH_NON_IP_AS_GFT, search_non_ip_as_gft);
 	qed_wr(p_hwfn,
 	       p_ptt,
 	       PRS_REG_GFT_PROFILE_MASK_RAM + RAM_LINE_SIZE * pf_id,
@@ -1508,4 +1503,44 @@ void qed_enable_context_validation(struct qed_hwfn *p_hwfn,
 	/* Enable validation for connection region 1: TCFC_CTX_VALID0[15:8] */
 	ctx_validation = CDU_VALIDATION_DEFAULT_CFG << 8;
 	qed_wr(p_hwfn, p_ptt, CDU_REG_TCFC_CTX_VALID0, ctx_validation);
+}
+
+static u32 qed_get_rdma_assert_ram_addr(struct qed_hwfn *p_hwfn, u8 storm_id)
+{
+	switch (storm_id) {
+	case 0:
+		return TSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    TSTORM_RDMA_ASSERT_LEVEL_OFFSET(p_hwfn->rel_pf_id);
+	case 1:
+		return MSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    MSTORM_RDMA_ASSERT_LEVEL_OFFSET(p_hwfn->rel_pf_id);
+	case 2:
+		return USEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    USTORM_RDMA_ASSERT_LEVEL_OFFSET(p_hwfn->rel_pf_id);
+	case 3:
+		return XSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    XSTORM_RDMA_ASSERT_LEVEL_OFFSET(p_hwfn->rel_pf_id);
+	case 4:
+		return YSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    YSTORM_RDMA_ASSERT_LEVEL_OFFSET(p_hwfn->rel_pf_id);
+	case 5:
+		return PSEM_REG_FAST_MEMORY + SEM_FAST_REG_INT_RAM +
+		    PSTORM_RDMA_ASSERT_LEVEL_OFFSET(p_hwfn->rel_pf_id);
+
+	default:
+		return 0;
+	}
+}
+
+void qed_set_rdma_error_level(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      u8 assert_level[NUM_STORMS])
+{
+	u8 storm_id;
+
+	for (storm_id = 0; storm_id < NUM_STORMS; storm_id++) {
+		u32 ram_addr = qed_get_rdma_assert_ram_addr(p_hwfn, storm_id);
+
+		qed_wr(p_hwfn, p_ptt, ram_addr, assert_level[storm_id]);
+	}
 }

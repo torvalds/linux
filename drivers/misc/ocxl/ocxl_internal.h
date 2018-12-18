@@ -77,6 +77,7 @@ struct ocxl_context {
 	struct ocxl_xsl_error xsl_error;
 	struct mutex irq_lock;
 	struct idr irq_idr;
+	u16 tidr; // Thread ID used for P9 wait implementation
 };
 
 struct ocxl_process_element {

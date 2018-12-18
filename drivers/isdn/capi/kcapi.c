@@ -534,7 +534,8 @@ int attach_capi_ctr(struct capi_ctr *ctr)
 	init_waitqueue_head(&ctr->state_wait_queue);
 
 	sprintf(ctr->procfn, "capi/controllers/%d", ctr->cnr);
-	ctr->procent = proc_create_data(ctr->procfn, 0, NULL, ctr->proc_fops, ctr);
+	ctr->procent = proc_create_single_data(ctr->procfn, 0, NULL,
+			ctr->proc_show, ctr);
 
 	ncontrollers++;
 

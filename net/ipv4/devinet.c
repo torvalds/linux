@@ -99,6 +99,7 @@ static const struct nla_policy ifa_ipv4_policy[IFA_MAX+1] = {
 	[IFA_LABEL]     	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 },
 	[IFA_CACHEINFO]		= { .len = sizeof(struct ifa_cacheinfo) },
 	[IFA_FLAGS]		= { .type = NLA_U32 },
+	[IFA_RT_PRIORITY]	= { .type = NLA_U32 },
 };
 
 #define IN4_ADDR_HSIZE_SHIFT	8
@@ -835,6 +836,9 @@ static struct in_ifaddr *rtm_to_ifaddr(struct net *net, struct nlmsghdr *nlh,
 	else
 		memcpy(ifa->ifa_label, dev->name, IFNAMSIZ);
 
+	if (tb[IFA_RT_PRIORITY])
+		ifa->ifa_rt_priority = nla_get_u32(tb[IFA_RT_PRIORITY]);
+
 	if (tb[IFA_CACHEINFO]) {
 		struct ifa_cacheinfo *ci;
 
@@ -906,12 +910,20 @@ static int inet_rtm_newaddr(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return __inet_insert_ifa(ifa, nlh, NETLINK_CB(skb).portid,
 					 extack);
 	} else {
+		u32 new_metric = ifa->ifa_rt_priority;
+
 		inet_free_ifa(ifa);
 
 		if (nlh->nlmsg_flags & NLM_F_EXCL ||
 		    !(nlh->nlmsg_flags & NLM_F_REPLACE))
 			return -EEXIST;
 		ifa = ifa_existing;
+
+		if (ifa->ifa_rt_priority != new_metric) {
+			fib_modify_prefix_metric(ifa, new_metric);
+			ifa->ifa_rt_priority = new_metric;
+		}
+
 		set_ifa_lifetime(ifa, valid_lft, prefered_lft);
 		cancel_delayed_work(&check_lifetime_work);
 		queue_delayed_work(system_power_efficient_wq,
@@ -1549,6 +1561,7 @@ static size_t inet_nlmsg_size(void)
 	       + nla_total_size(4) /* IFA_BROADCAST */
 	       + nla_total_size(IFNAMSIZ) /* IFA_LABEL */
 	       + nla_total_size(4)  /* IFA_FLAGS */
+	       + nla_total_size(4)  /* IFA_RT_PRIORITY */
 	       + nla_total_size(sizeof(struct ifa_cacheinfo)); /* IFA_CACHEINFO */
 }
 
@@ -1618,6 +1631,8 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	    (ifa->ifa_label[0] &&
 	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)) ||
 	    nla_put_u32(skb, IFA_FLAGS, ifa->ifa_flags) ||
+	    (ifa->ifa_rt_priority &&
+	     nla_put_u32(skb, IFA_RT_PRIORITY, ifa->ifa_rt_priority)) ||
 	    put_cacheinfo(skb, ifa->ifa_cstamp, ifa->ifa_tstamp,
 			  preferred, valid))
 		goto nla_put_failure;
@@ -1812,6 +1827,8 @@ static int inet_netconf_msgsize_devconf(int type)
 		size += nla_total_size(4);
 	if (all || type == NETCONFA_MC_FORWARDING)
 		size += nla_total_size(4);
+	if (all || type == NETCONFA_BC_FORWARDING)
+		size += nla_total_size(4);
 	if (all || type == NETCONFA_PROXY_NEIGH)
 		size += nla_total_size(4);
 	if (all || type == NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN)
@@ -1857,6 +1874,10 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 	if ((all || type == NETCONFA_MC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
 			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
+		goto nla_put_failure;
+	if ((all || type == NETCONFA_BC_FORWARDING) &&
+	    nla_put_s32(skb, NETCONFA_BC_FORWARDING,
+			IPV4_DEVCONF(*devconf, BC_FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_PROXY_NEIGH) &&
 	    nla_put_s32(skb, NETCONFA_PROXY_NEIGH,
@@ -2128,6 +2149,10 @@ static int devinet_conf_proc(struct ctl_table *ctl, int write,
 			if ((new_value == 0) && (old_value != 0))
 				rt_cache_flush(net);
 
+		if (i == IPV4_DEVCONF_BC_FORWARDING - 1 &&
+		    new_value != old_value)
+			rt_cache_flush(net);
+
 		if (i == IPV4_DEVCONF_RP_FILTER - 1 &&
 		    new_value != old_value) {
 			ifindex = devinet_conf_ifindex(net, cnf);
@@ -2244,6 +2269,7 @@ static struct devinet_sysctl_table {
 		DEVINET_SYSCTL_COMPLEX_ENTRY(FORWARDING, "forwarding",
 					     devinet_sysctl_forward),
 		DEVINET_SYSCTL_RO_ENTRY(MC_FORWARDING, "mc_forwarding"),
+		DEVINET_SYSCTL_RW_ENTRY(BC_FORWARDING, "bc_forwarding"),
 
 		DEVINET_SYSCTL_RW_ENTRY(ACCEPT_REDIRECTS, "accept_redirects"),
 		DEVINET_SYSCTL_RW_ENTRY(SECURE_REDIRECTS, "secure_redirects"),

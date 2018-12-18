@@ -128,6 +128,7 @@ static inline void handle_bounds_compressed_page(struct page *page,
 /**
  * ntfs_decompress - decompress a compression block into an array of pages
  * @dest_pages:		destination array of pages
+ * @completed_pages:	scratch space to track completed pages
  * @dest_index:		current index into @dest_pages (IN/OUT)
  * @dest_ofs:		current offset within @dest_pages[@dest_index] (IN/OUT)
  * @dest_max_index:	maximum index into @dest_pages (IN)
@@ -162,10 +163,10 @@ static inline void handle_bounds_compressed_page(struct page *page,
  * Note to hackers: This function may not sleep until it has finished accessing
  * the compression block @cb_start as it is a per-CPU buffer.
  */
-static int ntfs_decompress(struct page *dest_pages[], int *dest_index,
-		int *dest_ofs, const int dest_max_index, const int dest_max_ofs,
-		const int xpage, char *xpage_done, u8 *const cb_start,
-		const u32 cb_size, const loff_t i_size,
+static int ntfs_decompress(struct page *dest_pages[], int completed_pages[],
+		int *dest_index, int *dest_ofs, const int dest_max_index,
+		const int dest_max_ofs, const int xpage, char *xpage_done,
+		u8 *const cb_start, const u32 cb_size, const loff_t i_size,
 		const s64 initialized_size)
 {
 	/*
@@ -190,9 +191,6 @@ static int ntfs_decompress(struct page *dest_pages[], int *dest_index,
 	/* Variables for tag and token parsing. */
 	u8 tag;			/* Current tag. */
 	int token;		/* Loop counter for the eight tokens in tag. */
-
-	/* Need this because we can't sleep, so need two stages. */
-	int completed_pages[dest_max_index - *dest_index + 1];
 	int nr_completed_pages = 0;
 
 	/* Default error code. */
@@ -516,6 +514,7 @@ int ntfs_read_compressed_block(struct page *page)
 	unsigned int cb_clusters, cb_max_ofs;
 	int block, max_block, cb_max_page, bhs_size, nr_bhs, err = 0;
 	struct page **pages;
+	int *completed_pages;
 	unsigned char xpage_done = 0;
 
 	ntfs_debug("Entering, page->index = 0x%lx, cb_size = 0x%x, nr_pages = "
@@ -527,15 +526,17 @@ int ntfs_read_compressed_block(struct page *page)
 	BUG_ON(ni->type != AT_DATA);
 	BUG_ON(ni->name_len);
 
-	pages = kmalloc(nr_pages * sizeof(struct page *), GFP_NOFS);
+	pages = kmalloc_array(nr_pages, sizeof(struct page *), GFP_NOFS);
+	completed_pages = kmalloc_array(nr_pages + 1, sizeof(int), GFP_NOFS);
 
 	/* Allocate memory to store the buffer heads we need. */
 	bhs_size = cb_size / block_size * sizeof(struct buffer_head *);
 	bhs = kmalloc(bhs_size, GFP_NOFS);
 
-	if (unlikely(!pages || !bhs)) {
+	if (unlikely(!pages || !bhs || !completed_pages)) {
 		kfree(bhs);
 		kfree(pages);
+		kfree(completed_pages);
 		unlock_page(page);
 		ntfs_error(vol->sb, "Failed to allocate internal buffers.");
 		return -ENOMEM;
@@ -562,6 +563,7 @@ int ntfs_read_compressed_block(struct page *page)
 	if (xpage >= max_page) {
 		kfree(bhs);
 		kfree(pages);
+		kfree(completed_pages);
 		zero_user(page, 0, PAGE_SIZE);
 		ntfs_debug("Compressed read outside i_size - truncated?");
 		SetPageUptodate(page);
@@ -854,10 +856,10 @@ lock_retry_remap:
 		unsigned int prev_cur_page = cur_page;
 
 		ntfs_debug("Found compressed compression block.");
-		err = ntfs_decompress(pages, &cur_page, &cur_ofs,
-				cb_max_page, cb_max_ofs, xpage, &xpage_done,
-				cb_pos,	cb_size - (cb_pos - cb), i_size,
-				initialized_size);
+		err = ntfs_decompress(pages, completed_pages, &cur_page,
+				&cur_ofs, cb_max_page, cb_max_ofs, xpage,
+				&xpage_done, cb_pos, cb_size - (cb_pos - cb),
+				i_size, initialized_size);
 		/*
 		 * We can sleep from now on, lock already dropped by
 		 * ntfs_decompress().
@@ -912,6 +914,7 @@ lock_retry_remap:
 
 	/* We no longer need the list of pages. */
 	kfree(pages);
+	kfree(completed_pages);
 
 	/* If we have completed the requested page, we return success. */
 	if (likely(xpage_done))
@@ -956,5 +959,6 @@ err_out:
 		}
 	}
 	kfree(pages);
+	kfree(completed_pages);
 	return -EIO;
 }

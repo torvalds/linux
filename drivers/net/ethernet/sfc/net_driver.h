@@ -448,6 +448,7 @@ enum efx_sync_events_state {
  *	__efx_rx_packet(), or zero if there is none
  * @rx_pkt_index: Ring index of first buffer for next packet to be delivered
  *	by __efx_rx_packet(), if @rx_pkt_n_frags != 0
+ * @rx_list: list of SKBs from current RX, awaiting processing
  * @rx_queue: RX queue for this channel
  * @tx_queue: TX queues for this channel
  * @sync_events_state: Current state of sync events on this channel
@@ -499,6 +500,8 @@ struct efx_channel {
 
 	unsigned int rx_pkt_n_frags;
 	unsigned int rx_pkt_index;
+
+	struct list_head *rx_list;
 
 	struct efx_rx_queue rx_queue;
 	struct efx_tx_queue tx_queue[EFX_TXQ_TYPES];
@@ -733,6 +736,56 @@ struct efx_rss_context {
 	u32 rx_indir_table[128];
 };
 
+#ifdef CONFIG_RFS_ACCEL
+/* Order of these is important, since filter_id >= %EFX_ARFS_FILTER_ID_PENDING
+ * is used to test if filter does or will exist.
+ */
+#define EFX_ARFS_FILTER_ID_PENDING	-1
+#define EFX_ARFS_FILTER_ID_ERROR	-2
+#define EFX_ARFS_FILTER_ID_REMOVING	-3
+/**
+ * struct efx_arfs_rule - record of an ARFS filter and its IDs
+ * @node: linkage into hash table
+ * @spec: details of the filter (used as key for hash table).  Use efx->type to
+ *	determine which member to use.
+ * @rxq_index: channel to which the filter will steer traffic.
+ * @arfs_id: filter ID which was returned to ARFS
+ * @filter_id: index in software filter table.  May be
+ *	%EFX_ARFS_FILTER_ID_PENDING if filter was not inserted yet,
+ *	%EFX_ARFS_FILTER_ID_ERROR if filter insertion failed, or
+ *	%EFX_ARFS_FILTER_ID_REMOVING if expiry is currently removing the filter.
+ */
+struct efx_arfs_rule {
+	struct hlist_node node;
+	struct efx_filter_spec spec;
+	u16 rxq_index;
+	u16 arfs_id;
+	s32 filter_id;
+};
+
+/* Size chosen so that the table is one page (4kB) */
+#define EFX_ARFS_HASH_TABLE_SIZE	512
+
+/**
+ * struct efx_async_filter_insertion - Request to asynchronously insert a filter
+ * @net_dev: Reference to the netdevice
+ * @spec: The filter to insert
+ * @work: Workitem for this request
+ * @rxq_index: Identifies the channel for which this request was made
+ * @flow_id: Identifies the kernel-side flow for which this request was made
+ */
+struct efx_async_filter_insertion {
+	struct net_device *net_dev;
+	struct efx_filter_spec spec;
+	struct work_struct work;
+	u16 rxq_index;
+	u32 flow_id;
+};
+
+/* Maximum number of ARFS workitems that may be in flight on an efx_nic */
+#define EFX_RPS_MAX_IN_FLIGHT	8
+#endif /* CONFIG_RFS_ACCEL */
+
 /**
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
@@ -850,6 +903,12 @@ struct efx_rss_context {
  * @rps_expire_channel: Next channel to check for expiry
  * @rps_expire_index: Next index to check for expiry in
  *	@rps_expire_channel's @rps_flow_id
+ * @rps_slot_map: bitmap of in-flight entries in @rps_slot
+ * @rps_slot: array of ARFS insertion requests for efx_filter_rfs_work()
+ * @rps_hash_lock: Protects ARFS filter mapping state (@rps_hash_table and
+ *	@rps_next_id).
+ * @rps_hash_table: Mapping between ARFS filters and their various IDs
+ * @rps_next_id: next arfs_id for an ARFS filter
  * @active_queues: Count of RX and TX queues that haven't been flushed and drained.
  * @rxq_flush_pending: Count of number of receive queues that need to be flushed.
  *	Decremented when the efx_flush_rx_queue() is called.
@@ -1004,6 +1063,11 @@ struct efx_nic {
 	struct mutex rps_mutex;
 	unsigned int rps_expire_channel;
 	unsigned int rps_expire_index;
+	unsigned long rps_slot_map;
+	struct efx_async_filter_insertion rps_slot[EFX_RPS_MAX_IN_FLIGHT];
+	spinlock_t rps_hash_lock;
+	struct hlist_head *rps_hash_table;
+	u32 rps_next_id;
 #endif
 
 	atomic_t active_queues;

@@ -159,9 +159,8 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 
 	mm->context.id = index;
 
-#ifdef CONFIG_PPC_64K_PAGES
 	mm->context.pte_frag = NULL;
-#endif
+	mm->context.pmd_frag = NULL;
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	mm_iommu_init(mm);
 #endif
@@ -192,33 +191,49 @@ static void destroy_contexts(mm_context_t *ctx)
 	spin_unlock(&mmu_context_lock);
 }
 
-#ifdef CONFIG_PPC_64K_PAGES
-static void destroy_pagetable_page(struct mm_struct *mm)
+static void pte_frag_destroy(void *pte_frag)
 {
 	int count;
-	void *pte_frag;
 	struct page *page;
-
-	pte_frag = mm->context.pte_frag;
-	if (!pte_frag)
-		return;
 
 	page = virt_to_page(pte_frag);
 	/* drop all the pending references */
 	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
-	if (page_ref_sub_and_test(page, PTE_FRAG_NR - count)) {
+	if (atomic_sub_and_test(PTE_FRAG_NR - count, &page->pt_frag_refcount)) {
 		pgtable_page_dtor(page);
-		free_unref_page(page);
+		__free_page(page);
 	}
 }
 
-#else
-static inline void destroy_pagetable_page(struct mm_struct *mm)
+static void pmd_frag_destroy(void *pmd_frag)
 {
+	int count;
+	struct page *page;
+
+	page = virt_to_page(pmd_frag);
+	/* drop all the pending references */
+	count = ((unsigned long)pmd_frag & ~PAGE_MASK) >> PMD_FRAG_SIZE_SHIFT;
+	/* We allow PTE_FRAG_NR fragments from a PTE page */
+	if (atomic_sub_and_test(PMD_FRAG_NR - count, &page->pt_frag_refcount)) {
+		pgtable_pmd_page_dtor(page);
+		__free_page(page);
+	}
+}
+
+static void destroy_pagetable_cache(struct mm_struct *mm)
+{
+	void *frag;
+
+	frag = mm->context.pte_frag;
+	if (frag)
+		pte_frag_destroy(frag);
+
+	frag = mm->context.pmd_frag;
+	if (frag)
+		pmd_frag_destroy(frag);
 	return;
 }
-#endif
 
 void destroy_context(struct mm_struct *mm)
 {
@@ -229,13 +244,14 @@ void destroy_context(struct mm_struct *mm)
 		WARN_ON(process_tb[mm->context.id].prtb0 != 0);
 	else
 		subpage_prot_free(mm);
-	destroy_pagetable_page(mm);
 	destroy_contexts(&mm->context);
 	mm->context.id = MMU_NO_CONTEXT;
 }
 
 void arch_exit_mmap(struct mm_struct *mm)
 {
+	destroy_pagetable_cache(mm);
+
 	if (radix_enabled()) {
 		/*
 		 * Radix doesn't have a valid bit in the process table
@@ -258,15 +274,7 @@ void arch_exit_mmap(struct mm_struct *mm)
 #ifdef CONFIG_PPC_RADIX_MMU
 void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		isync();
-		mtspr(SPRN_PID, next->context.id);
-		isync();
-		asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
-	} else {
-		mtspr(SPRN_PID, next->context.id);
-		isync();
-	}
+	mtspr(SPRN_PID, next->context.id);
+	isync();
 }
 #endif

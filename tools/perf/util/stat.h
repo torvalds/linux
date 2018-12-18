@@ -7,8 +7,7 @@
 #include "xyarray.h"
 #include "rblist.h"
 
-struct stats
-{
+struct stats {
 	double n, mean, M2;
 	u64 max, min;
 };

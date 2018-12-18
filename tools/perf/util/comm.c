@@ -20,9 +20,10 @@ static struct rw_semaphore comm_str_lock = {.lock = PTHREAD_RWLOCK_INITIALIZER,}
 
 static struct comm_str *comm_str__get(struct comm_str *cs)
 {
-	if (cs)
-		refcount_inc(&cs->refcnt);
-	return cs;
+	if (cs && refcount_inc_not_zero(&cs->refcnt))
+		return cs;
+
+	return NULL;
 }
 
 static void comm_str__put(struct comm_str *cs)
@@ -67,9 +68,14 @@ struct comm_str *__comm_str__findnew(const char *str, struct rb_root *root)
 		parent = *p;
 		iter = rb_entry(parent, struct comm_str, rb_node);
 
+		/*
+		 * If we race with comm_str__put, iter->refcnt is 0
+		 * and it will be removed within comm_str__put call
+		 * shortly, ignore it in this search.
+		 */
 		cmp = strcmp(str, iter->str);
-		if (!cmp)
-			return comm_str__get(iter);
+		if (!cmp && comm_str__get(iter))
+			return iter;
 
 		if (cmp < 0)
 			p = &(*p)->rb_left;

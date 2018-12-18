@@ -313,6 +313,9 @@ qed_sp_fcoe_conn_offload(struct qed_hwfn *p_hwfn,
 	p_data->d_id.addr_mid = p_conn->d_id.addr_mid;
 	p_data->d_id.addr_lo = p_conn->d_id.addr_lo;
 	p_data->flags = p_conn->flags;
+	if (test_bit(QED_MF_UFP_SPECIFIC, &p_hwfn->cdev->mf_bits))
+		SET_FIELD(p_data->flags,
+			  FCOE_CONN_OFFLOAD_RAMROD_DATA_B_SINGLE_VLAN, 1);
 	p_data->def_q_idx = p_conn->def_q_idx;
 
 	return qed_spq_post(p_hwfn, p_ent, NULL);

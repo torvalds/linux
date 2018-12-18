@@ -269,7 +269,7 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	if (attribute) {
 		u8 *dst;
 
-		dst = kmalloc(w * vc->vc_font.height, GFP_ATOMIC);
+		dst = kmalloc_array(w, vc->vc_font.height, GFP_ATOMIC);
 		if (!dst)
 			return;
 		kfree(ops->cursor_data);
@@ -312,7 +312,7 @@ static void bit_cursor(struct vc_data *vc, struct fb_info *info, int mode,
 	    vc->vc_cursor_type != ops->p->cursor_shape ||
 	    ops->cursor_state.mask == NULL ||
 	    ops->cursor_reset) {
-		char *mask = kmalloc(w*vc->vc_font.height, GFP_ATOMIC);
+		char *mask = kmalloc_array(w, vc->vc_font.height, GFP_ATOMIC);
 		int cur_height, size, i = 0;
 		u8 msk = 0xff;
 

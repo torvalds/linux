@@ -33,11 +33,9 @@
 	 */
 	gpio_keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		label = "EV3 Brick Buttons";
 		pinctrl-names = "default";
-		pinctrl-0 = <&button_pins>, <&button_bias>;
+		pinctrl-0 = <&button_bias>;
 
 		center {
 			label = "Center";
@@ -81,8 +79,6 @@
 	 */
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins>;
 
 		left_green {
 			label = "led0:green:brick-status";
@@ -119,8 +115,6 @@
 	gpio-poweroff {
 		compatible = "gpio-poweroff";
 		gpios = <&gpio 107 GPIO_ACTIVE_LOW>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&system_power_pin>;
 	};
 
 	sound {
@@ -136,8 +130,6 @@
 	 * the sensor (input) ports, the motor (output) ports and the A/DC.
 	 */
 	vcc5v: regulator1 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&vcc5v_pins>;
 		compatible = "regulator-fixed";
 		regulator-name = "vcc5v";
 		regulator-min-microvolt = <5000000>;
@@ -165,8 +157,6 @@
 	 * This is the amplifier for the speaker.
 	 */
 	amp: regulator3 {
-		pinctrl-names = "default";
-		pinctrl-0 = <&amp_pins>;
 		compatible = "regulator-fixed";
 		regulator-name = "amp";
 		gpio = <&gpio 111 GPIO_ACTIVE_HIGH>;
@@ -177,8 +167,6 @@
 	 * The EV3 can use 6-AA batteries or a rechargeable Li-ion battery pack.
 	 */
 	battery {
-		pinctrl-names = "default";
-		pinctrl-0 = <&battery_pins>;
 		compatible = "lego,ev3-battery";
 		io-channels = <&adc 4>, <&adc 3>;
 		io-channel-names = "voltage", "current";
@@ -206,73 +194,10 @@
 &pmx_core {
 	status = "okay";
 
-	mmc0_cd_pin: pinmux_mmc0_cd {
-		pinctrl-single,bits = <
-			/* GP5[14] */
-			0x2C 0x00000080 0x000000f0
-		>;
-	};
-
-	button_pins: pinmux_button_pins {
-		pinctrl-single,bits = <
-			/* GP1[13] */
-			0x8 0x00000800 0x00000f00
-			/* GP6[10] */
-			0x34 0x00800000 0x00f00000
-			/* GP6[6] */
-			0x38 0x00000080 0x000000f0
-			/* GP7[12], GP7[14], GP7[15] */
-			0x40 0x00808800 0x00f0ff00
-		>;
-	};
-
-	led_pins: pinmux_led_pins {
-		pinctrl-single,bits = <
-			/* GP6[12], GP6[13], GP6[14] */
-			0x34 0x00008880 0x0000fff0
-			/* GP6[7] */
-			0x38 0x00000008 0x0000000f
-		>;
-	};
-
-	system_power_pin: pinmux_system_power {
-		pinctrl-single,bits = <
-			/* GP6[11] */
-			0x34 0x00080000 0x000f0000
-		>;
-	};
-
-	vcc5v_pins: pinmux_vcc5v {
-		pinctrl-single,bits = <
-			/* GP6[5] */
-			0x40 0x00000080 0x000000f0
-			/* GP6[3] */
-			0x4c 0x00008000 0x0000f000
-		>;
-	};
-
-	amp_pins: pinmux_amp_pins {
-		pinctrl-single,bits = <
-			/* GP6[15] */
-			0x34 0x00000008 0x0000000f
-		>;
-	};
-
-	battery_pins: pinmux_battery_pins {
-		pinctrl-single,bits = <
-			/* GP0[6] */
-			0x04 0x00000080 0x000000f0
-			/* GP8[8] */
-			0x4c 0x00000080 0x000000f0
-		>;
-	};
-
 	ev3_lcd_pins: pinmux_lcd {
 		pinctrl-single,bits = <
-			/* SIMO, GP2[11], GP2[12], CLK */
-			0x14 0x00188100 0x00ffff00
-			/* GP5[0] */
-			0x30 0x80000000 0xf0000000
+			/* SIMO, CLK */
+			0x14 0x00100100 0x00f00f00
 		>;
 	};
 };
@@ -327,7 +252,7 @@
 	bus-width = <4>;
 	cd-gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins>, <&mmc0_cd_pin>;
+	pinctrl-0 = <&mmc0_pins>;
 };
 
 &spi0 {

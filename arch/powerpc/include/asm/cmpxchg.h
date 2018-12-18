@@ -5,8 +5,8 @@
 #ifdef __KERNEL__
 #include <linux/compiler.h>
 #include <asm/synch.h>
-#include <asm/asm-compat.h>
 #include <linux/bug.h>
+#include <asm/asm-405.h>
 
 #ifdef __BIG_ENDIAN
 #define BITOFF_CAL(size, off)	((sizeof(u32) - size - off) * BITS_PER_BYTE)

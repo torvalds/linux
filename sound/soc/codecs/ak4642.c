@@ -1,17 +1,13 @@
-/*
- * ak4642.c  --  AK4642/AK4643 ALSA Soc Audio driver
- *
- * Copyright (C) 2009 Renesas Solutions Corp.
- * Kuninori Morimoto <morimoto.kuninori@renesas.com>
- *
- * Based on wm8731.c by Richard Purdie
- * Based on ak4535.c by Richard Purdie
- * Based on wm8753.c by Liam Girdwood
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ak4642.c  --  AK4642/AK4643 ALSA Soc Audio driver
+//
+// Copyright (C) 2009 Renesas Solutions Corp.
+// Kuninori Morimoto <morimoto.kuninori@renesas.com>
+//
+// Based on wm8731.c by Richard Purdie
+// Based on ak4535.c by Richard Purdie
+// Based on wm8753.c by Liam Girdwood
 
 /* ** CAUTION **
  *
@@ -709,4 +705,4 @@ module_i2c_driver(ak4642_i2c_driver);
 
 MODULE_DESCRIPTION("Soc AK4642 driver");
 MODULE_AUTHOR("Kuninori Morimoto <morimoto.kuninori@renesas.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

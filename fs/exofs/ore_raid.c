@@ -71,6 +71,11 @@ static int _sp2d_alloc(unsigned pages_in_unit, unsigned group_width,
 {
 	struct __stripe_pages_2d *sp2d;
 	unsigned data_devs = group_width - parity;
+
+	/*
+	 * Desired allocation layout is, though when larger than PAGE_SIZE,
+	 * each struct __alloc_1p_arrays is separately allocated:
+
 	struct _alloc_all_bytes {
 		struct __alloc_stripe_pages_2d {
 			struct __stripe_pages_2d sp2d;
@@ -82,55 +87,85 @@ static int _sp2d_alloc(unsigned pages_in_unit, unsigned group_width,
 			char page_is_read[data_devs];
 		} __a1pa[pages_in_unit];
 	} *_aab;
+
 	struct __alloc_1p_arrays *__a1pa;
 	struct __alloc_1p_arrays *__a1pa_end;
-	const unsigned sizeof__a1pa = sizeof(_aab->__a1pa[0]);
+
+	*/
+
+	char *__a1pa;
+	char *__a1pa_end;
+
+	const size_t sizeof_stripe_pages_2d =
+		sizeof(struct __stripe_pages_2d) +
+		sizeof(struct __1_page_stripe) * pages_in_unit;
+	const size_t sizeof__a1pa =
+		ALIGN(sizeof(struct page *) * (2 * group_width) + data_devs,
+		      sizeof(void *));
+	const size_t sizeof__a1pa_arrays = sizeof__a1pa * pages_in_unit;
+	const size_t alloc_total = sizeof_stripe_pages_2d +
+				   sizeof__a1pa_arrays;
+
 	unsigned num_a1pa, alloc_size, i;
 
 	/* FIXME: check these numbers in ore_verify_layout */
-	BUG_ON(sizeof(_aab->__asp2d) > PAGE_SIZE);
+	BUG_ON(sizeof_stripe_pages_2d > PAGE_SIZE);
 	BUG_ON(sizeof__a1pa > PAGE_SIZE);
 
-	if (sizeof(*_aab) > PAGE_SIZE) {
-		num_a1pa = (PAGE_SIZE - sizeof(_aab->__asp2d)) / sizeof__a1pa;
-		alloc_size = sizeof(_aab->__asp2d) + sizeof__a1pa * num_a1pa;
+	/*
+	 * If alloc_total would be larger than PAGE_SIZE, only allocate
+	 * as many a1pa items as would fill the rest of the page, instead
+	 * of the full pages_in_unit count.
+	 */
+	if (alloc_total > PAGE_SIZE) {
+		num_a1pa = (PAGE_SIZE - sizeof_stripe_pages_2d) / sizeof__a1pa;
+		alloc_size = sizeof_stripe_pages_2d + sizeof__a1pa * num_a1pa;
 	} else {
 		num_a1pa = pages_in_unit;
-		alloc_size = sizeof(*_aab);
+		alloc_size = alloc_total;
 	}
 
-	_aab = kzalloc(alloc_size, GFP_KERNEL);
-	if (unlikely(!_aab)) {
+	*psp2d = sp2d = kzalloc(alloc_size, GFP_KERNEL);
+	if (unlikely(!sp2d)) {
 		ORE_DBGMSG("!! Failed to alloc sp2d size=%d\n", alloc_size);
 		return -ENOMEM;
 	}
+	/* From here Just call _sp2d_free */
 
-	sp2d = &_aab->__asp2d.sp2d;
-	*psp2d = sp2d; /* From here Just call _sp2d_free */
+	/* Find start of a1pa area. */
+	__a1pa = (char *)sp2d + sizeof_stripe_pages_2d;
+	/* Find end of the _allocated_ a1pa area. */
+	__a1pa_end = __a1pa + alloc_size;
 
-	__a1pa = _aab->__a1pa;
-	__a1pa_end = __a1pa + num_a1pa;
-
+	/* Allocate additionally needed a1pa items in PAGE_SIZE chunks. */
 	for (i = 0; i < pages_in_unit; ++i) {
+		struct __1_page_stripe *stripe = &sp2d->_1p_stripes[i];
+
 		if (unlikely(__a1pa >= __a1pa_end)) {
 			num_a1pa = min_t(unsigned, PAGE_SIZE / sizeof__a1pa,
 							pages_in_unit - i);
+			alloc_size = sizeof__a1pa * num_a1pa;
 
-			__a1pa = kcalloc(num_a1pa, sizeof__a1pa, GFP_KERNEL);
+			__a1pa = kzalloc(alloc_size, GFP_KERNEL);
 			if (unlikely(!__a1pa)) {
 				ORE_DBGMSG("!! Failed to _alloc_1p_arrays=%d\n",
 					   num_a1pa);
 				return -ENOMEM;
 			}
-			__a1pa_end = __a1pa + num_a1pa;
+			__a1pa_end = __a1pa + alloc_size;
 			/* First *pages is marked for kfree of the buffer */
-			sp2d->_1p_stripes[i].alloc = true;
+			stripe->alloc = true;
 		}
 
-		sp2d->_1p_stripes[i].pages = __a1pa->pages;
-		sp2d->_1p_stripes[i].scribble = __a1pa->scribble ;
-		sp2d->_1p_stripes[i].page_is_read = __a1pa->page_is_read;
-		++__a1pa;
+		/*
+		 * Attach all _lp_stripes pointers to the allocation for
+		 * it which was either part of the original PAGE_SIZE
+		 * allocation or the subsequent allocation in this loop.
+		 */
+		stripe->pages = (void *)__a1pa;
+		stripe->scribble = stripe->pages + group_width;
+		stripe->page_is_read = (char *)stripe->scribble + group_width;
+		__a1pa += sizeof__a1pa;
 	}
 
 	sp2d->parity = parity;

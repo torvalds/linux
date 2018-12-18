@@ -1061,6 +1061,13 @@ static int arcmsr_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	if (arcmsr_request_irq(pdev, acb) == FAILED)
 		goto controller_stop;
+	if (acb->adapter_type == ACB_ADAPTER_TYPE_E) {
+		writel(0, &acb->pmuE->host_int_status);
+		writel(ARCMSR_HBEMU_DOORBELL_SYNC, &acb->pmuE->iobound_doorbell);
+		acb->in_doorbell = 0;
+		acb->out_doorbell = 0;
+		acb->doneq_index = 0;
+	}
 	arcmsr_iop_init(acb);
 	arcmsr_init_get_devmap_timer(acb);
 	if (set_date_time)

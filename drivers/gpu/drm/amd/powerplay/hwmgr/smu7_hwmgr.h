@@ -184,6 +184,8 @@ struct smu7_odn_dpm_table {
 	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_sclk;
 	struct smu7_odn_clock_voltage_dependency_table	vdd_dependency_on_mclk;
 	uint32_t					odn_mclk_min_limit;
+	uint32_t min_vddc;
+	uint32_t max_vddc;
 };
 
 struct profile_mode_setting {
@@ -308,7 +310,6 @@ struct smu7_hwmgr {
 	/* ---- Power Gating States ---- */
 	bool                           uvd_power_gated;
 	bool                           vce_power_gated;
-	bool                           samu_power_gated;
 	bool                           need_long_memory_training;
 
 	/* Application power optimization parameters */
@@ -325,7 +326,6 @@ struct smu7_hwmgr {
 	uint16_t                              mem_latency_high;
 	uint16_t                              mem_latency_low;
 	uint32_t                              vr_config;
-	struct profile_mode_setting           custom_profile_setting;
 	struct profile_mode_setting           current_profile_setting;
 };
 

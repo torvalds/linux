@@ -233,9 +233,9 @@ static const char *chanctx_state_string(enum ath_chanctx_state state)
 static u32 chanctx_event_delta(struct ath_softc *sc)
 {
 	u64 ms;
-	struct timespec ts, *old;
+	struct timespec64 ts, *old;
 
-	getrawmonotonic(&ts);
+	ktime_get_raw_ts64(&ts);
 	old = &sc->last_event_time;
 	ms = ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
 	ms -= old->tv_sec * 1000 + old->tv_nsec / 1000000;
@@ -334,7 +334,7 @@ ath_chanctx_get_next(struct ath_softc *sc, struct ath_chanctx *ctx)
 static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 {
 	struct ath_chanctx *prev, *cur;
-	struct timespec ts;
+	struct timespec64 ts;
 	u32 cur_tsf, prev_tsf, beacon_int;
 	s32 offset;
 
@@ -346,7 +346,7 @@ static void ath_chanctx_adjust_tbtt_delta(struct ath_softc *sc)
 	if (!prev->switch_after_beacon)
 		return;
 
-	getrawmonotonic(&ts);
+	ktime_get_raw_ts64(&ts);
 	cur_tsf = (u32) cur->tsf_val +
 		  ath9k_hw_get_tsf_offset(&cur->tsf_ts, &ts);
 
@@ -1230,7 +1230,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	struct ath_chanctx *old_ctx;
-	struct timespec ts;
+	struct timespec64 ts;
 	bool measure_time = false;
 	bool send_ps = false;
 	bool queues_stopped = false;
@@ -1260,7 +1260,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		spin_unlock_bh(&sc->chan_lock);
 
 		if (sc->next_chan == &sc->offchannel.chan) {
-			getrawmonotonic(&ts);
+			ktime_get_raw_ts64(&ts);
 			measure_time = true;
 		}
 
@@ -1277,7 +1277,7 @@ void ath_chanctx_set_next(struct ath_softc *sc, bool force)
 		spin_lock_bh(&sc->chan_lock);
 
 		if (sc->cur_chan != &sc->offchannel.chan) {
-			getrawmonotonic(&sc->cur_chan->tsf_ts);
+			ktime_get_raw_ts64(&sc->cur_chan->tsf_ts);
 			sc->cur_chan->tsf_val = ath9k_hw_gettsf64(sc->sc_ah);
 		}
 	}

@@ -155,6 +155,7 @@ struct switchdev_notifier_fdb_info {
 	struct switchdev_notifier_info info; /* must be first */
 	const unsigned char *addr;
 	u16 vid;
+	bool added_by_user;
 };
 
 static inline struct net_device *

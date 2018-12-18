@@ -2,7 +2,7 @@
 /*
  * Performance event support for the System z CPU-measurement Sampling Facility
  *
- * Copyright IBM Corp. 2013
+ * Copyright IBM Corp. 2013, 2018
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 #define KMSG_COMPONENT	"cpum_sf"
@@ -753,6 +753,10 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 */
 	rate = 0;
 	if (attr->freq) {
+		if (!attr->sample_freq) {
+			err = -EINVAL;
+			goto out;
+		}
 		rate = freq_to_sample_rate(&si, attr->sample_freq);
 		rate = hw_limit_rate(&si, rate);
 		attr->freq = 0;
@@ -1583,6 +1587,17 @@ static void aux_buffer_free(void *data)
 			    "%lu SDBTs\n", num_sdbt);
 }
 
+static void aux_sdb_init(unsigned long sdb)
+{
+	struct hws_trailer_entry *te;
+
+	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+
+	/* Save clock base */
+	te->clock_base = 1;
+	memcpy(&te->progusage2, &tod_clock_base[1], 8);
+}
+
 /*
  * aux_buffer_setup() - Setup AUX buffer for diagnostic mode sampling
  * @cpu:	On which to allocate, -1 means current
@@ -1662,6 +1677,7 @@ static void *aux_buffer_setup(int cpu, void **pages, int nr_pages,
 		/* Tail is the entry in a SDBT */
 		*tail = (unsigned long)pages[i];
 		aux->sdb_index[i] = (unsigned long)pages[i];
+		aux_sdb_init((unsigned long)pages[i]);
 	}
 	sfb->num_sdb = nr_pages;
 

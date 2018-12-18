@@ -355,9 +355,9 @@ static int fc2580_dvb_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops fc2580_dvb_tuner_ops = {
 	.info = {
-		.name           = "FCI FC2580",
-		.frequency_min  = 174000000,
-		.frequency_max  = 862000000,
+		.name             = "FCI FC2580",
+		.frequency_min_hz = 174 * MHz,
+		.frequency_max_hz = 862 * MHz,
 	},
 
 	.init = fc2580_dvb_init,

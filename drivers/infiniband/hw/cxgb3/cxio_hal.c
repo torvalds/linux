@@ -279,7 +279,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 	if (!wq->qpid)
 		return -ENOMEM;
 
-	wq->rq = kzalloc(depth * sizeof(struct t3_swrq), GFP_KERNEL);
+	wq->rq = kcalloc(depth, sizeof(struct t3_swrq), GFP_KERNEL);
 	if (!wq->rq)
 		goto err1;
 
@@ -287,7 +287,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 	if (!wq->rq_addr)
 		goto err2;
 
-	wq->sq = kzalloc(depth * sizeof(struct t3_swsq), GFP_KERNEL);
+	wq->sq = kcalloc(depth, sizeof(struct t3_swsq), GFP_KERNEL);
 	if (!wq->sq)
 		goto err3;
 

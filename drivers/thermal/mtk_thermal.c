@@ -153,6 +153,12 @@
 /* The number of sensing points per bank */
 #define MT2712_NUM_SENSORS_PER_ZONE	4
 
+#define MT7622_TEMP_AUXADC_CHANNEL	11
+#define MT7622_NUM_SENSORS		1
+#define MT7622_NUM_ZONES		1
+#define MT7622_NUM_SENSORS_PER_ZONE	1
+#define MT7622_TS1	0
+
 struct mtk_thermal;
 
 struct thermal_bank_cfg {
@@ -242,6 +248,12 @@ static const int mt2712_adcpnp[MT2712_NUM_SENSORS_PER_ZONE] = {
 
 static const int mt2712_mux_values[MT2712_NUM_SENSORS] = { 0, 1, 2, 3 };
 
+/* MT7622 thermal sensor data */
+static const int mt7622_bank_data[MT7622_NUM_SENSORS] = { MT7622_TS1, };
+static const int mt7622_msr[MT7622_NUM_SENSORS_PER_ZONE] = { TEMP_MSR0, };
+static const int mt7622_adcpnp[MT7622_NUM_SENSORS_PER_ZONE] = { TEMP_ADCPNP0, };
+static const int mt7622_mux_values[MT7622_NUM_SENSORS] = { 0, };
+
 /**
  * The MT8173 thermal controller has four banks. Each bank can read up to
  * four temperature sensors simultaneously. The MT8173 has a total of 5
@@ -327,6 +339,25 @@ static const struct mtk_thermal_data mt2712_thermal_data = {
 	.msr = mt2712_msr,
 	.adcpnp = mt2712_adcpnp,
 	.sensor_mux_values = mt2712_mux_values,
+};
+
+/*
+ * MT7622 have only one sensing point which uses AUXADC Channel 11 for raw data
+ * access.
+ */
+static const struct mtk_thermal_data mt7622_thermal_data = {
+	.auxadc_channel = MT7622_TEMP_AUXADC_CHANNEL,
+	.num_banks = MT7622_NUM_ZONES,
+	.num_sensors = MT7622_NUM_SENSORS,
+	.bank_data = {
+		{
+			.num_sensors = 1,
+			.sensors = mt7622_bank_data,
+		},
+	},
+	.msr = mt7622_msr,
+	.adcpnp = mt7622_adcpnp,
+	.sensor_mux_values = mt7622_mux_values,
 };
 
 /**
@@ -631,6 +662,10 @@ static const struct of_device_id mtk_thermal_of_match[] = {
 	{
 		.compatible = "mediatek,mt2712-thermal",
 		.data = (void *)&mt2712_thermal_data,
+	},
+	{
+		.compatible = "mediatek,mt7622-thermal",
+		.data = (void *)&mt7622_thermal_data,
 	}, {
 	},
 };
@@ -642,7 +677,6 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	struct device_node *auxadc, *apmixedsys, *np = pdev->dev.of_node;
 	struct mtk_thermal *mt;
 	struct resource *res;
-	const struct of_device_id *of_id;
 	u64 auxadc_phys_base, apmixed_phys_base;
 	struct thermal_zone_device *tzdev;
 
@@ -650,9 +684,7 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 	if (!mt)
 		return -ENOMEM;
 
-	of_id = of_match_device(mtk_thermal_of_match, &pdev->dev);
-	if (of_id)
-		mt->conf = (const struct mtk_thermal_data *)of_id->data;
+	mt->conf = of_device_get_match_data(&pdev->dev);
 
 	mt->clk_peri_therm = devm_clk_get(&pdev->dev, "therm");
 	if (IS_ERR(mt->clk_peri_therm))

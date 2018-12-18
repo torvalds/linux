@@ -814,9 +814,9 @@ void start_tty(struct tty_struct *tty)
 }
 EXPORT_SYMBOL(start_tty);
 
-static void tty_update_time(struct timespec *time)
+static void tty_update_time(struct timespec64 *time)
 {
-	unsigned long sec = get_seconds();
+	time64_t sec = ktime_get_real_seconds();
 
 	/*
 	 * We only care if the two values differ in anything other than the
@@ -2816,7 +2816,10 @@ struct tty_struct *alloc_tty_struct(struct tty_driver *driver, int idx)
 
 	kref_init(&tty->kref);
 	tty->magic = TTY_MAGIC;
-	tty_ldisc_init(tty);
+	if (tty_ldisc_init(tty)) {
+		kfree(tty);
+		return NULL;
+	}
 	tty->session = NULL;
 	tty->pgrp = NULL;
 	mutex_init(&tty->legacy_mutex);

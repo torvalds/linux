@@ -44,12 +44,16 @@
 #define SUN8I_MIXER_BLEND_CK_MIN(x)		(0x10e0 + 0x04 * (x))
 #define SUN8I_MIXER_BLEND_OUTCTL		0x10fc
 
+#define SUN8I_MIXER_BLEND_PIPE_CTL_EN_MSK	GENMASK(12, 8)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_EN(pipe)	BIT(8 + pipe)
 #define SUN8I_MIXER_BLEND_PIPE_CTL_FC_EN(pipe)	BIT(pipe)
 /* colors are always in AARRGGBB format */
 #define SUN8I_MIXER_BLEND_COLOR_BLACK		0xff000000
 /* The following numbers are some still unknown magic numbers */
 #define SUN8I_MIXER_BLEND_MODE_DEF		0x03010301
+
+#define SUN8I_MIXER_BLEND_ROUTE_PIPE_MSK(n)	(0xf << ((n) << 2))
+#define SUN8I_MIXER_BLEND_ROUTE_PIPE_SHIFT(n)	((n) << 2)
 
 #define SUN8I_MIXER_BLEND_OUTCTL_INTERLACED	BIT(1)
 

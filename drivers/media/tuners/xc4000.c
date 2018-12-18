@@ -398,8 +398,8 @@ static int xc_set_rf_frequency(struct xc4000_priv *priv, u32 freq_hz)
 
 	dprintk(1, "%s(%u)\n", __func__, freq_hz);
 
-	if ((freq_hz > xc4000_tuner_ops.info.frequency_max) ||
-	    (freq_hz < xc4000_tuner_ops.info.frequency_min))
+	if ((freq_hz > xc4000_tuner_ops.info.frequency_max_hz) ||
+	    (freq_hz < xc4000_tuner_ops.info.frequency_min_hz))
 		return -EINVAL;
 
 	freq_code = (u16)(freq_hz / 15625);
@@ -815,9 +815,9 @@ static int xc4000_fwupload(struct dvb_frontend *fe)
 		p += sizeof(size);
 
 		if (!size || size > endp - p) {
-			printk(KERN_ERR "Firmware type (%x), id %llx is corrupted (size=%d, expected %d)\n",
+			printk(KERN_ERR "Firmware type (%x), id %llx is corrupted (size=%zd, expected %d)\n",
 			       type, (unsigned long long)id,
-			       (unsigned)(endp - p), size);
+			       endp - p, size);
 			goto corrupt;
 		}
 
@@ -1635,10 +1635,10 @@ static void xc4000_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops xc4000_tuner_ops = {
 	.info = {
-		.name           = "Xceive XC4000",
-		.frequency_min  =    1000000,
-		.frequency_max  = 1023000000,
-		.frequency_step =      50000,
+		.name              = "Xceive XC4000",
+		.frequency_min_hz  =    1 * MHz,
+		.frequency_max_hz  = 1023 * MHz,
+		.frequency_step_hz =   50 * kHz,
 	},
 
 	.release	   = xc4000_release,

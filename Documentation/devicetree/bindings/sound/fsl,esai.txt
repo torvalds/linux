@@ -42,6 +42,8 @@ Required properties:
 			  means all the settings for Receiving would be
 			  duplicated from Transmition related registers.
 
+Optional properties:
+
   - big-endian		: If this property is absent, the native endian mode
 			  will be in use as default, or the big endian mode
 			  will be in use for all the device registers.

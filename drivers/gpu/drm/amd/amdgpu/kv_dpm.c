@@ -1921,7 +1921,7 @@ static int kv_dpm_set_power_state(void *handle)
 	int ret;
 
 	if (pi->bapm_enable) {
-		ret = amdgpu_kv_smc_bapm_enable(adev, adev->pm.dpm.ac_power);
+		ret = amdgpu_kv_smc_bapm_enable(adev, adev->pm.ac_power);
 		if (ret) {
 			DRM_ERROR("amdgpu_kv_smc_bapm_enable failed\n");
 			return ret;
@@ -2727,8 +2727,9 @@ static int kv_parse_power_table(struct amdgpu_device *adev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	adev->pm.dpm.ps = kzalloc(sizeof(struct amdgpu_ps) *
-				  state_array->ucNumEntries, GFP_KERNEL);
+	adev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
+				  sizeof(struct amdgpu_ps),
+				  GFP_KERNEL);
 	if (!adev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;
@@ -2817,7 +2818,7 @@ static int kv_dpm_init(struct amdgpu_device *adev)
 		pi->caps_tcp_ramping = true;
 	}
 
-	if (amdgpu_pp_feature_mask & SCLK_DEEP_SLEEP_MASK)
+	if (adev->powerplay.pp_feature & PP_SCLK_DEEP_SLEEP_MASK)
 		pi->caps_sclk_ds = true;
 	else
 		pi->caps_sclk_ds = false;
@@ -2974,7 +2975,7 @@ static int kv_dpm_late_init(void *handle)
 	/* powerdown unused blocks for now */
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!adev->pm.dpm_enabled)
 		return 0;
 
 	kv_dpm_powergate_acp(adev, true);
@@ -3305,6 +3306,19 @@ static int kv_dpm_read_sensor(void *handle, int idx,
 	}
 }
 
+static int kv_set_powergating_by_smu(void *handle,
+				uint32_t block_type, bool gate)
+{
+	switch (block_type) {
+	case AMD_IP_BLOCK_TYPE_UVD:
+		kv_dpm_powergate_uvd(handle, gate);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static const struct amd_ip_funcs kv_dpm_ip_funcs = {
 	.name = "kv_dpm",
 	.early_init = kv_dpm_early_init,
@@ -3341,7 +3355,7 @@ static const struct amd_pm_funcs kv_dpm_funcs = {
 	.print_power_state = &kv_dpm_print_power_state,
 	.debugfs_print_current_performance_level = &kv_dpm_debugfs_print_current_performance_level,
 	.force_performance_level = &kv_dpm_force_performance_level,
-	.powergate_uvd = &kv_dpm_powergate_uvd,
+	.set_powergating_by_smu = kv_set_powergating_by_smu,
 	.enable_bapm = &kv_dpm_enable_bapm,
 	.get_vce_clock_state = amdgpu_get_vce_clock_state,
 	.check_state_equal = kv_check_state_equal,

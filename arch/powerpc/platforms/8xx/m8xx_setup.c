@@ -169,15 +169,14 @@ int mpc8xx_set_rtc_time(struct rtc_time *tm)
 {
 	sitk8xx_t __iomem *sys_tmr1;
 	sit8xx_t __iomem *sys_tmr2;
-	int time;
+	time64_t time;
 
 	sys_tmr1 = immr_map(im_sitk);
 	sys_tmr2 = immr_map(im_sit);
-	time = mktime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-	              tm->tm_hour, tm->tm_min, tm->tm_sec);
+	time = rtc_tm_to_time64(tm);
 
 	out_be32(&sys_tmr1->sitk_rtck, KAPWR_KEY);
-	out_be32(&sys_tmr2->sit_rtc, time);
+	out_be32(&sys_tmr2->sit_rtc, (u32)time);
 	out_be32(&sys_tmr1->sitk_rtck, ~KAPWR_KEY);
 
 	immr_unmap(sys_tmr2);
@@ -192,9 +191,7 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 
 	/* Get time from the RTC. */
 	data = in_be32(&sys_tmr->sit_rtc);
-	to_tm(data, tm);
-	tm->tm_year -= 1900;
-	tm->tm_mon -= 1;
+	rtc_time64_to_tm(data, tm);
 	immr_unmap(sys_tmr);
 	return;
 }

@@ -428,7 +428,7 @@ static void cx25821_registers_init(struct cx25821_dev *dev)
 	tmp |= FLD_USE_ALT_PLL_REF;
 	cx_write(CLK_RST, tmp & ~(FLD_VID_I_CLK_NOE | FLD_VID_J_CLK_NOE));
 
-	mdelay(100);
+	msleep(100);
 }
 
 int cx25821_sram_channel_setup(struct cx25821_dev *dev,
@@ -803,7 +803,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	cx_write(CLK_DELAY, cx_read(CLK_DELAY) & 0x80000000);
 	cx_write(PAD_CTRL, 0x12);	/* for I2C */
 	cx25821_registers_init(dev);	/* init Pecos registers */
-	mdelay(100);
+	msleep(100);
 
 	for (i = 0; i < VID_CHANNEL_NUM; i++) {
 		cx25821_set_vip_mode(dev, dev->channels[i].sram_channels);

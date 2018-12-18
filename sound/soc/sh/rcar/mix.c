@@ -1,12 +1,8 @@
-/*
- * mix.c
- *
- * Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// mix.c
+//
+// Copyright (c) 2015 Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
 
 /*
  *		    CTUn	MIXn
@@ -294,7 +290,7 @@ int rsnd_mix_probe(struct rsnd_priv *priv)
 		goto rsnd_mix_probe_done;
 	}
 
-	mix	= devm_kzalloc(dev, sizeof(*mix) * nr, GFP_KERNEL);
+	mix	= devm_kcalloc(dev, nr, sizeof(*mix), GFP_KERNEL);
 	if (!mix) {
 		ret = -ENOMEM;
 		goto rsnd_mix_probe_done;

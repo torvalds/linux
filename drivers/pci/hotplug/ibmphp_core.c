@@ -379,7 +379,7 @@ static int get_adapter_present(struct hotplug_slot *hotplug_slot, u8 *value)
 
 static int get_max_bus_speed(struct slot *slot)
 {
-	int rc;
+	int rc = 0;
 	u8 mode = 0;
 	enum pci_bus_speed speed;
 	struct pci_bus *bus = slot->hotplug_slot->pci_slot->bus;
@@ -673,7 +673,20 @@ static void free_slots(void)
 
 	list_for_each_entry_safe(slot_cur, next, &ibmphp_slot_head,
 				 ibm_slot_list) {
-		pci_hp_deregister(slot_cur->hotplug_slot);
+		pci_hp_del(slot_cur->hotplug_slot);
+		slot_cur->ctrl = NULL;
+		slot_cur->bus_on = NULL;
+
+		/*
+		 * We don't want to actually remove the resources,
+		 * since ibmphp_free_resources() will do just that.
+		 */
+		ibmphp_unconfigure_card(&slot_cur, -1);
+
+		pci_hp_destroy(slot_cur->hotplug_slot);
+		kfree(slot_cur->hotplug_slot->info);
+		kfree(slot_cur->hotplug_slot);
+		kfree(slot_cur);
 	}
 	debug("%s -- exit\n", __func__);
 }

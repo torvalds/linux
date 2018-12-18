@@ -780,14 +780,15 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 	if (!rdi)
 		return ERR_PTR(-EINVAL);
 
-	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_sge ||
+	if (init_attr->cap.max_send_sge > rdi->dparms.props.max_send_sge ||
 	    init_attr->cap.max_send_wr > rdi->dparms.props.max_qp_wr ||
 	    init_attr->create_flags)
 		return ERR_PTR(-EINVAL);
 
 	/* Check receive queue parameters if no SRQ is specified. */
 	if (!init_attr->srq) {
-		if (init_attr->cap.max_recv_sge > rdi->dparms.props.max_sge ||
+		if (init_attr->cap.max_recv_sge >
+		    rdi->dparms.props.max_recv_sge ||
 		    init_attr->cap.max_recv_wr > rdi->dparms.props.max_qp_wr)
 			return ERR_PTR(-EINVAL);
 
@@ -813,7 +814,7 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		sz = sizeof(struct rvt_sge) *
 			init_attr->cap.max_send_sge +
 			sizeof(struct rvt_swqe);
-		swq = vzalloc_node(sqsize * sz, rdi->dparms.node);
+		swq = vzalloc_node(array_size(sz, sqsize), rdi->dparms.node);
 		if (!swq)
 			return ERR_PTR(-ENOMEM);
 
@@ -836,11 +837,10 @@ struct ib_qp *rvt_create_qp(struct ib_pd *ibpd,
 		RCU_INIT_POINTER(qp->next, NULL);
 		if (init_attr->qp_type == IB_QPT_RC) {
 			qp->s_ack_queue =
-				kzalloc_node(
-					sizeof(*qp->s_ack_queue) *
-					 rvt_max_atomic(rdi),
-					GFP_KERNEL,
-					rdi->dparms.node);
+				kcalloc_node(rvt_max_atomic(rdi),
+					     sizeof(*qp->s_ack_queue),
+					     GFP_KERNEL,
+					     rdi->dparms.node);
 			if (!qp->s_ack_queue)
 				goto bail_qp;
 		}
@@ -1337,13 +1337,13 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 		qp->qp_access_flags = attr->qp_access_flags;
 
 	if (attr_mask & IB_QP_AV) {
-		qp->remote_ah_attr = attr->ah_attr;
+		rdma_replace_ah_attr(&qp->remote_ah_attr, &attr->ah_attr);
 		qp->s_srate = rdma_ah_get_static_rate(&attr->ah_attr);
 		qp->srate_mbps = ib_rate_to_mbps(qp->s_srate);
 	}
 
 	if (attr_mask & IB_QP_ALT_PATH) {
-		qp->alt_ah_attr = attr->alt_ah_attr;
+		rdma_replace_ah_attr(&qp->alt_ah_attr, &attr->alt_ah_attr);
 		qp->s_alt_pkey_index = attr->alt_pkey_index;
 	}
 
@@ -1460,6 +1460,8 @@ int rvt_destroy_qp(struct ib_qp *ibqp)
 	vfree(qp->s_wq);
 	rdi->driver_f.qp_priv_free(rdi, qp);
 	kfree(qp->s_ack_queue);
+	rdma_destroy_ah_attr(&qp->remote_ah_attr);
+	rdma_destroy_ah_attr(&qp->alt_ah_attr);
 	kfree(qp);
 	return 0;
 }
@@ -1536,8 +1538,8 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
  *
  * Return: 0 on success otherwise errno
  */
-int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		  struct ib_recv_wr **bad_wr)
+int rvt_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		  const struct ib_recv_wr **bad_wr)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_rwq *wq = qp->r_rq.wq;
@@ -1618,7 +1620,7 @@ int rvt_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 static inline int rvt_qp_valid_operation(
 	struct rvt_qp *qp,
 	const struct rvt_operation_params *post_parms,
-	struct ib_send_wr *wr)
+	const struct ib_send_wr *wr)
 {
 	int len;
 
@@ -1715,7 +1717,7 @@ static inline int rvt_qp_is_avail(
  * @wr: the work request to send
  */
 static int rvt_post_one_wr(struct rvt_qp *qp,
-			   struct ib_send_wr *wr,
+			   const struct ib_send_wr *wr,
 			   int *call_send)
 {
 	struct rvt_swqe *wqe;
@@ -1889,8 +1891,8 @@ bail_inval_free:
  *
  * Return: 0 on success else errno
  */
-int rvt_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		  struct ib_send_wr **bad_wr)
+int rvt_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		  const struct ib_send_wr **bad_wr)
 {
 	struct rvt_qp *qp = ibqp_to_rvtqp(ibqp);
 	struct rvt_dev_info *rdi = ib_to_rvt(ibqp->device);
@@ -1946,8 +1948,8 @@ bail:
  *
  * Return: 0 on success else errno
  */
-int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
-		      struct ib_recv_wr **bad_wr)
+int rvt_post_srq_recv(struct ib_srq *ibsrq, const struct ib_recv_wr *wr,
+		      const struct ib_recv_wr **bad_wr)
 {
 	struct rvt_srq *srq = ibsrq_to_rvtsrq(ibsrq);
 	struct rvt_rwq *wq;
@@ -1986,6 +1988,155 @@ int rvt_post_srq_recv(struct ib_srq *ibsrq, struct ib_recv_wr *wr,
 	}
 	return 0;
 }
+
+/*
+ * Validate a RWQE and fill in the SGE state.
+ * Return 1 if OK.
+ */
+static int init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
+{
+	int i, j, ret;
+	struct ib_wc wc;
+	struct rvt_lkey_table *rkt;
+	struct rvt_pd *pd;
+	struct rvt_sge_state *ss;
+	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
+
+	rkt = &rdi->lkey_table;
+	pd = ibpd_to_rvtpd(qp->ibqp.srq ? qp->ibqp.srq->pd : qp->ibqp.pd);
+	ss = &qp->r_sge;
+	ss->sg_list = qp->r_sg_list;
+	qp->r_len = 0;
+	for (i = j = 0; i < wqe->num_sge; i++) {
+		if (wqe->sg_list[i].length == 0)
+			continue;
+		/* Check LKEY */
+		ret = rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
+				  NULL, &wqe->sg_list[i],
+				  IB_ACCESS_LOCAL_WRITE);
+		if (unlikely(ret <= 0))
+			goto bad_lkey;
+		qp->r_len += wqe->sg_list[i].length;
+		j++;
+	}
+	ss->num_sge = j;
+	ss->total_len = qp->r_len;
+	return 1;
+
+bad_lkey:
+	while (j) {
+		struct rvt_sge *sge = --j ? &ss->sg_list[j - 1] : &ss->sge;
+
+		rvt_put_mr(sge->mr);
+	}
+	ss->num_sge = 0;
+	memset(&wc, 0, sizeof(wc));
+	wc.wr_id = wqe->wr_id;
+	wc.status = IB_WC_LOC_PROT_ERR;
+	wc.opcode = IB_WC_RECV;
+	wc.qp = &qp->ibqp;
+	/* Signal solicited completion event. */
+	rvt_cq_enter(ibcq_to_rvtcq(qp->ibqp.recv_cq), &wc, 1);
+	return 0;
+}
+
+/**
+ * rvt_get_rwqe - copy the next RWQE into the QP's RWQE
+ * @qp: the QP
+ * @wr_id_only: update qp->r_wr_id only, not qp->r_sge
+ *
+ * Return -1 if there is a local error, 0 if no RWQE is available,
+ * otherwise return 1.
+ *
+ * Can be called from interrupt level.
+ */
+int rvt_get_rwqe(struct rvt_qp *qp, bool wr_id_only)
+{
+	unsigned long flags;
+	struct rvt_rq *rq;
+	struct rvt_rwq *wq;
+	struct rvt_srq *srq;
+	struct rvt_rwqe *wqe;
+	void (*handler)(struct ib_event *, void *);
+	u32 tail;
+	int ret;
+
+	if (qp->ibqp.srq) {
+		srq = ibsrq_to_rvtsrq(qp->ibqp.srq);
+		handler = srq->ibsrq.event_handler;
+		rq = &srq->rq;
+	} else {
+		srq = NULL;
+		handler = NULL;
+		rq = &qp->r_rq;
+	}
+
+	spin_lock_irqsave(&rq->lock, flags);
+	if (!(ib_rvt_state_ops[qp->state] & RVT_PROCESS_RECV_OK)) {
+		ret = 0;
+		goto unlock;
+	}
+
+	wq = rq->wq;
+	tail = wq->tail;
+	/* Validate tail before using it since it is user writable. */
+	if (tail >= rq->size)
+		tail = 0;
+	if (unlikely(tail == wq->head)) {
+		ret = 0;
+		goto unlock;
+	}
+	/* Make sure entry is read after head index is read. */
+	smp_rmb();
+	wqe = rvt_get_rwqe_ptr(rq, tail);
+	/*
+	 * Even though we update the tail index in memory, the verbs
+	 * consumer is not supposed to post more entries until a
+	 * completion is generated.
+	 */
+	if (++tail >= rq->size)
+		tail = 0;
+	wq->tail = tail;
+	if (!wr_id_only && !init_sge(qp, wqe)) {
+		ret = -1;
+		goto unlock;
+	}
+	qp->r_wr_id = wqe->wr_id;
+
+	ret = 1;
+	set_bit(RVT_R_WRID_VALID, &qp->r_aflags);
+	if (handler) {
+		u32 n;
+
+		/*
+		 * Validate head pointer value and compute
+		 * the number of remaining WQEs.
+		 */
+		n = wq->head;
+		if (n >= rq->size)
+			n = 0;
+		if (n < tail)
+			n += rq->size - tail;
+		else
+			n -= tail;
+		if (n < srq->limit) {
+			struct ib_event ev;
+
+			srq->limit = 0;
+			spin_unlock_irqrestore(&rq->lock, flags);
+			ev.device = qp->ibqp.device;
+			ev.element.srq = qp->ibqp.srq;
+			ev.event = IB_EVENT_SRQ_LIMIT_REACHED;
+			handler(&ev, srq->ibsrq.srq_context);
+			goto bail;
+		}
+	}
+unlock:
+	spin_unlock_irqrestore(&rq->lock, flags);
+bail:
+	return ret;
+}
+EXPORT_SYMBOL(rvt_get_rwqe);
 
 /**
  * qp_comm_est - handle trap with QP established
@@ -2076,7 +2227,7 @@ void rvt_add_rnr_timer(struct rvt_qp *qp, u32 aeth)
 	to = rvt_aeth_to_usec(aeth);
 	trace_rvt_rnrnak_add(qp, to);
 	hrtimer_start(&qp->s_rnr_timer,
-		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL);
+		      ns_to_ktime(1000 * to), HRTIMER_MODE_REL_PINNED);
 }
 EXPORT_SYMBOL(rvt_add_rnr_timer);
 

@@ -8,10 +8,10 @@
 #include <linux/dma-mapping.h>
 
 /* This defines the direction arg to the DMA mapping routines. */
-#define PCI_DMA_BIDIRECTIONAL	0
-#define PCI_DMA_TODEVICE	1
-#define PCI_DMA_FROMDEVICE	2
-#define PCI_DMA_NONE		3
+#define PCI_DMA_BIDIRECTIONAL	DMA_BIDIRECTIONAL
+#define PCI_DMA_TODEVICE	DMA_TO_DEVICE
+#define PCI_DMA_FROMDEVICE	DMA_FROM_DEVICE
+#define PCI_DMA_NONE		DMA_NONE
 
 static inline void *
 pci_alloc_consistent(struct pci_dev *hwdev, size_t size,

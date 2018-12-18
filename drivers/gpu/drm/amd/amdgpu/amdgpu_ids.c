@@ -578,11 +578,6 @@ void amdgpu_vmid_mgr_init(struct amdgpu_device *adev)
 			list_add_tail(&id_mgr->ids[j].list, &id_mgr->ids_lru);
 		}
 	}
-
-	adev->vm_manager.fence_context =
-		dma_fence_context_alloc(AMDGPU_MAX_RINGS);
-	for (i = 0; i < AMDGPU_MAX_RINGS; ++i)
-		adev->vm_manager.seqno[i] = 0;
 }
 
 /**

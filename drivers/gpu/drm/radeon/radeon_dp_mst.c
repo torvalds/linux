@@ -195,11 +195,11 @@ static int radeon_dp_mst_get_ddc_modes(struct drm_connector *connector)
 	radeon_connector->edid = edid;
 	DRM_DEBUG_KMS("edid retrieved %p\n", edid);
 	if (radeon_connector->edid) {
-		drm_mode_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
+		drm_connector_update_edid_property(&radeon_connector->base, radeon_connector->edid);
 		ret = drm_add_edid_modes(&radeon_connector->base, radeon_connector->edid);
 		return ret;
 	}
-	drm_mode_connector_update_edid_property(&radeon_connector->base, NULL);
+	drm_connector_update_edid_property(&radeon_connector->base, NULL);
 
 	return ret;
 }
@@ -290,7 +290,7 @@ static struct drm_connector *radeon_dp_add_mst_connector(struct drm_dp_mst_topol
 
 	drm_object_attach_property(&connector->base, dev->mode_config.path_property, 0);
 	drm_object_attach_property(&connector->base, dev->mode_config.tile_property, 0);
-	drm_mode_connector_set_path_property(connector, pathprop);
+	drm_connector_set_path_property(connector, pathprop);
 
 	return connector;
 }

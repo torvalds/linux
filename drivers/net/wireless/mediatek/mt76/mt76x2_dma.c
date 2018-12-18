@@ -66,27 +66,6 @@ mt76x2_init_tx_queue(struct mt76x2_dev *dev, struct mt76_queue *q,
 	return 0;
 }
 
-void mt76x2_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
-			 struct sk_buff *skb)
-{
-	struct mt76x2_dev *dev = container_of(mdev, struct mt76x2_dev, mt76);
-	void *rxwi = skb->data;
-
-	if (q == MT_RXQ_MCU) {
-		skb_queue_tail(&dev->mcu.res_q, skb);
-		wake_up(&dev->mcu.wait);
-		return;
-	}
-
-	skb_pull(skb, sizeof(struct mt76x2_rxwi));
-	if (mt76x2_mac_process_rx(dev, skb, rxwi)) {
-		dev_kfree_skb(skb);
-		return;
-	}
-
-	mt76_rx(&dev->mt76, q, skb);
-}
-
 static int
 mt76x2_init_rx_queue(struct mt76x2_dev *dev, struct mt76_queue *q,
 		     int idx, int n_desc, int bufsize)

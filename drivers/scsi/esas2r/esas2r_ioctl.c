@@ -1849,7 +1849,7 @@ int esas2r_read_vda(struct esas2r_adapter *a, char *buf, long off, int count)
 		/* allocate a request */
 		rq = esas2r_alloc_request(a);
 		if (rq == NULL) {
-			esas2r_debug("esas2r_read_vda: out of requestss");
+			esas2r_debug("esas2r_read_vda: out of requests");
 			return -EBUSY;
 		}
 

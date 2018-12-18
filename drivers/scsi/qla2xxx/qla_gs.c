@@ -556,7 +556,7 @@ err2:
 		/* please ignore kernel warning. otherwise, we have mem leak. */
 		if (sp->u.iocb_cmd.u.ctarg.req) {
 			dma_free_coherent(&vha->hw->pdev->dev,
-			    sizeof(struct ct_sns_pkt),
+			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
 			    sp->u.iocb_cmd.u.ctarg.req,
 			    sp->u.iocb_cmd.u.ctarg.req_dma);
 			sp->u.iocb_cmd.u.ctarg.req = NULL;
@@ -564,7 +564,7 @@ err2:
 
 		if (sp->u.iocb_cmd.u.ctarg.rsp) {
 			dma_free_coherent(&vha->hw->pdev->dev,
-			    sizeof(struct ct_sns_pkt),
+			    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
 			    sp->u.iocb_cmd.u.ctarg.rsp,
 			    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
@@ -617,6 +617,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.req) {
 		ql_log(ql_log_warn, vha, 0xd041,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -627,6 +628,7 @@ static int qla_async_rftid(scsi_qla_host_t *vha, port_id_t *d_id)
 	sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.rsp_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 		ql_log(ql_log_warn, vha, 0xd042,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -712,6 +714,7 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.req) {
 		ql_log(ql_log_warn, vha, 0xd041,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -722,6 +725,7 @@ static int qla_async_rffid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.rsp_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 		ql_log(ql_log_warn, vha, 0xd042,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -802,6 +806,7 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.req) {
 		ql_log(ql_log_warn, vha, 0xd041,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -812,6 +817,7 @@ static int qla_async_rnnid(scsi_qla_host_t *vha, port_id_t *d_id,
 	sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.rsp_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 		ql_log(ql_log_warn, vha, 0xd042,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -909,6 +915,7 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.req) {
 		ql_log(ql_log_warn, vha, 0xd041,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -919,6 +926,7 @@ static int qla_async_rsnn_nn(scsi_qla_host_t *vha)
 	sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
 	    sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.rsp_dma,
 	    GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 		ql_log(ql_log_warn, vha, 0xd042,
 		    "%s: Failed to allocate ct_sns request.\n",
@@ -1954,7 +1962,6 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	void *entries;
 	struct ct_fdmiv2_hba_attr *eiter;
 	struct qla_hw_data *ha = vha->hw;
-	struct init_cb_24xx *icb24 = (struct init_cb_24xx *)ha->init_cb;
 	struct new_utsname *p_sysid = NULL;
 
 	/* Issue RHBA */
@@ -2134,9 +2141,7 @@ qla2x00_fdmiv2_rhba(scsi_qla_host_t *vha)
 	/* MAX CT Payload Length */
 	eiter = entries + size;
 	eiter->type = cpu_to_be16(FDMI_HBA_MAXIMUM_CT_PAYLOAD_LENGTH);
-	eiter->a.max_ct_len = IS_FWI2_CAPABLE(ha) ?
-	    le16_to_cpu(icb24->frame_payload_size) :
-	    le16_to_cpu(ha->init_cb->frame_payload_size);
+	eiter->a.max_ct_len = cpu_to_be32(ha->frame_payload_size);
 	eiter->a.max_ct_len = cpu_to_be32(eiter->a.max_ct_len);
 	eiter->len = cpu_to_be16(4 + 4);
 	size += 4 + 4;
@@ -3175,7 +3180,6 @@ int qla24xx_async_gidpn(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 done_free_sp:
 	sp->free(sp);
-	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	fcport->flags &= ~FCF_ASYNC_ACTIVE;
 	return rval;
@@ -3239,7 +3243,7 @@ void qla24xx_handle_gpsc_event(scsi_qla_host_t *vha, struct event_arg *ea)
 		return;
 	}
 
-	qla24xx_post_upd_fcport_work(vha, ea->fcport);
+	qla_post_iidma_work(vha, fcport);
 }
 
 static void qla24xx_async_gpsc_sp_done(void *s, int res)
@@ -3256,8 +3260,6 @@ static void qla24xx_async_gpsc_sp_done(void *s, int res)
 	ql_dbg(ql_dbg_disc, vha, 0x2053,
 	    "Async done-%s res %x, WWPN %8phC \n",
 	    sp->name, res, fcport->port_name);
-
-	fcport->flags &= ~(FCF_ASYNC_SENT | FCF_ASYNC_ACTIVE);
 
 	if (res == (DID_ERROR << 16)) {
 		/* entry status error */
@@ -3327,7 +3329,6 @@ int qla24xx_async_gpsc(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!sp)
 		goto done;
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "gpsc";
 	sp->gen1 = fcport->rscn_gen;
@@ -3390,19 +3391,40 @@ int qla24xx_post_gpnid_work(struct scsi_qla_host *vha, port_id_t *id)
 
 void qla24xx_sp_unmap(scsi_qla_host_t *vha, srb_t *sp)
 {
-	if (sp->u.iocb_cmd.u.ctarg.req) {
-		dma_free_coherent(&vha->hw->pdev->dev,
-			sizeof(struct ct_sns_pkt),
-			sp->u.iocb_cmd.u.ctarg.req,
-			sp->u.iocb_cmd.u.ctarg.req_dma);
-		sp->u.iocb_cmd.u.ctarg.req = NULL;
-	}
-	if (sp->u.iocb_cmd.u.ctarg.rsp) {
-		dma_free_coherent(&vha->hw->pdev->dev,
-			sizeof(struct ct_sns_pkt),
-			sp->u.iocb_cmd.u.ctarg.rsp,
-			sp->u.iocb_cmd.u.ctarg.rsp_dma);
-		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+	struct srb_iocb *c = &sp->u.iocb_cmd;
+
+	switch (sp->type) {
+	case SRB_ELS_DCMD:
+		if (c->u.els_plogi.els_plogi_pyld)
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    c->u.els_plogi.tx_size,
+			    c->u.els_plogi.els_plogi_pyld,
+			    c->u.els_plogi.els_plogi_pyld_dma);
+
+		if (c->u.els_plogi.els_resp_pyld)
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    c->u.els_plogi.rx_size,
+			    c->u.els_plogi.els_resp_pyld,
+			    c->u.els_plogi.els_resp_pyld_dma);
+		break;
+	case SRB_CT_PTHRU_CMD:
+	default:
+		if (sp->u.iocb_cmd.u.ctarg.req) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
+			    sp->u.iocb_cmd.u.ctarg.req,
+			    sp->u.iocb_cmd.u.ctarg.req_dma);
+			sp->u.iocb_cmd.u.ctarg.req = NULL;
+		}
+
+		if (sp->u.iocb_cmd.u.ctarg.rsp) {
+			dma_free_coherent(&vha->hw->pdev->dev,
+			    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
+			    sp->u.iocb_cmd.u.ctarg.rsp,
+			    sp->u.iocb_cmd.u.ctarg.rsp_dma);
+			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
+		}
+		break;
 	}
 
 	sp->free(sp);
@@ -3479,6 +3501,14 @@ void qla24xx_handle_gpnid_event(scsi_qla_host_t *vha, struct event_arg *ea)
 			fcport->rscn_gen++;
 			fcport->scan_state = QLA_FCPORT_FOUND;
 			fcport->flags |= FCF_FABRIC_DEVICE;
+			if (fcport->login_retry == 0) {
+				fcport->login_retry =
+					vha->hw->login_retry_count;
+				ql_dbg(ql_dbg_disc, vha, 0xffff,
+				    "Port login retry %8phN, lid 0x%04x cnt=%d.\n",
+				    fcport->port_name, fcport->loop_id,
+				    fcport->login_retry);
+			}
 			switch (fcport->disc_state) {
 			case DSC_LOGIN_COMPLETE:
 				/* recheck session is still intact. */
@@ -3600,14 +3630,14 @@ static void qla2x00_async_gpnid_sp_done(void *s, int res)
 		/* please ignore kernel warning. otherwise, we have mem leak. */
 		if (sp->u.iocb_cmd.u.ctarg.req) {
 			dma_free_coherent(&vha->hw->pdev->dev,
-				sizeof(struct ct_sns_pkt),
+				sp->u.iocb_cmd.u.ctarg.req_allocated_size,
 				sp->u.iocb_cmd.u.ctarg.req,
 				sp->u.iocb_cmd.u.ctarg.req_dma);
 			sp->u.iocb_cmd.u.ctarg.req = NULL;
 		}
 		if (sp->u.iocb_cmd.u.ctarg.rsp) {
 			dma_free_coherent(&vha->hw->pdev->dev,
-				sizeof(struct ct_sns_pkt),
+				sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
 				sp->u.iocb_cmd.u.ctarg.rsp,
 				sp->u.iocb_cmd.u.ctarg.rsp_dma);
 			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
@@ -3658,6 +3688,7 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	sp->u.iocb_cmd.u.ctarg.req = dma_alloc_coherent(&vha->hw->pdev->dev,
 		sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.req_dma,
 		GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.req) {
 		ql_log(ql_log_warn, vha, 0xd041,
 		    "Failed to allocate ct_sns request.\n");
@@ -3667,6 +3698,7 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	sp->u.iocb_cmd.u.ctarg.rsp = dma_alloc_coherent(&vha->hw->pdev->dev,
 		sizeof(struct ct_sns_pkt), &sp->u.iocb_cmd.u.ctarg.rsp_dma,
 		GFP_KERNEL);
+	sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 	if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 		ql_log(ql_log_warn, vha, 0xd042,
 		    "Failed to allocate ct_sns request.\n");
@@ -3702,6 +3734,10 @@ int qla24xx_async_gpnid(scsi_qla_host_t *vha, port_id_t *id)
 	return rval;
 
 done_free_sp:
+	spin_lock_irqsave(&vha->hw->vport_slock, flags);
+	list_del(&sp->elem);
+	spin_unlock_irqrestore(&vha->hw->vport_slock, flags);
+
 	if (sp->u.iocb_cmd.u.ctarg.req) {
 		dma_free_coherent(&vha->hw->pdev->dev,
 			sizeof(struct ct_sns_pkt),
@@ -3862,6 +3898,7 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	bool found;
 	struct fab_scan_rp *rp;
 	unsigned long flags;
+	u8 recheck = 0;
 
 	ql_dbg(ql_dbg_disc, vha, 0xffff,
 	    "%s enter\n", __func__);
@@ -3914,8 +3951,8 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 		list_for_each_entry(fcport, &vha->vp_fcports, list) {
 			if (memcmp(rp->port_name, fcport->port_name, WWN_SIZE))
 				continue;
+			fcport->rscn_rcvd = 0;
 			fcport->scan_state = QLA_FCPORT_FOUND;
-			fcport->d_id.b24 = rp->id.b24;
 			found = true;
 			/*
 			 * If device was not a fabric device before.
@@ -3923,7 +3960,10 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 			if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
 				qla2x00_clear_loop_id(fcport);
 				fcport->flags |= FCF_FABRIC_DEVICE;
+			} else if (fcport->d_id.b24 != rp->id.b24) {
+				qlt_schedule_sess_for_deletion(fcport);
 			}
+			fcport->d_id.b24 = rp->id.b24;
 			break;
 		}
 
@@ -3940,10 +3980,13 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 	 * Logout all previous fabric dev marked lost, except FCP2 devices.
 	 */
 	list_for_each_entry(fcport, &vha->vp_fcports, list) {
-		if ((fcport->flags & FCF_FABRIC_DEVICE) == 0)
+		if ((fcport->flags & FCF_FABRIC_DEVICE) == 0) {
+			fcport->rscn_rcvd = 0;
 			continue;
+		}
 
 		if (fcport->scan_state != QLA_FCPORT_FOUND) {
+			fcport->rscn_rcvd = 0;
 			if ((qla_dual_mode_enabled(vha) ||
 				qla_ini_mode_enabled(vha)) &&
 			    atomic_read(&fcport->state) == FCS_ONLINE) {
@@ -3961,15 +4004,39 @@ void qla24xx_async_gnnft_done(scsi_qla_host_t *vha, srb_t *sp)
 					continue;
 				}
 			}
-		} else
-			qla24xx_fcport_handle_login(vha, fcport);
+		} else {
+			if (fcport->rscn_rcvd ||
+			    fcport->disc_state != DSC_LOGIN_COMPLETE) {
+				if (fcport->login_retry == 0) {
+					fcport->login_retry =
+						vha->hw->login_retry_count;
+					ql_dbg(ql_dbg_disc, vha, 0x20a3,
+					    "Port login retry %8phN, lid 0x%04x retry cnt=%d.\n",
+					    fcport->port_name, fcport->loop_id,
+					    fcport->login_retry);
+				}
+				fcport->rscn_rcvd = 0;
+				qla24xx_fcport_handle_login(vha, fcport);
+			}
+		}
 	}
 
+	recheck = 1;
 out:
 	qla24xx_sp_unmap(vha, sp);
 	spin_lock_irqsave(&vha->work_lock, flags);
 	vha->scan.scan_flags &= ~SF_SCANNING;
 	spin_unlock_irqrestore(&vha->work_lock, flags);
+
+	if (recheck) {
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (fcport->rscn_rcvd) {
+				set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
+				set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
+				break;
+			}
+		}
+	}
 }
 
 static void qla2x00_find_free_fcp_nvme_slot(struct scsi_qla_host *vha,
@@ -4123,14 +4190,14 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 			 */
 			if (sp->u.iocb_cmd.u.ctarg.req) {
 				dma_free_coherent(&vha->hw->pdev->dev,
-				    sizeof(struct ct_sns_pkt),
+				    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
 				    sp->u.iocb_cmd.u.ctarg.req,
 				    sp->u.iocb_cmd.u.ctarg.req_dma);
 				sp->u.iocb_cmd.u.ctarg.req = NULL;
 			}
 			if (sp->u.iocb_cmd.u.ctarg.rsp) {
 				dma_free_coherent(&vha->hw->pdev->dev,
-				    sizeof(struct ct_sns_pkt),
+				    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
 				    sp->u.iocb_cmd.u.ctarg.rsp,
 				    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 				sp->u.iocb_cmd.u.ctarg.rsp = NULL;
@@ -4160,14 +4227,14 @@ static void qla2x00_async_gpnft_gnnft_sp_done(void *s, int res)
 		/* please ignore kernel warning. Otherwise, we have mem leak. */
 		if (sp->u.iocb_cmd.u.ctarg.req) {
 			dma_free_coherent(&vha->hw->pdev->dev,
-			    sizeof(struct ct_sns_pkt),
+			    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
 			    sp->u.iocb_cmd.u.ctarg.req,
 			    sp->u.iocb_cmd.u.ctarg.req_dma);
 			sp->u.iocb_cmd.u.ctarg.req = NULL;
 		}
 		if (sp->u.iocb_cmd.u.ctarg.rsp) {
 			dma_free_coherent(&vha->hw->pdev->dev,
-			    sizeof(struct ct_sns_pkt),
+			    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
 			    sp->u.iocb_cmd.u.ctarg.rsp,
 			    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 			sp->u.iocb_cmd.u.ctarg.rsp = NULL;
@@ -4262,14 +4329,14 @@ static int qla24xx_async_gnnft(scsi_qla_host_t *vha, struct srb *sp,
 done_free_sp:
 	if (sp->u.iocb_cmd.u.ctarg.req) {
 		dma_free_coherent(&vha->hw->pdev->dev,
-		    sizeof(struct ct_sns_pkt),
+		    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
 		    sp->u.iocb_cmd.u.ctarg.req,
 		    sp->u.iocb_cmd.u.ctarg.req_dma);
 		sp->u.iocb_cmd.u.ctarg.req = NULL;
 	}
 	if (sp->u.iocb_cmd.u.ctarg.rsp) {
 		dma_free_coherent(&vha->hw->pdev->dev,
-		    sizeof(struct ct_sns_pkt),
+		    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
 		    sp->u.iocb_cmd.u.ctarg.rsp,
 		    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
@@ -4330,6 +4397,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		sp->u.iocb_cmd.u.ctarg.req = dma_zalloc_coherent(
 			&vha->hw->pdev->dev, sizeof(struct ct_sns_pkt),
 			&sp->u.iocb_cmd.u.ctarg.req_dma, GFP_KERNEL);
+		sp->u.iocb_cmd.u.ctarg.req_allocated_size = sizeof(struct ct_sns_pkt);
 		if (!sp->u.iocb_cmd.u.ctarg.req) {
 			ql_log(ql_log_warn, vha, 0xffff,
 			    "Failed to allocate ct_sns request.\n");
@@ -4347,6 +4415,7 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 		sp->u.iocb_cmd.u.ctarg.rsp = dma_zalloc_coherent(
 			&vha->hw->pdev->dev, rspsz,
 			&sp->u.iocb_cmd.u.ctarg.rsp_dma, GFP_KERNEL);
+		sp->u.iocb_cmd.u.ctarg.rsp_allocated_size = sizeof(struct ct_sns_pkt);
 		if (!sp->u.iocb_cmd.u.ctarg.rsp) {
 			ql_log(ql_log_warn, vha, 0xffff,
 			    "Failed to allocate ct_sns request.\n");
@@ -4406,14 +4475,14 @@ int qla24xx_async_gpnft(scsi_qla_host_t *vha, u8 fc4_type, srb_t *sp)
 done_free_sp:
 	if (sp->u.iocb_cmd.u.ctarg.req) {
 		dma_free_coherent(&vha->hw->pdev->dev,
-		    sizeof(struct ct_sns_pkt),
+		    sp->u.iocb_cmd.u.ctarg.req_allocated_size,
 		    sp->u.iocb_cmd.u.ctarg.req,
 		    sp->u.iocb_cmd.u.ctarg.req_dma);
 		sp->u.iocb_cmd.u.ctarg.req = NULL;
 	}
 	if (sp->u.iocb_cmd.u.ctarg.rsp) {
 		dma_free_coherent(&vha->hw->pdev->dev,
-		    sizeof(struct ct_sns_pkt),
+		    sp->u.iocb_cmd.u.ctarg.rsp_allocated_size,
 		    sp->u.iocb_cmd.u.ctarg.rsp,
 		    sp->u.iocb_cmd.u.ctarg.rsp_dma);
 		sp->u.iocb_cmd.u.ctarg.rsp = NULL;
@@ -4532,7 +4601,6 @@ int qla24xx_async_gnnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 
 done_free_sp:
 	sp->free(sp);
-	fcport->flags &= ~FCF_ASYNC_SENT;
 done:
 	return rval;
 }
@@ -4594,7 +4662,6 @@ static void qla2x00_async_gfpnid_sp_done(void *s, int res)
 	struct event_arg ea;
 	u64 wwn;
 
-	fcport->flags &= ~FCF_ASYNC_SENT;
 	wwn = wwn_to_u64(fpn);
 	if (wwn)
 		memcpy(fcport->fabric_port_name, fpn, WWN_SIZE);
@@ -4623,12 +4690,10 @@ int qla24xx_async_gfpnid(scsi_qla_host_t *vha, fc_port_t *fcport)
 	if (!vha->flags.online || (fcport->flags & FCF_ASYNC_SENT))
 		return rval;
 
-	fcport->disc_state = DSC_GFPN_ID;
 	sp = qla2x00_get_sp(vha, fcport, GFP_ATOMIC);
 	if (!sp)
 		goto done;
 
-	fcport->flags |= FCF_ASYNC_SENT;
 	sp->type = SRB_CT_PTHRU_CMD;
 	sp->name = "gfpnid";
 	sp->gen1 = fcport->rscn_gen;

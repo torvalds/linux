@@ -102,6 +102,7 @@
 
 #define acpi_cache_t                        struct kmem_cache
 #define acpi_spinlock                       spinlock_t *
+#define acpi_raw_spinlock                   raw_spinlock_t *
 #define acpi_cpu_flags                      unsigned long
 
 /* Use native linux version of acpi_os_allocate_zeroed */
@@ -119,6 +120,10 @@
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_object
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_get_thread_id
 #define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_lock
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_create_raw_lock
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_delete_raw_lock
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_acquire_raw_lock
+#define ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_release_raw_lock
 
 /*
  * OSL interfaces used by debugger/disassembler

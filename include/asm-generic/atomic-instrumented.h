@@ -84,42 +84,59 @@ static __always_inline bool atomic64_try_cmpxchg(atomic64_t *v, s64 *old, s64 ne
 }
 #endif
 
-static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
+#ifdef arch_atomic_fetch_add_unless
+#define atomic_fetch_add_unless atomic_fetch_add_unless
+static __always_inline int atomic_fetch_add_unless(atomic_t *v, int a, int u)
 {
 	kasan_check_write(v, sizeof(*v));
-	return __arch_atomic_add_unless(v, a, u);
+	return arch_atomic_fetch_add_unless(v, a, u);
 }
+#endif
 
-
-static __always_inline bool atomic64_add_unless(atomic64_t *v, s64 a, s64 u)
+#ifdef arch_atomic64_fetch_add_unless
+#define atomic64_fetch_add_unless atomic64_fetch_add_unless
+static __always_inline s64 atomic64_fetch_add_unless(atomic64_t *v, s64 a, s64 u)
 {
 	kasan_check_write(v, sizeof(*v));
-	return arch_atomic64_add_unless(v, a, u);
+	return arch_atomic64_fetch_add_unless(v, a, u);
 }
+#endif
 
+#ifdef arch_atomic_inc
+#define atomic_inc atomic_inc
 static __always_inline void atomic_inc(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic_inc(v);
 }
+#endif
 
+#ifdef arch_atomic64_inc
+#define atomic64_inc atomic64_inc
 static __always_inline void atomic64_inc(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic64_inc(v);
 }
+#endif
 
+#ifdef arch_atomic_dec
+#define atomic_dec atomic_dec
 static __always_inline void atomic_dec(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic_dec(v);
 }
+#endif
 
+#ifdef atch_atomic64_dec
+#define atomic64_dec
 static __always_inline void atomic64_dec(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	arch_atomic64_dec(v);
 }
+#endif
 
 static __always_inline void atomic_add(int i, atomic_t *v)
 {
@@ -181,65 +198,95 @@ static __always_inline void atomic64_xor(s64 i, atomic64_t *v)
 	arch_atomic64_xor(i, v);
 }
 
+#ifdef arch_atomic_inc_return
+#define atomic_inc_return atomic_inc_return
 static __always_inline int atomic_inc_return(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_inc_return(v);
 }
+#endif
 
+#ifdef arch_atomic64_in_return
+#define atomic64_inc_return atomic64_inc_return
 static __always_inline s64 atomic64_inc_return(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_inc_return(v);
 }
+#endif
 
+#ifdef arch_atomic_dec_return
+#define atomic_dec_return atomic_dec_return
 static __always_inline int atomic_dec_return(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_dec_return(v);
 }
+#endif
 
+#ifdef arch_atomic64_dec_return
+#define atomic64_dec_return atomic64_dec_return
 static __always_inline s64 atomic64_dec_return(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_dec_return(v);
 }
+#endif
 
-static __always_inline s64 atomic64_inc_not_zero(atomic64_t *v)
+#ifdef arch_atomic64_inc_not_zero
+#define atomic64_inc_not_zero atomic64_inc_not_zero
+static __always_inline bool atomic64_inc_not_zero(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_inc_not_zero(v);
 }
+#endif
 
+#ifdef arch_atomic64_dec_if_positive
+#define atomic64_dec_if_positive atomic64_dec_if_positive
 static __always_inline s64 atomic64_dec_if_positive(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_dec_if_positive(v);
 }
+#endif
 
+#ifdef arch_atomic_dec_and_test
+#define atomic_dec_and_test atomic_dec_and_test
 static __always_inline bool atomic_dec_and_test(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_dec_and_test(v);
 }
+#endif
 
+#ifdef arch_atomic64_dec_and_test
+#define atomic64_dec_and_test atomic64_dec_and_test
 static __always_inline bool atomic64_dec_and_test(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_dec_and_test(v);
 }
+#endif
 
+#ifdef arch_atomic_inc_and_test
+#define atomic_inc_and_test atomic_inc_and_test
 static __always_inline bool atomic_inc_and_test(atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_inc_and_test(v);
 }
+#endif
 
+#ifdef arch_atomic64_inc_and_test
+#define atomic64_inc_and_test atomic64_inc_and_test
 static __always_inline bool atomic64_inc_and_test(atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_inc_and_test(v);
 }
+#endif
 
 static __always_inline int atomic_add_return(int i, atomic_t *v)
 {
@@ -325,152 +372,96 @@ static __always_inline s64 atomic64_fetch_xor(s64 i, atomic64_t *v)
 	return arch_atomic64_fetch_xor(i, v);
 }
 
+#ifdef arch_atomic_sub_and_test
+#define atomic_sub_and_test atomic_sub_and_test
 static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_sub_and_test(i, v);
 }
+#endif
 
+#ifdef arch_atomic64_sub_and_test
+#define atomic64_sub_and_test atomic64_sub_and_test
 static __always_inline bool atomic64_sub_and_test(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_sub_and_test(i, v);
 }
+#endif
 
+#ifdef arch_atomic_add_negative
+#define atomic_add_negative atomic_add_negative
 static __always_inline bool atomic_add_negative(int i, atomic_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic_add_negative(i, v);
 }
+#endif
 
+#ifdef arch_atomic64_add_negative
+#define atomic64_add_negative atomic64_add_negative
 static __always_inline bool atomic64_add_negative(s64 i, atomic64_t *v)
 {
 	kasan_check_write(v, sizeof(*v));
 	return arch_atomic64_add_negative(i, v);
 }
+#endif
 
-static __always_inline unsigned long
-cmpxchg_size(volatile void *ptr, unsigned long old, unsigned long new, int size)
-{
-	kasan_check_write(ptr, size);
-	switch (size) {
-	case 1:
-		return arch_cmpxchg((u8 *)ptr, (u8)old, (u8)new);
-	case 2:
-		return arch_cmpxchg((u16 *)ptr, (u16)old, (u16)new);
-	case 4:
-		return arch_cmpxchg((u32 *)ptr, (u32)old, (u32)new);
-	case 8:
-		BUILD_BUG_ON(sizeof(unsigned long) != 8);
-		return arch_cmpxchg((u64 *)ptr, (u64)old, (u64)new);
-	}
-	BUILD_BUG();
-	return 0;
-}
+#define xchg(ptr, new)							\
+({									\
+	typeof(ptr) __ai_ptr = (ptr);					\
+	kasan_check_write(__ai_ptr, sizeof(*__ai_ptr));			\
+	arch_xchg(__ai_ptr, (new));					\
+})
 
 #define cmpxchg(ptr, old, new)						\
 ({									\
-	((__typeof__(*(ptr)))cmpxchg_size((ptr), (unsigned long)(old),	\
-		(unsigned long)(new), sizeof(*(ptr))));			\
+	typeof(ptr) __ai_ptr = (ptr);					\
+	kasan_check_write(__ai_ptr, sizeof(*__ai_ptr));			\
+	arch_cmpxchg(__ai_ptr, (old), (new));				\
 })
-
-static __always_inline unsigned long
-sync_cmpxchg_size(volatile void *ptr, unsigned long old, unsigned long new,
-		  int size)
-{
-	kasan_check_write(ptr, size);
-	switch (size) {
-	case 1:
-		return arch_sync_cmpxchg((u8 *)ptr, (u8)old, (u8)new);
-	case 2:
-		return arch_sync_cmpxchg((u16 *)ptr, (u16)old, (u16)new);
-	case 4:
-		return arch_sync_cmpxchg((u32 *)ptr, (u32)old, (u32)new);
-	case 8:
-		BUILD_BUG_ON(sizeof(unsigned long) != 8);
-		return arch_sync_cmpxchg((u64 *)ptr, (u64)old, (u64)new);
-	}
-	BUILD_BUG();
-	return 0;
-}
 
 #define sync_cmpxchg(ptr, old, new)					\
 ({									\
-	((__typeof__(*(ptr)))sync_cmpxchg_size((ptr),			\
-		(unsigned long)(old), (unsigned long)(new),		\
-		sizeof(*(ptr))));					\
+	typeof(ptr) __ai_ptr = (ptr);					\
+	kasan_check_write(__ai_ptr, sizeof(*__ai_ptr));			\
+	arch_sync_cmpxchg(__ai_ptr, (old), (new));			\
 })
-
-static __always_inline unsigned long
-cmpxchg_local_size(volatile void *ptr, unsigned long old, unsigned long new,
-		   int size)
-{
-	kasan_check_write(ptr, size);
-	switch (size) {
-	case 1:
-		return arch_cmpxchg_local((u8 *)ptr, (u8)old, (u8)new);
-	case 2:
-		return arch_cmpxchg_local((u16 *)ptr, (u16)old, (u16)new);
-	case 4:
-		return arch_cmpxchg_local((u32 *)ptr, (u32)old, (u32)new);
-	case 8:
-		BUILD_BUG_ON(sizeof(unsigned long) != 8);
-		return arch_cmpxchg_local((u64 *)ptr, (u64)old, (u64)new);
-	}
-	BUILD_BUG();
-	return 0;
-}
 
 #define cmpxchg_local(ptr, old, new)					\
 ({									\
-	((__typeof__(*(ptr)))cmpxchg_local_size((ptr),			\
-		(unsigned long)(old), (unsigned long)(new),		\
-		sizeof(*(ptr))));					\
+	typeof(ptr) __ai_ptr = (ptr);					\
+	kasan_check_write(__ai_ptr, sizeof(*__ai_ptr));			\
+	arch_cmpxchg_local(__ai_ptr, (old), (new));			\
 })
-
-static __always_inline u64
-cmpxchg64_size(volatile u64 *ptr, u64 old, u64 new)
-{
-	kasan_check_write(ptr, sizeof(*ptr));
-	return arch_cmpxchg64(ptr, old, new);
-}
 
 #define cmpxchg64(ptr, old, new)					\
 ({									\
-	((__typeof__(*(ptr)))cmpxchg64_size((ptr), (u64)(old),		\
-		(u64)(new)));						\
+	typeof(ptr) __ai_ptr = (ptr);					\
+	kasan_check_write(__ai_ptr, sizeof(*__ai_ptr));			\
+	arch_cmpxchg64(__ai_ptr, (old), (new));				\
 })
-
-static __always_inline u64
-cmpxchg64_local_size(volatile u64 *ptr, u64 old, u64 new)
-{
-	kasan_check_write(ptr, sizeof(*ptr));
-	return arch_cmpxchg64_local(ptr, old, new);
-}
 
 #define cmpxchg64_local(ptr, old, new)					\
 ({									\
-	((__typeof__(*(ptr)))cmpxchg64_local_size((ptr), (u64)(old),	\
-		(u64)(new)));						\
+	typeof(ptr) __ai_ptr = (ptr);					\
+	kasan_check_write(__ai_ptr, sizeof(*__ai_ptr));			\
+	arch_cmpxchg64_local(__ai_ptr, (old), (new));			\
 })
 
-/*
- * Originally we had the following code here:
- *     __typeof__(p1) ____p1 = (p1);
- *     kasan_check_write(____p1, 2 * sizeof(*____p1));
- *     arch_cmpxchg_double(____p1, (p2), (o1), (o2), (n1), (n2));
- * But it leads to compilation failures (see gcc issue 72873).
- * So for now it's left non-instrumented.
- * There are few callers of cmpxchg_double(), so it's not critical.
- */
 #define cmpxchg_double(p1, p2, o1, o2, n1, n2)				\
 ({									\
-	arch_cmpxchg_double((p1), (p2), (o1), (o2), (n1), (n2));	\
+	typeof(p1) __ai_p1 = (p1);					\
+	kasan_check_write(__ai_p1, 2 * sizeof(*__ai_p1));		\
+	arch_cmpxchg_double(__ai_p1, (p2), (o1), (o2), (n1), (n2));	\
 })
 
-#define cmpxchg_double_local(p1, p2, o1, o2, n1, n2)			\
-({									\
-	arch_cmpxchg_double_local((p1), (p2), (o1), (o2), (n1), (n2));	\
+#define cmpxchg_double_local(p1, p2, o1, o2, n1, n2)				\
+({										\
+	typeof(p1) __ai_p1 = (p1);						\
+	kasan_check_write(__ai_p1, 2 * sizeof(*__ai_p1));			\
+	arch_cmpxchg_double_local(__ai_p1, (p2), (o1), (o2), (n1), (n2));	\
 })
 
 #endif /* _LINUX_ATOMIC_INSTRUMENTED_H */

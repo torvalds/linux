@@ -6,6 +6,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <media/v4l2-event.h>
@@ -1354,6 +1355,10 @@ static int hva_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	ret = dma_coerce_mask_and_coherent(dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
 
 	hva->dev = dev;
 	hva->pdev = pdev;

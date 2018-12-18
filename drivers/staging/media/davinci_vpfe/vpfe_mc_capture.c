@@ -77,7 +77,7 @@ static bool interface;
 module_param(interface, bool, 0444);
 module_param(debug, bool, 0644);
 
-/**
+/*
  * VPFE capture can be used for capturing video such as from TVP5146 or TVP7002
  * and for capture raw bayer data from camera sensors such as mt9p031. At this
  * point there is problem in co-existence of mt9p031 and tvp5146 due to i2c

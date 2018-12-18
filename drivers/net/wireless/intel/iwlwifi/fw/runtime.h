@@ -168,8 +168,4 @@ void iwl_free_fw_paging(struct iwl_fw_runtime *fwrt);
 
 void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt);
 
-void iwl_fwrt_handle_notification(struct iwl_fw_runtime *fwrt,
-				  struct iwl_rx_cmd_buffer *rxb);
-struct iwl_nvm_data *iwl_fw_get_nvm(struct iwl_fw_runtime *fwrt);
-
 #endif /* __iwl_fw_runtime_h__ */

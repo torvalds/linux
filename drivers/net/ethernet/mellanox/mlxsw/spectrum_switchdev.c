@@ -1,38 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_switchdev.c
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
- * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
- * Copyright (c) 2015 Elad Raz <eladr@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/types.h>
@@ -49,7 +16,9 @@
 #include <linux/netlink.h>
 #include <net/switchdev.h>
 
+#include "spectrum_span.h"
 #include "spectrum_router.h"
+#include "spectrum_switchdev.h"
 #include "spectrum.h"
 #include "core.h"
 #include "reg.h"
@@ -239,7 +208,7 @@ __mlxsw_sp_bridge_port_find(const struct mlxsw_sp_bridge_device *bridge_device,
 	return NULL;
 }
 
-static struct mlxsw_sp_bridge_port *
+struct mlxsw_sp_bridge_port *
 mlxsw_sp_bridge_port_find(struct mlxsw_sp_bridge *bridge,
 			  struct net_device *brport_dev)
 {
@@ -922,6 +891,9 @@ static int mlxsw_sp_port_attr_set(struct net_device *dev,
 		break;
 	}
 
+	if (switchdev_trans_ph_commit(trans))
+		mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
+
 	return err;
 }
 
@@ -1013,8 +985,10 @@ mlxsw_sp_port_vlan_bridge_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	int err;
 
 	/* No need to continue if only VLAN flags were changed */
-	if (mlxsw_sp_port_vlan->bridge_port)
+	if (mlxsw_sp_port_vlan->bridge_port) {
+		mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
 		return 0;
+	}
 
 	err = mlxsw_sp_port_vlan_fid_join(mlxsw_sp_port_vlan, bridge_port);
 	if (err)
@@ -1128,6 +1102,39 @@ err_port_vlan_set:
 	return err;
 }
 
+static int
+mlxsw_sp_br_ban_rif_pvid_change(struct mlxsw_sp *mlxsw_sp,
+				const struct net_device *br_dev,
+				const struct switchdev_obj_port_vlan *vlan)
+{
+	struct mlxsw_sp_rif *rif;
+	struct mlxsw_sp_fid *fid;
+	u16 pvid;
+	u16 vid;
+
+	rif = mlxsw_sp_rif_find_by_dev(mlxsw_sp, br_dev);
+	if (!rif)
+		return 0;
+	fid = mlxsw_sp_rif_fid(rif);
+	pvid = mlxsw_sp_fid_8021q_vid(fid);
+
+	for (vid = vlan->vid_begin; vid <= vlan->vid_end; ++vid) {
+		if (vlan->flags & BRIDGE_VLAN_INFO_PVID) {
+			if (vid != pvid) {
+				netdev_err(br_dev, "Can't change PVID, it's used by router interface\n");
+				return -EBUSY;
+			}
+		} else {
+			if (vid == pvid) {
+				netdev_err(br_dev, "Can't remove PVID, it's used by router interface\n");
+				return -EBUSY;
+			}
+		}
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 				   const struct switchdev_obj_port_vlan *vlan,
 				   struct switchdev_trans *trans)
@@ -1138,6 +1145,19 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct net_device *orig_dev = vlan->obj.orig_dev;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	u16 vid;
+
+	if (netif_is_bridge_master(orig_dev)) {
+		int err = 0;
+
+		if ((vlan->flags & BRIDGE_VLAN_INFO_BRENTRY) &&
+		    br_vlan_enabled(orig_dev) &&
+		    switchdev_trans_ph_prepare(trans))
+			err = mlxsw_sp_br_ban_rif_pvid_change(mlxsw_sp,
+							      orig_dev, vlan);
+		if (!err)
+			err = -EOPNOTSUPP;
+		return err;
+	}
 
 	if (switchdev_trans_ph_prepare(trans))
 		return 0;
@@ -1646,18 +1666,57 @@ mlxsw_sp_port_mrouter_update_mdb(struct mlxsw_sp_port *mlxsw_sp_port,
 	}
 }
 
+struct mlxsw_sp_span_respin_work {
+	struct work_struct work;
+	struct mlxsw_sp *mlxsw_sp;
+};
+
+static void mlxsw_sp_span_respin_work(struct work_struct *work)
+{
+	struct mlxsw_sp_span_respin_work *respin_work =
+		container_of(work, struct mlxsw_sp_span_respin_work, work);
+
+	rtnl_lock();
+	mlxsw_sp_span_respin(respin_work->mlxsw_sp);
+	rtnl_unlock();
+	kfree(respin_work);
+}
+
+static void mlxsw_sp_span_respin_schedule(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_span_respin_work *respin_work;
+
+	respin_work = kzalloc(sizeof(*respin_work), GFP_ATOMIC);
+	if (!respin_work)
+		return;
+
+	INIT_WORK(&respin_work->work, mlxsw_sp_span_respin_work);
+	respin_work->mlxsw_sp = mlxsw_sp;
+
+	mlxsw_core_schedule_work(&respin_work->work);
+}
+
 static int mlxsw_sp_port_obj_add(struct net_device *dev,
 				 const struct switchdev_obj *obj,
 				 struct switchdev_trans *trans)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
+	const struct switchdev_obj_port_vlan *vlan;
 	int err = 0;
 
 	switch (obj->id) {
 	case SWITCHDEV_OBJ_ID_PORT_VLAN:
-		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port,
-					      SWITCHDEV_OBJ_PORT_VLAN(obj),
-					      trans);
+		vlan = SWITCHDEV_OBJ_PORT_VLAN(obj);
+		err = mlxsw_sp_port_vlans_add(mlxsw_sp_port, vlan, trans);
+
+		if (switchdev_trans_ph_prepare(trans)) {
+			/* The event is emitted before the changes are actually
+			 * applied to the bridge. Therefore schedule the respin
+			 * call for later, so that the respin logic sees the
+			 * updated bridge state.
+			 */
+			mlxsw_sp_span_respin_schedule(mlxsw_sp_port->mlxsw_sp);
+		}
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = mlxsw_sp_port_mdb_add(mlxsw_sp_port,
@@ -1697,6 +1756,9 @@ static int mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct mlxsw_sp_bridge_port *bridge_port;
 	u16 vid;
 
+	if (netif_is_bridge_master(orig_dev))
+		return -EOPNOTSUPP;
+
 	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
 	if (WARN_ON(!bridge_port))
 		return -EINVAL;
@@ -1718,13 +1780,11 @@ __mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	struct net_device *dev = mlxsw_sp_port->dev;
 	int err;
 
-	if (bridge_port->bridge_device->multicast_enabled) {
-		if (bridge_port->bridge_device->multicast_enabled) {
-			err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid,
-						     false);
-			if (err)
-				netdev_err(dev, "Unable to remove port from SMID\n");
-		}
+	if (bridge_port->bridge_device->multicast_enabled &&
+	    !bridge_port->mrouter) {
+		err = mlxsw_sp_port_smid_set(mlxsw_sp_port, mid->mid, false);
+		if (err)
+			netdev_err(dev, "Unable to remove port from SMID\n");
 	}
 
 	err = mlxsw_sp_port_remove_from_mid(mlxsw_sp_port, mid);
@@ -1807,6 +1867,8 @@ static int mlxsw_sp_port_obj_del(struct net_device *dev,
 		err = -EOPNOTSUPP;
 		break;
 	}
+
+	mlxsw_sp_span_respin_schedule(mlxsw_sp_port->mlxsw_sp);
 
 	return err;
 }
@@ -2224,6 +2286,8 @@ static void mlxsw_sp_switchdev_event_work(struct work_struct *work)
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
+		if (!fdb_info->added_by_user)
+			break;
 		err = mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, true);
 		if (err)
 			break;
@@ -2233,9 +2297,19 @@ static void mlxsw_sp_switchdev_event_work(struct work_struct *work)
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
 		fdb_info = &switchdev_work->fdb_info;
+		if (!fdb_info->added_by_user)
+			break;
 		mlxsw_sp_port_fdb_set(mlxsw_sp_port, fdb_info, false);
 		break;
+	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
+		/* These events are only used to potentially update an existing
+		 * SPAN mirror.
+		 */
+		break;
 	}
+
+	mlxsw_sp_span_respin(mlxsw_sp_port->mlxsw_sp);
 
 out:
 	rtnl_unlock();
@@ -2265,7 +2339,9 @@ static int mlxsw_sp_switchdev_event(struct notifier_block *unused,
 
 	switch (event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
-	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+	case SWITCHDEV_FDB_DEL_TO_DEVICE: /* fall through */
+	case SWITCHDEV_FDB_ADD_TO_BRIDGE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_BRIDGE:
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
@@ -2296,6 +2372,12 @@ err_addr_alloc:
 static struct notifier_block mlxsw_sp_switchdev_notifier = {
 	.notifier_call = mlxsw_sp_switchdev_event,
 };
+
+u8
+mlxsw_sp_bridge_port_stp_state(struct mlxsw_sp_bridge_port *bridge_port)
+{
+	return bridge_port->stp_state;
+}
 
 static int mlxsw_sp_fdb_init(struct mlxsw_sp *mlxsw_sp)
 {

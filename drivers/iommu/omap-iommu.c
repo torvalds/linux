@@ -1455,7 +1455,7 @@ static int omap_iommu_add_device(struct device *dev)
 	if (num_iommus < 0)
 		return 0;
 
-	arch_data = kzalloc((num_iommus + 1) * sizeof(*arch_data), GFP_KERNEL);
+	arch_data = kcalloc(num_iommus + 1, sizeof(*arch_data), GFP_KERNEL);
 	if (!arch_data)
 		return -ENOMEM;
 

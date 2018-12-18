@@ -300,13 +300,13 @@
      inkscape:window-height="1144"
      id="namedview208"
      showgrid="true"
-     inkscape:zoom="0.70710678"
-     inkscape:cx="616.47598"
-     inkscape:cy="595.41964"
-     inkscape:window-x="813"
+     inkscape:zoom="0.96484375"
+     inkscape:cx="507.0191"
+     inkscape:cy="885.62207"
+     inkscape:window-x="47"
      inkscape:window-y="28"
      inkscape:window-maximized="0"
-     inkscape:current-layer="g4405"
+     inkscape:current-layer="g3115"
      fit-margin-top="5"
      fit-margin-right="5"
      fit-margin-left="5"
@@ -710,7 +710,7 @@
          font-weight="bold"
          font-size="192"
          id="text202-6-6"
-         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rdp-&gt;gpnum</text>
+         style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rdp-&gt;gp_seq</text>
       <text
          xml:space="preserve"
          x="5035.4155"

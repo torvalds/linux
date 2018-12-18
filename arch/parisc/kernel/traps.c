@@ -172,7 +172,7 @@ static void do_show_stack(struct unwind_frame_info *info)
 	int i = 1;
 
 	printk(KERN_CRIT "Backtrace:\n");
-	while (i <= 16) {
+	while (i <= MAX_UNWIND_ENTRIES) {
 		if (unwind_once(info) < 0 || info->ip == 0)
 			break;
 
@@ -297,13 +297,8 @@ void die_if_kernel(char *str, struct pt_regs *regs, long err)
 #define GDB_BREAK_INSN 0x10004
 static void handle_gdb_break(struct pt_regs *regs, int wot)
 {
-	struct siginfo si;
-
-	si.si_signo = SIGTRAP;
-	si.si_errno = 0;
-	si.si_code = wot;
-	si.si_addr = (void __user *) (regs->iaoq[0] & ~3);
-	force_sig_info(SIGTRAP, &si, current);
+	force_sig_fault(SIGTRAP, wot,
+			(void __user *) (regs->iaoq[0] & ~3), current);
 }
 
 static void handle_break(struct pt_regs *regs)
@@ -487,7 +482,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 {
 	unsigned long fault_address = 0;
 	unsigned long fault_space = 0;
-	struct siginfo si;
+	int si_code;
 
 	if (code == 1)
 	    pdc_console_restart();  /* switch back to pdc if HPMC */
@@ -571,7 +566,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case  8:
 		/* Illegal instruction trap */
 		die_if_kernel("Illegal instruction", regs, code);
-		si.si_code = ILL_ILLOPC;
+		si_code = ILL_ILLOPC;
 		goto give_sigill;
 
 	case  9:
@@ -582,7 +577,7 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 	case 10:
 		/* Privileged operation trap */
 		die_if_kernel("Privileged operation", regs, code);
-		si.si_code = ILL_PRVOPC;
+		si_code = ILL_PRVOPC;
 		goto give_sigill;
 
 	case 11:
@@ -605,20 +600,16 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		}
 
 		die_if_kernel("Privileged register usage", regs, code);
-		si.si_code = ILL_PRVREG;
+		si_code = ILL_PRVREG;
 	give_sigill:
-		si.si_signo = SIGILL;
-		si.si_errno = 0;
-		si.si_addr = (void __user *) regs->iaoq[0];
-		force_sig_info(SIGILL, &si, current);
+		force_sig_fault(SIGILL, si_code,
+				(void __user *) regs->iaoq[0], current);
 		return;
 
 	case 12:
 		/* Overflow Trap, let the userland signal handler do the cleanup */
-		si.si_signo = SIGFPE;
-		si.si_code = FPE_INTOVF;
-		si.si_addr = (void __user *) regs->iaoq[0];
-		force_sig_info(SIGFPE, &si, current);
+		force_sig_fault(SIGFPE, FPE_INTOVF,
+				(void __user *) regs->iaoq[0], current);
 		return;
 		
 	case 13:
@@ -626,13 +617,11 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 		   The condition succeeds in an instruction which traps
 		   on condition  */
 		if(user_mode(regs)){
-			si.si_signo = SIGFPE;
 			/* Let userspace app figure it out from the insn pointed
 			 * to by si_addr.
 			 */
-			si.si_code = FPE_CONDTRAP;
-			si.si_addr = (void __user *) regs->iaoq[0];
-			force_sig_info(SIGFPE, &si, current);
+			force_sig_fault(SIGFPE, FPE_CONDTRAP,
+					(void __user *) regs->iaoq[0], current);
 			return;
 		} 
 		/* The kernel doesn't want to handle condition codes */
@@ -741,14 +730,10 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 			return;
 
 		die_if_kernel("Protection id trap", regs, code);
-		si.si_code = SEGV_MAPERR;
-		si.si_signo = SIGSEGV;
-		si.si_errno = 0;
-		if (code == 7)
-		    si.si_addr = (void __user *) regs->iaoq[0];
-		else
-		    si.si_addr = (void __user *) regs->ior;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_fault(SIGSEGV, SEGV_MAPERR,
+				(code == 7)?
+				((void __user *) regs->iaoq[0]) :
+				((void __user *) regs->ior), current);
 		return;
 
 	case 28: 
@@ -762,11 +747,8 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 				"handle_interruption() pid=%d command='%s'\n",
 				task_pid_nr(current), current->comm);
 			/* SIGBUS, for lack of a better one. */
-			si.si_signo = SIGBUS;
-			si.si_code = BUS_OBJERR;
-			si.si_errno = 0;
-			si.si_addr = (void __user *) regs->ior;
-			force_sig_info(SIGBUS, &si, current);
+			force_sig_fault(SIGBUS, BUS_OBJERR,
+					(void __user *)regs->ior, current);
 			return;
 		}
 		pdc_chassis_send_status(PDC_CHASSIS_DIRECT_PANIC);
@@ -781,11 +763,8 @@ void notrace handle_interruption(int code, struct pt_regs *regs)
 				"User fault %d on space 0x%08lx, pid=%d command='%s'\n",
 				code, fault_space,
 				task_pid_nr(current), current->comm);
-		si.si_signo = SIGSEGV;
-		si.si_errno = 0;
-		si.si_code = SEGV_MAPERR;
-		si.si_addr = (void __user *) regs->ior;
-		force_sig_info(SIGSEGV, &si, current);
+		force_sig_fault(SIGSEGV, SEGV_MAPERR,
+				(void __user *)regs->ior, current);
 		return;
 	    }
 	}
@@ -836,6 +815,17 @@ void __init initialize_ivt(const void *iva)
 	 */
 	if (pdc_instr(&instr) == PDC_OK)
 		ivap[0] = instr;
+
+	/*
+	 * Rules for the checksum of the HPMC handler:
+	 * 1. The IVA does not point to PDC/PDH space (ie: the OS has installed
+	 *    its own IVA).
+	 * 2. The word at IVA + 32 is nonzero.
+	 * 3. If Length (IVA + 60) is not zero, then Length (IVA + 60) and
+	 *    Address (IVA + 56) are word-aligned.
+	 * 4. The checksum of the 8 words starting at IVA + 32 plus the sum of
+	 *    the Length/4 words starting at Address is zero.
+	 */
 
 	/* Compute Checksum for HPMC handler */
 	length = os_hpmc_size;

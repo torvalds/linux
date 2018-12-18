@@ -229,7 +229,7 @@ static int skylake_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	/* set SSP0 to 24 bit */
 	snd_mask_none(fmt);
-	snd_mask_set(fmt, SNDRV_PCM_FORMAT_S24_LE);
+	snd_mask_set_format(fmt, SNDRV_PCM_FORMAT_S24_LE);
 	return 0;
 }
 
@@ -527,7 +527,7 @@ static int skylake_audio_probe(struct platform_device *pdev)
 {
 	struct skl_rt286_private *ctx;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_ATOMIC);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 

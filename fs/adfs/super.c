@@ -291,6 +291,7 @@ static void destroy_inodecache(void)
 static const struct super_operations adfs_sops = {
 	.alloc_inode	= adfs_alloc_inode,
 	.destroy_inode	= adfs_destroy_inode,
+	.drop_inode	= generic_delete_inode,
 	.write_inode	= adfs_write_inode,
 	.put_super	= adfs_put_super,
 	.statfs		= adfs_statfs,
@@ -313,7 +314,7 @@ static struct adfs_discmap *adfs_read_map(struct super_block *sb, struct adfs_di
 
 	asb->s_ids_per_zone = zone_size / (asb->s_idlen + 1);
 
-	dm = kmalloc(nzones * sizeof(*dm), GFP_KERNEL);
+	dm = kmalloc_array(nzones, sizeof(*dm), GFP_KERNEL);
 	if (dm == NULL) {
 		adfs_error(sb, "not enough memory");
 		return ERR_PTR(-ENOMEM);

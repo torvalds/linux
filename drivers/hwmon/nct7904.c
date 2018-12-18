@@ -77,7 +77,7 @@ struct nct7904_data {
 };
 
 /* Access functions */
-static int nct7904_bank_lock(struct nct7904_data *data, unsigned bank)
+static int nct7904_bank_lock(struct nct7904_data *data, unsigned int bank)
 {
 	int ret;
 
@@ -99,7 +99,7 @@ static inline void nct7904_bank_release(struct nct7904_data *data)
 
 /* Read 1-byte register. Returns unsigned reg or -ERRNO on error. */
 static int nct7904_read_reg(struct nct7904_data *data,
-			    unsigned bank, unsigned reg)
+			    unsigned int bank, unsigned int reg)
 {
 	struct i2c_client *client = data->client;
 	int ret;
@@ -117,7 +117,7 @@ static int nct7904_read_reg(struct nct7904_data *data,
  * -ERRNO on error.
  */
 static int nct7904_read_reg16(struct nct7904_data *data,
-			      unsigned bank, unsigned reg)
+			      unsigned int bank, unsigned int reg)
 {
 	struct i2c_client *client = data->client;
 	int ret, hi;
@@ -139,7 +139,7 @@ static int nct7904_read_reg16(struct nct7904_data *data,
 
 /* Write 1-byte register. Returns 0 or -ERRNO on error. */
 static int nct7904_write_reg(struct nct7904_data *data,
-			     unsigned bank, unsigned reg, u8 val)
+			     unsigned int bank, unsigned int reg, u8 val)
 {
 	struct i2c_client *client = data->client;
 	int ret;
@@ -159,7 +159,7 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 	unsigned int cnt, rpm;
 	int ret;
 
-	switch(attr) {
+	switch (attr) {
 	case hwmon_fan_input:
 		ret = nct7904_read_reg16(data, BANK_0,
 					 FANIN1_HV_REG + channel * 2);
@@ -200,7 +200,7 @@ static int nct7904_read_in(struct device *dev, u32 attr, int channel,
 
 	index = nct7904_chan_to_index[channel];
 
-	switch(attr) {
+	switch (attr) {
 	case hwmon_in_input:
 		ret = nct7904_read_reg16(data, BANK_0,
 					 VSEN1_HV_REG + index * 2);
@@ -236,7 +236,7 @@ static int nct7904_read_temp(struct device *dev, u32 attr, int channel,
 	struct nct7904_data *data = dev_get_drvdata(dev);
 	int ret, temp;
 
-	switch(attr) {
+	switch (attr) {
 	case hwmon_temp_input:
 		if (channel == 0)
 			ret = nct7904_read_reg16(data, BANK_0, LTD_HV_REG);
@@ -276,7 +276,7 @@ static int nct7904_read_pwm(struct device *dev, u32 attr, int channel,
 	struct nct7904_data *data = dev_get_drvdata(dev);
 	int ret;
 
-	switch(attr) {
+	switch (attr) {
 	case hwmon_pwm_input:
 		ret = nct7904_read_reg(data, BANK_3, FANCTL1_OUT_REG + channel);
 		if (ret < 0)
@@ -301,7 +301,7 @@ static int nct7904_write_pwm(struct device *dev, u32 attr, int channel,
 	struct nct7904_data *data = dev_get_drvdata(dev);
 	int ret;
 
-	switch(attr) {
+	switch (attr) {
 	case hwmon_pwm_input:
 		if (val < 0 || val > 255)
 			return -EINVAL;
@@ -322,7 +322,7 @@ static int nct7904_write_pwm(struct device *dev, u32 attr, int channel,
 
 static umode_t nct7904_pwm_is_visible(const void *_data, u32 attr, int channel)
 {
-	switch(attr) {
+	switch (attr) {
 	case hwmon_pwm_input:
 	case hwmon_pwm_enable:
 		return S_IRUGO | S_IWUSR;
@@ -431,15 +431,15 @@ static const struct hwmon_channel_info nct7904_in = {
 };
 
 static const u32 nct7904_fan_config[] = {
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-            HWMON_F_INPUT,
-	    0
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	HWMON_F_INPUT,
+	0
 };
 
 static const struct hwmon_channel_info nct7904_fan = {
@@ -448,11 +448,11 @@ static const struct hwmon_channel_info nct7904_fan = {
 };
 
 static const u32 nct7904_pwm_config[] = {
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-            HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
-	    0
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	HWMON_PWM_INPUT | HWMON_PWM_ENABLE,
+	0
 };
 
 static const struct hwmon_channel_info nct7904_pwm = {
@@ -461,16 +461,16 @@ static const struct hwmon_channel_info nct7904_pwm = {
 };
 
 static const u32 nct7904_temp_config[] = {
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-            HWMON_T_INPUT,
-	    0
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	HWMON_T_INPUT,
+	0
 };
 
 static const struct hwmon_channel_info nct7904_temp = {

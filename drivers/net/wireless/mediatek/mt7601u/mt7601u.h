@@ -23,6 +23,7 @@
 #include <linux/completion.h>
 #include <net/mac80211.h>
 #include <linux/debugfs.h>
+#include <linux/average.h>
 
 #include "regs.h"
 
@@ -138,6 +139,8 @@ enum {
 	MT7601U_STATE_MORE_STATS,
 };
 
+DECLARE_EWMA(rssi, 10, 4);
+
 /**
  * struct mt7601u_dev - adapter structure
  * @lock:		protects @wcid->tx_rate.
@@ -220,7 +223,7 @@ struct mt7601u_dev {
 	s8 bcn_freq_off;
 	u8 bcn_phy_mode;
 
-	int avg_rssi; /* starts at 0 and converges */
+	struct ewma_rssi avg_rssi;
 
 	u8 agc_save;
 

@@ -9,21 +9,22 @@
 
 #define TCMU_VERSION "2.0"
 
-/*
+/**
+ * DOC: Ring Design
  * Ring Design
  * -----------
  *
  * The mmaped area is divided into three parts:
- * 1) The mailbox (struct tcmu_mailbox, below)
- * 2) The command ring
- * 3) Everything beyond the command ring (data)
+ * 1) The mailbox (struct tcmu_mailbox, below);
+ * 2) The command ring;
+ * 3) Everything beyond the command ring (data).
  *
  * The mailbox tells userspace the offset of the command ring from the
  * start of the shared memory region, and how big the command ring is.
  *
  * The kernel passes SCSI commands to userspace by putting a struct
  * tcmu_cmd_entry in the ring, updating mailbox->cmd_head, and poking
- * userspace via uio's interrupt mechanism.
+ * userspace via UIO's interrupt mechanism.
  *
  * tcmu_cmd_entry contains a header. If the header type is PAD,
  * userspace should skip hdr->length bytes (mod cmdr_size) to find the
@@ -43,6 +44,7 @@
 #define TCMU_MAILBOX_VERSION 2
 #define ALIGN_SIZE 64 /* Should be enough for most CPUs */
 #define TCMU_MAILBOX_FLAG_CAP_OOOC (1 << 0) /* Out-of-order completions */
+#define TCMU_MAILBOX_FLAG_CAP_READ_LEN (1 << 1) /* Read data length */
 
 struct tcmu_mailbox {
 	__u16 version;
@@ -70,6 +72,7 @@ struct tcmu_cmd_entry_hdr {
 	__u16 cmd_id;
 	__u8 kflags;
 #define TCMU_UFLAG_UNKNOWN_OP 0x1
+#define TCMU_UFLAG_READ_LEN   0x2
 	__u8 uflags;
 
 } __packed;
@@ -118,7 +121,7 @@ struct tcmu_cmd_entry {
 			__u8 scsi_status;
 			__u8 __pad1;
 			__u16 __pad2;
-			__u32 __pad3;
+			__u32 read_len;
 			char sense_buffer[TCMU_SENSE_BUFFERSIZE];
 		} rsp;
 	};

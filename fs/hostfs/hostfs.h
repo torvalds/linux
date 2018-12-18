@@ -19,7 +19,7 @@
 #define HOSTFS_ATTR_ATIME_SET	128
 #define HOSTFS_ATTR_MTIME_SET	256
 
-/* These two are unused by hostfs. */
+/* This one is unused by hostfs. */
 #define HOSTFS_ATTR_FORCE	512	/* Not a change, but a change it */
 #define HOSTFS_ATTR_ATTR_FLAG	1024
 

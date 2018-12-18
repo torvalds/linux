@@ -181,6 +181,7 @@ enum mceusb_model_type {
 	MCE_GEN2 = 0,		/* Most boards */
 	MCE_GEN1,
 	MCE_GEN3,
+	MCE_GEN3_BROKEN_IRTIMEOUT,
 	MCE_GEN2_TX_INV,
 	MCE_GEN2_TX_INV_RX_GOOD,
 	POLARIS_EVK,
@@ -199,6 +200,7 @@ struct mceusb_model {
 	u32 mce_gen3:1;
 	u32 tx_mask_normal:1;
 	u32 no_tx:1;
+	u32 broken_irtimeout:1;
 	/*
 	 * 2nd IR receiver (short-range, wideband) for learning mode:
 	 *     0, absent 2nd receiver (rx2)
@@ -241,6 +243,12 @@ static const struct mceusb_model mceusb_model[] = {
 		.mce_gen3 = 1,
 		.tx_mask_normal = 1,
 		.rx2 = 2,
+	},
+	[MCE_GEN3_BROKEN_IRTIMEOUT] = {
+		.mce_gen3 = 1,
+		.tx_mask_normal = 1,
+		.rx2 = 2,
+		.broken_irtimeout = 1
 	},
 	[POLARIS_EVK] = {
 		/*
@@ -352,7 +360,7 @@ static const struct usb_device_id mceusb_dev_table[] = {
 	  .driver_info = MCE_GEN2_TX_INV },
 	/* Topseed eHome Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_TOPSEED, 0x0011),
-	  .driver_info = MCE_GEN3 },
+	  .driver_info = MCE_GEN3_BROKEN_IRTIMEOUT },
 	/* Ricavision internal Infrared Transceiver */
 	{ USB_DEVICE(VENDOR_RICAVISION, 0x0010) },
 	/* Itron ione Libra Q-11 */
@@ -564,6 +572,7 @@ static int mceusb_cmd_datasize(u8 cmd, u8 subcmd)
 			datasize = 1;
 			break;
 		}
+		break;
 	case MCE_CMD_PORT_IR:
 		switch (subcmd) {
 		case MCE_CMD_UNKNOWN:
@@ -982,6 +991,25 @@ static int mceusb_set_tx_carrier(struct rc_dev *dev, u32 carrier)
 	return 0;
 }
 
+static int mceusb_set_timeout(struct rc_dev *dev, unsigned int timeout)
+{
+	u8 cmdbuf[4] = { MCE_CMD_PORT_IR, MCE_CMD_SETIRTIMEOUT, 0, 0 };
+	struct mceusb_dev *ir = dev->priv;
+	unsigned int units;
+
+	units = DIV_ROUND_CLOSEST(timeout, US_TO_NS(MCE_TIME_UNIT));
+
+	cmdbuf[2] = units >> 8;
+	cmdbuf[3] = units;
+
+	mce_async_out(ir, cmdbuf, sizeof(cmdbuf));
+
+	/* get receiver timeout value */
+	mce_async_out(ir, GET_RX_TIMEOUT, sizeof(GET_RX_TIMEOUT));
+
+	return 0;
+}
+
 /*
  * Select or deselect the 2nd receiver port.
  * Second receiver is learning mode, wide-band, short-range receiver.
@@ -1150,6 +1178,11 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			init_ir_raw_event(&rawir);
 			rawir.pulse = ((ir->buf_in[i] & MCE_PULSE_BIT) != 0);
 			rawir.duration = (ir->buf_in[i] & MCE_PULSE_MASK);
+			if (unlikely(!rawir.duration)) {
+				dev_warn(ir->dev, "nonsensical irdata %02x with duration 0",
+					 ir->buf_in[i]);
+				break;
+			}
 			if (rawir.pulse) {
 				ir->pulse_tunit += rawir.duration;
 				ir->pulse_count++;
@@ -1182,7 +1215,12 @@ static void mceusb_process_ir_data(struct mceusb_dev *ir, int buf_len)
 			if (ir->rem) {
 				ir->parser_state = PARSE_IRDATA;
 			} else {
-				ir_raw_event_reset(ir->rc);
+				init_ir_raw_event(&rawir);
+				rawir.timeout = 1;
+				rawir.duration = ir->rc->timeout;
+				if (ir_raw_event_store_with_filter(ir->rc,
+								   &rawir))
+					event = true;
 				ir->pulse_tunit = 0;
 				ir->pulse_count = 0;
 			}
@@ -1415,7 +1453,18 @@ static struct rc_dev *mceusb_init_rc_dev(struct mceusb_dev *ir)
 	rc->dev.parent = dev;
 	rc->priv = ir;
 	rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
+	rc->min_timeout = US_TO_NS(MCE_TIME_UNIT);
 	rc->timeout = MS_TO_NS(100);
+	if (!mceusb_model[ir->model].broken_irtimeout) {
+		rc->s_timeout = mceusb_set_timeout;
+		rc->max_timeout = 10 * IR_DEFAULT_TIMEOUT;
+	} else {
+		/*
+		 * If we can't set the timeout using CMD_SETIRTIMEOUT, we can
+		 * rely on software timeouts for timeouts < 100ms.
+		 */
+		rc->max_timeout = rc->timeout;
+	}
 	if (!ir->flags.no_tx) {
 		rc->s_tx_mask = mceusb_set_tx_mask;
 		rc->s_tx_carrier = mceusb_set_tx_carrier;

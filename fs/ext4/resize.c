@@ -204,12 +204,14 @@ static struct ext4_new_flex_group_data *alloc_flex_gd(unsigned long flexbg_size)
 		goto out2;
 	flex_gd->count = flexbg_size;
 
-	flex_gd->groups = kmalloc(sizeof(struct ext4_new_group_data) *
-				  flexbg_size, GFP_NOFS);
+	flex_gd->groups = kmalloc_array(flexbg_size,
+					sizeof(struct ext4_new_group_data),
+					GFP_NOFS);
 	if (flex_gd->groups == NULL)
 		goto out2;
 
-	flex_gd->bg_flags = kmalloc(flexbg_size * sizeof(__u16), GFP_NOFS);
+	flex_gd->bg_flags = kmalloc_array(flexbg_size, sizeof(__u16),
+					  GFP_NOFS);
 	if (flex_gd->bg_flags == NULL)
 		goto out1;
 
@@ -969,7 +971,7 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	int res, i;
 	int err;
 
-	primary = kmalloc(reserved_gdb * sizeof(*primary), GFP_NOFS);
+	primary = kmalloc_array(reserved_gdb, sizeof(*primary), GFP_NOFS);
 	if (!primary)
 		return -ENOMEM;
 
@@ -1933,7 +1935,7 @@ retry:
 		return 0;
 
 	n_group = ext4_get_group_number(sb, n_blocks_count - 1);
-	if (n_group > (0xFFFFFFFFUL / EXT4_INODES_PER_GROUP(sb))) {
+	if (n_group >= (0xFFFFFFFFUL / EXT4_INODES_PER_GROUP(sb))) {
 		ext4_warning(sb, "resize would cause inodes_count overflow");
 		return -EINVAL;
 	}

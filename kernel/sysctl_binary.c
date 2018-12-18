@@ -704,24 +704,6 @@ static const struct bin_table bin_net_netfilter_table[] = {
 	{}
 };
 
-static const struct bin_table bin_net_irda_table[] = {
-	{ CTL_INT,	NET_IRDA_DISCOVERY,		"discovery" },
-	{ CTL_STR,	NET_IRDA_DEVNAME,		"devname" },
-	{ CTL_INT,	NET_IRDA_DEBUG,			"debug" },
-	{ CTL_INT,	NET_IRDA_FAST_POLL,		"fast_poll_increase" },
-	{ CTL_INT,	NET_IRDA_DISCOVERY_SLOTS,	"discovery_slots" },
-	{ CTL_INT,	NET_IRDA_DISCOVERY_TIMEOUT,	"discovery_timeout" },
-	{ CTL_INT,	NET_IRDA_SLOT_TIMEOUT,		"slot_timeout" },
-	{ CTL_INT,	NET_IRDA_MAX_BAUD_RATE,		"max_baud_rate" },
-	{ CTL_INT,	NET_IRDA_MIN_TX_TURN_TIME,	"min_tx_turn_time" },
-	{ CTL_INT,	NET_IRDA_MAX_TX_DATA_SIZE,	"max_tx_data_size" },
-	{ CTL_INT,	NET_IRDA_MAX_TX_WINDOW,		"max_tx_window" },
-	{ CTL_INT,	NET_IRDA_MAX_NOREPLY_TIME,	"max_noreply_time" },
-	{ CTL_INT,	NET_IRDA_WARN_NOREPLY_TIME,	"warn_noreply_time" },
-	{ CTL_INT,	NET_IRDA_LAP_KEEPALIVE_TIME,	"lap_keepalive_time" },
-	{}
-};
-
 static const struct bin_table bin_net_table[] = {
 	{ CTL_DIR,	NET_CORE,		"core",		bin_net_core_table },
 	/* NET_ETHER not used */
@@ -743,7 +725,7 @@ static const struct bin_table bin_net_table[] = {
 	{ CTL_DIR,	NET_LLC,		"llc",		bin_net_llc_table },
 	{ CTL_DIR,	NET_NETFILTER,		"netfilter",	bin_net_netfilter_table },
 	/* NET_DCCP "dccp" no longer used */
-	{ CTL_DIR,	NET_IRDA,		"irda",		bin_net_irda_table },
+	/* NET_IRDA "irda" no longer used */
 	{ CTL_INT,	2089,			"nf_conntrack_max" },
 	{}
 };

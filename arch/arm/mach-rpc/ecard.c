@@ -212,7 +212,7 @@ static DEFINE_MUTEX(ecard_mutex);
  */
 static void ecard_init_pgtables(struct mm_struct *mm)
 {
-	struct vm_area_struct vma;
+	struct vm_area_struct vma = TLB_FLUSH_VMA(mm, VM_EXEC);
 
 	/* We want to set up the page tables for the following mapping:
 	 *  Virtual	Physical
@@ -236,9 +236,6 @@ static void ecard_init_pgtables(struct mm_struct *mm)
 	dst_pgd = pgd_offset(mm, EASI_START);
 
 	memcpy(dst_pgd, src_pgd, sizeof(pgd_t) * (EASI_SIZE / PGDIR_SIZE));
-
-	vma.vm_flags = VM_EXEC;
-	vma.vm_mm = mm;
 
 	flush_tlb_range(&vma, IO_START, IO_START + IO_SIZE);
 	flush_tlb_range(&vma, EASI_START, EASI_START + EASI_SIZE);
@@ -657,25 +654,13 @@ static int ecard_devices_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ecard_devices_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ecard_devices_proc_show, NULL);
-}
-
-static const struct file_operations bus_ecard_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ecard_devices_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static struct proc_dir_entry *proc_bus_ecard_dir = NULL;
 
 static void ecard_proc_init(void)
 {
 	proc_bus_ecard_dir = proc_mkdir("bus/ecard", NULL);
-	proc_create("devices", 0, proc_bus_ecard_dir, &bus_ecard_proc_fops);
+	proc_create_single("devices", 0, proc_bus_ecard_dir,
+			ecard_devices_proc_show);
 }
 
 #define ec_set_resource(ec,nr,st,sz)				\

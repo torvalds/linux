@@ -1727,8 +1727,8 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 	xway_chip.ngpio = xway_soc->pin_count;
 
 	/* load our pad descriptors */
-	xway_info.pads = devm_kzalloc(&pdev->dev,
-			sizeof(struct pinctrl_pin_desc) * xway_chip.ngpio,
+	xway_info.pads = devm_kcalloc(&pdev->dev,
+			xway_chip.ngpio, sizeof(struct pinctrl_pin_desc),
 			GFP_KERNEL);
 	if (!xway_info.pads)
 		return -ENOMEM;

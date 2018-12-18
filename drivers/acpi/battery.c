@@ -23,18 +23,18 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/async.h>
+#include <linux/delay.h>
+#include <linux/dmi.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/jiffies.h>
-#include <linux/async.h>
-#include <linux/dmi.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
+#include <linux/types.h>
+
 #include <asm/unaligned.h>
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
@@ -74,6 +74,8 @@ static async_cookie_t async_cookie;
 static bool battery_driver_registered;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
+static int battery_ac_is_broken;
+static int battery_check_pmic = 1;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -81,14 +83,6 @@ MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
 #ifdef CONFIG_ACPI_PROCFS_POWER
 extern struct proc_dir_entry *acpi_lock_battery_dir(void);
 extern void *acpi_unlock_battery_dir(struct proc_dir_entry *acpi_battery_dir);
-
-enum acpi_battery_files {
-	info_tag = 0,
-	state_tag,
-	alarm_tag,
-	ACPI_BATTERY_NUMFILES,
-};
-
 #endif
 
 static const struct acpi_device_id battery_device_ids[] = {
@@ -215,6 +209,20 @@ static bool acpi_battery_is_degraded(struct acpi_battery *battery)
 		battery->full_charge_capacity < battery->design_capacity;
 }
 
+static int acpi_battery_handle_discharging(struct acpi_battery *battery)
+{
+	/*
+	 * Some devices wrongly report discharging if the battery's charge level
+	 * was above the device's start charging threshold atm the AC adapter
+	 * was plugged in and the device thus did not start a new charge cycle.
+	 */
+	if ((battery_ac_is_broken || power_supply_is_system_supplied()) &&
+	    battery->rate_now == 0)
+		return POWER_SUPPLY_STATUS_NOT_CHARGING;
+
+	return POWER_SUPPLY_STATUS_DISCHARGING;
+}
+
 static int acpi_battery_get_property(struct power_supply *psy,
 				     enum power_supply_property psp,
 				     union power_supply_propval *val)
@@ -230,7 +238,7 @@ static int acpi_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (battery->state & ACPI_BATTERY_STATE_DISCHARGING)
-			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+			val->intval = acpi_battery_handle_discharging(battery);
 		else if (battery->state & ACPI_BATTERY_STATE_CHARGING)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (acpi_battery_is_charged(battery))
@@ -351,6 +359,20 @@ static enum power_supply_property energy_battery_props[] = {
 	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CAPACITY_LEVEL,
+	POWER_SUPPLY_PROP_MODEL_NAME,
+	POWER_SUPPLY_PROP_MANUFACTURER,
+	POWER_SUPPLY_PROP_SERIAL_NUMBER,
+};
+
+static enum power_supply_property energy_battery_full_cap_broken_props[] = {
+	POWER_SUPPLY_PROP_STATUS,
+	POWER_SUPPLY_PROP_PRESENT,
+	POWER_SUPPLY_PROP_TECHNOLOGY,
+	POWER_SUPPLY_PROP_CYCLE_COUNT,
+	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
+	POWER_SUPPLY_PROP_VOLTAGE_NOW,
+	POWER_SUPPLY_PROP_POWER_NOW,
+	POWER_SUPPLY_PROP_ENERGY_NOW,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 	POWER_SUPPLY_PROP_MANUFACTURER,
 	POWER_SUPPLY_PROP_SERIAL_NUMBER,
@@ -569,8 +591,7 @@ static int acpi_battery_get_state(struct acpi_battery *battery)
 		battery->rate_now != ACPI_BATTERY_VALUE_UNKNOWN &&
 		(s16)(battery->rate_now) < 0) {
 		battery->rate_now = abs((s16)battery->rate_now);
-		printk_once(KERN_WARNING FW_BUG
-			    "battery: (dis)charge rate invalid.\n");
+		pr_warn_once(FW_BUG "battery: (dis)charge rate invalid.\n");
 	}
 
 	if (test_bit(ACPI_BATTERY_QUIRK_PERCENTAGE_CAPACITY, &battery->flags)
@@ -709,10 +730,11 @@ void battery_hook_register(struct acpi_battery_hook *hook)
 			 */
 			pr_err("extension failed to load: %s", hook->name);
 			__battery_hook_unregister(hook, 0);
-			return;
+			goto end;
 		}
 	}
 	pr_info("new extension: %s\n", hook->name);
+end:
 	mutex_unlock(&hook_mutex);
 }
 EXPORT_SYMBOL_GPL(battery_hook_register);
@@ -724,7 +746,7 @@ EXPORT_SYMBOL_GPL(battery_hook_register);
 */
 static void battery_hook_add_battery(struct acpi_battery *battery)
 {
-	struct acpi_battery_hook *hook_node;
+	struct acpi_battery_hook *hook_node, *tmp;
 
 	mutex_lock(&hook_mutex);
 	INIT_LIST_HEAD(&battery->list);
@@ -736,15 +758,15 @@ static void battery_hook_add_battery(struct acpi_battery *battery)
 	 * when a battery gets hotplugged or initialized
 	 * during the battery module initialization.
 	 */
-	list_for_each_entry(hook_node, &battery_hook_list, list) {
+	list_for_each_entry_safe(hook_node, tmp, &battery_hook_list, list) {
 		if (hook_node->add_battery(battery->bat)) {
 			/*
 			 * The notification of the extensions has failed, to
 			 * prevent further errors we will unload the extension.
 			 */
-			__battery_hook_unregister(hook_node, 0);
 			pr_err("error in extension, unloading: %s",
 					hook_node->name);
+			__battery_hook_unregister(hook_node, 0);
 		}
 	}
 	mutex_unlock(&hook_mutex);
@@ -790,6 +812,11 @@ static int sysfs_add_battery(struct acpi_battery *battery)
 		battery->bat_desc.properties = charge_battery_props;
 		battery->bat_desc.num_properties =
 			ARRAY_SIZE(charge_battery_props);
+	} else if (battery->full_charge_capacity == 0) {
+		battery->bat_desc.properties =
+			energy_battery_full_cap_broken_props;
+		battery->bat_desc.num_properties =
+			ARRAY_SIZE(energy_battery_full_cap_broken_props);
 	} else {
 		battery->bat_desc.properties = energy_battery_props;
 		battery->bat_desc.num_properties =
@@ -909,10 +936,11 @@ static void acpi_battery_quirks(struct acpi_battery *battery)
 
 static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 {
-	int result, old_present = acpi_battery_present(battery);
-	result = acpi_battery_get_status(battery);
+	int result = acpi_battery_get_status(battery);
+
 	if (result)
 		return result;
+
 	if (!acpi_battery_present(battery)) {
 		sysfs_remove_battery(battery);
 		battery->update_time = 0;
@@ -922,8 +950,7 @@ static int acpi_battery_update(struct acpi_battery *battery, bool resume)
 	if (resume)
 		return 0;
 
-	if (!battery->update_time ||
-	    old_present != acpi_battery_present(battery)) {
+	if (!battery->update_time) {
 		result = acpi_battery_get_info(battery);
 		if (result)
 			return result;
@@ -985,9 +1012,10 @@ static const char *acpi_battery_units(const struct acpi_battery *battery)
 		"mA" : "mW";
 }
 
-static int acpi_battery_print_info(struct seq_file *seq, int result)
+static int acpi_battery_info_proc_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_battery *battery = seq->private;
+	int result = acpi_battery_update(battery, false);
 
 	if (result)
 		goto end;
@@ -1011,7 +1039,7 @@ static int acpi_battery_print_info(struct seq_file *seq, int result)
 			   acpi_battery_units(battery));
 
 	seq_printf(seq, "battery technology:      %srechargeable\n",
-		   (!battery->technology)?"non-":"");
+		   battery->technology ? "" : "non-");
 
 	if (battery->design_voltage == ACPI_BATTERY_VALUE_UNKNOWN)
 		seq_printf(seq, "design voltage:          unknown\n");
@@ -1041,9 +1069,10 @@ static int acpi_battery_print_info(struct seq_file *seq, int result)
 	return result;
 }
 
-static int acpi_battery_print_state(struct seq_file *seq, int result)
+static int acpi_battery_state_proc_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_battery *battery = seq->private;
+	int result = acpi_battery_update(battery, false);
 
 	if (result)
 		goto end;
@@ -1088,9 +1117,10 @@ static int acpi_battery_print_state(struct seq_file *seq, int result)
 	return result;
 }
 
-static int acpi_battery_print_alarm(struct seq_file *seq, int result)
+static int acpi_battery_alarm_proc_show(struct seq_file *seq, void *offset)
 {
 	struct acpi_battery *battery = seq->private;
+	int result = acpi_battery_update(battery, false);
 
 	if (result)
 		goto end;
@@ -1100,11 +1130,12 @@ static int acpi_battery_print_alarm(struct seq_file *seq, int result)
 		goto end;
 	}
 	seq_printf(seq, "alarm:                   ");
-	if (!battery->alarm)
-		seq_printf(seq, "unsupported\n");
-	else
+	if (battery->alarm) {
 		seq_printf(seq, "%u %sh\n", battery->alarm,
 				acpi_battery_units(battery));
+	} else {
+		seq_printf(seq, "unsupported\n");
+	}
       end:
 	if (result)
 		seq_printf(seq, "ERROR: Unable to read battery alarm\n");
@@ -1137,89 +1168,28 @@ static ssize_t acpi_battery_write_alarm(struct file *file,
 	}
 	result = acpi_battery_set_alarm(battery);
       end:
-	if (!result)
-		return count;
-	return result;
+	if (result)
+		return result;
+	return count;
 }
 
-typedef int(*print_func)(struct seq_file *seq, int result);
-
-static print_func acpi_print_funcs[ACPI_BATTERY_NUMFILES] = {
-	acpi_battery_print_info,
-	acpi_battery_print_state,
-	acpi_battery_print_alarm,
-};
-
-static int acpi_battery_read(int fid, struct seq_file *seq)
+static int acpi_battery_alarm_proc_open(struct inode *inode, struct file *file)
 {
-	struct acpi_battery *battery = seq->private;
-	int result = acpi_battery_update(battery, false);
-	return acpi_print_funcs[fid](seq, result);
+	return single_open(file, acpi_battery_alarm_proc_show, PDE_DATA(inode));
 }
 
-#define DECLARE_FILE_FUNCTIONS(_name) \
-static int acpi_battery_read_##_name(struct seq_file *seq, void *offset) \
-{ \
-	return acpi_battery_read(_name##_tag, seq); \
-} \
-static int acpi_battery_##_name##_open_fs(struct inode *inode, struct file *file) \
-{ \
-	return single_open(file, acpi_battery_read_##_name, PDE_DATA(inode)); \
-}
-
-DECLARE_FILE_FUNCTIONS(info);
-DECLARE_FILE_FUNCTIONS(state);
-DECLARE_FILE_FUNCTIONS(alarm);
-
-#undef DECLARE_FILE_FUNCTIONS
-
-#define FILE_DESCRIPTION_RO(_name) \
-	{ \
-	.name = __stringify(_name), \
-	.mode = S_IRUGO, \
-	.ops = { \
-		.open = acpi_battery_##_name##_open_fs, \
-		.read = seq_read, \
-		.llseek = seq_lseek, \
-		.release = single_release, \
-		.owner = THIS_MODULE, \
-		}, \
-	}
-
-#define FILE_DESCRIPTION_RW(_name) \
-	{ \
-	.name = __stringify(_name), \
-	.mode = S_IFREG | S_IRUGO | S_IWUSR, \
-	.ops = { \
-		.open = acpi_battery_##_name##_open_fs, \
-		.read = seq_read, \
-		.llseek = seq_lseek, \
-		.write = acpi_battery_write_##_name, \
-		.release = single_release, \
-		.owner = THIS_MODULE, \
-		}, \
-	}
-
-static const struct battery_file {
-	struct file_operations ops;
-	umode_t mode;
-	const char *name;
-} acpi_battery_file[] = {
-	FILE_DESCRIPTION_RO(info),
-	FILE_DESCRIPTION_RO(state),
-	FILE_DESCRIPTION_RW(alarm),
+static const struct file_operations acpi_battery_alarm_fops = {
+	.owner		= THIS_MODULE,
+	.open		= acpi_battery_alarm_proc_open,
+	.read		= seq_read,
+	.write		= acpi_battery_write_alarm,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
-
-#undef FILE_DESCRIPTION_RO
-#undef FILE_DESCRIPTION_RW
 
 static int acpi_battery_add_fs(struct acpi_device *device)
 {
-	struct proc_dir_entry *entry = NULL;
-	int i;
-
-	printk(KERN_WARNING PREFIX "Deprecated procfs I/F for battery is loaded,"
-			" please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
+	pr_warning(PREFIX "Deprecated procfs I/F for battery is loaded, please retry with CONFIG_ACPI_PROCFS_POWER cleared\n");
 	if (!acpi_device_dir(device)) {
 		acpi_device_dir(device) = proc_mkdir(acpi_device_bid(device),
 						     acpi_battery_dir);
@@ -1227,28 +1197,24 @@ static int acpi_battery_add_fs(struct acpi_device *device)
 			return -ENODEV;
 	}
 
-	for (i = 0; i < ACPI_BATTERY_NUMFILES; ++i) {
-		entry = proc_create_data(acpi_battery_file[i].name,
-					 acpi_battery_file[i].mode,
-					 acpi_device_dir(device),
-					 &acpi_battery_file[i].ops,
-					 acpi_driver_data(device));
-		if (!entry)
-			return -ENODEV;
-	}
+	if (!proc_create_single_data("info", S_IRUGO, acpi_device_dir(device),
+			acpi_battery_info_proc_show, acpi_driver_data(device)))
+		return -ENODEV;
+	if (!proc_create_single_data("state", S_IRUGO, acpi_device_dir(device),
+			acpi_battery_state_proc_show, acpi_driver_data(device)))
+		return -ENODEV;
+	if (!proc_create_data("alarm", S_IFREG | S_IRUGO | S_IWUSR,
+			acpi_device_dir(device), &acpi_battery_alarm_fops,
+			acpi_driver_data(device)))
+		return -ENODEV;
 	return 0;
 }
 
 static void acpi_battery_remove_fs(struct acpi_device *device)
 {
-	int i;
 	if (!acpi_device_dir(device))
 		return;
-	for (i = 0; i < ACPI_BATTERY_NUMFILES; ++i)
-		remove_proc_entry(acpi_battery_file[i].name,
-				  acpi_device_dir(device));
-
-	remove_proc_entry(acpi_device_bid(device), acpi_battery_dir);
+	remove_proc_subtree(acpi_device_bid(device), acpi_battery_dir);
 	acpi_device_dir(device) = NULL;
 }
 
@@ -1299,7 +1265,9 @@ static int battery_notify(struct notifier_block *nb,
 		if (!acpi_battery_present(battery))
 			return 0;
 
-		if (!battery->bat) {
+		if (battery->bat) {
+			acpi_battery_refresh(battery);
+		} else {
 			result = acpi_battery_get_info(battery);
 			if (result)
 				return result;
@@ -1307,8 +1275,7 @@ static int battery_notify(struct notifier_block *nb,
 			result = sysfs_add_battery(battery);
 			if (result)
 				return result;
-		} else
-			acpi_battery_refresh(battery);
+		}
 
 		acpi_battery_init_alarm(battery);
 		acpi_battery_get_state(battery);
@@ -1332,21 +1299,62 @@ battery_notification_delay_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init
+battery_ac_is_broken_quirk(const struct dmi_system_id *d)
+{
+	battery_ac_is_broken = 1;
+	return 0;
+}
+
+static int __init
+battery_do_not_check_pmic_quirk(const struct dmi_system_id *d)
+{
+	battery_check_pmic = 0;
+	return 0;
+}
+
 static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{
+		/* NEC LZ750/LS */
 		.callback = battery_bix_broken_package_quirk,
-		.ident = "NEC LZ750/LS",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PC-LZ750LS"),
 		},
 	},
 	{
+		/* Acer Aspire V5-573G */
 		.callback = battery_notification_delay_quirk,
-		.ident = "Acer Aspire V5-573G",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire V5-573G"),
+		},
+	},
+	{
+		/* Point of View mobii wintab p800w */
+		.callback = battery_ac_is_broken_quirk,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
+			DMI_MATCH(DMI_BOARD_NAME, "Aptio CRB"),
+			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1013"),
+			/* Above matches are too generic, add bios-date match */
+			DMI_MATCH(DMI_BIOS_DATE, "08/22/2014"),
+		},
+	},
+	{
+		/* ECS EF20EA */
+		.callback = battery_do_not_check_pmic_quirk,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+		},
+	},
+	{
+		/* Lenovo Ideapad Miix 320 */
+		.callback = battery_do_not_check_pmic_quirk,
+		.matches = {
+		  DMI_EXACT_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "80XF"),
+		  DMI_EXACT_MATCH(DMI_PRODUCT_VERSION, "Lenovo MIIX 320-10ICR"),
 		},
 	},
 	{},
@@ -1409,7 +1417,7 @@ static int acpi_battery_add(struct acpi_device *device)
 	}
 #endif
 
-	printk(KERN_INFO PREFIX "%s Slot [%s] (battery %s)\n",
+	pr_info(PREFIX "%s Slot [%s] (battery %s)\n",
 		ACPI_BATTERY_DEVICE_NAME, acpi_device_bid(device),
 		device->status.battery_present ? "present" : "absent");
 
@@ -1488,15 +1496,17 @@ static void __init acpi_battery_init_async(void *unused, async_cookie_t cookie)
 	unsigned int i;
 	int result;
 
-	for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
-		if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
-			pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
-				": found native %s PMIC, not loading\n",
-				acpi_battery_blacklist[i]);
-			return;
-		}
-
 	dmi_check_system(bat_dmi_table);
+
+	if (battery_check_pmic) {
+		for (i = 0; i < ARRAY_SIZE(acpi_battery_blacklist); i++)
+			if (acpi_dev_present(acpi_battery_blacklist[i], "1", -1)) {
+				pr_info(PREFIX ACPI_BATTERY_DEVICE_NAME
+					": found native %s PMIC, not loading\n",
+					acpi_battery_blacklist[i]);
+				return;
+			}
+	}
 
 #ifdef CONFIG_ACPI_PROCFS_POWER
 	acpi_battery_dir = acpi_lock_battery_dir();

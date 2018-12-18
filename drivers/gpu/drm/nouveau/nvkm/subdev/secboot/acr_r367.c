@@ -265,6 +265,19 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 {
 	struct ls_ucode_img *_img;
 	u32 pos = 0;
+	u32 max_desc_size = 0;
+	u8 *gdesc;
+
+	list_for_each_entry(_img, imgs, node) {
+		const struct acr_r352_ls_func *ls_func =
+					    acr->func->ls_func[_img->falcon_id];
+
+		max_desc_size = max(max_desc_size, ls_func->bl_desc_size);
+	}
+
+	gdesc = kmalloc(max_desc_size, GFP_KERNEL);
+	if (!gdesc)
+		return -ENOMEM;
 
 	nvkm_kmap(wpr_blob);
 
@@ -272,7 +285,6 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 		struct ls_ucode_img_r367 *img = ls_ucode_img_r367(_img);
 		const struct acr_r352_ls_func *ls_func =
 					    acr->func->ls_func[_img->falcon_id];
-		u8 gdesc[ls_func->bl_desc_size];
 
 		nvkm_gpuobj_memcpy_to(wpr_blob, pos, &img->wpr_header,
 				      sizeof(img->wpr_header));
@@ -297,6 +309,8 @@ acr_r367_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 	nvkm_wo32(wpr_blob, pos, NVKM_SECBOOT_FALCON_INVALID);
 
 	nvkm_done(wpr_blob);
+
+	kfree(gdesc);
 
 	return 0;
 }

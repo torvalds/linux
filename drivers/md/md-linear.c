@@ -269,7 +269,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 	if (unlikely(bio_end_sector(bio) > end_sector)) {
 		/* This bio crosses a device boundary, so we have to split it */
 		struct bio *split = bio_split(bio, end_sector - bio_sector,
-					      GFP_NOIO, mddev->bio_set);
+					      GFP_NOIO, &mddev->bio_set);
 		bio_chain(split, bio);
 		generic_make_request(bio);
 		bio = split;

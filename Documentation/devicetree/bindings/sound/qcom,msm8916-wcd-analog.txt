@@ -7,7 +7,6 @@ Bindings for codec Analog IP which is integrated in pmic pm8916,
 Required properties
  - compatible = "qcom,pm8916-wcd-analog-codec";
  - reg: represents the slave base address provided to the peripheral.
- - interrupt-parent : The parent interrupt controller.
  - interrupts: List of interrupts in given SPMI peripheral.
  - interrupt-names: Names specified to above list of interrupts in same
 		    order. List of supported interrupt names are:

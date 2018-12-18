@@ -166,15 +166,15 @@ static struct attribute *default_ctx_attrs[] = {
 };
 
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_tags = {
-	.attr = {.name = "nr_tags", .mode = S_IRUGO },
+	.attr = {.name = "nr_tags", .mode = 0444 },
 	.show = blk_mq_hw_sysfs_nr_tags_show,
 };
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_nr_reserved_tags = {
-	.attr = {.name = "nr_reserved_tags", .mode = S_IRUGO },
+	.attr = {.name = "nr_reserved_tags", .mode = 0444 },
 	.show = blk_mq_hw_sysfs_nr_reserved_tags_show,
 };
 static struct blk_mq_hw_ctx_sysfs_entry blk_mq_hw_sysfs_cpus = {
-	.attr = {.name = "cpu_list", .mode = S_IRUGO },
+	.attr = {.name = "cpu_list", .mode = 0444 },
 	.show = blk_mq_hw_sysfs_cpus_show,
 };
 

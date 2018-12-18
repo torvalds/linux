@@ -364,6 +364,8 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 		goto done;
 	}
 	for (i = 0; i < cnt; i++, vaddr += PAGE_SIZE) {
+		dma_addr_t daddr;
+
 		for (; ntids--; tid++) {
 			if (tid == tidcnt)
 				tid = 0;
@@ -380,12 +382,14 @@ static int qib_tid_update(struct qib_ctxtdata *rcd, struct file *fp,
 			ret = -ENOMEM;
 			break;
 		}
+		ret = qib_map_page(dd->pcidev, pagep[i], &daddr);
+		if (ret)
+			break;
+
 		tidlist[i] = tid + tidoff;
 		/* we "know" system pages and TID pages are same size */
 		dd->pageshadow[ctxttid + tid] = pagep[i];
-		dd->physshadow[ctxttid + tid] =
-			qib_map_page(dd->pcidev, pagep[i], 0, PAGE_SIZE,
-				     PCI_DMA_FROMDEVICE);
+		dd->physshadow[ctxttid + tid] = daddr;
 		/*
 		 * don't need atomic or it's overhead
 		 */
@@ -868,7 +872,7 @@ bail:
 /*
  * qib_file_vma_fault - handle a VMA page fault.
  */
-static int qib_file_vma_fault(struct vm_fault *vmf)
+static vm_fault_t qib_file_vma_fault(struct vm_fault *vmf)
 {
 	struct page *page;
 

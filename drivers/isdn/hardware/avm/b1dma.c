@@ -858,7 +858,7 @@ u16 b1dma_send_message(struct capi_ctr *ctrl, struct sk_buff *skb)
 
 /* ------------------------------------------------------------- */
 
-static int b1dmactl_proc_show(struct seq_file *m, void *v)
+int b1dma_proc_show(struct seq_file *m, void *v)
 {
 	struct capi_ctr *ctrl = m->private;
 	avmctrl_info *cinfo = (avmctrl_info *)(ctrl->driverdata);
@@ -941,20 +941,7 @@ static int b1dmactl_proc_show(struct seq_file *m, void *v)
 
 	return 0;
 }
-
-static int b1dmactl_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, b1dmactl_proc_show, PDE_DATA(inode));
-}
-
-const struct file_operations b1dmactl_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= b1dmactl_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-EXPORT_SYMBOL(b1dmactl_proc_fops);
+EXPORT_SYMBOL(b1dma_proc_show);
 
 /* ------------------------------------------------------------- */
 

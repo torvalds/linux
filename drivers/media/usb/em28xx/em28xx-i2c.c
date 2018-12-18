@@ -4,7 +4,7 @@
 //
 // Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
 //		      Markus Rechberger <mrechberger@gmail.com>
-//		      Mauro Carvalho Chehab <mchehab@infradead.org>
+//		      Mauro Carvalho Chehab <mchehab@kernel.org>
 //		      Sascha Sommer <saschasommer@freenet.de>
 // Copyright (C) 2013 Frank Schäfer <fschaefer.oss@googlemail.com>
 //
@@ -559,10 +559,6 @@ static int em28xx_i2c_xfer(struct i2c_adapter *i2c_adap,
 		dev->cur_i2c_bus = bus;
 	}
 
-	if (num <= 0) {
-		rt_mutex_unlock(&dev->i2c_bus_lock);
-		return 0;
-	}
 	for (i = 0; i < num; i++) {
 		addr = msgs[i].addr << 1;
 		if (!msgs[i].len) {

@@ -1,0 +1,1 @@
+Kconfig:5: Recursive variable 'X' references itself (eventually)

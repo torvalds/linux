@@ -90,7 +90,7 @@ static struct clock_event_device ce_broadcast_hrtimer = {
 	.max_delta_ticks	= ULONG_MAX,
 	.mult			= 1,
 	.shift			= 0,
-	.cpumask		= cpu_all_mask,
+	.cpumask		= cpu_possible_mask,
 };
 
 static enum hrtimer_restart bc_handler(struct hrtimer *t)

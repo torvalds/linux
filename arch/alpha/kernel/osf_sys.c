@@ -871,8 +871,7 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 		   send a signal.  Old exceptions are not signaled.  */
 		fex = (exc >> IEEE_STATUS_TO_EXCSUM_SHIFT) & swcr;
  		if (fex) {
-			siginfo_t info;
-			int si_code = 0;
+			int si_code = FPE_FLTUNK;
 
 			if (fex & IEEE_TRAP_ENABLE_DNO) si_code = FPE_FLTUND;
 			if (fex & IEEE_TRAP_ENABLE_INE) si_code = FPE_FLTRES;
@@ -881,11 +880,9 @@ SYSCALL_DEFINE5(osf_setsysinfo, unsigned long, op, void __user *, buffer,
 			if (fex & IEEE_TRAP_ENABLE_DZE) si_code = FPE_FLTDIV;
 			if (fex & IEEE_TRAP_ENABLE_INV) si_code = FPE_FLTINV;
 
-			info.si_signo = SIGFPE;
-			info.si_errno = 0;
-			info.si_code = si_code;
-			info.si_addr = NULL;  /* FIXME */
- 			send_sig_info(SIGFPE, &info, current);
+			send_sig_fault(SIGFPE, si_code,
+				       (void __user *)NULL,  /* FIXME */
+				       0, current);
  		}
 		return 0;
 	}
@@ -1183,13 +1180,10 @@ SYSCALL_DEFINE2(osf_getrusage, int, who, struct rusage32 __user *, ru)
 SYSCALL_DEFINE4(osf_wait4, pid_t, pid, int __user *, ustatus, int, options,
 		struct rusage32 __user *, ur)
 {
-	unsigned int status = 0;
 	struct rusage r;
-	long err = kernel_wait4(pid, &status, options, &r);
+	long err = kernel_wait4(pid, ustatus, options, &r);
 	if (err <= 0)
 		return err;
-	if (put_user(status, ustatus))
-		return -EFAULT;
 	if (!ur)
 		return err;
 	if (put_tv_to_tv32(&ur->ru_utime, &r.ru_utime))

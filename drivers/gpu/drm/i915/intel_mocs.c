@@ -178,7 +178,8 @@ static bool get_mocs_settings(struct drm_i915_private *dev_priv,
 {
 	bool result = false;
 
-	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv)) {
+	if (IS_GEN9_BC(dev_priv) || IS_CANNONLAKE(dev_priv) ||
+	    IS_ICELAKE(dev_priv)) {
 		table->size  = ARRAY_SIZE(skylake_mocs_table);
 		table->table = skylake_mocs_table;
 		result = true;
@@ -217,6 +218,8 @@ static i915_reg_t mocs_register(enum intel_engine_id engine_id, int index)
 		return GEN9_VEBOX_MOCS(index);
 	case VCS2:
 		return GEN9_MFX1_MOCS(index);
+	case VCS3:
+		return GEN11_MFX2_MOCS(index);
 	default:
 		MISSING_CASE(engine_id);
 		return INVALID_MMIO_REG;

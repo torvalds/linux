@@ -60,6 +60,8 @@
 
 #include "psock_lib.h"
 
+#include "../kselftest.h"
+
 #ifndef bug_on
 # define bug_on(cond)		assert(!(cond))
 #endif
@@ -825,7 +827,7 @@ static int test_tpacket(int version, int type)
 		fprintf(stderr, "test: skip %s %s since user and kernel "
 			"space have different bit width\n",
 			tpacket_str[version], type_str[type]);
-		return 0;
+		return KSFT_SKIP;
 	}
 
 	sock = pfsocket(version);

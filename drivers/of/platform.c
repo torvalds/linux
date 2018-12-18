@@ -32,6 +32,11 @@ const struct of_device_id of_default_bus_match_table[] = {
 	{} /* Empty terminated list */
 };
 
+static const struct of_device_id of_skipped_node_table[] = {
+	{ .compatible = "operating-points-v2", },
+	{} /* Empty terminated list */
+};
+
 static int of_dev_node_match(struct device *dev, void *data)
 {
 	return dev->of_node == data;
@@ -124,7 +129,7 @@ struct platform_device *of_device_alloc(struct device_node *np,
 
 	/* Populate the resource table */
 	if (num_irq || num_reg) {
-		res = kzalloc(sizeof(*res) * (num_irq + num_reg), GFP_KERNEL);
+		res = kcalloc(num_irq + num_reg, sizeof(*res), GFP_KERNEL);
 		if (!res) {
 			platform_device_put(dev);
 			return NULL;
@@ -180,6 +185,9 @@ static struct platform_device *of_platform_device_create_pdata(
 	if (!dev)
 		goto err_clear_flag;
 
+	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	if (!dev->dev.dma_mask)
+		dev->dev.dma_mask = &dev->dev.coherent_dma_mask;
 	dev->dev.bus = &platform_bus_type;
 	dev->dev.platform_data = platform_data;
 	of_msi_configure(&dev->dev, dev->dev.of_node);
@@ -356,6 +364,12 @@ static int of_platform_bus_create(struct device_node *bus,
 		return 0;
 	}
 
+	/* Skip nodes for which we don't want to create devices */
+	if (unlikely(of_match_node(of_skipped_node_table, bus))) {
+		pr_debug("%s() - skipping %pOF node\n", __func__, bus);
+		return 0;
+	}
+
 	if (of_node_check_flag(bus, OF_POPULATED_BUS)) {
 		pr_debug("%s() - skipping %pOF, already populated\n",
 			__func__, bus);
@@ -494,6 +508,7 @@ EXPORT_SYMBOL_GPL(of_platform_default_populate);
 #ifndef CONFIG_PPC
 static const struct of_device_id reserved_mem_matches[] = {
 	{ .compatible = "qcom,rmtfs-mem" },
+	{ .compatible = "qcom,cmd-db" },
 	{ .compatible = "ramoops" },
 	{}
 };
@@ -537,6 +552,9 @@ int of_platform_device_destroy(struct device *dev, void *data)
 	if (of_node_check_flag(dev->of_node, OF_POPULATED_BUS))
 		device_for_each_child(dev, NULL, of_platform_device_destroy);
 
+	of_node_clear_flag(dev->of_node, OF_POPULATED);
+	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
+
 	if (dev->bus == &platform_bus_type)
 		platform_device_unregister(to_platform_device(dev));
 #ifdef CONFIG_ARM_AMBA
@@ -544,8 +562,6 @@ int of_platform_device_destroy(struct device *dev, void *data)
 		amba_device_unregister(to_amba_device(dev));
 #endif
 
-	of_node_clear_flag(dev->of_node, OF_POPULATED);
-	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_platform_device_destroy);

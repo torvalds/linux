@@ -53,7 +53,8 @@ static inline bool security_extensions_enabled(void)
 {
 	/* Check CPUID Identification Scheme before ID_PFR1 read */
 	if ((read_cpuid_id() & 0x000f0000) == 0x000f0000)
-		return !!cpuid_feature_extract(CPUID_EXT_PFR1, 4);
+		return cpuid_feature_extract(CPUID_EXT_PFR1, 4) ||
+			cpuid_feature_extract(CPUID_EXT_PFR1, 20);
 	return 0;
 }
 
@@ -97,6 +98,38 @@ void __init arm_mm_memblock_reserve(void)
 	 * get very confused if 0 is returned as a legitimate address.
 	 */
 	memblock_reserve(0, 1);
+}
+
+static void __init adjust_lowmem_bounds_mpu(void)
+{
+	unsigned long pmsa = read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA;
+
+	switch (pmsa) {
+	case MMFR0_PMSAv7:
+		pmsav7_adjust_lowmem_bounds();
+		break;
+	case MMFR0_PMSAv8:
+		pmsav8_adjust_lowmem_bounds();
+		break;
+	default:
+		break;
+	}
+}
+
+static void __init mpu_setup(void)
+{
+	unsigned long pmsa = read_cpuid_ext(CPUID_EXT_MMFR0) & MMFR0_PMSA;
+
+	switch (pmsa) {
+	case MMFR0_PMSAv7:
+		pmsav7_setup();
+		break;
+	case MMFR0_PMSAv8:
+		pmsav8_setup();
+		break;
+	default:
+		break;
+	}
 }
 
 void __init adjust_lowmem_bounds(void)

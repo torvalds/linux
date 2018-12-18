@@ -23,7 +23,6 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/kexec.h>
-#include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/setjmp.h>

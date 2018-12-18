@@ -23,7 +23,6 @@
 #include <linux/kvm_host.h>
 #include <linux/highmem.h>
 
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 
@@ -52,7 +51,7 @@
 static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 {
 #ifdef DEBUG_MMU_PTE_IP
-	return vcpu->arch.pc == DEBUG_MMU_PTE_IP;
+	return vcpu->arch.regs.nip == DEBUG_MMU_PTE_IP;
 #else
 	return true;
 #endif

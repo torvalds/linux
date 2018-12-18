@@ -268,7 +268,7 @@ struct aa_profile *aa_alloc_profile(const char *hname, struct aa_proxy *proxy,
 
 	if (!aa_policy_init(&profile->base, NULL, hname, gfp))
 		goto fail;
-	if (!aa_label_init(&profile->label, 1))
+	if (!aa_label_init(&profile->label, 1, gfp))
 		goto fail;
 
 	/* update being set needed by fs interface */
@@ -1008,6 +1008,9 @@ ssize_t aa_replace_profiles(struct aa_ns *policy_ns, struct aa_label *label,
 			audit_policy(label, op, ns_name, ent->new->base.hname,
 				     "same as current profile, skipping",
 				     error);
+			/* break refcount cycle with proxy. */
+			aa_put_proxy(ent->new->label.proxy);
+			ent->new->label.proxy = NULL;
 			goto skip;
 		}
 
@@ -1085,7 +1088,7 @@ fail:
  * Remove a profile or sub namespace from the current namespace, so that
  * they can not be found anymore and mark them as replaced by unconfined
  *
- * NOTE: removing confinement does not restore rlimits to preconfinemnet values
+ * NOTE: removing confinement does not restore rlimits to preconfinement values
  *
  * Returns: size of data consume else error code if fails
  */

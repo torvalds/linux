@@ -823,28 +823,21 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(dfid))
 		return ERR_CAST(dfid);
 
-	name = dentry->d_name.name;
-	fid = p9_client_walk(dfid, 1, &name, 1);
-	if (IS_ERR(fid)) {
-		if (fid == ERR_PTR(-ENOENT)) {
-			d_add(dentry, NULL);
-			return NULL;
-		}
-		return ERR_CAST(fid);
-	}
 	/*
 	 * Make sure we don't use a wrong inode due to parallel
 	 * unlink. For cached mode create calls request for new
 	 * inode. But with cache disabled, lookup should do this.
 	 */
-	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
+	name = dentry->d_name.name;
+	fid = p9_client_walk(dfid, 1, &name, 1);
+	if (fid == ERR_PTR(-ENOENT))
+		inode = NULL;
+	else if (IS_ERR(fid))
+		inode = ERR_CAST(fid);
+	else if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		inode = v9fs_get_inode_from_fid(v9ses, fid, dir->i_sb);
 	else
 		inode = v9fs_get_new_inode_from_fid(v9ses, fid, dir->i_sb);
-	if (IS_ERR(inode)) {
-		p9_client_clunk(fid);
-		return ERR_CAST(inode);
-	}
 	/*
 	 * If we had a rename on the server and a parallel lookup
 	 * for the new name, then make sure we instantiate with
@@ -853,19 +846,20 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	 * k/b.
 	 */
 	res = d_splice_alias(inode, dentry);
-	if (!res)
-		v9fs_fid_add(dentry, fid);
-	else if (!IS_ERR(res))
-		v9fs_fid_add(res, fid);
-	else
-		p9_client_clunk(fid);
+	if (!IS_ERR(fid)) {
+		if (!res)
+			v9fs_fid_add(dentry, fid);
+		else if (!IS_ERR(res))
+			v9fs_fid_add(res, fid);
+		else
+			p9_client_clunk(fid);
+	}
 	return res;
 }
 
 static int
 v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
-		     struct file *file, unsigned flags, umode_t mode,
-		     int *opened)
+		     struct file *file, unsigned flags, umode_t mode)
 {
 	int err;
 	u32 perm;
@@ -922,7 +916,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		v9inode->writeback_fid = (void *) inode_fid;
 	}
 	mutex_unlock(&v9inode->v_mutex);
-	err = finish_open(file, dentry, generic_file_open, opened);
+	err = finish_open(file, dentry, generic_file_open);
 	if (err)
 		goto error;
 
@@ -930,7 +924,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		v9fs_cache_inode_set_cookie(d_inode(dentry), file);
 
-	*opened |= FILE_CREATED;
+	file->f_mode |= FMODE_CREATED;
 out:
 	dput(res);
 	return err;

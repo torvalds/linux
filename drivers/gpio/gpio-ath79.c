@@ -51,7 +51,7 @@ static u32 ath79_gpio_read(struct ath79_gpio_ctrl *ctrl, unsigned reg)
 static void ath79_gpio_write(struct ath79_gpio_ctrl *ctrl,
 			unsigned reg, u32 val)
 {
-	return writel(val, ctrl->base + reg);
+	writel(val, ctrl->base + reg);
 }
 
 static bool ath79_gpio_update_bits(

@@ -501,8 +501,9 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 
 	/* we allocate functions for number of pins and hope
 	 * there are fewer unique functions than pins available */
-	funcs = devm_kzalloc(&pdev->dev, funcsize *
-			     sizeof(struct mvebu_pinctrl_function), GFP_KERNEL);
+	funcs = devm_kcalloc(&pdev->dev,
+			     funcsize, sizeof(struct mvebu_pinctrl_function),
+			     GFP_KERNEL);
 	if (!funcs)
 		return -ENOMEM;
 
@@ -549,8 +550,9 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 
 			/* allocate group name array if not done already */
 			if (!f->groups) {
-				f->groups = devm_kzalloc(&pdev->dev,
-						 f->num_groups * sizeof(char *),
+				f->groups = devm_kcalloc(&pdev->dev,
+						 f->num_groups,
+						 sizeof(char *),
 						 GFP_KERNEL);
 				if (!f->groups)
 					return -ENOMEM;
@@ -622,8 +624,10 @@ int mvebu_pinctrl_probe(struct platform_device *pdev)
 		}
 	}
 
-	pdesc = devm_kzalloc(&pdev->dev, pctl->desc.npins *
-			     sizeof(struct pinctrl_pin_desc), GFP_KERNEL);
+	pdesc = devm_kcalloc(&pdev->dev,
+			     pctl->desc.npins,
+			     sizeof(struct pinctrl_pin_desc),
+			     GFP_KERNEL);
 	if (!pdesc)
 		return -ENOMEM;
 

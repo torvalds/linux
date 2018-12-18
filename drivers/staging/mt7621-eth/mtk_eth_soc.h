@@ -501,21 +501,7 @@ struct mtk_soc_data {
 	u32 has_switch:1;
 };
 
-/* ugly macro hack to make sure hw_stats and ethtool strings are consistent */
 #define MTK_STAT_OFFSET			0x40
-#define MTK_STAT_REG_DECLARE		\
-	_FE(tx_bytes)			\
-	_FE(tx_packets)			\
-	_FE(tx_skip)			\
-	_FE(tx_collisions)		\
-	_FE(rx_bytes)			\
-	_FE(rx_packets)			\
-	_FE(rx_overflow)		\
-	_FE(rx_fcs_errors)		\
-	_FE(rx_short_errors)		\
-	_FE(rx_long_errors)		\
-	_FE(rx_checksum_errors)		\
-	_FE(rx_flow_control_packets)
 
 /* struct mtk_hw_stats - the structure that holds the traffic statistics.
  * @stats_lock:		make sure that stats operations are atomic
@@ -531,9 +517,18 @@ struct mtk_hw_stats {
 	u32 reg_offset;
 	struct u64_stats_sync syncp;
 
-#define _FE(x) u64 x;
-	MTK_STAT_REG_DECLARE
-#undef _FE
+	u64 tx_bytes;
+	u64 tx_packets;
+	u64 tx_skip;
+	u64 tx_collisions;
+	u64 rx_bytes;
+	u64 rx_packets;
+	u64 rx_overflow;
+	u64 rx_fcs_errors;
+	u64 rx_short_errors;
+	u64 rx_long_errors;
+	u64 rx_checksum_errors;
+	u64 rx_flow_control_packets;
 };
 
 /* PDMA descriptor can point at 1-2 segments. This enum allows us to track how
@@ -706,8 +701,8 @@ void mtk_stats_update_mac(struct mtk_mac *mac);
 void mtk_reset(struct mtk_eth *eth, u32 reset_bits);
 
 /* register i/o wrappers */
-void mtk_w32(struct mtk_eth *eth, u32 val, unsigned reg);
-u32 mtk_r32(struct mtk_eth *eth, unsigned reg);
+void mtk_w32(struct mtk_eth *eth, u32 val, unsigned int reg);
+u32 mtk_r32(struct mtk_eth *eth, unsigned int reg);
 
 /* default clock calibration handler */
 int mtk_set_clock_cycle(struct mtk_eth *eth);

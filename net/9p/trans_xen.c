@@ -38,7 +38,6 @@
 
 #include <linux/module.h>
 #include <linux/spinlock.h>
-#include <linux/rwlock.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -94,6 +93,9 @@ static int p9_xen_cancel(struct p9_client *client, struct p9_req_t *req)
 static int p9_xen_create(struct p9_client *client, const char *addr, char *args)
 {
 	struct xen_9pfs_front_priv *priv;
+
+	if (addr == NULL)
+		return -EINVAL;
 
 	read_lock(&xen_9pfs_lock);
 	list_for_each_entry(priv, &xen_9pfs_devs, list) {
@@ -485,7 +487,7 @@ static int xen_9pfs_front_probe(struct xenbus_device *dev,
 
 static int xen_9pfs_front_resume(struct xenbus_device *dev)
 {
-	dev_warn(&dev->dev, "suspsend/resume unsupported\n");
+	dev_warn(&dev->dev, "suspend/resume unsupported\n");
 	return 0;
 }
 

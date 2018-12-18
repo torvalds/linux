@@ -15,7 +15,7 @@
  */
 
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -278,6 +278,13 @@ static void gpio_rcar_free(struct gpio_chip *chip, unsigned offset)
 	pm_runtime_put(&p->pdev->dev);
 }
 
+static int gpio_rcar_get_direction(struct gpio_chip *chip, unsigned int offset)
+{
+	struct gpio_rcar_priv *p = gpiochip_get_data(chip);
+
+	return !(gpio_rcar_read(p, INOUTSEL) & BIT(offset));
+}
+
 static int gpio_rcar_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	gpio_rcar_config_general_input_output_mode(chip, offset, false);
@@ -461,6 +468,7 @@ static int gpio_rcar_probe(struct platform_device *pdev)
 	gpio_chip = &p->gpio_chip;
 	gpio_chip->request = gpio_rcar_request;
 	gpio_chip->free = gpio_rcar_free;
+	gpio_chip->get_direction = gpio_rcar_get_direction;
 	gpio_chip->direction_input = gpio_rcar_direction_input;
 	gpio_chip->get = gpio_rcar_get;
 	gpio_chip->direction_output = gpio_rcar_direction_output;

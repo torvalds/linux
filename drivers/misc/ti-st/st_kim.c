@@ -138,7 +138,7 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 	const unsigned char *data, long count)
 {
 	const unsigned char *ptr;
-	int len = 0, type = 0;
+	int len = 0;
 	unsigned char *plen;
 
 	pr_debug("%s", __func__);
@@ -183,7 +183,6 @@ static void kim_int_recv(struct kim_data_s *kim_gdata,
 		case 0x04:
 			kim_gdata->rx_state = ST_W4_HEADER;
 			kim_gdata->rx_count = 2;
-			type = *ptr;
 			break;
 		default:
 			pr_info("unknown packet");
@@ -735,7 +734,7 @@ static int kim_probe(struct platform_device *pdev)
 		st_kim_devices[0] = pdev;
 	}
 
-	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_ATOMIC);
+	kim_gdata = kzalloc(sizeof(struct kim_data_s), GFP_KERNEL);
 	if (!kim_gdata) {
 		pr_err("no mem to allocate");
 		return -ENOMEM;
@@ -756,14 +755,14 @@ static int kim_probe(struct platform_device *pdev)
 	err = gpio_request(kim_gdata->nshutdown, "kim");
 	if (unlikely(err)) {
 		pr_err(" gpio %d request failed ", kim_gdata->nshutdown);
-		return err;
+		goto err_sysfs_group;
 	}
 
 	/* Configure nShutdown GPIO as output=0 */
 	err = gpio_direction_output(kim_gdata->nshutdown, 0);
 	if (unlikely(err)) {
 		pr_err(" unable to configure gpio %d", kim_gdata->nshutdown);
-		return err;
+		goto err_sysfs_group;
 	}
 	/* get reference of pdev for request_firmware
 	 */

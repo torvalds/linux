@@ -74,6 +74,8 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 
 	buffer->heap = heap;
 	buffer->flags = flags;
+	buffer->dev = dev;
+	buffer->size = len;
 
 	ret = heap->ops->allocate(heap, buffer, len, flags);
 
@@ -93,11 +95,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		goto err1;
 	}
 
-	buffer->dev = dev;
-	buffer->size = len;
-
-	buffer->dev = dev;
-	buffer->size = len;
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
 	mutex_lock(&dev->buffer_lock);
@@ -114,8 +111,11 @@ err2:
 
 void ion_buffer_destroy(struct ion_buffer *buffer)
 {
-	if (WARN_ON(buffer->kmap_cnt > 0))
+	if (buffer->kmap_cnt > 0) {
+		pr_warn_once("%s: buffer still mapped in the kernel\n",
+			     __func__);
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
+	}
 	buffer->heap->ops->free(buffer);
 	kfree(buffer);
 }
@@ -201,7 +201,7 @@ struct ion_dma_buf_attachment {
 	struct list_head list;
 };
 
-static int ion_dma_buf_attach(struct dma_buf *dmabuf, struct device *dev,
+static int ion_dma_buf_attach(struct dma_buf *dmabuf,
 			      struct dma_buf_attachment *attachment)
 {
 	struct ion_dma_buf_attachment *a;
@@ -219,7 +219,7 @@ static int ion_dma_buf_attach(struct dma_buf *dmabuf, struct device *dev,
 	}
 
 	a->table = table;
-	a->dev = dev;
+	a->dev = attachment->dev;
 	INIT_LIST_HEAD(&a->list);
 
 	attachment->priv = a;
@@ -318,6 +318,7 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	struct ion_buffer *buffer = dmabuf->priv;
 	void *vaddr;
 	struct ion_dma_buf_attachment *a;
+	int ret = 0;
 
 	/*
 	 * TODO: Move this elsewhere because we don't always need a vaddr
@@ -325,6 +326,10 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	if (buffer->heap->ops->map_kernel) {
 		mutex_lock(&buffer->lock);
 		vaddr = ion_buffer_kmap_get(buffer);
+		if (IS_ERR(vaddr)) {
+			ret = PTR_ERR(vaddr);
+			goto unlock;
+		}
 		mutex_unlock(&buffer->lock);
 	}
 
@@ -333,9 +338,10 @@ static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 		dma_sync_sg_for_cpu(a->dev, a->table->sgl, a->table->nents,
 				    direction);
 	}
-	mutex_unlock(&buffer->lock);
 
-	return 0;
+unlock:
+	mutex_unlock(&buffer->lock);
+	return ret;
 }
 
 static int ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
@@ -369,8 +375,6 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.detach = ion_dma_buf_detatch,
 	.begin_cpu_access = ion_dma_buf_begin_cpu_access,
 	.end_cpu_access = ion_dma_buf_end_cpu_access,
-	.map_atomic = ion_dma_buf_kmap,
-	.unmap_atomic = ion_dma_buf_kunmap,
 	.map = ion_dma_buf_kmap,
 	.unmap = ion_dma_buf_kunmap,
 };

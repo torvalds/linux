@@ -39,6 +39,7 @@ show up in /proc/sys/kernel:
 - hung_task_check_count
 - hung_task_timeout_secs
 - hung_task_warnings
+- hyperv_record_panic_msg
 - kexec_load_disabled
 - kptr_restrict
 - l2cr                        [ PPC only ]
@@ -371,6 +372,16 @@ When this value reaches 0, no more warnings will be reported.
 This file shows up if CONFIG_DETECT_HUNG_TASK is enabled.
 
 -1: report an infinite number of warnings.
+
+==============================================================
+
+hyperv_record_panic_msg:
+
+Controls whether the panic kmsg data should be reported to Hyper-V.
+
+0: do not report panic kmsg data.
+
+1: report the panic kmsg data. This is the default behavior.
 
 ==============================================================
 

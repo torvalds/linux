@@ -22,11 +22,17 @@
 #include <linux/delay.h>
 #include <linux/hw_random.h>
 #include <linux/ccp.h>
+#include <linux/firmware.h>
 
 #include "sp-dev.h"
 #include "psp-dev.h"
 
+#define SEV_VERSION_GREATER_OR_EQUAL(_maj, _min)	\
+		((psp_master->api_major) >= _maj &&	\
+		 (psp_master->api_minor) >= _min)
+
 #define DEVICE_NAME	"sev"
+#define SEV_FW_FILE	"amd/sev.fw"
 
 static DEFINE_MUTEX(sev_cmd_mutex);
 static struct sev_misc_dev *misc_dev;
@@ -56,14 +62,14 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 	int reg;
 
 	/* Read the interrupt status: */
-	status = ioread32(psp->io_regs + PSP_P2CMSG_INTSTS);
+	status = ioread32(psp->io_regs + psp->vdata->intsts_reg);
 
 	/* Check if it is command completion: */
-	if (!(status & BIT(PSP_CMD_COMPLETE_REG)))
+	if (!(status & PSP_CMD_COMPLETE))
 		goto done;
 
 	/* Check if it is SEV command completion: */
-	reg = ioread32(psp->io_regs + PSP_CMDRESP);
+	reg = ioread32(psp->io_regs + psp->vdata->cmdresp_reg);
 	if (reg & PSP_CMDRESP_RESP) {
 		psp->sev_int_rcvd = 1;
 		wake_up(&psp->sev_int_queue);
@@ -71,17 +77,15 @@ static irqreturn_t psp_irq_handler(int irq, void *data)
 
 done:
 	/* Clear the interrupt status by writing the same value we read. */
-	iowrite32(status, psp->io_regs + PSP_P2CMSG_INTSTS);
+	iowrite32(status, psp->io_regs + psp->vdata->intsts_reg);
 
 	return IRQ_HANDLED;
 }
 
 static void sev_wait_cmd_ioc(struct psp_device *psp, unsigned int *reg)
 {
-	psp->sev_int_rcvd = 0;
-
 	wait_event(psp->sev_int_queue, psp->sev_int_rcvd);
-	*reg = ioread32(psp->io_regs + PSP_CMDRESP);
+	*reg = ioread32(psp->io_regs + psp->vdata->cmdresp_reg);
 }
 
 static int sev_cmd_buffer_len(int cmd)
@@ -112,6 +116,8 @@ static int sev_cmd_buffer_len(int cmd)
 	case SEV_CMD_RECEIVE_UPDATE_DATA:	return sizeof(struct sev_data_receive_update_data);
 	case SEV_CMD_RECEIVE_UPDATE_VMSA:	return sizeof(struct sev_data_receive_update_vmsa);
 	case SEV_CMD_LAUNCH_UPDATE_SECRET:	return sizeof(struct sev_data_launch_secret);
+	case SEV_CMD_DOWNLOAD_FIRMWARE:		return sizeof(struct sev_data_download_firmware);
+	case SEV_CMD_GET_ID:			return sizeof(struct sev_data_get_id);
 	default:				return 0;
 	}
 
@@ -137,13 +143,15 @@ static int __sev_do_cmd_locked(int cmd, void *data, int *psp_ret)
 	print_hex_dump_debug("(in):  ", DUMP_PREFIX_OFFSET, 16, 2, data,
 			     sev_cmd_buffer_len(cmd), false);
 
-	iowrite32(phys_lsb, psp->io_regs + PSP_CMDBUFF_ADDR_LO);
-	iowrite32(phys_msb, psp->io_regs + PSP_CMDBUFF_ADDR_HI);
+	iowrite32(phys_lsb, psp->io_regs + psp->vdata->cmdbuff_addr_lo_reg);
+	iowrite32(phys_msb, psp->io_regs + psp->vdata->cmdbuff_addr_hi_reg);
+
+	psp->sev_int_rcvd = 0;
 
 	reg = cmd;
 	reg <<= PSP_CMDRESP_CMD_SHIFT;
 	reg |= PSP_CMDRESP_IOC;
-	iowrite32(reg, psp->io_regs + PSP_CMDRESP);
+	iowrite32(reg, psp->io_regs + psp->vdata->cmdresp_reg);
 
 	/* wait for command completion */
 	sev_wait_cmd_ioc(psp, &reg);
@@ -378,6 +386,79 @@ void *psp_copy_user_blob(u64 __user uaddr, u32 len)
 }
 EXPORT_SYMBOL_GPL(psp_copy_user_blob);
 
+static int sev_get_api_version(void)
+{
+	struct sev_user_data_status *status;
+	int error, ret;
+
+	status = &psp_master->status_cmd_buf;
+	ret = sev_platform_status(status, &error);
+	if (ret) {
+		dev_err(psp_master->dev,
+			"SEV: failed to get status. Error: %#x\n", error);
+		return 1;
+	}
+
+	psp_master->api_major = status->api_major;
+	psp_master->api_minor = status->api_minor;
+	psp_master->build = status->build;
+
+	return 0;
+}
+
+/* Don't fail if SEV FW couldn't be updated. Continue with existing SEV FW */
+static int sev_update_firmware(struct device *dev)
+{
+	struct sev_data_download_firmware *data;
+	const struct firmware *firmware;
+	int ret, error, order;
+	struct page *p;
+	u64 data_size;
+
+	ret = request_firmware(&firmware, SEV_FW_FILE, dev);
+	if (ret < 0)
+		return -1;
+
+	/*
+	 * SEV FW expects the physical address given to it to be 32
+	 * byte aligned. Memory allocated has structure placed at the
+	 * beginning followed by the firmware being passed to the SEV
+	 * FW. Allocate enough memory for data structure + alignment
+	 * padding + SEV FW.
+	 */
+	data_size = ALIGN(sizeof(struct sev_data_download_firmware), 32);
+
+	order = get_order(firmware->size + data_size);
+	p = alloc_pages(GFP_KERNEL, order);
+	if (!p) {
+		ret = -1;
+		goto fw_err;
+	}
+
+	/*
+	 * Copy firmware data to a kernel allocated contiguous
+	 * memory region.
+	 */
+	data = page_address(p);
+	memcpy(page_address(p) + data_size, firmware->data, firmware->size);
+
+	data->address = __psp_pa(page_address(p) + data_size);
+	data->len = firmware->size;
+
+	ret = sev_do_cmd(SEV_CMD_DOWNLOAD_FIRMWARE, data, &error);
+	if (ret)
+		dev_dbg(dev, "Failed to update SEV firmware: %#x\n", error);
+	else
+		dev_info(dev, "SEV firmware update successful\n");
+
+	__free_pages(p, order);
+
+fw_err:
+	release_firmware(firmware);
+
+	return ret;
+}
+
 static int sev_ioctl_do_pek_import(struct sev_issue_cmd *argp)
 {
 	struct sev_user_data_pek_cert_import input;
@@ -427,6 +508,46 @@ e_free_pek:
 	kfree(pek_blob);
 e_free:
 	kfree(data);
+	return ret;
+}
+
+static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
+{
+	struct sev_data_get_id *data;
+	u64 data_size, user_size;
+	void *id_blob, *mem;
+	int ret;
+
+	/* SEV GET_ID available from SEV API v0.16 and up */
+	if (!SEV_VERSION_GREATER_OR_EQUAL(0, 16))
+		return -ENOTSUPP;
+
+	/* SEV FW expects the buffer it fills with the ID to be
+	 * 8-byte aligned. Memory allocated should be enough to
+	 * hold data structure + alignment padding + memory
+	 * where SEV FW writes the ID.
+	 */
+	data_size = ALIGN(sizeof(struct sev_data_get_id), 8);
+	user_size = sizeof(struct sev_user_data_get_id);
+
+	mem = kzalloc(data_size + user_size, GFP_KERNEL);
+	if (!mem)
+		return -ENOMEM;
+
+	data = mem;
+	id_blob = mem + data_size;
+
+	data->address = __psp_pa(id_blob);
+	data->len = user_size;
+
+	ret = __sev_do_cmd_locked(SEV_CMD_GET_ID, data, &argp->error);
+	if (!ret) {
+		if (copy_to_user((void __user *)argp->data, id_blob, data->len))
+			ret = -EFAULT;
+	}
+
+	kfree(mem);
+
 	return ret;
 }
 
@@ -567,6 +688,9 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 	case SEV_PDH_CERT_EXPORT:
 		ret = sev_ioctl_do_pdh_export(&input);
 		break;
+	case SEV_GET_ID:
+		ret = sev_ioctl_do_get_id(&input);
+		break;
 	default:
 		ret = -EINVAL;
 		goto out;
@@ -665,7 +789,7 @@ static int sev_misc_init(struct psp_device *psp)
 static int sev_init(struct psp_device *psp)
 {
 	/* Check if device supports SEV feature */
-	if (!(ioread32(psp->io_regs + PSP_FEATURE_REG) & 1)) {
+	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
 		dev_dbg(psp->dev, "device does not support SEV\n");
 		return 1;
 	}
@@ -693,11 +817,11 @@ int psp_dev_init(struct sp_device *sp)
 		goto e_err;
 	}
 
-	psp->io_regs = sp->io_map + psp->vdata->offset;
+	psp->io_regs = sp->io_map;
 
 	/* Disable and clear interrupts until ready */
-	iowrite32(0, psp->io_regs + PSP_P2CMSG_INTEN);
-	iowrite32(-1, psp->io_regs + PSP_P2CMSG_INTSTS);
+	iowrite32(0, psp->io_regs + psp->vdata->inten_reg);
+	iowrite32(-1, psp->io_regs + psp->vdata->intsts_reg);
 
 	/* Request an irq */
 	ret = sp_request_psp_irq(psp->sp, psp_irq_handler, psp->name, psp);
@@ -714,7 +838,9 @@ int psp_dev_init(struct sp_device *sp)
 		sp->set_psp_master_device(sp);
 
 	/* Enable interrupt */
-	iowrite32(-1, psp->io_regs + PSP_P2CMSG_INTEN);
+	iowrite32(-1, psp->io_regs + psp->vdata->inten_reg);
+
+	dev_notice(dev, "psp enabled\n");
 
 	return 0;
 
@@ -731,6 +857,9 @@ e_err:
 void psp_dev_destroy(struct sp_device *sp)
 {
 	struct psp_device *psp = sp->psp_data;
+
+	if (!psp)
+		return;
 
 	if (psp->sev_misc)
 		kref_put(&misc_dev->refcount, sev_exit);
@@ -750,7 +879,6 @@ EXPORT_SYMBOL_GPL(sev_issue_cmd_external_user);
 
 void psp_pci_init(void)
 {
-	struct sev_user_data_status *status;
 	struct sp_device *sp;
 	int error, rc;
 
@@ -760,6 +888,13 @@ void psp_pci_init(void)
 
 	psp_master = sp->psp_data;
 
+	if (sev_get_api_version())
+		goto err;
+
+	if (SEV_VERSION_GREATER_OR_EQUAL(0, 15) &&
+	    sev_update_firmware(psp_master->dev) == 0)
+		sev_get_api_version();
+
 	/* Initialize the platform */
 	rc = sev_platform_init(&error);
 	if (rc) {
@@ -767,16 +902,9 @@ void psp_pci_init(void)
 		goto err;
 	}
 
-	/* Display SEV firmware version */
-	status = &psp_master->status_cmd_buf;
-	rc = sev_platform_status(status, &error);
-	if (rc) {
-		dev_err(sp->dev, "SEV: failed to get status error %#x\n", error);
-		goto err;
-	}
+	dev_info(sp->dev, "SEV API:%d.%d build:%d\n", psp_master->api_major,
+		 psp_master->api_minor, psp_master->build);
 
-	dev_info(sp->dev, "SEV API:%d.%d build:%d\n", status->api_major,
-		 status->api_minor, status->build);
 	return;
 
 err:

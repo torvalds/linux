@@ -61,7 +61,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_GPIO_DCE120)
 ###############################################################################
 # DCN 1x
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_X86
 GPIO_DCN10 = hw_translate_dcn10.o hw_factory_dcn10.o
 
 AMD_DAL_GPIO_DCN10 = $(addprefix $(AMDDALPATH)/dc/gpio/dcn10/,$(GPIO_DCN10))

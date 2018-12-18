@@ -1,0 +1,26 @@
+NVIDIA Tegra20 MC(Memory Controller)
+
+Required properties:
+- compatible : "nvidia,tegra20-mc"
+- reg : Should contain 2 register ranges(address and length); see the
+  example below. Note that the MC registers are interleaved with the
+  GART registers, and hence must be represented as multiple ranges.
+- interrupts : Should contain MC General interrupt.
+- #reset-cells : Should be 1. This cell represents memory client module ID.
+  The assignments may be found in header file <dt-bindings/memory/tegra20-mc.h>
+  or in the TRM documentation.
+
+Example:
+	mc: memory-controller@7000f000 {
+		compatible = "nvidia,tegra20-mc";
+		reg = <0x7000f000 0x024
+		       0x7000f03c 0x3c4>;
+		interrupts = <0 77 0x04>;
+		#reset-cells = <1>;
+	};
+
+	video-codec@6001a000 {
+		compatible = "nvidia,tegra20-vde";
+		...
+		resets = <&mc TEGRA20_MC_RESET_VDE>;
+	};

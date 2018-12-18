@@ -24,6 +24,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>

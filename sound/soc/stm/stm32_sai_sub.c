@@ -96,7 +96,8 @@
  * @slot_mask: rx or tx active slots mask. set at init or at runtime
  * @data_size: PCM data width. corresponds to PCM substream width.
  * @spdif_frm_cnt: S/PDIF playback frame counter
- * @spdif_status_bits: S/PDIF status bits
+ * @snd_aes_iec958: iec958 data
+ * @ctrl_lock: control lock
  */
 struct stm32_sai_sub_data {
 	struct platform_device *pdev;
@@ -125,7 +126,8 @@ struct stm32_sai_sub_data {
 	int slot_mask;
 	int data_size;
 	unsigned int spdif_frm_cnt;
-	unsigned char spdif_status_bits[SAI_IEC60958_STATUS_BYTES];
+	struct snd_aes_iec958 iec958;
+	struct mutex ctrl_lock; /* protect resources accessed by controls */
 };
 
 enum stm32_sai_fifo_th {
@@ -184,10 +186,6 @@ static bool stm32_sai_sub_writeable_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const unsigned char default_status_bits[SAI_IEC60958_STATUS_BYTES] = {
-	0, 0, 0, IEC958_AES3_CON_FS_48000,
-};
-
 static const struct regmap_config stm32_sai_sub_regmap_config_f4 = {
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -208,6 +206,49 @@ static const struct regmap_config stm32_sai_sub_regmap_config_h7 = {
 	.volatile_reg = stm32_sai_sub_volatile_reg,
 	.writeable_reg = stm32_sai_sub_writeable_reg,
 	.fast_io = true,
+};
+
+static int snd_pcm_iec958_info(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_IEC958;
+	uinfo->count = 1;
+
+	return 0;
+}
+
+static int snd_pcm_iec958_get(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *uctl)
+{
+	struct stm32_sai_sub_data *sai = snd_kcontrol_chip(kcontrol);
+
+	mutex_lock(&sai->ctrl_lock);
+	memcpy(uctl->value.iec958.status, sai->iec958.status, 4);
+	mutex_unlock(&sai->ctrl_lock);
+
+	return 0;
+}
+
+static int snd_pcm_iec958_put(struct snd_kcontrol *kcontrol,
+			      struct snd_ctl_elem_value *uctl)
+{
+	struct stm32_sai_sub_data *sai = snd_kcontrol_chip(kcontrol);
+
+	mutex_lock(&sai->ctrl_lock);
+	memcpy(sai->iec958.status, uctl->value.iec958.status, 4);
+	mutex_unlock(&sai->ctrl_lock);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new iec958_ctls = {
+	.access = (SNDRV_CTL_ELEM_ACCESS_READWRITE |
+			SNDRV_CTL_ELEM_ACCESS_VOLATILE),
+	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
+	.name = SNDRV_CTL_NAME_IEC958("", PLAYBACK, DEFAULT),
+	.info = snd_pcm_iec958_info,
+	.get = snd_pcm_iec958_get,
+	.put = snd_pcm_iec958_put,
 };
 
 static irqreturn_t stm32_sai_isr(int irq, void *devid)
@@ -259,11 +300,8 @@ static irqreturn_t stm32_sai_isr(int irq, void *devid)
 		status = SNDRV_PCM_STATE_XRUN;
 	}
 
-	if (status != SNDRV_PCM_STATE_RUNNING) {
-		snd_pcm_stream_lock(sai->substream);
-		snd_pcm_stop(sai->substream, SNDRV_PCM_STATE_XRUN);
-		snd_pcm_stream_unlock(sai->substream);
-	}
+	if (status != SNDRV_PCM_STATE_RUNNING)
+		snd_pcm_stop_xrun(sai->substream);
 
 	return IRQ_HANDLED;
 }
@@ -619,6 +657,59 @@ static void stm32_sai_set_frame(struct snd_soc_dai *cpu_dai)
 	}
 }
 
+static void stm32_sai_init_iec958_status(struct stm32_sai_sub_data *sai)
+{
+	unsigned char *cs = sai->iec958.status;
+
+	cs[0] = IEC958_AES0_CON_NOT_COPYRIGHT | IEC958_AES0_CON_EMPHASIS_NONE;
+	cs[1] = IEC958_AES1_CON_GENERAL;
+	cs[2] = IEC958_AES2_CON_SOURCE_UNSPEC | IEC958_AES2_CON_CHANNEL_UNSPEC;
+	cs[3] = IEC958_AES3_CON_CLOCK_1000PPM | IEC958_AES3_CON_FS_NOTID;
+}
+
+static void stm32_sai_set_iec958_status(struct stm32_sai_sub_data *sai,
+					struct snd_pcm_runtime *runtime)
+{
+	if (!runtime)
+		return;
+
+	/* Force the sample rate according to runtime rate */
+	mutex_lock(&sai->ctrl_lock);
+	switch (runtime->rate) {
+	case 22050:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_22050;
+		break;
+	case 44100:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_44100;
+		break;
+	case 88200:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_88200;
+		break;
+	case 176400:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_176400;
+		break;
+	case 24000:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_24000;
+		break;
+	case 48000:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_48000;
+		break;
+	case 96000:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_96000;
+		break;
+	case 192000:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_192000;
+		break;
+	case 32000:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_32000;
+		break;
+	default:
+		sai->iec958.status[3] = IEC958_AES3_CON_FS_NOTID;
+		break;
+	}
+	mutex_unlock(&sai->ctrl_lock);
+}
+
 static int stm32_sai_configure_clock(struct snd_soc_dai *cpu_dai,
 				     struct snd_pcm_hw_params *params)
 {
@@ -709,7 +800,11 @@ static int stm32_sai_hw_params(struct snd_pcm_substream *substream,
 
 	sai->data_size = params_width(params);
 
-	if (!STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
+	if (STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
+		/* Rate not already set in runtime structure */
+		substream->runtime->rate = params_rate(params);
+		stm32_sai_set_iec958_status(sai, substream->runtime);
+	} else {
 		ret = stm32_sai_set_slots(cpu_dai);
 		if (ret < 0)
 			return ret;
@@ -789,6 +884,20 @@ static void stm32_sai_shutdown(struct snd_pcm_substream *substream,
 	sai->substream = NULL;
 }
 
+static int stm32_sai_pcm_new(struct snd_soc_pcm_runtime *rtd,
+			     struct snd_soc_dai *cpu_dai)
+{
+	struct stm32_sai_sub_data *sai = dev_get_drvdata(cpu_dai->dev);
+
+	if (STM_SAI_PROTOCOL_IS_SPDIF(sai)) {
+		dev_dbg(&sai->pdev->dev, "%s: register iec controls", __func__);
+		return snd_ctl_add(rtd->pcm->card,
+				   snd_ctl_new1(&iec958_ctls, sai));
+	}
+
+	return 0;
+}
+
 static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct stm32_sai_sub_data *sai = dev_get_drvdata(cpu_dai->dev);
@@ -809,6 +918,10 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 	else
 		snd_soc_dai_init_dma_data(cpu_dai, NULL, &sai->dma_params);
 
+	/* Next settings are not relevant for spdif mode */
+	if (STM_SAI_PROTOCOL_IS_SPDIF(sai))
+		return 0;
+
 	cr1_mask = SAI_XCR1_RX_TX;
 	if (STM_SAI_IS_CAPTURE(sai))
 		cr1 |= SAI_XCR1_RX_TX;
@@ -819,10 +932,6 @@ static int stm32_sai_dai_probe(struct snd_soc_dai *cpu_dai)
 		sai->pdata->set_sync(sai->pdata, sai->np_sync_provider,
 				     sai->synco, sai->synci);
 	}
-
-	if (STM_SAI_PROTOCOL_IS_SPDIF(sai))
-		memcpy(sai->spdif_status_bits, default_status_bits,
-		       sizeof(default_status_bits));
 
 	cr1_mask |= SAI_XCR1_SYNCEN_MASK;
 	cr1 |= SAI_XCR1_SYNCEN_SET(sai->sync);
@@ -861,7 +970,7 @@ static int stm32_sai_pcm_process_spdif(struct snd_pcm_substream *substream,
 		/* Set channel status bit */
 		byte = frm_cnt >> 3;
 		mask = 1 << (frm_cnt - (byte << 3));
-		if (sai->spdif_status_bits[byte] & mask)
+		if (sai->iec958.status[byte] & mask)
 			*ptr |= 0x04000000;
 		ptr++;
 
@@ -888,6 +997,7 @@ static const struct snd_pcm_hardware stm32_sai_pcm_hw = {
 static struct snd_soc_dai_driver stm32_sai_playback_dai[] = {
 {
 		.probe = stm32_sai_dai_probe,
+		.pcm_new = stm32_sai_pcm_new,
 		.id = 1, /* avoid call to fmt_single_name() */
 		.playback = {
 			.channels_min = 1,
@@ -998,6 +1108,7 @@ static int stm32_sai_sub_parse_of(struct platform_device *pdev,
 			dev_err(&pdev->dev, "S/PDIF IEC60958 not supported\n");
 			return -EINVAL;
 		}
+		stm32_sai_init_iec958_status(sai);
 		sai->spdif = true;
 		sai->master = true;
 	}
@@ -1114,6 +1225,7 @@ static int stm32_sai_sub_probe(struct platform_device *pdev)
 	sai->id = (uintptr_t)of_id->data;
 
 	sai->pdev = pdev;
+	mutex_init(&sai->ctrl_lock);
 	platform_set_drvdata(pdev, sai);
 
 	sai->pdata = dev_get_drvdata(pdev->dev.parent);

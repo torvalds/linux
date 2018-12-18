@@ -611,11 +611,10 @@ retry:
 			goto retry;
 		}
 
-		err = ovl_create_real(dir, work,
-				      &(struct cattr){.mode = S_IFDIR | 0},
-				      NULL, true);
-		if (err)
-			goto out_dput;
+		work = ovl_create_real(dir, work, OVL_CATTR(attr.ia_mode));
+		err = PTR_ERR(work);
+		if (IS_ERR(work))
+			goto out_err;
 
 		/*
 		 * Try to remove POSIX ACL xattrs from workdir.  We are good if:

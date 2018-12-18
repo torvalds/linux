@@ -172,8 +172,8 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 
 	if (ret > 0) {
 		config->nr_gpios = ret;
-		config->gpios = devm_kzalloc(dev,
-					sizeof(struct gpio) * config->nr_gpios,
+		config->gpios = devm_kcalloc(dev,
+					config->nr_gpios, sizeof(struct gpio),
 					GFP_KERNEL);
 		if (!config->gpios)
 			return ERR_PTR(-ENOMEM);
@@ -214,9 +214,9 @@ of_get_gpio_regulator_config(struct device *dev, struct device_node *np,
 		return ERR_PTR(-EINVAL);
 	}
 
-	config->states = devm_kzalloc(dev,
-				sizeof(struct gpio_regulator_state)
-				* (proplen / 2),
+	config->states = devm_kcalloc(dev,
+				proplen / 2,
+				sizeof(struct gpio_regulator_state),
 				GFP_KERNEL);
 	if (!config->states)
 		return ERR_PTR(-ENOMEM);

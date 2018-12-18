@@ -101,10 +101,10 @@ struct audit_buffer *netlbl_audit_start_common(int type,
 	char *secctx;
 	u32 secctx_len;
 
-	if (audit_enabled == 0)
+	if (audit_enabled == AUDIT_OFF)
 		return NULL;
 
-	audit_buf = audit_log_start(current->audit_context, GFP_ATOMIC, type);
+	audit_buf = audit_log_start(audit_context(), GFP_ATOMIC, type);
 	if (audit_buf == NULL)
 		return NULL;
 

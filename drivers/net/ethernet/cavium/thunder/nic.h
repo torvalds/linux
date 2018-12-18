@@ -325,6 +325,8 @@ struct nicvf {
 	struct tasklet_struct	qs_err_task;
 	struct work_struct	reset_task;
 	struct nicvf_work       rx_mode_work;
+	/* spinlock to protect workqueue arguments from concurrent access */
+	spinlock_t              rx_mode_wq_lock;
 
 	/* PTP timestamp */
 	struct cavium_ptp	*ptp_clock;

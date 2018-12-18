@@ -354,9 +354,12 @@ static int bcm_sf2_cfp_ipv4_rule_set(struct bcm_sf2_priv *priv, int port,
 	/* Locate the first rule available */
 	if (fs->location == RX_CLS_LOC_ANY)
 		rule_index = find_first_zero_bit(priv->cfp.used,
-						 bcm_sf2_cfp_rule_size(priv));
+						 priv->num_cfp_rules);
 	else
 		rule_index = fs->location;
+
+	if (rule_index > bcm_sf2_cfp_rule_size(priv))
+		return -ENOSPC;
 
 	layout = &udf_tcpip4_layout;
 	/* We only use one UDF slice for now */
@@ -562,19 +565,21 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	 * first half because the HW search is by incrementing addresses.
 	 */
 	if (fs->location == RX_CLS_LOC_ANY)
-		rule_index[0] = find_first_zero_bit(priv->cfp.used,
-						    bcm_sf2_cfp_rule_size(priv));
+		rule_index[1] = find_first_zero_bit(priv->cfp.used,
+						    priv->num_cfp_rules);
 	else
-		rule_index[0] = fs->location;
+		rule_index[1] = fs->location;
+	if (rule_index[1] > bcm_sf2_cfp_rule_size(priv))
+		return -ENOSPC;
 
 	/* Flag it as used (cleared on error path) such that we can immediately
 	 * obtain a second one to chain from.
 	 */
-	set_bit(rule_index[0], priv->cfp.used);
+	set_bit(rule_index[1], priv->cfp.used);
 
-	rule_index[1] = find_first_zero_bit(priv->cfp.used,
-					    bcm_sf2_cfp_rule_size(priv));
-	if (rule_index[1] > bcm_sf2_cfp_rule_size(priv)) {
+	rule_index[0] = find_first_zero_bit(priv->cfp.used,
+					    priv->num_cfp_rules);
+	if (rule_index[0] > bcm_sf2_cfp_rule_size(priv)) {
 		ret = -ENOSPC;
 		goto out_err;
 	}
@@ -712,14 +717,14 @@ static int bcm_sf2_cfp_ipv6_rule_set(struct bcm_sf2_priv *priv, int port,
 	/* Flag the second half rule as being used now, return it as the
 	 * location, and flag it as unique while dumping rules
 	 */
-	set_bit(rule_index[1], priv->cfp.used);
+	set_bit(rule_index[0], priv->cfp.used);
 	set_bit(rule_index[1], priv->cfp.unique);
 	fs->location = rule_index[1];
 
 	return ret;
 
 out_err:
-	clear_bit(rule_index[0], priv->cfp.used);
+	clear_bit(rule_index[1], priv->cfp.used);
 	return ret;
 }
 
@@ -727,6 +732,8 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 				struct ethtool_rx_flow_spec *fs)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	__u64 ring_cookie = fs->ring_cookie;
 	unsigned int queue_num, port_num;
 	int ret = -EINVAL;
 
@@ -743,21 +750,28 @@ static int bcm_sf2_cfp_rule_set(struct dsa_switch *ds, int port,
 	    fs->location > bcm_sf2_cfp_rule_size(priv))
 		return -EINVAL;
 
+	/* This rule is a Wake-on-LAN filter and we must specifically
+	 * target the CPU port in order for it to be working.
+	 */
+	if (ring_cookie == RX_CLS_FLOW_WAKE)
+		ring_cookie = cpu_port * SF2_NUM_EGRESS_QUEUES;
+
 	/* We do not support discarding packets, check that the
 	 * destination port is enabled and that we are within the
 	 * number of ports supported by the switch
 	 */
-	port_num = fs->ring_cookie / SF2_NUM_EGRESS_QUEUES;
+	port_num = ring_cookie / SF2_NUM_EGRESS_QUEUES;
 
-	if (fs->ring_cookie == RX_CLS_FLOW_DISC ||
-	    !dsa_is_user_port(ds, port_num) ||
+	if (ring_cookie == RX_CLS_FLOW_DISC ||
+	    !(dsa_is_user_port(ds, port_num) ||
+	      dsa_is_cpu_port(ds, port_num)) ||
 	    port_num >= priv->hw_params.num_ports)
 		return -EINVAL;
 	/*
 	 * We have a small oddity where Port 6 just does not have a
 	 * valid bit here (so we substract by one).
 	 */
-	queue_num = fs->ring_cookie % SF2_NUM_EGRESS_QUEUES;
+	queue_num = ring_cookie % SF2_NUM_EGRESS_QUEUES;
 	if (port_num >= 7)
 		port_num -= 1;
 
@@ -784,10 +798,6 @@ static int bcm_sf2_cfp_rule_del_one(struct bcm_sf2_priv *priv, int port,
 {
 	int ret;
 	u32 reg;
-
-	/* Refuse deletion of unused rules, and the default reserved rule */
-	if (!test_bit(loc, priv->cfp.used) || loc == 0)
-		return -EINVAL;
 
 	/* Indicate which rule we want to read */
 	bcm_sf2_cfp_rule_addr_set(priv, loc);
@@ -825,6 +835,13 @@ static int bcm_sf2_cfp_rule_del(struct bcm_sf2_priv *priv, int port,
 {
 	u32 next_loc = 0;
 	int ret;
+
+	/* Refuse deleting unused rules, and those that are not unique since
+	 * that could leave IPv6 rules with one of the chained rule in the
+	 * table.
+	 */
+	if (!test_bit(loc, priv->cfp.unique) || loc == 0)
+		return -EINVAL;
 
 	ret = bcm_sf2_cfp_rule_del_one(priv, port, loc, &next_loc);
 	if (ret)
@@ -1179,6 +1196,7 @@ static int bcm_sf2_cfp_rule_get_all(struct bcm_sf2_priv *priv,
 int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 		      struct ethtool_rxnfc *nfc, u32 *rule_locs)
 {
+	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	int ret = 0;
 
@@ -1205,12 +1223,23 @@ int bcm_sf2_get_rxnfc(struct dsa_switch *ds, int port,
 
 	mutex_unlock(&priv->cfp.lock);
 
+	if (ret)
+		return ret;
+
+	/* Pass up the commands to the attached master network device */
+	if (p->ethtool_ops->get_rxnfc) {
+		ret = p->ethtool_ops->get_rxnfc(p, nfc, rule_locs);
+		if (ret == -EOPNOTSUPP)
+			ret = 0;
+	}
+
 	return ret;
 }
 
 int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 		      struct ethtool_rxnfc *nfc)
 {
+	struct net_device *p = ds->ports[port].cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	int ret = 0;
 
@@ -1230,6 +1259,23 @@ int bcm_sf2_set_rxnfc(struct dsa_switch *ds, int port,
 	}
 
 	mutex_unlock(&priv->cfp.lock);
+
+	if (ret)
+		return ret;
+
+	/* Pass up the commands to the attached master network device.
+	 * This can fail, so rollback the operation if we need to.
+	 */
+	if (p->ethtool_ops->set_rxnfc) {
+		ret = p->ethtool_ops->set_rxnfc(p, nfc);
+		if (ret && ret != -EOPNOTSUPP) {
+			mutex_lock(&priv->cfp.lock);
+			bcm_sf2_cfp_rule_del(priv, port, nfc->fs.location);
+			mutex_unlock(&priv->cfp.lock);
+		} else {
+			ret = 0;
+		}
+	}
 
 	return ret;
 }

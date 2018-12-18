@@ -688,7 +688,6 @@ struct platform_nand_data balloon3_nand_pdata = {
 		.chip_delay	= 50,
 	},
 	.ctrl = {
-		.hwcontrol	= 0,
 		.dev_ready	= balloon3_nand_dev_ready,
 		.select_chip	= balloon3_nand_select_chip,
 		.cmd_ctrl	= balloon3_nand_cmd_ctl,

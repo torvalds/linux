@@ -119,17 +119,20 @@ static int of_get_dml_pipe_index(struct device_node *np, const char *name)
 }
 
 /* Initialize the dml hardware connected to SD Card controller */
-int dml_hw_init(struct mmci_host *host, struct device_node *np)
+static void qcom_dma_setup(struct mmci_host *host)
 {
 	u32 config;
 	void __iomem *base;
 	int consumer_id, producer_id;
+	struct device_node *np = host->mmc->parent->of_node;
 
 	consumer_id = of_get_dml_pipe_index(np, "tx");
 	producer_id = of_get_dml_pipe_index(np, "rx");
 
-	if (producer_id < 0 || consumer_id < 0)
-		return -ENODEV;
+	if (producer_id < 0 || consumer_id < 0) {
+		host->variant->qcom_dml = false;
+		return;
+	}
 
 	base = host->base + DML_OFFSET;
 
@@ -172,6 +175,13 @@ int dml_hw_init(struct mmci_host *host, struct device_node *np)
 
 	/* Make sure dml initialization is finished */
 	mb();
+}
 
-	return 0;
+static struct mmci_host_ops qcom_variant_ops = {
+	.dma_setup = qcom_dma_setup,
+};
+
+void qcom_variant_init(struct mmci_host *host)
+{
+	host->ops = &qcom_variant_ops;
 }

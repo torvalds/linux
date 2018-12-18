@@ -422,8 +422,8 @@ static int max1027_probe(struct spi_device *spi)
 	indio_dev->num_channels = st->info->num_channels;
 	indio_dev->available_scan_masks = st->info->available_scan_masks;
 
-	st->buffer = devm_kmalloc(&indio_dev->dev,
-				  indio_dev->num_channels * 2,
+	st->buffer = devm_kmalloc_array(&indio_dev->dev,
+				  indio_dev->num_channels, 2,
 				  GFP_KERNEL);
 	if (st->buffer == NULL) {
 		dev_err(&indio_dev->dev, "Can't allocate buffer\n");

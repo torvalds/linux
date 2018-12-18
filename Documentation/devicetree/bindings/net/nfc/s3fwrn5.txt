@@ -3,7 +3,6 @@
 Required properties:
 - compatible: Should be "samsung,s3fwrn5-i2c".
 - reg: address on the bus
-- interrupt-parent: phandle for the interrupt gpio controller
 - interrupts: GPIO interrupt to which the chip is connected
 - s3fwrn5,en-gpios: Output GPIO pin used for enabling/disabling the chip
 - s3fwrn5,fw-gpios: Output GPIO pin used to enter firmware mode and

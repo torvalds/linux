@@ -1,18 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2017 Marvell
  *
  * Antoine Tenart <antoine.tenart@free-electrons.com>
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 #ifndef __SAFEXCEL_H__
 #define __SAFEXCEL_H__
 
+#include <crypto/aead.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
+#include <crypto/sha.h>
 #include <crypto/skcipher.h>
 
 #define EIP197_HIA_VERSION_LE			0xca35
@@ -20,13 +19,24 @@
 
 /* Static configuration */
 #define EIP197_DEFAULT_RING_SIZE		400
-#define EIP197_MAX_TOKENS			5
+#define EIP197_MAX_TOKENS			8
 #define EIP197_MAX_RINGS			4
 #define EIP197_FETCH_COUNT			1
 #define EIP197_MAX_BATCH_SZ			64
 
 #define EIP197_GFP_FLAGS(base)	((base).flags & CRYPTO_TFM_REQ_MAY_SLEEP ? \
 				 GFP_KERNEL : GFP_ATOMIC)
+
+/* Custom on-stack requests (for invalidation) */
+#define EIP197_SKCIPHER_REQ_SIZE	sizeof(struct skcipher_request) + \
+					sizeof(struct safexcel_cipher_req)
+#define EIP197_AHASH_REQ_SIZE		sizeof(struct ahash_request) + \
+					sizeof(struct safexcel_ahash_req)
+#define EIP197_AEAD_REQ_SIZE		sizeof(struct aead_request) + \
+					sizeof(struct safexcel_cipher_req)
+#define EIP197_REQUEST_ON_STACK(name, type, size) \
+	char __##name##_desc[size] CRYPTO_MINALIGN_ATTR; \
+	struct type##_request *name = (void *)__##name##_desc
 
 /* Register base offsets */
 #define EIP197_HIA_AIC(priv)		((priv)->base + (priv)->offsets.hia_aic)
@@ -82,13 +92,13 @@
 #define EIP197_HIA_xDR_STAT			0x003c
 
 /* register offsets */
-#define EIP197_HIA_DFE_CFG			0x0000
-#define EIP197_HIA_DFE_THR_CTRL			0x0000
-#define EIP197_HIA_DFE_THR_STAT			0x0004
-#define EIP197_HIA_DSE_CFG			0x0000
-#define EIP197_HIA_DSE_THR_CTRL			0x0000
-#define EIP197_HIA_DSE_THR_STAT			0x0004
-#define EIP197_HIA_RA_PE_CTRL			0x0010
+#define EIP197_HIA_DFE_CFG(n)			(0x0000 + (128 * (n)))
+#define EIP197_HIA_DFE_THR_CTRL(n)		(0x0000 + (128 * (n)))
+#define EIP197_HIA_DFE_THR_STAT(n)		(0x0004 + (128 * (n)))
+#define EIP197_HIA_DSE_CFG(n)			(0x0000 + (128 * (n)))
+#define EIP197_HIA_DSE_THR_CTRL(n)		(0x0000 + (128 * (n)))
+#define EIP197_HIA_DSE_THR_STAT(n)		(0x0004 + (128 * (n)))
+#define EIP197_HIA_RA_PE_CTRL(n)		(0x0010 + (8   * (n)))
 #define EIP197_HIA_RA_PE_STAT			0x0014
 #define EIP197_HIA_AIC_R_OFF(r)			((r) * 0x1000)
 #define EIP197_HIA_AIC_R_ENABLE_CTRL(r)		(0xe008 - EIP197_HIA_AIC_R_OFF(r))
@@ -101,18 +111,18 @@
 #define EIP197_HIA_MST_CTRL			0xfff4
 #define EIP197_HIA_OPTIONS			0xfff8
 #define EIP197_HIA_VERSION			0xfffc
-#define EIP197_PE_IN_DBUF_THRES			0x0000
-#define EIP197_PE_IN_TBUF_THRES			0x0100
-#define EIP197_PE_ICE_SCRATCH_RAM		0x0800
-#define EIP197_PE_ICE_PUE_CTRL			0x0c80
-#define EIP197_PE_ICE_SCRATCH_CTRL		0x0d04
-#define EIP197_PE_ICE_FPP_CTRL			0x0d80
-#define EIP197_PE_ICE_RAM_CTRL			0x0ff0
-#define EIP197_PE_EIP96_FUNCTION_EN		0x1004
-#define EIP197_PE_EIP96_CONTEXT_CTRL		0x1008
-#define EIP197_PE_EIP96_CONTEXT_STAT		0x100c
-#define EIP197_PE_OUT_DBUF_THRES		0x1c00
-#define EIP197_PE_OUT_TBUF_THRES		0x1d00
+#define EIP197_PE_IN_DBUF_THRES(n)		(0x0000 + (0x2000 * (n)))
+#define EIP197_PE_IN_TBUF_THRES(n)		(0x0100 + (0x2000 * (n)))
+#define EIP197_PE_ICE_SCRATCH_RAM(n)		(0x0800 + (0x2000 * (n)))
+#define EIP197_PE_ICE_PUE_CTRL(n)		(0x0c80 + (0x2000 * (n)))
+#define EIP197_PE_ICE_SCRATCH_CTRL(n)		(0x0d04 + (0x2000 * (n)))
+#define EIP197_PE_ICE_FPP_CTRL(n)		(0x0d80 + (0x2000 * (n)))
+#define EIP197_PE_ICE_RAM_CTRL(n)		(0x0ff0 + (0x2000 * (n)))
+#define EIP197_PE_EIP96_FUNCTION_EN(n)		(0x1004 + (0x2000 * (n)))
+#define EIP197_PE_EIP96_CONTEXT_CTRL(n)		(0x1008 + (0x2000 * (n)))
+#define EIP197_PE_EIP96_CONTEXT_STAT(n)		(0x100c + (0x2000 * (n)))
+#define EIP197_PE_OUT_DBUF_THRES(n)		(0x1c00 + (0x2000 * (n)))
+#define EIP197_PE_OUT_TBUF_THRES(n)		(0x1d00 + (0x2000 * (n)))
 #define EIP197_MST_CTRL				0xfff4
 
 /* EIP197-specific registers, no indirection */
@@ -171,6 +181,11 @@
 #define EIP197_HIA_RA_PE_CTRL_RESET		BIT(31)
 #define EIP197_HIA_RA_PE_CTRL_EN		BIT(30)
 
+/* EIP197_HIA_OPTIONS */
+#define EIP197_N_PES_OFFSET			4
+#define EIP197_N_PES_MASK			GENMASK(4, 0)
+#define EIP97_N_PES_MASK			GENMASK(2, 0)
+
 /* EIP197_HIA_AIC_R_ENABLE_CTRL */
 #define EIP197_CDR_IRQ(n)			BIT((n) * 2)
 #define EIP197_RDR_IRQ(n)			BIT((n) * 2 + 1)
@@ -204,6 +219,7 @@
 #define WR_CACHE_4BITS				(WR_CACHE_3BITS << 1 | BIT(0))
 #define EIP197_MST_CTRL_RD_CACHE(n)		(((n) & 0xf) << 0)
 #define EIP197_MST_CTRL_WD_CACHE(n)		(((n) & 0xf) << 4)
+#define EIP197_MST_CTRL_TX_MAX_CMD(n)		(((n) & 0xf) << 20)
 #define EIP197_MST_CTRL_BYTE_SWAP		BIT(24)
 #define EIP197_MST_CTRL_NO_BYTE_SWAP		BIT(25)
 
@@ -274,7 +290,7 @@ struct safexcel_context_record {
 	u32 control0;
 	u32 control1;
 
-	__le32 data[12];
+	__le32 data[40];
 } __packed;
 
 /* control0 */
@@ -286,20 +302,25 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_TYPE_CRYPTO_IN		0x5
 #define CONTEXT_CONTROL_TYPE_ENCRYPT_HASH_OUT	0x6
 #define CONTEXT_CONTROL_TYPE_DECRYPT_HASH_IN	0x7
-#define CONTEXT_CONTROL_TYPE_HASH_ENCRYPT_OUT	0x14
-#define CONTEXT_CONTROL_TYPE_HASH_DECRYPT_OUT	0x15
+#define CONTEXT_CONTROL_TYPE_HASH_ENCRYPT_OUT	0xe
+#define CONTEXT_CONTROL_TYPE_HASH_DECRYPT_IN	0xf
 #define CONTEXT_CONTROL_RESTART_HASH		BIT(4)
 #define CONTEXT_CONTROL_NO_FINISH_HASH		BIT(5)
 #define CONTEXT_CONTROL_SIZE(n)			((n) << 8)
 #define CONTEXT_CONTROL_KEY_EN			BIT(16)
+#define CONTEXT_CONTROL_CRYPTO_ALG_DES		(0x0 << 17)
+#define CONTEXT_CONTROL_CRYPTO_ALG_3DES		(0x2 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES128	(0x5 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES192	(0x6 << 17)
 #define CONTEXT_CONTROL_CRYPTO_ALG_AES256	(0x7 << 17)
 #define CONTEXT_CONTROL_DIGEST_PRECOMPUTED	(0x1 << 21)
 #define CONTEXT_CONTROL_DIGEST_HMAC		(0x3 << 21)
+#define CONTEXT_CONTROL_CRYPTO_ALG_MD5		(0x0 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA1		(0x2 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA224	(0x4 << 23)
 #define CONTEXT_CONTROL_CRYPTO_ALG_SHA256	(0x3 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA384	(0x6 << 23)
+#define CONTEXT_CONTROL_CRYPTO_ALG_SHA512	(0x5 << 23)
 #define CONTEXT_CONTROL_INV_FR			(0x5 << 24)
 #define CONTEXT_CONTROL_INV_TR			(0x6 << 24)
 
@@ -313,6 +334,11 @@ struct safexcel_context_record {
 #define CONTEXT_CONTROL_DIGEST_CNT		BIT(9)
 #define CONTEXT_CONTROL_COUNTER_MODE		BIT(10)
 #define CONTEXT_CONTROL_HASH_STORE		BIT(19)
+
+/* The hash counter given to the engine in the context has a granularity of
+ * 64 bits.
+ */
+#define EIP197_COUNTER_BLOCK_SIZE		64
 
 /* EIP197_CS_RAM_CTRL */
 #define EIP197_TRC_ENABLE_0			BIT(4)
@@ -336,13 +362,19 @@ struct safexcel_context_record {
 #define EIP197_TRC_PARAMS2_RC_SZ_SMALL(n)	((n) << 18)
 
 /* Cache helpers */
-#define EIP197_CS_RC_MAX			52
+#define EIP197B_CS_RC_MAX			52
+#define EIP197D_CS_RC_MAX			96
 #define EIP197_CS_RC_SIZE			(4 * sizeof(u32))
 #define EIP197_CS_RC_NEXT(x)			(x)
 #define EIP197_CS_RC_PREV(x)			((x) << 10)
 #define EIP197_RC_NULL				0x3ff
-#define EIP197_CS_TRC_REC_WC			59
-#define EIP197_CS_TRC_LG_REC_WC			73
+#define EIP197B_CS_TRC_REC_WC			59
+#define EIP197D_CS_TRC_REC_WC			64
+#define EIP197B_CS_TRC_LG_REC_WC		73
+#define EIP197D_CS_TRC_LG_REC_WC		80
+#define EIP197B_CS_HT_WC			64
+#define EIP197D_CS_HT_WC			256
+
 
 /* Result data */
 struct result_data_desc {
@@ -391,11 +423,15 @@ struct safexcel_token {
 	u8 opcode:4;
 } __packed;
 
+#define EIP197_TOKEN_HASH_RESULT_VERIFY		BIT(16)
+
 #define EIP197_TOKEN_STAT_LAST_HASH		BIT(0)
 #define EIP197_TOKEN_STAT_LAST_PACKET		BIT(1)
 #define EIP197_TOKEN_OPCODE_DIRECTION		0x0
 #define EIP197_TOKEN_OPCODE_INSERT		0x2
 #define EIP197_TOKEN_OPCODE_NOOP		EIP197_TOKEN_OPCODE_INSERT
+#define EIP197_TOKEN_OPCODE_RETRIEVE		0x4
+#define EIP197_TOKEN_OPCODE_VERIFY		0xd
 #define EIP197_TOKEN_OPCODE_BYPASS		GENMASK(3, 0)
 
 static inline void eip197_noop_token(struct safexcel_token *token)
@@ -433,6 +469,7 @@ struct safexcel_control_data_desc {
 #define EIP197_OPTION_MAGIC_VALUE	BIT(0)
 #define EIP197_OPTION_64BIT_CTX		BIT(1)
 #define EIP197_OPTION_CTX_CTRL_IN_CMD	BIT(8)
+#define EIP197_OPTION_2_TOKEN_IV_CMD	GENMASK(11, 10)
 #define EIP197_OPTION_4_TOKEN_IV_CMD	GENMASK(11, 9)
 
 #define EIP197_TYPE_EXTENDED		0x3
@@ -463,7 +500,7 @@ enum eip197_fw {
 	FW_NB
 };
 
-struct safexcel_ring {
+struct safexcel_desc_ring {
 	void *base;
 	void *base_end;
 	dma_addr_t base_dma;
@@ -472,22 +509,18 @@ struct safexcel_ring {
 	void *write;
 	void *read;
 
-	/* number of elements used in the ring */
-	unsigned nr;
+	/* descriptor element offset */
 	unsigned offset;
 };
 
 enum safexcel_alg_type {
 	SAFEXCEL_ALG_TYPE_SKCIPHER,
+	SAFEXCEL_ALG_TYPE_AEAD,
 	SAFEXCEL_ALG_TYPE_AHASH,
 };
 
-struct safexcel_request {
-	struct list_head list;
-	struct crypto_async_request *req;
-};
-
 struct safexcel_config {
+	u32 pes;
 	u32 rings;
 
 	u32 cd_size;
@@ -503,9 +536,40 @@ struct safexcel_work_data {
 	int ring;
 };
 
+struct safexcel_ring {
+	spinlock_t lock;
+
+	struct workqueue_struct *workqueue;
+	struct safexcel_work_data work_data;
+
+	/* command/result rings */
+	struct safexcel_desc_ring cdr;
+	struct safexcel_desc_ring rdr;
+
+	/* result ring crypto API request */
+	struct crypto_async_request **rdr_req;
+
+	/* queue */
+	struct crypto_queue queue;
+	spinlock_t queue_lock;
+
+	/* Number of requests in the engine. */
+	int requests;
+
+	/* The ring is currently handling at least one request */
+	bool busy;
+
+	/* Store for current requests when bailing out of the dequeueing
+	 * function when no enough resources are available.
+	 */
+	struct crypto_async_request *req;
+	struct crypto_async_request *backlog;
+};
+
 enum safexcel_eip_version {
-	EIP97,
-	EIP197,
+	EIP97IES = BIT(0),
+	EIP197B  = BIT(1),
+	EIP197D  = BIT(2),
 };
 
 struct safexcel_register_offsets {
@@ -521,6 +585,10 @@ struct safexcel_register_offsets {
 	u32 pe;
 };
 
+enum safexcel_flags {
+	EIP197_TRC_CACHE = BIT(0),
+};
+
 struct safexcel_crypto_priv {
 	void __iomem *base;
 	struct device *dev;
@@ -530,46 +598,19 @@ struct safexcel_crypto_priv {
 
 	enum safexcel_eip_version version;
 	struct safexcel_register_offsets offsets;
+	u32 flags;
 
 	/* context DMA pool */
 	struct dma_pool *context_pool;
 
 	atomic_t ring_used;
 
-	struct {
-		spinlock_t lock;
-		spinlock_t egress_lock;
-
-		struct list_head list;
-		struct workqueue_struct *workqueue;
-		struct safexcel_work_data work_data;
-
-		/* command/result rings */
-		struct safexcel_ring cdr;
-		struct safexcel_ring rdr;
-
-		/* queue */
-		struct crypto_queue queue;
-		spinlock_t queue_lock;
-
-		/* Number of requests in the engine. */
-		int requests;
-
-		/* The ring is currently handling at least one request */
-		bool busy;
-
-		/* Store for current requests when bailing out of the dequeueing
-		 * function when no enough resources are available.
-		 */
-		struct crypto_async_request *req;
-		struct crypto_async_request *backlog;
-	} ring[EIP197_MAX_RINGS];
+	struct safexcel_ring *ring;
 };
 
 struct safexcel_context {
 	int (*send)(struct crypto_async_request *req, int ring,
-		    struct safexcel_request *request, int *commands,
-		    int *results);
+		    int *commands, int *results);
 	int (*handle_result)(struct safexcel_crypto_priv *priv, int ring,
 			     struct crypto_async_request *req, bool *complete,
 			     int *ret);
@@ -581,6 +622,16 @@ struct safexcel_context {
 	bool exit_inv;
 };
 
+struct safexcel_ahash_export_state {
+	u64 len[2];
+	u64 processed[2];
+
+	u32 digest;
+
+	u32 state[SHA512_DIGEST_SIZE / sizeof(u32)];
+	u8 cache[SHA512_BLOCK_SIZE];
+};
+
 /*
  * Template structure to describe the algorithms in order to register them.
  * It also has the purpose to contain our private structure and is actually
@@ -589,8 +640,10 @@ struct safexcel_context {
 struct safexcel_alg_template {
 	struct safexcel_crypto_priv *priv;
 	enum safexcel_alg_type type;
+	u32 engines;
 	union {
 		struct skcipher_alg skcipher;
+		struct aead_alg aead;
 		struct ahash_alg ahash;
 	} alg;
 };
@@ -601,19 +654,21 @@ struct safexcel_inv_result {
 };
 
 void safexcel_dequeue(struct safexcel_crypto_priv *priv, int ring);
+int safexcel_rdesc_check_errors(struct safexcel_crypto_priv *priv,
+				struct safexcel_result_desc *rdesc);
 void safexcel_complete(struct safexcel_crypto_priv *priv, int ring);
 int safexcel_invalidate_cache(struct crypto_async_request *async,
 			      struct safexcel_crypto_priv *priv,
-			      dma_addr_t ctxr_dma, int ring,
-			      struct safexcel_request *request);
+			      dma_addr_t ctxr_dma, int ring);
 int safexcel_init_ring_descriptors(struct safexcel_crypto_priv *priv,
-				   struct safexcel_ring *cdr,
-				   struct safexcel_ring *rdr);
+				   struct safexcel_desc_ring *cdr,
+				   struct safexcel_desc_ring *rdr);
 int safexcel_select_ring(struct safexcel_crypto_priv *priv);
 void *safexcel_ring_next_rptr(struct safexcel_crypto_priv *priv,
-			      struct safexcel_ring *ring);
+			      struct safexcel_desc_ring *ring);
+void *safexcel_ring_first_rptr(struct safexcel_crypto_priv *priv, int  ring);
 void safexcel_ring_rollback_wptr(struct safexcel_crypto_priv *priv,
-				 struct safexcel_ring *ring);
+				 struct safexcel_desc_ring *ring);
 struct safexcel_command_desc *safexcel_add_cdesc(struct safexcel_crypto_priv *priv,
 						 int ring_id,
 						 bool first, bool last,
@@ -624,16 +679,44 @@ struct safexcel_result_desc *safexcel_add_rdesc(struct safexcel_crypto_priv *pri
 						 int ring_id,
 						bool first, bool last,
 						dma_addr_t data, u32 len);
+int safexcel_ring_first_rdr_index(struct safexcel_crypto_priv *priv,
+				  int ring);
+int safexcel_ring_rdr_rdesc_index(struct safexcel_crypto_priv *priv,
+				  int ring,
+				  struct safexcel_result_desc *rdesc);
+void safexcel_rdr_req_set(struct safexcel_crypto_priv *priv,
+			  int ring,
+			  struct safexcel_result_desc *rdesc,
+			  struct crypto_async_request *req);
+inline struct crypto_async_request *
+safexcel_rdr_req_get(struct safexcel_crypto_priv *priv, int ring);
 void safexcel_inv_complete(struct crypto_async_request *req, int error);
+int safexcel_hmac_setkey(const char *alg, const u8 *key, unsigned int keylen,
+			 void *istate, void *ostate);
 
 /* available algorithms */
+extern struct safexcel_alg_template safexcel_alg_ecb_des;
+extern struct safexcel_alg_template safexcel_alg_cbc_des;
+extern struct safexcel_alg_template safexcel_alg_ecb_des3_ede;
+extern struct safexcel_alg_template safexcel_alg_cbc_des3_ede;
 extern struct safexcel_alg_template safexcel_alg_ecb_aes;
 extern struct safexcel_alg_template safexcel_alg_cbc_aes;
+extern struct safexcel_alg_template safexcel_alg_md5;
 extern struct safexcel_alg_template safexcel_alg_sha1;
 extern struct safexcel_alg_template safexcel_alg_sha224;
 extern struct safexcel_alg_template safexcel_alg_sha256;
+extern struct safexcel_alg_template safexcel_alg_sha384;
+extern struct safexcel_alg_template safexcel_alg_sha512;
+extern struct safexcel_alg_template safexcel_alg_hmac_md5;
 extern struct safexcel_alg_template safexcel_alg_hmac_sha1;
 extern struct safexcel_alg_template safexcel_alg_hmac_sha224;
 extern struct safexcel_alg_template safexcel_alg_hmac_sha256;
+extern struct safexcel_alg_template safexcel_alg_hmac_sha384;
+extern struct safexcel_alg_template safexcel_alg_hmac_sha512;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha1_cbc_aes;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha224_cbc_aes;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha256_cbc_aes;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha384_cbc_aes;
+extern struct safexcel_alg_template safexcel_alg_authenc_hmac_sha512_cbc_aes;
 
 #endif

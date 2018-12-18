@@ -217,7 +217,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	pdata = &dspi->pdata;
 
 	/* program delay transfers if tx_delay is non zero */
-	if (spicfg->wdelay)
+	if (spicfg && spicfg->wdelay)
 		spidat1 |= SPIDAT1_WDEL;
 
 	/*
@@ -923,9 +923,10 @@ static int davinci_spi_probe(struct platform_device *pdev)
 	/* pdata in dspi is now updated and point pdata to that */
 	pdata = &dspi->pdata;
 
-	dspi->bytes_per_word = devm_kzalloc(&pdev->dev,
-					    sizeof(*dspi->bytes_per_word) *
-					    pdata->num_chipselect, GFP_KERNEL);
+	dspi->bytes_per_word = devm_kcalloc(&pdev->dev,
+					    pdata->num_chipselect,
+					    sizeof(*dspi->bytes_per_word),
+					    GFP_KERNEL);
 	if (dspi->bytes_per_word == NULL) {
 		ret = -ENOMEM;
 		goto free_master;

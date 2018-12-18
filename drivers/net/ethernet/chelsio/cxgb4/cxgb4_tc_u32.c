@@ -457,7 +457,8 @@ struct cxgb4_tc_u32_table *cxgb4_init_tc_u32(struct adapter *adap)
 		unsigned int bmap_size;
 
 		bmap_size = BITS_TO_LONGS(max_tids);
-		link->tid_map = kvzalloc(sizeof(unsigned long) * bmap_size, GFP_KERNEL);
+		link->tid_map = kvcalloc(bmap_size, sizeof(unsigned long),
+					 GFP_KERNEL);
 		if (!link->tid_map)
 			goto out_no_mem;
 		bitmap_zero(link->tid_map, max_tids);

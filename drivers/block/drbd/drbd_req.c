@@ -38,7 +38,7 @@ static void _drbd_start_io_acct(struct drbd_device *device, struct drbd_request 
 {
 	struct request_queue *q = device->rq_queue;
 
-	generic_start_io_acct(q, bio_data_dir(req->master_bio),
+	generic_start_io_acct(q, bio_op(req->master_bio),
 				req->i.size >> 9, &device->vdisk->part0);
 }
 
@@ -47,7 +47,7 @@ static void _drbd_end_io_acct(struct drbd_device *device, struct drbd_request *r
 {
 	struct request_queue *q = device->rq_queue;
 
-	generic_end_io_acct(q, bio_data_dir(req->master_bio),
+	generic_end_io_acct(q, bio_op(req->master_bio),
 			    &device->vdisk->part0, req->start_jif);
 }
 
@@ -55,7 +55,7 @@ static struct drbd_request *drbd_req_new(struct drbd_device *device, struct bio 
 {
 	struct drbd_request *req;
 
-	req = mempool_alloc(drbd_request_mempool, GFP_NOIO);
+	req = mempool_alloc(&drbd_request_mempool, GFP_NOIO);
 	if (!req)
 		return NULL;
 	memset(req, 0, sizeof(*req));
@@ -184,7 +184,7 @@ void drbd_req_destroy(struct kref *kref)
 		}
 	}
 
-	mempool_free(req, drbd_request_mempool);
+	mempool_free(req, &drbd_request_mempool);
 }
 
 static void wake_all_senders(struct drbd_connection *connection)
@@ -1244,8 +1244,8 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 	_drbd_start_io_acct(device, req);
 
 	/* process discards always from our submitter thread */
-	if ((bio_op(bio) & REQ_OP_WRITE_ZEROES) ||
-	    (bio_op(bio) & REQ_OP_DISCARD))
+	if (bio_op(bio) == REQ_OP_WRITE_ZEROES ||
+	    bio_op(bio) == REQ_OP_DISCARD)
 		goto queue_for_submitter_thread;
 
 	if (rw == WRITE && req->private_bio && req->i.size

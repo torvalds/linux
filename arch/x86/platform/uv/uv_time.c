@@ -158,7 +158,7 @@ static __init int uv_rtc_allocate_timers(void)
 {
 	int cpu;
 
-	blade_info = kzalloc(uv_possible_blades * sizeof(void *), GFP_KERNEL);
+	blade_info = kcalloc(uv_possible_blades, sizeof(void *), GFP_KERNEL);
 	if (!blade_info)
 		return -ENOMEM;
 

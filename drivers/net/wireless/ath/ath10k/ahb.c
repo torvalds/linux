@@ -133,10 +133,7 @@ static void ath10k_ahb_clock_deinit(struct ath10k *ar)
 static int ath10k_ahb_clock_enable(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
-	struct device *dev;
 	int ret;
-
-	dev = &ar_ahb->pdev->dev;
 
 	if (IS_ERR_OR_NULL(ar_ahb->cmd_clk) ||
 	    IS_ERR_OR_NULL(ar_ahb->ref_clk) ||
@@ -180,14 +177,11 @@ static void ath10k_ahb_clock_disable(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 
-	if (!IS_ERR_OR_NULL(ar_ahb->cmd_clk))
-		clk_disable_unprepare(ar_ahb->cmd_clk);
+	clk_disable_unprepare(ar_ahb->cmd_clk);
 
-	if (!IS_ERR_OR_NULL(ar_ahb->ref_clk))
-		clk_disable_unprepare(ar_ahb->ref_clk);
+	clk_disable_unprepare(ar_ahb->ref_clk);
 
-	if (!IS_ERR_OR_NULL(ar_ahb->rtc_clk))
-		clk_disable_unprepare(ar_ahb->rtc_clk);
+	clk_disable_unprepare(ar_ahb->rtc_clk);
 }
 
 static int ath10k_ahb_rst_ctrl_init(struct ath10k *ar)
@@ -454,12 +448,10 @@ static int ath10k_ahb_resource_init(struct ath10k *ar)
 {
 	struct ath10k_ahb *ar_ahb = ath10k_ahb_priv(ar);
 	struct platform_device *pdev;
-	struct device *dev;
 	struct resource *res;
 	int ret;
 
 	pdev = ar_ahb->pdev;
-	dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {

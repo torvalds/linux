@@ -2229,13 +2229,15 @@ static int mlx4_en_copy_priv(struct mlx4_en_priv *dst,
 		if (!dst->tx_ring_num[t])
 			continue;
 
-		dst->tx_ring[t] = kzalloc(sizeof(struct mlx4_en_tx_ring *) *
-					  MAX_TX_RINGS, GFP_KERNEL);
+		dst->tx_ring[t] = kcalloc(MAX_TX_RINGS,
+					  sizeof(struct mlx4_en_tx_ring *),
+					  GFP_KERNEL);
 		if (!dst->tx_ring[t])
 			goto err_free_tx;
 
-		dst->tx_cq[t] = kzalloc(sizeof(struct mlx4_en_cq *) *
-					MAX_TX_RINGS, GFP_KERNEL);
+		dst->tx_cq[t] = kcalloc(MAX_TX_RINGS,
+					sizeof(struct mlx4_en_cq *),
+					GFP_KERNEL);
 		if (!dst->tx_cq[t]) {
 			kfree(dst->tx_ring[t]);
 			goto err_free_tx;
@@ -2924,7 +2926,6 @@ static int mlx4_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 		return mlx4_xdp_set(dev, xdp->prog);
 	case XDP_QUERY_PROG:
 		xdp->prog_id = mlx4_xdp_query(dev);
-		xdp->prog_attached = !!xdp->prog_id;
 		return 0;
 	default:
 		return -EINVAL;
@@ -3320,16 +3321,17 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 		if (!priv->tx_ring_num[t])
 			continue;
 
-		priv->tx_ring[t] = kzalloc(sizeof(struct mlx4_en_tx_ring *) *
-					   MAX_TX_RINGS, GFP_KERNEL);
+		priv->tx_ring[t] = kcalloc(MAX_TX_RINGS,
+					   sizeof(struct mlx4_en_tx_ring *),
+					   GFP_KERNEL);
 		if (!priv->tx_ring[t]) {
 			err = -ENOMEM;
-			goto err_free_tx;
+			goto out;
 		}
-		priv->tx_cq[t] = kzalloc(sizeof(struct mlx4_en_cq *) *
-					 MAX_TX_RINGS, GFP_KERNEL);
+		priv->tx_cq[t] = kcalloc(MAX_TX_RINGS,
+					 sizeof(struct mlx4_en_cq *),
+					 GFP_KERNEL);
 		if (!priv->tx_cq[t]) {
-			kfree(priv->tx_ring[t]);
 			err = -ENOMEM;
 			goto out;
 		}
@@ -3582,11 +3584,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	return 0;
 
-err_free_tx:
-	while (t--) {
-		kfree(priv->tx_ring[t]);
-		kfree(priv->tx_cq[t]);
-	}
 out:
 	mlx4_en_destroy_netdev(dev);
 	return err;

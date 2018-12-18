@@ -15,7 +15,6 @@ Required properties:
 	<TX irq>,
 	<RX irq>;
 - interrupt-names: Array of strings associated with the interrupt numbers
-- interrupt-parent: The parent interrupt controller
 - ti,buffer-size: Size of the FIFO on the port (OMAP2430 and newer SoC)
 - ti,hwmods: Name of the hwmod associated to the McBSP port
 

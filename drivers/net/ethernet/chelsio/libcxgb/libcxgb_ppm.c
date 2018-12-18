@@ -412,11 +412,9 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 			ppmax * (sizeof(struct cxgbi_ppod_data)) +
 			ppod_bmap_size * sizeof(unsigned long);
 
-	ppm = vmalloc(alloc_sz);
+	ppm = vzalloc(alloc_sz);
 	if (!ppm)
 		goto release_ppm_pool;
-
-	memset(ppm, 0, alloc_sz);
 
 	ppm->ppod_bmap = (unsigned long *)(&ppm->ppod_data[ppmax]);
 

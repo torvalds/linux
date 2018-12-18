@@ -3419,7 +3419,7 @@ done:
 
 static void airo_handle_tx(struct airo_info *ai, u16 status)
 {
-	int i, len = 0, index = -1;
+	int i, index = -1;
 	u16 fid;
 
 	if (test_bit(FLAG_MPI, &ai->flags)) {
@@ -3443,11 +3443,9 @@ static void airo_handle_tx(struct airo_info *ai, u16 status)
 
 	fid = IN4500(ai, TXCOMPLFID);
 
-	for(i = 0; i < MAX_FIDS; i++) {
-		if ((ai->fids[i] & 0xffff) == fid) {
-			len = ai->fids[i] >> 16;
+	for (i = 0; i < MAX_FIDS; i++) {
+		if ((ai->fids[i] & 0xffff) == fid)
 			index = i;
-		}
 	}
 
 	if (index != -1) {
@@ -7127,7 +7125,7 @@ static int airo_get_aplist(struct net_device *dev,
 	int i;
 	int loseSync = capable(CAP_NET_ADMIN) ? 1: -1;
 
-	qual = kmalloc(IW_MAX_AP * sizeof(*qual), GFP_KERNEL);
+	qual = kmalloc_array(IW_MAX_AP, sizeof(*qual), GFP_KERNEL);
 	if (!qual)
 		return -ENOMEM;
 

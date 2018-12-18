@@ -7,7 +7,6 @@ Required properties:
 - reg-names:	must include the following entries:
 		"csr": CSR registers
 		"vector_slave": vectors slave port region
-- interrupt-parent:	interrupt source phandle.
 - interrupts:	specifies the interrupt source of the parent interrupt
 		controller. The format of the interrupt specifier depends on the
 		parent interrupt controller.

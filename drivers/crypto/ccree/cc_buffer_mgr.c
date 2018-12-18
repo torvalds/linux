@@ -454,9 +454,7 @@ void cc_unmap_cipher_request(struct device *dev, void *ctx,
 		dev_dbg(dev, "Unmapped iv: iv_dma_addr=%pad iv_size=%u\n",
 			&req_ctx->gen_ctx.iv_dma_addr, ivsize);
 		dma_unmap_single(dev, req_ctx->gen_ctx.iv_dma_addr,
-				 ivsize,
-				 req_ctx->is_giv ? DMA_BIDIRECTIONAL :
-				 DMA_TO_DEVICE);
+				 ivsize, DMA_TO_DEVICE);
 	}
 	/* Release pool */
 	if (req_ctx->dma_buf_type == CC_DMA_BUF_MLLI &&
@@ -498,9 +496,7 @@ int cc_map_cipher_request(struct cc_drvdata *drvdata, void *ctx,
 		dump_byte_array("iv", (u8 *)info, ivsize);
 		req_ctx->gen_ctx.iv_dma_addr =
 			dma_map_single(dev, (void *)info,
-				       ivsize,
-				       req_ctx->is_giv ? DMA_BIDIRECTIONAL :
-				       DMA_TO_DEVICE);
+				       ivsize, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, req_ctx->gen_ctx.iv_dma_addr)) {
 			dev_err(dev, "Mapping iv %u B at va=%pK for DMA failed\n",
 				ivsize, info);

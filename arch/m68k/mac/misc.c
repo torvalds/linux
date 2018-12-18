@@ -26,33 +26,38 @@
 
 #include <asm/machdep.h>
 
-/* Offset between Unix time (1970-based) and Mac time (1904-based) */
+/*
+ * Offset between Unix time (1970-based) and Mac time (1904-based). Cuda and PMU
+ * times wrap in 2040. If we need to handle later times, the read_time functions
+ * need to be changed to interpret wrapped times as post-2040.
+ */
 
 #define RTC_OFFSET 2082844800
 
 static void (*rom_reset)(void);
 
 #ifdef CONFIG_ADB_CUDA
-static long cuda_read_time(void)
+static time64_t cuda_read_time(void)
 {
 	struct adb_request req;
-	long time;
+	time64_t time;
 
 	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_GET_TIME) < 0)
 		return 0;
 	while (!req.complete)
 		cuda_poll();
 
-	time = (req.reply[3] << 24) | (req.reply[4] << 16) |
-	       (req.reply[5] << 8) | req.reply[6];
+	time = (u32)((req.reply[3] << 24) | (req.reply[4] << 16) |
+		     (req.reply[5] << 8) | req.reply[6]);
+
 	return time - RTC_OFFSET;
 }
 
-static void cuda_write_time(long data)
+static void cuda_write_time(time64_t time)
 {
 	struct adb_request req;
+	u32 data = lower_32_bits(time + RTC_OFFSET);
 
-	data += RTC_OFFSET;
 	if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
 			 (data >> 24) & 0xFF, (data >> 16) & 0xFF,
 			 (data >> 8) & 0xFF, data & 0xFF) < 0)
@@ -85,27 +90,28 @@ static void cuda_write_pram(int offset, __u8 data)
 }
 #endif /* CONFIG_ADB_CUDA */
 
-#ifdef CONFIG_ADB_PMU68K
-static long pmu_read_time(void)
+#ifdef CONFIG_ADB_PMU
+static time64_t pmu_read_time(void)
 {
 	struct adb_request req;
-	long time;
+	time64_t time;
 
 	if (pmu_request(&req, NULL, 1, PMU_READ_RTC) < 0)
 		return 0;
 	while (!req.complete)
 		pmu_poll();
 
-	time = (req.reply[1] << 24) | (req.reply[2] << 16) |
-	       (req.reply[3] << 8) | req.reply[4];
+	time = (u32)((req.reply[1] << 24) | (req.reply[2] << 16) |
+		     (req.reply[3] << 8) | req.reply[4]);
+
 	return time - RTC_OFFSET;
 }
 
-static void pmu_write_time(long data)
+static void pmu_write_time(time64_t time)
 {
 	struct adb_request req;
+	u32 data = lower_32_bits(time + RTC_OFFSET);
 
-	data += RTC_OFFSET;
 	if (pmu_request(&req, NULL, 5, PMU_SET_RTC,
 			(data >> 24) & 0xFF, (data >> 16) & 0xFF,
 			(data >> 8) & 0xFF, data & 0xFF) < 0)
@@ -136,7 +142,7 @@ static void pmu_write_pram(int offset, __u8 data)
 	while (!req.complete)
 		pmu_poll();
 }
-#endif /* CONFIG_ADB_PMU68K */
+#endif /* CONFIG_ADB_PMU */
 
 /*
  * VIA PRAM/RTC access routines
@@ -245,11 +251,11 @@ static void via_write_pram(int offset, __u8 data)
  * is basically any machine with Mac II-style ADB.
  */
 
-static long via_read_time(void)
+static time64_t via_read_time(void)
 {
 	union {
 		__u8 cdata[4];
-		long idata;
+		__u32 idata;
 	} result, last_result;
 	int count = 1;
 
@@ -270,7 +276,7 @@ static long via_read_time(void)
 		via_pram_command(0x8D, &result.cdata[0]);
 
 		if (result.idata == last_result.idata)
-			return result.idata - RTC_OFFSET;
+			return (time64_t)result.idata - RTC_OFFSET;
 
 		if (++count > 10)
 			break;
@@ -278,8 +284,8 @@ static long via_read_time(void)
 		last_result.idata = result.idata;
 	}
 
-	pr_err("via_read_time: failed to read a stable value; got 0x%08lx then 0x%08lx\n",
-	       last_result.idata, result.idata);
+	pr_err("%s: failed to read a stable value; got 0x%08x then 0x%08x\n",
+	       __func__, last_result.idata, result.idata);
 
 	return 0;
 }
@@ -291,11 +297,11 @@ static long via_read_time(void)
  * is basically any machine with Mac II-style ADB.
  */
 
-static void via_write_time(long time)
+static void via_write_time(time64_t time)
 {
 	union {
 		__u8 cdata[4];
-		long idata;
+		__u32 idata;
 	} data;
 	__u8 temp;
 
@@ -304,7 +310,7 @@ static void via_write_time(long time)
 	temp = 0x55;
 	via_pram_command(0x35, &temp);
 
-	data.idata = time + RTC_OFFSET;
+	data.idata = lower_32_bits(time + RTC_OFFSET);
 	via_pram_command(0x01, &data.cdata[3]);
 	via_pram_command(0x05, &data.cdata[2]);
 	via_pram_command(0x09, &data.cdata[1]);
@@ -367,38 +373,6 @@ static void cuda_shutdown(void)
 }
 #endif /* CONFIG_ADB_CUDA */
 
-#ifdef CONFIG_ADB_PMU68K
-
-void pmu_restart(void)
-{
-	struct adb_request req;
-	if (pmu_request(&req, NULL,
-			2, PMU_SET_INTR_MASK, PMU_INT_ADB|PMU_INT_TICK) < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-	if (pmu_request(&req, NULL, 1, PMU_RESET) < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-}
-
-void pmu_shutdown(void)
-{
-	struct adb_request req;
-	if (pmu_request(&req, NULL,
-			2, PMU_SET_INTR_MASK, PMU_INT_ADB|PMU_INT_TICK) < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-	if (pmu_request(&req, NULL, 5, PMU_SHUTDOWN, 'M', 'A', 'T', 'T') < 0)
-		return;
-	while (!req.complete)
-		pmu_poll();
-}
-
-#endif
-
 /*
  *-------------------------------------------------------------------
  * Below this point are the generic routines; they'll dispatch to the
@@ -423,7 +397,7 @@ void mac_pram_read(int offset, __u8 *buffer, int len)
 		func = cuda_read_pram;
 		break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	case MAC_ADB_PB2:
 		func = pmu_read_pram;
 		break;
@@ -453,7 +427,7 @@ void mac_pram_write(int offset, __u8 *buffer, int len)
 		func = cuda_write_pram;
 		break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 	case MAC_ADB_PB2:
 		func = pmu_write_pram;
 		break;
@@ -477,9 +451,8 @@ void mac_poweroff(void)
 	           macintosh_config->adb_type == MAC_ADB_CUDA) {
 		cuda_shutdown();
 #endif
-#ifdef CONFIG_ADB_PMU68K
-	} else if (macintosh_config->adb_type == MAC_ADB_PB1
-		|| macintosh_config->adb_type == MAC_ADB_PB2) {
+#ifdef CONFIG_ADB_PMU
+	} else if (macintosh_config->adb_type == MAC_ADB_PB2) {
 		pmu_shutdown();
 #endif
 	}
@@ -519,9 +492,8 @@ void mac_reset(void)
 	           macintosh_config->adb_type == MAC_ADB_CUDA) {
 		cuda_restart();
 #endif
-#ifdef CONFIG_ADB_PMU68K
-	} else if (macintosh_config->adb_type == MAC_ADB_PB1
-		|| macintosh_config->adb_type == MAC_ADB_PB2) {
+#ifdef CONFIG_ADB_PMU
+	} else if (macintosh_config->adb_type == MAC_ADB_PB2) {
 		pmu_restart();
 #endif
 	} else if (CPU_IS_030) {
@@ -585,12 +557,15 @@ void mac_reset(void)
  * This function translates seconds since 1970 into a proper date.
  *
  * Algorithm cribbed from glibc2.1, __offtime().
+ *
+ * This is roughly same as rtc_time64_to_tm(), which we should probably
+ * use here, but it's only available when CONFIG_RTC_LIB is enabled.
  */
 #define SECS_PER_MINUTE (60)
 #define SECS_PER_HOUR  (SECS_PER_MINUTE * 60)
 #define SECS_PER_DAY   (SECS_PER_HOUR * 24)
 
-static void unmktime(unsigned long time, long offset,
+static void unmktime(time64_t time, long offset,
 		     int *yearp, int *monp, int *dayp,
 		     int *hourp, int *minp, int *secp)
 {
@@ -602,11 +577,10 @@ static void unmktime(unsigned long time, long offset,
 		/* Leap years.  */
 		{ 0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366 }
 	};
-	long int days, rem, y, wday, yday;
+	int days, rem, y, wday, yday;
 	const unsigned short int *ip;
 
-	days = time / SECS_PER_DAY;
-	rem = time % SECS_PER_DAY;
+	days = div_u64_rem(time, SECS_PER_DAY, &rem);
 	rem += offset;
 	while (rem < 0) {
 		rem += SECS_PER_DAY;
@@ -657,7 +631,7 @@ static void unmktime(unsigned long time, long offset,
 
 int mac_hwclk(int op, struct rtc_time *t)
 {
-	unsigned long now;
+	time64_t now;
 
 	if (!op) { /* read */
 		switch (macintosh_config->adb_type) {
@@ -672,7 +646,7 @@ int mac_hwclk(int op, struct rtc_time *t)
 			now = cuda_read_time();
 			break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
 			now = pmu_read_time();
 			break;
@@ -693,8 +667,8 @@ int mac_hwclk(int op, struct rtc_time *t)
 		         __func__, t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
 		         t->tm_hour, t->tm_min, t->tm_sec);
 
-		now = mktime(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
-			     t->tm_hour, t->tm_min, t->tm_sec);
+		now = mktime64(t->tm_year + 1900, t->tm_mon + 1, t->tm_mday,
+			       t->tm_hour, t->tm_min, t->tm_sec);
 
 		switch (macintosh_config->adb_type) {
 		case MAC_ADB_IOP:
@@ -708,7 +682,7 @@ int mac_hwclk(int op, struct rtc_time *t)
 			cuda_write_time(now);
 			break;
 #endif
-#ifdef CONFIG_ADB_PMU68K
+#ifdef CONFIG_ADB_PMU
 		case MAC_ADB_PB2:
 			pmu_write_time(now);
 			break;
@@ -717,21 +691,5 @@ int mac_hwclk(int op, struct rtc_time *t)
 			return -ENODEV;
 		}
 	}
-	return 0;
-}
-
-/*
- * Set minutes/seconds in the hardware clock
- */
-
-int mac_set_clock_mmss (unsigned long nowtime)
-{
-	struct rtc_time now;
-
-	mac_hwclk(0, &now);
-	now.tm_sec = nowtime % 60;
-	now.tm_min = (nowtime / 60) % 60;
-	mac_hwclk(1, &now);
-
 	return 0;
 }

@@ -408,6 +408,8 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 	const guid_t *guid;
 	int rc, i;
 
+	if (cmd_rc)
+		*cmd_rc = -EINVAL;
 	func = cmd;
 	if (cmd == ND_CMD_CALL) {
 		call_pkg = buf;
@@ -518,6 +520,8 @@ int acpi_nfit_ctl(struct nvdimm_bus_descriptor *nd_desc, struct nvdimm *nvdimm,
 		 * If we return an error (like elsewhere) then caller wouldn't
 		 * be able to rely upon data returned to make calculation.
 		 */
+		if (cmd_rc)
+			*cmd_rc = 0;
 		return 0;
 	}
 
@@ -1082,9 +1086,10 @@ static int __nfit_mem_init(struct acpi_nfit_desc *acpi_desc,
 				continue;
 			nfit_mem->nfit_flush = nfit_flush;
 			flush = nfit_flush->flush;
-			nfit_mem->flush_wpq = devm_kzalloc(acpi_desc->dev,
-					flush->hint_count
-					* sizeof(struct resource), GFP_KERNEL);
+			nfit_mem->flush_wpq = devm_kcalloc(acpi_desc->dev,
+					flush->hint_count,
+					sizeof(struct resource),
+					GFP_KERNEL);
 			if (!nfit_mem->flush_wpq)
 				return -ENOMEM;
 			for (i = 0; i < flush->hint_count; i++) {
@@ -1272,7 +1277,7 @@ static ssize_t scrub_show(struct device *dev,
 
 		mutex_lock(&acpi_desc->init_mutex);
 		rc = sprintf(buf, "%d%s", acpi_desc->scrub_count,
-				work_busy(&acpi_desc->dwork.work)
+				acpi_desc->scrub_busy
 				&& !acpi_desc->cancel ? "+\n" : "\n");
 		mutex_unlock(&acpi_desc->init_mutex);
 	}
@@ -1978,19 +1983,8 @@ static ssize_t range_index_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(range_index);
 
-static ssize_t ecc_unit_size_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct nd_region *nd_region = to_nd_region(dev);
-	struct nfit_spa *nfit_spa = nd_region_provider_data(nd_region);
-
-	return sprintf(buf, "%d\n", nfit_spa->clear_err_unit);
-}
-static DEVICE_ATTR_RO(ecc_unit_size);
-
 static struct attribute *acpi_nfit_region_attributes[] = {
 	&dev_attr_range_index.attr,
-	&dev_attr_ecc_unit_size.attr,
 	NULL,
 };
 
@@ -2949,6 +2943,32 @@ static unsigned int __acpi_nfit_scrub(struct acpi_nfit_desc *acpi_desc,
 	return 0;
 }
 
+static void __sched_ars(struct acpi_nfit_desc *acpi_desc, unsigned int tmo)
+{
+	lockdep_assert_held(&acpi_desc->init_mutex);
+
+	acpi_desc->scrub_busy = 1;
+	/* note this should only be set from within the workqueue */
+	if (tmo)
+		acpi_desc->scrub_tmo = tmo;
+	queue_delayed_work(nfit_wq, &acpi_desc->dwork, tmo * HZ);
+}
+
+static void sched_ars(struct acpi_nfit_desc *acpi_desc)
+{
+	__sched_ars(acpi_desc, 0);
+}
+
+static void notify_ars_done(struct acpi_nfit_desc *acpi_desc)
+{
+	lockdep_assert_held(&acpi_desc->init_mutex);
+
+	acpi_desc->scrub_busy = 0;
+	acpi_desc->scrub_count++;
+	if (acpi_desc->scrub_count_state)
+		sysfs_notify_dirent(acpi_desc->scrub_count_state);
+}
+
 static void acpi_nfit_scrub(struct work_struct *work)
 {
 	struct acpi_nfit_desc *acpi_desc;
@@ -2959,14 +2979,10 @@ static void acpi_nfit_scrub(struct work_struct *work)
 	mutex_lock(&acpi_desc->init_mutex);
 	query_rc = acpi_nfit_query_poison(acpi_desc);
 	tmo = __acpi_nfit_scrub(acpi_desc, query_rc);
-	if (tmo) {
-		queue_delayed_work(nfit_wq, &acpi_desc->dwork, tmo * HZ);
-		acpi_desc->scrub_tmo = tmo;
-	} else {
-		acpi_desc->scrub_count++;
-		if (acpi_desc->scrub_count_state)
-			sysfs_notify_dirent(acpi_desc->scrub_count_state);
-	}
+	if (tmo)
+		__sched_ars(acpi_desc, tmo);
+	else
+		notify_ars_done(acpi_desc);
 	memset(acpi_desc->ars_status, 0, acpi_desc->max_ars);
 	mutex_unlock(&acpi_desc->init_mutex);
 }
@@ -3047,7 +3063,7 @@ static int acpi_nfit_register_regions(struct acpi_nfit_desc *acpi_desc)
 			break;
 		}
 
-	queue_delayed_work(nfit_wq, &acpi_desc->dwork, 0);
+	sched_ars(acpi_desc);
 	return 0;
 }
 
@@ -3249,7 +3265,7 @@ int acpi_nfit_ars_rescan(struct acpi_nfit_desc *acpi_desc, unsigned long flags)
 		}
 	}
 	if (scheduled) {
-		queue_delayed_work(nfit_wq, &acpi_desc->dwork, 0);
+		sched_ars(acpi_desc);
 		dev_dbg(dev, "ars_scan triggered\n");
 	}
 	mutex_unlock(&acpi_desc->init_mutex);

@@ -117,7 +117,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 		return -ENODEV;
 	}
 
-	ret = handle->perf_ops->add_opps_to_device(handle, cpu_dev);
+	ret = handle->perf_ops->device_opps_add(handle, cpu_dev);
 	if (ret) {
 		dev_warn(cpu_dev, "failed to add opps to the device\n");
 		return ret;
@@ -164,7 +164,7 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	/* SCMI allows DVFS request for any domain from any CPU */
 	policy->dvfs_possible_from_any_cpu = true;
 
-	latency = handle->perf_ops->get_transition_latency(handle, cpu_dev);
+	latency = handle->perf_ops->transition_latency_get(handle, cpu_dev);
 	if (!latency)
 		latency = CPUFREQ_ETERNAL;
 

@@ -24,7 +24,7 @@ static /*const*/ struct fb_ops armada_fb_ops = {
 	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
 };
 
-static int armada_fb_create(struct drm_fb_helper *fbh,
+static int armada_fbdev_create(struct drm_fb_helper *fbh,
 	struct drm_fb_helper_surface_size *sizes)
 {
 	struct drm_device *dev = fbh->dev;
@@ -108,7 +108,7 @@ static int armada_fb_probe(struct drm_fb_helper *fbh,
 	int ret = 0;
 
 	if (!fbh->fb) {
-		ret = armada_fb_create(fbh, sizes);
+		ret = armada_fbdev_create(fbh, sizes);
 		if (ret == 0)
 			ret = 1;
 	}

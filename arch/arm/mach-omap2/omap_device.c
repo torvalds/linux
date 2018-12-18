@@ -143,7 +143,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	struct resource res;
 	const char *oh_name;
 	int oh_cnt, i, ret = 0;
-	bool device_active = false;
+	bool device_active = false, skip_pm_domain = false;
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
 	if (oh_cnt <= 0) {
@@ -151,11 +151,18 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	/* SDMA still needs special handling for omap_device_build() */
+	ret = of_property_read_string_index(node, "ti,hwmods", 0, &oh_name);
+	if (!ret && (!strncmp("dma_system", oh_name, 10) ||
+		     !strncmp("dma", oh_name, 3)))
+		skip_pm_domain = true;
+
 	/* Use ti-sysc driver instead of omap_device? */
-	if (!omap_hwmod_parse_module_range(NULL, node, &res))
+	if (!skip_pm_domain &&
+	    !omap_hwmod_parse_module_range(NULL, node, &res))
 		return -ENODEV;
 
-	hwmods = kzalloc(sizeof(struct omap_hwmod *) * oh_cnt, GFP_KERNEL);
+	hwmods = kcalloc(oh_cnt, sizeof(struct omap_hwmod *), GFP_KERNEL);
 	if (!hwmods) {
 		ret = -ENOMEM;
 		goto odbfd_exit;
@@ -191,11 +198,12 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 			r->name = dev_name(&pdev->dev);
 	}
 
-	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
-
-	if (device_active) {
-		omap_device_enable(pdev);
-		pm_runtime_set_active(&pdev->dev);
+	if (!skip_pm_domain) {
+		dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
+		if (device_active) {
+			omap_device_enable(pdev);
+			pm_runtime_set_active(&pdev->dev);
+		}
 	}
 
 odbfd_exit1:
@@ -405,7 +413,7 @@ omap_device_copy_resources(struct omap_hwmod *oh,
 		goto error;
 	}
 
-	res = kzalloc(sizeof(*res) * 2, GFP_KERNEL);
+	res = kcalloc(2, sizeof(*res), GFP_KERNEL);
 	if (!res)
 		return -ENOMEM;
 

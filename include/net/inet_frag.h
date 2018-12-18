@@ -2,7 +2,7 @@
 #ifndef __NET_FRAG_H__
 #define __NET_FRAG_H__
 
-#include <linux/rhashtable.h>
+#include <linux/rhashtable-types.h>
 
 struct netns_frags {
 	/* sysctls */
@@ -57,7 +57,9 @@ struct frag_v6_compare_key {
  * @lock: spinlock protecting this frag
  * @refcnt: reference count of the queue
  * @fragments: received fragments head
+ * @rb_fragments: received fragments rb-tree root
  * @fragments_tail: received fragments tail
+ * @last_run_head: the head of the last "run". see ip_fragment.c
  * @stamp: timestamp of the last received fragment
  * @len: total length of the original datagram
  * @meat: length of received fragments so far
@@ -75,8 +77,10 @@ struct inet_frag_queue {
 	struct timer_list	timer;
 	spinlock_t		lock;
 	refcount_t		refcnt;
-	struct sk_buff		*fragments;
+	struct sk_buff		*fragments;  /* Used in IPv6. */
+	struct rb_root		rb_fragments; /* Used in IPv4. */
 	struct sk_buff		*fragments_tail;
+	struct sk_buff		*last_run_head;
 	ktime_t			stamp;
 	int			len;
 	int			meat;
@@ -111,6 +115,9 @@ void inet_frags_exit_net(struct netns_frags *nf);
 void inet_frag_kill(struct inet_frag_queue *q);
 void inet_frag_destroy(struct inet_frag_queue *q);
 struct inet_frag_queue *inet_frag_find(struct netns_frags *nf, void *key);
+
+/* Free all skbs in the queue; return the sum of their truesizes. */
+unsigned int inet_frag_rbtree_purge(struct rb_root *root);
 
 static inline void inet_frag_put(struct inet_frag_queue *q)
 {

@@ -234,5 +234,6 @@ int phylink_mii_ioctl(struct phylink *, struct ifreq *, int);
 #define phylink_test(bm, mode)	__phylink_do_bit(test_bit, bm, mode)
 
 void phylink_set_port_modes(unsigned long *bits);
+void phylink_helper_basex_speed(struct phylink_link_state *state);
 
 #endif

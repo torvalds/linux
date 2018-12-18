@@ -17,7 +17,9 @@
 #include <linux/pci.h>
 #include <linux/memblock.h>
 #include <linux/iommu.h>
+#include <linux/debugfs.h>
 
+#include <asm/debugfs.h>
 #include <asm/tlb.h>
 #include <asm/powernv.h>
 #include <asm/reg.h>
@@ -32,6 +34,20 @@
 #include "pci.h"
 
 #define npu_to_phb(x) container_of(x, struct pnv_phb, npu)
+
+/*
+ * spinlock to protect initialisation of an npu_context for a particular
+ * mm_struct.
+ */
+static DEFINE_SPINLOCK(npu_context_lock);
+
+/*
+ * When an address shootdown range exceeds this threshold we invalidate the
+ * entire TLB on the GPU for the given PID rather than each specific address in
+ * the range.
+ */
+static uint64_t atsd_threshold = 2 * 1024 * 1024;
+static struct dentry *atsd_threshold_dentry;
 
 /*
  * Other types of TCE cache invalidation are not functional in the
@@ -401,7 +417,7 @@ struct npu_context {
 	bool nmmu_flush;
 
 	/* Callback to stop translation requests on a given GPU */
-	struct npu_context *(*release_cb)(struct npu_context *, void *);
+	void (*release_cb)(struct npu_context *context, void *priv);
 
 	/*
 	 * Private pointer passed to the above callback for usage by
@@ -424,8 +440,9 @@ static int get_mmio_atsd_reg(struct npu *npu)
 	int i;
 
 	for (i = 0; i < npu->mmio_atsd_count; i++) {
-		if (!test_and_set_bit_lock(i, &npu->mmio_atsd_usage))
-			return i;
+		if (!test_bit(i, &npu->mmio_atsd_usage))
+			if (!test_and_set_bit_lock(i, &npu->mmio_atsd_usage))
+				return i;
 	}
 
 	return -ENOSPC;
@@ -446,10 +463,9 @@ static void mmio_launch_invalidate(struct mmio_atsd_reg *mmio_atsd_reg,
 	struct npu *npu = mmio_atsd_reg->npu;
 	int reg = mmio_atsd_reg->reg;
 
-	__raw_writeq(cpu_to_be64(va),
-		npu->mmio_atsd_regs[reg] + XTS_ATSD_AVA);
+	__raw_writeq_be(va, npu->mmio_atsd_regs[reg] + XTS_ATSD_AVA);
 	eieio();
-	__raw_writeq(cpu_to_be64(launch), npu->mmio_atsd_regs[reg]);
+	__raw_writeq_be(launch, npu->mmio_atsd_regs[reg]);
 }
 
 static void mmio_invalidate_pid(struct mmio_atsd_reg mmio_atsd_reg[NV_MAX_NPUS],
@@ -671,11 +687,19 @@ static void pnv_npu2_mn_invalidate_range(struct mmu_notifier *mn,
 	struct npu_context *npu_context = mn_to_npu_context(mn);
 	unsigned long address;
 
-	for (address = start; address < end; address += PAGE_SIZE)
-		mmio_invalidate(npu_context, 1, address, false);
+	if (end - start > atsd_threshold) {
+		/*
+		 * Just invalidate the entire PID if the address range is too
+		 * large.
+		 */
+		mmio_invalidate(npu_context, 0, 0, true);
+	} else {
+		for (address = start; address < end; address += PAGE_SIZE)
+			mmio_invalidate(npu_context, 1, address, false);
 
-	/* Do the flush only on the final addess == end */
-	mmio_invalidate(npu_context, 1, address, true);
+		/* Do the flush only on the final addess == end */
+		mmio_invalidate(npu_context, 1, address, true);
+	}
 }
 
 static const struct mmu_notifier_ops nv_nmmu_notifier_ops = {
@@ -696,11 +720,12 @@ static const struct mmu_notifier_ops nv_nmmu_notifier_ops = {
  * Returns an error if there no contexts are currently available or a
  * npu_context which should be passed to pnv_npu2_handle_fault().
  *
- * mmap_sem must be held in write mode.
+ * mmap_sem must be held in write mode and must not be called from interrupt
+ * context.
  */
 struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 			unsigned long flags,
-			struct npu_context *(*cb)(struct npu_context *, void *),
+			void (*cb)(struct npu_context *, void *),
 			void *priv)
 {
 	int rc;
@@ -743,7 +768,9 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	/*
 	 * Setup the NPU context table for a particular GPU. These need to be
 	 * per-GPU as we need the tables to filter ATSDs when there are no
-	 * active contexts on a particular GPU.
+	 * active contexts on a particular GPU. It is safe for these to be
+	 * called concurrently with destroy as the OPAL call takes appropriate
+	 * locks and refcounts on init/destroy.
 	 */
 	rc = opal_npu_init_context(nphb->opal_id, mm->context.id, flags,
 				PCI_DEVID(gpdev->bus->number, gpdev->devfn));
@@ -754,8 +781,29 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 	 * We store the npu pci device so we can more easily get at the
 	 * associated npus.
 	 */
+	spin_lock(&npu_context_lock);
 	npu_context = mm->context.npu_context;
+	if (npu_context) {
+		if (npu_context->release_cb != cb ||
+			npu_context->priv != priv) {
+			spin_unlock(&npu_context_lock);
+			opal_npu_destroy_context(nphb->opal_id, mm->context.id,
+						PCI_DEVID(gpdev->bus->number,
+							gpdev->devfn));
+			return ERR_PTR(-EINVAL);
+		}
+
+		WARN_ON(!kref_get_unless_zero(&npu_context->kref));
+	}
+	spin_unlock(&npu_context_lock);
+
 	if (!npu_context) {
+		/*
+		 * We can set up these fields without holding the
+		 * npu_context_lock as the npu_context hasn't been returned to
+		 * the caller meaning it can't be destroyed. Parallel allocation
+		 * is protected against by mmap_sem.
+		 */
 		rc = -ENOMEM;
 		npu_context = kzalloc(sizeof(struct npu_context), GFP_KERNEL);
 		if (npu_context) {
@@ -774,8 +822,6 @@ struct npu_context *pnv_npu2_init_context(struct pci_dev *gpdev,
 		}
 
 		mm->context.npu_context = npu_context;
-	} else {
-		WARN_ON(!kref_get_unless_zero(&npu_context->kref));
 	}
 
 	npu_context->release_cb = cb;
@@ -814,15 +860,16 @@ static void pnv_npu2_release_context(struct kref *kref)
 		mm_context_remove_copro(npu_context->mm);
 
 	npu_context->mm->context.npu_context = NULL;
-	mmu_notifier_unregister(&npu_context->mn,
-				npu_context->mm);
-
-	kfree(npu_context);
 }
 
+/*
+ * Destroy a context on the given GPU. May free the npu_context if it is no
+ * longer active on any GPUs. Must not be called from interrupt context.
+ */
 void pnv_npu2_destroy_context(struct npu_context *npu_context,
 			struct pci_dev *gpdev)
 {
+	int removed;
 	struct pnv_phb *nphb;
 	struct npu *npu;
 	struct pci_dev *npdev = pnv_pci_get_npu_dev(gpdev, 0);
@@ -844,7 +891,21 @@ void pnv_npu2_destroy_context(struct npu_context *npu_context,
 	WRITE_ONCE(npu_context->npdev[npu->index][nvlink_index], NULL);
 	opal_npu_destroy_context(nphb->opal_id, npu_context->mm->context.id,
 				PCI_DEVID(gpdev->bus->number, gpdev->devfn));
-	kref_put(&npu_context->kref, pnv_npu2_release_context);
+	spin_lock(&npu_context_lock);
+	removed = kref_put(&npu_context->kref, pnv_npu2_release_context);
+	spin_unlock(&npu_context_lock);
+
+	/*
+	 * We need to do this outside of pnv_npu2_release_context so that it is
+	 * outside the spinlock as mmu_notifier_destroy uses SRCU.
+	 */
+	if (removed) {
+		mmu_notifier_unregister(&npu_context->mn,
+					npu_context->mm);
+
+		kfree(npu_context);
+	}
+
 }
 EXPORT_SYMBOL(pnv_npu2_destroy_context);
 
@@ -900,6 +961,11 @@ int pnv_npu2_init(struct pnv_phb *phb)
 	struct pci_dev *gpdev;
 	static int npu_index;
 	uint64_t rc = 0;
+
+	if (!atsd_threshold_dentry) {
+		atsd_threshold_dentry = debugfs_create_x64("atsd_threshold",
+				   0600, powerpc_debugfs_root, &atsd_threshold);
+	}
 
 	phb->npu.nmmu_flush =
 		of_property_read_bool(phb->hose->dn, "ibm,nmmu-flush");

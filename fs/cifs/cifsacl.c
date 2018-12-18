@@ -747,8 +747,8 @@ static void parse_dacl(struct cifs_acl *pdacl, char *end_of_acl,
 
 		if (num_aces > ULONG_MAX / sizeof(struct cifs_ace *))
 			return;
-		ppace = kmalloc(num_aces * sizeof(struct cifs_ace *),
-				GFP_KERNEL);
+		ppace = kmalloc_array(num_aces, sizeof(struct cifs_ace *),
+				      GFP_KERNEL);
 		if (!ppace)
 			return;
 

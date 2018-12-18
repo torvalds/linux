@@ -331,7 +331,7 @@ static inline bool vlan_hw_offload_capable(netdev_features_t features,
  * @mac_len: MAC header length including outer vlan headers
  *
  * Inserts the VLAN tag into @skb as part of the payload at offset mac_len
- * Returns error if skb_cow_head failes.
+ * Returns error if skb_cow_head fails.
  *
  * Does not change skb->protocol so this function can be used during receive.
  */
@@ -379,7 +379,7 @@ static inline int __vlan_insert_inner_tag(struct sk_buff *skb,
  * @vlan_tci: VLAN TCI to insert
  *
  * Inserts the VLAN tag into @skb as part of the payload
- * Returns error if skb_cow_head failes.
+ * Returns error if skb_cow_head fails.
  *
  * Does not change skb->protocol so this function can be used during receive.
  */
@@ -663,7 +663,7 @@ static inline bool skb_vlan_tagged(const struct sk_buff *skb)
  * Returns true if the skb is tagged with multiple vlan headers, regardless
  * of whether it is hardware accelerated or not.
  */
-static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
+static inline bool skb_vlan_tagged_multi(struct sk_buff *skb)
 {
 	__be16 protocol = skb->protocol;
 
@@ -671,6 +671,9 @@ static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
 		struct vlan_ethhdr *veh;
 
 		if (likely(!eth_type_vlan(protocol)))
+			return false;
+
+		if (unlikely(!pskb_may_pull(skb, VLAN_ETH_HLEN)))
 			return false;
 
 		veh = (struct vlan_ethhdr *)skb->data;
@@ -690,7 +693,7 @@ static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
  *
  * Returns features without unsafe ones if the skb has multiple tags.
  */
-static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
+static inline netdev_features_t vlan_features_check(struct sk_buff *skb,
 						    netdev_features_t features)
 {
 	if (skb_vlan_tagged_multi(skb)) {

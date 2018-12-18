@@ -1058,7 +1058,7 @@ static s32 brcmf_p2p_act_frm_search(struct brcmf_p2p_info *p2p, u16 channel)
 		channel_cnt = AF_PEER_SEARCH_CNT;
 	else
 		channel_cnt = SOCIAL_CHAN_CNT;
-	default_chan_list = kzalloc(channel_cnt * sizeof(*default_chan_list),
+	default_chan_list = kcalloc(channel_cnt, sizeof(*default_chan_list),
 				    GFP_KERNEL);
 	if (default_chan_list == NULL) {
 		brcmf_err("channel list allocation failed\n");
@@ -2073,6 +2073,13 @@ static struct wireless_dev *brcmf_p2p_create_p2pdev(struct brcmf_p2p_info *p2p,
 	}
 
 	pri_ifp = p2p->bss_idx[P2PAPI_BSSCFG_PRIMARY].vif->ifp;
+
+	/* firmware requires unique mac address for p2pdev interface */
+	if (addr && ether_addr_equal(addr, pri_ifp->mac_addr)) {
+		brcmf_err("discovery vif must be different from primary interface\n");
+		return ERR_PTR(-EINVAL);
+	}
+
 	brcmf_p2p_generate_bss_mac(p2p, addr);
 	brcmf_p2p_set_firmware(pri_ifp, p2p->dev_addr);
 

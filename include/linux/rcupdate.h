@@ -64,7 +64,6 @@ void rcu_barrier_tasks(void);
 
 void __rcu_read_lock(void);
 void __rcu_read_unlock(void);
-void rcu_read_unlock_special(struct task_struct *t);
 void synchronize_rcu(void);
 
 /*
@@ -108,7 +107,6 @@ void rcu_sched_qs(void);
 void rcu_bh_qs(void);
 void rcu_check_callbacks(int user);
 void rcu_report_dead(unsigned int cpu);
-void rcu_cpu_starting(unsigned int cpu);
 void rcutree_migrate_callbacks(int cpu);
 
 #ifdef CONFIG_RCU_STALL_COMMON
@@ -160,11 +158,11 @@ static inline void rcu_init_nohz(void) { }
 	} while (0)
 
 /*
- * Note a voluntary context switch for RCU-tasks benefit.  This is a
- * macro rather than an inline function to avoid #include hell.
+ * Note a quasi-voluntary context switch for RCU-tasks's benefit.
+ * This is a macro rather than an inline function to avoid #include hell.
  */
 #ifdef CONFIG_TASKS_RCU
-#define rcu_note_voluntary_context_switch_lite(t) \
+#define rcu_tasks_qs(t) \
 	do { \
 		if (READ_ONCE((t)->rcu_tasks_holdout)) \
 			WRITE_ONCE((t)->rcu_tasks_holdout, false); \
@@ -172,14 +170,14 @@ static inline void rcu_init_nohz(void) { }
 #define rcu_note_voluntary_context_switch(t) \
 	do { \
 		rcu_all_qs(); \
-		rcu_note_voluntary_context_switch_lite(t); \
+		rcu_tasks_qs(t); \
 	} while (0)
 void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
 void synchronize_rcu_tasks(void);
 void exit_tasks_rcu_start(void);
 void exit_tasks_rcu_finish(void);
 #else /* #ifdef CONFIG_TASKS_RCU */
-#define rcu_note_voluntary_context_switch_lite(t)	do { } while (0)
+#define rcu_tasks_qs(t)	do { } while (0)
 #define rcu_note_voluntary_context_switch(t)		rcu_all_qs()
 #define call_rcu_tasks call_rcu_sched
 #define synchronize_rcu_tasks synchronize_sched
@@ -188,16 +186,16 @@ static inline void exit_tasks_rcu_finish(void) { }
 #endif /* #else #ifdef CONFIG_TASKS_RCU */
 
 /**
- * cond_resched_rcu_qs - Report potential quiescent states to RCU
+ * cond_resched_tasks_rcu_qs - Report potential quiescent states to RCU
  *
  * This macro resembles cond_resched(), except that it is defined to
  * report potential quiescent states to RCU-tasks even if the cond_resched()
  * machinery were to be shut off, as some advocate for PREEMPT kernels.
  */
-#define cond_resched_rcu_qs() \
+#define cond_resched_tasks_rcu_qs() \
 do { \
-	if (!cond_resched()) \
-		rcu_note_voluntary_context_switch_lite(current); \
+	rcu_tasks_qs(current); \
+	cond_resched(); \
 } while (0)
 
 /*
@@ -568,8 +566,8 @@ static inline void rcu_preempt_sleep_check(void) { }
  * This is simply an identity function, but it documents where a pointer
  * is handed off from RCU to some other synchronization mechanism, for
  * example, reference counting or locking.  In C11, it would map to
- * kill_dependency().  It could be used as follows:
- * ``
+ * kill_dependency().  It could be used as follows::
+ *
  *	rcu_read_lock();
  *	p = rcu_dereference(gp);
  *	long_lived = is_long_lived(p);
@@ -580,7 +578,6 @@ static inline void rcu_preempt_sleep_check(void) { }
  *			p = rcu_pointer_handoff(p);
  *	}
  *	rcu_read_unlock();
- *``
  */
 #define rcu_pointer_handoff(p) (p)
 
@@ -653,9 +650,7 @@ static inline void rcu_read_lock(void)
  * Unfortunately, this function acquires the scheduler's runqueue and
  * priority-inheritance spinlocks.  This means that deadlock could result
  * if the caller of rcu_read_unlock() already holds one of these locks or
- * any lock that is ever acquired while holding them; or any lock which
- * can be taken from interrupt context because rcu_boost()->rt_mutex_lock()
- * does not disable irqs while taking ->wait_lock.
+ * any lock that is ever acquired while holding them.
  *
  * That said, RCU readers are never priority boosted unless they were
  * preempted.  Therefore, one way to avoid deadlock is to make sure

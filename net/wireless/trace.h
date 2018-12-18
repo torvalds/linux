@@ -2627,23 +2627,25 @@ TRACE_EVENT(cfg80211_mgmt_tx_status,
 );
 
 TRACE_EVENT(cfg80211_rx_control_port,
-	TP_PROTO(struct net_device *netdev, const u8 *buf, size_t len,
-		 const u8 *addr, u16 proto, bool unencrypted),
-	TP_ARGS(netdev, buf, len, addr, proto, unencrypted),
+	TP_PROTO(struct net_device *netdev, struct sk_buff *skb,
+		 bool unencrypted),
+	TP_ARGS(netdev, skb, unencrypted),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
-		MAC_ENTRY(addr)
+		__field(int, len)
+		MAC_ENTRY(from)
 		__field(u16, proto)
 		__field(bool, unencrypted)
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
-		MAC_ASSIGN(addr, addr);
-		__entry->proto = proto;
+		__entry->len = skb->len;
+		MAC_ASSIGN(from, eth_hdr(skb)->h_source);
+		__entry->proto = be16_to_cpu(skb->protocol);
 		__entry->unencrypted = unencrypted;
 	),
-	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT " proto: 0x%x, unencrypted: %s",
-		  NETDEV_PR_ARG, MAC_PR_ARG(addr),
+	TP_printk(NETDEV_PR_FMT ", len=%d, " MAC_PR_FMT ", proto: 0x%x, unencrypted: %s",
+		  NETDEV_PR_ARG, __entry->len, MAC_PR_ARG(from),
 		  __entry->proto, BOOL_TO_STR(__entry->unencrypted))
 );
 
@@ -3242,6 +3244,20 @@ TRACE_EVENT(rdev_set_multicast_to_unicast,
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", unicast: %s",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG,
 		  BOOL_TO_STR(__entry->enabled))
+);
+
+TRACE_EVENT(rdev_get_txq_stats,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT, WIPHY_PR_ARG, WDEV_PR_ARG)
 );
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */
 

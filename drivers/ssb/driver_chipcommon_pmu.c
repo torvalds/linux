@@ -8,6 +8,8 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_regs.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
@@ -16,8 +18,6 @@
 #ifdef CONFIG_BCM47XX
 #include <linux/bcm47xx_nvram.h>
 #endif
-
-#include "ssb_private.h"
 
 static u32 ssb_chipco_pll_read(struct ssb_chipcommon *cc, u32 offset)
 {
@@ -110,7 +110,7 @@ static void ssb_pmu0_pllinit_r0(struct ssb_chipcommon *cc,
 		return;
 	}
 
-	ssb_info("Programming PLL to %u.%03u MHz\n",
+	dev_info(cc->dev->dev, "Programming PLL to %u.%03u MHz\n",
 		 crystalfreq / 1000, crystalfreq % 1000);
 
 	/* First turn the PLL off. */
@@ -128,7 +128,7 @@ static void ssb_pmu0_pllinit_r0(struct ssb_chipcommon *cc,
 			      ~(1 << SSB_PMURES_5354_BB_PLL_PU));
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	for (i = 1500; i; i--) {
 		tmp = chipco_read32(cc, SSB_CHIPCO_CLKCTLST);
@@ -138,7 +138,7 @@ static void ssb_pmu0_pllinit_r0(struct ssb_chipcommon *cc,
 	}
 	tmp = chipco_read32(cc, SSB_CHIPCO_CLKCTLST);
 	if (tmp & SSB_CHIPCO_CLKCTLST_HAVEHT)
-		ssb_emerg("Failed to turn the PLL off!\n");
+		dev_emerg(cc->dev->dev, "Failed to turn the PLL off!\n");
 
 	/* Set PDIV in PLL control 0. */
 	pllctl = ssb_chipco_pll_read(cc, SSB_PMU0_PLLCTL0);
@@ -249,7 +249,7 @@ static void ssb_pmu1_pllinit_r0(struct ssb_chipcommon *cc,
 		return;
 	}
 
-	ssb_info("Programming PLL to %u.%03u MHz\n",
+	dev_info(cc->dev->dev, "Programming PLL to %u.%03u MHz\n",
 		 crystalfreq / 1000, crystalfreq % 1000);
 
 	/* First turn the PLL off. */
@@ -265,7 +265,7 @@ static void ssb_pmu1_pllinit_r0(struct ssb_chipcommon *cc,
 		buffer_strength = 0x222222;
 		break;
 	default:
-		SSB_WARN_ON(1);
+		WARN_ON(1);
 	}
 	for (i = 1500; i; i--) {
 		tmp = chipco_read32(cc, SSB_CHIPCO_CLKCTLST);
@@ -275,7 +275,7 @@ static void ssb_pmu1_pllinit_r0(struct ssb_chipcommon *cc,
 	}
 	tmp = chipco_read32(cc, SSB_CHIPCO_CLKCTLST);
 	if (tmp & SSB_CHIPCO_CLKCTLST_HAVEHT)
-		ssb_emerg("Failed to turn the PLL off!\n");
+		dev_emerg(cc->dev->dev, "Failed to turn the PLL off!\n");
 
 	/* Set p1div and p2div. */
 	pllctl = ssb_chipco_pll_read(cc, SSB_PMU1_PLLCTL0);
@@ -349,7 +349,7 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	case 43222:
 		break;
 	default:
-		ssb_err("ERROR: PLL init unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PLL init unknown for device %04X\n",
 			bus->chip_id);
 	}
 }
@@ -471,7 +471,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		max_msk = 0xFFFFF;
 		break;
 	default:
-		ssb_err("ERROR: PMU resource config unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU resource config unknown for device %04X\n",
 			bus->chip_id);
 	}
 
@@ -501,7 +501,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 					      ~(depend_tab[i].depend));
 				break;
 			default:
-				SSB_WARN_ON(1);
+				WARN_ON(1);
 			}
 		}
 	}
@@ -524,7 +524,7 @@ void ssb_pmu_init(struct ssb_chipcommon *cc)
 	pmucap = chipco_read32(cc, SSB_CHIPCO_PMU_CAP);
 	cc->pmu.rev = (pmucap & SSB_CHIPCO_PMU_CAP_REVISION);
 
-	ssb_dbg("Found rev %u PMU (capabilities 0x%08X)\n",
+	dev_dbg(cc->dev->dev, "Found rev %u PMU (capabilities 0x%08X)\n",
 		cc->pmu.rev, pmucap);
 
 	if (cc->pmu.rev == 1)
@@ -568,12 +568,12 @@ void ssb_pmu_set_ldo_voltage(struct ssb_chipcommon *cc,
 			mask = 0x3F;
 			break;
 		default:
-			SSB_WARN_ON(1);
+			WARN_ON(1);
 			return;
 		}
 		break;
 	case 0x4312:
-		if (SSB_WARN_ON(id != LDO_PAREF))
+		if (WARN_ON(id != LDO_PAREF))
 			return;
 		addr = 0;
 		shift = 21;
@@ -636,7 +636,7 @@ u32 ssb_pmu_get_alp_clock(struct ssb_chipcommon *cc)
 	case 0x5354:
 		return ssb_pmu_get_alp_clock_clk0(cc);
 	default:
-		ssb_err("ERROR: PMU alp clock unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU alp clock unknown for device %04X\n",
 			bus->chip_id);
 		return 0;
 	}
@@ -651,7 +651,7 @@ u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc)
 		/* 5354 chip uses a non programmable PLL of frequency 240MHz */
 		return 240000000;
 	default:
-		ssb_err("ERROR: PMU cpu clock unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU cpu clock unknown for device %04X\n",
 			bus->chip_id);
 		return 0;
 	}
@@ -665,7 +665,7 @@ u32 ssb_pmu_get_controlclock(struct ssb_chipcommon *cc)
 	case 0x5354:
 		return 120000000;
 	default:
-		ssb_err("ERROR: PMU controlclock unknown for device %04X\n",
+		dev_err(cc->dev->dev, "ERROR: PMU controlclock unknown for device %04X\n",
 			bus->chip_id);
 		return 0;
 	}
@@ -705,9 +705,9 @@ void ssb_pmu_spuravoid_pllupdate(struct ssb_chipcommon *cc, int spuravoid)
 		pmu_ctl = SSB_CHIPCO_PMU_CTL_PLL_UPD;
 		break;
 	default:
-		ssb_printk(KERN_ERR PFX
-			   "Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
-			   cc->dev->bus->chip_id);
+		dev_err(cc->dev->dev,
+			"Unknown spuravoidance settings for chip 0x%04X, not changing PLL\n",
+			cc->dev->bus->chip_id);
 		return;
 	}
 

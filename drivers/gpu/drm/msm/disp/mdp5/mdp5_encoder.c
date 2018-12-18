@@ -319,7 +319,17 @@ static int mdp5_encoder_atomic_check(struct drm_encoder *encoder,
 
 	mdp5_cstate->ctl = ctl;
 	mdp5_cstate->pipeline.intf = intf;
-	mdp5_cstate->defer_start = true;
+
+	/*
+	 * This is a bit awkward, but we want to flush the CTL and hit the
+	 * START bit at most once for an atomic update.  In the non-full-
+	 * modeset case, this is done from crtc->atomic_flush(), but that
+	 * is too early in the case of full modeset, in which case we
+	 * defer to encoder->enable().  But we need to *know* whether
+	 * encoder->enable() will be called to do this:
+	 */
+	if (drm_atomic_crtc_needs_modeset(crtc_state))
+		mdp5_cstate->defer_start = true;
 
 	return 0;
 }

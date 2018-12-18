@@ -196,6 +196,15 @@
 #define LSTATE_ARMED   0x3
 #define LSTATE_ACTIVE  0x4
 
+/* DCC_CFG_RESET reset states */
+#define LCB_RX_FPE_TX_FPE_INTO_RESET   (DCC_CFG_RESET_RESET_LCB    | \
+					DCC_CFG_RESET_RESET_TX_FPE | \
+					DCC_CFG_RESET_RESET_RX_FPE | \
+					DCC_CFG_RESET_ENABLE_CCLK_BCC)
+					/* 0x17 */
+
+#define LCB_RX_FPE_TX_FPE_OUT_OF_RESET  DCC_CFG_RESET_ENABLE_CCLK_BCC /* 0x10 */
+
 /* DC8051_STS_CUR_STATE port values (physical link states) */
 #define PLS_DISABLED			   0x30
 #define PLS_OFFLINE				   0x90
@@ -283,6 +292,7 @@
 #define HREQ_SET_TX_EQ_ABS	0x04
 #define HREQ_SET_TX_EQ_REL	0x05
 #define HREQ_ENABLE		0x06
+#define HREQ_LCB_RESET		0x07
 #define HREQ_CONFIG_DONE	0xfe
 #define HREQ_INTERFACE_TEST	0xff
 
@@ -383,7 +393,7 @@
 #define TX_SETTINGS		     0x06
 #define VERIFY_CAP_LOCAL_PHY	     0x07
 #define VERIFY_CAP_LOCAL_FABRIC	     0x08
-#define VERIFY_CAP_LOCAL_LINK_WIDTH  0x09
+#define VERIFY_CAP_LOCAL_LINK_MODE   0x09
 #define LOCAL_DEVICE_ID		     0x0a
 #define RESERVED_REGISTERS	     0x0b
 #define LOCAL_LNI_INFO		     0x0c
@@ -584,8 +594,9 @@ enum {
 #define LOOPBACK_LCB	2
 #define LOOPBACK_CABLE	3	/* external cable */
 
-/* set up serdes bit in MISC_CONFIG_BITS */
+/* set up bits in MISC_CONFIG_BITS */
 #define LOOPBACK_SERDES_CONFIG_BIT_MASK_SHIFT 0
+#define EXT_CFG_LCB_RESET_SUPPORTED_SHIFT     3
 
 /* read and write hardware registers */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset);
@@ -643,6 +654,36 @@ static inline void write_uctxt_csr(struct hfi1_devdata *dd, int ctxt,
 {
 	/* user per-context CSRs are separated by 0x1000 */
 	write_csr(dd, offset0 + (0x1000 * ctxt), value);
+}
+
+static inline u32 chip_rcv_contexts(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, RCV_CONTEXTS);
+}
+
+static inline u32 chip_send_contexts(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_CONTEXTS);
+}
+
+static inline u32 chip_sdma_engines(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_DMA_ENGINES);
+}
+
+static inline u32 chip_pio_mem_size(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_PIO_MEM_SIZE);
+}
+
+static inline u32 chip_sdma_mem_size(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, SEND_DMA_MEM_SIZE);
+}
+
+static inline u32 chip_rcv_array_count(struct hfi1_devdata *dd)
+{
+	return read_csr(dd, RCV_ARRAY_CNT);
 }
 
 u64 create_pbc(struct hfi1_pportdata *ppd, u64 flags, int srate_mbs, u32 vl,

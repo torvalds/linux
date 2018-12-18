@@ -22,7 +22,7 @@ int hva_mem_alloc(struct hva_ctx *ctx, u32 size, const char *name,
 		return -ENOMEM;
 	}
 
-	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL | GFP_DMA,
+	base = dma_alloc_attrs(dev, size, &paddr, GFP_KERNEL,
 			       DMA_ATTR_WRITE_COMBINE);
 	if (!base) {
 		dev_err(dev, "%s %s : dma_alloc_attrs failed for %s (size=%d)\n",

@@ -21,8 +21,6 @@
 #include <asm/octeon/cvmx-pci-defs.h>
 #include <asm/octeon/pci-octeon.h>
 
-#include <dma-coherence.h>
-
 #define USE_OCTEON_INTERNAL_ARBITER
 
 /*
@@ -165,8 +163,6 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 		pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, &dconfig);
 		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_STATUS, dconfig);
 	}
-
-	dev->dev.dma_ops = octeon_pci_dma_map_ops;
 
 	return 0;
 }

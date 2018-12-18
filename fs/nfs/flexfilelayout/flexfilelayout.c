@@ -461,7 +461,7 @@ ff_layout_alloc_lseg(struct pnfs_layout_hdr *lh,
 		fh_count = be32_to_cpup(p);
 
 		fls->mirror_array[i]->fh_versions =
-			kzalloc(fh_count * sizeof(struct nfs_fh),
+			kcalloc(fh_count, sizeof(struct nfs_fh),
 				gfp_flags);
 		if (fls->mirror_array[i]->fh_versions == NULL) {
 			rc = -ENOMEM;
@@ -1243,17 +1243,18 @@ static int ff_layout_read_done_cb(struct rpc_task *task,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
 
+	clear_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
+	clear_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 	switch (err) {
 	case -NFS4ERR_RESET_TO_PNFS:
 		if (ff_layout_choose_best_ds_for_read(hdr->lseg,
 					hdr->pgio_mirror_idx + 1,
 					&hdr->pgio_mirror_idx))
 			goto out_eagain;
-		ff_layout_read_record_layoutstats_done(task, hdr);
-		pnfs_read_resend_pnfs(hdr);
+		set_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 		return task->tk_status;
 	case -NFS4ERR_RESET_TO_MDS:
-		ff_layout_reset_read(hdr);
+		set_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 		return task->tk_status;
 	case -EAGAIN:
 		goto out_eagain;
@@ -1403,6 +1404,10 @@ static void ff_layout_read_release(void *data)
 	struct nfs_pgio_header *hdr = data;
 
 	ff_layout_read_record_layoutstats_done(&hdr->task, hdr);
+	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags))
+		pnfs_read_resend_pnfs(hdr);
+	else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
+		ff_layout_reset_read(hdr);
 	pnfs_generic_rw_release(data);
 }
 
@@ -1423,12 +1428,14 @@ static int ff_layout_write_done_cb(struct rpc_task *task,
 					   hdr->ds_clp, hdr->lseg,
 					   hdr->pgio_mirror_idx);
 
+	clear_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
+	clear_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 	switch (err) {
 	case -NFS4ERR_RESET_TO_PNFS:
-		ff_layout_reset_write(hdr, true);
+		set_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags);
 		return task->tk_status;
 	case -NFS4ERR_RESET_TO_MDS:
-		ff_layout_reset_write(hdr, false);
+		set_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags);
 		return task->tk_status;
 	case -EAGAIN:
 		return -EAGAIN;
@@ -1575,6 +1582,10 @@ static void ff_layout_write_release(void *data)
 	struct nfs_pgio_header *hdr = data;
 
 	ff_layout_write_record_layoutstats_done(&hdr->task, hdr);
+	if (test_bit(NFS_IOHDR_RESEND_PNFS, &hdr->flags))
+		ff_layout_reset_write(hdr, true);
+	else if (test_bit(NFS_IOHDR_RESEND_MDS, &hdr->flags))
+		ff_layout_reset_write(hdr, false);
 	pnfs_generic_rw_release(data);
 }
 
@@ -2347,6 +2358,7 @@ static struct pnfs_layoutdriver_type flexfilelayout_type = {
 	.id			= LAYOUT_FLEX_FILES,
 	.name			= "LAYOUT_FLEX_FILES",
 	.owner			= THIS_MODULE,
+	.flags			= PNFS_LAYOUTGET_ON_OPEN,
 	.set_layoutdriver	= ff_layout_set_layoutdriver,
 	.alloc_layout_hdr	= ff_layout_alloc_layout_hdr,
 	.free_layout_hdr	= ff_layout_free_layout_hdr,

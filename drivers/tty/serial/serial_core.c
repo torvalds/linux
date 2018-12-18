@@ -182,6 +182,7 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 {
 	struct uart_port *uport = uart_port_check(state);
 	unsigned long page;
+	unsigned long flags = 0;
 	int retval = 0;
 
 	if (uport->type == PORT_UNKNOWN)
@@ -196,15 +197,18 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 	 * Initialise and allocate the transmit and temporary
 	 * buffer.
 	 */
-	if (!state->xmit.buf) {
-		/* This is protected by the per port mutex */
-		page = get_zeroed_page(GFP_KERNEL);
-		if (!page)
-			return -ENOMEM;
+	page = get_zeroed_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
 
+	uart_port_lock(state, flags);
+	if (!state->xmit.buf) {
 		state->xmit.buf = (unsigned char *) page;
 		uart_circ_clear(&state->xmit);
+	} else {
+		free_page(page);
 	}
+	uart_port_unlock(uport, flags);
 
 	retval = uport->ops->startup(uport);
 	if (retval == 0) {
@@ -263,6 +267,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 {
 	struct uart_port *uport = uart_port_check(state);
 	struct tty_port *port = &state->port;
+	unsigned long flags = 0;
 
 	/*
 	 * Set the TTY IO error marker
@@ -295,10 +300,12 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	/*
 	 * Free the transmit buffer page.
 	 */
+	uart_port_lock(state, flags);
 	if (state->xmit.buf) {
 		free_page((unsigned long)state->xmit.buf);
 		state->xmit.buf = NULL;
 	}
+	uart_port_unlock(uport, flags);
 }
 
 /**
@@ -674,8 +681,8 @@ static void uart_send_xchar(struct tty_struct *tty, char ch)
 static void uart_throttle(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
+	upstat_t mask = UPSTAT_SYNC_FIFO;
 	struct uart_port *port;
-	upstat_t mask = 0;
 
 	port = uart_port_ref(state);
 	if (!port)
@@ -703,8 +710,8 @@ static void uart_throttle(struct tty_struct *tty)
 static void uart_unthrottle(struct tty_struct *tty)
 {
 	struct uart_state *state = tty->driver_data;
+	upstat_t mask = UPSTAT_SYNC_FIFO;
 	struct uart_port *port;
-	upstat_t mask = 0;
 
 	port = uart_port_ref(state);
 	if (!port)
@@ -1829,19 +1836,6 @@ static int uart_proc_show(struct seq_file *m, void *v)
 		uart_line_info(m, drv, i);
 	return 0;
 }
-
-static int uart_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, uart_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations uart_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= uart_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif
 
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
@@ -2415,7 +2409,7 @@ static const struct tty_operations uart_ops = {
 	.break_ctl	= uart_break_ctl,
 	.wait_until_sent= uart_wait_until_sent,
 #ifdef CONFIG_PROC_FS
-	.proc_fops	= &uart_proc_fops,
+	.proc_show	= uart_proc_show,
 #endif
 	.tiocmget	= uart_tiocmget,
 	.tiocmset	= uart_tiocmset,
@@ -2458,7 +2452,7 @@ int uart_register_driver(struct uart_driver *drv)
 	 * Maybe we should be using a slab cache for this, especially if
 	 * we have a large number of ports to handle.
 	 */
-	drv->state = kzalloc(sizeof(struct uart_state) * drv->nr, GFP_KERNEL);
+	drv->state = kcalloc(drv->nr, sizeof(struct uart_state), GFP_KERNEL);
 	if (!drv->state)
 		goto out;
 

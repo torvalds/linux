@@ -695,7 +695,7 @@ iscsi_tcp_hdr_dissect(struct iscsi_conn *conn, struct iscsi_hdr *hdr)
 			struct scsi_data_buffer *sdb = scsi_in(task->sc);
 
 			/*
-			 * Setup copy of Data-In into the Scsi_Cmnd
+			 * Setup copy of Data-In into the struct scsi_cmnd
 			 * Scatterlist case:
 			 * We set up the iscsi_segment to point to the next
 			 * scatterlist entry to copy to. As we go along,

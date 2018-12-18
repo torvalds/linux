@@ -352,6 +352,7 @@ struct pci_id_table {
 
 struct sbridge_dev {
 	struct list_head	list;
+	int			seg;
 	u8			bus, mc;
 	u8			node_id, source_id;
 	struct pci_dev		**pdev;
@@ -729,7 +730,8 @@ static inline int numcol(u32 mtr)
 	return 1 << cols;
 }
 
-static struct sbridge_dev *get_sbridge_dev(u8 bus, enum domain dom, int multi_bus,
+static struct sbridge_dev *get_sbridge_dev(int seg, u8 bus, enum domain dom,
+					   int multi_bus,
 					   struct sbridge_dev *prev)
 {
 	struct sbridge_dev *sbridge_dev;
@@ -747,14 +749,15 @@ static struct sbridge_dev *get_sbridge_dev(u8 bus, enum domain dom, int multi_bu
 				      : sbridge_edac_list.next, struct sbridge_dev, list);
 
 	list_for_each_entry_from(sbridge_dev, &sbridge_edac_list, list) {
-		if (sbridge_dev->bus == bus && (dom == SOCK || dom == sbridge_dev->dom))
+		if ((sbridge_dev->seg == seg) && (sbridge_dev->bus == bus) &&
+				(dom == SOCK || dom == sbridge_dev->dom))
 			return sbridge_dev;
 	}
 
 	return NULL;
 }
 
-static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom,
+static struct sbridge_dev *alloc_sbridge_dev(int seg, u8 bus, enum domain dom,
 					     const struct pci_id_table *table)
 {
 	struct sbridge_dev *sbridge_dev;
@@ -771,6 +774,7 @@ static struct sbridge_dev *alloc_sbridge_dev(u8 bus, enum domain dom,
 		return NULL;
 	}
 
+	sbridge_dev->seg = seg;
 	sbridge_dev->bus = bus;
 	sbridge_dev->dom = dom;
 	sbridge_dev->n_devs = table->n_devs_per_imc;
@@ -2246,6 +2250,7 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 	struct sbridge_dev *sbridge_dev = NULL;
 	const struct pci_id_descr *dev_descr = &table->descr[devno];
 	struct pci_dev *pdev = NULL;
+	int seg = 0;
 	u8 bus = 0;
 	int i = 0;
 
@@ -2276,10 +2281,12 @@ static int sbridge_get_onedevice(struct pci_dev **prev,
 		/* End of list, leave */
 		return -ENODEV;
 	}
+	seg = pci_domain_nr(pdev->bus);
 	bus = pdev->bus->number;
 
 next_imc:
-	sbridge_dev = get_sbridge_dev(bus, dev_descr->dom, multi_bus, sbridge_dev);
+	sbridge_dev = get_sbridge_dev(seg, bus, dev_descr->dom,
+				      multi_bus, sbridge_dev);
 	if (!sbridge_dev) {
 		/* If the HA1 wasn't found, don't create EDAC second memory controller */
 		if (dev_descr->dom == IMC1 && devno != 1) {
@@ -2292,7 +2299,7 @@ next_imc:
 		if (dev_descr->dom == SOCK)
 			goto out_imc;
 
-		sbridge_dev = alloc_sbridge_dev(bus, dev_descr->dom, table);
+		sbridge_dev = alloc_sbridge_dev(seg, bus, dev_descr->dom, table);
 		if (!sbridge_dev) {
 			pci_dev_put(pdev);
 			return -ENOMEM;

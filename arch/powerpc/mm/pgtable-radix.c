@@ -226,16 +226,6 @@ void radix__mark_rodata_ro(void)
 {
 	unsigned long start, end;
 
-	/*
-	 * mark_rodata_ro() will mark itself as !writable at some point.
-	 * Due to DD1 workaround in radix__pte_update(), we'll end up with
-	 * an invalid pte and the system will crash quite severly.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
-		pr_warn("Warning: Unable to mark rodata read only on P9 DD1\n");
-		return;
-	}
-
 	start = (unsigned long)_stext;
 	end = (unsigned long)__init_begin;
 
@@ -277,6 +267,7 @@ static int __meminit create_physical_mapping(unsigned long start,
 #else
 	int split_text_mapping = 0;
 #endif
+	int psize;
 
 	start = _ALIGN_UP(start, PAGE_SIZE);
 	for (addr = start; addr < end; addr += mapping_size) {
@@ -290,13 +281,17 @@ static int __meminit create_physical_mapping(unsigned long start,
 retry:
 		if (IS_ALIGNED(addr, PUD_SIZE) && gap >= PUD_SIZE &&
 		    mmu_psize_defs[MMU_PAGE_1G].shift &&
-		    PUD_SIZE <= max_mapping_size)
+		    PUD_SIZE <= max_mapping_size) {
 			mapping_size = PUD_SIZE;
-		else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
-			 mmu_psize_defs[MMU_PAGE_2M].shift)
+			psize = MMU_PAGE_1G;
+		} else if (IS_ALIGNED(addr, PMD_SIZE) && gap >= PMD_SIZE &&
+			   mmu_psize_defs[MMU_PAGE_2M].shift) {
 			mapping_size = PMD_SIZE;
-		else
+			psize = MMU_PAGE_2M;
+		} else {
 			mapping_size = PAGE_SIZE;
+			psize = mmu_virtual_psize;
+		}
 
 		if (split_text_mapping && (mapping_size == PUD_SIZE) &&
 			(addr <= __pa_symbol(__init_begin)) &&
@@ -307,8 +302,10 @@ retry:
 
 		if (split_text_mapping && (mapping_size == PMD_SIZE) &&
 		    (addr <= __pa_symbol(__init_begin)) &&
-		    (addr + mapping_size) >= __pa_symbol(_stext))
+		    (addr + mapping_size) >= __pa_symbol(_stext)) {
 			mapping_size = PAGE_SIZE;
+			psize = mmu_virtual_psize;
+		}
 
 		if (mapping_size != previous_size) {
 			print_mapping(start, addr, previous_size);
@@ -326,6 +323,8 @@ retry:
 		rc = __map_kernel_page(vaddr, addr, prot, mapping_size, nid, start, end);
 		if (rc)
 			return rc;
+
+		update_page_count(psize, 1);
 	}
 
 	print_mapping(start, addr, mapping_size);
@@ -533,35 +532,6 @@ found:
 	return;
 }
 
-static void update_hid_for_radix(void)
-{
-	unsigned long hid0;
-	unsigned long rb = 3UL << PPC_BITLSHIFT(53); /* IS = 3 */
-
-	asm volatile("ptesync": : :"memory");
-	/* prs = 0, ric = 2, rs = 0, r = 1 is = 3 */
-	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
-		     : : "r"(rb), "i"(1), "i"(0), "i"(2), "r"(0) : "memory");
-	/* prs = 1, ric = 2, rs = 0, r = 1 is = 3 */
-	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
-		     : : "r"(rb), "i"(1), "i"(1), "i"(2), "r"(0) : "memory");
-	asm volatile("eieio; tlbsync; ptesync; isync; slbia": : :"memory");
-	trace_tlbie(0, 0, rb, 0, 2, 0, 1);
-	trace_tlbie(0, 0, rb, 0, 2, 1, 1);
-
-	/*
-	 * now switch the HID
-	 */
-	hid0  = mfspr(SPRN_HID0);
-	hid0 |= HID0_POWER9_RADIX;
-	mtspr(SPRN_HID0, hid0);
-	asm volatile("isync": : :"memory");
-
-	/* Wait for it to happen */
-	while (!(mfspr(SPRN_HID0) & HID0_POWER9_RADIX))
-		cpu_relax();
-}
-
 static void radix_init_amor(void)
 {
 	/*
@@ -576,22 +546,12 @@ static void radix_init_amor(void)
 
 static void radix_init_iamr(void)
 {
-	unsigned long iamr;
-
-	/*
-	 * The IAMR should set to 0 on DD1.
-	 */
-	if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-		iamr = 0;
-	else
-		iamr = (1ul << 62);
-
 	/*
 	 * Radix always uses key0 of the IAMR to determine if an access is
 	 * allowed. We set bit 0 (IBM bit 1) of key0, to prevent instruction
 	 * fetch.
 	 */
-	mtspr(SPRN_IAMR, iamr);
+	mtspr(SPRN_IAMR, (1ul << 62));
 }
 
 void __init radix__early_init_mmu(void)
@@ -617,7 +577,6 @@ void __init radix__early_init_mmu(void)
 	__pud_index_size = RADIX_PUD_INDEX_SIZE;
 	__pgd_index_size = RADIX_PGD_INDEX_SIZE;
 	__pud_cache_index = RADIX_PUD_INDEX_SIZE;
-	__pmd_cache_index = RADIX_PMD_INDEX_SIZE;
 	__pte_table_size = RADIX_PTE_TABLE_SIZE;
 	__pmd_table_size = RADIX_PMD_TABLE_SIZE;
 	__pud_table_size = RADIX_PUD_TABLE_SIZE;
@@ -640,11 +599,11 @@ void __init radix__early_init_mmu(void)
 #endif
 	__pte_frag_nr = RADIX_PTE_FRAG_NR;
 	__pte_frag_size_shift = RADIX_PTE_FRAG_SIZE_SHIFT;
+	__pmd_frag_nr = RADIX_PMD_FRAG_NR;
+	__pmd_frag_size_shift = RADIX_PMD_FRAG_SIZE_SHIFT;
 
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
 		radix_init_native();
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			update_hid_for_radix();
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 		radix_init_partition_table();
@@ -670,10 +629,6 @@ void radix__early_init_mmu_secondary(void)
 	 * update partition table control register and UPRT
 	 */
 	if (!firmware_has_feature(FW_FEATURE_LPAR)) {
-
-		if (cpu_has_feature(CPU_FTR_POWER9_DD1))
-			update_hid_for_radix();
-
 		lpcr = mfspr(SPRN_LPCR);
 		mtspr(SPRN_LPCR, lpcr | LPCR_UPRT | LPCR_HR);
 
@@ -975,7 +930,7 @@ unsigned long radix__pmd_hugepage_update(struct mm_struct *mm, unsigned long add
 
 #ifdef CONFIG_DEBUG_VM
 	WARN_ON(!radix__pmd_trans_huge(*pmdp) && !pmd_devmap(*pmdp));
-	assert_spin_locked(&mm->page_table_lock);
+	assert_spin_locked(pmd_lockptr(mm, pmdp));
 #endif
 
 	old = radix__pte_update(mm, addr, (pte_t *)pmdp, clr, set, 1);
@@ -1083,3 +1038,35 @@ int radix__has_transparent_hugepage(void)
 	return 0;
 }
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+void radix__ptep_set_access_flags(struct vm_area_struct *vma, pte_t *ptep,
+				  pte_t entry, unsigned long address, int psize)
+{
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long set = pte_val(entry) & (_PAGE_DIRTY | _PAGE_ACCESSED |
+					      _PAGE_RW | _PAGE_EXEC);
+	/*
+	 * To avoid NMMU hang while relaxing access, we need mark
+	 * the pte invalid in between.
+	 */
+	if (atomic_read(&mm->context.copros) > 0) {
+		unsigned long old_pte, new_pte;
+
+		old_pte = __radix_pte_update(ptep, ~0, 0);
+		/*
+		 * new value of pte
+		 */
+		new_pte = old_pte | set;
+		radix__flush_tlb_page_psize(mm, address, psize);
+		__radix_pte_update(ptep, 0, new_pte);
+	} else {
+		__radix_pte_update(ptep, 0, set);
+		/*
+		 * Book3S does not require a TLB flush when relaxing access
+		 * restrictions when the address space is not attached to a
+		 * NMMU, because the core MMU will reload the pte after taking
+		 * an access fault, which is defined by the architectue.
+		 */
+	}
+	/* See ptesync comment in radix__set_pte_at */
+}

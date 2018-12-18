@@ -107,7 +107,7 @@ void snd_motu_proc_init(struct snd_motu *motu)
 					  motu->card->proc_root);
 	if (root == NULL)
 		return;
-	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
+	root->mode = S_IFDIR | 0555;
 	if (snd_info_register(root) < 0) {
 		snd_info_free_entry(root);
 		return;

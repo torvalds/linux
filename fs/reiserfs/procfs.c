@@ -389,27 +389,13 @@ static int show_journal(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int r_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, PDE_DATA(inode), 
-				proc_get_parent_data(inode));
-}
-
-static const struct file_operations r_file_operations = {
-	.open = r_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
 static struct proc_dir_entry *proc_info_root = NULL;
 static const char proc_info_root_name[] = "fs/reiserfs";
 
 static void add_file(struct super_block *sb, char *name,
 		     int (*func) (struct seq_file *, void *))
 {
-	proc_create_data(name, 0, REISERFS_SB(sb)->procdir,
-			 &r_file_operations, func);
+	proc_create_single_data(name, 0, REISERFS_SB(sb)->procdir, func, sb);
 }
 
 int reiserfs_proc_info_init(struct super_block *sb)

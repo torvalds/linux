@@ -467,7 +467,10 @@ struct bnxt_qplib_nq_work {
 	struct bnxt_qplib_cq    *cq;
 };
 
+void bnxt_qplib_nq_stop_irq(struct bnxt_qplib_nq *nq, bool kill);
 void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq);
+int bnxt_qplib_nq_start_irq(struct bnxt_qplib_nq *nq, int nq_indx,
+			    int msix_vector, bool need_init);
 int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 			 int nq_idx, int msix_vector, int bar_reg_offset,
 			 int (*cqn_handler)(struct bnxt_qplib_nq *nq,

@@ -67,9 +67,10 @@ struct kmem_cache {
 
 	/*
 	 * If debugging is enabled, then the allocator can add additional
-	 * fields and/or padding to every object. size contains the total
-	 * object size including these internal fields, the following two
-	 * variables contain the offset to the user object and its size.
+	 * fields and/or padding to every object. 'size' contains the total
+	 * object size including these internal fields, while 'obj_offset'
+	 * and 'object_size' contain the offset to the user object and its
+	 * size.
 	 */
 	int obj_offset;
 #endif /* CONFIG_DEBUG_SLAB */

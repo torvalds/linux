@@ -139,6 +139,9 @@ int main(void)
 	DEVID(hv_vmbus_device_id);
 	DEVID_FIELD(hv_vmbus_device_id, guid);
 
+	DEVID(rpmsg_device_id);
+	DEVID_FIELD(rpmsg_device_id, name);
+
 	DEVID(i2c_device_id);
 	DEVID_FIELD(i2c_device_id, name);
 
@@ -217,6 +220,10 @@ int main(void)
 	DEVID_FIELD(tb_service_id, protocol_id);
 	DEVID_FIELD(tb_service_id, protocol_version);
 	DEVID_FIELD(tb_service_id, protocol_revision);
+
+	DEVID(typec_device_id);
+	DEVID_FIELD(typec_device_id, svid);
+	DEVID_FIELD(typec_device_id, mode);
 
 	return 0;
 }

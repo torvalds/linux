@@ -223,8 +223,8 @@ static int ctr_encrypt(struct skcipher_request *req)
 		kernel_neon_begin();
 		aes_ctr_encrypt(walk.dst.virt.addr, walk.src.virt.addr,
 				(u8 *)ctx->key_enc, rounds, blocks, walk.iv);
-		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 		kernel_neon_end();
+		err = skcipher_walk_done(&walk, walk.nbytes % AES_BLOCK_SIZE);
 	}
 	if (walk.nbytes) {
 		u8 __aligned(8) tail[AES_BLOCK_SIZE];
@@ -567,7 +567,6 @@ static struct shash_alg mac_algs[] = { {
 	.base.cra_name		= "cmac(aes)",
 	.base.cra_driver_name	= "cmac-aes-" MODE,
 	.base.cra_priority	= PRIO,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct mac_tfm_ctx) +
 				  2 * AES_BLOCK_SIZE,
@@ -583,7 +582,6 @@ static struct shash_alg mac_algs[] = { {
 	.base.cra_name		= "xcbc(aes)",
 	.base.cra_driver_name	= "xcbc-aes-" MODE,
 	.base.cra_priority	= PRIO,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= AES_BLOCK_SIZE,
 	.base.cra_ctxsize	= sizeof(struct mac_tfm_ctx) +
 				  2 * AES_BLOCK_SIZE,
@@ -599,7 +597,6 @@ static struct shash_alg mac_algs[] = { {
 	.base.cra_name		= "cbcmac(aes)",
 	.base.cra_driver_name	= "cbcmac-aes-" MODE,
 	.base.cra_priority	= PRIO,
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= 1,
 	.base.cra_ctxsize	= sizeof(struct mac_tfm_ctx),
 	.base.cra_module	= THIS_MODULE,

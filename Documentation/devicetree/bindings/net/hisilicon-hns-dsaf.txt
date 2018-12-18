@@ -9,7 +9,6 @@ Required properties:
 		"6port-16rss",
 		"6port-16vf",
 		"single-port".
-- interrupt-parent: the interrupt parent of this device.
 - interrupts: should contain the DSA Fabric and rcb interrupt.
 - reg: specifies base physical address(es) and size of the device registers.
   The first region is external interface control register base and size(optional,

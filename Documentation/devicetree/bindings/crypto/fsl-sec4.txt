@@ -99,13 +99,6 @@ PROPERTIES
            of the specifier is defined by the binding document
            describing the node's interrupt parent.
 
-   - interrupt-parent
-      Usage: (required if interrupt property is defined)
-      Value type: <phandle>
-      Definition: A single <phandle> value that points
-          to the interrupt parent to which the child domain
-          is being mapped.
-
    - clocks
       Usage: required if SEC 4.0 requires explicit enablement of clocks
       Value type: <prop_encoded-array>
@@ -198,13 +191,6 @@ Job Ring (JR) Node
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
            describing the node's interrupt parent.
-
-   - interrupt-parent
-      Usage: (required if interrupt property is defined)
-      Value type: <phandle>
-      Definition: A single <phandle> value that points
-          to the interrupt parent to which the child domain
-          is being mapped.
 
 EXAMPLE
 	jr@1000 {
@@ -369,13 +355,6 @@ Secure Non-Volatile Storage (SNVS) Node
            consists of one interrupt specifier. The format
            of the specifier is defined by the binding document
            describing the node's interrupt parent.
-
-   - interrupt-parent
-      Usage: (required if interrupt property is defined)
-      Value type: <phandle>
-      Definition: A single <phandle> value that points
-          to the interrupt parent to which the child domain
-          is being mapped.
 
 EXAMPLE
 	sec_mon@314000 {

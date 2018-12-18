@@ -533,12 +533,8 @@ static const char *cat_backtrace(union perf_event *event,
 		}
 
 		tal.filtered = 0;
-		thread__find_addr_location(al.thread, cpumode,
-					   MAP__FUNCTION, ip, &tal);
-
-		if (tal.sym)
-			fprintf(f, "..... %016" PRIx64 " %s\n", ip,
-				tal.sym->name);
+		if (thread__find_symbol(al.thread, cpumode, ip, &tal))
+			fprintf(f, "..... %016" PRIx64 " %s\n", ip, tal.sym->name);
 		else
 			fprintf(f, "..... %016" PRIx64 "\n", ip);
 	}

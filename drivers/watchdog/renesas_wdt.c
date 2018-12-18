@@ -121,7 +121,8 @@ static int rwdt_restart(struct watchdog_device *wdev, unsigned long action,
 }
 
 static const struct watchdog_info rwdt_ident = {
-	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT,
+	.options = WDIOF_MAGICCLOSE | WDIOF_KEEPALIVEPING | WDIOF_SETTIMEOUT |
+		WDIOF_CARDRESET,
 	.identity = "Renesas WDT Watchdog",
 };
 
@@ -145,7 +146,7 @@ static const struct soc_device_attribute rwdt_quirks_match[] = {
 		.data = (void *)1,	/* needs single CPU */
 	}, {
 		.soc_id = "r8a7791",
-		.revision = "ES[12].*",
+		.revision = "ES1.*",
 		.data = (void *)1,	/* needs single CPU */
 	}, {
 		.soc_id = "r8a7792",
@@ -197,9 +198,10 @@ static int rwdt_probe(struct platform_device *pdev)
 		return PTR_ERR(clk);
 
 	pm_runtime_enable(&pdev->dev);
-
 	pm_runtime_get_sync(&pdev->dev);
 	priv->clk_rate = clk_get_rate(clk);
+	priv->wdev.bootstatus = (readb_relaxed(priv->base + RWTCSRA) &
+				RWTCSRA_WOVF) ? WDIOF_CARDRESET : 0;
 	pm_runtime_put(&pdev->dev);
 
 	if (!priv->clk_rate) {

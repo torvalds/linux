@@ -10,14 +10,8 @@
  * hackers place grumpy comments in header files.
  */
 
-/* Some toolchains use a `_' prefix for all user symbols. */
-#ifdef CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX
-#define __VMLINUX_SYMBOL(x) _##x
-#define __VMLINUX_SYMBOL_STR(x) "_" #x
-#else
 #define __VMLINUX_SYMBOL(x) x
 #define __VMLINUX_SYMBOL_STR(x) #x
-#endif
 
 /* Indirect, so macros are expanded before pasting. */
 #define VMLINUX_SYMBOL(x) __VMLINUX_SYMBOL(x)
@@ -46,14 +40,14 @@ extern struct module __this_module;
 #if defined(CONFIG_MODULE_REL_CRCS)
 #define __CRC_SYMBOL(sym, sec)						\
 	asm("	.section \"___kcrctab" sec "+" #sym "\", \"a\"	\n"	\
-	    "	.weak	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
-	    "	.long	" VMLINUX_SYMBOL_STR(__crc_##sym) " - .	\n"	\
+	    "	.weak	__crc_" #sym "				\n"	\
+	    "	.long	__crc_" #sym " - .			\n"	\
 	    "	.previous					\n");
 #else
 #define __CRC_SYMBOL(sym, sec)						\
 	asm("	.section \"___kcrctab" sec "+" #sym "\", \"a\"	\n"	\
-	    "	.weak	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
-	    "	.long	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
+	    "	.weak	__crc_" #sym "				\n"	\
+	    "	.long	__crc_" #sym "				\n"	\
 	    "	.previous					\n");
 #endif
 #else
@@ -66,7 +60,7 @@ extern struct module __this_module;
 	__CRC_SYMBOL(sym, sec)						\
 	static const char __kstrtab_##sym[]				\
 	__attribute__((section("__ksymtab_strings"), aligned(1)))	\
-	= VMLINUX_SYMBOL_STR(sym);					\
+	= #sym;								\
 	static const struct kernel_symbol __ksymtab_##sym		\
 	__used								\
 	__attribute__((section("___ksymtab" sec "+" #sym), used))	\

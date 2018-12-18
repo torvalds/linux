@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -889,14 +879,9 @@ static void gdm_usb_disconnect(struct usb_interface *intf)
 {
 	struct phy_dev *phy_dev;
 	struct lte_udev *udev;
-	u16 idVendor, idProduct;
 	struct usb_device *usbdev;
 
 	usbdev = interface_to_usbdev(intf);
-
-	idVendor = __le16_to_cpu(usbdev->descriptor.idVendor);
-	idProduct = __le16_to_cpu(usbdev->descriptor.idProduct);
-
 	phy_dev = usb_get_intfdata(intf);
 
 	udev = phy_dev->priv_dev;

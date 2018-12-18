@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -31,8 +31,7 @@
  * SOFTWARE.
  */
 
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
-
+#define _GNU_SOURCE
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
@@ -41,8 +40,11 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <net/if.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include <linux/err.h>
 
 #include <bpf.h>
 #include <libbpf.h>
@@ -68,6 +70,10 @@ static const char * const prog_type_name[] = {
 	[BPF_PROG_TYPE_SOCK_OPS]	= "sock_ops",
 	[BPF_PROG_TYPE_SK_SKB]		= "sk_skb",
 	[BPF_PROG_TYPE_CGROUP_DEVICE]	= "cgroup_device",
+	[BPF_PROG_TYPE_SK_MSG]		= "sk_msg",
+	[BPF_PROG_TYPE_RAW_TRACEPOINT]	= "raw_tracepoint",
+	[BPF_PROG_TYPE_CGROUP_SOCK_ADDR] = "cgroup_sock_addr",
+	[BPF_PROG_TYPE_LIRC_MODE2]	= "lirc_mode2",
 };
 
 static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
@@ -86,14 +92,19 @@ static void print_boot_time(__u64 nsecs, char *buf, unsigned int size)
 	}
 
 	wallclock_secs = (real_time_ts.tv_sec - boot_time_ts.tv_sec) +
-		nsecs / 1000000000;
+		(real_time_ts.tv_nsec - boot_time_ts.tv_nsec + nsecs) /
+		1000000000;
+
 
 	if (!localtime_r(&wallclock_secs, &load_tm)) {
 		snprintf(buf, size, "%llu", nsecs / 1000000000);
 		return;
 	}
 
-	strftime(buf, size, "%b %d/%H:%M", &load_tm);
+	if (json_output)
+		strftime(buf, size, "%s", &load_tm);
+	else
+		strftime(buf, size, "%FT%T%z", &load_tm);
 }
 
 static int prog_fd_by_tag(unsigned char *tag)
@@ -232,6 +243,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		     info->tag[0], info->tag[1], info->tag[2], info->tag[3],
 		     info->tag[4], info->tag[5], info->tag[6], info->tag[7]);
 
+	jsonw_bool_field(json_wtr, "gpl_compatible", info->gpl_compatible);
+
 	print_dev_json(info->ifindex, info->netns_dev, info->netns_ino);
 
 	if (info->load_time) {
@@ -240,7 +253,8 @@ static void print_prog_json(struct bpf_prog_info *info, int fd)
 		print_boot_time(info->load_time, buf, sizeof(buf));
 
 		/* Piggy back on load_time, since 0 uid is a valid one */
-		jsonw_string_field(json_wtr, "loaded_at", buf);
+		jsonw_name(json_wtr, "loaded_at");
+		jsonw_printf(json_wtr, "%s", buf);
 		jsonw_uint_field(json_wtr, "uid", info->created_by_uid);
 	}
 
@@ -292,6 +306,7 @@ static void print_prog_plain(struct bpf_prog_info *info, int fd)
 	printf("tag ");
 	fprint_hex(stdout, info->tag, BPF_TAG_SIZE, "");
 	print_dev_plain(info->ifindex, info->netns_dev, info->netns_ino);
+	printf("%s", info->gpl_compatible ? "  gpl" : "");
 	printf("\n");
 
 	if (info->load_time) {
@@ -410,7 +425,11 @@ static int do_show(int argc, char **argv)
 
 static int do_dump(int argc, char **argv)
 {
+	unsigned long *func_ksyms = NULL;
 	struct bpf_prog_info info = {};
+	unsigned int *func_lens = NULL;
+	unsigned int nr_func_ksyms;
+	unsigned int nr_func_lens;
 	struct dump_data dd = {};
 	__u32 len = sizeof(info);
 	unsigned int buf_size;
@@ -486,10 +505,34 @@ static int do_dump(int argc, char **argv)
 		return -1;
 	}
 
+	nr_func_ksyms = info.nr_jited_ksyms;
+	if (nr_func_ksyms) {
+		func_ksyms = malloc(nr_func_ksyms * sizeof(__u64));
+		if (!func_ksyms) {
+			p_err("mem alloc failed");
+			close(fd);
+			goto err_free;
+		}
+	}
+
+	nr_func_lens = info.nr_jited_func_lens;
+	if (nr_func_lens) {
+		func_lens = malloc(nr_func_lens * sizeof(__u32));
+		if (!func_lens) {
+			p_err("mem alloc failed");
+			close(fd);
+			goto err_free;
+		}
+	}
+
 	memset(&info, 0, sizeof(info));
 
 	*member_ptr = ptr_to_u64(buf);
 	*member_len = buf_size;
+	info.jited_ksyms = ptr_to_u64(func_ksyms);
+	info.nr_jited_ksyms = nr_func_ksyms;
+	info.jited_func_lens = ptr_to_u64(func_lens);
+	info.nr_jited_func_lens = nr_func_lens;
 
 	err = bpf_obj_get_info_by_fd(fd, &info, &len);
 	close(fd);
@@ -500,6 +543,16 @@ static int do_dump(int argc, char **argv)
 
 	if (*member_len > buf_size) {
 		p_err("too many instructions returned");
+		goto err_free;
+	}
+
+	if (info.nr_jited_ksyms > nr_func_ksyms) {
+		p_err("too many addresses returned");
+		goto err_free;
+	}
+
+	if (info.nr_jited_func_lens > nr_func_lens) {
+		p_err("too many values returned");
 		goto err_free;
 	}
 
@@ -540,7 +593,57 @@ static int do_dump(int argc, char **argv)
 				goto err_free;
 		}
 
-		disasm_print_insn(buf, *member_len, opcodes, name);
+		if (info.nr_jited_func_lens && info.jited_func_lens) {
+			struct kernel_sym *sym = NULL;
+			char sym_name[SYM_MAX_NAME];
+			unsigned char *img = buf;
+			__u64 *ksyms = NULL;
+			__u32 *lens;
+			__u32 i;
+
+			if (info.nr_jited_ksyms) {
+				kernel_syms_load(&dd);
+				ksyms = (__u64 *) info.jited_ksyms;
+			}
+
+			if (json_output)
+				jsonw_start_array(json_wtr);
+
+			lens = (__u32 *) info.jited_func_lens;
+			for (i = 0; i < info.nr_jited_func_lens; i++) {
+				if (ksyms) {
+					sym = kernel_syms_search(&dd, ksyms[i]);
+					if (sym)
+						sprintf(sym_name, "%s", sym->name);
+					else
+						sprintf(sym_name, "0x%016llx", ksyms[i]);
+				} else {
+					strcpy(sym_name, "unknown");
+				}
+
+				if (json_output) {
+					jsonw_start_object(json_wtr);
+					jsonw_name(json_wtr, "name");
+					jsonw_string(json_wtr, sym_name);
+					jsonw_name(json_wtr, "insns");
+				} else {
+					printf("%s:\n", sym_name);
+				}
+
+				disasm_print_insn(img, lens[i], opcodes, name);
+				img += lens[i];
+
+				if (json_output)
+					jsonw_end_object(json_wtr);
+				else
+					printf("\n");
+			}
+
+			if (json_output)
+				jsonw_end_array(json_wtr);
+		} else {
+			disasm_print_insn(buf, *member_len, opcodes, name);
+		}
 	} else if (visual) {
 		if (json_output)
 			jsonw_null(json_wtr);
@@ -548,6 +651,9 @@ static int do_dump(int argc, char **argv)
 			dump_xlated_cfg(buf, *member_len);
 	} else {
 		kernel_syms_load(&dd);
+		dd.nr_jited_ksyms = info.nr_jited_ksyms;
+		dd.jited_ksyms = (__u64 *) info.jited_ksyms;
+
 		if (json_output)
 			dump_xlated_json(&dd, buf, *member_len, opcodes);
 		else
@@ -556,10 +662,14 @@ static int do_dump(int argc, char **argv)
 	}
 
 	free(buf);
+	free(func_ksyms);
+	free(func_lens);
 	return 0;
 
 err_free:
 	free(buf);
+	free(func_ksyms);
+	free(func_lens);
 	return -1;
 }
 
@@ -573,28 +683,248 @@ static int do_pin(int argc, char **argv)
 	return err;
 }
 
+struct map_replace {
+	int idx;
+	int fd;
+	char *name;
+};
+
+int map_replace_compar(const void *p1, const void *p2)
+{
+	const struct map_replace *a = p1, *b = p2;
+
+	return a->idx - b->idx;
+}
+
 static int do_load(int argc, char **argv)
 {
+	enum bpf_attach_type expected_attach_type;
+	struct bpf_object_open_attr attr = {
+		.prog_type	= BPF_PROG_TYPE_UNSPEC,
+	};
+	struct map_replace *map_replace = NULL;
+	unsigned int old_map_fds = 0;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
-	int prog_fd;
+	struct bpf_map *map;
+	const char *pinfile;
+	unsigned int i, j;
+	__u32 ifindex = 0;
+	int idx, err;
 
-	if (argc != 2)
-		usage();
-
-	if (bpf_prog_load(argv[0], BPF_PROG_TYPE_UNSPEC, &obj, &prog_fd)) {
-		p_err("failed to load program");
+	if (!REQ_ARGS(2))
 		return -1;
+	attr.file = GET_ARG();
+	pinfile = GET_ARG();
+
+	while (argc) {
+		if (is_prefix(*argv, "type")) {
+			char *type;
+
+			NEXT_ARG();
+
+			if (attr.prog_type != BPF_PROG_TYPE_UNSPEC) {
+				p_err("program type already specified");
+				goto err_free_reuse_maps;
+			}
+			if (!REQ_ARGS(1))
+				goto err_free_reuse_maps;
+
+			/* Put a '/' at the end of type to appease libbpf */
+			type = malloc(strlen(*argv) + 2);
+			if (!type) {
+				p_err("mem alloc failed");
+				goto err_free_reuse_maps;
+			}
+			*type = 0;
+			strcat(type, *argv);
+			strcat(type, "/");
+
+			err = libbpf_prog_type_by_name(type, &attr.prog_type,
+						       &expected_attach_type);
+			free(type);
+			if (err < 0) {
+				p_err("unknown program type '%s'", *argv);
+				goto err_free_reuse_maps;
+			}
+			NEXT_ARG();
+		} else if (is_prefix(*argv, "map")) {
+			char *endptr, *name;
+			int fd;
+
+			NEXT_ARG();
+
+			if (!REQ_ARGS(4))
+				goto err_free_reuse_maps;
+
+			if (is_prefix(*argv, "idx")) {
+				NEXT_ARG();
+
+				idx = strtoul(*argv, &endptr, 0);
+				if (*endptr) {
+					p_err("can't parse %s as IDX", *argv);
+					goto err_free_reuse_maps;
+				}
+				name = NULL;
+			} else if (is_prefix(*argv, "name")) {
+				NEXT_ARG();
+
+				name = *argv;
+				idx = -1;
+			} else {
+				p_err("expected 'idx' or 'name', got: '%s'?",
+				      *argv);
+				goto err_free_reuse_maps;
+			}
+			NEXT_ARG();
+
+			fd = map_parse_fd(&argc, &argv);
+			if (fd < 0)
+				goto err_free_reuse_maps;
+
+			map_replace = reallocarray(map_replace, old_map_fds + 1,
+						   sizeof(*map_replace));
+			if (!map_replace) {
+				p_err("mem alloc failed");
+				goto err_free_reuse_maps;
+			}
+			map_replace[old_map_fds].idx = idx;
+			map_replace[old_map_fds].name = name;
+			map_replace[old_map_fds].fd = fd;
+			old_map_fds++;
+		} else if (is_prefix(*argv, "dev")) {
+			NEXT_ARG();
+
+			if (ifindex) {
+				p_err("offload device already specified");
+				goto err_free_reuse_maps;
+			}
+			if (!REQ_ARGS(1))
+				goto err_free_reuse_maps;
+
+			ifindex = if_nametoindex(*argv);
+			if (!ifindex) {
+				p_err("unrecognized netdevice '%s': %s",
+				      *argv, strerror(errno));
+				goto err_free_reuse_maps;
+			}
+			NEXT_ARG();
+		} else {
+			p_err("expected no more arguments, 'type', 'map' or 'dev', got: '%s'?",
+			      *argv);
+			goto err_free_reuse_maps;
+		}
 	}
 
-	if (do_pin_fd(prog_fd, argv[1])) {
-		p_err("failed to pin program");
-		return -1;
+	obj = bpf_object__open_xattr(&attr);
+	if (IS_ERR_OR_NULL(obj)) {
+		p_err("failed to open object file");
+		goto err_free_reuse_maps;
 	}
+
+	prog = bpf_program__next(NULL, obj);
+	if (!prog) {
+		p_err("object file doesn't contain any bpf program");
+		goto err_close_obj;
+	}
+
+	bpf_program__set_ifindex(prog, ifindex);
+	if (attr.prog_type == BPF_PROG_TYPE_UNSPEC) {
+		const char *sec_name = bpf_program__title(prog, false);
+
+		err = libbpf_prog_type_by_name(sec_name, &attr.prog_type,
+					       &expected_attach_type);
+		if (err < 0) {
+			p_err("failed to guess program type based on section name %s\n",
+			      sec_name);
+			goto err_close_obj;
+		}
+	}
+	bpf_program__set_type(prog, attr.prog_type);
+	bpf_program__set_expected_attach_type(prog, expected_attach_type);
+
+	qsort(map_replace, old_map_fds, sizeof(*map_replace),
+	      map_replace_compar);
+
+	/* After the sort maps by name will be first on the list, because they
+	 * have idx == -1.  Resolve them.
+	 */
+	j = 0;
+	while (j < old_map_fds && map_replace[j].name) {
+		i = 0;
+		bpf_map__for_each(map, obj) {
+			if (!strcmp(bpf_map__name(map), map_replace[j].name)) {
+				map_replace[j].idx = i;
+				break;
+			}
+			i++;
+		}
+		if (map_replace[j].idx == -1) {
+			p_err("unable to find map '%s'", map_replace[j].name);
+			goto err_close_obj;
+		}
+		j++;
+	}
+	/* Resort if any names were resolved */
+	if (j)
+		qsort(map_replace, old_map_fds, sizeof(*map_replace),
+		      map_replace_compar);
+
+	/* Set ifindex and name reuse */
+	j = 0;
+	idx = 0;
+	bpf_map__for_each(map, obj) {
+		if (!bpf_map__is_offload_neutral(map))
+			bpf_map__set_ifindex(map, ifindex);
+
+		if (j < old_map_fds && idx == map_replace[j].idx) {
+			err = bpf_map__reuse_fd(map, map_replace[j++].fd);
+			if (err) {
+				p_err("unable to set up map reuse: %d", err);
+				goto err_close_obj;
+			}
+
+			/* Next reuse wants to apply to the same map */
+			if (j < old_map_fds && map_replace[j].idx == idx) {
+				p_err("replacement for map idx %d specified more than once",
+				      idx);
+				goto err_close_obj;
+			}
+		}
+
+		idx++;
+	}
+	if (j < old_map_fds) {
+		p_err("map idx '%d' not used", map_replace[j].idx);
+		goto err_close_obj;
+	}
+
+	err = bpf_object__load(obj);
+	if (err) {
+		p_err("failed to load object file");
+		goto err_close_obj;
+	}
+
+	if (do_pin_fd(bpf_program__fd(prog), pinfile))
+		goto err_close_obj;
 
 	if (json_output)
 		jsonw_null(json_wtr);
 
+	bpf_object__close(obj);
+	for (i = 0; i < old_map_fds; i++)
+		close(map_replace[i].fd);
+	free(map_replace);
+
 	return 0;
+
+err_close_obj:
+	bpf_object__close(obj);
+err_free_reuse_maps:
+	for (i = 0; i < old_map_fds; i++)
+		close(map_replace[i].fd);
+	free(map_replace);
+	return -1;
 }
 
 static int do_help(int argc, char **argv)
@@ -609,10 +939,19 @@ static int do_help(int argc, char **argv)
 		"       %s %s dump xlated PROG [{ file FILE | opcodes | visual }]\n"
 		"       %s %s dump jited  PROG [{ file FILE | opcodes }]\n"
 		"       %s %s pin   PROG FILE\n"
-		"       %s %s load  OBJ  FILE\n"
+		"       %s %s load  OBJ  FILE [type TYPE] [dev NAME] \\\n"
+		"                         [map { idx IDX | name NAME } MAP]\n"
 		"       %s %s help\n"
 		"\n"
+		"       " HELP_SPEC_MAP "\n"
 		"       " HELP_SPEC_PROGRAM "\n"
+		"       TYPE := { socket | kprobe | kretprobe | classifier | action |\n"
+		"                 tracepoint | raw_tracepoint | xdp | perf_event | cgroup/skb |\n"
+		"                 cgroup/sock | cgroup/dev | lwt_in | lwt_out | lwt_xmit |\n"
+		"                 lwt_seg6local | sockops | sk_skb | sk_msg | lirc_mode2 |\n"
+		"                 cgroup/bind4 | cgroup/bind6 | cgroup/post_bind4 |\n"
+		"                 cgroup/post_bind6 | cgroup/connect4 | cgroup/connect6 |\n"
+		"                 cgroup/sendmsg4 | cgroup/sendmsg6 }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],

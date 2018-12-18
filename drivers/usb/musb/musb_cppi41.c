@@ -614,7 +614,7 @@ static int cppi41_dma_channel_abort(struct dma_channel *channel)
 	}
 
 	/* DA8xx Advisory 2.3.27: wait 250 ms before to start the teardown */
-	if (musb->io.quirks & MUSB_DA8XX)
+	if (musb->ops->quirks & MUSB_DA8XX)
 		mdelay(250);
 
 	tdbit = 1 << cppi41_channel->port_num;
@@ -773,7 +773,7 @@ cppi41_dma_controller_create(struct musb *musb, void __iomem *base)
 	controller->controller.is_compatible = cppi41_is_compatible;
 	controller->controller.musb = musb;
 
-	if (musb->io.quirks & MUSB_DA8XX) {
+	if (musb->ops->quirks & MUSB_DA8XX) {
 		controller->tdown_reg = DA8XX_USB_TEARDOWN;
 		controller->autoreq_reg = DA8XX_USB_AUTOREQ;
 		controller->set_dma_mode = da8xx_set_dma_mode;

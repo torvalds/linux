@@ -374,7 +374,7 @@ The nand driver supports three different types of hardware ECC.
 
 -  NAND_ECC_HW8_512
 
-   Hardware ECC generator providing 6 bytes ECC per 512 byte.
+   Hardware ECC generator providing 8 bytes ECC per 512 byte.
 
 If your hardware generator has a different functionality add it at the
 appropriate place in nand_base.c
@@ -889,7 +889,7 @@ Use these constants to select the ECC algorithm::
     #define NAND_ECC_HW3_512    3
     /* Hardware ECC 6 byte ECC per 512 Byte data */
     #define NAND_ECC_HW6_512    4
-    /* Hardware ECC 6 byte ECC per 512 Byte data */
+    /* Hardware ECC 8 byte ECC per 512 Byte data */
     #define NAND_ECC_HW8_512    6
 
 

@@ -20,7 +20,10 @@ Optional properties:
 	- vled-supply : LED supply
 
 Required child properties:
-	- reg : 0
+	- reg : 0 - Will enable all LED sync paths
+		1 - Will enable the LED1 sync
+		2 - Will enable the LED2 sync
+		3 - Will enable the LED3 sync (LM36923 only)
 
 Optional child properties:
 	- label : see Documentation/devicetree/bindings/leds/common.txt

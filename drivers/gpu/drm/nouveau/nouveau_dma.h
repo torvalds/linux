@@ -31,8 +31,7 @@
 #include "nouveau_chan.h"
 
 int nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
-void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
-		   int delta, int length);
+void nv50_dma_push(struct nouveau_channel *, u64 addr, int length);
 
 /*
  * There's a hw race condition where you can't jump to your PUT offset,
@@ -55,7 +54,6 @@ enum {
 
 	NvSub2D		= 3, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
 	NvSubCopy	= 4, /* DO NOT CHANGE - hardcoded for kepler gr fifo */
-	FermiSw		= 5, /* DO NOT CHANGE (well.. 6/7 will work...) */
 };
 
 /* Object handles - for stuff that's doesn't use handle == oclass. */
@@ -151,7 +149,7 @@ FIRE_RING(struct nouveau_channel *chan)
 	chan->accel_done = true;
 
 	if (chan->dma.ib_max) {
-		nv50_dma_push(chan, chan->push.buffer, chan->dma.put << 2,
+		nv50_dma_push(chan, chan->push.addr + (chan->dma.put << 2),
 			      (chan->dma.cur - chan->dma.put) << 2);
 	} else {
 		WRITE_PUT(chan->dma.cur);

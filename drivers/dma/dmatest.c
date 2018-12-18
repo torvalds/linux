@@ -468,6 +468,8 @@ static int dmatest_func(void *data)
 	unsigned long long	total_len = 0;
 	u8			align = 0;
 	bool			is_memset = false;
+	dma_addr_t		*srcs;
+	dma_addr_t		*dma_pq;
 
 	set_freezable();
 
@@ -551,6 +553,14 @@ static int dmatest_func(void *data)
 
 	set_user_nice(current, 10);
 
+	srcs = kcalloc(src_cnt, sizeof(dma_addr_t), GFP_KERNEL);
+	if (!srcs)
+		goto err_dstbuf;
+
+	dma_pq = kcalloc(dst_cnt, sizeof(dma_addr_t), GFP_KERNEL);
+	if (!dma_pq)
+		goto err_srcs_array;
+
 	/*
 	 * src and dst buffers are freed by ourselves below
 	 */
@@ -561,7 +571,6 @@ static int dmatest_func(void *data)
 	       && !(params->iterations && total_tests >= params->iterations)) {
 		struct dma_async_tx_descriptor *tx = NULL;
 		struct dmaengine_unmap_data *um;
-		dma_addr_t srcs[src_cnt];
 		dma_addr_t *dsts;
 		unsigned int src_off, dst_off, len;
 
@@ -676,8 +685,6 @@ static int dmatest_func(void *data)
 						      srcs, src_cnt,
 						      len, flags);
 		else if (thread->type == DMA_PQ) {
-			dma_addr_t dma_pq[dst_cnt];
-
 			for (i = 0; i < dst_cnt; i++)
 				dma_pq[i] = dsts[i] + dst_off;
 			tx = dev->device_prep_dma_pq(chan, dma_pq, srcs,
@@ -779,6 +786,9 @@ static int dmatest_func(void *data)
 	runtime = ktime_to_us(ktime);
 
 	ret = 0;
+	kfree(dma_pq);
+err_srcs_array:
+	kfree(srcs);
 err_dstbuf:
 	for (i = 0; thread->udsts[i]; i++)
 		kfree(thread->udsts[i]);

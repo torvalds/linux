@@ -96,6 +96,7 @@ struct ocfs2_trim_fs_info {
 struct ocfs2_lock_holder {
 	struct list_head oh_list;
 	struct pid *oh_owner_pid;
+	int oh_ex;
 };
 
 /* ocfs2_inode_lock_full() 'arg_flags' flags */

@@ -489,10 +489,10 @@ struct ib_mr *c4iw_get_dma_mr(struct ib_pd *pd, int acc)
 err_dereg_mem:
 	dereg_mem(&rhp->rdev, mhp->attr.stag, mhp->attr.pbl_size,
 		  mhp->attr.pbl_addr, mhp->dereg_skb, mhp->wr_waitp);
-err_free_wr_wait:
-	c4iw_put_wr_wait(mhp->wr_waitp);
 err_free_skb:
 	kfree_skb(mhp->dereg_skb);
+err_free_wr_wait:
+	c4iw_put_wr_wait(mhp->wr_waitp);
 err_free_mhp:
 	kfree(mhp);
 	return ERR_PTR(ret);
@@ -774,7 +774,7 @@ static int c4iw_set_page(struct ib_mr *ibmr, u64 addr)
 {
 	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
 
-	if (unlikely(mhp->mpl_len == mhp->max_mpl_len))
+	if (unlikely(mhp->mpl_len == mhp->attr.pbl_size))
 		return -ENOMEM;
 
 	mhp->mpl[mhp->mpl_len++] = addr;

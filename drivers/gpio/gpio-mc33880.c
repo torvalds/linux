@@ -24,7 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mc33880.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 

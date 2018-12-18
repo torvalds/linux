@@ -463,6 +463,12 @@ void clockevents_register_device(struct clock_event_device *dev)
 		dev->cpumask = cpumask_of(smp_processor_id());
 	}
 
+	if (dev->cpumask == cpu_all_mask) {
+		WARN(1, "%s cpumask == cpu_all_mask, using cpu_possible_mask instead\n",
+		     dev->name);
+		dev->cpumask = cpu_possible_mask;
+	}
+
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
 	list_add(&dev->list, &clockevent_devices);

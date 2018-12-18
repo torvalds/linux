@@ -227,6 +227,12 @@ static const struct ipu_image_pixfmt image_convert_formats[] = {
 		.fourcc	= V4L2_PIX_FMT_BGR32,
 		.bpp    = 32,
 	}, {
+		.fourcc	= V4L2_PIX_FMT_XRGB32,
+		.bpp    = 32,
+	}, {
+		.fourcc	= V4L2_PIX_FMT_XBGR32,
+		.bpp    = 32,
+	}, {
 		.fourcc	= V4L2_PIX_FMT_YUYV,
 		.bpp    = 16,
 		.uv_width_dec = 2,

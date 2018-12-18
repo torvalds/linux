@@ -27,10 +27,11 @@ static int snd_pcm_ioctl_delay_compat(struct snd_pcm_substream *substream,
 				      s32 __user *src)
 {
 	snd_pcm_sframes_t delay;
+	int err;
 
-	delay = snd_pcm_delay(substream);
-	if (delay < 0)
-		return delay;
+	err = snd_pcm_delay(substream, &delay);
+	if (err)
+		return err;
 	if (put_user(delay, src))
 		return -EFAULT;
 	return 0;
@@ -44,10 +45,7 @@ static int snd_pcm_ioctl_rewind_compat(struct snd_pcm_substream *substream,
 
 	if (get_user(frames, src))
 		return -EFAULT;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_pcm_playback_rewind(substream, frames);
-	else
-		err = snd_pcm_capture_rewind(substream, frames);
+	err = snd_pcm_rewind(substream, frames);
 	if (put_user(err, src))
 		return -EFAULT;
 	return err < 0 ? err : 0;
@@ -61,10 +59,7 @@ static int snd_pcm_ioctl_forward_compat(struct snd_pcm_substream *substream,
 
 	if (get_user(frames, src))
 		return -EFAULT;
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = snd_pcm_playback_forward(substream, frames);
-	else
-		err = snd_pcm_capture_forward(substream, frames);
+	err = snd_pcm_forward(substream, frames);
 	if (put_user(err, src))
 		return -EFAULT;
 	return err < 0 ? err : 0;
@@ -422,6 +417,8 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 		return -ENOTTY;
 	if (substream->stream != dir)
 		return -EINVAL;
+	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN)
+		return -EBADFD;
 
 	if ((ch = substream->runtime->channels) > 128)
 		return -EINVAL;
@@ -429,7 +426,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	    get_user(frames, &data32->frames))
 		return -EFAULT;
 	bufptr = compat_ptr(buf);
-	bufs = kmalloc(sizeof(void __user *) * ch, GFP_KERNEL);
+	bufs = kmalloc_array(ch, sizeof(void __user *), GFP_KERNEL);
 	if (bufs == NULL)
 		return -ENOMEM;
 	for (i = 0; i < ch; i++) {

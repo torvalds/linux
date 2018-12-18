@@ -1,36 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_acl_tcam.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -39,25 +8,25 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
-#include <linux/parman.h>
 
 #include "reg.h"
 #include "core.h"
 #include "resources.h"
 #include "spectrum.h"
+#include "spectrum_acl_tcam.h"
 #include "core_acl_flex_keys.h"
 
-struct mlxsw_sp_acl_tcam {
-	unsigned long *used_regions; /* bit array */
-	unsigned int max_regions;
-	unsigned long *used_groups;  /* bit array */
-	unsigned int max_groups;
-	unsigned int max_group_size;
-};
-
-static int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
+size_t mlxsw_sp_acl_tcam_priv_size(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_sp_acl_tcam *tcam = priv;
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+
+	return ops->priv_size;
+}
+
+int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
+			   struct mlxsw_sp_acl_tcam *tcam)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	u64 max_tcam_regions;
 	u64 max_regions;
 	u64 max_groups;
@@ -88,19 +57,51 @@ static int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp, void *priv)
 	tcam->max_groups = max_groups;
 	tcam->max_group_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						 ACL_MAX_GROUP_SIZE);
+
+	err = ops->init(mlxsw_sp, tcam->priv, tcam);
+	if (err)
+		goto err_tcam_init;
+
 	return 0;
 
+err_tcam_init:
+	kfree(tcam->used_groups);
 err_alloc_used_groups:
 	kfree(tcam->used_regions);
 	return err;
 }
 
-static void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp, void *priv)
+void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_acl_tcam *tcam)
 {
-	struct mlxsw_sp_acl_tcam *tcam = priv;
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 
+	ops->fini(mlxsw_sp, tcam->priv);
 	kfree(tcam->used_groups);
 	kfree(tcam->used_regions);
+}
+
+int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_rule_info *rulei,
+				   u32 *priority, bool fillup_priority)
+{
+	u64 max_priority;
+
+	if (!fillup_priority) {
+		*priority = 0;
+		return 0;
+	}
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, KVD_SIZE))
+		return -EIO;
+
+	max_priority = MLXSW_CORE_RES_GET(mlxsw_sp->core, KVD_SIZE);
+	if (rulei->priority > max_priority)
+		return -EINVAL;
+
+	/* Unlike in TC, in HW, higher number means higher priority. */
+	*priority = max_priority - rulei->priority;
+	return 0;
 }
 
 static int mlxsw_sp_acl_tcam_region_id_get(struct mlxsw_sp_acl_tcam *tcam,
@@ -157,37 +158,25 @@ struct mlxsw_sp_acl_tcam_group {
 	struct mlxsw_sp_acl_tcam_group_ops *ops;
 	const struct mlxsw_sp_acl_tcam_pattern *patterns;
 	unsigned int patterns_count;
-};
-
-struct mlxsw_sp_acl_tcam_region {
-	struct list_head list; /* Member of a TCAM group */
-	struct list_head chunk_list; /* List of chunks under this region */
-	struct parman *parman;
-	struct mlxsw_sp *mlxsw_sp;
-	struct mlxsw_sp_acl_tcam_group *group;
-	u16 id; /* ACL ID and region ID - they are same */
-	char tcam_region_info[MLXSW_REG_PXXX_TCAM_REGION_INFO_LEN];
-	struct mlxsw_afk_key_info *key_info;
-	struct {
-		struct parman_prio parman_prio;
-		struct parman_item parman_item;
-		struct mlxsw_sp_acl_rule_info *rulei;
-	} catchall;
+	bool tmplt_elusage_set;
+	struct mlxsw_afk_element_usage tmplt_elusage;
 };
 
 struct mlxsw_sp_acl_tcam_chunk {
 	struct list_head list; /* Member of a TCAM region */
 	struct rhash_head ht_node; /* Member of a chunk HT */
 	unsigned int priority; /* Priority within the region and group */
-	struct parman_prio parman_prio;
 	struct mlxsw_sp_acl_tcam_group *group;
 	struct mlxsw_sp_acl_tcam_region *region;
 	unsigned int ref_count;
+	unsigned long priv[0];
+	/* priv has to be always the last item */
 };
 
 struct mlxsw_sp_acl_tcam_entry {
-	struct parman_item parman_item;
 	struct mlxsw_sp_acl_tcam_chunk *chunk;
+	unsigned long priv[0];
+	/* priv has to be always the last item */
 };
 
 static const struct rhashtable_params mlxsw_sp_acl_tcam_chunk_ht_params = {
@@ -216,13 +205,19 @@ mlxsw_sp_acl_tcam_group_add(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_acl_tcam *tcam,
 			    struct mlxsw_sp_acl_tcam_group *group,
 			    const struct mlxsw_sp_acl_tcam_pattern *patterns,
-			    unsigned int patterns_count)
+			    unsigned int patterns_count,
+			    struct mlxsw_afk_element_usage *tmplt_elusage)
 {
 	int err;
 
 	group->tcam = tcam;
 	group->patterns = patterns;
 	group->patterns_count = patterns_count;
+	if (tmplt_elusage) {
+		group->tmplt_elusage_set = true;
+		memcpy(&group->tmplt_elusage, tmplt_elusage,
+		       sizeof(group->tmplt_elusage));
+	}
 	INIT_LIST_HEAD(&group->region_list);
 	err = mlxsw_sp_acl_tcam_group_id_get(tcam, &group->id);
 	if (err)
@@ -431,6 +426,15 @@ mlxsw_sp_acl_tcam_group_use_patterns(struct mlxsw_sp_acl_tcam_group *group,
 	const struct mlxsw_sp_acl_tcam_pattern *pattern;
 	int i;
 
+	/* In case the template is set, we don't have to look up the pattern
+	 * and just use the template.
+	 */
+	if (group->tmplt_elusage_set) {
+		memcpy(out, &group->tmplt_elusage, sizeof(*out));
+		WARN_ON(!mlxsw_afk_element_usage_subset(elusage, out));
+		return;
+	}
+
 	for (i = 0; i < group->patterns_count; i++) {
 		pattern = &group->patterns[i];
 		mlxsw_afk_element_usage_fill(out, pattern->elements,
@@ -440,9 +444,6 @@ mlxsw_sp_acl_tcam_group_use_patterns(struct mlxsw_sp_acl_tcam_group *group,
 	}
 	memcpy(out, elusage, sizeof(*out));
 }
-
-#define MLXSW_SP_ACL_TCAM_REGION_BASE_COUNT 16
-#define MLXSW_SP_ACL_TCAM_REGION_RESIZE_STEP 16
 
 static int
 mlxsw_sp_acl_tcam_region_alloc(struct mlxsw_sp *mlxsw_sp,
@@ -455,6 +456,7 @@ mlxsw_sp_acl_tcam_region_alloc(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_ALLOC,
+			    region->key_type,
 			    MLXSW_SP_ACL_TCAM_REGION_BASE_COUNT,
 			    region->id, region->tcam_region_info);
 	encodings_count = mlxsw_afk_key_info_blocks_count_get(key_info);
@@ -477,21 +479,10 @@ mlxsw_sp_acl_tcam_region_free(struct mlxsw_sp *mlxsw_sp,
 {
 	char ptar_pl[MLXSW_REG_PTAR_LEN];
 
-	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_FREE, 0, region->id,
+	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_FREE,
+			    region->key_type, 0, region->id,
 			    region->tcam_region_info);
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptar), ptar_pl);
-}
-
-static int
-mlxsw_sp_acl_tcam_region_resize(struct mlxsw_sp *mlxsw_sp,
-				struct mlxsw_sp_acl_tcam_region *region,
-				u16 new_size)
-{
-	char ptar_pl[MLXSW_REG_PTAR_LEN];
-
-	mlxsw_reg_ptar_pack(ptar_pl, MLXSW_REG_PTAR_OP_RESIZE,
-			    new_size, region->id, region->tcam_region_info);
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptar), ptar_pl);
 }
 
 static int
@@ -516,192 +507,21 @@ mlxsw_sp_acl_tcam_region_disable(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(pacl), pacl_pl);
 }
 
-static int
-mlxsw_sp_acl_tcam_region_entry_insert(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_acl_tcam_region *region,
-				      unsigned int offset,
-				      struct mlxsw_sp_acl_rule_info *rulei)
-{
-	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
-	char *act_set;
-	char *mask;
-	char *key;
-
-	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset);
-	key = mlxsw_reg_ptce2_flex_key_blocks_data(ptce2_pl);
-	mask = mlxsw_reg_ptce2_mask_data(ptce2_pl);
-	mlxsw_afk_encode(region->key_info, &rulei->values, key, mask);
-
-	/* Only the first action set belongs here, the rest is in KVD */
-	act_set = mlxsw_afa_block_first_set(rulei->act_block);
-	mlxsw_reg_ptce2_flex_action_set_memcpy_to(ptce2_pl, act_set);
-
-	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
-}
-
-static void
-mlxsw_sp_acl_tcam_region_entry_remove(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_acl_tcam_region *region,
-				      unsigned int offset)
-{
-	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
-
-	mlxsw_reg_ptce2_pack(ptce2_pl, false, MLXSW_REG_PTCE2_OP_WRITE_WRITE,
-			     region->tcam_region_info, offset);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
-}
-
-static int
-mlxsw_sp_acl_tcam_region_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
-					    struct mlxsw_sp_acl_tcam_region *region,
-					    unsigned int offset,
-					    bool *activity)
-{
-	char ptce2_pl[MLXSW_REG_PTCE2_LEN];
-	int err;
-
-	mlxsw_reg_ptce2_pack(ptce2_pl, true, MLXSW_REG_PTCE2_OP_QUERY_CLEAR_ON_READ,
-			     region->tcam_region_info, offset);
-	err = mlxsw_reg_query(mlxsw_sp->core, MLXSW_REG(ptce2), ptce2_pl);
-	if (err)
-		return err;
-	*activity = mlxsw_reg_ptce2_a_get(ptce2_pl);
-	return 0;
-}
-
-#define MLXSW_SP_ACL_TCAM_CATCHALL_PRIO (~0U)
-
-static int
-mlxsw_sp_acl_tcam_region_catchall_add(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_acl_tcam_region *region)
-{
-	struct parman_prio *parman_prio = &region->catchall.parman_prio;
-	struct parman_item *parman_item = &region->catchall.parman_item;
-	struct mlxsw_sp_acl_rule_info *rulei;
-	int err;
-
-	parman_prio_init(region->parman, parman_prio,
-			 MLXSW_SP_ACL_TCAM_CATCHALL_PRIO);
-	err = parman_item_add(region->parman, parman_prio, parman_item);
-	if (err)
-		goto err_parman_item_add;
-
-	rulei = mlxsw_sp_acl_rulei_create(mlxsw_sp->acl);
-	if (IS_ERR(rulei)) {
-		err = PTR_ERR(rulei);
-		goto err_rulei_create;
-	}
-
-	err = mlxsw_sp_acl_rulei_act_continue(rulei);
-	if (WARN_ON(err))
-		goto err_rulei_act_continue;
-
-	err = mlxsw_sp_acl_rulei_commit(rulei);
-	if (err)
-		goto err_rulei_commit;
-
-	err = mlxsw_sp_acl_tcam_region_entry_insert(mlxsw_sp, region,
-						    parman_item->index, rulei);
-	region->catchall.rulei = rulei;
-	if (err)
-		goto err_rule_insert;
-
-	return 0;
-
-err_rule_insert:
-err_rulei_commit:
-err_rulei_act_continue:
-	mlxsw_sp_acl_rulei_destroy(rulei);
-err_rulei_create:
-	parman_item_remove(region->parman, parman_prio, parman_item);
-err_parman_item_add:
-	parman_prio_fini(parman_prio);
-	return err;
-}
-
-static void
-mlxsw_sp_acl_tcam_region_catchall_del(struct mlxsw_sp *mlxsw_sp,
-				      struct mlxsw_sp_acl_tcam_region *region)
-{
-	struct parman_prio *parman_prio = &region->catchall.parman_prio;
-	struct parman_item *parman_item = &region->catchall.parman_item;
-	struct mlxsw_sp_acl_rule_info *rulei = region->catchall.rulei;
-
-	mlxsw_sp_acl_tcam_region_entry_remove(mlxsw_sp, region,
-					      parman_item->index);
-	mlxsw_sp_acl_rulei_destroy(rulei);
-	parman_item_remove(region->parman, parman_prio, parman_item);
-	parman_prio_fini(parman_prio);
-}
-
-static void
-mlxsw_sp_acl_tcam_region_move(struct mlxsw_sp *mlxsw_sp,
-			      struct mlxsw_sp_acl_tcam_region *region,
-			      u16 src_offset, u16 dst_offset, u16 size)
-{
-	char prcr_pl[MLXSW_REG_PRCR_LEN];
-
-	mlxsw_reg_prcr_pack(prcr_pl, MLXSW_REG_PRCR_OP_MOVE,
-			    region->tcam_region_info, src_offset,
-			    region->tcam_region_info, dst_offset, size);
-	mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(prcr), prcr_pl);
-}
-
-static int mlxsw_sp_acl_tcam_region_parman_resize(void *priv,
-						  unsigned long new_count)
-{
-	struct mlxsw_sp_acl_tcam_region *region = priv;
-	struct mlxsw_sp *mlxsw_sp = region->mlxsw_sp;
-	u64 max_tcam_rules;
-
-	max_tcam_rules = MLXSW_CORE_RES_GET(mlxsw_sp->core, ACL_MAX_TCAM_RULES);
-	if (new_count > max_tcam_rules)
-		return -EINVAL;
-	return mlxsw_sp_acl_tcam_region_resize(mlxsw_sp, region, new_count);
-}
-
-static void mlxsw_sp_acl_tcam_region_parman_move(void *priv,
-						 unsigned long from_index,
-						 unsigned long to_index,
-						 unsigned long count)
-{
-	struct mlxsw_sp_acl_tcam_region *region = priv;
-	struct mlxsw_sp *mlxsw_sp = region->mlxsw_sp;
-
-	mlxsw_sp_acl_tcam_region_move(mlxsw_sp, region,
-				      from_index, to_index, count);
-}
-
-static const struct parman_ops mlxsw_sp_acl_tcam_region_parman_ops = {
-	.base_count	= MLXSW_SP_ACL_TCAM_REGION_BASE_COUNT,
-	.resize_step	= MLXSW_SP_ACL_TCAM_REGION_RESIZE_STEP,
-	.resize		= mlxsw_sp_acl_tcam_region_parman_resize,
-	.move		= mlxsw_sp_acl_tcam_region_parman_move,
-	.algo		= PARMAN_ALGO_TYPE_LSORT,
-};
-
 static struct mlxsw_sp_acl_tcam_region *
 mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_tcam *tcam,
 				struct mlxsw_afk_element_usage *elusage)
 {
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	struct mlxsw_afk *afk = mlxsw_sp_acl_afk(mlxsw_sp->acl);
 	struct mlxsw_sp_acl_tcam_region *region;
 	int err;
 
-	region = kzalloc(sizeof(*region), GFP_KERNEL);
+	region = kzalloc(sizeof(*region) + ops->region_priv_size, GFP_KERNEL);
 	if (!region)
 		return ERR_PTR(-ENOMEM);
 	INIT_LIST_HEAD(&region->chunk_list);
 	region->mlxsw_sp = mlxsw_sp;
-
-	region->parman = parman_create(&mlxsw_sp_acl_tcam_region_parman_ops,
-				       region);
-	if (!region->parman) {
-		err = -ENOMEM;
-		goto err_parman_create;
-	}
 
 	region->key_info = mlxsw_afk_key_info_get(afk, elusage);
 	if (IS_ERR(region->key_info)) {
@@ -713,6 +533,11 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_region_id_get;
 
+	err = ops->region_associate(mlxsw_sp, region);
+	if (err)
+		goto err_tcam_region_associate;
+
+	region->key_type = ops->key_type;
 	err = mlxsw_sp_acl_tcam_region_alloc(mlxsw_sp, region);
 	if (err)
 		goto err_tcam_region_alloc;
@@ -721,23 +546,22 @@ mlxsw_sp_acl_tcam_region_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_tcam_region_enable;
 
-	err = mlxsw_sp_acl_tcam_region_catchall_add(mlxsw_sp, region);
+	err = ops->region_init(mlxsw_sp, region->priv, tcam->priv, region);
 	if (err)
-		goto err_tcam_region_catchall_add;
+		goto err_tcam_region_init;
 
 	return region;
 
-err_tcam_region_catchall_add:
+err_tcam_region_init:
 	mlxsw_sp_acl_tcam_region_disable(mlxsw_sp, region);
 err_tcam_region_enable:
 	mlxsw_sp_acl_tcam_region_free(mlxsw_sp, region);
 err_tcam_region_alloc:
+err_tcam_region_associate:
 	mlxsw_sp_acl_tcam_region_id_put(tcam, region->id);
 err_region_id_get:
 	mlxsw_afk_key_info_put(region->key_info);
 err_key_info_get:
-	parman_destroy(region->parman);
-err_parman_create:
 	kfree(region);
 	return ERR_PTR(err);
 }
@@ -746,12 +570,13 @@ static void
 mlxsw_sp_acl_tcam_region_destroy(struct mlxsw_sp *mlxsw_sp,
 				 struct mlxsw_sp_acl_tcam_region *region)
 {
-	mlxsw_sp_acl_tcam_region_catchall_del(mlxsw_sp, region);
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+
+	ops->region_fini(mlxsw_sp, region->priv);
 	mlxsw_sp_acl_tcam_region_disable(mlxsw_sp, region);
 	mlxsw_sp_acl_tcam_region_free(mlxsw_sp, region);
 	mlxsw_sp_acl_tcam_region_id_put(region->group->tcam, region->id);
 	mlxsw_afk_key_info_put(region->key_info);
-	parman_destroy(region->parman);
 	kfree(region);
 }
 
@@ -826,13 +651,14 @@ mlxsw_sp_acl_tcam_chunk_create(struct mlxsw_sp *mlxsw_sp,
 			       unsigned int priority,
 			       struct mlxsw_afk_element_usage *elusage)
 {
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	struct mlxsw_sp_acl_tcam_chunk *chunk;
 	int err;
 
 	if (priority == MLXSW_SP_ACL_TCAM_CATCHALL_PRIO)
 		return ERR_PTR(-EINVAL);
 
-	chunk = kzalloc(sizeof(*chunk), GFP_KERNEL);
+	chunk = kzalloc(sizeof(*chunk) + ops->chunk_priv_size, GFP_KERNEL);
 	if (!chunk)
 		return ERR_PTR(-ENOMEM);
 	chunk->priority = priority;
@@ -844,7 +670,7 @@ mlxsw_sp_acl_tcam_chunk_create(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_chunk_assoc;
 
-	parman_prio_init(chunk->region->parman, &chunk->parman_prio, priority);
+	ops->chunk_init(chunk->region->priv, chunk->priv, priority);
 
 	err = rhashtable_insert_fast(&group->chunk_ht, &chunk->ht_node,
 				     mlxsw_sp_acl_tcam_chunk_ht_params);
@@ -854,7 +680,7 @@ mlxsw_sp_acl_tcam_chunk_create(struct mlxsw_sp *mlxsw_sp,
 	return chunk;
 
 err_rhashtable_insert:
-	parman_prio_fini(&chunk->parman_prio);
+	ops->chunk_fini(chunk->priv);
 	mlxsw_sp_acl_tcam_chunk_deassoc(mlxsw_sp, chunk);
 err_chunk_assoc:
 	kfree(chunk);
@@ -865,11 +691,12 @@ static void
 mlxsw_sp_acl_tcam_chunk_destroy(struct mlxsw_sp *mlxsw_sp,
 				struct mlxsw_sp_acl_tcam_chunk *chunk)
 {
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	struct mlxsw_sp_acl_tcam_group *group = chunk->group;
 
 	rhashtable_remove_fast(&group->chunk_ht, &chunk->ht_node,
 			       mlxsw_sp_acl_tcam_chunk_ht_params);
-	parman_prio_fini(&chunk->parman_prio);
+	ops->chunk_fini(chunk->priv);
 	mlxsw_sp_acl_tcam_chunk_deassoc(mlxsw_sp, chunk);
 	kfree(chunk);
 }
@@ -903,11 +730,19 @@ static void mlxsw_sp_acl_tcam_chunk_put(struct mlxsw_sp *mlxsw_sp,
 	mlxsw_sp_acl_tcam_chunk_destroy(mlxsw_sp, chunk);
 }
 
+static size_t mlxsw_sp_acl_tcam_entry_priv_size(struct mlxsw_sp *mlxsw_sp)
+{
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
+
+	return ops->entry_priv_size;
+}
+
 static int mlxsw_sp_acl_tcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 				       struct mlxsw_sp_acl_tcam_group *group,
 				       struct mlxsw_sp_acl_tcam_entry *entry,
 				       struct mlxsw_sp_acl_rule_info *rulei)
 {
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	struct mlxsw_sp_acl_tcam_chunk *chunk;
 	struct mlxsw_sp_acl_tcam_region *region;
 	int err;
@@ -918,24 +753,16 @@ static int mlxsw_sp_acl_tcam_entry_add(struct mlxsw_sp *mlxsw_sp,
 		return PTR_ERR(chunk);
 
 	region = chunk->region;
-	err = parman_item_add(region->parman, &chunk->parman_prio,
-			      &entry->parman_item);
-	if (err)
-		goto err_parman_item_add;
 
-	err = mlxsw_sp_acl_tcam_region_entry_insert(mlxsw_sp, region,
-						    entry->parman_item.index,
-						    rulei);
+	err = ops->entry_add(mlxsw_sp, region->priv, chunk->priv,
+			     entry->priv, rulei);
 	if (err)
-		goto err_rule_insert;
+		goto err_entry_add;
 	entry->chunk = chunk;
 
 	return 0;
 
-err_rule_insert:
-	parman_item_remove(region->parman, &chunk->parman_prio,
-			   &entry->parman_item);
-err_parman_item_add:
+err_entry_add:
 	mlxsw_sp_acl_tcam_chunk_put(mlxsw_sp, chunk);
 	return err;
 }
@@ -943,13 +770,11 @@ err_parman_item_add:
 static void mlxsw_sp_acl_tcam_entry_del(struct mlxsw_sp *mlxsw_sp,
 					struct mlxsw_sp_acl_tcam_entry *entry)
 {
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	struct mlxsw_sp_acl_tcam_chunk *chunk = entry->chunk;
 	struct mlxsw_sp_acl_tcam_region *region = chunk->region;
 
-	mlxsw_sp_acl_tcam_region_entry_remove(mlxsw_sp, region,
-					      entry->parman_item.index);
-	parman_item_remove(region->parman, &chunk->parman_prio,
-			   &entry->parman_item);
+	ops->entry_del(mlxsw_sp, region->priv, chunk->priv, entry->priv);
 	mlxsw_sp_acl_tcam_chunk_put(mlxsw_sp, chunk);
 }
 
@@ -958,22 +783,24 @@ mlxsw_sp_acl_tcam_entry_activity_get(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_tcam_entry *entry,
 				     bool *activity)
 {
+	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 	struct mlxsw_sp_acl_tcam_chunk *chunk = entry->chunk;
 	struct mlxsw_sp_acl_tcam_region *region = chunk->region;
 
-	return mlxsw_sp_acl_tcam_region_entry_activity_get(mlxsw_sp, region,
-							   entry->parman_item.index,
-							   activity);
+	return ops->entry_activity_get(mlxsw_sp, region->priv,
+				       entry->priv, activity);
 }
 
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
 	MLXSW_AFK_ELEMENT_SRC_SYS_PORT,
-	MLXSW_AFK_ELEMENT_DMAC,
-	MLXSW_AFK_ELEMENT_SMAC,
+	MLXSW_AFK_ELEMENT_DMAC_32_47,
+	MLXSW_AFK_ELEMENT_DMAC_0_31,
+	MLXSW_AFK_ELEMENT_SMAC_32_47,
+	MLXSW_AFK_ELEMENT_SMAC_0_31,
 	MLXSW_AFK_ELEMENT_ETHERTYPE,
 	MLXSW_AFK_ELEMENT_IP_PROTO,
-	MLXSW_AFK_ELEMENT_SRC_IP4,
-	MLXSW_AFK_ELEMENT_DST_IP4,
+	MLXSW_AFK_ELEMENT_SRC_IP_0_31,
+	MLXSW_AFK_ELEMENT_DST_IP_0_31,
 	MLXSW_AFK_ELEMENT_DST_L4_PORT,
 	MLXSW_AFK_ELEMENT_SRC_L4_PORT,
 	MLXSW_AFK_ELEMENT_VID,
@@ -987,10 +814,14 @@ static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv4[] = {
 static const enum mlxsw_afk_element mlxsw_sp_acl_tcam_pattern_ipv6[] = {
 	MLXSW_AFK_ELEMENT_ETHERTYPE,
 	MLXSW_AFK_ELEMENT_IP_PROTO,
-	MLXSW_AFK_ELEMENT_SRC_IP6_HI,
-	MLXSW_AFK_ELEMENT_SRC_IP6_LO,
-	MLXSW_AFK_ELEMENT_DST_IP6_HI,
-	MLXSW_AFK_ELEMENT_DST_IP6_LO,
+	MLXSW_AFK_ELEMENT_SRC_IP_96_127,
+	MLXSW_AFK_ELEMENT_SRC_IP_64_95,
+	MLXSW_AFK_ELEMENT_SRC_IP_32_63,
+	MLXSW_AFK_ELEMENT_SRC_IP_0_31,
+	MLXSW_AFK_ELEMENT_DST_IP_96_127,
+	MLXSW_AFK_ELEMENT_DST_IP_64_95,
+	MLXSW_AFK_ELEMENT_DST_IP_32_63,
+	MLXSW_AFK_ELEMENT_DST_IP_0_31,
 	MLXSW_AFK_ELEMENT_DST_L4_PORT,
 	MLXSW_AFK_ELEMENT_SRC_L4_PORT,
 };
@@ -1019,14 +850,16 @@ struct mlxsw_sp_acl_tcam_flower_rule {
 
 static int
 mlxsw_sp_acl_tcam_flower_ruleset_add(struct mlxsw_sp *mlxsw_sp,
-				     void *priv, void *ruleset_priv)
+				     struct mlxsw_sp_acl_tcam *tcam,
+				     void *ruleset_priv,
+				     struct mlxsw_afk_element_usage *tmplt_elusage)
 {
 	struct mlxsw_sp_acl_tcam_flower_ruleset *ruleset = ruleset_priv;
-	struct mlxsw_sp_acl_tcam *tcam = priv;
 
 	return mlxsw_sp_acl_tcam_group_add(mlxsw_sp, tcam, &ruleset->group,
 					   mlxsw_sp_acl_tcam_patterns,
-					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT);
+					   MLXSW_SP_ACL_TCAM_PATTERNS_COUNT,
+					   tmplt_elusage);
 }
 
 static void
@@ -1070,6 +903,12 @@ mlxsw_sp_acl_tcam_flower_ruleset_group_id(void *ruleset_priv)
 	return mlxsw_sp_acl_tcam_group_id(&ruleset->group);
 }
 
+static size_t mlxsw_sp_acl_tcam_flower_rule_priv_size(struct mlxsw_sp *mlxsw_sp)
+{
+	return sizeof(struct mlxsw_sp_acl_tcam_flower_rule) +
+	       mlxsw_sp_acl_tcam_entry_priv_size(mlxsw_sp);
+}
+
 static int
 mlxsw_sp_acl_tcam_flower_rule_add(struct mlxsw_sp *mlxsw_sp,
 				  void *ruleset_priv, void *rule_priv,
@@ -1107,7 +946,7 @@ static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_flower_ops = {
 	.ruleset_bind		= mlxsw_sp_acl_tcam_flower_ruleset_bind,
 	.ruleset_unbind		= mlxsw_sp_acl_tcam_flower_ruleset_unbind,
 	.ruleset_group_id	= mlxsw_sp_acl_tcam_flower_ruleset_group_id,
-	.rule_priv_size		= sizeof(struct mlxsw_sp_acl_tcam_flower_rule),
+	.rule_priv_size		= mlxsw_sp_acl_tcam_flower_rule_priv_size,
 	.rule_add		= mlxsw_sp_acl_tcam_flower_rule_add,
 	.rule_del		= mlxsw_sp_acl_tcam_flower_rule_del,
 	.rule_activity_get	= mlxsw_sp_acl_tcam_flower_rule_activity_get,
@@ -1118,7 +957,7 @@ mlxsw_sp_acl_tcam_profile_ops_arr[] = {
 	[MLXSW_SP_ACL_PROFILE_FLOWER] = &mlxsw_sp_acl_tcam_flower_ops,
 };
 
-static const struct mlxsw_sp_acl_profile_ops *
+const struct mlxsw_sp_acl_profile_ops *
 mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 			      enum mlxsw_sp_acl_profile profile)
 {
@@ -1131,10 +970,3 @@ mlxsw_sp_acl_tcam_profile_ops(struct mlxsw_sp *mlxsw_sp,
 		return NULL;
 	return ops;
 }
-
-const struct mlxsw_sp_acl_ops mlxsw_sp_acl_tcam_ops = {
-	.priv_size		= sizeof(struct mlxsw_sp_acl_tcam),
-	.init			= mlxsw_sp_acl_tcam_init,
-	.fini			= mlxsw_sp_acl_tcam_fini,
-	.profile_ops		= mlxsw_sp_acl_tcam_profile_ops,
-};

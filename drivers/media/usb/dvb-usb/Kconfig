@@ -6,7 +6,7 @@ config DVB_USB
 	  USB1.1 and USB2.0 DVB devices.
 
 	  Almost every USB device needs a firmware, please look into
-	  <file:Documentation/dvb/README.dvb-usb>.
+	  <file:Documentation/media/dvb-drivers/dvb-usb.rst>.
 
 	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
 	  <https://linuxtv.org/wiki/index.php/DVB_USB>
@@ -311,12 +311,6 @@ config DVB_USB_DTV5100
 	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.
-
-config DVB_USB_FRIIO
-	tristate "Friio ISDB-T USB2.0 Receiver support"
-	depends on DVB_USB
-	help
-	  Say Y here to support the Japanese DTV receiver Friio.
 
 config DVB_USB_AZ6027
 	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"

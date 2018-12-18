@@ -599,7 +599,7 @@ struct dwarf_frame *dwarf_unwind_stack(unsigned long pc,
 	 * time this function makes its first function call.
 	 */
 	if (!pc || !prev)
-		pc = (unsigned long)current_text_addr();
+		pc = _THIS_IP_;
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	/*

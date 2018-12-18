@@ -37,6 +37,10 @@ extern struct processor {
 	 */
 	void (*_proc_init)(void);
 	/*
+	 * Check for processor bugs
+	 */
+	void (*check_bugs)(void);
+	/*
 	 * Disable any processor specifics
 	 */
 	void (*_proc_fin)(void);

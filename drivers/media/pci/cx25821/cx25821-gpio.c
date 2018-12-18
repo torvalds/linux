@@ -88,7 +88,7 @@ void cx25821_gpio_init(struct cx25821_dev *dev)
 	default:
 		/* set GPIO 5 to select the path for Medusa/Athena */
 		cx25821_set_gpiopin_logicvalue(dev, 5, 1);
-		mdelay(20);
+		msleep(20);
 		break;
 	}
 

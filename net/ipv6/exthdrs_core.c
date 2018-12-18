@@ -161,7 +161,7 @@ EXPORT_SYMBOL_GPL(ipv6_find_tlv);
  * if target < 0. "last header" is transport protocol header, ESP, or
  * "No next header".
  *
- * Note that *offset is used as input/output parameter. an if it is not zero,
+ * Note that *offset is used as input/output parameter, and if it is not zero,
  * then it must be a valid offset to an inner IPv6 header. This can be used
  * to explore inner IPv6 header, eg. ICMPv6 error messages.
  *

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -30,8 +30,6 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
 
 #include <bfd.h>
 #include <ctype.h>
@@ -87,7 +85,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map | cgroup }\n"
+		"       OBJECT := { prog | map | cgroup | perf }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -216,6 +214,7 @@ static const struct cmd cmds[] = {
 	{ "prog",	do_prog },
 	{ "map",	do_map },
 	{ "cgroup",	do_cgroup },
+	{ "perf",	do_perf },
 	{ "version",	do_version },
 	{ 0 }
 };

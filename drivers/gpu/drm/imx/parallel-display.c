@@ -63,7 +63,7 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 	}
 
 	if (imxpd->edid) {
-		drm_mode_connector_update_edid_property(connector, imxpd->edid);
+		drm_connector_update_edid_property(connector, imxpd->edid);
 		num_modes = drm_add_edid_modes(connector, imxpd->edid);
 	}
 
@@ -197,7 +197,7 @@ static int imx_pd_register(struct drm_device *drm,
 			return ret;
 		}
 	} else {
-		drm_mode_connector_attach_encoder(&imxpd->connector, encoder);
+		drm_connector_attach_encoder(&imxpd->connector, encoder);
 	}
 
 	return 0;

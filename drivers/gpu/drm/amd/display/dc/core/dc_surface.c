@@ -38,6 +38,12 @@
 static void construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
 {
 	plane_state->ctx = ctx;
+
+	plane_state->gamma_correction = dc_create_gamma();
+	plane_state->gamma_correction->is_identity = true;
+
+	plane_state->in_transfer_func = dc_create_transfer_func();
+	plane_state->in_transfer_func->type = TF_TYPE_BYPASS;
 }
 
 static void destruct(struct dc_plane_state *plane_state)
@@ -66,8 +72,8 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 {
 	struct dc *core_dc = dc;
 
-	struct dc_plane_state *plane_state = kzalloc(sizeof(*plane_state),
-						     GFP_KERNEL);
+	struct dc_plane_state *plane_state = kvzalloc(sizeof(*plane_state),
+						      GFP_KERNEL);
 
 	if (NULL == plane_state)
 		return NULL;
@@ -78,6 +84,17 @@ struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 	return plane_state;
 }
 
+/**
+ *****************************************************************************
+ *  Function: dc_plane_get_status
+ *
+ *  @brief
+ *     Looks up the pipe context of plane_state and updates the pending status
+ *     of the pipe context. Then returns plane_state->status
+ *
+ *  @param [in] plane_state: pointer to the plane_state to get the status of
+ *****************************************************************************
+ */
 const struct dc_plane_status *dc_plane_get_status(
 		const struct dc_plane_state *plane_state)
 {
@@ -120,7 +137,7 @@ static void dc_plane_state_free(struct kref *kref)
 {
 	struct dc_plane_state *plane_state = container_of(kref, struct dc_plane_state, refcount);
 	destruct(plane_state);
-	kfree(plane_state);
+	kvfree(plane_state);
 }
 
 void dc_plane_state_release(struct dc_plane_state *plane_state)
@@ -136,7 +153,7 @@ void dc_gamma_retain(struct dc_gamma *gamma)
 static void dc_gamma_free(struct kref *kref)
 {
 	struct dc_gamma *gamma = container_of(kref, struct dc_gamma, refcount);
-	kfree(gamma);
+	kvfree(gamma);
 }
 
 void dc_gamma_release(struct dc_gamma **gamma)
@@ -147,7 +164,7 @@ void dc_gamma_release(struct dc_gamma **gamma)
 
 struct dc_gamma *dc_create_gamma(void)
 {
-	struct dc_gamma *gamma = kzalloc(sizeof(*gamma), GFP_KERNEL);
+	struct dc_gamma *gamma = kvzalloc(sizeof(*gamma), GFP_KERNEL);
 
 	if (gamma == NULL)
 		goto alloc_fail;
@@ -167,7 +184,7 @@ void dc_transfer_func_retain(struct dc_transfer_func *tf)
 static void dc_transfer_func_free(struct kref *kref)
 {
 	struct dc_transfer_func *tf = container_of(kref, struct dc_transfer_func, refcount);
-	kfree(tf);
+	kvfree(tf);
 }
 
 void dc_transfer_func_release(struct dc_transfer_func *tf)
@@ -177,7 +194,7 @@ void dc_transfer_func_release(struct dc_transfer_func *tf)
 
 struct dc_transfer_func *dc_create_transfer_func(void)
 {
-	struct dc_transfer_func *tf = kzalloc(sizeof(*tf), GFP_KERNEL);
+	struct dc_transfer_func *tf = kvzalloc(sizeof(*tf), GFP_KERNEL);
 
 	if (tf == NULL)
 		goto alloc_fail;

@@ -34,6 +34,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/pm_runtime.h>
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
@@ -227,14 +228,14 @@ static inline int wait_for_user_access(struct davinci_mdio_data *data)
 static inline int wait_for_idle(struct davinci_mdio_data *data)
 {
 	struct davinci_mdio_regs __iomem *regs = data->regs;
-	unsigned long timeout = jiffies + msecs_to_jiffies(MDIO_TIMEOUT);
+	u32 val, ret;
 
-	while (time_after(timeout, jiffies)) {
-		if (__raw_readl(&regs->control) & CONTROL_IDLE)
-			return 0;
-	}
-	dev_err(data->dev, "timed out waiting for idle\n");
-	return -ETIMEDOUT;
+	ret = readl_poll_timeout(&regs->control, val, val & CONTROL_IDLE,
+				 0, MDIO_TIMEOUT * 1000);
+	if (ret)
+		dev_err(data->dev, "timed out waiting for idle\n");
+
+	return ret;
 }
 
 static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
@@ -320,7 +321,6 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	return ret;
 }
 
-#if IS_ENABLED(CONFIG_OF)
 static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 			 struct platform_device *pdev)
 {
@@ -338,7 +338,6 @@ static int davinci_mdio_probe_dt(struct mdio_platform_data *data,
 
 	return 0;
 }
-#endif
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct davinci_mdio_of_param of_cpsw_mdio_data = {
@@ -373,7 +372,7 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (dev->of_node) {
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		const struct of_device_id	*of_id;
 
 		ret = davinci_mdio_probe_dt(&data->pdata, pdev);
@@ -428,12 +427,10 @@ static int davinci_mdio_probe(struct platform_device *pdev)
 	 * defined to support backward compatibility with DTs which assume that
 	 * Davinci MDIO will always scan the bus for PHYs detection.
 	 */
-	if (dev->of_node && of_get_child_count(dev->of_node)) {
+	if (dev->of_node && of_get_child_count(dev->of_node))
 		data->skip_scan = true;
-		ret = of_mdiobus_register(data->bus, dev->of_node);
-	} else {
-		ret = mdiobus_register(data->bus);
-	}
+
+	ret = of_mdiobus_register(data->bus, dev->of_node);
 	if (ret)
 		goto bail_out;
 

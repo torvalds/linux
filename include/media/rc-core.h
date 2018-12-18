@@ -347,6 +347,7 @@ static inline void ir_raw_event_reset(struct rc_dev *dev)
 	struct ir_raw_event ev = { .reset = true };
 
 	ir_raw_event_store(dev, &ev);
+	dev->idle = true;
 	ir_raw_event_handle(dev);
 }
 

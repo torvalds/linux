@@ -1029,19 +1029,3 @@ EXPORT_SYMBOL(snd_es1688_mixer_write);
 EXPORT_SYMBOL(snd_es1688_create);
 EXPORT_SYMBOL(snd_es1688_pcm);
 EXPORT_SYMBOL(snd_es1688_mixer);
-
-/*
- *  INIT part
- */
-
-static int __init alsa_es1688_init(void)
-{
-	return 0;
-}
-
-static void __exit alsa_es1688_exit(void)
-{
-}
-
-module_init(alsa_es1688_init)
-module_exit(alsa_es1688_exit)

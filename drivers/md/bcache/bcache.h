@@ -269,7 +269,7 @@ struct bcache_device {
 	atomic_t		*stripe_sectors_dirty;
 	unsigned long		*full_dirty_stripes;
 
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	unsigned		data_csum:1;
 
@@ -328,13 +328,6 @@ struct cached_dev {
 	 */
 	atomic_t		has_dirty;
 
-	/*
-	 * Set to zero by things that touch the backing volume-- except
-	 * writeback.  Incremented by writeback.  Used to determine when to
-	 * accelerate idle writeback.
-	 */
-	atomic_t		backing_idle;
-
 	struct bch_ratelimit	writeback_rate;
 	struct delayed_work	writeback_rate_update;
 
@@ -345,6 +338,7 @@ struct cached_dev {
 
 	struct keybuf		writeback_keys;
 
+	struct task_struct	*status_update_thread;
 	/*
 	 * Order the write-half of writeback operations strongly in dispatch
 	 * order.  (Maintain LBA order; don't allow reads completing out of
@@ -392,6 +386,9 @@ struct cached_dev {
 #define DEFAULT_CACHED_DEV_ERROR_LIMIT	64
 	atomic_t		io_errors;
 	unsigned		error_limit;
+	unsigned		offline_seconds;
+
+	char			backing_dev_name[BDEVNAME_SIZE];
 };
 
 enum alloc_reserve {
@@ -419,9 +416,9 @@ struct cache {
 	/*
 	 * When allocating new buckets, prio_write() gets first dibs - since we
 	 * may not be allocate at all without writing priorities and gens.
-	 * prio_buckets[] contains the last buckets we wrote priorities to (so
-	 * gc can mark them as metadata), prio_next[] contains the buckets
-	 * allocated for the next prio write.
+	 * prio_last_buckets[] contains the last buckets we wrote priorities to
+	 * (so gc can mark them as metadata), prio_buckets[] contains the
+	 * buckets allocated for the next prio write.
 	 */
 	uint64_t		*prio_buckets;
 	uint64_t		*prio_last_buckets;
@@ -464,10 +461,13 @@ struct cache {
 	atomic_long_t		meta_sectors_written;
 	atomic_long_t		btree_sectors_written;
 	atomic_long_t		sectors_written;
+
+	char			cache_dev_name[BDEVNAME_SIZE];
 };
 
 struct gc_stat {
 	size_t			nodes;
+	size_t			nodes_pre;
 	size_t			key_bytes;
 
 	size_t			nkeys;
@@ -508,6 +508,8 @@ struct cache_set {
 	struct cache_accounting accounting;
 
 	unsigned long		flags;
+	atomic_t		idle_counter;
+	atomic_t		at_max_writeback_rate;
 
 	struct cache_sb		sb;
 
@@ -517,16 +519,18 @@ struct cache_set {
 
 	struct bcache_device	**devices;
 	unsigned		devices_max_used;
+	atomic_t		attached_dev_nr;
 	struct list_head	cached_devs;
 	uint64_t		cached_dev_sectors;
+	atomic_long_t		flash_dev_dirty_sectors;
 	struct closure		caching;
 
 	struct closure		sb_write;
 	struct semaphore	sb_write_mutex;
 
-	mempool_t		*search;
-	mempool_t		*bio_meta;
-	struct bio_set		*bio_split;
+	mempool_t		search;
+	mempool_t		bio_meta;
+	struct bio_set		bio_split;
 
 	/* For the btree cache */
 	struct shrinker		shrink;
@@ -597,6 +601,10 @@ struct cache_set {
 	 */
 	atomic_t		rescale;
 	/*
+	 * used for GC, identify if any front side I/Os is inflight
+	 */
+	atomic_t		search_inflight;
+	/*
 	 * When we invalidate buckets, we use both the priority and the amount
 	 * of good data to determine which buckets to reuse first - to weight
 	 * those together consistently we keep track of the smallest nonzero
@@ -651,7 +659,7 @@ struct cache_set {
 	 * A btree node on disk could have too many bsets for an iterator to fit
 	 * on the stack - have to dynamically allocate them
 	 */
-	mempool_t		*fill_iter;
+	mempool_t		fill_iter;
 
 	struct bset_sort_state	sort;
 
@@ -952,8 +960,6 @@ void bch_prio_write(struct cache *);
 void bch_write_bdev_super(struct cached_dev *, struct closure *);
 
 extern struct workqueue_struct *bcache_wq;
-extern const char * const bch_cache_modes[];
-extern const char * const bch_stop_on_failure_modes[];
 extern struct mutex bch_register_lock;
 extern struct list_head bch_cache_sets;
 
@@ -991,7 +997,7 @@ void bch_open_buckets_free(struct cache_set *);
 int bch_cache_allocator_start(struct cache *ca);
 
 void bch_debug_exit(void);
-int bch_debug_init(struct kobject *);
+void bch_debug_init(struct kobject *kobj);
 void bch_request_exit(void);
 int bch_request_init(void);
 

@@ -121,7 +121,7 @@ static int alloc_and_prep_cprbmem(size_t paramblen,
 	 * allocate consecutive memory for request CPRB, request param
 	 * block, reply CPRB and reply param block
 	 */
-	cprbmem = kzalloc(2 * cprbplusparamblen, GFP_KERNEL);
+	cprbmem = kcalloc(2, cprbplusparamblen, GFP_KERNEL);
 	if (!cprbmem)
 		return -ENOMEM;
 
@@ -699,7 +699,7 @@ static int query_crypto_facility(u16 cardnr, u16 domain,
 	/* fill request cprb param block with FQ request */
 	preqparm = (struct fqreqparm *) preqcblk->req_parmb;
 	memcpy(preqparm->subfunc_code, "FQ", 2);
-	strncpy(preqparm->rule_array, keyword, sizeof(preqparm->rule_array));
+	memcpy(preqparm->rule_array, keyword, sizeof(preqparm->rule_array));
 	preqparm->rule_array_len =
 		sizeof(preqparm->rule_array_len) + sizeof(preqparm->rule_array);
 	preqparm->lv1.len = sizeof(preqparm->lv1);
@@ -899,9 +899,9 @@ int pkey_findcard(const struct pkey_seckey *seckey,
 		return -EINVAL;
 
 	/* fetch status of all crypto cards */
-	device_status = kmalloc(MAX_ZDEV_ENTRIES_EXT
-				* sizeof(struct zcrypt_device_status_ext),
-				GFP_KERNEL);
+	device_status = kmalloc_array(MAX_ZDEV_ENTRIES_EXT,
+				      sizeof(struct zcrypt_device_status_ext),
+				      GFP_KERNEL);
 	if (!device_status)
 		return -ENOMEM;
 	zcrypt_device_status_mask_ext(device_status);

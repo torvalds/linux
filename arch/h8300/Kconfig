@@ -48,40 +48,4 @@ config NR_CPUS
 	int
 	default 1
 
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
 source "arch/h8300/Kconfig.cpu"
-
-menu "Kernel Features"
-
-source "kernel/Kconfig.preempt"
-
-source "mm/Kconfig"
-
-endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-endmenu
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

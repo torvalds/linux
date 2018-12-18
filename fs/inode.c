@@ -178,6 +178,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
 	mapping->a_ops = &empty_aops;
 	mapping->host = inode;
 	mapping->flags = 0;
+	mapping->wb_err = 0;
 	atomic_set(&mapping->i_mmap_writable, 0);
 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
 	mapping->private_data = NULL;
@@ -803,6 +804,10 @@ repeat:
 			__wait_on_freeing_inode(inode);
 			goto repeat;
 		}
+		if (unlikely(inode->i_state & I_CREATING)) {
+			spin_unlock(&inode->i_lock);
+			return ERR_PTR(-ESTALE);
+		}
 		__iget(inode);
 		spin_unlock(&inode->i_lock);
 		return inode;
@@ -829,6 +834,10 @@ repeat:
 		if (inode->i_state & (I_FREEING|I_WILL_FREE)) {
 			__wait_on_freeing_inode(inode);
 			goto repeat;
+		}
+		if (unlikely(inode->i_state & I_CREATING)) {
+			spin_unlock(&inode->i_lock);
+			return ERR_PTR(-ESTALE);
 		}
 		__iget(inode);
 		spin_unlock(&inode->i_lock);
@@ -960,12 +969,25 @@ void unlock_new_inode(struct inode *inode)
 	lockdep_annotate_inode_mutex_key(inode);
 	spin_lock(&inode->i_lock);
 	WARN_ON(!(inode->i_state & I_NEW));
-	inode->i_state &= ~I_NEW;
+	inode->i_state &= ~I_NEW & ~I_CREATING;
 	smp_mb();
 	wake_up_bit(&inode->i_state, __I_NEW);
 	spin_unlock(&inode->i_lock);
 }
 EXPORT_SYMBOL(unlock_new_inode);
+
+void discard_new_inode(struct inode *inode)
+{
+	lockdep_annotate_inode_mutex_key(inode);
+	spin_lock(&inode->i_lock);
+	WARN_ON(!(inode->i_state & I_NEW));
+	inode->i_state &= ~I_NEW;
+	smp_mb();
+	wake_up_bit(&inode->i_state, __I_NEW);
+	spin_unlock(&inode->i_lock);
+	iput(inode);
+}
+EXPORT_SYMBOL(discard_new_inode);
 
 /**
  * lock_two_nondirectories - take two i_mutexes on non-directory objects
@@ -1003,6 +1025,75 @@ void unlock_two_nondirectories(struct inode *inode1, struct inode *inode2)
 EXPORT_SYMBOL(unlock_two_nondirectories);
 
 /**
+ * inode_insert5 - obtain an inode from a mounted file system
+ * @inode:	pre-allocated inode to use for insert to cache
+ * @hashval:	hash value (usually inode number) to get
+ * @test:	callback used for comparisons between inodes
+ * @set:	callback used to initialize a new struct inode
+ * @data:	opaque data pointer to pass to @test and @set
+ *
+ * Search for the inode specified by @hashval and @data in the inode cache,
+ * and if present it is return it with an increased reference count. This is
+ * a variant of iget5_locked() for callers that don't want to fail on memory
+ * allocation of inode.
+ *
+ * If the inode is not in cache, insert the pre-allocated inode to cache and
+ * return it locked, hashed, and with the I_NEW flag set. The file system gets
+ * to fill it in before unlocking it via unlock_new_inode().
+ *
+ * Note both @test and @set are called with the inode_hash_lock held, so can't
+ * sleep.
+ */
+struct inode *inode_insert5(struct inode *inode, unsigned long hashval,
+			    int (*test)(struct inode *, void *),
+			    int (*set)(struct inode *, void *), void *data)
+{
+	struct hlist_head *head = inode_hashtable + hash(inode->i_sb, hashval);
+	struct inode *old;
+	bool creating = inode->i_state & I_CREATING;
+
+again:
+	spin_lock(&inode_hash_lock);
+	old = find_inode(inode->i_sb, head, test, data);
+	if (unlikely(old)) {
+		/*
+		 * Uhhuh, somebody else created the same inode under us.
+		 * Use the old inode instead of the preallocated one.
+		 */
+		spin_unlock(&inode_hash_lock);
+		if (IS_ERR(old))
+			return NULL;
+		wait_on_inode(old);
+		if (unlikely(inode_unhashed(old))) {
+			iput(old);
+			goto again;
+		}
+		return old;
+	}
+
+	if (set && unlikely(set(inode, data))) {
+		inode = NULL;
+		goto unlock;
+	}
+
+	/*
+	 * Return the locked inode with I_NEW set, the
+	 * caller is responsible for filling in the contents
+	 */
+	spin_lock(&inode->i_lock);
+	inode->i_state |= I_NEW;
+	hlist_add_head(&inode->i_hash, head);
+	spin_unlock(&inode->i_lock);
+	if (!creating)
+		inode_sb_list_add(inode);
+unlock:
+	spin_unlock(&inode_hash_lock);
+
+	return inode;
+}
+EXPORT_SYMBOL(inode_insert5);
+
+/**
  * iget5_locked - obtain an inode from a mounted file system
  * @sb:		super block of file system
  * @hashval:	hash value (usually inode number) to get
@@ -1026,66 +1117,19 @@ struct inode *iget5_locked(struct super_block *sb, unsigned long hashval,
 		int (*test)(struct inode *, void *),
 		int (*set)(struct inode *, void *), void *data)
 {
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
-	struct inode *inode;
-again:
-	spin_lock(&inode_hash_lock);
-	inode = find_inode(sb, head, test, data);
-	spin_unlock(&inode_hash_lock);
+	struct inode *inode = ilookup5(sb, hashval, test, data);
 
-	if (inode) {
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
-			goto again;
-		}
-		return inode;
-	}
+	if (!inode) {
+		struct inode *new = alloc_inode(sb);
 
-	inode = alloc_inode(sb);
-	if (inode) {
-		struct inode *old;
-
-		spin_lock(&inode_hash_lock);
-		/* We released the lock, so.. */
-		old = find_inode(sb, head, test, data);
-		if (!old) {
-			if (set(inode, data))
-				goto set_failed;
-
-			spin_lock(&inode->i_lock);
-			inode->i_state = I_NEW;
-			hlist_add_head(&inode->i_hash, head);
-			spin_unlock(&inode->i_lock);
-			inode_sb_list_add(inode);
-			spin_unlock(&inode_hash_lock);
-
-			/* Return the locked inode with I_NEW set, the
-			 * caller is responsible for filling in the contents
-			 */
-			return inode;
-		}
-
-		/*
-		 * Uhhuh, somebody else created the same inode under
-		 * us. Use the old inode instead of the one we just
-		 * allocated.
-		 */
-		spin_unlock(&inode_hash_lock);
-		destroy_inode(inode);
-		inode = old;
-		wait_on_inode(inode);
-		if (unlikely(inode_unhashed(inode))) {
-			iput(inode);
-			goto again;
+		if (new) {
+			new->i_state = 0;
+			inode = inode_insert5(new, hashval, test, set, data);
+			if (unlikely(inode != new))
+				destroy_inode(new);
 		}
 	}
 	return inode;
-
-set_failed:
-	spin_unlock(&inode_hash_lock);
-	destroy_inode(inode);
-	return NULL;
 }
 EXPORT_SYMBOL(iget5_locked);
 
@@ -1111,6 +1155,8 @@ again:
 	inode = find_inode_fast(sb, head, ino);
 	spin_unlock(&inode_hash_lock);
 	if (inode) {
+		if (IS_ERR(inode))
+			return NULL;
 		wait_on_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
@@ -1148,6 +1194,8 @@ again:
 		 */
 		spin_unlock(&inode_hash_lock);
 		destroy_inode(inode);
+		if (IS_ERR(old))
+			return NULL;
 		inode = old;
 		wait_on_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
@@ -1265,7 +1313,7 @@ struct inode *ilookup5_nowait(struct super_block *sb, unsigned long hashval,
 	inode = find_inode(sb, head, test, data);
 	spin_unlock(&inode_hash_lock);
 
-	return inode;
+	return IS_ERR(inode) ? NULL : inode;
 }
 EXPORT_SYMBOL(ilookup5_nowait);
 
@@ -1321,6 +1369,8 @@ again:
 	spin_unlock(&inode_hash_lock);
 
 	if (inode) {
+		if (IS_ERR(inode))
+			return NULL;
 		wait_on_inode(inode);
 		if (unlikely(inode_unhashed(inode))) {
 			iput(inode);
@@ -1404,11 +1454,16 @@ int insert_inode_locked(struct inode *inode)
 		}
 		if (likely(!old)) {
 			spin_lock(&inode->i_lock);
-			inode->i_state |= I_NEW;
+			inode->i_state |= I_NEW | I_CREATING;
 			hlist_add_head(&inode->i_hash, head);
 			spin_unlock(&inode->i_lock);
 			spin_unlock(&inode_hash_lock);
 			return 0;
+		}
+		if (unlikely(old->i_state & I_CREATING)) {
+			spin_unlock(&old->i_lock);
+			spin_unlock(&inode_hash_lock);
+			return -EBUSY;
 		}
 		__iget(old);
 		spin_unlock(&old->i_lock);
@@ -1426,43 +1481,16 @@ EXPORT_SYMBOL(insert_inode_locked);
 int insert_inode_locked4(struct inode *inode, unsigned long hashval,
 		int (*test)(struct inode *, void *), void *data)
 {
-	struct super_block *sb = inode->i_sb;
-	struct hlist_head *head = inode_hashtable + hash(sb, hashval);
+	struct inode *old;
 
-	while (1) {
-		struct inode *old = NULL;
+	inode->i_state |= I_CREATING;
+	old = inode_insert5(inode, hashval, test, NULL, data);
 
-		spin_lock(&inode_hash_lock);
-		hlist_for_each_entry(old, head, i_hash) {
-			if (old->i_sb != sb)
-				continue;
-			if (!test(old, data))
-				continue;
-			spin_lock(&old->i_lock);
-			if (old->i_state & (I_FREEING|I_WILL_FREE)) {
-				spin_unlock(&old->i_lock);
-				continue;
-			}
-			break;
-		}
-		if (likely(!old)) {
-			spin_lock(&inode->i_lock);
-			inode->i_state |= I_NEW;
-			hlist_add_head(&inode->i_hash, head);
-			spin_unlock(&inode->i_lock);
-			spin_unlock(&inode_hash_lock);
-			return 0;
-		}
-		__iget(old);
-		spin_unlock(&old->i_lock);
-		spin_unlock(&inode_hash_lock);
-		wait_on_inode(old);
-		if (unlikely(!inode_unhashed(old))) {
-			iput(old);
-			return -EBUSY;
-		}
+	if (old != inode) {
 		iput(old);
+		return -EBUSY;
 	}
+	return 0;
 }
 EXPORT_SYMBOL(insert_inode_locked4);
 
@@ -1590,8 +1618,8 @@ static void update_ovl_inode_times(struct dentry *dentry, struct inode *inode,
 	if (upperdentry) {
 		struct inode *realinode = d_inode(upperdentry);
 
-		if ((!timespec_equal(&inode->i_mtime, &realinode->i_mtime) ||
-		     !timespec_equal(&inode->i_ctime, &realinode->i_ctime))) {
+		if ((!timespec64_equal(&inode->i_mtime, &realinode->i_mtime) ||
+		     !timespec64_equal(&inode->i_ctime, &realinode->i_ctime))) {
 			inode->i_mtime = realinode->i_mtime;
 			inode->i_ctime = realinode->i_ctime;
 		}
@@ -1614,12 +1642,12 @@ static int relatime_need_update(const struct path *path, struct inode *inode,
 	/*
 	 * Is mtime younger than atime? If yes, update atime:
 	 */
-	if (timespec_compare(&inode->i_mtime, &inode->i_atime) >= 0)
+	if (timespec64_compare(&inode->i_mtime, &inode->i_atime) >= 0)
 		return 1;
 	/*
 	 * Is ctime younger than atime? If yes, update atime:
 	 */
-	if (timespec_compare(&inode->i_ctime, &inode->i_atime) >= 0)
+	if (timespec64_compare(&inode->i_ctime, &inode->i_atime) >= 0)
 		return 1;
 
 	/*
@@ -1634,7 +1662,7 @@ static int relatime_need_update(const struct path *path, struct inode *inode,
 	return 0;
 }
 
-int generic_update_time(struct inode *inode, struct timespec *time, int flags)
+int generic_update_time(struct inode *inode, struct timespec64 *time, int flags)
 {
 	int iflags = I_DIRTY_TIME;
 	bool dirty = false;
@@ -1662,9 +1690,9 @@ EXPORT_SYMBOL(generic_update_time);
  * This does the actual work of updating an inodes time or version.  Must have
  * had called mnt_want_write() before calling this.
  */
-static int update_time(struct inode *inode, struct timespec *time, int flags)
+static int update_time(struct inode *inode, struct timespec64 *time, int flags)
 {
-	int (*update_time)(struct inode *, struct timespec *, int);
+	int (*update_time)(struct inode *, struct timespec64 *, int);
 
 	update_time = inode->i_op->update_time ? inode->i_op->update_time :
 		generic_update_time;
@@ -1685,7 +1713,7 @@ bool __atime_needs_update(const struct path *path, struct inode *inode,
 			  bool rcu)
 {
 	struct vfsmount *mnt = path->mnt;
-	struct timespec now;
+	struct timespec64 now;
 
 	if (inode->i_flags & S_NOATIME)
 		return false;
@@ -1708,10 +1736,10 @@ bool __atime_needs_update(const struct path *path, struct inode *inode,
 
 	now = current_time(inode);
 
-	if (!relatime_need_update(path, inode, now, rcu))
+	if (!relatime_need_update(path, inode, timespec64_to_timespec(now), rcu))
 		return false;
 
-	if (timespec_equal(&inode->i_atime, &now))
+	if (timespec64_equal(&inode->i_atime, &now))
 		return false;
 
 	return true;
@@ -1721,7 +1749,7 @@ void touch_atime(const struct path *path)
 {
 	struct vfsmount *mnt = path->mnt;
 	struct inode *inode = d_inode(path->dentry);
-	struct timespec now;
+	struct timespec64 now;
 
 	if (!__atime_needs_update(path, inode, false))
 		return;
@@ -1855,7 +1883,7 @@ EXPORT_SYMBOL(file_remove_privs);
 int file_update_time(struct file *file)
 {
 	struct inode *inode = file_inode(file);
-	struct timespec now;
+	struct timespec64 now;
 	int sync_it = 0;
 	int ret;
 
@@ -1864,10 +1892,10 @@ int file_update_time(struct file *file)
 		return 0;
 
 	now = current_time(inode);
-	if (!timespec_equal(&inode->i_mtime, &now))
+	if (!timespec64_equal(&inode->i_mtime, &now))
 		sync_it = S_MTIME;
 
-	if (!timespec_equal(&inode->i_ctime, &now))
+	if (!timespec64_equal(&inode->i_ctime, &now))
 		sync_it |= S_CTIME;
 
 	if (IS_I_VERSION(inode) && inode_iversion_need_inc(inode))
@@ -2012,8 +2040,14 @@ void inode_init_owner(struct inode *inode, const struct inode *dir,
 	inode->i_uid = current_fsuid();
 	if (dir && dir->i_mode & S_ISGID) {
 		inode->i_gid = dir->i_gid;
+
+		/* Directories are special, and always inherit S_ISGID */
 		if (S_ISDIR(mode))
 			mode |= S_ISGID;
+		else if ((mode & (S_ISGID | S_IXGRP)) == (S_ISGID | S_IXGRP) &&
+			 !in_group_p(inode->i_gid) &&
+			 !capable_wrt_inode_uidgid(dir, CAP_FSETID))
+			mode &= ~S_ISGID;
 	} else
 		inode->i_gid = current_fsgid();
 	inode->i_mode = mode;
@@ -2111,6 +2145,30 @@ void inode_nohighmem(struct inode *inode)
 EXPORT_SYMBOL(inode_nohighmem);
 
 /**
+ * timespec64_trunc - Truncate timespec64 to a granularity
+ * @t: Timespec64
+ * @gran: Granularity in ns.
+ *
+ * Truncate a timespec64 to a granularity. Always rounds down. gran must
+ * not be 0 nor greater than a second (NSEC_PER_SEC, or 10^9 ns).
+ */
+struct timespec64 timespec64_trunc(struct timespec64 t, unsigned gran)
+{
+	/* Avoid division in the common cases 1 ns and 1 s. */
+	if (gran == 1) {
+		/* nothing */
+	} else if (gran == NSEC_PER_SEC) {
+		t.tv_nsec = 0;
+	} else if (gran > 1 && gran < NSEC_PER_SEC) {
+		t.tv_nsec -= t.tv_nsec % gran;
+	} else {
+		WARN(1, "illegal file time granularity: %u", gran);
+	}
+	return t;
+}
+EXPORT_SYMBOL(timespec64_trunc);
+
+/**
  * current_time - Return FS time
  * @inode: inode.
  *
@@ -2120,15 +2178,15 @@ EXPORT_SYMBOL(inode_nohighmem);
  * Note that inode and inode->sb cannot be NULL.
  * Otherwise, the function warns and returns time without truncation.
  */
-struct timespec current_time(struct inode *inode)
+struct timespec64 current_time(struct inode *inode)
 {
-	struct timespec now = current_kernel_time();
+	struct timespec64 now = current_kernel_time64();
 
 	if (unlikely(!inode->i_sb)) {
 		WARN(1, "current_time() called with uninitialized super_block in the inode");
 		return now;
 	}
 
-	return timespec_trunc(now, inode->i_sb->s_time_gran);
+	return timespec64_trunc(now, inode->i_sb->s_time_gran);
 }
 EXPORT_SYMBOL(current_time);

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /* uio_pci_generic - generic UIO driver for PCI 2.3 devices
  *
  * Copyright (C) 2009 Red Hat, Inc.
  * Author: Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
  *
  * Since the driver does not declare any device ids, you must allocate
  * id and bind the device to the driver yourself.  For example:

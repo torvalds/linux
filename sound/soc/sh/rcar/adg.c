@@ -1,12 +1,9 @@
-/*
- * Helper routines for R-Car sound ADG.
- *
- *  Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Helper routines for R-Car sound ADG.
+//
+//  Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+
 #include <linux/clk-provider.h>
 #include "rsnd.h"
 

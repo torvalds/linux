@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
 	bool
@@ -39,5 +36,3 @@ config MATHEMU
 	  This option is required for IEEE compliant floating point arithmetic
 	  on the Alpha. The only time you would ever not say Y is to say M in
 	  order to debug the code. Say Y unless you know what you are doing.
-
-endmenu

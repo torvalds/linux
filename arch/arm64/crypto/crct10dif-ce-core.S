@@ -74,13 +74,19 @@
 	.text
 	.cpu		generic+crypto
 
-	arg1_low32	.req	w0
-	arg2		.req	x1
-	arg3		.req	x2
+	arg1_low32	.req	w19
+	arg2		.req	x20
+	arg3		.req	x21
 
 	vzr		.req	v13
 
 ENTRY(crc_t10dif_pmull)
+	frame_push	3, 128
+
+	mov		arg1_low32, w0
+	mov		arg2, x1
+	mov		arg3, x2
+
 	movi		vzr.16b, #0		// init zero register
 
 	// adjust the 16-bit initial_crc value, scale it to 32 bits
@@ -175,8 +181,25 @@ CPU_LE(	ext		v12.16b, v12.16b, v12.16b, #8	)
 	subs		arg3, arg3, #128
 
 	// check if there is another 64B in the buffer to be able to fold
-	b.ge		_fold_64_B_loop
+	b.lt		_fold_64_B_end
 
+	if_will_cond_yield_neon
+	stp		q0, q1, [sp, #.Lframe_local_offset]
+	stp		q2, q3, [sp, #.Lframe_local_offset + 32]
+	stp		q4, q5, [sp, #.Lframe_local_offset + 64]
+	stp		q6, q7, [sp, #.Lframe_local_offset + 96]
+	do_cond_yield_neon
+	ldp		q0, q1, [sp, #.Lframe_local_offset]
+	ldp		q2, q3, [sp, #.Lframe_local_offset + 32]
+	ldp		q4, q5, [sp, #.Lframe_local_offset + 64]
+	ldp		q6, q7, [sp, #.Lframe_local_offset + 96]
+	ldr_l		q10, rk3, x8
+	movi		vzr.16b, #0		// init zero register
+	endif_yield_neon
+
+	b		_fold_64_B_loop
+
+_fold_64_B_end:
 	// at this point, the buffer pointer is pointing at the last y Bytes
 	// of the buffer the 64B of folded data is in 4 of the vector
 	// registers: v0, v1, v2, v3
@@ -304,6 +327,7 @@ _barrett:
 _cleanup:
 	// scale the result back to 16 bits
 	lsr		x0, x0, #16
+	frame_pop
 	ret
 
 _less_than_128:

@@ -143,7 +143,7 @@ static u8 wait_chip_ready(struct orc_host * host)
 	for (i = 0; i < 10; i++) {	/* Wait 1 second for report timeout     */
 		if (inb(host->base + ORC_HCTRL) & HOSTSTOP)	/* Wait HOSTSTOP set */
 			return 1;
-		mdelay(100);
+		msleep(100);
 	}
 	return 0;
 }
@@ -155,7 +155,7 @@ static u8 wait_firmware_ready(struct orc_host * host)
 	for (i = 0; i < 10; i++) {	/* Wait 1 second for report timeout     */
 		if (inb(host->base + ORC_HSTUS) & RREADY)		/* Wait READY set */
 			return 1;
-		mdelay(100);	/* wait 100ms before try again  */
+		msleep(100);	/* wait 100ms before try again  */
 	}
 	return 0;
 }
@@ -1222,19 +1222,8 @@ static struct pci_driver inia100_pci_driver = {
 	.remove		= inia100_remove_one,
 };
 
-static int __init inia100_init(void)
-{
-	return pci_register_driver(&inia100_pci_driver);
-}
-
-static void __exit inia100_exit(void)
-{
-	pci_unregister_driver(&inia100_pci_driver);
-}
+module_pci_driver(inia100_pci_driver);
 
 MODULE_DESCRIPTION("Initio A100U2W SCSI driver");
 MODULE_AUTHOR("Initio Corporation");
 MODULE_LICENSE("Dual BSD/GPL");
-
-module_init(inia100_init);
-module_exit(inia100_exit);

@@ -922,7 +922,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				     const bool new_inline,
 				     struct extent_map *em)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->vfs_inode.i_sb);
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	struct btrfs_root *root = inode->root;
 	struct extent_buffer *leaf = path->nodes[0];
 	const int slot = path->slots[0];
@@ -942,7 +942,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 			btrfs_file_extent_num_bytes(leaf, fi);
 	} else if (type == BTRFS_FILE_EXTENT_INLINE) {
 		size_t size;
-		size = btrfs_file_extent_inline_len(leaf, slot, fi);
+		size = btrfs_file_extent_ram_bytes(leaf, fi);
 		extent_end = ALIGN(extent_start + size,
 				   fs_info->sectorsize);
 	}

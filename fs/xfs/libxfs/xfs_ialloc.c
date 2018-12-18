@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -133,22 +121,51 @@ xfs_inobt_get_rec(
 	struct xfs_inobt_rec_incore	*irec,
 	int				*stat)
 {
+	struct xfs_mount		*mp = cur->bc_mp;
+	xfs_agnumber_t			agno = cur->bc_private.a.agno;
 	union xfs_btree_rec		*rec;
 	int				error;
+	uint64_t			realfree;
 
 	error = xfs_btree_get_rec(cur, &rec, stat);
 	if (error || *stat == 0)
 		return error;
 
-	xfs_inobt_btrec_to_irec(cur->bc_mp, rec, irec);
+	xfs_inobt_btrec_to_irec(mp, rec, irec);
+
+	if (!xfs_verify_agino(mp, agno, irec->ir_startino))
+		goto out_bad_rec;
+	if (irec->ir_count < XFS_INODES_PER_HOLEMASK_BIT ||
+	    irec->ir_count > XFS_INODES_PER_CHUNK)
+		goto out_bad_rec;
+	if (irec->ir_freecount > XFS_INODES_PER_CHUNK)
+		goto out_bad_rec;
+
+	/* if there are no holes, return the first available offset */
+	if (!xfs_inobt_issparse(irec->ir_holemask))
+		realfree = irec->ir_free;
+	else
+		realfree = irec->ir_free & xfs_inobt_irec_to_allocmask(irec);
+	if (hweight64(realfree) != irec->ir_freecount)
+		goto out_bad_rec;
 
 	return 0;
+
+out_bad_rec:
+	xfs_warn(mp,
+		"%s Inode BTree record corruption in AG %d detected!",
+		cur->bc_btnum == XFS_BTNUM_INO ? "Used" : "Free", agno);
+	xfs_warn(mp,
+"start inode 0x%x, count 0x%x, free 0x%x freemask 0x%llx, holemask 0x%x",
+		irec->ir_startino, irec->ir_count, irec->ir_freecount,
+		irec->ir_free, irec->ir_holemask);
+	return -EFSCORRUPTED;
 }
 
 /*
  * Insert a single inobt record. Cursor must already point to desired location.
  */
-STATIC int
+int
 xfs_inobt_insert_rec(
 	struct xfs_btree_cur	*cur,
 	uint16_t		holemask,
@@ -880,6 +897,7 @@ sparse_alloc:
 	be32_add_cpu(&agi->agi_freecount, newlen);
 	pag = xfs_perag_get(args.mp, agno);
 	pag->pagi_freecount += newlen;
+	pag->pagi_count += newlen;
 	xfs_perag_put(pag);
 	agi->agi_newino = cpu_to_be32(newino);
 
@@ -1820,23 +1838,24 @@ out_error:
  */
 STATIC void
 xfs_difree_inode_chunk(
-	struct xfs_mount		*mp,
+	struct xfs_trans		*tp,
 	xfs_agnumber_t			agno,
-	struct xfs_inobt_rec_incore	*rec,
-	struct xfs_defer_ops		*dfops)
+	struct xfs_inobt_rec_incore	*rec)
 {
-	xfs_agblock_t	sagbno = XFS_AGINO_TO_AGBNO(mp, rec->ir_startino);
-	int		startidx, endidx;
-	int		nextbit;
-	xfs_agblock_t	agbno;
-	int		contigblk;
-	struct xfs_owner_info	oinfo;
+	struct xfs_mount		*mp = tp->t_mountp;
+	xfs_agblock_t			sagbno = XFS_AGINO_TO_AGBNO(mp,
+							rec->ir_startino);
+	int				startidx, endidx;
+	int				nextbit;
+	xfs_agblock_t			agbno;
+	int				contigblk;
+	struct xfs_owner_info		oinfo;
 	DECLARE_BITMAP(holemask, XFS_INOBT_HOLEMASK_BITS);
 	xfs_rmap_ag_owner(&oinfo, XFS_RMAP_OWN_INODES);
 
 	if (!xfs_inobt_issparse(rec->ir_holemask)) {
 		/* not sparse, calculate extent info directly */
-		xfs_bmap_add_free(mp, dfops, XFS_AGB_TO_FSB(mp, agno, sagbno),
+		xfs_bmap_add_free(tp, XFS_AGB_TO_FSB(mp, agno, sagbno),
 				  mp->m_ialloc_blks, &oinfo);
 		return;
 	}
@@ -1880,7 +1899,7 @@ xfs_difree_inode_chunk(
 
 		ASSERT(agbno % mp->m_sb.sb_spino_align == 0);
 		ASSERT(contigblk % mp->m_sb.sb_spino_align == 0);
-		xfs_bmap_add_free(mp, dfops, XFS_AGB_TO_FSB(mp, agno, agbno),
+		xfs_bmap_add_free(tp, XFS_AGB_TO_FSB(mp, agno, agbno),
 				  contigblk, &oinfo);
 
 		/* reset range to current bit and carry on... */
@@ -1897,7 +1916,6 @@ xfs_difree_inobt(
 	struct xfs_trans		*tp,
 	struct xfs_buf			*agbp,
 	xfs_agino_t			agino,
-	struct xfs_defer_ops		*dfops,
 	struct xfs_icluster		*xic,
 	struct xfs_inobt_rec_incore	*orec)
 {
@@ -1974,6 +1992,7 @@ xfs_difree_inobt(
 		xfs_ialloc_log_agi(tp, agbp, XFS_AGI_COUNT | XFS_AGI_FREECOUNT);
 		pag = xfs_perag_get(mp, agno);
 		pag->pagi_freecount -= ilen - 1;
+		pag->pagi_count -= ilen;
 		xfs_perag_put(pag);
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_ICOUNT, -ilen);
 		xfs_trans_mod_sb(tp, XFS_TRANS_SB_IFREE, -(ilen - 1));
@@ -1984,7 +2003,7 @@ xfs_difree_inobt(
 			goto error0;
 		}
 
-		xfs_difree_inode_chunk(mp, agno, &rec, dfops);
+		xfs_difree_inode_chunk(tp, agno, &rec);
 	} else {
 		xic->deleted = false;
 
@@ -2129,7 +2148,6 @@ int
 xfs_difree(
 	struct xfs_trans	*tp,		/* transaction pointer */
 	xfs_ino_t		inode,		/* inode to be freed */
-	struct xfs_defer_ops	*dfops,		/* extents to free */
 	struct xfs_icluster	*xic)	/* cluster info if deleted */
 {
 	/* REFERENCED */
@@ -2181,7 +2199,7 @@ xfs_difree(
 	/*
 	 * Fix up the inode allocation btree.
 	 */
-	error = xfs_difree_inobt(mp, tp, agbp, agino, dfops, xic, &rec);
+	error = xfs_difree_inobt(mp, tp, agbp, agino, xic, &rec);
 	if (error)
 		goto error0;
 
@@ -2241,7 +2259,7 @@ xfs_imap_lookup(
 	}
 
 	xfs_trans_brelse(tp, agbp);
-	xfs_btree_del_cursor(cur, error ? XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+	xfs_btree_del_cursor(cur, error);
 	if (error)
 		return error;
 
@@ -2477,26 +2495,13 @@ xfs_ialloc_log_agi(
 	}
 }
 
-#ifdef DEBUG
-STATIC void
-xfs_check_agi_unlinked(
-	struct xfs_agi		*agi)
-{
-	int			i;
-
-	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++)
-		ASSERT(agi->agi_unlinked[i]);
-}
-#else
-#define xfs_check_agi_unlinked(agi)
-#endif
-
 static xfs_failaddr_t
 xfs_agi_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	struct xfs_agi	*agi = XFS_BUF_TO_AGI(bp);
+	int		i;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
 		if (!uuid_equal(&agi->agi_uuid, &mp->m_sb.sb_meta_uuid))
@@ -2532,7 +2537,13 @@ xfs_agi_verify(
 	if (bp->b_pag && be32_to_cpu(agi->agi_seqno) != bp->b_pag->pag_agno)
 		return __this_address;
 
-	xfs_check_agi_unlinked(agi);
+	for (i = 0; i < XFS_AGI_UNLINKED_BUCKETS; i++) {
+		if (agi->agi_unlinked[i] == cpu_to_be32(NULLAGINO))
+			continue;
+		if (!xfs_verify_ino(mp, be32_to_cpu(agi->agi_unlinked[i])))
+			return __this_address;
+	}
+
 	return NULL;
 }
 
@@ -2662,96 +2673,6 @@ xfs_ialloc_pagi_init(
 	if (bp)
 		xfs_trans_brelse(tp, bp);
 	return 0;
-}
-
-/* Calculate the first and last possible inode number in an AG. */
-void
-xfs_ialloc_agino_range(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		*first,
-	xfs_agino_t		*last)
-{
-	xfs_agblock_t		bno;
-	xfs_agblock_t		eoag;
-
-	eoag = xfs_ag_block_count(mp, agno);
-
-	/*
-	 * Calculate the first inode, which will be in the first
-	 * cluster-aligned block after the AGFL.
-	 */
-	bno = round_up(XFS_AGFL_BLOCK(mp) + 1,
-			xfs_ialloc_cluster_alignment(mp));
-	*first = XFS_OFFBNO_TO_AGINO(mp, bno, 0);
-
-	/*
-	 * Calculate the last inode, which will be at the end of the
-	 * last (aligned) cluster that can be allocated in the AG.
-	 */
-	bno = round_down(eoag, xfs_ialloc_cluster_alignment(mp));
-	*last = XFS_OFFBNO_TO_AGINO(mp, bno, 0) - 1;
-}
-
-/*
- * Verify that an AG inode number pointer neither points outside the AG
- * nor points at static metadata.
- */
-bool
-xfs_verify_agino(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
-	xfs_agino_t		agino)
-{
-	xfs_agino_t		first;
-	xfs_agino_t		last;
-
-	xfs_ialloc_agino_range(mp, agno, &first, &last);
-	return agino >= first && agino <= last;
-}
-
-/*
- * Verify that an FS inode number pointer neither points outside the
- * filesystem nor points at static AG metadata.
- */
-bool
-xfs_verify_ino(
-	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
-{
-	xfs_agnumber_t		agno = XFS_INO_TO_AGNO(mp, ino);
-	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ino);
-
-	if (agno >= mp->m_sb.sb_agcount)
-		return false;
-	if (XFS_AGINO_TO_INO(mp, agno, agino) != ino)
-		return false;
-	return xfs_verify_agino(mp, agno, agino);
-}
-
-/* Is this an internal inode number? */
-bool
-xfs_internal_inum(
-	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
-{
-	return ino == mp->m_sb.sb_rbmino || ino == mp->m_sb.sb_rsumino ||
-		(xfs_sb_version_hasquota(&mp->m_sb) &&
-		 xfs_is_quota_inode(&mp->m_sb, ino));
-}
-
-/*
- * Verify that a directory entry's inode number doesn't point at an internal
- * inode, empty space, or static AG metadata.
- */
-bool
-xfs_verify_dir_ino(
-	struct xfs_mount	*mp,
-	xfs_ino_t		ino)
-{
-	if (xfs_internal_inum(mp, ino))
-		return false;
-	return xfs_verify_ino(mp, ino);
 }
 
 /* Is there an inode record covering a given range of inode numbers? */

@@ -25,6 +25,7 @@
 #include "mac.h"
 
 #include <linux/log2.h>
+#include <linux/bitfield.h>
 
 /* when under memory pressure rx ring refill may fail and needs a retry */
 #define HTT_RX_RING_REFILL_RETRY_MS 50
@@ -181,7 +182,7 @@ static int __ath10k_htt_rx_ring_fill_n(struct ath10k_htt *htt, int num)
 		rxcb = ATH10K_SKB_RXCB(skb);
 		rxcb->paddr = paddr;
 		htt->rx_ring.netbufs_ring[idx] = skb;
-		htt->rx_ops->htt_set_paddrs_ring(htt, paddr, idx);
+		ath10k_htt_set_paddrs_ring(htt, paddr, idx);
 		htt->rx_ring.fill_cnt++;
 
 		if (htt->rx_ring.in_ord_rx) {
@@ -267,10 +268,11 @@ int ath10k_htt_rx_ring_refill(struct ath10k *ar)
 	spin_lock_bh(&htt->rx_ring.lock);
 	ret = ath10k_htt_rx_ring_fill_n(htt, (htt->rx_ring.fill_level -
 					      htt->rx_ring.fill_cnt));
-	spin_unlock_bh(&htt->rx_ring.lock);
 
 	if (ret)
 		ath10k_htt_rx_ring_free(htt);
+
+	spin_unlock_bh(&htt->rx_ring.lock);
 
 	return ret;
 }
@@ -283,11 +285,13 @@ void ath10k_htt_rx_free(struct ath10k_htt *htt)
 	skb_queue_purge(&htt->rx_in_ord_compl_q);
 	skb_queue_purge(&htt->tx_fetch_ind_q);
 
+	spin_lock_bh(&htt->rx_ring.lock);
 	ath10k_htt_rx_ring_free(htt);
+	spin_unlock_bh(&htt->rx_ring.lock);
 
 	dma_free_coherent(htt->ar->dev,
-			  htt->rx_ops->htt_get_rx_ring_size(htt),
-			  htt->rx_ops->htt_get_vaddr_ring(htt),
+			  ath10k_htt_get_rx_ring_size(htt),
+			  ath10k_htt_get_vaddr_ring(htt),
 			  htt->rx_ring.base_paddr);
 
 	dma_free_coherent(htt->ar->dev,
@@ -314,7 +318,7 @@ static inline struct sk_buff *ath10k_htt_rx_netbuf_pop(struct ath10k_htt *htt)
 	idx = htt->rx_ring.sw_rd_idx.msdu_payld;
 	msdu = htt->rx_ring.netbufs_ring[idx];
 	htt->rx_ring.netbufs_ring[idx] = NULL;
-	htt->rx_ops->htt_reset_paddrs_ring(htt, idx);
+	ath10k_htt_reset_paddrs_ring(htt, idx);
 
 	idx++;
 	idx &= htt->rx_ring.size_mask;
@@ -581,18 +585,18 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 	}
 
 	htt->rx_ring.netbufs_ring =
-		kzalloc(htt->rx_ring.size * sizeof(struct sk_buff *),
+		kcalloc(htt->rx_ring.size, sizeof(struct sk_buff *),
 			GFP_KERNEL);
 	if (!htt->rx_ring.netbufs_ring)
 		goto err_netbuf;
 
-	size = htt->rx_ops->htt_get_rx_ring_size(htt);
+	size = ath10k_htt_get_rx_ring_size(htt);
 
 	vaddr_ring = dma_alloc_coherent(htt->ar->dev, size, &paddr, GFP_KERNEL);
 	if (!vaddr_ring)
 		goto err_dma_ring;
 
-	htt->rx_ops->htt_config_paddrs_ring(htt, vaddr_ring);
+	ath10k_htt_config_paddrs_ring(htt, vaddr_ring);
 	htt->rx_ring.base_paddr = paddr;
 
 	vaddr = dma_alloc_coherent(htt->ar->dev,
@@ -626,7 +630,7 @@ int ath10k_htt_rx_alloc(struct ath10k_htt *htt)
 
 err_dma_idx:
 	dma_free_coherent(htt->ar->dev,
-			  htt->rx_ops->htt_get_rx_ring_size(htt),
+			  ath10k_htt_get_rx_ring_size(htt),
 			  vaddr_ring,
 			  htt->rx_ring.base_paddr);
 err_dma_ring:
@@ -1088,7 +1092,7 @@ static void ath10k_htt_rx_h_queue_msdu(struct ath10k *ar,
 	status = IEEE80211_SKB_RXCB(skb);
 	*status = *rx_status;
 
-	__skb_queue_tail(&ar->htt.rx_msdus_q, skb);
+	skb_queue_tail(&ar->htt.rx_msdus_q, skb);
 }
 
 static void ath10k_process_rx(struct ath10k *ar, struct sk_buff *skb)
@@ -2719,12 +2723,21 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 	case HTT_T2H_MSG_TYPE_MGMT_TX_COMPLETION: {
 		struct htt_tx_done tx_done = {};
 		int status = __le32_to_cpu(resp->mgmt_tx_completion.status);
+		int info = __le32_to_cpu(resp->mgmt_tx_completion.info);
 
 		tx_done.msdu_id = __le32_to_cpu(resp->mgmt_tx_completion.desc_id);
 
 		switch (status) {
 		case HTT_MGMT_TX_STATUS_OK:
 			tx_done.status = HTT_TX_COMPL_STATE_ACK;
+			if (test_bit(WMI_SERVICE_HTT_MGMT_TX_COMP_VALID_FLAGS,
+				     ar->wmi.svc_map) &&
+			    (resp->mgmt_tx_completion.flags &
+			     HTT_MGMT_TX_CMPL_FLAG_ACK_RSSI)) {
+				tx_done.ack_rssi =
+				FIELD_GET(HTT_MGMT_TX_CMPL_INFO_ACK_RSSI_MASK,
+					  info);
+			}
 			break;
 		case HTT_MGMT_TX_STATUS_RETRY:
 			tx_done.status = HTT_TX_COMPL_STATE_NOACK;
@@ -2800,7 +2813,7 @@ bool ath10k_htt_t2h_msg_handler(struct ath10k *ar, struct sk_buff *skb)
 		break;
 	}
 	case HTT_T2H_MSG_TYPE_RX_IN_ORD_PADDR_IND: {
-		__skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
+		skb_queue_tail(&htt->rx_in_ord_compl_q, skb);
 		return false;
 	}
 	case HTT_T2H_MSG_TYPE_TX_CREDIT_UPDATE_IND:
@@ -2864,7 +2877,7 @@ static int ath10k_htt_rx_deliver_msdu(struct ath10k *ar, int quota, int budget)
 		if (skb_queue_empty(&ar->htt.rx_msdus_q))
 			break;
 
-		skb = __skb_dequeue(&ar->htt.rx_msdus_q);
+		skb = skb_dequeue(&ar->htt.rx_msdus_q);
 		if (!skb)
 			break;
 		ath10k_process_rx(ar, skb);
@@ -2895,7 +2908,7 @@ int ath10k_htt_txrx_compl_task(struct ath10k *ar, int budget)
 		goto exit;
 	}
 
-	while ((skb = __skb_dequeue(&htt->rx_in_ord_compl_q))) {
+	while ((skb = skb_dequeue(&htt->rx_in_ord_compl_q))) {
 		spin_lock_bh(&htt->rx_ring.lock);
 		ret = ath10k_htt_rx_in_ord_ind(ar, skb);
 		spin_unlock_bh(&htt->rx_ring.lock);

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8188E_XMIT_C_
@@ -23,7 +15,7 @@
 
 s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 {
-	struct xmit_priv	*pxmitpriv = &adapt->xmitpriv;
+	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
 	tasklet_init(&pxmitpriv->xmit_tasklet,
 		     (void(*)(unsigned long))rtl8188eu_xmit_tasklet,
@@ -38,8 +30,8 @@ static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
 
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
-	u16	*usptr = (u16 *)ptxdesc;
-	u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
+	u16 *usptr = (u16 *)ptxdesc;
+	u32 count = 16; /* (32 bytes / 2 bytes per XOR) => 16 times */
 	u32 index;
 	u16 checksum = 0;
 
@@ -51,9 +43,11 @@ static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 	ptxdesc->txdw7 |= cpu_to_le32(0x0000ffff & checksum);
 }
 
-/*  Description: In normal chip, we should send some packet to Hw which will be used by Fw */
-/*			in FW LPS mode. The function is to fill the Tx descriptor of this packets, then */
-/*			Fw can tell Hw to send these packet derectly. */
+/*
+ * In normal chip, we should send some packet to Hw which will be used by Fw
+ * in FW LPS mode. The function is to fill the Tx descriptor of this packets,
+ * then Fw can tell Hw to send these packet derectly.
+ */
 void rtl8188e_fill_fake_txdesc(struct adapter *adapt, u8 *desc, u32 BufferLen, u8  ispspoll, u8  is_btqosnull)
 {
 	struct tx_desc *ptxdesc;
@@ -166,16 +160,15 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 
 static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
 {
-	int	pull = 0;
-	uint	qsel;
+	int pull = 0;
+	uint qsel;
 	u8 data_rate, pwr_status, offset;
-	struct adapter		*adapt = pxmitframe->padapter;
-	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
+	struct adapter *adapt = pxmitframe->padapter;
+	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct odm_dm_struct *odmpriv = &adapt->HalData->odmpriv;
-	struct tx_desc	*ptxdesc = (struct tx_desc *)pmem;
-	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	int	bmcst = IS_MCAST(pattrib->ra);
+	struct tx_desc *ptxdesc = (struct tx_desc *)pmem;
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
 
 	if (adapt->registrypriv.mp_mode == 0) {
 		if ((!bagg_pkt) && (urb_zero_packet_chk(adapt, sz) == 0)) {
@@ -194,7 +187,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 	ptxdesc->txdw0 |= cpu_to_le32(((offset) << OFFSET_SHT) & 0x00ff0000);/* 32 bytes for TX Desc */
 
-	if (bmcst)
+	if (is_multicast_ether_addr(pattrib->ra))
 		ptxdesc->txdw0 |= cpu_to_le32(BMC);
 
 	if (adapt->registrypriv.mp_mode == 0) {
@@ -335,7 +328,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	return pull;
 }
 
-/* for non-agg data frame or  management frame */
+/* for non-agg data frame or management frame */
 static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 ret = _SUCCESS;

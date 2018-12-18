@@ -585,9 +585,10 @@ static void async_completed(struct urb *urb)
 	struct siginfo sinfo;
 	struct pid *pid = NULL;
 	const struct cred *cred = NULL;
+	unsigned long flags;
 	int signr;
 
-	spin_lock(&ps->lock);
+	spin_lock_irqsave(&ps->lock, flags);
 	list_move_tail(&as->asynclist, &ps->async_completed);
 	as->status = urb->status;
 	signr = as->signr;
@@ -611,7 +612,7 @@ static void async_completed(struct urb *urb)
 		cancel_bulk_urbs(ps, as->bulk_addr);
 
 	wake_up(&ps->wait);
-	spin_unlock(&ps->lock);
+	spin_unlock_irqrestore(&ps->lock, flags);
 
 	if (signr) {
 		kill_pid_info_as_cred(sinfo.si_signo, &sinfo, pid, cred);
@@ -897,7 +898,7 @@ static int parse_usbdevfs_streams(struct usb_dev_state *ps,
 	if (num_streams_ret && (num_streams < 2 || num_streams > 65536))
 		return -EINVAL;
 
-	eps = kmalloc(num_eps * sizeof(*eps), GFP_KERNEL);
+	eps = kmalloc_array(num_eps, sizeof(*eps), GFP_KERNEL);
 	if (!eps)
 		return -ENOMEM;
 
@@ -1602,8 +1603,9 @@ static int proc_do_submiturb(struct usb_dev_state *ps, struct usbdevfs_urb *uurb
 	as->mem_usage = u;
 
 	if (num_sgs) {
-		as->urb->sg = kmalloc(num_sgs * sizeof(struct scatterlist),
-				      GFP_KERNEL);
+		as->urb->sg = kmalloc_array(num_sgs,
+					    sizeof(struct scatterlist),
+					    GFP_KERNEL);
 		if (!as->urb->sg) {
 			ret = -ENOMEM;
 			goto error;

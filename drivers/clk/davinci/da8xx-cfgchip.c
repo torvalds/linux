@@ -650,8 +650,8 @@ static int of_da8xx_usb_phy_clk_init(struct device *dev, struct regmap *regmap)
 	struct da8xx_usb0_clk48 *usb0;
 	struct da8xx_usb1_clk48 *usb1;
 
-	clk_data = devm_kzalloc(dev, sizeof(*clk_data) + 2 *
-				sizeof(*clk_data->hws), GFP_KERNEL);
+	clk_data = devm_kzalloc(dev, struct_size(clk_data, hws, 2),
+				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
 
@@ -672,7 +672,7 @@ static int of_da8xx_usb_phy_clk_init(struct device *dev, struct regmap *regmap)
 
 	usb1 = da8xx_cfgchip_register_usb1_clk48(dev, regmap);
 	if (IS_ERR(usb1)) {
-		if (PTR_ERR(usb0) == -EPROBE_DEFER)
+		if (PTR_ERR(usb1) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 
 		dev_warn(dev, "Failed to register usb1_clk48 (%ld)\n",

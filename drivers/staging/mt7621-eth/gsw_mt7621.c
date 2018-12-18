@@ -24,13 +24,13 @@
 #include "mtk_eth_soc.h"
 #include "gsw_mt7620.h"
 
-void mtk_switch_w32(struct mt7620_gsw *gsw, u32 val, unsigned reg)
+void mtk_switch_w32(struct mt7620_gsw *gsw, u32 val, unsigned int reg)
 {
 	iowrite32(val, gsw->base + reg);
 }
 EXPORT_SYMBOL_GPL(mtk_switch_w32);
 
-u32 mtk_switch_r32(struct mt7620_gsw *gsw, unsigned reg)
+u32 mtk_switch_r32(struct mt7620_gsw *gsw, unsigned int reg)
 {
 	return ioread32(gsw->base + reg);
 }
@@ -201,20 +201,20 @@ static void mt7621_hw_init(struct mtk_eth *eth, struct mt7620_gsw *gsw,
 	/* This is copied from mt7530_apply_config in libreCMC driver */
 	{
 		int i;
+
 		for (i = 0; i < MT7530_NUM_PORTS; i++)
 			mt7530_mdio_w32(gsw, REG_ESW_PORT_PCR(i), 0x00400000);
 
-		mt7530_mdio_w32(gsw, REG_ESW_PORT_PCR(MT7530_CPU_PORT), 0x00ff0000);
+		mt7530_mdio_w32(gsw, REG_ESW_PORT_PCR(MT7530_CPU_PORT),
+				0x00ff0000);
 
 		for (i = 0; i < MT7530_NUM_PORTS; i++)
 			mt7530_mdio_w32(gsw, REG_ESW_PORT_PVC(i), 0x810000c0);
-
 	}
 
 	/* enable irq */
 	mt7530_mdio_m32(gsw, 0, 3 << 16, MT7530_TOP_SIG_CTRL);
 	mt7530_mdio_w32(gsw, MT7530_SYS_INT_EN, 0x1f);
-
 }
 
 static const struct of_device_id mediatek_gsw_match[] = {

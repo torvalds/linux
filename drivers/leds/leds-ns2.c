@@ -42,8 +42,8 @@
 
 struct ns2_led_data {
 	struct led_classdev	cdev;
-	unsigned		cmd;
-	unsigned		slow;
+	unsigned int		cmd;
+	unsigned int		slow;
 	bool			can_sleep;
 	unsigned char		sata; /* True when SATA mode active. */
 	rwlock_t		rw_lock; /* Lock GPIOs. */
@@ -264,7 +264,7 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 	if (!num_leds)
 		return -ENODEV;
 
-	leds = devm_kzalloc(dev, num_leds * sizeof(struct ns2_led),
+	leds = devm_kcalloc(dev, num_leds, sizeof(struct ns2_led),
 			    GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
@@ -298,8 +298,9 @@ ns2_leds_get_of_pdata(struct device *dev, struct ns2_led_platform_data *pdata)
 		}
 
 		num_modes = ret / 3;
-		modval = devm_kzalloc(dev,
-				      num_modes * sizeof(struct ns2_led_modval),
+		modval = devm_kcalloc(dev,
+				      num_modes,
+				      sizeof(struct ns2_led_modval),
 				      GFP_KERNEL);
 		if (!modval)
 			return -ENOMEM;

@@ -27,6 +27,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/bitops.h>
 
 #include "dm365_ipipe.h"
 #include "dm365_ipipe_hw.h"
@@ -56,7 +57,7 @@ static int ipipe_validate_lutdpc_params(struct vpfe_ipipe_lutdpc *lutdpc)
 	    lutdpc->dpc_size > LUT_DPC_MAX_SIZE)
 		return -EINVAL;
 
-	if (lutdpc->en && !lutdpc->table)
+	if (lutdpc->en)
 		return -EINVAL;
 
 	for (i = 0; i < lutdpc->dpc_size; i++)
@@ -71,14 +72,12 @@ static int ipipe_set_lutdpc_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
 	struct vpfe_ipipe_lutdpc *lutdpc = &ipipe->config.lutdpc;
 	struct vpfe_ipipe_lutdpc *dpc_param;
-	struct device *dev;
 
 	if (!param) {
 		memset((void *)lutdpc, 0, sizeof(struct vpfe_ipipe_lutdpc));
 		goto success;
 	}
 
-	dev = ipipe->subdev.v4l2_dev->dev;
 	dpc_param = param;
 	lutdpc->en = dpc_param->en;
 	lutdpc->repl_white = dpc_param->repl_white;
@@ -694,7 +693,7 @@ static int ipipe_get_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 
 	table_size = gamma->tbl_size;
 
-	if (!gamma->bypass_r && !gamma_param->table_r) {
+	if (!gamma->bypass_r) {
 		dev_err(dev,
 			"ipipe_get_gamma_params: table ptr empty for R\n");
 		return -EINVAL;
@@ -702,14 +701,14 @@ static int ipipe_get_gamma_params(struct vpfe_ipipe_device *ipipe, void *param)
 	memcpy(gamma_param->table_r, gamma->table_r,
 	       (table_size * sizeof(struct vpfe_ipipe_gamma_entry)));
 
-	if (!gamma->bypass_g && !gamma_param->table_g) {
+	if (!gamma->bypass_g) {
 		dev_err(dev, "ipipe_get_gamma_params: table ptr empty for G\n");
 		return -EINVAL;
 	}
 	memcpy(gamma_param->table_g, gamma->table_g,
 	       (table_size * sizeof(struct vpfe_ipipe_gamma_entry)));
 
-	if (!gamma->bypass_b && !gamma_param->table_b) {
+	if (!gamma->bypass_b) {
 		dev_err(dev, "ipipe_get_gamma_params: table ptr empty for B\n");
 		return -EINVAL;
 	}
@@ -739,13 +738,8 @@ static int ipipe_get_3d_lut_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
 	struct vpfe_ipipe_3d_lut *lut_param = param;
 	struct vpfe_ipipe_3d_lut *lut = &ipipe->config.lut;
-	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	lut_param->en = lut->en;
-	if (!lut_param->table) {
-		dev_err(dev, "ipipe_get_3d_lut_params: Invalid table ptr\n");
-		return -EINVAL;
-	}
 
 	memcpy(lut_param->table, &lut->table,
 	       (VPFE_IPIPE_MAX_SIZE_3D_LUT *
@@ -919,14 +913,9 @@ static int ipipe_get_gbce_params(struct vpfe_ipipe_device *ipipe, void *param)
 {
 	struct vpfe_ipipe_gbce *gbce_param = param;
 	struct vpfe_ipipe_gbce *gbce = &ipipe->config.gbce;
-	struct device *dev = ipipe->subdev.v4l2_dev->dev;
 
 	gbce_param->en = gbce->en;
 	gbce_param->type = gbce->type;
-	if (!gbce_param->table) {
-		dev_err(dev, "ipipe_get_gbce_params: Invalid table ptr\n");
-		return -EINVAL;
-	}
 
 	memcpy(gbce_param->table, gbce->table,
 		(VPFE_IPIPE_MAX_SIZE_GBCE_LUT * sizeof(unsigned short)));
@@ -1267,37 +1256,36 @@ static int ipipe_s_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 	int rval = 0;
 
 	for (i = 0; i < ARRAY_SIZE(ipipe_modules); i++) {
-		unsigned int bit = 1 << i;
+		const struct ipipe_module_if *module_if;
+		struct ipipe_module_params *params;
+		void *from, *to;
+		size_t size;
 
-		if (cfg->flag & bit) {
-			const struct ipipe_module_if *module_if =
-						&ipipe_modules[i];
-			struct ipipe_module_params *params;
-			void __user *from = *(void * __user *)
-				((void *)cfg + module_if->config_offset);
-			size_t size;
-			void *to;
+		if (!(cfg->flag & BIT(i)))
+			continue;
 
-			params = kmalloc(sizeof(struct ipipe_module_params),
-					 GFP_KERNEL);
-			to = (void *)params + module_if->param_offset;
-			size = module_if->param_size;
+		module_if = &ipipe_modules[i];
+		from = *(void **)((void *)cfg + module_if->config_offset);
 
-			if (to && from && size) {
-				if (copy_from_user(to, from, size)) {
-					rval = -EFAULT;
-					break;
-				}
-				rval = module_if->set(ipipe, to);
-				if (rval)
-					goto error;
-			} else if (to && !from && size) {
-				rval = module_if->set(ipipe, NULL);
-				if (rval)
-					goto error;
+		params = kmalloc(sizeof(struct ipipe_module_params),
+				 GFP_KERNEL);
+		to = (void *)params + module_if->param_offset;
+		size = module_if->param_size;
+
+		if (to && from && size) {
+			if (copy_from_user(to, (void __user *)from, size)) {
+				rval = -EFAULT;
+				break;
 			}
-			kfree(params);
+			rval = module_if->set(ipipe, to);
+			if (rval)
+				goto error;
+		} else if (to && !from && size) {
+			rval = module_if->set(ipipe, NULL);
+			if (rval)
+				goto error;
 		}
+		kfree(params);
 	}
 error:
 	return rval;
@@ -1310,33 +1298,32 @@ static int ipipe_g_config(struct v4l2_subdev *sd, struct vpfe_ipipe_config *cfg)
 	int rval = 0;
 
 	for (i = 1; i < ARRAY_SIZE(ipipe_modules); i++) {
-		unsigned int bit = 1 << i;
+		const struct ipipe_module_if *module_if;
+		struct ipipe_module_params *params;
+		void *from, *to;
+		size_t size;
 
-		if (cfg->flag & bit) {
-			const struct ipipe_module_if *module_if =
-						&ipipe_modules[i];
-			struct ipipe_module_params *params;
-			void __user *to = *(void * __user *)
-				((void *)cfg + module_if->config_offset);
-			size_t size;
-			void *from;
+		if (!(cfg->flag & BIT(i)))
+			continue;
 
-			params =  kmalloc(sizeof(struct ipipe_module_params),
-						GFP_KERNEL);
-			from = (void *)params + module_if->param_offset;
-			size = module_if->param_size;
+		module_if = &ipipe_modules[i];
+		to = *(void **)((void *)cfg + module_if->config_offset);
 
-			if (to && from && size) {
-				rval = module_if->get(ipipe, from);
-				if (rval)
-					goto error;
-				if (copy_to_user(to, from, size)) {
-					rval = -EFAULT;
-					break;
-				}
+		params = kmalloc(sizeof(struct ipipe_module_params),
+				 GFP_KERNEL);
+		from = (void *)params + module_if->param_offset;
+		size = module_if->param_size;
+
+		if (to && from && size) {
+			rval = module_if->get(ipipe, from);
+			if (rval)
+				goto error;
+			if (copy_to_user((void __user *)to, from, size)) {
+				rval = -EFAULT;
+				break;
 			}
-			kfree(params);
 		}
+		kfree(params);
 	}
 error:
 	return rval;
@@ -1790,25 +1777,25 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 	struct media_pad *pads = &ipipe->pads[0];
 	struct v4l2_subdev *sd = &ipipe->subdev;
 	struct media_entity *me = &sd->entity;
-	static resource_size_t  res_len;
-	struct resource *res;
+	struct resource *res, *memres;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 4);
 	if (!res)
 		return -ENOENT;
 
-	res_len = resource_size(res);
-	res = request_mem_region(res->start, res_len, res->name);
-	if (!res)
+	memres = request_mem_region(res->start, resource_size(res), res->name);
+	if (!memres)
 		return -EBUSY;
-	ipipe->base_addr = ioremap_nocache(res->start, res_len);
+	ipipe->base_addr = ioremap_nocache(memres->start,
+					   resource_size(memres));
 	if (!ipipe->base_addr)
 		goto error_release;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 6);
 	if (!res)
 		goto error_unmap;
-	ipipe->isp5_base_addr = ioremap_nocache(res->start, res_len);
+	ipipe->isp5_base_addr = ioremap_nocache(res->start,
+						resource_size(res));
 	if (!ipipe->isp5_base_addr)
 		goto error_unmap;
 
@@ -1843,7 +1830,7 @@ vpfe_ipipe_init(struct vpfe_ipipe_device *ipipe, struct platform_device *pdev)
 error_unmap:
 	iounmap(ipipe->base_addr);
 error_release:
-	release_mem_region(res->start, res_len);
+	release_mem_region(memres->start, resource_size(memres));
 	return -ENOMEM;
 }
 

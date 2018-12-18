@@ -278,13 +278,11 @@
  *      defined under the same device.
  *
  * unique-id
- *      Values:         <uint32_t>
+ *      Values:         <string>
  *
- *      After stream initialization it is assigned a unique ID (within the front
- *      driver), so every stream of the frontend can be identified by the
- *      backend by this ID. This is not equal to stream-idx as the later is
- *      zero based within the device, but this index is contigous within the
- *      driver.
+ *      After stream initialization it is assigned a unique ID, so every
+ *      stream of the frontend can be identified by the backend by this ID.
+ *      This can be UUID or such.
  *
  *-------------------- Stream Request Transport Parameters --------------------
  *

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Netronome Systems, Inc.
+ * Copyright (C) 2017-2018 Netronome Systems, Inc.
  *
  * This software is dual licensed under the GNU General License Version 2,
  * June 1991 as shown in the file COPYING in the top-level directory of this
@@ -43,6 +43,14 @@
 #include "fw.h"
 #include "main.h"
 
+const struct rhashtable_params nfp_bpf_maps_neutral_params = {
+	.nelem_hint		= 4,
+	.key_len		= FIELD_SIZEOF(struct bpf_map, id),
+	.key_offset		= offsetof(struct nfp_bpf_neutral_map, map_id),
+	.head_offset		= offsetof(struct nfp_bpf_neutral_map, l),
+	.automatic_shrinking	= true,
+};
+
 static bool nfp_net_ebpf_capable(struct nfp_net *nn)
 {
 #ifdef __LITTLE_ENDIAN
@@ -58,26 +66,19 @@ nfp_bpf_xdp_offload(struct nfp_app *app, struct nfp_net *nn,
 		    struct bpf_prog *prog, struct netlink_ext_ack *extack)
 {
 	bool running, xdp_running;
-	int ret;
 
 	if (!nfp_net_ebpf_capable(nn))
 		return -EINVAL;
 
 	running = nn->dp.ctrl & NFP_NET_CFG_CTRL_BPF;
-	xdp_running = running && nn->dp.bpf_offload_xdp;
+	xdp_running = running && nn->xdp_hw.prog;
 
 	if (!prog && !xdp_running)
 		return 0;
 	if (prog && running && !xdp_running)
 		return -EBUSY;
 
-	ret = nfp_net_bpf_offload(nn, prog, running, extack);
-	/* Stop offload if replace not possible */
-	if (ret && prog)
-		nfp_bpf_xdp_offload(app, nn, NULL, extack);
-
-	nn->dp.bpf_offload_xdp = prog && !ret;
-	return ret;
+	return nfp_net_bpf_offload(nn, prog, running, extack);
 }
 
 static const char *nfp_bpf_extra_cap(struct nfp_app *app, struct nfp_net *nn)
@@ -198,7 +199,7 @@ static int nfp_bpf_setup_tc_block(struct net_device *netdev,
 	case TC_BLOCK_BIND:
 		return tcf_block_cb_register(f->block,
 					     nfp_bpf_setup_tc_block_cb,
-					     nn, nn);
+					     nn, nn, f->extack);
 	case TC_BLOCK_UNBIND:
 		tcf_block_cb_unregister(f->block,
 					nfp_bpf_setup_tc_block_cb,
@@ -290,6 +291,9 @@ nfp_bpf_parse_cap_func(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
 	case BPF_FUNC_map_delete_elem:
 		bpf->helpers.map_delete = readl(&cap->func_addr);
 		break;
+	case BPF_FUNC_perf_event_output:
+		bpf->helpers.perf_event_output = readl(&cap->func_addr);
+		break;
 	}
 
 	return 0;
@@ -323,6 +327,21 @@ nfp_bpf_parse_cap_random(struct nfp_app_bpf *bpf, void __iomem *value,
 	return 0;
 }
 
+static int
+nfp_bpf_parse_cap_qsel(struct nfp_app_bpf *bpf, void __iomem *value, u32 length)
+{
+	bpf->queue_select = true;
+	return 0;
+}
+
+static int
+nfp_bpf_parse_cap_adjust_tail(struct nfp_app_bpf *bpf, void __iomem *value,
+			      u32 length)
+{
+	bpf->adjust_tail = true;
+	return 0;
+}
+
 static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 {
 	struct nfp_cpp *cpp = app->pf->cpp;
@@ -335,7 +354,7 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 		return PTR_ERR(mem) == -ENOENT ? 0 : PTR_ERR(mem);
 
 	start = mem;
-	while (mem - start + 8 < nfp_cpp_area_size(area)) {
+	while (mem - start + 8 <= nfp_cpp_area_size(area)) {
 		u8 __iomem *value;
 		u32 type, length;
 
@@ -365,6 +384,15 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 			if (nfp_bpf_parse_cap_random(app->priv, value, length))
 				goto err_release_free;
 			break;
+		case NFP_BPF_CAP_TYPE_QUEUE_SELECT:
+			if (nfp_bpf_parse_cap_qsel(app->priv, value, length))
+				goto err_release_free;
+			break;
+		case NFP_BPF_CAP_TYPE_ADJUST_TAIL:
+			if (nfp_bpf_parse_cap_adjust_tail(app->priv, value,
+							  length))
+				goto err_release_free;
+			break;
 		default:
 			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
 			break;
@@ -386,6 +414,20 @@ err_release_free:
 	return -EINVAL;
 }
 
+static int nfp_bpf_ndo_init(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+
+	return bpf_offload_dev_netdev_register(bpf->bpf_dev, netdev);
+}
+
+static void nfp_bpf_ndo_uninit(struct nfp_app *app, struct net_device *netdev)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+
+	bpf_offload_dev_netdev_unregister(bpf->bpf_dev, netdev);
+}
+
 static int nfp_bpf_init(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf;
@@ -401,24 +443,43 @@ static int nfp_bpf_init(struct nfp_app *app)
 	init_waitqueue_head(&bpf->cmsg_wq);
 	INIT_LIST_HEAD(&bpf->map_list);
 
-	err = nfp_bpf_parse_capabilities(app);
+	err = rhashtable_init(&bpf->maps_neutral, &nfp_bpf_maps_neutral_params);
 	if (err)
 		goto err_free_bpf;
 
+	err = nfp_bpf_parse_capabilities(app);
+	if (err)
+		goto err_free_neutral_maps;
+
+	bpf->bpf_dev = bpf_offload_dev_create();
+	err = PTR_ERR_OR_ZERO(bpf->bpf_dev);
+	if (err)
+		goto err_free_neutral_maps;
+
 	return 0;
 
+err_free_neutral_maps:
+	rhashtable_destroy(&bpf->maps_neutral);
 err_free_bpf:
 	kfree(bpf);
 	return err;
+}
+
+static void nfp_check_rhashtable_empty(void *ptr, void *arg)
+{
+	WARN_ON_ONCE(1);
 }
 
 static void nfp_bpf_clean(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf = app->priv;
 
+	bpf_offload_dev_destroy(bpf->bpf_dev);
 	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
 	WARN_ON(!list_empty(&bpf->map_list));
 	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);
+	rhashtable_free_and_destroy(&bpf->maps_neutral,
+				    nfp_check_rhashtable_empty, NULL);
 	kfree(bpf);
 }
 
@@ -435,10 +496,14 @@ const struct nfp_app_type app_bpf = {
 
 	.extra_cap	= nfp_bpf_extra_cap,
 
+	.ndo_init	= nfp_bpf_ndo_init,
+	.ndo_uninit	= nfp_bpf_ndo_uninit,
+
 	.vnic_alloc	= nfp_bpf_vnic_alloc,
 	.vnic_free	= nfp_bpf_vnic_free,
 
 	.ctrl_msg_rx	= nfp_bpf_ctrl_msg_rx,
+	.ctrl_msg_rx_raw	= nfp_bpf_ctrl_msg_rx_raw,
 
 	.setup_tc	= nfp_bpf_setup_tc,
 	.bpf		= nfp_ndo_bpf,

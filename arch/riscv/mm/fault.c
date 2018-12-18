@@ -41,7 +41,8 @@ asmlinkage void do_page_fault(struct pt_regs *regs)
 	struct mm_struct *mm;
 	unsigned long addr, cause;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
-	int fault, code = SEGV_MAPERR;
+	int code = SEGV_MAPERR;
+	vm_fault_t fault;
 
 	cause = regs->scause;
 	addr = regs->sbadaddr;

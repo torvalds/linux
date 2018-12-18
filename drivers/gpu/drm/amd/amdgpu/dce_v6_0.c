@@ -1780,7 +1780,6 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct amdgpu_framebuffer *amdgpu_fb;
 	struct drm_framebuffer *target_fb;
 	struct drm_gem_object *obj;
 	struct amdgpu_bo *abo;
@@ -1798,32 +1797,28 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 		return 0;
 	}
 
-	if (atomic) {
-		amdgpu_fb = to_amdgpu_framebuffer(fb);
+	if (atomic)
 		target_fb = fb;
-	} else {
-		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
+	else
 		target_fb = crtc->primary->fb;
-	}
 
 	/* If atomic, assume fb object is pinned & idle & fenced and
 	 * just update base pointers
 	 */
-	obj = amdgpu_fb->obj;
+	obj = target_fb->obj[0];
 	abo = gem_to_amdgpu_bo(obj);
 	r = amdgpu_bo_reserve(abo, false);
 	if (unlikely(r != 0))
 		return r;
 
-	if (atomic) {
-		fb_location = amdgpu_bo_gpu_offset(abo);
-	} else {
-		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM, &fb_location);
+	if (!atomic) {
+		r = amdgpu_bo_pin(abo, AMDGPU_GEM_DOMAIN_VRAM);
 		if (unlikely(r != 0)) {
 			amdgpu_bo_unreserve(abo);
 			return -EINVAL;
 		}
 	}
+	fb_location = amdgpu_bo_gpu_offset(abo);
 
 	amdgpu_bo_get_tiling_flags(abo, &tiling_flags);
 	amdgpu_bo_unreserve(abo);
@@ -1978,8 +1973,7 @@ static int dce_v6_0_crtc_do_set_base(struct drm_crtc *crtc,
 	WREG32(mmMASTER_UPDATE_MODE + amdgpu_crtc->crtc_offset, 0);
 
 	if (!atomic && fb && fb != crtc->primary->fb) {
-		amdgpu_fb = to_amdgpu_framebuffer(fb);
-		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		abo = gem_to_amdgpu_bo(fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r != 0))
 			return r;
@@ -2268,13 +2262,14 @@ static int dce_v6_0_crtc_cursor_set2(struct drm_crtc *crtc,
 		return ret;
 	}
 
-	ret = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM, &amdgpu_crtc->cursor_addr);
+	ret = amdgpu_bo_pin(aobj, AMDGPU_GEM_DOMAIN_VRAM);
 	amdgpu_bo_unreserve(aobj);
 	if (ret) {
 		DRM_ERROR("Failed to pin new cursor BO (%d)\n", ret);
 		drm_gem_object_put_unlocked(obj);
 		return ret;
 	}
+	amdgpu_crtc->cursor_addr = amdgpu_bo_gpu_offset(aobj);
 
 	dce_v6_0_lock_cursor(crtc, true);
 
@@ -2414,11 +2409,9 @@ static void dce_v6_0_crtc_disable(struct drm_crtc *crtc)
 	dce_v6_0_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 	if (crtc->primary->fb) {
 		int r;
-		struct amdgpu_framebuffer *amdgpu_fb;
 		struct amdgpu_bo *abo;
 
-		amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
-		abo = gem_to_amdgpu_bo(amdgpu_fb->obj);
+		abo = gem_to_amdgpu_bo(crtc->primary->fb->obj[0]);
 		r = amdgpu_bo_reserve(abo, true);
 		if (unlikely(r))
 			DRM_ERROR("failed to reserve abo before unpin\n");

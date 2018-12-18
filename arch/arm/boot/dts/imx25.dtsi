@@ -1,13 +1,6 @@
-/*
- * Copyright 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Sascha Hauer, Pengutronix <s.hauer@pengutronix.de>
 
 #include <dt-bindings/gpio/gpio.h>
 #include "imx25-pinfunc.h"
@@ -70,9 +63,6 @@
 	};
 
 	clocks {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
 		osc {
 			compatible = "fsl,imx-osc", "fixed-clock";
 			#clock-cells = <0>;

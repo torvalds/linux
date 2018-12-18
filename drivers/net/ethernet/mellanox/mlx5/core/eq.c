@@ -34,9 +34,14 @@
 #include <linux/module.h>
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/cmd.h>
+#ifdef CONFIG_RFS_ACCEL
+#include <linux/cpu_rmap.h>
+#endif
 #include "mlx5_core.h"
 #include "fpga/core.h"
 #include "eswitch.h"
+#include "lib/clock.h"
+#include "diag/fw_tracer.h"
 
 enum {
 	MLX5_EQE_SIZE		= sizeof(struct mlx5_eqe),
@@ -141,6 +146,8 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_GPIO_EVENT";
 	case MLX5_EVENT_TYPE_PORT_MODULE_EVENT:
 		return "MLX5_EVENT_TYPE_PORT_MODULE_EVENT";
+	case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
+		return "MLX5_EVENT_TYPE_TEMP_WARN_EVENT";
 	case MLX5_EVENT_TYPE_REMOTE_CONFIG:
 		return "MLX5_EVENT_TYPE_REMOTE_CONFIG";
 	case MLX5_EVENT_TYPE_DB_BF_CONGESTION:
@@ -159,8 +166,12 @@ static const char *eqe_type_str(u8 type)
 		return "MLX5_EVENT_TYPE_NIC_VPORT_CHANGE";
 	case MLX5_EVENT_TYPE_FPGA_ERROR:
 		return "MLX5_EVENT_TYPE_FPGA_ERROR";
+	case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
+		return "MLX5_EVENT_TYPE_FPGA_QP_ERROR";
 	case MLX5_EVENT_TYPE_GENERAL_EVENT:
 		return "MLX5_EVENT_TYPE_GENERAL_EVENT";
+	case MLX5_EVENT_TYPE_DEVICE_TRACER:
+		return "MLX5_EVENT_TYPE_DEVICE_TRACER";
 	default:
 		return "Unrecognized event";
 	}
@@ -393,6 +404,20 @@ static void general_event_handler(struct mlx5_core_dev *dev,
 	}
 }
 
+static void mlx5_temp_warning_event(struct mlx5_core_dev *dev,
+				    struct mlx5_eqe *eqe)
+{
+	u64 value_lsb;
+	u64 value_msb;
+
+	value_lsb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_lsb);
+	value_msb = be64_to_cpu(eqe->data.temp_warning.sensor_warning_msb);
+
+	mlx5_core_warn(dev,
+		       "High temperature on sensors with bit set %llx %llx",
+		       value_msb, value_lsb);
+}
+
 /* caller must eventually call mlx5_cq_put on the returned cq */
 static struct mlx5_core_cq *mlx5_eq_cq_get(struct mlx5_eq *eq, u32 cqn)
 {
@@ -544,12 +569,22 @@ static irqreturn_t mlx5_eq_int(int irq, void *eq_ptr)
 			break;
 
 		case MLX5_EVENT_TYPE_FPGA_ERROR:
+		case MLX5_EVENT_TYPE_FPGA_QP_ERROR:
 			mlx5_fpga_event(dev, eqe->type, &eqe->data.raw);
+			break;
+
+		case MLX5_EVENT_TYPE_TEMP_WARN_EVENT:
+			mlx5_temp_warning_event(dev, eqe);
 			break;
 
 		case MLX5_EVENT_TYPE_GENERAL_EVENT:
 			general_event_handler(dev, eqe);
 			break;
+
+		case MLX5_EVENT_TYPE_DEVICE_TRACER:
+			mlx5_fw_tracer_event(dev, eqe);
+			break;
+
 		default:
 			mlx5_core_warn(dev, "Unhandled event 0x%x on EQ 0x%x\n",
 				       eqe->type, eq->eqn);
@@ -819,10 +854,16 @@ int mlx5_start_eqs(struct mlx5_core_dev *dev)
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_PPS_EVENT);
 
 	if (MLX5_CAP_GEN(dev, fpga))
-		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR);
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_FPGA_ERROR) |
+				    (1ull << MLX5_EVENT_TYPE_FPGA_QP_ERROR);
 	if (MLX5_CAP_GEN_MAX(dev, dct))
 		async_event_mask |= (1ull << MLX5_EVENT_TYPE_DCT_DRAINED);
 
+	if (MLX5_CAP_GEN(dev, temp_warn_event))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_TEMP_WARN_EVENT);
+
+	if (MLX5_CAP_MCAM_REG(dev, tracer_registers))
+		async_event_mask |= (1ull << MLX5_EVENT_TYPE_DEVICE_TRACER);
 
 	err = mlx5_create_map_eq(dev, &table->cmd_eq, MLX5_EQ_VEC_CMD,
 				 MLX5_NUM_CMD_EQE, 1ull << MLX5_EVENT_TYPE_CMD,
@@ -922,4 +963,29 @@ int mlx5_core_eq_query(struct mlx5_core_dev *dev, struct mlx5_eq *eq,
 	MLX5_SET(query_eq_in, in, opcode, MLX5_CMD_OP_QUERY_EQ);
 	MLX5_SET(query_eq_in, in, eq_number, eq->eqn);
 	return mlx5_cmd_exec(dev, in, sizeof(in), out, outlen);
+}
+
+/* This function should only be called after mlx5_cmd_force_teardown_hca */
+void mlx5_core_eq_free_irqs(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eq_table *table = &dev->priv.eq_table;
+	struct mlx5_eq *eq;
+
+#ifdef CONFIG_RFS_ACCEL
+	if (dev->rmap) {
+		free_irq_cpu_rmap(dev->rmap);
+		dev->rmap = NULL;
+	}
+#endif
+	list_for_each_entry(eq, &table->comp_eqs_list, list)
+		free_irq(eq->irqn, eq);
+
+	free_irq(table->pages_eq.irqn, &table->pages_eq);
+	free_irq(table->async_eq.irqn, &table->async_eq);
+	free_irq(table->cmd_eq.irqn, &table->cmd_eq);
+#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
+	if (MLX5_CAP_GEN(dev, pg))
+		free_irq(table->pfault_eq.irqn, &table->pfault_eq);
+#endif
+	pci_free_irq_vectors(dev->pdev);
 }

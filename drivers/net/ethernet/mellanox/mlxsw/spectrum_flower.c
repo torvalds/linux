@@ -1,36 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/spectrum_flower.c
- * Copyright (c) 2017 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2017 Jiri Pirko <jiri@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
+/* Copyright (c) 2017-2018 Mellanox Technologies. All rights reserved */
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -48,7 +17,8 @@
 static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 					 struct mlxsw_sp_acl_block *block,
 					 struct mlxsw_sp_acl_rule_info *rulei,
-					 struct tcf_exts *exts)
+					 struct tcf_exts *exts,
+					 struct netlink_ext_ack *extack)
 {
 	const struct tc_action *a;
 	LIST_HEAD(actions);
@@ -58,7 +28,7 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	/* Count action is inserted first */
-	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei);
+	err = mlxsw_sp_acl_rulei_act_count(mlxsw_sp, rulei, extack);
 	if (err)
 		return err;
 
@@ -66,16 +36,22 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 	list_for_each_entry(a, &actions, list) {
 		if (is_tcf_gact_ok(a)) {
 			err = mlxsw_sp_acl_rulei_act_terminate(rulei);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append terminate action");
 				return err;
+			}
 		} else if (is_tcf_gact_shot(a)) {
 			err = mlxsw_sp_acl_rulei_act_drop(rulei);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append drop action");
 				return err;
+			}
 		} else if (is_tcf_gact_trap(a)) {
 			err = mlxsw_sp_acl_rulei_act_trap(rulei);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append trap action");
 				return err;
+			}
 		} else if (is_tcf_gact_goto_chain(a)) {
 			u32 chain_index = tcf_gact_goto_chain_index(a);
 			struct mlxsw_sp_acl_ruleset *ruleset;
@@ -89,8 +65,10 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 			group_id = mlxsw_sp_acl_ruleset_group_id(ruleset);
 			err = mlxsw_sp_acl_rulei_act_jump(rulei, group_id);
-			if (err)
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append jump action");
 				return err;
+			}
 		} else if (is_tcf_mirred_egress_redirect(a)) {
 			struct net_device *out_dev;
 			struct mlxsw_sp_fid *fid;
@@ -99,20 +77,21 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
-							     fid_index);
+							     fid_index, extack);
 			if (err)
 				return err;
 
 			out_dev = tcf_mirred_dev(a);
 			err = mlxsw_sp_acl_rulei_act_fwd(mlxsw_sp, rulei,
-							 out_dev);
+							 out_dev, extack);
 			if (err)
 				return err;
 		} else if (is_tcf_mirred_egress_mirror(a)) {
 			struct net_device *out_dev = tcf_mirred_dev(a);
 
 			err = mlxsw_sp_acl_rulei_act_mirror(mlxsw_sp, rulei,
-							    block, out_dev);
+							    block, out_dev,
+							    extack);
 			if (err)
 				return err;
 		} else if (is_tcf_vlan(a)) {
@@ -123,8 +102,9 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 
 			return mlxsw_sp_acl_rulei_act_vlan(mlxsw_sp, rulei,
 							   action, vid,
-							   proto, prio);
+							   proto, prio, extack);
 		} else {
+			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			dev_err(mlxsw_sp->bus_info->dev, "Unsupported action\n");
 			return -EOPNOTSUPP;
 		}
@@ -144,10 +124,12 @@ static void mlxsw_sp_flower_parse_ipv4(struct mlxsw_sp_acl_rule_info *rulei,
 					  FLOW_DISSECTOR_KEY_IPV4_ADDRS,
 					  f->mask);
 
-	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_SRC_IP4,
-				       ntohl(key->src), ntohl(mask->src));
-	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_DST_IP4,
-				       ntohl(key->dst), ntohl(mask->dst));
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_0_31,
+				       (char *) &key->src,
+				       (char *) &mask->src, 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_0_31,
+				       (char *) &key->dst,
+				       (char *) &mask->dst, 4);
 }
 
 static void mlxsw_sp_flower_parse_ipv6(struct mlxsw_sp_acl_rule_info *rulei,
@@ -161,24 +143,31 @@ static void mlxsw_sp_flower_parse_ipv6(struct mlxsw_sp_acl_rule_info *rulei,
 		skb_flow_dissector_target(f->dissector,
 					  FLOW_DISSECTOR_KEY_IPV6_ADDRS,
 					  f->mask);
-	size_t addr_half_size = sizeof(key->src) / 2;
 
-	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP6_HI,
-				       &key->src.s6_addr[0],
-				       &mask->src.s6_addr[0],
-				       addr_half_size);
-	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP6_LO,
-				       &key->src.s6_addr[addr_half_size],
-				       &mask->src.s6_addr[addr_half_size],
-				       addr_half_size);
-	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP6_HI,
-				       &key->dst.s6_addr[0],
-				       &mask->dst.s6_addr[0],
-				       addr_half_size);
-	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP6_LO,
-				       &key->dst.s6_addr[addr_half_size],
-				       &mask->dst.s6_addr[addr_half_size],
-				       addr_half_size);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_96_127,
+				       &key->src.s6_addr[0x0],
+				       &mask->src.s6_addr[0x0], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_64_95,
+				       &key->src.s6_addr[0x4],
+				       &mask->src.s6_addr[0x4], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_32_63,
+				       &key->src.s6_addr[0x8],
+				       &mask->src.s6_addr[0x8], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_SRC_IP_0_31,
+				       &key->src.s6_addr[0xC],
+				       &mask->src.s6_addr[0xC], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_96_127,
+				       &key->dst.s6_addr[0x0],
+				       &mask->dst.s6_addr[0x0], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_64_95,
+				       &key->dst.s6_addr[0x4],
+				       &mask->dst.s6_addr[0x4], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_32_63,
+				       &key->dst.s6_addr[0x8],
+				       &mask->dst.s6_addr[0x8], 4);
+	mlxsw_sp_acl_rulei_keymask_buf(rulei, MLXSW_AFK_ELEMENT_DST_IP_0_31,
+				       &key->dst.s6_addr[0xC],
+				       &mask->dst.s6_addr[0xC], 4);
 }
 
 static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
@@ -192,6 +181,7 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Only UDP and TCP keys are supported");
 		dev_err(mlxsw_sp->bus_info->dev, "Only UDP and TCP keys are supported\n");
 		return -EINVAL;
 	}
@@ -220,6 +210,7 @@ static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	if (ip_proto != IPPROTO_TCP) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "TCP keys supported only for TCP");
 		dev_err(mlxsw_sp->bus_info->dev, "TCP keys supported only for TCP\n");
 		return -EINVAL;
 	}
@@ -246,6 +237,7 @@ static int mlxsw_sp_flower_parse_ip(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	if (n_proto != ETH_P_IP && n_proto != ETH_P_IPV6) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "IP keys supported only for IPv4/6");
 		dev_err(mlxsw_sp->bus_info->dev, "IP keys supported only for IPv4/6\n");
 		return -EINVAL;
 	}
@@ -290,6 +282,7 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	      BIT(FLOW_DISSECTOR_KEY_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
 		return -EOPNOTSUPP;
 	}
 
@@ -340,13 +333,17 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 						  f->mask);
 
 		mlxsw_sp_acl_rulei_keymask_buf(rulei,
-					       MLXSW_AFK_ELEMENT_DMAC,
-					       key->dst, mask->dst,
-					       sizeof(key->dst));
+					       MLXSW_AFK_ELEMENT_DMAC_32_47,
+					       key->dst, mask->dst, 2);
 		mlxsw_sp_acl_rulei_keymask_buf(rulei,
-					       MLXSW_AFK_ELEMENT_SMAC,
-					       key->src, mask->src,
-					       sizeof(key->src));
+					       MLXSW_AFK_ELEMENT_DMAC_0_31,
+					       key->dst + 2, mask->dst + 2, 4);
+		mlxsw_sp_acl_rulei_keymask_buf(rulei,
+					       MLXSW_AFK_ELEMENT_SMAC_32_47,
+					       key->src, mask->src, 2);
+		mlxsw_sp_acl_rulei_keymask_buf(rulei,
+					       MLXSW_AFK_ELEMENT_SMAC_0_31,
+					       key->src + 2, mask->src + 2, 4);
 	}
 
 	if (dissector_uses_key(f->dissector, FLOW_DISSECTOR_KEY_VLAN)) {
@@ -358,6 +355,11 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 			skb_flow_dissector_target(f->dissector,
 						  FLOW_DISSECTOR_KEY_VLAN,
 						  f->mask);
+
+		if (mlxsw_sp_acl_block_is_egress_bound(block)) {
+			NL_SET_ERR_MSG_MOD(f->common.extack, "vlan_id key is not supported on egress");
+			return -EOPNOTSUPP;
+		}
 		if (mask->vlan_id != 0)
 			mlxsw_sp_acl_rulei_keymask_u32(rulei,
 						       MLXSW_AFK_ELEMENT_VID,
@@ -387,7 +389,8 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts);
+	return mlxsw_sp_flower_parse_actions(mlxsw_sp, block, rulei, f->exts,
+					     f->common.extack);
 }
 
 int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
@@ -401,11 +404,12 @@ int mlxsw_sp_flower_replace(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
-					   MLXSW_SP_ACL_PROFILE_FLOWER);
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
 	if (IS_ERR(ruleset))
 		return PTR_ERR(ruleset);
 
-	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie);
+	rule = mlxsw_sp_acl_rule_create(mlxsw_sp, ruleset, f->cookie,
+					f->common.extack);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
 		goto err_rule_create;
@@ -445,7 +449,7 @@ void mlxsw_sp_flower_destroy(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
-					   MLXSW_SP_ACL_PROFILE_FLOWER);
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
 	if (IS_ERR(ruleset))
 		return;
 
@@ -471,7 +475,7 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 
 	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
 					   f->common.chain_index,
-					   MLXSW_SP_ACL_PROFILE_FLOWER);
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
 	if (WARN_ON(IS_ERR(ruleset)))
 		return -EINVAL;
 
@@ -492,4 +496,41 @@ int mlxsw_sp_flower_stats(struct mlxsw_sp *mlxsw_sp,
 err_rule_get_stats:
 	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 	return err;
+}
+
+int mlxsw_sp_flower_tmplt_create(struct mlxsw_sp *mlxsw_sp,
+				 struct mlxsw_sp_acl_block *block,
+				 struct tc_cls_flower_offload *f)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset;
+	struct mlxsw_sp_acl_rule_info rulei;
+	int err;
+
+	memset(&rulei, 0, sizeof(rulei));
+	err = mlxsw_sp_flower_parse(mlxsw_sp, block, &rulei, f);
+	if (err)
+		return err;
+	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
+					   f->common.chain_index,
+					   MLXSW_SP_ACL_PROFILE_FLOWER,
+					   &rulei.values.elusage);
+
+	/* keep the reference to the ruleset */
+	return PTR_ERR_OR_ZERO(ruleset);
+}
+
+void mlxsw_sp_flower_tmplt_destroy(struct mlxsw_sp *mlxsw_sp,
+				   struct mlxsw_sp_acl_block *block,
+				   struct tc_cls_flower_offload *f)
+{
+	struct mlxsw_sp_acl_ruleset *ruleset;
+
+	ruleset = mlxsw_sp_acl_ruleset_get(mlxsw_sp, block,
+					   f->common.chain_index,
+					   MLXSW_SP_ACL_PROFILE_FLOWER, NULL);
+	if (IS_ERR(ruleset))
+		return;
+	/* put the reference to the ruleset kept in create */
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
+	mlxsw_sp_acl_ruleset_put(mlxsw_sp, ruleset);
 }

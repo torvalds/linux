@@ -2,14 +2,14 @@
 
 .. _VIDIOC_G_STD:
 
-********************************
-ioctl VIDIOC_G_STD, VIDIOC_S_STD
-********************************
+**************************************************************************
+ioctl VIDIOC_G_STD, VIDIOC_S_STD, VIDIOC_SUBDEV_G_STD, VIDIOC_SUBDEV_S_STD
+**************************************************************************
 
 Name
 ====
 
-VIDIOC_G_STD - VIDIOC_S_STD - Query or select the video standard of the current input
+VIDIOC_G_STD - VIDIOC_S_STD - VIDIOC_SUBDEV_G_STD - VIDIOC_SUBDEV_S_STD - Query or select the video standard of the current input
 
 
 Synopsis
@@ -20,6 +20,12 @@ Synopsis
 
 .. c:function:: int ioctl( int fd, VIDIOC_S_STD, const v4l2_std_id *argp )
     :name: VIDIOC_S_STD
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_G_STD, v4l2_std_id *argp )
+    :name: VIDIOC_SUBDEV_G_STD
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_S_STD, const v4l2_std_id *argp )
+    :name: VIDIOC_SUBDEV_S_STD
 
 
 Arguments

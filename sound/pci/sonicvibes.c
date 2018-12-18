@@ -1188,6 +1188,7 @@ SONICVIBES_SINGLE("Joystick Speed", 0, SV_IREG_GAME_PORT, 1, 15, 0);
 static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 {
 	struct gameport *gp;
+	int err;
 
 	sonic->gameport = gp = gameport_allocate_port();
 	if (!gp) {
@@ -1203,7 +1204,10 @@ static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 
 	gameport_register_port(gp);
 
-	snd_ctl_add(sonic->card, snd_ctl_new1(&snd_sonicvibes_game_control, sonic));
+	err = snd_ctl_add(sonic->card,
+		snd_ctl_new1(&snd_sonicvibes_game_control, sonic));
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -1429,14 +1433,12 @@ static int snd_sonicvibes_midi(struct sonicvibes *sonic,
 {
 	struct snd_mpu401 * mpu = rmidi->private_data;
 	struct snd_card *card = sonic->card;
-	struct snd_rawmidi_str *dir;
 	unsigned int idx;
 	int err;
 
 	mpu->private_data = sonic;
 	mpu->open_input = snd_sonicvibes_midi_input_open;
 	mpu->close_input = snd_sonicvibes_midi_input_close;
-	dir = &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT];
 	for (idx = 0; idx < ARRAY_SIZE(snd_sonicvibes_midi_controls); idx++)
 		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_sonicvibes_midi_controls[idx], sonic))) < 0)
 			return err;
@@ -1515,7 +1517,11 @@ static int snd_sonic_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	snd_sonicvibes_create_gameport(sonic);
+	err = snd_sonicvibes_create_gameport(sonic);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

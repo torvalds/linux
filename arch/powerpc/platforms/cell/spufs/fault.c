@@ -44,7 +44,7 @@ static void spufs_handle_event(struct spu_context *ctx,
 		return;
 	}
 
-	memset(&info, 0, sizeof(info));
+	clear_siginfo(&info);
 
 	switch (type) {
 	case SPE_EVENT_INVALID_DMA:
@@ -111,7 +111,7 @@ int spufs_handle_class1(struct spu_context *ctx)
 {
 	u64 ea, dsisr, access;
 	unsigned long flags;
-	unsigned flt = 0;
+	vm_fault_t flt = 0;
 	int ret;
 
 	/*

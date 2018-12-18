@@ -1,28 +1,5 @@
-/*******************************************************************************
-
-  Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2018 Intel Corporation.
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, see <http://www.gnu.org/licenses/>.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
-
-  Contact Information:
-  e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 /* ethtool support for ixgbevf */
 
@@ -305,8 +282,9 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	}
 
 	if (new_tx_count != adapter->tx_ring_count) {
-		tx_ring = vmalloc((adapter->num_tx_queues +
-				   adapter->num_xdp_queues) * sizeof(*tx_ring));
+		tx_ring = vmalloc(array_size(sizeof(*tx_ring),
+					     adapter->num_tx_queues +
+						adapter->num_xdp_queues));
 		if (!tx_ring) {
 			err = -ENOMEM;
 			goto clear_reset;
@@ -350,7 +328,8 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 	}
 
 	if (new_rx_count != adapter->rx_ring_count) {
-		rx_ring = vmalloc(adapter->num_rx_queues * sizeof(*rx_ring));
+		rx_ring = vmalloc(array_size(sizeof(*rx_ring),
+					     adapter->num_rx_queues));
 		if (!rx_ring) {
 			err = -ENOMEM;
 			goto clear_reset;

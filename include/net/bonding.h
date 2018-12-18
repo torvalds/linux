@@ -198,6 +198,7 @@ struct bonding {
 	struct   slave __rcu *primary_slave;
 	struct   bond_up_slave __rcu *slave_arr; /* Array of usable slaves */
 	bool     force_primary;
+	u32      nest_level;
 	s32      slave_cnt; /* never change this value outside the attach/detach wrappers */
 	int     (*recv_probe)(const struct sk_buff *, struct bonding *,
 			      struct slave *);
@@ -284,8 +285,15 @@ static inline bool bond_needs_speed_duplex(const struct bonding *bond)
 
 static inline bool bond_is_nondyn_tlb(const struct bonding *bond)
 {
-	return (BOND_MODE(bond) == BOND_MODE_TLB)  &&
-	       (bond->params.tlb_dynamic_lb == 0);
+	return (bond_is_lb(bond) && bond->params.tlb_dynamic_lb == 0);
+}
+
+static inline bool bond_mode_can_use_xmit_hash(const struct bonding *bond)
+{
+	return (BOND_MODE(bond) == BOND_MODE_8023AD ||
+		BOND_MODE(bond) == BOND_MODE_XOR ||
+		BOND_MODE(bond) == BOND_MODE_TLB ||
+		BOND_MODE(bond) == BOND_MODE_ALB);
 }
 
 static inline bool bond_mode_uses_xmit_hash(const struct bonding *bond)
@@ -401,6 +409,19 @@ static inline bool bond_slave_can_tx(struct slave *slave)
 {
 	return bond_slave_is_up(slave) && slave->link == BOND_LINK_UP &&
 	       bond_is_active_slave(slave);
+}
+
+static inline bool bond_is_active_slave_dev(const struct net_device *slave_dev)
+{
+	struct slave *slave;
+	bool active;
+
+	rcu_read_lock();
+	slave = bond_slave_get_rcu(slave_dev);
+	active = bond_is_active_slave(slave);
+	rcu_read_unlock();
+
+	return active;
 }
 
 static inline void bond_hw_addr_copy(u8 *dst, const u8 *src, unsigned int len)

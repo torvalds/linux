@@ -72,7 +72,7 @@ audit_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct audit_buffer *ab;
 	int fam = -1;
 
-	if (audit_enabled == 0)
+	if (audit_enabled == AUDIT_OFF)
 		goto errout;
 	ab = audit_log_start(NULL, GFP_ATOMIC, AUDIT_NETFILTER_PKT);
 	if (ab == NULL)

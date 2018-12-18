@@ -1,33 +1,6 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR BSD-3-Clause)
 /* Copyright 2014-2016 Freescale Semiconductor Inc.
  * Copyright 2016-2017 NXP
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *     * Redistributions of source code must retain the above copyright
- *	 notice, this list of conditions and the following disclaimer.
- *     * Redistributions in binary form must reproduce the above copyright
- *	 notice, this list of conditions and the following disclaimer in the
- *	 documentation and/or other materials provided with the distribution.
- *     * Neither the name of Freescale Semiconductor nor the
- *	 names of its contributors may be used to endorse or promote products
- *	 derived from this software without specific prior written permission.
- *
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") as published by the Free Software
- * Foundation, either version 2 of that License or (at your option) any
- * later version.
- *
- * THIS SOFTWARE IS PROVIDED BY Freescale Semiconductor ``AS IS'' AND ANY
- * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
- * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
- * DISCLAIMED. IN NO EVENT SHALL Freescale Semiconductor BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -38,8 +11,11 @@
 #include <linux/msi.h>
 #include <linux/kthread.h>
 #include <linux/iommu.h>
-
+#include <linux/net_tstamp.h>
 #include <linux/fsl/mc.h>
+
+#include <net/sock.h>
+
 #include "dpaa2-eth.h"
 
 /* CREATE_TRACE_POINTS only needs to be defined once. Other dpa files
@@ -51,8 +27,6 @@
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Freescale Semiconductor, Inc");
 MODULE_DESCRIPTION("Freescale DPAA2 Ethernet Driver");
-
-const char dpaa2_eth_drv_version[] = "0.1";
 
 static void *dpaa2_iova_to_virt(struct iommu_domain *domain,
 				dma_addr_t iova_addr)
@@ -275,6 +249,18 @@ static void dpaa2_eth_rx(struct dpaa2_eth_priv *priv,
 
 	prefetch(skb->data);
 
+	/* Get the timestamp value */
+	if (priv->rx_tstamp) {
+		struct skb_shared_hwtstamps *shhwtstamps = skb_hwtstamps(skb);
+		__le64 *ts = dpaa2_get_ts(vaddr, false);
+		u64 ns;
+
+		memset(shhwtstamps, 0, sizeof(*shhwtstamps));
+
+		ns = DPAA2_PTP_CLK_PERIOD_NS * le64_to_cpup(ts);
+		shhwtstamps->hwtstamp = ns_to_ktime(ns);
+	}
+
 	/* Check if we need to validate the L4 csum */
 	if (likely(dpaa2_fd_get_frc(fd) & DPAA2_FD_FRC_FASV)) {
 		status = le32_to_cpu(fas->status);
@@ -332,6 +318,28 @@ static int consume_frames(struct dpaa2_eth_channel *ch)
 	} while (!is_last);
 
 	return cleaned;
+}
+
+/* Configure the egress frame annotation for timestamp update */
+static void enable_tx_tstamp(struct dpaa2_fd *fd, void *buf_start)
+{
+	struct dpaa2_faead *faead;
+	u32 ctrl, frc;
+
+	/* Mark the egress frame annotation area as valid */
+	frc = dpaa2_fd_get_frc(fd);
+	dpaa2_fd_set_frc(fd, frc | DPAA2_FD_FRC_FAEADV);
+
+	/* Set hardware annotation size */
+	ctrl = dpaa2_fd_get_ctrl(fd);
+	dpaa2_fd_set_ctrl(fd, ctrl | DPAA2_FD_CTRL_ASAL);
+
+	/* enable UPD (update prepanded data) bit in FAEAD field of
+	 * hardware frame annotation area
+	 */
+	ctrl = DPAA2_FAEAD_A2V | DPAA2_FAEAD_UPDV | DPAA2_FAEAD_UPD;
+	faead = dpaa2_get_faead(buf_start, true);
+	faead->ctrl = cpu_to_le32(ctrl);
 }
 
 /* Create a frame descriptor based on a fragmented skb */
@@ -420,6 +428,9 @@ static int build_sg_fd(struct dpaa2_eth_priv *priv,
 	dpaa2_fd_set_len(fd, skb->len);
 	dpaa2_fd_set_ctrl(fd, DPAA2_FD_CTRL_PTA | DPAA2_FD_CTRL_PTV1);
 
+	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
+		enable_tx_tstamp(fd, sgt_buf);
+
 	return 0;
 
 dma_map_single_failed:
@@ -470,6 +481,9 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
 	dpaa2_fd_set_format(fd, dpaa2_fd_single);
 	dpaa2_fd_set_ctrl(fd, DPAA2_FD_CTRL_PTA | DPAA2_FD_CTRL_PTV1);
 
+	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)
+		enable_tx_tstamp(fd, buffer_start);
+
 	return 0;
 }
 
@@ -479,8 +493,6 @@ static int build_single_fd(struct dpaa2_eth_priv *priv,
  * back-pointed to is also freed.
  * This can be called either from dpaa2_eth_tx_conf() or on the error path of
  * dpaa2_eth_tx().
- * Optionally, return the frame annotation status word (FAS), which needs
- * to be checked if we're on the confirmation path.
  */
 static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		       const struct dpaa2_fd *fd)
@@ -520,6 +532,19 @@ static void free_tx_fd(const struct dpaa2_eth_priv *priv,
 		return;
 	}
 
+	/* Get the timestamp value */
+	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
+		struct skb_shared_hwtstamps shhwtstamps;
+		__le64 *ts = dpaa2_get_ts(skbh, true);
+		u64 ns;
+
+		memset(&shhwtstamps, 0, sizeof(shhwtstamps));
+
+		ns = DPAA2_PTP_CLK_PERIOD_NS * le64_to_cpup(ts);
+		shhwtstamps.hwtstamp = ns_to_ktime(ns);
+		skb_tstamp_tx(skb, &shhwtstamps);
+	}
+
 	/* Free SGT buffer allocated on tx */
 	if (fd_format != dpaa2_fd_single)
 		skb_free_frag(skbh);
@@ -552,6 +577,10 @@ static netdev_tx_t dpaa2_eth_tx(struct sk_buff *skb, struct net_device *net_dev)
 			goto err_alloc_headroom;
 		}
 		percpu_extras->tx_reallocs++;
+
+		if (skb->sk)
+			skb_set_owner_w(ns, skb->sk);
+
 		dev_kfree_skb(skb);
 		skb = ns;
 	}
@@ -707,7 +736,7 @@ static void free_bufs(struct dpaa2_eth_priv *priv, u64 *buf_array, int count)
 	for (i = 0; i < count; i++) {
 		vaddr = dpaa2_iova_to_virt(priv->iommu_domain, buf_array[i]);
 		dma_unmap_single(dev, buf_array[i], DPAA2_ETH_RX_BUF_SIZE,
-				 DMA_BIDIRECTIONAL);
+				 DMA_FROM_DEVICE);
 		skb_free_frag(vaddr);
 	}
 }
@@ -1185,25 +1214,6 @@ static void dpaa2_eth_get_stats(struct net_device *net_dev,
 	}
 }
 
-static int dpaa2_eth_change_mtu(struct net_device *net_dev, int mtu)
-{
-	struct dpaa2_eth_priv *priv = netdev_priv(net_dev);
-	int err;
-
-	/* Set the maximum Rx frame length to match the transmit side;
-	 * account for L2 headers when computing the MFL
-	 */
-	err = dpni_set_max_frame_length(priv->mc_io, 0, priv->mc_token,
-					(u16)DPAA2_ETH_L2_MAX_FRM(mtu));
-	if (err) {
-		netdev_err(net_dev, "dpni_set_max_frame_length() failed\n");
-		return err;
-	}
-
-	net_dev->mtu = mtu;
-	return 0;
-}
-
 /* Copy mac unicast addresses from @net_dev to @priv.
  * Its sole purpose is to make dpaa2_eth_set_rx_mode() more readable.
  */
@@ -1365,6 +1375,45 @@ static int dpaa2_eth_set_features(struct net_device *net_dev,
 	return 0;
 }
 
+static int dpaa2_eth_ts_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	struct dpaa2_eth_priv *priv = netdev_priv(dev);
+	struct hwtstamp_config config;
+
+	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
+		return -EFAULT;
+
+	switch (config.tx_type) {
+	case HWTSTAMP_TX_OFF:
+		priv->tx_tstamp = false;
+		break;
+	case HWTSTAMP_TX_ON:
+		priv->tx_tstamp = true;
+		break;
+	default:
+		return -ERANGE;
+	}
+
+	if (config.rx_filter == HWTSTAMP_FILTER_NONE) {
+		priv->rx_tstamp = false;
+	} else {
+		priv->rx_tstamp = true;
+		/* TS is set for all frame types, not only those requested */
+		config.rx_filter = HWTSTAMP_FILTER_ALL;
+	}
+
+	return copy_to_user(rq->ifr_data, &config, sizeof(config)) ?
+			-EFAULT : 0;
+}
+
+static int dpaa2_eth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
+{
+	if (cmd == SIOCSHWTSTAMP)
+		return dpaa2_eth_ts_ioctl(dev, rq, cmd);
+
+	return -EINVAL;
+}
+
 static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_open = dpaa2_eth_open,
 	.ndo_start_xmit = dpaa2_eth_tx,
@@ -1372,9 +1421,9 @@ static const struct net_device_ops dpaa2_eth_ops = {
 	.ndo_init = dpaa2_eth_init,
 	.ndo_set_mac_address = dpaa2_eth_set_addr,
 	.ndo_get_stats64 = dpaa2_eth_get_stats,
-	.ndo_change_mtu = dpaa2_eth_change_mtu,
 	.ndo_set_rx_mode = dpaa2_eth_set_rx_mode,
 	.ndo_set_features = dpaa2_eth_set_features,
+	.ndo_do_ioctl = dpaa2_eth_ioctl,
 };
 
 static void cdan_cb(struct dpaa2_io_notification_ctx *ctx)
@@ -1770,7 +1819,9 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 
 	/* tx buffer */
 	buf_layout.private_data_size = DPAA2_ETH_SWA_SIZE;
-	buf_layout.options = DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE;
+	buf_layout.pass_timestamp = true;
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_PRIVATE_DATA_SIZE |
+			     DPNI_BUF_LAYOUT_OPT_TIMESTAMP;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
 				     DPNI_QUEUE_TX, &buf_layout);
 	if (err) {
@@ -1779,7 +1830,7 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 	}
 
 	/* tx-confirm buffer */
-	buf_layout.options = 0;
+	buf_layout.options = DPNI_BUF_LAYOUT_OPT_TIMESTAMP;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
 				     DPNI_QUEUE_TX_CONFIRM, &buf_layout);
 	if (err) {
@@ -1810,7 +1861,8 @@ static int set_buffer_layout(struct dpaa2_eth_priv *priv)
 	buf_layout.options = DPNI_BUF_LAYOUT_OPT_PARSER_RESULT |
 			     DPNI_BUF_LAYOUT_OPT_FRAME_STATUS |
 			     DPNI_BUF_LAYOUT_OPT_DATA_ALIGN |
-			     DPNI_BUF_LAYOUT_OPT_DATA_HEAD_ROOM;
+			     DPNI_BUF_LAYOUT_OPT_DATA_HEAD_ROOM |
+			     DPNI_BUF_LAYOUT_OPT_TIMESTAMP;
 	err = dpni_set_buffer_layout(priv->mc_io, 0, priv->mc_token,
 				     DPNI_QUEUE_RX, &buf_layout);
 	if (err) {
@@ -2114,10 +2166,10 @@ static int bind_dpni(struct dpaa2_eth_priv *priv)
 		return err;
 	}
 
-	/* have the interface implicitly distribute traffic based on supported
-	 * header fields
+	/* have the interface implicitly distribute traffic based on
+	 * the default hash key
 	 */
-	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_SUPPORTED);
+	err = dpaa2_eth_set_hash(net_dev, DPAA2_RXH_DEFAULT);
 	if (err)
 		dev_err(dev, "Failed to configure hashing\n");
 
@@ -2282,9 +2334,14 @@ static int netdev_init(struct net_device *net_dev)
 		return err;
 	}
 
-	/* Set MTU limits */
-	net_dev->min_mtu = 68;
+	/* Set MTU upper limit; lower limit is 68B (default value) */
 	net_dev->max_mtu = DPAA2_ETH_MAX_MTU;
+	err = dpni_set_max_frame_length(priv->mc_io, 0, priv->mc_token,
+					DPAA2_ETH_MFL);
+	if (err) {
+		dev_err(dev, "dpni_set_max_frame_length() failed\n");
+		return err;
+	}
 
 	/* Set actual number of queues in the net device */
 	num_queues = dpaa2_eth_queue_count(priv);
@@ -2575,7 +2632,6 @@ static int dpaa2_eth_remove(struct fsl_mc_device *ls_dev)
 
 	fsl_mc_portal_free(priv->mc_io);
 
-	dev_set_drvdata(dev, NULL);
 	free_netdev(net_dev);
 
 	dev_dbg(net_dev->dev.parent, "Removed interface %s\n", net_dev->name);

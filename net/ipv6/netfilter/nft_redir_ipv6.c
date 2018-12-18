@@ -22,7 +22,7 @@ static void nft_redir_ipv6_eval(const struct nft_expr *expr,
 				const struct nft_pktinfo *pkt)
 {
 	struct nft_redir *priv = nft_expr_priv(expr);
-	struct nf_nat_range range;
+	struct nf_nat_range2 range;
 
 	memset(&range, 0, sizeof(range));
 	if (priv->sreg_proto_min) {

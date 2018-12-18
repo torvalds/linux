@@ -22,6 +22,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
+#include <linux/suspend.h>
 #include <linux/delay.h>
 
 #include "internal.h"
@@ -68,6 +69,10 @@ ACPI_MODULE_NAME("acpi_lpss");
 #define LPSS_LTR			BIT(3)
 #define LPSS_SAVE_CTX			BIT(4)
 #define LPSS_NO_D3_DELAY		BIT(5)
+
+/* Crystal Cove PMIC shares same ACPI ID between different platforms */
+#define BYT_CRC_HRV			2
+#define CHT_CRC_HRV			3
 
 struct lpss_private_data;
 
@@ -162,7 +167,7 @@ static void byt_pwm_setup(struct lpss_private_data *pdata)
 	if (!adev->pnp.unique_id || strcmp(adev->pnp.unique_id, "1"))
 		return;
 
-	if (!acpi_dev_present("INT33FD", NULL, -1))
+	if (!acpi_dev_present("INT33FD", NULL, BYT_CRC_HRV))
 		pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
 }
 
@@ -229,11 +234,13 @@ static const struct lpss_device_desc lpt_sdio_dev_desc = {
 
 static const struct lpss_device_desc byt_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX,
+	.prv_offset = 0x800,
 	.setup = byt_pwm_setup,
 };
 
 static const struct lpss_device_desc bsw_pwm_dev_desc = {
 	.flags = LPSS_SAVE_CTX | LPSS_NO_D3_DELAY,
+	.prv_offset = 0x800,
 	.setup = bsw_pwm_setup,
 };
 
@@ -872,6 +879,7 @@ static void acpi_lpss_dismiss(struct device *dev)
 #define LPSS_GPIODEF0_DMA_LLP		BIT(13)
 
 static DEFINE_MUTEX(lpss_iosf_mutex);
+static bool lpss_iosf_d3_entered;
 
 static void lpss_iosf_enter_d3_state(void)
 {
@@ -914,6 +922,9 @@ static void lpss_iosf_enter_d3_state(void)
 
 	iosf_mbi_modify(LPSS_IOSF_UNIT_LPIOEP, MBI_CR_WRITE,
 			LPSS_IOSF_GPIODEF0, value1, mask1);
+
+	lpss_iosf_d3_entered = true;
+
 exit:
 	mutex_unlock(&lpss_iosf_mutex);
 }
@@ -928,6 +939,11 @@ static void lpss_iosf_exit_d3_state(void)
 
 	mutex_lock(&lpss_iosf_mutex);
 
+	if (!lpss_iosf_d3_entered)
+		goto exit;
+
+	lpss_iosf_d3_entered = false;
+
 	iosf_mbi_modify(LPSS_IOSF_UNIT_LPIOEP, MBI_CR_WRITE,
 			LPSS_IOSF_GPIODEF0, value1, mask1);
 
@@ -937,6 +953,7 @@ static void lpss_iosf_exit_d3_state(void)
 	iosf_mbi_modify(LPSS_IOSF_UNIT_LPIO1, MBI_CFG_WRITE,
 			LPSS_IOSF_PMCSR, value2, mask2);
 
+exit:
 	mutex_unlock(&lpss_iosf_mutex);
 }
 
@@ -955,7 +972,8 @@ static int acpi_lpss_suspend(struct device *dev, bool wakeup)
 	 * wrong status for devices being about to be powered off. See
 	 * lpss_iosf_enter_d3_state() for further information.
 	 */
-	if (lpss_quirks & LPSS_QUIRK_ALWAYS_POWER_ON && iosf_mbi_available())
+	if (acpi_target_system_state() == ACPI_STATE_S0 &&
+	    lpss_quirks & LPSS_QUIRK_ALWAYS_POWER_ON && iosf_mbi_available())
 		lpss_iosf_enter_d3_state();
 
 	return ret;

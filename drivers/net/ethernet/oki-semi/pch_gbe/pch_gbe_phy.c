@@ -184,7 +184,7 @@ s32 pch_gbe_phy_write_reg_miic(struct pch_gbe_hw *hw, u32 offset, u16 data)
  * pch_gbe_phy_sw_reset - PHY software reset
  * @hw:	            Pointer to the HW structure
  */
-void pch_gbe_phy_sw_reset(struct pch_gbe_hw *hw)
+static void pch_gbe_phy_sw_reset(struct pch_gbe_hw *hw)
 {
 	u16 phy_ctrl;
 

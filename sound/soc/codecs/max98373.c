@@ -488,6 +488,7 @@ static const DECLARE_TLV_DB_RANGE(max98373_bde_gain_tlv,
 static bool max98373_readable_register(struct device *dev, unsigned int reg)
 {
 	switch (reg) {
+	case MAX98373_R2000_SW_RESET:
 	case MAX98373_R2001_INT_RAW1 ... MAX98373_R200C_INT_EN3:
 	case MAX98373_R2010_IRQ_CTRL:
 	case MAX98373_R2014_THERM_WARN_THRESH

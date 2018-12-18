@@ -27,8 +27,6 @@
 #include <linux/percpu-refcount.h>
 #include <linux/scatterlist.h>
 #include <linux/blkzoned.h>
-#include <linux/seqlock.h>
-#include <linux/u64_stats_sync.h>
 
 struct module;
 struct scsi_ioctl_command;
@@ -42,7 +40,7 @@ struct bsg_job;
 struct blkcg_gq;
 struct blk_flush_queue;
 struct pr_ops;
-struct rq_wb;
+struct rq_qos;
 struct blk_queue_stats;
 struct blk_stat_callback;
 
@@ -125,14 +123,23 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_SPECIAL_PAYLOAD	((__force req_flags_t)(1 << 18))
 /* The per-zone write lock is held for this request */
 #define RQF_ZONE_WRITE_LOCKED	((__force req_flags_t)(1 << 19))
-/* timeout is expired */
-#define RQF_MQ_TIMEOUT_EXPIRED	((__force req_flags_t)(1 << 20))
 /* already slept for hybrid poll */
-#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 21))
+#define RQF_MQ_POLL_SLEPT	((__force req_flags_t)(1 << 20))
+/* ->timeout has been called, don't expire again */
+#define RQF_TIMED_OUT		((__force req_flags_t)(1 << 21))
 
 /* flags that prevent us from merging requests: */
 #define RQF_NOMERGE_FLAGS \
 	(RQF_STARTED | RQF_SOFTBARRIER | RQF_FLUSH_SEQ | RQF_SPECIAL_PAYLOAD)
+
+/*
+ * Request state for blk-mq.
+ */
+enum mq_rq_state {
+	MQ_RQ_IDLE		= 0,
+	MQ_RQ_IN_FLIGHT		= 1,
+	MQ_RQ_COMPLETE		= 2,
+};
 
 /*
  * Try to put the fields that are referenced together in the same cacheline.
@@ -205,9 +212,20 @@ struct request {
 
 	struct gendisk *rq_disk;
 	struct hd_struct *part;
-	unsigned long start_time;
-	struct blk_issue_stat issue_stat;
-	/* Number of scatter-gather DMA addr+len pairs after
+	/* Time that I/O was submitted to the kernel. */
+	u64 start_time_ns;
+	/* Time that I/O was submitted to the device. */
+	u64 io_start_time_ns;
+
+#ifdef CONFIG_BLK_WBT
+	unsigned short wbt_flags;
+#endif
+#ifdef CONFIG_BLK_DEV_THROTTLING_LOW
+	unsigned short throtl_size;
+#endif
+
+	/*
+	 * Number of scatter-gather DMA addr+len pairs after
 	 * physical address coalescing is performed.
 	 */
 	unsigned short nr_phys_segments;
@@ -219,32 +237,14 @@ struct request {
 	unsigned short write_hint;
 	unsigned short ioprio;
 
-	unsigned int timeout;
-
 	void *special;		/* opaque pointer available for LLD use */
 
 	unsigned int extra_len;	/* length of alignment and padding */
 
-	/*
-	 * On blk-mq, the lower bits of ->gstate (generation number and
-	 * state) carry the MQ_RQ_* state value and the upper bits the
-	 * generation number which is monotonically incremented and used to
-	 * distinguish the reuse instances.
-	 *
-	 * ->gstate_seq allows updates to ->gstate and other fields
-	 * (currently ->deadline) during request start to be read
-	 * atomically from the timeout path, so that it can operate on a
-	 * coherent set of information.
-	 */
-	seqcount_t gstate_seq;
-	u64 gstate;
+	enum mq_rq_state state;
+	refcount_t ref;
 
-	/*
-	 * ->aborted_gstate is used by the timeout to claim a specific
-	 * recycle instance of this request.  See blk_mq_timeout_work().
-	 */
-	struct u64_stats_sync aborted_gstate_sync;
-	u64 aborted_gstate;
+	unsigned int timeout;
 
 	/* access through blk_rq_set_deadline, blk_rq_deadline */
 	unsigned long __deadline;
@@ -267,8 +267,6 @@ struct request {
 
 #ifdef CONFIG_BLK_CGROUP
 	struct request_list *rl;		/* rl this rq is alloced from */
-	unsigned long long start_time_ns;
-	unsigned long long io_start_time_ns;    /* when passed to hardware */
 #endif
 };
 
@@ -328,9 +326,8 @@ typedef int (init_rq_fn)(struct request_queue *, struct request *, gfp_t);
 typedef void (exit_rq_fn)(struct request_queue *, struct request *);
 
 enum blk_eh_timer_return {
-	BLK_EH_NOT_HANDLED,
-	BLK_EH_HANDLED,
-	BLK_EH_RESET_TIMER,
+	BLK_EH_DONE,		/* drivers has completed the command */
+	BLK_EH_RESET_TIMER,	/* reset timer and try again */
 };
 
 typedef enum blk_eh_timer_return (rq_timed_out_fn)(struct request *);
@@ -443,10 +440,8 @@ struct request_queue {
 	int			nr_rqs[2];	/* # allocated [a]sync rqs */
 	int			nr_rqs_elvpriv;	/* # allocated rqs w/ elvpriv */
 
-	atomic_t		shared_hctx_restart;
-
 	struct blk_queue_stats	*stats;
-	struct rq_wb		*rq_wb;
+	struct rq_qos		*rq_qos;
 
 	/*
 	 * If blkcg is not used, @q->root_rl serves all requests.  If blkcg
@@ -563,7 +558,6 @@ struct request_queue {
 	unsigned int		dma_alignment;
 
 	struct blk_queue_tag	*queue_tags;
-	struct list_head	tag_busy_list;
 
 	unsigned int		nr_sorted;
 	unsigned int		in_flight[2];
@@ -594,6 +588,7 @@ struct request_queue {
 
 	struct queue_limits	limits;
 
+#ifdef CONFIG_BLK_DEV_ZONED
 	/*
 	 * Zoned block device information for request dispatch control.
 	 * nr_zones is the total number of zones of the device. This is always
@@ -605,10 +600,16 @@ struct request_queue {
 	 * initialized by the low level device driver (e.g. scsi/sd.c).
 	 * Stacking drivers (device mappers) may or may not initialize
 	 * these fields.
+	 *
+	 * Reads of this information must be protected with blk_queue_enter() /
+	 * blk_queue_exit(). Modifying this information is only allowed while
+	 * no requests are being processed. See also blk_mq_freeze_queue() and
+	 * blk_mq_unfreeze_queue().
 	 */
 	unsigned int		nr_zones;
 	unsigned long		*seq_zones_bitmap;
 	unsigned long		*seq_zones_wlock;
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 	/*
 	 * sg stuff
@@ -650,7 +651,7 @@ struct request_queue {
 
 	struct blk_mq_tag_set	*tag_set;
 	struct list_head	tag_set_list;
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 #ifdef CONFIG_BLK_DEBUG_FS
 	struct dentry		*debugfs_dir;
@@ -737,6 +738,7 @@ bool blk_queue_flag_test_and_clear(unsigned int flag, struct request_queue *q);
 #define blk_queue_quiesced(q)	test_bit(QUEUE_FLAG_QUIESCED, &(q)->queue_flags)
 #define blk_queue_preempt_only(q)				\
 	test_bit(QUEUE_FLAG_PREEMPT_ONLY, &(q)->queue_flags)
+#define blk_queue_fua(q)	test_bit(QUEUE_FLAG_FUA, &(q)->queue_flags)
 
 extern int blk_set_preempt_only(struct request_queue *q);
 extern void blk_clear_preempt_only(struct request_queue *q);
@@ -796,11 +798,7 @@ static inline unsigned int blk_queue_zone_sectors(struct request_queue *q)
 	return blk_queue_is_zoned(q) ? q->limits.chunk_sectors : 0;
 }
 
-static inline unsigned int blk_queue_nr_zones(struct request_queue *q)
-{
-	return q->nr_zones;
-}
-
+#ifdef CONFIG_BLK_DEV_ZONED
 static inline unsigned int blk_queue_zone_no(struct request_queue *q,
 					     sector_t sector)
 {
@@ -816,6 +814,7 @@ static inline bool blk_queue_zone_is_seq(struct request_queue *q,
 		return false;
 	return test_bit(blk_queue_zone_no(q, sector), q->seq_zones_bitmap);
 }
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 static inline bool rq_is_sync(struct request *rq)
 {
@@ -961,11 +960,8 @@ extern void blk_rq_init(struct request_queue *q, struct request *rq);
 extern void blk_init_request_from_bio(struct request *req, struct bio *bio);
 extern void blk_put_request(struct request *);
 extern void __blk_put_request(struct request_queue *, struct request *);
-extern struct request *blk_get_request_flags(struct request_queue *,
-					     unsigned int op,
-					     blk_mq_req_flags_t flags);
 extern struct request *blk_get_request(struct request_queue *, unsigned int op,
-				       gfp_t gfp_mask);
+				       blk_mq_req_flags_t flags);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern int blk_lld_busy(struct request_queue *q);
 extern int blk_rq_prep_clone(struct request *rq, struct request *rq_src,
@@ -1069,6 +1065,7 @@ static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 	return blk_rq_cur_bytes(rq) >> SECTOR_SHIFT;
 }
 
+#ifdef CONFIG_BLK_DEV_ZONED
 static inline unsigned int blk_rq_zone_no(struct request *rq)
 {
 	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
@@ -1078,6 +1075,7 @@ static inline unsigned int blk_rq_zone_is_seq(struct request *rq)
 {
 	return blk_queue_zone_is_seq(rq->q, blk_rq_pos(rq));
 }
+#endif /* CONFIG_BLK_DEV_ZONED */
 
 /*
  * Some commands like WRITE SAME have a payload or data transfer size which
@@ -1118,8 +1116,8 @@ static inline unsigned int blk_max_size_offset(struct request_queue *q,
 	if (!q->limits.chunk_sectors)
 		return q->limits.max_sectors;
 
-	return q->limits.chunk_sectors -
-			(offset & (q->limits.chunk_sectors - 1));
+	return min(q->limits.max_sectors, (unsigned int)(q->limits.chunk_sectors -
+			(offset & (q->limits.chunk_sectors - 1))));
 }
 
 static inline unsigned int blk_rq_get_max_sectors(struct request *rq,
@@ -1373,7 +1371,6 @@ extern void blk_queue_end_tag(struct request_queue *, struct request *);
 extern int blk_queue_init_tags(struct request_queue *, int, struct blk_queue_tag *, int);
 extern void blk_queue_free_tags(struct request_queue *);
 extern int blk_queue_resize_tags(struct request_queue *, int);
-extern void blk_queue_invalidate_tags(struct request_queue *);
 extern struct blk_queue_tag *blk_init_tags(int, int);
 extern void blk_free_tags(struct blk_queue_tag *);
 
@@ -1436,8 +1433,6 @@ enum blk_default_limits {
 	BLK_MAX_SEGMENT_SIZE	= 65536,
 	BLK_SEG_BOUNDARY_MASK	= 0xFFFFFFFFUL,
 };
-
-#define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
 
 static inline unsigned long queue_segment_boundary(struct request_queue *q)
 {
@@ -1639,15 +1634,6 @@ static inline unsigned int bdev_zone_sectors(struct block_device *bdev)
 	return 0;
 }
 
-static inline unsigned int bdev_nr_zones(struct block_device *bdev)
-{
-	struct request_queue *q = bdev_get_queue(bdev);
-
-	if (q)
-		return blk_queue_nr_zones(q);
-	return 0;
-}
-
 static inline int queue_dma_alignment(struct request_queue *q)
 {
 	return q ? q->dma_alignment : 511;
@@ -1782,48 +1768,6 @@ int kblockd_schedule_work(struct work_struct *work);
 int kblockd_schedule_work_on(int cpu, struct work_struct *work);
 int kblockd_mod_delayed_work_on(int cpu, struct delayed_work *dwork, unsigned long delay);
 
-#ifdef CONFIG_BLK_CGROUP
-/*
- * This should not be using sched_clock(). A real patch is in progress
- * to fix this up, until that is in place we need to disable preemption
- * around sched_clock() in this function and set_io_start_time_ns().
- */
-static inline void set_start_time_ns(struct request *req)
-{
-	preempt_disable();
-	req->start_time_ns = sched_clock();
-	preempt_enable();
-}
-
-static inline void set_io_start_time_ns(struct request *req)
-{
-	preempt_disable();
-	req->io_start_time_ns = sched_clock();
-	preempt_enable();
-}
-
-static inline uint64_t rq_start_time_ns(struct request *req)
-{
-        return req->start_time_ns;
-}
-
-static inline uint64_t rq_io_start_time_ns(struct request *req)
-{
-        return req->io_start_time_ns;
-}
-#else
-static inline void set_start_time_ns(struct request *req) {}
-static inline void set_io_start_time_ns(struct request *req) {}
-static inline uint64_t rq_start_time_ns(struct request *req)
-{
-	return 0;
-}
-static inline uint64_t rq_io_start_time_ns(struct request *req)
-{
-	return 0;
-}
-#endif
-
 #define MODULE_ALIAS_BLOCKDEV(major,minor) \
 	MODULE_ALIAS("block-major-" __stringify(major) "-" __stringify(minor))
 #define MODULE_ALIAS_BLOCKDEV_MAJOR(major) \
@@ -1919,6 +1863,28 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 				bip_next->bip_vec[0].bv_offset);
 }
 
+/**
+ * bio_integrity_intervals - Return number of integrity intervals for a bio
+ * @bi:		blk_integrity profile for device
+ * @sectors:	Size of the bio in 512-byte sectors
+ *
+ * Description: The block layer calculates everything in 512 byte
+ * sectors but integrity metadata is done in terms of the data integrity
+ * interval size of the storage device.  Convert the block layer sectors
+ * to the appropriate number of integrity intervals.
+ */
+static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
+						   unsigned int sectors)
+{
+	return sectors >> (bi->interval_exp - 9);
+}
+
+static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
+					       unsigned int sectors)
+{
+	return bio_integrity_intervals(bi, sectors) * bi->tuple_size;
+}
+
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
 struct bio;
@@ -1992,12 +1958,24 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 	return false;
 }
 
+static inline unsigned int bio_integrity_intervals(struct blk_integrity *bi,
+						   unsigned int sectors)
+{
+	return 0;
+}
+
+static inline unsigned int bio_integrity_bytes(struct blk_integrity *bi,
+					       unsigned int sectors)
+{
+	return 0;
+}
+
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 struct block_device_operations {
 	int (*open) (struct block_device *, fmode_t);
 	void (*release) (struct gendisk *, fmode_t);
-	int (*rw_page)(struct block_device *, sector_t, struct page *, bool);
+	int (*rw_page)(struct block_device *, sector_t, struct page *, unsigned int);
 	int (*ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	int (*compat_ioctl) (struct block_device *, fmode_t, unsigned, unsigned long);
 	unsigned int (*check_events) (struct gendisk *disk,

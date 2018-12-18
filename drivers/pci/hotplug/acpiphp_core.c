@@ -254,20 +254,6 @@ static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 	return 0;
 }
 
-/**
- * release_slot - free up the memory used by a slot
- * @hotplug_slot: slot to free
- */
-static void release_slot(struct hotplug_slot *hotplug_slot)
-{
-	struct slot *slot = hotplug_slot->private;
-
-	pr_debug("%s - physical_slot = %s\n", __func__, slot_name(slot));
-
-	kfree(slot->hotplug_slot);
-	kfree(slot);
-}
-
 /* callback routine to initialize 'struct slot' for each slot */
 int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 				  unsigned int sun)
@@ -287,7 +273,6 @@ int acpiphp_register_hotplug_slot(struct acpiphp_slot *acpiphp_slot,
 	slot->hotplug_slot->info = &slot->info;
 
 	slot->hotplug_slot->private = slot;
-	slot->hotplug_slot->release = &release_slot;
 	slot->hotplug_slot->ops = &acpi_hotplug_slot_ops;
 
 	slot->acpi_slot = acpiphp_slot;
@@ -324,13 +309,12 @@ error:
 void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *acpiphp_slot)
 {
 	struct slot *slot = acpiphp_slot->slot;
-	int retval = 0;
 
 	pr_info("Slot [%s] unregistered\n", slot_name(slot));
 
-	retval = pci_hp_deregister(slot->hotplug_slot);
-	if (retval)
-		pr_err("pci_hp_deregister failed with error %d\n", retval);
+	pci_hp_deregister(slot->hotplug_slot);
+	kfree(slot->hotplug_slot);
+	kfree(slot);
 }
 
 

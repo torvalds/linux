@@ -36,7 +36,7 @@ static int nouveau_platform_probe(struct platform_device *pdev)
 
 	ret = drm_dev_register(drm, 0);
 	if (ret < 0) {
-		drm_dev_unref(drm);
+		drm_dev_put(drm);
 		return ret;
 	}
 

@@ -1,28 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * NewportMedia WiFi chipset driver test tools - wilc-debug
- * Copyright (c) 2012 NewportMedia Inc.
- * Author: SSW <sswd@wilcsemic.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
+ * Copyright (c) 2012 - 2018 Microchip Technology Inc., and its subsidiaries.
+ * All rights reserved.
  */
 
 #if defined(WILC_DEBUGFS)
 #include <linux/module.h>
 #include <linux/debugfs.h>
-#include <linux/poll.h>
-#include <linux/sched.h>
 
 #include "wilc_wlan_if.h"
 
 static struct dentry *wilc_dir;
 
-/*
- * ----------------------------------------------------------------------------
- */
 #define DEBUG           BIT(0)
 #define INFO            BIT(1)
 #define WRN             BIT(2)
@@ -30,11 +19,6 @@ static struct dentry *wilc_dir;
 
 #define DBG_LEVEL_ALL	(DEBUG | INFO | WRN | ERR)
 static atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
-EXPORT_SYMBOL_GPL(WILC_DEBUG_LEVEL);
-
-/*
- * ----------------------------------------------------------------------------
- */
 
 static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf,
 				     size_t count, loff_t *ppos)
@@ -79,10 +63,6 @@ static ssize_t wilc_debug_level_write(struct file *filp,
 	return count;
 }
 
-/*
- * ----------------------------------------------------------------------------
- */
-
 #define FOPS(_open, _read, _write, _poll) { \
 		.owner	= THIS_MODULE, \
 		.open	= (_open), \
@@ -107,7 +87,7 @@ static struct wilc_debugfs_info_t debugfs_info[] = {
 	},
 };
 
-static int __init wilc_debugfs_init(void)
+int wilc_debugfs_init(void)
 {
 	int i;
 	struct wilc_debugfs_info_t *info;
@@ -123,12 +103,10 @@ static int __init wilc_debugfs_init(void)
 	}
 	return 0;
 }
-module_init(wilc_debugfs_init);
 
-static void __exit wilc_debugfs_remove(void)
+void wilc_debugfs_remove(void)
 {
 	debugfs_remove_recursive(wilc_dir);
 }
-module_exit(wilc_debugfs_remove);
 
 #endif

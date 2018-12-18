@@ -2,8 +2,7 @@
 #ifndef __ASM_MACH_GENERIC_KMALLOC_H
 #define __ASM_MACH_GENERIC_KMALLOC_H
 
-
-#ifndef CONFIG_DMA_COHERENT
+#ifdef CONFIG_DMA_NONCOHERENT
 /*
  * Total overkill for most systems but need as a safe default.
  * Set this one if any device in the system might do non-coherent DMA.

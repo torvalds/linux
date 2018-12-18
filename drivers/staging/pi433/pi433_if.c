@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * userspace interface for pi433 radio module
  *
@@ -65,10 +66,12 @@ static DEFINE_MUTEX(minor_lock); /* Protect idr accesses */
 
 static struct class *pi433_class; /* mainly for udev to create /dev/pi433 */
 
-/* tx config is instance specific
+/*
+ * tx config is instance specific
  * so with each open a new tx config struct is needed
  */
-/* rx config is device specific
+/*
+ * rx config is device specific
  * so we have just one rx config, ebedded in device struct
  */
 struct pi433_device {
@@ -78,7 +81,6 @@ struct pi433_device {
 	struct device		*dev;
 	struct cdev		*cdev;
 	struct spi_device	*spi;
-	unsigned int		users;
 
 	/* irq related values */
 	struct gpio_desc	*gpiod[NUM_DIO];
@@ -87,7 +89,7 @@ struct pi433_device {
 
 	/* tx related values */
 	STRUCT_KFIFO_REC_1(MSG_FIFO_SIZE) tx_fifo;
-	struct mutex		tx_fifo_lock; // TODO: check, whether necessary or obsolete
+	struct mutex		tx_fifo_lock; /* serialize userspace writers */
 	struct task_struct	*tx_task_struct;
 	wait_queue_head_t	tx_wait_queue;
 	u8			free_in_fifo;
@@ -584,24 +586,25 @@ pi433_tx_thread(void *data)
 		if (kthread_should_stop())
 			return 0;
 
-		/* get data from fifo in the following order:
+		/*
+		 * get data from fifo in the following order:
 		 * - tx_cfg
 		 * - size of message
 		 * - message
 		 */
-		mutex_lock(&device->tx_fifo_lock);
-
 		retval = kfifo_out(&device->tx_fifo, &tx_cfg, sizeof(tx_cfg));
 		if (retval != sizeof(tx_cfg)) {
-			dev_dbg(device->dev, "reading tx_cfg from fifo failed: got %d byte(s), expected %d", retval, (unsigned int)sizeof(tx_cfg));
-			mutex_unlock(&device->tx_fifo_lock);
+			dev_dbg(device->dev,
+				"reading tx_cfg from fifo failed: got %d byte(s), expected %d",
+				retval, (unsigned int)sizeof(tx_cfg));
 			continue;
 		}
 
 		retval = kfifo_out(&device->tx_fifo, &size, sizeof(size_t));
 		if (retval != sizeof(size_t)) {
-			dev_dbg(device->dev, "reading msg size from fifo failed: got %d, expected %d", retval, (unsigned int)sizeof(size_t));
-			mutex_unlock(&device->tx_fifo_lock);
+			dev_dbg(device->dev,
+				"reading msg size from fifo failed: got %d, expected %d",
+				retval, (unsigned int)sizeof(size_t));
 			continue;
 		}
 
@@ -623,7 +626,11 @@ pi433_tx_thread(void *data)
 
 		/* add length byte, if requested */
 		if (tx_cfg.enable_length_byte  == OPTION_ON)
-			device->buffer[position++] = size - 1; /* according to spec length byte itself must be excluded from the length calculation */
+			/*
+			 * according to spec, length byte itself must be
+			 * excluded from the length calculation
+			 */
+			device->buffer[position++] = size - 1;
 
 		/* add adr byte, if requested */
 		if (tx_cfg.enable_address_byte == OPTION_ON)
@@ -634,9 +641,9 @@ pi433_tx_thread(void *data)
 				   sizeof(device->buffer) - position);
 		dev_dbg(device->dev,
 			"read %d message byte(s) from fifo queue.", retval);
-		mutex_unlock(&device->tx_fifo_lock);
 
-		/* if rx is active, we need to interrupt the waiting for
+		/*
+		 * if rx is active, we need to interrupt the waiting for
 		 * incoming telegrams, to be able to send something.
 		 * We are only allowed, if currently no reception takes
 		 * place otherwise we need to  wait for the incoming telegram
@@ -646,14 +653,16 @@ pi433_tx_thread(void *data)
 					 !device->rx_active ||
 					  device->interrupt_rx_allowed);
 
-		/* prevent race conditions
+		/*
+		 * prevent race conditions
 		 * irq will be reenabled after tx config is set
 		 */
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
 
 		if (device->rx_active && !rx_interrupted) {
-			/* rx is currently waiting for a telegram;
+			/*
+			 * rx is currently waiting for a telegram;
 			 * we need to set the radio module to standby
 			 */
 			retval = rf69_set_mode(device->spi, standby);
@@ -818,21 +827,35 @@ pi433_write(struct file *filp, const char __user *buf,
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
 	int                     retval;
-	unsigned int		copied;
+	unsigned int		required, available, copied;
 
 	instance = filp->private_data;
 	device = instance->device;
 
-	/* check, whether internal buffer (tx thread) is big enough for requested size */
+	/*
+	 * check, whether internal buffer (tx thread) is big enough
+	 * for requested size
+	 */
 	if (count > MAX_MSG_SIZE)
 		return -EMSGSIZE;
 
-	/* write the following sequence into fifo:
+	/*
+	 * write the following sequence into fifo:
 	 * - tx_cfg
 	 * - size of message
 	 * - message
 	 */
 	mutex_lock(&device->tx_fifo_lock);
+
+	required = sizeof(instance->tx_cfg) + sizeof(size_t) + count;
+	available = kfifo_avail(&device->tx_fifo);
+	if (required > available) {
+		dev_dbg(device->dev, "write to fifo failed: %d bytes required but %d available",
+			required, available);
+		mutex_unlock(&device->tx_fifo_lock);
+		return -EAGAIN;
+	}
+
 	retval = kfifo_in(&device->tx_fifo, &instance->tx_cfg,
 			  sizeof(instance->tx_cfg));
 	if (retval != sizeof(instance->tx_cfg))
@@ -855,8 +878,8 @@ pi433_write(struct file *filp, const char __user *buf,
 	return copied;
 
 abort:
-	dev_dbg(device->dev, "write to fifo failed: 0x%x", retval);
-	kfifo_reset(&device->tx_fifo); // TODO: maybe find a solution, not to discard already stored, valid entries
+	dev_warn(device->dev,
+		 "write to fifo failed, non recoverable: 0x%x", retval);
 	mutex_unlock(&device->tx_fifo_lock);
 	return -EAGAIN;
 }
@@ -867,15 +890,13 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int			retval = 0;
 	struct pi433_instance	*instance;
 	struct pi433_device	*device;
+	struct pi433_tx_cfg	tx_cfg;
 	void __user *argp = (void __user *)arg;
 
 	/* Check type and command number */
 	if (_IOC_TYPE(cmd) != PI433_IOC_MAGIC)
 		return -ENOTTY;
 
-	/* TODO? guard against device removal before, or while,
-	 * we issue this ioctl. --> device_get()
-	 */
 	instance = filp->private_data;
 	device = instance->device;
 
@@ -889,9 +910,11 @@ pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		break;
 	case PI433_IOC_WR_TX_CFG:
-		if (copy_from_user(&instance->tx_cfg, argp,
-				   sizeof(struct pi433_tx_cfg)))
+		if (copy_from_user(&tx_cfg, argp, sizeof(struct pi433_tx_cfg)))
 			return -EFAULT;
+		mutex_lock(&device->tx_fifo_lock);
+		memcpy(&instance->tx_cfg, &tx_cfg, sizeof(struct pi433_tx_cfg));
+		mutex_unlock(&device->tx_fifo_lock);
 		break;
 	case PI433_IOC_RD_RX_CFG:
 		if (copy_to_user(argp, &device->rx_cfg,
@@ -947,19 +970,9 @@ static int pi433_open(struct inode *inode, struct file *filp)
 		return -ENODEV;
 	}
 
-	if (!device->rx_buffer) {
-		device->rx_buffer = kmalloc(MAX_MSG_SIZE, GFP_KERNEL);
-		if (!device->rx_buffer)
-			return -ENOMEM;
-	}
-
-	device->users++;
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
-	if (!instance) {
-		kfree(device->rx_buffer);
-		device->rx_buffer = NULL;
+	if (!instance)
 		return -ENOMEM;
-	}
 
 	/* setup instance data*/
 	instance->device = device;
@@ -976,22 +989,10 @@ static int pi433_open(struct inode *inode, struct file *filp)
 static int pi433_release(struct inode *inode, struct file *filp)
 {
 	struct pi433_instance	*instance;
-	struct pi433_device	*device;
 
 	instance = filp->private_data;
-	device = instance->device;
 	kfree(instance);
 	filp->private_data = NULL;
-
-	/* last close? */
-	device->users--;
-
-	if (!device->users) {
-		kfree(device->rx_buffer);
-		device->rx_buffer = NULL;
-		if (!device->spi)
-			kfree(device);
-	}
 
 	return 0;
 }
@@ -1042,7 +1043,7 @@ static int setup_gpio(struct pi433_device *device)
 		/* configure irq */
 		device->irq_num[i] = gpiod_to_irq(device->gpiod[i]);
 		if (device->irq_num[i] < 0) {
-			device->gpiod[i] = ERR_PTR(-EINVAL);//(struct gpio_desc *)device->irq_num[i];
+			device->gpiod[i] = ERR_PTR(-EINVAL);
 			return device->irq_num[i];
 		}
 		retval = request_irq(device->irq_num[i],
@@ -1102,7 +1103,8 @@ static void pi433_free_minor(struct pi433_device *dev)
 
 static const struct file_operations pi433_fops = {
 	.owner =	THIS_MODULE,
-	/* REVISIT switch to aio primitives, so that userspace
+	/*
+	 * REVISIT switch to aio primitives, so that userspace
 	 * gets more complete API coverage.  It'll simplify things
 	 * too, except for the locking.
 	 */
@@ -1125,7 +1127,10 @@ static int pi433_probe(struct spi_device *spi)
 	/* setup spi parameters */
 	spi->mode = 0x00;
 	spi->bits_per_word = 8;
-	/* spi->max_speed_hz = 10000000;  1MHz already set by device tree overlay */
+	/*
+	 * spi->max_speed_hz = 10000000;
+	 * 1MHz already set by device tree overlay
+	 */
 
 	retval = spi_setup(spi);
 	if (retval) {
@@ -1161,6 +1166,13 @@ static int pi433_probe(struct spi_device *spi)
 	device->rx_active = false;
 	device->tx_active = false;
 	device->interrupt_rx_allowed = false;
+
+	/* init rx buffer */
+	device->rx_buffer = kmalloc(MAX_MSG_SIZE, GFP_KERNEL);
+	if (!device->rx_buffer) {
+		retval = -ENOMEM;
+		goto RX_failed;
+	}
 
 	/* init wait queues */
 	init_waitqueue_head(&device->tx_wait_queue);
@@ -1237,6 +1249,7 @@ static int pi433_probe(struct spi_device *spi)
 					     device->minor);
 	if (IS_ERR(device->tx_task_struct)) {
 		dev_dbg(device->dev, "start of send thread failed");
+		retval = PTR_ERR(device->tx_task_struct);
 		goto send_thread_failed;
 	}
 
@@ -1264,6 +1277,8 @@ device_create_failed:
 minor_failed:
 	free_gpio(device);
 GPIO_failed:
+	kfree(device->rx_buffer);
+RX_failed:
 	kfree(device);
 
 	return retval;
@@ -1287,8 +1302,8 @@ static int pi433_remove(struct spi_device *spi)
 
 	pi433_free_minor(device);
 
-	if (device->users == 0)
-		kfree(device);
+	kfree(device->rx_buffer);
+	kfree(device);
 
 	return 0;
 }
@@ -1309,7 +1324,8 @@ static struct spi_driver pi433_spi_driver = {
 	.probe =	pi433_probe,
 	.remove =	pi433_remove,
 
-	/* NOTE:  suspend/resume methods are not necessary here.
+	/*
+	 * NOTE:  suspend/resume methods are not necessary here.
 	 * We don't do anything except pass the requests to/from
 	 * the underlying controller.  The refrigerator handles
 	 * most issues; the controller driver handles the rest.
@@ -1322,13 +1338,15 @@ static int __init pi433_init(void)
 {
 	int status;
 
-	/* If MAX_MSG_SIZE is smaller then FIFO_SIZE, the driver won't
+	/*
+	 * If MAX_MSG_SIZE is smaller then FIFO_SIZE, the driver won't
 	 * work stable - risk of buffer overflow
 	 */
 	if (MAX_MSG_SIZE < FIFO_SIZE)
 		return -EINVAL;
 
-	/* Claim device numbers.  Then register a class
+	/*
+	 * Claim device numbers.  Then register a class
 	 * that will key udev/mdev to add/remove /dev nodes.  Last, register
 	 * Last, register the driver which manages those device numbers.
 	 */

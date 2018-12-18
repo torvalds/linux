@@ -158,8 +158,7 @@ void bnxt_re_query_fw_str(struct ib_device *ibdev, char *str);
 int bnxt_re_query_pkey(struct ib_device *ibdev, u8 port_num,
 		       u16 index, u16 *pkey);
 int bnxt_re_del_gid(const struct ib_gid_attr *attr, void **context);
-int bnxt_re_add_gid(const union ib_gid *gid,
-		    const struct ib_gid_attr *attr, void **context);
+int bnxt_re_add_gid(const struct ib_gid_attr *attr, void **context);
 int bnxt_re_query_gid(struct ib_device *ibdev, u8 port_num,
 		      int index, union ib_gid *gid);
 enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
@@ -182,8 +181,8 @@ int bnxt_re_modify_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr,
 		       struct ib_udata *udata);
 int bnxt_re_query_srq(struct ib_srq *srq, struct ib_srq_attr *srq_attr);
 int bnxt_re_destroy_srq(struct ib_srq *srq);
-int bnxt_re_post_srq_recv(struct ib_srq *srq, struct ib_recv_wr *recv_wr,
-			  struct ib_recv_wr **bad_recv_wr);
+int bnxt_re_post_srq_recv(struct ib_srq *srq, const struct ib_recv_wr *recv_wr,
+			  const struct ib_recv_wr **bad_recv_wr);
 struct ib_qp *bnxt_re_create_qp(struct ib_pd *pd,
 				struct ib_qp_init_attr *qp_init_attr,
 				struct ib_udata *udata);
@@ -192,10 +191,10 @@ int bnxt_re_modify_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 int bnxt_re_query_qp(struct ib_qp *qp, struct ib_qp_attr *qp_attr,
 		     int qp_attr_mask, struct ib_qp_init_attr *qp_init_attr);
 int bnxt_re_destroy_qp(struct ib_qp *qp);
-int bnxt_re_post_send(struct ib_qp *qp, struct ib_send_wr *send_wr,
-		      struct ib_send_wr **bad_send_wr);
-int bnxt_re_post_recv(struct ib_qp *qp, struct ib_recv_wr *recv_wr,
-		      struct ib_recv_wr **bad_recv_wr);
+int bnxt_re_post_send(struct ib_qp *qp, const struct ib_send_wr *send_wr,
+		      const struct ib_send_wr **bad_send_wr);
+int bnxt_re_post_recv(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,
+		      const struct ib_recv_wr **bad_recv_wr);
 struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 				const struct ib_cq_init_attr *attr,
 				struct ib_ucontext *context,

@@ -748,7 +748,6 @@ extern void ext2_free_blocks (struct inode *, unsigned long,
 			      unsigned long);
 extern unsigned long ext2_count_free_blocks (struct super_block *);
 extern unsigned long ext2_count_dirs (struct super_block *);
-extern void ext2_check_blocks_bitmap (struct super_block *);
 extern struct ext2_group_desc * ext2_get_group_desc(struct super_block * sb,
 						    unsigned int block_group,
 						    struct buffer_head ** bh);
@@ -771,7 +770,6 @@ extern void ext2_set_link(struct inode *, struct ext2_dir_entry_2 *, struct page
 extern struct inode * ext2_new_inode (struct inode *, umode_t, const struct qstr *);
 extern void ext2_free_inode (struct inode *);
 extern unsigned long ext2_count_free_inodes (struct super_block *);
-extern void ext2_check_inodes_bitmap (struct super_block *);
 extern unsigned long ext2_count_free (struct buffer_head *, unsigned);
 
 /* inode.c */

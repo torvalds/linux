@@ -610,9 +610,9 @@ static int e4000_dvb_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops e4000_dvb_tuner_ops = {
 	.info = {
-		.name           = "Elonics E4000",
-		.frequency_min  = 174000000,
-		.frequency_max  = 862000000,
+		.name              = "Elonics E4000",
+		.frequency_min_hz  = 174 * MHz,
+		.frequency_max_hz  = 862 * MHz,
 	},
 
 	.init = e4000_dvb_init,

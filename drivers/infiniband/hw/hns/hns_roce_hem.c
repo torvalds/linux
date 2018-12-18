@@ -170,7 +170,7 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 	case 3:
 		mhop->l2_idx = table_idx & (chunk_ba_num - 1);
 		mhop->l1_idx = table_idx / chunk_ba_num & (chunk_ba_num - 1);
-		mhop->l0_idx = table_idx / chunk_ba_num / chunk_ba_num;
+		mhop->l0_idx = (table_idx / chunk_ba_num) / chunk_ba_num;
 		break;
 	case 2:
 		mhop->l1_idx = table_idx & (chunk_ba_num - 1);
@@ -342,7 +342,7 @@ static int hns_roce_set_hem(struct hns_roce_dev *hr_dev,
 			} else {
 				break;
 			}
-			msleep(HW_SYNC_SLEEP_TIME_INTERVAL);
+			mdelay(HW_SYNC_SLEEP_TIME_INTERVAL);
 		}
 
 		bt_cmd_l = (u32)bt_ba;
@@ -494,6 +494,9 @@ static int hns_roce_table_mhop_get(struct hns_roce_dev *hr_dev,
 			step_idx = 1;
 		} else if (hop_num == HNS_ROCE_HOP_NUM_0) {
 			step_idx = 0;
+		} else {
+			ret = -EINVAL;
+			goto err_dma_alloc_l1;
 		}
 
 		/* set HEM base address to hardware */
@@ -912,7 +915,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		obj_per_chunk = buf_chunk_size / obj_size;
 		num_hem = (nobj + obj_per_chunk - 1) / obj_per_chunk;
 		bt_chunk_num = bt_chunk_size / 8;
-		if (table->type >= HEM_TYPE_MTT)
+		if (type >= HEM_TYPE_MTT)
 			num_bt_l0 = bt_chunk_num;
 
 		table->hem = kcalloc(num_hem, sizeof(*table->hem),
@@ -920,7 +923,7 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 		if (!table->hem)
 			goto err_kcalloc_hem_buf;
 
-		if (check_whether_bt_num_3(table->type, hop_num)) {
+		if (check_whether_bt_num_3(type, hop_num)) {
 			unsigned long num_bt_l1;
 
 			num_bt_l1 = (num_hem + bt_chunk_num - 1) /
@@ -939,8 +942,8 @@ int hns_roce_init_hem_table(struct hns_roce_dev *hr_dev,
 				goto err_kcalloc_l1_dma;
 		}
 
-		if (check_whether_bt_num_2(table->type, hop_num) ||
-			check_whether_bt_num_3(table->type, hop_num)) {
+		if (check_whether_bt_num_2(type, hop_num) ||
+			check_whether_bt_num_3(type, hop_num)) {
 			table->bt_l0 = kcalloc(num_bt_l0, sizeof(*table->bt_l0),
 					       GFP_KERNEL);
 			if (!table->bt_l0)
@@ -1039,14 +1042,14 @@ void hns_roce_cleanup_hem_table(struct hns_roce_dev *hr_dev,
 void hns_roce_cleanup_hem(struct hns_roce_dev *hr_dev)
 {
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->cq_table.table);
-	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);
 	if (hr_dev->caps.trrl_entry_sz)
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->qp_table.trrl_table);
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.irrl_table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->qp_table.qp_table);
 	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtpt_table);
-	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
 	if (hns_roce_check_whether_mhop(hr_dev, HEM_TYPE_CQE))
 		hns_roce_cleanup_hem_table(hr_dev,
 					   &hr_dev->mr_table.mtt_cqe_table);
+	hns_roce_cleanup_hem_table(hr_dev, &hr_dev->mr_table.mtt_table);
 }

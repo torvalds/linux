@@ -416,26 +416,31 @@ bool tipc_msg_bundle(struct sk_buff *skb, struct tipc_msg *msg, u32 mtu)
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
-	struct tipc_msg *msg;
-	int imsz, offset;
+	struct tipc_msg *hdr, *ihdr;
+	int imsz;
 
 	*iskb = NULL;
 	if (unlikely(skb_linearize(skb)))
 		goto none;
 
-	msg = buf_msg(skb);
-	offset = msg_hdr_sz(msg) + *pos;
-	if (unlikely(offset > (msg_size(msg) - MIN_H_SIZE)))
+	hdr = buf_msg(skb);
+	if (unlikely(*pos > (msg_data_sz(hdr) - MIN_H_SIZE)))
 		goto none;
 
-	*iskb = skb_clone(skb, GFP_ATOMIC);
-	if (unlikely(!*iskb))
+	ihdr = (struct tipc_msg *)(msg_data(hdr) + *pos);
+	imsz = msg_size(ihdr);
+
+	if ((*pos + imsz) > msg_data_sz(hdr))
 		goto none;
-	skb_pull(*iskb, offset);
-	imsz = msg_size(buf_msg(*iskb));
-	skb_trim(*iskb, imsz);
+
+	*iskb = tipc_buf_acquire(imsz, GFP_ATOMIC);
+	if (!*iskb)
+		goto none;
+
+	skb_copy_to_linear_data(*iskb, ihdr, imsz);
 	if (unlikely(!tipc_msg_validate(iskb)))
 		goto none;
+
 	*pos += align(imsz);
 	return true;
 none:
@@ -531,12 +536,6 @@ bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 		msg_set_hdr_sz(hdr, BASIC_H_SIZE);
 	}
 
-	if (skb_cloned(_skb) &&
-	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
-		goto exit;
-
-	/* reassign after skb header modifications */
-	hdr = buf_msg(_skb);
 	/* Now reverse the concerned fields */
 	msg_set_errcode(hdr, err);
 	msg_set_non_seq(hdr, 0);
@@ -594,10 +593,6 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 
 	if (!skb_cloned(skb))
 		return true;
-
-	/* Unclone buffer in case it was bundled */
-	if (pskb_expand_head(skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
-		return false;
 
 	return true;
 }

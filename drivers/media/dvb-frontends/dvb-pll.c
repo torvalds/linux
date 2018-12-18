@@ -533,6 +533,45 @@ static const struct dvb_pll_desc dvb_pll_alps_tdee4 = {
 	}
 };
 
+/* Infineon TUA6034 ISDB-T, used in Friio */
+/* CP cur. 50uA, AGC takeover: 103dBuV, PORT3 on */
+static const struct dvb_pll_desc dvb_pll_tua6034_friio = {
+	.name   = "Infineon TUA6034 ISDB-T (Friio)",
+	.min    =  90000000,
+	.max    = 770000000,
+	.iffreq =  57000000,
+	.initdata = (u8[]){ 4, 0x9a, 0x50, 0xb2, 0x08 },
+	.sleepdata = (u8[]){ 4, 0x9a, 0x70, 0xb3, 0x0b },
+	.count = 3,
+	.entries = {
+		{ 170000000, 142857, 0xba, 0x09 },
+		{ 470000000, 142857, 0xba, 0x0a },
+		{ 770000000, 142857, 0xb2, 0x08 },
+	}
+};
+
+/* Philips TDA6651 ISDB-T, used in Earthsoft PT1 */
+static const struct dvb_pll_desc dvb_pll_tda665x_earth_pt1 = {
+	.name   = "Philips TDA6651 ISDB-T (EarthSoft PT1)",
+	.min    =  90000000,
+	.max    = 770000000,
+	.iffreq =  57000000,
+	.initdata = (u8[]){ 5, 0x0e, 0x7f, 0xc1, 0x80, 0x80 },
+	.count = 10,
+	.entries = {
+		{ 140000000, 142857, 0xc1, 0x81 },
+		{ 170000000, 142857, 0xc1, 0xa1 },
+		{ 220000000, 142857, 0xc1, 0x62 },
+		{ 330000000, 142857, 0xc1, 0xa2 },
+		{ 402000000, 142857, 0xc1, 0xe2 },
+		{ 450000000, 142857, 0xc1, 0x64 },
+		{ 550000000, 142857, 0xc1, 0x84 },
+		{ 600000000, 142857, 0xc1, 0xa4 },
+		{ 700000000, 142857, 0xc1, 0xc4 },
+		{ 770000000, 142857, 0xc1, 0xe4 },
+	}
+};
+
 /* ----------------------------------------------------------- */
 
 static const struct dvb_pll_desc *pll_list[] = {
@@ -556,6 +595,8 @@ static const struct dvb_pll_desc *pll_list[] = {
 	[DVB_PLL_SAMSUNG_TDTC9251DH0]    = &dvb_pll_samsung_tdtc9251dh0,
 	[DVB_PLL_SAMSUNG_TBDU18132]	 = &dvb_pll_samsung_tbdu18132,
 	[DVB_PLL_SAMSUNG_TBMU24112]      = &dvb_pll_samsung_tbmu24112,
+	[DVB_PLL_TUA6034_FRIIO]          = &dvb_pll_tua6034_friio,
+	[DVB_PLL_TDA665X_EARTH_PT1]      = &dvb_pll_tda665x_earth_pt1,
 };
 
 /* ----------------------------------------------------------- */
@@ -758,6 +799,7 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	struct dvb_pll_priv *priv = NULL;
 	int ret;
 	const struct dvb_pll_desc *desc;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	b1 = kmalloc(1, GFP_KERNEL);
 	if (!b1)
@@ -803,8 +845,19 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 
 	strncpy(fe->ops.tuner_ops.info.name, desc->name,
 		sizeof(fe->ops.tuner_ops.info.name));
-	fe->ops.tuner_ops.info.frequency_min = desc->min;
-	fe->ops.tuner_ops.info.frequency_max = desc->max;
+	switch (c->delivery_system) {
+	case SYS_DVBS:
+	case SYS_DVBS2:
+	case SYS_TURBO:
+	case SYS_ISDBS:
+		fe->ops.tuner_ops.info.frequency_min_hz = desc->min * kHz;
+		fe->ops.tuner_ops.info.frequency_max_hz = desc->max * kHz;
+		break;
+	default:
+		fe->ops.tuner_ops.info.frequency_min_hz = desc->min;
+		fe->ops.tuner_ops.info.frequency_max_hz = desc->max;
+	}
+
 	if (!desc->initdata)
 		fe->ops.tuner_ops.init = NULL;
 	if (!desc->sleepdata)
@@ -826,6 +879,86 @@ struct dvb_frontend *dvb_pll_attach(struct dvb_frontend *fe, int pll_addr,
 	return fe;
 }
 EXPORT_SYMBOL(dvb_pll_attach);
+
+
+static int
+dvb_pll_probe(struct i2c_client *client, const struct i2c_device_id *id)
+{
+	struct dvb_pll_config *cfg;
+	struct dvb_frontend *fe;
+	unsigned int desc_id;
+
+	cfg = client->dev.platform_data;
+	fe = cfg->fe;
+	i2c_set_clientdata(client, fe);
+	desc_id = (unsigned int) id->driver_data;
+
+	if (!dvb_pll_attach(fe, client->addr, client->adapter, desc_id))
+		return -ENOMEM;
+
+	/*
+	 * Unset tuner_ops.release (== dvb_pll_release)
+	 * which has been just set in the above dvb_pll_attach(),
+	 * because if tuner_ops.release was left defined,
+	 * this module would be 'put' twice on exit:
+	 * once by dvb_frontend_detach() and another by dvb_module_release().
+	 *
+	 * dvb_pll_release is instead executed in the i2c driver's .remove(),
+	 * keeping dvb_pll_attach untouched for legacy (dvb_attach) drivers.
+	 */
+	fe->ops.tuner_ops.release = NULL;
+	dev_info(&client->dev, "DVB Simple Tuner attached.\n");
+	return 0;
+}
+
+static int dvb_pll_remove(struct i2c_client *client)
+{
+	struct dvb_frontend *fe;
+
+	fe = i2c_get_clientdata(client);
+	dvb_pll_release(fe);
+	return 0;
+}
+
+
+static const struct i2c_device_id dvb_pll_id[] = {
+	{"dtt7579",		DVB_PLL_THOMSON_DTT7579},
+	{"dtt759x",		DVB_PLL_THOMSON_DTT759X},
+	{"z201",		DVB_PLL_LG_Z201},
+	{"unknown_1",		DVB_PLL_UNKNOWN_1},
+	{"tua6010xs",		DVB_PLL_TUA6010XS},
+	{"env57h1xd5",		DVB_PLL_ENV57H1XD5},
+	{"tua6034",		DVB_PLL_TUA6034},
+	{"tda665x",		DVB_PLL_TDA665X},
+	{"tded4",		DVB_PLL_TDED4},
+	{"tdhu2",		DVB_PLL_TDHU2},
+	{"tbmv",		DVB_PLL_SAMSUNG_TBMV},
+	{"sd1878_tda8261",	DVB_PLL_PHILIPS_SD1878_TDA8261},
+	{"opera1",		DVB_PLL_OPERA1},
+	{"dtos403ih102a",	DVB_PLL_SAMSUNG_DTOS403IH102A},
+	{"tdtc9251dh0",		DVB_PLL_SAMSUNG_TDTC9251DH0},
+	{"tbdu18132",		DVB_PLL_SAMSUNG_TBDU18132},
+	{"tbmu24112",		DVB_PLL_SAMSUNG_TBMU24112},
+	{"tdee4",		DVB_PLL_TDEE4},
+	{"dtt7520x",		DVB_PLL_THOMSON_DTT7520X},
+	{"tua6034_friio",	DVB_PLL_TUA6034_FRIIO},
+	{"tda665x_earthpt1",	DVB_PLL_TDA665X_EARTH_PT1},
+	{}
+};
+
+
+MODULE_DEVICE_TABLE(i2c, dvb_pll_id);
+
+static struct i2c_driver dvb_pll_driver = {
+	.driver = {
+		.name = "dvb_pll",
+	},
+	.probe    = dvb_pll_probe,
+	.remove   = dvb_pll_remove,
+	.id_table = dvb_pll_id,
+};
+
+module_i2c_driver(dvb_pll_driver);
 
 MODULE_DESCRIPTION("dvb pll library");
 MODULE_AUTHOR("Gerd Knorr");

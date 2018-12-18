@@ -71,7 +71,8 @@ static int i40iw_query_device(struct ib_device *ibdev,
 	props->max_mr_size = I40IW_MAX_OUTBOUND_MESSAGE_SIZE;
 	props->max_qp = iwdev->max_qp - iwdev->used_qps;
 	props->max_qp_wr = I40IW_MAX_QP_WRS;
-	props->max_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	props->max_send_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
+	props->max_recv_sge = I40IW_MAX_WQ_FRAGMENT_COUNT;
 	props->max_cq = iwdev->max_cq - iwdev->used_cqs;
 	props->max_cqe = iwdev->max_cqe;
 	props->max_mr = iwdev->max_mr - iwdev->used_mrs;
@@ -394,6 +395,7 @@ static struct i40iw_pbl *i40iw_get_pbl(unsigned long va,
 
 	list_for_each_entry(iwpbl, pbl_list, list) {
 		if (iwpbl->user_base == va) {
+			iwpbl->on_list = false;
 			list_del(&iwpbl->list);
 			return iwpbl;
 		}
@@ -614,6 +616,7 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		return ERR_PTR(-ENOMEM);
 
 	iwqp = (struct i40iw_qp *)mem;
+	iwqp->allocated_buffer = mem;
 	qp = &iwqp->sc_qp;
 	qp->back_qp = (void *)iwqp;
 	qp->push_idx = I40IW_INVALID_PUSH_PAGE_INDEX;
@@ -642,7 +645,6 @@ static struct ib_qp *i40iw_create_qp(struct ib_pd *ibpd,
 		goto error;
 	}
 
-	iwqp->allocated_buffer = mem;
 	iwqp->iwdev = iwdev;
 	iwqp->iwpd = iwpd;
 	iwqp->ibqp.qp_num = qp_num;
@@ -1408,6 +1410,7 @@ static void i40iw_set_hugetlb_values(u64 addr, struct i40iw_mr *iwmr)
 	struct vm_area_struct *vma;
 	struct hstate *h;
 
+	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, addr);
 	if (vma && is_vm_hugetlb_page(vma)) {
 		h = hstate_vma(vma);
@@ -1416,6 +1419,7 @@ static void i40iw_set_hugetlb_values(u64 addr, struct i40iw_mr *iwmr)
 			iwmr->page_msk = huge_page_mask(h);
 		}
 	}
+	up_read(&current->mm->mmap_sem);
 }
 
 /**
@@ -1898,6 +1902,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 			goto error;
 		spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
 		list_add_tail(&iwpbl->list, &ucontext->qp_reg_mem_list);
+		iwpbl->on_list = true;
 		spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
 		break;
 	case IW_MEMREG_TYPE_CQ:
@@ -1908,6 +1913,7 @@ static struct ib_mr *i40iw_reg_user_mr(struct ib_pd *pd,
 
 		spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
 		list_add_tail(&iwpbl->list, &ucontext->cq_reg_mem_list);
+		iwpbl->on_list = true;
 		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
 		break;
 	case IW_MEMREG_TYPE_MEM:
@@ -2045,14 +2051,18 @@ static void i40iw_del_memlist(struct i40iw_mr *iwmr,
 	switch (iwmr->type) {
 	case IW_MEMREG_TYPE_CQ:
 		spin_lock_irqsave(&ucontext->cq_reg_mem_list_lock, flags);
-		if (!list_empty(&ucontext->cq_reg_mem_list))
+		if (iwpbl->on_list) {
+			iwpbl->on_list = false;
 			list_del(&iwpbl->list);
+		}
 		spin_unlock_irqrestore(&ucontext->cq_reg_mem_list_lock, flags);
 		break;
 	case IW_MEMREG_TYPE_QP:
 		spin_lock_irqsave(&ucontext->qp_reg_mem_list_lock, flags);
-		if (!list_empty(&ucontext->qp_reg_mem_list))
+		if (iwpbl->on_list) {
+			iwpbl->on_list = false;
 			list_del(&iwpbl->list);
+		}
 		spin_unlock_irqrestore(&ucontext->qp_reg_mem_list_lock, flags);
 		break;
 	default:
@@ -2191,8 +2201,8 @@ static void i40iw_copy_sg_list(struct i40iw_sge *sg_list, struct ib_sge *sgl, in
  * @bad_wr: return of bad wr if err
  */
 static int i40iw_post_send(struct ib_qp *ibqp,
-			   struct ib_send_wr *ib_wr,
-			   struct ib_send_wr **bad_wr)
+			   const struct ib_send_wr *ib_wr,
+			   const struct ib_send_wr **bad_wr)
 {
 	struct i40iw_qp *iwqp;
 	struct i40iw_qp_uk *ukqp;
@@ -2367,9 +2377,8 @@ out:
  * @ib_wr: work request for receive
  * @bad_wr: bad wr caused an error
  */
-static int i40iw_post_recv(struct ib_qp *ibqp,
-			   struct ib_recv_wr *ib_wr,
-			   struct ib_recv_wr **bad_wr)
+static int i40iw_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *ib_wr,
+			   const struct ib_recv_wr **bad_wr)
 {
 	struct i40iw_qp *iwqp;
 	struct i40iw_qp_uk *ukqp;
@@ -2694,21 +2703,6 @@ static int i40iw_query_gid(struct ib_device *ibdev,
 }
 
 /**
- * i40iw_modify_port  Modify port properties
- * @ibdev: device pointer from stack
- * @port: port number
- * @port_modify_mask: mask for port modifications
- * @props: port properties
- */
-static int i40iw_modify_port(struct ib_device *ibdev,
-			     u8 port,
-			     int port_modify_mask,
-			     struct ib_port_modify *props)
-{
-	return -ENOSYS;
-}
-
-/**
  * i40iw_query_pkey - Query partition key
  * @ibdev: device pointer from stack
  * @port: port number
@@ -2722,28 +2716,6 @@ static int i40iw_query_pkey(struct ib_device *ibdev,
 {
 	*pkey = 0;
 	return 0;
-}
-
-/**
- * i40iw_create_ah - create address handle
- * @ibpd: ptr of pd
- * @ah_attr: address handle attributes
- */
-static struct ib_ah *i40iw_create_ah(struct ib_pd *ibpd,
-				     struct rdma_ah_attr *attr,
-				     struct ib_udata *udata)
-
-{
-	return ERR_PTR(-ENOSYS);
-}
-
-/**
- * i40iw_destroy_ah - Destroy address handle
- * @ah: pointer to address handle
- */
-static int i40iw_destroy_ah(struct ib_ah *ah)
-{
-	return -ENOSYS;
 }
 
 /**
@@ -2813,7 +2785,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.num_comp_vectors = iwdev->ceqs_count;
 	iwibdev->ibdev.dev.parent = &pcidev->dev;
 	iwibdev->ibdev.query_port = i40iw_query_port;
-	iwibdev->ibdev.modify_port = i40iw_modify_port;
 	iwibdev->ibdev.query_pkey = i40iw_query_pkey;
 	iwibdev->ibdev.query_gid = i40iw_query_gid;
 	iwibdev->ibdev.alloc_ucontext = i40iw_alloc_ucontext;
@@ -2833,8 +2804,6 @@ static struct i40iw_ib_device *i40iw_init_rdma_device(struct i40iw_device *iwdev
 	iwibdev->ibdev.alloc_hw_stats = i40iw_alloc_hw_stats;
 	iwibdev->ibdev.get_hw_stats = i40iw_get_hw_stats;
 	iwibdev->ibdev.query_device = i40iw_query_device;
-	iwibdev->ibdev.create_ah = i40iw_create_ah;
-	iwibdev->ibdev.destroy_ah = i40iw_destroy_ah;
 	iwibdev->ibdev.drain_sq = i40iw_drain_sq;
 	iwibdev->ibdev.drain_rq = i40iw_drain_rq;
 	iwibdev->ibdev.alloc_mr = i40iw_alloc_mr;

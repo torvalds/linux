@@ -325,8 +325,8 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 	radio_caps->channel_num = common->channel;
 	radio_caps->rf_model = RSI_RF_TYPE;
 
+	radio_caps->radio_cfg_info = RSI_LMAC_CLOCK_80MHZ;
 	if (common->channel_width == BW_40MHZ) {
-		radio_caps->radio_cfg_info = RSI_LMAC_CLOCK_80MHZ;
 		radio_caps->radio_cfg_info |= RSI_ENABLE_40MHZ;
 
 		if (common->fsm_state == FSM_MAC_INIT_DONE) {
@@ -334,20 +334,17 @@ static int rsi_load_radio_caps(struct rsi_common *common)
 			struct ieee80211_conf *conf = &hw->conf;
 
 			if (conf_is_ht40_plus(conf)) {
-				radio_caps->radio_cfg_info =
-					RSI_CMDDESC_LOWER_20_ENABLE;
-				radio_caps->radio_info =
-					RSI_CMDDESC_LOWER_20_ENABLE;
+				radio_caps->ppe_ack_rate =
+					cpu_to_le16(LOWER_20_ENABLE |
+						    (LOWER_20_ENABLE >> 12));
 			} else if (conf_is_ht40_minus(conf)) {
-				radio_caps->radio_cfg_info =
-					RSI_CMDDESC_UPPER_20_ENABLE;
-				radio_caps->radio_info =
-					RSI_CMDDESC_UPPER_20_ENABLE;
+				radio_caps->ppe_ack_rate =
+					cpu_to_le16(UPPER_20_ENABLE |
+						    (UPPER_20_ENABLE >> 12));
 			} else {
-				radio_caps->radio_cfg_info =
-					RSI_CMDDESC_40MHZ;
-				radio_caps->radio_info =
-					RSI_CMDDESC_FULL_40_ENABLE;
+				radio_caps->ppe_ack_rate =
+					cpu_to_le16((BW_40MHZ << 12) |
+						    FULL40M_ENABLE);
 			}
 		}
 	}
@@ -454,14 +451,10 @@ static int rsi_mgmt_pkt_to_core(struct rsi_common *common,
  *
  * Return: status: 0 on success, corresponding negative error code on failure.
  */
-static int rsi_hal_send_sta_notify_frame(struct rsi_common *common,
-					 enum opmode opmode,
-					 u8 notify_event,
-					 const unsigned char *bssid,
-					 u8 qos_enable,
-					 u16 aid,
-					 u16 sta_id,
-					 struct ieee80211_vif *vif)
+int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
+				  u8 notify_event, const unsigned char *bssid,
+				  u8 qos_enable, u16 aid, u16 sta_id,
+				  struct ieee80211_vif *vif)
 {
 	struct sk_buff *skb = NULL;
 	struct rsi_peer_notify *peer_notify;
@@ -753,7 +746,7 @@ int rsi_hal_load_key(struct rsi_common *common,
 			key_descriptor |= RSI_CIPHER_TKIP;
 	}
 	key_descriptor |= RSI_PROTECT_DATA_FRAMES;
-	key_descriptor |= ((key_id << RSI_KEY_ID_OFFSET) & RSI_KEY_ID_MASK);
+	key_descriptor |= (key_id << RSI_KEY_ID_OFFSET);
 
 	rsi_set_len_qno(&set_key->desc_dword0.len_qno,
 			(frame_len - FRAME_DESC_SZ), RSI_WIFI_MGMT_Q);
@@ -1194,6 +1187,7 @@ static int rsi_send_auto_rate_request(struct rsi_common *common,
 		return -ENOMEM;
 	}
 
+	memset(skb->data, 0, frame_len);
 	selected_rates = kzalloc(2 * RSI_TBL_SZ, GFP_KERNEL);
 	if (!selected_rates) {
 		rsi_dbg(ERR_ZONE, "%s: Failed in allocation of mem\n",
@@ -1328,6 +1322,7 @@ void rsi_inform_bss_status(struct rsi_common *common,
 			   u16 aid,
 			   struct ieee80211_sta *sta,
 			   u16 sta_id,
+			   u16 assoc_cap,
 			   struct ieee80211_vif *vif)
 {
 	if (status) {
@@ -1342,10 +1337,10 @@ void rsi_inform_bss_status(struct rsi_common *common,
 					      vif);
 		if (common->min_rate == 0xffff)
 			rsi_send_auto_rate_request(common, sta, sta_id, vif);
-		if (opmode == RSI_OPMODE_STA) {
-			if (!rsi_send_block_unblock_frame(common, false))
-				common->hw_data_qs_blocked = false;
-		}
+		if (opmode == RSI_OPMODE_STA &&
+		    !(assoc_cap & WLAN_CAPABILITY_PRIVACY) &&
+		    !rsi_send_block_unblock_frame(common, false))
+			common->hw_data_qs_blocked = false;
 	} else {
 		if (opmode == RSI_OPMODE_STA)
 			common->hw_data_qs_blocked = true;
@@ -1850,10 +1845,19 @@ int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg)
 			__func__);
 		return rsi_handle_card_ready(common, msg);
 	case TX_STATUS_IND:
-		if (msg[15] == PROBEREQ_CONFIRM) {
+		switch (msg[RSI_TX_STATUS_TYPE]) {
+		case PROBEREQ_CONFIRM:
 			common->mgmt_q_block = false;
 			rsi_dbg(FSM_ZONE, "%s: Probe confirm received\n",
 				__func__);
+			break;
+		case EAPOL4_CONFIRM:
+			if (msg[RSI_TX_STATUS]) {
+				common->eapol4_confirm = true;
+				if (!rsi_send_block_unblock_frame(common,
+								  false))
+					common->hw_data_qs_blocked = false;
+			}
 		}
 		break;
 	case BEACON_EVENT_IND:

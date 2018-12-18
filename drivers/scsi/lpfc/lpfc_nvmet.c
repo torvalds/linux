@@ -2,7 +2,7 @@
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channsel Host Bus Adapters.                               *
  * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -402,6 +402,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 
 		/* Process FCP command */
 		if (rc == 0) {
+			ctxp->rqb_buffer = NULL;
 			atomic_inc(&tgtp->rcv_fcp_cmd_out);
 			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
 			return;
@@ -1116,8 +1117,17 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 	lpfc_nvmeio_data(phba, "NVMET DEFERRCV: xri x%x sz %d CPU %02x\n",
 			 ctxp->oxid, ctxp->size, smp_processor_id());
 
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+				"6425 Defer rcv: no buffer xri x%x: "
+				"flg %x ste %x\n",
+				ctxp->oxid, ctxp->flag, ctxp->state);
+		return;
+	}
+
 	tgtp = phba->targetport->private;
-	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
+	if (tgtp)
+		atomic_inc(&tgtp->rcv_fcp_cmd_defer);
 
 	/* Free the nvmebuf since a new buffer already replaced it */
 	nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
@@ -1732,9 +1742,12 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	uint32_t *payload;
 	uint32_t size, oxid, sid, rc;
 
-	if (!nvmebuf || !phba->targetport) {
+	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
+	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
+
+	if (!phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6154 LS Drop IO\n");
+				"6154 LS Drop IO x%x\n", oxid);
 		oxid = 0;
 		size = 0;
 		sid = 0;
@@ -1744,9 +1757,7 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	payload = (uint32_t *)(nvmebuf->dbuf.virt);
-	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
 	size = bf_get(lpfc_rcqe_length,  &nvmebuf->cq_event.cqe.rcqe_cmpl);
-	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
 	ctxp = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx), GFP_ATOMIC);
@@ -1759,8 +1770,7 @@ dropit:
 		lpfc_nvmeio_data(phba, "NVMET LS  DROP: "
 				 "xri x%x sz %d from %06x\n",
 				 oxid, size, sid);
-		if (nvmebuf)
-			lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 		return;
 	}
 	ctxp->phba = phba;
@@ -1803,8 +1813,7 @@ dropit:
 			ctxp->oxid, rc);
 
 	/* We assume a rcv'ed cmd ALWAYs fits into 1 buffer */
-	if (nvmebuf)
-		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 
 	atomic_inc(&tgtp->xmt_ls_abort);
 	lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp, sid, oxid);
@@ -2492,7 +2501,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			bf_set(wqe_xc, &wqe->fcp_treceive.wqe_com, 0);
 
 		/* Word 11 - set pbde later */
-		if (phba->nvme_embed_pbde) {
+		if (phba->cfg_enable_pbde) {
 			do_pbde = 1;
 		} else {
 			bf_set(wqe_pbde, &wqe->fcp_treceive.wqe_com, 0);
@@ -2607,16 +2616,19 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(cnt);
-		if (do_pbde && i == 0) {
+		if (i == 0) {
 			bde = (struct ulp_bde64 *)&wqe->words[13];
-			memset(bde, 0, sizeof(struct ulp_bde64));
-			/* Words 13-15  (PBDE)*/
-			bde->addrLow = sgl->addr_lo;
-			bde->addrHigh = sgl->addr_hi;
-			bde->tus.f.bdeSize =
-				le32_to_cpu(sgl->sge_len);
-			bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
-			bde->tus.w = cpu_to_le32(bde->tus.w);
+			if (do_pbde) {
+				/* Words 13-15  (PBDE) */
+				bde->addrLow = sgl->addr_lo;
+				bde->addrHigh = sgl->addr_hi;
+				bde->tus.f.bdeSize =
+					le32_to_cpu(sgl->sge_len);
+				bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+				bde->tus.w = cpu_to_le32(bde->tus.w);
+			} else {
+				memset(bde, 0, sizeof(struct ulp_bde64));
+			}
 		}
 		sgl++;
 		ctxp->offset += cnt;
@@ -3105,11 +3117,17 @@ lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *phba,
 	}
 
 aerr:
-	ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
+	if (ctxp->flag & LPFC_NVMET_CTX_RLS)
+		list_del(&ctxp->list);
+	ctxp->flag &= ~(LPFC_NVMET_ABORT_OP | LPFC_NVMET_CTX_RLS);
+	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
+
 	atomic_inc(&tgtp->xmt_abort_rsp_error);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
 			"6135 Failed to Issue ABTS for oxid x%x. Status x%x\n",
 			ctxp->oxid, rc);
+	lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 	return 1;
 }
 

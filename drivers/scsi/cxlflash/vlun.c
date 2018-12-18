@@ -12,8 +12,9 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#include <linux/interrupt.h>
+#include <linux/pci.h>
 #include <linux/syscalls.h>
-#include <misc/cxl.h>
 #include <asm/unaligned.h>
 #include <asm/bitsperlong.h>
 
@@ -425,7 +426,6 @@ static int write_same16(struct scsi_device *sdev,
 {
 	u8 *cmd_buf = NULL;
 	u8 *scsi_cmd = NULL;
-	u8 *sense_buf = NULL;
 	int rc = 0;
 	int result = 0;
 	u64 offset = lba;
@@ -439,8 +439,7 @@ static int write_same16(struct scsi_device *sdev,
 
 	cmd_buf = kzalloc(CMD_BUFSIZE, GFP_KERNEL);
 	scsi_cmd = kzalloc(MAX_COMMAND_SIZE, GFP_KERNEL);
-	sense_buf = kzalloc(SCSI_SENSE_BUFFERSIZE, GFP_KERNEL);
-	if (unlikely(!cmd_buf || !scsi_cmd || !sense_buf)) {
+	if (unlikely(!cmd_buf || !scsi_cmd)) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -456,7 +455,7 @@ static int write_same16(struct scsi_device *sdev,
 		/* Drop the ioctl read semahpore across lengthy call */
 		up_read(&cfg->ioctl_rwsem);
 		result = scsi_execute(sdev, scsi_cmd, DMA_TO_DEVICE, cmd_buf,
-				      CMD_BUFSIZE, sense_buf, NULL, to,
+				      CMD_BUFSIZE, NULL, NULL, to,
 				      CMD_RETRIES, 0, 0, NULL);
 		down_read(&cfg->ioctl_rwsem);
 		rc = check_state(cfg);
@@ -481,7 +480,6 @@ static int write_same16(struct scsi_device *sdev,
 out:
 	kfree(cmd_buf);
 	kfree(scsi_cmd);
-	kfree(sense_buf);
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);
 	return rc;
 }

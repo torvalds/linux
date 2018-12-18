@@ -175,6 +175,20 @@ static int dw_mci_exynos_runtime_resume(struct device *dev)
 
 	return ret;
 }
+#endif /* CONFIG_PM */
+
+#ifdef CONFIG_PM_SLEEP
+/**
+ * dw_mci_exynos_suspend_noirq - Exynos-specific suspend code
+ *
+ * This ensures that device will be in runtime active state in
+ * dw_mci_exynos_resume_noirq after calling pm_runtime_force_resume()
+ */
+static int dw_mci_exynos_suspend_noirq(struct device *dev)
+{
+	pm_runtime_get_noresume(dev);
+	return pm_runtime_force_suspend(dev);
+}
 
 /**
  * dw_mci_exynos_resume_noirq - Exynos-specific resume code
@@ -186,12 +200,16 @@ static int dw_mci_exynos_runtime_resume(struct device *dev)
  *
  * We run this code on all exynos variants because it doesn't hurt.
  */
-
 static int dw_mci_exynos_resume_noirq(struct device *dev)
 {
 	struct dw_mci *host = dev_get_drvdata(dev);
 	struct dw_mci_exynos_priv_data *priv = host->priv;
 	u32 clksel;
+	int ret;
+
+	ret = pm_runtime_force_resume(dev);
+	if (ret)
+		return ret;
 
 	if (priv->ctrl_type == DW_MCI_TYPE_EXYNOS7 ||
 		priv->ctrl_type == DW_MCI_TYPE_EXYNOS7_SMU)
@@ -207,11 +225,11 @@ static int dw_mci_exynos_resume_noirq(struct device *dev)
 			mci_writel(host, CLKSEL, clksel);
 	}
 
+	pm_runtime_put(dev);
+
 	return 0;
 }
-#else
-#define dw_mci_exynos_resume_noirq	NULL
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static void dw_mci_exynos_config_hs400(struct dw_mci *host, u32 timing)
 {
@@ -553,14 +571,11 @@ static int dw_mci_exynos_remove(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops dw_mci_exynos_pmops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dw_mci_exynos_suspend_noirq,
+				      dw_mci_exynos_resume_noirq)
 	SET_RUNTIME_PM_OPS(dw_mci_runtime_suspend,
 			   dw_mci_exynos_runtime_resume,
 			   NULL)
-	.resume_noirq = dw_mci_exynos_resume_noirq,
-	.thaw_noirq = dw_mci_exynos_resume_noirq,
-	.restore_noirq = dw_mci_exynos_resume_noirq,
 };
 
 static struct platform_driver dw_mci_exynos_pltfm_driver = {

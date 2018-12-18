@@ -1438,8 +1438,6 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 		goto out;
 	}
 
-	symbol_conf.nr_events = kvm->evlist->nr_entries;
-
 	if (perf_evlist__create_maps(kvm->evlist, &kvm->opts.target) < 0)
 		usage_with_options(live_usage, live_options);
 

@@ -398,8 +398,6 @@
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&rotary_btn_pins_cfa10049>;
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		rotary_button {
 			label = "rotary_button";

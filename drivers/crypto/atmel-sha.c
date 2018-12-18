@@ -2316,9 +2316,7 @@ struct atmel_sha_authenc_ctx *atmel_sha_authenc_spawn(unsigned long mode)
 		goto error;
 	}
 
-	tfm = crypto_alloc_ahash(name,
-				 CRYPTO_ALG_TYPE_AHASH,
-				 CRYPTO_ALG_TYPE_AHASH_MASK);
+	tfm = crypto_alloc_ahash(name, 0, 0);
 	if (IS_ERR(tfm)) {
 		err = PTR_ERR(tfm);
 		goto error;

@@ -15,12 +15,6 @@
 #include <net/tcp.h>
 
 #ifdef CONFIG_PROC_FS
-struct kcm_seq_muxinfo {
-	char				*name;
-	const struct file_operations	*seq_fops;
-	const struct seq_operations	seq_ops;
-};
-
 static struct kcm_mux *kcm_get_first(struct seq_file *seq)
 {
 	struct net *net = seq_file_net(seq);
@@ -85,14 +79,6 @@ struct kcm_proc_mux_state {
 	struct seq_net_private p;
 	int idx;
 };
-
-static int kcm_seq_open(struct inode *inode, struct file *file)
-{
-	struct kcm_seq_muxinfo *muxinfo = PDE_DATA(inode);
-
-	return seq_open_net(inode, file, &muxinfo->seq_ops,
-			   sizeof(struct kcm_proc_mux_state));
-}
 
 static void kcm_format_mux_header(struct seq_file *seq)
 {
@@ -246,43 +232,12 @@ static int kcm_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static const struct file_operations kcm_seq_fops = {
-	.open		= kcm_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
+static const struct seq_operations kcm_seq_ops = {
+	.show	= kcm_seq_show,
+	.start	= kcm_seq_start,
+	.next	= kcm_seq_next,
+	.stop	= kcm_seq_stop,
 };
-
-static struct kcm_seq_muxinfo kcm_seq_muxinfo = {
-	.name		= "kcm",
-	.seq_fops	= &kcm_seq_fops,
-	.seq_ops	= {
-		.show	= kcm_seq_show,
-		.start	= kcm_seq_start,
-		.next	= kcm_seq_next,
-		.stop	= kcm_seq_stop,
-	}
-};
-
-static int kcm_proc_register(struct net *net, struct kcm_seq_muxinfo *muxinfo)
-{
-	struct proc_dir_entry *p;
-	int rc = 0;
-
-	p = proc_create_data(muxinfo->name, 0444, net->proc_net,
-			     muxinfo->seq_fops, muxinfo);
-	if (!p)
-		rc = -ENOMEM;
-	return rc;
-}
-EXPORT_SYMBOL(kcm_proc_register);
-
-static void kcm_proc_unregister(struct net *net,
-				struct kcm_seq_muxinfo *muxinfo)
-{
-	remove_proc_entry(muxinfo->name, net->proc_net);
-}
-EXPORT_SYMBOL(kcm_proc_unregister);
 
 static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 {
@@ -390,30 +345,14 @@ static int kcm_stats_seq_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
-static int kcm_stats_seq_open(struct inode *inode, struct file *file)
-{
-	return single_open_net(inode, file, kcm_stats_seq_show);
-}
-
-static const struct file_operations kcm_stats_seq_fops = {
-	.open    = kcm_stats_seq_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = single_release_net,
-};
-
 static int kcm_proc_init_net(struct net *net)
 {
-	int err;
-
-	if (!proc_create("kcm_stats", 0444, net->proc_net,
-			 &kcm_stats_seq_fops)) {
-		err = -ENOMEM;
+	if (!proc_create_net_single("kcm_stats", 0444, net->proc_net,
+			 kcm_stats_seq_show, NULL))
 		goto out_kcm_stats;
-	}
 
-	err = kcm_proc_register(net, &kcm_seq_muxinfo);
-	if (err)
+	if (!proc_create_net("kcm", 0444, net->proc_net, &kcm_seq_ops,
+			sizeof(struct kcm_proc_mux_state)))
 		goto out_kcm;
 
 	return 0;
@@ -421,12 +360,12 @@ static int kcm_proc_init_net(struct net *net)
 out_kcm:
 	remove_proc_entry("kcm_stats", net->proc_net);
 out_kcm_stats:
-	return err;
+	return -ENOMEM;
 }
 
 static void kcm_proc_exit_net(struct net *net)
 {
-	kcm_proc_unregister(net, &kcm_seq_muxinfo);
+	remove_proc_entry("kcm", net->proc_net);
 	remove_proc_entry("kcm_stats", net->proc_net);
 }
 

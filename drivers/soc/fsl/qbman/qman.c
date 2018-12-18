@@ -1021,7 +1021,8 @@ int qman_alloc_fq_table(u32 _num_fqids)
 {
 	num_fqids = _num_fqids;
 
-	fq_table = vzalloc(num_fqids * 2 * sizeof(struct qman_fq *));
+	fq_table = vzalloc(array3_size(sizeof(struct qman_fq *),
+				       num_fqids, 2));
 	if (!fq_table)
 		return -ENOMEM;
 
@@ -1181,7 +1182,7 @@ static int qman_create_portal(struct qman_portal *portal,
 	qm_dqrr_set_ithresh(p, QMAN_PIRQ_DQRR_ITHRESH);
 	qm_mr_set_ithresh(p, QMAN_PIRQ_MR_ITHRESH);
 	qm_out(p, QM_REG_ITPR, QMAN_PIRQ_IPERIOD);
-	portal->cgrs = kmalloc(2 * sizeof(*cgrs), GFP_KERNEL);
+	portal->cgrs = kmalloc_array(2, sizeof(*cgrs), GFP_KERNEL);
 	if (!portal->cgrs)
 		goto fail_cgrs;
 	/* initial snapshot is no-depletion */

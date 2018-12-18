@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/pm_runtime.h>
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
 #include <video/videomode.h>
@@ -162,7 +163,7 @@ static int exynos_dp_bind(struct device *dev, struct device *master, void *data)
 	dp->drm_dev = drm_dev;
 
 	dp->plat_data.dev_type = EXYNOS_DP;
-	dp->plat_data.power_on = exynos_dp_poweron;
+	dp->plat_data.power_on_start = exynos_dp_poweron;
 	dp->plat_data.power_off = exynos_dp_poweroff;
 	dp->plat_data.attach = exynos_dp_bridge_attach;
 	dp->plat_data.get_modes = exynos_dp_get_modes;
@@ -232,9 +233,11 @@ static int exynos_dp_probe(struct platform_device *pdev)
 	np = of_parse_phandle(dev->of_node, "panel", 0);
 	if (np) {
 		dp->plat_data.panel = of_drm_find_panel(np);
+
 		of_node_put(np);
-		if (!dp->plat_data.panel)
-			return -EPROBE_DEFER;
+		if (IS_ERR(dp->plat_data.panel))
+			return PTR_ERR(dp->plat_data.panel);
+
 		goto out;
 	}
 
@@ -276,6 +279,8 @@ static int exynos_dp_resume(struct device *dev)
 
 static const struct dev_pm_ops exynos_dp_pm_ops = {
 	SET_RUNTIME_PM_OPS(exynos_dp_suspend, exynos_dp_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 };
 
 static const struct of_device_id exynos_dp_match[] = {

@@ -42,6 +42,20 @@ struct itimerval {
 	struct timeval it_value;	/* current value */
 };
 
+#ifndef __kernel_timespec
+struct __kernel_timespec {
+	__kernel_time64_t       tv_sec;                 /* seconds */
+	long long               tv_nsec;                /* nanoseconds */
+};
+#endif
+
+#ifndef __kernel_itimerspec
+struct __kernel_itimerspec {
+	struct __kernel_timespec it_interval;    /* timer period */
+	struct __kernel_timespec it_value;       /* timer expiration */
+};
+#endif
+
 /*
  * legacy timeval structure, only embedded in structures that
  * traditionally used 'timeval' to pass time intervals (not absolute
@@ -73,7 +87,6 @@ struct __kernel_old_timeval {
  */
 #define CLOCK_SGI_CYCLE			10
 #define CLOCK_TAI			11
-#define CLOCK_MONOTONIC_ACTIVE		12
 
 #define MAX_CLOCKS			16
 #define CLOCKS_MASK			(CLOCK_REALTIME | CLOCK_MONOTONIC)

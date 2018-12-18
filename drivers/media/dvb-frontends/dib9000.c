@@ -2381,12 +2381,12 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 	u8 new_addr = 0;
 	struct i2c_device client = {.i2c_adap = i2c };
 
-	client.i2c_write_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
+	client.i2c_write_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_write_buffer) {
 		dprintk("%s: not enough memory\n", __func__);
 		return -ENOMEM;
 	}
-	client.i2c_read_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
+	client.i2c_read_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_read_buffer) {
 		dprintk("%s: not enough memory\n", __func__);
 		ret = -ENOMEM;
@@ -2553,9 +2553,9 @@ static const struct dvb_frontend_ops dib9000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",
-		 .frequency_min = 44250000,
-		 .frequency_max = 867250000,
-		 .frequency_stepsize = 62500,
+		 .frequency_min_hz =  44250 * kHz,
+		 .frequency_max_hz = 867250 * kHz,
+		 .frequency_stepsize_hz = 62500,
 		 .caps = FE_CAN_INVERSION_AUTO |
 		 FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		 FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

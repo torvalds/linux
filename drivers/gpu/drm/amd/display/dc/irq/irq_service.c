@@ -36,7 +36,7 @@
 #include "dce120/irq_service_dce120.h"
 
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+#ifdef CONFIG_X86
 #include "dcn10/irq_service_dcn10.h"
 #endif
 
@@ -78,7 +78,7 @@ const struct irq_source_info *find_irq_source_info(
 	struct irq_service *irq_service,
 	enum dc_irq_source source)
 {
-	if (source > DAL_IRQ_SOURCES_NUMBER || source < DC_IRQ_SOURCE_INVALID)
+	if (source >= DAL_IRQ_SOURCES_NUMBER || source < DC_IRQ_SOURCE_INVALID)
 		return NULL;
 
 	return &irq_service->info[source];

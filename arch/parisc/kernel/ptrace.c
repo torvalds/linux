@@ -76,8 +76,6 @@ void user_enable_single_step(struct task_struct *task)
 	set_tsk_thread_flag(task, TIF_SINGLESTEP);
 
 	if (pa_psw(task)->n) {
-		struct siginfo si;
-
 		/* Nullified, just crank over the queue. */
 		task_regs(task)->iaoq[0] = task_regs(task)->iaoq[1];
 		task_regs(task)->iasq[0] = task_regs(task)->iasq[1];
@@ -90,11 +88,9 @@ void user_enable_single_step(struct task_struct *task)
 		ptrace_disable(task);
 		/* Don't wake up the task, but let the
 		   parent know something happened. */
-		si.si_code = TRAP_TRACE;
-		si.si_addr = (void __user *) (task_regs(task)->iaoq[0] & ~3);
-		si.si_signo = SIGTRAP;
-		si.si_errno = 0;
-		force_sig_info(SIGTRAP, &si, task);
+		force_sig_fault(SIGTRAP, TRAP_TRACE,
+				(void __user *) (task_regs(task)->iaoq[0] & ~3),
+				task);
 		/* notify_parent(task, SIGCHLD); */
 		return;
 	}
@@ -679,4 +675,104 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 		return &user_parisc_compat_view;
 #endif
 	return &user_parisc_native_view;
+}
+
+
+/* HAVE_REGS_AND_STACK_ACCESS_API feature */
+
+struct pt_regs_offset {
+	const char *name;
+	int offset;
+};
+
+#define REG_OFFSET_NAME(r)    {.name = #r, .offset = offsetof(struct pt_regs, r)}
+#define REG_OFFSET_INDEX(r,i) {.name = #r#i, .offset = offsetof(struct pt_regs, r[i])}
+#define REG_OFFSET_END {.name = NULL, .offset = 0}
+
+static const struct pt_regs_offset regoffset_table[] = {
+	REG_OFFSET_INDEX(gr,0),
+	REG_OFFSET_INDEX(gr,1),
+	REG_OFFSET_INDEX(gr,2),
+	REG_OFFSET_INDEX(gr,3),
+	REG_OFFSET_INDEX(gr,4),
+	REG_OFFSET_INDEX(gr,5),
+	REG_OFFSET_INDEX(gr,6),
+	REG_OFFSET_INDEX(gr,7),
+	REG_OFFSET_INDEX(gr,8),
+	REG_OFFSET_INDEX(gr,9),
+	REG_OFFSET_INDEX(gr,10),
+	REG_OFFSET_INDEX(gr,11),
+	REG_OFFSET_INDEX(gr,12),
+	REG_OFFSET_INDEX(gr,13),
+	REG_OFFSET_INDEX(gr,14),
+	REG_OFFSET_INDEX(gr,15),
+	REG_OFFSET_INDEX(gr,16),
+	REG_OFFSET_INDEX(gr,17),
+	REG_OFFSET_INDEX(gr,18),
+	REG_OFFSET_INDEX(gr,19),
+	REG_OFFSET_INDEX(gr,20),
+	REG_OFFSET_INDEX(gr,21),
+	REG_OFFSET_INDEX(gr,22),
+	REG_OFFSET_INDEX(gr,23),
+	REG_OFFSET_INDEX(gr,24),
+	REG_OFFSET_INDEX(gr,25),
+	REG_OFFSET_INDEX(gr,26),
+	REG_OFFSET_INDEX(gr,27),
+	REG_OFFSET_INDEX(gr,28),
+	REG_OFFSET_INDEX(gr,29),
+	REG_OFFSET_INDEX(gr,30),
+	REG_OFFSET_INDEX(gr,31),
+	REG_OFFSET_INDEX(sr,0),
+	REG_OFFSET_INDEX(sr,1),
+	REG_OFFSET_INDEX(sr,2),
+	REG_OFFSET_INDEX(sr,3),
+	REG_OFFSET_INDEX(sr,4),
+	REG_OFFSET_INDEX(sr,5),
+	REG_OFFSET_INDEX(sr,6),
+	REG_OFFSET_INDEX(sr,7),
+	REG_OFFSET_INDEX(iasq,0),
+	REG_OFFSET_INDEX(iasq,1),
+	REG_OFFSET_INDEX(iaoq,0),
+	REG_OFFSET_INDEX(iaoq,1),
+	REG_OFFSET_NAME(cr27),
+	REG_OFFSET_NAME(ksp),
+	REG_OFFSET_NAME(kpc),
+	REG_OFFSET_NAME(sar),
+	REG_OFFSET_NAME(iir),
+	REG_OFFSET_NAME(isr),
+	REG_OFFSET_NAME(ior),
+	REG_OFFSET_NAME(ipsw),
+	REG_OFFSET_END,
+};
+
+/**
+ * regs_query_register_offset() - query register offset from its name
+ * @name:	the name of a register
+ *
+ * regs_query_register_offset() returns the offset of a register in struct
+ * pt_regs from its name. If the name is invalid, this returns -EINVAL;
+ */
+int regs_query_register_offset(const char *name)
+{
+	const struct pt_regs_offset *roff;
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (!strcmp(roff->name, name))
+			return roff->offset;
+	return -EINVAL;
+}
+
+/**
+ * regs_query_register_name() - query register name from its offset
+ * @offset:	the offset of a register in struct pt_regs.
+ *
+ * regs_query_register_name() returns the name of a register from its
+ * offset in struct pt_regs. If the @offset is invalid, this returns NULL;
+ */
+const char *regs_query_register_name(unsigned int offset)
+{
+	const struct pt_regs_offset *roff;
+	for (roff = regoffset_table; roff->name != NULL; roff++)
+		if (roff->offset == offset)
+			return roff->name;
+	return NULL;
 }

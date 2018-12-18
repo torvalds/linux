@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/usb/role.h>
 
 /* register definition */
@@ -38,20 +39,6 @@ struct intel_xhci_usb_data {
 	void __iomem *base;
 };
 
-struct intel_xhci_acpi_match {
-	const char *hid;
-	int hrv;
-};
-
-/*
- * ACPI IDs for PMICs which do not support separate data and power role
- * detection (USB ACA detection for micro USB OTG), we allow userspace to
- * change the role manually on these.
- */
-static const struct intel_xhci_acpi_match allow_userspace_ctrl_ids[] = {
-	{ "INT33F4",  3 }, /* X-Powers AXP288 PMIC */
-};
-
 static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 {
 	struct intel_xhci_usb_data *data = dev_get_drvdata(dev);
@@ -69,6 +56,8 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 		dev_err(dev, "Error could not acquire lock\n");
 		return -EIO;
 	}
+
+	pm_runtime_get_sync(dev);
 
 	/* Set idpin value as requested */
 	val = readl(data->base + DUAL_ROLE_CFG0);
@@ -98,12 +87,16 @@ static int intel_xhci_usb_set_role(struct device *dev, enum usb_role role)
 	/* Polling on CFG1 register to confirm mode switch.*/
 	do {
 		val = readl(data->base + DUAL_ROLE_CFG1);
-		if (!!(val & HOST_MODE) == (role == USB_ROLE_HOST))
+		if (!!(val & HOST_MODE) == (role == USB_ROLE_HOST)) {
+			pm_runtime_put(dev);
 			return 0;
+		}
 
 		/* Interval for polling is set to about 5 - 10 ms */
 		usleep_range(5000, 10000);
 	} while (time_before(jiffies, timeout));
+
+	pm_runtime_put(dev);
 
 	dev_warn(dev, "Timeout waiting for role-switch\n");
 	return -ETIMEDOUT;
@@ -115,7 +108,9 @@ static enum usb_role intel_xhci_usb_get_role(struct device *dev)
 	enum usb_role role;
 	u32 val;
 
+	pm_runtime_get_sync(dev);
 	val = readl(data->base + DUAL_ROLE_CFG0);
+	pm_runtime_put(dev);
 
 	if (!(val & SW_IDPIN))
 		role = USB_ROLE_HOST;
@@ -127,9 +122,10 @@ static enum usb_role intel_xhci_usb_get_role(struct device *dev)
 	return role;
 }
 
-static struct usb_role_switch_desc sw_desc = {
+static const struct usb_role_switch_desc sw_desc = {
 	.set = intel_xhci_usb_set_role,
 	.get = intel_xhci_usb_get_role,
+	.allow_userspace_control = true,
 };
 
 static int intel_xhci_usb_probe(struct platform_device *pdev)
@@ -137,27 +133,26 @@ static int intel_xhci_usb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct intel_xhci_usb_data *data;
 	struct resource *res;
-	int i;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -EINVAL;
 	data->base = devm_ioremap_nocache(dev, res->start, resource_size(res));
 	if (!data->base)
 		return -ENOMEM;
-
-	for (i = 0; i < ARRAY_SIZE(allow_userspace_ctrl_ids); i++)
-		if (acpi_dev_present(allow_userspace_ctrl_ids[i].hid, "1",
-				     allow_userspace_ctrl_ids[i].hrv))
-			sw_desc.allow_userspace_control = true;
 
 	platform_set_drvdata(pdev, data);
 
 	data->role_sw = usb_role_switch_register(dev, &sw_desc);
 	if (IS_ERR(data->role_sw))
 		return PTR_ERR(data->role_sw);
+
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 }

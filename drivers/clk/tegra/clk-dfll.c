@@ -1196,42 +1196,24 @@ static const struct file_operations attr_registers_fops = {
 	.release	= single_release,
 };
 
-static int dfll_debug_init(struct tegra_dfll *td)
+static void dfll_debug_init(struct tegra_dfll *td)
 {
-	int ret;
+	struct dentry *root;
 
 	if (!td || (td->mode == DFLL_UNINITIALIZED))
-		return 0;
+		return;
 
-	td->debugfs_dir = debugfs_create_dir("tegra_dfll_fcpu", NULL);
-	if (!td->debugfs_dir)
-		return -ENOMEM;
+	root = debugfs_create_dir("tegra_dfll_fcpu", NULL);
+	td->debugfs_dir = root;
 
-	ret = -ENOMEM;
-
-	if (!debugfs_create_file("enable", S_IRUGO | S_IWUSR,
-				 td->debugfs_dir, td, &enable_fops))
-		goto err_out;
-
-	if (!debugfs_create_file("lock", S_IRUGO,
-				 td->debugfs_dir, td, &lock_fops))
-		goto err_out;
-
-	if (!debugfs_create_file("rate", S_IRUGO,
-				 td->debugfs_dir, td, &rate_fops))
-		goto err_out;
-
-	if (!debugfs_create_file("registers", S_IRUGO,
-				 td->debugfs_dir, td, &attr_registers_fops))
-		goto err_out;
-
-	return 0;
-
-err_out:
-	debugfs_remove_recursive(td->debugfs_dir);
-	return ret;
+	debugfs_create_file("enable", S_IRUGO | S_IWUSR, root, td, &enable_fops);
+	debugfs_create_file("lock", S_IRUGO, root, td, &lock_fops);
+	debugfs_create_file("rate", S_IRUGO, root, td, &rate_fops);
+	debugfs_create_file("registers", S_IRUGO, root, td, &attr_registers_fops);
 }
 
+#else
+static void inline dfll_debug_init(struct tegra_dfll *td) { }
 #endif /* CONFIG_DEBUG_FS */
 
 /*
@@ -1715,9 +1697,7 @@ int tegra_dfll_register(struct platform_device *pdev,
 		return ret;
 	}
 
-#ifdef CONFIG_DEBUG_FS
 	dfll_debug_init(td);
-#endif
 
 	return 0;
 }

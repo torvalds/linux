@@ -89,7 +89,7 @@ atomic_t ppc_n_lost_interrupts;
 
 #ifdef CONFIG_TAU_INT
 extern int tau_initialized;
-extern int tau_interrupts(int);
+u32 tau_interrupts(unsigned long cpu);
 #endif
 #endif /* CONFIG_PPC32 */
 
@@ -145,8 +145,20 @@ notrace unsigned int __check_irq_replay(void)
 	trace_hardirqs_on();
 	trace_hardirqs_off();
 
+	/*
+	 * We are always hard disabled here, but PACA_IRQ_HARD_DIS may
+	 * not be set, which means interrupts have only just been hard
+	 * disabled as part of the local_irq_restore or interrupt return
+	 * code. In that case, skip the decrementr check becaus it's
+	 * expensive to read the TB.
+	 *
+	 * HARD_DIS then gets cleared here, but it's reconciled later.
+	 * Either local_irq_disable will replay the interrupt and that
+	 * will reconcile state like other hard interrupts. Or interrupt
+	 * retur will replay the interrupt and in that case it sets
+	 * PACA_IRQ_HARD_DIS by hand (see comments in entry_64.S).
+	 */
 	if (happened & PACA_IRQ_HARD_DIS) {
-		/* Clear bit 0 which we wouldn't clear otherwise */
 		local_paca->irq_happened &= ~PACA_IRQ_HARD_DIS;
 
 		/*
@@ -248,24 +260,33 @@ notrace void arch_local_irq_restore(unsigned long mask)
 	 * cannot have preempted.
 	 */
 	irq_happened = get_irq_happened();
-	if (!irq_happened)
+	if (!irq_happened) {
+		/*
+		 * FIXME. Here we'd like to be able to do:
+		 *
+		 * #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		 *   WARN_ON(!(mfmsr() & MSR_EE));
+		 * #endif
+		 *
+		 * But currently it hits in a few paths, we should fix those and
+		 * enable the warning.
+		 */
 		return;
+	}
 
 	/*
 	 * We need to hard disable to get a trusted value from
 	 * __check_irq_replay(). We also need to soft-disable
 	 * again to avoid warnings in there due to the use of
 	 * per-cpu variables.
-	 *
-	 * We know that if the value in irq_happened is exactly 0x01
-	 * then we are already hard disabled (there are other less
-	 * common cases that we'll ignore for now), so we skip the
-	 * (expensive) mtmsrd.
 	 */
-	if (unlikely(irq_happened != PACA_IRQ_HARD_DIS))
+	if (!(irq_happened & PACA_IRQ_HARD_DIS)) {
+#ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
+		WARN_ON(!(mfmsr() & MSR_EE));
+#endif
 		__hard_irq_disable();
 #ifdef CONFIG_PPC_IRQ_SOFT_MASK_DEBUG
-	else {
+	} else {
 		/*
 		 * We should already be hard disabled here. We had bugs
 		 * where that wasn't the case so let's dbl check it and
@@ -274,8 +295,8 @@ notrace void arch_local_irq_restore(unsigned long mask)
 		 */
 		if (WARN_ON(mfmsr() & MSR_EE))
 			__hard_irq_disable();
-	}
 #endif
+	}
 
 	irq_soft_mask_set(IRQS_ALL_DISABLED);
 	trace_hardirqs_off();
@@ -508,6 +529,11 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_event);
         seq_printf(p, "  Local timer interrupts for timer event device\n");
 
+	seq_printf(p, "%*s: ", prec, "BCT");
+	for_each_online_cpu(j)
+		seq_printf(p, "%10u ", per_cpu(irq_stat, j).broadcast_irqs_event);
+	seq_printf(p, "  Broadcast timer interrupts for timer event device\n");
+
 	seq_printf(p, "%*s: ", prec, "LOC");
 	for_each_online_cpu(j)
 		seq_printf(p, "%10u ", per_cpu(irq_stat, j).timer_irqs_others);
@@ -567,6 +593,7 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 {
 	u64 sum = per_cpu(irq_stat, cpu).timer_irqs_event;
 
+	sum += per_cpu(irq_stat, cpu).broadcast_irqs_event;
 	sum += per_cpu(irq_stat, cpu).pmu_irqs;
 	sum += per_cpu(irq_stat, cpu).mce_exceptions;
 	sum += per_cpu(irq_stat, cpu).spurious_irqs;

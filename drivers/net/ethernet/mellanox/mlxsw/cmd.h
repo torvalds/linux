@@ -1,37 +1,5 @@
-/*
- * drivers/net/ethernet/mellanox/mlxsw/cmd.h
- * Copyright (c) 2015 Mellanox Technologies. All rights reserved.
- * Copyright (c) 2015 Jiri Pirko <jiri@mellanox.com>
- * Copyright (c) 2015 Ido Schimmel <idosch@mellanox.com>
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
- *
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. Neither the names of the copyright holders nor the names of its
- *    contributors may be used to endorse or promote products derived from
- *    this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
- * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
- */
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
+/* Copyright (c) 2015-2018 Mellanox Technologies. All rights reserved */
 
 #ifndef _MLXSW_CMD_H
 #define _MLXSW_CMD_H
@@ -58,7 +26,7 @@ static inline void mlxsw_cmd_mbox_zero(char *mbox)
 struct mlxsw_core;
 
 int mlxsw_cmd_exec(struct mlxsw_core *mlxsw_core, u16 opcode, u8 opcode_mod,
-		   u32 in_mod, bool out_mbox_direct,
+		   u32 in_mod, bool out_mbox_direct, bool reset_ok,
 		   char *in_mbox, size_t in_mbox_size,
 		   char *out_mbox, size_t out_mbox_size);
 
@@ -67,7 +35,7 @@ static inline int mlxsw_cmd_exec_in(struct mlxsw_core *mlxsw_core, u16 opcode,
 				    size_t in_mbox_size)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod, false,
-			      in_mbox, in_mbox_size, NULL, 0);
+			      false, in_mbox, in_mbox_size, NULL, 0);
 }
 
 static inline int mlxsw_cmd_exec_out(struct mlxsw_core *mlxsw_core, u16 opcode,
@@ -76,7 +44,7 @@ static inline int mlxsw_cmd_exec_out(struct mlxsw_core *mlxsw_core, u16 opcode,
 				     char *out_mbox, size_t out_mbox_size)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod,
-			      out_mbox_direct, NULL, 0,
+			      out_mbox_direct, false, NULL, 0,
 			      out_mbox, out_mbox_size);
 }
 
@@ -84,7 +52,7 @@ static inline int mlxsw_cmd_exec_none(struct mlxsw_core *mlxsw_core, u16 opcode,
 				      u8 opcode_mod, u32 in_mod)
 {
 	return mlxsw_cmd_exec(mlxsw_core, opcode, opcode_mod, in_mod, false,
-			      NULL, 0, NULL, 0);
+			      false, NULL, 0, NULL, 0);
 }
 
 enum mlxsw_cmd_opcode {
@@ -179,6 +147,8 @@ enum mlxsw_cmd_status {
 	MLXSW_CMD_STATUS_BAD_INDEX	= 0x0A,
 	/* NVMEM checksum/CRC failed. */
 	MLXSW_CMD_STATUS_BAD_NVMEM	= 0x0B,
+	/* Device is currently running reset */
+	MLXSW_CMD_STATUS_RUNNING_RESET	= 0x26,
 	/* Bad management packet (silently discarded). */
 	MLXSW_CMD_STATUS_BAD_PKT	= 0x30,
 };
@@ -208,6 +178,8 @@ static inline const char *mlxsw_cmd_status_str(u8 status)
 		return "BAD_INDEX";
 	case MLXSW_CMD_STATUS_BAD_NVMEM:
 		return "BAD_NVMEM";
+	case MLXSW_CMD_STATUS_RUNNING_RESET:
+		return "RUNNING_RESET";
 	case MLXSW_CMD_STATUS_BAD_PKT:
 		return "BAD_PKT";
 	default:
@@ -424,9 +396,14 @@ MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_rdq_sz, 0x04, 24, 8);
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, max_num_rdqs, 0x04, 0, 8);
 
 /* cmd_mbox_query_aq_cap_log_max_cq_sz
- * Log (base 2) of max CQEs allowed on CQ.
+ * Log (base 2) of the Maximum CQEs allowed in a CQ for CQEv0 and CQEv1.
  */
 MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_cq_sz, 0x08, 24, 8);
+
+/* cmd_mbox_query_aq_cap_log_max_cqv2_sz
+ * Log (base 2) of the Maximum CQEs allowed in a CQ for CQEv2.
+ */
+MLXSW_ITEM32(cmd_mbox, query_aq_cap, log_max_cqv2_sz, 0x08, 16, 8);
 
 /* cmd_mbox_query_aq_cap_max_num_cqs
  * Maximum number of CQs.
@@ -662,6 +639,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_single_size, 0x0C, 25, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
 
+/* cmd_mbox_config_set_cqe_version
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
+
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
  * 0 - multi-channel VEPA is disabled
@@ -841,6 +824,14 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_type,
 MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_properties,
 		     0x60, 0, 8, 0x08, 0x00, false);
 
+/* cmd_mbox_config_profile_cqe_version
+ * CQE version:
+ * 0: CQE version is 0
+ * 1: CQE version is either 1 or 2
+ * CQE ver 1 or 2 is configured by Completion Queue Context field cqe_ver.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, cqe_version, 0xB0, 0, 8);
+
 /* ACCESS_REG - Access EMAD Supported Register
  * ----------------------------------
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
@@ -850,10 +841,12 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_properties,
  */
 
 static inline int mlxsw_cmd_access_reg(struct mlxsw_core *mlxsw_core,
+				       bool reset_ok,
 				       char *in_mbox, char *out_mbox)
 {
 	return mlxsw_cmd_exec(mlxsw_core, MLXSW_CMD_OPCODE_ACCESS_REG,
-			      0, 0, false, in_mbox, MLXSW_CMD_MBOX_SIZE,
+			      0, 0, false, reset_ok,
+			      in_mbox, MLXSW_CMD_MBOX_SIZE,
 			      out_mbox, MLXSW_CMD_MBOX_SIZE);
 }
 
@@ -1032,11 +1025,15 @@ static inline int mlxsw_cmd_sw2hw_cq(struct mlxsw_core *mlxsw_core,
 				 0, cq_number, in_mbox, MLXSW_CMD_MBOX_SIZE);
 }
 
-/* cmd_mbox_sw2hw_cq_cv
+enum mlxsw_cmd_mbox_sw2hw_cq_cqe_ver {
+	MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_1,
+	MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_2,
+};
+
+/* cmd_mbox_sw2hw_cq_cqe_ver
  * CQE Version.
- * 0 - CQE Version 0, 1 - CQE Version 1
  */
-MLXSW_ITEM32(cmd_mbox, sw2hw_cq, cv, 0x00, 28, 4);
+MLXSW_ITEM32(cmd_mbox, sw2hw_cq, cqe_ver, 0x00, 28, 4);
 
 /* cmd_mbox_sw2hw_cq_c_eqn
  * Event Queue this CQ reports completion events to.

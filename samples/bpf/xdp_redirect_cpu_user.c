@@ -19,16 +19,16 @@ static const char *__doc__ =
 #include <arpa/inet.h>
 #include <linux/if_link.h>
 
-#define MAX_CPUS 12 /* WARNING - sync with _kern.c */
+#define MAX_CPUS 64 /* WARNING - sync with _kern.c */
 
 /* How many xdp_progs are defined in _kern.c */
-#define MAX_PROG 5
+#define MAX_PROG 6
 
 /* Wanted to get rid of bpf_load.h and fake-"libbpf.h" (and instead
  * use bpf/libbpf.h), but cannot as (currently) needed for XDP
  * attaching to a device via bpf_set_link_xdp_fd()
  */
-#include "libbpf.h"
+#include <bpf/bpf.h>
 #include "bpf_load.h"
 
 #include "bpf_util.h"
@@ -527,7 +527,7 @@ static void stress_cpumap(void)
 	 * procedure.
 	 */
 	create_cpu_entry(1,  1024, 0, false);
-	create_cpu_entry(1,   128, 0, false);
+	create_cpu_entry(1,     8, 0, false);
 	create_cpu_entry(1, 16000, 0, false);
 }
 
@@ -567,7 +567,7 @@ int main(int argc, char **argv)
 	int added_cpus = 0;
 	int longindex = 0;
 	int interval = 2;
-	int prog_num = 0;
+	int prog_num = 5;
 	int add_cpu = -1;
 	__u32 qsize;
 	int opt;
@@ -679,8 +679,9 @@ int main(int argc, char **argv)
 		return EXIT_FAIL_OPTION;
 	}
 
-	/* Remove XDP program when program is interrupted */
+	/* Remove XDP program when program is interrupted or killed */
 	signal(SIGINT, int_exit);
+	signal(SIGTERM, int_exit);
 
 	if (bpf_set_link_xdp_fd(ifindex, prog_fd[prog_num], xdp_flags) < 0) {
 		fprintf(stderr, "link set xdp fd failed\n");

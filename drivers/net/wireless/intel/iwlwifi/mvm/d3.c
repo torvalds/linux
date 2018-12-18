@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -35,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -693,6 +690,14 @@ iwl_mvm_get_wowlan_config(struct iwl_mvm *mvm,
 				    IWL_WOWLAN_WAKEUP_LINK_CHANGE);
 	}
 
+	if (wowlan->any) {
+		wowlan_config_cmd->wakeup_filter |=
+			cpu_to_le32(IWL_WOWLAN_WAKEUP_BEACON_MISS |
+				    IWL_WOWLAN_WAKEUP_LINK_CHANGE |
+				    IWL_WOWLAN_WAKEUP_RX_FRAME |
+				    IWL_WOWLAN_WAKEUP_BCN_FILTERING);
+	}
+
 	return 0;
 }
 
@@ -1032,6 +1037,13 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 			cpu_to_le32(IWL_WAKEUP_D3_CONFIG_FW_ERROR);
 #endif
 
+	/*
+	 * TODO: this is needed because the firmware is not stopping
+	 * the recording automatically before entering D3.  This can
+	 * be removed once the FW starts doing that.
+	 */
+	iwl_fw_dbg_stop_recording(&mvm->fwrt);
+
 	/* must be last -- this switches firmware state */
 	ret = iwl_mvm_send_cmd(mvm, &d3_cfg_cmd);
 	if (ret)
@@ -1097,6 +1109,7 @@ int iwl_mvm_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 
 	/* make sure the d0i3 exit work is not pending */
 	flush_work(&mvm->d0i3_exit_work);
+	iwl_mvm_pause_tcm(mvm, true);
 
 	iwl_fw_runtime_suspend(&mvm->fwrt);
 
@@ -2014,6 +2027,8 @@ int iwl_mvm_resume(struct ieee80211_hw *hw)
 
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
+	iwl_mvm_resume_tcm(mvm);
+
 	iwl_fw_runtime_resume(&mvm->fwrt);
 
 	return ret;
@@ -2041,6 +2056,8 @@ static int iwl_mvm_d3_test_open(struct inode *inode, struct file *file)
 	synchronize_net();
 
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_D3;
+
+	iwl_mvm_pause_tcm(mvm, true);
 
 	iwl_fw_runtime_suspend(&mvm->fwrt);
 
@@ -2103,6 +2120,8 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	rtnl_lock();
 	__iwl_mvm_resume(mvm, true);
 	rtnl_unlock();
+
+	iwl_mvm_resume_tcm(mvm);
 
 	iwl_fw_runtime_resume(&mvm->fwrt);
 

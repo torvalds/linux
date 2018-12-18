@@ -524,7 +524,8 @@ retry:
 				pr_warn(FW_WARN "too many record IDs!\n");
 			return 0;
 		}
-		new_entries = kvmalloc(new_size * sizeof(entries[0]), GFP_KERNEL);
+		new_entries = kvmalloc_array(new_size, sizeof(entries[0]),
+					     GFP_KERNEL);
 		if (!new_entries)
 			return -ENOMEM;
 		memcpy(new_entries, entries,

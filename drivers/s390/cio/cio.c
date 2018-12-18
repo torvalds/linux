@@ -526,76 +526,6 @@ int cio_disable_subchannel(struct subchannel *sch)
 }
 EXPORT_SYMBOL_GPL(cio_disable_subchannel);
 
-static int cio_check_devno_blacklisted(struct subchannel *sch)
-{
-	if (is_blacklisted(sch->schid.ssid, sch->schib.pmcw.dev)) {
-		/*
-		 * This device must not be known to Linux. So we simply
-		 * say that there is no device and return ENODEV.
-		 */
-		CIO_MSG_EVENT(6, "Blacklisted device detected "
-			      "at devno %04X, subchannel set %x\n",
-			      sch->schib.pmcw.dev, sch->schid.ssid);
-		return -ENODEV;
-	}
-	return 0;
-}
-
-/**
- * cio_validate_subchannel - basic validation of subchannel
- * @sch: subchannel structure to be filled out
- * @schid: subchannel id
- *
- * Find out subchannel type and initialize struct subchannel.
- * Return codes:
- *   0 on success
- *   -ENXIO for non-defined subchannels
- *   -ENODEV for invalid subchannels or blacklisted devices
- *   -EIO for subchannels in an invalid subchannel set
- */
-int cio_validate_subchannel(struct subchannel *sch, struct subchannel_id schid)
-{
-	char dbf_txt[15];
-	int ccode;
-	int err;
-
-	sprintf(dbf_txt, "valsch%x", schid.sch_no);
-	CIO_TRACE_EVENT(4, dbf_txt);
-
-	/*
-	 * The first subchannel that is not-operational (ccode==3)
-	 * indicates that there aren't any more devices available.
-	 * If stsch gets an exception, it means the current subchannel set
-	 * is not valid.
-	 */
-	ccode = stsch(schid, &sch->schib);
-	if (ccode) {
-		err = (ccode == 3) ? -ENXIO : ccode;
-		goto out;
-	}
-	sch->st = sch->schib.pmcw.st;
-	sch->schid = schid;
-
-	switch (sch->st) {
-	case SUBCHANNEL_TYPE_IO:
-	case SUBCHANNEL_TYPE_MSG:
-		if (!css_sch_is_valid(&sch->schib))
-			err = -ENODEV;
-		else
-			err = cio_check_devno_blacklisted(sch);
-		break;
-	default:
-		err = 0;
-	}
-	if (err)
-		goto out;
-
-	CIO_MSG_EVENT(4, "Subchannel 0.%x.%04x reports subchannel type %04X\n",
-		      sch->schid.ssid, sch->schid.sch_no, sch->st);
-out:
-	return err;
-}
-
 /*
  * do_cio_interrupt() handles all normal I/O device IRQ's
  */
@@ -719,6 +649,7 @@ struct subchannel *cio_probe_console(void)
 {
 	struct subchannel_id schid;
 	struct subchannel *sch;
+	struct schib schib;
 	int sch_no, ret;
 
 	sch_no = cio_get_console_sch_no();
@@ -728,7 +659,11 @@ struct subchannel *cio_probe_console(void)
 	}
 	init_subchannel_id(&schid);
 	schid.sch_no = sch_no;
-	sch = css_alloc_subchannel(schid);
+	ret = stsch(schid, &schib);
+	if (ret)
+		return ERR_PTR(-ENODEV);
+
+	sch = css_alloc_subchannel(schid, &schib);
 	if (IS_ERR(sch))
 		return sch;
 

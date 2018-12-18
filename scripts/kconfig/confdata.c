@@ -16,6 +16,64 @@
 
 #include "lkc.h"
 
+/* return true if 'path' exists, false otherwise */
+static bool is_present(const char *path)
+{
+	struct stat st;
+
+	return !stat(path, &st);
+}
+
+/* return true if 'path' exists and it is a directory, false otherwise */
+static bool is_dir(const char *path)
+{
+	struct stat st;
+
+	if (stat(path, &st))
+		return 0;
+
+	return S_ISDIR(st.st_mode);
+}
+
+/*
+ * Create the parent directory of the given path.
+ *
+ * For example, if 'include/config/auto.conf' is given, create 'include/config'.
+ */
+static int make_parent_dir(const char *path)
+{
+	char tmp[PATH_MAX + 1];
+	char *p;
+
+	strncpy(tmp, path, sizeof(tmp));
+	tmp[sizeof(tmp) - 1] = 0;
+
+	/* Remove the base name. Just return if nothing is left */
+	p = strrchr(tmp, '/');
+	if (!p)
+		return 0;
+	*(p + 1) = 0;
+
+	/* Just in case it is an absolute path */
+	p = tmp;
+	while (*p == '/')
+		p++;
+
+	while ((p = strchr(p, '/'))) {
+		*p = 0;
+
+		/* skip if the directory exists */
+		if (!is_dir(tmp) && mkdir(tmp, 0755))
+			return -1;
+
+		*p = '/';
+		while (*p == '/')
+			p++;
+	}
+
+	return 0;
+}
+
 struct conf_printer {
 	void (*print_symbol)(FILE *, struct symbol *, const char *, void *);
 	void (*print_comment)(FILE *, const char *, void *);
@@ -30,7 +88,7 @@ static void conf_message(const char *fmt, ...)
 static const char *conf_filename;
 static int conf_lineno, conf_warnings;
 
-const char conf_defname[] = "arch/$ARCH/defconfig";
+const char conf_defname[] = "arch/$(ARCH)/defconfig";
 
 static void conf_warning(const char *fmt, ...)
 {
@@ -43,16 +101,16 @@ static void conf_warning(const char *fmt, ...)
 	conf_warnings++;
 }
 
-static void conf_default_message_callback(const char *fmt, va_list ap)
+static void conf_default_message_callback(const char *s)
 {
 	printf("#\n# ");
-	vprintf(fmt, ap);
+	printf("%s", s);
 	printf("\n#\n");
 }
 
-static void (*conf_message_callback) (const char *fmt, va_list ap) =
+static void (*conf_message_callback)(const char *s) =
 	conf_default_message_callback;
-void conf_set_message_callback(void (*fn) (const char *fmt, va_list ap))
+void conf_set_message_callback(void (*fn)(const char *s))
 {
 	conf_message_callback = fn;
 }
@@ -60,10 +118,15 @@ void conf_set_message_callback(void (*fn) (const char *fmt, va_list ap))
 static void conf_message(const char *fmt, ...)
 {
 	va_list ap;
+	char buf[4096];
+
+	if (!conf_message_callback)
+		return;
 
 	va_start(ap, fmt);
-	if (conf_message_callback)
-		conf_message_callback(fmt, ap);
+
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	conf_message_callback(buf);
 	va_end(ap);
 }
 
@@ -81,43 +144,16 @@ const char *conf_get_autoconfig_name(void)
 	return name ? name : "include/config/auto.conf";
 }
 
-static char *conf_expand_value(const char *in)
-{
-	struct symbol *sym;
-	const char *src;
-	static char res_value[SYMBOL_MAXLENGTH];
-	char *dst, name[SYMBOL_MAXLENGTH];
-
-	res_value[0] = 0;
-	dst = name;
-	while ((src = strchr(in, '$'))) {
-		strncat(res_value, in, src - in);
-		src++;
-		dst = name;
-		while (isalnum(*src) || *src == '_')
-			*dst++ = *src++;
-		*dst = 0;
-		sym = sym_lookup(name, 0);
-		sym_calc_value(sym);
-		strcat(res_value, sym_get_string_value(sym));
-		in = src;
-	}
-	strcat(res_value, in);
-
-	return res_value;
-}
-
 char *conf_get_default_confname(void)
 {
-	struct stat buf;
 	static char fullname[PATH_MAX+1];
 	char *env, *name;
 
-	name = conf_expand_value(conf_defname);
+	name = expand_string(conf_defname);
 	env = getenv(SRCTREE);
 	if (env) {
 		sprintf(fullname, "%s/%s", env, name);
-		if (!stat(fullname, &buf))
+		if (is_present(fullname))
 			return fullname;
 	}
 	return name;
@@ -274,10 +310,11 @@ int conf_read_simple(const char *name, int def)
 			if (expr_calc_value(prop->visible.expr) == no ||
 			    prop->expr->type != E_SYMBOL)
 				continue;
-			name = conf_expand_value(prop->expr->left.sym->name);
+			sym_calc_value(prop->expr->left.sym);
+			name = sym_get_string_value(prop->expr->left.sym);
 			in = zconf_fopen(name);
 			if (in) {
-				conf_message(_("using defaults found in %s"),
+				conf_message("using defaults found in %s",
 					 name);
 				goto load;
 			}
@@ -422,7 +459,7 @@ int conf_read(const char *name)
 
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
-		if (sym_is_choice(sym) || (sym->flags & SYMBOL_AUTO))
+		if (sym_is_choice(sym) || (sym->flags & SYMBOL_NO_WRITE))
 			continue;
 		if (sym_has_value(sym) && (sym->flags & SYMBOL_WRITE)) {
 			/* check that calculated value agrees with saved value */
@@ -745,15 +782,14 @@ int conf_write(const char *name)
 	struct menu *menu;
 	const char *basename;
 	const char *str;
-	char dirname[PATH_MAX+1], tmpname[PATH_MAX+1], newname[PATH_MAX+1];
+	char dirname[PATH_MAX+1], tmpname[PATH_MAX+22], newname[PATH_MAX+8];
 	char *env;
 
 	dirname[0] = 0;
 	if (name && name[0]) {
-		struct stat st;
 		char *slash;
 
-		if (!stat(name, &st) && S_ISDIR(st.st_mode)) {
+		if (is_dir(name)) {
 			strcpy(dirname, name);
 			strcat(dirname, "/");
 			basename = conf_get_configname();
@@ -831,10 +867,42 @@ next:
 			return 1;
 	}
 
-	conf_message(_("configuration written to %s"), newname);
+	conf_message("configuration written to %s", newname);
 
 	sym_set_change_count(0);
 
+	return 0;
+}
+
+/* write a dependency file as used by kbuild to track dependencies */
+static int conf_write_dep(const char *name)
+{
+	struct file *file;
+	FILE *out;
+
+	if (!name)
+		name = ".kconfig.d";
+	out = fopen("..config.tmp", "w");
+	if (!out)
+		return 1;
+	fprintf(out, "deps_config := \\\n");
+	for (file = file_list; file; file = file->next) {
+		if (file->next)
+			fprintf(out, "\t%s \\\n", file->name);
+		else
+			fprintf(out, "\t%s\n", file->name);
+	}
+	fprintf(out, "\n%s: \\\n"
+		     "\t$(deps_config)\n\n", conf_get_autoconfig_name());
+
+	env_write_dep(out, conf_get_autoconfig_name());
+
+	fprintf(out, "\n$(deps_config): ;\n");
+	fclose(out);
+
+	if (make_parent_dir(name))
+		return 1;
+	rename("..config.tmp", name);
 	return 0;
 }
 
@@ -844,20 +912,21 @@ static int conf_split_config(void)
 	char path[PATH_MAX+1];
 	char *s, *d, c;
 	struct symbol *sym;
-	struct stat sb;
 	int res, i, fd;
 
 	name = conf_get_autoconfig_name();
 	conf_read_simple(name, S_DEF_AUTO);
 	sym_calc_value(modules_sym);
 
+	if (make_parent_dir("include/config/foo.h"))
+		return 1;
 	if (chdir("include/config"))
 		return 1;
 
 	res = 0;
 	for_all_symbols(i, sym) {
 		sym_calc_value(sym);
-		if ((sym->flags & SYMBOL_AUTO) || !sym->name)
+		if ((sym->flags & SYMBOL_NO_WRITE) || !sym->name)
 			continue;
 		if (sym->flags & SYMBOL_WRITE) {
 			if (sym->flags & SYMBOL_DEF_AUTO) {
@@ -922,19 +991,12 @@ static int conf_split_config(void)
 				res = 1;
 				break;
 			}
-			/*
-			 * Create directory components,
-			 * unless they exist already.
-			 */
-			d = path;
-			while ((d = strchr(d, '/'))) {
-				*d = 0;
-				if (stat(path, &sb) && mkdir(path, 0755)) {
-					res = 1;
-					goto out;
-				}
-				*d++ = '/';
+
+			if (make_parent_dir(path)) {
+				res = 1;
+				goto out;
 			}
+
 			/* Try it again. */
 			fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 			if (fd == -1) {
@@ -951,16 +1013,20 @@ out:
 	return res;
 }
 
-int conf_write_autoconf(void)
+int conf_write_autoconf(int overwrite)
 {
 	struct symbol *sym;
 	const char *name;
+	const char *autoconf_name = conf_get_autoconfig_name();
 	FILE *out, *tristate, *out_h;
 	int i;
 
+	if (!overwrite && is_present(autoconf_name))
+		return 0;
+
 	sym_clear_all_valid();
 
-	file_write_dep("include/config/auto.conf.cmd");
+	conf_write_dep("include/config/auto.conf.cmd");
 
 	if (conf_split_config())
 		return 1;
@@ -1007,19 +1073,26 @@ int conf_write_autoconf(void)
 	name = getenv("KCONFIG_AUTOHEADER");
 	if (!name)
 		name = "include/generated/autoconf.h";
+	if (make_parent_dir(name))
+		return 1;
 	if (rename(".tmpconfig.h", name))
 		return 1;
+
 	name = getenv("KCONFIG_TRISTATE");
 	if (!name)
 		name = "include/config/tristate.conf";
+	if (make_parent_dir(name))
+		return 1;
 	if (rename(".tmpconfig_tristate", name))
 		return 1;
-	name = conf_get_autoconfig_name();
+
+	if (make_parent_dir(autoconf_name))
+		return 1;
 	/*
 	 * This must be the last step, kbuild has a dependency on auto.conf
 	 * and this marks the successful completion of the previous steps.
 	 */
-	if (rename(".tmpconfig", name))
+	if (rename(".tmpconfig", autoconf_name))
 		return 1;
 
 	return 0;

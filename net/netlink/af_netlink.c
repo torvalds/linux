@@ -63,6 +63,7 @@
 #include <linux/hash.h>
 #include <linux/genetlink.h>
 #include <linux/net_namespace.h>
+#include <linux/nospec.h>
 
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
@@ -679,6 +680,7 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 
 	if (protocol < 0 || protocol >= MAX_LINKS)
 		return -EPROTONOSUPPORT;
+	protocol = array_index_nospec(protocol, MAX_LINKS);
 
 	netlink_lock_table();
 #ifdef CONFIG_MODULES
@@ -1008,6 +1010,11 @@ static int netlink_bind(struct socket *sock, struct sockaddr *addr,
 		if (err)
 			return err;
 	}
+
+	if (nlk->ngroups == 0)
+		groups = 0;
+	else if (nlk->ngroups < 8*sizeof(groups))
+		groups &= (1UL << nlk->ngroups) - 1;
 
 	bound = nlk->bound;
 	if (bound) {
@@ -2300,7 +2307,6 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 
 	cb = &nlk->cb;
 	memset(cb, 0, sizeof(*cb));
-	cb->start = control->start;
 	cb->dump = control->dump;
 	cb->done = control->done;
 	cb->nlh = nlh;
@@ -2309,8 +2315,8 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->min_dump_alloc = control->min_dump_alloc;
 	cb->skb = skb;
 
-	if (cb->start) {
-		ret = cb->start(cb);
+	if (control->start) {
+		ret = control->start(cb);
 		if (ret)
 			goto error_put;
 	}
@@ -2606,13 +2612,13 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 {
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq,
-			 "sk       Eth Pid    Groups   "
-			 "Rmem     Wmem     Dump     Locks     Drops     Inode\n");
+			 "sk               Eth Pid        Groups   "
+			 "Rmem     Wmem     Dump  Locks    Drops    Inode\n");
 	} else {
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%pK %-3d %-6u %08x %-8d %-8d %d %-8d %-8d %-8lu\n",
+		seq_printf(seq, "%pK %-3d %-10u %08x %-8d %-8d %-5d %-8d %-8d %-8lu\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->portid,
@@ -2635,21 +2641,6 @@ static const struct seq_operations netlink_seq_ops = {
 	.stop   = netlink_seq_stop,
 	.show   = netlink_seq_show,
 };
-
-
-static int netlink_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &netlink_seq_ops,
-				sizeof(struct nl_seq_iter));
-}
-
-static const struct file_operations netlink_seq_fops = {
-	.open		= netlink_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-};
-
 #endif
 
 int netlink_register_notifier(struct notifier_block *nb)
@@ -2694,7 +2685,8 @@ static const struct net_proto_family netlink_family_ops = {
 static int __net_init netlink_net_init(struct net *net)
 {
 #ifdef CONFIG_PROC_FS
-	if (!proc_create("netlink", 0, net->proc_net, &netlink_seq_fops))
+	if (!proc_create_net("netlink", 0, net->proc_net, &netlink_seq_ops,
+			sizeof(struct nl_seq_iter)))
 		return -ENOMEM;
 #endif
 	return 0;

@@ -79,7 +79,6 @@ struct shash_alg sha256_neon_algs[] = { {
 		.cra_name	=	"sha256",
 		.cra_driver_name =	"sha256-neon",
 		.cra_priority	=	250,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA256_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}
@@ -94,7 +93,6 @@ struct shash_alg sha256_neon_algs[] = { {
 		.cra_name	=	"sha224",
 		.cra_driver_name =	"sha224-neon",
 		.cra_priority	=	250,
-		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize	=	SHA224_BLOCK_SIZE,
 		.cra_module	=	THIS_MODULE,
 	}

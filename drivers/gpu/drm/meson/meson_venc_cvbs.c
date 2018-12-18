@@ -282,7 +282,7 @@ int meson_venc_cvbs_create(struct meson_drm *priv)
 
 	encoder->possible_crtcs = BIT(0);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 }

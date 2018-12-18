@@ -16,9 +16,6 @@ Required properties:
 
 - reg: physical base address and length of the FIMD registers set.
 
-- interrupt-parent: should be the phandle of the fimd controller's
-		parent interrupt controller.
-
 - interrupts: should contain a list of all FIMD IP block interrupts in the
 		 order: FIFO Level, VSYNC, LCD_SYSTEM. The interrupt specifier
 		 format depends on the interrupt controller used.

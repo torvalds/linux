@@ -98,14 +98,15 @@ then
 	ln -s $base_resdir/.config $resdir  # for kvm-recheck.sh
 	# Arch-independent indicator
 	touch $resdir/builtkernel
-elif kvm-build.sh $T/Kc2 $builddir
+elif kvm-build.sh $T/Kc2 $builddir $resdir
 then
 	# Had to build a kernel for this test.
 	QEMU="`identify_qemu $builddir/vmlinux`"
 	BOOT_IMAGE="`identify_boot_image $QEMU`"
-	cp $builddir/Make*.out $resdir
 	cp $builddir/vmlinux $resdir
 	cp $builddir/.config $resdir
+	cp $builddir/Module.symvers $resdir > /dev/null || :
+	cp $builddir/System.map $resdir > /dev/null || :
 	if test -n "$BOOT_IMAGE"
 	then
 		cp $builddir/$BOOT_IMAGE $resdir
@@ -267,5 +268,4 @@ then
 	echo Unknown PID, cannot kill qemu command
 fi
 
-parse-torture.sh $resdir/console.log $title
 parse-console.sh $resdir/console.log $title

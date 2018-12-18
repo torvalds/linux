@@ -11,8 +11,9 @@
  * to a power of 2 to be suitable as a hash table.
  */
 
-int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
-			   size_t max_size, unsigned int cpu_mult, gfp_t gfp)
+int __alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
+			     size_t max_size, unsigned int cpu_mult, gfp_t gfp,
+			     const char *name, struct lock_class_key *key)
 {
 	spinlock_t *tlocks = NULL;
 	unsigned int i, size;
@@ -30,14 +31,13 @@ int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
 	}
 
 	if (sizeof(spinlock_t) != 0) {
-		if (gfpflags_allow_blocking(gfp))
-			tlocks = kvmalloc(size * sizeof(spinlock_t), gfp);
-		else
-			tlocks = kmalloc_array(size, sizeof(spinlock_t), gfp);
+		tlocks = kvmalloc_array(size, sizeof(spinlock_t), gfp);
 		if (!tlocks)
 			return -ENOMEM;
-		for (i = 0; i < size; i++)
+		for (i = 0; i < size; i++) {
 			spin_lock_init(&tlocks[i]);
+			lockdep_init_map(&tlocks[i].dep_map, name, key, 0);
+		}
 	}
 
 	*locks = tlocks;
@@ -45,7 +45,7 @@ int alloc_bucket_spinlocks(spinlock_t **locks, unsigned int *locks_mask,
 
 	return 0;
 }
-EXPORT_SYMBOL(alloc_bucket_spinlocks);
+EXPORT_SYMBOL(__alloc_bucket_spinlocks);
 
 void free_bucket_spinlocks(spinlock_t *locks)
 {

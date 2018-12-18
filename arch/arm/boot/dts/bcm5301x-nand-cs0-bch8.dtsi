@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Broadcom BCM470X / BCM5301X Nand chip defaults.
  *
@@ -5,8 +6,6 @@
  * and uses 8 bit ECC.
  *
  * Copyright (C) 2015 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * Licensed under the GNU/GPL. See COPYING for details.
  */
 
 #include "bcm5301x-nand-cs0.dtsi"

@@ -277,7 +277,8 @@ void arm64_skip_faulting_instruction(struct pt_regs *regs, unsigned long size)
 	 * If we were single stepping, we want to get the step exception after
 	 * we return from the trap.
 	 */
-	user_fastforward_single_step(current);
+	if (user_mode(regs))
+		user_fastforward_single_step(current);
 }
 
 static LIST_HEAD(undef_hook);
@@ -366,7 +367,7 @@ void force_signal_inject(int signal, int code, unsigned long address)
 	}
 
 	/* Force signals we don't understand to SIGKILL */
-	if (WARN_ON(signal != SIGKILL ||
+	if (WARN_ON(signal != SIGKILL &&
 		    siginfo_layout(signal, code) != SIL_FAULT)) {
 		signal = SIGKILL;
 	}
@@ -410,7 +411,7 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 
 void cpu_enable_cache_maint_trap(const struct arm64_cpu_capabilities *__unused)
 {
-	config_sctlr_el1(SCTLR_EL1_UCI, 0);
+	sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCI, 0);
 }
 
 #define __user_cache_maint(insn, address, res)			\
@@ -546,22 +547,6 @@ asmlinkage void __exception do_sysinstr(unsigned int esr, struct pt_regs *regs)
 	do_undefinstr(regs);
 }
 
-long compat_arm_syscall(struct pt_regs *regs);
-
-asmlinkage long do_ni_syscall(struct pt_regs *regs)
-{
-#ifdef CONFIG_COMPAT
-	long ret;
-	if (is_compat_task()) {
-		ret = compat_arm_syscall(regs);
-		if (ret != -ENOSYS)
-			return ret;
-	}
-#endif
-
-	return sys_ni_syscall();
-}
-
 static const char *esr_class_str[] = {
 	[0 ... ESR_ELx_EC_MAX]		= "UNRECOGNIZED EC",
 	[ESR_ELx_EC_UNKNOWN]		= "Unknown/Uncategorized",
@@ -634,6 +619,7 @@ asmlinkage void bad_el0_sync(struct pt_regs *regs, int reason, unsigned int esr)
 	siginfo_t info;
 	void __user *pc = (void __user *)instruction_pointer(regs);
 
+	clear_siginfo(&info);
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
 	info.si_code  = ILL_ILLOPC;

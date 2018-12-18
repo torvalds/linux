@@ -683,10 +683,11 @@ static int emac_tx_q_desc_alloc(struct emac_adapter *adpt,
 				struct emac_tx_queue *tx_q)
 {
 	struct emac_ring_header *ring_header = &adpt->ring_header;
+	int node = dev_to_node(adpt->netdev->dev.parent);
 	size_t size;
 
 	size = sizeof(struct emac_buffer) * tx_q->tpd.count;
-	tx_q->tpd.tpbuff = kzalloc(size, GFP_KERNEL);
+	tx_q->tpd.tpbuff = kzalloc_node(size, GFP_KERNEL, node);
 	if (!tx_q->tpd.tpbuff)
 		return -ENOMEM;
 
@@ -723,11 +724,12 @@ static void emac_rx_q_bufs_free(struct emac_adapter *adpt)
 static int emac_rx_descs_alloc(struct emac_adapter *adpt)
 {
 	struct emac_ring_header *ring_header = &adpt->ring_header;
+	int node = dev_to_node(adpt->netdev->dev.parent);
 	struct emac_rx_queue *rx_q = &adpt->rx_q;
 	size_t size;
 
 	size = sizeof(struct emac_buffer) * rx_q->rfd.count;
-	rx_q->rfd.rfbuff = kzalloc(size, GFP_KERNEL);
+	rx_q->rfd.rfbuff = kzalloc_node(size, GFP_KERNEL, node);
 	if (!rx_q->rfd.rfbuff)
 		return -ENOMEM;
 
@@ -920,14 +922,13 @@ static void emac_mac_rx_descs_refill(struct emac_adapter *adpt,
 static void emac_adjust_link(struct net_device *netdev)
 {
 	struct emac_adapter *adpt = netdev_priv(netdev);
-	struct emac_sgmii *sgmii = &adpt->phy;
 	struct phy_device *phydev = netdev->phydev;
 
 	if (phydev->link) {
 		emac_mac_start(adpt);
-		sgmii->link_up(adpt);
+		emac_sgmii_link_change(adpt, true);
 	} else {
-		sgmii->link_down(adpt);
+		emac_sgmii_link_change(adpt, false);
 		emac_mac_stop(adpt);
 	}
 

@@ -61,7 +61,8 @@ void vbox_enable_accel(struct vbox_private *vbox)
 		if (vbox->vbva_info[i].vbva)
 			continue;
 
-		vbva = (void __force *)vbox->vbva_buffers + i * VBVA_MIN_BUFFER_SIZE;
+		vbva = (void __force *)vbox->vbva_buffers +
+			i * VBVA_MIN_BUFFER_SIZE;
 		if (!vbva_enable(&vbox->vbva_info[i],
 				 vbox->guest_pool, vbva, i)) {
 			/* very old host or driver error. */
@@ -349,7 +350,7 @@ static void vbox_hw_fini(struct vbox_private *vbox)
 	pci_iounmap(vbox->dev->pdev, vbox->guest_heap);
 }
 
-int vbox_driver_load(struct drm_device *dev, unsigned long flags)
+int vbox_driver_load(struct drm_device *dev)
 {
 	struct vbox_private *vbox;
 	int ret = 0;

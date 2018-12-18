@@ -12,9 +12,6 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
 	freg_t fp;
 
-	if (WARN_ON_ONCE((u32)idx >= PERF_REG_S390_MAX))
-		return 0;
-
 	if (idx >= PERF_REG_S390_R0 && idx <= PERF_REG_S390_R15)
 		return regs->gprs[idx];
 
@@ -33,7 +30,8 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 	if (idx == PERF_REG_S390_PC)
 		return regs->psw.addr;
 
-	return regs->gprs[idx];
+	WARN_ON_ONCE((u32)idx >= PERF_REG_S390_MAX);
+	return 0;
 }
 
 #define REG_RESERVED (~((1UL << PERF_REG_S390_MAX) - 1))

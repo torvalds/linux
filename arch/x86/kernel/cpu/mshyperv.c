@@ -41,7 +41,7 @@ static void (*hv_stimer0_handler)(void);
 static void (*hv_kexec_handler)(void);
 static void (*hv_crash_handler)(struct pt_regs *regs);
 
-void hyperv_vector_handler(struct pt_regs *regs)
+__visible void __irq_entry hyperv_vector_handler(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 
@@ -50,7 +50,7 @@ void hyperv_vector_handler(struct pt_regs *regs)
 	if (vmbus_handler)
 		vmbus_handler();
 
-	if (ms_hyperv.hints & HV_X64_DEPRECATING_AEOI_RECOMMENDED)
+	if (ms_hyperv.hints & HV_DEPRECATING_AEOI_RECOMMENDED)
 		ack_APIC_irq();
 
 	exiting_irq();
@@ -300,7 +300,7 @@ static void __init ms_hyperv_init_platform(void)
 				hyperv_reenlightenment_vector);
 
 	/* Setup the IDT for stimer0 */
-	if (ms_hyperv.misc_features & HV_X64_STIMER_DIRECT_MODE_AVAILABLE)
+	if (ms_hyperv.misc_features & HV_STIMER_DIRECT_MODE_AVAILABLE)
 		alloc_intr_gate(HYPERV_STIMER0_VECTOR,
 				hv_stimer0_callback_vector);
 #endif

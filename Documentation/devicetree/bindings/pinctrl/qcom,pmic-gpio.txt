@@ -7,6 +7,7 @@ PMIC's from Qualcomm.
 	Usage: required
 	Value type: <string>
 	Definition: must be one of:
+		    "qcom,pm8005-gpio"
 		    "qcom,pm8018-gpio"
 		    "qcom,pm8038-gpio"
 		    "qcom,pm8058-gpio"
@@ -15,7 +16,7 @@ PMIC's from Qualcomm.
 		    "qcom,pm8921-gpio"
 		    "qcom,pm8941-gpio"
 		    "qcom,pm8994-gpio"
-		    "qcom,pmi8994-gpio"
+		    "qcom,pm8998-gpio"
 		    "qcom,pma8084-gpio"
 		    "qcom,pmi8994-gpio"
 
@@ -78,6 +79,7 @@ to specify in a pin configuration subnode:
 	Value type: <string-array>
 	Definition: List of gpio pins affected by the properties specified in
 		    this subnode.  Valid pins are:
+		    gpio1-gpio4 for pm8005
 		    gpio1-gpio6 for pm8018
 		    gpio1-gpio12 for pm8038
 		    gpio1-gpio40 for pm8058
@@ -86,7 +88,7 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio44 for pm8921
 		    gpio1-gpio36 for pm8941
 		    gpio1-gpio22 for pm8994
-		    gpio1-gpio10 for pmi8994
+		    gpio1-gpio26 for pm8998
 		    gpio1-gpio22 for pma8084
 		    gpio1-gpio10 for pmi8994
 

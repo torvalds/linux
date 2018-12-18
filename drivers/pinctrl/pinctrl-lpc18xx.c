@@ -1308,8 +1308,9 @@ static int lpc18xx_create_group_func_map(struct device *dev,
 		}
 
 		scu->func[func].ngroups = ngroups;
-		scu->func[func].groups = devm_kzalloc(dev, ngroups *
-						      sizeof(char *), GFP_KERNEL);
+		scu->func[func].groups = devm_kcalloc(dev,
+						      ngroups, sizeof(char *),
+						      GFP_KERNEL);
 		if (!scu->func[func].groups)
 			return -ENOMEM;
 

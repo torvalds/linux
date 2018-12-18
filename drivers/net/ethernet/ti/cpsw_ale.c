@@ -394,7 +394,7 @@ int cpsw_ale_del_mcast(struct cpsw_ale *ale, u8 *addr, int port_mask,
 
 	idx = cpsw_ale_match_addr(ale, addr, (flags & ALE_VLAN) ? vid : 0);
 	if (idx < 0)
-		return -EINVAL;
+		return -ENOENT;
 
 	cpsw_ale_read(ale, idx, ale_entry);
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * xhci-dbgcap.c - xHCI debug capability support
  *
@@ -507,16 +508,18 @@ static int xhci_do_dbc_start(struct xhci_hcd *xhci)
 	return 0;
 }
 
-static void xhci_do_dbc_stop(struct xhci_hcd *xhci)
+static int xhci_do_dbc_stop(struct xhci_hcd *xhci)
 {
 	struct xhci_dbc		*dbc = xhci->dbc;
 
 	if (dbc->state == DS_DISABLED)
-		return;
+		return -1;
 
 	writel(0, &dbc->regs->control);
 	xhci_dbc_mem_cleanup(xhci);
 	dbc->state = DS_DISABLED;
+
+	return 0;
 }
 
 static int xhci_dbc_start(struct xhci_hcd *xhci)
@@ -543,6 +546,7 @@ static int xhci_dbc_start(struct xhci_hcd *xhci)
 
 static void xhci_dbc_stop(struct xhci_hcd *xhci)
 {
+	int ret;
 	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
@@ -555,10 +559,11 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 		xhci_dbc_tty_unregister_device(xhci);
 
 	spin_lock_irqsave(&dbc->lock, flags);
-	xhci_do_dbc_stop(xhci);
+	ret = xhci_do_dbc_stop(xhci);
 	spin_unlock_irqrestore(&dbc->lock, flags);
 
-	pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
+	if (!ret)
+		pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
 }
 
 static void
@@ -908,11 +913,9 @@ static ssize_t dbc_store(struct device *dev,
 			 struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	struct xhci_dbc		*dbc;
 	struct xhci_hcd		*xhci;
 
 	xhci = hcd_to_xhci(dev_get_drvdata(dev));
-	dbc = xhci->dbc;
 
 	if (!strncmp(buf, "enable", 6))
 		xhci_dbc_start(xhci);

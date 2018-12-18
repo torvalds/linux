@@ -29,6 +29,8 @@
 #include "nfit_test.h"
 #include "../watermark.h"
 
+#include <asm/mcsafe_test.h>
+
 /*
  * Generate an NFIT table to describe the following topology:
  *
@@ -138,6 +140,7 @@ static u32 handle[] = {
 };
 
 static unsigned long dimm_fail_cmd_flags[NUM_DCR];
+static int dimm_fail_cmd_code[NUM_DCR];
 
 struct nfit_test_fw {
 	enum intel_fw_update_state state;
@@ -892,8 +895,11 @@ static int get_dimm(struct nfit_mem *nfit_mem, unsigned int func)
 	if (i >= ARRAY_SIZE(handle))
 		return -ENXIO;
 
-	if ((1 << func) & dimm_fail_cmd_flags[i])
+	if ((1 << func) & dimm_fail_cmd_flags[i]) {
+		if (dimm_fail_cmd_code[i])
+			return dimm_fail_cmd_code[i];
 		return -EIO;
+	}
 
 	return i;
 }
@@ -1162,12 +1168,12 @@ static int ars_state_init(struct device *dev, struct ars_state *ars_state)
 
 static void put_dimms(void *data)
 {
-	struct device **dimm_dev = data;
+	struct nfit_test *t = data;
 	int i;
 
-	for (i = 0; i < NUM_DCR; i++)
-		if (dimm_dev[i])
-			device_unregister(dimm_dev[i]);
+	for (i = 0; i < t->num_dcr; i++)
+		if (t->dimm_dev[i])
+			device_unregister(t->dimm_dev[i]);
 }
 
 static struct class *nfit_test_dimm;
@@ -1176,12 +1182,10 @@ static int dimm_name_to_id(struct device *dev)
 {
 	int dimm;
 
-	if (sscanf(dev_name(dev), "test_dimm%d", &dimm) != 1
-			|| dimm >= NUM_DCR || dimm < 0)
+	if (sscanf(dev_name(dev), "test_dimm%d", &dimm) != 1)
 		return -ENXIO;
 	return dimm;
 }
-
 
 static ssize_t handle_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
@@ -1191,7 +1195,7 @@ static ssize_t handle_show(struct device *dev, struct device_attribute *attr,
 	if (dimm < 0)
 		return dimm;
 
-	return sprintf(buf, "%#x", handle[dimm]);
+	return sprintf(buf, "%#x\n", handle[dimm]);
 }
 DEVICE_ATTR_RO(handle);
 
@@ -1225,8 +1229,39 @@ static ssize_t fail_cmd_store(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR_RW(fail_cmd);
 
+static ssize_t fail_cmd_code_show(struct device *dev, struct device_attribute *attr,
+		char *buf)
+{
+	int dimm = dimm_name_to_id(dev);
+
+	if (dimm < 0)
+		return dimm;
+
+	return sprintf(buf, "%d\n", dimm_fail_cmd_code[dimm]);
+}
+
+static ssize_t fail_cmd_code_store(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t size)
+{
+	int dimm = dimm_name_to_id(dev);
+	unsigned long val;
+	ssize_t rc;
+
+	if (dimm < 0)
+		return dimm;
+
+	rc = kstrtol(buf, 0, &val);
+	if (rc)
+		return rc;
+
+	dimm_fail_cmd_code[dimm] = val;
+	return size;
+}
+static DEVICE_ATTR_RW(fail_cmd_code);
+
 static struct attribute *nfit_test_dimm_attributes[] = {
 	&dev_attr_fail_cmd.attr,
+	&dev_attr_fail_cmd_code.attr,
 	&dev_attr_handle.attr,
 	NULL,
 };
@@ -1239,6 +1274,23 @@ static const struct attribute_group *nfit_test_dimm_attribute_groups[] = {
 	&nfit_test_dimm_attribute_group,
 	NULL,
 };
+
+static int nfit_test_dimm_init(struct nfit_test *t)
+{
+	int i;
+
+	if (devm_add_action_or_reset(&t->pdev.dev, put_dimms, t))
+		return -ENOMEM;
+	for (i = 0; i < t->num_dcr; i++) {
+		t->dimm_dev[i] = device_create_with_groups(nfit_test_dimm,
+				&t->pdev.dev, 0, NULL,
+				nfit_test_dimm_attribute_groups,
+				"test_dimm%d", i + t->dcr_idx);
+		if (!t->dimm_dev[i])
+			return -ENOMEM;
+	}
+	return 0;
+}
 
 static void smart_init(struct nfit_test *t)
 {
@@ -1335,17 +1387,8 @@ static int nfit_test0_alloc(struct nfit_test *t)
 	if (!t->_fit)
 		return -ENOMEM;
 
-	if (devm_add_action_or_reset(&t->pdev.dev, put_dimms, t->dimm_dev))
+	if (nfit_test_dimm_init(t))
 		return -ENOMEM;
-	for (i = 0; i < NUM_DCR; i++) {
-		t->dimm_dev[i] = device_create_with_groups(nfit_test_dimm,
-				&t->pdev.dev, 0, NULL,
-				nfit_test_dimm_attribute_groups,
-				"test_dimm%d", i);
-		if (!t->dimm_dev[i])
-			return -ENOMEM;
-	}
-
 	smart_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
@@ -1377,6 +1420,8 @@ static int nfit_test1_alloc(struct nfit_test *t)
 	if (!t->spa_set[1])
 		return -ENOMEM;
 
+	if (nfit_test_dimm_init(t))
+		return -ENOMEM;
 	smart_init(t);
 	return ars_state_init(&t->pdev.dev, &t->ars_state);
 }
@@ -1946,8 +1991,7 @@ static void nfit_test0_setup(struct nfit_test *t)
 	pcap->header.type = ACPI_NFIT_TYPE_CAPABILITIES;
 	pcap->header.length = sizeof(*pcap);
 	pcap->highest_capability = 1;
-	pcap->capabilities = ACPI_NFIT_CAPABILITY_CACHE_FLUSH |
-		ACPI_NFIT_CAPABILITY_MEM_FLUSH;
+	pcap->capabilities = ACPI_NFIT_CAPABILITY_MEM_FLUSH;
 	offset += pcap->header.length;
 
 	if (t->setup_hotplug) {
@@ -2222,6 +2266,9 @@ static void nfit_test1_setup(struct nfit_test *t)
 	set_bit(ND_CMD_ARS_STATUS, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_CMD_CLEAR_ERROR, &acpi_desc->bus_cmd_force_en);
 	set_bit(ND_INTEL_ENABLE_LSS_STATUS, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_SIZE, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_GET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
+	set_bit(ND_CMD_SET_CONFIG_DATA, &acpi_desc->dimm_cmd_force_en);
 }
 
 static int nfit_test_blk_do_io(struct nd_blk_region *ndbr, resource_size_t dpa,
@@ -2635,6 +2682,107 @@ static struct platform_driver nfit_test_driver = {
 	.id_table = nfit_test_id,
 };
 
+static char mcsafe_buf[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
+
+enum INJECT {
+	INJECT_NONE,
+	INJECT_SRC,
+	INJECT_DST,
+};
+
+static void mcsafe_test_init(char *dst, char *src, size_t size)
+{
+	size_t i;
+
+	memset(dst, 0xff, size);
+	for (i = 0; i < size; i++)
+		src[i] = (char) i;
+}
+
+static bool mcsafe_test_validate(unsigned char *dst, unsigned char *src,
+		size_t size, unsigned long rem)
+{
+	size_t i;
+
+	for (i = 0; i < size - rem; i++)
+		if (dst[i] != (unsigned char) i) {
+			pr_info_once("%s:%d: offset: %zd got: %#x expect: %#x\n",
+					__func__, __LINE__, i, dst[i],
+					(unsigned char) i);
+			return false;
+		}
+	for (i = size - rem; i < size; i++)
+		if (dst[i] != 0xffU) {
+			pr_info_once("%s:%d: offset: %zd got: %#x expect: 0xff\n",
+					__func__, __LINE__, i, dst[i]);
+			return false;
+		}
+	return true;
+}
+
+void mcsafe_test(void)
+{
+	char *inject_desc[] = { "none", "source", "destination" };
+	enum INJECT inj;
+
+	if (IS_ENABLED(CONFIG_MCSAFE_TEST)) {
+		pr_info("%s: run...\n", __func__);
+	} else {
+		pr_info("%s: disabled, skip.\n", __func__);
+		return;
+	}
+
+	for (inj = INJECT_NONE; inj <= INJECT_DST; inj++) {
+		int i;
+
+		pr_info("%s: inject: %s\n", __func__, inject_desc[inj]);
+		for (i = 0; i < 512; i++) {
+			unsigned long expect, rem;
+			void *src, *dst;
+			bool valid;
+
+			switch (inj) {
+			case INJECT_NONE:
+				mcsafe_inject_src(NULL);
+				mcsafe_inject_dst(NULL);
+				dst = &mcsafe_buf[2048];
+				src = &mcsafe_buf[1024 - i];
+				expect = 0;
+				break;
+			case INJECT_SRC:
+				mcsafe_inject_src(&mcsafe_buf[1024]);
+				mcsafe_inject_dst(NULL);
+				dst = &mcsafe_buf[2048];
+				src = &mcsafe_buf[1024 - i];
+				expect = 512 - i;
+				break;
+			case INJECT_DST:
+				mcsafe_inject_src(NULL);
+				mcsafe_inject_dst(&mcsafe_buf[2048]);
+				dst = &mcsafe_buf[2048 - i];
+				src = &mcsafe_buf[1024];
+				expect = 512 - i;
+				break;
+			}
+
+			mcsafe_test_init(dst, src, 512);
+			rem = __memcpy_mcsafe(dst, src, 512);
+			valid = mcsafe_test_validate(dst, src, 512, expect);
+			if (rem == expect && valid)
+				continue;
+			pr_info("%s: copy(%#lx, %#lx, %d) off: %d rem: %ld %s expect: %ld\n",
+					__func__,
+					((unsigned long) dst) & ~PAGE_MASK,
+					((unsigned long ) src) & ~PAGE_MASK,
+					512, i, rem, valid ? "valid" : "bad",
+					expect);
+		}
+	}
+
+	mcsafe_inject_src(NULL);
+	mcsafe_inject_dst(NULL);
+}
+
 static __init int nfit_test_init(void)
 {
 	int rc, i;
@@ -2643,6 +2791,7 @@ static __init int nfit_test_init(void)
 	libnvdimm_test();
 	acpi_nfit_test();
 	device_dax_test();
+	mcsafe_test();
 
 	nfit_test_setup(nfit_test_lookup, nfit_test_evaluate_dsm);
 

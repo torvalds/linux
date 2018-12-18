@@ -71,7 +71,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_I2CAUX_DCE112)
 ###############################################################################
 # DCN 1.0 family
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN1_0
+ifdef CONFIG_X86
 I2CAUX_DCN1 = i2caux_dcn10.o
 
 AMD_DAL_I2CAUX_DCN1 = $(addprefix $(AMDDALPATH)/dc/i2caux/dcn10/,$(I2CAUX_DCN1))

@@ -336,7 +336,7 @@
 #define INT_MASK_mskIDIVZE	( 0x1  << INT_MASK_offIDIVZE )
 #define INT_MASK_mskDSSIM	( 0x1  << INT_MASK_offDSSIM )
 
-#define INT_MASK_INITAIAL_VAL	0x10003
+#define INT_MASK_INITAIAL_VAL	(INT_MASK_mskDSSIM|INT_MASK_mskIDIVZE)
 
 /******************************************************************************
  * ir15: INT_PEND (Interrupt Pending Register)
@@ -396,6 +396,7 @@
 #define MMU_CTL_D8KB		1
 #define MMU_CTL_UNA		( 0x1  << MMU_CTL_offUNA )
 
+#define MMU_CTL_CACHEABLE_NON   0
 #define MMU_CTL_CACHEABLE_WB	2
 #define MMU_CTL_CACHEABLE_WT	3
 

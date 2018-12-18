@@ -214,7 +214,6 @@ nouveau_bo_new(struct nouveau_cli *cli, u64 size, int align,
 	INIT_LIST_HEAD(&nvbo->entry);
 	INIT_LIST_HEAD(&nvbo->vma_list);
 	nvbo->bo.bdev = &drm->ttm.bdev;
-	nvbo->cli = cli;
 
 	/* This is confusing, and doesn't actually mean we want an uncached
 	 * mapping, but is what NOUVEAU_GEM_DOMAIN_COHERENT gets translated
@@ -1142,6 +1141,8 @@ nouveau_bo_move_init(struct nouveau_drm *drm)
 			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
+		{  "COPY", 4, 0xc3b5, nve0_bo_move_copy, nve0_bo_move_init },
+		{  "GRCE", 0, 0xc3b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc1b5, nve0_bo_move_copy, nve0_bo_move_init },
 		{  "GRCE", 0, 0xc1b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "COPY", 4, 0xc0b5, nve0_bo_move_copy, nve0_bo_move_init },

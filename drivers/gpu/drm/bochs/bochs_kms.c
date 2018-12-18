@@ -188,7 +188,7 @@ static int bochs_connector_get_modes(struct drm_connector *connector)
 	return count;
 }
 
-static int bochs_connector_mode_valid(struct drm_connector *connector,
+static enum drm_mode_status bochs_connector_mode_valid(struct drm_connector *connector,
 				      struct drm_display_mode *mode)
 {
 	struct bochs_device *bochs =
@@ -259,7 +259,7 @@ int bochs_kms_init(struct bochs_device *bochs)
 	bochs_crtc_init(bochs->dev);
 	bochs_encoder_init(bochs->dev);
 	bochs_connector_init(bochs->dev);
-	drm_mode_connector_attach_encoder(&bochs->connector,
+	drm_connector_attach_encoder(&bochs->connector,
 					  &bochs->encoder);
 
 	return 0;

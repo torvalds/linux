@@ -35,6 +35,17 @@ config INFINIBAND_USER_ACCESS
 	  libibverbs, libibcm and a hardware driver library from
 	  rdma-core <https://github.com/linux-rdma/rdma-core>.
 
+config INFINIBAND_USER_ACCESS_UCM
+	bool "Userspace CM (UCM, DEPRECATED)"
+	depends on BROKEN || COMPILE_TEST
+	depends on INFINIBAND_USER_ACCESS
+	help
+	  The UCM module has known security flaws, which no one is
+	  interested to fix. The user-space part of this code was
+	  dropped from the upstream a long time ago.
+
+	  This option is DEPRECATED and planned to be removed.
+
 config INFINIBAND_EXP_LEGACY_VERBS_NEW_UAPI
 	bool "Allow experimental legacy verbs in new ioctl uAPI  (EXPERIMENTAL)"
 	depends on INFINIBAND_USER_ACCESS
@@ -61,9 +72,12 @@ config INFINIBAND_ON_DEMAND_PAGING
 	  pages on demand instead.
 
 config INFINIBAND_ADDR_TRANS
-	bool
+	bool "RDMA/CM"
 	depends on INFINIBAND
 	default y
+	---help---
+	  Support for RDMA communication manager (CM).
+	  This allows for a generic connection abstraction over RDMA.
 
 config INFINIBAND_ADDR_TRANS_CONFIGFS
 	bool

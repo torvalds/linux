@@ -125,7 +125,9 @@ int m68328_hwclk(int set, struct rtc_time *t)
 {
 	if (!set) {
 		long now = RTCTIME;
-		t->tm_year = t->tm_mon = t->tm_mday = 1;
+		t->tm_year = 1;
+		t->tm_mon = 0;
+		t->tm_mday = 1;
 		t->tm_hour = (now >> 24) % 24;
 		t->tm_min = (now >> 16) % 60;
 		t->tm_sec = now % 60;

@@ -1220,7 +1220,7 @@ static int mtk_hdmi_conn_get_modes(struct drm_connector *conn)
 
 	hdmi->dvi_mode = !drm_detect_monitor_audio(edid);
 
-	drm_mode_connector_update_edid_property(conn, edid);
+	drm_connector_update_edid_property(conn, edid);
 
 	ret = drm_add_edid_modes(conn, edid);
 	kfree(edid);
@@ -1306,7 +1306,7 @@ static int mtk_hdmi_bridge_attach(struct drm_bridge *bridge)
 	hdmi->conn.interlace_allowed = true;
 	hdmi->conn.doublescan_allowed = false;
 
-	ret = drm_mode_connector_attach_encoder(&hdmi->conn,
+	ret = drm_connector_attach_encoder(&hdmi->conn,
 						bridge->encoder);
 	if (ret) {
 		dev_err(hdmi->dev,

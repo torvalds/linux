@@ -41,10 +41,6 @@
 /* ASIC ID is at 0xbf4 offset within this region */
 #define U8500_ASIC_ID_BASE	0x9001D000
 
-#define U9540_BOOT_ROM_BASE	0xFFFE0000
-/* ASIC ID is at 0xbf4 offset within this region */
-#define U9540_ASIC_ID_BASE	0xFFFFD000
-
 #define U8500_PER6_BASE		0xa03c0000
 #define U8500_PER7_BASE		0xa03d0000
 #define U8500_PER5_BASE		0xa03e0000

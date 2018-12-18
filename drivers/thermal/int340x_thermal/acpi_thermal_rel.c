@@ -96,7 +96,7 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	}
 
 	*trt_count = p->package.count;
-	trts = kzalloc(*trt_count * sizeof(struct trt), GFP_KERNEL);
+	trts = kcalloc(*trt_count, sizeof(struct trt), GFP_KERNEL);
 	if (!trts) {
 		result = -ENOMEM;
 		goto end;
@@ -178,7 +178,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 
 	/* ignore p->package.elements[0], as this is _ART Revision field */
 	*art_count = p->package.count - 1;
-	arts = kzalloc(*art_count * sizeof(struct art), GFP_KERNEL);
+	arts = kcalloc(*art_count, sizeof(struct art), GFP_KERNEL);
 	if (!arts) {
 		result = -ENOMEM;
 		goto end;

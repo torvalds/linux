@@ -51,7 +51,6 @@ struct completion;
  */
 enum snd_device_type {
 	SNDRV_DEV_LOWLEVEL,
-	SNDRV_DEV_CONTROL,
 	SNDRV_DEV_INFO,
 	SNDRV_DEV_BUS,
 	SNDRV_DEV_CODEC,
@@ -62,6 +61,7 @@ enum snd_device_type {
 	SNDRV_DEV_SEQUENCER,
 	SNDRV_DEV_HWDEP,
 	SNDRV_DEV_JACK,
+	SNDRV_DEV_CONTROL,	/* NOTE: this must be the last one */
 };
 
 enum snd_device_state {

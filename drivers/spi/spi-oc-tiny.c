@@ -213,8 +213,8 @@ static int tiny_spi_of_probe(struct platform_device *pdev)
 		return 0;
 	hw->gpio_cs_count = of_gpio_count(np);
 	if (hw->gpio_cs_count > 0) {
-		hw->gpio_cs = devm_kzalloc(&pdev->dev,
-				hw->gpio_cs_count * sizeof(unsigned int),
+		hw->gpio_cs = devm_kcalloc(&pdev->dev,
+				hw->gpio_cs_count, sizeof(unsigned int),
 				GFP_KERNEL);
 		if (!hw->gpio_cs)
 			return -ENOMEM;

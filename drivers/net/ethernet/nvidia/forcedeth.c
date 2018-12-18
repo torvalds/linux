@@ -4630,8 +4630,10 @@ static int nv_set_ringparam(struct net_device *dev, struct ethtool_ringparam* ri
 					       ring->tx_pending),
 					       &ring_addr, GFP_ATOMIC);
 	}
-	rx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->rx_pending, GFP_KERNEL);
-	tx_skbuff = kmalloc(sizeof(struct nv_skb_map) * ring->tx_pending, GFP_KERNEL);
+	rx_skbuff = kmalloc_array(ring->rx_pending, sizeof(struct nv_skb_map),
+				  GFP_KERNEL);
+	tx_skbuff = kmalloc_array(ring->tx_pending, sizeof(struct nv_skb_map),
+				  GFP_KERNEL);
 	if (!rxtx_ring || !rx_skbuff || !tx_skbuff) {
 		/* fall back to old rings */
 		if (!nv_optimized(np)) {
@@ -5775,7 +5777,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 						      (np->rx_ring_size +
 						      np->tx_ring_size),
 						      &np->ring_addr,
-						      GFP_ATOMIC);
+						      GFP_KERNEL);
 		if (!np->rx_ring.orig)
 			goto out_unmap;
 		np->tx_ring.orig = &np->rx_ring.orig[np->rx_ring_size];
@@ -5784,7 +5786,7 @@ static int nv_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 						    sizeof(struct ring_desc_ex) *
 						    (np->rx_ring_size +
 						    np->tx_ring_size),
-						    &np->ring_addr, GFP_ATOMIC);
+						    &np->ring_addr, GFP_KERNEL);
 		if (!np->rx_ring.ex)
 			goto out_unmap;
 		np->tx_ring.ex = &np->rx_ring.ex[np->rx_ring_size];

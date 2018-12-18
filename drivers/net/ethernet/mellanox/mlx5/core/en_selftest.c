@@ -74,7 +74,7 @@ static int mlx5e_test_link_state(struct mlx5e_priv *priv)
 	if (!netif_carrier_ok(priv->netdev))
 		return 1;
 
-	port_state = mlx5_query_vport_state(priv->mdev, MLX5_QUERY_VPORT_STATE_IN_OP_MOD_VNIC_VPORT, 0);
+	port_state = mlx5_query_vport_state(priv->mdev, MLX5_VPORT_STATE_OP_MOD_VNIC_VPORT, 0);
 	return port_state == VPORT_STATE_UP ? 0 : 1;
 }
 
@@ -100,7 +100,7 @@ static int mlx5e_test_link_speed(struct mlx5e_priv *priv)
 
 #ifdef CONFIG_INET
 /* loopback test */
-#define MLX5E_TEST_PKT_SIZE (MLX5_MPWRQ_SMALL_PACKET_THRESHOLD - NET_IP_ALIGN)
+#define MLX5E_TEST_PKT_SIZE (MLX5E_RX_MAX_HEAD - NET_IP_ALIGN)
 static const char mlx5e_test_text[ETH_GSTRING_LEN] = "MLX5E SELF TEST";
 #define MLX5E_TEST_MAGIC 0x5AEED15C001ULL
 
@@ -290,7 +290,7 @@ static int mlx5e_test_loopback(struct mlx5e_priv *priv)
 
 	if (!test_bit(MLX5E_STATE_OPENED, &priv->state)) {
 		netdev_err(priv->netdev,
-			   "\tCan't perform loobpack test while device is down\n");
+			   "\tCan't perform loopback test while device is down\n");
 		return -ENODEV;
 	}
 

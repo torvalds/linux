@@ -707,7 +707,7 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 			struct i2c_msg *msgs, int num)
 {
 	struct exynos5_i2c *i2c = adap->algo_data;
-	int i = 0, ret = 0, stop = 0;
+	int i, ret;
 
 	if (i2c->suspended) {
 		dev_err(i2c->dev, "HS-I2C is not initialized.\n");
@@ -718,30 +718,15 @@ static int exynos5_i2c_xfer(struct i2c_adapter *adap,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < num; i++, msgs++) {
-		stop = (i == num - 1);
-
-		ret = exynos5_i2c_xfer_msg(i2c, msgs, stop);
-
-		if (ret < 0)
-			goto out;
+	for (i = 0; i < num; ++i) {
+		ret = exynos5_i2c_xfer_msg(i2c, msgs + i, i + 1 == num);
+		if (ret)
+			break;
 	}
 
-	if (i == num) {
-		ret = num;
-	} else {
-		/* Only one message, cannot access the device */
-		if (i == 1)
-			ret = -EREMOTEIO;
-		else
-			ret = i;
-
-		dev_warn(i2c->dev, "xfer message failed\n");
-	}
-
- out:
 	clk_disable(i2c->clk);
-	return ret;
+
+	return ret ?: num;
 }
 
 static u32 exynos5_i2c_func(struct i2c_adapter *adap)

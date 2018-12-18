@@ -250,6 +250,8 @@ static long h3a_aewb_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		return omap3isp_stat_config(stat, arg);
 	case VIDIOC_OMAP3ISP_STAT_REQ:
 		return omap3isp_stat_request_statistics(stat, arg);
+	case VIDIOC_OMAP3ISP_STAT_REQ_TIME32:
+		return omap3isp_stat_request_statistics_time32(stat, arg);
 	case VIDIOC_OMAP3ISP_STAT_EN: {
 		unsigned long *en = arg;
 		return omap3isp_stat_enable(stat, !!*en);

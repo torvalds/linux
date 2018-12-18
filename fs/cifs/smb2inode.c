@@ -44,26 +44,39 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		   __u32 create_options, void *data, int command)
 {
 	int rc, tmprc = 0;
-	__le16 *utf16_path;
+	__le16 *utf16_path = NULL;
 	__u8 oplock = SMB2_OPLOCK_LEVEL_NONE;
 	struct cifs_open_parms oparms;
 	struct cifs_fid fid;
+	bool use_cached_root_handle = false;
 
-	utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
-	if (!utf16_path)
-		return -ENOMEM;
+	if ((strcmp(full_path, "") == 0) && (create_options == 0) &&
+	    (desired_access == FILE_READ_ATTRIBUTES) &&
+	    (create_disposition == FILE_OPEN) &&
+	    (tcon->nohandlecache == false)) {
+		rc = open_shroot(xid, tcon, &fid);
+		if (rc == 0)
+			use_cached_root_handle = true;
+	}
 
-	oparms.tcon = tcon;
-	oparms.desired_access = desired_access;
-	oparms.disposition = create_disposition;
-	oparms.create_options = create_options;
-	oparms.fid = &fid;
-	oparms.reconnect = false;
+	if (use_cached_root_handle == false) {
+		utf16_path = cifs_convert_path_to_utf16(full_path, cifs_sb);
+		if (!utf16_path)
+			return -ENOMEM;
 
-	rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL);
-	if (rc) {
-		kfree(utf16_path);
-		return rc;
+		oparms.tcon = tcon;
+		oparms.desired_access = desired_access;
+		oparms.disposition = create_disposition;
+		oparms.create_options = create_options;
+		oparms.fid = &fid;
+		oparms.reconnect = false;
+
+		rc = SMB2_open(xid, &oparms, utf16_path, &oplock, NULL, NULL,
+			       NULL);
+		if (rc) {
+			kfree(utf16_path);
+			return rc;
+		}
 	}
 
 	switch (command) {
@@ -107,7 +120,10 @@ smb2_open_op_close(const unsigned int xid, struct cifs_tcon *tcon,
 		break;
 	}
 
-	rc = SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
+	if (use_cached_root_handle)
+		close_shroot(&tcon->crfid);
+	else
+		rc = SMB2_close(xid, tcon, fid.persistent_fid, fid.volatile_fid);
 	if (tmprc)
 		rc = tmprc;
 	kfree(utf16_path);
@@ -267,7 +283,7 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	int rc;
 
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
-	    (buf->LastWriteTime == 0) && (buf->ChangeTime) &&
+	    (buf->LastWriteTime == 0) && (buf->ChangeTime == 0) &&
 	    (buf->Attributes == 0))
 		return 0; /* would be a no op, no sense sending this */
 

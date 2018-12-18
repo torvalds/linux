@@ -53,8 +53,6 @@
 
 	stmpe610@41 {
 		compatible = "st,stmpe610";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		reg = <0x41>;
 		id = <0>;
 		blocks = <0x5>;

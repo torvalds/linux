@@ -2297,9 +2297,9 @@ static void r820t_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops r820t_tuner_ops = {
 	.info = {
-		.name           = "Rafael Micro R820T",
-		.frequency_min  =   42000000,
-		.frequency_max  = 1002000000,
+		.name             = "Rafael Micro R820T",
+		.frequency_min_hz =   42 * MHz,
+		.frequency_max_hz = 1002 * MHz,
 	},
 	.init = r820t_init,
 	.release = r820t_release,

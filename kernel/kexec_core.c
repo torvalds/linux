@@ -829,6 +829,8 @@ static int kimage_load_normal_segment(struct kimage *image,
 		else
 			buf += mchunk;
 		mbytes -= mchunk;
+
+		cond_resched();
 	}
 out:
 	return result;
@@ -893,6 +895,8 @@ static int kimage_load_crash_segment(struct kimage *image,
 		else
 			buf += mchunk;
 		mbytes -= mchunk;
+
+		cond_resched();
 	}
 out:
 	return result;

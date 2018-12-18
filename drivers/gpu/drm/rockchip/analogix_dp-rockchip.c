@@ -77,13 +77,13 @@ struct rockchip_dp_device {
 	struct analogix_dp_plat_data plat_data;
 };
 
-static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
+static int analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 {
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	int ret;
 
 	if (!analogix_dp_psr_enabled(dp->adp))
-		return;
+		return 0;
 
 	DRM_DEV_DEBUG(dp->dev, "%s PSR...\n", enabled ? "Entry" : "Exit");
 
@@ -91,13 +91,13 @@ static void analogix_dp_psr_set(struct drm_encoder *encoder, bool enabled)
 					 PSR_WAIT_LINE_FLAG_TIMEOUT_MS);
 	if (ret) {
 		DRM_DEV_ERROR(dp->dev, "line flag interrupt did not arrive\n");
-		return;
+		return -ETIMEDOUT;
 	}
 
 	if (enabled)
-		analogix_dp_enable_psr(dp->adp);
+		return analogix_dp_enable_psr(dp->adp);
 	else
-		analogix_dp_disable_psr(dp->adp);
+		return analogix_dp_disable_psr(dp->adp);
 }
 
 static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
@@ -109,7 +109,7 @@ static int rockchip_dp_pre_init(struct rockchip_dp_device *dp)
 	return 0;
 }
 
-static int rockchip_dp_poweron(struct analogix_dp_plat_data *plat_data)
+static int rockchip_dp_poweron_start(struct analogix_dp_plat_data *plat_data)
 {
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 	int ret;
@@ -127,7 +127,14 @@ static int rockchip_dp_poweron(struct analogix_dp_plat_data *plat_data)
 		return ret;
 	}
 
-	return rockchip_drm_psr_activate(&dp->encoder);
+	return ret;
+}
+
+static int rockchip_dp_poweron_end(struct analogix_dp_plat_data *plat_data)
+{
+	struct rockchip_dp_device *dp = to_dp(plat_data);
+
+	return rockchip_drm_psr_inhibit_put(&dp->encoder);
 }
 
 static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
@@ -135,7 +142,7 @@ static int rockchip_dp_powerdown(struct analogix_dp_plat_data *plat_data)
 	struct rockchip_dp_device *dp = to_dp(plat_data);
 	int ret;
 
-	ret = rockchip_drm_psr_deactivate(&dp->encoder);
+	ret = rockchip_drm_psr_inhibit_get(&dp->encoder);
 	if (ret != 0)
 		return ret;
 
@@ -218,6 +225,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_connector_state *conn_state)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
+	struct drm_display_info *di = &conn_state->connector->display_info;
 
 	/*
 	 * The hardware IC designed that VOP must output the RGB10 video
@@ -229,6 +237,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 
 	s->output_mode = ROCKCHIP_OUT_MODE_AAAA;
 	s->output_type = DRM_MODE_CONNECTOR_eDP;
+	s->output_bpc = di->bpc;
 
 	return 0;
 }
@@ -328,7 +337,8 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 	dp->plat_data.encoder = &dp->encoder;
 
 	dp->plat_data.dev_type = dp->data->chip_type;
-	dp->plat_data.power_on = rockchip_dp_poweron;
+	dp->plat_data.power_on_start = rockchip_dp_poweron_start;
+	dp->plat_data.power_on_end = rockchip_dp_poweron_end;
 	dp->plat_data.power_off = rockchip_dp_powerdown;
 	dp->plat_data.get_modes = rockchip_dp_get_modes;
 
@@ -358,6 +368,8 @@ static void rockchip_dp_unbind(struct device *dev, struct device *master,
 	analogix_dp_unbind(dp->adp);
 	rockchip_drm_psr_unregister(&dp->encoder);
 	dp->encoder.funcs->destroy(&dp->encoder);
+
+	dp->adp = ERR_PTR(-ENODEV);
 }
 
 static const struct component_ops rockchip_dp_component_ops = {
@@ -381,6 +393,7 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dp->dev = dev;
+	dp->adp = ERR_PTR(-ENODEV);
 	dp->plat_data.panel = panel;
 
 	ret = rockchip_dp_of_probe(dp);
@@ -404,12 +417,18 @@ static int rockchip_dp_suspend(struct device *dev)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
 
+	if (IS_ERR(dp->adp))
+		return 0;
+
 	return analogix_dp_suspend(dp->adp);
 }
 
 static int rockchip_dp_resume(struct device *dev)
 {
 	struct rockchip_dp_device *dp = dev_get_drvdata(dev);
+
+	if (IS_ERR(dp->adp))
+		return 0;
 
 	return analogix_dp_resume(dp->adp);
 }

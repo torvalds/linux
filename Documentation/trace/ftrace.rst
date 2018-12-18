@@ -224,6 +224,8 @@ of ftrace. Here is a list of some of the key files:
 	has a side effect of enabling or disabling specific functions
 	to be traced. Echoing names of functions into this file
 	will limit the trace to only those functions.
+	This influences the tracers "function" and "function_graph"
+	and thus also function profiling (see "function_profile_enabled").
 
 	The functions listed in "available_filter_functions" are what
 	can be written into this file.
@@ -265,6 +267,8 @@ of ftrace. Here is a list of some of the key files:
 	Functions listed in this file will cause the function graph
 	tracer to only trace these functions and the functions that
 	they call. (See the section "dynamic ftrace" for more details).
+	Note, set_ftrace_filter and set_ftrace_notrace still affects
+	what functions are being traced.
 
   set_graph_notrace:
 
@@ -277,7 +281,8 @@ of ftrace. Here is a list of some of the key files:
 
 	This lists the functions that ftrace has processed and can trace.
 	These are the function names that you can pass to
-	"set_ftrace_filter" or "set_ftrace_notrace".
+	"set_ftrace_filter", "set_ftrace_notrace",
+	"set_graph_function", or "set_graph_notrace".
 	(See the section "dynamic ftrace" below for more details.)
 
   dyn_ftrace_total_info:
@@ -324,9 +329,9 @@ of ftrace. Here is a list of some of the key files:
 	track of the time spent in those functions. The histogram
 	content can be displayed in the files:
 
-	trace_stats/function<cpu> ( function0, function1, etc).
+	trace_stat/function<cpu> ( function0, function1, etc).
 
-  trace_stats:
+  trace_stat:
 
 	A directory that holds different tracing stats.
 
@@ -461,9 +466,17 @@ of ftrace. Here is a list of some of the key files:
 		and ticks at the same rate as the hardware clocksource.
 
 	boot:
-		Same as mono. Used to be a separate clock which accounted
-		for the time spent in suspend while CLOCK_MONOTONIC did
-		not.
+		This is the boot clock (CLOCK_BOOTTIME) and is based on the
+		fast monotonic clock, but also accounts for time spent in
+		suspend. Since the clock access is designed for use in
+		tracing in the suspend path, some side effects are possible
+		if clock is accessed after the suspend time is accounted before
+		the fast mono clock is updated. In this case, the clock update
+		appears to happen slightly sooner than it normally would have.
+		Also on 32-bit systems, it's possible that the 64-bit boot offset
+		sees a partial update. These effects are rare and post
+		processing should be able to handle them. See comments in the
+		ktime_get_boot_fast_ns() function for more information.
 
 	To set a clock, simply echo the clock name into this file::
 
@@ -498,6 +511,11 @@ of ftrace. Here is a list of some of the key files:
 	start::
 
 		trace_fd = open("trace_marker", WR_ONLY);
+
+	Note: Writing into the trace_marker file can also initiate triggers
+	      that are written into /sys/kernel/tracing/events/ftrace/print/trigger
+	      See "Event triggers" in Documentation/trace/events.rst and an
+              example in Documentation/trace/histogram.rst (Section 3.)
 
   trace_marker_raw:
 

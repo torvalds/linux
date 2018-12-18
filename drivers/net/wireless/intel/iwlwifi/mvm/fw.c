@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -35,6 +36,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018        Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -79,6 +81,8 @@
 #include "mvm.h"
 #include "fw/dbg.h"
 #include "iwl-phy-db.h"
+#include "iwl-modparams.h"
+#include "iwl-nvm-parse.h"
 
 #define MVM_UCODE_ALIVE_TIMEOUT	HZ
 #define MVM_UCODE_CALIB_TIMEOUT	(2*HZ)
@@ -124,6 +128,41 @@ static int iwl_send_rss_cfg_cmd(struct iwl_mvm *mvm)
 	netdev_rss_key_fill(cmd.secret_key, sizeof(cmd.secret_key));
 
 	return iwl_mvm_send_cmd_pdu(mvm, RSS_CONFIG_CMD, 0, sizeof(cmd), &cmd);
+}
+
+static int iwl_configure_rxq(struct iwl_mvm *mvm)
+{
+	int i, num_queues, size;
+	struct iwl_rfh_queue_config *cmd;
+
+	/* Do not configure default queue, it is configured via context info */
+	num_queues = mvm->trans->num_rx_queues - 1;
+
+	size = sizeof(*cmd) + num_queues * sizeof(struct iwl_rfh_queue_data);
+
+	cmd = kzalloc(size, GFP_KERNEL);
+	if (!cmd)
+		return -ENOMEM;
+
+	cmd->num_queues = num_queues;
+
+	for (i = 0; i < num_queues; i++) {
+		struct iwl_trans_rxq_dma_data data;
+
+		cmd->data[i].q_num = i + 1;
+		iwl_trans_get_rxq_dma_data(mvm->trans, i + 1, &data);
+
+		cmd->data[i].fr_bd_cb = cpu_to_le64(data.fr_bd_cb);
+		cmd->data[i].urbd_stts_wrptr =
+			cpu_to_le64(data.urbd_stts_wrptr);
+		cmd->data[i].ur_bd_cb = cpu_to_le64(data.ur_bd_cb);
+		cmd->data[i].fr_bd_wid = cpu_to_le32(data.fr_bd_wid);
+	}
+
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(DATA_PATH_GROUP,
+					    RFH_QUEUE_CONFIG_CMD),
+				    0, size, cmd);
 }
 
 static int iwl_mvm_send_dqa_cmd(struct iwl_mvm *mvm)
@@ -297,7 +336,7 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	if (ret) {
 		struct iwl_trans *trans = mvm->trans;
 
-		if (trans->cfg->device_family == IWL_DEVICE_FAMILY_22000)
+		if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000)
 			IWL_ERR(mvm,
 				"SecBoot CPU1 Status: 0x%x, CPU2 Status: 0x%x\n",
 				iwl_read_prph(trans, UMAG_SB_CPU_1_STATUS),
@@ -381,7 +420,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	/* Load NVM to NIC if needed */
 	if (mvm->nvm_file_name) {
-		iwl_mvm_read_external_nvm(mvm);
+		iwl_read_external_nvm(mvm->trans, mvm->nvm_file_name,
+				      mvm->nvm_sections);
 		iwl_mvm_load_nvm_to_nic(mvm);
 	}
 
@@ -410,7 +450,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 
 	/* Read the NVM only at driver load time, no need to do this twice */
 	if (!IWL_MVM_PARSE_NVM && read_nvm) {
-		mvm->nvm_data = iwl_fw_get_nvm(&mvm->fwrt);
+		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw);
 		if (IS_ERR(mvm->nvm_data)) {
 			ret = PTR_ERR(mvm->nvm_data);
 			mvm->nvm_data = NULL;
@@ -1002,9 +1042,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 
 	/* Init RSS configuration */
-	/* TODO - remove 22000 disablement when we have RXQ config API */
-	if (iwl_mvm_has_new_rx_api(mvm) &&
-	    mvm->trans->cfg->device_family != IWL_DEVICE_FAMILY_22000) {
+	if (mvm->trans->cfg->device_family >= IWL_DEVICE_FAMILY_22000) {
+		ret = iwl_configure_rxq(mvm);
+		if (ret) {
+			IWL_ERR(mvm, "Failed to configure RX queues: %d\n",
+				ret);
+			goto error;
+		}
+	}
+
+	if (iwl_mvm_has_new_rx_api(mvm)) {
 		ret = iwl_send_rss_cfg_cmd(mvm);
 		if (ret) {
 			IWL_ERR(mvm, "Failed to configure RSS queues: %d\n",
@@ -1093,6 +1140,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
 		mvm->scan_type = IWL_SCAN_TYPE_NOT_SET;
+		mvm->hb_scan_type = IWL_SCAN_TYPE_NOT_SET;
 		ret = iwl_mvm_config_scan(mvm);
 		if (ret)
 			goto error;

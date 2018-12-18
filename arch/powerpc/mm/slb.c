@@ -63,14 +63,14 @@ static inline void slb_shadow_update(unsigned long ea, int ssize,
 	 * updating it.  No write barriers are needed here, provided
 	 * we only update the current CPU's SLB shadow buffer.
 	 */
-	p->save_area[index].esid = 0;
-	p->save_area[index].vsid = cpu_to_be64(mk_vsid_data(ea, ssize, flags));
-	p->save_area[index].esid = cpu_to_be64(mk_esid_data(ea, ssize, index));
+	WRITE_ONCE(p->save_area[index].esid, 0);
+	WRITE_ONCE(p->save_area[index].vsid, cpu_to_be64(mk_vsid_data(ea, ssize, flags)));
+	WRITE_ONCE(p->save_area[index].esid, cpu_to_be64(mk_esid_data(ea, ssize, index)));
 }
 
 static inline void slb_shadow_clear(enum slb_index index)
 {
-	get_slb_shadow()->save_area[index].esid = 0;
+	WRITE_ONCE(get_slb_shadow()->save_area[index].esid, 0);
 }
 
 static inline void create_shadowed_slbe(unsigned long ea, int ssize,
@@ -88,6 +88,45 @@ static inline void create_shadowed_slbe(unsigned long ea, int ssize,
 		     : "r" (mk_vsid_data(ea, ssize, flags)),
 		       "r" (mk_esid_data(ea, ssize, index))
 		     : "memory" );
+}
+
+/*
+ * Insert bolted entries into SLB (which may not be empty, so don't clear
+ * slb_cache_ptr).
+ */
+void __slb_restore_bolted_realmode(void)
+{
+	struct slb_shadow *p = get_slb_shadow();
+	enum slb_index index;
+
+	 /* No isync needed because realmode. */
+	for (index = 0; index < SLB_NUM_BOLTED; index++) {
+		asm volatile("slbmte  %0,%1" :
+		     : "r" (be64_to_cpu(p->save_area[index].vsid)),
+		       "r" (be64_to_cpu(p->save_area[index].esid)));
+	}
+}
+
+/*
+ * Insert the bolted entries into an empty SLB.
+ * This is not the same as rebolt because the bolted segments are not
+ * changed, just loaded from the shadow area.
+ */
+void slb_restore_bolted_realmode(void)
+{
+	__slb_restore_bolted_realmode();
+	get_paca()->slb_cache_ptr = 0;
+}
+
+/*
+ * This flushes all SLB entries including 0, so it must be realmode.
+ */
+void slb_flush_all_realmode(void)
+{
+	/*
+	 * This flushes all SLB entries including 0, so it must be realmode.
+	 */
+	asm volatile("slbmte %0,%0; slbia" : : "r" (0));
 }
 
 static void __slb_flush_and_rebolt(void)
@@ -352,6 +391,14 @@ static void insert_slb_entry(unsigned long vsid, unsigned long ea,
 	/*
 	 * We are irq disabled, hence should be safe to access PACA.
 	 */
+	VM_WARN_ON(!irqs_disabled());
+
+	/*
+	 * We can't take a PMU exception in the following code, so hard
+	 * disable interrupts.
+	 */
+	hard_irq_disable();
+
 	index = get_paca()->stab_rr;
 
 	/*
@@ -369,6 +416,11 @@ static void insert_slb_entry(unsigned long vsid, unsigned long ea,
 		    ((unsigned long) ssize << SLB_VSID_SSIZE_SHIFT);
 	esid_data = mk_esid_data(ea, ssize, index);
 
+	/*
+	 * No need for an isync before or after this slbmte. The exception
+	 * we enter with and the rfid we exit with are context synchronizing.
+	 * Also we only handle user segments here.
+	 */
 	asm volatile("slbmte %0, %1" : : "r" (vsid_data), "r" (esid_data)
 		     : "memory");
 

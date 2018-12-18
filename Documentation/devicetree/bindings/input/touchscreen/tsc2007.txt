@@ -9,8 +9,6 @@ Optional properties:
 - gpios: the interrupt gpio the chip is connected to (trough the penirq pin).
   The penirq pin goes to low when the panel is touched.
   (see GPIO binding[1] for more details).
-- interrupt-parent: the phandle for the gpio controller
-  (see interrupt binding[0]).
 - interrupts: (gpio) interrupt to which the chip is connected
   (see interrupt binding[0]).
 - ti,max-rt: maximum pressure.

@@ -359,8 +359,8 @@ static int __init vrfb_probe(struct platform_device *pdev)
 
 	num_ctxs = pdev->num_resources - 1;
 
-	ctxs = devm_kzalloc(&pdev->dev,
-			sizeof(struct vrfb_ctx) * num_ctxs,
+	ctxs = devm_kcalloc(&pdev->dev,
+			num_ctxs, sizeof(struct vrfb_ctx),
 			GFP_KERNEL);
 
 	if (!ctxs)

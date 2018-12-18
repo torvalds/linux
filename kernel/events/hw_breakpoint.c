@@ -345,13 +345,13 @@ void release_bp_slot(struct perf_event *bp)
 	mutex_unlock(&nr_bp_mutex);
 }
 
-static int __modify_bp_slot(struct perf_event *bp, u64 old_type)
+static int __modify_bp_slot(struct perf_event *bp, u64 old_type, u64 new_type)
 {
 	int err;
 
 	__release_bp_slot(bp, old_type);
 
-	err = __reserve_bp_slot(bp, bp->attr.bp_type);
+	err = __reserve_bp_slot(bp, new_type);
 	if (err) {
 		/*
 		 * Reserve the old_type slot back in case
@@ -367,12 +367,12 @@ static int __modify_bp_slot(struct perf_event *bp, u64 old_type)
 	return err;
 }
 
-static int modify_bp_slot(struct perf_event *bp, u64 old_type)
+static int modify_bp_slot(struct perf_event *bp, u64 old_type, u64 new_type)
 {
 	int ret;
 
 	mutex_lock(&nr_bp_mutex);
-	ret = __modify_bp_slot(bp, old_type);
+	ret = __modify_bp_slot(bp, old_type, new_type);
 	mutex_unlock(&nr_bp_mutex);
 	return ret;
 }
@@ -400,16 +400,18 @@ int dbg_release_bp_slot(struct perf_event *bp)
 	return 0;
 }
 
-static int validate_hw_breakpoint(struct perf_event *bp)
+static int hw_breakpoint_parse(struct perf_event *bp,
+			       const struct perf_event_attr *attr,
+			       struct arch_hw_breakpoint *hw)
 {
-	int ret;
+	int err;
 
-	ret = arch_validate_hwbkpt_settings(bp);
-	if (ret)
-		return ret;
+	err = hw_breakpoint_arch_parse(bp, attr, hw);
+	if (err)
+		return err;
 
-	if (arch_check_bp_in_kernelspace(bp)) {
-		if (bp->attr.exclude_kernel)
+	if (arch_check_bp_in_kernelspace(hw)) {
+		if (attr->exclude_kernel)
 			return -EINVAL;
 		/*
 		 * Don't let unprivileged users set a breakpoint in the trap
@@ -424,19 +426,22 @@ static int validate_hw_breakpoint(struct perf_event *bp)
 
 int register_perf_hw_breakpoint(struct perf_event *bp)
 {
-	int ret;
+	struct arch_hw_breakpoint hw;
+	int err;
 
-	ret = reserve_bp_slot(bp);
-	if (ret)
-		return ret;
+	err = reserve_bp_slot(bp);
+	if (err)
+		return err;
 
-	ret = validate_hw_breakpoint(bp);
-
-	/* if arch_validate_hwbkpt_settings() fails then release bp slot */
-	if (ret)
+	err = hw_breakpoint_parse(bp, &bp->attr, &hw);
+	if (err) {
 		release_bp_slot(bp);
+		return err;
+	}
 
-	return ret;
+	bp->hw.info = hw;
+
+	return 0;
 }
 
 /**
@@ -456,35 +461,44 @@ register_user_hw_breakpoint(struct perf_event_attr *attr,
 }
 EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 
+static void hw_breakpoint_copy_attr(struct perf_event_attr *to,
+				    struct perf_event_attr *from)
+{
+	to->bp_addr = from->bp_addr;
+	to->bp_type = from->bp_type;
+	to->bp_len  = from->bp_len;
+	to->disabled = from->disabled;
+}
+
 int
 modify_user_hw_breakpoint_check(struct perf_event *bp, struct perf_event_attr *attr,
 			        bool check)
 {
-	u64 old_addr = bp->attr.bp_addr;
-	u64 old_len  = bp->attr.bp_len;
-	int old_type = bp->attr.bp_type;
-	bool modify  = attr->bp_type != old_type;
-	int err = 0;
+	struct arch_hw_breakpoint hw;
+	int err;
 
-	bp->attr.bp_addr = attr->bp_addr;
-	bp->attr.bp_type = attr->bp_type;
-	bp->attr.bp_len  = attr->bp_len;
-
-	if (check && memcmp(&bp->attr, attr, sizeof(*attr)))
-		return -EINVAL;
-
-	err = validate_hw_breakpoint(bp);
-	if (!err && modify)
-		err = modify_bp_slot(bp, old_type);
-
-	if (err) {
-		bp->attr.bp_addr = old_addr;
-		bp->attr.bp_type = old_type;
-		bp->attr.bp_len  = old_len;
+	err = hw_breakpoint_parse(bp, attr, &hw);
+	if (err)
 		return err;
+
+	if (check) {
+		struct perf_event_attr old_attr;
+
+		old_attr = bp->attr;
+		hw_breakpoint_copy_attr(&old_attr, attr);
+		if (memcmp(&old_attr, attr, sizeof(*attr)))
+			return -EINVAL;
 	}
 
-	bp->attr.disabled = attr->disabled;
+	if (bp->attr.bp_type != attr->bp_type) {
+		err = modify_bp_slot(bp, bp->attr.bp_type, attr->bp_type);
+		if (err)
+			return err;
+	}
+
+	hw_breakpoint_copy_attr(&bp->attr, attr);
+	bp->hw.info = hw;
+
 	return 0;
 }
 

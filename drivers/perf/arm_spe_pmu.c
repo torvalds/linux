@@ -131,8 +131,7 @@ static ssize_t arm_spe_pmu_cap_show(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct arm_spe_pmu *spe_pmu = platform_get_drvdata(pdev);
+	struct arm_spe_pmu *spe_pmu = dev_get_drvdata(dev);
 	struct dev_ext_attribute *ea =
 		container_of(attr, struct dev_ext_attribute, attr);
 	int cap = (long)ea->var;
@@ -247,8 +246,7 @@ static ssize_t arm_spe_pmu_get_attr_cpumask(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct arm_spe_pmu *spe_pmu = platform_get_drvdata(pdev);
+	struct arm_spe_pmu *spe_pmu = dev_get_drvdata(dev);
 
 	return cpumap_print_to_pagebuf(true, buf, &spe_pmu->supported_cpus);
 }

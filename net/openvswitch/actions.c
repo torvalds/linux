@@ -1057,6 +1057,28 @@ static int sample(struct datapath *dp, struct sk_buff *skb,
 			     clone_flow_key);
 }
 
+/* When 'last' is true, clone() should always consume the 'skb'.
+ * Otherwise, clone() should keep 'skb' intact regardless what
+ * actions are executed within clone().
+ */
+static int clone(struct datapath *dp, struct sk_buff *skb,
+		 struct sw_flow_key *key, const struct nlattr *attr,
+		 bool last)
+{
+	struct nlattr *actions;
+	struct nlattr *clone_arg;
+	int rem = nla_len(attr);
+	bool dont_clone_flow_key;
+
+	/* The first action is always 'OVS_CLONE_ATTR_ARG'. */
+	clone_arg = nla_data(attr);
+	dont_clone_flow_key = nla_get_u32(clone_arg);
+	actions = nla_next(clone_arg, &rem);
+
+	return clone_execute(dp, skb, key, 0, actions, rem, last,
+			     !dont_clone_flow_key);
+}
+
 static void execute_hash(struct sk_buff *skb, struct sw_flow_key *key,
 			 const struct nlattr *attr)
 {
@@ -1336,6 +1358,17 @@ static int do_execute_actions(struct datapath *dp, struct sk_buff *skb,
 				consume_skb(skb);
 				return 0;
 			}
+			break;
+
+		case OVS_ACTION_ATTR_CLONE: {
+			bool last = nla_is_last(a, rem);
+
+			err = clone(dp, skb, key, a, last);
+			if (last)
+				return err;
+
+			break;
+		}
 		}
 
 		if (unlikely(err)) {

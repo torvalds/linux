@@ -15,10 +15,20 @@ if SLIMBUS
 # SLIMbus controllers
 config SLIM_QCOM_CTRL
 	tristate "Qualcomm SLIMbus Manager Component"
-	depends on SLIMBUS
 	depends on HAS_IOMEM
 	help
 	  Select driver if Qualcomm's SLIMbus Manager Component is
 	  programmed using Linux kernel.
 
+config SLIM_QCOM_NGD_CTRL
+	tristate "Qualcomm SLIMbus Satellite Non-Generic Device Component"
+	depends on QCOM_QMI_HELPERS
+	depends on HAS_IOMEM && DMA_ENGINE
+	help
+	  Select driver if Qualcomm's SLIMbus Satellite Non-Generic Device
+	  Component is programmed using Linux kernel.
+	  This is light-weight slimbus controller driver responsible for
+	  communicating with slave HW directly over the bus using messaging
+	  interface, and communicating with master component residing on ADSP
+	  for bandwidth and data-channel management.
 endif

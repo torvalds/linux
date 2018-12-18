@@ -49,6 +49,12 @@ static void cxlflash_unmap_afu_irq(void *ctx_cookie, int num, void *cookie)
 	cxl_unmap_afu_irq(ctx_cookie, num, cookie);
 }
 
+static u64 cxlflash_get_irq_objhndl(void *ctx_cookie, int irq)
+{
+	/* Dummy fop for cxl */
+	return 0;
+}
+
 static int cxlflash_start_context(void *ctx_cookie)
 {
 	return cxl_start_context(ctx_cookie, 0, NULL);
@@ -110,6 +116,11 @@ static void *cxlflash_create_afu(struct pci_dev *dev)
 	return cxl_pci_to_afu(dev);
 }
 
+static void cxlflash_destroy_afu(void *afu)
+{
+	/* Dummy fop for cxl */
+}
+
 static struct file *cxlflash_get_fd(void *ctx_cookie,
 				    struct file_operations *fops, int *fd)
 {
@@ -148,6 +159,7 @@ const struct cxlflash_backend_ops cxlflash_cxl_ops = {
 	.process_element	= cxlflash_process_element,
 	.map_afu_irq		= cxlflash_map_afu_irq,
 	.unmap_afu_irq		= cxlflash_unmap_afu_irq,
+	.get_irq_objhndl	= cxlflash_get_irq_objhndl,
 	.start_context		= cxlflash_start_context,
 	.stop_context		= cxlflash_stop_context,
 	.afu_reset		= cxlflash_afu_reset,
@@ -160,6 +172,7 @@ const struct cxlflash_backend_ops cxlflash_cxl_ops = {
 	.allocate_afu_irqs	= cxlflash_allocate_afu_irqs,
 	.free_afu_irqs		= cxlflash_free_afu_irqs,
 	.create_afu		= cxlflash_create_afu,
+	.destroy_afu		= cxlflash_destroy_afu,
 	.get_fd			= cxlflash_get_fd,
 	.fops_get_context	= cxlflash_fops_get_context,
 	.start_work		= cxlflash_start_work,

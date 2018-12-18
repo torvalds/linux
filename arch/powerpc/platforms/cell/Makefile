@@ -10,7 +10,7 @@ obj-$(CONFIG_CBE_CPUFREQ_SPU_GOVERNOR)	+= cpufreq_spudemand.o
 
 obj-$(CONFIG_PPC_IBM_CELL_POWERBUTTON)	+= cbe_powerbutton.o
 
-ifeq ($(CONFIG_SMP),y)
+ifdef CONFIG_SMP
 obj-$(CONFIG_PPC_CELL_NATIVE)		+= smp.o
 endif
 

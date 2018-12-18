@@ -52,7 +52,7 @@ int ipoib_mcast_attach(struct net_device *dev, struct ib_device *hca,
 
 	if (set_qkey) {
 		ret = -ENOMEM;
-		qp_attr = kmalloc(sizeof *qp_attr, GFP_KERNEL);
+		qp_attr = kmalloc(sizeof(*qp_attr), GFP_KERNEL);
 		if (!qp_attr)
 			goto out;
 
@@ -147,7 +147,7 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		.cap = {
 			.max_send_wr  = ipoib_sendq_size,
 			.max_recv_wr  = ipoib_recvq_size,
-			.max_send_sge = min_t(u32, priv->ca->attrs.max_sge,
+			.max_send_sge = min_t(u32, priv->ca->attrs.max_send_sge,
 					      MAX_SKB_FRAGS + 1),
 			.max_recv_sge = IPOIB_UD_RX_SG
 		},
@@ -168,8 +168,8 @@ int ipoib_transport_dev_init(struct net_device *dev, struct ib_device *ca)
 		else
 			size += ipoib_recvq_size * ipoib_max_conn_qp;
 	} else
-		if (ret != -ENOSYS)
-			return -ENODEV;
+		if (ret != -EOPNOTSUPP)
+			return ret;
 
 	req_vec = (priv->port - 1) * 2;
 

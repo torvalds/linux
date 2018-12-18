@@ -30,8 +30,8 @@
 #include <linux/timb_gpio.h>
 
 #include <linux/i2c.h>
-#include <linux/i2c-ocores.h>
-#include <linux/i2c-xiic.h>
+#include <linux/platform_data/i2c-ocores.h>
+#include <linux/platform_data/i2c-xiic.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/xilinx_spi.h>
@@ -707,8 +707,8 @@ static int timb_probe(struct pci_dev *dev,
 		goto err_config;
 	}
 
-	msix_entries = kzalloc(TIMBERDALE_NR_IRQS * sizeof(*msix_entries),
-		GFP_KERNEL);
+	msix_entries = kcalloc(TIMBERDALE_NR_IRQS, sizeof(*msix_entries),
+			       GFP_KERNEL);
 	if (!msix_entries)
 		goto err_config;
 
@@ -777,7 +777,7 @@ static int timb_probe(struct pci_dev *dev,
 			&dev->resource[0], msix_entries[0].vector, NULL);
 		break;
 	default:
-		dev_err(&dev->dev, "Uknown IP setup: %d.%d.%d\n",
+		dev_err(&dev->dev, "Unknown IP setup: %d.%d.%d\n",
 			priv->fw.major, priv->fw.minor, ip_setup);
 		err = -ENODEV;
 		goto err_mfd;

@@ -71,7 +71,7 @@ config SPI_FSL_QUADSPI
 config SPI_HISI_SFC
 	tristate "Hisilicon SPI-NOR Flash Controller(SFC)"
 	depends on ARCH_HISI || COMPILE_TEST
-	depends on HAS_IOMEM && HAS_DMA
+	depends on HAS_IOMEM
 	help
 	  This enables support for hisilicon SPI-NOR flash controller.
 
@@ -90,7 +90,7 @@ config SPI_INTEL_SPI
 	tristate
 
 config SPI_INTEL_SPI_PCI
-	tristate "Intel PCH/PCU SPI flash PCI driver"
+	tristate "Intel PCH/PCU SPI flash PCI driver (DANGEROUS)"
 	depends on X86 && PCI
 	select SPI_INTEL_SPI
 	help
@@ -106,7 +106,7 @@ config SPI_INTEL_SPI_PCI
 	  will be called intel-spi-pci.
 
 config SPI_INTEL_SPI_PLATFORM
-	tristate "Intel PCH/PCU SPI flash platform driver"
+	tristate "Intel PCH/PCU SPI flash platform driver (DANGEROUS)"
 	depends on X86
 	select SPI_INTEL_SPI
 	help

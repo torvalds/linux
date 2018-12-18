@@ -268,7 +268,7 @@ static void zx_plane_atomic_disable(struct drm_plane *plane,
 	struct zx_plane *zplane = to_zx_plane(plane);
 	void __iomem *hbsc = zplane->hbsc;
 
-	zx_vou_layer_disable(plane);
+	zx_vou_layer_disable(plane, old_state);
 
 	/* Disable HBSC block */
 	zx_writel_mask(hbsc + HBSC_CTRL0, HBSC_CTRL_EN, 0);
@@ -446,7 +446,7 @@ static const struct drm_plane_helper_funcs zx_gl_plane_helper_funcs = {
 
 static void zx_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane);
+	drm_plane_helper_disable(plane, NULL);
 	drm_plane_cleanup(plane);
 }
 

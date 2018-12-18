@@ -380,31 +380,26 @@ and therefore need no protection.
 as follows:
 
 <pre>
-  1   unsigned long gpnum;
-  2   unsigned long completed;
+  1   unsigned long gp_seq;
 </pre>
 
 <p>RCU grace periods are numbered, and
-the <tt>-&gt;gpnum</tt> field contains the number of the grace
-period that started most recently.
-The <tt>-&gt;completed</tt> field contains the number of the
-grace period that completed most recently.
-If the two fields are equal, the RCU grace period that most recently
-started has already completed, and therefore the corresponding
-flavor of RCU is idle.
-If <tt>-&gt;gpnum</tt> is one greater than <tt>-&gt;completed</tt>,
-then <tt>-&gt;gpnum</tt> gives the number of the current RCU
-grace period, which has not yet completed.
-Any other combination of values indicates that something is broken.
-These two fields are protected by the root <tt>rcu_node</tt>'s
+the <tt>-&gt;gp_seq</tt> field contains the current grace-period
+sequence number.
+The bottom two bits are the state of the current grace period,
+which can be zero for not yet started or one for in progress.
+In other words, if the bottom two bits of <tt>-&gt;gp_seq</tt> are
+zero, the corresponding flavor of RCU is idle.
+Any other value in the bottom two bits indicates that something is broken.
+This field is protected by the root <tt>rcu_node</tt> structure's
 <tt>-&gt;lock</tt> field.
 
-</p><p>There are <tt>-&gt;gpnum</tt> and <tt>-&gt;completed</tt> fields
+</p><p>There are <tt>-&gt;gp_seq</tt> fields
 in the <tt>rcu_node</tt> and <tt>rcu_data</tt> structures
 as well.
 The fields in the <tt>rcu_state</tt> structure represent the
-most current values, and those of the other structures are compared
-in order to detect the start of a new grace period in a distributed
+most current value, and those of the other structures are compared
+in order to detect the beginnings and ends of grace periods in a distributed
 fashion.
 The values flow from <tt>rcu_state</tt> to <tt>rcu_node</tt>
 (down the tree from the root to the leaves) to <tt>rcu_data</tt>.
@@ -512,27 +507,47 @@ than to be heisenbugged out of existence.
 as follows:
 
 <pre>
-  1   unsigned long gpnum;
-  2   unsigned long completed;
+  1   unsigned long gp_seq;
+  2   unsigned long gp_seq_needed;
 </pre>
 
-<p>These fields are the counterparts of the fields of the same name in
-the <tt>rcu_state</tt> structure.
-They each may lag up to one behind their <tt>rcu_state</tt>
-counterparts.
-If a given <tt>rcu_node</tt> structure's <tt>-&gt;gpnum</tt> and
-<tt>-&gt;complete</tt> fields are equal, then this <tt>rcu_node</tt>
+<p>The <tt>rcu_node</tt> structures' <tt>-&gt;gp_seq</tt> fields are
+the counterparts of the field of the same name in the <tt>rcu_state</tt>
+structure.
+They each may lag up to one step behind their <tt>rcu_state</tt>
+counterpart.
+If the bottom two bits of a given <tt>rcu_node</tt> structure's
+<tt>-&gt;gp_seq</tt> field is zero, then this <tt>rcu_node</tt>
 structure believes that RCU is idle.
-Otherwise, as with the <tt>rcu_state</tt> structure,
-the <tt>-&gt;gpnum</tt> field will be one greater than the
-<tt>-&gt;complete</tt> fields, with <tt>-&gt;gpnum</tt>
-indicating which grace period this <tt>rcu_node</tt> believes
-is still being waited for.
+</p><p>The <tt>&gt;gp_seq</tt> field of each <tt>rcu_node</tt>
+structure is updated at the beginning and the end
+of each grace period.
 
-</p><p>The <tt>&gt;gpnum</tt> field of each <tt>rcu_node</tt>
-structure is updated at the beginning
-of each grace period, and the <tt>-&gt;completed</tt> fields are
-updated at the end of each grace period.
+<p>The <tt>-&gt;gp_seq_needed</tt> fields record the
+furthest-in-the-future grace period request seen by the corresponding
+<tt>rcu_node</tt> structure.  The request is considered fulfilled when
+the value of the <tt>-&gt;gp_seq</tt> field equals or exceeds that of
+the <tt>-&gt;gp_seq_needed</tt> field.
+
+<table>
+<tr><th>&nbsp;</th></tr>
+<tr><th align="left">Quick Quiz:</th></tr>
+<tr><td>
+	Suppose that this <tt>rcu_node</tt> structure doesn't see
+	a request for a very long time.
+	Won't wrapping of the <tt>-&gt;gp_seq</tt> field cause
+	problems?
+</td></tr>
+<tr><th align="left">Answer:</th></tr>
+<tr><td bgcolor="#ffffff"><font color="ffffff">
+	No, because if the <tt>-&gt;gp_seq_needed</tt> field lags behind the
+	<tt>-&gt;gp_seq</tt> field, the <tt>-&gt;gp_seq_needed</tt> field
+	will be updated at the end of the grace period.
+	Modulo-arithmetic comparisons therefore will always get the
+	correct answer, even with wrapping.
+</font></td></tr>
+<tr><td>&nbsp;</td></tr>
+</table>
 
 <h5>Quiescent-State Tracking</h5>
 
@@ -626,9 +641,8 @@ normal and expedited grace periods, respectively.
 	</ol>
 
 	<p><font color="ffffff">So the locking is absolutely required in
-	order to coordinate
-	clearing of the bits with the grace-period numbers in
-	<tt>-&gt;gpnum</tt> and <tt>-&gt;completed</tt>.
+	order to coordinate clearing of the bits with updating of the
+	grace-period sequence number in <tt>-&gt;gp_seq</tt>.
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>
@@ -1038,15 +1052,15 @@ out any <tt>rcu_data</tt> structure for which this flag is not set.
 as follows:
 
 <pre>
-  1   unsigned long completed;
-  2   unsigned long gpnum;
+  1   unsigned long gp_seq;
+  2   unsigned long gp_seq_needed;
   3   bool cpu_no_qs;
   4   bool core_needs_qs;
   5   bool gpwrap;
   6   unsigned long rcu_qs_ctr_snap;
 </pre>
 
-<p>The <tt>completed</tt> and <tt>gpnum</tt>
+<p>The <tt>-&gt;gp_seq</tt> and <tt>-&gt;gp_seq_needed</tt>
 fields are the counterparts of the fields of the same name
 in the <tt>rcu_state</tt> and <tt>rcu_node</tt> structures.
 They may each lag up to one behind their <tt>rcu_node</tt>
@@ -1054,15 +1068,9 @@ counterparts, but in <tt>CONFIG_NO_HZ_IDLE</tt> and
 <tt>CONFIG_NO_HZ_FULL</tt> kernels can lag
 arbitrarily far behind for CPUs in dyntick-idle mode (but these counters
 will catch up upon exit from dyntick-idle mode).
-If a given <tt>rcu_data</tt> structure's <tt>-&gt;gpnum</tt> and
-<tt>-&gt;complete</tt> fields are equal, then this <tt>rcu_data</tt>
+If the lower two bits of a given <tt>rcu_data</tt> structure's
+<tt>-&gt;gp_seq</tt> are zero, then this <tt>rcu_data</tt>
 structure believes that RCU is idle.
-Otherwise, as with the <tt>rcu_state</tt> and <tt>rcu_node</tt>
-structure,
-the <tt>-&gt;gpnum</tt> field will be one greater than the
-<tt>-&gt;complete</tt> fields, with <tt>-&gt;gpnum</tt>
-indicating which grace period this <tt>rcu_data</tt> believes
-is still being waited for.
 
 <table>
 <tr><th>&nbsp;</th></tr>
@@ -1070,13 +1078,13 @@ is still being waited for.
 <tr><td>
 	All this replication of the grace period numbers can only cause
 	massive confusion.
-	Why not just keep a global pair of counters and be done with it???
+	Why not just keep a global sequence number and be done with it???
 </td></tr>
 <tr><th align="left">Answer:</th></tr>
 <tr><td bgcolor="#ffffff"><font color="ffffff">
-	Because if there was only a single global pair of grace-period
+	Because if there was only a single global sequence
 	numbers, there would need to be a single global lock to allow
-	safely accessing and updating them.
+	safely accessing and updating it.
 	And if we are not going to have a single global lock, we need
 	to carefully manage the numbers on a per-node basis.
 	Recall from the answer to a previous Quick Quiz that the consequences
@@ -1091,8 +1099,8 @@ CPU has not yet passed through a quiescent state,
 while the <tt>-&gt;core_needs_qs</tt> flag indicates that the
 RCU core needs a quiescent state from the corresponding CPU.
 The <tt>-&gt;gpwrap</tt> field indicates that the corresponding
-CPU has remained idle for so long that the <tt>completed</tt>
-and <tt>gpnum</tt> counters are in danger of overflow, which
+CPU has remained idle for so long that the
+<tt>gp_seq</tt> counter is in danger of overflow, which
 will cause the CPU to disregard the values of its counters on
 its next exit from idle.
 Finally, the <tt>rcu_qs_ctr_snap</tt> field is used to detect
@@ -1130,10 +1138,10 @@ The CPU advances the callbacks in its <tt>rcu_data</tt> structure
 whenever it notices that another RCU grace period has completed.
 The CPU detects the completion of an RCU grace period by noticing
 that the value of its <tt>rcu_data</tt> structure's
-<tt>-&gt;completed</tt> field differs from that of its leaf
+<tt>-&gt;gp_seq</tt> field differs from that of its leaf
 <tt>rcu_node</tt> structure.
 Recall that each <tt>rcu_node</tt> structure's
-<tt>-&gt;completed</tt> field is updated at the end of each
+<tt>-&gt;gp_seq</tt> field is updated at the beginnings and ends of each
 grace period.
 
 <p>

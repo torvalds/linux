@@ -56,6 +56,10 @@ acpi_status acpi_ns_initialize_objects(void);
 
 acpi_status acpi_ns_initialize_devices(u32 flags);
 
+acpi_status
+acpi_ns_init_one_package(acpi_handle obj_handle,
+			 u32 level, void *context, void **return_value);
+
 /*
  * nsload -  Namespace loading
  */

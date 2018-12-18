@@ -175,11 +175,11 @@ static int tda18212_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops tda18212_tuner_ops = {
 	.info = {
-		.name           = "NXP TDA18212",
+		.name              = "NXP TDA18212",
 
-		.frequency_min  =  48000000,
-		.frequency_max  = 864000000,
-		.frequency_step =      1000,
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 864 * MHz,
+		.frequency_step_hz =   1 * kHz,
 	},
 
 	.set_params    = tda18212_set_params,

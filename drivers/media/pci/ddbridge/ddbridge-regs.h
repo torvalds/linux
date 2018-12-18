@@ -17,6 +17,9 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#ifndef __DDBRIDGE_REGS_H__
+#define __DDBRIDGE_REGS_H__
+
 /* ------------------------------------------------------------------------- */
 /* SPI Controller */
 
@@ -29,14 +32,6 @@
 #define GPIO_OUTPUT      0x20
 #define GPIO_INPUT       0x24
 #define GPIO_DIRECTION   0x28
-
-/* ------------------------------------------------------------------------- */
-/* MDIO */
-
-#define MDIO_CTRL        0x20
-#define MDIO_ADR         0x24
-#define MDIO_REG         0x28
-#define MDIO_VAL         0x2C
 
 /* ------------------------------------------------------------------------- */
 
@@ -154,3 +149,4 @@
 #define LNB_BUF_LEVEL(i)		(LNB_BASE + (i) * 0x20 + 0x10)
 #define LNB_BUF_WRITE(i)		(LNB_BASE + (i) * 0x20 + 0x14)
 
+#endif /* __DDBRIDGE_REGS_H__ */

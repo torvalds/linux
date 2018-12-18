@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /* uio_fsl_elbc_gpcm: UIO driver for eLBC/GPCM peripherals
 
    Copyright (C) 2014 Linutronix GmbH
@@ -475,7 +476,6 @@ MODULE_DEVICE_TABLE(of, uio_fsl_elbc_gpcm_match);
 static struct platform_driver uio_fsl_elbc_gpcm_driver = {
 	.driver = {
 		.name = "fsl,elbc-gpcm-uio",
-		.owner = THIS_MODULE,
 		.of_match_table = uio_fsl_elbc_gpcm_match,
 	},
 	.probe = uio_fsl_elbc_gpcm_probe,

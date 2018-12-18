@@ -475,6 +475,14 @@ static inline struct dst_entry *xfrm_lookup(struct net *net,
 	return dst_orig;
 }
 
+static inline struct dst_entry *
+xfrm_lookup_with_ifid(struct net *net, struct dst_entry *dst_orig,
+		      const struct flowi *fl, const struct sock *sk,
+		      int flags, u32 if_id)
+{
+	return dst_orig;
+}
+
 static inline struct dst_entry *xfrm_lookup_route(struct net *net,
 						  struct dst_entry *dst_orig,
 						  const struct flowi *fl,
@@ -493,6 +501,12 @@ static inline struct xfrm_state *dst_xfrm(const struct dst_entry *dst)
 struct dst_entry *xfrm_lookup(struct net *net, struct dst_entry *dst_orig,
 			      const struct flowi *fl, const struct sock *sk,
 			      int flags);
+
+struct dst_entry *xfrm_lookup_with_ifid(struct net *net,
+					struct dst_entry *dst_orig,
+					const struct flowi *fl,
+					const struct sock *sk, int flags,
+					u32 if_id);
 
 struct dst_entry *xfrm_lookup_route(struct net *net, struct dst_entry *dst_orig,
 				    const struct flowi *fl, const struct sock *sk,

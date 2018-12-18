@@ -92,7 +92,8 @@ static void gfs2_remove_from_ail(struct gfs2_bufdata *bd)
 
 static int gfs2_ail1_start_one(struct gfs2_sbd *sdp,
 			       struct writeback_control *wbc,
-			       struct gfs2_trans *tr)
+			       struct gfs2_trans *tr,
+			       bool *withdraw)
 __releases(&sdp->sd_ail_lock)
 __acquires(&sdp->sd_ail_lock)
 {
@@ -107,8 +108,10 @@ __acquires(&sdp->sd_ail_lock)
 		gfs2_assert(sdp, bd->bd_tr == tr);
 
 		if (!buffer_busy(bh)) {
-			if (!buffer_uptodate(bh))
+			if (!buffer_uptodate(bh)) {
 				gfs2_io_error_bh(sdp, bh);
+				*withdraw = true;
+			}
 			list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 			continue;
 		}
@@ -148,6 +151,7 @@ void gfs2_ail1_flush(struct gfs2_sbd *sdp, struct writeback_control *wbc)
 	struct list_head *head = &sdp->sd_ail1_list;
 	struct gfs2_trans *tr;
 	struct blk_plug plug;
+	bool withdraw = false;
 
 	trace_gfs2_ail_flush(sdp, wbc, 1);
 	blk_start_plug(&plug);
@@ -156,11 +160,13 @@ restart:
 	list_for_each_entry_reverse(tr, head, tr_list) {
 		if (wbc->nr_to_write <= 0)
 			break;
-		if (gfs2_ail1_start_one(sdp, wbc, tr))
+		if (gfs2_ail1_start_one(sdp, wbc, tr, &withdraw))
 			goto restart;
 	}
 	spin_unlock(&sdp->sd_ail_lock);
 	blk_finish_plug(&plug);
+	if (withdraw)
+		gfs2_lm_withdraw(sdp, NULL);
 	trace_gfs2_ail_flush(sdp, wbc, 0);
 }
 
@@ -188,7 +194,8 @@ static void gfs2_ail1_start(struct gfs2_sbd *sdp)
  *
  */
 
-static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
+static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
+				bool *withdraw)
 {
 	struct gfs2_bufdata *bd, *s;
 	struct buffer_head *bh;
@@ -199,11 +206,12 @@ static void gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 		gfs2_assert(sdp, bd->bd_tr == tr);
 		if (buffer_busy(bh))
 			continue;
-		if (!buffer_uptodate(bh))
+		if (!buffer_uptodate(bh)) {
 			gfs2_io_error_bh(sdp, bh);
+			*withdraw = true;
+		}
 		list_move(&bd->bd_ail_st_list, &tr->tr_ail2_list);
 	}
-
 }
 
 /**
@@ -218,10 +226,11 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	struct gfs2_trans *tr, *s;
 	int oldest_tr = 1;
 	int ret;
+	bool withdraw = false;
 
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
-		gfs2_ail1_empty_one(sdp, tr);
+		gfs2_ail1_empty_one(sdp, tr, &withdraw);
 		if (list_empty(&tr->tr_ail1_list) && oldest_tr)
 			list_move(&tr->tr_list, &sdp->sd_ail2_list);
 		else
@@ -229,6 +238,9 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp)
 	}
 	ret = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
+
+	if (withdraw)
+		gfs2_lm_withdraw(sdp, "fatal: I/O error(s)\n");
 
 	return ret;
 }
@@ -689,7 +701,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	hash = ~crc32(~0, lh, LH_V1_SIZE);
 	lh->lh_hash = cpu_to_be32(hash);
 
-	tv = current_kernel_time64();
+	ktime_get_coarse_real_ts64(&tv);
 	lh->lh_nsec = cpu_to_be32(tv.tv_nsec);
 	lh->lh_sec = cpu_to_be64(tv.tv_sec);
 	addr = gfs2_log_bmap(sdp);

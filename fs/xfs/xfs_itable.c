@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -126,7 +114,7 @@ xfs_bulkstat_one_int(
 		break;
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	IRELE(ip);
+	xfs_irele(ip);
 
 	error = formatter(buffer, ubsize, ubused, buf);
 	if (!error)
@@ -470,8 +458,7 @@ xfs_bulkstat(
 		 * pending error, then we are done.
 		 */
 del_cursor:
-		xfs_btree_del_cursor(cur, error ?
-					  XFS_BTREE_ERROR : XFS_BTREE_NOERROR);
+		xfs_btree_del_cursor(cur, error);
 		xfs_buf_relse(agbp);
 		if (error)
 			break;
@@ -571,7 +558,7 @@ xfs_inumbers(
 	    *lastino != XFS_AGINO_TO_INO(mp, agno, agino))
 		return error;
 
-	bcount = MIN(left, (int)(PAGE_SIZE / sizeof(*buffer)));
+	bcount = min(left, (int)(PAGE_SIZE / sizeof(*buffer)));
 	buffer = kmem_zalloc(bcount * sizeof(*buffer), KM_SLEEP);
 	do {
 		struct xfs_inobt_rec_incore	r;
@@ -644,8 +631,7 @@ next_ag:
 
 	kmem_free(buffer);
 	if (cur)
-		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
-					   XFS_BTREE_NOERROR));
+		xfs_btree_del_cursor(cur, error);
 	if (agbp)
 		xfs_buf_relse(agbp);
 

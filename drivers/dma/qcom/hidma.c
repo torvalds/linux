@@ -616,8 +616,7 @@ static irqreturn_t hidma_chirq_handler_msi(int chirq, void *arg)
 static ssize_t hidma_show_values(struct device *dev,
 				 struct device_attribute *attr, char *buf)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct hidma_dev *mdev = platform_get_drvdata(pdev);
+	struct hidma_dev *mdev = dev_get_drvdata(dev);
 
 	buf[0] = 0;
 

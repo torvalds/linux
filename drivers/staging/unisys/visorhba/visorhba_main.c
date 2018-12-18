@@ -865,7 +865,7 @@ static void do_scsi_nolinuxstat(struct uiscmdrsp *cmdrsp,
 		if (cmdrsp->scsi.no_disk_result == 0)
 			return;
 
-		buf = kzalloc(sizeof(char) * 36, GFP_KERNEL);
+		buf = kzalloc(36, GFP_KERNEL);
 		if (!buf)
 			return;
 

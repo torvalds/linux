@@ -576,6 +576,10 @@
  *	userspace to load a kernel module with the given name.
  *	@kmod_name name of the module requested by the kernel
  *	Return 0 if successful.
+ * @kernel_load_data:
+ *	Load data provided by userspace.
+ *	@id kernel load data identifier
+ *	Return 0 if permission is granted.
  * @kernel_read_file:
  *	Read a file specified by userspace.
  *	@file contains the file structure pointing to the file being read
@@ -757,6 +761,11 @@
  *	@type contains the requested communications type.
  *	@protocol contains the requested protocol.
  *	@kern set to 1 if a kernel socket.
+ * @socket_socketpair:
+ *	Check permissions before creating a fresh pair of sockets.
+ *	@socka contains the first socket structure.
+ *	@sockb contains the second socket structure.
+ *	Return 0 if permission is granted and the connection was established.
  * @socket_bind:
  *	Check permission before socket protocol layer bind operation is
  *	performed and the socket @sock is bound to the address specified in the
@@ -1564,7 +1573,7 @@ union security_list_options {
 	int (*file_send_sigiotask)(struct task_struct *tsk,
 					struct fown_struct *fown, int sig);
 	int (*file_receive)(struct file *file);
-	int (*file_open)(struct file *file, const struct cred *cred);
+	int (*file_open)(struct file *file);
 
 	int (*task_alloc)(struct task_struct *task, unsigned long clone_flags);
 	void (*task_free)(struct task_struct *task);
@@ -1577,6 +1586,7 @@ union security_list_options {
 	int (*kernel_act_as)(struct cred *new, u32 secid);
 	int (*kernel_create_files_as)(struct cred *new, struct inode *inode);
 	int (*kernel_module_request)(char *kmod_name);
+	int (*kernel_load_data)(enum kernel_load_data_id id);
 	int (*kernel_read_file)(struct file *file, enum kernel_read_file_id id);
 	int (*kernel_post_read_file)(struct file *file, char *buf, loff_t size,
 				     enum kernel_read_file_id id);
@@ -1656,6 +1666,7 @@ union security_list_options {
 	int (*socket_create)(int family, int type, int protocol, int kern);
 	int (*socket_post_create)(struct socket *sock, int family, int type,
 					int protocol, int kern);
+	int (*socket_socketpair)(struct socket *socka, struct socket *sockb);
 	int (*socket_bind)(struct socket *sock, struct sockaddr *address,
 				int addrlen);
 	int (*socket_connect)(struct socket *sock, struct sockaddr *address,
@@ -1866,6 +1877,7 @@ struct security_hook_heads {
 	struct hlist_head cred_getsecid;
 	struct hlist_head kernel_act_as;
 	struct hlist_head kernel_create_files_as;
+	struct hlist_head kernel_load_data;
 	struct hlist_head kernel_read_file;
 	struct hlist_head kernel_post_read_file;
 	struct hlist_head kernel_module_request;
@@ -1922,6 +1934,7 @@ struct security_hook_heads {
 	struct hlist_head unix_may_send;
 	struct hlist_head socket_create;
 	struct hlist_head socket_post_create;
+	struct hlist_head socket_socketpair;
 	struct hlist_head socket_bind;
 	struct hlist_head socket_connect;
 	struct hlist_head socket_listen;

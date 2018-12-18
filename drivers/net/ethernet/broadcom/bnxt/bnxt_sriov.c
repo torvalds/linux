@@ -447,7 +447,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	u16 vf_tx_rings, vf_rx_rings, vf_cp_rings;
 	u16 vf_stat_ctx, vf_vnics, vf_ring_grps;
 	struct bnxt_pf_info *pf = &bp->pf;
-	int i, rc = 0;
+	int i, rc = 0, min = 1;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FUNC_VF_RESOURCE_CFG, -1, -1);
 
@@ -462,16 +462,21 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	vf_vnics = hw_resc->max_vnics - bp->nr_vnics;
 	vf_vnics = min_t(u16, vf_vnics, vf_rx_rings);
 
-	req.min_rsscos_ctx = cpu_to_le16(1);
-	req.max_rsscos_ctx = cpu_to_le16(1);
-	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL) {
-		req.min_cmpl_rings = cpu_to_le16(1);
-		req.min_tx_rings = cpu_to_le16(1);
-		req.min_rx_rings = cpu_to_le16(1);
-		req.min_l2_ctxs = cpu_to_le16(1);
-		req.min_vnics = cpu_to_le16(1);
-		req.min_stat_ctx = cpu_to_le16(1);
-		req.min_hw_ring_grps = cpu_to_le16(1);
+	req.min_rsscos_ctx = cpu_to_le16(BNXT_VF_MIN_RSS_CTX);
+	req.max_rsscos_ctx = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
+		min = 0;
+		req.min_rsscos_ctx = cpu_to_le16(min);
+	}
+	if (pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL ||
+	    pf->vf_resv_strategy == BNXT_VF_RESV_STRATEGY_MINIMAL_STATIC) {
+		req.min_cmpl_rings = cpu_to_le16(min);
+		req.min_tx_rings = cpu_to_le16(min);
+		req.min_rx_rings = cpu_to_le16(min);
+		req.min_l2_ctxs = cpu_to_le16(min);
+		req.min_vnics = cpu_to_le16(min);
+		req.min_stat_ctx = cpu_to_le16(min);
+		req.min_hw_ring_grps = cpu_to_le16(min);
 	} else {
 		vf_cp_rings /= num_vfs;
 		vf_tx_rings /= num_vfs;
@@ -483,7 +488,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 		req.min_cmpl_rings = cpu_to_le16(vf_cp_rings);
 		req.min_tx_rings = cpu_to_le16(vf_tx_rings);
 		req.min_rx_rings = cpu_to_le16(vf_rx_rings);
-		req.min_l2_ctxs = cpu_to_le16(4);
+		req.min_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 		req.min_vnics = cpu_to_le16(vf_vnics);
 		req.min_stat_ctx = cpu_to_le16(vf_stat_ctx);
 		req.min_hw_ring_grps = cpu_to_le16(vf_ring_grps);
@@ -491,7 +496,7 @@ static int bnxt_hwrm_func_vf_resc_cfg(struct bnxt *bp, int num_vfs)
 	req.max_cmpl_rings = cpu_to_le16(vf_cp_rings);
 	req.max_tx_rings = cpu_to_le16(vf_tx_rings);
 	req.max_rx_rings = cpu_to_le16(vf_rx_rings);
-	req.max_l2_ctxs = cpu_to_le16(4);
+	req.max_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	req.max_vnics = cpu_to_le16(vf_vnics);
 	req.max_stat_ctx = cpu_to_le16(vf_stat_ctx);
 	req.max_hw_ring_grps = cpu_to_le16(vf_ring_grps);
@@ -618,7 +623,7 @@ static int bnxt_hwrm_func_cfg(struct bnxt *bp, int num_vfs)
 
 static int bnxt_func_cfg(struct bnxt *bp, int num_vfs)
 {
-	if (bp->flags & BNXT_FLAG_NEW_RM)
+	if (BNXT_NEW_RM(bp))
 		return bnxt_hwrm_func_vf_resc_cfg(bp, num_vfs);
 	else
 		return bnxt_hwrm_func_cfg(bp, num_vfs);
@@ -809,6 +814,9 @@ static int bnxt_hwrm_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_fwd_resp_input req = {0};
 	struct hwrm_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_FWD_RESP, -1, -1);
 
 	/* Set the new target id */
@@ -845,6 +853,9 @@ static int bnxt_hwrm_fwd_err_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	struct hwrm_reject_fwd_resp_input req = {0};
 	struct hwrm_reject_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
 
+	if (BNXT_REJ_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
+
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_REJECT_FWD_RESP, -1, -1);
 	/* Set the new target id */
 	req.target_id = cpu_to_le16(vf->fw_fid);
@@ -876,6 +887,9 @@ static int bnxt_hwrm_exec_fwd_resp(struct bnxt *bp, struct bnxt_vf_info *vf,
 	int rc = 0;
 	struct hwrm_exec_fwd_resp_input req = {0};
 	struct hwrm_exec_fwd_resp_output *resp = bp->hwrm_cmd_resp_addr;
+
+	if (BNXT_EXEC_FWD_RESP_SIZE_ERR(msg_size))
+		return -EINVAL;
 
 	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_EXEC_FWD_RESP, -1, -1);
 	/* Set the new target id */
@@ -914,7 +928,8 @@ static int bnxt_vf_configure_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 	if (req->enables & cpu_to_le32(FUNC_VF_CFG_REQ_ENABLES_DFLT_MAC_ADDR)) {
 		if (is_valid_ether_addr(req->dflt_mac_addr) &&
 		    ((vf->flags & BNXT_VF_TRUST) ||
-		     (!is_valid_ether_addr(vf->mac_addr)))) {
+		     !is_valid_ether_addr(vf->mac_addr) ||
+		     ether_addr_equal(req->dflt_mac_addr, vf->mac_addr))) {
 			ether_addr_copy(vf->vf_mac_addr, req->dflt_mac_addr);
 			return bnxt_hwrm_exec_fwd_resp(bp, vf, msg_size);
 		}
@@ -946,9 +961,13 @@ static int bnxt_vf_validate_set_mac(struct bnxt *bp, struct bnxt_vf_info *vf)
 	} else if (is_valid_ether_addr(vf->vf_mac_addr)) {
 		if (ether_addr_equal((const u8 *)req->l2_addr, vf->vf_mac_addr))
 			mac_ok = true;
-	} else if (bp->hwrm_spec_code < 0x10202) {
-		mac_ok = true;
 	} else {
+		/* There are two cases:
+		 * 1.If firmware spec < 0x10202,VF MAC address is not forwarded
+		 *   to the PF and so it doesn't have to match
+		 * 2.Allow VF to modify it's own MAC when PF has not assigned a
+		 *   valid MAC address and firmware spec >= 0x10202
+		 */
 		mac_ok = true;
 	}
 	if (mac_ok)

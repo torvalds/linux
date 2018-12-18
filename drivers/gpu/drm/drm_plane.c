@@ -177,6 +177,10 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	if (WARN_ON(config->num_total_plane >= 32))
 		return -EINVAL;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(dev) &&
+		(!funcs->atomic_destroy_state ||
+		 !funcs->atomic_duplicate_state));
+
 	ret = drm_mode_object_add(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	if (ret)
 		return ret;
@@ -561,19 +565,66 @@ int drm_plane_check_pixel_format(struct drm_plane *plane,
 	if (i == plane->format_count)
 		return -EINVAL;
 
-	if (!plane->modifier_count)
-		return 0;
+	if (plane->funcs->format_mod_supported) {
+		if (!plane->funcs->format_mod_supported(plane, format, modifier))
+			return -EINVAL;
+	} else {
+		if (!plane->modifier_count)
+			return 0;
 
-	for (i = 0; i < plane->modifier_count; i++) {
-		if (modifier == plane->modifiers[i])
-			break;
+		for (i = 0; i < plane->modifier_count; i++) {
+			if (modifier == plane->modifiers[i])
+				break;
+		}
+		if (i == plane->modifier_count)
+			return -EINVAL;
 	}
-	if (i == plane->modifier_count)
-		return -EINVAL;
 
-	if (plane->funcs->format_mod_supported &&
-	    !plane->funcs->format_mod_supported(plane, format, modifier))
+	return 0;
+}
+
+static int __setplane_check(struct drm_plane *plane,
+			    struct drm_crtc *crtc,
+			    struct drm_framebuffer *fb,
+			    int32_t crtc_x, int32_t crtc_y,
+			    uint32_t crtc_w, uint32_t crtc_h,
+			    uint32_t src_x, uint32_t src_y,
+			    uint32_t src_w, uint32_t src_h)
+{
+	int ret;
+
+	/* Check whether this plane is usable on this CRTC */
+	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
+		DRM_DEBUG_KMS("Invalid crtc for plane\n");
 		return -EINVAL;
+	}
+
+	/* Check whether this plane supports the fb pixel format. */
+	ret = drm_plane_check_pixel_format(plane, fb->format->format,
+					   fb->modifier);
+	if (ret) {
+		struct drm_format_name_buf format_name;
+
+		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
+			      drm_get_format_name(fb->format->format,
+						  &format_name),
+			      fb->modifier);
+		return ret;
+	}
+
+	/* Give drivers some help against integer overflows */
+	if (crtc_w > INT_MAX ||
+	    crtc_x > INT_MAX - (int32_t) crtc_w ||
+	    crtc_h > INT_MAX ||
+	    crtc_y > INT_MAX - (int32_t) crtc_h) {
+		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
+			      crtc_w, crtc_h, crtc_x, crtc_y);
+		return -ERANGE;
+	}
+
+	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, fb);
+	if (ret)
+		return ret;
 
 	return 0;
 }
@@ -598,6 +649,8 @@ static int __setplane_internal(struct drm_plane *plane,
 {
 	int ret = 0;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(plane->dev));
+
 	/* No fb means shut it down */
 	if (!fb) {
 		plane->old_fb = plane->fb;
@@ -611,37 +664,9 @@ static int __setplane_internal(struct drm_plane *plane,
 		goto out;
 	}
 
-	/* Check whether this plane is usable on this CRTC */
-	if (!(plane->possible_crtcs & drm_crtc_mask(crtc))) {
-		DRM_DEBUG_KMS("Invalid crtc for plane\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	/* Check whether this plane supports the fb pixel format. */
-	ret = drm_plane_check_pixel_format(plane, fb->format->format,
-					   fb->modifier);
-	if (ret) {
-		struct drm_format_name_buf format_name;
-		DRM_DEBUG_KMS("Invalid pixel format %s, modifier 0x%llx\n",
-			      drm_get_format_name(fb->format->format,
-						  &format_name),
-			      fb->modifier);
-		goto out;
-	}
-
-	/* Give drivers some help against integer overflows */
-	if (crtc_w > INT_MAX ||
-	    crtc_x > INT_MAX - (int32_t) crtc_w ||
-	    crtc_h > INT_MAX ||
-	    crtc_y > INT_MAX - (int32_t) crtc_h) {
-		DRM_DEBUG_KMS("Invalid CRTC coordinates %ux%u+%d+%d\n",
-			      crtc_w, crtc_h, crtc_x, crtc_y);
-		ret = -ERANGE;
-		goto out;
-	}
-
-	ret = drm_framebuffer_check_src_coords(src_x, src_y, src_w, src_h, fb);
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
 	if (ret)
 		goto out;
 
@@ -665,6 +690,41 @@ out:
 	return ret;
 }
 
+static int __setplane_atomic(struct drm_plane *plane,
+			     struct drm_crtc *crtc,
+			     struct drm_framebuffer *fb,
+			     int32_t crtc_x, int32_t crtc_y,
+			     uint32_t crtc_w, uint32_t crtc_h,
+			     uint32_t src_x, uint32_t src_y,
+			     uint32_t src_w, uint32_t src_h,
+			     struct drm_modeset_acquire_ctx *ctx)
+{
+	int ret;
+
+	WARN_ON(!drm_drv_uses_atomic_modeset(plane->dev));
+
+	/* No fb means shut it down */
+	if (!fb)
+		return plane->funcs->disable_plane(plane, ctx);
+
+	/*
+	 * FIXME: This is redundant with drm_atomic_plane_check(),
+	 * but the legacy cursor/"async" .update_plane() tricks
+	 * don't call that so we still need this here. Should remove
+	 * this when all .update_plane() implementations have been
+	 * fixed to call drm_atomic_plane_check().
+	 */
+	ret = __setplane_check(plane, crtc, fb,
+			       crtc_x, crtc_y, crtc_w, crtc_h,
+			       src_x, src_y, src_w, src_h);
+	if (ret)
+		return ret;
+
+	return plane->funcs->update_plane(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, ctx);
+}
+
 static int setplane_internal(struct drm_plane *plane,
 			     struct drm_crtc *crtc,
 			     struct drm_framebuffer *fb,
@@ -682,9 +742,15 @@ retry:
 	ret = drm_modeset_lock_all_ctx(plane->dev, &ctx);
 	if (ret)
 		goto fail;
-	ret = __setplane_internal(plane, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  src_x, src_y, src_w, src_h, &ctx);
+
+	if (drm_drv_uses_atomic_modeset(plane->dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					src_x, src_y, src_w, src_h, &ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  src_x, src_y, src_w, src_h, &ctx);
 
 fail:
 	if (ret == -EDEADLK) {
@@ -756,6 +822,7 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				     struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_plane *plane = crtc->cursor;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_mode_fb_cmd2 fbreq = {
 		.width = req->width,
@@ -769,8 +836,8 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 	uint32_t src_w = 0, src_h = 0;
 	int ret = 0;
 
-	BUG_ON(!crtc->cursor);
-	WARN_ON(crtc->cursor->crtc != crtc && crtc->cursor->crtc != NULL);
+	BUG_ON(!plane);
+	WARN_ON(plane->crtc != crtc && plane->crtc != NULL);
 
 	/*
 	 * Obtain fb we'll be using (either new or existing) and take an extra
@@ -784,13 +851,18 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 				DRM_DEBUG_KMS("failed to wrap cursor buffer in drm framebuffer\n");
 				return PTR_ERR(fb);
 			}
+
 			fb->hot_x = req->hot_x;
 			fb->hot_y = req->hot_y;
 		} else {
 			fb = NULL;
 		}
 	} else {
-		fb = crtc->cursor->fb;
+		if (plane->state)
+			fb = plane->state->fb;
+		else
+			fb = plane->fb;
+
 		if (fb)
 			drm_framebuffer_get(fb);
 	}
@@ -810,9 +882,14 @@ static int drm_mode_cursor_universal(struct drm_crtc *crtc,
 		src_h = fb->height << 16;
 	}
 
-	ret = __setplane_internal(crtc->cursor, crtc, fb,
-				  crtc_x, crtc_y, crtc_w, crtc_h,
-				  0, 0, src_w, src_h, ctx);
+	if (drm_drv_uses_atomic_modeset(dev))
+		ret = __setplane_atomic(plane, crtc, fb,
+					crtc_x, crtc_y, crtc_w, crtc_h,
+					0, 0, src_w, src_h, ctx);
+	else
+		ret = __setplane_internal(plane, crtc, fb,
+					  crtc_x, crtc_y, crtc_w, crtc_h,
+					  0, 0, src_w, src_h, ctx);
 
 	if (fb)
 		drm_framebuffer_put(fb);
@@ -931,7 +1008,8 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 {
 	struct drm_mode_crtc_page_flip_target *page_flip = data;
 	struct drm_crtc *crtc;
-	struct drm_framebuffer *fb = NULL;
+	struct drm_plane *plane;
+	struct drm_framebuffer *fb = NULL, *old_fb;
 	struct drm_pending_vblank_event *e = NULL;
 	u32 target_vblank = page_flip->sequence;
 	struct drm_modeset_acquire_ctx ctx;
@@ -958,6 +1036,8 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	crtc = drm_crtc_find(dev, file_priv, page_flip->crtc_id);
 	if (!crtc)
 		return -ENOENT;
+
+	plane = crtc->primary;
 
 	if (crtc->funcs->page_flip_target) {
 		u32 current_vblank;
@@ -1003,11 +1083,16 @@ retry:
 	ret = drm_modeset_lock(&crtc->mutex, &ctx);
 	if (ret)
 		goto out;
-	ret = drm_modeset_lock(&crtc->primary->mutex, &ctx);
+	ret = drm_modeset_lock(&plane->mutex, &ctx);
 	if (ret)
 		goto out;
 
-	if (crtc->primary->fb == NULL) {
+	if (plane->state)
+		old_fb = plane->state->fb;
+	else
+		old_fb = plane->fb;
+
+	if (old_fb == NULL) {
 		/* The framebuffer is currently unbound, presumably
 		 * due to a hotplug event, that userspace has not
 		 * yet discovered.
@@ -1022,8 +1107,8 @@ retry:
 		goto out;
 	}
 
-	if (crtc->state) {
-		const struct drm_plane_state *state = crtc->primary->state;
+	if (plane->state) {
+		const struct drm_plane_state *state = plane->state;
 
 		ret = drm_framebuffer_check_src_coords(state->src_x,
 						       state->src_y,
@@ -1031,12 +1116,13 @@ retry:
 						       state->src_h,
 						       fb);
 	} else {
-		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y, &crtc->mode, fb);
+		ret = drm_crtc_check_viewport(crtc, crtc->x, crtc->y,
+					      &crtc->mode, fb);
 	}
 	if (ret)
 		goto out;
 
-	if (crtc->primary->fb->format != fb->format) {
+	if (old_fb->format != fb->format) {
 		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
 		ret = -EINVAL;
 		goto out;
@@ -1048,10 +1134,12 @@ retry:
 			ret = -ENOMEM;
 			goto out;
 		}
+
 		e->event.base.type = DRM_EVENT_FLIP_COMPLETE;
 		e->event.base.length = sizeof(e->event);
 		e->event.vbl.user_data = page_flip->user_data;
 		e->event.vbl.crtc_id = crtc->base.id;
+
 		ret = drm_event_reserve_init(dev, file_priv, &e->base, &e->event.base);
 		if (ret) {
 			kfree(e);
@@ -1060,7 +1148,7 @@ retry:
 		}
 	}
 
-	crtc->primary->old_fb = crtc->primary->fb;
+	plane->old_fb = plane->fb;
 	if (crtc->funcs->page_flip_target)
 		ret = crtc->funcs->page_flip_target(crtc, fb, e,
 						    page_flip->flags,
@@ -1073,19 +1161,20 @@ retry:
 		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT)
 			drm_event_cancel_free(dev, &e->base);
 		/* Keep the old fb, don't unref it. */
-		crtc->primary->old_fb = NULL;
+		plane->old_fb = NULL;
 	} else {
-		crtc->primary->fb = fb;
-		/* Unref only the old framebuffer. */
-		fb = NULL;
+		if (!plane->state) {
+			plane->fb = fb;
+			drm_framebuffer_get(fb);
+		}
 	}
 
 out:
 	if (fb)
 		drm_framebuffer_put(fb);
-	if (crtc->primary->old_fb)
-		drm_framebuffer_put(crtc->primary->old_fb);
-	crtc->primary->old_fb = NULL;
+	if (plane->old_fb)
+		drm_framebuffer_put(plane->old_fb);
+	plane->old_fb = NULL;
 
 	if (ret == -EDEADLK) {
 		ret = drm_modeset_backoff(&ctx);

@@ -189,9 +189,15 @@ void acpi_db_dump_namespace(char *start_arg, char *depth_arg)
 	}
 
 	acpi_db_set_output_destination(ACPI_DB_DUPLICATE_OUTPUT);
-	acpi_os_printf("ACPI Namespace (from %4.4s (%p) subtree):\n",
-		       ((struct acpi_namespace_node *)subtree_entry)->name.
-		       ascii, subtree_entry);
+
+	if (((struct acpi_namespace_node *)subtree_entry)->parent) {
+		acpi_os_printf("ACPI Namespace (from %4.4s (%p) subtree):\n",
+			       ((struct acpi_namespace_node *)subtree_entry)->
+			       name.ascii, subtree_entry);
+	} else {
+		acpi_os_printf("ACPI Namespace (from %s):\n",
+			       ACPI_NAMESPACE_ROOT);
+	}
 
 	/* Display the subtree */
 
@@ -316,6 +322,7 @@ acpi_db_walk_and_match_name(acpi_handle obj_handle,
 		acpi_os_printf("Could Not get pathname for object %p\n",
 			       obj_handle);
 	} else {
+		info.count = 0;
 		info.owner_id = ACPI_OWNER_ID_MAX;
 		info.debug_level = ACPI_UINT32_MAX;
 		info.display_type = ACPI_DISPLAY_SUMMARY | ACPI_DISPLAY_SHORT;

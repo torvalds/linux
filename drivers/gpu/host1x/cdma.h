@@ -44,7 +44,7 @@ struct host1x_job;
 struct push_buffer {
 	void *mapped;			/* mapped pushbuffer memory */
 	dma_addr_t dma;			/* device address of pushbuffer */
-	phys_addr_t phys;		/* physical address of pushbuffer */
+	dma_addr_t phys;		/* physical address of pushbuffer */
 	u32 fence;			/* index we've written */
 	u32 pos;			/* index to write to */
 	u32 size;
@@ -58,7 +58,7 @@ struct buffer_timeout {
 	u32 syncpt_val;			/* syncpt value when completed */
 	ktime_t start_ktime;		/* starting time */
 	/* context timeout information */
-	int client;
+	struct host1x_client *client;
 };
 
 enum cdma_event {

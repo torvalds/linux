@@ -1025,7 +1025,7 @@ static int alauda_write_data(struct us_data *us, unsigned long address,
 	 * We also need a temporary block buffer, where we read in the old data,
 	 * overwrite parts with the new data, and manipulate the redundancy data
 	 */
-	blockbuffer = kmalloc((pagesize + 64) * blocksize, GFP_NOIO);
+	blockbuffer = kmalloc_array(pagesize + 64, blocksize, GFP_NOIO);
 	if (!blockbuffer) {
 		kfree(buffer);
 		return USB_STOR_TRANSPORT_ERROR;

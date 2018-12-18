@@ -42,14 +42,7 @@ static void
 force_sig_info_fault(int si_signo, int si_code, unsigned long address,
 		     struct task_struct *tsk)
 {
-	siginfo_t info;
-
-	info.si_signo	= si_signo;
-	info.si_errno	= 0;
-	info.si_code	= si_code;
-	info.si_addr	= (void __user *)address;
-
-	force_sig_info(si_signo, &info, tsk);
+	force_sig_fault(si_signo, si_code, (void __user *)address, tsk);
 }
 
 /*
@@ -320,7 +313,7 @@ do_sigbus(struct pt_regs *regs, unsigned long error_code, unsigned long address)
 
 static noinline int
 mm_fault_error(struct pt_regs *regs, unsigned long error_code,
-	       unsigned long address, unsigned int fault)
+	       unsigned long address, vm_fault_t fault)
 {
 	/*
 	 * Pagefault was interrupted by SIGKILL. We have no reason to
@@ -403,7 +396,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	struct vm_area_struct * vma;
-	int fault;
+	vm_fault_t fault;
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
 	tsk = current;

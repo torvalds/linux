@@ -434,4 +434,6 @@ EXPORT(sysn32_call_table)
 	PTR	sys_pkey_alloc
 	PTR	sys_pkey_free
 	PTR	sys_statx			/* 6330 */
+	PTR	sys_rseq
+	PTR	compat_sys_io_pgetevents
 	.size	sysn32_call_table,.-sysn32_call_table

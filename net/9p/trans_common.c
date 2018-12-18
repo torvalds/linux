@@ -16,7 +16,7 @@
 #include <linux/module.h>
 
 /**
- *  p9_release_req_pages - Release pages after the transaction.
+ *  p9_release_pages - Release pages after the transaction.
  */
 void p9_release_pages(struct page **pages, int nr_pages)
 {

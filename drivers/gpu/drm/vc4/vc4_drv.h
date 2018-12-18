@@ -6,10 +6,13 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/mm_types.h>
 #include <linux/reservation.h>
 #include <drm/drmP.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_syncobj.h>
 
 #include "uapi/drm/vc4_drm.h"
 
@@ -70,6 +73,7 @@ struct vc4_dev {
 	struct vc4_dpi *dpi;
 	struct vc4_dsi *dsi1;
 	struct vc4_vec *vec;
+	struct vc4_txp *txp;
 
 	struct vc4_hang_state *hang_state;
 
@@ -193,6 +197,9 @@ struct vc4_dev {
 	} hangcheck;
 
 	struct semaphore async_modeset;
+
+	struct drm_modeset_lock ctm_state_lock;
+	struct drm_private_obj ctm_manager;
 };
 
 static inline struct vc4_dev *
@@ -390,6 +397,39 @@ static inline struct vc4_encoder *
 to_vc4_encoder(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct vc4_encoder, base);
+}
+
+struct vc4_crtc_data {
+	/* Which channel of the HVS this pixelvalve sources from. */
+	int hvs_channel;
+
+	enum vc4_encoder_type encoder_types[4];
+};
+
+struct vc4_crtc {
+	struct drm_crtc base;
+	const struct vc4_crtc_data *data;
+	void __iomem *regs;
+
+	/* Timestamp at start of vblank irq - unaffected by lock delays. */
+	ktime_t t_vblank;
+
+	/* Which HVS channel we're using for our CRTC. */
+	int channel;
+
+	u8 lut_r[256];
+	u8 lut_g[256];
+	u8 lut_b[256];
+	/* Size in pixels of the COB memory allocated to this CRTC. */
+	u32 cob_size;
+
+	struct drm_pending_vblank_event *event;
+};
+
+static inline struct vc4_crtc *
+to_vc4_crtc(struct drm_crtc *crtc)
+{
+	return (struct vc4_crtc *)crtc;
 }
 
 #define V3D_READ(offset) readl(vc4->v3d->regs + offset)
@@ -636,7 +676,7 @@ int vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int vc4_label_bo_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-int vc4_fault(struct vm_fault *vmf);
+vm_fault_t vc4_fault(struct vm_fault *vmf);
 int vc4_mmap(struct file *filp, struct vm_area_struct *vma);
 struct reservation_object *vc4_prime_res_obj(struct drm_gem_object *obj);
 int vc4_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma);
@@ -659,6 +699,8 @@ bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
 			     ktime_t *stime, ktime_t *etime,
 			     const struct drm_display_mode *mode);
+void vc4_crtc_handle_vblank(struct vc4_crtc *crtc);
+void vc4_crtc_txp_armed(struct drm_crtc_state *state);
 
 /* vc4_debugfs.c */
 int vc4_debugfs_init(struct drm_minor *minor);
@@ -705,6 +747,10 @@ int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused);
 /* vc4_vec.c */
 extern struct platform_driver vc4_vec_driver;
 int vc4_vec_debugfs_regs(struct seq_file *m, void *unused);
+
+/* vc4_txp.c */
+extern struct platform_driver vc4_txp_driver;
+int vc4_txp_debugfs_regs(struct seq_file *m, void *unused);
 
 /* vc4_irq.c */
 irqreturn_t vc4_irq(int irq, void *arg);

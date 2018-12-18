@@ -529,6 +529,48 @@ int dpsw_if_set_tci(struct fsl_mc_io *mc_io,
 }
 
 /**
+ * dpsw_if_get_tci() - Get default VLAN Tag Control Information (TCI)
+ * @mc_io:	Pointer to MC portal's I/O object
+ * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
+ * @token:	Token of DPSW object
+ * @if_id:	Interface Identifier
+ * @cfg:	Tag Control Information Configuration
+ *
+ * Return:	Completion status. '0' on Success; Error code otherwise.
+ */
+int dpsw_if_get_tci(struct fsl_mc_io *mc_io,
+		    u32 cmd_flags,
+		    u16 token,
+		    u16 if_id,
+		    struct dpsw_tci_cfg *cfg)
+{
+	struct fsl_mc_command cmd = { 0 };
+	struct dpsw_cmd_if_get_tci *cmd_params;
+	struct dpsw_rsp_if_get_tci *rsp_params;
+	int err;
+
+	/* prepare command */
+	cmd.header = mc_encode_cmd_header(DPSW_CMDID_IF_GET_TCI,
+					  cmd_flags,
+					  token);
+	cmd_params = (struct dpsw_cmd_if_get_tci *)cmd.params;
+	cmd_params->if_id = cpu_to_le16(if_id);
+
+	/* send command to mc*/
+	err = mc_send_command(mc_io, &cmd);
+	if (err)
+		return err;
+
+	/* retrieve response parameters */
+	rsp_params = (struct dpsw_rsp_if_get_tci *)cmd.params;
+	cfg->pcp = rsp_params->pcp;
+	cfg->dei = rsp_params->dei;
+	cfg->vlan_id = le16_to_cpu(rsp_params->vlan_id);
+
+	return 0;
+}
+
+/**
  * dpsw_if_set_stp() - Function sets Spanning Tree Protocol (STP) state.
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'

@@ -89,9 +89,6 @@ static void BlinkWorkItemCallback(struct work_struct *work);
 static void InitLed871x(struct _adapter *padapter, struct LED_871x *pLed,
 		 enum LED_PIN_871x	LedPin)
 {
-	struct  net_device *nic;
-
-	nic = padapter->pnetdev;
 	pLed->padapter = padapter;
 	pLed->LedPin = LedPin;
 	pLed->CurrLedState = LED_STATE_OFF;

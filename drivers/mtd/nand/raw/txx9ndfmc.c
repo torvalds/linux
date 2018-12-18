@@ -20,7 +20,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
-#include <asm/txx9/ndfmc.h>
+#include <linux/platform_data/txx9/ndfmc.h>
 
 /* TXX9 NDFMC Registers */
 #define TXX9_NDFDTR	0x00
@@ -73,7 +73,7 @@ struct txx9ndfmc_drvdata {
 	void __iomem *base;
 	unsigned char hold;	/* in gbusclock */
 	unsigned char spw;	/* in gbusclock */
-	struct nand_hw_control hw_control;
+	struct nand_controller controller;
 };
 
 static struct platform_device *mtd_to_platdev(struct mtd_info *mtd)
@@ -254,22 +254,24 @@ static void txx9ndfmc_initialize(struct platform_device *dev)
 #define TXX9NDFMC_NS_TO_CYC(gbusclk, ns) \
 	DIV_ROUND_UP((ns) * DIV_ROUND_UP(gbusclk, 1000), 1000000)
 
-static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
+static int txx9ndfmc_attach_chip(struct nand_chip *chip)
 {
-	struct nand_chip *chip = mtd_to_nand(mtd);
-	int ret;
+	struct mtd_info *mtd = nand_to_mtd(chip);
 
-	ret = nand_scan_ident(mtd, 1, NULL);
-	if (!ret) {
-		if (mtd->writesize >= 512) {
-			/* Hardware ECC 6 byte ECC per 512 Byte data */
-			chip->ecc.size = 512;
-			chip->ecc.bytes = 6;
-		}
-		ret = nand_scan_tail(mtd);
+	if (mtd->writesize >= 512) {
+		chip->ecc.size = 512;
+		chip->ecc.bytes = 6;
+	} else {
+		chip->ecc.size = 256;
+		chip->ecc.bytes = 3;
 	}
-	return ret;
+
+	return 0;
 }
+
+static const struct nand_controller_ops txx9ndfmc_controller_ops = {
+	.attach_chip = txx9ndfmc_attach_chip,
+};
 
 static int __init txx9ndfmc_probe(struct platform_device *dev)
 {
@@ -303,7 +305,8 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 	dev_info(&dev->dev, "CLK:%ldMHz HOLD:%d SPW:%d\n",
 		 (gbusclk + 500000) / 1000000, hold, spw);
 
-	nand_hw_control_init(&drvdata->hw_control);
+	nand_controller_init(&drvdata->controller);
+	drvdata->controller.ops = &txx9ndfmc_controller_ops;
 
 	platform_set_drvdata(dev, drvdata);
 	txx9ndfmc_initialize(dev);
@@ -332,12 +335,9 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		chip->ecc.correct = txx9ndfmc_correct_data;
 		chip->ecc.hwctl = txx9ndfmc_enable_hwecc;
 		chip->ecc.mode = NAND_ECC_HW;
-		/* txx9ndfmc_nand_scan will overwrite ecc.size and ecc.bytes */
-		chip->ecc.size = 256;
-		chip->ecc.bytes = 3;
 		chip->ecc.strength = 1;
 		chip->chip_delay = 100;
-		chip->controller = &drvdata->hw_control;
+		chip->controller = &drvdata->controller;
 
 		nand_set_controller_data(chip, txx9_priv);
 		txx9_priv->dev = dev;
@@ -359,14 +359,14 @@ static int __init txx9ndfmc_probe(struct platform_device *dev)
 		if (plat->wide_mask & (1 << i))
 			chip->options |= NAND_BUSWIDTH_16;
 
-		if (txx9ndfmc_nand_scan(mtd)) {
+		if (nand_scan(mtd, 1)) {
 			kfree(txx9_priv->mtdname);
 			kfree(txx9_priv);
 			continue;
 		}
 		mtd->name = txx9_priv->mtdname;
 
-		mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
+		mtd_device_register(mtd, NULL, 0);
 		drvdata->mtds[i] = mtd;
 	}
 

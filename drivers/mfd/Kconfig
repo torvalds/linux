@@ -202,26 +202,6 @@ config MFD_CROS_EC
 	  You also need to enable the driver for the bus you are using. The
 	  protocol for talking to the EC is defined by the bus driver.
 
-config MFD_CROS_EC_I2C
-	tristate "ChromeOS Embedded Controller (I2C)"
-	depends on MFD_CROS_EC && I2C
-
-	help
-	  If you say Y here, you get support for talking to the ChromeOS
-	  EC through an I2C bus. This uses a simple byte-level protocol with
-	  a checksum. Failing accesses will be retried three times to
-	  improve reliability.
-
-config MFD_CROS_EC_SPI
-	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && SPI
-
-	---help---
-	  If you say Y here, you get support for talking to the ChromeOS EC
-	  through a SPI bus, using a byte-level protocol. Since the EC's
-	  response time cannot be guaranteed, we support ignoring
-	  'pre-amble' bytes before the response actually starts.
-
 config MFD_CROS_EC_CHARDEV
         tristate "Chrome OS Embedded Controller userspace device interface"
         depends on MFD_CROS_EC
@@ -231,6 +211,56 @@ config MFD_CROS_EC_CHARDEV
 
           If you have a supported Chromebook, choose Y or M here.
           The module will be called cros_ec_dev.
+
+config MFD_MADERA
+	tristate "Cirrus Logic Madera codecs"
+	select MFD_CORE
+	select REGMAP
+	select REGMAP_IRQ
+	select MADERA_IRQ
+	select PINCTRL
+	select PINCTRL_MADERA
+	help
+	  Support for the Cirrus Logic Madera platform audio codecs
+
+config MFD_MADERA_I2C
+	tristate "Cirrus Logic Madera codecs with I2C"
+	depends on MFD_MADERA
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support for the Cirrus Logic Madera platform audio SoC
+	  core functionality controlled via I2C.
+
+config MFD_MADERA_SPI
+	tristate "Cirrus Logic Madera codecs with SPI"
+	depends on MFD_MADERA
+	depends on SPI_MASTER
+	select REGMAP_SPI
+	help
+	  Support for the Cirrus Logic Madera platform audio SoC
+	  core functionality controlled via SPI.
+
+config MFD_CS47L35
+	bool "Cirrus Logic CS47L35"
+	select PINCTRL_CS47L35
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L35 Smart Codec
+
+config MFD_CS47L85
+	bool "Cirrus Logic CS47L85"
+	select PINCTRL_CS47L85
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L85 Smart Codec
+
+config MFD_CS47L90
+	bool "Cirrus Logic CS47L90/91"
+	select PINCTRL_CS47L90
+	depends on MFD_MADERA
+	help
+	  Support for Cirrus Logic CS47L90 and CS47L91 Smart Codecs
 
 config MFD_ASIC3
 	bool "Compaq ASIC3"
@@ -1786,6 +1816,19 @@ config MFD_STW481X
 	  Select this option to enable the STw481x chip driver used
 	  in various ST Microelectronics and ST-Ericsson embedded
 	  Nomadik series.
+
+config MFD_ROHM_BD718XX
+	tristate "ROHM BD71837 Power Management IC"
+	depends on I2C=y
+	depends on OF
+	select REGMAP_I2C
+	select REGMAP_IRQ
+	select MFD_CORE
+	help
+	  Select this option to get support for the ROHM BD71837
+	  Power Management ICs. BD71837 is designed to power processors like
+	  NXP i.MX8. It contains 8 BUCK outputs and 7 LDOs, voltage monitoring
+	  and emergency shut down as well as 32,768KHz clock output.
 
 config MFD_STM32_LPTIMER
 	tristate "Support for STM32 Low-Power Timer"

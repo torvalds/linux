@@ -65,8 +65,7 @@ enum qed_roce_qp_state {
 enum qed_rdma_tid_type {
 	QED_RDMA_TID_REGISTERED_MR,
 	QED_RDMA_TID_FMR,
-	QED_RDMA_TID_MW_TYPE1,
-	QED_RDMA_TID_MW_TYPE2A
+	QED_RDMA_TID_MW
 };
 
 struct qed_rdma_events {
@@ -280,7 +279,6 @@ struct qed_rdma_register_tid_in_params {
 
 	bool dif_enabled;
 	u64 dif_error_addr;
-	u64 dif_runt_addr;
 };
 
 struct qed_rdma_create_cq_in_params {
@@ -485,7 +483,9 @@ enum qed_iwarp_event_type {
 	QED_IWARP_EVENT_ACTIVE_MPA_REPLY,
 	QED_IWARP_EVENT_LOCAL_ACCESS_ERROR,
 	QED_IWARP_EVENT_REMOTE_OPERATION_ERROR,
-	QED_IWARP_EVENT_TERMINATE_RECEIVED
+	QED_IWARP_EVENT_TERMINATE_RECEIVED,
+	QED_IWARP_EVENT_SRQ_LIMIT,
+	QED_IWARP_EVENT_SRQ_EMPTY,
 };
 
 enum qed_tcp_ip_version {
@@ -645,6 +645,14 @@ struct qed_rdma_ops {
 	int (*rdma_deregister_tid)(void *rdma_cxt, u32 itid);
 	int (*rdma_alloc_tid)(void *rdma_cxt, u32 *itid);
 	void (*rdma_free_tid)(void *rdma_cxt, u32 itid);
+
+	int (*rdma_create_srq)(void *rdma_cxt,
+			       struct qed_rdma_create_srq_in_params *iparams,
+			       struct qed_rdma_create_srq_out_params *oparams);
+	int (*rdma_destroy_srq)(void *rdma_cxt,
+				struct qed_rdma_destroy_srq_in_params *iparams);
+	int (*rdma_modify_srq)(void *rdma_cxt,
+			       struct qed_rdma_modify_srq_in_params *iparams);
 
 	int (*ll2_acquire_connection)(void *rdma_cxt,
 				      struct qed_ll2_acquire_data *data);

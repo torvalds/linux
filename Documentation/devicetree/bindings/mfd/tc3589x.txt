@@ -15,7 +15,6 @@ Required properties:
  - compatible : must be "toshiba,tc35890", "toshiba,tc35892", "toshiba,tc35893",
    "toshiba,tc35894", "toshiba,tc35895" or "toshiba,tc35896"
  - reg : I2C address of the device
- - interrupt-parent : specifies which IRQ controller we're connected to
  - interrupts : the interrupt on the parent the controller is connected to
  - interrupt-controller : marks the device node as an interrupt controller
  - #interrupt-cells : should be <1>, the first cell is the IRQ offset on this

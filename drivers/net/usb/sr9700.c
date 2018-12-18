@@ -358,7 +358,7 @@ static int sr9700_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* power up and reset phy */
 	sr_write_reg(dev, SR_PRR, PRR_PHY_RST);
 	/* at least 10ms, here 20ms for safe */
-	mdelay(20);
+	msleep(20);
 	sr_write_reg(dev, SR_PRR, 0);
 	/* at least 1ms, here 2ms for reading right register */
 	udelay(2 * 1000);

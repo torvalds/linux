@@ -117,9 +117,6 @@ static int hdpvr_transfer(struct i2c_adapter *i2c_adapter, struct i2c_msg *msgs,
 	struct hdpvr_device *dev = i2c_get_adapdata(i2c_adapter);
 	int retval = 0, addr;
 
-	if (num <= 0)
-		return 0;
-
 	mutex_lock(&dev->i2c_mutex);
 
 	addr = msgs[0].addr << 1;
@@ -173,7 +170,7 @@ static const struct i2c_algorithm hdpvr_algo = {
 };
 
 static const struct i2c_adapter hdpvr_i2c_adapter_template = {
-	.name   = "Hauppage HD PVR I2C",
+	.name   = "Hauppauge HD PVR I2C",
 	.owner  = THIS_MODULE,
 	.algo   = &hdpvr_algo,
 };

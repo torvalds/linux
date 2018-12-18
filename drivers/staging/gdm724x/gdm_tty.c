@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -43,7 +33,7 @@ static struct tty_driver *gdm_driver[TTY_MAX_COUNT];
 static struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MINOR];
 static DEFINE_MUTEX(gdm_table_lock);
 
-static char *DRIVER_STRING[TTY_MAX_COUNT] = {"GCTATC", "GCTDM"};
+static const char *DRIVER_STRING[TTY_MAX_COUNT] = {"GCTATC", "GCTDM"};
 static char *DEVICE_STRING[TTY_MAX_COUNT] = {"GCT-ATC", "GCT-DM"};
 
 static void gdm_port_destruct(struct tty_port *port)
@@ -65,22 +55,14 @@ static int gdm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct gdm *gdm = NULL;
 	int ret;
-	int i;
-	int j;
 
-	j = GDM_TTY_MINOR;
-	for (i = 0; i < TTY_MAX_COUNT; i++) {
-		if (!strcmp(tty->driver->driver_name, DRIVER_STRING[i])) {
-			j = tty->index;
-			break;
-		}
-	}
-
-	if (j == GDM_TTY_MINOR)
+	ret = match_string(DRIVER_STRING, TTY_MAX_COUNT,
+			   tty->driver->driver_name);
+	if (ret < 0)
 		return -ENODEV;
 
 	mutex_lock(&gdm_table_lock);
-	gdm = gdm_table[i][j];
+	gdm = gdm_table[ret][tty->index];
 	if (!gdm) {
 		mutex_unlock(&gdm_table_lock);
 		return -ENODEV;

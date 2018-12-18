@@ -668,6 +668,7 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
 	local_irq_save(flags);
 	memcpy(addr, opcode, len);
 	local_irq_restore(flags);
+	sync_core();
 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
 	   that causes hangs on some VIA CPUs. */
 	return addr;
@@ -692,6 +693,12 @@ void *text_poke(void *addr, const void *opcode, size_t len)
 	char *vaddr;
 	struct page *pages[2];
 	int i;
+
+	/*
+	 * While boot memory allocator is runnig we cannot use struct
+	 * pages as they are not yet initialized.
+	 */
+	BUG_ON(!after_bootmem);
 
 	if (!core_kernel_text((unsigned long)addr)) {
 		pages[0] = vmalloc_to_page(addr);

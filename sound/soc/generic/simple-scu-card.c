@@ -1,15 +1,12 @@
-/*
- * ASoC simple SCU sound card support
- *
- * Copyright (C) 2015 Renesas Solutions Corp.
- * Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
- *
- * based on ${LINUX}/sound/soc/generic/simple-card.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// ASoC simple SCU sound card support
+//
+// Copyright (C) 2015 Renesas Solutions Corp.
+// Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+//
+// based on ${LINUX}/sound/soc/generic/simple-card.c
+
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/module.h>
@@ -246,8 +243,8 @@ static int asoc_simple_card_probe(struct platform_device *pdev)
 
 	num = of_get_child_count(np);
 
-	dai_props = devm_kzalloc(dev, sizeof(*dai_props) * num, GFP_KERNEL);
-	dai_link  = devm_kzalloc(dev, sizeof(*dai_link)  * num, GFP_KERNEL);
+	dai_props = devm_kcalloc(dev, num, sizeof(*dai_props), GFP_KERNEL);
+	dai_link  = devm_kcalloc(dev, num, sizeof(*dai_link), GFP_KERNEL);
 	if (!dai_props || !dai_link)
 		return -ENOMEM;
 

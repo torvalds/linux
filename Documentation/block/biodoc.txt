@@ -752,18 +752,6 @@ completion of the request to the block layer. This means ending tag
 operations before calling end_that_request_last()! For an example of a user
 of these helpers, see the IDE tagged command queueing support.
 
-Certain hardware conditions may dictate a need to invalidate the block tag
-queue. For instance, on IDE any tagged request error needs to clear both
-the hardware and software block queue and enable the driver to sanely restart
-all the outstanding requests. There's a third helper to do that:
-
-	blk_queue_invalidate_tags(struct request_queue *q)
-
-	Clear the internal block tag queue and re-add all the pending requests
-	to the request queue. The driver will receive them again on the
-	next request_fn run, just like it did the first time it encountered
-	them.
-
 3.2.5.2 Tag info
 
 Some block functions exist to query current tag status or to go from a
@@ -805,8 +793,7 @@ Internally, block manages tags in the blk_queue_tag structure:
 Most of the above is simple and straight forward, however busy_list may need
 a bit of explaining. Normally we don't care too much about request ordering,
 but in the event of any barrier requests in the tag queue we need to ensure
-that requests are restarted in the order they were queue. This may happen
-if the driver needs to use blk_queue_invalidate_tags().
+that requests are restarted in the order they were queue.
 
 3.3 I/O Submission
 

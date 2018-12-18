@@ -105,7 +105,24 @@ struct mpc {
 	struct mpcc mpcc_array[MAX_MPCC];
 };
 
+struct mpcc_state {
+	uint32_t opp_id;
+	uint32_t dpp_id;
+	uint32_t bot_mpcc_id;
+	uint32_t mode;
+	uint32_t alpha_mode;
+	uint32_t pre_multiplied_alpha;
+	uint32_t overlap_only;
+	uint32_t idle;
+	uint32_t busy;
+};
+
 struct mpc_funcs {
+	void (*read_mpcc_state)(
+			struct mpc *mpc,
+			int mpcc_inst,
+			struct mpcc_state *s);
+
 	/*
 	 * Insert DPP into MPC tree based on specified blending position.
 	 * Only used for planes that are part of blending chain for OPP output
