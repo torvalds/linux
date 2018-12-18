@@ -14,6 +14,10 @@ upgrade the ACPI execution environment that is defined by the ACPI tables
 via upgrading the ACPI tables provided by the BIOS with an instrumented,
 modified, more recent version one, or installing brand new ACPI tables.
 
+When building initrd with kernel in a single image, option
+ACPI_TABLE_OVERRIDE_VIA_BUILTIN_INITRD should also be true for this
+feature to work.
+
 For a full list of ACPI tables that can be upgraded/installed, take a look
 at the char *table_sigs[MAX_ACPI_SIGNATURE]; definition in
 drivers/acpi/tables.c.
