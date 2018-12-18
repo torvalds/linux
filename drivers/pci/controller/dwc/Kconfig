@@ -193,4 +193,14 @@ config PCIE_HISI_STB
 	help
           Say Y here if you want PCIe controller support on HiSilicon STB SoCs
 
+config PCI_MESON
+	bool "MESON PCIe controller"
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCI controller support on Amlogic
+	  SoCs. The PCI controller on Amlogic is based on DesignWare hardware
+	  and therefore the driver re-uses the DesignWare core functions to
+	  implement the driver.
+
 endmenu
