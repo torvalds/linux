@@ -114,8 +114,8 @@ typedef enum {
 	{ XFS_LOOKUP_GEi,	"ge" }
 
 /*
- * This enum is used in string mapping in xfs_trace.h; please keep the
- * TRACE_DEFINE_ENUMs for it up to date.
+ * This enum is used in string mapping in xfs_trace.h and scrub/trace.h;
+ * please keep the TRACE_DEFINE_ENUMs for it up to date.
  */
 typedef enum {
 	XFS_BTNUM_BNOi, XFS_BTNUM_CNTi, XFS_BTNUM_RMAPi, XFS_BTNUM_BMAPi,
