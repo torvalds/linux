@@ -215,10 +215,6 @@ static void free_gid_entry_locked(struct ib_gid_table_entry *entry)
 	dev_dbg(&device->dev, "%s port=%d index=%d gid %pI6\n", __func__,
 		port_num, entry->attr.index, entry->attr.gid.raw);
 
-	if (rdma_cap_roce_gid_table(device, port_num) &&
-	    entry->state != GID_TABLE_ENTRY_INVALID)
-		device->ops.del_gid(&entry->attr, &entry->context);
-
 	write_lock_irq(&table->rwlock);
 
 	/*
@@ -363,6 +359,9 @@ static void del_gid(struct ib_device *ib_dev, u8 port,
 	if (!rdma_protocol_roce(ib_dev, port))
 		table->data_vec[ix] = NULL;
 	write_unlock_irq(&table->rwlock);
+
+	if (rdma_cap_roce_gid_table(ib_dev, port))
+		ib_dev->ops.del_gid(&entry->attr, &entry->context);
 
 	put_gid_entry_locked(entry);
 }
