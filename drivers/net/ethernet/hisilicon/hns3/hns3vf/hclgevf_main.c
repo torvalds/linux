@@ -1342,6 +1342,9 @@ static int hclgevf_reset(struct hclgevf_dev *hdev)
 
 	rtnl_unlock();
 
+	hdev->last_reset_time = jiffies;
+	ae_dev->reset_type = HNAE3_NONE_RESET;
+
 	return ret;
 err_reset_lock:
 	rtnl_unlock();
@@ -2401,9 +2404,9 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 	if (test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
 		hclgevf_misc_irq_uninit(hdev);
 		hclgevf_uninit_msi(hdev);
-		hclgevf_pci_uninit(hdev);
 	}
 
+	hclgevf_pci_uninit(hdev);
 	hclgevf_cmd_uninit(hdev);
 }
 

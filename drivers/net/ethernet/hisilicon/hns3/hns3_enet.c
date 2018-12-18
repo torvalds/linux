@@ -240,7 +240,6 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
 	tqp_vector->tx_group.coal.int_gl = HNS3_INT_GL_50K;
 	tqp_vector->rx_group.coal.int_gl = HNS3_INT_GL_50K;
 
-	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
 	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
 }
@@ -2846,10 +2845,10 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
 	bool rx_update, tx_update;
 
-	if (tqp_vector->int_adapt_down > 0) {
-		tqp_vector->int_adapt_down--;
+	/* update param every 1000ms */
+	if (time_before(jiffies,
+			tqp_vector->last_jiffies + msecs_to_jiffies(1000)))
 		return;
-	}
 
 	if (rx_group->coal.gl_adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
@@ -2866,7 +2865,6 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	}
 
 	tqp_vector->last_jiffies = jiffies;
-	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 }
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
@@ -2909,8 +2907,8 @@ static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
 	if (!clean_complete)
 		return budget;
 
-	if (likely(!test_bit(HNS3_NIC_STATE_DOWN, &priv->state)) &&
-	    napi_complete(napi)) {
+	if (napi_complete(napi) &&
+	    likely(!test_bit(HNS3_NIC_STATE_DOWN, &priv->state))) {
 		hns3_update_new_int_gl(tqp_vector);
 		hns3_mask_vector_irq(tqp_vector, 1);
 	}
@@ -2993,9 +2991,10 @@ err_free_chain:
 	cur_chain = head->next;
 	while (cur_chain) {
 		chain = cur_chain->next;
-		devm_kfree(&pdev->dev, chain);
+		devm_kfree(&pdev->dev, cur_chain);
 		cur_chain = chain;
 	}
+	head->next = NULL;
 
 	return -ENOMEM;
 }
@@ -3086,7 +3085,7 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 		ret = hns3_get_vector_ring_chain(tqp_vector,
 						 &vector_ring_chain);
 		if (ret)
-			return ret;
+			goto map_ring_fail;
 
 		ret = h->ae_algo->ops->map_ring_to_vector(h,
 			tqp_vector->vector_irq, &vector_ring_chain);
@@ -3180,12 +3179,12 @@ static int hns3_nic_uninit_vector_data(struct hns3_nic_priv *priv)
 
 		hns3_free_vector_ring_chain(tqp_vector, &vector_ring_chain);
 
-		if (priv->tqp_vector[i].irq_init_flag == HNS3_VECTOR_INITED) {
-			(void)irq_set_affinity_hint(
-				priv->tqp_vector[i].vector_irq,
-						    NULL);
-			free_irq(priv->tqp_vector[i].vector_irq,
-				 &priv->tqp_vector[i]);
+		if (tqp_vector->irq_init_flag == HNS3_VECTOR_INITED) {
+			irq_set_affinity_notifier(tqp_vector->vector_irq,
+						  NULL);
+			irq_set_affinity_hint(tqp_vector->vector_irq, NULL);
+			free_irq(tqp_vector->vector_irq, tqp_vector);
+			tqp_vector->irq_init_flag = HNS3_VECTOR_NOT_INITED;
 		}
 
 		priv->ring_data[i].ring->irq_init_flag = HNS3_VECTOR_NOT_INITED;

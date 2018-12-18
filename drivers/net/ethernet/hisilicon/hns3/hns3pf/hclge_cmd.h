@@ -420,7 +420,9 @@ struct hclge_pf_res_cmd {
 #define HCLGE_PF_VEC_NUM_M		GENMASK(7, 0)
 	__le16 pf_intr_vector_number;
 	__le16 pf_own_fun_number;
-	__le32 rsv[3];
+	__le16 tx_buf_size;
+	__le16 dv_buf_size;
+	__le32 rsv[2];
 };
 
 #define HCLGE_CFG_OFFSET_S	0
@@ -839,6 +841,7 @@ struct hclge_serdes_lb_cmd {
 #define HCLGE_TOTAL_PKT_BUF		0x108000 /* 1.03125M bytes */
 #define HCLGE_DEFAULT_DV		0xA000	 /* 40k byte */
 #define HCLGE_DEFAULT_NON_DCB_DV	0x7800	/* 30K byte */
+#define HCLGE_NON_DCB_ADDITIONAL_BUF	0x200	/* 512 byte */
 
 #define HCLGE_TYPE_CRQ			0
 #define HCLGE_TYPE_CSQ			1
