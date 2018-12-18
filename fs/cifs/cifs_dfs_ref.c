@@ -295,7 +295,6 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 	int len;
 	int rc;
 	struct vfsmount *mnt;
-	char sep;
 
 	cifs_dbg(FYI, "in %s\n", __func__);
 	BUG_ON(IS_ROOT(mntpt));
@@ -313,8 +312,6 @@ static struct vfsmount *cifs_dfs_do_automount(struct dentry *mntpt)
 		mnt = ERR_PTR(-EREMOTE);
 		goto cdda_exit;
 	}
-
-	sep = CIFS_DIR_SEP(cifs_sb);
 
 	/* always use tree name prefix */
 	full_path = build_path_from_dentry_optional_prefix(mntpt, true);
