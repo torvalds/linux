@@ -59,6 +59,7 @@ domain binding[2].
 
 Required properties:
 - compatible:		Should be one of:
+			  "fsl,imx8qm-scu-pd",
 			  "fsl,imx8qxp-scu-pd"
 			followed by "fsl,scu-pd"
 
