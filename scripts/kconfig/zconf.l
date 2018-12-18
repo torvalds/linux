@@ -1,11 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
+ */
 %option nostdinit noyywrap never-interactive full ecs
 %option 8bit nodefault yylineno
 %x ASSIGN_VAL HELP STRING
 %{
-/*
- * Copyright (C) 2002 Roman Zippel <zippel@linux-m68k.org>
- * Released under the terms of the GNU GPL v2.0.
- */
 
 #include <assert.h>
 #include <limits.h>

@@ -1,9 +1,6 @@
-/* Hey EMACS -*- linux-c -*- */
+// SPDX-License-Identifier: GPL-2.0
 /*
- *
  * Copyright (C) 2002-2003 Romain Lievin <roms@tilp.info>
- * Released under the terms of the GNU GPL v2.0.
- *
  */
 
 #ifdef HAVE_CONFIG_H
