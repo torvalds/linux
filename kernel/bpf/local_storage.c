@@ -315,9 +315,8 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 				    const struct btf_type *key_type,
 				    const struct btf_type *value_type)
 {
-	const struct btf_type *t;
 	struct btf_member *m;
-	u32 id, size;
+	u32 offset, size;
 
 	/* Key is expected to be of struct bpf_cgroup_storage_key type,
 	 * which is:
@@ -338,25 +337,17 @@ static int cgroup_storage_check_btf(const struct bpf_map *map,
 	 * The first field must be a 64 bit integer at 0 offset.
 	 */
 	m = (struct btf_member *)(key_type + 1);
-	if (m->offset)
-		return -EINVAL;
-	id = m->type;
-	t = btf_type_id_size(btf, &id, NULL);
 	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, cgroup_inode_id);
-	if (!t || !btf_type_is_reg_int(t, size))
+	if (!btf_member_is_reg_int(btf, key_type, m, 0, size))
 		return -EINVAL;
 
 	/*
 	 * The second field must be a 32 bit integer at 64 bit offset.
 	 */
 	m++;
-	if (m->offset != offsetof(struct bpf_cgroup_storage_key, attach_type) *
-	    BITS_PER_BYTE)
-		return -EINVAL;
-	id = m->type;
-	t = btf_type_id_size(btf, &id, NULL);
+	offset = offsetof(struct bpf_cgroup_storage_key, attach_type);
 	size = FIELD_SIZEOF(struct bpf_cgroup_storage_key, attach_type);
-	if (!t || !btf_type_is_reg_int(t, size))
+	if (!btf_member_is_reg_int(btf, key_type, m, offset, size))
 		return -EINVAL;
 
 	return 0;
