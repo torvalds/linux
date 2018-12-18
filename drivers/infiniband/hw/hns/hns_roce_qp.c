@@ -209,19 +209,34 @@ static int hns_roce_qp_alloc(struct hns_roce_dev *hr_dev, unsigned long qpn,
 		}
 	}
 
+	if (hr_dev->caps.sccc_entry_sz) {
+		/* Alloc memory for SCC CTX */
+		ret = hns_roce_table_get(hr_dev, &qp_table->sccc_table,
+					 hr_qp->qpn);
+		if (ret) {
+			dev_err(dev, "SCC CTX table get failed\n");
+			goto err_put_trrl;
+		}
+	}
+
 	spin_lock_irq(&qp_table->lock);
 	ret = radix_tree_insert(&hr_dev->qp_table_tree,
 				hr_qp->qpn & (hr_dev->caps.num_qps - 1), hr_qp);
 	spin_unlock_irq(&qp_table->lock);
 	if (ret) {
 		dev_err(dev, "QPC radix_tree_insert failed\n");
-		goto err_put_trrl;
+		goto err_put_sccc;
 	}
 
 	atomic_set(&hr_qp->refcount, 1);
 	init_completion(&hr_qp->free);
 
 	return 0;
+
+err_put_sccc:
+	if (hr_dev->caps.sccc_entry_sz)
+		hns_roce_table_put(hr_dev, &qp_table->sccc_table,
+				   hr_qp->qpn);
 
 err_put_trrl:
 	if (hr_dev->caps.trrl_entry_sz)
@@ -258,6 +273,9 @@ void hns_roce_qp_free(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	wait_for_completion(&hr_qp->free);
 
 	if ((hr_qp->ibqp.qp_type) != IB_QPT_GSI) {
+		if (hr_dev->caps.sccc_entry_sz)
+			hns_roce_table_put(hr_dev, &qp_table->sccc_table,
+					   hr_qp->qpn);
 		if (hr_dev->caps.trrl_entry_sz)
 			hns_roce_table_put(hr_dev, &qp_table->trrl_table,
 					   hr_qp->qpn);

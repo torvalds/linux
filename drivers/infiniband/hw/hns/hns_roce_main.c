@@ -702,7 +702,25 @@ static int hns_roce_init_hem(struct hns_roce_dev *hr_dev)
 		}
 	}
 
+	if (hr_dev->caps.sccc_entry_sz) {
+		ret = hns_roce_init_hem_table(hr_dev,
+					      &hr_dev->qp_table.sccc_table,
+					      HEM_TYPE_SCCC,
+					      hr_dev->caps.sccc_entry_sz,
+					      hr_dev->caps.num_qps, 1);
+		if (ret) {
+			dev_err(dev,
+			      "Failed to init SCC context memory, aborting.\n");
+			goto err_unmap_idx;
+		}
+	}
+
 	return 0;
+
+err_unmap_idx:
+	if (hr_dev->caps.num_idx_segs)
+		hns_roce_cleanup_hem_table(hr_dev,
+					   &hr_dev->mr_table.mtt_idx_table);
 
 err_unmap_srqwqe:
 	if (hr_dev->caps.num_srqwqe_segs)
