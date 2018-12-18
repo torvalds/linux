@@ -20,12 +20,12 @@ static inline void br_drop_fake_rtable(struct sk_buff *skb)
 static inline struct nf_bridge_info *
 nf_bridge_info_get(const struct sk_buff *skb)
 {
-	return skb->nf_bridge;
+	return skb_ext_find(skb, SKB_EXT_BRIDGE_NF);
 }
 
 static inline bool nf_bridge_info_exists(const struct sk_buff *skb)
 {
-	return skb->nf_bridge != NULL;
+	return skb_ext_exist(skb, SKB_EXT_BRIDGE_NF);
 }
 
 static inline int nf_bridge_get_physinif(const struct sk_buff *skb)

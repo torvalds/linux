@@ -132,10 +132,7 @@ static DEFINE_PER_CPU(struct brnf_frag_data, brnf_frag_data_storage);
 
 static void nf_bridge_info_free(struct sk_buff *skb)
 {
-	if (skb->nf_bridge) {
-		nf_bridge_put(skb->nf_bridge);
-		skb->nf_bridge = NULL;
-	}
+	skb_ext_del(skb, SKB_EXT_BRIDGE_NF);
 }
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
@@ -148,19 +145,7 @@ static inline struct net_device *bridge_parent(const struct net_device *dev)
 
 static inline struct nf_bridge_info *nf_bridge_unshare(struct sk_buff *skb)
 {
-	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
-
-	if (refcount_read(&nf_bridge->use) > 1) {
-		struct nf_bridge_info *tmp = nf_bridge_alloc(skb);
-
-		if (tmp) {
-			memcpy(tmp, nf_bridge, sizeof(struct nf_bridge_info));
-			refcount_set(&tmp->use, 1);
-		}
-		nf_bridge_put(nf_bridge);
-		nf_bridge = tmp;
-	}
-	return nf_bridge;
+	return skb_ext_add(skb, SKB_EXT_BRIDGE_NF);
 }
 
 unsigned int nf_bridge_encap_header_len(const struct sk_buff *skb)
@@ -508,7 +493,6 @@ static unsigned int br_nf_pre_routing(void *priv,
 	if (br_validate_ipv4(state->net, skb))
 		return NF_DROP;
 
-	nf_bridge_put(skb->nf_bridge);
 	if (!nf_bridge_alloc(skb))
 		return NF_DROP;
 	if (!setup_pre_routing(skb))

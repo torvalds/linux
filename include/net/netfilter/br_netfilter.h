@@ -6,12 +6,12 @@
 
 static inline struct nf_bridge_info *nf_bridge_alloc(struct sk_buff *skb)
 {
-	skb->nf_bridge = kzalloc(sizeof(struct nf_bridge_info), GFP_ATOMIC);
+	struct nf_bridge_info *b = skb_ext_add(skb, SKB_EXT_BRIDGE_NF);
 
-	if (likely(skb->nf_bridge))
-		refcount_set(&(skb->nf_bridge->use), 1);
+	if (b)
+		memset(b, 0, sizeof(*b));
 
-	return skb->nf_bridge;
+	return b;
 }
 
 void nf_bridge_update_protocol(struct sk_buff *skb);

@@ -187,6 +187,7 @@ config BRIDGE_NETFILTER
 	depends on NETFILTER && INET
 	depends on NETFILTER_ADVANCED
 	select NETFILTER_FAMILY_BRIDGE
+	select SKB_EXTENSIONS
 	default m
 	---help---
 	  Enabling this option will let arptables resp. iptables see bridged
