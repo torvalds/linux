@@ -625,26 +625,20 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	}
 
 	if (chip->num_type_reg && !chip->type_in_mask) {
-		for (i = 0; i < chip->num_irqs; i++) {
-			reg = chip->irqs[i].type_reg_offset / map->reg_stride;
-			d->type_buf_def[reg] |= chip->irqs[i].type_rising_mask |
-					chip->irqs[i].type_falling_mask;
-		}
 		for (i = 0; i < chip->num_type_reg; ++i) {
 			if (!d->type_buf_def[i])
 				continue;
 
 			reg = chip->type_base +
 				(i * map->reg_stride * d->type_reg_stride);
-			if (chip->type_invert)
-				ret = regmap_irq_update_bits(d, reg,
-					d->type_buf_def[i], 0xFF);
-			else
-				ret = regmap_irq_update_bits(d, reg,
-					d->type_buf_def[i], 0x0);
-			if (ret != 0) {
-				dev_err(map->dev,
-					"Failed to set type in 0x%x: %x\n",
+
+			ret = regmap_read(map, reg, &d->type_buf_def[i]);
+
+			if (d->chip->type_invert)
+				d->type_buf_def[i] = ~d->type_buf_def[i];
+
+			if (ret) {
+				dev_err(map->dev, "Failed to get type defaults at 0x%x: %d\n",
 					reg, ret);
 				goto err_alloc;
 			}
