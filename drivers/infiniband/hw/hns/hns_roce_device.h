@@ -732,6 +732,8 @@ struct hns_roce_caps {
 	u32		max_extend_sg;
 	int		num_qps;	/* 256k */
 	int             reserved_qps;
+	int		num_qpc_timer;
+	int		num_cqc_timer;
 	u32		max_srq_sg;
 	int		num_srqs;
 	u32		max_wqes;	/* 16k */
@@ -772,6 +774,8 @@ struct hns_roce_caps {
 	int		trrl_entry_sz;
 	int		cqc_entry_sz;
 	int		sccc_entry_sz;
+	int		qpc_timer_entry_sz;
+	int		cqc_timer_entry_sz;
 	int		srqc_entry_sz;
 	int		idx_entry_sz;
 	u32		pbl_ba_pg_sz;
@@ -781,8 +785,10 @@ struct hns_roce_caps {
 	int		ceqe_depth;
 	enum ib_mtu	max_mtu;
 	u32		qpc_bt_num;
+	u32		qpc_timer_bt_num;
 	u32		srqc_bt_num;
 	u32		cqc_bt_num;
+	u32		cqc_timer_bt_num;
 	u32		mpt_bt_num;
 	u32		sccc_bt_num;
 	u32		qpc_ba_pg_sz;
@@ -803,6 +809,12 @@ struct hns_roce_caps {
 	u32		sccc_ba_pg_sz;
 	u32		sccc_buf_pg_sz;
 	u32		sccc_hop_num;
+	u32		qpc_timer_ba_pg_sz;
+	u32		qpc_timer_buf_pg_sz;
+	u32		qpc_timer_hop_num;
+	u32		cqc_timer_ba_pg_sz;
+	u32		cqc_timer_buf_pg_sz;
+	u32		cqc_timer_hop_num;
 	u32		cqe_ba_pg_sz;
 	u32		cqe_buf_pg_sz;
 	u32		cqe_hop_num;
@@ -932,6 +944,8 @@ struct hns_roce_dev {
 	struct hns_roce_srq_table srq_table;
 	struct hns_roce_qp_table  qp_table;
 	struct hns_roce_eq_table  eq_table;
+	struct hns_roce_hem_table  qpc_timer_table;
+	struct hns_roce_hem_table  cqc_timer_table;
 
 	int			cmd_mod;
 	int			loop_idc;
