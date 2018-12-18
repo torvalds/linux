@@ -1467,7 +1467,7 @@ static int soc_link_dai_pcm_new(struct snd_soc_dai **dais, int num_dais,
 	for (i = 0; i < num_dais; ++i) {
 		struct snd_soc_dai_driver *drv = dais[i]->driver;
 
-		if (!rtd->dai_link->no_pcm && drv->pcm_new)
+		if (drv->pcm_new)
 			ret = drv->pcm_new(rtd, dais[i]);
 		if (ret < 0) {
 			dev_err(dais[i]->dev,
