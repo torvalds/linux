@@ -84,10 +84,8 @@
 extern unsigned char RTW_WPA_OUI[];
 extern unsigned char WMM_OUI[];
 extern unsigned char WPS_OUI[];
-extern unsigned char WFD_OUI[];
 extern unsigned char P2P_OUI[];
 
-extern unsigned char WMM_INFO_OUI[];
 extern unsigned char WMM_PARA_OUI[];
 
 /*  Channel Plan Type. */
