@@ -4585,7 +4585,8 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *vol)
 		tcon->remap = cifs_remap(cifs_sb);
 	}
 	cifs_sb->origin_fullpath = kstrndup(tcon->dfs_path,
-					    strlen(tcon->dfs_path), GFP_KERNEL);
+					    strlen(tcon->dfs_path),
+					    GFP_ATOMIC);
 	if (!cifs_sb->origin_fullpath) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		rc = -ENOMEM;
