@@ -117,7 +117,8 @@ extern int smb3_crypto_aead_allocate(struct TCP_Server_Info *server);
 extern unsigned long smb_rqst_len(struct TCP_Server_Info *server,
 				  struct smb_rqst *rqst);
 extern void smb2_set_next_command(struct TCP_Server_Info *server,
-				  struct smb_rqst *rqst);
+				  struct smb_rqst *rqst,
+				  bool has_space_for_padding);
 extern void smb2_set_related(struct smb_rqst *rqst);
 
 /*
