@@ -61,7 +61,6 @@ struct hist_field {
 	char				*system;
 	char				*event_name;
 	char				*name;
-	unsigned int			var_idx;
 	unsigned int			var_ref_idx;
 	bool                            read_once;
 };
