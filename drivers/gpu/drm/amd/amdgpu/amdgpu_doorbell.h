@@ -72,6 +72,8 @@ struct amdgpu_doorbell_index {
 		} uvd_vce;
 	};
 	uint32_t max_assignment;
+	/* Per engine SDMA doorbell size in dword */
+	uint32_t sdma_doorbell_range;
 };
 
 typedef enum _AMDGPU_DOORBELL_ASSIGNMENT

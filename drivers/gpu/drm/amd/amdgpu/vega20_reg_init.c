@@ -86,5 +86,6 @@ void vega20_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.uvd_vce.vce_ring4_5 = AMDGPU_VEGA20_DOORBELL64_VCE_RING4_5;
 	adev->doorbell_index.uvd_vce.vce_ring6_7 = AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7;
 	adev->doorbell_index.max_assignment = AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT << 1;
+	adev->doorbell_index.sdma_doorbell_range = 20;
 }
 
