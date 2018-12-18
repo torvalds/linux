@@ -7380,19 +7380,6 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		return ret;
 	}
 
-	ret = hclge_get_cap(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "get hw capability error, ret = %d.\n",
-			ret);
-		return ret;
-	}
-
-	ret = hclge_configure(hdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Configure dev error, ret = %d.\n", ret);
-		return ret;
-	}
-
 	ret = hclge_map_tqp(hdev);
 	if (ret) {
 		dev_err(&pdev->dev, "Map tqp error, ret = %d.\n", ret);
