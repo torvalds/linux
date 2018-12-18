@@ -882,7 +882,6 @@ acpi_gpio_adr_space_handler(u32 function, acpi_physical_address address,
 		if (!found) {
 			enum gpiod_flags flags = acpi_gpio_to_gpiod_flags(agpio);
 			const char *label = "ACPI:OpRegion";
-			int err;
 
 			desc = gpiochip_request_own_desc(chip, pin, label,
 							 flags);
