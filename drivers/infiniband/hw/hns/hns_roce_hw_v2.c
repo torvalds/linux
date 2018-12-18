@@ -1085,6 +1085,41 @@ static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 	return 0;
 }
 
+static int hns_roce_query_pf_timer_resource(struct hns_roce_dev *hr_dev)
+{
+	struct hns_roce_pf_timer_res_a *req_a;
+	struct hns_roce_cmq_desc desc[2];
+	int ret, i;
+
+	for (i = 0; i < 2; i++) {
+		hns_roce_cmq_setup_basic_desc(&desc[i],
+					      HNS_ROCE_OPC_QUERY_PF_TIMER_RES,
+					      true);
+
+		if (i == 0)
+			desc[i].flag |= cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+		else
+			desc[i].flag &= ~cpu_to_le16(HNS_ROCE_CMD_FLAG_NEXT);
+	}
+
+	ret = hns_roce_cmq_send(hr_dev, desc, 2);
+	if (ret)
+		return ret;
+
+	req_a = (struct hns_roce_pf_timer_res_a *)desc[0].data;
+
+	hr_dev->caps.qpc_timer_bt_num =
+				roce_get_field(req_a->qpc_timer_bt_idx_num,
+					PF_RES_DATA_1_PF_QPC_TIMER_BT_NUM_M,
+					PF_RES_DATA_1_PF_QPC_TIMER_BT_NUM_S);
+	hr_dev->caps.cqc_timer_bt_num =
+				roce_get_field(req_a->cqc_timer_bt_idx_num,
+					PF_RES_DATA_2_PF_CQC_TIMER_BT_NUM_M,
+					PF_RES_DATA_2_PF_CQC_TIMER_BT_NUM_S);
+
+	return 0;
+}
+
 static int hns_roce_set_vf_switch_param(struct hns_roce_dev *hr_dev,
 						  int vf_id)
 {
@@ -1315,6 +1350,16 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		return ret;
 	}
 
+	if (hr_dev->pci_dev->revision == 0x21) {
+		ret = hns_roce_query_pf_timer_resource(hr_dev);
+		if (ret) {
+			dev_err(hr_dev->dev,
+				"Query pf timer resource fail, ret = %d.\n",
+				ret);
+			return ret;
+		}
+	}
+
 	ret = hns_roce_alloc_vf_resource(hr_dev);
 	if (ret) {
 		dev_err(hr_dev->dev, "Allocate vf resource fail, ret = %d.\n",
@@ -1438,6 +1483,17 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 		caps->flags |= HNS_ROCE_CAP_FLAG_ATOMIC |
 			       HNS_ROCE_CAP_FLAG_SRQ |
 			       HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL;
+
+		caps->num_qpc_timer	  = HNS_ROCE_V2_MAX_QPC_TIMER_NUM;
+		caps->qpc_timer_entry_sz  = HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ;
+		caps->qpc_timer_ba_pg_sz  = 0;
+		caps->qpc_timer_buf_pg_sz = 0;
+		caps->qpc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
+		caps->num_cqc_timer	  = HNS_ROCE_V2_MAX_CQC_TIMER_NUM;
+		caps->cqc_timer_entry_sz  = HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ;
+		caps->cqc_timer_ba_pg_sz  = 0;
+		caps->cqc_timer_buf_pg_sz = 0;
+		caps->cqc_timer_hop_num   = HNS_ROCE_HOP_NUM_0;
 
 		caps->sccc_entry_sz	= HNS_ROCE_V2_SCCC_ENTRY_SZ;
 		caps->sccc_ba_pg_sz	= 0;
@@ -1644,7 +1700,8 @@ static void hns_roce_free_link_table(struct hns_roce_dev *hr_dev,
 static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 {
 	struct hns_roce_v2_priv *priv = hr_dev->priv;
-	int ret;
+	int qpc_count, cqc_count;
+	int ret, i;
 
 	/* TSQ includes SQ doorbell and ack doorbell */
 	ret = hns_roce_init_link_table(hr_dev, TSQ_LINK_TABLE);
@@ -1659,7 +1716,39 @@ static int hns_roce_v2_init(struct hns_roce_dev *hr_dev)
 		goto err_tpq_init_failed;
 	}
 
+	/* Alloc memory for QPC Timer buffer space chunk*/
+	for (qpc_count = 0; qpc_count < hr_dev->caps.qpc_timer_bt_num;
+	     qpc_count++) {
+		ret = hns_roce_table_get(hr_dev, &hr_dev->qpc_timer_table,
+					 qpc_count);
+		if (ret) {
+			dev_err(hr_dev->dev, "QPC Timer get failed\n");
+			goto err_qpc_timer_failed;
+		}
+	}
+
+	/* Alloc memory for CQC Timer buffer space chunk*/
+	for (cqc_count = 0; cqc_count < hr_dev->caps.cqc_timer_bt_num;
+	     cqc_count++) {
+		ret = hns_roce_table_get(hr_dev, &hr_dev->cqc_timer_table,
+					 cqc_count);
+		if (ret) {
+			dev_err(hr_dev->dev, "CQC Timer get failed\n");
+			goto err_cqc_timer_failed;
+		}
+	}
+
 	return 0;
+
+err_cqc_timer_failed:
+	for (i = 0; i < cqc_count; i++)
+		hns_roce_table_put(hr_dev, &hr_dev->cqc_timer_table, i);
+
+err_qpc_timer_failed:
+	for (i = 0; i < qpc_count; i++)
+		hns_roce_table_put(hr_dev, &hr_dev->qpc_timer_table, i);
+
+	hns_roce_free_link_table(hr_dev, &priv->tpq);
 
 err_tpq_init_failed:
 	hns_roce_free_link_table(hr_dev, &priv->tsq);
@@ -2699,6 +2788,12 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 	case HEM_TYPE_SCCC:
 		op = HNS_ROCE_CMD_WRITE_SCCC_BT0;
 		break;
+	case HEM_TYPE_QPC_TIMER:
+		op = HNS_ROCE_CMD_WRITE_QPC_TIMER_BT0;
+		break;
+	case HEM_TYPE_CQC_TIMER:
+		op = HNS_ROCE_CMD_WRITE_CQC_TIMER_BT0;
+		break;
 	default:
 		dev_warn(dev, "Table %d not to be written by mailbox!\n",
 			 table->type);
@@ -2763,6 +2858,8 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 		op = HNS_ROCE_CMD_DESTROY_CQC_BT0;
 		break;
 	case HEM_TYPE_SCCC:
+	case HEM_TYPE_QPC_TIMER:
+	case HEM_TYPE_CQC_TIMER:
 		break;
 	case HEM_TYPE_SRQC:
 		op = HNS_ROCE_CMD_DESTROY_SRQC_BT0;
@@ -2773,7 +2870,9 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 		return 0;
 	}
 
-	if (table->type == HEM_TYPE_SCCC)
+	if (table->type == HEM_TYPE_SCCC ||
+	    table->type == HEM_TYPE_QPC_TIMER ||
+	    table->type == HEM_TYPE_CQC_TIMER)
 		return 0;
 
 	op += step_idx;
