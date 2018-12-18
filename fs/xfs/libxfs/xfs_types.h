@@ -100,6 +100,10 @@ typedef void *		xfs_failaddr_t;
  */
 #define MAXNAMELEN	256
 
+/*
+ * This enum is used in string mapping in xfs_trace.h; please keep the
+ * TRACE_DEFINE_ENUMs for it up to date.
+ */
 typedef enum {
 	XFS_LOOKUP_EQi, XFS_LOOKUP_LEi, XFS_LOOKUP_GEi
 } xfs_lookup_t;

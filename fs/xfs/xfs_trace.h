@@ -640,6 +640,16 @@ DEFINE_INODE_EVENT(xfs_inode_set_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_clear_cowblocks_tag);
 DEFINE_INODE_EVENT(xfs_inode_free_cowblocks_invalid);
 
+/*
+ * ftrace's __print_symbolic requires that all enum values be wrapped in the
+ * TRACE_DEFINE_ENUM macro so that the enum value can be encoded in the ftrace
+ * ring buffer.  Somehow this was only worth mentioning in the ftrace sample
+ * code.
+ */
+TRACE_DEFINE_ENUM(PE_SIZE_PTE);
+TRACE_DEFINE_ENUM(PE_SIZE_PMD);
+TRACE_DEFINE_ENUM(PE_SIZE_PUD);
+
 TRACE_EVENT(xfs_filemap_fault,
 	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
 		 bool write_fault),
@@ -1207,6 +1217,12 @@ DEFINE_EVENT(xfs_readpage_class, name,	\
 	TP_ARGS(inode, nr_pages))
 DEFINE_READPAGE_EVENT(xfs_vm_readpage);
 DEFINE_READPAGE_EVENT(xfs_vm_readpages);
+
+TRACE_DEFINE_ENUM(XFS_IO_HOLE);
+TRACE_DEFINE_ENUM(XFS_IO_DELALLOC);
+TRACE_DEFINE_ENUM(XFS_IO_UNWRITTEN);
+TRACE_DEFINE_ENUM(XFS_IO_OVERWRITE);
+TRACE_DEFINE_ENUM(XFS_IO_COW);
 
 DECLARE_EVENT_CLASS(xfs_imap_class,
 	TP_PROTO(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
@@ -2610,6 +2626,9 @@ DEFINE_AG_ERROR_EVENT(xfs_ag_resv_init_error);
 #define DEFINE_AG_EXTENT_EVENT(name) DEFINE_DISCARD_EVENT(name)
 
 /* ag btree lookup tracepoint class */
+TRACE_DEFINE_ENUM(XFS_LOOKUP_EQi);
+TRACE_DEFINE_ENUM(XFS_LOOKUP_LEi);
+TRACE_DEFINE_ENUM(XFS_LOOKUP_GEi);
 #define XFS_AG_BTREE_CMP_FORMAT_STR \
 	{ XFS_LOOKUP_EQ,	"eq" }, \
 	{ XFS_LOOKUP_LE,	"le" }, \
