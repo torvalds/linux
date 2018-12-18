@@ -123,6 +123,8 @@
 #define HNS_ROCE_CMQ_EN_B		16
 #define HNS_ROCE_CMQ_ENABLE		BIT(HNS_ROCE_CMQ_EN_B)
 
+#define HNS_ROCE_CMQ_SCC_CLR_DONE_CNT		5
+
 #define check_whether_last_step(hop_num, step_idx) \
 	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
 	(step_idx == 1 && hop_num == 1) || \
@@ -232,6 +234,9 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
 	HNS_ROCE_OPC_QUERY_MB_ST			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
+	HNS_ROCE_OPC_CLR_SCCC				= 0x8509,
+	HNS_ROCE_OPC_QUERY_SCCC				= 0x850a,
+	HNS_ROCE_OPC_RESET_SCCC				= 0x850b,
 	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
 };
 
@@ -1755,6 +1760,16 @@ struct hns_roce_eq_context {
 struct hns_roce_wqe_atomic_seg {
 	__le64          fetchadd_swap_data;
 	__le64          cmp_data;
+};
+
+struct hns_roce_sccc_clr {
+	__le32 qpn;
+	__le32 rsv[5];
+};
+
+struct hns_roce_sccc_clr_done {
+	__le32 clr_done;
+	__le32 rsv[5];
 };
 
 #endif

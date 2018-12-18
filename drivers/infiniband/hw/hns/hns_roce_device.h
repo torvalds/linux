@@ -202,6 +202,7 @@ enum {
 	HNS_ROCE_CAP_FLAG_SRQ			= BIT(5),
 	HNS_ROCE_CAP_FLAG_MW			= BIT(7),
 	HNS_ROCE_CAP_FLAG_FRMR                  = BIT(8),
+	HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL		= BIT(9),
 	HNS_ROCE_CAP_FLAG_ATOMIC		= BIT(10),
 };
 
@@ -483,6 +484,7 @@ struct hns_roce_qp_table {
 	struct hns_roce_hem_table	irrl_table;
 	struct hns_roce_hem_table	trrl_table;
 	struct hns_roce_hem_table	sccc_table;
+	struct mutex			scc_mutex;
 };
 
 struct hns_roce_cq_table {
@@ -867,6 +869,8 @@ struct hns_roce_hw {
 			 int attr_mask, enum ib_qp_state cur_state,
 			 enum ib_qp_state new_state);
 	int (*destroy_qp)(struct ib_qp *ibqp);
+	int (*qp_flow_control_init)(struct hns_roce_dev *hr_dev,
+			 struct hns_roce_qp *hr_qp);
 	int (*post_send)(struct ib_qp *ibqp, const struct ib_send_wr *wr,
 			 const struct ib_send_wr **bad_wr);
 	int (*post_recv)(struct ib_qp *qp, const struct ib_recv_wr *recv_wr,

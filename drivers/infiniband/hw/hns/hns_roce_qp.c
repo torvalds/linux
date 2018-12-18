@@ -812,6 +812,13 @@ static int hns_roce_create_qp_common(struct hns_roce_dev *hr_dev,
 		if (ret)
 			goto err_qp;
 	}
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_FLOW_CTRL) {
+		ret = hr_dev->hw->qp_flow_control_init(hr_dev, hr_qp);
+		if (ret)
+			goto err_qp;
+	}
+
 	hr_qp->event = hns_roce_ib_qp_event;
 
 	return 0;
@@ -1153,6 +1160,7 @@ int hns_roce_init_qp_table(struct hns_roce_dev *hr_dev)
 	int reserved_from_bot;
 	int ret;
 
+	mutex_init(&qp_table->scc_mutex);
 	spin_lock_init(&qp_table->lock);
 	INIT_RADIX_TREE(&hr_dev->qp_table_tree, GFP_ATOMIC);
 
