@@ -240,7 +240,6 @@ static void hns3_vector_gl_rl_init(struct hns3_enet_tqp_vector *tqp_vector,
 	tqp_vector->tx_group.coal.int_gl = HNS3_INT_GL_50K;
 	tqp_vector->rx_group.coal.int_gl = HNS3_INT_GL_50K;
 
-	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 	tqp_vector->rx_group.coal.flow_level = HNS3_FLOW_LOW;
 	tqp_vector->tx_group.coal.flow_level = HNS3_FLOW_LOW;
 }
@@ -2846,10 +2845,10 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	struct hns3_enet_ring_group *tx_group = &tqp_vector->tx_group;
 	bool rx_update, tx_update;
 
-	if (tqp_vector->int_adapt_down > 0) {
-		tqp_vector->int_adapt_down--;
+	/* update param every 1000ms */
+	if (time_before(jiffies,
+			tqp_vector->last_jiffies + msecs_to_jiffies(1000)))
 		return;
-	}
 
 	if (rx_group->coal.gl_adapt_enable) {
 		rx_update = hns3_get_new_int_gl(rx_group);
@@ -2866,7 +2865,6 @@ static void hns3_update_new_int_gl(struct hns3_enet_tqp_vector *tqp_vector)
 	}
 
 	tqp_vector->last_jiffies = jiffies;
-	tqp_vector->int_adapt_down = HNS3_INT_ADAPT_DOWN_START;
 }
 
 static int hns3_nic_common_poll(struct napi_struct *napi, int budget)
