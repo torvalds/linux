@@ -1306,7 +1306,8 @@ int bch2_dev_remove(struct bch_fs *c, struct bch_dev *ca, int flags)
 	mutex_unlock(&c->state_lock);
 	return 0;
 err:
-	if (ca->mi.state == BCH_MEMBER_STATE_RW)
+	if (ca->mi.state == BCH_MEMBER_STATE_RW &&
+	    !percpu_ref_is_zero(&ca->io_ref))
 		__bch2_dev_read_write(c, ca);
 	mutex_unlock(&c->state_lock);
 	return ret;
