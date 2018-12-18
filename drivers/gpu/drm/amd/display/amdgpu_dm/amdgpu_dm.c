@@ -5160,11 +5160,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		}
 	}
 
-	/* Handle scaling, underscan, and abm changes*/
+	/* Handle connector state changes */
 	for_each_oldnew_connector_in_state(state, connector, old_con_state, new_con_state, i) {
 		struct dm_connector_state *dm_new_con_state = to_dm_connector_state(new_con_state);
 		struct dm_connector_state *dm_old_con_state = to_dm_connector_state(old_con_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(dm_new_con_state->base.crtc);
+		struct dc_surface_update dummy_updates[MAX_SURFACES] = { 0 };
+		struct dc_stream_update stream_update = { 0 };
 		struct dc_stream_status *status = NULL;
 
 		if (acrtc) {
@@ -5176,37 +5178,48 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		if (!acrtc || drm_atomic_crtc_needs_modeset(new_crtc_state))
 			continue;
 
-
 		dm_new_crtc_state = to_dm_crtc_state(new_crtc_state);
 		dm_old_crtc_state = to_dm_crtc_state(old_crtc_state);
 
-		/* Skip anything that is not scaling or underscan changes */
 		if (!is_scaling_state_different(dm_new_con_state, dm_old_con_state) &&
 				(dm_new_crtc_state->abm_level == dm_old_crtc_state->abm_level))
 			continue;
 
-		update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
-				dm_new_con_state, (struct dc_stream_state *)dm_new_crtc_state->stream);
+		if (is_scaling_state_different(dm_new_con_state, dm_old_con_state)) {
+			update_stream_scaling_settings(&dm_new_con_state->base.crtc->mode,
+					dm_new_con_state, (struct dc_stream_state *)dm_new_crtc_state->stream);
 
-		if (!dm_new_crtc_state->stream)
-			continue;
+			stream_update.src = dm_new_crtc_state->stream->src;
+			stream_update.dst = dm_new_crtc_state->stream->dst;
+		}
+
+		if (dm_new_crtc_state->abm_level != dm_old_crtc_state->abm_level) {
+			dm_new_crtc_state->stream->abm_level = dm_new_crtc_state->abm_level;
+
+			stream_update.abm_level = &dm_new_crtc_state->abm_level;
+		}
 
 		status = dc_stream_get_status(dm_new_crtc_state->stream);
 		WARN_ON(!status);
 		WARN_ON(!status->plane_count);
 
-		dm_new_crtc_state->stream->abm_level = dm_new_crtc_state->abm_level;
+		/*
+		 * TODO: DC refuses to perform stream updates without a dc_surface_update.
+		 * Here we create an empty update on each plane.
+		 * To fix this, DC should permit updating only stream properties.
+		 */
+		for (j = 0; j < status->plane_count; j++)
+			dummy_updates[j].surface = status->plane_states[0];
 
-		/*TODO How it works with MPO ?*/
-		if (!commit_planes_to_stream(
-				dm,
-				dm->dc,
-				status->plane_states,
-				status->plane_count,
-				dm_new_crtc_state,
-				to_dm_crtc_state(old_crtc_state),
-				dc_state))
-			dm_error("%s: Failed to update stream scaling!\n", __func__);
+
+		mutex_lock(&dm->dc_lock);
+		dc_commit_updates_for_stream(dm->dc,
+						     dummy_updates,
+						     status->plane_count,
+						     dm_new_crtc_state->stream,
+						     &stream_update,
+						     dc_state);
+		mutex_unlock(&dm->dc_lock);
 	}
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state,
