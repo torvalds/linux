@@ -31,6 +31,7 @@
 #include "smu11_driver_if.h"
 #include "soc15_common.h"
 #include "atom.h"
+#include "vega20_ppt.h"
 
 #include "asic_reg/thm/thm_11_0_2_offset.h"
 #include "asic_reg/thm/thm_11_0_2_sh_mask.h"
@@ -504,5 +505,15 @@ static const struct smu_funcs smu_v11_0_funcs = {
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	smu->funcs = &smu_v11_0_funcs;
+
+	switch (adev->asic_type) {
+	case CHIP_VEGA20:
+		vega20_set_ppt_funcs(smu);
+		break;
+	default:
+		pr_warn("Unknow asic for smu11\n");
+	}
 }

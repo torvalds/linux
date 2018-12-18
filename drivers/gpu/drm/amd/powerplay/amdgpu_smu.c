@@ -48,16 +48,11 @@ static int smu_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = &adev->smu;
-	int ret;
-
-	ret = smu_set_funcs(adev);
-	if (ret)
-		return ret;
 
 	smu->adev = adev;
 	mutex_init(&smu->mutex);
 
-	return 0;
+	return smu_set_funcs(adev);
 }
 
 int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,

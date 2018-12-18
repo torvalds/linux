@@ -90,12 +90,17 @@ struct smu_context
 	struct amdgpu_device            *adev;
 
 	const struct smu_funcs		*funcs;
+	const struct pptable_funcs	*ppt_funcs;
 	struct mutex			mutex;
 	uint64_t pool_size;
 
 	struct smu_table_context	smu_table;
 	struct smu_dpm_context		smu_dpm;
 	struct smu_power_context	smu_power;
+};
+
+struct pptable_funcs {
+	int (*store_powerplay_table)(struct smu_context *smu);
 };
 
 struct smu_funcs
