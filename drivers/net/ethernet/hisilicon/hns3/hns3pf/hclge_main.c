@@ -687,6 +687,18 @@ static int hclge_query_pf_resource(struct hclge_dev *hdev)
 	hdev->num_tqps = __le16_to_cpu(req->tqp_num);
 	hdev->pkt_buf_size = __le16_to_cpu(req->buf_size) << HCLGE_BUF_UNIT_S;
 
+	if (req->tx_buf_size)
+		hdev->tx_buf_size =
+			__le16_to_cpu(req->tx_buf_size) << HCLGE_BUF_UNIT_S;
+	else
+		hdev->tx_buf_size = HCLGE_DEFAULT_TX_BUF;
+
+	if (req->dv_buf_size)
+		hdev->dv_buf_size =
+			__le16_to_cpu(req->dv_buf_size) << HCLGE_BUF_UNIT_S;
+	else
+		hdev->dv_buf_size = HCLGE_DEFAULT_DV;
+
 	if (hnae3_dev_roce_supported(hdev)) {
 		hdev->roce_base_msix_offset =
 		hnae3_get_field(__le16_to_cpu(req->msixcap_localid_ba_rocee),
@@ -1376,9 +1388,10 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 	pfc_enable_num = hclge_get_pfc_enalbe_num(hdev);
 
 	if (hnae3_dev_dcb_supported(hdev))
-		shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_DV;
+		shared_buf_min = 2 * hdev->mps + hdev->dv_buf_size;
 	else
-		shared_buf_min = 2 * hdev->mps + HCLGE_DEFAULT_NON_DCB_DV;
+		shared_buf_min = hdev->mps + HCLGE_NON_DCB_ADDITIONAL_BUF
+					+ hdev->dv_buf_size;
 
 	shared_buf_tc = pfc_enable_num * hdev->mps +
 			(tc_num - pfc_enable_num) * hdev->mps / 2 +
@@ -1391,8 +1404,15 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 
 	shared_buf = rx_all - rx_priv;
 	buf_alloc->s_buf.buf_size = shared_buf;
-	buf_alloc->s_buf.self.high = shared_buf;
-	buf_alloc->s_buf.self.low =  2 * hdev->mps;
+	if (hnae3_dev_dcb_supported(hdev)) {
+		buf_alloc->s_buf.self.high = shared_buf - hdev->dv_buf_size;
+		buf_alloc->s_buf.self.low = buf_alloc->s_buf.self.high
+						- hdev->mps / 2;
+	} else {
+		buf_alloc->s_buf.self.high = hdev->mps +
+						HCLGE_NON_DCB_ADDITIONAL_BUF;
+		buf_alloc->s_buf.self.low = hdev->mps / 2;
+	}
 
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		if ((hdev->hw_tc_map & BIT(i)) &&
@@ -1419,11 +1439,11 @@ static int hclge_tx_buffer_calc(struct hclge_dev *hdev,
 	for (i = 0; i < HCLGE_MAX_TC_NUM; i++) {
 		struct hclge_priv_buf *priv = &buf_alloc->priv_buf[i];
 
-		if (total_size < HCLGE_DEFAULT_TX_BUF)
+		if (total_size < hdev->tx_buf_size)
 			return -ENOMEM;
 
 		if (hdev->hw_tc_map & BIT(i))
-			priv->tx_buf_size = HCLGE_DEFAULT_TX_BUF;
+			priv->tx_buf_size = hdev->tx_buf_size;
 		else
 			priv->tx_buf_size = 0;
 
@@ -1469,11 +1489,12 @@ static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 				priv->wl.low = aligned_mps;
 				priv->wl.high = priv->wl.low + aligned_mps;
 				priv->buf_size = priv->wl.high +
-						HCLGE_DEFAULT_DV;
+						hdev->dv_buf_size;
 			} else {
 				priv->wl.low = 0;
 				priv->wl.high = 2 * aligned_mps;
-				priv->buf_size = priv->wl.high;
+				priv->buf_size = priv->wl.high +
+						hdev->dv_buf_size;
 			}
 		} else {
 			priv->enable = 0;
@@ -1505,11 +1526,11 @@ static int hclge_rx_buffer_calc(struct hclge_dev *hdev,
 		if (hdev->tm_info.hw_pfc_map & BIT(i)) {
 			priv->wl.low = 128;
 			priv->wl.high = priv->wl.low + aligned_mps;
-			priv->buf_size = priv->wl.high + HCLGE_DEFAULT_DV;
+			priv->buf_size = priv->wl.high + hdev->dv_buf_size;
 		} else {
 			priv->wl.low = 0;
 			priv->wl.high = aligned_mps;
-			priv->buf_size = priv->wl.high;
+			priv->buf_size = priv->wl.high + hdev->dv_buf_size;
 		}
 	}
 
