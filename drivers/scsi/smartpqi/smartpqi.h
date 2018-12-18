@@ -100,6 +100,12 @@ struct pqi_ctrl_registers {
 	struct pqi_device_registers pqi_registers;	/* 4000h */
 };
 
+#if ((HZ) < 1000)
+#define PQI_HZ  1000
+#else
+#define PQI_HZ  (HZ)
+#endif
+
 #define PQI_DEVICE_REGISTERS_OFFSET	0x4000
 
 enum pqi_io_path {
@@ -350,6 +356,10 @@ struct pqi_event_config {
 
 #define PQI_MAX_EVENT_DESCRIPTORS	255
 
+#define PQI_EVENT_OFA_MEMORY_ALLOCATION	0x0
+#define PQI_EVENT_OFA_QUIESCE		0x1
+#define PQI_EVENT_OFA_CANCELLED		0x2
+
 struct pqi_event_response {
 	struct pqi_iu_header header;
 	u8	event_type;
@@ -357,7 +367,17 @@ struct pqi_event_response {
 	u8	request_acknowlege : 1;
 	__le16	event_id;
 	__le32	additional_event_id;
-	u8	data[16];
+	union {
+		struct {
+			__le32	bytes_requested;
+			u8	reserved[12];
+		} ofa_memory_allocation;
+
+		struct {
+			__le16	reason;		/* reason for cancellation */
+			u8	reserved[14];
+		} ofa_cancelled;
+	} data;
 };
 
 struct pqi_event_acknowledge_request {
@@ -420,6 +440,25 @@ struct pqi_vendor_general_response {
 };
 
 #define PQI_VENDOR_GENERAL_CONFIG_TABLE_UPDATE	0
+#define PQI_VENDOR_GENERAL_HOST_MEMORY_UPDATE	1
+
+#define PQI_OFA_VERSION			1
+#define PQI_OFA_SIGNATURE		"OFA_QRM"
+#define PQI_OFA_MAX_SG_DESCRIPTORS	64
+
+#define PQI_OFA_MEMORY_DESCRIPTOR_LENGTH \
+	(offsetof(struct pqi_ofa_memory, sg_descriptor) + \
+	(PQI_OFA_MAX_SG_DESCRIPTORS * sizeof(struct pqi_sg_descriptor)))
+
+struct pqi_ofa_memory {
+	__le64	signature;	/* "OFA_QRM" */
+	__le16	version;	/* version of this struct(1 = 1st version) */
+	u8	reserved[62];
+	__le32	bytes_allocated;	/* total allocated memory in bytes */
+	__le16	num_memory_descriptors;
+	u8	reserved1[2];
+	struct pqi_sg_descriptor sg_descriptor[1];
+};
 
 struct pqi_aio_error_info {
 	u8	status;
@@ -526,6 +565,7 @@ struct pqi_raid_error_info {
 #define PQI_EVENT_TYPE_HARDWARE			0x2
 #define PQI_EVENT_TYPE_PHYSICAL_DEVICE		0x4
 #define PQI_EVENT_TYPE_LOGICAL_DEVICE		0x5
+#define PQI_EVENT_TYPE_OFA			0xfb
 #define PQI_EVENT_TYPE_AIO_STATE_CHANGE		0xfd
 #define PQI_EVENT_TYPE_AIO_CONFIG_CHANGE	0xfe
 
@@ -685,6 +725,7 @@ struct pqi_encryption_info {
 #define PQI_CONFIG_TABLE_SECTION_FIRMWARE_ERRATA	2
 #define PQI_CONFIG_TABLE_SECTION_DEBUG			3
 #define PQI_CONFIG_TABLE_SECTION_HEARTBEAT		4
+#define PQI_CONFIG_TABLE_SECTION_SOFT_RESET		5
 
 struct pqi_config_table {
 	u8	signature[8];		/* "CFGTABLE" */
@@ -724,8 +765,9 @@ struct pqi_config_table_firmware_features {
 /*	u8	features_enabled[]; */
 };
 
-#define PQI_FIRMWARE_FEATURE_OFA	0
-#define PQI_FIRMWARE_FEATURE_SMP	1
+#define PQI_FIRMWARE_FEATURE_OFA			0
+#define PQI_FIRMWARE_FEATURE_SMP			1
+#define PQI_FIRMWARE_FEATURE_SOFT_RESET_HANDSHAKE	11
 
 struct pqi_config_table_debug {
 	struct pqi_config_table_section_header header;
@@ -735,6 +777,22 @@ struct pqi_config_table_debug {
 struct pqi_config_table_heartbeat {
 	struct pqi_config_table_section_header header;
 	__le32	heartbeat_counter;
+};
+
+struct pqi_config_table_soft_reset {
+	struct pqi_config_table_section_header header;
+	u8 soft_reset_status;
+};
+
+#define PQI_SOFT_RESET_INITIATE		0x1
+#define PQI_SOFT_RESET_ABORT		0x2
+
+enum pqi_soft_reset_status {
+	RESET_INITIATE_FIRMWARE,
+	RESET_INITIATE_DRIVER,
+	RESET_ABORT,
+	RESET_NORESPONSE,
+	RESET_TIMEDOUT
 };
 
 union pqi_reset_register {
@@ -1000,13 +1058,15 @@ struct pqi_io_request {
 	struct list_head request_list_entry;
 };
 
-#define PQI_NUM_SUPPORTED_EVENTS	6
+#define PQI_NUM_SUPPORTED_EVENTS	7
 
 struct pqi_event {
 	bool	pending;
 	u8	event_type;
 	__le16	event_id;
 	__le32	additional_event_id;
+	__le32	ofa_bytes_requested;
+	__le16	ofa_cancel_reason;
 };
 
 #define PQI_RESERVED_IO_SLOTS_LUN_RESET			1
@@ -1067,13 +1127,16 @@ struct pqi_ctrl_info {
 
 	struct mutex	scan_mutex;
 	struct mutex	lun_reset_mutex;
+	struct mutex	ofa_mutex; /* serialize ofa */
 	bool		controller_online;
 	bool		block_requests;
 	bool		in_shutdown;
+	bool		in_ofa;
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
 	u8		pqi_reset_quiesce_supported : 1;
+	u8		soft_reset_handshake_supported : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
@@ -1094,6 +1157,7 @@ struct pqi_ctrl_info {
 	int		previous_num_interrupts;
 	u32		previous_heartbeat_count;
 	__le32 __iomem	*heartbeat_counter;
+	u8 __iomem	*soft_reset_status;
 	struct timer_list heartbeat_timer;
 	struct work_struct ctrl_offline_work;
 
@@ -1105,6 +1169,10 @@ struct pqi_ctrl_info {
 	struct list_head raid_bypass_retry_list;
 	spinlock_t	raid_bypass_retry_list_lock;
 	struct work_struct raid_bypass_retry_work;
+
+	struct          pqi_ofa_memory *pqi_ofa_mem_virt_addr;
+	dma_addr_t      pqi_ofa_mem_dma_handle;
+	void            **pqi_ofa_chunk_virt_addr;
 };
 
 enum pqi_ctrl_mode {
