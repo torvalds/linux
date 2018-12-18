@@ -206,7 +206,8 @@ static int rkisp1_config_isp(struct rkisp1_device *dev)
 			if (in_fmt->mbus_code == MEDIA_BUS_FMT_Y8_1X8 ||
 			    in_fmt->mbus_code == MEDIA_BUS_FMT_Y10_1X10 ||
 			    in_fmt->mbus_code == MEDIA_BUS_FMT_Y12_1X12)
-				writel(CIF_ISP_DEMOSAIC_TH(0x40c),
+				writel(CIF_ISP_DEMOSAIC_BYPASS |
+				       CIF_ISP_DEMOSAIC_TH(0xc),
 				       base + CIF_ISP_DEMOSAIC);
 			else
 				writel(CIF_ISP_DEMOSAIC_TH(0xc),

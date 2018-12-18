@@ -1293,6 +1293,12 @@ void __isp_isr_other_config(struct rkisp1_isp_params_vdev *params_vdev,
 {
 	unsigned int module_en_update, module_cfg_update, module_ens;
 	struct rkisp1_isp_params_ops *ops = params_vdev->ops;
+	struct ispsd_in_fmt *in_fmt = &params_vdev->dev->isp_sdev.in_fmt;
+	bool is_grey_sensor;
+
+	is_grey_sensor = in_fmt->mbus_code == MEDIA_BUS_FMT_Y8_1X8 ||
+			 in_fmt->mbus_code == MEDIA_BUS_FMT_Y10_1X10 ||
+			 in_fmt->mbus_code == MEDIA_BUS_FMT_Y12_1X12;
 
 	module_en_update = new_params->module_en_update;
 	module_cfg_update = new_params->module_cfg_update;
@@ -1390,8 +1396,9 @@ void __isp_isr_other_config(struct rkisp1_isp_params_vdev *params_vdev,
 		}
 	}
 
-	if ((module_en_update & CIFISP_MODULE_BDM) ||
-	    (module_cfg_update & CIFISP_MODULE_BDM)) {
+	if (((module_en_update & CIFISP_MODULE_BDM) ||
+	    (module_cfg_update & CIFISP_MODULE_BDM)) &&
+	    !is_grey_sensor) {
 		/* update bdm config */
 		if ((module_cfg_update & CIFISP_MODULE_BDM))
 			ops->bdm_config(params_vdev, &new_params->others.bdm_config);
