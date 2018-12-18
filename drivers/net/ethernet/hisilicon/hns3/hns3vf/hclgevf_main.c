@@ -2401,9 +2401,9 @@ static void hclgevf_uninit_hdev(struct hclgevf_dev *hdev)
 	if (test_bit(HCLGEVF_STATE_IRQ_INITED, &hdev->state)) {
 		hclgevf_misc_irq_uninit(hdev);
 		hclgevf_uninit_msi(hdev);
-		hclgevf_pci_uninit(hdev);
 	}
 
+	hclgevf_pci_uninit(hdev);
 	hclgevf_cmd_uninit(hdev);
 }
 
