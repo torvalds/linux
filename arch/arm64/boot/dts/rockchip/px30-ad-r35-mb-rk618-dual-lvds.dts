@@ -180,6 +180,7 @@
 };
 
 &dmc {
+	auto-freq-en = <0>;
 	center-supply = <&vdd_logic>;
 	status = "okay";
 };
@@ -865,7 +866,7 @@
 
 &route_rgb {
 	connect = <&vopl_out_rgb>;
-	status = "disabled";
+	status = "okay";
 };
 
 &pinctrl {
