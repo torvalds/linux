@@ -296,8 +296,6 @@ struct ib_device *ib_alloc_device(size_t size)
 	device->dev.class = &ib_class;
 	device_initialize(&device->dev);
 
-	dev_set_drvdata(&device->dev, device);
-
 	INIT_LIST_HEAD(&device->event_handler_list);
 	spin_lock_init(&device->event_handler_lock);
 	rwlock_init(&device->client_data_lock);

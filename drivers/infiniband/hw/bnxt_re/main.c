@@ -538,7 +538,8 @@ static struct bnxt_en_dev *bnxt_re_dev_probe(struct net_device *netdev)
 static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+	struct bnxt_re_dev *rdev =
+		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", rdev->en_dev->pdev->vendor);
 }
@@ -547,7 +548,8 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	struct bnxt_re_dev *rdev = to_bnxt_re_dev(device, ibdev.dev);
+	struct bnxt_re_dev *rdev =
+		rdma_device_to_drv_device(device, struct bnxt_re_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", rdev->ibdev.node_desc);
 }

@@ -118,7 +118,8 @@ static void get_dev_fw_str(struct ib_device *device, char *str)
 static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
+	struct ocrdma_dev *dev =
+		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->nic_info.pdev->vendor);
 }
@@ -127,7 +128,8 @@ static DEVICE_ATTR_RO(hw_rev);
 static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
-	struct ocrdma_dev *dev = dev_get_drvdata(device);
+	struct ocrdma_dev *dev =
+		rdma_device_to_drv_device(device, struct ocrdma_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "%s\n", &dev->model_number[0]);
 }

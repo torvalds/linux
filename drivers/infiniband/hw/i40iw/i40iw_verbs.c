@@ -2139,9 +2139,8 @@ static int i40iw_dereg_mr(struct ib_mr *ib_mr)
 static ssize_t hw_rev_show(struct device *dev,
 			   struct device_attribute *attr, char *buf)
 {
-	struct i40iw_ib_device *iwibdev = container_of(dev,
-						       struct i40iw_ib_device,
-						       ibdev.dev);
+	struct i40iw_ib_device *iwibdev =
+		rdma_device_to_drv_device(dev, struct i40iw_ib_device, ibdev);
 	u32 hw_rev = iwibdev->iwdev->sc_dev.hw_rev;
 
 	return sprintf(buf, "%x\n", hw_rev);

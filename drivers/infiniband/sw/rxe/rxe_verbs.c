@@ -1129,8 +1129,8 @@ static int rxe_detach_mcast(struct ib_qp *ibqp, union ib_gid *mgid, u16 mlid)
 static ssize_t parent_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
-	struct rxe_dev *rxe = container_of(device, struct rxe_dev,
-					   ib_dev.dev);
+	struct rxe_dev *rxe =
+		rdma_device_to_drv_device(device, struct rxe_dev, ib_dev);
 
 	return snprintf(buf, 16, "%s\n", rxe_parent_name(rxe, 1));
 }

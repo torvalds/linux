@@ -1081,7 +1081,8 @@ static ssize_t hw_rev_show(struct device *device,
 			   struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
-		container_of(device, struct mthca_dev, ib_dev.dev);
+		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
+
 	return sprintf(buf, "%x\n", dev->rev_id);
 }
 static DEVICE_ATTR_RO(hw_rev);
@@ -1090,7 +1091,8 @@ static ssize_t hca_type_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
-		container_of(device, struct mthca_dev, ib_dev.dev);
+		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
+
 	switch (dev->pdev->device) {
 	case PCI_DEVICE_ID_MELLANOX_TAVOR:
 		return sprintf(buf, "MT23108\n");
@@ -1111,7 +1113,8 @@ static ssize_t board_id_show(struct device *device,
 			     struct device_attribute *attr, char *buf)
 {
 	struct mthca_dev *dev =
-		container_of(device, struct mthca_dev, ib_dev.dev);
+		rdma_device_to_drv_device(device, struct mthca_dev, ib_dev);
+
 	return sprintf(buf, "%.*s\n", MTHCA_BOARD_ID_LEN, dev->board_id);
 }
 static DEVICE_ATTR_RO(board_id);

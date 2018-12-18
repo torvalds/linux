@@ -137,7 +137,8 @@ static int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
 static ssize_t hw_rev_show(struct device *device, struct device_attribute *attr,
 			   char *buf)
 {
-	struct qedr_dev *dev = dev_get_drvdata(device);
+	struct qedr_dev *dev =
+		rdma_device_to_drv_device(device, struct qedr_dev, ibdev);
 
 	return scnprintf(buf, PAGE_SIZE, "0x%x\n", dev->pdev->vendor);
 }
