@@ -3413,6 +3413,11 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
 		if (ggtt->vm.clear_range != nop_clear_range)
 			ggtt->vm.clear_range = bxt_vtd_ggtt_clear_range__BKL;
+
+		/* Prevent recursively calling stop_machine() and deadlocks. */
+		dev_info(dev_priv->drm.dev,
+			 "Disabling error capture for VT-d workaround\n");
+		i915_disable_error_state(dev_priv, -ENODEV);
 	}
 
 	ggtt->invalidate = gen6_ggtt_invalidate;

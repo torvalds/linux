@@ -248,6 +248,11 @@ static void xhci_pci_quirks(struct device *dev, struct xhci_hcd *xhci)
 	if (pdev->vendor == PCI_VENDOR_ID_TI && pdev->device == 0x8241)
 		xhci->quirks |= XHCI_LIMIT_ENDPOINT_INTERVAL_7;
 
+	if ((pdev->vendor == PCI_VENDOR_ID_BROADCOM ||
+	     pdev->vendor == PCI_VENDOR_ID_CAVIUM) &&
+	     pdev->device == 0x9026)
+		xhci->quirks |= XHCI_RESET_PLL_ON_DISCONNECT;
+
 	if (xhci->quirks & XHCI_RESET_ON_RESUME)
 		xhci_dbg_trace(xhci, trace_xhci_dbg_quirks,
 				"QUIRK: Resetting on resume");
@@ -380,6 +385,7 @@ static void xhci_pci_remove(struct pci_dev *dev)
 	if (xhci->shared_hcd) {
 		usb_remove_hcd(xhci->shared_hcd);
 		usb_put_hcd(xhci->shared_hcd);
+		xhci->shared_hcd = NULL;
 	}
 
 	/* Workaround for spurious wakeups at shutdown with HSW */

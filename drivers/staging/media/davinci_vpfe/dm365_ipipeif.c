@@ -310,6 +310,7 @@ static int ipipeif_hw_setup(struct v4l2_subdev *sd)
 			ipipeif_write(val, ipipeif_base_addr, IPIPEIF_CFG2);
 			break;
 		}
+		/* fall through */
 
 	case IPIPEIF_SDRAM_YUV:
 		/* Set clock divider */

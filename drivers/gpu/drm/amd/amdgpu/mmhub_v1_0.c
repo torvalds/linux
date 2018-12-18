@@ -90,7 +90,7 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 
 	/* Program the system aperture low logical page number. */
 	WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-		     min(adev->gmc.vram_start, adev->gmc.agp_start) >> 18);
+		     min(adev->gmc.fb_start, adev->gmc.agp_start) >> 18);
 
 	if (adev->asic_type == CHIP_RAVEN && adev->rev_id >= 0x8)
 		/*
@@ -100,11 +100,11 @@ static void mmhub_v1_0_init_system_aperture_regs(struct amdgpu_device *adev)
 		 * to get rid of the VM fault and hardware hang.
 		 */
 		WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-			     max((adev->gmc.vram_end >> 18) + 0x1,
+			     max((adev->gmc.fb_end >> 18) + 0x1,
 				 adev->gmc.agp_end >> 18));
 	else
 		WREG32_SOC15(MMHUB, 0, mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-			     max(adev->gmc.vram_end, adev->gmc.agp_end) >> 18);
+			     max(adev->gmc.fb_end, adev->gmc.agp_end) >> 18);
 
 	/* Set default page address. */
 	value = adev->vram_scratch.gpu_addr - adev->gmc.vram_start +

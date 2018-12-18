@@ -843,8 +843,7 @@ static int mlx5e_get_link_ksettings(struct net_device *netdev,
 	ethtool_link_ksettings_add_link_mode(link_ksettings, supported,
 					     Autoneg);
 
-	err = get_fec_supported_advertised(mdev, link_ksettings);
-	if (err)
+	if (get_fec_supported_advertised(mdev, link_ksettings))
 		netdev_dbg(netdev, "%s: FEC caps query failed: %d\n",
 			   __func__, err);
 

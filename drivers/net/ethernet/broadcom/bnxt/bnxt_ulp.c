@@ -43,6 +43,9 @@ static int bnxt_register_dev(struct bnxt_en_dev *edev, int ulp_id,
 	if (ulp_id == BNXT_ROCE_ULP) {
 		unsigned int max_stat_ctxs;
 
+		if (bp->flags & BNXT_FLAG_CHIP_P5)
+			return -EOPNOTSUPP;
+
 		max_stat_ctxs = bnxt_get_max_func_stat_ctxs(bp);
 		if (max_stat_ctxs <= BNXT_MIN_ROCE_STAT_CTXS ||
 		    bp->num_stat_ctxs == max_stat_ctxs)

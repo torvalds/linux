@@ -1049,7 +1049,8 @@ static int myrb_get_hba_config(struct myrb_hba *cb)
 		enquiry2->fw.firmware_type = '0';
 		enquiry2->fw.turn_id = 0;
 	}
-	sprintf(cb->fw_version, "%d.%02d-%c-%02d",
+	snprintf(cb->fw_version, sizeof(cb->fw_version),
+		"%d.%02d-%c-%02d",
 		enquiry2->fw.major_version,
 		enquiry2->fw.minor_version,
 		enquiry2->fw.firmware_type,

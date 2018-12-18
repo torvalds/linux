@@ -54,6 +54,7 @@ struct pt_regs
 
 #ifdef CONFIG_PPC64
 	unsigned long ppr;
+	unsigned long __pad;	/* Maintain 16 byte interrupt stack alignment */
 #endif
 };
 #endif

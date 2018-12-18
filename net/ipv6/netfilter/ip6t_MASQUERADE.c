@@ -58,8 +58,12 @@ static int __init masquerade_tg6_init(void)
 	int err;
 
 	err = xt_register_target(&masquerade_tg6_reg);
-	if (err == 0)
-		nf_nat_masquerade_ipv6_register_notifier();
+	if (err)
+		return err;
+
+	err = nf_nat_masquerade_ipv6_register_notifier();
+	if (err)
+		xt_unregister_target(&masquerade_tg6_reg);
 
 	return err;
 }
