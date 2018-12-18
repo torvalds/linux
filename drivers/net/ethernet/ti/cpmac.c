@@ -991,7 +991,6 @@ static int cpmac_open(struct net_device *dev)
 	cpmac_hw_start(dev);
 
 	napi_enable(&priv->napi);
-	dev->phydev->state = PHY_CHANGELINK;
 	phy_start(dev->phydev);
 
 	return 0;
