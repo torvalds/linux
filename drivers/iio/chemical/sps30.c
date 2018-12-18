@@ -7,7 +7,6 @@
  * I2C slave address: 0x69
  *
  * TODO:
- *  - support for turning on fan cleaning
  *  - support for reading/setting auto cleaning interval
  */
 
@@ -37,6 +36,7 @@
 #define SPS30_READ_DATA_READY_FLAG 0x0202
 #define SPS30_READ_DATA 0x0300
 #define SPS30_READ_SERIAL 0xd033
+#define SPS30_START_FAN_CLEANING 0x5607
 
 enum {
 	PM1,
@@ -104,6 +104,7 @@ static int sps30_do_cmd(struct sps30_state *state, u16 cmd, u8 *data, int size)
 		break;
 	case SPS30_STOP_MEAS:
 	case SPS30_RESET:
+	case SPS30_START_FAN_CLEANING:
 		ret = sps30_write_then_read(state, buf, 2, NULL, 0);
 		break;
 	case SPS30_READ_DATA_READY_FLAG:
@@ -275,7 +276,39 @@ static int sps30_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static ssize_t start_cleaning_store(struct device *dev,
+				    struct device_attribute *attr,
+				    const char *buf, size_t len)
+{
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
+	struct sps30_state *state = iio_priv(indio_dev);
+	int val, ret;
+
+	if (kstrtoint(buf, 0, &val) || val != 1)
+		return -EINVAL;
+
+	mutex_lock(&state->lock);
+	ret = sps30_do_cmd(state, SPS30_START_FAN_CLEANING, NULL, 0);
+	mutex_unlock(&state->lock);
+	if (ret)
+		return ret;
+
+	return len;
+}
+
+static IIO_DEVICE_ATTR_WO(start_cleaning, 0);
+
+static struct attribute *sps30_attrs[] = {
+	&iio_dev_attr_start_cleaning.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group sps30_attr_group = {
+	.attrs = sps30_attrs,
+};
+
 static const struct iio_info sps30_info = {
+	.attrs = &sps30_attr_group,
 	.read_raw = sps30_read_raw,
 };
 

@@ -1,0 +1,8 @@
+What:		/sys/bus/iio/devices/iio:deviceX/start_cleaning
+Date:		December 2018
+KernelVersion:	4.22
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing 1 starts sensor self cleaning. Internal fan accelerates
+		to its maximum speed and keeps spinning for about 10 seconds in
+		order to blow out accumulated dust.
