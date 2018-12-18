@@ -899,6 +899,7 @@ static int fill_inode(struct inode *inode, struct page *locked_page,
 	case S_IFBLK:
 	case S_IFCHR:
 	case S_IFSOCK:
+		inode->i_blkbits = PAGE_SHIFT;
 		init_special_inode(inode, inode->i_mode, inode->i_rdev);
 		inode->i_op = &ceph_file_iops;
 		break;
