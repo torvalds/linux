@@ -17,8 +17,8 @@ static size_t syscall_arg__scnprintf_mmap_prot(char *bf, size_t size,
 		prot &= ~PROT_##n; \
 	}
 
-	P_MMAP_PROT(EXEC);
 	P_MMAP_PROT(READ);
+	P_MMAP_PROT(EXEC);
 	P_MMAP_PROT(WRITE);
 	P_MMAP_PROT(SEM);
 	P_MMAP_PROT(GROWSDOWN);
