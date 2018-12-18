@@ -1549,6 +1549,10 @@ static void tipc_node_bc_rcv(struct net *net, struct sk_buff *skb, int bearer_id
 	if (!skb_queue_empty(&be->inputq1))
 		tipc_node_mcast_rcv(n);
 
+	/* Handle NAME_DISTRIBUTOR messages sent from 1.7 nodes */
+	if (!skb_queue_empty(&n->bc_entry.namedq))
+		tipc_named_rcv(net, &n->bc_entry.namedq);
+
 	/* If reassembly or retransmission failure => reset all links to peer */
 	if (rc & TIPC_LINK_DOWN_EVT)
 		tipc_node_reset_links(n);
