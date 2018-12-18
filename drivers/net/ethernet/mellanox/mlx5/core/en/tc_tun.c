@@ -6,6 +6,34 @@
 #include "lib/vxlan.h"
 #include "en/tc_tun.h"
 
+static int get_route_and_out_devs(struct mlx5e_priv *priv,
+				  struct net_device *dev,
+				  struct net_device **route_dev,
+				  struct net_device **out_dev)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct net_device *uplink_dev, *uplink_upper;
+	bool dst_is_lag_dev;
+
+	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
+	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
+	dst_is_lag_dev = (uplink_upper &&
+			  netif_is_lag_master(uplink_upper) &&
+			  dev == uplink_upper &&
+			  mlx5_lag_is_sriov(priv->mdev));
+
+	/* if the egress device isn't on the same HW e-switch or
+	 * it's a LAG device, use the uplink
+	 */
+	if (!switchdev_port_same_parent_id(priv->netdev, dev) ||
+	    dst_is_lag_dev)
+		*out_dev = uplink_dev;
+	else
+		*out_dev = dev;
+
+	return 0;
+}
+
 static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 				   struct net_device *mirred_dev,
 				   struct net_device **out_dev,
@@ -13,9 +41,6 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 				   struct neighbour **out_n,
 				   u8 *out_ttl)
 {
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct net_device *uplink_dev, *uplink_upper;
-	bool dst_is_lag_dev;
 	struct rtable *rt;
 	struct neighbour *n = NULL;
 
@@ -30,21 +55,9 @@ static int mlx5e_route_lookup_ipv4(struct mlx5e_priv *priv,
 	return -EOPNOTSUPP;
 #endif
 
-	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
-	dst_is_lag_dev = (uplink_upper &&
-			  netif_is_lag_master(uplink_upper) &&
-			  rt->dst.dev == uplink_upper &&
-			  mlx5_lag_is_sriov(priv->mdev));
-
-	/* if the egress device isn't on the same HW e-switch or
-	 * it's a LAG device, use the uplink
-	 */
-	if (!switchdev_port_same_parent_id(priv->netdev, rt->dst.dev) ||
-	    dst_is_lag_dev)
-		*out_dev = uplink_dev;
-	else
-		*out_dev = rt->dst.dev;
+	ret = get_route_and_out_devs(priv, rt->dst.dev, NULL, out_dev);
+	if (ret < 0)
+		return ret;
 
 	if (!(*out_ttl))
 		*out_ttl = ip4_dst_hoplimit(&rt->dst);
@@ -76,9 +89,6 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	struct dst_entry *dst;
 
 #if IS_ENABLED(CONFIG_INET) && IS_ENABLED(CONFIG_IPV6)
-	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
-	struct net_device *uplink_dev, *uplink_upper;
-	bool dst_is_lag_dev;
 	int ret;
 
 	ret = ipv6_stub->ipv6_dst_lookup(dev_net(mirred_dev), NULL, &dst,
@@ -89,21 +99,9 @@ static int mlx5e_route_lookup_ipv6(struct mlx5e_priv *priv,
 	if (!(*out_ttl))
 		*out_ttl = ip6_dst_hoplimit(dst);
 
-	uplink_dev = mlx5_eswitch_uplink_get_proto_dev(esw, REP_ETH);
-	uplink_upper = netdev_master_upper_dev_get(uplink_dev);
-	dst_is_lag_dev = (uplink_upper &&
-			  netif_is_lag_master(uplink_upper) &&
-			  dst->dev == uplink_upper &&
-			  mlx5_lag_is_sriov(priv->mdev));
-
-	/* if the egress device isn't on the same HW e-switch or
-	 * it's a LAG device, use the uplink
-	 */
-	if (!switchdev_port_same_parent_id(priv->netdev, dst->dev) ||
-	    dst_is_lag_dev)
-		*out_dev = uplink_dev;
-	else
-		*out_dev = dst->dev;
+	ret = get_route_and_out_devs(priv, dst->dev, NULL, out_dev);
+	if (ret < 0)
+		return ret;
 #else
 	return -EOPNOTSUPP;
 #endif
