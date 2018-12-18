@@ -541,6 +541,12 @@ enum nf_ct_sysctl_index {
 	NF_SYSCTL_CT_EXPECT_MAX,
 	NF_SYSCTL_CT_ACCT,
 	NF_SYSCTL_CT_HELPER,
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	NF_SYSCTL_CT_EVENTS,
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	NF_SYSCTL_CT_TIMESTAMP,
+#endif
 };
 
 static struct ctl_table nf_ct_sysctl_table[] = {
@@ -602,6 +608,24 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	[NF_SYSCTL_CT_EVENTS] = {
+		.procname	= "nf_conntrack_events",
+		.data		= &init_net.ct.sysctl_events,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+	[NF_SYSCTL_CT_TIMESTAMP] = {
+		.procname	= "nf_conntrack_timestamp",
+		.data		= &init_net.ct.sysctl_tstamp,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 	{ }
 };
 
@@ -628,12 +652,21 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	table[NF_SYSCTL_CT_COUNT].data = &net->ct.count;
 	table[NF_SYSCTL_CT_CHECKSUM].data = &net->ct.sysctl_checksum;
 	table[NF_SYSCTL_CT_LOG_INVALID].data = &net->ct.sysctl_log_invalid;
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	table[NF_SYSCTL_CT_EVENTS].data = &net->ct.sysctl_events;
+#endif
 
 	/* Don't export sysctls to unprivileged users */
 	if (net->user_ns != &init_user_ns) {
 		table[NF_SYSCTL_CT_MAX].procname = NULL;
 		table[NF_SYSCTL_CT_ACCT].procname = NULL;
 		table[NF_SYSCTL_CT_HELPER].procname = NULL;
+#ifdef CONFIG_NF_CONNTRACK_TIMESTAMP
+		table[NF_SYSCTL_CT_TIMESTAMP].procname = NULL;
+#endif
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+		table[NF_SYSCTL_CT_EVENTS].procname = NULL;
+#endif
 	}
 
 	if (!net_eq(&init_net, net))
