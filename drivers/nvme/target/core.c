@@ -663,7 +663,7 @@ static void nvmet_set_error(struct nvmet_req *req, u16 status)
 
 	req->rsp->status = cpu_to_le16(status << 1);
 
-	if (!ctrl || req->error_loc == (u16)-1)
+	if (!ctrl || req->error_loc == NVMET_NO_ERROR_LOC)
 		return;
 
 	spin_lock_irqsave(&ctrl->error_lock, flags);
@@ -849,7 +849,7 @@ bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 	req->rsp->status = 0;
 	req->rsp->sq_head = 0;
 	req->ns = NULL;
-	req->error_loc = -1;
+	req->error_loc = NVMET_NO_ERROR_LOC;
 	req->error_slba = 0;
 
 	/* no support for fused commands yet */
