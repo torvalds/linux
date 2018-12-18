@@ -2629,10 +2629,6 @@ DEFINE_AG_ERROR_EVENT(xfs_ag_resv_init_error);
 TRACE_DEFINE_ENUM(XFS_LOOKUP_EQi);
 TRACE_DEFINE_ENUM(XFS_LOOKUP_LEi);
 TRACE_DEFINE_ENUM(XFS_LOOKUP_GEi);
-#define XFS_AG_BTREE_CMP_FORMAT_STR \
-	{ XFS_LOOKUP_EQ,	"eq" }, \
-	{ XFS_LOOKUP_LE,	"le" }, \
-	{ XFS_LOOKUP_GE,	"ge" }
 DECLARE_EVENT_CLASS(xfs_ag_btree_lookup_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_lookup_t dir),
