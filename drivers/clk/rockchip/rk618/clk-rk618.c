@@ -255,7 +255,7 @@ static const struct clk_gate_data rk618_clk_gates[] = {
 	     0),
 	GATE(LVDS_CLK, "lvds_clk", "dither_clk",
 	     RK618_CRU_CLKSEL1, 9,
-	     0),
+	     CLK_IGNORE_UNUSED),
 	GATE(LVTTL_CLK, "lvttl_clk", "dither_clk",
 	     RK618_CRU_CLKSEL1, 12,
 	     0),
