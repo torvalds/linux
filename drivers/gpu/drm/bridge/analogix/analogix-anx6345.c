@@ -315,6 +315,7 @@ static void anx6345_poweron(struct anx6345 *anx6345)
 {
 	struct anx6345_platform_data *pdata = &anx6345->pdata;
 	int err;
+	u32 idl;
 
 	if (WARN_ON(anx6345->powered))
 		return;
@@ -350,14 +351,17 @@ static void anx6345_poweron(struct anx6345 *anx6345)
 		}
 	}
 
-	gpiod_set_value_cansleep(pdata->gpiod_reset, 1);
-	usleep_range(1000, 2000);
+	err = regmap_read(anx6345->map[I2C_IDX_TXCOM], SP_DEVICE_IDL_REG, &idl);
+	if (err) {
+		gpiod_direction_output(pdata->gpiod_reset, 1);
+		usleep_range(1000, 2000);
 
-	gpiod_set_value_cansleep(pdata->gpiod_reset, 0);
+		gpiod_direction_output(pdata->gpiod_reset, 0);
+	}
 
 	/* Power on registers module */
 	anx6345_set_bits(anx6345->map[I2C_IDX_TXCOM], SP_POWERDOWN_CTRL_REG,
-			 SP_HDCP_PD | SP_AUDIO_PD | SP_VIDEO_PD | SP_LINK_PD);
+			 SP_HDCP_PD | SP_AUDIO_PD);
 	anx6345_clear_bits(anx6345->map[I2C_IDX_TXCOM], SP_POWERDOWN_CTRL_REG,
 			   SP_REGISTER_PD | SP_TOTAL_PD);
 
@@ -469,7 +473,7 @@ static int anx6345_init_pdata(struct anx6345 *anx6345)
 	}
 
 	/* GPIO for chip reset */
-	pdata->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	pdata->gpiod_reset = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 
 	return PTR_ERR_OR_ZERO(pdata->gpiod_reset);
 }
@@ -586,6 +590,7 @@ unlock:
 
 static const struct drm_connector_helper_funcs anx6345_connector_helper_funcs = {
 	.get_modes = anx6345_get_modes,
+	.best_encoder = drm_atomic_helper_best_encoder,
 };
 
 static enum drm_connector_status anx6345_detect(struct drm_connector *connector,
@@ -635,6 +640,7 @@ static int anx6345_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&anx6345->connector,
 				 &anx6345_connector_helper_funcs);
 
+	anx6345->connector.port = anx6345->client->dev.of_node;
 	anx6345->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
 	err = drm_mode_connector_attach_encoder(&anx6345->connector,
