@@ -386,34 +386,28 @@ static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
 
 #define SCA_STRARRAY syscall_arg__scnprintf_strarray
 
-struct strarrays {
-	int		nr_entries;
-	struct strarray **entries;
-};
+size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const char *intfmt, bool show_prefix, int val)
+{
+	int i;
 
-#define DEFINE_STRARRAYS(array) struct strarrays strarrays__##array = { \
-	.nr_entries = ARRAY_SIZE(array), \
-	.entries = array, \
+	for (i = 0; i < sas->nr_entries; ++i) {
+		struct strarray *sa = sas->entries[i];
+		int idx = val - sa->offset;
+
+		if (idx >= 0 && idx < sa->nr_entries) {
+			if (sa->entries[idx] == NULL)
+				break;
+			return scnprintf(bf, size, "%s%s", show_prefix ? sa->prefix : "", sa->entries[idx]);
+		}
+	}
+
+	return scnprintf(bf, size, intfmt, val);
 }
 
 size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
 					struct syscall_arg *arg)
 {
-	struct strarrays *sas = arg->parm;
-	int i;
-
-	for (i = 0; i < sas->nr_entries; ++i) {
-		struct strarray *sa = sas->entries[i];
-		int idx = arg->val - sa->offset;
-
-		if (idx >= 0 && idx < sa->nr_entries) {
-			if (sa->entries[idx] == NULL)
-				break;
-			return scnprintf(bf, size, "%s%s", arg->show_string_prefix ? sa->prefix : "", sa->entries[idx]);
-		}
-	}
-
-	return scnprintf(bf, size, "%d", arg->val);
+	return strarrays__scnprintf(arg->parm, bf, size, "%d", arg->show_string_prefix, arg->val);
 }
 
 #ifndef AT_FDCWD
