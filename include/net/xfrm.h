@@ -1896,14 +1896,16 @@ static inline void xfrm_states_delete(struct xfrm_state **states, int n)
 #ifdef CONFIG_XFRM
 static inline struct xfrm_state *xfrm_input_state(struct sk_buff *skb)
 {
-	return skb->sp->xvec[skb->sp->len - 1];
+	struct sec_path *sp = skb_sec_path(skb);
+
+	return sp->xvec[sp->len - 1];
 }
 #endif
 
 static inline struct xfrm_offload *xfrm_offload(struct sk_buff *skb)
 {
 #ifdef CONFIG_XFRM
-	struct sec_path *sp = skb->sp;
+	struct sec_path *sp = skb_sec_path(skb);
 
 	if (!sp || !sp->olen || sp->len != sp->olen)
 		return NULL;

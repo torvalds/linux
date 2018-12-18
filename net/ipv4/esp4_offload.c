@@ -115,6 +115,7 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	struct crypto_aead *aead;
 	netdev_features_t esp_features = features;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp;
 
 	if (!xo)
 		return ERR_PTR(-EINVAL);
@@ -122,7 +123,8 @@ static struct sk_buff *esp4_gso_segment(struct sk_buff *skb,
 	if (!(skb_shinfo(skb)->gso_type & SKB_GSO_ESP))
 		return ERR_PTR(-EINVAL);
 
-	x = skb->sp->xvec[skb->sp->len - 1];
+	sp = skb_sec_path(skb);
+	x = sp->xvec[sp->len - 1];
 	aead = x->data;
 	esph = ip_esp_hdr(skb);
 

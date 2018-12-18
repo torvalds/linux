@@ -4124,7 +4124,7 @@ static inline bool skb_get_dst_pending_confirm(const struct sk_buff *skb)
 	return skb->dst_pending_confirm != 0;
 }
 
-static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
+static inline struct sec_path *skb_sec_path(const struct sk_buff *skb)
 {
 #ifdef CONFIG_XFRM
 	return skb->sp;

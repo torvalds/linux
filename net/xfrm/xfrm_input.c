@@ -330,7 +330,9 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	daddr = (xfrm_address_t *)(skb_network_header(skb) +
 				   XFRM_SPI_SKB_CB(skb)->daddroff);
 	do {
-		if (skb->sp->len == XFRM_MAX_DEPTH) {
+		sp = skb_sec_path(skb);
+
+		if (sp->len == XFRM_MAX_DEPTH) {
 			secpath_reset(skb);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMINBUFFERERROR);
 			goto drop;
@@ -346,7 +348,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 
 		skb->mark = xfrm_smark_get(skb->mark, x);
 
-		skb->sp->xvec[skb->sp->len++] = x;
+		sp->xvec[sp->len++] = x;
 
 lock:
 		spin_lock(&x->lock);
@@ -470,8 +472,9 @@ resume:
 	nf_reset(skb);
 
 	if (decaps) {
-		if (skb->sp)
-			skb->sp->olen = 0;
+		sp = skb_sec_path(skb);
+		if (sp)
+			sp->olen = 0;
 		skb_dst_drop(skb);
 		gro_cells_receive(&gro_cells, skb);
 		return 0;
@@ -482,8 +485,9 @@ resume:
 
 		err = x->inner_mode->afinfo->transport_finish(skb, xfrm_gro || async);
 		if (xfrm_gro) {
-			if (skb->sp)
-				skb->sp->olen = 0;
+			sp = skb_sec_path(skb);
+			if (sp)
+				sp->olen = 0;
 			skb_dst_drop(skb);
 			gro_cells_receive(&gro_cells, skb);
 			return err;
