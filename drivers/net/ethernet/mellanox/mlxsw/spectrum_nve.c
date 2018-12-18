@@ -977,6 +977,6 @@ void mlxsw_sp_nve_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	WARN_ON(mlxsw_sp->nve->num_nve_tunnels);
 	rhashtable_destroy(&mlxsw_sp->nve->mc_list_ht);
-	mlxsw_sp->nve = NULL;
 	kfree(mlxsw_sp->nve);
+	mlxsw_sp->nve = NULL;
 }
