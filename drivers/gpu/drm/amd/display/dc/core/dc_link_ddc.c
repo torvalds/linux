@@ -42,7 +42,6 @@
 #define CV_SMART_DONGLE_ADDRESS 0x20
 /* DVI-HDMI dongle slave address for retrieving dongle signature*/
 #define DVI_HDMI_DONGLE_ADDRESS 0x68
-static const int8_t dvi_hdmi_dongle_signature_str[] = "6140063500G";
 struct dvi_hdmi_dongle_signature_data {
 	int8_t vendor[3];/* "AMD" */
 	uint8_t version[2];
