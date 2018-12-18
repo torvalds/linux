@@ -967,6 +967,7 @@ void bch2_write(struct closure *cl)
 
 struct promote_op {
 	struct closure		cl;
+	struct rcu_head		rcu;
 	u64			start_time;
 
 	struct rhash_head	hash;
@@ -1020,7 +1021,7 @@ static void promote_free(struct bch_fs *c, struct promote_op *op)
 				     bch_promote_params);
 	BUG_ON(ret);
 	percpu_ref_put(&c->writes);
-	kfree(op);
+	kfree_rcu(op, rcu);
 }
 
 static void promote_done(struct closure *cl)
