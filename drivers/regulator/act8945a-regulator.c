@@ -337,7 +337,7 @@ static int __maybe_unused act8945a_suspend(struct device *pdev)
 	return regmap_write(act8945a->regmap, ACT8945A_SYS_CTRL, 0x42);
 }
 
-SIMPLE_DEV_PM_OPS(act8945a_pm, act8945a_suspend, NULL);
+static SIMPLE_DEV_PM_OPS(act8945a_pm, act8945a_suspend, NULL);
 
 static void act8945a_pmic_shutdown(struct platform_device *pdev)
 {
