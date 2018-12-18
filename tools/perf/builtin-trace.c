@@ -365,8 +365,12 @@ size_t strarray__scnprintf(struct strarray *sa, char *bf, size_t size, const cha
 {
 	int idx = val - sa->offset;
 
-	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL)
-		return scnprintf(bf, size, intfmt, val);
+	if (idx < 0 || idx >= sa->nr_entries || sa->entries[idx] == NULL) {
+		size_t printed = scnprintf(bf, size, intfmt, val);
+		if (show_prefix)
+			printed += scnprintf(bf + printed, size - printed, " /* %s??? */", sa->prefix);
+		return printed;
+	}
 
 	return scnprintf(bf, size, "%s%s", show_prefix ? sa->prefix : "", sa->entries[idx]);
 }
@@ -388,6 +392,7 @@ static size_t syscall_arg__scnprintf_strarray(char *bf, size_t size,
 
 size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const char *intfmt, bool show_prefix, int val)
 {
+	size_t printed;
 	int i;
 
 	for (i = 0; i < sas->nr_entries; ++i) {
@@ -401,7 +406,10 @@ size_t strarrays__scnprintf(struct strarrays *sas, char *bf, size_t size, const 
 		}
 	}
 
-	return scnprintf(bf, size, intfmt, val);
+	printed = scnprintf(bf, size, intfmt, val);
+	if (show_prefix)
+		printed += scnprintf(bf + printed, size - printed, " /* %s??? */", sas->entries[0]->prefix);
+	return printed;
 }
 
 size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
