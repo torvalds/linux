@@ -1868,7 +1868,6 @@ unsigned int send_beacon(struct adapter *padapter)
 	u8 bxmitok = false;
 	int issue = 0;
 	int poll = 0;
-
 	unsigned long start = jiffies;
 
 	rtw_hal_set_hwreg(padapter, HW_VAR_BCN_VALID, NULL);
@@ -5303,7 +5302,6 @@ u8 add_ba_hdl(struct adapter *padapter, unsigned char *pbuf)
 	struct addBaReq_parm *pparm = (struct addBaReq_parm *)pbuf;
 	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info *pmlmeinfo = &(pmlmeext->mlmext_info);
-
 	struct sta_info *psta = rtw_get_stainfo(&padapter->stapriv, pparm->addr);
 
 	if (!psta)
