@@ -27,11 +27,6 @@ static bool nf_generic_should_process(u8 proto)
 	}
 }
 
-static inline struct nf_generic_net *generic_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.generic;
-}
-
 static bool generic_pkt_to_tuple(const struct sk_buff *skb,
 				 unsigned int dataoff,
 				 struct net *net, struct nf_conntrack_tuple *tuple)
@@ -58,7 +53,7 @@ static int generic_packet(struct nf_conn *ct,
 	}
 
 	if (!timeout)
-		timeout = &generic_pernet(nf_ct_net(ct))->timeout;
+		timeout = &nf_generic_pernet(nf_ct_net(ct))->timeout;
 
 	nf_ct_refresh_acct(ct, ctinfo, skb, *timeout);
 	return NF_ACCEPT;
@@ -72,7 +67,7 @@ static int generic_packet(struct nf_conn *ct,
 static int generic_timeout_nlattr_to_obj(struct nlattr *tb[],
 					 struct net *net, void *data)
 {
-	struct nf_generic_net *gn = generic_pernet(net);
+	struct nf_generic_net *gn = nf_generic_pernet(net);
 	unsigned int *timeout = data;
 
 	if (!timeout)
@@ -138,7 +133,7 @@ static int generic_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int generic_init_net(struct net *net)
 {
-	struct nf_generic_net *gn = generic_pernet(net);
+	struct nf_generic_net *gn = nf_generic_pernet(net);
 	struct nf_proto_net *pn = &gn->pn;
 
 	gn->timeout = nf_ct_generic_timeout;

@@ -3488,6 +3488,8 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 olen,
 			const u64 sz = BTRFS_I(src)->root->fs_info->sectorsize;
 
 			len = round_down(i_size_read(src), sz) - loff;
+			if (len == 0)
+				return 0;
 			olen = len;
 		}
 	}
@@ -4257,9 +4259,17 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 		goto out_unlock;
 	if (len == 0)
 		olen = len = src->i_size - off;
-	/* if we extend to eof, continue to block boundary */
-	if (off + len == src->i_size)
+	/*
+	 * If we extend to eof, continue to block boundary if and only if the
+	 * destination end offset matches the destination file's size, otherwise
+	 * we would be corrupting data by placing the eof block into the middle
+	 * of a file.
+	 */
+	if (off + len == src->i_size) {
+		if (!IS_ALIGNED(len, bs) && destoff + len < inode->i_size)
+			goto out_unlock;
 		len = ALIGN(src->i_size, bs) - off;
+	}
 
 	if (len == 0) {
 		ret = 0;

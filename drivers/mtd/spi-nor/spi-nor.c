@@ -3250,12 +3250,14 @@ static int spi_nor_init_params(struct spi_nor *nor,
 		memcpy(&sfdp_params, params, sizeof(sfdp_params));
 		memcpy(&prev_map, &nor->erase_map, sizeof(prev_map));
 
-		if (spi_nor_parse_sfdp(nor, &sfdp_params))
+		if (spi_nor_parse_sfdp(nor, &sfdp_params)) {
+			nor->addr_width = 0;
 			/* restore previous erase map */
 			memcpy(&nor->erase_map, &prev_map,
 			       sizeof(nor->erase_map));
-		else
+		} else {
 			memcpy(params, &sfdp_params, sizeof(*params));
+		}
 	}
 
 	return 0;

@@ -32,14 +32,9 @@ static const unsigned int udp_timeouts[UDP_CT_MAX] = {
 	[UDP_CT_REPLIED]	= 180*HZ,
 };
 
-static inline struct nf_udp_net *udp_pernet(struct net *net)
-{
-	return &net->ct.nf_ct_proto.udp;
-}
-
 static unsigned int *udp_get_timeouts(struct net *net)
 {
-	return udp_pernet(net)->timeouts;
+	return nf_udp_pernet(net)->timeouts;
 }
 
 static void udp_error_log(const struct sk_buff *skb,
@@ -212,7 +207,7 @@ static int udp_timeout_nlattr_to_obj(struct nlattr *tb[],
 				     struct net *net, void *data)
 {
 	unsigned int *timeouts = data;
-	struct nf_udp_net *un = udp_pernet(net);
+	struct nf_udp_net *un = nf_udp_pernet(net);
 
 	if (!timeouts)
 		timeouts = un->timeouts;
@@ -292,7 +287,7 @@ static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 
 static int udp_init_net(struct net *net)
 {
-	struct nf_udp_net *un = udp_pernet(net);
+	struct nf_udp_net *un = nf_udp_pernet(net);
 	struct nf_proto_net *pn = &un->pn;
 
 	if (!pn->users) {

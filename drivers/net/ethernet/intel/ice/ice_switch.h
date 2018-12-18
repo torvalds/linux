@@ -190,6 +190,8 @@ ice_update_vsi(struct ice_hw *hw, u16 vsi_handle, struct ice_vsi_ctx *vsi_ctx,
 	       struct ice_sq_cd *cd);
 bool ice_is_vsi_valid(struct ice_hw *hw, u16 vsi_handle);
 struct ice_vsi_ctx *ice_get_vsi_ctx(struct ice_hw *hw, u16 vsi_handle);
+void ice_clear_all_vsi_ctx(struct ice_hw *hw);
+/* Switch config */
 enum ice_status ice_get_initial_sw_cfg(struct ice_hw *hw);
 
 /* Switch/bridge related commands */

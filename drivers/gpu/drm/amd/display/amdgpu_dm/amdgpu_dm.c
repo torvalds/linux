@@ -429,6 +429,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	    adev->asic_type < CHIP_RAVEN)
 		init_data.flags.gpu_vm_support = true;
 
+	if (amdgpu_dc_feature_mask & DC_FBC_MASK)
+		init_data.flags.fbc_support = true;
+
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
@@ -1524,13 +1527,6 @@ static int amdgpu_dm_backlight_update_status(struct backlight_device *bd)
 {
 	struct amdgpu_display_manager *dm = bl_get_data(bd);
 
-	/*
-	 * PWM interperts 0 as 100% rather than 0% because of HW
-	 * limitation for level 0.So limiting minimum brightness level
-	 * to 1.
-	 */
-	if (bd->props.brightness < 1)
-		return 1;
 	if (dc_link_set_backlight_level(dm->backlight_link,
 			bd->props.brightness, 0, 0))
 		return 0;
@@ -2707,18 +2703,11 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 	drm_connector = &aconnector->base;
 
 	if (!aconnector->dc_sink) {
-		/*
-		 * Create dc_sink when necessary to MST
-		 * Don't apply fake_sink to MST
-		 */
-		if (aconnector->mst_port) {
-			dm_dp_mst_dc_sink_create(drm_connector);
-			return stream;
+		if (!aconnector->mst_port) {
+			sink = create_fake_sink(aconnector);
+			if (!sink)
+				return stream;
 		}
-
-		sink = create_fake_sink(aconnector);
-		if (!sink)
-			return stream;
 	} else {
 		sink = aconnector->dc_sink;
 	}
@@ -3308,7 +3297,7 @@ void dm_drm_plane_destroy_state(struct drm_plane *plane,
 static const struct drm_plane_funcs dm_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.destroy	= drm_plane_cleanup,
+	.destroy	= drm_primary_helper_destroy,
 	.reset = dm_drm_plane_reset,
 	.atomic_duplicate_state = dm_drm_plane_duplicate_state,
 	.atomic_destroy_state = dm_drm_plane_destroy_state,

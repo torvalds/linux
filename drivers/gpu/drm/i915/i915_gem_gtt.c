@@ -1757,7 +1757,7 @@ static void gen6_dump_ppgtt(struct i915_hw_ppgtt *base, struct seq_file *m)
 			if (i == 4)
 				continue;
 
-			seq_printf(m, "\t\t(%03d, %04d) %08lx: ",
+			seq_printf(m, "\t\t(%03d, %04d) %08llx: ",
 				   pde, pte,
 				   (pde * GEN6_PTES + pte) * I915_GTT_PAGE_SIZE);
 			for (i = 0; i < 4; i++) {

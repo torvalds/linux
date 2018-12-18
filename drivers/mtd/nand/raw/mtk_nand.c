@@ -1288,6 +1288,7 @@ static int mtk_nfc_attach_chip(struct nand_chip *chip)
 
 static const struct nand_controller_ops mtk_nfc_controller_ops = {
 	.attach_chip = mtk_nfc_attach_chip,
+	.setup_data_interface = mtk_nfc_setup_data_interface,
 };
 
 static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
@@ -1333,13 +1334,12 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 
 	nand->options |= NAND_USE_BOUNCE_BUFFER | NAND_SUBPAGE_READ;
 	nand->legacy.dev_ready = mtk_nfc_dev_ready;
-	nand->select_chip = mtk_nfc_select_chip;
+	nand->legacy.select_chip = mtk_nfc_select_chip;
 	nand->legacy.write_byte = mtk_nfc_write_byte;
 	nand->legacy.write_buf = mtk_nfc_write_buf;
 	nand->legacy.read_byte = mtk_nfc_read_byte;
 	nand->legacy.read_buf = mtk_nfc_read_buf;
 	nand->legacy.cmd_ctrl = mtk_nfc_cmd_ctrl;
-	nand->setup_data_interface = mtk_nfc_setup_data_interface;
 
 	/* set default mode in case dt entry is missing */
 	nand->ecc.mode = NAND_ECC_HW;
