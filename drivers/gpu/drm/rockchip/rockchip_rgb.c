@@ -182,7 +182,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 {
 	struct rockchip_rgb *rgb = dev_get_drvdata(dev);
 	struct drm_device *drm_dev = data;
-	struct drm_encoder *encoder;
+	struct drm_encoder *encoder = &rgb->encoder;
 	struct drm_connector *connector;
 	int ret;
 
@@ -193,7 +193,7 @@ static int rockchip_rgb_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
-	encoder = &rgb->encoder;
+	encoder->port = dev->of_node;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
 							     dev->of_node);
 
