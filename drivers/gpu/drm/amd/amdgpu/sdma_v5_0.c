@@ -51,6 +51,12 @@ MODULE_FIRMWARE("amdgpu/navi14_sdma1.bin");
 MODULE_FIRMWARE("amdgpu/navi12_sdma.bin");
 MODULE_FIRMWARE("amdgpu/navi12_sdma1.bin");
 
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_sdma.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish_sdma1.bin");
+
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_sdma.bin");
+MODULE_FIRMWARE("amdgpu/cyan_skillfish2_sdma1.bin");
+
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA0_HYP_DEC_REG_START 0x5880
 #define SDMA0_HYP_DEC_REG_END 0x5893
@@ -220,6 +226,12 @@ static int sdma_v5_0_init_microcode(struct amdgpu_device *adev)
 		break;
 	case CHIP_NAVI12:
 		chip_name = "navi12";
+		break;
+	case CHIP_CYAN_SKILLFISH:
+		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2)
+			chip_name = "cyan_skillfish2";
+		else
+			chip_name = "cyan_skillfish";
 		break;
 	default:
 		BUG();
