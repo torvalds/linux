@@ -192,6 +192,8 @@
 		vreg_l21a_2p95: l21 {
 			regulator-min-microvolt = <2960000>;
 			regulator-max-microvolt = <2960000>;
+			regulator-allow-set-load;
+			regulator-system-load = <800000>;
 		};
 		vreg_l22a_2p85: l22 {
 			regulator-min-microvolt = <2864000>;
