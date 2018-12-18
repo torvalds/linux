@@ -1078,6 +1078,9 @@ static int hns_roce_query_pf_resource(struct hns_roce_dev *hr_dev)
 	hr_dev->caps.sl_num = roce_get_field(req_b->qid_idx_sl_num,
 					     PF_RES_DATA_3_PF_SL_NUM_M,
 					     PF_RES_DATA_3_PF_SL_NUM_S);
+	hr_dev->caps.sccc_bt_num = roce_get_field(req_b->sccc_bt_idx_num,
+					     PF_RES_DATA_4_PF_SCCC_BT_NUM_M,
+					     PF_RES_DATA_4_PF_SCCC_BT_NUM_S);
 
 	return 0;
 }
@@ -1193,6 +1196,14 @@ static int hns_roce_alloc_vf_resource(struct hns_roce_dev *hr_dev)
 				       VF_RES_B_DATA_3_VF_SL_NUM_M,
 				       VF_RES_B_DATA_3_VF_SL_NUM_S,
 				       HNS_ROCE_VF_SL_NUM);
+
+			roce_set_field(req_b->vf_sccc_idx_num,
+				       VF_RES_B_DATA_4_VF_SCCC_BT_IDX_M,
+				       VF_RES_B_DATA_4_VF_SCCC_BT_IDX_S, 0);
+			roce_set_field(req_b->vf_sccc_idx_num,
+				       VF_RES_B_DATA_4_VF_SCCC_BT_NUM_M,
+				       VF_RES_B_DATA_4_VF_SCCC_BT_NUM_S,
+				       HNS_ROCE_VF_SCCC_BT_NUM);
 		}
 	}
 
@@ -1205,6 +1216,7 @@ static int hns_roce_v2_set_bt(struct hns_roce_dev *hr_dev)
 	u8 qpc_hop_num = hr_dev->caps.qpc_hop_num;
 	u8 cqc_hop_num = hr_dev->caps.cqc_hop_num;
 	u8 mpt_hop_num = hr_dev->caps.mpt_hop_num;
+	u8 sccc_hop_num = hr_dev->caps.sccc_hop_num;
 	struct hns_roce_cfg_bt_attr *req;
 	struct hns_roce_cmq_desc desc;
 
@@ -1251,6 +1263,20 @@ static int hns_roce_v2_set_bt(struct hns_roce_dev *hr_dev)
 	roce_set_field(req->vf_mpt_cfg, CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M,
 		       CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S,
 		       mpt_hop_num == HNS_ROCE_HOP_NUM_0 ? 0 : mpt_hop_num);
+
+	roce_set_field(req->vf_sccc_cfg,
+		       CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_M,
+		       CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_S,
+		       hr_dev->caps.sccc_ba_pg_sz + PG_SHIFT_OFFSET);
+	roce_set_field(req->vf_sccc_cfg,
+		       CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_M,
+		       CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_S,
+		       hr_dev->caps.sccc_buf_pg_sz + PG_SHIFT_OFFSET);
+	roce_set_field(req->vf_sccc_cfg,
+		       CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_M,
+		       CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_S,
+		       sccc_hop_num ==
+			      HNS_ROCE_HOP_NUM_0 ? 0 : sccc_hop_num);
 
 	return hns_roce_cmq_send(hr_dev, &desc, 1);
 }
@@ -1408,9 +1434,14 @@ static int hns_roce_v2_profile(struct hns_roce_dev *hr_dev)
 	caps->max_srq_wrs	= HNS_ROCE_V2_MAX_SRQ_WR;
 	caps->max_srq_sges	= HNS_ROCE_V2_MAX_SRQ_SGE;
 
-	if (hr_dev->pci_dev->revision == 0x21)
+	if (hr_dev->pci_dev->revision == 0x21) {
 		caps->flags |= HNS_ROCE_CAP_FLAG_ATOMIC |
 			       HNS_ROCE_CAP_FLAG_SRQ;
+		caps->sccc_entry_sz	= HNS_ROCE_V2_SCCC_ENTRY_SZ;
+		caps->sccc_ba_pg_sz	= 0;
+		caps->sccc_buf_pg_sz    = 0;
+		caps->sccc_hop_num	= HNS_ROCE_SCCC_HOP_NUM;
+	}
 
 	ret = hns_roce_v2_set_bt(hr_dev);
 	if (ret)
@@ -2663,11 +2694,18 @@ static int hns_roce_v2_set_hem(struct hns_roce_dev *hr_dev,
 	case HEM_TYPE_SRQC:
 		op = HNS_ROCE_CMD_WRITE_SRQC_BT0;
 		break;
+	case HEM_TYPE_SCCC:
+		op = HNS_ROCE_CMD_WRITE_SCCC_BT0;
+		break;
 	default:
 		dev_warn(dev, "Table %d not to be written by mailbox!\n",
 			 table->type);
 		return 0;
 	}
+
+	if (table->type == HEM_TYPE_SCCC && step_idx)
+		return 0;
+
 	op += step_idx;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
@@ -2722,6 +2760,8 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 	case HEM_TYPE_CQC:
 		op = HNS_ROCE_CMD_DESTROY_CQC_BT0;
 		break;
+	case HEM_TYPE_SCCC:
+		break;
 	case HEM_TYPE_SRQC:
 		op = HNS_ROCE_CMD_DESTROY_SRQC_BT0;
 		break;
@@ -2730,6 +2770,10 @@ static int hns_roce_v2_clear_hem(struct hns_roce_dev *hr_dev,
 			 table->type);
 		return 0;
 	}
+
+	if (table->type == HEM_TYPE_SCCC)
+		return 0;
+
 	op += step_idx;
 
 	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);

@@ -36,6 +36,7 @@
 #include <linux/bitops.h>
 
 #define HNS_ROCE_VF_QPC_BT_NUM			256
+#define HNS_ROCE_VF_SCCC_BT_NUM			64
 #define HNS_ROCE_VF_SRQC_BT_NUM			64
 #define HNS_ROCE_VF_CQC_BT_NUM			64
 #define HNS_ROCE_VF_MPT_BT_NUM			64
@@ -83,6 +84,7 @@
 #define HNS_ROCE_V2_MTPT_ENTRY_SZ		64
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
+#define HNS_ROCE_V2_SCCC_ENTRY_SZ		32
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
 #define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
 #define HNS_ROCE_INVALID_LKEY			0x100
@@ -91,6 +93,7 @@
 #define HNS_ROCE_V2_RSV_QPS			8
 
 #define HNS_ROCE_CONTEXT_HOP_NUM		1
+#define HNS_ROCE_SCCC_HOP_NUM			1
 #define HNS_ROCE_MTT_HOP_NUM			1
 #define HNS_ROCE_CQE_HOP_NUM			1
 #define HNS_ROCE_SRQWQE_HOP_NUM			1
@@ -1300,7 +1303,8 @@ struct hns_roce_pf_res_b {
 	__le32	smac_idx_num;
 	__le32	sgid_idx_num;
 	__le32	qid_idx_sl_num;
-	__le32	rsv[2];
+	__le32	sccc_bt_idx_num;
+	__le32	rsv;
 };
 
 #define PF_RES_DATA_1_PF_SMAC_IDX_S 0
@@ -1320,6 +1324,12 @@ struct hns_roce_pf_res_b {
 
 #define PF_RES_DATA_3_PF_SL_NUM_S 16
 #define PF_RES_DATA_3_PF_SL_NUM_M GENMASK(26, 16)
+
+#define PF_RES_DATA_4_PF_SCCC_BT_IDX_S 0
+#define PF_RES_DATA_4_PF_SCCC_BT_IDX_M GENMASK(8, 0)
+
+#define PF_RES_DATA_4_PF_SCCC_BT_NUM_S 9
+#define PF_RES_DATA_4_PF_SCCC_BT_NUM_M GENMASK(17, 9)
 
 struct hns_roce_vf_res_a {
 	__le32 vf_id;
@@ -1365,7 +1375,8 @@ struct hns_roce_vf_res_b {
 	__le32 vf_smac_idx_num;
 	__le32 vf_sgid_idx_num;
 	__le32 vf_qid_idx_sl_num;
-	__le32 rsv[2];
+	__le32 vf_sccc_idx_num;
+	__le32 rsv1;
 };
 
 #define VF_RES_B_DATA_0_VF_ID_S 0
@@ -1388,6 +1399,12 @@ struct hns_roce_vf_res_b {
 
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
+
+#define VF_RES_B_DATA_4_VF_SCCC_BT_IDX_S 0
+#define VF_RES_B_DATA_4_VF_SCCC_BT_IDX_M GENMASK(8, 0)
+
+#define VF_RES_B_DATA_4_VF_SCCC_BT_NUM_S 9
+#define VF_RES_B_DATA_4_VF_SCCC_BT_NUM_M GENMASK(17, 9)
 
 struct hns_roce_vf_switch {
 	__le32 rocee_sel;
@@ -1424,7 +1441,8 @@ struct hns_roce_cfg_bt_attr {
 	__le32 vf_srqc_cfg;
 	__le32 vf_cqc_cfg;
 	__le32 vf_mpt_cfg;
-	__le32 rsv[2];
+	__le32 vf_sccc_cfg;
+	__le32 rsv;
 };
 
 #define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S 0
@@ -1462,6 +1480,15 @@ struct hns_roce_cfg_bt_attr {
 
 #define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S 8
 #define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M GENMASK(9, 8)
+
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_M GENMASK(3, 0)
+
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_M GENMASK(7, 4)
+
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_M GENMASK(9, 8)
 
 struct hns_roce_cfg_sgid_tb {
 	__le32	table_idx_rsv;
