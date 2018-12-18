@@ -1529,6 +1529,25 @@ config SERIAL_OWL_CONSOLE
 	  Say 'Y' here if you wish to use Actions Semiconductor S500/S900 UART
 	  as the system console.
 
+config SERIAL_RDA
+	bool "RDA Micro serial port support"
+	depends on ARCH_RDA || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver is for RDA8810PL SoC's UART.
+	  Say 'Y' here if you wish to use the on-board serial port.
+	  Otherwise, say 'N'.
+
+config SERIAL_RDA_CONSOLE
+	bool "Console on RDA Micro serial port"
+	depends on SERIAL_RDA=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use the RDA8810PL UART as the system
+	  console. Only earlycon is implemented currently.
+
 endmenu
 
 config SERIAL_MCTRL_GPIO
