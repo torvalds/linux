@@ -12,7 +12,7 @@
 					 SUPPORTED_TP | \
 					 PHY_10BT_FEATURES | \
 					 PHY_100BT_FEATURES | \
-					 PHY_1000BT_FEATURES)
+					 SUPPORTED_1000baseT_Full)
 
 enum hclge_mdio_c22_op_seq {
 	HCLGE_MDIO_C22_WRITE = 1,
