@@ -7,7 +7,7 @@
 #ifndef __SDMA_PCM_H__
 #define __SDMA_PCM_H__
 
-#if IS_ENABLED(CONFIG_SND_SDMA_SOC)
+#if IS_ENABLED(CONFIG_SND_SOC_TI_SDMA_PCM)
 int sdma_pcm_platform_register(struct device *dev,
 			       char *txdmachan, char *rxdmachan);
 #else
@@ -16,6 +16,6 @@ static inline int sdma_pcm_platform_register(struct device *dev,
 {
 	return -ENODEV;
 }
-#endif /* CONFIG_SND_SDMA_SOC */
+#endif /* CONFIG_SND_SOC_TI_SDMA_PCM */
 
 #endif /* __SDMA_PCM_H__ */

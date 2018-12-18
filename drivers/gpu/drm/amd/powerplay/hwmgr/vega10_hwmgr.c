@@ -3266,8 +3266,10 @@ static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, co
 	}
 
 	if (i >= sclk_table->count) {
-		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
-		sclk_table->dpm_levels[i-1].value = sclk;
+		if (sclk > sclk_table->dpm_levels[i-1].value) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_SCLK;
+			sclk_table->dpm_levels[i-1].value = sclk;
+		}
 	}
 
 	for (i = 0; i < mclk_table->count; i++) {
@@ -3276,8 +3278,10 @@ static int vega10_find_dpm_states_clocks_in_dpm_table(struct pp_hwmgr *hwmgr, co
 	}
 
 	if (i >= mclk_table->count) {
-		data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
-		mclk_table->dpm_levels[i-1].value = mclk;
+		if (mclk > mclk_table->dpm_levels[i-1].value) {
+			data->need_update_dpm_table |= DPMTABLE_OD_UPDATE_MCLK;
+			mclk_table->dpm_levels[i-1].value = mclk;
+		}
 	}
 
 	if (data->display_timing.num_existing_displays != hwmgr->display_config->num_display)
@@ -4522,14 +4526,12 @@ static int vega10_get_sclk_od(struct pp_hwmgr *hwmgr)
 	struct vega10_single_dpm_table *sclk_table = &(data->dpm_table.gfx_table);
 	struct vega10_single_dpm_table *golden_sclk_table =
 			&(data->golden_dpm_table.gfx_table);
-	int value;
-
-	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
-			golden_sclk_table->dpm_levels
-			[golden_sclk_table->count - 1].value) *
-			100 /
-			golden_sclk_table->dpm_levels
+	int value = sclk_table->dpm_levels[sclk_table->count - 1].value;
+	int golden_value = golden_sclk_table->dpm_levels
 			[golden_sclk_table->count - 1].value;
+
+	value -= golden_value;
+	value = DIV_ROUND_UP(value * 100, golden_value);
 
 	return value;
 }
@@ -4575,15 +4577,12 @@ static int vega10_get_mclk_od(struct pp_hwmgr *hwmgr)
 	struct vega10_single_dpm_table *mclk_table = &(data->dpm_table.mem_table);
 	struct vega10_single_dpm_table *golden_mclk_table =
 			&(data->golden_dpm_table.mem_table);
-	int value;
-
-	value = (mclk_table->dpm_levels
-			[mclk_table->count - 1].value -
-			golden_mclk_table->dpm_levels
-			[golden_mclk_table->count - 1].value) *
-			100 /
-			golden_mclk_table->dpm_levels
+	int value = mclk_table->dpm_levels[mclk_table->count - 1].value;
+	int golden_value = golden_mclk_table->dpm_levels
 			[golden_mclk_table->count - 1].value;
+
+	value -= golden_value;
+	value = DIV_ROUND_UP(value * 100, golden_value);
 
 	return value;
 }

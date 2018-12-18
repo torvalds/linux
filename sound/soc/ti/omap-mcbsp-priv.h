@@ -1,36 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
- * sound/soc/omap/mcbsp.h
- *
  * OMAP Multi-Channel Buffered Serial Port
  *
  * Contact: Jarkko Nikula <jarkko.nikula@bitmer.com>
  *          Peter Ujfalusi <peter.ujfalusi@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
-#ifndef __ASOC_MCBSP_H
-#define __ASOC_MCBSP_H
+
+#ifndef __OMAP_MCBSP_PRIV_H__
+#define __OMAP_MCBSP_PRIV_H__
+
+#include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #ifdef CONFIG_ARCH_OMAP1
 #define mcbsp_omap1()	1
 #else
 #define mcbsp_omap1()	0
 #endif
-
-#include <sound/dmaengine_pcm.h>
 
 /* McBSP register numbers. Register address offset = num * reg_step */
 enum {
@@ -84,15 +69,6 @@ enum {
 	OMAP_MCBSP_REG_RBUFFSTAT,
 	OMAP_MCBSP_REG_SSELCR,
 };
-
-/* OMAP3 sidetone control registers */
-#define OMAP_ST_REG_REV		0x00
-#define OMAP_ST_REG_SYSCONFIG	0x10
-#define OMAP_ST_REG_IRQSTATUS	0x18
-#define OMAP_ST_REG_IRQENABLE	0x1C
-#define OMAP_ST_REG_SGAINCR	0x24
-#define OMAP_ST_REG_SFIRCR	0x28
-#define OMAP_ST_REG_SSELCR	0x2C
 
 /************************** McBSP SPCR1 bit definitions ***********************/
 #define RRST			BIT(0)
@@ -202,24 +178,6 @@ enum {
 #define SIDLEMODE(value)	(((value) & 0x3) << 3)
 #define CLOCKACTIVITY(value)	(((value) & 0x3) << 8)
 
-/********************** McBSP SSELCR bit definitions ***********************/
-#define SIDETONEEN		BIT(10)
-
-/********************** McBSP Sidetone SYSCONFIG bit definitions ***********/
-#define ST_AUTOIDLE		BIT(0)
-
-/********************** McBSP Sidetone SGAINCR bit definitions *************/
-#define ST_CH0GAIN(value)	((value) & 0xffff)	/* Bits 0:15 */
-#define ST_CH1GAIN(value)	(((value) & 0xffff) << 16) /* Bits 16:31 */
-
-/********************** McBSP Sidetone SFIRCR bit definitions **************/
-#define ST_FIRCOEFF(value)	((value) & 0xffff)	/* Bits 0:15 */
-
-/********************** McBSP Sidetone SSELCR bit definitions **************/
-#define ST_SIDETONEEN		BIT(0)
-#define ST_COEFFWREN		BIT(1)
-#define ST_COEFFWRDONE		BIT(2)
-
 /********************** McBSP DMA operating modes **************************/
 #define MCBSP_DMA_MODE_ELEMENT		0
 #define MCBSP_DMA_MODE_THRESHOLD	1
@@ -278,16 +236,7 @@ struct omap_mcbsp_reg_cfg {
 	u16 rccr;
 };
 
-struct omap_mcbsp_st_data {
-	void __iomem *io_base_st;
-	struct clk *mcbsp_iclk;
-	bool running;
-	bool enabled;
-	s16 taps[128];	/* Sidetone filter coefficients */
-	int nr_taps;	/* Number of filter coefficients in use */
-	s16 ch0gain;
-	s16 ch1gain;
-};
+struct omap_mcbsp_st_data;
 
 struct omap_mcbsp {
 	struct device *dev;
@@ -330,29 +279,46 @@ struct omap_mcbsp {
 	struct pm_qos_request pm_qos_req;
 };
 
-void omap_mcbsp_config(struct omap_mcbsp *mcbsp,
-		       const struct omap_mcbsp_reg_cfg *config);
-void omap_mcbsp_set_tx_threshold(struct omap_mcbsp *mcbsp, u16 threshold);
-void omap_mcbsp_set_rx_threshold(struct omap_mcbsp *mcbsp, u16 threshold);
-u16 omap_mcbsp_get_tx_delay(struct omap_mcbsp *mcbsp);
-u16 omap_mcbsp_get_rx_delay(struct omap_mcbsp *mcbsp);
-int omap_mcbsp_get_dma_op_mode(struct omap_mcbsp *mcbsp);
-int omap_mcbsp_request(struct omap_mcbsp *mcbsp);
-void omap_mcbsp_free(struct omap_mcbsp *mcbsp);
-void omap_mcbsp_start(struct omap_mcbsp *mcbsp, int tx, int rx);
-void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx);
+static inline void omap_mcbsp_write(struct omap_mcbsp *mcbsp, u16 reg, u32 val)
+{
+	void __iomem *addr = mcbsp->io_base + reg * mcbsp->pdata->reg_step;
 
-/* McBSP functional clock source changing function */
-int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
+	if (mcbsp->pdata->reg_size == 2) {
+		((u16 *)mcbsp->reg_cache)[reg] = (u16)val;
+		writew_relaxed((u16)val, addr);
+	} else {
+		((u32 *)mcbsp->reg_cache)[reg] = val;
+		writel_relaxed(val, addr);
+	}
+}
+
+static inline int omap_mcbsp_read(struct omap_mcbsp *mcbsp, u16 reg,
+				  bool from_cache)
+{
+	void __iomem *addr = mcbsp->io_base + reg * mcbsp->pdata->reg_step;
+
+	if (mcbsp->pdata->reg_size == 2) {
+		return !from_cache ? readw_relaxed(addr) :
+				     ((u16 *)mcbsp->reg_cache)[reg];
+	} else {
+		return !from_cache ? readl_relaxed(addr) :
+				     ((u32 *)mcbsp->reg_cache)[reg];
+	}
+}
+
+#define MCBSP_READ(mcbsp, reg) \
+		omap_mcbsp_read(mcbsp, OMAP_MCBSP_REG_##reg, 0)
+#define MCBSP_WRITE(mcbsp, reg, val) \
+		omap_mcbsp_write(mcbsp, OMAP_MCBSP_REG_##reg, val)
+#define MCBSP_READ_CACHE(mcbsp, reg) \
+		omap_mcbsp_read(mcbsp, OMAP_MCBSP_REG_##reg, 1)
+
 
 /* Sidetone specific API */
-int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain);
-int omap_st_get_chgain(struct omap_mcbsp *mcbsp, int channel, s16 *chgain);
-int omap_st_enable(struct omap_mcbsp *mcbsp);
-int omap_st_disable(struct omap_mcbsp *mcbsp);
-int omap_st_is_enabled(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_st_init(struct platform_device *pdev);
+void omap_mcbsp_st_cleanup(struct platform_device *pdev);
 
-int omap_mcbsp_init(struct platform_device *pdev);
-void omap_mcbsp_cleanup(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_st_start(struct omap_mcbsp *mcbsp);
+int omap_mcbsp_st_stop(struct omap_mcbsp *mcbsp);
 
-#endif /* __ASOC_MCBSP_H */
+#endif /* __OMAP_MCBSP_PRIV_H__ */

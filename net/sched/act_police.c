@@ -27,10 +27,7 @@ struct tcf_police_params {
 	u32			tcfp_ewma_rate;
 	s64			tcfp_burst;
 	u32			tcfp_mtu;
-	s64			tcfp_toks;
-	s64			tcfp_ptoks;
 	s64			tcfp_mtu_ptoks;
-	s64			tcfp_t_c;
 	struct psched_ratecfg	rate;
 	bool			rate_present;
 	struct psched_ratecfg	peak;
@@ -41,6 +38,11 @@ struct tcf_police_params {
 struct tcf_police {
 	struct tc_action	common;
 	struct tcf_police_params __rcu *params;
+
+	spinlock_t		tcfp_lock ____cacheline_aligned_in_smp;
+	s64			tcfp_toks;
+	s64			tcfp_ptoks;
+	s64			tcfp_t_c;
 };
 
 #define to_police(pc) ((struct tcf_police *)pc)
@@ -83,7 +85,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 			       int ovr, int bind, bool rtnl_held,
 			       struct netlink_ext_ack *extack)
 {
-	int ret = 0, err;
+	int ret = 0, tcfp_result = TC_ACT_OK, err, size;
 	struct nlattr *tb[TCA_POLICE_MAX + 1];
 	struct tc_police *parm;
 	struct tcf_police *police;
@@ -91,7 +93,6 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	struct tc_action_net *tn = net_generic(net, police_net_id);
 	struct tcf_police_params *new;
 	bool exists = false;
-	int size;
 
 	if (nla == NULL)
 		return -EINVAL;
@@ -122,6 +123,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 			return ret;
 		}
 		ret = ACT_P_CREATED;
+		spin_lock_init(&(to_police(*a)->tcfp_lock));
 	} else if (!ovr) {
 		tcf_idr_release(*a, bind);
 		return -EEXIST;
@@ -157,6 +159,16 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 		goto failure;
 	}
 
+	if (tb[TCA_POLICE_RESULT]) {
+		tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
+		if (TC_ACT_EXT_CMP(tcfp_result, TC_ACT_GOTO_CHAIN)) {
+			NL_SET_ERR_MSG(extack,
+				       "goto chain not allowed on fallback");
+			err = -EINVAL;
+			goto failure;
+		}
+	}
+
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (unlikely(!new)) {
 		err = -ENOMEM;
@@ -164,6 +176,7 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 
 	/* No failure allowed after this point */
+	new->tcfp_result = tcfp_result;
 	new->tcfp_mtu = parm->mtu;
 	if (!new->tcfp_mtu) {
 		new->tcfp_mtu = ~0;
@@ -186,28 +199,20 @@ static int tcf_police_init(struct net *net, struct nlattr *nla,
 	}
 
 	new->tcfp_burst = PSCHED_TICKS2NS(parm->burst);
-	new->tcfp_toks = new->tcfp_burst;
-	if (new->peak_present) {
+	if (new->peak_present)
 		new->tcfp_mtu_ptoks = (s64)psched_l2t_ns(&new->peak,
 							 new->tcfp_mtu);
-		new->tcfp_ptoks = new->tcfp_mtu_ptoks;
-	}
 
 	if (tb[TCA_POLICE_AVRATE])
 		new->tcfp_ewma_rate = nla_get_u32(tb[TCA_POLICE_AVRATE]);
 
-	if (tb[TCA_POLICE_RESULT]) {
-		new->tcfp_result = nla_get_u32(tb[TCA_POLICE_RESULT]);
-		if (TC_ACT_EXT_CMP(new->tcfp_result, TC_ACT_GOTO_CHAIN)) {
-			NL_SET_ERR_MSG(extack,
-				       "goto chain not allowed on fallback");
-			err = -EINVAL;
-			goto failure;
-		}
-	}
-
 	spin_lock_bh(&police->tcf_lock);
-	new->tcfp_t_c = ktime_get_ns();
+	spin_lock_bh(&police->tcfp_lock);
+	police->tcfp_t_c = ktime_get_ns();
+	police->tcfp_toks = new->tcfp_burst;
+	if (new->peak_present)
+		police->tcfp_ptoks = new->tcfp_mtu_ptoks;
+	spin_unlock_bh(&police->tcfp_lock);
 	police->tcf_action = parm->action;
 	rcu_swap_protected(police->params,
 			   new,
@@ -257,25 +262,28 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 		}
 
 		now = ktime_get_ns();
-		toks = min_t(s64, now - p->tcfp_t_c, p->tcfp_burst);
+		spin_lock_bh(&police->tcfp_lock);
+		toks = min_t(s64, now - police->tcfp_t_c, p->tcfp_burst);
 		if (p->peak_present) {
-			ptoks = toks + p->tcfp_ptoks;
+			ptoks = toks + police->tcfp_ptoks;
 			if (ptoks > p->tcfp_mtu_ptoks)
 				ptoks = p->tcfp_mtu_ptoks;
 			ptoks -= (s64)psched_l2t_ns(&p->peak,
 						    qdisc_pkt_len(skb));
 		}
-		toks += p->tcfp_toks;
+		toks += police->tcfp_toks;
 		if (toks > p->tcfp_burst)
 			toks = p->tcfp_burst;
 		toks -= (s64)psched_l2t_ns(&p->rate, qdisc_pkt_len(skb));
 		if ((toks|ptoks) >= 0) {
-			p->tcfp_t_c = now;
-			p->tcfp_toks = toks;
-			p->tcfp_ptoks = ptoks;
+			police->tcfp_t_c = now;
+			police->tcfp_toks = toks;
+			police->tcfp_ptoks = ptoks;
+			spin_unlock_bh(&police->tcfp_lock);
 			ret = p->tcfp_result;
 			goto inc_drops;
 		}
+		spin_unlock_bh(&police->tcfp_lock);
 	}
 
 inc_overlimits:

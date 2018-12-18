@@ -341,6 +341,10 @@ static int sst_acpi_probe(struct platform_device *pdev)
 		byt_rvp_platform_data.res_info = &bytcr_res_info;
 	}
 
+	/* update machine parameters */
+	mach->mach_params.acpi_ipc_irq_index =
+		pdata->res_info->acpi_ipc_irq_index;
+
 	plat_dev = platform_device_register_data(dev, pdata->platform, -1,
 						NULL, 0);
 	if (IS_ERR(plat_dev)) {

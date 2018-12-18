@@ -455,7 +455,8 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 	case IPPROTO_TCP:
 		timeouts = nf_tcp_pernet(net)->timeouts;
 		break;
-	case IPPROTO_UDP:
+	case IPPROTO_UDP: /* fallthrough */
+	case IPPROTO_UDPLITE:
 		timeouts = nf_udp_pernet(net)->timeouts;
 		break;
 	case IPPROTO_DCCP:
@@ -471,11 +472,21 @@ static int cttimeout_default_get(struct net *net, struct sock *ctnl,
 		timeouts = nf_sctp_pernet(net)->timeouts;
 #endif
 		break;
+	case IPPROTO_GRE:
+#ifdef CONFIG_NF_CT_PROTO_GRE
+		if (l4proto->net_id) {
+			struct netns_proto_gre *net_gre;
+
+			net_gre = net_generic(net, *l4proto->net_id);
+			timeouts = net_gre->gre_timeouts;
+		}
+#endif
+		break;
 	case 255:
 		timeouts = &nf_generic_pernet(net)->timeout;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Missing timeouts for proto %d", l4proto->l4proto);
 		break;
 	}
 

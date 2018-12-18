@@ -136,7 +136,8 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 	struct afs_addr_list *alist;
 	struct afs_server *server;
 	struct afs_vnode *vnode = fc->vnode;
-	u32 rtt, abort_code;
+	struct afs_error e;
+	u32 rtt;
 	int error = fc->ac.error, i;
 
 	_enter("%lx[%d],%lx[%d],%d,%d",
@@ -306,8 +307,11 @@ bool afs_select_fileserver(struct afs_fs_cursor *fc)
 		if (fc->error != -EDESTADDRREQ)
 			goto iterate_address;
 		/* Fall through */
+	case -ERFKILL:
+	case -EADDRNOTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 		_debug("no conn");
 		fc->error = error;
@@ -446,49 +450,14 @@ no_more_servers:
 	if (fc->flags & AFS_FS_CURSOR_VBUSY)
 		goto restart_from_beginning;
 
-	abort_code = 0;
-	error = -EDESTADDRREQ;
+	e.error = -EDESTADDRREQ;
+	e.responded = false;
 	for (i = 0; i < fc->server_list->nr_servers; i++) {
 		struct afs_server *s = fc->server_list->servers[i].server;
-		int probe_error = READ_ONCE(s->probe.error);
 
-		switch (probe_error) {
-		case 0:
-			continue;
-		default:
-			if (error == -ETIMEDOUT ||
-			    error == -ETIME)
-				continue;
-		case -ETIMEDOUT:
-		case -ETIME:
-			if (error == -ENOMEM ||
-			    error == -ENONET)
-				continue;
-		case -ENOMEM:
-		case -ENONET:
-			if (error == -ENETUNREACH)
-				continue;
-		case -ENETUNREACH:
-			if (error == -EHOSTUNREACH)
-				continue;
-		case -EHOSTUNREACH:
-			if (error == -ECONNREFUSED)
-				continue;
-		case -ECONNREFUSED:
-			if (error == -ECONNRESET)
-				continue;
-		case -ECONNRESET: /* Responded, but call expired. */
-			if (error == -ECONNABORTED)
-				continue;
-		case -ECONNABORTED:
-			abort_code = s->probe.abort_code;
-			error = probe_error;
-			continue;
-		}
+		afs_prioritise_error(&e, READ_ONCE(s->probe.error),
+				     s->probe.abort_code);
 	}
-
-	if (error == -ECONNABORTED)
-		error = afs_abort_to_error(abort_code);
 
 failed_set_error:
 	fc->error = error;
@@ -553,8 +522,11 @@ bool afs_select_current_fileserver(struct afs_fs_cursor *fc)
 		_leave(" = f [abort]");
 		return false;
 
+	case -ERFKILL:
+	case -EADDRNOTAVAIL:
 	case -ENETUNREACH:
 	case -EHOSTUNREACH:
+	case -EHOSTDOWN:
 	case -ECONNREFUSED:
 	case -ETIMEDOUT:
 	case -ETIME:
@@ -633,6 +605,7 @@ int afs_end_vnode_operation(struct afs_fs_cursor *fc)
 	struct afs_net *net = afs_v2net(fc->vnode);
 
 	if (fc->error == -EDESTADDRREQ ||
+	    fc->error == -EADDRNOTAVAIL ||
 	    fc->error == -ENETUNREACH ||
 	    fc->error == -EHOSTUNREACH)
 		afs_dump_edestaddrreq(fc);

@@ -2890,6 +2890,7 @@ intel_find_initial_plane_obj(struct intel_crtc *intel_crtc,
 	return;
 
 valid_fb:
+	intel_state->base.rotation = plane_config->rotation;
 	intel_fill_fb_ggtt_view(&intel_state->view, fb,
 				intel_state->base.rotation);
 	intel_state->color_plane[0].stride =
@@ -7882,7 +7883,14 @@ i9xx_get_initial_plane_config(struct intel_crtc *crtc,
 			plane_config->tiling = I915_TILING_X;
 			fb->modifier = I915_FORMAT_MOD_X_TILED;
 		}
+
+		if (val & DISPPLANE_ROTATE_180)
+			plane_config->rotation = DRM_MODE_ROTATE_180;
 	}
+
+	if (IS_CHERRYVIEW(dev_priv) && pipe == PIPE_B &&
+	    val & DISPPLANE_MIRROR)
+		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
 	pixel_format = val & DISPPLANE_PIXFORMAT_MASK;
 	fourcc = i9xx_format_to_fourcc(pixel_format);
@@ -8951,6 +8959,29 @@ skylake_get_initial_plane_config(struct intel_crtc *crtc,
 		MISSING_CASE(tiling);
 		goto error;
 	}
+
+	/*
+	 * DRM_MODE_ROTATE_ is counter clockwise to stay compatible with Xrandr
+	 * while i915 HW rotation is clockwise, thats why this swapping.
+	 */
+	switch (val & PLANE_CTL_ROTATE_MASK) {
+	case PLANE_CTL_ROTATE_0:
+		plane_config->rotation = DRM_MODE_ROTATE_0;
+		break;
+	case PLANE_CTL_ROTATE_90:
+		plane_config->rotation = DRM_MODE_ROTATE_270;
+		break;
+	case PLANE_CTL_ROTATE_180:
+		plane_config->rotation = DRM_MODE_ROTATE_180;
+		break;
+	case PLANE_CTL_ROTATE_270:
+		plane_config->rotation = DRM_MODE_ROTATE_90;
+		break;
+	}
+
+	if (INTEL_GEN(dev_priv) >= 10 &&
+	    val & PLANE_CTL_FLIP_HORIZONTAL)
+		plane_config->rotation |= DRM_MODE_REFLECT_X;
 
 	base = I915_READ(PLANE_SURF(pipe, plane_id)) & 0xfffff000;
 	plane_config->base = base;
@@ -15267,6 +15298,14 @@ retry:
 			ret = drm_atomic_add_affected_planes(state, crtc);
 			if (ret)
 				goto out;
+
+			/*
+			 * FIXME hack to force a LUT update to avoid the
+			 * plane update forcing the pipe gamma on without
+			 * having a proper LUT loaded. Remove once we
+			 * have readout for pipe gamma enable.
+			 */
+			crtc_state->color_mgmt_changed = true;
 		}
 	}
 

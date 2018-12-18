@@ -49,6 +49,8 @@
 
 #define VMWGFX_REPO "In Tree"
 
+#define VMWGFX_VALIDATION_MEM_GRAN (16*PAGE_SIZE)
+
 
 /**
  * Fully encoded drm commands. Might move to vmw_drm.h
@@ -918,7 +920,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		spin_unlock(&dev_priv->cap_lock);
 	}
 
-
+	vmw_validation_mem_init_ttm(dev_priv, VMWGFX_VALIDATION_MEM_GRAN);
 	ret = vmw_kms_init(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_no_kms;

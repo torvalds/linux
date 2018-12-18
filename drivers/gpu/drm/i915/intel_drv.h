@@ -547,6 +547,7 @@ struct intel_initial_plane_config {
 	unsigned int tiling;
 	int size;
 	u32 base;
+	u8 rotation;
 };
 
 #define SKL_MIN_SRC_W 8

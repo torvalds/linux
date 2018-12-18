@@ -227,16 +227,6 @@
 		#reset-cells = <1>;
 	};
 
-	timer: timer@10004000 {
-		compatible = "mediatek,mt7622-timer",
-			     "mediatek,mt6577-timer";
-		reg = <0 0x10004000 0 0x80>;
-		interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_LOW>;
-		clocks = <&infracfg CLK_INFRA_APXGPT_PD>,
-			 <&topckgen CLK_TOP_RTC>;
-		clock-names = "system-clk", "rtc-clk";
-	};
-
 	scpsys: scpsys@10006000 {
 		compatible = "mediatek,mt7622-scpsys",
 			     "syscon";

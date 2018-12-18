@@ -1563,7 +1563,7 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 	u64 offset;
 	s64 val;
 
-	switch (ctrl->type) {
+	switch ((u32)ctrl->type) {
 	case V4L2_CTRL_TYPE_INTEGER:
 		return ROUND_TO_RANGE(ptr.p_s32[idx], u32, ctrl);
 	case V4L2_CTRL_TYPE_INTEGER64:
@@ -1662,6 +1662,11 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 
 		if (p_mpeg2_slice_params->backward_ref_index >= VIDEO_MAX_FRAME ||
 		    p_mpeg2_slice_params->forward_ref_index >= VIDEO_MAX_FRAME)
+			return -EINVAL;
+
+		if (p_mpeg2_slice_params->pad ||
+		    p_mpeg2_slice_params->picture.pad ||
+		    p_mpeg2_slice_params->sequence.pad)
 			return -EINVAL;
 
 		return 0;
@@ -2227,7 +2232,7 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	is_array = nr_of_dims > 0;
 
 	/* Prefill elem_size for all types handled by std_type_ops */
-	switch (type) {
+	switch ((u32)type) {
 	case V4L2_CTRL_TYPE_INTEGER64:
 		elem_size = sizeof(s64);
 		break;
