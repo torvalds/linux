@@ -927,6 +927,8 @@ struct bnxt_hw_resc {
 	u16	resv_vnics;
 	u16	min_stat_ctxs;
 	u16	max_stat_ctxs;
+	u16	resv_stat_ctxs;
+	u16	max_nqs;
 	u16	max_irqs;
 	u16	resv_irqs;
 };
@@ -1416,8 +1418,6 @@ struct bnxt {
 	int			cp_nr_pages;
 	int			cp_nr_rings;
 
-	int			num_stat_ctxs;
-
 	/* grp_info indexed by completion ring index */
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
@@ -1472,6 +1472,7 @@ struct bnxt {
 	void			*hwrm_cmd_resp_addr;
 	dma_addr_t		hwrm_cmd_resp_dma_addr;
 
+	struct rtnl_link_stats64	net_stats_prev;
 	struct rx_port_stats	*hw_rx_port_stats;
 	struct tx_port_stats	*hw_tx_port_stats;
 	struct rx_port_stats_ext	*hw_rx_port_stats_ext;
@@ -1483,6 +1484,8 @@ struct bnxt {
 	int			hw_port_stats_size;
 	u16			fw_rx_stats_ext_size;
 	u16			fw_tx_stats_ext_size;
+	u8			pri2cos[8];
+	u8			pri2cos_valid;
 
 	u16			hwrm_max_req_len;
 	u16			hwrm_max_ext_req_len;
@@ -1686,11 +1689,12 @@ int bnxt_hwrm_func_rgtr_async_events(struct bnxt *bp, unsigned long *bmap,
 				     int bmap_size);
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id);
 int __bnxt_hwrm_get_tx_rings(struct bnxt *bp, u16 fid, int *tx_rings);
+int bnxt_nq_rings_in_use(struct bnxt *bp);
 int bnxt_hwrm_set_coal(struct bnxt *);
 unsigned int bnxt_get_max_func_stat_ctxs(struct bnxt *bp);
-void bnxt_set_max_func_stat_ctxs(struct bnxt *bp, unsigned int max);
+unsigned int bnxt_get_avail_stat_ctxs_for_en(struct bnxt *bp);
 unsigned int bnxt_get_max_func_cp_rings(struct bnxt *bp);
-unsigned int bnxt_get_max_func_cp_rings_for_en(struct bnxt *bp);
+unsigned int bnxt_get_avail_cp_rings_for_en(struct bnxt *bp);
 int bnxt_get_avail_msix(struct bnxt *bp, int num);
 int bnxt_reserve_rings(struct bnxt *bp);
 void bnxt_tx_disable(struct bnxt *bp);
