@@ -116,10 +116,11 @@ static int rsnd_cmd_stop(struct rsnd_mod *mod,
 }
 
 static struct rsnd_mod_ops rsnd_cmd_ops = {
-	.name	= CMD_NAME,
-	.init	= rsnd_cmd_init,
-	.start	= rsnd_cmd_start,
-	.stop	= rsnd_cmd_stop,
+	.name		= CMD_NAME,
+	.init		= rsnd_cmd_init,
+	.start		= rsnd_cmd_start,
+	.stop		= rsnd_cmd_stop,
+	.get_status	= rsnd_mod_get_status,
 };
 
 static struct rsnd_mod *rsnd_cmd_mod_get(struct rsnd_priv *priv, int id)
@@ -162,7 +163,7 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	for_each_rsnd_cmd(cmd, priv, i) {
 		ret = rsnd_mod_init(priv, rsnd_mod_get(cmd),
 				    &rsnd_cmd_ops, NULL,
-				    rsnd_mod_get_status, RSND_MOD_CMD, i);
+				    RSND_MOD_CMD, i);
 		if (ret)
 			return ret;
 	}

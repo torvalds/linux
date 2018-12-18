@@ -2419,7 +2419,7 @@ static int wm_adsp_create_name(struct wm_adsp *dsp)
 	return 0;
 }
 
-int wm_adsp1_init(struct wm_adsp *dsp)
+static int wm_adsp_common_init(struct wm_adsp *dsp)
 {
 	int ret;
 
@@ -2428,10 +2428,16 @@ int wm_adsp1_init(struct wm_adsp *dsp)
 		return ret;
 
 	INIT_LIST_HEAD(&dsp->alg_regions);
+	INIT_LIST_HEAD(&dsp->ctl_list);
 
 	mutex_init(&dsp->pwr_lock);
 
 	return 0;
+}
+
+int wm_adsp1_init(struct wm_adsp *dsp)
+{
+	return wm_adsp_common_init(dsp);
 }
 EXPORT_SYMBOL_GPL(wm_adsp1_init);
 
@@ -2917,7 +2923,7 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 {
 	int ret;
 
-	ret = wm_adsp_create_name(dsp);
+	ret = wm_adsp_common_init(dsp);
 	if (ret)
 		return ret;
 
@@ -2939,11 +2945,7 @@ int wm_adsp2_init(struct wm_adsp *dsp)
 		break;
 	}
 
-	INIT_LIST_HEAD(&dsp->alg_regions);
-	INIT_LIST_HEAD(&dsp->ctl_list);
 	INIT_WORK(&dsp->boot_work, wm_adsp2_boot_work);
-
-	mutex_init(&dsp->pwr_lock);
 
 	return 0;
 }

@@ -133,10 +133,6 @@ static const struct snd_kcontrol_new pcm3168a_snd_controls[] = {
 	SOC_DOUBLE("DAC2 Invert Switch", PCM3168A_DAC_INV, 2, 3, 1, 0),
 	SOC_DOUBLE("DAC3 Invert Switch", PCM3168A_DAC_INV, 4, 5, 1, 0),
 	SOC_DOUBLE("DAC4 Invert Switch", PCM3168A_DAC_INV, 6, 7, 1, 0),
-	SOC_DOUBLE_STS("DAC1 Zero Flag", PCM3168A_DAC_ZERO, 0, 1, 1, 0),
-	SOC_DOUBLE_STS("DAC2 Zero Flag", PCM3168A_DAC_ZERO, 2, 3, 1, 0),
-	SOC_DOUBLE_STS("DAC3 Zero Flag", PCM3168A_DAC_ZERO, 4, 5, 1, 0),
-	SOC_DOUBLE_STS("DAC4 Zero Flag", PCM3168A_DAC_ZERO, 6, 7, 1, 0),
 	SOC_ENUM("DAC Volume Control Type", pcm3168a_dac_volume_type),
 	SOC_ENUM("DAC Volume Rate Multiplier", pcm3168a_dac_att_mult),
 	SOC_ENUM("DAC De-Emphasis", pcm3168a_dac_demp),
@@ -176,9 +172,6 @@ static const struct snd_kcontrol_new pcm3168a_snd_controls[] = {
 	SOC_DOUBLE("ADC1 Mute Switch", PCM3168A_ADC_MUTE, 0, 1, 1, 0),
 	SOC_DOUBLE("ADC2 Mute Switch", PCM3168A_ADC_MUTE, 2, 3, 1, 0),
 	SOC_DOUBLE("ADC3 Mute Switch", PCM3168A_ADC_MUTE, 4, 5, 1, 0),
-	SOC_DOUBLE_STS("ADC1 Overflow Flag", PCM3168A_ADC_OV, 0, 1, 1, 0),
-	SOC_DOUBLE_STS("ADC2 Overflow Flag", PCM3168A_ADC_OV, 2, 3, 1, 0),
-	SOC_DOUBLE_STS("ADC3 Overflow Flag", PCM3168A_ADC_OV, 4, 5, 1, 0),
 	SOC_ENUM("ADC Volume Control Type", pcm3168a_adc_volume_type),
 	SOC_ENUM("ADC Volume Rate Multiplier", pcm3168a_adc_att_mult),
 	SOC_ENUM("ADC Overflow Flag Polarity", pcm3168a_adc_ov_pol),
@@ -504,6 +497,10 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 	unsigned int fmt;
 	unsigned int sample_min;
 	unsigned int channel_max;
+	unsigned int channel_maxs[] = {
+		6, /* rx */
+		8  /* tx */
+	};
 
 	if (tx)
 		fmt = pcm3168a->dac_fmt;
@@ -528,18 +525,9 @@ static int pcm3168a_startup(struct snd_pcm_substream *substream,
 		channel_max =  2;
 		break;
 	case PCM3168A_FMT_LEFT_J:
-		sample_min  = 24;
-		if (tx)
-			channel_max = 8;
-		else
-			channel_max = 6;
-		break;
 	case PCM3168A_FMT_I2S:
 		sample_min  = 24;
-		if (tx)
-			channel_max = 8;
-		else
-			channel_max = 6;
+		channel_max = channel_maxs[tx];
 		break;
 	default:
 		sample_min  = 24;

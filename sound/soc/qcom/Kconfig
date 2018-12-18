@@ -66,6 +66,7 @@ config SND_SOC_QDSP6_ASM
 	tristate
 
 config SND_SOC_QDSP6_ASM_DAI
+	select SND_SOC_COMPRESS
 	tristate
 
 config SND_SOC_QDSP6
@@ -100,6 +101,7 @@ config SND_SOC_SDM845
 	depends on QCOM_APR
 	select SND_SOC_QDSP6
 	select SND_SOC_QCOM_COMMON
+	select SND_SOC_RT5663
 	help
 	  To add support for audio on Qualcomm Technologies Inc.
 	  SDM845 SoC-based systems.

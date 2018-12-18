@@ -517,7 +517,7 @@ static int skl_find_machine(struct skl *skl, void *driver_data)
 
 	if (pdata) {
 		skl->use_tplg_pcm = pdata->use_tplg_pcm;
-		pdata->dmic_num = skl_get_dmic_geo(skl);
+		mach->mach_params.dmic_num = skl_get_dmic_geo(skl);
 	}
 
 	return 0;
@@ -527,7 +527,6 @@ static int skl_machine_device_register(struct skl *skl)
 {
 	struct snd_soc_acpi_mach *mach = skl->mach;
 	struct hdac_bus *bus = skl_to_bus(skl);
-	struct skl_machine_pdata *pdata;
 	struct platform_device *pdev;
 	int ret;
 
@@ -537,6 +536,16 @@ static int skl_machine_device_register(struct skl *skl)
 		return -EIO;
 	}
 
+	mach->mach_params.platform = dev_name(bus->dev);
+	mach->mach_params.codec_mask = bus->codec_mask;
+
+	ret = platform_device_add_data(pdev, (const void *)mach, sizeof(*mach));
+	if (ret) {
+		dev_err(bus->dev, "failed to add machine device platform data\n");
+		platform_device_put(pdev);
+		return ret;
+	}
+
 	ret = platform_device_add(pdev);
 	if (ret) {
 		dev_err(bus->dev, "failed to add machine device\n");
@@ -544,12 +553,6 @@ static int skl_machine_device_register(struct skl *skl)
 		return -EIO;
 	}
 
-	if (mach->pdata) {
-		pdata = (struct skl_machine_pdata *)mach->pdata;
-		pdata->platform = dev_name(bus->dev);
-		pdata->codec_mask = bus->codec_mask;
-		dev_set_drvdata(&pdev->dev, mach->pdata);
-	}
 
 	skl->i2s_dev = pdev;
 
@@ -823,12 +826,10 @@ static void skl_probe_work(struct work_struct *work)
 		return;
 	}
 
-	if (bus->ppcap) {
-		err = skl_machine_device_register(skl);
-		if (err < 0) {
-			dev_err(bus->dev, "machine register failed: %d\n", err);
-			goto out_err;
-		}
+	err = skl_machine_device_register(skl);
+	if (err < 0) {
+		dev_err(bus->dev, "machine register failed: %d\n", err);
+		goto out_err;
 	}
 
 	/*
@@ -913,6 +914,21 @@ static int skl_first_init(struct hdac_bus *bus)
 	unsigned short gcap;
 	int cp_streams, pb_streams, start_idx;
 
+	/*
+	 * detect DSP by checking class/subclass/prog-id information
+	 * class=04 subclass 03 prog-if 00: no DSP, legacy driver needs to be used
+	 * class=04 subclass 01 prog-if 00: DSP is present (and may be required e.g. for DMIC or SSP support)
+	 * class=04 subclass 03 prog-if 80: either of DSP or legacy mode can be used
+	 */
+	if (pci->class == 0x040300) {
+		dev_err(bus->dev, "The DSP is not enabled on this platform, aborting probe\n");
+		return -ENODEV;
+	} else if (pci->class != 0x040100 && pci->class != 0x040380) {
+		dev_err(bus->dev, "Unknown PCI class/subclass/prog-if information (0x%06x) found, aborting probe\n", pci->class);
+		return -ENODEV;
+	}
+	dev_info(bus->dev, "DSP detected with PCI class/subclass/prog-if info 0x%06x\n", pci->class);
+
 	err = pci_request_regions(pci, "Skylake HD audio");
 	if (err < 0)
 		return err;
@@ -928,6 +944,12 @@ static int skl_first_init(struct hdac_bus *bus)
 
 	snd_hdac_bus_parse_capabilities(bus);
 
+	/* check if PPCAP exists */
+	if (!bus->ppcap) {
+		dev_err(bus->dev, "bus ppcap not set, HDaudio or DSP not present?\n");
+		return -ENODEV;
+	}
+
 	if (skl_acquire_irq(bus, 0) < 0)
 		return -EBUSY;
 
@@ -937,6 +959,17 @@ static int skl_first_init(struct hdac_bus *bus)
 	gcap = snd_hdac_chip_readw(bus, GCAP);
 	dev_dbg(bus->dev, "chipset global capabilities = 0x%x\n", gcap);
 
+	/* read number of streams from GCAP register */
+	cp_streams = (gcap >> 8) & 0x0f;
+	pb_streams = (gcap >> 12) & 0x0f;
+
+	if (!pb_streams && !cp_streams) {
+		dev_err(bus->dev, "no streams found in GCAP definitions?\n");
+		return -EIO;
+	}
+
+	bus->num_streams = cp_streams + pb_streams;
+
 	/* allow 64bit DMA address if supported by H/W */
 	if (!dma_set_mask(bus->dev, DMA_BIT_MASK(64))) {
 		dma_set_coherent_mask(bus->dev, DMA_BIT_MASK(64));
@@ -944,15 +977,6 @@ static int skl_first_init(struct hdac_bus *bus)
 		dma_set_mask(bus->dev, DMA_BIT_MASK(32));
 		dma_set_coherent_mask(bus->dev, DMA_BIT_MASK(32));
 	}
-
-	/* read number of streams from GCAP register */
-	cp_streams = (gcap >> 8) & 0x0f;
-	pb_streams = (gcap >> 12) & 0x0f;
-
-	if (!pb_streams && !cp_streams)
-		return -EIO;
-
-	bus->num_streams = cp_streams + pb_streams;
 
 	/* initialize streams */
 	snd_hdac_ext_stream_init_all
@@ -986,8 +1010,10 @@ static int skl_probe(struct pci_dev *pci,
 	bus = skl_to_bus(skl);
 
 	err = skl_first_init(bus);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(bus->dev, "skl_first_init failed with err: %d\n", err);
 		goto out_free;
+	}
 
 	skl->pci_id = pci->device;
 
@@ -996,37 +1022,48 @@ static int skl_probe(struct pci_dev *pci,
 	skl->nhlt = skl_nhlt_init(bus->dev);
 
 	if (skl->nhlt == NULL) {
+#if !IS_ENABLED(CONFIG_SND_SOC_INTEL_SKYLAKE_HDAUDIO_CODEC)
+		dev_err(bus->dev, "no nhlt info found\n");
 		err = -ENODEV;
 		goto out_free;
+#else
+		dev_warn(bus->dev, "no nhlt info found, continuing to try to enable HDaudio codec\n");
+#endif
+	} else {
+
+		err = skl_nhlt_create_sysfs(skl);
+		if (err < 0) {
+			dev_err(bus->dev, "skl_nhlt_create_sysfs failed with err: %d\n", err);
+			goto out_nhlt_free;
+		}
+
+		skl_nhlt_update_topology_bin(skl);
+
+		/* create device for dsp clk */
+		err = skl_clock_device_register(skl);
+		if (err < 0) {
+			dev_err(bus->dev, "skl_clock_device_register failed with err: %d\n", err);
+			goto out_clk_free;
+		}
 	}
-
-	err = skl_nhlt_create_sysfs(skl);
-	if (err < 0)
-		goto out_nhlt_free;
-
-	skl_nhlt_update_topology_bin(skl);
 
 	pci_set_drvdata(skl->pci, bus);
 
-	/* check if dsp is there */
-	if (bus->ppcap) {
-		/* create device for dsp clk */
-		err = skl_clock_device_register(skl);
-		if (err < 0)
-			goto out_clk_free;
 
-		err = skl_find_machine(skl, (void *)pci_id->driver_data);
-		if (err < 0)
-			goto out_nhlt_free;
-
-		err = skl_init_dsp(skl);
-		if (err < 0) {
-			dev_dbg(bus->dev, "error failed to register dsp\n");
-			goto out_nhlt_free;
-		}
-		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
-		skl->skl_sst->clock_power_gating = skl_clock_power_gating;
+	err = skl_find_machine(skl, (void *)pci_id->driver_data);
+	if (err < 0) {
+		dev_err(bus->dev, "skl_find_machine failed with err: %d\n", err);
+		goto out_nhlt_free;
 	}
+
+	err = skl_init_dsp(skl);
+	if (err < 0) {
+		dev_dbg(bus->dev, "error failed to register dsp\n");
+		goto out_nhlt_free;
+	}
+	skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
+	skl->skl_sst->clock_power_gating = skl_clock_power_gating;
+
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
@@ -1034,8 +1071,10 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* create device for soc dmic */
 	err = skl_dmic_device_register(skl);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(bus->dev, "skl_dmic_device_register failed with err: %d\n", err);
 		goto out_dsp_free;
+	}
 
 	schedule_work(&skl->probe_work);
 
@@ -1103,21 +1142,36 @@ static void skl_remove(struct pci_dev *pci)
 
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKL)
 	/* Sunrise Point-LP */
 	{ PCI_DEVICE(0x8086, 0x9d70),
 		.driver_data = (unsigned long)&snd_soc_acpi_intel_skl_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_APL)
 	/* BXT-P */
 	{ PCI_DEVICE(0x8086, 0x5a98),
 		.driver_data = (unsigned long)&snd_soc_acpi_intel_bxt_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_KBL)
 	/* KBL */
 	{ PCI_DEVICE(0x8086, 0x9D71),
 		.driver_data = (unsigned long)&snd_soc_acpi_intel_kbl_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_GLK)
 	/* GLK */
 	{ PCI_DEVICE(0x8086, 0x3198),
 		.driver_data = (unsigned long)&snd_soc_acpi_intel_glk_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CNL)
 	/* CNL */
 	{ PCI_DEVICE(0x8086, 0x9dc8),
 		.driver_data = (unsigned long)&snd_soc_acpi_intel_cnl_machines},
+#endif
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CFL)
+	/* CFL */
+	{ PCI_DEVICE(0x8086, 0xa348),
+		.driver_data = (unsigned long)&snd_soc_acpi_intel_cnl_machines},
+#endif
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
