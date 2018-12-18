@@ -584,7 +584,7 @@ static void bch2_journal_read_device(struct closure *cl)
 	while (ja->bucket_seq[ja->cur_idx] > min_seq &&
 	       ja->bucket_seq[ja->cur_idx] >
 	       ja->bucket_seq[(ja->cur_idx + 1) % ja->nr])
-		ja->cur_idx++;
+		ja->cur_idx = (ja->cur_idx + 1) % ja->nr;
 
 	ja->sectors_free = 0;
 
