@@ -663,7 +663,7 @@ static bool md_in_flight_bios(struct mapped_device *md)
 static bool md_in_flight(struct mapped_device *md)
 {
 	if (queue_is_mq(md->queue))
-		return blk_mq_queue_busy(md->queue);
+		return blk_mq_queue_inflight(md->queue);
 	else
 		return md_in_flight_bios(md);
 }

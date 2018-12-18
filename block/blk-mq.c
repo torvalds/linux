@@ -805,14 +805,14 @@ struct request *blk_mq_tag_to_rq(struct blk_mq_tags *tags, unsigned int tag)
 }
 EXPORT_SYMBOL(blk_mq_tag_to_rq);
 
-static bool blk_mq_check_busy(struct blk_mq_hw_ctx *hctx, struct request *rq,
-			      void *priv, bool reserved)
+static bool blk_mq_rq_inflight(struct blk_mq_hw_ctx *hctx, struct request *rq,
+			       void *priv, bool reserved)
 {
 	/*
-	 * If we find a request, we know the queue is busy. Return false
-	 * to stop the iteration.
+	 * If we find a request that is inflight and the queue matches,
+	 * we know the queue is busy. Return false to stop the iteration.
 	 */
-	if (rq->q == hctx->queue) {
+	if (rq->state == MQ_RQ_IN_FLIGHT && rq->q == hctx->queue) {
 		bool *busy = priv;
 
 		*busy = true;
@@ -822,14 +822,14 @@ static bool blk_mq_check_busy(struct blk_mq_hw_ctx *hctx, struct request *rq,
 	return true;
 }
 
-bool blk_mq_queue_busy(struct request_queue *q)
+bool blk_mq_queue_inflight(struct request_queue *q)
 {
 	bool busy = false;
 
-	blk_mq_queue_tag_busy_iter(q, blk_mq_check_busy, &busy);
+	blk_mq_queue_tag_busy_iter(q, blk_mq_rq_inflight, &busy);
 	return busy;
 }
-EXPORT_SYMBOL_GPL(blk_mq_queue_busy);
+EXPORT_SYMBOL_GPL(blk_mq_queue_inflight);
 
 static void blk_mq_rq_timed_out(struct request *req, bool reserved)
 {
