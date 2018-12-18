@@ -68,11 +68,12 @@ static struct sk_buff *esp6_gro_receive(struct list_head *head,
 
 	xo = xfrm_offload(skb);
 	if (!xo || !(xo->flags & CRYPTO_DONE)) {
-		err = secpath_set(skb);
-		if (err)
+		struct sec_path *sp = secpath_set(skb);
+
+		if (!sp)
 			goto out;
 
-		if (skb->sp->len == XFRM_MAX_DEPTH)
+		if (sp->len == XFRM_MAX_DEPTH)
 			goto out;
 
 		x = xfrm_state_lookup(dev_net(skb->dev), skb->mark,
@@ -81,8 +82,8 @@ static struct sk_buff *esp6_gro_receive(struct list_head *head,
 		if (!x)
 			goto out;
 
-		skb->sp->xvec[skb->sp->len++] = x;
-		skb->sp->olen++;
+		sp->xvec[sp->len++] = x;
+		sp->olen++;
 
 		xo = xfrm_offload(skb);
 		if (!xo) {

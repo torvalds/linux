@@ -145,21 +145,22 @@ struct sec_path *secpath_dup(struct sec_path *src)
 }
 EXPORT_SYMBOL(secpath_dup);
 
-int secpath_set(struct sk_buff *skb)
+struct sec_path *secpath_set(struct sk_buff *skb)
 {
-	struct sec_path *sp;
+	struct sec_path *sp = skb->sp;
 
 	/* Allocate new secpath or COW existing one. */
-	if (!skb->sp || refcount_read(&skb->sp->refcnt) != 1) {
+	if (!sp || refcount_read(&sp->refcnt) != 1) {
 		sp = secpath_dup(skb->sp);
 		if (!sp)
-			return -ENOMEM;
+			return NULL;
 
 		if (skb->sp)
 			secpath_put(skb->sp);
 		skb->sp = sp;
 	}
-	return 0;
+
+	return sp;
 }
 EXPORT_SYMBOL(secpath_set);
 
@@ -236,6 +237,7 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 	bool xfrm_gro = false;
 	bool crypto_done = false;
 	struct xfrm_offload *xo = xfrm_offload(skb);
+	struct sec_path *sp;
 
 	if (encap_type < 0) {
 		x = xfrm_input_state(skb);
@@ -312,8 +314,8 @@ int xfrm_input(struct sk_buff *skb, int nexthdr, __be32 spi, int encap_type)
 		break;
 	}
 
-	err = secpath_set(skb);
-	if (err) {
+	sp = secpath_set(skb);
+	if (!sp) {
 		XFRM_INC_STATS(net, LINUX_MIB_XFRMINERROR);
 		goto drop;
 	}
