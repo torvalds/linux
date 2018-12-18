@@ -718,7 +718,7 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 
 		err = tcf_block_cb_register(f->block,
 					    nfp_flower_setup_indr_block_cb,
-					    netdev, cb_priv, f->extack);
+					    cb_priv, cb_priv, f->extack);
 		if (err) {
 			list_del(&cb_priv->list);
 			kfree(cb_priv);
@@ -726,13 +726,15 @@ nfp_flower_setup_indr_tc_block(struct net_device *netdev, struct nfp_app *app,
 
 		return err;
 	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block,
-					nfp_flower_setup_indr_block_cb, netdev);
 		cb_priv = nfp_flower_indr_block_cb_priv_lookup(app, netdev);
-		if (cb_priv) {
-			list_del(&cb_priv->list);
-			kfree(cb_priv);
-		}
+		if (!cb_priv)
+			return -ENOENT;
+
+		tcf_block_cb_unregister(f->block,
+					nfp_flower_setup_indr_block_cb,
+					cb_priv);
+		list_del(&cb_priv->list);
+		kfree(cb_priv);
 
 		return 0;
 	default:
@@ -766,15 +768,14 @@ int nfp_flower_reg_indir_block_handler(struct nfp_app *app,
 	if (event == NETDEV_REGISTER) {
 		err = __tc_indr_block_cb_register(netdev, app,
 						  nfp_flower_indr_setup_tc_cb,
-						  netdev);
+						  app);
 		if (err)
 			nfp_flower_cmsg_warn(app,
 					     "Indirect block reg failed - %s\n",
 					     netdev->name);
 	} else if (event == NETDEV_UNREGISTER) {
 		__tc_indr_block_cb_unregister(netdev,
-					      nfp_flower_indr_setup_tc_cb,
-					      netdev);
+					      nfp_flower_indr_setup_tc_cb, app);
 	}
 
 	return NOTIFY_OK;
