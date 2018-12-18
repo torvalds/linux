@@ -81,6 +81,7 @@ struct mlxsw_core {
 	struct mlxsw_core_port *ports;
 	unsigned int max_ports;
 	bool reload_fail;
+	bool fw_flash_in_progress;
 	unsigned long driver_priv[0];
 	/* driver_priv has to be always the last item */
 };
@@ -428,11 +429,15 @@ struct mlxsw_reg_trans {
 	struct rcu_head rcu;
 };
 
-#define MLXSW_EMAD_TIMEOUT_MS 200
+#define MLXSW_EMAD_TIMEOUT_DURING_FW_FLASH_MS	3000
+#define MLXSW_EMAD_TIMEOUT_MS			200
 
 static void mlxsw_emad_trans_timeout_schedule(struct mlxsw_reg_trans *trans)
 {
 	unsigned long timeout = msecs_to_jiffies(MLXSW_EMAD_TIMEOUT_MS);
+
+	if (trans->core->fw_flash_in_progress)
+		timeout = msecs_to_jiffies(MLXSW_EMAD_TIMEOUT_DURING_FW_FLASH_MS);
 
 	queue_delayed_work(trans->core->emad_wq, &trans->timeout_dw, timeout);
 }
@@ -1853,6 +1858,18 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 				     p_linear_size);
 }
 EXPORT_SYMBOL(mlxsw_core_kvd_sizes_get);
+
+void mlxsw_core_fw_flash_start(struct mlxsw_core *mlxsw_core)
+{
+	mlxsw_core->fw_flash_in_progress = true;
+}
+EXPORT_SYMBOL(mlxsw_core_fw_flash_start);
+
+void mlxsw_core_fw_flash_end(struct mlxsw_core *mlxsw_core)
+{
+	mlxsw_core->fw_flash_in_progress = false;
+}
+EXPORT_SYMBOL(mlxsw_core_fw_flash_end);
 
 static int __init mlxsw_core_module_init(void)
 {
