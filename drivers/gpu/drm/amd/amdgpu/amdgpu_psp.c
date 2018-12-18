@@ -547,7 +547,7 @@ static int psp_load_fw(struct amdgpu_device *adev)
 	struct psp_context *psp = &adev->psp;
 
 	if (amdgpu_sriov_vf(adev) && adev->in_gpu_reset) {
-		psp_ring_destroy(psp, PSP_RING_TYPE__KM);
+		psp_ring_stop(psp, PSP_RING_TYPE__KM); /* should not destroy ring, only stop */
 		goto skip_memalloc;
 	}
 
