@@ -1595,12 +1595,18 @@ static s32 btf_fwd_check_meta(struct btf_verifier_env *env,
 	return 0;
 }
 
+static void btf_fwd_type_log(struct btf_verifier_env *env,
+			     const struct btf_type *t)
+{
+	btf_verifier_log(env, "%s", btf_type_kflag(t) ? "union" : "struct");
+}
+
 static struct btf_kind_operations fwd_ops = {
 	.check_meta = btf_fwd_check_meta,
 	.resolve = btf_df_resolve,
 	.check_member = btf_df_check_member,
 	.check_kflag_member = btf_df_check_kflag_member,
-	.log_details = btf_ref_type_log,
+	.log_details = btf_fwd_type_log,
 	.seq_show = btf_df_seq_show,
 };
 
