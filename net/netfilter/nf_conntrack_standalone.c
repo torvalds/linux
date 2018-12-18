@@ -539,6 +539,8 @@ enum nf_ct_sysctl_index {
 	NF_SYSCTL_CT_CHECKSUM,
 	NF_SYSCTL_CT_LOG_INVALID,
 	NF_SYSCTL_CT_EXPECT_MAX,
+	NF_SYSCTL_CT_ACCT,
+	NF_SYSCTL_CT_HELPER,
 };
 
 static struct ctl_table nf_ct_sysctl_table[] = {
@@ -586,6 +588,20 @@ static struct ctl_table nf_ct_sysctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
+	[NF_SYSCTL_CT_ACCT] = {
+		.procname	= "nf_conntrack_acct",
+		.data		= &init_net.ct.sysctl_acct,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	[NF_SYSCTL_CT_HELPER] = {
+		.procname	= "nf_conntrack_helper",
+		.data		= &init_net.ct.sysctl_auto_assign_helper,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 	{ }
 };
 
@@ -614,8 +630,11 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	table[NF_SYSCTL_CT_LOG_INVALID].data = &net->ct.sysctl_log_invalid;
 
 	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
+	if (net->user_ns != &init_user_ns) {
 		table[NF_SYSCTL_CT_MAX].procname = NULL;
+		table[NF_SYSCTL_CT_ACCT].procname = NULL;
+		table[NF_SYSCTL_CT_HELPER].procname = NULL;
+	}
 
 	if (!net_eq(&init_net, net))
 		table[NF_SYSCTL_CT_BUCKETS].mode = 0444;
