@@ -1161,6 +1161,7 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 	struct xfrm_state *xs = NULL;
 	struct ipv6hdr *ip6 = NULL;
 	struct iphdr *ip4 = NULL;
+	struct sec_path *sp;
 	void *daddr;
 	__be32 spi;
 	u8 *c_hdr;
@@ -1200,12 +1201,12 @@ void ixgbe_ipsec_rx(struct ixgbe_ring *rx_ring,
 	if (unlikely(!xs))
 		return;
 
-	skb->sp = secpath_dup(skb->sp);
-	if (unlikely(!skb->sp))
+	sp = secpath_set(skb);
+	if (unlikely(!sp))
 		return;
 
-	skb->sp->xvec[skb->sp->len++] = xs;
-	skb->sp->olen++;
+	sp->xvec[sp->len++] = xs;
+	sp->olen++;
 	xo = xfrm_offload(skb);
 	xo->flags = CRYPTO_DONE;
 	xo->status = CRYPTO_SUCCESS;
