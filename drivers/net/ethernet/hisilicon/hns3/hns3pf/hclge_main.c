@@ -1403,10 +1403,11 @@ static bool  hclge_is_rx_buf_ok(struct hclge_dev *hdev,
 	shared_buf_tc = pfc_enable_num * aligned_mps +
 			(tc_num - pfc_enable_num) * aligned_mps / 2 +
 			aligned_mps;
-	shared_std = max_t(u32, shared_buf_min, shared_buf_tc);
+	shared_std = roundup(max_t(u32, shared_buf_min, shared_buf_tc),
+			     HCLGE_BUF_SIZE_UNIT);
 
 	rx_priv = hclge_get_rx_priv_buff_alloced(buf_alloc);
-	if (rx_all <= rx_priv + shared_std)
+	if (rx_all < rx_priv + shared_std)
 		return false;
 
 	shared_buf = rounddown(rx_all - rx_priv, HCLGE_BUF_SIZE_UNIT);
