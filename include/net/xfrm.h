@@ -1096,7 +1096,6 @@ struct xfrm_offload {
 };
 
 struct sec_path {
-	refcount_t		refcnt;
 	int			len;
 	int			olen;
 
@@ -1104,32 +1103,13 @@ struct sec_path {
 	struct xfrm_offload	ovec[XFRM_MAX_OFFLOAD_DEPTH];
 };
 
-static inline struct sec_path *
-secpath_get(struct sec_path *sp)
-{
-	if (sp)
-		refcount_inc(&sp->refcnt);
-	return sp;
-}
-
-void __secpath_destroy(struct sec_path *sp);
-
-static inline void
-secpath_put(struct sec_path *sp)
-{
-	if (sp && refcount_dec_and_test(&sp->refcnt))
-		__secpath_destroy(sp);
-}
-
-struct sec_path *secpath_dup(struct sec_path *src);
 struct sec_path *secpath_set(struct sk_buff *skb);
 
 static inline void
 secpath_reset(struct sk_buff *skb)
 {
 #ifdef CONFIG_XFRM
-	secpath_put(skb->sp);
-	skb->sp = NULL;
+	skb_ext_del(skb, SKB_EXT_SEC_PATH);
 #endif
 }
 

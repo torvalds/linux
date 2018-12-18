@@ -38,8 +38,6 @@ struct xfrm_trans_cb {
 
 #define XFRM_TRANS_SKB_CB(__skb) ((struct xfrm_trans_cb *)&((__skb)->cb[0]))
 
-static struct kmem_cache *secpath_cachep __ro_after_init;
-
 static DEFINE_SPINLOCK(xfrm_input_afinfo_lock);
 static struct xfrm_input_afinfo const __rcu *xfrm_input_afinfo[AF_INET6 + 1];
 
@@ -111,54 +109,21 @@ static int xfrm_rcv_cb(struct sk_buff *skb, unsigned int family, u8 protocol,
 	return ret;
 }
 
-void __secpath_destroy(struct sec_path *sp)
+struct sec_path *secpath_set(struct sk_buff *skb)
 {
-	int i;
-	for (i = 0; i < sp->len; i++)
-		xfrm_state_put(sp->xvec[i]);
-	kmem_cache_free(secpath_cachep, sp);
-}
-EXPORT_SYMBOL(__secpath_destroy);
+	struct sec_path *sp, *tmp = skb_ext_find(skb, SKB_EXT_SEC_PATH);
 
-struct sec_path *secpath_dup(struct sec_path *src)
-{
-	struct sec_path *sp;
-
-	sp = kmem_cache_alloc(secpath_cachep, GFP_ATOMIC);
+	sp = skb_ext_add(skb, SKB_EXT_SEC_PATH);
 	if (!sp)
 		return NULL;
 
-	sp->len = 0;
-	sp->olen = 0;
+	if (tmp) /* reused existing one (was COW'd if needed) */
+		return sp;
 
+	/* allocated new secpath */
 	memset(sp->ovec, 0, sizeof(sp->ovec));
-
-	if (src) {
-		int i;
-
-		memcpy(sp, src, sizeof(*sp));
-		for (i = 0; i < sp->len; i++)
-			xfrm_state_hold(sp->xvec[i]);
-	}
-	refcount_set(&sp->refcnt, 1);
-	return sp;
-}
-EXPORT_SYMBOL(secpath_dup);
-
-struct sec_path *secpath_set(struct sk_buff *skb)
-{
-	struct sec_path *sp = skb->sp;
-
-	/* Allocate new secpath or COW existing one. */
-	if (!sp || refcount_read(&sp->refcnt) != 1) {
-		sp = secpath_dup(skb->sp);
-		if (!sp)
-			return NULL;
-
-		if (skb->sp)
-			secpath_put(skb->sp);
-		skb->sp = sp;
-	}
+	sp->olen = 0;
+	sp->len = 0;
 
 	return sp;
 }
@@ -551,11 +516,6 @@ void __init xfrm_input_init(void)
 	err = gro_cells_init(&gro_cells, &xfrm_napi_dev);
 	if (err)
 		gro_cells.cells = NULL;
-
-	secpath_cachep = kmem_cache_create("secpath_cache",
-					   sizeof(struct sec_path),
-					   0, SLAB_HWCACHE_ALIGN|SLAB_PANIC,
-					   NULL);
 
 	for_each_possible_cpu(i) {
 		struct xfrm_trans_tasklet *trans;

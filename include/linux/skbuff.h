@@ -714,9 +714,6 @@ struct sk_buff {
 		struct list_head	tcp_tsorted_anchor;
 	};
 
-#ifdef CONFIG_XFRM
-	struct	sec_path	*sp;
-#endif
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 	unsigned long		 _nfct;
 #endif
@@ -3908,6 +3905,9 @@ enum skb_ext_id {
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	SKB_EXT_BRIDGE_NF,
 #endif
+#ifdef CONFIG_XFRM
+	SKB_EXT_SEC_PATH,
+#endif
 	SKB_EXT_NUM, /* must be last */
 };
 
@@ -4069,7 +4069,7 @@ static inline void skb_init_secmark(struct sk_buff *skb)
 static inline int secpath_exists(const struct sk_buff *skb)
 {
 #ifdef CONFIG_XFRM
-	return skb->sp != NULL;
+	return skb_ext_exist(skb, SKB_EXT_SEC_PATH);
 #else
 	return 0;
 #endif
@@ -4127,7 +4127,7 @@ static inline bool skb_get_dst_pending_confirm(const struct sk_buff *skb)
 static inline struct sec_path *skb_sec_path(const struct sk_buff *skb)
 {
 #ifdef CONFIG_XFRM
-	return skb->sp;
+	return skb_ext_find(skb, SKB_EXT_SEC_PATH);
 #else
 	return NULL;
 #endif

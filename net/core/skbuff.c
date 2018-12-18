@@ -609,7 +609,6 @@ fastpath:
 void skb_release_head_state(struct sk_buff *skb)
 {
 	skb_dst_drop(skb);
-	secpath_reset(skb);
 	if (skb->destructor) {
 		WARN_ON(in_irq());
 		skb->destructor(skb);
@@ -798,9 +797,6 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	memcpy(new->cb, old->cb, sizeof(old->cb));
 	skb_dst_copy(new, old);
 	__skb_ext_copy(new, old);
-#ifdef CONFIG_XFRM
-	new->sp			= secpath_get(old->sp);
-#endif
 	__nf_copy(new, old, false);
 
 	/* Note : this field could be in headers_start/headers_end section
@@ -3912,6 +3908,9 @@ static const u8 skb_ext_type_len[] = {
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 	[SKB_EXT_BRIDGE_NF] = SKB_EXT_CHUNKSIZEOF(struct nf_bridge_info),
 #endif
+#ifdef CONFIG_XFRM
+	[SKB_EXT_SEC_PATH] = SKB_EXT_CHUNKSIZEOF(struct sec_path),
+#endif
 };
 
 static __always_inline unsigned int skb_ext_total_length(void)
@@ -3919,6 +3918,9 @@ static __always_inline unsigned int skb_ext_total_length(void)
 	return SKB_EXT_CHUNKSIZEOF(struct skb_ext) +
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)
 		skb_ext_type_len[SKB_EXT_BRIDGE_NF] +
+#endif
+#ifdef CONFIG_XFRM
+		skb_ext_type_len[SKB_EXT_SEC_PATH] +
 #endif
 		0;
 }
@@ -5610,7 +5612,8 @@ static struct skb_ext *skb_ext_alloc(void)
 	return new;
 }
 
-static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old)
+static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old,
+					 unsigned int old_active)
 {
 	struct skb_ext *new;
 
@@ -5624,6 +5627,15 @@ static struct skb_ext *skb_ext_maybe_cow(struct skb_ext *old)
 	memcpy(new, old, old->chunks * SKB_EXT_ALIGN_VALUE);
 	refcount_set(&new->refcnt, 1);
 
+#ifdef CONFIG_XFRM
+	if (old_active & (1 << SKB_EXT_SEC_PATH)) {
+		struct sec_path *sp = skb_ext_get_ptr(old, SKB_EXT_SEC_PATH);
+		unsigned int i;
+
+		for (i = 0; i < sp->len; i++)
+			xfrm_state_hold(sp->xvec[i]);
+	}
+#endif
 	__skb_ext_put(old);
 	return new;
 }
@@ -5650,7 +5662,7 @@ void *skb_ext_add(struct sk_buff *skb, enum skb_ext_id id)
 	if (skb->active_extensions) {
 		old = skb->extensions;
 
-		new = skb_ext_maybe_cow(old);
+		new = skb_ext_maybe_cow(old, skb->active_extensions);
 		if (!new)
 			return NULL;
 
@@ -5679,6 +5691,16 @@ set_active:
 }
 EXPORT_SYMBOL(skb_ext_add);
 
+#ifdef CONFIG_XFRM
+static void skb_ext_put_sp(struct sec_path *sp)
+{
+	unsigned int i;
+
+	for (i = 0; i < sp->len; i++)
+		xfrm_state_put(sp->xvec[i]);
+}
+#endif
+
 void __skb_ext_del(struct sk_buff *skb, enum skb_ext_id id)
 {
 	struct skb_ext *ext = skb->extensions;
@@ -5687,6 +5709,14 @@ void __skb_ext_del(struct sk_buff *skb, enum skb_ext_id id)
 	if (skb->active_extensions == 0) {
 		skb->extensions = NULL;
 		__skb_ext_put(ext);
+#ifdef CONFIG_XFRM
+	} else if (id == SKB_EXT_SEC_PATH &&
+		   refcount_read(&ext->refcnt) == 1) {
+		struct sec_path *sp = skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH);
+
+		skb_ext_put_sp(sp);
+		sp->len = 0;
+#endif
 	}
 }
 EXPORT_SYMBOL(__skb_ext_del);
@@ -5702,6 +5732,11 @@ void __skb_ext_put(struct skb_ext *ext)
 	if (!refcount_dec_and_test(&ext->refcnt))
 		return;
 free_now:
+#ifdef CONFIG_XFRM
+	if (__skb_ext_exist(ext, SKB_EXT_SEC_PATH))
+		skb_ext_put_sp(skb_ext_get_ptr(ext, SKB_EXT_SEC_PATH));
+#endif
+
 	kmem_cache_free(skbuff_ext_cache, ext);
 }
 EXPORT_SYMBOL(__skb_ext_put);
