@@ -413,7 +413,7 @@ alloc_cache_entry(const char *path, const struct dfs_info3_param *refs,
 
 	ce->ce_path = kstrdup_const(path, GFP_KERNEL);
 	if (!ce->ce_path) {
-		kfree(ce);
+		kmem_cache_free(dfs_cache_slab, ce);
 		return ERR_PTR(-ENOMEM);
 	}
 	INIT_HLIST_NODE(&ce->ce_hlist);
@@ -422,7 +422,7 @@ alloc_cache_entry(const char *path, const struct dfs_info3_param *refs,
 	rc = copy_ref_data(refs, numrefs, ce, NULL);
 	if (rc) {
 		kfree(ce->ce_path);
-		kfree(ce);
+		kmem_cache_free(dfs_cache_slab, ce);
 		ce = ERR_PTR(rc);
 	}
 	return ce;
