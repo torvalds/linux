@@ -437,9 +437,9 @@ void rtl88eu_dm_txpower_tracking_callback_thermalmeter(struct adapter *adapt)
 			thermal_val = (u8)(thermal_avg / thermal_avg_count);
 
 		if (dm_odm->RFCalibrateInfo.bDoneTxpower &&
-			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex)
+			!dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 			delta = abs(thermal_val - dm_odm->RFCalibrateInfo.ThermalValue);
-		else {
+		} else {
 			delta = abs(thermal_val - hal_data->EEPROMThermalMeter);
 			if (dm_odm->RFCalibrateInfo.bReloadtxpowerindex) {
 				dm_odm->RFCalibrateInfo.bReloadtxpowerindex = false;

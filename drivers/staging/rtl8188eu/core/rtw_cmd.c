@@ -214,9 +214,8 @@ _next:
 	pcmdpriv->cmdthd_running = false;
 
 	/*  free all cmd_obj resources */
-	while ((pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue))) {
+	while ((pcmd = rtw_dequeue_cmd(&pcmdpriv->cmd_queue)))
 		rtw_free_cmd_obj(pcmd);
-	}
 
 	complete(&pcmdpriv->terminate_cmdthread_comp);
 
