@@ -553,8 +553,7 @@ static int anx6345_get_modes(struct drm_connector *connector)
 		}
 	}
 
-	err = drm_connector_update_edid_property(connector,
-						 anx6345->edid);
+	err = drm_mode_connector_update_edid_property(connector, anx6345->edid);
 	if (err) {
 		DRM_ERROR("Failed to update EDID property: %d\n", err);
 		goto unlock;
@@ -619,16 +618,10 @@ static int anx6345_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&anx6345->connector,
 				 &anx6345_connector_helper_funcs);
 
-	err = drm_connector_register(&anx6345->connector);
-	if (err) {
-		DRM_ERROR("Failed to register connector: %d\n", err);
-		return err;
-	}
-
 	anx6345->connector.polled = DRM_CONNECTOR_POLL_HPD;
 
-	err = drm_connector_attach_encoder(&anx6345->connector,
-					   bridge->encoder);
+	err = drm_mode_connector_attach_encoder(&anx6345->connector,
+						bridge->encoder);
 	if (err) {
 		DRM_ERROR("Failed to link up connector to encoder: %d\n", err);
 		return err;
