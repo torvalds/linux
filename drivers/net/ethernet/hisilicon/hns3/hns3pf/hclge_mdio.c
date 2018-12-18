@@ -179,6 +179,10 @@ static void hclge_mac_adjust_link(struct net_device *netdev)
 	int duplex, speed;
 	int ret;
 
+	/* When phy link down, do nothing */
+	if (netdev->phydev->link == 0)
+		return;
+
 	speed = netdev->phydev->speed;
 	duplex = netdev->phydev->duplex;
 
