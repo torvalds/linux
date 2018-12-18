@@ -634,7 +634,7 @@ void probe_machine(void)
 	}
 	/* What can we do if we didn't find ? */
 	if (machine_id >= &__machine_desc_end) {
-		DBG("No suitable machine found !\n");
+		pr_err("No suitable machine description found !\n");
 		for (;;);
 	}
 
