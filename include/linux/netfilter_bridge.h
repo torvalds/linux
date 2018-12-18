@@ -17,43 +17,58 @@ static inline void br_drop_fake_rtable(struct sk_buff *skb)
 		skb_dst_drop(skb);
 }
 
+static inline struct nf_bridge_info *
+nf_bridge_info_get(const struct sk_buff *skb)
+{
+	return skb->nf_bridge;
+}
+
+static inline bool nf_bridge_info_exists(const struct sk_buff *skb)
+{
+	return skb->nf_bridge != NULL;
+}
+
 static inline int nf_bridge_get_physinif(const struct sk_buff *skb)
 {
-	struct nf_bridge_info *nf_bridge;
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 
-	if (skb->nf_bridge == NULL)
+	if (!nf_bridge)
 		return 0;
 
-	nf_bridge = skb->nf_bridge;
 	return nf_bridge->physindev ? nf_bridge->physindev->ifindex : 0;
 }
 
 static inline int nf_bridge_get_physoutif(const struct sk_buff *skb)
 {
-	struct nf_bridge_info *nf_bridge;
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
 
-	if (skb->nf_bridge == NULL)
+	if (!nf_bridge)
 		return 0;
 
-	nf_bridge = skb->nf_bridge;
 	return nf_bridge->physoutdev ? nf_bridge->physoutdev->ifindex : 0;
 }
 
 static inline struct net_device *
 nf_bridge_get_physindev(const struct sk_buff *skb)
 {
-	return skb->nf_bridge ? skb->nf_bridge->physindev : NULL;
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	return nf_bridge ? nf_bridge->physindev : NULL;
 }
 
 static inline struct net_device *
 nf_bridge_get_physoutdev(const struct sk_buff *skb)
 {
-	return skb->nf_bridge ? skb->nf_bridge->physoutdev : NULL;
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	return nf_bridge ? nf_bridge->physoutdev : NULL;
 }
 
 static inline bool nf_bridge_in_prerouting(const struct sk_buff *skb)
 {
-	return skb->nf_bridge && skb->nf_bridge->in_prerouting;
+	const struct nf_bridge_info *nf_bridge = nf_bridge_info_get(skb);
+
+	return nf_bridge && nf_bridge->in_prerouting;
 }
 #else
 #define br_drop_fake_rtable(skb)	        do { } while (0)
