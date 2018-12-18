@@ -28,14 +28,9 @@ static const struct nf_ct_ext_type tstamp_extend = {
 	.id	= NF_CT_EXT_TSTAMP,
 };
 
-int nf_conntrack_tstamp_pernet_init(struct net *net)
+void nf_conntrack_tstamp_pernet_init(struct net *net)
 {
 	net->ct.sysctl_tstamp = nf_ct_tstamp;
-	return 0;
-}
-
-void nf_conntrack_tstamp_pernet_fini(struct net *net)
-{
 }
 
 int nf_conntrack_tstamp_init(void)

@@ -342,11 +342,10 @@ static const struct nf_ct_ext_type event_extend = {
 	.id	= NF_CT_EXT_ECACHE,
 };
 
-int nf_conntrack_ecache_pernet_init(struct net *net)
+void nf_conntrack_ecache_pernet_init(struct net *net)
 {
 	net->ct.sysctl_events = nf_ct_events;
 	INIT_DELAYED_WORK(&net->ct.ecache_dwork, ecache_work);
-	return 0;
 }
 
 void nf_conntrack_ecache_pernet_fini(struct net *net)

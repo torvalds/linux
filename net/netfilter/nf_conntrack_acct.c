@@ -31,14 +31,9 @@ static const struct nf_ct_ext_type acct_extend = {
 	.id	= NF_CT_EXT_ACCT,
 };
 
-int nf_conntrack_acct_pernet_init(struct net *net)
+void nf_conntrack_acct_pernet_init(struct net *net)
 {
 	net->ct.sysctl_acct = nf_ct_acct;
-	return 0;
-}
-
-void nf_conntrack_acct_pernet_fini(struct net *net)
-{
 }
 
 int nf_conntrack_acct_init(void)

@@ -2110,10 +2110,7 @@ i_see_dead_people:
 
 	list_for_each_entry(net, net_exit_list, exit_list) {
 		nf_conntrack_proto_pernet_fini(net);
-		nf_conntrack_helper_pernet_fini(net);
 		nf_conntrack_ecache_pernet_fini(net);
-		nf_conntrack_tstamp_pernet_fini(net);
-		nf_conntrack_acct_pernet_fini(net);
 		nf_conntrack_expect_pernet_fini(net);
 		free_percpu(net->ct.stat);
 		free_percpu(net->ct.pcpu_lists);
@@ -2410,32 +2407,19 @@ int nf_conntrack_init_net(struct net *net)
 	ret = nf_conntrack_expect_pernet_init(net);
 	if (ret < 0)
 		goto err_expect;
-	ret = nf_conntrack_acct_pernet_init(net);
-	if (ret < 0)
-		goto err_acct;
-	ret = nf_conntrack_tstamp_pernet_init(net);
-	if (ret < 0)
-		goto err_tstamp;
-	ret = nf_conntrack_ecache_pernet_init(net);
-	if (ret < 0)
-		goto err_ecache;
-	ret = nf_conntrack_helper_pernet_init(net);
-	if (ret < 0)
-		goto err_helper;
+
+	nf_conntrack_acct_pernet_init(net);
+	nf_conntrack_tstamp_pernet_init(net);
+	nf_conntrack_ecache_pernet_init(net);
+	nf_conntrack_helper_pernet_init(net);
+
 	ret = nf_conntrack_proto_pernet_init(net);
 	if (ret < 0)
 		goto err_proto;
 	return 0;
 
 err_proto:
-	nf_conntrack_helper_pernet_fini(net);
-err_helper:
 	nf_conntrack_ecache_pernet_fini(net);
-err_ecache:
-	nf_conntrack_tstamp_pernet_fini(net);
-err_tstamp:
-	nf_conntrack_acct_pernet_fini(net);
-err_acct:
 	nf_conntrack_expect_pernet_fini(net);
 err_expect:
 	free_percpu(net->ct.stat);

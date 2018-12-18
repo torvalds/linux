@@ -472,15 +472,10 @@ static const struct nf_ct_ext_type helper_extend = {
 	.id	= NF_CT_EXT_HELPER,
 };
 
-int nf_conntrack_helper_pernet_init(struct net *net)
+void nf_conntrack_helper_pernet_init(struct net *net)
 {
 	net->ct.auto_assign_helper_warned = false;
 	net->ct.sysctl_auto_assign_helper = nf_ct_auto_assign_helper;
-	return 0;
-}
-
-void nf_conntrack_helper_pernet_fini(struct net *net)
-{
 }
 
 int nf_conntrack_helper_init(void)
