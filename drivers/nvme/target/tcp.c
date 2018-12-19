@@ -758,7 +758,7 @@ static int nvmet_tcp_handle_icreq(struct nvmet_tcp_queue *queue)
 
 	if (icreq->maxr2t != 0) {
 		pr_err("queue %d: unsupported maxr2t %d\n", queue->idx,
-			le16_to_cpu(icreq->maxr2t) + 1);
+			le32_to_cpu(icreq->maxr2t) + 1);
 		return -EPROTO;
 	}
 
@@ -776,7 +776,7 @@ static int nvmet_tcp_handle_icreq(struct nvmet_tcp_queue *queue)
 	icresp->hdr.pdo = 0;
 	icresp->hdr.plen = cpu_to_le32(icresp->hdr.hlen);
 	icresp->pfv = cpu_to_le16(NVME_TCP_PFV_1_0);
-	icresp->maxdata = 0xffff; /* FIXME: support r2t */
+	icresp->maxdata = cpu_to_le32(0xffff); /* FIXME: support r2t */
 	icresp->cpda = 0;
 	if (queue->hdr_digest)
 		icresp->digest |= NVME_TCP_HDR_DIGEST_ENABLE;

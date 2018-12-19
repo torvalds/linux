@@ -32,6 +32,7 @@
 #include <linux/sed-opal.h>
 #include <linux/pci-p2pdma.h>
 
+#include "trace.h"
 #include "nvme.h"
 
 #define SQ_SIZE(depth)		(depth * sizeof(struct nvme_command))
@@ -1003,6 +1004,7 @@ static inline void nvme_handle_cqe(struct nvme_queue *nvmeq, u16 idx)
 	}
 
 	req = blk_mq_tag_to_rq(*nvmeq->tags, cqe->command_id);
+	trace_nvme_sq(req, cqe->sq_head, nvmeq->sq_tail);
 	nvme_end_request(req, cqe->status, cqe->result);
 }
 
@@ -1089,15 +1091,15 @@ static int nvme_poll_irqdisable(struct nvme_queue *nvmeq, unsigned int tag)
 	 * using the CQ lock.  For normal interrupt driven threads we have
 	 * to disable the interrupt to avoid racing with it.
 	 */
-	if (nvmeq->cq_vector == -1)
+	if (nvmeq->cq_vector == -1) {
 		spin_lock(&nvmeq->cq_poll_lock);
-	else
-		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
-	found = nvme_process_cq(nvmeq, &start, &end, tag);
-	if (nvmeq->cq_vector == -1)
+		found = nvme_process_cq(nvmeq, &start, &end, tag);
 		spin_unlock(&nvmeq->cq_poll_lock);
-	else
+	} else {
+		disable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
+		found = nvme_process_cq(nvmeq, &start, &end, tag);
 		enable_irq(pci_irq_vector(pdev, nvmeq->cq_vector));
+	}
 
 	nvme_complete_cqes(nvmeq, start, end);
 	return found;
@@ -2289,6 +2291,9 @@ static int nvme_dev_add(struct nvme_dev *dev)
 	if (!dev->ctrl.tagset) {
 		dev->tagset.ops = &nvme_mq_ops;
 		dev->tagset.nr_hw_queues = dev->online_queues - 1;
+		dev->tagset.nr_maps = 2; /* default + read */
+		if (dev->io_queues[HCTX_TYPE_POLL])
+			dev->tagset.nr_maps++;
 		dev->tagset.nr_maps = HCTX_MAX_TYPES;
 		dev->tagset.timeout = NVME_IO_TIMEOUT;
 		dev->tagset.numa_node = dev_to_node(dev->dev);

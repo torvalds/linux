@@ -425,17 +425,6 @@ static inline bool blk_qc_t_valid(blk_qc_t cookie)
 	return cookie != BLK_QC_T_NONE;
 }
 
-static inline blk_qc_t blk_tag_to_qc_t(unsigned int tag, unsigned int queue_num,
-				       bool internal)
-{
-	blk_qc_t ret = tag | (queue_num << BLK_QC_T_SHIFT);
-
-	if (internal)
-		ret |= BLK_QC_T_INTERNAL;
-
-	return ret;
-}
-
 static inline unsigned int blk_qc_t_to_queue_num(blk_qc_t cookie)
 {
 	return (cookie & ~BLK_QC_T_INTERNAL) >> BLK_QC_T_SHIFT;

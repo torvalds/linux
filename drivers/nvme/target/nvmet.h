@@ -30,6 +30,7 @@
 
 #define NVMET_ASYNC_EVENTS		4
 #define NVMET_ERROR_LOG_SLOTS		128
+#define NVMET_NO_ERROR_LOC		((u16)-1)
 
 /*
  * Supported optional AENs:
