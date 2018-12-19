@@ -12,25 +12,11 @@ ifeq ($(CROSS_COMPILE),)
 CROSS_COMPILE := arc-linux-
 endif
 
-KBUILD_DEFCONFIG := nsim_700_defconfig
+KBUILD_DEFCONFIG := nsim_hs_defconfig
 
 cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
 cflags-$(CONFIG_ISA_ARCV2)	+= -mcpu=archs
-
-is_700 = $(shell $(CC) -dM -E - < /dev/null | grep -q "ARC700" && echo 1 || echo 0)
-
-ifdef CONFIG_ISA_ARCOMPACT
-ifeq ($(is_700), 0)
-    $(error Toolchain not configured for ARCompact builds)
-endif
-endif
-
-ifdef CONFIG_ISA_ARCV2
-ifeq ($(is_700), 1)
-    $(error Toolchain not configured for ARCv2 builds)
-endif
-endif
 
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file

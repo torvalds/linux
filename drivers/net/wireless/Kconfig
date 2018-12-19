@@ -256,6 +256,13 @@ config MAC80211_HWSIM
 	  To compile this driver as a module, choose M here: the module will be
 	  called mac80211_hwsim.  If unsure, say N.
 
+config VIRT_WIFI
+	tristate "Wifi wrapper for ethernet drivers"
+	depends on CFG80211
+	---help---
+	  This option adds support for ethernet connections to appear as if they
+	  are wifi connections through a special rtnetlink device.
+
 config MWL8K
 	tristate "Marvell 88W8xxx PCI/PCIe Wireless support"
 	depends on MAC80211 && PCI

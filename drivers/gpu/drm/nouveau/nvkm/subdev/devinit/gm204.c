@@ -161,7 +161,8 @@ gm204_devinit_post(struct nvkm_devinit *base, bool post)
 	}
 
 	/* load and execute some other ucode image (bios therm?) */
-	return pmu_load(init, 0x01, post, NULL, NULL);
+	pmu_load(init, 0x01, post, NULL, NULL);
+	return 0;
 }
 
 static const struct nvkm_devinit_func

@@ -967,11 +967,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			See Documentation/x86/intel_mpx.txt for more
 			information about the feature.
 
-	eagerfpu=	[X86]
-			on	enable eager fpu restore
-			off	disable eager fpu restore
-			auto	selects the default scheme, which automatically
-				enables eagerfpu restore for xsaveopt.
 
 	module.async_probe [KNL]
 			Enable asynchronous probe on this module.

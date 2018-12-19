@@ -60,12 +60,16 @@ static int ext4_create_encryption_context_from_policy(
 	ctx.format = EXT4_ENCRYPTION_CONTEXT_FORMAT_V1;
 	memcpy(ctx.master_key_descriptor, policy->master_key_descriptor,
 	       EXT4_KEY_DESCRIPTOR_SIZE);
-	if (!ext4_valid_enc_modes(policy->contents_encryption_mode,
-				  policy->filenames_encryption_mode)) {
+	if (!ext4_valid_contents_enc_mode(policy->contents_encryption_mode)) {
 		printk(KERN_WARNING
-		       "%s: Invalid encryption modes (contents %d, filenames %d)\n",
-		       __func__, policy->contents_encryption_mode,
-		       policy->filenames_encryption_mode);
+		       "%s: Invalid contents encryption mode %d\n", __func__,
+			policy->contents_encryption_mode);
+		return -EINVAL;
+	}
+	if (!ext4_valid_filenames_enc_mode(policy->filenames_encryption_mode)) {
+		printk(KERN_WARNING
+		       "%s: Invalid filenames encryption mode %d\n", __func__,
+			policy->filenames_encryption_mode);
 		return -EINVAL;
 	}
 	if (policy->flags & ~EXT4_POLICY_FLAGS_VALID)

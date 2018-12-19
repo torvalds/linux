@@ -311,6 +311,8 @@ static int sdcardfs_show_options(struct vfsmount *mnt, struct seq_file *m,
 		seq_puts(m, ",default_normal");
 	if (opts->reserved_mb != 0)
 		seq_printf(m, ",reserved=%uMB", opts->reserved_mb);
+	if (opts->nocache)
+		seq_printf(m, ",nocache");
 
 	return 0;
 };

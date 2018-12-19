@@ -36,6 +36,11 @@
 #define HV_UTIL_TIMEOUT 30
 
 /*
+ * Timeout for guest-host handshake for services.
+ */
+#define HV_UTIL_NEGO_TIMEOUT 60
+
+/*
  * The below CPUID leaves are present if VersionAndFeatures.HypervisorPresent
  * is set by CPUID(HVCPUID_VERSION_FEATURES).
  */

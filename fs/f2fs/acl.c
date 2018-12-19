@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * fs/f2fs/acl.c
  *
@@ -7,10 +8,6 @@
  * Portions of this code from linux/fs/ext2/acl.c
  *
  * Copyright (C) 2001-2003 Andreas Gruenbacher, <agruen@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/f2fs_fs.h>
 #include "f2fs.h"
@@ -52,6 +49,9 @@ static struct posix_acl *f2fs_acl_from_disk(const char *value, size_t size)
 	struct f2fs_acl_header *hdr = (struct f2fs_acl_header *)value;
 	struct f2fs_acl_entry *entry = (struct f2fs_acl_entry *)(hdr + 1);
 	const char *end = value + size;
+
+	if (size < sizeof(struct f2fs_acl_header))
+		return ERR_PTR(-EINVAL);
 
 	if (hdr->a_version != cpu_to_le32(F2FS_ACL_VERSION))
 		return ERR_PTR(-EINVAL);
@@ -397,12 +397,16 @@ int f2fs_init_acl(struct inode *inode, struct inode *dir, struct page *ipage,
 		error = __f2fs_set_acl(inode, ACL_TYPE_DEFAULT, default_acl,
 				       ipage);
 		posix_acl_release(default_acl);
+	} else {
+		inode->i_default_acl = NULL;
 	}
 	if (acl) {
 		if (!error)
 			error = __f2fs_set_acl(inode, ACL_TYPE_ACCESS, acl,
 					       ipage);
 		posix_acl_release(acl);
+	} else {
+		inode->i_acl = NULL;
 	}
 
 	return error;

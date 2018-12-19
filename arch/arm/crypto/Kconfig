@@ -120,11 +120,4 @@ config CRYPTO_GHASH_ARM_CE
 	  that uses the 64x64 to 128 bit polynomial multiplication (vmull.p64)
 	  that is part of the ARMv8 Crypto Extensions
 
-config CRYPTO_SPECK_NEON
-	tristate "NEON accelerated Speck cipher algorithms"
-	depends on KERNEL_MODE_NEON
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_GF128MUL
-	select CRYPTO_SPECK
-
 endif

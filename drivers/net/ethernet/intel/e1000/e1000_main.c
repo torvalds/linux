@@ -521,8 +521,6 @@ void e1000_down(struct e1000_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	u32 rctl, tctl;
 
-	netif_carrier_off(netdev);
-
 	/* disable receives in the hardware */
 	rctl = er32(RCTL);
 	ew32(RCTL, rctl & ~E1000_RCTL_EN);
@@ -537,6 +535,15 @@ void e1000_down(struct e1000_adapter *adapter)
 	/* flush both disables and wait for them to finish */
 	E1000_WRITE_FLUSH();
 	msleep(10);
+
+	/* Set the carrier off after transmits have been disabled in the
+	 * hardware, to avoid race conditions with e1000_watchdog() (which
+	 * may be running concurrently to us, checking for the carrier
+	 * bit to decide whether it should enable transmits again). Such
+	 * a race condition would result into transmission being disabled
+	 * in the hardware until the next IFF_DOWN+IFF_UP cycle.
+	 */
+	netif_carrier_off(netdev);
 
 	napi_disable(&adapter->napi);
 

@@ -787,7 +787,8 @@ static int netlbl_unlabel_addrinfo_get(struct genl_info *info,
 {
 	u32 addr_len;
 
-	if (info->attrs[NLBL_UNLABEL_A_IPV4ADDR]) {
+	if (info->attrs[NLBL_UNLABEL_A_IPV4ADDR] &&
+	    info->attrs[NLBL_UNLABEL_A_IPV4MASK]) {
 		addr_len = nla_len(info->attrs[NLBL_UNLABEL_A_IPV4ADDR]);
 		if (addr_len != sizeof(struct in_addr) &&
 		    addr_len != nla_len(info->attrs[NLBL_UNLABEL_A_IPV4MASK]))
