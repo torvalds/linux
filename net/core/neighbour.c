@@ -1751,6 +1751,18 @@ static struct neigh_table *neigh_find_table(int family)
 	return tbl;
 }
 
+const struct nla_policy nda_policy[NDA_MAX+1] = {
+	[NDA_DST]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[NDA_LLADDR]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
+	[NDA_CACHEINFO]		= { .len = sizeof(struct nda_cacheinfo) },
+	[NDA_PROBES]		= { .type = NLA_U32 },
+	[NDA_VLAN]		= { .type = NLA_U16 },
+	[NDA_PORT]		= { .type = NLA_U16 },
+	[NDA_VNI]		= { .type = NLA_U32 },
+	[NDA_IFINDEX]		= { .type = NLA_U32 },
+	[NDA_MASTER]		= { .type = NLA_U32 },
+};
+
 static int neigh_delete(struct sk_buff *skb, struct nlmsghdr *nlh,
 			struct netlink_ext_ack *extack)
 {
@@ -2711,6 +2723,186 @@ static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 	return skb->len;
 }
 
+static int neigh_valid_get_req(const struct nlmsghdr *nlh,
+			       struct neigh_table **tbl,
+			       void **dst, int *dev_idx, u8 *ndm_flags,
+			       struct netlink_ext_ack *extack)
+{
+	struct nlattr *tb[NDA_MAX + 1];
+	struct ndmsg *ndm;
+	int err, i;
+
+	if (nlh->nlmsg_len < nlmsg_msg_size(sizeof(*ndm))) {
+		NL_SET_ERR_MSG(extack, "Invalid header for neighbor get request");
+		return -EINVAL;
+	}
+
+	ndm = nlmsg_data(nlh);
+	if (ndm->ndm_pad1  || ndm->ndm_pad2  || ndm->ndm_state ||
+	    ndm->ndm_type) {
+		NL_SET_ERR_MSG(extack, "Invalid values in header for neighbor get request");
+		return -EINVAL;
+	}
+
+	if (ndm->ndm_flags & ~NTF_PROXY) {
+		NL_SET_ERR_MSG(extack, "Invalid flags in header for neighbor get request");
+		return -EINVAL;
+	}
+
+	err = nlmsg_parse_strict(nlh, sizeof(struct ndmsg), tb, NDA_MAX,
+				 nda_policy, extack);
+	if (err < 0)
+		return err;
+
+	*ndm_flags = ndm->ndm_flags;
+	*dev_idx = ndm->ndm_ifindex;
+	*tbl = neigh_find_table(ndm->ndm_family);
+	if (*tbl == NULL) {
+		NL_SET_ERR_MSG(extack, "Unsupported family in header for neighbor get request");
+		return -EAFNOSUPPORT;
+	}
+
+	for (i = 0; i <= NDA_MAX; ++i) {
+		if (!tb[i])
+			continue;
+
+		switch (i) {
+		case NDA_DST:
+			if (nla_len(tb[i]) != (int)(*tbl)->key_len) {
+				NL_SET_ERR_MSG(extack, "Invalid network address in neighbor get request");
+				return -EINVAL;
+			}
+			*dst = nla_data(tb[i]);
+			break;
+		default:
+			NL_SET_ERR_MSG(extack, "Unsupported attribute in neighbor get request");
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+static inline size_t neigh_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg))
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_DST */
+	       + nla_total_size(MAX_ADDR_LEN) /* NDA_LLADDR */
+	       + nla_total_size(sizeof(struct nda_cacheinfo))
+	       + nla_total_size(4)  /* NDA_PROBES */
+	       + nla_total_size(1); /* NDA_PROTOCOL */
+}
+
+static int neigh_get_reply(struct net *net, struct neighbour *neigh,
+			   u32 pid, u32 seq)
+{
+	struct sk_buff *skb;
+	int err = 0;
+
+	skb = nlmsg_new(neigh_nlmsg_size(), GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	err = neigh_fill_info(skb, neigh, pid, seq, RTM_NEWNEIGH, 0);
+	if (err) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	err = rtnl_unicast(skb, net, pid);
+errout:
+	return err;
+}
+
+static inline size_t pneigh_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg))
+	       + nla_total_size(MAX_ADDR_LEN); /* NDA_DST */
+	       + nla_total_size(1); /* NDA_PROTOCOL */
+}
+
+static int pneigh_get_reply(struct net *net, struct pneigh_entry *neigh,
+			    u32 pid, u32 seq, struct neigh_table *tbl)
+{
+	struct sk_buff *skb;
+	int err = 0;
+
+	skb = nlmsg_new(pneigh_nlmsg_size(), GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	err = pneigh_fill_info(skb, neigh, pid, seq, RTM_NEWNEIGH, 0, tbl);
+	if (err) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	err = rtnl_unicast(skb, net, pid);
+errout:
+	return err;
+}
+
+static int neigh_get(struct sk_buff *in_skb, struct nlmsghdr *nlh,
+		     struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(in_skb->sk);
+	struct net_device *dev = NULL;
+	struct neigh_table *tbl = NULL;
+	struct neighbour *neigh;
+	void *dst = NULL;
+	u8 ndm_flags = 0;
+	int dev_idx = 0;
+	int err;
+
+	err = neigh_valid_get_req(nlh, &tbl, &dst, &dev_idx, &ndm_flags,
+				  extack);
+	if (err < 0)
+		return err;
+
+	if (dev_idx) {
+		dev = __dev_get_by_index(net, dev_idx);
+		if (!dev) {
+			NL_SET_ERR_MSG(extack, "Unknown device ifindex");
+			return -ENODEV;
+		}
+	}
+
+	if (!dst) {
+		NL_SET_ERR_MSG(extack, "Network address not specified");
+		return -EINVAL;
+	}
+
+	if (ndm_flags & NTF_PROXY) {
+		struct pneigh_entry *pn;
+
+		pn = pneigh_lookup(tbl, net, dst, dev, 0);
+		if (!pn) {
+			NL_SET_ERR_MSG(extack, "Proxy neighbour entry not found");
+			return -ENOENT;
+		}
+		return pneigh_get_reply(net, pn, NETLINK_CB(in_skb).portid,
+					nlh->nlmsg_seq, tbl);
+	}
+
+	if (!dev) {
+		NL_SET_ERR_MSG(extack, "No device specified");
+		return -EINVAL;
+	}
+
+	neigh = neigh_lookup(tbl, dst, dev);
+	if (!neigh) {
+		NL_SET_ERR_MSG(extack, "Neighbour entry not found");
+		return -ENOENT;
+	}
+
+	err = neigh_get_reply(net, neigh, NETLINK_CB(in_skb).portid,
+			      nlh->nlmsg_seq);
+
+	neigh_release(neigh);
+
+	return err;
+}
+
 void neigh_for_each(struct neigh_table *tbl, void (*cb)(struct neighbour *, void *), void *cookie)
 {
 	int chain;
@@ -3118,16 +3310,6 @@ static const struct seq_operations neigh_stat_seq_ops = {
 };
 #endif /* CONFIG_PROC_FS */
 
-static inline size_t neigh_nlmsg_size(void)
-{
-	return NLMSG_ALIGN(sizeof(struct ndmsg))
-	       + nla_total_size(MAX_ADDR_LEN) /* NDA_DST */
-	       + nla_total_size(MAX_ADDR_LEN) /* NDA_LLADDR */
-	       + nla_total_size(sizeof(struct nda_cacheinfo))
-	       + nla_total_size(4)  /* NDA_PROBES */
-	       + nla_total_size(1); /* NDA_PROTOCOL */
-}
-
 static void __neigh_notify(struct neighbour *n, int type, int flags,
 			   u32 pid)
 {
@@ -3511,7 +3693,7 @@ static int __init neigh_init(void)
 {
 	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, NULL, neigh_dump_info, 0);
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, neigh_get, neigh_dump_info, 0);
 
 	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info,
 		      0);

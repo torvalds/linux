@@ -255,6 +255,7 @@ static inline void *neighbour_priv(const struct neighbour *n)
 #define NEIGH_UPDATE_F_ISROUTER			0x40000000
 #define NEIGH_UPDATE_F_ADMIN			0x80000000
 
+extern const struct nla_policy nda_policy[];
 
 static inline bool neigh_key_eq16(const struct neighbour *n, const void *pkey)
 {
