@@ -337,6 +337,14 @@ DEFINE_EVENT(tipc_node_class, name, \
 	TP_PROTO(struct tipc_node *n, bool more, const char *header), \
 	TP_ARGS(n, more, header))
 DEFINE_NODE_EVENT(tipc_node_dump);
+DEFINE_NODE_EVENT(tipc_node_create);
+DEFINE_NODE_EVENT(tipc_node_delete);
+DEFINE_NODE_EVENT(tipc_node_lost_contact);
+DEFINE_NODE_EVENT(tipc_node_timeout);
+DEFINE_NODE_EVENT(tipc_node_link_up);
+DEFINE_NODE_EVENT(tipc_node_link_down);
+DEFINE_NODE_EVENT(tipc_node_reset_links);
+DEFINE_NODE_EVENT(tipc_node_check_state);
 
 DECLARE_EVENT_CLASS(tipc_fsm_class,
 
@@ -368,6 +376,7 @@ DEFINE_EVENT(tipc_fsm_class, fsm_name, \
 	TP_PROTO(const char *name, u32 os, u32 ns, int evt), \
 	TP_ARGS(name, os, ns, evt))
 DEFINE_FSM_EVENT(tipc_link_fsm);
+DEFINE_FSM_EVENT(tipc_node_fsm);
 
 #endif /* _TIPC_TRACE_H */
 
