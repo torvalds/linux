@@ -62,6 +62,9 @@ struct vfio_pci_regops {
 	int	(*mmap)(struct vfio_pci_device *vdev,
 			struct vfio_pci_region *region,
 			struct vm_area_struct *vma);
+	int	(*add_capability)(struct vfio_pci_device *vdev,
+				  struct vfio_pci_region *region,
+				  struct vfio_info_cap *caps);
 };
 
 struct vfio_pci_region {
