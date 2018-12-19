@@ -1528,6 +1528,7 @@ static int ice_cfg_netdev(struct ice_vsi *vsi)
 
 	csumo_features = NETIF_F_RXCSUM	  |
 			 NETIF_F_IP_CSUM  |
+			 NETIF_F_SCTP_CRC |
 			 NETIF_F_IPV6_CSUM;
 
 	vlano_features = NETIF_F_HW_VLAN_CTAG_FILTER |

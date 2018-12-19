@@ -26,6 +26,7 @@
 #include <linux/bitmap.h>
 #include <linux/log2.h>
 #include <linux/ip.h>
+#include <linux/sctp.h>
 #include <linux/ipv6.h>
 #include <linux/if_bridge.h>
 #include <linux/avf/virtchnl.h>
