@@ -399,7 +399,7 @@ xprt_setup_rdma(struct xprt_create *args)
 	INIT_DELAYED_WORK(&new_xprt->rx_connect_worker,
 			  xprt_rdma_connect_worker);
 
-	xprt->max_payload = new_xprt->rx_ia.ri_ops->ro_maxpages(new_xprt);
+	xprt->max_payload = frwr_maxpages(new_xprt);
 	if (xprt->max_payload == 0)
 		goto out4;
 	xprt->max_payload <<= PAGE_SHIFT;

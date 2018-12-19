@@ -289,10 +289,9 @@ disconnected:
 		break;
 	}
 
-	dprintk("RPC:       %s: %s:%s on %s/%s: %s\n", __func__,
+	dprintk("RPC:       %s: %s:%s on %s/frwr: %s\n", __func__,
 		rpcrdma_addrstr(r_xprt), rpcrdma_portstr(r_xprt),
-		ia->ri_device->name, ia->ri_ops->ro_displayname,
-		rdma_event_msg(event->event));
+		ia->ri_device->name, rdma_event_msg(event->event));
 	return 0;
 }
 
@@ -392,10 +391,8 @@ rpcrdma_ia_open(struct rpcrdma_xprt *xprt)
 
 	switch (xprt_rdma_memreg_strategy) {
 	case RPCRDMA_FRWR:
-		if (frwr_is_supported(ia)) {
-			ia->ri_ops = &rpcrdma_frwr_memreg_ops;
+		if (frwr_is_supported(ia))
 			break;
-		}
 		/*FALLTHROUGH*/
 	default:
 		pr_err("rpcrdma: Device %s does not support memreg mode %d\n",
@@ -509,7 +506,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	}
 	ia->ri_max_send_sges = max_sge;
 
-	rc = ia->ri_ops->ro_open(ia, ep, cdata);
+	rc = frwr_open(ia, ep, cdata);
 	if (rc)
 		return rc;
 
@@ -567,7 +564,7 @@ rpcrdma_ep_create(struct rpcrdma_ep *ep, struct rpcrdma_ia *ia,
 	/* Prepare RDMA-CM private message */
 	pmsg->cp_magic = rpcrdma_cmp_magic;
 	pmsg->cp_version = RPCRDMA_CMP_VERSION;
-	pmsg->cp_flags |= ia->ri_ops->ro_send_w_inv_ok;
+	pmsg->cp_flags |= RPCRDMA_CMP_F_SND_W_INV_OK;
 	pmsg->cp_send_size = rpcrdma_encode_buffer_size(cdata->inline_wsize);
 	pmsg->cp_recv_size = rpcrdma_encode_buffer_size(cdata->inline_rsize);
 	ep->rep_remote_cma.private_data = pmsg;
@@ -991,7 +988,7 @@ rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt)
 		if (!mr)
 			break;
 
-		rc = ia->ri_ops->ro_init_mr(ia, mr);
+		rc = frwr_init_mr(ia, mr);
 		if (rc) {
 			kfree(mr);
 			break;
@@ -1171,7 +1168,6 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 {
 	struct rpcrdma_xprt *r_xprt = container_of(buf, struct rpcrdma_xprt,
 						   rx_buf);
-	struct rpcrdma_ia *ia = rdmab_to_ia(buf);
 	struct rpcrdma_mr *mr;
 	unsigned int count;
 
@@ -1187,7 +1183,7 @@ rpcrdma_mrs_destroy(struct rpcrdma_buffer *buf)
 		if (!list_empty(&mr->mr_list))
 			list_del(&mr->mr_list);
 
-		ia->ri_ops->ro_release_mr(mr);
+		frwr_release_mr(mr);
 		count++;
 		spin_lock(&buf->rb_mrlock);
 	}
@@ -1381,7 +1377,7 @@ rpcrdma_recv_buffer_put(struct rpcrdma_rep *rep)
  *
  * xprtrdma uses a regbuf for posting an outgoing RDMA SEND, or for
  * receiving the payload of RDMA RECV operations. During Long Calls
- * or Replies they may be registered externally via ro_map.
+ * or Replies they may be registered externally via frwr_map.
  */
 struct rpcrdma_regbuf *
 rpcrdma_alloc_regbuf(size_t size, enum dma_data_direction direction,
@@ -1472,7 +1468,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		--ep->rep_send_count;
 	}
 
-	rc = ia->ri_ops->ro_send(ia, req);
+	rc = frwr_send(ia, req);
 	trace_xprtrdma_post_send(req, rc);
 	if (rc)
 		return -ENOTCONN;

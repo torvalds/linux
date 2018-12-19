@@ -66,7 +66,6 @@
  * Interface Adapter -- one per transport instance
  */
 struct rpcrdma_ia {
-	const struct rpcrdma_memreg_ops	*ri_ops;
 	struct ib_device	*ri_device;
 	struct rdma_cm_id 	*ri_id;
 	struct ib_pd		*ri_pd;
@@ -406,7 +405,6 @@ struct rpcrdma_buffer {
 	struct workqueue_struct *rb_completion_wq;
 	struct delayed_work	rb_refresh_worker;
 };
-#define rdmab_to_ia(b) (&container_of((b), struct rpcrdma_xprt, rx_buf)->rx_ia)
 
 /* rb_flags */
 enum {
@@ -455,34 +453,6 @@ struct rpcrdma_stats {
 	unsigned long		nomsg_call_count;
 	unsigned long		bcall_count;
 };
-
-/*
- * Per-registration mode operations
- */
-struct rpcrdma_xprt;
-struct rpcrdma_memreg_ops {
-	struct rpcrdma_mr_seg *
-			(*ro_map)(struct rpcrdma_xprt *,
-				  struct rpcrdma_mr_seg *, int, bool,
-				  struct rpcrdma_mr **);
-	int		(*ro_send)(struct rpcrdma_ia *ia,
-				   struct rpcrdma_req *req);
-	void		(*ro_reminv)(struct rpcrdma_rep *rep,
-				     struct list_head *mrs);
-	void		(*ro_unmap_sync)(struct rpcrdma_xprt *,
-					 struct list_head *);
-	int		(*ro_open)(struct rpcrdma_ia *,
-				   struct rpcrdma_ep *,
-				   struct rpcrdma_create_data_internal *);
-	size_t		(*ro_maxpages)(struct rpcrdma_xprt *);
-	int		(*ro_init_mr)(struct rpcrdma_ia *,
-				      struct rpcrdma_mr *);
-	void		(*ro_release_mr)(struct rpcrdma_mr *mr);
-	const char	*ro_displayname;
-	const int	ro_send_w_inv_ok;
-};
-
-extern const struct rpcrdma_memreg_ops rpcrdma_frwr_memreg_ops;
 
 /*
  * RPCRDMA transport -- encapsulates the structures above for
@@ -535,7 +505,6 @@ extern unsigned int xprt_rdma_memreg_strategy;
 int rpcrdma_ia_open(struct rpcrdma_xprt *xprt);
 void rpcrdma_ia_remove(struct rpcrdma_ia *ia);
 void rpcrdma_ia_close(struct rpcrdma_ia *);
-bool frwr_is_supported(struct rpcrdma_ia *);
 
 /*
  * Endpoint calls - xprtrdma/verbs.c
@@ -600,6 +569,23 @@ rpcrdma_data_dir(bool writing)
 {
 	return writing ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
 }
+
+/* Memory registration calls xprtrdma/frwr_ops.c
+ */
+bool frwr_is_supported(struct rpcrdma_ia *);
+int frwr_open(struct rpcrdma_ia *ia, struct rpcrdma_ep *ep,
+	      struct rpcrdma_create_data_internal *cdata);
+int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr);
+void frwr_release_mr(struct rpcrdma_mr *mr);
+size_t frwr_maxpages(struct rpcrdma_xprt *r_xprt);
+struct rpcrdma_mr_seg *frwr_map(struct rpcrdma_xprt *r_xprt,
+				struct rpcrdma_mr_seg *seg,
+				int nsegs, bool writing,
+				struct rpcrdma_mr **mr);
+int frwr_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req);
+void frwr_reminv(struct rpcrdma_rep *rep, struct list_head *mrs);
+void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt,
+		     struct list_head *mrs);
 
 /*
  * RPC/RDMA protocol calls - xprtrdma/rpc_rdma.c
