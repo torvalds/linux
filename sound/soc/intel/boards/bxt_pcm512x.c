@@ -1,23 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright(c) 2018 Intel Corporation. All rights reserved.
+//
+// Author: Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
+//
+
 /*
- *  bxt-pcm512x.c - ASoc Machine driver for Intel Baytrail and
- *             Cherrytrail-based platforms, with TI PCM512x codec
- *
- *  Copyright (C) 2016 Intel Corporation
- *  Author: Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
- *
- *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * bxt-pcm512x.c - ASoc Machine driver for Intel platforms
+ * with TI PCM512x codec, e.g. Up or Up2 with Hifiberry DAC+ (PRO) HAT
  */
+
 #include <linux/module.h>
 #include <linux/acpi.h>
 #include <linux/platform_device.h>
@@ -228,7 +220,6 @@ static struct snd_soc_dai_link dailink[] = {
 	},
 #endif
 };
-
 
 /* SoC card */
 static struct snd_soc_card bxt_pcm512x_card = {
