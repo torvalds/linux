@@ -299,9 +299,9 @@ static void msdc_abort_data(struct msdc_host *host)
 
 #ifdef CONFIG_PM
 /*
-   register as callback function of WIFI(combo_sdio_register_pm) .
-   can called by msdc_drv_suspend/resume too.
-*/
+ *   register as callback function of WIFI(combo_sdio_register_pm) .
+ *  can called by msdc_drv_suspend/resume too.
+ */
 static void msdc_pm(pm_message_t state, void *data)
 {
 	struct msdc_host *host = (struct msdc_host *)data;
@@ -692,7 +692,8 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 			goto done;
 
 		/* for read, the data coming too fast, then CRC error
-		   start DMA no business with CRC. */
+		 *  start DMA no business with CRC.
+		 */
 		//init_completion(&host->xfer_done);
 		msdc_dma_start(host);
 
@@ -775,9 +776,10 @@ static int msdc_tune_cmdrsp(struct msdc_host *host, struct mmc_command *cmd)
 	u32 skip = 1;
 
 	/* ==== don't support 3.0 now ====
-	   1: R_SMPL[1]
-	   2: PAD_CMD_RESP_RXDLY[26:22]
-	   ==========================*/
+	 *  1: R_SMPL[1]
+	 *  2: PAD_CMD_RESP_RXDLY[26:22]
+	 *  ==========================
+	 */
 
 	// save the previous tune result
 	sdr_get_field(host->base + MSDC_IOCON, MSDC_IOCON_RSPL, &orig_rsmpl);
@@ -1412,13 +1414,13 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	/* mmc irq interrupts */
 	if (intsts & MSDC_INT_MMCIRQ)
 		dev_info(mmc_dev(host->mmc), "msdc[%d] MMCIRQ: SDC_CSTS=0x%.8x\r\n",
-			host->id, readl(host->base + SDC_CSTS));
+			 host->id, readl(host->base + SDC_CSTS));
 
 	return IRQ_HANDLED;
 }
 
 /*--------------------------------------------------------------------------*/
-/* platform_driver members                                                      */
+/* platform_driver members                                                  */
 /*--------------------------------------------------------------------------*/
 /* called by msdc_drv_probe/remove */
 static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
@@ -1429,9 +1431,9 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 	if ((hw->flags & MSDC_CD_PIN_EN) == 0) {
 		/* Pull down card detection pin since it is not avaiable */
 		/*
-		  if (hw->config_gpio_pin)
-		  hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
-		*/
+		 * if (hw->config_gpio_pin)
+		 * hw->config_gpio_pin(MSDC_CD_PIN, GPIO_PULL_DOWN);
+		 */
 		sdr_clr_bits(host->base + MSDC_PS, MSDC_PS_CDEN);
 		sdr_clr_bits(host->base + MSDC_INTEN, MSDC_INTEN_CDSC);
 		sdr_clr_bits(host->base + SDC_CFG, SDC_CFG_INSWKUP);
@@ -1519,8 +1521,9 @@ static void msdc_init_hw(struct msdc_host *host)
 #endif
 
 	/* for safety, should clear SDC_CFG.SDIO_INT_DET_EN & set SDC_CFG.SDIO in
-	   pre-loader,uboot,kernel drivers. and SDC_CFG.SDIO_INT_DET_EN will be only
-	   set when kernel driver wants to use SDIO bus interrupt */
+	 *  pre-loader,uboot,kernel drivers. and SDC_CFG.SDIO_INT_DET_EN will be only
+	 *  set when kernel driver wants to use SDIO bus interrupt
+	 */
 	/* Configure to enable SDIO mode. it's must otherwise sdio cmd5 failed */
 	sdr_set_bits(host->base + SDC_CFG, SDC_CFG_SDIO);
 
