@@ -2714,10 +2714,6 @@ static long pnv_pci_ioda2_npu_unset_window(
 
 static void pnv_ioda2_npu_take_ownership(struct iommu_table_group *table_group)
 {
-	/*
-	 * Detach NPU first as pnv_ioda2_take_ownership() will destroy
-	 * the iommu_table if 32bit DMA is enabled.
-	 */
 	pnv_npu_take_ownership(gpe_table_group_to_npe(table_group));
 	pnv_ioda2_take_ownership(table_group);
 }
