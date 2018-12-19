@@ -4,41 +4,6 @@
  * x86-specific implementation of refcount_t. Based on PAX_REFCOUNT from
  * PaX/grsecurity.
  */
-
-#ifdef __ASSEMBLY__
-
-#include <asm/asm.h>
-#include <asm/bug.h>
-
-.macro REFCOUNT_EXCEPTION counter:req
-	.pushsection .text..refcount
-111:	lea \counter, %_ASM_CX
-112:	ud2
-	ASM_UNREACHABLE
-	.popsection
-113:	_ASM_EXTABLE_REFCOUNT(112b, 113b)
-.endm
-
-/* Trigger refcount exception if refcount result is negative. */
-.macro REFCOUNT_CHECK_LT_ZERO counter:req
-	js 111f
-	REFCOUNT_EXCEPTION counter="\counter"
-.endm
-
-/* Trigger refcount exception if refcount result is zero or negative. */
-.macro REFCOUNT_CHECK_LE_ZERO counter:req
-	jz 111f
-	REFCOUNT_CHECK_LT_ZERO counter="\counter"
-.endm
-
-/* Trigger refcount exception unconditionally. */
-.macro REFCOUNT_ERROR counter:req
-	jmp 111f
-	REFCOUNT_EXCEPTION counter="\counter"
-.endm
-
-#else /* __ASSEMBLY__ */
-
 #include <linux/refcount.h>
 #include <asm/bug.h>
 
@@ -50,12 +15,35 @@
  * central refcount exception. The fixup address for the exception points
  * back to the regular execution flow in .text.
  */
+#define _REFCOUNT_EXCEPTION				\
+	".pushsection .text..refcount\n"		\
+	"111:\tlea %[var], %%" _ASM_CX "\n"		\
+	"112:\t" ASM_UD2 "\n"				\
+	ASM_UNREACHABLE					\
+	".popsection\n"					\
+	"113:\n"					\
+	_ASM_EXTABLE_REFCOUNT(112b, 113b)
+
+/* Trigger refcount exception if refcount result is negative. */
+#define REFCOUNT_CHECK_LT_ZERO				\
+	"js 111f\n\t"					\
+	_REFCOUNT_EXCEPTION
+
+/* Trigger refcount exception if refcount result is zero or negative. */
+#define REFCOUNT_CHECK_LE_ZERO				\
+	"jz 111f\n\t"					\
+	REFCOUNT_CHECK_LT_ZERO
+
+/* Trigger refcount exception unconditionally. */
+#define REFCOUNT_ERROR					\
+	"jmp 111f\n\t"					\
+	_REFCOUNT_EXCEPTION
 
 static __always_inline void refcount_add(unsigned int i, refcount_t *r)
 {
 	asm volatile(LOCK_PREFIX "addl %1,%0\n\t"
-		"REFCOUNT_CHECK_LT_ZERO counter=\"%[counter]\""
-		: [counter] "+m" (r->refs.counter)
+		REFCOUNT_CHECK_LT_ZERO
+		: [var] "+m" (r->refs.counter)
 		: "ir" (i)
 		: "cc", "cx");
 }
@@ -63,32 +51,31 @@ static __always_inline void refcount_add(unsigned int i, refcount_t *r)
 static __always_inline void refcount_inc(refcount_t *r)
 {
 	asm volatile(LOCK_PREFIX "incl %0\n\t"
-		"REFCOUNT_CHECK_LT_ZERO counter=\"%[counter]\""
-		: [counter] "+m" (r->refs.counter)
+		REFCOUNT_CHECK_LT_ZERO
+		: [var] "+m" (r->refs.counter)
 		: : "cc", "cx");
 }
 
 static __always_inline void refcount_dec(refcount_t *r)
 {
 	asm volatile(LOCK_PREFIX "decl %0\n\t"
-		"REFCOUNT_CHECK_LE_ZERO counter=\"%[counter]\""
-		: [counter] "+m" (r->refs.counter)
+		REFCOUNT_CHECK_LE_ZERO
+		: [var] "+m" (r->refs.counter)
 		: : "cc", "cx");
 }
 
 static __always_inline __must_check
 bool refcount_sub_and_test(unsigned int i, refcount_t *r)
 {
-
 	return GEN_BINARY_SUFFIXED_RMWcc(LOCK_PREFIX "subl",
-					 "REFCOUNT_CHECK_LT_ZERO counter=\"%[var]\"",
+					 REFCOUNT_CHECK_LT_ZERO,
 					 r->refs.counter, e, "er", i, "cx");
 }
 
 static __always_inline __must_check bool refcount_dec_and_test(refcount_t *r)
 {
 	return GEN_UNARY_SUFFIXED_RMWcc(LOCK_PREFIX "decl",
-					"REFCOUNT_CHECK_LT_ZERO counter=\"%[var]\"",
+					REFCOUNT_CHECK_LT_ZERO,
 					r->refs.counter, e, "cx");
 }
 
@@ -106,8 +93,8 @@ bool refcount_add_not_zero(unsigned int i, refcount_t *r)
 
 		/* Did we try to increment from/to an undesirable state? */
 		if (unlikely(c < 0 || c == INT_MAX || result < c)) {
-			asm volatile("REFCOUNT_ERROR counter=\"%[counter]\""
-				     : : [counter] "m" (r->refs.counter)
+			asm volatile(REFCOUNT_ERROR
+				     : : [var] "m" (r->refs.counter)
 				     : "cc", "cx");
 			break;
 		}
@@ -121,7 +108,5 @@ static __always_inline __must_check bool refcount_inc_not_zero(refcount_t *r)
 {
 	return refcount_add_not_zero(1, r);
 }
-
-#endif /* __ASSEMBLY__ */
 
 #endif

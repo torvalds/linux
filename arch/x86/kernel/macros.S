@@ -7,4 +7,3 @@
  */
 
 #include <linux/compiler.h>
-#include <asm/refcount.h>
