@@ -4,6 +4,7 @@
 #include <linux/acpi.h>
 #include <acpi/reboot.h>
 
+#ifdef CONFIG_PCI
 static void acpi_pci_reboot(struct acpi_generic_address *rr, u8 reset_value)
 {
 	unsigned int devfn;
@@ -21,6 +22,13 @@ static void acpi_pci_reboot(struct acpi_generic_address *rr, u8 reset_value)
 	pci_bus_write_config_byte(bus0, devfn,
 			(rr->address & 0xffff), reset_value);
 }
+#else
+static inline void acpi_pci_reboot(struct acpi_generic_address *rr,
+				   u8 reset_value)
+{
+	pr_warn_once("PCI configuration space access is not supported\n");
+}
+#endif
 
 void acpi_reboot(void)
 {
