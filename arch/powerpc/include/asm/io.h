@@ -29,12 +29,14 @@ extern struct pci_dev *isa_bridge_pcidev;
 
 #include <linux/device.h>
 #include <linux/compiler.h>
+#include <linux/mm.h>
 #include <asm/page.h>
 #include <asm/byteorder.h>
 #include <asm/synch.h>
 #include <asm/delay.h>
 #include <asm/mmu.h>
 #include <asm/ppc_asm.h>
+#include <asm/pgtable.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
@@ -804,6 +806,8 @@ extern void __iounmap_at(void *ea, unsigned long size);
  */
 static inline unsigned long virt_to_phys(volatile void * address)
 {
+	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && !virt_addr_valid(address));
+
 	return __pa((unsigned long)address);
 }
 
@@ -827,7 +831,14 @@ static inline void * phys_to_virt(unsigned long address)
 /*
  * Change "struct page" to physical address.
  */
-#define page_to_phys(page)	((phys_addr_t)page_to_pfn(page) << PAGE_SHIFT)
+static inline phys_addr_t page_to_phys(struct page *page)
+{
+	unsigned long pfn = page_to_pfn(page);
+
+	WARN_ON(IS_ENABLED(CONFIG_DEBUG_VIRTUAL) && !pfn_valid(pfn));
+
+	return PFN_PHYS(pfn);
+}
 
 /*
  * 32 bits still uses virt_to_bus() for it's implementation of DMA
