@@ -2457,6 +2457,23 @@ err_out_ha:
 }
 EXPORT_SYMBOL_GPL(hisi_sas_probe);
 
+struct dentry *hisi_sas_debugfs_dir;
+
+void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+
+	hisi_hba->debugfs_dir = debugfs_create_dir(dev_name(dev),
+						   hisi_sas_debugfs_dir);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_debugfs_init);
+
+void hisi_sas_debugfs_exit(struct hisi_hba *hisi_hba)
+{
+	debugfs_remove_recursive(hisi_hba->debugfs_dir);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_debugfs_exit);
+
 int hisi_sas_remove(struct platform_device *pdev)
 {
 	struct sas_ha_struct *sha = platform_get_drvdata(pdev);
@@ -2475,11 +2492,19 @@ int hisi_sas_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);
 
+bool hisi_sas_debugfs_enable;
+EXPORT_SYMBOL_GPL(hisi_sas_debugfs_enable);
+module_param_named(debugfs_enable, hisi_sas_debugfs_enable, bool, 0444);
+MODULE_PARM_DESC(hisi_sas_debugfs_enable, "Enable driver debugfs (default disabled)");
+
 static __init int hisi_sas_init(void)
 {
 	hisi_sas_stt = sas_domain_attach_transport(&hisi_sas_transport_ops);
 	if (!hisi_sas_stt)
 		return -ENOMEM;
+
+	if (hisi_sas_debugfs_enable)
+		hisi_sas_debugfs_dir = debugfs_create_dir("hisi_sas", NULL);
 
 	return 0;
 }
@@ -2487,6 +2512,8 @@ static __init int hisi_sas_init(void)
 static __exit void hisi_sas_exit(void)
 {
 	sas_release_transport(hisi_sas_stt);
+
+	debugfs_remove(hisi_sas_debugfs_dir);
 }
 
 module_init(hisi_sas_init);
