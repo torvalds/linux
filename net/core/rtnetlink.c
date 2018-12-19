@@ -3460,18 +3460,6 @@ void rtmsg_ifinfo_newnet(int type, struct net_device *dev, unsigned int change,
 			   new_nsid, new_ifindex);
 }
 
-static const struct nla_policy nda_policy[NDA_MAX+1] = {
-	[NDA_DST]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
-	[NDA_LLADDR]		= { .type = NLA_BINARY, .len = MAX_ADDR_LEN },
-	[NDA_CACHEINFO]		= { .len = sizeof(struct nda_cacheinfo) },
-	[NDA_PROBES]		= { .type = NLA_U32 },
-	[NDA_VLAN]		= { .type = NLA_U16 },
-	[NDA_PORT]		= { .type = NLA_U16 },
-	[NDA_VNI]		= { .type = NLA_U32 },
-	[NDA_IFINDEX]		= { .type = NLA_U32 },
-	[NDA_MASTER]		= { .type = NLA_U32 },
-};
-
 static int nlmsg_populate_fdb_fill(struct sk_buff *skb,
 				   struct net_device *dev,
 				   u8 *addr, u16 vid, u32 pid, u32 seq,
