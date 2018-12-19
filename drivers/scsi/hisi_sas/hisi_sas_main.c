@@ -2685,6 +2685,43 @@ static const struct file_operations hisi_sas_debugfs_cq_fops = {
 	.owner = THIS_MODULE,
 };
 
+static int hisi_sas_dq_show_slot(struct seq_file *s, int slot, void *dq_ptr)
+{
+	struct hisi_sas_dq *dq = dq_ptr;
+	struct hisi_hba *hisi_hba = dq->hisi_hba;
+	void *cmd_queue = hisi_hba->debugfs_cmd_hdr[dq->id];
+	void *cmd_hdr = cmd_queue +
+		hisi_hba->hw->complete_hdr_size * slot;
+
+	return hisi_sas_show_row_32(s, slot, sizeof(struct hisi_sas_cmd_hdr),
+				    cmd_hdr);
+}
+
+static int hisi_sas_debugfs_dq_show(struct seq_file *s, void *p)
+{
+	int slot, ret;
+
+	for (slot = 0; slot < HISI_SAS_QUEUE_SLOTS; slot++) {
+		ret = hisi_sas_dq_show_slot(s, slot, s->private);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+static int hisi_sas_debugfs_dq_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, hisi_sas_debugfs_dq_show, inode->i_private);
+}
+
+static const struct file_operations hisi_sas_debugfs_dq_fops = {
+	.open = hisi_sas_debugfs_dq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+	.owner = THIS_MODULE,
+};
+
 static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 {
 	struct dentry *dump_dentry;
@@ -2692,6 +2729,7 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 	char name[256];
 	int p;
 	int c;
+	int d;
 
 	/* Create dump dir inside device dir */
 	dump_dentry = debugfs_create_dir("dump", hisi_hba->debugfs_dir);
@@ -2728,6 +2766,20 @@ static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
 		if (!debugfs_create_file(name, 0400, dentry,
 					 &hisi_hba->cq[c],
 					 &hisi_sas_debugfs_cq_fops))
+			goto fail;
+	}
+
+	/* Create DQ dir and files */
+	dentry = debugfs_create_dir("dq", dump_dentry);
+	if (!dentry)
+		goto fail;
+
+	for (d = 0; d < hisi_hba->queue_count; d++) {
+		snprintf(name, 256, "%d", d);
+
+		if (!debugfs_create_file(name, 0400, dentry,
+					 &hisi_hba->dq[d],
+					 &hisi_sas_debugfs_dq_fops))
 			goto fail;
 	}
 
