@@ -16,40 +16,6 @@
 
 DECLARE_EVENT_CLASS(rpc_task_status,
 
-	TP_PROTO(struct rpc_task *task),
-
-	TP_ARGS(task),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(int, status)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = task->tk_pid;
-		__entry->client_id = task->tk_client->cl_clid;
-		__entry->status = task->tk_status;
-	),
-
-	TP_printk("task:%u@%u status=%d",
-		__entry->task_id, __entry->client_id,
-		__entry->status)
-);
-
-DEFINE_EVENT(rpc_task_status, rpc_call_status,
-	TP_PROTO(struct rpc_task *task),
-
-	TP_ARGS(task)
-);
-
-DEFINE_EVENT(rpc_task_status, rpc_bind_status,
-	TP_PROTO(struct rpc_task *task),
-
-	TP_ARGS(task)
-);
-
-TRACE_EVENT(rpc_connect_status,
 	TP_PROTO(const struct rpc_task *task),
 
 	TP_ARGS(task),
@@ -70,6 +36,16 @@ TRACE_EVENT(rpc_connect_status,
 		__entry->task_id, __entry->client_id,
 		__entry->status)
 );
+#define DEFINE_RPC_STATUS_EVENT(name) \
+	DEFINE_EVENT(rpc_task_status, rpc_##name##_status, \
+			TP_PROTO( \
+				const struct rpc_task *task \
+			), \
+			TP_ARGS(task))
+
+DEFINE_RPC_STATUS_EVENT(call);
+DEFINE_RPC_STATUS_EVENT(bind);
+DEFINE_RPC_STATUS_EVENT(connect);
 
 TRACE_EVENT(rpc_request,
 	TP_PROTO(const struct rpc_task *task),
@@ -134,30 +110,17 @@ DECLARE_EVENT_CLASS(rpc_task_running,
 		__entry->action
 		)
 );
+#define DEFINE_RPC_RUNNING_EVENT(name) \
+	DEFINE_EVENT(rpc_task_running, rpc_task_##name, \
+			TP_PROTO( \
+				const struct rpc_task *task, \
+				const void *action \
+			), \
+			TP_ARGS(task, action))
 
-DEFINE_EVENT(rpc_task_running, rpc_task_begin,
-
-	TP_PROTO(const struct rpc_task *task, const void *action),
-
-	TP_ARGS(task, action)
-
-);
-
-DEFINE_EVENT(rpc_task_running, rpc_task_run_action,
-
-	TP_PROTO(const struct rpc_task *task, const void *action),
-
-	TP_ARGS(task, action)
-
-);
-
-DEFINE_EVENT(rpc_task_running, rpc_task_complete,
-
-	TP_PROTO(const struct rpc_task *task, const void *action),
-
-	TP_ARGS(task, action)
-
-);
+DEFINE_RPC_RUNNING_EVENT(begin);
+DEFINE_RPC_RUNNING_EVENT(run_action);
+DEFINE_RPC_RUNNING_EVENT(complete);
 
 DECLARE_EVENT_CLASS(rpc_task_queued,
 
@@ -195,22 +158,16 @@ DECLARE_EVENT_CLASS(rpc_task_queued,
 		__get_str(q_name)
 		)
 );
+#define DEFINE_RPC_QUEUED_EVENT(name) \
+	DEFINE_EVENT(rpc_task_queued, rpc_task_##name, \
+			TP_PROTO( \
+				const struct rpc_task *task, \
+				const struct rpc_wait_queue *q \
+			), \
+			TP_ARGS(task, q))
 
-DEFINE_EVENT(rpc_task_queued, rpc_task_sleep,
-
-	TP_PROTO(const struct rpc_task *task, const struct rpc_wait_queue *q),
-
-	TP_ARGS(task, q)
-
-);
-
-DEFINE_EVENT(rpc_task_queued, rpc_task_wakeup,
-
-	TP_PROTO(const struct rpc_task *task, const struct rpc_wait_queue *q),
-
-	TP_ARGS(task, q)
-
-);
+DEFINE_RPC_QUEUED_EVENT(sleep);
+DEFINE_RPC_QUEUED_EVENT(wakeup);
 
 TRACE_EVENT(rpc_stats_latency,
 
@@ -410,7 +367,11 @@ DEFINE_RPC_SOCKET_EVENT(rpc_socket_close);
 DEFINE_RPC_SOCKET_EVENT(rpc_socket_shutdown);
 
 DECLARE_EVENT_CLASS(rpc_xprt_event,
-	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
+	TP_PROTO(
+		const struct rpc_xprt *xprt,
+		__be32 xid,
+		int status
+	),
 
 	TP_ARGS(xprt, xid, status),
 
@@ -432,22 +393,19 @@ DECLARE_EVENT_CLASS(rpc_xprt_event,
 			__get_str(port), __entry->xid,
 			__entry->status)
 );
+#define DEFINE_RPC_XPRT_EVENT(name) \
+	DEFINE_EVENT(rpc_xprt_event, xprt_##name, \
+			TP_PROTO( \
+				const struct rpc_xprt *xprt, \
+				__be32 xid, \
+				int status \
+			), \
+			TP_ARGS(xprt, xid, status))
 
-DEFINE_EVENT(rpc_xprt_event, xprt_timer,
-	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
-	TP_ARGS(xprt, xid, status));
-
-DEFINE_EVENT(rpc_xprt_event, xprt_lookup_rqst,
-	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
-	TP_ARGS(xprt, xid, status));
-
-DEFINE_EVENT(rpc_xprt_event, xprt_transmit,
-	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
-	TP_ARGS(xprt, xid, status));
-
-DEFINE_EVENT(rpc_xprt_event, xprt_complete_rqst,
-	TP_PROTO(struct rpc_xprt *xprt, __be32 xid, int status),
-	TP_ARGS(xprt, xid, status));
+DEFINE_RPC_XPRT_EVENT(timer);
+DEFINE_RPC_XPRT_EVENT(lookup_rqst);
+DEFINE_RPC_XPRT_EVENT(transmit);
+DEFINE_RPC_XPRT_EVENT(complete_rqst);
 
 TRACE_EVENT(xprt_ping,
 	TP_PROTO(const struct rpc_xprt *xprt, int status),
@@ -587,7 +545,9 @@ TRACE_EVENT(svc_process,
 
 DECLARE_EVENT_CLASS(svc_rqst_event,
 
-	TP_PROTO(struct svc_rqst *rqst),
+	TP_PROTO(
+		const struct svc_rqst *rqst
+	),
 
 	TP_ARGS(rqst),
 
@@ -607,14 +567,15 @@ DECLARE_EVENT_CLASS(svc_rqst_event,
 			__get_str(addr), __entry->xid,
 			show_rqstp_flags(__entry->flags))
 );
+#define DEFINE_SVC_RQST_EVENT(name) \
+	DEFINE_EVENT(svc_rqst_event, svc_##name, \
+			TP_PROTO( \
+				const struct svc_rqst *rqst \
+			), \
+			TP_ARGS(rqst))
 
-DEFINE_EVENT(svc_rqst_event, svc_defer,
-	TP_PROTO(struct svc_rqst *rqst),
-	TP_ARGS(rqst));
-
-DEFINE_EVENT(svc_rqst_event, svc_drop,
-	TP_PROTO(struct svc_rqst *rqst),
-	TP_ARGS(rqst));
+DEFINE_SVC_RQST_EVENT(defer);
+DEFINE_SVC_RQST_EVENT(drop);
 
 DECLARE_EVENT_CLASS(svc_rqst_status,
 
@@ -801,7 +762,9 @@ TRACE_EVENT(svc_stats_latency,
 );
 
 DECLARE_EVENT_CLASS(svc_deferred_event,
-	TP_PROTO(struct svc_deferred_req *dr),
+	TP_PROTO(
+		const struct svc_deferred_req *dr
+	),
 
 	TP_ARGS(dr),
 
@@ -818,13 +781,16 @@ DECLARE_EVENT_CLASS(svc_deferred_event,
 
 	TP_printk("addr=%s xid=0x%08x", __get_str(addr), __entry->xid)
 );
+#define DEFINE_SVC_DEFERRED_EVENT(name) \
+	DEFINE_EVENT(svc_deferred_event, svc_##name##_deferred, \
+			TP_PROTO( \
+				const struct svc_deferred_req *dr \
+			), \
+			TP_ARGS(dr))
 
-DEFINE_EVENT(svc_deferred_event, svc_drop_deferred,
-	TP_PROTO(struct svc_deferred_req *dr),
-	TP_ARGS(dr));
-DEFINE_EVENT(svc_deferred_event, svc_revisit_deferred,
-	TP_PROTO(struct svc_deferred_req *dr),
-	TP_ARGS(dr));
+DEFINE_SVC_DEFERRED_EVENT(drop);
+DEFINE_SVC_DEFERRED_EVENT(revisit);
+
 #endif /* _TRACE_SUNRPC_H */
 
 #include <trace/define_trace.h>
