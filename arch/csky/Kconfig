@@ -198,6 +198,15 @@ config RAM_BASE
 	hex "DRAM start addr (the same with memory-section in dts)"
 	default 0x0
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	select GENERIC_IRQ_MIGRATION
+	depends on SMP
+	help
+	  Say Y here to allow turning CPUs off and on. CPUs can be
+	  controlled through /sys/devices/system/cpu/cpu1/hotplug/target.
+
+	  Say N if you want to disable CPU hotplug.
 endmenu
 
 source "kernel/Kconfig.hz"
