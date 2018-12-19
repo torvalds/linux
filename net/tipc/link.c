@@ -43,6 +43,7 @@
 #include "discover.h"
 #include "netlink.h"
 #include "monitor.h"
+#include "trace.h"
 
 #include <linux/pkt_sched.h>
 
@@ -2221,4 +2222,123 @@ void tipc_link_set_prio(struct tipc_link *l, u32 prio,
 void tipc_link_set_abort_limit(struct tipc_link *l, u32 limit)
 {
 	l->abort_limit = limit;
+}
+
+char *tipc_link_name_ext(struct tipc_link *l, char *buf)
+{
+	if (!l)
+		scnprintf(buf, TIPC_MAX_LINK_NAME, "null");
+	else if (link_is_bc_sndlink(l))
+		scnprintf(buf, TIPC_MAX_LINK_NAME, "broadcast-sender");
+	else if (link_is_bc_rcvlink(l))
+		scnprintf(buf, TIPC_MAX_LINK_NAME,
+			  "broadcast-receiver, peer %x", l->addr);
+	else
+		memcpy(buf, l->name, TIPC_MAX_LINK_NAME);
+
+	return buf;
+}
+
+/**
+ * tipc_link_dump - dump TIPC link data
+ * @l: tipc link to be dumped
+ * @dqueues: bitmask to decide if any link queue to be dumped?
+ *           - TIPC_DUMP_NONE: don't dump link queues
+ *           - TIPC_DUMP_TRANSMQ: dump link transmq queue
+ *           - TIPC_DUMP_BACKLOGQ: dump link backlog queue
+ *           - TIPC_DUMP_DEFERDQ: dump link deferd queue
+ *           - TIPC_DUMP_INPUTQ: dump link input queue
+ *           - TIPC_DUMP_WAKEUP: dump link wakeup queue
+ *           - TIPC_DUMP_ALL: dump all the link queues above
+ * @buf: returned buffer of dump data in format
+ */
+int tipc_link_dump(struct tipc_link *l, u16 dqueues, char *buf)
+{
+	int i = 0;
+	size_t sz = (dqueues) ? LINK_LMAX : LINK_LMIN;
+	struct sk_buff_head *list;
+	struct sk_buff *hskb, *tskb;
+	u32 len;
+
+	if (!l) {
+		i += scnprintf(buf, sz, "link data: (null)\n");
+		return i;
+	}
+
+	i += scnprintf(buf, sz, "link data: %x", l->addr);
+	i += scnprintf(buf + i, sz - i, " %x", l->state);
+	i += scnprintf(buf + i, sz - i, " %u", l->in_session);
+	i += scnprintf(buf + i, sz - i, " %u", l->session);
+	i += scnprintf(buf + i, sz - i, " %u", l->peer_session);
+	i += scnprintf(buf + i, sz - i, " %u", l->snd_nxt);
+	i += scnprintf(buf + i, sz - i, " %u", l->rcv_nxt);
+	i += scnprintf(buf + i, sz - i, " %u", l->snd_nxt_state);
+	i += scnprintf(buf + i, sz - i, " %u", l->rcv_nxt_state);
+	i += scnprintf(buf + i, sz - i, " %x", l->peer_caps);
+	i += scnprintf(buf + i, sz - i, " %u", l->silent_intv_cnt);
+	i += scnprintf(buf + i, sz - i, " %u", l->rst_cnt);
+	i += scnprintf(buf + i, sz - i, " %u", l->prev_from);
+	i += scnprintf(buf + i, sz - i, " %u", l->stale_cnt);
+	i += scnprintf(buf + i, sz - i, " %u", l->acked);
+
+	list = &l->transmq;
+	len = skb_queue_len(list);
+	hskb = skb_peek(list);
+	tskb = skb_peek_tail(list);
+	i += scnprintf(buf + i, sz - i, " | %u %u %u", len,
+		       (hskb) ? msg_seqno(buf_msg(hskb)) : 0,
+		       (tskb) ? msg_seqno(buf_msg(tskb)) : 0);
+
+	list = &l->deferdq;
+	len = skb_queue_len(list);
+	hskb = skb_peek(list);
+	tskb = skb_peek_tail(list);
+	i += scnprintf(buf + i, sz - i, " | %u %u %u", len,
+		       (hskb) ? msg_seqno(buf_msg(hskb)) : 0,
+		       (tskb) ? msg_seqno(buf_msg(tskb)) : 0);
+
+	list = &l->backlogq;
+	len = skb_queue_len(list);
+	hskb = skb_peek(list);
+	tskb = skb_peek_tail(list);
+	i += scnprintf(buf + i, sz - i, " | %u %u %u", len,
+		       (hskb) ? msg_seqno(buf_msg(hskb)) : 0,
+		       (tskb) ? msg_seqno(buf_msg(tskb)) : 0);
+
+	list = l->inputq;
+	len = skb_queue_len(list);
+	hskb = skb_peek(list);
+	tskb = skb_peek_tail(list);
+	i += scnprintf(buf + i, sz - i, " | %u %u %u\n", len,
+		       (hskb) ? msg_seqno(buf_msg(hskb)) : 0,
+		       (tskb) ? msg_seqno(buf_msg(tskb)) : 0);
+
+	if (dqueues & TIPC_DUMP_TRANSMQ) {
+		i += scnprintf(buf + i, sz - i, "transmq: ");
+		i += tipc_list_dump(&l->transmq, false, buf + i);
+	}
+	if (dqueues & TIPC_DUMP_BACKLOGQ) {
+		i += scnprintf(buf + i, sz - i,
+			       "backlogq: <%u %u %u %u %u>, ",
+			       l->backlog[TIPC_LOW_IMPORTANCE].len,
+			       l->backlog[TIPC_MEDIUM_IMPORTANCE].len,
+			       l->backlog[TIPC_HIGH_IMPORTANCE].len,
+			       l->backlog[TIPC_CRITICAL_IMPORTANCE].len,
+			       l->backlog[TIPC_SYSTEM_IMPORTANCE].len);
+		i += tipc_list_dump(&l->backlogq, false, buf + i);
+	}
+	if (dqueues & TIPC_DUMP_DEFERDQ) {
+		i += scnprintf(buf + i, sz - i, "deferdq: ");
+		i += tipc_list_dump(&l->deferdq, false, buf + i);
+	}
+	if (dqueues & TIPC_DUMP_INPUTQ) {
+		i += scnprintf(buf + i, sz - i, "inputq: ");
+		i += tipc_list_dump(l->inputq, false, buf + i);
+	}
+	if (dqueues & TIPC_DUMP_WAKEUP) {
+		i += scnprintf(buf + i, sz - i, "wakeup: ");
+		i += tipc_list_dump(&l->wakeupq, false, buf + i);
+	}
+
+	return i;
 }

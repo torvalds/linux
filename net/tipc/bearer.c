@@ -99,7 +99,7 @@ static struct tipc_media *media_find_id(u8 type)
 /**
  * tipc_media_addr_printf - record media address in print buffer
  */
-void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
+int tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 {
 	char addr_str[MAX_ADDR_STR];
 	struct tipc_media *m;
@@ -114,9 +114,10 @@ void tipc_media_addr_printf(char *buf, int len, struct tipc_media_addr *a)
 
 		ret = scnprintf(buf, len, "UNKNOWN(%u)", a->media_id);
 		for (i = 0; i < sizeof(a->value); i++)
-			ret += scnprintf(buf - ret, len + ret,
-					    "-%02x", a->value[i]);
+			ret += scnprintf(buf + ret, len - ret,
+					    "-%x", a->value[i]);
 	}
+	return ret;
 }
 
 /**
