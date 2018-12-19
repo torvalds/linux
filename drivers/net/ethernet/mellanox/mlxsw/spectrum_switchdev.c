@@ -290,30 +290,6 @@ mlxsw_sp_bridge_port_destroy(struct mlxsw_sp_bridge_port *bridge_port)
 	kfree(bridge_port);
 }
 
-static bool
-mlxsw_sp_bridge_port_should_destroy(const struct mlxsw_sp_bridge_port *
-				    bridge_port)
-{
-	struct net_device *dev = bridge_port->dev;
-	struct mlxsw_sp *mlxsw_sp;
-
-	if (is_vlan_dev(dev))
-		mlxsw_sp = mlxsw_sp_lower_get(vlan_dev_real_dev(dev));
-	else
-		mlxsw_sp = mlxsw_sp_lower_get(dev);
-
-	/* In case ports were pulled from out of a bridged LAG, then
-	 * it's possible the reference count isn't zero, yet the bridge
-	 * port should be destroyed, as it's no longer an upper of ours.
-	 */
-	if (!mlxsw_sp && list_empty(&bridge_port->vlans_list))
-		return true;
-	else if (bridge_port->ref_count == 0)
-		return true;
-	else
-		return false;
-}
-
 static struct mlxsw_sp_bridge_port *
 mlxsw_sp_bridge_port_get(struct mlxsw_sp_bridge *bridge,
 			 struct net_device *brport_dev)
@@ -351,8 +327,7 @@ static void mlxsw_sp_bridge_port_put(struct mlxsw_sp_bridge *bridge,
 {
 	struct mlxsw_sp_bridge_device *bridge_device;
 
-	bridge_port->ref_count--;
-	if (!mlxsw_sp_bridge_port_should_destroy(bridge_port))
+	if (--bridge_port->ref_count != 0)
 		return;
 	bridge_device = bridge_port->bridge_device;
 	mlxsw_sp_bridge_port_destroy(bridge_port);
@@ -1021,10 +996,8 @@ mlxsw_sp_port_vlan_bridge_join(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan,
 	int err;
 
 	/* No need to continue if only VLAN flags were changed */
-	if (mlxsw_sp_port_vlan->bridge_port) {
-		mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
+	if (mlxsw_sp_port_vlan->bridge_port)
 		return 0;
-	}
 
 	err = mlxsw_sp_port_vlan_fid_join(mlxsw_sp_port_vlan, bridge_port,
 					  extack);
@@ -1105,16 +1078,32 @@ static int
 mlxsw_sp_bridge_port_vlan_add(struct mlxsw_sp_port *mlxsw_sp_port,
 			      struct mlxsw_sp_bridge_port *bridge_port,
 			      u16 vid, bool is_untagged, bool is_pvid,
-			      struct netlink_ext_ack *extack)
+			      struct netlink_ext_ack *extack,
+			      struct switchdev_trans *trans)
 {
 	u16 pvid = mlxsw_sp_port_pvid_determine(mlxsw_sp_port, vid, is_pvid);
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	u16 old_pvid = mlxsw_sp_port->pvid;
 	int err;
 
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_get(mlxsw_sp_port, vid);
-	if (IS_ERR(mlxsw_sp_port_vlan))
-		return PTR_ERR(mlxsw_sp_port_vlan);
+	/* The only valid scenario in which a port-vlan already exists, is if
+	 * the VLAN flags were changed and the port-vlan is associated with the
+	 * correct bridge port
+	 */
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
+	if (mlxsw_sp_port_vlan &&
+	    mlxsw_sp_port_vlan->bridge_port != bridge_port)
+		return -EEXIST;
+
+	if (switchdev_trans_ph_prepare(trans))
+		return 0;
+
+	if (!mlxsw_sp_port_vlan) {
+		mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port,
+							       vid);
+		if (IS_ERR(mlxsw_sp_port_vlan))
+			return PTR_ERR(mlxsw_sp_port_vlan);
+	}
 
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, true,
 				     is_untagged);
@@ -1137,7 +1126,7 @@ err_port_vlan_bridge_join:
 err_port_pvid_set:
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
 err_port_vlan_set:
-	mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 	return err;
 }
 
@@ -1199,9 +1188,6 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 		return err;
 	}
 
-	if (switchdev_trans_ph_prepare(trans))
-		return 0;
-
 	bridge_port = mlxsw_sp_bridge_port_find(mlxsw_sp->bridge, orig_dev);
 	if (WARN_ON(!bridge_port))
 		return -EINVAL;
@@ -1214,7 +1200,7 @@ static int mlxsw_sp_port_vlans_add(struct mlxsw_sp_port *mlxsw_sp_port,
 
 		err = mlxsw_sp_bridge_port_vlan_add(mlxsw_sp_port, bridge_port,
 						    vid, flag_untagged,
-						    flag_pvid, extack);
+						    flag_pvid, extack, trans);
 		if (err)
 			return err;
 	}
@@ -1832,7 +1818,7 @@ mlxsw_sp_bridge_port_vlan_del(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
 	mlxsw_sp_port_pvid_set(mlxsw_sp_port, pvid);
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
-	mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 }
 
 static int mlxsw_sp_port_vlans_del(struct mlxsw_sp_port *mlxsw_sp_port,
@@ -2000,7 +1986,7 @@ mlxsw_sp_bridge_8021q_port_join(struct mlxsw_sp_bridge_device *bridge_device,
 		return -EINVAL;
 
 	/* Let VLAN-aware bridge take care of its own VLANs */
-	mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 
 	return 0;
 }
@@ -2010,7 +1996,7 @@ mlxsw_sp_bridge_8021q_port_leave(struct mlxsw_sp_bridge_device *bridge_device,
 				 struct mlxsw_sp_bridge_port *bridge_port,
 				 struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	mlxsw_sp_port_vlan_get(mlxsw_sp_port, 1);
+	mlxsw_sp_port_vlan_create(mlxsw_sp_port, 1);
 	/* Make sure untagged frames are allowed to ingress */
 	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
 }

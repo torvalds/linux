@@ -1141,15 +1141,19 @@ static void mlxsw_sp_port_vlan_flush(struct mlxsw_sp_port *mlxsw_sp_port)
 
 	list_for_each_entry_safe(mlxsw_sp_port_vlan, tmp,
 				 &mlxsw_sp_port->vlans_list, list)
-		mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
+		mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 }
 
-static struct mlxsw_sp_port_vlan *
+struct mlxsw_sp_port_vlan *
 mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	bool untagged = vid == 1;
 	int err;
+
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
+	if (mlxsw_sp_port_vlan)
+		return ERR_PTR(-EEXIST);
 
 	err = mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, true, untagged);
 	if (err)
@@ -1162,7 +1166,6 @@ mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
 	}
 
 	mlxsw_sp_port_vlan->mlxsw_sp_port = mlxsw_sp_port;
-	mlxsw_sp_port_vlan->ref_count = 1;
 	mlxsw_sp_port_vlan->vid = vid;
 	list_add(&mlxsw_sp_port_vlan->list, &mlxsw_sp_port->vlans_list);
 
@@ -1173,44 +1176,19 @@ err_port_vlan_alloc:
 	return ERR_PTR(err);
 }
 
-static void
-mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
+void mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = mlxsw_sp_port_vlan->mlxsw_sp_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
 
+	if (mlxsw_sp_port_vlan->bridge_port)
+		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
+	else if (mlxsw_sp_port_vlan->fid)
+		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
+
 	list_del(&mlxsw_sp_port_vlan->list);
 	kfree(mlxsw_sp_port_vlan);
 	mlxsw_sp_port_vlan_set(mlxsw_sp_port, vid, vid, false, false);
-}
-
-struct mlxsw_sp_port_vlan *
-mlxsw_sp_port_vlan_get(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid)
-{
-	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
-
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
-	if (mlxsw_sp_port_vlan) {
-		mlxsw_sp_port_vlan->ref_count++;
-		return mlxsw_sp_port_vlan;
-	}
-
-	return mlxsw_sp_port_vlan_create(mlxsw_sp_port, vid);
-}
-
-void mlxsw_sp_port_vlan_put(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
-{
-	struct mlxsw_sp_fid *fid = mlxsw_sp_port_vlan->fid;
-
-	if (--mlxsw_sp_port_vlan->ref_count != 0)
-		return;
-
-	if (mlxsw_sp_port_vlan->bridge_port)
-		mlxsw_sp_port_vlan_bridge_leave(mlxsw_sp_port_vlan);
-	else if (fid)
-		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port_vlan);
-
-	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 }
 
 static int mlxsw_sp_port_add_vid(struct net_device *dev,
@@ -1224,7 +1202,7 @@ static int mlxsw_sp_port_add_vid(struct net_device *dev,
 	if (!vid)
 		return 0;
 
-	return PTR_ERR_OR_ZERO(mlxsw_sp_port_vlan_get(mlxsw_sp_port, vid));
+	return PTR_ERR_OR_ZERO(mlxsw_sp_port_vlan_create(mlxsw_sp_port, vid));
 }
 
 static int mlxsw_sp_port_kill_vid(struct net_device *dev,
@@ -1242,7 +1220,7 @@ static int mlxsw_sp_port_kill_vid(struct net_device *dev,
 	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_find_by_vid(mlxsw_sp_port, vid);
 	if (!mlxsw_sp_port_vlan)
 		return 0;
-	mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
 
 	return 0;
 }
@@ -3198,12 +3176,12 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		goto err_port_nve_init;
 	}
 
-	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_get(mlxsw_sp_port, 1);
+	mlxsw_sp_port_vlan = mlxsw_sp_port_vlan_create(mlxsw_sp_port, 1);
 	if (IS_ERR(mlxsw_sp_port_vlan)) {
 		dev_err(mlxsw_sp->bus_info->dev, "Port %d: Failed to create VID 1\n",
 			mlxsw_sp_port->local_port);
 		err = PTR_ERR(mlxsw_sp_port_vlan);
-		goto err_port_vlan_get;
+		goto err_port_vlan_create;
 	}
 
 	mlxsw_sp_port_switchdev_init(mlxsw_sp_port);
@@ -3224,8 +3202,8 @@ static int mlxsw_sp_port_create(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 err_register_netdev:
 	mlxsw_sp->ports[local_port] = NULL;
 	mlxsw_sp_port_switchdev_fini(mlxsw_sp_port);
-	mlxsw_sp_port_vlan_put(mlxsw_sp_port_vlan);
-err_port_vlan_get:
+	mlxsw_sp_port_vlan_destroy(mlxsw_sp_port_vlan);
+err_port_vlan_create:
 	mlxsw_sp_port_nve_fini(mlxsw_sp_port);
 err_port_nve_init:
 	mlxsw_sp_tc_qdisc_fini(mlxsw_sp_port);
@@ -4520,6 +4498,25 @@ void mlxsw_sp_port_dev_put(struct mlxsw_sp_port *mlxsw_sp_port)
 	dev_put(mlxsw_sp_port->dev);
 }
 
+static void
+mlxsw_sp_port_lag_uppers_cleanup(struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct net_device *lag_dev)
+{
+	struct net_device *br_dev = netdev_master_upper_dev_get(lag_dev);
+	struct net_device *upper_dev;
+	struct list_head *iter;
+
+	if (netif_is_bridge_port(lag_dev))
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, lag_dev, br_dev);
+
+	netdev_for_each_upper_dev_rcu(lag_dev, upper_dev, iter) {
+		if (!netif_is_bridge_port(upper_dev))
+			continue;
+		br_dev = netdev_master_upper_dev_get(upper_dev);
+		mlxsw_sp_port_bridge_leave(mlxsw_sp_port, upper_dev, br_dev);
+	}
+}
+
 static int mlxsw_sp_lag_create(struct mlxsw_sp *mlxsw_sp, u16 lag_id)
 {
 	char sldr_pl[MLXSW_REG_SLDR_LEN];
@@ -4712,6 +4709,10 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	/* Any VLANs configured on the port are no longer valid */
 	mlxsw_sp_port_vlan_flush(mlxsw_sp_port);
+	/* Make the LAG and its directly linked uppers leave bridges they
+	 * are memeber in
+	 */
+	mlxsw_sp_port_lag_uppers_cleanup(mlxsw_sp_port, lag_dev);
 
 	if (lag->ref_count == 1)
 		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);
@@ -4721,7 +4722,7 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->lagged = 0;
 	lag->ref_count--;
 
-	mlxsw_sp_port_vlan_get(mlxsw_sp_port, 1);
+	mlxsw_sp_port_vlan_create(mlxsw_sp_port, 1);
 	/* Make sure untagged frames are allowed to ingress */
 	mlxsw_sp_port_pvid_set(mlxsw_sp_port, 1);
 }
@@ -5000,6 +5001,16 @@ static int mlxsw_sp_netdevice_port_upper_event(struct net_device *lower_dev,
 		} else if (netif_is_macvlan(upper_dev)) {
 			if (!info->linking)
 				mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
+		} else if (is_vlan_dev(upper_dev)) {
+			struct net_device *br_dev;
+
+			if (!netif_is_bridge_port(upper_dev))
+				break;
+			if (info->linking)
+				break;
+			br_dev = netdev_master_upper_dev_get(upper_dev);
+			mlxsw_sp_port_bridge_leave(mlxsw_sp_port, upper_dev,
+						   br_dev);
 		}
 		break;
 	}
@@ -5156,6 +5167,48 @@ static int mlxsw_sp_netdevice_lag_port_vlan_event(struct net_device *vlan_dev,
 	return 0;
 }
 
+static int mlxsw_sp_netdevice_bridge_vlan_event(struct net_device *vlan_dev,
+						struct net_device *br_dev,
+						unsigned long event, void *ptr,
+						u16 vid)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
+	struct netdev_notifier_changeupper_info *info = ptr;
+	struct netlink_ext_ack *extack;
+	struct net_device *upper_dev;
+
+	if (!mlxsw_sp)
+		return 0;
+
+	extack = netdev_notifier_info_to_extack(&info->info);
+
+	switch (event) {
+	case NETDEV_PRECHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (!netif_is_macvlan(upper_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "Unknown upper device type");
+			return -EOPNOTSUPP;
+		}
+		if (!info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev) &&
+		    !mlxsw_sp_rif_find_by_dev(mlxsw_sp, vlan_dev)) {
+			NL_SET_ERR_MSG_MOD(extack, "macvlan is only supported on top of router interfaces");
+			return -EOPNOTSUPP;
+		}
+		break;
+	case NETDEV_CHANGEUPPER:
+		upper_dev = info->upper_dev;
+		if (info->linking)
+			break;
+		if (netif_is_macvlan(upper_dev))
+			mlxsw_sp_rif_macvlan_del(mlxsw_sp, upper_dev);
+		break;
+	}
+
+	return 0;
+}
+
 static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 					 unsigned long event, void *ptr)
 {
@@ -5169,6 +5222,9 @@ static int mlxsw_sp_netdevice_vlan_event(struct net_device *vlan_dev,
 		return mlxsw_sp_netdevice_lag_port_vlan_event(vlan_dev,
 							      real_dev, event,
 							      ptr, vid);
+	else if (netif_is_bridge_master(real_dev))
+		return mlxsw_sp_netdevice_bridge_vlan_event(vlan_dev, real_dev,
+							    event, ptr, vid);
 
 	return 0;
 }
@@ -5358,16 +5414,8 @@ static struct notifier_block mlxsw_sp_inetaddr_valid_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inetaddr_valid_event,
 };
 
-static struct notifier_block mlxsw_sp_inetaddr_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_inetaddr_event,
-};
-
 static struct notifier_block mlxsw_sp_inet6addr_valid_nb __read_mostly = {
 	.notifier_call = mlxsw_sp_inet6addr_valid_event,
-};
-
-static struct notifier_block mlxsw_sp_inet6addr_nb __read_mostly = {
-	.notifier_call = mlxsw_sp_inet6addr_event,
 };
 
 static const struct pci_device_id mlxsw_sp1_pci_id_table[] = {
@@ -5395,9 +5443,7 @@ static int __init mlxsw_sp_module_init(void)
 	int err;
 
 	register_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
-	register_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	register_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	register_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 
 	err = mlxsw_core_driver_register(&mlxsw_sp1_driver);
 	if (err)
@@ -5424,9 +5470,7 @@ err_sp1_pci_driver_register:
 err_sp2_core_driver_register:
 	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
 err_sp1_core_driver_register:
-	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 	return err;
 }
@@ -5437,9 +5481,7 @@ static void __exit mlxsw_sp_module_exit(void)
 	mlxsw_pci_driver_unregister(&mlxsw_sp1_pci_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp2_driver);
 	mlxsw_core_driver_unregister(&mlxsw_sp1_driver);
-	unregister_inet6addr_notifier(&mlxsw_sp_inet6addr_nb);
 	unregister_inet6addr_validator_notifier(&mlxsw_sp_inet6addr_valid_nb);
-	unregister_inetaddr_notifier(&mlxsw_sp_inetaddr_nb);
 	unregister_inetaddr_validator_notifier(&mlxsw_sp_inetaddr_valid_nb);
 }
 

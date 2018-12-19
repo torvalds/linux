@@ -190,7 +190,6 @@ struct mlxsw_sp_port_vlan {
 	struct list_head list;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp_fid *fid;
-	unsigned int ref_count;
 	u16 vid;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	struct list_head bridge_vlan_node;
@@ -410,8 +409,8 @@ int mlxsw_sp_port_vid_learning_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid,
 				   bool learn_enable);
 int mlxsw_sp_port_pvid_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 struct mlxsw_sp_port_vlan *
-mlxsw_sp_port_vlan_get(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
-void mlxsw_sp_port_vlan_put(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
+mlxsw_sp_port_vlan_create(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
+void mlxsw_sp_port_vlan_destroy(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
 int mlxsw_sp_port_vlan_set(struct mlxsw_sp_port *mlxsw_sp_port, u16 vid_begin,
 			   u16 vid_end, bool is_member, bool untagged);
 int mlxsw_sp_flow_counter_get(struct mlxsw_sp *mlxsw_sp,
@@ -459,12 +458,8 @@ int mlxsw_sp_netdevice_router_port_event(struct net_device *dev,
 					 unsigned long event, void *ptr);
 void mlxsw_sp_rif_macvlan_del(struct mlxsw_sp *mlxsw_sp,
 			      const struct net_device *macvlan_dev);
-int mlxsw_sp_inetaddr_event(struct notifier_block *unused,
-			    unsigned long event, void *ptr);
 int mlxsw_sp_inetaddr_valid_event(struct notifier_block *unused,
 				  unsigned long event, void *ptr);
-int mlxsw_sp_inet6addr_event(struct notifier_block *unused,
-			     unsigned long event, void *ptr);
 int mlxsw_sp_inet6addr_valid_event(struct notifier_block *unused,
 				   unsigned long event, void *ptr);
 int mlxsw_sp_netdevice_vrf_event(struct net_device *l3_dev, unsigned long event,
@@ -484,7 +479,6 @@ mlxsw_sp_netdevice_ipip_ul_event(struct mlxsw_sp *mlxsw_sp,
 				 struct netdev_notifier_info *info);
 void
 mlxsw_sp_port_vlan_router_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan);
-void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif);
 void mlxsw_sp_rif_destroy_by_dev(struct mlxsw_sp *mlxsw_sp,
 				 struct net_device *dev);
 struct mlxsw_sp_rif *mlxsw_sp_rif_find_by_dev(const struct mlxsw_sp *mlxsw_sp,
@@ -785,10 +779,10 @@ int mlxsw_sp_fid_port_vid_map(struct mlxsw_sp_fid *fid,
 			      struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 void mlxsw_sp_fid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 				 struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
-enum mlxsw_sp_rif_type mlxsw_sp_fid_rif_type(const struct mlxsw_sp_fid *fid);
 u16 mlxsw_sp_fid_index(const struct mlxsw_sp_fid *fid);
 enum mlxsw_sp_fid_type mlxsw_sp_fid_type(const struct mlxsw_sp_fid *fid);
 void mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif);
+struct mlxsw_sp_rif *mlxsw_sp_fid_rif(const struct mlxsw_sp_fid *fid);
 enum mlxsw_sp_rif_type
 mlxsw_sp_fid_type_rif_type(const struct mlxsw_sp *mlxsw_sp,
 			   enum mlxsw_sp_fid_type type);
