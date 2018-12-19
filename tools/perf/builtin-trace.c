@@ -112,8 +112,9 @@ struct trace {
 	} stats;
 	unsigned int		max_stack;
 	unsigned int		min_stack;
-	bool			sort_events;
+	int			raw_augmented_syscalls_args_size;
 	bool			raw_augmented_syscalls;
+	bool			sort_events;
 	bool			not_ev_qualifier;
 	bool			live;
 	bool			full_time;
@@ -283,12 +284,17 @@ out_delete:
 	return -ENOENT;
 }
 
-static int perf_evsel__init_augmented_syscall_tp(struct perf_evsel *evsel)
+static int perf_evsel__init_augmented_syscall_tp(struct perf_evsel *evsel, struct perf_evsel *tp)
 {
 	struct syscall_tp *sc = evsel->priv = malloc(sizeof(struct syscall_tp));
 
-	if (evsel->priv != NULL) {       /* field, sizeof_field, offsetof_field */
-		if (__tp_field__init_uint(&sc->id, sizeof(long), sizeof(long long), evsel->needs_swap))
+	if (evsel->priv != NULL) {
+		struct tep_format_field *syscall_id = perf_evsel__field(tp, "id");
+		if (syscall_id == NULL)
+			syscall_id = perf_evsel__field(tp, "__syscall_nr");
+		if (syscall_id == NULL)
+			goto out_delete;
+		if (__tp_field__init_uint(&sc->id, syscall_id->size, syscall_id->offset, evsel->needs_swap))
 			goto out_delete;
 
 		return 0;
@@ -1768,16 +1774,16 @@ static int trace__fprintf_sample(struct trace *trace, struct perf_evsel *evsel,
 	return printed;
 }
 
-static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size, bool raw_augmented)
+static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sample, int *augmented_args_size, int raw_augmented_args_size)
 {
 	void *augmented_args = NULL;
 	/*
 	 * For now with BPF raw_augmented we hook into raw_syscalls:sys_enter
-	 * and there we get all 6 syscall args plus the tracepoint common
-	 * fields (sizeof(long)) and the syscall_nr (another long). So we check
-	 * if that is the case and if so don't look after the sc->args_size,
-	 * but always after the full raw_syscalls:sys_enter payload, which is
-	 * fixed.
+	 * and there we get all 6 syscall args plus the tracepoint common fields
+	 * that gets calculated at the start and the syscall_nr (another long).
+	 * So we check if that is the case and if so don't look after the
+	 * sc->args_size but always after the full raw_syscalls:sys_enter payload,
+	 * which is fixed.
 	 *
 	 * We'll revisit this later to pass s->args_size to the BPF augmenter
 	 * (now tools/perf/examples/bpf/augmented_raw_syscalls.c, so that it
@@ -1785,7 +1791,7 @@ static void *syscall__augmented_args(struct syscall *sc, struct perf_sample *sam
 	 * use syscalls:sys_enter_NAME, so that we reduce the kernel/userspace
 	 * traffic to just what is needed for each syscall.
 	 */
-	int args_size = raw_augmented ? (8 * (int)sizeof(long)) : sc->args_size;
+	int args_size = raw_augmented_args_size ?: sc->args_size;
 
 	*augmented_args_size = sample->raw_size - args_size;
 	if (*augmented_args_size > 0)
@@ -1839,7 +1845,7 @@ static int trace__sys_enter(struct trace *trace, struct perf_evsel *evsel,
 	 * here and avoid using augmented syscalls when the evsel is the raw_syscalls one.
 	 */
 	if (evsel != trace->syscalls.events.sys_enter)
-		augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size, trace->raw_augmented_syscalls);
+		augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size, trace->raw_augmented_syscalls_args_size);
 	ttrace->entry_time = sample->time;
 	msg = ttrace->entry_str;
 	printed += scnprintf(msg + printed, trace__entry_str_size - printed, "%s(", sc->name);
@@ -1897,7 +1903,7 @@ static int trace__fprintf_sys_enter(struct trace *trace, struct perf_evsel *evse
 		goto out_put;
 
 	args = perf_evsel__sc_tp_ptr(evsel, args, sample);
-	augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size, trace->raw_augmented_syscalls);
+	augmented_args = syscall__augmented_args(sc, sample, &augmented_args_size, trace->raw_augmented_syscalls_args_size);
 	syscall__scnprintf_args(sc, msg, sizeof(msg), args, augmented_args, augmented_args_size, trace, thread);
 	fprintf(trace->output, "%s", msg);
 	err = 0;
@@ -3814,13 +3820,6 @@ int cmd_trace(int argc, const char **argv)
 	 * syscall.
 	 */
 	if (trace.syscalls.events.augmented) {
-		evsel = trace.syscalls.events.augmented;
-
-		if (perf_evsel__init_augmented_syscall_tp(evsel) ||
-		    perf_evsel__init_augmented_syscall_tp_args(evsel))
-			goto out;
-		evsel->handler = trace__sys_enter;
-
 		evlist__for_each_entry(trace.evlist, evsel) {
 			bool raw_syscalls_sys_exit = strcmp(perf_evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
 
@@ -3829,9 +3828,41 @@ int cmd_trace(int argc, const char **argv)
 				goto init_augmented_syscall_tp;
 			}
 
+			if (strcmp(perf_evsel__name(evsel), "raw_syscalls:sys_enter") == 0) {
+				struct perf_evsel *augmented = trace.syscalls.events.augmented;
+				if (perf_evsel__init_augmented_syscall_tp(augmented, evsel) ||
+				    perf_evsel__init_augmented_syscall_tp_args(augmented))
+					goto out;
+				augmented->handler = trace__sys_enter;
+			}
+
 			if (strstarts(perf_evsel__name(evsel), "syscalls:sys_exit_")) {
+				struct syscall_tp *sc;
 init_augmented_syscall_tp:
-				perf_evsel__init_augmented_syscall_tp(evsel);
+				if (perf_evsel__init_augmented_syscall_tp(evsel, evsel))
+					goto out;
+				sc = evsel->priv;
+				/*
+				 * For now with BPF raw_augmented we hook into
+				 * raw_syscalls:sys_enter and there we get all
+				 * 6 syscall args plus the tracepoint common
+				 * fields and the syscall_nr (another long).
+				 * So we check if that is the case and if so
+				 * don't look after the sc->args_size but
+				 * always after the full raw_syscalls:sys_enter
+				 * payload, which is fixed.
+				 *
+				 * We'll revisit this later to pass
+				 * s->args_size to the BPF augmenter (now
+				 * tools/perf/examples/bpf/augmented_raw_syscalls.c,
+				 * so that it copies only what we need for each
+				 * syscall, like what happens when we use
+				 * syscalls:sys_enter_NAME, so that we reduce
+				 * the kernel/userspace traffic to just what is
+				 * needed for each syscall.
+				 */
+				if (trace.raw_augmented_syscalls)
+					trace.raw_augmented_syscalls_args_size = (6 + 1) * sizeof(long) + sc->id.offset;
 				perf_evsel__init_augmented_syscall_tp_ret(evsel);
 				evsel->handler = trace__sys_exit;
 			}
