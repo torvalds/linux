@@ -967,6 +967,10 @@ int tipc_link_xmit(struct tipc_link *l, struct sk_buff_head *list,
 			}
 			__skb_dequeue(list);
 			__skb_queue_tail(transmq, skb);
+			/* next retransmit attempt */
+			if (link_is_bc_sndlink(l))
+				TIPC_SKB_CB(skb)->nxt_retr =
+					jiffies + TIPC_BC_RETR_LIM;
 			__skb_queue_tail(xmitq, _skb);
 			TIPC_SKB_CB(skb)->ackers = l->ackers;
 			l->rcv_unacked = 0;
@@ -1014,6 +1018,10 @@ static void tipc_link_advance_backlog(struct tipc_link *l,
 		hdr = buf_msg(skb);
 		l->backlog[msg_importance(hdr)].len--;
 		__skb_queue_tail(&l->transmq, skb);
+		/* next retransmit attempt */
+		if (link_is_bc_sndlink(l))
+			TIPC_SKB_CB(skb)->nxt_retr = jiffies + TIPC_BC_RETR_LIM;
+
 		__skb_queue_tail(xmitq, _skb);
 		TIPC_SKB_CB(skb)->ackers = l->ackers;
 		msg_set_seqno(hdr, seqno);
