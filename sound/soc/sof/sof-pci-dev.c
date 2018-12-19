@@ -127,7 +127,6 @@ static const struct dev_pm_ops sof_pci_pm = {
 	SET_SYSTEM_SLEEP_PM_OPS(snd_sof_suspend, snd_sof_resume)
 	SET_RUNTIME_PM_OPS(snd_sof_runtime_suspend, snd_sof_runtime_resume,
 			   NULL)
-	.suspend_late = snd_sof_suspend_late,
 	.prepare = snd_sof_prepare,
 
 };
