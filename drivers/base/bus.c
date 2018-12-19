@@ -31,6 +31,9 @@ static struct kset *system_kset;
 
 #define to_drv_attr(_attr) container_of(_attr, struct driver_attribute, attr)
 
+#define DRIVER_ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store) \
+	struct driver_attribute driver_attr_##_name =		\
+		__ATTR_IGNORE_LOCKDEP(_name, _mode, _show, _store)
 
 static int __must_check bus_rescan_devices_helper(struct device *dev,
 						void *data);
@@ -195,7 +198,7 @@ static ssize_t unbind_store(struct device_driver *drv, const char *buf,
 	bus_put(bus);
 	return err;
 }
-static DRIVER_ATTR_WO(unbind);
+static DRIVER_ATTR_IGNORE_LOCKDEP(unbind, S_IWUSR, NULL, unbind_store);
 
 /*
  * Manually attach a device to a driver.
@@ -231,7 +234,7 @@ static ssize_t bind_store(struct device_driver *drv, const char *buf,
 	bus_put(bus);
 	return err;
 }
-static DRIVER_ATTR_WO(bind);
+static DRIVER_ATTR_IGNORE_LOCKDEP(bind, S_IWUSR, NULL, bind_store);
 
 static ssize_t show_drivers_autoprobe(struct bus_type *bus, char *buf)
 {
