@@ -369,6 +369,11 @@ void mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif)
 	fid->rif = rif;
 }
 
+struct mlxsw_sp_rif *mlxsw_sp_fid_rif(const struct mlxsw_sp_fid *fid)
+{
+	return fid->rif;
+}
+
 enum mlxsw_sp_rif_type
 mlxsw_sp_fid_type_rif_type(const struct mlxsw_sp *mlxsw_sp,
 			   enum mlxsw_sp_fid_type type)
@@ -1083,20 +1088,16 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 
-	if (--fid->ref_count == 1 && fid->rif) {
-		/* Destroy the associated RIF and let it drop the last
-		 * reference on the FID.
-		 */
-		return mlxsw_sp_rif_destroy(fid->rif);
-	} else if (fid->ref_count == 0) {
-		list_del(&fid->list);
-		rhashtable_remove_fast(&mlxsw_sp->fid_core->fid_ht,
-				       &fid->ht_node, mlxsw_sp_fid_ht_params);
-		fid->fid_family->ops->deconfigure(fid);
-		__clear_bit(fid->fid_index - fid_family->start_index,
-			    fid_family->fids_bitmap);
-		kfree(fid);
-	}
+	if (--fid->ref_count != 0)
+		return;
+
+	list_del(&fid->list);
+	rhashtable_remove_fast(&mlxsw_sp->fid_core->fid_ht,
+			       &fid->ht_node, mlxsw_sp_fid_ht_params);
+	fid->fid_family->ops->deconfigure(fid);
+	__clear_bit(fid->fid_index - fid_family->start_index,
+		    fid_family->fids_bitmap);
+	kfree(fid);
 }
 
 struct mlxsw_sp_fid *mlxsw_sp_fid_8021q_get(struct mlxsw_sp *mlxsw_sp, u16 vid)
