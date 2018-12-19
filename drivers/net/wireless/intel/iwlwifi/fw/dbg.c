@@ -1161,16 +1161,19 @@ iwl_dump_ini_mon_dram_iter(struct iwl_fw_runtime *fwrt,
 	return sizeof(*range) + le32_to_cpu(range->range_data_size);
 }
 
-static struct iwl_fw_ini_error_dump_range
-*iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt, void *data)
+static void *iwl_dump_ini_mem_fill_header(struct iwl_fw_runtime *fwrt,
+					  struct iwl_fw_ini_region_cfg *reg,
+					  void *data)
 {
 	struct iwl_fw_ini_error_dump *dump = data;
 
 	return dump->ranges;
 }
 
-static struct iwl_fw_ini_error_dump_range
-*iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt, void *data)
+static void
+*iwl_dump_ini_mon_dram_fill_header(struct iwl_fw_runtime *fwrt,
+				   struct iwl_fw_ini_region_cfg *reg,
+				   void *data)
 {
 	struct iwl_fw_ini_monitor_dram_dump *mon_dump = (void *)data;
 	u32 write_ptr, cycle_cnt;
@@ -1267,8 +1270,8 @@ static u32 iwl_dump_ini_mon_dram_get_size(struct iwl_fw_runtime *fwrt,
  * struct iwl_dump_ini_mem_ops - ini memory dump operations
  * @get_num_of_ranges: returns the number of memory ranges in the region.
  * @get_size: returns the total size of the region.
- * @fill_mem_hdr: fills region type specific headers and returns the first
- *	range or NULL if failed to fill headers.
+ * @fill_mem_hdr: fills region type specific headers and returns pointer to
+ *	the first range or NULL if failed to fill headers.
  * @fill_range: copies a given memory range into the dump.
  *	Returns the size of the range or -1 otherwise.
  */
@@ -1277,8 +1280,8 @@ struct iwl_dump_ini_mem_ops {
 				 struct iwl_fw_ini_region_cfg *reg);
 	u32 (*get_size)(struct iwl_fw_runtime *fwrt,
 			struct iwl_fw_ini_region_cfg *reg);
-	struct iwl_fw_ini_error_dump_range *
-		(*fill_mem_hdr)(struct iwl_fw_runtime *fwrt, void *data);
+	void *(*fill_mem_hdr)(struct iwl_fw_runtime *fwrt,
+			      struct iwl_fw_ini_region_cfg *reg, void *data);
 	int (*fill_range)(struct iwl_fw_runtime *fwrt,
 			  struct iwl_fw_ini_region_cfg *reg, void *range,
 			  int idx);
@@ -1315,7 +1318,7 @@ iwl_dump_ini_mem(struct iwl_fw_runtime *fwrt,
 					     le32_to_cpu(reg->name_len)));
 	memcpy(header->name, reg->name, le32_to_cpu(header->name_len));
 
-	range = ops->fill_mem_hdr(fwrt, header);
+	range = ops->fill_mem_hdr(fwrt, reg, header);
 	if (!range) {
 		IWL_ERR(fwrt, "Failed to fill region header: id=%d, type=%d\n",
 			le32_to_cpu(reg->region_id), type);
