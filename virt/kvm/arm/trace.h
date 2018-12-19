@@ -37,7 +37,7 @@ TRACE_EVENT(kvm_exit,
 
 	TP_fast_assign(
 		__entry->ret			= ARM_EXCEPTION_CODE(ret);
-		__entry->esr_ec = (ARM_EXCEPTION_CODE(ret) == ARM_EXCEPTION_TRAP) ? esr_ec : 0;
+		__entry->esr_ec = ARM_EXCEPTION_IS_TRAP(ret) ? esr_ec : 0;
 		__entry->vcpu_pc		= vcpu_pc;
 	),
 
