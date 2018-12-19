@@ -339,7 +339,6 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 			continue;
 		}
 
-
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
 		return ret;
 	}
