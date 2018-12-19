@@ -19,29 +19,16 @@
 
 #undef RPCRDMA_BACKCHANNEL_DEBUG
 
-static void rpcrdma_bc_free_rqst(struct rpcrdma_xprt *r_xprt,
-				 struct rpc_rqst *rqst)
-{
-	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
-	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
-
-	spin_lock(&buf->rb_reqslock);
-	list_del(&req->rl_all);
-	spin_unlock(&buf->rb_reqslock);
-
-	rpcrdma_destroy_req(req);
-}
-
 static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 				 unsigned int count)
 {
 	struct rpc_xprt *xprt = &r_xprt->rx_xprt;
+	struct rpcrdma_req *req;
 	struct rpc_rqst *rqst;
 	unsigned int i;
 
 	for (i = 0; i < (count << 1); i++) {
 		struct rpcrdma_regbuf *rb;
-		struct rpcrdma_req *req;
 		size_t size;
 
 		req = rpcrdma_create_req(r_xprt);
@@ -67,7 +54,7 @@ static int rpcrdma_bc_setup_reqs(struct rpcrdma_xprt *r_xprt,
 	return 0;
 
 out_fail:
-	rpcrdma_bc_free_rqst(r_xprt, rqst);
+	rpcrdma_req_destroy(req);
 	return -ENOMEM;
 }
 
@@ -225,7 +212,6 @@ drop_connection:
  */
 void xprt_rdma_bc_destroy(struct rpc_xprt *xprt, unsigned int reqs)
 {
-	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 	struct rpc_rqst *rqst, *tmp;
 
 	spin_lock(&xprt->bc_pa_lock);
@@ -233,7 +219,7 @@ void xprt_rdma_bc_destroy(struct rpc_xprt *xprt, unsigned int reqs)
 		list_del(&rqst->rq_bc_pa_list);
 		spin_unlock(&xprt->bc_pa_lock);
 
-		rpcrdma_bc_free_rqst(r_xprt, rqst);
+		rpcrdma_req_destroy(rpcr_to_rdmar(rqst));
 
 		spin_lock(&xprt->bc_pa_lock);
 	}
