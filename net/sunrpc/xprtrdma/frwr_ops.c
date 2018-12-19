@@ -563,8 +563,8 @@ out_release:
 		mr = container_of(frwr, struct rpcrdma_mr, frwr);
 		bad_wr = bad_wr->next;
 
-		list_del(&mr->mr_list);
-		frwr_op_release_mr(mr);
+		list_del_init(&mr->mr_list);
+		rpcrdma_mr_recycle(mr);
 	}
 }
 
