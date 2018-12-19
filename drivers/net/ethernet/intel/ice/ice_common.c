@@ -750,6 +750,7 @@ enum ice_status ice_init_hw(struct ice_hw *hw)
 		status = ICE_ERR_CFG;
 		goto err_unroll_sched;
 	}
+	INIT_LIST_HEAD(&hw->agg_list);
 
 	status = ice_init_fltr_mgmt_struct(hw);
 	if (status)
@@ -800,6 +801,7 @@ void ice_deinit_hw(struct ice_hw *hw)
 	ice_cleanup_fltr_mgmt_struct(hw);
 
 	ice_sched_cleanup_all(hw);
+	ice_sched_clear_agg(hw);
 
 	if (hw->port_info) {
 		devm_kfree(ice_hw_to_dev(hw), hw->port_info);

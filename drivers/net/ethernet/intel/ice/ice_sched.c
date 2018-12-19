@@ -561,23 +561,18 @@ ice_sched_suspend_resume_elems(struct ice_hw *hw, u8 num_nodes, u32 *node_teids,
 }
 
 /**
- * ice_sched_clear_tx_topo - clears the schduler tree nodes
- * @pi: port information structure
+ * ice_sched_clear_agg - clears the agg related information
+ * @hw: pointer to the hardware structure
  *
- * This function removes all the nodes from HW as well as from SW DB.
+ * This function removes agg list and free up agg related memory
+ * previously allocated.
  */
-static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
+void ice_sched_clear_agg(struct ice_hw *hw)
 {
 	struct ice_sched_agg_info *agg_info;
 	struct ice_sched_agg_info *atmp;
-	struct ice_hw *hw;
 
-	if (!pi)
-		return;
-
-	hw = pi->hw;
-
-	list_for_each_entry_safe(agg_info, atmp, &pi->agg_list, list_entry) {
+	list_for_each_entry_safe(agg_info, atmp, &hw->agg_list, list_entry) {
 		struct ice_sched_agg_vsi_info *agg_vsi_info;
 		struct ice_sched_agg_vsi_info *vtmp;
 
@@ -586,8 +581,21 @@ static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
 			list_del(&agg_vsi_info->list_entry);
 			devm_kfree(ice_hw_to_dev(hw), agg_vsi_info);
 		}
+		list_del(&agg_info->list_entry);
+		devm_kfree(ice_hw_to_dev(hw), agg_info);
 	}
+}
 
+/**
+ * ice_sched_clear_tx_topo - clears the scheduler tree nodes
+ * @pi: port information structure
+ *
+ * This function removes all the nodes from HW as well as from SW DB.
+ */
+static void ice_sched_clear_tx_topo(struct ice_port_info *pi)
+{
+	if (!pi)
+		return;
 	if (pi->root) {
 		ice_free_sched_node(pi, pi->root);
 		pi->root = NULL;
@@ -1005,7 +1013,6 @@ enum ice_status ice_sched_init_port(struct ice_port_info *pi)
 	/* initialize the port for handling the scheduler tree */
 	pi->port_state = ICE_SCHED_PORT_STATE_READY;
 	mutex_init(&pi->sched_lock);
-	INIT_LIST_HEAD(&pi->agg_list);
 
 err_init_port:
 	if (status && pi->root) {
@@ -1588,7 +1595,8 @@ ice_sched_rm_agg_vsi_info(struct ice_port_info *pi, u16 vsi_handle)
 	struct ice_sched_agg_info *agg_info;
 	struct ice_sched_agg_info *atmp;
 
-	list_for_each_entry_safe(agg_info, atmp, &pi->agg_list, list_entry) {
+	list_for_each_entry_safe(agg_info, atmp, &pi->hw->agg_list,
+				 list_entry) {
 		struct ice_sched_agg_vsi_info *agg_vsi_info;
 		struct ice_sched_agg_vsi_info *vtmp;
 
