@@ -265,6 +265,7 @@ int bch2_strtoint_h(const char *, int *);
 int bch2_strtouint_h(const char *, unsigned int *);
 int bch2_strtoll_h(const char *, long long *);
 int bch2_strtoull_h(const char *, unsigned long long *);
+int bch2_strtou64_h(const char *, u64 *);
 
 static inline int bch2_strtol_h(const char *cp, long *res)
 {
@@ -333,7 +334,7 @@ static inline int bch2_strtoul_h(const char *cp, long *res)
 		 : type_is(var, char *)		? "%s\n"		\
 		 : "%i\n", var)
 
-ssize_t bch2_hprint(char *buf, s64 v);
+void bch2_hprint(struct printbuf *, s64);
 
 bool bch2_is_zero(const void *, size_t);
 

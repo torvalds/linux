@@ -230,13 +230,13 @@
 
 #define bch_verbose(c, fmt, ...)					\
 do {									\
-	if ((c)->opts.verbose_recovery)					\
+	if ((c)->opts.verbose)						\
 		bch_info(c, fmt, ##__VA_ARGS__);			\
 } while (0)
 
 #define pr_verbose_init(opts, fmt, ...)					\
 do {									\
-	if (opt_get(opts, verbose_init))				\
+	if (opt_get(opts, verbose))					\
 		pr_info(fmt, ##__VA_ARGS__);				\
 } while (0)
 

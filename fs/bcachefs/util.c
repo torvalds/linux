@@ -100,10 +100,10 @@ STRTO_H(strtoint, int)
 STRTO_H(strtouint, unsigned int)
 STRTO_H(strtoll, long long)
 STRTO_H(strtoull, unsigned long long)
+STRTO_H(strtou64, u64)
 
-ssize_t bch2_hprint(char *buf, s64 v)
+void bch2_hprint(struct printbuf *buf, s64 v)
 {
-	char dec[4] = "";
 	int u, t = 0;
 
 	for (u = 0; v >= 1024 || v <= -1024; u++) {
@@ -111,17 +111,16 @@ ssize_t bch2_hprint(char *buf, s64 v)
 		v >>= 10;
 	}
 
-	if (!u)
-		return sprintf(buf, "%lli", v);
+	pr_buf(buf, "%lli", v);
 
 	/*
 	 * 103 is magic: t is in the range [-1023, 1023] and we want
 	 * to turn it into [-9, 9]
 	 */
-	if (v < 100 && v > -100)
-		scnprintf(dec, sizeof(dec), ".%i", t / 103);
-
-	return sprintf(buf, "%lli%s%c", v, dec, si_units[u]);
+	if (u && v < 100 && v > -100)
+		pr_buf(buf, ".%i", t / 103);
+	if (u)
+		pr_buf(buf, "%c", si_units[u]);
 }
 
 void bch2_string_opt_to_text(struct printbuf *out,
@@ -483,12 +482,12 @@ size_t bch2_pd_controller_print_debug(struct bch_pd_controller *pd, char *buf)
 	char change[21];
 	s64 next_io;
 
-	bch2_hprint(rate,	pd->rate.rate);
-	bch2_hprint(actual,	pd->last_actual);
-	bch2_hprint(target,	pd->last_target);
-	bch2_hprint(proportional, pd->last_proportional);
-	bch2_hprint(derivative,	pd->last_derivative);
-	bch2_hprint(change,	pd->last_change);
+	bch2_hprint(&PBUF(rate),	pd->rate.rate);
+	bch2_hprint(&PBUF(actual),	pd->last_actual);
+	bch2_hprint(&PBUF(target),	pd->last_target);
+	bch2_hprint(&PBUF(proportional), pd->last_proportional);
+	bch2_hprint(&PBUF(derivative),	pd->last_derivative);
+	bch2_hprint(&PBUF(change),	pd->last_change);
 
 	next_io = div64_s64(pd->rate.next - local_clock(), NSEC_PER_MSEC);
 

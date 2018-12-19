@@ -263,13 +263,13 @@ ssize_t bch2_rebalance_work_show(struct bch_fs *c, char *buf)
 	struct rebalance_work w = rebalance_work(c);
 	char h1[21], h2[21];
 
-	bch2_hprint(h1, w.dev_most_full_work << 9);
-	bch2_hprint(h2, w.dev_most_full_capacity << 9);
+	bch2_hprint(&PBUF(h1), w.dev_most_full_work << 9);
+	bch2_hprint(&PBUF(h2), w.dev_most_full_capacity << 9);
 	pr_buf(&out, "fullest_dev (%i):\t%s/%s\n",
 	       w.dev_most_full_idx, h1, h2);
 
-	bch2_hprint(h1, w.total_work << 9);
-	bch2_hprint(h2, c->capacity << 9);
+	bch2_hprint(&PBUF(h1), w.total_work << 9);
+	bch2_hprint(&PBUF(h2), c->capacity << 9);
 	pr_buf(&out, "total work:\t\t%s/%s\n", h1, h2);
 
 	pr_buf(&out, "rate:\t\t\t%u\n", r->pd.rate.rate);
@@ -279,7 +279,7 @@ ssize_t bch2_rebalance_work_show(struct bch_fs *c, char *buf)
 		pr_buf(&out, "waiting\n");
 		break;
 	case REBALANCE_THROTTLED:
-		bch2_hprint(h1,
+		bch2_hprint(&PBUF(h1),
 			    (r->throttled_until_iotime -
 			     atomic_long_read(&c->io_clock[WRITE].now)) << 9);
 		pr_buf(&out, "throttled for %lu sec or %s io\n",

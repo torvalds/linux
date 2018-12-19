@@ -619,8 +619,8 @@ void bch2_btree_perf_test(struct bch_fs *c, const char *testname,
 	time = j.finish - j.start;
 
 	scnprintf(name_buf, sizeof(name_buf), "%s:", testname);
-	bch2_hprint(nr_buf, nr);
-	bch2_hprint(per_sec_buf, nr * NSEC_PER_SEC / time);
+	bch2_hprint(&PBUF(nr_buf), nr);
+	bch2_hprint(&PBUF(per_sec_buf), nr * NSEC_PER_SEC / time);
 	printk(KERN_INFO "%-12s %s with %u threads in %5llu sec, %5llu nsec per iter, %5s per sec\n",
 		name_buf, nr_buf, nr_threads,
 		time / NSEC_PER_SEC,

@@ -73,9 +73,10 @@ do {									\
 #define sysfs_hprint(file, val)						\
 do {									\
 	if (attr == &sysfs_ ## file) {					\
-		ssize_t ret = bch2_hprint(buf, val);			\
-		strcat(buf, "\n");					\
-		return ret + 1;						\
+		struct printbuf out = _PBUF(buf, PAGE_SIZE);		\
+		bch2_hprint(&out, val);					\
+		pr_buf(&out, "\n");					\
+		return out.pos - buf;					\
 	}								\
 } while (0)
 
@@ -658,7 +659,7 @@ int bch2_opts_create_sysfs_files(struct kobject *kobj)
 	for (i = bch2_opt_table;
 	     i < bch2_opt_table + bch2_opts_nr;
 	     i++) {
-		if (i->mode == OPT_INTERNAL)
+		if (!(i->mode & (OPT_FORMAT|OPT_MOUNT|OPT_RUNTIME)))
 			continue;
 
 		ret = sysfs_create_file(kobj, &i->attr);
