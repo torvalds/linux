@@ -401,6 +401,11 @@ struct rds_notifier {
 	int			n_status;
 };
 
+/* Available as part of RDS core, so doesn't need to participate
+ * in get_preferred transport etc
+ */
+#define	RDS_TRANS_LOOP	3
+
 /**
  * struct rds_transport -  transport specific behavioural hooks
  *

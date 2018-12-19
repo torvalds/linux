@@ -267,7 +267,7 @@ smb2_set_file_info(struct inode *inode, const char *full_path,
 	int rc;
 
 	if ((buf->CreationTime == 0) && (buf->LastAccessTime == 0) &&
-	    (buf->LastWriteTime == 0) && (buf->ChangeTime) &&
+	    (buf->LastWriteTime == 0) && (buf->ChangeTime == 0) &&
 	    (buf->Attributes == 0))
 		return 0; /* would be a no op, no sense sending this */
 

@@ -1010,7 +1010,7 @@ static void core_alua_queue_state_change_ua(struct t10_alua_tg_pt_gp *tg_pt_gp)
 static void core_alua_do_transition_tg_pt_work(struct work_struct *work)
 {
 	struct t10_alua_tg_pt_gp *tg_pt_gp = container_of(work,
-		struct t10_alua_tg_pt_gp, tg_pt_gp_transition_work.work);
+		struct t10_alua_tg_pt_gp, tg_pt_gp_transition_work);
 	struct se_device *dev = tg_pt_gp->tg_pt_gp_dev;
 	bool explicit = (tg_pt_gp->tg_pt_gp_alua_access_status ==
 			 ALUA_STATUS_ALTERED_BY_EXPLICIT_STPG);
@@ -1073,17 +1073,8 @@ static int core_alua_do_transition_tg_pt(
 	/*
 	 * Flush any pending transitions
 	 */
-	if (!explicit && tg_pt_gp->tg_pt_gp_implicit_trans_secs &&
-	    atomic_read(&tg_pt_gp->tg_pt_gp_alua_access_state) ==
-	    ALUA_ACCESS_STATE_TRANSITION) {
-		/* Just in case */
-		tg_pt_gp->tg_pt_gp_alua_pending_state = new_state;
-		tg_pt_gp->tg_pt_gp_transition_complete = &wait;
-		flush_delayed_work(&tg_pt_gp->tg_pt_gp_transition_work);
-		wait_for_completion(&wait);
-		tg_pt_gp->tg_pt_gp_transition_complete = NULL;
-		return 0;
-	}
+	if (!explicit)
+		flush_work(&tg_pt_gp->tg_pt_gp_transition_work);
 
 	/*
 	 * Save the old primary ALUA access state, and set the current state
@@ -1114,17 +1105,9 @@ static int core_alua_do_transition_tg_pt(
 	atomic_inc(&tg_pt_gp->tg_pt_gp_ref_cnt);
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
-	if (!explicit && tg_pt_gp->tg_pt_gp_implicit_trans_secs) {
-		unsigned long transition_tmo;
-
-		transition_tmo = tg_pt_gp->tg_pt_gp_implicit_trans_secs * HZ;
-		queue_delayed_work(tg_pt_gp->tg_pt_gp_dev->tmr_wq,
-				   &tg_pt_gp->tg_pt_gp_transition_work,
-				   transition_tmo);
-	} else {
+	schedule_work(&tg_pt_gp->tg_pt_gp_transition_work);
+	if (explicit) {
 		tg_pt_gp->tg_pt_gp_transition_complete = &wait;
-		queue_delayed_work(tg_pt_gp->tg_pt_gp_dev->tmr_wq,
-				   &tg_pt_gp->tg_pt_gp_transition_work, 0);
 		wait_for_completion(&wait);
 		tg_pt_gp->tg_pt_gp_transition_complete = NULL;
 	}
@@ -1692,8 +1675,8 @@ struct t10_alua_tg_pt_gp *core_alua_allocate_tg_pt_gp(struct se_device *dev,
 	mutex_init(&tg_pt_gp->tg_pt_gp_md_mutex);
 	spin_lock_init(&tg_pt_gp->tg_pt_gp_lock);
 	atomic_set(&tg_pt_gp->tg_pt_gp_ref_cnt, 0);
-	INIT_DELAYED_WORK(&tg_pt_gp->tg_pt_gp_transition_work,
-			  core_alua_do_transition_tg_pt_work);
+	INIT_WORK(&tg_pt_gp->tg_pt_gp_transition_work,
+		  core_alua_do_transition_tg_pt_work);
 	tg_pt_gp->tg_pt_gp_dev = dev;
 	atomic_set(&tg_pt_gp->tg_pt_gp_alua_access_state,
 		ALUA_ACCESS_STATE_ACTIVE_OPTIMIZED);
@@ -1801,7 +1784,7 @@ void core_alua_free_tg_pt_gp(
 	dev->t10_alua.alua_tg_pt_gps_counter--;
 	spin_unlock(&dev->t10_alua.tg_pt_gps_lock);
 
-	flush_delayed_work(&tg_pt_gp->tg_pt_gp_transition_work);
+	flush_work(&tg_pt_gp->tg_pt_gp_transition_work);
 
 	/*
 	 * Allow a struct t10_alua_tg_pt_gp_member * referenced by

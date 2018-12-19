@@ -600,6 +600,11 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 			       CRYPTO_ALG_TYPE_AHASH_MASK);
 	if (IS_ERR(poly))
 		return PTR_ERR(poly);
+	poly_hash = __crypto_hash_alg_common(poly);
+
+	err = -EINVAL;
+	if (poly_hash->digestsize != POLY1305_DIGEST_SIZE)
+		goto out_put_poly;
 
 	err = -ENOMEM;
 	inst = kzalloc(sizeof(*inst) + sizeof(*ctx), GFP_KERNEL);
@@ -608,7 +613,6 @@ static int chachapoly_create(struct crypto_template *tmpl, struct rtattr **tb,
 
 	ctx = aead_instance_ctx(inst);
 	ctx->saltlen = CHACHAPOLY_IV_SIZE - ivsize;
-	poly_hash = __crypto_hash_alg_common(poly);
 	err = crypto_init_ahash_spawn(&ctx->poly, poly_hash,
 				      aead_crypto_instance(inst));
 	if (err)

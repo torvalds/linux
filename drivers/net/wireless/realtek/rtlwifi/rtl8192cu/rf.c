@@ -304,9 +304,6 @@ static void _rtl92c_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 			writeVal = 0x00000000;
 		if (rtlpriv->dm.dynamic_txhighpower_lvl == TXHIGHPWRLEVEL_BT1)
 			writeVal = writeVal - 0x06060606;
-		else if (rtlpriv->dm.dynamic_txhighpower_lvl ==
-			 TXHIGHPWRLEVEL_BT2)
-			writeVal = writeVal;
 		*(p_outwriteval + rf) = writeVal;
 	}
 }

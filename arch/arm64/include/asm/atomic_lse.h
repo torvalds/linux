@@ -114,7 +114,7 @@ static inline void atomic_and(int i, atomic_t *v)
 	/* LSE atomics */
 	"	mvn	%w[i], %w[i]\n"
 	"	stclr	%w[i], %[v]")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
+	: [i] "+&r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
 	: "x30");
 }
@@ -131,7 +131,7 @@ static inline void atomic_sub(int i, atomic_t *v)
 	/* LSE atomics */
 	"	neg	%w[i], %w[i]\n"
 	"	stadd	%w[i], %[v]")
-	: [i] "+r" (w0), [v] "+Q" (v->counter)
+	: [i] "+&r" (w0), [v] "+Q" (v->counter)
 	: "r" (x1)
 	: "x30");
 }
@@ -151,7 +151,7 @@ static inline int atomic_sub_return##name(int i, atomic_t *v)		\
 	"	neg	%w[i], %w[i]\n"					\
 	"	ldadd" #mb "	%w[i], w30, %[v]\n"			\
 	"	add	%w[i], %w[i], w30")				\
-	: [i] "+r" (w0), [v] "+Q" (v->counter)				\
+	: [i] "+&r" (w0), [v] "+Q" (v->counter)				\
 	: "r" (x1)							\
 	: "x30" , ##cl);						\
 									\
@@ -255,7 +255,7 @@ static inline void atomic64_and(long i, atomic64_t *v)
 	/* LSE atomics */
 	"	mvn	%[i], %[i]\n"
 	"	stclr	%[i], %[v]")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
+	: [i] "+&r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
 	: "x30");
 }
@@ -272,7 +272,7 @@ static inline void atomic64_sub(long i, atomic64_t *v)
 	/* LSE atomics */
 	"	neg	%[i], %[i]\n"
 	"	stadd	%[i], %[v]")
-	: [i] "+r" (x0), [v] "+Q" (v->counter)
+	: [i] "+&r" (x0), [v] "+Q" (v->counter)
 	: "r" (x1)
 	: "x30");
 }
@@ -292,7 +292,7 @@ static inline long atomic64_sub_return##name(long i, atomic64_t *v)	\
 	"	neg	%[i], %[i]\n"					\
 	"	ldadd" #mb "	%[i], x30, %[v]\n"			\
 	"	add	%[i], %[i], x30")				\
-	: [i] "+r" (x0), [v] "+Q" (v->counter)				\
+	: [i] "+&r" (x0), [v] "+Q" (v->counter)				\
 	: "r" (x1)							\
 	: "x30" , ##cl);						\
 									\
@@ -412,7 +412,7 @@ static inline long __cmpxchg_double##name(unsigned long old1,		\
 	"	eor	%[old1], %[old1], %[oldval1]\n"			\
 	"	eor	%[old2], %[old2], %[oldval2]\n"			\
 	"	orr	%[old1], %[old1], %[old2]")			\
-	: [old1] "+r" (x0), [old2] "+r" (x1),				\
+	: [old1] "+&r" (x0), [old2] "+&r" (x1),				\
 	  [v] "+Q" (*(unsigned long *)ptr)				\
 	: [new1] "r" (x2), [new2] "r" (x3), [ptr] "r" (x4),		\
 	  [oldval1] "r" (oldval1), [oldval2] "r" (oldval2)		\

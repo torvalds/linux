@@ -312,42 +312,47 @@ next_op:
 
 	/* Decide how to handle the operation */
 	switch (op) {
-	case ASN1_OP_MATCH_ANY_ACT:
-	case ASN1_OP_MATCH_ANY_ACT_OR_SKIP:
-	case ASN1_OP_COND_MATCH_ANY_ACT:
-	case ASN1_OP_COND_MATCH_ANY_ACT_OR_SKIP:
-		ret = actions[machine[pc + 1]](context, hdr, tag, data + dp, len);
-		if (ret < 0)
-			return ret;
-		goto skip_data;
-
-	case ASN1_OP_MATCH_ACT:
-	case ASN1_OP_MATCH_ACT_OR_SKIP:
-	case ASN1_OP_COND_MATCH_ACT_OR_SKIP:
-		ret = actions[machine[pc + 2]](context, hdr, tag, data + dp, len);
-		if (ret < 0)
-			return ret;
-		goto skip_data;
-
 	case ASN1_OP_MATCH:
 	case ASN1_OP_MATCH_OR_SKIP:
+	case ASN1_OP_MATCH_ACT:
+	case ASN1_OP_MATCH_ACT_OR_SKIP:
 	case ASN1_OP_MATCH_ANY:
 	case ASN1_OP_MATCH_ANY_OR_SKIP:
+	case ASN1_OP_MATCH_ANY_ACT:
+	case ASN1_OP_MATCH_ANY_ACT_OR_SKIP:
 	case ASN1_OP_COND_MATCH_OR_SKIP:
+	case ASN1_OP_COND_MATCH_ACT_OR_SKIP:
 	case ASN1_OP_COND_MATCH_ANY:
 	case ASN1_OP_COND_MATCH_ANY_OR_SKIP:
-	skip_data:
+	case ASN1_OP_COND_MATCH_ANY_ACT:
+	case ASN1_OP_COND_MATCH_ANY_ACT_OR_SKIP:
+
 		if (!(flags & FLAG_CONS)) {
 			if (flags & FLAG_INDEFINITE_LENGTH) {
+				size_t tmp = dp;
+
 				ret = asn1_find_indefinite_length(
-					data, datalen, &dp, &len, &errmsg);
+					data, datalen, &tmp, &len, &errmsg);
 				if (ret < 0)
 					goto error;
-			} else {
-				dp += len;
 			}
 			pr_debug("- LEAF: %zu\n", len);
 		}
+
+		if (op & ASN1_OP_MATCH__ACT) {
+			unsigned char act;
+
+			if (op & ASN1_OP_MATCH__ANY)
+				act = machine[pc + 1];
+			else
+				act = machine[pc + 2];
+			ret = actions[act](context, hdr, tag, data + dp, len);
+			if (ret < 0)
+				return ret;
+		}
+
+		if (!(flags & FLAG_CONS))
+			dp += len;
 		pc += asn1_op_lengths[op];
 		goto next_op;
 
@@ -433,6 +438,8 @@ next_op:
 			else
 				act = machine[pc + 1];
 			ret = actions[act](context, hdr, 0, data + tdp, len);
+			if (ret < 0)
+				return ret;
 		}
 		pc += asn1_op_lengths[op];
 		goto next_op;

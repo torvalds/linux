@@ -693,7 +693,7 @@ static void serial_omap_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
 		up->efr |= UART_EFR_RTS;
 	else
-		up->efr &= UART_EFR_RTS;
+		up->efr &= ~UART_EFR_RTS;
 	serial_out(up, UART_EFR, up->efr);
 	serial_out(up, UART_LCR, lcr);
 

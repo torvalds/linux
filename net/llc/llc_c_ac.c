@@ -389,7 +389,7 @@ static int llc_conn_ac_send_i_cmd_p_set_0(struct sock *sk, struct sk_buff *skb)
 	llc_pdu_init_as_i_cmd(skb, 0, llc->vS, llc->vR);
 	rc = llc_mac_hdr_init(skb, llc->dev->dev_addr, llc->daddr.mac);
 	if (likely(!rc)) {
-		llc_conn_send_pdu(sk, skb);
+		rc = llc_conn_send_pdu(sk, skb);
 		llc_conn_ac_inc_vs_by_1(sk, skb);
 	}
 	return rc;
@@ -916,7 +916,7 @@ static int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk,
 	llc_pdu_init_as_i_cmd(skb, llc->ack_pf, llc->vS, llc->vR);
 	rc = llc_mac_hdr_init(skb, llc->dev->dev_addr, llc->daddr.mac);
 	if (likely(!rc)) {
-		llc_conn_send_pdu(sk, skb);
+		rc = llc_conn_send_pdu(sk, skb);
 		llc_conn_ac_inc_vs_by_1(sk, skb);
 	}
 	return rc;
@@ -935,14 +935,17 @@ static int llc_conn_ac_send_i_rsp_f_set_ackpf(struct sock *sk,
 int llc_conn_ac_send_i_as_ack(struct sock *sk, struct sk_buff *skb)
 {
 	struct llc_sock *llc = llc_sk(sk);
+	int ret;
 
 	if (llc->ack_must_be_send) {
-		llc_conn_ac_send_i_rsp_f_set_ackpf(sk, skb);
+		ret = llc_conn_ac_send_i_rsp_f_set_ackpf(sk, skb);
 		llc->ack_must_be_send = 0 ;
 		llc->ack_pf = 0;
-	} else
-		llc_conn_ac_send_i_cmd_p_set_0(sk, skb);
-	return 0;
+	} else {
+		ret = llc_conn_ac_send_i_cmd_p_set_0(sk, skb);
+	}
+
+	return ret;
 }
 
 /**
@@ -1096,14 +1099,7 @@ int llc_conn_ac_inc_tx_win_size(struct sock *sk, struct sk_buff *skb)
 
 int llc_conn_ac_stop_all_timers(struct sock *sk, struct sk_buff *skb)
 {
-	struct llc_sock *llc = llc_sk(sk);
-
-	del_timer(&llc->pf_cycle_timer.timer);
-	del_timer(&llc->ack_timer.timer);
-	del_timer(&llc->rej_sent_timer.timer);
-	del_timer(&llc->busy_state_timer.timer);
-	llc->ack_must_be_send = 0;
-	llc->ack_pf = 0;
+	llc_sk_stop_all_timers(sk, false);
 	return 0;
 }
 

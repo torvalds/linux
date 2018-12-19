@@ -77,6 +77,12 @@ static int reset_slot		(struct hotplug_slot *slot, int probe);
  */
 static void release_slot(struct hotplug_slot *hotplug_slot)
 {
+	struct slot *slot = hotplug_slot->private;
+
+	/* queued work needs hotplug_slot name */
+	cancel_delayed_work(&slot->work);
+	drain_workqueue(slot->wq);
+
 	kfree(hotplug_slot->ops);
 	kfree(hotplug_slot->info);
 	kfree(hotplug_slot);
@@ -276,6 +282,7 @@ static void pciehp_remove(struct pcie_device *dev)
 {
 	struct controller *ctrl = get_service_data(dev);
 
+	pcie_shutdown_notification(ctrl);
 	cleanup_slot(ctrl);
 	pciehp_release_ctrl(ctrl);
 }
@@ -295,7 +302,7 @@ static int pciehp_resume(struct pcie_device *dev)
 	ctrl = get_service_data(dev);
 
 	/* reinitialize the chipset's event detection logic */
-	pcie_enable_notification(ctrl);
+	pcie_reenable_notification(ctrl);
 
 	slot = ctrl->slot;
 

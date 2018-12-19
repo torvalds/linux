@@ -557,7 +557,7 @@ static int radeon_ttm_tt_pin_userptr(struct ttm_tt *ttm)
 		struct page **pages = ttm->pages + pinned;
 
 		r = get_user_pages(current, current->mm, userptr, num_pages,
-				   write, 0, pages, NULL);
+				   write ? FOLL_WRITE : 0, pages, NULL);
 		if (r < 0)
 			goto release_pages;
 

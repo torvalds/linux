@@ -36,7 +36,8 @@
 
 #define smp_store_mb(var, value)	do { WRITE_ONCE(var, value); mb(); } while (0)
 
-#ifdef __SUBARCH_HAS_LWSYNC
+/* The sub-arch has lwsync */
+#if defined(__powerpc64__) || defined(CONFIG_PPC_E500MC)
 #    define SMPWMB      LWSYNC
 #else
 #    define SMPWMB      eieio

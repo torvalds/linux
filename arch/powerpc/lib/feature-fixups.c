@@ -20,6 +20,7 @@
 #include <asm/code-patching.h>
 #include <asm/page.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 
 
 struct fixup_entry {
@@ -52,7 +53,7 @@ static int patch_alt_instruction(unsigned int *src, unsigned int *dest,
 		unsigned int *target = (unsigned int *)branch_target(src);
 
 		/* Branch within the section doesn't need translating */
-		if (target < alt_start || target >= alt_end) {
+		if (target < alt_start || target > alt_end) {
 			instr = translate_branch(dest, src);
 			if (!instr)
 				return 1;
@@ -112,6 +113,47 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 		}
 	}
 }
+
+#ifdef CONFIG_PPC_BOOK3S_64
+void do_rfi_flush_fixups(enum l1d_flush_type types)
+{
+	unsigned int instrs[3], *dest;
+	long *start, *end;
+	int i;
+
+	start = PTRRELOC(&__start___rfi_flush_fixup),
+	end = PTRRELOC(&__stop___rfi_flush_fixup);
+
+	instrs[0] = 0x60000000; /* nop */
+	instrs[1] = 0x60000000; /* nop */
+	instrs[2] = 0x60000000; /* nop */
+
+	if (types & L1D_FLUSH_FALLBACK)
+		/* b .+16 to fallback flush */
+		instrs[0] = 0x48000010;
+
+	i = 0;
+	if (types & L1D_FLUSH_ORI) {
+		instrs[i++] = 0x63ff0000; /* ori 31,31,0 speculation barrier */
+		instrs[i++] = 0x63de0000; /* ori 30,30,0 L1d flush*/
+	}
+
+	if (types & L1D_FLUSH_MTTRIG)
+		instrs[i++] = 0x7c12dba6; /* mtspr TRIG2,r0 (SPR #882) */
+
+	for (i = 0; start < end; start++, i++) {
+		dest = (void *)start + *start;
+
+		pr_devel("patching dest %lx\n", (unsigned long)dest);
+
+		patch_instruction(dest, instrs[0]);
+		patch_instruction(dest + 1, instrs[1]);
+		patch_instruction(dest + 2, instrs[2]);
+	}
+
+	printk(KERN_DEBUG "rfi-flush: patched %d locations\n", i);
+}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
 void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 {

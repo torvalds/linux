@@ -250,11 +250,12 @@ static int construct_key(struct key *key, const void *callout_info,
  * The keyring selected is returned with an extra reference upon it which the
  * caller must release.
  */
-static void construct_get_dest_keyring(struct key **_dest_keyring)
+static int construct_get_dest_keyring(struct key **_dest_keyring)
 {
 	struct request_key_auth *rka;
 	const struct cred *cred = current_cred();
 	struct key *dest_keyring = *_dest_keyring, *authkey;
+	int ret;
 
 	kenter("%p", dest_keyring);
 
@@ -263,6 +264,8 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 		/* the caller supplied one */
 		key_get(dest_keyring);
 	} else {
+		bool do_perm_check = true;
+
 		/* use a default keyring; falling through the cases until we
 		 * find one that we actually have */
 		switch (cred->jit_keyring) {
@@ -277,8 +280,10 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 					dest_keyring =
 						key_get(rka->dest_keyring);
 				up_read(&authkey->sem);
-				if (dest_keyring)
+				if (dest_keyring) {
+					do_perm_check = false;
 					break;
+				}
 			}
 
 		case KEY_REQKEY_DEFL_THREAD_KEYRING:
@@ -313,11 +318,29 @@ static void construct_get_dest_keyring(struct key **_dest_keyring)
 		default:
 			BUG();
 		}
+
+		/*
+		 * Require Write permission on the keyring.  This is essential
+		 * because the default keyring may be the session keyring, and
+		 * joining a keyring only requires Search permission.
+		 *
+		 * However, this check is skipped for the "requestor keyring" so
+		 * that /sbin/request-key can itself use request_key() to add
+		 * keys to the original requestor's destination keyring.
+		 */
+		if (dest_keyring && do_perm_check) {
+			ret = key_permission(make_key_ref(dest_keyring, 1),
+					     KEY_NEED_WRITE);
+			if (ret) {
+				key_put(dest_keyring);
+				return ret;
+			}
+		}
 	}
 
 	*_dest_keyring = dest_keyring;
 	kleave(" [dk %d]", key_serial(dest_keyring));
-	return;
+	return 0;
 }
 
 /*
@@ -442,12 +465,16 @@ static struct key *construct_key_and_link(struct keyring_search_context *ctx,
 
 	if (ctx->index_key.type == &key_type_keyring)
 		return ERR_PTR(-EPERM);
-	
-	user = key_user_lookup(current_fsuid());
-	if (!user)
-		return ERR_PTR(-ENOMEM);
 
-	construct_get_dest_keyring(&dest_keyring);
+	ret = construct_get_dest_keyring(&dest_keyring);
+	if (ret)
+		goto error;
+
+	user = key_user_lookup(current_fsuid());
+	if (!user) {
+		ret = -ENOMEM;
+		goto error_put_dest_keyring;
+	}
 
 	ret = construct_alloc_key(ctx, dest_keyring, flags, user, &key);
 	key_user_put(user);
@@ -462,7 +489,7 @@ static struct key *construct_key_and_link(struct keyring_search_context *ctx,
 	} else if (ret == -EINPROGRESS) {
 		ret = 0;
 	} else {
-		goto couldnt_alloc_key;
+		goto error_put_dest_keyring;
 	}
 
 	key_put(dest_keyring);
@@ -472,8 +499,9 @@ static struct key *construct_key_and_link(struct keyring_search_context *ctx,
 construction_failed:
 	key_negate_and_link(key, key_negative_timeout, NULL, NULL);
 	key_put(key);
-couldnt_alloc_key:
+error_put_dest_keyring:
 	key_put(dest_keyring);
+error:
 	kleave(" = %d", ret);
 	return ERR_PTR(ret);
 }

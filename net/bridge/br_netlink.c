@@ -1067,19 +1067,20 @@ static int br_dev_newlink(struct net *src_net, struct net_device *dev,
 	struct net_bridge *br = netdev_priv(dev);
 	int err;
 
+	err = register_netdevice(dev);
+	if (err)
+		return err;
+
 	if (tb[IFLA_ADDRESS]) {
 		spin_lock_bh(&br->lock);
 		br_stp_change_bridge_id(br, nla_data(tb[IFLA_ADDRESS]));
 		spin_unlock_bh(&br->lock);
 	}
 
-	err = register_netdevice(dev);
-	if (err)
-		return err;
-
 	err = br_changelink(dev, tb, data);
 	if (err)
-		unregister_netdevice(dev);
+		br_dev_delete(dev, NULL);
+
 	return err;
 }
 

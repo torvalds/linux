@@ -1182,17 +1182,13 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 
 	ret = devm_request_irq(dev, irq, armada_drm_irq, 0, "armada_drm_crtc",
 			       dcrtc);
-	if (ret < 0) {
-		kfree(dcrtc);
-		return ret;
-	}
+	if (ret < 0)
+		goto err_crtc;
 
 	if (dcrtc->variant->init) {
 		ret = dcrtc->variant->init(dcrtc, dev);
-		if (ret) {
-			kfree(dcrtc);
-			return ret;
-		}
+		if (ret)
+			goto err_crtc;
 	}
 
 	/* Ensure AXI pipeline is enabled */
@@ -1203,13 +1199,15 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 	dcrtc->crtc.port = port;
 
 	primary = kzalloc(sizeof(*primary), GFP_KERNEL);
-	if (!primary)
-		return -ENOMEM;
+	if (!primary) {
+		ret = -ENOMEM;
+		goto err_crtc;
+	}
 
 	ret = armada_drm_plane_init(primary);
 	if (ret) {
 		kfree(primary);
-		return ret;
+		goto err_crtc;
 	}
 
 	ret = drm_universal_plane_init(drm, &primary->base, 0,
@@ -1219,7 +1217,7 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 				       DRM_PLANE_TYPE_PRIMARY);
 	if (ret) {
 		kfree(primary);
-		return ret;
+		goto err_crtc;
 	}
 
 	ret = drm_crtc_init_with_planes(drm, &dcrtc->crtc, &primary->base, NULL,
@@ -1238,6 +1236,9 @@ static int armada_drm_crtc_create(struct drm_device *drm, struct device *dev,
 
 err_crtc_init:
 	primary->base.funcs->destroy(&primary->base);
+err_crtc:
+	kfree(dcrtc);
+
 	return ret;
 }
 

@@ -538,7 +538,10 @@ static inline int NCR5380_pread(struct Scsi_Host *instance, unsigned char *dst, 
 			printk(KERN_ERR "53C400r: Got 53C80_IRQ start=%d, blocks=%d\n", start, blocks);
 			return -1;
 		}
-		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY);
+		while (NCR5380_read(C400_CONTROL_STATUS_REG) & CSR_HOST_BUF_NOT_RDY)
+		{
+			// FIXME - no timeout
+		}
 
 #ifndef SCSI_G_NCR5380_MEM
 		{

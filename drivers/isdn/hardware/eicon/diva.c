@@ -387,10 +387,10 @@ void divasa_xdi_driver_unload(void)
 **  Receive and process command from user mode utility
 */
 void *diva_xdi_open_adapter(void *os_handle, const void __user *src,
-			    int length,
+			    int length, void *mptr,
 			    divas_xdi_copy_from_user_fn_t cp_fn)
 {
-	diva_xdi_um_cfg_cmd_t msg;
+	diva_xdi_um_cfg_cmd_t *msg = (diva_xdi_um_cfg_cmd_t *)mptr;
 	diva_os_xdi_adapter_t *a = NULL;
 	diva_os_spin_lock_magic_t old_irql;
 	struct list_head *tmp;
@@ -400,21 +400,21 @@ void *diva_xdi_open_adapter(void *os_handle, const void __user *src,
 			 length, sizeof(diva_xdi_um_cfg_cmd_t)))
 			return NULL;
 	}
-	if ((*cp_fn) (os_handle, &msg, src, sizeof(msg)) <= 0) {
+	if ((*cp_fn) (os_handle, msg, src, sizeof(*msg)) <= 0) {
 		DBG_ERR(("A: A(?) open, write error"))
 			return NULL;
 	}
 	diva_os_enter_spin_lock(&adapter_lock, &old_irql, "open_adapter");
 	list_for_each(tmp, &adapter_queue) {
 		a = list_entry(tmp, diva_os_xdi_adapter_t, link);
-		if (a->controller == (int)msg.adapter)
+		if (a->controller == (int)msg->adapter)
 			break;
 		a = NULL;
 	}
 	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "open_adapter");
 
 	if (!a) {
-		DBG_ERR(("A: A(%d) open, adapter not found", msg.adapter))
+		DBG_ERR(("A: A(%d) open, adapter not found", msg->adapter))
 			}
 
 	return (a);
@@ -436,8 +436,10 @@ void diva_xdi_close_adapter(void *adapter, void *os_handle)
 
 int
 diva_xdi_write(void *adapter, void *os_handle, const void __user *src,
-	       int length, divas_xdi_copy_from_user_fn_t cp_fn)
+	       int length, void *mptr,
+	       divas_xdi_copy_from_user_fn_t cp_fn)
 {
+	diva_xdi_um_cfg_cmd_t *msg = (diva_xdi_um_cfg_cmd_t *)mptr;
 	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) adapter;
 	void *data;
 
@@ -458,7 +460,13 @@ diva_xdi_write(void *adapter, void *os_handle, const void __user *src,
 			return (-2);
 	}
 
-	length = (*cp_fn) (os_handle, data, src, length);
+	if (msg) {
+		*(diva_xdi_um_cfg_cmd_t *)data = *msg;
+		length = (*cp_fn) (os_handle, (char *)data + sizeof(*msg),
+				   src + sizeof(*msg), length - sizeof(*msg));
+	} else {
+		length = (*cp_fn) (os_handle, data, src, length);
+	}
 	if (length > 0) {
 		if ((*(a->interface.cmd_proc))
 		    (a, (diva_xdi_um_cfg_cmd_t *) data, length)) {

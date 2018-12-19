@@ -17,6 +17,7 @@
 #include <asm/user.h>
 #include <asm/fpu/api.h>
 #include <asm/fpu/xstate.h>
+#include <asm/cpufeature.h>
 
 /*
  * High level FPU state handling functions:
@@ -42,6 +43,7 @@ extern void fpu__init_cpu_xstate(void);
 extern void fpu__init_system(struct cpuinfo_x86 *c);
 extern void fpu__init_check_bugs(void);
 extern void fpu__resume_cpu(void);
+extern u64 fpu__get_supported_xfeatures_mask(void);
 
 /*
  * Debugging facility:
@@ -55,24 +57,19 @@ extern void fpu__resume_cpu(void);
 /*
  * FPU related CPU feature flag helper routines:
  */
-static __always_inline __pure bool use_eager_fpu(void)
-{
-	return static_cpu_has_safe(X86_FEATURE_EAGER_FPU);
-}
-
 static __always_inline __pure bool use_xsaveopt(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_XSAVEOPT);
+	return static_cpu_has(X86_FEATURE_XSAVEOPT);
 }
 
 static __always_inline __pure bool use_xsave(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_XSAVE);
+	return static_cpu_has(X86_FEATURE_XSAVE);
 }
 
 static __always_inline __pure bool use_fxsr(void)
 {
-	return static_cpu_has_safe(X86_FEATURE_FXSR);
+	return static_cpu_has(X86_FEATURE_FXSR);
 }
 
 /*
@@ -224,18 +221,67 @@ static inline void copy_fxregs_to_kernel(struct fpu *fpu)
 #define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
 #define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
 
-/* xstate instruction fault handler: */
-#define xstate_fault(__err)		\
-					\
-	".section .fixup,\"ax\"\n"	\
-					\
-	"3:  movl $-2,%[_err]\n"	\
-	"    jmp  2b\n"			\
-					\
-	".previous\n"			\
-					\
-	_ASM_EXTABLE(1b, 3b)		\
-	: [_err] "=r" (__err)
+#define XSTATE_OP(op, st, lmask, hmask, err)				\
+	asm volatile("1:" op "\n\t"					\
+		     "xor %[err], %[err]\n"				\
+		     "2:\n\t"						\
+		     ".pushsection .fixup,\"ax\"\n\t"			\
+		     "3: movl $-2,%[err]\n\t"				\
+		     "jmp 2b\n\t"					\
+		     ".popsection\n\t"					\
+		     _ASM_EXTABLE(1b, 3b)				\
+		     : [err] "=r" (err)					\
+		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : "memory")
+
+/*
+ * If XSAVES is enabled, it replaces XSAVEOPT because it supports a compact
+ * format and supervisor states in addition to modified optimization in
+ * XSAVEOPT.
+ *
+ * Otherwise, if XSAVEOPT is enabled, XSAVEOPT replaces XSAVE because XSAVEOPT
+ * supports modified optimization which is not supported by XSAVE.
+ *
+ * We use XSAVE as a fallback.
+ *
+ * The 661 label is defined in the ALTERNATIVE* macros as the address of the
+ * original instruction which gets replaced. We need to use it here as the
+ * address of the instruction where we might get an exception at.
+ */
+#define XSTATE_XSAVE(st, lmask, hmask, err)				\
+	asm volatile(ALTERNATIVE_2(XSAVE,				\
+				   XSAVEOPT, X86_FEATURE_XSAVEOPT,	\
+				   XSAVES,   X86_FEATURE_XSAVES)	\
+		     "\n"						\
+		     "xor %[err], %[err]\n"				\
+		     "3:\n"						\
+		     ".pushsection .fixup,\"ax\"\n"			\
+		     "4: movl $-2, %[err]\n"				\
+		     "jmp 3b\n"						\
+		     ".popsection\n"					\
+		     _ASM_EXTABLE(661b, 4b)				\
+		     : [err] "=r" (err)					\
+		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : "memory")
+
+/*
+ * Use XRSTORS to restore context if it is enabled. XRSTORS supports compact
+ * XSAVE area format.
+ */
+#define XSTATE_XRESTORE(st, lmask, hmask, err)				\
+	asm volatile(ALTERNATIVE(XRSTOR,				\
+				 XRSTORS, X86_FEATURE_XSAVES)		\
+		     "\n"						\
+		     "xor %[err], %[err]\n"				\
+		     "3:\n"						\
+		     ".pushsection .fixup,\"ax\"\n"			\
+		     "4: movl $-2, %[err]\n"				\
+		     "jmp 3b\n"						\
+		     ".popsection\n"					\
+		     _ASM_EXTABLE(661b, 4b)				\
+		     : [err] "=r" (err)					\
+		     : "D" (st), "m" (*st), "a" (lmask), "d" (hmask)	\
+		     : "memory")
 
 /*
  * This function is called only during boot time when x86 caps are not set
@@ -246,22 +292,14 @@ static inline void copy_xregs_to_kernel_booting(struct xregs_state *xstate)
 	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		asm volatile("1:"XSAVES"\n\t"
-			"2:\n\t"
-			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
-			: "memory");
+	if (static_cpu_has(X86_FEATURE_XSAVES))
+		XSTATE_OP(XSAVES, xstate, lmask, hmask, err);
 	else
-		asm volatile("1:"XSAVE"\n\t"
-			"2:\n\t"
-			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
-			: "memory");
+		XSTATE_OP(XSAVE, xstate, lmask, hmask, err);
 
 	/* We should never fault when copying to a kernel buffer: */
 	WARN_ON_FPU(err);
@@ -276,22 +314,14 @@ static inline void copy_kernel_to_xregs_booting(struct xregs_state *xstate)
 	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		asm volatile("1:"XRSTORS"\n\t"
-			"2:\n\t"
-			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
-			: "memory");
+	if (static_cpu_has(X86_FEATURE_XSAVES))
+		XSTATE_OP(XRSTORS, xstate, lmask, hmask, err);
 	else
-		asm volatile("1:"XRSTOR"\n\t"
-			"2:\n\t"
-			     xstate_fault(err)
-			: "D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask), "0" (err)
-			: "memory");
+		XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
 
 	/* We should never fault when copying from a kernel buffer: */
 	WARN_ON_FPU(err);
@@ -305,33 +335,11 @@ static inline void copy_xregs_to_kernel(struct xregs_state *xstate)
 	u64 mask = -1;
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
 	WARN_ON(!alternatives_patched);
 
-	/*
-	 * If xsaves is enabled, xsaves replaces xsaveopt because
-	 * it supports compact format and supervisor states in addition to
-	 * modified optimization in xsaveopt.
-	 *
-	 * Otherwise, if xsaveopt is enabled, xsaveopt replaces xsave
-	 * because xsaveopt supports modified optimization which is not
-	 * supported by xsave.
-	 *
-	 * If none of xsaves and xsaveopt is enabled, use xsave.
-	 */
-	alternative_input_2(
-		"1:"XSAVE,
-		XSAVEOPT,
-		X86_FEATURE_XSAVEOPT,
-		XSAVES,
-		X86_FEATURE_XSAVES,
-		[xstate] "D" (xstate), "a" (lmask), "d" (hmask) :
-		"memory");
-	asm volatile("2:\n\t"
-		     xstate_fault(err)
-		     : "0" (err)
-		     : "memory");
+	XSTATE_XSAVE(xstate, lmask, hmask, err);
 
 	/* We should never fault when copying to a kernel buffer: */
 	WARN_ON_FPU(err);
@@ -344,23 +352,9 @@ static inline void copy_kernel_to_xregs(struct xregs_state *xstate, u64 mask)
 {
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
-	/*
-	 * Use xrstors to restore context if it is enabled. xrstors supports
-	 * compacted format of xsave area which is not supported by xrstor.
-	 */
-	alternative_input(
-		"1: " XRSTOR,
-		XRSTORS,
-		X86_FEATURE_XSAVES,
-		"D" (xstate), "m" (*xstate), "a" (lmask), "d" (hmask)
-		: "memory");
-
-	asm volatile("2:\n"
-		     xstate_fault(err)
-		     : "0" (err)
-		     : "memory");
+	XSTATE_XRESTORE(xstate, lmask, hmask, err);
 
 	/* We should never fault when copying from a kernel buffer: */
 	WARN_ON_FPU(err);
@@ -388,12 +382,10 @@ static inline int copy_xregs_to_user(struct xregs_state __user *buf)
 	if (unlikely(err))
 		return -EFAULT;
 
-	__asm__ __volatile__(ASM_STAC "\n"
-			     "1:"XSAVE"\n"
-			     "2: " ASM_CLAC "\n"
-			     xstate_fault(err)
-			     : "D" (buf), "a" (-1), "d" (-1), "0" (err)
-			     : "memory");
+	stac();
+	XSTATE_OP(XSAVE, buf, -1, -1, err);
+	clac();
+
 	return err;
 }
 
@@ -405,14 +397,12 @@ static inline int copy_user_to_xregs(struct xregs_state __user *buf, u64 mask)
 	struct xregs_state *xstate = ((__force struct xregs_state *)buf);
 	u32 lmask = mask;
 	u32 hmask = mask >> 32;
-	int err = 0;
+	int err;
 
-	__asm__ __volatile__(ASM_STAC "\n"
-			     "1:"XRSTOR"\n"
-			     "2: " ASM_CLAC "\n"
-			     xstate_fault(err)
-			     : "D" (xstate), "a" (lmask), "d" (hmask), "0" (err)
-			     : "memory");	/* memory required? */
+	stac();
+	XSTATE_OP(XRSTOR, xstate, lmask, hmask, err);
+	clac();
+
 	return err;
 }
 
@@ -466,7 +456,7 @@ static inline void copy_kernel_to_fpregs(union fpregs_state *fpstate)
 	 * pending. Clear the x87 state here by setting it to fixed values.
 	 * "m" is a random variable that should be in L1.
 	 */
-	if (unlikely(static_cpu_has_bug_safe(X86_BUG_FXSAVE_LEAK))) {
+	if (unlikely(static_cpu_has_bug(X86_BUG_FXSAVE_LEAK))) {
 		asm volatile(
 			"fnclex\n\t"
 			"emms\n\t"
@@ -503,24 +493,6 @@ static inline int fpu_want_lazy_restore(struct fpu *fpu, unsigned int cpu)
 }
 
 
-/*
- * Wrap lazy FPU TS handling in a 'hw fpregs activation/deactivation'
- * idiom, which is then paired with the sw-flag (fpregs_active) later on:
- */
-
-static inline void __fpregs_activate_hw(void)
-{
-	if (!use_eager_fpu())
-		clts();
-}
-
-static inline void __fpregs_deactivate_hw(void)
-{
-	if (!use_eager_fpu())
-		stts();
-}
-
-/* Must be paired with an 'stts' (fpregs_deactivate_hw()) after! */
 static inline void __fpregs_deactivate(struct fpu *fpu)
 {
 	WARN_ON_FPU(!fpu->fpregs_active);
@@ -529,7 +501,6 @@ static inline void __fpregs_deactivate(struct fpu *fpu)
 	this_cpu_write(fpu_fpregs_owner_ctx, NULL);
 }
 
-/* Must be paired with a 'clts' (fpregs_activate_hw()) before! */
 static inline void __fpregs_activate(struct fpu *fpu)
 {
 	WARN_ON_FPU(fpu->fpregs_active);
@@ -554,22 +525,17 @@ static inline int fpregs_active(void)
 }
 
 /*
- * Encapsulate the CR0.TS handling together with the
- * software flag.
- *
  * These generally need preemption protection to work,
  * do try to avoid using these on their own.
  */
 static inline void fpregs_activate(struct fpu *fpu)
 {
-	__fpregs_activate_hw();
 	__fpregs_activate(fpu);
 }
 
 static inline void fpregs_deactivate(struct fpu *fpu)
 {
 	__fpregs_deactivate(fpu);
-	__fpregs_deactivate_hw();
 }
 
 /*
@@ -595,8 +561,8 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 	 * If the task has used the math, pre-load the FPU on xsave processors
 	 * or if the past 5 consecutive context-switches used math.
 	 */
-	fpu.preload = new_fpu->fpstate_active &&
-		      (use_eager_fpu() || new_fpu->counter > 5);
+	fpu.preload = static_cpu_has(X86_FEATURE_FPU) &&
+		      new_fpu->fpstate_active;
 
 	if (old_fpu->fpregs_active) {
 		if (!copy_fpregs_to_fpstate(old_fpu))
@@ -609,17 +575,12 @@ switch_fpu_prepare(struct fpu *old_fpu, struct fpu *new_fpu, int cpu)
 
 		/* Don't change CR0.TS if we just switch! */
 		if (fpu.preload) {
-			new_fpu->counter++;
 			__fpregs_activate(new_fpu);
 			prefetch(&new_fpu->state);
-		} else {
-			__fpregs_deactivate_hw();
 		}
 	} else {
-		old_fpu->counter = 0;
 		old_fpu->last_cpu = -1;
 		if (fpu.preload) {
-			new_fpu->counter++;
 			if (fpu_want_lazy_restore(new_fpu, cpu))
 				fpu.preload = 0;
 			else

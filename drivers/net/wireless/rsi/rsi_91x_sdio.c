@@ -155,7 +155,6 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	int err;
 	struct mmc_card *card = pfunction->card;
 	struct mmc_host *host = card->host;
-	s32 bit = (fls(host->ocr_avail) - 1);
 	u8 cmd52_resp;
 	u32 clock, resp, i;
 	u16 rca;
@@ -175,7 +174,6 @@ static void rsi_reset_card(struct sdio_func *pfunction)
 	msleep(20);
 
 	/* Initialize the SDIO card */
-	host->ios.vdd = bit;
 	host->ios.chip_select = MMC_CS_DONTCARE;
 	host->ios.bus_mode = MMC_BUSMODE_OPENDRAIN;
 	host->ios.power_mode = MMC_POWER_UP;

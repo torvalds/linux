@@ -21,6 +21,7 @@
 #include <asm/setup.h>
 #include <asm/apic.h>
 #include <asm/param.h>
+#include <asm/tsc.h>
 
 /* CPU reference clock frequency: in KHz */
 #define FREQ_83		83200

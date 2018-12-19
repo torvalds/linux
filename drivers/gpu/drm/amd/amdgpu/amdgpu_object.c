@@ -492,6 +492,10 @@ void amdgpu_bo_force_delete(struct amdgpu_device *adev)
 
 int amdgpu_bo_init(struct amdgpu_device *adev)
 {
+	/* reserve PAT memory space to WC for VRAM */
+	arch_io_reserve_memtype_wc(adev->mc.aper_base,
+				   adev->mc.aper_size);
+
 	/* Add an MTRR for the VRAM */
 	adev->mc.vram_mtrr = arch_phys_wc_add(adev->mc.aper_base,
 					      adev->mc.aper_size);
@@ -507,6 +511,7 @@ void amdgpu_bo_fini(struct amdgpu_device *adev)
 {
 	amdgpu_ttm_fini(adev);
 	arch_phys_wc_del(adev->mc.vram_mtrr);
+	arch_io_free_memtype_wc(adev->mc.aper_base, adev->mc.aper_size);
 }
 
 int amdgpu_bo_fbdev_mmap(struct amdgpu_bo *bo,

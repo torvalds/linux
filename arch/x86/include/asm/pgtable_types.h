@@ -70,15 +70,15 @@
 /*
  * Tracking soft dirty bit when a page goes to a swap is tricky.
  * We need a bit which can be stored in pte _and_ not conflict
- * with swap entry format. On x86 bits 6 and 7 are *not* involved
- * into swap entry computation, but bit 6 is used for nonlinear
- * file mapping, so we borrow bit 7 for soft dirty tracking.
+ * with swap entry format. On x86 bits 1-4 are *not* involved
+ * into swap entry computation, but bit 7 is used for thp migration,
+ * so we borrow bit 1 for soft dirty tracking.
  *
  * Please note that this bit must be treated as swap dirty page
- * mark if and only if the PTE has present bit clear!
+ * mark if and only if the PTE/PMD has present bit clear!
  */
 #ifdef CONFIG_MEM_SOFT_DIRTY
-#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
+#define _PAGE_SWP_SOFT_DIRTY	_PAGE_RW
 #else
 #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
 #endif
@@ -89,7 +89,7 @@
 #define _PAGE_NX	(_AT(pteval_t, 0))
 #endif
 
-#define _PAGE_PROTNONE	(_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
+#define _PAGE_PROTNONE  (_AT(pteval_t, 1) << _PAGE_BIT_PROTNONE)
 
 #define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |	\
 			 _PAGE_ACCESSED | _PAGE_DIRTY)
@@ -101,6 +101,33 @@
 			 _PAGE_SPECIAL | _PAGE_ACCESSED | _PAGE_DIRTY |	\
 			 _PAGE_SOFT_DIRTY)
 #define _HPAGE_CHG_MASK (_PAGE_CHG_MASK | _PAGE_PSE)
+
+/* The ASID is the lower 12 bits of CR3 */
+#define X86_CR3_PCID_ASID_MASK  (_AC((1<<12)-1,UL))
+
+/* Mask for all the PCID-related bits in CR3: */
+#define X86_CR3_PCID_MASK       (X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_MASK)
+#define X86_CR3_PCID_ASID_KERN  (_AC(0x0,UL))
+
+#if defined(CONFIG_PAGE_TABLE_ISOLATION) && defined(CONFIG_X86_64)
+/* Let X86_CR3_PCID_ASID_USER be usable for the X86_CR3_PCID_NOFLUSH bit */
+#define X86_CR3_PCID_ASID_USER	(_AC(0x80,UL))
+
+#define X86_CR3_PCID_KERN_FLUSH		(X86_CR3_PCID_ASID_KERN)
+#define X86_CR3_PCID_USER_FLUSH		(X86_CR3_PCID_ASID_USER)
+#define X86_CR3_PCID_KERN_NOFLUSH	(X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_KERN)
+#define X86_CR3_PCID_USER_NOFLUSH	(X86_CR3_PCID_NOFLUSH | X86_CR3_PCID_ASID_USER)
+#else
+#define X86_CR3_PCID_ASID_USER  (_AC(0x0,UL))
+/*
+ * PCIDs are unsupported on 32-bit and none of these bits can be
+ * set in CR3:
+ */
+#define X86_CR3_PCID_KERN_FLUSH		(0)
+#define X86_CR3_PCID_USER_FLUSH		(0)
+#define X86_CR3_PCID_KERN_NOFLUSH	(0)
+#define X86_CR3_PCID_USER_NOFLUSH	(0)
+#endif
 
 /*
  * The cache modes defined here are used to translate between pure SW usage

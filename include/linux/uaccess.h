@@ -2,6 +2,9 @@
 #define __LINUX_UACCESS_H__
 
 #include <linux/sched.h>
+
+#define uaccess_kernel() segment_eq(get_fs(), KERNEL_DS)
+
 #include <asm/uaccess.h>
 
 static __always_inline void pagefault_disabled_inc(void)
