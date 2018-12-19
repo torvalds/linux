@@ -10,6 +10,7 @@
 #if !defined(_TRACE_RPCRDMA_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_RPCRDMA_H
 
+#include <linux/scatterlist.h>
 #include <linux/tracepoint.h>
 #include <trace/events/rdma.h>
 
@@ -663,11 +664,146 @@ DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_fastreg);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li);
 DEFINE_FRWR_DONE_EVENT(xprtrdma_wc_li_wake);
 
+TRACE_EVENT(xprtrdma_frwr_alloc,
+	TP_PROTO(
+		const struct rpcrdma_mr *mr,
+		int rc
+	),
+
+	TP_ARGS(mr, rc),
+
+	TP_STRUCT__entry(
+		__field(const void *, mr)
+		__field(int, rc)
+	),
+
+	TP_fast_assign(
+		__entry->mr = mr;
+		__entry->rc	= rc;
+	),
+
+	TP_printk("mr=%p: rc=%d",
+		__entry->mr, __entry->rc
+	)
+);
+
+TRACE_EVENT(xprtrdma_frwr_dereg,
+	TP_PROTO(
+		const struct rpcrdma_mr *mr,
+		int rc
+	),
+
+	TP_ARGS(mr, rc),
+
+	TP_STRUCT__entry(
+		__field(const void *, mr)
+		__field(u32, handle)
+		__field(u32, length)
+		__field(u64, offset)
+		__field(u32, dir)
+		__field(int, rc)
+	),
+
+	TP_fast_assign(
+		__entry->mr = mr;
+		__entry->handle = mr->mr_handle;
+		__entry->length = mr->mr_length;
+		__entry->offset = mr->mr_offset;
+		__entry->dir    = mr->mr_dir;
+		__entry->rc	= rc;
+	),
+
+	TP_printk("mr=%p %u@0x%016llx:0x%08x (%s): rc=%d",
+		__entry->mr, __entry->length,
+		(unsigned long long)__entry->offset, __entry->handle,
+		xprtrdma_show_direction(__entry->dir),
+		__entry->rc
+	)
+);
+
+TRACE_EVENT(xprtrdma_frwr_sgerr,
+	TP_PROTO(
+		const struct rpcrdma_mr *mr,
+		int sg_nents
+	),
+
+	TP_ARGS(mr, sg_nents),
+
+	TP_STRUCT__entry(
+		__field(const void *, mr)
+		__field(u64, addr)
+		__field(u32, dir)
+		__field(int, nents)
+	),
+
+	TP_fast_assign(
+		__entry->mr = mr;
+		__entry->addr = mr->mr_sg->dma_address;
+		__entry->dir = mr->mr_dir;
+		__entry->nents = sg_nents;
+	),
+
+	TP_printk("mr=%p dma addr=0x%llx (%s) sg_nents=%d",
+		__entry->mr, __entry->addr,
+		xprtrdma_show_direction(__entry->dir),
+		__entry->nents
+	)
+);
+
+TRACE_EVENT(xprtrdma_frwr_maperr,
+	TP_PROTO(
+		const struct rpcrdma_mr *mr,
+		int num_mapped
+	),
+
+	TP_ARGS(mr, num_mapped),
+
+	TP_STRUCT__entry(
+		__field(const void *, mr)
+		__field(u64, addr)
+		__field(u32, dir)
+		__field(int, num_mapped)
+		__field(int, nents)
+	),
+
+	TP_fast_assign(
+		__entry->mr = mr;
+		__entry->addr = mr->mr_sg->dma_address;
+		__entry->dir = mr->mr_dir;
+		__entry->num_mapped = num_mapped;
+		__entry->nents = mr->mr_nents;
+	),
+
+	TP_printk("mr=%p dma addr=0x%llx (%s) nents=%d of %d",
+		__entry->mr, __entry->addr,
+		xprtrdma_show_direction(__entry->dir),
+		__entry->num_mapped, __entry->nents
+	)
+);
+
 DEFINE_MR_EVENT(localinv);
 DEFINE_MR_EVENT(map);
 DEFINE_MR_EVENT(unmap);
 DEFINE_MR_EVENT(remoteinv);
 DEFINE_MR_EVENT(recycle);
+
+TRACE_EVENT(xprtrdma_dma_maperr,
+	TP_PROTO(
+		u64 addr
+	),
+
+	TP_ARGS(addr),
+
+	TP_STRUCT__entry(
+		__field(u64, addr)
+	),
+
+	TP_fast_assign(
+		__entry->addr = addr;
+	),
+
+	TP_printk("dma addr=0x%llx\n", __entry->addr)
+);
 
 /**
  ** Reply events

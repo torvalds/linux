@@ -665,7 +665,7 @@ out_mapping_overflow:
 
 out_mapping_err:
 	rpcrdma_unmap_sendctx(sc);
-	pr_err("rpcrdma: Send mapping error\n");
+	trace_xprtrdma_dma_maperr(sge[sge_no].addr);
 	return false;
 }
 
