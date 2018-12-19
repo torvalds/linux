@@ -387,6 +387,11 @@
 			hpd-gpio = <&tlmm_pinmux 72 GPIO_ACTIVE_HIGH>;
 
 			ports {
+				port@0 {
+					endpoint {
+						remote-endpoint = <&mdp_dtv_out>;
+					};
+				};
 				port@1 {
 					endpoint {
 						remote-endpoint = <&hdmi_con>;

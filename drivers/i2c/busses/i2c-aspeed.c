@@ -555,7 +555,7 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 	spin_lock(&bus->lock);
 
 #if IS_ENABLED(CONFIG_I2C_SLAVE)
-	if (aspeed_i2c_slave_irq(bus)) {
+	if (IS_ENABLED(CONFIG_I2C_SLAVE) && aspeed_i2c_slave_irq(bus)) {
 		dev_dbg(bus->dev, "irq handled by slave.\n");
 		ret = true;
 		goto out;
@@ -564,7 +564,9 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 
 	ret = aspeed_i2c_master_irq(bus);
 
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
 out:
+#endif
 	spin_unlock(&bus->lock);
 	return ret ? IRQ_HANDLED : IRQ_NONE;
 }

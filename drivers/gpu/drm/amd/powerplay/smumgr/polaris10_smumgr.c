@@ -1984,6 +1984,12 @@ int polaris10_thermal_avfs_enable(struct pp_hwmgr *hwmgr)
 
 	smum_send_msg_to_smc(hwmgr, PPSMC_MSG_EnableAvfs);
 
+	/* Apply avfs cks-off voltages to avoid the overshoot
+	 * when switching to the highest sclk frequency
+	 */
+	if (data->apply_avfs_cks_off_voltage)
+		smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ApplyAvfsCksOffVoltage);
+
 	return 0;
 }
 
