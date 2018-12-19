@@ -87,6 +87,8 @@
 #define MX3_PWMPR_MAX			0xfffe
 
 struct imx_chip {
+	struct clk	*clk_ipg;
+
 	struct clk	*clk_per;
 
 	void __iomem	*mmio_base;
@@ -96,6 +98,32 @@ struct imx_chip {
 
 #define to_imx_chip(chip)	container_of(chip, struct imx_chip, chip)
 
+static int imx_pwm_clk_prepare_enable(struct pwm_chip *chip)
+{
+	struct imx_chip *imx = to_imx_chip(chip);
+	int ret;
+
+	ret = clk_prepare_enable(imx->clk_ipg);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(imx->clk_per);
+	if (ret) {
+		clk_disable_unprepare(imx->clk_ipg);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void imx_pwm_clk_disable_unprepare(struct pwm_chip *chip)
+{
+	struct imx_chip *imx = to_imx_chip(chip);
+
+	clk_disable_unprepare(imx->clk_per);
+	clk_disable_unprepare(imx->clk_ipg);
+}
+
 static void imx_pwm_get_state(struct pwm_chip *chip,
 		struct pwm_device *pwm, struct pwm_state *state)
 {
@@ -103,11 +131,15 @@ static void imx_pwm_get_state(struct pwm_chip *chip,
 	u32 period, prescaler, pwm_clk, ret, val;
 	u64 tmp;
 
+	ret = imx_pwm_clk_prepare_enable(chip);
+	if (ret < 0)
+		return;
+
 	val = readl(imx->mmio_base + MX3_PWMCR);
 
 	if (val & MX3_PWMCR_EN) {
 		state->enabled = true;
-		ret = clk_prepare_enable(imx->clk_per);
+		ret = imx_pwm_clk_prepare_enable(chip);
 		if (ret)
 			return;
 	} else {
@@ -143,6 +175,8 @@ static void imx_pwm_get_state(struct pwm_chip *chip,
 	} else {
 		state->duty_cycle = 0;
 	}
+
+	imx_pwm_clk_disable_unprepare(chip);
 }
 
 static int imx_pwm_config_v1(struct pwm_chip *chip,
@@ -180,7 +214,7 @@ static int imx_pwm_enable_v1(struct pwm_chip *chip, struct pwm_device *pwm)
 	u32 val;
 	int ret;
 
-	ret = clk_prepare_enable(imx->clk_per);
+	ret = imx_pwm_clk_prepare_enable(chip);
 	if (ret < 0)
 		return ret;
 
@@ -200,7 +234,7 @@ static void imx_pwm_disable_v1(struct pwm_chip *chip, struct pwm_device *pwm)
 	val &= ~MX1_PWMC_EN;
 	writel(val, imx->mmio_base + MX1_PWMC);
 
-	clk_disable_unprepare(imx->clk_per);
+	imx_pwm_clk_disable_unprepare(chip);
 }
 
 static void imx_pwm_sw_reset(struct pwm_chip *chip)
@@ -286,7 +320,7 @@ static int imx_pwm_apply_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 		if (cstate.enabled) {
 			imx_pwm_wait_fifo_slot(chip, pwm);
 		} else {
-			ret = clk_prepare_enable(imx->clk_per);
+			ret = imx_pwm_clk_prepare_enable(chip);
 			if (ret)
 				return ret;
 
@@ -309,7 +343,7 @@ static int imx_pwm_apply_v2(struct pwm_chip *chip, struct pwm_device *pwm,
 	} else if (cstate.enabled) {
 		writel(0, imx->mmio_base + MX3_PWMCR);
 
-		clk_disable_unprepare(imx->clk_per);
+		imx_pwm_clk_disable_unprepare(chip);
 	}
 
 	return 0;
@@ -367,6 +401,13 @@ static int imx_pwm_probe(struct platform_device *pdev)
 	if (imx == NULL)
 		return -ENOMEM;
 
+	imx->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
+	if (IS_ERR(imx->clk_ipg)) {
+		dev_err(&pdev->dev, "getting ipg clock failed with %ld\n",
+				PTR_ERR(imx->clk_ipg));
+		return PTR_ERR(imx->clk_ipg);
+	}
+
 	imx->clk_per = devm_clk_get(&pdev->dev, "per");
 	if (IS_ERR(imx->clk_per)) {
 		dev_err(&pdev->dev, "getting per clock failed with %ld\n",
@@ -405,6 +446,8 @@ static int imx_pwm_remove(struct platform_device *pdev)
 	imx = platform_get_drvdata(pdev);
 	if (imx == NULL)
 		return -ENODEV;
+
+	imx_pwm_clk_disable_unprepare(&imx->chip);
 
 	return pwmchip_remove(&imx->chip);
 }
