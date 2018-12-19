@@ -1132,6 +1132,8 @@ int pnv_npu2_handle_fault(struct npu_context *context, uintptr_t *ea,
 	u64 rc = 0, result = 0;
 	int i, is_write;
 	struct page *page[1];
+	const char __user *u;
+	char c;
 
 	/* mmap_sem should be held so the struct_mm must be present */
 	struct mm_struct *mm = context->mm;
@@ -1144,17 +1146,16 @@ int pnv_npu2_handle_fault(struct npu_context *context, uintptr_t *ea,
 					is_write ? FOLL_WRITE : 0,
 					page, NULL, NULL);
 
-		/*
-		 * To support virtualised environments we will have to do an
-		 * access to the page to ensure it gets faulted into the
-		 * hypervisor. For the moment virtualisation is not supported in
-		 * other areas so leave the access out.
-		 */
 		if (rc != 1) {
 			status[i] = rc;
 			result = -EFAULT;
 			continue;
 		}
+
+		/* Make sure partition scoped tree gets a pte */
+		u = page_address(page[0]);
+		if (__get_user(c, u))
+			result = -EFAULT;
 
 		status[i] = 0;
 		put_page(page[0]);
