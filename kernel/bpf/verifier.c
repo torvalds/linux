@@ -4980,6 +4980,14 @@ static int check_btf_line(struct bpf_verifier_env *env,
 			goto err_free;
 		}
 
+		if (!prog->insnsi[linfo[i].insn_off].code) {
+			verbose(env,
+				"Invalid insn code at line_info[%u].insn_off\n",
+				i);
+			err = -EINVAL;
+			goto err_free;
+		}
+
 		if (!btf_name_by_offset(btf, linfo[i].line_off) ||
 		    !btf_name_by_offset(btf, linfo[i].file_name_off)) {
 			verbose(env, "Invalid line_info[%u].line_off or .file_name_off\n", i);
