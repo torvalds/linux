@@ -55,6 +55,7 @@ struct mac_esp_priv {
 	int error;
 };
 static struct esp *esp_chips[2];
+static DEFINE_SPINLOCK(esp_chips_lock);
 
 #define MAC_ESP_GET_PRIV(esp) ((struct mac_esp_priv *) \
 			       platform_get_drvdata((struct platform_device *) \
@@ -425,6 +426,8 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
 	}
+
+	esp->send_cmd_residual = esp_count;
 }
 
 static int mac_esp_irq_pending(struct esp *esp)
@@ -562,15 +565,18 @@ static int esp_mac_probe(struct platform_device *dev)
 	}
 
 	host->irq = IRQ_MAC_SCSI;
-	esp_chips[dev->id] = esp;
-	mb();
-	if (esp_chips[!dev->id] == NULL) {
-		err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
-		if (err < 0) {
-			esp_chips[dev->id] = NULL;
-			goto fail_free_priv;
-		}
+
+	/* The request_irq() call is intended to succeed for the first device
+	 * and fail for the second device.
+	 */
+	err = request_irq(host->irq, mac_scsi_esp_intr, 0, "ESP", NULL);
+	spin_lock(&esp_chips_lock);
+	if (err < 0 && esp_chips[!dev->id] == NULL) {
+		spin_unlock(&esp_chips_lock);
+		goto fail_free_priv;
 	}
+	esp_chips[dev->id] = esp;
+	spin_unlock(&esp_chips_lock);
 
 	err = scsi_esp_register(esp, &dev->dev);
 	if (err)
@@ -579,8 +585,13 @@ static int esp_mac_probe(struct platform_device *dev)
 	return 0;
 
 fail_free_irq:
-	if (esp_chips[!dev->id] == NULL)
+	spin_lock(&esp_chips_lock);
+	esp_chips[dev->id] = NULL;
+	if (esp_chips[!dev->id] == NULL) {
+		spin_unlock(&esp_chips_lock);
 		free_irq(host->irq, esp);
+	} else
+		spin_unlock(&esp_chips_lock);
 fail_free_priv:
 	kfree(mep);
 fail_free_command_block:
@@ -599,9 +610,13 @@ static int esp_mac_remove(struct platform_device *dev)
 
 	scsi_esp_unregister(esp);
 
+	spin_lock(&esp_chips_lock);
 	esp_chips[dev->id] = NULL;
-	if (!(esp_chips[0] || esp_chips[1]))
+	if (esp_chips[!dev->id] == NULL) {
+		spin_unlock(&esp_chips_lock);
 		free_irq(irq, NULL);
+	} else
+		spin_unlock(&esp_chips_lock);
 
 	kfree(mep);
 

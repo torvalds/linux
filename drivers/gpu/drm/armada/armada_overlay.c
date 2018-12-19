@@ -27,6 +27,7 @@ struct armada_ovl_plane_properties {
 	uint16_t contrast;
 	uint16_t saturation;
 	uint32_t colorkey_mode;
+	uint32_t colorkey_enable;
 };
 
 struct armada_ovl_plane {
@@ -62,11 +63,13 @@ armada_ovl_update_attr(struct armada_ovl_plane_properties *prop,
 	writel_relaxed(0x00002000, dcrtc->base + LCD_SPU_CBSH_HUE);
 
 	spin_lock_irq(&dcrtc->irq_lock);
-	armada_updatel(prop->colorkey_mode | CFG_ALPHAM_GRA,
-		     CFG_CKMODE_MASK | CFG_ALPHAM_MASK | CFG_ALPHA_MASK,
-		     dcrtc->base + LCD_SPU_DMA_CTRL1);
-
-	armada_updatel(ADV_GRACOLORKEY, 0, dcrtc->base + LCD_SPU_ADV_REG);
+	armada_updatel(prop->colorkey_mode,
+		       CFG_CKMODE_MASK | CFG_ALPHAM_MASK | CFG_ALPHA_MASK,
+		       dcrtc->base + LCD_SPU_DMA_CTRL1);
+	if (dcrtc->variant->has_spu_adv_reg)
+		armada_updatel(prop->colorkey_enable,
+			       ADV_GRACOLORKEY | ADV_VIDCOLORKEY,
+			       dcrtc->base + LCD_SPU_ADV_REG);
 	spin_unlock_irq(&dcrtc->irq_lock);
 }
 
@@ -339,8 +342,17 @@ static int armada_ovl_plane_set_property(struct drm_plane *plane,
 		dplane->prop.colorkey_vb |= K2B(val);
 		update_attr = true;
 	} else if (property == priv->colorkey_mode_prop) {
-		dplane->prop.colorkey_mode &= ~CFG_CKMODE_MASK;
-		dplane->prop.colorkey_mode |= CFG_CKMODE(val);
+		if (val == CKMODE_DISABLE) {
+			dplane->prop.colorkey_mode =
+				CFG_CKMODE(CKMODE_DISABLE) |
+				CFG_ALPHAM_CFG | CFG_ALPHA(255);
+			dplane->prop.colorkey_enable = 0;
+		} else {
+			dplane->prop.colorkey_mode =
+				CFG_CKMODE(val) |
+				CFG_ALPHAM_GRA | CFG_ALPHA(0);
+			dplane->prop.colorkey_enable = ADV_GRACOLORKEY;
+		}
 		update_attr = true;
 	} else if (property == priv->brightness_prop) {
 		dplane->prop.brightness = val - 256;
@@ -469,7 +481,9 @@ int armada_overlay_plane_create(struct drm_device *dev, unsigned long crtcs)
 	dplane->prop.colorkey_yr = 0xfefefe00;
 	dplane->prop.colorkey_ug = 0x01010100;
 	dplane->prop.colorkey_vb = 0x01010100;
-	dplane->prop.colorkey_mode = CFG_CKMODE(CKMODE_RGB);
+	dplane->prop.colorkey_mode = CFG_CKMODE(CKMODE_RGB) |
+				     CFG_ALPHAM_GRA | CFG_ALPHA(0);
+	dplane->prop.colorkey_enable = ADV_GRACOLORKEY;
 	dplane->prop.brightness = 0;
 	dplane->prop.contrast = 0x4000;
 	dplane->prop.saturation = 0x4000;

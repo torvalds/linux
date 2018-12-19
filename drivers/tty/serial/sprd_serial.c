@@ -731,8 +731,8 @@ static int sprd_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "not provide irq resource\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "not provide irq resource: %d\n", irq);
+		return irq;
 	}
 	up->irq = irq;
 

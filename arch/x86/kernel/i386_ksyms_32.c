@@ -42,3 +42,5 @@ EXPORT_SYMBOL(empty_zero_page);
 EXPORT_SYMBOL(___preempt_schedule);
 EXPORT_SYMBOL(___preempt_schedule_notrace);
 #endif
+
+EXPORT_SYMBOL(__sw_hweight32);

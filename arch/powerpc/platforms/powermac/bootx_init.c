@@ -467,7 +467,7 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	boot_infos_t *bi = (boot_infos_t *) r4;
 	unsigned long hdr;
 	unsigned long space;
-	unsigned long ptr, x;
+	unsigned long ptr;
 	char *model;
 	unsigned long offset = reloc_offset();
 
@@ -561,6 +561,8 @@ void __init bootx_init(unsigned long r3, unsigned long r4)
 	 * MMU switched OFF, so this should not be useful anymore.
 	 */
 	if (bi->version < 4) {
+		unsigned long x __maybe_unused;
+
 		bootx_printf("Touching pages...\n");
 
 		/*

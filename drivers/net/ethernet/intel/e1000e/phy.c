@@ -1744,6 +1744,7 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 	s32 ret_val = 0;
 	u16 i, phy_status;
 
+	*success = false;
 	for (i = 0; i < iterations; i++) {
 		/* Some PHYs require the MII_BMSR register to be read
 		 * twice due to the link bit being sticky.  No harm doing
@@ -1763,15 +1764,15 @@ s32 e1000e_phy_has_link_generic(struct e1000_hw *hw, u32 iterations,
 		ret_val = e1e_rphy(hw, MII_BMSR, &phy_status);
 		if (ret_val)
 			break;
-		if (phy_status & BMSR_LSTATUS)
+		if (phy_status & BMSR_LSTATUS) {
+			*success = true;
 			break;
+		}
 		if (usec_interval >= 1000)
 			msleep(usec_interval / 1000);
 		else
 			udelay(usec_interval);
 	}
-
-	*success = (i < iterations);
 
 	return ret_val;
 }

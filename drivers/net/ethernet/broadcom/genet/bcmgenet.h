@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -185,6 +185,9 @@ struct bcmgenet_mib_counters {
 #define UMAC_MAC1			0x010
 #define UMAC_MAX_FRAME_LEN		0x014
 
+#define UMAC_MODE			0x44
+#define  MODE_LINK_STATUS		(1 << 5)
+
 #define UMAC_EEE_CTRL			0x064
 #define  EN_LPI_RX_PAUSE		(1 << 0)
 #define  EN_LPI_TX_PFC			(1 << 1)
@@ -214,7 +217,9 @@ struct bcmgenet_mib_counters {
 #define  MDIO_REG_SHIFT			16
 #define  MDIO_REG_MASK			0x1F
 
-#define UMAC_RBUF_OVFL_CNT		0x61C
+#define UMAC_RBUF_OVFL_CNT_V1		0x61C
+#define RBUF_OVFL_CNT_V2		0x80
+#define RBUF_OVFL_CNT_V3PLUS		0x94
 
 #define UMAC_MPD_CTRL			0x620
 #define  MPD_EN				(1 << 0)
@@ -224,7 +229,9 @@ struct bcmgenet_mib_counters {
 
 #define UMAC_MPD_PW_MS			0x624
 #define UMAC_MPD_PW_LS			0x628
-#define UMAC_RBUF_ERR_CNT		0x634
+#define UMAC_RBUF_ERR_CNT_V1		0x634
+#define RBUF_ERR_CNT_V2			0x84
+#define RBUF_ERR_CNT_V3PLUS		0x98
 #define UMAC_MDF_ERR_CNT		0x638
 #define UMAC_MDF_CTRL			0x650
 #define UMAC_MDF_ADDR			0x654

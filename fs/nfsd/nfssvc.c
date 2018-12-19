@@ -151,7 +151,8 @@ int nfsd_vers(int vers, enum vers_op change)
 
 int nfsd_minorversion(u32 minorversion, enum vers_op change)
 {
-	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+	if (minorversion > NFSD_SUPPORTED_MINOR_VERSION &&
+	    change != NFSD_AVAIL)
 		return -1;
 	switch(change) {
 	case NFSD_SET:
@@ -329,23 +330,20 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 
 void nfsd_reset_versions(void)
 {
-	int found_one = 0;
 	int i;
 
-	for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++) {
-		if (nfsd_program.pg_vers[i])
-			found_one = 1;
-	}
+	for (i = 0; i < NFSD_NRVERS; i++)
+		if (nfsd_vers(i, NFSD_TEST))
+			return;
 
-	if (!found_one) {
-		for (i = NFSD_MINVERS; i < NFSD_NRVERS; i++)
-			nfsd_program.pg_vers[i] = nfsd_version[i];
-#if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
-		for (i = NFSD_ACL_MINVERS; i < NFSD_ACL_NRVERS; i++)
-			nfsd_acl_program.pg_vers[i] =
-				nfsd_acl_version[i];
-#endif
-	}
+	for (i = 0; i < NFSD_NRVERS; i++)
+		if (i != 4)
+			nfsd_vers(i, NFSD_SET);
+		else {
+			int minor = 0;
+			while (nfsd_minorversion(minor, NFSD_SET) >= 0)
+				minor++;
+		}
 }
 
 /*

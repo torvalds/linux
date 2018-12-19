@@ -85,13 +85,13 @@ wait:
 	return status;
 }
 
-static void alarm_handler(int signum)
+static void sig_handler(int signum)
 {
-	/* Jut wake us up from waitpid */
+	/* Just wake us up from waitpid */
 }
 
-static struct sigaction alarm_action = {
-	.sa_handler = alarm_handler,
+static struct sigaction sig_action = {
+	.sa_handler = sig_handler,
 };
 
 int test_harness(int (test_function)(void), char *name)
@@ -101,17 +101,25 @@ int test_harness(int (test_function)(void), char *name)
 	test_start(name);
 	test_set_git_version(GIT_VERSION);
 
-	if (sigaction(SIGALRM, &alarm_action, NULL)) {
-		perror("sigaction");
+	if (sigaction(SIGINT, &sig_action, NULL)) {
+		perror("sigaction (sigint)");
+		test_error(name);
+		return 1;
+	}
+
+	if (sigaction(SIGALRM, &sig_action, NULL)) {
+		perror("sigaction (sigalrm)");
 		test_error(name);
 		return 1;
 	}
 
 	rc = run_test(test_function, name);
 
-	if (rc == MAGIC_SKIP_RETURN_VALUE)
+	if (rc == MAGIC_SKIP_RETURN_VALUE) {
 		test_skip(name);
-	else
+		/* so that skipped test is not marked as failed */
+		rc = 0;
+	} else
 		test_finish(name, rc);
 
 	return rc;

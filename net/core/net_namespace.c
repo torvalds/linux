@@ -261,7 +261,7 @@ struct net *get_net_ns_by_id(struct net *net, int id)
 	spin_lock_irqsave(&net->nsid_lock, flags);
 	peer = idr_find(&net->netns_ids, id);
 	if (peer)
-		get_net(peer);
+		peer = maybe_get_net(peer);
 	spin_unlock_irqrestore(&net->nsid_lock, flags);
 	rcu_read_unlock();
 
@@ -310,6 +310,25 @@ out_undo:
 	goto out;
 }
 
+static int __net_init net_defaults_init_net(struct net *net)
+{
+	net->core.sysctl_somaxconn = SOMAXCONN;
+	return 0;
+}
+
+static struct pernet_operations net_defaults_ops = {
+	.init = net_defaults_init_net,
+};
+
+static __init int net_defaults_init(void)
+{
+	if (register_pernet_subsys(&net_defaults_ops))
+		panic("Cannot initialize net default settings");
+
+	return 0;
+}
+
+core_initcall(net_defaults_init);
 
 #ifdef CONFIG_NET_NS
 static struct kmem_cache *net_cachep;

@@ -116,8 +116,8 @@ static int host1x_probe(struct platform_device *pdev)
 
 	syncpt_irq = platform_get_irq(pdev, 0);
 	if (syncpt_irq < 0) {
-		dev_err(&pdev->dev, "failed to get IRQ\n");
-		return -ENXIO;
+		dev_err(&pdev->dev, "failed to get IRQ: %d\n", syncpt_irq);
+		return syncpt_irq;
 	}
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);

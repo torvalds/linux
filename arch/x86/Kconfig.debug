@@ -367,16 +367,6 @@ config DEBUG_IMR_SELFTEST
 
 	  If unsure say N here.
 
-config X86_DEBUG_STATIC_CPU_HAS
-	bool "Debug alternatives"
-	depends on DEBUG_KERNEL
-	---help---
-	  This option causes additional code to be generated which
-	  fails if static_cpu_has() is used before alternatives have
-	  run.
-
-	  If unsure, say N.
-
 config X86_DEBUG_FPU
 	bool "Debug the x86 FPU code"
 	depends on DEBUG_KERNEL
@@ -391,6 +381,7 @@ config X86_DEBUG_FPU
 
 config PUNIT_ATOM_DEBUG
 	tristate "ATOM Punit debug driver"
+	depends on PCI
 	select DEBUG_FS
 	select IOSF_MBI
 	---help---

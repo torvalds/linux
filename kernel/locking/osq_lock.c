@@ -104,6 +104,19 @@ bool osq_lock(struct optimistic_spin_queue *lock)
 
 	prev = decode_cpu(old);
 	node->prev = prev;
+
+	/*
+	 * osq_lock()			unqueue
+	 *
+	 * node->prev = prev		osq_wait_next()
+	 * WMB				MB
+	 * prev->next = node		next->prev = prev // unqueue-C
+	 *
+	 * Here 'node->prev' and 'next->prev' are the same variable and we need
+	 * to ensure these stores happen in-order to avoid corrupting the list.
+	 */
+	smp_wmb();
+
 	WRITE_ONCE(prev->next, node);
 
 	/*

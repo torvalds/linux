@@ -409,6 +409,7 @@ static void start_event_fetch(struct ssif_info *ssif_info, unsigned long *flags)
 	msg = ipmi_alloc_smi_msg();
 	if (!msg) {
 		ssif_info->ssif_state = SSIF_NORMAL;
+		ipmi_ssif_unlock_cond(ssif_info, flags);
 		return;
 	}
 
@@ -431,6 +432,7 @@ static void start_recv_msg_fetch(struct ssif_info *ssif_info,
 	msg = ipmi_alloc_smi_msg();
 	if (!msg) {
 		ssif_info->ssif_state = SSIF_NORMAL;
+		ipmi_ssif_unlock_cond(ssif_info, flags);
 		return;
 	}
 
@@ -611,8 +613,9 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			flags = ipmi_ssif_lock_cond(ssif_info, &oflags);
 			ssif_info->waiting_alert = true;
 			ssif_info->rtc_us_timer = SSIF_MSG_USEC;
-			mod_timer(&ssif_info->retry_timer,
-				  jiffies + SSIF_MSG_JIFFIES);
+			if (!ssif_info->stopping)
+				mod_timer(&ssif_info->retry_timer,
+					  jiffies + SSIF_MSG_JIFFIES);
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 			return;
 		}
@@ -755,7 +758,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 			ssif_info->ssif_state = SSIF_NORMAL;
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 			pr_warn(PFX "Error getting flags: %d %d, %x\n",
-			       result, len, data[2]);
+			       result, len, (len >= 3) ? data[2] : 0);
 		} else if (data[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || data[1] != IPMI_GET_MSG_FLAGS_CMD) {
 			/*
@@ -777,7 +780,7 @@ static void msg_done_handler(struct ssif_info *ssif_info, int result,
 		if ((result < 0) || (len < 3) || (data[2] != 0)) {
 			/* Error clearing flags */
 			pr_warn(PFX "Error clearing flags: %d %d, %x\n",
-			       result, len, data[2]);
+			       result, len, (len >= 3) ? data[2] : 0);
 		} else if (data[0] != (IPMI_NETFN_APP_REQUEST | 1) << 2
 			   || data[1] != IPMI_CLEAR_MSG_FLAGS_CMD) {
 			pr_warn(PFX "Invalid response clearing flags: %x %x\n",
@@ -949,8 +952,9 @@ static void msg_written_handler(struct ssif_info *ssif_info, int result,
 			ssif_info->waiting_alert = true;
 			ssif_info->retries_left = SSIF_RECV_RETRIES;
 			ssif_info->rtc_us_timer = SSIF_MSG_PART_USEC;
-			mod_timer(&ssif_info->retry_timer,
-				  jiffies + SSIF_MSG_PART_JIFFIES);
+			if (!ssif_info->stopping)
+				mod_timer(&ssif_info->retry_timer,
+					  jiffies + SSIF_MSG_PART_JIFFIES);
 			ipmi_ssif_unlock_cond(ssif_info, flags);
 		}
 	}

@@ -752,6 +752,62 @@ static int __init init_pci_cap_pcix_perm(struct perm_bits *perm)
 	return 0;
 }
 
+static int vfio_exp_config_write(struct vfio_pci_device *vdev, int pos,
+				 int count, struct perm_bits *perm,
+				 int offset, __le32 val)
+{
+	__le16 *ctrl = (__le16 *)(vdev->vconfig + pos -
+				  offset + PCI_EXP_DEVCTL);
+	int readrq = le16_to_cpu(*ctrl) & PCI_EXP_DEVCTL_READRQ;
+
+	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
+	if (count < 0)
+		return count;
+
+	/*
+	 * The FLR bit is virtualized, if set and the device supports PCIe
+	 * FLR, issue a reset_function.  Regardless, clear the bit, the spec
+	 * requires it to be always read as zero.  NB, reset_function might
+	 * not use a PCIe FLR, we don't have that level of granularity.
+	 */
+	if (*ctrl & cpu_to_le16(PCI_EXP_DEVCTL_BCR_FLR)) {
+		u32 cap;
+		int ret;
+
+		*ctrl &= ~cpu_to_le16(PCI_EXP_DEVCTL_BCR_FLR);
+
+		ret = pci_user_read_config_dword(vdev->pdev,
+						 pos - offset + PCI_EXP_DEVCAP,
+						 &cap);
+
+		if (!ret && (cap & PCI_EXP_DEVCAP_FLR))
+			pci_try_reset_function(vdev->pdev);
+	}
+
+	/*
+	 * MPS is virtualized to the user, writes do not change the physical
+	 * register since determining a proper MPS value requires a system wide
+	 * device view.  The MRRS is largely independent of MPS, but since the
+	 * user does not have that system-wide view, they might set a safe, but
+	 * inefficiently low value.  Here we allow writes through to hardware,
+	 * but we set the floor to the physical device MPS setting, so that
+	 * we can at least use full TLPs, as defined by the MPS value.
+	 *
+	 * NB, if any devices actually depend on an artificially low MRRS
+	 * setting, this will need to be revisited, perhaps with a quirk
+	 * though pcie_set_readrq().
+	 */
+	if (readrq != (le16_to_cpu(*ctrl) & PCI_EXP_DEVCTL_READRQ)) {
+		readrq = 128 <<
+			((le16_to_cpu(*ctrl) & PCI_EXP_DEVCTL_READRQ) >> 12);
+		readrq = max(readrq, pcie_get_mps(vdev->pdev));
+
+		pcie_set_readrq(vdev->pdev, readrq);
+	}
+
+	return count;
+}
+
 /* Permissions for PCI Express capability */
 static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 {
@@ -759,16 +815,55 @@ static int __init init_pci_cap_exp_perm(struct perm_bits *perm)
 	if (alloc_perm_bits(perm, PCI_CAP_EXP_ENDPOINT_SIZEOF_V2))
 		return -ENOMEM;
 
+	perm->writefn = vfio_exp_config_write;
+
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
 
 	/*
-	 * Allow writes to device control fields (includes FLR!)
-	 * but not to devctl_phantom which could confuse IOMMU
-	 * or to the ARI bit in devctl2 which is set at probe time
+	 * Allow writes to device control fields, except devctl_phantom,
+	 * which could confuse IOMMU, MPS, which can break communication
+	 * with other physical devices, and the ARI bit in devctl2, which
+	 * is set at probe time.  FLR and MRRS get virtualized via our
+	 * writefn.
 	 */
-	p_setw(perm, PCI_EXP_DEVCTL, NO_VIRT, ~PCI_EXP_DEVCTL_PHANTOM);
+	p_setw(perm, PCI_EXP_DEVCTL,
+	       PCI_EXP_DEVCTL_BCR_FLR | PCI_EXP_DEVCTL_PAYLOAD |
+	       PCI_EXP_DEVCTL_READRQ, ~PCI_EXP_DEVCTL_PHANTOM);
 	p_setw(perm, PCI_EXP_DEVCTL2, NO_VIRT, ~PCI_EXP_DEVCTL2_ARI);
 	return 0;
+}
+
+static int vfio_af_config_write(struct vfio_pci_device *vdev, int pos,
+				int count, struct perm_bits *perm,
+				int offset, __le32 val)
+{
+	u8 *ctrl = vdev->vconfig + pos - offset + PCI_AF_CTRL;
+
+	count = vfio_default_config_write(vdev, pos, count, perm, offset, val);
+	if (count < 0)
+		return count;
+
+	/*
+	 * The FLR bit is virtualized, if set and the device supports AF
+	 * FLR, issue a reset_function.  Regardless, clear the bit, the spec
+	 * requires it to be always read as zero.  NB, reset_function might
+	 * not use an AF FLR, we don't have that level of granularity.
+	 */
+	if (*ctrl & PCI_AF_CTRL_FLR) {
+		u8 cap;
+		int ret;
+
+		*ctrl &= ~PCI_AF_CTRL_FLR;
+
+		ret = pci_user_read_config_byte(vdev->pdev,
+						pos - offset + PCI_AF_CAP,
+						&cap);
+
+		if (!ret && (cap & PCI_AF_CAP_FLR) && (cap & PCI_AF_CAP_TP))
+			pci_try_reset_function(vdev->pdev);
+	}
+
+	return count;
 }
 
 /* Permissions for Advanced Function capability */
@@ -777,8 +872,10 @@ static int __init init_pci_cap_af_perm(struct perm_bits *perm)
 	if (alloc_perm_bits(perm, pci_cap_length[PCI_CAP_ID_AF]))
 		return -ENOMEM;
 
+	perm->writefn = vfio_af_config_write;
+
 	p_setb(perm, PCI_CAP_LIST_NEXT, (u8)ALL_VIRT, NO_WRITE);
-	p_setb(perm, PCI_AF_CTRL, NO_VIRT, PCI_AF_CTRL_FLR);
+	p_setb(perm, PCI_AF_CTRL, PCI_AF_CTRL_FLR, PCI_AF_CTRL_FLR);
 	return 0;
 }
 

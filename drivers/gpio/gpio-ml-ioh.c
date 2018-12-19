@@ -495,9 +495,10 @@ err_irq_alloc_descs:
 
 	chip = chip_save;
 err_gpiochip_add:
+	chip = chip_save;
 	while (--i >= 0) {
-		chip--;
 		gpiochip_remove(&chip->gpio);
+		chip++;
 	}
 	kfree(chip_save);
 

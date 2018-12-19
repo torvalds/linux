@@ -17,6 +17,7 @@ config I7300_IDLE_IOAT_CHANNEL
 
 config I7300_IDLE
 	tristate "Intel chipset idle memory power saving driver"
+	depends on PCI
 	select I7300_IDLE_IOAT_CHANNEL
 	help
 	  Enable memory power savings when idle with certain Intel server

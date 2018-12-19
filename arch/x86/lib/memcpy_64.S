@@ -1,7 +1,7 @@
 /* Copyright 2002 Andi Kleen */
 
 #include <linux/linkage.h>
-#include <asm/cpufeature.h>
+#include <asm/cpufeatures.h>
 #include <asm/alternative-asm.h>
 
 /*

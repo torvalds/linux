@@ -726,6 +726,20 @@ void io_free_memtype(resource_size_t start, resource_size_t end)
 	free_memtype(start, end);
 }
 
+int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	enum page_cache_mode type = _PAGE_CACHE_MODE_WC;
+
+	return io_reserve_memtype(start, start + size, &type);
+}
+EXPORT_SYMBOL(arch_io_reserve_memtype_wc);
+
+void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size)
+{
+	io_free_memtype(start, start + size);
+}
+EXPORT_SYMBOL(arch_io_free_memtype_wc);
+
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
 {
@@ -750,11 +764,8 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 		return 1;
 
 	while (cursor < to) {
-		if (!devmem_is_allowed(pfn)) {
-			pr_info("x86/PAT: Program %s tried to access /dev/mem between [mem %#010Lx-%#010Lx], PAT prevents it\n",
-				current->comm, from, to - 1);
+		if (!devmem_is_allowed(pfn))
 			return 0;
-		}
 		cursor += PAGE_SIZE;
 		pfn++;
 	}

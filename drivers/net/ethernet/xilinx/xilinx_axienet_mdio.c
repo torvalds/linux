@@ -218,6 +218,7 @@ issue:
 	ret = of_mdiobus_register(bus, np1);
 	if (ret) {
 		mdiobus_free(bus);
+		lp->mii_bus = NULL;
 		return ret;
 	}
 	return 0;

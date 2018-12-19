@@ -289,7 +289,7 @@ static int sock_diag_bind(struct net *net, int group)
 	case SKNLGRP_INET6_UDP_DESTROY:
 		if (!sock_diag_handlers[AF_INET6])
 			request_module("net-pf-%d-proto-%d-type-%d", PF_NETLINK,
-				       NETLINK_SOCK_DIAG, AF_INET);
+				       NETLINK_SOCK_DIAG, AF_INET6);
 		break;
 	}
 	return 0;

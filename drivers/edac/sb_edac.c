@@ -1773,6 +1773,7 @@ static int ibridge_mci_bind_devs(struct mem_ctl_info *mci,
 			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_TA:
 			pvt->pci_ta = pdev;
+			break;
 		case PCI_DEVICE_ID_INTEL_IBRIDGE_IMC_HA0_RAS:
 			pvt->pci_ras = pdev;
 			break;

@@ -31,6 +31,8 @@
 /* Maximum Secure memory storage size */
 #define OMAP_SECURE_RAM_STORAGE	(88 * SZ_1K)
 
+#define OMAP3_SAVE_SECURE_RAM_SZ	0x803F
+
 /* Secure low power HAL API index */
 #define OMAP4_HAL_SAVESECURERAM_INDEX	0x1a
 #define OMAP4_HAL_SAVEHW_INDEX		0x1b
@@ -64,6 +66,8 @@ extern u32 omap_smc2(u32 id, u32 falg, u32 pargs);
 extern u32 omap_smc3(u32 id, u32 process, u32 flag, u32 pargs);
 extern phys_addr_t omap_secure_ram_mempool_base(void);
 extern int omap_secure_ram_reserve_memblock(void);
+extern u32 save_secure_ram_context(u32 args_pa);
+extern u32 omap3_save_secure_ram(void __iomem *save_regs, int size);
 
 extern u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 				  u32 arg1, u32 arg2, u32 arg3, u32 arg4);

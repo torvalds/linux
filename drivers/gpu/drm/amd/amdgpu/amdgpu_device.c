@@ -1467,8 +1467,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	 * ignore it */
 	vga_client_register(adev->pdev, adev, NULL, amdgpu_vga_set_decode);
 
-	if (amdgpu_runtime_pm == 1)
-		runtime = true;
 	if (amdgpu_device_is_px(ddev))
 		runtime = true;
 	vga_switcheroo_register_client(adev->pdev, &amdgpu_switcheroo_ops, runtime);
@@ -1760,8 +1758,11 @@ int amdgpu_resume_kms(struct drm_device *dev, bool resume, bool fbcon)
 	}
 
 	r = amdgpu_late_init(adev);
-	if (r)
+	if (r) {
+		if (fbcon)
+			console_unlock();
 		return r;
+	}
 
 	/* pin cursors */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {

@@ -151,6 +151,7 @@ struct kvm_guest_debug_arch {
 #define KVM_SYNC_ARCH0  (1UL << 4)
 #define KVM_SYNC_PFAULT (1UL << 5)
 #define KVM_SYNC_VRS    (1UL << 6)
+#define KVM_SYNC_BPBC   (1UL << 10)
 /* definition of registers in kvm_run */
 struct kvm_sync_regs {
 	__u64 prefix;	/* prefix register */
@@ -168,6 +169,8 @@ struct kvm_sync_regs {
 	__u64 vrs[32][2];	/* vector registers */
 	__u8  reserved[512];	/* for future vector expansion */
 	__u32 fpc;	/* only valid with vector registers */
+	__u8 bpbc : 1;		/* bp mode */
+	__u8 reserved2 : 7;
 };
 
 #define KVM_REG_S390_TODPR	(KVM_REG_S390 | KVM_REG_SIZE_U32 | 0x1)

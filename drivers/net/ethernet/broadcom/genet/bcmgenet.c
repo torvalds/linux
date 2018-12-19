@@ -1,7 +1,7 @@
 /*
  * Broadcom GENET (Gigabit Ethernet) controller driver
  *
- * Copyright (c) 2014 Broadcom Corporation
+ * Copyright (c) 2014-2017 Broadcom
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -778,8 +778,9 @@ static const struct bcmgenet_stats bcmgenet_gstrings_stats[] = {
 	STAT_GENET_RUNT("rx_runt_bytes", mib.rx_runt_bytes),
 	/* Misc UniMAC counters */
 	STAT_GENET_MISC("rbuf_ovflow_cnt", mib.rbuf_ovflow_cnt,
-			UMAC_RBUF_OVFL_CNT),
-	STAT_GENET_MISC("rbuf_err_cnt", mib.rbuf_err_cnt, UMAC_RBUF_ERR_CNT),
+			UMAC_RBUF_OVFL_CNT_V1),
+	STAT_GENET_MISC("rbuf_err_cnt", mib.rbuf_err_cnt,
+			UMAC_RBUF_ERR_CNT_V1),
 	STAT_GENET_MISC("mdf_err_cnt", mib.mdf_err_cnt, UMAC_MDF_ERR_CNT),
 	STAT_GENET_SOFT_MIB("alloc_rx_buff_failed", mib.alloc_rx_buff_failed),
 	STAT_GENET_SOFT_MIB("rx_dma_failed", mib.rx_dma_failed),
@@ -821,6 +822,45 @@ static void bcmgenet_get_strings(struct net_device *dev, u32 stringset,
 	}
 }
 
+static u32 bcmgenet_update_stat_misc(struct bcmgenet_priv *priv, u16 offset)
+{
+	u16 new_offset;
+	u32 val;
+
+	switch (offset) {
+	case UMAC_RBUF_OVFL_CNT_V1:
+		if (GENET_IS_V2(priv))
+			new_offset = RBUF_OVFL_CNT_V2;
+		else
+			new_offset = RBUF_OVFL_CNT_V3PLUS;
+
+		val = bcmgenet_rbuf_readl(priv,	new_offset);
+		/* clear if overflowed */
+		if (val == ~0)
+			bcmgenet_rbuf_writel(priv, 0, new_offset);
+		break;
+	case UMAC_RBUF_ERR_CNT_V1:
+		if (GENET_IS_V2(priv))
+			new_offset = RBUF_ERR_CNT_V2;
+		else
+			new_offset = RBUF_ERR_CNT_V3PLUS;
+
+		val = bcmgenet_rbuf_readl(priv,	new_offset);
+		/* clear if overflowed */
+		if (val == ~0)
+			bcmgenet_rbuf_writel(priv, 0, new_offset);
+		break;
+	default:
+		val = bcmgenet_umac_readl(priv, offset);
+		/* clear if overflowed */
+		if (val == ~0)
+			bcmgenet_umac_writel(priv, 0, offset);
+		break;
+	}
+
+	return val;
+}
+
 static void bcmgenet_update_mib_counters(struct bcmgenet_priv *priv)
 {
 	int i, j = 0;
@@ -836,19 +876,28 @@ static void bcmgenet_update_mib_counters(struct bcmgenet_priv *priv)
 		case BCMGENET_STAT_NETDEV:
 		case BCMGENET_STAT_SOFT:
 			continue;
-		case BCMGENET_STAT_MIB_RX:
-		case BCMGENET_STAT_MIB_TX:
 		case BCMGENET_STAT_RUNT:
-			if (s->type != BCMGENET_STAT_MIB_RX)
-				offset = BCMGENET_STAT_OFFSET;
+			offset += BCMGENET_STAT_OFFSET;
+			/* fall through */
+		case BCMGENET_STAT_MIB_TX:
+			offset += BCMGENET_STAT_OFFSET;
+			/* fall through */
+		case BCMGENET_STAT_MIB_RX:
 			val = bcmgenet_umac_readl(priv,
 						  UMAC_MIB_START + j + offset);
+			offset = 0;	/* Reset Offset */
 			break;
 		case BCMGENET_STAT_MISC:
-			val = bcmgenet_umac_readl(priv, s->reg_offset);
-			/* clear if overflowed */
-			if (val == ~0)
-				bcmgenet_umac_writel(priv, 0, s->reg_offset);
+			if (GENET_IS_V1(priv)) {
+				val = bcmgenet_umac_readl(priv, s->reg_offset);
+				/* clear if overflowed */
+				if (val == ~0)
+					bcmgenet_umac_writel(priv, 0,
+							     s->reg_offset);
+			} else {
+				val = bcmgenet_update_stat_misc(priv,
+								s->reg_offset);
+			}
 			break;
 		}
 
@@ -2901,6 +2950,8 @@ err_irq0:
 err_fini_dma:
 	bcmgenet_fini_dma(priv);
 err_clk_disable:
+	if (priv->internal_phy)
+		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 	clk_disable_unprepare(priv->clk);
 	return ret;
 }
@@ -3277,6 +3328,12 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	 */
 	gphy_rev = reg & 0xffff;
 
+	/* This is reserved so should require special treatment */
+	if (gphy_rev == 0 || gphy_rev == 0x01ff) {
+		pr_warn("Invalid GPHY revision detected: 0x%04x\n", gphy_rev);
+		return;
+	}
+
 	/* This is the good old scheme, just GPHY major, no minor nor patch */
 	if ((gphy_rev & 0xf0) != 0)
 		priv->gphy_rev = gphy_rev << 8;
@@ -3284,12 +3341,6 @@ static void bcmgenet_set_hw_params(struct bcmgenet_priv *priv)
 	/* This is the new scheme, GPHY major rolls over with 0x10 = rev G0 */
 	else if ((gphy_rev & 0xff00) != 0)
 		priv->gphy_rev = gphy_rev;
-
-	/* This is reserved so should require special treatment */
-	else if (gphy_rev == 0 || gphy_rev == 0x01ff) {
-		pr_warn("Invalid GPHY revision detected: 0x%04x\n", gphy_rev);
-		return;
-	}
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 	if (!(params->flags & GENET_HAS_40BITS))
@@ -3333,6 +3384,7 @@ static int bcmgenet_probe(struct platform_device *pdev)
 	const void *macaddr;
 	struct resource *r;
 	int err = -EIO;
+	const char *phy_mode_str;
 
 	/* Up to GENET_MAX_MQ_CNT + 1 TX queues and RX queues */
 	dev = alloc_etherdev_mqs(sizeof(*priv), GENET_MAX_MQ_CNT + 1,
@@ -3437,6 +3489,13 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		dev_warn(&priv->pdev->dev, "failed to get enet-eee clock\n");
 		priv->clk_eee = NULL;
 	}
+
+	/* If this is an internal GPHY, power it on now, before UniMAC is
+	 * brought out of reset as absolutely no UniMAC activity is allowed
+	 */
+	if (dn && !of_property_read_string(dn, "phy-mode", &phy_mode_str) &&
+	    !strcasecmp(phy_mode_str, "internal"))
+		bcmgenet_power_up(priv, GENET_POWER_PASSIVE);
 
 	err = reset_umac(priv);
 	if (err)
@@ -3604,6 +3663,8 @@ static int bcmgenet_resume(struct device *d)
 	return 0;
 
 out_clk_disable:
+	if (priv->internal_phy)
+		bcmgenet_power_down(priv, GENET_POWER_PASSIVE);
 	clk_disable_unprepare(priv->clk);
 	return ret;
 }

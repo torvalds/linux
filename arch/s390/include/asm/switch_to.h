@@ -29,17 +29,16 @@ static inline void restore_access_regs(unsigned int *acrs)
 }
 
 #define switch_to(prev,next,last) do {					\
-	if (prev->mm) {							\
-		save_fpu_regs();					\
-		save_access_regs(&prev->thread.acrs[0]);		\
-		save_ri_cb(prev->thread.ri_cb);				\
-	}								\
-	if (next->mm) {							\
-		update_cr_regs(next);					\
-		set_cpu_flag(CIF_FPU);					\
-		restore_access_regs(&next->thread.acrs[0]);		\
-		restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);	\
-	}								\
+	/* save_fpu_regs() sets the CIF_FPU flag, which enforces	\
+	 * a restore of the floating point / vector registers as	\
+	 * soon as the next task returns to user space			\
+	 */								\
+	save_fpu_regs();						\
+	save_access_regs(&prev->thread.acrs[0]);			\
+	save_ri_cb(prev->thread.ri_cb);					\
+	update_cr_regs(next);						\
+	restore_access_regs(&next->thread.acrs[0]);			\
+	restore_ri_cb(next->thread.ri_cb, prev->thread.ri_cb);		\
 	prev = __switch_to(prev,next);					\
 } while (0)
 

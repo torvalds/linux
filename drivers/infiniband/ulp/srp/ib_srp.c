@@ -670,11 +670,18 @@ static void srp_path_rec_completion(int status,
 static int srp_lookup_path(struct srp_rdma_ch *ch)
 {
 	struct srp_target_port *target = ch->target;
-	int ret;
+	int ret = -ENODEV;
 
 	ch->path.numb_path = 1;
 
 	init_completion(&ch->done);
+
+	/*
+	 * Avoid that the SCSI host can be removed by srp_remove_target()
+	 * before srp_path_rec_completion() is called.
+	 */
+	if (!scsi_host_get(target->scsi_host))
+		goto out;
 
 	ch->path_query_id = ib_sa_path_rec_get(&srp_sa_client,
 					       target->srp_host->srp_dev->dev,
@@ -689,18 +696,24 @@ static int srp_lookup_path(struct srp_rdma_ch *ch)
 					       GFP_KERNEL,
 					       srp_path_rec_completion,
 					       ch, &ch->path_query);
-	if (ch->path_query_id < 0)
-		return ch->path_query_id;
+	ret = ch->path_query_id;
+	if (ret < 0)
+		goto put;
 
 	ret = wait_for_completion_interruptible(&ch->done);
 	if (ret < 0)
-		return ret;
+		goto put;
 
-	if (ch->status < 0)
+	ret = ch->status;
+	if (ret < 0)
 		shost_printk(KERN_WARNING, target->scsi_host,
 			     PFX "Path record query failed\n");
 
-	return ch->status;
+put:
+	scsi_host_put(target->scsi_host);
+
+out:
+	return ret;
 }
 
 static int srp_send_req(struct srp_rdma_ch *ch, bool multich)
@@ -2568,9 +2581,11 @@ static int srp_abort(struct scsi_cmnd *scmnd)
 		ret = FAST_IO_FAIL;
 	else
 		ret = FAILED;
-	srp_free_req(ch, req, scmnd, 0);
-	scmnd->result = DID_ABORT << 16;
-	scmnd->scsi_done(scmnd);
+	if (ret == SUCCESS) {
+		srp_free_req(ch, req, scmnd, 0);
+		scmnd->result = DID_ABORT << 16;
+		scmnd->scsi_done(scmnd);
+	}
 
 	return ret;
 }
@@ -2579,7 +2594,7 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 {
 	struct srp_target_port *target = host_to_target(scmnd->device->host);
 	struct srp_rdma_ch *ch;
-	int i;
+	int i, j;
 	u8 status;
 
 	shost_printk(KERN_ERR, target->scsi_host, "SRP reset_device called\n");
@@ -2593,8 +2608,8 @@ static int srp_reset_device(struct scsi_cmnd *scmnd)
 
 	for (i = 0; i < target->ch_count; i++) {
 		ch = &target->ch[i];
-		for (i = 0; i < target->req_ring_size; ++i) {
-			struct srp_request *req = &ch->req_ring[i];
+		for (j = 0; j < target->req_ring_size; ++j) {
+			struct srp_request *req = &ch->req_ring[j];
 
 			srp_finish_req(ch, req, scmnd->device, DID_RESET << 16);
 		}
@@ -3296,12 +3311,10 @@ static ssize_t srp_create_target(struct device *dev,
 				      num_online_nodes());
 		const int ch_end = ((node_idx + 1) * target->ch_count /
 				    num_online_nodes());
-		const int cv_start = (node_idx * ibdev->num_comp_vectors /
-				      num_online_nodes() + target->comp_vector)
-				     % ibdev->num_comp_vectors;
-		const int cv_end = ((node_idx + 1) * ibdev->num_comp_vectors /
-				    num_online_nodes() + target->comp_vector)
-				   % ibdev->num_comp_vectors;
+		const int cv_start = node_idx * ibdev->num_comp_vectors /
+				     num_online_nodes();
+		const int cv_end = (node_idx + 1) * ibdev->num_comp_vectors /
+				   num_online_nodes();
 		int cpu_idx = 0;
 
 		for_each_online_cpu(cpu) {

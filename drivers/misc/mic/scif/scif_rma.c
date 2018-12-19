@@ -414,7 +414,7 @@ static int scif_create_remote_lookup(struct scif_dev *remote_dev,
 		if (err)
 			goto error_window;
 		err = scif_map_page(&window->num_pages_lookup.lookup[j],
-				    vmalloc_dma_phys ?
+				    vmalloc_num_pages ?
 				    vmalloc_to_page(&window->num_pages[i]) :
 				    virt_to_page(&window->num_pages[i]),
 				    remote_dev);
@@ -1398,8 +1398,7 @@ retry:
 				mm,
 				(u64)addr,
 				nr_pages,
-				!!(prot & SCIF_PROT_WRITE),
-				0,
+				(prot & SCIF_PROT_WRITE) ? FOLL_WRITE : 0,
 				pinned_pages->pages,
 				NULL);
 		up_write(&mm->mmap_sem);

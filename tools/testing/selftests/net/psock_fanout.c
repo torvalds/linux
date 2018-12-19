@@ -97,6 +97,8 @@ static int sock_fanout_open(uint16_t typeflags, int num_packets)
 
 static void sock_fanout_set_ebpf(int fd)
 {
+	static char log_buf[65536];
+
 	const int len_off = __builtin_offsetof(struct __sk_buff, len);
 	struct bpf_insn prog[] = {
 		{ BPF_ALU64 | BPF_MOV | BPF_X,   6, 1, 0, 0 },
@@ -109,7 +111,6 @@ static void sock_fanout_set_ebpf(int fd)
 		{ BPF_ALU   | BPF_MOV | BPF_K,   0, 0, 0, 0 },
 		{ BPF_JMP   | BPF_EXIT,          0, 0, 0, 0 }
 	};
-	char log_buf[512];
 	union bpf_attr attr;
 	int pfd;
 

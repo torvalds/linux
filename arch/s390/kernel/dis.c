@@ -1549,6 +1549,7 @@ static struct s390_insn opcode_e7[] = {
 	{ "vfsq", 0xce, INSTR_VRR_VV000MM },
 	{ "vfs", 0xe2, INSTR_VRR_VVV00MM },
 	{ "vftci", 0x4a, INSTR_VRI_VVIMM },
+	{ "", 0, INSTR_INVALID }
 };
 
 static struct s390_insn opcode_eb[] = {
@@ -1961,7 +1962,7 @@ void show_code(struct pt_regs *regs)
 {
 	char *mode = user_mode(regs) ? "User" : "Krnl";
 	unsigned char code[64];
-	char buffer[64], *ptr;
+	char buffer[128], *ptr;
 	mm_segment_t old_fs;
 	unsigned long addr;
 	int start, end, opsize, hops, i;
@@ -2024,7 +2025,7 @@ void show_code(struct pt_regs *regs)
 		start += opsize;
 		printk(buffer);
 		ptr = buffer;
-		ptr += sprintf(ptr, "\n          ");
+		ptr += sprintf(ptr, "\n\t  ");
 		hops++;
 	}
 	printk("\n");

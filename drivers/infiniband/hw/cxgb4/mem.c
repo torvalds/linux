@@ -926,7 +926,7 @@ static int c4iw_set_page(struct ib_mr *ibmr, u64 addr)
 {
 	struct c4iw_mr *mhp = to_c4iw_mr(ibmr);
 
-	if (unlikely(mhp->mpl_len == mhp->max_mpl_len))
+	if (unlikely(mhp->mpl_len == mhp->attr.pbl_size))
 		return -ENOMEM;
 
 	mhp->mpl[mhp->mpl_len++] = addr;

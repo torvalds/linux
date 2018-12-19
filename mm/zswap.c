@@ -123,7 +123,7 @@ struct zswap_pool {
 	struct crypto_comp * __percpu *tfm;
 	struct kref kref;
 	struct list_head list;
-	struct rcu_head rcu_head;
+	struct work_struct work;
 	struct notifier_block notifier;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
 };
@@ -667,9 +667,11 @@ static int __must_check zswap_pool_get(struct zswap_pool *pool)
 	return kref_get_unless_zero(&pool->kref);
 }
 
-static void __zswap_pool_release(struct rcu_head *head)
+static void __zswap_pool_release(struct work_struct *work)
 {
-	struct zswap_pool *pool = container_of(head, typeof(*pool), rcu_head);
+	struct zswap_pool *pool = container_of(work, typeof(*pool), work);
+
+	synchronize_rcu();
 
 	/* nobody should have been able to get a kref... */
 	WARN_ON(kref_get_unless_zero(&pool->kref));
@@ -689,7 +691,9 @@ static void __zswap_pool_empty(struct kref *kref)
 	WARN_ON(pool == zswap_pool_current());
 
 	list_del_rcu(&pool->list);
-	call_rcu(&pool->rcu_head, __zswap_pool_release);
+
+	INIT_WORK(&pool->work, __zswap_pool_release);
+	schedule_work(&pool->work);
 
 	spin_unlock(&zswap_pools_lock);
 }
@@ -748,17 +752,21 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
 	pool = zswap_pool_find_get(type, compressor);
 	if (pool) {
 		zswap_pool_debug("using existing", pool);
+		WARN_ON(pool == zswap_pool_current());
 		list_del_rcu(&pool->list);
-	} else {
-		spin_unlock(&zswap_pools_lock);
-		pool = zswap_pool_create(type, compressor);
-		spin_lock(&zswap_pools_lock);
 	}
+
+	spin_unlock(&zswap_pools_lock);
+
+	if (!pool)
+		pool = zswap_pool_create(type, compressor);
 
 	if (pool)
 		ret = param_set_charp(s, kp);
 	else
 		ret = -EINVAL;
+
+	spin_lock(&zswap_pools_lock);
 
 	if (!ret) {
 		put_pool = zswap_pool_current();
@@ -1007,6 +1015,15 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
 		zswap_pool_limit_hit++;
 		if (zswap_shrink()) {
 			zswap_reject_reclaim_fail++;
+			ret = -ENOMEM;
+			goto reject;
+		}
+
+		/* A second zswap_is_full() check after
+		 * zswap_shrink() to make sure it's now
+		 * under the max_pool_percent
+		 */
+		if (zswap_is_full()) {
 			ret = -ENOMEM;
 			goto reject;
 		}

@@ -173,19 +173,33 @@ static void wb_wakeup(struct bdi_writeback *wb)
 	spin_unlock_bh(&wb->work_lock);
 }
 
+static void finish_writeback_work(struct bdi_writeback *wb,
+				  struct wb_writeback_work *work)
+{
+	struct wb_completion *done = work->done;
+
+	if (work->auto_free)
+		kfree(work);
+	if (done && atomic_dec_and_test(&done->cnt))
+		wake_up_all(&wb->bdi->wb_waitq);
+}
+
 static void wb_queue_work(struct bdi_writeback *wb,
 			  struct wb_writeback_work *work)
 {
 	trace_writeback_queue(wb, work);
 
-	spin_lock_bh(&wb->work_lock);
-	if (!test_bit(WB_registered, &wb->state))
-		goto out_unlock;
 	if (work->done)
 		atomic_inc(&work->done->cnt);
-	list_add_tail(&work->list, &wb->work_list);
-	mod_delayed_work(bdi_wq, &wb->dwork, 0);
-out_unlock:
+
+	spin_lock_bh(&wb->work_lock);
+
+	if (test_bit(WB_registered, &wb->state)) {
+		list_add_tail(&work->list, &wb->work_list);
+		mod_delayed_work(bdi_wq, &wb->dwork, 0);
+	} else
+		finish_writeback_work(wb, work);
+
 	spin_unlock_bh(&wb->work_lock);
 }
 
@@ -733,11 +747,12 @@ int inode_congested(struct inode *inode, int cong_bits)
 	 */
 	if (inode && inode_to_wb_is_valid(inode)) {
 		struct bdi_writeback *wb;
-		bool locked, congested;
+		struct wb_lock_cookie lock_cookie = {};
+		bool congested;
 
-		wb = unlocked_inode_to_wb_begin(inode, &locked);
+		wb = unlocked_inode_to_wb_begin(inode, &lock_cookie);
 		congested = wb_congested(wb, cong_bits);
-		unlocked_inode_to_wb_end(inode, locked);
+		unlocked_inode_to_wb_end(inode, &lock_cookie);
 		return congested;
 	}
 
@@ -1839,16 +1854,9 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 
 	set_bit(WB_writeback_running, &wb->state);
 	while ((work = get_next_work_item(wb)) != NULL) {
-		struct wb_completion *done = work->done;
-
 		trace_writeback_exec(wb, work);
-
 		wrote += wb_writeback(wb, work);
-
-		if (work->auto_free)
-			kfree(work);
-		if (done && atomic_dec_and_test(&done->cnt))
-			wake_up_all(&wb->bdi->wb_waitq);
+		finish_writeback_work(wb, work);
 	}
 
 	/*
@@ -1898,7 +1906,7 @@ void wb_workfn(struct work_struct *work)
 	}
 
 	if (!list_empty(&wb->work_list))
-		mod_delayed_work(bdi_wq, &wb->dwork, 0);
+		wb_wakeup(wb);
 	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
 		wb_wakeup_delayed(wb);
 

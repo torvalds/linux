@@ -56,8 +56,10 @@ void core_pr_dump_initiator_port(
 	char *buf,
 	u32 size)
 {
-	if (!pr_reg->isid_present_at_reg)
+	if (!pr_reg->isid_present_at_reg) {
 		buf[0] = '\0';
+		return;
+	}
 
 	snprintf(buf, size, ",i,0x%s", pr_reg->pr_reg_isid);
 }

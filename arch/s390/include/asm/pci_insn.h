@@ -81,6 +81,6 @@ int zpci_refresh_trans(u64 fn, u64 addr, u64 range);
 int zpci_load(u64 *data, u64 req, u64 offset);
 int zpci_store(u64 data, u64 req, u64 offset);
 int zpci_store_block(const u64 *data, u64 req, u64 offset);
-void zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc);
+int zpci_set_irq_ctrl(u16 ctl, char *unused, u8 isc);
 
 #endif

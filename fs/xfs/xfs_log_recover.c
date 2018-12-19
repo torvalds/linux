@@ -738,7 +738,7 @@ xlog_find_head(
 	 * in the in-core log.  The following number can be made tighter if
 	 * we actually look at the block size of the filesystem.
 	 */
-	num_scan_bblks = XLOG_TOTAL_REC_SHIFT(log);
+	num_scan_bblks = min_t(int, log_bbnum, XLOG_TOTAL_REC_SHIFT(log));
 	if (head_blk >= num_scan_bblks) {
 		/*
 		 * We are guaranteed that the entire check can be performed

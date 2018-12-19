@@ -703,6 +703,7 @@ vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, bool write,
 		      struct scatterlist *sg, int sg_count)
 {
 	size_t off = iter->iov_offset;
+	struct scatterlist *p = sg;
 	int i, ret;
 
 	for (i = 0; i < iter->nr_segs; i++) {
@@ -711,8 +712,8 @@ vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, bool write,
 
 		ret = vhost_scsi_map_to_sgl(cmd, base, len, sg, write);
 		if (ret < 0) {
-			for (i = 0; i < sg_count; i++) {
-				struct page *page = sg_page(&sg[i]);
+			while (p < sg) {
+				struct page *page = sg_page(p++);
 				if (page)
 					put_page(page);
 			}
@@ -1008,7 +1009,8 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 				prot_bytes = vhost32_to_cpu(vq, v_req_pi.pi_bytesin);
 			}
 			/*
-			 * Set prot_iter to data_iter, and advance past any
+			 * Set prot_iter to data_iter and truncate it to
+			 * prot_bytes, and advance data_iter past any
 			 * preceeding prot_bytes that may be present.
 			 *
 			 * Also fix up the exp_data_len to reflect only the
@@ -1017,6 +1019,7 @@ vhost_scsi_handle_vq(struct vhost_scsi *vs, struct vhost_virtqueue *vq)
 			if (prot_bytes) {
 				exp_data_len -= prot_bytes;
 				prot_iter = data_iter;
+				iov_iter_truncate(&prot_iter, prot_bytes);
 				iov_iter_advance(&data_iter, prot_bytes);
 			}
 			tag = vhost64_to_cpu(vq, v_req_pi.tag);

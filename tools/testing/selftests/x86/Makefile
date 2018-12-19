@@ -4,7 +4,8 @@ include ../lib.mk
 
 .PHONY: all all_32 all_64 warn_32bit_failure clean
 
-TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs ldt_gdt syscall_nt ptrace_syscall
+TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs ldt_gdt syscall_nt ptrace_syscall \
+			test_vsyscall
 TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault sigreturn test_syscall_vdso unwind_vdso \
 			test_FCMOV test_FCOMI test_FISTTP
 

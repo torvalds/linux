@@ -643,7 +643,7 @@ static ssize_t ocrdma_dbgfs_ops_write(struct file *filp,
 	struct ocrdma_stats *pstats = filp->private_data;
 	struct ocrdma_dev *dev = pstats->dev;
 
-	if (count > 32)
+	if (*ppos != 0 || count == 0 || count > sizeof(tmp_str))
 		goto err;
 
 	if (copy_from_user(tmp_str, buffer, count))
@@ -834,7 +834,7 @@ void ocrdma_add_port_stats(struct ocrdma_dev *dev)
 
 	dev->reset_stats.type = OCRDMA_RESET_STATS;
 	dev->reset_stats.dev = dev;
-	if (!debugfs_create_file("reset_stats", S_IRUSR, dev->dir,
+	if (!debugfs_create_file("reset_stats", 0200, dev->dir,
 				&dev->reset_stats, &ocrdma_dbg_ops))
 		goto err;
 

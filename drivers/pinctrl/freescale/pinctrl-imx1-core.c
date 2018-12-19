@@ -434,7 +434,7 @@ static void imx1_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	const char *name;
 	int i, ret;
 
-	if (group > info->ngroups)
+	if (group >= info->ngroups)
 		return;
 
 	seq_puts(s, "\n");

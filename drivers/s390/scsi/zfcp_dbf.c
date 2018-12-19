@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2018
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -287,6 +287,27 @@ void zfcp_dbf_rec_trig(char *tag, struct zfcp_adapter *adapter,
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
 
+/**
+ * zfcp_dbf_rec_trig_lock - trace event related to triggered recovery with lock
+ * @tag: identifier for event
+ * @adapter: adapter on which the erp_action should run
+ * @port: remote port involved in the erp_action
+ * @sdev: scsi device involved in the erp_action
+ * @want: wanted erp_action
+ * @need: required erp_action
+ *
+ * The adapter->erp_lock must not be held.
+ */
+void zfcp_dbf_rec_trig_lock(char *tag, struct zfcp_adapter *adapter,
+			    struct zfcp_port *port, struct scsi_device *sdev,
+			    u8 want, u8 need)
+{
+	unsigned long flags;
+
+	read_lock_irqsave(&adapter->erp_lock, flags);
+	zfcp_dbf_rec_trig(tag, adapter, port, sdev, want, need);
+	read_unlock_irqrestore(&adapter->erp_lock, flags);
+}
 
 /**
  * zfcp_dbf_rec_run_lvl - trace event related to running recovery
@@ -599,6 +620,46 @@ void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
 				      FSF_FCP_RSP_SIZE),
 				"fcp_riu", fsf->req_id);
 	}
+
+	debug_event(dbf->scsi, level, rec, sizeof(*rec));
+	spin_unlock_irqrestore(&dbf->scsi_lock, flags);
+}
+
+/**
+ * zfcp_dbf_scsi_eh() - Trace event for special cases of scsi_eh callbacks.
+ * @tag: Identifier for event.
+ * @adapter: Pointer to zfcp adapter as context for this event.
+ * @scsi_id: SCSI ID/target to indicate scope of task management function (TMF).
+ * @ret: Return value of calling function.
+ *
+ * This SCSI trace variant does not depend on any of:
+ * scsi_cmnd, zfcp_fsf_req, scsi_device.
+ */
+void zfcp_dbf_scsi_eh(char *tag, struct zfcp_adapter *adapter,
+		      unsigned int scsi_id, int ret)
+{
+	struct zfcp_dbf *dbf = adapter->dbf;
+	struct zfcp_dbf_scsi *rec = &dbf->scsi_buf;
+	unsigned long flags;
+	static int const level = 1;
+
+	if (unlikely(!debug_level_enabled(adapter->dbf->scsi, level)))
+		return;
+
+	spin_lock_irqsave(&dbf->scsi_lock, flags);
+	memset(rec, 0, sizeof(*rec));
+
+	memcpy(rec->tag, tag, ZFCP_DBF_TAG_LEN);
+	rec->id = ZFCP_DBF_SCSI_CMND;
+	rec->scsi_result = ret; /* re-use field, int is 4 bytes and fits */
+	rec->scsi_retries = ~0;
+	rec->scsi_allowed = ~0;
+	rec->fcp_rsp_info = ~0;
+	rec->scsi_id = scsi_id;
+	rec->scsi_lun = (u32)ZFCP_DBF_INVALID_LUN;
+	rec->scsi_lun_64_hi = (u32)(ZFCP_DBF_INVALID_LUN >> 32);
+	rec->host_scribble = ~0;
+	memset(rec->scsi_opcode, 0xff, ZFCP_DBF_SCSI_OPCODE);
 
 	debug_event(dbf->scsi, level, rec, sizeof(*rec));
 	spin_unlock_irqrestore(&dbf->scsi_lock, flags);

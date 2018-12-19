@@ -22,6 +22,7 @@
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/coredump.h>
+#include <linux/kaiser.h>
 
 #include <asm-generic/sizes.h>
 #include <asm/perf_event.h>
@@ -67,6 +68,23 @@ static size_t buf_size(struct page *page)
 	return 1 << (PAGE_SHIFT + page_private(page));
 }
 
+static void bts_buffer_free_aux(void *data)
+{
+#ifdef CONFIG_PAGE_TABLE_ISOLATION
+	struct bts_buffer *buf = data;
+	int nbuf;
+
+	for (nbuf = 0; nbuf < buf->nr_bufs; nbuf++) {
+		struct page *page = buf->buf[nbuf].page;
+		void *kaddr = page_address(page);
+		size_t page_size = buf_size(page);
+
+		kaiser_remove_mapping((unsigned long)kaddr, page_size);
+	}
+#endif
+	kfree(data);
+}
+
 static void *
 bts_buffer_setup_aux(int cpu, void **pages, int nr_pages, bool overwrite)
 {
@@ -103,27 +121,31 @@ bts_buffer_setup_aux(int cpu, void **pages, int nr_pages, bool overwrite)
 	buf->real_size = size - size % BTS_RECORD_SIZE;
 
 	for (pg = 0, nbuf = 0, offset = 0, pad = 0; nbuf < buf->nr_bufs; nbuf++) {
-		unsigned int __nr_pages;
+		void *kaddr = pages[pg];
+		size_t page_size;
 
-		page = virt_to_page(pages[pg]);
-		__nr_pages = PagePrivate(page) ? 1 << page_private(page) : 1;
+		page = virt_to_page(kaddr);
+		page_size = buf_size(page);
+
+		if (kaiser_add_mapping((unsigned long)kaddr,
+					page_size, __PAGE_KERNEL) < 0) {
+			buf->nr_bufs = nbuf;
+			bts_buffer_free_aux(buf);
+			return NULL;
+		}
+
 		buf->buf[nbuf].page = page;
 		buf->buf[nbuf].offset = offset;
 		buf->buf[nbuf].displacement = (pad ? BTS_RECORD_SIZE - pad : 0);
-		buf->buf[nbuf].size = buf_size(page) - buf->buf[nbuf].displacement;
+		buf->buf[nbuf].size = page_size - buf->buf[nbuf].displacement;
 		pad = buf->buf[nbuf].size % BTS_RECORD_SIZE;
 		buf->buf[nbuf].size -= pad;
 
-		pg += __nr_pages;
-		offset += __nr_pages << PAGE_SHIFT;
+		pg += page_size >> PAGE_SHIFT;
+		offset += page_size;
 	}
 
 	return buf;
-}
-
-static void bts_buffer_free_aux(void *data)
-{
-	kfree(data);
 }
 
 static unsigned long bts_buffer_offset(struct bts_buffer *buf, unsigned int idx)

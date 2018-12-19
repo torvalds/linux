@@ -664,7 +664,7 @@ void rtl92ee_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct sk_buff *skb = NULL;
-
+	bool rtstatus;
 	u32 totalpacketlen;
 	u8 u1rsvdpageloc[5] = { 0 };
 	bool b_dlok = false;
@@ -727,7 +727,9 @@ void rtl92ee_set_fw_rsvdpagepkt(struct ieee80211_hw *hw, bool b_dl_finished)
 	memcpy((u8 *)skb_put(skb, totalpacketlen),
 	       &reserved_page_packet, totalpacketlen);
 
-	b_dlok = true;
+	rtstatus = rtl_cmd_send_packet(hw, skb);
+	if (rtstatus)
+		b_dlok = true;
 
 	if (b_dlok) {
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD ,

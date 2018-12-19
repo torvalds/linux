@@ -494,9 +494,11 @@ static const struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
 
 int qxl_fbdev_init(struct qxl_device *qdev)
 {
+	int ret = 0;
+
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 	struct qxl_fbdev *qfbdev;
 	int bpp_sel = 32; /* TODO: parameter from somewhere? */
-	int ret;
 
 	qfbdev = kzalloc(sizeof(struct qxl_fbdev), GFP_KERNEL);
 	if (!qfbdev)
@@ -531,6 +533,8 @@ fini:
 	drm_fb_helper_fini(&qfbdev->helper);
 free:
 	kfree(qfbdev);
+#endif
+
 	return ret;
 }
 
@@ -546,6 +550,9 @@ void qxl_fbdev_fini(struct qxl_device *qdev)
 
 void qxl_fbdev_set_suspend(struct qxl_device *qdev, int state)
 {
+	if (!qdev->mode_info.qfbdev)
+		return;
+
 	drm_fb_helper_set_suspend(&qdev->mode_info.qfbdev->helper, state);
 }
 

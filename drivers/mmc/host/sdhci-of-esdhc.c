@@ -418,6 +418,20 @@ static void esdhc_of_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (esdhc->vendor_ver < VENDOR_V_23)
 		pre_div = 2;
 
+	/*
+	 * Limit SD clock to 167MHz for ls1046a according to its datasheet
+	 */
+	if (clock > 167000000 &&
+	    of_find_compatible_node(NULL, NULL, "fsl,ls1046a-esdhc"))
+		clock = 167000000;
+
+	/*
+	 * Limit SD clock to 125MHz for ls1012a according to its datasheet
+	 */
+	if (clock > 125000000 &&
+	    of_find_compatible_node(NULL, NULL, "fsl,ls1012a-esdhc"))
+		clock = 125000000;
+
 	/* Workaround to reduce the clock frequency for p1010 esdhc */
 	if (of_find_compatible_node(NULL, NULL, "fsl,p1010-esdhc")) {
 		if (clock > 20000000)
@@ -584,6 +598,8 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 {
 	struct sdhci_host *host;
 	struct device_node *np;
+	struct sdhci_pltfm_host *pltfm_host;
+	struct sdhci_esdhc *esdhc;
 	int ret;
 
 	np = pdev->dev.of_node;
@@ -599,6 +615,14 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	esdhc_init(pdev, host);
 
 	sdhci_get_of_property(pdev);
+
+	pltfm_host = sdhci_priv(host);
+	esdhc = pltfm_host->priv;
+	if (esdhc->vendor_ver == VENDOR_V_22)
+		host->quirks2 |= SDHCI_QUIRK2_HOST_NO_CMD23;
+
+	if (esdhc->vendor_ver > VENDOR_V_22)
+		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 
 	if (of_device_is_compatible(np, "fsl,p5040-esdhc") ||
 	    of_device_is_compatible(np, "fsl,p5020-esdhc") ||

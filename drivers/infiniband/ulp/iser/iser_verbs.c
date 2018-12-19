@@ -405,6 +405,7 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 	int i, ret;
 
 	INIT_LIST_HEAD(&fr_pool->list);
+	INIT_LIST_HEAD(&fr_pool->all_list);
 	spin_lock_init(&fr_pool->lock);
 	fr_pool->size = 0;
 	for (i = 0; i < cmds_max; i++) {
@@ -416,6 +417,7 @@ int iser_alloc_fastreg_pool(struct ib_conn *ib_conn,
 		}
 
 		list_add_tail(&desc->list, &fr_pool->list);
+		list_add_tail(&desc->all_list, &fr_pool->all_list);
 		fr_pool->size++;
 	}
 
@@ -435,13 +437,13 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 	struct iser_fr_desc *desc, *tmp;
 	int i = 0;
 
-	if (list_empty(&fr_pool->list))
+	if (list_empty(&fr_pool->all_list))
 		return;
 
 	iser_info("freeing conn %p fr pool\n", ib_conn);
 
-	list_for_each_entry_safe(desc, tmp, &fr_pool->list, list) {
-		list_del(&desc->list);
+	list_for_each_entry_safe(desc, tmp, &fr_pool->all_list, all_list) {
+		list_del(&desc->all_list);
 		iser_free_reg_res(&desc->rsc);
 		if (desc->pi_ctx)
 			iser_free_pi_ctx(desc->pi_ctx);
@@ -1287,7 +1289,9 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {
 			pr_err("ib_check_mr_status failed, ret %d\n", ret);
-			goto err;
+			/* Not a lot we can do, return ambiguous guard error */
+			*sector = 0;
+			return 0x1;
 		}
 
 		if (mr_status.fail_status & IB_MR_CHECK_SIG_STATUS) {
@@ -1315,7 +1319,4 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 	}
 
 	return 0;
-err:
-	/* Not alot we can do here, return ambiguous guard error */
-	return 0x1;
 }

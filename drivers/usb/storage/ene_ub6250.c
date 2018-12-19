@@ -1953,6 +1953,8 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	bcb->CDB[0] = 0xEF;
 
 	result = ene_send_scsi_cmd(us, FDIR_WRITE, buf, 0);
+	if (us->srb != NULL)
+		scsi_set_resid(us->srb, 0);
 	info->BIN_FLAG = flag;
 	kfree(buf);
 
@@ -2306,21 +2308,22 @@ static int ms_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 
 static int ene_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
-	int result = 0;
+	int result = USB_STOR_XFER_GOOD;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)(us->extra);
 
 	/*US_DEBUG(usb_stor_show_command(us, srb)); */
 	scsi_set_resid(srb, 0);
-	if (unlikely(!(info->SD_Status.Ready || info->MS_Status.Ready))) {
+	if (unlikely(!(info->SD_Status.Ready || info->MS_Status.Ready)))
 		result = ene_init(us);
-	} else {
+	if (result == USB_STOR_XFER_GOOD) {
+		result = USB_STOR_TRANSPORT_ERROR;
 		if (info->SD_Status.Ready)
 			result = sd_scsi_irp(us, srb);
 
 		if (info->MS_Status.Ready)
 			result = ms_scsi_irp(us, srb);
 	}
-	return 0;
+	return result;
 }
 
 static struct scsi_host_template ene_ub6250_host_template;

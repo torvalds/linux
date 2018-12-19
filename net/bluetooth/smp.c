@@ -2251,8 +2251,14 @@ static u8 smp_cmd_security_req(struct l2cap_conn *conn, struct sk_buff *skb)
 	else
 		sec_level = authreq_to_seclevel(auth);
 
-	if (smp_sufficient_security(hcon, sec_level, SMP_USE_LTK))
+	if (smp_sufficient_security(hcon, sec_level, SMP_USE_LTK)) {
+		/* If link is already encrypted with sufficient security we
+		 * still need refresh encryption as per Core Spec 5.0 Vol 3,
+		 * Part H 2.4.6
+		 */
+		smp_ltk_encrypt(conn, hcon->sec_level);
 		return 0;
+	}
 
 	if (sec_level > hcon->pending_sec_level)
 		hcon->pending_sec_level = sec_level;
@@ -2365,30 +2371,51 @@ unlock:
 	return ret;
 }
 
-void smp_cancel_pairing(struct hci_conn *hcon)
+int smp_cancel_and_remove_pairing(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				  u8 addr_type)
 {
-	struct l2cap_conn *conn = hcon->l2cap_data;
+	struct hci_conn *hcon;
+	struct l2cap_conn *conn;
 	struct l2cap_chan *chan;
 	struct smp_chan *smp;
+	int err;
 
+	err = hci_remove_ltk(hdev, bdaddr, addr_type);
+	hci_remove_irk(hdev, bdaddr, addr_type);
+
+	hcon = hci_conn_hash_lookup_le(hdev, bdaddr, addr_type);
+	if (!hcon)
+		goto done;
+
+	conn = hcon->l2cap_data;
 	if (!conn)
-		return;
+		goto done;
 
 	chan = conn->smp;
 	if (!chan)
-		return;
+		goto done;
 
 	l2cap_chan_lock(chan);
 
 	smp = chan->data;
 	if (smp) {
+		/* Set keys to NULL to make sure smp_failure() does not try to
+		 * remove and free already invalidated rcu list entries. */
+		smp->ltk = NULL;
+		smp->slave_ltk = NULL;
+		smp->remote_irk = NULL;
+
 		if (test_bit(SMP_FLAG_COMPLETE, &smp->flags))
 			smp_failure(conn, 0);
 		else
 			smp_failure(conn, SMP_UNSPECIFIED);
+		err = 0;
 	}
 
 	l2cap_chan_unlock(chan);
+
+done:
+	return err;
 }
 
 static int smp_cmd_encrypt_info(struct l2cap_conn *conn, struct sk_buff *skb)

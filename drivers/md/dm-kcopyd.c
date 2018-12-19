@@ -454,6 +454,8 @@ static int run_complete_job(struct kcopyd_job *job)
 	if (atomic_dec_and_test(&kc->nr_jobs))
 		wake_up(&kc->destroyq);
 
+	cond_resched();
+
 	return 0;
 }
 

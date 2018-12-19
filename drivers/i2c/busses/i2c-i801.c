@@ -128,6 +128,7 @@
 
 #define SBREG_BAR		0x10
 #define SBREG_SMBCTRL		0xc6000c
+#define SBREG_SMBCTRL_DNV	0xcf000c
 
 /* Host status bits for SMBPCISTS */
 #define SMBPCISTS_INTS		0x08
@@ -1251,7 +1252,11 @@ static void i801_add_tco(struct i801_priv *priv)
 	spin_unlock(&p2sb_spinlock);
 
 	res = &tco_res[ICH_RES_MEM_OFF];
-	res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL;
+	if (pci_dev->device == PCI_DEVICE_ID_INTEL_DNV_SMBUS)
+		res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL_DNV;
+	else
+		res->start = (resource_size_t)base64_addr + SBREG_SMBCTRL;
+
 	res->end = res->start + 3;
 	res->flags = IORESOURCE_MEM;
 
@@ -1267,6 +1272,13 @@ static void i801_add_tco(struct i801_priv *priv)
 }
 
 #ifdef CONFIG_ACPI
+static bool i801_acpi_is_smbus_ioport(const struct i801_priv *priv,
+				      acpi_physical_address address)
+{
+	return address >= priv->smba &&
+	       address <= pci_resource_end(priv->pci_dev, SMBBAR);
+}
+
 static acpi_status
 i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 		     u64 *value, void *handler_context, void *region_context)
@@ -1282,7 +1294,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	 */
 	mutex_lock(&priv->acpi_lock);
 
-	if (!priv->acpi_reserved) {
+	if (!priv->acpi_reserved && i801_acpi_is_smbus_ioport(priv, address)) {
 		priv->acpi_reserved = true;
 
 		dev_warn(&pdev->dev, "BIOS is accessing SMBus registers\n");

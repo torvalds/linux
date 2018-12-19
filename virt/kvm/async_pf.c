@@ -80,7 +80,7 @@ static void async_pf_execute(struct work_struct *work)
 
 	might_sleep();
 
-	get_user_pages_unlocked(NULL, mm, addr, 1, 1, 0, NULL);
+	get_user_pages_unlocked(NULL, mm, addr, 1, NULL, FOLL_WRITE);
 	kvm_async_page_present_sync(vcpu, apf);
 
 	spin_lock(&vcpu->async_pf.lock);

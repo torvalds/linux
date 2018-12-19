@@ -511,6 +511,33 @@ struct rw_semaphore *rwsem_wake(struct rw_semaphore *sem)
 	unsigned long flags;
 
 	/*
+	* __rwsem_down_write_failed_common(sem)
+	*   rwsem_optimistic_spin(sem)
+	*     osq_unlock(sem->osq)
+	*   ...
+	*   atomic_long_add_return(&sem->count)
+	*
+	*      - VS -
+	*
+	*              __up_write()
+	*                if (atomic_long_sub_return_release(&sem->count) < 0)
+	*                  rwsem_wake(sem)
+	*                    osq_is_locked(&sem->osq)
+	*
+	* And __up_write() must observe !osq_is_locked() when it observes the
+	* atomic_long_add_return() in order to not miss a wakeup.
+	*
+	* This boils down to:
+	*
+	* [S.rel] X = 1                [RmW] r0 = (Y += 0)
+	*         MB                         RMB
+	* [RmW]   Y += 1               [L]   r1 = X
+	*
+	* exists (r0=1 /\ r1=0)
+	*/
+	smp_rmb();
+
+	/*
 	 * If a spinner is present, it is not necessary to do the wakeup.
 	 * Try to do wakeup only if the trylock succeeds to minimize
 	 * spinlock contention which may introduce too much delay in the

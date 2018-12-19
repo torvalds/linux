@@ -73,8 +73,8 @@ struct llc_sap *llc_sap_find(unsigned char sap_value)
 
 	rcu_read_lock_bh();
 	sap = __llc_sap_find(sap_value);
-	if (sap)
-		llc_sap_hold(sap);
+	if (!sap || !llc_sap_hold_safe(sap))
+		sap = NULL;
 	rcu_read_unlock_bh();
 	return sap;
 }

@@ -272,7 +272,7 @@ static int ad7150_write_event_config(struct iio_dev *indio_dev,
 error_ret:
 	mutex_unlock(&chip->state_lock);
 
-	return 0;
+	return ret;
 }
 
 static int ad7150_read_event_value(struct iio_dev *indio_dev,

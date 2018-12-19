@@ -1032,6 +1032,7 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 						     sizeof(avmb1_carddef))))
 				return -EFAULT;
 			cdef.cardtype = AVM_CARDTYPE_B1;
+			cdef.cardnr = 0;
 		} else {
 			if ((retval = copy_from_user(&cdef, data,
 						     sizeof(avmb1_extcarddef))))

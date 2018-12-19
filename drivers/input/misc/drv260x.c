@@ -521,7 +521,7 @@ static int drv260x_probe(struct i2c_client *client,
 	if (!haptics)
 		return -ENOMEM;
 
-	haptics->rated_voltage = DRV260X_DEF_OD_CLAMP_VOLT;
+	haptics->overdrive_voltage = DRV260X_DEF_OD_CLAMP_VOLT;
 	haptics->rated_voltage = DRV260X_DEF_RATED_VOLT;
 
 	if (pdata) {

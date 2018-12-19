@@ -543,7 +543,7 @@ void acpi_pci_add_bus(struct pci_bus *bus)
 	union acpi_object *obj;
 	struct pci_host_bridge *bridge;
 
-	if (acpi_pci_disabled || !bus->bridge)
+	if (acpi_pci_disabled || !bus->bridge || !ACPI_HANDLE(bus->bridge))
 		return;
 
 	acpi_pci_slot_enumerate(bus);

@@ -585,6 +585,9 @@ int amdgpu_acpi_pcie_performance_request(struct amdgpu_device *adev,
 	size_t size;
 	u32 retry = 3;
 
+	if (amdgpu_acpi_pcie_notify_device_ready(adev))
+		return -EINVAL;
+
 	/* Get the device handle */
 	handle = ACPI_HANDLE(&adev->pdev->dev);
 	if (!handle)

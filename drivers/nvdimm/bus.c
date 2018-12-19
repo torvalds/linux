@@ -158,6 +158,8 @@ static void nd_async_device_register(void *d, async_cookie_t cookie)
 		put_device(dev);
 	}
 	put_device(dev);
+	if (dev->parent)
+		put_device(dev->parent);
 }
 
 static void nd_async_device_unregister(void *d, async_cookie_t cookie)
@@ -175,6 +177,8 @@ static void nd_async_device_unregister(void *d, async_cookie_t cookie)
 void __nd_device_register(struct device *dev)
 {
 	dev->bus = &nvdimm_bus_type;
+	if (dev->parent)
+		get_device(dev->parent);
 	get_device(dev);
 	async_schedule_domain(nd_async_device_register, dev,
 			&nd_async_domain);
@@ -237,14 +241,18 @@ int nvdimm_revalidate_disk(struct gendisk *disk)
 {
 	struct device *dev = disk->driverfs_dev;
 	struct nd_region *nd_region = to_nd_region(dev->parent);
-	const char *pol = nd_region->ro ? "only" : "write";
+	int disk_ro = get_disk_ro(disk);
 
-	if (nd_region->ro == get_disk_ro(disk))
+	/*
+	 * Upgrade to read-only if the region is read-only preserve as
+	 * read-only if the disk is already read-only.
+	 */
+	if (disk_ro || nd_region->ro == disk_ro)
 		return 0;
 
-	dev_info(dev, "%s read-%s, marking %s read-%s\n",
-			dev_name(&nd_region->dev), pol, disk->disk_name, pol);
-	set_disk_ro(disk, nd_region->ro);
+	dev_info(dev, "%s read-only, marking %s read-only\n",
+			dev_name(&nd_region->dev), disk->disk_name);
+	set_disk_ro(disk, 1);
 
 	return 0;
 

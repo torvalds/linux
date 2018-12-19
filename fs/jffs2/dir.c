@@ -207,8 +207,7 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry,
 		  __func__, inode->i_ino, inode->i_mode, inode->i_nlink,
 		  f->inocache->pino_nlink, inode->i_mapping->nrpages);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 	return 0;
 
  fail:
@@ -428,8 +427,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	mutex_unlock(&dir_f->sem);
 	jffs2_complete_reservation(c);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 	return 0;
 
  fail:
@@ -573,8 +571,7 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, umode_t mode
 	mutex_unlock(&dir_f->sem);
 	jffs2_complete_reservation(c);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 	return 0;
 
  fail:
@@ -745,8 +742,7 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, umode_t mode
 	mutex_unlock(&dir_f->sem);
 	jffs2_complete_reservation(c);
 
-	unlock_new_inode(inode);
-	d_instantiate(dentry, inode);
+	d_instantiate_new(dentry, inode);
 	return 0;
 
  fail:

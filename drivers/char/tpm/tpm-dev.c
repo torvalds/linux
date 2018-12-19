@@ -25,7 +25,7 @@ struct file_priv {
 	struct tpm_chip *chip;
 
 	/* Data passed to and from the tpm via the read/write calls */
-	atomic_t data_pending;
+	size_t data_pending;
 	struct mutex buffer_mutex;
 
 	struct timer_list user_read_timer;      /* user needs to claim result */
@@ -46,7 +46,7 @@ static void timeout_work(struct work_struct *work)
 	struct file_priv *priv = container_of(work, struct file_priv, work);
 
 	mutex_lock(&priv->buffer_mutex);
-	atomic_set(&priv->data_pending, 0);
+	priv->data_pending = 0;
 	memset(priv->data_buffer, 0, sizeof(priv->data_buffer));
 	mutex_unlock(&priv->buffer_mutex);
 }
@@ -72,7 +72,6 @@ static int tpm_open(struct inode *inode, struct file *file)
 	}
 
 	priv->chip = chip;
-	atomic_set(&priv->data_pending, 0);
 	mutex_init(&priv->buffer_mutex);
 	setup_timer(&priv->user_read_timer, user_reader_timeout,
 			(unsigned long)priv);
@@ -86,28 +85,24 @@ static ssize_t tpm_read(struct file *file, char __user *buf,
 			size_t size, loff_t *off)
 {
 	struct file_priv *priv = file->private_data;
-	ssize_t ret_size;
+	ssize_t ret_size = 0;
 	int rc;
 
 	del_singleshot_timer_sync(&priv->user_read_timer);
 	flush_work(&priv->work);
-	ret_size = atomic_read(&priv->data_pending);
-	if (ret_size > 0) {	/* relay data */
-		ssize_t orig_ret_size = ret_size;
-		if (size < ret_size)
-			ret_size = size;
+	mutex_lock(&priv->buffer_mutex);
 
-		mutex_lock(&priv->buffer_mutex);
+	if (priv->data_pending) {
+		ret_size = min_t(ssize_t, size, priv->data_pending);
 		rc = copy_to_user(buf, priv->data_buffer, ret_size);
-		memset(priv->data_buffer, 0, orig_ret_size);
+		memset(priv->data_buffer, 0, priv->data_pending);
 		if (rc)
 			ret_size = -EFAULT;
 
-		mutex_unlock(&priv->buffer_mutex);
+		priv->data_pending = 0;
 	}
 
-	atomic_set(&priv->data_pending, 0);
-
+	mutex_unlock(&priv->buffer_mutex);
 	return ret_size;
 }
 
@@ -118,17 +113,19 @@ static ssize_t tpm_write(struct file *file, const char __user *buf,
 	size_t in_size = size;
 	ssize_t out_size;
 
-	/* cannot perform a write until the read has cleared
-	   either via tpm_read or a user_read_timer timeout.
-	   This also prevents splitted buffered writes from blocking here.
-	*/
-	if (atomic_read(&priv->data_pending) != 0)
-		return -EBUSY;
-
 	if (in_size > TPM_BUFSIZE)
 		return -E2BIG;
 
 	mutex_lock(&priv->buffer_mutex);
+
+	/* Cannot perform a write until the read has cleared either via
+	 * tpm_read or a user_read_timer timeout. This also prevents split
+	 * buffered writes from blocking here.
+	 */
+	if (priv->data_pending != 0) {
+		mutex_unlock(&priv->buffer_mutex);
+		return -EBUSY;
+	}
 
 	if (copy_from_user
 	    (priv->data_buffer, (void __user *) buf, in_size)) {
@@ -153,7 +150,7 @@ static ssize_t tpm_write(struct file *file, const char __user *buf,
 		return out_size;
 	}
 
-	atomic_set(&priv->data_pending, out_size);
+	priv->data_pending = out_size;
 	mutex_unlock(&priv->buffer_mutex);
 
 	/* Set a timeout by which the reader must come claim the result */
@@ -172,7 +169,7 @@ static int tpm_release(struct inode *inode, struct file *file)
 	del_singleshot_timer_sync(&priv->user_read_timer);
 	flush_work(&priv->work);
 	file->private_data = NULL;
-	atomic_set(&priv->data_pending, 0);
+	priv->data_pending = 0;
 	clear_bit(0, &priv->chip->is_open);
 	kfree(priv);
 	return 0;

@@ -351,4 +351,10 @@ extern void arch_phys_wc_del(int handle);
 #define arch_phys_wc_add arch_phys_wc_add
 #endif
 
+#ifdef CONFIG_X86_PAT
+extern int arch_io_reserve_memtype_wc(resource_size_t start, resource_size_t size);
+extern void arch_io_free_memtype_wc(resource_size_t start, resource_size_t size);
+#define arch_io_reserve_memtype_wc arch_io_reserve_memtype_wc
+#endif
+
 #endif /* _ASM_X86_IO_H */

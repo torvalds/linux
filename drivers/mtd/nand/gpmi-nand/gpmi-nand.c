@@ -1029,23 +1029,96 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		return ret;
 	}
 
-	/* handle the block mark swapping */
-	block_mark_swapping(this, payload_virt, auxiliary_virt);
-
 	/* Loop over status bytes, accumulating ECC status. */
 	status = auxiliary_virt + nfc_geo->auxiliary_status_offset;
+
+	read_page_swap_end(this, buf, nfc_geo->payload_size,
+			   this->payload_virt, this->payload_phys,
+			   nfc_geo->payload_size,
+			   payload_virt, payload_phys);
 
 	for (i = 0; i < nfc_geo->ecc_chunk_count; i++, status++) {
 		if ((*status == STATUS_GOOD) || (*status == STATUS_ERASED))
 			continue;
 
 		if (*status == STATUS_UNCORRECTABLE) {
+			int eccbits = nfc_geo->ecc_strength * nfc_geo->gf_len;
+			u8 *eccbuf = this->raw_buffer;
+			int offset, bitoffset;
+			int eccbytes;
+			int flips;
+
+			/* Read ECC bytes into our internal raw_buffer */
+			offset = nfc_geo->metadata_size * 8;
+			offset += ((8 * nfc_geo->ecc_chunk_size) + eccbits) * (i + 1);
+			offset -= eccbits;
+			bitoffset = offset % 8;
+			eccbytes = DIV_ROUND_UP(offset + eccbits, 8);
+			offset /= 8;
+			eccbytes -= offset;
+			chip->cmdfunc(mtd, NAND_CMD_RNDOUT, offset, -1);
+			chip->read_buf(mtd, eccbuf, eccbytes);
+
+			/*
+			 * ECC data are not byte aligned and we may have
+			 * in-band data in the first and last byte of
+			 * eccbuf. Set non-eccbits to one so that
+			 * nand_check_erased_ecc_chunk() does not count them
+			 * as bitflips.
+			 */
+			if (bitoffset)
+				eccbuf[0] |= GENMASK(bitoffset - 1, 0);
+
+			bitoffset = (bitoffset + eccbits) % 8;
+			if (bitoffset)
+				eccbuf[eccbytes - 1] |= GENMASK(7, bitoffset);
+
+			/*
+			 * The ECC hardware has an uncorrectable ECC status
+			 * code in case we have bitflips in an erased page. As
+			 * nothing was written into this subpage the ECC is
+			 * obviously wrong and we can not trust it. We assume
+			 * at this point that we are reading an erased page and
+			 * try to correct the bitflips in buffer up to
+			 * ecc_strength bitflips. If this is a page with random
+			 * data, we exceed this number of bitflips and have a
+			 * ECC failure. Otherwise we use the corrected buffer.
+			 */
+			if (i == 0) {
+				/* The first block includes metadata */
+				flips = nand_check_erased_ecc_chunk(
+						buf + i * nfc_geo->ecc_chunk_size,
+						nfc_geo->ecc_chunk_size,
+						eccbuf, eccbytes,
+						auxiliary_virt,
+						nfc_geo->metadata_size,
+						nfc_geo->ecc_strength);
+			} else {
+				flips = nand_check_erased_ecc_chunk(
+						buf + i * nfc_geo->ecc_chunk_size,
+						nfc_geo->ecc_chunk_size,
+						eccbuf, eccbytes,
+						NULL, 0,
+						nfc_geo->ecc_strength);
+			}
+
+			if (flips > 0) {
+				max_bitflips = max_t(unsigned int, max_bitflips,
+						     flips);
+				mtd->ecc_stats.corrected += flips;
+				continue;
+			}
+
 			mtd->ecc_stats.failed++;
 			continue;
 		}
+
 		mtd->ecc_stats.corrected += *status;
 		max_bitflips = max_t(unsigned int, max_bitflips, *status);
 	}
+
+	/* handle the block mark swapping */
+	block_mark_swapping(this, buf, auxiliary_virt);
 
 	if (oob_required) {
 		/*
@@ -1061,11 +1134,6 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		memset(chip->oob_poi, ~0, mtd->oobsize);
 		chip->oob_poi[0] = ((uint8_t *) auxiliary_virt)[0];
 	}
-
-	read_page_swap_end(this, buf, nfc_geo->payload_size,
-			this->payload_virt, this->payload_phys,
-			nfc_geo->payload_size,
-			payload_virt, payload_phys);
 
 	return max_bitflips;
 }

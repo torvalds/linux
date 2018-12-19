@@ -433,6 +433,12 @@ static void __init xen_init_cpuid_mask(void)
 		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
 		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
 
+	/*
+	 * Xen PV would need some work to support PCID: CR3 handling as well
+	 * as xen_flush_tlb_others() would need updating.
+	 */
+	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_PCID % 32));  /* disable PCID */
+
 	if (!xen_initial_domain())
 		cpuid_leaf1_edx_mask &=
 			~((1 << X86_FEATURE_ACPI));  /* disable ACPI */
@@ -452,6 +458,12 @@ static void __init xen_init_cpuid_mask(void)
 		cpuid_leaf1_ecx_mask &= ~xsave_mask; /* disable XSAVE & OSXSAVE */
 	if (xen_check_mwait())
 		cpuid_leaf1_ecx_set_mask = (1 << (X86_FEATURE_MWAIT % 32));
+}
+
+static void __init xen_init_capabilities(void)
+{
+	if (xen_pv_domain())
+		setup_force_cpu_cap(X86_FEATURE_XENPV);
 }
 
 static void xen_set_debugreg(int reg, unsigned long val)
@@ -1581,6 +1593,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	xen_init_irq_ops();
 	xen_init_cpuid_mask();
+	xen_init_capabilities();
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/*
@@ -1877,14 +1890,6 @@ bool xen_hvm_need_lapic(void)
 }
 EXPORT_SYMBOL_GPL(xen_hvm_need_lapic);
 
-static void xen_set_cpu_features(struct cpuinfo_x86 *c)
-{
-	if (xen_pv_domain()) {
-		clear_cpu_bug(c, X86_BUG_SYSRET_SS_ATTRS);
-		set_cpu_cap(c, X86_FEATURE_XENPV);
-	}
-}
-
 const struct hypervisor_x86 x86_hyper_xen = {
 	.name			= "Xen",
 	.detect			= xen_platform,
@@ -1892,7 +1897,6 @@ const struct hypervisor_x86 x86_hyper_xen = {
 	.init_platform		= xen_hvm_guest_init,
 #endif
 	.x2apic_available	= xen_x2apic_para_available,
-	.set_cpu_features       = xen_set_cpu_features,
 };
 EXPORT_SYMBOL(x86_hyper_xen);
 

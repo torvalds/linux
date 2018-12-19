@@ -430,6 +430,10 @@ do_pass:
 			    convert_bpf_extensions(fp, &insn))
 				break;
 
+			if (fp->code == (BPF_ALU | BPF_DIV | BPF_X) ||
+			    fp->code == (BPF_ALU | BPF_MOD | BPF_X))
+				*insn++ = BPF_MOV32_REG(BPF_REG_X, BPF_REG_X);
+
 			*insn = BPF_RAW_INSN(fp->code, BPF_REG_A, BPF_REG_X, 0, fp->k);
 			break;
 
@@ -984,7 +988,9 @@ static struct bpf_prog *bpf_migrate_filter(struct bpf_prog *fp)
 		 */
 		goto out_err_free;
 
-	bpf_prog_select_runtime(fp);
+	err = bpf_prog_select_runtime(fp);
+	if (err)
+		goto out_err_free;
 
 	kfree(old_prog);
 	return fp;

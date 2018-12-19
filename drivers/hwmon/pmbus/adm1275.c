@@ -95,8 +95,8 @@ static const struct coefficients adm1075_coefficients[] = {
 	[0] = { 27169, 0, -1 },		/* voltage */
 	[1] = { 806, 20475, -1 },	/* current, irange25 */
 	[2] = { 404, 20475, -1 },	/* current, irange50 */
-	[3] = { 0, -1, 8549 },		/* power, irange25 */
-	[4] = { 0, -1, 4279 },		/* power, irange50 */
+	[3] = { 8549, 0, -1 },		/* power, irange25 */
+	[4] = { 4279, 0, -1 },		/* power, irange50 */
 };
 
 static const struct coefficients adm1275_coefficients[] = {
@@ -141,7 +141,7 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int ret = 0;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {
@@ -218,7 +218,7 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int ret;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {

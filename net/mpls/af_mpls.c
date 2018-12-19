@@ -7,6 +7,7 @@
 #include <linux/if_arp.h>
 #include <linux/ipv6.h>
 #include <linux/mpls.h>
+#include <linux/nospec.h>
 #include <linux/vmalloc.h>
 #include <net/ip.h>
 #include <net/dst.h>
@@ -714,6 +715,22 @@ errout:
 	return err;
 }
 
+static bool mpls_label_ok(struct net *net, unsigned int *index)
+{
+	bool is_ok = true;
+
+	/* Reserved labels may not be set */
+	if (*index < MPLS_LABEL_FIRST_UNRESERVED)
+		is_ok = false;
+
+	/* The full 20 bit range may not be supported. */
+	if (is_ok && *index >= net->mpls.platform_labels)
+		is_ok = false;
+
+	*index = array_index_nospec(*index, net->mpls.platform_labels);
+	return is_ok;
+}
+
 static int mpls_route_add(struct mpls_route_config *cfg)
 {
 	struct mpls_route __rcu **platform_label;
@@ -732,12 +749,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		index = find_free_label(net);
 	}
 
-	/* Reserved labels may not be set */
-	if (index < MPLS_LABEL_FIRST_UNRESERVED)
-		goto errout;
-
-	/* The full 20 bit range may not be supported. */
-	if (index >= net->mpls.platform_labels)
+	if (!mpls_label_ok(net, &index))
 		goto errout;
 
 	/* Append makes no sense with mpls */
@@ -798,12 +810,7 @@ static int mpls_route_del(struct mpls_route_config *cfg)
 
 	index = cfg->rc_label;
 
-	/* Reserved labels may not be removed */
-	if (index < MPLS_LABEL_FIRST_UNRESERVED)
-		goto errout;
-
-	/* The full 20 bit range may not be supported */
-	if (index >= net->mpls.platform_labels)
+	if (!mpls_label_ok(net, &index))
 		goto errout;
 
 	mpls_route_update(net, index, NULL, &cfg->rc_nlinfo);
@@ -1162,10 +1169,9 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 					   &cfg->rc_label))
 				goto errout;
 
-			/* Reserved labels may not be set */
-			if (cfg->rc_label < MPLS_LABEL_FIRST_UNRESERVED)
+			if (!mpls_label_ok(cfg->rc_nlinfo.nl_net,
+					   &cfg->rc_label))
 				goto errout;
-
 			break;
 		}
 		case RTA_VIA:

@@ -9,10 +9,12 @@
 #include <linux/atomic.h>
 
 atomic_t trace_idt_ctr = ATOMIC_INIT(0);
+__aligned(PAGE_SIZE)
 struct desc_ptr trace_idt_descr = { NR_VECTORS * 16 - 1,
 				(unsigned long) trace_idt_table };
 
 /* No need to be aligned, but done to keep all IDTs defined the same way. */
+__aligned(PAGE_SIZE)
 gate_desc trace_idt_table[NR_VECTORS] __page_aligned_bss;
 
 static int trace_irq_vector_refcount;

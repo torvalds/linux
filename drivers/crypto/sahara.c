@@ -1363,7 +1363,7 @@ err_sha_v4_algs:
 
 err_sha_v3_algs:
 	for (j = 0; j < k; j++)
-		crypto_unregister_ahash(&sha_v4_algs[j]);
+		crypto_unregister_ahash(&sha_v3_algs[j]);
 
 err_aes_algs:
 	for (j = 0; j < i; j++)
@@ -1379,7 +1379,7 @@ static void sahara_unregister_algs(struct sahara_dev *dev)
 	for (i = 0; i < ARRAY_SIZE(aes_algs); i++)
 		crypto_unregister_alg(&aes_algs[i]);
 
-	for (i = 0; i < ARRAY_SIZE(sha_v4_algs); i++)
+	for (i = 0; i < ARRAY_SIZE(sha_v3_algs); i++)
 		crypto_unregister_ahash(&sha_v3_algs[i]);
 
 	if (dev->version > SAHARA_VERSION_3)

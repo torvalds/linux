@@ -76,13 +76,13 @@ static int ivtv_yuv_prep_user_dma(struct ivtv *itv, struct ivtv_user_dma *dma,
 
 	/* Get user pages for DMA Xfer */
 	y_pages = get_user_pages_unlocked(current, current->mm,
-				y_dma.uaddr, y_dma.page_count, 0, 1,
-				&dma->map[0]);
+				y_dma.uaddr, y_dma.page_count,
+				&dma->map[0], FOLL_FORCE);
 	uv_pages = 0; /* silence gcc. value is set and consumed only if: */
 	if (y_pages == y_dma.page_count) {
 		uv_pages = get_user_pages_unlocked(current, current->mm,
-					uv_dma.uaddr, uv_dma.page_count, 0, 1,
-					&dma->map[y_pages]);
+					uv_dma.uaddr, uv_dma.page_count,
+					&dma->map[y_pages], FOLL_FORCE);
 	}
 
 	if (y_pages != y_dma.page_count || uv_pages != uv_dma.page_count) {

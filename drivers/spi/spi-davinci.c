@@ -220,7 +220,7 @@ static void davinci_spi_chipselect(struct spi_device *spi, int value)
 	pdata = &dspi->pdata;
 
 	/* program delay transfers if tx_delay is non zero */
-	if (spicfg->wdelay)
+	if (spicfg && spicfg->wdelay)
 		spidat1 |= SPIDAT1_WDEL;
 
 	/*
@@ -651,7 +651,7 @@ static int davinci_spi_bufs(struct spi_device *spi, struct spi_transfer *t)
 			buf = t->rx_buf;
 		t->rx_dma = dma_map_single(&spi->dev, buf,
 				t->len, DMA_FROM_DEVICE);
-		if (dma_mapping_error(&spi->dev, !t->rx_dma)) {
+		if (dma_mapping_error(&spi->dev, t->rx_dma)) {
 			ret = -EFAULT;
 			goto err_rx_map;
 		}

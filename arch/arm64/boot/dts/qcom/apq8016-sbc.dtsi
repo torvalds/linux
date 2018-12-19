@@ -105,7 +105,7 @@
 			led@6 {
 				label = "apq8016-sbc:blue:bt";
 				gpios = <&pm8916_mpps 3 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "bt";
+				linux,default-trigger = "bluetooth-power";
 				default-state = "off";
 			};
 		};

@@ -303,7 +303,7 @@ static struct clk *isp_xclk_src_get(struct of_phandle_args *clkspec, void *data)
 static int isp_xclk_init(struct isp_device *isp)
 {
 	struct device_node *np = isp->dev->of_node;
-	struct clk_init_data init;
+	struct clk_init_data init = { 0 };
 	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(isp->xclks); ++i)
@@ -2077,6 +2077,7 @@ error_csiphy:
 
 static void isp_detach_iommu(struct isp_device *isp)
 {
+	arm_iommu_detach_device(isp->dev);
 	arm_iommu_release_mapping(isp->mapping);
 	isp->mapping = NULL;
 	iommu_group_remove_device(isp->dev);
@@ -2110,8 +2111,7 @@ static int isp_attach_iommu(struct isp_device *isp)
 	mapping = arm_iommu_create_mapping(&platform_bus_type, SZ_1G, SZ_2G);
 	if (IS_ERR(mapping)) {
 		dev_err(isp->dev, "failed to create ARM IOMMU mapping\n");
-		ret = PTR_ERR(mapping);
-		goto error;
+		return PTR_ERR(mapping);
 	}
 
 	isp->mapping = mapping;
@@ -2126,7 +2126,8 @@ static int isp_attach_iommu(struct isp_device *isp)
 	return 0;
 
 error:
-	isp_detach_iommu(isp);
+	arm_iommu_release_mapping(isp->mapping);
+	isp->mapping = NULL;
 	return ret;
 }
 

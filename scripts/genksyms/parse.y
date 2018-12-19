@@ -320,8 +320,6 @@ direct_declarator:
 		{ $$ = $2; }
 	| '(' declarator ')'
 		{ $$ = $3; }
-	| '(' error ')'
-		{ $$ = $3; }
 	;
 
 /* Nested declarators differ from regular declarators in that they do

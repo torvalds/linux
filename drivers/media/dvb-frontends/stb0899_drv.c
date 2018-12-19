@@ -552,7 +552,8 @@ int stb0899_write_regs(struct stb0899_state *state, unsigned int reg, u8 *data, 
 
 int stb0899_write_reg(struct stb0899_state *state, unsigned int reg, u8 data)
 {
-	return stb0899_write_regs(state, reg, &data, 1);
+	u8 tmp = data;
+	return stb0899_write_regs(state, reg, &tmp, 1);
 }
 
 /*

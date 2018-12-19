@@ -183,7 +183,7 @@ static int hdac_component_master_match(struct device *dev, void *data)
  */
 int snd_hdac_i915_register_notifier(const struct i915_audio_component_audio_ops *aops)
 {
-	if (WARN_ON(!hdac_acomp))
+	if (!hdac_acomp)
 		return -ENODEV;
 
 	hdac_acomp->audio_ops = aops;
@@ -240,7 +240,8 @@ out_master_del:
 out_err:
 	kfree(acomp);
 	bus->audio_component = NULL;
-	dev_err(dev, "failed to add i915 component master (%d)\n", ret);
+	hdac_acomp = NULL;
+	dev_info(dev, "failed to add i915 component master (%d)\n", ret);
 
 	return ret;
 }
@@ -273,6 +274,7 @@ int snd_hdac_i915_exit(struct hdac_bus *bus)
 
 	kfree(acomp);
 	bus->audio_component = NULL;
+	hdac_acomp = NULL;
 
 	return 0;
 }

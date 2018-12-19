@@ -1179,6 +1179,7 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 
 struct hv_util_service {
 	u8 *recv_buffer;
+	void *channel;
 	void (*util_cb)(void *);
 	int (*util_init)(struct hv_util_service *);
 	void (*util_deinit)(void);

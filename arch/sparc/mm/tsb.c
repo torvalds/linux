@@ -489,8 +489,10 @@ retry_tsb_alloc:
 
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 {
+	unsigned long mm_rss = get_mm_rss(mm);
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	unsigned long total_huge_pte_count;
+	unsigned long saved_hugetlb_pte_count;
+	unsigned long saved_thp_pte_count;
 #endif
 	unsigned int i;
 
@@ -503,10 +505,12 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	 * will re-increment the counters as the parent PTEs are
 	 * copied into the child address space.
 	 */
-	total_huge_pte_count = mm->context.hugetlb_pte_count +
-			 mm->context.thp_pte_count;
+	saved_hugetlb_pte_count = mm->context.hugetlb_pte_count;
+	saved_thp_pte_count = mm->context.thp_pte_count;
 	mm->context.hugetlb_pte_count = 0;
 	mm->context.thp_pte_count = 0;
+
+	mm_rss -= saved_thp_pte_count * (HPAGE_SIZE / PAGE_SIZE);
 #endif
 
 	/* copy_mm() copies over the parent's mm_struct before calling
@@ -519,11 +523,13 @@ int init_new_context(struct task_struct *tsk, struct mm_struct *mm)
 	/* If this is fork, inherit the parent's TSB size.  We would
 	 * grow it to that size on the first page fault anyways.
 	 */
-	tsb_grow(mm, MM_TSB_BASE, get_mm_rss(mm));
+	tsb_grow(mm, MM_TSB_BASE, mm_rss);
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-	if (unlikely(total_huge_pte_count))
-		tsb_grow(mm, MM_TSB_HUGE, total_huge_pte_count);
+	if (unlikely(saved_hugetlb_pte_count + saved_thp_pte_count))
+		tsb_grow(mm, MM_TSB_HUGE,
+			 (saved_hugetlb_pte_count + saved_thp_pte_count) *
+			 REAL_HPAGE_PER_HPAGE);
 #endif
 
 	if (unlikely(!mm->context.tsb_block[MM_TSB_BASE].tsb))

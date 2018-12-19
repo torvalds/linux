@@ -420,6 +420,7 @@ static void qed_mcp_handle_link_change(struct qed_hwfn *p_hwfn,
 		break;
 	default:
 		p_link->speed = 0;
+		p_link->link_up = 0;
 	}
 
 	/* Correct speed according to bandwidth allocation */

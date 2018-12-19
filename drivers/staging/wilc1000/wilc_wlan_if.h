@@ -12,6 +12,7 @@
 
 #include <linux/semaphore.h>
 #include "linux_wlan_common.h"
+#include <linux/netdevice.h>
 
 /********************************************
  *

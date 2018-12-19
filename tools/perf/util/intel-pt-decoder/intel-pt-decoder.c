@@ -111,6 +111,7 @@ struct intel_pt_decoder {
 	bool have_cyc;
 	bool fixup_last_mtc;
 	bool have_last_ip;
+	enum intel_pt_param_flags flags;
 	uint64_t pos;
 	uint64_t last_ip;
 	uint64_t ip;
@@ -212,6 +213,8 @@ struct intel_pt_decoder *intel_pt_decoder_new(struct intel_pt_params *params)
 	decoder->walk_insn          = params->walk_insn;
 	decoder->data               = params->data;
 	decoder->return_compression = params->return_compression;
+
+	decoder->flags              = params->flags;
 
 	decoder->period             = params->period;
 	decoder->period_type        = params->period_type;
@@ -1010,6 +1013,15 @@ out_no_progress:
 	return err;
 }
 
+static inline bool intel_pt_fup_with_nlip(struct intel_pt_decoder *decoder,
+					  struct intel_pt_insn *intel_pt_insn,
+					  uint64_t ip, int err)
+{
+	return decoder->flags & INTEL_PT_FUP_WITH_NLIP && !err &&
+	       intel_pt_insn->branch == INTEL_PT_BR_INDIRECT &&
+	       ip == decoder->ip + intel_pt_insn->length;
+}
+
 static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
 {
 	struct intel_pt_insn intel_pt_insn;
@@ -1022,7 +1034,8 @@ static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
 		err = intel_pt_walk_insn(decoder, &intel_pt_insn, ip);
 		if (err == INTEL_PT_RETURN)
 			return 0;
-		if (err == -EAGAIN) {
+		if (err == -EAGAIN ||
+		    intel_pt_fup_with_nlip(decoder, &intel_pt_insn, ip, err)) {
 			if (decoder->set_fup_tx_flags) {
 				decoder->set_fup_tx_flags = false;
 				decoder->tx_flags = decoder->fup_tx_flags;
@@ -1032,7 +1045,7 @@ static int intel_pt_walk_fup(struct intel_pt_decoder *decoder)
 				decoder->state.flags = decoder->fup_tx_flags;
 				return 0;
 			}
-			return err;
+			return -EAGAIN;
 		}
 		decoder->set_fup_tx_flags = false;
 		if (err)
@@ -1268,8 +1281,8 @@ static int intel_pt_overflow(struct intel_pt_decoder *decoder)
 {
 	intel_pt_log("ERROR: Buffer overflow\n");
 	intel_pt_clear_tx_flags(decoder);
-	decoder->have_tma = false;
 	decoder->cbr = 0;
+	decoder->timestamp_insn_cnt = 0;
 	decoder->pkt_state = INTEL_PT_STATE_ERR_RESYNC;
 	decoder->overflow = true;
 	return -EOVERFLOW;
@@ -1486,13 +1499,17 @@ static int intel_pt_walk_fup_tip(struct intel_pt_decoder *decoder)
 		case INTEL_PT_PSB:
 		case INTEL_PT_TSC:
 		case INTEL_PT_TMA:
-		case INTEL_PT_CBR:
 		case INTEL_PT_MODE_TSX:
 		case INTEL_PT_BAD:
 		case INTEL_PT_PSBEND:
 			intel_pt_log("ERROR: Missing TIP after FUP\n");
 			decoder->pkt_state = INTEL_PT_STATE_ERR3;
+			decoder->pkt_step = 0;
 			return -ENOENT;
+
+		case INTEL_PT_CBR:
+			intel_pt_calc_cbr(decoder);
+			break;
 
 		case INTEL_PT_OVF:
 			return intel_pt_overflow(decoder);
@@ -2152,14 +2169,6 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 	return &decoder->state;
 }
 
-static bool intel_pt_at_psb(unsigned char *buf, size_t len)
-{
-	if (len < INTEL_PT_PSB_LEN)
-		return false;
-	return memmem(buf, INTEL_PT_PSB_LEN, INTEL_PT_PSB_STR,
-		      INTEL_PT_PSB_LEN);
-}
-
 /**
  * intel_pt_next_psb - move buffer pointer to the start of the next PSB packet.
  * @buf: pointer to buffer pointer
@@ -2248,6 +2257,7 @@ static unsigned char *intel_pt_last_psb(unsigned char *buf, size_t len)
  * @buf: buffer
  * @len: size of buffer
  * @tsc: TSC value returned
+ * @rem: returns remaining size when TSC is found
  *
  * Find a TSC packet in @buf and return the TSC value.  This function assumes
  * that @buf starts at a PSB and that PSB+ will contain TSC and so stops if a
@@ -2255,7 +2265,8 @@ static unsigned char *intel_pt_last_psb(unsigned char *buf, size_t len)
  *
  * Return: %true if TSC is found, false otherwise.
  */
-static bool intel_pt_next_tsc(unsigned char *buf, size_t len, uint64_t *tsc)
+static bool intel_pt_next_tsc(unsigned char *buf, size_t len, uint64_t *tsc,
+			      size_t *rem)
 {
 	struct intel_pt_pkt packet;
 	int ret;
@@ -2266,6 +2277,7 @@ static bool intel_pt_next_tsc(unsigned char *buf, size_t len, uint64_t *tsc)
 			return false;
 		if (packet.type == INTEL_PT_TSC) {
 			*tsc = packet.payload;
+			*rem = len;
 			return true;
 		}
 		if (packet.type == INTEL_PT_PSBEND)
@@ -2316,6 +2328,8 @@ static int intel_pt_tsc_cmp(uint64_t tsc1, uint64_t tsc2)
  * @len_a: size of first buffer
  * @buf_b: second buffer
  * @len_b: size of second buffer
+ * @consecutive: returns true if there is data in buf_b that is consecutive
+ *               to buf_a
  *
  * If the trace contains TSC we can look at the last TSC of @buf_a and the
  * first TSC of @buf_b in order to determine if the buffers overlap, and then
@@ -2328,33 +2342,41 @@ static int intel_pt_tsc_cmp(uint64_t tsc1, uint64_t tsc2)
 static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
 						size_t len_a,
 						unsigned char *buf_b,
-						size_t len_b)
+						size_t len_b, bool *consecutive)
 {
 	uint64_t tsc_a, tsc_b;
 	unsigned char *p;
-	size_t len;
+	size_t len, rem_a, rem_b;
 
 	p = intel_pt_last_psb(buf_a, len_a);
 	if (!p)
 		return buf_b; /* No PSB in buf_a => no overlap */
 
 	len = len_a - (p - buf_a);
-	if (!intel_pt_next_tsc(p, len, &tsc_a)) {
+	if (!intel_pt_next_tsc(p, len, &tsc_a, &rem_a)) {
 		/* The last PSB+ in buf_a is incomplete, so go back one more */
 		len_a -= len;
 		p = intel_pt_last_psb(buf_a, len_a);
 		if (!p)
 			return buf_b; /* No full PSB+ => assume no overlap */
 		len = len_a - (p - buf_a);
-		if (!intel_pt_next_tsc(p, len, &tsc_a))
+		if (!intel_pt_next_tsc(p, len, &tsc_a, &rem_a))
 			return buf_b; /* No TSC in buf_a => assume no overlap */
 	}
 
 	while (1) {
 		/* Ignore PSB+ with no TSC */
-		if (intel_pt_next_tsc(buf_b, len_b, &tsc_b) &&
-		    intel_pt_tsc_cmp(tsc_a, tsc_b) < 0)
-			return buf_b; /* tsc_a < tsc_b => no overlap */
+		if (intel_pt_next_tsc(buf_b, len_b, &tsc_b, &rem_b)) {
+			int cmp = intel_pt_tsc_cmp(tsc_a, tsc_b);
+
+			/* Same TSC, so buffers are consecutive */
+			if (!cmp && rem_b >= rem_a) {
+				*consecutive = true;
+				return buf_b + len_b - (rem_b - rem_a);
+			}
+			if (cmp < 0)
+				return buf_b; /* tsc_a < tsc_b => no overlap */
+		}
 
 		if (!intel_pt_step_psb(&buf_b, &len_b))
 			return buf_b + len_b; /* No PSB in buf_b => no data */
@@ -2368,6 +2390,8 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
  * @buf_b: second buffer
  * @len_b: size of second buffer
  * @have_tsc: can use TSC packets to detect overlap
+ * @consecutive: returns true if there is data in buf_b that is consecutive
+ *               to buf_a
  *
  * When trace samples or snapshots are recorded there is the possibility that
  * the data overlaps.  Note that, for the purposes of decoding, data is only
@@ -2378,7 +2402,7 @@ static unsigned char *intel_pt_find_overlap_tsc(unsigned char *buf_a,
  */
 unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 				     unsigned char *buf_b, size_t len_b,
-				     bool have_tsc)
+				     bool have_tsc, bool *consecutive)
 {
 	unsigned char *found;
 
@@ -2390,7 +2414,8 @@ unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 		return buf_b; /* No overlap */
 
 	if (have_tsc) {
-		found = intel_pt_find_overlap_tsc(buf_a, len_a, buf_b, len_b);
+		found = intel_pt_find_overlap_tsc(buf_a, len_a, buf_b, len_b,
+						  consecutive);
 		if (found)
 			return found;
 	}
@@ -2405,28 +2430,16 @@ unsigned char *intel_pt_find_overlap(unsigned char *buf_a, size_t len_a,
 	}
 
 	/* Now len_b >= len_a */
-	if (len_b > len_a) {
-		/* The leftover buffer 'b' must start at a PSB */
-		while (!intel_pt_at_psb(buf_b + len_a, len_b - len_a)) {
-			if (!intel_pt_step_psb(&buf_a, &len_a))
-				return buf_b; /* No overlap */
-		}
-	}
-
 	while (1) {
 		/* Potential overlap so check the bytes */
 		found = memmem(buf_a, len_a, buf_b, len_a);
-		if (found)
+		if (found) {
+			*consecutive = true;
 			return buf_b + len_a;
+		}
 
 		/* Try again at next PSB in buffer 'a' */
 		if (!intel_pt_step_psb(&buf_a, &len_a))
 			return buf_b; /* No overlap */
-
-		/* The leftover buffer 'b' must start at a PSB */
-		while (!intel_pt_at_psb(buf_b + len_a, len_b - len_a)) {
-			if (!intel_pt_step_psb(&buf_a, &len_a))
-				return buf_b; /* No overlap */
-		}
 	}
 }
