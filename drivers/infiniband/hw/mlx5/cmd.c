@@ -240,6 +240,7 @@ int mlx5_cmd_alloc_transport_domain(struct mlx5_core_dev *dev, u32 *tdn,
 
 	MLX5_SET(alloc_transport_domain_in, in, opcode,
 		 MLX5_CMD_OP_ALLOC_TRANSPORT_DOMAIN);
+	MLX5_SET(alloc_transport_domain_in, in, uid, uid);
 
 	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 	if (!err)
@@ -257,6 +258,7 @@ void mlx5_cmd_dealloc_transport_domain(struct mlx5_core_dev *dev, u32 tdn,
 
 	MLX5_SET(dealloc_transport_domain_in, in, opcode,
 		 MLX5_CMD_OP_DEALLOC_TRANSPORT_DOMAIN);
+	MLX5_SET(dealloc_transport_domain_in, in, uid, uid);
 	MLX5_SET(dealloc_transport_domain_in, in, transport_domain, tdn);
 	mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
