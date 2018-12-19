@@ -3641,7 +3641,8 @@ static int ice_vsi_update_bridge_mode(struct ice_vsi *vsi, u16 bmode)
  */
 static int
 ice_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
-		   u16 __always_unused flags, struct netlink_ext_ack *extack)
+		   u16 __always_unused flags,
+		   struct netlink_ext_ack __always_unused *extack)
 {
 	struct ice_netdev_priv *np = netdev_priv(dev);
 	struct ice_pf *pf = np->vsi->back;
