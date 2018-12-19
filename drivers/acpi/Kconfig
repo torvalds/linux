@@ -9,7 +9,6 @@ config ARCH_SUPPORTS_ACPI
 menuconfig ACPI
 	bool "ACPI (Advanced Configuration and Power Interface) Support"
 	depends on ARCH_SUPPORTS_ACPI
-	depends on PCI
 	select PNP
 	default y if X86
 	help
