@@ -1717,22 +1717,34 @@ static u32 ice_intrl_usec_to_reg(u8 intrl, u8 gran)
 static void
 ice_cfg_itr(struct ice_hw *hw, struct ice_q_vector *q_vector, u16 vector)
 {
-	u8 itr_gran = hw->itr_gran;
-
 	if (q_vector->num_ring_rx) {
 		struct ice_ring_container *rc = &q_vector->rx;
 
-		rc->itr = ITR_TO_REG(ICE_DFLT_RX_ITR, itr_gran);
+		/* if this value is set then don't overwrite with default */
+		if (!rc->itr_setting)
+			rc->itr_setting = ICE_DFLT_RX_ITR;
+
+		rc->target_itr = ITR_TO_REG(rc->itr_setting);
+		rc->next_update = jiffies + 1;
+		rc->current_itr = rc->target_itr;
 		rc->latency_range = ICE_LOW_LATENCY;
-		wr32(hw, GLINT_ITR(rc->itr_idx, vector), rc->itr);
+		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
+		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
 
 	if (q_vector->num_ring_tx) {
 		struct ice_ring_container *rc = &q_vector->tx;
 
-		rc->itr = ITR_TO_REG(ICE_DFLT_TX_ITR, itr_gran);
+		/* if this value is set then don't overwrite with default */
+		if (!rc->itr_setting)
+			rc->itr_setting = ICE_DFLT_TX_ITR;
+
+		rc->target_itr = ITR_TO_REG(rc->itr_setting);
+		rc->next_update = jiffies + 1;
+		rc->current_itr = rc->target_itr;
 		rc->latency_range = ICE_LOW_LATENCY;
-		wr32(hw, GLINT_ITR(rc->itr_idx, vector), rc->itr);
+		wr32(hw, GLINT_ITR(rc->itr_idx, vector),
+		     ITR_REG_ALIGN(rc->current_itr) >> ICE_ITR_GRAN_S);
 	}
 }
 
