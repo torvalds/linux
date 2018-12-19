@@ -332,7 +332,6 @@ static void msdc_pm(pm_message_t state, void *data)
 
 		host->suspend = 0;
 		host->pm_state = state;
-
 	}
 }
 #endif
@@ -1473,7 +1472,6 @@ static void msdc_enable_cd_irq(struct msdc_host *host, int enable)
 /* called by msdc_drv_probe */
 static void msdc_init_hw(struct msdc_host *host)
 {
-
 	/* Configure to MMC/SD mode */
 	sdr_set_field(host->base + MSDC_CFG, MSDC_CFG_MODE, MSDC_SDMMC);
 
