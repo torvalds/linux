@@ -132,5 +132,6 @@ extern struct pci_dev *pnv_pci_get_npu_dev(struct pci_dev *gpdev, int index);
 extern int pnv_npu2_init(struct pci_controller *hose);
 extern int pnv_npu2_map_lpar_dev(struct pci_dev *gpdev, unsigned int lparid,
 		unsigned long msr);
+extern int pnv_npu2_unmap_lpar_dev(struct pci_dev *gpdev);
 
 #endif /* __ASM_POWERPC_PCI_H */

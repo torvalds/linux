@@ -62,6 +62,7 @@ struct pnv_ioda_pe {
 
 	/* "Base" iommu table, ie, 4K TCEs, 32-bit DMA */
 	struct iommu_table_group table_group;
+	struct npu_comp		*npucomp;
 
 	/* 64-bit TCE bypass region */
 	bool			tce_bypass_enabled;
@@ -199,6 +200,8 @@ extern void pnv_teardown_msi_irqs(struct pci_dev *pdev);
 extern struct pnv_ioda_pe *pnv_ioda_get_pe(struct pci_dev *dev);
 extern void pnv_set_msi_irq_chip(struct pnv_phb *phb, unsigned int virq);
 extern void pnv_pci_ioda2_set_bypass(struct pnv_ioda_pe *pe, bool enable);
+extern unsigned long pnv_pci_ioda2_get_table_size(__u32 page_shift,
+		__u64 window_size, __u32 levels);
 extern int pnv_eeh_post_init(void);
 
 extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
@@ -214,6 +217,10 @@ extern void pe_level_printk(const struct pnv_ioda_pe *pe, const char *level,
 extern void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass);
 extern void pnv_pci_ioda2_tce_invalidate_entire(struct pnv_phb *phb, bool rm);
 extern struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe);
+extern struct iommu_table_group *pnv_try_setup_npu_table_group(
+		struct pnv_ioda_pe *pe);
+extern struct iommu_table_group *pnv_npu_compound_attach(
+		struct pnv_ioda_pe *pe);
 
 /* pci-ioda-tce.c */
 #define POWERNV_IOMMU_DEFAULT_LEVELS	1
