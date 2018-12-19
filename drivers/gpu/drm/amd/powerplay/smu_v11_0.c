@@ -27,7 +27,6 @@
 #include "atomfirmware.h"
 #include "amdgpu_atomfirmware.h"
 #include "smu_v11_0.h"
-#include "smu_v11_0_ppsmc.h"
 #include "smu11_driver_if.h"
 #include "soc15_common.h"
 #include "atom.h"
@@ -75,7 +74,7 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 	if (i == adev->usec_timeout)
 		return -ETIME;
 
-	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) ==  PPSMC_Result_OK ? 0:-EIO;
+	return RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90) == 0x1 ? 0 : -EIO;
 }
 
 static int smu_v11_0_send_msg(struct smu_context *smu, uint16_t msg)
@@ -210,7 +209,7 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	uint32_t smu_version = 0xff;
 	int ret = 0;
 
-	ret = smu_send_smc_msg(smu, PPSMC_MSG_GetDriverIfVersion);
+	ret = smu_send_smc_msg(smu, SMU_MSG_GetDriverIfVersion);
 	if (ret)
 		goto err;
 
@@ -468,12 +467,12 @@ static int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	address_low  = (uint32_t)lower_32_bits(address);
 
 	ret = smu_send_smc_msg_with_param(smu,
-					  PPSMC_MSG_SetSystemVirtualDramAddrHigh,
+					  SMU_MSG_SetSystemVirtualDramAddrHigh,
 					  address_high);
 	if (ret)
 		return ret;
 	ret = smu_send_smc_msg_with_param(smu,
-					  PPSMC_MSG_SetSystemVirtualDramAddrLow,
+					  SMU_MSG_SetSystemVirtualDramAddrLow,
 					  address_low);
 	if (ret)
 		return ret;
@@ -482,15 +481,15 @@ static int smu_v11_0_notify_memory_pool_location(struct smu_context *smu)
 	address_high = (uint32_t)upper_32_bits(address);
 	address_low  = (uint32_t)lower_32_bits(address);
 
-	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_DramLogSetDramAddrHigh,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrHigh,
 					  address_high);
 	if (ret)
 		return ret;
-	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_DramLogSetDramAddrLow,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramAddrLow,
 					  address_low);
 	if (ret)
 		return ret;
-	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_DramLogSetDramSize,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_DramLogSetDramSize,
 					  (uint32_t)memory_pool->size);
 	if (ret)
 		return ret;
@@ -594,19 +593,19 @@ static int smu_v11_0_copy_table_to_smc(struct smu_context *smu,
 	memcpy(driver_pptable->cpu_addr, table_context->driver_pptable,
 	       driver_pptable->size);
 
-	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_SetDriverDramAddrHigh,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrHigh,
 			upper_32_bits(driver_pptable->mc_address));
 	if (ret) {
 		pr_err("[CopyTableToSMC] Attempt to Set Dram Addr High Failed!");
 		return ret;
 	}
-	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_SetDriverDramAddrLow,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetDriverDramAddrLow,
 			lower_32_bits(driver_pptable->mc_address));
 	if (ret) {
 		pr_err("[CopyTableToSMC] Attempt to Set Dram Addr Low Failed!");
 		return ret;
 	}
-	ret = smu_send_smc_msg_with_param(smu, PPSMC_MSG_TransferTableDram2Smu,
+	ret = smu_send_smc_msg_with_param(smu, SMU_MSG_TransferTableDram2Smu,
 					  table_id);
 	if (ret) {
 		pr_err("[CopyTableToSMC] Attempt to Transfer Table To SMU Failed!");
@@ -634,7 +633,7 @@ static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 		return -EINVAL;
 
 	ret = smu_send_smc_msg_with_param(smu,
-					  PPSMC_MSG_SetMinDeepSleepDcefclk,
+					  SMU_MSG_SetMinDeepSleepDcefclk,
 					  table_context->boot_values.dcefclk / 100);
 	if (ret)
 		pr_err("SMU11 attempt to set divider for DCEFCLK Failed!");
@@ -649,11 +648,11 @@ static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
 
 	if (tool_table->mc_address) {
 		ret = smu_send_smc_msg_with_param(smu,
-				PPSMC_MSG_SetToolsDramAddrHigh,
+				SMU_MSG_SetToolsDramAddrHigh,
 				upper_32_bits(tool_table->mc_address));
 		if (!ret)
 			ret = smu_send_smc_msg_with_param(smu,
-				PPSMC_MSG_SetToolsDramAddrLow,
+				SMU_MSG_SetToolsDramAddrLow,
 				lower_32_bits(tool_table->mc_address));
 	}
 
