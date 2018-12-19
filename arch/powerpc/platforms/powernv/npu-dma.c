@@ -120,9 +120,14 @@ static struct pnv_ioda_pe *get_gpu_pci_dev_and_pe(struct pnv_ioda_pe *npe,
 	return pe;
 }
 
-long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
+static long pnv_npu_unset_window(struct iommu_table_group *table_group,
+		int num);
+
+static long pnv_npu_set_window(struct iommu_table_group *table_group, int num,
 		struct iommu_table *tbl)
 {
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
 	const unsigned long size = tbl->it_indirect_levels ?
@@ -133,7 +138,7 @@ long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 
 	/* NPU has just one TVE so if there is another table, remove it first */
 	if (npe->table_group.tables[num2])
-		pnv_npu_unset_window(npe, num2);
+		pnv_npu_unset_window(&npe->table_group, num2);
 
 	pe_info(npe, "Setting up window %llx..%llx pg=%lx\n",
 			start_addr, start_addr + win_size - 1,
@@ -159,8 +164,10 @@ long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 	return 0;
 }
 
-long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num)
+static long pnv_npu_unset_window(struct iommu_table_group *table_group, int num)
 {
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
 
@@ -205,7 +212,8 @@ static void pnv_npu_dma_set_32(struct pnv_ioda_pe *npe)
 	if (!gpe)
 		return;
 
-	rc = pnv_npu_set_window(npe, 0, gpe->table_group.tables[0]);
+	rc = pnv_npu_set_window(&npe->table_group, 0,
+			gpe->table_group.tables[0]);
 
 	/*
 	 * NVLink devices use the same TCE table configuration as
@@ -230,7 +238,7 @@ static int pnv_npu_dma_set_bypass(struct pnv_ioda_pe *npe)
 	if (phb->type != PNV_PHB_NPU_NVLINK || !npe->pdev)
 		return -EINVAL;
 
-	rc = pnv_npu_unset_window(npe, 0);
+	rc = pnv_npu_unset_window(&npe->table_group, 0);
 	if (rc != OPAL_SUCCESS)
 		return rc;
 
@@ -283,9 +291,12 @@ void pnv_npu_try_dma_set_bypass(struct pci_dev *gpdev, bool bypass)
 	}
 }
 
+#ifdef CONFIG_IOMMU_API
 /* Switch ownership from platform code to external user (e.g. VFIO) */
-void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
+static void pnv_npu_take_ownership(struct iommu_table_group *table_group)
 {
+	struct pnv_ioda_pe *npe = container_of(table_group, struct pnv_ioda_pe,
+			table_group);
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
 
@@ -296,7 +307,7 @@ void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
 	 * if it was enabled at the moment of ownership change.
 	 */
 	if (npe->table_group.tables[0]) {
-		pnv_npu_unset_window(npe, 0);
+		pnv_npu_unset_window(&npe->table_group, 0);
 		return;
 	}
 
@@ -311,6 +322,12 @@ void pnv_npu_take_ownership(struct pnv_ioda_pe *npe)
 	pnv_pci_ioda2_tce_invalidate_entire(npe->phb, false);
 }
 
+static struct iommu_table_group_ops pnv_pci_npu_ops = {
+	.set_window = pnv_npu_set_window,
+	.unset_window = pnv_npu_unset_window,
+	.take_ownership = pnv_npu_take_ownership,
+};
+
 struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe)
 {
 	struct pnv_phb *phb = npe->phb;
@@ -320,6 +337,8 @@ struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe)
 
 	if (!gpe || !gpdev)
 		return NULL;
+
+	npe->table_group.ops = &pnv_pci_npu_ops;
 
 	list_for_each_entry(npdev, &pbus->devices, bus_list) {
 		gptmp = pnv_pci_get_gpu_dev(npdev);
@@ -333,6 +352,7 @@ struct pnv_ioda_pe *pnv_pci_npu_setup_iommu(struct pnv_ioda_pe *npe)
 
 	return gpe;
 }
+#endif /* !CONFIG_IOMMU_API */
 
 /*
  * NPU2 ATS
