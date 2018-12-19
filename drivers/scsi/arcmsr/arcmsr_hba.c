@@ -223,7 +223,7 @@ static struct pci_driver arcmsr_pci_driver = {
 ****************************************************************************
 */
 
-static void arcmsr_free_mu(struct AdapterControlBlock *acb)
+static void arcmsr_free_io_queue(struct AdapterControlBlock *acb)
 {
 	switch (acb->adapter_type) {
 	case ACB_ADAPTER_TYPE_B:
@@ -990,7 +990,7 @@ scsi_host_remove:
 free_ccb_pool:
 	arcmsr_free_ccb_pool(acb);
 free_hbb_mu:
-	arcmsr_free_mu(acb);
+	arcmsr_free_io_queue(acb);
 unmap_pci_region:
 	arcmsr_unmap_pciregion(acb);
 pci_release_regs:
@@ -1500,7 +1500,7 @@ static void arcmsr_free_pcidev(struct AdapterControlBlock *acb)
 	pdev = acb->pdev;
 	arcmsr_free_irq(pdev, acb);
 	arcmsr_free_ccb_pool(acb);
-	arcmsr_free_mu(acb);
+	arcmsr_free_io_queue(acb);
 	arcmsr_unmap_pciregion(acb);
 	pci_release_regions(pdev);
 	scsi_host_put(host);
@@ -1558,7 +1558,7 @@ static void arcmsr_remove(struct pci_dev *pdev)
 	}
 	arcmsr_free_irq(pdev, acb);
 	arcmsr_free_ccb_pool(acb);
-	arcmsr_free_mu(acb);
+	arcmsr_free_io_queue(acb);
 	arcmsr_unmap_pciregion(acb);
 	pci_release_regions(pdev);
 	scsi_host_put(host);
