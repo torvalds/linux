@@ -1985,8 +1985,9 @@
 				#clock-cells = <1>;
 				#phy-cells = <0>;
 
-				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>;
-				clock-names = "iface";
+				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+					 <&rpmhcc RPMH_CXO_CLK>;
+				clock-names = "iface", "ref";
 
 				status = "disabled";
 			};
@@ -2051,8 +2052,9 @@
 				#clock-cells = <1>;
 				#phy-cells = <0>;
 
-				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>;
-				clock-names = "iface";
+				clocks = <&dispcc DISP_CC_MDSS_AHB_CLK>,
+					 <&rpmhcc RPMH_CXO_CLK>;
+				clock-names = "iface", "ref";
 
 				status = "disabled";
 			};
