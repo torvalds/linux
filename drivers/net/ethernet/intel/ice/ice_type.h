@@ -90,6 +90,7 @@ enum ice_vsi_type {
 struct ice_link_status {
 	/* Refer to ice_aq_phy_type for bits definition */
 	u64 phy_type_low;
+	u64 phy_type_high;
 	u16 max_frame_size;
 	u16 link_speed;
 	u16 req_speeds;
@@ -118,6 +119,7 @@ struct ice_phy_info {
 	struct ice_link_status link_info;
 	struct ice_link_status link_info_old;
 	u64 phy_type_low;
+	u64 phy_type_high;
 	enum ice_media_type media_type;
 	u8 get_link_info;
 };

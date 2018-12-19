@@ -72,7 +72,8 @@ ice_aq_get_phy_caps(struct ice_port_info *pi, bool qual_mods, u8 report_mode,
 		    struct ice_aqc_get_phy_caps_data *caps,
 		    struct ice_sq_cd *cd);
 void
-ice_update_phy_type(u64 *phy_type_low, u16 link_speeds_bitmap);
+ice_update_phy_type(u64 *phy_type_low, u64 *phy_type_high,
+		    u16 link_speeds_bitmap);
 enum ice_status
 ice_aq_manage_mac_write(struct ice_hw *hw, u8 *mac_addr, u8 flags,
 			struct ice_sq_cd *cd);

@@ -493,16 +493,20 @@ ice_get_ethtool_stats(struct net_device *netdev,
  * @netdev: network interface device structure
  * @ks: ethtool link ksettings struct to fill out
  */
-static void ice_phy_type_to_ethtool(struct net_device *netdev,
-				    struct ethtool_link_ksettings *ks)
+static void
+ice_phy_type_to_ethtool(struct net_device *netdev,
+			struct ethtool_link_ksettings *ks)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ice_link_status *hw_link_info;
+	bool need_add_adv_mode = false;
 	struct ice_vsi *vsi = np->vsi;
+	u64 phy_types_high;
 	u64 phy_types_low;
 
 	hw_link_info = &vsi->port_info->phy.link_info;
 	phy_types_low = vsi->port_info->phy.phy_type_low;
+	phy_types_high = vsi->port_info->phy.phy_type_high;
 
 	ethtool_link_ksettings_zero_link_mode(ks, supported);
 	ethtool_link_ksettings_zero_link_mode(ks, advertising);
@@ -651,6 +655,95 @@ static void ice_phy_type_to_ethtool(struct net_device *netdev,
 			ethtool_link_ksettings_add_link_mode(ks, advertising,
 							     40000baseLR4_Full);
 	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_CR2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50G_LAUI2_AOC_ACC ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50G_LAUI2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50G_AUI2_AOC_ACC ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50G_AUI2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_CP ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_SR ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50G_AUI1_AOC_ACC ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50G_AUI1) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseCR2_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_50GB)
+			ethtool_link_ksettings_add_link_mode(ks, advertising,
+							     50000baseCR2_Full);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_KR2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseKR2_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_50GB)
+			ethtool_link_ksettings_add_link_mode(ks, advertising,
+							     50000baseKR2_Full);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_SR2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_LR2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_FR ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_LR) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseSR2_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_50GB)
+			ethtool_link_ksettings_add_link_mode(ks, advertising,
+							     50000baseSR2_Full);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_CR4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100G_CAUI4_AOC_ACC ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100G_CAUI4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100G_AUI4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_CP2  ||
+	    phy_types_high & ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC ||
+	    phy_types_high & ICE_PHY_TYPE_HIGH_100G_CAUI2 ||
+	    phy_types_high & ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC ||
+	    phy_types_high & ICE_PHY_TYPE_HIGH_100G_AUI2) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseCR4_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_100GB)
+			need_add_adv_mode = true;
+	}
+	if (need_add_adv_mode) {
+		need_add_adv_mode = false;
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseCR4_Full);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_SR4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_SR2) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseSR4_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_100GB)
+			need_add_adv_mode = true;
+	}
+	if (need_add_adv_mode) {
+		need_add_adv_mode = false;
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseSR4_Full);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_LR4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_DR) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseLR4_ER4_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_100GB)
+			need_add_adv_mode = true;
+	}
+	if (need_add_adv_mode) {
+		need_add_adv_mode = false;
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseLR4_ER4_Full);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_KR4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4 ||
+	    phy_types_high & ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseKR4_Full);
+		if (hw_link_info->req_speeds & ICE_AQ_LINK_SPEED_100GB)
+			need_add_adv_mode = true;
+	}
+	if (need_add_adv_mode)
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseKR4_Full);
 
 	/* Autoneg PHY types */
 	if (phy_types_low & ICE_PHY_TYPE_LOW_100BASE_TX ||
@@ -676,6 +769,24 @@ static void ice_phy_type_to_ethtool(struct net_device *netdev,
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     Autoneg);
 	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_CR2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_KR2 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_CP ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     Autoneg);
+	}
+	if (phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_CR4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_KR4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4 ||
+	    phy_types_low & ICE_PHY_TYPE_LOW_100GBASE_CP2) {
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     Autoneg);
+	}
 }
 
 #define TEST_SET_BITS_TIMEOUT	50
@@ -687,13 +798,15 @@ static void ice_phy_type_to_ethtool(struct net_device *netdev,
  * @ks: ethtool ksettings to fill in
  * @netdev: network interface device structure
  */
-static void ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
-				     struct net_device *netdev)
+static void
+ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
+			 struct net_device *netdev)
 {
 	struct ice_netdev_priv *np = netdev_priv(netdev);
 	struct ethtool_link_ksettings cap_ksettings;
 	struct ice_link_status *link_info;
 	struct ice_vsi *vsi = np->vsi;
+	bool unrecog_phy_high = false;
 	bool unrecog_phy_low = false;
 
 	link_info = &vsi->port_info->phy.link_info;
@@ -855,14 +968,116 @@ static void ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 		ethtool_link_ksettings_add_link_mode(ks, advertising,
 						     40000baseKR4_Full);
 		break;
+	case ICE_PHY_TYPE_LOW_50GBASE_CR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_CP:
+		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseCR2_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     50000baseCR2_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_50G_LAUI2_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_50G_LAUI2:
+	case ICE_PHY_TYPE_LOW_50G_AUI2_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_50G_AUI2:
+	case ICE_PHY_TYPE_LOW_50GBASE_SR:
+	case ICE_PHY_TYPE_LOW_50G_AUI1_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_50G_AUI1:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseCR2_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_50GBASE_KR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_KR_PAM4:
+		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseKR2_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     50000baseKR2_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_50GBASE_SR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_LR2:
+	case ICE_PHY_TYPE_LOW_50GBASE_FR:
+	case ICE_PHY_TYPE_LOW_50GBASE_LR:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     50000baseSR2_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_100GBASE_CR4:
+		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseCR4_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseCR4_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_100G_CAUI4_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_100G_CAUI4:
+	case ICE_PHY_TYPE_LOW_100G_AUI4_AOC_ACC:
+	case ICE_PHY_TYPE_LOW_100G_AUI4:
+	case ICE_PHY_TYPE_LOW_100GBASE_CR_PAM4:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseCR4_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_100GBASE_CP2:
+		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseCR4_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseCR4_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_100GBASE_SR4:
+	case ICE_PHY_TYPE_LOW_100GBASE_SR2:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseSR4_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_100GBASE_LR4:
+	case ICE_PHY_TYPE_LOW_100GBASE_DR:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseLR4_ER4_Full);
+		break;
+	case ICE_PHY_TYPE_LOW_100GBASE_KR4:
+	case ICE_PHY_TYPE_LOW_100GBASE_KR_PAM4:
+		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseKR4_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseKR4_Full);
+		break;
 	default:
 		unrecog_phy_low = true;
 	}
 
-	if (unrecog_phy_low) {
+	switch (link_info->phy_type_high) {
+	case ICE_PHY_TYPE_HIGH_100GBASE_KR2_PAM4:
+		ethtool_link_ksettings_add_link_mode(ks, supported, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseKR4_Full);
+		ethtool_link_ksettings_add_link_mode(ks, advertising, Autoneg);
+		ethtool_link_ksettings_add_link_mode(ks, advertising,
+						     100000baseKR4_Full);
+		break;
+	case ICE_PHY_TYPE_HIGH_100G_CAUI2_AOC_ACC:
+	case ICE_PHY_TYPE_HIGH_100G_CAUI2:
+	case ICE_PHY_TYPE_HIGH_100G_AUI2_AOC_ACC:
+	case ICE_PHY_TYPE_HIGH_100G_AUI2:
+		ethtool_link_ksettings_add_link_mode(ks, supported,
+						     100000baseCR4_Full);
+		break;
+	default:
+		unrecog_phy_high = true;
+	}
+
+	if (unrecog_phy_low && unrecog_phy_high) {
 		/* if we got here and link is up something bad is afoot */
-		netdev_info(netdev, "WARNING: Unrecognized PHY_Low (0x%llx).\n",
+		netdev_info(netdev,
+			    "WARNING: Unrecognized PHY_Low (0x%llx).\n",
 			    (u64)link_info->phy_type_low);
+		netdev_info(netdev,
+			    "WARNING: Unrecognized PHY_High (0x%llx).\n",
+			    (u64)link_info->phy_type_high);
 	}
 
 	/* Now that we've worked out everything that could be supported by the
@@ -874,6 +1089,12 @@ static void ice_get_settings_link_up(struct ethtool_link_ksettings *ks,
 	ethtool_intersect_link_masks(ks, &cap_ksettings);
 
 	switch (link_info->link_speed) {
+	case ICE_AQ_LINK_SPEED_100GB:
+		ks->base.speed = SPEED_100000;
+		break;
+	case ICE_AQ_LINK_SPEED_50GB:
+		ks->base.speed = SPEED_50000;
+		break;
 	case ICE_AQ_LINK_SPEED_40GB:
 		ks->base.speed = SPEED_40000;
 		break;
@@ -1067,6 +1288,23 @@ ice_ksettings_find_adv_link_speed(const struct ethtool_link_ksettings *ks)
 	    ethtool_link_ksettings_test_link_mode(ks, advertising,
 						  40000baseKR4_Full))
 		adv_link_speed |= ICE_AQ_LINK_SPEED_40GB;
+	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  50000baseCR2_Full) ||
+	    ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  50000baseKR2_Full))
+		adv_link_speed |= ICE_AQ_LINK_SPEED_50GB;
+	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  50000baseSR2_Full))
+		adv_link_speed |= ICE_AQ_LINK_SPEED_50GB;
+	if (ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  100000baseCR4_Full) ||
+	    ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  100000baseSR4_Full) ||
+	    ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  100000baseLR4_ER4_Full) ||
+	    ethtool_link_ksettings_test_link_mode(ks, advertising,
+						  100000baseKR4_Full))
+		adv_link_speed |= ICE_AQ_LINK_SPEED_100GB;
 
 	return adv_link_speed;
 }
@@ -1137,8 +1375,9 @@ ice_setup_autoneg(struct ice_port_info *p, struct ethtool_link_ksettings *ks,
  *
  * Set speed/duplex per media_types advertised/forced
  */
-static int ice_set_link_ksettings(struct net_device *netdev,
-				  const struct ethtool_link_ksettings *ks)
+static int
+ice_set_link_ksettings(struct net_device *netdev,
+		       const struct ethtool_link_ksettings *ks)
 {
 	u8 autoneg, timeout = TEST_SET_BITS_TIMEOUT, lport = 0;
 	struct ice_netdev_priv *np = netdev_priv(netdev);
@@ -1150,6 +1389,7 @@ static int ice_set_link_ksettings(struct net_device *netdev,
 	struct ice_port_info *p;
 	u8 autoneg_changed = 0;
 	enum ice_status status;
+	u64 phy_type_high;
 	u64 phy_type_low;
 	int err = 0;
 	bool linkup;
@@ -1265,7 +1505,7 @@ static int ice_set_link_ksettings(struct net_device *netdev,
 		adv_link_speed = curr_link_speed;
 
 	/* Convert the advertise link speeds to their corresponded PHY_TYPE */
-	ice_update_phy_type(&phy_type_low, adv_link_speed);
+	ice_update_phy_type(&phy_type_low, &phy_type_high, adv_link_speed);
 
 	if (!autoneg_changed && adv_link_speed == curr_link_speed) {
 		netdev_info(netdev, "Nothing changed, exiting without setting anything.\n");
@@ -1284,7 +1524,9 @@ static int ice_set_link_ksettings(struct net_device *netdev,
 	/* set link and auto negotiation so changes take effect */
 	config.caps |= ICE_AQ_PHY_ENA_LINK;
 
-	if (phy_type_low) {
+	if (phy_type_low || phy_type_high) {
+		config.phy_type_high = cpu_to_le64(phy_type_high) &
+			abilities->phy_type_high;
 		config.phy_type_low = cpu_to_le64(phy_type_low) &
 			abilities->phy_type_low;
 	} else {

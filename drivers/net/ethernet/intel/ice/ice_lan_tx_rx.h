@@ -489,5 +489,7 @@ static inline struct ice_rx_ptype_decoded ice_decode_rx_desc_ptype(u16 ptype)
 #define ICE_LINK_SPEED_20000MBPS	20000
 #define ICE_LINK_SPEED_25000MBPS	25000
 #define ICE_LINK_SPEED_40000MBPS	40000
+#define ICE_LINK_SPEED_50000MBPS	50000
+#define ICE_LINK_SPEED_100000MBPS	100000
 
 #endif /* _ICE_LAN_TX_RX_H_ */
