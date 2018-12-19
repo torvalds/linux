@@ -665,7 +665,7 @@ static int msdc_do_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 		if (read) {
 			if ((host->timeout_ns != data->timeout_ns) ||
-				(host->timeout_clks != data->timeout_clks)) {
+			    (host->timeout_clks != data->timeout_clks)) {
 				msdc_set_timeout(host, data->timeout_ns, data->timeout_clks);
 			}
 		}
@@ -1380,7 +1380,7 @@ static irqreturn_t msdc_irq(int irq, void *dev_id)
 	/* command interrupts */
 	if (cmd && (intsts & cmdsts)) {
 		if ((intsts & MSDC_INT_CMDRDY) || (intsts & MSDC_INT_ACMDRDY) ||
-			(intsts & MSDC_INT_ACMD19_DONE)) {
+		    (intsts & MSDC_INT_ACMD19_DONE)) {
 			u32 *rsp = &cmd->resp[0];
 
 			switch (host->cmd_rsp) {
