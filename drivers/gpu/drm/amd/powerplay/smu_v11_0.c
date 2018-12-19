@@ -81,13 +81,17 @@ static int smu_v11_0_wait_for_response(struct smu_context *smu)
 static int smu_v11_0_send_msg(struct smu_context *smu, uint16_t msg)
 {
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	int ret = 0, index = 0;
+
+	index = smu_msg_get_index(smu, msg);
+	if (index < 0)
+		return index;
 
 	smu_v11_0_wait_for_response(smu);
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
 
-	smu_v11_0_send_msg_without_waiting(smu, msg);
+	smu_v11_0_send_msg_without_waiting(smu, (uint16_t)index);
 
 	ret = smu_v11_0_wait_for_response(smu);
 
@@ -105,7 +109,11 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 {
 
 	struct amdgpu_device *adev = smu->adev;
-	int ret = 0;
+	int ret = 0, index = 0;
+
+	index = smu_msg_get_index(smu, msg);
+	if (index < 0)
+		return index;
 
 	ret = smu_v11_0_wait_for_response(smu);
 	if (ret)
@@ -116,7 +124,7 @@ smu_v11_0_send_msg_with_param(struct smu_context *smu, uint16_t msg,
 
 	WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
 
-	smu_v11_0_send_msg_without_waiting(smu, msg);
+	smu_v11_0_send_msg_without_waiting(smu, (uint16_t)index);
 
 	ret = smu_v11_0_wait_for_response(smu);
 	if (ret)
