@@ -106,9 +106,6 @@ struct mapped_device {
 
 	struct block_device *bdev;
 
-	/* zero-length flush that will be cloned and submitted to targets */
-	struct bio flush_bio;
-
 	struct dm_stats stats;
 
 	/* for blk-mq request-based DM support */
