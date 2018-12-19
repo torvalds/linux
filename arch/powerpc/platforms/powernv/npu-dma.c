@@ -129,6 +129,11 @@ long pnv_npu_set_window(struct pnv_ioda_pe *npe, int num,
 		tbl->it_level_size : tbl->it_size;
 	const __u64 start_addr = tbl->it_offset << tbl->it_page_shift;
 	const __u64 win_size = tbl->it_size << tbl->it_page_shift;
+	int num2 = (num == 0) ? 1 : 0;
+
+	/* NPU has just one TVE so if there is another table, remove it first */
+	if (npe->table_group.tables[num2])
+		pnv_npu_unset_window(npe, num2);
 
 	pe_info(npe, "Setting up window %llx..%llx pg=%lx\n",
 			start_addr, start_addr + win_size - 1,
@@ -158,6 +163,9 @@ long pnv_npu_unset_window(struct pnv_ioda_pe *npe, int num)
 {
 	struct pnv_phb *phb = npe->phb;
 	int64_t rc;
+
+	if (!npe->table_group.tables[num])
+		return 0;
 
 	pe_info(npe, "Removing DMA window\n");
 
