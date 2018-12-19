@@ -1429,6 +1429,10 @@ static int hisi_sas_controller_reset(struct hisi_hba *hisi_hba)
 	struct Scsi_Host *shost = hisi_hba->shost;
 	int rc;
 
+	if (hisi_sas_debugfs_enable && hisi_hba->debugfs_itct &&
+	    !hisi_hba->debugfs_dump_dentry)
+		queue_work(hisi_hba->wq, &hisi_hba->debugfs_work);
+
 	if (!hisi_hba->hw->soft_reset)
 		return -1;
 
@@ -1923,6 +1927,7 @@ hisi_sas_internal_task_abort(struct hisi_hba *hisi_hba,
 				slot->task = NULL;
 			}
 			dev_err(dev, "internal task abort: timeout and not done.\n");
+
 			res = -EIO;
 			goto exit;
 		} else
@@ -2458,6 +2463,126 @@ err_out_ha:
 EXPORT_SYMBOL_GPL(hisi_sas_probe);
 
 struct dentry *hisi_sas_debugfs_dir;
+
+static void hisi_sas_debugfs_snapshot_cq_reg(struct hisi_hba *hisi_hba)
+{
+	int queue_entry_size = hisi_hba->hw->complete_hdr_size;
+	int i;
+
+	for (i = 0; i < hisi_hba->queue_count; i++)
+		memcpy(hisi_hba->debugfs_complete_hdr[i],
+		       hisi_hba->complete_hdr[i],
+		       HISI_SAS_QUEUE_SLOTS * queue_entry_size);
+}
+
+static void hisi_sas_debugfs_snapshot_dq_reg(struct hisi_hba *hisi_hba)
+{
+	int queue_entry_size = hisi_hba->hw->complete_hdr_size;
+	int i;
+
+	for (i = 0; i < hisi_hba->queue_count; i++)
+		memcpy(hisi_hba->debugfs_cmd_hdr[i],
+		       hisi_hba->cmd_hdr[i],
+		       HISI_SAS_QUEUE_SLOTS * queue_entry_size);
+}
+
+static void hisi_sas_debugfs_snapshot_port_reg(struct hisi_hba *hisi_hba)
+{
+	const struct hisi_sas_debugfs_reg *port =
+		hisi_hba->hw->debugfs_reg_port;
+	int i, phy_cnt;
+	u32 offset;
+	u32 *databuf;
+
+	for (phy_cnt = 0; phy_cnt < hisi_hba->n_phy; phy_cnt++) {
+		databuf = (u32 *)hisi_hba->debugfs_port_reg[phy_cnt];
+		for (i = 0; i < port->count; i++, databuf++) {
+			offset = port->base_off + 4 * i;
+			*databuf = port->read_port_reg(hisi_hba, phy_cnt,
+						       offset);
+		}
+	}
+}
+
+static void hisi_sas_debugfs_snapshot_global_reg(struct hisi_hba *hisi_hba)
+{
+	u32 *databuf = (u32 *)hisi_hba->debugfs_global_reg;
+	const struct hisi_sas_debugfs_reg *global =
+		hisi_hba->hw->debugfs_reg_global;
+	int i;
+
+	for (i = 0; i < global->count; i++, databuf++)
+		*databuf = global->read_global_reg(hisi_hba, 4 * i);
+}
+
+static void hisi_sas_debugfs_snapshot_itct_reg(struct hisi_hba *hisi_hba)
+{
+	void *databuf = hisi_hba->debugfs_itct;
+	struct hisi_sas_itct *itct;
+	int i;
+
+	itct = hisi_hba->itct;
+
+	for (i = 0; i < HISI_SAS_MAX_ITCT_ENTRIES; i++, itct++) {
+		memcpy(databuf, itct, sizeof(struct hisi_sas_itct));
+		databuf += sizeof(struct hisi_sas_itct);
+	}
+}
+
+static void hisi_sas_debugfs_snapshot_iost_reg(struct hisi_hba *hisi_hba)
+{
+	int max_command_entries = hisi_hba->hw->max_command_entries;
+	void *databuf = hisi_hba->debugfs_iost;
+	struct hisi_sas_iost *iost;
+	int i;
+
+	iost = hisi_hba->iost;
+
+	for (i = 0; i < max_command_entries; i++, iost++) {
+		memcpy(databuf, iost, sizeof(struct hisi_sas_iost));
+		databuf += sizeof(struct hisi_sas_iost);
+	}
+}
+
+static void hisi_sas_debugfs_create_files(struct hisi_hba *hisi_hba)
+{
+	struct dentry *dump_dentry;
+
+	/* Create dump dir inside device dir */
+	dump_dentry = debugfs_create_dir("dump", hisi_hba->debugfs_dir);
+	if (!dump_dentry)
+		goto fail;
+
+	hisi_hba->debugfs_dump_dentry = dump_dentry;
+	return;
+fail:
+	debugfs_remove_recursive(hisi_hba->debugfs_dir);
+}
+
+static void hisi_sas_debugfs_snapshot_regs(struct hisi_hba *hisi_hba)
+{
+	hisi_hba->hw->snapshot_prepare(hisi_hba);
+
+	hisi_sas_debugfs_snapshot_global_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_port_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_cq_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_dq_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_itct_reg(hisi_hba);
+	hisi_sas_debugfs_snapshot_iost_reg(hisi_hba);
+
+	hisi_sas_debugfs_create_files(hisi_hba);
+
+	hisi_hba->hw->snapshot_restore(hisi_hba);
+}
+
+void hisi_sas_debugfs_work_handler(struct work_struct *work)
+{
+	struct hisi_hba *hisi_hba =
+		container_of(work, struct hisi_hba, debugfs_work);
+
+	hisi_sas_debugfs_snapshot_regs(hisi_hba);
+}
+EXPORT_SYMBOL_GPL(hisi_sas_debugfs_work_handler);
 
 void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba)
 {

@@ -223,6 +223,12 @@ struct hisi_sas_slot {
 
 struct hisi_sas_debugfs_reg {
 	int count;
+	int base_off;
+	union {
+		u32 (*read_global_reg)(struct hisi_hba *hisi_hba, u32 off);
+		u32 (*read_port_reg)(struct hisi_hba *hisi_hba, int port,
+				     u32 off);
+	};
 };
 
 struct hisi_sas_hw {
@@ -264,8 +270,10 @@ struct hisi_sas_hw {
 	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int (*write_gpio)(struct hisi_hba *hisi_hba, u8 reg_type,
 				u8 reg_index, u8 reg_count, u8 *write_data);
-	void (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
-					   int delay_ms, int timeout_ms);
+	int (*wait_cmds_complete_timeout)(struct hisi_hba *hisi_hba,
+					  int delay_ms, int timeout_ms);
+	void (*snapshot_prepare)(struct hisi_hba *hisi_hba);
+	void (*snapshot_restore)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
 	int complete_hdr_size;
 	struct scsi_host_template *sht;
@@ -337,6 +345,7 @@ struct hisi_hba {
 	const struct hisi_sas_hw *hw;	/* Low level hw interface */
 	unsigned long sata_dev_bitmap[BITS_TO_LONGS(HISI_SAS_MAX_DEVICES)];
 	struct work_struct rst_work;
+	struct work_struct debugfs_work;
 	u32 phy_state;
 	u32 intr_coal_ticks;	/* Time of interrupt coalesce in us */
 	u32 intr_coal_count;	/* Interrupt count to coalesce */
@@ -350,6 +359,7 @@ struct hisi_hba {
 	struct hisi_sas_itct *debugfs_itct;
 
 	struct dentry *debugfs_dir;
+	struct dentry *debugfs_dump_dentry;
 };
 
 /* Generic HW DMA host memory structures */
@@ -517,4 +527,5 @@ extern void hisi_sas_controller_reset_prepare(struct hisi_hba *hisi_hba);
 extern void hisi_sas_controller_reset_done(struct hisi_hba *hisi_hba);
 extern void hisi_sas_debugfs_init(struct hisi_hba *hisi_hba);
 extern void hisi_sas_debugfs_exit(struct hisi_hba *hisi_hba);
+extern void hisi_sas_debugfs_work_handler(struct work_struct *work);
 #endif
