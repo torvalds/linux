@@ -1837,9 +1837,6 @@ static int wm8904_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		ret = clk_prepare_enable(wm8904->mclk);
-		if (ret)
-			return ret;
 		break;
 
 	case SND_SOC_BIAS_PREPARE:
@@ -1861,6 +1858,15 @@ static int wm8904_set_bias_level(struct snd_soc_component *component,
 				dev_err(component->dev,
 					"Failed to enable supplies: %d\n",
 					ret);
+				return ret;
+			}
+
+			ret = clk_prepare_enable(wm8904->mclk);
+			if (ret) {
+				dev_err(component->dev,
+					"Failed to enable MCLK: %d\n", ret);
+				regulator_bulk_disable(ARRAY_SIZE(wm8904->supplies),
+						       wm8904->supplies);
 				return ret;
 			}
 
